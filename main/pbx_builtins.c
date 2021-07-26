@@ -37,6 +37,7 @@
 #include "asterisk/say.h"
 #include "asterisk/app.h"
 #include "asterisk/module.h"
+#include "asterisk/conversions.h"
 #include "pbx_private.h"
 
 /*** DOCUMENTATION
@@ -440,9 +441,12 @@
 		</description>
 		<see-also>
 			<ref type="application">SayDigits</ref>
+			<ref type="application">SayMoney</ref>
 			<ref type="application">SayNumber</ref>
+			<ref type="application">SayOrdinal</ref>
 			<ref type="application">SayPhonetic</ref>
 			<ref type="function">CHANNEL</ref>
+			<ref type="function">SAYFILES</ref>
 		</see-also>
 	</application>
 	<application name="SayAlphaCase" language="en_US">
@@ -481,7 +485,9 @@
 		</description>
 		<see-also>
 			<ref type="application">SayDigits</ref>
+			<ref type="application">SayMoney</ref>
 			<ref type="application">SayNumber</ref>
+			<ref type="application">SayOrdinal</ref>
 			<ref type="application">SayPhonetic</ref>
 			<ref type="application">SayAlpha</ref>
 			<ref type="function">CHANNEL</ref>
@@ -503,9 +509,35 @@
 		</description>
 		<see-also>
 			<ref type="application">SayAlpha</ref>
+			<ref type="application">SayMoney</ref>
 			<ref type="application">SayNumber</ref>
+			<ref type="application">SayOrdinal</ref>
 			<ref type="application">SayPhonetic</ref>
 			<ref type="function">CHANNEL</ref>
+			<ref type="function">SAYFILES</ref>
+		</see-also>
+	</application>
+	<application name="SayMoney" language="en_US">
+		<synopsis>
+			Say Money.
+		</synopsis>
+		<syntax>
+			<parameter name="dollars" required="true" />
+		</syntax>
+		<description>
+			<para>This application will play the currency sounds for the given floating point number
+			in the current language. Currently only English and US Dollars is supported.
+			If the channel variable <variable>SAY_DTMF_INTERRUPT</variable> is set to 'true'
+			(case insensitive), then this application will react to DTMF in the same way as
+			<literal>Background</literal>.</para>
+		</description>
+		<see-also>
+			<ref type="application">SayAlpha</ref>
+			<ref type="application">SayNumber</ref>
+			<ref type="application">SayOrdinal</ref>
+			<ref type="application">SayPhonetic</ref>
+			<ref type="function">CHANNEL</ref>
+			<ref type="function">SAYFILES</ref>
 		</see-also>
 	</application>
 	<application name="SayNumber" language="en_US">
@@ -527,8 +559,37 @@
 		<see-also>
 			<ref type="application">SayAlpha</ref>
 			<ref type="application">SayDigits</ref>
+			<ref type="application">SayMoney</ref>
 			<ref type="application">SayPhonetic</ref>
 			<ref type="function">CHANNEL</ref>
+			<ref type="function">SAYFILES</ref>
+		</see-also>
+	</application>
+	<application name="SayOrdinal" language="en_US">
+		<synopsis>
+			Say Ordinal Number.
+		</synopsis>
+		<syntax>
+			<parameter name="digits" required="true" />
+			<parameter name="gender" />
+		</syntax>
+		<description>
+			<para>This application will play the ordinal sounds that correspond to the given
+			<replaceable>digits</replaceable> (e.g. 1st, 42nd). Currently only English is supported.</para>
+			<para>Optionally, a <replaceable>gender</replaceable> may be
+			specified. This will use the language that is currently set for the channel. See the CHANNEL()
+			function for more information on setting the language for the channel. If the channel variable
+			<variable>SAY_DTMF_INTERRUPT</variable> is set to 'true' (case insensitive), then this
+			application will react to DTMF in the same way as <literal>Background</literal>.</para>
+		</description>
+		<see-also>
+			<ref type="application">SayAlpha</ref>
+			<ref type="application">SayDigits</ref>
+			<ref type="application">SayMoney</ref>
+			<ref type="application">SayNumber</ref>
+			<ref type="application">SayPhonetic</ref>
+			<ref type="function">CHANNEL</ref>
+			<ref type="function">SAYFILES</ref>
 		</see-also>
 	</application>
 	<application name="SayPhonetic" language="en_US">
@@ -547,7 +608,10 @@
 		<see-also>
 			<ref type="application">SayAlpha</ref>
 			<ref type="application">SayDigits</ref>
+			<ref type="application">SayMoney</ref>
 			<ref type="application">SayNumber</ref>
+			<ref type="application">SayOrdinal</ref>
+			<ref type="function">SAYFILES</ref>
 		</see-also>
 	</application>
 	<application name="SetAMAFlags" language="en_US">
@@ -1283,7 +1347,7 @@ static int pbx_builtin_saynumber(struct ast_channel *chan, const char *data)
 	ast_copy_string(tmp, data, sizeof(tmp));
 	strsep(&number, ",");
 
-	if (sscanf(tmp, "%d", &number_val) != 1) {
+	if (ast_str_to_int(tmp, &number_val)) {
 		ast_log(LOG_WARNING, "argument '%s' to SayNumber could not be parsed as a number.\n", tmp);
 		return 0;
 	}
@@ -1298,6 +1362,53 @@ static int pbx_builtin_saynumber(struct ast_channel *chan, const char *data)
 	}
 
 	res = ast_say_number(chan, number_val, interrupt ? AST_DIGIT_ANY : "", ast_channel_language(chan), options);
+
+	if (res < 0 && !ast_check_hangup_locked(chan)) {
+		ast_log(LOG_WARNING, "We were unable to say the number %s, is it too large?\n", tmp);
+	}
+
+	return interrupt ? res : 0;
+}
+
+static int pbx_builtin_sayordinal(struct ast_channel *chan, const char *data)
+{
+	char tmp[256];
+	char *number = tmp;
+	int number_val;
+	char *options;
+	int res;
+	int interrupt = 0;
+	const char *interrupt_string;
+
+	ast_channel_lock(chan);
+	interrupt_string = pbx_builtin_getvar_helper(chan, "SAY_DTMF_INTERRUPT");
+	if (ast_true(interrupt_string)) {
+		interrupt = 1;
+	}
+	ast_channel_unlock(chan);
+
+	if (ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "SayOrdinal requires an argument (number)\n");
+		return -1;
+	}
+	ast_copy_string(tmp, data, sizeof(tmp));
+	strsep(&number, ",");
+
+	if (ast_str_to_int(tmp, &number_val)) {
+		ast_log(LOG_WARNING, "argument '%s' to SayOrdinal could not be parsed as a number.\n", tmp);
+		return 0;
+	}
+
+	options = strsep(&number, ",");
+	if (options) {
+		if ( strcasecmp(options, "f") && strcasecmp(options, "m") &&
+			strcasecmp(options, "c") && strcasecmp(options, "n") ) {
+			ast_log(LOG_WARNING, "SayOrdinal gender option is either 'f', 'm', 'c' or 'n'\n");
+			return -1;
+		}
+	}
+
+	res = ast_say_ordinal(chan, number_val, interrupt ? AST_DIGIT_ANY : "", ast_channel_language(chan), options);
 
 	if (res < 0 && !ast_check_hangup_locked(chan)) {
 		ast_log(LOG_WARNING, "We were unable to say the number %s, is it too large?\n", tmp);
@@ -1321,6 +1432,26 @@ static int pbx_builtin_saydigits(struct ast_channel *chan, const char *data)
 
 	if (data) {
 		res = ast_say_digit_str(chan, data, interrupt ? AST_DIGIT_ANY : "", ast_channel_language(chan));
+	}
+
+	return res;
+}
+
+static int pbx_builtin_saymoney(struct ast_channel *chan, const char *data)
+{
+	int res = 0;
+	int interrupt = 0;
+	const char *interrupt_string;
+
+	ast_channel_lock(chan);
+	interrupt_string = pbx_builtin_getvar_helper(chan, "SAY_DTMF_INTERRUPT");
+	if (ast_true(interrupt_string)) {
+		interrupt = 1;
+	}
+	ast_channel_unlock(chan);
+
+	if (data) {
+		res = ast_say_money_str(chan, data, interrupt ? AST_DIGIT_ANY : "", ast_channel_language(chan));
 	}
 
 	return res;
@@ -1483,7 +1614,9 @@ struct pbx_builtin {
 	{ "SayAlpha",       pbx_builtin_saycharacters },
 	{ "SayAlphaCase",   pbx_builtin_saycharacters_case },
 	{ "SayDigits",      pbx_builtin_saydigits },
+	{ "SayMoney",       pbx_builtin_saymoney },
 	{ "SayNumber",      pbx_builtin_saynumber },
+	{ "SayOrdinal",     pbx_builtin_sayordinal },
 	{ "SayPhonetic",    pbx_builtin_sayphonetic },
 	{ "SetAMAFlags",    pbx_builtin_setamaflags },
 	{ "Wait",           pbx_builtin_wait },
