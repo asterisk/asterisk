@@ -66,7 +66,7 @@
 			<para>Waits until <replaceable>expression</replaceable> evaluates to true, checking every
 			<replaceable>interval</replaceable> seconds for up to <replaceable>timeout</replaceable>. Default
 			is evaluate <replaceable>expression</replaceable> every 50 milliseconds with no timeout.</para>
-			<example title="Wait for ${condition} to become 1 for up to 40 seconds, checking every 500ms">
+			<example title="Wait for condition dialplan variable/function to become 1 for up to 40 seconds, checking every 500ms">
 			 same => n,WaitForCondition(#,#["#{condition}"="1"],40,0.5)
 			</example>
 			<para>Sets <variable>WAITFORCONDITIONSTATUS</variable> to one of the following values:</para>
