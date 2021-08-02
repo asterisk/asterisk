@@ -3822,7 +3822,7 @@ int ast_build_timing(struct ast_timing *i, const char *info_in)
 
 	/* count the number of fields in the timespec */
 	for (j = 0, num_fields = 1; info[j] != '\0'; j++) {
-		if (info[j] == ',') {
+		if (info[j] == '|' || info[j] == ',') {
 			last_sep = j;
 			num_fields++;
 		}
@@ -4525,7 +4525,7 @@ static int ast_context_add_include2(struct ast_context *con, const char *value,
 	new_include->rname = p;
 	strcpy(p, value);
 	/* Strip off timing info, and process if it is there */
-	if ( (c = strchr(p, '|')) ) {
+	if ( (c = strchr(p, '|')) || (c = strchr(p, ',')) ) {
 		*c++ = '\0';
 		new_include->hastime = ast_build_timing(&(new_include->timing), c);
 	}
