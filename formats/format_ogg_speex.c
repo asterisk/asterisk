@@ -254,6 +254,12 @@ static int ogg_speex_trunc(struct ast_filestream *s)
 	return -1;
 }
 
+static int ogg_speex_write(struct ast_filestream *s, struct ast_frame *f)
+{
+	ast_log(LOG_WARNING, "Writing is not supported on OGG/Speex streams!\n");
+	return -1;
+}
+
 /*!
  * \brief Seek to a specific position in an OGG/Speex filestream.
  * \param s The filestream to truncate.
@@ -277,6 +283,7 @@ static struct ast_format_def speex_f = {
 	.name = "ogg_speex",
 	.exts = "spx",
 	.open = ogg_speex_open,
+	.write = ogg_speex_write,
 	.seek = ogg_speex_seek,
 	.trunc = ogg_speex_trunc,
 	.tell = ogg_speex_tell,
@@ -290,6 +297,7 @@ static struct ast_format_def speex16_f = {
 	.name = "ogg_speex16",
 	.exts = "spx16",
 	.open = ogg_speex_open,
+	.write = ogg_speex_write,
 	.seek = ogg_speex_seek,
 	.trunc = ogg_speex_trunc,
 	.tell = ogg_speex_tell,
@@ -303,6 +311,7 @@ static struct ast_format_def speex32_f = {
 	.name = "ogg_speex32",
 	.exts = "spx32",
 	.open = ogg_speex_open,
+	.write = ogg_speex_write,
 	.seek = ogg_speex_seek,
 	.trunc = ogg_speex_trunc,
 	.tell = ogg_speex_tell,
