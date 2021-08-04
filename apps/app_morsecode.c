@@ -3,6 +3,8 @@
  *
  * Copyright (c) 2006, Tilghman Lesher.  All rights reserved.
  *
+ * Updated by Naveen Albert <asterisk@phreaknet.org>
+ *
  * Tilghman Lesher <app_morsecode__v001@the-tilghman.com>
  *
  * This code is released by the author with no restrictions on usage.
@@ -20,6 +22,7 @@
  * \brief Morsecode application
  *
  * \author Tilghman Lesher <app_morsecode__v001@the-tilghman.com>
+ * \author Naveen Albert <asterisk@phreaknet.org>
  *
  * \ingroup applications
  */
@@ -58,6 +61,14 @@
 				<variable name="MORSETONE">
 					<para>The pitch of the tone in (Hz), default is 800</para>
 				</variable>
+				<variable name="MORSESPACETONE">
+					<para>The pitch of the spaces in (Hz), default is 0</para>
+				</variable>
+				<variable name="MORSETYPE">
+					<para>The code type to use (AMERICAN for standard American Morse
+					or INTERNATIONAL for international code.
+					Default is INTERNATIONAL).</para>
+				</variable>
 			</variablelist>
 		</description>
 		<see-also>
@@ -68,7 +79,7 @@
  ***/
 static const char app_morsecode[] = "Morsecode";
 
-static const char * const morsecode[] = {
+static const char * const internationalcode[] = {
 	"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", /*  0-15 */
 	"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", /* 16-31 */
 	" ",      /* 32 - <space> */
@@ -95,16 +106,16 @@ static const char * const morsecode[] = {
 	"",       /* 62 - > */
 	"..--..", /* 63 - ? */
 	".--.-.", /* 64 - @ */
-	".-", "-...", "-.-.", "-..", ".", "..-.", "--.", "....", "..", ".---", "-.-", ".-..", "--",
-	"-.", "---", ".--.", "--.-", ".-.", "...", "-", "..-", "...-", ".--", "-..-", "-.--", "--..",
+	".-", "-...", "-.-.", "-..", ".", "..-.", "--.", "....", "..", ".---", "-.-", ".-..", "--", /* A-M */
+	"-.", "---", ".--.", "--.-", ".-.", "...", "-", "..-", "...-", ".--", "-..-", "-.--", "--..", /* N-Z */
 	"-.--.-", /* 91 - [ (really '(') */
 	"-..-.",  /* 92 - \ (really '/') */
 	"-.--.-", /* 93 - ] (really ')') */
 	"",       /* 94 - ^ */
 	"..--.-", /* 95 - _ */
 	".----.", /* 96 - ` */
-	".-", "-...", "-.-.", "-..", ".", "..-.", "--.", "....", "..", ".---", "-.-", ".-..", "--",
-	"-.", "---", ".--.", "--.-", ".-.", "...", "-", "..-", "...-", ".--", "-..-", "-.--", "--..",
+	".-", "-...", "-.-.", "-..", ".", "..-.", "--.", "....", "..", ".---", "-.-", ".-..", "--", /* a-m */
+	"-.", "---", ".--.", "--.-", ".-.", "...", "-", "..-", "...-", ".--", "-..-", "-.--", "--..", /* n-z */
 	"-.--.-", /* 123 - { (really '(') */
 	"",       /* 124 - | */
 	"-.--.-", /* 125 - } (really ')') */
@@ -112,33 +123,78 @@ static const char * const morsecode[] = {
 	". . .",  /* 127 - <del> (error) */
 };
 
-static void playtone(struct ast_channel *chan, int tone, int len)
+static const char * const americanmorsecode[] = {
+	"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", /*  0-15 */
+	"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", /* 16-31 */
+	"  ",    /* 32 - <space> */
+	"---.",   /* 33 - ! */
+	"..-. -.",/* 34 - " (QN)*/
+	"",       /* 35 - # */
+	"... .-..",/* 36 - $ (SX) */
+	"",       /* 37 - % */
+	". ...",  /* 38 - & (ES) */
+	"..-. .-..",/* 39 - ' (QX) */
+	"..... -.", /* 40 - ( (PN) */
+	"..... .. ..", /* 41 - ) (PY) */
+	"",       /* 42 - * */
+	"",       /* 43 - + */
+	".-.-",   /* 44 - , */
+	".... .-..",/* 45 - (HX) */
+	"..--..", /* 46 - . */
+	"..- -",  /* 47 - / (UT) */
+	".--.", "..-..", "...-.", "....-", "---", "......", "--..", "-....", "-..-", "0", /* 48-57 - 0-9 */
+	"-.- . .",/* 58 - : (KO) */
+	"... ..", /* 59 - ; */
+	"",       /* 60 - < */
+	"-...-",  /* 61 - = (paragraph mark) */
+	"",       /* 62 - > */
+	"-..-.",  /* 63 - ? */
+	".--.-.", /* 64 - @ */
+	".-", "-...", ".. .", "-..", ".", ".-.", "--.", "....", "..", ".-.-", "-.-", "L", "--", /* A-M */
+	"-.", ". .", ".....", "..-.", ". ..", "...", "-", "..-", "...-", ".--", ".-..", ".. ..", "... .", /* N-Z */
+	"..... -.", /* 91 - [ (really '(') */
+	"..- -",  /* 92 - \ (really '/') */
+	"..... .. ..", /* 93 - ] (really ')') */
+	"",       /* 94 - ^ */
+	"..--.-", /* 95 - _ */
+	".----.", /* 96 - ` */
+	".-", "-...", ".. .", "-..", ".", ".-.", "--.", "....", "..", ".-.-", "-.-", "L", "--", /* a-m */
+	"-.", ". .", ".....", "..-.", ". ..", "...", "-", "..-", "...-", ".--", ".-..", ".. ..", "... .", /* n-z */
+	"..... -.", /* 123 - { (really '(') */
+	"",       /* 124 - | */
+	"..... .. ..", /* 125 - } (really ')') */
+	"..- -",  /* 126 - ~ (really bar) */
+	". . .",  /* 127 - <del> (error) */
+};
+
+static int playtone(struct ast_channel *chan, int tone, int len)
 {
+	int res;
 	char dtmf[20];
 	snprintf(dtmf, sizeof(dtmf), "%d/%d", tone, len);
 	ast_playtones_start(chan, 0, dtmf, 0);
-	ast_safe_sleep(chan, len);
+	res = ast_safe_sleep(chan, len);
 	ast_playtones_stop(chan);
+	return res;
 }
 
 static int morsecode_exec(struct ast_channel *chan, const char *data)
 {
-	int res=0, ditlen, tone;
+	int res = 0, ditlen, tone, toneoff, digit2;
 	const char *digit;
-	const char *ditlenc, *tonec;
+	const char *ditlenc, *tonec, *toneb, *codetype;
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Syntax: Morsecode(<string>) - no argument found\n");
 		return 0;
 	}
 
-	/* Use variable MORESEDITLEN, if set (else 80) */
 	ast_channel_lock(chan);
+	/* Use variable MORESEDITLEN, if set (else 80) */
 	ditlenc = pbx_builtin_getvar_helper(chan, "MORSEDITLEN");
 	if (ast_strlen_zero(ditlenc) || (sscanf(ditlenc, "%30d", &ditlen) != 1)) {
 		ditlen = 80;
 	}
-	ast_channel_unlock(chan);
 
 	/* Use variable MORSETONE, if set (else 800) */
 	ast_channel_lock(chan);
@@ -146,29 +202,83 @@ static int morsecode_exec(struct ast_channel *chan, const char *data)
 	if (ast_strlen_zero(tonec) || (sscanf(tonec, "%30d", &tone) != 1)) {
 		tone = 800;
 	}
-	ast_channel_unlock(chan);
 
-	for (digit = data; *digit; digit++) {
-		int digit2 = *digit;
-		const char *dahdit;
-		if (digit2 < 0) {
-			continue;
-		}
-		for (dahdit = morsecode[digit2]; *dahdit; dahdit++) {
-			if (*dahdit == '-') {
-				playtone(chan, tone, 3 * ditlen);
-			} else if (*dahdit == '.') {
-				playtone(chan, tone, 1 * ditlen);
-			} else {
-				/* Account for ditlen of silence immediately following */
-				playtone(chan, 0, 2 * ditlen);
+	/* Use variable MORSESPACETONE, if set (else 0) */
+
+	toneb = pbx_builtin_getvar_helper(chan, "MORSESPACETONE");
+	if (ast_strlen_zero(toneb) || (sscanf(toneb, "%30d", &toneoff) != 1)) {
+		toneoff = 0;
+	}
+
+	/* Use variable MORSETYPE, if set (else INTERNATIONAL) */
+	codetype = pbx_builtin_getvar_helper(chan, "MORSETYPE");
+	if (!codetype || strcmp(codetype, "AMERICAN")) {
+		codetype = "INTERNATIONAL";
+	}
+
+	if (!strcmp(codetype, "AMERICAN")) {
+		ast_channel_unlock(chan);
+		for (digit = data; *digit; digit++) {
+			const char *dahdit;
+			digit2 = *digit;
+			if (digit2 < 0 || digit2 > 127) {
+				continue;
 			}
+			for (dahdit = americanmorsecode[digit2]; *dahdit; dahdit++) {
+				if (*dahdit == '-') {
+					res = playtone(chan, tone, 3 * ditlen);
+				} else if (*dahdit == '.') {
+					res = playtone(chan, tone, 1 * ditlen);
+				} else if (*dahdit == 'L' || *dahdit == 'l') {
+					res = playtone(chan, tone, 6 * ditlen); /* long dash */
+				} else if (*dahdit == '0') {
+					res = playtone(chan, tone, 9 * ditlen); /* extra long dash */
+				} else if (*dahdit == ' ') { /* space char (x20) = 6 dot lengths */
+					/* Intra-char pauses, specific to American Morse */
+					res = playtone(chan, toneoff, 3 * ditlen);
+				} else {
+					/* Account for ditlen of silence immediately following */
+					res = playtone(chan, toneoff, 2 * ditlen);
+				}
 
-			/* Pause slightly between each dit and dah */
-			playtone(chan, 0, 1 * ditlen);
+				/* Pause slightly between each dit and dah */
+				res = playtone(chan, toneoff, 1 * ditlen);
+				if (res)
+					break;
+			}
+			/* Pause between characters */
+			res = playtone(chan, toneoff, 3 * ditlen);
+			if (res)
+				break;
 		}
-		/* Pause between characters */
-		playtone(chan, 0, 2 * ditlen);
+	} else { /* International */
+		ast_channel_unlock(chan);
+		for (digit = data; *digit; digit++) {
+			const char *dahdit;
+			digit2 = *digit;
+			if (digit2 < 0 || digit2 > 127) {
+				continue;
+			}
+			for (dahdit = internationalcode[digit2]; *dahdit; dahdit++) {
+				if (*dahdit == '-') {
+					res = playtone(chan, tone, 3 * ditlen);
+				} else if (*dahdit == '.') {
+					res = playtone(chan, tone, 1 * ditlen);
+				} else {
+					/* Account for ditlen of silence immediately following */
+					res = playtone(chan, toneoff, 2 * ditlen);
+				}
+
+				/* Pause slightly between each dit and dah */
+				res = playtone(chan, toneoff, 1 * ditlen);
+				if (res)
+					break;
+			}
+			/* Pause between characters */
+			res = playtone(chan, toneoff, 2 * ditlen);
+			if (res)
+				break;
+		}
 	}
 
 	return res;
