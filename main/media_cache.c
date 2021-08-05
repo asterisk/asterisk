@@ -157,12 +157,14 @@ int ast_media_cache_retrieve(const char *uri, const char *preferred_file_name,
 	char *file_path, size_t len)
 {
 	struct ast_bucket_file *bucket_file;
+	struct ast_bucket_file *tmp_bucket_file;
 	char *ext;
-	SCOPED_AO2LOCK(media_lock, media_cache);
-
 	if (ast_strlen_zero(uri)) {
 		return -1;
 	}
+
+	ao2_lock(media_cache);
+	ast_debug(5, "Looking for media at local cache, file: %s\n", uri);
 
 	/* First, retrieve from the ao2 cache here. If we find a bucket_file
 	 * matching the requested URI, ask the appropriate backend if it is
@@ -179,6 +181,7 @@ int ast_media_cache_retrieve(const char *uri, const char *preferred_file_name,
 			ao2_ref(bucket_file, -1);
 
 			ast_debug(5, "Returning media at local file: %s\n", file_path);
+			ao2_unlock(media_cache);
 			return 0;
 		}
 
@@ -187,6 +190,10 @@ int ast_media_cache_retrieve(const char *uri, const char *preferred_file_name,
 		ast_bucket_file_delete(bucket_file);
 		ao2_ref(bucket_file, -1);
 	}
+	/* We unlock to retrieve the file, because it can take a long time;
+	 * and we don't want to lock access to cached files while waiting
+	 */
+	ao2_unlock(media_cache);
 
 	/* Either this is new or the resource is stale; do a full retrieve
 	 * from the appropriate bucket_file backend
@@ -195,6 +202,21 @@ int ast_media_cache_retrieve(const char *uri, const char *preferred_file_name,
 	if (!bucket_file) {
 		ast_debug(2, "Failed to obtain media at '%s'\n", uri);
 		return -1;
+	}
+
+	/* we lock again, before updating cache */
+	ao2_lock(media_cache);
+
+	/* We can have duplicated buckets here, we check if already exists
+	 * before saving
+	 */
+	tmp_bucket_file = ao2_find(media_cache, uri, OBJ_SEARCH_KEY | OBJ_NOLOCK);
+	if (tmp_bucket_file) {
+		ao2_ref(tmp_bucket_file, -1);
+		ast_bucket_file_delete(bucket_file);
+		ao2_ref(bucket_file, -1);
+		ao2_unlock(media_cache);
+		return 0;
 	}
 
 	/* We can manipulate the 'immutable' bucket_file here, as we haven't
@@ -210,6 +232,7 @@ int ast_media_cache_retrieve(const char *uri, const char *preferred_file_name,
 	ao2_ref(bucket_file, -1);
 
 	ast_debug(5, "Returning media at local file: %s\n", file_path);
+	ao2_unlock(media_cache);
 
 	return 0;
 }
