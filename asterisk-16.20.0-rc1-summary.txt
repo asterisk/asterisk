@@ -1,0 +1,341 @@
+                                Release Summary
+
+                              asterisk-16.20.0-rc1
+
+                                Date: 2021-08-05
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release is a point release of an existing major version. The changes
+   included were made to address problems that have been identified in this
+   release series, or are minor, backwards compatible new features or
+   improvements. Users should be able to safely upgrade to this version if
+   this release series is already in use. Users considering upgrading from a
+   previous version are strongly encouraged to review the UPGRADE.txt
+   document as well as the CHANGES document for information about upgrading
+   to this release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-16.19.0.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were affected by commits that went into
+   this release.
+
+   Coders                      Testers               Reporters                
+   6 Naveen Albert                                   6 N A                    
+   4 Sean Bright                                     2 Andre Barbosa          
+   3 Joshua C. Colp                                  1 Michael Welk           
+   2 Kevin Harwell                                   1 Caesar                 
+   2 Andre Barbosa                                   1 Andrew Yager           
+   1 Asterisk Development Team                       1 Dan Cropp              
+   1 George Joseph                                   1 Sean Bright            
+   1 Bernd Zobl                                      1 Ivan Poddubny          
+   1 Igor Goncharovsky                               1 Igor Goncharovsky      
+   1 under                                           1 Dan Cropp              
+   1 Sebastien Duthil                                1 Sébastien Duthil       
+   1 Rijnhard Hessel                                 1 bbawkon                
+                                                     1 Bernd Zobl             
+                                                     1 under                  
+                                                     1 Rijnhard Hessel        
+                                                     1 Joshua C. Colp         
+                                                     1 siggi                  
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Security
+
+    Category: Channels/chan_pjsip
+
+   ASTERISK-29415: Crash in PJSIP TLS transport
+   Reported by: Andrew Yager
+     * [7168aaf0dd] Kevin Harwell -- AST-2021-009 - pjproject-bundled: Avoid
+       crash during handshake for TLS
+
+    Category: Resources/res_pjsip_session
+
+   ASTERISK-29381: chan_pjsip: Remote denial of service by an authenticated
+   user
+   Reported by: Ivan Poddubny
+     * [662e731b33] Joshua C. Colp -- AST-2021-007 - res_pjsip_session: Don't
+       offer if no channel exists.
+
+  New Feature
+
+    Category: Applications/NewFeature
+
+   ASTERISK-29454: New application to reload modules
+   Reported by: N A
+     * [cb67bc2ebb] Naveen Albert -- app_reload: New Reload application
+   ASTERISK-29444: Add application to wait for condition
+   Reported by: N A
+     * [7bc9a05059] Naveen Albert -- app_waitforcond: New application
+
+    Category: Applications/app_dial
+
+   ASTERISK-29442: app_dial: Expand A option to allow announcement playback
+   to caller
+   Reported by: N A
+     * [bee710121e] Naveen Albert -- app_dial: Expanded A option to add
+       caller announcement
+
+    Category: Core/General
+
+   ASTERISK-11: AGI channel_status failure
+   Reported by: bbawkon
+     * [56e6486aa6] under -- codec_builtin.c: G729 audio gets corrupted by
+       Asterisk due to smoother
+
+    Category: Functions/NewFeature
+
+   ASTERISK-29477: Function to asynchronously store digits dialed
+   Reported by: N A
+     * [0460e77e51] Naveen Albert -- app_dtmfstore: New application to store
+       digits
+
+    Category: Resources/res_pjsip_header_funcs
+
+   ASTERISK-29389: Add PJSIP_HEADERS() and ability to read header by pattern
+   Reported by: Igor Goncharovsky
+     * [8da1466478] Igor Goncharovsky -- res_pjsip_header_funcs: Add
+       PJSIP_HEADERS() ability to read header by pattern
+
+  Bug
+
+    Category: Applications/app_playback
+
+   ASTERISK-27871: Remote URL in playback must end with file extension
+   Reported by: Caesar
+     * [68dbcd5ef5] Sean Bright -- res_http_media_cache.c: Parse media URLs
+       to find extensions.
+
+    Category: CDR/cdr_adaptive_odbc
+
+   ASTERISK-29494: cdr_adaptive_odbc: Prevent throwing warnings if CDR
+   filtering is used
+   Reported by: N A
+     * [75c01f4bef] Naveen Albert -- cdr_adaptive_odbc: Prevent filter
+       warnings
+
+    Category: Channels/chan_iax2
+
+   ASTERISK-29392: chan_iax2: Asterisk crashes when queueing video with
+   format
+   Reported by: Michael Welk
+     * [dbfde090ea] Kevin Harwell -- AST-2021-008 - chan_iax2: remote crash
+       on unsupported media format
+
+    Category: Core/CodecInterface
+
+   ASTERISK-29526: G729 audio gets corrupted by Asterisk due to smoother
+   Reported by: under
+     * [56e6486aa6] under -- codec_builtin.c: G729 audio gets corrupted by
+       Asterisk due to smoother
+
+    Category: Core/General
+
+   ASTERISK-12: app_voicemail2 became a bit silent, lately
+   Reported by: siggi
+     * [56e6486aa6] under -- codec_builtin.c: G729 audio gets corrupted by
+       Asterisk due to smoother
+
+    Category: Core/Jitterbuffer
+
+   ASTERISK-29480: fixedjitterbuffer contains an un-wrappered assert that
+   triggers on a negative time slew
+   Reported by: Dan Cropp
+     * [987eb8a5ea] George Joseph -- jitterbuffer: Correct signed/unsigned
+       mismatch causing assert
+
+    Category: Core/PBX
+
+   ASTERISK-29485: core: Inband generation of tones for Busy() and
+   Congestion() may not occur
+   Reported by: Joshua C. Colp
+     * [4470838d89] Joshua C. Colp -- core: Don't play silence for Busy() and
+       Congestion() applications.
+
+    Category: Resources/res_http_media_cache
+
+   ASTERISK-27871: Remote URL in playback must end with file extension
+   Reported by: Caesar
+     * [68dbcd5ef5] Sean Bright -- res_http_media_cache.c: Parse media URLs
+       to find extensions.
+
+    Category: Resources/res_pjsip_config_wizard
+
+   ASTERISK-29503: Updated identify/match syntax not supported by config
+   wizard
+   Reported by: Sean Bright
+     * [6f135c0ef4] Sean Bright -- res_pjsip_config_wizard.c: Add port
+       matching support.
+
+    Category: Resources/res_pjsip_endpoint_identifier_ip
+
+   ASTERISK-29503: Updated identify/match syntax not supported by config
+   wizard
+   Reported by: Sean Bright
+     * [6f135c0ef4] Sean Bright -- res_pjsip_config_wizard.c: Add port
+       matching support.
+
+    Category: Resources/res_pjsip_sdp_rtp
+
+   ASTERISK-29479: [patch] Channels are not put on hold for Session Progress
+   with inactive audio
+   Reported by: Bernd Zobl
+     * [1b8f9a08d9] Bernd Zobl -- res_pjsip_sdp_rtp: Evaluate remotely held
+       for Session Progress
+
+    Category: Resources/res_rtp_asterisk
+
+   ASTERISK-29507: STUN timeout is silently delaying calls
+   Reported by: Sébastien Duthil
+     * [acc3b8ba75] Sebastien Duthil -- stun: Emit warning message when STUN
+       request times out
+
+    Category: Resources/res_statsd
+
+   ASTERISK-29513: statsd: Remove non-standard metric type Meter
+   Reported by: Rijnhard Hessel
+     * [b40e97b1d7] Rijnhard Hessel -- res_statsd: handle non-standard meter
+       type safely
+
+  Improvement
+
+    Category: Applications/app_queue
+
+   ASTERISK-29528: Add support for multiple files for agent announcements
+   Reported by: N A
+     * [1298c02665] Naveen Albert -- app_queue: Allow streaming multiple
+       announcement files
+
+    Category: Resources/res_ari_playbacks
+
+   ASTERISK-29501: ARI - Stasis Playback doesn't hangup call when processing
+   a list of invalid files
+   Reported by: Andre Barbosa
+     * [e52fd18c80] Andre Barbosa -- res_stasis_playback: Check for chan
+       hangup on play_on_channels
+
+    Category: Resources/res_stasis_playback
+
+   ASTERISK-29464: ARI - PlaybackFinish skip error events
+   Reported by: Andre Barbosa
+     * [884d863c08] Andre Barbosa -- res_stasis_playback: Send PlaybackFinish
+       event only once for errors
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   reference a JIRA issue.
+
+   +------------------------------------------------------------------------+
+   | Revision   | Author           | Summary                                |
+   |------------+------------------+----------------------------------------|
+   | aec2087d25 | Joshua C. Colp   | docs: Remove embedded macro in         |
+   |            |                  | WaitForCond XML documentation.         |
+   |------------+------------------+----------------------------------------|
+   | b7f0d83698 | Asterisk         | Update CHANGES and UPGRADE.txt for     |
+   |            | Development Team | 16.19.1                                |
+   |------------+------------------+----------------------------------------|
+   | c86b4c573b | Sean Bright      | res_pjsip_stir_shaken: RFC 8225        |
+   |            |                  | compliance and error message cleanup.  |
+   |------------+------------------+----------------------------------------|
+   | f0fd0e7675 | Sean Bright      | main/cdr.c: Correct Party A selection. |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ .lastclean                                                               |    1
+ .version                                                                 |    1
+ ChangeLog                                                                |94105 ----------
+ asterisk-16.19.0-summary.html                                            |  147
+ asterisk-16.19.0-summary.txt                                             |  406
+ b/CHANGES                                                                |   30
+ b/apps/app_dial.c                                                        |   79
+ b/apps/app_dtmfstore.c                                                   |  286
+ b/apps/app_queue.c                                                       |   16
+ b/apps/app_reload.c                                                      |  110
+ b/apps/app_waitforcond.c                                                 |  234
+ b/cdr/cdr_adaptive_odbc.c                                                |    2
+ b/channels/chan_iax2.c                                                   |   40
+ b/configs/samples/statsd.conf.sample                                     |    3
+ b/doc/CHANGES-staging/app_dtmfstore.txt                                  |    6
+ b/doc/CHANGES-staging/app_queue.txt                                      |    4
+ b/doc/CHANGES-staging/pjsip_read_headers.txt                             |    5
+ b/doc/CHANGES-staging/res_statsd.txt                                     |    5
+ b/include/asterisk/channel.h                                             |   11
+ b/include/asterisk/stasis_app_playback.h                                 |    2
+ b/include/asterisk/statsd.h                                              |    6
+ b/main/abstract_jb.c                                                     |   26
+ b/main/cdr.c                                                             |    2
+ b/main/channel.c                                                         |   16
+ b/main/codec_builtin.c                                                   |    1
+ b/main/fixedjitterbuf.c                                                  |    2
+ b/main/media_cache.c                                                     |   63
+ b/main/pbx.c                                                             |    2
+ b/main/stun.c                                                            |   22
+ b/res/res_http_media_cache.c                                             |  112
+ b/res/res_pjsip_config_wizard.c                                          |   14
+ b/res/res_pjsip_header_funcs.c                                           |  192
+ b/res/res_pjsip_sdp_rtp.c                                                |   42
+ b/res/res_pjsip_session.c                                                |   10
+ b/res/res_pjsip_stir_shaken.c                                            |    4
+ b/res/res_stasis_playback.c                                              |   26
+ b/res/res_statsd.c                                                       |   16
+ b/rest-api/api-docs/playbacks.json                                       |    3
+ b/tests/test_http_media_cache.c                                          |   78
+ b/third-party/pjproject/patches/0110-tls-parent-listener-destroyed.patch |  166
+ b/third-party/pjproject/patches/0111-ssl-premature-destroy.patch         |   96
+ contrib/realtime/mysql/mysql_cdr.sql                                     |   41
+ contrib/realtime/mysql/mysql_config.sql                                  | 1288
+ contrib/realtime/mysql/mysql_voicemail.sql                               |   35
+ contrib/realtime/postgresql/postgresql_cdr.sql                           |   45
+ contrib/realtime/postgresql/postgresql_config.sql                        | 1392
+ contrib/realtime/postgresql/postgresql_voicemail.sql                     |   39
+ 47 files changed, 1590 insertions(+), 97642 deletions(-)

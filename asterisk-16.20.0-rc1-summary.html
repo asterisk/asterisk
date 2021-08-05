@@ -1,0 +1,111 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-16.20.0-rc1</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-16.20.0-rc1</h3><h3 align="center">Date: 2021-08-05</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
+<li><a href="#summary">Summary</a></li>
+<li><a href="#contributors">Contributors</a></li>
+<li><a href="#closed_issues">Closed Issues</a></li>
+<li><a href="#commits">Other Changes</a></li>
+<li><a href="#diffstat">Diffstat</a></li>
+</ol><hr><a name="summary"><h2 align="center">Summary</h2></a><center><a href="#top">[Back to Top]</a></center><p>This release is a point release of an existing major version. The changes included were made to address problems that have been identified in this release series, or are minor, backwards compatible new features or improvements. Users should be able to safely upgrade to this version if this release series is already in use. Users considering upgrading from a previous version are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p><p>The data in this summary reflects changes that have been made since the previous release, asterisk-16.19.0.</p><hr><a name="contributors"><h2 align="center">Contributors</h2></a><center><a href="#top">[Back to Top]</a></center><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release. For coders, the number is how many of their patches (of any size) were committed into this release. For testers, the number is the number of times their name was listed as assisting with testing a patch. Finally, for reporters, the number is the number of issues that they reported that were affected by commits that went into this release.</p><table width="100%" border="0">
+<tr><th width="33%">Coders</th><th width="33%">Testers</th><th width="33%">Reporters</th></tr>
+<tr valign="top"><td width="33%">6 Naveen Albert <asterisk@phreaknet.org><br/>4 Sean Bright <sean.bright@gmail.com><br/>3 Joshua C. Colp <jcolp@sangoma.com><br/>2 Kevin Harwell <kharwell@sangoma.com><br/>2 Andre Barbosa <andre.emanuel.barbosa@gmail.com><br/>1 Asterisk Development Team <asteriskteam@digium.com><br/>1 George Joseph <gjoseph@digium.com><br/>1 Bernd Zobl <b.zobl@commend.com><br/>1 Igor Goncharovsky <igorg@iqtek.ru><br/>1 under <pcapdump@gmail.com><br/>1 Sebastien Duthil <sduthil@wazo.community><br/>1 Rijnhard Hessel <rijnhard@teleforge.co.za><br/></td><td width="33%"><td width="33%">6 N A <mail@interlinked.x10host.com><br/>2 Andre Barbosa <andre.emanuel.barbosa@gmail.com><br/>1 Michael Welk <dl5ocd@darc.de><br/>1 Caesar <caesar@itpscorp.com><br/>1 Andrew Yager <andrew@rwts.com.au><br/>1 Dan Cropp <dan@amtelco.com><br/>1 Sean Bright <sean@seanbright.com><br/>1 Ivan Poddubny <ivan.poddubny@gmail.com><br/>1 Igor Goncharovsky <igor.goncharovsky@gmail.com><br/>1 Dan Cropp<br/>1 Sébastien Duthil <sduthil@wazo.community><br/>1 bbawkon <bbawkon@malibutech.com><br/>1 Bernd Zobl <b.zobl@commend.com><br/>1 under <pcapdump@gmail.com><br/>1 Rijnhard Hessel <rijnhard@teleforge.co.za><br/>1 Joshua C. Colp <jcolp@digium.com><br/>1 siggi <langausd@swt.uni-stuttgart.de><br/></td></tr>
+</table><hr><a name="closed_issues"><h2 align="center">Closed Issues</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p><h3>Security</h3><h4>Category: Channels/chan_pjsip</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29415">ASTERISK-29415</a>: Crash in PJSIP TLS transport <br/>Reported by: Andrew Yager<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=7168aaf0ddf8b5bea84b24fd06035a94fbcd400a">[7168aaf0dd]</a> Kevin Harwell -- AST-2021-009 - pjproject-bundled: Avoid crash during handshake for TLS</li>
+</ul><br><h4>Category: Resources/res_pjsip_session</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29381">ASTERISK-29381</a>: chan_pjsip: Remote denial of service by an authenticated user<br/>Reported by: Ivan Poddubny<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=662e731b336be51a89be07f7f2ab3680430a4630">[662e731b33]</a> Joshua C. Colp -- AST-2021-007 - res_pjsip_session: Don't offer if no channel exists.</li>
+</ul><br><h3>New Feature</h3><h4>Category: Applications/NewFeature</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29454">ASTERISK-29454</a>: New application to reload modules<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=cb67bc2ebb95df8a537f26a629f91720aef694ae">[cb67bc2ebb]</a> Naveen Albert -- app_reload: New Reload application</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29444">ASTERISK-29444</a>: Add application to wait for condition<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=7bc9a05059cd961e11a51a9f64d8bdbfec7421b0">[7bc9a05059]</a> Naveen Albert -- app_waitforcond: New application</li>
+</ul><br><h4>Category: Applications/app_dial</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29442">ASTERISK-29442</a>: app_dial: Expand A option to allow announcement playback to caller<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=bee710121e819c25570153fce02e2421d1ef7d02">[bee710121e]</a> Naveen Albert -- app_dial: Expanded A option to add caller announcement</li>
+</ul><br><h4>Category: Core/General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-11">ASTERISK-11</a>: AGI channel_status failure<br/>Reported by: bbawkon<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=56e6486aa61b93a317de09845fca93e473029944">[56e6486aa6]</a> under -- codec_builtin.c: G729 audio gets corrupted by Asterisk due to smoother</li>
+</ul><br><h4>Category: Functions/NewFeature</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29477">ASTERISK-29477</a>: Function to asynchronously store digits dialed<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0460e77e514a3e8d8bd7d613e77f4313822ba836">[0460e77e51]</a> Naveen Albert -- app_dtmfstore: New application to store digits</li>
+</ul><br><h4>Category: Resources/res_pjsip_header_funcs</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29389">ASTERISK-29389</a>: Add PJSIP_HEADERS() and ability to read header by pattern<br/>Reported by: Igor Goncharovsky<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=8da1466478d6688a0b83448bfbd35d0f6e7397f5">[8da1466478]</a> Igor Goncharovsky -- res_pjsip_header_funcs: Add PJSIP_HEADERS() ability to read header by pattern</li>
+</ul><br><h3>Bug</h3><h4>Category: Applications/app_playback</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27871">ASTERISK-27871</a>: Remote URL in playback must end with file extension<br/>Reported by: Caesar<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=68dbcd5ef5de3be4743bb107055a19ea01a7e074">[68dbcd5ef5]</a> Sean Bright -- res_http_media_cache.c: Parse media URLs to find extensions.</li>
+</ul><br><h4>Category: CDR/cdr_adaptive_odbc</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29494">ASTERISK-29494</a>: cdr_adaptive_odbc: Prevent throwing warnings if CDR filtering is used<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=75c01f4bef3ed02dcee1517dffa10e616f59a2e6">[75c01f4bef]</a> Naveen Albert -- cdr_adaptive_odbc: Prevent filter warnings</li>
+</ul><br><h4>Category: Channels/chan_iax2</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29392">ASTERISK-29392</a>: chan_iax2: Asterisk crashes when queueing video with format<br/>Reported by: Michael Welk<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=dbfde090ea67787008cd38179007705e906e3d5a">[dbfde090ea]</a> Kevin Harwell -- AST-2021-008 - chan_iax2: remote crash on unsupported media format</li>
+</ul><br><h4>Category: Core/CodecInterface</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29526">ASTERISK-29526</a>: G729 audio gets corrupted by Asterisk due to smoother<br/>Reported by: under<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=56e6486aa61b93a317de09845fca93e473029944">[56e6486aa6]</a> under -- codec_builtin.c: G729 audio gets corrupted by Asterisk due to smoother</li>
+</ul><br><h4>Category: Core/General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-12">ASTERISK-12</a>: app_voicemail2 became a bit silent, lately<br/>Reported by: siggi<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=56e6486aa61b93a317de09845fca93e473029944">[56e6486aa6]</a> under -- codec_builtin.c: G729 audio gets corrupted by Asterisk due to smoother</li>
+</ul><br><h4>Category: Core/Jitterbuffer</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29480">ASTERISK-29480</a>: fixedjitterbuffer contains an un-wrappered assert that triggers on a negative time slew<br/>Reported by: Dan Cropp<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=987eb8a5eae2549856b60e3619e7acb6c63f3a49">[987eb8a5ea]</a> George Joseph -- jitterbuffer:  Correct signed/unsigned mismatch causing assert</li>
+</ul><br><h4>Category: Core/PBX</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29485">ASTERISK-29485</a>: core: Inband generation of tones for Busy() and Congestion() may not occur<br/>Reported by: Joshua C. Colp<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=4470838d89a790c535c35137398f46084d74837a">[4470838d89]</a> Joshua C. Colp -- core: Don't play silence for Busy() and Congestion() applications.</li>
+</ul><br><h4>Category: Resources/res_http_media_cache</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27871">ASTERISK-27871</a>: Remote URL in playback must end with file extension<br/>Reported by: Caesar<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=68dbcd5ef5de3be4743bb107055a19ea01a7e074">[68dbcd5ef5]</a> Sean Bright -- res_http_media_cache.c: Parse media URLs to find extensions.</li>
+</ul><br><h4>Category: Resources/res_pjsip_config_wizard</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29503">ASTERISK-29503</a>: Updated identify/match syntax not supported by config wizard<br/>Reported by: Sean Bright<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=6f135c0ef485d34e2c47fc70a2756b0394036ffc">[6f135c0ef4]</a> Sean Bright -- res_pjsip_config_wizard.c: Add port matching support.</li>
+</ul><br><h4>Category: Resources/res_pjsip_endpoint_identifier_ip</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29503">ASTERISK-29503</a>: Updated identify/match syntax not supported by config wizard<br/>Reported by: Sean Bright<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=6f135c0ef485d34e2c47fc70a2756b0394036ffc">[6f135c0ef4]</a> Sean Bright -- res_pjsip_config_wizard.c: Add port matching support.</li>
+</ul><br><h4>Category: Resources/res_pjsip_sdp_rtp</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29479">ASTERISK-29479</a>: [patch] Channels are not put on hold for Session Progress with inactive audio<br/>Reported by: Bernd Zobl<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=1b8f9a08d92f945940cb275d4af1f70c1bae1e7b">[1b8f9a08d9]</a> Bernd Zobl -- res_pjsip_sdp_rtp: Evaluate remotely held for Session Progress</li>
+</ul><br><h4>Category: Resources/res_rtp_asterisk</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29507">ASTERISK-29507</a>: STUN timeout is silently delaying calls<br/>Reported by: Sébastien Duthil<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=acc3b8ba757d6610f5653a4f75eaef0103ed42a6">[acc3b8ba75]</a> Sebastien Duthil -- stun: Emit warning message when STUN request times out</li>
+</ul><br><h4>Category: Resources/res_statsd</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29513">ASTERISK-29513</a>: statsd: Remove non-standard metric type Meter<br/>Reported by: Rijnhard Hessel<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=b40e97b1d77a89229cb24c2760387c1875ca987e">[b40e97b1d7]</a> Rijnhard Hessel -- res_statsd: handle non-standard meter type safely</li>
+</ul><br><h3>Improvement</h3><h4>Category: Applications/app_queue</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29528">ASTERISK-29528</a>: Add support for multiple files for agent announcements<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=1298c0266566eeba364b611c0e3221c48941947c">[1298c02665]</a> Naveen Albert -- app_queue: Allow streaming multiple announcement files</li>
+</ul><br><h4>Category: Resources/res_ari_playbacks</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29501">ASTERISK-29501</a>: ARI - Stasis Playback doesn't hangup call when processing a list of invalid files<br/>Reported by: Andre Barbosa<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=e52fd18c8040a5ab1623808fc81d0257c204ef79">[e52fd18c80]</a> Andre Barbosa -- res_stasis_playback: Check for chan hangup on play_on_channels</li>
+</ul><br><h4>Category: Resources/res_stasis_playback</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29464">ASTERISK-29464</a>: ARI - PlaybackFinish skip error events<br/>Reported by: Andre Barbosa<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=884d863c089f19ba07edfdf441cb521df0eb07a5">[884d863c08]</a> Andre Barbosa -- res_stasis_playback: Send PlaybackFinish event only once for errors</li>
+</ul><br><hr><a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all changes that went into this release that did not reference a JIRA issue.</p><table width="100%" border="1">
+<tr><th>Revision</th><th>Author</th><th>Summary</th></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=aec2087d25e56dec10ccc8b248b17f78dad8be06">aec2087d25</a></td><td>Joshua C. Colp</td><td>docs: Remove embedded macro in WaitForCond XML documentation.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=b7f0d83698601a4553fbfcb344654671ab5770d0">b7f0d83698</a></td><td>Asterisk Development Team</td><td>Update CHANGES and UPGRADE.txt for 16.19.1</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=c86b4c573b9c2f3f76cfd78decab2d1fd3b38961">c86b4c573b</a></td><td>Sean Bright</td><td>res_pjsip_stir_shaken: RFC 8225 compliance and error message cleanup.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=f0fd0e767586a27dba95838cd96ffc838d36b8ec">f0fd0e7675</a></td><td>Sean Bright</td><td>main/cdr.c: Correct Party A selection.</td></tr>
+</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>.lastclean                                                               |    1
+.version                                                                 |    1
+ChangeLog                                                                |94105 ----------
+asterisk-16.19.0-summary.html                                            |  147
+asterisk-16.19.0-summary.txt                                             |  406
+b/CHANGES                                                                |   30
+b/apps/app_dial.c                                                        |   79
+b/apps/app_dtmfstore.c                                                   |  286
+b/apps/app_queue.c                                                       |   16
+b/apps/app_reload.c                                                      |  110
+b/apps/app_waitforcond.c                                                 |  234
+b/cdr/cdr_adaptive_odbc.c                                                |    2
+b/channels/chan_iax2.c                                                   |   40
+b/configs/samples/statsd.conf.sample                                     |    3
+b/doc/CHANGES-staging/app_dtmfstore.txt                                  |    6
+b/doc/CHANGES-staging/app_queue.txt                                      |    4
+b/doc/CHANGES-staging/pjsip_read_headers.txt                             |    5
+b/doc/CHANGES-staging/res_statsd.txt                                     |    5
+b/include/asterisk/channel.h                                             |   11
+b/include/asterisk/stasis_app_playback.h                                 |    2
+b/include/asterisk/statsd.h                                              |    6
+b/main/abstract_jb.c                                                     |   26
+b/main/cdr.c                                                             |    2
+b/main/channel.c                                                         |   16
+b/main/codec_builtin.c                                                   |    1
+b/main/fixedjitterbuf.c                                                  |    2
+b/main/media_cache.c                                                     |   63
+b/main/pbx.c                                                             |    2
+b/main/stun.c                                                            |   22
+b/res/res_http_media_cache.c                                             |  112
+b/res/res_pjsip_config_wizard.c                                          |   14
+b/res/res_pjsip_header_funcs.c                                           |  192
+b/res/res_pjsip_sdp_rtp.c                                                |   42
+b/res/res_pjsip_session.c                                                |   10
+b/res/res_pjsip_stir_shaken.c                                            |    4
+b/res/res_stasis_playback.c                                              |   26
+b/res/res_statsd.c                                                       |   16
+b/rest-api/api-docs/playbacks.json                                       |    3
+b/tests/test_http_media_cache.c                                          |   78
+b/third-party/pjproject/patches/0110-tls-parent-listener-destroyed.patch |  166
+b/third-party/pjproject/patches/0111-ssl-premature-destroy.patch         |   96
+contrib/realtime/mysql/mysql_cdr.sql                                     |   41
+contrib/realtime/mysql/mysql_config.sql                                  | 1288
+contrib/realtime/mysql/mysql_voicemail.sql                               |   35
+contrib/realtime/postgresql/postgresql_cdr.sql                           |   45
+contrib/realtime/postgresql/postgresql_config.sql                        | 1392
+contrib/realtime/postgresql/postgresql_voicemail.sql                     |   39
+47 files changed, 1590 insertions(+), 97642 deletions(-)</pre><br></html>
