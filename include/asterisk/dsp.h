@@ -42,6 +42,7 @@
 #define DSP_PROGRESS_CONGESTION		(1 << 19)		/*!< Enable congestion tone detection */
 #define DSP_FEATURE_CALL_PROGRESS	(DSP_PROGRESS_TALK | DSP_PROGRESS_RINGING | DSP_PROGRESS_BUSY | DSP_PROGRESS_CONGESTION)
 #define DSP_FEATURE_WAITDIALTONE	(1 << 20)		/*!< Enable dial tone detection */
+#define DSP_FEATURE_FREQ_DETECT		(1 << 21)		/*!< Enable arbitrary tone detection */
 
 #define DSP_FAXMODE_DETECT_CNG		(1 << 0)
 #define DSP_FAXMODE_DETECT_CED		(1 << 1)
@@ -170,6 +171,9 @@ int ast_dsp_getdigits(struct ast_dsp *dsp, char *buf, int max);
  * \version 1.6.1 renamed from ast_dsp_digitmode to ast_dsp_set_digitmode
  */
 int ast_dsp_set_digitmode(struct ast_dsp *dsp, int digitmode);
+
+/*! \brief Set arbitrary frequency detection mode */
+int ast_dsp_set_freqmode(struct ast_dsp *dsp, int freq, int dur, int db, int squelch);
 
 /*! \brief Set fax mode */
 int ast_dsp_set_faxmode(struct ast_dsp *dsp, int faxmode);
