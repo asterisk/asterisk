@@ -425,6 +425,7 @@ struct ast_dsp {
 	int tcount;
 	int digitmode;
 	int faxmode;
+	int freqmode;
 	int dtmf_began;
 	int display_inband_dtmf_warning;
 	float genergy;
@@ -476,7 +477,7 @@ static void ast_tone_detect_init(tone_detect_state_t *s, int freq, int duration,
 	/* Now calculate final block size. It will contain integer number of periods */
 	s->block_size = periods_in_block * sample_rate / freq;
 
-	/* tone_detect is currently only used to detect fax tones and we
+	/* tone_detect is generally only used to detect fax tones and we
 	   do not need squelching the fax tones */
 	s->squelch = 0;
 
@@ -516,6 +517,15 @@ static void ast_fax_detect_init(struct ast_dsp *s)
 		s->ced_tone_state.squelch = 1;
 	}
 
+}
+
+static void ast_freq_detect_init(struct ast_dsp *s, int freq, int dur, int db, int squelch)
+{
+	/* we can conveniently just use one of the two fax tone states */
+	ast_tone_detect_init(&s->cng_tone_state, freq, dur, db, s->sample_rate);
+	if (s->freqmode & squelch) {
+		s->cng_tone_state.squelch = 1;
+	}
 }
 
 static void ast_dtmf_detect_init(dtmf_detect_state_t *s, unsigned int sample_rate)
@@ -1485,7 +1495,7 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 {
 	int silence;
 	int res;
-	int digit = 0, fax_digit = 0;
+	int digit = 0, fax_digit = 0, custom_freq_digit = 0;
 	int x;
 	short *shortdata;
 	unsigned char *odata;
@@ -1558,6 +1568,12 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 		}
 	}
 
+	if ((dsp->features & DSP_FEATURE_FREQ_DETECT)) {
+		if ((dsp->freqmode) && tone_detect(dsp, &dsp->cng_tone_state, shortdata, len)) {
+			custom_freq_digit = 'q';
+		}
+	}
+
 	if (dsp->features & (DSP_FEATURE_DIGIT_DETECT | DSP_FEATURE_BUSY_DETECT)) {
 		if (dsp->digitmode & DSP_DIGITMODE_MF) {
 			digit = mf_detect(dsp, &dsp->digit_state, shortdata, len, (dsp->digitmode & DSP_DIGITMODE_NOQUELCH) == 0, (dsp->digitmode & DSP_DIGITMODE_RELAXDTMF));
@@ -1615,6 +1631,16 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 		memset(&dsp->f, 0, sizeof(dsp->f));
 		dsp->f.frametype = AST_FRAME_DTMF;
 		dsp->f.subclass.integer = fax_digit;
+		outf = &dsp->f;
+		goto done;
+	}
+
+	if (custom_freq_digit) {
+		/* Custom frequency was detected - digit is 'q' */
+
+		memset(&dsp->f, 0, sizeof(dsp->f));
+		dsp->f.frametype = AST_FRAME_DTMF;
+		dsp->f.subclass.integer = custom_freq_digit;
 		outf = &dsp->f;
 		goto done;
 	}
@@ -1827,6 +1853,17 @@ int ast_dsp_set_digitmode(struct ast_dsp *dsp, int digitmode)
 		ast_digit_detect_init(&dsp->digit_state, new & DSP_DIGITMODE_MF, dsp->sample_rate);
 	}
 	dsp->digitmode = digitmode;
+	return 0;
+}
+
+int ast_dsp_set_freqmode(struct ast_dsp *dsp, int freq, int dur, int db, int squelch)
+{
+	if (freq > 0) {
+		dsp->freqmode = 1;
+		ast_freq_detect_init(dsp, freq, dur, db, squelch);
+	} else {
+		dsp->freqmode = 0;
+	}
 	return 0;
 }
 
