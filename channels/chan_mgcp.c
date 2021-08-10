@@ -242,8 +242,6 @@ static char ourhost[MAXHOSTNAMELEN];
 static struct in_addr __ourip;
 static int ourport;
 
-static int mgcpdebug = 0;
-
 static struct ast_sched_context *sched;
 static struct io_context *io;
 /*! The private structures of the mgcp channels are linked for
@@ -1073,13 +1071,13 @@ static char *handle_mgcp_audit_endpoint(struct ast_cli_entry *e, int cmd, struct
 		e->usage =
 			"Usage: mgcp audit endpoint <endpointid>\n"
 			"       Lists the capabilities of an endpoint in the MGCP (Media Gateway Control Protocol) subsystem.\n"
-			"       mgcp debug MUST be on to see the results of this command.\n";
+			"       Debug logging (core set debug on) MUST be on to see the results of this command.\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
 	}
 
-	if (!mgcpdebug) {
+	if (!DEBUG_ATLEAST(1)) {
 		return CLI_SHOWUSAGE;
 	}
 	if (a->argc != 4)
@@ -1121,38 +1119,9 @@ static char *handle_mgcp_audit_endpoint(struct ast_cli_entry *e, int cmd, struct
 	return CLI_SUCCESS;
 }
 
-static char *handle_mgcp_set_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "mgcp set debug {on|off}";
-		e->usage =
-			"Usage: mgcp set debug {on|off}\n"
-			"       Enables/Disables dumping of MGCP packets for debugging purposes\n";
-		return NULL;
-	case CLI_GENERATE:
-		return NULL;
-	}
-
-	if (a->argc != e->args)
-		return CLI_SHOWUSAGE;
-
-	if (!strncasecmp(a->argv[e->args - 1], "on", 2)) {
-		mgcpdebug = 1;
-		ast_cli(a->fd, "MGCP Debugging Enabled\n");
-	} else if (!strncasecmp(a->argv[3], "off", 3)) {
-		mgcpdebug = 0;
-		ast_cli(a->fd, "MGCP Debugging Disabled\n");
-	} else {
-		return CLI_SHOWUSAGE;
-	}
-	return CLI_SUCCESS;
-}
-
 static struct ast_cli_entry cli_mgcp[] = {
 	AST_CLI_DEFINE(handle_mgcp_audit_endpoint, "Audit specified MGCP endpoint"),
 	AST_CLI_DEFINE(handle_mgcp_show_endpoints, "List defined MGCP endpoints"),
-	AST_CLI_DEFINE(handle_mgcp_set_debug, "Enable/Disable MGCP debugging"),
 	AST_CLI_DEFINE(mgcp_reload, "Reload MGCP configuration"),
 };
 
