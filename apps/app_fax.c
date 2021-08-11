@@ -18,6 +18,8 @@
 	<defaultenabled>no</defaultenabled>
 	<support_level>deprecated</support_level>
 	<replacement>res_fax</replacement>
+	<deprecated_in>16</deprecated_in>
+	<removed_in>19</removed_in>
 ***/
 
 /* Needed for spandsp headers */

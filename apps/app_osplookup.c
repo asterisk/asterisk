@@ -31,7 +31,10 @@
 /*** MODULEINFO
 	<depend>osptk</depend>
 	<depend>openssl</depend>
-	<support_level>extended</support_level>
+	<defaultenabled>no</defaultenabled>
+	<support_level>deprecated</support_level>
+	<deprecated_in>19</deprecated_in>
+	<removed_in>21</removed_in>
  ***/
 
 #include "asterisk.h"
@@ -3163,7 +3166,7 @@ static int reload(void)
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Open Settlement Protocol Applications",
-	.support_level = AST_MODULE_SUPPORT_EXTENDED,
+	.support_level = AST_MODULE_SUPPORT_DEPRECATED,
 	.load = load_module,
 	.unload = unload_module,
 	.reload = reload,
