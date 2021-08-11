@@ -178,6 +178,8 @@
 	<use type="module">res_http_websocket</use>
 	<defaultenabled>no</defaultenabled>
 	<support_level>deprecated</support_level>
+	<deprecated_in>17</deprecated_in>
+	<removed_in>21</removed_in>
  ***/
 
 /*!  \page sip_session_timers SIP Session Timers in Asterisk Chan_sip
