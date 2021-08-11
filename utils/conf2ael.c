@@ -25,6 +25,8 @@
 /*** MODULEINFO
 	<depend>res_ael_share</depend>
 	<support_level>deprecated</support_level>
+	<deprecated_in>16</deprecated_in>
+	<removed_in>19</removed_in>
  ***/
 
 #define ASTMM_LIBC ASTMM_IGNORE

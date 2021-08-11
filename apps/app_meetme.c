@@ -43,6 +43,8 @@
 	<defaultenabled>no</defaultenabled>
 	<support_level>extended</support_level>
 	<replacement>app_confbridge</replacement>
+	<deprecated_in>19</deprecated_in>
+	<removed_in>21</removed_in>
  ***/
 
 #include "asterisk.h"
