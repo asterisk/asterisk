@@ -1,4 +1,4 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-18.6.0-rc1</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-18.6.0-rc1</h3><h3 align="center">Date: 2021-08-05</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-18.6.0</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-18.6.0</h3><h3 align="center">Date: 2021-08-12</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
 <li><a href="#summary">Summary</a></li>
 <li><a href="#contributors">Contributors</a></li>
 <li><a href="#closed_issues">Closed Issues</a></li>
@@ -6,7 +6,7 @@
 <li><a href="#diffstat">Diffstat</a></li>
 </ol><hr><a name="summary"><h2 align="center">Summary</h2></a><center><a href="#top">[Back to Top]</a></center><p>This release is a point release of an existing major version. The changes included were made to address problems that have been identified in this release series, or are minor, backwards compatible new features or improvements. Users should be able to safely upgrade to this version if this release series is already in use. Users considering upgrading from a previous version are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p><p>The data in this summary reflects changes that have been made since the previous release, asterisk-18.5.0.</p><hr><a name="contributors"><h2 align="center">Contributors</h2></a><center><a href="#top">[Back to Top]</a></center><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release. For coders, the number is how many of their patches (of any size) were committed into this release. For testers, the number is the number of times their name was listed as assisting with testing a patch. Finally, for reporters, the number is the number of issues that they reported that were affected by commits that went into this release.</p><table width="100%" border="0">
 <tr><th width="33%">Coders</th><th width="33%">Testers</th><th width="33%">Reporters</th></tr>
-<tr valign="top"><td width="33%">6 Naveen Albert <asterisk@phreaknet.org><br/>4 Sean Bright <sean.bright@gmail.com><br/>3 Joshua C. Colp <jcolp@sangoma.com><br/>2 Kevin Harwell <kharwell@sangoma.com><br/>2 Igor Goncharovsky <igorg@iqtek.ru><br/>2 Andre Barbosa <andre.emanuel.barbosa@gmail.com><br/>1 Asterisk Development Team <asteriskteam@digium.com><br/>1 George Joseph <gjoseph@digium.com><br/>1 Bernd Zobl <b.zobl@commend.com><br/>1 under <pcapdump@gmail.com><br/>1 Sebastien Duthil <sduthil@wazo.community><br/>1 Rijnhard Hessel <rijnhard@teleforge.co.za><br/></td><td width="33%"><td width="33%">6 N A <mail@interlinked.x10host.com><br/>2 Igor Goncharovsky <igor.goncharovsky@gmail.com><br/>2 Andre Barbosa <andre.emanuel.barbosa@gmail.com><br/>1 Michael Welk <dl5ocd@darc.de><br/>1 Caesar <caesar@itpscorp.com><br/>1 Andrew Yager <andrew@rwts.com.au><br/>1 Dan Cropp <dan@amtelco.com><br/>1 Sean Bright <sean@seanbright.com><br/>1 Ivan Poddubny <ivan.poddubny@gmail.com><br/>1 Dan Cropp<br/>1 Sébastien Duthil <sduthil@wazo.community><br/>1 bbawkon <bbawkon@malibutech.com><br/>1 Bernd Zobl <b.zobl@commend.com><br/>1 under <pcapdump@gmail.com><br/>1 Rijnhard Hessel <rijnhard@teleforge.co.za><br/>1 Joshua C. Colp <jcolp@digium.com><br/>1 siggi <langausd@swt.uni-stuttgart.de><br/></td></tr>
+<tr valign="top"><td width="33%">6 Naveen Albert <asterisk@phreaknet.org><br/>4 Sean Bright <sean.bright@gmail.com><br/>3 Asterisk Development Team <asteriskteam@digium.com><br/>3 Joshua C. Colp <jcolp@sangoma.com><br/>2 Kevin Harwell <kharwell@sangoma.com><br/>2 Igor Goncharovsky <igorg@iqtek.ru><br/>2 Andre Barbosa <andre.emanuel.barbosa@gmail.com><br/>1 George Joseph <gjoseph@digium.com><br/>1 Bernd Zobl <b.zobl@commend.com><br/>1 under <pcapdump@gmail.com><br/>1 Sebastien Duthil <sduthil@wazo.community><br/>1 Rijnhard Hessel <rijnhard@teleforge.co.za><br/></td><td width="33%"><td width="33%">6 N A <mail@interlinked.x10host.com><br/>2 Igor Goncharovsky <igor.goncharovsky@gmail.com><br/>2 Andre Barbosa <andre.emanuel.barbosa@gmail.com><br/>1 Michael Welk <dl5ocd@darc.de><br/>1 Caesar <caesar@itpscorp.com><br/>1 Andrew Yager <andrew@rwts.com.au><br/>1 Dan Cropp <dan@amtelco.com><br/>1 Sean Bright <sean@seanbright.com><br/>1 Ivan Poddubny <ivan.poddubny@gmail.com><br/>1 Dan Cropp<br/>1 Sébastien Duthil <sduthil@wazo.community><br/>1 bbawkon <bbawkon@malibutech.com><br/>1 Bernd Zobl <b.zobl@commend.com><br/>1 under <pcapdump@gmail.com><br/>1 Rijnhard Hessel <rijnhard@teleforge.co.za><br/>1 Joshua C. Colp <jcolp@digium.com><br/>1 siggi <langausd@swt.uni-stuttgart.de><br/></td></tr>
 </table><hr><a name="closed_issues"><h2 align="center">Closed Issues</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p><h3>Security</h3><h4>Category: Channels/chan_pjsip</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29415">ASTERISK-29415</a>: Crash in PJSIP TLS transport <br/>Reported by: Andrew Yager<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=3025ef4f6e79730d35c4514bf9c6dc4be87fa532">[3025ef4f6e]</a> Kevin Harwell -- AST-2021-009 - pjproject-bundled: Avoid crash during handshake for TLS</li>
 </ul><br><h4>Category: Resources/res_pjsip_session</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29381">ASTERISK-29381</a>: chan_pjsip: Remote denial of service by an authenticated user<br/>Reported by: Ivan Poddubny<ul>
@@ -59,28 +59,27 @@
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=283812e492d9b2236ea2a07a1124003afd9ed0b5">[283812e492]</a> Andre Barbosa -- res_stasis_playback: Send PlaybackFinish event only once for errors</li>
 </ul><br><hr><a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all changes that went into this release that did not reference a JIRA issue.</p><table width="100%" border="1">
 <tr><th>Revision</th><th>Author</th><th>Summary</th></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=6119173b1347795d09b51744cb49a1cdb72c325a">6119173b13</a></td><td>Asterisk Development Team</td><td>Update CHANGES and UPGRADE.txt for 18.6.0</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=045fc25265cca6f8f2f94997d2d49a2053ea0114">045fc25265</a></td><td>Asterisk Development Team</td><td>Update for 18.6.0-rc1</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=9117f09d28ecbb6fe967dcdd52cc6ff738a55937">9117f09d28</a></td><td>Joshua C. Colp</td><td>docs: Remove embedded macro in WaitForCond XML documentation.</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=993b3ba919ed1bff49c2664411ba16bc277965e0">993b3ba919</a></td><td>Asterisk Development Team</td><td>Update CHANGES and UPGRADE.txt for 18.5.1</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=30feaadabf866c5712b223153cba9a1abec5fe75">30feaadabf</a></td><td>Sean Bright</td><td>res_pjsip_stir_shaken: RFC 8225 compliance and error message cleanup.</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=fcebc4d24a129b9198b3efcb4ca8ecbdea79b4b1">fcebc4d24a</a></td><td>Sean Bright</td><td>main/cdr.c: Correct Party A selection.</td></tr>
-</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>.lastclean                                                               |    1
-.version                                                                 |    1
-ChangeLog                                                                |95384 ----------
-asterisk-18.5.0-summary.html                                             |  147
-asterisk-18.5.0-summary.txt                                              |  406
-b/CHANGES                                                                |   30
-b/apps/app_dial.c                                                        |   79
-b/apps/app_dtmfstore.c                                                   |  286
+</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>asterisk-18.5.0-summary.html                                             |  147 ---
+asterisk-18.5.0-summary.txt                                              |  406 ----------
+b/.version                                                               |    2
+b/CHANGES                                                                |   56 +
+b/ChangeLog                                                              |  402 +++++++++
+b/apps/app_dial.c                                                        |   79 +
+b/apps/app_dtmfstore.c                                                   |  286 +++++++
 b/apps/app_queue.c                                                       |   16
-b/apps/app_reload.c                                                      |  110
-b/apps/app_waitforcond.c                                                 |  234
+b/apps/app_reload.c                                                      |  110 ++
+b/apps/app_waitforcond.c                                                 |  234 +++++
+b/asterisk-18.6.0-rc1-summary.html                                       |  114 ++
+b/asterisk-18.6.0-rc1-summary.txt                                        |  348 ++++++++
 b/cdr/cdr_adaptive_odbc.c                                                |    2
 b/channels/chan_iax2.c                                                   |   40
 b/configs/samples/statsd.conf.sample                                     |    3
-b/doc/CHANGES-staging/app_dtmfstore.txt                                  |    6
-b/doc/CHANGES-staging/app_queue.txt                                      |    4
-b/doc/CHANGES-staging/pjsip_read_headers.txt                             |    5
-b/doc/CHANGES-staging/res_statsd.txt                                     |    5
 b/include/asterisk/channel.h                                             |   11
 b/include/asterisk/stasis_app_playback.h                                 |    2
 b/include/asterisk/statsd.h                                              |    6
@@ -89,26 +88,20 @@ b/main/cdr.c                                                             |    2
 b/main/channel.c                                                         |   16
 b/main/codec_builtin.c                                                   |    1
 b/main/fixedjitterbuf.c                                                  |    2
-b/main/media_cache.c                                                     |   63
+b/main/media_cache.c                                                     |   63 -
 b/main/pbx.c                                                             |    2
 b/main/stun.c                                                            |   22
 b/res/ari/resource_channels.c                                            |    5
-b/res/res_http_media_cache.c                                             |  112
+b/res/res_http_media_cache.c                                             |  112 ++
 b/res/res_pjsip_config_wizard.c                                          |   14
-b/res/res_pjsip_header_funcs.c                                           |  192
-b/res/res_pjsip_sdp_rtp.c                                                |   42
+b/res/res_pjsip_header_funcs.c                                           |  192 ++++
+b/res/res_pjsip_sdp_rtp.c                                                |   42 -
 b/res/res_pjsip_session.c                                                |   10
 b/res/res_pjsip_stir_shaken.c                                            |    4
 b/res/res_stasis_playback.c                                              |   26
 b/res/res_statsd.c                                                       |   16
 b/rest-api/api-docs/playbacks.json                                       |    3
-b/tests/test_http_media_cache.c                                          |   78
-b/third-party/pjproject/patches/0110-tls-parent-listener-destroyed.patch |  166
-b/third-party/pjproject/patches/0111-ssl-premature-destroy.patch         |   57
-contrib/realtime/mysql/mysql_cdr.sql                                     |   41
-contrib/realtime/mysql/mysql_config.sql                                  | 1318
-contrib/realtime/mysql/mysql_voicemail.sql                               |   35
-contrib/realtime/postgresql/postgresql_cdr.sql                           |   45
-contrib/realtime/postgresql/postgresql_config.sql                        | 1430
-contrib/realtime/postgresql/postgresql_voicemail.sql                     |   39
-48 files changed, 1556 insertions(+), 98989 deletions(-)</pre><br></html>
+b/tests/test_http_media_cache.c                                          |   78 +
+b/third-party/pjproject/patches/0110-tls-parent-listener-destroyed.patch |  166 ++++
+b/third-party/pjproject/patches/0111-ssl-premature-destroy.patch         |   82 ++
+39 files changed, 2450 insertions(+), 698 deletions(-)</pre><br></html>
