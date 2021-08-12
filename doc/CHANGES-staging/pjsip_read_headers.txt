@@ -1,5 +1,0 @@
-Subject: chan_pjsip
-
-Add function PJSIP_HEADERS() to get list of headers by pattern in the same way as SIP_HEADERS() do.
-
-Add ability to read header by pattern using PJSIP_HEADER().
