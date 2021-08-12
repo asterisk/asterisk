@@ -115,13 +115,6 @@
 
     Category: Core/General
 
-   ASTERISK-11: AGI channel_status failure
-   Reported by: bbawkon
-     * [feb1e06ac5] under -- codec_builtin.c: G729 audio gets corrupted by
-       Asterisk due to smoother
-
-    Category: Functions/NewFeature
-
    ASTERISK-29477: Function to asynchronously store digits dialed
    Reported by: N A
      * [016f6a0e14] Naveen Albert -- app_dtmfstore: New application to store
@@ -167,13 +160,6 @@
        Asterisk due to smoother
 
     Category: Core/General
-
-   ASTERISK-12: app_voicemail2 became a bit silent, lately
-   Reported by: siggi
-     * [feb1e06ac5] under -- codec_builtin.c: G729 audio gets corrupted by
-       Asterisk due to smoother
-
-    Category: Core/Jitterbuffer
 
    ASTERISK-29480: fixedjitterbuffer contains an un-wrappered assert that
    triggers on a negative time slew
