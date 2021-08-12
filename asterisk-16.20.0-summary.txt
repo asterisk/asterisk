@@ -1,8 +1,8 @@
                                 Release Summary
 
-                              asterisk-16.20.0-rc1
+                                asterisk-16.20.0
 
-                                Date: 2021-08-05
+                                Date: 2021-08-12
 
                            <asteriskteam@digium.com>
 
@@ -52,10 +52,10 @@
    Coders                      Testers               Reporters                
    6 Naveen Albert                                   6 N A                    
    4 Sean Bright                                     2 Andre Barbosa          
-   3 Joshua C. Colp                                  1 Michael Welk           
-   2 Kevin Harwell                                   1 Caesar                 
-   2 Andre Barbosa                                   1 Andrew Yager           
-   1 Asterisk Development Team                       1 Dan Cropp              
+   3 Asterisk Development Team                       1 Michael Welk           
+   3 Joshua C. Colp                                  1 Caesar                 
+   2 Kevin Harwell                                   1 Andrew Yager           
+   2 Andre Barbosa                                   1 Dan Cropp              
    1 George Joseph                                   1 Sean Bright            
    1 Bernd Zobl                                      1 Ivan Poddubny          
    1 Igor Goncharovsky                               1 Igor Goncharovsky      
@@ -270,6 +270,12 @@
    +------------------------------------------------------------------------+
    | Revision   | Author           | Summary                                |
    |------------+------------------+----------------------------------------|
+   | 5c37581a0f | Asterisk         | Update CHANGES and UPGRADE.txt for     |
+   |            | Development Team | 16.20.0                                |
+   |------------+------------------+----------------------------------------|
+   | b58bafea1f | Asterisk         | Update for 16.20.0-rc1                 |
+   |            | Development Team |                                        |
+   |------------+------------------+----------------------------------------|
    | aec2087d25 | Joshua C. Colp   | docs: Remove embedded macro in         |
    |            |                  | WaitForCond XML documentation.         |
    |------------+------------------+----------------------------------------|
@@ -291,24 +297,21 @@
    This is a summary of the changes to the source code that went into this
    release that was generated using the diffstat utility.
 
- .lastclean                                                               |    1
- .version                                                                 |    1
- ChangeLog                                                                |94105 ----------
- asterisk-16.19.0-summary.html                                            |  147
- asterisk-16.19.0-summary.txt                                             |  406
- b/CHANGES                                                                |   30
- b/apps/app_dial.c                                                        |   79
- b/apps/app_dtmfstore.c                                                   |  286
+ asterisk-16.19.0-summary.html                                            |  147 ---
+ asterisk-16.19.0-summary.txt                                             |  406 ----------
+ b/.version                                                               |    2
+ b/CHANGES                                                                |   56 +
+ b/ChangeLog                                                              |  392 +++++++++
+ b/apps/app_dial.c                                                        |   79 +
+ b/apps/app_dtmfstore.c                                                   |  286 +++++++
  b/apps/app_queue.c                                                       |   16
- b/apps/app_reload.c                                                      |  110
- b/apps/app_waitforcond.c                                                 |  234
+ b/apps/app_reload.c                                                      |  110 ++
+ b/apps/app_waitforcond.c                                                 |  234 +++++
+ b/asterisk-16.20.0-rc1-summary.html                                      |  111 ++
+ b/asterisk-16.20.0-rc1-summary.txt                                       |  341 ++++++++
  b/cdr/cdr_adaptive_odbc.c                                                |    2
  b/channels/chan_iax2.c                                                   |   40
  b/configs/samples/statsd.conf.sample                                     |    3
- b/doc/CHANGES-staging/app_dtmfstore.txt                                  |    6
- b/doc/CHANGES-staging/app_queue.txt                                      |    4
- b/doc/CHANGES-staging/pjsip_read_headers.txt                             |    5
- b/doc/CHANGES-staging/res_statsd.txt                                     |    5
  b/include/asterisk/channel.h                                             |   11
  b/include/asterisk/stasis_app_playback.h                                 |    2
  b/include/asterisk/statsd.h                                              |    6
@@ -317,25 +320,19 @@
  b/main/channel.c                                                         |   16
  b/main/codec_builtin.c                                                   |    1
  b/main/fixedjitterbuf.c                                                  |    2
- b/main/media_cache.c                                                     |   63
+ b/main/media_cache.c                                                     |   63 -
  b/main/pbx.c                                                             |    2
  b/main/stun.c                                                            |   22
- b/res/res_http_media_cache.c                                             |  112
+ b/res/res_http_media_cache.c                                             |  112 ++
  b/res/res_pjsip_config_wizard.c                                          |   14
- b/res/res_pjsip_header_funcs.c                                           |  192
- b/res/res_pjsip_sdp_rtp.c                                                |   42
+ b/res/res_pjsip_header_funcs.c                                           |  192 ++++
+ b/res/res_pjsip_sdp_rtp.c                                                |   42 -
  b/res/res_pjsip_session.c                                                |   10
  b/res/res_pjsip_stir_shaken.c                                            |    4
  b/res/res_stasis_playback.c                                              |   26
  b/res/res_statsd.c                                                       |   16
  b/rest-api/api-docs/playbacks.json                                       |    3
- b/tests/test_http_media_cache.c                                          |   78
- b/third-party/pjproject/patches/0110-tls-parent-listener-destroyed.patch |  166
- b/third-party/pjproject/patches/0111-ssl-premature-destroy.patch         |   96
- contrib/realtime/mysql/mysql_cdr.sql                                     |   41
- contrib/realtime/mysql/mysql_config.sql                                  | 1288
- contrib/realtime/mysql/mysql_voicemail.sql                               |   35
- contrib/realtime/postgresql/postgresql_cdr.sql                           |   45
- contrib/realtime/postgresql/postgresql_config.sql                        | 1392
- contrib/realtime/postgresql/postgresql_voicemail.sql                     |   39
- 47 files changed, 1590 insertions(+), 97642 deletions(-)
+ b/tests/test_http_media_cache.c                                          |   78 +
+ b/third-party/pjproject/patches/0110-tls-parent-listener-destroyed.patch |  166 ++++
+ b/third-party/pjproject/patches/0111-ssl-premature-destroy.patch         |   19
+ 38 files changed, 2362 insertions(+), 698 deletions(-)
