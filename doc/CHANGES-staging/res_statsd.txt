@@ -1,5 +1,0 @@
-Subject: Handle non-standard Meter metric type safely
-
-A meter_support flag has been introduced that defaults to true to maintain current behaviour.
-If disabled, a counter metric type will be used instead wherever a meter metric type was used,
-the counter will have a "_meter" suffix appended to the metric name.
