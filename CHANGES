@@ -13,6 +13,32 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 16.19.0 to Asterisk 16.20.0 ----------
+------------------------------------------------------------------------------
+
+Handle non-standard Meter metric type safely
+------------------
+ * A meter_support flag has been introduced that defaults to true to maintain current behaviour.
+   If disabled, a counter metric type will be used instead wherever a meter metric type was used,
+   the counter will have a "_meter" suffix appended to the metric name.
+
+app_dtmfstore
+------------------
+ * New application which collects digits
+   dialed and stores them into
+   a specified variable.
+
+app_queue.c
+------------------
+ * Allow multiple files to be streamed for agent announcement.
+
+chan_pjsip
+------------------
+ * Add function PJSIP_HEADERS() to get list of headers by pattern in the same way as SIP_HEADERS() do.
+
+   Add ability to read header by pattern using PJSIP_HEADER().
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 16.19.0 to Asterisk 16.19.1 ----------
 ------------------------------------------------------------------------------
 
