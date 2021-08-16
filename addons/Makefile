@@ -29,7 +29,6 @@ H323SOURCE:=$(addprefix ooh323c/src/,$(OOH323C)) ooh323cDriver.c
 H323CFLAGS:=-Iooh323c/src -Iooh323c/src/h323
 
 ALL_C_MODS:=app_mysql \
-            cdr_mysql \
             chan_mobile \
             chan_ooh323 \
             format_mp3 \
