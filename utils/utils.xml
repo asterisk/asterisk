@@ -28,10 +28,6 @@
 	<defaultenabled>no</defaultenabled>
 	<support_level>extended</support_level>
   </member>
-  <member name="conf2ael">
-	<defaultenabled>no</defaultenabled>
-	<support_level>deprecated</support_level>
-  </member>
   <member name="muted">
 	<defaultenabled>no</defaultenabled>
 	<support_level>deprecated</support_level>

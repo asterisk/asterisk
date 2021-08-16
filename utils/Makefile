@@ -67,7 +67,6 @@ endif
 
 ifneq ($(filter pbx_ael,$(MENUSELECT_PBX)),)
   UTILS:=$(filter-out aelparse,$(UTILS))
-  UTILS:=$(filter-out conf2ael,$(UTILS))
 endif
 
 all: $(UTILS)
@@ -87,7 +86,7 @@ clean:
 	rm -f .*.d
 	rm -f *.s *.i
 	rm -f astmm.c md5.c strcompat.c ast_expr2.c ast_expr2.h ast_expr2f.c pbx_ael.c pval.c hashtab.c lock.c
-	rm -f aelparse.c aelbison.c conf2ael
+	rm -f aelparse.c aelbison.c
 	rm -f threadstorage.c
 	rm -f utils.c strings.c poll.c version.c sha1.c astobj2.c refcounter
 	rm -f db1-ast/.*.d
@@ -174,9 +173,6 @@ threadstorage.c: $(ASTTOPDIR)/main/threadstorage.c
 
 extconf.o: _ASTCFLAGS+=$(call get_menuselect_cflags,DETECT_DEADLOCKS)
 extconf.o: extconf.c
-
-conf2ael: LIBS+=$(AST_CLANG_BLOCKS_LIBS)
-conf2ael: conf2ael.o ast_expr2f.o ast_expr2.o hashtab.o lock.o aelbison.o aelparse.o pbx_ael.o pval.o extconf.o strcompat.o astmm.o
 
 check_expr2: $(ASTTOPDIR)/main/ast_expr2f.c $(ASTTOPDIR)/main/ast_expr2.c $(ASTTOPDIR)/main/ast_expr2.h astmm.o
 	$(ECHO_PREFIX) echo "   [CC] ast_expr2f.c -> ast_expr2fz.o"
