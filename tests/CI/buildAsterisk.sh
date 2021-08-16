@@ -145,7 +145,7 @@ if [ $NO_MENUSELECT -eq 0 ] ; then
 		mod_disables+=" app_readexten app_sms app_speech_utils app_test app_url app_waitforring"
 		mod_disables+=" app_waitforsilence app_waituntil app_zapateller"
 		mod_disables+=" cdr_adaptive_odbc cdr_custom cdr_manager cdr_odbc cdr_pgsql cdr_radius"
-		mod_disables+=" cdr_syslog cdr_tds"
+		mod_disables+=" cdr_tds"
 		mod_disables+=" cel_odbc cel_pgsql cel_radius cel_sqlite3_custom cel_tds"
 		mod_disables+=" chan_alsa chan_console chan_mgcp chan_motif chan_oss chan_rtp chan_skinny chan_unistim"
 		mod_disables+=" func_frame_trace func_pitchshift func_speex func_volume func_dialgroup"
