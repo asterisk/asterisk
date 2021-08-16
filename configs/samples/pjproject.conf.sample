@@ -52,5 +52,8 @@
                      ; (default: "")
 ;asterisk_debug =    ; A comma separated list of pjproject log levels to map to
                      ; Asterisk debug
-                     ; (default: "3,4,5,6")
+                     ; (default: "3,4")
+;asterisk_trace =    ; A comma separated list of pjproject log levels to map to
+                     ; Asterisk trace
+                     ; (default: "5,6")
 ;type=               ; Must be of type log_mappings (default: "")
