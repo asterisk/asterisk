@@ -404,9 +404,6 @@
 /* Define to 1 if you have the `isascii' function. */
 #undef HAVE_ISASCII
 
-/* Define to 1 if you have the ISDN4Linux library. */
-#undef HAVE_ISDNNET
-
 /* Define to 1 if you have the Jack Audio Connection Kit library. */
 #undef HAVE_JACK
 
@@ -509,15 +506,6 @@
 
 /* Define to 1 if you have the `memset' function. */
 #undef HAVE_MEMSET
-
-/* Define to 1 if you have the mISDN user library. */
-#undef HAVE_MISDN
-
-/* Define if your system has the MISDN_FAC_ERROR headers. */
-#undef HAVE_MISDN_FAC_ERROR
-
-/* Define if your system has the MISDN_FAC_RESULT headers. */
-#undef HAVE_MISDN_FAC_RESULT
 
 /* Define to 1 if you have the `mkdir' function. */
 #undef HAVE_MKDIR
@@ -1067,9 +1055,6 @@
 /* Define to 1 if `uid' is a member of `struct ucred'. */
 #undef HAVE_STRUCT_UCRED_UID
 
-/* Define to 1 if you have the mISDN Supplemental Services library. */
-#undef HAVE_SUPPSERV
-
 /* Define to 1 if you have the `swapctl' function. */
 #undef HAVE_SWAPCTL
 
@@ -1353,9 +1338,6 @@
 /* Define to 1 if `lstat' dereferences a symlink specified with a trailing
    slash. */
 #undef LSTAT_FOLLOWS_SLASHED_SYMLINK
-
-/* Build chan_misdn for mISDN 1.2 or later. */
-#undef MISDN_1_2
 
 /* Define to the address where bug reports for this package should be sent. */
 #undef PACKAGE_BUGREPORT
