@@ -135,7 +135,7 @@ if [ $NO_MENUSELECT -eq 0 ] ; then
 	fi
 	runner menuselect/menuselect `gen_cats enable $cat_enables` menuselect.makeopts
 
-	mod_disables="res_digium_phone chan_vpb"
+	mod_disables="res_digium_phone"
 	if [ $TESTED_ONLY -eq 1 ] ; then
 		# These modules are not tested at all.  They are loaded but nothing is ever done
 		# with them, no testsuite tests depend on them.

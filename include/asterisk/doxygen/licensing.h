@@ -134,7 +134,7 @@
  * \li libsqlite3.so.0
  * \li libss7.so.1
  * \li libssl.so.0.9.8 (chan_h323)
- * \li libstdc++.so (chan_h323, chan_vpb)
+ * \li libstdc++.so (chan_h323)
  * \li libsuppserv.so
  * \li libsybdb.so.5
  * \li libsysfs.so.2
@@ -144,7 +144,6 @@
  * \li libtonezone.so.1.0
  * \li libvorbis.so.0
  * \li libvorbisenc.so.2
- * \li libvpb.a (chan_vpb)
  * \li libwrap.so.0
  * \li libxcb-xlib.so.0
  * \li libxcb.so.1
