@@ -514,7 +514,6 @@ AST_EXT_LIB_SETUP([LUA], [Lua], [lua])
 AC_ARG_VAR([LUA_VERSIONS],[A space separated list of target lua versions to test.])
 AST_EXT_LIB_SETUP([MISDN], [mISDN user], [misdn])
 AST_EXT_LIB_SETUP([MYSQLCLIENT], [MySQL client], [mysqlclient])
-AST_EXT_LIB_SETUP([NBS], [Network Broadcast Sound], [nbs])
 AST_EXT_LIB_SETUP([NEON], [neon], [neon])
 AST_EXT_LIB_SETUP([NEON29], [neon29], [neon29])
 AST_EXT_LIB_SETUP([NETSNMP], [Net-SNMP], [netsnmp])
@@ -2299,8 +2298,6 @@ if test "${PBX_MYSQLCLIENT}" = 1; then
            AC_MSG_RESULT(no)
    )
 fi
-
-AST_EXT_LIB_CHECK([NBS], [nbs], [nbs_connect], [nbs.h])
 
 AST_EXT_TOOL_CHECK([NEON], [neon-config])
 

@@ -543,9 +543,6 @@
 /* Define to 1 if mysql/mysql.h has my_bool defined. */
 #undef HAVE_MYSQLCLIENT_MY_BOOL
 
-/* Define to 1 if you have the Network Broadcast Sound library. */
-#undef HAVE_NBS
-
 /* Define to 1 if you have the <ndir.h> header file, and it defines `DIR'. */
 #undef HAVE_NDIR_H
 
