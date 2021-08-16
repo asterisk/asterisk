@@ -1034,10 +1034,6 @@ PBX_NEON
 NEON_DIR
 NEON_INCLUDE
 NEON_LIB
-PBX_NBS
-NBS_DIR
-NBS_INCLUDE
-NBS_LIB
 PBX_MYSQLCLIENT
 MYSQLCLIENT_DIR
 MYSQLCLIENT_INCLUDE
@@ -1411,7 +1407,6 @@ with_libxslt
 with_lua
 with_misdn
 with_mysqlclient
-with_nbs
 with_neon
 with_neon29
 with_netsnmp
@@ -2184,7 +2179,6 @@ Optional Packages:
   --with-lua=PATH         use Lua files in PATH
   --with-misdn=PATH       use mISDN user files in PATH
   --with-mysqlclient=PATH use MySQL client files in PATH
-  --with-nbs=PATH         use Network Broadcast Sound files in PATH
   --with-neon=PATH        use neon files in PATH
   --with-neon29=PATH      use neon29 files in PATH
   --with-netsnmp=PATH     use Net-SNMP files in PATH
@@ -10906,38 +10900,6 @@ if test "${with_mysqlclient+set}" = set; then :
 	*)
 	MYSQLCLIENT_DIR="${withval}"
 	ac_mandatory_list="${ac_mandatory_list} MYSQLCLIENT"
-	;;
-	esac
-
-fi
-
-
-
-
-
-
-
-
-    NBS_DESCRIP="Network Broadcast Sound"
-    NBS_OPTION="nbs"
-    PBX_NBS=0
-
-# Check whether --with-nbs was given.
-if test "${with_nbs+set}" = set; then :
-  withval=$with_nbs;
-	case ${withval} in
-	n|no)
-	USE_NBS=no
-	# -1 is a magic value used by menuselect to know that the package
-	# was disabled, other than 'not found'
-	PBX_NBS=-1
-	;;
-	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} NBS"
-	;;
-	*)
-	NBS_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} NBS"
 	;;
 	esac
 
@@ -22850,103 +22812,6 @@ fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
 fi
-
-
-if test "x${PBX_NBS}" != "x1" -a "${USE_NBS}" != "no"; then
-   pbxlibdir=""
-   # if --with-NBS=DIR has been specified, use it.
-   if test "x${NBS_DIR}" != "x"; then
-      if test -d ${NBS_DIR}/lib; then
-         pbxlibdir="-L${NBS_DIR}/lib"
-      else
-         pbxlibdir="-L${NBS_DIR}"
-      fi
-   fi
-
-      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
-      CFLAGS="${CFLAGS} "
-      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for nbs_connect in -lnbs" >&5
-$as_echo_n "checking for nbs_connect in -lnbs... " >&6; }
-if ${ac_cv_lib_nbs_nbs_connect+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-lnbs ${pbxlibdir}  $LIBS"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char nbs_connect ();
-int
-main ()
-{
-return nbs_connect ();
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_lib_nbs_nbs_connect=yes
-else
-  ac_cv_lib_nbs_nbs_connect=no
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_nbs_nbs_connect" >&5
-$as_echo "$ac_cv_lib_nbs_nbs_connect" >&6; }
-if test "x$ac_cv_lib_nbs_nbs_connect" = xyes; then :
-  AST_NBS_FOUND=yes
-else
-  AST_NBS_FOUND=no
-fi
-
-      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
-
-
-   # now check for the header.
-   if test "${AST_NBS_FOUND}" = "yes"; then
-      NBS_LIB="${pbxlibdir} -lnbs "
-      # if --with-NBS=DIR has been specified, use it.
-      if test "x${NBS_DIR}" != "x"; then
-         NBS_INCLUDE="-I${NBS_DIR}/include"
-      fi
-      NBS_INCLUDE="${NBS_INCLUDE} "
-
-         # check for the header
-         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
-         CPPFLAGS="${CPPFLAGS} ${NBS_INCLUDE}"
-         ac_fn_c_check_header_mongrel "$LINENO" "nbs.h" "ac_cv_header_nbs_h" "$ac_includes_default"
-if test "x$ac_cv_header_nbs_h" = xyes; then :
-  NBS_HEADER_FOUND=1
-else
-  NBS_HEADER_FOUND=0
-fi
-
-
-         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
-
-      if test "x${NBS_HEADER_FOUND}" = "x0" ; then
-         NBS_LIB=""
-         NBS_INCLUDE=""
-      else
-
-         PBX_NBS=1
-         cat >>confdefs.h <<_ACEOF
-#define HAVE_NBS 1
-_ACEOF
-
-      fi
-   fi
-fi
-
-
 
 
 		if test "x${PBX_NEON}" != "x1" -a "${USE_NEON}" != "no"; then
