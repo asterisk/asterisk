@@ -498,7 +498,6 @@ AST_EXT_LIB_SETUP([IKSEMEL], [Iksemel Jabber], [iksemel])
 AST_EXT_LIB_SETUP([IMAP_TK], [UW IMAP Toolkit], [imap])
 AST_EXT_LIB_SETUP([INOTIFY], [inotify support], [inotify])
 AST_EXT_LIB_SETUP([IODBC], [iODBC], [iodbc])
-AST_EXT_LIB_SETUP([ISDNNET], [ISDN4Linux], [isdnnet])
 AST_EXT_LIB_SETUP([JACK], [Jack Audio Connection Kit], [jack])
 AST_EXT_LIB_SETUP([JANSSON], [Jansson JSON library], [jansson])
 AST_EXT_LIB_SETUP([URIPARSER], [uriparser library], [uriparser])
@@ -512,7 +511,6 @@ AST_EXT_LIB_SETUP([LIBXSLT], [LibXSLT], [libxslt])
 AST_EXT_LIB_SETUP_OPTIONAL([LIBXSLT_CLEANUP], [LibXSLT Library Cleanup Function], [LIBXSLT], [libxslt])
 AST_EXT_LIB_SETUP([LUA], [Lua], [lua])
 AC_ARG_VAR([LUA_VERSIONS],[A space separated list of target lua versions to test.])
-AST_EXT_LIB_SETUP([MISDN], [mISDN user], [misdn])
 AST_EXT_LIB_SETUP([MYSQLCLIENT], [MySQL client], [mysqlclient])
 AST_EXT_LIB_SETUP([NEON], [neon], [neon])
 AST_EXT_LIB_SETUP([NEON29], [neon29], [neon29])
@@ -594,7 +592,6 @@ AST_EXT_LIB_SETUP_OPTIONAL([SRTP_SHUTDOWN], [SRTP Library Shutdown Function], [S
 AST_EXT_LIB_SETUP_OPTIONAL([SRTP_GET_VERSION], [SRTP Library Version Function], [SRTP], [srtp])
 AST_EXT_LIB_SETUP([OPENSSL], [OpenSSL Secure Sockets Layer], [ssl])
 AST_EXT_LIB_SETUP_OPTIONAL([RT], [Realtime functions], [rt])
-AST_EXT_LIB_SETUP([SUPPSERV], [mISDN Supplemental Services], [suppserv])
 AST_EXT_LIB_SETUP([FREETDS], [FreeTDS], [tds])
 AST_EXT_LIB_SETUP([TIMERFD], [timerfd], [timerfd])
 AST_EXT_LIB_SETUP([TONEZONE], [tonezone], [tonezone])
@@ -2265,18 +2262,6 @@ AST_EXT_LIB_CHECK([KQUEUE], [c], [kqueue], [sys/event.h])
 AC_CHECK_FUNCS([kevent64])
 
 AST_EXT_LIB_CHECK([LDAP], [ldap], [ldap_initialize], [ldap.h])
-
-AST_EXT_LIB_CHECK([MISDN], [mISDN], [mISDN_open], [mISDNuser/mISDNlib.h])
-
-if test "${PBX_MISDN}" = 1; then
-   AST_EXT_LIB_CHECK([ISDNNET], [isdnnet], [init_manager], [mISDNuser/isdn_net.h], [-lmISDN -lpthread])
-   AST_EXT_LIB_CHECK([SUPPSERV], [suppserv], [encodeFac], [mISDNuser/suppserv.h])
-   AST_C_DEFINE_CHECK([MISDN_FAC_RESULT], [Fac_RESULT], [mISDNuser/suppserv.h])
-   AST_C_DEFINE_CHECK([MISDN_FAC_ERROR], [Fac_ERROR], [mISDNuser/suppserv.h])
-   AC_CHECK_HEADER([linux/mISDNdsp.h], [AC_DEFINE_UNQUOTED([MISDN_1_2], 1, [Build chan_misdn for mISDN 1.2 or later.])])
-   AC_CHECK_MEMBER([Q931_info_t.redirect_dn], [], [PBX_MISDN=0], [#include <mISDNuser/mISDNlib.h>])
-fi
-
 
 AST_EXT_TOOL_CHECK([MYSQLCLIENT], [mysql_config])
 

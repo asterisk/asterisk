@@ -667,8 +667,6 @@ CONFIG_NETSNMP
 CONFIG_NEON29
 CONFIG_NEON
 CONFIG_MYSQLCLIENT
-PBX_MISDN_FAC_ERROR
-PBX_MISDN_FAC_RESULT
 ILBC_LIBS
 ILBC_CFLAGS
 ILBC_INTERNAL
@@ -750,10 +748,6 @@ PBX_FREETDS
 FREETDS_DIR
 FREETDS_INCLUDE
 FREETDS_LIB
-PBX_SUPPSERV
-SUPPSERV_DIR
-SUPPSERV_INCLUDE
-SUPPSERV_LIB
 PBX_RT
 RT_DIR
 RT_INCLUDE
@@ -1038,10 +1032,6 @@ PBX_MYSQLCLIENT
 MYSQLCLIENT_DIR
 MYSQLCLIENT_INCLUDE
 MYSQLCLIENT_LIB
-PBX_MISDN
-MISDN_DIR
-MISDN_INCLUDE
-MISDN_LIB
 LUA_VERSIONS
 PBX_LUA
 LUA_DIR
@@ -1088,10 +1078,6 @@ PBX_JACK
 JACK_DIR
 JACK_INCLUDE
 JACK_LIB
-PBX_ISDNNET
-ISDNNET_DIR
-ISDNNET_INCLUDE
-ISDNNET_LIB
 PBX_IODBC
 IODBC_DIR
 IODBC_INCLUDE
@@ -1394,7 +1380,6 @@ with_iksemel
 with_imap
 with_inotify
 with_iodbc
-with_isdnnet
 with_jack
 with_jansson
 with_uriparser
@@ -1405,7 +1390,6 @@ with_libedit
 with_libxml2
 with_libxslt
 with_lua
-with_misdn
 with_mysqlclient
 with_neon
 with_neon29
@@ -1436,7 +1420,6 @@ with_sqlite
 with_sqlite3
 with_srtp
 with_ssl
-with_suppserv
 with_tds
 with_timerfd
 with_tonezone
@@ -2165,7 +2148,6 @@ Optional Packages:
   --with-imap=PATH        use UW IMAP Toolkit files in PATH
   --with-inotify=PATH     use inotify support files in PATH
   --with-iodbc=PATH       use iODBC files in PATH
-  --with-isdnnet=PATH     use ISDN4Linux files in PATH
   --with-jack=PATH        use Jack Audio Connection Kit files in PATH
   --with-jansson=PATH     use Jansson JSON library files in PATH
   --with-uriparser=PATH   use uriparser library files in PATH
@@ -2177,7 +2159,6 @@ Optional Packages:
   --with-libxml2=PATH     use LibXML2 files in PATH
   --with-libxslt=PATH     use LibXSLT files in PATH
   --with-lua=PATH         use Lua files in PATH
-  --with-misdn=PATH       use mISDN user files in PATH
   --with-mysqlclient=PATH use MySQL client files in PATH
   --with-neon=PATH        use neon files in PATH
   --with-neon29=PATH      use neon29 files in PATH
@@ -2209,7 +2190,6 @@ Optional Packages:
   --with-sqlite3=PATH     use SQLite files in PATH
   --with-srtp=PATH        use Secure RTP files in PATH
   --with-ssl=PATH         use OpenSSL Secure Sockets Layer files in PATH
-  --with-suppserv=PATH    use mISDN Supplemental Services files in PATH
   --with-tds=PATH         use FreeTDS files in PATH
   --with-timerfd=PATH     use timerfd files in PATH
   --with-tonezone=PATH    use tonezone files in PATH
@@ -10116,38 +10096,6 @@ fi
 
 
 
-    ISDNNET_DESCRIP="ISDN4Linux"
-    ISDNNET_OPTION="isdnnet"
-    PBX_ISDNNET=0
-
-# Check whether --with-isdnnet was given.
-if test "${with_isdnnet+set}" = set; then :
-  withval=$with_isdnnet;
-	case ${withval} in
-	n|no)
-	USE_ISDNNET=no
-	# -1 is a magic value used by menuselect to know that the package
-	# was disabled, other than 'not found'
-	PBX_ISDNNET=-1
-	;;
-	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} ISDNNET"
-	;;
-	*)
-	ISDNNET_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} ISDNNET"
-	;;
-	esac
-
-fi
-
-
-
-
-
-
-
-
     JACK_DESCRIP="Jack Audio Connection Kit"
     JACK_OPTION="jack"
     PBX_JACK=0
@@ -10840,38 +10788,6 @@ if test "${with_lua+set}" = set; then :
 
 fi
 
-
-
-
-
-
-
-
-
-    MISDN_DESCRIP="mISDN user"
-    MISDN_OPTION="misdn"
-    PBX_MISDN=0
-
-# Check whether --with-misdn was given.
-if test "${with_misdn+set}" = set; then :
-  withval=$with_misdn;
-	case ${withval} in
-	n|no)
-	USE_MISDN=no
-	# -1 is a magic value used by menuselect to know that the package
-	# was disabled, other than 'not found'
-	PBX_MISDN=-1
-	;;
-	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} MISDN"
-	;;
-	*)
-	MISDN_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} MISDN"
-	;;
-	esac
-
-fi
 
 
 
@@ -12376,38 +12292,6 @@ RT_DESCRIP="Realtime functions"
 RT_DIR=${rt_DIR}
 
 PBX_RT=0
-
-
-
-
-
-
-
-    SUPPSERV_DESCRIP="mISDN Supplemental Services"
-    SUPPSERV_OPTION="suppserv"
-    PBX_SUPPSERV=0
-
-# Check whether --with-suppserv was given.
-if test "${with_suppserv+set}" = set; then :
-  withval=$with_suppserv;
-	case ${withval} in
-	n|no)
-	USE_SUPPSERV=no
-	# -1 is a magic value used by menuselect to know that the package
-	# was disabled, other than 'not found'
-	PBX_SUPPSERV=-1
-	;;
-	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} SUPPSERV"
-	;;
-	*)
-	SUPPSERV_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} SUPPSERV"
-	;;
-	esac
-
-fi
-
 
 
 
@@ -22233,409 +22117,6 @@ _ACEOF
    fi
 fi
 
-
-
-
-if test "x${PBX_MISDN}" != "x1" -a "${USE_MISDN}" != "no"; then
-   pbxlibdir=""
-   # if --with-MISDN=DIR has been specified, use it.
-   if test "x${MISDN_DIR}" != "x"; then
-      if test -d ${MISDN_DIR}/lib; then
-         pbxlibdir="-L${MISDN_DIR}/lib"
-      else
-         pbxlibdir="-L${MISDN_DIR}"
-      fi
-   fi
-
-      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
-      CFLAGS="${CFLAGS} "
-      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for mISDN_open in -lmISDN" >&5
-$as_echo_n "checking for mISDN_open in -lmISDN... " >&6; }
-if ${ac_cv_lib_mISDN_mISDN_open+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-lmISDN ${pbxlibdir}  $LIBS"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char mISDN_open ();
-int
-main ()
-{
-return mISDN_open ();
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_lib_mISDN_mISDN_open=yes
-else
-  ac_cv_lib_mISDN_mISDN_open=no
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_mISDN_mISDN_open" >&5
-$as_echo "$ac_cv_lib_mISDN_mISDN_open" >&6; }
-if test "x$ac_cv_lib_mISDN_mISDN_open" = xyes; then :
-  AST_MISDN_FOUND=yes
-else
-  AST_MISDN_FOUND=no
-fi
-
-      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
-
-
-   # now check for the header.
-   if test "${AST_MISDN_FOUND}" = "yes"; then
-      MISDN_LIB="${pbxlibdir} -lmISDN "
-      # if --with-MISDN=DIR has been specified, use it.
-      if test "x${MISDN_DIR}" != "x"; then
-         MISDN_INCLUDE="-I${MISDN_DIR}/include"
-      fi
-      MISDN_INCLUDE="${MISDN_INCLUDE} "
-
-         # check for the header
-         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
-         CPPFLAGS="${CPPFLAGS} ${MISDN_INCLUDE}"
-         ac_fn_c_check_header_mongrel "$LINENO" "mISDNuser/mISDNlib.h" "ac_cv_header_mISDNuser_mISDNlib_h" "$ac_includes_default"
-if test "x$ac_cv_header_mISDNuser_mISDNlib_h" = xyes; then :
-  MISDN_HEADER_FOUND=1
-else
-  MISDN_HEADER_FOUND=0
-fi
-
-
-         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
-
-      if test "x${MISDN_HEADER_FOUND}" = "x0" ; then
-         MISDN_LIB=""
-         MISDN_INCLUDE=""
-      else
-
-         PBX_MISDN=1
-         cat >>confdefs.h <<_ACEOF
-#define HAVE_MISDN 1
-_ACEOF
-
-      fi
-   fi
-fi
-
-
-
-if test "${PBX_MISDN}" = 1; then
-
-if test "x${PBX_ISDNNET}" != "x1" -a "${USE_ISDNNET}" != "no"; then
-   pbxlibdir=""
-   # if --with-ISDNNET=DIR has been specified, use it.
-   if test "x${ISDNNET_DIR}" != "x"; then
-      if test -d ${ISDNNET_DIR}/lib; then
-         pbxlibdir="-L${ISDNNET_DIR}/lib"
-      else
-         pbxlibdir="-L${ISDNNET_DIR}"
-      fi
-   fi
-
-      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
-      CFLAGS="${CFLAGS} "
-      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for init_manager in -lisdnnet" >&5
-$as_echo_n "checking for init_manager in -lisdnnet... " >&6; }
-if ${ac_cv_lib_isdnnet_init_manager+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-lisdnnet ${pbxlibdir} -lmISDN -lpthread $LIBS"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char init_manager ();
-int
-main ()
-{
-return init_manager ();
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_lib_isdnnet_init_manager=yes
-else
-  ac_cv_lib_isdnnet_init_manager=no
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_isdnnet_init_manager" >&5
-$as_echo "$ac_cv_lib_isdnnet_init_manager" >&6; }
-if test "x$ac_cv_lib_isdnnet_init_manager" = xyes; then :
-  AST_ISDNNET_FOUND=yes
-else
-  AST_ISDNNET_FOUND=no
-fi
-
-      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
-
-
-   # now check for the header.
-   if test "${AST_ISDNNET_FOUND}" = "yes"; then
-      ISDNNET_LIB="${pbxlibdir} -lisdnnet -lmISDN -lpthread"
-      # if --with-ISDNNET=DIR has been specified, use it.
-      if test "x${ISDNNET_DIR}" != "x"; then
-         ISDNNET_INCLUDE="-I${ISDNNET_DIR}/include"
-      fi
-      ISDNNET_INCLUDE="${ISDNNET_INCLUDE} "
-
-         # check for the header
-         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
-         CPPFLAGS="${CPPFLAGS} ${ISDNNET_INCLUDE}"
-         ac_fn_c_check_header_mongrel "$LINENO" "mISDNuser/isdn_net.h" "ac_cv_header_mISDNuser_isdn_net_h" "$ac_includes_default"
-if test "x$ac_cv_header_mISDNuser_isdn_net_h" = xyes; then :
-  ISDNNET_HEADER_FOUND=1
-else
-  ISDNNET_HEADER_FOUND=0
-fi
-
-
-         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
-
-      if test "x${ISDNNET_HEADER_FOUND}" = "x0" ; then
-         ISDNNET_LIB=""
-         ISDNNET_INCLUDE=""
-      else
-
-         PBX_ISDNNET=1
-         cat >>confdefs.h <<_ACEOF
-#define HAVE_ISDNNET 1
-_ACEOF
-
-      fi
-   fi
-fi
-
-
-
-if test "x${PBX_SUPPSERV}" != "x1" -a "${USE_SUPPSERV}" != "no"; then
-   pbxlibdir=""
-   # if --with-SUPPSERV=DIR has been specified, use it.
-   if test "x${SUPPSERV_DIR}" != "x"; then
-      if test -d ${SUPPSERV_DIR}/lib; then
-         pbxlibdir="-L${SUPPSERV_DIR}/lib"
-      else
-         pbxlibdir="-L${SUPPSERV_DIR}"
-      fi
-   fi
-
-      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
-      CFLAGS="${CFLAGS} "
-      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for encodeFac in -lsuppserv" >&5
-$as_echo_n "checking for encodeFac in -lsuppserv... " >&6; }
-if ${ac_cv_lib_suppserv_encodeFac+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-lsuppserv ${pbxlibdir}  $LIBS"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char encodeFac ();
-int
-main ()
-{
-return encodeFac ();
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_lib_suppserv_encodeFac=yes
-else
-  ac_cv_lib_suppserv_encodeFac=no
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_suppserv_encodeFac" >&5
-$as_echo "$ac_cv_lib_suppserv_encodeFac" >&6; }
-if test "x$ac_cv_lib_suppserv_encodeFac" = xyes; then :
-  AST_SUPPSERV_FOUND=yes
-else
-  AST_SUPPSERV_FOUND=no
-fi
-
-      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
-
-
-   # now check for the header.
-   if test "${AST_SUPPSERV_FOUND}" = "yes"; then
-      SUPPSERV_LIB="${pbxlibdir} -lsuppserv "
-      # if --with-SUPPSERV=DIR has been specified, use it.
-      if test "x${SUPPSERV_DIR}" != "x"; then
-         SUPPSERV_INCLUDE="-I${SUPPSERV_DIR}/include"
-      fi
-      SUPPSERV_INCLUDE="${SUPPSERV_INCLUDE} "
-
-         # check for the header
-         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
-         CPPFLAGS="${CPPFLAGS} ${SUPPSERV_INCLUDE}"
-         ac_fn_c_check_header_mongrel "$LINENO" "mISDNuser/suppserv.h" "ac_cv_header_mISDNuser_suppserv_h" "$ac_includes_default"
-if test "x$ac_cv_header_mISDNuser_suppserv_h" = xyes; then :
-  SUPPSERV_HEADER_FOUND=1
-else
-  SUPPSERV_HEADER_FOUND=0
-fi
-
-
-         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
-
-      if test "x${SUPPSERV_HEADER_FOUND}" = "x0" ; then
-         SUPPSERV_LIB=""
-         SUPPSERV_INCLUDE=""
-      else
-
-         PBX_SUPPSERV=1
-         cat >>confdefs.h <<_ACEOF
-#define HAVE_SUPPSERV 1
-_ACEOF
-
-      fi
-   fi
-fi
-
-
-
-    if test "x${PBX_MISDN_FAC_RESULT}" != "x1"; then
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for Fac_RESULT in mISDNuser/suppserv.h" >&5
-$as_echo_n "checking for Fac_RESULT in mISDNuser/suppserv.h... " >&6; }
-	saved_cppflags="${CPPFLAGS}"
-	if test "x${MISDN_FAC_RESULT_DIR}" != "x"; then
-	    MISDN_FAC_RESULT_INCLUDE="-I${MISDN_FAC_RESULT_DIR}/include"
-	fi
-	CPPFLAGS="${CPPFLAGS} ${MISDN_FAC_RESULT_INCLUDE}"
-
-	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
- #include <mISDNuser/suppserv.h>
-int
-main ()
-{
-#if defined(Fac_RESULT)
-				int foo = 0;
-			        #else
-			        int foo = bar;
-			        #endif
-				0
-
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_compile "$LINENO"; then :
-     { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-		PBX_MISDN_FAC_RESULT=1
-
-$as_echo "#define HAVE_MISDN_FAC_RESULT 1" >>confdefs.h
-
-
-
-else
-     { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-	CPPFLAGS="${saved_cppflags}"
-    fi
-
-
-
-    if test "x${PBX_MISDN_FAC_ERROR}" != "x1"; then
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for Fac_ERROR in mISDNuser/suppserv.h" >&5
-$as_echo_n "checking for Fac_ERROR in mISDNuser/suppserv.h... " >&6; }
-	saved_cppflags="${CPPFLAGS}"
-	if test "x${MISDN_FAC_ERROR_DIR}" != "x"; then
-	    MISDN_FAC_ERROR_INCLUDE="-I${MISDN_FAC_ERROR_DIR}/include"
-	fi
-	CPPFLAGS="${CPPFLAGS} ${MISDN_FAC_ERROR_INCLUDE}"
-
-	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
- #include <mISDNuser/suppserv.h>
-int
-main ()
-{
-#if defined(Fac_ERROR)
-				int foo = 0;
-			        #else
-			        int foo = bar;
-			        #endif
-				0
-
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_compile "$LINENO"; then :
-     { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-		PBX_MISDN_FAC_ERROR=1
-
-$as_echo "#define HAVE_MISDN_FAC_ERROR 1" >>confdefs.h
-
-
-
-else
-     { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-	CPPFLAGS="${saved_cppflags}"
-    fi
-
-
-   ac_fn_c_check_header_mongrel "$LINENO" "linux/mISDNdsp.h" "ac_cv_header_linux_mISDNdsp_h" "$ac_includes_default"
-if test "x$ac_cv_header_linux_mISDNdsp_h" = xyes; then :
-
-cat >>confdefs.h <<_ACEOF
-#define MISDN_1_2 1
-_ACEOF
-
-fi
-
-
-   ac_fn_c_check_member "$LINENO" "Q931_info_t" "redirect_dn" "ac_cv_member_Q931_info_t_redirect_dn" "#include <mISDNuser/mISDNlib.h>
-"
-if test "x$ac_cv_member_Q931_info_t_redirect_dn" = xyes; then :
-
-else
-  PBX_MISDN=0
-fi
-
-fi
 
 
 
