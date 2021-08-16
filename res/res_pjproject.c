@@ -29,7 +29,10 @@
  *  - 0: LOG_ERROR
  *  - 1: LOG_ERROR
  *  - 2: LOG_WARNING
- *  - 3 and above: equivalent to ast_debug(level, ...) for res_pjproject.so
+ *  - 3: equivalent to ast_debug(level, ...) for res_pjproject.so
+ *  - 4: equivalent to ast_debug(level, ...) for res_pjproject.so
+ *  - 5: equivalent to ast_trace(level, ...) for res_pjproject.so
+ *  - 6: equivalent to ast_trace(level, ...) for res_pjproject.so
  */
 
 /*** MODULEINFO
@@ -86,11 +89,14 @@
 				<configOption name="asterisk_notice" default="">
 					<synopsis>A comma separated list of pjproject log levels to map to Asterisk LOG_NOTICE.</synopsis>
 				</configOption>
-				<configOption name="asterisk_debug" default="3,4,5,6">
-					<synopsis>A comma separated list of pjproject log levels to map to Asterisk LOG_DEBUG.</synopsis>
-				</configOption>
 				<configOption name="asterisk_verbose" default="">
 					<synopsis>A comma separated list of pjproject log levels to map to Asterisk LOG_VERBOSE.</synopsis>
+				</configOption>
+				<configOption name="asterisk_debug" default="3,4">
+					<synopsis>A comma separated list of pjproject log levels to map to Asterisk LOG_DEBUG.</synopsis>
+				</configOption>
+				<configOption name="asterisk_trace" default="5,6">
+					<synopsis>A comma separated list of pjproject log levels to map to Asterisk LOG_TRACE.</synopsis>
 				</configOption>
 			</configObject>
 		</configFile>
@@ -148,6 +154,8 @@ struct log_mappings {
 		AST_STRING_FIELD(asterisk_verbose);
 		/*! pjproject log levels mapped to Asterisk DEBUG */
 		AST_STRING_FIELD(asterisk_debug);
+		/*! pjproject log levels mapped to Asterisk TRACE */
+		AST_STRING_FIELD(asterisk_trace);
 	);
 };
 
@@ -190,6 +198,8 @@ static int get_log_level(int pj_level)
 		mapped_level = __LOG_VERBOSE;
 	} else if (strchr(mappings->asterisk_debug, l)) {
 		mapped_level = __LOG_DEBUG;
+	} else if (strchr(mappings->asterisk_trace, l)) {
+		mapped_level = __LOG_TRACE;
 	} else {
 		mapped_level = __LOG_SUPPRESS;
 	}
@@ -675,6 +685,7 @@ static int load_module(void)
 	ast_sorcery_object_field_register(pjproject_sorcery, "log_mappings", "asterisk_warning", "",  OPT_STRINGFIELD_T, 0, STRFLDSET(struct log_mappings, asterisk_warning));
 	ast_sorcery_object_field_register(pjproject_sorcery, "log_mappings", "asterisk_notice", "",  OPT_STRINGFIELD_T, 0, STRFLDSET(struct log_mappings, asterisk_notice));
 	ast_sorcery_object_field_register(pjproject_sorcery, "log_mappings", "asterisk_verbose", "",  OPT_STRINGFIELD_T, 0, STRFLDSET(struct log_mappings, asterisk_verbose));
+	ast_sorcery_object_field_register(pjproject_sorcery, "log_mappings", "asterisk_trace", "",  OPT_STRINGFIELD_T, 0, STRFLDSET(struct log_mappings, asterisk_trace));
 
 	default_log_mappings = ast_sorcery_alloc(pjproject_sorcery, "log_mappings", "log_mappings");
 	if (!default_log_mappings) {
@@ -683,7 +694,8 @@ static int load_module(void)
 	}
 	ast_string_field_set(default_log_mappings, asterisk_error, "0,1");
 	ast_string_field_set(default_log_mappings, asterisk_warning, "2");
-	ast_string_field_set(default_log_mappings, asterisk_debug, "3,4,5,6");
+	ast_string_field_set(default_log_mappings, asterisk_debug, "3,4");
+	ast_string_field_set(default_log_mappings, asterisk_trace, "5,6");
 
 	ast_sorcery_load(pjproject_sorcery);
 
