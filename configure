@@ -652,7 +652,6 @@ PBX_LAUNCHD
 CONFIG_SDL
 PBX_SO_NOSIGPIPE
 PBX_MSG_NOSIGNAL
-PBX_IXJUSER
 GMIME_LIBS
 GMIME_CFLAGS
 PORTAUDIO_LIBS
@@ -33222,22 +33221,6 @@ cat >>confdefs.h <<_ACEOF
 _ACEOF
 
 fi
-
-
-
-ac_fn_c_check_header_compile "$LINENO" "linux/ixjuser.h" "ac_cv_header_linux_ixjuser_h" "
-				   #include <linux/version.h>
-				   #ifdef HAVE_LINUX_COMPILER_H
-				   #include <linux/compiler.h>
-				   #endif
-
-"
-if test "x$ac_cv_header_linux_ixjuser_h" = xyes; then :
-  PBX_IXJUSER=1
-else
-  PBX_IXJUSER=0
-fi
-
 
 
 

@@ -2797,14 +2797,6 @@ fi
 AC_CHECK_HEADER([linux/compiler.h],
                 [AC_DEFINE_UNQUOTED([HAVE_LINUX_COMPILER_H], 1, [Define to 1 if your system has linux/compiler.h.])])
 
-AC_CHECK_HEADER([linux/ixjuser.h], [PBX_IXJUSER=1], [PBX_IXJUSER=0], [
-				   #include <linux/version.h>
-				   #ifdef HAVE_LINUX_COMPILER_H
-				   #include <linux/compiler.h>
-				   #endif
-				   ])
-AC_SUBST(PBX_IXJUSER)
-
 # Used in res/res_pktccops
 AST_C_DEFINE_CHECK([MSG_NOSIGNAL], [MSG_NOSIGNAL], [sys/socket.h])
 AST_C_DEFINE_CHECK([SO_NOSIGPIPE], [SO_NOSIGPIPE], [sys/socket.h])
