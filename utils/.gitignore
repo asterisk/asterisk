@@ -15,7 +15,6 @@ db1-ast/libdb1.a
 hashtab.c
 lock.c
 md5.c
-muted
 pbx_ael.c
 pval.c
 smsq
