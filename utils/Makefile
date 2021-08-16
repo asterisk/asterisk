@@ -38,15 +38,6 @@ include $(ASTTOPDIR)/Makefile.rules
 
 ifeq ($(OSARCH),SunOS)
   LIBS+=-lsocket -lnsl
-  UTILS:=$(filter-out muted,$(UTILS))
-endif
-
-ifeq ($(OSARCH),OpenBSD)
-  UTILS:=$(filter-out muted,$(UTILS))
-endif
-
-ifeq ($(OSARCH),cygwin)
-  UTILS:=$(filter-out muted,$(UTILS))
 endif
 
 ifeq ($(OSARCH),mingw32)
@@ -191,10 +182,6 @@ smsq: smsq.o strcompat.o
 smsq: LIBS+=$(POPT_LIB)
 
 streamplayer: streamplayer.o
-
-muted: muted.o
-muted: LIBS+=$(AUDIO_LIBS)
-muted: _ASTCFLAGS:=$(filter-out -Werror,$(_ASTCFLAGS))
 
 CHECK_SUBDIR:	# do nothing, just make sure that we recurse in the subdir/
 db1-ast/libdb1.a: CHECK_SUBDIR
