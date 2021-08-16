@@ -780,10 +780,6 @@ PBX_SQLITE3
 SQLITE3_DIR
 SQLITE3_INCLUDE
 SQLITE3_LIB
-PBX_SQLITE
-SQLITE_DIR
-SQLITE_INCLUDE
-SQLITE_LIB
 PBX_SPEEXDSP
 SPEEXDSP_DIR
 SPEEXDSP_INCLUDE
@@ -1412,7 +1408,6 @@ with_spandsp
 with_ss7
 with_speex
 with_speexdsp
-with_sqlite
 with_sqlite3
 with_srtp
 with_ssl
@@ -2181,7 +2176,6 @@ Optional Packages:
   --with-speex=PATH       use Speex files in PATH
   --with-speex=PATH       use Speex preprocess routines files in PATH
   --with-speexdsp=PATH    use SpeexDSP files in PATH
-  --with-sqlite=PATH      use SQLite files in PATH
   --with-sqlite3=PATH     use SQLite files in PATH
   --with-srtp=PATH        use Secure RTP files in PATH
   --with-ssl=PATH         use OpenSSL Secure Sockets Layer files in PATH
@@ -12040,38 +12034,6 @@ SPEEX_PREPROCESS_DESCRIP="speex_preprocess_ctl"
 SPEEX_PREPROCESS_OPTION=speex
 
 PBX_SPEEX_PREPROCESS=0
-
-
-
-
-
-
-
-    SQLITE_DESCRIP="SQLite"
-    SQLITE_OPTION="sqlite"
-    PBX_SQLITE=0
-
-# Check whether --with-sqlite was given.
-if test "${with_sqlite+set}" = set; then :
-  withval=$with_sqlite;
-	case ${withval} in
-	n|no)
-	USE_SQLITE=no
-	# -1 is a magic value used by menuselect to know that the package
-	# was disabled, other than 'not found'
-	PBX_SQLITE=-1
-	;;
-	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} SQLITE"
-	;;
-	*)
-	SQLITE_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} SQLITE"
-	;;
-	esac
-
-fi
-
 
 
 
@@ -29653,103 +29615,6 @@ fi
 
 if test "${PBX_SPEEXDSP}" = 1; then
    PBX_SPEEX_PREPROCESS=1
-fi
-
-
-
-
-if test "x${PBX_SQLITE}" != "x1" -a "${USE_SQLITE}" != "no"; then
-   pbxlibdir=""
-   # if --with-SQLITE=DIR has been specified, use it.
-   if test "x${SQLITE_DIR}" != "x"; then
-      if test -d ${SQLITE_DIR}/lib; then
-         pbxlibdir="-L${SQLITE_DIR}/lib"
-      else
-         pbxlibdir="-L${SQLITE_DIR}"
-      fi
-   fi
-
-      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
-      CFLAGS="${CFLAGS} "
-      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for sqlite_exec in -lsqlite" >&5
-$as_echo_n "checking for sqlite_exec in -lsqlite... " >&6; }
-if ${ac_cv_lib_sqlite_sqlite_exec+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-lsqlite ${pbxlibdir}  $LIBS"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char sqlite_exec ();
-int
-main ()
-{
-return sqlite_exec ();
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_lib_sqlite_sqlite_exec=yes
-else
-  ac_cv_lib_sqlite_sqlite_exec=no
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_sqlite_sqlite_exec" >&5
-$as_echo "$ac_cv_lib_sqlite_sqlite_exec" >&6; }
-if test "x$ac_cv_lib_sqlite_sqlite_exec" = xyes; then :
-  AST_SQLITE_FOUND=yes
-else
-  AST_SQLITE_FOUND=no
-fi
-
-      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
-
-
-   # now check for the header.
-   if test "${AST_SQLITE_FOUND}" = "yes"; then
-      SQLITE_LIB="${pbxlibdir} -lsqlite "
-      # if --with-SQLITE=DIR has been specified, use it.
-      if test "x${SQLITE_DIR}" != "x"; then
-         SQLITE_INCLUDE="-I${SQLITE_DIR}/include"
-      fi
-      SQLITE_INCLUDE="${SQLITE_INCLUDE} "
-
-         # check for the header
-         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
-         CPPFLAGS="${CPPFLAGS} ${SQLITE_INCLUDE}"
-         ac_fn_c_check_header_mongrel "$LINENO" "sqlite.h" "ac_cv_header_sqlite_h" "$ac_includes_default"
-if test "x$ac_cv_header_sqlite_h" = xyes; then :
-  SQLITE_HEADER_FOUND=1
-else
-  SQLITE_HEADER_FOUND=0
-fi
-
-
-         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
-
-      if test "x${SQLITE_HEADER_FOUND}" = "x0" ; then
-         SQLITE_LIB=""
-         SQLITE_INCLUDE=""
-      else
-
-         PBX_SQLITE=1
-         cat >>confdefs.h <<_ACEOF
-#define HAVE_SQLITE 1
-_ACEOF
-
-      fi
-   fi
 fi
 
 

@@ -906,9 +906,6 @@
 #undef HAVE_SPEEX_PREPROCESS
 
 /* Define to 1 if you have the SQLite library. */
-#undef HAVE_SQLITE
-
-/* Define to 1 if you have the SQLite library. */
 #undef HAVE_SQLITE3
 
 /* Define to 1 if you have the `sqrtl' function. */
