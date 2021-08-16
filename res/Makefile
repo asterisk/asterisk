@@ -33,9 +33,6 @@ ael/ael_lex.o: _ASTCFLAGS+=-I. -Iael -Wno-unused $(AST_NO_FORMAT_TRUNCATION)
 
 ael/ael.tab.o: ael/ael.tab.c ael/ael.tab.h ../include/asterisk/ael_structs.h
 ael/ael.tab.o: _ASTCFLAGS+=-I. -Iael -DYYENABLE_NLS=0
-	ifneq ($(AST_CLANG_BLOCKS),)
-		_ASTCFLAGS+=-Wno-parentheses-equality
-	endif
 
 ifneq ($(findstring REBUILD_PARSERS,$(MENUSELECT_CFLAGS)),)
 ael/ael_lex.c: ael/ael.flex
