@@ -999,10 +999,6 @@ PBX_PGSQL
 PGSQL_DIR
 PGSQL_INCLUDE
 PGSQL_LIB
-PBX_OSS
-OSS_DIR
-OSS_INCLUDE
-OSS_LIB
 PBX_OSPTK
 OSPTK_DIR
 OSPTK_INCLUDE
@@ -1296,7 +1292,6 @@ BUILD_OS
 BUILD_VENDOR
 BUILD_CPU
 BUILD_PLATFORM
-astcachedir
 astvarrundir
 astlogdir
 astspooldir
@@ -1309,6 +1304,7 @@ astmoddir
 astlibdir
 astheaderdir
 astetcdir
+astcachedir
 astsbindir
 EGREP
 GREP
@@ -1349,6 +1345,7 @@ infodir
 docdir
 oldincludedir
 includedir
+runstatedir
 localstatedir
 sharedstatedir
 sysconfdir
@@ -1425,7 +1422,6 @@ with_openr2
 with_opus
 with_opusfile
 with_osptk
-with_oss
 with_postgres
 with_beanstalk
 with_pjproject
@@ -1538,6 +1534,7 @@ datadir='${datarootdir}'
 sysconfdir='${prefix}/etc'
 sharedstatedir='${prefix}/com'
 localstatedir='${prefix}/var'
+runstatedir='${localstatedir}/run'
 includedir='${prefix}/include'
 oldincludedir='/usr/include'
 docdir='${datarootdir}/doc/${PACKAGE_TARNAME}'
@@ -1790,6 +1787,15 @@ do
   | -silent | --silent | --silen | --sile | --sil)
     silent=yes ;;
 
+  -runstatedir | --runstatedir | --runstatedi | --runstated \
+  | --runstate | --runstat | --runsta | --runst | --runs \
+  | --run | --ru | --r)
+    ac_prev=runstatedir ;;
+  -runstatedir=* | --runstatedir=* | --runstatedi=* | --runstated=* \
+  | --runstate=* | --runstat=* | --runsta=* | --runst=* | --runs=* \
+  | --run=* | --ru=* | --r=*)
+    runstatedir=$ac_optarg ;;
+
   -sbindir | --sbindir | --sbindi | --sbind | --sbin | --sbi | --sb)
     ac_prev=sbindir ;;
   -sbindir=* | --sbindir=* | --sbindi=* | --sbind=* | --sbin=* \
@@ -1927,7 +1933,7 @@ fi
 for ac_var in	exec_prefix prefix bindir sbindir libexecdir datarootdir \
 		datadir sysconfdir sharedstatedir localstatedir includedir \
 		oldincludedir docdir infodir htmldir dvidir pdfdir psdir \
-		libdir localedir mandir
+		libdir localedir mandir runstatedir
 do
   eval ac_val=\$$ac_var
   # Remove trailing slashes.
@@ -2080,6 +2086,7 @@ Fine tuning of the installation directories:
   --sysconfdir=DIR        read-only single-machine data [PREFIX/etc]
   --sharedstatedir=DIR    modifiable architecture-independent data [PREFIX/com]
   --localstatedir=DIR     modifiable single-machine data [PREFIX/var]
+  --runstatedir=DIR       modifiable per-process data [LOCALSTATEDIR/run]
   --libdir=DIR            object code libraries [EPREFIX/lib]
   --includedir=DIR        C header files [PREFIX/include]
   --oldincludedir=DIR     C header files for non-gcc [/usr/include]
@@ -2188,7 +2195,6 @@ Optional Packages:
   --with-opus=PATH        use Opus files in PATH
   --with-opusfile=PATH    use Opusfile files in PATH
   --with-osptk=PATH       use OSP Toolkit files in PATH
-  --with-oss=PATH         use Open Sound System files in PATH
   --with-postgres=PATH    use PostgreSQL files in PATH
   --with-beanstalk=PATH   use Beanstalk Job Queue files in PATH
   --with-pjproject=PATH   use PJPROJECT files in PATH
@@ -10848,6 +10854,7 @@ fi
 
 
 
+
     MISDN_DESCRIP="mISDN user"
     MISDN_OPTION="misdn"
     PBX_MISDN=0
@@ -11220,38 +11227,6 @@ if test "${with_osptk+set}" = set; then :
 	*)
 	OSPTK_DIR="${withval}"
 	ac_mandatory_list="${ac_mandatory_list} OSPTK"
-	;;
-	esac
-
-fi
-
-
-
-
-
-
-
-
-    OSS_DESCRIP="Open Sound System"
-    OSS_OPTION="oss"
-    PBX_OSS=0
-
-# Check whether --with-oss was given.
-if test "${with_oss+set}" = set; then :
-  withval=$with_oss;
-	case ${withval} in
-	n|no)
-	USE_OSS=no
-	# -1 is a magic value used by menuselect to know that the package
-	# was disabled, other than 'not found'
-	PBX_OSS=-1
-	;;
-	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} OSS"
-	;;
-	*)
-	OSS_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} OSS"
 	;;
 	esac
 
@@ -14688,7 +14663,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -14734,7 +14709,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -14758,7 +14733,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -14803,7 +14778,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -14827,7 +14802,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -16127,6 +16102,8 @@ main ()
     if (*(data + i) != *(data3 + i))
       return 14;
   close (fd);
+  free (data);
+  free (data3);
   return 0;
 }
 _ACEOF
@@ -24207,216 +24184,6 @@ fi
          PBX_BEANSTALK=1
          cat >>confdefs.h <<_ACEOF
 #define HAVE_BEANSTALK 1
-_ACEOF
-
-      fi
-   fi
-fi
-
-
-
-# possible places for oss definitions
-
-if test "x${PBX_OSS}" != "x1" -a "${USE_OSS}" != "no"; then
-   pbxlibdir=""
-   # if --with-OSS=DIR has been specified, use it.
-   if test "x${OSS_DIR}" != "x"; then
-      if test -d ${OSS_DIR}/lib; then
-         pbxlibdir="-L${OSS_DIR}/lib"
-      else
-         pbxlibdir="-L${OSS_DIR}"
-      fi
-   fi
-
-      # empty lib, assume only headers
-      AST_OSS_FOUND=yes
-
-
-   # now check for the header.
-   if test "${AST_OSS_FOUND}" = "yes"; then
-      OSS_LIB="${pbxlibdir} -lossaudio "
-      # if --with-OSS=DIR has been specified, use it.
-      if test "x${OSS_DIR}" != "x"; then
-         OSS_INCLUDE="-I${OSS_DIR}/include"
-      fi
-      OSS_INCLUDE="${OSS_INCLUDE} "
-
-         # check for the header
-         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
-         CPPFLAGS="${CPPFLAGS} ${OSS_INCLUDE}"
-         ac_fn_c_check_header_mongrel "$LINENO" "linux/soundcard.h" "ac_cv_header_linux_soundcard_h" "$ac_includes_default"
-if test "x$ac_cv_header_linux_soundcard_h" = xyes; then :
-  OSS_HEADER_FOUND=1
-else
-  OSS_HEADER_FOUND=0
-fi
-
-
-         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
-
-      if test "x${OSS_HEADER_FOUND}" = "x0" ; then
-         OSS_LIB=""
-         OSS_INCLUDE=""
-      else
-
-            # only checking headers -> no library
-            OSS_LIB=""
-
-         PBX_OSS=1
-         cat >>confdefs.h <<_ACEOF
-#define HAVE_OSS 1
-_ACEOF
-
-      fi
-   fi
-fi
-
-
-
-if test "x${PBX_OSS}" != "x1" -a "${USE_OSS}" != "no"; then
-   pbxlibdir=""
-   # if --with-OSS=DIR has been specified, use it.
-   if test "x${OSS_DIR}" != "x"; then
-      if test -d ${OSS_DIR}/lib; then
-         pbxlibdir="-L${OSS_DIR}/lib"
-      else
-         pbxlibdir="-L${OSS_DIR}"
-      fi
-   fi
-
-      # empty lib, assume only headers
-      AST_OSS_FOUND=yes
-
-
-   # now check for the header.
-   if test "${AST_OSS_FOUND}" = "yes"; then
-      OSS_LIB="${pbxlibdir} -lossaudio "
-      # if --with-OSS=DIR has been specified, use it.
-      if test "x${OSS_DIR}" != "x"; then
-         OSS_INCLUDE="-I${OSS_DIR}/include"
-      fi
-      OSS_INCLUDE="${OSS_INCLUDE} "
-
-         # check for the header
-         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
-         CPPFLAGS="${CPPFLAGS} ${OSS_INCLUDE}"
-         ac_fn_c_check_header_mongrel "$LINENO" "sys/soundcard.h" "ac_cv_header_sys_soundcard_h" "$ac_includes_default"
-if test "x$ac_cv_header_sys_soundcard_h" = xyes; then :
-  OSS_HEADER_FOUND=1
-else
-  OSS_HEADER_FOUND=0
-fi
-
-
-         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
-
-      if test "x${OSS_HEADER_FOUND}" = "x0" ; then
-         OSS_LIB=""
-         OSS_INCLUDE=""
-      else
-
-            # only checking headers -> no library
-            OSS_LIB=""
-
-         PBX_OSS=1
-         cat >>confdefs.h <<_ACEOF
-#define HAVE_OSS 1
-_ACEOF
-
-      fi
-   fi
-fi
-
-
-
-if test "x${PBX_OSS}" != "x1" -a "${USE_OSS}" != "no"; then
-   pbxlibdir=""
-   # if --with-OSS=DIR has been specified, use it.
-   if test "x${OSS_DIR}" != "x"; then
-      if test -d ${OSS_DIR}/lib; then
-         pbxlibdir="-L${OSS_DIR}/lib"
-      else
-         pbxlibdir="-L${OSS_DIR}"
-      fi
-   fi
-
-      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
-      CFLAGS="${CFLAGS} "
-      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for oss_ioctl_mixer in -lossaudio" >&5
-$as_echo_n "checking for oss_ioctl_mixer in -lossaudio... " >&6; }
-if ${ac_cv_lib_ossaudio_oss_ioctl_mixer+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-lossaudio ${pbxlibdir}  $LIBS"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char oss_ioctl_mixer ();
-int
-main ()
-{
-return oss_ioctl_mixer ();
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_lib_ossaudio_oss_ioctl_mixer=yes
-else
-  ac_cv_lib_ossaudio_oss_ioctl_mixer=no
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_ossaudio_oss_ioctl_mixer" >&5
-$as_echo "$ac_cv_lib_ossaudio_oss_ioctl_mixer" >&6; }
-if test "x$ac_cv_lib_ossaudio_oss_ioctl_mixer" = xyes; then :
-  AST_OSS_FOUND=yes
-else
-  AST_OSS_FOUND=no
-fi
-
-      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
-
-
-   # now check for the header.
-   if test "${AST_OSS_FOUND}" = "yes"; then
-      OSS_LIB="${pbxlibdir} -lossaudio "
-      # if --with-OSS=DIR has been specified, use it.
-      if test "x${OSS_DIR}" != "x"; then
-         OSS_INCLUDE="-I${OSS_DIR}/include"
-      fi
-      OSS_INCLUDE="${OSS_INCLUDE} "
-
-         # check for the header
-         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
-         CPPFLAGS="${CPPFLAGS} ${OSS_INCLUDE}"
-         ac_fn_c_check_header_mongrel "$LINENO" "soundcard.h" "ac_cv_header_soundcard_h" "$ac_includes_default"
-if test "x$ac_cv_header_soundcard_h" = xyes; then :
-  OSS_HEADER_FOUND=1
-else
-  OSS_HEADER_FOUND=0
-fi
-
-
-         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
-
-      if test "x${OSS_HEADER_FOUND}" = "x0" ; then
-         OSS_LIB=""
-         OSS_INCLUDE=""
-      else
-
-         PBX_OSS=1
-         cat >>confdefs.h <<_ACEOF
-#define HAVE_OSS 1
 _ACEOF
 
       fi
