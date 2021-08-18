@@ -187,6 +187,8 @@ enum iax_frame_subclass {
 #define IAX_IE_CAPABILITY2          55      /*!< Actual codec capability - u8 version + integer array */
 #define IAX_IE_FORMAT2              56      /*!< Desired codec format - u8 version + integer array */
 
+#define IAX_IE_CALLINGANI2          57      /*!< Calling Originating Line Information (ANI2) digits */
+
 #define IAX_MAX_OSPBLOCK_SIZE		254		/*!< Max OSP token block size, 255 bytes - 1 byte OSP token block index */
 #define IAX_MAX_OSPBLOCK_NUM		4
 #define IAX_MAX_OSPTOKEN_SIZE		(IAX_MAX_OSPBLOCK_SIZE * IAX_MAX_OSPBLOCK_NUM)
