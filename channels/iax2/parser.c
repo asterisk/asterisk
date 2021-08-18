@@ -309,6 +309,7 @@ static struct iax2_ie infoelts[] = {
 	{ IAX_IE_CALLINGPRES, "CALLING PRESNTN", dump_byte },
 	{ IAX_IE_CALLINGTON, "CALLING TYPEOFNUM", dump_byte },
 	{ IAX_IE_CALLINGTNS, "CALLING TRANSITNET", dump_short },
+	{ IAX_IE_CALLINGANI2, "CALLING ANI2", dump_int },
 	{ IAX_IE_SAMPLINGRATE, "SAMPLINGRATE", dump_samprate },
 	{ IAX_IE_CAUSECODE, "CAUSE CODE", dump_byte },
 	{ IAX_IE_ENCRYPTION, "ENCRYPTION", dump_short },
@@ -801,6 +802,7 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 	ies->calling_ton = -1;
 	ies->calling_tns = -1;
 	ies->calling_pres = -1;
+	ies->calling_ani2 = -1;
 	ies->samprate = IAX_RATE_8KHZ;
 	while(datalen >= 2) {
 		ie = data[0];
@@ -1050,6 +1052,14 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 				ies->calling_ton = data[2];
 			else {
 				snprintf(tmp, (int)sizeof(tmp), "Expected single byte callington, but was %d long\n", len);
+				errorf(tmp);
+			}
+			break;
+		case IAX_IE_CALLINGANI2:
+			if (len == (int)sizeof(unsigned int)) {
+				ies->calling_ani2 = ntohl(get_unaligned_uint32(data + 2));
+			} else {
+				snprintf(tmp, (int)sizeof(tmp), "callingani2 was %d long: %s\n", len, data + 2);
 				errorf(tmp);
 			}
 			break;

@@ -865,6 +865,7 @@ struct chan_iax2_pvt {
 	int calling_ton;
 	int calling_tns;
 	int calling_pres;
+	int calling_ani2;
 	int amaflags;
 	AST_LIST_HEAD_NOLOCK(, iax2_dpcache) dpentries;
 	/*! variables inherited from the user definition */
@@ -5181,6 +5182,7 @@ static int iax2_call(struct ast_channel *c, const char *dest, int timeout)
 
 	iax_ie_append_byte(&ied, IAX_IE_CALLINGTON, ast_channel_connected(c)->id.number.plan);
 	iax_ie_append_short(&ied, IAX_IE_CALLINGTNS, ast_channel_dialed(c)->transit_network_select);
+	iax_ie_append_int(&ied, IAX_IE_CALLINGANI2, ast_channel_connected(c)->ani2);
 
 	if (n)
 		iax_ie_append_str(&ied, IAX_IE_CALLING_NAME, n);
@@ -5941,6 +5943,7 @@ static struct ast_channel *ast_iax2_new(int callno, int state, iax2_format capab
 		ast_channel_redirecting(tmp)->from.number.valid = 1;
 		ast_channel_redirecting(tmp)->from.number.str = ast_strdup(i->rdnis);
 	}
+	ast_channel_caller(tmp)->ani2 = i->calling_ani2;
 	ast_channel_caller(tmp)->id.name.presentation = i->calling_pres;
 	ast_channel_caller(tmp)->id.number.presentation = i->calling_pres;
 	ast_channel_caller(tmp)->id.number.plan = i->calling_ton;
@@ -7831,6 +7834,8 @@ static int check_access(int callno, struct ast_sockaddr *addr, struct iax_ies *i
 		iaxs[callno]->calling_tns = ies->calling_tns;
 	if (ies->calling_pres > -1)
 		iaxs[callno]->calling_pres = ies->calling_pres;
+	if (ies->calling_ani2 > -1)
+		iaxs[callno]->calling_ani2 = ies->calling_ani2;
 	if (ies->format)
 		iaxs[callno]->peerformat = ies->format;
 	if (ies->adsicpe)

@@ -1,0 +1,4 @@
+Subject: chan_iax2
+
+ANI2 (OLI) is now transmitted over IAX2 calls
+as an information element.
