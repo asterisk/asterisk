@@ -9339,9 +9339,13 @@ static void reload_single_member(const char *memberdata, struct call_queue *q)
 	if ((newm = create_queue_member(interface, membername, penalty, cur ? cur->paused : 0, state_interface, ringinuse, wrapuptime))) {
 		newm->wrapuptime = wrapuptime;
 		if (cur) {
-			/* Round Robin Queue Position must be copied if this is replacing an existing member */
 			ao2_lock(q->members);
+			/* Round Robin Queue Position must be copied if this is replacing an existing member */
 			newm->queuepos = cur->queuepos;
+			/* Don't reset agent stats either */
+			newm->calls = cur->calls;
+			newm->lastcall = cur->lastcall;
+
 			ao2_link(q->members, newm);
 			ao2_unlink(q->members, cur);
 			ao2_unlock(q->members);
@@ -10407,7 +10411,7 @@ static int manager_queue_reload(struct mansession *s, const struct message *m)
 	}
 
 	if (!header_found) {
-		ast_set_flag(&mask, AST_FLAGS_ALL);
+		ast_set_flag(&mask, AST_FLAGS_ALL & ~QUEUE_RESET_STATS);
 	}
 
 	if (!reload_handler(1, &mask, queuename)) {
@@ -11146,7 +11150,7 @@ static char *handle_queue_reload(struct ast_cli_entry *e, int cmd, struct ast_cl
 	} else if (!strcasecmp(a->argv[2], "parameters")) {
 		ast_set_flag(&mask, QUEUE_RELOAD_PARAMETERS);
 	} else if (!strcasecmp(a->argv[2], "all")) {
-		ast_set_flag(&mask, AST_FLAGS_ALL);
+		ast_set_flag(&mask, AST_FLAGS_ALL & ~QUEUE_RESET_STATS);
 	}
 
 	if (a->argc == 3) {
