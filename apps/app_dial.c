@@ -1146,6 +1146,7 @@ struct privacy_args {
 	char privcid[256];
 	char privintro[1024];
 	char status[256];
+	int canceled;
 };
 
 static void publish_dial_end_event(struct ast_channel *in, struct dial_head *out_chans, struct ast_channel *exception, const char *status)
@@ -1718,6 +1719,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 				/* Got hung up */
 				*to = -1;
 				strcpy(pa->status, "CANCEL");
+				pa->canceled = 1;
 				publish_dial_end_event(in, out_chans, NULL, pa->status);
 				if (f) {
 					if (f->data.uint32) {
@@ -1742,6 +1744,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 						*to = 0;
 						*result = f->subclass.integer;
 						strcpy(pa->status, "CANCEL");
+						pa->canceled = 1;
 						publish_dial_end_event(in, out_chans, NULL, pa->status);
 						ast_frfree(f);
 						ast_channel_unlock(in);
@@ -1759,6 +1762,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 					ast_verb(3, "User requested call disconnect.\n");
 					*to = 0;
 					strcpy(pa->status, "CANCEL");
+					pa->canceled = 1;
 					publish_dial_end_event(in, out_chans, NULL, pa->status);
 					ast_frfree(f);
 					if (is_cc_recall) {
@@ -2241,7 +2245,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 	struct ast_channel *peer = NULL;
 	int to; /* timeout */
 	struct cause_args num = { chan, 0, 0, 0 };
-	int cause;
+	int cause, hanguptreecause = -1;
 
 	struct ast_bridge_config config = { { 0, } };
 	struct timeval calldurationlimit = { 0, };
@@ -2250,6 +2254,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		.sentringing = 0,
 		.privdb_val = 0,
 		.status = "INVALIDARGS",
+		.canceled = 0,
 	};
 	int sentringing = 0, moh = 0;
 	const char *outbound_group = NULL;
@@ -3350,11 +3355,16 @@ out:
 	}
 
 	ast_channel_early_bridge(chan, NULL);
-	 /* forward 'answered elsewhere' if we received it */
-	hanguptree(&out_chans, NULL,
-		ast_channel_hangupcause(chan) == AST_CAUSE_ANSWERED_ELSEWHERE
-		|| ast_test_flag64(&opts, OPT_CANCEL_ELSEWHERE)
-		? AST_CAUSE_ANSWERED_ELSEWHERE : -1);
+	/* forward 'answered elsewhere' if we received it */
+	if (ast_channel_hangupcause(chan) == AST_CAUSE_ANSWERED_ELSEWHERE || ast_test_flag64(&opts, OPT_CANCEL_ELSEWHERE)) {
+		hanguptreecause = AST_CAUSE_ANSWERED_ELSEWHERE;
+	} else if (pa.canceled) { /* Caller canceled */
+		if (ast_channel_hangupcause(chan))
+			hanguptreecause = ast_channel_hangupcause(chan);
+		else
+			hanguptreecause = AST_CAUSE_NORMAL_CLEARING;
+	}
+	hanguptree(&out_chans, NULL, hanguptreecause);
 	pbx_builtin_setvar_helper(chan, "DIALSTATUS", pa.status);
 	ast_debug(1, "Exiting with DIALSTATUS=%s.\n", pa.status);
 
