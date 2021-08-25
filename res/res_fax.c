@@ -4739,7 +4739,7 @@ static int acf_faxopt_write(struct ast_channel *chan, const char *cmd, char *dat
 }
 
 /*! \brief FAXOPT dialplan function */
-struct ast_custom_function acf_faxopt = {
+static struct ast_custom_function acf_faxopt = {
 	.name = "FAXOPT",
 	.read = acf_faxopt_read,
 	.write = acf_faxopt_write,
