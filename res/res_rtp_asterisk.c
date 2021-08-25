@@ -39,6 +39,7 @@
 #include <sys/time.h>
 #include <signal.h>
 #include <fcntl.h>
+#include <math.h>
 
 #ifdef HAVE_OPENSSL
 #include <openssl/opensslconf.h>
