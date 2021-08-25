@@ -193,8 +193,25 @@ int ast_app_dtget(struct ast_channel *chan, const char *context, char *collect, 
  * \param s The string to read in to.  Must be at least the size of your length
  * \param maxlen How many digits to read (maximum)
  * \param timeout set timeout to 0 for "standard" timeouts. Set timeout to -1 for
- *      "ludicrous time" (essentially never times out) */
+ *      "ludicrous time" (essentially never times out)
+ */
 enum ast_getdata_result ast_app_getdata(struct ast_channel *c, const char *prompt, char *s, int maxlen, int timeout)
+{
+	return ast_app_getdata_terminator(c, prompt, s, maxlen, timeout, NULL);
+}
+
+/*!
+ * \brief ast_app_getdata
+ * \param c The channel to read from
+ * \param prompt The file to stream to the channel
+ * \param s The string to read in to.  Must be at least the size of your length
+ * \param maxlen How many digits to read (maximum)
+ * \param timeout set timeout to 0 for "standard" timeouts. Set timeout to -1 for
+ *      "ludicrous time" (essentially never times out)
+ * \param terminator A string of characters that may be used as terminators to end input. Default if NULL is "#"
+ */
+enum ast_getdata_result ast_app_getdata_terminator(struct ast_channel *c, const char *prompt, char *s,
+	int maxlen, int timeout, char *terminator)
 {
 	int res = 0, to, fto;
 	char *front, *filename;
@@ -232,7 +249,7 @@ enum ast_getdata_result ast_app_getdata(struct ast_channel *c, const char *promp
 			fto = 50;
 			to = ast_channel_pbx(c) ? ast_channel_pbx(c)->dtimeoutms : 2000;
 		}
-		res = ast_readstring(c, s, maxlen, to, fto, "#");
+		res = ast_readstring(c, s, maxlen, to, fto, S_OR(terminator, "#"));
 		if (res == AST_GETDATA_EMPTY_END_TERMINATED) {
 			return res;
 		}
