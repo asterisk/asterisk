@@ -137,6 +137,23 @@ int ast_ivr_menu_run(struct ast_channel *c, struct ast_ivr_menu *menu, void *cbd
  */
 int ast_app_getdata(struct ast_channel *c, const char *prompt, char *s, int maxlen, int timeout);
 
+/*! \brief Plays a stream and gets DTMF data from a channel
+ * \param c Which channel one is interacting with
+ * \param prompt File to pass to ast_streamfile (the one that you wish to play).
+ *        It is also valid for this to be multiple files concatenated by "&".
+ *        For example, "file1&file2&file3".
+ * \param s The location where the DTMF data will be stored
+ * \param maxlen Max Length of the data
+ * \param timeout Timeout length waiting for data(in milliseconds).  Set to 0 for standard timeout(six seconds), or -1 for no time out.
+ * \param terminator A string of characters that may be used as terminators to end input. If NULL, "#" will be used.
+ *
+ *  This function was designed for application programmers for situations where they need
+ *  to play a message and then get some DTMF data in response to the message.  If a digit
+ *  is pressed during playback, it will immediately break out of the message and continue
+ *  execution of your code.
+ */
+int ast_app_getdata_terminator(struct ast_channel *c, const char *prompt, char *s, int maxlen, int timeout, char *terminator);
+
 /*! \brief Full version with audiofd and controlfd.  NOTE: returns '2' on ctrlfd available, not '1' like other full functions */
 int ast_app_getdata_full(struct ast_channel *c, const char *prompt, char *s, int maxlen, int timeout, int audiofd, int ctrlfd);
 
