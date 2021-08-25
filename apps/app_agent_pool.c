@@ -456,17 +456,11 @@ struct agents_cfg {
 	struct ao2_container *agents;
 };
 
-static const char *agent_type_blacklist[] = {
-	"general",
-	"agents",
-	NULL,
-};
-
 static struct aco_type agent_type = {
 	.type = ACO_ITEM,
 	.name = "agent-id",
-	.category_match = ACO_BLACKLIST_ARRAY,
-	.category = (const char *)agent_type_blacklist,
+	.category_match = ACO_BLACKLIST_EXACT,
+	.category = "general",
 	.item_alloc = agent_cfg_alloc,
 	.item_find = agent_cfg_find,
 	.item_offset = offsetof(struct agents_cfg, agents),
