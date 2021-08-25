@@ -1080,6 +1080,9 @@
 				<parameter name="LastPause">
 					<para>The time when started last paused the queue member.</para>
 				</parameter>
+				<parameter name="LoginTime">
+					<para>The time this member logged in to the queue, expressed in seconds since 00:00, Jan 1, 1970 UTC.</para>
+				</parameter>
 				<parameter name="InCall">
 					<para>Set to 1 if member is in call. Set to 0 after LastCall time is updated.</para>
 					<enumlist>
@@ -1615,6 +1618,7 @@ struct member {
 	time_t starttime;                    /*!< The time at which the member answered the current caller. */
 	time_t lastcall;                     /*!< When last successful call was hungup */
 	time_t lastpause;                    /*!< When started the last pause */
+	time_t logintime;                    /*!< The time when started the login */
 	struct call_queue *lastqueue;        /*!< Last queue we received a call */
 	unsigned int dead:1;                 /*!< Used to detect members deleted in realtime */
 	unsigned int delme:1;                /*!< Flag to delete entry on reload */
@@ -2263,7 +2267,7 @@ static void queue_publish_member_blob(struct stasis_message_type *type, struct a
 
 static struct ast_json *queue_member_blob_create(struct call_queue *q, struct member *mem)
 {
-	return ast_json_pack("{s: s, s: s, s: s, s: s, s: s, s: i, s: i, s: i, s: i, s: i, s: i, s: i, s: s, s: i, s: i}",
+	return ast_json_pack("{s: s, s: s, s: s, s: s, s: s, s: i, s: i, s: i, s: i, s: i, s: i, s: i, s: i, s: s, s: i, s: i}",
 		"Queue", q->name,
 		"MemberName", mem->membername,
 		"Interface", mem->interface,
@@ -2273,6 +2277,7 @@ static struct ast_json *queue_member_blob_create(struct call_queue *q, struct me
 		"CallsTaken", mem->calls,
 		"LastCall", (int)mem->lastcall,
 		"LastPause", (int)mem->lastpause,
+		"LoginTime", (int)mem->logintime,
 		"InCall", mem->starttime ? 1 : 0,
 		"Status", mem->status,
 		"Paused", mem->paused,
@@ -2746,6 +2751,7 @@ static struct member *create_queue_member(const char *interface, const char *mem
 		if (paused) {
 			time(&cur->lastpause); /* Update time of last pause */
 		}
+		time(&cur->logintime);
 		ast_copy_string(cur->interface, interface, sizeof(cur->interface));
 		if (!ast_strlen_zero(state_interface)) {
 			ast_copy_string(cur->state_interface, state_interface, sizeof(cur->state_interface));
@@ -9784,6 +9790,10 @@ static void print_queue(struct mansession *s, int fd, struct call_queue *q)
 			} else {
 				ast_str_append(&out, 0, " has taken no calls yet");
 			}
+			ast_str_append(&out, 0, " %s(login was %ld secs ago)%s",
+				ast_term_color(COLOR_BROWN, COLOR_BLACK),
+				(long) (now - mem->logintime),
+				ast_term_reset());
 			do_print(s, fd, ast_str_buffer(out));
 			ao2_ref(mem, -1);
 		}
@@ -10226,6 +10236,7 @@ static int manager_queues_status(struct mansession *s, const struct message *m)
 						"CallsTaken: %d\r\n"
 						"LastCall: %d\r\n"
 						"LastPause: %d\r\n"
+						"LoginTime: %d\r\n"
 						"InCall: %d\r\n"
 						"Status: %d\r\n"
 						"Paused: %d\r\n"
@@ -10234,7 +10245,7 @@ static int manager_queues_status(struct mansession *s, const struct message *m)
 						"%s"
 						"\r\n",
 						q->name, mem->membername, mem->interface, mem->state_interface, mem->dynamic ? "dynamic" : "static",
-						mem->penalty, mem->calls, (int)mem->lastcall, (int)mem->lastpause, mem->starttime ? 1 : 0, mem->status,
+						mem->penalty, mem->calls, (int)mem->lastcall, (int)mem->lastpause, (int)mem->logintime, mem->starttime ? 1 : 0, mem->status,
 						mem->paused, mem->reason_paused, mem->wrapuptime, idText);
 					++q_items;
 				}
