@@ -2134,6 +2134,18 @@ void ast_ari_channels_external_media(struct ast_variable *headers,
 
 	ast_assert(response != NULL);
 
+	/* Parse any query parameters out of the body parameter */
+	if (args->variables) {
+		struct ast_json *json_variables;
+
+		ast_ari_channels_external_media_parse_body(args->variables, args);
+		json_variables = ast_json_object_get(args->variables, "variables");
+		if (json_variables
+			&& json_to_ast_variables(response, json_variables, &variables)) {
+			return;
+		}
+	}
+
 	if (ast_strlen_zero(args->app)) {
 		ast_ari_response_error(response, 400, "Bad Request", "app cannot be empty");
 		return;
@@ -2166,17 +2178,6 @@ void ast_ari_channels_external_media(struct ast_variable *headers,
 	}
 	if (ast_strlen_zero(args->direction)) {
 		args->direction = "both";
-	}
-
-	if (args->variables) {
-		struct ast_json *json_variables;
-
-		ast_ari_channels_external_media_parse_body(args->variables, args);
-		json_variables = ast_json_object_get(args->variables, "variables");
-		if (json_variables
-			&& json_to_ast_variables(response, json_variables, &variables)) {
-			return;
-		}
 	}
 
 	if (strcasecmp(args->encapsulation, "rtp") == 0 && strcasecmp(args->transport, "udp") == 0) {
