@@ -245,7 +245,13 @@ static char *handle_cli_ael_reload(struct ast_cli_entry *e, int cmd, struct ast_
 	if (a->argc != 2)
 		return CLI_SHOWUSAGE;
 
+#ifndef STANDALONE
+	/* Lock-Protected reload.  It is VERY BAD to have simultaneous ael load_module() executing at the same time */
+	return ast_module_reload("pbx_ael") == AST_MODULE_RELOAD_SUCCESS ? CLI_SUCCESS : CLI_FAILURE;
+#else
+	/* Lock-Protected reload not needed (and not available) when running standalone (Example: via aelparse cli tool).  No reload contention is possible */
 	return (pbx_load_module() ? CLI_FAILURE : CLI_SUCCESS);
+#endif
 }
 
 static struct ast_cli_entry cli_ael[] = {
@@ -274,7 +280,13 @@ static int load_module(void)
 
 static int reload(void)
 {
+#ifndef STANDALONE
+	/* Lock-Protected reload.  It is VERY BAD to have simultaneous ael pbx_load_module() executing at the same time */
+	return ast_module_reload("pbx_ael") == AST_MODULE_RELOAD_SUCCESS ? AST_MODULE_LOAD_SUCCESS : AST_MODULE_LOAD_DECLINE;
+#else
+	/* Lock-Protected reload not needed (and not available) when running standalone (Example: via aelparse cli tool).  No reload contention is possible */
 	return pbx_load_module();
+#endif
 }
 
 #ifdef STANDALONE
