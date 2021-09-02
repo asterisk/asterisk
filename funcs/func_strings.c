@@ -4,6 +4,7 @@
  * Copyright (C) 2005-2006, Digium, Inc.
  * Portions Copyright (C) 2005, Tilghman Lesher.  All rights reserved.
  * Portions Copyright (C) 2005, Anthony Minessale II
+ * Portions Copyright (C) 2021, Naveen Albert
  *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
@@ -22,6 +23,7 @@
  *
  * \author Tilghman Lesher
  * \author Anothony Minessale II
+ * \author Naveen Albert
  * \ingroup functions
  */
 
@@ -150,6 +152,24 @@ AST_THREADSTORAGE(tmp_buf);
 			is an empty string, this will effecively delete that substring.  If <replaceable>max-replacements</replaceable>
 			is specified, this function will stop after performing replacements <replaceable>max-replacements</replaceable> times.</para>
 			<note><para>The replacement only occurs in the output.  The original variable is not altered.</para></note>
+		</description>
+	</function>
+	<function name="STRBETWEEN" language="en_US">
+		<synopsis>
+			Inserts a substring between each character in a string.
+		</synopsis>
+		<syntax>
+			<parameter name="varname" required="true" />
+			<parameter name="insert-string" required="true" />
+		</syntax>
+		<description>
+			<para>Inserts a substring <replaceable>find-string</replaceable> between each character in
+			<replaceable>varname</replaceable>.</para>
+			<note><para>The replacement only occurs in the output.  The original variable is not altered.</para></note>
+			<example title="Add half-second pause between dialed digits">
+				same => n,Set(digits=5551212)
+				same => n,SendDTMF(${STRBETWEEN(digits,w)) ; this will send 5w5w5w1w2w1w2
+			</example>
 		</description>
 	</function>
 	<function name="PASSTHRU" language="en_US">
@@ -943,6 +963,53 @@ static int strreplace(struct ast_channel *chan, const char *cmd, char *data, str
 static struct ast_custom_function strreplace_function = {
 	.name = "STRREPLACE",
 	.read2 = strreplace,
+};
+
+static int strbetween(struct ast_channel *chan, const char *cmd, char *data, struct ast_str **buf, ssize_t len)
+{
+	int c, origsize;
+	char *varsubstr, *origstr;
+	struct ast_str *str = ast_str_thread_get(&result_buf, 16); /* Holds the data obtained from varname */
+
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(varname);
+		AST_APP_ARG(insert_string);
+		AST_APP_ARG(other);	/* Any remining unused arguments */
+	);
+
+	ast_str_reset(*buf);
+
+	if (!str) {
+		ast_log(LOG_ERROR, "Couldn't obtain string\n");
+		return -1;
+	}
+
+	AST_STANDARD_APP_ARGS(args, data);
+
+	if (args.argc != 2 || ast_strlen_zero(args.varname)) {
+		ast_log(LOG_ERROR, "Usage: %s(<varname>,<insert-string>)\n", cmd);
+		return -1;
+	}
+
+	varsubstr = ast_alloca(strlen(args.varname) + 4);
+	sprintf(varsubstr, "${%s}", args.varname);
+	ast_str_substitute_variables(&str, 0, chan, varsubstr);
+	origstr = ast_str_buffer(str);
+	origsize = strlen(origstr);
+	for (c = 0; c < origsize; c++) {
+		ast_str_append(buf, len, "%c", origstr[c]);
+		/* no insert after the last character */
+		if (c < (origsize - 1)) {
+			ast_str_append(buf, len, "%s", args.insert_string);
+		}
+	}
+
+	return 0;
+}
+
+static struct ast_custom_function strbetween_function = {
+	.name = "STRBETWEEN",
+	.read2 = strbetween,
 };
 
 static int regex(struct ast_channel *chan, const char *cmd, char *parse, char *buf,
@@ -1953,6 +2020,79 @@ AST_TEST_DEFINE(test_STRREPLACE)
 
 	return res;
 }
+
+AST_TEST_DEFINE(test_STRBETWEEN)
+{
+	int i, res = AST_TEST_PASS;
+	struct ast_channel *chan; /* dummy channel */
+	struct ast_str *str; /* fancy string for holding comparing value */
+
+	const char *test_strings[][5] = {
+		{"0", "w", "0"},
+		{"30", "w", "3w0"},
+		{"212", "w", "2w1w2"},
+		{"212", "55", "2551552"},
+		{"212", " ", "2 1 2"},
+		{"", "w", ""},
+		{"555", "", "555"},
+		{"abcdefg", "_", "a_b_c_d_e_f_g"},
+		{"A", "A", "A"},
+		{"AA", "B", "ABA"},
+		{"AAA", "B", "ABABA"},
+	};
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "func_STRBETWEEN";
+		info->category = "/funcs/func_strings/";
+		info->summary = "Test STRBETWEEN function";
+		info->description = "Verify STRBETWEEN behavior";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	if (!(chan = ast_dummy_channel_alloc())) {
+		ast_test_status_update(test, "Unable to allocate dummy channel\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (!(str = ast_str_create(64))) {
+		ast_test_status_update(test, "Unable to allocate dynamic string buffer\n");
+		ast_channel_release(chan);
+		return AST_TEST_FAIL;
+	}
+
+	for (i = 0; i < ARRAY_LEN(test_strings); i++) {
+		char tmp[512], tmp2[512] = "";
+
+		struct ast_var_t *var = ast_var_assign("test_string", test_strings[i][0]);
+		if (!var) {
+			ast_test_status_update(test, "Unable to allocate variable\n");
+			ast_free(str);
+			ast_channel_release(chan);
+			return AST_TEST_FAIL;
+		}
+
+		AST_LIST_INSERT_HEAD(ast_channel_varshead(chan), var, entries);
+
+		if (test_strings[i][1]) {
+			snprintf(tmp, sizeof(tmp), "${STRBETWEEN(%s,%s)}", "test_string", test_strings[i][1]);
+		} else {
+			snprintf(tmp, sizeof(tmp), "${STRBETWEEN(%s)}", "test_string");
+		}
+		ast_str_substitute_variables(&str, 0, chan, tmp);
+		if (strcmp(test_strings[i][2], ast_str_buffer(str))) {
+			ast_test_status_update(test, "Format string '%s' substituted to '%s'.  Expected '%s'.\n", test_strings[i][0], tmp2, test_strings[i][2]);
+			res = AST_TEST_FAIL;
+		}
+	}
+
+	ast_free(str);
+	ast_channel_release(chan);
+
+	return res;
+}
 #endif
 
 static int unload_module(void)
@@ -1963,11 +2103,13 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(test_REPLACE);
 	AST_TEST_UNREGISTER(test_FILTER);
 	AST_TEST_UNREGISTER(test_STRREPLACE);
+	AST_TEST_UNREGISTER(test_STRBETWEEN);
 	res |= ast_custom_function_unregister(&fieldqty_function);
 	res |= ast_custom_function_unregister(&fieldnum_function);
 	res |= ast_custom_function_unregister(&filter_function);
 	res |= ast_custom_function_unregister(&replace_function);
 	res |= ast_custom_function_unregister(&strreplace_function);
+	res |= ast_custom_function_unregister(&strbetween_function);
 	res |= ast_custom_function_unregister(&listfilter_function);
 	res |= ast_custom_function_unregister(&regex_function);
 	res |= ast_custom_function_unregister(&array_function);
@@ -2000,11 +2142,13 @@ static int load_module(void)
 	AST_TEST_REGISTER(test_REPLACE);
 	AST_TEST_REGISTER(test_FILTER);
 	AST_TEST_REGISTER(test_STRREPLACE);
+	AST_TEST_REGISTER(test_STRBETWEEN);
 	res |= ast_custom_function_register(&fieldqty_function);
 	res |= ast_custom_function_register(&fieldnum_function);
 	res |= ast_custom_function_register(&filter_function);
 	res |= ast_custom_function_register(&replace_function);
 	res |= ast_custom_function_register(&strreplace_function);
+	res |= ast_custom_function_register(&strbetween_function);
 	res |= ast_custom_function_register(&listfilter_function);
 	res |= ast_custom_function_register(&regex_function);
 	res |= ast_custom_function_register(&array_function);
