@@ -28,6 +28,7 @@
 #include "asterisk.h"
 
 #include <sys/stat.h>   /* stat(2) */
+#include <libgen.h>     /* dirname and basename */
 
 #include "asterisk/module.h"
 #include "asterisk/channel.h"
@@ -238,6 +239,42 @@
 		<see-also>
 			<ref type="function">FILE</ref>
 			<ref type="function">FILE_COUNT_LINE</ref>
+		</see-also>
+	</function>
+	<function name="BASENAME" language="en_US">
+		<synopsis>
+			Return the name of a file.
+		</synopsis>
+		<syntax>
+			<parameter name="filename" required="true" />
+		</syntax>
+		<description>
+			<para>Return the base file name, given a full file path.</para>
+			<example title="Directory name">
+			same => n,Set(basename=${BASENAME(/etc/asterisk/extensions.conf)})
+			same => n,NoOp(${basename}) ; outputs extensions.conf
+			</example>
+		</description>
+		<see-also>
+			<ref type="function">DIRNAME</ref>
+		</see-also>
+	</function>
+	<function name="DIRNAME" language="en_US">
+		<synopsis>
+			Return the directory of a file.
+		</synopsis>
+		<syntax>
+			<parameter name="filename" required="true" />
+		</syntax>
+		<description>
+			<para>Return the directory of a file, given a full file path.</para>
+			<example title="Directory name">
+			same => n,Set(dirname=${DIRNAME(/etc/asterisk/extensions.conf)})
+			same => n,NoOp(${dirname}) ; outputs /etc/asterisk
+			</example>
+		</description>
+		<see-also>
+			<ref type="function">BASENAME</ref>
 		</see-also>
 	</function>
  ***/
@@ -480,6 +517,40 @@ static int file_format(struct ast_channel *chan, const char *cmd, char *data, st
 {
 	enum file_format newline_format = file2format(data);
 	ast_str_set(buf, len, "%c", newline_format == FF_UNIX ? 'u' : newline_format == FF_DOS ? 'd' : newline_format == FF_MAC ? 'm' : 'x');
+	return 0;
+}
+
+static int file_dirname(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
+{
+	char *ret = NULL;
+
+	*buf = '\0';
+
+	if (data) {
+		ret = dirname(data);
+	}
+
+	if (ret) {
+		ast_copy_string(buf, ret, len);
+	}
+
+	return 0;
+}
+
+static int file_basename(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
+{
+	char *ret = NULL;
+
+	*buf = '\0';
+
+	if (data) {
+		ret = basename(data);
+	}
+
+	if (ret) {
+		ast_copy_string(buf, ret, len);
+	}
+
 	return 0;
 }
 
@@ -1260,6 +1331,18 @@ static struct ast_custom_function file_format_function = {
 	.read_max = 2,
 };
 
+static struct ast_custom_function file_dirname_function = {
+	.name = "DIRNAME",
+	.read = file_dirname,
+	.read_max = 12,
+};
+
+static struct ast_custom_function file_basename_function = {
+	.name = "BASENAME",
+	.read = file_basename,
+	.read_max = 12,
+};
+
 static int unload_module(void)
 {
 	int res = 0;
@@ -1269,6 +1352,8 @@ static int unload_module(void)
 	res |= ast_custom_function_unregister(&file_function);
 	res |= ast_custom_function_unregister(&file_count_line_function);
 	res |= ast_custom_function_unregister(&file_format_function);
+	res |= ast_custom_function_unregister(&file_dirname_function);
+	res |= ast_custom_function_unregister(&file_basename_function);
 
 	return res;
 }
@@ -1282,6 +1367,8 @@ static int load_module(void)
 	res |= ast_custom_function_register_escalating(&file_function, AST_CFE_BOTH);
 	res |= ast_custom_function_register_escalating(&file_count_line_function, AST_CFE_READ);
 	res |= ast_custom_function_register_escalating(&file_format_function, AST_CFE_READ);
+	res |= ast_custom_function_register(&file_dirname_function);
+	res |= ast_custom_function_register(&file_basename_function);
 
 	return res;
 }
