@@ -74,7 +74,7 @@ static int opposite(int color)
 }
 
 /* Ripped off from Ross Ridge, but it's public domain code (libmytinfo) */
-static short convshort(char *s)
+static short convshort(unsigned char *s)
 {
 	register int a, b;
 
@@ -89,11 +89,83 @@ static short convshort(char *s)
 	return a + b * 256;
 }
 
+static inline int convint(unsigned char *s)
+{
+	return s[0]
+		| s[1] << 8
+		| s[2] << 16
+		| s[3] << 24;
+}
+
+#define MAGIC_LEGACY (00432)
+#define MAGIC_EXTNUM (01036)
+
+#define HEADER_LEN (12)
+#define MAX_COLORS_INDEX (13)
+
+static int parse_terminfo_file(int fd)
+{
+	int bytes_read, bytes_needed, num_size;
+	short magic, sz_names, sz_bools;
+	unsigned char buffer[1024];
+
+	bytes_read = read(fd, buffer, sizeof(buffer));
+	if (bytes_read < HEADER_LEN) {
+		return 0;
+	}
+
+	magic = convshort(buffer);
+
+	if (magic == MAGIC_LEGACY) {
+		num_size = 2;
+	} else if (magic == MAGIC_EXTNUM) {
+		/* Extended number format (ncurses 6.1) */
+		num_size = 4;
+	} else {
+		/* We don't know how to parse this file */
+		return 0;
+	}
+
+	sz_names = convshort(buffer + 2);
+	sz_bools = convshort(buffer + 4);
+
+	/* From term(5):
+	 * Between the boolean section and the number section, a null byte will be
+	 * inserted, if necessary, to ensure that the number section begins on an
+	 * even byte. */
+	if ((sz_names + sz_bools) & 1) {
+		sz_bools++;
+	}
+
+	bytes_needed = HEADER_LEN + sz_names + sz_bools + ((MAX_COLORS_INDEX + 1) * num_size);
+	if (bytes_needed <= bytes_read) {
+		/* Offset 13 is defined in /usr/include/term.h, though we do not
+		 * include it here, as it conflicts with include/asterisk/term.h */
+		int max_colors;
+		int offset = HEADER_LEN + sz_names + sz_bools + MAX_COLORS_INDEX * num_size;
+
+		if (num_size == 2) {
+			/* In the legacy terminfo format, numbers are signed shorts */
+			max_colors = convshort(buffer + offset);
+		} else {
+			/* Extended number format makes them signed ints */
+			max_colors = convint(buffer + offset);
+		}
+
+		if (max_colors > 0) {
+			vt100compat = 1;
+		}
+
+		return 1;
+	}
+
+	return 0;
+}
+
 int ast_term_init(void)
 {
 	char *term = getenv("TERM");
 	char termfile[256] = "";
-	char buffer[512] = "";
 	int termfd = -1, parseokay = 0, i;
 
 	if (ast_opt_no_color) {
@@ -110,35 +182,14 @@ int ast_term_init(void)
 		return 0;
 	}
 
-	for (i = 0;; i++) {
-		if (termpath[i] == NULL) {
-			break;
-		}
+	for (i = 0; !parseokay && termpath[i]; i++) {
 		snprintf(termfile, sizeof(termfile), "%s/%c/%s", termpath[i], *term, term);
+
 		termfd = open(termfile, O_RDONLY);
 		if (termfd > -1) {
-			break;
+			parseokay = parse_terminfo_file(termfd);
+			close(termfd);
 		}
-	}
-	if (termfd > -1) {
-		int actsize = read(termfd, buffer, sizeof(buffer) - 1);
-		short sz_names = convshort(buffer + 2);
-		short sz_bools = convshort(buffer + 4);
-		short n_nums   = convshort(buffer + 6);
-
-		/* if ((sz_names + sz_bools) & 1)
-			sz_bools++; */
-
-		if (sz_names + sz_bools + n_nums < actsize) {
-			/* Offset 13 is defined in /usr/include/term.h, though we do not
-			 * include it here, as it conflicts with include/asterisk/term.h */
-			short max_colors = convshort(buffer + 12 + sz_names + sz_bools + 13 * 2);
-			if (max_colors > 0) {
-				vt100compat = 1;
-			}
-			parseokay = 1;
-		}
-		close(termfd);
 	}
 
 	if (!parseokay) {
