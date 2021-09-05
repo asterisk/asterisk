@@ -2633,6 +2633,46 @@ static int extensionstate2devicestate(int state)
 	return state;
 }
 
+/*!
+ * \brief Returns if one context includes another context
+ *
+ * \param parent Parent context to search for child
+ * \param child Context to check for inclusion in parent
+ *
+ * This function recrusively checks if the context child is included in the context parent.
+ *
+ * \return 1 if child is included in parent, 0 if not
+ */
+static int context_included(const char *parent, const char *child);
+static int context_included(const char *parent, const char *child)
+{
+	struct ast_context *c = NULL;
+
+	c = ast_context_find(parent);
+	if (!c) {
+		/* well, if parent doesn't exist, how can the child be included in it? */
+		return 0;
+	}
+	if (!strcmp(ast_get_context_name(c), parent)) {
+		/* found the context of the hint app_queue is using. Now, see
+			if that context includes the one that just changed state */
+		struct ast_include *inc = NULL;
+
+		while ((inc = (struct ast_include*) ast_walk_context_includes(c, inc))) {
+			const char *includename = ast_get_include_name(inc);
+			if (!strcasecmp(child, includename)) {
+				return 1;
+			}
+			/* recurse on this context, for nested includes. The
+				PBX extension parser will prevent infinite recursion. */
+			if (context_included(includename, child)) {
+				return 1;
+			}
+		}
+	}
+	return 0;
+}
+
 static int extension_state_cb(const char *context, const char *exten, struct ast_state_cb_info *info, void *data)
 {
 	struct ao2_iterator miter, qiter;
@@ -2653,9 +2693,14 @@ static int extension_state_cb(const char *context, const char *exten, struct ast
 		miter = ao2_iterator_init(q->members, 0);
 		for (; (m = ao2_iterator_next(&miter)); ao2_ref(m, -1)) {
 			if (!strcmp(m->state_context, context) && !strcmp(m->state_exten, exten)) {
+				found = 1;
+			} else if (!strcmp(m->state_exten, exten) && context_included(m->state_context, context)) {
+				/* context could be included in m->state_context. We need to check. */
+				found = 1;
+			}
+			if (found) {
 				update_status(q, m, device_state);
 				ao2_ref(m, -1);
-				found = 1;
 				break;
 			}
 		}
@@ -2666,7 +2711,7 @@ static int extension_state_cb(const char *context, const char *exten, struct ast
 	}
 	ao2_iterator_destroy(&qiter);
 
-        if (found) {
+	if (found) {
 		ast_debug(1, "Extension '%s@%s' changed to state '%d' (%s)\n", exten, context, device_state, ast_devstate2str(device_state));
 	} else {
 		ast_debug(3, "Extension '%s@%s' changed to state '%d' (%s) but we don't care because they're not a member of any queue.\n",
