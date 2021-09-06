@@ -1073,6 +1073,9 @@
 /* Define to 1 if `uid' is a member of `struct ucred'. */
 #undef HAVE_STRUCT_UCRED_UID
 
+/* Define to 1 if `_u._ext.nsaddrs' is a member of `struct __res_state'. */
+#undef HAVE_STRUCT___RES_STATE__U__EXT_NSADDRS
+
 /* Define to 1 if you have the mISDN Supplemental Services library. */
 #undef HAVE_SUPPSERV
 
