@@ -18657,6 +18657,17 @@ $as_echo "no" >&6; }
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
+	ac_fn_c_check_member "$LINENO" "struct __res_state" "_u._ext.nsaddrs" "ac_cv_member_struct___res_state__u__ext_nsaddrs" "#include <resolv.h>
+"
+if test "x$ac_cv_member_struct___res_state__u__ext_nsaddrs" = xyes; then :
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_STRUCT___RES_STATE__U__EXT_NSADDRS 1
+_ACEOF
+
+
+fi
+
 else
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
