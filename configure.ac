@@ -1459,7 +1459,8 @@ AC_LINK_IFELSE(
 		AC_MSG_RESULT(yes)
 		AC_DEFINE([HAVE_RES_CLOSE], 1, [Define to 1 if your system has the close resolver function.]),
 		AC_MSG_RESULT(no)
-	),
+	)
+	AC_CHECK_MEMBERS([struct __res_state._u._ext.nsaddrs], [], [], [[#include <resolv.h>]]),
 	AC_MSG_RESULT(no)
 )
 
