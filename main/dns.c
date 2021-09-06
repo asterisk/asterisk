@@ -605,7 +605,22 @@ struct ao2_container *ast_dns_get_nameservers(void)
 #endif
 
 	for (i = 0; i < state->nscount; i++) {
-		ast_str_container_add(nameservers, ast_inet_ntoa(state->nsaddr_list[i].sin_addr));
+		char addr[INET6_ADDRSTRLEN];
+		const char *addrp = NULL;
+
+		/* glibc sets sin_family to 0 when the nameserver is an IPv6 address */
+		if (state->nsaddr_list[i].sin_family) {
+			addrp = inet_ntop(AF_INET, &state->nsaddr_list[i].sin_addr, addr, sizeof(addr));
+#if defined(HAVE_RES_NINIT) && defined(HAVE_STRUCT___RES_STATE__U__EXT_NSADDRS)
+		} else if (state->_u._ext.nsaddrs[i]) {
+			addrp = inet_ntop(AF_INET6, &state->_u._ext.nsaddrs[i]->sin6_addr, addr, sizeof(addr));
+#endif
+		}
+
+		if (addrp) {
+			ast_debug(1, "Discovered nameserver: %s\n", addrp);
+			ast_str_container_add(nameservers, addrp);
+		}
 	}
 
 #ifdef HAVE_RES_NINIT

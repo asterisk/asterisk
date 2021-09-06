@@ -661,11 +661,18 @@
    support feature. */
 #undef HAVE_PJSIP_INV_SESSION_REF
 
+/* Define if your system has HAVE_PJSIP_OAUTH_AUTHENTICATION declared */
+#undef HAVE_PJSIP_OAUTH_AUTHENTICATION
+
 /* Define if your system has the PJSIP_REPLACE_MEDIA_STREAM headers. */
 #undef HAVE_PJSIP_REPLACE_MEDIA_STREAM
 
 /* Define if your system has the PJSIP_TLS_TRANSPORT_PROTO headers. */
 #undef HAVE_PJSIP_TLS_TRANSPORT_PROTO
+
+/* Define if your system has HAVE_PJSIP_TRANSPORT_DISABLE_CONNECTION_REUSE
+   declared */
+#undef HAVE_PJSIP_TRANSPORT_DISABLE_CONNECTION_REUSE
 
 /* Define to 1 if PJPROJECT has the pjsip_tsx_layer_find_tsx2 support feature.
    */
@@ -1065,6 +1072,9 @@
 
 /* Define to 1 if `uid' is a member of `struct ucred'. */
 #undef HAVE_STRUCT_UCRED_UID
+
+/* Define to 1 if `_u._ext.nsaddrs' is a member of `struct __res_state'. */
+#undef HAVE_STRUCT___RES_STATE__U__EXT_NSADDRS
 
 /* Define to 1 if you have the mISDN Supplemental Services library. */
 #undef HAVE_SUPPSERV
