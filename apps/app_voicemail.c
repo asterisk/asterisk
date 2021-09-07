@@ -182,6 +182,11 @@
 						<para>Skip the playback of instructions for leaving a message to the
 						calling party.</para>
 					</option>
+					<option name="S">
+						<para>Skip the playback of instructions for leaving a message to the
+						calling party, but only if a greeting has been recorded by the
+						mailbox user.</para>
+					</option>
 					<option name="t">
 						<argument name="x" required="false" />
 						<para>Play a custom beep tone to the caller instead of the default one.
@@ -671,7 +676,8 @@ enum vm_option_flags {
 	OPT_MESSAGE_Urgent =   (1 << 8),
 	OPT_MESSAGE_PRIORITY = (1 << 9),
 	OPT_EARLYM_GREETING =  (1 << 10),
-	OPT_BEEP =             (1 << 11)
+	OPT_BEEP =             (1 << 11),
+	OPT_SILENT_IF_GREET =  (1 << 12),
 };
 
 enum vm_option_args {
@@ -691,6 +697,7 @@ enum vm_passwordlocation {
 
 AST_APP_OPTIONS(vm_app_options, {
 	AST_APP_OPTION('s', OPT_SILENT),
+	AST_APP_OPTION('S', OPT_SILENT_IF_GREET),
 	AST_APP_OPTION('b', OPT_BUSY_GREETING),
 	AST_APP_OPTION('u', OPT_UNAVAIL_GREETING),
 	AST_APP_OPTION_ARG('g', OPT_RECORDGAIN, OPT_ARG_RECORDGAIN),
@@ -6886,8 +6893,14 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 #endif
 			RETRIEVE(prefile, -1, ext, context);
 		if (ast_fileexists(prefile, NULL, NULL) > 0) {
-			if (ast_streamfile(chan, prefile, ast_channel_language(chan)) > -1)
+			if (ast_streamfile(chan, prefile, ast_channel_language(chan)) > -1) {
+				/* We know we have a greeting at this point, so squelch the instructions
+				 * if that is what is being asked of us */
+				if (ast_test_flag(options, OPT_SILENT_IF_GREET)) {
+					ast_set_flag(options, OPT_SILENT);
+				}
 				res = ast_waitstream(chan, ecodes);
+			}
 #ifdef ODBC_STORAGE
 			if (success == -1) {
 				/* We couldn't retrieve the file from the database, but we found it on the file system. Let's put it in the database. */
@@ -12400,7 +12413,7 @@ static int vm_exec(struct ast_channel *chan, const char *data)
 		if (args.argc == 2) {
 			if (ast_app_parse_options(vm_app_options, &flags, opts, args.argv1))
 				return -1;
-			ast_copy_flags(&leave_options, &flags, OPT_SILENT | OPT_BUSY_GREETING | OPT_UNAVAIL_GREETING | OPT_MESSAGE_Urgent | OPT_MESSAGE_PRIORITY | OPT_DTMFEXIT);
+			ast_copy_flags(&leave_options, &flags, OPT_SILENT | OPT_SILENT_IF_GREET | OPT_BUSY_GREETING | OPT_UNAVAIL_GREETING | OPT_MESSAGE_Urgent | OPT_MESSAGE_PRIORITY | OPT_DTMFEXIT);
 			if (ast_test_flag(&flags, OPT_RECORDGAIN)) {
 				int gain;
 
