@@ -666,7 +666,8 @@ static void sfu_topologies_on_join(struct ast_bridge *bridge,
 	ast_trace(-1, "%s: Requesting topology change.\n", ast_channel_name(joiner->chan));
 	res = ast_channel_request_stream_topology_change(joiner->chan, sc->topology, NULL);
 	if (res) {
-		SCOPE_EXIT_LOG_RTN(LOG_ERROR, "%s: Couldn't request topology change\n", ast_channel_name(joiner->chan));
+		/* There are conditions under which this is expected so no need to log an ERROR. */
+		SCOPE_EXIT_RTN("%s: Couldn't request topology change\n", ast_channel_name(joiner->chan));
 	}
 
 	AST_LIST_TRAVERSE(participants, participant, entry) {
