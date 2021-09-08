@@ -293,8 +293,8 @@ static struct ast_jb default_jb = {
 	RAII_VAR(struct ast_jb *, jb, &default_jb, dispose_jitterbuffer); \
 	const struct ast_jb_impl *impl; \
 	struct ast_jb_conf conf; \
-	RAII_VAR(struct ast_frame *, expected_frame, NULL, ast_frame_dtor); \
-	RAII_VAR(struct ast_frame *, actual_frame, NULL, ast_frame_dtor); \
+	struct ast_frame *expected_frame = NULL; \
+	struct ast_frame *actual_frame = NULL; \
 	int res; \
 	long next; \
 	int i; \
@@ -318,7 +318,15 @@ static struct ast_jb default_jb = {
 	jb->impl = impl; \
 \
 	expected_frame = create_test_frame(1000, 0); \
-	jb->impl->put_first(jb->jbobj, expected_frame, 1100); \
+	res = jb->impl->put_first(jb->jbobj, \
+		expected_frame, \
+		1100); \
+	if (res != AST_JB_IMPL_OK) { \
+		ast_test_status_update(test, "Error: On first frame, got %d back from put_first (expected %d)\n", \
+			res, AST_JB_IMPL_OK); \
+		ast_frame_dtor(expected_frame); \
+		return AST_TEST_FAIL; \
+	} \
 	for (i = 1; i < 10; i++) { \
 		expected_frame = create_test_frame(1000 + i * DEFAULT_FRAME_MS, 0); \
 		res = jb->impl->put(jb->jbobj, \
@@ -327,6 +335,7 @@ static struct ast_jb default_jb = {
 		if (res != AST_JB_IMPL_OK) { \
 			ast_test_status_update(test, "Error: On frame %d, got %d back from put (expected %d)\n", \
 				i, res, AST_JB_IMPL_OK); \
+			ast_frame_dtor(expected_frame); \
 			return AST_TEST_FAIL; \
 		} \
 	} \
@@ -338,11 +347,12 @@ static struct ast_jb default_jb = {
 		if (res != AST_JB_IMPL_OK) { \
 			ast_test_status_update(test, "Error: failed to retrieve frame %i at time %ld\n", \
 				i, next); \
+			ast_frame_dtor(expected_frame); \
 			return AST_TEST_FAIL; \
 		} \
 		VERIFY_FRAME(actual_frame, expected_frame); \
-		ast_frfree(expected_frame); \
-		expected_frame = NULL; \
+		ast_frame_dtor(expected_frame); \
+		ast_frame_dtor(actual_frame); \
 	} \
 	return AST_TEST_PASS; \
 }
@@ -427,8 +437,8 @@ static struct ast_jb default_jb = {
 	RAII_VAR(struct ast_jb *, jb, &default_jb, dispose_jitterbuffer); \
 	const struct ast_jb_impl *impl; \
 	struct ast_jb_conf conf; \
-	RAII_VAR(struct ast_frame *, actual_frame, NULL, ast_frame_dtor); \
-	RAII_VAR(struct ast_frame *, expected_frame, NULL, ast_frame_dtor); \
+	struct ast_frame *expected_frame = NULL; \
+	struct ast_frame *actual_frame = NULL; \
 	int res; \
 	long next; \
 	int i; \
@@ -454,7 +464,13 @@ static struct ast_jb default_jb = {
 	jb->impl = impl; \
 \
 	expected_frame = create_test_frame(1000, 0); \
-	jb->impl->put_first(jb->jbobj, expected_frame, 1100); \
+	res = jb->impl->put_first(jb->jbobj, expected_frame, 1100); \
+	if (res != AST_JB_IMPL_OK) { \
+		ast_test_status_update(test, "Error: On first frame, got %d back from put_first (expected %d)\n", \
+			res, AST_JB_IMPL_OK); \
+		ast_frame_dtor(expected_frame); \
+		return AST_TEST_FAIL; \
+	} \
 	for (i = 1; i <= 10; i++) { \
 		if (i % 3 == 1 && i != 10) { \
 			expected_frame = create_test_frame(1000 + ((i + 1) * DEFAULT_FRAME_MS), 0); \
@@ -469,6 +485,7 @@ static struct ast_jb default_jb = {
 		if (res != AST_JB_IMPL_OK) { \
 			ast_test_status_update(test, "Error: On frame %d, got %d back from put (expected %d)\n", \
 				i, res, AST_JB_IMPL_OK); \
+			ast_frame_dtor(expected_frame); \
 			return AST_TEST_FAIL; \
 		} \
 	} \
@@ -480,10 +497,12 @@ static struct ast_jb default_jb = {
 		if (res != AST_JB_IMPL_OK) { \
 			ast_test_status_update(test, "Error: failed to retrieve frame at %ld\n", \
 				next); \
+			ast_frame_dtor(expected_frame); \
 			return AST_TEST_FAIL; \
 		} \
 		VERIFY_FRAME(actual_frame, expected_frame); \
-		ast_frfree(expected_frame); \
+		ast_frame_dtor(expected_frame); \
+		ast_frame_dtor(actual_frame); \
 		expected_frame = NULL; \
 	} \
 \
