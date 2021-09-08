@@ -71,6 +71,8 @@ $(call MOD_ADD_C,res_stasis_recording,stasis_recording/stored.c)
 $(call MOD_ADD_C,res_stir_shaken,$(wildcard res_stir_shaken/*.c))
 
 res_parking.o: _ASTCFLAGS+=$(AST_NO_FORMAT_TRUNCATION)
+snmp/agent.o: _ASTCFLAGS+=-fPIC
+res_snmp.o: _ASTCFLAGS+=-fPIC
 
 # Dependencies for res_ari_*.so are generated, so they're in this file
 include ari.make
