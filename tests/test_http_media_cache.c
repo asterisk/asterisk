@@ -764,8 +764,8 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(retrieve_etag_expired);
 	AST_TEST_UNREGISTER(retrieve_cache_control_age);
 	AST_TEST_UNREGISTER(retrieve_cache_control_directives);
-	AST_TEST_REGISTER(retrieve_parsed_uri);
-	AST_TEST_REGISTER(retrieve_content_type);
+	AST_TEST_UNREGISTER(retrieve_parsed_uri);
+	AST_TEST_UNREGISTER(retrieve_content_type);
 
 	return 0;
 }
