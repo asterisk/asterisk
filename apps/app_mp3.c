@@ -100,37 +100,37 @@ static int mp3play(const char *filename, unsigned int sampling_rate, int fd)
 	    char buffer_size_str[8];
 	    snprintf(buffer_size_str, 8, "%u", (int) 0.5*2*sampling_rate/1000); // 0.5 seconds for a live stream
 		/* Most commonly installed in /usr/local/bin */
-	    execl(LOCAL_MPG_123, "mpg123", "-q", "-s", "-b", buffer_size_str, "-f", "8192", "--mono", "-r", sampling_rate_str, "-@", filename, (char *)NULL);
+	    execl(LOCAL_MPG_123, "mpg123", "-e", "s16", "-q", "-s", "-b", buffer_size_str, "-f", "8192", "--mono", "-r", sampling_rate_str, "-@", filename, (char *)NULL);
 		/* But many places has it in /usr/bin */
-	    execl(MPG_123, "mpg123", "-q", "-s", "-b", buffer_size_str, "-f", "8192", "--mono", "-r", sampling_rate_str, "-@", filename, (char *)NULL);
+	    execl(MPG_123, "mpg123", "-e", "s16", "-q", "-s", "-b", buffer_size_str, "-f", "8192", "--mono", "-r", sampling_rate_str, "-@", filename, (char *)NULL);
 		/* As a last-ditch effort, try to use PATH */
-	    execlp("mpg123", "mpg123", "-q", "-s", "-b", buffer_size_str, "-f", "8192", "--mono", "-r", sampling_rate_str, "-@", filename, (char *)NULL);
+	    execlp("mpg123", "mpg123", "-e", "s16", "-q", "-s", "-b", buffer_size_str, "-f", "8192", "--mono", "-r", sampling_rate_str, "-@", filename, (char *)NULL);
 	}
 	else if (!strncasecmp(filename, "http://", 7)) {
 	    char buffer_size_str[8];
 	    snprintf(buffer_size_str, 8, "%u", 6*2*sampling_rate/1000); // 6 seconds for a remote MP3 file
 		/* Most commonly installed in /usr/local/bin */
-	    execl(LOCAL_MPG_123, "mpg123", "-q", "-s", "-b", buffer_size_str, "-f", "8192", "--mono", "-r", sampling_rate_str, filename, (char *)NULL);
+	    execl(LOCAL_MPG_123, "mpg123", "-e", "s16", "-q", "-s", "-b", buffer_size_str, "-f", "8192", "--mono", "-r", sampling_rate_str, filename, (char *)NULL);
 		/* But many places has it in /usr/bin */
-	    execl(MPG_123, "mpg123", "-q", "-s", "-b", buffer_size_str, "-f", "8192", "--mono", "-r", sampling_rate_str, filename, (char *)NULL);
+	    execl(MPG_123, "mpg123", "-e", "s16", "-q", "-s", "-b", buffer_size_str, "-f", "8192", "--mono", "-r", sampling_rate_str, filename, (char *)NULL);
 		/* As a last-ditch effort, try to use PATH */
-	    execlp("mpg123", "mpg123", "-q", "-s", "-b", buffer_size_str, "-f", "8192", "--mono", "-r", sampling_rate_str, filename, (char *)NULL);
+	    execlp("mpg123", "mpg123", "-e", "s16", "-q", "-s", "-b", buffer_size_str, "-f", "8192", "--mono", "-r", sampling_rate_str, filename, (char *)NULL);
 	}
 	else if (strstr(filename, ".m3u")) {
 		/* Most commonly installed in /usr/local/bin */
-	    execl(LOCAL_MPG_123, "mpg123", "-q", "-z", "-s", "-f", "8192", "--mono", "-r", sampling_rate_str, "-@", filename, (char *)NULL);
+	    execl(LOCAL_MPG_123, "mpg123", "-e", "s16", "-q", "-z", "-s", "-f", "8192", "--mono", "-r", sampling_rate_str, "-@", filename, (char *)NULL);
 		/* But many places has it in /usr/bin */
-	    execl(MPG_123, "mpg123", "-q", "-z", "-s", "-f", "8192", "--mono", "-r", sampling_rate_str, "-@", filename, (char *)NULL);
+	    execl(MPG_123, "mpg123", "-e", "s16", "-q", "-z", "-s", "-f", "8192", "--mono", "-r", sampling_rate_str, "-@", filename, (char *)NULL);
 		/* As a last-ditch effort, try to use PATH */
-	    execlp("mpg123", "mpg123", "-q", "-z", "-s",  "-f", "8192", "--mono", "-r", sampling_rate_str, "-@", filename, (char *)NULL);
+	    execlp("mpg123", "mpg123", "-e", "s16", "-q", "-z", "-s",  "-f", "8192", "--mono", "-r", sampling_rate_str, "-@", filename, (char *)NULL);
 	}
 	else {
 		/* Most commonly installed in /usr/local/bin */
-	    execl(MPG_123, "mpg123", "-q", "-s", "-f", "8192", "--mono", "-r", sampling_rate_str, filename, (char *)NULL);
+	    execl(MPG_123, "mpg123", "-e", "s16", "-q", "-s", "-f", "8192", "--mono", "-r", sampling_rate_str, filename, (char *)NULL);
 		/* But many places has it in /usr/bin */
-	    execl(LOCAL_MPG_123, "mpg123", "-q", "-s", "-f", "8192", "--mono", "-r", sampling_rate_str, filename, (char *)NULL);
+	    execl(LOCAL_MPG_123, "mpg123", "-e", "s16", "-q", "-s", "-f", "8192", "--mono", "-r", sampling_rate_str, filename, (char *)NULL);
 		/* As a last-ditch effort, try to use PATH */
-	    execlp("mpg123", "mpg123", "-q", "-s", "-f", "8192", "--mono", "-r", sampling_rate_str, filename, (char *)NULL);
+	    execlp("mpg123", "mpg123", "-e", "s16", "-q", "-s", "-f", "8192", "--mono", "-r", sampling_rate_str, filename, (char *)NULL);
 	}
 	/* Can't use ast_log since FD's are closed */
 	fprintf(stderr, "Execute of mpg123 failed\n");
