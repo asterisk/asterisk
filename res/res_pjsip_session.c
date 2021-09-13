@@ -5263,6 +5263,16 @@ static void session_inv_on_create_offer(pjsip_inv_session *inv, pjmedia_sdp_sess
 	pjmedia_sdp_session *offer;
 	int i;
 
+	/* We allow PJSIP to produce an SDP if no channel is present. This may result
+	 * in an incorrect SDP occurring, but if no channel is present then we are in
+	 * the midst of a BYE and are hanging up. This ensures that all the code to
+	 * produce an SDP doesn't need to worry about a channel being present or not,
+	 * just in case.
+	 */
+	if (!session->channel) {
+		return;
+	}
+
 	if (inv->neg) {
 		if (pjmedia_sdp_neg_was_answer_remote(inv->neg)) {
 			pjmedia_sdp_neg_get_active_remote(inv->neg, &previous_sdp);

@@ -2,6 +2,29 @@
 ; This file is used by the res_stir_shaken module to configure parameters
 ; used for STIR/SHAKEN.
 ;
+; There are 2 sides to STIR/SHAKEN: attestation and verification.
+;
+; Attestation is done on outgoing calls and makes use out of the certificate
+; objects. The cert located at path will be used to sign, and the cert
+; located at public_cert_url will be placed in the Identity header to let the
+; remote side know where to download the public cert from. These 2 certs must
+; match; that is, the cert located at public_cert_url must be the public cert
+; derived from the private cert located at path.
+;
+; Verification is done on incoming calls and doesn't rely on cert objects
+; defined in this file.
+;
+; The general section applies to all STIR/SHAKEN operations. However,
+; cache_max_size, curl_timeout, and signature_timeout only apply to the
+; verification side.
+;
+; It's important to note that downloaded certificates are stored in
+; <ast_config_AST_DATA_DIR>/keys/stir_shaken, which is usually
+; /etc/asterisk/keys/stir_shaken, but may be changed depending on where your
+; config directory is.
+;
+; Visit the wiki page:
+; https://wiki.asterisk.org/wiki/display/AST/STIR+and+SHAKEN
 ;
 ; [general]
 ;
@@ -33,9 +56,11 @@
 ; Path to a directory containing certificates
 ;path=/etc/asterisk/stir
 ;
-; URL to the public key(s). Must contain variable '${CERTIFICATE}' used for
-; substitution
-;public_key_url=http://mycompany.com/${CERTIFICATE}.pub
+; URL to the public certificate(s). Must contain variable '${CERTIFICATE}' used for
+; substitution. '${CERTIFICATE}' will be replaced by the names of the files located
+; at path.
+; This will be put in the Identity header when signing.
+;public_cert_url=http://mycompany.com/${CERTIFICATE}.pem
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -45,17 +70,16 @@
 ; type must be "certificate"
 ;type=certificate
 ;
-; File path to a certificate
-;path=/etc/asterisk/stir/alice.crt
+; File path to a certificate. This can be RSA or ECDSA, but eventually only ECDSA will be supported.
+;path=/etc/asterisk/stir/alice.pem
 ;
-; URL to the public key
-;public_key_url=http://mycompany.com/alice.pub
+; URL to the public certificate. Must be of type X509 and be derived from the
+; certificate located at path.
+; This will be put in the identity header when signing.
+;public_cert_url=http://mycompany.com/alice.pem
 ;
 ; The caller ID number to match on
 ;caller_id_number=1234567
 ;
 ; Must have an attestation of A, B, or C
 ;attestation=C
-;
-; The origination identifier for the certificate
-;origid=MyAsterisk

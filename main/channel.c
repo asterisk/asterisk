@@ -1491,7 +1491,7 @@ int ast_is_deferrable_frame(const struct ast_frame *frame)
 }
 
 /*! \brief Wait, look for hangups and condition arg */
-int ast_safe_sleep_conditional(struct ast_channel *chan, int timeout_ms, int (*cond)(void*), void *data)
+static int safe_sleep_conditional(struct ast_channel *chan, int timeout_ms, int (*cond)(void*), void *data, unsigned int generate_silence)
 {
 	struct ast_frame *f;
 	struct ast_silence_generator *silgen = NULL;
@@ -1503,7 +1503,7 @@ int ast_safe_sleep_conditional(struct ast_channel *chan, int timeout_ms, int (*c
 	AST_LIST_HEAD_INIT_NOLOCK(&deferred_frames);
 
 	/* If no other generator is present, start silencegen while waiting */
-	if (ast_opt_transmit_silence && !ast_channel_generatordata(chan)) {
+	if (generate_silence && ast_opt_transmit_silence && !ast_channel_generatordata(chan)) {
 		silgen = ast_channel_start_silence_generator(chan);
 	}
 
@@ -1561,10 +1561,20 @@ int ast_safe_sleep_conditional(struct ast_channel *chan, int timeout_ms, int (*c
 	return res;
 }
 
+int ast_safe_sleep_conditional(struct ast_channel *chan, int timeout_ms, int (*cond)(void*), void *data)
+{
+	return safe_sleep_conditional(chan, timeout_ms, cond, data, 1);
+}
+
 /*! \brief Wait, look for hangups */
 int ast_safe_sleep(struct ast_channel *chan, int ms)
 {
-	return ast_safe_sleep_conditional(chan, ms, NULL, NULL);
+	return safe_sleep_conditional(chan, ms, NULL, NULL, 1);
+}
+
+int ast_safe_sleep_without_silence(struct ast_channel *chan, int ms)
+{
+	return safe_sleep_conditional(chan, ms, NULL, NULL, 0);
 }
 
 struct ast_channel *ast_channel_release(struct ast_channel *chan)
@@ -3315,6 +3325,7 @@ int ast_waitfordigit_full(struct ast_channel *c, int timeout_ms, const char *bre
 				case AST_CONTROL_UPDATE_RTP_PEER:
 				case AST_CONTROL_HOLD:
 				case AST_CONTROL_UNHOLD:
+				case AST_CONTROL_FLASH:
 				case -1:
 					/* Unimportant */
 					break;
@@ -3391,6 +3402,11 @@ static void send_dtmf_end_event(struct ast_channel *chan,
 	}
 
 	ast_channel_publish_blob(chan, ast_channel_dtmf_end_type(), blob);
+}
+
+static void send_flash_event(struct ast_channel *chan)
+{
+	ast_channel_publish_blob(chan, ast_channel_flash_type(), NULL);
 }
 
 static void ast_read_generator_actions(struct ast_channel *chan, struct ast_frame *f)
@@ -3859,6 +3875,8 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio, int
 				 */
 				ast_frfree(f);
 				f = &ast_null_frame;
+			} else if (f->subclass.integer == AST_CONTROL_FLASH) {
+				send_flash_event(chan);
 			}
 			break;
 		case AST_FRAME_DTMF_END:

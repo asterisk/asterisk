@@ -1,4 +1,4 @@
-  <!ELEMENT docs (application|function|agi|manager|managerEvent|info|configInfo)*>
+  <!ELEMENT docs (module|application|function|agi|manager|managerEvent|info|configInfo)*>
   <!ATTLIST docs xmlns:xi CDATA #FIXED "http://www.w3.org/2001/XInclude">
 
   <!ELEMENT xi:include (xi:fallback?) >
@@ -10,6 +10,28 @@
   encoding	CDATA       #IMPLIED
   accept	CDATA       #IMPLIED
   accept-language CDATA  #IMPLIED >
+
+  <!ELEMENT module (depend*,use*,conflict*,defaultenabled?,support_level?,replacement?,deprecated_in?,removed_in?)>
+  <!ATTLIST module name CDATA #REQUIRED>
+  <!ATTLIST module language CDATA #REQUIRED>
+
+  <!ELEMENT support_level (#PCDATA)>
+
+  <!ELEMENT depend (#PCDATA)>
+  <!ATTLIST depend type CDATA #IMPLIED>
+
+  <!ELEMENT defaultenabled (#PCDATA)>
+
+  <!ELEMENT replacement (#PCDATA)>
+
+  <!ELEMENT use (#PCDATA)>
+  <!ATTLIST use type CDATA #IMPLIED>
+
+  <!ELEMENT conflict (#PCDATA)>
+
+  <!ELEMENT deprecated_in (#PCDATA)>
+
+  <!ELEMENT removed_in (#PCDATA)>
 
   <!ELEMENT application (synopsis?,syntax?,description?,see-also?)>
   <!ATTLIST application name CDATA #REQUIRED>
@@ -60,6 +82,8 @@
   <!ATTLIST configOption type CDATA #IMPLIED>
 
   <!ELEMENT matchInfo (category|field?)>
+
+  <!ELEMENT dataType (#PCDATA)>
 
   <!ELEMENT category (#PCDATA)>
   <!ATTLIST category match (yes|no|true|false) #REQUIRED>

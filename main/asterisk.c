@@ -118,7 +118,7 @@
  *
  * \par IRC
  * \par
- * Use http://www.freenode.net IRC server to connect with Asterisk
+ * Use https://libera.chat IRC server to connect with Asterisk
  * developers and users in realtime.
  *
  * \li \verbatim #asterisk \endverbatim Asterisk Users Room
@@ -3251,6 +3251,8 @@ static void ast_remotecontrol(char *data)
 	}
 
 	ast_verbose("Connected to Asterisk %s currently running on %s (pid = %d)\n", version, hostname, pid);
+	ast_init_logger_for_socket_console();
+
 	remotehostname = hostname;
 	if (el_hist == NULL || el == NULL)
 		ast_el_initialize();

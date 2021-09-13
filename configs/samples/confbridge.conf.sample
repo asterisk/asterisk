@@ -165,6 +165,8 @@ type=user
 ;text_messaging=yes ; When set to yes text messages will be sent to this user. Text messages
                     ; may occur as a result of events or can be received from other participants.
                     ; When set to no text messages will not be sent to this user.
+;answer_channel=yes   ; Sets if the channel should be answered if it hasn't been already.
+                          ; On by default.
 
 ; --- ConfBridge Bridge Profile Options ---
 [default_bridge]

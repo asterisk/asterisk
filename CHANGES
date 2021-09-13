@@ -13,6 +13,210 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 18.5.0 to Asterisk 18.6.0 ------------
+------------------------------------------------------------------------------
+
+Handle non-standard Meter metric type safely
+------------------
+ * A meter_support flag has been introduced that defaults to true to maintain current behaviour.
+   If disabled, a counter metric type will be used instead wherever a meter metric type was used,
+   the counter will have a "_meter" suffix appended to the metric name.
+
+app_dtmfstore
+------------------
+ * New application which collects digits
+   dialed and stores them into
+   a specified variable.
+
+app_queue.c
+------------------
+ * Allow multiple files to be streamed for agent announcement.
+
+chan_pjsip
+------------------
+ * Add function PJSIP_HEADERS() to get list of headers by pattern in the same way as SIP_HEADERS() do.
+
+   Add ability to read header by pattern using PJSIP_HEADER().
+
+------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 18.5.0 to Asterisk 18.5.1 ------------
+------------------------------------------------------------------------------
+
+New Reload application
+------------------
+ * Adds an application to reload modules
+
+PlaybackFinished has a new error state
+------------------
+ * The PlaybackFinished event now has a new state "failed"
+   that is used when the sound file was not played due to an error.
+   Before the state on PlaybackFinished was always "done".
+
+   In case of multiple sound files to be played,
+   the PlaybackFinished is sent only once in the end of the list,
+   even in case of error.
+
+WaitForCondition application
+------------------
+ * This application provides a way to halt
+   dialplan execution until a provided
+   condition evaluates to true.
+
+app_dial announcement option
+------------------
+ * The A option for Dial now supports
+   playing audio to the caller as well
+   as the called party.
+
+------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 18.4.0 to Asterisk 18.5.0 ------------
+------------------------------------------------------------------------------
+
+AMI Flash event
+------------------
+ * Hook flash events are now exposed as AMI events.
+
+Add variable support to Originate
+------------------
+ * The Originate application now allows
+   variables to be set on the new channel
+   through a new option.
+
+MessageSend
+------------------
+ * The MessageSend dialplan application now takes an
+   optional third argument that can set the message's
+   "To" field on outgoing messages.  It's an alternative
+   to using the MESSAGE(to) dialplan function.
+
+   To prevent confusion with the first argument, currently
+   named "to", it's been renamed to "destination".
+   Its function, creating the request URI, hasn't changed.
+
+   The online documentation has also been enhanced to
+   explain the behavior.
+
+   Despite the changes in this commit, there should be
+   no impact to current users of MessageSend.
+
+New ConfKick application
+------------------
+ * Adds a ConfKick() application, which allows
+   a specific channel, all users, or all non-admin
+   users to be kicked from a conference bridge.
+
+app_confbridge answer supervision control
+------------------
+ * app_confbridge now provides a user option to prevent
+   answer supervision if the channel hasn't been
+   answered yet. To use it, set a user profile's
+   answer_channel option to no.
+
+app_voicemail
+------------------
+ * You can now customize the "beep" tone or omit it entirely.
+
+func_math: Three new dialplan functions
+------------------
+ * Introduce three new functions, MIN, MAX, and ABS, which can be used to
+   obtain the minimum or maximum of up to two integers or absolute value.
+
+func_volume now can be read
+------------------
+ * The VOLUME function can now also be used
+   to read existing values previously set.
+
+res_pjsip
+------------------
+ * PJSIP support of registrations of endpoints in multidomain
+   scenarios, where the endpoint contains the domain info
+   in pjsip_endpoint.conf
+
+res_pjsip_dialog_info_body_generator
+------------------
+ * PJSIP now supports RFC 4235 Section 4.1.6 dialog-info+xml local and
+   remote elements by iterating through ringing channels and inserting
+   that info into NOTIFY packet sent to the endpoint.
+
+res_pjsip_messaging
+------------------
+ * Implemented the new "to" parameter of the MessageSend()
+   dialplan application.  This allows a user to specify
+   a complete SIP "To" header separate from the Request URI.
+   We now also accept a destination in the same format
+   as Dial()...  PJSIP/number@endpoint
+
+res_rtp_asterisk
+------------------
+ * By default Asterisk reports the PJSIP version in all
+   STUN packets it sends.
+
+   This behaviour may not be desired in a production
+   environment and can now be disabled by setting the
+   stun_software_attribute option to 'no' in rtp.conf.
+
+------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 18.3.0 to Asterisk 18.4.0 ------------
+------------------------------------------------------------------------------
+
+logger
+------------------
+ * The dateformat option in logger.conf will now control the remote
+   console (asterisk -r -T) timestamp format.  Previously, dateformat only
+   controlled the formatting of the timestamp going to log files and the
+   main console (asterisk -c) but only for non-verbose messages.
+
+   Internally, Asterisk does not send the logging timestamp with verbose
+   messages to console clients. It's up to the Asterisk remote consoles
+   to format verbose messages.  Asterisk remote consoles previously did
+   not load dateformat from logger.conf.
+
+   Previously there was a non-configurable and hard-coded "%b %e %T"
+   dateformat that would be used no matter what on all verbose console
+   messages printed on remote consoles.
+
+   Example:
+   logger.conf
+    dateformat=%F %T.%3q
+
+   # asterisk -rvvv -T
+   [2021-03-19 09:54:19.760-0400]  Loading res_stasis_answer.so.
+   [Mar 19 09:55:43]     -- Goto (dialExten,s,1)
+
+   Given the following example configuration in logger.conf, Asterisk log
+   files and the console, will log verbose messages using the given
+   timestamp.  Now ensuring that all remote console messages are logged
+   with the same dateformat as other log streams.
+
+   ---
+   [general]
+   dateformat=%F %T.%3q
+
+   [logfiles]
+   console  => notice,warning,error,verbose
+   full     => notice,warning,error,debug,verbose
+   ---
+
+   Now we have a globally-defined dateformat that will be used
+   consistently across the Asterisk main console, remote consoles, and
+   log files.
+
+   Now we have consistent logging:
+
+   # asterisk -rvvv -T
+   [2021-03-19 09:54:19.760-0400]  Loading res_stasis_answer.so.
+   [2021-03-19 09:55:43.920-0400]     -- Goto (dialExten,s,1)
+
+res_pjsip
+------------------
+ * PJSIP transports can now be partially reloaded safely. This allows the
+   local_net and external_* options to be updated without restarting Asterisk.
+
+ * PJSIP endpoints can now be configured to skip authentication when
+   handling OPTIONS requests by setting the allow_unauthenticated_options
+   configuration property to 'yes.'
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 18.2.2 to Asterisk 18.3.0 ------------
 ------------------------------------------------------------------------------
 

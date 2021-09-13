@@ -34,14 +34,12 @@ struct stir_shaken_certificate {
 	AST_DECLARE_STRING_FIELDS(
 		/*! Path to a directory containing certificates */
 		AST_STRING_FIELD(path);
-		/*! URL to the public key */
-		AST_STRING_FIELD(public_key_url);
+		/*! URL to the public certificate */
+		AST_STRING_FIELD(public_cert_url);
 		/*! The caller ID number associated with the certificate */
 		AST_STRING_FIELD(caller_id_number);
 		/*! The attestation level for this certificate */
 		AST_STRING_FIELD(attestation);
-		/*! The origination ID for this certificate */
-		AST_STRING_FIELD(origid);
 	);
 	/*! The private key for the certificate */
 	EVP_PKEY *private_key;
@@ -95,19 +93,14 @@ struct stir_shaken_certificate *stir_shaken_certificate_get_by_caller_id_number(
 		"certificate", AST_RETRIEVE_FLAG_DEFAULT, &fields);
 }
 
-const char *stir_shaken_certificate_get_public_key_url(struct stir_shaken_certificate *cert)
+const char *stir_shaken_certificate_get_public_cert_url(struct stir_shaken_certificate *cert)
 {
-	return cert ? cert->public_key_url : NULL;
+	return cert ? cert->public_cert_url : NULL;
 }
 
 const char *stir_shaken_certificate_get_attestation(struct stir_shaken_certificate *cert)
 {
 	return cert ? cert->attestation : NULL;
-}
-
-const char *stir_shaken_certificate_get_origid(struct stir_shaken_certificate *cert)
-{
-	return cert ? cert->origid : NULL;
 }
 
 EVP_PKEY *stir_shaken_certificate_get_private_key(struct stir_shaken_certificate *cert)
@@ -234,23 +227,23 @@ static int path_to_str(const void *obj, const intptr_t *args, char **buf)
 	return 0;
 }
 
-static int on_load_public_key_url(const struct aco_option *opt, struct ast_variable *var, void *obj)
+static int on_load_public_cert_url(const struct aco_option *opt, struct ast_variable *var, void *obj)
 {
 	struct stir_shaken_certificate *cfg = obj;
 
 	if (!ast_begins_with(var->value, "http")) {
-		ast_log(LOG_ERROR, "stir/shaken - public_key_url scheme must be 'http[s]'\n");
+		ast_log(LOG_ERROR, "stir/shaken - public_cert_url scheme must be 'http[s]'\n");
 		return -1;
 	}
 
-	return ast_string_field_set(cfg, public_key_url, var->value);
+	return ast_string_field_set(cfg, public_cert_url, var->value);
 }
 
-static int public_key_url_to_str(const void *obj, const intptr_t *args, char **buf)
+static int public_cert_url_to_str(const void *obj, const intptr_t *args, char **buf)
 {
 	const struct stir_shaken_certificate *cfg = obj;
 
-	*buf = ast_strdup(cfg->public_key_url);
+	*buf = ast_strdup(cfg->public_cert_url);
 
 	return 0;
 }
@@ -332,7 +325,7 @@ int test_stir_shaken_create_cert(const char *caller_id_number, const char *file_
 	}
 
 	ast_string_field_set(cert, path, file_path);
-	ast_string_field_set(cert, public_key_url, TEST_CONFIG_URL);
+	ast_string_field_set(cert, public_cert_url, TEST_CONFIG_URL);
 	ast_string_field_set(cert, caller_id_number, caller_id_number);
 
 	private_key = stir_shaken_read_key(cert->path, 1);
@@ -374,11 +367,10 @@ int stir_shaken_certificate_load(void)
 	ast_sorcery_object_field_register(sorcery, CONFIG_TYPE, "type", "", OPT_NOOP_T, 0, 0);
 	ast_sorcery_object_field_register_custom(sorcery, CONFIG_TYPE, "path", "",
 		on_load_path, path_to_str, NULL, 0, 0);
-	ast_sorcery_object_field_register_custom(sorcery, CONFIG_TYPE, "public_key_url", "",
-		on_load_public_key_url, public_key_url_to_str, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(sorcery, CONFIG_TYPE, "public_cert_url", "",
+		on_load_public_cert_url, public_cert_url_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sorcery, CONFIG_TYPE, "attestation", "",
 		on_load_attestation, attestation_to_str, NULL, 0, 0);
-	ast_sorcery_object_field_register(sorcery, CONFIG_TYPE, "origid", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct stir_shaken_certificate, origid));
 	ast_sorcery_object_field_register(sorcery, CONFIG_TYPE, "caller_id_number", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct stir_shaken_certificate, caller_id_number));
 
 	ast_cli_register_multiple(stir_shaken_certificate_cli,

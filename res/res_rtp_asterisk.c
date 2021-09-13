@@ -63,6 +63,7 @@
 #include <ifaddrs.h>
 #endif
 
+#include "asterisk/conversions.h"
 #include "asterisk/options.h"
 #include "asterisk/logger_category.h"
 #include "asterisk/stun.h"
@@ -183,6 +184,7 @@ enum strict_rtp_mode {
 #define DEFAULT_STRICT_RTP STRICT_RTP_YES	/*!< Enabled by default */
 #define DEFAULT_SRTP_REPLAY_PROTECTION 1
 #define DEFAULT_ICESUPPORT 1
+#define DEFAULT_STUN_SOFTWARE_ATTRIBUTE 1
 #define DEFAULT_DTLS_MTU 1200
 
 extern struct ast_srtp_res *res_srtp;
@@ -210,6 +212,7 @@ static int dtls_mtu = DEFAULT_DTLS_MTU;
 #endif
 #ifdef HAVE_PJPROJECT
 static int icesupport = DEFAULT_ICESUPPORT;
+static int stun_software_attribute = DEFAULT_STUN_SOFTWARE_ATTRIBUTE;
 static struct sockaddr_in stunaddr;
 static pj_str_t turnaddr;
 static int turnport = DEFAULT_TURN_PORT;
@@ -355,6 +358,11 @@ struct rtp_transport_wide_cc_statistics {
 	int schedid;
 };
 
+typedef struct {
+	unsigned int ts;
+	unsigned char is_set;
+} optional_ts;
+
 /*! \brief RTP session description */
 struct ast_rtp {
 	int s;
@@ -383,7 +391,7 @@ struct ast_rtp {
 	unsigned int txcount;           /*!< How many packets have we sent? */
 	unsigned int txoctetcount;      /*!< How many octets have we sent? (txcount*160)*/
 	unsigned int cycles;            /*!< Shifted count of sequence number cycles */
-	double rxjitter;                /*!< Interarrival jitter at the moment in seconds */
+	double rxjitter;                /*!< Interarrival jitter at the moment in seconds to be reported */
 	double rxtransit;               /*!< Relative transit time for previous packet */
 	struct ast_format *lasttxformat;
 	struct ast_format *lastrxformat;
@@ -391,7 +399,7 @@ struct ast_rtp {
 	/* DTMF Reception Variables */
 	char resp;                        /*!< The current digit being processed */
 	unsigned int last_seqno;          /*!< The last known sequence number for any DTMF packet */
-	unsigned int last_end_timestamp;  /*!< The last known timestamp received from an END packet */
+	optional_ts last_end_timestamp;   /*!< The last known timestamp received from an END packet */
 	unsigned int dtmf_duration;       /*!< Total duration in samples since the digit start event */
 	unsigned int dtmf_timeout;        /*!< When this timestamp is reached we consider END frame lost and forcibly abort digit */
 	unsigned int dtmfsamples;
@@ -510,34 +518,36 @@ struct ast_rtcp {
 	unsigned int reported_jitter;	/*!< The contents of their last jitter entry in the RR */
 	unsigned int reported_lost;	/*!< Reported lost packets in their RR */
 
-	double reported_maxjitter;
-	double reported_minjitter;
-	double reported_normdev_jitter;
-	double reported_stdev_jitter;
-	unsigned int reported_jitter_count;
+	double reported_maxjitter; /*!< Maximum reported interarrival jitter */
+	double reported_minjitter; /*!< Minimum reported interarrival jitter */
+	double reported_normdev_jitter; /*!< Mean of reported interarrival jitter */
+	double reported_stdev_jitter; /*!< Standard deviation of reported interarrival jitter */
+	unsigned int reported_jitter_count; /*!< Reported interarrival jitter count */
 
-	double reported_maxlost;
-	double reported_minlost;
-	double reported_normdev_lost;
-	double reported_stdev_lost;
+	double reported_maxlost; /*!< Maximum reported packets lost */
+	double reported_minlost; /*!< Minimum reported packets lost */
+	double reported_normdev_lost; /*!< Mean of reported packets lost */
+	double reported_stdev_lost; /*!< Standard deviation of reported packets lost */
+	unsigned int reported_lost_count; /*!< Reported packets lost count */
 
-	double rxlost;
-	double maxrxlost;
-	double minrxlost;
-	double normdev_rxlost;
-	double stdev_rxlost;
-	unsigned int rxlost_count;
+	double rxlost; /*!< Calculated number of lost packets since last report */
+	double maxrxlost; /*!< Maximum calculated lost number of packets between reports */
+	double minrxlost; /*!< Minimum calculated lost number of packets between reports */
+	double normdev_rxlost; /*!< Mean of calculated lost packets between reports */
+	double stdev_rxlost; /*!< Standard deviation of calculated lost packets between reports */
+	unsigned int rxlost_count; /*!< Calculated lost packets sample count */
 
-	double maxrxjitter;
-	double minrxjitter;
-	double normdev_rxjitter;
-	double stdev_rxjitter;
-	unsigned int rxjitter_count;
-	double maxrtt;
-	double minrtt;
-	double normdevrtt;
-	double stdevrtt;
-	unsigned int rtt_count;
+	double maxrxjitter; /*!< Maximum of calculated interarrival jitter */
+	double minrxjitter; /*!< Minimum of calculated interarrival jitter */
+	double normdev_rxjitter; /*!< Mean of calculated interarrival jitter */
+	double stdev_rxjitter; /*!< Standard deviation of calculated interarrival jitter */
+	unsigned int rxjitter_count; /*!< Calculated interarrival jitter count */
+
+	double maxrtt; /*!< Maximum of calculated round trip time */
+	double minrtt; /*!< Minimum of calculated round trip time */
+	double normdevrtt; /*!< Mean of calculated round trip time */
+	double stdevrtt; /*!< Standard deviation of calculated round trip time */
+	unsigned int rtt_count; /*!< Calculated round trip time count */
 
 	/* VP8: sequence number for the RTCP FIR FCI */
 	int firseq;
@@ -1644,6 +1654,9 @@ static void ast_rtp_ice_turn_request(struct ast_rtp_instance *instance, enum ast
 	}
 
 	pj_stun_config_init(&stun_config, &cachingpool.factory, 0, rtp->ioqueue->ioqueue, rtp->ioqueue->timerheap);
+	if (!stun_software_attribute) {
+		stun_config.software_name = pj_str(NULL);
+	}
 
 	/* Use ICE session group lock for TURN session to avoid deadlock */
 	pj_turn_sock_cfg_default(&turn_sock_cfg);
@@ -3316,49 +3329,32 @@ static unsigned int ast_rtcp_calc_interval(struct ast_rtp *rtp)
 	return interval;
 }
 
-/*! \brief Calculate normal deviation */
-static double normdev_compute(double normdev, double sample, unsigned int sample_count)
+static void calc_mean_and_standard_deviation(double new_sample, double *mean, double *std_dev, unsigned int *count)
 {
-	normdev = normdev * sample_count + sample;
-	sample_count++;
+	double delta1;
+	double delta2;
 
-	/*
-	 It's possible the sample_count hits the maximum value and back to 0.
-	 Set to 1 to prevent the divide by zero crash if the sample_count is 0.
-	 */
-	if (sample_count == 0) {
-		sample_count = 1;
+	/* First convert the standard deviation back into a sum of squares. */
+	double last_sum_of_squares = (*std_dev) * (*std_dev) * (*count ?: 1);
+
+	if (++(*count) == 0) {
+		/* Avoid potential divide by zero on an overflow */
+		*count = 1;
 	}
 
-	return normdev / sample_count;
-}
-
-static double stddev_compute(double stddev, double sample, double normdev, double normdev_curent, unsigned int sample_count)
-{
-/*
-		for the formula check http://www.cs.umd.edu/~austinjp/constSD.pdf
-		return sqrt( (sample_count*pow(stddev,2) + sample_count*pow((sample-normdev)/(sample_count+1),2) + pow(sample-normdev_curent,2)) / (sample_count+1));
-		we can compute the sigma^2 and that way we would have to do the sqrt only 1 time at the end and would save another pow 2 compute
-		optimized formula
-*/
-#define SQUARE(x) ((x) * (x))
-
-	stddev = sample_count * stddev;
-	sample_count++;
-
 	/*
-	 It's possible the sample_count hits the maximum value and back to 0.
-	 Set to 1 to prevent the divide by zero crash if the sample_count is 0.
+	 * Below is an implementation of Welford's online algorithm [1] for calculating
+	 * mean and variance in a single pass.
+	 *
+	 * [1] https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
 	 */
-	if (sample_count == 0) {
-		sample_count = 1;
-	}
 
-	return stddev +
-		( sample_count * SQUARE( (sample - normdev) / sample_count ) ) +
-		( SQUARE(sample - normdev_curent) / sample_count );
+	delta1 = new_sample - *mean;
+	*mean += (delta1 / *count);
+	delta2 = new_sample - *mean;
 
-#undef SQUARE
+	/* Now calculate the new variance, and subsequent standard deviation */
+	*std_dev = sqrt((last_sum_of_squares + (delta1 * delta2)) / *count);
 }
 
 static int create_new_socket(const char *type, int af)
@@ -3691,6 +3687,7 @@ static void rtp_add_candidates_to_ice(struct ast_rtp_instance *instance, struct 
 			ao2_iterator_destroy(&i);
 
 			if (srflx && baseset) {
+				pj_sockaddr_set_port(&base, port);
 				ast_rtp_ice_add_cand(instance, rtp, component, transport,
 					PJ_ICE_CAND_TYPE_SRFLX, 65535, &ext, &base, &base,
 					pj_sockaddr_get_len(&ext));
@@ -3775,6 +3772,9 @@ static int ice_create(struct ast_rtp_instance *instance, struct ast_sockaddr *ad
 	pj_thread_register_check();
 
 	pj_stun_config_init(&stun_config, &cachingpool.factory, 0, NULL, timer_heap);
+	if (!stun_software_attribute) {
+		stun_config.software_name = pj_str(NULL);
+	}
 
 	ufrag = pj_str(rtp->local_ufrag);
 	passwd = pj_str(rtp->local_passwd);
@@ -4433,7 +4433,6 @@ static void calculate_lost_packet_statistics(struct ast_rtp *rtp,
 	unsigned int expected_packets;
 	unsigned int expected_interval;
 	unsigned int received_interval;
-	double rxlost_current;
 	int lost_interval;
 
 	/* Compute statistics */
@@ -4463,6 +4462,13 @@ static void calculate_lost_packet_statistics(struct ast_rtp *rtp,
 	/* Update RTCP statistics */
 	rtp->rtcp->received_prior = rtp->rxcount;
 	rtp->rtcp->expected_prior = expected_packets;
+
+	/*
+	 * While rxlost represents the number of packets lost since the last report was sent, for
+	 * the calculations below it should be thought of as a single sample. Thus min/max are the
+	 * lowest/highest sample value seen, and the mean is the average number of packets lost
+	 * between each report. As such rxlost_count only needs to be incremented per report.
+	 */
 	if (lost_interval <= 0) {
 		rtp->rtcp->rxlost = 0;
 	} else {
@@ -4471,22 +4477,15 @@ static void calculate_lost_packet_statistics(struct ast_rtp *rtp,
 	if (rtp->rtcp->rxlost_count == 0) {
 		rtp->rtcp->minrxlost = rtp->rtcp->rxlost;
 	}
-	if (lost_interval < rtp->rtcp->minrxlost) {
+	if (lost_interval && lost_interval < rtp->rtcp->minrxlost) {
 		rtp->rtcp->minrxlost = rtp->rtcp->rxlost;
 	}
 	if (lost_interval > rtp->rtcp->maxrxlost) {
 		rtp->rtcp->maxrxlost = rtp->rtcp->rxlost;
 	}
-	rxlost_current = normdev_compute(rtp->rtcp->normdev_rxlost,
-			rtp->rtcp->rxlost,
-			rtp->rtcp->rxlost_count);
-	rtp->rtcp->stdev_rxlost = stddev_compute(rtp->rtcp->stdev_rxlost,
-			rtp->rtcp->rxlost,
-			rtp->rtcp->normdev_rxlost,
-			rxlost_current,
-			rtp->rtcp->rxlost_count);
-	rtp->rtcp->normdev_rxlost = rxlost_current;
-	rtp->rtcp->rxlost_count++;
+
+	calc_mean_and_standard_deviation(rtp->rtcp->rxlost, &rtp->rtcp->normdev_rxlost,
+		&rtp->rtcp->stdev_rxlost, &rtp->rtcp->rxlost_count);
 }
 
 static int ast_rtcp_generate_report(struct ast_rtp_instance *instance, unsigned char *rtcpheader,
@@ -5422,7 +5421,6 @@ static void calc_rxstamp(struct timeval *tv, struct ast_rtp *rtp, unsigned int t
 	double prog;
 	int rate = ast_rtp_get_rate(rtp->f.subclass.format);
 
-	double normdev_rxjitter_current;
 	if ((!rtp->rxcore.tv_sec && !rtp->rxcore.tv_usec) || mark) {
 		gettimeofday(&rtp->rxcore, NULL);
 		rtp->drxcore = (double) rtp->rxcore.tv_sec + (double) rtp->rxcore.tv_usec / 1000000;
@@ -5457,11 +5455,8 @@ static void calc_rxstamp(struct timeval *tv, struct ast_rtp *rtp, unsigned int t
 		if (rtp->rtcp && rtp->rxjitter < rtp->rtcp->minrxjitter)
 			rtp->rtcp->minrxjitter = rtp->rxjitter;
 
-		normdev_rxjitter_current = normdev_compute(rtp->rtcp->normdev_rxjitter,rtp->rxjitter,rtp->rtcp->rxjitter_count);
-		rtp->rtcp->stdev_rxjitter = stddev_compute(rtp->rtcp->stdev_rxjitter,rtp->rxjitter,rtp->rtcp->normdev_rxjitter,normdev_rxjitter_current,rtp->rtcp->rxjitter_count);
-
-		rtp->rtcp->normdev_rxjitter = normdev_rxjitter_current;
-		rtp->rtcp->rxjitter_count++;
+		calc_mean_and_standard_deviation(rtp->rxjitter, &rtp->rtcp->normdev_rxjitter,
+			&rtp->rtcp->stdev_rxjitter, &rtp->rtcp->rxjitter_count);
 	}
 }
 
@@ -5478,15 +5473,24 @@ static struct ast_frame *create_dtmf_frame(struct ast_rtp_instance *instance, en
 		rtp->resp = 0;
 		rtp->dtmfsamples = 0;
 		return &ast_null_frame;
+	} else if (type == AST_FRAME_DTMF_BEGIN && rtp->resp == 'X') {
+		ast_debug_rtp(1, "(%p) RTP ignore flash begin from '%s'\n",
+			instance, ast_sockaddr_stringify(&remote_address));
+		rtp->resp = 0;
+		rtp->dtmfsamples = 0;
+		return &ast_null_frame;
 	}
-	ast_debug_rtp(1, "(%p) RTP creating %s DTMF Frame: %d (%c), at %s\n",
-		instance, type == AST_FRAME_DTMF_END ? "END" : "BEGIN",
-		rtp->resp, rtp->resp,
-		ast_sockaddr_stringify(&remote_address));
+
 	if (rtp->resp == 'X') {
+		ast_debug_rtp(1, "(%p) RTP creating flash Frame at %s\n",
+			instance, ast_sockaddr_stringify(&remote_address));
 		rtp->f.frametype = AST_FRAME_CONTROL;
 		rtp->f.subclass.integer = AST_CONTROL_FLASH;
 	} else {
+		ast_debug_rtp(1, "(%p) RTP creating %s DTMF Frame: %d (%c), at %s\n",
+			instance, type == AST_FRAME_DTMF_END ? "END" : "BEGIN",
+			rtp->resp, rtp->resp,
+			ast_sockaddr_stringify(&remote_address));
 		rtp->f.frametype = type;
 		rtp->f.subclass.integer = rtp->resp;
 	}
@@ -5546,12 +5550,13 @@ static void process_dtmf_rfc2833(struct ast_rtp_instance *instance, unsigned cha
 	}
 
 	if (ast_rtp_instance_get_prop(instance, AST_RTP_PROPERTY_DTMF_COMPENSATE)) {
-		if ((rtp->last_end_timestamp != timestamp) || (rtp->resp && rtp->resp != resp)) {
+		if (!rtp->last_end_timestamp.is_set || rtp->last_end_timestamp.ts != timestamp || (rtp->resp && rtp->resp != resp)) {
 			rtp->resp = resp;
 			rtp->dtmf_timeout = 0;
 			f = ast_frdup(create_dtmf_frame(instance, AST_FRAME_DTMF_END, ast_rtp_instance_get_prop(instance, AST_RTP_PROPERTY_DTMF_COMPENSATE)));
 			f->len = 0;
-			rtp->last_end_timestamp = timestamp;
+			rtp->last_end_timestamp.ts = timestamp;
+			rtp->last_end_timestamp.is_set = 1;
 			AST_LIST_INSERT_TAIL(frames, f, frame_list);
 		}
 	} else {
@@ -5570,8 +5575,9 @@ static void process_dtmf_rfc2833(struct ast_rtp_instance *instance, unsigned cha
 
 		if (event_end & 0x80) {
 			/* End event */
-			if ((rtp->last_seqno != seqno) && ((timestamp > rtp->last_end_timestamp) || ((timestamp == 0) && (rtp->last_end_timestamp == 0)))) {
-				rtp->last_end_timestamp = timestamp;
+			if (rtp->last_seqno != seqno && (!rtp->last_end_timestamp.is_set || timestamp > rtp->last_end_timestamp.ts)) {
+				rtp->last_end_timestamp.ts = timestamp;
+				rtp->last_end_timestamp.is_set = 1;
 				rtp->dtmf_duration = new_duration;
 				rtp->resp = resp;
 				f = ast_frdup(create_dtmf_frame(instance, AST_FRAME_DTMF_END, 0));
@@ -5591,7 +5597,8 @@ static void process_dtmf_rfc2833(struct ast_rtp_instance *instance, unsigned cha
 			 * 65535.
 			 */
 			if ((rtp->last_seqno > seqno && rtp->last_seqno - seqno < 50)
-				|| timestamp <= rtp->last_end_timestamp) {
+			   || (rtp->last_end_timestamp.is_set
+				  && timestamp <= rtp->last_end_timestamp.ts)) {
 				/* Out of order frame. Processing this can cause us to
 				 * improperly duplicate incoming DTMF, so just drop
 				 * this.
@@ -5768,7 +5775,6 @@ static int update_rtt_stats(struct ast_rtp *rtp, unsigned int lsr, unsigned int 
 	unsigned int rtt_lsw;
 	unsigned int lsr_a;
 	unsigned int rtt;
-	double normdevrtt_current;
 
 	gettimeofday(&now, NULL);
 	timeval2ntp(now, &msw, &lsw);
@@ -5805,16 +5811,8 @@ static int update_rtt_stats(struct ast_rtp *rtp, unsigned int lsr, unsigned int 
 		rtp->rtcp->maxrtt = rtp->rtcp->rtt;
 	}
 
-	normdevrtt_current = normdev_compute(rtp->rtcp->normdevrtt,
-			rtp->rtcp->rtt,
-			rtp->rtcp->rtt_count);
-	rtp->rtcp->stdevrtt = stddev_compute(rtp->rtcp->stdevrtt,
-			rtp->rtcp->rtt,
-			rtp->rtcp->normdevrtt,
-			normdevrtt_current,
-			rtp->rtcp->rtt_count);
-	rtp->rtcp->normdevrtt = normdevrtt_current;
-	rtp->rtcp->rtt_count++;
+	calc_mean_and_standard_deviation(rtp->rtcp->rtt, &rtp->rtcp->normdevrtt,
+		&rtp->rtcp->stdevrtt, &rtp->rtcp->rtt_count);
 
 	return 0;
 }
@@ -5826,7 +5824,6 @@ static int update_rtt_stats(struct ast_rtp *rtp, unsigned int lsr, unsigned int 
 static void update_jitter_stats(struct ast_rtp *rtp, unsigned int ia_jitter)
 {
 	double reported_jitter;
-	double reported_normdev_jitter_current;
 
 	rtp->rtcp->reported_jitter = ia_jitter;
 	reported_jitter = (double) rtp->rtcp->reported_jitter;
@@ -5839,9 +5836,9 @@ static void update_jitter_stats(struct ast_rtp *rtp, unsigned int ia_jitter)
 	if (reported_jitter > rtp->rtcp->reported_maxjitter) {
 		rtp->rtcp->reported_maxjitter = reported_jitter;
 	}
-	reported_normdev_jitter_current = normdev_compute(rtp->rtcp->reported_normdev_jitter, reported_jitter, rtp->rtcp->reported_jitter_count);
-	rtp->rtcp->reported_stdev_jitter = stddev_compute(rtp->rtcp->reported_stdev_jitter, reported_jitter, rtp->rtcp->reported_normdev_jitter, reported_normdev_jitter_current, rtp->rtcp->reported_jitter_count);
-	rtp->rtcp->reported_normdev_jitter = reported_normdev_jitter_current;
+
+	calc_mean_and_standard_deviation(reported_jitter, &rtp->rtcp->reported_normdev_jitter,
+		&rtp->rtcp->reported_stdev_jitter, &rtp->rtcp->reported_jitter_count);
 }
 
 /*!
@@ -5851,11 +5848,10 @@ static void update_jitter_stats(struct ast_rtp *rtp, unsigned int ia_jitter)
 static void update_lost_stats(struct ast_rtp *rtp, unsigned int lost_packets)
 {
 	double reported_lost;
-	double reported_normdev_lost_current;
 
 	rtp->rtcp->reported_lost = lost_packets;
 	reported_lost = (double)rtp->rtcp->reported_lost;
-	if (rtp->rtcp->reported_jitter_count == 0) {
+	if (rtp->rtcp->reported_lost_count == 0) {
 		rtp->rtcp->reported_minlost = reported_lost;
 	}
 	if (reported_lost < rtp->rtcp->reported_minlost) {
@@ -5864,9 +5860,9 @@ static void update_lost_stats(struct ast_rtp *rtp, unsigned int lost_packets)
 	if (reported_lost > rtp->rtcp->reported_maxlost) {
 		rtp->rtcp->reported_maxlost = reported_lost;
 	}
-	reported_normdev_lost_current = normdev_compute(rtp->rtcp->reported_normdev_lost, reported_lost, rtp->rtcp->reported_jitter_count);
-	rtp->rtcp->reported_stdev_lost = stddev_compute(rtp->rtcp->reported_stdev_lost, reported_lost, rtp->rtcp->reported_normdev_lost, reported_normdev_lost_current, rtp->rtcp->reported_jitter_count);
-	rtp->rtcp->reported_normdev_lost = reported_normdev_lost_current;
+
+	calc_mean_and_standard_deviation(reported_lost, &rtp->rtcp->reported_normdev_lost,
+		&rtp->rtcp->reported_stdev_lost, &rtp->rtcp->reported_lost_count);
 }
 
 /*! \pre instance is locked */
@@ -6439,7 +6435,6 @@ static struct ast_frame *ast_rtcp_interpret(struct ast_rtp_instance *instance, s
 				}
 				update_jitter_stats(rtp, report_block->ia_jitter);
 				update_lost_stats(rtp, report_block->lost_count.packets);
-				rtp->rtcp->reported_jitter_count++;
 
 				if (rtcp_debug_test_addr(addr)) {
 					ast_verbose("  Fraction lost: %d\n", report_block->lost_count.fraction);
@@ -6693,7 +6688,7 @@ static int bridge_p2p_rtp_write(struct ast_rtp_instance *instance,
 	 * re-transmissions of the last dtmf end still.  Feed those to the
 	 * core so they can be filtered accordingly.
 	 */
-	if (rtp->last_end_timestamp == timestamp) {
+	if (rtp->last_end_timestamp.is_set && rtp->last_end_timestamp.ts == timestamp) {
 		ast_debug_rtp(1, "(%p, %p) RTP feeding packet with duplicate timestamp to core\n", instance, instance1);
 		return -1;
 	}
@@ -7203,12 +7198,13 @@ static void rtp_instance_parse_extmap_extensions(struct ast_rtp_instance *instan
 }
 
 static struct ast_frame *ast_rtp_interpret(struct ast_rtp_instance *instance, struct ast_srtp *srtp,
-	const struct ast_sockaddr *remote_address, unsigned char *read_area, int length, int prev_seqno)
+	const struct ast_sockaddr *remote_address, unsigned char *read_area, int length, int prev_seqno,
+	unsigned int bundled)
 {
 	unsigned int *rtpheader = (unsigned int*)(read_area);
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 	struct ast_rtp_instance *instance1;
-	int res = length, hdrlen = 12, seqno, payloadtype, padding, mark, ext, cc;
+	int res = length, hdrlen = 12, ssrc, seqno, payloadtype, padding, mark, ext, cc;
 	unsigned int timestamp;
 	RAII_VAR(struct ast_rtp_payload_type *, payload, NULL, ao2_cleanup);
 	struct frame_list frames;
@@ -7225,6 +7221,7 @@ static struct ast_frame *ast_rtp_interpret(struct ast_rtp_instance *instance, st
 	}
 
 	/* Pull out the various other fields we will need */
+	ssrc = ntohl(rtpheader[2]);
 	seqno = ntohl(rtpheader[0]);
 	payloadtype = (seqno & 0x7f0000) >> 16;
 	padding = seqno & (1 << 29);
@@ -7272,6 +7269,43 @@ static struct ast_frame *ast_rtp_interpret(struct ast_rtp_instance *instance, st
 	if (res < hdrlen) {
 		ast_log(LOG_WARNING, "RTP Read too short (%d, expecting %d\n", res, hdrlen);
 		return AST_LIST_FIRST(&frames) ? AST_LIST_FIRST(&frames) : &ast_null_frame;
+	}
+
+	/* Only non-bundled instances can change/learn the remote's SSRC implicitly. */
+	if (!bundled) {
+		/* Force a marker bit and change SSRC if the SSRC changes */
+		if (rtp->themssrc_valid && rtp->themssrc != ssrc) {
+			struct ast_frame *f, srcupdate = {
+				AST_FRAME_CONTROL,
+				.subclass.integer = AST_CONTROL_SRCCHANGE,
+			};
+
+			if (!mark) {
+				if (ast_debug_rtp_packet_is_allowed) {
+					ast_debug(0, "(%p) RTP forcing Marker bit, because SSRC has changed\n", instance);
+				}
+				mark = 1;
+			}
+
+			f = ast_frisolate(&srcupdate);
+			AST_LIST_INSERT_TAIL(&frames, f, frame_list);
+
+			rtp->seedrxseqno = 0;
+			rtp->rxcount = 0;
+			rtp->rxoctetcount = 0;
+			rtp->cycles = 0;
+			prev_seqno = 0;
+			rtp->last_seqno = 0;
+			rtp->last_end_timestamp.ts = 0;
+			rtp->last_end_timestamp.is_set = 0;
+			if (rtp->rtcp) {
+				rtp->rtcp->expected_prior = 0;
+				rtp->rtcp->received_prior = 0;
+			}
+		}
+
+		rtp->themssrc = ssrc; /* Record their SSRC to put in future RR */
+		rtp->themssrc_valid = 1;
 	}
 
 	rtp->rxcount++;
@@ -7491,6 +7525,115 @@ static struct ast_frame *ast_rtp_interpret(struct ast_rtp_instance *instance, st
 	return AST_LIST_FIRST(&frames);
 }
 
+#ifdef AST_DEVMODE
+
+struct rtp_drop_packets_data {
+	/* Whether or not to randomize the number of packets to drop. */
+	unsigned int use_random_num;
+	/* Whether or not to randomize the time interval between packets drops. */
+	unsigned int use_random_interval;
+	/* The total number of packets to drop. If 'use_random_num' is true then this
+	 * value becomes the upper bound for a number of random packets to drop. */
+	unsigned int num_to_drop;
+	/* The current number of packets that have been dropped during an interval. */
+	unsigned int num_dropped;
+	/* The optional interval to use between packet drops. If 'use_random_interval'
+	 * is true then this values becomes the upper bound for a random interval used. */
+	struct timeval interval;
+	/* The next time a packet drop should be triggered. */
+	struct timeval next;
+	/* An optional IP address from which to drop packets from. */
+	struct ast_sockaddr addr;
+	/* The optional port from which to drop packets from. */
+	unsigned int port;
+};
+
+static struct rtp_drop_packets_data drop_packets_data;
+
+static void drop_packets_data_update(struct timeval tv)
+{
+	/*
+	 * num_dropped keeps up with the number of packets that have been dropped for a
+	 * given interval. Once the specified number of packets have been dropped and
+	 * the next time interval is ready to trigger then set this number to zero (drop
+	 * the next 'n' packets up to 'num_to_drop'), or if 'use_random_num' is set to
+	 * true then set to a random number between zero and 'num_to_drop'.
+	 */
+	drop_packets_data.num_dropped = drop_packets_data.use_random_num ?
+		ast_random() % drop_packets_data.num_to_drop : 0;
+
+	/*
+	 * A specified number of packets can be dropped at a given interval (e.g every
+	 * 30 seconds). If 'use_random_interval' is false simply add the interval to
+	 * the given time to get the next trigger point. If set to true, then get a
+	 * random time between the given time and up to the specified interval.
+	 */
+	if (drop_packets_data.use_random_interval) {
+		/* Calculate as a percentage of the specified drop packets interval */
+		struct timeval interval = ast_time_create_by_unit(ast_time_tv_to_usec(
+			&drop_packets_data.interval) * ((double)(ast_random() % 100 + 1) / 100),
+			TIME_UNIT_MICROSECOND);
+
+		drop_packets_data.next = ast_tvadd(tv, interval);
+	} else {
+		drop_packets_data.next = ast_tvadd(tv, drop_packets_data.interval);
+	}
+}
+
+static int should_drop_packets(struct ast_sockaddr *addr)
+{
+	struct timeval tv;
+
+	if (!drop_packets_data.num_to_drop) {
+		return 0;
+	}
+
+	/*
+	 * If an address has been specified then filter on it, and also the port if
+	 * it too was included.
+	 */
+	if (!ast_sockaddr_isnull(&drop_packets_data.addr) &&
+		(drop_packets_data.port ?
+			ast_sockaddr_cmp(&drop_packets_data.addr, addr) :
+			ast_sockaddr_cmp_addr(&drop_packets_data.addr, addr)) != 0) {
+		/* Address and/or port does not match */
+		return 0;
+	}
+
+	/* Keep dropping packets until we've reached the total to drop */
+	if (drop_packets_data.num_dropped < drop_packets_data.num_to_drop) {
+		++drop_packets_data.num_dropped;
+		return 1;
+	}
+
+	/*
+	 * Once the set number of packets has been dropped check to see if it's
+	 * time to drop more.
+	 */
+
+	if (ast_tvzero(drop_packets_data.interval)) {
+		/* If no interval then drop specified number of packets and be done */
+		drop_packets_data.num_to_drop = 0;
+		return 0;
+	}
+
+	tv = ast_tvnow();
+	if (ast_tvcmp(tv, drop_packets_data.next) == -1) {
+		/* Still waiting for the next time interval to elapse */
+		return 0;
+	}
+
+	/*
+	 * The next time interval has elapsed so update the tracking structure
+	 * in order to start dropping more packets, and figure out when the next
+	 * time interval is.
+	 */
+	drop_packets_data_update(tv);
+	return 1;
+}
+
+#endif
+
 /*! \pre instance is locked */
 static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtcp)
 {
@@ -7498,13 +7641,14 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 	struct ast_srtp *srtp;
 	RAII_VAR(struct ast_rtp_instance *, child, NULL, rtp_instance_unlock);
 	struct ast_sockaddr addr;
-	int res, hdrlen = 12, version, payloadtype, mark;
+	int res, hdrlen = 12, version, payloadtype;
 	unsigned char *read_area = rtp->rawdata + AST_FRIENDLY_OFFSET;
 	size_t read_area_size = sizeof(rtp->rawdata) - AST_FRIENDLY_OFFSET;
 	unsigned int *rtpheader = (unsigned int*)(read_area), seqno, ssrc, timestamp, prev_seqno;
 	struct ast_sockaddr remote_address = { {0,} };
 	struct frame_list frames;
 	struct ast_frame *frame;
+	unsigned int bundled;
 
 	/* If this is actually RTCP let's hop on over and handle it */
 	if (rtcp) {
@@ -7781,9 +7925,16 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 
 	/* Pull out the various other fields we will need */
 	payloadtype = (seqno & 0x7f0000) >> 16;
-	mark = seqno & (1 << 23);
 	seqno &= 0xffff;
 	timestamp = ntohl(rtpheader[1]);
+
+#ifdef AST_DEVMODE
+	if (should_drop_packets(&addr)) {
+		ast_debug(0, "(%p) RTP: drop received packet from %s (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6d)\n",
+			instance, ast_sockaddr_stringify(&addr), payloadtype, seqno, timestamp, res - hdrlen);
+		return &ast_null_frame;
+	}
+#endif
 
 	if (rtp_debug_test_addr(&addr)) {
 		ast_verbose("Got  RTP packet from    %s (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6d)\n",
@@ -7793,48 +7944,14 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 
 	AST_LIST_HEAD_INIT_NOLOCK(&frames);
 
-	/* Only non-bundled instances can change/learn the remote's SSRC implicitly. */
-	if (!child && !AST_VECTOR_SIZE(&rtp->ssrc_mapping)) {
-		/* Force a marker bit and change SSRC if the SSRC changes */
-		if (rtp->themssrc_valid && rtp->themssrc != ssrc) {
-			struct ast_frame *f, srcupdate = {
-				AST_FRAME_CONTROL,
-				.subclass.integer = AST_CONTROL_SRCCHANGE,
-			};
-
-			if (!mark) {
-				if (ast_debug_rtp_packet_is_allowed) {
-					ast_debug(0, "(%p) RTP forcing Marker bit, because SSRC has changed\n", instance);
-				}
-				mark = 1;
-			}
-
-			f = ast_frisolate(&srcupdate);
-			AST_LIST_INSERT_TAIL(&frames, f, frame_list);
-
-			rtp->seedrxseqno = 0;
-			rtp->rxcount = 0;
-			rtp->rxoctetcount = 0;
-			rtp->cycles = 0;
-			rtp->lastrxseqno = 0;
-			rtp->last_seqno = 0;
-			rtp->last_end_timestamp = 0;
-			if (rtp->rtcp) {
-				rtp->rtcp->expected_prior = 0;
-				rtp->rtcp->received_prior = 0;
-			}
-		}
-
-		rtp->themssrc = ssrc; /* Record their SSRC to put in future RR */
-		rtp->themssrc_valid = 1;
-	}
+	bundled = (child || AST_VECTOR_SIZE(&rtp->ssrc_mapping)) ? 1 : 0;
 
 	prev_seqno = rtp->lastrxseqno;
 	rtp->lastrxseqno = seqno;
 
 	if (!rtp->recv_buffer) {
 		/* If there is no receive buffer then we can pass back the frame directly */
-		frame = ast_rtp_interpret(instance, srtp, &addr, read_area, res, prev_seqno);
+		frame = ast_rtp_interpret(instance, srtp, &addr, read_area, res, prev_seqno, bundled);
 		AST_LIST_INSERT_TAIL(&frames, frame, frame_list);
 		return AST_LIST_FIRST(&frames);
 	} else if (rtp->expectedrxseqno == -1 || seqno == rtp->expectedrxseqno) {
@@ -7849,7 +7966,7 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 		 * return it directly without duplicating it.
 		 */
 		if (!ast_data_buffer_count(rtp->recv_buffer)) {
-			frame = ast_rtp_interpret(instance, srtp, &addr, read_area, res, prev_seqno);
+			frame = ast_rtp_interpret(instance, srtp, &addr, read_area, res, prev_seqno, bundled);
 			AST_LIST_INSERT_TAIL(&frames, frame, frame_list);
 			return AST_LIST_FIRST(&frames);
 		}
@@ -7864,7 +7981,7 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 		 * chance it will be overwritten.
 		 */
 		if (!ast_data_buffer_get(rtp->recv_buffer, rtp->expectedrxseqno)) {
-			frame = ast_rtp_interpret(instance, srtp, &addr, read_area, res, prev_seqno);
+			frame = ast_rtp_interpret(instance, srtp, &addr, read_area, res, prev_seqno, bundled);
 			AST_LIST_INSERT_TAIL(&frames, frame, frame_list);
 			return AST_LIST_FIRST(&frames);
 		}
@@ -7874,7 +7991,7 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 		 * to the head of the frames list and avoid having to duplicate it but this would result in out
 		 * of order packet processing by libsrtp which we are trying to avoid.
 		 */
-		frame = ast_frdup(ast_rtp_interpret(instance, srtp, &addr, read_area, res, prev_seqno));
+		frame = ast_frdup(ast_rtp_interpret(instance, srtp, &addr, read_area, res, prev_seqno, bundled));
 		if (frame) {
 			AST_LIST_INSERT_TAIL(&frames, frame, frame_list);
 			prev_seqno = seqno;
@@ -7889,7 +8006,7 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 				break;
 			}
 
-			frame = ast_frdup(ast_rtp_interpret(instance, srtp, &addr, payload->buf, payload->size, prev_seqno));
+			frame = ast_frdup(ast_rtp_interpret(instance, srtp, &addr, payload->buf, payload->size, prev_seqno, bundled));
 			ast_free(payload);
 
 			if (!frame) {
@@ -7935,7 +8052,7 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 
 			/* If the packet we received is the one we are expecting at this point then add it in */
 			if (rtp->expectedrxseqno == seqno) {
-				frame = ast_frdup(ast_rtp_interpret(instance, srtp, &addr, read_area, res, prev_seqno));
+				frame = ast_frdup(ast_rtp_interpret(instance, srtp, &addr, read_area, res, prev_seqno, bundled));
 				if (frame) {
 					AST_LIST_INSERT_TAIL(&frames, frame, frame_list);
 					prev_seqno = seqno;
@@ -7960,7 +8077,7 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 
 			payload = (struct ast_rtp_rtcp_nack_payload *)ast_data_buffer_remove(rtp->recv_buffer, rtp->expectedrxseqno);
 			if (payload) {
-				frame = ast_frdup(ast_rtp_interpret(instance, srtp, &addr, payload->buf, payload->size, prev_seqno));
+				frame = ast_frdup(ast_rtp_interpret(instance, srtp, &addr, payload->buf, payload->size, prev_seqno, bundled));
 				if (frame) {
 					AST_LIST_INSERT_TAIL(&frames, frame, frame_list);
 					prev_seqno = rtp->expectedrxseqno;
@@ -7982,7 +8099,7 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 			 * to be the last packet processed right now and it is also guaranteed that it will always return
 			 * non-NULL.
 			 */
-			frame = ast_rtp_interpret(instance, srtp, &addr, read_area, res, prev_seqno);
+			frame = ast_rtp_interpret(instance, srtp, &addr, read_area, res, prev_seqno, bundled);
 			AST_LIST_INSERT_TAIL(&frames, frame, frame_list);
 			rtp->expectedrxseqno = seqno + 1;
 			if (rtp->expectedrxseqno == SEQNO_CYCLE_OVER) {
@@ -8419,7 +8536,8 @@ static void ast_rtp_remote_address_set(struct ast_rtp_instance *instance, struct
 
 	/* Need to reset the DTMF last sequence number and the timestamp of the last END packet */
 	rtp->last_seqno = 0;
-	rtp->last_end_timestamp = 0;
+	rtp->last_end_timestamp.ts = 0;
+	rtp->last_end_timestamp.is_set = 0;
 
 	if (strictrtp && rtp->strict_rtp_state != STRICT_RTP_OPEN
 		&& !ast_sockaddr_isnull(addr) && ast_sockaddr_cmp(addr, &rtp->strict_rtp_address)) {
@@ -9084,11 +9202,145 @@ static char *handle_cli_rtcp_set_stats(struct ast_cli_entry *e, int cmd, struct 
 	return CLI_SUCCESS;
 }
 
+#ifdef AST_DEVMODE
+
+static unsigned int use_random(struct ast_cli_args *a, int pos, unsigned int index)
+{
+	return pos >= index && !ast_strlen_zero(a->argv[index - 1]) &&
+		!strcasecmp(a->argv[index - 1], "random");
+}
+
+static char *handle_cli_rtp_drop_incoming_packets(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	static const char * const completions_2[] = { "stop", "<N>", NULL };
+	static const char * const completions_3[] = { "random", "incoming packets", NULL };
+	static const char * const completions_5[] = { "on", "every", NULL };
+	static const char * const completions_units[] =	{ "random", "usec", "msec", "sec", "min", NULL };
+
+	unsigned int use_random_num = 0;
+	unsigned int use_random_interval = 0;
+	unsigned int num_to_drop = 0;
+	unsigned int interval = 0;
+	const char *interval_s = NULL;
+	const char *unit_s = NULL;
+	struct ast_sockaddr addr;
+	const char *addr_s = NULL;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "rtp drop";
+		e->usage =
+			"Usage: rtp drop [stop|[<N> [random] incoming packets[ every <N> [random] {usec|msec|sec|min}][ on <ip[:port]>]]\n"
+			"       Drop RTP incoming packets.\n";
+		return NULL;
+	case CLI_GENERATE:
+		use_random_num = use_random(a, a->pos, 4);
+		use_random_interval = use_random(a, a->pos, 8 + use_random_num) ||
+			use_random(a, a->pos, 10 + use_random_num);
+
+		switch (a->pos - use_random_num - use_random_interval) {
+		case 2:
+			return ast_cli_complete(a->word, completions_2, a->n);
+		case 3:
+			return ast_cli_complete(a->word, completions_3 + use_random_num, a->n);
+		case 5:
+			return ast_cli_complete(a->word, completions_5, a->n);
+		case 7:
+			if (!strcasecmp(a->argv[a->pos - 2], "on")) {
+				ast_cli_completion_add(ast_strdup("every"));
+				break;
+			}
+			/* Fall through */
+		case 9:
+			if (!strcasecmp(a->argv[a->pos - 2 - use_random_interval], "every")) {
+				return ast_cli_complete(a->word, completions_units + use_random_interval, a->n);
+			}
+			break;
+		case 8:
+			if (!strcasecmp(a->argv[a->pos - 3 - use_random_interval], "every")) {
+				ast_cli_completion_add(ast_strdup("on"));
+			}
+			break;
+		}
+
+		return NULL;
+	}
+
+	if (a->argc < 3) {
+		return CLI_SHOWUSAGE;
+	}
+
+	use_random_num = use_random(a, a->argc, 4);
+	use_random_interval = use_random(a, a->argc, 8 + use_random_num) ||
+		use_random(a, a->argc, 10 + use_random_num);
+
+	if (!strcasecmp(a->argv[2], "stop")) {
+		/* rtp drop stop */
+	} else if (a->argc < 5) {
+		return CLI_SHOWUSAGE;
+	} else if (ast_str_to_uint(a->argv[2], &num_to_drop)) {
+		ast_cli(a->fd, "%s is not a valid number of packets to drop\n", a->argv[2]);
+		return CLI_FAILURE;
+	} else if (a->argc - use_random_num == 5) {
+		/* rtp drop <N> [random] incoming packets */
+	} else if (a->argc - use_random_num >= 7 && !strcasecmp(a->argv[5 + use_random_num], "on")) {
+		/* rtp drop <N> [random] incoming packets on <ip[:port]> */
+		addr_s = a->argv[6 + use_random_num];
+		if (a->argc - use_random_num - use_random_interval == 10 &&
+				!strcasecmp(a->argv[7 + use_random_num], "every")) {
+			/* rtp drop <N> [random] incoming packets on <ip[:port]> every <N> [random] {usec|msec|sec|min} */
+			interval_s = a->argv[8 + use_random_num];
+			unit_s = a->argv[9 + use_random_num + use_random_interval];
+		}
+	} else if (a->argc - use_random_num >= 8 && !strcasecmp(a->argv[5 + use_random_num], "every")) {
+		/* rtp drop <N> [random] incoming packets every <N> [random] {usec|msec|sec|min} */
+		interval_s = a->argv[6 + use_random_num];
+		unit_s = a->argv[7 + use_random_num + use_random_interval];
+		if (a->argc == 10 + use_random_num + use_random_interval &&
+				!strcasecmp(a->argv[8 + use_random_num + use_random_interval], "on")) {
+			/* rtp drop <N> [random] incoming packets every <N> [random] {usec|msec|sec|min} on <ip[:port]> */
+			addr_s = a->argv[9 + use_random_num + use_random_interval];
+		}
+	} else {
+		return CLI_SHOWUSAGE;
+	}
+
+	if (a->argc - use_random_num >= 8 && !interval_s && !addr_s) {
+		return CLI_SHOWUSAGE;
+	}
+
+	if (interval_s && ast_str_to_uint(interval_s, &interval)) {
+		ast_cli(a->fd, "%s is not a valid interval number\n", interval_s);
+		return CLI_FAILURE;
+	}
+
+	memset(&addr, 0, sizeof(addr));
+	if (addr_s && !ast_sockaddr_parse(&addr, addr_s, 0)) {
+		ast_cli(a->fd, "%s is not a valid hostname[:port]\n", addr_s);
+		return CLI_FAILURE;
+	}
+
+	drop_packets_data.use_random_num = use_random_num;
+	drop_packets_data.use_random_interval = use_random_interval;
+	drop_packets_data.num_to_drop = num_to_drop;
+	drop_packets_data.interval = ast_time_create_by_unit_str(interval, unit_s);
+	ast_sockaddr_copy(&drop_packets_data.addr, &addr);
+	drop_packets_data.port = ast_sockaddr_port(&addr);
+
+	drop_packets_data_update(ast_tvnow());
+
+	return CLI_SUCCESS;
+}
+#endif
+
 static struct ast_cli_entry cli_rtp[] = {
 	AST_CLI_DEFINE(handle_cli_rtp_set_debug,  "Enable/Disable RTP debugging"),
 	AST_CLI_DEFINE(handle_cli_rtp_settings,   "Display RTP settings"),
 	AST_CLI_DEFINE(handle_cli_rtcp_set_debug, "Enable/Disable RTCP debugging"),
 	AST_CLI_DEFINE(handle_cli_rtcp_set_stats, "Enable/Disable RTCP stats"),
+#ifdef AST_DEVMODE
+	AST_CLI_DEFINE(handle_cli_rtp_drop_incoming_packets, "Drop RTP incoming packets"),
+#endif
 };
 
 static int rtp_reload(int reload, int by_external_config)
@@ -9131,6 +9383,7 @@ static int rtp_reload(int reload, int by_external_config)
 
 #ifdef HAVE_PJPROJECT
 	icesupport = DEFAULT_ICESUPPORT;
+	stun_software_attribute = DEFAULT_STUN_SOFTWARE_ATTRIBUTE;
 	turnport = DEFAULT_TURN_PORT;
 	memset(&stunaddr, 0, sizeof(stunaddr));
 	turnaddr = pj_str(NULL);
@@ -9205,6 +9458,9 @@ static int rtp_reload(int reload, int by_external_config)
 #ifdef HAVE_PJPROJECT
 	if ((s = ast_variable_retrieve(cfg, "general", "icesupport"))) {
 		icesupport = ast_true(s);
+	}
+	if ((s = ast_variable_retrieve(cfg, "general", "stun_software_attribute"))) {
+		stun_software_attribute = ast_true(s);
 	}
 	if ((s = ast_variable_retrieve(cfg, "general", "stunaddr"))) {
 		stunaddr.sin_port = htons(STANDARD_STUN_PORT);

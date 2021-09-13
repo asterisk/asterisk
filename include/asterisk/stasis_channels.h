@@ -526,6 +526,13 @@ struct stasis_message_type *ast_channel_dtmf_begin_type(void);
 struct stasis_message_type *ast_channel_dtmf_end_type(void);
 
 /*!
+ * \brief Message type for when a hook flash occurs on a channel.
+ *
+ * \retval A stasis message type
+ */
+struct stasis_message_type *ast_channel_flash_type(void);
+
+/*!
  * \since 12
  * \brief Message type for when a channel is placed on hold.
  *

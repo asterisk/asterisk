@@ -1299,7 +1299,7 @@ static int pbx_builtin_saynumber(struct ast_channel *chan, const char *data)
 
 	res = ast_say_number(chan, number_val, interrupt ? AST_DIGIT_ANY : "", ast_channel_language(chan), options);
 
-	if (res < 0) {
+	if (res < 0 && !ast_check_hangup_locked(chan)) {
 		ast_log(LOG_WARNING, "We were unable to say the number %s, is it too large?\n", tmp);
 	}
 

@@ -129,6 +129,7 @@ static struct prometheus_metric global_channel_metrics[] = {
  */
 static void channels_scrape_cb(struct ast_str **response)
 {
+	struct ao2_container *channel_cache;
 	struct ao2_container *channels;
 	struct ao2_iterator it_chans;
 	struct ast_channel_snapshot *snapshot;
@@ -145,7 +146,17 @@ static void channels_scrape_cb(struct ast_str **response)
 
 	ast_eid_to_str(eid_str, sizeof(eid_str), &ast_eid_default);
 
-	channels = ast_channel_cache_all();
+	channel_cache = ast_channel_cache_all();
+	if (!channel_cache) {
+		return;
+	}
+
+	channels = ao2_container_clone(channel_cache, 0);
+	ao2_ref(channel_cache, -1);
+	if (!channels) {
+		return;
+	}
+
 	num_channels = ao2_container_count(channels);
 
 	/* Channel count */

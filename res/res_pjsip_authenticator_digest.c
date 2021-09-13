@@ -24,6 +24,7 @@
 #include "asterisk/logger.h"
 #include "asterisk/module.h"
 #include "asterisk/strings.h"
+#include "asterisk/test.h"
 
 /*** MODULEINFO
 	<depend>pjproject</depend>
@@ -296,7 +297,7 @@ static void setup_auth_srv(pj_pool_t *pool, pjsip_auth_srv *auth_server, const c
  */
 enum digest_verify_result {
 	/*! Authentication credentials incorrect */
-	AUTH_FAIL,
+	AUTH_FAIL = 0,
 	/*! Authentication credentials correct */
 	AUTH_SUCCESS,
 	/*! Authentication credentials correct but nonce mismatch */
@@ -305,6 +306,12 @@ enum digest_verify_result {
 	AUTH_NOAUTH,
 };
 
+static char *verify_result_str[] = {
+	"FAIL",
+	"SUCCESS",
+	"STALE",
+	"NOAUTH"
+};
 /*!
  * \brief astobj2 callback for verifying incoming credentials
  *
@@ -320,6 +327,7 @@ static int verify(const struct ast_sip_auth *auth, pjsip_rx_data *rdata, pj_pool
 	int response_code;
 	pjsip_auth_srv auth_server;
 	int stale = 0;
+	int res = AUTH_FAIL;
 
 	if (!find_challenge(rdata, auth)) {
 		/* Couldn't find a challenge with a sane nonce.
@@ -336,17 +344,26 @@ static int verify(const struct ast_sip_auth *auth, pjsip_rx_data *rdata, pj_pool
 
 	if (authed == PJ_SUCCESS) {
 		if (stale) {
-			return AUTH_STALE;
+			res = AUTH_STALE;
 		} else {
-			return AUTH_SUCCESS;
+			res = AUTH_SUCCESS;
 		}
 	}
 
 	if (authed == PJSIP_EAUTHNOAUTH) {
-		return AUTH_NOAUTH;
+		res = AUTH_NOAUTH;
 	}
 
-	return AUTH_FAIL;
+	ast_debug(3, "Realm: %s  Username: %s  Result: %s\n",
+		auth->realm, auth->auth_user, verify_result_str[res]);
+
+	ast_test_suite_event_notify("INCOMING_AUTH_VERIFY_RESULT",
+		"Realm: %s\r\n"
+		"Username: %s\r\n"
+		"Status: %s",
+		auth->realm, auth->auth_user, verify_result_str[res]);
+
+	return res;
 }
 
 /*!

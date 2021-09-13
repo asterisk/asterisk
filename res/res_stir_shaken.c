@@ -79,8 +79,8 @@
 				<configOption name="path" default="">
 					<synopsis>Path to a directory containing certificates</synopsis>
 				</configOption>
-				<configOption name="public_key_url" default="">
-					<synopsis>URL to the public key(s)</synopsis>
+				<configOption name="public_cert_url" default="">
+					<synopsis>URL to the public certificate(s)</synopsis>
 					<description><para>
 					 Must be a valid http, or https, URL. The URL must also contain the ${CERTIFICATE} variable, which is used for public key name substitution.
 					 For example: http://mycompany.com/${CERTIFICATE}.pub
@@ -95,17 +95,14 @@
 				<configOption name="path" default="">
 					<synopsis>File path to a certificate</synopsis>
 				</configOption>
-				<configOption name="public_key_url" default="">
-					<synopsis>URL to the public key</synopsis>
+				<configOption name="public_cert_url" default="">
+					<synopsis>URL to the public certificate</synopsis>
 					<description><para>
 					 Must be a valid http, or https, URL.
 					</para></description>
 				</configOption>
 				<configOption name="attestation">
 					<synopsis>Attestation level</synopsis>
-				</configOption>
-				<configOption name="origid" default="">
-					<synopsis>The origination ID</synopsis>
 				</configOption>
 				<configOption name="caller_id_number" default="">
 					<synopsis>The caller ID number to match on.</synopsis>
@@ -169,8 +166,8 @@ struct ast_stir_shaken_payload {
 	unsigned char *signature;
 	/*! The algorithm used */
 	char *algorithm;
-	/*! THe URL to the public key for the certificate */
-	char *public_key_url;
+	/*! THe URL to the public certificate */
+	char *public_cert_url;
 };
 
 struct ast_sorcery *ast_stir_shaken_sorcery(void)
@@ -187,7 +184,7 @@ void ast_stir_shaken_payload_free(struct ast_stir_shaken_payload *payload)
 	ast_json_unref(payload->header);
 	ast_json_unref(payload->payload);
 	ast_free(payload->algorithm);
-	ast_free(payload->public_key_url);
+	ast_free(payload->public_cert_url);
 	ast_free(payload->signature);
 
 	ast_free(payload);
@@ -198,9 +195,9 @@ unsigned char *ast_stir_shaken_payload_get_signature(const struct ast_stir_shake
 	return payload ? payload->signature : NULL;
 }
 
-char *ast_stir_shaken_payload_get_public_key_url(const struct ast_stir_shaken_payload *payload)
+char *ast_stir_shaken_payload_get_public_cert_url(const struct ast_stir_shaken_payload *payload)
 {
-	return payload ? payload->public_key_url : NULL;
+	return payload ? payload->public_cert_url : NULL;
 }
 
 unsigned int ast_stir_shaken_get_signature_timeout(void)
@@ -349,17 +346,17 @@ int ast_stir_shaken_add_verification(struct ast_channel *chan, const char *ident
  * \brief Sets the expiration for the public key based on the provided fields.
  * If Cache-Control is present, use it. Otherwise, use Expires.
  *
- * \param hash The hash for the public key URL
+ * \param public_cert_url The URL to the public certificate
  * \param data The CURL callback data containing expiration data
  */
-static void set_public_key_expiration(const char *public_key_url, const struct curl_cb_data *data)
+static void set_public_key_expiration(const char *public_cert_url, const struct curl_cb_data *data)
 {
 	char time_buf[32];
 	char *value;
 	struct timeval actual_expires = ast_tvnow();
 	char hash[41];
 
-	ast_sha1_hash(hash, public_key_url);
+	ast_sha1_hash(hash, public_cert_url);
 
 	value = curl_cb_data_get_cache_control(data);
 	if (!ast_strlen_zero(value)) {
@@ -400,19 +397,19 @@ static void set_public_key_expiration(const char *public_key_url, const struct c
 /*!
  * \brief Check to see if the public key is expired
  *
- * \param public_key_url The public key URL
+ * \param public_cert_url The public cert URL
  *
  * \retval 1 if expired
  * \retval 0 if not expired
  */
-static int public_key_is_expired(const char *public_key_url)
+static int public_key_is_expired(const char *public_cert_url)
 {
 	struct timeval current_time = ast_tvnow();
 	struct timeval expires = { .tv_sec = 0, .tv_usec = 0 };
 	char expiration[32];
 	char hash[41];
 
-	ast_sha1_hash(hash, public_key_url);
+	ast_sha1_hash(hash, public_cert_url);
 	ast_db_get(hash, "expiration", expiration, sizeof(expiration));
 
 	if (ast_strlen_zero(expiration)) {
@@ -429,17 +426,17 @@ static int public_key_is_expired(const char *public_key_url)
 /*!
  * \brief Returns the path to the downloaded file for the provided URL
  *
- * \param public_key_url The public key URL
+ * \param public_cert_url The public cert URL
  *
  * \retval Empty string if not present in AstDB
  * \retval The file path if present in AstDB
  */
-static char *get_path_to_public_key(const char *public_key_url)
+static char *get_path_to_public_key(const char *public_cert_url)
 {
 	char hash[41];
 	char file_path[MAX_PATH_LEN];
 
-	ast_sha1_hash(hash, public_key_url);
+	ast_sha1_hash(hash, public_cert_url);
 
 	ast_db_get(hash, "path", file_path, sizeof(file_path));
 
@@ -453,30 +450,30 @@ static char *get_path_to_public_key(const char *public_key_url)
 /*!
  * \brief Add the public key details and file path to AstDB
  *
- * \param public_key_url The public key URL
+ * \param public_cert_url The public cert URL
  * \param filepath The path to the file
  */
-static void add_public_key_to_astdb(const char *public_key_url, const char *filepath)
+static void add_public_key_to_astdb(const char *public_cert_url, const char *filepath)
 {
 	char hash[41];
 
-	ast_sha1_hash(hash, public_key_url);
+	ast_sha1_hash(hash, public_cert_url);
 
-	ast_db_put(AST_DB_FAMILY, public_key_url, hash);
+	ast_db_put(AST_DB_FAMILY, public_cert_url, hash);
 	ast_db_put(hash, "path", filepath);
 }
 
 /*!
  * \brief Remove the public key details and associated information from AstDB
  *
- * \param public_key_url The public key URL
+ * \param public_cert_url The public cert URL
  */
-static void remove_public_key_from_astdb(const char *public_key_url)
+static void remove_public_key_from_astdb(const char *public_cert_url)
 {
 	char hash[41];
 	char filepath[MAX_PATH_LEN];
 
-	ast_sha1_hash(hash, public_key_url);
+	ast_sha1_hash(hash, public_cert_url);
 
 	/* Remove this public key from storage */
 	ast_db_get(hash, "path", filepath, sizeof(filepath));
@@ -484,7 +481,7 @@ static void remove_public_key_from_astdb(const char *public_key_url)
 	/* Remove the actual file from the system */
 	remove(filepath);
 
-	ast_db_del(AST_DB_FAMILY, public_key_url);
+	ast_db_del(AST_DB_FAMILY, public_cert_url);
 	ast_db_deltree(hash, NULL);
 }
 
@@ -503,7 +500,7 @@ static int stir_shaken_verify_signature(const char *msg, const char *signature, 
 	EVP_MD_CTX *mdctx = NULL;
 	int ret = 0;
 	unsigned char *decoded_signature;
-	size_t signature_length, decoded_signature_length, padding = 0;
+	size_t signature_length, decoded_signature_length;
 
 	mdctx = EVP_MD_CTX_create();
 	if (!mdctx) {
@@ -525,19 +522,12 @@ static int stir_shaken_verify_signature(const char *msg, const char *signature, 
 		return -1;
 	}
 
-	/* We need to decode the signature from base64 to bytes. Make sure we have
+	/* We need to decode the signature from base64 URL to bytes. Make sure we have
 	 * at least enough characters for this check */
 	signature_length = strlen(signature);
-	if (signature_length > 2 && signature[signature_length - 1] == '=') {
-		padding++;
-		if (signature[signature_length - 2] == '=') {
-			padding++;
-		}
-	}
-
-	decoded_signature_length = (signature_length / 4 * 3) - padding;
+	decoded_signature_length = (signature_length * 3 / 4);
 	decoded_signature = ast_calloc(1, decoded_signature_length);
-	ast_base64decode(decoded_signature, signature, decoded_signature_length);
+	ast_base64url_decode(decoded_signature, signature, decoded_signature_length);
 
 	ret = EVP_DigestVerifyFinal(mdctx, decoded_signature, decoded_signature_length);
 	if (ret != 1) {
@@ -554,77 +544,87 @@ static int stir_shaken_verify_signature(const char *msg, const char *signature, 
 }
 
 /*!
- * \brief CURL the file located at public_key_url to the specified path
+ * \brief CURL the file located at public_cert_url to the specified path
  *
- * \param public_key_url The public key URL
+ * \note filename will need to be freed by the caller
+ *
+ * \param public_cert_url The public cert URL
  * \param path The path to download the file to
  *
- * \retval -1 on failure
- * \retval 0 on success
+ * \retval NULL on failure
+ * \retval full path filename on success
  */
-static int run_curl(const char *public_key_url, const char *path)
+static char *run_curl(const char *public_cert_url, const char *path)
 {
 	struct curl_cb_data *data;
+	char *filename;
 
 	data = curl_cb_data_create();
 	if (!data) {
 		ast_log(LOG_ERROR, "Failed to create CURL callback data\n");
-		return -1;
+		return NULL;
 	}
 
-	if (curl_public_key(public_key_url, path, data)) {
-		ast_log(LOG_ERROR, "Could not retrieve public key for '%s'\n", public_key_url);
+	filename = curl_public_key(public_cert_url, path, data);
+	if (!filename) {
+		ast_log(LOG_ERROR, "Could not retrieve public key for '%s'\n", public_cert_url);
 		curl_cb_data_free(data);
-		return -1;
+		return NULL;
 	}
 
-	set_public_key_expiration(public_key_url, data);
+	set_public_key_expiration(public_cert_url, data);
 	curl_cb_data_free(data);
 
-	return 0;
+	return filename;
 }
 
 /*!
- * \brief Downloads the public key from public_key_url. If curl is non-zero, that signals
+ * \brief Downloads the public cert from public_cert_url. If curl is non-zero, that signals
  * CURL has already been run, and we should bail here. The entry is added to AstDB as well.
  *
- * \param public_key_url The public key URL
+ * \note filename will need to be freed by the caller
+ *
+ * \param public_cert_url The public cert URL
  * \param path The path to download the file to
  * \param curl Flag signaling if we have run CURL or not
  *
- * \retval -1 on failure
- * \retval 0 on success
+ * \retval NULL on failure
+ * \retval full path filename on success
  */
-static int curl_and_check_expiration(const char *public_key_url, const char *path, int *curl)
+static char *curl_and_check_expiration(const char *public_cert_url, const char *path, int *curl)
 {
+	char *filename;
+
 	if (curl) {
 		ast_log(LOG_ERROR, "Already downloaded public key '%s'\n", path);
-		return -1;
+		return NULL;
 	}
 
-	if (run_curl(public_key_url, path)) {
-		return -1;
+	filename = run_curl(public_cert_url, path);
+	if (!filename) {
+		return NULL;
 	}
 
-	if (public_key_is_expired(public_key_url)) {
+	if (public_key_is_expired(public_cert_url)) {
 		ast_log(LOG_ERROR, "Newly downloaded public key '%s' is expired\n", path);
-		return -1;
+		ast_free(filename);
+		return NULL;
 	}
 
 	*curl = 1;
-	add_public_key_to_astdb(public_key_url, path);
+	add_public_key_to_astdb(public_cert_url, filename);
 
-	return 0;
+	return filename;
 }
 
 struct ast_stir_shaken_payload *ast_stir_shaken_verify(const char *header, const char *payload, const char *signature,
-	const char *algorithm, const char *public_key_url)
+	const char *algorithm, const char *public_cert_url)
 {
 	struct ast_stir_shaken_payload *ret_payload;
 	EVP_PKEY *public_key;
-	char *filename;
 	int curl = 0;
 	RAII_VAR(char *, file_path, NULL, ast_free);
+	RAII_VAR(char *, dir_path, NULL, ast_free);
 	RAII_VAR(char *, combined_str, NULL, ast_free);
 	size_t combined_size;
 
@@ -648,41 +648,39 @@ struct ast_stir_shaken_payload *ast_stir_shaken_verify(const char *header, const
 		return NULL;
 	}
 
-	if (ast_strlen_zero(public_key_url)) {
-		ast_log(LOG_ERROR, "'public_key_url' is required for STIR/SHAKEN verification\n");
+	if (ast_strlen_zero(public_cert_url)) {
+		ast_log(LOG_ERROR, "'public_cert_url' is required for STIR/SHAKEN verification\n");
 		return NULL;
 	}
 
-	/* Check to see if we have already downloaded this public key. The reason we
+	/* Check to see if we have already downloaded this public cert. The reason we
 	 * store the file path is because:
 	 *
 	 * 1. If, for some reason, the default directory changes, we still know where
 	 * to look for the files we already have.
 	 *
-	 * 2. In the future, if we want to add a way to store the keys in multiple
+	 * 2. In the future, if we want to add a way to store the certs in multiple
 	 * {configurable) directories, we already have the storage mechanism in place.
 	 * The only thing that would be left to do is pull from the configuration.
 	 */
-	file_path = get_path_to_public_key(public_key_url);
+	file_path = get_path_to_public_key(public_cert_url);
+	if (ast_asprintf(&dir_path, "%s/keys/%s", ast_config_AST_DATA_DIR, STIR_SHAKEN_DIR_NAME) < 0) {
+		return NULL;
+	}
 
 	/* If we don't have an entry in AstDB, CURL from the provided URL */
 	if (ast_strlen_zero(file_path)) {
 		/* Remove this entry from the database, since we will be
 		 * downloading a new file anyways.
 		 */
-		remove_public_key_from_astdb(public_key_url);
+		remove_public_key_from_astdb(public_cert_url);
 
 		/* Go ahead and free file_path, in case anything was allocated above */
 		ast_free(file_path);
 
-		/* Set up the default path */
-		filename = basename(public_key_url);
-		if (ast_asprintf(&file_path, "%s/keys/%s/%s", ast_config_AST_DATA_DIR, STIR_SHAKEN_DIR_NAME, filename) < 0) {
-			return NULL;
-		}
-
 		/* Download to the default path */
-		if (run_curl(public_key_url, file_path)) {
+		file_path = run_curl(public_cert_url, dir_path);
+		if (!file_path) {
 			return NULL;
 		}
 
@@ -692,18 +690,20 @@ struct ast_stir_shaken_payload *ast_stir_shaken_verify(const char *header, const
 		/* We should have a successful download at this point, so
 		 * add an entry to the database.
 		 */
-		add_public_key_to_astdb(public_key_url, file_path);
+		add_public_key_to_astdb(public_cert_url, file_path);
 	}
 
-	/* Check to see if the key we downloaded (or already had) is expired */
-	if (public_key_is_expired(public_key_url)) {
+	/* Check to see if the cert we downloaded (or already had) is expired */
+	if (public_key_is_expired(public_cert_url)) {
 
-		ast_debug(3, "Public key '%s' is expired\n", public_key_url);
+		ast_debug(3, "Public cert '%s' is expired\n", public_cert_url);
 
-		remove_public_key_from_astdb(public_key_url);
+		remove_public_key_from_astdb(public_cert_url);
 
 		/* If this fails, then there's nothing we can do */
-		if (curl_and_check_expiration(public_key_url, file_path, &curl)) {
+		ast_free(file_path);
+		file_path = curl_and_check_expiration(public_cert_url, dir_path, &curl);
+		if (!file_path) {
 			return NULL;
 		}
 	}
@@ -715,16 +715,18 @@ struct ast_stir_shaken_payload *ast_stir_shaken_verify(const char *header, const
 
 		ast_debug(3, "Failed first read of public key file '%s'\n", file_path);
 
-		remove_public_key_from_astdb(public_key_url);
+		remove_public_key_from_astdb(public_cert_url);
 
-		if (curl_and_check_expiration(public_key_url, file_path, &curl)) {
+		ast_free(file_path);
+		file_path = curl_and_check_expiration(public_cert_url, dir_path, &curl);
+		if (!file_path) {
 			return NULL;
 		}
 
 		public_key = stir_shaken_read_key(file_path, 0);
 		if (!public_key) {
 			ast_log(LOG_ERROR, "Failed to read public key from '%s'\n", file_path);
-			remove_public_key_from_astdb(public_key_url);
+			remove_public_key_from_astdb(public_cert_url);
 			return NULL;
 		}
 	}
@@ -769,7 +771,7 @@ struct ast_stir_shaken_payload *ast_stir_shaken_verify(const char *header, const
 
 	ret_payload->signature = (unsigned char *)ast_strdup(signature);
 	ret_payload->algorithm = ast_strdup(algorithm);
-	ret_payload->public_key_url = ast_strdup(public_key_url);
+	ret_payload->public_cert_url = ast_strdup(public_cert_url);
 
 	return ret_payload;
 }
@@ -932,7 +934,7 @@ static unsigned char *stir_shaken_sign(char *json_str, EVP_PKEY *private_key)
 		goto cleanup;
 	}
 
-	/* There are 6 bits to 1 base64 digit, so in order to get the size of the base64 encoded
+	/* There are 6 bits to 1 base64 URL digit, so in order to get the size of the base64 encoded
 	 * signature, we need to multiply by the number of bits in a byte and divide by 6. Since
 	 * there's rounding when doing base64 conversions, add 3 bytes, just in case, and account
 	 * for padding. Add another byte for the NULL-terminator.
@@ -944,7 +946,7 @@ static unsigned char *stir_shaken_sign(char *json_str, EVP_PKEY *private_key)
 		goto cleanup;
 	}
 
-	ast_base64encode((char *)encoded_signature, signature, signature_length, encoded_length);
+	ast_base64url_encode((char *)encoded_signature, signature, signature_length, encoded_length);
 
 cleanup:
 	if (mdctx) {
@@ -1001,19 +1003,21 @@ static int stir_shaken_add_attest(struct ast_json *json, const char *attest)
  * \brief Adds the 'origid' field to the JWT.
  *
  * \param json The JWT
- * \param origid The value to set origid to
  *
  * \retval 0 on success
  * \retval -1 on failure
  */
-static int stir_shaken_add_origid(struct ast_json *json, const char *origid)
+static int stir_shaken_add_origid(struct ast_json *json)
 {
 	struct ast_json *value;
+	char uuid_str[AST_UUID_STR_LEN];
 
-	value = ast_json_string_create(origid);
-	if (!origid) {
+	ast_uuid_generate_str(uuid_str, sizeof(uuid_str));
+	if (strlen(uuid_str) != (AST_UUID_STR_LEN - 1)) {
 		return -1;
 	}
+
+	value = ast_json_string_create(uuid_str);
 
 	return ast_json_object_set(ast_json_object_get(json, "payload"), "origid", value);
 }
@@ -1043,7 +1047,7 @@ struct ast_stir_shaken_payload *ast_stir_shaken_sign(struct ast_json *json)
 {
 	struct ast_stir_shaken_payload *ss_payload;
 	unsigned char *signature;
-	const char *public_key_url;
+	const char *public_cert_url;
 	const char *caller_id_num;
 	const char *header;
 	const char *payload;
@@ -1073,19 +1077,19 @@ struct ast_stir_shaken_payload *ast_stir_shaken_sign(struct ast_json *json)
 		goto cleanup;
 	}
 
-	public_key_url = stir_shaken_certificate_get_public_key_url(cert);
-	if (stir_shaken_add_x5u(json, public_key_url)) {
-		ast_log(LOG_ERROR, "Failed to add 'x5u' (public key URL) to payload\n");
+	public_cert_url = stir_shaken_certificate_get_public_cert_url(cert);
+	if (stir_shaken_add_x5u(json, public_cert_url)) {
+		ast_log(LOG_ERROR, "Failed to add 'x5u' (public cert URL) to payload\n");
 		goto cleanup;
 	}
-	ss_payload->public_key_url = ast_strdup(public_key_url);
+	ss_payload->public_cert_url = ast_strdup(public_cert_url);
 
 	if (stir_shaken_add_attest(json, stir_shaken_certificate_get_attestation(cert))) {
 		ast_log(LOG_ERROR, "Failed to add 'attest' to payload\n");
 		goto cleanup;
 	}
 
-	if (stir_shaken_add_origid(json, stir_shaken_certificate_get_origid(cert))) {
+	if (stir_shaken_add_origid(json)) {
 		ast_log(LOG_ERROR, "Failed to add 'origid' to payload\n");
 		goto cleanup;
 	}
@@ -1253,14 +1257,14 @@ static struct ast_custom_function stir_shaken_function = {
 
 #ifdef TEST_FRAMEWORK
 
-static void test_stir_shaken_add_fake_astdb_entry(const char *public_key_url, const char *file_path)
+static void test_stir_shaken_add_fake_astdb_entry(const char *public_cert_url, const char *file_path)
 {
 	struct timeval expires = ast_tvnow();
 	char time_buf[32];
 	char hash[41];
 
-	ast_sha1_hash(hash, public_key_url);
-	add_public_key_to_astdb(public_key_url, file_path);
+	ast_sha1_hash(hash, public_cert_url);
+	add_public_key_to_astdb(public_cert_url, file_path);
 	snprintf(time_buf, sizeof(time_buf), "%30lu", expires.tv_sec + 300);
 
 	ast_db_put(hash, "expiration", time_buf);
@@ -1283,15 +1287,23 @@ static int test_stir_shaken_write_temp_key(char *file_path, int private)
 	char *type = private ? "private" : "public";
 	char *private_data =
 		"-----BEGIN EC PRIVATE KEY-----\n"
-		"MHcCAQEEIFkNGlrmRky2j7wmjGBGoPFBsyEQELmEYN02BiiG508noAoGCCqGSM49\n"
-		"AwEHoUQDQgAECwCaeAYwVG/FAnEnkwaucz6o047iSWq3cJBBUc0n2ZlUDr5VywAz\n"
-		"MZ86EthIqF3CGZjhLHn0xRITXYwfqTtWBw==\n"
+		"MHcCAQEEIC+xv2GKNTDd81vJM8rwGAGNqgklKKxz9Qejn+pcRPC1oAoGCCqGSM49\n"
+		"AwEHoUQDQgAEq12QXu8lH295ZMZ4udKy5VV8wVgE4qSOnkdofn3hEDsh6QTKTZg9\n"
+		"W6PncYAVnmOFRL4cTGRbmAIShN4naZk2Yg==\n"
 		"-----END EC PRIVATE KEY-----";
 	char *public_data =
-		"-----BEGIN PUBLIC KEY-----\n"
-		"MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAECwCaeAYwVG/FAnEnkwaucz6o047i\n"
-		"SWq3cJBBUc0n2ZlUDr5VywAzMZ86EthIqF3CGZjhLHn0xRITXYwfqTtWBw==\n"
-		"-----END PUBLIC KEY-----";
+		"-----BEGIN CERTIFICATE-----\n"
+		"MIIBzDCCAXGgAwIBAgIUXDt6EC0OixT1iRSSPV3jB/zQAlQwCgYIKoZIzj0EAwIw\n"
+		"RTELMAkGA1UEBhMCQVUxEzARBgNVBAgMClNvbWUtU3RhdGUxITAfBgNVBAoMGElu\n"
+		"dGVybmV0IFdpZGdpdHMgUHR5IEx0ZDAeFw0yMTA0MTMwNjM3MjRaFw0yMzA3MTcw\n"
+		"NjM3MjRaMGoxCzAJBgNVBAYTAlVTMQswCQYDVQQIDAJWQTESMBAGA1UEBwwJU29t\n"
+		"ZXdoZXJlMRowGAYDVQQKDBFBY21lVGVsZWNvbSwgSW5jLjENMAsGA1UECwwEVk9J\n"
+		"UDEPMA0GA1UEAwwGU0hBS0VOMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEq12Q\n"
+		"Xu8lH295ZMZ4udKy5VV8wVgE4qSOnkdofn3hEDsh6QTKTZg9W6PncYAVnmOFRL4c\n"
+		"TGRbmAIShN4naZk2YqMaMBgwFgYIKwYBBQUHARoECjAIoAYWBDEwMDEwCgYIKoZI\n"
+		"zj0EAwIDSQAwRgIhAMa9Ky38DgVaIgVm9Mgws/qN3zxjMQXfxEExAbDwyq/WAiEA\n"
+		"zbC29mvtSulwbvQJ4fBdFU84cFC3Ctu1QrCeFOiZHc4=\n"
+		"-----END CERTIFICATE-----";
 
 	fd = mkstemp(file_path);
 	if (fd < 0) {
@@ -1302,6 +1314,7 @@ static int test_stir_shaken_write_temp_key(char *file_path, int private)
 	file = fdopen(fd, "w");
 	if (!file) {
 		ast_log(LOG_ERROR, "Failed to create temp %s key file: %s\n", type, strerror(errno));
+		close(fd);
 		return -1;
 	}
 
@@ -1478,7 +1491,7 @@ AST_TEST_DEFINE(test_stir_shaken_sign)
 AST_TEST_DEFINE(test_stir_shaken_verify)
 {
 	char *caller_id_number = "1234567";
-	char *public_key_url = "http://testing123";
+	char *public_cert_url = "http://testing123";
 	char *header;
 	char *payload;
 	struct ast_json *tmp_json;
@@ -1511,7 +1524,7 @@ AST_TEST_DEFINE(test_stir_shaken_verify)
 	/* Get the signature */
 	json = ast_json_pack("{s: {s: s, s: s, s: s, s: s}, s: {s: {s: s}}}", "header", "alg",
 		STIR_SHAKEN_ENCRYPTION_ALGORITHM, "ppt", STIR_SHAKEN_PPT, "typ", STIR_SHAKEN_TYPE,
-		"x5u", public_key_url, "payload", "orig", "tn", caller_id_number);
+		"x5u", public_cert_url, "payload", "orig", "tn", caller_id_number);
 	signed_payload = ast_stir_shaken_sign(json);
 	if (!signed_payload) {
 		ast_test_status_update(test, "Failed to sign a valid JWT\n");
@@ -1527,7 +1540,7 @@ AST_TEST_DEFINE(test_stir_shaken_verify)
 
 	/* Test empty header parameter */
 	returned_payload = ast_stir_shaken_verify("", payload, (const char *)signed_payload->signature,
-		STIR_SHAKEN_ENCRYPTION_ALGORITHM, public_key_url);
+		STIR_SHAKEN_ENCRYPTION_ALGORITHM, public_cert_url);
 	if (returned_payload) {
 		ast_test_status_update(test, "Verified a signature with missing 'header'\n");
 		test_stir_shaken_cleanup_cert(caller_id_number);
@@ -1536,7 +1549,7 @@ AST_TEST_DEFINE(test_stir_shaken_verify)
 
 	/* Test empty payload parameter */
 	returned_payload = ast_stir_shaken_verify(header, "", (const char *)signed_payload->signature,
-		STIR_SHAKEN_ENCRYPTION_ALGORITHM, public_key_url);
+		STIR_SHAKEN_ENCRYPTION_ALGORITHM, public_cert_url);
 	if (returned_payload) {
 		ast_test_status_update(test, "Verified a signature with missing 'payload'\n");
 		test_stir_shaken_cleanup_cert(caller_id_number);
@@ -1545,7 +1558,7 @@ AST_TEST_DEFINE(test_stir_shaken_verify)
 
 	/* Test empty signature parameter */
 	returned_payload = ast_stir_shaken_verify(header, payload, "",
-		STIR_SHAKEN_ENCRYPTION_ALGORITHM, public_key_url);
+		STIR_SHAKEN_ENCRYPTION_ALGORITHM, public_cert_url);
 	if (returned_payload) {
 		ast_test_status_update(test, "Verified a signature with missing 'signature'\n");
 		test_stir_shaken_cleanup_cert(caller_id_number);
@@ -1554,7 +1567,7 @@ AST_TEST_DEFINE(test_stir_shaken_verify)
 
 	/* Test empty algorithm parameter */
 	returned_payload = ast_stir_shaken_verify(header, payload, (const char *)signed_payload->signature,
-		"", public_key_url);
+		"", public_cert_url);
 	if (returned_payload) {
 		ast_test_status_update(test, "Verified a signature with missing 'algorithm'\n");
 		test_stir_shaken_cleanup_cert(caller_id_number);
@@ -1571,19 +1584,19 @@ AST_TEST_DEFINE(test_stir_shaken_verify)
 	}
 
 	/* Trick the function into thinking we've already downloaded the key */
-	test_stir_shaken_add_fake_astdb_entry(public_key_url, public_path);
+	test_stir_shaken_add_fake_astdb_entry(public_cert_url, public_path);
 
 	/* Verify a valid signature */
 	returned_payload = ast_stir_shaken_verify(header, payload, (const char *)signed_payload->signature,
-		STIR_SHAKEN_ENCRYPTION_ALGORITHM, public_key_url);
+		STIR_SHAKEN_ENCRYPTION_ALGORITHM, public_cert_url);
 	if (!returned_payload) {
 		ast_test_status_update(test, "Failed to verify a valid signature\n");
-		remove_public_key_from_astdb(public_key_url);
+		remove_public_key_from_astdb(public_cert_url);
 		test_stir_shaken_cleanup_cert(caller_id_number);
 		return AST_TEST_FAIL;
 	}
 
-	remove_public_key_from_astdb(public_key_url);
+	remove_public_key_from_astdb(public_cert_url);
 
 	test_stir_shaken_cleanup_cert(caller_id_number);
 
@@ -1654,8 +1667,7 @@ static int load_module(void)
 	return res;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER,
-				"STIR/SHAKEN Module for Asterisk",
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "STIR/SHAKEN Module for Asterisk",
 	.support_level = AST_MODULE_SUPPORT_CORE,
 	.load = load_module,
 	.unload = unload_module,

@@ -1,22 +1,1332 @@
-2021-03-25 17:34 +0000  Asterisk Development Team <asteriskteam@digium.com>
+2021-08-12 16:26 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
-	* asterisk 18.1.1 Released.
+	* asterisk 18.6.0 Released.
 
-2020-12-22 15:10 +0000 [c48ddab47b]  Asterisk Development Team <asteriskteam@digium.com>
+2021-08-05 14:28 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
-	* Update for 18.1.1
+	* asterisk 18.6.0-rc1 Released.
 
-2020-12-22 02:58 +0000 [e5a48b86c9]  Torrey Searle <tsearle@voxbone.com>
-=======
-2021-03-25 17:34 +0000  Asterisk Development Team <asteriskteam@digium.com>
+2021-06-28 08:48 +0000 [adf707f2ae]  Naveen Albert <asterisk@phreaknet.org>
 
-	* asterisk 18.3.0 Released.
+	* cdr_adaptive_odbc: Prevent filter warnings
 
-2021-03-22 15:41 +0000  Asterisk Development Team <asteriskteam@digium.com>
+	  Previously, if CDR filters were used so that
+	  not all CDR records used all sections defined
+	  in cdr_adaptive_odbc.conf, then warnings will
+	  always be emitted (if each CDR record is unique
+	  to a particular section, n-1 warnings to be
+	  specific).
 
-	* asterisk 18.3.0-rc2 Released.
+	  This turns the offending warning log into
+	  a verbose message like the other one, since
+	  this behavior is intentional and not
+	  indicative of anything wrong.
 
-2021-03-18 11:14 +0000 [bffff6e2d0]  George Joseph <gjoseph@digium.com>
+	  ASTERISK-29494
+
+	  Change-Id: Ifd314fa9298722bc99494d5ca2658a5caa94a5f8
+
+2021-07-25 16:53 +0000 [940f6c4a03]  Naveen Albert <asterisk@phreaknet.org>
+
+	* app_queue: Allow streaming multiple announcement files
+
+	  Allows multiple files comprising an agent announcement
+	  to be played by separating on the ampersand, similar
+	  to the multi-file support in other Asterisk applications.
+
+	  ASTERISK-29528
+
+	  Change-Id: Iec600d8cd5ba14aa1e4e37f906accb356cd7891a
+
+2021-04-13 02:36 +0000 [1e4ed61a2b]  Igor Goncharovsky <igorg@iqtek.ru>
+
+	* res_pjsip_header_funcs: Add PJSIP_HEADERS() ability to read header by pattern
+
+	  PJSIP currently does not provide a function to replace SIP_HEADERS() function to get a list of headers from INVITE request.
+	  It may be used to get all X- headers in case the actual set and names of headers unknown.
+
+	  ASTERISK-29389
+
+	  Change-Id: Ic09d395de71a0021e0d6c5c29e1e19d689079f8b
+
+2021-07-08 07:34 +0000 [71dd1d91ad]  Rijnhard Hessel <rijnhard@teleforge.co.za>
+
+	* res_statsd: handle non-standard meter type safely
+
+	  Meter types are not well supported,
+	  lacking support in telegraf, datadog and the official statsd servers.
+	  We deprecate meters and provide a compliant fallback for any existing usages.
+
+	  A flag has been introduced to allow meters to fallback to counters.
+
+
+	  ASTERISK-29513
+
+	  Change-Id: I5fcb385983a1b88f03696ff30a26b55c546a1dd7
+
+2021-07-22 11:39 +0000 [feb1e06ac5]  under <pcapdump@gmail.com>
+
+	* codec_builtin.c: G729 audio gets corrupted by Asterisk due to smoother
+
+	  If Asterisk gets G.729 6-byte VAD frames inbound, then at outbound Asterisk sends this G.729 stream with non-continuous timestamps.
+	  This makes the audio stream not-playable at the receiver side.
+	  Linphone isn't able to play such an audio - lots of disruptions are heard.
+	  Also I had complains of bad audio from users which use other types of phones.
+
+	  After debugging, I found this is a regression connected with RTP Smoother (main/smoother.c).
+
+	  Smoother has a special code to handle G.729 VAD frames (search for AST_SMOOTHER_FLAG_G729 in smoother.c).
+
+	  However, this flag is never set in Asterisk-12 and newer.
+	  Previously it has been set (see Asterisk-11).
+
+	  ASTERISK-29526 #close
+
+	  Change-Id: I6f51ecb1a3ecd9c6d59ec5a6811a27446e17065d
+
+2021-06-16 15:26 +0000 [016f6a0e14]  Naveen Albert <asterisk@phreaknet.org>
+
+	* app_dtmfstore: New application to store digits
+
+	  Adds application to asynchronously collect digits
+	  dialed on a channel in the TX or RX direction
+	  using a framehook and stores them in a specified
+	  variable, up to a configurable number of digits.
+
+	  ASTERISK-29477
+
+	  Change-Id: I51aa93fc9507f7636ac44806c4420ce690423e6f
+
+2021-07-27 07:53 +0000 [9117f09d28]  Joshua C. Colp <jcolp@sangoma.com>
+
+	* docs: Remove embedded macro in WaitForCond XML documentation.
+
+	  Change-Id: I40c6514e1843e320f3cbe0b2c70d4a98c0e35b9c
+
+2021-07-22 16:56 +0000 [993b3ba919]  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Update CHANGES and UPGRADE.txt for 18.5.1
+2021-06-14 13:28 +0000 [3025ef4f6e]  Kevin Harwell <kharwell@sangoma.com>
+
+	* AST-2021-009 - pjproject-bundled: Avoid crash during handshake for TLS
+
+	  If an SSL socket parent/listener was destroyed during the handshake,
+	  depending on timing, it was possible for the handling callback to
+	  attempt access of it after the fact thus causing a crash.
+
+	  ASTERISK-29415 #close
+
+	  Change-Id: I105dacdcd130ea7fdd4cf2010ccf35b5eaf1432d
+
+2021-05-10 17:59 +0000 [2a141a58b6]  Kevin Harwell <kharwell@sangoma.com>
+
+	* AST-2021-008 - chan_iax2: remote crash on unsupported media format
+
+	  If chan_iax2 received a packet with an unsupported media format, for
+	  example vp9, then it would set the frame's format to NULL. This could
+	  then result in a crash later when an attempt was made to access the
+	  format.
+
+	  This patch makes it so chan_iax2 now ignores/drops frames received
+	  with unsupported media format types.
+
+	  ASTERISK-29392 #close
+
+	  Change-Id: Ifa869a90dafe33eed8fd9463574fe6f1c0ad3eb1
+
+2021-04-28 07:36 +0000 [523a795289]  Joshua C. Colp <jcolp@sangoma.com>
+
+	* AST-2021-007 - res_pjsip_session: Don't offer if no channel exists.
+
+	  If a re-INVITE is received after we have sent a BYE request then it
+	  is possible for no channel to be present on the session. If this
+	  occurs we allow PJSIP to produce the offer instead. Since the call
+	  is being hung up if it produces an incorrect offer it doesn't
+	  actually matter. This also ensures that code which produces SDP
+	  does not need to handle if a channel is not present.
+
+	  ASTERISK-29381
+
+	  Change-Id: I673cb88c432f38f69b2e0851d55cc57a62236042
+
+2021-06-29 11:07 +0000 [2c3defc6c6]  Andre Barbosa <andre.emanuel.barbosa@gmail.com>
+
+	* res_stasis_playback: Check for chan hangup on play_on_channels
+
+	  Verify `ast_check_hangup` before looping to the next sound file.
+	  If the call is already hangup we just break the cycle.
+	  It also ensures that the PlaybackFinished event is sent if the call was hangup.
+
+	  This is also use-full when we are playing a big list of file for a channel that is hangup.
+	  Before this patch Asterisk will give a warning for every sound not played and fire a PlaybackStart for every sound file on the list tried to be played.
+
+	  With the patch we just break the playback cycle when the chan is hangup.
+
+	  ASTERISK-29501 #close
+
+	  Change-Id: Ic4e1c01b974c9a1f2d9678c9d6b380bcfc69feb8
+
+2021-07-15 15:04 +0000 [30feaadabf]  Sean Bright <sean.bright@gmail.com>
+
+	* res_pjsip_stir_shaken: RFC 8225 compliance and error message cleanup.
+
+	  From RFC 8225 Section 5.2.1:
+
+	      The "dest" claim is a JSON object with the claim name of "dest"
+	      and MUST have at least one identity claim object.  The "dest"
+	      claim value is an array containing one or more identity claim JSON
+	      objects representing the destination identities of any type
+	      (currently "tn" or "uri").  If the "dest" claim value array
+	      contains both "tn" and "uri" claim names, the JSON object should
+	      list the "tn" array first and the "uri" array second.  Within the
+	      "tn" and "uri" arrays, the identity strings should be put in
+	      lexicographical order, including the scheme-specific portion of
+	      the URI characters.
+
+	  Additionally, make it clear that there was a failure to sign the JWT
+	  payload and not necessarily a memory allocation failure.
+
+	  Change-Id: Ia8733b861aef6edfaa9c2136e97b447a01578dc9
+
+2021-06-30 17:15 +0000 [4bd975f415]  Sebastien Duthil <sduthil@wazo.community>
+
+	* stun: Emit warning message when STUN request times out
+
+	  Without this message, it is not obvious that the reason is STUN timeout.
+
+	  ASTERISK-29507 #close
+
+	  Change-Id: I26e4853c23a1aed324552e1b9683ea3c05cb1f74
+
+2021-07-02 10:15 +0000 [76c09b1cfd]  Sean Bright <sean.bright@gmail.com>
+
+	* res_http_media_cache.c: Parse media URLs to find extensions.
+
+	  Use the URI parsing functions to parse playback URLs in order to find
+	  their file extensions.
+
+	  For backwards compatibility, we first look at the full URL, then at
+	  any Content-Type header, and finally at just the path portion of the
+	  URL.
+
+	  ASTERISK-27871 #close
+
+	  Change-Id: I16d0682f6d794be96539261b3e48f237909139cb
+
+2021-07-13 10:31 +0000 [fcebc4d24a]  Sean Bright <sean.bright@gmail.com>
+
+	* main/cdr.c: Correct Party A selection.
+
+	  This appears to just have been a copy/paste error from 6258bbe7. Fix
+	  suggested by Ross Beer in ASTERISK~29166.
+
+	  Change-Id: I51e0de92042e53f37597c6f83a75621ef0d1ae37
+
+2021-05-26 12:09 +0000 [a41d192e99]  Naveen Albert <asterisk@phreaknet.org>
+
+	* app_reload: New Reload application
+
+	  Adds an application to reload modules
+	  from within the dialplan.
+
+	  ASTERISK-29454
+
+	  Change-Id: Ic8ab025d8b38dd525b872b41c465c999c5810774
+
+2021-07-08 09:32 +0000 [b9bb96ffed]  Igor Goncharovsky <igorg@iqtek.ru>
+
+	* res_ari: Fix audiosocket segfault
+
+	  Add check that data parameter specified when audiosocket used for externalMedia.
+
+	  ASTERISK-29514 #close
+
+	  Change-Id: Ie562f03c5d6c3835a3631f376b3d43e75b8f9617
+
+2021-06-30 08:07 +0000 [146b59df3f]  Sean Bright <sean.bright@gmail.com>
+
+	* res_pjsip_config_wizard.c: Add port matching support.
+
+	  In f8b0c2c9 we added support for port numbers in 'match' statements
+	  but neglected to include that support in the PJSIP config wizard.
+
+	  The removed code would have also prevented IPv6 addresses from being
+	  successfully used in the config wizard as well.
+
+	  ASTERISK-29503 #close
+
+	  Change-Id: Idd5bbfd48009e7a741757743dbaea68e2835a34d
+
+2021-05-22 09:31 +0000 [1b21b1abf7]  Naveen Albert <mail@interlinked.x10host.com>
+
+	* app_waitforcond: New application
+
+	  While several applications exist to wait for
+	  a certain event to occur, none allow waiting
+	  for any generic expression to become true.
+	  This application allows for waiting for a condition
+	  to become true, with configurable timeout and
+	  checking interval.
+
+	  ASTERISK-29444
+
+	  Change-Id: I08adf2824b8bc63405778cf355963b5005612f41
+
+2021-06-04 06:11 +0000 [283812e492]  Andre Barbosa <andre.emanuel.barbosa@gmail.com>
+
+	* res_stasis_playback: Send PlaybackFinish event only once for errors
+
+	  When we try to play a list of sound files in the same Play command,
+	  we get only one PlaybackFinish event, after all sounds are played.
+
+	  But in the case where the Play fails (because channel is destroyed
+	  for example), Asterisk will send one PlaybackFinish event for each
+	  sound file still to be played. If the list is big, Asterisk is
+	  sending many events.
+
+	  This patch adds a failed state so we can understand that the play
+	  failed. On that case we don't send the event, if we still have a
+	  list of sounds to be played.
+
+	  When we reach the last sound, we send the PlaybackFinish with
+	  the failed state.
+
+	  ASTERISK-29464 #close
+
+	  Change-Id: I4c2e5921cc597702513af0d7c6c2c982e1798322
+
+2021-06-17 07:57 +0000 [88da59efe7]  George Joseph <gjoseph@digium.com>
+
+	* jitterbuffer:  Correct signed/unsigned mismatch causing assert
+
+	  If the system time has stepped backwards because of a time
+	  adjustment between the time a frame is timestamped and the
+	  time we check the timestamps in abstract_jb:hook_event_cb(),
+	  we get a negative interval, but we don't check for that there.
+	  abstract_jb:hook_event_cb() then calls
+	  fixedjitterbuffer:fixed_jb_get() (via abstract_jb:jb_get_fixed)
+	  and the first thing that does is assert(interval >= 0).
+
+	  There are several issues with this...
+
+	   * abstract_jb:hook_event_cb() saves the interval in a variable
+	     named "now" which is confusing in itself.
+
+	   * "now" is defined as an unsigned int which converts the negative
+	     value returned from ast_tvdiff_ms() to a large positive value.
+
+	   * fixed_jb_get()'s parameter is defined as a signed int so the
+	     interval gets converted back to a negative value.
+
+	   * fixed_jb_get()'s assert is NOT an ast_assert but a direct define
+	     that points to the system assert() so it triggers even in
+	     production mode.
+
+	  So...
+
+	   * hook_event_cb()'s "now" was renamed to "relative_frame_start" and
+	     changed to an int64_t.
+	   * hook_event_cb() now checks for a negative value right after
+	     retrieving both the current and framedata timestamps and just
+	     returns the frame if the difference is negative.
+	   * fixed_jb_get()'s local define of ASSERT() was changed to call
+	     ast_assert() instead of the system assert().
+
+	  ASTERISK-29480
+	  Reported by: Dan Cropp
+
+	  Change-Id: Ic469dec73c2edc3ba134cda6721a999a9714f3c9
+
+2021-05-21 19:08 +0000 [c4236dcff2]  Naveen Albert <mail@interlinked.x10host.com>
+
+	* app_dial: Expanded A option to add caller announcement
+
+	  Hitherto, the A option has made it possible to play
+	  audio upon answer to the called party only. This option
+	  is expanded to allow for playback of an audio file to
+	  the caller instead of or in addition to the audio
+	  played to the answerer.
+
+	  ASTERISK-29442
+
+	  Change-Id: If6eed3ff5c341dc8c588c8210987f2571e891e5e
+
+2021-06-21 06:31 +0000 [5e1cb3253c]  Joshua C. Colp <jcolp@sangoma.com>
+
+	* core: Don't play silence for Busy() and Congestion() applications.
+
+	  When using the Busy() and Congestion() applications the
+	  function ast_safe_sleep is used by wait_for_hangup to safely
+	  wait on the channel. This function may send silence if Asterisk
+	  is configured to do so using the transmit_silence option.
+
+	  In a scenario where an answered channel dials a Local channel
+	  either directly or through call forwarding and the Busy()
+	  or Congestion() dialplan applications were executed with the
+	  transmit_silence option enabled the busy or congestion
+	  tone would not be heard.
+
+	  This is because inband generation of tones (such as busy
+	  and congestion) is stopped when other audio is sent to
+	  the channel they are being played to. In the given
+	  scenario the transmit_silence option would result in
+	  silence being sent to the channel, thus stopping the
+	  inband generation.
+
+	  This change adds a variant of ast_safe_sleep which can be
+	  used when silence should not be played to the channel. The
+	  wait_for_hangup function has been updated to use this
+	  resulting in the tones being generated as expected.
+
+	  ASTERISK-29485
+
+	  Change-Id: I066bfc987a3ad6f0ccc88e0af4cd63f6a4729133
+
+2021-05-07 01:18 +0000 [6b041d1092]  Bernd Zobl <b.zobl@commend.com>
+
+	* res_pjsip_sdp_rtp: Evaluate remotely held for Session Progress
+
+	  With the fix for ASTERISK_28754 channels are no longer put on hold if an
+	  outbound INVITE is answered with a "Session Progress" containing
+	  "inactive" audio.
+
+	  The previous change moved the evaluation of the media attributes to
+	  `negotiate_incoming_sdp_stream()` to have the `remotely_held` status
+	  available when building the SDP in `create_outgoing_sdp_stream()`.
+	  This however means that an answer to an outbound INVITE, which does not
+	  traverse `negotiate_incoming_sdp_stream()`, cannot set the
+	  `remotely_held` status anymore.
+
+	  This change moves the check so that both, `negotiate_incoming_sdp_stream()` and
+	  `apply_negotiated_sdp_stream()` can do the checks.
+
+	  ASTERISK-29479
+
+	  Change-Id: Icde805a819399d5123b688e1ed1d2bcd9d5b0f75
+
+2021-06-17 14:44 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 18.5.0-rc1 Released.
+
+2021-06-17 09:39 +0000 [0747162d4f]  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Update CHANGES and UPGRADE.txt for 18.5.0
+2021-06-16 08:50 +0000 [702e1d33b5]  George Joseph <gjoseph@digium.com>
+
+	* res_pjsip_messaging: Overwrite user in existing contact URI
+
+	  When the MessageSend destination is in the form
+	  PJSIP/<number>@<endpoint> and the endpoint's contact
+	  URI already has a user component, that user component
+	  will now be replaced with <number> when creating the
+	  request URI.
+
+	  ASTERISK_29404
+
+	  Change-Id: I80e5910fa25c803d1440da0594a0d6b34b6b4ad5
+
+2021-03-16 11:45 +0000 [804788037e]  Bernd Zobl <b.zobl@commend.com>
+
+	* res_pjsip/pjsip_message_filter: set preferred transport in pjsip_message_filter
+
+	  Set preferred transport when querying the local address to use in
+	  filter_on_tx_messages(). This prevents the module to erroneously select
+	  the wrong transport if more than one transports of the same type (TCP or
+	  TLS) are configured.
+
+	  ASTERISK-29241
+
+	  Change-Id: I598e60257a7f92b29efce1fb3e9a2fc06f1439b6
+
+2021-06-10 09:34 +0000 [2b174a38fe]  Naveen Albert <asterisk@phreaknet.org>
+
+	* pbx_builtins: Corrects SayNumber warning
+
+	  Previously, SayNumber always emitted a warning if the caller hung up
+	  during execution. Usually this isn't correct, so check if the channel
+	  hung up and, if so, don't emit a warning.
+
+	  ASTERISK-29475
+
+	  Change-Id: Ieea4a67301c6ea83bbc7690c1d4808d79a704594
+
+2021-05-22 07:53 +0000 [6b67821098]  Jaco Kroon <jaco@uls.co.za>
+
+	* func_lock: Prevent module unloading in-use module.
+
+	  The scenario where a channel still has an associated datastore we
+	  cannot unload since there is a function pointer to the destroy and fixup
+	  functions in play.  Thus increase the module ref count whenever we
+	  allocate a datastore, and decrease it during destroy.
+
+	  In order to tighten the race that still exists in spite of this (below)
+	  add some extra failure cases to prevent allocations in these cases.
+
+	  Race:
+
+	  If module ref is zero, an LOCK or TRYLOCK is invoked (near)
+	  simultaneously on a channel that has NOT PREVIOUSLY taken a lock, and if
+	  in such a case the datastore is created *prior* to unloading being set
+	  to true (first step in module unload) then it's possible that the module
+	  will unload with the destructor being called (and segfault) post the
+	  module being unloaded.  The module will however wait for such locks to
+	  release prior to unloading.
+
+	  If post that we can recheck the module ref before returning the we can
+	  (in theory, I think) eliminate the last of the race.  This race is
+	  mostly theoretical in nature.
+
+	  Change-Id: I21a514a0b56755c578a687f4867eacb8b59e23cf
+	  Signed-off-by: Jaco Kroon <jaco@uls.co.za>
+
+2021-05-22 07:29 +0000 [6f303335d3]  Jaco Kroon <jaco@uls.co.za>
+
+	* func_lock: Add "dialplan locks show" cli command.
+
+	  For example:
+
+	  arthur*CLI> dialplan locks show
+	  func_lock locks:
+	  Name                                     Requesters Owner
+	  uls-autoref                              0          (unlocked)
+	  1 total locks listed.
+
+	  Obviously other potentially useful stats could be added (eg, how many
+	  times there was contention, how many times it failed etc ... but that
+	  would require keeping the stats and I'm not convinced that's worth the
+	  effort.  This was useful to troubleshoot some other issues so submitting
+	  it.
+
+	  Change-Id: Ib875e56feb49d523300aec5f36c635ed74843a9f
+	  Signed-off-by: Jaco Kroon <jaco@uls.co.za>
+
+2021-05-22 07:42 +0000 [a3df5d7de8]  Jaco Kroon <jaco@uls.co.za>
+
+	* func_lock: Fix memory corruption during unload.
+
+	  AST_TRAVERSE accessess current as current = current->(field).next ...
+	  and since we free current (and ast_free poisons the memory) we either
+	  end up on a ast_mutex_lock to a non-existing lock that can never be
+	  obtained, or a segfault.
+
+	  Incidentally add logging in the "we have to wait for a lock to release"
+	  case, and remove an ineffective statement that sets memory that was just
+	  cleared by ast_calloc to zero.
+
+	  Change-Id: Id19ba3d9867b23d0e6783b97e6ecd8e62698b8c3
+	  Signed-off-by: Jaco Kroon <jaco@uls.co.za>
+
+2021-05-22 07:48 +0000 [6bd741b77d]  Jaco Kroon <jaco@uls.co.za>
+
+	* func_lock: Fix requesters counter in error paths.
+
+	  In two places we bail out with failure after we've already incremented
+	  the requesters counter, if this occured then it would effectively result
+	  in unload to wait indefinitely, thus preventing clean shutdown.
+
+	  Change-Id: I362a6c0dc424f736d4a9c733d818e72d19675283
+	  Signed-off-by: Jaco Kroon <jaco@uls.co.za>
+
+2021-05-25 10:36 +0000 [a611a0cd42]  Naveen Albert <asterisk@phreaknet.org>
+
+	* app_originate: Allow setting Caller ID and variables
+
+	  Caller ID can now be set on the called channel and
+	  Variables can now be set on the destination
+	  using the Originate application, just as
+	  they can be currently using call files
+	  or the Manager Action.
+
+	  ASTERISK-29450
+
+	  Change-Id: Ia64cfe97d2792bcbf4775b3126cad662922a8b66
+
+2021-06-10 16:24 +0000 [26059f8616]  Sean Bright <sean.bright@gmail.com>
+
+	* menuselect: Fix description of several modules.
+
+	  The text description needs to be the last thing on the AST_MODULE_INFO
+	  line to be pulled in properly by menuselect.
+
+	  Change-Id: I0c913e36fea8b661f42e56920b6c5513ae8fd832
+
+2021-05-23 19:20 +0000 [a40e58a4da]  Naveen Albert <asterisk@phreaknet.org>
+
+	* app_confbridge: New ConfKick() application
+
+	  Adds a new ConfKick() application, which may
+	  be used to kick a specific channel, all channels,
+	  or all non-admin channels from a specified
+	  conference bridge, similar to existing CLI and
+	  AMI commands.
+
+	  ASTERISK-29446
+
+	  Change-Id: I5d96b683880bfdd27b2ab1c3f2e897c5046ded9b
+
+2021-06-02 08:11 +0000 [6873c5f3e4]  Naveen Albert <asterisk@phreaknet.org>
+
+	* sip_to_pjsip: Fix missing cases
+
+	  Adds the "auto" case which is valid with
+	  both chan_sip dtmfmode and chan_pjsip's
+	  dtmf_mode, adds subscribecontext to
+	  subscribe_context conversion, and accounts
+	  for cipher = ALL being invalid.
+
+	  ASTERISK-29459
+
+	  Change-Id: Ie27d6606efad3591038000e5f3c34fa94730f6f2
+
+2021-06-02 08:25 +0000 [99573f9540]  Naveen Albert <asterisk@phreaknet.org>
+
+	* res_pjsip_dtmf_info: Hook flash
+
+	  Adds hook flash recognition support
+	  for application/hook-flash.
+
+	  ASTERISK-29460
+
+	  Change-Id: I1d060fa89a7cf41244c98f892fff44eb1c9738ea
+
+2021-05-20 09:51 +0000 [a861522467]  Naveen Albert <mail@interlinked.x10host.com>
+
+	* app_confbridge: New option to prevent answer supervision
+
+	  A new user option, answer_channel, adds the capability to
+	  prevent answering the channel if it hasn't already been
+	  answered yet.
+
+	  ASTERISK-29440
+
+	  Change-Id: I26642729d0345f178c7b8045506605c8402de54b
+
+2021-04-22 13:07 +0000 [8e2672d2a4]  George Joseph <gjoseph@digium.com>
+
+	* res_pjsip_messaging: Refactor outgoing URI processing
+
+	   * Implemented the new "to" parameter of the MessageSend()
+	     dialplan application.  This allows a user to specify
+	     a complete SIP "To" header separate from the Request URI.
+
+	   * Completely refactored the get_outbound_endpoint() function
+	     to actually handle all the destination combinations that
+	     we advertized as supporting.
+
+	   * We now also accept a destination in the same format
+	     as Dial()...  PJSIP/number@endpoint
+
+	   * Added lots of debugging.
+
+	  ASTERISK-29404
+	  Reported by Brian J. Murrell
+
+	  Change-Id: I67a485196d9199916468f7f98bfb9a0b993a4cce
+
+2021-05-16 10:21 +0000 [9106c9d1f1]  Naveen Albert <mail@interlinked.x10host.com>
+
+	* func_math: Three new dialplan functions
+
+	  Introduces three new dialplan functions, MIN and MAX,
+	  which can be used to calculate the minimum or
+	  maximum of up to two numbers, and ABS, an absolute
+	  value function.
+
+	  ASTERISK-29431
+
+	  Change-Id: I2bda9269d18f9d54833c85e48e41fce0e0ce4d8d
+
+2021-05-19 13:45 +0000 [26a38c4084]  Ben Ford <bford@digium.com>
+
+	* STIR/SHAKEN: Add Date header, dest->tn, and URL checking.
+
+	  STIR/SHAKEN requires a Date header alongside the Identity header, so
+	  that has been added. Still on the outgoing side, we were missing the
+	  dest->tn section of the JSON payload, so that has been added as well.
+	  Moving to the incoming side, URL checking has been added to the public
+	  cert URL to ensure that it starts with http.
+
+	  https://wiki.asterisk.org/wiki/display/AST/OpenSIPit+2021
+
+	  Change-Id: Idee5b1b5e45bc3b483b3070e46ce322dca5b3f1c
+
+2021-05-24 13:38 +0000 [16e4a9d8cf]  Joshua C. Colp <jcolp@sangoma.com>
+
+	* res_pjsip: On partial transport reload also move factories.
+
+	  For connection oriented transports PJSIP uses factories to
+	  produce transports. When doing a partial transport reload
+	  we need to also move the factory of the transport over so
+	  that anything referencing the transport (such as an endpoint)
+	  has the factory available.
+
+	  ASTERISK-29441
+
+	  Change-Id: Ieae0fb98eab2d9257cad996a1136e5a62d307161
+
+2021-05-20 08:18 +0000 [033c2a2283]  Naveen Albert <mail@interlinked.x10host.com>
+
+	* func_volume: Add read capability to function.
+
+	  Up until now, the VOLUME function has been write
+	  only, so that TX/RX values can be set but not
+	  read afterwards. Now, previously set TX/RX values
+	  can be read later.
+
+	  ASTERISK-29439
+
+	  Change-Id: Ia23e92fa2e755c36e9c8e69f2940d2703ccccb5f
+
+2021-04-13 02:57 +0000 [59d15c4c2a]  Evgenios_Greek <jone1984@hotmail.com>
+
+	* stasis: Fix "FRACK!, Failed assertion bad magic number" when unsubscribing
+
+	  When unsubscribing from an endpoint technology a FRACK
+	  would occur due to incorrect reference counting. This fixes
+	  that issue, along with some other issues.
+
+	  Fixed a typo in get_subscription when calling ao2_find as it
+	  needed to pass the endpoint ID and not the entire object.
+
+	  Fixed scenario where a subscription would get returned when
+	  it shouldn't have been when searching based on endpoint
+	  technology.
+
+	  A doulbe unreference has also been resolved by only explicitly
+	  releasing the reference held by tech_subscriptions.
+
+	  ASTERISK-28237 #close
+	  Reported by: Lucas Tardioli Silveira
+
+	  Change-Id: Ia91b15f8e5ea68f850c66889a6325d9575901729
+
+2021-05-20 02:15 +0000 [b21d4d1b87]  Joseph Nadiv <ynadiv@corpit.xyz>
+
+	* res_pjsip.c: Support endpoints with domain info in username
+
+	  In multidomain environments, it is desirable to create
+	  PJSIP endpoints with the domain info in the endpoint name
+	  in pjsip_endpoint.conf.  This resulted in an error with
+	  registrations, NOTIFY, and OPTIONS packet generation.
+
+	  This commit will detect if there is an @ in the endpoint
+	  identifier and generate the URI accordingly so NOTIFY and
+	  OPTIONS From headers will generate correctly.
+
+	  ASTERISK-28393
+
+	  Change-Id: I96f8d01dfdd5573ba7a28299e46271dd4210b619
+
+2021-05-20 07:51 +0000 [3aed363716]  Joshua C. Colp <jcolp@sangoma.com>
+
+	* res_rtp_asterisk: Set correct raddr port on RTCP srflx candidates.
+
+	  RTCP ICE candidates use a base address derived from the RTP
+	  candidate. The port on the base address was not being updated to
+	  the RTCP port.
+
+	  This change sets the base port to the RTCP port and all is well.
+
+	  ASTERISK-29433
+
+	  Change-Id: Ide2d2115b307bfd3c2dfbc4d187515d724519040
+
+2021-05-25 05:38 +0000 [60ed1847b8]  Joshua C. Colp <jcolp@sangoma.com>
+
+	* asterisk: We've moved to Libera Chat!
+
+	  Change-Id: I48c1933dd79b50ddc0a6793acec4754b4e95c575
+
+2021-05-19 13:13 +0000 [0f8e2174a7]  Jeremy Lainé <jeremy.laine@m4x.org>
+
+	* res_rtp_asterisk: make it possible to remove SOFTWARE attribute
+
+	  By default Asterisk reports the PJSIP version in a SOFTWARE attribute
+	  of every STUN packet it sends. This may not be desired in a production
+	  environment, and RFC5389 recommends making the use of the SOFTWARE
+	  attribute a configurable option:
+
+	  https://datatracker.ietf.org/doc/html/rfc5389#section-16.1.2
+
+	  This patch adds a `stun_software_attribute` yes/no option to make it
+	  possible to omit the SOFTWARE attribute from STUN packets.
+
+	  ASTERISK-29434
+
+	  Change-Id: Id3f2b1dd9584536ebb3a1d7e8395fd8b3e46860b
+
+2021-04-15 10:43 +0000 [655ee680cd]  George Joseph <gjoseph@digium.com>
+
+	* res_pjsip_outbound_authenticator_digest: Be tolerant of RFC8760 UASs
+
+	  RFC7616 and RFC8760 allow more than one WWW-Authenticate or
+	  Proxy-Authenticate header per realm, each with different digest
+	  algorithms (including new ones like SHA-256 and SHA-512-256).
+	  Thankfully however a UAS can NOT send back multiple Authenticate
+	  headers for the same realm with the same digest algorithm.  The
+	  UAS is also supposed to send the headers in order of preference
+	  with the first one being the most preferred.  We're supposed to
+	  send an Authorization header for the first one we encounter for a
+	  realm that we can support.
+
+	  The UAS can also send multiple realms, especially when it's a
+	  proxy that has forked the request in which case the proxy will
+	  aggregate all of the Authenticate headers and then send them all
+	  back to the UAC.
+
+	  It doesn't stop there though... Each realm can require a
+	  different username from the others.  There's also nothing
+	  preventing each digest algorithm from having a unique password
+	  although I'm not sure if that adds any benefit.
+
+	  So now... For each Authenticate header we encounter, we have to
+	  determine if we support the digest algorithm and, if not, just
+	  skip the header.  We then have to find an auth object that
+	  matches the realm AND the digest algorithm or find a wildcard
+	  object that matches the digest algorithm. If we find one, we add
+	  it to the results vector and read the next Authenticate header.
+	  If the next header is for the same realm AND we already added an
+	  auth object for that realm, we skip the header. Otherwise we
+	  repeat the process for the next header.
+
+	  In the end, we'll have accumulated a list of credentials we can
+	  pass to pjproject that it can use to add Authentication headers
+	  to a request.
+
+	  NOTE: Neither we nor pjproject can currently handle digest
+	  algorithms other than MD5.  We don't even have a place for it in
+	  the ast_sip_auth object. For this reason, we just skip processing
+	  any Authenticate header that's not MD5.  When we support the
+	  others, we'll move the check into the loop that searches the
+	  objects.
+
+	  Changes:
+
+	   * Added a new API ast_sip_retrieve_auths_vector() that takes in
+	     a vector of auth ids (usually supplied on a call to
+	     ast_sip_create_request_with_auth()) and populates another
+	     vector with the actual objects.
+
+	   * Refactored res_pjsip_outbound_authenticator_digest to handle
+	     multiple Authenticate headers and set the stage for handling
+	     additional digest algorithms.
+
+	   * Added a pjproject patch that allows them to ignore digest
+	     algorithms they don't support.  This patch has already been
+	     merged upstream.
+
+	   * Updated documentation for auth objects in the XML and
+	     in pjsip.conf.sample.
+
+	   * Although res_pjsip_authenticator_digest isn't affected
+	     by this change, some debugging and a testsuite AMI event
+	     was added to facilitate testing.
+
+	  Discovered during OpenSIPit 2021.
+
+	  ASTERISK-29397
+
+	  Change-Id: I3aef5ce4fe1d27e48d61268520f284d15d650281
+
+2021-04-14 09:44 +0000 [83c2a16b2e]  Joseph Nadiv <ynadiv@corpit.xyz>
+
+	* res_pjsip_dialog_info_body_generator: Add LOCAL/REMOTE tags in dialog-info+xml
+
+	  RFC 4235 Section 4.1.6 describes XML elements that should be
+	  sent to subscribed endpoints to identify the local and remote
+	  participants in the dialog.
+
+	  This patch adds this functionality to PJSIP by iterating through the
+	  ringing channels causing the NOTIFY, and inserts the channel info
+	  into the dialog so that information is properly passed to the endpoint
+	  in dialog-info+xml.
+
+	  ASTERISK-24601
+	  Patch submitted: Joshua Elson
+	  Modified by: Joseph Nadiv and Sean Bright
+	  Tested by: Joseph Nadiv
+
+	  Change-Id: I20c5cf5b45f34d7179df6573c5abf863eb72964b
+
+2021-05-13 09:47 +0000 [bfc25e5de2]  Naveen Albert <mail@interlinked.x10host.com>
+
+	* app_voicemail: Configurable voicemail beep
+
+	  Hitherto, VoiceMail() played a non-customizable beep tone to indicate
+	  the caller could leave a message. In some cases, the beep may not
+	  be desired, or a different tone may be desired.
+
+	  To increase flexibility, a new option allows customization of the tone.
+	  If the t option is specified, the default beep will be overridden.
+	  Supplying an argument will cause it to use the specified file for the tone,
+	  and omitting it will cause it to skip the beep altogether. If the option
+	  is not used, the default behavior persists.
+
+	  ASTERISK-29349
+
+	  Change-Id: I1c439c0011497e28a28067fc1cf1e654c8843280
+
+2021-05-13 10:32 +0000 [0ad3504ce0]  Naveen Albert <mail@interlinked.x10host.com>
+
+	* AMI: Add AMI event to expose hook flash events
+
+	  Although Asterisk can receive and propogate flash events, it currently
+	  provides no mechanism for doing anything with them itself.
+
+	  This AMI event allows flash events to be processed by Asterisk.
+	  Additionally, AST_CONTROL_FLASH is included in a switch statement
+	  in channel.c to avoid throwing a warning when we shouldn't.
+
+	  ASTERISK-29380
+
+	  Change-Id: Ie17ffe65086e0282c88542e38eed6a461ec79e81
+
+2021-05-13 08:50 +0000 [7b82587dd6]  Naveen Albert <mail@interlinked.x10host.com>
+
+	* chan_sip: Expand hook flash recognition.
+
+	  Some ATAs send hook flash events as application/hook-flash, rather than a DTMF
+	  event. Now, we also recognize hook-flash as a flash event.
+
+	  ASTERISK-29370
+
+	  Change-Id: I1c3b82a040dff3affcd94bad8ce33edc90c04725
+
+2021-05-11 12:00 +0000 [6d5cac1d10]  Joshua C. Colp <jcolp@sangoma.com>
+
+	* pjsip: Add patch for resolving STUN packet lifetime issues.
+
+	  In some cases it was possible for a STUN packet to be destroyed
+	  prematurely or even destroyed partially multiple times.
+
+	  This patch provided by Teluu fixes the lifetime of these
+	  packets and ensures they aren't partially destroyed multiple
+	  times.
+
+	  https://github.com/pjsip/pjproject/pull/2709
+
+	  ASTERISK-29377
+
+	  Change-Id: Ie842ad24ddf345e01c69a4d333023f05f787abca
+
+2021-05-13 10:13 +0000 [283fa3a93b]  Naveen Albert <mail@interlinked.x10host.com>
+
+	* main/file.c: Don't throw error on flash event.
+
+	  AST_CONTROL_FLASH isn't accounted for in a switch statement in file.c
+	  where it should be ignored. Adding this to the switch ensures a
+	  warning isn't thrown on RFC2833 flash events, since nothing's amiss.
+
+	  ASTERISK-29372
+
+	  Change-Id: I4fa549bfb7ba1894a4044de999ea124877422fbc
+
+2021-05-12 21:20 +0000 [78d7862463]  Sean Bright <sean.bright@gmail.com>
+
+	* chan_pjsip: Correct misleading trace message
+
+	  ASTERISK-29358 #close
+
+	  Change-Id: I050daff67066873df4e8fc7f4bd977c1ca06e647
+
+2021-04-26 17:00 +0000 [a84d34035a]  Ben Ford <bford@digium.com>
+
+	* STIR/SHAKEN: Switch to base64 URL encoding.
+
+	  STIR/SHAKEN encodes using base64 URL format. Currently, we just use
+	  base64. New functions have been added that convert to and from base64
+	  encoding.
+
+	  The origid field should also be an UUID. This means there's no reason to
+	  have it as an option in stir_shaken.conf, as we can simply generate one
+	  when creating the Identity header.
+
+	  https://wiki.asterisk.org/wiki/display/AST/OpenSIPit+2021
+
+	  Change-Id: Icf094a2a54e87db91d6b12244c9f5ba4fc2e0b8c
+
+2021-05-11 12:26 +0000 [e0cbdfe063]  Ben Ford <bford@digium.com>
+
+	* STIR/SHAKEN: OPENSSL_free serial hex from openssl.
+
+	  We're getting the serial number of the certificate from openssl and
+	  freeing it with ast_free(), but it needs to be freed with OPENSSL_free()
+	  instead. Now we duplicate the string and free the one from openssl with
+	  OPENSSL_free(), which means we can still use ast_free() on the returned
+	  string.
+
+	  https://wiki.asterisk.org/wiki/display/AST/OpenSIPit+2021
+
+	  Change-Id: Ia6e1a4028c1933a0e1d204b769ebb9f5a11f00ab
+
+2021-04-21 11:12 +0000 [5e6508b56f]  Ben Ford <bford@digium.com>
+
+	* STIR/SHAKEN: Fix certificate type and storage.
+
+	  During OpenSIPit, we found out that the public certificates must be of
+	  type X.509. When reading in public keys, we use the corresponding X.509
+	  functions now.
+
+	  We also discovered that we needed a better naming scheme for the
+	  certificates since certificates with the same name would cause issues
+	  (overwriting certs, etc.). Now when we download a public certificate, we
+	  get the serial number from it and use that as the name of the cached
+	  certificate.
+
+	  The configuration option public_key_url in stir_shaken.conf has also
+	  been renamed to public_cert_url, which better describes what the option
+	  is for.
+
+	  https://wiki.asterisk.org/wiki/display/AST/OpenSIPit+2021
+
+	  Change-Id: Ia00b20835f5f976e3603797f2f2fb19672d8114d
+
+2021-04-22 13:07 +0000 [40bdfff73b]  George Joseph <gjoseph@digium.com>
+
+	* Updates for the MessageSend Dialplan App
+
+	  Enhancements:
+
+	   * The MessageSend dialplan application now takes an optional
+	     third argument that can set the message's "To" field on
+	     outgoing messages.  It's an alternative to using the
+	     MESSAGE(to) dialplan function.
+
+	     NOTE: No channel driver currently implements this field.  A
+	     follow-on commit for res_pjsip_messaging will implement it for
+	     the chan_pjsip channel driver.
+
+	   * To prevent confusion with the first argument, currently named
+	     "to", it's been renamed to "destination". Its function,
+	     creating the request URI, hasn't changed.
+
+	   * The documentation for MessageSend was updated to be
+	     more clear about the parameters and how they interact
+	     the MESSAGE() dialplan function.
+
+	   * With the rename of MessageSend's first parameter, and the fact
+	     that message.c references <info> elements in chan_sip.c,
+	     res_pjsip_messaging.c and res_xmpp, they each needed
+	     documentation updates to use MessageDestinationInfo instead of
+	     MessageToInfo.
+
+	   * appdocsxml.dtd was updated to include a missing element
+	     declaration for "dataType".  This was showing up as an error
+	     in Eclipse's dtd editor.
+
+	   * Despite the changes in this commit, there should be
+	     no impact to current users of MessageSend.
+
+	  Change-Id: I6fb5b569657a02866a66ea352fd53d30d8ac965a
+
+2021-04-30 15:21 +0000 [78f518622d]  Sean Bright <sean.bright@gmail.com>
+
+	* translate.c: Avoid refleak when checking for a translation path
+
+	  Change-Id: Idbd61ff77545f4a78b06a5064b55112e774b70e6
+
+2021-04-28 07:17 +0000 [8faed04b01]  Joshua C. Colp <jcolp@sangoma.com>
+
+	* chan_local: Skip filtering audio formats on removed streams.
+
+	  When a stream topology is provided to chan_local when dialing
+	  it filters the audio formats down. This operation did not skip
+	  streams which were removed (that have no formats) resulting in
+	  calling being aborted.
+
+	  This change causes such streams to be skipped.
+
+	  ASTERISK-29407
+
+	  Change-Id: I1de8b98727cb2d10f4bc287da0b5fdcb381addd6
+
+2021-04-27 12:31 +0000 [95414fc918]  Sean Bright <sean.bright@gmail.com>
+
+	* res_rtp_asterisk: More robust timestamp checking
+
+	  We assume that a timestamp value of 0 represents an 'uninitialized'
+	  timestamp, but 0 is a valid value. Add a simple wrapper to be able to
+	  differentiate between whether the value is set or not.
+
+	  This also removes the fix for ASTERISK~28812 which should not be
+	  needed if we are checking the last timestamp appropriately.
+
+	  ASTERISK-29030 #close
+
+	  Change-Id: Ie70d657d580d9a1f2877e25a6ef161c5ad761cf7
+
+2021-04-29 15:32 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 18.4.0-rc1 Released.
+
+2021-04-29 10:25 +0000 [1949d828b7]  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Update CHANGES and UPGRADE.txt for 18.4.0
+2021-04-23 12:37 +0000 [d2dcd15bd8]  Sean Bright <sean.bright@gmail.com>
+
+	* res_pjsip.c: OPTIONS processing can now optionally skip authentication
+
+	  ASTERISK-27477 #close
+
+	  Change-Id: I68f6715bba92a525149e35d142a49377a34a1193
+
+2021-04-21 06:42 +0000 [dec44306cf]  Jean Aunis <jean.aunis@prescom.fr>
+
+	* translate.c: Take sampling rate into account when checking codec's buffer size
+
+	  Up/down sampling changes the number of samples produced by a translation.
+	  This must be taken into account when checking the codec's buffer size.
+
+	  ASTERISK-29328
+
+	  Change-Id: I9aebe2f8788e00321a7f5c47aa97c617f39e9055
+
+2021-04-25 04:45 +0000 [c2f4925ee0]  Joshua C. Colp <jcolp@sangoma.com>
+
+	* svn: Switch to https scheme.
+
+	  Some versions of SVN seemingly don't follow the redirect
+	  to https.
+
+	  Change-Id: Ia7c76c18cb620bcf56f08e1211a7d80d321fe253
+
+2021-04-20 08:42 +0000 [5f3d96a765]  George Joseph <gjoseph@digium.com>
+
+	* res_pjsip:  Update documentation for the auth object
+
+	  Change-Id: I2f76867ce02ec611964925159be099de83346e38
+
+2021-04-02 07:21 +0000 [88aec107df]  George Joseph <gjoseph@digium.com>
+
+	* bridge_channel_write_frame: Check for NULL channel
+
+	  There is a possibility, when bridge_channel_write_frame() is
+	  called, that the bridge_channel->chan will be NULL.  The first
+	  thing bridge_channel_write_frame() does though is call
+	  ast_channel_is_multistream() which had no check for a NULL
+	  channel and therefore caused a segfault. Since it's still
+	  possible for bridge_channel_write_frame() to write the frame to
+	  the other channels in the bridge, we don't want to bail before we
+	  call ast_channel_is_multistream() but we can just skip the
+	  multi-channel stuff.  So...
+
+	  bridge_channel_write_frame() only calls ast_channel_is_multistream()
+	  if bridge_channel->chan is not NULL.
+
+	  As a safety measure, ast_channel_is_multistream() now returns
+	  false if the supplied channel is NULL.
+
+	  ASTERISK-29379
+	  Reported-by: Vyrva Igor
+	  Reported-by: Ross Beer
+
+	  Change-Id: Idfe62dbea8c69813ecfd58e113a6620dc42352ce
+
+2021-04-01 10:38 +0000 [404533c149]  Sean Bright <sean.bright@gmail.com>
+
+	* loader.c: Speed up deprecation metadata lookup
+
+	  Only use an XPath query once per module, then just navigate the DOM for
+	  everything else.
+
+	  Change-Id: Ia0336a7185f9180ccba4b6f631a00f9a22a36e92
+
+2021-04-01 08:39 +0000 [19eef2a6dc]  George Joseph <gjoseph@digium.com>
+
+	* res_prometheus: Clone containers before iterating
+
+	  The channels, bridges and endpoints scrape functions were
+	  grabbing their respective global containers, getting the
+	  count of entries, allocating metric arrays based on
+	  that count, then iterating over the container.  If the
+	  global container had new objects added after the count
+	  was taken and the metric arrays were allocated, we'd run
+	  out of metric entries and attempt to write past the end
+	  of the arrays.
+
+	  Now each of the scape functions clone their respective
+	  global containers and all operations are done on the
+	  clone.  Since the clone is stable between getting the
+	  count and iterating over it, we can't run past the end
+	  of the metrics array.
+
+	  ASTERISK-29130
+	  Reported-By: Francisco Correia
+	  Reported-By: BJ Weschke
+	  Reported-By: Sébastien Duthil
+
+	  Change-Id: If0c8e40853bc0e9429f2ba9c7f5f358d90c311af
+
+2021-03-10 09:03 +0000 [a9a9864478]  Joshua C. Colp <jcolp@sangoma.com>
+
+	* loader: Output warnings for deprecated modules.
+
+	  Using the information from the MODULEINFO XML we can
+	  now output useful information at the end of module
+	  loading for deprecated modules. This includes the
+	  version it was deprecated in, the version it will be
+	  removed in, and the replacement if available.
+
+	  ASTERISK-29339
+
+	  Change-Id: I2080dab97d2186be94c421b41dabf6d79a11611a
+
+2021-03-22 15:22 +0000 [17c86dcfaa]  Kevin Harwell <kharwell@sangoma.com>
+
+	* res_rtp_asterisk: Fix standard deviation calculation
+
+	  For some input to the standard deviation algorithm extremely large,
+	  and wrong numbers were being calculated.
+
+	  This patch uses a new formula for correctly calculating both the
+	  running mean and standard deviation for the given inputs.
+
+	  ASTERISK-29364 #close
+
+	  Change-Id: Ibc6e18be41c28bed3fde06d612607acc3fbd621f
+
+2021-03-29 17:40 +0000 [0ad1ff8a72]  Kevin Harwell <kharwell@sangoma.com>
+
+	* res_rtp_asterisk: Don't count 0 as a minimum lost packets
+
+	  The calculated minimum lost packets represents the lowest number of
+	  lost packets missed during an RTCP report interval. Zero of course
+	  is the lowest, but the idea is that this value contain the lowest
+	  number of lost packets once some have been missed.
+
+	  This patch checks to make sure the number of lost packets over an
+	  interval is not zero before checking and setting the minimum value.
+
+	  Also, this patch updates the rtp lost packet test to check for
+	  packet loss over several reports vs one.
+
+	  Change-Id: I07d6e21cec61e289c2326138d6bcbcb3c3d5e008
+
+2021-03-31 12:17 +0000 [1414b9cc57]  Kevin Harwell <kharwell@sangoma.com>
+
+	* res_rtp_asterisk: Statically declare rtp_drop_packets_data object
+
+	  This patch makes the drop_packets_data object static.
+
+	  Change-Id: If4f9b21fa0c47d41a35b6b05941d978efb4da87b
+
+2021-03-29 17:52 +0000 [b0d828f14a]  Joshua C. Colp <jcolp@sangoma.com>
+
+	* res_rtp_asterisk: Only raise flash control frame on end.
+
+	  Flash in RTP is conveyed the same as DTMF, just with a
+	  specific digit. In Asterisk however we do flash as a
+	  single control frame.
+
+	  This change makes it so that only on end do we provide
+	  the flash control frame to the core. Previously we would
+	  provide a flash control frame on both begin and end,
+	  causing flash to work improperly.
+
+	  ASTERISK-29373
+
+	  Change-Id: I1accd9c6e859811336e670e698bd8bd124f33226
+
+2021-03-05 12:53 +0000 [b912b31853]  Kevin Harwell <kharwell@sangoma.com>
+
+	* res_rtp_asterisk: Add a DEVMODE RTP drop packets CLI command
+
+	  This patch makes it so when Asterisk is compiled in DEVMODE a CLI
+	  command is available that allows someone to drop incoming RTP
+	  packets. The command allows for dropping of packets once, or on a
+	  timed interval (e.g. drop 10 packets every 5 seconds). A user can
+	  also specify to drop packets by IP address.
+
+	  Change-Id: I25fa7ae9bad6ed68e273bbcccf0ee51cae6e7024
+
+2021-03-30 06:59 +0000 [65a4a3a4e6]  Joshua C. Colp <jcolp@sangoma.com>
+
+	* res_pjsip: Give error when TLS transport configured but not supported.
+
+	  Change-Id: I058af496021ff870ccec2d8cbade637b348ab80b
+
+2021-03-05 12:47 +0000 [15de2f1727]  Kevin Harwell <kharwell@sangoma.com>
+
+	* time: Add timeval create and unit conversion functions
+
+	  Added a TIME_UNIT enumeration, and a function that converts a
+	  string to one of the enumerated values. Also, added functions
+	  that create and initialize a timeval object using a specified
+	  value, and unit type.
+
+	  Change-Id: Ic31a1c3262a44f77a5ef78bfc85dcf69a8d47392
+
+2021-03-24 08:38 +0000 [35302efe73]  Sean Bright <sean.bright@gmail.com>
+
+	* app_queue: Add alembic migration to add ringinuse to queue_members.
+
+	  ASTERISK-28356 #close
+
+	  Change-Id: I53a1bfdd3113d620bea88349019173a2f3f0ae39
+
+2021-03-28 10:47 +0000 [be3153346b]  Sean Bright <sean.bright@gmail.com>
+
+	* modules.conf: Fix more differing usages of assignment operators.
+
+	  I missed the changes in 18 and master in the previous review.
+
+	  ASTERISK-24434 #close
+
+	  Change-Id: Ieb132b2a998ce96daa9c9acf26535a974b895876
+
+2021-03-24 10:52 +0000 [bbfb8f2b9d]  Ben Ford <bford@digium.com>
+
+	* logger.conf.sample: Add more debug documentation.
+
+	  Change-Id: Iff0e713f2120d8dce8e1e26924b99ed17f9d9dff
+
+2021-03-23 17:24 +0000 [31364fa4c8]  Sean Bright <sean.bright@gmail.com>
+
+	* queues.conf.sample: Correct 'context' documentation.
+
+	  ASTERISK-24631 #close
+
+	  Change-Id: I8bf8776906a72ee02f24de6a85345940b9ff6b6f
+
+2021-03-23 15:15 +0000 [e27fa9eceb]  Sean Bright <sean.bright@gmail.com>
+
+	* app_queue.c: Remove dead 'updatecdr' code.
+
+	  Also removed the sample documentation, and some oddly-placed
+	  documentation about the timeout argument to the Queue() application
+	  itself. There is a large section on the timeout behavior below.
+
+	  ASTERISK-26614 #close
+
+	  Change-Id: I8f84e8304b50305b7c4cba2d9787a5d77c3a6217
+
+2021-03-19 09:11 +0000 [a0009c807e]  Mark Murawski <markm@intellasoft.net>
+
+	* logger: Console sessions will now respect logger.conf dateformat= option
+
+	  The 'core' console (ie: asterisk -c) does read logger.conf and does
+	  use the dateformat= option.
+
+	  Whereas 'remote' consoles (ie: asterisk -r -T) does not read logger.conf
+	  and uses a hard coded dateformat option for printing received verbose messages:
+	    main/logger.c: static char dateformat[256] = "%b %e %T"
+
+	  This change will load logger.conf for each remote console session and
+	  use the dateformat= option to set the per-line timestamp for verbose messages
+
+	  Change-Id: I3ea10990dbd920e9f7ce8ff771bc65aa7f4ea8c1
+	  ASTERISK-25358: #close
+	  Reported-by: Igor Liferenko
+
+2021-03-19 15:57 +0000 [4393207751]  Sean Bright <sean.bright@gmail.com>
+
+	* app_queue.c: Don't crash when realtime queue name is empty.
+
+	  ASTERISK-27542 #close
+
+	  Change-Id: If0b9719380a25533d2aed1053cff845dc3a4854a
+
+2021-03-18 11:14 +0000 [c78d0ce429]  George Joseph <gjoseph@digium.com>
 
 	* res_pjsip_session: Make reschedule_reinvite check for NULL topologies
 
@@ -34,7 +1344,22 @@
 
 	  Change-Id: I61313cca7fc571144338aac826091791b87b6e17
 
-2021-03-19 08:52 +0000 [47e9ce96ea]  Joshua C. Colp <jcolp@sangoma.com>
+2021-03-19 04:56 +0000 [55c467eab1]  Joshua C. Colp <jcolp@sangoma.com>
+
+	* app_queue: Only send QueueMemberStatus if status changes.
+
+	  If a queue member was updated with the same status multiple
+	  times each time a QueueMemberStatus event would be sent
+	  which would be a duplicate of the previous.
+
+	  This change makes it so that the QueueMemberStatus event is
+	  only sent if the status actually changes.
+
+	  ASTERISK-29355
+
+	  Change-Id: I580c60d992a0a8f2bea8b91c868771b3b490d116
+
+2021-03-19 08:52 +0000 [ed2f637b47]  Joshua C. Colp <jcolp@sangoma.com>
 
 	* core_unreal: Fix deadlock with T.38 control frames.
 
@@ -47,6 +1372,94 @@
 	  ASTERISK-29035
 
 	  Change-Id: Id65016201b5f9c9519a216e250f9101c629e19e9
+
+2021-03-01 17:32 +0000 [f213833514]  Joshua C. Colp <jcolp@sangoma.com>
+
+	* res_pjsip: Add support for partial transport reload.
+
+	  Some configuration items for a transport do not result in
+	  the underlying transport changing, but instead are just
+	  state we keep ourselves and use. It is perfectly reasonable
+	  to change these items.
+
+	  These include local_net and external_* information.
+
+	  ASTERISK-29354
+
+	  Change-Id: I027857ccfe4419f460243e562b5f098434b3d43a
+
+2021-03-13 05:01 +0000 [f47c5cbdf9]  Jaco Kroon <jaco@uls.co.za>
+
+	* menuselect: exit non-zero in case of failure on --enable|disable options.
+
+	  ASTERISK-29348
+
+	  Change-Id: I77e3466435f5a51a57538b29addb68d811af238d
+	  Signed-off-by: Jaco Kroon <jaco@uls.co.za>
+
+2021-03-17 10:28 +0000 [2e7fc84398]  Joshua C. Colp <jcolp@sangoma.com>
+
+	* res_rtp_asterisk: Force resync on SSRC change.
+
+	  When an SSRC change occurs the timestamps are likely
+	  to change as well. As a result we need to reset the
+	  timestamp mapping done in the calc_rxstamp function
+	  so that they map properly from timestamp to real
+	  time.
+
+	  This previously occurred but due to packet
+	  retransmission support the explicit setting
+	  of the marker bit was not effective.
+
+	  ASTERISK-29352
+
+	  Change-Id: I2d4c8f93ea24abc1030196706de2d70facf05a5a
+
+2021-03-10 08:05 +0000 [6aac148d59]  Joshua C. Colp <jcolp@sangoma.com>
+
+	* menuselect: Add ability to set deprecated and removed versions.
+
+	  The "deprecated_in" and "removed_in" information can now be
+	  set in MODULEINFO for a module and is then displayed in
+	  menuselect so users can be aware of when a module is slated
+	  to be deprecated and then removed.
+
+	  ASTERISK-29337
+
+	  Change-Id: I6952889cf08e0e9e99cf8b43f99b3cef4688087a
+
+2021-03-10 04:47 +0000 [be3e469f98]  Joshua C. Colp <jcolp@sangoma.com>
+
+	* documentation: Fix non-matching module support levels.
+
+	  Some modules have a different support level documented in their
+	  MODULEINFO XML and Asterisk module definition. This change
+	  brings the two in sync for the modules which were not matching.
+
+	  ASTERISK-29336
+
+	  Change-Id: If2f819103d4a271e2e0624ef4db365e897fa3d35
+
+2021-03-10 08:18 +0000 [60fb559ccc]  Joshua C. Colp <jcolp@sangoma.com>
+
+	* xml: Allow deprecated_in and removed_in for MODULEINFO.
+
+	  ASTERISK-29337
+
+	  Change-Id: I2211b7da8d29369f8649aeabce07679da0787f2b
+
+2021-03-09 08:54 +0000 [60800b038a]  Joshua C. Colp <jcolp@sangoma.com>
+
+	* xml: Embed module information into core XML documentation.
+
+	  This change embeds the MODULEINFO block of modules
+	  into the core XML documentation. This provides a shared
+	  mechanism for use by both menuselect and Asterisk for
+	  information and a definitive source of truth.
+
+	  ASTERISK-29335
+
+	  Change-Id: Ifbfd5c700049cf320a3e45351ac65dd89bc99d90
 
 2021-03-11 17:23 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
@@ -1209,7 +2622,6 @@
 	  Change-Id: If07e50ea8d78cb610af9195fc13b5dca4bfcef95
 
 2020-12-22 02:58 +0000 [a7aea71e60]  Torrey Searle <tsearle@voxbone.com>
->>>>>>> cd5f686bc3a55abb22421f0a416bfa05d63d8b7f
 
 	* res/res_pjsip_diversion: prevent crash on tel: uri in History-Info
 
@@ -1221,11 +2633,6 @@
 
 	  Change-Id: I0320aa205f22cda511d60a2edf2b037e8fd6cc37
 
-<<<<<<< HEAD
-2020-11-19 12:39 +0000  Asterisk Development Team <asteriskteam@digium.com>
-
-	* asterisk 18.1.0 Released.
-=======
 2020-12-11 13:27 +0000 [13682210e2]  Sean Bright <sean.bright@gmail.com>
 
 	* app_chanspy: Spyee information missing in ChanSpyStop AMI Event
@@ -1495,7 +2902,6 @@
 	  ASTERISK-29155
 
 	  Change-Id: I78d4dc36728c2d7bc187b97d82673fc77f2bcf41
->>>>>>> cd5f686bc3a55abb22421f0a416bfa05d63d8b7f
 
 2020-11-12 12:36 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
@@ -14685,7 +16091,7 @@
 	                    ^~~~
 
 	  Compiler: gcc version 8.0.1 20180414 (experimental)
-	      [trunk revision 259383] (Ubuntu 8-20180414-1ubuntu2)
+	      [trunk revision 259383] (Ubuntu 8-20180414-1ubuntu2) 
 
 	  Change-Id: I18577590da46829c1ea7d8b82e41d69f105baa10
 
@@ -39129,7 +40535,7 @@
 	* chan_sip: Fix lastrtprx always updated
 
 	  Packets are read regulary, when there is no data in buffer fr->frametype
-	  is AST_FRAME_NULL. There was no check of frametype and lastrtprx always
+	  is AST_FRAME_NULL. There was no check of frametype and lastrtprx always 
 	  updated and, therefore, rtptimeout did not work at all.
 
 	  ASTERISK-25270 #close
@@ -49620,9 +51026,9 @@
 
 	  The current logic for ICE negotiation starts it
 	  when receiving an SDP with ICE candidates. This is
-	  incorrect as ICE negotiation can only start when each
-	  call party have at least one pair of local and remote
-	  candidate. Starting ICE negotiation early would result
+	  incorrect as ICE negotiation can only start when each 
+	  call party have at least one pair of local and remote 
+	  candidate. Starting ICE negotiation early would result 
 	  in negotiation failure and ultimately no audio.
 
 	  This change makes it so ICE negotiation is only started
@@ -57033,9 +58439,9 @@
 
 	* tcptls: Avoiding ERR_remove_state in OpenSSL.
 
-	  ERR_remove_state was deprecated with OpenSSL 1.0.0 and was replaced by
-	  ERR_remove_thread_state. ERR_load_SSL_strings and ERR_load_BIO_strings were
-	  called by SSL_load_error_strings already and got removed. These changes allow
+	  ERR_remove_state was deprecated with OpenSSL 1.0.0 and was replaced by 
+	  ERR_remove_thread_state. ERR_load_SSL_strings and ERR_load_BIO_strings were 
+	  called by SSL_load_error_strings already and got removed. These changes allow 
 	  OpenSSL forks like BoringSSL to be used with Asterisk.
 
 	  ASTERISK-25043 #close
@@ -57366,12 +58772,12 @@
 	* term: send proper reset sequence when black background is forced
 
 	  When using the force black background command-line option or configuration
-	  option an invalid reset sequence is sent following a coloured output item
+	  option an invalid reset sequence is sent following a coloured output item 
 	  in the CLI, the result is that the colour is not 'turned off' and continues
 	  until the next non-default coloured text output.
 
 	  A reset sequence is already defined in term.c, but the ast_term_reset
-	  function doesn't use it, instead building it's own invalid sequence and
+	  function doesn't use it, instead building it's own invalid sequence and 
 	  returning that.
 
 	  This patch changes that behaviour, removing the building of a reset sequence
@@ -58959,18 +60365,18 @@
 
 	* res_pjsip_config_wizard: Cleanup load unload
 
-	  While investigating other unload issues I realized that the load/unload process
+	  While investigating other unload issues I realized that the load/unload process 
 	  for the config wizard was pretty ugly so I've refactored it as follows...
 
-	  When the res_pjsip sorcery instance is created the config_wizard bumps it's own
-	  module reference to prevent it from unloading while the sorcery instance is
-	  still active.  When res_pjsip unloads and it's sorcery instance is destroyed,
-	  the config wizard unrefs itself which then allows itself to unload cleanly.
-	  Since the config wizard now can't load after res_pjsip or unload before it
-	  (which should have been the correct behavior all along), I was able to remove
+	  When the res_pjsip sorcery instance is created the config_wizard bumps it's own 
+	  module reference to prevent it from unloading while the sorcery instance is 
+	  still active.  When res_pjsip unloads and it's sorcery instance is destroyed, 
+	  the config wizard unrefs itself which then allows itself to unload cleanly.  
+	  Since the config wizard now can't load after res_pjsip or unload before it 
+	  (which should have been the correct behavior all along), I was able to remove 
 	  the chunks of code in both load_module and unload_module that handled that case.
 
-	  Ran the testsuite tests to insure there were no functional changes and REF_DEBUG
+	  Ran the testsuite tests to insure there were no functional changes and REF_DEBUG 
 	  to insure that Asterisk was shutting down cleanly with no FRACKs or leaks.
 
 	  Tested-by: George Joseph
@@ -59119,24 +60525,24 @@
 
 	* res_pjsip_phoneprov_provider: Fix reference leak on unload
 
-	  res_pjsip_phoneprov_provider was leaking references to phoneprov objects due to
-	  a missing OBJ_NODATA in an ao2_callback in load_users().  Rather than adding the
-	  OBJ_NODATA, I changed load_users to use a more straightforward ao2_iterator.
-	  This plugged the leak but exposed an unload order issue between
+	  res_pjsip_phoneprov_provider was leaking references to phoneprov objects due to 
+	  a missing OBJ_NODATA in an ao2_callback in load_users().  Rather than adding the 
+	  OBJ_NODATA, I changed load_users to use a more straightforward ao2_iterator.  
+	  This plugged the leak but exposed an unload order issue between 
 	  res_pjsip_phoneprov_provider, res_phoneprov and res_pjsip.
 
-	  res_pjsip_phoneprov_provider unloads first, then res_phoneprov, then res_pjsip.
-	  Since res_pjsip_phoneprov_provider uses res_pjsip's sorcery instance, when it
-	  unloads, it's objects are still in the sorcery instance.  When res_pjsip
-	  unloads, it destroys all its objects including res_pjsip_phoneprov_provider's.
-	  The phoneprov destructor then attempts to unregister the extension from
-	  res_phoneprov but because res_phoneprov is already cleaned up, its users
+	  res_pjsip_phoneprov_provider unloads first, then res_phoneprov, then res_pjsip.  
+	  Since res_pjsip_phoneprov_provider uses res_pjsip's sorcery instance, when it 
+	  unloads, it's objects are still in the sorcery instance.  When res_pjsip 
+	  unloads, it destroys all its objects including res_pjsip_phoneprov_provider's.  
+	  The phoneprov destructor then attempts to unregister the extension from 
+	  res_phoneprov but because res_phoneprov is already cleaned up, its users 
 	  container is gone and we get a FRACK.
 
-	  Simple solution, check for the NULL users container before attempting to remove
+	  Simple solution, check for the NULL users container before attempting to remove 
 	  the entry. Duh.
 
-	  Ran tests/res_phoneprov/res_phoneprov_provider.  No leaks in
+	  Ran tests/res_phoneprov/res_phoneprov_provider.  No leaks in 
 	  res_pjsip_phoneprov_provider and no FRACKs.
 
 	  Reported-by: Corey Farrell
@@ -59154,17 +60560,17 @@
 
 	* loader/main: Don't set ast_fully_booted until deferred reloads are processed
 
-	  Until we have a true module management facility it's sometimes necessary for one
-	  module to force a reload on another before its own load is complete.  If
-	  Asterisk isn't fully booted yet, these reloads are deferred.  The problem is
-	  that asterisk reports fully booted before processing the deferred reloads which
+	  Until we have a true module management facility it's sometimes necessary for one 
+	  module to force a reload on another before its own load is complete.  If 
+	  Asterisk isn't fully booted yet, these reloads are deferred.  The problem is 
+	  that asterisk reports fully booted before processing the deferred reloads which 
 	  means Asterisk really isn't quite ready when it says it is.
 
-	  This patch moves the report of fully booted after the processing of the deferred
+	  This patch moves the report of fully booted after the processing of the deferred 
 	  reloads is complete.
 
-	  Since the pjsip stack has the most number of related modules, I ran the
-	  channels/pjsip testsuite to make sure there aren't any issues.  All tests
+	  Since the pjsip stack has the most number of related modules, I ran the 
+	  channels/pjsip testsuite to make sure there aren't any issues.  All tests 
 	  passed.
 
 	  Tested-by: George Joseph
@@ -59711,10 +61117,10 @@
 	  These are fixes for compilation under gcc 5.0...
 
 	  chan_sip.c:    In parse_request needed to make 'lim' unsigned.
-	  inline_api.h:  Needed to add a check for '__GNUC_STDC_INLINE__' to detect C99
+	  inline_api.h:  Needed to add a check for '__GNUC_STDC_INLINE__' to detect C99 
 	                 inline semantics (same as clang).
 	  ccss.c:        In ast_cc_set_parm, needed to fix weird comparison.
-	  dsp.c:         Needed to work around a possible compiler bug.  It was throwing
+	  dsp.c:         Needed to work around a possible compiler bug.  It was throwing 
 	                 an array-bounds error but neither
 	                 sgriepentrog, rmudgett nor I could figure out why.
 	  manager.c:     In action_atxfer, needed to correct an array allocation.
@@ -60960,7 +62366,7 @@
 	  * Enable passthough of REF_DEBUG caller information to sip_alloc and
 	    find_call.
 
-	  ASTERISK-24882 #close
+	  ASTERISK-24882 #close 
 	  Reported by: Corey Farrell
 	  Review: https://reviewboard.asterisk.org/r/4189/
 	  ........
@@ -60977,7 +62383,7 @@
 	  Release the scheduler reference to the dialog for reinvite timeout during
 	  dialog_unlink_all.
 
-	  ASTERISK-24876 #close
+	  ASTERISK-24876 #close 
 	  Reported by: Corey Farrell
 	  Review: https://reviewboard.asterisk.org/r/4491/
 	  ........
@@ -61370,7 +62776,7 @@
 	  of an infinate loop caused by an invalid callid in
 	  threadstorage.
 
-	  ASTERISK-24833 #comment Committed callid conversion to trunk.
+	  ASTERISK-24833 #comment Committed callid conversion to trunk. 
 	  Reported by: Corey Farrell
 	  Review: https://reviewboard.asterisk.org/r/4466/
 
@@ -61868,8 +63274,8 @@
 
 	* app_voicemail: Fix compile breaking in app_voicemail with IMAP_STORAGE.
 
-	  There is a leftover "assert" in app_voicemail/__messagecount that references
-	  variables that don't exist.  This causes the compile to fail when
+	  There is a leftover "assert" in app_voicemail/__messagecount that references 
+	  variables that don't exist.  This causes the compile to fail when 
 	  --enable-dev-mode and IMAP_STORAGE are selected.
 
 	  This patch removes the assert.
@@ -62004,7 +63410,7 @@
 	  free'd in a state callback function on any of:
 	    AST_DIAL_RESULT_UNASWERED,
 	    AST_DIAL_RESULT_ANSWERED,
-	    AST_DIAL_RESULT_HANGUP, or
+	    AST_DIAL_RESULT_HANGUP, or 
 	    AST_DIAL_RESULT_TIMEOUT.
 
 	  Review: https://reviewboard.asterisk.org/r/4443/
@@ -62558,10 +63964,10 @@
 
 	* ASTERISK-24811: Add ast_sorcery_apply_config() to res_pjsip_publish_asterisk.
 
-	  Matt Hoskins reported that res_pjsip_publish_asterisk wouldn't pull config from
+	  Matt Hoskins reported that res_pjsip_publish_asterisk wouldn't pull config from 
 	  realtime.  Turns out it was just missing a call ast_sorcery_apply_config().
 
-	  res_pjsip_acl was missing it as well, so I added it.  The other pjsip modules
+	  res_pjsip_acl was missing it as well, so I added it.  The other pjsip modules 
 	  looked OK.
 
 	  ASTERISK-24811 #close
@@ -62935,14 +64341,14 @@
 
 	  ........
 	    r431751 | file | 2015-02-14 14:19:07 -0400 (Sat, 14 Feb 2015) | 5 lines
-
+	    
 	    chan_pjsip: Fix crash when CHANNEL dialplan function is invoked with pjsip argument and no type.
-
+	    
 	    ASTERISK-24771 #close
 	    Reported by: Niklas Larsson
 	  ........
 	    r431752 | file | 2015-02-14 14:20:27 -0400 (Sat, 14 Feb 2015) | 2 lines
-
+	    
 	    'information' ends with an 'n'.
 	  ........
 
@@ -63215,11 +64621,11 @@
 
 	* res_pjsip_config_wizard: Add ability to auto-create hints.
 
-	  Looking at the Super Awesome Company sample reminded me that creating hints is
-	  just plain gruntwork.  So you can now have the pjsip conifg wizard auto-create
+	  Looking at the Super Awesome Company sample reminded me that creating hints is 
+	  just plain gruntwork.  So you can now have the pjsip conifg wizard auto-create 
 	  them for you.
 
-	  Specifying 'hint_exten' in the wizard will create
+	  Specifying 'hint_exten' in the wizard will create 
 	  'exten => <hint_exten>,hint/PJSIP/<wizard_id>'
 	  in whatever is specified for 'hint_context'.
 
@@ -63229,10 +64635,10 @@
 
 	  The default for 'hint_context' is the endpoint's context.
 	  There's no default for 'hint_application'.  If not specified, no app is added.
-	  There's no default for 'hint_exten'.  If not specified, neither the hint itself
+	  There's no default for 'hint_exten'.  If not specified, neither the hint itself 
 	  nor the application will be created.
 
-	  Some may think this is the slippery slope to users.conf but hints are a basic
+	  Some may think this is the slippery slope to users.conf but hints are a basic 
 	  necessity for phones unlike voicemail, manager, etc that users.conf creates.
 
 	  Tested-by: George Joseph
@@ -63640,25 +65046,25 @@
 
 	  ........
 	    r431297 | mmichelson | 2015-01-28 11:05:26 -0600 (Wed, 28 Jan 2015) | 17 lines
-
+	    
 	    Mitigate possible HTTP injection attacks using CURL() function in Asterisk.
-
+	    
 	    CVE-2014-8150 disclosed a vulnerability in libcURL where HTTP request injection
 	    can be performed given properly-crafted URLs.
-
+	    
 	    Since Asterisk makes use of libcURL, and it is possible that users of Asterisk may
 	    get cURL URLs from user input or remote sources, we have made a patch to Asterisk
 	    to prevent such HTTP injection attacks from originating from Asterisk.
-
+	    
 	    ASTERISK-24676 #close
 	    Reported by Matt Jordan
-
+	    
 	    Review: https://reviewboard.asterisk.org/r/4364
-
+	    
 	    AST-2015-002
 	  ........
 	    r431298 | mmichelson | 2015-01-28 11:12:49 -0600 (Wed, 28 Jan 2015) | 3 lines
-
+	    
 	    Fix compilation error from previous patch.
 	  ........
 
@@ -65115,22 +66521,22 @@
 
 	* res_pjsip_pubsub: Fix persistent subscriptions not surviving graceful shutdown
 
-	  If you do a 'core (shutdown|restart) graceful' persistent subscriptions won't
-	  survive.  If you do a 'core (shutdown|restart) now' or asterisk terminates for
+	  If you do a 'core (shutdown|restart) graceful' persistent subscriptions won't 
+	  survive.  If you do a 'core (shutdown|restart) now' or asterisk terminates for 
 	  some reason, they do.  Here's why...
 
-	  When asterisk shuts down gracefully, it sends a 'NOTIFY/terminated' to
-	  subscribers for each subscription.  This not only tells the subscribers that the
-	  dialog/state machine is done, it also frees the last reference to the
-	  subscription tree which causes the persistent subscription to get deleted from
-	  astdb.  When asterisk restarts, nothing's left.  Just preventing the delete from
-	  astdb doesn't work because we already told the subscriber to terminate the
-	  dialog so we can't restart it even if it was still in astdb.  Everything works
-	  OK if asterisk terminates unexpectedly because we never send the 'terminated'
-	  message so on restart, the subscription is still in astdb and the subscriber is
+	  When asterisk shuts down gracefully, it sends a 'NOTIFY/terminated' to 
+	  subscribers for each subscription.  This not only tells the subscribers that the 
+	  dialog/state machine is done, it also frees the last reference to the 
+	  subscription tree which causes the persistent subscription to get deleted from 
+	  astdb.  When asterisk restarts, nothing's left.  Just preventing the delete from 
+	  astdb doesn't work because we already told the subscriber to terminate the 
+	  dialog so we can't restart it even if it was still in astdb.  Everything works 
+	  OK if asterisk terminates unexpectedly because we never send the 'terminated' 
+	  message so on restart, the subscription is still in astdb and the subscriber is 
 	  none the wiser.
 
-	  This patch suppresses the sending of 'NOTIFY/terminated' on shutdown for
+	  This patch suppresses the sending of 'NOTIFY/terminated' on shutdown for 
 	  persistent connections.
 
 	  Tested-by: George Joseph
@@ -65147,9 +66553,9 @@
 
 	* res_pjsip_outbound_registration: Fix reference leak.
 
-	  Every time a registration started, sip_outbound_registration_response_cb bumps
-	  the ref count on client_state then pushes a handle_registration_response task.
-	  handle_registration_response never unreffed it though.  So every time a
+	  Every time a registration started, sip_outbound_registration_response_cb bumps 
+	  the ref count on client_state then pushes a handle_registration_response task.  
+	  handle_registration_response never unreffed it though.  So every time a 
 	  registration goes out, the ref count goes up by one.
 
 	  This patch adds the unreffs to handle_registration_response.
@@ -65170,20 +66576,20 @@
 
 	  There are 2 issues with reloading registrations...
 
-	  1.  The 'can_reuse_registration' test wasn't considering the intervals or
-	  expiration in its determination of whether a registration changed or not so if
-	  you changed any of the intervals or the expiration and reloaded, the object
-	  would get reloaded but the actual timers wouldn't change.
-	  can_reuse_registration now does a sorcery diff on the old and new objects
-	  instead of discretely testing certain fields.  Now if you change expiration for
-	  instance, and reload, the timer is updated and re-registration will occur on the
+	  1.  The 'can_reuse_registration' test wasn't considering the intervals or 
+	  expiration in its determination of whether a registration changed or not so if 
+	  you changed any of the intervals or the expiration and reloaded, the object 
+	  would get reloaded but the actual timers wouldn't change.  
+	  can_reuse_registration now does a sorcery diff on the old and new objects 
+	  instead of discretely testing certain fields.  Now if you change expiration for 
+	  instance, and reload, the timer is updated and re-registration will occur on the 
 	  new value.
 
-	  2.  If you mung up your password on an outbound registration you get a permanent
-	  failure.  If you fix the password (on the outbound_auth object) and reload,
-	  nothing tells outbound_registration to try again because the registration itself
-	  didn't change.  This patch adds an observer on the "auth" object type and if any
-	  auth changes, existing registration states are searched and those in a
+	  2.  If you mung up your password on an outbound registration you get a permanent 
+	  failure.  If you fix the password (on the outbound_auth object) and reload, 
+	  nothing tells outbound_registration to try again because the registration itself 
+	  didn't change.  This patch adds an observer on the "auth" object type and if any 
+	  auth changes, existing registration states are searched and those in a 
 	  REJECTED_PERMANENT state are retried.
 
 	  Tested-by: George Joseph
@@ -69185,7 +70591,7 @@
 
 2014-10-30 01:15 +0000 [c866ced76b]  Igor Goncharovskiy <igor.goncharovsky@gmail.com>
 
-	*
+	* 
 	  Add additional checks for NULL pointers to fix several crashes reported.
 
 	  ASTERISK-24304 #close
@@ -69957,7 +71363,7 @@
 
 2014-10-16 01:22 +0000 [a770ca168d]  Igor Goncharovskiy <igor.goncharovsky@gmail.com>
 
-	*
+	* 
 	  Fix loss of voice after second call drops (on a second line) in case using multiple lines on unistim phones. There is regression was introduced in r391379.
 
 	  Reported by: Rustam Khankishyiev
@@ -70458,7 +71864,7 @@
 
 	  This fixes a regression in callerid parsing introduced when another bug
 	  was fixed. This bug occurred when the name was composed entirely of
-	  DTMF keys and quoted without a number section (<>).
+	  DTMF keys and quoted without a number section (<>). 
 
 	  ASTERISK-24406 #close
 	  Reported by: Etienne Lessard
@@ -72379,25 +73785,25 @@
 
 	  ........
 	    r423209 | file | 2014-09-16 17:35:34 -0300 (Tue, 16 Sep 2014) | 8 lines
-
+	    
 	    res_rtp_asterisk: Fix building when pjproject is not used.
 	    ........
-
+	    
 	    Merged revisions 423207 from http://svn.asterisk.org/svn/asterisk/branches/11
 	    ........
-
+	    
 	    Merged revisions 423208 from http://svn.asterisk.org/svn/asterisk/branches/12
 	  ........
 	    r423212 | file | 2014-09-16 18:03:59 -0300 (Tue, 16 Sep 2014) | 10 lines
-
+	    
 	    res_rtp_asterisk: Fix 100% CPU usage due to timer heap thread spinning.
-
+	    
 	    Side note: I need a vacation.
 	    ........
-
+	    
 	    Merged revisions 423210 from http://svn.asterisk.org/svn/asterisk/branches/11
 	    ........
-
+	    
 	    Merged revisions 423211 from http://svn.asterisk.org/svn/asterisk/branches/12
 	  ........
 
@@ -72528,7 +73934,7 @@
 	  - combines duplicate moh option parsing code into a single function
 	  - adds deprecationwarnings for application=r to sort randomly
 	  - adds deprecationwarnings for random=yes to sort randomly
-	  - removes invisible code that was supposed to stay until 1.8
+	  - removes invisible code that was supposed to stay until 1.8 
 
 	  The sort=randstart works like sort=alpha, except we start at a random
 	  position.
@@ -73175,7 +74581,7 @@
 
 	  ASTERISK-24264 #close
 	  Reported by: Samuel Galarneau
-	  Tested by: Samuel Galarneau
+	  Tested by: Samuel Galarneau 
 	  ........
 
 	  Merged revisions 422503 from http://svn.asterisk.org/svn/asterisk/branches/12
@@ -74254,7 +75660,7 @@
 	  t's optional or just needs to be defaulted or ignored.
 
 	  This patch changes the log level from ERROR to DEBUG.  If a dialplan developer
-	  wants to debug their dialplan they still canby setting the console debug level
+	  wants to debug their dialplan they still canby setting the console debug level 
 	  as needed.
 
 	  Tested by: George Joseph
@@ -74281,22 +75687,22 @@
 
 	  ........
 	    r421311 | mjordan | 2014-08-17 20:11:28 -0500 (Sun, 17 Aug 2014) | 9 lines
-
+	    
 	    res/ari/resource_channels: Don't return allocation failure on failed function
-
+	    
 	    If a function fails to execute, it is most likely due to one of two reasons:
 	    (1) The function doesn't exist or can't be read from
 	    (2) The function is dangerous and is restricted based on the user's permissions
-
+	    
 	    Currently we return allocation failure, which is incorrect. This updates the
 	    reason code to more accurately reflect why the request failed.
 
 	    ASTERISK-24215
 	  ........
 	    r421312 | mjordan | 2014-08-17 20:13:41 -0500 (Sun, 17 Aug 2014) | 4 lines
-
+	    
 	    res/ari/resource_channels: Fix compilation issue
-
+	    
 	    Forgot a parameter. Whoops.
 	  ........
 
@@ -94377,3 +95783,4 @@
 
 	* main/bucket.c: Fix building of trunk. Note: This is why I commit
 	  on the weekend.
+

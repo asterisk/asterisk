@@ -41,7 +41,7 @@
 #ifdef FIXED_JB_DEBUG
 #define ASSERT(a)
 #else
-#define ASSERT(a) assert(a)
+#define ASSERT(a) ast_assert(a)
 #endif
 
 /*! \brief private fixed_jb structure */

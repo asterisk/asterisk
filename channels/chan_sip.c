@@ -618,13 +618,16 @@
 			for all of the sip peers will be retrieved.</para>
 		</description>
 	</manager>
+	<info name="MessageDestinationInfo" language="en_US" tech="SIP">
+		<para>Specifying a prefix of <literal>sip:</literal> will send the
+		message as a SIP MESSAGE request.</para>
+	</info>
 	<info name="MessageFromInfo" language="en_US" tech="SIP">
 		<para>The <literal>from</literal> parameter can be a configured peer name
 		or in the form of "display-name" &lt;URI&gt;.</para>
 	</info>
 	<info name="MessageToInfo" language="en_US" tech="SIP">
-		<para>Specifying a prefix of <literal>sip:</literal> will send the
-		message as a SIP MESSAGE request.</para>
+		<para>Ignored</para>
 	</info>
 	<managerEvent language="en_US" name="SIPQualifyPeerDone">
 		<managerEventInstance class="EVENT_FLAG_CALL">
@@ -22623,6 +22626,18 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 	const char *c = sip_get_header(req, "Content-Type");
 
 	/* Need to check the media/type */
+
+	if (!strcasecmp(c, "application/hook-flash")) {
+		/* send a FLASH event, for ATAs that send flash as hook-flash not dtmf */
+		struct ast_frame f = { AST_FRAME_CONTROL, { AST_CONTROL_FLASH, } };
+		ast_queue_frame(p->owner, &f);
+		if (sipdebug) {
+			ast_verbose("* DTMF-relay event received: FLASH\n");
+		}
+		transmit_response(p, "200 OK", req);
+		return;
+	}
+
 	if (!strcasecmp(c, "application/dtmf-relay") ||
 	    !strcasecmp(c, "application/vnd.nortelnetworks.digits") ||
 	    !strcasecmp(c, "application/dtmf")) {

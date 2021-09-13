@@ -1203,7 +1203,7 @@ static struct cdr_object_snapshot *cdr_object_pick_party_a(struct cdr_object_sna
 	/* Try the Party A flag */
 	if (ast_test_flag(left, AST_CDR_FLAG_PARTY_A) && !ast_test_flag(right, AST_CDR_FLAG_PARTY_A)) {
 		return left;
-	} else if (!ast_test_flag(right, AST_CDR_FLAG_PARTY_A) && ast_test_flag(right, AST_CDR_FLAG_PARTY_A)) {
+	} else if (!ast_test_flag(left, AST_CDR_FLAG_PARTY_A) && ast_test_flag(right, AST_CDR_FLAG_PARTY_A)) {
 		return right;
 	}
 

@@ -408,12 +408,18 @@ static int framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 		}
 	}
 	if (pvt->t->buffer_samples) {	/* do not pass empty frames to callback */
+		int src_srate = pvt->t->src_codec.sample_rate;
+		int dst_srate = pvt->t->dst_codec.sample_rate;
+
+		ast_assert(src_srate > 0);
+
 		if (f->datalen == 0) { /* perform native PLC if available */
 			/* If the codec has native PLC, then do that */
 			if (!pvt->t->native_plc)
 				return 0;
 		}
-		if (pvt->samples + f->samples > pvt->t->buffer_samples) {
+
+		if (pvt->samples + (f->samples * dst_srate / src_srate) > pvt->t->buffer_samples) {
 			ast_log(LOG_WARNING, "Out of buffer space\n");
 			return -1;
 		}
@@ -1521,7 +1527,7 @@ static void check_translation_path(
 	   destination format. */
 	for (i = ast_format_cap_count(result) - 1; 0 <= i; i--) {
 		int index, src_index;
-		struct ast_format *fmt = ast_format_cap_get_format(result, i);
+		RAII_VAR(struct ast_format *, fmt, ast_format_cap_get_format(result, i), ao2_cleanup);
 
 		if (ast_format_get_type(fmt) != type) {
 			continue;

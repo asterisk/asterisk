@@ -238,7 +238,13 @@
 			<parameter name="URL">
 				<para><replaceable>URL</replaceable> will be sent to the called party if the channel supports it.</para>
 			</parameter>
-			<parameter name="announceoverride" />
+			<parameter name="announceoverride" argsep="&amp;">
+				<argument name="filename" required="true">
+					<para>Announcement file(s) to play to agent before bridging call, overriding the announcement(s)
+					configured in <filename>queues.conf</filename>, if any.</para>
+				</argument>
+				<argument name="filename2" multiple="true" />
+			</parameter>
 			<parameter name="timeout">
 				<para>Will cause the queue to fail out after a specified number of
 				seconds, checked between each <filename>queues.conf</filename> <replaceable>timeout</replaceable> and
@@ -1484,9 +1490,6 @@ static int realtime_rules;
 static struct stasis_subscription *device_state_sub;
 
 /*! \brief queues.conf [general] option */
-static int update_cdr;
-
-/*! \brief queues.conf [general] option */
 static int negative_penalty_invalid;
 
 /*! \brief queues.conf [general] option */
@@ -2457,9 +2460,9 @@ static void update_status(struct call_queue *q, struct member *m, const int stat
 		 * happen when there is latency in the connection to the member.
 		 */
 		pending_members_remove(m);
-	}
 
-	queue_publish_member_blob(queue_member_status_type(), queue_member_blob_create(q, m));
+		queue_publish_member_blob(queue_member_status_type(), queue_member_blob_create(q, m));
+	}
 }
 
 /*!
@@ -6956,8 +6959,12 @@ static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_a
 					res2 = ast_safe_sleep(peer, qe->parent->memberdelay * 1000);
 				}
 				if (!res2 && announce) {
-					if (play_file(peer, announce) < 0) {
-						ast_log(LOG_ERROR, "play_file failed for '%s' on %s\n", announce, ast_channel_name(peer));
+					char *front;
+					char *announcefiles = ast_strdupa(announce);
+					while ((front = strsep(&announcefiles, "&"))) {
+						if (play_file(peer, front) < 0) {
+							ast_log(LOG_ERROR, "play_file failed for '%s' on %s\n", front, ast_channel_name(peer));
+						}
 					}
 				}
 				if (!res2 && qe->parent->reportholdtime) {
@@ -7697,6 +7704,10 @@ static int set_member_value(const char *queuename, const char *interface, int pr
 				char *category = NULL;
 				while ((category = ast_category_browse(queue_config, category))) {
 					const char *name = ast_variable_retrieve(queue_config, category, "name");
+					if (ast_strlen_zero(name)) {
+						ast_log(LOG_WARNING, "Ignoring realtime queue with a NULL or empty 'name.'\n");
+						continue;
+					}
 					if ((q = find_load_queue_rt_friendly(name))) {
 						foundqueue++;
 						foundinterface += set_member_value_help_members(q, interface, property, value);
@@ -9202,7 +9213,6 @@ static void queue_reset_global_params(void)
 	queue_persistent_members = 0;
 	autofill_default = 0;
 	montype_default = 0;
-	update_cdr = 0;
 	shared_lastcall = 0;
 	negative_penalty_invalid = 0;
 	log_membername_as_agent = 0;
@@ -9221,9 +9231,6 @@ static void queue_set_global_params(struct ast_config *cfg)
 	if ((general_val = ast_variable_retrieve(cfg, "general", "monitor-type"))) {
 		if (!strcasecmp(general_val, "mixmonitor"))
 			montype_default = 1;
-	}
-	if ((general_val = ast_variable_retrieve(cfg, "general", "updatecdr"))) {
-		update_cdr = ast_true(general_val);
 	}
 	if ((general_val = ast_variable_retrieve(cfg, "general", "shared_lastcall"))) {
 		shared_lastcall = ast_true(general_val);
@@ -9793,6 +9800,10 @@ static char *__queues_show(struct mansession *s, int fd, int argc, const char * 
 			char *category = NULL;
 			while ((category = ast_category_browse(cfg, category))) {
 				const char *queuename = ast_variable_retrieve(cfg, category, "name");
+				if (ast_strlen_zero(queuename)) {
+					ast_log(LOG_WARNING, "Ignoring realtime queue with a NULL or empty 'name.'\n");
+					continue;
+				}
 				if ((q = find_load_queue_rt_friendly(queuename))) {
 					queue_t_unref(q, "Done with temporary pointer");
 				}

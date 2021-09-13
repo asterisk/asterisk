@@ -27,9 +27,6 @@
  *
  * \ingroup applications
  *
- * \todo Make a way to be able to set variables (and functions) on the outbound
- *       channel, similar to the Variable headers for the AMI Originate, and the
- *       Set options for call files.
  */
 
 /*** MODULEINFO
@@ -98,12 +95,26 @@ static const char app_originate[] = "Originate";
 						<argument name="argN" />
 					</argument>
 				</option>
+				<option name="c">
+					<para>The caller ID number to use for the called channel. Default is
+					the current channel's Caller ID number.</para>
+				</option>
+				<option name="n">
+					<para>The caller ID name to use for the called channel. Default is
+					the current channel's Caller ID name.</para>
+				</option>
+				<option name="v" argsep="^">
+					<para>A series of channel variables to set on the destination channel.</para>
+					<argument name="var1" multiple="true" argsep="=">
+						<argument name="name" required="true" />
+						<argument name="value" required="true" />
+					</argument>
+				</option>
 				</optionlist>
 			</parameter>
 		</syntax>
 		<description>
 		<para>This application originates an outbound call and connects it to a specified extension or application.  This application will block until the outgoing call fails or gets answered.  At that point, this application will exit with the status variable set and dialplan processing will continue.</para>
-
 		<para>This application sets the following channel variable before exiting:</para>
 		<variablelist>
 			<variable name="ORIGINATE_STATUS">
@@ -128,11 +139,17 @@ enum {
 	OPT_PREDIAL_CALLEE =    (1 << 0),
 	OPT_PREDIAL_CALLER =    (1 << 1),
 	OPT_ASYNC =             (1 << 2),
+	OPT_CALLER_NUM =        (1 << 3),
+	OPT_CALLER_NAME =       (1 << 4),
+	OPT_VARIABLES =         (1 << 5),
 };
 
 enum {
 	OPT_ARG_PREDIAL_CALLEE,
 	OPT_ARG_PREDIAL_CALLER,
+	OPT_ARG_CALLER_NUM,
+	OPT_ARG_CALLER_NAME,
+	OPT_ARG_VARIABLES,
 	/* note: this entry _MUST_ be the last one in the enum */
 	OPT_ARG_ARRAY_SIZE,
 };
@@ -141,8 +158,10 @@ AST_APP_OPTIONS(originate_exec_options, BEGIN_OPTIONS
 	AST_APP_OPTION('a', OPT_ASYNC),
 	AST_APP_OPTION_ARG('b', OPT_PREDIAL_CALLEE, OPT_ARG_PREDIAL_CALLEE),
 	AST_APP_OPTION_ARG('B', OPT_PREDIAL_CALLER, OPT_ARG_PREDIAL_CALLER),
+	AST_APP_OPTION_ARG('c', OPT_CALLER_NUM, OPT_ARG_CALLER_NUM),
+	AST_APP_OPTION_ARG('n', OPT_CALLER_NAME, OPT_ARG_CALLER_NAME),
+	AST_APP_OPTION_ARG('v', OPT_VARIABLES, OPT_ARG_VARIABLES),
 END_OPTIONS );
-
 
 static int originate_exec(struct ast_channel *chan, const char *data)
 {
@@ -158,7 +177,9 @@ static int originate_exec(struct ast_channel *chan, const char *data)
 	struct ast_flags64 opts = { 0, };
 	char *opt_args[OPT_ARG_ARRAY_SIZE];
 	char *predial_callee = NULL;
-	char *parse;
+	char *parse, *cnum = NULL, *cname = NULL;
+	
+	struct ast_variable *vars = NULL;
 	char *chantech, *chandata;
 	int res = -1;
 	int continue_in_dialplan = 0;
@@ -236,7 +257,50 @@ static int originate_exec(struct ast_channel *chan, const char *data)
 		goto return_cleanup;
 	}
 
+	if (ast_test_flag64(&opts, OPT_CALLER_NUM)) {
+		if (!ast_strlen_zero(opt_args[OPT_ARG_CALLER_NUM])) {
+			cnum = opt_args[OPT_ARG_CALLER_NUM];
+		} else if (ast_channel_caller(chan)->id.number.str) {
+			cnum = ast_channel_caller(chan)->id.number.str;
+		}
+	}
+
+	if (ast_test_flag64(&opts, OPT_CALLER_NAME)) {
+		if (!ast_strlen_zero(opt_args[OPT_ARG_CALLER_NAME])) {
+			cname = opt_args[OPT_ARG_CALLER_NAME];
+		} else if (ast_channel_caller(chan)->id.name.str) {
+			cname = ast_channel_caller(chan)->id.name.str;
+		}
+	}
+
+	/* Assign variables */
+	if (ast_test_flag64(&opts, OPT_VARIABLES)
+		&& !ast_strlen_zero(opt_args[OPT_ARG_VARIABLES])) {
+		char *vartext;
+		char *text = opt_args[OPT_ARG_VARIABLES];
+		while ((vartext = ast_strsep(&text, '^', 0))) {
+			struct ast_variable *var;
+			char *varname, *varvalue;
+			if (!(varname = ast_strsep(&vartext, '=', 0))) {
+				ast_log(LOG_ERROR, "Variable syntax error: %s\n", vartext);
+				goto return_cleanup;
+			}
+			if (!(varvalue = ast_strsep(&vartext, '=', 0))) {
+				varvalue = ""; /* empty values are allowed */
+			}
+			var = ast_variable_new(varname, varvalue, "");
+			if (!var) {
+				ast_log(LOG_ERROR, "Failed to allocate variable: %s\n", varname);
+				goto return_cleanup;
+			}
+			ast_debug(1, "Appending variable '%s' with value '%s'", varname, varvalue);
+			ast_variable_list_append(&vars, var);
+		}
+	}
+
 	if (!strcasecmp(args.type, "exten")) {
+		const char *cid_num = cnum;
+		const char *cid_name = cname;
 		int priority = 1; /* Initialized in case priority not specified */
 		const char *exten = args.arg2;
 
@@ -257,16 +321,18 @@ static int originate_exec(struct ast_channel *chan, const char *data)
 		res = ast_pbx_outgoing_exten_predial(chantech, cap_slin, chandata,
 				timeout * 1000, args.arg1, exten, priority, &outgoing_status,
 				ast_test_flag64(&opts, OPT_ASYNC) ? AST_OUTGOING_NO_WAIT : AST_OUTGOING_WAIT,
-				NULL, NULL, NULL, NULL, NULL, 0, NULL,
+				cid_num, cid_name, vars, NULL, NULL, 0, NULL,
 				predial_callee);
 	} else {
+		const char *cid_num = cnum;
+		const char *cid_name = cname;
 		ast_debug(1, "Originating call to '%s/%s' and connecting them to %s(%s)\n",
 				chantech, chandata, args.arg1, S_OR(args.arg2, ""));
 
 		res = ast_pbx_outgoing_app_predial(chantech, cap_slin, chandata,
 				timeout * 1000, args.arg1, args.arg2, &outgoing_status,
 				ast_test_flag64(&opts, OPT_ASYNC) ? AST_OUTGOING_NO_WAIT : AST_OUTGOING_WAIT,
-				NULL, NULL, NULL, NULL, NULL, NULL,
+				cid_num, cid_name, vars, NULL, NULL, NULL,
 				predial_callee);
 	}
 
@@ -310,6 +376,9 @@ return_cleanup:
 			pbx_builtin_setvar_helper(chan, "ORIGINATE_STATUS", "UNKNOWN");
 			break;
 		}
+	}
+	if (vars) {
+		ast_variables_destroy(vars);
 	}
 	ao2_cleanup(cap_slin);
 	ast_autoservice_stop(chan);

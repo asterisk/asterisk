@@ -230,6 +230,7 @@ static pj_status_t filter_on_tx_message(pjsip_tx_data *tdata)
 	pjsip_cseq_hdr *cseq;
 	pjsip_via_hdr *via;
 	pjsip_fromto_hdr *from;
+	pjsip_tpselector sel;
 
 	sanitize_tdata(tdata);
 
@@ -238,6 +239,13 @@ static pj_status_t filter_on_tx_message(pjsip_tx_data *tdata)
 	prm.tp_type = tdata->tp_info.transport->key.type;
 	pj_strset2(&prm.dst_host, tdata->tp_info.dst_name);
 	prm.local_if = PJ_TRUE;
+
+	if ((tdata->tp_info.transport->key.type != PJSIP_TRANSPORT_UDP) &&
+		(tdata->tp_info.transport->key.type != PJSIP_TRANSPORT_UDP6)) {
+		sel.type = PJSIP_TPSELECTOR_LISTENER;
+		sel.u.listener = tdata->tp_info.transport->factory;
+		prm.tp_sel = &sel;
+	}
 
 	/* If we can't get the local address use best effort and let it pass */
 	if (pjsip_tpmgr_find_local_addr2(pjsip_endpt_get_tpmgr(ast_sip_get_pjsip_endpoint()), tdata->pool, &prm) != PJ_SUCCESS) {

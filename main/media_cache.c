@@ -126,71 +126,30 @@ static void media_cache_item_del_from_astdb(struct ast_bucket_file *bucket_file)
 
 /*!
  * \internal
- * \brief Normalize the value of a Content-Type header
- *
- * This will trim off any optional parameters after the type/subtype.
- */
-static void normalize_content_type_header(char *content_type)
-{
-	char *params = strchr(content_type, ';');
-
-	if (params) {
-		*params-- = 0;
-		while (params > content_type && (*params == ' ' || *params == '\t')) {
-			*params-- = 0;
-		}
-	}
-}
-
-/*!
- * \internal
  * \brief Update the name of the file backing a \c bucket_file
  * \param preferred_file_name The preferred name of the backing file
  */
 static void bucket_file_update_path(struct ast_bucket_file *bucket_file,
 	const char *preferred_file_name)
 {
-	char *ext;
-
 	if (!ast_strlen_zero(preferred_file_name) && strcmp(bucket_file->path, preferred_file_name)) {
 		/* Use the preferred file name if available */
-
 		rename(bucket_file->path, preferred_file_name);
 		ast_copy_string(bucket_file->path, preferred_file_name,
 			sizeof(bucket_file->path));
-	} else if (!strchr(bucket_file->path, '.') && (ext = strrchr(ast_sorcery_object_get_id(bucket_file), '.'))) {
-		/* If we don't have a file extension and were provided one in the URI, use it */
-		char found_ext[32];
-		char new_path[PATH_MAX + sizeof(found_ext)];
+	} else if (!strchr(bucket_file->path, '.')) {
+		struct ast_bucket_metadata *ext =
+			ast_bucket_file_metadata_get(bucket_file, "ext");
 
-		ast_bucket_file_metadata_set(bucket_file, "ext", ext);
-
-		/* Don't pass '.' while checking for supported extension */
-		if (!ast_get_format_for_file_ext(ext + 1)) {
-			/* If the file extension passed in the URI isn't supported check for the
-			 * extension based on the MIME type passed in the Content-Type header before
-			 * giving up.
-			 * If a match is found then retrieve the extension from the supported list
-			 * corresponding to the mime-type and use that to rename the file */
-			struct ast_bucket_metadata *header = ast_bucket_file_metadata_get(bucket_file, "content-type");
-			if (header) {
-				char *mime_type = ast_strdup(header->value);
-				if (mime_type) {
-					normalize_content_type_header(mime_type);
-					if (!ast_strlen_zero(mime_type)) {
-						if (ast_get_extension_for_mime_type(mime_type, found_ext, sizeof(found_ext))) {
-							ext = found_ext;
-						}
-					}
-					ast_free(mime_type);
-				}
-				ao2_ref(header, -1);
+		if (ext) {
+			char *new_path;
+			if (ast_asprintf(&new_path, "%s%s", bucket_file->path, ext->value) != -1) {
+				rename(bucket_file->path, new_path);
+				ast_copy_string(bucket_file->path, new_path, sizeof(bucket_file->path));
+				ast_free(new_path);
 			}
+			ao2_ref(ext, -1);
 		}
-
-		snprintf(new_path, sizeof(new_path), "%s%s", bucket_file->path, ext);
-		rename(bucket_file->path, new_path);
-		ast_copy_string(bucket_file->path, new_path, sizeof(bucket_file->path));
 	}
 }
 

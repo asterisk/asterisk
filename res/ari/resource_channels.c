@@ -2134,6 +2134,11 @@ static void external_media_audiosocket_tcp(struct ast_ari_channels_external_medi
 	struct ast_channel *chan;
 	struct varshead *vars;
 
+	if (ast_strlen_zero(args->data)) {
+		ast_ari_response_error(response, 400, "Bad Request", "data can not be empty");
+		return;
+	}
+
 	endpoint_len = strlen("AudioSocket/") + strlen(args->external_host) + 1 + strlen(args->data) + 1;
 	endpoint = ast_alloca(endpoint_len);
 	/* The UUID is stored in the arbitrary data field */

@@ -153,37 +153,7 @@ static unsigned int loader_ready;
 static struct ast_vector_string startup_errors;
 static struct ast_str *startup_error_builder;
 
-#if defined(HAVE_PERMANENT_DLOPEN)
-#define FIRST_DLOPEN 999
-
-struct ao2_container *info_list = NULL;
-
-struct info_list_obj {
-	const struct ast_module_info *info;
-	int dlopened;
-	char name[0];
-};
-
-static struct info_list_obj *info_list_obj_alloc(const char *name,
-	const struct ast_module_info *info)
-{
-	struct info_list_obj *new_entry;
-
-	new_entry = ao2_alloc(sizeof(*new_entry) + strlen(name) + 1, NULL);
-
-	if (!new_entry) {
-		return NULL;
-	}
-
-	strcpy(new_entry->name, name); /* SAFE */
-	new_entry->info = info;
-	new_entry->dlopened = FIRST_DLOPEN;
-
-	return new_entry;
-}
-
-AO2_STRING_FIELD_CMP_FN(info_list_obj, name)
-
+#if defined(HAVE_PERMANENT_DLOPEN) || defined(AST_XML_DOCS)
 static char *get_name_from_resource(const char *resource)
 {
 	int len;
@@ -219,6 +189,38 @@ static char *get_name_from_resource(const char *resource)
 	/* Unable to allocate memory. */
 	return NULL;
 }
+#endif
+
+#if defined(HAVE_PERMANENT_DLOPEN)
+#define FIRST_DLOPEN 999
+
+struct ao2_container *info_list = NULL;
+
+struct info_list_obj {
+	const struct ast_module_info *info;
+	int dlopened;
+	char name[0];
+};
+
+static struct info_list_obj *info_list_obj_alloc(const char *name,
+	const struct ast_module_info *info)
+{
+	struct info_list_obj *new_entry;
+
+	new_entry = ao2_alloc(sizeof(*new_entry) + strlen(name) + 1, NULL);
+
+	if (!new_entry) {
+		return NULL;
+	}
+
+	strcpy(new_entry->name, name); /* SAFE */
+	new_entry->info = info;
+	new_entry->dlopened = FIRST_DLOPEN;
+
+	return new_entry;
+}
+
+AO2_STRING_FIELD_CMP_FN(info_list_obj, name)
 
 static void manual_mod_reg(const void *lib, const char *resource)
 {
@@ -2341,6 +2343,16 @@ int load_modules(void)
 	int res = 0;
 	int modulecount = 0;
 	int i;
+	struct ast_module *cur;
+#ifdef AST_XML_DOCS
+	struct ast_str *warning_msg;
+	char deprecated_in[33];
+	char removed_in[33];
+	char replacement[129];
+#endif
+	struct timeval start_time = ast_tvnow();
+	struct timeval end_time;
+	int64_t usElapsed;
 
 	ast_verb(1, "Asterisk Dynamic Loader Starting:\n");
 
@@ -2388,7 +2400,107 @@ done:
 		ast_free(order);
 	}
 
+#ifdef AST_XML_DOCS
+	warning_msg = ast_str_create(512);
+#endif
+
+	AST_DLLIST_TRAVERSE(&module_list, cur, entry) {
+#ifdef AST_XML_DOCS
+		char *mod_name = NULL;
+		struct ast_xml_xpath_results *results;
+#endif
+
+		if (!cur->flags.running || cur->flags.declined) {
+			continue;
+		}
+
+#ifdef AST_XML_DOCS
+		mod_name = get_name_from_resource(cur->resource);
+		if (!warning_msg || !mod_name) {
+			/* If we can't allocate memory, we have bigger issues */
+			ast_free(mod_name);
+			continue;
+		}
+
+		/* Clear out the previous values */
+		deprecated_in[0] = removed_in[0] = replacement[0] = 0;
+
+		results = ast_xmldoc_query("/docs/module[@name='%s']", mod_name);
+		if (results) {
+			struct ast_xml_node *deprecated_node, *removed_node, *replacement_node;
+			struct ast_xml_node *metadata_nodes = ast_xml_node_get_children(ast_xml_xpath_get_first_result(results));
+
+			deprecated_node = ast_xml_find_element(metadata_nodes, "deprecated_in", NULL, NULL);
+			if (deprecated_node) {
+				const char *result_tmp = ast_xml_get_text(deprecated_node);
+				if (!ast_strlen_zero(result_tmp)) {
+					ast_copy_string(deprecated_in, result_tmp, sizeof(deprecated_in));
+				}
+			}
+
+			removed_node = ast_xml_find_element(metadata_nodes, "removed_in", NULL, NULL);
+			if (removed_node) {
+				const char *result_tmp = ast_xml_get_text(removed_node);
+				if (!ast_strlen_zero(result_tmp)) {
+					ast_copy_string(removed_in, result_tmp, sizeof(removed_in));
+				}
+			}
+
+			replacement_node = ast_xml_find_element(metadata_nodes, "replacement", NULL, NULL);
+			if (replacement_node) {
+				const char *result_tmp = ast_xml_get_text(replacement_node);
+				if (!ast_strlen_zero(result_tmp)) {
+					ast_copy_string(replacement, result_tmp, sizeof(replacement));
+				}
+			}
+
+			ast_xml_xpath_results_free(results);
+		}
+
+		ast_str_reset(warning_msg);
+
+		if (cur->info->support_level == AST_MODULE_SUPPORT_DEPRECATED || !ast_strlen_zero(deprecated_in)
+			|| !ast_strlen_zero(removed_in) || !ast_strlen_zero(replacement)) {
+			int already_butted = 0;
+
+			ast_str_append(&warning_msg, -1, "Module '%s' has been loaded", mod_name);
+			if (!ast_strlen_zero(deprecated_in)) {
+				ast_str_append(&warning_msg, -1, " but %s deprecated in Asterisk version %s",
+					 cur->info->support_level == AST_MODULE_SUPPORT_DEPRECATED ? "was" : "will be", deprecated_in);
+				already_butted = 1;
+			}
+
+			if (!ast_strlen_zero(removed_in)) {
+				ast_str_append(&warning_msg, -1, " %s will be removed in Asterisk version %s", already_butted ? "and" : "but", removed_in);
+			} else {
+				ast_str_append(&warning_msg, -1, " %s may be removed in a future release", already_butted ? "and" : "but");
+			}
+
+			ast_str_append(&warning_msg, -1, ".");
+
+			if (!ast_strlen_zero(replacement)) {
+				ast_str_append(&warning_msg, -1, " Its replacement is '%s'.", replacement);
+			}
+		}
+
+		if (ast_str_strlen(warning_msg)) {
+			ast_log(LOG_WARNING, "%s\n", ast_str_buffer(warning_msg));
+		}
+
+		ast_free(mod_name);
+#else
+		if (cur->info->support_level == AST_MODULE_SUPPORT_DEPRECATED) {
+			ast_log(LOG_WARNING, "The deprecated module '%s' has been loaded and is running, it may be removed in a future version\n", cur->resource);
+		}
+#endif
+	}
+
+#ifdef AST_XML_DOCS
+	ast_free(warning_msg);
+#endif
+
 	AST_DLLIST_UNLOCK(&module_list);
+
 
 	for (i = 0; i < AST_VECTOR_SIZE(&startup_errors); i++) {
 		char *str = AST_VECTOR_GET(&startup_errors, i);
@@ -2400,6 +2512,15 @@ done:
 
 	ast_free(startup_error_builder);
 	startup_error_builder = NULL;
+
+	end_time = ast_tvnow();
+	usElapsed = ast_tvdiff_us(end_time, start_time);
+
+#ifdef AST_XML_DOCS
+	ast_debug(1, "Loader time with AST_XML_DOCS: %ld.%06ld\n", usElapsed / 1000000, usElapsed % 1000000);
+#else
+	ast_debug(1, "Loader time without AST_XML_DOCS: %ld.%06ld\n", usElapsed / 1000000, usElapsed % 1000000);
+#endif
 
 	return res;
 }

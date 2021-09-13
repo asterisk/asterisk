@@ -96,6 +96,7 @@ struct endpoint_metric_defs {
  */
 static void endpoints_scrape_cb(struct ast_str **response)
 {
+	struct ao2_container *endpoint_cache;
 	struct ao2_container *endpoints;
 	struct ao2_iterator it_endpoints;
 	struct stasis_message *message;
@@ -111,10 +112,16 @@ static void endpoints_scrape_cb(struct ast_str **response)
 
 	ast_eid_to_str(eid_str, sizeof(eid_str), &ast_eid_default);
 
-	endpoints = stasis_cache_dump(ast_endpoint_cache(), ast_endpoint_snapshot_type());
+	endpoint_cache = stasis_cache_dump(ast_endpoint_cache(), ast_endpoint_snapshot_type());
+	if (!endpoint_cache) {
+		return;
+	}
+	endpoints = ao2_container_clone(endpoint_cache, 0);
+	ao2_ref(endpoint_cache, -1);
 	if (!endpoints) {
 		return;
 	}
+
 	num_endpoints = ao2_container_count(endpoints);
 
 	/* Current endpoint count */

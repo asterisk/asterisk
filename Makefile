@@ -490,6 +490,13 @@ doc/core-en_US.xml: makeopts .lastclean $(XML_core_en_US)
 	@for x in $(MOD_SUBDIRS); do \
 		printf "$$x " ; \
 		for i in `find $$x -name '*.c'`; do \
+			MODULEINFO=$$($(AWK) -f build_tools/get_moduleinfo $$i) ; \
+			if [ -n "$$MODULEINFO" ] ; \
+			then \
+				echo "<module language=\"en_US\" name=\"`$(BASENAME) -s .c $$i`\">" >> $@ ; \
+				echo "$$MODULEINFO" >> $@ ; \
+				echo "</module>" >> $@ ; \
+			fi ; \
 			$(AWK) -f build_tools/get_documentation $$i >> $@ ; \
 		done ; \
 	done

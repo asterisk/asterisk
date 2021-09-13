@@ -396,7 +396,7 @@ static struct message_subscription *get_subscription(struct ast_endpoint *endpoi
 	struct message_subscription *sub = NULL;
 
 	if (endpoint && !ast_strlen_zero(ast_endpoint_get_resource(endpoint))) {
-		sub = ao2_find(endpoint_subscriptions, endpoint, OBJ_SEARCH_KEY);
+		sub = ao2_find(endpoint_subscriptions, ast_endpoint_get_id(endpoint), OBJ_SEARCH_KEY);
 	} else {
 		int i;
 
@@ -408,6 +408,11 @@ static struct message_subscription *get_subscription(struct ast_endpoint *endpoi
 				ao2_bump(sub);
 				break;
 			}
+
+			/* Need to reset the pointer at this line to prevent from using the wrong subscription due to
+			 * the token check failing.
+			 */
+			sub = NULL;
 		}
 		ast_rwlock_unlock(&tech_subscriptions_lock);
 	}
@@ -441,10 +446,10 @@ void messaging_app_unsubscribe_endpoint(const char *app_name, const char *endpoi
 			AST_VECTOR_REMOVE_CMP_UNORDERED(&tech_subscriptions, endpoint ? ast_endpoint_get_id(endpoint) : TECH_WILDCARD,
 				messaging_subscription_cmp, AST_VECTOR_ELEM_CLEANUP_NOOP);
 			ast_rwlock_unlock(&tech_subscriptions_lock);
+			ao2_ref(sub, -1); /* Release the reference held by tech_subscriptions */
 		}
 	}
 	ao2_unlock(sub);
-	ao2_ref(sub, -1);
 
 	ast_debug(3, "App '%s' unsubscribed to messages from endpoint '%s'\n", app_name, endpoint ? ast_endpoint_get_id(endpoint) : "-- ALL --");
 	ast_test_suite_event_notify("StasisMessagingSubscription", "SubState: Unsubscribed\r\nAppName: %s\r\nToken: %s\r\n",
@@ -464,6 +469,11 @@ static struct message_subscription *get_or_create_subscription(struct ast_endpoi
 		return NULL;
 	}
 
+	/* Either endpoint_subscriptions or tech_subscriptions will hold a reference to
+	 * the subscription. This reference is released to allow the subscription to
+	 * eventually destruct when there are no longer any applications receiving
+	 * events from the subscription.
+	 */
 	if (endpoint && !ast_strlen_zero(ast_endpoint_get_resource(endpoint))) {
 		ao2_link(endpoint_subscriptions, sub);
 	} else {
