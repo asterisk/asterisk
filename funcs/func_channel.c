@@ -20,6 +20,7 @@
  *
  * \author Kevin P. Fleming <kpfleming@digium.com>
  * \author Ben Winslow
+ * \author Naveen Albert <asterisk@phreaknet.org>
  *
  * \ingroup functions
  */
@@ -60,6 +61,19 @@
 			<replaceable>regular_expression</replaceable> must correspond to
 			the POSIX.2 specification, as shown in <emphasis>regex(7)</emphasis>. The list returned
 			will be space-delimited.</para>
+		</description>
+	</function>
+	<function name="CHANNEL_EXISTS" language="en_US">
+		<synopsis>
+			Checks if the specified channel exists.
+		</synopsis>
+		<syntax>
+			<parameter name="name_or_uid" required="true">
+				<para>The name or unique ID of the channel to check.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Returns 1 if the channel <replaceable>name_or_uid</replaceable> exists, 0 if not.</para>
 		</description>
 	</function>
 	<function name="MASTER_CHANNEL" language="en_US">
@@ -711,6 +725,28 @@ static struct ast_custom_function channels_function = {
 	.read = func_channels_read,
 };
 
+static int func_chan_exists_read(struct ast_channel *chan, const char *function, char *data, char *buf, size_t maxlen)
+{
+	struct ast_channel *chan_found = NULL;
+
+	if (ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "%s: Channel name or unique ID required\n", function);
+		return -1;
+	}
+
+	chan_found = ast_channel_get_by_name(data);
+	snprintf(buf, maxlen, "%d", (chan_found ? 1 : 0));
+	if (chan_found) {
+		ast_channel_unref(chan_found);
+	}
+	return 0;
+}
+
+static struct ast_custom_function chan_exists_function = {
+	.name = "CHANNEL_EXISTS",
+	.read = func_chan_exists_read,
+};
+
 static int func_mchan_read(struct ast_channel *chan, const char *function,
 			     char *data, struct ast_str **buf, ssize_t len)
 {
@@ -761,6 +797,7 @@ static int unload_module(void)
 
 	res |= ast_custom_function_unregister(&channel_function);
 	res |= ast_custom_function_unregister(&channels_function);
+	res |= ast_custom_function_unregister(&chan_exists_function);
 	res |= ast_custom_function_unregister(&mchan_function);
 
 	return res;
@@ -772,6 +809,7 @@ static int load_module(void)
 
 	res |= ast_custom_function_register(&channel_function);
 	res |= ast_custom_function_register(&channels_function);
+	res |= ast_custom_function_register(&chan_exists_function);
 	res |= ast_custom_function_register(&mchan_function);
 
 	return res;
