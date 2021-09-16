@@ -1,6 +1,0 @@
-Subject: Channel-agnostic MF support
-
-A SendMF application and PlayMF manager
-application are now included to send
-arbitrary standard R1 MF tones on the
-current channel or another specified channel.

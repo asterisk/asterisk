@@ -1,5 +1,0 @@
-Subject: func_env.c
-
-Two new functions, DIRNAME and BASENAME, are now
-included which allow users to obtain the directory
-or the base filename of any file.

@@ -1,5 +1,0 @@
-Subject: app_read
-
-A new option allows the digit '#' to be read literally,
-rather than used exclusively as the input terminator
-character.

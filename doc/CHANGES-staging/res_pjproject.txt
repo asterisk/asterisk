@@ -1,8 +1,0 @@
-Subject: res_pjproject
-
-In pjproject.conf you can now map pjproject log levels
-to the Asterisk TRACE log level.  The default mappings
-have therefore changed so that only pjproject levels
-3 and 4 are mapped to DEBUG and 5 and 6 are now mapped
-to TRACE.  Previously 3, 4, 5, and 6 were all mapped to
-DEBUG.
