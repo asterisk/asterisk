@@ -655,8 +655,10 @@ static BIO_METHOD *dtls_bio_methods;
 
 static int __rtp_sendto(struct ast_rtp_instance *instance, void *buf, size_t size, int flags, struct ast_sockaddr *sa, int rtcp, int *via_ice, int use_srtp);
 
+#ifdef HAVE_PJPROJECT
 static void stunaddr_resolve_callback(const struct ast_dns_query *query);
 static int store_stunaddr_resolved(const struct ast_dns_query *query);
+#endif
 
 #if defined(HAVE_OPENSSL) && (OPENSSL_VERSION_NUMBER >= 0x10001000L) && !defined(OPENSSL_NO_SRTP)
 static int dtls_bio_new(BIO *bio)
@@ -9026,6 +9028,7 @@ static int ast_rtp_bundle(struct ast_rtp_instance *child, struct ast_rtp_instanc
 	return 0;
 }
 
+#ifdef HAVE_PJPROJECT
 static void stunaddr_resolve_callback(const struct ast_dns_query *query)
 {
 	const int lowest_ttl = ast_dns_result_get_lowest_ttl(ast_dns_query_get_result(query));
@@ -9091,6 +9094,7 @@ static void clean_stunaddr(void) {
 	memset(&stunaddr, 0, sizeof(stunaddr));
 	ast_rwlock_unlock(&stunaddr_lock);
 }
+#endif
 
 #if defined(HAVE_OPENSSL) && (OPENSSL_VERSION_NUMBER >= 0x10001000L) && !defined(OPENSSL_NO_SRTP)
 /*! \pre instance is locked */
@@ -9189,7 +9193,9 @@ static char *handle_cli_rtp_set_debug(struct ast_cli_entry *e, int cmd, struct a
 
 static char *handle_cli_rtp_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
+#ifdef HAVE_PJPROJECT
 	struct sockaddr_in stunaddr_copy;
+#endif
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "rtp show settings";
