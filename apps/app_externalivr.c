@@ -254,9 +254,9 @@ static struct ast_frame *gen_readframe(struct gen_state *state)
 	if (!(state->stream && (f = ast_readframe(state->stream)))) {
 		if (state->current) {
 			/* remove finished file from playlist */
-                        AST_LIST_LOCK(&u->playlist);
-                        AST_LIST_REMOVE_HEAD(&u->playlist, list);
-                        AST_LIST_UNLOCK(&u->playlist);
+			AST_LIST_LOCK(&u->playlist);
+			AST_LIST_REMOVE_HEAD(&u->playlist, list);
+			AST_LIST_UNLOCK(&u->playlist);
 			/* add finished file to finishlist */
 			AST_LIST_LOCK(&u->finishlist);
 			AST_LIST_INSERT_TAIL(&u->finishlist, state->current, list);
@@ -581,7 +581,7 @@ static int app_exec(struct ast_channel *chan, const char *data)
 		}
 	}
 
-	exit:
+  exit:
 	if (u->gen_active) {
 		ast_deactivate_generator(chan);
 	}
@@ -622,21 +622,21 @@ static int app_exec(struct ast_channel *chan, const char *data)
 }
 
 static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
-				struct ast_iostream *eivr_events,
-				struct ast_iostream *eivr_commands,
-				struct ast_iostream *eivr_errors,
-				const struct ast_str *args, const struct ast_flags flags)
+	struct ast_iostream *eivr_events,
+	struct ast_iostream *eivr_commands,
+	struct ast_iostream *eivr_errors,
+	const struct ast_str *args, const struct ast_flags flags)
 {
 	char input[1024];
 	struct playlist_entry *entry;
 	struct ast_frame *f;
 	int ms;
- 	int exception;
- 	int ready_fd;
+	int exception;
+	int ready_fd;
 	int waitfds[2];
 	int r;
- 	struct ast_channel *rchan;
- 	int res = -1;
+	struct ast_channel *rchan;
+	int res = -1;
 	int hangup_info_sent = 0;
 
 	waitfds[0] = ast_iostream_get_fd(eivr_commands);
@@ -645,78 +645,78 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
 	while (1) {
 		if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_ZOMBIE)) {
 			ast_chan_log(LOG_ERROR, chan, "Is a zombie\n");
- 			break;
- 		}
- 		if (!hangup_info_sent && !(ast_test_flag(&flags, run_dead)) && ast_check_hangup(chan)) {
+			break;
+		}
+		if (!hangup_info_sent && !(ast_test_flag(&flags, run_dead)) && ast_check_hangup(chan)) {
 			if (ast_test_flag(&flags, ignore_hangup)) {
 				ast_verb(3, "Got check_hangup, but ignore_hangup set so sending 'I' command\n");
 				send_eivr_event(eivr_events, 'I', "HANGUP", chan);
 				hangup_info_sent = 1;
 			} else {
- 				ast_verb(3, "Got check_hangup\n");
- 				send_eivr_event(eivr_events, 'H', NULL, chan);
-	 			break;
+				ast_verb(3, "Got check_hangup\n");
+				send_eivr_event(eivr_events, 'H', NULL, chan);
+				break;
 			}
- 		}
+		}
 
- 		ready_fd = 0;
- 		ms = 100;
- 		errno = 0;
- 		exception = 0;
+		ready_fd = 0;
+		ms = 100;
+		errno = 0;
+		exception = 0;
 
 		rchan = ast_waitfor_nandfds(&chan, 1, waitfds, (eivr_errors) ? 2 : 1, &exception, &ready_fd, &ms);
 
- 		if (ast_channel_state(chan) == AST_STATE_UP && !AST_LIST_EMPTY(&u->finishlist)) {
- 			AST_LIST_LOCK(&u->finishlist);
- 			while ((entry = AST_LIST_REMOVE_HEAD(&u->finishlist, list))) {
- 				send_eivr_event(eivr_events, 'F', entry->filename, chan);
- 				ast_free(entry);
- 			}
- 			AST_LIST_UNLOCK(&u->finishlist);
- 		}
+		if (ast_channel_state(chan) == AST_STATE_UP && !AST_LIST_EMPTY(&u->finishlist)) {
+			AST_LIST_LOCK(&u->finishlist);
+			while ((entry = AST_LIST_REMOVE_HEAD(&u->finishlist, list))) {
+				send_eivr_event(eivr_events, 'F', entry->filename, chan);
+				ast_free(entry);
+			}
+			AST_LIST_UNLOCK(&u->finishlist);
+		}
 
- 		if (ast_channel_state(chan) == AST_STATE_UP && !(ast_check_hangup(chan)) && rchan) {
- 			/* the channel has something */
- 			f = ast_read(chan);
- 			if (!f) {
- 				ast_verb(3, "Returned no frame\n");
- 				send_eivr_event(eivr_events, 'H', NULL, chan);
- 				break;
- 			}
- 			if (f->frametype == AST_FRAME_DTMF) {
- 				send_eivr_event(eivr_events, f->subclass.integer, NULL, chan);
- 				if (u->option_autoclear) {
-  					AST_LIST_LOCK(&u->playlist);
-  					if (!u->abort_current_sound && !u->playing_silence) {
+		if (ast_channel_state(chan) == AST_STATE_UP && !(ast_check_hangup(chan)) && rchan) {
+			/* the channel has something */
+			f = ast_read(chan);
+			if (!f) {
+				ast_verb(3, "Returned no frame\n");
+				send_eivr_event(eivr_events, 'H', NULL, chan);
+				break;
+			}
+			if (f->frametype == AST_FRAME_DTMF) {
+				send_eivr_event(eivr_events, f->subclass.integer, NULL, chan);
+				if (u->option_autoclear) {
+					AST_LIST_LOCK(&u->playlist);
+					if (!u->abort_current_sound && !u->playing_silence) {
 						/* send interrupted file as T data */
- 						if ((entry = AST_LIST_REMOVE_HEAD(&u->playlist, list))) {
-	 						send_eivr_event(eivr_events, 'T', entry->filename, chan);
+						if ((entry = AST_LIST_REMOVE_HEAD(&u->playlist, list))) {
+							send_eivr_event(eivr_events, 'T', entry->filename, chan);
 							ast_free(entry);
 						}
 					}
-  					while ((entry = AST_LIST_REMOVE_HEAD(&u->playlist, list))) {
- 						send_eivr_event(eivr_events, 'D', entry->filename, chan);
-  						ast_free(entry);
-  					}
-  					if (!u->playing_silence)
-  						u->abort_current_sound = 1;
-  					AST_LIST_UNLOCK(&u->playlist);
-  				}
- 			} else if ((f->frametype == AST_FRAME_CONTROL) && (f->subclass.integer == AST_CONTROL_HANGUP)) {
- 				ast_verb(3, "Got AST_CONTROL_HANGUP\n");
- 				send_eivr_event(eivr_events, 'H', NULL, chan);
+					while ((entry = AST_LIST_REMOVE_HEAD(&u->playlist, list))) {
+						send_eivr_event(eivr_events, 'D', entry->filename, chan);
+						ast_free(entry);
+					}
+					if (!u->playing_silence)
+						u->abort_current_sound = 1;
+					AST_LIST_UNLOCK(&u->playlist);
+				}
+			} else if ((f->frametype == AST_FRAME_CONTROL) && (f->subclass.integer == AST_CONTROL_HANGUP)) {
+				ast_verb(3, "Got AST_CONTROL_HANGUP\n");
+				send_eivr_event(eivr_events, 'H', NULL, chan);
 				if (f->data.uint32) {
 					ast_channel_hangupcause_set(chan, f->data.uint32);
 				}
- 				ast_frfree(f);
- 				break;
- 			}
- 			ast_frfree(f);
- 		} else if (ready_fd == waitfds[0]) {
- 			if (exception) {
- 				ast_chan_log(LOG_ERROR, chan, "Child process went away\n");
-  				break;
-  			}
+				ast_frfree(f);
+				break;
+			}
+			ast_frfree(f);
+		} else if (ready_fd == waitfds[0]) {
+			if (exception) {
+				ast_chan_log(LOG_ERROR, chan, "Child process went away\n");
+				break;
+			}
 
 			r = ast_iostream_gets(eivr_commands, input, sizeof(input));
 			if (r <= 0) {
@@ -784,112 +784,112 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
 					u->abort_current_sound = 1;
 				}
 				AST_LIST_UNLOCK(&u->playlist);
- 			} else if (input[0] == EIVR_CMD_SQUE) {
+			} else if (input[0] == EIVR_CMD_SQUE) {
 				if (ast_channel_state(chan) != AST_STATE_UP || ast_check_hangup(chan)) {
 					ast_chan_log(LOG_WARNING, chan, "Queue re'S'et called on unanswered channel\n");
 					send_eivr_event(eivr_events, 'Z', NULL, chan);
 					continue;
 				}
- 				if (!ast_fileexists(&input[2], NULL, ast_channel_language(u->chan))) {
- 					ast_chan_log(LOG_WARNING, chan, "Unknown file requested '%s'\n", &input[2]);
- 					send_eivr_event(eivr_events, 'Z', &input[2], chan);
- 				} else {
- 					AST_LIST_LOCK(&u->playlist);
-	 				if (!u->abort_current_sound && !u->playing_silence) {
+				if (!ast_fileexists(&input[2], NULL, ast_channel_language(u->chan))) {
+					ast_chan_log(LOG_WARNING, chan, "Unknown file requested '%s'\n", &input[2]);
+					send_eivr_event(eivr_events, 'Z', &input[2], chan);
+				} else {
+					AST_LIST_LOCK(&u->playlist);
+					if (!u->abort_current_sound && !u->playing_silence) {
 						/* send interrupted file as T data */
- 						if ((entry = AST_LIST_REMOVE_HEAD(&u->playlist, list))) {
-	 						send_eivr_event(eivr_events, 'T', entry->filename, chan);
+						if ((entry = AST_LIST_REMOVE_HEAD(&u->playlist, list))) {
+							send_eivr_event(eivr_events, 'T', entry->filename, chan);
 							ast_free(entry);
 						}
 					}
- 					while ((entry = AST_LIST_REMOVE_HEAD(&u->playlist, list))) {
- 						send_eivr_event(eivr_events, 'D', entry->filename, chan);
- 						ast_free(entry);
+					while ((entry = AST_LIST_REMOVE_HEAD(&u->playlist, list))) {
+						send_eivr_event(eivr_events, 'D', entry->filename, chan);
+						ast_free(entry);
 					}
-	 				if (!u->playing_silence) {
- 						u->abort_current_sound = 1;
+					if (!u->playing_silence) {
+						u->abort_current_sound = 1;
 					}
- 					entry = make_entry(&input[2]);
- 					if (entry) {
- 						AST_LIST_INSERT_TAIL(&u->playlist, entry, list);
+					entry = make_entry(&input[2]);
+					if (entry) {
+						AST_LIST_INSERT_TAIL(&u->playlist, entry, list);
 					}
-	 				AST_LIST_UNLOCK(&u->playlist);
+					AST_LIST_UNLOCK(&u->playlist);
 				}
- 			} else if (input[0] == EIVR_CMD_APND) {
+			} else if (input[0] == EIVR_CMD_APND) {
 				if (ast_channel_state(chan) != AST_STATE_UP || ast_check_hangup(chan)) {
 					ast_chan_log(LOG_WARNING, chan, "Queue 'A'ppend called on unanswered channel\n");
 					send_eivr_event(eivr_events, 'Z', NULL, chan);
 					continue;
 				}
- 				if (!ast_fileexists(&input[2], NULL, ast_channel_language(u->chan))) {
- 					ast_chan_log(LOG_WARNING, chan, "Unknown file requested '%s'\n", &input[2]);
- 					send_eivr_event(eivr_events, 'Z', &input[2], chan);
- 				} else {
-	 				entry = make_entry(&input[2]);
- 					if (entry) {
- 						AST_LIST_LOCK(&u->playlist);
- 						AST_LIST_INSERT_TAIL(&u->playlist, entry, list);
- 						AST_LIST_UNLOCK(&u->playlist);
+				if (!ast_fileexists(&input[2], NULL, ast_channel_language(u->chan))) {
+					ast_chan_log(LOG_WARNING, chan, "Unknown file requested '%s'\n", &input[2]);
+					send_eivr_event(eivr_events, 'Z', &input[2], chan);
+				} else {
+					entry = make_entry(&input[2]);
+					if (entry) {
+						AST_LIST_LOCK(&u->playlist);
+						AST_LIST_INSERT_TAIL(&u->playlist, entry, list);
+						AST_LIST_UNLOCK(&u->playlist);
 					}
- 				}
- 			} else if (input[0] == EIVR_CMD_GET) {
- 				char response[2048];
+				}
+			} else if (input[0] == EIVR_CMD_GET) {
+				char response[2048];
 				ast_verb(4, "Retriving Variables from channel: %s\n", &input[2]);
- 				ast_eivr_getvariable(chan, &input[2], response, sizeof(response));
- 				send_eivr_event(eivr_events, 'G', response, chan);
- 			} else if (input[0] == EIVR_CMD_SVAR) {
+				ast_eivr_getvariable(chan, &input[2], response, sizeof(response));
+				send_eivr_event(eivr_events, 'G', response, chan);
+			} else if (input[0] == EIVR_CMD_SVAR) {
 				ast_verb(4, "Setting Variables in channel: %s\n", &input[2]);
- 				ast_eivr_setvariable(chan, &input[2]);
- 			} else if (input[0] == EIVR_CMD_LOG) {
- 				ast_chan_log(LOG_NOTICE, chan, "Log message from EIVR: %s\n", &input[2]);
- 			} else if (input[0] == EIVR_CMD_XIT) {
- 				ast_chan_log(LOG_NOTICE, chan, "Exiting: %s\n", &input[2]);
+				ast_eivr_setvariable(chan, &input[2]);
+			} else if (input[0] == EIVR_CMD_LOG) {
+				ast_chan_log(LOG_NOTICE, chan, "Log message from EIVR: %s\n", &input[2]);
+			} else if (input[0] == EIVR_CMD_XIT) {
+				ast_chan_log(LOG_NOTICE, chan, "Exiting: %s\n", &input[2]);
 				ast_chan_log(LOG_WARNING, chan, "e'X'it command is depricated, use 'E'xit instead\n");
- 				res = 0;
- 				break;
+				res = 0;
+				break;
 			} else if (input[0] == EIVR_CMD_EXIT) {
- 				ast_chan_log(LOG_NOTICE, chan, "Exiting: %s\n", &input[2]);
- 				send_eivr_event(eivr_events, 'E', NULL, chan);
- 				res = 0;
- 				break;
- 			} else if (input[0] == EIVR_CMD_HGUP) {
- 				ast_chan_log(LOG_NOTICE, chan, "Hanging up: %s\n", &input[2]);
- 				send_eivr_event(eivr_events, 'H', NULL, chan);
- 				break;
- 			} else if (input[0] == EIVR_CMD_OPT) {
+				ast_chan_log(LOG_NOTICE, chan, "Exiting: %s\n", &input[2]);
+				send_eivr_event(eivr_events, 'E', NULL, chan);
+				res = 0;
+				break;
+			} else if (input[0] == EIVR_CMD_HGUP) {
+				ast_chan_log(LOG_NOTICE, chan, "Hanging up: %s\n", &input[2]);
+				send_eivr_event(eivr_events, 'H', NULL, chan);
+				break;
+			} else if (input[0] == EIVR_CMD_OPT) {
 				if (ast_channel_state(chan) != AST_STATE_UP || ast_check_hangup(chan)) {
 					ast_chan_log(LOG_WARNING, chan, "Option called on unanswered channel\n");
 					send_eivr_event(eivr_events, 'Z', NULL, chan);
 					continue;
 				}
- 				if (!strcasecmp(&input[2], "autoclear"))
- 					u->option_autoclear = 1;
- 				else if (!strcasecmp(&input[2], "noautoclear"))
- 					u->option_autoclear = 0;
- 				else
- 					ast_chan_log(LOG_WARNING, chan, "Unknown option requested: %s\n", &input[2]);
- 			}
- 		} else if (ready_fd == waitfds[1]) {
- 			if (exception) {
- 				ast_chan_log(LOG_ERROR, chan, "Child process went away\n");
- 				break;
- 			}
-
- 			r = ast_iostream_gets(eivr_errors, input, sizeof(input));
- 			if (r > 0) {
- 				ast_chan_log(LOG_NOTICE, chan, "stderr: %s\n", ast_strip(input));
- 			} else if (r == 0) {
- 				ast_chan_log(LOG_ERROR, chan, "Child process went away\n");
- 				break;
+				if (!strcasecmp(&input[2], "autoclear"))
+					u->option_autoclear = 1;
+				else if (!strcasecmp(&input[2], "noautoclear"))
+					u->option_autoclear = 0;
+				else
+					ast_chan_log(LOG_WARNING, chan, "Unknown option requested: %s\n", &input[2]);
 			}
- 		} else if ((ready_fd < 0) && ms) {
- 			if (errno == 0 || errno == EINTR)
- 				continue;
+		} else if (ready_fd == waitfds[1]) {
+			if (exception) {
+				ast_chan_log(LOG_ERROR, chan, "Child process went away\n");
+				break;
+			}
 
- 			ast_chan_log(LOG_ERROR, chan, "Wait failed (%s)\n", strerror(errno));
- 			break;
- 		}
- 	}
+			r = ast_iostream_gets(eivr_errors, input, sizeof(input));
+			if (r > 0) {
+				ast_chan_log(LOG_NOTICE, chan, "stderr: %s\n", ast_strip(input));
+			} else if (r == 0) {
+				ast_chan_log(LOG_ERROR, chan, "Child process went away\n");
+				break;
+			}
+		} else if ((ready_fd < 0) && ms) {
+			if (errno == 0 || errno == EINTR)
+				continue;
+
+			ast_chan_log(LOG_ERROR, chan, "Wait failed (%s)\n", strerror(errno));
+			break;
+		}
+	}
 
 	return res;
 }
