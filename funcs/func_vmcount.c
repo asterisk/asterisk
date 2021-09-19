@@ -44,10 +44,12 @@
 /*** DOCUMENTATION
 	<function name="VMCOUNT" language="en_US">
 		<synopsis>
-			Count the voicemails in a specified mailbox.
+			Count the voicemails in a specified mailbox or mailboxes.
 		</synopsis>
 		<syntax>
-			<parameter name="vmbox" required="true" />
+			<parameter name="vmbox" required="true" argsep="&amp;">
+				<para>A mailbox or list of mailboxes</para>
+			</parameter>
 			<parameter name="folder" required="false">
 				<para>If not specified, defaults to <literal>INBOX</literal></para>
 			</parameter>
@@ -56,12 +58,19 @@
 			<para>Count the number of voicemails in a specified mailbox, you could also specify
 			the mailbox <replaceable>folder</replaceable>.</para>
 			<para>Example: <literal>exten => s,1,Set(foo=${VMCOUNT(125@default)})</literal></para>
+			<para>An ampersand-separated list of mailboxes may be specified to count voicemails in
+			multiple mailboxes. If a folder is specified, this will apply to all mailboxes specified.</para>
+                        <example title="Multiple mailbox inbox count">
+                        same => n,NoOp(${VMCOUNT(1234@default&amp;1235@default&amp;1236@default,INBOX)})
+                        </example>
 		</description>
 	</function>
  ***/
 
 static int acf_vmcount_exec(struct ast_channel *chan, const char *cmd, char *argsstr, char *buf, size_t len)
 {
+	int total = 0;
+	char *mailbox = NULL;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(vmbox);
 		AST_APP_ARG(folder);
@@ -82,7 +91,15 @@ static int acf_vmcount_exec(struct ast_channel *chan, const char *cmd, char *arg
 		args.folder = "INBOX";
 	}
 
-	snprintf(buf, len, "%d", ast_app_messagecount(args.vmbox, args.folder));
+	while ((mailbox = strsep(&args.vmbox, "&"))) {
+		int c;
+		if (ast_strlen_zero(mailbox)) {
+			continue;
+		}
+		c = ast_app_messagecount(mailbox, args.folder);
+		total += (c > 0 ? c : 0);
+	}
+	snprintf(buf, len, "%d", total);
 
 	return 0;
 }
