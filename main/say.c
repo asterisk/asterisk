@@ -4510,7 +4510,22 @@ int ast_say_date_with_format_en(struct ast_channel *chan, time_t t, const char *
 					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 					/* In any case, it saves not having to do ast_mktime() */
 					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
-					if (beg_today < t) {
+					if (beg_today + 15768000 < t) {
+						/* More than 6 months from now - "April nineteenth two thousand three" */
+						res = ast_say_date_with_format_en(chan, t, ints, lang, "BdY", tzone);
+					} else if (beg_today + 2628000 < t) {
+						/* Less than 6 months from now - "August seventh" */
+						res = ast_say_date_with_format_en(chan, t, ints, lang, "Bd", tzone);
+					} else if (beg_today + 86400 * 6 < t) {
+						/* Less than a month from now - "Sunday, October third" */
+						res = ast_say_date_with_format_en(chan, t, ints, lang, "ABd", tzone);
+					} else if (beg_today + 172800 < t) {
+						/* Within the next week */
+						res = ast_say_date_with_format_en(chan, t, ints, lang, "A", tzone);
+					} else if (beg_today + 86400 < t) {
+						/* Tomorrow */
+						res = wait_file(chan, ints, "digits/tomorrow", lang);
+					} else if (beg_today < t) {
 						/* Today */
 						res = wait_file(chan, ints, "digits/today", lang);
 					} else if (beg_today - 86400 < t) {
@@ -4546,9 +4561,25 @@ int ast_say_date_with_format_en(struct ast_channel *chan, time_t t, const char *
 					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 					/* In any case, it saves not having to do ast_mktime() */
 					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
-					if (beg_today < t) {
+					if (beg_today + 15768000 < t) {
+						/* More than 6 months from now - "April nineteenth two thousand three" */
+						res = ast_say_date_with_format_en(chan, t, ints, lang, "BdY", tzone);
+					} else if (beg_today + 2628000 < t) {
+						/* Less than 6 months from now - "August seventh" */
+						res = ast_say_date_with_format_en(chan, t, ints, lang, "Bd", tzone);
+					} else if (beg_today + 86400 * 6 < t) {
+						/* Less than a month from now - "Sunday, October third" */
+						res = ast_say_date_with_format_en(chan, t, ints, lang, "ABd", tzone);
+					} else if (beg_today + 172800 < t) {
+						/* Within the next week */
+						res = ast_say_date_with_format_en(chan, t, ints, lang, "A", tzone);
+					} else if (beg_today + 86400 < t) {
+						/* Tomorrow */
+						res = wait_file(chan, ints, "digits/tomorrow", lang);
+					} else if (beg_today < t) {
 						/* Today */
-					} else if ((beg_today - 86400) < t) {
+						res = wait_file(chan, ints, "digits/today", lang);
+					} else if (beg_today - 86400 < t) {
 						/* Yesterday */
 						res = wait_file(chan, ints, "digits/yesterday", lang);
 					} else if (beg_today - 86400 * 6 < t) {
