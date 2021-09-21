@@ -717,6 +717,44 @@ static int media_encryption_to_str(const void *obj, const intptr_t *args, char *
 	return 0;
 }
 
+static int stir_shaken_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
+{
+	struct ast_sip_endpoint *endpoint = obj;
+
+	if (!strcasecmp("off", var->value)) {
+		endpoint->stir_shaken = AST_SIP_STIR_SHAKEN_OFF;
+	} else if (!strcasecmp("attest", var->value)) {
+		endpoint->stir_shaken = AST_SIP_STIR_SHAKEN_ATTEST;
+	} else if (!strcasecmp("verify", var->value)) {
+		endpoint->stir_shaken = AST_SIP_STIR_SHAKEN_VERIFY;
+	} else if (!strcasecmp("on", var->value)) {
+		endpoint->stir_shaken = AST_SIP_STIR_SHAKEN_ON;
+	} else {
+		ast_log(LOG_WARNING, "'%s' is not a valid value for option "
+			"'stir_shaken' for endpoint %s\n",
+			var->value, ast_sorcery_object_get_id(endpoint));
+		return -1;
+	}
+
+	return 0;
+}
+
+static const char *stir_shaken_map[] = {
+	[AST_SIP_STIR_SHAKEN_OFF] "off",
+	[AST_SIP_STIR_SHAKEN_ATTEST] = "attest",
+	[AST_SIP_STIR_SHAKEN_VERIFY] = "verify",
+	[AST_SIP_STIR_SHAKEN_ON] = "on",
+};
+
+static int stir_shaken_to_str(const void *obj, const intptr_t *args, char **buf)
+{
+	const struct ast_sip_endpoint *endpoint = obj;
+	if (ARRAY_IN_BOUNDS(endpoint->stir_shaken, stir_shaken_map)) {
+		*buf = ast_strdup(stir_shaken_map[endpoint->stir_shaken]);
+	}
+	return 0;
+}
+
 static int group_handler(const struct aco_option *opt,
 			 struct ast_variable *var, void *obj)
 {
@@ -1968,7 +2006,7 @@ int ast_res_pjsip_initialize_configuration(void)
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "accept_multiple_sdp_answers", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, media.rtp.accept_multiple_sdp_answers));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "suppress_q850_reason_headers", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, suppress_q850_reason_headers));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "ignore_183_without_sdp", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, ignore_183_without_sdp));
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "stir_shaken", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, stir_shaken));
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "stir_shaken", "off", stir_shaken_handler, stir_shaken_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "allow_unauthenticated_options", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, allow_unauthenticated_options));
 
 	if (ast_sip_initialize_sorcery_transport()) {

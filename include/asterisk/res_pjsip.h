@@ -62,6 +62,22 @@
 #define PJSIP_EXPIRES_NOT_SPECIFIED	((pj_uint32_t)-1)
 #endif
 
+/* Response codes from RFC8224 */
+#define AST_STIR_SHAKEN_RESPONSE_CODE_STALE_DATE 403
+#define AST_STIR_SHAKEN_RESPONSE_CODE_USE_IDENTITY_HEADER 428
+#define AST_STIR_SHAKEN_RESPONSE_CODE_USE_SUPPORTED_PASSPORT_FORMAT 428
+#define AST_STIR_SHAKEN_RESPONSE_CODE_BAD_IDENTITY_INFO 436
+#define AST_STIR_SHAKEN_RESPONSE_CODE_UNSUPPORTED_CREDENTIAL 437
+#define AST_STIR_SHAKEN_RESPONSE_CODE_INVALID_IDENTITY_HEADER 438
+
+/* Response strings from RFC8224 */
+#define AST_STIR_SHAKEN_RESPONSE_STR_STALE_DATE "Stale Date"
+#define AST_STIR_SHAKEN_RESPONSE_STR_USE_IDENTITY_HEADER "Use Identity Header"
+#define AST_STIR_SHAKEN_RESPONSE_STR_USE_SUPPORTED_PASSPORT_FORMAT "Use Supported PASSporT Format"
+#define AST_STIR_SHAKEN_RESPONSE_STR_BAD_IDENTITY_INFO "Bad Identity Info"
+#define AST_STIR_SHAKEN_RESPONSE_STR_UNSUPPORTED_CREDENTIAL "Unsupported Credential"
+#define AST_STIR_SHAKEN_RESPONSE_STR_INVALID_IDENTITY_HEADER "Invalid Identity Header"
+
 /* Forward declarations of PJSIP stuff */
 struct pjsip_rx_data;
 struct pjsip_module;
@@ -499,6 +515,17 @@ enum ast_sip_session_redirect {
 	AST_SIP_REDIRECT_URI_PJSIP,
 };
 
+enum ast_sip_stir_shaken_behavior {
+	/*! Don't do any STIR/SHAKEN operations */
+	AST_SIP_STIR_SHAKEN_OFF = 0,
+	/*! Only do STIR/SHAKEN attestation */
+	AST_SIP_STIR_SHAKEN_ATTEST = 1,
+	/*! Only do STIR/SHAKEN verification */
+	AST_SIP_STIR_SHAKEN_VERIFY = 2,
+	/*! Do STIR/SHAKEN attestation and verification */
+	AST_SIP_STIR_SHAKEN_ON = 3,
+};
+
 /*!
  * \brief Session timers options
  */
@@ -841,7 +868,7 @@ struct ast_sip_endpoint {
 	unsigned int send_connected_line;
 	/*! Ignore 183 if no SDP is present */
 	unsigned int ignore_183_without_sdp;
-	/*! Enable STIR/SHAKEN support on this endpoint */
+	/*! Set which STIR/SHAKEN behaviors we want on this endpoint */
 	unsigned int stir_shaken;
 	/*! Should we authenticate OPTIONS requests per RFC 3261? */
 	unsigned int allow_unauthenticated_options;
