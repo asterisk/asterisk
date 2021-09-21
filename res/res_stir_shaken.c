@@ -617,8 +617,145 @@ static char *curl_and_check_expiration(const char *public_cert_url, const char *
 	return filename;
 }
 
+/*!
+ * \brief Verifies that the string parameters are not empty for STIR/SHAKEN verification
+ *
+ * \retval 0 on success
+ * \retval 1 on failure
+ */
+static int stir_shaken_verify_check_empty_strings(const char *header, const char *payload, const char *signature,
+	const char *algorithm, const char *public_cert_url)
+{
+	if (ast_strlen_zero(header)) {
+		ast_log(LOG_ERROR, "'header' is required for STIR/SHAKEN verification\n");
+		return 1;
+	}
+
+	if (ast_strlen_zero(payload)) {
+		ast_log(LOG_ERROR, "'payload' is required for STIR/SHAKEN verification\n");
+		return 1;
+	}
+
+	if (ast_strlen_zero(signature)) {
+		ast_log(LOG_ERROR, "'signature' is required for STIR/SHAKEN verification\n");
+		return 1;
+	}
+
+	if (ast_strlen_zero(algorithm)) {
+		ast_log(LOG_ERROR, "'algorithm' is required for STIR/SHAKEN verification\n");
+		return 1;
+	}
+
+	if (ast_strlen_zero(public_cert_url)) {
+		ast_log(LOG_ERROR, "'public_cert_url' is required for STIR/SHAKEN verification\n");
+		return 1;
+	}
+
+	return 0;
+}
+
+/*!
+ * \brief Get or set up the file path for the certificate
+ *
+ * \note This function will allocate memory for file_path and dir_path and populate them
+ *
+ * \retval 0 on success
+ * \retval 1 on failure
+ */
+static int stir_shaken_verify_setup_file_paths(const char *public_cert_url, char **file_path, char **dir_path, int *curl)
+{
+	*file_path = get_path_to_public_key(public_cert_url);
+	if (ast_asprintf(dir_path, "%s/keys/%s", ast_config_AST_DATA_DIR, STIR_SHAKEN_DIR_NAME) < 0) {
+		return 1;
+	}
+
+	/* If we don't have an entry in AstDB, CURL from the provided URL */
+	if (ast_strlen_zero(*file_path)) {
+		/* Remove this entry from the database, since we will be
+		 * downloading a new file anyways.
+		 */
+		remove_public_key_from_astdb(public_cert_url);
+
+		/* Go ahead and free file_path, in case anything was allocated above */
+		ast_free(*file_path);
+
+		/* Download to the default path */
+		*file_path = run_curl(public_cert_url, *dir_path);
+		if (!(*file_path)) {
+			return 1;
+		}
+
+		/* Signal that we have already downloaded a new file, no reason to do it again */
+		*curl = 1;
+
+		/* We should have a successful download at this point, so
+		 * add an entry to the database.
+		 */
+		add_public_key_to_astdb(public_cert_url, *file_path);
+	}
+
+	return 0;
+}
+
+/*!
+ * \brief See if the cert is expired. If it is, remove it and try downloading again if we haven't already.
+ *
+ * \retval 0 on success
+ * \retval 1 on failure
+ */
+static int stir_shaken_verify_validate_cert(const char *public_cert_url, char **file_path, char *dir_path, int *curl,
+	EVP_PKEY **public_key)
+{
+	if (public_key_is_expired(public_cert_url)) {
+
+		ast_debug(3, "Public cert '%s' is expired\n", public_cert_url);
+
+		remove_public_key_from_astdb(public_cert_url);
+
+		/* If this fails, then there's nothing we can do */
+		ast_free(*file_path);
+		*file_path = curl_and_check_expiration(public_cert_url, dir_path, curl);
+		if (!(*file_path)) {
+			return 1;
+		}
+	}
+
+	/* First attempt to read the key. If it fails, try downloading the file,
+	 * unless we already did. Check for expiration again */
+	*public_key = stir_shaken_read_key(*file_path, 0);
+	if (!(*public_key)) {
+
+		ast_debug(3, "Failed first read of public key file '%s'\n", *file_path);
+
+		remove_public_key_from_astdb(public_cert_url);
+
+		ast_free(*file_path);
+		*file_path = curl_and_check_expiration(public_cert_url, dir_path, curl);
+		if (!(*file_path)) {
+			return 1;
+		}
+
+		*public_key = stir_shaken_read_key(*file_path, 0);
+		if (!(*public_key)) {
+			ast_log(LOG_ERROR, "Failed to read public key from '%s'\n", *file_path);
+			remove_public_key_from_astdb(public_cert_url);
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
 struct ast_stir_shaken_payload *ast_stir_shaken_verify(const char *header, const char *payload, const char *signature,
 	const char *algorithm, const char *public_cert_url)
+{
+	int code = 0;
+
+	return ast_stir_shaken_verify2(header, payload, signature, algorithm, public_cert_url, &code);
+}
+
+struct ast_stir_shaken_payload *ast_stir_shaken_verify2(const char *header, const char *payload, const char *signature,
+	const char *algorithm, const char *public_cert_url, int *failure_code)
 {
 	struct ast_stir_shaken_payload *ret_payload;
 	EVP_PKEY *public_key;
@@ -628,28 +765,7 @@ struct ast_stir_shaken_payload *ast_stir_shaken_verify(const char *header, const
 	RAII_VAR(char *, combined_str, NULL, ast_free);
 	size_t combined_size;
 
-	if (ast_strlen_zero(header)) {
-		ast_log(LOG_ERROR, "'header' is required for STIR/SHAKEN verification\n");
-		return NULL;
-	}
-
-	if (ast_strlen_zero(payload)) {
-		ast_log(LOG_ERROR, "'payload' is required for STIR/SHAKEN verification\n");
-		return NULL;
-	}
-
-	if (ast_strlen_zero(signature)) {
-		ast_log(LOG_ERROR, "'signature' is required for STIR/SHAKEN verification\n");
-		return NULL;
-	}
-
-	if (ast_strlen_zero(algorithm)) {
-		ast_log(LOG_ERROR, "'algorithm' is required for STIR/SHAKEN verification\n");
-		return NULL;
-	}
-
-	if (ast_strlen_zero(public_cert_url)) {
-		ast_log(LOG_ERROR, "'public_cert_url' is required for STIR/SHAKEN verification\n");
+	if (stir_shaken_verify_check_empty_strings(header, payload, signature, algorithm, public_cert_url)) {
 		return NULL;
 	}
 
@@ -663,72 +779,14 @@ struct ast_stir_shaken_payload *ast_stir_shaken_verify(const char *header, const
 	 * {configurable) directories, we already have the storage mechanism in place.
 	 * The only thing that would be left to do is pull from the configuration.
 	 */
-	file_path = get_path_to_public_key(public_cert_url);
-	if (ast_asprintf(&dir_path, "%s/keys/%s", ast_config_AST_DATA_DIR, STIR_SHAKEN_DIR_NAME) < 0) {
+	if (stir_shaken_verify_setup_file_paths(public_cert_url, &file_path, &dir_path, &curl)) {
 		return NULL;
 	}
 
-	/* If we don't have an entry in AstDB, CURL from the provided URL */
-	if (ast_strlen_zero(file_path)) {
-		/* Remove this entry from the database, since we will be
-		 * downloading a new file anyways.
-		 */
-		remove_public_key_from_astdb(public_cert_url);
-
-		/* Go ahead and free file_path, in case anything was allocated above */
-		ast_free(file_path);
-
-		/* Download to the default path */
-		file_path = run_curl(public_cert_url, dir_path);
-		if (!file_path) {
-			return NULL;
-		}
-
-		/* Signal that we have already downloaded a new file, no reason to do it again */
-		curl = 1;
-
-		/* We should have a successful download at this point, so
-		 * add an entry to the database.
-		 */
-		add_public_key_to_astdb(public_cert_url, file_path);
-	}
-
 	/* Check to see if the cert we downloaded (or already had) is expired */
-	if (public_key_is_expired(public_cert_url)) {
-
-		ast_debug(3, "Public cert '%s' is expired\n", public_cert_url);
-
-		remove_public_key_from_astdb(public_cert_url);
-
-		/* If this fails, then there's nothing we can do */
-		ast_free(file_path);
-		file_path = curl_and_check_expiration(public_cert_url, dir_path, &curl);
-		if (!file_path) {
-			return NULL;
-		}
-	}
-
-	/* First attempt to read the key. If it fails, try downloading the file,
-	 * unless we already did. Check for expiration again */
-	public_key = stir_shaken_read_key(file_path, 0);
-	if (!public_key) {
-
-		ast_debug(3, "Failed first read of public key file '%s'\n", file_path);
-
-		remove_public_key_from_astdb(public_cert_url);
-
-		ast_free(file_path);
-		file_path = curl_and_check_expiration(public_cert_url, dir_path, &curl);
-		if (!file_path) {
-			return NULL;
-		}
-
-		public_key = stir_shaken_read_key(file_path, 0);
-		if (!public_key) {
-			ast_log(LOG_ERROR, "Failed to read public key from '%s'\n", file_path);
-			remove_public_key_from_astdb(public_cert_url);
-			return NULL;
-		}
+	if (stir_shaken_verify_validate_cert(public_cert_url, &file_path, dir_path, &curl, &public_key)) {
+		*failure_code = AST_STIR_SHAKEN_VERIFY_FAILED_TO_GET_CERT;
+		return NULL;
 	}
 
 	/* Combine the header and payload to get the original signed message: header.payload */
@@ -737,11 +795,13 @@ struct ast_stir_shaken_payload *ast_stir_shaken_verify(const char *header, const
 	if (!combined_str) {
 		ast_log(LOG_ERROR, "Failed to allocate space for message to verify\n");
 		EVP_PKEY_free(public_key);
+		*failure_code = AST_STIR_SHAKEN_VERIFY_FAILED_MEMORY_ALLOC;
 		return NULL;
 	}
 	snprintf(combined_str, combined_size, "%s.%s", header, payload);
 	if (stir_shaken_verify_signature(combined_str, signature, public_key)) {
 		ast_log(LOG_ERROR, "Failed to verify signature\n");
+		*failure_code = AST_STIR_SHAKEN_VERIFY_FAILED_SIGNATURE_VALIDATION;
 		EVP_PKEY_free(public_key);
 		return NULL;
 	}
@@ -752,12 +812,14 @@ struct ast_stir_shaken_payload *ast_stir_shaken_verify(const char *header, const
 	ret_payload = ast_calloc(1, sizeof(*ret_payload));
 	if (!ret_payload) {
 		ast_log(LOG_ERROR, "Failed to allocate STIR/SHAKEN payload\n");
+		*failure_code = AST_STIR_SHAKEN_VERIFY_FAILED_MEMORY_ALLOC;
 		return NULL;
 	}
 
 	ret_payload->header = ast_json_load_string(header, NULL);
 	if (!ret_payload->header) {
 		ast_log(LOG_ERROR, "Failed to create JSON from header\n");
+		*failure_code = AST_STIR_SHAKEN_VERIFY_FAILED_MEMORY_ALLOC;
 		ast_stir_shaken_payload_free(ret_payload);
 		return NULL;
 	}
@@ -765,6 +827,7 @@ struct ast_stir_shaken_payload *ast_stir_shaken_verify(const char *header, const
 	ret_payload->payload = ast_json_load_string(payload, NULL);
 	if (!ret_payload->payload) {
 		ast_log(LOG_ERROR, "Failed to create JSON from payload\n");
+		*failure_code = AST_STIR_SHAKEN_VERIFY_FAILED_MEMORY_ALLOC;
 		ast_stir_shaken_payload_free(ret_payload);
 		return NULL;
 	}
@@ -834,15 +897,11 @@ static struct ast_stir_shaken_payload *stir_shaken_verify_json(struct ast_json *
 		goto cleanup;
 	}
 
-	/* Check the alg value for "ES256" */
+	/* Check to see if there is a value for alg */
 	val = ast_json_string_get(ast_json_object_get(obj, "alg"));
-	if (ast_strlen_zero(val)) {
-		ast_log(LOG_ERROR, "STIR/SHAKEN JWT did not have required field 'alg'\n");
-		goto cleanup;
-	}
-	if (strcmp(val, STIR_SHAKEN_ENCRYPTION_ALGORITHM)) {
-		ast_log(LOG_ERROR, "STIR/SHAKEN JWT field 'alg' did not have "
-			"required value '%s' (was '%s')\n", STIR_SHAKEN_ENCRYPTION_ALGORITHM, val);
+	if (!ast_strlen_zero(val) && strcmp(val, STIR_SHAKEN_ENCRYPTION_ALGORITHM)) {
+		/* If alg is not present that's fine; if it is and is not ES256, cleanup */
+		ast_log(LOG_ERROR, "STIR/SHAKEN JWT did not have supported type for field 'alg' (was %s)\n", val);
 		goto cleanup;
 	}
 
