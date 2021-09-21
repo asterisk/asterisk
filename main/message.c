@@ -190,8 +190,22 @@
 		</synopsis>
 		<syntax>
 			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
-			<parameter name="To" required="true">
-				<para>The URI the message is to be sent to.</para>
+			<parameter name="Destination" required="false">
+				<para>A To URI for the message. If Destination is provided, the To
+				parameter can also be supplied and may alter the message based on
+				the specified message technology.</para>
+				<para>For backwards compatibility, if Destination is not provided,
+				the To parameter must be provided and will be used as the message
+				destination.</para>
+				<xi:include xpointer="xpointer(/docs/info[@name='MessageDestinationInfo'])" />
+			</parameter>
+			<parameter name="To" required="false">
+				<para>A To URI for the message if needed for the
+				message technology being used to send this message. This can be a
+				SIP(S) URI, such as <literal>Alice &lt;sip:alice@atlanta.com&gt;</literal>,
+				or a string in the format <literal>alice@atlanta.com</literal>.</para>
+				<para>This parameter is required if the Destination parameter is not
+				provided.</para>
 				<xi:include xpointer="xpointer(/docs/info[@name='MessageToInfo'])" />
 			</parameter>
 			<parameter name="From">
@@ -1305,10 +1319,12 @@ exit_cleanup:
 
 static int action_messagesend(struct mansession *s, const struct message *m)
 {
-	const char *to = ast_strdupa(astman_get_header(m, "To"));
+	const char *destination = astman_get_header(m, "Destination");
+	const char *to = astman_get_header(m, "To");
 	const char *from = astman_get_header(m, "From");
 	const char *body = astman_get_header(m, "Body");
 	const char *base64body = astman_get_header(m, "Base64Body");
+	const char *to_override = NULL;
 	char base64decoded[1301] = { 0, };
 	char *tech_name = NULL;
 	struct ast_variable *vars = NULL;
@@ -1317,9 +1333,16 @@ static int action_messagesend(struct mansession *s, const struct message *m)
 	struct ast_msg *msg;
 	int res = -1;
 
-	if (ast_strlen_zero(to)) {
-		astman_send_error(s, m, "No 'To' address specified.");
-		return 0;
+	if (!ast_strlen_zero(destination)) {
+		if (!ast_strlen_zero(to)) {
+			to_override = to;
+		}
+		to = destination;
+	} else {
+		if (ast_strlen_zero(to)) {
+			astman_send_error(s, m, "No 'To' address specified.");
+			return 0;
+		}
 	}
 
 	if (!ast_strlen_zero(base64body)) {
@@ -1350,6 +1373,10 @@ static int action_messagesend(struct mansession *s, const struct message *m)
 	}
 
 	ast_msg_set_body(msg, "%s", body);
+
+	if (to_override) {
+		ast_string_field_set(msg, to, to_override);
+	}
 
 	res = msg_tech->msg_send(msg, S_OR(to, ""), S_OR(from, ""));
 
