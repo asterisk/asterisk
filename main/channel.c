@@ -97,9 +97,13 @@ unsigned long global_fin, global_fout;
 AST_THREADSTORAGE(state2str_threadbuf);
 #define STATE2STR_BUFSIZE   32
 
-/*! Default amount of time to use when emulating a digit as a begin and end
+/*! Default amount of time to use when emulating a DTMF digit as a begin and end
  *  100ms */
 #define AST_DEFAULT_EMULATE_DTMF_DURATION 100
+
+/*! Default amount of time to use when emulating an MF digit as a begin and end
+ *  55ms */
+#define DEFAULT_EMULATE_MF_DURATION 55
 
 #define DEFAULT_AMA_FLAGS AST_AMA_DOCUMENTATION
 
@@ -4856,6 +4860,45 @@ int ast_sendtext(struct ast_channel *chan, const char *text)
 	return rc;
 }
 
+int ast_senddigit_mf_begin(struct ast_channel *chan, char digit)
+{
+	static const char * const mf_tones[] = {
+		"1300+1500", /* 0 */
+		"700+900",   /* 1 */
+		"700+1100",  /* 2 */
+		"900+1100",  /* 3 */
+		"700+1300",  /* 4 */
+		"900+1300",  /* 5 */
+		"1100+1300", /* 6 */
+		"700+1500",  /* 7 */
+		"900+1500",  /* 8 */
+		"1100+1500", /* 9 */
+		"1100+1700", /* * (KP) */
+		"1500+1700", /* # (ST) */
+		"900+1700",  /* A (STP) */
+		"1300+1700", /* B (ST2P) */
+		"700+1700"   /* C (ST3P) */
+	};
+
+	if (digit >= '0' && digit <='9') {
+		ast_playtones_start(chan, 0, mf_tones[digit-'0'], 0);
+	} else if (digit == '*') {
+		ast_playtones_start(chan, 0, mf_tones[10], 0);
+	} else if (digit == '#') {
+		ast_playtones_start(chan, 0, mf_tones[11], 0);
+	} else if (digit == 'A') {
+		ast_playtones_start(chan, 0, mf_tones[12], 0);
+	} else if (digit == 'B') {
+		ast_playtones_start(chan, 0, mf_tones[13], 0);
+	} else if (digit == 'C') {
+		ast_playtones_start(chan, 0, mf_tones[14], 0);
+	} else {
+		/* not handled */
+		ast_log(LOG_WARNING, "Unable to generate MF tone '%c' for '%s'\n", digit, ast_channel_name(chan));
+	}
+	return 0;
+}
+
 int ast_senddigit_begin(struct ast_channel *chan, char digit)
 {
 	/* Device does not support DTMF tones, lets fake
@@ -4923,6 +4966,37 @@ int ast_senddigit_end(struct ast_channel *chan, char digit, unsigned int duratio
 		ast_playtones_stop(chan);
 
 	return 0;
+}
+
+int ast_senddigit_mf_end(struct ast_channel *chan)
+{
+	if (ast_channel_generator(chan)) {
+		ast_playtones_stop(chan);
+		return 0;
+	}
+	return -1;
+}
+
+int ast_senddigit_mf(struct ast_channel *chan, char digit, unsigned int duration,
+	unsigned int durationkp, unsigned int durationst, int is_external)
+{
+	if (duration < DEFAULT_EMULATE_MF_DURATION) {
+		duration = DEFAULT_EMULATE_MF_DURATION;
+	}
+	if (ast_channel_tech(chan)->send_digit_begin) {
+		if (digit == '*') {
+			duration = durationkp;
+		} else if (digit == '#' || digit == 'A' || digit == 'B' || digit == 'C') {
+			duration = durationst;
+		}
+		ast_senddigit_mf_begin(chan, digit);
+		if (is_external) {
+			usleep(duration * 1000);
+		} else {
+			ast_safe_sleep(chan, duration);
+		}
+	}
+	return ast_senddigit_mf_end(chan);
 }
 
 int ast_senddigit(struct ast_channel *chan, char digit, unsigned int duration)

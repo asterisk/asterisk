@@ -942,6 +942,39 @@ void ast_replace_sigchld(void);
 void ast_unreplace_sigchld(void);
 
 /*!
+ * \brief Send a string of MF digits to a channel
+ *
+ * \param chan    The channel that will receive the MF digits.
+ * \param peer    (optional) Peer channel that will be autoserviced while the
+ *                primary channel is receiving MF
+ * \param chan2   A second channel that will simultaneously receive MF digits.
+ *                This option may only be used if is_external is 0.
+ * \param digits  This is a string of characters representing the MF digits
+ *                to be sent to the channel.  Valid characters are
+ *                "0123456789*#abcdABCD".  Note: You can pass arguments 'f' or
+ *                'F', if you want to Flash the channel (if supported by the
+ *                channel), or 'w' or 'W' to add a wink (if supported by the
+ *                channel).
+ * \param between This is the number of milliseconds to wait in between each
+ *                MF digit.  If zero milliseconds is specified, then the
+ *                default value of 50 will be used.
+ * \param duration This is the duration that each numeric MF digit should have.
+ *                 Default value is 55.
+ * \param durationkp This is the duration that each KP digit should have. Default
+ *                is 120.
+ * \param durationst This is the duration that each ST, STP, ST2P, or ST3P digit
+ *                should have. Default is 65.
+ * \param is_external 1 if called by a thread that is not the channel's media
+ *                handler thread, 0 if called by the channel's media handler
+ *                thread.
+ *
+ * \retval 0 on success.
+ * \retval -1 on failure or a channel hung up.
+ */
+int ast_mf_stream(struct ast_channel *chan, struct ast_channel *peer, struct ast_channel *chan2, const char *digits,
+	int between, unsigned int duration, unsigned int durationkp, unsigned int durationst, int is_external);
+
+/*!
  * \brief Send a string of DTMF digits to a channel
  *
  * \param chan    The channel that will receive the DTMF frames

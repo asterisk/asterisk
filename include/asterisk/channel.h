@@ -2243,6 +2243,30 @@ int ast_sendtext_data(struct ast_channel *chan, struct ast_msg_data *msg);
 int ast_recvchar(struct ast_channel *chan, int timeout);
 
 /*!
+ * \brief End sending an MF digit to a channel.
+ * \param chan channel to act upon
+ * \return Returns 0 on success, -1 on failure
+ */
+int ast_senddigit_mf_end(struct ast_channel *chan);
+
+/*!
+ * \brief Send an MF digit to a channel.
+ *
+ * \param chan channel to act upon
+ * \param digit the MF digit to send, encoded in ASCII
+ * \param duration the duration of a numeric digit ending in ms
+ * \param duration the duration of a KP digit ending in ms
+ * \param duration the duration of a ST, STP, ST2P, or ST3P digit ending in ms
+ * \param is_external 1 if called by a thread that is not the channel's media
+ *                handler thread, 0 if called by the channel's media handler
+ *                thread.
+ *
+ * \return 0 on success, -1 on failure
+ */
+int ast_senddigit_mf(struct ast_channel *chan, char digit, unsigned int duration,
+	unsigned int durationkp, unsigned int durationst, int is_external);
+
+/*!
  * \brief Send a DTMF digit to a channel.
  *
  * \param chan channel to act upon
@@ -2268,6 +2292,14 @@ int ast_senddigit(struct ast_channel *chan, char digit, unsigned int duration);
  * \return 0 on success, -1 on failure
  */
 int ast_senddigit_external(struct ast_channel *chan, char digit, unsigned int duration);
+
+/*!
+ * \brief Send an MF digit to a channel.
+ * \param chan channel to act upon
+ * \param digit the MF digit to send, encoded in ASCII
+ * \return 0 on success, -1 on failure
+ */
+int ast_senddigit_mf_begin(struct ast_channel *chan, char digit);
 
 /*!
  * \brief Send a DTMF digit to a channel.
