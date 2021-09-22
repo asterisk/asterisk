@@ -830,6 +830,115 @@ static int external_sleep(struct ast_channel *chan, int ms)
 	return 0;
 }
 
+static int mf_stream(struct ast_channel *chan, struct ast_channel *chan2, const char *digits, int between, unsigned int duration,
+	unsigned int durationkp, unsigned int durationst, int is_external)
+{
+	const char *ptr;
+	int res;
+	struct ast_silence_generator *silgen = NULL, *silgen2 = NULL;
+	int (*my_sleep)(struct ast_channel *chan, int ms);
+
+	if (is_external) {
+		my_sleep = external_sleep;
+	} else {
+		my_sleep = ast_safe_sleep;
+	}
+
+	if (!between) {
+		between = 100;
+	}
+
+	/* Need a quiet time before sending digits. */
+	if (ast_opt_transmit_silence) {
+		silgen = ast_channel_start_silence_generator(chan);
+		if (chan2) {
+			silgen2 = ast_channel_start_silence_generator(chan2);
+		}
+	}
+	if (chan2) {
+		ast_autoservice_start(chan2);
+	}
+	res = my_sleep(chan, 100);
+	if (chan2) {
+		ast_autoservice_stop(chan2);
+	}
+	if (res) {
+		goto mf_stream_cleanup;
+	}
+
+	for (ptr = digits; *ptr; ptr++) {
+		if (*ptr == 'w') {
+			/* 'w' -- wait half a second */
+			res = my_sleep(chan, 500);
+			if (res) {
+				break;
+			}
+		} else if (*ptr == 'h' || *ptr == 'H') {
+			/* 'h' -- 2600 Hz for half a second, but
+				only to far end of trunk, not near end */
+			ast_playtones_start(chan, 0, "2600", 0);
+			if (chan2) {
+				ast_playtones_start(chan2, 0, "0", 0);
+				ast_autoservice_start(chan2);
+			}
+			res = my_sleep(chan, 250);
+			ast_senddigit_mf_end(chan);
+			if (chan2) {
+				ast_autoservice_stop(chan2);
+				ast_senddigit_mf_end(chan2);
+			}
+			if (res) {
+				break;
+			}
+		} else if (strchr("0123456789*#ABCwWfF", *ptr)) {
+			if (*ptr == 'f' || *ptr == 'F') {
+				/* ignore return values if not supported by channel */
+				ast_indicate(chan, AST_CONTROL_FLASH);
+			} else if (*ptr == 'W') {
+				/* ignore return values if not supported by channel */
+				ast_indicate(chan, AST_CONTROL_WINK);
+			} else {
+				/* Character represents valid MF */
+				ast_senddigit_mf(chan, *ptr, duration, durationkp, durationst, is_external);
+				if (chan2) {
+					ast_senddigit_mf(chan2, *ptr, duration, durationkp, durationst, is_external);
+				}
+			}
+			/* pause between digits */
+			/* The DSP code in Asterisk does not currently properly receive repeated tones
+				if no audio is sent in the middle. Simply sending audio (even 0 Hz)
+				works around this limitation and guarantees the correct behavior.
+				*/
+			ast_playtones_start(chan, 0, "0", 0);
+			if (chan2) {
+				ast_playtones_start(chan2, 0, "0", 0);
+				ast_autoservice_start(chan2);
+			}
+			res = my_sleep(chan, between);
+			ast_senddigit_mf_end(chan);
+			if (chan2) {
+				ast_autoservice_stop(chan2);
+				ast_senddigit_mf_end(chan2);
+			}
+			if (res) {
+				break;
+			}
+		} else {
+			ast_log(LOG_WARNING, "Illegal MF character '%c' in string. (0-9*#ABCwWfFhH allowed)\n", *ptr);
+		}
+	}
+
+mf_stream_cleanup:
+	if (silgen) {
+		ast_channel_stop_silence_generator(chan, silgen);
+	}
+	if (silgen2) {
+		ast_channel_stop_silence_generator(chan2, silgen2);
+	}
+
+	return res;
+}
+
 static int dtmf_stream(struct ast_channel *chan, const char *digits, int between, unsigned int duration, int is_external)
 {
 	const char *ptr;
@@ -895,6 +1004,20 @@ dtmf_stream_cleanup:
 		ast_channel_stop_silence_generator(chan, silgen);
 	}
 
+	return res;
+}
+
+int ast_mf_stream(struct ast_channel *chan, struct ast_channel *peer, struct ast_channel *chan2, const char *digits,
+	int between, unsigned int duration, unsigned int durationkp, unsigned int durationst, int is_external)
+{
+	int res;
+	if (!is_external && !chan2 && peer && ast_autoservice_start(peer)) {
+		return -1;
+	}
+	res = mf_stream(chan, chan2, digits, between, duration, durationkp, durationst, is_external);
+	if (!is_external && !chan2 && peer && ast_autoservice_stop(peer)) {
+		res = -1;
+	}
 	return res;
 }
 

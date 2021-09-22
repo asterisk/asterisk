@@ -156,6 +156,8 @@
 					<argument name="called" />
 					<argument name="calling" />
 					<argument name="progress" />
+					<argument name="mfprogress" />
+					<argument name="mfwink" />
 					<para>Send the specified DTMF strings <emphasis>after</emphasis> the called
 					party has answered, but before the call gets bridged.  The
 					<replaceable>called</replaceable> DTMF string is sent to the called party, and the
@@ -163,6 +165,15 @@
 					can be used alone.  If <replaceable>progress</replaceable> is specified, its DTMF is sent
 					to the called party immediately after receiving a <literal>PROGRESS</literal> message.</para>
 					<para>See <literal>SendDTMF</literal> for valid digits.</para>
+					<para>If <replaceable>mfprogress</replaceable> is specified, its MF is sent
+					to the called party immediately after receiving a <literal>PROGRESS</literal> message.
+					If <replaceable>mfwink</replaceable> is specified, its MF is sent
+					to the called party immediately after receiving a <literal>WINK</literal> message.</para>
+					<para>See <literal>SendMF</literal> for valid digits.</para>
+				</option>
+				<option name="E">
+					<para>Enable echoing of sent MF or SF digits back to caller (e.g. "hearpulsing").
+					Used in conjunction with the D option.</para>
 				</option>
 				<option name="e">
 					<para>Execute the <literal>h</literal> extension for peer after the call ends</para>
@@ -499,7 +510,6 @@
 			answered, if it has not already been answered. These two channels will then
 			be active in a bridged call. All other channels that were requested will then
 			be hung up.</para>
-
 			<para>Unless there is a timeout specified, the Dial application will wait
 			indefinitely until one of the called channels answers, the user hangs up, or
 			if all of the called channels are busy or unavailable. Dialplan execution will
@@ -512,7 +522,6 @@
 			If the <variable>OUTBOUND_GROUP_ONCE</variable> variable is set, all peer channels created by this
 			application will be put into that group (as in <literal>Set(GROUP()=...</literal>). Unlike <variable>OUTBOUND_GROUP</variable>,
 			however, the variable will be unset after use.</para>
-
 			<example title="Dial with 30 second timeout">
 			 same => n,Dial(PJSIP/alice,30)
 			</example>
@@ -534,28 +543,22 @@
 			</example>
 			<example title="Dial with pre-dial subroutines">
 			[default]
-
 			exten => callee_channel,1,NoOp(ARG1=${ARG1} ARG2=${ARG2})
 			 same => n,Log(NOTICE, I'm called on channel ${CHANNEL} prior to it starting the dial attempt)
 			 same => n,Return()
-
 			exten => called_channel,1,NoOp(ARG1=${ARG1} ARG2=${ARG2})
 			 same => n,Log(NOTICE, I'm called on outbound channel ${CHANNEL} prior to it being used to dial someone)
 			 same => n,Return()
-
 			exten => _X.,1,NoOp()
 			 same => n,Dial(PJSIP/alice,,b(default^called_channel^1(my_gosub_arg1^my_gosub_arg2))B(default^callee_channel^1(my_gosub_arg1^my_gosub_arg2)))
 			 same => n,Hangup()
 			</example>
 			<example title="Dial with post-answer subroutine executed on outbound channel">
 			[my_gosub_routine]
-
 			exten => s,1,NoOp(ARG1=${ARG1} ARG2=${ARG2})
 			 same => n,Playback(hello)
 			 same => n,Return()
-
 			[default]
-
 			exten => _X.,1,NoOp()
 			 same => n,Dial(PJSIP/alice,,U(my_gosub_routine^my_gosub_arg1^my_gosub_arg2))
 			 same => n,Hangup()
@@ -717,6 +720,7 @@ enum {
 #define OPT_PREDIAL_CALLER   (1LLU << 42)
 #define OPT_RING_WITH_EARLY_MEDIA (1LLU << 43)
 #define OPT_HANGUPCAUSE      (1LLU << 44)
+#define OPT_HEARPULSING      (1LLU << 45)
 
 enum {
 	OPT_ARG_ANNOUNCE = 0,
@@ -752,6 +756,7 @@ AST_APP_OPTIONS(dial_exec_options, BEGIN_OPTIONS
 	AST_APP_OPTION('c', OPT_CANCEL_ELSEWHERE),
 	AST_APP_OPTION('d', OPT_DTMF_EXIT),
 	AST_APP_OPTION_ARG('D', OPT_SENDDTMF, OPT_ARG_SENDDTMF),
+	AST_APP_OPTION('E', OPT_HEARPULSING),
 	AST_APP_OPTION('e', OPT_PEER_H),
 	AST_APP_OPTION_ARG('f', OPT_FORCECLID, OPT_ARG_FORCECLID),
 	AST_APP_OPTION_ARG('F', OPT_CALLEE_GO_ON, OPT_ARG_CALLEE_GO_ON),
@@ -1208,6 +1213,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 	char *opt_args[],
 	struct privacy_args *pa,
 	const struct cause_args *num_in, int *result, char *dtmf_progress,
+	char *mf_progress, char *mf_wink,
+	const int hearpulsing,
 	const int ignore_cc,
 	struct ast_party_id *forced_clid, struct ast_party_id *stored_clid,
 	struct ast_bridge_config *config)
@@ -1227,7 +1234,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 	int cc_frame_received = 0;
 	int num_ringing = 0;
 	int sent_ring = 0;
-	int sent_progress = 0;
+	int sent_progress = 0, sent_wink = 0;
 	struct timeval start = ast_tvnow();
 	SCOPE_ENTER(3, "%s\n", ast_channel_name(in));
 
@@ -1565,6 +1572,14 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 						ast_channel_unlock(in);
 						sent_progress = 1;
 
+						if (!ast_strlen_zero(mf_progress)) {
+							ast_verb(3,
+								"Sending MF '%s' to %s as result of "
+								"receiving a PROGRESS message.\n",
+								mf_progress, hearpulsing ? "parties" : "called party");
+							ast_mf_stream(c, (hearpulsing ? NULL : in),
+							(hearpulsing ? in : NULL), mf_progress, 50, 55, 120, 65, 0);
+						}
 						if (!ast_strlen_zero(dtmf_progress)) {
 							ast_verb(3,
 								"Sending DTMF '%s' to the called party as result of "
@@ -1574,6 +1589,20 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 						}
 					}
 					ast_channel_publish_dial(in, c, NULL, "PROGRESS");
+					break;
+				case AST_CONTROL_WINK:
+					ast_verb(3, "%s winked, passing it to %s\n", ast_channel_name(c), ast_channel_name(in));
+					if (!sent_wink) {
+						sent_wink = 1;
+						if (!ast_strlen_zero(mf_wink)) {
+							ast_verb(3,
+								"Sending MF '%s' to %s as result of "
+								"receiving a WINK message.\n",
+								mf_wink, (hearpulsing ? "parties" : "called party"));
+							ast_mf_stream(c, (hearpulsing ? NULL : in),
+							(hearpulsing ? in : NULL), mf_wink, 50, 55, 120, 65, 0);
+						}
+					}
 					break;
 				case AST_CONTROL_VIDUPDATE:
 				case AST_CONTROL_SRCUPDATE:
@@ -2132,9 +2161,7 @@ static int setup_privacy_args(struct privacy_args *pa,
 			/* the file doesn't exist yet. Let the caller submit his
 			   vocal intro for posterity */
 			/* priv-recordintro script:
-
 			   "At the tone, please say your name:"
-
 			*/
 			int silencethreshold = ast_dsp_get_threshold_from_settings(THRESHOLD_SILENCE);
 			ast_answer(chan);
@@ -2249,7 +2276,8 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 
 	struct ast_bridge_config config = { { 0, } };
 	struct timeval calldurationlimit = { 0, };
-	char *dtmfcalled = NULL, *dtmfcalling = NULL, *dtmf_progress=NULL;
+	char *dtmfcalled = NULL, *dtmfcalling = NULL, *dtmf_progress = NULL;
+	char *mf_progress = NULL, *mf_wink = NULL;
 	struct privacy_args pa = {
 		.sentringing = 0,
 		.privdb_val = 0,
@@ -2385,9 +2413,11 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 	}
 
 	if (ast_test_flag64(&opts, OPT_SENDDTMF) && !ast_strlen_zero(opt_args[OPT_ARG_SENDDTMF])) {
-		dtmf_progress = opt_args[OPT_ARG_SENDDTMF];
-		dtmfcalled = strsep(&dtmf_progress, ":");
-		dtmfcalling = strsep(&dtmf_progress, ":");
+		mf_wink = opt_args[OPT_ARG_SENDDTMF];
+		dtmfcalled = strsep(&mf_wink, ":");
+		dtmfcalling = strsep(&mf_wink, ":");
+		dtmf_progress = strsep(&mf_wink, ":");
+		mf_progress = strsep(&mf_wink, ":");
 	}
 
 	if (ast_test_flag64(&opts, OPT_DURATION_LIMIT) && !ast_strlen_zero(opt_args[OPT_ARG_DURATION_LIMIT])) {
@@ -2864,7 +2894,8 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 	}
 
 	peer = wait_for_answer(chan, &out_chans, &to, peerflags, opt_args, &pa, &num, &result,
-		dtmf_progress, ignore_cc, &forced_clid, &stored_clid, &config);
+		dtmf_progress, mf_progress, mf_wink, (ast_test_flag64(&opts, OPT_HEARPULSING) ? 1 : 0),
+		ignore_cc, &forced_clid, &stored_clid, &config);
 
 	if (!peer) {
 		if (result) {

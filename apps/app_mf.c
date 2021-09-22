@@ -18,7 +18,7 @@
 
 /*! \file
  *
- * \brief App to send MF digits
+ * \brief MF sender and receiver applications
  *
  * \author Naveen Albert <asterisk@phreaknet.org>
  *
@@ -31,22 +31,93 @@
 
 #include "asterisk.h"
 
+#include "asterisk/file.h"
 #include "asterisk/pbx.h"
-#include "asterisk/module.h"
-#include "asterisk/app.h"
 #include "asterisk/channel.h"
+#include "asterisk/dsp.h"
+#include "asterisk/app.h"
+#include "asterisk/module.h"
 #include "asterisk/indications.h"
+#include "asterisk/conversions.h"
 
 /*** DOCUMENTATION
+	<application name="ReceiveMF" language="en_US">
+		<synopsis>
+			Detects MF digits on a channel and saves them to a variable.
+		</synopsis>
+		<syntax>
+			<parameter name="variable" required="true">
+				<para>The input digits will be stored in the given
+				<replaceable>variable</replaceable> name.</para>
+			</parameter>
+			<parameter name="timeout">
+				<para>The number of seconds to wait for all digits, if greater
+				than <literal>0</literal>. Can be floating point. Default
+				is no timeout.</para>
+			</parameter>
+			<parameter name="options">
+				<optionlist>
+					<option name="d">
+						<para>Delay audio by a frame to try to extra quelch.</para>
+					</option>
+					<option name="l">
+						<para>Receive digits even if a key pulse (KP) has not yet
+						been received. By default, this application will ignore
+						all other digits until a KP has been received.</para>
+					</option>
+					<option name="k">
+						<para>Do not return a character for the KP digit.</para>
+					</option>
+					<option name="m">
+						<para>Mute conference.</para>
+					</option>
+					<option name="o">
+						<para>Enable override. Repeated KPs will clear all previous digits.</para>
+					</option>
+					<option name="q">
+						<para>Quelch MF from in-band.</para>
+					</option>
+					<option name="r">
+						<para>"Radio" mode (relaxed MF).</para>
+					</option>
+					<option name="s">
+						<para>Do not return a character for ST digits.</para>
+					</option>
+				</optionlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Reads a ST, STP, ST2P, or ST3P-terminated string of MF digits from
+			the user in to the given <replaceable>variable</replaceable>.</para>
+			<para>This application does not automatically answer the channel and
+			should be preceded with <literal>Answer</literal> or
+			<literal>Progress</literal> as needed.</para>
+			<variablelist>
+				<variable name="RECEIVEMFSTATUS">
+					<para>This is the status of the read operation.</para>
+					<value name="START" />
+					<value name="ERROR" />
+					<value name="HANGUP" />
+					<value name="MAXDIGITS" />
+					<value name="TIMEOUT" />
+				</variable>
+			</variablelist>
+		</description>
+		<see-also>
+			<ref type="application">Read</ref>
+			<ref type="application">SendMF</ref>
+		</see-also>
+	</application>
 	<application name="SendMF" language="en_US">
 		<synopsis>
-			Sends arbitrary MF digits
+			Sends arbitrary MF digits on the current or specified channel.
 		</synopsis>
 		<syntax>
 			<parameter name="digits" required="true">
-				<para>List of digits 0-9,*#ABC to send; also f or F for a flash-hook
-				if the channel supports flash-hook, and w or W for a wink if the channel
-				supports wink.</para>
+				<para>List of digits 0-9,*#ABC to send; w for a half-second pause,
+				also f or F for a flash-hook if the channel supports flash-hook,
+				h or H for 250 ms of 2600 Hz,
+				and W for a wink if the channel supports wink.</para>
 				<para>Key pulse and start digits are not included automatically.
 				* is used for KP, # for ST, A for STP, B for ST2P, and C for ST3P.</para>
 			</parameter>
@@ -70,12 +141,13 @@
 			<para>It will send all digits or terminate if it encounters an error.</para>
 		</description>
 		<see-also>
+			<ref type="application">ReceiveMF</ref>
 			<ref type="application">SendDTMF</ref>
 		</see-also>
 	</application>
 	<manager name="PlayMF" language="en_US">
 		<synopsis>
-			Play MF signal on a specific channel.
+			Play MF digit on a specific channel.
 		</synopsis>
 		<syntax>
 			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
@@ -95,140 +167,218 @@
 	</manager>
  ***/
 
+enum read_option_flags {
+	OPT_DELAY = (1 << 0),
+	OPT_MUTE = (1 << 1),
+	OPT_QUELCH = (1 << 2),
+	OPT_RELAXED = (1 << 3),
+	OPT_LAX_KP = (1 << 4),
+	OPT_PROCESS = (1 << 5),
+	OPT_NO_KP = (1 << 6),
+	OPT_NO_ST = (1 << 7),
+	OPT_KP_OVERRIDE = (1 << 8),
+};
+
+AST_APP_OPTIONS(read_app_options, {
+	AST_APP_OPTION('d', OPT_DELAY),
+	AST_APP_OPTION('l', OPT_LAX_KP),
+	AST_APP_OPTION('k', OPT_NO_KP),
+	AST_APP_OPTION('m', OPT_MUTE),
+	AST_APP_OPTION('o', OPT_KP_OVERRIDE),
+	AST_APP_OPTION('p', OPT_PROCESS),
+	AST_APP_OPTION('q', OPT_QUELCH),
+	AST_APP_OPTION('r', OPT_RELAXED),
+	AST_APP_OPTION('s', OPT_NO_ST),
+});
+
+static const char *readmf_name = "ReceiveMF";
 static const char sendmf_name[] = "SendMF";
 
-#define DEFAULT_EMULATE_MF_DURATION 35
 #define MF_BETWEEN_MS 50
 #define MF_DURATION 55
 #define MF_KP_DURATION 120
 #define MF_ST_DURATION 65
 
-static int senddigit_mf_begin(struct ast_channel *chan, char digit)
-{
-	static const char * const mf_tones[] = {
-		"1300+1500", /* 0 */
-		"700+900",   /* 1 */
-		"700+1100",  /* 2 */
-		"900+1100",  /* 3 */
-		"700+1300",  /* 4 */
-		"900+1300",  /* 5 */
-		"1100+1300", /* 6 */
-		"700+1500",  /* 7 */
-		"900+1500",  /* 8 */
-		"1100+1500", /* 9 */
-		"1100+1700", /* * (KP) */
-		"1500+1700", /* # (ST) */
-		"900+1700",  /* A (STP) */
-		"1300+1700", /* B (ST2P) */
-		"700+1700"   /* C (ST3P) */
-	};
+/*!
+ * \brief Detects MF digits on channel using DSP, terminated by ST, STP, ST2P, or ST3P
+ *
+ * \param chan channel on which to read digits
+ * \param buf Buffer in which to store digits
+ * \param buflen Size of buffer
+ * \param timeout ms to wait for all digits before giving up
+ * \param features Any additional DSP features to use
+ * \param override Start over if we receive additional KPs
+ * \param no_kp Don't include KP in the output
+ * \param no_st Don't include start digits in the output
+ *
+ * \retval 0 if successful
+ * \retval -1 if unsuccessful.
+ */
+static int read_mf_digits(struct ast_channel *chan, char *buf, int buflen, int timeout, int features, int laxkp, int override, int no_kp, int no_st) {
+	struct ast_dsp *dsp;
+	struct ast_frame *frame = NULL;
+	struct timeval start;
+	int remaining_time = timeout;
+	int digits_read = 0;
+	int is_start_digit = 0;
+	char *str = buf;
 
-	if (digit >= '0' && digit <='9') {
-		ast_playtones_start(chan, 0, mf_tones[digit-'0'], 0);
-	} else if (digit == '*') {
-		ast_playtones_start(chan, 0, mf_tones[10], 0);
-	} else if (digit == '#') {
-		ast_playtones_start(chan, 0, mf_tones[11], 0);
-	} else if (digit == 'A') {
-		ast_playtones_start(chan, 0, mf_tones[12], 0);
-	} else if (digit == 'B') {
-		ast_playtones_start(chan, 0, mf_tones[13], 0);
-	} else if (digit == 'C') {
-		ast_playtones_start(chan, 0, mf_tones[14], 0);
-	} else {
-		/* not handled */
-		ast_log(LOG_WARNING, "Unable to generate MF tone '%c' for '%s'\n", digit, ast_channel_name(chan));
+	if (!(dsp = ast_dsp_new())) {
+		ast_log(LOG_WARNING, "Unable to allocate DSP!\n");
+		pbx_builtin_setvar_helper(chan, "RECEIVEMFSTATUS", "ERROR");
+		return -1;
 	}
+	ast_dsp_set_features(dsp, DSP_FEATURE_DIGIT_DETECT);
+	ast_dsp_set_digitmode(dsp, DSP_DIGITMODE_MF | features);
 
+	start = ast_tvnow();
+	*str = 0; /* start with empty output buffer */
+
+	/* based on app_read and generic_fax_exec from res_fax */
+	while (timeout == 0 || remaining_time > 0) {
+		if (timeout > 0) {
+			remaining_time = ast_remaining_ms(start, timeout);
+			if (remaining_time <= 0) {
+				pbx_builtin_setvar_helper(chan, "RECEIVEMFSTATUS", "TIMEOUT");
+				break;
+			}
+		}
+		if (digits_read >= (buflen - 1)) { /* we don't have room to store any more digits (very unlikely to happen for a legitimate reason) */
+			/* This result will probably not be usable, so status should not be START */
+			pbx_builtin_setvar_helper(chan, "RECEIVEMFSTATUS", "MAXDIGITS");
+			break;
+		}
+		/* ast_waitfordigit only waits for DTMF frames, we need to do DSP on voice frames */
+		if (ast_waitfor(chan, 1000) > 0) {
+			frame = ast_read(chan);
+			if (!frame) {
+				ast_debug(1, "Channel '%s' did not return a frame; probably hung up.\n", ast_channel_name(chan));
+				pbx_builtin_setvar_helper(chan, "RECEIVEMFSTATUS", "HANGUP");
+				break;
+			} else if (frame->frametype == AST_FRAME_VOICE) {
+				frame = ast_dsp_process(chan, dsp, frame);
+				/* AST_FRAME_DTMF is used all over the DSP code for DTMF, MF, fax, etc.
+					It's used because we can use the frame to store the digit detected.
+					All this means is that we received something we care about. */
+				if (frame->frametype == AST_FRAME_DTMF) {
+					char result = frame->subclass.integer;
+					if (digits_read == 0 && !laxkp && result != '*') {
+						ast_debug(1, "Received MF digit, but no KP yet, ignoring: %c\n", result);
+						ast_frfree(frame);
+						continue;
+					}
+					ast_debug(1, "Received MF digit: %c\n", result);
+					if (result == '*') {
+						/* We received an additional KP, start over? */
+						if (override && digits_read > 0) {
+							ast_debug(1, "Received another KP, starting over\n");
+							str = buf;
+							*str = 0;
+							digits_read = 1; /* we just detected a KP */
+						} else {
+							digits_read++;
+						}
+						/* if we were told not to include the KP digit in the output string, then skip it */
+						if (no_kp) {
+							ast_frfree(frame);
+							continue;
+						}
+					} else {
+						digits_read++;
+					}
+					is_start_digit = (strchr("#", result) || strchr("A", result) || strchr("B", result) || strchr("C", result));
+					/* if we were told not to include the ST digit in the output string, then skip it */
+					if (!no_st || !is_start_digit) {
+						*str++ = result; /* won't write past allotted memory, because of buffer check at top of loop */
+						*str = 0;
+					}
+					/* we received a ST digit (ST, STP, ST2P, or ST3P), so we're done */
+					if (is_start_digit) {
+						pbx_builtin_setvar_helper(chan, "RECEIVEMFSTATUS", "START");
+						ast_frfree(frame);
+						break;
+					}
+					/* only free frame if it was a DSP match. The MF itself should not be muted. */
+					ast_frfree(frame);
+				}
+			}
+		} else {
+			pbx_builtin_setvar_helper(chan, "RECEIVEMFSTATUS", "HANGUP");
+		}
+	}
+	ast_dsp_free(dsp);
+	ast_debug(3, "channel '%s' - event loop stopped { timeout: %d, remaining_time: %d }\n", ast_channel_name(chan), timeout, remaining_time);
 	return 0;
 }
 
-static int senddigit_mf_end(struct ast_channel *chan)
+static int read_mf_exec(struct ast_channel *chan, const char *data)
 {
-	if (ast_channel_generator(chan)) {
-		ast_playtones_stop(chan);
-		return 0;
-	}
-	return -1;
-}
+#define BUFFER_SIZE 256
+	char tmp[BUFFER_SIZE] = "";
+	int to = 0;
+	double tosec;
+	struct ast_flags flags = {0};
+	char *argcopy = NULL;
+	int features = 0;
 
-static int mysleep(struct ast_channel *chan, int ms, int is_external)
-{
-	return is_external ? usleep(ms * 1000) : ast_safe_sleep(chan, ms);
-}
+	AST_DECLARE_APP_ARGS(arglist,
+		AST_APP_ARG(variable);
+		AST_APP_ARG(timeout);
+		AST_APP_ARG(options);
+	);
 
-static int senddigit_mf(struct ast_channel *chan, char digit, unsigned int duration,
-	unsigned int durationkp, unsigned int durationst, int is_external)
-{
-	if (duration < DEFAULT_EMULATE_MF_DURATION) {
-		duration = DEFAULT_EMULATE_MF_DURATION;
-	}
-	if (ast_channel_tech(chan)->send_digit_begin) {
-		if (digit == '*') {
-			duration = durationkp;
-		} else if (digit == '#' || digit == 'A' || digit == 'B' || digit == 'C') {
-			duration = durationst;
-		}
-		senddigit_mf_begin(chan, digit);
-		mysleep(chan, duration, is_external);
-	}
-	return senddigit_mf_end(chan);
-}
-
-static int mf_stream(struct ast_channel *chan, const char *digits, int between, unsigned int duration,
-	unsigned int durationkp, unsigned int durationst, int is_external)
-{
-	const char *ptr;
-	int res;
-	struct ast_silence_generator *silgen = NULL;
-
-	if (!between) {
-		between = 100;
+	if (ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "ReceiveMF requires an argument (variable)\n");
+		return -1;
 	}
 
-	/* Need a quiet time before sending digits. */
-	if (ast_opt_transmit_silence) {
-		silgen = ast_channel_start_silence_generator(chan);
-	}
-	res = mysleep(chan, 100, is_external);
-	if (res) {
-		goto mf_stream_cleanup;
+	argcopy = ast_strdupa(data);
+
+	AST_STANDARD_APP_ARGS(arglist, argcopy);
+
+	if (!ast_strlen_zero(arglist.options)) {
+		ast_app_parse_options(read_app_options, &flags, NULL, arglist.options);
 	}
 
-	for (ptr = digits; *ptr; ptr++) {
-		if (strchr("0123456789*#ABCwWfF", *ptr)) {
-			if (*ptr == 'f' || *ptr == 'F') {
-				/* ignore return values if not supported by channel */
-				ast_indicate(chan, AST_CONTROL_FLASH);
-			} else if (*ptr == 'w' || *ptr == 'W') {
-				/* ignore return values if not supported by channel */
-				ast_indicate(chan, AST_CONTROL_WINK);
-			} else {
-				/* Character represents valid MF */
-				senddigit_mf(chan, *ptr, duration, durationkp, durationst, is_external);
-			}
-			/* pause between digits */
-			/* The DSP code in Asterisk does not currently properly receive repeated tones
-				if no audio is sent in the middle. Simply sending audio (even 0 Hz)
-				works around this limitation and guarantees the correct behavior.
-				*/
-			ast_playtones_start(chan, 0, "0", 0);
-			res = mysleep(chan, between, is_external);
-			senddigit_mf_end(chan);
-			if (res) {
-				break;
-			}
+	if (!ast_strlen_zero(arglist.timeout)) {
+		tosec = atof(arglist.timeout);
+		if (tosec <= 0) {
+			to = 0;
 		} else {
-			ast_log(LOG_WARNING, "Illegal MF character '%c' in string. (0-9*#ABCwWfF allowed)\n", *ptr);
+			to = tosec * 1000.0;
 		}
 	}
 
-mf_stream_cleanup:
-	if (silgen) {
-		ast_channel_stop_silence_generator(chan, silgen);
+	if (ast_strlen_zero(arglist.variable)) {
+		ast_log(LOG_WARNING, "Invalid! Usage: ReceiveMF(variable[,timeout][,option])\n");
+		return -1;
 	}
 
-	return res;
+	if (ast_test_flag(&flags, OPT_DELAY)) {
+		features |= DSP_DIGITMODE_MUTEMAX;
+	}
+
+	if (ast_test_flag(&flags, OPT_MUTE)) {
+		features |= DSP_DIGITMODE_MUTECONF;
+	}
+
+	if (!ast_test_flag(&flags, OPT_QUELCH)) {
+		features |= DSP_DIGITMODE_NOQUELCH;
+	}
+
+	if (ast_test_flag(&flags, OPT_RELAXED)) {
+		features |= DSP_DIGITMODE_RELAXDTMF;
+	}
+
+	read_mf_digits(chan, tmp, BUFFER_SIZE, to, features, (ast_test_flag(&flags, OPT_LAX_KP)),
+		(ast_test_flag(&flags, OPT_KP_OVERRIDE)), (ast_test_flag(&flags, OPT_NO_KP)), (ast_test_flag(&flags, OPT_NO_ST)));
+	pbx_builtin_setvar_helper(chan, arglist.variable, tmp);
+	if (!ast_strlen_zero(tmp)) {
+		ast_verb(3, "MF digits received: '%s'\n", tmp);
+	} else {
+		ast_verb(3, "No MF digits received.\n");
+	}
+	return 0;
 }
 
 static int sendmf_exec(struct ast_channel *chan, const char *vdata)
@@ -283,16 +433,9 @@ static int sendmf_exec(struct ast_channel *chan, const char *vdata)
 			chan_autoservice = chan;
 		}
 	}
-	if (chan_autoservice && ast_autoservice_start(chan_autoservice)) {
-		ast_channel_cleanup(chan_found);
-		return -1;
-	}
-	res = mf_stream(chan_dest, args.digits, dinterval <= 0 ? MF_BETWEEN_MS : dinterval,
+	res = ast_mf_stream(chan_dest, chan_autoservice, NULL, args.digits, dinterval <= 0 ? MF_BETWEEN_MS : dinterval,
 		duration <= 0 ? MF_DURATION : duration, durationkp <= 0 ? MF_KP_DURATION : durationkp,
 		durationst <= 0 ? MF_ST_DURATION : durationst, 0);
-	if (chan_autoservice && ast_autoservice_stop(chan_autoservice)) {
-		res = -1;
-	}
 	ast_channel_cleanup(chan_found);
 
 	return chan_autoservice ? 0 : res;
@@ -330,7 +473,8 @@ static int manager_play_mf(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	senddigit_mf(chan, *digit, duration_ms, duration_ms, duration_ms, 1);
+	ast_mf_stream(chan, NULL, NULL, digit, 0, duration_ms, duration_ms, duration_ms, 1);
+
 	chan = ast_channel_unref(chan);
 
 	astman_send_ack(s, m, "MF successfully queued");
@@ -342,7 +486,8 @@ static int unload_module(void)
 {
 	int res;
 
-	res = ast_unregister_application(sendmf_name);
+	res = ast_unregister_application(readmf_name);
+	res |= ast_unregister_application(sendmf_name);
 	res |= ast_manager_unregister("PlayMF");
 
 	return res;
@@ -352,10 +497,11 @@ static int load_module(void)
 {
 	int res;
 
-	res = ast_manager_register_xml("PlayMF", EVENT_FLAG_CALL, manager_play_mf);
+	res = ast_register_application_xml(readmf_name, read_mf_exec);
 	res |= ast_register_application_xml(sendmf_name, sendmf_exec);
+	res |= ast_manager_register_xml("PlayMF", EVENT_FLAG_CALL, manager_play_mf);
 
 	return res;
 }
 
-AST_MODULE_INFO_STANDARD_EXTENDED(ASTERISK_GPL_KEY, "Send MF digits Application");
+AST_MODULE_INFO_STANDARD_EXTENDED(ASTERISK_GPL_KEY, "MF Sender and Receiver Applications");
