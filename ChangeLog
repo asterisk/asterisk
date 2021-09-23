@@ -1,3 +1,19 @@
+2021-09-23 12:52 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 18.7.0-rc2 Released.
+
+2021-09-17 14:58 +0000 [0932128a0f]  Guido Falsi <madpilot@freebsd.org>
+
+	* res_rtp_asterisk.c: Fix build failure when not building with pjproject.
+
+	  Some code has been added referencing symbols defined in a block
+	  protected by #ifdef HAVE_PJPROJECT. Protect those code parts in
+	  ifdef blocks too.
+
+	  ASTERISK-29660
+
+	  Change-Id: Ib18d4392d51ac80ca5481dabf6e498a4e3e49e6f
+
 2021-09-16 13:43 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 18.7.0-rc1 Released.
