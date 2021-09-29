@@ -3994,6 +3994,11 @@ static void rtp_deallocate_transport(struct ast_rtp_instance *instance, struct a
 		rtp->ice_active_remote_candidates = NULL;
 	}
 
+	if (rtp->ice_proposed_remote_candidates) {
+		ao2_ref(rtp->ice_proposed_remote_candidates, -1);
+		rtp->ice_proposed_remote_candidates = NULL;
+	}
+
 	if (rtp->ioqueue) {
 		/*
 		 * We cannot hold the instance lock because we could wait
