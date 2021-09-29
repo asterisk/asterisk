@@ -154,7 +154,7 @@ static int read_exec(struct ast_channel *chan, const char *data)
 	struct ast_tone_zone_sound *ts = NULL;
 	struct ast_flags flags = {0};
 	const char *status = "ERROR";
-	char *terminator = NULL; /* use default terminator # by default */
+	char *terminator = "#"; /* use default terminator # by default */
 
 	AST_DECLARE_APP_ARGS(arglist,
 		AST_APP_ARG(variable);
@@ -213,7 +213,7 @@ static int read_exec(struct ast_channel *chan, const char *data)
 		}
 	}
 	if (ast_test_flag(&flags, OPT_TERMINATOR)) {
-		if (!ast_strlen_zero(arglist.filename)) {
+		if (!ast_strlen_zero(opt_args[OPT_ARG_TERMINATOR])) {
 			terminator = opt_args[OPT_ARG_TERMINATOR];
 		} else {
 			terminator = ""; /* no digit inherently will terminate input */
