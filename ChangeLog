@@ -1,3 +1,20 @@
+2021-09-30 17:07 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 18.7.0-rc3 Released.
+
+2021-09-29 12:58 +0000 [e9f72a74ce]  Naveen Albert <asterisk@phreaknet.org>
+
+	* app_read: Fix null pointer crash
+
+	  If the terminator character is not explicitly specified
+	  and an indications tone is used for reading a digit,
+	  there is no null pointer check so Asterisk crashes.
+	  This prevents null usage from occuring.
+
+	  ASTERISK-29673 #close
+
+	  Change-Id: Ie941833e123c3dbfb88371b5de5edbbe065514ac
+
 2021-09-23 12:52 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 18.7.0-rc2 Released.
