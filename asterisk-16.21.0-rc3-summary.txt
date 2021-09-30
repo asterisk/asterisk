@@ -1,8 +1,8 @@
                                 Release Summary
 
-                              asterisk-16.21.0-rc2
+                              asterisk-16.21.0-rc3
 
-                                Date: 2021-09-23
+                                Date: 2021-09-30
 
                            <asteriskteam@digium.com>
 
@@ -31,7 +31,7 @@
    to this release series.
 
    The data in this summary reflects changes that have been made since the
-   previous release, asterisk-16.21.0-rc1.
+   previous release, asterisk-16.21.0-rc2.
 
      ----------------------------------------------------------------------
 
@@ -49,7 +49,7 @@
    this release.
 
    Coders                   Testers                  Reporters                
-   1 Guido Falsi                                     1 Guido Falsi            
+   1 Naveen Albert                                   1 N A                    
 
      ----------------------------------------------------------------------
 
@@ -62,12 +62,11 @@
 
   Bug
 
-    Category: Resources/res_rtp_asterisk
+    Category: Applications/app_read
 
-   ASTERISK-29660: Build failure when disabling PJSIP support
-   Reported by: Guido Falsi
-     * [2a6e4cfd45] Guido Falsi -- res_rtp_asterisk.c: Fix build failure when
-       not building with pjproject.
+   ASTERISK-29673: app_read: Fix null pointer crash regression
+   Reported by: N A
+     * [1ef6837e37] Naveen Albert -- app_read: Fix null pointer crash
 
      ----------------------------------------------------------------------
 
