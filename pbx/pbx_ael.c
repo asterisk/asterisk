@@ -280,13 +280,8 @@ static int load_module(void)
 
 static int reload(void)
 {
-#ifndef STANDALONE
-	/* Lock-Protected reload.  It is VERY BAD to have simultaneous ael pbx_load_module() executing at the same time */
-	return ast_module_reload("pbx_ael") == AST_MODULE_RELOAD_SUCCESS ? AST_MODULE_LOAD_SUCCESS : AST_MODULE_LOAD_DECLINE;
-#else
-	/* Lock-Protected reload not needed (and not available) when running standalone (Example: via aelparse cli tool).  No reload contention is possible */
+	/* Lock-Protected reload not needed because we're already being called from ast_module_reload() */
 	return pbx_load_module();
-#endif
 }
 
 #ifdef STANDALONE
