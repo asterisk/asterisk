@@ -314,7 +314,7 @@ struct keypad_button_message {
 
 #define ENBLOC_CALL_MESSAGE 0x0004
 struct enbloc_call_message {
-	char calledParty[24];
+	char calledParty[AST_MAX_EXTENSION];
 };
 
 #define STIMULUS_MESSAGE 0x0005

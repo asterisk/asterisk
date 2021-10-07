@@ -373,7 +373,7 @@ void* memHeapAlloc (void** ppvMemHeap, int nbytes)
          CHECKMEMBLOCK (pMemHeap, pMemBlk);
       }
       else  {
-	 ast_mutex_unlock(&pMemHeap->pLock);
+	      ast_mutex_unlock(&pMemHeap->pLock);
          return NULL;
       }
    }
@@ -753,9 +753,10 @@ void* memHeapRealloc (void** ppvMemHeap, void* mem_p, int nbytes_)
              if (newMemBlk == 0)
                 return 0;
              pMemLink->pMemBlk = newMemBlk;
-	 }
-         else
+	      }
+         else {
             return 0;
+         }
          *(int*)(((char*)pMemLink) + sizeof (OSMemLink)) = nbytes_;
          return pMemLink->pMemBlk;
       }
@@ -1132,7 +1133,7 @@ void* memHeapMarkSaved (void** ppvMemHeap, const void* mem_p,
          RTMEMDIAG2 ("memHeapMarkSaved: the element 0x%x is "
                          "already free!\n", pElem);
 
-	 ast_mutex_unlock(&pMemHeap->pLock);
+	      ast_mutex_unlock(&pMemHeap->pLock);
          return 0;
       }
 
@@ -1151,9 +1152,10 @@ void* memHeapMarkSaved (void** ppvMemHeap, const void* mem_p,
             CLEAR_SAVED (pMemBlk, pElem);
          nsaved = pMemBlk->nsaved;
       }
-      else
-	 ast_mutex_unlock(&pMemHeap->pLock);
-         return 0;
+      else {
+	      ast_mutex_unlock(&pMemHeap->pLock);
+      }
+      return 0;
    }
    if (saved && nsaved > 0)
       pMemLink->blockType |= RTMEMSAVED;
