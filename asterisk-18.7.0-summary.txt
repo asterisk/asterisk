@@ -1,0 +1,744 @@
+                                Release Summary
+
+                                asterisk-18.7.0
+
+                                Date: 2021-10-07
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Open Issues
+    5. Other Changes
+    6. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release is a point release of an existing major version. The changes
+   included were made to address problems that have been identified in this
+   release series, or are minor, backwards compatible new features or
+   improvements. Users should be able to safely upgrade to this version if
+   this release series is already in use. Users considering upgrading from a
+   previous version are strongly encouraged to review the UPGRADE.txt
+   document as well as the CHANGES document for information about upgrading
+   to this release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-18.6.0.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were affected by commits that went into
+   this release.
+
+   Coders                      Testers          Reporters                     
+   18 Naveen Albert                             16 N A                        
+   7 Sean Bright                                3 Alexander Traud             
+   5 Asterisk Development Team                  3 George Joseph               
+   4 George Joseph                              2 sungtae kim                 
+   4 Alexander Traud                            1 Carlos Oliva                
+   1 sungtae kim                                1 Sta Retji                   
+   1 Kevin Harwell                              1 Sébastien Duthil            
+   1 Sarah Autumn                               1 Sean Bright                 
+   1 Mark Murawski                              1 Luke Escude                 
+   1 Carlos Oliva                               1 Guido Falsi                 
+   1 Joshua C. Colp                             1 Ernani José Camargo Azevedo 
+   1 Jasper Hafkenscheid                        1 Joshua C. Colp              
+   1 Guido Falsi                                1 Andre Barbosa               
+   1 Sebastien Duthil                           1 Corey Farrell               
+   1 Sungtae Kim                                1 Alexander Akimov            
+   1 Andre Barbosa                              1 Sarah Autumn                
+                                                1 Tomas Maldonado             
+                                                1 Charlie Smurthwaite         
+                                                1 Isaac McDonald              
+                                                1 Alexander Zharov            
+                                                1 Asterisk to be misaligned.  
+                                                1 Mark Murawski               
+                                                1 Jasper Hafkenscheid         
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Deprecation
+
+    Category: Addons/app_mysql
+
+   ASTERISK-29555: app_mysql: Deprecated in 1.8, to be removed in 19
+   Reported by: Joshua C. Colp
+     * [13fd0789a2] Joshua C. Colp -- policy: Add deprecation and removal
+       versions to modules.
+
+    Category: Addons/cdr_mysql
+
+   ASTERISK-29554: cdr_mysql: Deprecated in 1.8, to be removed in 19
+   Reported by: Joshua C. Colp
+     * [13fd0789a2] Joshua C. Colp -- policy: Add deprecation and removal
+       versions to modules.
+
+    Category: Applications/app_dahdiras
+
+   ASTERISK-29563: app_dahdiras: Deprecated in 16, to be removed in 19
+   Reported by: Joshua C. Colp
+     * [13fd0789a2] Joshua C. Colp -- policy: Add deprecation and removal
+       versions to modules.
+
+    Category: Applications/app_fax
+
+   ASTERISK-29559: app_fax: Deprecated in 16, to be removed in 19
+   Reported by: Joshua C. Colp
+     * [13fd0789a2] Joshua C. Colp -- policy: Add deprecation and removal
+       versions to modules.
+
+    Category: Applications/app_ices
+
+   ASTERISK-29557: app_ices: Deprecated in 16, to be removed in 19
+   Reported by: Joshua C. Colp
+     * [13fd0789a2] Joshua C. Colp -- policy: Add deprecation and removal
+       versions to modules.
+
+    Category: Applications/app_image
+
+   ASTERISK-29561: app_image: Deprecated in 16, to be removed in 19
+   Reported by: Joshua C. Colp
+     * [13fd0789a2] Joshua C. Colp -- policy: Add deprecation and removal
+       versions to modules.
+
+    Category: Applications/app_macro
+
+   ASTERISK-29558: app_macro: Deprecated in 16, to be removed in 21
+   Reported by: Joshua C. Colp
+     * [13fd0789a2] Joshua C. Colp -- policy: Add deprecation and removal
+       versions to modules.
+
+    Category: Applications/app_meetme
+
+   ASTERISK-29548: app_meetme: Deprecated in 19, to be removed in 21
+   Reported by: Joshua C. Colp
+     * [13fd0789a2] Joshua C. Colp -- policy: Add deprecation and removal
+       versions to modules.
+
+    Category: Applications/app_nbscat
+
+   ASTERISK-29562: app_nbscat: Deprecated in 16, to be removed in 19
+   Reported by: Joshua C. Colp
+     * [13fd0789a2] Joshua C. Colp -- policy: Add deprecation and removal
+       versions to modules.
+
+    Category: Applications/app_osplookup
+
+   ASTERISK-29549: app_osploop: Deprecated in 19, to be removed in 21
+   Reported by: Joshua C. Colp
+     * [13fd0789a2] Joshua C. Colp -- policy: Add deprecation and removal
+       versions to modules.
+
+    Category: Applications/app_url
+
+   ASTERISK-29560: app_url: Deprecated in 16, to be removed in 19
+   Reported by: Joshua C. Colp
+     * [13fd0789a2] Joshua C. Colp -- policy: Add deprecation and removal
+       versions to modules.
+
+    Category: CDR/cdr_syslog
+
+   ASTERISK-29564: cdr_syslog: Deprecated in 16, to be removed in 19
+   Reported by: Joshua C. Colp
+     * [13fd0789a2] Joshua C. Colp -- policy: Add deprecation and removal
+       versions to modules.
+
+    Category: Channels/chan_alsa
+
+   ASTERISK-29550: chan_alsa: Deprecated in 19, to be removed in 21
+   Reported by: Joshua C. Colp
+     * [13fd0789a2] Joshua C. Colp -- policy: Add deprecation and removal
+       versions to modules.
+
+    Category: Channels/chan_mgcp
+
+   ASTERISK-29551: chan_mgcp: Deprecated in 19, to be removed in 21
+   Reported by: Joshua C. Colp
+     * [13fd0789a2] Joshua C. Colp -- policy: Add deprecation and removal
+       versions to modules.
+
+    Category: Channels/chan_misdn
+
+   ASTERISK-29569: chan_misdn: Deprecated in 16, to be removed in 19
+   Reported by: Joshua C. Colp
+     * [13fd0789a2] Joshua C. Colp -- policy: Add deprecation and removal
+       versions to modules.
+
+    Category: Channels/chan_nbs
+
+   ASTERISK-29568: chan_nbs: Deprecated in 16, to be removed in 19
+   Reported by: Joshua C. Colp
+     * [13fd0789a2] Joshua C. Colp -- policy: Add deprecation and removal
+       versions to modules.
+
+    Category: Channels/chan_oss
+
+   ASTERISK-29565: chan_oss: Deprecated in 16, to be removed in 19
+   Reported by: Joshua C. Colp
+     * [13fd0789a2] Joshua C. Colp -- policy: Add deprecation and removal
+       versions to modules.
+
+    Category: Channels/chan_phone
+
+   ASTERISK-29566: chan_phone: Deprecated in 16, to be removed in 19
+   Reported by: Joshua C. Colp
+     * [13fd0789a2] Joshua C. Colp -- policy: Add deprecation and removal
+       versions to modules.
+
+    Category: Channels/chan_sip/General
+
+   ASTERISK-29567: chan_sip: Deprecated in 17, to be removed in 21
+   Reported by: Joshua C. Colp
+     * [13fd0789a2] Joshua C. Colp -- policy: Add deprecation and removal
+       versions to modules.
+
+    Category: Channels/chan_skinny
+
+   ASTERISK-29552: chan_skinny: Deprecated in 19, to be removed in 21
+   Reported by: Joshua C. Colp
+     * [13fd0789a2] Joshua C. Colp -- policy: Add deprecation and removal
+       versions to modules.
+
+    Category: Channels/chan_vpb
+
+   ASTERISK-29570: chan_vpb: Deprecated in 16, to be removed in 19
+   Reported by: Joshua C. Colp
+     * [13fd0789a2] Joshua C. Colp -- policy: Add deprecation and removal
+       versions to modules.
+
+    Category: Contrib/General
+
+   ASTERISK-29574: muted: Deprecated in 16, to be removed in 19
+   Reported by: Joshua C. Colp
+     * [13fd0789a2] Joshua C. Colp -- policy: Add deprecation and removal
+       versions to modules.
+
+    Category: PBX/General
+
+   ASTERISK-29573: conf2ael: Deprecated in 16, to be removed in 19
+   Reported by: Joshua C. Colp
+     * [13fd0789a2] Joshua C. Colp -- policy: Add deprecation and removal
+       versions to modules.
+
+    Category: Resources/General
+
+   ASTERISK-29553: res_pktccops: Deprecated in 19, to be removed in 21
+   Reported by: Joshua C. Colp
+     * [13fd0789a2] Joshua C. Colp -- policy: Add deprecation and removal
+       versions to modules.
+
+    Category: Resources/res_config_sqlite
+
+   ASTERISK-29571: res_config_sqlite: Deprecated in 16, to be removed in 19
+   Reported by: Joshua C. Colp
+     * [13fd0789a2] Joshua C. Colp -- policy: Add deprecation and removal
+       versions to modules.
+
+    Category: Resources/res_monitor
+
+   ASTERISK-29572: res_monitor: Deprecated in 16, to be removed in 21
+   Reported by: Joshua C. Colp
+     * [13fd0789a2] Joshua C. Colp -- policy: Add deprecation and removal
+       versions to modules.
+
+  New Feature
+
+    Category: Applications/NewFeature
+
+   ASTERISK-29496: Add SendMF application
+   Reported by: N A
+     * [60daa8f761] Naveen Albert -- app_mf: Add channel agnostic MF sender
+
+    Category: Applications/app_read
+
+   ASTERISK-18454: Option for Read to be able to accept #
+   Reported by: Sta Retji
+     * [dd980e00b4] Naveen Albert -- app_read: Allow reading # as a digit
+
+    Category: Functions/NewFeature
+
+   ASTERISK-29531: Add SAYFILES function
+   Reported by: N A
+     * [b6b7b1490b] Naveen Albert -- func_sayfiles: Retrieve say file names
+   ASTERISK-29542: Add audio scrambler
+   Reported by: N A
+     * [3eec5b8c5c] Naveen Albert -- func_scramble: Audio scrambler function
+   ASTERISK-29478: Function to drop frames in the TX or RX directions
+   Reported by: N A
+     * [118d848238] Naveen Albert -- func_frame_drop: New function
+
+    Category: Functions/func_env
+
+   ASTERISK-29628: Add file and directory functions
+   Reported by: N A
+     * [19de228e8b] Naveen Albert -- func_env: Add DIRNAME and BASENAME
+       functions
+
+    Category: Functions/func_strings
+
+   ASTERISK-29627: Add STRBETWEEN function
+   Reported by: N A
+     * [6198c1d28c] Naveen Albert -- func_strings: Add STRBETWEEN function
+
+    Category: Resources/NewFeature
+
+   ASTERISK-29546: Add tone detection module
+   Reported by: N A
+     * [a6eb1b6f95] Naveen Albert -- res_tonedetect: Tone detection module
+
+  Bug
+
+    Category: Applications/app_agent_pool
+
+   ASTERISK-29614: app_agent_pool: XML Doc: unterminated entity reference
+   Reported by: Alexander Traud
+     * [5c836c8e36] Sean Bright -- config_options: Handle ACO arrays
+       correctly in generated XML docs.
+
+    Category: Applications/app_confbridge
+
+   ASTERISK-29618: ConfBridge errors on creation conference room
+   Reported by: Alexander Zharov
+     * [de19836c24] George Joseph -- bridge_softmix: Suppress error on
+       topology change failure
+
+    Category: Applications/app_milliwatt
+
+   ASTERISK-29575: app_milliwatt: Milliwatt application doesn't use the
+   proper timings
+   Reported by: N A
+     * [dffc5e7f5c] Naveen Albert -- app_milliwatt: Timing fix
+
+    Category: Applications/app_mp3
+
+   ASTERISK-29635: MP3Player don' t work with actual mpg123 versions
+   Reported by: Carlos Oliva
+     * [e8f7b53023] Carlos Oliva -- app_mp3: Force output to 16 bits in
+       mpg123
+
+    Category: Applications/app_queue
+
+   ASTERISK-28701: app_queue: Core reload resets queue stats, even when
+   keepstats=yes
+   Reported by: Luke Escude
+     * [c7af46995e] Naveen Albert -- app_queue: Don't reset queue stats on
+       reload
+
+    Category: Applications/app_read
+
+   ASTERISK-29673: app_read: Fix null pointer crash regression
+   Reported by: N A
+     * [e9f72a74ce] Naveen Albert -- app_read: Fix null pointer crash
+
+    Category: Applications/app_skel
+
+   ASTERISK-29614: app_agent_pool: XML Doc: unterminated entity reference
+   Reported by: Alexander Traud
+     * [5c836c8e36] Sean Bright -- config_options: Handle ACO arrays
+       correctly in generated XML docs.
+
+    Category: Channels/chan_dahdi
+
+   ASTERISK-29518: sig_analog: FCG_CAMA fails to signal ANI spill when using
+   MF signaling
+   Reported by: Sarah Autumn
+     * [241686f860] Sarah Autumn -- sig_analog: Changes to improve
+       electromechanical signalling compatibility
+
+    Category: Channels/chan_mgcp
+
+   ASTERISK-20339: chan_mgcp, resp_pktccops ast_debug support
+   Reported by: Tomas Maldonado
+     * [121860e3f6] Sean Bright -- mgcp: Remove dead debug code
+
+    Category: Core/DNS
+
+   ASTERISK-28004: dns: Core ast_dns_get_nameservers does not support
+   configured IPv6 servers
+   Reported by: Isaac McDonald
+     * [689c703b2c] Sean Bright -- dns.c: Load IPv6 DNS resolvers if
+       configured.
+
+    Category: Core/Jitterbuffer
+
+   ASTERISK-27176: test_abstract_jb: frames leak
+   Reported by: Corey Farrell
+     * [ee62a07914] Sean Bright -- test_abstract_jb.c: Fix put and
+       put_out_of_order memory leaks.
+
+    Category: Documentation
+
+   ASTERISK-29614: app_agent_pool: XML Doc: unterminated entity reference
+   Reported by: Alexander Traud
+     * [5c836c8e36] Sean Bright -- config_options: Handle ACO arrays
+       correctly in generated XML docs.
+
+    Category: Formats/General
+
+   ASTERISK-29539: Segmentation fault at ast_writestream() when write handler
+   not defined (happens with OGG/Speex)
+   Reported by: Ernani José Camargo Azevedo
+     * [628830921e] Kevin Harwell -- format_ogg_speex: Implement a "not
+       supported" write handler
+
+    Category: General
+
+   ASTERISK-29630: Asterisk is unable to read extended number format terminfo
+   files
+   Reported by: Sean Bright
+     * [858cb386fd] Sean Bright -- term.c: Add support for extended number
+       format terminfo files.
+
+    Category: PBX/pbx_ael
+
+   ASTERISK-29609: Subsequent 'ael reload' will cause a lock up
+   Reported by: Mark Murawski
+     * [042ae05be7] Mark Murawski -- pbx_ael: Fix crash and lockup issue
+       regarding 'ael reload'
+
+    Category: Resources/res_ari_channels
+
+   ASTERISK-29629: ARI external media channel creation doesn't set option
+   data
+   Reported by: sungtae kim
+     * [d9747104ff] Sungtae Kim -- resource_channels.c: Fix external media
+       data option
+   ASTERISK-29622: ARI: external media create doesn't use body parameter
+   Reported by: sungtae kim
+     * [479cc17f45] sungtae kim -- resource_channels.c: Fix wrong external
+       media parameter parse
+
+    Category: Resources/res_convert
+
+   ASTERISK-29539: Segmentation fault at ast_writestream() when write handler
+   not defined (happens with OGG/Speex)
+   Reported by: Ernani José Camargo Azevedo
+     * [628830921e] Kevin Harwell -- format_ogg_speex: Implement a "not
+       supported" write handler
+
+    Category: Resources/res_pjproject
+
+   ASTERISK-29582: res_pjproject: Can't map pjproject log messages to
+   Asterisk TRACE
+   Reported by: George Joseph
+     * [b72425b1f0] George Joseph -- res_pjproject: Allow mapping to Asterisk
+       TRACE level
+
+    Category: Resources/res_pjsip
+
+   ASTERISK-29618: ConfBridge errors on creation conference room
+   Reported by: Alexander Zharov
+     * [de19836c24] George Joseph -- bridge_softmix: Suppress error on
+       topology change failure
+
+    Category: Resources/res_pjsip/Bundling
+
+   ASTERISK-29654: pjproject includes trailing whitespace in sdp format
+   attributes
+   Reported by: George Joseph
+     * [0947c30224] George Joseph -- pjproject: Add patch to fix trailing
+       whitespace issue in rtpmap
+
+    Category: Resources/res_rtp_asterisk
+
+   ASTERISK-29660: Build failure when disabling PJSIP support
+   Reported by: Guido Falsi
+     * [0932128a0f] Guido Falsi -- res_rtp_asterisk.c: Fix build failure when
+       not building with pjproject.
+   ASTERISK-29616: res_rtp_asterisk: sqrt(.) requires the header math.h.
+   Reported by: Alexander Traud
+     * [82d6bd7ec9] Alexander Traud -- res_rtp_asterisk: sqrt(.) requires the
+       header math.h.
+
+    Category: Resources/res_snmp
+
+   ASTERISK-29634: res_snmp: gcc 11 needs -fPIC to compile correctly
+   Reported by: George Joseph
+     * [2806a45034] George Joseph -- res_snmp: Add -fPIC to _ASTCFLAGS
+
+    Category: Tests/General
+
+   ASTERISK-27176: test_abstract_jb: frames leak
+   Reported by: Corey Farrell
+     * [ee62a07914] Sean Bright -- test_abstract_jb.c: Fix put and
+       put_out_of_order memory leaks.
+
+    Category: Utilities/aelparse
+
+   ASTERISK-29540: aelparse: include of context with timings fails
+   Reported by: Alexander Traud
+     * [0b1a629ecd] Alexander Traud -- aelparse: Accept an included context
+       with timings.
+
+  Improvement
+
+    Category: Applications/app_morsecode
+
+   ASTERISK-29541: app_morsecode: Add American Morse code
+   Reported by: N A
+     * [9cac1c16da] Naveen Albert -- app_morsecode: Add American Morse code
+
+    Category: Applications/app_originate
+
+   ASTERISK-29543: app_originate: Allow specifying codec(s) to use
+   Reported by: N A
+     * [cb1dfecc11] Naveen Albert -- app_originate: Add ability to set codecs
+
+    Category: Applications/app_stack
+
+   ASTERISK-29626: app_stack: Include calling location if attempting to
+   branch to nonexistent location
+   Reported by: N A
+     * [c736cef310] Naveen Albert -- app_stack: Include current location if
+       branch fails
+
+    Category: Applications/app_voicemail
+
+   ASTERISK-29632: Add option to Application_VoiceMail to suppress
+   instructions only when a custom greeting is present
+   Reported by: Charlie Smurthwaite
+     * [347e9a7e4d] Sean Bright -- app_voicemail.c: Ability to silence
+       instructions if greeting is present.
+
+    Category: Channels/chan_iax2
+
+   ASTERISK-29605: chan_iax2: Add ANI2
+   Reported by: N A
+     * [5a685249ce] Naveen Albert -- chan_iax2: Add ANI2/OLI information
+       element
+
+    Category: Channels/chan_pjsip
+
+   ASTERISK-29472: res_pjsip: OLI/ANI2 support missing
+   Reported by: N A
+     * [1a23c9c047] Naveen Albert -- res_pjsip_caller_id: Add ANI2/OLI
+       parsing
+
+    Category: Core/Bridging
+
+   ASTERISK-29612: bridge_basic: Don't throw warning if attended transfer is
+   cancelled
+   Reported by: N A
+     * [e660a2c03b] Naveen Albert -- bridge_basic: Change warning to verbose
+       if transfer cancelled
+
+    Category: Core/General
+
+   ASTERISK-29544: Media Cache - Delayed remote sound file retrieve delays
+   all playbacks
+   Reported by: Andre Barbosa
+     * [eb486db3af] Andre Barbosa -- media_cache: Don't lock when curl the
+       remote file
+
+    Category: Functions/func_math
+
+   ASTERISK-29495: Return integer instead of float if response is a whole
+   number
+   Reported by: N A
+     * [c52ef4ac79] Naveen Albert -- func_math: Return integer instead of
+       float if possible
+
+    Category: Resources/res_pjsip_caller_id
+
+   ASTERISK-29472: res_pjsip: OLI/ANI2 support missing
+   Reported by: N A
+     * [1a23c9c047] Naveen Albert -- res_pjsip_caller_id: Add ANI2/OLI
+       parsing
+
+    Category: Resources/res_rtp_asterisk
+
+   ASTERISK-29508: STUN server address refresh
+   Reported by: Sébastien Duthil
+     * [ac492f2ff8] Sebastien Duthil -- res_rtp_asterisk: Automatically
+       refresh stunaddr from DNS
+
+     ----------------------------------------------------------------------
+
+                                  Open Issues
+
+                                 [Back to Top]
+
+   This is a list of all open issues from the issue tracker that were
+   referenced by changes that went into this release.
+
+  Bug
+
+    Category: Resources/res_srtp
+
+   ASTERISK-29625: srtp cryptos accepted if not enabled
+   Reported by: Jasper Hafkenscheid
+     * [c1a575907b] Jasper Hafkenscheid -- res_srtp: Disable parsing of not
+       enabled cryptos
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   reference a JIRA issue.
+
+   +------------------------------------------------------------------------+
+   | Revision   | Author           | Summary                                |
+   |------------+------------------+----------------------------------------|
+   | be50d777da | Asterisk         | Update for 18.7.0-rc3                  |
+   |            | Development Team |                                        |
+   |------------+------------------+----------------------------------------|
+   | 1eb543ea0a | Asterisk         | Update for 18.7.0-rc2                  |
+   |            | Development Team |                                        |
+   |------------+------------------+----------------------------------------|
+   | b4d55ed7d4 | Asterisk         | Update for 18.7.0-rc1                  |
+   |            | Development Team |                                        |
+   |------------+------------------+----------------------------------------|
+   | 00cf86dafe | Asterisk         | Update CHANGES and UPGRADE.txt for     |
+   |            | Development Team | 18.7.0                                 |
+   |------------+------------------+----------------------------------------|
+   |            |                  | test_http_media_cache.c: Fix           |
+   | 847349853a | Sean Bright      | copy/paste error during test           |
+   |            |                  | deregistration.                        |
+   |------------+------------------+----------------------------------------|
+   | 8410afc7ab | Alexander Traud  | dialplan: Add one static and fix two   |
+   |            |                  | whitespace errors.                     |
+   |------------+------------------+----------------------------------------|
+   | a8e8b3aaff | Alexander Traud  | BuildSystem: Remove two dead           |
+   |            |                  | exceptions for compiler Clang.         |
+   |------------+------------------+----------------------------------------|
+   | 288d018fb7 | Asterisk         | Update CHANGES and UPGRADE.txt for     |
+   |            | Development Team | 18.6.0                                 |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ asterisk-18.6.0-summary.html                                                                    |  103 -
+ asterisk-18.6.0-summary.txt                                                                     |  331 ----
+ b/.version                                                                                      |    2
+ b/CHANGES                                                                                       |  118 +
+ b/ChangeLog                                                                                     |  680 +++++++++-
+ b/addons/app_mysql.c                                                                            |    2
+ b/addons/cdr_mysql.c                                                                            |    2
+ b/apps/app_agent_pool.c                                                                         |   10
+ b/apps/app_dahdiras.c                                                                           |    2
+ b/apps/app_fax.c                                                                                |    2
+ b/apps/app_ices.c                                                                               |    2
+ b/apps/app_image.c                                                                              |    2
+ b/apps/app_macro.c                                                                              |    2
+ b/apps/app_meetme.c                                                                             |    2
+ b/apps/app_mf.c                                                                                 |  361 +++++
+ b/apps/app_milliwatt.c                                                                          |   23
+ b/apps/app_morsecode.c                                                                          |  168 ++
+ b/apps/app_mp3.c                                                                                |   24
+ b/apps/app_nbscat.c                                                                             |    2
+ b/apps/app_originate.c                                                                          |   41
+ b/apps/app_osplookup.c                                                                          |    2
+ b/apps/app_queue.c                                                                              |   10
+ b/apps/app_read.c                                                                               |   33
+ b/apps/app_stack.c                                                                              |    4
+ b/apps/app_url.c                                                                                |    2
+ b/apps/app_voicemail.c                                                                          |   19
+ b/asterisk-18.7.0-rc3-summary.html                                                              |   11
+ b/asterisk-18.7.0-rc3-summary.txt                                                               |   80 +
+ b/bridges/bridge_softmix.c                                                                      |    3
+ b/cdr/cdr_syslog.c                                                                              |    2
+ b/channels/chan_alsa.c                                                                          |    2
+ b/channels/chan_dahdi.c                                                                         |   16
+ b/channels/chan_dahdi.h                                                                         |   16
+ b/channels/chan_iax2.c                                                                          |    5
+ b/channels/chan_mgcp.c                                                                          |   37
+ b/channels/chan_misdn.c                                                                         |    2
+ b/channels/chan_nbs.c                                                                           |    2
+ b/channels/chan_oss.c                                                                           |    2
+ b/channels/chan_phone.c                                                                         |    2
+ b/channels/chan_pjsip.c                                                                         |    1
+ b/channels/chan_sip.c                                                                           |    2
+ b/channels/chan_skinny.c                                                                        |    2
+ b/channels/chan_vpb.cc                                                                          |    2
+ b/channels/iax2/include/iax2.h                                                                  |    2
+ b/channels/iax2/include/parser.h                                                                |    1
+ b/channels/iax2/parser.c                                                                        |   10
+ b/channels/sig_analog.c                                                                         |   60
+ b/channels/sig_analog.h                                                                         |    4
+ b/configs/samples/chan_dahdi.conf.sample                                                        |   18
+ b/configs/samples/pjproject.conf.sample                                                         |    5
+ b/configs/samples/rtp.conf.sample                                                               |    3
+ b/configure                                                                                     |   40
+ b/configure.ac                                                                                  |    3
+ b/formats/format_ogg_speex.c                                                                    |    9
+ b/funcs/func_env.c                                                                              |   87 +
+ b/funcs/func_frame_drop.c                                                                       |  291 ++++
+ b/funcs/func_math.c                                                                             |   18
+ b/funcs/func_sayfiles.c                                                                         |  396 +++++
+ b/funcs/func_scramble.c                                                                         |  235 +++
+ b/funcs/func_strings.c                                                                          |  144 ++
+ b/include/asterisk/app.h                                                                        |   17
+ b/include/asterisk/autoconfig.h.in                                                              |    3
+ b/include/asterisk/dsp.h                                                                        |    4
+ b/include/asterisk/res_pjsip_session.h                                                          |    2
+ b/include/asterisk/say.h                                                                        |  100 +
+ b/main/app.c                                                                                    |   21
+ b/main/bridge_basic.c                                                                           |    7
+ b/main/channel.c                                                                                |   12
+ b/main/config_options.c                                                                         |   60
+ b/main/dns.c                                                                                    |   17
+ b/main/dns_recurring.c                                                                          |    9
+ b/main/dsp.c                                                                                    |   41
+ b/main/media_cache.c                                                                            |   27
+ b/main/pbx_builtins.c                                                                           |  135 +
+ b/main/pbx_include.c                                                                            |    2
+ b/main/pbx_timing.c                                                                             |    2
+ b/main/say.c                                                                                    |  501 +++++--
+ b/main/term.c                                                                                   |  105 +
+ b/pbx/pbx_ael.c                                                                                 |   12
+ b/res/Makefile                                                                                  |    5
+ b/res/ari/resource_channels.c                                                                   |   27
+ b/res/res_calendar.c                                                                            |    8
+ b/res/res_config_sqlite.c                                                                       |    2
+ b/res/res_fax.c                                                                                 |    2
+ b/res/res_monitor.c                                                                             |    2
+ b/res/res_pjproject.c                                                                           |   22
+ b/res/res_pjsip_caller_id.c                                                                     |   59
+ b/res/res_pktccops.c                                                                            |   36
+ b/res/res_rtp_asterisk.c                                                                        |  135 +
+ b/res/res_srtp.c                                                                                |   32
+ b/res/res_tonedetect.c                                                                          |  671 +++++++++
+ b/tests/test_abstract_jb.c                                                                      |   37
+ b/tests/test_http_media_cache.c                                                                 |    4
+ b/third-party/pjproject/patches/0120-pjmedia_sdp_attr_get_rtpmap-Strip-param-trailing-whi.patch |   32
+ b/utils/Makefile                                                                                |    3
+ b/utils/conf2ael.c                                                                              |    2
+ b/utils/extconf.c                                                                               |    2
+ 97 files changed, 4807 insertions(+), 813 deletions(-)
