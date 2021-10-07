@@ -493,7 +493,7 @@ doc/core-en_US.xml: makeopts .lastclean $(XML_core_en_US)
 			MODULEINFO=$$($(AWK) -f build_tools/get_moduleinfo $$i) ; \
 			if [ -n "$$MODULEINFO" ] ; \
 			then \
-				echo "<module language=\"en_US\" name=\"`$(BASENAME) -s .c $$i`\">" >> $@ ; \
+				echo "<module language=\"en_US\" name=\"`$(BASENAME) $$i .c`\">" >> $@ ; \
 				echo "$$MODULEINFO" >> $@ ; \
 				echo "</module>" >> $@ ; \
 			fi ; \
