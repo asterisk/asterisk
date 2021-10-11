@@ -1,3 +1,16 @@
+2021-10-11 18:36 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 18.7.1 Released.
+
+2021-10-05 19:59 +0000 [81b5e2f702]  Mark Murawski <markm@intellasoft.net>
+
+	* pbx_ael:  Fix crash and lockup issue regarding 'ael reload'
+
+	  Avoid infinite recursion and crash
+
+	  Change-Id: I8ed05ec3aa2806c50c77edc5dd0cd4e4fa08b3f4
+	  (cherry picked from commit e091aa276348d7f8673ce78b29e8f157c73ce90a)
+
 2021-10-07 13:54 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 18.7.0 Released.
