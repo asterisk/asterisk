@@ -73,8 +73,13 @@ major_version=${major_version}.0
 
 if [[ "${HOST_CPU}" = "x86_64" ]] ; then
 	host_bits=64
-else
+elif [[ "${HOST_CPU}" = "i386" ]] ; then
 	host_bits=32
+elif [[ "${HOST_CPU}" = "i686" ]] ; then
+	host_bits=32
+else
+	echo "${module_name}: External module downloading is not available for the ${HOST_CPU} platform.  Only x86 based platforms are currently supported.  Please disable this module in menuselect."
+	exit 1
 fi
 
 if [[ -z "${variant}" ]] ; then
