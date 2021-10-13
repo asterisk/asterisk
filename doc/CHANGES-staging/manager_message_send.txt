@@ -1,6 +1,0 @@
-Subject: MessageSend
-
-The MessageSend AMI action has been updated to allow the Destination
-and the To addresses to be provided separately. This brings the
-MessageSend manager command in line with the capabilities of the
-MessageSend dialplan application.

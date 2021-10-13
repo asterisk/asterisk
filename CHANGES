@@ -13,6 +13,50 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 16.21.0 to Asterisk 16.22.0 ----------
+------------------------------------------------------------------------------
+
+MessageSend
+------------------
+ * The MessageSend AMI action has been updated to allow the Destination
+   and the To addresses to be provided separately. This brings the
+   MessageSend manager command in line with the capabilities of the
+   MessageSend dialplan application.
+
+func_channel
+------------------
+ * Adds the CHANNEL_EXISTS function to check for the existence
+   of a channel by name or unique ID.
+
+func_vmcount
+------------------
+ * Multiple mailboxes may now be specified instead of just one.
+
+logger
+------------------
+ * Added the ability to define custom log levels in logger.conf
+   and use them in the Log dialplan application. Also adds a
+   logger show levels CLI command.
+
+res_pjsip_registrar
+------------------
+ * Adds new PJSIP AOR option remove_unavailable to either
+   remove unavailable contacts when a REGISTER exceeds
+   max_contacts when remove_existing is disabled, or
+   prioritize unavailable contacts over other existing
+   contacts when remove_existing is enabled.
+
+res_pjsip_t38
+------------------
+ * In res_pjsip_sdp_rtp, the bind_rtp_to_media_address option and the
+   fallback use of the transport's bind address solve problems sending
+   media on systems that cannot send ipv4 packets on ipv6 sockets, and
+   certain other situations. This change extends both of these behaviors
+   to UDPTL sessions as well in res_pjsip_t38, to fix fax-specific
+   problems on these systems, introducing a new option
+   endpoint/t38_bind_udptl_to_media_address.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 16.20.0 to Asterisk 16.21.0 ----------
 ------------------------------------------------------------------------------
 
