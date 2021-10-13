@@ -1,0 +1,80 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-18.8.0-rc1</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-18.8.0-rc1</h3><h3 align="center">Date: 2021-10-13</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
+<li><a href="#summary">Summary</a></li>
+<li><a href="#contributors">Contributors</a></li>
+<li><a href="#closed_issues">Closed Issues</a></li>
+<li><a href="#commits">Other Changes</a></li>
+<li><a href="#diffstat">Diffstat</a></li>
+</ol><hr><a name="summary"><h2 align="center">Summary</h2></a><center><a href="#top">[Back to Top]</a></center><p>This release is a point release of an existing major version. The changes included were made to address problems that have been identified in this release series, or are minor, backwards compatible new features or improvements. Users should be able to safely upgrade to this version if this release series is already in use. Users considering upgrading from a previous version are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p><p>The data in this summary reflects changes that have been made since the previous release, asterisk-18.7.0.</p><hr><a name="contributors"><h2 align="center">Contributors</h2></a><center><a href="#top">[Back to Top]</a></center><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release. For coders, the number is how many of their patches (of any size) were committed into this release. For testers, the number is the number of times their name was listed as assisting with testing a patch. Finally, for reporters, the number is the number of issues that they reported that were affected by commits that went into this release.</p><table width="100%" border="0">
+<tr><th width="33%">Coders</th><th width="33%">Testers</th><th width="33%">Reporters</th></tr>
+<tr valign="top"><td width="33%">6 Naveen Albert <asterisk@phreaknet.org><br/>4 Sean Bright <sean.bright@gmail.com><br/>1 Asterisk Development Team <asteriskteam@digium.com><br/>1 Joseph Nadiv <ynadiv@corpit.xyz><br/>1 Jean Aunis <jean.aunis@prescom.fr><br/>1 Joshua C. Colp <jcolp@sangoma.com><br/>1 Guido Falsi <madpilot@freebsd.org><br/>1 Mark Murawski <markm@intellasoft.net><br/>1 Shloime Rosenblum <shloimerosenblum@gmail.com><br/>1 Matthew Kern <mkern@alconconstruction.com><br/></td><td width="33%"><td width="33%">5 N A <mail@interlinked.x10host.com><br/>1 Shloime Rosenblum <shloimerosenblum@gmail.com><br/>1 Guido Falsi <madpilot@freebsd.org><br/>1 Michael Munger <michael@highpoweredhelp.com><br/>1 Joseph Nadiv <ynadiv@corpit.xyz><br/>1 Boris P. Korzun <drtr0jan@yandex.ru><br/>1 Jean Aunis - Prescom <jean.aunis@prescom.fr><br/>1 Matthew Kern <mkern@alconconstruction.com><br/>1 Joshua C. Colp <jcolp@digium.com><br/>1 Brian J. Murrell <brian@interlinx.bc.ca><br/></td></tr>
+</table><hr><a name="closed_issues"><h2 align="center">Closed Issues</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p><h3>New Feature</h3><h4>Category: Functions/func_channel</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29656">ASTERISK-29656</a>: Add CHANNEL_EXISTS function<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=cf0d656ae6c5975c16d92ac112c1396def021efe">[cf0d656ae6]</a> Naveen Albert -- func_channel: Add CHANNEL_EXISTS function.</li>
+</ul><br><h3>Bug</h3><h4>Category: Applications/app_queue</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29578">ASTERISK-29578</a>: app_queue: Custom device state using included hints do not update<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=cfd0246d117b1eb74c3921647e18030ab4d4853d">[cfd0246d11]</a> Naveen Albert -- app_queue: Fix hint updates for included contexts</li>
+</ul><br><h4>Category: Applications/app_read</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29673">ASTERISK-29673</a>: app_read: Fix null pointer crash regression<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=5a6f14076596ad5208a7b82e5806ba6403d32611">[5a6f140765]</a> Naveen Albert -- app_read: Fix null pointer crash</li>
+</ul><br><h4>Category: Channels/chan_iax2</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-20219">ASTERISK-20219</a>: [patch] - IAX2 Call Encryption Fails with RSA authentication<br/>Reported by: Michael Munger<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=437b2bfbd639ac226bc97c01875a910209ff2459">[437b2bfbd6]</a> Naveen Albert -- chan_iax2: Add encryption for RSA authentication</li>
+</ul><br><h4>Category: Resources/res_ari_bridges</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29668">ASTERISK-29668</a>: ari: Listing bridges fails when dialing bridge exists<br/>Reported by: Joshua C. Colp<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=ea36473c4555463881703c3e7a278ab418164ed4">[ea36473c45]</a> Joshua C. Colp -- ari: Ignore invisible bridges when listing bridges.</li>
+</ul><br><h4>Category: Resources/res_pjsip_messaging</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29663">ASTERISK-29663</a>: messaging: AMI MessageSend does not support same parameters as dialplan application<br/>Reported by: Brian J. Murrell<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=e98839b73c1178afddd2625e1fd090d52f6ed33c">[e98839b73c]</a> Sean Bright -- message.c: Support 'To' header override with AMI's MessageSend.</li>
+</ul><br><h4>Category: Resources/res_pjsip_t38</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29402">ASTERISK-29402</a>: res_pjsip_t38: Socket is bound to IPv4/IPv6 but platform does not support it<br/>Reported by: Matthew Kern<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=15e432220ccd2a6857b8bab1126365e860cdfc22">[15e432220c]</a> Matthew Kern -- res_pjsip_t38: bind UDPTL sessions like RTP</li>
+</ul><br><h4>Category: Resources/res_rtp_asterisk</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29671">ASTERISK-29671</a>: res_rtp_asterisk: memory leak<br/>Reported by: Jean Aunis - Prescom<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0ab4e7491d3b107f3a6092e3bd14080f043f1caa">[0ab4e7491d]</a> Jean Aunis -- res_rtp_asterisk: fix memory leak</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29660">ASTERISK-29660</a>: Build failure when disabling PJSIP support<br/>Reported by: Guido Falsi<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=03377c35fc9144de81abc5b5d31ffcd988693aad">[03377c35fc]</a> Guido Falsi -- res_rtp_asterisk.c: Fix build failure when not building with pjproject.</li>
+</ul><br><h3>Improvement</h3><h4>Category: Applications/General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29637">ASTERISK-29637</a>: Add support for future dates in Say.c<br/>Reported by: Shloime Rosenblum<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=29c44caecb892321d19acb883e6a253c40489278">[29c44caecb]</a> Shloime Rosenblum -- main/say.c: Support future dates with Q and q format params</li>
+</ul><br><h4>Category: Core/Logging</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29529">ASTERISK-29529</a>: Add custom logging level<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=a65bb134f5ce7df09cf00399286644c20029e586">[a65bb134f5]</a> Naveen Albert -- logger: Add custom logging capabilities</li>
+</ul><br><h4>Category: Formats/format_wav</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29275">ASTERISK-29275</a>: Support of MIME-type for wav16<br/>Reported by: Boris P. Korzun<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=b2c834e349479e18897f8f846b5c4a8a3d526f33">[b2c834e349]</a> Sean Bright -- res_http_media_cache.c: Compare unaltered MIME types.</li>
+</ul><br><h4>Category: Functions/func_vmcount</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29661">ASTERISK-29661</a>: func_vmcount: Add support for multiple mailboxes<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=484da42d6ced3c882fa46e851a00719cdb8a7899">[484da42d6c]</a> Naveen Albert -- func_vmcount: Add support for multiple mailboxes</li>
+</ul><br><h4>Category: pjproject/pjsip</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29525">ASTERISK-29525</a>: PJSIP remove_existing unavailable contacts<br/>Reported by: Joseph Nadiv<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=43687640327d3f3c814a1b713b911618ac2c7c01">[4368764032]</a> Joseph Nadiv -- res_pjsip_registrar: Remove unavailable contacts if exceeds max_contacts</li>
+</ul><br><hr><a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all changes that went into this release that did not reference a JIRA issue.</p><table width="100%" border="1">
+<tr><th>Revision</th><th>Author</th><th>Summary</th></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=9063680148f24aaf9f0995363488632b29fc2c06">9063680148</a></td><td>Asterisk Development Team</td><td>Update CHANGES and UPGRADE.txt for 18.8.0</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=804b1987fb386b3094335c62ddd1628525bcf199">804b1987fb</a></td><td>Sean Bright</td><td>Makefile: Use basename in a POSIX-compliant way.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=e091aa276348d7f8673ce78b29e8f157c73ce90a">e091aa2763</a></td><td>Mark Murawski</td><td>pbx_ael:  Fix crash and lockup issue regarding 'ael reload'</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=dce142baa4789b5ba9dfc5fcf89e261b5819e32f">dce142baa4</a></td><td>Sean Bright</td><td>app_externalivr.c: Fix mixed leading whitespace in source code.</td></tr>
+</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>.lastclean                                                                                  |    1
+.version                                                                                    |    1
+ChangeLog                                                                                   |96466 ----------
+asterisk-18.7.0-summary.html                                                                |  262
+asterisk-18.7.0-summary.txt                                                                 |  744
+b/CHANGES                                                                                   |   44
+b/Makefile                                                                                  |    2
+b/UPGRADE.txt                                                                               |   20
+b/apps/app_externalivr.c                                                                    |  288
+b/apps/app_queue.c                                                                          |   49
+b/apps/app_verbose.c                                                                        |    9
+b/channels/chan_iax2.c                                                                      |   20
+b/configs/samples/logger.conf.sample                                                        |    8
+b/configs/samples/pjsip.conf.sample                                                         |   13
+b/contrib/ast-db-manage/config/versions/a06d8f8462d9_add_t38_bind_udptl_to_media_address.py |   29
+b/contrib/ast-db-manage/config/versions/f56d79a9f337_pjsip_create_remove_unavailable.py     |   30
+b/funcs/func_channel.c                                                                      |   38
+b/funcs/func_vmcount.c                                                                      |   23
+b/include/asterisk/logger.h                                                                 |    8
+b/include/asterisk/res_pjsip.h                                                              |    4
+b/main/logger.c                                                                             |  187
+b/main/message.c                                                                            |   39
+b/main/say.c                                                                                |   37
+b/pbx/pbx_ael.c                                                                             |    7
+b/res/ari/resource_bridges.c                                                                |   19
+b/res/res_http_media_cache.c                                                                |   46
+b/res/res_pjsip.c                                                                           |   41
+b/res/res_pjsip/location.c                                                                  |    1
+b/res/res_pjsip/pjsip_configuration.c                                                       |    1
+b/res/res_pjsip_registrar.c                                                                 |  106
+contrib/realtime/mysql/mysql_cdr.sql                                                        |   41
+contrib/realtime/mysql/mysql_config.sql                                                     | 1318
+contrib/realtime/mysql/mysql_voicemail.sql                                                  |   35
+contrib/realtime/postgresql/postgresql_cdr.sql                                              |   45
+contrib/realtime/postgresql/postgresql_config.sql                                           | 1430
+contrib/realtime/postgresql/postgresql_voicemail.sql                                        |   39
+36 files changed, 839 insertions(+), 100612 deletions(-)</pre><br></html>
