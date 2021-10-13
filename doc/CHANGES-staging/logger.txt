@@ -1,5 +1,0 @@
-Subject: logger
-
-Added the ability to define custom log levels in logger.conf
-and use them in the Log dialplan application. Also adds a
-logger show levels CLI command.
