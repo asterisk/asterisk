@@ -1,7 +1,0 @@
-Subject: res_pjsip_registrar
-
-Adds new PJSIP AOR option remove_unavailable to either
-remove unavailable contacts when a REGISTER exceeds
-max_contacts when remove_existing is disabled, or
-prioritize unavailable contacts over other existing
-contacts when remove_existing is enabled.

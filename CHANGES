@@ -13,6 +13,442 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 18.0.0 to Asterisk 19.0.0 ------------
+------------------------------------------------------------------------------
+
+AMI Flash event
+------------------
+ * Hook flash events are now exposed as AMI events.
+
+Add variable support to Originate
+------------------
+ * The Originate application now allows
+   variables to be set on the new channel
+   through a new option.
+
+Channel-agnostic MF support
+------------------
+ * A SendMF application and PlayMF manager
+   application are now included to send
+   arbitrary standard R1 MF tones on the
+   current channel or another specified channel.
+
+Core
+------------------
+ * Added debug logging categories that allow a user to output debug information
+   based on a specified category. This lets the user limit, and filter debug
+   output to data relevant to a particular context, or topic. For instance the
+   following categories are now available for debug logging purposes:
+
+     dtls, dtls_packet, ice, rtcp, rtcp_packet, rtp, rtp_packet, stun, stun_packet
+
+   These debug categories can be enable/disable via an Asterisk CLI command:
+
+     core set debug category <category>[:<sublevel>] [category[:<sublevel] ...]
+     core set debug category off [<category> [<category>] ...]
+
+   If no sub-level is associated all debug statements for a given category are
+   output. If a sub-level is given then only those statements assigned a value
+   at or below the associated sub-level are output.
+
+ * The location where the media cache stores its temporary files
+   is no longer hardcoded to /tmp but can now be configured separately
+   via the astcachedir config variable in asterisk.conf.
+
+   The default location for astcachedir is now /var/cache/asterisk
+   instead of /tmp, please make sure to manually cleanup and/or
+   migrate the temporary files in /tmp after upgrading.
+
+Handle non-standard Meter metric type safely
+------------------
+ * A meter_support flag has been introduced that defaults to true to maintain current behaviour.
+   If disabled, a counter metric type will be used instead wherever a meter metric type was used,
+   the counter will have a "_meter" suffix appended to the metric name.
+
+MessageSend
+------------------
+ * The MessageSend dialplan application now takes an
+   optional third argument that can set the message's
+   "To" field on outgoing messages.  It's an alternative
+   to using the MESSAGE(to) dialplan function.
+
+   To prevent confusion with the first argument, currently
+   named "to", it's been renamed to "destination".
+   Its function, creating the request URI, hasn't changed.
+
+   The online documentation has also been enhanced to
+   explain the behavior.
+
+   Despite the changes in this commit, there should be
+   no impact to current users of MessageSend.
+
+ * The MessageSend AMI action has been updated to allow the Destination
+   and the To addresses to be provided separately. This brings the
+   MessageSend manager command in line with the capabilities of the
+   MessageSend dialplan application.
+
+New ConfKick application
+------------------
+ * Adds a ConfKick() application, which allows
+   a specific channel, all users, or all non-admin
+   users to be kicked from a conference bridge.
+
+New Reload application
+------------------
+ * Adds an application to reload modules
+
+PlaybackFinished has a new error state
+------------------
+ * The PlaybackFinished event now has a new state "failed"
+   that is used when the sound file was not played due to an error.
+   Before the state on PlaybackFinished was always "done".
+
+   In case of multiple sound files to be played,
+   the PlaybackFinished is sent only once in the end of the list,
+   even in case of error.
+
+WaitForCondition application
+------------------
+ * This application provides a way to halt
+   dialplan execution until a provided
+   condition evaluates to true.
+
+app_confbridge
+------------------
+ * app_confbridge now has the ability to force the estimated bitrate on an SFU
+   bridge.  To use it, set a bridge profile's remb_behavior to "force" and
+   set remb_estimated_bitrate to a rate in bits per second.  The
+   remb_estimated_bitrate parameter is ignored if remb_behavior is something
+   other than "force".
+
+app_confbridge answer supervision control
+------------------
+ * app_confbridge now provides a user option to prevent
+   answer supervision if the channel hasn't been
+   answered yet. To use it, set a user profile's
+   answer_channel option to no.
+
+app_dial announcement option
+------------------
+ * The A option for Dial now supports
+   playing audio to the caller as well
+   as the called party.
+
+app_dtmfstore
+------------------
+ * New application which collects digits
+   dialed and stores them into
+   a specified variable.
+
+app_milliwatt
+------------------
+ * The Milliwatt application's existing behavior is
+   incorrect in that it plays a constant tone, which
+   is not how digital milliwatt test lines actually
+   work.
+
+   An option is added so that a proper milliwatt test
+   tone can be provided, including a 1 second silent
+   interval every 10 seconds. However, for compatability
+   reasons, the default behavior remains unchanged.
+
+app_mixmonitor
+------------------
+ * app_mixmonitor now sends manager events MixMonitorStart, MixMonitorStop and
+   MixMonitorMute when the channel monitoring is started, stopped and muted (or
+   unmuted) respectively.
+
+app_morsecode
+------------------
+ * Extends the Morsecode application by adding support for
+   American Morse code and adds a configurable option
+   for the frequency used in off intervals.
+
+app_originate
+------------------
+ * Codecs can now be specified for dialplan-originated
+   calls, as with call files and the manager action.
+   By default, only the slin codec is now used, instead
+   of all the slin* codecs.
+
+app_queue
+------------------
+ * Reload behavior in app_queue has been changed so
+   queue and agent stats are not reset during full
+   app_queue module reloads. The queue reset stats
+   CLI command may still be used to reset stats while
+   Asterisk is running.
+
+app_queue.c
+------------------
+ * Allow multiple files to be streamed for agent announcement.
+
+app_read
+------------------
+ * A new option allows the digit '#' to be read literally,
+   rather than used exclusively as the input terminator
+   character.
+
+app_voicemail
+------------------
+ * The VoiceMail application can now be configured to send greetings and
+   instructions via early media and only answering the channel when it is
+   time for the caller to record their message. This behavior can be
+   activated by passing the new 'e' option to VoiceMail.
+
+ * You can now customize the "beep" tone or omit it entirely.
+
+ * Add a new 'S' option to VoiceMail which prevents the instructions
+   (vm-intro) from being played if a busy/unavailable/temporary greeting
+   from the voicemail user is played. This is similar to the existing 's'
+   option except that instructions will still be played if no user
+   greeting is available.
+
+chan_iax2
+------------------
+ * You can now specify a default "auth" method in the
+   [general] section of iax.conf
+
+ * ANI2 (OLI) is now transmitted over IAX2 calls
+   as an information element.
+
+chan_pjsip
+------------------
+ * The PJSIP_SEND_SESSION_REFRESH dialplan function now issues a warning, and
+   returns unsuccessful if it's used on a channel prior to answering.
+
+ * Add function PJSIP_HEADERS() to get list of headers by pattern in the same way as SIP_HEADERS() do.
+
+   Add ability to read header by pattern using PJSIP_HEADER().
+
+chan_pjsip, app_transfer
+------------------
+ * Added TRANSFERSTATUSPROTOCOL variable.  When transfer is performed,
+   transfers can pass a protocol specific error code.
+   Example, in SIP 3xx-6xx represent any SIP specific error received when
+   performing a REFER.
+
+func_channel
+------------------
+ * Adds the CHANNEL_EXISTS function to check for the existence
+   of a channel by name or unique ID.
+
+func_env.c
+------------------
+ * Two new functions, DIRNAME and BASENAME, are now
+   included which allow users to obtain the directory
+   or the base filename of any file.
+
+func_framedrop
+------------------
+ * New function to selectively drop specified frames
+   in either direction on a channel.
+
+func_math: Three new dialplan functions
+------------------
+ * Introduce three new functions, MIN, MAX, and ABS, which can be used to
+   obtain the minimum or maximum of up to two integers or absolute value.
+
+func_odbc
+------------------
+ * Introduce an ARGC variable for func_odbc functions, along with a minargs
+   per-function configuration option.
+
+   minargs enables enforcing of minimum count of arguments to pass to
+   func_odbc, so if you're unconditionally using ARG1 through ARG4 then
+   this should be set to 4.  func_odbc will generate an error in this case,
+   so for example
+
+   [FOO]
+   minargs = 4
+
+   and ODBC_FOO(a,b,c) in dialplan will now error out instead of using a
+   potentially leaked ARG4 from Gosub().
+
+   ARGC is needed if you're using optional argument, to verify whether or
+   not an argument has been passed, else it's possible to use a leaked ARGn
+   from Gosub (app_stack).  So now you can safely do
+   ${IF($[${ARGC}>3]?${ARGV}:default value)} kind of thing.
+
+func_scramble
+------------------
+ * Adds an audio scrambler function that may be used to
+   distort voice audio on a channel as a privacy
+   enhancement.
+
+func_strings
+------------------
+ * A new STRBETWEEN function is now included which
+   allows a substring to be inserted between characters
+   in a string. This is particularly useful for transforming
+   dial strings, such as adding pauses between digits
+   for a string of digits that are sent to another channel.
+
+func_vmcount
+------------------
+ * Multiple mailboxes may now be specified instead of just one.
+
+func_volume now can be read
+------------------
+ * The VOLUME function can now also be used
+   to read existing values previously set.
+
+logger
+------------------
+ * Added a new log formatter called "plain" that always prints
+   file, function and line number if available (even for verbose
+   messages) and never prints color control characters.  Most
+   suitable for file output but can be used for other channels
+   as well.
+
+   You use it in logger.conf like so:
+   debug => [plain]debug
+   console => [plain]error,warning,debug,notice,pjsip_history
+   messages => [plain]warning,error,verbose
+
+ * The dateformat option in logger.conf will now control the remote
+   console (asterisk -r -T) timestamp format.  Previously, dateformat only
+   controlled the formatting of the timestamp going to log files and the
+   main console (asterisk -c) but only for non-verbose messages.
+
+   Internally, Asterisk does not send the logging timestamp with verbose
+   messages to console clients. It's up to the Asterisk remote consoles
+   to format verbose messages.  Asterisk remote consoles previously did
+   not load dateformat from logger.conf.
+
+   Previously there was a non-configurable and hard-coded "%b %e %T"
+   dateformat that would be used no matter what on all verbose console
+   messages printed on remote consoles.
+
+   Example:
+   logger.conf
+    dateformat=%F %T.%3q
+
+   # asterisk -rvvv -T
+   [2021-03-19 09:54:19.760-0400]  Loading res_stasis_answer.so.
+   [Mar 19 09:55:43]     -- Goto (dialExten,s,1)
+
+   Given the following example configuration in logger.conf, Asterisk log
+   files and the console, will log verbose messages using the given
+   timestamp.  Now ensuring that all remote console messages are logged
+   with the same dateformat as other log streams.
+
+   ---
+   [general]
+   dateformat=%F %T.%3q
+
+   [logfiles]
+   console  => notice,warning,error,verbose
+   full     => notice,warning,error,debug,verbose
+   ---
+
+   Now we have a globally-defined dateformat that will be used
+   consistently across the Asterisk main console, remote consoles, and
+   log files.
+
+   Now we have consistent logging:
+
+   # asterisk -rvvv -T
+   [2021-03-19 09:54:19.760-0400]  Loading res_stasis_answer.so.
+   [2021-03-19 09:55:43.920-0400]     -- Goto (dialExten,s,1)
+
+ * Added the ability to define custom log levels in logger.conf
+   and use them in the Log dialplan application. Also adds a
+   logger show levels CLI command.
+
+res_pjproject
+------------------
+ * In pjproject.conf you can now map pjproject log levels
+   to the Asterisk TRACE log level.  The default mappings
+   have therefore changed so that only pjproject levels
+   3 and 4 are mapped to DEBUG and 5 and 6 are now mapped
+   to TRACE.  Previously 3, 4, 5, and 6 were all mapped to
+   DEBUG.
+
+res_pjsip
+------------------
+ * PJSIP transports can now be partially reloaded safely. This allows the
+   local_net and external_* options to be updated without restarting Asterisk.
+
+ * PJSIP endpoints can now be configured to skip authentication when
+   handling OPTIONS requests by setting the allow_unauthenticated_options
+   configuration property to 'yes.'
+
+ * PJSIP support of registrations of endpoints in multidomain
+   scenarios, where the endpoint contains the domain info
+   in pjsip_endpoint.conf
+
+res_pjsip_dialog_info_body_generator
+------------------
+ * PJSIP now supports RFC 4235 Section 4.1.6 dialog-info+xml local and
+   remote elements by iterating through ringing channels and inserting
+   that info into NOTIFY packet sent to the endpoint.
+
+res_pjsip_messaging
+------------------
+ * Implemented the new "to" parameter of the MessageSend()
+   dialplan application.  This allows a user to specify
+   a complete SIP "To" header separate from the Request URI.
+   We now also accept a destination in the same format
+   as Dial()...  PJSIP/number@endpoint
+
+res_pjsip_registrar
+------------------
+ * Adds new PJSIP AOR option remove_unavailable to either
+   remove unavailable contacts when a REGISTER exceeds
+   max_contacts when remove_existing is disabled, or
+   prioritize unavailable contacts over other existing
+   contacts when remove_existing is enabled.
+
+res_pjsip_t38
+------------------
+ * In res_pjsip_sdp_rtp, the bind_rtp_to_media_address option and the
+   fallback use of the transport's bind address solve problems sending
+   media on systems that cannot send ipv4 packets on ipv6 sockets, and
+   certain other situations. This change extends both of these behaviors
+   to UDPTL sessions as well in res_pjsip_t38, to fix fax-specific
+   problems on these systems, introducing a new option
+   endpoint/t38_bind_udptl_to_media_address.
+
+res_rtp_asterisk
+------------------
+ * By default Asterisk reports the PJSIP version in all
+   STUN packets it sends.
+
+   This behaviour may not be desired in a production
+   environment and can now be disabled by setting the
+   stun_software_attribute option to 'no' in rtp.conf.
+
+ * When the address of the STUN server (stunaddr) is a name resolved via DNS, the
+   stunaddr will be recurringly resolved when the DNS answer Time-To-Live (TTL)
+   expires. This allows the STUN server to change its IP address without having to
+   reload the res_rtp_asterisk module.
+
+res_srtp
+------------------
+ * SRTP replay protection has been added to res_srtp and
+   a new configuration option "srtpreplayprotection" has
+   been added to the rtp.conf config file.  For security
+   reasons, the default setting is "yes".  Buggy clients
+   may not handle this correctly which could result in
+   no, or one way, audio and Asterisk error messages like
+   "replay check failed".
+
+res_tonedetect
+------------------
+ * Arbitrary tone detection is now available through a
+   WaitForTone application (blocking) and a TONE_DETECT
+   function (non-blocking).
+
+say.c
+------------------
+ * Adds SAYFILES function to retrieve the file names that would
+   be played by corresponding Say applications, such as
+   SayDigits, SayAlpha, etc.
+
+   Additionally adds SayMoney and SayOrdinal applications.
+
+------------------------------------------------------------------------------
 --- New functionality introduced in Asterisk 18.0.0 --------------------------
 ------------------------------------------------------------------------------
 

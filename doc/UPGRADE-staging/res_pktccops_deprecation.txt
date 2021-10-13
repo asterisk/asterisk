@@ -1,6 +1,0 @@
-Subject: res_pktccops
-Master-Only: True
-
-This module is now deprecated and will no
-longer be built by default. It is scheduled
-to be removed as of Asterisk 21.

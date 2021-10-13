@@ -1,8 +1,0 @@
-Subject: res_rtp_asterisk
-
-By default Asterisk reports the PJSIP version in all
-STUN packets it sends.
-
-This behaviour may not be desired in a production
-environment and can now be disabled by setting the
-stun_software_attribute option to 'no' in rtp.conf.

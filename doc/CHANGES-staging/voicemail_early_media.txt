@@ -1,6 +1,0 @@
-Subject: app_voicemail
-
-The VoiceMail application can now be configured to send greetings and
-instructions via early media and only answering the channel when it is
-time for the caller to record their message. This behavior can be
-activated by passing the new 'e' option to VoiceMail.

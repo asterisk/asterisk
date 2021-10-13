@@ -1,4 +1,0 @@
-Subject: func_volume now can be read
-
-The VOLUME function can now also be used
-to read existing values previously set.

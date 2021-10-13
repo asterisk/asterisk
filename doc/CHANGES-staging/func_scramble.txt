@@ -1,5 +1,0 @@
-Subject: func_scramble
-
-Adds an audio scrambler function that may be used to
-distort voice audio on a channel as a privacy
-enhancement.

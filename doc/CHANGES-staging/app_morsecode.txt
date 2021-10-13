@@ -1,6 +1,0 @@
-Subject: app_morsecode
-
-Extends the Morsecode application by adding support for
-American Morse code and adds a configurable option
-for the frequency used in off intervals.
-

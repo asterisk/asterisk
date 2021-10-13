@@ -1,7 +1,0 @@
-Subject: func_strings
-
-A new STRBETWEEN function is now included which
-allows a substring to be inserted between characters
-in a string. This is particularly useful for transforming
-dial strings, such as adding pauses between digits
-for a string of digits that are sent to another channel.

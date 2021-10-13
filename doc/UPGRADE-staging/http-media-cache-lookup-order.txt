@@ -1,9 +1,0 @@
-Subject: res_http_media_cache
-
-When fetching a file for playback from a URL, Asterisk will now first
-use the value of the Content-Type header in the HTTP response to
-determine the format of the audio data, and only if it is unable to do
-that will it attempt to parse the URL and extract the extension from
-the path portion. Previously Asterisk would first look at the end of
-the URL, which may have included query string parameters or a URL
-fragment, which was error prone.

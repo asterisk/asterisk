@@ -1,7 +1,0 @@
-Subject: app_confbridge
-
-app_confbridge now has the ability to force the estimated bitrate on an SFU
-bridge.  To use it, set a bridge profile's remb_behavior to "force" and
-set remb_estimated_bitrate to a rate in bits per second.  The
-remb_estimated_bitrate parameter is ignored if remb_behavior is something
-other than "force".

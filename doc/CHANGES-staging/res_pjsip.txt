@@ -1,5 +1,0 @@
-Subject: res_pjsip
-
-PJSIP support of registrations of endpoints in multidomain
-scenarios, where the endpoint contains the domain info
-in pjsip_endpoint.conf

@@ -1,6 +1,0 @@
-Subject: app_dial announcement option
-
-The A option for Dial now supports
-playing audio to the caller as well
-as the called party.
-

@@ -1,9 +1,0 @@
-Subject: res_pjsip_t38
-
-In res_pjsip_sdp_rtp, the bind_rtp_to_media_address option and the
-fallback use of the transport's bind address solve problems sending
-media on systems that cannot send ipv4 packets on ipv6 sockets, and
-certain other situations. This change extends both of these behaviors
-to UDPTL sessions as well in res_pjsip_t38, to fix fax-specific
-problems on these systems, introducing a new option
-endpoint/t38_bind_udptl_to_media_address.
