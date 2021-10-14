@@ -239,17 +239,24 @@ static void append_attr_address(struct stun_attr **attr, int attrval, struct soc
 
 static void handle_stun_timeout(int retry, struct sockaddr_in *dst)
 {
+	char *stun_destination = "";
+	if (dst) {
+		ast_asprintf(&stun_destination, "to '%s' ", ast_inet_ntoa(dst->sin_addr));
+	}
 	if (retry < STUN_MAX_RETRIES) {
 		ast_log(LOG_NOTICE,
-			"Attempt %d to send STUN request to '%s' timed out.",
+			"Attempt %d to send STUN request %stimed out.\n",
 			retry,
-			ast_inet_ntoa(dst->sin_addr));
+			stun_destination);
 	} else {
 		ast_log(LOG_WARNING,
-			"Attempt %d to send STUN request to '%s' timed out."
+			"Attempt %d to send STUN request %stimed out. "
 			"Check that the server address is correct and reachable.\n",
 			retry,
-			ast_inet_ntoa(dst->sin_addr));
+			stun_destination);
+	}
+	if (dst) {
+		ast_free(stun_destination);
 	}
 }
 
