@@ -78,8 +78,8 @@ else
 endif
 
 export PJ_CFLAGS := $(filter-out -O% -g%,$(PJ_CFLAGS))
-export CFLAGS += $(CF)
-export LDFLAGS += $(CC_LDFLAGS)
+export CFLAGS += $(CF) $(OPENSSL_INCLUDE)
+export LDFLAGS += $(CC_LDFLAGS) $(OPENSSL_LIB)
 
 ECHO_PREFIX := $(ECHO_PREFIX) echo '[pjproject] '
 SHELL_ECHO_PREFIX := echo '[pjproject] '
@@ -119,7 +119,7 @@ source/pjlib/include/pj/%.h: patches/%.h
 	$(CMD_PREFIX) $(MAKE) clean $(REALLY_QUIET)
 
 source/build.mak: Makefile.rules source/version.mak source/user.mak $(addprefix source/pjlib/include/pj/,$(notdir $(wildcard patches/*.h))) .rebuild_needed
-	$(ECHO_PREFIX) Configuring with $(PJPROJECT_CONFIG_OPTS)
+	$(ECHO_PREFIX) Configuring with $(PJPROJECT_CONFIG_OPTS) 
 	$(CMD_PREFIX) (cd source ; ./aconfigure $(QUIET_CONFIGURE) $(PJPROJECT_CONFIG_OPTS))
 
 build.mak: source/build.mak

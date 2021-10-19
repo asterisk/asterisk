@@ -313,6 +313,8 @@ AC_PATH_PROG([LDCONFIG], [ldconfig], :)
 AC_PATH_PROG([SHA1SUM], [sha1sum], $ac_aux_dir/build_tools/sha1sum-sh)
 AC_PATH_PROG([OPENSSL], [openssl], :)
 
+PKG_PROG_PKG_CONFIG()
+
 AC_CACHE_CHECK([for bison that supports parse-param], [ac_cv_path_BISON2], [
 	if test "x$BISON" != "x:" ; then
 		# Create a temporary directory $tmp in $TMPDIR (default /tmp).
@@ -458,6 +460,52 @@ if test "${with_pjproject}" == "no" || test "${with_pjproject}" == "n" ; then
 	PJPROJECT_BUNDLED=no
 fi
 
+#
+# OpenSSL stuff has to be done here because we want to pass
+# any resulting CFLAGS and LDFLAGS to the bundled pjproject
+# configure done in THIRD_PARTY_CONFIGURE()
+#
+AST_EXT_LIB_SETUP([CRYPTO], [OpenSSL Cryptography], [crypto])
+AST_EXT_LIB_SETUP([OPENSSL], [OpenSSL Secure Sockets Layer], [ssl])
+AST_EXT_LIB_SETUP_OPTIONAL([OPENSSL_BIO_METHOD], [OpenSSL BIO Method Support], [CRYPTO], [crypto])
+
+# If neither --without-ssl (PBX_OPENSSL=-1) nor --without-crypto (PBX_CRYPTO=-1)
+# and there were no directories atdded to --with-ssl and --with-crypto, and
+# pkg-config is installed (which is should be by install_prereq).
+if test "x$PKG_CONFIG" != "x" -a $PBX_OPENSSL -ge 0 -a $PBX_CRYPTO -ge 0 -a "x$OPENSSL_DIR" == "x" ; then
+	AC_MSG_NOTICE(checking OPENSSL with pkg-config)
+	AC_MSG_NOTICE(checking whether system openssl > 1.1.0)
+	AST_PKG_CONFIG_CHECK([OPENSSL], [openssl >= 1.1.0])
+	if test $PBX_OPENSSL -eq 0 ; then
+		AC_MSG_NOTICE(checking whether alternate openssl11 is installed)
+		AST_PKG_CONFIG_CHECK([OPENSSL], [openssl11])
+	fi
+	if test $PBX_OPENSSL -eq 1 ; then
+		AC_DEFINE([HAVE_OPENSSL_BIO_METHOD], 1)
+		PBX_OPENSSL_BIO_METHOD=1
+	else
+		AC_MSG_NOTICE(checking fallback system openssl)
+		AST_PKG_CONFIG_CHECK([OPENSSL], [openssl])
+	fi
+
+	if test $PBX_OPENSSL -eq 1; then
+		AC_DEFINE([HAVE_CRYPTO], 1)
+		PBX_CRYPTO=1
+	fi
+else
+	AC_MSG_NOTICE(Checking OPENSSL without pkg-config)
+	AST_EXT_LIB_CHECK([CRYPTO], [crypto], [AES_encrypt], [openssl/aes.h])
+	if test "$PBX_CRYPTO" = "1";
+	then
+		AST_EXT_LIB_CHECK([OPENSSL], [ssl], [SSL_connect], [openssl/ssl.h], [-lcrypto])
+		AST_EXT_LIB_CHECK([OPENSSL_BIO_METHOD], [ssl], [BIO_meth_new], [openssl/ssl.h], [-lcrypto])
+	fi
+fi
+if test $PBX_OPENSSL -eq 0 ; then
+	AC_MSG_WARN(OpenSSL does not seem to be installed)
+fi
+
+
 THIRD_PARTY_CONFIGURE()
 
 # AST_EXT_LIB_SETUP is used to tell configure to handle variables for
@@ -482,8 +530,6 @@ AST_EXT_LIB_SETUP([CODEC2], [Codec 2 Audio Decoder/Encoder], [codec2])
 AST_EXT_LIB_SETUP([COROSYNC], [Corosync], [cpg])
 AST_EXT_LIB_SETUP_OPTIONAL([COROSYNC_CFG_STATE_TRACK], [A callback only in corosync 1.x], [COROSYNC], [cfg])
 AST_EXT_LIB_SETUP([CRYPT], [password and data encryption], [crypt])
-AST_EXT_LIB_SETUP([CRYPTO], [OpenSSL Cryptography], [crypto])
-AST_EXT_LIB_SETUP_OPTIONAL([OPENSSL_BIO_METHOD], [OpenSSL BIO Method Support], [CRYPTO], [crypto])
 AST_EXT_LIB_SETUP([DAHDI], [DAHDI], [dahdi])
 AST_EXT_LIB_SETUP([FFMPEG], [Ffmpeg and avcodec], [avcodec])
 AST_EXT_LIB_SETUP([GSM], [External GSM], [gsm], [, use 'internal' GSM otherwise])
@@ -591,7 +637,6 @@ AST_EXT_LIB_SETUP_OPTIONAL([SRTP_192], [SRTP Library AES-192 (ICM)], [SRTP], [sr
 AST_EXT_LIB_SETUP_OPTIONAL([SRTP_GCM], [SRTP Library AES-128 (GCM) and AES-256 (GCM)], [SRTP], [srtp])
 AST_EXT_LIB_SETUP_OPTIONAL([SRTP_SHUTDOWN], [SRTP Library Shutdown Function], [SRTP], [srtp])
 AST_EXT_LIB_SETUP_OPTIONAL([SRTP_GET_VERSION], [SRTP Library Version Function], [SRTP], [srtp])
-AST_EXT_LIB_SETUP([OPENSSL], [OpenSSL Secure Sockets Layer], [ssl])
 AST_EXT_LIB_SETUP_OPTIONAL([RT], [Realtime functions], [rt])
 AST_EXT_LIB_SETUP([SUPPSERV], [mISDN Supplemental Services], [suppserv])
 AST_EXT_LIB_SETUP([FREETDS], [FreeTDS], [tds])
@@ -637,8 +682,6 @@ AC_CHECK_HEADERS([ \
 ])
 
 AC_CHECK_HEADERS([arpa/inet.h libintl.h malloc.h netdb.h stddef.h strings.h sys/event.h utime.h])
-
-PKG_PROG_PKG_CONFIG()
 
 # Find required NetBSD Editline library (libedit).
 AST_PKG_CONFIG_CHECK(LIBEDIT, libedit)
@@ -2637,14 +2680,6 @@ AC_SUBST(CRYPT_INCLUDE)
 # Find crypt_r support
 AC_CHECK_LIB([crypt], [crypt_r],
     [AC_DEFINE([HAVE_CRYPT_R], [1], [Define to 1 if you have the 'crypt_r' function.])])
-
-AST_EXT_LIB_CHECK([CRYPTO], [crypto], [AES_encrypt], [openssl/aes.h])
-
-if test "$PBX_CRYPTO" = "1";
-then
-	AST_EXT_LIB_CHECK([OPENSSL], [ssl], [SSL_connect], [openssl/ssl.h], [-lcrypto])
-	AST_EXT_LIB_CHECK([OPENSSL_BIO_METHOD], [ssl], [BIO_meth_new], [openssl/ssl.h], [-lcrypto])
-fi
 
 if test "$PBX_OPENSSL" = "1";
 then
