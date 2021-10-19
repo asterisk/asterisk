@@ -585,14 +585,11 @@
 /* Define to 1 if you have the MFR2 library. */
 #undef HAVE_OPENR2
 
-/* Define to 1 if you have the OpenSSL Secure Sockets Layer library. */
+/* Define if your system has the OPENSSL libraries. */
 #undef HAVE_OPENSSL
 
 /* Define to 1 if CRYPTO has the OpenSSL BIO Method Support feature. */
 #undef HAVE_OPENSSL_BIO_METHOD
-
-/* Define to 1 if CRYPTO has the OpenSSL SRTP Extension Support feature. */
-#undef HAVE_OPENSSL_SRTP
 
 /* Define to 1 if you have the Opus library. */
 #undef HAVE_OPUS
