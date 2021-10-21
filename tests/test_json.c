@@ -37,6 +37,7 @@
 
 #include "asterisk.h"
 
+#include "asterisk/config.h"
 #include "asterisk/json.h"
 #include "asterisk/module.h"
 #include "asterisk/test.h"
@@ -1090,6 +1091,63 @@ AST_TEST_DEFINE(json_test_object_iter_null)
 	return AST_TEST_PASS;
 }
 
+AST_TEST_DEFINE(json_test_object_create_vars)
+{
+	RAII_VAR(struct ast_json *, uut, NULL, ast_json_unref);
+	RAII_VAR(struct ast_variable *, vars, NULL, ast_variables_destroy);
+	const char *value;
+	struct ast_variable *new_var;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "object_create_vars";
+		info->category = CATEGORY;
+		info->summary = "Testing JSON object creation initialized using Asterisk variables.";
+		info->description = "Test JSON abstraction library.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	/* NULL case */
+	ast_test_validate(test, (uut = ast_json_object_create_vars(NULL, NULL)));
+	ast_test_validate(test, !(value = ast_json_object_string_get(uut, "foo")));
+
+	ast_test_validate(test, (new_var = ast_variable_new("foo", "bar", "")));
+	ast_variable_list_append(&vars, new_var);
+	ast_test_validate(test, (new_var = ast_variable_new("bar", "baz", "")));
+	ast_variable_list_append(&vars, new_var);
+
+	/* Variables case */
+	ast_json_unref(uut);
+	ast_test_validate(test, (uut = ast_json_object_create_vars(vars, NULL)));
+	ast_test_validate(test, (value = ast_json_object_string_get(uut, "foo")));
+	ast_test_validate(test, !strcmp("bar", value));
+	ast_test_validate(test, (value = ast_json_object_string_get(uut, "bar")));
+	ast_test_validate(test, !strcmp("baz", value));
+
+	/* Variables with excludes case */
+	ast_json_unref(uut);
+	ast_test_validate(test, (uut = ast_json_object_create_vars(vars, "foo")));
+	ast_test_validate(test, !(value = ast_json_object_string_get(uut, "foo")));
+	ast_test_validate(test, (value = ast_json_object_string_get(uut, "bar")));
+	ast_test_validate(test, !strcmp("baz", value));
+
+	ast_json_unref(uut);
+	ast_test_validate(test, (uut = ast_json_object_create_vars(vars, "foo2")));
+	ast_test_validate(test, (value = ast_json_object_string_get(uut, "foo")));
+	ast_test_validate(test, (value = ast_json_object_string_get(uut, "bar")));
+	ast_test_validate(test, !strcmp("baz", value));
+
+	ast_json_unref(uut);
+	ast_test_validate(test, (uut = ast_json_object_create_vars(vars, "foobar,baz")));
+	ast_test_validate(test, (value = ast_json_object_string_get(uut, "foo")));
+	ast_test_validate(test, (value = ast_json_object_string_get(uut, "bar")));
+	ast_test_validate(test, !strcmp("baz", value));
+
+	return AST_TEST_PASS;
+}
+
 AST_TEST_DEFINE(json_test_dump_load_string)
 {
 	RAII_VAR(struct ast_json *, uut, NULL, ast_json_unref);
@@ -1738,6 +1796,7 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(json_test_object_null);
 	AST_TEST_UNREGISTER(json_test_object_iter);
 	AST_TEST_UNREGISTER(json_test_object_iter_null);
+	AST_TEST_UNREGISTER(json_test_object_create_vars);
 	AST_TEST_UNREGISTER(json_test_dump_load_string);
 	AST_TEST_UNREGISTER(json_test_dump_load_str);
 	AST_TEST_UNREGISTER(json_test_dump_str_fail);
@@ -1794,6 +1853,7 @@ static int load_module(void)
 	AST_TEST_REGISTER(json_test_object_null);
 	AST_TEST_REGISTER(json_test_object_iter);
 	AST_TEST_REGISTER(json_test_object_iter_null);
+	AST_TEST_REGISTER(json_test_object_create_vars);
 	AST_TEST_REGISTER(json_test_dump_load_string);
 	AST_TEST_REGISTER(json_test_dump_load_str);
 	AST_TEST_REGISTER(json_test_dump_str_fail);

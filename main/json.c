@@ -852,3 +852,22 @@ struct ast_json *ast_json_channel_vars(struct varshead *channelvars)
 
 	return ret;
 }
+
+struct ast_json *ast_json_object_create_vars(const struct ast_variable *variables, const char *excludes)
+{
+	const struct ast_variable *i;
+	struct ast_json *obj;
+
+	obj = ast_json_object_create();
+	if (!obj) {
+		return NULL;
+	}
+
+	for (i = variables; i; i = i->next) {
+		if (!excludes || !ast_in_delimited_string(i->name, excludes, ',')) {
+			ast_json_object_set(obj, i->name, ast_json_string_create(i->value));
+		}
+	}
+
+	return obj;
+}
