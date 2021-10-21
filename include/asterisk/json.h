@@ -539,6 +539,15 @@ int ast_json_array_extend(struct ast_json *array, struct ast_json *tail);
 struct ast_json *ast_json_object_create(void);
 
 /*!
+ * \brief Create a new JSON object using the given variables
+ * \param variables A list of Asterisk variables
+ * \param excludes Comma separated string of variable names to exclude (optional)
+ * \return Newly allocated object.
+ * \return \c NULL on error.
+ */
+struct ast_json *ast_json_object_create_vars(const struct ast_variable *variables, const char *excludes);
+
+/*!
  * \brief Get size of JSON object.
  * \since 12.0.0
  * \param object JSON object.
@@ -571,6 +580,14 @@ struct ast_json *ast_json_object_get(struct ast_json *object, const char *key);
  * \return \c NULL on error, or key value is not a string.
  */
 #define ast_json_object_string_get(object, key) ast_json_string_get(ast_json_object_get(object, key))
+
+/*!
+ * \brief Get an integer field from a JSON object.
+ * \param integer JSON integer.
+ * \return Value of a JSON integer.
+ * \return 0 if \a integer is not a JSON integer.
+ */
+#define ast_json_object_integer_get(object, key) ast_json_integer_get(ast_json_object_get(object, key))
 
 /*!
  * \brief Set a field in a JSON object.
