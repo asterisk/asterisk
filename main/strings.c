@@ -430,3 +430,28 @@ int ast_vector_string_split(struct ast_vector_string *dest,
 
 	return 0;
 }
+
+int ast_in_delimited_string(const char *needle, const char *haystack, char delim)
+{
+	const char *end;
+	unsigned long needle_size;
+
+	ast_assert(haystack != NULL);
+
+	if (!needle) {
+		return 0;
+	}
+
+	needle_size = strlen(needle);
+	haystack = ast_skip_blanks(haystack);
+
+	while ((end = strchr(haystack, delim))) {
+		if (needle_size == end - haystack && !strncmp(haystack, needle, needle_size)) {
+			return 1;
+		}
+		haystack = ast_skip_blanks(end + 1);
+	}
+
+	return strcmp(haystack, needle) ? 0 : -1;
+}
+
