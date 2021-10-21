@@ -280,6 +280,19 @@ int ast_speech_change_state(struct ast_speech *speech, int state)
 	return res;
 }
 
+const char *ast_speech_results_type_to_string(enum ast_speech_results_type type)
+{
+	switch (type) {
+	case AST_SPEECH_RESULTS_TYPE_NORMAL:
+		return "normal";
+	case AST_SPEECH_RESULTS_TYPE_NBEST:
+		return "nbest";
+	default:
+		ast_assert(0);
+		return "unknown";
+	}
+}
+
 /*! \brief Change the type of results we want */
 int ast_speech_change_results_type(struct ast_speech *speech, enum ast_speech_results_type results_type)
 {
@@ -322,11 +335,16 @@ int ast_speech_register(struct ast_speech_engine *engine)
 /*! \brief Unregister a speech recognition engine */
 int ast_speech_unregister(const char *engine_name)
 {
-	struct ast_speech_engine *engine = NULL;
-	int res = -1;
+	return ast_speech_unregister2(engine_name) == NULL ? -1 : 0;
+}
 
-	if (ast_strlen_zero(engine_name))
-		return -1;
+struct ast_speech_engine *ast_speech_unregister2(const char *engine_name)
+{
+	struct ast_speech_engine *engine = NULL;
+
+	if (ast_strlen_zero(engine_name)) {
+		return NULL;
+	}
 
 	AST_RWLIST_WRLOCK(&engines);
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&engines, engine, list) {
@@ -339,14 +357,13 @@ int ast_speech_unregister(const char *engine_name)
 			}
 			ast_verb(2, "Unregistered speech recognition engine '%s'\n", engine_name);
 			/* All went well */
-			res = 0;
 			break;
 		}
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END;
 	AST_RWLIST_UNLOCK(&engines);
 
-	return res;
+	return engine;
 }
 
 static int unload_module(void)
