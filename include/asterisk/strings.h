@@ -401,6 +401,19 @@ void ast_copy_string(char *dst, const char *src, size_t size),
 )
 
 /*!
+ * \brief Check if there is an exact match for 'needle' between delimiters in 'haystack'.
+ *
+ * \note This will skip extra leading spaces between delimiters.
+ *
+ * \param needle The string to search for
+ * \param haystack The string searched in
+ * \param delim The haystack delimiter
+ *
+ * \return True if an exact match for needle is in haystack, false otherwise
+ */
+int ast_in_delimited_string(const char *needle, const char *haystack, char delim);
+
+/*!
   \brief Build a string in a buffer, designed to be called repeatedly
 
   \note This method is not recommended. New code should use ast_str_*() instead.
