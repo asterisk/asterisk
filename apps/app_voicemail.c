@@ -15590,6 +15590,12 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 				}
 				cmd = ast_play_and_wait(chan, "beep");
 			}
+			if (cmd == -1) {
+				/* User has hung up, no options to give */
+				ast_debug(1, "User hung up before message could be rerecorded\n");
+				ast_filedelete(tempfile, NULL);
+				return cmd;
+			}
 			recorded = 1;
 			/* After an attempt has been made to record message, we have to take care of INTRO and beep for incoming messages, but not for greetings */
 			if (record_gain)
