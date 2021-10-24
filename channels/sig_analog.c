@@ -1967,7 +1967,7 @@ static void *__analog_ss_thread(void *data)
 			 * this as a complete spill for the purposes of setting anistart */
 			if ((res > 0) || (strlen(anibuf) >= 2)) {
 				char anistart[2] = "X";
-				char f[10] = {0};
+				char f[101] = {0};
 				if (strchr("#ABC", anibuf[strlen(anibuf) - 1])) {
 					anistart[0] = anibuf[strlen(anibuf) - 1];
 					anibuf[strlen(anibuf) - 1] = 0;
