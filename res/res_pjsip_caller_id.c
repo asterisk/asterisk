@@ -133,43 +133,32 @@ static pjsip_fromto_hdr *get_id_header(pjsip_rx_data *rdata, const pj_str_t *hea
  */
 static int set_id_from_oli(pjsip_rx_data *rdata, int *ani2)
 {
-	char fromhdr[AST_CHANNEL_NAME];
-	const char *s = NULL;
-	pjsip_sip_uri *uri;
-	pjsip_name_addr *id_name_addr;
+	char oli[AST_CHANNEL_NAME];
+
+	pjsip_param *oli1, *oli2, *oli3;
+
+	static const pj_str_t oli_str1 = { "isup-oli", 8 };
+	static const pj_str_t oli_str2 = { "ss7-oli", 7 };
+	static const pj_str_t oli_str3 = { "oli", 3 };
 
 	pjsip_fromto_hdr *from = pjsip_msg_find_hdr(rdata->msg_info.msg,
 			PJSIP_H_FROM, rdata->msg_info.msg->hdr.next);
-	id_name_addr = (pjsip_name_addr *) from->uri;
 
 	if (!from) {
-		/* This had better not happen */
+		return -1; /* This had better not happen */
+	}
+
+	if ((oli1 = pjsip_param_find(&from->other_param, &oli_str1))) {
+		ast_copy_pj_str(oli, &oli1->value, sizeof(oli));
+	} else if ((oli2 = pjsip_param_find(&from->other_param, &oli_str2))) {
+		ast_copy_pj_str(oli, &oli2->value, sizeof(oli));
+	} else if ((oli3 = pjsip_param_find(&from->other_param, &oli_str3))) {
+		ast_copy_pj_str(oli, &oli3->value, sizeof(oli));
+	} else {
 		return -1;
 	}
 
-	uri = pjsip_uri_get_uri(id_name_addr);
-	ast_copy_pj_str(fromhdr, &uri->user, sizeof(fromhdr));
-
-	/* Look for the possible OLI tags. */
-	if ((s = strcasestr(fromhdr, ";isup-oli="))) {
-		s += 10;
-	} else if ((s = strcasestr(fromhdr, ";ss7-oli="))) {
-		s += 9;
-	} else if ((s = strcasestr(fromhdr, ";oli="))) {
-		s += 5;
-	}
-
-	if (ast_strlen_zero(s)) {
-		/* OLI tag is missing, or present with nothing following the '=' sign */
-		return -1;
-	}
-
-	/* just in case OLI is quoted */
-	if (*s == '\"') {
-		s++;
-	}
-
-	return ast_str_to_int(s, ani2);
+	return ast_str_to_int(oli, ani2);
 }
 
 /*!
