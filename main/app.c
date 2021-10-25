@@ -249,7 +249,7 @@ enum ast_getdata_result ast_app_getdata_terminator(struct ast_channel *c, const 
 			fto = 50;
 			to = ast_channel_pbx(c) ? ast_channel_pbx(c)->dtimeoutms : 2000;
 		}
-		res = ast_readstring(c, s, maxlen, to, fto, S_OR(terminator, "#"));
+		res = ast_readstring(c, s, maxlen, to, fto, (terminator ? terminator : "#"));
 		if (res == AST_GETDATA_EMPTY_END_TERMINATED) {
 			return res;
 		}
