@@ -250,7 +250,7 @@ static int read_exec(struct ast_channel *chan, const char *data)
 						break;
 					}
 					tmp[x++] = res;
-					if (strchr(terminator, tmp[x-1])) {
+					if (terminator && strchr(terminator, tmp[x-1])) {
 						tmp[x-1] = '\0';
 						status = "OK";
 						break;
