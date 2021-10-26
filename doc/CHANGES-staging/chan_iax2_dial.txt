@@ -1,0 +1,4 @@
+Subject: chan_iax2
+
+Both a secret and an outkey may be specified at dial time,
+since encryption is possible with RSA authentication.
