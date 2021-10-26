@@ -5035,6 +5035,8 @@ reject:
  */
 static void parse_dial_string(char *data, struct parsed_dial_string *pds)
 {
+	char *outkey = NULL;
+
 	if (ast_strlen_zero(data))
 		return;
 
@@ -5057,7 +5059,8 @@ static void parse_dial_string(char *data, struct parsed_dial_string *pds)
 	if (pds->username) {
 		data = pds->username;
 		pds->username = strsep(&data, ":");
-		pds->password = data;
+		pds->password = strsep(&data, ":");
+		outkey = data;
 	}
 
 	data = pds->peer;
@@ -5067,10 +5070,26 @@ static void parse_dial_string(char *data, struct parsed_dial_string *pds)
 	/*
 	 * Check for a key name wrapped in [] in the password position.
 	 * If found, move it to the key field instead.
+	 * Also allow for both key and secret to be specified, now that
+	 * encryption is possible with RSA authentication.
 	 */
-	if (pds->password && (pds->password[0] == '[')) {
+	
+	if (pds->password && (pds->password[0] == '[')) { /* key (then maybe secret) */
 		pds->key = ast_strip_quoted(pds->password, "[", "]");
-		pds->password = NULL;
+		if (ast_strlen_zero(outkey)) {
+			pds->password = NULL;
+			ast_debug(1, "Outkey (%s), no secret\n", pds->key);
+		} else {
+			pds->password = outkey;
+			ast_debug(1, "Outkey (%s) and secret (%s)\n", pds->key, pds->password);
+		}
+	} else if (outkey && (outkey[0] == '[')) { /* secret, then key */
+		pds->key = ast_strip_quoted(outkey, "[", "]");
+		if (ast_strlen_zero(pds->password)) {
+			ast_debug(1, "Outkey (%s), no secret\n", pds->key);
+		} else {
+			ast_debug(1, "Outkey (%s) and secret (%s)\n", pds->key, pds->password);
+		}
 	}
 }
 
@@ -6468,7 +6487,7 @@ static int decode_frame(ast_aes_decrypt_key *dcx, struct ast_iax2_full_hdr *fh, 
 	} else {
 		struct ast_iax2_mini_enc_hdr *efh = (struct ast_iax2_mini_enc_hdr *)fh;
 		if (iaxdebug)
-			ast_debug(1, "Decoding mini with length %d\n", *datalen);
+			ast_debug(5, "Decoding mini with length %d\n", *datalen);
 		if (*datalen < 16 + sizeof(struct ast_iax2_mini_hdr))
 			return -1;
 		/* Decrypt */
@@ -6506,7 +6525,7 @@ static int encrypt_frame(ast_aes_encrypt_key *ecx, struct ast_iax2_full_hdr *fh,
 	} else {
 		struct ast_iax2_mini_enc_hdr *efh = (struct ast_iax2_mini_enc_hdr *)fh;
 		if (iaxdebug)
-			ast_debug(1, "Encoding mini frame with length %d\n", *datalen);
+			ast_debug(5, "Encoding mini frame with length %d\n", *datalen);
 		padding = 16 - ((*datalen - sizeof(struct ast_iax2_mini_enc_hdr)) % 16);
 		padding = 16 + (padding & 0xf);
 		memcpy(workspace, poo, padding);
@@ -11993,7 +12012,7 @@ immediatedial:
 		iaxs[fr->callno]->last = fr->ts;
 #if 1
 		if (iaxdebug)
-			ast_debug(1, "For call=%d, set last=%u\n", fr->callno, fr->ts);
+			ast_debug(3, "For call=%d, set last=%u\n", fr->callno, fr->ts);
 #endif
 	}
 
