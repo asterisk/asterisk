@@ -3843,7 +3843,7 @@ static int ice_create(struct ast_rtp_instance *instance, struct ast_sockaddr *ad
 
 static int rtp_allocate_transport(struct ast_rtp_instance *instance, struct ast_rtp *rtp)
 {
-	int x, startplace;
+	int x, startplace, i, maxloops;
 
 	rtp->strict_rtp_state = (strictrtp ? STRICT_RTP_CLOSED : STRICT_RTP_OPEN);
 
@@ -3857,11 +3857,14 @@ static int rtp_allocate_transport(struct ast_rtp_instance *instance, struct ast_
 	}
 
 	/* Now actually find a free RTP port to use */
-	x = (rtpend == rtpstart) ? rtpstart : (ast_random() % (rtpend - rtpstart)) + rtpstart;
+	x = (ast_random() % (rtpend - rtpstart)) + rtpstart;
 	x = x & ~1;
 	startplace = x;
 
-	for (;;) {
+	/* Protection against infinite loops in the case there is a potential case where the loop is not broken such as an odd
+	   start port sneaking in (even though this condition is checked at load.) */
+	maxloops = rtpend - rtpstart;
+	for (i = 0; i <= maxloops; i++) {
 		ast_sockaddr_set_port(&rtp->bind_address, x);
 		/* Try to bind, this will tell us whether the port is available or not */
 		if (!ast_bind(rtp->s, &rtp->bind_address)) {
@@ -9702,6 +9705,13 @@ static int rtp_reload(int reload, int by_external_config)
 #endif
 
 	ast_config_destroy(cfg);
+
+	/* Choosing an odd start port casues issues (like a potential infinite loop) and as odd parts are not
+	   chosen anyway, we are going to round up and issue a warning */
+	if (rtpstart & 1) {
+		rtpstart++;
+		ast_log(LOG_WARNING, "Odd start value for RTP port in rtp.conf, rounding up to %d\n", rtpstart);
+	}
 
 	if (rtpstart >= rtpend) {
 		ast_log(LOG_WARNING, "Unreasonable values for RTP start/end port in rtp.conf\n");
