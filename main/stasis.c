@@ -1433,8 +1433,8 @@ static void publish_msg(struct stasis_topic *topic,
 	struct stasis_message *message, struct stasis_subscription *sync_sub)
 {
 	size_t i;
-	unsigned int dispatched = 0;
 #ifdef AST_DEVMODE
+	unsigned int dispatched = 0;
 	int message_type_id = stasis_message_type_id(stasis_message_type(message));
 	struct stasis_message_type_statistics *statistics;
 	struct timeval start;
@@ -1484,8 +1484,10 @@ static void publish_msg(struct stasis_topic *topic,
 		struct stasis_subscription *sub = AST_VECTOR_GET(&topic->subscribers, i);
 
 		ast_assert(sub != NULL);
-
-		dispatched += dispatch_message(sub, message, (sub == sync_sub));
+#ifdef AST_DEVMODE
+		dispatched +=
+#endif
+			dispatch_message(sub, message, (sub == sync_sub));
 	}
 	ao2_unlock(topic);
 
