@@ -39,6 +39,8 @@ extern "C" {
 	a; \
 }
 
+#define _A_ __FILE__, __LINE__, __FUNCTION__
+
 #define VERBOSE_PREFIX_1 " "
 #define VERBOSE_PREFIX_2 "  == "
 #define VERBOSE_PREFIX_3 "    -- "
@@ -175,8 +177,8 @@ void __attribute__((format(printf, 5, 6))) __ast_verbose(const char *file, int l
  */
 void __attribute__((format(printf, 6, 7))) __ast_verbose_callid(const char *file, int line, const char *func, int level, ast_callid callid, const char *fmt, ...);
 
-#define ast_verbose(...) __ast_verbose(__FILE__, __LINE__, __PRETTY_FUNCTION__, -1, __VA_ARGS__)
-#define ast_verbose_callid(callid, ...) __ast_verbose_callid(__FILE__, __LINE__, __PRETTY_FUNCTION__, -1, callid, __VA_ARGS__)
+#define ast_verbose(...) __ast_verbose(_A_, -1, __VA_ARGS__)
+#define ast_verbose_callid(callid, ...) __ast_verbose_callid(_A_, -1, callid, __VA_ARGS__)
 
 void __attribute__((format(printf, 6, 0))) __ast_verbose_ap(const char *file, int line, const char *func, int level, ast_callid callid, const char *fmt, va_list ap);
 
@@ -232,8 +234,6 @@ void ast_console_toggle_loglevel(int fd, int level, int state);
  * the LOG_* macros from the source since these may be still
  * needed for third-party modules
  */
-
-#define _A_ __FILE__, __LINE__, __PRETTY_FUNCTION__
 
 #ifdef LOG_DEBUG
 #undef LOG_DEBUG
@@ -437,7 +437,7 @@ void ast_callid_strnprint(char *buffer, size_t buffer_size, ast_callid callid);
  * \since 1.8
  */
 
-#define ast_log_dynamic_level(level, ...) ast_log(level, __FILE__, __LINE__, __PRETTY_FUNCTION__, __VA_ARGS__)
+#define ast_log_dynamic_level(level, ...) ast_log(level, _A_, __VA_ARGS__)
 
 #define DEBUG_ATLEAST(level) \
 	(option_debug >= (level) \
@@ -464,14 +464,14 @@ extern int ast_verb_sys_level;
 #define ast_verb(level, ...) \
 	do { \
 		if (VERBOSITY_ATLEAST(level) ) { \
-			__ast_verbose(__FILE__, __LINE__, __PRETTY_FUNCTION__, level, __VA_ARGS__); \
+			__ast_verbose(_A_, level, __VA_ARGS__); \
 		} \
 	} while (0)
 
 #define ast_verb_callid(level, callid, ...) \
 	do { \
 		if (VERBOSITY_ATLEAST(level) ) { \
-			__ast_verbose_callid(__FILE__, __LINE__, __PRETTY_FUNCTION__, level, callid, __VA_ARGS__); \
+			__ast_verbose_callid(_A_, level, callid, __VA_ARGS__); \
 		} \
 	} while (0)
 
@@ -678,7 +678,7 @@ void __attribute__((format (printf, 6, 7))) __ast_trace(const char *file, int li
 #define ast_trace_raw(level, indent_type, ...) \
 	ast_debug(level < 0 ? __scope_level : level, " " __VA_ARGS__); \
 	if (TRACE_ATLEAST(level < 0 ? __scope_level : level)) { \
-		__ast_trace(__FILE__, __LINE__, __PRETTY_FUNCTION__, indent_type, 0, " " __VA_ARGS__); \
+		__ast_trace(_A_, indent_type, 0, " " __VA_ARGS__); \
 	}
 
 /*!
@@ -693,7 +693,7 @@ void __attribute__((format (printf, 6, 7))) __ast_trace(const char *file, int li
 #define ast_trace(level, ...) \
 	ast_debug(level < 0 ? __scope_level : level, " " __VA_ARGS__); \
 	if (TRACE_ATLEAST(level < 0 ? __scope_level : level)) { \
-		__ast_trace(__FILE__, __LINE__, __PRETTY_FUNCTION__, AST_TRACE_INDENT_SAME, 0, " " __VA_ARGS__); \
+		__ast_trace(_A_, AST_TRACE_INDENT_SAME, 0, " " __VA_ARGS__); \
 	}
 
 /*!
@@ -783,7 +783,7 @@ unsigned long _ast_trace_dec_indent(void);
 	int __scope_task = 0; \
 	ast_debug(__scope_level, " " __VA_ARGS__); \
 	if (TRACE_ATLEAST(level)) { \
-		__ast_trace(__FILE__, __LINE__, __PRETTY_FUNCTION__, AST_TRACE_INDENT_INC_AFTER, 0, " " __VA_ARGS__); \
+		__ast_trace(_A_, AST_TRACE_INDENT_INC_AFTER, 0, " " __VA_ARGS__); \
 	} \
 
 #define SCOPE_ENTER_TASK(level, indent, ...) \
@@ -791,7 +791,7 @@ unsigned long _ast_trace_dec_indent(void);
 	int __scope_task = 1; \
 	ast_debug(__scope_level, " " __VA_ARGS__); \
 	if (TRACE_ATLEAST(level)) { \
-		__ast_trace(__FILE__, __LINE__, __PRETTY_FUNCTION__, AST_TRACE_INDENT_PROVIDED, indent, " " __VA_ARGS__); \
+		__ast_trace(_A_, AST_TRACE_INDENT_PROVIDED, indent, " " __VA_ARGS__); \
 	} \
 
 /*!
@@ -806,7 +806,7 @@ unsigned long _ast_trace_dec_indent(void);
 #define SCOPE_EXIT(...) \
 	ast_debug(__scope_level, " " __VA_ARGS__); \
 	if (TRACE_ATLEAST(__scope_level)) { \
-		__ast_trace(__FILE__, __LINE__, __PRETTY_FUNCTION__, AST_TRACE_INDENT_DEC_BEFORE, 0, " " __VA_ARGS__); \
+		__ast_trace(_A_, AST_TRACE_INDENT_DEC_BEFORE, 0, " " __VA_ARGS__); \
 		if (__scope_task) { \
 			_ast_trace_set_indent(0); \
 		} \
@@ -836,7 +836,7 @@ unsigned long _ast_trace_dec_indent(void);
 #define SCOPE_EXIT_EXPR(__expr, ...) \
 	ast_debug(__scope_level, " " __VA_ARGS__); \
 	if (TRACE_ATLEAST(__scope_level)) { \
-		__ast_trace(__FILE__, __LINE__, __PRETTY_FUNCTION__, AST_TRACE_INDENT_DEC_BEFORE, 0, " " __VA_ARGS__); \
+		__ast_trace(_A_, AST_TRACE_INDENT_DEC_BEFORE, 0, " " __VA_ARGS__); \
 		if (__scope_task) { \
 			_ast_trace_set_indent(0); \
 		} \
@@ -856,7 +856,7 @@ unsigned long _ast_trace_dec_indent(void);
 #define SCOPE_EXIT_RTN(...) \
 	ast_debug(__scope_level, " " __VA_ARGS__); \
 	if (TRACE_ATLEAST(__scope_level)) { \
-		__ast_trace(__FILE__, __LINE__, __PRETTY_FUNCTION__, AST_TRACE_INDENT_DEC_BEFORE, 0, " " __VA_ARGS__); \
+		__ast_trace(_A_, AST_TRACE_INDENT_DEC_BEFORE, 0, " " __VA_ARGS__); \
 		if (__scope_task) { \
 			_ast_trace_set_indent(0); \
 		} \
@@ -877,7 +877,7 @@ unsigned long _ast_trace_dec_indent(void);
 #define SCOPE_EXIT_RTN_VALUE(__return_value, ...) \
 	ast_debug(__scope_level, " " __VA_ARGS__); \
 	if (TRACE_ATLEAST(__scope_level)) { \
-		__ast_trace(__FILE__, __LINE__, __PRETTY_FUNCTION__, AST_TRACE_INDENT_DEC_BEFORE, 0, " " __VA_ARGS__); \
+		__ast_trace(_A_, AST_TRACE_INDENT_DEC_BEFORE, 0, " " __VA_ARGS__); \
 		if (__scope_task) { \
 			_ast_trace_set_indent(0); \
 		} \
