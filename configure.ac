@@ -2333,6 +2333,7 @@ AST_EXT_TOOL_CHECK([NEON29], [neon-config], , [--libs],
 #error Need libneon >= 0.29.0
 #endif])
 
+AST_PKG_CONFIG_CHECK(NETSNMP, netsnmp-agent)
 AST_EXT_TOOL_CHECK([NETSNMP], [net-snmp-config], , [--agent-libs],
 [#include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-includes.h>
