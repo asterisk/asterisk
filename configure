@@ -664,6 +664,8 @@ PJPROJECT_LIBS
 PJPROJECT_CFLAGS
 PG_CONFIG
 CONFIG_NETSNMP
+NETSNMP_LIBS
+NETSNMP_CFLAGS
 CONFIG_NEON29
 CONFIG_NEON
 CONFIG_MYSQLCLIENT
@@ -1451,6 +1453,8 @@ JANSSON_CFLAGS
 JANSSON_LIBS
 ILBC_CFLAGS
 ILBC_LIBS
+NETSNMP_CFLAGS
+NETSNMP_LIBS
 PJPROJECT_CFLAGS
 PJPROJECT_LIBS
 PYTHONDEV_CFLAGS
@@ -2225,6 +2229,10 @@ Some influential environment variables:
               linker flags for JANSSON, overriding pkg-config
   ILBC_CFLAGS C compiler flags for ILBC, overriding pkg-config
   ILBC_LIBS   linker flags for ILBC, overriding pkg-config
+  NETSNMP_CFLAGS
+              C compiler flags for NETSNMP, overriding pkg-config
+  NETSNMP_LIBS
+              linker flags for NETSNMP, overriding pkg-config
   PJPROJECT_CFLAGS
               C compiler flags for PJPROJECT, overriding pkg-config
   PJPROJECT_LIBS
@@ -23034,6 +23042,94 @@ rm -f core conftest.err conftest.$ac_objext \
 		fi
 	fi
 
+
+
+   if test "x${PBX_NETSNMP}" != "x1" -a "${USE_NETSNMP}" != "no"; then
+
+pkg_failed=no
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for netsnmp-agent" >&5
+$as_echo_n "checking for netsnmp-agent... " >&6; }
+
+if test -n "$NETSNMP_CFLAGS"; then
+    pkg_cv_NETSNMP_CFLAGS="$NETSNMP_CFLAGS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"netsnmp-agent\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "netsnmp-agent") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_NETSNMP_CFLAGS=`$PKG_CONFIG --cflags "netsnmp-agent" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+if test -n "$NETSNMP_LIBS"; then
+    pkg_cv_NETSNMP_LIBS="$NETSNMP_LIBS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"netsnmp-agent\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "netsnmp-agent") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_NETSNMP_LIBS=`$PKG_CONFIG --libs "netsnmp-agent" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+
+
+
+if test $pkg_failed = yes; then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
+        _pkg_short_errors_supported=yes
+else
+        _pkg_short_errors_supported=no
+fi
+        if test $_pkg_short_errors_supported = yes; then
+	        NETSNMP_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "netsnmp-agent" 2>&1`
+        else
+	        NETSNMP_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "netsnmp-agent" 2>&1`
+        fi
+	# Put the nasty error message in config.log where it belongs
+	echo "$NETSNMP_PKG_ERRORS" >&5
+
+
+            PBX_NETSNMP=0
+
+
+elif test $pkg_failed = untried; then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+            PBX_NETSNMP=0
+
+
+else
+	NETSNMP_CFLAGS=$pkg_cv_NETSNMP_CFLAGS
+	NETSNMP_LIBS=$pkg_cv_NETSNMP_LIBS
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+            PBX_NETSNMP=1
+            NETSNMP_INCLUDE=$(echo ${NETSNMP_CFLAGS} | $SED -e "s|-std=c99||g")
+            NETSNMP_LIB="$NETSNMP_LIBS"
+
+$as_echo "#define HAVE_NETSNMP 1" >>confdefs.h
+
+
+fi
+   fi
 
 
 		if test "x${PBX_NETSNMP}" != "x1" -a "${USE_NETSNMP}" != "no"; then
