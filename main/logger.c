@@ -2213,7 +2213,7 @@ void ast_log_safe(int level, const char *file, int line, const char *function, c
 		return;
 	}
 
-	if (ast_threadstorage_set_ptr(&in_safe_log, (void*)1)) {
+	if (ast_threadstorage_set_ptr(&in_safe_log, &(int) { 1 })) {
 		/* We've failed to set the flag that protects against
 		 * recursion, so bail. */
 		return;
