@@ -10344,7 +10344,7 @@ static void channel_set_intercept_mode(int in_intercept_mode)
 	int status;
 
 	status = ast_threadstorage_set_ptr(&in_intercept_routine,
-		in_intercept_mode ? (void *) 1 : (void *) 0);
+		in_intercept_mode ? &(int) { 1 } : NULL);
 	if (status) {
 		ast_log(LOG_ERROR, "Failed to set dialplan intercept mode\n");
 	}

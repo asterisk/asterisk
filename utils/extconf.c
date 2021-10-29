@@ -2863,8 +2863,8 @@ static struct ast_config *ast_config_internal_load(const char *filename, struct 
 
 static struct ast_config *ast_config_internal_load(const char *filename, struct ast_config *cfg, int withcomments, const char *suggested_incl_file)
 {
-	char db[256];
-	char table[256];
+	char db[256] = "";
+	char table[256] = "";
 	struct ast_config_engine *loader = &text_file_engine;
 	struct ast_config *result;
 
