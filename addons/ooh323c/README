@@ -75,7 +75,7 @@ To run the stack test application chansetup
 3. For running calling instance
 
         ./h323peer [--use-ip ip] -n <number of calls> -duration <call duration>
-                   -interval <inetrval between successive calls> destination
+                   -interval <interval between successive calls> destination
 
    where all times are in seconds. Interval of 0 means next call will be placed
    after current call finishes. "destination" is the dotted ip address of the
