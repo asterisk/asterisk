@@ -98,7 +98,7 @@ struct convolve_channel_pair {
 };
 
 struct convolve_data {
-	/*! A count of all channels potentialy having input data for the conference. */
+	/*! A count of all channels potentially having input data for the conference. */
 	int number_channels;
 	/*! Will set to true if there is at least one binaural output.
 	 * Only if set to true data will be convolved. */
@@ -304,7 +304,7 @@ int init_convolve_channel(struct convolve_channel *channel, unsigned int hrtf_le
 		unsigned int chan_pos, unsigned int chan_side, unsigned int default_sample_size);
 
 /*!
- * \brief Initializies all data needed for binaural audio processing of a channel pair
+ * \brief Initializes all data needed for binaural audio processing of a channel pair
  * (left and right).
  *
  * \param cchan_pair The channel pair used for binaural audio processing.
@@ -319,7 +319,7 @@ int init_convolve_channel_pair(struct convolve_channel_pair *cchan_pair,
 		unsigned int hrtf_len, unsigned int chan_pos, unsigned int default_sample_size);
 
 /*!
- * \brief Preinits a specific number of channels (CONVOVLE_CHANNEL_PREALLOC)
+ * \brief Preinits a specific number of channels (CONVOLVE_CHANNEL_PREALLOC)
  * at the beginning of a conference.
  *
  * \param data Contains all channels and data needed for binaural processing
@@ -354,7 +354,7 @@ void free_convolve_channel_pair(struct convolve_channel_pair *cchan_pair);
 void free_convolve_data(struct convolve_data *data);
 
 /*!
- * \brief Joins a channel into a virtual enviroment build with the help of binaural sythesis.
+ * \brief Joins a channel into a virtual enviroment build with the help of binaural synthesis.
  *
  * \param data Contains all channels and data needed for binaural processing
  *  (e.g. head related transfer functions).
@@ -388,7 +388,7 @@ void softmix_process_write_binaural_audio(struct softmix_channel *sc,
 		unsigned int default_sample_size);
 
 /*!
- * \brief Checks if a position change in the virual enviroment is requested by one of
+ * \brief Checks if a position change in the virtual enviroment is requested by one of
  * the participants.
  *
  * \param bridge The conference bridge.

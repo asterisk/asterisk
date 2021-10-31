@@ -1864,7 +1864,7 @@ static int softmix_mixing_loop(struct ast_bridge *bridge)
 						softmix_data->internal_mixing_interval, bridge_channel, 1, -1, -1, -1);
 			}
 
-			/* If stat_iteration_counter is 0, then collect statistics during this mixing interation */
+			/* If stat_iteration_counter is 0, then collect statistics during this mixing interaction */
 			if (!stat_iteration_counter) {
 				gather_softmix_stats(&stats, softmix_data, bridge_channel);
 			}
