@@ -348,7 +348,7 @@ sub music_dir_cache {
 }
 
 # this function will fill the @masterCacheList of all the files that
-# need to have text2speeced ulaw files of their names generated
+# need to have text2speech ulaw files of their names generated
 sub music_dir_cache_genlist {
 	my $dir = shift;
 	if (!opendir(THEDIR, rmts($MUSIC.$dir))) {
