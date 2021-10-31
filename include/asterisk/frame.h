@@ -430,7 +430,7 @@ struct ast_control_pvt_cause_code {
  * Option data is a single signed char value 0 or 1 */
 #define AST_OPTION_TONE_VERIFY		1
 
-/*! Put a compatible channel into TDD (TTY for the hearing-impared) mode
+/*! Put a compatible channel into TDD (TTY for the hearing-impaired) mode
  * Option data is a single signed char value 0 or 1 */
 #define	AST_OPTION_TDD			2
 

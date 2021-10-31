@@ -295,7 +295,7 @@ int __ast_repl_vasprintf(char **strp, const char *format, va_list ap, const char
  * \param s The string to duplicate
  *
  * This macro will duplicate the given string.  It returns a pointer to the stack
- * allocatted memory for the new string.
+ * allocated memory for the new string.
  */
 #define ast_strdupa(s)                                                    \
 	(__extension__                                                    \

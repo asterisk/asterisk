@@ -800,7 +800,7 @@ int ast_vector_string_split(struct ast_vector_string *dest,
  *
  * \note The type of the returned vector must be traceable to the original vector.
  *
- * The following will resut in "error: assignment from incompatible pointer type"
+ * The following will result in "error: assignment from incompatible pointer type"
  * because these declare 2 different structures.
  *
  * \code

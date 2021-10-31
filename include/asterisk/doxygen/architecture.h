@@ -438,7 +438,7 @@ Asterisk CLI operates using connections to a UNIX %domain socket.
 
 There are other miscellaneous threads throughout the system that perform a specific task.
 For example, the event API (include/asterisk/event.h) uses a thread internally
-(main/event.c) to handle asychronous event dispatching.  The devicestate API
+(main/event.c) to handle asynchronous event dispatching.  The devicestate API
 (include/asterisk/devicestate.h) uses a thread internally (main/devicestate.c)
 to asynchronously process device state changes.
 

@@ -214,7 +214,7 @@ struct ast_serializer_shutdown_group *ast_serializer_shutdown_group_alloc(void);
  * \param timeout Number of seconds to wait for the serializers in the group to shutdown.
  *     Zero if the timeout is disabled.
  *
- * \return Number of seriaizers that did not get shutdown within the timeout.
+ * \return Number of serializers that did not get shutdown within the timeout.
  */
 int ast_serializer_shutdown_group_join(struct ast_serializer_shutdown_group *shutdown_group, int timeout);
 
@@ -246,7 +246,7 @@ struct ast_taskprocessor *ast_threadpool_serializer_get_current(void);
  *
  * While it guarantees that each task will complete before executing the next,
  * there is no guarantee as to which thread from the \c pool individual tasks
- * will execute. This normally only matters if your code relys on thread
+ * will execute. This normally only matters if your code relies on thread
  * specific information, such as thread locals.
  *
  * Use ast_taskprocessor_unreference() to dispose of the returned \ref
@@ -274,7 +274,7 @@ struct ast_taskprocessor *ast_threadpool_serializer(const char *name, struct ast
  *
  * While it guarantees that each task will complete before executing the next,
  * there is no guarantee as to which thread from the \c pool individual tasks
- * will execute. This normally only matters if your code relys on thread
+ * will execute. This normally only matters if your code relies on thread
  * specific information, such as thread locals.
  *
  * Use ast_taskprocessor_unreference() to dispose of the returned \ref

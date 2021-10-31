@@ -155,7 +155,7 @@ int stasis_message_router_set_congestion_limits(struct stasis_message_router *ro
  *
  * \param router Router to add the route to.
  * \param message_type Type of message to route.
- * \param callback Callback to forard messages of \a message_type to.
+ * \param callback Callback to forward messages of \a message_type to.
  * \param data Data pointer to pass to \a callback.
  *
  * \retval 0 on success
@@ -179,7 +179,7 @@ int stasis_message_router_add(struct stasis_message_router *router,
  *
  * \param router Router to add the route to.
  * \param message_type Subtype of cache update to route.
- * \param callback Callback to forard messages of \a message_type to.
+ * \param callback Callback to forward messages of \a message_type to.
  * \param data Data pointer to pass to \a callback.
  *
  * \retval 0 on success

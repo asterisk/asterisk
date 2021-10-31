@@ -96,7 +96,7 @@ int ast_channel_has_role(struct ast_channel *channel, const char *role_name);
  * \retval non-NULL The value of the option
  *
  * This is an alternative to \ref ast_bridge_channel_get_role_option that is useful if bridge
- * roles have not yet been esstablished on a channel's bridge_channel. A possible example of
+ * roles have not yet been established on a channel's bridge_channel. A possible example of
  * when this could be used is in a bridge v_table's push() callback.
  */
 const char *ast_channel_get_role_option(struct ast_channel *channel, const char *role_name, const char *option);
@@ -146,7 +146,7 @@ const char *ast_bridge_channel_get_role_option(struct ast_bridge_channel *bridge
  * \details
  * This function should always be called when the bridge_channel binds to an ast_channel at some point before the bridge_channel
  * joins or is imparted onto a bridge. Failure to do so will result in an empty role list. While the list remains established,
- * changes to roles on the ast_channel will not propogate to the bridge channel and roles can not be re-established on the bridge
+ * changes to roles on the ast_channel will not propagate to the bridge channel and roles can not be re-established on the bridge
  * channel without first clearing the roles with ast_bridge_roles_bridge_channel_clear_roles.
  */
 int ast_bridge_channel_establish_roles(struct ast_bridge_channel *bridge_channel);

@@ -79,7 +79,7 @@ typedef int (*ast_io_cb)(int *id, int fd, short events, void *cbdata);
  * \param callback callback function to run
  * \param events event mask of events to wait for
  * \param data data to pass to the callback
- * Watch for any of revents activites on fd, calling callback with data as
+ * Watch for any of revents activities on fd, calling callback with data as
  * callback data.
  * \retval a pointer to ID of the IO event
  * \retval NULL on failure

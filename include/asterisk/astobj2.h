@@ -1792,7 +1792,7 @@ void *__ao2_weakproxy_find(struct ao2_container *c, const void *arg, enum search
  *
  * In addition, ao2_iterator_init() will hold a reference to the
  * container being iterated and the last container node found.
- * Thes objects will be unreffed when ao2_iterator_destroy() is
+ * These objects will be unreffed when ao2_iterator_destroy() is
  * called to free up the resources used by the iterator (if
  * any).
  *
