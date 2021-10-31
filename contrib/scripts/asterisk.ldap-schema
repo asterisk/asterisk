@@ -600,7 +600,7 @@ attributetype ( AstAccountTransport
 
 attributetype ( AstAccountPromiscRedir
         NAME 'AstAccountPromiscRedir'
-        DESC 'Asterisk account promiscous redirects'
+        DESC 'Asterisk account promiscuous redirects'
         EQUALITY caseIgnoreMatch
         SUBSTR caseIgnoreSubstringsMatch
         SYNTAX 1.3.6.1.4.1.1466.115.121.1.15)

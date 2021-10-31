@@ -4,7 +4,7 @@
 # Copy Policy:  GNU Public Licence Version 2 or later
 # URL:          http://www.peternixon.net/code/
 # Supported:    PostgreSQL, Oracle, MySQL
-# Copyright:    2004 Peter Nixon <codemonkey@petenixon.net>
+# Copyright:    2004 Peter Nixon <codemonkey@peternixon.net>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
