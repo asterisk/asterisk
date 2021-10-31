@@ -330,14 +330,14 @@ static void smb_pitch_shift(float pitchShift, long num_samps_to_process, long ff
 	float *sys_magn = fft_data->sys_magn;
 
 	double magn, phase, tmp, window, real, imag;
-	double freq_per_bin, expct;
+	double freq_per_bin, expect;
 	long i,k, qpd, index, in_fifo_latency, step_size, fft_frame_size2;
 
 	/* set up some handy variables */
 	fft_frame_size2 = fft_frame_size / 2;
 	step_size = fft_frame_size / osamp;
 	freq_per_bin = sample_rate / (double) fft_frame_size;
-	expct = 2. * M_PI * (double) step_size / (double) fft_frame_size;
+	expect = 2. * M_PI * (double) step_size / (double) fft_frame_size;
 	in_fifo_latency = fft_frame_size-step_size;
 
 	if (fft_data->gRover == 0) {
@@ -383,7 +383,7 @@ static void smb_pitch_shift(float pitchShift, long num_samps_to_process, long ff
 				last_phase[k] = phase;
 
 				/* subtract expected phase difference */
-				tmp -= (double) k * expct;
+				tmp -= (double) k * expect;
 
 				/* map delta phase into +/- Pi interval */
 				qpd = tmp / M_PI;
@@ -436,7 +436,7 @@ static void smb_pitch_shift(float pitchShift, long num_samps_to_process, long ff
 				tmp = 2. * M_PI * tmp / osamp;
 
 				/* add the overlap phase advance back in */
-				tmp += (double) k * expct;
+				tmp += (double) k * expect;
 
 				/* accumulate delta phase to get bin phase */
 				sum_phase[k] += tmp;

@@ -77,7 +77,7 @@
 		</syntax>
 		<description>
 			<para>The TALK_DETECT function enables events on the channel
-			it is applied to. These events can be emited over AMI, ARI, and
+			it is applied to. These events can be emitted over AMI, ARI, and
 			potentially other Asterisk modules that listen for the internal
 			notification.</para>
 			<para>The function has two parameters that can optionally be passed
