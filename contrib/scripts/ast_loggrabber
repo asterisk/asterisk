@@ -209,7 +209,7 @@ tar -czvf /tmp/$tardir.tar.gz -C $tmpdir $tardir 2>/dev/null
 
 exit
 
-# Be careful editng the inline scripts.
+# Be careful editing the inline scripts.
 # They're space-indented.
 
 # We need the python bit because lock_infos isn't
@@ -231,7 +231,7 @@ parser.add_argument('--timezone', action='store', required=False)
 args=parser.parse_args()
 
 # We only convert timestamps that are at the beginning of a line
-# or are preceeded by a whilespace character or a '['
+# or are preceeded by a whitespace character or a '['
 rets = re.compile(r'(^|(?<=\s|\[))\d+(\.\d+)?', flags=re.M)
 if args.timezone and len(args.timezone) > 0:
    tzf = tz.tzfile('/usr/share/zoneinfo/' + args.timezone)
