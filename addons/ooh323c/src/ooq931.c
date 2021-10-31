@@ -1210,7 +1210,7 @@ int ooSetFastStartResponse(OOH323CallData *pCall, Q931Message *pQ931msg,
          pChannel = ooFindLogicalChannelByLogicalChannelNo
                       (pCall, olc->forwardLogicalChannelNumber);
 
-         /* start receive and tramsmit channel listening */
+         /* start receive and transmit channel listening */
          if(dir & OORX)
          {
             strcpy(pChannel->remoteIP, remoteMediaControlIP);
@@ -2025,7 +2025,7 @@ int ooSendStatusInquiry(OOH323CallData *call)
    /* OOCTXT *pctxt = &gH323ep.msgctxt; */
    OOCTXT *pctxt = call->msgctxt;
 
-   OOTRACEDBGC3("Building StatusInquryMsg (%s, %s)\n", call->callType,
+   OOTRACEDBGC3("Building StatusInquiryMsg (%s, %s)\n", call->callType,
                  call->callToken);
    ret = ooCreateQ931Message(pctxt, &q931msg, Q931StatusEnquiryMsg);
    if(ret != OO_OK)
@@ -2987,7 +2987,7 @@ int ooH323MakeCall_helper(OOH323CallData *call)
          }
          if(!epCap)
          {
-            OOTRACEWARN4("Warn:Preferred capability %s is abscent in "
+            OOTRACEWARN4("Warn:Preferred capability %s is absent in "
                          "capability list. (%s, %s)\n",
                          ooGetCapTypeText(call->capPrefs.order[k]),
                          call->callType, call->callToken);

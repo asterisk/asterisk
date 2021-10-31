@@ -417,7 +417,7 @@ int decodeDynBitString (OOCTXT* pctxt, ASN1DynBitStr* pBitStr)
    ASN1OCTET* ptmp;
    int nbits, stat = ASN_OK;
 
-   /* If "fast copy" option is not set (ASN1FATSCOPY) or if constructed,
+   /* If "fast copy" option is not set (ASN1FASTCOPY) or if constructed,
     * copy the bit string value into a dynamic memory buffer;
     * otherwise, store the pointer to the value in the decode
     * buffer in the data pointer argument. */
