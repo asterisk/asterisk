@@ -834,7 +834,7 @@ chan_unistim:
    values used inside Unistim protocol
 
  - Added 'dtmf_duration' option with changing default operation to disable
-   receivied dtmf playback on unistim phone
+   received dtmf playback on unistim phone
 
 Core:
 
@@ -1752,7 +1752,7 @@ UDPTL:
 From 10.4 to 10.5:
 
 * The complex processor detection and optimization has been removed from
-  the makefile in favor of using native optimization suppport when available.
+  the makefile in favor of using native optimization support when available.
   BUILD_NATIVE can be disabled via menuselect under "Compiler Flags".
 
 From 10.2 to 10.3:
@@ -1825,7 +1825,7 @@ From 1.8.13 to 1.8.14:
 
 From 1.8.12 to 1.8.13:
 * The complex processor detection and optimization has been removed from
-  the makefile in favor of using native optimization suppport when available.
+  the makefile in favor of using native optimization support when available.
   BUILD_NATIVE can be disabled via menuselect under "Compiler Flags".
 
 From 1.8.10 to 1.8.11:
@@ -2604,7 +2604,7 @@ Applications:
   the 'm' option now provides the functionality of "initially muted".
   In practice, most existing dialplans using the 'm' flag should not notice
   any difference, unless the keypad menu is enabled, allowing the user
-  to unmute themsleves.
+  to unmute themselves.
 
 * ast_play_and_record would attempt to cancel the recording if a DTMF
   '0' was received.  This behavior was not documented in most of the
