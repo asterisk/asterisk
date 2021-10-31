@@ -37,7 +37,7 @@ class Transform(object):
         @param template_file: Filename of the mustache template.
         @param dest_file_template_str: Destination file name. This is a
             mustache template, so each resource can write to a unique file.
-        @param overwrite: If True, destination file is ovewritten if it exists.
+        @param overwrite: If True, destination file is overwritten if it exists.
         """
         template_str = unicode(open(template_file, "r").read())
         self.template = pystache.parse(template_str)
