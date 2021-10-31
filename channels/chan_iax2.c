@@ -1166,7 +1166,7 @@ static ast_mutex_t iaxsl[ARRAY_LEN(iaxs)];
 /*!
  *  * \brief Another container of iax2_pvt structures
  *
- *  Active IAX2 pvt stucts used during transfering a call are stored here.
+ *  Active IAX2 pvt structs used during transfering a call are stored here.
  */
 static struct ao2_container *iax_transfercallno_pvts;
 
@@ -2690,7 +2690,7 @@ static void peercnt_remove(struct peercnt *peercnt)
 	 * Container locked here since peercnt may be unlinked from
 	 * list.  If left unlocked, peercnt_add could try and grab this
 	 * entry from the table and modify it at the "same time" this
-	 * thread attemps to unlink it.
+	 * thread attempts to unlink it.
 	 */
 	ao2_lock(peercnts);
 	peercnt->cur--;
@@ -4581,7 +4581,7 @@ static void realtime_update_peer(const char *peername, struct ast_sockaddr *sock
 	ast_update_realtime("iaxpeers", "name", peername,
 		"ipaddr", ast_sockaddr_isnull(sockaddr) ? "" : ast_sockaddr_stringify_addr(sockaddr),
 		"port", ast_sockaddr_isnull(sockaddr) ? "" : port,
-		"regseconds", regseconds, syslabel, sysname, SENTINEL); /* note syslable can be NULL */
+		"regseconds", regseconds, syslabel, sysname, SENTINEL); /* note syslabel can be NULL */
 }
 
 struct create_addr_info {
@@ -8720,7 +8720,7 @@ static int complete_transfer(int callno, struct iax_ies *ies)
 		remove_by_peercallno(pvt);
 	}
 	pvt->peercallno = peercallno;
-	/*this is where the transfering call swiches hash tables */
+	/*this is where the transfering call switches hash tables */
 	store_by_peercallno(pvt);
 	pvt->transferring = TRANSFER_NONE;
 	pvt->svoiceformat = -1;
@@ -9309,7 +9309,7 @@ static int registry_rerequest(struct iax_ies *ies, int callno, struct ast_sockad
 			return send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_REGREQ, 0, ied.buf, ied.pos, -1);
 		} else
 			return -1;
-		ast_log(LOG_WARNING, "Registry acknowledge on unknown registery '%s'\n", peer);
+		ast_log(LOG_WARNING, "Registry acknowledge on unknown registry '%s'\n", peer);
 	} else
 		ast_log(LOG_NOTICE, "Can't reregister without a reg\n");
 	return -1;
@@ -9532,7 +9532,7 @@ static int timing_read(int *id, int fd, short events, void *cbdata)
 			res = send_trunk(tpeer, &now);
 			trunk_timed++;
 			if (iaxtrunkdebug) {
-				ast_verbose(" - Trunk peer (%s) has %d call chunk%s in transit, %u bytes backloged and has hit a high water mark of %u bytes\n",
+				ast_verbose(" - Trunk peer (%s) has %d call chunk%s in transit, %u bytes backlogged and has hit a high water mark of %u bytes\n",
 							ast_sockaddr_stringify(&tpeer->addr),
 							res,
 							(res != 1) ? "s" : "",

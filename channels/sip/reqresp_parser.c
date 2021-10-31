@@ -728,7 +728,7 @@ const char *get_calleridname(const char *input, char *output, size_t outputsize)
 	/* clear any empty characters in the beginning */
 	input = ast_skip_blanks(input);
 
-	/* make sure the output buffer is initilized */
+	/* make sure the output buffer is initialized */
 	*orig_output = '\0';
 
 	/* make room for '\0' at the end of the output buffer */

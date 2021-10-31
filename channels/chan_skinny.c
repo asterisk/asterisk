@@ -1365,7 +1365,7 @@ static int gendigittimeout = 8000;
 static int matchdigittimeout = 3000;
 
 /*!
- * To apease the stupid compiler option on ast_sched_del()
+ * To appease the stupid compiler option on ast_sched_del()
  * since we don't care about the return value.
  */
 static int not_used;
@@ -2793,7 +2793,7 @@ static void transmit_clear_display_message(struct skinny_device *d, int instance
 		return;
 
 	//what do we want hear CLEAR_DISPLAY_MESSAGE or CLEAR_PROMPT_STATUS???
-	//if we are clearing the display, it appears there is no instance and refernece info (size 0)
+	//if we are clearing the display, it appears there is no instance and reference info (size 0)
 	//req->data.clearpromptstatus.lineInstance = instance;
 	//req->data.clearpromptstatus.callReference = reference;
 
@@ -3143,7 +3143,7 @@ static void transmit_cfwdstate(struct skinny_device *d, struct skinny_line *l)
 	else
 		req->data.forwardstat.activeforward = htolel(0);
 
-	SKINNY_DEBUG(DEBUG_PACKET, 3, "Transmitting FORWARD_STAT_MESSAGE to %s, inst %d, all %s, busy %s, noans %s, acitve %d\n",
+	SKINNY_DEBUG(DEBUG_PACKET, 3, "Transmitting FORWARD_STAT_MESSAGE to %s, inst %d, all %s, busy %s, noans %s, active %d\n",
 		d->name, l->instance, l->call_forward_all, l->call_forward_busy, l->call_forward_noanswer, anyon ? 7 : 0);
 	transmit_response(d, req);
 }
@@ -3575,7 +3575,7 @@ static void mwi_event_cb(void *userdata, struct stasis_subscription *sub, struct
 		transmit_lamp_indication(d, STIMULUS_VOICEMAIL, l->instance, SKINNY_LAMP_OFF);
 	}
 
-	/* find out wether the device lamp should be on or off */
+	/* find out whether the device lamp should be on or off */
 	AST_LIST_TRAVERSE(&d->lines, l2, list) {
 		if (l2->newmsgs) {
 			dev_msgs++;

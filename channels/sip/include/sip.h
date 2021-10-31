@@ -444,7 +444,7 @@ enum invitestates {
 };
 
 /*! \brief When sending a SIP message, we can send with a few options, depending on
- * type of SIP request. UNRELIABLE is moslty used for responses to repeated requests,
+ * type of SIP request. UNRELIABLE is mostly used for responses to repeated requests,
  * where the original response would be sent RELIABLE in an INVITE transaction
  */
 enum xmittype {
@@ -1100,7 +1100,7 @@ struct sip_pvt {
 	int t38_maxdatagram;              /*!< T.38 FaxMaxDatagram override */
 	int request_queue_sched_id;       /*!< Scheduler ID of any scheduled action to process queued requests */
 	int provisional_keepalive_sched_id;   /*!< Scheduler ID for provisional responses that need to be sent out to avoid cancellation */
-	const char *last_provisional;         /*!< The last successfully transmitted provisonal response message */
+	const char *last_provisional;         /*!< The last successfully transmitted provisional response message */
 	int authtries;                        /*!< Times we've tried to authenticate */
 	struct sip_proxy *outboundproxy;      /*!< Outbound proxy for this dialog. Use ref_proxy to set this instead of setting it directly*/
 	struct t38properties t38;             /*!< T38 settings */
