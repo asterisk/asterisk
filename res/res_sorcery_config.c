@@ -392,7 +392,7 @@ static void sorcery_config_internal_load(void *data, const struct ast_sorcery *s
 		RAII_VAR(void *, obj, NULL, ao2_cleanup);
 		id = ast_category_get_name(category);
 
-		/* If given configurationhas not been met skip the category, it is not applicable */
+		/* If given configuration has not been met skip the category, it is not applicable */
 		if (!sorcery_is_configuration_met(sorcery, type, category, config)) {
 			continue;
 		}

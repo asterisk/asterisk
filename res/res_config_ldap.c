@@ -405,7 +405,7 @@ static struct ast_variable **realtime_ldap_result_to_vars(struct ldap_table_conf
 	int delim_tot_count = 0;
 	int delim_count = 0;
 
-	/* \breif First find the total count
+	/* \brief First find the total count
 	 */
 	ldap_entry = ldap_first_entry(ldapConn, ldap_result_msg);
 
@@ -1758,7 +1758,7 @@ static int unload_module(void)
 	return 0;
 }
 
-/*! \breif Relod Module
+/*! \brief Reload Module
  */
 static int reload(void)
 {

@@ -346,7 +346,7 @@ static struct ast_channel *prepare_bridge_media_channel(const char *type)
  * \param args_playback_id string to use for playback split from
  *        arguments (null valid)
  * \param response ARI response being built
- * \param bridge Bridge the playback is being peformed on
+ * \param bridge Bridge the playback is being performed on
  * \param control Control being used for the playback channel
  * \param json contents of the response to ARI
  * \param playback_url stores playback URL for use with response
@@ -517,7 +517,7 @@ enum play_found_result {
  * \param args_playback_id string to use for playback split from
  *        arguments (null valid)
  * \param response ARI response being built
- * \param bridge Bridge the playback is being peformed on
+ * \param bridge Bridge the playback is being performed on
  * \param found_channel The channel that was found controlling playback
  *
  * \retval PLAY_FOUND_SUCCESS The operation was successful

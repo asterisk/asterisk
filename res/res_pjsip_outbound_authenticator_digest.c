@@ -141,7 +141,7 @@ static pj_status_t set_outbound_authentication_credentials(pjsip_auth_clt_sess *
 	 * structures. In this case however, the elements are the
 	 * structures themselves instead of pointers to them.  This is due
 	 * to the fact that pjsip_auth_clt_set_credentials() expects an
-	 * array of structues, not an array of pointers to structures.
+	 * array of structures, not an array of pointers to structures.
 	 * Thankfully, vectors allow you to "steal" their underlying
 	 * arrays, in this case an array of pjsip_cred_info structures,
 	 * which we'll pass to pjsip_auth_clt_set_credentials() at the

@@ -1074,7 +1074,7 @@ static int pp_each_extension_helper(struct ast_channel *chan, const char *cmd, c
 	AST_STANDARD_APP_ARGS(args, data);
 
 	if (ast_strlen_zero(args.mac) || ast_strlen_zero(args.template)) {
-		ast_log(LOG_WARNING, "PP_EACH_EXTENSION requries both a macaddress and template filename.\n");
+		ast_log(LOG_WARNING, "PP_EACH_EXTENSION requires both a macaddress and template filename.\n");
 		return 0;
 	}
 

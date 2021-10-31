@@ -155,7 +155,7 @@ static SQLHSTMT custom_prepare(struct odbc_obj *obj, void *data)
 }
 
 /*!
- * \brief Excute an SQL query and return ast_variable list
+ * \brief Execute an SQL query and return ast_variable list
  * \param database
  * \param table
  * \param ap list containing one or more field/operator/value set.
@@ -326,7 +326,7 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
 }
 
 /*!
- * \brief Excute an Select query and return ast_config list
+ * \brief Execute an Select query and return ast_config list
  * \param database
  * \param table
  * \param ap list containing one or more field/operator/value set.
@@ -499,7 +499,7 @@ next_sql_fetch:;
 }
 
 /*!
- * \brief Excute an UPDATE query
+ * \brief Execute an UPDATE query
  * \param database
  * \param table
  * \param keyfield where clause field
@@ -726,7 +726,7 @@ static int update2_odbc(const char *database, const char *table, const struct as
 }
 
 /*!
- * \brief Excute an INSERT query
+ * \brief Execute an INSERT query
  * \param database
  * \param table
  * \param ap list containing one or more field/value set(s)
@@ -807,7 +807,7 @@ static int store_odbc(const char *database, const char *table, const struct ast_
 }
 
 /*!
- * \brief Excute an DELETE query
+ * \brief Execute an DELETE query
  * \param database
  * \param table
  * \param keyfield where clause field

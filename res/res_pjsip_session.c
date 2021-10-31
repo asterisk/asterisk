@@ -3098,7 +3098,7 @@ struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
 
 	session->authentication_challenge_count = 0;
 
-	/* Fire seesion begin handlers */
+	/* Fire session begin handlers */
 	handle_session_begin(session);
 
 	/* Avoid unnecessary ref manipulation to return a session */

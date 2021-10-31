@@ -598,7 +598,7 @@ struct ast_json *stasis_app_playback_to_json(
 	return ast_json_ref(json);
 }
 
-typedef int (*playback_opreation_cb)(struct stasis_app_playback *playback);
+typedef int (*playback_operation_cb)(struct stasis_app_playback *playback);
 
 static int playback_noop(struct stasis_app_playback *playback)
 {
@@ -695,7 +695,7 @@ static int playback_forward(struct stasis_app_playback *playback)
  * \brief A sparse array detailing how commands should be handled in the
  * various playback states. Unset entries imply invalid operations.
  */
-playback_opreation_cb operations[STASIS_PLAYBACK_STATE_MAX][STASIS_PLAYBACK_MEDIA_OP_MAX] = {
+playback_operation_cb operations[STASIS_PLAYBACK_STATE_MAX][STASIS_PLAYBACK_MEDIA_OP_MAX] = {
 	[STASIS_PLAYBACK_STATE_QUEUED][STASIS_PLAYBACK_STOP] = playback_cancel,
 	[STASIS_PLAYBACK_STATE_QUEUED][STASIS_PLAYBACK_RESTART] = playback_noop,
 
@@ -727,7 +727,7 @@ enum stasis_playback_oper_results stasis_app_playback_operation(
 	struct stasis_app_playback *playback,
 	enum stasis_app_playback_media_operation operation)
 {
-	playback_opreation_cb cb;
+	playback_operation_cb cb;
 	SCOPED_AO2LOCK(lock, playback);
 
 	ast_assert((unsigned int)playback->state < STASIS_PLAYBACK_STATE_MAX);

@@ -198,7 +198,7 @@ static void icalendar_add_event(icalcomponent *comp, struct icaltime_span *span,
 	struct icaltriggertype trigger;
 
 	if (!(pvt && pvt->owner)) {
-		ast_log(LOG_ERROR, "Require a private structure with an ownenr\n");
+		ast_log(LOG_ERROR, "Require a private structure with an owner\n");
 		return;
 	}
 
@@ -241,7 +241,7 @@ static void icalendar_add_event(icalcomponent *comp, struct icaltime_span *span,
 	if ((prop = icalcomponent_get_first_property(comp, ICAL_UID_PROPERTY))) {
 		ast_string_field_set(event, uid, icalproperty_get_value_as_string(prop));
 	} else {
-		ast_log(LOG_WARNING, "No UID found, but one is required. Generating, but updates may not be acurate\n");
+		ast_log(LOG_WARNING, "No UID found, but one is required. Generating, but updates may not be accurate\n");
 		if (!ast_strlen_zero(event->summary)) {
 			ast_string_field_set(event, uid, event->summary);
 		} else {

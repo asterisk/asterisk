@@ -427,7 +427,7 @@ static int ident_handler(const struct aco_option *opt, struct ast_variable *var,
 			return -1;
 		}
 		if (endpoint->ident_method & method) {
-			/* We are already indentifying by this method.  No need to do it again. */
+			/* We are already identifying by this method.  No need to do it again. */
 			continue;
 		}
 
