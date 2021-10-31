@@ -14,7 +14,7 @@
 
 # where Asterisk's pbx/pbx_spool.c will be looking for work
 set SPOOLDIR /var/spool/asterisk/outgoing
-# pbx_spool is fairly aggresive, so make files here first
+# pbx_spool is fairly aggressive, so make files here first
 set TEMPDIR /tmp
 
 if { ![file writable $SPOOLDIR] } {

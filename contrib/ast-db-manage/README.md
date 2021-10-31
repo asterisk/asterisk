@@ -12,7 +12,7 @@ repositories include:
  * `cdr` - Table used for Asterisk to store CDR records
  * `config` - Tables used for Asterisk realtime configuration
  * `queue_log` - Table used for Asterisk to store Queue Log records
- * `voicemail` - Tables used for `ODBC_STOARGE` of voicemail messages
+ * `voicemail` - Tables used for `ODBC_STORAGE` of voicemail messages
 
 Alembic uses SQLAlchemy, which has support for
 [many databases](http://docs.sqlalchemy.org/en/rel_0_8/dialects/index.html).
