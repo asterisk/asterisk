@@ -1493,7 +1493,7 @@ AST_TEST_DEFINE(config_options_test)
 	case TEST_INIT:
 		info->name = "config_options_test";
 		info->category = "/config/";
-		info->summary = "Config opptions unit test";
+		info->summary = "Config options unit test";
 		info->description =
 			"Tests the Config Options API";
 		return AST_TEST_NOT_RUN;
