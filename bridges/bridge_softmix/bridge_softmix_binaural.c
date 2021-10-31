@@ -103,7 +103,7 @@ int do_convolve(struct convolve_channel *chan, int16_t *in_samples,
 	}
 	fftw_execute(chan->fftw_plan);
 
-	/* Imaginary mulitplication (frequency space). */
+	/* Imaginary multiplication (frequency space). */
 	/* First FFTW result has never an imaginary part. */
 	chan->fftw_in[0] = chan->fftw_out[0] * chan->hrtf[0];
 	for (i = 1; i < (hrtf_length / 2); i++) {
@@ -128,7 +128,7 @@ int do_convolve(struct convolve_channel *chan, int16_t *in_samples,
 		chan->fftw_out[i] = chan->fftw_out[i] / (hrtf_length / 2);
 	}
 
-	/* Save the block for overlapp add in the next itteration. */
+	/* Save the block for overlap add in the next iteration. */
 	for (i = 0; i < in_sample_size; i++) {
 		chan->overlap_add[i] += chan->fftw_out[i];
 	}
