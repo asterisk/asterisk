@@ -550,7 +550,7 @@ To start using it:
  * Use the cli or cli.conf to enable tracing: CLI> core set trace <trace_level> [ module ]
 
 Its simplest usage requires only 1 macro call that...
-	- Registers a descructor for a special variable that gets called when the
+	- Registers a destructor for a special variable that gets called when the
 	  variable goes out of scope.  Uses the same principle as RAII_VAR.
 	  The destructor prints the name of the function with an "exiting" indicator
 	  along with an optional message.
@@ -827,7 +827,7 @@ unsigned long _ast_trace_dec_indent(void);
  *     if (something) {
  *         SCOPE_EXIT_EXPR(break, "Somethiung broke me\n");
  *     } else {
- *         SCOPE_EXIT_EXPR(contniue, "Somethiung continued me\n");
+ *         SCOPE_EXIT_EXPR(continue, "Somethiung continued me\n");
  *     }
  * }
  */

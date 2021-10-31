@@ -299,7 +299,7 @@ enum ast_event_ie_type {
 	AST_EVENT_IE_PRESENCE_MESSAGE    = 0x003c,
 
 	/*!
-	 * \brief Event non-cachability flag
+	 * \brief Event non-cacheability flag
 	 * Used by: All events
 	 * Payload type: UINT
 	 */

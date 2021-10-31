@@ -258,7 +258,7 @@ int __ast_register_translator(struct ast_translator *t, struct ast_module *modul
 
 /*!
  * \brief Unregister a translator
- * Unregisters the given tranlator
+ * Unregisters the given translator
  * \param t translator to unregister
  * \return 0 on success, -1 on failure
  */

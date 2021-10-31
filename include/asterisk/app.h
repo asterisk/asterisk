@@ -1030,7 +1030,7 @@ int ast_control_tone(struct ast_channel *chan, const char *tone);
  * \param chan
  * \param file filename
  * \param fwd, rev, stop, pause, restart, skipms, offsetms
- * \param cb waitstream callback to invoke when fastforward or rewind occurrs.
+ * \param cb waitstream callback to invoke when fastforward or rewind occurs.
  *
  * Before calling this function, set this to be the number
  * of ms to start from the beginning of the file.  When the function

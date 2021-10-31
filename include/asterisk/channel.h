@@ -1559,7 +1559,7 @@ struct ast_channel *__ast_request_and_dial(const char *type, struct ast_format_c
  * \param timeout maximum amount of time to wait for setup of new forward channel
  * \param cap format capabilities for requested channel
  * \param oh outgoing helper used with original channel
- * \param outstate reason why unsuccessful (if uncuccessful)
+ * \param outstate reason why unsuccessful (if unsuccessful)
  * \return Returns the forwarded call's ast_channel on success or NULL on failure
  */
 struct ast_channel *ast_call_forward(struct ast_channel *caller, struct ast_channel *orig, int *timeout, struct ast_format_cap *cap, struct outgoing_helper *oh, int *outstate);
@@ -2636,7 +2636,7 @@ int ast_autoservice_ignore(struct ast_channel *chan, enum ast_frame_type ftype);
  *
  * \note Call this function with a rate of 0 to turn off the timer ticks
  *
- * \version 1.6.1 changed samples parameter to rate, accomodates new timing methods
+ * \version 1.6.1 changed samples parameter to rate, accommodates new timing methods
  */
 int ast_settimeout(struct ast_channel *c, unsigned int rate, int (*func)(const void *data), void *data);
 int ast_settimeout_full(struct ast_channel *c, unsigned int rate, int (*func)(const void *data), void *data, unsigned int is_ao2_obj);
@@ -4218,7 +4218,7 @@ struct ast_channel_monitor {
 	int (*stop)(struct ast_channel *chan, int need_lock);
 };
 
-/* ACCESSOR FUNTIONS */
+/* ACCESSOR FUNCTIONS */
 /*! \brief Set the channel name */
 void ast_channel_name_set(struct ast_channel *chan, const char *name);
 

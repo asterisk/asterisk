@@ -412,7 +412,7 @@ int __ast_string_field_init(struct ast_string_field_mgr *mgr, struct ast_string_
 
 /*!
  * \brief Allocate a structure with embedded stringfields in a single allocation
- * \param n Current imlementation only allows 1 structure to be allocated
+ * \param n Current implementation only allows 1 structure to be allocated
  * \param type The type of structure to allocate
  * \param size The number of bytes of space (minimum) to allocate for stringfields to use
  *             in each structure

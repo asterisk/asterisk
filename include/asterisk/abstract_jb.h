@@ -220,7 +220,7 @@ int ast_jb_put(struct ast_channel *chan, struct ast_frame *f);
  *
  * Called from ast_generic_bridge() to deliver any frames, that should be delivered
  * for the moment of invocation. Does nothing if neihter of the channels is using jb
- * or has any frames currently queued in. The function delivers frames usig ast_write()
+ * or has any frames currently queued in. The function delivers frames using ast_write()
  * each of the channels.
  */
 void ast_jb_get_and_deliver(struct ast_channel *c0, struct ast_channel *c1);

@@ -128,7 +128,7 @@ AST_OPTIONAL_API(int, ast_encrypt_bin, (unsigned char *dst, const unsigned char 
  * \param dst a pointer to a buffer of at least srclen bytes in which the decrypted
  * answer will be stored
  *
- * \retval length of dencrypted data on success.
+ * \retval length of decrypted data on success.
  * \retval -1 on failure.
  *
  */

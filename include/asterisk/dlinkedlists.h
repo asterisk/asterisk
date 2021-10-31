@@ -497,7 +497,7 @@
 #define AST_RWDLLIST_IS_MEMBER	AST_DLLIST_IS_MEMBER
 
 /*!
- * \brief Traverse a doublly linked list using the specified direction list.
+ * \brief Traverse a doubly linked list using the specified direction list.
  *
  * \param head List head structure pointer.
  * \param var This is the name of the variable that will hold a pointer to the
@@ -620,7 +620,7 @@
 #define AST_RWDLLIST_TRAVERSE_BACKWARDS AST_DLLIST_TRAVERSE_BACKWARDS
 
 /*!
- * \brief Safe traversal of a doublly linked list using the specified direction list.
+ * \brief Safe traversal of a doubly linked list using the specified direction list.
  *
  * \param head List head structure pointer.
  * \param var This is the name of the variable that will hold a pointer to the

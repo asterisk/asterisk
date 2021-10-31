@@ -175,7 +175,7 @@ struct stasis_topic *ast_endpoint_topic_cached(struct ast_endpoint *endpoint);
 struct stasis_cp_all *ast_endpoint_cache_all(void);
 
 /*!
- * \brief Topic for all endpoint releated messages.
+ * \brief Topic for all endpoint related messages.
  * \since 12
  */
 struct stasis_topic *ast_endpoint_topic_all(void);

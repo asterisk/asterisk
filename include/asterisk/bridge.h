@@ -1056,7 +1056,7 @@ void ast_bridge_set_remb_estimated_bitrate(struct ast_bridge *bridge, float esti
 /*!
  * \brief Update information about talker energy for talker src video mode.
  */
-void ast_bridge_update_talker_src_video_mode(struct ast_bridge *bridge, struct ast_channel *chan, int talker_energy, int is_keyfame);
+void ast_bridge_update_talker_src_video_mode(struct ast_bridge *bridge, struct ast_channel *chan, int talker_energy, int is_keyframe);
 
 /*!
  * \brief Returns the number of video sources currently active in the bridge
