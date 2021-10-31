@@ -55,7 +55,7 @@ TRUNKMSD = 1
 --
 --   include = {"a", "b", "c"};
 --
--- Channel variables can be accessed thorugh the global 'channel' table.
+-- Channel variables can be accessed through the global 'channel' table.
 --
 --   v = channel.var_name
 --   v = channel["var_name"]
@@ -104,7 +104,7 @@ TRUNKMSD = 1
 -- reserved word.  In the 'goto' example, with Lua 5.1 or earlier, 'goto' is
 -- not a reserved word so you'd be calling the Asterisk dialplan application
 -- 'goto'.  Lua 5.2 however, introduced the 'goto' control statement which
--- makes 'goto' a reserved word.  This casues the interpreter to fail parsing
+-- makes 'goto' a reserved word.  This causes the interpreter to fail parsing
 -- the file and pbx_lua.so will fail to load.  The same applies to any use of
 -- Lua tables including extensions, channels and any tables you create.
 --

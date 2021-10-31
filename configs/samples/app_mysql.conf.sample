@@ -9,7 +9,7 @@
 ; emptystring - the string ""
 ; null        - unset the variable
 ;
-; WARNING: setting nullvalue=null may have undesireable consequences, in
+; WARNING: setting nullvalue=null may have undesirable consequences, in
 ; particular if you use subroutines in AEL or the LOCAL() variable construct.
 ; You have been warned.  Don't complain if you use that setting in combination
 ; with Gosub or AEL and get buggy behavior.
