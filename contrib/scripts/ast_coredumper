@@ -600,7 +600,7 @@ FILES
 
 #@@@HELPEND@@@
 
-# Be careful editng the inline scripts.
+# Be careful editing the inline scripts.
 # They're space-indented.
 
 # We need the python bit because lock_infos isn't

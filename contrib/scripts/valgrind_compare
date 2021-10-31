@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# compare_valgrind: diff two valgrinf memory usage logs. Masks out PIDs,
+# compare_valgrind: diff two valgrind memory usage logs. Masks out PIDs,
 # addresses and such that should normally be different.
 #
 # Usage: ./compare_valgrind file1.log file2.log | less
