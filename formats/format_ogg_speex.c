@@ -243,7 +243,7 @@ static struct ast_frame *ogg_speex_read(struct ast_filestream *fs,
 }
 
 /*!
- * \brief Trucate an OGG/Speex filestream.
+ * \brief Truncate an OGG/Speex filestream.
  * \param s The filestream to truncate.
  * \return 0 on success, -1 on failure.
  */

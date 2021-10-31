@@ -336,7 +336,7 @@ static struct ast_frame *ogg_vorbis_read(struct ast_filestream *fs,
 }
 
 /*!
- * \brief Trucate an OGG/Vorbis filestream.
+ * \brief Truncate an OGG/Vorbis filestream.
  * \param fs The filestream to truncate.
  * \return 0 on success, -1 on failure.
  */
