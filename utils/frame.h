@@ -121,7 +121,7 @@ extern void makewavheader( void);
 
 /* --------------------------------------------------------------------
    Tests the character 'coal' for being a command line option character,
-   momentarrily '/' or '-'.
+   momentarily '/' or '-'.
    -------------------------------------------------------------------- */
 extern int isoptionchar (char coal);
 
@@ -175,7 +175,7 @@ extern int parseintarg( int argcount, char *args[], char *string,
    that does not start with the optionchar. The filename is copied to
    newly allocated memory, a pointer to which is returned.
    The argument is marked as used. Therefore repeated use of this function
-   will yield a complete list of filenames on the commandline.
+   will yield a complete list of filenames on the command-line.
    If malloc() fails, the function does not return.
    -------------------------------------------------------------------- */
 extern char *parsefilearg( int argcount, char *args[]);
