@@ -314,7 +314,7 @@ void startstopwatch(void)
 
 /* --------------------------------------------------------------------
    Tests the character 'coal' for being a command line option character,
-   momentarrily '-'.
+   momentarily '-'.
    -------------------------------------------------------------------- */
 int isoptionchar (char coal)
 {
@@ -885,7 +885,7 @@ void parseargs( int argcount, char *args[], int fileswitch)
 	 /* Problem: what about i/o-file, 32? You might want a header
 	    on that? Better ignore this case. */
 	 break;
-       case 8:    /* An application musn't ask for this */
+       case 8:    /* An application mustn't ask for this */
        default:   /* This can't happen */
 	 assert( FALSE);
        }
