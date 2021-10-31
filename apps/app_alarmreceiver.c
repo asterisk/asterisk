@@ -158,7 +158,7 @@ static const char app[] = "AlarmReceiver";
 			events to the standard input of the application.
 			The configuration file also contains settings for DTMF timing, and for the loudness of the
 			acknowledgement tones.</para>
-			<note><para>Few Ademco DTMF signalling formats are detected automaticaly: Contact ID, Express 4+1,
+			<note><para>Few Ademco DTMF signalling formats are detected automatically: Contact ID, Express 4+1,
 			Express 4+2, High Speed and Super Fast.</para></note>
 			<para>The application is affected by the following variables:</para>
 			<variablelist>

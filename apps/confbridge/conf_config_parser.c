@@ -384,7 +384,7 @@
 						specific conference bridge.
 						You should be aware that there are potential races between testing for the
 						existence of a bridge, and taking action upon that information, consider
-						for example two callers executing the check simultaniously, and then taking
+						for example two callers executing the check simultaneously, and then taking
 						special action as "first caller" into the bridge.  The same for exiting,
 						directly after the check the bridge can be destroyed before the new caller
 						enters (creating a new bridge), for example, and the "first member" actions
@@ -459,7 +459,7 @@
 							<enum name="sound_kicked"><para>The sound played to a user who has been kicked from the conference.</para></enum>
 							<enum name="sound_muted"><para>The sound played when the mute option it toggled on.</para></enum>
 							<enum name="sound_unmuted"><para>The sound played when the mute option it toggled off.</para></enum>
-							<enum name="sound_binaural_on"><para>The sound played when binaural auudio is turned on.</para></enum>
+							<enum name="sound_binaural_on"><para>The sound played when binaural audio is turned on.</para></enum>
 							<enum name="sound_binaural_off"><para>The sound played when the binaural audio is turned off.</para></enum>
 							<enum name="sound_only_person"><para>The sound played when the user is the only person in the conference.</para></enum>
 							<enum name="sound_only_one"><para>The sound played to a user when there is only one other
@@ -1353,7 +1353,7 @@ static int add_menu_entry(struct conf_menu *menu, const char *dtmf, const char *
 		comma = strchr(tmp_action_names, ',');
 
 		/* If the next action has brackets with comma delimited arguments in it,
-		 * make the delimeter ')' instead of a comma to preserve the argments */
+		 * make the delimeter ')' instead of a comma to preserve the arguments */
 		if (startbrace && endbrace && comma && (comma > startbrace && comma < endbrace)) {
 			delimiter = ")";
 		} else {

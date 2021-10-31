@@ -1489,7 +1489,7 @@ static int montype_default = 0;
 /*! \brief queues.conf [general] option */
 static int shared_lastcall = 1;
 
-/*! \brief queuesrules.conf [general] option */
+/*! \brief queuerules.conf [general] option */
 static int realtime_rules = 0;
 
 /*! \brief Subscription to device state change messages */
@@ -1589,7 +1589,7 @@ struct queue_ent {
 	int pending;                           /*!< Non-zero if we are attempting to call a member */
 	int max_penalty;                       /*!< Limit the members that can take this call to this penalty or lower */
 	int min_penalty;                       /*!< Limit the members that can take this call to this penalty or higher */
-	int raise_penalty;                     /*!< Float lower penalty mambers to a minimum penalty */
+	int raise_penalty;                     /*!< Float lower penalty members to a minimum penalty */
 	int linpos;                            /*!< If using linear strategy, what position are we at? */
 	int linwrapped;                        /*!< Is the linpos wrapped? */
 	time_t start;                          /*!< When we started holding */
@@ -2644,7 +2644,7 @@ static int extensionstate2devicestate(int state)
  * \param parent Parent context to search for child
  * \param child Context to check for inclusion in parent
  *
- * This function recrusively checks if the context child is included in the context parent.
+ * This function recursively checks if the context child is included in the context parent.
  *
  * \return 1 if child is included in parent, 0 if not
  */
@@ -2946,7 +2946,7 @@ static void clear_queue(struct call_queue *q)
 /*!
  * \brief Change queue penalty by adding rule.
  *
- * Check rule for errors with time or fomatting, see if rule is relative to rest
+ * Check rule for errors with time or formatting, see if rule is relative to rest
  * of queue, iterate list of rules to find correct insertion point, insert and return.
  * \retval -1 on failure
  * \retval 0 on success
@@ -3050,7 +3050,7 @@ static int insert_penaltychange(const char *list_name, const char *content, cons
 /*!
  * \brief Load queue rules from realtime.
  *
- * Check rule for errors with time or fomatting, see if rule is relative to rest
+ * Check rule for errors with time or formatting, see if rule is relative to rest
  * of queue, iterate list of rules to find correct insertion point, insert and return.
  * \retval -1 on failure
  * \retval 0 on success
@@ -4344,7 +4344,7 @@ static void hangupcalls(struct queue_ent *qe, struct callattempt *outgoing, stru
  *
  * \note The queue passed in should be locked prior to this function call
  *
- * \param[in] q The queue for which we are couting the number of available members
+ * \param[in] q The queue for which we are counting the number of available members
  * \return Return the number of available members in queue q
  */
 static int num_available_members(struct call_queue *q)
@@ -4992,7 +4992,7 @@ static void update_connected_line_from_peer(struct ast_channel *chan, struct ast
  * \param[in] caller_disconnect if the 'H' option is used when calling Queue(), this is used to detect if the caller pressed * to disconnect the call
  * \param[in] forwardsallowed used to detect if we should allow call forwarding, based on the 'i' option to Queue()
  *
- * \todo eventually all call forward logic should be intergerated into and replaced by ast_call_forward()
+ * \todo eventually all call forward logic should be integrated into and replaced by ast_call_forward()
  */
 static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callattempt *outgoing, int *to, char *digit, int prebusies, int caller_disconnect, int forwardsallowed)
 {
@@ -7507,7 +7507,7 @@ static int change_priority_caller_on_queue(const char *queuename, const char *ca
 	res = RES_NOT_CALLER;
 	for (qe = q->head; qe; qe = qe->next) {
 		if (strcmp(ast_channel_name(qe->chan), caller) == 0) {
-			ast_debug(1, "%s Caller new prioriry %d in queue %s\n",
+			ast_debug(1, "%s Caller new priority %d in queue %s\n",
 			             caller, priority, queuename);
 			qe->prio = priority;
 			res = RES_OKAY;
@@ -7825,7 +7825,7 @@ static int get_member_penalty(char *queuename, char *interface)
 		queue_t_unref(q, "Search complete");
 	}
 
-	/* some useful debuging */
+	/* some useful debugging */
 	if (foundqueue) {
 		ast_log (LOG_ERROR, "Invalid queuename\n");
 	} else {
@@ -9700,7 +9700,7 @@ static int reload_handler(int reload, struct ast_flags *mask, const char *queuen
 	return res;
 }
 
-/*! \brief direct ouput to manager or cli with proper terminator */
+/*! \brief direct output to manager or cli with proper terminator */
 static void do_print(struct mansession *s, int fd, const char *str)
 {
 	if (s) {
@@ -10986,7 +10986,7 @@ static char *handle_queue_set_member_ringinuse(struct ast_cli_entry *e, int cmd,
 		return CLI_SHOWUSAGE;
 	}
 
-	/* Set the queue name if applicale */
+	/* Set the queue name if applicable */
 	if (a->argc == 8) {
 		queuename = a->argv[7];
 	}

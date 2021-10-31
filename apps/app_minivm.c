@@ -536,7 +536,7 @@
 
 #define SOUND_INTRO		"vm-intro"
 #define B64_BASEMAXINLINE 	256	/*!< Buffer size for Base 64 attachment encoding */
-#define B64_BASELINELEN 	72	/*!< Line length for Base 64 endoded messages */
+#define B64_BASELINELEN 	72	/*!< Line length for Base 64 encoded messages */
 #define EOL			"\r\n"
 
 #define MAX_DATETIME_FORMAT	512
@@ -1737,7 +1737,7 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 			}
 			return cmd;
  		default:
-			/* If the caller is an ouside caller, and the review option is enabled,
+			/* If the caller is an outside caller, and the review option is enabled,
 			   allow them to review the message, but let the owner of the box review
 			   their OGM's */
 			if (outsidecaller && !ast_test_flag(vmu, MVM_REVIEW))
@@ -2827,7 +2827,7 @@ static int apply_general_options(struct ast_variable *var)
 		} else if (!strcmp(var->name, "externnotify")) {
 			/* External voicemail notify application */
 			ast_copy_string(global_externnotify, var->value, sizeof(global_externnotify));
-		} else if (!strcmp(var->name, "silencetreshold")) {
+		} else if (!strcmp(var->name, "silencethreshold") || !strcmp(var->name, "silencetreshold")) {
 			/* Silence treshold */
 			global_silencethreshold = atoi(var->value);
 		} else if (!strcmp(var->name, "maxmessage")) {
@@ -2955,6 +2955,8 @@ static int load_config(int reload)
 	if ((chanvar = ast_variable_retrieve(cfg, "general", "emailfromstring")))
 		ast_copy_string(template->fromaddress, chanvar, sizeof(template->fromaddress));
 	if ((chanvar = ast_variable_retrieve(cfg, "general", "emailaaddress")))
+		ast_copy_string(template->serveremail, chanvar, sizeof(template->serveremail));
+	if ((chanvar = ast_variable_retrieve(cfg, "general", "emailaddress")))
 		ast_copy_string(template->serveremail, chanvar, sizeof(template->serveremail));
 	if ((chanvar = ast_variable_retrieve(cfg, "general", "emailcharset")))
 		ast_copy_string(template->charset, chanvar, sizeof(template->charset));
