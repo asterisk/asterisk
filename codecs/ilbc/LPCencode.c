@@ -22,7 +22,7 @@
 
 
    /*----------------------------------------------------------------*
-    *  lpc analysis (subrutine to LPCencode)
+    *  lpc analysis (subroutine to LPCencode)
     *---------------------------------------------------------------*/
 
    void SimpleAnalysis(
@@ -75,7 +75,7 @@
 
 
     *  lsf interpolator and conversion from lsf to a coefficients
-    *  (subrutine to SimpleInterpolateLSF)
+    *  (subroutine to SimpleInterpolateLSF)
     *---------------------------------------------------------------*/
 
    void LSFinterpolate2a_enc(
@@ -93,7 +93,7 @@
    }
 
    /*----------------------------------------------------------------*
-    *  lsf interpolator (subrutine to LPCencode)
+    *  lsf interpolator (subroutine to LPCencode)
     *---------------------------------------------------------------*/
 
    void SimpleInterpolateLSF(
@@ -184,7 +184,7 @@
    }
 
    /*----------------------------------------------------------------*
-    *  lsf quantizer (subrutine to LPCencode)
+    *  lsf quantizer (subroutine to LPCencode)
     *---------------------------------------------------------------*/
 
    void SimplelsfQ(
