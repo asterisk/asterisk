@@ -452,7 +452,7 @@ static void add_notify(struct state *sp, const char *path)
 static int queue_fd = -1;
 
 /*
- * static struct state *psx_sp and associated code will guard againt
+ * static struct state *psx_sp and associated code will guard against
  * add_notify() called repeatedly for /usr/share/zoneinfo/posixrules
  * without zonelist check as a result of some errors
  * (any code where tzparse() is called if tzload() fails --

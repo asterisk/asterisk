@@ -43,7 +43,7 @@ struct ast_threadpool {
 	struct ao2_container *active_threads;
 	/*!
 	 * \brief The container of idle threads.
-	 * Idle threads are those that are currenly waiting to run tasks
+	 * Idle threads are those that are currently waiting to run tasks
 	 */
 	struct ao2_container *idle_threads;
 	/*!

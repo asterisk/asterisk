@@ -4166,7 +4166,7 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 	 */
 	check_init(ast_media_cache_init(), "Media Cache");
 
-	/* loads the cli_permissoins.conf file needed to implement cli restrictions. */
+	/* loads the cli_permissions.conf file needed to implement cli restrictions. */
 	ast_cli_perms_init(0);
 
 	ast_stun_init();

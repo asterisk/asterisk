@@ -3068,7 +3068,7 @@ void ast_bridge_merge_inhibit(struct ast_bridge *bridge, int request)
 int ast_bridge_suspend(struct ast_bridge *bridge, struct ast_channel *chan)
 {
 	struct ast_bridge_channel *bridge_channel;
-/* XXX ASTERISK-21271 the case of a disolved bridge while channel is suspended is not handled. */
+/* XXX ASTERISK-21271 the case of a dissolved bridge while channel is suspended is not handled. */
 /* XXX ASTERISK-21271 suspend/unsuspend needs to be rethought. The caller must block until it has successfully suspended the channel for temporary control. */
 /* XXX ASTERISK-21271 external suspend/unsuspend needs to be eliminated. The channel may be playing a file at the time and stealing it then is not good. */
 
@@ -3089,7 +3089,7 @@ int ast_bridge_suspend(struct ast_bridge *bridge, struct ast_channel *chan)
 int ast_bridge_unsuspend(struct ast_bridge *bridge, struct ast_channel *chan)
 {
 	struct ast_bridge_channel *bridge_channel;
-/* XXX ASTERISK-21271 the case of a disolved bridge while channel is suspended is not handled. */
+/* XXX ASTERISK-21271 the case of a dissolved bridge while channel is suspended is not handled. */
 
 	ast_bridge_lock(bridge);
 

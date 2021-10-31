@@ -610,7 +610,7 @@ void ast_audiohook_detach_list(struct ast_audiohook_list *audiohook_list)
 		ast_audiohook_update_status(audiohook, AST_AUDIOHOOK_STATUS_DONE);
 	}
 
-	/* Drop any manipulaters */
+	/* Drop any manipulators */
 	while ((audiohook = AST_LIST_REMOVE_HEAD(&audiohook_list->manipulate_list, list))) {
 		ast_audiohook_update_status(audiohook, AST_AUDIOHOOK_STATUS_DONE);
 		audiohook->manipulate_callback(audiohook, NULL, NULL, 0);

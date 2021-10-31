@@ -577,7 +577,7 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len, stru
 					continue;
 				}
 				/*
-				 * We can tollerate an error on the checksum character since the
+				 * We can tolerate an error on the checksum character since the
 				 * checksum character is the last character in the message and
 				 * it validates the message.
 				 *

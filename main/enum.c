@@ -507,7 +507,7 @@ static int parse_naptr(unsigned char *dst, int dstsize, char *tech, int techsize
 	}
 
 	/* Make the regex case-insensitive if the 'i' flag is present. This assumes you
-	 * aren't using 'i' as a delimiter which, altough dubious, does not appear to be
+	 * aren't using 'i' as a delimiter which, although dubious, does not appear to be
 	 * explicitly non-compliant */
 	if (regexp[regexp_len - 1] == 'i') {
 		re_flags |= REG_ICASE;
@@ -557,7 +557,7 @@ static int parse_naptr(unsigned char *dst, int dstsize, char *tech, int techsize
 				ast_log(LOG_WARNING, "Error during regex substitution. Invalid pmatch index.\n");
 				return -1;
 			}
-			/* pmatch len is 10. we are garanteed a single char 0-9 is a valid index */
+			/* pmatch len is 10. we are guaranteed a single char 0-9 is a valid index */
 			size = pmatch[matchindex].rm_eo - pmatch[matchindex].rm_so;
 			if (size > d_len) {
 				ast_log(LOG_WARNING, "Not enough space during NAPTR regex substitution.\n");
@@ -682,7 +682,7 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
  * The "number" parameter includes a leading '+' if it's a full E.164 number (and not ISN)
  * We need to preserve that as the regex inside NAPTRs expect the +.
  *
- * But for the domain generation, the '+' is a nuissance, so we get rid of it.
+ * But for the domain generation, the '+' is a nuisance, so we get rid of it.
 */
 	ast_copy_string(naptrinput, number[0] == 'n' ? number + 1 : number, sizeof(naptrinput));
 	if (number[0] == '+') {

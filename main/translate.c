@@ -65,7 +65,7 @@ struct translator_path {
 /*!
  * \brief a matrix that, for any pair of supported formats,
  * indicates the total cost of translation and the first step.
- * The full path can be reconstricted iterating on the matrix
+ * The full path can be reconstructed iterating on the matrix
  * until step->dstfmt == desired_format.
  *
  * Array indexes are 'src' and 'dest', in that order.
