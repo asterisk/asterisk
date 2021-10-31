@@ -19,7 +19,7 @@
 
 /*!
  * \file
- * A condensation of the pbx_config stuff, to read into exensions.conf, and provide an interface to the data there,
+ * A condensation of the pbx_config stuff, to read into extensions.conf, and provide an interface to the data there,
  * for operations outside of asterisk. A huge, awful hack.
  *
  */

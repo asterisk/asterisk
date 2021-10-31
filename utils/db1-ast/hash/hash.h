@@ -160,7 +160,7 @@ typedef struct htab	 {		/* Memory resident data structure */
  * the table, we can allocate extra pages.  So, an overflow page number has
  * the top 5 bits indicate which split point and the lower 11 bits indicate
  * which page at that split point is indicated (pages within split points are
- * numberered starting with 1).
+ * numbered starting with 1).
  */
 
 #define SPLITSHIFT	11
