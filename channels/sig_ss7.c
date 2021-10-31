@@ -2067,7 +2067,7 @@ void *ss7_linkset(void *data)
 					break;
 				}
 				p = linkset->pvts[chanpos];
-				ast_debug(1, "Unequiped Circuit Id Code on CIC %d\n", e->ucic.cic);
+				ast_debug(1, "Unequipped Circuit Id Code on CIC %d\n", e->ucic.cic);
 				sig_ss7_lock_private(p);
 				sig_ss7_lock_owner(linkset, chanpos);
 				if (p->owner) {

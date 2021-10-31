@@ -465,7 +465,7 @@ static struct unistimsession {
 	unsigned short last_seq_ack;    /*!< sequence number of the last ACK received */
 	unsigned long tick_next_ping;   /*!< time for the next ping */
 	int last_buf_available;	 /*!< number of a free slot */
-	int nb_retransmit;		      /*!< number of retransmition */
+	int nb_retransmit;		      /*!< number of retransmission */
 	int state;				      /*!< state of the phone (see phone_state) */
 	int size_buff_entry;	    /*!< size of the buffer used to enter datas */
 	char buff_entry[16];	    /*!< Buffer for temporary datas */
@@ -684,10 +684,10 @@ static const unsigned char packet_send_charset_iso_8859_2[] =
 /* ISO-8859-4 - Baltic) */
 static const unsigned char packet_send_charset_iso_8859_4[] =
 	{ 0x17, 0x08, 0x21, 0x1b, 0x2d, 0x44, 0x1b, 0x00 };
-/* ISO 8859-5 - cyrilic */
+/* ISO 8859-5 - cyrillic */
 static const unsigned char packet_send_charset_iso_8859_5[] =
 	{ 0x17, 0x08, 0x21, 0x1b, 0x2d, 0x4c, 0x1b, 0x00 };
-/* Japaneese (ISO-2022-JP ?) */
+/* Japanese (ISO-2022-JP ?) */
 static const unsigned char packet_send_charset_iso_2022_jp[] =
 	{ 0x17, 0x08, 0x21, 0x1b, 0x29, 0x49, 0x1b, 0x7e };
 
@@ -3118,7 +3118,7 @@ static void handle_call_outgoing(struct unistimsession *s)
 
 	sub = get_sub(s->device, SUB_THREEWAY);
 	if (sub) {
-		/* If sub for threway call created than we use transfer behaviuor */
+		/* If sub for threway call created than we use transfer behavior */
 		struct unistim_subchannel *sub_trans = NULL;
 		struct unistim_device *d = s->device;
 

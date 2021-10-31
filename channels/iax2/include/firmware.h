@@ -62,7 +62,7 @@ int iax_firmware_get_version(const char *device_name,
 
 /*!
  * \internal
- * \brief Add firwmare related IEs to an IAX2 IE buffer.
+ * \brief Add firmware related IEs to an IAX2 IE buffer.
  *
  * \param ie_data     The IE buffer being appended to.
  * \param device_name The name of the requested firmware.
