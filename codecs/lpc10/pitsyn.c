@@ -538,7 +538,7 @@ at: */
 
 /*             Therefore, UVPIT is in the range 23 to 144 after th
 e first */
-/*             assignment to UVPIT below, and after the conditiona
+/*             assignment to UVPIT below, and after the conditional
 l */
 /*             assignment, it is in the range 23 to 90. */
 
