@@ -311,7 +311,7 @@ static int read_headers(void *obj)
 			pj_hdr_string_len = pjsip_hdr_print_on(hdr, pj_hdr_string, data->len - 1);
 			if (pj_hdr_string_len == -1) {
 				ast_log(AST_LOG_ERROR,
-					"Not enought buffer space in pjsip_hdr_print_on\n");
+					"Not enough buffer space in pjsip_hdr_print_on\n");
 				return -1;
 			}
 			pj_hdr_string[pj_hdr_string_len] = '\0';
@@ -411,7 +411,7 @@ static int read_header(void *obj)
 	pj_hdr_string_len = pjsip_hdr_print_on(hdr, pj_hdr_string, data->len - 1);
 	if (pj_hdr_string_len == -1) {
 		ast_log(AST_LOG_ERROR,
-			"Not enought buffer space in pjsip_hdr_print_on\n");
+			"Not enough buffer space in pjsip_hdr_print_on\n");
 		return -1;
 	}
 
@@ -441,7 +441,7 @@ static int read_header(void *obj)
 
 /*!
  * \internal
- * \brief Implements PJSIP_HEADER 'add' by inserting the specified header into thge list.
+ * \brief Implements PJSIP_HEADER 'add' by inserting the specified header into the list.
  *
  * Retrieve the header_datastore from the session or create one if it doesn't exist.
  * Create and initialize the list if needed.

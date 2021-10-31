@@ -1203,7 +1203,7 @@ static void channel_replaced_cb(void *data, struct ast_channel *old_chan, struct
 }
 
 static const struct ast_datastore_info masquerade_store_info = {
-	.type = "stasis-masqerade",
+	.type = "stasis-masquerade",
 	.chan_fixup = channel_stolen_cb,
 	.chan_breakdown = channel_replaced_cb,
 };

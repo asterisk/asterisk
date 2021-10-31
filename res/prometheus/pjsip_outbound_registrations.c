@@ -47,7 +47,7 @@ static struct stasis_message_router *router;
  *
  * \details We keep a wrapper around the metric so we can easily
  * update the value when the state of the registration changes, as
- * well as remove and unregsiter the metric when someone destroys
+ * well as remove and unregister the metric when someone destroys
  * or reloads the registration
  */
 struct prometheus_metric_wrapper {

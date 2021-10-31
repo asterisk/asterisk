@@ -385,7 +385,7 @@
 				<configOption name="buddy">
 					<synopsis>Manual addition of buddy to list</synopsis>
 					<description><para>
-					Manual addition of buddy to the buddy list. For distributed events, these budies are
+					Manual addition of buddy to the buddy list. For distributed events, these buddies are
 					automatically added in the whitelist as 'owners' of the node(s).
 					</para></description>
 				</configOption>

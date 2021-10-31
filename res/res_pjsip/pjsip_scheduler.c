@@ -55,7 +55,7 @@ struct ast_sip_sched_task {
 	struct timeval next_periodic;
 	/*! reschedule interval in milliseconds */
 	int interval;
-	/*! ast_sched scheudler id */
+	/*! ast_sched scheduler id */
 	int current_scheduler_id;
 	/*! task is currently running */
 	int is_running;

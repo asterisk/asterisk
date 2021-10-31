@@ -808,7 +808,7 @@ static void *dispatch_thread_handler(void *data)
 		ast_rwlock_unlock(&init_cpg_lock);
 		ast_debug(5, "dispatch_thread_handler unlock\n");
 	} else {
-		ast_log(LOG_ERROR, "Failed to get fd: initiliazing CPG.  This module is now broken.\n");
+		ast_log(LOG_ERROR, "Failed to get fd: initializing CPG.  This module is now broken.\n");
 		return NULL;
 	}
 	send_cluster_notify();

@@ -75,7 +75,7 @@
 #include "asterisk/ast_version.h"
 #include "asterisk/pbx.h"
 
-/* Colission between Net-SNMP and Asterisk */
+/* Collision between Net-SNMP and Asterisk */
 #define unload_module ast_unload_module
 #include "asterisk/module.h"
 #undef unload_module

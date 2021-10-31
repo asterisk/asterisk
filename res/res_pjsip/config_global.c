@@ -96,7 +96,7 @@ struct global_config {
 	unsigned int unidentified_request_count;
 	/*! The period during which unidentified requests are accumulated */
 	unsigned int unidentified_request_period;
-	/*! Interval at which expired unidentifed requests will be pruned */
+	/*! Interval at which expired unidentified requests will be pruned */
 	unsigned int unidentified_request_prune_interval;
 	struct {
 		/*! Taskprocessor high water alert trigger level */

@@ -308,7 +308,7 @@ struct sip_outbound_registration {
 		AST_STRING_FIELD(client_uri);
 		/*! \brief Optional user for contact header */
 		AST_STRING_FIELD(contact_user);
-		/*! \bried Optional header parameters for contact */
+		/*! \brief Optional header parameters for contact */
 		AST_STRING_FIELD(contact_header_params);
 		/*! \brief Explicit transport to use for registration */
 		AST_STRING_FIELD(transport);
