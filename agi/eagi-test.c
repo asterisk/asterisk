@@ -93,7 +93,7 @@ static char *wait_result(void)
 				fprintf(stderr, "Got %d/%d bytes of audio\n", res, bytes);
 #endif
 				bytes += res;
-				/* Prentend we detected some audio after 3 seconds */
+				/* Pretend we detected some audio after 3 seconds */
 				if (bytes > 16000 * 3) {
 					return "Sample Message";
 					bytes = 0;
