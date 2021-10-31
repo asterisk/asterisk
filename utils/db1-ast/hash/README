@@ -34,7 +34,7 @@ Test Programs:
 		to standard out.
 	tread2.c
 		Takes
-			butes of cache (ncached).
+			bytes of cache (ncached).
 		Reads key/data pairs from standard in and looks them up
 		in the file hashtest.
 	tverify.c
