@@ -22,7 +22,7 @@
  *
  * \author Mark Michelson <mmichelson@digium.com>
  *
- * This module will run some dyanmic string tests.
+ * This module will run some dynamic string tests.
  *
  * \ingroup tests
  */
