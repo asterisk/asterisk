@@ -99,7 +99,7 @@ class PathSegment(Stringify):
             self.full_name = "%s_%s" % (parent.full_name, self.name)
 
     def get_child(self, path):
-        """Walks decendents to get path, creating it if necessary.
+        """Walks descendants to get path, creating it if necessary.
 
         @param path: List of path names.
         @return: PageSegment corresponding to path.
