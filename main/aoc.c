@@ -1407,7 +1407,7 @@ static void aoc_time_str(struct ast_str **msg, const char *prefix, const char *n
  * \param msg Event message string being built.
  * \param prefix Prefix to add to the amount lines.
  * \param amount Data to convert.
- * \param multipler to convert
+ * \param multiplier to convert
  *
  * \return Nothing
  */

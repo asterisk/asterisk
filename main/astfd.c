@@ -300,7 +300,7 @@ int __ast_fdleak_dup2(int oldfd, int newfd, const char *file, int line, const ch
 	}
 	/* On success, newfd will be closed automatically if it was already
 	 * open. We don't need to mention anything about that, we're updating
-	 * the value anway. */
+	 * the value anyway. */
 	STORE_COMMON(res, "dup2", "%d,%d", oldfd, newfd); /* res == newfd */
 	return res;
 }

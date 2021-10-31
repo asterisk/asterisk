@@ -1215,11 +1215,11 @@ static void append_lock_information(struct ast_str **str, struct thr_lock_info *
     with for this lock?
 
 	To answer such questions, just call this routine before you would normally try
-	to aquire a lock. It doesn't do anything if the lock is not acquired. If the
+	to acquire a lock. It doesn't do anything if the lock is not acquired. If the
 	lock is taken, it will publish a line or two to the console via ast_log().
 
 	Sometimes, the lock message is pretty uninformative. For instance, you might
-	find that the lock is being aquired deep within the astobj2 code; this tells
+	find that the lock is being acquired deep within the astobj2 code; this tells
 	you little about higher level routines that call the astobj2 routines.
 	But, using gdb, you can set a break at the ast_log below, and for that
 	breakpoint, you can set the commands:
@@ -2454,7 +2454,7 @@ int ast_parse_digest(const char *digest, struct ast_http_digest *d, int request,
 			if (i->field) {
 				ast_string_field_ptr_set(d, i->field, src);
 			} else {
-				/* Special cases that require additional procesing */
+				/* Special cases that require additional processing */
 				if (!strcasecmp(i->key, "algorithm=")) {
 					if (strcasecmp(src, "MD5")) {
 						ast_log(LOG_WARNING, "Digest algorithm: \"%s\" not supported.\n", src);

@@ -351,7 +351,7 @@ getbyte:
 
 	/* And finally we return  */
 	/* Bit 8 : Parity error */
-	/* Bit 9 : Framming error*/
+	/* Bit 9 : Framing error*/
 
 	*outbyte = a;
 	fskd->state = STATE_SEARCH_STARTBIT;

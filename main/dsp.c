@@ -467,7 +467,7 @@ static void ast_tone_detect_init(tone_detect_state_t *s, int freq, int duration,
 
 	periods_in_block = s->block_size * freq / sample_rate;
 
-	/* Make sure we will have at least 5 periods at target frequency for analisys.
+	/* Make sure we will have at least 5 periods at target frequency for analysis.
 	   This may make block larger than expected packet and will make squelching impossible
 	   but at least we will be detecting the tone */
 	if (periods_in_block < 5) {
