@@ -20,7 +20,7 @@
  * \file
  * \brief Test optional API.
  *
- * This tests exercise the underlying implementation functions. Acutal usage
+ * This tests exercise the underlying implementation functions. Actual usage
  * won't look anything like this; it would use the wrapper macros.
  *
  * \author\verbatim David M. Lee, II <dlee@digium.com> \endverbatim

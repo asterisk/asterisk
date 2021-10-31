@@ -61,7 +61,7 @@ struct sorcery_memory_cache_thrash_thread {
 	unsigned int average_execution_time;
 };
 
-/*! \brief Structure for memory cache thrasing */
+/*! \brief Structure for memory cache thrashing */
 struct sorcery_memory_cache_thrash {
 	/*! \brief The sorcery instance being tested */
 	struct ast_sorcery *sorcery;
@@ -160,7 +160,7 @@ static void sorcery_memory_cache_thrash_destroy(void *obj)
 
 /*!
  * \internal
- * \brief Set up thrasing against a memory cache on a sorcery instance
+ * \brief Set up thrashing against a memory cache on a sorcery instance
  *
  * \param cache_configuration The sorcery memory cache configuration to use
  * \param update_threads The number of threads which should be constantly updating sorcery

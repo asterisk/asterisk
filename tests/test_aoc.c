@@ -453,7 +453,7 @@ AST_TEST_DEFINE(aoc_encode_decode_test)
 		}
 	}
 
-	/* Test every billing id possiblity */
+	/* Test every billing id possibility */
 	{
 		int billid[9] = {
 			AST_AOC_BILLING_NA,

@@ -8,7 +8,7 @@
  * pipeline, you can define the trigger in the pipeline file.  This keeps
  * everything in one place.  We transition to scripted pipeline later on because
  * we need to dynamically determine which docker image we're going to use and
- * you can't do that in a delcarative pipeline.
+ * you can't do that in a declarative pipeline.
  */
 def timeoutTime = 3
 def timeoutUnits = 'HOURS'
