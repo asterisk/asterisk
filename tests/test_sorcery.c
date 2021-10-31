@@ -842,7 +842,7 @@ AST_TEST_DEFINE(object_copy)
 		ast_test_status_update(test, "A new ast_variable was not created for 'jim'\n");
 		res = AST_TEST_FAIL;
 	} else if (copy->jim == obj->jim) {
-		ast_test_status_update(test, "Created copy of 'jim' is actually the ogirinal 'jim'\n");
+		ast_test_status_update(test, "Created copy of 'jim' is actually the original 'jim'\n");
 		res = AST_TEST_FAIL;
 	} else if (strcmp(copy->jim->value, obj->jim->value)) {
 		ast_test_status_update(test, "Value of 1st 'jim' on newly created copy is not the same as original\n");

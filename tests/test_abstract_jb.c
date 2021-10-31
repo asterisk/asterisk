@@ -246,7 +246,7 @@ static struct ast_jb default_jb = {
 		info->description = \
 			"This tests putting a single frame into a " literal_type_name " jitterbuffer " \
 			"when the jitterbuffer is empty and verifying that it is indeed " \
-			"the first frame on the jitterbufffer"; \
+			"the first frame on the jitterbuffer"; \
 		return AST_TEST_NOT_RUN; \
 	case TEST_EXECUTE: \
 		break; \

@@ -259,7 +259,7 @@ static int consumer_wait_for(struct consumer *consumer, size_t expected_len)
 		if (r == ETIMEDOUT) {
 			break;
 		}
-		ast_assert(r == 0); /* Not expecting any othet types of errors */
+		ast_assert(r == 0); /* Not expecting any other types of errors */
 	}
 	return consumer->messages_rxed_len;
 }
@@ -280,7 +280,7 @@ static int consumer_wait_for_completion(struct consumer *consumer)
 		if (r == ETIMEDOUT) {
 			break;
 		}
-		ast_assert(r == 0); /* Not expecting any othet types of errors */
+		ast_assert(r == 0); /* Not expecting any other types of errors */
 	}
 	return consumer->complete;
 }
@@ -306,7 +306,7 @@ static int consumer_should_stay(struct consumer *consumer, size_t expected_len)
 		if (r == ETIMEDOUT) {
 			break;
 		}
-		ast_assert(r == 0); /* Not expecting any othet types of errors */
+		ast_assert(r == 0); /* Not expecting any other types of errors */
 	}
 	return consumer->messages_rxed_len;
 }
