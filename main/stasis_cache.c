@@ -463,7 +463,7 @@ static struct stasis_message *cache_remove(struct ao2_container *entries, struct
  *
  * \return Previous stasis entry snapshot.
  */
-static struct stasis_message *cache_udpate(struct stasis_cache_entry *cached_entry, const struct ast_eid *eid, struct stasis_message *new_snapshot)
+static struct stasis_message *cache_update(struct stasis_cache_entry *cached_entry, const struct ast_eid *eid, struct stasis_message *new_snapshot)
 {
 	struct stasis_message *old_snapshot;
 	int is_remote;
@@ -528,7 +528,7 @@ static struct cache_put_snapshots cache_put(struct stasis_cache *cache,
 		}
 	} else if (cached_entry) {
 		/* Update snapshot in cache */
-		snapshots.old = cache_udpate(cached_entry, eid, new_snapshot);
+		snapshots.old = cache_update(cached_entry, eid, new_snapshot);
 	} else {
 		/* Insert into the cache */
 		cached_entry = cache_entry_create(type, id, new_snapshot);

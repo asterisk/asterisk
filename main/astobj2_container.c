@@ -864,7 +864,7 @@ int ao2_container_check(struct ao2_container *self, enum search_flags flags)
 	}
 #if defined(AO2_DEBUG)
 	if (!self->v_table->integrity) {
-		/* No ingetrigy check available.  Assume container is ok. */
+		/* No integrity check available.  Assume container is ok. */
 		return 0;
 	}
 

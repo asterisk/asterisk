@@ -929,18 +929,18 @@ static int exp10_int(int power)
  * - 3,4,...,20
  * - 30,40,...,90
  *
- * - hundereds - 100 - sto, 200 - 2ste, 300,400 3,4sta, 500,600,...,900 5,6,...9set
+ * - hundreds - 100 - sto, 200 - 2ste, 300,400 3,4sta, 500,600,...,900 5,6,...9set
  *
  * for each number 10^(3n + 3) exist 3 files represented as:
- *		1 tousand = jeden tisic = 1_E3
- *		2,3,4 tousands = dva,tri,ctyri tisice = 2-3_E3
- *		5,6,... tousands = pet,sest,... tisic = 5_E3
+ *		1 thousand = jeden tisic = 1_E3
+ *		2,3,4 thousands = dva,tri,ctyri tisice = 2-3_E3
+ *		5,6,... thousands = pet,sest,... tisic = 5_E3
  *
  *		million = _E6
  *		miliard = _E9
  *		etc...
  *
- * tousand, milion are  gender male, so 1 and 2 is 1m 2m
+ * thousand, milion are  gender male, so 1 and 2 is 1m 2m
  * miliard is gender female, so 1 and 2 is 1w 2w
  */
 static int ast_say_number_full_cs(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd)
@@ -949,7 +949,7 @@ static int ast_say_number_full_cs(struct ast_channel *chan, int num, const char 
 	int playh = 0;
 	char fn[256] = "";
 
-	int hundered = 0;
+	int hundred = 0;
 	int left = 0;
 	int length = 0;
 
@@ -980,22 +980,22 @@ static int ast_say_number_full_cs(struct ast_channel *chan, int num, const char 
 			snprintf(fn, sizeof(fn), "digits/%d", (num /10) * 10);
 			num %= 10;
 		} else if (num < 1000) {
-			hundered = num / 100;
-			if ( hundered == 1 ) {
+			hundred = num / 100;
+			if ( hundred == 1 ) {
 				ast_copy_string(fn, "digits/1sto", sizeof(fn));
-			} else if ( hundered == 2 ) {
+			} else if ( hundred == 2 ) {
 				ast_copy_string(fn, "digits/2ste", sizeof(fn));
 			} else {
-				res = ast_say_number_full_cs(chan, hundered, ints, language, options, audiofd, ctrlfd);
+				res = ast_say_number_full_cs(chan, hundred, ints, language, options, audiofd, ctrlfd);
 				if (res)
 					return res;
-				if (hundered == 3 || hundered == 4) {
+				if (hundred == 3 || hundred == 4) {
 					ast_copy_string(fn, "digits/sta", sizeof(fn));
-				} else if ( hundered > 4 ) {
+				} else if ( hundred > 4 ) {
 					ast_copy_string(fn, "digits/set", sizeof(fn));
 				}
 			}
-			num -= (hundered * 100);
+			num -= (hundred * 100);
 		} else { /* num > 1000 */
 			length = (int)log10(num)+1;
 			while ( (length % 3 ) != 1 ) {
@@ -1014,7 +1014,7 @@ static int ast_say_number_full_cs(struct ast_channel *chan, int num, const char 
 				if (res)
 					return res;
 			}
-			if ( left >= 5 ) { /* >= 5 have the same declesion */
+			if ( left >= 5 ) { /* >= 5 have the same declension */
 				snprintf(fn, sizeof(fn), "digits/5_E%d", length - 1);
 			} else if ( left >= 2 && left <= 4 ) {
 				snprintf(fn, sizeof(fn), "digits/2-4_E%d", length - 1);
@@ -1952,7 +1952,7 @@ static int ast_say_number_full_it(struct ast_channel *chan, int num, const char 
 		Like english, numbers up to 20 are a single 'word', and others
 		compound, but with exceptions.
 		For example 21 is not twenty-one, but there is a single word in 'it'.
-		Idem for 28 (ie when a the 2nd part of a compund number
+		Idem for 28 (ie when a the 2nd part of a compound number
 		starts with a vowel)
 
 		There are exceptions also for hundred, thousand and million.
@@ -5494,7 +5494,7 @@ int ast_say_date_with_format_he(struct ast_channel *chan, time_t t, const char *
 				* ast_say_number_full_he mean, but it seems
 				* safe to pass -1 there.
 				*
-				* At least in one of the pathes :-(
+				* At least in one of the paths :-(
 				*/
 				res = ast_say_number_full_he(chan, tm.tm_mday, ints, lang, "m", -1, -1);
 				break;
@@ -5502,7 +5502,7 @@ int ast_say_date_with_format_he(struct ast_channel *chan, time_t t, const char *
 				res = ast_say_number_full_he(chan, tm.tm_year + 1900, ints, lang, "f", -1, -1);
 				break;
 			case 'I':
-			case 'l': /* 12-Hour -> we do not support 12 hour based langauges in Hebrew */
+			case 'l': /* 12-Hour -> we do not support 12 hour based languages in Hebrew */
 			case 'H':
 			case 'k': /* 24-Hour */
 				res = ast_say_number_full_he(chan, tm.tm_hour, ints, lang, "f", -1, -1);
@@ -8182,7 +8182,7 @@ static int gr_say_number_female(int num, struct ast_channel *chan, const char *i
 				 and digits/hundred-100 to utter "ekaton"
  ->	digits/hundred-[100...1000] :: A pronunciation of  hundreds from 100 to 1000 e.g 400 =
 				 "terakosia". Here again we use hundreds/1000 for "xilia"
-				 and digits/thousnds for "xiliades"
+				 and digits/thousands for "xiliades"
 */
 static int ast_say_number_full_gr(struct ast_channel *chan, int num, const char *ints, const char *language, int audiofd, int ctrlfd)
 {
@@ -8404,7 +8404,7 @@ int ast_say_date_ja(struct ast_channel *chan, time_t t, const char *ints, const 
  * A list of the files that you need to create
  * - digits/female/1..4 : "Mia, dyo , treis, tesseris "
  * - digits/kai : "KAI"
- * - didgits : "h wra"
+ * - digits : "h wra"
  * - digits/p-m : "meta meshmbrias"
  * - digits/a-m : "pro meshmbrias"
  */
@@ -9660,7 +9660,7 @@ static const char *counted_noun_ending_en(int num)
  * They are the genative singular which we represent with the suffix "x1" and
  * the genative plural which we represent with the suffix "x2". The base names
  * of the soundfiles remain in English. For example:
- *  - 1 degree (soudfile says "gradus")
+ *  - 1 degree (soundfile says "gradus")
  *  - 2 degreex1 (soundfile says "gradusa")
  *  - 5 degreex2 (soundfile says "gradusov")
  */

@@ -144,7 +144,7 @@ static char *handle_show_function(struct ast_cli_entry *e, int cmd, struct ast_c
 {
 	struct ast_custom_function *acf;
 	/* Maximum number of characters added by terminal coloring is 22 */
-	char infotitle[64 + AST_MAX_APP + 22], syntitle[40], destitle[40], argtitle[40], seealsotitle[40];
+	char infotitle[64 + AST_MAX_APP + 22], syntitle[40], desctitle[40], argtitle[40], seealsotitle[40];
 	char info[64 + AST_MAX_APP], *synopsis = NULL, *description = NULL, *seealso = NULL;
 	char stxtitle[40], *syntax = NULL, *arguments = NULL;
 	int syntax_size, description_size, synopsis_size, arguments_size, seealso_size;
@@ -181,7 +181,7 @@ static char *handle_show_function(struct ast_cli_entry *e, int cmd, struct ast_c
 	snprintf(info, sizeof(info), "\n  -= Info about function '%s' =- \n\n", acf->name);
 	term_color(infotitle, info, COLOR_MAGENTA, 0, sizeof(infotitle));
 	term_color(syntitle, "[Synopsis]\n", COLOR_MAGENTA, 0, 40);
-	term_color(destitle, "[Description]\n", COLOR_MAGENTA, 0, 40);
+	term_color(desctitle, "[Description]\n", COLOR_MAGENTA, 0, 40);
 	term_color(stxtitle, "[Syntax]\n", COLOR_MAGENTA, 0, 40);
 	term_color(argtitle, "[Arguments]\n", COLOR_MAGENTA, 0, 40);
 	term_color(seealsotitle, "[See Also]\n", COLOR_MAGENTA, 0, 40);
@@ -225,7 +225,7 @@ static char *handle_show_function(struct ast_cli_entry *e, int cmd, struct ast_c
 	}
 
 	ast_cli(a->fd, "%s%s%s\n\n%s%s\n\n%s%s\n\n%s%s\n\n%s%s\n",
-			infotitle, syntitle, synopsis, destitle, description,
+			infotitle, syntitle, synopsis, desctitle, description,
 			stxtitle, syntax, argtitle, arguments, seealsotitle, seealso);
 
 	ast_free(arguments);

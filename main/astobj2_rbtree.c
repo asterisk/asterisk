@@ -1143,7 +1143,7 @@ static enum ao2_container_insert rb_ao2_insert_node(struct ao2_container_rbtree 
 		break;
 	}
 
-	/* Node is a dupliate */
+	/* Node is a duplicate */
 	switch (options & AO2_CONTAINER_ALLOC_OPT_DUPS_MASK) {
 	default:
 	case AO2_CONTAINER_ALLOC_OPT_DUPS_ALLOW:

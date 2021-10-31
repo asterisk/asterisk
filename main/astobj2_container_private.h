@@ -254,7 +254,7 @@ struct ao2_container_methods {
 #if defined(AO2_DEBUG)
 	/*! Increment the container linked object statistic. */
 	ao2_link_node_stat_fn link_stat;
-	/*! Deccrement the container linked object statistic. */
+	/*! Decrement the container linked object statistic. */
 	ao2_unlink_node_stat_fn unlink_stat;
 	/*! Display container contents. (Method for debug purposes) */
 	ao2_container_display dump;

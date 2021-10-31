@@ -694,7 +694,7 @@ static int udptl_build_packet(struct ast_udptl *s, uint8_t *buf, unsigned int bu
 		}
 		/* Encode the error recovery type */
 		buf[len++] = 0x80;
-		/* Span is defined as an inconstrained integer, which it dumb. It will only
+		/* Span is defined as an unconstrained integer, which it dumb. It will only
 		   ever be a small value. Treat it as such. */
 		buf[len++] = 1;
 		buf[len++] = span;

@@ -1045,7 +1045,7 @@ static void pbx_destroy(struct ast_pbx *p)
  *   Hope the limit on stack depth won't be a problem... this routine should
  *   be pretty lean as far a stack usage goes. Any non-match terminates the recursion down a branch.
  *
- *   In the above example, with the number "3077549999" as the pattern, the traversor could match extensions a, b and d.  All are
+ *   In the above example, with the number "3077549999" as the pattern, the traverser could match extensions a, b and d.  All are
  *   of length 10; they have total specificities of  24580, 10246, and 25090, respectively, not that this matters
  *   at all. (b) wins purely because the first character "3" is much more specific (lower specificity) than "N". I have
  *   left the specificity totals in the code as an artifact; at some point, I will strip it out.
@@ -1914,7 +1914,7 @@ static int ext_cmp_exten(const char *left, const char *right)
  *		and MATCHMORE. Only allowed at the end of a pattern.
  *		In the core routine, ! causes a match with a return code of 2.
  *		In turn, depending on the search mode: (XXX check if it is implemented)
- *		- E_MATCH retuns 1 (does match)
+ *		- E_MATCH returns 1 (does match)
  *		- E_MATCHMORE returns 0 (no match)
  *		- E_CANMATCH returns 1 (does match)
  *
@@ -4010,7 +4010,7 @@ static int ast_add_hint(struct ast_exten *e)
 	}
 	hint_new->exten = e;
 	if (strstr(e->app, "${") && e->exten[0] == '_') {
-		/* The hint is dynamic and hasn't been evaluted yet */
+		/* The hint is dynamic and hasn't been evaluated yet */
 		hint_new->laststate = AST_DEVICE_INVALID;
 		hint_new->last_presence_state = AST_PRESENCE_INVALID;
 	} else {
@@ -4691,7 +4691,7 @@ static void destroy_exten(struct ast_exten *e)
 
 static void *pbx_thread(void *data)
 {
-	/* Oh joyeous kernel, we're a new thread, with nothing to do but
+	/* Oh joyous kernel, we're a new thread, with nothing to do but
 	   answer this channel and get it going.
 	*/
 	/* NOTE:
@@ -4891,7 +4891,7 @@ int ast_context_remove_include2(struct ast_context *con, const char *include, co
 }
 
 /*!
- * \note This function locks contexts list by &conlist, search for the rigt context
+ * \note This function locks contexts list by &conlist, search for the right context
  * structure, leave context list locked and call ast_context_remove_switch2
  * which removes switch, unlock contexts list and return ...
  */
@@ -6608,7 +6608,7 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, struct ast_
 		if (!hint) {
 			/*
 			 * Notify watchers of this removed hint later when we aren't
-			 * encumberd by so many locks.
+			 * encumbered by so many locks.
 			 */
 			AST_LIST_INSERT_HEAD(&hints_removed, saved_hint, list);
 		} else {
@@ -7353,7 +7353,7 @@ static int ast_add_extension2_lockopt(struct ast_context *con,
 		return -1;
 	}
 
-	/* If we are adding a hint evalulate in variables and global variables */
+	/* If we are adding a hint evaluate in variables and global variables */
 	if (priority == PRIORITY_HINT && strstr(application, "${") && extension[0] != '_') {
 		int inhibited;
 		struct ast_channel *c = ast_dummy_channel_alloc();

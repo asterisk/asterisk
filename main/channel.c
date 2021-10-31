@@ -2869,7 +2869,7 @@ static inline int should_trigger_dtmf_emulating(struct ast_channel *chan)
 			ast_tvdiff_ms(ast_tvnow(), *ast_channel_dtmf_tv(chan)) < 2*AST_MIN_DTMF_GAP) {
 		/*
 		 * We're not in the middle of a digit, but it hasn't been long enough
-		 * since the last digit, so we'll have to trigger DTMF furtheron.
+		 * since the last digit, so we'll have to trigger DTMF further on.
 		 * Using 2 times AST_MIN_DTMF_GAP to trigger readq reading for possible
 		 * buffered next dtmf event
 		 */
@@ -3587,7 +3587,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio, int
 		switch (res) {
 		case AST_TIMING_EVENT_EXPIRED:
 			if (ast_timer_ack(ast_channel_timer(chan), 1) < 0) {
-				ast_log(LOG_ERROR, "Failed to acknoweldge timer in ast_read\n");
+				ast_log(LOG_ERROR, "Failed to acknowledge timer in ast_read\n");
 				goto done;
 			}
 
@@ -3618,7 +3618,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio, int
 					break;
 				}
 			} else if (trigger_dtmf_emulating) {
-				/* generate null frame to trigger dtmf emualating */
+				/* generate null frame to trigger dtmf emulating */
 				f = &ast_null_frame;
 				break;
 			} else {
@@ -6942,7 +6942,7 @@ static void channel_do_masquerade(struct ast_channel *original, struct ast_chann
 	ast_channel_unlock(original);
 	ast_indicate(original, -1);
 
-	/* Start the masquerade channel contents rearangement. */
+	/* Start the masquerade channel contents rearrangement. */
 	ast_channel_lock_both(original, clonechan);
 
 	ast_debug(1, "Actually Masquerading %s(%u) into the structure of %s(%u)\n",

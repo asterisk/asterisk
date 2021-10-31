@@ -133,7 +133,7 @@ static void bridge_sync_init(struct bridge_sync *sync_struct, unsigned int id)
 }
 
 /*!
- * \brief Clean up a syncrhonization bridge object.
+ * \brief Clean up a synchronization bridge object.
  *
  * This frees fields within the synchronization object and removes
  * it from the list of active synchronization objects.

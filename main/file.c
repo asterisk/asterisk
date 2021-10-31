@@ -271,7 +271,7 @@ int ast_writestream(struct ast_filestream *fs, struct ast_frame *f)
 static int copy(const char *infile, const char *outfile)
 {
 	int ifd, ofd, len;
-	char buf[4096];	/* XXX make it lerger. */
+	char buf[4096];	/* XXX make it larger. */
 
 	if ((ifd = open(infile, O_RDONLY)) < 0) {
 		ast_log(LOG_WARNING, "Unable to open %s in read-only mode\n", infile);

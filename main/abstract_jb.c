@@ -934,7 +934,7 @@ static struct timeval jitterbuffer_frame_get_ntp_timestamp(const struct jb_strea
 		timestamp_diff = (frame->ts * (rate / 1000)) - stream_sync->timestamp;
 	} else {
 		/* Video is special - internally we reference it as 1000 to preserve the RTP timestamp but
-		 * it is actualy 90000, this is why we can just directly subtract the timestamp.
+		 * it is actually 90000, this is why we can just directly subtract the timestamp.
 		 */
 		rate = 90000;
 		timestamp_diff = frame->ts - stream_sync->timestamp;
