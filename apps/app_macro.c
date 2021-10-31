@@ -75,7 +75,7 @@
 			of nesting (macro calling macro calling macro, etc.); It may be possible that stack-intensive
 			applications in deeply nested macros could cause asterisk to crash earlier than this limit.
 			It is advised that if you need to deeply nest macro calls, that you use the Gosub application
-			(now allows arguments like a Macro) with explict Return() calls instead.</para></warning>
+			(now allows arguments like a Macro) with explicit Return() calls instead.</para></warning>
 			<warning><para>Use of the application <literal>WaitExten</literal> within a macro will not function
 			as expected. Please use the <literal>Read</literal> application in order to read DTMF from a channel
 			currently executing a macro.</para></warning>

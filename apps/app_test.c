@@ -352,7 +352,7 @@ static int testserver_exec(struct ast_channel *chan, const char *data)
 	if (!res)
 		res = ast_app_getdata(chan, NULL, testid, sizeof(testid) - 1, 0);
 	ast_debug(1, "read test identifier: %s\n", testid);
-	/* Check for sneakyness */
+	/* Check for sneakiness */
 	if (strchr(testid, '/'))
 		res = -1;
 	if ((res >=0) && (!ast_strlen_zero(testid))) {

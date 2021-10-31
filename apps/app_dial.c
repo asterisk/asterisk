@@ -930,7 +930,7 @@ static const char *get_cid_name(char *name, int namelen, struct ast_channel *cha
  * XXX this code is highly suspicious, as it essentially overwrites
  * the outgoing channel without properly deleting it.
  *
- * \todo eventually this function should be intergrated into and replaced by ast_call_forward()
+ * \todo eventually this function should be integrated into and replaced by ast_call_forward()
  */
 static void do_forward(struct chanlist *o, struct cause_args *num,
 	struct ast_flags64 *peerflags, int single, int caller_entertained, int *to,
