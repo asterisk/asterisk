@@ -11,7 +11,7 @@
 ;
 ; default_perm = permit | deny
 ;                This is the default permissions to apply for a user that
-;                does not has a permissions definided.
+;                does not has a permissions defined.
 ;
 ; user options:
 ; permit = <command name> | all		; allow the user to run 'command' |

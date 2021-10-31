@@ -1077,7 +1077,7 @@ pickupgroup=1
 ; Few zones are supported at the time of this writing, but may be selected
 ; with "progzone".
 ;
-; progzone also affects the pattern used for buzydetect (unless
+; progzone also affects the pattern used for busydetect (unless
 ; busypattern is set explicitly). The possible values are:
 ;   us (default)
 ;   ca (alias for 'us')

@@ -100,7 +100,7 @@ context=default
                     ; when we're not on hold
 
 ;Type of Service
-;Default - none (lowdelay, thoughput, reliability, mincost, none)
+;Default - none (lowdelay, throughput, reliability, mincost, none)
 ;tos=lowdelay
 
 ;amaflags = default

@@ -44,7 +44,7 @@
 ;
 
 ;
-; Disable UDP checksums (if nochecksums is set, then no checkums will
+; Disable UDP checksums (if nochecksums is set, then no checksums will
 ; be calculated/checked on systems supporting this feature)
 ;
 ; Accepted values: yes, no
