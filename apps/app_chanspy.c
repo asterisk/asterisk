@@ -899,7 +899,7 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 	signed char zero_volume = 0;
 	int waitms;
 	int res;
-	int num_spyed_upon = 1;
+	int num_spied_upon = 1;
 	struct ast_channel_iterator *iter = NULL;
 
 	if (ast_test_flag(flags, OPTION_EXIT)) {
@@ -926,7 +926,7 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 		struct ast_autochan *autochan = NULL, *next_autochan = NULL;
 		struct ast_channel *prev = NULL;
 
-		if (!ast_test_flag(flags, OPTION_QUIET) && num_spyed_upon) {
+		if (!ast_test_flag(flags, OPTION_QUIET) && num_spied_upon) {
 			res = ast_streamfile(chan, "beep", ast_channel_language(chan));
 			if (!res)
 				res = ast_waitstream(chan, "");
@@ -991,7 +991,7 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 
 		/* reset for the next loop around, unless overridden later */
 		waitms = 100;
-		num_spyed_upon = 0;
+		num_spied_upon = 0;
 
 		for (autochan = next_channel(iter, chan);
 			autochan;
@@ -1146,7 +1146,7 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 			}
 
 			res = channel_spy(chan, autochan, &volfactor, fd, user_options, flags, exitcontext);
-			num_spyed_upon++;
+			num_spied_upon++;
 
 			if (res == -1) {
 				ast_autochan_destroy(autochan);
