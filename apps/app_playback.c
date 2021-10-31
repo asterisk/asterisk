@@ -35,7 +35,7 @@
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
 #include "asterisk/app.h"
-/* This file provides config-file based 'say' functions, and implenents
+/* This file provides config-file based 'say' functions, and implements
  * some CLI commands.
  */
 #include "asterisk/say.h"	/*!< provides config-file based 'say' functions */

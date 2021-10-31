@@ -1682,7 +1682,7 @@ static struct confbridge_conference *join_conference_bridge(const char *conferen
 	struct post_join_action *action;
 	int max_members_reached = 0;
 
-	/* We explictly lock the conference bridges container ourselves so that other callers can not create duplicate conferences at the same */
+	/* We explicitly lock the conference bridges container ourselves so that other callers can not create duplicate conferences at the same */
 	ao2_lock(conference_bridges);
 
 	ast_debug(1, "Trying to find conference bridge '%s'\n", conference_name);
