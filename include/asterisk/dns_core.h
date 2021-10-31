@@ -287,7 +287,7 @@ int ast_dns_resolve(const char *name, int rr_type, int rr_class, struct ast_dns_
  * 		 is used.
  *
  * \warning This function is synchronous and will block until records are returned or an error
- *          occurrs.
+ *          occurs.
  */
 int ast_dns_resolve_ipv6_and_ipv4(struct ast_sockaddr *address, const char *host, const char *port);
 

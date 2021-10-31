@@ -170,7 +170,7 @@ SQLHSTMT ast_odbc_prepare_and_execute(struct odbc_obj *obj, SQLHSTMT (*prepare_c
  */
 int ast_odbc_prepare(struct odbc_obj *obj, SQLHSTMT *stmt, const char *sql);
 
-/*! \brief Execute a nonprepared SQL query.
+/*! \brief Execute a unprepared SQL query.
  * \param obj The ODBC object
  * \param sql The SQL query
  * \note This should be used in place of SQLExecDirect

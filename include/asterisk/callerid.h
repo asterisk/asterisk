@@ -202,7 +202,7 @@ int ast_callerid_callwaiting_generate(unsigned char *buf, const char *name, cons
 
 /*! \brief Destructively parse inbuf into name and location (or number)
  * \details
- * Parses callerid stream from inbuf and changes into useable form, outputed in name and location.
+ * Parses callerid stream from inbuf and changes into useable form, outputted in name and location.
  * \param instr buffer of callerid stream (in audio form) to be parsed. Warning, data in buffer is changed.
  * \param name address of a pointer-to-char for the name value of the stream.
  * \param location address of a pointer-to-char for the phone number value of the stream.

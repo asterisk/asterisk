@@ -51,7 +51,7 @@
  * a load_calendar callback which will be passed an ast_calendar_load_data structure.
  * The load_calendar callback function should then set the values it needs from this
  * cfg, load the calendar data, and then loop updating the calendar data and events
- * baesd on the refresh interval in the ast_calendar object.  Each call to
+ * based on the refresh interval in the ast_calendar object.  Each call to
  * the load_calendar callback will be will run in its own thread.
  *
  * Updating events involves creating an astobj2 container of new events and passing

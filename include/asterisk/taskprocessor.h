@@ -352,7 +352,7 @@ unsigned int ast_taskprocessor_alert_get(void);
 
 
 /*!
- * \brief Get the current taskprocessor high water alert count by sybsystem.
+ * \brief Get the current taskprocessor high water alert count by subsystem.
  * \since 13.26.0
  * \since 16.3.0
  *

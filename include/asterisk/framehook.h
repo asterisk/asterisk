@@ -177,7 +177,7 @@ enum ast_framehook_event {
  * \param channel, The ast_channel this framehook is attached to
  * \param frame, The ast_frame being intercepted for viewing and manipulation
  * \param event, The type of event which is occurring
- * \param data, The data pointer provided at framehook initilization.
+ * \param data, The data pointer provided at framehook initialization.
  *
  * \retval the resulting frame.
  */
@@ -204,7 +204,7 @@ typedef void (*ast_framehook_destroy_callback)(void *data);
  * frames of a given type
  * \since 12
  *
- * \param data, The data pointer provided at framehook initilization.
+ * \param data, The data pointer provided at framehook initialization.
  * \param type, The type of frame.
  *
  * \return 0 if frame type is being ignored

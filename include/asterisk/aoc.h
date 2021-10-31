@@ -332,7 +332,7 @@ int ast_aoc_set_billing_id(struct ast_aoc_decoded *decoded, const enum ast_aoc_b
 int ast_aoc_set_association_id(struct ast_aoc_decoded *decoded, const int id);
 
 /*!
- * \brief set the charging accociation number for an AOC-E message
+ * \brief set the charging association number for an AOC-E message
  * \since 1.8
  *
  * \param decoded ast_aoc_decoded struct to set values on

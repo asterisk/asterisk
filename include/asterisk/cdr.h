@@ -354,7 +354,7 @@ void ast_cdr_set_config(struct ast_cdr_config *config);
  * \param ret Pointer to the formatted buffer
  * \param workspace A pointer to the buffer to use to format the variable
  * \param workspacelen The size of \ref workspace
- * \param raw If non-zero and a date/time is extraced, provide epoch seconds. Otherwise format as a date/time stamp
+ * \param raw If non-zero and a date/time is extracted, provide epoch seconds. Otherwise format as a date/time stamp
  */
 void ast_cdr_format_var(struct ast_cdr *cdr, const char *name, char **ret, char *workspace, int workspacelen, int raw);
 
@@ -522,7 +522,7 @@ int ast_cdr_unregister(const char *name);
 /*!
  * \brief Suspend a CDR backend temporarily
  *
-  * \retval 0 The backend is suspdended
+  * \retval 0 The backend is suspended
   * \retval -1 The backend could not be suspended
   */
 int ast_cdr_backend_suspend(const char *name);

@@ -1513,7 +1513,7 @@ const char *ast_sorcery_object_get_id(const void *object);
 
 /*!
  * \since 14.0.0
- * \brief Get when the socery object was created
+ * \brief Get when the sorcery object was created
  *
  * \param object Pointer to a sorcery object
  *

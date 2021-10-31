@@ -127,7 +127,7 @@ int ast_is_prime(int num);
  * \param b a character string
  * \retval 0 if the strings match
  * \retval <0 if string a is less than string b
- * \retval >0 if string a is greather than string b
+ * \retval >0 if string a is greater than string b
  */
 int ast_hashtab_compare_strings(const void *a, const void *b);
 
@@ -138,7 +138,7 @@ int ast_hashtab_compare_strings(const void *a, const void *b);
  * \param b a character string
  * \retval 0 if the strings match
  * \retval <0 if string a is less than string b
- * \retval >0 if string a is greather than string b
+ * \retval >0 if string a is greater than string b
  */
 int ast_hashtab_compare_strings_nocase(const void *a, const void *b);
 

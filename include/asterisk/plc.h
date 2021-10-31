@@ -75,7 +75,7 @@ are needed to obtain smooth pleasant sounding results.
   correct steadily fall. Therefore, the volume of the synthesized signal is made to decay
   linearly, such that after 50ms of missing audio it is reduced to silence.
 
-- When real speech resumes, an extra 1/4 pitch period of sythetic speech is blended with the
+- When real speech resumes, an extra 1/4 pitch period of synthetic speech is blended with the
   start of the real speech. If the erasure is small, this smoothes the transition. If the erasure
   is long, and the synthetic signal has faded to zero, the blending softens the start up of the
   real signal, avoiding a kind of "click" or "pop" effect that might occur with a sudden onset.
@@ -85,7 +85,7 @@ Before audio is processed, call plc_init() to create an instance of the packet l
 concealer. For each received audio packet that is acceptable (i.e. not including those being
 dropped for being too late) call plc_rx() to record the content of the packet. Note this may
 modify the packet a little after a period of packet loss, to blend real synthetic data smoothly.
-When a real packet is not available in time, call plc_fillin() to create a sythetic substitute.
+When a real packet is not available in time, call plc_fillin() to create a synthetic substitute.
 That's it!
 */
 
