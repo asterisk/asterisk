@@ -112,7 +112,7 @@
    }
 
    /*----------------------------------------------------------------*
-    *  frame residual decoder function (subrutine to iLBC_decode)
+    *  frame residual decoder function (subroutine to iLBC_decode)
     *---------------------------------------------------------------*/
 
    void Decode(

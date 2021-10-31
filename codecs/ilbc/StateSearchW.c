@@ -20,7 +20,7 @@
 
    /*----------------------------------------------------------------*
     *  predictive noise shaping encoding of scaled start state
-    *  (subrutine for StateSearchW)
+    *  (subroutine for StateSearchW)
     *---------------------------------------------------------------*/
 
    void AbsQuantW(
@@ -123,7 +123,7 @@
                            /* (i) Encoder instance */
        float *residual,/* (i) target residual vector */
        float *syntDenum,   /* (i) lpc synthesis filter */
-       float *weightDenum, /* (i) weighting filter denuminator */
+       float *weightDenum, /* (i) weighting filter denumerator */
        int *idxForMax,     /* (o) quantizer index for maximum
                                   amplitude */
        int *idxVec,    /* (o) vector of quantization indexes */
