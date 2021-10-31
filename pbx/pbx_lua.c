@@ -456,7 +456,7 @@ static void lua_create_app_table(lua_State *L)
 }
 
 /*!
- * \brief Create the global 'channel' table for accesing channel variables
+ * \brief Create the global 'channel' table for accessing channel variables
  *
  * \param L the lua_State to use
  */
@@ -716,7 +716,7 @@ static int lua_autoservice_start(lua_State *L)
 }
 
 /*!
- * \brief [lua_CFunction] Tell pbx_lua to stop maintaning an autoservice on
+ * \brief [lua_CFunction] Tell pbx_lua to stop maintaining an autoservice on
  * this channel (for access from lua, don't call directly)
  *
  * \param L the lua_State to use
@@ -878,7 +878,7 @@ static int lua_sort_extensions(lua_State *L)
 		lua_newtable(L);
 		context_order = lua_gettop(L);
 
-		/* iterate through this context an popluate the corrisponding
+		/* iterate through this context an populate the corrisponding
 		 * table in the extensions_order table */
 		for (lua_pushnil(L); lua_next(L, context); lua_pop(L, 1)) {
 			int exten = lua_gettop(L) - 1;
@@ -919,7 +919,7 @@ static int lua_sort_extensions(lua_State *L)
 }
 
 /*!
- * \brief Register dialplan switches for our pbx_lua contexs.
+ * \brief Register dialplan switches for our pbx_lua contexts.
  *
  * In the event of an error, an error string will be pushed onto the lua stack.
  *
@@ -977,7 +977,7 @@ static int lua_register_switches(lua_State *L)
 }
 
 /*!
- * \brief Register dialplan hints for our pbx_lua contexs.
+ * \brief Register dialplan hints for our pbx_lua contexts.
  *
  * In the event of an error, an error string will be pushed onto the lua stack.
  *

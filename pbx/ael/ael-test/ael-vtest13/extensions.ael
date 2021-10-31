@@ -2055,7 +2055,7 @@ macro callerid-liar()
                             //         If you are telemarketing, cross me off the list, and don't call again.
                             //         If you did this by mistake, forgive my defenses, and call again.
                            // Alternate: (priv-liar2)
-				   // Script: You have chosen to try to deceive my system and withold your CallerID,
+				   // Script: You have chosen to try to deceive my system and withhold your CallerID,
                                    //           by entering my own phone number as YOUR CallerID. I find this
                                    //           offensive because you are being dishonest. I will not do business nor
                                    //           waste my time talking to anyone who is less than honest and forthcoming.

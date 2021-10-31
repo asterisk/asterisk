@@ -843,7 +843,7 @@ static char *handle_cli_dialplan_save(struct ast_cli_entry *e, int cmd, struct a
 
 	if (ast_mutex_lock(&save_dialplan_lock)) {
 		ast_cli(a->fd,
-			"Failed to lock dialplan saving (another proccess saving?)\n");
+			"Failed to lock dialplan saving (another process saving?)\n");
 		return CLI_FAILURE;
 	}
 	/* XXX the code here is quite loose, a pathname with .conf in it
@@ -1376,7 +1376,7 @@ static char *handle_cli_dialplan_add_ignorepat(struct ast_cli_entry *e, int cmd,
 			break;
 
 		default:
-			ast_cli(a->fd, "Failed to add ingore pattern '%s' into '%s' context\n",
+			ast_cli(a->fd, "Failed to add ignore pattern '%s' into '%s' context\n",
 				a->argv[3], a->argv[5]);
 			break;
 		}
