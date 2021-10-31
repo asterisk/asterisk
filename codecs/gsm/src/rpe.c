@@ -281,7 +281,7 @@ static void APCM_quantization P5((xM,xMc,mant_out,exp_out,xmaxc_out),
 		if (temp > xmax) xmax = temp;
 	}
 
-	/*  Qantizing and coding of xmax to get xmaxc.
+	/*  Quantizing and coding of xmax to get xmaxc.
 	 */
 
 	exp   = 0;

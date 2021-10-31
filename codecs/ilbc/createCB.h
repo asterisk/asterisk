@@ -51,7 +51,7 @@
        float *buffer,      /* (i) Pointer to the end of the
                                   buffer for augmented codebook
                                   construction */
-       float *cbVec    /* (o) The construced codebook vector */
+       float *cbVec    /* (o) The constructed codebook vector */
    );
 
    #endif

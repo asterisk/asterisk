@@ -2,7 +2,7 @@
 
 $Log$
 Revision 1.18  2004/08/31 13:32:11  markster
-Merge NetBSD and Courtesty tone with modifications (bug #2329)
+Merge NetBSD and Courtesy tone with modifications (bug #2329)
 
 Revision 1.17  2003/10/26 18:50:49  markster
 Make it build and run on MacOS X
