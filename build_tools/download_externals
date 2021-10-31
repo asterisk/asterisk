@@ -160,7 +160,7 @@ if [[ -f ${DESTDIR}${ASTMODDIR}/${module_name}.manifest.xml ]] ; then
 				break
 			else
 				if [[ "$executable" = "yes" ]] ; then
-					# There are easier ways of doing this (objcopy --dump-section) but not in older bunutils
+					# There are easier ways of doing this (objcopy --dump-section) but not in older binutils
 					length_offset=$(objdump -h $f | sed -n -r -e "s/^\s+[0-9]+\s+.ast_manifest\s+([0-9a-fA-F]+)\s+[0-9a-fA-F]+\s+[0-9a-fA-F]+\s+([0-9a-fA-F]+)\s+.*$/0x\1 0x\2/p")
 					tags=$($(eval 'printf "dd if=$f bs=1 count=%d skip=%d\n" $length_offset') 2>/dev/null)
 					if [[ -n "${tags}" && "${tags}" != "${module_name},${variant},${rpv}" ]] ; then
