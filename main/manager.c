@@ -111,7 +111,7 @@
 			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
 		</syntax>
 		<description>
-			<para>A 'Ping' action will ellicit a 'Pong' response. Used to keep the
+			<para>A 'Ping' action will elicit a 'Pong' response. Used to keep the
 			manager connection open.</para>
 		</description>
 	</manager>
@@ -931,7 +931,7 @@
 			</parameter>
 		</syntax>
 		<description>
-			<para>This action will ellicit a <literal>Success</literal> response. Whenever
+			<para>This action will elicit a <literal>Success</literal> response. Whenever
 			a manager event is queued. Once WaitEvent has been called on an HTTP manager
 			session, events will be generated and queued.</para>
 		</description>
@@ -7946,7 +7946,7 @@ static int generic_http_callback(struct ast_tcptls_session_instance *ser,
 		/*!
 		 * \note There is approximately a 1 in 1.8E19 chance that the following
 		 * calculation will produce 0, which is an invalid ID, but due to the
-		 * properties of the rand() function (and the constantcy of s), that
+		 * properties of the rand() function (and the constancy of s), that
 		 * won't happen twice in a row.
 		 */
 		while ((session->managerid = ast_random() ^ (unsigned long) session) == 0) {

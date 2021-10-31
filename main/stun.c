@@ -269,7 +269,7 @@ static int stun_send(int s, struct sockaddr_in *dst, struct stun_header *resp)
 
 /*!
  * \internal
- * \brief Compare the STUN tranaction IDs.
+ * \brief Compare the STUN transaction IDs.
  *
  * \param left Transaction ID.
  * \param right Transaction ID.

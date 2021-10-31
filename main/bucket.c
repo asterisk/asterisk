@@ -731,7 +731,7 @@ int ast_bucket_file_create(struct ast_bucket_file *file)
 static int bucket_copy(const char *infile, const char *outfile)
 {
 	int ifd, ofd, len;
-	char buf[4096];	/* XXX make it lerger. */
+	char buf[4096];	/* XXX make it larger. */
 
 	if ((ifd = open(infile, O_RDONLY)) < 0) {
 		ast_log(LOG_WARNING, "Unable to open %s in read-only mode, error: %s\n", infile, strerror(errno));

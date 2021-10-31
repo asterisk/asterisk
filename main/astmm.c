@@ -119,7 +119,7 @@ struct ast_region {
 	 *
 	 * \note Must be right before data[].
 	 *
-	 * \note Padding between fence and data[] is irrelevent because
+	 * \note Padding between fence and data[] is irrelevant because
 	 * data[] is used to fill in the lower fence check value and not
 	 * the fence member.  The fence member is to ensure that there
 	 * is space reserved for the fence check value.
@@ -1502,7 +1502,7 @@ static void mm_atexit_final(void)
 	freed_regions_flush(&whales);
 	freed_regions_flush(&minnows);
 
-	/* Peform atexit allocation dumps. */
+	/* Perform atexit allocation dumps. */
 	if (atexit_list || atexit_summary) {
 		ast_mutex_lock(&reglock);
 		mm_atexit_dump();

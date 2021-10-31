@@ -229,7 +229,7 @@ struct cc_control_payload {
 	 * and "SIP"
 	 *
 	 * \note This really should be an array of characters in case this payload
-	 * is sent accross an IAX2 link.  However, this would not make too much sense
+	 * is sent across an IAX2 link.  However, this would not make too much sense
 	 * given this type may not be recognized by the other end.
 	 * Protection may be necessary to prevent it from being transmitted.
 	 *
@@ -1354,7 +1354,7 @@ struct generic_monitor_instance_list {
 	 * for recall. If a CCNR request comes in, then we will
 	 * have to mark the list as unfit for recall since this
 	 * is a clear indicator that the person at the monitored
-	 * device has gone away and is actuall not fit to be
+	 * device has gone away and is actually not fit to be
 	 * recalled
 	 */
 	int fit_for_recall;
@@ -2660,7 +2660,7 @@ struct cc_generic_agent_pvt {
 	 * Context dialed
 	 *
 	 * The original context dialed. This is used
-	 * so that when performaing a recall, we can
+	 * so that when performing a recall, we can
 	 * call into the proper context
 	 */
 	char context[AST_CHANNEL_NAME];

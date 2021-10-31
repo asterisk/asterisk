@@ -214,7 +214,7 @@ struct ast_channel {
 	char dtmf_digit_to_emulate;			/*!< Digit being emulated */
 	char sending_dtmf_digit;			/*!< Digit this channel is currently sending out. (zero if not sending) */
 	struct timeval sending_dtmf_tv;		/*!< The time this channel started sending the current digit. (Invalid if sending_dtmf_digit is zero.) */
-	struct stasis_topic *topic;		/*!< Topic for trhis channel */
+	struct stasis_topic *topic;		/*!< Topic for this channel */
 	struct stasis_forward *channel_forward; /*!< Subscription for event forwarding to all channel topic */
 	struct stasis_forward *endpoint_forward;	/*!< Subscription for event forwarding to endpoint's topic */
 	struct ast_stream_topology *stream_topology; /*!< Stream topology */

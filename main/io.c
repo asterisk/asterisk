@@ -18,7 +18,7 @@
 
 /*! \file
  *
- * \brief I/O Managment (Derived from Cheops-NG)
+ * \brief I/O Management (Derived from Cheops-NG)
  *
  * \author Mark Spencer <markster@digium.com>
  */
