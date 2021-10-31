@@ -513,7 +513,7 @@ static struct ast_sip_endpoint *handle_atsign(const char *to, char *destination,
 	*atsign = '\0';
 	endpoint_name = destination;
 
-	/* Apprently there may be ';<user_options>' after the endpoint name ??? */
+	/* Apparently there may be ';<user_options>' after the endpoint name ??? */
 	AST_SIP_USER_OPTIONS_TRUNCATE_CHECK(endpoint_name);
 	endpoint = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint", endpoint_name);
 	if (!endpoint) {

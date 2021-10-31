@@ -263,7 +263,7 @@ static int readmimefile(struct ast_iostream *in, FILE *fout, char *boundary, int
 				marker += x;  /* Index beyond the filename marker */
 				path_start = &buf[marker];
 				for (path_end = path_start, x = 0; x < char_in_buf-marker; x++, path_end++) {
-					if ('\\' == *path_end) {	/* convert backslashses to forward slashes */
+					if ('\\' == *path_end) {	/* convert backslashes to forward slashes */
 						*path_end = '/';
 					}
 					if ('\"' == *path_end) {	/* If at the end of the file name spec */

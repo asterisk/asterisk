@@ -528,7 +528,7 @@ void traverse_pval_item_template(pval *item, int depth)/* depth comes in handy f
 		break;
 
 	case PV_FOR:
-		/* fields: item->u1.for_init     == a string containing the initalizer
+		/* fields: item->u1.for_init     == a string containing the initializer
 		           item->u2.for_test     == a string containing the loop test
 		           item->u3.for_inc      == a string containing the loop increment
 
@@ -1470,7 +1470,7 @@ static void find_pval_goto_item(pval *item, int lev)
 		break;
 
 	case PV_FOR:
-		/* fields: item->u1.for_init     == a string containing the initalizer
+		/* fields: item->u1.for_init     == a string containing the initializer
 		           item->u2.for_test     == a string containing the loop test
 		           item->u3.for_inc      == a string containing the loop increment
 
@@ -1697,7 +1697,7 @@ static struct pval *match_pval_item(pval *item)
 		break;
 
 	case PV_FOR:
-		/* fields: item->u1.for_init     == a string containing the initalizer
+		/* fields: item->u1.for_init     == a string containing the initializer
 		           item->u2.for_test     == a string containing the loop test
 		           item->u3.for_inc      == a string containing the loop increment
 
@@ -2686,7 +2686,7 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 		break;
 
 	case PV_FOR:
-		/* fields: item->u1.for_init     == a string containing the initalizer
+		/* fields: item->u1.for_init     == a string containing the initializer
 		           item->u2.for_test     == a string containing the loop test
 		           item->u3.for_inc      == a string containing the loop increment
 
@@ -3214,7 +3214,7 @@ int find_switch_item(pval *item)
 		break;
 
 	case PV_FOR:
-		/* fields: item->u1.for_init     == a string containing the initalizer
+		/* fields: item->u1.for_init     == a string containing the initializer
 		           item->u2.for_test     == a string containing the loop test
 		           item->u3.for_inc      == a string containing the loop increment
 
@@ -4820,7 +4820,7 @@ void destroy_pval_item(pval *item)
 		break;
 
 	case PV_FOR:
-		/* fields: item->u1.for_init     == a string containing the initalizer
+		/* fields: item->u1.for_init     == a string containing the initializer
 		           item->u2.for_test     == a string containing the loop test
 		           item->u3.for_inc      == a string containing the loop increment
 

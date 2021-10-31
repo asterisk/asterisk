@@ -3010,7 +3010,7 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, const
 			switch(f->frametype) {
 			case AST_FRAME_DTMF:
 				if (strchr(argv[4], f->subclass.integer)) {
-					/* This is an interrupting chracter, so rewind to chop off any small
+					/* This is an interrupting character, so rewind to chop off any small
 					   amount of DTMF that may have been recorded
 					*/
 					ast_stream_rewind(fs, 200);

@@ -813,7 +813,7 @@
 						It can be one of the following values:
 						</para><enumlist>
 							<enum name="no"><para>
-								meaning no verificaton is done.
+								meaning no verification is done.
 							</para></enum>
 							<enum name="fingerprint"><para>
 								meaning to verify the remote fingerprint.
@@ -1257,7 +1257,7 @@
 						in their WWW-Authenticate header.  It can't be blank
 						unless you expect the server to be sending a blank
 						realm in the header.  You can't use pre-hashed
-						paswords with a wildcard auth object.
+						passwords with a wildcard auth object.
 						You can generate the hash with the following shell
 						command:
 						</para>

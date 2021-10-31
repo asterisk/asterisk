@@ -83,7 +83,7 @@
 					<enum name="summary"><para>The VEVENT SUMMARY property or Exchange event 'subject'</para></enum>
 					<enum name="description"><para>The text description of the event</para></enum>
 					<enum name="organizer"><para>The organizer of the event</para></enum>
-					<enum name="location"><para>The location of the eventt</para></enum>
+					<enum name="location"><para>The location of the event</para></enum>
 					<enum name="categories"><para>The categories of the event</para></enum>
 					<enum name="priority"><para>The priority of the event</para></enum>
 					<enum name="calendar"><para>The name of the calendar associated with the event</para></enum>

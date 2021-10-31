@@ -890,7 +890,7 @@ static int spandsp_fax_gateway_start(struct ast_fax_session *s)
 /*! \brief process a frame from the bridge
  * \param s fax session
  * \param f frame to process
- * \return 1 on sucess 0 on incorect packet*/
+ * \return 1 on sucess 0 on incorrect packet*/
 static int spandsp_fax_gateway_process(struct ast_fax_session *s, const struct ast_frame *f)
 {
 	struct spandsp_pvt *p = s->tech_pvt;

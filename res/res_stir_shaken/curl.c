@@ -217,7 +217,7 @@ char *curl_public_key(const char *public_cert_url, const char *path, struct curl
 
 	curl = get_curl_instance(data);
 	if (!curl) {
-		ast_log(LOG_ERROR, "Failed to set up CURL isntance for '%s'\n", public_cert_url);
+		ast_log(LOG_ERROR, "Failed to set up CURL instance for '%s'\n", public_cert_url);
 		fclose(public_key_file);
 		remove(tmp_filename);
 		return NULL;

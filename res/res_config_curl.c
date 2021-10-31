@@ -121,7 +121,7 @@ static struct ast_variable *realtime_curl(const char *url, const char *unused, c
 }
 
 /*!
- * \brief Excute an Select query and return ast_config list
+ * \brief Execute an Select query and return ast_config list
  * \param url
  * \param unused
  * \param fields list containing one or more field/operator/value set.
