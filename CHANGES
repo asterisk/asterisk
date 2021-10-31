@@ -457,7 +457,7 @@ Core
  * The Streams API becomes the home for the core ACN capabilities.
    These include...
 
-    * Parsing and formatting of codec negotation preferences.
+    * Parsing and formatting of codec negotiation preferences.
     * Resolving pending streams and topologies with those configured
       using configured preferences.
     * Utility functions for creating string representations of
@@ -470,7 +470,7 @@ Core
       a ast_stream_codec_negotiation_prefs structure.
     * Added ast_stream_codec_prefs_to_str() which does the reverse.
     * Added many functions to parse individual parameter name
-      and value strings to their respectrive enum values, and the
+      and value strings to their respective enum values, and the
       reverse.
 
    For streams:
@@ -650,7 +650,7 @@ app_voicemail
 
 chan_pjsip
 ------------------
- * A new dialplan function, PJSIP_MOH_PASSTRHOUGH, has been added to chan_pjsip. This
+ * A new dialplan function, PJSIP_MOH_PASSTHROUGH, has been added to chan_pjsip. This
    allows the behaviour of the moh_passthrough endpoint option to be read or changed
    in the dialplan. This allows control on a per-call basis.
 
@@ -1365,7 +1365,7 @@ res_pjsip
    methods.
 
  * The pjsip_transport_event feature introduced in 15.1.0 has been refactored.
-   Any external modules that may have used that feature (highly unlikey) will
+   Any external modules that may have used that feature (highly unlikely) will
    need to be changed as the API has been altered slightly.
 
 res_pjsip_endpoint_identifier_ip
@@ -1420,7 +1420,7 @@ chan_sip
 
 res_rtp_asterisk
 ------------------
- * The X.509 certificate used for DTLS negotation can now be automatically
+ * The X.509 certificate used for DTLS negotiation can now be automatically
    generated. This is supported by res_pjsip by specifying
    "dtls_auto_generate_cert = yes" on a PJSIP endpoint. For chan_sip, you
    would set "dtlsautogeneratecert = yes" either in the [general] section of
@@ -1460,7 +1460,7 @@ app_queue
 
  * A new option, "announce-position-only-up," has been added that, when set to
    yes, causes position announcements to only be played when the caller's
-   queue position has improved since the last time that we annouced their
+   queue position has improved since the last time that we announced their
    position. This default is no.
 
 Build System
@@ -2626,7 +2626,7 @@ res_pjsip
  * In conjunction with the "auth_username" change, 3 new options have been
    added to the global configuration object that control how many unidentified
    requests over a certain period from the same IP address can be received
-   before a security altert is generated.  A new CLI command
+   before a security alert is generated.  A new CLI command
    "pjsip show unidentified_requests" will list the current candidates.
 
 res_pjsip_history
@@ -3402,7 +3402,7 @@ res_hep_rtcp
 Functions
 ------------------
  * Function AUDIOHOOK_INHERIT has been deprecated. Audiohooks are now
-   unconditionally inhereted through masquerades. As a side benefit, more
+   unconditionally inherited through masquerades. As a side benefit, more
    than one audiohook of a given type may persist through a masquerade now.
 
 ------------------------------------------------------------------------------
@@ -3510,7 +3510,7 @@ ConfBridge
    CONFBRIDGE dialplan function.
 
  * The ConfBridge dialplan application now sets a channel variable,
-   CONFBRIGE_RESULT, upon exiting. This variable can be used to determine
+   CONFBRIDGE_RESULT, upon exiting. This variable can be used to determine
    how a channel exited the conference.
 
  * Added conference user option 'announce_join_leave_review'. This option
@@ -3795,7 +3795,7 @@ res_mwi_external
    acts as a base framework that other modules can build on top of to allow
    an external system to control MWI within Asterisk. For implementations
    that make use of res_mwi_external, see res_mwi_external_ami and
-   res_ari_mailboxes. Note that res_mwi_external canflicts with other modules
+   res_ari_mailboxes. Note that res_mwi_external conflicts with other modules
    that may produce MWI themselves, such as app_voicemail. res_mwi_external
    and other modules that depend on it cannot be built or loaded with
    app_voicemail present.
@@ -3804,7 +3804,7 @@ res_pjsip
 ------------------
  * DNS functionality will now automatically be enabled if the system configured
    nameservers can be retrieved. If the system configured nameservers can not be
-   retrieved the functionality will resort to using system resolution. Functionalty
+   retrieved the functionality will resort to using system resolution. Functionality
    such as SRV records and failover will not be available if system resolution
    is in use.
 
@@ -3885,7 +3885,7 @@ AgentLogin
    running AgentLogin.
 
  * If this application is called and the agent is already logged in, the
-   dialplan will continue exection with the AGENT_STATUS channel variable set
+   dialplan will continue execution with the AGENT_STATUS channel variable set
    to ALREADY_LOGGED_IN.
 
  * The agents.conf schema has changed. Rather than specifying agents on a
@@ -4365,7 +4365,7 @@ AMI (Asterisk Manager Interface)
    successful completion Event.
 
  * The 'BridgeExec' events were removed. These events duplicated the events that
-   occur in the Briding API, and are conveyed now through BridgeCreate,
+   occur in the Bridging API, and are conveyed now through BridgeCreate,
    BridgeEnter, and BridgeLeave events.
 
  * The 'RTCPSent'/'RTCPReceived' events have been significantly modified from
@@ -4773,7 +4773,7 @@ PJSIP_DIAL_CONTACTS
 
 PJSIP_MEDIA_OFFER
 ------------------
- * Provided by chan_pjsip, this function sets the codecs to be offerred on the
+ * Provided by chan_pjsip, this function sets the codecs to be offered on the
    outbound channel prior to dialing.
 
 REDIRECTING
@@ -5066,7 +5066,7 @@ MixMonitor
 ------------------
  * MixMonitor hooks now have IDs associated with them which can be used to
    assign a target to StopMixMonitor. Use of MixMonitor's i(variable) option
-   will allow storage of the MixMontior ID in a channel variable. StopMixmonitor
+   will allow storage of the MixMonitor ID in a channel variable. StopMixmonitor
    now accepts that ID as an argument.
 
  * Added 'm' option, which stores a copy of the recording as a voicemail in the
@@ -5645,7 +5645,7 @@ res_rtp_asterisk
 res_corosync
 -------------------
  * A new module, res_corosync, has been introduced.  This module uses the
-   Corosync cluster enginer (http://www.corosync.org) to allow a local cluster
+   Corosync cluster engineer (http://www.corosync.org) to allow a local cluster
    of Asterisk servers to both Message Waiting Indication (MWI) and/or
    Device State (presence) information.  This module is very similar to, and
    is a replacement for the res_ais module that was in previous releases of
@@ -5899,7 +5899,7 @@ Asterisk Modules
 
 IAX2 Changes
 ------------
- * authdebug is now disabled by default. To enable this functionaility again
+ * authdebug is now disabled by default. To enable this functionality again
    set authdebug = yes in iax.conf.
 
 RTP Changes
@@ -6377,7 +6377,7 @@ Channel Event Logging
    the AMI, but it differs from the AMI in that it logs to db backends much
    like CDR does; is based on the event subsystem introduced by Russell, and
    can share in all its benefits; allows multiple backends to operate like CDR;
-   is specialized to event data that would be of concern to billing sytems,
+   is specialized to event data that would be of concern to billing systems,
    like CDR. Backends for logging and accounting calls have been produced,
    but a new CDR backend is still in development.
 
@@ -6397,7 +6397,7 @@ CDR
 
 Calendaring for Asterisk
 ------------------------
- * A new set of modules were added supporing calendar integration with Asterisk.
+ * A new set of modules were added supporting calendar integration with Asterisk.
    Dialplan functions for reading from and writing to calendars are included,
    as well as the ability to execute dialplan logic upon calendar event notifications.
    iCalendar, CalDAV, and Exchange Server calendars (via res_calendar_exchange for
@@ -6868,7 +6868,7 @@ CLI Changes
      a versions of libpri and libss7 that have them or it will not know that
      these libraries exist.
   * The commands "core show globals", "core set global" and "core set chanvar" has
-     been deprecated in favor of the more semanticly correct "dialplan show globals",
+     been deprecated in favor of the more semantically correct "dialplan show globals",
      "dialplan set chanvar" and "dialplan set global".
   * New CLI command "dialplan show chanvar" to list all variables associated
     with a given channel.
@@ -7210,7 +7210,7 @@ DUNDi changes
   * Added two new dialplan functions, DUNDIQUERY and DUNDIRESULT.  These
      functions will allow you to initiate a DUNDi query from the dialplan,
      find out how many results there are, and access each one.
-  * Added the ability to specifiy a port for a dundi peer.
+  * Added the ability to specify a port for a dundi peer.
 
 ENUM changes
 ------------
@@ -7374,7 +7374,7 @@ Other Dialplan Application Changes
      READSTATUS to ERROR, which you can catch and handle separately.
   * Added 'm' option to Directory, which lists out names, 8 at a time, instead
      of asking for verification of each name, one at a time.
-  * Privacy() no longer uses privacy.conf, as all options are specifyable as
+  * Privacy() no longer uses privacy.conf, as all options are specifiable as
      direct options to the app.
   * AMD() has a new "maximum word length" option. "show application AMD" from the CLI
      for more details
@@ -7420,7 +7420,7 @@ AEL Changes
      will be improved as time goes by. Should be useful for a
      first pass at conversion.
   * aelparse will now read extensions.conf to see if a referenced
-     macro or context is there before issueing a warning.
+     macro or context is there before issuing a warning.
   * AEL parser sets a local channel variable ~~EXTEN~~, to
     preserve the value of ${EXTEN} thru switch statements.
   * New operator in $[...] expressions: the ~~ operator serves
