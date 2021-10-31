@@ -85,7 +85,7 @@ struct ast_sem {
 	int waiters;
 	/*! Mutual exclusion */
 	ast_mutex_t mutex;
-	/*! Condition for singalling waiters */
+	/*! Condition for signaling waiters */
 	ast_cond_t cond;
 };
 

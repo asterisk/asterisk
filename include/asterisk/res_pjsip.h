@@ -1907,7 +1907,7 @@ struct ast_sip_sched_task;
  * \ref AST_SIP_SCHED_TASK_PERIODIC specifies that the invocations of the task occur at the
  * specific interval.  That is, every \ref "interval" milliseconds, regardless of how long the task
  * takes. If the task takes longer than \ref interval, it will be scheduled at the next available
- * multiple of \ref interval.  For exmaple: If the task has an interval of 60 seconds and the task
+ * multiple of \ref interval.  For example: If the task has an interval of 60 seconds and the task
  * takes 70 seconds, the next invocation will happen at 120 seconds.
  *
  * \ref AST_SIP_SCHED_TASK_DELAY specifies that the next invocation of the task should start
@@ -2122,7 +2122,7 @@ pjsip_dialog *ast_sip_create_dialog_uas(const struct ast_sip_endpoint *endpoint,
  * occurs.
  *
  * As long as the caller maintains a reference to the dialog there should be no
- * worry that it might unknowningly be destroyed. However, once the caller unlocks
+ * worry that it might unknowingly be destroyed. However, once the caller unlocks
  * the dialog there is a danger that some of the dialog's internal objects could
  * be lost and/or compromised. For example, when the aforementioned transport error
  * occurs the dialog's associated transaction gets destroyed (see pjsip_dlg_on_tsx_state
@@ -2559,7 +2559,7 @@ void ast_sip_cleanup_auths(struct ast_sip_auth *auths[], size_t num_auths);
  * number of auth ids supplied if auth objects couldn't be found for
  * some of them.
  *
- * \NOTE Since the ref count on all auith objects returned has been
+ * \NOTE Since the ref count on all auth objects returned has been
  * bumped, you must call ast_sip_cleanup_auth_objects_vector() to decrement
  * the ref count on all of the auth objects in the vector,
  * then call AST_VECTOR_FREE() on the vector itself.
@@ -2871,7 +2871,7 @@ int ast_sip_format_auths_ami(const struct ast_sip_auth_vector *auths,
 /*!
  * \brief Retrieve the endpoint snapshot for an endpoint
  *
- * \param endpoint The endpoint whose snapshot is to be retreieved.
+ * \param endpoint The endpoint whose snapshot is to be retrieved.
  * \retval The endpoint snapshot
  */
 struct ast_endpoint_snapshot *ast_sip_get_endpoint_snapshot(
@@ -3564,12 +3564,12 @@ enum ast_transport_monitor_reg ast_sip_transport_monitor_register_replace(pjsip_
  * \param transport Transport to monitor for shutdown.
  * \param cb The callback that was used for the original register.
  * \param data Data to pass to the matcher. May be NULL and does NOT need to be an ao2 object.
- *             If NULL, all monitors with the provided callbck are unregistered.
+ *             If NULL, all monitors with the provided callback are unregistered.
  * \param matches Matcher function that returns true if data matches the previously
  *                registered data object.  If NULL, a simple pointer comparison is done.
  *
  * \note The data object passed into the original register will have its reference count
- * automatically decremeneted.
+ * automatically decremented.
  *
  * \return Nothing
  */
@@ -3582,12 +3582,12 @@ void ast_sip_transport_monitor_unregister(pjsip_transport *transport,
  *
  * \param cb The callback that was used for the original register.
  * \param data Data to pass to the matcher. May be NULL and does NOT need to be an ao2 object.
- *             If NULL, all monitors with the provided callbck are unregistered.
+ *             If NULL, all monitors with the provided callback are unregistered.
  * \param matches Matcher function that returns true if ao2_data matches the previously
  *                registered data object.  If NULL, a simple pointer comparison is done.
  *
  * \note The data object passed into the original register will have its reference count
- * automatically decremeneted.
+ * automatically decremented.
  *
  * \return Nothing
  */

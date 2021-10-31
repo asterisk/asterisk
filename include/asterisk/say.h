@@ -112,7 +112,7 @@ SAY_EXTERN int (* ast_say_ordinal_full)(struct ast_channel *chan, int num, const
  * \param lang language to speak the enumeration
  * \param options set to 'f' for female, 'm' for male, 'c' for commune, 'n' for neuter
  * \details
- * Vocally says an enumeration on a given channel (first, sencond, third, forth, thirtyfirst, hundredth, ....)
+ * Vocally says an enumeration on a given channel (first, second, third, forth, thirtyfirst, hundredth, ....)
  * Especially useful for dates and messages. Says 'last' if num equals to INT_MAX
  * \retval 0 on success
  * \retval DTMF digit on interrupt

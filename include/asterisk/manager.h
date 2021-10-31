@@ -173,7 +173,7 @@ struct manager_action {
 	 * \brief TRUE if the AMI action is registered and the callback can be called.
 	 *
 	 * \note Needed to prevent a race between calling the callback
-	 * function and unregestring the AMI action object.
+	 * function and unregistering the AMI action object.
 	 */
 	unsigned int registered:1;
 };
@@ -269,7 +269,7 @@ int __ast_manager_event_multichan(int category, const char *event, int chancount
 		struct ast_channel **chans, const char *file, int line, const char *func,
 		const char *contents, ...) __attribute__((format(printf, 8, 9)));
 
-/*! \brief Get header from mananger transaction */
+/*! \brief Get header from manager transaction */
 const char *astman_get_header(const struct message *m, char *var);
 
 /*! \brief Get a linked list of the Variable: headers
@@ -353,7 +353,7 @@ void astman_send_list_complete_end(struct mansession *s);
 
 void __attribute__((format(printf, 2, 3))) astman_append(struct mansession *s, const char *fmt, ...);
 
-/*! \brief Determinie if a manager session ident is authenticated */
+/*! \brief Determine if a manager session ident is authenticated */
 int astman_is_authed(uint32_t ident);
 
 /*!

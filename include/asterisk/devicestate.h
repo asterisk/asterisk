@@ -63,7 +63,7 @@ enum ast_device_state {
 };
 
 /*! \brief Device State Cachability
- *  \note This is used to define the cachability of a device state when set.
+ *  \note This is used to define the cacheability of a device state when set.
  */
 enum ast_devstate_cache {
 	AST_DEVSTATE_NOT_CACHABLE,  /*!< This device state is not cachable */
@@ -248,7 +248,7 @@ struct ast_device_state_message {
 	const struct ast_eid *eid;
 	/*! The state of the device */
 	enum ast_device_state state;
-	/*! Flag designating the cachability of this device state */
+	/*! Flag designating the cacheability of this device state */
 	enum ast_devstate_cache cachable;
 	/*! The device and eid data is stuffed here when the struct is allocated. */
 	struct ast_eid stuff[0];

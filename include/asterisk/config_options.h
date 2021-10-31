@@ -125,7 +125,7 @@ struct aco_type {
 	const char *category;   /*!< A regular expression for matching categories to be allowed or denied */
 	const char *matchfield; /*!< An option name to match for this type (i.e. a 'type'-like column) */
 	const char *matchvalue; /*!< The value of the option to require for matching (i.e. 'peer' for type= in sip.conf) */
-	aco_matchvalue_func matchfunc;       /*!< A function for determing whether the option value matches (i.e. hassip= requires ast_true()) */
+	aco_matchvalue_func matchfunc;       /*!< A function for determining whether the option value matches (i.e. hassip= requires ast_true()) */
 	enum aco_category_op category_match; /*!< Whether the following category regex is a whitelist or blacklist */
 	size_t item_offset;                  /*!< The offset in the config snapshot for the global config or item config container */
 	unsigned int hidden;  /*!< Type is for internal purposes only and it and all options should not be visible to users */

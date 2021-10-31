@@ -379,7 +379,7 @@ void prometheus_metric_to_string(struct prometheus_metric *metric,
  * server. For metrics that are generated often or whose value needs to be
  * stored, metrics can be created and registered. For metrics that can be
  * obtained "on-the-fly", this mechanism is preferred. When the HTTP route is
- * queried by promtheus, the registered callbacks are invoked. The string passed
+ * queried by prometheus, the registered callbacks are invoked. The string passed
  * to the callback should be populated with stack-allocated metrics using
  * \c prometheus_metric_to_string.
  *

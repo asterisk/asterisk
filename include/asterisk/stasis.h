@@ -71,7 +71,7 @@
  * named, which is useful in debugging.
  *
  * Topics themselves are reference counted objects. Since topics are referred to
- * by their subscibers, they will not be freed until all of their subscribers
+ * by their subscribers, they will not be freed until all of their subscribers
  * have unsubscribed. Topics are also thread safe, so no worries about
  * publishing/subscribing/unsubscribing to a topic concurrently from multiple
  * threads. It's also designed to handle the case of unsubscribing from a topic
@@ -1185,7 +1185,7 @@ struct stasis_caching_topic *stasis_caching_unsubscribe(
  * \brief Unsubscribes a caching topic from its upstream topic, blocking until
  * all messages have been forwarded.
  *
- * See stasis_unsubscriben_and_join() for more info on when to use this as
+ * See stasis_unsubscribe_and_join() for more info on when to use this as
  * opposed to stasis_caching_unsubscribe().
  *
  * \param caching_topic Caching topic to unsubscribe

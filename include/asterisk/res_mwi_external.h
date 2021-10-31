@@ -38,7 +38,7 @@ extern "C"
 
 struct ast_mwi_mailbox_object;
 
-/*! \brief Convienience unref function for mailbox object. */
+/*! \brief Convenience unref function for mailbox object. */
 #define ast_mwi_mailbox_unref(mailbox) ao2_ref((struct ast_mwi_mailbox_object *) mailbox, -1)
 
 /*!

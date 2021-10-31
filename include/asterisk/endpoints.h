@@ -28,7 +28,7 @@
  *
  * An endpoint is an external device/system that may offer/accept channels
  * to/from Asterisk. While this is a very useful concept for end users, it is
- * surprisingly \a not a core concept within Asterisk iteself.
+ * surprisingly \a not a core concept within Asterisk itself.
  *
  * This file defines \ref ast_endpoint as a seperate object, which channel
  * drivers may use to expose their concept of an endpoint. As the channel driver
