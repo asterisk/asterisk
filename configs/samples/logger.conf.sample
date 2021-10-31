@@ -121,7 +121,7 @@
 ;   - [json]    - Log the output in JSON. Note that JSON formatted log entries,
 ;                 if specified for a logger type of 'console', will be formatted
 ;                 per the 'default' formatter for log messages of type VERBOSE.
-;                 This is due to the remote consoles intepreting verbosity
+;                 This is due to the remote consoles interpreting verbosity
 ;                 outside of the logging subsystem.
 ;
 ; Log levels include the following, and are specified in a comma delineated
