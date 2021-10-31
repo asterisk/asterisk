@@ -318,7 +318,7 @@ EXTERN int ooGkClientHandleRASMessage
 
 
 /**
- * This function is used to send a message on Gatekeeper clien't RAS channel.
+ * This function is used to send a message on Gatekeeper client RAS channel.
  * @param pGkClient   Handle to the gatekeeper client.
  * @param pRasMsg     Handle to Ras message to be sent.
  *

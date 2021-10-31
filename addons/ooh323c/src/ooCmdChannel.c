@@ -186,7 +186,7 @@ int ooReadAndProcessStackCommand()
                 if(!pCall) {
                    OOTRACEINFO2("Call \"%s\" does not exist\n",
                                 (char*)cmd.param1);
-                   OOTRACEINFO1("Call migth be cleared/closed\n");
+                   OOTRACEINFO1("Call might be cleared/closed\n");
                 }
                 else {
                      ooSendProgress(ooFindCallByToken((char*)cmd.param1));
@@ -200,7 +200,7 @@ int ooReadAndProcessStackCommand()
                   if(!pCall) {
                      OOTRACEINFO2("Call \"%s\" does not exist\n",
                                   (char*)cmd.param1);
-                     OOTRACEINFO1("Call migth be cleared/closed\n");
+                     OOTRACEINFO1("Call might be cleared/closed\n");
                   }
                   else {
                      ooSendAlerting(ooFindCallByToken((char*)cmd.param1));

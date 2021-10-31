@@ -49,7 +49,7 @@ extern "C" {
  * SEQUENCE OF, SET OF, or CHOICE construct is parsed.
  *
  * @param name         For SEQUENCE, SET, or CHOICE, this is the name of the
- *                       element as defined in the ASN.1 defination. For
+ *                       element as defined in the ASN.1 definition. For
  *                       SEQUENCE OF or SET OF, this is set to the name
  *                       "element".
  * @param index        For SEQUENCE, SET, or CHOICE, this is not used and is
@@ -68,7 +68,7 @@ typedef void (*StartElement) (const char* name, int index) ;
  * SEQUENCE, SET, SEQUENCE OF, SET OF, or CHOICE construct.
  *
  * @param name         For SEQUENCE, SET, or CHOICE, this is the name of the
- *                       element as defined in the ASN.1 defination. For
+ *                       element as defined in the ASN.1 definition. For
  *                       SEQUENCE OF or SET OF, this is set to the name
  *                       "element".
  * @param index        For SEQUENCE, SET, or CHOICE, this is not used and is
@@ -194,7 +194,7 @@ typedef void (*EnumValue) (ASN1UINT value) ;
  * within a decode function when an ASN.1 open type is parsed.
  *
  * @param numocts      Number of octets in the parsed value.
- * @param data         Pointer to byet array contain in tencoded ASN.1
+ * @param data         Pointer to byte array contain in tencoded ASN.1
  *                       value.
  * @return             - none
  */

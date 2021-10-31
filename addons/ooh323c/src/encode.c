@@ -1007,7 +1007,7 @@ int encode2sCompBinInt (OOCTXT* pctxt, ASN1INT value)
 {
    /* 10.4.6  A minimum octet 2's-complement-binary-integer encoding    */
    /* of the whole number has a field width that is a multiple of 8     */
-   /* bits and also satisifies the condition that the leading 9 bits    */
+   /* bits and also satisfies the condition that the leading 9 bits     */
    /* field shall not be all zeros and shall not be all ones.           */
 
    /* first encode integer value into a local buffer */
@@ -1048,7 +1048,7 @@ static int encodeNonNegBinInt (OOCTXT* pctxt, ASN1UINT value)
    /* 10.3.6  A minimum octet non-negative binary integer encoding of   */
    /* the whole number (which does not predetermine the number of       */
    /* octets to be used for the encoding) has a field which is a        */
-   /* multiple of 8 bits and also satisifies the condition that the     */
+   /* multiple of 8 bits and also satisfies the condition that the      */
    /* leading eight bits of the field shall not be zero unless the      */
    /* field is precisely 8 bits long.                                   */
 
