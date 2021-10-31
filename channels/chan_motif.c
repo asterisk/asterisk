@@ -209,7 +209,7 @@
 					<synopsis>Maximum number of ICE candidates to offer</synopsis>
 				</configOption>
 				<configOption name="maxpayloads">
-					<synopsis>Maximum number of pyaloads to offer</synopsis>
+					<synopsis>Maximum number of payloads to offer</synopsis>
 				</configOption>
 			</configObject>
 		</configFile>
@@ -2310,7 +2310,7 @@ static int jingle_interpret_content(struct jingle_session *session, ikspak *pak)
 				rtp = session->vrtp;
 			}
 		} else {
-			/* Google-V1 has no concept of assocating things like the above does, so since we only support audio over it assume they want audio */
+			/* Google-V1 has no concept of associating things like the above does, so since we only support audio over it assume they want audio */
 			rtp = session->rtp;
 		}
 

@@ -335,7 +335,7 @@ struct mgcp_endpoint {
 	char name[80];
 	struct mgcp_subchannel *sub;		/*!< Pointer to our current connection, channel and stuff */
 	char accountcode[AST_MAX_ACCOUNT_CODE];
-	char exten[AST_MAX_EXTENSION];		/*!< Extention where to start */
+	char exten[AST_MAX_EXTENSION];		/*!< Extension where to start */
 	char context[AST_MAX_EXTENSION];
 	char language[MAX_LANGUAGE];
 	char cid_num[AST_MAX_EXTENSION];	/*!< Caller*ID number */
@@ -3089,7 +3089,7 @@ static void *mgcp_ss(void *data)
 			timeout = firstdigittimeout;
 		} else if (!strcmp(p->dtmf_buf, pickupexten)) {
 			/* Scan all channels and see if any there
-			 * ringing channqels with that have call groups
+			 * ringing channels with that have call groups
 			 * that equal this channels pickup group
 			 */
 			if (ast_pickup_call(chan)) {
@@ -3445,7 +3445,7 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
 			sub->cxmode = MGCP_CX_SENDRECV;
 
 			if (p) {
-			  /* When the endpoint have a Off hook transition we allways
+			  /* When the endpoint have a Off hook transition we always
 			     starts without any previous dtmfs */
 			  memset(p->dtmf_buf, 0, sizeof(p->dtmf_buf));
 			}
@@ -3534,7 +3534,7 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
 			}
 			*/
 			if (p->transfer && (sub->owner && sub->next->owner) && ((!sub->outgoing) || (!sub->next->outgoing))) {
-				/* We're allowed to transfer, we have two avtive calls and */
+				/* We're allowed to transfer, we have two active calls and */
 				/* we made at least one of the calls.  Let's try and transfer */
 				ast_mutex_lock(&p->sub->next->lock);
 				res = attempt_transfer(p, sub);

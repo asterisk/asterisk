@@ -794,7 +794,7 @@ static const struct sip_reasons {
 static char default_language[MAX_LANGUAGE];      /*!< Default language setting for new channels */
 static char default_callerid[AST_MAX_EXTENSION]; /*!< Default caller ID for sip messages */
 static char default_mwi_from[80];                /*!< Default caller ID for MWI updates */
-static char default_fromdomain[AST_MAX_EXTENSION]; /*!< Default domain on outound messages */
+static char default_fromdomain[AST_MAX_EXTENSION]; /*!< Default domain on outbound messages */
 static int default_fromdomainport;                 /*!< Default domain port on outbound messages */
 static char default_notifymime[AST_MAX_EXTENSION]; /*!< Default MIME media type for MWI notify messages */
 static char default_vmexten[AST_MAX_EXTENSION];    /*!< Default From Username on MWI updates */
@@ -9656,7 +9656,7 @@ static struct sip_pvt *__find_call(struct sip_request *req, struct ast_sockaddr 
 				Without a dialog we can't retransmit and handle ACKs and all that, but at least
 				send an error message.
 
-				Sorry, we apologize for the inconvienience
+				Sorry, we apologize for the inconvenience
 			*/
 			transmit_response_using_temp(callid, addr, 1, intended_method, req, "500 Server internal error");
 			ast_debug(4, "Failed allocating SIP dialog, sending 500 Server internal error and giving up\n");
@@ -12828,7 +12828,7 @@ static int get_domain(const char *str, char *domain, int len)
 }
 
 /*!
-  \brief Choose realm based on From header and then To header or use globaly configured realm.
+  \brief Choose realm based on From header and then To header or use globally configured realm.
   Realm from From/To header should be listed among served domains in config file: domain=...
 */
 static void get_realm(struct sip_pvt *p, const struct sip_request *req)
@@ -13622,7 +13622,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 
 		if (doing_directmedia) {
 			ast_format_cap_get_compatible(p->jointcaps, p->redircaps, tmpcap);
-			ast_debug(1, "** Our native-bridge filtered capablity: %s\n", ast_format_cap_get_names(tmpcap, &codec_buf));
+			ast_debug(1, "** Our native-bridge filtered capability: %s\n", ast_format_cap_get_names(tmpcap, &codec_buf));
 		} else {
 			ast_format_cap_append_from_cap(tmpcap, p->jointcaps, AST_MEDIA_TYPE_UNKNOWN);
 		}
@@ -25819,7 +25819,7 @@ static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, str
 		case 200:	/* OK: The new call is up, hangup this call */
 			/* Hangup the call that we are replacing */
 			break;
-		case 301: /* Moved permenantly */
+		case 301: /* Moved permanently */
 		case 302: /* Moved temporarily */
 			/* Do we get the header in the packet in this case? */
 			success = FALSE;
@@ -35359,7 +35359,7 @@ AST_TEST_DEFINE(test_tcp_message_fragmentation)
 			info->summary = "SIP TCP message fragmentation test";
 			info->description =
 				"Tests reception of different TCP messages that have been fragmented or"
-				"run together. This test mimicks the code that TCP reception uses.";
+				"run together. This test mimics the code that TCP reception uses.";
 			return AST_TEST_NOT_RUN;
 		case TEST_EXECUTE:
 			break;
