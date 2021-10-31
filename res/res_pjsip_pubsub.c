@@ -481,7 +481,7 @@ struct ast_sip_subscription {
 	const struct ast_sip_subscription_handler *handler;
 	/*! Pointer to the base of the tree */
 	struct sip_subscription_tree *tree;
-	/*! Body generaator for NOTIFYs */
+	/*! Body generator for NOTIFYs */
 	struct ast_sip_pubsub_body_generator *body_generator;
 	/*! Vector of child subscriptions */
 	AST_VECTOR(, struct ast_sip_subscription *) children;

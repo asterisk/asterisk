@@ -52,7 +52,7 @@
 
 /*** DOCUMENTATION
 	<configInfo name="res_pjsip_config_wizard" language="en_US">
-		<synopsis>Module that privides simple configuration wizard capabilities.</synopsis>
+		<synopsis>Module that provides simple configuration wizard capabilities.</synopsis>
 		<description><para>
 			<emphasis>PJSIP Configuration Wizard</emphasis>
 			</para>

@@ -1071,7 +1071,7 @@ static int smdi_load(int reload)
 
 			/* get the current attributes from the port */
 			if (tcgetattr(iface->fd, &iface->mode)) {
-				ast_log(LOG_ERROR, "Error getting atributes of %s (%s)\n", iface->name, strerror(errno));
+				ast_log(LOG_ERROR, "Error getting attributes of %s (%s)\n", iface->name, strerror(errno));
 				continue;
 			}
 

@@ -431,7 +431,7 @@ struct ast_bridge *park_common_setup(struct ast_channel *parkee, struct ast_chan
  *        to necessary parking information when joining, and applying various bridge roles to the
  *        channel.
  *
- * \param parkee The channel being preparred for parking
+ * \param parkee The channel being prepared for parking
  * \param parker The channel initiating the park; may be the parkee as well. May be NULL.
  * \param app_data arguments supplied to the Park application. May be NULL.
  * \param silence_announcements optional pointer to an integer where we want to store the silence option flag

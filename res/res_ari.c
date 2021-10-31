@@ -43,7 +43,7 @@
  * The structure of the generated code is:
  *
  *  - res/ari/resource_{resource}.h
- *    - For each operation in the resouce, a generated argument structure
+ *    - For each operation in the resource, a generated argument structure
  *      (holding the parsed arguments from the request) and function
  *      declarations (to implement in res/ari/resource_{resource}.c)
  *  - res_ari_{resource}.c

@@ -1334,7 +1334,7 @@ static char *pktccops_gateset(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	case CLI_INIT:
 		e->command = "pktccops gateset";
 		e->usage =
-			"Usage: pktccops gateset <cmts> <mta> <acctcount> <bitrate> <packet size> <switch ip> <switch port>\n"
+			"Usage: pktccops gateset <cmts> <mta> <actcount> <bitrate> <packet size> <switch ip> <switch port>\n"
 			"       Send Gate-Set to cmts.\n";
 		return NULL;
 	case CLI_GENERATE:
