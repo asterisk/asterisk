@@ -1231,7 +1231,7 @@ int ooGkClientHandleRegistrationConfirm
                                 (&pGkClient->ctxt, sizeof(ooGkClientTimerCb));
       if(!cbData)
       {
-         OOTRACEERR1("Error:Failed to allocate memory for Regisration timer."
+         OOTRACEERR1("Error:Failed to allocate memory for Registration timer."
                      "\n");
          pGkClient->state = GkClientFailed;
          return OO_FAILED;
@@ -1927,7 +1927,7 @@ int ooGkClientSendAdmissionRequest
                                (&pGkClient->ctxt, sizeof(ooGkClientTimerCb));
    if(!cbData)
    {
-      OOTRACEERR1("Error:Failed to allocate memory for Regisration timer."
+      OOTRACEERR1("Error:Failed to allocate memory for Registration timer."
                   "\n");
       pGkClient->state = GkClientFailed;
       ast_mutex_unlock(&pGkClient->Lock);

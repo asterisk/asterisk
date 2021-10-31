@@ -1926,7 +1926,7 @@ typedef struct EXTERN H225SecurityCapabilities {
    } m;
    H225NonStandardParameter nonStandard;
    H225SecurityServiceMode encryption;
-   H225SecurityServiceMode authenticaton;
+   H225SecurityServiceMode authentication;
    H225SecurityServiceMode integrity;
 } H225SecurityCapabilities;
 

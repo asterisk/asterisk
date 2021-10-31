@@ -616,7 +616,7 @@ int ooOnReceivedSetup(OOH323CallData *call, Q931Message *q931Msg)
               removeEventHandler(call->pctxt);
               return OO_FAILED;
          }
-         /* For now, just add decoded fast start elemts to list. This list
+         /* For now, just add decoded fast start elements to list. This list
             will be processed at the time of sending CONNECT message. */
          dListAppend(call->pctxt, &call->remoteFastStartOLCs, olc);
       }

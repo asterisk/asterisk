@@ -48,6 +48,6 @@ EXTERN OOBOOL ooUtilsIsStrEmpty (const char * str);
  * @param str    String to test
  * @return       TRUE if string contains all digits; FALSE otherwise
  */
-EXTERN OOBOOL ooIsDailedDigit(const char* str);
+EXTERN OOBOOL ooIsDialedDigit(const char* str);
 
 #endif

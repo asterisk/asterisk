@@ -65,7 +65,7 @@ int ooH323EpInitialize
    }
 
    /* Initialize default port ranges that will be used by stack.
-      Apps can override these by explicitely setting port ranges
+      Apps can override these by explicitly setting port ranges
    */
 
    gH323ep.tcpPorts.start = TCPPORTSSTART;

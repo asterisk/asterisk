@@ -30,7 +30,7 @@ OOBOOL ooUtilsIsStrEmpty (const char* str)
 }
 
 
-OOBOOL ooIsDailedDigit(const char* str)
+OOBOOL ooIsDialedDigit(const char* str)
 {
    if(str == NULL || *str =='\0') { return FALSE; }
    while(*str != '\0')
