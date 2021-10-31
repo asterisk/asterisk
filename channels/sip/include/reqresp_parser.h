@@ -143,7 +143,7 @@ int get_in_brackets_full(char *tmp, char **out, char **residue);
 int parse_name_andor_addr(char *uri, const char *scheme, char **name,
 			  char **user, char **pass, char **domain,
 			  struct uriparams *params, char **headers,
-			  char **remander);
+			  char **residue);
 
 /*! \brief Parse all contact header contacts
  * \retval 0 success

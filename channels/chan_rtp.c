@@ -20,7 +20,7 @@
 /*! \file
  *
  * \author Joshua Colp <jcolp@digium.com>
- * \author Andreas 'MacBrody' Broadmann <andreas.brodmann@gmail.com>
+ * \author Andreas 'MacBrody' Brodmann <andreas.brodmann@gmail.com>
  *
  * \brief RTP (Multicast and Unicast) Media Channel
  *

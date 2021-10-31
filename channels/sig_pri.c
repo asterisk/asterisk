@@ -1613,7 +1613,7 @@ static int pri_fixup_principle(struct sig_pri_span *pri, int principle, q931_cal
 	int x;
 
 	if (principle < 0 || pri->numchans <= principle) {
-		/* Out of rannge */
+		/* Out of range */
 		return -1;
 	}
 	if (!call) {
@@ -2108,7 +2108,7 @@ static void *do_idle_thread(void *v_pvt)
 		}
 		ast_frfree(f);
 	}
-	/* Hangup the channel since nothing happend */
+	/* Hangup the channel since nothing happened */
 	ast_hangup(chan);
 	return NULL;
 }
@@ -6485,7 +6485,7 @@ static void *pri_dchannel(void *vpri)
 					pri_find_dchan(pri);
 				}
 
-				/* Note presense of D-channel */
+				/* Note presence of D-channel */
 				time(&pri->lastreset);
 
 				/* Restart in 5 seconds */
@@ -8604,7 +8604,7 @@ int sig_pri_indicate(struct sig_pri_chan *p, struct ast_channel *chan, int condi
 					}
 					/*
 					 * If hangup was delayed for this AOC-E msg, waiting_for_aoc
-					 * will be set.  A hangup is already occuring via a timeout during
+					 * will be set.  A hangup is already occurring via a timeout during
 					 * this delay.  Instead of waiting for that timeout to occur, go ahead
 					 * and initiate the hangup since the delay is no longer necessary.
 					 */

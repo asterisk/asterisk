@@ -50,7 +50,7 @@ int sip_parse_host(char *line, int lineno, char **hostname, int *portnum, enum a
  * \param flags An array of ast_flags that will be set by this function
  *
  * \note The nat-related values in both mask and flags are assumed to empty. This function
- * will treat the first "yes" or "no" value in a list of values as overiding all other values
+ * will treat the first "yes" or "no" value in a list of values as overriding all other values
  * and will stop parsing. Auto values will override their non-auto counterparts.
  */
 void sip_parse_nat_option(const char *value, struct ast_flags *mask, struct ast_flags *flags);

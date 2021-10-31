@@ -302,14 +302,14 @@ static struct iax2_ie infoelts[] = {
 	{ IAX_IE_TRANSFERID, "TRANSFER ID", dump_int },
 	{ IAX_IE_RDNIS, "REFERRING DNIS", dump_string },
 	{ IAX_IE_PROVISIONING, "PROVISIONING", dump_prov },
-	{ IAX_IE_AESPROVISIONING, "AES PROVISIONG" },
+	{ IAX_IE_AESPROVISIONING, "AES PROVISIONING" },
 	{ IAX_IE_DATETIME, "DATE TIME", dump_datetime },
 	{ IAX_IE_DEVICETYPE, "DEVICE TYPE", dump_string },
 	{ IAX_IE_SERVICEIDENT, "SERVICE IDENT", dump_string },
 	{ IAX_IE_FIRMWAREVER, "FIRMWARE VER", dump_short },
 	{ IAX_IE_FWBLOCKDESC, "FW BLOCK DESC", dump_int },
 	{ IAX_IE_FWBLOCKDATA, "FW BLOCK DATA" },
-	{ IAX_IE_PROVVER, "PROVISIONG VER", dump_int },
+	{ IAX_IE_PROVVER, "PROVISIONING VER", dump_int },
 	{ IAX_IE_CALLINGPRES, "CALLING PRESNTN", dump_byte },
 	{ IAX_IE_CALLINGTON, "CALLING TYPEOFNUM", dump_byte },
 	{ IAX_IE_CALLINGTNS, "CALLING TRANSITNET", dump_short },
@@ -553,7 +553,7 @@ void iax_frame_subclass2str(enum iax_frame_subclass subclass, char *str, size_t 
 		cmd = "QUELCH ";
 		break;
 	case IAX_COMMAND_UNQUELCH:
-		cmd = "UNQULCH";
+		cmd = "UNQUELCH";
 		break;
 	case IAX_COMMAND_POKE:
 		cmd = "POKE   ";

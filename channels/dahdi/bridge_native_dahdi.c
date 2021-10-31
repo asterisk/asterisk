@@ -278,7 +278,7 @@ static int native_start(struct ast_bridge *bridge)
 #if defined(HAVE_PRI)
 		/*
 		 * PRI nobch channels (hold and call waiting) are equivalent to
-		 * pseudo channels and cannot be nativly bridged.
+		 * pseudo channels and cannot be natively bridged.
 		 */
 		|| (dahdi_sig_pri_lib_handles(p0->sig)
 			&& ((struct sig_pri_chan *) p0->sig_pvt)->no_b_channel)
