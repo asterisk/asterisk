@@ -312,7 +312,7 @@ exten => _91700XXXXXXX,1,Dial(IAX2/${GLOBAL(IAXINFO)}@iaxtel.com/${EXTEN:1}@iaxt
 ; The SWITCH statement permits a server to share the dialplan with
 ; another server. Use with care: Reciprocal switch statements are not
 ; allowed (e.g. both A -> B and B -> A), and the switched server needs
-; to be on-line or else dialing can be severly delayed.
+; to be on-line or else dialing can be severely delayed.
 ;
 [iaxprovider]
 ;switch => IAX2/user:[key]@myserver/mycontext
@@ -509,7 +509,7 @@ exten => _X.,n,Set(LOCAL(cntx)=${ARG5})
 
 exten => _X.,n,Set(LOCAL(mbx)="${ext}"$["${cntx}" ? "@${cntx}" :: ""])
 exten => _X.,n,Dial(${dev},20,p)			; Ring the interface, 20 seconds maximum, call screening
-						; option (or use P for databased call _X.creening)
+						; option (or use P for databased call _X.screening)
 exten => _X.,n,Goto(stdexten-${DIALSTATUS},1)		; Jump based on status (NOANSWER,BUSY,CHANUNAVAIL,CONGESTION,ANSWER)
 
 exten => stdexten-NOANSWER,1,VoiceMail(${mbx},u)	; If unavailable, send to voicemail w/ unavail announce

@@ -145,7 +145,7 @@
 ; phase, and that cdr_tds.conf exists and is properly set up with a [global] category.
 ;
 ; Also, remember, that if you wish to log CDR info to a database, you will have to define
-; a specific table in that databse to make things work! See the doc directory for more details
+; a specific table in that database to make things work! See the doc directory for more details
 ; on how to create this table in each database.
 ;
 

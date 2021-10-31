@@ -22,7 +22,7 @@ rtpend=20000
 			;(min 500, max 60000, default 5000)
 ;
 ; Enable strict RTP protection.  This will drop RTP packets that do not come
-; from the recoginized source of the RTP stream.  Strict RTP qualifies RTP
+; from the recognized source of the RTP stream.  Strict RTP qualifies RTP
 ; packet stream sources before accepting them upon initial connection and
 ; when the connection is renegotiated (e.g., transfers and direct media).
 ; Initial connection and renegotiation starts a learning mode to qualify

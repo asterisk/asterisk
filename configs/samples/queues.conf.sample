@@ -158,7 +158,7 @@ monitor-type = MixMonitor
 ;
 ; In timeoutpriority=conf mode however timeout specified in config file will take higher
 ; priority than timeout in application arguments, so if config file has timeout 0, each
-; queue member will be called indefineately and application timeout will be checked only
+; queue member will be called indefinitely and application timeout will be checked only
 ; after this call attempt. This is useful for having queue members with custom timeouts
 ; specified within Dial application of Local channel, and allows handling NO ANSWER which
 ; would otherwise be interrupted by queue destroying child channel on timeout.
@@ -192,7 +192,7 @@ monitor-type = MixMonitor
 ; Autopause will pause a queue member if they fail to answer a call
 ; no: Member will not be paused
 ; yes: Member will be paused only in the queue where the timeout took place
-; all: Memeber will be paused in all queues he/she is a member
+; all: Member will be paused in all queues he/she is a member
 ;autopause=yes
 ;
 ; Autopausedelay delay autopause for autopausedelay seconds from the
