@@ -612,7 +612,6 @@ static AST_LIST_HEAD_STATIC(vmstates, vmstate);
 /* Default mail command to mail voicemail. Change it with the
  * mailcmd= command in voicemail.conf */
 #define SENDMAIL "/usr/sbin/sendmail -t"
-
 #define INTRO "vm-intro"
 
 #define MAX_MAIL_BODY_CONTENT_SIZE 134217728L // 128 Mbyte
@@ -622,8 +621,6 @@ static AST_LIST_HEAD_STATIC(vmstates, vmstate);
 
 #define MINPASSWORD 0 /*!< Default minimum mailbox password length */
 
-#define BASELINELEN 72
-#define BASEMAXINLINE 256
 #ifdef IMAP_STORAGE
 #define ENDL "\r\n"
 #else
@@ -826,14 +823,6 @@ spelled among others when you have to change folder. For the above reasons, vm-I
 and vm-Old are spelled plural, to make them sound more as folder name than an adjective.
 
 */
-
-struct baseio {
-	int iocp;
-	int iolen;
-	int linelength;
-	int ateof;
-	unsigned char iobuf[BASEMAXINLINE];
-};
 
 #define MAX_VM_MBOX_ID_LEN (AST_MAX_EXTENSION)
 #define MAX_VM_CONTEXT_LEN (AST_MAX_CONTEXT)
@@ -2033,22 +2022,6 @@ static int make_file(char *dest, const int len, const char *dir, const int num)
 	return snprintf(dest, len, "%s/msg%04d", dir, num);
 }
 
-/* same as mkstemp, but return a FILE * */
-static FILE *vm_mkftemp(char *template)
-{
-	FILE *p = NULL;
-	int pfd = mkstemp(template);
-	chmod(template, VOICEMAIL_FILE_MODE & ~my_umask);
-	if (pfd > -1) {
-		p = fdopen(pfd, "w+");
-		if (!p) {
-			close(pfd);
-			pfd = -1;
-		}
-	}
-	return p;
-}
-
 /*! \brief basically mkdir -p $dest/$context/$ext/$folder
  * \param dest    String. base directory.
  * \param len     Length of dest.
@@ -2802,7 +2775,7 @@ static int imap_store_file(const char *dir, const char *mailboxuser, const char 
 
 	/* Make a temporary file instead of piping directly to sendmail, in case the mail
 	   command hangs. */
-	if (!(p = vm_mkftemp(tmp))) {
+	if (!(p = ast_file_mkftemp(tmp, VOICEMAIL_FILE_MODE & ~my_umask))) {
 		ast_log(AST_LOG_WARNING, "Unable to store '%s' (can't create temporary file)\n", fn);
 		if (tempcopy) {
 			ast_free(vmu->email);
@@ -4876,134 +4849,6 @@ static int vm_delete(char *file)
 	return ast_filedelete(file, NULL);
 }
 
-/*!
- * \brief utility used by inchar(), for base_encode()
- */
-static int inbuf(struct baseio *bio, FILE *fi)
-{
-	int l;
-
-	if (bio->ateof)
-		return 0;
-
-	if ((l = fread(bio->iobuf, 1, BASEMAXINLINE, fi)) != BASEMAXINLINE) {
-		bio->ateof = 1;
-		if (l == 0) {
-			/* Assume EOF */
-			return 0;
-		}
-	}
-
-	bio->iolen = l;
-	bio->iocp = 0;
-
-	return 1;
-}
-
-/*!
- * \brief utility used by base_encode()
- */
-static int inchar(struct baseio *bio, FILE *fi)
-{
-	if (bio->iocp>=bio->iolen) {
-		if (!inbuf(bio, fi))
-			return EOF;
-	}
-
-	return bio->iobuf[bio->iocp++];
-}
-
-/*!
- * \brief utility used by base_encode()
- */
-static int ochar(struct baseio *bio, int c, FILE *so)
-{
-	if (bio->linelength >= BASELINELEN) {
-		if (fputs(ENDL, so) == EOF) {
-			return -1;
-		}
-
-		bio->linelength = 0;
-	}
-
-	if (putc(((unsigned char) c), so) == EOF) {
-		return -1;
-	}
-
-	bio->linelength++;
-
-	return 1;
-}
-
-/*!
- * \brief Performs a base 64 encode algorithm on the contents of a File
- * \param filename The path to the file to be encoded. Must be readable, file is opened in read mode.
- * \param so A FILE handle to the output file to receive the base 64 encoded contents of the input file, identified by filename.
- *
- * TODO: shouldn't this (and the above 3 support functions) be put into some kind of external utility location, such as funcs/func_base64.c ?
- *
- * \return zero on success, -1 on error.
- */
-static int base_encode(char *filename, FILE *so)
-{
-	static const unsigned char dtable[] = { 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K',
-		'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f',
-		'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '0',
-		'1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '/'};
-	int i, hiteof = 0;
-	FILE *fi;
-	struct baseio bio;
-
-	memset(&bio, 0, sizeof(bio));
-	bio.iocp = BASEMAXINLINE;
-
-	if (!(fi = fopen(filename, "rb"))) {
-		ast_log(AST_LOG_WARNING, "Failed to open file: %s: %s\n", filename, strerror(errno));
-		return -1;
-	}
-
-	while (!hiteof){
-		unsigned char igroup[3], ogroup[4];
-		int c, n;
-
-		memset(igroup, 0, sizeof(igroup));
-
-		for (n = 0; n < 3; n++) {
-			if ((c = inchar(&bio, fi)) == EOF) {
-				hiteof = 1;
-				break;
-			}
-
-			igroup[n] = (unsigned char) c;
-		}
-
-		if (n > 0) {
-			ogroup[0]= dtable[igroup[0] >> 2];
-			ogroup[1]= dtable[((igroup[0] & 3) << 4) | (igroup[1] >> 4)];
-			ogroup[2]= dtable[((igroup[1] & 0xF) << 2) | (igroup[2] >> 6)];
-			ogroup[3]= dtable[igroup[2] & 0x3F];
-
-			if (n < 3) {
-				ogroup[3] = '=';
-
-				if (n < 2)
-					ogroup[2] = '=';
-			}
-
-			for (i = 0; i < 4; i++)
-				ochar(&bio, ogroup[i], so);
-		}
-	}
-
-	fclose(fi);
-
-	if (fputs(ENDL, so) == EOF) {
-		return 0;
-	}
-
-	return 1;
-}
-
 static void prep_email_sub_vars(struct ast_channel *ast, struct ast_vm_user *vmu, int msgnum, char *context, char *mailbox, const char *fromfolder, char *cidnum, char *cidname, char *dur, char *date, const char *category, const char *flag)
 {
 	char callerid[256];
@@ -5614,7 +5459,7 @@ static int add_email_attachment(FILE *p, struct ast_vm_user *vmu, char *format, 
 		fprintf(p, "Content-Disposition: attachment; filename=\"%s\"" ENDL ENDL, filename);
 	else
 		fprintf(p, "Content-Disposition: attachment; filename=\"%s.%s\"" ENDL ENDL, greeting_attachment, format);
-	base_encode(fname, p);
+	ast_base64_encode_file_path(fname, p, ENDL);
 	if (last)
 		fprintf(p, ENDL ENDL "--%s--" ENDL "." ENDL, bound);
 
@@ -5667,7 +5512,7 @@ static int sendmail(char *srcemail,
 	ast_debug(3, "Attaching file '%s', format '%s', uservm is '%d', global is %u\n", attach, format, attach_user_voicemail, ast_test_flag((&globalflags), VM_ATTACH));
 	/* Make a temporary file instead of piping directly to sendmail, in case the mail
 	   command hangs */
-	if ((p = vm_mkftemp(tmp)) == NULL) {
+	if ((p = ast_file_mkftemp(tmp, VOICEMAIL_FILE_MODE & ~my_umask)) == NULL) {
 		ast_log(AST_LOG_WARNING, "Unable to launch '%s' (can't create temporary file)\n", mailcmd);
 		return -1;
 	} else {
@@ -5706,7 +5551,7 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 		strip_control_and_high(cidname, enc_cidname, sizeof(enc_cidname));
 	}
 
-	if ((p = vm_mkftemp(tmp)) == NULL) {
+	if ((p = ast_file_mkftemp(tmp, VOICEMAIL_FILE_MODE & ~my_umask)) == NULL) {
 		ast_log(AST_LOG_WARNING, "Unable to launch '%s' (can't create temporary file)\n", mailcmd);
 		ast_free(str1);
 		ast_free(str2);

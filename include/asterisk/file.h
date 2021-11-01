@@ -138,6 +138,15 @@ int ast_filedelete(const char *filename, const char *fmt);
 int ast_filecopy(const char *oldname, const char *newname, const char *fmt);
 
 /*!
+ * \brief same as mkstemp, but return a FILE
+ * \param template The template for the unique file name to generate. Modified in place to return the file name.
+ * \param mode The mode for file permissions
+ *
+ * \return FILE handle to the temporary file on success or NULL if creation failed
+ */
+FILE *ast_file_mkftemp(char *template, mode_t mode);
+
+/*!
  * \brief Callback called for each file found when reading directories
  * \param dir_name the name of the directory
  * \param filename the name of the file
