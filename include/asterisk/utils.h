@@ -336,6 +336,26 @@ char *ast_base64url_decode_string(const char *src);
  */
 char *ast_base64url_encode_string(const char *src);
 
+/*!
+ * \brief Performs a base 64 encode algorithm on the contents of a File
+ * \param inputfile A FILE handle to the input file to be encoded. Must be readable. This handle is not automatically closed.
+ * \param outputfile A FILE handle to the output file to receive the base 64 encoded contents of the input file, identified by filename.
+ * \param endl The line ending to use (e.g. either "\n" or "\r\n")
+ *
+ * \return zero on success, -1 on error.
+ */
+int ast_base64_encode_file(FILE *inputfile, FILE *outputfile, const char *endl);
+
+/*!
+ * \brief Performs a base 64 encode algorithm on the contents of a File
+ * \param filename The path to the file to be encoded. Must be readable, file is opened in read mode.
+ * \param outputfile A FILE handle to the output file to receive the base 64 encoded contents of the input file, identified by filename.
+ * \param endl The line ending to use (e.g. either "\n" or "\r\n")
+ *
+ * \return zero on success, -1 on error.
+ */
+int ast_base64_encode_file_path(const char *filename, FILE *outputfile, const char *endl);
+
 #define AST_URI_ALPHANUM     (1 << 0)
 #define AST_URI_MARK         (1 << 1)
 #define AST_URI_UNRESERVED   (AST_URI_ALPHANUM | AST_URI_MARK)
