@@ -184,6 +184,21 @@ int ast_format_def_unregister(const char *name)
 	return res;
 }
 
+FILE *ast_file_mkftemp(char *template, mode_t mode)
+{
+	FILE *p = NULL;
+	int pfd = mkstemp(template);
+	chmod(template, mode);
+	if (pfd > -1) {
+		p = fdopen(pfd, "w+");
+		if (!p) {
+			close(pfd);
+			pfd = -1;
+		}
+	}
+	return p;
+}
+
 int ast_stopstream(struct ast_channel *tmp)
 {
 	ast_channel_lock(tmp);
