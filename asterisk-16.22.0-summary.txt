@@ -1,8 +1,8 @@
                                 Release Summary
 
-                              asterisk-16.22.0-rc1
+                                asterisk-16.22.0
 
-                                Date: 2021-10-13
+                                Date: 2021-11-02
 
                            <asteriskteam@digium.com>
 
@@ -52,7 +52,7 @@
    Coders                      Testers               Reporters                
    6 Naveen Albert                                   5 N A                    
    4 Sean Bright                                     1 Shloime Rosenblum      
-   1 Asterisk Development Team                       1 Guido Falsi            
+   2 Asterisk Development Team                       1 Guido Falsi            
    1 Joseph Nadiv                                    1 Michael Munger         
    1 Jean Aunis                                      1 Joseph Nadiv           
    1 Guido Falsi                                     1 Boris P. Korzun        
@@ -176,6 +176,9 @@
    +------------------------------------------------------------------------+
    | Revision   | Author               | Summary                            |
    |------------+----------------------+------------------------------------|
+   | 0869356c0f | Asterisk Development | Update for 16.22.0-rc1             |
+   |            | Team                 |                                    |
+   |------------+----------------------+------------------------------------|
    | 448739fe63 | Asterisk Development | Update CHANGES and UPGRADE.txt for |
    |            | Team                 | 16.22.0                            |
    |------------+----------------------+------------------------------------|
@@ -198,27 +201,30 @@
    This is a summary of the changes to the source code that went into this
    release that was generated using the diffstat utility.
 
- .lastclean                                                                                  |    1
- .version                                                                                    |    1
- ChangeLog                                                                                   |95167 ----------
- asterisk-16.21.0-summary.html                                                               |  258
- asterisk-16.21.0-summary.txt                                                                |  737
+ asterisk-16.21.0-summary.html                                                               |  258 ---
+ asterisk-16.21.0-summary.txt                                                                |  737 ----------
+ b/.version                                                                                  |    2
  b/CHANGES                                                                                   |   44
+ b/ChangeLog                                                                                 |  189 ++
  b/Makefile                                                                                  |    2
  b/UPGRADE.txt                                                                               |   20
- b/apps/app_externalivr.c                                                                    |  288
+ b/apps/app_externalivr.c                                                                    |  288 +--
  b/apps/app_queue.c                                                                          |   49
  b/apps/app_verbose.c                                                                        |    9
+ b/asterisk-16.22.0-rc1-summary.html                                                         |   78 +
+ b/asterisk-16.22.0-rc1-summary.txt                                                          |  237 +++
  b/channels/chan_iax2.c                                                                      |   20
  b/configs/samples/logger.conf.sample                                                        |    8
  b/configs/samples/pjsip.conf.sample                                                         |   13
  b/contrib/ast-db-manage/config/versions/a06d8f8462d9_add_t38_bind_udptl_to_media_address.py |   29
  b/contrib/ast-db-manage/config/versions/f56d79a9f337_pjsip_create_remove_unavailable.py     |   30
+ b/contrib/realtime/mysql/mysql_config.sql                                                   |   12
+ b/contrib/realtime/postgresql/postgresql_config.sql                                         |   12
  b/funcs/func_channel.c                                                                      |   38
  b/funcs/func_vmcount.c                                                                      |   23
  b/include/asterisk/logger.h                                                                 |    8
  b/include/asterisk/res_pjsip.h                                                              |    4
- b/main/logger.c                                                                             |  187
+ b/main/logger.c                                                                             |  187 ++
  b/main/message.c                                                                            |   39
  b/main/say.c                                                                                |   37
  b/pbx/pbx_ael.c                                                                             |    7
@@ -226,12 +232,5 @@
  b/res/res_pjsip.c                                                                           |   41
  b/res/res_pjsip/location.c                                                                  |    1
  b/res/res_pjsip/pjsip_configuration.c                                                       |    1
- b/res/res_pjsip_registrar.c                                                                 |  115
- b/res/res_pjsip_t38.c                                                                       |   43
- contrib/realtime/mysql/mysql_cdr.sql                                                        |   41
- contrib/realtime/mysql/mysql_config.sql                                                     | 1288
- contrib/realtime/mysql/mysql_voicemail.sql                                                  |   35
- contrib/realtime/postgresql/postgresql_cdr.sql                                              |   45
- contrib/realtime/postgresql/postgresql_config.sql                                           | 1392
- contrib/realtime/postgresql/postgresql_voicemail.sql                                        |   39
- 36 files changed, 873 insertions(+), 99233 deletions(-)
+ b/res/res_pjsip_registrar.c                                                                 |  107 +
+ 32 files changed, 1346 insertions(+), 1230 deletions(-)
