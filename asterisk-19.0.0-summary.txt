@@ -1,8 +1,8 @@
                                 Release Summary
 
-                              asterisk-19.0.0-rc1
+                                asterisk-19.0.0
 
-                                Date: 2021-10-13
+                                Date: 2021-11-02
 
                            <asteriskteam@digium.com>
 
@@ -67,21 +67,21 @@
    3 Joseph Nadiv                               3 Torrey Searle               
    3 Andre Barbosa                              3 Dan Cropp                   
    2 sungtae kim                                2 under                       
-   2 Dan Cropp                                  2 Jaco Kroon                  
-   2 Bernd Zobl                                 2 Caesar                      
-   2 Alexei Gradinari                           2 Luke Escude                 
-   2 Richard Mudgett                            2 Robert Sutton               
-   2 Holger Hans Peter Freyther                 2 Alexander Traud             
-   2 Igor Goncharovsky                          2 Rusty Newton                
-   2 laszlovl                                   2 Kevin Harwell               
-   1 Sarah Autumn                               2 Igor Goncharovsky           
-   1 Nathan Bruning                             2 Andrew Yager                
-   1 Pirmin Walthert                            2 Mark Petersen               
-   1 Rijnhard Hessel                            2 Gregory Massel              
-   1 Stanislav                                  2 Mark Petersen               
-   1 Matthew Kern                               2 laszlovl                    
-   1 Walter Doekes                              2 Brian J. Murrell            
-   1 Asterisk Development Team                  2 Nick French                 
+   2 Asterisk Development Team                  2 Jaco Kroon                  
+   2 Dan Cropp                                  2 Caesar                      
+   2 Bernd Zobl                                 2 Luke Escude                 
+   2 Alexei Gradinari                           2 Robert Sutton               
+   2 Richard Mudgett                            2 Alexander Traud             
+   2 Holger Hans Peter Freyther                 2 Rusty Newton                
+   2 Igor Goncharovsky                          2 Kevin Harwell               
+   2 laszlovl                                   2 Igor Goncharovsky           
+   1 Sarah Autumn                               2 Andrew Yager                
+   1 Nathan Bruning                             2 Mark Petersen               
+   1 Pirmin Walthert                            2 Gregory Massel              
+   1 Rijnhard Hessel                            2 Mark Petersen               
+   1 Stanislav                                  2 laszlovl                    
+   1 Matthew Kern                               2 Brian J. Murrell            
+   1 Walter Doekes                              2 Nick French                 
    1 Jasper van der Neut                        2 Stefan Ruf                  
    1 Dennis Buteyn                              1 Michael Welk                
    1 Nico Kooijman                              1 Walter Doekes               
@@ -2061,6 +2061,10 @@
    | Revision   | Author        | Summary                                   |
    |------------+---------------+-------------------------------------------|
    |            | Asterisk      |                                           |
+   | 6022157d76 | Development   | Update for 19.0.0-rc1                     |
+   |            | Team          |                                           |
+   |------------+---------------+-------------------------------------------|
+   |            | Asterisk      |                                           |
    | 9ff955f4d1 | Development   | Update CHANGES and UPGRADE.txt for 19.0.0 |
    |            | Team          |                                           |
    |------------+---------------+-------------------------------------------|
@@ -2370,9 +2374,6 @@
    This is a summary of the changes to the source code that went into this
    release that was generated using the diffstat utility.
 
- .lastclean                                                                                      |    1
- .version                                                                                        |    1
- ChangeLog                                                                                       |92149 ----------
  addons/app_mysql.c                                                                              |  667
  addons/cdr_mysql.c                                                                              |  758
  apps/app_dahdiras.c                                                                             |  231
@@ -2382,9 +2383,11 @@
  apps/app_nbscat.c                                                                               |  223
  apps/app_url.c                                                                                  |  180
  asterisk-18.0.0-summary.html                                                                    | 1162
- asterisk-18.0.0-summary.txt                                                                     | 2873
+ asterisk-18.0.0-summary.txt                                                                     | 2873 --
  b/.gitreview                                                                                    |    2
+ b/.version                                                                                      |    2
  b/CHANGES                                                                                       |  416
+ b/ChangeLog                                                                                     | 5225 ++++
  b/Makefile                                                                                      |   14
  b/README.md                                                                                     |    8
  b/UPGRADE.txt                                                                                   |  224
@@ -2421,6 +2424,8 @@
  b/apps/app_waitforcond.c                                                                        |  234
  b/apps/confbridge/conf_config_parser.c                                                          |   34
  b/apps/confbridge/include/confbridge.h                                                          |    3
+ b/asterisk-19.0.0-rc1-summary.html                                                              | 1086
+ b/asterisk-19.0.0-rc1-summary.txt                                                               | 2728 ++
  b/bridges/bridge_softmix.c                                                                      |  154
  b/build_tools/install_subst                                                                     |    1
  b/build_tools/make_defaults_h                                                                   |    1
@@ -2466,7 +2471,7 @@
  b/configs/samples/stasis.conf.sample                                                            |    3
  b/configs/samples/statsd.conf.sample                                                            |    3
  b/configs/samples/stir_shaken.conf.sample                                                       |   44
- b/configure                                                                                     | 1450
+ b/configure                                                                                     | 1450 -
  b/configure.ac                                                                                  |   98
  b/contrib/ast-db-manage/config/versions/1ae0609b6646_increse_reg_server_size.py                 |   22
  b/contrib/ast-db-manage/config/versions/8915fcc5766f_add_ringinuse_to_queue_members.py          |   30
@@ -2474,6 +2479,8 @@
  b/contrib/ast-db-manage/config/versions/c20d6e3992f4_add_allow_unauthenticated_options.py       |   29
  b/contrib/ast-db-manage/config/versions/e658c26033ca_create_history_info_flag.py                |   38
  b/contrib/ast-db-manage/config/versions/f56d79a9f337_pjsip_create_remove_unavailable.py         |   30
+ b/contrib/realtime/mysql/mysql_config.sql                                                       |   36
+ b/contrib/realtime/postgresql/postgresql_config.sql                                             |   36
  b/contrib/scripts/asterisk.logrotate                                                            |    2
  b/contrib/scripts/get_mp3_source.sh                                                             |    2
  b/contrib/scripts/install_prereq                                                                |   12
@@ -2647,7 +2654,7 @@
  b/res/res_pjsip_refer.c                                                                         |  163
  b/res/res_pjsip_registrar.c                                                                     |  151
  b/res/res_pjsip_sdp_rtp.c                                                                       |  108
- b/res/res_pjsip_session.c                                                                       | 2179
+ b/res/res_pjsip_session.c                                                                       | 2179 +
  b/res/res_pjsip_stir_shaken.c                                                                   |  111
  b/res/res_pjsip_t38.c                                                                           |   52
  b/res/res_pjsip_transport_websocket.c                                                           |    2
@@ -2694,18 +2701,18 @@
  b/utils/Makefile                                                                                |   22
  b/utils/extconf.c                                                                               |    4
  cdr/cdr_syslog.c                                                                                |  296
- channels/chan_misdn.c                                                                           |12838 -
+ channels/chan_misdn.c                                                                           |12838 ----------
  channels/chan_nbs.c                                                                             |  273
- channels/chan_oss.c                                                                             | 1527
- channels/chan_phone.c                                                                           | 1517
- channels/chan_vpb.cc                                                                            | 2878
+ channels/chan_oss.c                                                                             | 1527 -
+ channels/chan_phone.c                                                                           | 1517 -
+ channels/chan_vpb.cc                                                                            | 2878 --
  channels/misdn/Makefile                                                                         |   17
  channels/misdn/chan_misdn_config.h                                                              |  172
- channels/misdn/ie.c                                                                             | 1414
- channels/misdn/isdn_lib.c                                                                       | 4819
+ channels/misdn/ie.c                                                                             | 1414 -
+ channels/misdn/isdn_lib.c                                                                       | 4819 ---
  channels/misdn/isdn_lib.h                                                                       |  833
  channels/misdn/isdn_lib_intern.h                                                                |  159
- channels/misdn/isdn_msg_parser.c                                                                | 1769
+ channels/misdn/isdn_msg_parser.c                                                                | 1769 -
  channels/misdn/portinfo.c                                                                       |  205
  channels/misdn_config.c                                                                         | 1273
  configs/samples/cdr_mysql.conf.sample                                                           |   62
@@ -2715,14 +2722,8 @@
  configs/samples/phone.conf.sample                                                               |   51
  configs/samples/res_config_sqlite.conf.sample                                                   |   11
  configs/samples/vpb.conf.sample                                                                 |  248
- contrib/realtime/mysql/mysql_cdr.sql                                                            |   41
- contrib/realtime/mysql/mysql_config.sql                                                         | 1294
- contrib/realtime/mysql/mysql_voicemail.sql                                                      |   35
- contrib/realtime/postgresql/postgresql_cdr.sql                                                  |   45
- contrib/realtime/postgresql/postgresql_config.sql                                               | 1406
- contrib/realtime/postgresql/postgresql_voicemail.sql                                            |   39
  doc/CHANGES-staging/hide_messaging_ami_events                                                   |   11
- res/res_config_sqlite.c                                                                         | 1787
+ res/res_config_sqlite.c                                                                         | 1787 -
  utils/conf2ael.c                                                                                |  729
- utils/muted.c                                                                                   |  744
- 355 files changed, 17548 insertions(+), 141656 deletions(-)
+ utils/muted.c                                                                                   |  738
+ 352 files changed, 26644 insertions(+), 46656 deletions(-)
