@@ -93,13 +93,90 @@
 			<ref type="application">PlayTones</ref>
 		</see-also>
 	</application>
+	<application name="ToneScan" language="en_US">
+		<synopsis>
+			Wait for period of time while scanning for call progress tones
+		</synopsis>
+		<syntax>
+			<parameter name="zone" required="false">
+				<para>Call progress zone. Default is the system default.</para>
+			</parameter>
+			<parameter name="timeout" required="false">
+				<para>Maximum amount of time, in seconds, to wait for call progress
+				or signal tones. Default is forever.</para>
+			</parameter>
+			<parameter name="threshold" required="false">
+				<para>DSP threshold required for a match. A higher number will
+				require a longer match and may reduce false positives, at the
+				expense of false negatives. Default is 1.</para>
+			</parameter>
+			<parameter name="options" required="false">
+				<optionlist>
+					<option name="f">
+						<para>Enable fax machine detection. By default, this is disabled.</para>
+					</option>
+					<option name="v">
+						<para>Enable voice detection. By default, this is disabled.</para>
+					</option>
+				</optionlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Waits for a a distinguishable call progress tone and then exits.
+			Unlike a conventional scanner, this is not currently capable of
+			scanning for modem carriers.</para>
+			<variablelist>
+			<variable name="TONESCANSTATUS">
+				This indicates the result of the scan.
+				<value name="RINGING">
+					Audible ringback tone
+				</value>
+				<value name="BUSY">
+					Busy tone
+				</value>
+				<value name="SIT">
+					Special Information Tones
+				</value>
+				<value name="VOICE">
+					Human voice detected
+				</value>
+				<value name="DTMF">
+					DTMF digit
+				</value>
+				<value name="FAX">
+					Fax (answering)
+				</value>
+				<value name="MODEM">
+					Modem (answering)
+				</value>
+				<value name="DIALTONE">
+					Dial tone
+				</value>
+				<value name="NUT">
+					UK Number Unobtainable tone
+				</value>
+				<value name="TIMEOUT">
+					Timeout reached before any positive detection
+				</value>
+				<value name="HANGUP">
+					Caller hung up before any positive detection
+				</value>
+			</variable>
+		</variablelist>
+		</description>
+		<see-also>
+			<ref type="application">WaitForTone</ref>
+		</see-also>
+	</application>
 	<function name="TONE_DETECT" language="en_US">
 		<synopsis>
 			Asynchronously detects a tone
 		</synopsis>
 		<syntax>
 			<parameter name="freq" required="true">
-				<para>Frequency of the tone to detect.</para>
+				<para>Frequency of the tone to detect. To disable frequency
+				detection completely (e.g. for signal detection only),
+				specify 0 for the frequency.</para>
 			</parameter>
 			<parameter name="duration_ms" required="false">
 				<para>Minimum duration of tone, in ms. Default is 500ms.
@@ -108,6 +185,18 @@
 			</parameter>
 			<parameter name="options">
 				<optionlist>
+					<option name="a">
+						<para>Match immediately on Special Information Tones, instead of or in addition
+						to a particular frequency.</para>
+					</option>
+					<option name="b">
+						<para>Match immediately on a busy signal, instead of or in addition to
+						a particular frequency.</para>
+					</option>
+					<option name="c">
+						<para>Match immediately on a dial tone, instead of or in addition to
+						a particular frequency.</para>
+					</option>
 					<option name="d">
 						<para>Custom decibel threshold to use. Default is 16.</para>
 					</option>
@@ -147,9 +236,17 @@
 			<literal>rx</literal> to get the number of times a tone has been detected in the
 			RX direction.</para>
 			<example title="intercept2600">
-			same => n,Set(TONE_DETECT(2600,1000,g(got-2600,s,1))=)
+			same => n,Set(TONE_DETECT(2600,1000,g(got-2600,s,1))=) ; detect 2600 Hz
 			same => n,Wait(15)
 			same => n,NoOp(${TONE_DETECT(rx)})
+			</example>
+			<example title="dropondialtone">
+			same => n,Set(TONE_DETECT(0,,bg(my-hangup,s,1))=) ; disconnect a call if we hear a busy signal
+			same => n,Goto(somewhere-else)
+			same => n(myhangup),Hangup()
+			</example>
+			<example title="removedetector">
+			same => n,Set(TONE_DETECT(0,,x)=) ; remove the detector from the channel
 			</example>
 		</description>
 	</function>
@@ -170,6 +267,7 @@ struct detect_information {
 	int txcount;
 	int rxcount;
 	int hitsrequired;
+	int signalfeatures;
 };
 
 enum td_opts {
@@ -181,6 +279,9 @@ enum td_opts {
 	OPT_DECIBEL = (1 << 6),
 	OPT_SQUELCH = (1 << 7),
 	OPT_HITS_REQ = (1 << 8),
+	OPT_SIT = (1 << 9),
+	OPT_BUSY = (1 << 10),
+	OPT_DIALTONE = (1 << 11),
 };
 
 enum {
@@ -193,6 +294,9 @@ enum {
 };
 
 AST_APP_OPTIONS(td_opts, {
+	AST_APP_OPTION('a', OPT_SIT),
+	AST_APP_OPTION('b', OPT_BUSY),
+	AST_APP_OPTION('c', OPT_DIALTONE),
 	AST_APP_OPTION_ARG('d', OPT_DECIBEL, OPT_ARG_DECIBEL),
 	AST_APP_OPTION_ARG('g', OPT_GOTO_RX, OPT_ARG_GOTO_RX),
 	AST_APP_OPTION_ARG('h', OPT_GOTO_TX, OPT_ARG_GOTO_TX),
@@ -230,6 +334,7 @@ static int detect_callback(struct ast_audiohook *audiohook, struct ast_channel *
 {
 	struct ast_datastore *datastore = NULL;
 	struct detect_information *di = NULL;
+	int match = 0;
 
 	/* If the audiohook is stopping it means the channel is shutting down.... but we let the datastore destroy take care of it */
 	if (audiohook->status == AST_AUDIOHOOK_STATUS_DONE) {
@@ -258,6 +363,7 @@ static int detect_callback(struct ast_audiohook *audiohook, struct ast_channel *
 		char result = frame->subclass.integer;
 		if (result == 'q') {
 			int now;
+			match = 1;
 			if (direction == AST_AUDIOHOOK_DIRECTION_READ) {
 				di->rxcount = di->rxcount + 1;
 				now = di->rxcount;
@@ -271,6 +377,42 @@ static int detect_callback(struct ast_audiohook *audiohook, struct ast_channel *
 					ast_async_parseable_goto(chan, di->gotorx);
 				} else if (di->gototx) {
 					ast_async_parseable_goto(chan, di->gototx);
+				}
+			}
+		}
+	}
+	if (di->signalfeatures && !match) { /* skip unless there are call progress/signal options */
+		int tstate, tcount;
+		tcount = ast_dsp_get_tcount(di->dsp);
+		tstate = ast_dsp_get_tstate(di->dsp);
+		if (tstate > 0) {
+			ast_debug(3, "tcount: %d, tstate: %d\n", tcount, tstate);
+			switch (tstate) {
+			case DSP_TONE_STATE_DIALTONE:
+				if (di->signalfeatures & DSP_FEATURE_WAITDIALTONE) {
+					match = 1;
+				}
+				break;
+			case DSP_TONE_STATE_BUSY:
+				if (di->signalfeatures & DSP_PROGRESS_BUSY) {
+					match = 1;
+				}
+				break;
+			case DSP_TONE_STATE_SPECIAL3:
+				if (di->signalfeatures & DSP_PROGRESS_CONGESTION) {
+					match = 1;
+				}
+				break;
+			default: /* ignore */
+				break;
+			}
+			if (match) {
+				if (direction == AST_AUDIOHOOK_DIRECTION_READ && di->gotorx) {
+					ast_async_parseable_goto(chan, di->gotorx);
+				} else if (di->gototx) {
+					ast_async_parseable_goto(chan, di->gototx);
+				} else {
+					ast_debug(3, "Detected call progress signal, but don't know where to go\n");
 				}
 			}
 		}
@@ -326,8 +468,8 @@ static int freq_parser(char *freqs, int *freq1, int *freq2) {
 		ast_log(LOG_WARNING, "Frequency must be an integer: %s\n", f1);
 		return -1;
 	}
-	if (*freq1 < 1) {
-		ast_log(LOG_WARNING, "Sorry, positive frequencies only: %d\n", *freq1);
+	if (*freq1 < 0) {
+		ast_log(LOG_WARNING, "Sorry, no negative frequencies: %d\n", *freq1);
 		return -1;
 	}
 	if (!ast_strlen_zero(f2)) {
@@ -413,6 +555,23 @@ static int detect_read(struct ast_channel *chan, const char *cmd, char *data, ch
 	return 0;
 }
 
+static int parse_signal_features(struct ast_flags *flags)
+{
+	int features = 0;
+
+	if (ast_test_flag(flags, OPT_SIT)) {
+		features |= DSP_PROGRESS_CONGESTION;
+	}
+	if (ast_test_flag(flags, OPT_BUSY)) {
+		features |= DSP_PROGRESS_BUSY;
+	}
+	if (ast_test_flag(flags, OPT_DIALTONE)) {
+		features |= DSP_FEATURE_WAITDIALTONE;
+	}
+
+	return features;
+}
+
 static int detect_write(struct ast_channel *chan, const char *cmd, char *data, const char *value)
 {
 	char *parse;
@@ -422,6 +581,7 @@ static int detect_write(struct ast_channel *chan, const char *cmd, char *data, c
 	char *opt_args[OPT_ARG_ARRAY_SIZE];
 	struct ast_dsp *dsp;
 	int freq1 = 0, freq2 = 0, duration = 500, db = 16, squelch = 0, hitsrequired = 1;
+	int signalfeatures = 0;
 
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(freqs);
@@ -461,6 +621,7 @@ static int detect_write(struct ast_channel *chan, const char *cmd, char *data, c
 			return -1;
 		}
 	}
+	signalfeatures = parse_signal_features(&flags);
 
 	ast_channel_lock(chan);
 	if (!(datastore = ast_channel_datastore_find(chan, &detect_datastore, NULL))) {
@@ -481,8 +642,12 @@ static int detect_write(struct ast_channel *chan, const char *cmd, char *data, c
 			ast_log(LOG_WARNING, "Unable to allocate DSP!\n");
 			return -1;
 		}
-		ast_dsp_set_features(dsp, DSP_FEATURE_FREQ_DETECT);
-		ast_dsp_set_freqmode(dsp, freq1, duration, db, squelch);
+		di->signalfeatures = signalfeatures; /* we're not including freq detect */
+		if (freq1 > 0) {
+			signalfeatures |= DSP_FEATURE_FREQ_DETECT;
+			ast_dsp_set_freqmode(dsp, freq1, duration, db, squelch);
+		}
+		ast_dsp_set_features(dsp, signalfeatures);
 		di->dsp = dsp;
 		di->txcount = 0;
 		di->rxcount = 0;
@@ -493,7 +658,12 @@ static int detect_write(struct ast_channel *chan, const char *cmd, char *data, c
 	} else {
 		di = datastore->data;
 		dsp = di->dsp;
-		ast_dsp_set_freqmode(dsp, freq1, duration, db, squelch);
+		di->signalfeatures = signalfeatures; /* we're not including freq detect */
+		if (freq1 > 0) {
+			signalfeatures |= DSP_FEATURE_FREQ_DETECT;
+			ast_dsp_set_freqmode(dsp, freq1, duration, db, squelch);
+		}
+		ast_dsp_set_features(dsp, signalfeatures);
 	}
 	di->duration = duration;
 	di->gotorx = NULL;
@@ -641,6 +811,185 @@ static int wait_exec(struct ast_channel *chan, const char *data)
 }
 
 static char *waitapp = "WaitForTone";
+static char *scanapp = "ToneScan";
+
+static int scan_exec(struct ast_channel *chan, const char *data)
+{
+	char *appdata;
+	double timeoutf = 0;
+	int timeout = 0;
+	struct ast_frame *frame = NULL, *frame2 = NULL;
+	struct ast_dsp *dsp = NULL, *dsp2 = NULL;
+	struct timeval start;
+	int remaining_time = 0;
+	int features, match = 0, fax = 0, voice = 0, threshold = 1;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(zone);
+		AST_APP_ARG(timeout);
+		AST_APP_ARG(threshold);
+		AST_APP_ARG(options);
+	);
+
+	appdata = ast_strdupa(data);
+	AST_STANDARD_APP_ARGS(args, appdata);
+
+	if (!ast_strlen_zero(args.timeout) && (sscanf(args.timeout, "%30lf", &timeoutf) != 1 || timeout < 0)) {
+		ast_log(LOG_WARNING, "Invalid timeout: %s\n", args.timeout);
+		pbx_builtin_setvar_helper(chan, "TONESCANSTATUS", "ERROR");
+		return -1;
+	}
+	if (!ast_strlen_zero(args.threshold) && (ast_str_to_int(args.threshold, &threshold) || threshold < 1)) {
+		ast_log(LOG_WARNING, "Invalid threshold: %s\n", args.threshold);
+		pbx_builtin_setvar_helper(chan, "TONESCANSTATUS", "ERROR");
+		return -1;
+	}
+	timeout = 1000 * timeoutf;
+
+	if (!ast_strlen_zero(args.options) && strchr(args.options, 'f')) {
+		fax = 1;
+	}
+	if (!ast_strlen_zero(args.options) && strchr(args.options, 'v')) {
+		voice = 1;
+	}
+
+	if (!(dsp = ast_dsp_new())) {
+		ast_log(LOG_WARNING, "Unable to allocate DSP!\n");
+		pbx_builtin_setvar_helper(chan, "TONESCANSTATUS", "ERROR");
+		return -1;
+	}
+
+	if (!ast_strlen_zero(args.zone)) {
+		if (ast_dsp_set_call_progress_zone(dsp, args.zone)) {
+			ast_log(LOG_WARNING, "Invalid call progress zone: %s\n", args.zone);
+			pbx_builtin_setvar_helper(chan, "TONESCANSTATUS", "ERROR");
+			ast_dsp_free(dsp);
+			return -1;
+		}
+	}
+
+	if (fax) {
+		if (!(dsp2 = ast_dsp_new())) {
+			ast_dsp_free(dsp);
+			ast_log(LOG_WARNING, "Unable to allocate DSP!\n");
+			pbx_builtin_setvar_helper(chan, "TONESCANSTATUS", "ERROR");
+			return -1;
+		}
+	}
+
+	features = DSP_PROGRESS_RINGING; /* audible ringback tone */
+	features |= DSP_PROGRESS_BUSY; /* busy signal */
+	features |= DSP_PROGRESS_CONGESTION; /* SIT tones (not reorder!) */
+	features |= DSP_PROGRESS_TALK; /* voice. */
+	features |= DSP_FEATURE_WAITDIALTONE; /* dial tone */
+	features |= DSP_FEATURE_FREQ_DETECT; /* modem answer */
+	if (voice) {
+		features |= DSP_TONE_STATE_TALKING; /* voice */
+	}
+	ast_dsp_set_features(dsp, features);
+	/* all modems begin negotiating with Bell 103. An answering modem just sends mark tone, or 2225 Hz */
+	ast_dsp_set_freqmode(dsp, 2225, 400, 16, 0); /* this needs to be pretty short, or the progress tones code will thing this is voice */
+
+	if (fax) { /* fax detect uses same tone detect internals as modem and causes things to not work as intended, so use a separate DSP if needed. */
+		ast_dsp_set_features(dsp2, DSP_FEATURE_FAX_DETECT); /* fax tone */
+		ast_dsp_set_faxmode(dsp2, DSP_FAXMODE_DETECT_CED); /* we only care about the answering side (CED), not originating (CNG) */
+	}
+
+	ast_debug(1, "Starting tone scan, timeout: %d ms, threshold: %d\n", timeout, threshold);
+	start = ast_tvnow();
+	do {
+		if (timeout > 0) {
+			remaining_time = ast_remaining_ms(start, timeout);
+			if (remaining_time <= 0) {
+				pbx_builtin_setvar_helper(chan, "TONESCANSTATUS", "TIMEOUT");
+				break;
+			}
+		}
+		if (ast_waitfor(chan, 1000) > 0) {
+			if (!(frame = ast_read(chan))) {
+				ast_debug(1, "Channel '%s' did not return a frame; probably hung up.\n", ast_channel_name(chan));
+				pbx_builtin_setvar_helper(chan, "TONESCANSTATUS", "HANGUP");
+				break;
+			} else if (frame->frametype == AST_FRAME_VOICE) {
+				if (fax) {
+					frame2 = ast_frdup(frame);
+				}
+				frame = ast_dsp_process(chan, dsp, frame);
+				if (frame->frametype == AST_FRAME_DTMF) {
+					char result = frame->subclass.integer;
+					match = 1;
+					if (result == 'q') {
+						pbx_builtin_setvar_helper(chan, "TONESCANSTATUS", "MODEM");
+					} else {
+						pbx_builtin_setvar_helper(chan, "TONESCANSTATUS", "DTMF");
+					}
+				} else if (fax) {
+					char result;
+					frame2 = ast_dsp_process(chan, dsp2, frame2);
+					result = frame->subclass.integer;
+					if (result == AST_FRAME_DTMF) {
+						if (result == 'e') {
+							pbx_builtin_setvar_helper(chan, "TONESCANSTATUS", "FAX");
+							match = 1;
+						} else {
+							ast_debug(1, "Ignoring inactionable event\n"); /* shouldn't happen */
+						}
+					}
+					ast_frfree(frame2);
+				}
+				if (!match) {
+					int tstate, tcount;
+					tcount = ast_dsp_get_tcount(dsp);
+					tstate = ast_dsp_get_tstate(dsp);
+					if (tstate > 0) {
+						ast_debug(3, "tcount: %d, tstate: %d\n", tcount, tstate);
+						if (tcount >= threshold) {
+							match = 1;
+							switch (tstate) {
+							case DSP_TONE_STATE_RINGING:
+								pbx_builtin_setvar_helper(chan, "TONESCANSTATUS", "RINGING");
+								break;
+							case DSP_TONE_STATE_DIALTONE:
+								pbx_builtin_setvar_helper(chan, "TONESCANSTATUS", "DIALTONE");
+								break;
+							case DSP_TONE_STATE_TALKING:
+								/* even if we don't specify this feature, it's still checked, so we always need to handle it.
+									Even if we are looking for it, we need to wait a while or tones will be interpreted
+									as voice, because this will match first (and this should match last). */
+								if (voice && tcount > 15 && tcount >= threshold) {
+									pbx_builtin_setvar_helper(chan, "TONESCANSTATUS", "VOICE");
+								} else {
+									match = 0;
+								}
+								break;
+							case DSP_TONE_STATE_BUSY:
+								pbx_builtin_setvar_helper(chan, "TONESCANSTATUS", "BUSY");
+								break;
+							case DSP_TONE_STATE_SPECIAL3:
+								pbx_builtin_setvar_helper(chan, "TONESCANSTATUS", "SIT");
+								break;
+							case DSP_TONE_STATE_HUNGUP: /* UK only */
+								pbx_builtin_setvar_helper(chan, "TONESCANSTATUS", "NUT");
+								break;
+							default:
+								match = 0;
+								ast_debug(1, "Something else we weren't expecting? tstate: %d, #%d\n", tstate, tcount);
+							}
+						}
+					}
+				}
+			}
+			ast_frfree(frame);
+		} else {
+			pbx_builtin_setvar_helper(chan, "TONESCANSTATUS", "HANGUP");
+		}
+	} while (!match && (timeout == 0 || remaining_time > 0));
+	ast_dsp_free(dsp);
+	if (dsp2) {
+		ast_dsp_free(dsp2);
+        }
+
+	return 0;
+}
 
 static struct ast_custom_function detect_function = {
 	.name = "TONE_DETECT",
@@ -653,6 +1002,7 @@ static int unload_module(void)
 	int res;
 
 	res = ast_unregister_application(waitapp);
+	res |= ast_unregister_application(scanapp);
 	res |= ast_custom_function_unregister(&detect_function);
 
 	return res;
@@ -663,6 +1013,7 @@ static int load_module(void)
 	int res;
 
 	res = ast_register_application_xml(waitapp, wait_exec);
+	res |= ast_register_application_xml(scanapp, scan_exec);
 	res |= ast_custom_function_register(&detect_function);
 
 	return res;
