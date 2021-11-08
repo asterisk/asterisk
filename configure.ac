@@ -456,7 +456,7 @@ AC_ARG_WITH([pjproject-bundled],
 	      *) PJPROJECT_BUNDLED=yes ;;
 	esac])
 
-if test "${with_pjproject}" == "no" || test "${with_pjproject}" == "n" ; then
+if test "${with_pjproject}" = "no" || test "${with_pjproject}" = "n" ; then
 	PJPROJECT_BUNDLED=no
 fi
 
@@ -472,7 +472,7 @@ AST_EXT_LIB_SETUP_OPTIONAL([OPENSSL_BIO_METHOD], [OpenSSL BIO Method Support], [
 # If neither --without-ssl (PBX_OPENSSL=-1) nor --without-crypto (PBX_CRYPTO=-1)
 # and there were no directories atdded to --with-ssl and --with-crypto, and
 # pkg-config is installed (which is should be by install_prereq).
-if test "x$PKG_CONFIG" != "x" -a $PBX_OPENSSL -ge 0 -a $PBX_CRYPTO -ge 0 -a "x$OPENSSL_DIR" == "x" ; then
+if test "x$PKG_CONFIG" != "x" -a $PBX_OPENSSL -ge 0 -a $PBX_CRYPTO -ge 0 -a "x$OPENSSL_DIR" = "x" ; then
 	AC_MSG_NOTICE(checking OPENSSL with pkg-config)
 	AC_MSG_NOTICE(checking whether system openssl > 1.1.0)
 	AST_PKG_CONFIG_CHECK([OPENSSL], [openssl >= 1.1.0])
@@ -780,7 +780,7 @@ AC_ARG_ENABLE([permanent-dlopen],
 	esac], [PERMANENT_DLOPEN=no])
 
 AC_SUBST([PERMANENT_DLOPEN])
-if test "${PERMANENT_DLOPEN}" == "yes"; then
+if test "${PERMANENT_DLOPEN}" = "yes"; then
 	AC_DEFINE([HAVE_PERMANENT_DLOPEN], 1, [Define to support libc with permanent dlopen.])
 fi
 
