@@ -7380,7 +7380,14 @@ static int ast_add_extension2_lockopt(struct ast_context *con,
 		}
 	}
 
-	exten_fluff = ext_fluff_count(extension);
+	if (priority == PRIORITY_HINT) {
+		/* Fluff in a hint is fine. This prevents the removal of dashes from dynamically
+		 * created hints during a reload. */
+		exten_fluff = 0;
+	} else {
+		exten_fluff = ext_fluff_count(extension);
+	}
+
 	callerid_fluff = callerid ? ext_fluff_count(callerid) : 0;
 
 	length = sizeof(struct ast_exten);
