@@ -4873,7 +4873,7 @@ $as_echo "no" >&6; }
 fi
 
   if test "x$ac_pt_UNAME" = x; then
-    UNAME="No"
+    UNAME=":"
   else
     case $cross_compiling:$ac_tool_warned in
 yes:)
@@ -4887,7 +4887,7 @@ else
   UNAME="$ac_cv_path_UNAME"
 fi
 
-if test ! x"${UNAME}" = xNo; then
+if test "x${UNAME}" != "x:"; then
    PBX_OSREV=$(${UNAME} -r)
 fi
 
@@ -7611,11 +7611,11 @@ fi
 DOWNLOAD=":"
 DOWNLOAD_TO_STDOUT=
 DOWNLOAD_TIMEOUT=
-if test "${WGET}" != ":" ; then
+if test "x${WGET}" != "x:"; then
   DOWNLOAD=${WGET}
   DOWNLOAD_TO_STDOUT="${WGET} -q -O-"
   DOWNLOAD_TIMEOUT='--timeout=$1'
-elif test "${CURL}" != ":" ; then
+elif test "x${CURL}" != "x:"; then
   DOWNLOAD="${CURL} -O --progress-bar -w \"%{url_effective}\n\""
   DOWNLOAD_TO_STDOUT="${CURL} -Ls"
   DOWNLOAD_TIMEOUT='--max-time $(or $2,$1)'
@@ -7661,7 +7661,7 @@ $as_echo "no" >&6; }
 fi
 
 
-  if test "${FETCH}" != ":" ; then
+  if test "x${FETCH}" != "x:"; then
     DOWNLOAD=${FETCH}
     DOWNLOAD_TO_STDOUT="${FETCH} -o-"
     DOWNLOAD_TIMEOUT='--timeout=$(or $2,$1)'
@@ -7960,21 +7960,22 @@ else
 	PBX_BISON=1
 fi
 
-if test "x${FLEX}" = "x:" ; then
+
+if test "${FLEX}" = ":"; then
 	PBX_FLEX=0
 else
 	PBX_FLEX=1
 fi
 
 
-if test "x${XMLSTARLET}" = "x:" ; then
+if test "${XMLSTARLET}" = ":"; then
 	PBX_XMLSTARLET=0
 else
 	PBX_XMLSTARLET=1
 fi
 
 
-if test "x${BASH}" = "x:" ; then
+if test "${BASH}" = ":"; then
 	PBX_BASH=0
 else
 	PBX_BASH=1
@@ -8073,7 +8074,7 @@ else
   SOXMIX="$ac_cv_prog_SOXMIX"
 fi
 
-if test "${SOXMIX}" != ":" ; then
+if test "x${SOXMIX}" != "x:"; then
 
 $as_echo "#define HAVE_SOXMIX 1" >>confdefs.h
 
@@ -9107,7 +9108,7 @@ JANSSON_BUNDLED=no
 # Check whether --with-jansson-bundled was given.
 if test "${with_jansson_bundled+set}" = set; then :
   withval=$with_jansson_bundled; case "${withval}" in
-		y|yes) JANSSON_BUNDLED=yes ;;
+		y|ye|yes) JANSSON_BUNDLED=yes ;;
 		*) JANSSON_BUNDLED=no ;;
 	esac
 fi
@@ -24110,7 +24111,7 @@ fi
 
 
 
-PG_CONFIG=No
+PG_CONFIG=":"
 if test "${USE_PGSQL}" != "no"; then
    if test "x${PGSQL_DIR}" != "x"; then
       if test -n "$ac_tool_prefix"; then
@@ -24197,7 +24198,7 @@ $as_echo "no" >&6; }
 fi
 
   if test "x$ac_pt_PG_CONFIG" = x; then
-    PG_CONFIG="No"
+    PG_CONFIG=":"
   else
     case $cross_compiling:$ac_tool_warned in
 yes:)
@@ -24211,7 +24212,7 @@ else
   PG_CONFIG="$ac_cv_path_PG_CONFIG"
 fi
 
-      if test x"${PG_CONFIG}" = xNo; then
+      if test "${PG_CONFIG}" = ":"; then
          { $as_echo "$as_me:${as_lineno-$LINENO}: ***" >&5
 $as_echo "$as_me: ***" >&6;}
          { $as_echo "$as_me:${as_lineno-$LINENO}: *** pg_config was not found in the path you specified:" >&5
@@ -24309,7 +24310,7 @@ $as_echo "no" >&6; }
 fi
 
   if test "x$ac_pt_PG_CONFIG" = x; then
-    PG_CONFIG="No"
+    PG_CONFIG=":"
   else
     case $cross_compiling:$ac_tool_warned in
 yes:)
@@ -24325,7 +24326,7 @@ fi
 
    fi
 fi
-if test "${PG_CONFIG}" != No; then
+if test "x${PG_CONFIG}" != "x:"; then
    PGSQL_libdir=`${PG_CONFIG} --libdir`
    PGSQL_includedir=`${PG_CONFIG} --includedir`
    if test "x$?" != "x0" ; then
@@ -35398,7 +35399,7 @@ fi
 
 
 ${ac_cv_path_EGREP} 'CURSES|GTK2|OSARCH|NEWT' makeopts > makeopts.acbak2
-if test "x${ac_cv_path_CMP}" = "x:"; then
+if test "${ac_cv_path_CMP}" = ":"; then
 	( cd "`pwd`/menuselect" && ./configure )
 elif ${ac_cv_path_CMP} -s makeopts.acbak makeopts.acbak2; then : ; else
 	( cd "`pwd`/menuselect" && ./configure )
