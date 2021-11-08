@@ -211,8 +211,8 @@ AC_COMPILE_IFELSE(
 AC_SUBST(CONFIG_SIGNED_CHAR)
 
 #  check for uname
-AC_PATH_TOOL([UNAME], [uname], No)
-if test ! x"${UNAME}" = xNo; then
+AC_PATH_TOOL([UNAME], [uname], :)
+if test "x${UNAME}" != "x:"; then
    PBX_OSREV=$(${UNAME} -r)
 fi
 AC_SUBST(PBX_OSREV)
@@ -289,17 +289,17 @@ AC_PATH_PROG([NM], [nm], :)
 DOWNLOAD=":"
 DOWNLOAD_TO_STDOUT=
 DOWNLOAD_TIMEOUT=
-if test "${WGET}" != ":" ; then
+if test "x${WGET}" != "x:"; then
   DOWNLOAD=${WGET}
   DOWNLOAD_TO_STDOUT="${WGET} -q -O-"
   DOWNLOAD_TIMEOUT='--timeout=$1'
-elif test "${CURL}" != ":" ; then
+elif test "x${CURL}" != "x:"; then
   DOWNLOAD="${CURL} -O --progress-bar -w \"%{url_effective}\n\""
   DOWNLOAD_TO_STDOUT="${CURL} -Ls"
   DOWNLOAD_TIMEOUT='--max-time $(or $2,$1)'
 else
   AC_PATH_PROG([FETCH], [fetch], :)
-  if test "${FETCH}" != ":" ; then
+  if test "x${FETCH}" != "x:"; then
     DOWNLOAD=${FETCH}
     DOWNLOAD_TO_STDOUT="${FETCH} -o-"
     DOWNLOAD_TIMEOUT='--timeout=$(or $2,$1)'
@@ -351,29 +351,30 @@ else
 	PBX_BISON=1
 fi
 AC_SUBST(PBX_BISON)
-if test "x${FLEX}" = "x:" ; then
+
+if test "${FLEX}" = ":"; then
 	PBX_FLEX=0
 else
 	PBX_FLEX=1
 fi
 AC_SUBST(PBX_FLEX)
 
-if test "x${XMLSTARLET}" = "x:" ; then
+if test "${XMLSTARLET}" = ":"; then
 	PBX_XMLSTARLET=0
 else
 	PBX_XMLSTARLET=1
 fi
 AC_SUBST(PBX_XMLSTARLET)
 
-if test "x${BASH}" = "x:" ; then
+if test "${BASH}" = ":"; then
 	PBX_BASH=0
 else
 	PBX_BASH=1
 fi
 AC_SUBST(PBX_BASH)
 
-AC_CHECK_TOOL([SOXMIX], [soxmix], [:])
-if test "${SOXMIX}" != ":" ; then
+AC_CHECK_TOOL([SOXMIX], [soxmix], :)
+if test "x${SOXMIX}" != "x:"; then
 	AC_DEFINE([HAVE_SOXMIX], 1, [Define to 1 if your system has soxmix application.])
 fi
 
@@ -441,7 +442,7 @@ AC_ARG_WITH([jansson-bundled],
 	[AS_HELP_STRING([--with-jansson-bundled],
 		[Use bundled jansson library])],
 	[case "${withval}" in
-		y|yes) JANSSON_BUNDLED=yes ;;
+		y|ye|yes) JANSSON_BUNDLED=yes ;;
 		*) JANSSON_BUNDLED=no ;;
 	esac])
 
@@ -2391,11 +2392,11 @@ AST_EXT_LIB_CHECK([OSS], [ossaudio], [], [linux/soundcard.h])
 AST_EXT_LIB_CHECK([OSS], [ossaudio], [], [sys/soundcard.h])
 AST_EXT_LIB_CHECK([OSS], [ossaudio], [oss_ioctl_mixer], [soundcard.h])
 
-PG_CONFIG=No
+PG_CONFIG=":"
 if test "${USE_PGSQL}" != "no"; then
    if test "x${PGSQL_DIR}" != "x"; then
-      AC_PATH_TOOL([PG_CONFIG], [pg_config], No, [${PGSQL_DIR}/bin])
-      if test x"${PG_CONFIG}" = xNo; then
+      AC_PATH_TOOL([PG_CONFIG], [pg_config], :, [${PGSQL_DIR}/bin])
+      if test "${PG_CONFIG}" = ":"; then
          AC_MSG_NOTICE([***])
          AC_MSG_NOTICE([*** pg_config was not found in the path you specified:])
          AC_MSG_NOTICE([*** ${PGSQL_DIR}/bin])
@@ -2404,10 +2405,10 @@ if test "${USE_PGSQL}" != "no"; then
          exit 1
       fi
    else
-      AC_PATH_TOOL([PG_CONFIG], [pg_config], No)
+      AC_PATH_TOOL([PG_CONFIG], [pg_config], :)
    fi
 fi
-if test "${PG_CONFIG}" != No; then
+if test "x${PG_CONFIG}" != "x:"; then
    PGSQL_libdir=`${PG_CONFIG} --libdir`
    PGSQL_includedir=`${PG_CONFIG} --includedir`
    if test "x$?" != "x0" ; then
@@ -2942,7 +2943,7 @@ fi
 AC_OUTPUT
 
 ${ac_cv_path_EGREP} 'CURSES|GTK2|OSARCH|NEWT' makeopts > makeopts.acbak2
-if test "x${ac_cv_path_CMP}" = "x:"; then
+if test "${ac_cv_path_CMP}" = ":"; then
 	( cd "`pwd`/menuselect" && ./configure )
 elif ${ac_cv_path_CMP} -s makeopts.acbak makeopts.acbak2; then : ; else
 	( cd "`pwd`/menuselect" && ./configure )
