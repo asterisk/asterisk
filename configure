@@ -9217,7 +9217,7 @@ if test "${with_pjproject_bundled+set}" = set; then :
 fi
 
 
-if test "${with_pjproject}" == "no" || test "${with_pjproject}" == "n" ; then
+if test "${with_pjproject}" = "no" || test "${with_pjproject}" = "n" ; then
 	PJPROJECT_BUNDLED=no
 fi
 
@@ -9306,7 +9306,7 @@ PBX_OPENSSL_BIO_METHOD=0
 # If neither --without-ssl (PBX_OPENSSL=-1) nor --without-crypto (PBX_CRYPTO=-1)
 # and there were no directories atdded to --with-ssl and --with-crypto, and
 # pkg-config is installed (which is should be by install_prereq).
-if test "x$PKG_CONFIG" != "x" -a $PBX_OPENSSL -ge 0 -a $PBX_CRYPTO -ge 0 -a "x$OPENSSL_DIR" == "x" ; then
+if test "x$PKG_CONFIG" != "x" -a $PBX_OPENSSL -ge 0 -a $PBX_CRYPTO -ge 0 -a "x$OPENSSL_DIR" = "x" ; then
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking OPENSSL with pkg-config" >&5
 $as_echo "$as_me: checking OPENSSL with pkg-config" >&6;}
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether system openssl > 1.1.0" >&5
@@ -15229,7 +15229,7 @@ fi
 
 
 
-if test "${PERMANENT_DLOPEN}" == "yes"; then
+if test "${PERMANENT_DLOPEN}" = "yes"; then
 
 $as_echo "#define HAVE_PERMANENT_DLOPEN 1" >>confdefs.h
 
