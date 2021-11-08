@@ -3455,7 +3455,8 @@ static struct ast_json *rtcp_report_to_json(struct stasis_message *msg,
 		}
 	}
 
-	return ast_json_pack("{s: o?, s: o, s: O?}",
+	return ast_json_pack("{s: s, s: o?, s: o, s: O?}",
+		"type", stasis_message_type(msg) == ast_rtp_rtcp_received_type() ? "RTCPReceived" : "RTCPSent",
 		"channel", json_channel,
 		"rtcp_report", json_rtcp_report,
 		"blob", payload->blob);
