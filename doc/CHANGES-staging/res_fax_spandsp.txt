@@ -1,0 +1,3 @@
+Subject: res_fax_spandsp
+
+Adds support for spandsp 3.0.0.
