@@ -945,28 +945,38 @@ AC_LINK_IFELSE(
 		AC_MSG_RESULT(no)
 )
 
-# some systems already have gethostbyname_r so we don't need to build ours in main/utils.c
-AC_SEARCH_LIBS(gethostbyname_r, [socket nsl])
-
-AC_MSG_CHECKING(for gethostbyname_r with 6 arguments)
-AC_LINK_IFELSE(
-        [AC_LANG_PROGRAM([#include <stdlib.h>
-                         #include <netdb.h>],
-                        [struct hostent *he = gethostbyname_r((const char *)NULL, (struct hostent *)NULL, (char *)NULL, (int)0, (struct hostent **)NULL, (int *)NULL);])],
-        AC_MSG_RESULT(yes)
-        AC_DEFINE([HAVE_GETHOSTBYNAME_R_6], 1, [Define to 1 if your system has gethostbyname_r with 6 arguments.]),
-        AC_MSG_RESULT(no)
+# NetBSD libc ships with an internal-only incompatible symbol gethostbyname_r
+AC_CHECK_DECLS([gethostbyname_r],
+        [have_gethostbyname_r_public_declaration=yes],
+        [have_gethostbyname_r_public_declaration=no],
+        [#include <stdlib.h>
+         #include <netdb.h>]
 )
 
-AC_MSG_CHECKING(for gethostbyname_r with 5 arguments)
-AC_LINK_IFELSE(
-        [AC_LANG_PROGRAM([#include <stdlib.h>
-	                 #include <netdb.h>],
-                        [struct hostent *he = gethostbyname_r((const char *)NULL, (struct hostent *)NULL, (char *)NULL, (int)0, (int *)NULL);])],
-        AC_MSG_RESULT(yes)
-        AC_DEFINE([HAVE_GETHOSTBYNAME_R_5], 1, [Define to 1 if your system has gethostbyname_r with 5 arguments.]),
-        AC_MSG_RESULT(no)
-)
+if test "x$have_gethostbyname_r_public_declaration" = "xyes"; then
+        # some systems already have gethostbyname_r so we don't need to build ours in main/utils.c
+        AC_SEARCH_LIBS(gethostbyname_r, [socket nsl])
+
+        AC_MSG_CHECKING(for gethostbyname_r with 6 arguments)
+        AC_LINK_IFELSE(
+                [AC_LANG_PROGRAM([#include <stdlib.h>
+                                 #include <netdb.h>],
+                                [struct hostent *he = gethostbyname_r((const char *)NULL, (struct hostent *)NULL, (char *)NULL, (int)0, (struct hostent **)NULL, (int *)NULL);])],
+                AC_MSG_RESULT(yes)
+                AC_DEFINE([HAVE_GETHOSTBYNAME_R_6], 1, [Define to 1 if your system has gethostbyname_r with 6 arguments.]),
+                AC_MSG_RESULT(no)
+        )
+
+        AC_MSG_CHECKING(for gethostbyname_r with 5 arguments)
+        AC_LINK_IFELSE(
+                [AC_LANG_PROGRAM([#include <stdlib.h>
+	                         #include <netdb.h>],
+                                [struct hostent *he = gethostbyname_r((const char *)NULL, (struct hostent *)NULL, (char *)NULL, (int)0, (int *)NULL);])],
+                AC_MSG_RESULT(yes)
+                AC_DEFINE([HAVE_GETHOSTBYNAME_R_5], 1, [Define to 1 if your system has gethostbyname_r with 5 arguments.]),
+                AC_MSG_RESULT(no)
+        )
+fi
 
 AC_CHECK_HEADER([byteswap.h], [AC_DEFINE_UNQUOTED([HAVE_BYTESWAP_H], 1, [Define to 1 if byteswap.h macros are available.])])
 
