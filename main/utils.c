@@ -36,6 +36,8 @@
 #include <unistd.h>
 #if defined(__APPLE__)
 #include <mach/mach.h>
+#elif defined(__NetBSD__)
+#include <lwp.h>
 #elif defined(HAVE_SYS_THR_H)
 #include <sys/thr.h>
 #endif
@@ -2659,6 +2661,8 @@ int ast_get_tid(void)
 	long lwpid;
 	thr_self(&lwpid); /* available since sys/thr.h creation 2003 */
 	ret = lwpid;
+#elif defined(__NetBSD__)
+	ret = _lwp_self();
 #endif
 	return ret;
 }
