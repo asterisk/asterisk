@@ -2914,6 +2914,52 @@ $as_echo "$ac_res" >&6; }
 
 } # ac_fn_c_check_member
 
+# ac_fn_c_check_decl LINENO SYMBOL VAR INCLUDES
+# ---------------------------------------------
+# Tests whether SYMBOL is declared in INCLUDES, setting cache variable VAR
+# accordingly.
+ac_fn_c_check_decl ()
+{
+  as_lineno=${as_lineno-"$1"} as_lineno_stack=as_lineno_stack=$as_lineno_stack
+  as_decl_name=`echo $2|sed 's/ *(.*//'`
+  as_decl_use=`echo $2|sed -e 's/(/((/' -e 's/)/) 0&/' -e 's/,/) 0& (/g'`
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether $as_decl_name is declared" >&5
+$as_echo_n "checking whether $as_decl_name is declared... " >&6; }
+if eval \${$3+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+$4
+int
+main ()
+{
+#ifndef $as_decl_name
+#ifdef __cplusplus
+  (void) $as_decl_use;
+#else
+  (void) $as_decl_name;
+#endif
+#endif
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  eval "$3=yes"
+else
+  eval "$3=no"
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+fi
+eval ac_res=\$$3
+	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+$as_echo "$ac_res" >&6; }
+  eval $as_lineno_stack; ${as_lineno_stack:+:} unset as_lineno
+
+} # ac_fn_c_check_decl
+
 # ac_fn_c_compute_int LINENO EXPR VAR INCLUDES
 # --------------------------------------------
 # Tries to find the compile-time value of EXPR in a program that includes
@@ -17622,8 +17668,30 @@ fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
 
-# some systems already have gethostbyname_r so we don't need to build ours in main/utils.c
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing gethostbyname_r" >&5
+# NetBSD libc ships with an internal-only incompatible symbol gethostbyname_r
+ac_fn_c_check_decl "$LINENO" "gethostbyname_r" "ac_cv_have_decl_gethostbyname_r" "#include <stdlib.h>
+         #include <netdb.h>
+
+"
+if test "x$ac_cv_have_decl_gethostbyname_r" = xyes; then :
+  ac_have_decl=1
+else
+  ac_have_decl=0
+fi
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_DECL_GETHOSTBYNAME_R $ac_have_decl
+_ACEOF
+if test $ac_have_decl = 1; then :
+  have_gethostbyname_r_public_declaration=yes
+else
+  have_gethostbyname_r_public_declaration=no
+fi
+
+
+if test "x$have_gethostbyname_r_public_declaration" = "xyes"; then
+        # some systems already have gethostbyname_r so we don't need to build ours in main/utils.c
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing gethostbyname_r" >&5
 $as_echo_n "checking for library containing gethostbyname_r... " >&6; }
 if ${ac_cv_search_gethostbyname_r+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -17680,12 +17748,12 @@ if test "$ac_res" != no; then :
 fi
 
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for gethostbyname_r with 6 arguments" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for gethostbyname_r with 6 arguments" >&5
 $as_echo_n "checking for gethostbyname_r with 6 arguments... " >&6; }
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+        cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 #include <stdlib.h>
-                         #include <netdb.h>
+                                 #include <netdb.h>
 int
 main ()
 {
@@ -17708,12 +17776,12 @@ fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for gethostbyname_r with 5 arguments" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for gethostbyname_r with 5 arguments" >&5
 $as_echo_n "checking for gethostbyname_r with 5 arguments... " >&6; }
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+        cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 #include <stdlib.h>
-	                 #include <netdb.h>
+	                         #include <netdb.h>
 int
 main ()
 {
@@ -17735,6 +17803,7 @@ $as_echo "no" >&6; }
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
+fi
 
 ac_fn_c_check_header_mongrel "$LINENO" "byteswap.h" "ac_cv_header_byteswap_h" "$ac_includes_default"
 if test "x$ac_cv_header_byteswap_h" = xyes; then :
