@@ -822,7 +822,7 @@ unsigned long _ast_trace_dec_indent(void);
  * \details
  * Handy for getting out of or continuing loops.
  *
- * \example
+ * \code
  * while(something) {
  *     SCOPE_ENTER(2, "In a while\n");
  *     if (something) {
@@ -831,6 +831,7 @@ unsigned long _ast_trace_dec_indent(void);
  *         SCOPE_EXIT_EXPR(continue, "Somethiung continued me\n");
  *     }
  * }
+ * \endcode
  */
 #define SCOPE_EXIT_EXPR(__expr, ...) \
 	ast_debug(__scope_level, " " __VA_ARGS__); \
