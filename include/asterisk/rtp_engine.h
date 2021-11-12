@@ -2723,6 +2723,8 @@ struct stasis_message_type *ast_rtp_rtcp_sent_type(void);
  */
 struct stasis_message_type *ast_rtp_rtcp_received_type(void);
 
+/*! @} */
+
 #ifdef TEST_FRAMEWORK
 /*!
  * \brief Get the maximum size of the receive buffer
@@ -2897,8 +2899,6 @@ uintmax_t ast_debug_category_ice_id(void);
  */
 #define ast_debug_ice(sublevel, ...) \
 	ast_debug_category(sublevel, AST_DEBUG_CATEGORY_ICE, __VA_ARGS__)
-
-/* @} */
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

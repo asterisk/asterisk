@@ -108,9 +108,7 @@ int __ast_repl_vasprintf(char **strp, const char *format, va_list ap, const char
  */
 #define ASTMM_IGNORE   2
 
-/*!
- * }@
- */
+/*! @} */
 
 #if !defined(ASTMM_LIBC)
 /* BLOCK libc allocators by default. */

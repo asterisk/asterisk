@@ -83,12 +83,14 @@ static AST_LIST_HEAD_STATIC(zombies, zombie);
 #ifdef HAVE_CAP
 static cap_t child_cap;
 #endif
-/*
- * @{ \brief Define \ref stasis topic objects
+/*!
+ * \brief Define \ref stasis topic objects
+ * @{
  */
 static struct stasis_topic *queue_topic_all;
 static struct stasis_topic_pool *queue_topic_pool;
-/* @} */
+
+/*! @} */
 
 static void *shaun_of_the_dead(void *data)
 {

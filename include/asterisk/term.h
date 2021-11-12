@@ -30,8 +30,9 @@ extern "C" {
 #define ESC 0x1b
 
 /*! \name Terminal Attributes
-*/
-/*@{ */
+ *
+ * @{
+ */
 #define ATTR_RESET	0
 #define ATTR_BRIGHT	1
 #define ATTR_DIM	2
@@ -39,11 +40,13 @@ extern "C" {
 #define ATTR_BLINK	5
 #define ATTR_REVER	7
 #define ATTR_HIDDEN	8
-/*@} */
+
+/*! @} */
 
 /*! \name Terminal Colors
-*/
-/*@{ */
+ *
+ * @{
+ */
 #define COLOR_BLACK     30
 #define COLOR_GRAY      (30 | 128)
 #define COLOR_RED       31
@@ -60,7 +63,8 @@ extern "C" {
 #define COLOR_BRCYAN    (36 | 128)
 #define COLOR_WHITE     37
 #define COLOR_BRWHITE   (37 | 128)
-/*@} */
+
+/*! @} */
 
 /*! \brief Shortcut macros for coloring a set of text
  */

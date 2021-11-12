@@ -1401,9 +1401,9 @@ void pbx_substitute_variables_helper(struct ast_channel *c, const char *cp1, cha
 void pbx_substitute_variables_varshead(struct varshead *headp, const char *cp1, char *cp2, int count);
 void pbx_substitute_variables_helper_full(struct ast_channel *c, struct varshead *headp, const char *cp1, char *cp2, int cp2_size, size_t *used);
 /*! @} */
-/*! @} */
 
-/*! @name Substitution routines, using dynamic string buffers */
+/*! @name Substitution routines, using dynamic string buffers
+ * @{ */
 
 /*!
  * \param buf Result will be placed in this buffer.
