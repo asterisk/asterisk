@@ -865,7 +865,6 @@ static int global_store_sip_cause;    /*!< Whether the MASTER_CHANNEL(HASH(SIP_C
 
 static int global_dynamic_exclude_static = 0; /*!< Exclude static peers from contact registrations */
 static unsigned char global_refer_addheaders; /*!< Add extra headers to outgoing REFER */
-/*@}*/
 
 /*!
  * We use libxml2 in order to parse XML that may appear in the body of a SIP message. Currently,
@@ -875,10 +874,12 @@ static unsigned char global_refer_addheaders; /*!< Add extra headers to outgoing
  */
 static int can_parse_xml;
 
-/*! \name Object counters @{
+/*! \name Object counters
  *
  * \bug These counters are not handled in a thread-safe way ast_atomic_fetchadd_int()
  * should be used to modify these values.
+ *
+ * @{
  */
 static int speerobjs = 0;     /*!< Static peers */
 static int rpeerobjs = 0;     /*!< Realtime peers */

@@ -59,15 +59,19 @@
 #define DEFAULT_MANAGER_TLS_PORT 5039	/* Default port for Asterisk management via TCP */
 
 /*! \name Constant return values
- *\note Currently, returning anything other than zero causes the session to terminate.
+ * \note Currently, returning anything other than zero causes the session to terminate.
+ *
+ * @{
  */
-/*@{ */
 #define	AMI_SUCCESS	(0)
 #define	AMI_DESTROY	(-1)
-/*@} */
 
-/*! \name Manager event classes */
-/*@{ */
+/*! @} */
+
+/*! \name Manager event classes
+ *
+ * @{
+ */
 #define EVENT_FLAG_SYSTEM           (1 << 0) /* System events such as module load/unload */
 #define EVENT_FLAG_CALL             (1 << 1) /* Call event, such as state change, etc */
 #define EVENT_FLAG_LOG              (1 << 2) /* Log events */
@@ -89,7 +93,8 @@
 #define EVENT_FLAG_SECURITY         (1 << 18) /* Security Message as AMI Event */
 /*XXX Why shifted by 30? XXX */
 #define EVENT_FLAG_MESSAGE          (1 << 30) /* MESSAGE events. */
-/*@} */
+
+/*! @} */
 
 /*! \brief Export manager structures */
 #define AST_MAX_MANHEADERS 128

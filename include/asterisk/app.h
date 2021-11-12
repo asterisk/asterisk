@@ -1510,7 +1510,6 @@ struct stasis_topic *ast_queue_topic_all(void);
  * \since 12
  */
 struct stasis_topic *ast_queue_topic(const char *queuename);
-/*! @} */
 
 /*!
  * \brief Initialize the application core

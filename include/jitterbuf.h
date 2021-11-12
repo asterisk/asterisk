@@ -27,8 +27,9 @@
 extern "C" {
 #endif
 
-/*! \name configuration constants */
-/*@{ */
+/*! \name configuration constants
+ * @{
+ */
 	/*! Number of historical timestamps to use in calculating jitter and drift */
 #define JB_HISTORY_SZ		500
 	/*! what percentage of timestamps should we drop from the history when we examine it;
@@ -42,7 +43,8 @@ extern "C" {
 #define JB_TARGET_EXTRA 40
 	/*! ms between growing and shrinking; may not be honored if jitterbuffer runs out of space */
 #define JB_ADJUST_DELAY 40
-/*@} */
+
+/*! @} */
 
 enum jb_return_code {
 	/* return codes */
