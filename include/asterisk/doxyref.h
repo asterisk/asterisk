@@ -297,7 +297,7 @@
  * \page AstHTTP AMI over HTTP support
  * The http.c file includes support for manager transactions over
  * http.
- * \section ami AMI - The manager Interface
+ * \section amihttp AMI - The manager Interface
  * \arg \link Config_ami Configuration file \endlink
  */
 
@@ -354,7 +354,7 @@
 
 /*!
  * \addtogroup formats Module: Media File Formats
- * \section codec_generic Asterisk Format drivers
+ * \section format_generic Asterisk Format drivers
  * Formats are modules that read or write media files to disk.
  * \par See also
  * \arg \ref codecs
