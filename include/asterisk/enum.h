@@ -16,9 +16,11 @@
  * at the top of the source tree.
  */
 
-/*!	\file enum.h
-	\brief DNS and ENUM functions
-*/
+/*!
+ * \file
+ *
+ * \brief DNS and ENUM functions
+ */
 
 #ifndef _ASTERISK_ENUM_H
 #define _ASTERISK_ENUM_H

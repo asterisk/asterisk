@@ -20,7 +20,7 @@
 #define _ASTERISK_IOSTREAM_H
 
 /*!
- * \file iostream.h
+ * \file
  *
  * \brief Generic abstraction for input/output streams.
  */

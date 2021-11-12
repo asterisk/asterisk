@@ -27,7 +27,9 @@
 #include "asterisk/dial.h"
 #include "asterisk/module.h"
 
-/*! \file calendar.h
+/*!
+ * \file
+ *
  * \brief A general API for managing calendar events with Asterisk
  *
  * \author Terry Wilson <twilson@digium.com>

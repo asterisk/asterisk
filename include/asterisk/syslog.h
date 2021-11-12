@@ -17,7 +17,8 @@
  */
 
 /*!
- * \file syslog.h
+ * \file
+ *
  * \brief Syslog support functions for Asterisk logging.
  */
 

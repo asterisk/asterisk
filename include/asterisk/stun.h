@@ -17,7 +17,8 @@
  */
 
 /*!
- * \file stun.h
+ * \file
+ *
  * \brief STUN support.
  *
  * STUN is defined in RFC 3489.

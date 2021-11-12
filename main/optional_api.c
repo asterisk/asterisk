@@ -24,8 +24,8 @@
 
 #if defined(OPTIONAL_API)
 
-/*
- * \file Optional API innards.
+/*!
+ * \file
  *
  * The calls to ast_optional_api_*() happen implicitly from \c __constructor__
  * calls which are defined in header files. This means that some number of them

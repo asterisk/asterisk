@@ -28,7 +28,8 @@
 #include "asterisk/lock.h"
 
 /*!
- * \file dlinkedlists.h
+ * \file
+ *
  * \brief A set of macros to manage doubly-linked lists.
  */
 

@@ -31,7 +31,8 @@
 #define AST_DEFAULT_WEBSOCKET_WRITE_TIMEOUT_STR "100"
 
 /*!
- * \file http_websocket.h
+ * \file
+ *
  * \brief Support for WebSocket connections within the Asterisk HTTP server and client
  *        WebSocket connections to a server.
  *
