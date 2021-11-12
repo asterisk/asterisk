@@ -17,7 +17,8 @@
  */
 
 /*!
- * \file taskprocessor.h
+ * \file
+ *
  * \brief An API for managing task processing threads that can be shared across modules
  *
  * \author Dwayne M. Hubbard <dhubbard@digium.com>

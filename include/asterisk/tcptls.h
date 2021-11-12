@@ -17,9 +17,10 @@
  */
 
 /*!
- * \file tcptls.h
+ * \file
  *
  * \brief Generic support for tcp/tls servers in Asterisk.
+ *
  * \note In order to have TLS/SSL support, we need the openssl libraries.
  * Still we can decide whether or not to use them by commenting
  * in or out the DO_SSL macro.
