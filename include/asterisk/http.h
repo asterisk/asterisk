@@ -24,8 +24,10 @@
 #include "asterisk/linkedlists.h"
 
 /*!
- * \file http.h
+ * \file
+ *
  * \brief Support for Private Asterisk HTTP Servers.
+ *
  * \note Note: The Asterisk HTTP servers are extremely simple and minimal and
  *      only support the "GET" method.
  *

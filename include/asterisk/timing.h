@@ -18,7 +18,7 @@
  */
 
 /*!
-	\file timing.h
+	\file
 	\brief Timing source management
 	\author Kevin P. Fleming <kpfleming@digium.com>
 	\author Russell Bryant <russell@digium.com>
