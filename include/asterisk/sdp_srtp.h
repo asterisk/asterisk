@@ -16,7 +16,8 @@
  * at the top of the source tree.
  */
 
-/*! \file sdp_srtp.h
+/*!
+ * \file
  *
  * \brief SRTP and SDP Security descriptions
  *

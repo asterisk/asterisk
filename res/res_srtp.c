@@ -18,7 +18,8 @@
  * Builds on libSRTP http://srtp.sourceforge.net
  */
 
-/*! \file res_srtp.c
+/*!
+ * \file
  *
  * \brief Secure RTP (SRTP)
  *

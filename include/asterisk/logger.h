@@ -17,10 +17,11 @@
  */
 
 /*!
-  \file logger.h
-  \brief Support for logging to various files, console and syslog
-	Configuration in file logger.conf
-*/
+ * \file
+ *
+ * \brief Support for logging to various files, console and syslog
+ *        Configuration in file logger.conf
+ */
 
 #ifndef _ASTERISK_LOGGER_H
 #define _ASTERISK_LOGGER_H

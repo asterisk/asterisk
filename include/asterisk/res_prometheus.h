@@ -20,7 +20,7 @@
 #define RES_PROMETHEUS_H__
 
 /*!
- * \file res_prometheus
+ * \file
  *
  * \brief Asterisk Prometheus Metrics
  *
