@@ -36,8 +36,9 @@ extern "C" {
 #define AST_SMOOTHER_FLAG_FORCED	(1 << 2)
 
 /*! \name AST_Smoother
-*/
-/*@{ */
+ *
+ * @{
+ */
 /*! \page ast_smooth The AST Frame Smoother
 The ast_smoother interface was designed specifically
 to take frames of variant sizes and produce frames of a single expected
@@ -81,7 +82,8 @@ struct ast_frame *ast_smoother_read(struct ast_smoother *s);
 #define ast_smoother_feed_be(s,f) __ast_smoother_feed(s, f, 0)
 #define ast_smoother_feed_le(s,f) __ast_smoother_feed(s, f, 1)
 #endif
-/*@} Doxygen marker */
+
+/*! @} */
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

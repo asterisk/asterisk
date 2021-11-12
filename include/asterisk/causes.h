@@ -92,8 +92,9 @@ For more information:
 /*! \name Causes for disconnection (from Q.850/Q.931)
  *  These are the internal cause codes used in Asterisk.
  *  \ref AstCauses
+ *
+ * @{
  */
-/*@{ */
 #define AST_CAUSE_UNALLOCATED                    1
 #define AST_CAUSE_NO_ROUTE_TRANSIT_NET           2
 #define AST_CAUSE_NO_ROUTE_DESTINATION           3
@@ -153,6 +154,7 @@ For more information:
 #define AST_CAUSE_UNREGISTERED  AST_CAUSE_SUBSCRIBER_ABSENT
 #define AST_CAUSE_NOTDEFINED    0
 #define AST_CAUSE_NOSUCHDRIVER  AST_CAUSE_CHAN_NOT_IMPLEMENTED
-/*@} */
+
+/*! @} */
 
 #endif /* _ASTERISK_CAUSES_H */
