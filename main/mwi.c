@@ -25,14 +25,16 @@
 #include "asterisk/mwi.h"
 #include "asterisk/stasis_channels.h"
 
-/*
- * @{ \brief Define \ref stasis topic objects
+/*!
+ * \brief Define \ref stasis topic objects
+ * @{
  */
 static struct stasis_topic *mwi_topic_all;
 static struct stasis_cache *mwi_state_cache;
 static struct stasis_caching_topic *mwi_topic_cached;
 static struct stasis_topic_pool *mwi_topic_pool;
-/* @} */
+
+/*! @} */
 
 /*! \brief Convert a MWI \ref stasis_message to a \ref ast_event */
 static struct ast_event *mwi_to_event(struct stasis_message *message)
@@ -66,13 +68,15 @@ static struct ast_event *mwi_to_event(struct stasis_message *message)
 	return event;
 }
 
-/*
- * @{ \brief Define \ref stasis message types for MWI
+/*!
+ * \brief Define \ref stasis message types for MWI
+ * @{
  */
 STASIS_MESSAGE_TYPE_DEFN(ast_mwi_state_type,
 	.to_event = mwi_to_event, );
 STASIS_MESSAGE_TYPE_DEFN(ast_mwi_vm_app_type);
-/* @} */
+
+/*! @} */
 
 static void mwi_state_dtor(void *obj)
 {

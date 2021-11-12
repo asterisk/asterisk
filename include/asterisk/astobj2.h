@@ -1281,8 +1281,9 @@ typedef int (ao2_sort_fn)(const void *obj_left, const void *obj_right, int flags
 
 /*! \name Object Containers
  * Here start declarations of containers.
+ *
+ * @{
  */
-/*@{ */
 struct ao2_container;
 
 #ifndef AST_IN_CORE
@@ -1551,15 +1552,16 @@ int ao2_container_register(const char *name, struct ao2_container *self, ao2_prn
  */
 void ao2_container_unregister(const char *name);
 
-/*@} */
+/*! @} */
 
 /*! \name Object Management
  * Here we have functions to manage objects.
  *
  * We can use the functions below on any kind of
  * object defined by the user.
+ *
+ * @{
  */
-/*@{ */
 
 /*!
  * \brief Add an object to a container.
@@ -1659,7 +1661,7 @@ int __ao2_link(struct ao2_container *c, void *obj_new, int flags,
 void *__ao2_unlink(struct ao2_container *c, void *obj, int flags,
 	const char *tag, const char *file, int line, const char *func);
 
-/*@} */
+/*! @} */
 
 
 /*! \brief

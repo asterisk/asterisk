@@ -109,8 +109,8 @@ int ast_publish_mwi_state_full(
  */
 int ast_delete_mwi_state_full(const char *mailbox, const char *context, struct ast_eid *eid);
 
-/*! \addtogroup StasisTopicsAndMessages
- * @{
+/*!
+ * \addtogroup StasisTopicsAndMessages
  */
 
 /*!

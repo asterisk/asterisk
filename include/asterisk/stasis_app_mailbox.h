@@ -31,8 +31,6 @@
 #include "asterisk/app.h"
 #include "asterisk/stasis_app.h"
 
-/*! @{ */
-
 /*! Stasis mailbox operation result codes */
 enum stasis_mailbox_result {
 	/*! Mailbox operation completed successfully */

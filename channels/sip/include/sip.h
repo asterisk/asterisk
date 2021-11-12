@@ -185,8 +185,9 @@
    These are default values in the source. There are other recommended values in the
    sip.conf.sample for new installations. These may differ to keep backwards compatibility,
    yet encouraging new behaviour on new installations
+
+   @{
  */
-/*@{*/
 #define DEFAULT_CONTEXT        "default"  /*!< The default context for [general] section as well as devices */
 #define DEFAULT_RECORD_FEATURE   "automon"  /*!< The default feature specified for use with INFO */
 #define DEFAULT_MOHINTERPRET   "default"  /*!< The default music class */
@@ -235,7 +236,8 @@
 #define DEFAULT_ENGINE     "asterisk"      /*!< Default RTP engine to use for sessions */
 #define DEFAULT_STORE_SIP_CAUSE FALSE      /*!< Don't store HASH(SIP_CAUSE,<channel name>) for channels by default */
 #endif
-/*@}*/
+
+/*! @} */
 
 /*! \name SIPflags
 	Various flags for the flags field in the pvt structure
@@ -245,8 +247,8 @@
 	G: Global flag
 	When flags are used by multiple structures, it is important that
 	they have a common layout so it is easy to copy them.
-*/
-/*@{*/
+   @{
+ */
 #define SIP_OUTGOING        (1 << 0) /*!< D: Direction of the last transaction in this dialog */
 #define SIP_OFFER_CC        (1 << 1) /*!< D: Offer CC on subsequent responses */
 #define SIP_RINGING         (1 << 2) /*!< D: Have sent 180 ringing */
@@ -307,11 +309,13 @@
 	(SIP_PROMISCREDIR | SIP_TRUSTRPID | SIP_SENDRPID | SIP_DTMF | SIP_REINVITE | \
 	 SIP_PROG_INBAND | SIP_USECLIENTCODE | SIP_NAT_FORCE_RPORT | SIP_G726_NONSTANDARD | \
 	 SIP_USEREQPHONE | SIP_INSECURE | SIP_USEPATH)
-/*@}*/
+
+/*! @} */
 
 /*! \name SIPflags2
-	a second page of flags (for flags[1] */
-/*@{*/
+	a second page of flags (for flags[1]
+   @{
+ */
 /* realtime flags */
 #define SIP_PAGE2_RTCACHEFRIENDS            (1 <<  0)   /*!< GP: Should we keep RT objects in memory for extended time? */
 #define SIP_PAGE2_RTAUTOCLEAR               (1 <<  1)   /*!< GP: Should we clean memory from peers after expiry? */
@@ -393,7 +397,7 @@
 
 #define CHECK_AUTH_BUF_INITLEN   256
 
-/*@}*/
+/*! @} */
 
 /*----------------------------------------------------------*/
 /*----                    ENUMS                         ----*/
@@ -731,8 +735,8 @@ struct __show_chan_arg {
 /*! \name GlobalSettings
 	Global settings apply to the channel (often settings you can change in the general section
 	of sip.conf
-*/
-/*@{*/
+   @{
+ */
 /*! \brief a place to store all global settings for the sip channel driver
 
 	These are settings that will be possibly to apply on a group level later on.
@@ -783,6 +787,8 @@ struct sip_settings {
 	int websocket_write_timeout; /*!< Socket write timeout for websocket transports, in ms */
 	int websocket_enabled;       /*!< Are websockets enabled? */
 };
+
+/*! @} */
 
 struct ast_websocket;
 
