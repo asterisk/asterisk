@@ -15,8 +15,8 @@
  * \brief
  *
  * Implementation of Inter-Asterisk eXchange, version 2
- * \ref iax2-parser.c
- * \ref iax2-parser.h
+ * \ref parser.c
+ * \ref parser.h
  * \ref chan_iax2.c
  */
 
