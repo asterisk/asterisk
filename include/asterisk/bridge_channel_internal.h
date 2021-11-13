@@ -30,8 +30,8 @@
  * by other members of the Bridging API.
  *
  * See Also:
+ * \arg \ref AstBridging
  * \arg \ref AstCREDITS
- * \arg \ref Ast
  */
 
 /*!
@@ -91,8 +91,6 @@ struct ast_bridge_channel *bridge_channel_internal_alloc(struct ast_bridge *brid
  * \param bridge_channel Channel that owes events to the original bridge.
  *
  * \note On entry, the orig_bridge is already locked.
- *
- * \return Nothing
  */
 void bridge_channel_settle_owed_events(struct ast_bridge *orig_bridge, struct ast_bridge_channel *bridge_channel);
 
@@ -102,8 +100,6 @@ void bridge_channel_settle_owed_events(struct ast_bridge *orig_bridge, struct as
  * \since 13.17.0
  *
  * \param bridge_channel Channel that the deferred frames should be pulled from and queued to.
- *
- * \return Nothing
  */
 void bridge_channel_queue_deferred_frames(struct ast_bridge_channel *bridge_channel);
 
@@ -156,18 +152,15 @@ int bridge_channel_internal_push_full(struct ast_bridge_channel *bridge_channel,
  * \param bridge_channel Channel to pull.
  *
  * \note On entry, bridge_channel->bridge is already locked.
- *
- * \return Nothing
  */
 void bridge_channel_internal_pull(struct ast_bridge_channel *bridge_channel);
 
 /*!
+ * \internal
  * \brief Signal imparting threads to wake up.
  * \since 13.9.0
  *
  * \param chan Channel imparted that we need to signal.
- *
- * \return Nothing
  */
 void bridge_channel_impart_signal(struct ast_channel *chan);
 
