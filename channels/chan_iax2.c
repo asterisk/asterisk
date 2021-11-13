@@ -23,9 +23,6 @@
  *
  * \author Mark Spencer <markster@digium.com>
  *
- * \par See also
- * \arg \ref Config_iax
- *
  * \ingroup channel_drivers
  *
  * \todo Implement musicclass settings for IAX2 devices
@@ -1164,9 +1161,9 @@ static struct ao2_container *iax_peercallno_pvts;
 static ast_mutex_t iaxsl[ARRAY_LEN(iaxs)];
 
 /*!
- *  * \brief Another container of iax2_pvt structures
+ * \brief Another container of iax2_pvt structures
  *
- *  Active IAX2 pvt structs used during transfering a call are stored here.
+ * Active IAX2 pvt structs used during transfering a call are stored here.
  */
 static struct ao2_container *iax_transfercallno_pvts;
 
@@ -1330,8 +1327,6 @@ static struct ast_channel_tech iax2_tech = {
  * valid after calling it.  This function may unlock and lock
  * the mutex associated with this callno, meaning that another
  * thread may grab it and destroy the call.
- *
- * \return Nothing
  */
 static void iax2_lock_owner(int callno)
 {
@@ -1691,10 +1686,11 @@ static int iax2_sched_add(struct ast_sched_context *con, int when,
 	return ast_sched_add(con, when, callback, data);
 }
 
-/*
+/*!
  * \brief Acquire the iaxsl[callno] if call exists and not having ongoing hangup.
  * \param callno Call number to lock.
- * \return 0 If call disappeared or has ongoing hangup procedure. 1 If call found and mutex is locked.
+ * \retval 0 If call disappeared or has ongoing hangup procedure.
+ * \retval 1 If call found and mutex is locked.
  */
 static int iax2_lock_callno_unless_destroyed(int callno)
 {
@@ -5019,7 +5015,6 @@ reject:
  * \brief Parses an IAX dial string into its component parts.
  * \param data the string to be parsed
  * \param pds pointer to a \c struct \c parsed_dial_string to be filled in
- * \return nothing
  *
  * This function parses the string and fills the structure
  * with pointers to its component parts. The input string
@@ -5031,7 +5026,7 @@ reject:
  * password field will be set to NULL.
  *
  * \note The dial string format is:
- *       [username[:password]@]peer[:port][/exten[@context]][/options]
+ * \verbatim [username[:password]@]peer[:port][/exten[@context]][/options] \endverbatim
  */
 static void parse_dial_string(char *data, struct parsed_dial_string *pds)
 {
@@ -12725,7 +12720,9 @@ static int get_auth_methods(const char *value)
 
 
 /*! \brief Check if address can be used as packet source.
- \return 0  address available, 1  address unavailable, -1  error
+ \retval  0 address available
+ \retval  1 address unavailable
+ \retval -1 error
 */
 static int check_srcaddr(struct ast_sockaddr *addr)
 {
