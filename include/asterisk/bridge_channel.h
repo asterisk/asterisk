@@ -33,9 +33,9 @@
  * In general, anywhere else it is unsafe to use this API. Care should be
  * taken when using this API to ensure that the locking order remains
  * correct. The locking order must be:
- *  \arg The \ref \c ast_bridge
- *  \arg The \ref \c ast_bridge_channel
- *  \arg The \ref \c ast_channel
+ *  \arg The \ref ast_bridge "\c ast_bridge"
+ *  \arg The \ref ast_bridge_channel "\c ast_bridge_channel"
+ *  \arg The \ref ast_channel "\c ast_channel"
  *
  * \author Joshua Colp <jcolp@digium.com>
  * \author Richard Mudgett <rmudgett@digium.com>
@@ -225,8 +225,6 @@ static inline int _ast_bridge_channel_trylock(struct ast_bridge_channel *bridge_
  * \brief Lock the bridge_channel.
  *
  * \param bridge_channel What to lock
- *
- * \return Nothing
  */
 #define ast_bridge_channel_lock(bridge_channel)	_ast_bridge_channel_lock(bridge_channel, __FILE__, __PRETTY_FUNCTION__, __LINE__, #bridge_channel)
 static inline void _ast_bridge_channel_lock(struct ast_bridge_channel *bridge_channel, const char *file, const char *function, int line, const char *var)
@@ -238,8 +236,6 @@ static inline void _ast_bridge_channel_lock(struct ast_bridge_channel *bridge_ch
  * \brief Unlock the bridge_channel.
  *
  * \param bridge_channel What to unlock
- *
- * \return Nothing
  */
 #define ast_bridge_channel_unlock(bridge_channel)	_ast_bridge_channel_unlock(bridge_channel, __FILE__, __PRETTY_FUNCTION__, __LINE__, #bridge_channel)
 static inline void _ast_bridge_channel_unlock(struct ast_bridge_channel *bridge_channel, const char *file, const char *function, int line, const char *var)
@@ -261,8 +257,6 @@ static inline void _ast_bridge_channel_unlock(struct ast_bridge_channel *bridge_
  *
  * \note The bridge_channel->bridge pointer changes because of a
  * bridge-merge/channel-move operation between bridges.
- *
- * \return Nothing
  */
 void ast_bridge_channel_lock_bridge(struct ast_bridge_channel *bridge_channel);
 
@@ -472,8 +466,6 @@ int ast_bridge_channel_write_unhold(struct ast_bridge_channel *bridge_channel);
  *     Empty if default MOH class.
  *
  * \note This is intended to be called by bridge hooks.
- *
- * \return Nothing
  */
 void ast_bridge_channel_run_app(struct ast_bridge_channel *bridge_channel, const char *app_name, const char *app_args, const char *moh_class);
 
@@ -518,8 +510,6 @@ int ast_bridge_channel_queue_app(struct ast_bridge_channel *bridge_channel, cons
  *
  * \param bridge_channel Which channel to play the file on
  * \param playfile Sound filename to play.
- *
- * \return Nothing
  */
 typedef void (*ast_bridge_custom_play_fn)(struct ast_bridge_channel *bridge_channel, const char *playfile);
 
@@ -535,8 +525,6 @@ typedef void (*ast_bridge_custom_play_fn)(struct ast_bridge_channel *bridge_chan
  *     Empty if default MOH class.
  *
  * \note This is intended to be called by bridge hooks.
- *
- * \return Nothing
  */
 void ast_bridge_channel_playfile(struct ast_bridge_channel *bridge_channel, ast_bridge_custom_play_fn custom_play, const char *playfile, const char *moh_class);
 
@@ -606,8 +594,6 @@ int ast_bridge_channel_queue_playfile_sync(struct ast_bridge_channel *bridge_cha
  * \param payload_size Size of the payload if payload is non-NULL.  A number otherwise.
  *
  * \note The payload MUST NOT have any resources that need to be freed.
- *
- * \return Nothing
  */
 typedef void (*ast_bridge_custom_callback_fn)(struct ast_bridge_channel *bridge_channel, const void *payload, size_t payload_size);
 
@@ -685,8 +671,6 @@ int ast_bridge_channel_write_park(struct ast_bridge_channel *bridge_channel, con
  *
  * \note This is intended to be called by bridge hooks and the
  * bridge channel thread.
- *
- * \return Nothing
  */
 void ast_bridge_channel_kick(struct ast_bridge_channel *bridge_channel, int cause);
 
@@ -710,7 +694,6 @@ void ast_bridge_channel_feature_digit_add(struct ast_bridge_channel *bridge_chan
  *
  * \param bridge_channel Channel that received a DTMF digit.
  * \param digit DTMF digit to add to collected digits or 0 for timeout event.
- * \param clear_digits clear the digits array prior to calling hooks
  *
  * \note Neither the bridge nor the bridge_channel locks should be held
  * when entering this function.
@@ -721,8 +704,6 @@ void ast_bridge_channel_feature_digit_add(struct ast_bridge_channel *bridge_chan
  * \note This is intended to be called by non-DTMF bridge hooks and the bridge
  * channel thread.  Calling from a DTMF bridge hook can potentially cause
  * unbounded recursion.
- *
- * \return Nothing
  */
 void ast_bridge_channel_feature_digit(struct ast_bridge_channel *bridge_channel, int digit);
 
@@ -747,8 +728,6 @@ void ast_bridge_channel_feature_digit(struct ast_bridge_channel *bridge_channel,
  * \param bridge_channel Channel to map
  *
  * \note The bridge_channel's bridge must be locked prior to calling this function.
- *
- * \return Nothing
  */
 void ast_bridge_channel_stream_map(struct ast_bridge_channel *bridge_channel);
 

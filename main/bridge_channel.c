@@ -113,7 +113,7 @@ struct bridge_sync {
 static AST_RWLIST_HEAD_STATIC(sync_structs, bridge_sync);
 
 /*!
- * \brief initialize a synchronous bridge object.
+ * \brief Initialize a synchronous bridge object.
  *
  * This both initializes the structure and adds it to the list of
  * synchronization structures.
@@ -414,8 +414,6 @@ void ast_bridge_channel_update_linkedids(struct ast_bridge_channel *bridge_chann
  * \param src Channel to get accountcode from.
  *
  * \note Both channels are already locked.
- *
- * \return Nothing
  */
 static void channel_fill_empty_peeraccount(struct ast_channel *dest, struct ast_channel *src)
 {
@@ -437,8 +435,6 @@ static void channel_fill_empty_peeraccount(struct ast_channel *dest, struct ast_
  * \param src Channel to get peeraccount from.
  *
  * \note Both channels are already locked.
- *
- * \return Nothing
  */
 static void channel_fill_empty_accountcode(struct ast_channel *dest, struct ast_channel *src)
 {
@@ -460,8 +456,6 @@ static void channel_fill_empty_accountcode(struct ast_channel *dest, struct ast_
  * \param c1 Second bridge channel to update.
  *
  * \note Both channels are already locked.
- *
- * \return Nothing
  */
 static void channel_set_empty_accountcodes(struct ast_channel *c0, struct ast_channel *c1)
 {
@@ -483,8 +477,6 @@ static void channel_set_empty_accountcodes(struct ast_channel *c0, struct ast_ch
  * \param src Channel to get accountcode from.
  *
  * \note Both channels are already locked.
- *
- * \return Nothing
  */
 static void channel_update_peeraccount(struct ast_channel *dest, struct ast_channel *src)
 {
@@ -505,8 +497,6 @@ static void channel_update_peeraccount(struct ast_channel *dest, struct ast_chan
  * \param c1 Second channel to update.
  *
  * \note Both channels are already locked.
- *
- * \return Nothing
  */
 static void channel_update_peeraccounts(struct ast_channel *c0, struct ast_channel *c1)
 {
@@ -523,8 +513,6 @@ static void channel_update_peeraccounts(struct ast_channel *c0, struct ast_chann
  * \param swap Channel being replaced by the joining channel.  May be NULL.
  *
  * \note The bridge must be locked prior to calling this function.
- *
- * \return Nothing
  */
 static void bridge_channel_update_accountcodes_joining(struct ast_bridge_channel *joining, struct ast_bridge_channel *swap)
 {
@@ -570,8 +558,6 @@ static void bridge_channel_update_accountcodes_joining(struct ast_bridge_channel
  * \param leaving Channel leaving the bridge. (Has already been removed actually)
  *
  * \note The bridge must be locked prior to calling this function.
- *
- * \return Nothing
  */
 static void bridge_channel_update_accountcodes_leaving(struct ast_bridge_channel *leaving)
 {
@@ -780,8 +766,6 @@ static int bridge_channel_write_frame(struct ast_bridge_channel *bridge_channel,
  * \param bridge_channel Channel that owes events to the bridge.
  *
  * \note On entry, the bridge_channel->bridge is already locked.
- *
- * \return Nothing
  */
 static void bridge_channel_cancel_owed_events(struct ast_bridge_channel *bridge_channel)
 {
@@ -848,8 +832,6 @@ void bridge_channel_queue_deferred_frames(struct ast_bridge_channel *bridge_chan
  * \param bridge_channel Channel to suspend.
  *
  * \note This function assumes bridge_channel->bridge is locked.
- *
- * \return Nothing
  */
 void bridge_channel_internal_suspend_nolock(struct ast_bridge_channel *bridge_channel)
 {
@@ -869,8 +851,6 @@ void bridge_channel_internal_suspend_nolock(struct ast_bridge_channel *bridge_ch
  * \brief Suspend a channel from a bridge.
  *
  * \param bridge_channel Channel to suspend.
- *
- * \return Nothing
  */
 static void bridge_channel_suspend(struct ast_bridge_channel *bridge_channel)
 {
@@ -886,8 +866,6 @@ static void bridge_channel_suspend(struct ast_bridge_channel *bridge_channel)
  * \param bridge_channel Channel to unsuspend.
  *
  * \note This function assumes bridge_channel->bridge is locked.
- *
- * \return Nothing
  */
 void bridge_channel_internal_unsuspend_nolock(struct ast_bridge_channel *bridge_channel)
 {
@@ -912,8 +890,6 @@ void bridge_channel_internal_unsuspend_nolock(struct ast_bridge_channel *bridge_
  * \brief Unsuspend a channel from a bridge.
  *
  * \param bridge_channel Channel to unsuspend.
- *
- * \return Nothing
  */
 static void bridge_channel_unsuspend(struct ast_bridge_channel *bridge_channel)
 {
@@ -1268,8 +1244,6 @@ struct bridge_run_app {
  *
  * \param bridge_channel Which channel to run the application on.
  * \param data Action frame data to run the application.
- *
- * \return Nothing
  */
 static void bridge_channel_run_app(struct ast_bridge_channel *bridge_channel, struct bridge_run_app *data)
 {
@@ -1362,8 +1336,6 @@ struct bridge_playfile {
  *
  * \param bridge_channel Which channel to play a file on.
  * \param payload Action frame payload to play a file.
- *
- * \return Nothing
  */
 static void bridge_channel_playfile(struct ast_bridge_channel *bridge_channel, struct bridge_playfile *payload)
 {
@@ -1434,8 +1406,6 @@ struct bridge_custom_callback {
  *
  * \param bridge_channel Which channel to call the callback on.
  * \param data Action frame data to call the callback.
- *
- * \return Nothing
  */
 static void bridge_channel_do_callback(struct ast_bridge_channel *bridge_channel, struct bridge_custom_callback *data)
 {
@@ -1564,8 +1534,6 @@ int ast_bridge_channel_write_park(struct ast_bridge_channel *bridge_channel, con
  * \since 12.0.0
  *
  * \param bridge_channel Channel to run expired intervals on.
- *
- * \return Nothing
  */
 static void bridge_channel_handle_interval(struct ast_bridge_channel *bridge_channel)
 {
@@ -1877,8 +1845,6 @@ void ast_bridge_channel_feature_digit(struct ast_bridge_channel *bridge_channel,
  * \since 12.8.0
  *
  * \param bridge_channel Channel to check expired interdigit timer on.
- *
- * \return Nothing
  */
 static void bridge_channel_handle_feature_timeout(struct ast_bridge_channel *bridge_channel)
 {
@@ -1922,7 +1888,10 @@ static void bridge_channel_talking(struct ast_bridge_channel *bridge_channel, in
 	ao2_iterator_destroy(&iter);
 }
 
-/*! \brief Internal function that plays back DTMF on a bridge channel */
+/*!
+ * \internal
+ * \brief Play back DTMF on a bridge channel
+ */
 static void bridge_channel_dtmf_stream(struct ast_bridge_channel *bridge_channel, const char *dtmf)
 {
 	ast_debug(1, "Playing DTMF stream '%s' out to %p(%s)\n",
@@ -2061,8 +2030,6 @@ static void bridge_channel_attended_transfer(struct ast_bridge_channel *bridge_c
  * \param bridge_channel Channel to execute the action on.
  * \param action What to do.
  * \param data data from the action.
- *
- * \return Nothing
  */
 static void bridge_channel_handle_action(struct ast_bridge_channel *bridge_channel,
 	enum bridge_channel_action_type action, void *data)
@@ -2130,8 +2097,6 @@ static void bridge_channel_handle_action(struct ast_bridge_channel *bridge_chann
  * \param bridge_channel Channel causing the check.
  *
  * \note On entry, bridge_channel->bridge is already locked.
- *
- * \return Nothing
  */
 static void bridge_channel_dissolve_check(struct ast_bridge_channel *bridge_channel)
 {
@@ -2324,8 +2289,6 @@ int bridge_channel_internal_push(struct ast_bridge_channel *bridge_channel)
  *
  * \param bridge_channel Channel to execute the control frame action on.
  * \param fr Control frame to handle.
- *
- * \return Nothing
  */
 static void bridge_channel_handle_control(struct ast_bridge_channel *bridge_channel, struct ast_frame *fr)
 {
@@ -2403,8 +2366,6 @@ static void bridge_channel_handle_control(struct ast_bridge_channel *bridge_chan
  *
  * \param chan Channel to send text to
  * \param f The frame containing the text data to send
- *
- * \return Nothing
  */
 static void sendtext_safe(struct ast_channel *chan, const struct ast_frame *f)
 {
@@ -2438,8 +2399,6 @@ static void sendtext_safe(struct ast_channel *chan, const struct ast_frame *f)
  * \since 12.0.0
  *
  * \param bridge_channel Channel to write outgoing frame.
- *
- * \return Nothing
  */
 static void bridge_channel_handle_write(struct ast_bridge_channel *bridge_channel)
 {
@@ -2544,7 +2503,10 @@ static void bridge_channel_handle_write(struct ast_bridge_channel *bridge_channe
 	bridge_frame_free(fr);
 }
 
-/*! \brief Internal function to handle DTMF from a channel */
+/*!
+ * \internal
+ * \brief Handle DTMF from a channel
+ */
 static struct ast_frame *bridge_handle_dtmf(struct ast_bridge_channel *bridge_channel, struct ast_frame *frame)
 {
 	struct ast_bridge_features *features = bridge_channel->features;
@@ -2802,8 +2764,6 @@ static int bridge_channel_next_timeout(struct ast_bridge_channel *bridge_channel
  * \param bridge_channel Channel to wait.
  *
  * \note Each channel does writing/reading in their own thread.
- *
- * \return Nothing
  */
 static void bridge_channel_wait(struct ast_bridge_channel *bridge_channel)
 {
@@ -2866,8 +2826,6 @@ static void bridge_channel_wait(struct ast_bridge_channel *bridge_channel)
  *
  * \param bridge_channel Which channel is involved.
  * \param type Specified join/leave event.
- *
- * \return Nothing
  */
 static void bridge_channel_event_join_leave(struct ast_bridge_channel *bridge_channel, enum ast_bridge_hook_type type)
 {
