@@ -1167,8 +1167,6 @@ static void publish_dial_end_event(struct ast_channel *in, struct dial_head *out
  * \param chan Channel to get connected line updated.
  * \param peer Channel providing connected line information.
  * \param is_caller Non-zero if chan is the calling channel.
- *
- * \return Nothing
  */
 static void update_connected_line_from_peer(struct ast_channel *chan, struct ast_channel *peer, int is_caller)
 {
@@ -2191,8 +2189,6 @@ static int dial_handle_playtones(struct ast_channel *chan, const char *data)
  * \param peer Peer channel for bridge.
  * \param opts Dialing option flags.
  * \param opt_args Dialing option argument strings.
- *
- * \return Nothing
  */
 static void setup_peer_after_bridge_goto(struct ast_channel *chan, struct ast_channel *peer, struct ast_flags64 *opts, char *opt_args[])
 {
