@@ -391,17 +391,6 @@ static void wait_wrapper_removal(struct wait_bridge_wrapper *wrapper)
 	ao2_cleanup(wrapper);
 }
 
-/*!
- * \internal
- * \since 12.0.0
- * \brief Application callback for the bridgewait application
- *
- * \param chan channel running the application
- * \param data Arguments to the application
- *
- * \retval 0 Ran successfully and the call didn't hang up
- * \retval -1 Failed or the call was hung up by the time the channel exited the holding bridge
- */
 static enum wait_bridge_roles validate_role(const char *role)
 {
 	if (!strcmp(role, "participant")) {
@@ -413,6 +402,17 @@ static enum wait_bridge_roles validate_role(const char *role)
 	}
 }
 
+/*!
+ * \internal
+ * \since 12.0.0
+ * \brief Application callback for the bridgewait application
+ *
+ * \param chan channel running the application
+ * \param data Arguments to the application
+ *
+ * \retval 0 Ran successfully and the call didn't hang up
+ * \retval -1 Failed or the call was hung up by the time the channel exited the holding bridge
+ */
 static int bridgewait_exec(struct ast_channel *chan, const char *data)
 {
 	char *bridge_name = DEFAULT_BRIDGE_NAME;

@@ -26,7 +26,7 @@
  *         (http://www.washington.edu/imap/)
  *
  * \par See also
- * \arg \ref Config_vm
+ * \arg \ref voicemail.conf "Config_voicemail"
  * \note For information about voicemail IMAP storage, https://wiki.asterisk.org/wiki/display/AST/IMAP+Voicemail+Storage
  * \ingroup applications
  * \todo This module requires res_adsi to load. This needs to be optional
@@ -1091,7 +1091,7 @@ static int vm_test_create_user(const char *context, const char *mailbox);
  * \brief Parse the given mailbox_id into mailbox and context.
  * \since 12.0.0
  *
- * \param mailbox_id The mailbox@context string to separate.
+ * \param mailbox_id The mailbox\@context string to separate.
  * \param mailbox Where the mailbox part will start.
  * \param context Where the context part will start.  ("default" if not present)
  *
@@ -2850,9 +2850,9 @@ static int inboxcount2(const char *mailbox_context, int *urgentmsgs, int *newmsg
 	return 0;
 }
 
-/**
+/*!
  * \brief Determines if the given folder has messages.
- * \param mailbox The @ delimited string for user@context. If no context is found, uses 'default' for the context.
+ * \param mailbox The \@ delimited string for user\@context. If no context is found, uses 'default' for the context.
  * \param folder the folder to look in
  *
  * This function is used when the mailbox is stored in an IMAP back end.
@@ -5947,9 +5947,9 @@ bail:
 	return nummsgs;
 }
 
-/**
+/*!
  * \brief Determines if the given folder has messages.
- * \param mailbox The @ delimited string for user@context. If no context is found, uses 'default' for the context.
+ * \param mailbox The \@ delimited string for user\@context. If no context is found, uses 'default' for the context.
  *
  * This function is used when the mailbox is stored in an ODBC back end.
  * This invokes the messagecount(). Here we are interested in the presence of messages (> 0) only, not the actual count.
@@ -6119,7 +6119,7 @@ static int __has_voicemail(const char *context, const char *mailbox, const char 
 	return ret;
 }
 
-/**
+/*!
  * \brief Determines if the given folder has messages.
  * \param mailbox The \@ delimited string for user\@context. If no context is found, uses 'default' for the context.
  * \param folder the folder to look in
@@ -6152,7 +6152,7 @@ static int has_voicemail(const char *mailbox, const char *folder)
 
 /*!
  * \brief Check the given mailbox's message count.
- * \param mailbox The @ delimited string for user@context. If no context is found, uses 'default' for the context.
+ * \param mailbox The \@ delimited string for user\@context. If no context is found, uses 'default' for the context.
  * \param urgentmsgs  urgent message count.
  * \param newmsgs new message count.
  * \param oldmsgs old message count pointer

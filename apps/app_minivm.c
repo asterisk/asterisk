@@ -26,7 +26,7 @@
  * based on the Comedian Mail voicemail system (app_voicemail.c).
  *
  * \par See also
- * \arg \ref Config_minivm_examples
+ * \arg \ref minivm.conf "Config_minivm"
  * \arg \ref App_minivm
  *
  * \ingroup applications
@@ -78,16 +78,16 @@
  *		- English, GB		en_gb
  *
  * \par See also
- * \arg \ref Config_minivm
+ * \arg \ref minivm.conf "Config_minivm"
  * \arg \ref Config_minivm_examples
  * \arg \ref Minivm_directories
  * \arg \ref app_minivm.c
  * \arg Comedian mail: app_voicemail.c
- * \arg \ref descrip_minivm_accmess
- * \arg \ref descrip_minivm_greet
- * \arg \ref descrip_minivm_record
- * \arg \ref descrip_minivm_delete
- * \arg \ref descrip_minivm_notify
+ * \arg \ref minivm_accmess_exec
+ * \arg \ref minivm_greet_exec
+ * \arg \ref minivm_record_exec
+ * \arg \ref minivm_delete_exec
+ * \arg \ref minivm_notify_exec
  *
  * \arg \ref App_minivm_todo
  */
@@ -109,6 +109,13 @@
  *	To avoid transcoding, these sound files should be converted into several formats
  *	They are recorded in the format closest to the incoming streams
  *
+ *
+ * Back: \ref App_minivm
+ */
+
+/*!
+ * \page minivm.conf minivm.conf
+ * \verbinclude minivm.conf.sample
  *
  * Back: \ref App_minivm
  */

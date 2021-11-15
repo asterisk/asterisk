@@ -174,8 +174,6 @@ struct page_options {
  *
  * \param chan Setup bridge profile on this channel.
  * \param options Options to setup bridge profile.
- *
- * \return Nothing
  */
 static void setup_profile_bridge(struct ast_channel *chan, struct page_options *options)
 {
@@ -192,8 +190,6 @@ static void setup_profile_bridge(struct ast_channel *chan, struct page_options *
  *
  * \param chan Setup user profile on this channel.
  * \param options Options to setup paged user profile.
- *
- * \return Nothing
  */
 static void setup_profile_paged(struct ast_channel *chan, struct page_options *options)
 {
@@ -216,8 +212,6 @@ static void setup_profile_paged(struct ast_channel *chan, struct page_options *o
  *
  * \param chan Setup user profile on this channel.
  * \param options Options to setup caller user profile.
- *
- * \return Nothing
  */
 static void setup_profile_caller(struct ast_channel *chan, struct page_options *options)
 {
