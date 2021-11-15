@@ -24,8 +24,14 @@
  *
  * See Also:
  * \arg \ref AstCREDITS
- * \arg \ref Config_agent
+ * \arg \ref agents.conf "Config_agent"
  */
+
+/*!
+ * \page agents.conf agents.conf
+ * \verbinclude agents.conf.sample
+ */
+
 /*** MODULEINFO
 	<support_level>core</support_level>
  ***/
@@ -646,8 +652,6 @@ static struct ao2_container *agents;
  * \brief Lock the agent.
  *
  * \param agent Agent to lock
- *
- * \return Nothing
  */
 #define agent_lock(agent)	_agent_lock(agent, __FILE__, __PRETTY_FUNCTION__, __LINE__, #agent)
 static inline void _agent_lock(struct agent_pvt *agent, const char *file, const char *function, int line, const char *var)
@@ -659,8 +663,6 @@ static inline void _agent_lock(struct agent_pvt *agent, const char *file, const 
  * \brief Unlock the agent.
  *
  * \param agent Agent to unlock
- *
- * \return Nothing
  */
 #define agent_unlock(agent)	_agent_unlock(agent, __FILE__, __PRETTY_FUNCTION__, __LINE__, #agent)
 static inline void _agent_unlock(struct agent_pvt *agent, const char *file, const char *function, int line, const char *var)
@@ -678,8 +680,6 @@ static inline void _agent_unlock(struct agent_pvt *agent, const char *file, cons
  * \note Assumes the agent lock is already obtained.
  *
  * \note Defined locking order is channel lock then agent lock.
- *
- * \return Nothing
  */
 static struct ast_channel *agent_lock_logged(struct agent_pvt *agent)
 {
@@ -744,8 +744,6 @@ static enum ast_device_state agent_pvt_devstate_get(const char *agent_id)
  * \since 12.0.0
  *
  * \param agent_id Which agent needs the device state updated.
- *
- * \return Nothing
  */
 static void agent_devstate_changed(const char *agent_id)
 {
@@ -1005,8 +1003,6 @@ AST_MUTEX_DEFINE_STATIC(agent_holding_lock);
  * \param payload_size Size of the payload if payload is non-NULL.  A number otherwise.
  *
  * \note The payload MUST NOT have any resources that need to be freed.
- *
- * \return Nothing
  */
 static void clear_agent_status(struct ast_bridge_channel *bridge_channel, const void *payload, size_t payload_size)
 {
@@ -1022,8 +1018,6 @@ static void clear_agent_status(struct ast_bridge_channel *bridge_channel, const 
  * \param agent Which agent is connecting to the caller.
  *
  * \note The agent is locked on entry and not locked on exit.
- *
- * \return Nothing
  */
 static void agent_connect_caller(struct ast_bridge_channel *bridge_channel, struct agent_pvt *agent)
 {
@@ -1357,8 +1351,6 @@ static int bridge_agent_hold_push(struct ast_bridge *self, struct ast_bridge_cha
  * bridge_channel->bridge_pvt.
  *
  * \note On entry, self is already locked.
- *
- * \return Nothing
  */
 static void bridge_agent_hold_pull(struct ast_bridge *self, struct ast_bridge_channel *bridge_channel)
 {
@@ -1376,8 +1368,6 @@ static void bridge_agent_hold_pull(struct ast_bridge *self, struct ast_bridge_ch
  * references to the bridge so it can be destroyed.
  *
  * \note On entry, self must NOT be locked.
- *
- * \return Nothing
  */
 static void bridge_agent_hold_dissolving(struct ast_bridge *self)
 {
@@ -1469,8 +1459,6 @@ static void send_agent_logoff(struct ast_channel *chan, const char *agent, long 
  * \param agent Which agent logging out.
  *
  * \note On entry agent is already locked.  On exit it is no longer locked.
- *
- * \return Nothing
  */
 static void agent_logout(struct agent_pvt *agent)
 {
@@ -1508,8 +1496,6 @@ static void agent_logout(struct agent_pvt *agent)
  *
  * \param agent Which agent.
  * \param logged The logged in channel.
- *
- * \return Nothing
  */
 static void agent_run(struct agent_pvt *agent, struct ast_channel *logged)
 {
@@ -2028,8 +2014,6 @@ static int agent_request_exec(struct ast_channel *chan, const char *data)
  *
  * \param agent What to setup channel config values on.
  * \param chan Channel logging in as an agent.
- *
- * \return Nothing
  */
 static void agent_login_channel_config(struct agent_pvt *agent, struct ast_channel *chan)
 {

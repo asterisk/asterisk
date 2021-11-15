@@ -559,7 +559,7 @@ static int pack_channel_into_message(struct ast_channel *chan, const char *role,
  * \brief Publish the chanspy message over Stasis-Core
  * \param spyer The channel doing the spying
  * \param spyee Who is being spied upon
- * \start start If non-zero, the spying is starting. Otherwise, the spyer is
+ * \param start If non-zero, the spying is starting. Otherwise, the spyer is
  * finishing
  */
 static void publish_chanspy_message(struct ast_channel *spyer,
