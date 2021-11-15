@@ -2156,10 +2156,12 @@ static inline const char *at_msg2str(at_message_t msg)
  * \param buf the buffer to parse (null terminated)
  * \return -1 on error (parse error) or a ECAM value on success
  *
- * Example string: *ECAV: <ccid>,<ccstatus>,<calltype>[,<processid>]
- * [,exitcause][,<number>,<type>]
+ * Example:
+ * \verbatim *ECAV: <ccid>,<ccstatus>,<calltype>[,<processid>]
+                    [,exitcause][,<number>,<type>] \endverbatim
  *
- * Example indicating busy: *ECAV: 1,7,1
+ * Example indicating busy:
+ * \verbatim *ECAV: 1,7,1 \endverbatim
  */
 static int hfp_parse_ecav(struct hfp_pvt *hfp, char *buf)
 {
