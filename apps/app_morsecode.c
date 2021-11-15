@@ -197,14 +197,12 @@ static int morsecode_exec(struct ast_channel *chan, const char *data)
 	}
 
 	/* Use variable MORSETONE, if set (else 800) */
-	ast_channel_lock(chan);
 	tonec = pbx_builtin_getvar_helper(chan, "MORSETONE");
 	if (ast_strlen_zero(tonec) || (sscanf(tonec, "%30d", &tone) != 1)) {
 		tone = 800;
 	}
 
 	/* Use variable MORSESPACETONE, if set (else 0) */
-
 	toneb = pbx_builtin_getvar_helper(chan, "MORSESPACETONE");
 	if (ast_strlen_zero(toneb) || (sscanf(toneb, "%30d", &toneoff) != 1)) {
 		toneoff = 0;
@@ -216,8 +214,8 @@ static int morsecode_exec(struct ast_channel *chan, const char *data)
 		codetype = "INTERNATIONAL";
 	}
 
+	ast_channel_unlock(chan);
 	if (!strcmp(codetype, "AMERICAN")) {
-		ast_channel_unlock(chan);
 		for (digit = data; *digit; digit++) {
 			const char *dahdit;
 			digit2 = *digit;
@@ -252,7 +250,6 @@ static int morsecode_exec(struct ast_channel *chan, const char *data)
 				break;
 		}
 	} else { /* International */
-		ast_channel_unlock(chan);
 		for (digit = data; *digit; digit++) {
 			const char *dahdit;
 			digit2 = *digit;
