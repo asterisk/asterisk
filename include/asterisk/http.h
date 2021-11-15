@@ -352,4 +352,51 @@ int ast_http_header_match(const char *name, const char *expected_name,
 int ast_http_header_match_in(const char *name, const char *expected_name,
 			     const char *value, const char *expected_value);
 
+#ifdef TEST_FRAMEWORK
+
+/*!
+ * Currently multiple HTTP servers are only allowed when the TEST_FRAMEWORK
+ * is enabled, so putting this here:
+ *
+ * If a server is listening on 'any' (i.e. 0.0.0.0), and another server attempts
+ * to listen on 'localhost' on the same port (and vice versa) then you'll get an
+ * "Address already in use" error. For now use a different port, or match the
+ * addresses exactly.
+ */
+
+struct ast_http_server;
+
+/*!
+ * \brief Retrieve a HTTP server listening at the given host
+ *
+ * A given host can include the port, e.g. <host>[:<port>]. If no port is specified
+ * then the port defaults to '8088'. If a host parameter is NULL, or empty and a
+ * configured server is already listening then that server is returned. If no
+ * server is and enabled then the host defaults to 'localhost:8088'.
+ *
+ * \note When finished with a successfully returned server object
+ *       ast_http_test_server_discard MUST be called on the object
+ *       in order for proper 'cleanup' to occur.
+ *
+ * \param name Optional name for the server (default 'http test server')
+ * \param host Optional host, or address with port to bind to (default 'localhost:8088')
+ *
+ * \return a HTTP server object, or NULL on error
+ */
+struct ast_http_server *ast_http_test_server_get(const char *name, const char *host);
+
+/*!
+ * \brief Discard, or drop a HTTP server
+ *
+ * This function MUST eventually be called for every successful call to
+ * ast_http_test_server_get.
+ *
+ * \note NULL tolerant
+ *
+ * \param server The HTTP server to discard
+ */
+void ast_http_test_server_discard(struct ast_http_server *server);
+
+#endif
+
 #endif /* _ASTERISK_SRV_H */
