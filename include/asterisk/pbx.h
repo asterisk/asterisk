@@ -1272,6 +1272,22 @@ const char *ast_get_extension_cidmatch(struct ast_exten *e);
 const char *ast_get_extension_app(struct ast_exten *e);
 const char *ast_get_extension_label(struct ast_exten *e);
 void *ast_get_extension_app_data(struct ast_exten *e);
+
+/*!
+ * \brief Fill a string buffer with the data at a dialplan extension
+ *
+ * \param buf String buffer
+ * \param bufsize Size of buf
+ * \param c Channel
+ * \param context Dialplan context
+ * \param exten Dialplan extension
+ * \param priority Dialplan priority
+ *
+ * \retval -1 Failed to obtain extension data
+ * \retval 0 Successfully obtained extension data
+ */
+int ast_get_extension_data(char *buf, int bufsize, struct ast_channel *c,
+	const char *context, const char *exten, int priority);
 /*! @} */
 
 /*! @name Registrar info functions ... */
@@ -1395,6 +1411,11 @@ int pbx_builtin_raise_exception(struct ast_channel *chan, const char *data);
 void pbx_substitute_variables_helper(struct ast_channel *c, const char *cp1, char *cp2, int count);
 void pbx_substitute_variables_varshead(struct varshead *headp, const char *cp1, char *cp2, int count);
 void pbx_substitute_variables_helper_full(struct ast_channel *c, struct varshead *headp, const char *cp1, char *cp2, int cp2_size, size_t *used);
+
+/*!
+ * \brief Substitutes variables, similar to pbx_substitute_variables_helper_full, but allows passing the context, extension, and priority in.
+ */
+void pbx_substitute_variables_helper_full_location(struct ast_channel *c, struct varshead *headp, const char *cp1, char *cp2, int cp2_size, size_t *used, char *context, char *exten, int pri);
 /*! @} */
 
 /*! @name Substitution routines, using dynamic string buffers
