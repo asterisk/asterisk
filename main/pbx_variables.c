@@ -625,6 +625,11 @@ void ast_str_substitute_variables_varshead(struct ast_str **buf, ssize_t maxlen,
 
 void pbx_substitute_variables_helper_full(struct ast_channel *c, struct varshead *headp, const char *cp1, char *cp2, int count, size_t *used)
 {
+	pbx_substitute_variables_helper_full_location(c, headp, cp1, cp2, count, used, NULL, NULL, 0);
+}
+
+void pbx_substitute_variables_helper_full_location(struct ast_channel *c, struct varshead *headp, const char *cp1, char *cp2, int count, size_t *used, char *context, char *exten, int pri)
+{
 	/* Substitutes variables into cp2, based on string cp1, cp2 NO LONGER NEEDS TO BE ZEROED OUT!!!!  */
 	const char *whereweare;
 	const char *orig_cp2 = cp2;
@@ -759,7 +764,16 @@ void pbx_substitute_variables_helper_full(struct ast_channel *c, struct varshead
 				ast_debug(2, "Function %s result is '%s'\n", vars, cp4 ? cp4 : "(null)");
 			} else {
 				/* Retrieve variable value */
-				pbx_retrieve_variable(c, vars, &cp4, workspace, VAR_BUF_SIZE, headp);
+				/* For dialplan location, if we were told what to substitute explicitly, use that instead */
+				if (exten && !strcmp(vars, "EXTEN")) {
+					ast_copy_string(workspace, exten, VAR_BUF_SIZE);
+				} else if (context && !strcmp(vars, "CONTEXT")) {
+					ast_copy_string(workspace, context, VAR_BUF_SIZE);
+				} else if (pri && !strcmp(vars, "PRIORITY")) {
+					snprintf(workspace, VAR_BUF_SIZE, "%d", pri);
+				} else {
+					pbx_retrieve_variable(c, vars, &cp4, workspace, VAR_BUF_SIZE, headp);
+				}
 			}
 			if (cp4) {
 				cp4 = substring(cp4, offset, offset2, workspace, VAR_BUF_SIZE);
