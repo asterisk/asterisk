@@ -8602,6 +8602,27 @@ void *ast_get_extension_app_data(struct ast_exten *e)
 	return e ? e->data : NULL;
 }
 
+int ast_get_extension_data(char *buf, int bufsize, struct ast_channel *c,
+	const char *context, const char *exten, int priority)
+{
+	struct ast_exten *e;
+	struct pbx_find_info q = { .stacklen = 0 }; /* the rest is set in pbx_find_context */
+	ast_rdlock_contexts();
+	e = pbx_find_extension(c, NULL, &q, context, exten, priority, NULL, "", E_MATCH);
+	if (e) {
+		if (buf) {
+			const char *tmp = ast_get_extension_app_data(e);
+			if (tmp) {
+				ast_copy_string(buf, tmp, bufsize);
+			}
+		}
+		ast_unlock_contexts();
+		return 0;
+	}
+	ast_unlock_contexts();
+	return -1;
+}
+
 /*
  * Walking functions ...
  */
