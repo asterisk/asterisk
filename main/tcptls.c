@@ -582,20 +582,82 @@ void ast_ssl_teardown(struct ast_tls_config *cfg)
 #endif
 }
 
-struct ast_tcptls_session_instance *ast_tcptls_client_start(struct ast_tcptls_session_instance *tcptls_session)
+/*!
+ * \internal
+ * \brief Connect a socket
+ *
+ * Attempt to connect to a given address for up to 'timeout' milliseconds. A negative
+ * timeout value equates to an infinite wait time.
+ *
+ * A -1 is returned on error, and an appropriate errno value is set based on the
+ * type of error.
+ *
+ * \param sockfd The socket file descriptor
+ * \param addr The address to connect to
+ * \param timeout How long, in milliseconds, to attempt to connect
+ *
+ * \return 0 if successfully connected, -1 otherwise
+ */
+static int socket_connect(int sockfd, const struct ast_sockaddr *addr, int timeout)
+{
+	int optval = 0;
+	socklen_t optlen = sizeof(int);
+
+	errno = 0;
+
+	if (ast_connect(sockfd, addr)) {
+		int res;
+
+		/*
+		 * A connect failure could mean things are still in progress.
+		 * If so wait for it to complete.
+		 */
+
+		if (errno != EINPROGRESS) {
+			return -1;
+		}
+
+		while ((res = ast_wait_for_output(sockfd, timeout)) != 1) {
+			if (res == 0) {
+				errno = ETIMEDOUT;
+				return -1;
+			}
+
+			if (errno != EINTR) {
+				return -1;
+			}
+		}
+	}
+
+	/* Check the status to ensure it actually connected successfully */
+	if (getsockopt(sockfd, SOL_SOCKET, SO_ERROR, &optval, &optlen) < 0) {
+		return -1;
+	}
+
+	if (optval) {
+		errno = optval;
+		return -1;
+	}
+
+	return 0;
+}
+
+struct ast_tcptls_session_instance *ast_tcptls_client_start_timeout(
+	struct ast_tcptls_session_instance *tcptls_session, int timeout)
 {
 	struct ast_tcptls_session_args *desc;
 
 	if (!(desc = tcptls_session->parent)) {
-		goto client_start_error;
+		ao2_ref(tcptls_session, -1);
+		return NULL;
 	}
 
-	if (ast_connect(desc->accept_fd, &desc->remote_address)) {
-		ast_log(LOG_ERROR, "Unable to connect %s to %s: %s\n",
-			desc->name,
-			ast_sockaddr_stringify(&desc->remote_address),
-			strerror(errno));
-		goto client_start_error;
+	if (socket_connect(desc->accept_fd, &desc->remote_address, timeout)) {
+		ast_log(LOG_WARNING, "Unable to connect %s to %s: %s\n", desc->name,
+				ast_sockaddr_stringify(&desc->remote_address), strerror(errno));
+
+		ao2_ref(tcptls_session, -1);
+		return NULL;
 	}
 
 	ast_fd_clear_flags(desc->accept_fd, O_NONBLOCK);
@@ -606,10 +668,11 @@ struct ast_tcptls_session_instance *ast_tcptls_client_start(struct ast_tcptls_se
 	}
 
 	return handle_tcptls_connection(tcptls_session);
+}
 
-client_start_error:
-	ao2_ref(tcptls_session, -1);
-	return NULL;
+struct ast_tcptls_session_instance *ast_tcptls_client_start(struct ast_tcptls_session_instance *tcptls_session)
+{
+	return ast_tcptls_client_start_timeout(tcptls_session, -1);
 }
 
 struct ast_tcptls_session_instance *ast_tcptls_client_create(struct ast_tcptls_session_args *desc)
@@ -626,7 +689,7 @@ struct ast_tcptls_session_instance *ast_tcptls_client_create(struct ast_tcptls_s
 	/* If we return early, there is no connection */
 	ast_sockaddr_setnull(&desc->old_address);
 
-	fd = desc->accept_fd = socket(ast_sockaddr_is_ipv6(&desc->remote_address) ?
+	fd = desc->accept_fd = ast_socket_nonblock(ast_sockaddr_is_ipv6(&desc->remote_address) ?
 				      AF_INET6 : AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (desc->accept_fd < 0) {
 		ast_log(LOG_ERROR, "Unable to allocate socket for %s: %s\n",
@@ -673,6 +736,7 @@ struct ast_tcptls_session_instance *ast_tcptls_client_create(struct ast_tcptls_s
 
 	/* Set current info */
 	ast_sockaddr_copy(&desc->old_address, &desc->remote_address);
+
 	return tcptls_session;
 
 error:
