@@ -283,9 +283,9 @@
 	} } while (0)
 
 /*!
- * \internal                                                                                                              .
- * \brief Playback a message on a channel or callback function                                                            .
- *                                                                                                                        .
+ * \internal
+ * \brief Playback a message on a channel or callback function
+ *
  * \note The channel name must be test_channel.
  * \note Fail the test if the message could not be played.
  */
@@ -411,7 +411,7 @@ static void test_vm_api_destroy_mock_snapshot(struct ast_vm_msg_snapshot *snapsh
  * \internal
  * \brief Make a voicemail mailbox folder based on the values provided in a message snapshot
  *
- * \param snapshot The snapshot containing the information to create the folder from
+ * \param folder_path The snapshot containing the information to create the folder from
  *
  * \returns 0 on success
  * \returns 1 on failure
@@ -615,10 +615,10 @@ static void test_vm_api_remove_all_messages(void)
  * This creates 4 voicemails, stores them on the file system, and creates snapshot objects
  * representing them for expected/actual value comparisons in the array test_snapshots.
  *
- * test_snapshots[0] => in test_vm_1234@default, folder INBOX, message 0
- * test_snapshots[1] => in test_vm_1234@default, folder Old, message 0
- * test_snapshots[2] => in test_vm_2345@default, folder INBOX, message 0
- * test_snapshots[3] => in test_vm_2345@default, folder Old, message 1
+ * test_snapshots[0] => in test_vm_1234\@default, folder INBOX, message 0
+ * test_snapshots[1] => in test_vm_1234\@default, folder Old, message 0
+ * test_snapshots[2] => in test_vm_2345\@default, folder INBOX, message 0
+ * test_snapshots[3] => in test_vm_2345\@default, folder Old, message 1
  *
  * \returns 0 on success
  * \returns 1 on failure
