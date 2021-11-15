@@ -403,8 +403,6 @@ static void set_softmix_bridge_data(int rate, int interval, struct ast_bridge_ch
  * \since 12.0.0
  *
  * \param softmix_data Bridge mixing data.
- *
- * \return Nothing
  */
 static void softmix_poke_thread(struct softmix_bridge_data *softmix_data)
 {
@@ -615,8 +613,8 @@ static int append_all_streams(struct ast_stream_topology *dest,
  * all current participants, and the current participants need
  * to have destinations streams added for the joiner's sources.
  *
+ * \param bridge
  * \param joiner The channel that is joining the softmix bridge
- * \param participants The current participants in the softmix bridge
  */
 static void sfu_topologies_on_join(struct ast_bridge *bridge,
 	struct ast_bridge_channel *joiner)
@@ -884,8 +882,6 @@ static void softmix_pass_video_top_priority(struct ast_bridge *bridge, struct as
  * \param bridge Which bridge is getting the frame
  * \param bridge_channel Which channel is writing the frame.
  * \param frame What is being written.
- *
- * \return Nothing
  */
 static void softmix_bridge_write_video(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, struct ast_frame *frame)
 {
@@ -937,8 +933,6 @@ static void softmix_bridge_write_video(struct ast_bridge *bridge, struct ast_bri
  * \param bridge Which bridge is getting the frame
  * \param bridge_channel Which channel is writing the frame.
  * \param frame What is being written.
- *
- * \return Nothing
  */
 static void softmix_bridge_write_voice(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, struct ast_frame *frame)
 {
@@ -1037,8 +1031,6 @@ static void softmix_bridge_write_voice(struct ast_bridge *bridge, struct ast_bri
  * \since 13.21.0, 15.4.0
  *
  * \param bridge_channel Which channel's talking to clear
- *
- * \return Nothing
  */
 static void clear_talking(struct ast_bridge_channel *bridge_channel)
 {
@@ -1062,8 +1054,6 @@ static void clear_talking(struct ast_bridge_channel *bridge_channel)
  *
  * \param bridge Which bridge we are in
  * \param bridge_channel Which channel we are checking
- *
- * \return Nothing
  */
 static void softmix_bridge_check_voice(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel)
 {
@@ -1192,8 +1182,6 @@ cleanup:
  * \param bridge Which bridge is getting the frame
  * \param bridge_channel Which channel is writing the frame.
  * \param frame What is being written.
- *
- * \return Nothing
  */
 static void softmix_bridge_write_text(struct ast_bridge *bridge,
 	struct ast_bridge_channel *bridge_channel, struct ast_frame *frame)
@@ -1610,8 +1598,8 @@ static void gather_softmix_stats(struct softmix_stats *stats,
  * \brief Analyse mixing statistics and change bridges internal rate
  * if necessary.
  *
- * \retval 0, no changes to internal rate
- * \retval 1, internal rate was changed, update all the channels on the next mixing iteration.
+ * \retval 0 no changes to internal rate
+ * \retval 1 internal rate was changed, update all the channels on the next mixing iteration.
  */
 static unsigned int analyse_softmix_stats(struct softmix_stats *stats,
 		struct softmix_bridge_data *softmix_data, int binaural_active)
@@ -2125,8 +2113,6 @@ static int softmix_bridge_create(struct ast_bridge *bridge)
  * \since 12.0.0
  *
  * \param bridge Which bridge is being stopped.
- *
- * \return Nothing
  */
 static void softmix_bridge_stop(struct ast_bridge *bridge)
 {
