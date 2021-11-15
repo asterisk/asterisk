@@ -55,7 +55,7 @@ static int received_user_events;
 /*! \brief The number of user events we expect for this test */
 static int expected_user_events;
 
-/*! \brief Predicate for the \ref test_message_handler receiving a message */
+/*! \brief Predicate for the \ref test_msg_handler receiving a message */
 static int handler_received_message;
 
 /*! \brief Condition wait variable for all dialplan user events being received */
