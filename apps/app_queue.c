@@ -1661,7 +1661,7 @@ struct penalty_rule {
 #define ANNOUNCEPOSITION_YES 1 /*!< We announce position */
 #define ANNOUNCEPOSITION_NO 2 /*!< We don't announce position */
 #define ANNOUNCEPOSITION_MORE_THAN 3 /*!< We say "Currently there are more than <limit>" */
-#define ANNOUNCEPOSITION_LIMIT 4 /*!< We not announce position more than <limit> */
+#define ANNOUNCEPOSITION_LIMIT 4 /*!< We not announce position more than \<limit\> */
 
 struct call_queue {
 	AST_DECLARE_STRING_FIELDS(
@@ -1875,6 +1875,7 @@ static int get_wrapuptime(struct call_queue *q, struct member *member)
  * \brief ao2_callback, Decreases queuepos of all followers with a queuepos greater than arg.
  * \param obj the member being acted on
  * \param arg pointer to an integer containing the position value that was removed and requires reduction for anything above
+ * \param flag unused
  */
 static int queue_member_decrement_followers(void *obj, void *arg, int flag)
 {
@@ -1893,6 +1894,7 @@ static int queue_member_decrement_followers(void *obj, void *arg, int flag)
  *        on them. This callback should always be ran before performing mass unlinking of delmarked members from queues.
  * \param obj member being acted on
  * \param arg pointer to the queue members are being removed from
+ * \param flag unused
  */
 static int queue_delme_members_decrement_followers(void *obj, void *arg, int flag)
 {
@@ -2238,8 +2240,6 @@ static void queue_publish_multi_channel_blob(struct ast_channel *caller, struct 
  * \param blob The information being published.
  *
  * \note The json blob reference is passed to this function.
- *
- * \return Nothing
  */
 static void queue_publish_member_blob(struct stasis_message_type *type, struct ast_json *blob)
 {
@@ -2643,7 +2643,8 @@ static int extensionstate2devicestate(int state)
  *
  * This function recursively checks if the context child is included in the context parent.
  *
- * \return 1 if child is included in parent, 0 if not
+ * \retval 1 if child is included in parent
+ * \retval 0 if not
  */
 static int context_included(const char *parent, const char *child);
 static int context_included(const char *parent, const char *child)
@@ -3428,7 +3429,7 @@ static void member_add_to_queue(struct call_queue *queue, struct member *mem)
  * \brief If removing a single member from a queue, use this function instead of ao2_unlinking.
  *        This will perform round robin queue position reordering for the remaining members.
  * \param queue Which queue the member is being removed from
- * \param member Which member is being removed from the queue
+ * \param mem Which member is being removed from the queue
  */
 static void member_remove_from_queue(struct call_queue *queue, struct member *mem)
 {
@@ -4279,8 +4280,6 @@ static void leave_queue(struct queue_ent *qe)
  * \since 1.8
  *
  * \param doomed callattempt structure to destroy.
- *
- * \return Nothing
  */
 static void callattempt_free(struct callattempt *doomed)
 {
@@ -4957,8 +4956,6 @@ static void rna(int rnatime, struct queue_ent *qe, struct ast_channel *peer, cha
  * \param chan Channel to get connected line updated.
  * \param peer Channel providing connected line information.
  * \param is_caller Non-zero if chan is the calling channel.
- *
- * \return Nothing
  */
 static void update_connected_line_from_peer(struct ast_channel *chan, struct ast_channel *peer, int is_caller)
 {
@@ -5759,7 +5756,7 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
 
 /*!
  * \brief update the queue status
- * \retval Always 0
+ * \retval 0 always
 */
 static int update_queue(struct call_queue *q, struct member *member, int callcompletedinsl, time_t starttime)
 {
@@ -6163,7 +6160,6 @@ static void log_attended_transfer(struct queue_stasis_data *queue_data,
  *
  * \param userdata Data pertaining to the particular call in the queue.
  * \param sub The stasis subscription on which the message occurred.
- * \param topic The topic for this event.
  * \param msg The stasis message for the bridge enter event
  */
 static void handle_bridge_enter(void *userdata, struct stasis_subscription *sub,
@@ -6197,7 +6193,6 @@ static void handle_bridge_enter(void *userdata, struct stasis_subscription *sub,
  *
  * \param userdata Data pertaining to the particular call in the queue.
  * \param sub The stasis subscription on which the message occurred.
- * \param topic The topic for this event.
  * \param msg The stasis message for the blind transfer event
  */
 static void handle_blind_transfer(void *userdata, struct stasis_subscription *sub,
@@ -6257,7 +6252,6 @@ static void handle_blind_transfer(void *userdata, struct stasis_subscription *su
  *
  * \param userdata Data pertaining to the particular call in the queue.
  * \param sub The stasis subscription on which the message occurred.
- * \param topic The topic for this event.
  * \param msg The stasis message for the attended transfer event.
  */
 static void handle_attended_transfer(void *userdata, struct stasis_subscription *sub,
@@ -6332,7 +6326,6 @@ static void queue_bridge_cb(void *userdata, struct stasis_subscription *sub,
  *
  * \param userdata Data pertaining to the particular call in the queue.
  * \param sub The stasis subscription on which the message occurred.
- * \param topic The topic for this event.
  * \param msg The stasis message for the local optimization begin event
  */
 static void handle_local_optimization_begin(void *userdata, struct stasis_subscription *sub,
@@ -6384,7 +6377,6 @@ static void handle_local_optimization_begin(void *userdata, struct stasis_subscr
  *
  * \param userdata Data pertaining to the particular call in the queue.
  * \param sub The stasis subscription on which the message occurred.
- * \param topic The topic for this event.
  * \param msg The stasis message for the local optimization end event
  */
 static void handle_local_optimization_end(void *userdata, struct stasis_subscription *sub,
@@ -6449,7 +6441,6 @@ static void handle_local_optimization_end(void *userdata, struct stasis_subscrip
  *
  * \param userdata Data pertaining to the particular call in the queue.
  * \param sub The stasis subscription on which the message occurred.
- * \param topic The topic for this event.
  * \param msg The stasis message for the hangup event.
  */
 static void handle_hangup(void *userdata, struct stasis_subscription *sub,
@@ -6651,8 +6642,6 @@ static void end_bridge_callback(void *data)
  * \param peer Peer channel for bridge.
  * \param opts Dialing option flags.
  * \param opt_args Dialing option argument strings.
- *
- * \return Nothing
  */
 static void setup_peer_after_bridge_goto(struct ast_channel *chan, struct ast_channel *peer, struct ast_flags *opts, char *opt_args[])
 {
@@ -7538,8 +7527,6 @@ static int publish_queue_member_pause(struct call_queue *q, struct member *membe
  * \param paused Set to 1 if the member is being paused or 0 to unpause.
  *
  * \pre The q is locked on entry.
- *
- * \return Nothing
  */
 static void set_queue_member_pause(struct call_queue *q, struct member *mem, const char *reason, int paused)
 {
@@ -7677,8 +7664,6 @@ static int set_member_penalty_help_members(struct call_queue *q, const char *int
  * \param ringinuse Set to 1 if the member is called when inuse.
  *
  * \pre The q is locked on entry.
- *
- * \return Nothing
  */
 static void set_queue_member_ringinuse(struct call_queue *q, struct member *mem, int ringinuse)
 {
@@ -7730,7 +7715,7 @@ static int set_member_value_help_members(struct call_queue *q, const char *inter
  * \param[in] queuename If specified, only act on a member if it belongs to this queue
  * \param[in] interface Interface of queue member(s) having priority set.
  * \param[in] property Which queue property is being set
- * \param[in] penalty Value penalty is being changed to for each member
+ * \param[in] value Value penalty is being changed to for each member
  */
 static int set_member_value(const char *queuename, const char *interface, int property, int value)
 {
@@ -9443,7 +9428,6 @@ static int kill_dead_members(void *obj, void *arg, int flags)
  * \param cfg The configuration which we are reading
  * \param mask Tells us what information we need to reload
  * \param queuename The name of the queue we are reloading information from
- * \retval void
  */
 static void reload_single_queue(struct ast_config *cfg, struct ast_flags *mask, const char *queuename)
 {
@@ -9657,7 +9641,7 @@ static int reload_queues(int reload, struct ast_flags *mask, const char *queuena
  * \param queuename The name of the queue to reset the statistics
  * for. If this is NULL or zero-length, then this means to reset
  * the statistics for all queues
- * \retval void
+ * \retval 0 always
  */
 static int clear_stats(const char *queuename)
 {
@@ -9933,8 +9917,8 @@ static char *__queues_show(struct mansession *s, int fd, int argc, const char * 
  * list (followed immediately by a \0, not a space) since it is used for
  * checking tab-completion and a word at the end is still being tab-completed.
  *
- * \return Returns 1 if the word is found
- * \return Returns 0 if the word is not found
+ * \retval 1 if the word is found
+ * \retval 0 if the word is not found
 */
 static int word_in_list(const char *list, const char *word) {
 	int list_len, word_len = strlen(word);
@@ -11549,7 +11533,7 @@ static int reload(void)
 }
 
 /* \brief Find a member by looking up queuename and interface.
- * \return Returns a member or NULL if member not found.
+ * \return member or NULL if member not found.
 */
 static struct member *find_member_by_queuename_and_interface(const char *queuename, const char *interface)
 {

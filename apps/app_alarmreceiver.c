@@ -203,7 +203,6 @@ static char event_file[14] = "/event-XXXXXX";
  * family, then create it and set its value to 1.
  *
  * \param key A database key to increment
- * \return Nothing
  */
 static void database_increment(char *key)
 {

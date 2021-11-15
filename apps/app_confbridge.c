@@ -797,8 +797,8 @@ struct confbridge_conference *conf_find_bridge(const char *conference_name)
  *
  * \note Must be called with the conference locked
  *
- * \retval 1, conference is recording.
- * \retval 0, conference is NOT recording.
+ * \retval 1 conference is recording.
+ * \retval 0 conference is NOT recording.
  */
 static int conf_is_recording(struct confbridge_conference *conference)
 {
@@ -980,7 +980,8 @@ static int sound_file_exists(const char *filename)
  * \param bridge_channel The bridged channel involved
  *
  * \note if caller is NULL, the announcment will be sent to all participants in the conference.
- * \return Returns 0 on success, -1 if the user hung up
+ * \retval 0 on success.
+ * \retval -1 if the user hung up.
  */
 static int announce_user_count(struct confbridge_conference *conference, struct confbridge_user *user,
 			       struct ast_bridge_channel *bridge_channel)
@@ -1030,7 +1031,9 @@ static int announce_user_count(struct confbridge_conference *conference, struct 
  * \param user User to play audio prompt to
  * \param filename Prompt to play
  *
- * \return Returns 0 on success, -1 if the user hung up
+ * \retval 0 on success.
+ * \retval -1 if the user hung up.
+ *
  * \note Generally this should be called when the conference is unlocked to avoid blocking
  * the entire conference while the sound is played. But don't unlock the conference bridge
  * in the middle of a state transition.
@@ -1167,8 +1170,6 @@ static void hangup_data_destroy(struct hangup_data *hangup)
  * \brief Destroy a conference bridge
  *
  * \param obj The conference bridge object
- *
- * \return Returns nothing
  */
 static void destroy_conference_bridge(void *obj)
 {
@@ -1389,8 +1390,6 @@ void conf_moh_start(struct confbridge_user *user)
  * \brief Unsuspend MOH for the conference user.
  *
  * \param user Conference user to unsuspend MOH on.
- *
- * \return Nothing
  */
 static void conf_moh_unsuspend(struct confbridge_user *user)
 {
@@ -1406,8 +1405,6 @@ static void conf_moh_unsuspend(struct confbridge_user *user)
  * \brief Suspend MOH for the conference user.
  *
  * \param user Conference user to suspend MOH on.
- *
- * \return Nothing
  */
 static void conf_moh_suspend(struct confbridge_user *user)
 {
@@ -4355,8 +4352,6 @@ void conf_remove_user_waiting(struct confbridge_conference *conference, struct c
  * \since 12.0.0
  *
  * \param tech What to unregister.
- *
- * \return Nothing
  */
 static void unregister_channel_tech(struct ast_channel_tech *tech)
 {
