@@ -110,8 +110,6 @@ static int defer_action(struct ast_bridge_channel *bridge_channel, deferred_cb c
  * \since 12.0.0
  *
  * \param bridge_channel Channel to setup idle mode.
- *
- * \return Nothing
  */
 static void participant_idle_mode_setup(struct ast_bridge_channel *bridge_channel)
 {
@@ -410,8 +408,6 @@ static struct ast_bridge_technology holding_bridge = {
  * \param bridge_channel Which channel to operate on.
  * \param payload Data to pass to the callback. (NULL if none).
  * \param payload_size Size of the payload if payload is non-NULL.  A number otherwise.
- *
- * \return Nothing
  */
 static void deferred_action(struct ast_bridge_channel *bridge_channel, const void *payload, size_t payload_size)
 {
