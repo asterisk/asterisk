@@ -56,6 +56,7 @@
  *  subscriptions without mailboxes will be delivered on the publisher thread.
  * \param use_thread_pool Use the thread pool for the subscription. This is only
  *  relevant if \c needs_mailbox is non-zero.
+ * \param file, lineno, func
  * \return New \ref stasis_subscription object.
  * \return \c NULL on error.
  * \since 12

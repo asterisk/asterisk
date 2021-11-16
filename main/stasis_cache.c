@@ -390,7 +390,7 @@ struct stasis_message *stasis_cache_entry_get_remote(struct stasis_cache_entry *
  *
  * \note The entries container is already locked.
  *
- * \retval Cache-entry on success.
+ * \return Cache-entry on success.
  * \retval NULL Not in cache.
  */
 static struct stasis_cache_entry *cache_find(struct ao2_container *entries, struct stasis_message_type *type, const char *id)
@@ -625,8 +625,8 @@ struct ao2_container *stasis_cache_get_all(struct stasis_cache *cache, struct st
  *
  * \note The returned snapshot has not had its reference bumped.
  *
- * \retval Snapshot from the cache.
- * \retval \c NULL if snapshot is not found.
+ * \return Snapshot from the cache.
+ * \retval NULL if snapshot is not found.
  */
 static struct stasis_message *cache_entry_by_eid(const struct stasis_cache_entry *entry, const struct ast_eid *eid)
 {

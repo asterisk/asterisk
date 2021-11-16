@@ -250,8 +250,8 @@
  * The destructors of both have assertions regarding this to catch ref-counting
  * problems where a subscription or topic has had an extra ao2_cleanup().
  *
- * The \ref dispatch object is a transient object, which is posted to a
- * subscription's taskprocessor to send a message to the subscriber. They have
+ * The \ref dispatch_exec_sync object is a transient object, which is posted to
+ * a subscription's taskprocessor to send a message to the subscriber. They have
  * short life cycles, allocated on one thread, destroyed on another.
  *
  * During shutdown, or the deletion of a domain object, there are a flurry of
@@ -750,7 +750,6 @@ static void subscription_dtor(void *obj)
 /*!
  * \brief Invoke the subscription's callback.
  * \param sub Subscription to invoke.
- * \param topic Topic message was published to.
  * \param message Message to send.
  */
 static void subscription_invoke(struct stasis_subscription *sub,

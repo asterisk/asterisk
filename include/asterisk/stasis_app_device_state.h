@@ -85,7 +85,7 @@ enum stasis_device_state_result stasis_app_device_state_update(
  *
  * \param name the name of the ARI controlled device
  *
- * \returna stasis device state application result.
+ * \return stasis device state application result.
  */
 enum stasis_device_state_result stasis_app_device_state_delete(
 	const char *name);

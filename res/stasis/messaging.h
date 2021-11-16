@@ -45,9 +45,6 @@ typedef int (* message_received_cb)(const char *endpoint_id, struct ast_json *js
  *
  * \param app_name Name of the stasis application to unsubscribe from messaging
  * \param endpoint_id The ID of the endpoint we no longer care about
- *
- * \retval 0 success
- * \retval -1 error
  */
 void messaging_app_unsubscribe_endpoint(const char *app_name, const char *endpoint_id);
 
@@ -56,7 +53,7 @@ void messaging_app_unsubscribe_endpoint(const char *app_name, const char *endpoi
  *
  * \param app_name The name of the \ref stasis application to subscribe to \c endpoint
  * \param endpoint The endpoint object to subscribe to
- * \param message_received_cb The callback to call when a message is received
+ * \param callback The callback to call when a message is received
  * \param pvt An ao2 ref counted object that will be passed to the callback.
  *
  * \retval 0 subscription was successful
