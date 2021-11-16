@@ -61,8 +61,6 @@ struct ast_bridge *bridge_stasis_new(uint32_t capabilities, unsigned int flags, 
  * \internal
  * \brief Initialize the Stasis bridge subclass.
  * \since 12.5.0
- *
- * \return Nothing
  */
 void bridge_stasis_init(void);
 
