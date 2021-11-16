@@ -51,13 +51,13 @@ struct stasis_message_router;
  * \param topic Topic to subscribe route to.
  *
  * \return New \ref stasis_message_router.
- * \return \c NULL on error.
+ * \retval NULL on error.
  *
  * \since 12
  */
+#define stasis_message_router_create(topic) __stasis_message_router_create(topic, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 struct stasis_message_router *__stasis_message_router_create(
 	struct stasis_topic *topic, const char *file, int lineno, const char *func);
-#define stasis_message_router_create(topic) __stasis_message_router_create(topic, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 /*!
  * \brief Create a new message router object.
@@ -68,13 +68,13 @@ struct stasis_message_router *__stasis_message_router_create(
  * \param topic Topic to subscribe route to.
  *
  * \return New \ref stasis_message_router.
- * \return \c NULL on error.
+ * \retval NULL on error.
  *
  * \since 12.8.0
  */
+#define stasis_message_router_create_pool(topic) __stasis_message_router_create_pool(topic, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 struct stasis_message_router *__stasis_message_router_create_pool(
 	struct stasis_topic *topic, const char *file, int lineno, const char *func);
-#define stasis_message_router_create_pool(topic) __stasis_message_router_create_pool(topic, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 /*!
  * \brief Unsubscribe the router from the upstream topic.
@@ -104,9 +104,9 @@ void stasis_message_router_unsubscribe_and_join(
  *
  * \param router Router.
  *
- * \return True (non-zero) if stasis_subscription_final_message() has been
+ * \retval True (non-zero) if stasis_subscription_final_message() has been
  *         received.
- * \return False (zero) if waiting for the end.
+ * \retval False (zero) if waiting for the end.
  */
 int stasis_message_router_is_done(struct stasis_message_router *router);
 

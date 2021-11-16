@@ -278,8 +278,6 @@ static int bridge_stasis_moving(struct ast_bridge_channel *bridge_channel, void 
  * \param bridge_channel Bridge channel to pull.
  *
  * \note On entry, self is already locked.
- *
- * \return Nothing
  */
 static void bridge_stasis_pull(struct ast_bridge *self, struct ast_bridge_channel *bridge_channel)
 {

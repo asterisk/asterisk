@@ -157,9 +157,10 @@ static void state_proxy_sub_cb(void *obj, void *data)
  * \param manager The owning manager
  * \param state_topic A state topic to be managed
  * \param id The unique id for the state
+ * \param file, line, func
  *
  * \return A stasis_state object or NULL
- * \return NULL on error
+ * \retval NULL on error
  *
  * \pre manager->states must be locked.
  * \pre manager->states does not contain an object matching key \a id.
@@ -265,9 +266,9 @@ error_return:
  * \param id The unique id for the state (if NULL state_topic is required)
  *
  * \return The added state object
- * \return NULL on error
+ * \retval NULL on error
  */
-#define state_find_or_add(mgr, top, id) __state_find_or_add(mgr, top, id, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define state_find_or_add(manager, state_topic, id) __state_find_or_add(manager, state_topic, id, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 static struct stasis_state *__state_find_or_add(struct stasis_state_manager *manager,
 	struct stasis_topic *state_topic, const char *id,
 	const char *file, int line, const char *func)

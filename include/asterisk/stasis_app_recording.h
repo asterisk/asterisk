@@ -43,7 +43,7 @@ struct stasis_app_stored_recording;
  *
  * \param recording Recording to query.
  * \return Absolute path to the recording file, without the extension.
- * \return \c NULL on error.
+ * \retval NULL on error.
  */
 const char *stasis_app_stored_recording_get_file(
 	struct stasis_app_stored_recording *recording);
@@ -55,7 +55,7 @@ const char *stasis_app_stored_recording_get_file(
  * \param recording Recording to query.
  *
  * \return Absolute path to the recording file, with the extension.
- * \return \c NULL on error
+ * \retval NULL on error
  */
 const char *stasis_app_stored_recording_get_filename(
 	struct stasis_app_stored_recording *recording);
@@ -67,7 +67,7 @@ const char *stasis_app_stored_recording_get_filename(
  * \param recording Recording to query.
  *
  * \return The extension associated with this recording.
- * \return \c NULL on error
+ * \retval NULL on error
  */
 const char *stasis_app_stored_recording_get_extension(
 	struct stasis_app_stored_recording *recording);
@@ -77,7 +77,7 @@ const char *stasis_app_stored_recording_get_extension(
  *
  * \param recording Recording to convert.
  * \return JSON representation.
- * \return \c NULL on error.
+ * \retval NULL on error.
  */
 struct ast_json *stasis_app_stored_recording_to_json(
 	struct stasis_app_stored_recording *recording);
@@ -86,7 +86,7 @@ struct ast_json *stasis_app_stored_recording_to_json(
  * \brief Find all stored recordings on disk.
  *
  * \return Container of \ref stasis_app_stored_recording objects.
- * \return \c NULL on error.
+ * \retval NULL on error.
  */
 struct ao2_container *stasis_app_stored_recording_find_all(void);
 
@@ -95,7 +95,7 @@ struct ao2_container *stasis_app_stored_recording_find_all(void);
  *
  * \param name Name of the recording.
  * \return New recording object.
- * \return \c NULL if recording is not found. \c errno is set to indicate why
+ * \retval NULL if recording is not found. \c errno is set to indicate why
  *	- \c ENOMEM - out of memeory
  *	- \c EACCES - file permissions (or recording is outside the config dir)
  *	- Any of the error codes for stat(), opendir(), readdir()
@@ -202,7 +202,7 @@ struct stasis_app_recording_options {
  * \param name Name of the recording.
  * \param format Format to record in.
  * \return Newly allocated options object.
- * \return \c NULL on error.
+ * \retval NULL on error.
  */
 struct stasis_app_recording_options *stasis_app_recording_options_create(
 	const char *name, const char *format);
@@ -212,9 +212,9 @@ struct stasis_app_recording_options *stasis_app_recording_options_create(
  *
  * \param str String to parse.
  * \return DTMF value to terminate on.
- * \return \c STASIS_APP_RECORDING_TERMINATE_NONE to not terminate on DTMF.
- * \return \c STASIS_APP_RECORDING_TERMINATE_ANY to terminate on any DTMF.
- * \return \c STASIS_APP_RECORDING_TERMINATE_INVALID if input was invalid.
+ * \retval STASIS_APP_RECORDING_TERMINATE_NONE to not terminate on DTMF.
+ * \retval STASIS_APP_RECORDING_TERMINATE_ANY to terminate on any DTMF.
+ * \retval STASIS_APP_RECORDING_TERMINATE_INVALID if input was invalid.
  */
 char stasis_app_recording_termination_parse(const char *str);
 
@@ -242,7 +242,7 @@ enum ast_record_if_exists stasis_app_recording_if_exists_parse(
  * \param control Control for \c res_stasis.
  * \param options Recording options.
  * \return Recording control object.
- * \return \c NULL on error.
+ * \retval NULL on error.
  */
 struct stasis_app_recording *stasis_app_control_record(
 	struct stasis_app_control *control,
@@ -262,7 +262,7 @@ enum stasis_app_recording_state stasis_app_recording_get_state(
  *
  * \param recording Recording control object.
  * \return \a recording's name.
- * \return \c NULL if \a recording ic \c NULL
+ * \retval NULL if \a recording ic \c NULL
  */
 const char *stasis_app_recording_get_name(
 	struct stasis_app_recording *recording);
@@ -272,7 +272,7 @@ const char *stasis_app_recording_get_name(
  *
  * \param name Name of the recording object to find.
  * \return Associated \ref stasis_app_recording object.
- * \return \c NULL if \a name not found.
+ * \retval NULL if \a name not found.
  */
 struct stasis_app_recording *stasis_app_recording_find_by_name(const char *name);
 
@@ -281,7 +281,7 @@ struct stasis_app_recording *stasis_app_recording_find_by_name(const char *name)
  *
  * \param recording Recording to conver.
  * \return JSON model.
- * \return \c NULL on error.
+ * \retval NULL on error.
  */
 struct ast_json *stasis_app_recording_to_json(
 	const struct stasis_app_recording *recording);
@@ -302,8 +302,8 @@ enum stasis_app_recording_oper_results {
  * \brief Controls the media for a given recording operation.
  *
  * \param recording Recording control object.
- * \param control Media control operation.
- * \return \c STASIS_APP_RECORDING_OPER_OK on success.
+ * \param operation Media control operation.
+ * \retval STASIS_APP_RECORDING_OPER_OK on success.
  * \return \ref stasis_app_recording_oper_results indicating failure.
  */
 enum stasis_app_recording_oper_results stasis_app_recording_operation(

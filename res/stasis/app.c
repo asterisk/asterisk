@@ -1030,11 +1030,6 @@ struct stasis_topic *ast_app_get_topic(struct stasis_app *app)
 	return app->topic;
 }
 
-/*!
- * \brief Send a message to the given application.
- * \param app App to send the message to.
- * \param message Message to send.
- */
 void app_send(struct stasis_app *app, struct ast_json *message)
 {
 	stasis_app_cb handler;
