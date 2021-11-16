@@ -629,12 +629,6 @@ int ast_str2cause(const char *name)
 	return -1;
 }
 
-/*! \brief Gives the string form of a given channel state.
- *
- * \note This function is not reentrant.
- *
- * \param state
- */
 const char *ast_state2str(enum ast_channel_state state)
 {
 	char *buf;
@@ -2627,8 +2621,6 @@ void ast_hangup(struct ast_channel *chan)
  * \since 13.11.0
  *
  * \param chan Channel to set answered time.
- *
- * \return Nothing
  */
 static void set_channel_answer_time(struct ast_channel *chan)
 {
@@ -5870,8 +5862,6 @@ static void handle_cause(int cause, int *outstate)
  * \param new_chan Channel inheriting information.
  * \param parent Channel new_chan inherits information.
  * \param orig Channel being replaced by the call forward channel.
- *
- * \return Nothing
  */
 static void call_forward_inherit(struct ast_channel *new_chan, struct ast_channel *parent, struct ast_channel *orig)
 {
@@ -6379,8 +6369,6 @@ struct ast_channel *ast_request_with_stream_topology(const char *type, struct as
  * \param precious TRUE if pre-existing accountcodes on chan will not be overwritten.
  *
  * \pre The chan and requestor channels are already locked.
- *
- * \return Nothing
  */
 static void channel_req_accountcodes(struct ast_channel *chan, const struct ast_channel *requestor, enum ast_channel_requestor_relationship relationship, int precious)
 {
@@ -6499,11 +6487,6 @@ int ast_transfer(struct ast_channel *chan, char *dest)
 
 /*!
   \brief Transfer a call to dest, if the channel supports transfer
-
-  \param chan channel to transfer
-  \param dest destination to transfer to
-  \param protocol is the protocol result
-  SIP example, 0=success, 3xx-6xx is SIP error code
 
   Called by:
 	\arg app_transfer
@@ -7823,8 +7806,6 @@ static int ast_channel_hash_cb(const void *obj, const int flags)
  * \param v_obj A pointer to the object we want the key printed.
  * \param where User data needed by prnt to determine where to put output.
  * \param prnt Print output callback function to use.
- *
- * \return Nothing
  */
 static void prnt_channel_key(void *v_obj, void *where, ao2_prnt_fn *prnt)
 {
@@ -10336,8 +10317,6 @@ AST_THREADSTORAGE_RAW(in_intercept_routine);
  * \since 13.14.0
  *
  * \param in_intercept_mode New intercept mode.  (Non-zero if in intercept mode)
- *
- * \return Nothing
  */
 static void channel_set_intercept_mode(int in_intercept_mode)
 {
