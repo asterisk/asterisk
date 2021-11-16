@@ -961,7 +961,7 @@ static enum ast_sip_session_media_encryption get_media_encryption_type(pj_str_t 
  * \brief Checks whether the encryption offered in SDP is compatible with the endpoint's configuration
  * \internal
  *
- * \param endpoint_encryption Media encryption configured for the endpoint
+ * \param endpoint Media encryption configured for the endpoint
  * \param stream pjmedia_sdp_media stream description
  *
  * \retval AST_SIP_MEDIA_TRANSPORT_INVALID on encryption mismatch

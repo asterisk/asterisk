@@ -564,8 +564,6 @@ static int overload_trigger_to_str(const void *obj, const intptr_t *args, char *
  * \param sorcery Instance being observed.
  * \param object_type Name of object being observed.
  * \param reloaded Non-zero if the object is being reloaded.
- *
- * \return Nothing
  */
 static void global_loaded_observer(const char *name, const struct ast_sorcery *sorcery, const char *object_type, int reloaded)
 {

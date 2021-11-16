@@ -364,8 +364,6 @@ static int register_contact_transport_remove_cb(void *data)
  * \param data What contact needs to be removed.
  *
  * \note Normally executed by the pjsip monitor thread.
- *
- * \return Nothing
  */
 static void register_contact_transport_shutdown_cb(void *data)
 {
@@ -562,8 +560,7 @@ static int vec_contact_add(void *obj, void *arg, int flags)
  *
  * \param contacts Container of unmodified contacts that could remove.
  * \param to_remove Maximum number of contacts to remove.
- *
- * \return Nothing
+ * \param response_contacts, remove_existing
  */
 static void remove_excess_contacts(struct ao2_container *contacts, struct ao2_container *response_contacts,
 	unsigned int to_remove, unsigned int remove_existing)

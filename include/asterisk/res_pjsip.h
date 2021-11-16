@@ -351,8 +351,7 @@ enum ast_sip_contact_status_type {
 /*!
  * \brief A contact's status.
  *
- * \detail Maintains a contact's current status and round trip time
- *         if available.
+ * Maintains a contact's current status and round trip time if available.
  */
 struct ast_sip_contact_status {
 	AST_DECLARE_STRING_FIELDS(
@@ -583,8 +582,8 @@ enum ast_sip_call_codec_pref {
  * \brief Returns true if the preference is set in the parameter
  * \since 18.0.0
  *
- * \param param A ast_flags struct with one or more of enum ast_sip_call_codec_pref set
- * \param codec_pref The last component of one of the enum values
+ * \param __param A ast_flags struct with one or more of enum ast_sip_call_codec_pref set
+ * \param __codec_pref The last component of one of the enum values
  * \retval 1 if the enum value is set
  * \retval 0 if not
  */
@@ -967,7 +966,7 @@ int ast_sip_auth_vector_init(struct ast_sip_auth_vector *vector, const char *aut
 /*!
  * \brief Free contents of an auth vector.
  *
- * \param array Vector whose contents are to be freed
+ * \param vector Vector whose contents are to be freed
  */
 void ast_sip_auth_vector_destroy(struct ast_sip_auth_vector *vector);
 
@@ -1122,7 +1121,7 @@ void ast_sip_unregister_authenticator(struct ast_sip_authenticator *auth);
  * An outbound authenticator is responsible for creating responses to
  * authentication challenges by remote endpoints.
  *
- * \param auth The authenticator to register
+ * \param outbound_auth The authenticator to register
  * \retval 0 Success
  * \retval -1 Failure
  */
@@ -1892,7 +1891,7 @@ struct ast_sip_sched_task;
  *
  * \returns Pointer to \ref ast_sip_sched_task ao2 object which must be dereferenced when done.
  *
- * \paragraph Serialization
+ * \par Serialization
  *
  * Specifying a serializer guarantees serialized execution but NOT specifying a serializer
  * may still result in tasks being effectively serialized if the thread pool is busy.
@@ -1900,18 +1899,18 @@ struct ast_sip_sched_task;
  * That happens automatically (see below).  It's to prevent the task from running at the same
  * time as other work using the same serializer, whether or not it's being run by the scheduler.
  *
- * \paragraph Interval
+ * \par Interval
  *
  * The interval is used to calculate the next time the task should run.  There are two models.
  *
  * \ref AST_SIP_SCHED_TASK_PERIODIC specifies that the invocations of the task occur at the
- * specific interval.  That is, every \ref "interval" milliseconds, regardless of how long the task
- * takes. If the task takes longer than \ref interval, it will be scheduled at the next available
- * multiple of \ref interval.  For example: If the task has an interval of 60 seconds and the task
+ * specific interval.  That is, every \p interval milliseconds, regardless of how long the task
+ * takes. If the task takes longer than \p interval, it will be scheduled at the next available
+ * multiple of \p interval.  For example: If the task has an interval of 60 seconds and the task
  * takes 70 seconds, the next invocation will happen at 120 seconds.
  *
  * \ref AST_SIP_SCHED_TASK_DELAY specifies that the next invocation of the task should start
- * at \ref interval milliseconds after the current invocation has finished.
+ * at \p interval milliseconds after the current invocation has finished.
  *
  */
 struct ast_sip_sched_task *ast_sip_schedule_task(struct ast_taskprocessor *serializer,
@@ -1966,7 +1965,7 @@ int ast_sip_sched_task_get_times(struct ast_sip_sched_task *schtd,
  * \param[out] last_end Pointer to a timeval structure to contain the time when last ended
  * \param[out] interval Pointer to an int to contain the interval in ms
  * \param[out] time_left Pointer to an int to contain the ms left to the next run
- * \param[out] last_end Pointer to a timeval structure to contain the next run time
+ * \param[out] next_start Pointer to a timeval structure to contain the next run time
  * \retval 0 Success
  * \retval -1 Failure
  * \note Any of the pointers can be NULL if you don't need them.
@@ -2001,7 +2000,7 @@ int ast_sip_sched_task_get_times_by_name(const char *name,
  * \param[out] last_end Pointer to a timeval structure to contain the time when last ended
  * \param[out] interval Pointer to an int to contain the interval in ms
  * \param[out] time_left Pointer to an int to contain the ms left to the next run
- * \param[out] last_end Pointer to a timeval structure to contain the next run time
+ * \param[out] next_start Pointer to a timeval structure to contain the next run time
  * \retval 0 Success
  * \retval -1 Failure
  * \note Any of the pointers can be NULL if you don't need them.
@@ -2053,6 +2052,7 @@ int ast_sip_sched_is_task_running_by_name(const char *name);
  * \since 13.9.0
  *
  * \param schtd The task structure pointer
+ * \param name, maxlen
  * \retval 0 success
  * \retval 1 failure
  */
@@ -2146,7 +2146,7 @@ pjsip_dialog *ast_sip_create_dialog_uas_locked(const struct ast_sip_endpoint *en
  * \brief General purpose method for creating an rdata structure using specific information
  * \since 13.15.0
  *
- * \param rdata[out] The rdata structure that will be populated
+ * \param[out] rdata The rdata structure that will be populated
  * \param packet A SIP message
  * \param src_name The source IP address of the message
  * \param src_port The source port of the message
@@ -2165,7 +2165,7 @@ int ast_sip_create_rdata_with_contact(pjsip_rx_data *rdata, char *packet,
 /*!
  * \brief General purpose method for creating an rdata structure using specific information
  *
- * \param rdata[out] The rdata structure that will be populated
+ * \param[out] rdata The rdata structure that will be populated
  * \param packet A SIP message
  * \param src_name The source IP address of the message
  * \param src_port The source port of the message
@@ -2247,7 +2247,7 @@ int ast_sip_send_request(pjsip_tx_data *tdata, struct pjsip_dialog *dlg,
  *
  * \param tdata The request to send
  * \param endpoint Optional. If specified, the out-of-dialog request is sent to the endpoint.
- * \param timeout.  If non-zero, after the timeout the transaction will be terminated
+ * \param timeout If non-zero, after the timeout the transaction will be terminated
  * and the callback will be called with the PJSIP_EVENT_TIMER type.
  * \param token Data to be passed to the callback upon receipt of out-of-dialog response.
  * \param callback Callback to be called upon receipt of out-of-dialog response.
@@ -2275,7 +2275,7 @@ int ast_sip_send_out_of_dialog_request(pjsip_tx_data *tdata,
  * \param rdata The rdata from the incoming request.
  * \param st_code The response code to transmit.
  * \param contact The contact with which this request is associated.
- * \param[out] tdata The newly-created response
+ * \param[out] p_tdata The newly-created response
  *
  * The provided contact is attached to tdata with its reference bumped, but will
  * not survive for the entire lifetime of tdata since the contact is cleaned up
@@ -2297,7 +2297,7 @@ int ast_sip_create_response(const pjsip_rx_data *rdata, int st_code,
  *
  * \param res_addr The response address for this response
  * \param tdata The response to send
- * \param endpoint The ast_sip_endpoint associated with this response
+ * \param sip_endpoint The ast_sip_endpoint associated with this response
  *
  * \retval 0 Success
  * \retval -1 Failure
@@ -2313,7 +2313,7 @@ int ast_sip_send_response(pjsip_response_addr *res_addr, pjsip_tx_data *tdata, s
  *
  * \param rdata The request that is being responded to
  * \param tdata The response to send
- * \param endpoint The ast_sip_endpoint associated with this response
+ * \param sip_endpoint The ast_sip_endpoint associated with this response
  *
  * \since 13.4.0
  *
@@ -2433,7 +2433,8 @@ int ast_sip_add_body(pjsip_tx_data *tdata, const struct ast_sip_body *body);
  * add each part to the SIP message.
  *
  * \param tdata The message to add the body to
- * \param bodies The parts of the body to add
+ * \param bodies The message bodies to add
+ * \param num_bodies The parts of the body to add
  * \retval 0 Success
  * \retval -1 Failure
  */
@@ -2446,7 +2447,7 @@ int ast_sip_add_body_multipart(pjsip_tx_data *tdata, const struct ast_sip_body *
  * a body if it currently exists, it appends data to an existing body.
  *
  * \param tdata The message to append the body to
- * \param body The string to append to the end of the current body
+ * \param body_text The string to append to the end of the current body
  * \retval 0 Success
  * \retval -1 Failure
  */
@@ -2546,6 +2547,7 @@ int ast_sip_retrieve_auths(const struct ast_sip_auth_vector *auths, struct ast_s
  */
 void ast_sip_cleanup_auths(struct ast_sip_auth *auths[], size_t num_auths);
 
+AST_VECTOR(ast_sip_auth_objects_vector, struct ast_sip_auth *);
 /*!
  * \brief Retrieve relevant SIP auth structures from sorcery as a vector
  *
@@ -2555,17 +2557,16 @@ void ast_sip_cleanup_auths(struct ast_sip_auth *auths[], size_t num_auths);
  * \retval 0 Success
  * \retval -1 Number of auth objects found is less than the number of names supplied.
  *
- * \WARNING The number of auth objects retrieved may be less than the
+ * \warning The number of auth objects retrieved may be less than the
  * number of auth ids supplied if auth objects couldn't be found for
  * some of them.
  *
- * \NOTE Since the ref count on all auth objects returned has been
+ * \note Since the ref count on all auth objects returned has been
  * bumped, you must call ast_sip_cleanup_auth_objects_vector() to decrement
  * the ref count on all of the auth objects in the vector,
  * then call AST_VECTOR_FREE() on the vector itself.
  *
  */
-AST_VECTOR(ast_sip_auth_objects_vector, struct ast_sip_auth *);
 int ast_sip_retrieve_auths_vector(const struct ast_sip_auth_vector *auth_ids,
 	struct ast_sip_auth_objects_vector *auth_objects);
 
@@ -2832,7 +2833,7 @@ void ast_sip_unregister_endpoint_formatter(struct ast_sip_endpoint_formatter *ob
  * \brief Converts a sorcery object to a string of object properties.
  *
  * \param obj the sorcery object to convert
- * \param str the string buffer to write the object data
+ * \param buf the string buffer to write the object data
  * \retval 0 Success, non-zero on failure
  */
 int ast_sip_sorcery_object_to_ami(const void *obj, struct ast_str **buf);
@@ -2841,7 +2842,7 @@ int ast_sip_sorcery_object_to_ami(const void *obj, struct ast_str **buf);
  * \brief Formats the endpoint and sends over AMI.
  *
  * \param endpoint the endpoint to format and send
- * \param endpoint ami AMI variable container
+ * \param ami AMI variable container
  * \param count the number of formatters operated on
  * \retval 0 Success, otherwise non-zero on error
  */
@@ -2992,8 +2993,6 @@ struct ast_sip_supplement {
  * Similarly, a module could reject an incoming request if desired.
  *
  * \param supplement The supplement to register
- * \retval 0 Success
- * \retval -1 Failure
  */
 void ast_sip_register_supplement(struct ast_sip_supplement *supplement);
 
@@ -3133,7 +3132,6 @@ char *ast_sip_get_default_voicemail_extension(void);
  *
  * \param[out] realm The default realm
  * \param size The buffer size of realm
- * \return nothing
  */
 void ast_sip_get_default_realm(char *realm, size_t size);
 
@@ -3146,7 +3144,6 @@ void ast_sip_get_default_realm(char *realm, size_t size);
  *
  * \param[out] from_user The default from user
  * \param size The buffer size of from_user
- * \return nothing
  */
 void ast_sip_get_default_from_user(char *from_user, size_t size);
 
@@ -3570,8 +3567,6 @@ enum ast_transport_monitor_reg ast_sip_transport_monitor_register_replace(pjsip_
  *
  * \note The data object passed into the original register will have its reference count
  * automatically decremented.
- *
- * \return Nothing
  */
 void ast_sip_transport_monitor_unregister(pjsip_transport *transport,
 	ast_transport_monitor_shutdown_cb cb, void *data, ast_transport_monitor_data_matcher matches);
@@ -3588,8 +3583,6 @@ void ast_sip_transport_monitor_unregister(pjsip_transport *transport,
  *
  * \note The data object passed into the original register will have its reference count
  * automatically decremented.
- *
- * \return Nothing
  */
 void ast_sip_transport_monitor_unregister_all(ast_transport_monitor_shutdown_cb cb,
 	void *data, ast_transport_monitor_data_matcher matches);
@@ -3606,8 +3599,6 @@ struct ast_sip_tpmgr_state_callback {
  * \since 13.18.0
  *
  * \param element What we are registering.
- *
- * \return Nothing
  */
 void ast_sip_transport_state_register(struct ast_sip_tpmgr_state_callback *element);
 
@@ -3616,8 +3607,6 @@ void ast_sip_transport_state_register(struct ast_sip_tpmgr_state_callback *eleme
  * \since 13.18.0
  *
  * \param element What we are unregistering.
- *
- * \return Nothing
  */
 void ast_sip_transport_state_unregister(struct ast_sip_tpmgr_state_callback *element);
 
