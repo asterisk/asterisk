@@ -110,7 +110,6 @@ References:
 	\li \see ast_channel_early_bridge()
 	\li \see ast_channel_bridge()
 	\li \see app_meetme.c
-	\li \ref AstRTPbridge
 	\li \see ast_rtp_bridge()
 	\li \ref Def_Channel
 */
@@ -1298,7 +1297,8 @@ int ast_queue_hangup(struct ast_channel *chan);
  * \note The channel does not need to be locked before calling this function.
  * \param[in] chan channel to queue frame onto
  * \param[in] cause the hangup cause
- * \return 0 on success, -1 on error
+ * \retval 0 on success
+ * \retval -1 on error
  * \since 1.6.1
  */
 int ast_queue_hangup_with_cause(struct ast_channel *chan, int cause);
@@ -1377,8 +1377,6 @@ int ast_queue_control_data(struct ast_channel *chan, enum ast_control_frame_type
  * \param chan the channel to change the name of
  * \param newname the name to change to
  *
- * \return nothing
- *
  * \note this function must _NEVER_ be used when any channels are locked
  * regardless if it is the channel who's name is being changed or not because
  * it invalidates our channel container locking order... lock container first,
@@ -1392,7 +1390,7 @@ void ast_change_name(struct ast_channel *chan, const char *newname);
  * This function will unlink the channel from the global channels container
  * if it is still there and also release the current reference to the channel.
  *
- * \return NULL, convenient for clearing invalid pointers
+ * \retval NULL, convenient for clearing invalid pointers
  * \note Absolutely _NO_ channel locks should be held before calling this function.
  *
  * \since 1.8
@@ -1455,8 +1453,6 @@ enum ast_channel_requestor_relationship {
  * \pre The chan and requestor channels are already locked.
  *
  * \note Pre-existing accountcodes on chan will be overwritten.
- *
- * \return Nothing
  */
 void ast_channel_req_accountcodes(struct ast_channel *chan, const struct ast_channel *requestor, enum ast_channel_requestor_relationship relationship);
 
@@ -1471,8 +1467,6 @@ void ast_channel_req_accountcodes(struct ast_channel *chan, const struct ast_cha
  * \pre The chan and requestor channels are already locked.
  *
  * \note Pre-existing accountcodes on chan will not be overwritten.
- *
- * \return Nothing
  */
 void ast_channel_req_accountcodes_precious(struct ast_channel *chan, const struct ast_channel *requestor, enum ast_channel_requestor_relationship relationship);
 
@@ -1538,7 +1532,6 @@ int ast_channel_register(const struct ast_channel_tech *tech);
 /*!
  * \brief Unregister a channel technology
  * \param tech Structure defining channel technology or "type" that was previously registered
- * \return No return value.
  */
 void ast_channel_unregister(const struct ast_channel_tech *tech);
 
@@ -1556,15 +1549,12 @@ const struct ast_channel_tech *ast_get_channel_tech(const char *name);
  * performs all stream stopping, etc, on the channel that needs to end.
  * chan is no longer valid after this call.
  * \param chan channel to hang up (NULL tolerant)
- * \return Nothing
  */
 void ast_hangup(struct ast_channel *chan);
 
 /*!
  * \brief Soft hangup all active channels.
  * \since 13.3.0
- *
- * \return Nothing
  */
 void ast_softhangup_all(void);
 
@@ -1572,7 +1562,7 @@ void ast_softhangup_all(void);
  * \brief Softly hangup up a channel
  *
  * \param chan channel to be soft-hung-up
- * \param reason an AST_SOFTHANGUP_* reason code
+ * \param cause an AST_SOFTHANGUP_* reason code
  *
  * \details
  * Call the protocol layer, but don't destroy the channel structure
@@ -1583,14 +1573,14 @@ void ast_softhangup_all(void);
  *
  * \return Returns 0 regardless
  */
-int ast_softhangup(struct ast_channel *chan, int reason);
+int ast_softhangup(struct ast_channel *chan, int cause);
 
 /*!
  * \brief Softly hangup up a channel (no channel lock)
  * \param chan channel to be soft-hung-up
- * \param reason an AST_SOFTHANGUP_* reason code
+ * \param cause an AST_SOFTHANGUP_* reason code
  */
-int ast_softhangup_nolock(struct ast_channel *chan, int reason);
+int ast_softhangup_nolock(struct ast_channel *chan, int cause);
 
 /*!
  * \brief Clear a set of softhangup flags from a channel
@@ -1601,8 +1591,6 @@ int ast_softhangup_nolock(struct ast_channel *chan, int reason);
  *
  * \param chan the channel to clear the flag on
  * \param flag the flag or flags to clear
- *
- * \return Nothing.
  */
 void ast_channel_clear_softhangup(struct ast_channel *chan, int flag);
 
@@ -1706,7 +1694,6 @@ void ast_channel_set_is_t38_active_nolock(struct ast_channel *chan, int is_t38_a
  * \brief Lock the given channel, then request softhangup on the channel with the given causecode
  * \param chan channel on which to hang up
  * \param causecode cause code to use (Zero if don't use cause code)
- * \return Nothing
  */
 void ast_channel_softhangup_withcause_locked(struct ast_channel *chan, int causecode);
 
@@ -1733,7 +1720,6 @@ int ast_channel_cmpwhentohangup_tv(struct ast_channel *chan, struct timeval offs
  *
  * \pre chan is locked
  *
- * \return Nothing
  * \since 1.6.1
  */
 void ast_channel_setwhentohangup_tv(struct ast_channel *chan, struct timeval offset);
@@ -1933,7 +1919,7 @@ int ast_safe_sleep_conditional(struct ast_channel *chan, int ms, int (*cond)(voi
 
 /*!
  * \brief Waits for activity on a group of channels
- * \param chan an array of pointers to channels
+ * \param c an array of pointers to channels
  * \param n number of channels that are to be waited upon
  * \param fds an array of fds to wait upon
  * \param nfds the number of fds to wait upon
@@ -1947,7 +1933,7 @@ int ast_safe_sleep_conditional(struct ast_channel *chan, int ms, int (*cond)(voi
  * came first.  If the FD came first, it will be returned in outfd, otherwise, outfd
  * will be -1
  */
-struct ast_channel *ast_waitfor_nandfds(struct ast_channel **chan, int n,
+struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n,
 	int *fds, int nfds, int *exception, int *outfd, int *ms);
 
 /*!
@@ -2322,10 +2308,10 @@ int ast_channel_early_bridge(struct ast_channel *c0, struct ast_channel *c1);
 /*!
  * \brief Gives the string form of a given cause code.
  *
- * \param state cause to get the description of
+ * \param cause cause to get the description of
  * \return the text form of the binary cause code given
  */
-const char *ast_cause2str(int state) attribute_pure;
+const char *ast_cause2str(int cause) attribute_pure;
 
 /*!
  * \brief Convert the string form of a cause code to a number
@@ -2338,10 +2324,12 @@ int ast_str2cause(const char *name) attribute_pure;
 /*!
  * \brief Gives the string form of a given channel state
  *
- * \param ast_channel_state state to get the name of
+ * \param state state to get the name of
  * \return the text form of the binary state given
+ *
+ * \note This function is not reentrant.
  */
-const char *ast_state2str(enum ast_channel_state);
+const char *ast_state2str(enum ast_channel_state state);
 
 /*!
  * \brief Gives the string form of a given transfer capability
@@ -2484,8 +2472,6 @@ void ast_set_callerid(struct ast_channel *chan, const char *cid_num, const char 
  * \param caller Caller id information
  * \param update What caller information to update.  NULL if all.
  *
- * \return Nothing
- *
  * \note The channel does not need to be locked before calling this function.
  */
 void ast_channel_set_caller(struct ast_channel *chan, const struct ast_party_caller *caller, const struct ast_set_party_caller *update);
@@ -2498,8 +2484,6 @@ void ast_channel_set_caller(struct ast_channel *chan, const struct ast_party_cal
  * \param chan Asterisk channel to set caller id information
  * \param caller Caller id information
  * \param update What caller information to update.  NULL if all.
- *
- * \return Nothing
  *
  * \note The channel does not need to be locked before calling this function.
  */
@@ -2543,8 +2527,6 @@ int ast_autoservice_stop(struct ast_channel *chan);
  *
  * \param chan Chan to put into autoservice.
  * \param peer Chan to run hangup handlers and hangup.
- *
- * \return Nothing
  */
 void ast_autoservice_chan_hangup_peer(struct ast_channel *chan, struct ast_channel *peer);
 
@@ -2594,10 +2576,10 @@ int ast_transfer(struct ast_channel *chan, char *dest);
  * \retval -1 on error
  * \retval 0 if not supported
  * \retval 1 if supported and requested
- * \param chan current channel
- * \param dest destination extension for transfer
- * \param protocol specific error code in case of failure
- * Example, sip 0 success, else sip error code
+ * \param chan channel to transfer
+ * \param dest destination extension to transfer to
+ * \param protocol protocol is the protocol result
+ * SIP example, 0=success, 3xx-6xx is SIP error code
  */
 int ast_transfer_protocol(struct ast_channel *chan, char *dest, int *protocol);
 
@@ -2656,7 +2638,6 @@ struct ast_silence_generator *ast_channel_start_silence_generator(struct ast_cha
  * \param chan The channel to operate on
  * \param state The ast_silence_generator pointer return by a previous call to
  * ast_channel_start_silence_generator.
- * \return nothing
  *
  * \details
  * This function will stop the operating silence generator and return the channel
@@ -2676,7 +2657,6 @@ struct ast_channel *ast_channel_internal_oldest_linkedid(struct ast_channel *a, 
  * \brief Copy the full linkedid channel id structure from one channel to another
  * \param dest Destination to copy linkedid to
  * \param source Source channel to copy linkedid from
- * \return void
  */
 void ast_channel_internal_copy_linkedid(struct ast_channel *dest, struct ast_channel *source);
 
@@ -2684,7 +2664,6 @@ void ast_channel_internal_copy_linkedid(struct ast_channel *dest, struct ast_cha
  * \brief Swap uniqueid and linkedid beteween two channels
  * \param a First channel
  * \param b Second channel
- * \return void
  *
  * \note
  * This is used in masquerade to exchange identities
@@ -2695,7 +2674,6 @@ void ast_channel_internal_swap_uniqueid_and_linkedid(struct ast_channel *a, stru
  * \brief Swap topics beteween two channels
  * \param a First channel
  * \param b Second channel
- * \return void
  *
  * \note
  * This is used in masquerade to exchange topics for message routing
@@ -2706,7 +2684,6 @@ void ast_channel_internal_swap_topics(struct ast_channel *a, struct ast_channel 
  * \brief Swap endpoint_forward and endpoint_cache_forward between two channels
  * \param a First channel
  * \param b Second channel
- * \return void
  *
  * \note
  * This is used in masquerade to exchange endpoint details if one of the two or both
@@ -2719,7 +2696,6 @@ void ast_channel_internal_swap_endpoint_forward_and_endpoint_cache_forward(struc
  * \param chan The channel to set the uniqueid to
  * \param uniqueid The uniqueid to set
  * \param linkedid The linkedid to set
- * \return void
  *
  * \note
  * This is used only by ast_cel_fabricate_channel_from_event()
@@ -3058,8 +3034,6 @@ struct ast_channel *ast_channel_get_by_exten(const char *exten, const char *cont
  * \since 1.8
  *
  * \param init Name structure to initialize.
- *
- * \return Nothing
  */
 void ast_party_name_init(struct ast_party_name *init);
 
@@ -3069,8 +3043,6 @@ void ast_party_name_init(struct ast_party_name *init);
  *
  * \param dest Destination party name
  * \param src Source party name
- *
- * \return Nothing
  */
 void ast_party_name_copy(struct ast_party_name *dest, const struct ast_party_name *src);
 
@@ -3088,8 +3060,6 @@ void ast_party_name_copy(struct ast_party_name *dest, const struct ast_party_nam
  *
  * \param init Party name structure to initialize.
  * \param guide Source party name to use as a guide in initializing.
- *
- * \return Nothing
  */
 void ast_party_name_set_init(struct ast_party_name *init, const struct ast_party_name *guide);
 
@@ -3099,8 +3069,6 @@ void ast_party_name_set_init(struct ast_party_name *init, const struct ast_party
  *
  * \param dest The name one wishes to update
  * \param src The new name values to update the dest
- *
- * \return Nothing
  */
 void ast_party_name_set(struct ast_party_name *dest, const struct ast_party_name *src);
 
@@ -3109,8 +3077,6 @@ void ast_party_name_set(struct ast_party_name *dest, const struct ast_party_name
  * \since 1.8
  *
  * \param doomed The party name to destroy.
- *
- * \return Nothing
  */
 void ast_party_name_free(struct ast_party_name *doomed);
 
@@ -3119,8 +3085,6 @@ void ast_party_name_free(struct ast_party_name *doomed);
  * \since 1.8
  *
  * \param init Number structure to initialize.
- *
- * \return Nothing
  */
 void ast_party_number_init(struct ast_party_number *init);
 
@@ -3130,8 +3094,6 @@ void ast_party_number_init(struct ast_party_number *init);
  *
  * \param dest Destination party number
  * \param src Source party number
- *
- * \return Nothing
  */
 void ast_party_number_copy(struct ast_party_number *dest, const struct ast_party_number *src);
 
@@ -3149,8 +3111,6 @@ void ast_party_number_copy(struct ast_party_number *dest, const struct ast_party
  *
  * \param init Party number structure to initialize.
  * \param guide Source party number to use as a guide in initializing.
- *
- * \return Nothing
  */
 void ast_party_number_set_init(struct ast_party_number *init, const struct ast_party_number *guide);
 
@@ -3160,8 +3120,6 @@ void ast_party_number_set_init(struct ast_party_number *init, const struct ast_p
  *
  * \param dest The number one wishes to update
  * \param src The new number values to update the dest
- *
- * \return Nothing
  */
 void ast_party_number_set(struct ast_party_number *dest, const struct ast_party_number *src);
 
@@ -3170,8 +3128,6 @@ void ast_party_number_set(struct ast_party_number *dest, const struct ast_party_
  * \since 1.8
  *
  * \param doomed The party number to destroy.
- *
- * \return Nothing
  */
 void ast_party_number_free(struct ast_party_number *doomed);
 
@@ -3180,8 +3136,6 @@ void ast_party_number_free(struct ast_party_number *doomed);
  * \brief Initialize the given subaddress structure.
  *
  * \param init Subaddress structure to initialize.
- *
- * \return Nothing
  */
 void ast_party_subaddress_init(struct ast_party_subaddress *init);
 
@@ -3191,8 +3145,6 @@ void ast_party_subaddress_init(struct ast_party_subaddress *init);
  *
  * \param dest Destination party subaddress
  * \param src Source party subaddress
- *
- * \return Nothing
  */
 void ast_party_subaddress_copy(struct ast_party_subaddress *dest, const struct ast_party_subaddress *src);
 
@@ -3210,8 +3162,6 @@ void ast_party_subaddress_copy(struct ast_party_subaddress *dest, const struct a
  *
  * \param init Party subaddress structure to initialize.
  * \param guide Source party subaddress to use as a guide in initializing.
- *
- * \return Nothing
  */
 void ast_party_subaddress_set_init(struct ast_party_subaddress *init, const struct ast_party_subaddress *guide);
 
@@ -3221,8 +3171,6 @@ void ast_party_subaddress_set_init(struct ast_party_subaddress *init, const stru
  *
  * \param dest The subaddress one wishes to update
  * \param src The new subaddress values to update the dest
- *
- * \return Nothing
  */
 void ast_party_subaddress_set(struct ast_party_subaddress *dest, const struct ast_party_subaddress *src);
 
@@ -3231,8 +3179,6 @@ void ast_party_subaddress_set(struct ast_party_subaddress *dest, const struct as
  * \brief Destroy the party subaddress contents
  *
  * \param doomed The party subaddress to destroy.
- *
- * \return Nothing
  */
 void ast_party_subaddress_free(struct ast_party_subaddress *doomed);
 
@@ -3241,8 +3187,6 @@ void ast_party_subaddress_free(struct ast_party_subaddress *doomed);
  * \since 11.0
  *
  * \param update_id The update marker for a corresponding party id.
- *
- * \return Nothing
  */
 void ast_set_party_id_all(struct ast_set_party_id *update_id);
 
@@ -3251,8 +3195,6 @@ void ast_set_party_id_all(struct ast_set_party_id *update_id);
  * \since 1.8
  *
  * \param init Party id structure to initialize.
- *
- * \return Nothing
  */
 void ast_party_id_init(struct ast_party_id *init);
 
@@ -3262,8 +3204,6 @@ void ast_party_id_init(struct ast_party_id *init);
  *
  * \param dest Destination party id
  * \param src Source party id
- *
- * \return Nothing
  */
 void ast_party_id_copy(struct ast_party_id *dest, const struct ast_party_id *src);
 
@@ -3281,8 +3221,6 @@ void ast_party_id_copy(struct ast_party_id *dest, const struct ast_party_id *src
  *
  * \param init Party id structure to initialize.
  * \param guide Source party id to use as a guide in initializing.
- *
- * \return Nothing
  */
 void ast_party_id_set_init(struct ast_party_id *init, const struct ast_party_id *guide);
 
@@ -3293,8 +3231,6 @@ void ast_party_id_set_init(struct ast_party_id *init, const struct ast_party_id 
  * \param dest The id one wishes to update
  * \param src The new id values to update the dest
  * \param update What id information to update.  NULL if all.
- *
- * \return Nothing
  */
 void ast_party_id_set(struct ast_party_id *dest, const struct ast_party_id *src, const struct ast_set_party_id *update);
 
@@ -3303,8 +3239,6 @@ void ast_party_id_set(struct ast_party_id *dest, const struct ast_party_id *src,
  * \since 1.8
  *
  * \param doomed The party id to destroy.
- *
- * \return Nothing
  */
 void ast_party_id_free(struct ast_party_id *doomed);
 
@@ -3323,8 +3257,6 @@ int ast_party_id_presentation(const struct ast_party_id *id);
  * \since 11.0
  *
  * \param id The party id to invalidate.
- *
- * \return Nothing
  */
 void ast_party_id_invalidate(struct ast_party_id *id);
 
@@ -3333,8 +3265,6 @@ void ast_party_id_invalidate(struct ast_party_id *id);
  * \since 11.0
  *
  * \param id The party id to reset.
- *
- * \return Nothing
  */
 void ast_party_id_reset(struct ast_party_id *id);
 
@@ -3373,8 +3303,6 @@ struct ast_party_id ast_party_id_merge(struct ast_party_id *base, struct ast_par
  * \param dest The resulting merged party id.
  * \param base The party id which is merged.
  * \param overlay The party id which is used to merge into.
- *
- * \return Nothing
  */
 void ast_party_id_merge_copy(struct ast_party_id *dest, struct ast_party_id *base, struct ast_party_id *overlay);
 
@@ -3383,8 +3311,6 @@ void ast_party_id_merge_copy(struct ast_party_id *dest, struct ast_party_id *bas
  * \since 1.8
  *
  * \param init Dialed structure to initialize.
- *
- * \return Nothing
  */
 void ast_party_dialed_init(struct ast_party_dialed *init);
 
@@ -3394,8 +3320,6 @@ void ast_party_dialed_init(struct ast_party_dialed *init);
  *
  * \param dest Destination dialed party
  * \param src Source dialed party
- *
- * \return Nothing
  */
 void ast_party_dialed_copy(struct ast_party_dialed *dest, const struct ast_party_dialed *src);
 
@@ -3413,8 +3337,6 @@ void ast_party_dialed_copy(struct ast_party_dialed *dest, const struct ast_party
  *
  * \param init Caller structure to initialize.
  * \param guide Source dialed to use as a guide in initializing.
- *
- * \return Nothing
  */
 void ast_party_dialed_set_init(struct ast_party_dialed *init, const struct ast_party_dialed *guide);
 
@@ -3427,8 +3349,6 @@ void ast_party_dialed_set_init(struct ast_party_dialed *init, const struct ast_p
  *
  * \param dest The dialed one wishes to update
  * \param src The new dialed values to update the dest
- *
- * \return Nada
  */
 void ast_party_dialed_set(struct ast_party_dialed *dest, const struct ast_party_dialed *src);
 
@@ -3437,8 +3357,6 @@ void ast_party_dialed_set(struct ast_party_dialed *dest, const struct ast_party_
  * \since 1.8
  *
  * \param doomed The dialed party to destroy.
- *
- * \return Nothing
  */
 void ast_party_dialed_free(struct ast_party_dialed *doomed);
 
@@ -3447,8 +3365,6 @@ void ast_party_dialed_free(struct ast_party_dialed *doomed);
  * \brief Initialize the given caller structure.
  *
  * \param init Caller structure to initialize.
- *
- * \return Nothing
  */
 void ast_party_caller_init(struct ast_party_caller *init);
 
@@ -3458,8 +3374,6 @@ void ast_party_caller_init(struct ast_party_caller *init);
  *
  * \param dest Destination caller
  * \param src Source caller
- *
- * \return Nothing
  */
 void ast_party_caller_copy(struct ast_party_caller *dest, const struct ast_party_caller *src);
 
@@ -3477,8 +3391,6 @@ void ast_party_caller_copy(struct ast_party_caller *dest, const struct ast_party
  *
  * \param init Caller structure to initialize.
  * \param guide Source caller to use as a guide in initializing.
- *
- * \return Nothing
  */
 void ast_party_caller_set_init(struct ast_party_caller *init, const struct ast_party_caller *guide);
 
@@ -3492,8 +3404,6 @@ void ast_party_caller_set_init(struct ast_party_caller *init, const struct ast_p
  * \param dest The caller one wishes to update
  * \param src The new caller values to update the dest
  * \param update What caller information to update.  NULL if all.
- *
- * \return Nada
  */
 void ast_party_caller_set(struct ast_party_caller *dest, const struct ast_party_caller *src, const struct ast_set_party_caller *update);
 
@@ -3502,8 +3412,6 @@ void ast_party_caller_set(struct ast_party_caller *dest, const struct ast_party_
  * \since 1.8
  *
  * \param doomed The caller party to destroy.
- *
- * \return Nothing
  */
 void ast_party_caller_free(struct ast_party_caller *doomed);
 
@@ -3512,8 +3420,6 @@ void ast_party_caller_free(struct ast_party_caller *doomed);
  * \brief Initialize the given connected line structure.
  *
  * \param init Connected line structure to initialize.
- *
- * \return Nothing
  */
 void ast_party_connected_line_init(struct ast_party_connected_line *init);
 
@@ -3523,8 +3429,6 @@ void ast_party_connected_line_init(struct ast_party_connected_line *init);
  *
  * \param dest Destination connected line
  * \param src Source connected line
- *
- * \return Nothing
  */
 void ast_party_connected_line_copy(struct ast_party_connected_line *dest, const struct ast_party_connected_line *src);
 
@@ -3542,8 +3446,6 @@ void ast_party_connected_line_copy(struct ast_party_connected_line *dest, const 
  *
  * \param init Connected line structure to initialize.
  * \param guide Source connected line to use as a guide in initializing.
- *
- * \return Nothing
  */
 void ast_party_connected_line_set_init(struct ast_party_connected_line *init, const struct ast_party_connected_line *guide);
 
@@ -3557,8 +3459,6 @@ void ast_party_connected_line_set_init(struct ast_party_connected_line *init, co
  * \param dest The connected line one wishes to update
  * \param src The new connected line values to update the dest
  * \param update What connected line information to update.  NULL if all.
- *
- * \return Nothing
  */
 void ast_party_connected_line_set(struct ast_party_connected_line *dest, const struct ast_party_connected_line *src, const struct ast_set_party_connected_line *update);
 
@@ -3568,8 +3468,6 @@ void ast_party_connected_line_set(struct ast_party_connected_line *dest, const s
  *
  * \param connected Collected caller information for the connected line
  * \param caller Caller information.
- *
- * \return Nothing
  *
  * \warning This is a shallow copy.
  * \warning DO NOT call ast_party_connected_line_free() on the filled in
@@ -3582,8 +3480,6 @@ void ast_party_connected_line_collect_caller(struct ast_party_connected_line *co
  * \brief Destroy the connected line information contents
  *
  * \param doomed The connected line information to destroy.
- *
- * \return Nothing
  */
 void ast_party_connected_line_free(struct ast_party_connected_line *doomed);
 
@@ -3591,8 +3487,6 @@ void ast_party_connected_line_free(struct ast_party_connected_line *doomed);
  * \brief Initialize the given redirecting reason structure
  *
  * \param init Redirecting reason structure to initialize
- *
- * \return Nothing
  */
 void ast_party_redirecting_reason_init(struct ast_party_redirecting_reason *init);
 
@@ -3601,8 +3495,6 @@ void ast_party_redirecting_reason_init(struct ast_party_redirecting_reason *init
  *
  * \param dest Destination redirecting reason
  * \param src Source redirecting reason
- *
- * \return Nothing
  */
 void ast_party_redirecting_reason_copy(struct ast_party_redirecting_reason *dest,
 		const struct ast_party_redirecting_reason *src);
@@ -3620,8 +3512,6 @@ void ast_party_redirecting_reason_copy(struct ast_party_redirecting_reason *dest
  *
  * \param init Redirecting reason structure to initialize.
  * \param guide Source redirecting reason to use as a guide in initializing.
- *
- * \return Nothing
  */
 void ast_party_redirecting_reason_set_init(struct ast_party_redirecting_reason *init,
 		const struct ast_party_redirecting_reason *guide);
@@ -3634,8 +3524,6 @@ void ast_party_redirecting_reason_set_init(struct ast_party_redirecting_reason *
  *
  * \param dest The redirecting reason one wishes to update
  * \param src The new redirecting reason values to update the dest
- *
- * \return Nothing
  */
 void ast_party_redirecting_reason_set(struct ast_party_redirecting_reason *dest,
 		const struct ast_party_redirecting_reason *src);
@@ -3644,8 +3532,6 @@ void ast_party_redirecting_reason_set(struct ast_party_redirecting_reason *dest,
  * \brief Destroy the redirecting reason contents
  *
  * \param doomed The redirecting reason to destroy.
- *
- * \return Nothing
  */
 void ast_party_redirecting_reason_free(struct ast_party_redirecting_reason *doomed);
 
@@ -3654,8 +3540,6 @@ void ast_party_redirecting_reason_free(struct ast_party_redirecting_reason *doom
  * \since 1.8
  *
  * \param init Redirecting structure to initialize.
- *
- * \return Nothing
  */
 void ast_party_redirecting_init(struct ast_party_redirecting *init);
 
@@ -3665,8 +3549,6 @@ void ast_party_redirecting_init(struct ast_party_redirecting *init);
  *
  * \param dest Destination redirecting
  * \param src Source redirecting
- *
- * \return Nothing
  */
 void ast_party_redirecting_copy(struct ast_party_redirecting *dest, const struct ast_party_redirecting *src);
 
@@ -3684,8 +3566,6 @@ void ast_party_redirecting_copy(struct ast_party_redirecting *dest, const struct
  *
  * \param init Redirecting id structure to initialize.
  * \param guide Source redirecting id to use as a guide in initializing.
- *
- * \return Nothing
  */
 void ast_party_redirecting_set_init(struct ast_party_redirecting *init, const struct ast_party_redirecting *guide);
 
@@ -3699,8 +3579,6 @@ void ast_party_redirecting_set_init(struct ast_party_redirecting *init, const st
  * \param dest The redirecting one wishes to update
  * \param src The new redirecting values to update the dest
  * \param update What redirecting information to update.  NULL if all.
- *
- * \return Nothing
  */
 void ast_party_redirecting_set(struct ast_party_redirecting *dest, const struct ast_party_redirecting *src, const struct ast_set_party_redirecting *update);
 
@@ -3709,8 +3587,6 @@ void ast_party_redirecting_set(struct ast_party_redirecting *dest, const struct 
  * \brief Destroy the redirecting information contents
  *
  * \param doomed The redirecting information to destroy.
- *
- * \return Nothing
  */
 void ast_party_redirecting_free(struct ast_party_redirecting *doomed);
 
@@ -3720,8 +3596,6 @@ void ast_party_redirecting_free(struct ast_party_redirecting *doomed);
  *
  * \param dest Destination connected line information
  * \param src Source caller information
- *
- * \return Nothing
  *
  * \note Assumes locks are already acquired
  */
@@ -3734,8 +3608,6 @@ void ast_connected_line_copy_from_caller(struct ast_party_connected_line *dest, 
  * \param dest Destination caller information
  * \param src Source connected line information
  *
- * \return Nothing
- *
  * \note Assumes locks are already acquired
  */
 void ast_connected_line_copy_to_caller(struct ast_party_caller *dest, const struct ast_party_connected_line *src);
@@ -3747,8 +3619,6 @@ void ast_connected_line_copy_to_caller(struct ast_party_caller *dest, const stru
  * \param chan Asterisk channel to set connected line information
  * \param connected Connected line information
  * \param update What connected line information to update.  NULL if all.
- *
- * \return Nothing
  *
  * \note The channel does not need to be locked before calling this function.
  */
@@ -3794,8 +3664,6 @@ int ast_connected_line_parse_data(const unsigned char *data, size_t datalen, str
  * \param chan Asterisk channel to indicate connected line information
  * \param connected Connected line information
  * \param update What connected line information to update.  NULL if all.
- *
- * \return Nothing
  */
 void ast_channel_update_connected_line(struct ast_channel *chan, const struct ast_party_connected_line *connected, const struct ast_set_party_connected_line *update);
 
@@ -3806,8 +3674,6 @@ void ast_channel_update_connected_line(struct ast_channel *chan, const struct as
  * \param chan Asterisk channel to indicate connected line information
  * \param connected Connected line information
  * \param update What connected line information to update.  NULL if all.
- *
- * \return Nothing
  */
 void ast_channel_queue_connected_line_update(struct ast_channel *chan, const struct ast_party_connected_line *connected, const struct ast_set_party_connected_line *update);
 
@@ -3818,8 +3684,6 @@ void ast_channel_queue_connected_line_update(struct ast_channel *chan, const str
  * \param chan Asterisk channel to set redirecting id information
  * \param redirecting Redirecting id information
  * \param update What redirecting information to update.  NULL if all.
- *
- * \return Nothing
  *
  * \note The channel does not need to be locked before calling this function.
  */
@@ -3864,8 +3728,6 @@ int ast_redirecting_parse_data(const unsigned char *data, size_t datalen, struct
  * \param chan Asterisk channel to indicate redirecting id information
  * \param redirecting Redirecting id information
  * \param update What redirecting information to update.  NULL if all.
- *
- * \return Nothing
  */
 void ast_channel_update_redirecting(struct ast_channel *chan, const struct ast_party_redirecting *redirecting, const struct ast_set_party_redirecting *update);
 
@@ -3876,8 +3738,6 @@ void ast_channel_update_redirecting(struct ast_channel *chan, const struct ast_p
  * \param chan Asterisk channel to indicate redirecting id information
  * \param redirecting Redirecting id information
  * \param update What redirecting information to update.  NULL if all.
- *
- * \return Nothing
  */
 void ast_channel_queue_redirecting_update(struct ast_channel *chan, const struct ast_party_redirecting *redirecting, const struct ast_set_party_redirecting *update);
 
@@ -4531,7 +4391,7 @@ void ast_channel_set_flag(struct ast_channel *chan, unsigned int flag);
 
 /*!
  * \since 13.17.0
- * \param Clear a flag on a channel
+ * \brief Clear a flag on a channel
  *
  * \param chan The channel to clear the flag from
  * \param flag The flag to clear
@@ -4879,8 +4739,6 @@ int ast_channel_unsuppress(struct ast_channel *chan, unsigned int direction, enu
  * \param digit DTMF digit to stop.
  * \param start DTMF digit start time.
  * \param why Reason bridge broken.
- *
- * \return Nothing
  */
 void ast_channel_end_dtmf(struct ast_channel *chan, char digit, struct timeval start, const char *why);
 
@@ -4986,7 +4844,7 @@ struct ast_stream_topology *ast_channel_set_stream_topology(
 /*!
  * \brief Retrieve the default stream of a specific media type on a channel
  *
- * \param channel The channel to get the stream from
+ * \param chan The channel to get the stream from
  * \param type The media type of the default stream
  *
  * \pre chan is locked
@@ -4999,11 +4857,11 @@ struct ast_stream *ast_channel_get_default_stream(struct ast_channel *chan, enum
 /*!
  * \brief Determine if a channel is multi-stream capable
  *
- * \param channel The channel to test
+ * \param chan The channel to test
  *
  * \pre chan is locked
  *
- * \return Returns true if the channel is multi-stream capable.
+ * \retval true if the channel is multi-stream capable.
  */
 int ast_channel_is_multistream(struct ast_channel *chan);
 
