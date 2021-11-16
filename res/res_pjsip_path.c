@@ -103,8 +103,8 @@ static struct ast_sip_aor *find_aor(struct ast_sip_endpoint *endpoint, pjsip_uri
 /*!
  * \brief Get the path string associated with this contact and tdata
  *
- * \param endpoint The endpoint from which to pull associated path data
- * \param contact_uri The URI identifying the associated contact
+ * \param pool
+ * \param contact The URI identifying the associated contact
  * \param path_str The place to store the retrieved path information
  *
  * \retval zero on success
