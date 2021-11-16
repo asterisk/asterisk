@@ -57,6 +57,7 @@
 #include "asterisk/sem.h"
 #include "asterisk/stream.h"
 #include "asterisk/message.h"
+#include "asterisk/core_local.h"
 
 /*!
  * \brief Used to queue an action frame onto a bridge channel and write an action frame into a bridge.
@@ -2862,6 +2863,7 @@ int bridge_channel_internal_join(struct ast_bridge_channel *bridge_channel)
 	int res = 0;
 	uint8_t indicate_src_change = 0;
 	struct ast_bridge_features *channel_features;
+	struct ast_channel *peer;
 	struct ast_channel *swap;
 
 	ast_debug(1, "Bridge %s: %p(%s) is joining\n",
@@ -2875,6 +2877,29 @@ int bridge_channel_internal_join(struct ast_bridge_channel *bridge_channel)
 	ast_bridge_lock(bridge_channel->bridge);
 
 	ast_channel_lock(bridge_channel->chan);
+
+	peer = ast_local_get_peer(bridge_channel->chan);
+	if (peer) {
+		struct ast_bridge *peer_bridge;
+
+		ast_channel_lock(peer);
+		peer_bridge = ast_channel_internal_bridge(peer);
+		ast_channel_unlock(peer);
+		ast_channel_unref(peer);
+
+		/* As we are only doing a pointer comparison we don't need the peer_bridge
+		 * to be reference counted or locked.
+		 */
+		if (peer_bridge == bridge_channel->bridge) {
+			ast_channel_unlock(bridge_channel->chan);
+			ast_bridge_unlock(bridge_channel->bridge);
+			ast_debug(1, "Bridge %s: %p(%s) denying Bridge join to prevent Local channel loop\n",
+				bridge_channel->bridge->uniqueid,
+				bridge_channel,
+				ast_channel_name(bridge_channel->chan));
+			return -1;
+		}
+	}
 
 	bridge_channel->read_format = ao2_bump(ast_channel_readformat(bridge_channel->chan));
 	bridge_channel->write_format = ao2_bump(ast_channel_writeformat(bridge_channel->chan));
