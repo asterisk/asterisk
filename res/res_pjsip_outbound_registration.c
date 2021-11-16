@@ -933,8 +933,6 @@ static int reregister_immediately_cb(void *obj)
  * \param obj What is needed to initiate a reregister attempt.
  *
  * \note Normally executed by the pjsip monitor thread.
- *
- * \return Nothing
  */
 static void registration_transport_shutdown_cb(void *obj)
 {
@@ -2393,8 +2391,6 @@ static int check_state(void *obj, void *arg, int flags)
  * \param sorcery Instance being observed.
  * \param object_type Name of object being observed.
  * \param reloaded Non-zero if the object is being reloaded.
- *
- * \return Nothing
  */
 static void registration_loaded_observer(const char *name, const struct ast_sorcery *sorcery, const char *object_type, int reloaded)
 {

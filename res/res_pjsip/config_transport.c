@@ -1197,6 +1197,7 @@ static pj_ssl_cipher cipher_name_to_id(const char *name)
 }
 #endif
 
+#if defined(PJ_HAS_SSL_SOCK) && PJ_HAS_SSL_SOCK != 0
 /*!
  * \internal
  * \brief Add a new cipher to the transport's cipher list array.
@@ -1207,7 +1208,6 @@ static pj_ssl_cipher cipher_name_to_id(const char *name)
  * \retval 0 on success.
  * \retval -1 on error.
  */
-#if defined(PJ_HAS_SSL_SOCK) && PJ_HAS_SSL_SOCK != 0
 static int transport_cipher_add(struct ast_sip_transport_state *state, const char *name)
 {
 	pj_ssl_cipher cipher;

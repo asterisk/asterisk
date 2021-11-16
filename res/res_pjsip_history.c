@@ -73,11 +73,8 @@ struct pjsip_history_entry {
 	pjsip_msg *msg;
 };
 
-/*! \brief Mutex that protects \ref vector_history */
+/*! \brief Mutex that protects \c vector_history */
 AST_MUTEX_DEFINE_STATIC(history_lock);
-
-/*! \brief The one and only history that we've captured */
-static AST_VECTOR(vector_history_t, struct pjsip_history_entry *) vector_history;
 
 struct expression_token;
 
@@ -160,6 +157,9 @@ struct expression_token {
 
 /*! \brief Log level for history output */
 static int log_level = -1;
+
+/*! \brief The one and only history that we've captured */
+static AST_VECTOR(vector_history_t, struct pjsip_history_entry *) vector_history;
 
 /*!
  * \brief Operator callback for determining equality
@@ -542,7 +542,7 @@ static struct expression_token *expression_token_free(struct expression_token *t
  * \param value The value/operator/result to pack into the token
  *
  * \retval NULL on failure
- * \retval \c expression_token on success
+ * \retval expression_token on success
  */
 static struct expression_token *expression_token_alloc(enum expression_token_type token_type, void *value)
 {
@@ -772,7 +772,7 @@ static void clear_history_entry_cb(struct pjsip_history_entry *entry)
 }
 
 /*!
- * \brief Remove all entries from \ref vector_history
+ * \brief Remove all entries from \c vector_history
  *
  * This must be called from a registered PJSIP thread
  */
@@ -794,7 +794,7 @@ static int clear_history_entries(void *obj)
  * polish notation expression, which is a queue of tokens that can be easily
  * parsed.
  *
- * \params a The CLI arguments provided by the User, containing the infix expression
+ * \param a The CLI arguments provided by the User, containing the infix expression
  *
  * \retval NULL error
  * \retval expression_token A 'queue' of expression tokens in RPN

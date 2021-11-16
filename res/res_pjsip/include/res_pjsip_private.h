@@ -178,16 +178,12 @@ int ast_sip_destroy_sorcery_global(void);
 /*!
  * \internal
  * \brief Initialize global headers support
- *
- * \return Nothing
  */
 void ast_sip_initialize_global_headers(void);
 
 /*!
  * \internal
  * \brief Destroy global headers support
- *
- * \return Nothing
  */
 void ast_sip_destroy_global_headers(void);
 
@@ -383,7 +379,7 @@ int ast_sip_will_uri_survive_restart(pjsip_sip_uri *uri, struct ast_sip_endpoint
  * for that period of time, it also prevents issues if the transport
  * disconnects while we're still trying to process a response.
  *  (Attack mitigation)
- * 3.  If enabled by global/keep_alive_interval, it sends '\r\n'
+ * 3.  If enabled by global/keep_alive_interval, it sends '\\r\\n'
  * keepalives on reliable transports at the interval specified.
  *
  * \retval -1 Failure

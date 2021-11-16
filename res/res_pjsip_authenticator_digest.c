@@ -199,7 +199,8 @@ static pj_status_t digest_lookup(pj_pool_t *pool, const pj_str_t *realm,
  * is from the same source that the nonce was calculated for. Including the realm
  * ensures that multiple challenges to the same request have different nonces.
  *
- * \param A UNIX timestamp expressed as a string
+ * \param nonce
+ * \param timestamp A UNIX timestamp expressed as a string
  * \param rdata The incoming request
  * \param realm The realm for which authentication should occur
  */

@@ -346,7 +346,7 @@ struct ast_sip_subscription_handler {
  * When a subscriber wishes to create a subscription, it may call this function
  * to allocate resources and to send the initial SUBSCRIBE out.
  *
- * \param subscriber The subscriber that is making the request.
+ * \param handler The subscriber that is making the request.
  * \param endpoint The endpoint to whome the SUBSCRIBE will be sent.
  * \param resource The resource to place in the SUBSCRIBE's Request-URI.
  */
@@ -742,7 +742,7 @@ void ast_sip_pubsub_unregister_body_generator(struct ast_sip_pubsub_body_generat
  * for a given content type if a primary body supplement for that content type
  * has already been registered.
  *
- * \param generator Body generator to register
+ * \param supplement Body generator to register
  * \retval 0 Success
  * \retval -1 Failure
  */
@@ -752,7 +752,7 @@ int ast_sip_pubsub_register_body_supplement(struct ast_sip_pubsub_body_supplemen
  * \since 13.0.0
  * \brief Unregister a body generator with the pubsub core.
  *
- * \param generator Body generator to unregister
+ * \param supplement Body generator to unregister
  */
 void ast_sip_pubsub_unregister_body_supplement(struct ast_sip_pubsub_body_supplement *supplement);
 
@@ -773,7 +773,6 @@ const char *ast_sip_subscription_get_body_subtype(struct ast_sip_subscription *s
  * \brief Alert the pubsub core that the subscription is ready for destruction
  *
  * \param sub The subscription that is complete
- * \return Nothing
  */
 void ast_sip_subscription_destroy(struct ast_sip_subscription *sub);
 

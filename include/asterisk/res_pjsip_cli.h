@@ -73,7 +73,6 @@ struct ast_sip_cli_formatter_entry {
 /*!
  * \brief Registers a CLI formatter.
  *
- * \param name The name of the formatter, usually the sorcery object type.
  * \param formatter An ao2_callback_fn that outputs the formatted data.
  * \retval 0 Success, non-zero on failure
  */
@@ -82,7 +81,7 @@ int ast_sip_register_cli_formatter(struct ast_sip_cli_formatter_entry *formatter
 /*!
  * \brief Unregisters a CLI formatter.
  *
- * \param name The name of the formatter, usually the sorcery object type.
+ * \param formatter The name of the formatter, usually the sorcery object type.
  * \retval 0 Success, non-zero on failure
  */
 int ast_sip_unregister_cli_formatter(struct ast_sip_cli_formatter_entry *formatter);
@@ -99,7 +98,8 @@ struct ast_sip_cli_formatter_entry *ast_sip_lookup_cli_formatter(const char *nam
  * \brief Prints a sorcery object's ast_variable list
  *
  * \param obj The sorcery object
- * \param arg The ast_sip_cli_context.
+ * \param arg The ast_sip_cli_context
+ * \param flags
  * \retval 0 Success, non-zero on failure
  */
 int ast_sip_cli_print_sorcery_objectset(void *obj, void *arg, int flags);
