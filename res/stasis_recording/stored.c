@@ -85,7 +85,7 @@ const char *stasis_app_stored_recording_get_extension(
  *
  * \param path Path to split.
  * \param[out] dir Output parameter for directory portion.
- * \param[out] fail Output parameter for the file portion.
+ * \param[out] file Output parameter for the file portion.
  * \return 0 on success.
  * \return Non-zero on error.
  */

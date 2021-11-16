@@ -107,7 +107,7 @@ static void snoop_destroy(void *obj)
 /*! \internal
  * \brief Publish the chanspy message over Stasis-Core
  * \param snoop The snoop structure
- * \start start If non-zero, the spying is starting. Otherwise, the spyer is
+ * \param start If non-zero, the spying is starting. Otherwise, the spyer is
  * finishing
  */
 static void publish_chanspy_message(struct stasis_app_snoop *snoop, int start)

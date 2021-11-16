@@ -97,7 +97,7 @@ enum stasis_app_playback_target_type {
  * \param offsetms Number of milliseconds to skip before playing.
  * \param id ID to assign the new playback or NULL for default.
  * \return Playback control object.
- * \return \c NULL on error.
+ * \retval NULL on error.
  */
 struct stasis_app_playback *stasis_app_control_play_uri(
 	struct stasis_app_control *control, const char **media,
@@ -119,7 +119,7 @@ enum stasis_app_playback_state stasis_app_playback_get_state(
  *
  * \param playback Playback control object.
  * \return \a playback's id.
- * \return \c NULL if \a playback ic \c NULL
+ * \retval NULL if \a playback ic \c NULL
  */
 const char *stasis_app_playback_get_id(
 	struct stasis_app_playback *playback);
@@ -129,7 +129,7 @@ const char *stasis_app_playback_get_id(
  *
  * \param id Id of the playback object to find.
  * \return Associated \ref stasis_app_playback object.
- * \return \c NULL if \a id not found.
+ * \retval NULL if \a id not found.
  */
 struct stasis_app_playback *stasis_app_playback_find_by_id(const char *id);
 
@@ -138,8 +138,8 @@ struct stasis_app_playback *stasis_app_playback_find_by_id(const char *id);
  *
  * \param playback The playback object to convert to JSON
  *
- * \retval \c NULL on error
- * \retval A JSON object on success
+ * \retval NULL on error
+ * \return A JSON object on success
  */
 struct ast_json *stasis_app_playback_to_json(
 	const struct stasis_app_playback *playback);
@@ -153,8 +153,8 @@ enum stasis_playback_oper_results {
  * \brief Controls the media for a given playback operation.
  *
  * \param playback Playback control object.
- * \param control Media control operation.
- * \return \c STASIS_PLAYBACK_OPER_OK on success.
+ * \param operation Media control operation.
+ * \retval STASIS_PLAYBACK_OPER_OK on success.
  * \return \ref stasis_playback_oper_results indicating failure.
  */
 enum stasis_playback_oper_results stasis_app_playback_operation(

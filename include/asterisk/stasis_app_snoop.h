@@ -50,8 +50,9 @@ enum stasis_app_snoop_direction {
  * \param whisper Direction of media that should be whispered into.
  * \param app Stasis application to execute on the snoop channel.
  * \param app_args Stasis application arguments.
- * \return Snoop channel. ast_channel_unref() when done.
- * \return \c NULL if snoop channel couldn't be created.
+ * \param snoop_id
+ * \return ast_channel ast_channel_unref() when done.
+ * \retval NULL if snoop channel couldn't be created.
  */
 struct ast_channel *stasis_app_control_snoop(struct ast_channel *chan,
 	enum stasis_app_snoop_direction spy, enum stasis_app_snoop_direction whisper,

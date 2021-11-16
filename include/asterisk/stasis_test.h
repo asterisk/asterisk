@@ -101,6 +101,7 @@ typedef int (*stasis_wait_cb)(struct stasis_message *msg, const void *data);
  * \param start Index of message to start with.
  * \param cmp_cb comparison function. This returns true (non-zero) on match
  *               and false (zero) on match.
+ * \param data
  * \param timeout_millis Number of milliseconds to wait.
  * \return Index of the matching message.
  * \return Negative for no match.
