@@ -31,7 +31,7 @@
  *
  */
 
-/*! \li \ref res_xmpp.c uses the configuration file \ref xmpp.conf and \ref jabber.conf
+/*! \li \ref res_xmpp.c uses the configuration file \ref xmpp.conf
  * \addtogroup configuration_file Configuration Files
  */
 
@@ -1061,7 +1061,7 @@ void ast_xmpp_increment_mid(char *mid)
  * \brief Create an IQ packet
  * \param client the configured XMPP client we use to connect to a XMPP server
  * \param type the type of IQ packet to create
- * \return iks*
+ * \return iks *
  */
 static iks* xmpp_pubsub_iq_create(struct ast_xmpp_client *client, const char *type)
 {
@@ -1092,7 +1092,7 @@ static iks* xmpp_pubsub_iq_create(struct ast_xmpp_client *client, const char *ty
  * \brief Build the skeleton of a publish
  * \param client the configured XMPP client we use to connect to a XMPP server
  * \param node Name of the node that will be published to
- * \param event_type
+ * \param event_type, cachable
  * \return iks *
  */
 static iks* xmpp_pubsub_build_publish_skeleton(struct ast_xmpp_client *client, const char *node,
@@ -1178,7 +1178,6 @@ static iks* xmpp_pubsub_build_node_config(iks *pubsub, const char *node_type, co
  * \brief Add Owner affiliations for pubsub node
  * \param client the configured XMPP client we use to connect to a XMPP server
  * \param node the name of the node to which to add affiliations
- * \return void
  */
 static void xmpp_pubsub_create_affiliations(struct ast_xmpp_client *client, const char *node)
 {
@@ -1216,7 +1215,6 @@ static void xmpp_pubsub_create_affiliations(struct ast_xmpp_client *client, cons
  * \param node_type the type of node to create
  * \param name the name of the node to create
  * \param collection_name
- * \return void
  */
 static void xmpp_pubsub_create_node(struct ast_xmpp_client *client, const char *node_type, const
 				    char *name, const char *collection_name)
@@ -1264,7 +1262,6 @@ static void xmpp_pubsub_delete_node(struct ast_xmpp_client *client, const char *
  * \brief Create a PubSub collection node.
  * \param client the configured XMPP client we use to connect to a XMPP server
  * \param collection_name The name to use for this collection
- * \return void.
  */
 static void xmpp_pubsub_create_collection(struct ast_xmpp_client *client, const char *collection_name)
 {
@@ -1277,7 +1274,6 @@ static void xmpp_pubsub_create_collection(struct ast_xmpp_client *client, const 
  * \param client the configured XMPP client we use to connect to a XMPP server
  * \param collection_name
  * \param leaf_name The name to use for this collection
- * \return void.
  */
 static void xmpp_pubsub_create_leaf(struct ast_xmpp_client *client, const char *collection_name,
 				    const char *leaf_name)
@@ -1291,7 +1287,6 @@ static void xmpp_pubsub_create_leaf(struct ast_xmpp_client *client, const char *
  * \param mailbox The mailbox identifier
  * \param oldmsgs Old messages
  * \param newmsgs New Messages
- * \return void
  */
 static void xmpp_pubsub_publish_mwi(struct ast_xmpp_client *client, const char *mailbox,
 	const char *oldmsgs, const char *newmsgs)
@@ -1322,7 +1317,7 @@ static void xmpp_pubsub_publish_mwi(struct ast_xmpp_client *client, const char *
  * \param client the configured XMPP client we use to connect to a XMPP server
  * \param device the name of the device whose state to publish
  * \param device_state the state to publish
- * \return void
+ * \param cachable
  */
 static void xmpp_pubsub_publish_device_state(struct ast_xmpp_client *client, const char *device,
 					     const char *device_state, unsigned int cachable)
@@ -1356,9 +1351,8 @@ static void xmpp_pubsub_publish_device_state(struct ast_xmpp_client *client, con
 
 /*!
  * \brief Callback function for MWI events
- * \param ast_event
  * \param data void pointer to ast_client structure
- * \return void
+ * \param sub, msg
  */
 static void xmpp_pubsub_mwi_cb(void *data, struct stasis_subscription *sub, struct stasis_message *msg)
 {
@@ -1384,9 +1378,8 @@ static void xmpp_pubsub_mwi_cb(void *data, struct stasis_subscription *sub, stru
 
 /*!
  * \brief Callback function for device state events
- * \param ast_event
  * \param data void pointer to ast_client structure
- * \return void
+ * \param sub, msg
  */
 static void xmpp_pubsub_devstate_cb(void *data, struct stasis_subscription *sub, struct stasis_message *msg)
 {
@@ -1410,7 +1403,6 @@ static void xmpp_pubsub_devstate_cb(void *data, struct stasis_subscription *sub,
  * \brief Unsubscribe from a PubSub node
  * \param client the configured XMPP client we use to connect to a XMPP server
  * \param node the name of the node to which to unsubscribe from
- * \return void
  */
 static void xmpp_pubsub_unsubscribe(struct ast_xmpp_client *client, const char *node)
 {
@@ -1436,7 +1428,6 @@ static void xmpp_pubsub_unsubscribe(struct ast_xmpp_client *client, const char *
  * \brief Subscribe to a PubSub node
  * \param client the configured XMPP client we use to connect to a XMPP server
  * \param node the name of the node to which to subscribe
- * \return void
  */
 static void xmpp_pubsub_subscribe(struct ast_xmpp_client *client, const char *node)
 {
@@ -1483,7 +1474,7 @@ static void xmpp_pubsub_subscribe(struct ast_xmpp_client *client, const char *no
  * \brief Callback for handling PubSub events
  * \param data void pointer to ast_xmpp_client structure
  * \param pak A pak
- * \return IKS_FILTER_EAT
+ * \retval IKS_FILTER_EAT
  */
 static int xmpp_pubsub_handle_event(void *data, ikspak *pak)
 {
@@ -1610,7 +1601,6 @@ static int cached_devstate_cb(void *obj, void *arg, int flags)
 /*!
  * \brief Initialize collections for event distribution
  * \param client the configured XMPP client we use to connect to a XMPP server
- * \return void
  */
 static void xmpp_init_event_distribution(struct ast_xmpp_client *client)
 {
@@ -1746,9 +1736,10 @@ static int xmpp_status_exec(struct ast_channel *chan, const char *data)
 /*!
  * \internal
  * \brief Dial plan funtcion to retrieve the status of a buddy.
- * \param channel The associated ast_channel, if there is one
+ * \param chan The associated ast_channel, if there is one
  * \param data The account, buddy JID, and optional timeout
- * timeout.
+ * \param name, buf, buflen
+ *
  * \retval 0 success
  * \retval -1 failure
  */
@@ -2012,9 +2003,10 @@ static int xmpp_sendgroup_exec(struct ast_channel *chan, const char *data)
 /*!
  * \internal
  * \brief Dial plan function to receive a message.
- * \param channel The associated ast_channel, if there is one
+ * \param chan The associated ast_channel, if there is one
  * \param data The account, JID, and optional timeout
- * timeout.
+ * \param name, buf, buflen
+ *
  * \retval 0 success
  * \retval -1 failure
  */
@@ -4007,7 +3999,7 @@ static int xmpp_client_config_post_apply(void *obj, void *arg, int flags)
  * \brief  Send a Jabber Message via call from the Manager
  * \param s mansession Manager session
  * \param m message Message to send
- * \return  0
+ * \retval  0
  */
 static int manager_jabber_send(struct mansession *s, const struct message *m)
 {
@@ -4057,7 +4049,7 @@ static int manager_jabber_send(struct mansession *s, const struct message *m)
  * \brief Build the a node request
  * \param client the configured XMPP client we use to connect to a XMPP server
  * \param collection name of the collection for request
- * \return iks*
+ * \return iks *
  */
 static iks* xmpp_pubsub_build_node_request(struct ast_xmpp_client *client, const char *collection)
 {
@@ -4081,7 +4073,7 @@ static iks* xmpp_pubsub_build_node_request(struct ast_xmpp_client *client, const
  * \brief Receive pubsub item lists
  * \param data pointer to ast_xmpp_client structure
  * \param pak response from pubsub diso#items query
- * \return IKS_FILTER_EAT
+ * \retval IKS_FILTER_EAT
  */
 static int xmpp_pubsub_receive_node_list(void *data, ikspak* pak)
 {
@@ -4109,7 +4101,6 @@ static int xmpp_pubsub_receive_node_list(void *data, ikspak* pak)
 * \brief Request item list from pubsub
 * \param client the configured XMPP client we use to connect to a XMPP server
 * \param collection name of the collection for request
-* \return void
 */
 static void xmpp_pubsub_request_nodes(struct ast_xmpp_client *client, const char *collection)
 {
@@ -4180,7 +4171,7 @@ static char *xmpp_cli_list_pubsub_nodes(struct ast_cli_entry *e, int cmd, struct
  * \brief Delete pubsub item lists
  * \param data pointer to ast_xmpp_client structure
  * \param pak response from pubsub diso#items query
- * \return IKS_FILTER_EAT
+ * \retval IKS_FILTER_EAT
  */
 static int xmpp_pubsub_delete_node_list(void *data, ikspak* pak)
 {
@@ -4302,7 +4293,7 @@ static char *xmpp_cli_delete_pubsub_node(struct ast_cli_entry *e, int cmd, struc
 
 /*!
  * \brief Method to expose PubSub collection node creation via CLI.
- * \return char *.
+ * \return char *
  */
 static char *xmpp_cli_create_collection(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
@@ -4342,7 +4333,7 @@ static char *xmpp_cli_create_collection(struct ast_cli_entry *e, int cmd, struct
 
 /*!
  * \brief Method to expose PubSub leaf node creation via CLI.
- * \return char *.
+ * \return char *
  */
 static char *xmpp_cli_create_leafnode(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
@@ -4384,7 +4375,7 @@ static char *xmpp_cli_create_leafnode(struct ast_cli_entry *e, int cmd, struct a
 /*!
  * \internal
  * \brief Turn on/off console debugging.
- * \return CLI_SUCCESS.
+ * \retval CLI_SUCCESS
  */
 static char *xmpp_do_set_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
@@ -4418,7 +4409,7 @@ static char *xmpp_do_set_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_
 /*!
  * \internal
  * \brief Show client status.
- * \return CLI_SUCCESS.
+ * \retval CLI_SUCCESS
  */
 static char *xmpp_show_clients(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
@@ -4494,7 +4485,7 @@ static char *xmpp_show_clients(struct ast_cli_entry *e, int cmd, struct ast_cli_
 /*!
  * \internal
  * \brief Show buddy lists
- * \return CLI_SUCCESS.
+ * \retval CLI_SUCCESS
  */
 static char *xmpp_show_buddies(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
