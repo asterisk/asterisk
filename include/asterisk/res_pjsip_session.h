@@ -479,7 +479,7 @@ struct ast_sip_channel_pvt *ast_sip_channel_pvt_alloc(void *pvt, struct ast_sip_
  *
  * \param endpoint The endpoint that this session communicates with
  * \param contact The contact associated with this session
- * \param inv_session The PJSIP INVITE session data
+ * \param inv The PJSIP INVITE session data
  * \param rdata INVITE request received (NULL if for outgoing allocation)
  */
 struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
@@ -492,8 +492,6 @@ struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
  * \param session Which session to suspend the serializer.
  *
  * \note No channel locks can be held while calling without risk of deadlock.
- *
- * \return Nothing
  */
 void ast_sip_session_suspend(struct ast_sip_session *session);
 
@@ -502,8 +500,6 @@ void ast_sip_session_suspend(struct ast_sip_session *session);
  * \since 12.7.0
  *
  * \param session Which session to unsuspend the serializer.
- *
- * \return Nothing
  */
 void ast_sip_session_unsuspend(struct ast_sip_session *session);
 
@@ -720,7 +716,6 @@ int ast_sip_session_refresh(struct ast_sip_session *session,
  *
  * \param session The session on which the answer will be updated
  * \param on_sdp_creation Callback called when SDP is created
- * \param generate_new_sdp Boolean to indicate if a new SDP should be created
  * \retval 0 Successfully updated the SDP answer
  * \retval -1 Failure to updated the SDP answer
  */
@@ -845,6 +840,7 @@ struct ast_sip_session_media *ast_sip_session_media_state_add(struct ast_sip_ses
 /*!
  * \brief Save a media stats.
  *
+ * \param sip_session Session on which to save active media state for
  * \param media_state The media state to save
  */
 void ast_sip_session_media_stats_save(struct ast_sip_session *sip_session, struct ast_sip_session_media_state *media_state);

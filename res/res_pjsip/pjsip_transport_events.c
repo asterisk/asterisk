@@ -121,8 +121,6 @@ static void transport_monitor_dtor(void *vdoomed)
  *
  * \param transports Active transports container
  * \param transport Which transport to do callbacks for.
- *
- * \return Nothing
  */
 static void transport_state_do_reg_callbacks(struct ao2_container *transports, pjsip_transport *transport)
 {

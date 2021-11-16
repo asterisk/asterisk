@@ -64,7 +64,8 @@ static char *get_attestation_from_payload(const char *json_str)
 /*!
  * \brief Compare the caller ID from the INVITE with the one in the payload
  *
- * \param json_str The JSON string represntation of the payload
+ * \param caller_id
+ * \param json_str The JSON string representation of the payload
  *
  * \retval -1 on failure
  * \retval 0 on success

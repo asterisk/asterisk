@@ -118,7 +118,7 @@ static int is_digest_algorithm_supported(pjsip_www_authenticate_hdr *auth_hdr)
  * In the end, we'll have accumulated a list of credentials we can pass to
  * pjproject that it can use to add Authentication headers to a request.
  *
- * \NOTE: Neither we nor pjproject can currently handle digest algorithms
+ * \note: Neither we nor pjproject can currently handle digest algorithms
  * other than MD5.  We don't even have a place for it in the ast_sip_auth
  * object. For this reason, we just skip processing any Authenticate
  * header that's not MD5.  When we support the others, we'll move the

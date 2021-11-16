@@ -467,6 +467,7 @@ static void caller_id_incoming_response(struct ast_sip_session *session, pjsip_r
  * \internal
  * \brief Create an identity header for an outgoing message
  * \param hdr_name The name of the header to create
+ * \param base
  * \param tdata The message to place the header on
  * \param id The identification information for the new header
  * \return newly-created header
@@ -543,6 +544,7 @@ static void add_privacy_header(pjsip_tx_data *tdata, const struct ast_party_id *
 /*!
  * \internal
  * \brief Add a P-Asserted-Identity header to an outbound message
+ * \param session The session on which communication is happening
  * \param tdata The message to add the header to
  * \param id The identification information used to populate the header
  */
@@ -679,6 +681,7 @@ static void add_privacy_params(pjsip_tx_data *tdata, pjsip_fromto_hdr *hdr, cons
 /*!
  * \internal
  * \brief Add a Remote-Party-ID header to an outbound message
+ * \param session The session on which communication is happening
  * \param tdata The message to add the header to
  * \param id The identification information used to populate the header
  */
@@ -737,7 +740,7 @@ static void add_rpid_header(const struct ast_sip_session *session, pjsip_tx_data
  *
  * \param session The session on which we will be sending the message
  * \param tdata The outbound message
- * \param The identity information to place on the message
+ * \param id The identity information to place on the message
  */
 static void add_id_headers(const struct ast_sip_session *session, pjsip_tx_data *tdata, const struct ast_party_id *id)
 {

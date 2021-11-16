@@ -1730,6 +1730,7 @@ static void set_from_header(struct ast_sip_session *session)
  * \internal
  * \brief Validate a media state
  *
+ * \param session_name For log messages
  * \param state Media state
  *
  * \retval 1 The media state is valid
@@ -1815,7 +1816,7 @@ end:
  * \param delayed_pending_state The pending media state at the time the resuest was queued
  * \param delayed_active_state The active media state  at the time the resuest was queued
  * \param current_active_state The current active media state
- * \param run_validation Whether to run validation on the resulting media state or not
+ * \param run_post_validation Whether to run validation on the resulting media state or not
  *
  * \returns New merged topology or NULL if there's an error
  *
@@ -3588,8 +3589,6 @@ int ast_sip_session_defer_termination(struct ast_sip_session *session)
  * \since 13.5.0
  *
  * \param session Which session to stop the timer.
- *
- * \return Nothing
  */
 static void sip_session_defer_termination_stop_timer(struct ast_sip_session *session)
 {
