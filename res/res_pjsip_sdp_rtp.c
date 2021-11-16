@@ -313,7 +313,7 @@ static int create_rtp(struct ast_sip_session *session, struct ast_sip_session_me
 }
 
 static void get_codecs(struct ast_sip_session *session, const struct pjmedia_sdp_media *stream, struct ast_rtp_codecs *codecs,
-	struct ast_sip_session_media *session_media)
+	struct ast_sip_session_media *session_media, struct ast_format_cap *astformats)
 {
 	pjmedia_sdp_attr *attr;
 	pjmedia_sdp_rtpmap *rtpmap;
@@ -328,6 +328,8 @@ static void get_codecs(struct ast_sip_session *session, const struct pjmedia_sdp
 	SCOPE_ENTER(1, "%s\n", ast_sip_session_get_name(session));
 
 	ast_rtp_codecs_payloads_initialize(codecs);
+
+	ast_format_cap_remove_by_type(astformats, AST_MEDIA_TYPE_UNKNOWN);
 
 	/* Iterate through provided formats */
 	for (i = 0; i < stream->desc.fmt_count; ++i) {
@@ -372,11 +374,19 @@ static void get_codecs(struct ast_sip_session *session, const struct pjmedia_sdp
 					ast_rtp_codecs_payload_replace_format(codecs, num, format_parsed);
 					ao2_ref(format_parsed, -1);
 				}
-
 				ao2_ref(format, -1);
 			}
 		}
 	}
+
+	/* Parsing done, now fill the ast_format_cap struct in the correct order */
+	for (i = 0; i < stream->desc.fmt_count; ++i) {
+		if ((format = ast_rtp_codecs_get_payload_format(codecs, pj_strtoul(&stream->desc.fmt[i])))) {
+			ast_format_cap_append(astformats, format, 0);
+			ao2_ref(format, -1);
+		}
+	}
+
 	if (!tel_event && (session->dtmf == AST_SIP_DTMF_AUTO)) {
 		ast_rtp_instance_dtmf_mode_set(session_media->rtp, AST_RTP_DTMF_MODE_INBAND);
 		ast_rtp_instance_set_prop(session_media->rtp, AST_RTP_PROPERTY_DTMF, 0);
@@ -398,6 +408,7 @@ static void get_codecs(struct ast_sip_session *session, const struct pjmedia_sdp
 		unsigned long framing = pj_strtoul(pj_strltrim(&attr->value));
 		if (framing && session->endpoint->media.rtp.use_ptime) {
 			ast_rtp_codecs_set_framing(codecs, framing);
+			ast_format_cap_set_framing(astformats, framing);
 		}
 	}
 
@@ -442,7 +453,6 @@ static struct ast_format_cap *set_incoming_call_offer_cap(
 	struct ast_format_cap *incoming_call_offer_cap;
 	struct ast_format_cap *remote;
 	struct ast_rtp_codecs codecs = AST_RTP_CODECS_NULL_INIT;
-	int fmts = 0;
 	SCOPE_ENTER(1, "%s\n", ast_sip_session_get_name(session));
 
 
@@ -454,8 +464,7 @@ static struct ast_format_cap *set_incoming_call_offer_cap(
 	}
 
 	/* Get the peer's capabilities*/
-	get_codecs(session, stream, &codecs, session_media);
-	ast_rtp_codecs_payload_formats(&codecs, remote, &fmts);
+	get_codecs(session, stream, &codecs, session_media, remote);
 
 	incoming_call_offer_cap = ast_sip_session_create_joint_call_cap(
 		session, session_media->type, remote);
@@ -493,7 +502,6 @@ static int set_caps(struct ast_sip_session *session,
 	RAII_VAR(struct ast_format_cap *, joint, NULL, ao2_cleanup);
 	enum ast_media_type media_type = session_media->type;
 	struct ast_rtp_codecs codecs = AST_RTP_CODECS_NULL_INIT;
-	int fmts = 0;
 	int direct_media_enabled = !ast_sockaddr_isnull(&session_media->direct_media_addr) &&
 		ast_format_cap_count(session->direct_media_cap);
 	int dsp_features = 0;
@@ -516,8 +524,7 @@ static int set_caps(struct ast_sip_session *session,
 	}
 
 	/* get the capabilities on the peer */
-	get_codecs(session, stream, &codecs,  session_media);
-	ast_rtp_codecs_payload_formats(&codecs, peer, &fmts);
+	get_codecs(session, stream, &codecs, session_media, peer);
 
 	/* get the joint capabilities between peer and endpoint */
 	ast_format_cap_get_compatible(caps, peer, joint);
