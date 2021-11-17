@@ -320,7 +320,7 @@ static int parking_is_exten_park(const char *context, const char *exten)
  * \brief Perform a blind transfer to a parking lot
  *
  * In general, most parking features should work to call this function. This will safely
- * park either a channel in the bridge with \ref bridge_channel or will park the entire
+ * park either a channel in the bridge with \p bridge_channel or will park the entire
  * bridge if more than one channel is in the bridge. It will create the correct data to
  * pass to the \ref AstBridging Bridging API to safely park the channel.
  *
@@ -490,7 +490,7 @@ static int parking_park_bridge_channel(struct ast_bridge_channel *bridge_channel
  * \param length Optional. If \c exten is specified, the length of the buffer.
  *
  * \note This will determine the context and extension to park the channel based on
- * the configuration of the \ref ast_channel associated with \ref parker. It will then
+ * the configuration of the \ref ast_channel associated with \p parker. It will then
  * park either the channel or the entire bridge.
  *
  * \retval 0 on success
@@ -536,8 +536,6 @@ static int feature_park_call(struct ast_bridge_channel *bridge_channel, void *ho
  *
  * \param chan Parked channel leaving the parking lot.
  * \param cfg Parking lot configuration.
- *
- * \return Nothing
  */
 static void parking_timeout_set_caller_features(struct ast_channel *chan, struct parking_lot_cfg *cfg)
 {
