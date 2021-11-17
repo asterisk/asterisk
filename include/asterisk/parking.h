@@ -85,7 +85,7 @@ struct ast_exten;
  * \param duration how long the parked call has currently been parked
  *
  * \retval NULL if the parked call payload can't be allocated
- * \retval reference to a newly created parked call payload
+ * \return reference to a newly created parked call payload
  */
 struct ast_parked_call_payload *ast_parked_call_payload_create(enum ast_parked_call_event_type event_type,
 		struct ast_channel_snapshot *parkee_snapshot, const char *parker_dial_string,
@@ -101,7 +101,7 @@ struct ast_parked_call_payload *ast_parked_call_payload_create(enum ast_parked_c
  * \since 12
  *
  * \retval NULL if the parking topic hasn't been created or has been disabled
- * \retval a pointer to the parking topic
+ * \return a pointer to the parking topic
  */
 struct stasis_topic *ast_parking_topic(void);
 
@@ -110,7 +110,7 @@ struct stasis_topic *ast_parking_topic(void);
  * \since 12
  *
  * \retval NULL if the parking topic hasn't been created or has been canceled
- * \retval a pointer to the parked call message type
+ * \return a pointer to the parked call message type
  */
 struct stasis_message_type *ast_parked_call_type(void);
 
@@ -149,7 +149,7 @@ struct ast_parking_bridge_feature_fn_table {
 	/*!
 	 * \brief Park the bridge and/or callers that this channel is in
 	 *
-	 * \param parker The bridge_channel parking the bridge
+	 * \param parker The \p bridge_channel parking the bridge
 	 * \param exten Optional. The extension the channel or bridge was parked at if the
 	 * call succeeds.
 	 * \param length Optional. If \c exten is specified, the size of the buffer.
@@ -164,13 +164,13 @@ struct ast_parking_bridge_feature_fn_table {
 	/*!
 	 * \brief Perform a blind transfer to a parking extension.
 	 *
-	 * \param parker The \ref bridge_channel object that is initiating the parking
+	 * \param parker The \p bridge_channel object that is initiating the parking
 	 * \param context The context to blind transfer to
 	 * \param exten The extension to blind transfer to
 	 * \param parked_channel_cb Execute the following function on the channel that gets parked
 	 * \param parked_channel_data Data for the parked_channel_cb
 	 *
-	 * \note If the bridge \ref parker is in has more than one other occupant, the entire
+	 * \note If the bridge \p parker is in has more than one other occupant, the entire
 	 * bridge will be parked using a Local channel
 	 *
 	 * \note This is safe to be called outside of the \ref AstBridging Bridging API.
@@ -235,14 +235,13 @@ int ast_parking_park_call(struct ast_bridge_channel *parker, char *exten, size_t
 /*!
  * \brief Perform a blind transfer to a parking extension.
  *
- * \param parker The \ref bridge_channel object that is initiating the parking
+ * \param parker The ast_bridge_channel object that is initiating the parking
  * \param context The context to blind transfer to
- * \param exten The extension to blind transfer to
  * \param exten The extension to blind transfer to
  * \param parked_channel_cb Execute the following function on the channel that gets parked
  * \param parked_channel_data Data for the parked_channel_cb
  *
- * \note If the bridge \ref parker is in has more than one other occupant, the entire
+ * \note If the bridge \p parker is in has more than one other occupant, the entire
  * bridge will be parked using a Local channel
  *
  * \note This is safe to be called outside of the \ref AstBridging Bridging API.
@@ -283,7 +282,7 @@ int ast_parking_register_bridge_features(struct ast_parking_bridge_feature_fn_ta
 /*!
  * \brief Unregister the current parking provider
  *
- * \param The module name of the provider to unregister
+ * \param module_name The module name of the provider to unregister
  *
  * \retval 0 if the parking provider \c module_name was unregsistered
  * \retval -1 on error
