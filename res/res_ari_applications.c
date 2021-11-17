@@ -52,9 +52,11 @@
 
 /*!
  * \brief Parameter parsing callback for /applications.
+ * \param ser TCP/TLS session object
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
+ * \param body
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_applications_list_cb(
@@ -102,9 +104,11 @@ fin: __attribute__((unused))
 }
 /*!
  * \brief Parameter parsing callback for /applications/{applicationName}.
+ * \param ser TCP/TLS session object
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
+ * \param body
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_applications_get_cb(
@@ -198,9 +202,11 @@ int ast_ari_applications_subscribe_parse_body(
 
 /*!
  * \brief Parameter parsing callback for /applications/{applicationName}/subscription.
+ * \param ser TCP/TLS session object
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
+ * \param body
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_applications_subscribe_cb(
@@ -348,9 +354,11 @@ int ast_ari_applications_unsubscribe_parse_body(
 
 /*!
  * \brief Parameter parsing callback for /applications/{applicationName}/subscription.
+ * \param ser TCP/TLS session object
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
+ * \param body
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_applications_unsubscribe_cb(
@@ -469,9 +477,11 @@ int ast_ari_applications_filter_parse_body(
 
 /*!
  * \brief Parameter parsing callback for /applications/{applicationName}/eventFilter.
+ * \param ser TCP/TLS session object
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
+ * \param body
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_applications_filter_cb(
