@@ -132,8 +132,6 @@ static AST_RWLIST_HEAD_STATIC(groups, ast_group_info);
  * \param size
  * \param maxlen
  * \param timeout timeout in milliseconds
- *
- * \return 0 if extension does not exist, 1 if extension exists
 */
 int ast_app_dtget(struct ast_channel *chan, const char *context, char *collect, size_t size, int maxlen, int timeout)
 {
@@ -185,30 +183,11 @@ int ast_app_dtget(struct ast_channel *chan, const char *context, char *collect, 
 	return res;
 }
 
-/*!
- * \brief ast_app_getdata
- * \param c The channel to read from
- * \param prompt The file to stream to the channel
- * \param s The string to read in to.  Must be at least the size of your length
- * \param maxlen How many digits to read (maximum)
- * \param timeout set timeout to 0 for "standard" timeouts. Set timeout to -1 for
- *      "ludicrous time" (essentially never times out)
- */
 enum ast_getdata_result ast_app_getdata(struct ast_channel *c, const char *prompt, char *s, int maxlen, int timeout)
 {
 	return ast_app_getdata_terminator(c, prompt, s, maxlen, timeout, NULL);
 }
 
-/*!
- * \brief ast_app_getdata
- * \param c The channel to read from
- * \param prompt The file to stream to the channel
- * \param s The string to read in to.  Must be at least the size of your length
- * \param maxlen How many digits to read (maximum)
- * \param timeout set timeout to 0 for "standard" timeouts. Set timeout to -1 for
- *      "ludicrous time" (essentially never times out)
- * \param terminator A string of characters that may be used as terminators to end input. Default if NULL is "#"
- */
 enum ast_getdata_result ast_app_getdata_terminator(struct ast_channel *c, const char *prompt, char *s,
 	int maxlen, int timeout, char *terminator)
 {
@@ -1424,11 +1403,11 @@ int ast_play_and_wait(struct ast_channel *chan, const char *fn)
 /*!
  * \brief Construct a silence frame of the same duration as \a orig.
  *
- * The \a orig frame must be \ref AST_FORMAT_SLINEAR.
+ * The \a orig frame must be \ref ast_format_slin.
  *
  * \param orig Frame as basis for silence to generate.
  * \return New frame of silence; free with ast_frfree().
- * \return \c NULL on error.
+ * \retval NULL on error.
  */
 static struct ast_frame *make_silence(const struct ast_frame *orig)
 {
@@ -1473,7 +1452,7 @@ static struct ast_frame *make_silence(const struct ast_frame *orig)
 }
 
 /*!
- * \brief Sets a channel's read format to \ref AST_FORMAT_SLINEAR, recording
+ * \brief Sets a channel's read format to \ref ast_format_slin, recording
  * its original format.
  *
  * \param chan Channel to modify.
@@ -1510,6 +1489,7 @@ static int global_maxsilence = 0;
  * \param acceptdtmf DTMF digits that will end the recording.
  * \param canceldtmf DTMF digits that will cancel the recording.
  * \param skip_confirmation_sound If true, don't play auth-thankyou at end. Nice for custom recording prompts in apps.
+ * \param if_exists
  *
  * \retval -1 failure or hangup
  * \retval 'S' Recording ended from silence timeout
