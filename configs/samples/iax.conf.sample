@@ -206,7 +206,8 @@ jitterbuffer=no
 ; across the net.  "md5" uses a challenge/response md5 sum arrangement, but
 ; still requires both ends have plain text access to the secret.  "rsa" allows
 ; unidirectional secret knowledge through public/private keys.  There is no
-; default unless set here in the [general] section.
+; default unless set here in the [general] section. Only md5 and rsa support
+; media encryption.
 ;
 ;auth=md5
 
@@ -215,10 +216,10 @@ jitterbuffer=no
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;
-; Enable IAX2 encryption.  The default is no.
+; Enable IAX2 encryption.  The default is no. This option does not force
+; encryption for calls, it merely allows it to be used for calls.
 ;
-;encryption=yes
-;
+encryption=yes
 
 ;
 ; Force encryption insures no connection is established unless both sides
@@ -542,7 +543,8 @@ inkeys=freeworlddialup
 ; the ":" character.  "outkey" is a single, private key to use to authenticate
 ; to the other side.  Public keys are named /var/lib/asterisk/keys/<name>.pub
 ; while private keys are named /var/lib/asterisk/keys/<name>.key.  Private
-; keys should always be 3DES encrypted.
+; keys should always be 3DES encrypted. If encryption is used (applicable to
+; md5 and rsa only), a secret must be provided.
 ;
 ;
 ; NOTE: All hostnames and IP addresses in this file are for example purposes
