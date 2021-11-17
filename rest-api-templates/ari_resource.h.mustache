@@ -116,8 +116,6 @@ int ast_ari_websocket_{{c_name}}_{{c_nickname}}_init(void);
  *
  * {{{notes}}}
 {{/notes}}
- *
- * \return Nothing
  */
 void ast_ari_websocket_{{c_name}}_{{c_nickname}}_dtor(void);
 
@@ -149,7 +147,6 @@ int ast_ari_websocket_{{c_name}}_{{c_nickname}}_attempted(struct ast_tcptls_sess
  * \param session ARI WebSocket.
  * \param headers HTTP headers.
  * \param args Swagger parameters.
- * \param session_id The id of the current session.
  */
 void ast_ari_websocket_{{c_name}}_{{c_nickname}}_established(struct ast_ari_websocket_session *session,
 	struct ast_variable *headers, struct ast_ari_{{c_name}}_{{c_nickname}}_args *args);

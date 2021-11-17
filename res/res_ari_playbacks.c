@@ -53,9 +53,11 @@
 
 /*!
  * \brief Parameter parsing callback for /playbacks/{playbackId}.
+ * \param ser TCP/TLS session object
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
+ * \param body
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_playbacks_get_cb(
@@ -111,9 +113,11 @@ fin: __attribute__((unused))
 }
 /*!
  * \brief Parameter parsing callback for /playbacks/{playbackId}.
+ * \param ser TCP/TLS session object
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
+ * \param body
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_playbacks_stop_cb(
@@ -182,9 +186,11 @@ int ast_ari_playbacks_control_parse_body(
 
 /*!
  * \brief Parameter parsing callback for /playbacks/{playbackId}/control.
+ * \param ser TCP/TLS session object
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
+ * \param body
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_playbacks_control_cb(
