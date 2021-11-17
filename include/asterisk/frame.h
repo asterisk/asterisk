@@ -535,23 +535,23 @@ struct ast_option_header {
 		uint8_t data[0];
 };
 
+#if 0 /* Unimplemented */
 /*! \brief  Requests a frame to be allocated
  *
- * \param source
+ * \param source, len
  * Request a frame be allocated.  source is an optional source of the frame,
  * len is the requested length, or "0" if the caller will supply the buffer
  */
-#if 0 /* Unimplemented */
 struct ast_frame *ast_fralloc(char *source, int len);
 #endif
 
 /*!
  * \brief Frees a frame or list of frames
  *
- * \param fr Frame to free, or head of list to free
+ * \param frame Frame to free, or head of list to free
  * \param cache Whether to consider this frame for frame caching
  */
-void ast_frame_free(struct ast_frame *fr, int cache);
+void ast_frame_free(struct ast_frame *frame, int cache);
 
 #define ast_frfree(fr) ast_frame_free(fr, 1)
 
