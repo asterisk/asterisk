@@ -60,7 +60,7 @@ def snakify(name):
     for c in name:
         if c.isupper() and prior_lower:
             r += "_"
-        if c is '-':
+        if c == '-':
             c = '_'
         prior_lower = c.islower()
         r += c.lower()
