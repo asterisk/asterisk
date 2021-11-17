@@ -113,7 +113,7 @@ static int channel_state_invalid(struct stasis_app_control *control,
  * \param[out] response Response to fill with an error if control is not found.
  * \param channel_id ID of the channel to lookup.
  * \return Channel control object.
- * \return \c NULL if control object does not exist.
+ * \retval NULL if control object does not exist.
  */
 static struct stasis_app_control *find_control(
 	struct ast_ari_response *response,
@@ -1722,8 +1722,8 @@ struct ast_datastore_info dialstring_info = {
  *
  * \param chan The channel on which to save the dialstring
  * \param dialstring The dialstring to save
- * \retval 0 SUCCESS!
- * \reval -1 Failure :(
+ * \retval 0 on success.
+ * \retval -1 on error.
  */
 static int save_dialstring(struct ast_channel *chan, const char *dialstring)
 {

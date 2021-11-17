@@ -52,7 +52,7 @@
  * \param bridge_id ID of the bridge to lookup.
  *
  * \return Bridget.
- * \return \c NULL if bridge does not exist.
+ * \retval NULL if bridge does not exist.
  */
 static struct ast_bridge *find_bridge(
 	struct ast_ari_response *response,
@@ -87,7 +87,7 @@ static struct ast_bridge *find_bridge(
  * \param[out] response Response to fill with an error if control is not found.
  * \param channel_id ID of the channel to lookup.
  * \return Channel control object.
- * \return \c NULL if control object does not exist.
+ * \retval NULL if control object does not exist.
  */
 static struct stasis_app_control *find_channel_control(
 	struct ast_ari_response *response,
@@ -342,6 +342,7 @@ static struct ast_channel *prepare_bridge_media_channel(const char *type)
  * \param args_media_count number of media items in \c media
  * \param args_lang language string split from arguments
  * \param args_offset_ms milliseconds offset split from arguments
+ * \param args_skipms
  * \param args_playback_id string to use for playback split from
  *        arguments (null valid)
  * \param response ARI response being built
@@ -351,7 +352,7 @@ static struct ast_channel *prepare_bridge_media_channel(const char *type)
  * \param playback_url stores playback URL for use with response
  *
  * \retval -1 operation failed
- * \retval operation was successful
+ * \return operation was successful
  */
 static int ari_bridges_play_helper(const char **args_media,
 	size_t args_media_count,
@@ -513,6 +514,7 @@ enum play_found_result {
  * \param args_media_count number of media items in \c media
  * \param args_lang language string split from arguments
  * \param args_offset_ms milliseconds offset split from arguments
+ * \param args_skipms
  * \param args_playback_id string to use for playback split from
  *        arguments (null valid)
  * \param response ARI response being built

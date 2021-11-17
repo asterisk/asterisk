@@ -56,9 +56,11 @@
 
 /*!
  * \brief Parameter parsing callback for /channels.
+ * \param ser TCP/TLS session object
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
+ * \param body
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_channels_list_cb(
@@ -167,9 +169,11 @@ int ast_ari_channels_originate_parse_body(
 
 /*!
  * \brief Parameter parsing callback for /channels.
+ * \param ser TCP/TLS session object
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
+ * \param body
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_channels_originate_cb(
@@ -300,9 +304,11 @@ int ast_ari_channels_create_parse_body(
 
 /*!
  * \brief Parameter parsing callback for /channels/create.
+ * \param ser TCP/TLS session object
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
+ * \param body
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_channels_create_cb(
@@ -377,9 +383,11 @@ fin: __attribute__((unused))
 }
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}.
+ * \param ser TCP/TLS session object
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
+ * \param body
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_channels_get_cb(
@@ -492,9 +500,11 @@ int ast_ari_channels_originate_with_id_parse_body(
 
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}.
+ * \param ser TCP/TLS session object
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
+ * \param body
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_channels_originate_with_id_cb(
@@ -604,9 +614,11 @@ int ast_ari_channels_hangup_parse_body(
 
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}.
+ * \param ser TCP/TLS session object
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
+ * \param body
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_channels_hangup_cb(
@@ -698,9 +710,11 @@ int ast_ari_channels_continue_in_dialplan_parse_body(
 
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}/continue.
+ * \param ser TCP/TLS session object
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
+ * \param body
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_channels_continue_in_dialplan_cb(
@@ -794,9 +808,11 @@ int ast_ari_channels_move_parse_body(
 
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}/move.
+ * \param ser TCP/TLS session object
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
+ * \param body
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_channels_move_cb(
@@ -879,9 +895,11 @@ int ast_ari_channels_redirect_parse_body(
 
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}/redirect.
+ * \param ser TCP/TLS session object
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
+ * \param body
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_channels_redirect_cb(
@@ -951,9 +969,11 @@ fin: __attribute__((unused))
 }
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}/answer.
+ * \param ser TCP/TLS session object
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
+ * \param body
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_channels_answer_cb(
@@ -1011,9 +1031,11 @@ fin: __attribute__((unused))
 }
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}/ring.
+ * \param ser TCP/TLS session object
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
+ * \param body
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_channels_ring_cb(
@@ -1071,9 +1093,11 @@ fin: __attribute__((unused))
 }
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}/ring.
+ * \param ser TCP/TLS session object
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
+ * \param body
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_channels_ring_stop_cb(
@@ -1160,9 +1184,11 @@ int ast_ari_channels_send_dtmf_parse_body(
 
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}/dtmf.
+ * \param ser TCP/TLS session object
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
+ * \param body
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_channels_send_dtmf_cb(
@@ -1256,9 +1282,11 @@ int ast_ari_channels_mute_parse_body(
 
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}/mute.
+ * \param ser TCP/TLS session object
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
+ * \param body
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_channels_mute_cb(
@@ -1339,9 +1367,11 @@ int ast_ari_channels_unmute_parse_body(
 
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}/mute.
+ * \param ser TCP/TLS session object
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
+ * \param body
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_channels_unmute_cb(
@@ -1409,9 +1439,11 @@ fin: __attribute__((unused))
 }
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}/hold.
+ * \param ser TCP/TLS session object
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
+ * \param body
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_channels_hold_cb(
@@ -1469,9 +1501,11 @@ fin: __attribute__((unused))
 }
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}/hold.
+ * \param ser TCP/TLS session object
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
+ * \param body
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_channels_unhold_cb(
@@ -1542,9 +1576,11 @@ int ast_ari_channels_start_moh_parse_body(
 
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}/moh.
+ * \param ser TCP/TLS session object
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
+ * \param body
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_channels_start_moh_cb(
@@ -1612,9 +1648,11 @@ fin: __attribute__((unused))
 }
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}/moh.
+ * \param ser TCP/TLS session object
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
+ * \param body
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_channels_stop_moh_cb(
@@ -1672,9 +1710,11 @@ fin: __attribute__((unused))
 }
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}/silence.
+ * \param ser TCP/TLS session object
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
+ * \param body
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_channels_start_silence_cb(
@@ -1732,9 +1772,11 @@ fin: __attribute__((unused))
 }
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}/silence.
+ * \param ser TCP/TLS session object
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
+ * \param body
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_channels_stop_silence_cb(
@@ -1846,9 +1888,11 @@ int ast_ari_channels_play_parse_body(
 
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}/play.
+ * \param ser TCP/TLS session object
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
+ * \param body
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_channels_play_cb(
@@ -2020,9 +2064,11 @@ int ast_ari_channels_play_with_id_parse_body(
 
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}/play/{playbackId}.
+ * \param ser TCP/TLS session object
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
+ * \param body
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_channels_play_with_id_cb(
@@ -2181,9 +2227,11 @@ int ast_ari_channels_record_parse_body(
 
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}/record.
+ * \param ser TCP/TLS session object
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
+ * \param body
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_channels_record_cb(
@@ -2283,9 +2331,11 @@ int ast_ari_channels_get_channel_var_parse_body(
 
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}/variable.
+ * \param ser TCP/TLS session object
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
+ * \param body
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_channels_get_channel_var_cb(
@@ -2370,9 +2420,11 @@ int ast_ari_channels_set_channel_var_parse_body(
 
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}/variable.
+ * \param ser TCP/TLS session object
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
+ * \param body
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_channels_set_channel_var_cb(
@@ -2472,9 +2524,11 @@ int ast_ari_channels_snoop_channel_parse_body(
 
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}/snoop.
+ * \param ser TCP/TLS session object
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
+ * \param body
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_channels_snoop_channel_cb(
@@ -2578,9 +2632,11 @@ int ast_ari_channels_snoop_channel_with_id_parse_body(
 
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}/snoop/{snoopId}.
+ * \param ser TCP/TLS session object
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
+ * \param body
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_channels_snoop_channel_with_id_cb(
@@ -2676,9 +2732,11 @@ int ast_ari_channels_dial_parse_body(
 
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}/dial.
+ * \param ser TCP/TLS session object
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
+ * \param body
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_channels_dial_cb(
@@ -2748,9 +2806,11 @@ fin: __attribute__((unused))
 }
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}/rtp_statistics.
+ * \param ser TCP/TLS session object
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
+ * \param body
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_channels_rtpstatistics_cb(
@@ -2847,9 +2907,11 @@ int ast_ari_channels_external_media_parse_body(
 
 /*!
  * \brief Parameter parsing callback for /channels/externalMedia.
+ * \param ser TCP/TLS session object
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
+ * \param body
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_channels_external_media_cb(
