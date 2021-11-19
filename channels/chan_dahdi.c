@@ -1799,8 +1799,6 @@ static void publish_dahdichannel(struct ast_channel *chan, ast_group_t group, in
  *
  * \param p DAHDI private pointer
  * \param chan Channel associated with the private pointer
- *
- * \return Nothing
  */
 static void dahdi_ami_channel_event(struct dahdi_pvt *p, struct ast_channel *chan)
 {
@@ -1827,8 +1825,6 @@ static void dahdi_ami_channel_event(struct dahdi_pvt *p, struct ast_channel *cha
  *
  * \param pvt DAHDI private pointer
  * \param chan Channel associated with the private pointer
- *
- * \return Nothing
  */
 static void my_ami_channel_event(void *pvt, struct ast_channel *chan)
 {
@@ -2221,6 +2217,7 @@ static void my_swap_subchannels(void *pvt, enum analog_sub a, struct ast_channel
  * \note this variant of dahdi should only be used in conjunction with ast_callid_threadstorage_auto()
  *
  * \param callid_created value returned from ast_callid_threadstorage_auto()
+ * \param i, state, startpbx, idx, law, assignedids, requestor, callid
  */
 static struct ast_channel *dahdi_new_callid_clean(struct dahdi_pvt *i, int state, int startpbx, int idx, int law, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, ast_callid callid, int callid_created);
 
@@ -2306,8 +2303,6 @@ static int set_actual_gain(int fd, float rxgain, float txgain, float rxdrc, floa
  * \since 1.8
  *
  * \param p Channel private control structure.
- *
- * \return Nothing
  */
 static void my_pri_ss7_open_media(void *p)
 {
@@ -2359,8 +2354,6 @@ static void my_pri_ss7_open_media(void *p)
  * \param dial_string String to pass to DAHDI to dial.
  *
  * \note The channel private lock needs to be held when calling.
- *
- * \return Nothing
  */
 static void my_pri_dial_digits(void *p, const char *dial_string)
 {
@@ -2819,8 +2812,6 @@ static int my_pri_play_tone(void *pvt, enum sig_pri_tone tone)
  *
  * \param pvt DAHDI private structure
  * \param caller Caller-id information to set.
- *
- * \return Nothing
  */
 static void my_set_callerid(void *pvt, const struct ast_party_caller *caller)
 {
@@ -2855,8 +2846,6 @@ static void my_set_callerid(void *pvt, const struct ast_party_caller *caller)
  *
  * \param pvt DAHDI private structure
  * \param dnid Dialed Number Identifier string.
- *
- * \return Nothing
  */
 static void my_set_dnid(void *pvt, const char *dnid)
 {
@@ -2874,8 +2863,6 @@ static void my_set_dnid(void *pvt, const char *dnid)
  *
  * \param pvt DAHDI private structure
  * \param rdnis Redirecting Directory Number Information Service (RDNIS) string.
- *
- * \return Nothing
  */
 static void my_set_rdnis(void *pvt, const char *rdnis)
 {
@@ -2907,8 +2894,6 @@ static void my_set_rdnis(void *pvt, const char *rdnis)
  *
  * The routine will check to see if the ISDN channel restriction is already
  * in the original dialstring.
- *
- * \return Nothing
  */
 static void my_pri_make_cc_dialstring(void *priv, char *buf, size_t buf_size)
 {
@@ -2952,8 +2937,6 @@ static void my_pri_make_cc_dialstring(void *priv, char *buf, size_t buf_size)
  * \since 1.8
  *
  * \param pri Asterisk D channel control structure.
- *
- * \return Nothing
  *
  * \note Assumes the pri->lock is already obtained.
  */
@@ -3018,8 +3001,6 @@ static void dahdi_pri_update_span_devstate(struct sig_pri_span *pri)
  * \internal
  * \brief Reference this module.
  * \since 1.8
- *
- * \return Nothing
  */
 static void my_module_ref(void)
 {
@@ -3032,8 +3013,6 @@ static void my_module_ref(void)
  * \internal
  * \brief Unreference this module.
  * \since 1.8
- *
- * \return Nothing
  */
 static void my_module_unref(void)
 {
@@ -3089,8 +3068,6 @@ struct sig_pri_callback sig_pri_callbacks =
  *
  * \param linkset Controlling linkset for the channel.
  * \param which Link index of the signaling channel.
- *
- * \return Nothing
  */
 static void my_handle_link_exception(struct sig_ss7_linkset *linkset, int which)
 {
@@ -3283,8 +3260,6 @@ struct sig_ss7_callback sig_ss7_callbacks =
  * \param thereornot This argument should simply be set to 1 or 0, to indicate
  *      whether there are messages waiting or not.
  *
- *  \return nothing
- *
  * This function does two things:
  *
  * 1) It generates an internal Asterisk event notifying any other module that
@@ -3463,8 +3438,6 @@ int _dahdi_get_index(struct ast_channel *ast, struct dahdi_pvt *p, int nullok, c
  * \note
  * Because deadlock avoidance may have been necessary, you need to confirm
  * the state of things before continuing.
- *
- * \return Nothing
  */
 static void dahdi_lock_sub_owner(struct dahdi_pvt *pvt, int sub_idx)
 {
@@ -5280,8 +5253,6 @@ static int dahdi_call(struct ast_channel *ast, const char *rdest, int timeout)
  * Any duplicates are inserted after the existing entries.
  *
  * \note The new interface must not already be in the list.
- *
- * \return Nothing
  */
 static void dahdi_iflist_insert(struct dahdi_pvt *pvt)
 {
@@ -5330,8 +5301,6 @@ static void dahdi_iflist_insert(struct dahdi_pvt *pvt)
  * \note
  * The given interface structure can be either in the interface list or a stand alone
  * structure that has not been put in the list if the next and prev pointers are NULL.
- *
- * \return Nothing
  */
 static void dahdi_iflist_extract(struct dahdi_pvt *pvt)
 {
@@ -5371,8 +5340,6 @@ static void dahdi_iflist_extract(struct dahdi_pvt *pvt)
  * Any duplicates are inserted after the existing entries.
  *
  * \note The new interface must not already be in the list.
- *
- * \return Nothing
  */
 static void dahdi_nobch_insert(struct sig_pri_span *pri, struct dahdi_pvt *pvt)
 {
@@ -5424,8 +5391,6 @@ static void dahdi_nobch_insert(struct sig_pri_span *pri, struct dahdi_pvt *pvt)
  * \note
  * The given interface structure can be either in the interface list or a stand alone
  * structure that has not been put in the list if the next and prev pointers are NULL.
- *
- * \return Nothing
  */
 static void dahdi_nobch_extract(struct sig_pri_span *pri, struct dahdi_pvt *pvt)
 {
@@ -5459,8 +5424,6 @@ static void dahdi_nobch_extract(struct sig_pri_span *pri, struct dahdi_pvt *pvt)
  * \since 1.8
  *
  * \param pvt chan_dahdi private interface structure to unlink.
- *
- * \return Nothing
  */
 static void dahdi_unlink_pri_pvt(struct dahdi_pvt *pvt)
 {
@@ -5491,8 +5454,6 @@ static void dahdi_unlink_pri_pvt(struct dahdi_pvt *pvt)
  * \since 1.8
  *
  * \param pvt chan_dahdi private interface structure to unlink.
- *
- * \return Nothing
  */
 static void dahdi_unlink_ss7_pvt(struct dahdi_pvt *pvt)
 {
@@ -5522,8 +5483,6 @@ static void dahdi_unlink_ss7_pvt(struct dahdi_pvt *pvt)
  * \brief Unlink the channel interface from the MFC/R2 private pointer array.
  *
  * \param pvt chan_dahdi private interface structure to unlink.
- *
- * \return Nothing
  */
 static void dahdi_unlink_mfcr2_pvt(struct dahdi_pvt *pvt)
 {
@@ -13129,8 +13088,6 @@ static int available(struct dahdi_pvt **pvt, int is_specific_channel)
  * \param pri sig_pri PRI control structure.
  *
  * \note Assumes the pri->lock is already obtained.
- *
- * \return Nothing
  */
 static void my_pri_init_config(void *priv, struct sig_pri_span *pri)
 {
@@ -17503,8 +17460,6 @@ static int dahdi_pri_cc_agent_init(struct ast_cc_agent *agent, struct ast_channe
  * \details
  * The core will call this function upon completion
  * or failure of CC.
- *
- * \return Nothing
  */
 static void dahdi_pri_cc_agent_destructor(struct ast_cc_agent *agent)
 {
@@ -19336,8 +19291,6 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
  *
  * \param dest Destination.
  * \param src Source.
- *
- * \return Nothing
  */
 static void deep_copy_dahdi_chan_conf(struct dahdi_chan_conf *dest, const struct dahdi_chan_conf *src)
 {
