@@ -395,8 +395,6 @@ int iax2_codec_pref_format_bitfield_to_order_value(uint64_t bitfield)
  * \param pref Codec preference list to append the given bitfield.
  * \param bitfield Format bitfield to append.
  * \param framing Framing size of the codec.
- *
- * \return Nothing
  */
 static void iax2_codec_pref_append_bitfield(struct iax2_codec_pref *pref, uint64_t bitfield, unsigned int framing)
 {
