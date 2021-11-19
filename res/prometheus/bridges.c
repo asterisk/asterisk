@@ -37,7 +37,7 @@
  * \brief Callback function to get the number of channels in a bridge
  *
  * \param metric The metric to populate
- * \snapshot Bridge snapshot
+ * \param snapshot Bridge snapshot
  */
 static void get_bridge_channel_count(struct prometheus_metric *metric, struct ast_bridge_snapshot *snapshot)
 {

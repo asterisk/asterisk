@@ -152,9 +152,6 @@ int ast_calendar_register(struct ast_calendar_tech *tech);
 /*! \brief Unregister a new calendar technology
  *
  * \param tech calendar technology to unregister
- *
- * \retval 0 success
- * \retval -1 failure
  */
 void ast_calendar_unregister(struct ast_calendar_tech *tech);
 

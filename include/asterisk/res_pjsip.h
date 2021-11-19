@@ -2481,9 +2481,9 @@ void ast_copy_pj_str(char *dest, const pj_str_t *src, size_t size);
  *
  * \note Caller is responsible for freeing the allocated memory.
  *
- * \param dest [out] The destination buffer
+ * \param[out] dest The destination buffer
  * \param src The pj_str_t to copy
- * \retval Number of characters copied or negative value on error
+ * \return Number of characters copied or negative value on error
  */
 int ast_copy_pj_str2(char **dest, const pj_str_t *src);
 

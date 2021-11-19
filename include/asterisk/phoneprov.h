@@ -95,7 +95,7 @@ void ast_phoneprov_provider_unregister(char *provider_name);
 /*!
  * \brief Adds an extension
  * \param provider_name The name of the provider
- * \param defaults An ast_vat_t linked list of the extension's variables.
+ * \param vars An ast_vat_t linked list of the extension's variables.
  * The list is automatically cloned and it must contain at least MACADDRESS
  * and USERNAME entries.
  *

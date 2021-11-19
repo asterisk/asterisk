@@ -674,8 +674,8 @@ static int add_mwi_datastore(struct mwi_subscription *sub)
  * \param container The ao2_container to search
  * \param endpoint The endpoint to find
  * \param mailbox The mailbox potentially subscribed
- * \param mwi_sub [out] May contain the located mwi_subscription
- * \param mwi_stasis [out] May contain the located mwi_stasis_subscription
+ * \param[out] mwi_sub May contain the located mwi_subscription
+ * \param[out] mwi_stasis May contain the located mwi_stasis_subscription
  *
  * \retval 1 if a subscription was located, 0 otherwise
  */

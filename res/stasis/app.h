@@ -37,12 +37,12 @@
 struct stasis_app;
 
 enum stasis_app_subscription_model {
-	/*
+	/*!
 	 * \brief An application must manually subscribe to each
 	 * resource that it cares about. This is the default approach.
 	 */
 	STASIS_APP_SUBSCRIBE_MANUAL,
-	/*
+	/*!
 	 * \brief An application is automatically subscribed to all
 	 * resources in Asterisk, even if it does not control them.
 	 */

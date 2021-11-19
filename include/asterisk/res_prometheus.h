@@ -53,10 +53,9 @@
  */
 #define PROMETHEUS_MAX_VALUE_LENGTH 32
 
-/**
+/*!
  * \brief Prometheus general configuration
  *
- * \details
  * While the config file should generally provide the configuration
  * for this module, it is useful for testing purposes to allow the
  * configuration to be injected into the module. This struct is
@@ -86,7 +85,6 @@ struct prometheus_general_config {
 /*!
  * \brief A function table for a metrics provider
  *
- * \details
  * It's generally nice to separate out things that provide metrics
  * from the core of this module. For those that want to be notified
  * when things happen in the core module, they can provide an instance
@@ -126,7 +124,7 @@ enum prometheus_metric_type {
 	 * \brief A metric whose value always goes up
 	 */
 	PROMETHEUS_METRIC_COUNTER = 0,
-	/*
+	/*!
 	 * \brief A metric whose value can bounce around like a jackrabbit
 	 */
 	PROMETHEUS_METRIC_GAUGE,
@@ -165,7 +163,6 @@ struct prometheus_label {
 /*!
  * \brief An actual, honest to god, metric.
  *
- * \details
  * A bit of effort has gone into making this structure as efficient as we
  * possibly can. Given that a *lot* of metrics can theoretically be dumped out,
  * and that Asterisk attempts to be a "real-time" system, we want this process
@@ -223,21 +220,20 @@ struct prometheus_metric {
 	/*!
 	 * \brief The current value.
 	 *
-	 * \details
 	 * If \c get_metric_value is set, this value is ignored until the callback
 	 * happens
 	 */
 	char value[PROMETHEUS_MAX_VALUE_LENGTH];
-	/*
+	/*!
 	 * \brief Callback function to obtain the metric value
-	 * \details
+	 *
 	 * If updates need to happen when the metric is gathered, provide the
 	 * callback function. Otherwise, leave it \c NULL.
 	 */
 	void (* get_metric_value)(struct prometheus_metric *metric);
 	/*!
 	 * \brief A list of children metrics
-	 * \details
+	 *
 	 * Children metrics have the same name but different label.
 	 *
 	 * Registration of a metric will automatically nest the metrics; otherwise
@@ -254,15 +250,9 @@ struct prometheus_metric {
 	AST_LIST_ENTRY(prometheus_metric) entry;
 };
 
-/**
+/*!
  * \brief Convenience macro for initializing a metric on the stack
  *
- * \param mtype The metric type. See \c prometheus_metric_type
- * \param n Name of the metric
- * \param h Help text for the metric
- * \param cb Callback function. Optional; may be \c NULL
- *
- * \details
  * When initializing a metric on the stack, various fields have to be provided
  * to initialize the metric correctly. This macro can be used to simplify the
  * process.
@@ -283,6 +273,10 @@ struct prometheus_metric {
  *			metric_values_get_counter_value_cb);
  * \endcode
  *
+ * \param mtype The metric type. See \c prometheus_metric_type
+ * \param n Name of the metric
+ * \param h Help text for the metric
+ * \param cb Callback function. Optional; may be \c NULL
  */
 #define PROMETHEUS_METRIC_STATIC_INITIALIZATION(mtype, n, h, cb) { \
 	.type = (mtype), \
@@ -294,15 +288,9 @@ struct prometheus_metric {
 	.get_metric_value = (cb), \
 }
 
-/**
+/*!
  * \brief Convenience macro for setting a label / value in a metric
  *
- * \param metric The metric to set the label on
- * \param label Position of the label to set
- * \param n Name of the label
- * \param v Value of the label
- *
- * \details
  * When creating nested metrics, it's helpful to set their label after they have
  * been declared but before they have been registered. This macro acts as a
  * convenience function to set the labels properly on a declared metric.
@@ -317,6 +305,10 @@ struct prometheus_metric {
  *		test_gauge_child_two, 1, "key_two", "value_two");
  * \endcode
  *
+ * \param metric The metric to set the label on
+ * \param label Position of the label to set
+ * \param n Name of the label
+ * \param v Value of the label
  */
 #define PROMETHEUS_METRIC_SET_LABEL(metric, label, n, v) do { \
 	ast_assert((label) < PROMETHEUS_MAX_LABELS); \
@@ -362,11 +354,11 @@ struct prometheus_metric *prometheus_counter_create(const char *name,
 struct prometheus_metric *prometheus_gauge_create(const char *name,
 	const char *help);
 
-/**
+/*!
  * \brief Convert a metric (and its children) into Prometheus compatible text
  *
  * \param metric The metric to convert to a string
- * \param [out] output The \c ast_str string to populate with the metric(s)
+ * \param[out] output The \c ast_str string to populate with the metric(s)
  */
 void prometheus_metric_to_string(struct prometheus_metric *metric,
 	struct ast_str **output);
@@ -374,7 +366,6 @@ void prometheus_metric_to_string(struct prometheus_metric *metric,
 /*!
  * \brief Defines a callback that will be invoked when the HTTP route is called
  *
- * \details
  * This callback presents the second way of passing metrics to a Prometheus
  * server. For metrics that are generated often or whose value needs to be
  * stored, metrics can be created and registered. For metrics that can be
@@ -477,11 +468,10 @@ void prometheus_metrics_provider_register(const struct prometheus_metrics_provid
 /*!
  * \brief Retrieve the current configuration of the module
  *
+ * config is an AO2 ref counted object
+ *
  * \note
  * This should primarily be done for testing purposes.
- *
- * \details
- * config is an AO2 ref counted object
  *
  * \retval NULL on error
  * \retval config on success
@@ -491,20 +481,17 @@ struct prometheus_general_config *prometheus_general_config_get(void);
 /*!
  * \brief Set the configuration for the module
  *
- * \note
- * This should primarily be done for testing purposes
- *
- * \details
  * This is not a ref-stealing function. The reference count to \c config
  * will be incremented as a result of calling this method.
  *
+ * \note
+ * This should primarily be done for testing purposes
  */
 void prometheus_general_config_set(struct prometheus_general_config *config);
 
 /*!
  * \brief Allocate a new configuration object
  *
- * \details
  * The returned object is an AO2 ref counted object
  *
  * \retval NULL on error

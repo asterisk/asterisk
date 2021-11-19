@@ -28,7 +28,7 @@
 #define CLI_MAX_TITLE_NAME 8
 #define CLI_INDENT_TO_SPACES(x) ((x * 2) + 1 + CLI_MAX_TITLE_NAME)
 
-/*
+/*!
  * \brief CLI Formatter Context passed to all formatters.
  */
 struct ast_sip_cli_context {
@@ -46,7 +46,7 @@ struct ast_sip_cli_context {
 	unsigned show_details_only_level_0 : 1;
 };
 
-/*
+/*!
  * \brief CLI Formatter Registry Entry
  */
 struct ast_sip_cli_formatter_entry {

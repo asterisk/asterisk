@@ -4039,7 +4039,7 @@ static void xmpp_pubsub_request_nodes(struct ast_xmpp_client *client, const char
 
 }
 
-/*
+/*!
  * \brief Method to expose PubSub node list via CLI.
  * \param e pointer to ast_cli_entry structure
  * \param cmd

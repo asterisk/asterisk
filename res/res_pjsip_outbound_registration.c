@@ -1479,7 +1479,7 @@ static int can_reuse_registration(struct sip_outbound_registration *existing,
 	return rc;
 }
 
-/* \brief Get google oauth2 access token using refresh token */
+/*! \brief Get google oauth2 access token using refresh token */
 static const char *fetch_google_access_token(const struct ast_sip_auth *auth)
 {
 	char *cmd = NULL;

@@ -40,7 +40,7 @@
  * \brief Callback function to get a channel's current state
  *
  * \param metric The metric to populate
- * \snapshot Channel snapshot
+ * \param snapshot Channel snapshot
  */
 static void get_channel_state(struct prometheus_metric *metric, struct ast_channel_snapshot *snapshot)
 {
