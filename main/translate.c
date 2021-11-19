@@ -141,8 +141,8 @@ static int format2index(struct ast_format *format)
  *
  * \note it is perfectly safe to call this on codecs already indexed.
  *
- * \retval 0, success
- * \retval -1, matrix and index table need to be resized
+ * \retval 0 success
+ * \retval -1 matrix and index table need to be resized
  */
 static int add_codec2index(struct ast_codec *codec)
 {
@@ -188,8 +188,8 @@ static struct ast_codec *index2codec(int index)
  *
  * \note _NO_ locks can be held prior to calling this function
  *
- * \retval 0, success
- * \retval -1, failure.  Old matrix and index table can still be used though
+ * \retval 0 success
+ * \retval -1 failure.  Old matrix and index table can still be used though
  */
 static int matrix_resize(int init)
 {
@@ -762,7 +762,7 @@ static void generate_computational_cost(struct ast_translator *t, int seconds)
  * \note This function is safe to use on any audio formats that used to be defined in the
  * first 64 bits of the old bit field codec representation.
  *
- * \retval Table Cost value greater than 0.
+ * \return Table Cost value greater than 0.
  * \retval 0 on error.
  */
 static int generate_table_cost(struct ast_codec *src, struct ast_codec *dst)

@@ -63,7 +63,7 @@ struct ast_bridge_methods;
  * \note After a bridge is registered, ast_bridge_destroy() must
  * eventually be called to get rid of the bridge.
  *
- * \retval bridge on success.
+ * \return bridge on success.
  * \retval NULL on error.
  */
 struct ast_bridge *bridge_register(struct ast_bridge *bridge);
@@ -76,7 +76,7 @@ struct ast_bridge *bridge_register(struct ast_bridge *bridge);
  * \param size Size of the bridge class structure to allocate.
  * \param v_table Bridge class virtual method table.
  *
- * \retval bridge on success.
+ * \return bridge on success.
  * \retval NULL on error.
  */
 struct ast_bridge *bridge_alloc(size_t size, const struct ast_bridge_methods *v_table);
@@ -91,7 +91,7 @@ struct ast_bridge *bridge_alloc(size_t size, const struct ast_bridge_methods *v_
  * \param name Name given to the bridge by its creator (optional, requires named creator)
  * \param id Unique ID given to the bridge by its creator (optional)
  *
- * \retval self on success
+ * \return self on success
  * \retval NULL on failure, self is already destroyed
  *
  * Example usage:
@@ -139,8 +139,6 @@ int bridge_do_move(struct ast_bridge *dst_bridge, struct ast_bridge_channel *bri
  * \param num_kick Number of channels in the kick_me array.
  * \param optimized Indicates whether the merge is part of an unreal channel optimization.
  *
- * \return Nothing
- *
  * \note The two bridges are assumed already locked.
  *
  * This moves the channels in src_bridge into the bridge pointed
@@ -158,7 +156,7 @@ void bridge_do_merge(struct ast_bridge *dst_bridge, struct ast_bridge *src_bridg
  *
  * \note On entry, bridge is already locked.
  *
- * \retval bridge_channel if channel is in the bridge.
+ * \return bridge_channel if channel is in the bridge.
  * \retval NULL if not in bridge.
  */
 struct ast_bridge_channel *bridge_find_channel(struct ast_bridge *bridge, struct ast_channel *chan);
@@ -173,8 +171,6 @@ struct ast_bridge_channel *bridge_find_channel(struct ast_bridge *bridge, struct
  *     (Positive to add requests.  Negative to remove requests.)
  *
  * \note This function assumes bridge is locked.
- *
- * \return Nothing
  */
 void bridge_merge_inhibit_nolock(struct ast_bridge *bridge, int request);
 
@@ -186,15 +182,12 @@ void bridge_merge_inhibit_nolock(struct ast_bridge *bridge, int request);
  * \param bridge Reconfigured bridge.
  * \param colp_update Whether to perform COLP updates.
  *
- * \details
  * After a series of bridge_channel_internal_push and
  * bridge_channel_internal_pull calls, you need to call this function
  * to cause the bridge to complete restructuring for the change
  * in the channel makeup of the bridge.
  *
  * \note On entry, the bridge is already locked.
- *
- * \return Nothing
  */
 void bridge_reconfigured(struct ast_bridge *bridge, unsigned int colp_update);
 
@@ -211,8 +204,6 @@ void bridge_reconfigured(struct ast_bridge *bridge, unsigned int colp_update);
  * bridge.  Any new channels joining will leave immediately.
  *
  * \note On entry, bridge is already locked.
- *
- * \return Nothing
  */
 void bridge_dissolve(struct ast_bridge *bridge, int cause);
 

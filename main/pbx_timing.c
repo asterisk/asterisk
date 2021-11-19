@@ -194,12 +194,6 @@ static const char * const months[] =
 	NULL,
 };
 
-/*! /brief Build timing
- *
- * /param i info
- * /param info_in
- *
- */
 int ast_build_timing(struct ast_timing *i, const char *info_in)
 {
 	char *info;

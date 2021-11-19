@@ -980,7 +980,6 @@ char *ast_skip_blanks(const char *str),
 
 /*!
   \brief Trims trailing whitespace characters from a string.
-  \param ast_trim_blanks function being used
   \param str the input string
   \return a pointer to the modified string
  */

@@ -972,7 +972,7 @@ static void cel_channel_app_change(
 	}
 }
 
-/* \brief Handlers for channel snapshot changes.
+/*! \brief Handlers for channel snapshot changes.
  * \note Order of the handlers matters. Application changes must come before state
  * changes to ensure that hangup notifications occur after application changes.
  * Linkedid checking should always come last.

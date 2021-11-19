@@ -51,7 +51,7 @@ void ast_multicast_rtp_free_options(struct ast_multicast_rtp_options *mcast_opti
  *
  * \param mcast_options The options where a codec was specified
  * \retval NULL No format specified in the options
- * \revval non-NULL The format to use for communication
+ * \retval non-NULL The format to use for communication
  */
 struct ast_format *ast_multicast_rtp_options_get_format(struct ast_multicast_rtp_options *mcast_options);
 

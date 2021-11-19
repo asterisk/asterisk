@@ -83,7 +83,6 @@ AST_LIST_HEAD(ast_acl_list, ast_acl);
  * HAs are freed
  *
  * \param ha The head of the list of HAs to free
- * \retval void
  */
 void ast_free_ha(struct ast_ha *ha);
 
@@ -109,7 +108,6 @@ struct ast_acl_list *ast_free_acl_list(struct ast_acl_list *acl);
  *
  * \param from Source HA to copy
  * \param to Destination HA to copy to
- * \retval void
  */
 void ast_copy_ha(const struct ast_ha *from, struct ast_ha *to);
 
@@ -195,8 +193,8 @@ void ast_append_acl(const char *sense, const char *stuff, struct ast_acl_list **
  * \brief Determines if an ACL is empty or if it contains entries
  *
  * \param acl_list The ACL list being checked
- * \retval 0 - the list is not empty
- * \retval 1 - the list is empty
+ * \retval 0 the list is not empty
+ * \retval 1 the list is empty
  */
 int ast_acl_list_is_empty(struct ast_acl_list *acl_list);
 
@@ -318,7 +316,7 @@ int ast_ouraddrfor(const struct ast_sockaddr *them, struct ast_sockaddr *us);
  *
  * \param iface The interface name whose IP address we wish to find
  * \param[out] address The interface's IP address is placed into this param
- * \retval -1 Failure. address is filled with 0s
+ * \retval -1 Failure, address is filled with 0s
  * \retval 0 Success
  */
 int ast_lookup_iface(char *iface, struct ast_sockaddr *address);
@@ -332,7 +330,7 @@ int ast_lookup_iface(char *iface, struct ast_sockaddr *address);
  * of the input parameter when finished.
  *
  * \param original The ast_ha to copy
- * \retval The head of the list of duplicated ast_has
+ * \return The head of the list of duplicated ast_has
  */
 struct ast_ha *ast_duplicate_ha_list(struct ast_ha *original);
 
@@ -346,7 +344,7 @@ struct ast_ha *ast_duplicate_ha_list(struct ast_ha *original);
  * finished.
  *
  * \param original The ast_acl_list to copy
- * \retval The new duplicated ast_acl_list
+ * \return The new duplicated ast_acl_list
  */
 struct ast_acl_list *ast_duplicate_acl_list(struct ast_acl_list *original);
 
@@ -413,7 +411,7 @@ const char *ast_tos2str(unsigned int tos);
  * \param[out] is_realtime will be true if the ACL being returned is from realtime
  * \param[out] is_undefined will be true if no ACL profile can be found for the requested name
  *
- * \retval A copy of the named ACL as an ast_ha
+ * \return A copy of the named ACL as an ast_ha
  * \retval NULL if no ACL could be found.
  */
 struct ast_ha *ast_named_acl_find(const char *name, int *is_realtime, int *is_undefined);
@@ -423,7 +421,7 @@ struct ast_ha *ast_named_acl_find(const char *name, int *is_realtime, int *is_un
  * \since 12
  *
  * \retval NULL on error
- * \retval \ref stasis_message_type for named ACL changes
+ * \return \ref stasis_message_type for named ACL changes
  *
  * \note Messages of this type should always be issued on and expected from the
  *       \ref ast_security_topic \ref stasis_topic

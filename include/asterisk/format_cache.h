@@ -275,14 +275,12 @@ int ast_format_cache_set(struct ast_format *format);
  * \note The returned format has its reference count incremented. It must be
  * dropped using ao2_ref or ao2_cleanup.
  */
-struct ast_format *__ast_format_cache_get(const char *name,
-	const char *tag, const char *file, int line, const char *func);
-
 #define ast_format_cache_get(name) \
 	__ast_format_cache_get((name), "ast_format_cache_get", __FILE__, __LINE__, __PRETTY_FUNCTION__)
 #define ast_t_format_cache_get(name, tag) \
 	__ast_format_cache_get((name), (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__)
-
+struct ast_format *__ast_format_cache_get(const char *name,
+	const char *tag, const char *file, int line, const char *func);
 
 /*!
  * \brief Retrieve the best signed linear format given a sample rate.

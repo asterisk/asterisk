@@ -53,7 +53,7 @@ struct ast_sdp_srtp {
 
 /*!
  * \brief allocate a ast_sdp_srtp structure
- * \retval a new malloc'd ast_sdp_srtp structure on success
+ * \return a new malloc'd ast_sdp_srtp structure on success
  * \retval NULL on failure
 */
 struct ast_sdp_srtp *ast_sdp_srtp_alloc(void);
@@ -74,7 +74,7 @@ typedef void (*sdp_crypto_destroy_cb)(struct ast_sdp_crypto *crypto);
  * This function allocates a new ast_sdp_crypto struct and initializes its values
  *
  * \retval NULL on failure
- * \retval a pointer to a  new ast_sdp_crypto structure
+ * \return a pointer to a  new ast_sdp_crypto structure
  */
 typedef struct ast_sdp_crypto *(*sdp_crypto_alloc_cb)(void);
 
@@ -98,10 +98,9 @@ typedef int (*sdp_crypto_build_offer_cb)(struct ast_sdp_crypto *crypto, int tagl
  *
  * The attribute line should already have "a=crypto:" removed.
  *
- * \param p A valid ast_sdp_crypto struct
- * \param attr the a:crypto line from SDP
  * \param rtp The rtp instance associated with the SDP being parsed
  * \param srtp SRTP structure
+ * \param attr the a:crypto line from SDP
  *
  * \retval 0 success
  * \retval nonzero failure
@@ -119,7 +118,7 @@ typedef int (*sdp_crypto_parse_offer_cb)(struct ast_rtp_instance *rtp, struct as
  * \param dtls_enabled Whether this connection is encrypted with datagram TLS
  * \param default_taglen_32 Whether to default to a tag length of 32 instead of 80
  *
- * \retval An attribute line containing cryptographic information
+ * \return An attribute line containing cryptographic information
  * \retval NULL if the srtp structure does not require an attribute line containing crypto information
  */
 typedef const char *(*sdp_srtp_get_attr_cb)(struct ast_sdp_srtp *srtp, int dtls_enabled, int default_taglen_32);
@@ -153,8 +152,6 @@ int ast_sdp_crypto_register(struct ast_sdp_crypto_api *api);
  * \since 14.0.0
  *
  * \param api Callbacks to unregister.
- *
- * \return Nothing
  */
 void ast_sdp_crypto_unregister(struct ast_sdp_crypto_api *api);
 
@@ -164,7 +161,7 @@ void ast_sdp_crypto_unregister(struct ast_sdp_crypto_api *api);
  * This function allocates a new ast_sdp_crypto struct and initializes its values
  *
  * \retval NULL on failure
- * \retval a pointer to a  new ast_sdp_crypto structure
+ * \return a pointer to a  new ast_sdp_crypto structure
  */
 struct ast_sdp_crypto *ast_sdp_crypto_alloc(void);
 
@@ -176,10 +173,9 @@ void ast_sdp_crypto_destroy(struct ast_sdp_crypto *crypto);
  *
  * The attribute line should already have "a=crypto:" removed.
  *
- * \param p A valid ast_sdp_crypto struct
- * \param attr the a:crypto line from SDP
  * \param rtp The rtp instance associated with the SDP being parsed
  * \param srtp SRTP structure
+ * \param attr the a:crypto line from SDP
  *
  * \retval 0 success
  * \retval nonzero failure
@@ -208,7 +204,7 @@ int ast_sdp_crypto_build_offer(struct ast_sdp_crypto *p, int taglen);
  * \param dtls_enabled Whether this connection is encrypted with datagram TLS
  * \param default_taglen_32 Whether to default to a tag length of 32 instead of 80
  *
- * \retval An attribute line containing cryptographic information
+ * \return An attribute line containing cryptographic information
  * \retval NULL if the srtp structure does not require an attribute line containing crypto information
  */
 const char *ast_sdp_srtp_get_attrib(struct ast_sdp_srtp *srtp, int dtls_enabled, int default_taglen_32);
@@ -220,7 +216,7 @@ const char *ast_sdp_srtp_get_attrib(struct ast_sdp_srtp *srtp, int dtls_enabled,
  * \param using_avpf Whether the media session is using early feedback (AVPF)
  * \param force_avp Force SAVP or SAVPF profile when DTLS is in use
  *
- * \retval A non-allocated string describing the profile in use (does not need to be freed)
+ * \return A non-allocated string describing the profile in use (does not need to be freed)
  */
 char *ast_sdp_get_rtp_profile(unsigned int sdes_active, struct ast_rtp_instance *instance, unsigned int using_avpf,
 	unsigned int force_avp);

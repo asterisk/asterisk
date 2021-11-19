@@ -248,7 +248,7 @@ int ast_base64encode(char *dst, const unsigned char *src, int srclen, int max);
  * \param src The source buffer
  *
  * \retval NULL on failure
- * \retval Encoded string on success
+ * \return Encoded string on success
  */
 char *ast_base64encode_string(const char *src);
 
@@ -272,7 +272,7 @@ int ast_base64decode(unsigned char *dst, const char *src, int max);
  * \param src The source buffer
  *
  * \retval NULL on failure
- * \retval Decoded string on success
+ * \return Decoded string on success
  */
 char *ast_base64decode_string(const char *src);
 
@@ -320,7 +320,7 @@ int ast_base64url_encode(char *dst, const unsigned char *src, int srclen, int ma
  * \param src The source buffer
  *
  * \retval NULL on failure
- * \retval Decoded string on success
+ * \return Decoded string on success
  */
 char *ast_base64url_decode_string(const char *src);
 
@@ -332,7 +332,7 @@ char *ast_base64url_decode_string(const char *src);
  * \param src The source data to be encoded
  *
  * \retval NULL on failure
- * \retval Encoded string on success
+ * \return Encoded string on success
  */
 char *ast_base64url_encode_string(const char *src);
 
@@ -405,8 +405,8 @@ void ast_uri_decode(char *s, struct ast_flags spec);
 	\param string String to be converted
 	\param outbuf Resulting encoded string
 	\param buflen Size of output buffer
-	\return 0 for success
-	\return -1 if buflen is too short.
+	\retval 0 for success
+	\retval -1 if buflen is too short.
  */
 int ast_xml_escape(const char *string, char *outbuf, size_t buflen);
 
@@ -621,7 +621,6 @@ long int ast_random(void);
 /*!
  * \brief Disable PMTU discovery on a socket
  * \param sock The socket to manipulate
- * \return Nothing
  *
  * On Linux, UDP sockets default to sending packets with the Dont Fragment (DF)
  * bit set. This is supposedly done to allow the application to do PMTU
@@ -637,7 +636,8 @@ void ast_enable_packet_fragmentation(int sock);
  * \brief Recursively create directory path
  * \param path The directory path to create
  * \param mode The permissions with which to try to create the directory
- * \return 0 on success or an error code otherwise
+ * \retval 0 on success
+ * \return error code otherwise
  *
  * Creates a directory path, creating parent directories as needed.
  */
@@ -650,9 +650,11 @@ int ast_mkdir(const char *path, int mode);
  * If \a base_path does not exist, it will not be created and this function
  * returns \c EPERM.
  *
+ * \param base_path
  * \param path The directory path to create
  * \param mode The permissions with which to try to create the directory
- * \return 0 on success or an error code otherwise
+ * \retval 0 on success
+ * \return an error code otherwise
  */
 int ast_safe_mkdir(const char *base_path, const char *path, int mode);
 
@@ -664,7 +666,8 @@ int ast_safe_mkdir(const char *base_path, const char *path, int mode);
  * \param v the value to check
  * \param min minimum lower bound (inclusive)
  * \param max maximum upper bound (inclusive)
- * \return 0 if value out of bounds, otherwise true (non-zero)
+ * \retval 0 if value out of bounds
+ * \retval non-zero otherwise
  */
 #define IN_BOUNDS(v, min, max) ((v) >= (min)) && ((v) <= (max))
 
@@ -673,7 +676,8 @@ int ast_safe_mkdir(const char *base_path, const char *path, int mode);
  *
  * \param v the value to check
  * \param a the array to bound check
- * \return 0 if value out of bounds, otherwise true (non-zero)
+ * \retval 0 if value out of bounds
+ * \retval non-zero otherwise
  */
 #define ARRAY_IN_BOUNDS(v, a) IN_BOUNDS((int) (v), 0, ARRAY_LEN(a) - 1)
 
@@ -695,7 +699,7 @@ struct ast_http_digest {
 
 /*!
  * \brief Parse digest authorization header.
- * \return Returns -1 if we have no auth or something wrong with digest.
+ * \return -1 if we have no auth or something wrong with digest.
  * \note This function may be used for Digest request and responce header.
  * request arg is set to nonzero, if we parse Digest Request.
  * pedantic arg can be set to nonzero if we need to do addition Digest check.
@@ -740,8 +744,6 @@ static void force_inline _ast_assert(int condition, const char *condition_str, c
  * \brief Force a crash if DO_CRASH is defined.
  *
  * \note If DO_CRASH is not defined then the function returns.
- *
- * \return Nothing
  */
 void DO_CRASH_NORETURN ast_do_crash(void);
 
@@ -833,7 +835,8 @@ char *ast_eid_to_str(char *s, int maxlen, struct ast_eid *eid);
  * This function expects an EID in the format:
  *    00:11:22:33:44:55
  *
- * \return 0 success, non-zero failure
+ * \retval 0 success
+ * \retval non-zero failure
  * \since 1.6.1
  */
 int ast_str_to_eid(struct ast_eid *eid, const char *s);
@@ -841,7 +844,8 @@ int ast_str_to_eid(struct ast_eid *eid, const char *s);
 /*!
  * \brief Compare two EIDs
  *
- * \return 0 if the two are the same, non-zero otherwise
+ * \retval 0 if the two are the same
+ * \retval non-zero otherwise
  * \since 1.6.1
  */
 int ast_eid_cmp(const struct ast_eid *eid1, const struct ast_eid *eid2);
@@ -849,7 +853,8 @@ int ast_eid_cmp(const struct ast_eid *eid1, const struct ast_eid *eid2);
 /*!
  * \brief Check if EID is empty
  *
- * \return 1 if the EID is empty, zero otherwise
+ * \retval 1 if the EID is empty
+ * \retval 0 otherwise
  * \since 13.12.0
  */
 int ast_eid_is_empty(const struct ast_eid *eid);
@@ -949,7 +954,7 @@ static inline void _raii_cleanup_block(_raii_cleanup_block_t *b) { (*b)(); }
  * \param key User's password to crypt.
  * \param salt Salt to crypt with.
  * \return Crypted password.
- * \return \c NULL on error.
+ * \retval NULL on error.
  */
 char *ast_crypt(const char *key, const char *salt);
 
@@ -962,7 +967,7 @@ char *ast_crypt(const char *key, const char *salt);
  *
  * \param key User's password to crypt.
  * \return Crypted password.
- * \return \c NULL on error.
+ * \retval NULL on error.
  */
 char *ast_crypt_encrypt(const char *key);
 
@@ -971,8 +976,8 @@ char *ast_crypt_encrypt(const char *key);
  *
  * \param key User's password to validate.
  * \param expected Expected result from crypt.
- * \return True (non-zero) if \a key matches \a expected.
- * \return False (zero) if \a key doesn't match.
+ * \retval True (non-zero) if \a key matches \a expected.
+ * \retval False (zero) if \a key doesn't match.
  */
 int ast_crypt_validate(const char *key, const char *expected);
 
@@ -981,8 +986,8 @@ int ast_crypt_validate(const char *key, const char *expected);
  * \since 13.7.0
  *
  * \param filename File to test.
- * \return True (non-zero) if the file exists and is readable.
- * \return False (zero) if the file either doesn't exists or is not readable.
+ * \retval True (non-zero) if the file exists and is readable.
+ * \retval False (zero) if the file either doesn't exists or is not readable.
  */
 int ast_file_is_readable(const char *filename);
 
@@ -990,12 +995,12 @@ int ast_file_is_readable(const char *filename);
  * \brief Compare 2 major.minor.patch.extra version strings.
  * \since 13.7.0
  *
- * \param version1.
- * \param version2.
+ * \param version1
+ * \param version2
  *
- * \return <0 if version 1 < version 2.
- * \return =0 if version 1 = version 2.
- * \return >0 if version 1 > version 2.
+ * \retval negative if version 1 < version 2.
+ * \retval 0 if version 1 = version 2.
+ * \retval positive if version 1 > version 2.
  */
 int ast_compare_versions(const char *version1, const char *version2);
 
@@ -1003,8 +1008,8 @@ int ast_compare_versions(const char *version1, const char *version2);
  * \brief Test that an OS supports IPv6 Networking.
  * \since 13.14.0
  *
- * \return True (non-zero) if the IPv6 supported.
- * \return False (zero) if the OS doesn't support IPv6.
+ * \retval True (non-zero) if the IPv6 supported.
+ * \retval False (zero) if the OS doesn't support IPv6.
  */
 int ast_check_ipv6(void);
 
@@ -1023,8 +1028,8 @@ enum ast_fd_flag_operation {
  * \param fd File descriptor to set flags on
  * \param flags The flag(s) to set
  *
- * \return -1 on error
- * \return 0 if successful
+ * \retval -1 on error
+ * \retval 0 if successful
  */
 #define ast_fd_set_flags(fd, flags) \
 	__ast_fd_set_flags((fd), (flags), AST_FD_FLAG_SET, __FILE__, __LINE__, __PRETTY_FUNCTION__)
@@ -1039,8 +1044,8 @@ enum ast_fd_flag_operation {
  * \param fd File descriptor to clear flags on
  * \param flags The flag(s) to clear
  *
- * \return -1 on error
- * \return 0 if successful
+ * \retval -1 on error
+ * \retval 0 if successful
  */
 #define ast_fd_clear_flags(fd, flags) \
 	__ast_fd_set_flags((fd), (flags), AST_FD_FLAG_CLEAR, __FILE__, __LINE__, __PRETTY_FUNCTION__)
@@ -1087,16 +1092,16 @@ int ast_pipe_nonblock(int filedes[2]);
  *
  * \param is_user_interface Non-zero to mark the thread as a user interface.
  *
- * \return 0 if successfuly marked current thread.
- * \return Non-zero if marking current thread failed.
+ * \retval True (non-zero) if marking current thread failed.
+ * \retval False (zero) if successfuly marked current thread.
  */
 int ast_thread_user_interface_set(int is_user_interface);
 
 /*!
  * \brief Indicates whether the current thread is a user interface
  *
- * \return True (non-zero) if thread is a user interface.
- * \return False (zero) if thread is not a user interface.
+ * \retval True (non-zero) if thread is a user interface.
+ * \retval False (zero) if thread is not a user interface.
  */
 int ast_thread_is_user_interface(void);
 

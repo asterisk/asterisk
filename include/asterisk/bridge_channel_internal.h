@@ -78,7 +78,7 @@ enum bridge_channel_action_type {
  * \param bridge The bridge to make the bridge_channel for
  *
  * \retval NULL on error
- * \retval ao2 ref counted object on success
+ * \return ao2 ref counted object on success
  */
 struct ast_bridge_channel *bridge_channel_internal_alloc(struct ast_bridge *bridge);
 
@@ -187,20 +187,21 @@ int bridge_channel_internal_join(struct ast_bridge_channel *bridge_channel);
 
 /*!
  * \internal
- * \brief Temporarily suspend a channel from a bridge, handing control over to some
- * other system
+ * \brief Suspend a channel from a bridge.
  *
- * \param bridge_channel The channel in the bridge
- * \note This function assumes that \ref bridge_channel is already locked
+ * \param bridge_channel Channel to suspend.
+ *
+ * \note This function assumes bridge_channel->bridge is locked.
  */
 void bridge_channel_internal_suspend_nolock(struct ast_bridge_channel *bridge_channel);
 
 /*!
  * \internal
- * \brief Unsuspend a channel that was previously suspended
+ * \brief Unsuspend a channel from a bridge.
  *
- * \param bridge_channel The channel in the bridge
- * \note This function assumes that \ref bridge_channel is already locked
+ * \param bridge_channel Channel to unsuspend.
+ *
+ * \note This function assumes bridge_channel->bridge is locked.
  */
 void bridge_channel_internal_unsuspend_nolock(struct ast_bridge_channel *bridge_channel);
 
@@ -215,8 +216,7 @@ void bridge_channel_internal_unsuspend_nolock(struct ast_bridge_channel *bridge_
  *
  * \param transferee The channel to have the action queued on
  * \param exten The destination extension for the transferee
- * \param context The destination context for the transferee
- * \param hook Frame hook to attach to transferee
+ * \param context, new_channel_cb, user_data
  *
  * \retval 0 on success.
  * \retval -1 on error.

@@ -234,9 +234,11 @@ struct ast_string_field_mgr {
   \internal
   \brief Attempt to 'grow' an already allocated field to a larger size
   \param mgr Pointer to the pool manager structure
+  \param pool_head Pointer to the current pool
   \param needed Amount of space needed for this field
   \param ptr Pointer to a field within the structure
-  \return 0 on success, non-zero on failure
+  \retval zero on success
+  \retval non-zero on failure
 
   This function will attempt to increase the amount of space allocated to
   an existing field to the amount requested; this is only possible if the
@@ -252,9 +254,11 @@ int __ast_string_field_ptr_grow(struct ast_string_field_mgr *mgr,
   \internal
   \brief Allocate space for a field
   \param mgr Pointer to the pool manager structure
+  \param pool_head Pointer to the current pool
   \param needed Amount of space needed for this field
-  \param fields Pointer to the first entry of the field array
-  \return NULL on failure, an address for the field on success.
+  \param file, lineno, func
+  \retval NULL on failure
+  \return an address for the field on success.
 
   This function will allocate the requested amount of space from
   the field pool. If the requested amount of space is not available,
@@ -271,7 +275,7 @@ ast_string_field __ast_string_field_alloc_space(struct ast_string_field_mgr *mgr
   \param pool_head Pointer to the current pool
   \param ptr Pointer to a field within the structure
   \param format printf-style format string
-  \return nothing
+  \param file, lineno, func
 */
 void __ast_string_field_ptr_build(const char *file, int lineno, const char *func,
 	struct ast_string_field_mgr *mgr, struct ast_string_field_pool **pool_head,
@@ -284,8 +288,8 @@ void __ast_string_field_ptr_build(const char *file, int lineno, const char *func
   \param pool_head Pointer to the current pool
   \param ptr Pointer to a field within the structure
   \param format printf-style format string
-  \param args va_list of the args for the format_string
-  \return nothing
+  \param ap va_list of the args for the format_string
+  \param file, lineno, func
 */
 void __ast_string_field_ptr_build_va(struct ast_string_field_mgr *mgr,
 	struct ast_string_field_pool **pool_head,
@@ -348,7 +352,8 @@ enum ast_stringfield_cleanup_type {
 	AST_STRINGFIELD_DESTROY (used internally) means free all pools which is
 	equivalent to calling ast_string_field_free_memory.
 
-  \return 0 on success, non-zero on failure
+  \retval zero on success
+  \retval non-zero on failure
 */
 #define ast_string_field_init(x, size) \
 ({ \
@@ -440,7 +445,6 @@ void *__ast_calloc_with_stringfields(unsigned int num_structs,
   \brief Release a field's allocation from a pool
   \param pool_head Pointer to the current pool
   \param ptr Field to be released
-  \return nothing
 
   This function will search the pool list to find the pool that contains
   the allocation for the specified field, then remove the field's allocation
@@ -526,7 +530,6 @@ void __ast_string_field_release_active(struct ast_string_field_pool *pool_head,
   \param ptr Pointer to a field within the structure
   \param fmt printf-style format string
   \param args Arguments for format string
-  \return nothing
 */
 #define ast_string_field_ptr_build(x, ptr, fmt, args...) \
 ({ \
@@ -545,7 +548,6 @@ void __ast_string_field_release_active(struct ast_string_field_pool *pool_head,
   \param field Name of the field to set
   \param fmt printf-style format string
   \param args Arguments for format string
-  \return nothing
 */
 #define ast_string_field_build(x, field, fmt, args...) \
 ({ \
@@ -564,7 +566,6 @@ void __ast_string_field_release_active(struct ast_string_field_pool *pool_head,
   \param ptr Pointer to a field within the structure
   \param fmt printf-style format string
   \param args Arguments for format string in va_list format
-  \return nothing
 */
 #define ast_string_field_ptr_build_va(x, ptr, fmt, args) \
 ({ \
@@ -583,7 +584,6 @@ void __ast_string_field_release_active(struct ast_string_field_pool *pool_head,
   \param field Name of the field to set
   \param fmt printf-style format string
   \param args Arguments for format string in va_list format
-  \return nothing
 */
 #define ast_string_field_build_va(x, field, fmt, args) \
 ({ \

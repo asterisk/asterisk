@@ -480,8 +480,6 @@ static void bridge_config_set_limits(struct ast_bridge_config *config, struct as
  *
  * \param chan The bridge considers this channel the caller.
  * \param peer The bridge considers this channel the callee.
- *
- * \return Nothing
  */
 static void bridge_check_monitor(struct ast_channel *chan, struct ast_channel *peer)
 {
@@ -522,8 +520,6 @@ static void bridge_check_monitor(struct ast_channel *chan, struct ast_channel *p
  *
  * \param chan Chan to put into autoservice.
  * \param peer Chan to send to after bridge goto or run hangup handlers and hangup.
- *
- * \return Nothing
  */
 static void bridge_failed_peer_goto(struct ast_channel *chan, struct ast_channel *peer)
 {
@@ -710,7 +706,7 @@ int ast_bridge_call_with_flags(struct ast_channel *chan, struct ast_channel *pee
  *
  * Set start time, check for two channels,check if monitor on
  * check for feature activation, create new CDR
- * \retval res on success.
+ * \return res on success.
  * \retval -1 on failure to bridge.
  */
 int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config)

@@ -122,10 +122,10 @@ int SHA1Reset(SHA1Context *context)
 
 /*!
  *  \brief SHA1Input
- * \param context [in/out] The SHA context to update
- * \param message_array [in] An array of characters representing the next portion of
+ * \param[in,out] context The SHA context to update
+ * \param[in] message_array An array of characters representing the next portion of
  *		   the message.
- * \param length [in] The length of the message in message_array.
+ * \param[in] length The length of the message in message_array.
  *  This function accepts an array of octets as the next portion
  *  of the message.
  * \return sha Error Code.
@@ -169,11 +169,11 @@ int SHA1Input(SHA1Context *context,
 /*!
  * \brief SHA1FinalBits Add in any final bits of the message.
  *
- * \param context [in/out] The SHA context to update.
- * \param message_bits [in] The final bits of the message, in the upper portion of the
+ * \param[in,out] context The SHA context to update.
+ * \param[in] message_bits The final bits of the message, in the upper portion of the
  *     byte.  (Use 0b###00000 instead of 0b00000### to input the
  *     three bits ###.)
- * \param length [in] *     The number of bits in message_bits, between 1 and 7.
+ * \param[in] length The number of bits in message_bits, between 1 and 7.
  * \returns sha Error Code.
  */
 int SHA1FinalBits(SHA1Context * context, uint8_t message_bits,
@@ -212,10 +212,10 @@ int SHA1FinalBits(SHA1Context * context, uint8_t message_bits,
 	return context->Corrupted;
 }
 
-/*
+/*!
  * \brief SHA1Result Returns the resulting 160-bit digest
- * \param context [in/out] The SHA context to update.
- * \param Message_Digest [out] Where the digest is returned.
+ * \param[in,out] context The SHA context to update.
+ * \param[out] Message_Digest Where the digest is returned.
  *
  *   This function will return the 160-bit message digest
  *   into the Message_Digest array provided by the caller.
@@ -251,11 +251,10 @@ int SHA1Result(SHA1Context * context, uint8_t Message_Digest[SHA1HashSize])
 
 /*!
  * \brief Process the next 512 bits of the message stored in the Message_Block array.
- * \param context [in/out] The SHA context to update
+ * \param[in,out] context The SHA context to update
  * \note  Many of the variable names in this code, especially the
  *	  single character names, were used because those were the
  *	  names used in the publication.
- * \returns nothing.
  */
 static void SHA1ProcessMessageBlock(SHA1Context *context)
 {
@@ -335,13 +334,12 @@ static void SHA1ProcessMessageBlock(SHA1Context *context)
 
 /*!
  * \brief This helper function finishes off the digest calculations.
- * \param context [in/out]  The context to pad.
- * \param Pad_Byte [in]  The last byte to add to the message block
+ * \param[in,out] context The context to pad.
+ * \param[in] Pad_Byte The last byte to add to the message block
  *     before the 0-padding and length.  This will contain the last
  *     bits of the message followed by another single bit.  If the
  *     message was an exact multiple of 8-bits long, Pad_Byte will
  *     be 0x80.
- * \returns sha Error Code.
  */
 static void SHA1Finalize(SHA1Context * context, uint8_t Pad_Byte)
 {
@@ -358,8 +356,8 @@ static void SHA1Finalize(SHA1Context * context, uint8_t Pad_Byte)
 
 /*!
  * \brief Pad message to be 512 bits.
- * \param context [in/out]  The context to pad.
- * \param Pad_Byte [in]  Last padding byte.
+ * \param[in,out] context The context to pad.
+ * \param[in] Pad_Byte Last padding byte.
  *
  *  According to the standard, the message must be padded to the next
  *  even multiple of 512 bits.  The first padding bit must be a '1'.
@@ -368,8 +366,6 @@ static void SHA1Finalize(SHA1Context * context, uint8_t Pad_Byte)
  *  the message according to those rules by filling the Message_Block
  *  array accordingly.  When it returns, it can be assumed that the
  *  message digest has been computed.
- *
- * \returns nothing.
  */
 static void SHA1PadMessage(SHA1Context * context, uint8_t Pad_Byte)
 {

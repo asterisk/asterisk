@@ -288,7 +288,7 @@ static struct ast_manager_event_blob *bridge_create(
 		EVENT_FLAG_CALL, "BridgeCreate", NO_EXTRA_FIELDS);
 }
 
-/* \brief Handle video source updates */
+/*! \brief Handle video source updates */
 static struct ast_manager_event_blob *bridge_video_update(
 	struct ast_bridge_snapshot *old_snapshot,
 	struct ast_bridge_snapshot *new_snapshot)

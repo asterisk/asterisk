@@ -134,8 +134,6 @@ static inline int ast_sockaddr_isnull(const struct ast_sockaddr *addr)
  *
  * \brief
  * Sets address \a addr to null.
- *
- * \retval void
  */
 static inline void ast_sockaddr_setnull(struct ast_sockaddr *addr)
 {
@@ -149,7 +147,6 @@ static inline void ast_sockaddr_setnull(struct ast_sockaddr *addr)
  * \param dst The destination ast_sockaddr
  * \param src The source sockaddr
  * \param len Length of the value stored in sockaddr
- * \retval void
  */
 static inline void ast_sockaddr_copy_sockaddr(struct ast_sockaddr *dst,
 		struct sockaddr *src, socklen_t len)
@@ -166,7 +163,6 @@ static inline void ast_sockaddr_copy_sockaddr(struct ast_sockaddr *dst,
  *
  * \param dst The destination ast_sockaddr
  * \param src The source ast_sockaddr
- * \retval void
  */
 static inline void ast_sockaddr_copy(struct ast_sockaddr *dst,
 		const struct ast_sockaddr *src)
@@ -245,7 +241,7 @@ int ast_sockaddr_cmp_addr(const struct ast_sockaddr *a, const struct ast_sockadd
  *
  * \retval "(null)" \a addr is null
  * \retval "" An error occurred during processing
- * \retval string The stringified form of the address
+ * \return string The stringified form of the address
  */
 char *ast_sockaddr_stringify_fmt(const struct ast_sockaddr *addr, int format);
 
@@ -472,7 +468,7 @@ int ast_sockaddr_resolve(struct ast_sockaddr **addrs, const char *str,
  *
  * \param[out] addr The resulting ast_sockaddr
  * \param name The string to parse
- * \param flags If set to zero, a port MAY be present. If set to
+ * \param flag If set to zero, a port MAY be present. If set to
  * PARSE_PORT_IGNORE, a port MAY be present but will be ignored. If set to
  * PARSE_PORT_REQUIRE, a port MUST be present. If set to PARSE_PORT_FORBID, a
  * port MUST NOT be present.
@@ -532,7 +528,6 @@ uint16_t _ast_sockaddr_port(const struct ast_sockaddr *addr, const char *file, i
  *
  * \param addr Address on which to set the port
  * \param port The port you wish to set the address to use
- * \retval void
  */
 #define ast_sockaddr_set_port(addr,port)	_ast_sockaddr_set_port(addr,port,__FILE__,__LINE__,__PRETTY_FUNCTION__)
 void _ast_sockaddr_set_port(struct ast_sockaddr *addr, uint16_t port, const char *file, int line, const char *func);
@@ -650,8 +645,8 @@ int ast_sockaddr_hash(const struct ast_sockaddr *addr);
  * \brief
  * Returns a string representation of an ast_transport
  *
- * \retval Name of the tranpsort if it is defined
- * \retval Undefined if the transport is undefined
+ * \return Name of the tranpsort if it is defined
+ * \return Undefined if the transport is undefined
  */
 const char *ast_transport2str(enum ast_transport transport);
 

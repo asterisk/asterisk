@@ -372,6 +372,7 @@ static int __attribute__((format(printf, 3, 0))) cc_request_state_change(enum cc
  * \param called_tree A reference to the tree of called devices. The agent
  * will gain a reference to this tree as well
  * \param core_id The core_id that this core_instance will assume
+ * \param cc_data
  * \retval NULL Failed to create the core instance either due to memory allocation
  * errors or due to the agent count for the caller being too high
  * \retval non-NULL A reference to the newly created cc_core_instance
@@ -1308,7 +1309,7 @@ static const struct ast_cc_agent_callbacks *find_agent_callbacks(struct ast_chan
  *
  * \param state Device state to test.
  *
- * \return TRUE if the given device state is considered available by generic CCSS.
+ * \retval TRUE if the given device state is considered available by generic CCSS.
  */
 static int cc_generic_is_device_available(enum ast_device_state state)
 {
@@ -2210,8 +2211,6 @@ static int cc_interfaces_datastore_init(struct ast_channel *chan) {
  * has been properly allocated and had its callbacks assigned to it. If one of these
  * failures should occur, then we still need to let the channel driver know that it
  * must destroy the data that it allocated.
- *
- * \return Nothing
  */
 static void call_destructor_with_no_monitor(const char * const monitor_type, void *private_data)
 {
@@ -2243,7 +2242,8 @@ static void call_destructor_with_no_monitor(const char * const monitor_type, voi
  *
  * \param device_name The name of the device being added to the tree
  * \param dialstring The dialstring used to dial the device being added
- * \param parent_id The parent of this new tree node.
+ * \param core_id
+ * \param cc_data
  * \retval NULL Memory allocation failure
  * \retval non-NULL The new ast_cc_interface created.
  */
@@ -3553,7 +3553,6 @@ struct ast_cc_monitor *ast_cc_get_monitor_by_recall_core_id(const int core_id, c
  *
  * \param str An ast_str holding what we will add to CC_INTERFACES
  * \param dialstring A new dialstring to add
- * \retval void
  */
 static void cc_unique_append(struct ast_str **str, const char *dialstring)
 {
@@ -3583,7 +3582,6 @@ static void cc_unique_append(struct ast_str **str, const char *dialstring)
  * \param starting_point The extension monitor that is the parent to all
  * monitors whose dialstrings should be added to CC_INTERFACES
  * \param str Where we will store CC_INTERFACES
- * \retval void
  */
 static void build_cc_interfaces_chanvar(struct ast_cc_monitor *starting_point, struct ast_str **str)
 {

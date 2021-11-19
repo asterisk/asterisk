@@ -24,7 +24,7 @@
  *
  * \author Mark Spencer <markster@digium.com>
  *
- * \arg See also \ref AstENUM
+ * \arg See also \ref ast_extension_states "AstENUM"
  *
  * \note Funding provided by nic.at
  */

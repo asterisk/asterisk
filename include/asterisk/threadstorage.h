@@ -245,6 +245,7 @@ void *ast_threadstorage_get_ptr(struct ast_threadstorage *ts),
 /*!
  * \brief Set a raw pointer from threadstorage.
  * \param ts Threadstorage object to operate on.
+ * \param ptr
  *
  * \retval 0 Success
  * \retval non-zero Failure

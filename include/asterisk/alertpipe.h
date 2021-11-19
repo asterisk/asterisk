@@ -32,9 +32,10 @@ typedef enum {
  * \brief Initialize an alert pipe
  * \since 13.16.0
  *
- * \param p a two-element array to hold the alert pipe's file descriptors
+ * \param alert_pipe a two-element array to hold the alert pipe's file descriptors
  *
- * \return non-zero if a failure occurred, zero otherwise.
+ * \retval non-zero if a failure occurred.
+ * \retval zero otherwise.
  */
 int ast_alertpipe_init(int alert_pipe[2]);
 
@@ -42,7 +43,7 @@ int ast_alertpipe_init(int alert_pipe[2]);
  * \brief Close an alert pipe
  * \since 13.16.0
  *
- * \param p a two-element containing the alert pipe's file descriptors
+ * \param alert_pipe a two-element containing the alert pipe's file descriptors
  */
 void ast_alertpipe_close(int alert_pipe[2]);
 
@@ -50,7 +51,7 @@ void ast_alertpipe_close(int alert_pipe[2]);
  * \brief Read an event from an alert pipe
  * \since 13.16.0
  *
- * \param p a two-element array containing the alert pipe's file descriptors
+ * \param alert_pipe a two-element array containing the alert pipe's file descriptors
  *
  * \retval AST_ALERT_READ_SUCCESS on success
  * \retval AST_ALERT_NOT_READABLE if the alert pipe is not readable
@@ -63,7 +64,7 @@ ast_alert_status_t ast_alertpipe_read(int alert_pipe[2]);
  * \brief Write an event to an alert pipe
  * \since 13.16.0
  *
- * \param p a two-element array containing the alert pipe's file descriptors
+ * \param alert_pipe a two-element array containing the alert pipe's file descriptors
  *
  * \retval 0 Success
  * \retval 1 Failure
@@ -74,7 +75,7 @@ ssize_t ast_alertpipe_write(int alert_pipe[2]);
  * \brief Consume all alerts written to the alert pipe
  * \since 13.16.0
  *
- * \param p a two-element array containing the alert pipe's file descriptors
+ * \param alert_pipe a two-element array containing the alert pipe's file descriptors
  *
  * \retval AST_ALERT_READ_SUCCESS on success
  * \retval AST_ALERT_NOT_READABLE if the alert pipe is not readable
@@ -87,7 +88,7 @@ ast_alert_status_t ast_alertpipe_flush(int alert_pipe[2]);
  * \brief Sets the alert pipe file descriptors to default values
  * \since 13.16.0
  *
- * \param p a two-element array containing the alert pipe's file descriptors
+ * \param alert_pipe a two-element array containing the alert pipe's file descriptors
  */
 AST_INLINE_API(
 void ast_alertpipe_clear(int alert_pipe[2]),
@@ -100,9 +101,10 @@ void ast_alertpipe_clear(int alert_pipe[2]),
  * \brief Determine if the alert pipe is readable
  * \since 13.16.0
  *
- * \param p a two-element array containing the alert pipe's file descriptors
+ * \param alert_pipe a two-element array containing the alert pipe's file descriptors
  *
- * \return non-zero if the alert pipe is readable, zero otherwise.
+ * \retval non-zero if the alert pipe is readable.
+ * \retval zero otherwise.
  */
 AST_INLINE_API(
 int attribute_pure ast_alertpipe_readable(int alert_pipe[2]),
@@ -115,9 +117,10 @@ int attribute_pure ast_alertpipe_readable(int alert_pipe[2]),
  * \brief Determine if the alert pipe is writable
  * \since 13.16.0
  *
- * \param p a two-element array containing the alert pipe's file descriptors
+ * \param alert_pipe a two-element array containing the alert pipe's file descriptors
  *
- * \return non-zero if the alert pipe is writable, zero otherwise.
+ * \retval non-zero if the alert pipe is writable.
+ * \retval zero otherwise.
  */
 AST_INLINE_API(
 int attribute_pure ast_alertpipe_writable(int alert_pipe[2]),
@@ -130,10 +133,10 @@ int attribute_pure ast_alertpipe_writable(int alert_pipe[2]),
  * \brief Get the alert pipe's read file descriptor
  * \since 13.16.0
  *
- * \param p a two-element array containing the alert pipe's file descriptors
+ * \param alert_pipe a two-element array containing the alert pipe's file descriptors
  *
- * \return -1 if the file descriptor is not initialized, a non-negative value
- *            otherwise.
+ * \retval -1 if the file descriptor is not initialized.
+ * \retval non-negative otherwise.
  */
 AST_INLINE_API(
 int attribute_pure ast_alertpipe_readfd(int alert_pipe[2]),
@@ -146,8 +149,8 @@ int attribute_pure ast_alertpipe_readfd(int alert_pipe[2]),
  * \brief Swap the file descriptors from two alert pipes
  * \since 13.16.0
  *
- * \param p1 a two-element array containing an alert pipe's file descriptors
- * \param p2 a two-element array containing an alert pipe's file descriptors
+ * \param alert_pipe_1 a two-element array containing an alert pipe's file descriptors
+ * \param alert_pipe_2 a two-element array containing an alert pipe's file descriptors
  */
 AST_INLINE_API(
 void ast_alertpipe_swap(int alert_pipe_1[2], int alert_pipe_2[2]),
