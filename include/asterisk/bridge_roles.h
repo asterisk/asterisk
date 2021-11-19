@@ -65,7 +65,7 @@ void ast_channel_clear_bridge_roles(struct ast_channel *chan);
  * \param option Name of the option
  * \param value Value of the option
  *
- * \param 0 on success
+ * \retval 0 on success
  * \retval -1 on failure
  */
 int ast_channel_set_bridge_role_option(struct ast_channel *channel, const char *role_name, const char *option, const char *value);

@@ -332,11 +332,7 @@ enum ast_event_ie_pltype {
 	AST_EVENT_IE_PLTYPE_BITFLAGS,
 };
 
-/*!
- * \brief Results for checking for subscribers
- *
- * \ref ast_event_check_subscriber()
- */
+/*! \brief Results for checking for subscribers */
 enum ast_event_subscriber_res {
 	/*! No subscribers exist */
 	AST_EVENT_SUB_NONE,

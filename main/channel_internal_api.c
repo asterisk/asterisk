@@ -1310,14 +1310,14 @@ void ast_channel_dialed_causes_clear(const struct ast_channel *chan)
 	ao2_callback(chan->dialed_causes, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL, NULL);
 }
 
-/* \brief Hash function for pvt cause code frames */
+/*! \brief Hash function for pvt cause code frames */
 static int pvt_cause_hash_fn(const void *vpc, const int flags)
 {
 	const struct ast_control_pvt_cause_code *pc = vpc;
 	return ast_str_hash(ast_tech_to_upper(ast_strdupa(pc->chan_name)));
 }
 
-/* \brief Comparison function for pvt cause code frames */
+/*! \brief Comparison function for pvt cause code frames */
 static int pvt_cause_cmp_fn(void *obj, void *vstr, int flags)
 {
 	struct ast_control_pvt_cause_code *pc = obj;

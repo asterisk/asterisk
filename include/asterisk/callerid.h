@@ -150,8 +150,6 @@ int callerid_feed_jp(struct callerid_state *cid, unsigned char *ubuf, int sample
  * This function extracts a callerid string out of a callerid_state state machine.
  * If no number is found, *number will be set to NULL.  Likewise for the name.
  * Flags can contain any of the following:
- *
- * \return Returns nothing.
  */
 void callerid_get(struct callerid_state *cid, char **number, char **name, int *flags);
 
@@ -211,7 +209,8 @@ int ast_callerid_callwaiting_generate(unsigned char *buf, const char *name, cons
  * " foo bar " <123>       123             ' foo bar ' (with spaces around)
  * " foo bar "             NULL            'foo bar' (without spaces around)
  * The parsing of leading and trailing space/quotes should be more consistent.
- * \return Returns 0 on success, -1 on failure.
+ * \retval 0 on success
+ * \retval -1 on failure
  */
 int ast_callerid_parse(char *instr, char **name, char **location);
 
@@ -221,21 +220,22 @@ int ast_callerid_parse(char *instr, char **name, char **location);
  * \param sas Non-zero if CAS should be preceeded by SAS
  * \param len How many samples to generate.
  * \param codec Which codec (AST_FORMAT_ALAW or AST_FORMAT_ULAW)
- * \return Returns -1 on error (if len is less than 2400), 0 on success.
+ * \retval -1 on error (if len is less than 2400)
+ * \retval 0 on success
  */
 int ast_gen_cas(unsigned char *outbuf, int sas, int len, struct ast_format *codec);
 
 /*!
  * \brief Shrink a phone number in place to just digits (more accurately it just removes ()'s, .'s, and -'s...
  * \param n The number to be stripped/shrunk
- * \return Returns nothing important
  */
 void ast_shrink_phone_number(char *n);
 
 /*!
  * \brief Check if a string consists only of digits and + \#
  * \param n number to be checked.
- * \return Returns 0 if n is a number, 1 if it's not.
+ * \retval 0 if \p n is a number
+ * \retval 1 if not
  */
 int ast_isphonenumber(const char *n);
 
@@ -243,7 +243,7 @@ int ast_isphonenumber(const char *n);
  * \brief Check if a string consists only of digits and + \# ( ) - .
  * (meaning it can be cleaned with ast_shrink_phone_number)
  * \param exten The extension (or URI) to be checked.
- * \retval 1 if string is valid AST shrinkable phone number
+ * \retval 1 if \p exten is valid AST shrinkable phone number
  * \retval 0 if not
  */
 int ast_is_shrinkable_phonenumber(const char *exten);

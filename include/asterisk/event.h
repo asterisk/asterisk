@@ -100,9 +100,6 @@ struct ast_event *ast_event_new(enum ast_event_type event_type, ...);
  * \brief Destroy an event
  *
  * \param event the event to destroy
- *
- * \return Nothing
- *
  */
 void ast_event_destroy(struct ast_event *event);
 

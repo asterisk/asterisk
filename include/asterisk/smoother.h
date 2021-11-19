@@ -67,8 +67,6 @@ void ast_smoother_reset(struct ast_smoother *s, int bytes);
  * \brief Reconfigure an existing smoother to output a different number of bytes per frame
  * \param s the smoother to reconfigure
  * \param bytes the desired number of bytes per output frame
- * \return nothing
- *
  */
 void ast_smoother_reconfigure(struct ast_smoother *s, int bytes);
 

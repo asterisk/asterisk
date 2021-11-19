@@ -318,8 +318,6 @@ struct ast_variable *_ast_variable_new(const char *name, const char *value, cons
  *
  * \param dst_var Destination variable node
  * \param src_var Source variable node
- *
- * \return Nothing
  */
 static void ast_variable_move(struct ast_variable *dst_var, struct ast_variable *src_var)
 {
@@ -588,13 +586,13 @@ struct ast_variable *ast_variables_reverse(struct ast_variable *var)
 	return var1;
 }
 
-void ast_variables_destroy(struct ast_variable *v)
+void ast_variables_destroy(struct ast_variable *var)
 {
 	struct ast_variable *vn;
 
-	while (v) {
-		vn = v;
-		v = v->next;
+	while (var) {
+		vn = var;
+		var = var->next;
 		ast_variable_destroy(vn);
 	}
 }
@@ -1286,14 +1284,14 @@ void ast_config_sort_categories(struct ast_config *config, int descending,
 
 }
 
-char *ast_category_browse(struct ast_config *config, const char *prev)
+char *ast_category_browse(struct ast_config *config, const char *prev_name)
 {
 	struct ast_category *cat;
 
-	if (!prev) {
+	if (!prev_name) {
 		/* First time browse. */
 		cat = config->root;
-	} else if (config->last_browse && (config->last_browse->name == prev)) {
+	} else if (config->last_browse && (config->last_browse->name == prev_name)) {
 		/* Simple last browse found. */
 		cat = config->last_browse->next;
 	} else {
@@ -1304,7 +1302,7 @@ char *ast_category_browse(struct ast_config *config, const char *prev)
 		 * previous category?)
 		 */
 		for (cat = config->root; cat; cat = cat->next) {
-			if (cat->name == prev) {
+			if (cat->name == prev_name) {
 				/* Found it. */
 				cat = cat->next;
 				break;
@@ -1316,7 +1314,7 @@ char *ast_category_browse(struct ast_config *config, const char *prev)
 			 * re-added?)
 			 */
 			for (cat = config->root; cat; cat = cat->next) {
-				if (!strcasecmp(cat->name, prev)) {
+				if (!strcasecmp(cat->name, prev_name)) {
 					/* Found it. */
 					cat = cat->next;
 					break;
@@ -1588,8 +1586,6 @@ enum config_cache_attribute_enum {
  *
  * \param cfmtime Cached file modtime.
  * \param statbuf Buffer filled in by stat().
- *
- * \return Nothing
  */
 static void cfmstat_save(struct cache_file_mtime *cfmtime, struct stat *statbuf)
 {
@@ -1633,8 +1629,6 @@ static int cfmstat_cmp(struct cache_file_mtime *cfmtime, struct stat *statbuf)
  * \param cfmtime Cached file modtime.
  *
  * \note cfmtime_head is assumed already locked.
- *
- * \return Nothing
  */
 static void config_cache_flush_includes(struct cache_file_mtime *cfmtime)
 {
@@ -1652,8 +1646,6 @@ static void config_cache_flush_includes(struct cache_file_mtime *cfmtime)
  * \param cfmtime Cached file modtime.
  *
  * \note cfmtime_head is assumed already locked.
- *
- * \return Nothing
  */
 static void config_cache_destroy_entry(struct cache_file_mtime *cfmtime)
 {
@@ -1667,8 +1659,6 @@ static void config_cache_destroy_entry(struct cache_file_mtime *cfmtime)
  *
  * \param filename Config filename.
  * \param who_asked Which module asked.
- *
- * \return Nothing
  */
 static void config_cache_remove(const char *filename, const char *who_asked)
 {

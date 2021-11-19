@@ -173,8 +173,6 @@ void ast_pbx_hangup_handler_push(struct ast_channel *chan, const char *handler)
  * \since 11.0
  *
  * \param fd CLI file descriptor to use.
- *
- * \return Nothing
  */
 static void ast_pbx_hangup_handler_headers(int fd)
 {
@@ -188,8 +186,6 @@ static void ast_pbx_hangup_handler_headers(int fd)
  *
  * \param fd CLI file descriptor to use.
  * \param chan Channel to show hangup handlers.
- *
- * \return Nothing
  */
 static void ast_pbx_hangup_handler_show(int fd, struct ast_channel *chan)
 {
@@ -206,8 +202,8 @@ static void ast_pbx_hangup_handler_show(int fd, struct ast_channel *chan)
 	ast_channel_unlock(chan);
 }
 
-/*
- * \brief 'show hanguphandlers <channel>' CLI command implementation function...
+/*!
+ * \brief 'show hanguphandlers \<channel\>' CLI command implementation function...
  */
 static char *handle_show_hangup_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
@@ -242,7 +238,7 @@ static char *handle_show_hangup_channel(struct ast_cli_entry *e, int cmd, struct
 	return CLI_SUCCESS;
 }
 
-/*
+/*!
  * \brief 'show hanguphandlers all' CLI command implementation function...
  */
 static char *handle_show_hangup_all(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)

@@ -33,7 +33,8 @@
 /*!
  * \brief Load/Initialize system wide logger category functionality
  *
- * \retval 0 Success, -1 Failure
+ * \retval 0 Success
+ * \retval -1 Failure
  *
  * \since 16.14
  * \since 17.8
@@ -44,7 +45,8 @@ int ast_logger_category_load(void);
 /*!
  * \brief Unload system wide logger category functionality
  *
- * \retval 0 Success, -1 Failure
+ * \retval 0 Success
+ * \retval -1 Failure
  *
  * \since 16.14
  * \since 17.8
@@ -56,10 +58,9 @@ int ast_logger_category_unload(void);
  * \brief Register a debug level logger category
  *
  * \param name The name of the category
- * \param id The unique id of the category
  *
- * \retval 0 if failed to register/retrieve an id. Otherwise it returns the id
- *         for the registered category.
+ * \retval 0 if failed to register/retrieve an id
+ * \return id for the registered category
  *
  * \since 16.14
  * \since 17.8
@@ -70,7 +71,8 @@ uintmax_t ast_debug_category_register(const char *name);
 /*!
  * \brief Un-register a debug level logger category
  *
- * \retval 0 Success, -1 Failure
+ * \retval 0 Success
+ * \retval -1 Failure
  *
  * \since 16.14
  * \since 17.8
@@ -88,7 +90,8 @@ int ast_debug_category_unregister(const char *name);
  * \param name The name of the category
  * \param sublevel The debug sublevel output number
  *
- * \retval 0 Success, -1 Failure
+ * \retval 0 Success
+ * \retval -1 Failure
  *
  * \since 16.14
  * \since 17.8
@@ -101,8 +104,7 @@ int ast_debug_category_set_sublevel(const char *name, int sublevel);
  *
  * Accepts an array of category names, and optional associated sublevels. Sublevels can
  * be associated with a name by using a ':' as a separator. For example:
- *
- *   <category name>:<category sublevel>
+ * \verbatim <category name>:<category sublevel> \endverbatim
  *
  * The given default sublevel is used if no sublevel is associated with a name.
  *
@@ -110,7 +112,8 @@ int ast_debug_category_set_sublevel(const char *name, int sublevel);
  * \param size The size of the array (number of elements)
  * \param default_sublevel The sublevel value to use if one is not associated with a name
  *
- * \retval 0 Success, -1 Failure
+ * \retval 0 Success
+ * \retval -1 Failure
  *
  * \since 16.14
  * \since 17.8
@@ -126,7 +129,8 @@ int ast_debug_category_set_sublevels(const char * const *names, size_t size, int
  * \param word The word to complete
  * \param state The state
  *
- * \retval 0 Success, -1 Failure
+ * \retval 0 Success
+ * \retval -1 Failure
  *
  * \since 16.14
  * \since 17.8
@@ -143,7 +147,8 @@ char *ast_debug_category_complete(const char * const *argv, int argc, const char
  * \param sublevel Current set sublevel must be this sublevel or less
  * \param ids One or more unique category ids to check
  *
- * \retval 1 if allowed, 0 if not allowed
+ * \retval 1 if allowed
+ * \retval 0 if not allowed
  *
  * \since 16.14
  * \since 17.8

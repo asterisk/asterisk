@@ -50,7 +50,8 @@ int ast_serializer_pool_destroy(struct ast_serializer_pool *pool);
  * \param threadpool The backing threadpool to use
  * \param timeout The timeout used if using a shutdown group (-1 = disabled)
  *
- * \retval A newly allocated serializer pool object, or NULL on error
+ * \return A newly allocated serializer pool object
+ * \retval NULL on error
  */
 struct ast_serializer_pool *ast_serializer_pool_create(const char *name,
 	unsigned int size, struct ast_threadpool *threadpool, int timeout);
@@ -60,7 +61,7 @@ struct ast_serializer_pool *ast_serializer_pool_create(const char *name,
  *
  * \param pool The pool object
  *
- * \retval The base name given to the pool
+ * \return The base name given to the pool
  */
 const char *ast_serializer_pool_name(const struct ast_serializer_pool *pool);
 
@@ -69,7 +70,7 @@ const char *ast_serializer_pool_name(const struct ast_serializer_pool *pool);
  *
  * \param pool The pool object
  *
- * \retval A serializer/taskprocessor
+ * \return A serializer/taskprocessor
  */
 struct ast_taskprocessor *ast_serializer_pool_get(struct ast_serializer_pool *pool);
 
@@ -77,8 +78,10 @@ struct ast_taskprocessor *ast_serializer_pool_get(struct ast_serializer_pool *po
  * \brief Set taskprocessor alert levels for the serializers in the pool.
  *
  * \param pool The pool to destroy
+ * \param high, low
  *
- * \retval 0 on success, or -1 on error.
+ * \retval 0 on success.
+ * \retval -1 on error.
  */
 int ast_serializer_pool_set_alerts(struct ast_serializer_pool *pool, long high, long low);
 

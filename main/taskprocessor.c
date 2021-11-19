@@ -481,9 +481,9 @@ static char *cli_tps_ping(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
  *   OBJ_SEARCH_KEY - if set, 'obj_right', is a search key item that is not an object.
  *   OBJ_SEARCH_PARTIAL_KEY - if set, 'obj_right', is a partial search key item that is not an object.
  *
- * \retval <0 if obj_left < obj_right
- * \retval =0 if obj_left == obj_right
- * \retval >0 if obj_left > obj_right
+ * \retval negative if obj_left < obj_right
+ * \retval 0 if obj_left == obj_right
+ * \retval positive if obj_left > obj_right
  */
 static int tps_sort_cb(const void *obj_left, const void *obj_right, int flags)
 {
@@ -533,7 +533,7 @@ static void tps_report_taskprocessor_list_helper(int fd, struct ast_taskprocesso
  * \param fd the file descriptor
  * \param like the string we are matching on
  *
- * \retval number of taskprocessors on success
+ * \return number of taskprocessors on success
  * \retval 0 otherwise
  */
 static int tps_report_taskprocessor_list(int fd, const char *like)
@@ -788,8 +788,6 @@ AST_RWLOCK_DEFINE_STATIC(tps_alert_lock);
  *
  * \param tps Taskprocessor updating queue water mark alert trigger.
  * \param delta The amount to add to tps_alert_count.
- *
- * \return Nothing
  */
 static void tps_alert_add(struct ast_taskprocessor *tps, int delta)
 {

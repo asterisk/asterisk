@@ -713,7 +713,7 @@ void ast_init_logger_for_socket_console(void)
  * \brief Checks if level exists in array of level names
  * \param levels Array of level names
  * \param level Name to search for
- * \len Size of levels
+ * \param len Size of levels
  *
  * \retval 1 Found
  * \retval 0 Not Found
@@ -1894,8 +1894,6 @@ static void *logger_thread(void *data)
  * \brief Initialize the logger queue.
  *
  * \note Assumes logchannels is write locked on entry.
- *
- * \return Nothing
  */
 static void logger_queue_init(void)
 {
@@ -1931,8 +1929,6 @@ int ast_is_logger_initialized(void)
  *
  * \note Called when the system is fully booted after startup
  * so preloaded realtime modules can get up.
- *
- * \return Nothing
  */
 void logger_queue_start(void)
 {
@@ -2352,8 +2348,6 @@ void ast_verb_update(void)
  * \brief Unregister a console verbose level.
  *
  * \param console Which console to unregister.
- *
- * \return Nothing
  */
 static void verb_console_unregister(struct verb_console *console)
 {

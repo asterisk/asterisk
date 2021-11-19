@@ -34,7 +34,7 @@
  *
  * \note This function assumes that chan is locked.
  *
- * \return TRUE if channel can be picked up.
+ * \retval TRUE if channel can be picked up.
  */
 int ast_can_pickup(struct ast_channel *chan);
 
@@ -43,7 +43,7 @@ int ast_can_pickup(struct ast_channel *chan);
  *
  * \param chan channel that initiated pickup.
  *
- * \retval target on success.  The returned channel is locked and reffed.
+ * \return target on success.  The returned channel is locked and reffed.
  * \retval NULL on error.
  */
 struct ast_channel *ast_pickup_find_by_group(struct ast_channel *chan);
@@ -75,7 +75,7 @@ int ast_do_pickup(struct ast_channel *chan, struct ast_channel *target);
  * \brief accessor for call pickup message type
  * \since 12.0.0
  *
- * \retval pointer to the stasis message type
+ * \return pointer to the stasis message type
  * \retval NULL if not initialized
  */
 struct stasis_message_type *ast_call_pickup_type(void);

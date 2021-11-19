@@ -69,7 +69,7 @@ enum ast_vector_string_split_flags {
  * \param dest Pointer to an initialized vector.
  * \param input String buffer to split.
  * \param delim String delimeter passed to strsep.
- * \param flags Processing options defined by \ref enum ast_vector_string_split_flags.
+ * \param flags Processing options defined by \ref ast_vector_string_split_flags.
  * \param excludes_cmp NULL or a function like strcmp to exclude duplicate strings.
  *
  * \retval 0 Success
@@ -107,8 +107,8 @@ int ast_vector_string_split(struct ast_vector_string *dest,
  * \param vec Vector to initialize.
  * \param size Initial size of the vector.
  *
- * \return 0 on success.
- * \return Non-zero on failure.
+ * \retval 0 on success.
+ * \retval Non-zero on failure.
  */
 #define AST_VECTOR_INIT(vec, size) ({					\
 	size_t __size = (size);						\
@@ -152,8 +152,8 @@ int ast_vector_string_split(struct ast_vector_string *dest,
  * \param vec Vector to initialize.
  * \param size Initial size of the vector.
  *
- * \return 0 on success.
- * \return Non-zero on failure.
+ * \retval 0 on success.
+ * \retval Non-zero on failure.
  */
 #define AST_VECTOR_RW_INIT(vec, size) ({ \
 	int res = -1; \
@@ -250,8 +250,8 @@ int ast_vector_string_split(struct ast_vector_string *dest,
  * \param vec Vector to append to.
  * \param elem Element to append.
  *
- * \return 0 on success.
- * \return Non-zero on failure.
+ * \retval 0 on success.
+ * \retval Non-zero on failure.
  */
 #define AST_VECTOR_APPEND(vec, elem) ({						\
 	int res = 0;											\
@@ -272,8 +272,8 @@ int ast_vector_string_split(struct ast_vector_string *dest,
  * \param idx Position to replace.
  * \param elem Element to replace.
  *
- * \return 0 on success.
- * \return Non-zero on failure.
+ * \retval 0 on success.
+ * \retval Non-zero on failure.
  *
  * \warning This macro will overwrite anything already present at the position provided.
  *
@@ -326,8 +326,8 @@ int ast_vector_string_split(struct ast_vector_string *dest,
  * \param idx Position to insert at.
  * \param elem Element to insert.
  *
- * \return 0 on success.
- * \return Non-zero on failure.
+ * \retval 0 on success.
+ * \retval Non-zero on failure.
  *
  * \warning This macro will shift existing elements right to make room for the new element.
  *
@@ -360,8 +360,8 @@ int ast_vector_string_split(struct ast_vector_string *dest,
  * \param elem Element to insert. Must not be an array type.
  * \param cmp A strcmp compatible compare function.
  *
- * \return 0 on success.
- * \return Non-zero on failure.
+ * \retval 0 on success.
+ * \retval Non-zero on failure.
  *
  * \warning Use of this macro on an unsorted vector will produce unpredictable results
  * \warning 'elem' must not be an array type so passing 'x' where 'x' is defined as
@@ -405,7 +405,7 @@ int ast_vector_string_split(struct ast_vector_string *dest,
  *
  * \param vec Vector to remove from.
  * \param idx Index of the element to remove.
- * \param preserve_order Preserve the vector order.
+ * \param preserve_ordered Preserve the vector order.
  *
  * \return The element that was removed.
  */
@@ -482,8 +482,8 @@ int ast_vector_string_split(struct ast_vector_string *dest,
  * \param cmp Comparator function/macros (called as \c cmp(elem, value))
  * \param cleanup How to cleanup a removed element macro/function.
  *
- * \return 0 if element was removed.
- * \return Non-zero if element was not in the vector.
+ * \retval 0 if element was removed.
+ * \retval Non-zero if element was not in the vector.
  */
 #define AST_VECTOR_REMOVE_CMP_UNORDERED(vec, value, cmp, cleanup) ({	\
 	int res = -1;							\
@@ -534,8 +534,8 @@ int ast_vector_string_split(struct ast_vector_string *dest,
  * \param cmp Comparator function/macros (called as \c cmp(elem, value))
  * \param cleanup How to cleanup a removed element macro/function.
  *
- * \return 0 if element was removed.
- * \return Non-zero if element was not in the vector.
+ * \retval 0 if element was removed.
+ * \retval Non-zero if element was not in the vector.
  */
 #define AST_VECTOR_REMOVE_CMP_ORDERED(vec, value, cmp, cleanup) ({	\
 	int res = -1;							\
@@ -558,8 +558,8 @@ int ast_vector_string_split(struct ast_vector_string *dest,
  * \param elem Element to compare against
  * \param value Value to compare with the vector element.
  *
- * \return 0 if element does not match.
- * \return Non-zero if element matches.
+ * \retval 0 if element does not match.
+ * \retval Non-zero if element matches.
  */
 #define AST_VECTOR_ELEM_DEFAULT_CMP(elem, value) ((elem) == (value))
 
@@ -567,8 +567,6 @@ int ast_vector_string_split(struct ast_vector_string *dest,
  * \brief Vector element cleanup that does nothing.
  *
  * \param elem Element to cleanup
- *
- * \return Nothing
  */
 #define AST_VECTOR_ELEM_CLEANUP_NOOP(elem)
 
@@ -579,8 +577,8 @@ int ast_vector_string_split(struct ast_vector_string *dest,
  * \param elem Element to remove
  * \param cleanup How to cleanup a removed element macro/function.
  *
- * \return 0 if element was removed.
- * \return Non-zero if element was not in the vector.
+ * \retval 0 if element was removed.
+ * \retval Non-zero if element was not in the vector.
  */
 #define AST_VECTOR_REMOVE_ELEM_UNORDERED(vec, elem, cleanup) ({	\
 	AST_VECTOR_REMOVE_CMP_UNORDERED((vec), (elem),		\
@@ -594,8 +592,8 @@ int ast_vector_string_split(struct ast_vector_string *dest,
  * \param elem Element to remove
  * \param cleanup How to cleanup a removed element macro/function.
  *
- * \return 0 if element was removed.
- * \return Non-zero if element was not in the vector.
+ * \retval 0 if element was removed.
+ * \retval Non-zero if element was not in the vector.
  */
 #define AST_VECTOR_REMOVE_ELEM_ORDERED(vec, elem, cleanup) ({	\
 	AST_VECTOR_REMOVE_CMP_ORDERED((vec), (elem),		\
@@ -622,7 +620,7 @@ int ast_vector_string_split(struct ast_vector_string *dest,
  * \brief Reset vector.
  *
  * \param vec Vector to reset.
- * \param callback A cleanup callback or AST_VECTOR_ELEM_CLEANUP_NOOP.
+ * \param cleanup A cleanup callback or AST_VECTOR_ELEM_CLEANUP_NOOP.
  */
 #define AST_VECTOR_RESET(vec, cleanup) ({ \
 	AST_VECTOR_CALLBACK_VOID(vec, cleanup); \
@@ -634,8 +632,8 @@ int ast_vector_string_split(struct ast_vector_string *dest,
  *
  * \param vec Vector to compact.
  *
- * \return 0 on success.
- * \return Non-zero on failure.
+ * \retval 0 on success.
+ * \retval Non-zero on failure.
  */
 #define AST_VECTOR_COMPACT(vec) ({					\
 	int res = 0;							\
@@ -746,10 +744,9 @@ int ast_vector_string_split(struct ast_vector_string *dest,
 /*!
  * \brief Default callback for AST_VECTOR_CALLBACK()
  *
- * \param elem Element to compare against
- * \param value Value to compare with the vector element.
+ * \param element Element to compare against
  *
- * \return CMP_MATCH always.
+ * \retval CMP_MATCH always.
  */
 #define AST_VECTOR_MATCH_ALL(element) (CMP_MATCH)
 
@@ -874,8 +871,8 @@ int ast_vector_string_split(struct ast_vector_string *dest,
  *
  * \param vec Vector to operate on.
  *
- * \return 0 if success
- * \return Non-zero if error
+ * \retval 0 if success
+ * \retval Non-zero if error
  */
 #define AST_VECTOR_RW_RDLOCK(vec) ast_rwlock_rdlock(&(vec)->lock)
 
@@ -884,8 +881,8 @@ int ast_vector_string_split(struct ast_vector_string *dest,
  *
  * \param vec Vector to operate on.
  *
- * \return 0 if success
- * \return Non-zero if error
+ * \retval 0 if success
+ * \retval Non-zero if error
  */
 #define AST_VECTOR_RW_WRLOCK(vec) ast_rwlock_wrlock(&(vec)->lock)
 
@@ -894,8 +891,8 @@ int ast_vector_string_split(struct ast_vector_string *dest,
  *
  * \param vec Vector to operate on.
  *
- * \return 0 if success
- * \return Non-zero if error
+ * \retval 0 if success
+ * \retval Non-zero if error
  */
 #define AST_VECTOR_RW_UNLOCK(vec) ast_rwlock_unlock(&(vec)->lock)
 
@@ -904,8 +901,8 @@ int ast_vector_string_split(struct ast_vector_string *dest,
  *
  * \param vec Vector to operate on.
  *
- * \return 0 if success
- * \return Non-zero if error
+ * \retval 0 if success
+ * \retval Non-zero if error
  */
 #define AST_VECTOR_RW_RDLOCK_TRY(vec) ast_rwlock_tryrdlock(&(vec)->lock)
 
@@ -914,8 +911,8 @@ int ast_vector_string_split(struct ast_vector_string *dest,
  *
  * \param vec Vector to operate on.
  *
- * \return 0 if success
- * \return Non-zero if error
+ * \retval 0 if success
+ * \retval Non-zero if error
  */
 #define AST_VECTOR_RW_WRLOCK_TRY(vec) ast_rwlock_trywrlock(&(vec)->lock)
 
@@ -923,9 +920,10 @@ int ast_vector_string_split(struct ast_vector_string *dest,
  * \brief Try to obtain read lock on vector failing after timeout if unable
  *
  * \param vec Vector to operate on.
+ * \param timespec
  *
- * \return 0 if success
- * \return Non-zero if error
+ * \retval 0 if success
+ * \retval Non-zero if error
  */
 #define AST_VECTOR_RW_RDLOCK_TIMED(vec, timespec) ast_rwlock_timedrdlock(&(vec)->lock, timespec)
 
@@ -933,9 +931,10 @@ int ast_vector_string_split(struct ast_vector_string *dest,
  * \brief Try to obtain write lock on vector failing after timeout if unable
  *
  * \param vec Vector to operate on.
+ * \param timespec
  *
- * \return 0 if success
- * \return Non-zero if error
+ * \retval 0 if success
+ * \retval Non-zero if error
  */
 #define AST_VECTOR_RW_WRLOCK_TIMED(vec, timespec) ast_rwlock_timedwrlock(&(vec)->lock, timespec)
 

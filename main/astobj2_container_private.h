@@ -78,8 +78,6 @@ struct ao2_container_node {
  * \brief Destroy this container.
  *
  * \param self Container to operate upon.
- *
- * \return Nothing
  */
 typedef void (*ao2_container_destroy_fn)(struct ao2_container *self);
 
@@ -92,7 +90,7 @@ typedef void (*ao2_container_destroy_fn)(struct ao2_container *self);
  * \param line Debug line invoked from
  * \param func Debug function name invoked from
  *
- * \retval empty-container on success.
+ * \return empty-container on success.
  * \retval NULL on error.
  */
 typedef struct ao2_container *(*ao2_container_alloc_empty_clone_fn)(struct ao2_container *self, const char *tag, const char *file, int line, const char *func);
@@ -107,7 +105,7 @@ typedef struct ao2_container *(*ao2_container_alloc_empty_clone_fn)(struct ao2_c
  * \param line Debug line invoked from
  * \param func Debug function name invoked from
  *
- * \retval initialized-node on success.
+ * \return initialized-node on success.
  * \retval NULL on error.
  */
 typedef struct ao2_container_node *(*ao2_container_new_node_fn)(struct ao2_container *self, void *obj_new, const char *tag, const char *file, int line, const char *func);
@@ -130,7 +128,7 @@ typedef enum ao2_container_insert (*ao2_container_insert_fn)(struct ao2_containe
  * \param arg Comparison callback arg parameter.
  * \param v_state Traversal state to restart container traversal.
  *
- * \retval node-ptr of found node (Reffed).
+ * \return node-ptr of found node (Reffed).
  * \retval NULL when no node found.
  */
 typedef struct ao2_container_node *(*ao2_container_find_first_fn)(struct ao2_container *self, enum search_flags flags, void *arg, void *v_state);
@@ -143,7 +141,7 @@ typedef struct ao2_container_node *(*ao2_container_find_first_fn)(struct ao2_con
  * \param prev Previous node returned by the traversal search functions.
  *    The ref ownership is passed back to this function.
  *
- * \retval node-ptr of found node (Reffed).
+ * \return node-ptr of found node (Reffed).
  * \retval NULL when no node found.
  */
 typedef struct ao2_container_node *(*ao2_container_find_next_fn)(struct ao2_container *self, void *v_state, struct ao2_container_node *prev);
@@ -152,8 +150,6 @@ typedef struct ao2_container_node *(*ao2_container_find_next_fn)(struct ao2_cont
  * \brief Cleanup the container traversal state.
  *
  * \param v_state Traversal state to cleanup.
- *
- * \return Nothing
  */
 typedef void (*ao2_container_find_cleanup_fn)(void *v_state);
 
@@ -167,7 +163,7 @@ typedef void (*ao2_container_find_cleanup_fn)(void *v_state);
  *
  * \note The container is already locked.
  *
- * \retval node on success.
+ * \return node on success.
  * \retval NULL on error or no more nodes in the container.
  */
 typedef struct ao2_container_node *(*ao2_iterator_next_fn)(struct ao2_container *self, struct ao2_container_node *prev, enum ao2_iterator_flags flags);
@@ -179,8 +175,6 @@ typedef struct ao2_container_node *(*ao2_iterator_next_fn)(struct ao2_container 
  * \param where User data needed by prnt to determine where to put output.
  * \param prnt Print output callback function to use.
  * \param prnt_obj Callback function to print the given object's key. (NULL if not available)
- *
- * \return Nothing
  */
 typedef void (*ao2_container_display)(struct ao2_container *self, void *where, ao2_prnt_fn *prnt, ao2_prnt_obj_fn *prnt_obj);
 
@@ -192,8 +186,6 @@ typedef void (*ao2_container_display)(struct ao2_container *self, void *where, a
  * \param prnt Print output callback function to use.
  *
  * \note The container is already locked for reading.
- *
- * \return Nothing
  */
 typedef void (*ao2_container_statistics)(struct ao2_container *self, void *where, ao2_prnt_fn *prnt);
 
@@ -216,8 +208,6 @@ typedef int (*ao2_container_integrity)(struct ao2_container *self);
  *
  * \param container Container to operate upon.
  * \param node Container node linking object to.
- *
- * \return Nothing
  */
 typedef void (*ao2_link_node_stat_fn)(struct ao2_container *container, struct ao2_container_node *node);
 
@@ -228,8 +218,6 @@ typedef void (*ao2_link_node_stat_fn)(struct ao2_container *container, struct ao
  *
  * \param container Container to operate upon.
  * \param node Container node unlinking object from.
- *
- * \return Nothing
  */
 typedef void (*ao2_unlink_node_stat_fn)(struct ao2_container *container, struct ao2_container_node *node);
 
@@ -319,11 +307,10 @@ struct ao2_container {
  * \retval 0 on errors.
  * \retval 1 on success.
  */
-int __container_unlink_node_debug(struct ao2_container_node *node, uint32_t flags,
-	const char *tag, const char *file, int line, const char *func);
-
 #define __container_unlink_node(node, flags) \
 	__container_unlink_node_debug(node, flags, NULL, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+int __container_unlink_node_debug(struct ao2_container_node *node, uint32_t flags,
+	const char *tag, const char *file, int line, const char *func);
 
 void container_destruct(void *_c);
 int container_init(void);

@@ -534,8 +534,6 @@ static char *parse_hint_device(struct ast_str *hint_args);
  * \brief Destroy the given hintdevice object.
  *
  * \param obj Hint device to destroy.
- *
- * \return Nothing
  */
 static void hintdevice_destroy(void *obj)
 {
@@ -2410,9 +2408,9 @@ static int extension_match_core(const char *pattern, const char *data, enum ext_
 	return i;
 }
 
-int ast_extension_match(const char *pattern, const char *data)
+int ast_extension_match(const char *pattern, const char *extension)
 {
-	return extension_match_core(pattern, data, E_MATCH);
+	return extension_match_core(pattern, extension, E_MATCH);
 }
 
 int ast_extension_close(const char *pattern, const char *data, int needmore)
@@ -3287,8 +3285,8 @@ static int execute_state_callback(ast_state_cb_type cb,
 }
 
 /*!
- * /internal
- * /brief Identify a channel for every device which is supposedly responsible for the device state.
+ * \internal
+ * \brief Identify a channel for every device which is supposedly responsible for the device state.
  *
  * Especially when the device is ringing, the oldest ringing channel is chosen.
  * For all other cases the first encountered channel in the specific state is chosen.
@@ -3710,8 +3708,6 @@ end:
  * \brief Destroy the given state callback object.
  *
  * \param doomed State callback to destroy.
- *
- * \return Nothing
  */
 static void destroy_state_cb(void *doomed)
 {
@@ -3901,8 +3897,6 @@ static int hint_id_cmp(void *obj, void *arg, int flags)
  * \brief Destroy the given hint object.
  *
  * \param obj Hint to destroy.
- *
- * \return Nothing
  */
 static void destroy_hint(void *obj)
 {
@@ -5157,14 +5151,13 @@ int ast_context_remove_extension_callerid2(struct ast_context *con, const char *
  * \note This function locks contexts list by &conlist, searches for the right context
  * structure, and locks the macrolock mutex in that context.
  * macrolock is used to limit a macro to be executed by one call at a time.
- * \param context The context
  */
-int ast_context_lockmacro(const char *context)
+int ast_context_lockmacro(const char *macrocontext)
 {
 	struct ast_context *c;
 	int ret = -1;
 
-	c = find_context_locked(context);
+	c = find_context_locked(macrocontext);
 	if (c) {
 		ast_unlock_contexts();
 
@@ -5179,14 +5172,13 @@ int ast_context_lockmacro(const char *context)
  * \note This function locks contexts list by &conlist, searches for the right context
  * structure, and unlocks the macrolock mutex in that context.
  * macrolock is used to limit a macro to be executed by one call at a time.
- * \param context The context
  */
-int ast_context_unlockmacro(const char *context)
+int ast_context_unlockmacro(const char *macrocontext)
 {
 	struct ast_context *c;
 	int ret = -1;
 
-	c = find_context_locked(context);
+	c = find_context_locked(macrocontext);
 	if (c) {
 		ast_unlock_contexts();
 

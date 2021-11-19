@@ -173,7 +173,7 @@ struct dn_answer {
  * \param  s    A char pointer to the current frame in the DNS response.
  * \param  len  The remaining available length of the DNS response.
  *
- * \retval The position of the next field
+ * \return The position of the next field
  * \retval -1 if there are no remaining fields
  */
 static int skip_name(unsigned char *s, int len)
@@ -217,7 +217,7 @@ static int skip_name(unsigned char *s, int len)
  * \param  field_size     A positive value representing the size of the current field
                           pointed to by the dns_response parameter.
  *
- * \retval The remaining length in the DNS response
+ * \return The remaining length in the DNS response
  * \retval -1 there are no frames remaining in the DNS response
  */
 static int dns_advance_field(unsigned char **dns_response, int remaining_len, int field_size)
@@ -244,7 +244,7 @@ static int dns_advance_field(unsigned char **dns_response, int remaining_len, in
  * \param  dns_response      The full DNS response.
  * \param  dns_response_len  The length of the full DNS response.
  *
- * \retval The length of the DNS response
+ * \return The length of the DNS response
  * \retval -1 on search failure
  */
 static int dns_search_res(const char *dname, int rr_class, int rr_type,
@@ -281,7 +281,7 @@ static int dns_search_res(const char *dname, int rr_class, int rr_type,
  * \param  dns_response      The full DNS response.
  * \param  dns_response_len  The length of the full DNS response.
  *
- * \retval The length of the DNS response
+ * \return The length of the DNS response
  * \retval -1 on search failure
  */
 static int dns_search_res(const char *dname, int rr_class, int rr_type,
@@ -316,7 +316,6 @@ static int dns_search_res(const char *dname, int rr_class, int rr_type,
  * \internal
  *
  * \param  context   Void pointer containing data to use in the callback functions.
- * \param  dname     Domain name to lookup (host, SRV domain, TXT record name).
  * \param  class     Record Class (see "man res_search").
  * \param  type      Record type (see "man res_search").
  * \param  answer    The full DNS response.
@@ -394,7 +393,6 @@ static int dns_parse_answer(void *context,
  * \internal
  *
  * \param  context           Void pointer containing data to use in the callback functions.
- * \param  dname             Domain name to lookup (host, SRV domain, TXT record name).
  * \param  rr_class          Record Class (see "man res_search").
  * \param  rr_type           Record type (see "man res_search").
  * \param  answer            The full DNS response.

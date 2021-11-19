@@ -60,7 +60,7 @@ struct ast_dns_query_recurring *ast_dns_resolve_recurring(const char *name, int 
 /*!
  * \brief Cancel an asynchronous recurring DNS resolution
  *
- * \param query The DNS query returned from ast_dns_resolve_recurring
+ * \param recurring The DNS query returned from ast_dns_resolve_recurring
  *
  * \retval 0 success - any active query has been cancelled and the query will no longer occur
  * \retval -1 failure - an active query was in progress and could not be cancelled

@@ -168,7 +168,7 @@ struct ast_msg *ast_msg_alloc(void);
  * This should only be called on a message if it was not
  * passed on to ast_msg_queue().
  *
- * \return NULL, always.
+ * \retval NULL always.
  */
 struct ast_msg *ast_msg_destroy(struct ast_msg *msg);
 
@@ -296,7 +296,7 @@ const char *ast_msg_get_body(const struct ast_msg *msg);
  *
  * \param msg The message to get the soure from
  *
- * \retval The source of the message
+ * \return The source of the message
  * \retval NULL or empty string if the message has no source
  */
 const char *ast_msg_get_from(const struct ast_msg *msg);
@@ -308,7 +308,7 @@ const char *ast_msg_get_from(const struct ast_msg *msg);
  *
  * \param msg The message to get the destination from
  *
- * \retval The destination of the message
+ * \return The destination of the message
  * \retval NULL or empty string if the message has no destination
  */
 const char *ast_msg_get_to(const struct ast_msg *msg);
@@ -320,7 +320,7 @@ const char *ast_msg_get_to(const struct ast_msg *msg);
  *
  * \param msg The message to get the technology from
  *
- * \retval The technology of the message
+ * \return The technology of the message
  * \retval NULL or empty string if the message has no associated technology
  */
 const char *ast_msg_get_tech(const struct ast_msg *msg);
@@ -332,7 +332,7 @@ const char *ast_msg_get_tech(const struct ast_msg *msg);
  *
  * \param msg The message to get the endpoint from
  *
- * \retval The endpoint associated with the message
+ * \return The endpoint associated with the message
  * \retval NULL or empty string if the message has no associated endpoint
  */
 const char *ast_msg_get_endpoint(const struct ast_msg *msg);
@@ -485,7 +485,7 @@ struct ast_msg_data *ast_msg_data_alloc(enum ast_msg_data_source_type source,
  * \since 16.12.0
  * \since 17.6.0
  *
- * \param source The source type of the message
+ * \param source_type The source type of the message
  * \param to Where the message is sent to
  * \param from Where the message is sent from
  * \param content_type Content type of the body

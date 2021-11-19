@@ -91,7 +91,7 @@ static void format_cap_destroy(void *obj)
 	AST_VECTOR_FREE(&cap->preference_order);
 }
 
-/*
+/*!
  * \brief Initialize values on an ast_format_cap
  *
  * \param cap ast_format_cap to initialize
@@ -480,8 +480,8 @@ unsigned int ast_format_cap_get_format_framing(const struct ast_format_cap *cap,
  * \param elem Element to compare against
  * \param value Value to compare with the vector element.
  *
- * \return 0 if element does not match.
- * \return Non-zero if element matches.
+ * \retval 0 if element does not match.
+ * \retval Non-zero if element matches.
  */
 #define FORMAT_CAP_FRAMED_ELEM_CMP(elem, value) ((elem)->format == (value))
 
@@ -489,8 +489,6 @@ unsigned int ast_format_cap_get_format_framing(const struct ast_format_cap *cap,
  * \brief format_cap_framed vector element cleanup.
  *
  * \param elem Element to cleanup
- *
- * \return Nothing
  */
 #define FORMAT_CAP_FRAMED_ELEM_CLEANUP(elem)  ao2_cleanup((elem))
 

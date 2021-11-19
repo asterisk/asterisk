@@ -203,7 +203,7 @@ struct ast_featuremap_config *ast_get_chan_featuremap_config(struct ast_channel 
  * \param chan The channel to get the option from
  * \param feature The short name of the feature (as it appears in features.conf)
  * \param[out] buf The buffer to write the DTMF value into
- * \param size The size of the buffer in bytes
+ * \param len The size of the buffer in bytes
  * \retval 0 Success
  * \retval non-zero Unrecognized builtin feature name
  */
@@ -222,7 +222,7 @@ int ast_get_builtin_feature(struct ast_channel *chan, const char *feature, char 
  * \param chan The channel to get the option from
  * \param feature The short name of the feature
  * \param[out] buf The buffer to write the DTMF value into
- * \param size The size of the buffer in bytes
+ * \param len The size of the buffer in bytes
  * \retval 0 Success
  * \retval non-zero Unrecognized feature name
  */

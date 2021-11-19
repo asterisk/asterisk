@@ -734,7 +734,7 @@ void ast_http_uri_unlink_all_with_key(const char *key)
  * \param headers Headers to search.
  * \param field_name Name of the header to find.
  * \return Associated header value.
- * \return \c NULL if header is not present.
+ * \retval NULL if header is not present.
  */
 static const char *get_header(struct ast_variable *headers, const char *field_name)
 {
@@ -756,7 +756,8 @@ static const char *get_header(struct ast_variable *headers, const char *field_na
  *
  * \note the return value is an allocated string that needs to be freed.
  *
- * \retval the content type/subtype or NULL if the header is not found.
+ * \return the content type/subtype
+ * \retval NULL if the header is not found.
  */
 static char *get_content_type(struct ast_variable *headers)
 {
@@ -779,7 +780,7 @@ static char *get_content_type(struct ast_variable *headers)
  *
  * \param headers HTTP headers.
  *
- * \retval length Value of the Content-Length header.
+ * \return length Value of the Content-Length header.
  * \retval 0 if header is not present.
  * \retval -1 if header is invalid.
  */
@@ -805,7 +806,7 @@ static int get_content_length(struct ast_variable *headers)
  * \brief Returns the value of the Transfer-Encoding header.
  *
  * \param headers HTTP headers.
- * \retval string Value of the Transfer-Encoding header.
+ * \return string Value of the Transfer-Encoding header.
  * \retval NULL if header is not present.
  */
 static const char *get_transfer_encoding(struct ast_variable *headers)
@@ -846,8 +847,6 @@ void ast_http_request_close_on_completion(struct ast_tcptls_session_instance *se
  * \since 12.4.0
  *
  * \param request Request tracking information.
- *
- * \return Nothing
  */
 static void http_request_tracking_init(struct http_worker_private_data *request)
 {
@@ -981,7 +980,7 @@ static int http_body_discard_contents(struct ast_tcptls_session_instance *ser, i
  * \param s string to decode
  * \param len length of string
  *
- * \retval length on success.
+ * \return length on success.
  * \retval -1 on error.
  */
 static int chunked_atoh(const char *s, int len)
@@ -1035,7 +1034,7 @@ static int chunked_atoh(const char *s, int len)
  *
  * \param ser HTTP TCP/TLS session object.
  *
- * \retval length Size of chunk to expect.
+ * \return length Size of chunk to expect.
  * \retval -1 on error.
  */
 static int http_body_get_chunk_length(struct ast_tcptls_session_instance *ser)
@@ -1175,7 +1174,8 @@ int ast_http_body_discard(struct ast_tcptls_session_instance *ser)
  * \param return_length ptr to int that returns content length
  * \param ser HTTP TCP/TLS session object
  * \param headers List of HTTP headers
- * \return ptr to content (zero terminated) or NULL on failure
+ * \return ptr to content (zero terminated)
+ * \retval NULL on failure
  * \note Since returned ptr is malloc'd, it should be free'd by caller
  */
 static char *ast_http_get_contents(int *return_length,
