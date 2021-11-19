@@ -236,7 +236,7 @@ static int evaluate_not_equal(struct operator *op, enum aco_option_type type, vo
 	return !evaluate_equal(op, type, op_left, op_right);
 }
 
-/*
+/*!
  * \brief Operator callback for determining if one operand is less than another
  */
 static int evaluate_less_than(struct operator *op, enum aco_option_type type, void *op_left, struct expression_token *op_right)
@@ -285,7 +285,7 @@ static int evaluate_less_than(struct operator *op, enum aco_option_type type, vo
 	return -1;
 }
 
-/*
+/*!
  * \brief Operator callback for determining if one operand is greater than another
  */
 static int evaluate_greater_than(struct operator *op, enum aco_option_type type, void *op_left, struct expression_token *op_right)
@@ -334,7 +334,7 @@ static int evaluate_greater_than(struct operator *op, enum aco_option_type type,
 	return -1;
 }
 
-/*
+/*!
  * \brief Operator callback for determining if one operand is less than or equal to another
  */
 static int evaluate_less_than_or_equal(struct operator *op, enum aco_option_type type, void *op_left, struct expression_token *op_right)
@@ -342,7 +342,7 @@ static int evaluate_less_than_or_equal(struct operator *op, enum aco_option_type
 	return !evaluate_greater_than(op, type, op_left, op_right);
 }
 
-/*
+/*!
  * \brief Operator callback for determining if one operand is greater than or equal to another
  */
 static int evaluate_greater_than_or_equal(struct operator *op, enum aco_option_type type, void *op_left, struct expression_token *op_right)
@@ -350,7 +350,7 @@ static int evaluate_greater_than_or_equal(struct operator *op, enum aco_option_t
 	return !evaluate_less_than(op, type, op_left, op_right);
 }
 
-/*
+/*!
  * \brief Operator callback for determining logical NOT
  */
 static int evaluate_not(struct operator *op, enum aco_option_type type, void *operand)
@@ -368,7 +368,7 @@ static int evaluate_not(struct operator *op, enum aco_option_type type, void *op
 	return -1;
 }
 
-/*
+/*!
  * \brief Operator callback for determining logical AND
  */
 static int evaluate_and(struct operator *op, enum aco_option_type type, void *op_left, struct expression_token *op_right)
@@ -386,7 +386,7 @@ static int evaluate_and(struct operator *op, enum aco_option_type type, void *op
 	return -1;
 }
 
-/*
+/*!
  * \brief Operator callback for determining logical OR
  */
 static int evaluate_or(struct operator *op, enum aco_option_type type, void *op_left, struct expression_token *op_right)
@@ -404,7 +404,7 @@ static int evaluate_or(struct operator *op, enum aco_option_type type, void *op_
 	return -1;
 }
 
-/*
+/*!
  * \brief Operator callback for regex 'like'
  */
 static int evaluate_like(struct operator *op, enum aco_option_type type, void *op_left, struct expression_token *op_right)

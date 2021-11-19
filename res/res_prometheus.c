@@ -239,7 +239,7 @@ static struct prometheus_metric core_metrics[] = {
 		get_last_reload_cb),
 };
 
-/**
+/*!
  * \internal
  * \brief Compare two metrics to see if their name / labels / values match
  *
@@ -409,14 +409,13 @@ void prometheus_metric_free(struct prometheus_metric *metric)
 	}
 }
 
-/**
+/*!
  * \internal
  * \brief Common code for creating a metric
  *
  * \param name The name of the metric
  * \param help Help string to output when rendered. This must be static.
  *
- * \retval \c prometheus_metric on success
  * \retval NULL on failure
  */
 static struct prometheus_metric *prometheus_metric_create(const char *name, const char *help)
@@ -475,7 +474,7 @@ static const char *prometheus_metric_type_to_string(enum prometheus_metric_type 
 	}
 }
 
-/**
+/*!
  * \internal
  * \brief Render a metric to text
  *

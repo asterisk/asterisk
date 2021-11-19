@@ -59,8 +59,6 @@ int ast_pjproject_get_buildopt(char *option, char *format_string, ...) __attribu
  * \note ast_pjproject_log_intercept_begin() and
  * ast_pjproject_log_intercept_end() must always be called
  * in pairs.
- *
- * \return Nothing
  */
 void ast_pjproject_log_intercept_begin(int fd);
 
@@ -71,8 +69,6 @@ void ast_pjproject_log_intercept_begin(int fd);
  * \note ast_pjproject_log_intercept_begin() and
  * ast_pjproject_log_intercept_end() must always be called
  * in pairs.
- *
- * \return Nothing
  */
 void ast_pjproject_log_intercept_end(void);
 
@@ -83,8 +79,6 @@ void ast_pjproject_log_intercept_end(void);
  * \param cp Caching pool factory to initialize
  * \param policy Pool factory policy
  * \param max_capacity Total capacity to be retained in the cache.  Zero disables caching.
- *
- * \return Nothing
  */
 void ast_pjproject_caching_pool_init(pj_caching_pool *cp,
 	const pj_pool_factory_policy *policy, pj_size_t max_capacity);
@@ -94,8 +88,6 @@ void ast_pjproject_caching_pool_init(pj_caching_pool *cp,
  * \since 13.21.0
  *
  * \param cp Caching pool factory to destroy
- *
- * \return Nothing
  */
 void ast_pjproject_caching_pool_destroy(pj_caching_pool *cp);
 

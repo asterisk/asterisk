@@ -1320,7 +1320,7 @@ static void remove_stasis_end_published(struct ast_channel *chan)
 	ast_channel_unlock(chan);
 }
 
-/*! /brief Stasis dialplan application callback */
+/*! \brief Stasis dialplan application callback */
 int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
 		    char *argv[])
 {
@@ -2223,7 +2223,7 @@ static int unload_module(void)
 	return 0;
 }
 
-/* \brief Sanitization callback for channel snapshots */
+/*! \brief Sanitization callback for channel snapshots */
 static int channel_snapshot_sanitizer(const struct ast_channel_snapshot *snapshot)
 {
 	if (!snapshot || !(snapshot->base->tech_properties & AST_CHAN_TP_INTERNAL)) {
@@ -2232,7 +2232,7 @@ static int channel_snapshot_sanitizer(const struct ast_channel_snapshot *snapsho
 	return 1;
 }
 
-/* \brief Sanitization callback for channels */
+/*! \brief Sanitization callback for channels */
 static int channel_sanitizer(const struct ast_channel *chan)
 {
 	if (!chan || !(ast_channel_tech(chan)->properties & AST_CHAN_TP_INTERNAL)) {
@@ -2241,7 +2241,7 @@ static int channel_sanitizer(const struct ast_channel *chan)
 	return 1;
 }
 
-/* \brief Sanitization callback for channel unique IDs */
+/*! \brief Sanitization callback for channel unique IDs */
 static int channel_id_sanitizer(const char *id)
 {
 	struct ast_channel_snapshot *snapshot;
@@ -2254,7 +2254,7 @@ static int channel_id_sanitizer(const char *id)
 	return ret;
 }
 
-/* \brief Sanitization callbacks for communication to Stasis applications */
+/*! \brief Sanitization callbacks for communication to Stasis applications */
 struct stasis_message_sanitizer app_sanitizer = {
 	.channel_id = channel_id_sanitizer,
 	.channel_snapshot = channel_snapshot_sanitizer,

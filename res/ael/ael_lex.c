@@ -2990,7 +2990,7 @@ void ael_yyset_lineno (int  line_number , yyscan_t yyscanner)
 }
 
 /** Set the current column.
- * @param line_number
+ * @param column_no
  * @param yyscanner The scanner object.
  */
 void ael_yyset_column (int  column_no , yyscan_t yyscanner)

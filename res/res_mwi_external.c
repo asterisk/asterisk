@@ -86,8 +86,6 @@ static struct ast_sorcery *mwi_sorcery;
  * \internal
  * \brief Post an update event to the MWI counts.
  * \since 12.1.0
- *
- * \return Nothing
  */
 static void mwi_post_event(const struct ast_mwi_mailbox_object *mailbox)
 {
@@ -104,8 +102,6 @@ static void mwi_observe_update(const void *obj)
  * \internal
  * \brief Post a count clearing event to the MWI counts.
  * \since 12.1.0
- *
- * \return Nothing
  */
 static void mwi_observe_delete(const void *obj)
 {
@@ -254,8 +250,6 @@ int ast_mwi_mailbox_update(struct ast_mwi_mailbox_object *mailbox)
  * \since 12.1.0
  *
  * \param mailbox Mailbox object to delete from sorcery.
- *
- * \return Nothing
  */
 static void mwi_mailbox_delete(struct ast_mwi_mailbox_object *mailbox)
 {
@@ -268,8 +262,6 @@ static void mwi_mailbox_delete(struct ast_mwi_mailbox_object *mailbox)
  * \since 12.1.0
  *
  * \param mailboxes Mailbox objects to delete from sorcery.
- *
- * \return Nothing
  */
 static void mwi_mailbox_delete_all(struct ao2_container *mailboxes)
 {
@@ -658,8 +650,6 @@ static char *handle_mwi_delete_mailbox(struct ast_cli_entry *e, int cmd, struct 
  *
  * \param cli_fd File descriptor for CLI output.
  * \param mailbox What to list.
- *
- * \return Nothing
  */
 static void mwi_cli_print_mailbox(int cli_fd, const struct ast_mwi_mailbox_object *mailbox)
 {
@@ -676,8 +666,6 @@ static void mwi_cli_print_mailbox(int cli_fd, const struct ast_mwi_mailbox_objec
  *
  * \param cli_fd File descriptor for CLI output.
  * \param mailboxes What to list.
- *
- * \return Nothing
  */
 static void mwi_cli_list_mailboxes(int cli_fd, struct ao2_container *mailboxes)
 {
@@ -882,8 +870,6 @@ static struct ast_cli_entry mwi_cli[] = {
  * \internal
  * \brief Post initial MWI count events.
  * \since 12.1.0
- *
- * \return Nothing
  */
 static void mwi_initial_events(void)
 {
