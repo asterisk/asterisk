@@ -57,7 +57,7 @@ struct sip_route {
  * \param len Length of hop not including null terminator
  * \param inserthead If true then inserted the new route to the top of the list
  *
- * \retval Pointer to null terminated copy of URI on success
+ * \return Pointer to null terminated copy of URI on success
  * \retval NULL on error
  */
 const char *sip_route_add(struct sip_route *route, const char *uri, size_t len, int inserthead);
@@ -65,15 +65,12 @@ const char *sip_route_add(struct sip_route *route, const char *uri, size_t len, 
 /*!
  * \brief Add routes from header
  *
- * \note This procedure is for headers that require use of <brackets>.
+ * \note This procedure is for headers that require use of \<brackets\>.
  */
 void sip_route_process_header(struct sip_route *route, const char *header, int inserthead);
 
 /*!
  * \brief copy route-set
- *
- * \retval non-zero on failure
- * \retval 0 on success
  */
 void sip_route_copy(struct sip_route *dst, const struct sip_route *src);
 
@@ -94,7 +91,7 @@ void sip_route_dump(const struct sip_route *route);
  * \param formatcli Add's space after comma's, print's N/A if list is empty.
  * \param skip Number of hops to skip
  *
- * \retval an allocated struct ast_str on success
+ * \return an allocated struct ast_str on success
  * \retval NULL on failure
  */
 struct ast_str *sip_route_list(const struct sip_route *route, int formatcli, int skip)

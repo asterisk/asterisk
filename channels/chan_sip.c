@@ -26,7 +26,7 @@
  * \arg \ref AstCREDITS
  *
  * Implementation of RFC 3261 - without S/MIME, and experimental TCP and TLS support
- * Configuration file \link Config_sip sip.conf \endlink
+ * Configuration file \ref sip.conf "Config_sip"
  *
  * ********** IMPORTANT *
  * \note TCP/TLS support is EXPERIMENTAL and WILL CHANGE. This applies to configuration
@@ -2304,7 +2304,7 @@ static int sip_get_cc_information(struct sip_request *req, char *subscribe_uri, 
 	return 0;
 }
 
-/*
+/*!
  * \brief Determine what, if any, CC has been offered and queue a CC frame if possible
  *
  * After taking care of some formalities to be sure that this call is eligible for CC,
@@ -2404,7 +2404,7 @@ static struct ast_tcptls_session_args sip_tls_desc = {
 };
 
 /*! \brief Append to SIP dialog history
-	\return Always returns 0 */
+	\retval 0 always */
 #define append_history(p, event, fmt , args... )	append_history_full(p, "%-15s " fmt, event, ## args)
 
 /*! \brief map from an integer value to a string.
@@ -2843,7 +2843,6 @@ done:
  * 1) The message is a full SIP request
  * 2) The message is a partial SIP request
  * 3) The message contains a full SIP request along with another partial request
- * \param data The unparsed incoming SIP message.
  * \param request The resulting request with extra fragments removed.
  * \param overflow If the message contains more than a full request, this is the remainder of the message
  * \return The resulting integrity of the message
@@ -2910,10 +2909,13 @@ static enum message_integrity check_message_integrity(struct ast_str **request, 
 }
 
 /*!
+ * \internal
  * \brief Read SIP request or response from a TCP/TLS connection
  *
  * \param req The request structure to be filled in
  * \param tcptls_session The TCP/TLS connection from which to read
+ * \param authenticated 0 means unauthenticated
+ * \param start timeout for unauthenticated server sessions
  * \retval -1 Failed to read data
  * \retval 0 Successfully read data
  */
@@ -3270,7 +3272,7 @@ static void unlink_peers_from_tables(peer_unlink_flag_t flag)
 	}
 }
 
-/* \brief Unlink all marked peers from ao2 containers */
+/*! \brief Unlink all marked peers from ao2 containers */
 static void unlink_marked_peers_from_tables(void)
 {
 	unlink_peers_from_tables(SIP_PEERS_MARKED);
@@ -3281,7 +3283,9 @@ static void unlink_all_peers_from_tables(void)
 	unlink_peers_from_tables(SIP_PEERS_ALL);
 }
 
-/*! \brief maintain proper refcounts for a sip_pvt's outboundproxy
+/*!
+ * \internal
+ * \brief maintain proper refcounts for a sip_pvt's outboundproxy
  *
  * This function sets pvt's outboundproxy pointer to the one referenced
  * by the proxy parameter. Because proxy may be a refcounted object, and
@@ -3290,7 +3294,6 @@ static void unlink_all_peers_from_tables(void)
  *
  * \param pvt The sip_pvt for which we wish to set the outboundproxy
  * \param proxy The sip_proxy which we will point pvt towards.
- * \return Returns void
  */
 static void ref_proxy(struct sip_pvt *pvt, struct sip_proxy *proxy)
 {
@@ -4272,7 +4275,8 @@ static void sip_pkt_dtor(void *vdoomed)
 /*!
  * \internal
  * \brief Transmit packet with retransmits
- * \return 0 on success, -1 on failure to allocate packet
+ * \retval 0 on success
+ * \retval -1 on failure to allocate packet.
  */
 static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, uint32_t seqno, int resp, struct ast_str *data, int fatal, int sipmethod)
 {
@@ -6038,7 +6042,8 @@ static int dialog_initialize_dtls_srtp(const struct sip_pvt *dialog, struct ast_
 }
 
 /*! \brief Initialize RTP portion of a dialog
- * \return -1 on failure, 0 on success
+ * \retval -1 on failure.
+ * \retval 0 on success.
  */
 static int dialog_initialize_rtp(struct sip_pvt *dialog)
 {
@@ -6132,7 +6137,8 @@ static int __set_address_from_contact(const char *fullcontact, struct ast_sockad
  *	This function copies data from peer to the dialog, so we don't have to look up the peer
  *	again from memory or database during the life time of the dialog.
  *
- * \return -1 on error, 0 on success.
+ * \retval -1 on error.
+ * \retval 0 on success.
  *
  */
 static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
@@ -6839,8 +6845,8 @@ static void sip_pvt_dtor(void *vdoomed)
  *
  * Thought: For realtime, we should probably update storage with inuse counter...
  *
- * \return 0 if call is ok (no call limit, below threshold)
- *	-1 on rejection of call
+ * \retval 0 if call is ok (no call limit, below threshold).
+ * \retval -1 on rejection of call.
  *
  */
 static int update_call_counter(struct sip_pvt *fup, int event)
@@ -8856,8 +8862,6 @@ static void build_callid_pvt(struct sip_pvt *pvt)
  *
  * \param pvt SIP private structure to change callid
  * \param callid Specified new callid to use.  NULL if generate new callid.
- *
- * \return Nothing
  */
 static void change_callid_pvt(struct sip_pvt *pvt, const char *callid)
 {
@@ -9144,7 +9148,7 @@ static int process_via(struct sip_pvt *p, const struct sip_request *req)
 	return 0;
 }
 
-/* \brief arguments used for Request/Response to matching */
+/*! \brief arguments used for Request/Response to matching */
 struct match_req_args {
 	int method;
 	const char *callid;
@@ -9171,7 +9175,7 @@ enum match_req_res {
 	SIP_REQ_FORKED, /* An outgoing request has been forked as result of receiving two differing 200ok responses. */
 };
 
-/*
+/*!
  * \brief Match a incoming Request/Response to a dialog
  *
  * \retval enum match_req_res indicating if the dialog matches the arg
@@ -10048,7 +10052,8 @@ static int parse_request(struct sip_request *req)
 /*!
   \brief Determine whether a SIP message contains an SDP in its body
   \param req the SIP request to process
-  \return 1 if SDP found, 0 if not found
+  \retval 1 if SDP found.
+  \retval 0 if not found.
 
   Also updates req->sdp_start and req->sdp_count to indicate where the SDP
   lives in the message body.
@@ -12777,7 +12782,9 @@ static int transmit_response_with_auth(struct sip_pvt *p, const char *msg, const
 
 /*!
  \brief Extract domain from SIP To/From header
- \return -1 on error, 1 if domain string is empty, 0 if domain was properly extracted
+ \retval -1 on error.
+ \retval 1 if domain string is empty.
+ \retval 0 if domain was properly extracted.
  \note TODO: Such code is all over SIP channel, there is a sense to organize
       this patern in one function
 */
@@ -12883,8 +12890,6 @@ static int transmit_provisional_response(struct sip_pvt *p, const char *msg, con
  * \brief Destroy all additional MESSAGE headers.
  *
  * \param pvt SIP private dialog struct.
- *
- * \return Nothing
  */
 static void destroy_msg_headers(struct sip_pvt *pvt)
 {
@@ -12902,8 +12907,6 @@ static void destroy_msg_headers(struct sip_pvt *pvt)
  * \param pvt SIP private dialog struct.
  * \param hdr_name Name of header for MESSAGE.
  * \param hdr_value Value of header for MESSAGE.
- *
- * \return Nothing
  */
 static void add_msg_header(struct sip_pvt *pvt, const char *hdr_name, const char *hdr_value)
 {
@@ -14122,7 +14125,7 @@ static void add_cc_call_info_to_response(struct sip_pvt *p, struct sip_request *
 }
 
 /*! \brief Used for 200 OK and 183 early media
-	\return Will return XMIT_ERROR for network errors.
+	\retval XMIT_ERROR for network errors.
 */
 static int transmit_response_with_sdp(struct sip_pvt *p, const char *msg, const struct sip_request *req, enum xmittype reliable, int oldsdp, int rpid)
 {
@@ -14273,7 +14276,7 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p, int t38version, int old
 	return send_request(p, &req, XMIT_CRITICAL, p->ocseq);
 }
 
-/* \brief Remove URI parameters at end of URI, not in username part though */
+/*! \brief Remove URI parameters at end of URI, not in username part though */
 static char *remove_uri_parameters(char *uri)
 {
 	char *atsign;
@@ -19977,7 +19980,9 @@ static char *transfermode2str(enum transfermodes mode)
 }
 
 /*! \brief  Report Peer status in character string
- *  \return 0 if peer is unreachable, 1 if peer is online, -1 if unmonitored
+ * \retval 0 if peer is unreachable.
+ * \retval 1 if peer is online.
+ * \retval -1 if unmonitored.
  */
 
 
@@ -23058,7 +23063,7 @@ static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, enum sip_au
 }
 
 /*! \brief  reply to authentication for outbound registrations
-\return	Returns -1 if we have no auth
+\retval	-1 if we have no auth
 \note	This is used for register= servers in sip.conf, SIP proxies we register
 	with  for receiving calls from.  */
 static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header, int sipmethod,  char *digest, int digest_len)
@@ -23134,7 +23139,7 @@ static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header
 }
 
 /*! \brief  Build reply digest
-\return	Returns -1 if we have no auth
+\retval -1 if we have no auth
 \note	Build digest challenge for authentication of registrations and calls
 	Also used for authentication of BYE
 */
@@ -23977,8 +23982,6 @@ static void handle_response_publish(struct sip_pvt *p, int resp, const char *res
  * \param cause Hangup cause to queue.  Zero if no cause.
  *
  * \pre p and p->owner are locked.
- *
- * \return Nothing
  */
 static void sip_queue_hangup_cause(struct sip_pvt *p, int cause)
 {
@@ -24562,7 +24565,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 	}
 }
 
-/* \brief Handle SIP response in NOTIFY transaction
+/*! \brief Handle SIP response in NOTIFY transaction
        We've sent a NOTIFY, now handle responses to it
   */
 static void handle_response_notify(struct sip_pvt *p, int resp, const char *rest, struct sip_request *req, uint32_t seqno)
@@ -24616,7 +24619,7 @@ static void handle_response_notify(struct sip_pvt *p, int resp, const char *rest
 	}
 }
 
-/* \brief Handle SIP response in SUBSCRIBE transaction */
+/*! \brief Handle SIP response in SUBSCRIBE transaction */
 static void handle_response_subscribe(struct sip_pvt *p, int resp, const char *rest, struct sip_request *req, uint32_t seqno)
 {
 	if (p->subscribed == CALL_COMPLETION) {
@@ -24703,7 +24706,7 @@ static void handle_response_subscribe(struct sip_pvt *p, int resp, const char *r
 	}
 }
 
-/* \brief Handle SIP response in REFER transaction
+/*! \brief Handle SIP response in REFER transaction
 	We've sent a REFER, now handle responses to it
   */
 static void handle_response_refer(struct sip_pvt *p, int resp, const char *rest, struct sip_request *req, uint32_t seqno)
@@ -25067,7 +25070,7 @@ static void handle_response_info(struct sip_pvt *p, int resp, const char *rest, 
 /*!
  * \internal
  * \brief Handle auth requests to a MESSAGE request
- * \return TRUE if authentication failed.
+ * \retval TRUE if authentication failed.
  */
 static int do_message_auth(struct sip_pvt *p, int resp, const char *rest, struct sip_request *req, uint32_t seqno)
 {
@@ -25650,8 +25653,8 @@ static int sip_pickup(struct ast_channel *chan)
 
 /*! \brief Get tag from packet
  *
- * \return Returns the pointer to the provided tag buffer,
- *         or NULL if the tag was not found.
+ * \return pointer to the provided tag buffer.
+ * \retval NULL if the tag was not found.
  */
 static const char *gettag(const struct sip_request *req, const char *header, char *tagbuf, int tagbufsize)
 {
@@ -26201,8 +26204,9 @@ static int handle_request_update(struct sip_pvt *p, struct sip_request *req)
 	return 0;
 }
 
-/*
- * \internal \brief Check Session Timers for an INVITE request
+/*!
+ * \internal
+ * \brief Check Session Timers for an INVITE request
  *
  * \retval 0 ok
  * \retval -1 failure
@@ -27245,7 +27249,7 @@ struct blind_transfer_cb_data {
  * we may send out.
  *
  * \param chan The new outbound channel
- * \param user_data A blind_transfer_cb_data struct
+ * \param user_data_wrapper A blind_transfer_cb_data struct
  * \param transfer_type Unused
  */
 static void blind_transfer_cb(struct ast_channel *chan, struct transfer_channel_data *user_data_wrapper,
@@ -29380,7 +29384,8 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct as
 
 /*! \brief Read data from SIP UDP socket
 \note sipsock_read locks the owner channel while we are processing the SIP message
-\return 1 on error, 0 on success
+\retval 1 on error.
+\retval 0 on success.
 \note Successful messages is connected to SIP call and forwarded to handle_incoming()
 */
 static int sipsock_read(int *id, int fd, short events, void *ignore)
@@ -29757,7 +29762,8 @@ static int get_cached_mwi(struct sip_peer *peer, int *new, int *old)
  *  \note Both peer and associated sip_pvt must be unlocked prior to calling this function.
  *  It's possible that this function will get called during peer destruction as final messages
  *  are processed.  The peer will still be valid however.
- *  \returns -1 on failure, 0 on success
+ *  \retval -1 on failure.
+ *  \retval 0 on success.
  */
 static int sip_send_mwi_to_peer(struct sip_peer *peer, int cache_only)
 {
@@ -31076,7 +31082,7 @@ static void set_insecure_flags (struct ast_flags *flags, const char *value, int 
 
 /*!
   \brief Handle T.38 configuration options common to users and peers
-  \returns non-zero if any config options were handled, zero otherwise
+  \return non-zero if any config options were handled, zero otherwise
 */
 static int handle_t38_options(struct ast_flags *flags, struct ast_flags *mask, struct ast_variable *v,
 			      unsigned int *maxdatagram)
@@ -31121,7 +31127,7 @@ static int handle_t38_options(struct ast_flags *flags, struct ast_flags *mask, s
   \param flags array of three struct ast_flags
   \param mask array of three struct ast_flags
   \param v linked list of config variables to process
-  \returns non-zero if any config options were handled, zero otherwise
+  \return non-zero if any config options were handled, zero otherwise
 */
 static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask, struct ast_variable *v)
 {
@@ -31355,8 +31361,6 @@ static void clear_sip_domains(void)
  * \brief Realm authentication container destructor.
  *
  * \param obj Container object to destroy.
- *
- * \return Nothing
  */
 static void destroy_realm_authentication(void *obj)
 {
@@ -31375,8 +31379,6 @@ static void destroy_realm_authentication(void *obj)
  * \param credentials Realm authentication container to create/add authentication credentials.
  * \param configuration Credential configuration value.
  * \param lineno Line number in config file.
- *
- * \return Nothing
  */
 static void add_realm_authentication(struct sip_auth_container **credentials, const char *configuration, int lineno)
 {

@@ -3099,7 +3099,7 @@ static inline int attribute_pure iax2_allow_new(int frametype, int subclass, int
 	return 0;
 }
 
-/*
+/*!
  * \note Calling this function while holding another pvt lock can cause a deadlock.
  */
 static int __find_callno(unsigned short callno, unsigned short dcallno, struct ast_sockaddr *addr, int new, int sockfd, int return_locked, int check_dcallno)

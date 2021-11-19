@@ -841,7 +841,7 @@ struct sip_request {
 	unsigned int reqsipoptions; /*!< Items needed for Required header in responses */
 };
 
-/* \brief given a sip_request and an offset, return the char * that resides there
+/*! \brief given a sip_request and an offset, return the char * that resides there
  *
  * It used to be that rlpart1, rlpart2, and the header and line arrays were character
  * pointers. They are now offsets into the ast_str portion of the sip_request structure.

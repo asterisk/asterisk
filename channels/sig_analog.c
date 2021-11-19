@@ -595,8 +595,6 @@ static void analog_deadlock_avoidance_private(struct analog_pvt *p)
  * \note
  * Because deadlock avoidance may have been necessary, you need to confirm
  * the state of things before continuing.
- *
- * \return Nothing
  */
 static void analog_lock_sub_owner(struct analog_pvt *pvt, enum analog_sub sub_idx)
 {
@@ -3994,8 +3992,6 @@ struct analog_pvt *analog_new(enum analog_sigtype signallingtype, void *private_
  * \since 1.8
  *
  * \param doomed Analog private structure to delete.
- *
- * \return Nothing
  */
 void analog_delete(struct analog_pvt *doomed)
 {
