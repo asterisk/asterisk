@@ -83,7 +83,7 @@ static void chan_pjsip_pvt_dtor(void *obj)
 {
 }
 
-/* \brief Asterisk core interaction functions */
+/*! \brief Asterisk core interaction functions */
 static struct ast_channel *chan_pjsip_request(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *data, int *cause);
 static struct ast_channel *chan_pjsip_request_with_stream_topology(const char *type,
 	struct ast_stream_topology *topology, const struct ast_assigned_ids *assignedids,

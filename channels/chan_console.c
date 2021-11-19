@@ -552,7 +552,7 @@ static int console_answer(struct ast_channel *c)
 	return start_stream(pvt);
 }
 
-/*
+/*!
  * \brief Implementation of the ast_channel_tech read() callback
  *
  * Calling this function is harmless.  However, if it does get called, it

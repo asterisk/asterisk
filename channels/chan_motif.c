@@ -328,7 +328,7 @@ static AO2_GLOBAL_OBJ_STATIC(globals);
 
 static struct ast_sched_context *sched; /*!< Scheduling context for RTCP */
 
-/* \brief Asterisk core interaction functions */
+/*! \brief Asterisk core interaction functions */
 static struct ast_channel *jingle_request(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *data, int *cause);
 static int jingle_sendtext(struct ast_channel *ast, const char *text);
 static int jingle_digit_begin(struct ast_channel *ast, char digit);
