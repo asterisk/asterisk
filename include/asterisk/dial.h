@@ -93,7 +93,7 @@ int ast_dial_append_channel(struct ast_dial *dial, struct ast_channel *chan);
  * \param chan Optional dialing channel
  * \param cap Optional requested capabilities
  * \retval -1 failure
- * \reval 0 success
+ * \retval 0 success
  */
 int ast_dial_prerun(struct ast_dial *dial, struct ast_channel *chan, struct ast_format_cap *cap);
 
@@ -136,7 +136,8 @@ void ast_dial_hangup(struct ast_dial *dial);
 /*! \brief Destroys a dialing structure
  * \note Cancels dialing and destroys (free's) the given ast_dial structure
  * \param dial Dialing structure to free
- * \return Returns 0 on success, -1 on failure
+ * \retval 0 on success
+ * \retval -1 on failure
  */
 int ast_dial_destroy(struct ast_dial *dial);
 
@@ -144,7 +145,8 @@ int ast_dial_destroy(struct ast_dial *dial);
  * \param dial Dial structure to enable option on
  * \param option Option to enable
  * \param data Data to pass to this option (not always needed)
- * \return Returns 0 on success, -1 on failure
+ * \retval 0 on success
+ * \retval -1 on failure
  */
 int ast_dial_option_global_enable(struct ast_dial *dial, enum ast_dial_option option, void *data);
 
@@ -153,14 +155,16 @@ int ast_dial_option_global_enable(struct ast_dial *dial, enum ast_dial_option op
  * \param num Channel number to enable option on
  * \param option Option to enable
  * \param data Data to pass to this option (not always needed)
- * \return Returns 0 on success, -1 on failure
+ * \retval 0 on success
+ * \retval -1 on failure
  */
 int ast_dial_option_enable(struct ast_dial *dial, int num, enum ast_dial_option option, void *data);
 
 /*! \brief Disables an option globally
  * \param dial Dial structure to disable option on
  * \param option Option to disable
- * \return Returns 0 on success, -1 on failure
+ * \retval 0 on success
+ * \retval -1 on failure
  */
 int ast_dial_option_global_disable(struct ast_dial *dial, enum ast_dial_option option);
 
@@ -168,7 +172,8 @@ int ast_dial_option_global_disable(struct ast_dial *dial, enum ast_dial_option o
  * \param dial Dial structure
  * \param num Channel number to disable option on
  * \param option Option to disable
- * \return Returns 0 on success, -1 on failure
+ * \retval 0 on success
+ * \retval -1 on failure
  */
 int ast_dial_option_disable(struct ast_dial *dial, int num, enum ast_dial_option option);
 
@@ -189,27 +194,23 @@ struct ast_channel *ast_dial_get_channel(struct ast_dial *dial, int num);
 /*! \brief Set a callback for state changes
  * \param dial The dial structure to watch for state changes
  * \param callback the callback
- * \return nothing
  */
 void ast_dial_set_state_callback(struct ast_dial *dial, ast_dial_state_callback callback);
 
 /*! \brief Set user data on a dial structure
  * \param dial The dial structure to set a user data pointer on
  * \param user_data The user data pointer
- * \return nothing
  */
 void ast_dial_set_user_data(struct ast_dial *dial, void *user_data);
 
 /*! \brief Return the user data on a dial structure
  * \param dial The dial structure
- * \return A pointer to the user data
  */
 void *ast_dial_get_user_data(struct ast_dial *dial);
 
 /*! \brief Set the maximum time (globally) allowed for trying to ring phones
  * \param dial The dial structure to apply the time limit to
  * \param timeout Maximum time allowed in milliseconds
- * \return nothing
  */
 void ast_dial_set_global_timeout(struct ast_dial *dial, int timeout);
 
@@ -217,7 +218,6 @@ void ast_dial_set_global_timeout(struct ast_dial *dial, int timeout);
  * \param dial The dial structure the channel belongs to
  * \param num Channel number to set timeout on
  * \param timeout Maximum time allowed in milliseconds
- * \return nothing
  */
 void ast_dial_set_timeout(struct ast_dial *dial, int num, int timeout);
 

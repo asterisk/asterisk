@@ -314,8 +314,6 @@ void astman_send_ack(struct mansession *s, const struct message *m, char *msg);
  *
  * \note You need to call astman_send_list_complete_start() and
  * astman_send_list_complete_end() to send the AMI list completion event.
- *
- * \return Nothing
  */
 void astman_send_listack(struct mansession *s, const struct message *m, char *msg, char *listflag);
 
@@ -334,8 +332,6 @@ void astman_send_listack(struct mansession *s, const struct message *m, char *ms
  * \note Between calling astman_send_list_complete_start() and
  * astman_send_list_complete_end() you can add additonal headers
  * using astman_append().
- *
- * \return Nothing
  */
 void astman_send_list_complete_start(struct mansession *s, const struct message *m, const char *event_name, int count);
 
@@ -351,8 +347,6 @@ void astman_send_list_complete_start(struct mansession *s, const struct message 
  * \note Between calling astman_send_list_complete_start() and
  * astman_send_list_complete_end() you can add additonal headers
  * using astman_append().
- *
- * \return Nothing
  */
 void astman_send_list_complete_end(struct mansession *s);
 
@@ -383,7 +377,7 @@ int astman_datastore_remove(struct mansession *s, struct ast_datastore *datastor
 /*!
  * \brief Find a datastore on a session
  *
- * \retval pointer to the datastore if found
+ * \return pointer to the datastore if found
  * \retval NULL if not found
  * \since 1.6.1
  */
@@ -416,7 +410,7 @@ struct ast_channel_snapshot;
  * \param prefix What to prepend to the channel fields
  *
  * \retval NULL on error
- * \retval ast_str* on success (must be ast_freed by caller)
+ * \return ast_str* on success (must be ast_freed by caller)
  */
 struct ast_str *ast_manager_build_channel_state_string_prefix(
 		const struct ast_channel_snapshot *snapshot,
@@ -430,7 +424,7 @@ struct ast_str *ast_manager_build_channel_state_string_prefix(
  *                 body
  *
  * \retval NULL on error
- * \retval ast_str* on success (must be ast_freed by caller)
+ * \return ast_str* on success (must be ast_freed by caller)
  */
 struct ast_str *ast_manager_build_channel_state_string(
 		const struct ast_channel_snapshot *snapshot);
@@ -458,7 +452,7 @@ struct ast_json;
  * \param exclusion_cb A \ref key_exclusion_cb pointer to a function that will exclude
  * keys from the final AMI string
  *
- * \retval A malloc'd \ref ast_str object. Callers of this function should free
+ * \return A malloc'd \ref ast_str object. Callers of this function should free
  * the returned \ref ast_str object
  * \retval NULL on error
  */
@@ -473,7 +467,7 @@ struct ast_str *ast_manager_str_from_json_object(struct ast_json *blob, key_excl
  * \param prefix What to prepend to the bridge fields
  *
  * \retval NULL on error
- * \retval ast_str* on success (must be ast_freed by caller)
+ * \return ast_str* on success (must be ast_freed by caller)
  */
 struct ast_str *ast_manager_build_bridge_state_string_prefix(
 	const struct ast_bridge_snapshot *snapshot,
@@ -487,7 +481,7 @@ struct ast_str *ast_manager_build_bridge_state_string_prefix(
  *                 body
  *
  * \retval NULL on error
- * \retval ast_str* on success (must be ast_freed by caller)
+ * \return ast_str* on success (must be ast_freed by caller)
  */
 struct ast_str *ast_manager_build_bridge_state_string(
 	const struct ast_bridge_snapshot *snapshot);
@@ -512,8 +506,8 @@ struct ast_manager_event_blob {
  * \param extra_fields_fmt Format string for extra fields to include.
  *                         Or NO_EXTRA_FIELDS for no extra fields.
  *
- * \return New \ref ast_manager_snapshot_event object.
- * \return \c NULL on error.
+ * \return New \ref ast_manager_event_blob object.
+ * \retval NULL on error.
  */
 struct ast_manager_event_blob *
 __attribute__((format(printf, 3, 4)))
@@ -552,16 +546,16 @@ int manager_mwi_init(void);
 
 /*!
  * \brief Initialize support for AMI channel events.
- * \return 0 on success.
- * \return non-zero on error.
+ * \retval 0 on success.
+ * \retval non-zero on error.
  * \since 12
  */
 int manager_bridging_init(void);
 
 /*!
  * \brief Initialize support for AMI endpoint events.
- * \return 0 on success.
- * \return non-zero on error.
+ * \retval 0 on success.
+ * \retval non-zero on error.
  * \since 12
  */
 int manager_endpoints_init(void);
@@ -578,7 +572,7 @@ int manager_endpoints_init(void);
  * - class_type is the class authorization type for the event
  * - event is a list of key/value tuples to be sent out in the message
  *
- * \retval A \ref stasis_message_type for AMI messages
+ * \return A \ref stasis_message_type for AMI messages
  */
 struct stasis_message_type *ast_manager_get_generic_type(void);
 
@@ -586,7 +580,7 @@ struct stasis_message_type *ast_manager_get_generic_type(void);
  * \since 12
  * \brief Get the \ref stasis topic for AMI
  *
- * \retval The \ref stasis topic for AMI
+ * \return The \ref stasis topic for AMI
  * \retval NULL on error
  */
 struct stasis_topic *ast_manager_get_topic(void);
@@ -600,9 +594,9 @@ struct stasis_topic *ast_manager_get_topic(void);
  * \param obj The event data to be published.
  *
  * Publishes a message to the \ref stasis message bus solely for the consumption of AMI.
- * The message will be of the type provided by \ref ast_manager_get_type, and will be
- * published to the topic provided by \ref ast_manager_get_topic. As such, the JSON must
- * be constructed as defined by the \ref ast_manager_get_type message.
+ * The message will be of the type provided by \ref ast_manager_get_generic_type, and
+ * will be published to the topic provided by \ref ast_manager_get_topic. As such, the
+ * JSON must be constructed as defined by the \ref ast_manager_get_generic_type message.
  */
 void ast_manager_publish_event(const char *type, int class_type, struct ast_json *obj);
 
@@ -610,7 +604,7 @@ void ast_manager_publish_event(const char *type, int class_type, struct ast_json
  * \since 12
  * \brief Get the \ref stasis_message_router for AMI
  *
- * \retval The \ref stasis_message_router for AMI
+ * \return The \ref stasis_message_router for AMI
  * \retval NULL on error
  */
 struct stasis_message_router *ast_manager_get_message_router(void);

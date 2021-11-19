@@ -1389,8 +1389,6 @@ static char *aoc_cli_debug_enable(struct ast_cli_entry *e, int cmd, struct ast_c
  * \param name Name of the time structure to convert.
  * \param time Data to convert.
  * \param scale Data to convert.
- *
- * \return Nothing
  */
 static void aoc_time_str(struct ast_str **msg, const char *prefix, const char *name, unsigned long time, enum ast_aoc_time_scale scale)
 {
@@ -1407,9 +1405,7 @@ static void aoc_time_str(struct ast_str **msg, const char *prefix, const char *n
  * \param msg Event message string being built.
  * \param prefix Prefix to add to the amount lines.
  * \param amount Data to convert.
- * \param multiplier to convert
- *
- * \return Nothing
+ * \param mult to convert
  */
 static void aoc_amount_str(struct ast_str **msg, const char *prefix, unsigned int amount, enum ast_aoc_currency_multiplier mult)
 {
@@ -1829,8 +1825,6 @@ static void aoc_event_blob_dtor(void *obj)
  * \param chan Channel associated with the AOC event. (May be NULL if no channel)
  * \param msg_type What kind of AOC event.
  * \param blob AOC data blob to publish.
- *
- * \return Nothing
  */
 static void aoc_publish_blob(struct ast_channel *chan, struct stasis_message_type *msg_type, struct ast_json *blob)
 {

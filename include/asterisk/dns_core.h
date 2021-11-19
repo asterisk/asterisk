@@ -109,7 +109,7 @@ unsigned int ast_dns_result_get_bogus(const struct ast_dns_result *result);
 /*!
  * \brief Get the error rcode of a DN result
  *
- * \param query The DNS result
+ * \param result The DNS result
  *
  * \return the DNS rcode
  */

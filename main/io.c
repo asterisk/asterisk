@@ -117,7 +117,8 @@ void io_context_destroy(struct io_context *ioc)
 
 /*! \brief
  * Grow the size of our arrays.
- * \return 0 on success or -1 on failure
+ * \retval 0 on success
+ * \retval -1 on failure
  */
 static int io_grow(struct io_context *ioc)
 {
@@ -157,7 +158,6 @@ static int io_grow(struct io_context *ioc)
  * Add a new I/O entry for this file descriptor
  * with the given event mask, to call callback with
  * data as an argument.
- * \return Returns NULL on failure.
  */
 int *ast_io_add(struct io_context *ioc, int fd, ast_io_cb callback, short events, void *data)
 {
@@ -397,6 +397,7 @@ int ast_sd_notify(const char *state) {
 #endif
 }
 
+#ifdef HAVE_SYSTEMD
 /*!
  * \internal \brief Check the type and sockaddr of a file descriptor.
  * \param fd File Descriptor to check.
@@ -405,7 +406,6 @@ int ast_sd_notify(const char *state) {
  * \retval 0 if matching
  * \retval -1 if not matching
  */
-#ifdef HAVE_SYSTEMD
 static int ast_sd_is_socket_sockaddr(int fd, int type, const struct ast_sockaddr* addr)
 {
 	int canretry = 1;

@@ -54,7 +54,7 @@ int ast_utf8_is_validn(const char *str, size_t size);
  * \brief Copy a string safely ensuring valid UTF-8
  * \since 13.36.0, 16.13.0, 17.7.0, 18.0.0
  *
- * This is similar to \a ast_copy_string, but it will only copy valid UTF-8
+ * This is similar to \ref ast_copy_string, but it will only copy valid UTF-8
  * sequences from the source string into the destination buffer. If an invalid
  * UTF-8 sequence is encountered, or the available space in the destination
  * buffer is exhausted in the middle of an otherwise valid UTF-8 sequence, the
@@ -64,7 +64,6 @@ int ast_utf8_is_validn(const char *str, size_t size);
  * \param dst The destination buffer.
  * \param src The source string
  * \param size The size of the destination buffer
- * \return Nothing.
  */
 void ast_utf8_copy_string(char *dst, const char *src, size_t size);
 
@@ -181,7 +180,7 @@ void ast_utf8_validator_destroy(struct ast_utf8_validator *validator);
  *
  * Does nothing unless TEST_FRAMEWORK is defined.
  *
- * \return Always returns 0
+ * \retval 0 Always
  */
 int ast_utf8_init(void);
 

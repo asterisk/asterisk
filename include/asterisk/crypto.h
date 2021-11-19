@@ -46,13 +46,13 @@ struct ast_key;
 
 /*!
  * \brief Retrieve a key
- * \param key Name of the key we are retrieving
- * \param type Intger type of key (AST_KEY_PUBLIC or AST_KEY_PRIVATE)
+ * \param kname Name of the key we are retrieving
+ * \param ktype Intger type of key (AST_KEY_PUBLIC or AST_KEY_PRIVATE)
  *
  * \retval the key on success.
  * \retval NULL on failure.
  */
-AST_OPTIONAL_API(struct ast_key *, ast_key_get, (const char *key, int type), { return NULL; });
+AST_OPTIONAL_API(struct ast_key *, ast_key_get, (const char *kname, int ktype), { return NULL; });
 
 /*!
  * \brief Check the authenticity of a message signature using a given public key
@@ -71,13 +71,13 @@ AST_OPTIONAL_API(int, ast_check_signature, (struct ast_key *key, const char *msg
  * \param key a public key to use to verify
  * \param msg the message that has been signed
  * \param msglen
- * \param sig the proposed valid signature in raw binary representation
+ * \param dsig the proposed valid signature in raw binary representation
  *
  * \retval 0 if the signature is valid.
  * \retval -1 otherwise.
  *
  */
-AST_OPTIONAL_API(int, ast_check_signature_bin, (struct ast_key *key, const char *msg, int msglen, const unsigned char *sig), { return -1; });
+AST_OPTIONAL_API(int, ast_check_signature_bin, (struct ast_key *key, const char *msg, int msglen, const unsigned char *dsig), { return -1; });
 
 /*!
  * \brief Sign a message signature using a given private key
@@ -97,14 +97,14 @@ AST_OPTIONAL_API(int, ast_sign, (struct ast_key *key, char *msg, char *sig), { r
  * \param key a private key to use to create the signature
  * \param msg the message to sign
  * \param msglen
- * \param sig a pointer to a buffer of at least 128 bytes in which the
+ * \param dsig a pointer to a buffer of at least 128 bytes in which the
  * raw encoded signature will be stored
  *
  * \retval 0 on success.
  * \retval -1 on failure.
  *
  */
-AST_OPTIONAL_API(int, ast_sign_bin, (struct ast_key *key, const char *msg, int msglen, unsigned char *sig), { return -1; });
+AST_OPTIONAL_API(int, ast_sign_bin, (struct ast_key *key, const char *msg, int msglen, unsigned char *dsig), { return -1; });
 
 /*!
  * \brief Encrypt a message using a given private key

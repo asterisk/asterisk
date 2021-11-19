@@ -144,7 +144,7 @@ struct ast_mwi_blob {
  * \param[in] mailbox The mailbox identifier string.
  * \param[in] context The context this mailbox resides in (NULL or "" if only using mailbox)
  *
- * \retval \ref ast_mwi_state object on success
+ * \return \ref ast_mwi_state object on success
  * \retval NULL on error
  */
 struct ast_mwi_state *ast_mwi_create(const char *mailbox, const char *context);
@@ -161,7 +161,7 @@ struct ast_mwi_state *ast_mwi_create(const char *mailbox, const char *context);
  * \param message_type The type of message to create
  * \param blob JSON object representing the data.
  * \return \ref ast_mwi_blob message.
- * \return \c NULL on error
+ * \retval NULL on error
  */
 struct stasis_message *ast_mwi_blob_create(struct ast_mwi_state *mwi_state,
 					   struct stasis_message_type *message_type,
@@ -169,7 +169,7 @@ struct stasis_message *ast_mwi_blob_create(struct ast_mwi_state *mwi_state,
 
 /*!
  * \brief Get the \ref stasis topic for MWI messages
- * \retval The topic structure for MWI messages
+ * \return The topic structure for MWI messages
  * \retval NULL if it has not been allocated
  * \since 12
  */
@@ -178,7 +178,7 @@ struct stasis_topic *ast_mwi_topic_all(void);
 /*!
  * \brief Get the \ref stasis topic for MWI messages on a unique ID
  * \param uniqueid The unique id for which to get the topic
- * \retval The topic structure for MWI messages for a given uniqueid
+ * \return The topic structure for MWI messages for a given uniqueid
  * \retval NULL if it failed to be found or allocated
  * \since 12
  */
@@ -186,7 +186,7 @@ struct stasis_topic *ast_mwi_topic(const char *uniqueid);
 
 /*!
  * \brief Get the \ref stasis caching topic for MWI messages
- * \retval The caching topic structure for MWI messages
+ * \return The caching topic structure for MWI messages
  * \retval NULL if it has not been allocated
  * \since 12
  */
@@ -194,13 +194,13 @@ struct stasis_topic *ast_mwi_topic_cached(void);
 
 /*!
  * \brief Backend cache for ast_mwi_topic_cached().
- * \retval Cache of \ref ast_mwi_state.
+ * \return Cache of \ref ast_mwi_state.
  */
 struct stasis_cache *ast_mwi_state_cache(void);
 
 /*!
  * \brief Get the \ref stasis message type for MWI messages
- * \retval The message type structure for MWI messages
+ * \return The message type structure for MWI messages
  * \retval NULL on error
  * \since 12
  */
@@ -216,7 +216,7 @@ struct stasis_message_type *ast_mwi_state_type(void);
  *
  * At least one key/value tuple must have a key value of "Event".
  *
- * \retval The \ref stasis_message_type for voicemail application specific messages
+ * \return The \ref stasis_message_type for voicemail application specific messages
  * \retval NULL on error
  * \since 12
  */

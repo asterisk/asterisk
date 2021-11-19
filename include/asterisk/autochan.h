@@ -113,8 +113,6 @@ struct ast_autochan *ast_autochan_setup(struct ast_channel *chan);
  * which was made in ast_autochan_setup
  *
  * \param autochan The autochan that you wish to destroy
- *
- * \retval void
  */
 void ast_autochan_destroy(struct ast_autochan *autochan);
 
@@ -131,8 +129,6 @@ void ast_autochan_destroy(struct ast_autochan *autochan);
  *
  * \param old_chan The channel that autochans may currently point to
  * \param new_chan The channel that we want to point those autochans to now
- *
- * \retval void
  */
 void ast_autochan_new_channel(struct ast_channel *old_chan, struct ast_channel *new_chan);
 

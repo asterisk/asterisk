@@ -95,7 +95,7 @@ struct ast_unreal_pvt {
 	struct ast_format_cap *reqcap;              /*!< Requested format capabilities */
 	struct ast_jb_conf jb_conf;                 /*!< jitterbuffer configuration */
 	unsigned int flags;                         /*!< Private option flags */
-	/*! Base name of the unreal channels.  exten@context or other name. */
+	/*! Base name of the unreal channels.  exten\@context or other name. */
 	char name[AST_MAX_EXTENSION + AST_MAX_CONTEXT + 2];
 	struct ast_stream_topology *reqtopology;    /*!< Requested stream topology */
 	struct ast_stream_topology *owner_old_topology;	/*!< Stored topology for owner side when we need to restore later (faxing) */
@@ -176,8 +176,6 @@ int ast_unreal_setoption(struct ast_channel *chan, int option, void *data, int d
  * \since 12.0.0
  *
  * \param vdoomed Object to destroy.
- *
- * \return Nothing
  */
 void ast_unreal_destructor(void *vdoomed);
 
@@ -189,7 +187,7 @@ void ast_unreal_destructor(void *vdoomed);
  * \param destructor Destructor callback.
  * \param cap Format capabilities to give the unreal private struct.
  *
- * \retval pvt on success.
+ * \return pvt on success.
  * \retval NULL on error.
  */
 struct ast_unreal_pvt *ast_unreal_alloc(size_t size, ao2_destructor_fn destructor, struct ast_format_cap *cap);
@@ -201,9 +199,9 @@ struct ast_unreal_pvt *ast_unreal_alloc(size_t size, ao2_destructor_fn destructo
  *
  * \param size Size of the unreal struct to allocate.
  * \param destructor Destructor callback.
- * \param cap Format capabilities to give the unreal private struct.
+ * \param topology
  *
- * \retval pvt on success.
+ * \return pvt on success.
  * \retval NULL on error.
  */
 struct ast_unreal_pvt *ast_unreal_alloc_stream_topology(size_t size, ao2_destructor_fn destructor, struct ast_stream_topology *topology);
@@ -218,10 +216,11 @@ struct ast_unreal_pvt *ast_unreal_alloc_stream_topology(size_t size, ao2_destruc
  * \param semi2_state State to start the semi2(outgoing chan) channel in.
  * \param exten Exten to start the chennels in. (NULL if s)
  * \param context Context to start the channels in. (NULL if default)
+ * \param assignedids
  * \param requestor Channel requesting creation. (NULL if none)
  * \param callid Thread callid to use.
  *
- * \retval semi1_channel on success.
+ * \return semi1_channel on success.
  * \retval NULL on error.
  */
 struct ast_channel *ast_unreal_new_channels(struct ast_unreal_pvt *p,
@@ -237,8 +236,6 @@ struct ast_channel *ast_unreal_new_channels(struct ast_unreal_pvt *p,
  * \param semi2 Outgoing channel of unreal channel pair.
  *
  * \note On entry, the semi1 and semi2 channels are already locked.
- *
- * \return Nothing
  */
 void ast_unreal_call_setup(struct ast_channel *semi1, struct ast_channel *semi2);
 

@@ -389,7 +389,7 @@ static void threadpool_destructor(void *obj)
 	ao2_cleanup(pool->listener);
 }
 
-/*
+/*!
  * \brief Allocate a threadpool
  *
  * This is implemented as a taskprocessor listener's alloc callback. This
@@ -486,6 +486,7 @@ static struct task_pushed_data *task_pushed_data_alloc(struct ast_threadpool *po
  * Called as an ao2_callback in the threadpool's control taskprocessor thread.
  * \param obj The worker to activate
  * \param arg The pool where the worker belongs
+ * \param flags
  * \retval CMP_MATCH
  */
 static int activate_thread(void *obj, void *arg, int flags)
@@ -519,7 +520,7 @@ static int activate_thread(void *obj, void *arg, int flags)
  *
  * This function is called from the threadpool's control taskprocessor thread.
  * \param pool The pool that is expanding
- * \delta The number of threads to add to the pool
+ * \param delta The number of threads to add to the pool
  */
 static void grow(struct ast_threadpool *pool, int delta)
 {
@@ -1039,7 +1040,6 @@ static void worker_thread_destroy(void *obj)
  * done
  *
  * \param arg The worker thread
- * \retval NULL
  */
 static void *worker_start(void *arg)
 {
@@ -1283,8 +1283,6 @@ int ast_serializer_shutdown_group_join(struct ast_serializer_shutdown_group *shu
  * \since 13.5.0
  *
  * \param shutdown_group Group shutdown controller.
- *
- * \return Nothing
  */
 static void serializer_shutdown_group_inc(struct ast_serializer_shutdown_group *shutdown_group)
 {
@@ -1299,8 +1297,6 @@ static void serializer_shutdown_group_inc(struct ast_serializer_shutdown_group *
  * \since 13.5.0
  *
  * \param shutdown_group Group shutdown controller.
- *
- * \return Nothing
  */
 static void serializer_shutdown_group_dec(struct ast_serializer_shutdown_group *shutdown_group)
 {

@@ -826,14 +826,6 @@ void bridge_channel_queue_deferred_frames(struct ast_bridge_channel *bridge_chan
 	ast_bridge_channel_unlock(bridge_channel);
 }
 
-/*!
- * \internal
- * \brief Suspend a channel from a bridge.
- *
- * \param bridge_channel Channel to suspend.
- *
- * \note This function assumes bridge_channel->bridge is locked.
- */
 void bridge_channel_internal_suspend_nolock(struct ast_bridge_channel *bridge_channel)
 {
 	bridge_channel->suspended = 1;
@@ -860,14 +852,6 @@ static void bridge_channel_suspend(struct ast_bridge_channel *bridge_channel)
 	ast_bridge_unlock(bridge_channel->bridge);
 }
 
-/*!
- * \internal
- * \brief Unsuspend a channel from a bridge.
- *
- * \param bridge_channel Channel to unsuspend.
- *
- * \note This function assumes bridge_channel->bridge is locked.
- */
 void bridge_channel_internal_unsuspend_nolock(struct ast_bridge_channel *bridge_channel)
 {
 	bridge_channel->suspended = 0;

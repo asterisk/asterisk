@@ -76,7 +76,7 @@ enum aco_matchtype {
 typedef void *(*aco_type_item_alloc)(const char *category);
 
 /*! \brief Find a item given a category and container of items
- * \param container The container to search for the item
+ * \param newcontainer The container to search for the item
  * \param category The category associated with the item
  * \retval non-NULL item from the container
  * \retval NULL item does not exist in container
@@ -265,13 +265,13 @@ enum aco_option_type {
 	 *   FLDSET macro with the field of type struct ast_ha *.
 	 *
 	 * Example:
-	 * {code}
+	 * \code
 	 * struct test_item {
 	 *     struct ast_ha *ha;
 	 * };
 	 * aco_option_register(&cfg_info, "permit", ACO_EXACT, my_types, NULL, OPT_ACL_T, 1, FLDSET(struct test_item, ha));
 	 * aco_option_register(&cfg_info, "deny", ACO_EXACT, my_types, NULL, OPT_ACL_T, 0, FLDSET(struct test_item, ha));
-	 * {code}
+	 * \endcode
 	 */
 	OPT_ACL_T,
 
@@ -284,12 +284,12 @@ enum aco_option_type {
 	 *   cannot be a bitfield. If bitfields are required, they must be set via a custom handler.
 	 *
 	 * Example:
-	 * {code}
+	 * \code
 	 * struct test_item {
 	 *     int enabled;
 	 * };
 	 * aco_option_register(&cfg_info, "enabled", ACO_EXACT, my_types, "no", OPT_BOOL_T, 1, FLDSET(struct test_item, enabled));
-	 * {endcode}
+	 * \endcode
 	 */
 	OPT_BOOL_T,
 
@@ -302,13 +302,13 @@ enum aco_option_type {
 	 *   The flag to set
 	 *
 	 * Example:
-	 * {code}
+	 * \code
 	 * #define MY_TYPE_ISQUIET    1 << 4
 	 * struct test_item {
 	 *     unsigned int flags;
 	 * };
 	 * aco_option_register(&cfg_info, "quiet", ACO_EXACT, my_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct test_item, flags), MY_TYPE_ISQUIET);
-	 * {endcode}
+	 * \endcode
 	 */
 	OPT_BOOLFLAG_T,
 
@@ -320,12 +320,12 @@ enum aco_option_type {
 	 *   CHARFLDSET macro with a field of type char[]
 	 *
 	 * Example:
-	 * {code}
+	 * \code
 	 * struct test_item {
 	 *     char description[128];
 	 * };
 	 * aco_option_register(&cfg_info, "description", ACO_EXACT, my_types, "none", OPT_CHAR_ARRAY_T, 0, CHARFLDSET(struct test_item, description));
-	 * {endcode}
+	 * \endcode
 	 */
 	OPT_CHAR_ARRAY_T,
 
@@ -337,13 +337,13 @@ enum aco_option_type {
 	 *   FLDSET macro with field representing a struct ast_format_cap *
 	 *
 	 * Example:
-	 * {code}
+	 * \code
 	 * struct test_item {
 	 *     struct ast_format cap *cap;
 	 * };
 	 * aco_option_register(&cfg_info, "allow", ACO_EXACT, my_types, "ulaw,alaw", OPT_CODEC_T, 1, FLDSET(struct test_item, cap));
 	 * aco_option_register(&cfg_info, "disallow", ACO_EXACT, my_types, "all", OPT_CODEC_T, 0, FLDSET(struct test_item, cap));
-	 * {endcode}
+	 * \endcode
 	 */
 	OPT_CODEC_T,
 
@@ -361,9 +361,9 @@ enum aco_option_type {
 	 * struct test_item {
 	 *     double dub;
 	 * };
-	 * {code}
+	 * \code
 	 * aco_option_register(&cfg_info, "doubleopt", ACO_EXACT, my_types, "3", OPT_DOUBLE_T, 0, FLDSET(struct test_item, dub));
-	 * {endcode}
+	 * \endcode
 	 */
 	OPT_DOUBLE_T,
 
@@ -385,9 +385,9 @@ enum aco_option_type {
 	 * struct test_item {
 	 *     int32_t intopt;
 	 * };
-	 * {code}
+	 * \code
 	 * aco_option_register(&cfg_info, "intopt", ACO_EXACT, my_types, "3", OPT_INT_T, PARSE_IN_RANGE, FLDSET(struct test_item, intopt), -10, 10);
-	 * {endcode}
+	 * \endcode
 	 */
 	OPT_INT_T,
 
@@ -406,12 +406,12 @@ enum aco_option_type {
 	 *   FLDSET macro with the field being of type struct ast_sockaddr.
 	 *
 	 * Example:
-	 * {code}
+	 * \code
 	 * struct test_item {
 	 *     struct ast_sockaddr addr;
 	 * };
 	 * aco_option_register(&cfg_info, "sockaddropt", ACO_EXACT, my_types, "0.0.0.0:1234", OPT_SOCKADDR_T, 0, FLDSET(struct test_item, addr));
-	 * {endcode}
+	 * \endcode
 	 */
 	OPT_SOCKADDR_T,
 
@@ -423,14 +423,14 @@ enum aco_option_type {
 	 *   STRFLDSET macro with the field being the field created by AST_STRING_FIELD
 	 *
 	 * Example:
-	 * {code}
+	 * \code
 	 * struct test_item {
 	 *     AST_DECLARE_STRING_FIELDS(
 	 *         AST_STRING_FIELD(thing);
 	 *     );
 	 * };
 	 * aco_option_register(&cfg_info, "thing", ACO_EXACT, my_types, NULL, OPT_STRINGFIELD_T, 0, STRFLDSET(struct test_item, thing));
-	 * {endcode}
+	 * \endcode
 	 */
 	OPT_STRINGFIELD_T,
 
@@ -452,9 +452,9 @@ enum aco_option_type {
 	 * struct test_item {
 	 *     int32_t intopt;
 	 * };
-	 * {code}
+	 * \code
 	 * aco_option_register(&cfg_info, "uintopt", ACO_EXACT, my_types, "3", OPT_UINT_T, PARSE_IN_RANGE, FLDSET(struct test_item, uintopt), 1, 10);
-	 * {endcode}
+	 * \endcode
 	 */
 	OPT_UINT_T,
 
@@ -471,12 +471,12 @@ enum aco_option_type {
 	 * "yes" or "no".
 	 *
 	 * Example:
-	 * {code}
+	 * \code
 	 * struct test_item {
 	 *     int enabled;
 	 * };
 	 * aco_option_register(&cfg_info, "enabled", ACO_EXACT, my_types, "no", OPT_YESNO_T, 1, FLDSET(struct test_item, enabled));
-	 * {endcode}
+	 * \endcode
 	 */
 	OPT_YESNO_T,
 
@@ -498,9 +498,9 @@ enum aco_option_type {
 	 * struct test_item {
 	 *     int timelen;
 	 * };
-	 * {code}
+	 * \code
 	 * aco_option_register(&cfg_info, "timelen", ACO_EXACT, my_types, "3", OPT_TIMELEN_T, PARSE_IN_RANGE, FLDSET(struct test_item, intopt), TIMELEN_MILLISECONDS, -10, 10);
-	 * {endcode}
+	 * \endcode
 	 */
 	OPT_TIMELEN_T,
 
@@ -681,7 +681,7 @@ unsigned int aco_option_get_flags(const struct aco_option *option);
  * \brief Get the offset position for an argument within a config option
  *
  * \param option Pointer to the aco_option struct
- * \param arg Argument number
+ * \param position Argument number
  *
  * \retval position of the argument
  */

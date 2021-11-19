@@ -241,7 +241,7 @@ int ast_cli_command_full(int uid, int gid, int fd, const char *s);
  * \param fd pipe
  * \param size is the total size of the string
  * \param s incoming string
- * \retval number of commands executed
+ * \return number of commands executed
  */
 int ast_cli_command_multiple_full(int uid, int gid, int fd, size_t size, const char *s);
 
@@ -365,8 +365,8 @@ char *ast_complete_channels(const char *line, const char *word, int pos, int sta
  * \brief Print on cli a duration in seconds in format
  * %s year(s), %s week(s), %s day(s), %s hour(s), %s second(s)
  *
- * \param ast_cli_args fd to print by ast_cli
- * \param duration The time (in seconds) to print
+ * \param fd fd to print by ast_cli
+ * \param seconds The time (in seconds) to print
  * \param prefix A Prefix string to add before of duration formatted
  */
 void ast_cli_print_timestr_fromseconds(int fd, int seconds, const char *prefix);

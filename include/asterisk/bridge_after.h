@@ -60,10 +60,8 @@ enum ast_bridge_after_cb_reason {
  *
  * \note chan is locked by this function.
  *
- * \details Add a channel datastore to setup the goto location
- * when the channel leaves the bridge and run a PBX from there.
- *
- * \return Nothing
+ * Add a channel datastore to setup the goto location when the
+ * channel leaves the bridge and run a PBX from there.
  */
 void ast_bridge_set_after_goto(struct ast_channel *chan, const char *context, const char *exten, int priority);
 
@@ -76,10 +74,8 @@ void ast_bridge_set_after_goto(struct ast_channel *chan, const char *context, co
  *
  * \note chan is locked by this function.
  *
- * \details Add a channel datastore to setup the goto location
- * when the channel leaves the bridge and run a PBX from there.
- *
- * \return Nothing
+ * Add a channel datastore to setup the goto location when the
+ * channel leaves the bridge and run a PBX from there.
  */
 void ast_bridge_set_after_h(struct ast_channel *chan, const char *context);
 
@@ -95,14 +91,12 @@ void ast_bridge_set_after_h(struct ast_channel *chan, const char *context);
  *
  * \note chan is locked by this function.
  *
- * \details Add a channel datastore to setup the goto location
- * when the channel leaves the bridge and run a PBX from there.
+ * Add a channel datastore to setup the goto location when the
+ * channel leaves the bridge and run a PBX from there.
  *
  * If parseable_goto then use the given context/exten/priority
  *   as the relative position for the parseable_goto.
  * Else goto the given context/exten/priority+1.
- *
- * \return Nothing
  */
 void ast_bridge_set_after_go_on(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *parseable_goto);
 
@@ -114,8 +108,8 @@ void ast_bridge_set_after_go_on(struct ast_channel *chan, const char *context, c
  *
  * \note chan is locked by this function.
  *
- * \details Pull off any after bridge goto location datastore and
- * setup for dialplan execution there.
+ * Pull off any after bridge goto location datastore and setup for
+ * dialplan execution there.
  *
  * \retval 0 on success.  The goto location is set for a PBX to run it.
  * \retval non-zero on error or no goto location.
@@ -130,8 +124,6 @@ int ast_bridge_setup_after_goto(struct ast_channel *chan);
  * \since 12.0.0
  *
  * \param chan Channel to run after bridge callback.
- *
- * \return Nothing
  */
 void ast_bridge_run_after_callback(struct ast_channel *chan);
 
@@ -140,8 +132,7 @@ void ast_bridge_run_after_callback(struct ast_channel *chan);
  * \since 12.0.0
  *
  * \param chan Channel to run after bridge callback.
- *
- * \return Nothing
+ * \param reason
  */
 void ast_bridge_discard_after_callback(struct ast_channel *chan, enum ast_bridge_after_cb_reason reason);
 
@@ -153,13 +144,11 @@ void ast_bridge_discard_after_callback(struct ast_channel *chan, enum ast_bridge
  *
  * \note chan is locked by this function.
  *
- * \details Pull off any after bridge goto location datastore
- * and run a PBX at that location.
+ * Pull off any after bridge goto location datastore and run a PBX at that
+ * location.
  *
  * \note On return, the chan pointer is no longer valid because
  * the channel has hung up.
- *
- * \return Nothing
  */
 void ast_bridge_run_after_goto(struct ast_channel *chan);
 
@@ -170,8 +159,6 @@ void ast_bridge_run_after_goto(struct ast_channel *chan);
  * \param chan Channel to discard after bridge goto location.
  *
  * \note chan is locked by this function.
- *
- * \return Nothing
  */
 void ast_bridge_discard_after_goto(struct ast_channel *chan);
 
@@ -194,8 +181,6 @@ void ast_bridge_read_after_goto(struct ast_channel *chan, char *buffer, size_t b
  *
  * \note Called when the channel leaves the bridging system or
  * is destroyed.
- *
- * \return Nothing
  */
 typedef void (*ast_bridge_after_cb_failed)(enum ast_bridge_after_cb_reason reason, void *data);
 
@@ -205,8 +190,6 @@ typedef void (*ast_bridge_after_cb_failed)(enum ast_bridge_after_cb_reason reaso
  *
  * \param chan Channel just leaving bridging system.
  * \param data Extra data what setup the callback wanted to pass.
- *
- * \return Nothing
  */
 typedef void (*ast_bridge_after_cb)(struct ast_channel *chan, void *data);
 

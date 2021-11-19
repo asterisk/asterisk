@@ -92,7 +92,7 @@ extern const char *ast_stream_state_map[AST_STREAM_STATE_END];
  * \since 18
  *
  * \param stream_state One of enum ast_stream_state
- * \returns A constant string with the name of the state or an empty string
+ * \return A constant string with the name of the state or an empty string
  * if an invalid value was passed in.
  */
 #define ast_stream_state_to_str(stream_state) _stream_maps_to_str(ast_stream_state_map, stream_state)
@@ -127,7 +127,7 @@ void ast_stream_free(struct ast_stream *stream);
  * \brief Create a deep clone of an existing stream
  *
  * \param stream The existing stream
- * \param Optional name for cloned stream. If NULL, then existing stream's name is copied.
+ * \param name Optional for cloned stream. If NULL, then existing stream's name is copied.
  *
  * \retval non-NULL success
  * \retval NULL failure
@@ -181,7 +181,7 @@ void ast_stream_set_type(struct ast_stream *stream, enum ast_media_type type);
  *
  * \retval "" (empty string) if either buf or *buf are NULL
  * \retval "(null stream)" if *stream was NULL
- * \retval <stream_representation> otherwise
+ * \return \<stream_representation\> otherwise
  *
  * \warning No attempt should ever be made to free the returned
  * char * and it should be dup'd if needed after the ast_str is freed.
@@ -189,10 +189,10 @@ void ast_stream_set_type(struct ast_stream *stream, enum ast_media_type type);
  * \details
  *
  * Return format:
- * <name>:<media_type>:<stream_state> (formats)
+ * \verbatim <name>:<media_type>:<stream_state> (formats) \endverbatim
  *
  * Sample return:
- * "audio:audio:sendrecv (ulaw,g722)"
+ * \verbatim "audio:audio:sendrecv (ulaw,g722)" \endverbatim
  *
  */
 const char *ast_stream_to_str(const struct ast_stream *stream, struct ast_str **buf);
@@ -200,9 +200,9 @@ const char *ast_stream_to_str(const struct ast_stream *stream, struct ast_str **
 /*!
  * \brief Get a stack allocated string representing the stream for debugging/display purposes
  *
- * \param stream A stream
+ * \param __stream A stream
  *
- * \returns a stack allocated pointer to a string representing the stream.
+ * \return A stack allocated pointer to a string representing the stream.
  *
  * \warning No attempt should ever be made to free the returned
  * char* as it is allocated from the stack.
@@ -312,7 +312,7 @@ const char *ast_stream_get_metadata(const struct ast_stream *stream,
  *
  * \param stream The media stream
  *
- * \retval An ast_variable list of the metadata key/value pairs.
+ * \return An ast_variable list of the metadata key/value pairs.
  * \retval NULL if error or no variables are set.
  *
  * When you're finished with the list, you must call
@@ -426,11 +426,11 @@ void ast_stream_topology_free(struct ast_stream_topology *topology);
  * \param topology The topology of streams
  * \param stream The stream to append
  *
- * \returns the position of the stream in the topology (-1 on error)
+ * \return The position of the stream in the topology (-1 on error)
  *
  * \since 15
  *
- * \note If the stream's name is empty, it'll be set to <stream_type>-<position>
+ * \note If the stream's name is empty, it'll be set to \<stream_type\>-\<position\>
  */
 int ast_stream_topology_append_stream(struct ast_stream_topology *topology,
 	struct ast_stream *stream);
@@ -440,7 +440,7 @@ int ast_stream_topology_append_stream(struct ast_stream_topology *topology,
  *
  * \param topology The topology of streams
  *
- * \return the number of streams (-1 on error)
+ * \return The number of streams (-1 on error)
  *
  * \since 15
  */
@@ -477,7 +477,7 @@ struct ast_stream *ast_stream_topology_get_stream(
  *
  * \since 15
  *
- * \note If the stream's name is empty, it'll be set to <stream_type>-<position>
+ * \note If the stream's name is empty, it'll be set to \<stream_type\>-\<position\>
  */
 int ast_stream_topology_set_stream(struct ast_stream_topology *topology,
 	unsigned int position, struct ast_stream *stream);
@@ -495,8 +495,6 @@ int ast_stream_topology_set_stream(struct ast_stream_topology *topology,
  *
  * \retval 0 on success.
  * \retval -1 on failure.
- *
- * \return Nothing
  */
 int ast_stream_topology_del_stream(struct ast_stream_topology *topology,
 	unsigned int position);
@@ -506,7 +504,7 @@ int ast_stream_topology_del_stream(struct ast_stream_topology *topology,
  * creates a topology and separates the media types in format_cap into
  * separate streams.
  *
- * \param caps The format capabilities structure (NULL creates an empty topology)
+ * \param cap The format capabilities structure (NULL creates an empty topology)
  *
  * \retval non-NULL success
  * \retval NULL failure
@@ -613,16 +611,16 @@ int ast_stream_topology_get_active_count(const struct ast_stream_topology *topol
  *
  * \retval "" (empty string) if either buf or *buf are NULL
  * \retval "(null topology)" if *topology was NULL
- * \retval <topology_representation> otherwise
+ * \return \<topology_representation\> otherwise
  *
  * \warning No attempt should ever be made to free the returned
  * char * and it should be dup'd if needed after the ast_str is freed.
   *
  * Return format:
- * <stream> ...
+ * \verbatim <stream> ... \endverbatim
  *
  * Sample return:
- * "<audio:audio:sendrecv (ulaw,g722)> <video:video:sendonly (h264)>"
+ * \verbatim "<audio:audio:sendrecv (ulaw,g722)> <video:video:sendonly (h264)>" \endverbatim
  *
  */
 const char *ast_stream_topology_to_str(const struct ast_stream_topology *topology, struct ast_str **buf);
@@ -630,9 +628,9 @@ const char *ast_stream_topology_to_str(const struct ast_stream_topology *topolog
 /*!
  * \brief Get a stack allocated string representing the topology for debugging/display purposes
  *
- * \param topology A topology
+ * \param __topology A topology
  *
- * \returns a stack allocated pointer to a string representing the topology.
+ * \return A stack allocated pointer to a string representing the topology.
  *
  * \warning No attempt should ever be made to free the returned
  * char* as it is allocated from the stack.

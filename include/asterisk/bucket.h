@@ -19,11 +19,11 @@
 /*! \file
  * \brief Bucket File API
  * \author Joshua Colp <jcolp@digium.com>
- * \ref AstBucket
+ * \ref bucket "AstBucket"
  */
 
 /*!
- * \page bucket AstBucket Bucket File API
+ * \page bucket Bucket File API
  *
  * Bucket is an API which provides directory and file access in a generic fashion. It is
  * implemented as a thin wrapper over the sorcery data access layer API and is written in
@@ -210,8 +210,8 @@ void ast_bucket_file_metadata_callback(struct ast_bucket_file *file, ao2_callbac
  *
  * \param uri Complete URI for the bucket
  *
- * \param non-NULL success
- * \param NULL failure
+ * \retval non-NULL success
+ * \retval NULL failure
  *
  * \note This only creates a local bucket object, to persist in backend storage you must call
  * ast_bucket_create
@@ -235,7 +235,7 @@ int ast_bucket_create(struct ast_bucket *bucket);
  * all properties of the \c ast_bucket structure are copied, any metadata
  * in the original structure simply has its reference count increased.
  *
- * \param file The bucket to clone
+ * \param bucket The bucket to clone
  *
  * \retval non-NULL success
  * \retval NULL failure
@@ -320,8 +320,8 @@ struct ast_json *ast_bucket_json(const struct ast_bucket *bucket);
  *
  * \param uri Complete URI for the bucket file
  *
- * \param non-NULL success
- * \param NULL failure
+ * \retval non-NULL success
+ * \retval NULL failure
  *
  * \note This only creates a local bucket file object, to persist in backend storage you must call
  * ast_bucket_file_create
@@ -415,10 +415,10 @@ struct ast_bucket_file *ast_bucket_file_retrieve(const char *uri);
  * caller of this function would like to update the object, it should perform
  * a retrieve operation.
  *
- * \param bucket_file The bucket file object to check
+ * \param file The bucket file object to check
  *
- * \retval 0 if \c bucket_file is not stale
- * \retval 1 if \c bucket_file is stale
+ * \retval 0 if \p file is not stale
+ * \retval 1 if \p file is stale
  */
 int ast_bucket_file_is_stale(struct ast_bucket_file *file);
 

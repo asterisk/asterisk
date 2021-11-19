@@ -97,17 +97,17 @@ typedef int (*ast_heap_cmp_fn)(void *elm1, void *elm2);
  * \return An instance of a max heap
  * \since 1.6.1
  */
-struct ast_heap *_ast_heap_create(unsigned int init_height, ast_heap_cmp_fn cmp_fn,
-		ssize_t index_offset, const char *file, int lineno, const char *func);
 #define ast_heap_create(init_height, cmp_fn, index_offset) \
 	_ast_heap_create(init_height, cmp_fn, index_offset, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+struct ast_heap *_ast_heap_create(unsigned int init_height, ast_heap_cmp_fn cmp_fn,
+		ssize_t index_offset, const char *file, int lineno, const char *func);
 
 /*!
  * \brief Destroy a max heap
  *
  * \param h the heap to destroy
  *
- * \return NULL for convenience
+ * \retval NULL for convenience
  * \since 1.6.1
  */
 struct ast_heap *ast_heap_destroy(struct ast_heap *h);
@@ -122,9 +122,9 @@ struct ast_heap *ast_heap_destroy(struct ast_heap *h);
  * \retval non-zero failure
  * \since 1.6.1
  */
-int _ast_heap_push(struct ast_heap *h, void *elm, const char *file, int lineno, const char *func);
 #define ast_heap_push(h, elm) \
 	_ast_heap_push(h, elm, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+int _ast_heap_push(struct ast_heap *h, void *elm, const char *file, int lineno, const char *func);
 
 /*!
  * \brief Pop the max element off of the heap
@@ -145,7 +145,8 @@ void *ast_heap_pop(struct ast_heap *h);
  * \param h the heap to remove from
  * \param elm the element to remove
  *
- * \return elm, if the removal was successful, or NULL if it failed
+ * \return elm, if the removal was successful
+ * \retval NULL if it failed
  *
  * \note the index_offset parameter to ast_heap_create() is required to be able
  *       to use this function.

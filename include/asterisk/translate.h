@@ -249,7 +249,8 @@ struct ast_trans_pvt;
  * This registers a codec translator with asterisk
  * \param t populated ast_translator structure
  * \param mod module handle to the module that owns this translator
- * \return 0 on success, -1 on failure
+ * \retval 0 on success
+ * \retval -1 on failure
  */
 int __ast_register_translator(struct ast_translator *t, struct ast_module *module);
 
@@ -260,14 +261,14 @@ int __ast_register_translator(struct ast_translator *t, struct ast_module *modul
  * \brief Unregister a translator
  * Unregisters the given translator
  * \param t translator to unregister
- * \return 0 on success, -1 on failure
+ * \retval 0 on success
+ * \retval -1 on failure
  */
 int ast_unregister_translator(struct ast_translator *t);
 
 /*!
  * \brief Activate a previously deactivated translator
  * \param t translator to activate
- * \return nothing
  *
  * Enables the specified translator for use.
  */
@@ -276,7 +277,6 @@ void ast_translator_activate(struct ast_translator *t);
 /*!
  * \brief Deactivate a translator
  * \param t translator to deactivate
- * \return nothing
  *
  * Disables the specified translator from being used.
  */
@@ -292,7 +292,8 @@ void ast_translator_deactivate(struct ast_translator *t);
  * \param src_cap source capabilities
  * \param dst_fmt_out destination format chosen out of destination capabilities
  * \param src_fmt_out source format chosen out of source capabilities
- * \return Returns 0 on success, -1 if no path could be found.
+ * \retval 0 on success
+ * \retval -1 if no path could be found.
  *
  * \note dst_cap and src_cap are not mondified.
  */
@@ -306,7 +307,8 @@ int ast_translator_best_choice(struct ast_format_cap *dst_cap,
  * Build a path (possibly NULL) from source to dest
  * \param dst dest destination format
  * \param src source source format
- * \return ast_trans_pvt on success, NULL on failure
+ * \return ast_trans_pvt on success
+ * \retval NULL on failure
  * */
 struct ast_trans_pvt *ast_translator_build_path(struct ast_format *dest, struct ast_format *source);
 
@@ -326,7 +328,8 @@ void ast_translator_free_path(struct ast_trans_pvt *tr);
  * \param path tr translator structure to use for translation
  * \param f frame to translate
  * \param consume Whether or not to free the original frame
- * \return an ast_frame of the new translation format on success, NULL on failure
+ * \return an ast_frame of the new translation format on success
+ * \retval NULL on failure
  */
 struct ast_frame *ast_translate(struct ast_trans_pvt *tr, struct ast_frame *f, int consume);
 
@@ -334,7 +337,8 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *tr, struct ast_frame *f, i
  * \brief Returns the number of steps required to convert from 'src' to 'dest'.
  * \param dest destination format
  * \param src source format
- * \return the number of translation steps required, or -1 if no path is available
+ * \return the number of translation steps required
+ * \retval -1 if no path is available
  */
 unsigned int ast_translate_path_steps(struct ast_format *dest, struct ast_format *src);
 
@@ -342,9 +346,8 @@ unsigned int ast_translate_path_steps(struct ast_format *dest, struct ast_format
  * \brief Find available formats
  * \param dest possible destination formats
  * \param src source formats
- * \param result capabilities structure to store available formats in
- *
- * \return the destination formats that are available in the source or translatable
+ * \param[out] result capabilities structure to store available formats in
+ * returns the destination formats that are available in the source or translatable
  *
  * The result will include all formats from 'dest' that are either present
  * in 'src' or translatable from a format present in 'src'.
@@ -358,7 +361,8 @@ void ast_translate_available_formats(struct ast_format_cap *dest, struct ast_for
  * \brief Puts a string representation of the translation path into outbuf
  * \param t translator structure containing the translation path
  * \param str ast_str output buffer
- * \retval on success pointer to beginning of outbuf. on failure "".
+ * \return on success pointer to beginning of outbuf
+ * \retval "" on failure
  */
 const char *ast_translate_path_to_str(struct ast_trans_pvt *t, struct ast_str **str);
 

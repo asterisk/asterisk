@@ -97,9 +97,9 @@
  * state transitions to Dial
  * \li If a \ref ast_channel_snapshot is received indicating that the channel
  * has hung up, the state transitions to Finalized
- * \li If a \ref ast_bridge_blob_type is received indicating a Bridge Enter, the
+ * \li If a \ref ast_bridge_blob is received indicating a Bridge Enter, the
  * state transitions to Bridge
- * \li If a \ref ast_bridge_blob_type message indicating an entrance to a
+ * \li If a \ref ast_bridge_blob message indicating an entrance to a
  * holding bridge with a subclass type of "parking" is received, the CDR is
  * transitioned to the Parked state.
  *
@@ -117,12 +117,12 @@
  *
  * The following transitions can occur while in the Dial state:
  * \li If a \ref ast_channel_dial_type indicating a Dial End is received where
- * the \ref dial_status is not ANSWER, the state transitions to Finalized
+ * the \c dial_status is not ANSWER, the state transitions to Finalized
  * \li If a \ref ast_channel_snapshot is received indicating that the channel
  * has hung up, the state transitions to Finalized
  * \li If a \ref ast_channel_dial_type indicating a Dial End is received where
- * the \ref dial_status is ANSWER, the state transitions to DialedPending
- * \li If a \ref ast_bridge_blob_type is received indicating a Bridge Enter, the
+ * the \c dial_status is ANSWER, the state transitions to DialedPending
+ * \li If a \ref ast_bridge_blob is received indicating a Bridge Enter, the
  * state transitions to Bridge
  *
  * \par DialedPending
@@ -139,9 +139,9 @@
  * \li If a \ref ast_channel_snapshot is received that indicates that the
  * channel has begun executing dialplan, we transition to the Finalized state
  * if we have a Party B. Otherwise, we transition to the Single state.
- * \li If a \ref ast_bridge_blob_type is received indicating a Bridge Enter, the
+ * \li If a \ref ast_bridge_blob is received indicating a Bridge Enter, the
  * state transitions to Bridge (through the Dial state)
- * \li If a \ref ast_bridge_blob_type message indicating an entrance to a
+ * \li If a \ref ast_bridge_blob message indicating an entrance to a
  * holding bridge with a subclass type of "parking" is received, the CDR is
  * transitioned to the Parked state.
  *
@@ -172,12 +172,12 @@
  * \li New CDRs are now generated. A gets a new CDR for A -> C. B is dialed, and
  * hence cannot get any CDR.
  * \li Now say another Originated channel, D, joins the bridge. Say D has the
- * \ref party_a flag set on it, such that it is always the preferred Party A.
- * As such, it takes A as its Party B.
+ * \ref AST_CDR_FLAG_PARTY_A flag set on it, such that it is always the
+ * preferred Party A. As such, it takes A as its Party B.
  * \li New CDRs are generated. D gets new CDRs for D -> B and D -> C.
  *
  * The following transitions can occur while in the Bridge state:
- * \li If a \ref ast_bridge_blob_type message indicating a leave is received,
+ * \li If a \ref ast_bridge_blob message indicating a leave is received,
  * the state transitions to the Finalized state.
  *
  * \par Parked
@@ -202,7 +202,7 @@
  * subsequent channel snapshot updates.
  *
  * The following transitions can occur while in the Parked state:
- * \li If a \ref ast_bridge_blob_type message indicating a leave is received,
+ * \li If a \ref ast_bridge_blob message indicating a leave is received,
  * the state transitions to the Finalized state
  *
  * \par Finalized
@@ -333,7 +333,7 @@ struct ast_cdr {
  * decrement the ref count when finished with the configuration.
  *
  * \retval NULL on error
- * \retval The current CDR configuration
+ * \return The current CDR configuration
  */
 struct ast_cdr_config *ast_cdr_get_config(void);
 
@@ -353,7 +353,7 @@ void ast_cdr_set_config(struct ast_cdr_config *config);
  * \param name The name of the variable
  * \param ret Pointer to the formatted buffer
  * \param workspace A pointer to the buffer to use to format the variable
- * \param workspacelen The size of \ref workspace
+ * \param workspacelen The size of \p workspace
  * \param raw If non-zero and a date/time is extracted, provide epoch seconds. Otherwise format as a date/time stamp
  */
 void ast_cdr_format_var(struct ast_cdr *cdr, const char *name, char **ret, char *workspace, int workspacelen, int raw);
@@ -404,7 +404,7 @@ int ast_cdr_fork(const char *channel_name, struct ast_flags *options);
  * This function sets specific administrative properties on a CDR for a channel.
  * This includes properties like preventing a CDR from being dispatched, to
  * setting the channel as the preferred Party A in future CDRs. See
- * \ref enum ast_cdr_options for more information.
+ * \ref ast_cdr_options for more information.
  *
  * \param channel_name The CDR's channel
  * \param option Option to apply to the CDR
@@ -445,7 +445,7 @@ int ast_cdr_reset(const char *channel_name, int keep_variables);
  * \param buf A buffer to use for formatting the data
  * \param delim A delimeter to use to separate variable keys/values
  * \param sep A separator to use between nestings
- * \retval the total number of serialized variables
+ * \return the total number of serialized variables
  */
 int ast_cdr_serialize_variables(const char *channel_name, struct ast_str **buf, char delim, char sep);
 
@@ -462,7 +462,7 @@ int ast_cdr_is_enabled(void);
 
 /*!
  * \brief Allocate a CDR record
- * \retval a malloc'd ast_cdr structure
+ * \return a malloc'd ast_cdr structure
  * \retval NULL on error (malloc failure)
  */
 struct ast_cdr *ast_cdr_alloc(void);
@@ -478,7 +478,7 @@ struct stasis_message_router;
  * this function.
  *
  * \retval NULL if the CDR engine is disabled or unavailable
- * \retval the \ref stasis_message_router otherwise
+ * \return the \ref stasis_message_router otherwise
  */
 struct stasis_message_router *ast_cdr_message_router(void);
 
@@ -486,7 +486,7 @@ struct stasis_message_router *ast_cdr_message_router(void);
  * \brief Duplicate a public CDR
  * \param cdr the record to duplicate
  *
- * \retval a malloc'd ast_cdr structure,
+ * \return a malloc'd ast_cdr structure,
  * \retval NULL on error (malloc failure)
  */
 struct ast_cdr *ast_cdr_dup(struct ast_cdr *cdr);

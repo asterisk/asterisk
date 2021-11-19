@@ -91,7 +91,7 @@ static int metadata_sync_to_astdb(void *obj, void *arg, int flags)
 /*!
  * \internal
  * \brief Sync a media cache item to the AstDB
- * \param bucket_file The \c ast_bucket_file media cache item to sync
+ * \param bucket_file The \ref ast_bucket_file media cache item to sync
  */
 static void media_cache_item_sync_to_astdb(struct ast_bucket_file *bucket_file)
 {
@@ -109,7 +109,7 @@ static void media_cache_item_sync_to_astdb(struct ast_bucket_file *bucket_file)
 /*!
  * \internal
  * \brief Delete a media cache item from the AstDB
- * \param bucket_file The \c ast_bucket_file media cache item to delete
+ * \param bucket_file The \ref ast_bucket_file media cache item to delete
  */
 static void media_cache_item_del_from_astdb(struct ast_bucket_file *bucket_file)
 {
@@ -127,6 +127,7 @@ static void media_cache_item_del_from_astdb(struct ast_bucket_file *bucket_file)
 /*!
  * \internal
  * \brief Update the name of the file backing a \c bucket_file
+ * \param bucket_file The \ref ast_bucket_file media cache item to update
  * \param preferred_file_name The preferred name of the backing file
  */
 static void bucket_file_update_path(struct ast_bucket_file *bucket_file,

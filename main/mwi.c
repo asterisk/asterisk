@@ -143,7 +143,7 @@ struct ast_mwi_state *ast_mwi_create(const char *mailbox, const char *context)
  * change in mailbox state
  * \param[in] eid The EID of the server that originally published the message
  *
- * \retval message on success.  Use ao2_cleanup() when done with it.
+ * \return message on success.  Use ao2_cleanup() when done with it.
  * \retval NULL on error.
  */
 static struct stasis_message *mwi_state_create_message(

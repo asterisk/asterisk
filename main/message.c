@@ -988,7 +988,8 @@ int ast_msg_queue(struct ast_msg *msg)
  *
  * \param chan the relevant channel
  *
- * \return the channel's message datastore, or NULL on error
+ * \return the channel's message datastore
+ * \retval NULL on error
  */
 static struct ast_datastore *msg_datastore_find_or_create(struct ast_channel *chan)
 {
@@ -1189,8 +1190,8 @@ static int msg_data_func_write(struct ast_channel *chan, const char *function,
  * \note \c msg_techs should be locked via \c msg_techs_lock prior to
  *       calling this function
  *
- * \retval NULL if no \c ast_msg_tech has been registered
- * \retval \c ast_msg_tech if registered
+ * \retval NULL if no \ref ast_msg_tech has been registered
+ * \return \ref ast_msg_tech if registered
  */
 static const struct ast_msg_tech *msg_find_by_tech_name(const char *tech_name)
 {
@@ -1215,8 +1216,8 @@ static const struct ast_msg_tech *msg_find_by_tech_name(const char *tech_name)
  * \note \c msg_handlers should be locked via \c msg_handlers_lock
  *       prior to calling this function
  *
- * \retval NULL if no \c ast_msg_handler has been registered
- * \retval \c ast_msg_handler if registered
+ * \retval NULL if no \ref ast_msg_handler has been registered
+ * \return \ref ast_msg_handler if registered
  */
 static const struct ast_msg_handler *msg_handler_find_by_tech_name(const char *tech_name)
 {
@@ -1744,7 +1745,7 @@ static void message_shutdown(void)
 	ast_rwlock_destroy(&msg_handlers_lock);
 }
 
-/*
+/*!
  * \internal
  * \brief Initialize stuff during Asterisk startup.
  *

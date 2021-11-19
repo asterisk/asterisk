@@ -171,8 +171,6 @@ struct ast_bridge_video_mode {
  * \brief Destroy the bridge.
  *
  * \param self Bridge to operate upon.
- *
- * \return Nothing
  */
 typedef void (*ast_bridge_destructor_fn)(struct ast_bridge *self);
 
@@ -186,8 +184,6 @@ typedef void (*ast_bridge_destructor_fn)(struct ast_bridge *self);
  * references to the bridge so it can be destroyed.
  *
  * \note On entry, self must NOT be locked.
- *
- * \return Nothing
  */
 typedef void (*ast_bridge_dissolving_fn)(struct ast_bridge *self);
 
@@ -223,8 +219,6 @@ typedef int (*ast_bridge_push_channel_fn)(struct ast_bridge *self, struct ast_br
  * bridge_channel->bridge_pvt.
  *
  * \note On entry, self is already locked.
- *
- * \return Nothing
  */
 typedef void (*ast_bridge_pull_channel_fn)(struct ast_bridge *self, struct ast_bridge_channel *bridge_channel);
 
@@ -239,8 +233,6 @@ typedef void (*ast_bridge_pull_channel_fn)(struct ast_bridge *self, struct ast_b
  * to re-evaluate this a channel in the bridge.
  *
  * \note On entry, self is already locked.
- *
- * \return Nothing
  */
 typedef void (*ast_bridge_notify_masquerade_fn)(struct ast_bridge *self, struct ast_bridge_channel *bridge_channel);
 
@@ -390,7 +382,7 @@ extern struct ast_bridge_methods ast_bridge_base_v_table;
  * \param name Name given to the bridge by its creator (optional, requires named creator)
  * \param id Unique ID given to the bridge by its creator (optional)
  *
- * \retval a pointer to a new bridge on success
+ * \return a pointer to a new bridge on success
  * \retval NULL on failure
  *
  * Example usage:
@@ -423,8 +415,6 @@ static inline int _ast_bridge_trylock(struct ast_bridge *bridge, const char *fil
  * \brief Lock the bridge.
  *
  * \param bridge Bridge to lock
- *
- * \return Nothing
  */
 #define ast_bridge_lock(bridge)	_ast_bridge_lock(bridge, __FILE__, __PRETTY_FUNCTION__, __LINE__, #bridge)
 static inline void _ast_bridge_lock(struct ast_bridge *bridge, const char *file, const char *function, int line, const char *var)
@@ -436,8 +426,6 @@ static inline void _ast_bridge_lock(struct ast_bridge *bridge, const char *file,
  * \brief Unlock the bridge.
  *
  * \param bridge Bridge to unlock
- *
- * \return Nothing
  */
 #define ast_bridge_unlock(bridge)	_ast_bridge_unlock(bridge, __FILE__, __PRETTY_FUNCTION__, __LINE__, #bridge)
 static inline void _ast_bridge_unlock(struct ast_bridge *bridge, const char *file, const char *function, int line, const char *var)
@@ -488,8 +476,6 @@ int ast_bridge_destroy(struct ast_bridge *bridge, int cause);
  * \since 12.0.0
  *
  * \param chan Channel just involved in a masquerade
- *
- * \return Nothing
  */
 void ast_bridge_notify_masquerade(struct ast_channel *chan);
 
@@ -752,8 +738,6 @@ int ast_bridge_move(struct ast_bridge *dst_bridge, struct ast_bridge *src_bridge
  * \param bridge What to operate on.
  * \param request Inhibit request increment.
  *     (Positive to add requests.  Negative to remove requests.)
- *
- * \return Nothing
  */
 void ast_bridge_merge_inhibit(struct ast_bridge *bridge, int request);
 
@@ -809,10 +793,9 @@ int ast_bridge_unsuspend(struct ast_bridge *bridge, struct ast_channel *chan);
  *
  * \pre chan must be locked before calling
  *
- * \param name channel name of the bridged peer
+ * \param chan channel name of the bridged peer
+ * \param name
  * \param pvtid Private CallID of the bridged peer
- *
- * \return nothing
  */
 void ast_bridge_vars_set(struct ast_channel *chan, const char *name, const char *pvtid);
 
@@ -868,7 +851,7 @@ enum ast_bridge_optimization {
  * AST_BRIDGE_OPTIMIZE_PROHIBITED guarantees that an optimization attempt will
  * never succeed.
  *
- * \returns Optimization allowability for the bridges
+ * \return Optimization allowability for the bridges
  */
 enum ast_bridge_optimization ast_bridges_allow_optimization(struct ast_bridge *chan_bridge,
 		struct ast_bridge *peer_bridge);
@@ -1016,7 +999,7 @@ int ast_bridge_number_video_src(struct ast_bridge *bridge);
  * \brief Determine if a channel is a video src for the bridge
  *
  * \retval 0 Not a current video source of the bridge.
- * \retval None 0, is a video source of the bridge, The number
+ * \retval non-zero is a video source of the bridge, The number
  *         returned represents the priority this video stream has
  *         on the bridge where 1 is the highest priority.
  */
@@ -1032,7 +1015,7 @@ void ast_bridge_remove_video_src(struct ast_bridge *bridge, struct ast_channel *
  *
  * \param video_mode The video mode
  *
- * \retval A string representation of \c video_mode
+ * \return A string representation of \c video_mode
  */
 const char *ast_bridge_video_mode_to_string(enum ast_bridge_video_mode_type video_mode);
 
@@ -1230,8 +1213,6 @@ struct ast_channel *ast_bridge_peer(struct ast_bridge *bridge, struct ast_channe
  *
  * \param features Bridge features structure
  * \param flags Determinator for whether hook is removed.
- *
- * \return Nothing
  */
 void ast_bridge_features_remove(struct ast_bridge_features *features, enum ast_bridge_hook_remove_flags flags);
 
