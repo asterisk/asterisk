@@ -2405,9 +2405,9 @@ void ast_copy_pj_str(char *dest, const pj_str_t *src, size_t size);
  *
  * \note Caller is responsible for freeing the allocated memory.
  *
- * \param dest [out] The destination buffer
+ * \param[out] dest The destination buffer
  * \param src The pj_str_t to copy
- * \retval Number of characters copied or negative value on error
+ * \return Number of characters copied or negative value on error
  */
 int ast_copy_pj_str2(char **dest, const pj_str_t *src);
 
@@ -3388,8 +3388,6 @@ enum ast_transport_monitor_reg ast_sip_transport_monitor_register_replace(pjsip_
  *
  * \note The data object passed into the original register will have its reference count
  * automatically decremented.
- *
- * \return Nothing
  */
 void ast_sip_transport_monitor_unregister(pjsip_transport *transport,
 	ast_transport_monitor_shutdown_cb cb, void *data, ast_transport_monitor_data_matcher matches);

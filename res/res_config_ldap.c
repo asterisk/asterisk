@@ -98,7 +98,7 @@ struct ldap_table_config {
 	struct ast_variable *attributes;  /*!< attribute names conversion */
 	struct ast_variable *delimiters;  /*!< the current delimiter is semicolon, so we are not using this variable */
 	AST_LIST_ENTRY(ldap_table_config) entry;
-	/* TODO: Make proxies work */
+	/*! \todo: Make proxies work */
 };
 
 /*! \brief Should be locked before using it
@@ -160,7 +160,8 @@ static struct ast_variable *variable_named(struct ast_variable *var, const char 
 	return var;
 }
 
-/*! \brief Count  semicolons in string
+/*!
+ * \brief Count semicolons in string
  * \param somestr - pointer to a string
  *
  * \return number of occurances of the delimiter(semicolon)
@@ -177,7 +178,8 @@ static int semicolon_count_str(const char *somestr)
 	return count;
 }
 
-/* \brief Count semicolons in variables
+/*!
+ * \brief Count semicolons in variables
  *
  * takes a linked list of \a ast_variable variables, finds the one with the name variable_value
  * and returns the number of semicolons in the value for that \a ast_variable
@@ -405,7 +407,7 @@ static struct ast_variable **realtime_ldap_result_to_vars(struct ldap_table_conf
 	int delim_tot_count = 0;
 	int delim_count = 0;
 
-	/* \brief First find the total count
+	/*! \brief First find the total count
 	 */
 	ldap_entry = ldap_first_entry(ldapConn, ldap_result_msg);
 
@@ -432,7 +434,7 @@ static struct ast_variable **realtime_ldap_result_to_vars(struct ldap_table_conf
 
 	i = 0;
 
-	/* \brief For each static realtime variable we may create several entries in the \a vars array if it's delimited
+	/*! \brief For each static realtime variable we may create several entries in the \a vars array if it's delimited
 	 */
 	for (entry_index = 0; ldap_entry; ) {
 		int pos = 0;
@@ -891,7 +893,7 @@ static struct ast_variable **realtime_ldap_base_ap(unsigned int *entries_count_p
 
 		ldap_msgfree(ldap_result_msg);
 
-		/*! \TODO get the default variables from the accountBaseDN, not implemented with delimited values
+		/*! \todo get the default variables from the accountBaseDN, not implemented with delimited values
 		 */
 		if (vars) {
 			struct ast_variable **p = vars;
