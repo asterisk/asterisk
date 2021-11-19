@@ -387,7 +387,7 @@ STASIS_MESSAGE_TYPE_DEFN_LOCAL(cdr_sync_message_type);
 
 struct cdr_object;
 
-/*! \brief Return types for \ref process_bridge_enter functions */
+/*! \brief Return types for \p process_bridge_enter functions */
 enum process_bridge_enter_results {
 	/*!
 	 * The CDR was the only party in the bridge.
@@ -497,7 +497,7 @@ struct cdr_object_fn_table {
 	 * \param bridge The bridge that the Party A just entered into
 	 * \param channel The \ref ast_channel_snapshot for this CDR's Party A
 	 *
-	 * \retval process_bridge_enter_results Defines whether or not this CDR was able
+	 * \return process_bridge_enter_results Defines whether or not this CDR was able
 	 * to fully handle the bridge enter message.
 	 */
 	enum process_bridge_enter_results (* const process_bridge_enter)(
@@ -741,7 +741,7 @@ struct cdr_object {
  * \brief Copy variables from one list to another
  * \param to_list destination
  * \param from_list source
- * \retval The number of copied variables
+ * \return The number of copied variables
  */
 static int copy_variables(struct varshead *to_list, struct varshead *from_list)
 {
@@ -800,6 +800,7 @@ static void cdr_object_snapshot_copy(struct cdr_object_snapshot *dst, struct cdr
  * \brief Transition a \ref cdr_object to a new state with initiation flag
  * \param cdr The \ref cdr_object to transition
  * \param fn_table The \ref cdr_object_fn_table state to go to
+ * \param do_init
  */
 static void cdr_object_transition_state_init(struct cdr_object *cdr, struct cdr_object_fn_table *fn_table, int do_init)
 {
@@ -943,8 +944,6 @@ static int cdr_all_cmp_fn(void *obj, void *arg, int flags)
  * \internal
  * \brief Relink the CDR because Party B's snapshot changed.
  * \since 13.19.0
- *
- * \return Nothing
  */
 static void cdr_all_relink(struct cdr_object *cdr)
 {
@@ -966,8 +965,6 @@ static void cdr_all_relink(struct cdr_object *cdr)
  * \internal
  * \brief Unlink the master CDR and chained records from the active_cdrs_all container.
  * \since 13.19.0
- *
- * \return Nothing
  */
 static void cdr_all_unlink(struct cdr_object *cdr)
 {
@@ -1032,6 +1029,7 @@ static void cdr_object_dtor(void *obj)
 /*!
  * \brief \ref cdr_object constructor
  * \param chan The \ref ast_channel_snapshot that is the CDR's Party A
+ * \param event_time
  *
  * This implicitly sets the state of the newly created CDR to the Single state
  * (\ref single_state_fn_table)
@@ -1071,6 +1069,7 @@ static struct cdr_object *cdr_object_alloc(struct ast_channel_snapshot *chan, co
 /*!
  * \brief Create a new \ref cdr_object and append it to an existing chain
  * \param cdr The \ref cdr_object to append to
+ * \param event_time
  */
 static struct cdr_object *cdr_object_create_and_append(struct cdr_object *cdr, const struct timeval *event_time)
 {
@@ -1121,8 +1120,6 @@ static struct cdr_object *cdr_object_create_and_append(struct cdr_object *cdr, c
  *
  * \retval 0 if the CDR flag is not configured.
  * \retval non-zero if the CDR flag is configured.
- *
- * \return Nothing
  */
 static int is_cdr_flag_set(unsigned int cdr_flag)
 {
@@ -1187,7 +1184,7 @@ static int snapshot_is_dialed(struct ast_channel_snapshot *snapshot)
  * resulting CDR
  * \param left One of the snapshots
  * \param right The other snapshot
- * \retval The snapshot that won
+ * \return The snapshot that won
  */
 static struct cdr_object_snapshot *cdr_object_pick_party_a(struct cdr_object_snapshot *left, struct cdr_object_snapshot *right)
 {
@@ -1281,7 +1278,7 @@ static void set_variable(struct varshead *headp, const char *name, const char *v
  * \brief Create a chain of \ref ast_cdr objects from a chain of \ref cdr_object
  * suitable for consumption by the registered CDR backends
  * \param cdr The \ref cdr_object to convert to a public record
- * \retval A chain of \ref ast_cdr objects on success
+ * \return A chain of \ref ast_cdr objects on success
  * \retval NULL on failure
  */
 static struct ast_cdr *cdr_object_create_public_records(struct cdr_object *cdr)
@@ -1431,11 +1428,11 @@ static void cdr_object_set_disposition(struct cdr_object *cdr, int hangupcause)
  *
  * This function is safe to call multiple times. Note that you can call this
  * explicitly before going to the finalized state if there's a chance the CDR
- * will be re-activated, in which case the \ref cdr_object's end time should be
+ * will be re-activated, in which case the \p cdr's end time should be
  * cleared. This function is implicitly called when a CDR transitions to the
  * finalized state and right before it is dispatched
  *
- * \param cdr_object The CDR to finalize
+ * \param cdr The CDR to finalize
  */
 static void cdr_object_finalize(struct cdr_object *cdr)
 {
@@ -1502,7 +1499,7 @@ static void cdr_object_check_party_a_answer(struct cdr_object *cdr)
 	}
 }
 
-/* \brief Set Caller ID information on a CDR */
+/*! \brief Set Caller ID information on a CDR */
 static void cdr_object_update_cid(struct cdr_object_snapshot *old_snapshot, struct ast_channel_snapshot *new_snapshot)
 {
 	if (!old_snapshot->snapshot) {
@@ -2099,7 +2096,6 @@ static int dial_status_end(const char *dialstatus)
  * \brief Handler for Stasis-Core dial messages
  * \param data Passed on
  * \param sub The stasis subscription for this message callback
- * \param topic The topic this message was published for
  * \param message The message
  */
 static void handle_dial_message(void *data, struct stasis_subscription *sub, struct stasis_message *message)
@@ -2272,7 +2268,6 @@ static int check_new_cdr_needed(struct ast_channel_snapshot *old_snapshot,
  * \brief Handler for channel snapshot update messages
  * \param data Passed on
  * \param sub The stasis subscription for this message callback
- * \param topic The topic this message was published for
  * \param message The message
  */
 static void handle_channel_snapshot_update_message(void *data, struct stasis_subscription *sub, struct stasis_message *message)
@@ -2398,7 +2393,6 @@ static int filter_bridge_messages(struct ast_bridge_snapshot *bridge)
  * \brief Handler for when a channel leaves a bridge
  * \param data Passed on
  * \param sub The stasis subscription for this message callback
- * \param topic The topic this message was published for
  * \param message The message - hopefully a bridge one!
  */
 static void handle_bridge_leave_message(void *data, struct stasis_subscription *sub,
@@ -2489,15 +2483,15 @@ static void bridge_candidate_add_to_cdr(struct cdr_object *cdr,
 }
 
 /*!
- * \brief Process a single \ref bridge_candidate
+ * \brief Process a single \c bridge_candidate
  *
  * When a CDR enters a bridge, it needs to make pairings with everyone else
  * that it is not currently paired with. This function determines, for the
  * CDR for the channel that entered the bridge and the CDR for every other
  * channel currently in the bridge, who is Party A and makes new CDRs.
  *
- * \param cdr The \ref cdr_obj being processed
- * \param cand_cdr The \ref cdr_object that is a candidate
+ * \param cdr The \ref cdr_object being processed
+ * \param base_cand_cdr The \ref cdr_object that is a candidate
  *
  */
 static void bridge_candidate_process(struct cdr_object *cdr, struct cdr_object *base_cand_cdr)
@@ -2582,6 +2576,7 @@ static void handle_bridge_pairings(struct cdr_object *cdr, struct ast_bridge_sna
  * \param cdr The CDR to operate on
  * \param bridge The bridge the channel just entered
  * \param channel The channel snapshot
+ * \param event_time
  */
 static void handle_parking_bridge_enter_message(struct cdr_object *cdr,
 		struct ast_bridge_snapshot *bridge,
@@ -2623,6 +2618,7 @@ static void handle_parking_bridge_enter_message(struct cdr_object *cdr,
  * \param cdr The CDR to operate on
  * \param bridge The bridge the channel just entered
  * \param channel The channel snapshot
+ * \param event_time
  */
 static void handle_standard_bridge_enter_message(struct cdr_object *cdr,
 		struct ast_bridge_snapshot *bridge,
@@ -2702,7 +2698,6 @@ try_again:
  * \brief Handler for Stasis-Core bridge enter messages
  * \param data Passed on
  * \param sub The stasis subscription for this message callback
- * \param topic The topic this message was published for
  * \param message The message - hopefully a bridge one!
  */
 static void handle_bridge_enter_message(void *data, struct stasis_subscription *sub,
@@ -2745,7 +2740,6 @@ static void handle_bridge_enter_message(void *data, struct stasis_subscription *
  * \brief Handler for when a channel is parked
  * \param data Passed on
  * \param sub The stasis subscription for this message callback
- * \param topic The topic this message was published for
  * \param message The message about who got parked
  * */
 static void handle_parked_call_message(void *data, struct stasis_subscription *sub,
@@ -2814,7 +2808,6 @@ static void handle_parked_call_message(void *data, struct stasis_subscription *s
  * \brief Handler for a synchronization message
  * \param data Passed on
  * \param sub The stasis subscription for this message callback
- * \param topic The topic this message was published for
  * \param message A blank ao2 object
  * */
 static void handle_cdr_sync_message(void *data, struct stasis_subscription *sub,
@@ -3306,7 +3299,7 @@ static int cdr_object_format_property(struct cdr_object *cdr_obj, const char *na
  * \brief Look up and retrieve a CDR object by channel name
  * \param name The name of the channel
  * \retval NULL on error
- * \retval The \ref cdr_object for the channel on success, with the reference
+ * \return The \ref cdr_object for the channel on success, with the reference
  *	count bumped by one.
  */
 static struct cdr_object *cdr_object_get_by_name(const char *name)
@@ -4254,7 +4247,7 @@ static struct ast_cli_entry cli_commands[] = {
 };
 
 /*!
- * \brief This dispatches *all* \ref cdr_objects. It should only be used during
+ * \brief This dispatches *all* \ref cdr_object. It should only be used during
  * shutdown, so that we get billing records for everything that we can.
  */
 static int cdr_object_dispatch_all_cb(void *obj, void *arg, int flags)
@@ -4439,8 +4432,6 @@ static void cdr_enable_batch_mode(struct ast_cdr_config *config)
  * \param v_obj A pointer to the object we want printed.
  * \param where User data needed by prnt to determine where to put output.
  * \param prnt Print output callback function to use.
- *
- * \return Nothing
  */
 static void cdr_master_print_fn(void *v_obj, void *where, ao2_prnt_fn *prnt)
 {
@@ -4466,8 +4457,6 @@ static void cdr_master_print_fn(void *v_obj, void *where, ao2_prnt_fn *prnt)
  * \param v_obj A pointer to the object we want printed.
  * \param where User data needed by prnt to determine where to put output.
  * \param prnt Print output callback function to use.
- *
- * \return Nothing
  */
 static void cdr_all_print_fn(void *v_obj, void *where, ao2_prnt_fn *prnt)
 {

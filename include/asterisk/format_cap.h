@@ -43,17 +43,16 @@ enum ast_format_cap_flags {
  *
  * \param flags Modifiers of struct behavior.
  *
- * \retval ast_format_cap object on success.
+ * \return ast_format_cap object on success.
  * \retval NULL on failure.
  */
-struct ast_format_cap *__ast_format_cap_alloc(enum ast_format_cap_flags flags,
-	const char *tag, const char *file, int line, const char *func);
-
 #define ast_format_cap_alloc(flags) \
 	__ast_format_cap_alloc((flags), "ast_format_cap_alloc", \
 		__FILE__, __LINE__, __PRETTY_FUNCTION__)
 #define ast_t_format_cap_alloc(flags, tag) \
 	__ast_format_cap_alloc((flags), (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__)
+struct ast_format_cap *__ast_format_cap_alloc(enum ast_format_cap_flags flags,
+	const char *tag, const char *file, int line, const char *func);
 
 /*!
  * \brief Set the global framing.
@@ -74,7 +73,7 @@ void ast_format_cap_set_framing(struct ast_format_cap *cap, unsigned int framing
  * \param cap The capabilities structure.
  *
  * \retval 0 if no formats are in the structure and no framing has been provided
- * \retval The global framing value (in milliseconds)
+ * \return The global framing value (in milliseconds)
  *
  * \note This will be the minimum framing allowed across all formats in the
  *       capabilities structure, or an overridden value
@@ -97,15 +96,14 @@ unsigned int ast_format_cap_get_framing(const struct ast_format_cap *cap);
  *
  * \note If framing is specified here it overrides any global framing that has been set.
  */
-int __ast_format_cap_append(struct ast_format_cap *cap, struct ast_format *format, unsigned int framing,
-	const char *tag, const char *file, int line, const char *func);
-
 #define ast_format_cap_append(cap, format, framing) \
 	__ast_format_cap_append((cap), (format), (framing), "ast_format_cap_append", \
 		__FILE__, __LINE__, __PRETTY_FUNCTION__)
 #define ast_t_format_cap_append(cap, format, framing, tag) \
 	__ast_format_cap_append((cap), (format), (framing), (tag), \
 		__FILE__, __LINE__, __PRETTY_FUNCTION__)
+int __ast_format_cap_append(struct ast_format_cap *cap, struct ast_format *format, unsigned int framing,
+	const char *tag, const char *file, int line, const char *func);
 
 /*!
  * \brief Add all codecs Asterisk knows about for a specific type to
@@ -218,8 +216,8 @@ unsigned int ast_format_cap_get_format_framing(const struct ast_format_cap *cap,
  *
  * \note format must be an exact pointer match to remove from capabilities structure.
  *
- * \retval 0, remove was successful
- * \retval -1, remove failed. Could not find format to remove
+ * \retval 0 remove was successful
+ * \retval -1 remove failed. Could not find format to remove
  */
 int ast_format_cap_remove(struct ast_format_cap *cap, struct ast_format *format);
 
@@ -248,7 +246,7 @@ struct ast_format *ast_format_cap_get_compatible_format(const struct ast_format_
 /*!
  * \brief Find if ast_format is within the capabilities of the ast_format_cap object.
  *
-* \retval ast_format_cmp_res representing the result of the compatibility check between cap and format.
+* \return ast_format_cmp_res representing the result of the compatibility check between cap and format.
  */
 enum ast_format_cmp_res ast_format_cap_iscompatible_format(const struct ast_format_cap *cap, const struct ast_format *format);
 

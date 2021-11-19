@@ -99,7 +99,7 @@
  *	and reported back.
  *
  *	- Extension states
- *		\arg \ref AstENUM ast_extension_states
+ *		\arg \ref ast_extension_states "AstENUM"
  *		\arg \ref pbx.c
  *		\arg \ref pbx.h
  *	- Structures
@@ -781,8 +781,6 @@ static const char *device_state_get_id(struct stasis_message *message)
  *
  * \param cache_topic Caching topic the aggregate message may be published over.
  * \param aggregate The aggregate shapshot message to publish.
- *
- * \return Nothing
  */
 static void device_state_aggregate_publish(struct stasis_topic *cache_topic, struct stasis_message *aggregate)
 {

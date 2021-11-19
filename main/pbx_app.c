@@ -254,7 +254,7 @@ free_docs:
 	}
 }
 
-/*
+/*!
  * \brief 'show application' CLI command implementation function...
  */
 static char *handle_show_application(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
@@ -465,7 +465,7 @@ const char *app_name(struct ast_app *app)
 	return app->name;
 }
 
-/*
+/*!
    \note This function is special. It saves the stack so that no matter
    how many times it is called, it returns to the same place */
 int pbx_exec(struct ast_channel *c,	/*!< Channel */

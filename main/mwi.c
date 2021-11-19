@@ -161,13 +161,14 @@ struct ast_mwi_state *ast_mwi_create(const char *mailbox, const char *context)
  *
  * \param[in] mailbox The mailbox identifier string.
  * \param[in] context The context this mailbox resides in (NULL or "" if only using mailbox)
+ * \param urgent_msgs
  * \param[in] new_msgs The number of new messages in this mailbox
  * \param[in] old_msgs The number of old messages in this mailbox
  * \param[in] channel_id A unique identifier for a channel associated with this
  * change in mailbox state
  * \param[in] eid The EID of the server that originally published the message
  *
- * \retval message on success.  Use ao2_cleanup() when done with it.
+ * \return message on success.  Use ao2_cleanup() when done with it.
  * \retval NULL on error.
  */
 static struct stasis_message *mwi_state_create_message(

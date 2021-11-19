@@ -80,8 +80,6 @@ struct ast_dnsmgr_entry *ast_dnsmgr_get_family(const char *name, struct ast_sock
  * \brief Free a DNS manager entry
  *
  * \param entry the DNS manager entry to free
- *
- * \return nothing
  */
 void ast_dnsmgr_release(struct ast_dnsmgr_entry *entry);
 

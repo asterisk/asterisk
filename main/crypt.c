@@ -65,7 +65,7 @@ static char gen_salt_char(void)
  * \param[out] current_salt Output string in which to generate the salt.
  *                          This can be an empty string, or the results of a
  *                          prior gen_salt call.
- * \param max_len Length of \a current_salt.
+ * \param maxlen Length of \a current_salt.
  * \return 0 on success.
  * \return Non-zero on error.
  */

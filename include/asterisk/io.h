@@ -81,7 +81,7 @@ typedef int (*ast_io_cb)(int *id, int fd, short events, void *cbdata);
  * \param data data to pass to the callback
  * Watch for any of revents activities on fd, calling callback with data as
  * callback data.
- * \retval a pointer to ID of the IO event
+ * \return a pointer to ID of the IO event
  * \retval NULL on failure
  */
 int *ast_io_add(struct io_context *ioc, int fd, ast_io_cb callback, short events, void *data);
@@ -94,9 +94,9 @@ int *ast_io_add(struct io_context *ioc, int fd, ast_io_cb callback, short events
  * \param callback new callback function
  * \param events event mask to wait for
  * \param data data to pass to the callback function
- * Change an I/O handler, updating fd if > -1, callback if non-null,
- * and revents if >-1, and data if non-null.
- * \retval a pointer to the ID of the IO event
+ * Change an I/O handler, updating fd if \> -1, callback if non-null,
+ * and revents if \> -1, and data if non-null.
+ * \return a pointer to the ID of the IO event
  * \retval NULL on failure
  */
 int *ast_io_change(struct io_context *ioc, int *id, int fd, ast_io_cb callback, short events, void *data);
@@ -118,26 +118,36 @@ int ast_io_remove(struct io_context *ioc, int *id);
  * Wait for I/O to happen, returning after
  * howlong milliseconds, and after processing
  * any necessary I/O.
- * \return he number of I/O events which took place.
+ * \return the number of I/O events which took place.
  */
 int ast_io_wait(struct io_context *ioc, int howlong);
 
 /*!
  * \brief Dumps the IO array.
+ * \param ioc
  * Debugging: Dump everything in the I/O array
  */
 void ast_io_dump(struct io_context *ioc);
 
-/*! Set fd into non-echoing mode (if fd is a tty) */
-
+/*!
+ * \brief Hide password.
+ * \param fd
+ * Set fd into non-echoing mode (if fd is a tty)
+ */
 int ast_hide_password(int fd);
 
 /*!
  * \brief Restores TTY mode.
- * Call with result from previous ast_hide_password
+ * \param fd, oldstatus
+ * Call with result from previous \ref ast_hide_password
  */
 int ast_restore_tty(int fd, int oldstatus);
 
+/*!
+ * \brief Columns of Terminal.
+ * \param fd
+ * Falls back to 80 if the underlying ioctl fails.
+ */
 int ast_get_termcols(int fd);
 
 /*!
@@ -145,7 +155,9 @@ int ast_get_termcols(int fd);
  * \param state a string that states the changes. See sd_notify(3).
  * The wrapper does nothing if systemd ('s development headers) was not
  * detected on the system.
- * \returns >=0 on success, negative value on error.
+ * \retval 0 on success.
+ * \retval positie on success.
+ * \retval negative on error.
  */
 int ast_sd_notify(const char *state);
 
@@ -153,8 +165,8 @@ int ast_sd_notify(const char *state);
  * \brief Find a listening file descriptor provided by socket activation.
  * \param type SOCK_STREAM or SOCK_DGRAM
  * \param addr The socket address of the bound listener.
- * \retval <0 No match.
- * \retval >0 File Descriptor matching sockaddr.
+ * \retval negative No match.
+ * \retval positive File Descriptor matching sockaddr.
  *
  * \note This function returns -1 if systemd's development headers were not
  * detected on the system.
@@ -165,8 +177,8 @@ int ast_sd_get_fd(int type, const struct ast_sockaddr *addr);
  * \brief Find a listening AF_LOCAL file descriptor provided by socket activation.
  * \param type SOCK_STREAM or SOCK_DGRAM
  * \param path The path of the listener.
- * \retval <0 No match.
- * \retval >0 File Descriptor matching path.
+ * \retval negative No match.
+ * \retval positive File Descriptor matching path.
  *
  * \note This function returns -1 if systemd's development headers were not
  * detected on the system.

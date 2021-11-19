@@ -60,7 +60,7 @@ enum flags_result {
  * \note The flags string passed into this function is NOT NULL-terminated
  *
  * \param flags The flags string from a NAPTR record
- * \flags_size The size of the flags string in bytes
+ * \param flags_size The size of the flags string in bytes
  * \return flag result
  */
 static enum flags_result interpret_flags(const char *flags, uint8_t flags_size)

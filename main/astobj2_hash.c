@@ -110,7 +110,7 @@ struct hash_traversal_state_check {
  * \param line Debug line invoked from
  * \param func Debug function name invoked from
  *
- * \retval empty-clone-container on success.
+ * \return empty-clone-container on success.
  * \retval NULL on error.
  */
 static struct ao2_container *hash_ao2_alloc_empty_clone(struct ao2_container_hash *self,
@@ -139,8 +139,6 @@ static struct ao2_container *hash_ao2_alloc_empty_clone(struct ao2_container_has
  *
  * \note The container must be locked when the node is
  * unreferenced.
- *
- * \return Nothing
  */
 static void hash_ao2_node_destructor(void *v_doomed)
 {
@@ -202,7 +200,7 @@ static void hash_ao2_node_destructor(void *v_doomed)
  * \param line Debug line invoked from
  * \param func Debug function name invoked from
  *
- * \retval initialized-node on success.
+ * \return initialized-node on success.
  * \retval NULL on error.
  */
 static struct hash_bucket_node *hash_ao2_new_node(struct ao2_container_hash *self, void *obj_new, const char *tag, const char *file, int line, const char *func)
@@ -234,7 +232,7 @@ static struct hash_bucket_node *hash_ao2_new_node(struct ao2_container_hash *sel
  * \param self Container to operate upon.
  * \param node Container node to insert into the container.
  *
- * \return enum ao2_container_insert value.
+ * \return \ref ao2_container_insert value.
  */
 static enum ao2_container_insert hash_ao2_insert_node(struct ao2_container_hash *self,
 	struct hash_bucket_node *node)
@@ -329,7 +327,7 @@ static enum ao2_container_insert hash_ao2_insert_node(struct ao2_container_hash 
  * \param arg Comparison callback arg parameter.
  * \param state Traversal state to restart hash container traversal.
  *
- * \retval node-ptr of found node (Reffed).
+ * \return node-ptr of found node (Reffed).
  * \retval NULL when no node found.
  */
 static struct hash_bucket_node *hash_ao2_find_first(struct ao2_container_hash *self, enum search_flags flags, void *arg, struct hash_traversal_state *state)
@@ -477,7 +475,7 @@ static struct hash_bucket_node *hash_ao2_find_first(struct ao2_container_hash *s
  * \param prev Previous node returned by the traversal search functions.
  *    The ref ownership is passed back to this function.
  *
- * \retval node-ptr of found node (Reffed).
+ * \return node-ptr of found node (Reffed).
  * \retval NULL when no node found.
  */
 static struct hash_bucket_node *hash_ao2_find_next(struct ao2_container_hash *self, struct hash_traversal_state *state, struct hash_bucket_node *prev)
@@ -607,7 +605,7 @@ hash_ascending_resume:;
  *
  * \note The container is already locked.
  *
- * \retval node on success.
+ * \return node on success.
  * \retval NULL on error or no more nodes in the container.
  */
 static struct hash_bucket_node *hash_ao2_iterator_next(struct ao2_container_hash *self, struct hash_bucket_node *node, enum ao2_iterator_flags flags)
@@ -690,8 +688,6 @@ static struct hash_bucket_node *hash_ao2_iterator_next(struct ao2_container_hash
  *
  * \param hash Container to operate upon.
  * \param hash_node Container node linking object to.
- *
- * \return Nothing
  */
 static void hash_ao2_link_node_stat(struct ao2_container *hash, struct ao2_container_node *hash_node)
 {
@@ -714,8 +710,6 @@ static void hash_ao2_link_node_stat(struct ao2_container *hash, struct ao2_conta
  *
  * \param hash Container to operate upon.
  * \param hash_node Container node unlinking object from.
- *
- * \return Nothing
  */
 static void hash_ao2_unlink_node_stat(struct ao2_container *hash, struct ao2_container_node *hash_node)
 {
@@ -733,8 +727,6 @@ static void hash_ao2_unlink_node_stat(struct ao2_container *hash, struct ao2_con
  * \since 12.0.0
  *
  * \param self Container to operate upon.
- *
- * \return Nothing
  */
 static void hash_ao2_destroy(struct ao2_container_hash *self)
 {
@@ -760,8 +752,6 @@ static void hash_ao2_destroy(struct ao2_container_hash *self)
  * \param where User data needed by prnt to determine where to put output.
  * \param prnt Print output callback function to use.
  * \param prnt_obj Callback function to print the given object's key. (NULL if not available)
- *
- * \return Nothing
  */
 static void hash_ao2_dump(struct ao2_container_hash *self, void *where, ao2_prnt_fn *prnt, ao2_prnt_obj_fn *prnt_obj)
 {
@@ -815,8 +805,6 @@ static void hash_ao2_dump(struct ao2_container_hash *self, void *where, ao2_prnt
  * \param prnt Print output callback function to use.
  *
  * \note The container is already locked for reading.
- *
- * \return Nothing
  */
 static void hash_ao2_stats(struct ao2_container_hash *self, void *where, ao2_prnt_fn *prnt)
 {
@@ -1035,7 +1023,7 @@ static const struct ao2_container_methods v_table_hash = {
  * This is basically used when we want to have a container that is
  * a simple linked list.
  *
- * \returns 0
+ * \retval 0
  */
 static int hash_zero(const void *user_obj, const int flags)
 {

@@ -128,7 +128,7 @@ enum ast_device_state ast_parse_device_state(const char *device);
  * Tries the channel device state callback if not supported search in the
  * active channels list for the device.
  *
- * \retval an AST_DEVICE_??? state
+ * \return an AST_DEVICE_??? state
  */
 enum ast_device_state ast_device_state(const char *device);
 
@@ -196,7 +196,6 @@ struct ast_devstate_aggregate;
  *
  * \param[in] agg the state object
  *
- * \return nothing
  * \since 1.6.1
  */
 void ast_devstate_aggregate_init(struct ast_devstate_aggregate *agg);
@@ -207,7 +206,6 @@ void ast_devstate_aggregate_init(struct ast_devstate_aggregate *agg);
  * \param[in] agg the state object
  * \param[in] state the state to add
  *
- * \return nothing
  * \since 1.6.1
  */
 void ast_devstate_aggregate_add(struct ast_devstate_aggregate *agg, enum ast_device_state state);
@@ -256,7 +254,7 @@ struct ast_device_state_message {
 
 /*!
  * \brief Get the Stasis topic for device state messages
- * \retval The topic for device state messages
+ * \return The topic for device state messages
  * \retval NULL if it has not been allocated
  * \since 12
  */
@@ -264,8 +262,8 @@ struct stasis_topic *ast_device_state_topic_all(void);
 
 /*!
  * \brief Get the Stasis topic for device state messages for a specific device
- * \param uniqueid The device for which to get the topic
- * \retval The topic structure for MWI messages for a given device
+ * \param device The device for which to get the topic
+ * \return The topic structure for MWI messages for a given device
  * \retval NULL if it failed to be found or allocated
  * \since 12
  */
@@ -273,7 +271,7 @@ struct stasis_topic *ast_device_state_topic(const char *device);
 
 /*!
  * \brief Get the Stasis caching topic for device state messages
- * \retval The caching topic for device state messages
+ * \return The caching topic for device state messages
  * \retval NULL if it has not been allocated
  * \since 12
  */
@@ -281,14 +279,14 @@ struct stasis_topic *ast_device_state_topic_cached(void);
 
 /*!
  * \brief Backend cache for ast_device_state_topic_cached()
- * \retval Cache of \ref ast_device_state_message.
+ * \return Cache of \ref ast_device_state_message.
  * \since 12
  */
 struct stasis_cache *ast_device_state_cache(void);
 
 /*!
  * \brief Get the Stasis message type for device state messages
- * \retval The message type for device state messages
+ * \return The message type for device state messages
  * \retval NULL if it has not been allocated
  * \since 12
  */
@@ -296,7 +294,7 @@ struct stasis_message_type *ast_device_state_message_type(void);
 
 /*!
  * \brief Clear the device from the stasis cache.
- * \param The device to clear
+ * \param device The device to clear
  * \retval 0 if successful
  * \retval -1 nothing to clear
  * \since 12

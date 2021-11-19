@@ -72,7 +72,7 @@ enum bridge_basic_personality_type {
  *
  * \param bridge The bridge
  * \param type The personality to change the bridge to
- * \user_data Private data to attach to the personality.
+ * \param user_data Private data to attach to the personality.
  */
 static void bridge_basic_change_personality(struct ast_bridge *bridge,
 		enum bridge_basic_personality_type type, void *user_data);
@@ -331,7 +331,7 @@ struct bridge_basic_personality {
 	struct personality_details details[BRIDGE_BASIC_PERSONALITY_END];
 };
 
-/*
+/*!
  * \internal
  * \brief Get the extension for a given builtin feature.
  *
@@ -2427,8 +2427,6 @@ static void recall_callback(struct ast_dial *dial)
  *
  * \pre COLP and CLID on the recall channel are setup by the caller but not
  * explicitly published yet.
- *
- * \return Nothing
  */
 static void common_recall_channel_setup(struct ast_channel *recall, struct ast_channel *transferer)
 {

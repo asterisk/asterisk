@@ -66,7 +66,7 @@ struct ast_format_interface {
 	 * \param format1 First format to compare
 	 * \param format2 Second format which the first is compared against
 	 *
-	 * \retval ast_format_cmp_res representing the result of comparing format1 and format2.
+	 * \return \ref ast_format_cmp_res representing the result of comparing format1 and format2.
 	 */
 	enum ast_format_cmp_res (* const format_cmp)(const struct ast_format *format1,
 		const struct ast_format *format2);
@@ -188,7 +188,7 @@ struct ast_format *ast_format_clone(const struct ast_format *format);
 /*!
  * \brief Compare two formats
  *
- * \retval ast_format_cmp_res representing the result of comparing format1 and format2.
+ * \return \ref ast_format_cmp_res representing the result of comparing format1 and format2.
  */
 enum ast_format_cmp_res ast_format_cmp(const struct ast_format *format1, const struct ast_format *format2);
 
@@ -301,7 +301,7 @@ const char *ast_format_get_name(const struct ast_format *format);
 /*!
  * \brief Get the channel count on a format
  *
- * \param The media format
+ * \param format The media format
  *
  * \return Currently set channel count
  */
@@ -434,7 +434,7 @@ unsigned int ast_format_determine_length(const struct ast_format *format, unsign
  * \since 12
  * \brief Get the message type used for signaling a format registration
  *
- * \retval Stasis message type for format registration
+ * \return Stasis message type for format registration
  * \retval NULL on error
  */
 struct stasis_message_type *ast_format_register_type(void);
@@ -443,7 +443,7 @@ struct stasis_message_type *ast_format_register_type(void);
  * \since 12
  * \brief Get the message type used for signaling a format unregistration
  *
- * \retval Stasis message type for format unregistration
+ * \return Stasis message type for format unregistration
  * \retval NULL on error
  */
 struct stasis_message_type *ast_format_unregister_type(void);

@@ -61,8 +61,6 @@ struct after_bridge_cb_ds {
  * \since 12.0.0
  *
  * \param node After bridge callback node.
- *
- * \return Nothing
  */
 static void after_bridge_cb_failed(struct after_bridge_cb_node *node)
 {
@@ -79,8 +77,6 @@ static void after_bridge_cb_failed(struct after_bridge_cb_node *node)
  *
  * \param after_bridge After bridge callback container process.
  * \param reason Why are we doing this.
- *
- * \return Nothing
  */
 static void after_bridge_cb_run_discard(struct after_bridge_cb_ds *after_bridge, enum ast_bridge_after_cb_reason reason)
 {
@@ -107,8 +103,6 @@ static void after_bridge_cb_run_discard(struct after_bridge_cb_ds *after_bridge,
  * \since 12.0.0
  *
  * \param data After bridge callback data to destroy.
- *
- * \return Nothing
  */
 static void after_bridge_cb_destroy(void *data)
 {
@@ -130,8 +124,6 @@ static struct after_bridge_cb_ds *after_bridge_cb_find(struct ast_channel *chan)
  * \param data After bridge callback data to fixup.
  * \param old_chan The datastore is moving from this channel.
  * \param new_chan The datastore is moving to this channel.
- *
- * \return Nothing
  */
 static void after_bridge_cb_fixup(void *data, struct ast_channel *old_chan, struct ast_channel *new_chan)
 {
@@ -164,7 +156,7 @@ static const struct ast_datastore_info after_bridge_cb_info = {
  *
  * \param chan Channel to find the after bridge callback container on.
  *
- * \retval after_bridge datastore container on success.
+ * \return after_bridge datastore container on success.
  * \retval NULL on error.
  */
 static struct after_bridge_cb_ds *after_bridge_cb_find(struct ast_channel *chan)
@@ -186,7 +178,7 @@ static struct after_bridge_cb_ds *after_bridge_cb_find(struct ast_channel *chan)
  *
  * \param chan Channel to setup/create the after bridge callback container on.
  *
- * \retval after_bridge datastore container on success.
+ * \return after_bridge datastore container on success.
  * \retval NULL on error.
  */
 static struct after_bridge_cb_ds *after_bridge_cb_setup(struct ast_channel *chan)
@@ -333,8 +325,6 @@ struct after_bridge_goto_ds {
  * \since 12.0.0
  *
  * \param data After bridge goto data to destroy.
- *
- * \return Nothing
  */
 static void after_bridge_goto_destroy(void *data)
 {
@@ -354,8 +344,6 @@ static void after_bridge_goto_destroy(void *data)
  * \param data After bridge goto data to fixup.
  * \param old_chan The datastore is moving from this channel.
  * \param new_chan The datastore is moving to this channel.
- *
- * \return Nothing
  */
 static void after_bridge_goto_fixup(void *data, struct ast_channel *old_chan, struct ast_channel *new_chan)
 {
@@ -376,7 +364,7 @@ static const struct ast_datastore_info after_bridge_goto_info = {
  *
  * \param chan Channel to remove after bridge goto location.
  *
- * \retval datastore on success.
+ * \return datastore on success.
  * \retval NULL on error or not found.
  */
 static struct ast_datastore *after_bridge_goto_remove(struct ast_channel *chan)
@@ -565,8 +553,6 @@ void ast_bridge_run_after_goto(struct ast_channel *chan)
  * Else if parseable_goto then use the given context/exten/priority
  *   as the relative position for the parseable_goto.
  * Else goto the given context/exten/priority+1.
- *
- * \return Nothing
  */
 static void __after_bridge_set_goto(struct ast_channel *chan, int run_h_exten, int specific, const char *context, const char *exten, int priority, const char *parseable_goto)
 {

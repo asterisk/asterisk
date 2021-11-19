@@ -333,7 +333,7 @@ int ast_logger_register_level(const char *name);
 /*!
  * \brief Retrieve dynamic logging level id
  * \param name The name of the level
- * \retval The unique integer id for the given level
+ * \return The unique integer id for the given level
  * \retval -1 if level name not found
  */
 int ast_logger_get_dynamic_level(const char *name);
@@ -341,7 +341,6 @@ int ast_logger_get_dynamic_level(const char *name);
 /*!
  * \brief Unregister a previously registered logger level
  * \param name The name of the level to be unregistered
- * \return nothing
  * \since 1.8
  */
 void ast_logger_unregister_level(const char *name);
@@ -349,7 +348,7 @@ void ast_logger_unregister_level(const char *name);
 /*!
  * \brief Get the logger configured date format
  *
- * \retval The date format string
+ * \return The date format string
  *
  * \since 13.0.0
  */
@@ -358,7 +357,7 @@ const char *ast_logger_get_dateformat(void);
 /*!
  * \brief factory function to create a new uniquely identifying callid.
  *
- * \retval The call id
+ * \return The call id
  */
 ast_callid ast_create_callid(void);
 
@@ -433,7 +432,6 @@ void ast_callid_strnprint(char *buffer, size_t buffer_size, ast_callid callid);
  * the data for these must be provided as additional parameters after
  * the log message.
  *
- * \return nothing
  * \since 1.8
  */
 
@@ -477,8 +475,6 @@ extern int ast_verb_sys_level;
 
 /*!
  * \brief Re-evaluate the system max verbosity level (ast_verb_sys_level).
- *
- * \return Nothing
  */
 void ast_verb_update(void);
 
@@ -486,22 +482,18 @@ void ast_verb_update(void);
  * \brief Register this thread's console verbosity level pointer.
  *
  * \param level Where the verbose level value is.
- *
- * \return Nothing
  */
 void ast_verb_console_register(int *level);
 
 /*!
  * \brief Unregister this thread's console verbosity level.
- *
- * \return Nothing
  */
 void ast_verb_console_unregister(void);
 
 /*!
  * \brief Get this thread's console verbosity level.
  *
- * \retval verbosity level of the console.
+ * \return verbosity level of the console.
  */
 int ast_verb_console_get(void);
 
@@ -509,8 +501,6 @@ int ast_verb_console_get(void);
  * \brief Set this thread's console verbosity level.
  *
  * \param verb_level New level to set.
- *
- * \return Nothing
  */
 void ast_verb_console_set(int verb_level);
 
@@ -525,8 +515,6 @@ int ast_is_logger_initialized(void);
  * \brief Set the maximum number of messages allowed in the processing queue
  *
  * \param queue_limit
- *
- * \return Nothing
  */
 void ast_logger_set_queue_limit(int queue_limit);
 
@@ -548,7 +536,8 @@ To start using it:
  * You must have used --enable-dev-mode.
  * In logger.conf, set a logger channel to output the "trace" level.
  * Instrument your code as specified below.
- * Use the cli or cli.conf to enable tracing: CLI> core set trace <trace_level> [ module ]
+ * Use the cli or cli.conf to enable tracing:
+   \verbatim CLI> core set trace <trace_level> [ module ] \endverbatim
 
 Its simplest usage requires only 1 macro call that...
 	- Registers a destructor for a special variable that gets called when the
@@ -697,7 +686,7 @@ void __attribute__((format (printf, 6, 7))) __ast_trace(const char *file, int li
 /*!
  * \brief Get the current indent level
  *
- * \returns The current indent level
+ * \return The current indent level
  */
 unsigned long _ast_trace_get_indent(void);
 #define ast_trace_get_indent() _ast_trace_get_indent()
@@ -713,7 +702,7 @@ void _ast_trace_set_indent(unsigned long indent);
 /*!
  * \brief Increment the indent level
  *
- * \returns The new indent level
+ * \return The new indent level
  */
 unsigned long _ast_trace_inc_indent(void);
 #define ast_trace_inc_indent() _ast_trace_inc_indent()
@@ -721,7 +710,7 @@ unsigned long _ast_trace_inc_indent(void);
 /*!
  * \brief Decrement the indent level
  *
- * \returns The new indent level
+ * \return The new indent level
  */
 unsigned long _ast_trace_dec_indent(void);
 #define ast_trace_dec_indent() _ast_trace_dec_indent()

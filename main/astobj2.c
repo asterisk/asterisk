@@ -65,7 +65,7 @@ struct __priv_data {
 	 * \brief The ao2 object option flags.
 	 *
 	 * \note This field is constant after object creation.  It shares
-	 *       a uint32_t with \ref lockused and \ref magic.
+	 *       a uint32_t with \p lockused and \p magic.
 	 */
 	uint32_t options:3;
 	/*!
@@ -82,7 +82,7 @@ struct __priv_data {
 	 * reference.
 	 *
 	 * \note This field is constant after object creation.  It shares
-	 *       a uint32_t with \ref options and \ref lockused.
+	 *       a uint32_t with \p options and \p lockused.
 	 *
 	 * \warning Stealing bits for any additional writable fields would cause
 	 *          reentrancy issues if using bitfields.  If any additional

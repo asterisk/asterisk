@@ -386,7 +386,7 @@ static struct ast_multi_channel_blob *local_channel_optimization_blob(struct loc
 	return payload;
 }
 
-/*! \brief Callback for \ref ast_unreal_pvt_callbacks \ref optimization_started_cb */
+/*! \brief Callback for \ref ast_unreal_pvt_callbacks \p optimization_started */
 static void local_optimization_started_cb(struct ast_unreal_pvt *base, struct ast_channel *source,
 		enum ast_unreal_channel_indicator dest, unsigned int id)
 {
@@ -429,7 +429,7 @@ static void local_optimization_started_cb(struct ast_unreal_pvt *base, struct as
 	stasis_publish(ast_channel_topic(p->base.owner), msg);
 }
 
-/*! \brief Callback for \ref ast_unreal_pvt_callbacks \ref optimization_finished_cb */
+/*! \brief Callback for \ref ast_unreal_pvt_callbacks \p optimization_finished */
 static void local_optimization_finished_cb(struct ast_unreal_pvt *base, int success, unsigned int id)
 {
 	RAII_VAR(struct ast_json *, json_object, ast_json_null(), ast_json_unref);
@@ -534,8 +534,6 @@ static struct ast_manager_event_blob *local_message_to_ami(struct stasis_message
  * \since 12.0.0
  *
  * \param p local_pvt to raise the local bridge message
- *
- * \return Nothing
  */
 static void publish_local_bridge_message(struct local_pvt *p)
 {
@@ -840,8 +838,6 @@ static int local_hangup(struct ast_channel *ast)
  * \brief struct local_pvt destructor.
  *
  * \param vdoomed Object to destroy.
- *
- * \return Nothing
  */
 static void local_pvt_destructor(void *vdoomed)
 {
@@ -1116,8 +1112,6 @@ static int locals_cmp_cb(void *obj, void *arg, int flags)
  * \internal
  * \brief Shutdown the local proxy channel.
  * \since 12.0.0
- *
- * \return Nothing
  */
 static void local_shutdown(void)
 {

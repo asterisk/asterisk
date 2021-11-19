@@ -65,8 +65,6 @@ struct bridge_roles_datastore {
  * \since 12.0.0
  *
  * \param role bridge_role being destroyed
- *
- * \return Nothing
  */
 static void bridge_role_destroy(struct bridge_role *role)
 {
@@ -84,8 +82,6 @@ static void bridge_role_destroy(struct bridge_role *role)
  * \since 12.0.0
  *
  * \param data Pointer to the datastore being destroyed
- *
- * \return Nothing
  */
 static void bridge_role_datastore_destroy(void *data)
 {
@@ -112,7 +108,7 @@ static const struct ast_datastore_info bridge_role_info = {
  * \param chan Chan the datastore is being setup on
  *
  * \retval NULL if failed
- * \retval pointer to the newly created datastore
+ * \return pointer to the newly created datastore
  */
 static struct bridge_roles_datastore *setup_bridge_roles_datastore(struct ast_channel *chan)
 {
@@ -143,7 +139,7 @@ static struct bridge_roles_datastore *setup_bridge_roles_datastore(struct ast_ch
  * \param chan Channel we want the bridge_roles_datastore from
  *
  * \retval NULL if we can't find the datastore
- * \retval pointer to the bridge_roles_datastore
+ * \return pointer to the bridge_roles_datastore
  */
 static struct bridge_roles_datastore *fetch_bridge_roles_datastore(struct ast_channel *chan)
 {
@@ -167,7 +163,7 @@ static struct bridge_roles_datastore *fetch_bridge_roles_datastore(struct ast_ch
  * \param chan Channel we want the bridge_roles_datastore from
  *
  * \retval NULL If we can't find and can't create the datastore
- * \retval pointer to the bridge_roles_datastore
+ * \return pointer to the bridge_roles_datastore
  */
 static struct bridge_roles_datastore *fetch_or_create_bridge_roles_datastore(struct ast_channel *chan)
 {
@@ -192,7 +188,7 @@ static struct bridge_roles_datastore *fetch_or_create_bridge_roles_datastore(str
  * \param role_name Name of the role being sought
  *
  * \retval NULL if the datastore does not have the requested role
- * \retval pointer to the requested role
+ * \return pointer to the requested role
  */
 static struct bridge_role *get_role_from_datastore(struct bridge_roles_datastore *roles_datastore, const char *role_name)
 {
@@ -216,7 +212,7 @@ static struct bridge_role *get_role_from_datastore(struct bridge_roles_datastore
  * \param role_name Name of the role sought
  *
  * \retval NULL if the channel's datastore does not have the requested role
- * \retval pointer to the requested role
+ * \return pointer to the requested role
  */
 static struct bridge_role *get_role_from_channel(struct ast_channel *channel, const char *role_name)
 {
@@ -233,7 +229,7 @@ static struct bridge_role *get_role_from_channel(struct ast_channel *channel, co
  * \param option Name of the option sought
  *
  * \retval NULL if the bridge role doesn't have the requested option
- * \retval pointer to the requested option
+ * \return pointer to the requested option
  */
 static struct bridge_role_option *get_role_option(struct bridge_role *role, const char *option)
 {

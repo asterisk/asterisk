@@ -1016,8 +1016,6 @@ void ast_rtp_codecs_payloads_clear(struct ast_rtp_codecs *codecs, struct ast_rtp
  * \param to_match Payload type object to compare against.
  *
  * \note It is assumed that codecs is write locked before calling.
- *
- * \return Nothing
  */
 static void payload_mapping_rx_clear_primary(struct ast_rtp_codecs *codecs, struct ast_rtp_payload_type *to_match)
 {
@@ -1073,8 +1071,6 @@ static void payload_mapping_rx_clear_primary(struct ast_rtp_codecs *codecs, stru
  * \param new_type RTP payload mapping object to store.
  *
  * \note It is assumed that codecs is write locked before calling.
- *
- * \return Nothing
  */
 static void rtp_codecs_payload_replace_rx(struct ast_rtp_codecs *codecs, int payload, struct ast_rtp_payload_type *new_type)
 {
@@ -1102,8 +1098,6 @@ static void rtp_codecs_payload_replace_rx(struct ast_rtp_codecs *codecs, int pay
  *
  * \note It is assumed that src is at least read locked before calling.
  * \note It is assumed that dest is write locked before calling.
- *
- * \return Nothing
  */
 static void rtp_codecs_payloads_copy_rx(struct ast_rtp_codecs *src, struct ast_rtp_codecs *dest, struct ast_rtp_instance *instance)
 {
@@ -1187,8 +1181,6 @@ static int payload_mapping_tx_is_present(const struct ast_rtp_codecs *codecs, co
  *
  * \note It is assumed that src is at least read locked before calling.
  * \note It is assumed that dest is write locked before calling.
- *
- * \return Nothing
  */
 static void rtp_codecs_payloads_copy_tx(struct ast_rtp_codecs *src, struct ast_rtp_codecs *dest, struct ast_rtp_instance *instance)
 {
@@ -1618,7 +1610,7 @@ void ast_rtp_codecs_payload_formats(struct ast_rtp_codecs *codecs, struct ast_fo
  *
  * \note It is assumed that static_RTP_PT_lock is at least read locked before calling.
  *
- * \retval Numerical payload type
+ * \return Numerical payload type
  * \retval -1 if not found.
  */
 static int find_static_payload_type(int asterisk_format, const struct ast_format *format, int code)
@@ -1661,7 +1653,7 @@ static int find_static_payload_type(int asterisk_format, const struct ast_format
  *
  * \note The static_RTP_PT_lock object must be locked before calling
  *
- * \retval Numerical payload type
+ * \return Numerical payload type
  * \retval -1 if not found.
  */
 static int find_unused_payload_in_range(const struct ast_rtp_codecs *codecs,
@@ -1695,7 +1687,7 @@ static int find_unused_payload_in_range(const struct ast_rtp_codecs *codecs,
  * \note Both static_RTP_PT_lock and codecs (if given) must be at least
  *       read locked before calling.
  *
- * \retval Numerical payload type
+ * \return Numerical payload type
  * \retval -1 if not found.
  */
 static int find_unused_payload(const struct ast_rtp_codecs *codecs)
@@ -1772,7 +1764,7 @@ static int find_unused_payload(const struct ast_rtp_codecs *codecs)
  *
  * \note It is assumed that codecs is at least read locked before calling.
  *
- * \retval Numerical payload type
+ * \return Numerical payload type
  * \retval -1 if not found.
  */
 static int rtp_codecs_find_non_primary_dynamic_rx(struct ast_rtp_codecs *codecs)
@@ -1809,7 +1801,7 @@ static int rtp_codecs_find_non_primary_dynamic_rx(struct ast_rtp_codecs *codecs)
  *
  * \note It is assumed that static_RTP_PT_lock is at least read locked before calling.
  *
- * \retval Numerical payload type
+ * \return Numerical payload type
  * \retval -1 if could not assign.
  */
 static int rtp_codecs_assign_payload_code_rx(struct ast_rtp_codecs *codecs, int asterisk_format, struct ast_format *format, int code, int explicit)

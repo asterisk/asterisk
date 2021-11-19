@@ -136,7 +136,7 @@ struct ast_http_auth {
  *
  * \param headers HTTP request headers.
  * \return HTTP auth structure.
- * \return \c NULL if no supported HTTP auth headers present.
+ * \retval NULL if no supported HTTP auth headers present.
  * \since 12
  */
 struct ast_http_auth *ast_http_get_auth(struct ast_variable *headers);
@@ -246,8 +246,6 @@ void ast_http_prefix(char *buf, int len);
  * \param ser HTTP TCP/TLS session object.
  *
  * \note Call before ast_http_error() to make the connection close.
- *
- * \return Nothing
  */
 void ast_http_request_close_on_completion(struct ast_tcptls_session_instance *ser);
 
@@ -257,8 +255,6 @@ void ast_http_request_close_on_completion(struct ast_tcptls_session_instance *se
  *
  * \param ser HTTP TCP/TLS session object.
  * \param read_success TRUE if body was read successfully.
- *
- * \return Nothing
  */
 void ast_http_body_read_status(struct ast_tcptls_session_instance *ser, int read_success);
 
@@ -291,7 +287,7 @@ struct ast_json;
  * \param ser TCP/TLS session object
  * \param headers List of HTTP headers
  * \return Parsed JSON content body
- * \return \c NULL on error, if no content, or if different content type.
+ * \retval NULL on error, if no content, or if different content type.
  * \since 12
  */
 struct ast_json *ast_http_get_json(
@@ -302,7 +298,7 @@ struct ast_json *ast_http_get_json(
  * \param buf the http response line information
  * \param version the expected http version (e.g. HTTP/1.1)
  * \param code the expected status code
- * \return -1 if version didn't match or status code conversion fails.
+ * \retval -1 if version didn't match or status code conversion fails.
  * \return status code (>0)
  * \since 13
  */
@@ -317,9 +313,9 @@ int ast_http_response_status_line(const char *buf, const char *version, int code
  * \param buf a string containing the name/value to point to
  * \param name out parameter pointing to the header name
  * \param value out parameter pointing to header value
- * \return -1 if buf is empty
- * \return 0 if buf could be separated into name and value
- * \return 1 if name or value portion don't exist
+ * \retval -1 if buf is empty
+ * \retval 0 if buf could be separated into name and value
+ * \retval 1 if name or value portion don't exist
  * \since 13
  */
 int ast_http_header_parse(char *buf, char **name, char **value);
@@ -331,9 +327,9 @@ int ast_http_header_parse(char *buf, char **name, char **value);
  * \param expected_name the expected name of the header
  * \param value header value to check
  * \param expected_value the expected value of the header
- * \return 0 if the name and expected name do not match
- * \return -1 if the value and expected value do not match
- * \return 1 if the both the name and value match their expected value
+ * \retval 0 if the name and expected name do not match
+ * \retval -1 if the value and expected value do not match
+ * \retval 1 if the both the name and value match their expected value
  * \since 13
  */
 int ast_http_header_match(const char *name, const char *expected_name,
@@ -348,9 +344,9 @@ int ast_http_header_match(const char *name, const char *expected_name,
  * \param expected_name the expected name of the header
  * \param value header value to check if in expected value
  * \param expected_value the expected value(s)
- * \return 0 if the name and expected name do not match
- * \return -1 if the value and is not in the expected value
- * \return 1 if the name matches expected name and value is in expected value
+ * \retval 0 if the name and expected name do not match
+ * \retval -1 if the value and is not in the expected value
+ * \retval 1 if the name matches expected name and value is in expected value
  * \since 13
  */
 int ast_http_header_match_in(const char *name, const char *expected_name,

@@ -42,7 +42,7 @@
 #define ast_bt_free_symbols(string_vector) NULL
 #endif
 
-/* \brief
+/*! \brief
  *
  * A structure to hold backtrace information. This structure provides an easy means to
  * store backtrace information or pass backtraces to other functions.
@@ -58,15 +58,16 @@ struct ast_bt {
 
 #ifdef HAVE_BKTR
 
-/* \brief
+/*! \brief
  * Allocates memory for an ast_bt and stores addresses and symbols.
  *
- * \return Returns NULL on failure, or the allocated ast_bt on success
+ * \retval NULL on failure
+ * \return the allocated ast_bt on success
  * \since 1.6.1
  */
 struct ast_bt *__ast_bt_create(void);
 
-/* \brief
+/*! \brief
  * Fill an allocated ast_bt with addresses
  *
  * \retval 0 Success
@@ -75,16 +76,15 @@ struct ast_bt *__ast_bt_create(void);
  */
 int __ast_bt_get_addresses(struct ast_bt *bt);
 
-/* \brief
+/*! \brief
  *
  * Free dynamically allocated portions of an ast_bt
  *
- * \retval NULL.
  * \since 1.6.1
  */
 void *__ast_bt_destroy(struct ast_bt *bt);
 
-/* \brief Retrieve symbols for a set of backtrace addresses
+/* !\brief Retrieve symbols for a set of backtrace addresses
  *
  * \param addresses A list of addresses, such as the ->addresses structure element of struct ast_bt.
  * \param num_frames Number of addresses in the addresses list
@@ -99,7 +99,7 @@ void *__ast_bt_destroy(struct ast_bt *bt);
  */
 struct ast_vector_string *__ast_bt_get_symbols(void **addresses, size_t num_frames);
 
-/* \brief Free symbols returned from ast_bt_get_symbols
+/*! \brief Free symbols returned from ast_bt_get_symbols
  *
  * \param symbols The symbol string vector
  *

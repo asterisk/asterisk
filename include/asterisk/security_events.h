@@ -60,7 +60,7 @@ struct ast_security_event_ie_type {
  * \brief A \ref stasis_topic which publishes messages for security related issues.
  * \since 12
  *
- * \retval \ref stasis_topic for security related issues.
+ * \return \ref stasis_topic for security related issues.
  * \retval NULL on error
  */
 struct stasis_topic *ast_security_topic(void);
@@ -70,7 +70,7 @@ struct stasis_topic *ast_security_topic(void);
  * \since 12
  *
  * \retval NULL on error
- * \retval \ref stasis_message_type for security events
+ * \return \ref stasis_message_type for security events
  *
  * \note Messages of this type should always be issued on and expected from
  *       the \ref ast_security_topic \ref stasis_topic
