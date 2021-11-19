@@ -3462,8 +3462,6 @@ static int rtp_learning_rtp_seq_update(struct rtp_learning_info *info, uint16_t 
  * \brief Start the strictrtp learning mode.
  *
  * \param rtp RTP session description
- *
- * \return Nothing
  */
 static void rtp_learning_start(struct ast_rtp *rtp)
 {
@@ -3480,8 +3478,6 @@ static void acl_change_stasis_cb(void *data, struct stasis_subscription *sub, st
 /*!
  * \internal
  * \brief Resets and ACL to empty state.
- *
- * \return Nothing
  */
 static void rtp_unload_acl(ast_rwlock_t *lock, struct ast_acl_list **acl)
 {
@@ -4064,8 +4060,8 @@ static int ast_rtp_new(struct ast_rtp_instance *instance,
  * \param elem Element to compare against
  * \param value Value to compare with the vector element.
  *
- * \return 0 if element does not match.
- * \return Non-zero if element matches.
+ * \retval 0 if element does not match.
+ * \retval Non-zero if element matches.
  */
 #define SSRC_MAPPING_ELEM_CMP(elem, value) ((elem).instance == (value))
 

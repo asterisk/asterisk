@@ -127,10 +127,10 @@ struct ast_websocket_protocol {
 };
 
 /*!
- * \brief Creates a \ref websocket_server
+ * \brief Creates a \ref ast_websocket_server
  *
- * \retval New \ref websocket_server instance
- * \retval \c NULL on error
+ * \return New \ref ast_websocket_server instance
+ * \retval NULL on error
  * \since 12
  */
 AST_OPTIONAL_API(struct ast_websocket_server *, ast_websocket_server_create, (void), { return NULL; });
@@ -146,7 +146,7 @@ AST_OPTIONAL_API(int, ast_websocket_uri_cb, (struct ast_tcptls_session_instance 
 /*!
  * \brief Allocate a websocket sub-protocol instance
  *
- * \retval An instance of \ref ast_websocket_protocol on success
+ * \return An instance of \ref ast_websocket_protocol on success
  * \retval NULL on error
  * \since 13.5.0
  */
@@ -169,7 +169,7 @@ AST_OPTIONAL_API(int, ast_websocket_add_protocol, (const char *name, ast_websock
  * \param protocol The sub-protocol to register. Note that this must
  * be allocated using /ref ast_websocket_sub_protocol_alloc.
  *
- * \note This method is reference stealing. It will steal the reference to \ref protocol
+ * \note This method is reference stealing. It will steal the reference to \p protocol
  * on success.
  *
  * \retval 0 success
@@ -192,6 +192,7 @@ AST_OPTIONAL_API(int, ast_websocket_remove_protocol, (const char *name, ast_webs
 /*!
  * \brief Add a sub-protocol handler to the given server.
  *
+ * \param server The server to add the sub-protocol to
  * \param name Name of the sub-protocol to register
  * \param callback Callback called when a new connection requesting the sub-protocol is established
  *
@@ -208,7 +209,7 @@ AST_OPTIONAL_API(int, ast_websocket_server_add_protocol, (struct ast_websocket_s
  * \param protocol The sub-protocol to register. Note that this must
  * be allocated using /ref ast_websocket_sub_protocol_alloc.
  *
- * \note This method is reference stealing. It will steal the reference to \ref protocol
+ * \note This method is reference stealing. It will steal the reference to \p protocol
  * on success.
  *
  * \retval 0 success
@@ -220,6 +221,7 @@ AST_OPTIONAL_API(int, ast_websocket_server_add_protocol2, (struct ast_websocket_
 /*!
  * \brief Remove a sub-protocol handler from the given server.
  *
+ * \param server The server to unregister the sub-protocol from
  * \param name Name of the sub-protocol to unregister
  * \param callback Callback that was previously registered with the sub-protocol
  *
@@ -253,7 +255,7 @@ AST_OPTIONAL_API(int, ast_websocket_read, (struct ast_websocket *session, char *
  * \param ws pointer to the websocket
  * \param buf string buffer to populate with data read from socket
  * \retval -1 on error
- * \retval number of bytes read on success
+ * \return number of bytes read on success
  *
  * \note Once an AST_WEBSOCKET_OPCODE_CLOSE opcode is received the socket will be closed
  */
@@ -332,7 +334,7 @@ AST_OPTIONAL_API(void, ast_websocket_unref, (struct ast_websocket *session), {re
 /*!
  * \brief Get the file descriptor for a WebSocket session.
  *
- * \retval file descriptor
+ * \return file descriptor
  *
  * \note You must *not* directly read from or write to this file descriptor. It should only be used for polling.
  */
@@ -355,14 +357,14 @@ AST_OPTIONAL_API(int, ast_websocket_wait_for_input, (struct ast_websocket *sessi
 /*!
  * \brief Get the remote address for a WebSocket connected session.
  *
- * \retval ast_sockaddr Remote address
+ * \return Remote address
  */
 AST_OPTIONAL_API(struct ast_sockaddr *, ast_websocket_remote_address, (struct ast_websocket *session), {return NULL;});
 
 /*!
  * \brief Get the local address for a WebSocket connection session.
  *
- * \retval ast_sockaddr Local address
+ * \return Local address
  *
  * \since 13.19.0
  */
@@ -387,7 +389,7 @@ AST_OPTIONAL_API(int, ast_websocket_set_nonblock, (struct ast_websocket *session
 /*!
  * \brief Get the session ID for a WebSocket session.
  *
- * \retval session id
+ * \return session id
  */
 AST_OPTIONAL_API(const char *, ast_websocket_session_id, (struct ast_websocket *session), { errno = ENOSYS; return NULL;});
 
@@ -414,21 +416,22 @@ enum ast_websocket_result {
 /*!
  * \brief Create, and connect, a websocket client.
  *
- * \detail If the client websocket successfully connects, then the accepted protocol
- *         can be checked via a call to ast_websocket_client_accept_protocol.
+ * If the client websocket successfully connects, then the accepted protocol can be
+ * checked via a call to ast_websocket_client_accept_protocol.
  *
  * \note While connecting this *will* block until a response is
  *       received from the remote host.
- * \note Expected uri form: ws[s]://<address>[:port][/<path>] The address (can be a
- *       host name) and port are parsed out and used to connect to the remote server.
- *       If multiple IPs are returned during address resolution then the first one is
- *       chosen.
+ * \note Expected uri form:
+ *       \verbatim ws[s]://<address>[:port][/<path>] \endverbatim
+ *       The address (can be a host name) and port are parsed out and used to connect
+ *       to the remote server.  If multiple IPs are returned during address
+ *       resolution then the first one is chosen.
  *
  * \param uri uri to connect to
  * \param protocols a comma separated string of supported protocols
  * \param tls_cfg secure websocket credentials
  * \param result result code set on client failure
- * \retval a client websocket.
+ * \return a client websocket.
  * \retval NULL if object could not be created or connected
  * \since 13
  */
@@ -441,7 +444,7 @@ AST_OPTIONAL_API(struct ast_websocket *, ast_websocket_client_create,
  * \brief Retrieve the server accepted sub-protocol on the client.
  *
  * \param ws the websocket client
- * \retval the accepted client sub-protocol.
+ * \return the accepted client sub-protocol.
  * \since 13
  */
 AST_OPTIONAL_API(const char *, ast_websocket_client_accept_protocol,

@@ -64,8 +64,6 @@ struct prometheus_metric_wrapper {
 	char key[128];
 };
 
-AST_MUTEX_DEFINE_STATIC(metrics_lock);
-
 /*!
  * \internal Vector of metric wrappers
  *
@@ -76,6 +74,8 @@ AST_MUTEX_DEFINE_STATIC(metrics_lock);
  * (2) The lifetime of wrappers is well contained
  */
 static AST_VECTOR(, struct prometheus_metric_wrapper *) metrics;
+
+AST_MUTEX_DEFINE_STATIC(metrics_lock);
 
 /*!
  * \internal

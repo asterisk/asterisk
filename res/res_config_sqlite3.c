@@ -565,7 +565,7 @@ struct row_counter_args {
  * of rows returned from a SELECT statement and still process each row
  * independently.
  *
- * \param data user data pointer passed in via sqlite3_exec()
+ * \param arg user data pointer passed in via sqlite3_exec()
  * \param num_columns number of columns in the result
  * \param values array of pointers to column values
  * \param columns array of pointers of to column names

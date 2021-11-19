@@ -3716,9 +3716,9 @@ static enum sip_get_destination_result get_destination(struct ast_sip_session *s
 	return SIP_GET_DEST_EXTEN_NOT_FOUND;
 }
 
-/*
- * /internal
- * /brief Process initial answer for an incoming invite
+/*!
+ * \internal
+ * \brief Process initial answer for an incoming invite
  *
  * This function should only be called during the setup, and handling of a
  * new incoming invite. Most, if not all of the time, this will be called
@@ -3766,10 +3766,10 @@ static int new_invite_initial_answer(pjsip_inv_session *inv_session, pjsip_rx_da
 	return res;
 }
 
-/*
- * /internal
- * /brief Create and initialize a pjsip invite session
-
+/*!
+ * \internal
+ * \brief Create and initialize a pjsip invite session
+ *
  * pjsip_inv_session adds, and maintains a reference to the dialog upon a successful
  * invite session creation until the session is destroyed. However, we'll wait to
  * remove the reference that was added for the dialog when it gets created since we're
@@ -3779,10 +3779,10 @@ static int new_invite_initial_answer(pjsip_inv_session *inv_session, pjsip_rx_da
  * created, and associated dialog locked and with two references (i.e. dialog's
  * reference count should be 2).
  *
- * \param endpoint A pointer to the endpoint
  * \param rdata The request that is starting the dialog
+ * \param endpoint A pointer to the endpoint
  *
- * \retval A pjsip invite session object
+ * \return A pjsip invite session object
  * \retval NULL on error
  */
 static pjsip_inv_session *pre_session_setup(pjsip_rx_data *rdata, const struct ast_sip_endpoint *endpoint)

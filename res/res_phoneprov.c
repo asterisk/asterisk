@@ -505,6 +505,7 @@ static void delete_routes(void)
 
 /*! \brief Build a route structure and add it to the list of available http routes
 	\param pp_file File to link to the route
+	\param profile
 	\param user User to link to the route (NULL means static route)
 	\param uri URI of the route
 */

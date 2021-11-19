@@ -1085,7 +1085,8 @@ int AST_OPTIONAL_API_NAME(ast_websocket_remove_protocol)(const char *name, ast_w
 
 /*! \brief Parse the given uri into a path and remote address.
  *
- * Expected uri form: [ws[s]]://<host>[:port][/<path>]
+ * Expected uri form:
+ * \verbatim [ws[s]]://<host>[:port][/<path>] \endverbatim
  *
  * The returned host will contain the address and optional port while
  * path will contain everything after the address/port if included.

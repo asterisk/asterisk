@@ -87,9 +87,9 @@ struct hepv3_capture_info {
  * reclaimed.
  *
  * \param payload The payload to send to the HEP capture node
- * \param len     Length of \ref payload
+ * \param len     Length of \p payload
  *
- * \retval A \ref hepv3_capture_info ref counted object on success
+ * \return A \ref hepv3_capture_info ref counted object on success
  * \retval NULL on error
  */
 struct hepv3_capture_info *hepv3_create_capture_info(const void *payload, size_t len);
@@ -102,7 +102,7 @@ struct hepv3_capture_info *hepv3_create_capture_info(const void *payload, size_t
  * \ref hepv3_create_capture_info.
  *
  * Once this function is called, it assumes ownership of the
- * \ref capture_info object and steals the reference of the
+ * \p capture_info object and steals the reference of the
  * object. Regardless of success or failure, the calling function
  * should assumed that this function will own the object.
  *
@@ -116,7 +116,7 @@ int hepv3_send_packet(struct hepv3_capture_info *capture_info);
  *
  * \since 13.10.0
  *
- * \retval The type of UUID the packet should use
+ * \return The type of UUID the packet should use
  */
 enum hep_uuid_type hepv3_get_uuid_type(void);
 

@@ -671,8 +671,8 @@ static int notify_contact(void *obj, void *arg, int flags)
  * \internal
  * \brief Send a NOTIFY request to the endpoint.
  *
- * \detail Iterates over an endpoint's AORs sending a NOTIFY request
- *         with the appropriate payload information to each contact.
+ * \details Iterates over an endpoint's AORs sending a NOTIFY request
+ *          with the appropriate payload information to each contact.
  */
 static int notify_endpoint(void *obj)
 {
@@ -1072,7 +1072,7 @@ static struct ast_cli_entry cli_options[] = {
 };
 
 /*!
- * \interanl
+ * \internal
  * \brief Completes SIPNotify AMI command in Endpoint mode.
  */
 static void manager_notify_endpoint(struct mansession *s,

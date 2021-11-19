@@ -39,7 +39,7 @@
  * \brief Callback function to get an endpoint's current state
  *
  * \param metric The metric to populate
- * \snapshot Endpoint snapshot
+ * \param snapshot Endpoint snapshot
  */
 static void get_endpoint_state(struct prometheus_metric *metric, struct ast_endpoint_snapshot *snapshot)
 {
