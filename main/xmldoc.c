@@ -351,12 +351,12 @@ char *ast_xmldoc_printable(const char *bwinput, int withcolors)
 
 /*!
  * \internal
- * \brief Cleanup spaces and tabs after a \n
+ * \brief Cleanup spaces and tabs after a \\n
  *
  * \param text String to be cleaned up.
  * \param output buffer (not already allocated).
  * \param lastspaces Remove last spaces in the string.
- * \param maintain_newlines Preserve new line characters (\n \r) discovered in the string
+ * \param maintain_newlines Preserve new line characters (\\n \\r) discovered in the string
  */
 static void xmldoc_string_cleanup(const char *text, struct ast_str **output, int lastspaces, int maintain_newlines)
 {
@@ -559,8 +559,8 @@ static void __attribute__((format(printf, 4, 5))) xmldoc_reverse_helper(int reve
  * \internal
  * \brief Check if the passed node has 'what' tags inside it.
  *
- * \param node Root node to search 'what' elements.
- * \param what node name to search inside node.
+ * \param fixnode Root node to search 'what' elements.
+ * \param what    Node name to search inside node.
  *
  * \retval 1 If a 'what' element is found inside 'node'.
  * \retval 0 If no 'what' is found inside 'node'.
@@ -581,7 +581,7 @@ static int xmldoc_has_inside(struct ast_xml_node *fixnode, const char *what)
  * \internal
  * \brief Check if the passed node has at least one node inside it.
  *
- * \param node Root node to search node elements.
+ * \param fixnode Root node to search node elements.
  *
  * \retval 1 If a node element is found inside 'node'.
  * \retval 0 If no node is found inside 'node'.
@@ -602,7 +602,7 @@ static int xmldoc_has_nodes(struct ast_xml_node *fixnode)
  * \internal
  * \brief Check if the passed node has at least one specialtag.
  *
- * \param node Root node to search "specialtags" elements.
+ * \param fixnode Root node to search "specialtags" elements.
  *
  * \retval 1 If a "specialtag" element is found inside 'node'.
  * \retval 0 If no "specialtag" is found inside 'node'.
@@ -872,9 +872,9 @@ static char *xmldoc_get_syntax_fun(struct ast_xml_node *rootnode, const char *ro
 
 /*!
  * \internal
- * \brief Parse an enumlist inside a <parameter> to generate a COMMAND syntax.
+ * \brief Parse an enumlist inside a \<parameter\> to generate a COMMAND syntax.
  *
- * \param fixnode A pointer to the <enumlist> node.
+ * \param fixnode A pointer to the \<enumlist\> node.
  *
  * \retval {<unknown>} on error.
  * \retval A string inside brackets {} with the enum's separated by pipes |.
@@ -922,12 +922,12 @@ static char *xmldoc_parse_cmd_enumlist(struct ast_xml_node *fixnode)
  * \internal
  * \brief Generate a syntax of COMMAND type.
  *
- * \param fixnode The <syntax> node pointer.
+ * \param fixnode The \<syntax\> node pointer.
  * \param name The name of the 'command'.
  * \param printname Print the name of the command before the paramters?
  *
- * \retval On error, return just 'name'.
- * \retval On success return the generated syntax.
+ * \return On error, return just 'name'.
+ * \return On success return the generated syntax.
  */
 static char *xmldoc_get_syntax_cmd(struct ast_xml_node *fixnode, const char *name, int printname)
 {
@@ -1201,9 +1201,9 @@ static enum syntaxtype xmldoc_get_syntax_type(const char *type)
 /*!
  * \internal
  * \brief Build syntax information for an item
- * \param node	The syntax node to parse
- * \param type	The source type
- * \param name	The name of the item that the syntax describes
+ * \param root_node The syntax node to parse
+ * \param type      The source type
+ * \param name      The name of the item that the syntax describes
  *
  * \note This method exists for when you already have the node.  This
  * prevents having to lock the documentation tree twice
@@ -1287,11 +1287,11 @@ static int xmldoc_parse_common_elements(struct ast_xml_node *node, const char *t
 
 /*!
  * \internal
- * \brief Parse a <para> element.
+ * \brief Parse a \<para\> element.
  *
- * \param node The <para> element pointer.
- * \param tabs Added this string before the content of the <para> element.
- * \param posttabs Added this string after the content of the <para> element.
+ * \param node The \<para\> element pointer.
+ * \param tabs Add this string before the content of the \<para\> element.
+ * \param posttabs Added this string after the content of the \<para\> element.
  * \param buffer This must be an already allocated ast_str. It will be used
  *        to store the result (if already has something it will be appended to the current
  *        string).
@@ -1346,10 +1346,10 @@ static int xmldoc_parse_para(struct ast_xml_node *node, const char *tabs, const 
 
 /*!
  * \internal
- * \brief Parse an <example> node.
+ * \brief Parse an \<example\> node.
  * \since 13.0.0
  *
- * \param fixnode An ast xml pointer to the <example> node.
+ * \param fixnode An ast xml pointer to the \<example\> node.
  * \param buffer The output buffer.
  *
  * \retval 0 if no example node is parsed.
@@ -1397,7 +1397,7 @@ static int xmldoc_parse_example(struct ast_xml_node *fixnode, struct ast_str **b
 
 /*!
  * \internal
- * \brief Parse special elements defined in 'struct special_tags' special elements must have a <para> element inside them.
+ * \brief Parse special elements defined in 'struct special_tags' special elements must have a \<para\> element inside them.
  *
  * \param fixnode special tag node pointer.
  * \param tabs put tabs before printing the node content.
@@ -1406,7 +1406,7 @@ static int xmldoc_parse_example(struct ast_xml_node *fixnode, struct ast_str **b
  *
  * \retval 0 if no special element is parsed.
  * \retval 1 if a special element is parsed (data is appended to buffer).
- * \retval 2 if a special element is parsed and also a <para> element is parsed inside the specialtag.
+ * \retval 2 if a special element is parsed and also a \<para\> element is parsed inside the specialtag.
  */
 static int xmldoc_parse_specialtags(struct ast_xml_node *fixnode, const char *tabs, const char *posttabs, struct ast_str **buffer)
 {
@@ -1456,13 +1456,13 @@ static int xmldoc_parse_specialtags(struct ast_xml_node *fixnode, const char *ta
 
 /*!
  * \internal
- * \brief Parse an <argument> element from the xml documentation.
+ * \brief Parse an \<argument\> element from the xml documentation.
  *
  * \param fixnode Pointer to the 'argument' xml node.
- * \param insideparameter If we are parsing an <argument> inside a <parameter>.
+ * \param insideparameter If we are parsing an \<argument\> inside a \<parameter\>.
  * \param paramtabs pre tabs if we are inside a parameter element.
  * \param tabs What to be printed before the argument name.
- * \param buffer Output buffer to put values found inside the <argument> element.
+ * \param buffer Output buffer to put values found inside the \<argument\> element.
  *
  * \retval 1 If there is content inside the argument.
  * \retval 0 If the argument element is not parsed, or there is no content inside it.
@@ -1502,7 +1502,7 @@ static int xmldoc_parse_argument(struct ast_xml_node *fixnode, int insideparamet
 
 /*!
  * \internal
- * \brief Parse a <variable> node inside a <variablelist> node.
+ * \brief Parse a \<variable\> node inside a \<variablelist\> node.
  *
  * \param node The variable node to parse.
  * \param tabs A string to be appended at the begining of the output that will be stored
@@ -1563,7 +1563,7 @@ static int xmldoc_parse_variable(struct ast_xml_node *node, const char *tabs, st
 
 /*!
  * \internal
- * \brief Parse a <variablelist> node and put all the output inside 'buffer'.
+ * \brief Parse a \<variablelist\> node and put all the output inside 'buffer'.
  *
  * \param node The variablelist node pointer.
  * \param tabs A string to be appended at the begining of the output that will be stored
@@ -1572,7 +1572,7 @@ static int xmldoc_parse_variable(struct ast_xml_node *node, const char *tabs, st
  *        to store the result (if already has something it will be appended to the current
  *        string).
  *
- * \retval 1 If a <variablelist> element is parsed.
+ * \retval 1 If a \<variablelist\> element is parsed.
  * \retval 0 On error.
  */
 static int xmldoc_parse_variablelist(struct ast_xml_node *node, const char *tabs, struct ast_str **buffer)
@@ -1717,10 +1717,11 @@ char *ast_xmldoc_build_seealso(const char *type, const char *name, const char *m
 
 /*!
  * \internal
- * \brief Parse a <enum> node.
+ * \brief Parse a \<enum\> node.
  *
- * \param fixnode An ast_xml_node pointer to the <enum> node.
- * \param buffer The output buffer.
+ * \param fixnode An ast_xml_node pointer to the \<enum\> node.
+ * \param tabs    Add this string before the content of the \<enum\> node.
+ * \param buffer  The output buffer.
  *
  * \retval 0 if content is not found inside the enum element (data is not appended to buffer).
  * \retval 1 if content is found and data is appended to buffer.
@@ -1751,13 +1752,14 @@ static int xmldoc_parse_enum(struct ast_xml_node *fixnode, const char *tabs, str
 
 /*!
  * \internal
- * \brief Parse a <enumlist> node.
+ * \brief Parse a \<enumlist\> node.
  *
- * \param fixnode As ast_xml pointer to the <enumlist> node.
- * \param buffer The ast_str output buffer.
+ * \param fixnode As ast_xml pointer to the \<enumlist\> node.
+ * \param tabs    Add this string before the content of the \<enumlist\> node.
+ * \param buffer  The ast_str output buffer.
  *
- * \retval 0 if no <enumlist> node was parsed.
- * \retval 1 if a <enumlist> node was parsed.
+ * \retval 0 if no \<enumlist\> node was parsed.
+ * \retval 1 if a \<enumlist\> node was parsed.
  */
 static int xmldoc_parse_enumlist(struct ast_xml_node *fixnode, const char *tabs, struct ast_str **buffer)
 {
@@ -1788,9 +1790,9 @@ static int xmldoc_parse_enumlist(struct ast_xml_node *fixnode, const char *tabs,
 
 /*!
  * \internal
- * \brief Parse an <option> node.
+ * \brief Parse an \<option\> node.
  *
- * \param fixnode An ast_xml pointer to the <option> node.
+ * \param fixnode An ast_xml pointer to the \<option\> node.
  * \param tabs A string to be appended at the begining of each line being added to the
  *             buffer string.
  * \param buffer The output buffer.
@@ -1835,7 +1837,7 @@ static int xmldoc_parse_option(struct ast_xml_node *fixnode, const char *tabs, s
 
 /*!
  * \internal
- * \brief Parse an <optionlist> element from the xml documentation.
+ * \brief Parse an \<optionlist\> element from the xml documentation.
  *
  * \param fixnode Pointer to the optionlist xml node.
  * \param tabs A string to be appended at the begining of each line being added to the
@@ -1970,9 +1972,9 @@ static void xmldoc_parse_parameter(struct ast_xml_node *fixnode, const char *tab
  *
  * \param node A pointer to the 'info' xml node.
  * \param tabs A string to be appended at the beginning of each line being printed
- *             inside 'buffer'
- * \param posttabs Add this string after the content of the <para> element, if one exists
- * \param String buffer to put values found inide the info element.
+ *             inside 'buffer'.
+ * \param posttabs Add this string after the content of the \<para\> element, if one exists
+ * \param buffer   String buffer to put values found inide the info element.
  *
  * \retval 2 if the information contained a para element, and it returned a value of 2
  * \retval 1 if information was put into the buffer
@@ -2091,11 +2093,11 @@ char *ast_xmldoc_build_arguments(const char *type, const char *name, const char 
 
 /*!
  * \internal
- * \brief Return the string within a node formatted with <para> and <variablelist> elements.
+ * \brief Return the string within a node formatted with \<para\> and \<variablelist\> elements.
  *
- * \param node Parent node where content resides.
- * \param raw If set, return the node's content without further processing.
- * \param raw_wrap Wrap raw text.
+ * \param node       Parent node where content resides.
+ * \param raw_output If set, return the node's content without further processing.
+ * \param raw_wrap   Wrap raw text.
  *
  * \retval NULL on error
  * \retval Node content on success.
