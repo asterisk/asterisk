@@ -596,8 +596,6 @@ static int find_free_chan_in_stack(struct misdn_stack *stack, struct misdn_bchan
  * \param stack Which port stack B channel belongs.
  * \param channel B channel to release. (Range 1-MAX_BCHANS representing B1-Bn)
  *
- * \return Nothing
- *
  * \note
  * Must be called after clean_up_bc() to make sure that the media stream is
  * no longer connected.
@@ -670,8 +668,6 @@ static void bc_next_state_change(struct misdn_bchannel *bc, enum bchannel_state 
  * \brief Empty the B channel record of most call data.
  *
  * \param bc B channel record to empty of most call data.
- *
- * \return Nothing
  *
  * \note
  * Sets the last_used time and must be called before clearing bc->in_use.
