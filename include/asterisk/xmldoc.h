@@ -81,7 +81,7 @@ struct ast_xml_doc_item {
 };
 
 /*! \brief Execute an XPath query on the loaded XML documentation
- * \param query The XPath query string to execute
+ * \param fmt The XPath query string to execute
  * \param ... Variable printf style format arguments
  * \retval An XPath results object on success
  * \retval NULL if no match found
