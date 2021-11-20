@@ -98,6 +98,7 @@
 			double-quotes from the right-hand side (value). If you need to put a separator
 			character (comma or vert-bar), you will need to escape them by inserting a backslash
 			before them. Avoid its use if possible.</para>
+			<para>This application allows up to 99 variables to be set at once.</para>
 		</description>
 		<see-also>
 			<ref type="application">Set</ref>
@@ -1171,7 +1172,7 @@ int pbx_builtin_setvar_multiple(struct ast_channel *chan, const char *vdata)
 	char *data;
 	int x;
 	AST_DECLARE_APP_ARGS(args,
-		AST_APP_ARG(pair)[24];
+		AST_APP_ARG(pair)[99]; /* parse up to 99 variables */
 	);
 	AST_DECLARE_APP_ARGS(pair,
 		AST_APP_ARG(name);
