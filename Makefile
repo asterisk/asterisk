@@ -442,7 +442,7 @@ distclean: $(SUBDIRS_DIST_CLEAN) _clean
 	rm -f include/asterisk/autoconfig.h
 	rm -f include/asterisk/buildopts.h
 	rm -rf doc/api
-	rm -f doc/asterisk-ng-doxygen
+	rm -f doc/Doxyfile
 	rm -f build_tools/menuselect-deps
 
 datafiles: _all $(CORE_XMLDOC)
@@ -891,29 +891,30 @@ webvmail:
 	@echo " +-------------------------------------------+"
 
 progdocs:
-# Note, Makefile conditionals must not be tabbed out. Wasted hours with that.
-	@cp doc/asterisk-ng-doxygen.in doc/asterisk-ng-doxygen
 ifeq ($(DOXYGEN),:)
 	@echo "Doxygen is not installed.  Please install and re-run the configuration script."
 else
+	@cp doc/Doxyfile.in doc/Doxyfile
 ifeq ($(DOT),:)
 	@echo "DOT is not installed. Doxygen will not produce any diagrams. Please install and re-run the configuration script."
 else
-	# Enable DOT
-	@echo "HAVE_DOT = YES" >> doc/asterisk-ng-doxygen
+	@echo "HAVE_DOT = YES" >> doc/Doxyfile
 endif
-	# Set Doxygen PROJECT_NUMBER variable
-ifneq ($(ASTERISKVERSION),UNKNOWN__and_probably_unsupported)
-	@echo "PROJECT_NUMBER = $(ASTERISKVERSION)" >> doc/asterisk-ng-doxygen
+ifneq ($(NOISY_BUILD),yes)
+	@echo "EXTRACT_ALL = YES" >> doc/Doxyfile
+endif
+ifeq ($(AST_DEVMODE),yes)
+	@echo "INTERNAL_DOCS = YES" >> doc/Doxyfile
+	@echo "WARN_NO_PARAMDOC = YES" >> doc/Doxyfile
+endif
+ifeq ($(ASTERISKVERSION),UNKNOWN__and_probably_unsupported)
+	@echo "Asterisk Version is unknown, not configuring Doxygen PROJECT_NUMBER."
 else
-	echo "Asterisk Version is unknown, not configuring Doxygen PROJECT_NUMBER."
+	@echo "PROJECT_NUMBER = $(ASTERISKVERSION)" >> doc/Doxyfile
 endif
-	# Validate and auto-update local copy
-	@doxygen -u doc/asterisk-ng-doxygen
-	# Run Doxygen
-	@doxygen doc/asterisk-ng-doxygen
-	# Remove configuration backup file
-	@rm -f doc/asterisk-ng-doxygen.bak
+	@echo "Generating C-API documentation. This will take a while."
+	@doxygen doc/Doxyfile
+	@echo "Generation complete. Any warnings are in ./doxygen.log."
 endif
 
 install-logrotate:
@@ -1154,6 +1155,7 @@ check-alembic: makeopts
 .PHONY: uninstall-headers
 .PHONY: badshell
 .PHONY: installdirs
+.PHONY: progdocs
 .PHONY: validate-docs
 .PHONY: _clean
 .PHONY: ari-stubs
