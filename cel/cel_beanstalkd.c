@@ -24,9 +24,6 @@
  *
  * This module requires the beanstalk-client library, avaialble from
  * https://github.com/deepfryed/beanstalk-client
- *
- * See also
- * \arg \ref AstCEL
  * \ingroup cel_drivers
  */
 

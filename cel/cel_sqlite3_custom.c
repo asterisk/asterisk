@@ -26,11 +26,6 @@
  *  Russell Bryant <russell@digium.com> from
  *  cdr_mysql_custom by Edward Eastman <ed@dm3.co.uk>,
  *	and cdr_sqlite by Holger Schurig <hs4233@mail.mn-solutions.de>
- *
- *
- * \arg See also \ref AstCEL
- *
- *
  * \ingroup cel_drivers
  */
 
