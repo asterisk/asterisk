@@ -26,10 +26,6 @@
  *
  * \author Matthew D. Hardeman <mhardemn@papersoft.com>
  * PostgreSQL http://www.postgresql.org/
- *
- * See also
- * \arg \ref Config_cdr
- * PostgreSQL http://www.postgresql.org/
  * \ingroup cdr_drivers
  */
 
