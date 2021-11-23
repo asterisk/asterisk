@@ -1,0 +1,94 @@
+PROJECT_NAME           = "Asterisk - The Open Source Telephony Project"
+OUTPUT_DIRECTORY       = doc
+CREATE_SUBDIRS         = YES
+ABBREVIATE_BRIEF       =
+FULL_PATH_NAMES        = NO # why? Default: YES
+ALIASES                = "extref=\xrefitem extref \"ExtRef\" \"External references\"" \
+                         "AsteriskTrunkWarning=\note The information contained on this page may be out of date.  To make sure you get the most current information, please make sure that you are using the documentation generated from Asterisk trunk."
+OPTIMIZE_OUTPUT_FOR_C  = YES
+EXTRACT_STATIC         = YES
+HIDE_SCOPE_NAMES       = YES # why? Default: NO
+SORT_BRIEF_DOCS        = YES
+MAX_INITIALIZER_LINES  = 5   # why? Default: 30
+QUIET                  = YES
+WARN_LOGFILE           = doxygen.log
+FILE_PATTERNS          = *.c \
+                         *.h \
+                         *.py
+RECURSIVE              = YES
+EXCLUDE                = doc/api \
+                         menuselect \
+                         res/pjproject \
+                         addons/ooh323c/src \
+                         third-party
+EXCLUDE_SYMLINKS       = YES
+EXCLUDE_PATTERNS       = *.o \
+                         *.o.d \
+                         .*
+EXAMPLE_PATH           = . \
+                         doc \
+                         configs \
+                         contrib
+IMAGE_PATH             = images
+SOURCE_BROWSER         = YES
+INLINE_SOURCES         = YES
+STRIP_CODE_COMMENTS    = NO # why? default: YES
+REFERENCED_BY_RELATION = YES
+REFERENCES_RELATION    = YES
+HTML_OUTPUT            = api
+HTML_TIMESTAMP         = YES
+GENERATE_LATEX         = NO
+MACRO_EXPANSION        = YES
+EXPAND_ONLY_PREDEF     = YES
+INCLUDE_PATH           = ./ \
+                         include/ \
+                         include/asterisk/
+PREDEFINED             = __GNUC__ \
+                         __attribute__(x)=
+EXPAND_AS_DEFINED      = AST_INLINE_API \
+                         AST_DECLARE_STRING_FIELDS \
+                         AST_STRING_FIELD \
+                         AST_THREADSTORAGE \
+                         AST_THREADSTORAGE_CUSTOM \
+                         AST_MODULE_INFO \
+                         AST_MODULE_INFO_STANDARD \
+                         __AST_MUTEX_DEFINE \
+                         AST_MUTEX_DEFINE_STATIC \
+                         AST_MUTEX_DEFINE_STATIC_NOTRACKING \
+                         __AST_RWLOCK_DEFINE \
+                         AST_RWLOCK_DEFINE_STATIC \
+                         AST_LIST_HEAD \
+                         AST_RWLIST_HEAD \
+                         AST_LIST_HEAD_NOLOCK \
+                         AST_LIST_HEAD_STATIC \
+                         AST_RWLIST_HEAD_STATIC \
+                         AST_LIST_HEAD_NOLOCK_STATIC \
+                         AST_LIST_ENTRY \
+                         AST_RWLIST_ENTRY \
+                         __ASTOBJ_HASH \
+                         ASTOBJ_COMPONENTS_NOLOCK_FULL \
+                         ASTOBJ_COMPONENTS_NOLOCK \
+                         ASTOBJ_COMPONENTS_FULL \
+                         ASTOBJ_COMPONENTS \
+                         AST_IVR_DECLARE_MENU \
+                         AST_DECLARE_APP_ARGS \
+                         AST_DEFINE_APP_ARGS_TYPE \
+                         AST_APP_ARG \
+                         BEGIN_OPTIONS \
+                         END_OPTIONS \
+                         AST_APP_OPTIONS \
+                         AST_APP_OPTION \
+                         AST_APP_OPTION_ARG \
+                         AST_DLLIST_HEAD \
+                         AST_DLLIST_HEAD_STATIC \
+                         AST_DLLIST_HEAD_NOLOCK \
+                         AST_DLLIST_HEAD_NOLOCK_STATIC \
+                         AST_RWDLLIST_HEAD \
+                         AST_RWDLLIST_HEAD_STATIC \
+                         AST_DLLIST_ENTRY \
+                         AST_RWDLLIST_ENTRY \
+                         AST_CLI_DEFINE \
+                         AST_OPTIONAL_API \
+                         AST_OPTIONAL_API_ATTR \
+                         AST_VECTOR
+TEMPLATE_RELATIONS     = YES # why? Default: NO
