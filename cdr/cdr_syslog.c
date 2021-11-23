@@ -21,9 +21,6 @@
  * \brief syslog CDR logger
  *
  * \author Sean Bright <sean@malleable.com>
- *
- * See also
- * \arg \ref Config_cdr
  * \ingroup cdr_drivers
  */
 

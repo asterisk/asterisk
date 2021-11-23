@@ -43,18 +43,13 @@
  * \arg \ref AstAMI : The Call management socket API
  * \arg \ref AstARA : A generic data storage and retrieval API for Asterisk
  * \arg \ref AstDUNDi : A way to find phone services dynamically by using the DUNDi protocol
- * \arg \ref AJI_intro : The Asterisk Jabber Interface
  * \arg \ref AstCDR
  * \arg \ref AstVar
  * \arg \ref AstVideo
- * \arg \ref AstENUM : The IETF way to redirect from phone numbers to VoIP calls
  * \arg \ref AstHTTP
- * \arg \ref AstSpeech
  *
  * \section debugconfig Debugging and Configuration References
- * \arg \ref AstDebug : Hints on debugging
  * \arg \ref extref
- * \arg \ref ConfigFiles
  * \arg \ref SoundFiles included in the Asterisk distribution
  *
  * \section weblinks Web sites
@@ -81,9 +76,7 @@
  * Some generic documents on the Asterisk architecture
  *
  * \arg \ref AstThreadStorage
- * \arg \ref DataStores
  * \arg \ref AstExtState
- * \arg \ref AstDataRetrieval
  *
  * \subsection channel_txt Channels
  * \arg See \ref Def_Channel
@@ -163,7 +156,6 @@
  * \par See also
  * \arg \ref cdr.c
  * \arg \ref cdr_drivers
- * \arg \ref Config_cdr CDR configuration files
  *
  * \todo include missing cdrdriver txt
  */
@@ -314,7 +306,6 @@
  * \brief CDR drivers are loaded dynamically, each loaded CDR driver produce
  *        a billing record for each call.
  * \arg \ref Config_mod "Modules Configuration"
- * \arg \ref Config_cdr "CDR Configuration"
  */
 
 /*!
