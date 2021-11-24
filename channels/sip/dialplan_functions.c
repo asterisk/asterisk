@@ -166,8 +166,12 @@ int sip_acf_channel_read(struct ast_channel *chan, const char *funcname, char *p
 	} else if (!strcasecmp(args.param, "uri")) {
 		ast_copy_string(buf, p->uri, buflen);
 	} else if (!strcasecmp(args.param, "ruri")) {
-		char *tmpruri = REQ_OFFSET_TO_STR(&p->initreq, rlpart2);
-		ast_copy_string(buf, tmpruri, buflen);
+		if (p->initreq.data) {
+			char *tmpruri = REQ_OFFSET_TO_STR(&p->initreq, rlpart2);
+			ast_copy_string(buf, tmpruri, buflen);
+		} else {
+			return -1;
+		}
 	} else if (!strcasecmp(args.param, "useragent")) {
 		ast_copy_string(buf, p->useragent, buflen);
 	} else if (!strcasecmp(args.param, "peername")) {
