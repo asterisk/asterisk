@@ -740,7 +740,7 @@ static int stir_shaken_handler(const struct aco_option *opt, struct ast_variable
 }
 
 static const char *stir_shaken_map[] = {
-	[AST_SIP_STIR_SHAKEN_OFF] "off",
+	[AST_SIP_STIR_SHAKEN_OFF] = "off",
 	[AST_SIP_STIR_SHAKEN_ATTEST] = "attest",
 	[AST_SIP_STIR_SHAKEN_VERIFY] = "verify",
 	[AST_SIP_STIR_SHAKEN_ON] = "on",
