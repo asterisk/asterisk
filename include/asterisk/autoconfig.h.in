@@ -609,6 +609,9 @@
 /* Define to 1 if you have the Opus library. */
 #undef HAVE_OPUS
 
+/* Define if your system has the OPUSENC libraries. */
+#undef HAVE_OPUSENC
+
 /* Define to 1 if you have the Opusfile library. */
 #undef HAVE_OPUSFILE
 
