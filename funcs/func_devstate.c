@@ -90,8 +90,10 @@
 		</syntax>
 		<description>
 			<para>The HINT function can be used to retrieve the list of devices that are
-			mapped to a dialplan hint. For example:</para>
-			<para>NoOp(Hint for Extension 1234 is ${HINT(1234)})</para>
+			mapped to a dialplan hint.</para>
+			<example title="Hint for extension 1234">
+			same => n,NoOp(Hint for Extension 1234 is ${HINT(1234)})
+			</example>
 		</description>
 	</function>
  ***/

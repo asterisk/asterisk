@@ -337,17 +337,19 @@
 			added with SIPAddHeader(). If no parameter is supplied, all previously added
 			headers will be removed. If a parameter is supplied, only the matching headers
 			will be removed.</para>
-			<para>For example you have added these 2 headers:</para>
-			<para>SIPAddHeader(P-Asserted-Identity: sip:foo@bar);</para>
-			<para>SIPAddHeader(P-Preferred-Identity: sip:bar@foo);</para>
-			<para></para>
-			<para>// remove all headers</para>
-			<para>SIPRemoveHeader();</para>
-			<para>// remove all P- headers</para>
-			<para>SIPRemoveHeader(P-);</para>
-			<para>// remove only the PAI header (note the : at the end)</para>
-			<para>SIPRemoveHeader(P-Asserted-Identity:);</para>
-			<para></para>
+			<example title="Add 2 headers">
+			same => n,SIPAddHeader(P-Asserted-Identity: sip:foo@bar)
+			same => n,SIPAddHeader(P-Preferred-Identity: sip:bar@foo)
+			</example>
+			<example title="Remove all headers">
+			same => n,SIPRemoveHeader()
+			</example>
+			<example title="Remove all P- headers">
+			same => n,SIPRemoveHeader(P-)
+			</example>
+			<example title="Remove only the PAI header (note the : at the end)">
+			same => n,SIPRemoveHeader(P-Asserted-Identity:)
+			</example>
 			<para>Always returns <literal>0</literal>.</para>
 		</description>
 	</application>

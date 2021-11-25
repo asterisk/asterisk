@@ -376,7 +376,9 @@
 					<value name="NOTDYNAMIC" />
 				</variable>
 			</variablelist>
-			<para>Example: RemoveQueueMember(techsupport,SIP/3000)</para>
+			<example title="Remove queue member">
+			same => n,RemoveQueueMember(techsupport,SIP/3000)
+			</example>
 		</description>
 		<see-also>
 			<ref type="application">Queue</ref>
@@ -421,7 +423,9 @@
 					<value name="NOTFOUND" />
 				</variable>
 			</variablelist>
-			<para>Example: PauseQueueMember(,SIP/3000)</para>
+			<example title="Pause queue member">
+			same => n,PauseQueueMember(,SIP/3000)
+			</example>
 		</description>
 		<see-also>
 			<ref type="application">Queue</ref>
@@ -463,7 +467,9 @@
 					<value name="NOTFOUND" />
 				</variable>
 			</variablelist>
-			<para>Example: UnpauseQueueMember(,SIP/3000)</para>
+			<example title="Unpause queue member">
+			same => n,UnpauseQueueMember(,SIP/3000)
+			</example>
 		</description>
 		<see-also>
 			<ref type="application">Queue</ref>
@@ -495,7 +501,9 @@
 		</syntax>
 		<description>
 			<para>Allows you to write your own events into the queue log.</para>
-			<para>Example: QueueLog(101,${UNIQUEID},${AGENT},WENTONBREAK,600)</para>
+			<example title="Log custom queue event">
+			same => n,QueueLog(101,${UNIQUEID},${AGENT},WENTONBREAK,600)
+			</example>
 		</description>
 		<see-also>
 			<ref type="application">Queue</ref>
@@ -516,7 +524,7 @@
 	</application>
 	<application name="QueueUpdate" language="en_US">
 		<synopsis>
-			Writes to the queue_log file for OutBound calls and updates Realtime Data.
+			Writes to the queue_log file for outbound calls and updates Realtime Data.
 			Is used at h extension to be able to have all the parameters.
 		</synopsis>
 		<syntax>
@@ -529,7 +537,9 @@
 		</syntax>
 		<description>
 			<para>Allows you to write Outbound events into the queue log.</para>
-			<para>Example: exten => h,1,QueueUpdate(${QUEUE}, ${UNIQUEID}, ${AGENT}, ${DIALSTATUS}, ${ANSWEREDTIME}, ${DIALEDTIME} | ${DIALEDNUMBER})</para>
+			<example title="Write outbound event into queue log">
+			exten => h,1,QueueUpdate(${QUEUE}, ${UNIQUEID}, ${AGENT}, ${DIALSTATUS}, ${ANSWEREDTIME}, ${DIALEDTIME} | ${DIALEDNUMBER})
+			</example>
 		</description>
 	</application>
 	<function name="QUEUE_VARIABLES" language="en_US">

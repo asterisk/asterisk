@@ -65,9 +65,11 @@
 		<description>
 			<para>Executes mpg123 to play the given location, which typically would be a mp3 filename
 			or m3u playlist filename or a URL. Please read http://en.wikipedia.org/wiki/M3U
-			to see how M3U playlist file format is like, Example usage would be
+			to see what the M3U playlist file format is like.</para>
+			<para>User can exit by pressing any key on the dialpad, or by hanging up.</para>
+			<example title="Play an MP3 playlist">
 			exten => 1234,1,MP3Player(/var/lib/asterisk/playlist.m3u)
-			User can exit by pressing any key on the dialpad, or by hanging up.</para>
+			</example>
 			<para>This application does not automatically answer and should be preceeded by an
 			application such as Answer() or Progress().</para>
 		</description>
