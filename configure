@@ -655,6 +655,8 @@ PBX_MSG_NOSIGNAL
 PBX_IXJUSER
 GMIME_LIBS
 GMIME_CFLAGS
+OPUSENC_LIBS
+OPUSENC_CFLAGS
 PORTAUDIO_LIBS
 PORTAUDIO_CFLAGS
 PYTHONDEV_LIBS
@@ -1011,6 +1013,10 @@ PBX_OPUSFILE
 OPUSFILE_DIR
 OPUSFILE_INCLUDE
 OPUSFILE_LIB
+PBX_OPUSENC
+OPUSENC_DIR
+OPUSENC_INCLUDE
+OPUSENC_LIB
 PBX_OPUS
 OPUS_DIR
 OPUS_INCLUDE
@@ -1359,7 +1365,6 @@ infodir
 docdir
 oldincludedir
 includedir
-runstatedir
 localstatedir
 sharedstatedir
 sysconfdir
@@ -1437,6 +1442,7 @@ with_newt
 with_ogg
 with_openr2
 with_opus
+with_opusenc
 with_opusfile
 with_osptk
 with_oss
@@ -1507,6 +1513,8 @@ PYTHONDEV_CFLAGS
 PYTHONDEV_LIBS
 PORTAUDIO_CFLAGS
 PORTAUDIO_LIBS
+OPUSENC_CFLAGS
+OPUSENC_LIBS
 GMIME_CFLAGS
 GMIME_LIBS
 GTK2_CFLAGS
@@ -1551,7 +1559,6 @@ datadir='${datarootdir}'
 sysconfdir='${prefix}/etc'
 sharedstatedir='${prefix}/com'
 localstatedir='${prefix}/var'
-runstatedir='${localstatedir}/run'
 includedir='${prefix}/include'
 oldincludedir='/usr/include'
 docdir='${datarootdir}/doc/${PACKAGE_TARNAME}'
@@ -1804,15 +1811,6 @@ do
   | -silent | --silent | --silen | --sile | --sil)
     silent=yes ;;
 
-  -runstatedir | --runstatedir | --runstatedi | --runstated \
-  | --runstate | --runstat | --runsta | --runst | --runs \
-  | --run | --ru | --r)
-    ac_prev=runstatedir ;;
-  -runstatedir=* | --runstatedir=* | --runstatedi=* | --runstated=* \
-  | --runstate=* | --runstat=* | --runsta=* | --runst=* | --runs=* \
-  | --run=* | --ru=* | --r=*)
-    runstatedir=$ac_optarg ;;
-
   -sbindir | --sbindir | --sbindi | --sbind | --sbin | --sbi | --sb)
     ac_prev=sbindir ;;
   -sbindir=* | --sbindir=* | --sbindi=* | --sbind=* | --sbin=* \
@@ -1950,7 +1948,7 @@ fi
 for ac_var in	exec_prefix prefix bindir sbindir libexecdir datarootdir \
 		datadir sysconfdir sharedstatedir localstatedir includedir \
 		oldincludedir docdir infodir htmldir dvidir pdfdir psdir \
-		libdir localedir mandir runstatedir
+		libdir localedir mandir
 do
   eval ac_val=\$$ac_var
   # Remove trailing slashes.
@@ -2103,7 +2101,6 @@ Fine tuning of the installation directories:
   --sysconfdir=DIR        read-only single-machine data [PREFIX/etc]
   --sharedstatedir=DIR    modifiable architecture-independent data [PREFIX/com]
   --localstatedir=DIR     modifiable single-machine data [PREFIX/var]
-  --runstatedir=DIR       modifiable per-process data [LOCALSTATEDIR/run]
   --libdir=DIR            object code libraries [EPREFIX/lib]
   --includedir=DIR        C header files [PREFIX/include]
   --oldincludedir=DIR     C header files for non-gcc [/usr/include]
@@ -2218,6 +2215,7 @@ Optional Packages:
   --with-ogg=PATH         use OGG files in PATH
   --with-openr2=PATH      use MFR2 files in PATH
   --with-opus=PATH        use Opus files in PATH
+  --with-opusenc=PATH     use Opusenc files in PATH
   --with-opusfile=PATH    use Opusfile files in PATH
   --with-osptk=PATH       use OSP Toolkit files in PATH
   --with-oss=PATH         use Open Sound System files in PATH
@@ -2296,6 +2294,10 @@ Some influential environment variables:
               C compiler flags for PORTAUDIO, overriding pkg-config
   PORTAUDIO_LIBS
               linker flags for PORTAUDIO, overriding pkg-config
+  OPUSENC_CFLAGS
+              C compiler flags for OPUSENC, overriding pkg-config
+  OPUSENC_LIBS
+              linker flags for OPUSENC, overriding pkg-config
   GMIME_CFLAGS
               C compiler flags for GMIME, overriding pkg-config
   GMIME_LIBS  linker flags for GMIME, overriding pkg-config
@@ -11292,6 +11294,38 @@ fi
 
 
 
+    OPUSENC_DESCRIP="Opusenc"
+    OPUSENC_OPTION="opusenc"
+    PBX_OPUSENC=0
+
+# Check whether --with-opusenc was given.
+if test "${with_opusenc+set}" = set; then :
+  withval=$with_opusenc;
+	case ${withval} in
+	n|no)
+	USE_OPUSENC=no
+	# -1 is a magic value used by menuselect to know that the package
+	# was disabled, other than 'not found'
+	PBX_OPUSENC=-1
+	;;
+	y|ye|yes)
+	ac_mandatory_list="${ac_mandatory_list} OPUSENC"
+	;;
+	*)
+	OPUSENC_DIR="${withval}"
+	ac_mandatory_list="${ac_mandatory_list} OPUSENC"
+	;;
+	esac
+
+fi
+
+
+
+
+
+
+
+
     OPUSFILE_DESCRIP="Opusfile"
     OPUSFILE_OPTION="opusfile"
     PBX_OPUSFILE=0
@@ -16367,8 +16401,6 @@ main ()
     if (*(data + i) != *(data3 + i))
       return 14;
   close (fd);
-  free (data);
-  free (data3);
   return 0;
 }
 _ACEOF
@@ -29954,6 +29986,94 @@ __opus_include=${OPUS_INCLUDE}
 if test -z "$__opus_include" -o x"$__opus_include" = x" " ; then
 	__opus_include=-I/usr/include/opus
 fi
+
+   if test "x${PBX_OPUSENC}" != "x1" -a "${USE_OPUSENC}" != "no"; then
+
+pkg_failed=no
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for OPUSENC" >&5
+$as_echo_n "checking for OPUSENC... " >&6; }
+
+if test -n "$OPUSENC_CFLAGS"; then
+    pkg_cv_OPUSENC_CFLAGS="$OPUSENC_CFLAGS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"libopusenc\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "libopusenc") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_OPUSENC_CFLAGS=`$PKG_CONFIG --cflags "libopusenc" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+if test -n "$OPUSENC_LIBS"; then
+    pkg_cv_OPUSENC_LIBS="$OPUSENC_LIBS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"libopusenc\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "libopusenc") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_OPUSENC_LIBS=`$PKG_CONFIG --libs "libopusenc" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+
+
+
+if test $pkg_failed = yes; then
+   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
+        _pkg_short_errors_supported=yes
+else
+        _pkg_short_errors_supported=no
+fi
+        if test $_pkg_short_errors_supported = yes; then
+	        OPUSENC_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libopusenc" 2>&1`
+        else
+	        OPUSENC_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libopusenc" 2>&1`
+        fi
+	# Put the nasty error message in config.log where it belongs
+	echo "$OPUSENC_PKG_ERRORS" >&5
+
+
+            PBX_OPUSENC=0
+
+
+elif test $pkg_failed = untried; then
+     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+            PBX_OPUSENC=0
+
+
+else
+	OPUSENC_CFLAGS=$pkg_cv_OPUSENC_CFLAGS
+	OPUSENC_LIBS=$pkg_cv_OPUSENC_LIBS
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+            PBX_OPUSENC=1
+            OPUSENC_INCLUDE=$(echo ${OPUSENC_CFLAGS} | $SED -e "s|-std=c99||g")
+            OPUSENC_LIB="$OPUSENC_LIBS"
+
+$as_echo "#define HAVE_OPUSENC 1" >>confdefs.h
+
+
+fi
+   fi
+
 
 if test "x${PBX_OPUSFILE}" != "x1" -a "${USE_OPUSFILE}" != "no"; then
    pbxlibdir=""

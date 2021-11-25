@@ -522,6 +522,7 @@ AST_EXT_LIB_SETUP([NEWT], [newt], [newt])
 AST_EXT_LIB_SETUP([OGG], [OGG], [ogg])
 AST_EXT_LIB_SETUP([OPENR2], [MFR2], [openr2])
 AST_EXT_LIB_SETUP([OPUS], [Opus], [opus])
+AST_EXT_LIB_SETUP([OPUSENC], [Opusenc], [opusenc])
 AST_EXT_LIB_SETUP([OPUSFILE], [Opusfile], [opusfile])
 AST_EXT_LIB_SETUP([OSPTK], [OSP Toolkit], [osptk])
 AST_EXT_LIB_SETUP([OSS], [Open Sound System], [oss])
@@ -2561,6 +2562,7 @@ __opus_include=${OPUS_INCLUDE}
 if test -z "$__opus_include" -o x"$__opus_include" = x" " ; then
 	__opus_include=-I/usr/include/opus
 fi
+AST_PKG_CONFIG_CHECK(OPUSENC, libopusenc)
 AST_EXT_LIB_CHECK([OPUSFILE], [opusfile], [op_open_callbacks], [opus/opusfile.h], [], [$__opus_include])
 
 for ver in 5.3 5.2 5.1; do

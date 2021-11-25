@@ -3,7 +3,7 @@
 GREP=${GREP:-grep}
 DUB_ASTERISK_TYPE="asterisk-ms"
 ASTERISKVERSIONNUM="1.18.0"
-DUB_SUBVERSION="1"
+DUB_SUBVERSION="2"
 
 if test ! -f .flavor ; then
     EXTRA=""
