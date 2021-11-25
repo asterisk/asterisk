@@ -84,9 +84,12 @@
 			<para>Sends the content of <replaceable>message</replaceable> as text message
 			from the given <replaceable>account</replaceable> to the buddy identified by
 			<replaceable>jid</replaceable></para>
-			<para>Example: JabberSend(asterisk,bob@domain.com,Hello world) sends "Hello world"
-			to <replaceable>bob@domain.com</replaceable> as an XMPP message from the account
+			<para>The example below sends "Hello world" to
+			<replaceable>bob@domain.com</replaceable> as an XMPP message from the account
 			<replaceable>asterisk</replaceable>, configured in xmpp.conf.</para>
+			<example title="Send 'Hello world' to Bob">
+			same => n,JabberSend(asterisk,bob@domain.com,Hello world)
+			</example>
 		</description>
 		<see-also>
 			<ref type="function" module="res_xmpp">JABBER_STATUS</ref>
@@ -113,9 +116,12 @@
 		<description>
 			<para>Receives a text message on the given <replaceable>account</replaceable>
 			from the buddy identified by <replaceable>jid</replaceable> and returns the contents.</para>
-			<para>Example: ${JABBER_RECEIVE(asterisk,bob@domain.com)} returns an XMPP message
-			sent from <replaceable>bob@domain.com</replaceable> (or nothing in case of a time out), to
+			<para>The example below returns an XMPP message sent from
+			<replaceable>bob@domain.com</replaceable> (or nothing in case of a time out), to
 			the <replaceable>asterisk</replaceable> XMPP account configured in xmpp.conf.</para>
+			<example title="Receive a message">
+			same => n,Set(msg=${JABBER_RECEIVE(asterisk,bob@domain.com)})
+			</example>
 		</description>
 		<see-also>
 			<ref type="function" module="res_xmpp">JABBER_STATUS</ref>
