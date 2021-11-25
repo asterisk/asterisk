@@ -46,7 +46,8 @@
 		</synopsis>
 		<syntax>
 			<parameter name="direction" required="true">
-				<para>Must be <literal>TX</literal> or <literal>RX</literal>.</para>
+				<para>Must be <literal>TX</literal> or <literal>RX</literal> to
+				store digits, or <literal>remove</literal> to disable.</para>
 			</parameter>
 		</syntax>
 		<description>
@@ -58,10 +59,15 @@
 			<para><replaceable>max_digits</replaceable>: The maximum number of digits to
 			store in the variable. Defaults to 0 (no maximum). After reading <literal>
 			maximum</literal> digits, no more digits will be stored.</para>
-			<para>For example:</para>
-			<para>StoreDTMF(TX,CDR(digits))</para>
-			<para>StoreDTMF(RX,testvar,24)</para>
-			<para>StoreDTMF(remove)</para>
+			<example title="Store digits in CDR variable">
+			same => n,StoreDTMF(TX,CDR(digits))
+			</example>
+			<example title="Store up to 24 digits">
+			same => n,StoreDTMF(RX,testvar,24)
+			</example>
+			<example title="Disable digit collection">
+			same => n,StoreDTMF(remove)
+			</example>
 		</description>
 	</application>
  ***/
