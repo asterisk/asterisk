@@ -3481,8 +3481,6 @@ int ast_sip_call_codec_str_to_pref(struct ast_flags *pref, const char *pref_str,
  * \param data User data to know what to do when transport shuts down.
  *
  * \note The callback does not need to care that data is an ao2 object.
- *
- * \return Nothing
  */
 typedef void (*ast_transport_monitor_shutdown_cb)(void *data);
 

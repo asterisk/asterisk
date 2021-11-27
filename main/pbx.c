@@ -7061,7 +7061,7 @@ int ast_async_goto_by_name(const char *channame, const char *context, const char
  * \param dst Destination buffer to copy src string.
  * \param src Null terminated string to copy.
  * \param dst_size Number of bytes in the dst buffer.
- * \param nofluf Nonzero if '-' chars are not copied.
+ * \param nofluff Nonzero if '-' chars are not copied.
  *
  * \return Number of bytes written to dst including null terminator.
  */

@@ -371,7 +371,7 @@ char *ast_complete_channels(const char *line, const char *word, int pos, int sta
  */
 void ast_cli_print_timestr_fromseconds(int fd, int seconds, const char *prefix);
 
-/*
+/*!
  * \brief Allow a CLI command to be executed while Asterisk is shutting down.
  *
  * CLI commands by defeault are disabled when Asterisk is shutting down. This is

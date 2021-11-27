@@ -51,13 +51,10 @@ int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
 /*!
  * \brief Typedef for data destructor for stasis app commands
  *
- * \param data Data to destroy.
- *
- * \details
  * This is called during destruction of the command or if we fail to schedule
  * a command. It is passed a pointer to the user-defined data of the command.
  *
- * \return Nothing
+ * \param data Data to destroy.
  */
 typedef void (*command_data_destructor_fn)(void *data);
 

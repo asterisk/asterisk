@@ -143,7 +143,7 @@ struct odbc_datastore {
 	char names[0];
 };
 
-/* \brief Data source name
+/*! \brief Data source name
  *
  * This holds data that pertains to a DSN
  */

@@ -1026,7 +1026,7 @@ enum config_hook_flags {
 	butt,
 };
 
-/*
+/*!
  * \brief Callback when configuration is updated
  *
  * \param cfg A copy of the configuration that is being changed.

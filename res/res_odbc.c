@@ -861,7 +861,7 @@ unsigned int ast_odbc_get_max_connections(const char *name)
 	return max_connections;
 }
 
-/*
+/*!
  * \brief Determine if the connection has died.
  *
  * \param connection The connection to check
