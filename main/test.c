@@ -369,7 +369,7 @@ static void test_txt_entry(struct ast_test *test, FILE *f)
  * \brief Executes registered unit tests
  *
  * \param name of test to run (optional)
- * \param test category to run (optional)
+ * \param category category to run (optional)
  * \param cli args for cli test updates (optional)
  *
  * \return number of tests executed.
@@ -475,9 +475,9 @@ static int test_execute_multiple(const char *name, const char *category, struct 
  * \brief Generate test results.
  *
  * \param name of test result to generate (optional)
- * \param test category to generate (optional)
- * \param path to xml file to generate. (optional)
- * \param path to txt file to generate, (optional)
+ * \param category category to generate (optional)
+ * \param xml_path path to xml file to generate (optional)
+ * \param txt_path path to txt file to generate (optional)
  *
  * \retval 0 success
  * \retval -1 failure
@@ -612,7 +612,8 @@ static int test_insert(struct ast_test *test)
  * \internal
  * \brief removes test from container
  *
- * \return ast_test removed from list on success, or NULL on failure
+ * \return ast_test removed from list on success
+ * \retval NULL on failure
  */
 static struct ast_test *test_remove(ast_test_cb_t *cb)
 {

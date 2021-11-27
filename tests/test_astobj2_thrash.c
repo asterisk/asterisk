@@ -73,13 +73,13 @@ static int is_timed_out(struct hash_test const *data) {
 	return ast_tvdiff_us(data->deadline, ast_tvnow()) < 0;
 }
 
-/*! /brief Free test element */
+/*! \brief Free test element */
 static void ht_delete(void *obj)
 {
 	ast_atomic_fetchadd_int(&alloc_count, -1);
 }
 
-/*! /brief Create test element */
+/*! \brief Create test element */
 static char *ht_new(int i)
 {
 	const int buflen = 12;
@@ -94,7 +94,7 @@ static char *ht_new(int i)
 	return keybuf;
 }
 
-/*! /brief Grow the hash data as specified */
+/*! \brief Grow the hash data as specified */
 static void *hash_test_grow(void *d)
 {
 	struct hash_test *data = d;

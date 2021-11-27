@@ -174,10 +174,11 @@ static int lua_pbx_findapp(lua_State *L)
  * lua, don't call directly)
  *
  * \param L the lua_State to use
- * \return nothing
  *
  * This funciton is executed as the '()' operator for apps accessed through the
  * 'app' table.
+ *
+ * \return LUA error
  *
  * \code
  * app.playback('demo-congrats')
@@ -293,6 +294,8 @@ static int lua_pbx_exec(lua_State *L)
  * 'get()' function in the following example as would be seen in
  * extensions.lua.
  *
+ * \return LUA error
+ *
  * \code
  * channel.variable:get()
  * \endcode
@@ -352,6 +355,8 @@ static int lua_get_variable_value(lua_State *L)
  *
  * This function is the 'set()' function in the following example as would be
  * seen in extensions.lua.
+ *
+ * \return LUA error
  *
  * \code
  * channel.variable:set("value")

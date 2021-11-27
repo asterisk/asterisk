@@ -909,7 +909,7 @@ static int conf_start_record(struct confbridge_conference *conference)
 	return 0;
 }
 
-/* \brief Playback the given filename and monitor for any dtmf interrupts.
+/*! \brief Playback the given filename and monitor for any dtmf interrupts.
  *
  * This function is used to playback sound files on a given channel and optionally
  * allow dtmf interrupts to occur.
@@ -923,7 +923,9 @@ static int conf_start_record(struct confbridge_conference *conference)
  * \param channel Optional channel to play file on if bridge_channel not given
  * \param filename The file name to playback
  *
- * \retval -1 failure during playback, 0 on file was fully played, 1 on dtmf interrupt.
+ * \retval -1 failure during playback.
+ * \retval 0 on file was fully played.
+ * \retval 1 on dtmf interrupt.
  */
 static int play_file(struct ast_bridge_channel *bridge_channel, struct ast_channel *channel,
 		     const char *filename)
@@ -1306,7 +1308,7 @@ void conf_update_user_mute(struct confbridge_user *user)
 		ast_channel_name(user->chan));
 }
 
-/*
+/*!
  * \internal
  * \brief Mute/unmute a single user.
  */
@@ -3491,7 +3493,7 @@ static char *handle_cli_confbridge_list(struct ast_cli_entry *e, int cmd, struct
 	return CLI_SHOWUSAGE;
 }
 
-/* \internal
+/*! \internal
  * \brief finds a conference by name and locks/unlocks.
  *
  * \retval 0 success
@@ -3515,7 +3517,7 @@ static int generic_lock_unlock_helper(int lock, const char *conference_name)
 	return res;
 }
 
-/* \internal
+/*! \internal
  * \brief finds a conference user by channel name and mutes/unmutes them.
  *
  * \retval 0 success

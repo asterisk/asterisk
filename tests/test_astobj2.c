@@ -188,8 +188,6 @@ static int test_sort_cb(const void *obj_left, const void *obj_right, int flags)
  * \param v_obj A pointer to the object we want the key printed.
  * \param where User data needed by prnt to determine where to put output.
  * \param prnt Print output callback function to use.
- *
- * \return Nothing
  */
 static void test_prnt_obj(void *v_obj, void *where, ao2_prnt_fn *prnt)
 {

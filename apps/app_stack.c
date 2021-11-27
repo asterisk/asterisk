@@ -924,8 +924,6 @@ static struct ast_custom_function stackpeek_function = {
  * \param chan Channel to balance stack on.
  *
  * \note The channel is already locked when called.
- *
- * \return Nothing
  */
 static void balance_stack(struct ast_channel *chan)
 {

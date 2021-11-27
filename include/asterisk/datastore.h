@@ -44,8 +44,6 @@ struct ast_datastore_info {
 	 * It allows a datastore to fix any pointers it saved to the owning channel
 	 * in case that the owning channel has changed.  Generally, this would happen
 	 * when the datastore is set to be inherited, and a masquerade occurs.
-	 *
-	 * \return nothing.
 	 */
 	void (*chan_fixup)(void *data, struct ast_channel *old_chan, struct ast_channel *new_chan);
 
@@ -58,8 +56,6 @@ struct ast_datastore_info {
 	 *
 	 * This is the same as the above callback, except it is called for the channel
 	 * being masqueraded into instead of the channel that is masquerading.
-	 *
-	 * \return nothing.
 	 */
 	void (*chan_breakdown)(void *data, struct ast_channel *old_chan, struct ast_channel *new_chan);
 };

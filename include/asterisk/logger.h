@@ -671,8 +671,7 @@ void __attribute__((format (printf, 6, 7))) __ast_trace(const char *file, int li
  *
  * \param level The trace level
  * \param indent_type One of the \ref ast_trace_indent_type values
- * \param (optional) A printf style format string
- * \param (optional) Arguments
+ * \param ... A printf style format string, optionally with arguments
  *
  */
 #define ast_trace_raw(level, indent_type, ...) \
@@ -685,8 +684,7 @@ void __attribute__((format (printf, 6, 7))) __ast_trace(const char *file, int li
  * \brief Print a basic trace message
  *
  * \param level The trace level
- * \param (optional) A printf style format string
- * \param (optional) Arguments
+ * \param ... A printf style format string, optionally with arguments
  *
  *  This will print the file, line and function at the current indent level
  */
@@ -732,8 +730,7 @@ unsigned long _ast_trace_dec_indent(void);
  * \brief Print a trace message with details when a scope is entered or existed.
  *
  * \param level The trace level
- * \param (optional) A printf style format string
- * \param (optional) Arguments
+ * \param ... A printf style format string, optionally with arguments
  *
  *  This will print the file, line and function plus details at the current indent level.
  * \note Like RAII_VAR, this macro must be called before any code in the scope.
@@ -775,8 +772,7 @@ unsigned long _ast_trace_dec_indent(void);
  * \brief Scope Enter
  *
  * \param level The trace level
- * \param (optional) A printf style format string
- * \param (optional) Arguments
+ * \param ... A printf style format string, optionally with arguments
  */
 #define SCOPE_ENTER(level, ...) \
 	int __scope_level = level; \
@@ -797,8 +793,7 @@ unsigned long _ast_trace_dec_indent(void);
 /*!
  * \brief Scope Exit
  *
- * \param (optional) A printf style format string
- * \param (optional) Arguments
+ * \param ... A printf style format string, optionally with arguments
  *
  * \details
  * This macro can be used at the exit points of a statement block since it just prints the message.
@@ -816,8 +811,7 @@ unsigned long _ast_trace_dec_indent(void);
  * \brief Scope Exit with expression
  *
  * \param __expr An expression to execute after printing the message
- * \param (optional) A printf style format string
- * \param (optional) Arguments
+ * \param ... A printf style format string, optionally with arguments
  *
  * \details
  * Handy for getting out of or continuing loops.
@@ -846,8 +840,7 @@ unsigned long _ast_trace_dec_indent(void);
 /*!
  * \brief Scope Exit with return
  *
- * \param (optional) A printf style format string
- * \param (optional) Arguments
+ * \param ... A printf style format string, optionally with arguments
  *
  * \details
  * This macro can be used at the exit points of a function when no value
@@ -867,8 +860,7 @@ unsigned long _ast_trace_dec_indent(void);
  * \brief Scope Exit with return value
  *
  * \param __return_value The return value
- * \param (optional) A printf style format string
- * \param (optional) Arguments
+ * \param ... A printf style format string, optionally with arguments
  *
  * \details
  * This macro can be used at the exit points of a function when a value
