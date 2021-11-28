@@ -1030,8 +1030,6 @@ AST_THREADSTORAGE(ao2_out_buf);
  *
  * \param where User data pointer needed to determine where to put output.
  * \param fmt printf type format string.
- *
- * \return Nothing
  */
 static void cli_output(void *where, const char *fmt, ...) __attribute__((format(printf, 2, 3)));
 static void cli_output(void *where, const char *fmt, ...)

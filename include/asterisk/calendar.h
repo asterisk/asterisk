@@ -91,7 +91,7 @@ struct ast_calendar_attendee {
 	AST_LIST_ENTRY(ast_calendar_attendee) next;
 };
 
-/* \brief Calendar events */
+/*! \brief Calendar events */
 struct ast_calendar_event {
 	AST_DECLARE_STRING_FIELDS(
 		AST_STRING_FIELD(summary);

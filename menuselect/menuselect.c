@@ -1901,7 +1901,7 @@ static int sanity_check(void)
 	return insane ? -1 : 0;
 }
 
-/* \brief Set the forced default values if they exist */
+/*! \brief Set the forced default values if they exist */
 static void process_defaults(void)
 {
 	struct category *cat;

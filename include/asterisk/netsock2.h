@@ -820,7 +820,6 @@ static inline int _ast_addressfamily_to_sockaddrsize(int af, const char *file, i
  *
  * \param[out] addr The address of the ast_sockaddr to store into
  * \param sa The sockaddr structure (sockaddr_in or sockaddr_in6) to convert
- * \return Nothing
  */
 #define ast_sockaddr_from_sockaddr(addr,sa)	ast_sockaddr_copy_sockaddr(addr, sa, ast_addressfamily_to_sockaddrsize(((const struct sockaddr*)(sa))->sa_family))
 

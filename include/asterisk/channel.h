@@ -1427,7 +1427,7 @@ void ast_change_name(struct ast_channel *chan, const char *newname);
  * This function will unlink the channel from the global channels container
  * if it is still there and also release the current reference to the channel.
  *
- * \retval NULL, convenient for clearing invalid pointers
+ * \retval NULL convenient for clearing invalid pointers
  * \note Absolutely _NO_ channel locks should be held before calling this function.
  *
  * \since 1.8
@@ -1738,7 +1738,9 @@ void ast_channel_softhangup_withcause_locked(struct ast_channel *chan, int cause
  * \brief Compare a offset with the settings of when to hang a channel up
  * \param chan channel on which to check for hangup
  * \param offset offset in seconds and microseconds from current time
- * \return 1, 0, or -1
+ * \retval 1
+ * \retval 0
+ * \retval -1
  * This function compares a offset from current time with the absolute time
  * out on a channel (when to hang up). If the absolute time out on a channel
  * is earlier than current time plus the offset, it returns 1, if the two
@@ -2952,7 +2954,7 @@ struct ast_channel_iterator;
  * This function is used to destroy a channel iterator that was retrieved by
  * using one of the channel_iterator_xxx_new() functions.
  *
- * \return NULL, for convenience to clear out the pointer to the iterator that
+ * \retval NULL for convenience to clear out the pointer to the iterator that
  * was just destroyed.
  *
  * \since 1.8
@@ -3029,7 +3031,7 @@ struct ast_channel_iterator *ast_channel_iterator_all_new(void);
  *
  * \retval the next channel that matches the parameters used when the iterator
  *         was created.
- * \retval NULL, if no more channels match the iterator parameters.
+ * \retval NULL if no more channels match the iterator parameters.
  *
  * \since 1.8
  */

@@ -122,7 +122,7 @@ struct ast_websocket_protocol {
 	unsigned int version;
 	/*! \brief Callback called when a new session is attempted. Optional. */
 	ast_websocket_pre_callback session_attempted;
-	/* \brief Callback called when a new session is established. Mandatory. */
+	/*! \brief Callback called when a new session is established. Mandatory. */
 	ast_websocket_callback session_established;
 };
 

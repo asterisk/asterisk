@@ -39,7 +39,7 @@
 
 #include <arpa/nameser.h>
 
-/* \brief Delay between TTL expiration and the next DNS query, to make sure the
+/*! \brief Delay between TTL expiration and the next DNS query, to make sure the
 resolver cache really expired. */
 #define EXTRA_TTL 2
 #define MAX_TTL ((INT_MAX - EXTRA_TTL) / 1000)

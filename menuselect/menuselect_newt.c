@@ -16,7 +16,7 @@
  * at the top of the source tree.
  */
 
-/*
+/*!
  * \file
  *
  * \author Sean Bright <sean.bright@gmail.com>

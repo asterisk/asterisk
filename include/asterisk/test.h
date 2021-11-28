@@ -172,24 +172,17 @@ struct ast_json *ast_test_suite_get_blob(struct ast_test_suite_message_payload *
 /*!
  * \brief Notifies the test suite of a change in application state
  *
- * \details
  * Raises a TestEvent manager event with a subtype of StateChange.  Additional parameters
  * The fmt parameter allows additional parameters to be added to the manager event using
  * printf style statement formatting.
  *
- * \param state		The state the application has changed to
- * \param fmt		The message with format parameters to add to the manager event
- *
- * \return Nothing
- */
-void __ast_test_suite_event_notify(const char *file, const char *func, int line, const char *state, const char *fmt, ...)
-	__attribute__((format(printf, 5, 6)));
-
-/*!
- * \ref __ast_test_suite_event_notify()
+ * \param s The state the application has changed to
+ * \param f The message with format parameters to add to the manager event
  */
 #define ast_test_suite_event_notify(s, f, ...) \
 	__ast_test_suite_event_notify(__FILE__, __PRETTY_FUNCTION__, __LINE__, (s), (f), ## __VA_ARGS__)
+void __ast_test_suite_event_notify(const char *file, const char *func, int line, const char *state, const char *fmt, ...)
+	__attribute__((format(printf, 5, 6)));
 
 #else
 
@@ -292,7 +285,7 @@ typedef int (ast_test_cleanup_cb_t)(struct ast_test_info *info, struct ast_test 
 /*!
  * \brief unregisters a test with the test framework
  *
- * \param test callback function (required)
+ * \param cb callback function (required)
  *
  * \retval 0 success
  * \retval -1 failure
@@ -302,7 +295,7 @@ int ast_test_unregister(ast_test_cb_t *cb);
 /*!
  * \brief registers a test with the test framework
  *
- * \param test callback function (required)
+ * \param cb callback function (required)
  *
  * \retval 0 success
  * \retval -1 failure
@@ -349,8 +342,6 @@ int ast_test_register_cleanup(const char *category, ast_test_cleanup_cb_t *cb);
  *
  * \param test Unit test control structure.
  * \param fmt printf type format string.
- *
- * \return Nothing
  */
 void ast_test_debug(struct ast_test *test, const char *fmt, ...) __attribute__((format(printf, 2, 3)));
 
@@ -368,18 +359,15 @@ void ast_test_set_result(struct ast_test *test, enum ast_test_result_state state
 /*!
  * \brief update test's status during testing.
  *
- * \param test currently executing test
+ * \param t currently executing test
+ * \param f printf type format string
  *
  * \retval 0 success
  * \retval -1 failure
  */
+#define ast_test_status_update(t, f, ...) __ast_test_status_update(__FILE__, __PRETTY_FUNCTION__, __LINE__, (t), (f), ## __VA_ARGS__)
 int __ast_test_status_update(const char *file, const char *func, int line, struct ast_test *test, const char *fmt, ...)
 	__attribute__((format(printf, 5, 6)));
-
-/*!
- * \ref __ast_test_status_update()
- */
-#define ast_test_status_update(t, f, ...) __ast_test_status_update(__FILE__, __PRETTY_FUNCTION__, __LINE__, (t), (f), ## __VA_ARGS__)
 
 /*!
  * \brief Check a test condition, failing the test if it's not true.

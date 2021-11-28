@@ -4527,7 +4527,7 @@ static void build_mapping(const char *name, const char *value)
 		ast_log(LOG_WARNING, "Expected at least %d arguments in map, but got only %d\n", 4, x);
 }
 
-/* \note Called with the peers list already locked */
+/*! \note Called with the peers list already locked */
 static int do_register(const void *data)
 {
 	struct dundi_ie_data ied;
