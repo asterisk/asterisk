@@ -1061,8 +1061,6 @@ typedef struct stasis_message *(*cache_aggregate_calc_fn)(struct stasis_cache_en
  * any remote entities publishing state for a device.  e.g., An aggregate
  * MWI message is the old/new MWI counts accumulated from the local and
  * any remote entities publishing to a mailbox.
- *
- * \return Nothing
  */
 typedef void (*cache_aggregate_publish_fn)(struct stasis_topic *topic, struct stasis_message *aggregate);
 

@@ -1245,7 +1245,6 @@ static void xmpp_pubsub_create_node(struct ast_xmpp_client *client, const char *
  * \brief Delete a PubSub node
  * \param client the configured XMPP client we use to connect to a XMPP server
  * \param node_name the name of the node to delete
- * return void
  */
 static void xmpp_pubsub_delete_node(struct ast_xmpp_client *client, const char *node_name)
 {

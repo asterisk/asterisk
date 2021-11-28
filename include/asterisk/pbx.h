@@ -1026,7 +1026,7 @@ int ast_context_add_ignorepat(const char *context, const char *ignorepat, const 
 
 int ast_context_add_ignorepat2(struct ast_context *con, const char *ignorepat, const char *registrar);
 
-/*
+/*!
  * \brief Remove an ignorepat
  *
  * \param context context from which to remove the pattern

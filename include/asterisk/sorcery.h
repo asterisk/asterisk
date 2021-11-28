@@ -321,7 +321,7 @@ struct ast_sorcery_wizard {
 	/*! \brief Callback for closing a wizard */
 	void (*close)(void *data);
 
-	/* \brief Callback for whether or not the wizard believes the object is stale */
+	/*! \brief Callback for whether or not the wizard believes the object is stale */
 	int (*is_stale)(const struct ast_sorcery *sorcery, void *data, void *object);
 
 	/*! \brief Optional callback for forcing a reload to occur, even if wizard has determined no changes */

@@ -2884,13 +2884,17 @@ static void my_set_rdnis(void *pvt, const char *rdnis)
  *
  * \details
  * original dialstring:
- * DAHDI/[i<span>-](g|G|r|R)<group#(0-63)>[c|r<cadence#>|d][/extension[/options]]
+ * \verbatim
+   DAHDI/[i<span>-](g|G|r|R)<group#(0-63)>[c|r<cadence#>|d][/extension[/options]]
+   \endverbatim
  *
  * The modified dialstring will have prefixed the channel-group section
  * with the ISDN channel restriction.
  *
  * buf:
- * DAHDI/i<span>-(g|G|r|R)<group#(0-63)>[c|r<cadence#>|d][/extension[/options]]
+ * \verbatim
+   DAHDI/i<span>-(g|G|r|R)<group#(0-63)>[c|r<cadence#>|d][/extension[/options]]
+   \endverbatim
  *
  * The routine will check to see if the ISDN channel restriction is already
  * in the original dialstring.
@@ -3150,6 +3154,7 @@ static struct sig_ss7_linkset *my_ss7_find_linkset(struct ss7 *ss7)
  * \param law Companding law to use.
  * \param exten Dialplan extension for incoming call.
  * \param requestor Channel requesting this new channel.
+ * \param assignedids
  *
  * \retval ast_channel on success.
  * \retval NULL on error.

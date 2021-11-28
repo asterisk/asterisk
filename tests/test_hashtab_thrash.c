@@ -73,7 +73,7 @@ static int is_timed_out(struct hash_test const *data) {
 	return val;
 }
 
-/*! /brief Create test element */
+/*! \brief Create test element */
 static char *ht_new(int i)
 {
 	const int buflen = 12;
@@ -87,13 +87,13 @@ static char *ht_new(int i)
 	return keybuf;
 }
 
-/*! /brief Free test element */
+/*! \brief Free test element */
 static void ht_delete(void *obj)
 {
 	ast_free(obj);
 }
 
-/*! /brief Grow the hash data as specified */
+/*! \brief Grow the hash data as specified */
 static void *hash_test_grow(void *d)
 {
 	struct hash_test *data = d;

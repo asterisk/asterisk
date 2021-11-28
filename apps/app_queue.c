@@ -7797,9 +7797,10 @@ static int set_member_value(const char *queuename, const char *interface, int pr
 	return RESULT_FAILURE;
 }
 
-/* \brief Gets members penalty.
+/*!
+ * \brief Gets members penalty.
  * \return Return the members penalty or RESULT_FAILURE on error.
-*/
+ */
 static int get_member_penalty(char *queuename, char *interface)
 {
 	int foundqueue = 0, penalty;
@@ -11537,9 +11538,10 @@ static int reload(void)
 	return 0;
 }
 
-/* \brief Find a member by looking up queuename and interface.
+/*!
+ * \brief Find a member by looking up queuename and interface.
  * \return member or NULL if member not found.
-*/
+ */
 static struct member *find_member_by_queuename_and_interface(const char *queuename, const char *interface)
 {
 	struct member *mem = NULL;

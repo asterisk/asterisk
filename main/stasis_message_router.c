@@ -82,8 +82,6 @@ static struct stasis_message_route *route_table_find(struct route_table *table,
  * \brief route_table vector element cleanup.
  *
  * \param elem Element to cleanup
- *
- * \return Nothing
  */
 #define ROUTE_TABLE_ELEM_CLEANUP(elem)  ao2_cleanup((elem).message_type)
 

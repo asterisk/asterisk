@@ -38,8 +38,6 @@ void iax_firmware_reload(void);
 /*!
  * \internal
  * \brief Unload all of the currently loaded firmware.
- *
- * return Nothing
  */
 void iax_firmware_unload(void);
 

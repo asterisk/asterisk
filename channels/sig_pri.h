@@ -222,8 +222,6 @@ struct sig_pri_callback {
 	 *
 	 * \param pvt Private structure of the user of this module.
 	 * \param chan Channel associated with the private pointer
-	 *
-	 * \return Nothing
 	 */
 	void (* const ami_channel_event)(void *pvt, struct ast_channel *chan);
 
@@ -639,7 +637,7 @@ struct sig_pri_span {
 	 *    the configured threshold.
 	 * AST_DEVICE_UNAVAILABLE - Span is in alarm.
 	 * \note
-	 * Device name:  DAHDI/I<span>/threshold
+	 * Device name: \verbatim DAHDI/I<span>/threshold \endverbatim
 	 */
 	int threshold_devstate;
 	/*!

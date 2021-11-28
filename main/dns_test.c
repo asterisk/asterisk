@@ -59,7 +59,7 @@ const char DNS_HEADER[] = {
  *
  * \param num_records The number of DNS records in this DNS response
  * \param buf The buffer to write the header into
- * \retval The number of bytes written to the buffer
+ * \return The number of bytes written to the buffer
  */
 static int generate_dns_header(unsigned short num_records, char *buf)
 {
@@ -97,7 +97,7 @@ const char DNS_QUESTION [] = {
  * than necessary for the tests.
  *
  * \param buf The buffer to write the question into
- * \retval The number of bytes written to the buffer
+ * \return The number of bytes written to the buffer
  */
 static int generate_dns_question(char *buf)
 {
@@ -129,8 +129,9 @@ const char NAPTR_ANSWER [] = {
  * the data ourselves and have sized the buffer to be way larger
  * than necessary for the tests.
  *
+ * \param ttl Time to live
  * \param buf The buffer to write the answer into
- * \retval The number of bytes written to the buffer
+ * \return The number of bytes written to the buffer
  */
 static int generate_dns_answer(int ttl, char *buf)
 {
@@ -145,20 +146,6 @@ static int generate_dns_answer(int ttl, char *buf)
 	return ARRAY_LEN(NAPTR_ANSWER);
 }
 
-/*!
- * \brief Write a DNS string to a buffer
- *
- * This writes the DNS string to the buffer and returns the total
- * number of bytes written to the buffer.
- *
- * There is no buffer size passed to this function since we provide
- * the data ourselves and have sized the buffer to be way larger
- * than necessary for the tests.
- *
- * \param string The string to write
- * \param buf The buffer to write the string into
- * \return The number of bytes written to the buffer
- */
 int ast_dns_test_write_string(const struct ast_dns_test_string *string, char *buf)
 {
 	uint8_t len = string->len;
@@ -176,23 +163,6 @@ int ast_dns_test_write_string(const struct ast_dns_test_string *string, char *bu
 	return actual_len + 1;
 }
 
-/*!
- * \brief Write a DNS domain to a buffer
- *
- * A DNS domain consists of a series of labels separated
- * by dots. Each of these labels gets written as a DNS
- * string. A DNS domain ends with a NULL label, which is
- * essentially a zero-length DNS string.
- *
- *
- * There is no buffer size passed to this function since we provide
- * the data ourselves and have sized the buffer to be way larger
- * than necessary for the tests.
- *
- * \param string The DNS domain to write
- * \param buf The buffer to write the domain into
- * \return The number of bytes written to the buffer
- */
 int ast_dns_test_write_domain(const char *string, char *buf)
 {
 	char *copy = ast_strdupa(string);
