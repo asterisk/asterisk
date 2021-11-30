@@ -6,6 +6,7 @@ if [ "$1" = "-q" ] ; then
 fi
 
 PATCH=${PATCH:-patch}
+FIND=${FIND:-find}
 
 patchdir=${1:?You must supply a patches directory}
 sourcedir=${2?:You must supply a source directory}
@@ -20,12 +21,13 @@ if [ ! -d "$sourcedir" ] ; then
 	exit 1
 fi
 
-if [ ! "$(ls -A $patchdir/*.patch 2>/dev/null)" ] ; then
+patches=$(${FIND} "$patchdir" -name "*.patch")
+if [ x"$patches" = x"" ] ; then
 	echo "No patches in $patchdir"  >&2
 	exit 0
 fi
 
-for patchfile in "$patchdir"/*.patch ; do
+for patchfile in ${patches} ; do
 	[ -z $quiet ] && echo "Applying patch $(basename $patchfile)"
 	${PATCH} -d "$sourcedir" -p1 -s -i "$patchfile" || exit 1
 done

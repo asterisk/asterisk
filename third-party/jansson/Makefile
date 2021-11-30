@@ -96,7 +96,7 @@ uninstall:
 
 clean:
 	$(ECHO_PREFIX) Cleaning
-	+-$(CMD_PREFIX) test -d source dest && $(SUBMAKE) -C source clean || :
+	+-$(CMD_PREFIX) test -d source && $(SUBMAKE) -C source clean $(REALLY_QUIET) || :
 
 distclean:
 	$(ECHO_PREFIX) Distcleaning

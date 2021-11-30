@@ -11,9 +11,8 @@ TP_INSTALL_SUBDIRS := pjproject jansson
 override MAKECMDGOALS?=all
 
 MAKECMDGOALS:=$(subst dist-clean,distclean,$(MAKECMDGOALS))
-MAKECMDGOALS:=$(subst tpclean,clean,$(MAKECMDGOALS))
 
-all distclean dist-clean install uninstall tpclean : $(TP_SUBDIRS)
+all distclean dist-clean install uninstall clean : $(TP_SUBDIRS)
 install uninstall: $(TP_INSTALL_SUBDIRS)
 
 $(TP_SUBDIRS):

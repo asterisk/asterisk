@@ -1157,6 +1157,7 @@ PJPROJECT_INCLUDE
 PJPROJECT_LIB
 PBX_PJPROJECT
 PJPROJECT_DIR
+PJPROJECT_BUNDLED_OOT
 PJPROJECT_BUNDLED
 PJPROJECT_CONFIGURE_OPTS
 JANSSON_INCLUDE
@@ -1210,6 +1211,7 @@ DOWNLOAD_TIMEOUT
 DOWNLOAD_TO_STDOUT
 DOWNLOAD
 FETCH
+REALPATH
 NM
 PATCH
 TAR
@@ -7607,6 +7609,48 @@ $as_echo "no" >&6; }
 fi
 
 
+# Extract the first word of "realpath", so it can be a program name with args.
+set dummy realpath; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_path_REALPATH+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  case $REALPATH in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_REALPATH="$REALPATH" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_REALPATH="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  test -z "$ac_cv_path_REALPATH" && ac_cv_path_REALPATH=":"
+  ;;
+esac
+fi
+REALPATH=$ac_cv_path_REALPATH
+if test -n "$REALPATH"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $REALPATH" >&5
+$as_echo "$REALPATH" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+
 
 DOWNLOAD=":"
 DOWNLOAD_TO_STDOUT=
@@ -9973,6 +10017,14 @@ $as_echo "configuring" >&6; }
 		if test "${GREP}" = ":" ; then
 			as_fn_error $? "grep is required to build bundled pjproject" "$LINENO" 5
 		fi
+		if test "${FIND}" = ":" ; then
+			as_fn_error $? "find is required to build bundled pjproject" "$LINENO" 5
+		fi
+		if test "x${AST_DEVMODE}" != "x" ; then
+			if test "${REALPATH}" = ":" ; then
+				as_fn_error $? "realpath is required to build bundled pjproject in dev mode" "$LINENO" 5
+			fi
+		fi
 
 
 		this_host=$(./config.sub $(./config.guess))
@@ -10000,11 +10052,20 @@ $as_echo "configuring" >&6; }
 			esac
 		fi
 
-		export TAR PATCH SED NM EXTERNALS_CACHE_DIR AST_DOWNLOAD_CACHE DOWNLOAD_TO_STDOUT DOWNLOAD_TIMEOUT DOWNLOAD MD5 CAT CUT GREP
+		# Determine if we're doing an out-of-tree build...
+
+		if test -L ${PJPROJECT_DIR}/source -o -d ${PJPROJECT_DIR}/source/.git ; then
+			$as_echo "#define HAVE_PJPROJECT_BUNDLED_OOT 1" >>confdefs.h
+
+			PJPROJECT_BUNDLED_OOT=yes
+		fi
+
+		export TAR PATCH SED NM EXTERNALS_CACHE_DIR AST_DOWNLOAD_CACHE DOWNLOAD_TO_STDOUT DOWNLOAD_TIMEOUT DOWNLOAD MD5 CAT CUT GREP FIND REALPATH
 		export NOISY_BUILD AST_DEVMODE
 		${GNU_MAKE} --quiet --no-print-directory -C ${PJPROJECT_DIR} \
 			PJPROJECT_CONFIGURE_OPTS="$PJPROJECT_CONFIGURE_OPTS" \
 			EXTERNALS_CACHE_DIR="${EXTERNALS_CACHE_DIR:-${AST_DOWNLOAD_CACHE}}" \
+			PJPROJECT_BUNDLED_OOT="${PJPROJECT_BUNDLED_OOT}" \
 			configure
 		if test $? -ne 0 ; then
 			{ $as_echo "$as_me:${as_lineno-$LINENO}: result: failed" >&5
@@ -10017,7 +10078,11 @@ $as_echo "$as_me: Unable to configure ${PJPROJECT_DIR}" >&6;}
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for bundled pjproject" >&5
 $as_echo_n "checking for bundled pjproject... " >&6; }
 
-		PJPROJECT_INCLUDE=$(${GNU_MAKE} --quiet --no-print-directory -C ${PJPROJECT_DIR} PJPROJECT_CONFIGURE_OPTS="$PJPROJECT_CONFIGURE_OPTS" EXTERNALS_CACHE_DIR="${EXTERNALS_CACHE_DIR:-${AST_DOWNLOAD_CACHE}}" echo_cflags)
+		PJPROJECT_INCLUDE=$(${GNU_MAKE} --quiet --no-print-directory -C ${PJPROJECT_DIR} \
+			PJPROJECT_CONFIGURE_OPTS="$PJPROJECT_CONFIGURE_OPTS" \
+			EXTERNALS_CACHE_DIR="${EXTERNALS_CACHE_DIR:-${AST_DOWNLOAD_CACHE}}" \
+			PJPROJECT_BUNDLED_OOT="${PJPROJECT_BUNDLED_OOT}" \
+			echo_cflags)
 		PJPROJECT_CFLAGS="$PJPROJECT_INCLUDE"
 		PBX_PJPROJECT=1
 
@@ -10075,6 +10140,7 @@ $as_echo "#define HAVE_PJSIP_OAUTH_AUTHENTICATION 1" >>confdefs.h
 
 
 $as_echo "#define HAVE_PJPROJECT_ON_VALID_ICE_PAIR_CALLBACK 1" >>confdefs.h
+
 
 
 
@@ -23048,8 +23114,8 @@ rm -f core conftest.err conftest.$ac_objext \
    if test "x${PBX_NETSNMP}" != "x1" -a "${USE_NETSNMP}" != "no"; then
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for netsnmp-agent" >&5
-$as_echo_n "checking for netsnmp-agent... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for NETSNMP" >&5
+$as_echo_n "checking for NETSNMP... " >&6; }
 
 if test -n "$NETSNMP_CFLAGS"; then
     pkg_cv_NETSNMP_CFLAGS="$NETSNMP_CFLAGS"
@@ -23089,7 +23155,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -23110,7 +23176,7 @@ fi
 
 
 elif test $pkg_failed = untried; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
             PBX_NETSNMP=0
