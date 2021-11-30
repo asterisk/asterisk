@@ -47,6 +47,14 @@ AC_DEFUN([_PJPROJECT_CONFIGURE],
 		if test "${GREP}" = ":" ; then
 			AC_MSG_ERROR(grep is required to build bundled pjproject)
 		fi
+		if test "${FIND}" = ":" ; then
+			AC_MSG_ERROR(find is required to build bundled pjproject)
+		fi
+		if test "x${AST_DEVMODE}" != "x" ; then
+			if test "${REALPATH}" = ":" ; then
+				AC_MSG_ERROR(realpath is required to build bundled pjproject in dev mode)
+			fi
+		fi
 
 		AC_ARG_VAR([PJPROJECT_CONFIGURE_OPTS],[Additional configure options to pass to bundled pjproject])
 		this_host=$(./config.sub $(./config.guess))
@@ -74,11 +82,19 @@ AC_DEFUN([_PJPROJECT_CONFIGURE],
 			esac
 		fi
 
-		export TAR PATCH SED NM EXTERNALS_CACHE_DIR AST_DOWNLOAD_CACHE DOWNLOAD_TO_STDOUT DOWNLOAD_TIMEOUT DOWNLOAD MD5 CAT CUT GREP
+		# Determine if we're doing an out-of-tree build...
+		AH_TEMPLATE(m4_bpatsubst([[HAVE_PJPROJECT_BUNDLED_OOT]], [(.*)]), [Define if doing a bundled pjproject out-of-tree build.])
+		if test -L ${PJPROJECT_DIR}/source -o -d ${PJPROJECT_DIR}/source/.git ; then
+			AC_DEFINE([HAVE_PJPROJECT_BUNDLED_OOT], 1)
+			PJPROJECT_BUNDLED_OOT=yes
+		fi
+
+		export TAR PATCH SED NM EXTERNALS_CACHE_DIR AST_DOWNLOAD_CACHE DOWNLOAD_TO_STDOUT DOWNLOAD_TIMEOUT DOWNLOAD MD5 CAT CUT GREP FIND REALPATH
 		export NOISY_BUILD AST_DEVMODE
 		${GNU_MAKE} --quiet --no-print-directory -C ${PJPROJECT_DIR} \
 			PJPROJECT_CONFIGURE_OPTS="$PJPROJECT_CONFIGURE_OPTS" \
 			EXTERNALS_CACHE_DIR="${EXTERNALS_CACHE_DIR:-${AST_DOWNLOAD_CACHE}}" \
+			PJPROJECT_BUNDLED_OOT="${PJPROJECT_BUNDLED_OOT}" \
 			configure
 		if test $? -ne 0 ; then
 			AC_MSG_RESULT(failed)
@@ -88,7 +104,11 @@ AC_DEFUN([_PJPROJECT_CONFIGURE],
 
 		AC_MSG_CHECKING(for bundled pjproject)
 
-		PJPROJECT_INCLUDE=$(${GNU_MAKE} --quiet --no-print-directory -C ${PJPROJECT_DIR} PJPROJECT_CONFIGURE_OPTS="$PJPROJECT_CONFIGURE_OPTS" EXTERNALS_CACHE_DIR="${EXTERNALS_CACHE_DIR:-${AST_DOWNLOAD_CACHE}}" echo_cflags)
+		PJPROJECT_INCLUDE=$(${GNU_MAKE} --quiet --no-print-directory -C ${PJPROJECT_DIR} \
+			PJPROJECT_CONFIGURE_OPTS="$PJPROJECT_CONFIGURE_OPTS" \
+			EXTERNALS_CACHE_DIR="${EXTERNALS_CACHE_DIR:-${AST_DOWNLOAD_CACHE}}" \
+			PJPROJECT_BUNDLED_OOT="${PJPROJECT_BUNDLED_OOT}" \
+			echo_cflags)
 		PJPROJECT_CFLAGS="$PJPROJECT_INCLUDE"
 		PBX_PJPROJECT=1
 
@@ -113,6 +133,7 @@ AC_DEFUN([_PJPROJECT_CONFIGURE],
 		AC_DEFINE([HAVE_PJPROJECT_ON_VALID_ICE_PAIR_CALLBACK], 1, [Define if your system has the on_valid_pair pjnath callback.])
 
 		AC_SUBST([PJPROJECT_BUNDLED])
+		AC_SUBST([PJPROJECT_BUNDLED_OOT])
 		AC_SUBST([PJPROJECT_DIR])
 		AC_SUBST([PBX_PJPROJECT])
 		AC_SUBST([PJPROJECT_LIB])
