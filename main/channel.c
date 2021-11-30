@@ -1426,15 +1426,15 @@ struct ast_channel *ast_channel_get_by_name_prefix(const char *name, size_t name
 	struct ast_channel *chan;
 	char *l_name = (char *) name;
 
+	if (ast_strlen_zero(l_name)) {
+		/* We didn't have a name to search for so quit. */
+		return NULL;
+	}
+
 	chan = ast_channel_callback(ast_channel_by_name_cb, l_name, &name_len,
 		(name_len == 0) /* optimize if it is a complete name match */ ? OBJ_KEY : 0);
 	if (chan) {
 		return chan;
-	}
-
-	if (ast_strlen_zero(l_name)) {
-		/* We didn't have a name to search for so quit. */
-		return NULL;
 	}
 
 	/* Now try a search for uniqueid. */
