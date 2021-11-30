@@ -627,6 +627,9 @@
 /* Define if your system has PJPROJECT_BUNDLED */
 #undef HAVE_PJPROJECT_BUNDLED
 
+/* Define if doing a bundled pjproject out-of-tree build. */
+#undef HAVE_PJPROJECT_BUNDLED_OOT
+
 /* Define to 1 if on_valid_pair callback is present. */
 #undef HAVE_PJPROJECT_ON_VALID_ICE_PAIR_CALLBACK
 
