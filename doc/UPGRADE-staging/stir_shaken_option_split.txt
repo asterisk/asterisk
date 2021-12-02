@@ -1,7 +1,0 @@
-Subject: STIR/SHAKEN
-
-The STIR/SHAKEN configuration option has been split into
-4 different choices: off, attest, verify, and on. Off and
-on behave the same way as before. Attest will only perform
-attestation on the endpoint, and verify will only perform
-verification on the endpoint.
