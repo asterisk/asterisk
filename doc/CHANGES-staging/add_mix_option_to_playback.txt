@@ -1,7 +1,0 @@
-Subject: app_playback
-Subject: apps
-
-A new option 'mix' is added to the Playback application that 
-will play by filename and say.conf. It will look on the format of the 
-name, if it is like say format it will play with say.conf if not it 
-will play the file name.

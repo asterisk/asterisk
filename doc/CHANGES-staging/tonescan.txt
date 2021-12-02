@@ -1,6 +1,0 @@
-Subject: ToneScan application
-
-A new application, ToneScan, allows for
-synchronous detection of call progress
-signals such as dial tone, busy tone,
-Special Information Tones, and modems.
