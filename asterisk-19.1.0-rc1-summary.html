@@ -1,0 +1,730 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-19.1.0-rc1</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-19.1.0-rc1</h3><h3 align="center">Date: 2021-12-02</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
+<li><a href="#summary">Summary</a></li>
+<li><a href="#contributors">Contributors</a></li>
+<li><a href="#closed_issues">Closed Issues</a></li>
+<li><a href="#commits">Other Changes</a></li>
+<li><a href="#diffstat">Diffstat</a></li>
+</ol><hr><a name="summary"><h2 align="center">Summary</h2></a><center><a href="#top">[Back to Top]</a></center><p>This release is a point release of an existing major version. The changes included were made to address problems that have been identified in this release series, or are minor, backwards compatible new features or improvements. Users should be able to safely upgrade to this version if this release series is already in use. Users considering upgrading from a previous version are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p><p>The data in this summary reflects changes that have been made since the previous release, asterisk-19.0.0.</p><hr><a name="contributors"><h2 align="center">Contributors</h2></a><center><a href="#top">[Back to Top]</a></center><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release. For coders, the number is how many of their patches (of any size) were committed into this release. For testers, the number is the number of times their name was listed as assisting with testing a patch. Finally, for reporters, the number is the number of issues that they reported that were affected by commits that went into this release.</p><table width="100%" border="0">
+<tr><th width="33%">Coders</th><th width="33%">Testers</th><th width="33%">Reporters</th></tr>
+<tr valign="top"><td width="33%">30 Alexander Traud <pabstraud@compuserve.com><br/>24 Josh Soref <jsoref@users.noreply.github.com><br/>9 Naveen Albert <asterisk@phreaknet.org><br/>5 Sean Bright <sean.bright@gmail.com><br/>3 George Joseph <gjoseph@digium.com><br/>3 Mike Bradeen <mbradeen@sangoma.com><br/>2 Kevin Harwell <kharwell@sangoma.com><br/>1 Rodrigo Ramírez Norambuena <a@rodrigoramirez.com><br/>1 Asterisk Development Team <asteriskteam@digium.com><br/>1 Shloime Rosenblum <shloimerosenblum@gmail.com><br/>1 Joshua C. Colp <jcolp@sangoma.com><br/>1 Jaco Kroon <jaco@uls.co.za><br/>1 Ben Ford <bford@digium.com><br/>1 Sebastien Duthil <sduthil@wazo.community><br/>1 Boris P. Korzun <drtr0jan@yandex.ru><br/></td><td width="33%"><td width="33%">29 Alexander Traud <pabstraud@compuserve.com><br/>24 Josh Soref <jsoref@gmail.com><br/>9 N A <mail@interlinked.x10host.com><br/>2 George Joseph <gjoseph@digium.com><br/>1 Mario Ban <mario.ban@bluewin.ch><br/>1 Shloime Rosenblum <shloimerosenblum@gmail.com><br/>1 Moritz Fain <moritz.fain@check24.de><br/>1 Daniel Zanutti <daniel@dazsoft.com.br><br/>1 Alexei Gradinari <alex2grad@gmail.com><br/>1 George Joseph<br/>1 Boris P. Korzun <drtr0jan@yandex.ru><br/>1 Jamuel Starkey <jamuel@my740il.com><br/>1 Dennis Haney <davh@davh.dk><br/>1 Joshua C. Colp <jcolp@digium.com><br/>1 Corey Farrell <git@cfware.com><br/></td></tr>
+</table><hr><a name="closed_issues"><h2 align="center">Closed Issues</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p><h3>New Feature</h3><h4>Category: Applications/app_queue</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-18069">ASTERISK-18069</a>: [patch] app_queue Add Login Time and Last Paused Times to Queue Members<br/>Reported by: Jamuel Starkey<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=d81d5ad832f0a1b8a6376ab7dc34ab774b98b5f9">[d81d5ad832]</a> Rodrigo Ramírez Norambuena -- app_queue: Add LoginTime field for member in a queue.</li>
+</ul><br><h4>Category: Resources/NewFeature</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29720">ASTERISK-29720</a>: res_tonedetect: Add call progress tone detection<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=fbf03832da0bbfcf9e03df88d2049bc27e792992">[fbf03832da]</a> Naveen Albert -- res_tonedetect: Add call progress tone detection</li>
+</ul><br><h3>Bug</h3><h4>Category: . I did not set the category correctly.</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29755">ASTERISK-29755</a>: frame: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0119f59ac36509920d6ea6c467b262b13c4f151e">[0119f59ac3]</a> Alexander Traud -- frame: Fix for Doxygen.</li>
+</ul><br><h4>Category: Addons/chan_mobile</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29742">ASTERISK-29742</a>: addons: Fix for Doxygen.<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=a44fa27db46369c5571abd7d4e036f1bc390a740">[a44fa27db4]</a> Alexander Traud -- addons: Fix for Doxygen.</li>
+</ul><br><h4>Category: Applications/General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29752">ASTERISK-29752</a>: app: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=14c309a6c52a8e4b75e6745aea39b354a8dfe289">[14c309a6c5]</a> Alexander Traud -- app: Fix for Doxygen.</li>
+</ul><br><h4>Category: Applications/app_agent_pool</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29740">ASTERISK-29740</a>: apps: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0bcf649a37d2d3f7469bfa139ade26f7ce8c44b2">[0bcf649a37]</a> Alexander Traud -- apps: Fix for Doxygen.</li>
+</ul><br><h4>Category: Applications/app_alarmreceiver</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29740">ASTERISK-29740</a>: apps: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0bcf649a37d2d3f7469bfa139ade26f7ce8c44b2">[0bcf649a37]</a> Alexander Traud -- apps: Fix for Doxygen.</li>
+</ul><br><h4>Category: Applications/app_bridgewait</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29740">ASTERISK-29740</a>: apps: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0bcf649a37d2d3f7469bfa139ade26f7ce8c44b2">[0bcf649a37]</a> Alexander Traud -- apps: Fix for Doxygen.</li>
+</ul><br><h4>Category: Applications/app_chanspy</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29740">ASTERISK-29740</a>: apps: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0bcf649a37d2d3f7469bfa139ade26f7ce8c44b2">[0bcf649a37]</a> Alexander Traud -- apps: Fix for Doxygen.</li>
+</ul><br><h4>Category: Applications/app_confbridge</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29740">ASTERISK-29740</a>: apps: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0bcf649a37d2d3f7469bfa139ade26f7ce8c44b2">[0bcf649a37]</a> Alexander Traud -- apps: Fix for Doxygen.</li>
+</ul><br><h4>Category: Applications/app_dial</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29740">ASTERISK-29740</a>: apps: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0bcf649a37d2d3f7469bfa139ade26f7ce8c44b2">[0bcf649a37]</a> Alexander Traud -- apps: Fix for Doxygen.</li>
+</ul><br><h4>Category: Applications/app_jack</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29740">ASTERISK-29740</a>: apps: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0bcf649a37d2d3f7469bfa139ade26f7ce8c44b2">[0bcf649a37]</a> Alexander Traud -- apps: Fix for Doxygen.</li>
+</ul><br><h4>Category: Applications/app_meetme</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29740">ASTERISK-29740</a>: apps: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0bcf649a37d2d3f7469bfa139ade26f7ce8c44b2">[0bcf649a37]</a> Alexander Traud -- apps: Fix for Doxygen.</li>
+</ul><br><h4>Category: Applications/app_minivm</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29740">ASTERISK-29740</a>: apps: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0bcf649a37d2d3f7469bfa139ade26f7ce8c44b2">[0bcf649a37]</a> Alexander Traud -- apps: Fix for Doxygen.</li>
+</ul><br><h4>Category: Applications/app_mixmonitor</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29740">ASTERISK-29740</a>: apps: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0bcf649a37d2d3f7469bfa139ade26f7ce8c44b2">[0bcf649a37]</a> Alexander Traud -- apps: Fix for Doxygen.</li>
+</ul><br><h4>Category: Applications/app_morsecode</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29744">ASTERISK-29744</a>: app_morsecode: Fix deadlock<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=02b7af8cdf7037dc71506fc5f81244c4787e22a5">[02b7af8cdf]</a> Naveen Albert -- app_morsecode: Fix deadlock</li>
+</ul><br><h4>Category: Applications/app_page</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29740">ASTERISK-29740</a>: apps: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0bcf649a37d2d3f7469bfa139ade26f7ce8c44b2">[0bcf649a37]</a> Alexander Traud -- apps: Fix for Doxygen.</li>
+</ul><br><h4>Category: Applications/app_queue</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29740">ASTERISK-29740</a>: apps: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0bcf649a37d2d3f7469bfa139ade26f7ce8c44b2">[0bcf649a37]</a> Alexander Traud -- apps: Fix for Doxygen.</li>
+</ul><br><h4>Category: Applications/app_read</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29705">ASTERISK-29705</a>: app_read: Fix custom terminator functionality regression<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=45c132a37520d0a732ee1c553e814f14654e83de">[45c132a375]</a> Naveen Albert -- app_read: Fix custom terminator functionality regression</li>
+</ul><br><h4>Category: Applications/app_voicemail</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29740">ASTERISK-29740</a>: apps: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0bcf649a37d2d3f7469bfa139ade26f7ce8c44b2">[0bcf649a37]</a> Alexander Traud -- apps: Fix for Doxygen.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29391">ASTERISK-29391</a>: VoiceMail does not cancel recording on rerecord hangup<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=656880a4b193d7081e9643d75c18d1f86524bd26">[656880a4b1]</a> Naveen Albert -- app_voicemail: Fix phantom voicemail bug on rerecord</li>
+</ul><br><h4>Category: Bridges/bridge_holding</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29743">ASTERISK-29743</a>: bridges: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=46162d2d64602a7be071857122baa531cb22e88e">[46162d2d64]</a> Alexander Traud -- bridges: Fix for Doxygen.</li>
+</ul><br><h4>Category: Bridges/bridge_softmix</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29743">ASTERISK-29743</a>: bridges: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=46162d2d64602a7be071857122baa531cb22e88e">[46162d2d64]</a> Alexander Traud -- bridges: Fix for Doxygen.</li>
+</ul><br><h4>Category: Channels/chan_dahdi</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29762">ASTERISK-29762</a>: channels: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=e8c18eeb284f29d1a59961576ac8180074f9b55e">[e8c18eeb28]</a> Alexander Traud -- channels: Fix for Doxygen.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29702">ASTERISK-29702</a>: sig_analog: Fix truncated buffer copy<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=53fff3ec7cb8aebf660ecc819714d89ef565ddf8">[53fff3ec7c]</a> Naveen Albert -- sig_analog: Fix truncated buffer copy</li>
+</ul><br><h4>Category: Channels/chan_iax2</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29737">ASTERISK-29737</a>: chan_iax2: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=52b99811a8e7f73ccf7b3b990a9cfa972591c9c4">[52b99811a8]</a> Alexander Traud -- chan_iax2: Fix for Doxygen.</li>
+</ul><br><h4>Category: Channels/chan_sip/General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29762">ASTERISK-29762</a>: channels: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=e8c18eeb284f29d1a59961576ac8180074f9b55e">[e8c18eeb28]</a> Alexander Traud -- channels: Fix for Doxygen.</li>
+</ul><br><h4>Category: Core/Bridging</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29748">ASTERISK-29748</a>: bridging: Infinite loop when both Local channel halves in same bridge<br/>Reported by: Joshua C. Colp<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=426ee9a607f5f940a7257f2f8704ef75ffc68d72">[426ee9a607]</a> Joshua C. Colp -- bridge: Deny full Local channel pair in bridge.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29736">ASTERISK-29736</a>: bridge_channel: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=d2a8d37af4468c825276164be5cc6e76f868fd29">[d2a8d37af4]</a> Alexander Traud -- bridge_channel: Fix for Doxygen.</li>
+</ul><br><h4>Category: Core/BuildSystem</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29724">ASTERISK-29724</a>: BuildSystem: In POSIX sh, == in place of = is undefined.<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=9970b8df7c816709540bb6c12a7289bfb4e2df9f">[9970b8df7c]</a> Alexander Traud -- BuildSystem: In POSIX sh, == in place of = is undefined.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29682">ASTERISK-29682</a>: Squash compiler issues generated by gcc 11<br/>Reported by: George Joseph<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=6b094e905b9dc1c0fe32964e0471b97f2cb07d80">[6b094e905b]</a> Mike Bradeen -- various: Fix GCC 11 compilation issues.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29693">ASTERISK-29693</a>: Using --with-crypto and --with-ssl fails on a recompile<br/>Reported by: George Joseph<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=2b9cddc7d0372a23882ef9c88e7785276881d0cd">[2b9cddc7d0]</a> George Joseph -- BuildSystem: Check for alternate openssl packages</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26497">ASTERISK-26497</a>: make install downloads x86_32 variants of external modules on non Intel architectures<br/>Reported by: Corey Farrell<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=702484431d2bc7a36e7dc75f24a7190fa0cfbadc">[702484431d]</a> Mike Bradeen -- build: prevent binary downloads for non x86 architectures</li>
+</ul><br><h4>Category: Core/Channels</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29751">ASTERISK-29751</a>: channel: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=fa3c079c55edc1bcab9ecce9b2e7996cac173ae9">[fa3c079c55]</a> Alexander Traud -- channel: Fix for Doxygen.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29713">ASTERISK-29713</a>: GCC 11.2: two stringop-overread<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=c206203a5c55bd98a28d7ca649f94b3348a8e088">[c206203a5c]</a> Sean Bright -- various: Fix GCC 11.2 compilation issues.</li>
+</ul><br><h4>Category: Core/Configuration</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29771">ASTERISK-29771</a>: Crash occurs when 2 realtime sippeers mysql connections are configured and we have a schema warning<br/>Reported by: Mario Ban<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=dbc1a151469fbba7f2e1c93a976e3e4b58ed2295">[dbc1a15146]</a> Sean Bright -- config.c: Prevent UB in ast_realtime_require_field.</li>
+</ul><br><h4>Category: Core/General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29730">ASTERISK-29730</a>: Segfault in __ao2_ref if refdebug = yes<br/>Reported by: Alexei Gradinari<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=07d73dbc76ca8de8f5f7b0d5f4f16d80e0409af9">[07d73dbc76]</a> Mike Bradeen -- astobj2.c: Fix core when ref_log enabled</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29691">ASTERISK-29691</a>: stun: Not all users provide a dst to ast_stun_request<br/>Reported by: Dennis Haney<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=4bc7a5ac53ccbfe31b618d4992354bcf96e878bd">[4bc7a5ac53]</a> Sebastien Duthil -- main/stun.c: fix crash upon STUN request timeout</li>
+</ul><br><h4>Category: Core/Logging</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29713">ASTERISK-29713</a>: GCC 11.2: two stringop-overread<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=c206203a5c55bd98a28d7ca649f94b3348a8e088">[c206203a5c]</a> Sean Bright -- various: Fix GCC 11.2 compilation issues.</li>
+</ul><br><h4>Category: Core/PBX</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-28040">ASTERISK-28040</a>: pbx: "dialplan reload" is removing minus symbol from dynamic hints<br/>Reported by: Daniel Zanutti<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=a7ce06b098d199c57c38de2024fe3a2dba74c4e4">[a7ce06b098]</a> Sean Bright -- pbx.c: Don't remove dashes from hints on reload.</li>
+</ul><br><h4>Category: Core/Stasis</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29750">ASTERISK-29750</a>: stasis: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=72e1234168a7853680acc78a4a2ed3871a1f93b7">[72e1234168]</a> Alexander Traud -- stasis: Fix for Doxygen.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29710">ASTERISK-29710</a>: stasis: Clang 13 warns about the unused but set variable dispatched.<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=5e5afe2a5b947c5c5781efbe2a06b69f7d52be92">[5e5afe2a5b]</a> Alexander Traud -- stasis: Avoid 'dispatched' as unused variable in normal mode.</li>
+</ul><br><h4>Category: Documentation</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29779">ASTERISK-29779</a>: progdocs: Hidden code sections with syntax errors.<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=30d2c99698229df4f9c7e6676205c7ec35c887e6">[30d2c99698]</a> Alexander Traud -- progdocs: Fix for Doxygen, the hidden parts.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29732">ASTERISK-29732</a>: progdocs: Fix grouping for latest Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=fb08c717aab93b4d9762ef615077a022e5b1bbe1">[fb08c717aa]</a> Alexander Traud -- progdocs: Fix grouping for latest Doxygen.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29773">ASTERISK-29773</a>: progdocs: doxyref.h outdated<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=275ea6c111942d204bbdf69e8a546f93c77d8f08">[275ea6c111]</a> Alexander Traud -- progdocs: Remove outdated references in doxyref.h.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29765">ASTERISK-29765</a>: xmldoc: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=849daee91048a95abd1fb5631da81ff482ad3907">[849daee910]</a> Alexander Traud -- xmldoc: Fix for Doxygen.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29762">ASTERISK-29762</a>: channels: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=e8c18eeb284f29d1a59961576ac8180074f9b55e">[e8c18eeb28]</a> Alexander Traud -- channels: Fix for Doxygen.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29754">ASTERISK-29754</a>: odbc: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=c37e1ceb5af3efe7c071c08eafbe342e29040815">[c37e1ceb5a]</a> Alexander Traud -- odbc: Fix for Doxygen.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29753">ASTERISK-29753</a>: parking: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=5aec2bfee1fdbdbc6c3bec2b515fadf4ee431d97">[5aec2bfee1]</a> Alexander Traud -- parking: Fix for Doxygen.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29756">ASTERISK-29756</a>: res_ari: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=015c594fcc7a1f0ca17e1ef93b95dc735f3de918">[015c594fcc]</a> Alexander Traud -- res_ari: Fix for Doxygen.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29751">ASTERISK-29751</a>: channel: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=fa3c079c55edc1bcab9ecce9b2e7996cac173ae9">[fa3c079c55]</a> Alexander Traud -- channel: Fix for Doxygen.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29752">ASTERISK-29752</a>: app: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=14c309a6c52a8e4b75e6745aea39b354a8dfe289">[14c309a6c5]</a> Alexander Traud -- app: Fix for Doxygen.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29749">ASTERISK-29749</a>: res_xmpp: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=76a019c377ab6955fbb16c67037545dfcc57bc70">[76a019c377]</a> Alexander Traud -- res_xmpp: Fix for Doxygen.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29747">ASTERISK-29747</a>: res_pjsip: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=f71c0e7500f5659be38ff381070eeaaa14213180">[f71c0e7500]</a> Alexander Traud -- res_pjsip: Fix for Doxygen.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29740">ASTERISK-29740</a>: apps: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0bcf649a37d2d3f7469bfa139ade26f7ce8c44b2">[0bcf649a37]</a> Alexander Traud -- apps: Fix for Doxygen.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29741">ASTERISK-29741</a>: tests: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=95976be29347ae91f7a5defe53fb0ae768aab53f">[95976be293]</a> Alexander Traud -- tests: Fix for Doxygen.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29736">ASTERISK-29736</a>: bridge_channel: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=d2a8d37af4468c825276164be5cc6e76f868fd29">[d2a8d37af4]</a> Alexander Traud -- bridge_channel: Fix for Doxygen.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29734">ASTERISK-29734</a>: progdocs: Use Doxygen \example correctly<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=6e0ce3fde3b83d6820cb51fbb797f13c32be3795">[6e0ce3fde3]</a> Alexander Traud -- progdocs: Use Doxygen \example correctly.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29735">ASTERISK-29735</a>: progdocs: Avoid multiple use of section labels<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=2ff4b7dd2f4feefbbcd3923ff8d79388f8a66b83">[2ff4b7dd2f]</a> Alexander Traud -- progdocs: Avoid multiple use of section labels.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29733">ASTERISK-29733</a>: progdocs: Avoid name with Doxygen \file<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=dfdbf5007d73e5f0078cef83ad22c2e7e1e15664">[dfdbf5007d]</a> Alexander Traud -- progdocs: Avoid 'name' with Doxygen \file.</li>
+</ul><br><h4>Category: Functions/func_odbc</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29754">ASTERISK-29754</a>: odbc: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=c37e1ceb5af3efe7c071c08eafbe342e29040815">[c37e1ceb5a]</a> Alexander Traud -- odbc: Fix for Doxygen.</li>
+</ul><br><h4>Category: Functions/func_talkdetect</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27816">ASTERISK-27816</a>: func_talkdetect's logic is completely broken<br/>Reported by: Moritz Fain<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=093fabba84271d85d8aa3e4d0aa3bdfb47e95b6f">[093fabba84]</a> Sean Bright -- func_talkdetect.c: Fix logical errors in silence detection.</li>
+</ul><br><h4>Category: Resources/res_ari</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29756">ASTERISK-29756</a>: res_ari: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=015c594fcc7a1f0ca17e1ef93b95dc735f3de918">[015c594fcc]</a> Alexander Traud -- res_ari: Fix for Doxygen.</li>
+</ul><br><h4>Category: Resources/res_ari_applications</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29756">ASTERISK-29756</a>: res_ari: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=015c594fcc7a1f0ca17e1ef93b95dc735f3de918">[015c594fcc]</a> Alexander Traud -- res_ari: Fix for Doxygen.</li>
+</ul><br><h4>Category: Resources/res_ari_bridges</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29756">ASTERISK-29756</a>: res_ari: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=015c594fcc7a1f0ca17e1ef93b95dc735f3de918">[015c594fcc]</a> Alexander Traud -- res_ari: Fix for Doxygen.</li>
+</ul><br><h4>Category: Resources/res_ari_channels</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29756">ASTERISK-29756</a>: res_ari: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=015c594fcc7a1f0ca17e1ef93b95dc735f3de918">[015c594fcc]</a> Alexander Traud -- res_ari: Fix for Doxygen.</li>
+</ul><br><h4>Category: Resources/res_ari_device_states</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29756">ASTERISK-29756</a>: res_ari: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=015c594fcc7a1f0ca17e1ef93b95dc735f3de918">[015c594fcc]</a> Alexander Traud -- res_ari: Fix for Doxygen.</li>
+</ul><br><h4>Category: Resources/res_ari_endpoints</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29756">ASTERISK-29756</a>: res_ari: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=015c594fcc7a1f0ca17e1ef93b95dc735f3de918">[015c594fcc]</a> Alexander Traud -- res_ari: Fix for Doxygen.</li>
+</ul><br><h4>Category: Resources/res_ari_events</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29756">ASTERISK-29756</a>: res_ari: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=015c594fcc7a1f0ca17e1ef93b95dc735f3de918">[015c594fcc]</a> Alexander Traud -- res_ari: Fix for Doxygen.</li>
+</ul><br><h4>Category: Resources/res_ari_mailboxes</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29756">ASTERISK-29756</a>: res_ari: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=015c594fcc7a1f0ca17e1ef93b95dc735f3de918">[015c594fcc]</a> Alexander Traud -- res_ari: Fix for Doxygen.</li>
+</ul><br><h4>Category: Resources/res_ari_playbacks</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29756">ASTERISK-29756</a>: res_ari: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=015c594fcc7a1f0ca17e1ef93b95dc735f3de918">[015c594fcc]</a> Alexander Traud -- res_ari: Fix for Doxygen.</li>
+</ul><br><h4>Category: Resources/res_ari_recordings</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29756">ASTERISK-29756</a>: res_ari: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=015c594fcc7a1f0ca17e1ef93b95dc735f3de918">[015c594fcc]</a> Alexander Traud -- res_ari: Fix for Doxygen.</li>
+</ul><br><h4>Category: Resources/res_ari_sounds</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29756">ASTERISK-29756</a>: res_ari: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=015c594fcc7a1f0ca17e1ef93b95dc735f3de918">[015c594fcc]</a> Alexander Traud -- res_ari: Fix for Doxygen.</li>
+</ul><br><h4>Category: Resources/res_config_sqlite</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29717">ASTERISK-29717</a>: res_config_sqlite: not removed in makeopts.in<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=85049ab55a88eddbb558e2aff41e4e1286d88f73">[85049ab55a]</a> Alexander Traud -- res_config_sqlite: Remove deprecated module.</li>
+</ul><br><h4>Category: Resources/res_odbc</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29754">ASTERISK-29754</a>: odbc: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=c37e1ceb5af3efe7c071c08eafbe342e29040815">[c37e1ceb5a]</a> Alexander Traud -- odbc: Fix for Doxygen.</li>
+</ul><br><h4>Category: Resources/res_parking</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29753">ASTERISK-29753</a>: parking: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=5aec2bfee1fdbdbc6c3bec2b515fadf4ee431d97">[5aec2bfee1]</a> Alexander Traud -- parking: Fix for Doxygen.</li>
+</ul><br><h4>Category: Resources/res_pjsip</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29747">ASTERISK-29747</a>: res_pjsip: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=f71c0e7500f5659be38ff381070eeaaa14213180">[f71c0e7500]</a> Alexander Traud -- res_pjsip: Fix for Doxygen.</li>
+</ul><br><h4>Category: Resources/res_pjsip_authenticator_digest</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29747">ASTERISK-29747</a>: res_pjsip: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=f71c0e7500f5659be38ff381070eeaaa14213180">[f71c0e7500]</a> Alexander Traud -- res_pjsip: Fix for Doxygen.</li>
+</ul><br><h4>Category: Resources/res_pjsip_caller_id</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29747">ASTERISK-29747</a>: res_pjsip: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=f71c0e7500f5659be38ff381070eeaaa14213180">[f71c0e7500]</a> Alexander Traud -- res_pjsip: Fix for Doxygen.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29703">ASTERISK-29703</a>: res_pjsip_callerid: Fix OLI parsing<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=b2256ea993ea8a9e6ddf495701d69d58f28f387e">[b2256ea993]</a> Naveen Albert -- res_pjsip_callerid: Fix OLI parsing</li>
+</ul><br><h4>Category: Resources/res_pjsip_config_wizard</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29747">ASTERISK-29747</a>: res_pjsip: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=f71c0e7500f5659be38ff381070eeaaa14213180">[f71c0e7500]</a> Alexander Traud -- res_pjsip: Fix for Doxygen.</li>
+</ul><br><h4>Category: Resources/res_pjsip_messaging</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29747">ASTERISK-29747</a>: res_pjsip: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=f71c0e7500f5659be38ff381070eeaaa14213180">[f71c0e7500]</a> Alexander Traud -- res_pjsip: Fix for Doxygen.</li>
+</ul><br><h4>Category: Resources/res_pjsip_outbound_authenticator_digest</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29747">ASTERISK-29747</a>: res_pjsip: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=f71c0e7500f5659be38ff381070eeaaa14213180">[f71c0e7500]</a> Alexander Traud -- res_pjsip: Fix for Doxygen.</li>
+</ul><br><h4>Category: Resources/res_pjsip_outbound_registration</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29747">ASTERISK-29747</a>: res_pjsip: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=f71c0e7500f5659be38ff381070eeaaa14213180">[f71c0e7500]</a> Alexander Traud -- res_pjsip: Fix for Doxygen.</li>
+</ul><br><h4>Category: Resources/res_pjsip_path</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29747">ASTERISK-29747</a>: res_pjsip: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=f71c0e7500f5659be38ff381070eeaaa14213180">[f71c0e7500]</a> Alexander Traud -- res_pjsip: Fix for Doxygen.</li>
+</ul><br><h4>Category: Resources/res_pjsip_publish_asterisk</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29747">ASTERISK-29747</a>: res_pjsip: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=f71c0e7500f5659be38ff381070eeaaa14213180">[f71c0e7500]</a> Alexander Traud -- res_pjsip: Fix for Doxygen.</li>
+</ul><br><h4>Category: Resources/res_pjsip_pubsub</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29747">ASTERISK-29747</a>: res_pjsip: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=f71c0e7500f5659be38ff381070eeaaa14213180">[f71c0e7500]</a> Alexander Traud -- res_pjsip: Fix for Doxygen.</li>
+</ul><br><h4>Category: Resources/res_pjsip_registrar</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29747">ASTERISK-29747</a>: res_pjsip: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=f71c0e7500f5659be38ff381070eeaaa14213180">[f71c0e7500]</a> Alexander Traud -- res_pjsip: Fix for Doxygen.</li>
+</ul><br><h4>Category: Resources/res_pjsip_sdp_rtp</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29747">ASTERISK-29747</a>: res_pjsip: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=f71c0e7500f5659be38ff381070eeaaa14213180">[f71c0e7500]</a> Alexander Traud -- res_pjsip: Fix for Doxygen.</li>
+</ul><br><h4>Category: Resources/res_pjsip_session</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29747">ASTERISK-29747</a>: res_pjsip: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=f71c0e7500f5659be38ff381070eeaaa14213180">[f71c0e7500]</a> Alexander Traud -- res_pjsip: Fix for Doxygen.</li>
+</ul><br><h4>Category: Resources/res_snmp</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29709">ASTERISK-29709</a>: res_snmp: Not build on recent Debian distributions.<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=9660d2e182fbe6a19689c7240acc937c945b8c62">[9660d2e182]</a> Alexander Traud -- res_snmp: As build tool, prefer pkg-config over net-snmp-config.</li>
+</ul><br><h4>Category: Resources/res_stasis_recording</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29750">ASTERISK-29750</a>: stasis: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=72e1234168a7853680acc78a4a2ed3871a1f93b7">[72e1234168]</a> Alexander Traud -- stasis: Fix for Doxygen.</li>
+</ul><br><h4>Category: Resources/res_stasis_snoop</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29750">ASTERISK-29750</a>: stasis: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=72e1234168a7853680acc78a4a2ed3871a1f93b7">[72e1234168]</a> Alexander Traud -- stasis: Fix for Doxygen.</li>
+</ul><br><h4>Category: Resources/res_stir_shaken</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29776">ASTERISK-29776</a>: stir/shaken: Requires GNU designator<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=657252b1328e02941a04c38e7736eb6c1d09c64b">[657252b132]</a> Alexander Traud -- stir/shaken: Avoid a compiler extension of GCC.</li>
+</ul><br><h4>Category: Resources/res_stun_monitor</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29691">ASTERISK-29691</a>: stun: Not all users provide a dst to ast_stun_request<br/>Reported by: Dennis Haney<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=4bc7a5ac53ccbfe31b618d4992354bcf96e878bd">[4bc7a5ac53]</a> Sebastien Duthil -- main/stun.c: fix crash upon STUN request timeout</li>
+</ul><br><h4>Category: Resources/res_xmpp</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29749">ASTERISK-29749</a>: res_xmpp: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=76a019c377ab6955fbb16c67037545dfcc57bc70">[76a019c377]</a> Alexander Traud -- res_xmpp: Fix for Doxygen.</li>
+</ul><br><h4>Category: Tests/General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29741">ASTERISK-29741</a>: tests: Fix for Doxygen<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=95976be29347ae91f7a5defe53fb0ae768aab53f">[95976be293]</a> Alexander Traud -- tests: Fix for Doxygen.</li>
+</ul><br><h4>Category: Utilities/aelparse</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29711">ASTERISK-29711</a>: aelparse: GCC 11.2 found two maybe uninitialized<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=c206203a5c55bd98a28d7ca649f94b3348a8e088">[c206203a5c]</a> Sean Bright -- various: Fix GCC 11.2 compilation issues.</li>
+</ul><br><h3>Improvement</h3><h4>Category: Addons/General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29714">ASTERISK-29714</a>: Spelling errors<br/>Reported by: Josh Soref<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=8c0b7fd45aa9da1fffa68b4e3b253c8fc95c01fd">[8c0b7fd45a]</a> Josh Soref -- rest-api-templates: Spelling fixes</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=bff338bf882a1ff836987884e32244e2de73b039">[bff338bf88]</a> Josh Soref -- bridges: Spelling fixes</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=22db079aaffdb7a4d9eba435ae2920b5eb1e2645">[22db079aaf]</a> Josh Soref -- utils: Spelling fixes</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=bf7b327edd1cbc1c8c9fb6b70823330d277ba572">[bf7b327edd]</a> Josh Soref -- build_tools: Spelling fixes</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=6b03525827b80178e828e67f0862f6cb0b04d4a7">[6b03525827]</a> Josh Soref -- res: Spelling fixes</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=acf74178b15d92ec27efd88c908ad0366d71a40d">[acf74178b1]</a> Josh Soref -- configs: Spelling fixes</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=d081fc1784b5e4a766c4b9cf498304d9da2470c1">[d081fc1784]</a> Josh Soref -- CREDITS: Spelling fixes</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=99b079f551ff92cb7e878285a1d1722149463237">[99b079f551]</a> Josh Soref -- funcs: Spelling fixes</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=ccf5835e49c57881d08bd173374621e19f69fb0c">[ccf5835e49]</a> Josh Soref -- menuselect: Spelling fixes</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=02f40c1f01c011814036bbe53d1ed0848f431d8e">[02f40c1f01]</a> Josh Soref -- formats: Spelling fixes</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=b6295840d756e969499acb7ba36da0ac3737a016">[b6295840d7]</a> Josh Soref -- codecs: Spelling fixes</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=50a43ab987ea14d61a8c11a1fb25928ae91a935f">[50a43ab987]</a> Josh Soref -- pbx: Spelling fixes</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=706258db5433a3227287a547f90740533816151a">[706258db54]</a> Josh Soref -- contrib: Spelling fixes</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=c03a3e4d4abbbb758fc14c0851fad6ca19ab1e46">[c03a3e4d4a]</a> Josh Soref -- include: Spelling fixes</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=617cb9dbc4d018f562b1a48a0a82a273dfcaee25">[617cb9dbc4]</a> Josh Soref -- Makefile: Spelling fixes</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=08a3eae879821e1f378e3d90c317d7e3774a50db">[08a3eae879]</a> Josh Soref -- channels: Spelling fixes</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0c7c6a3d5d9c3379e1444021c901168845d1134f">[0c7c6a3d5d]</a> Josh Soref -- agi: Spelling fixes</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=5ad9ec24471aba5934564dc0fbcc64aba32badc6">[5ad9ec2447]</a> Josh Soref -- apps: Spelling fixes</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=ec877e0c27aac9b55fc3cdbc2fe130dd6c34df9f">[ec877e0c27]</a> Josh Soref -- main: Spelling fixes</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=31aaceac01a124d8b39cefb4295fda35c253c9b0">[31aaceac01]</a> Josh Soref -- doc: Spelling fixes</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=09691e2bfb4aa3662c5b2f5d46413ab48cdd38d7">[09691e2bfb]</a> Josh Soref -- CHANGES: Spelling fixes</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=49e317924e82dbced4ef3fa029dfca54100611b9">[49e317924e]</a> Josh Soref -- UPGRADE.txt: Spelling fixes</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=c06342a3cb7cb2c4e078d770518f5d36b07923d2">[c06342a3cb]</a> Josh Soref -- tests: Spelling fixes</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=42ba751f5abf4072b51fab603c20e436e63f38b5">[42ba751f5a]</a> Josh Soref -- addons: Spelling fixes</li>
+</ul><br><h4>Category: Applications/app_playback</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29662">ASTERISK-29662</a>: Add mix option to Playback application for say and filename<br/>Reported by: Shloime Rosenblum<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=154c5927995bbb6cae05941e56d9c0d2df491866">[154c592799]</a> Shloime Rosenblum -- apps/app_playback.c: Add 'mix' option to app_playback</li>
+</ul><br><h4>Category: Applications/app_voicemail</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29715">ASTERISK-29715</a>: app_voicemail: Refactor email generation functions<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=05032c7cabd7a31617e61c770115de9f4b088d34">[05032c7cab]</a> Naveen Albert -- app_voicemail: Refactor email generation functions</li>
+</ul><br><h4>Category: Channels/chan_iax2</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29707">ASTERISK-29707</a>: chan_iax2: Allow both key and secret to be specified at dial time<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=cf422d35a5508819bd9e0c9654490301a59dadc4">[cf422d35a5]</a> Naveen Albert -- chan_iax2: Allow both secret and outkey at dial time</li>
+</ul><br><h4>Category: Core/RTP</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29727">ASTERISK-29727</a>: Add type for JSON stasis message RTCP Report Received/Sent<br/>Reported by: Boris P. Korzun<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=f800f23d9c83e079e90ae6f448ecf3f9840c22e8">[f800f23d9c]</a> Boris P. Korzun -- rtp_engine: Add type field for JSON RTCP Report stasis messages</li>
+</ul><br><h4>Category: Documentation</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29777">ASTERISK-29777</a>: documentation: Standardize example syntax<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=bfac8fbeed310a513c927ce84ea7acf1250f5d00">[bfac8fbeed]</a> Naveen Albert -- documentation: Standardize examples</li>
+</ul><br><hr><a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all changes that went into this release that did not reference a JIRA issue.</p><table width="100%" border="1">
+<tr><th>Revision</th><th>Author</th><th>Summary</th></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=8d0852552bad66ad62f51085be661ba12bad54f6">8d0852552b</a></td><td>Asterisk Development Team</td><td>Update CHANGES and UPGRADE.txt for 19.1.0</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=bee73b7c84da4d47552db33924a95d72545a5819">bee73b7c84</a></td><td>Jaco Kroon</td><td>logger: use __FUNCTION__ instead of __PRETTY_FUNCTION__</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=aaa1509fad6e4798bde30893ae43f85207c29615">aaa1509fad</a></td><td>Alexander Traud</td><td>ari-stubs: Avoid 'is' as comparism with an literal.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=244790e04070a0ae0033d3d8a565dd82d034fced">244790e040</a></td><td>Alexander Traud</td><td>BuildSystem: Consistently allow 'ye' even for Jansson.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=fa839616fd5963038fb19385ff3867198c5a1203">fa839616fd</a></td><td>George Joseph</td><td>CI: Rename 'master' node to 'built-in'</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=9ff0c31335945f4e315674b69191282d46c2b0e5">9ff0c31335</a></td><td>George Joseph</td><td>ast_coredumper:  Refactor to better find things</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=ed384e652c4812346e687e7a1ba6024943aa9bc9">ed384e652c</a></td><td>Kevin Harwell</td><td>strings/json: Add string delimter match, and object create with vars methods</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=ba3f6c0b1eefa891ff36d30a3081d0894a6882be">ba3f6c0b1e</a></td><td>Ben Ford</td><td>STIR/SHAKEN: Option split and response codes.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=cf0fa9b82f4cdc98da57a1e4897392d969d5ca0a">cf0fa9b82f</a></td><td>Kevin Harwell</td><td>res_speech: Add a type conversion, and new engine unregister methods</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=ce9cb32307e52446222e3944c7b9c5eb037fab1f">ce9cb32307</a></td><td>Sean Bright</td><td>configure: Remove unused OpenSSL SRTP check.</td></tr>
+</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>.lastclean                                                                      |    1
+.version                                                                        |    1
+ChangeLog                                                                       |97346 ----------
+asterisk-19.0.0-summary.html                                                    | 1084
+asterisk-19.0.0-summary.txt                                                     | 2729
+b/CHANGES                                                                       |  110
+b/CREDITS                                                                       |    2
+b/Makefile                                                                      |    4
+b/UPGRADE.txt                                                                   |   20
+b/addons/chan_mobile.c                                                          |   28
+b/addons/chan_ooh323.c                                                          |    6
+b/addons/ooh323c/README                                                         |    2
+b/addons/ooh323c/src/decode.c                                                   |    2
+b/addons/ooh323c/src/encode.c                                                   |    4
+b/addons/ooh323c/src/eventHandler.h                                             |    6
+b/addons/ooh323c/src/h323/H323-MESSAGES.h                                       |    2
+b/addons/ooh323c/src/h323/H323-MESSAGESDec.c                                    |    8
+b/addons/ooh323c/src/h323/H323-MESSAGESEnc.c                                    |    4
+b/addons/ooh323c/src/memheap.c                                                  |   20
+b/addons/ooh323c/src/ooCalls.c                                                  |    2
+b/addons/ooh323c/src/ooCapability.h                                             |   12
+b/addons/ooh323c/src/ooCmdChannel.c                                             |    4
+b/addons/ooh323c/src/ooGkClient.c                                               |    4
+b/addons/ooh323c/src/ooGkClient.h                                               |    2
+b/addons/ooh323c/src/ooLogChan.c                                                |    2
+b/addons/ooh323c/src/ooSocket.h                                                 |    2
+b/addons/ooh323c/src/ooUtils.c                                                  |    2
+b/addons/ooh323c/src/ooUtils.h                                                  |    2
+b/addons/ooh323c/src/ooasn1.h                                                   |    2
+b/addons/ooh323c/src/oochannels.c                                               |    2
+b/addons/ooh323c/src/ooh245.c                                                   |    2
+b/addons/ooh323c/src/ooh245.h                                                   |    4
+b/addons/ooh323c/src/ooh323.c                                                   |   29
+b/addons/ooh323c/src/ooh323ep.c                                                 |    2
+b/addons/ooh323c/src/ooq931.c                                                   |    6
+b/addons/ooh323c/src/ooq931.h                                                   |    2
+b/agi/eagi-test.c                                                               |    2
+b/agi/jukebox.agi                                                               |    2
+b/apps/app_agent_pool.c                                                         |   30
+b/apps/app_alarmreceiver.c                                                      |    3
+b/apps/app_bridgewait.c                                                         |   22
+b/apps/app_chanspy.c                                                            |   10
+b/apps/app_confbridge.c                                                         |   33
+b/apps/app_dial.c                                                               |    6
+b/apps/app_dtmfstore.c                                                          |   16
+b/apps/app_forkcdr.c                                                            |    2
+b/apps/app_jack.c                                                               |    2
+b/apps/app_macro.c                                                              |    2
+b/apps/app_meetme.c                                                             |   12
+b/apps/app_minivm.c                                                             |  169
+b/apps/app_mixmonitor.c                                                         |    1
+b/apps/app_morsecode.c                                                          |    5
+b/apps/app_mp3.c                                                                |    6
+b/apps/app_page.c                                                               |    6
+b/apps/app_playback.c                                                           |   18
+b/apps/app_queue.c                                                              |  109
+b/apps/app_read.c                                                               |    2
+b/apps/app_stack.c                                                              |    2
+b/apps/app_stasis.c                                                             |    2
+b/apps/app_statsd.c                                                             |    4
+b/apps/app_test.c                                                               |    2
+b/apps/app_voicemail.c                                                          |  214
+b/apps/app_waitforsilence.c                                                     |   17
+b/apps/confbridge/conf_config_parser.c                                          |    6
+b/apps/confbridge/conf_state.c                                                  |    2
+b/apps/confbridge/include/confbridge.h                                          |   10
+b/bridges/bridge_holding.c                                                      |    4
+b/bridges/bridge_softmix.c                                                      |   22
+b/bridges/bridge_softmix/bridge_softmix_binaural.c                              |    4
+b/bridges/bridge_softmix/include/bridge_softmix_internal.h                      |   10
+b/build_tools/download_externals                                                |    9
+b/cdr/cdr_odbc.c                                                                |    5
+b/cdr/cdr_pgsql.c                                                               |    4
+b/cdr/cdr_tds.c                                                                 |    5
+b/cel/cel_beanstalkd.c                                                          |    3
+b/cel/cel_custom.c                                                              |    3
+b/cel/cel_pgsql.c                                                               |    4
+b/cel/cel_radius.c                                                              |    2
+b/cel/cel_sqlite3_custom.c                                                      |    5
+b/cel/cel_tds.c                                                                 |    5
+b/channels/chan_console.c                                                       |    2
+b/channels/chan_dahdi.c                                                         |   86
+b/channels/chan_iax2.c                                                          |   64
+b/channels/chan_mgcp.c                                                          |    8
+b/channels/chan_motif.c                                                         |    6
+b/channels/chan_pjsip.c                                                         |    2
+b/channels/chan_rtp.c                                                           |    2
+b/channels/chan_sip.c                                                           |  135
+b/channels/chan_skinny.c                                                        |   10
+b/channels/chan_unistim.c                                                       |    8
+b/channels/console_gui.c                                                        |   12
+b/channels/console_video.c                                                      |   10
+b/channels/dahdi/bridge_native_dahdi.c                                          |   10
+b/channels/iax2/codec_pref.c                                                    |    2
+b/channels/iax2/include/astobj.h                                                |    2
+b/channels/iax2/include/firmware.h                                              |    8
+b/channels/iax2/include/iax2.h                                                  |    4
+b/channels/iax2/parser.c                                                        |    6
+b/channels/sig_analog.c                                                         |    8
+b/channels/sig_pri.c                                                            |  159
+b/channels/sig_pri.h                                                            |    8
+b/channels/sig_ss7.c                                                            |   64
+b/channels/sig_ss7.h                                                            |    2
+b/channels/sip/config_parser.c                                                  |   61
+b/channels/sip/include/config_parser.h                                          |    2
+b/channels/sip/include/reqresp_parser.h                                         |   12
+b/channels/sip/include/route.h                                                  |    9
+b/channels/sip/include/sip.h                                                    |   32
+b/channels/sip/reqresp_parser.c                                                 |    8
+b/channels/vcodecs.c                                                            |    2
+b/codecs/codec_g726.c                                                           |    2
+b/codecs/gsm/src/rpe.c                                                          |    2
+b/codecs/ilbc/LPCencode.c                                                       |    8
+b/codecs/ilbc/StateSearchW.c                                                    |    4
+b/codecs/ilbc/StateSearchW.h                                                    |    2
+b/codecs/ilbc/constants.c                                                       |    2
+b/codecs/ilbc/createCB.c                                                        |    2
+b/codecs/ilbc/createCB.h                                                        |    2
+b/codecs/ilbc/enhancer.h                                                        |    4
+b/codecs/ilbc/iLBC_decode.c                                                     |    2
+b/codecs/ilbc/rfc3951.txt                                                       |   26
+b/codecs/lpc10/lpc10.h                                                          |    2
+b/codecs/lpc10/pitsyn.c                                                         |    2
+b/codecs/lpc10/placea.c                                                         |    2
+b/codecs/speex/resample.c                                                       |    2
+b/configs/basic-pbx/extensions.conf                                             |    2
+b/configs/samples/app_mysql.conf.sample                                         |    2
+b/configs/samples/ast_debug_tools.conf.sample                                   |   47
+b/configs/samples/cdr.conf.sample                                               |    2
+b/configs/samples/chan_dahdi.conf.sample                                        |    2
+b/configs/samples/cli_permissions.conf.sample                                   |    2
+b/configs/samples/dundi.conf.sample                                             |    2
+b/configs/samples/extensions.ael.sample                                         |    2
+b/configs/samples/extensions.conf.sample                                        |    4
+b/configs/samples/extensions.lua.sample                                         |    4
+b/configs/samples/extensions_minivm.conf.sample                                 |    2
+b/configs/samples/hep.conf.sample                                               |    2
+b/configs/samples/iax.conf.sample                                               |    2
+b/configs/samples/logger.conf.sample                                            |    2
+b/configs/samples/minivm.conf.sample                                            |    2
+b/configs/samples/motif.conf.sample                                             |    2
+b/configs/samples/ooh323.conf.sample                                            |    2
+b/configs/samples/queues.conf.sample                                            |    4
+b/configs/samples/rtp.conf.sample                                               |    2
+b/configure                                                                     | 1508
+b/configure.ac                                                                  |  102
+b/contrib/ast-db-manage/README.md                                               |    2
+b/contrib/ast-db-manage/config/versions/1ae0609b6646_increse_reg_server_size.py |    2
+b/contrib/ast-db-manage/config/versions/4da0c5f79a9c_create_tables.py           |    2
+b/contrib/ast-db-manage/voicemail/versions/a2e9769475e_create_tables.py         |    2
+b/contrib/init.d/rc.debian.asterisk                                             |    2
+b/contrib/scripts/ast_coredumper                                                |  949
+b/contrib/scripts/ast_loggrabber                                                |    4
+b/contrib/scripts/asterisk.ldap-schema                                          |    2
+b/contrib/scripts/asterisk.ldif                                                 |    2
+b/contrib/scripts/loadtest.tcl                                                  |    2
+b/contrib/scripts/retrieve_extensions_from_sql.pl                               |    2
+b/contrib/scripts/safe_asterisk.8                                               |    2
+b/contrib/scripts/valgrind_compare                                              |    2
+b/contrib/scripts/voicemailpwcheck.py                                           |    2
+b/contrib/utils/zones2indications.c                                             |    4
+b/doc/asterisk-ng-doxygen.in                                                    |    4
+b/formats/format_ogg_speex.c                                                    |    2
+b/formats/format_ogg_vorbis.c                                                   |    2
+b/funcs/func_devstate.c                                                         |    6
+b/funcs/func_odbc.c                                                             |    4
+b/funcs/func_pitchshift.c                                                       |    8
+b/funcs/func_sprintf.c                                                          |    2
+b/funcs/func_strings.c                                                          |    4
+b/funcs/func_talkdetect.c                                                       |   26
+b/include/asterisk/abstract_jb.h                                                |    2
+b/include/asterisk/adsi.h                                                       |    4
+b/include/asterisk/aoc.h                                                        |    2
+b/include/asterisk/app.h                                                        |   71
+b/include/asterisk/ari.h                                                        |   22
+b/include/asterisk/astdb.h                                                      |    2
+b/include/asterisk/astmm.h                                                      |    6
+b/include/asterisk/astobj2.h                                                    |   12
+b/include/asterisk/audiohook.h                                                  |   79
+b/include/asterisk/autoconfig.h.in                                              |    5
+b/include/asterisk/bridge.h                                                     |    2
+b/include/asterisk/bridge_channel.h                                             |   27
+b/include/asterisk/bridge_channel_internal.h                                    |   11
+b/include/asterisk/bridge_features.h                                            |    2
+b/include/asterisk/bridge_roles.h                                               |    4
+b/include/asterisk/calendar.h                                                   |    8
+b/include/asterisk/callerid.h                                                   |    2
+b/include/asterisk/causes.h                                                     |    6
+b/include/asterisk/cdr.h                                                        |    4
+b/include/asterisk/channel.h                                                    |  203
+b/include/asterisk/cli.h                                                        |    2
+b/include/asterisk/config.h                                                     |    4
+b/include/asterisk/config_options.h                                             |    2
+b/include/asterisk/crypto.h                                                     |    2
+b/include/asterisk/datastore.h                                                  |    4
+b/include/asterisk/devicestate.h                                                |    4
+b/include/asterisk/dlinkedlists.h                                               |    7
+b/include/asterisk/dns_core.h                                                   |    2
+b/include/asterisk/doxygen/architecture.h                                       |    2
+b/include/asterisk/doxyref.h                                                    |   13
+b/include/asterisk/endpoints.h                                                  |    2
+b/include/asterisk/enum.h                                                       |    8
+b/include/asterisk/event_defs.h                                                 |    2
+b/include/asterisk/file.h                                                       |   15
+b/include/asterisk/frame.h                                                      |   10
+b/include/asterisk/framehook.h                                                  |   41
+b/include/asterisk/hashtab.h                                                    |    4
+b/include/asterisk/http.h                                                       |    4
+b/include/asterisk/http_websocket.h                                             |    5
+b/include/asterisk/io.h                                                         |    2
+b/include/asterisk/iostream.h                                                   |    2
+b/include/asterisk/json.h                                                       |   17
+b/include/asterisk/linkedlists.h                                                |    3
+b/include/asterisk/logger.h                                                     |   70
+b/include/asterisk/manager.h                                                    |   23
+b/include/asterisk/mod_format.h                                                 |    2
+b/include/asterisk/module.h                                                     |    4
+b/include/asterisk/mwi.h                                                        |    4
+b/include/asterisk/netsock2.h                                                   |    6
+b/include/asterisk/parking.h                                                    |   19
+b/include/asterisk/pbx.h                                                        |   14
+b/include/asterisk/plc.h                                                        |    4
+b/include/asterisk/privacy.h                                                    |    2
+b/include/asterisk/res_mwi_external.h                                           |    2
+b/include/asterisk/res_odbc.h                                                   |   25
+b/include/asterisk/res_pjsip.h                                                  |  110
+b/include/asterisk/res_pjsip_cli.h                                              |    6
+b/include/asterisk/res_pjsip_presence_xml.h                                     |    2
+b/include/asterisk/res_pjsip_pubsub.h                                           |    7
+b/include/asterisk/res_pjsip_session.h                                          |    8
+b/include/asterisk/res_pjsip_session_caps.h                                     |    2
+b/include/asterisk/res_prometheus.h                                             |    4
+b/include/asterisk/res_stir_shaken.h                                            |   25
+b/include/asterisk/rtp_engine.h                                                 |    6
+b/include/asterisk/say.h                                                        |    2
+b/include/asterisk/sdp_srtp.h                                                   |    3
+b/include/asterisk/sem.h                                                        |    2
+b/include/asterisk/smoother.h                                                   |    8
+b/include/asterisk/sorcery.h                                                    |    4
+b/include/asterisk/speech.h                                                     |    6
+b/include/asterisk/srv.h                                                        |    3
+b/include/asterisk/stasis.h                                                     |  128
+b/include/asterisk/stasis_app.h                                                 |   28
+b/include/asterisk/stasis_app_device_state.h                                    |    2
+b/include/asterisk/stasis_app_impl.h                                            |    5
+b/include/asterisk/stasis_app_mailbox.h                                         |   12
+b/include/asterisk/stasis_app_playback.h                                        |   14
+b/include/asterisk/stasis_app_recording.h                                       |   32
+b/include/asterisk/stasis_app_snoop.h                                           |    5
+b/include/asterisk/stasis_bridges.h                                             |   53
+b/include/asterisk/stasis_channels.h                                            |   98
+b/include/asterisk/stasis_endpoints.h                                           |    2
+b/include/asterisk/stasis_internal.h                                            |    1
+b/include/asterisk/stasis_message_router.h                                      |   16
+b/include/asterisk/stasis_system.h                                              |    4
+b/include/asterisk/stasis_test.h                                                |    1
+b/include/asterisk/stringfields.h                                               |    2
+b/include/asterisk/strings.h                                                    |   32
+b/include/asterisk/stun.h                                                       |    3
+b/include/asterisk/syslog.h                                                     |    3
+b/include/asterisk/taskprocessor.h                                              |    5
+b/include/asterisk/tcptls.h                                                     |    5
+b/include/asterisk/term.h                                                       |   16
+b/include/asterisk/test.h                                                       |   30
+b/include/asterisk/threadpool.h                                                 |    6
+b/include/asterisk/threadstorage.h                                              |    6
+b/include/asterisk/time.h                                                       |    4
+b/include/asterisk/timing.h                                                     |    2
+b/include/asterisk/transcap.h                                                   |    8
+b/include/asterisk/translate.h                                                  |    2
+b/include/asterisk/utils.h                                                      |   20
+b/include/asterisk/vector.h                                                     |    2
+b/include/asterisk/xmldoc.h                                                     |    2
+b/include/jitterbuf.h                                                           |    8
+b/main/abstract_jb.c                                                            |    2
+b/main/aoc.c                                                                    |    2
+b/main/app.c                                                                    |   43
+b/main/asterisk.c                                                               |    2
+b/main/astfd.c                                                                  |    2
+b/main/astmm.c                                                                  |   38
+b/main/astobj2.c                                                                |    5
+b/main/astobj2_container.c                                                      |    4
+b/main/astobj2_container_private.h                                              |    2
+b/main/astobj2_rbtree.c                                                         |    2
+b/main/audiohook.c                                                              |  115
+b/main/bridge.c                                                                 |    4
+b/main/bridge_basic.c                                                           |   18
+b/main/bridge_channel.c                                                         |   87
+b/main/bucket.c                                                                 |    2
+b/main/callerid.c                                                               |    2
+b/main/ccss.c                                                                   |    6
+b/main/channel.c                                                                |   31
+b/main/channel_internal_api.c                                                   |    2
+b/main/config.c                                                                 |   11
+b/main/dns.c                                                                    |    4
+b/main/dns_recurring.c                                                          |    2
+b/main/dns_test.c                                                               |   38
+b/main/dnsmgr.c                                                                 |    2
+b/main/dsp.c                                                                    |    2
+b/main/enum.c                                                                   |    6
+b/main/features_config.c                                                        |    4
+b/main/file.c                                                                   |   17
+b/main/fskmodem_float.c                                                         |    2
+b/main/fskmodem_int.c                                                           |    2
+b/main/io.c                                                                     |    2
+b/main/json.c                                                                   |   19
+b/main/logger.c                                                                 |    2
+b/main/manager.c                                                                |    6
+b/main/mwi.c                                                                    |   16
+b/main/optional_api.c                                                           |   12
+b/main/pbx.c                                                                    |   25
+b/main/pbx_functions.c                                                          |    6
+b/main/rtp_engine.c                                                             |    3
+b/main/say.c                                                                    |   40
+b/main/smoother.c                                                               |    2
+b/main/stasis.c                                                                 |   13
+b/main/stasis_bridges.c                                                         |    2
+b/main/stasis_cache.c                                                           |   10
+b/main/stasis_message_router.c                                                  |    2
+b/main/stasis_state.c                                                           |    7
+b/main/stdtime/localtime.c                                                      |    2
+b/main/strings.c                                                                |   25
+b/main/stun.c                                                                   |   17
+b/main/test.c                                                                   |   11
+b/main/threadpool.c                                                             |    2
+b/main/time.c                                                                   |    2
+b/main/translate.c                                                              |    2
+b/main/udptl.c                                                                  |    2
+b/main/utils.c                                                                  |  150
+b/main/xmldoc.c                                                                 |   94
+b/makeopts.in                                                                   |    4
+b/menuselect/Makefile                                                           |    4
+b/menuselect/README                                                             |    2
+b/menuselect/contrib/menuselect-dummy                                           |   20
+b/menuselect/menuselect.c                                                       |    2
+b/menuselect/menuselect_curses.c                                                |    2
+b/menuselect/menuselect_gtk.c                                                   |    2
+b/menuselect/menuselect_newt.c                                                  |    2
+b/menuselect/menuselect_stub.c                                                  |    2
+b/pbx/ael/ael-test/ael-test2/apptest.ael2                                       |    2
+b/pbx/ael/ael-test/ael-test3/extensions.ael                                     |    2
+b/pbx/ael/ael-test/ael-test3/telemarket_torture.ael2                            |   10
+b/pbx/ael/ael-test/ael-test4/apptest.ael2                                       |    2
+b/pbx/ael/ael-test/ael-vtest13/extensions.ael                                   |    2
+b/pbx/ael/ael-test/ael-vtest13/telemarket_torture.ael2                          |   10
+b/pbx/pbx_config.c                                                              |    4
+b/pbx/pbx_dundi.c                                                               |    6
+b/pbx/pbx_lua.c                                                                 |   17
+b/res/ael/ael.y                                                                 |    2
+b/res/ael/pval.c                                                                |   12
+b/res/ari/ari_model_validators.h                                                |  464
+b/res/ari/resource_bridges.c                                                    |   12
+b/res/ari/resource_channels.c                                                   |    6
+b/res/ari/resource_events.c                                                     |    4
+b/res/ari/resource_events.h                                                     |    3
+b/res/parking/parking_applications.c                                            |    2
+b/res/parking/parking_bridge.c                                                  |   10
+b/res/parking/parking_bridge_features.c                                         |    6
+b/res/parking/res_parking.h                                                     |   30
+b/res/prometheus/pjsip_outbound_registrations.c                                 |    2
+b/res/prometheus/prometheus_internal.h                                          |    4
+b/res/res_agi.c                                                                 |   28
+b/res/res_ari.c                                                                 |    8
+b/res/res_ari_applications.c                                                    |   10
+b/res/res_ari_asterisk.c                                                        |   32
+b/res/res_ari_bridges.c                                                         |   28
+b/res/res_ari_channels.c                                                        |   62
+b/res/res_ari_device_states.c                                                   |    8
+b/res/res_ari_endpoints.c                                                       |   10
+b/res/res_ari_events.c                                                          |    2
+b/res/res_ari_mailboxes.c                                                       |    8
+b/res/res_ari_playbacks.c                                                       |    6
+b/res/res_ari_recordings.c                                                      |   24
+b/res/res_ari_sounds.c                                                          |    4
+b/res/res_calendar.c                                                            |    2
+b/res/res_calendar_caldav.c                                                     |    4
+b/res/res_calendar_icalendar.c                                                  |    4
+b/res/res_config_curl.c                                                         |    2
+b/res/res_config_ldap.c                                                         |    4
+b/res/res_config_odbc.c                                                         |   37
+b/res/res_config_pgsql.c                                                        |    2
+b/res/res_corosync.c                                                            |    2
+b/res/res_fax_spandsp.c                                                         |    2
+b/res/res_http_post.c                                                           |    2
+b/res/res_musiconhold.c                                                         |    4
+b/res/res_odbc.c                                                                |   13
+b/res/res_parking.c                                                             |    5
+b/res/res_phoneprov.c                                                           |    2
+b/res/res_pjsip.c                                                               |    4
+b/res/res_pjsip/config_global.c                                                 |    4
+b/res/res_pjsip/config_transport.c                                              |    8
+b/res/res_pjsip/include/res_pjsip_private.h                                     |    6
+b/res/res_pjsip/pjsip_configuration.c                                           |   42
+b/res/res_pjsip/pjsip_distributor.c                                             |    2
+b/res/res_pjsip/pjsip_scheduler.c                                               |    2
+b/res/res_pjsip/pjsip_session.c                                                 |    2
+b/res/res_pjsip/pjsip_transport_events.c                                        |    2
+b/res/res_pjsip_authenticator_digest.c                                          |    3
+b/res/res_pjsip_caller_id.c                                                     |   48
+b/res/res_pjsip_config_wizard.c                                                 |    2
+b/res/res_pjsip_header_funcs.c                                                  |    6
+b/res/res_pjsip_history.c                                                       |   14
+b/res/res_pjsip_messaging.c                                                     |   97
+b/res/res_pjsip_nat.c                                                           |    2
+b/res/res_pjsip_outbound_authenticator_digest.c                                 |    4
+b/res/res_pjsip_outbound_registration.c                                         |    6
+b/res/res_pjsip_path.c                                                          |    4
+b/res/res_pjsip_publish_asterisk.c                                              |    6
+b/res/res_pjsip_pubsub.c                                                        |   10
+b/res/res_pjsip_registrar.c                                                     |    5
+b/res/res_pjsip_rfc3326.c                                                       |    2
+b/res/res_pjsip_sdp_rtp.c                                                       |    2
+b/res/res_pjsip_session.c                                                       |   20
+b/res/res_pjsip_stir_shaken.c                                                   |  180
+b/res/res_pktccops.c                                                            |    2
+b/res/res_rtp_asterisk.c                                                        |    8
+b/res/res_smdi.c                                                                |    2
+b/res/res_sorcery_config.c                                                      |    2
+b/res/res_speech.c                                                              |   27
+b/res/res_srtp.c                                                                |    3
+b/res/res_stasis.c                                                              |    2
+b/res/res_stasis_playback.c                                                     |    6
+b/res/res_stasis_snoop.c                                                        |    2
+b/res/res_stir_shaken.c                                                         |  175
+b/res/res_stir_shaken/curl.c                                                    |    2
+b/res/res_stir_shaken/curl.h                                                    |    2
+b/res/res_tonedetect.c                                                          |  365
+b/res/res_xmpp.c                                                                |   70
+b/res/snmp/agent.c                                                              |    2
+b/res/stasis/app.c                                                              |    5
+b/res/stasis/app.h                                                              |   71
+b/res/stasis/control.h                                                          |   14
+b/res/stasis/messaging.h                                                        |    5
+b/res/stasis/stasis_bridge.c                                                    |    2
+b/res/stasis/stasis_bridge.h                                                    |    2
+b/res/stasis_recording/stored.c                                                 |    4
+b/rest-api-templates/ari_model_validators.h.mustache                            |   50
+b/rest-api-templates/ari_resource.h.mustache                                    |    3
+b/rest-api-templates/asterisk_processor.py                                      |    4
+b/rest-api-templates/res_ari_resource.c.mustache                                |    2
+b/rest-api-templates/transform.py                                               |    2
+b/tests/CI/gates.jenkinsfile                                                    |    4
+b/tests/CI/periodics-daily.jenkinsfile                                          |    2
+b/tests/CI/ref_debug.jenkinsfile                                                |    2
+b/tests/CI/unittests.jenkinsfile                                                |    2
+b/tests/CI/universal-asterisk-nongerrit.jenkinsfile                             |    4
+b/tests/test_abstract_jb.c                                                      |    2
+b/tests/test_aoc.c                                                              |    2
+b/tests/test_astobj2.c                                                          |    2
+b/tests/test_astobj2_thrash.c                                                   |   10
+b/tests/test_config.c                                                           |    2
+b/tests/test_devicestate.c                                                      |    2
+b/tests/test_dns_naptr.c                                                        |    2
+b/tests/test_hashtab_thrash.c                                                   |   10
+b/tests/test_json.c                                                             |   60
+b/tests/test_linkedlists.c                                                      |    1
+b/tests/test_media_cache.c                                                      |    2
+b/tests/test_message.c                                                          |    2
+b/tests/test_optional_api.c                                                     |    2
+b/tests/test_sorcery.c                                                          |    2
+b/tests/test_sorcery_memory_cache_thrash.c                                      |    4
+b/tests/test_stasis.c                                                           |    6
+b/tests/test_strings.c                                                          |  118
+b/tests/test_taskprocessor.c                                                    |   10
+b/tests/test_voicemail_api.c                                                    |   24
+b/third-party/pjproject/Makefile                                                |    6
+b/third-party/pjproject/configure.m4                                            |    1
+b/utils/astman.1                                                                |    2
+b/utils/db1-ast/hash/README                                                     |    2
+b/utils/db1-ast/hash/hash.h                                                     |    2
+b/utils/db1-ast/mpool/mpool.c                                                   |    2
+contrib/realtime/mysql/mysql_cdr.sql                                            |   41
+contrib/realtime/mysql/mysql_config.sql                                         | 1330
+contrib/realtime/mysql/mysql_voicemail.sql                                      |   35
+contrib/realtime/postgresql/postgresql_cdr.sql                                  |   45
+contrib/realtime/postgresql/postgresql_config.sql                               | 1442
+contrib/realtime/postgresql/postgresql_voicemail.sql                            |   39
+477 files changed, 5245 insertions(+), 108565 deletions(-)</pre><br></html>
