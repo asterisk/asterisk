@@ -1,9 +1,0 @@
-Subject: app_queue
-
-Add field to save the time value when a member enter a queue.
-Shows this time in seconds using 'queue show' command and the
-field LoginTime for responses for AMI the events.
-
-The output for the CLI command `queue show` is changed by added a
-extra data field for the information of the time login time for each
-member.
