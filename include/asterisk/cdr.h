@@ -494,7 +494,6 @@ struct ast_cdr *ast_cdr_dup(struct ast_cdr *cdr);
 /*!
  * \brief Free a CDR record
  * \param cdr ast_cdr structure to free
- * Returns nothing
  */
 void ast_cdr_free(struct ast_cdr *cdr);
 

@@ -259,7 +259,7 @@ struct ast_taskprocessor *ast_threadpool_serializer_get_current(void);
  * \param pool \ref ast_threadpool for execution.
  *
  * \return \ref ast_taskprocessor for enqueuing work.
- * \return \c NULL on error.
+ * \retval NULL on error.
  */
 struct ast_taskprocessor *ast_threadpool_serializer(const char *name, struct ast_threadpool *pool);
 
@@ -288,7 +288,7 @@ struct ast_taskprocessor *ast_threadpool_serializer(const char *name, struct ast
  * \param shutdown_group Group shutdown controller. (NULL if no group association)
  *
  * \return \ref ast_taskprocessor for enqueuing work.
- * \return \c NULL on error.
+ * \retval NULL on error.
  */
 struct ast_taskprocessor *ast_threadpool_serializer_group(const char *name,
 	struct ast_threadpool *pool, struct ast_serializer_shutdown_group *shutdown_group);
