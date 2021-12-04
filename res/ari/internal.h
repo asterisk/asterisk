@@ -126,7 +126,7 @@ void ast_ari_config_destroy(void);
  * ao2_cleanup() when you're done with it.
  *
  * \return ARI configuration object.
- * \return \c NULL on error.
+ * \retval NULL on error.
  */
 struct ast_ari_conf *ast_ari_config_get(void);
 
@@ -136,7 +136,7 @@ struct ast_ari_conf *ast_ari_config_get(void);
  * \param username Name of the user.
  * \param password User's password.
  * \return User object.
- * \return \c NULL if username or password is invalid.
+ * \retval NULL if username or password is invalid.
  */
 struct ast_ari_conf_user *ast_ari_config_validate_user(const char *username,
 	const char *password);

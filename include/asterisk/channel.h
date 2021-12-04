@@ -4504,7 +4504,7 @@ void ast_channel_set_manager_vars(size_t varc, char **vars);
  *
  * \param chan Channel to get variables for.
  * \return List of channel variables.
- * \return \c NULL on error
+ * \retval NULL on error
  */
 struct varshead *ast_channel_get_manager_vars(struct ast_channel *chan);
 
@@ -4534,7 +4534,7 @@ void ast_channel_set_ari_vars(size_t varc, char **vars);
  *
  * \param chan Channel to get variables for.
  * \return List of channel variables.
- * \return \c NULL on error
+ * \retval NULL on error
  */
 struct varshead *ast_channel_get_ari_vars(struct ast_channel *chan);
 
@@ -4546,7 +4546,7 @@ struct varshead *ast_channel_get_ari_vars(struct ast_channel *chan);
  *
  * \param chan Channel to get variables for
  * \return List of channel variables.
- * \return \c NULL on error
+ * \retval NULL on error
  */
 struct varshead *ast_channel_get_vars(struct ast_channel *chan);
 
