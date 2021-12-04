@@ -62,7 +62,7 @@ enum ast_endpoint_state {
  *
  * \param state Endpoint state.
  * \return String representation of \a state.
- * \return \c "?" if \a state isn't in \ref ast_endpoint_state.
+ * \retval "?" if \a state isn't in \ref ast_endpoint_state.
  */
 const char *ast_endpoint_state_to_string(enum ast_endpoint_state state);
 
@@ -89,7 +89,7 @@ struct ast_endpoint;
  *
  * \param id Tech[/resource] id to look for.
  * \return Associated endpoint.
- * \return \c NULL if not found.
+ * \retval NULL if not found.
  *
  * \since 12
  */
@@ -106,7 +106,7 @@ struct ast_endpoint *ast_endpoint_find_by_id(const char *id);
  * \param tech Technology for this endpoint.
  * \param resource Name of this endpoint.
  * \return Newly created endpoint.
- * \return \c NULL on error.
+ * \retval NULL on error.
  * \since 12
  */
 struct ast_endpoint *ast_endpoint_create(const char *tech, const char *resource);
@@ -127,7 +127,7 @@ void ast_endpoint_shutdown(struct ast_endpoint *endpoint);
  *
  * \param endpoint The endpoint.
  * \return Tec of the endpoint.
- * \return \c NULL if endpoint is \c NULL.
+ * \retval NULL if endpoint is \c NULL.
  * \since 12
  */
 const char *ast_endpoint_get_tech(const struct ast_endpoint *endpoint);
@@ -142,7 +142,7 @@ const char *ast_endpoint_get_tech(const struct ast_endpoint *endpoint);
  *
  * \param endpoint The endpoint.
  * \return Resource name of the endpoint.
- * \return \c NULL if endpoint is \c NULL.
+ * \retval NULL if endpoint is \c NULL.
  * \since 12
  */
 const char *ast_endpoint_get_resource(const struct ast_endpoint *endpoint);
@@ -154,7 +154,7 @@ const char *ast_endpoint_get_resource(const struct ast_endpoint *endpoint);
  *
  * \param endpoint The endpoint.
  * \return Tech/resource id of the endpoint.
- * \return \c NULL if endpoint is \c NULL.
+ * \retval NULL if endpoint is \c NULL.
  * \since 12
  */
 const char *ast_endpoint_get_id(const struct ast_endpoint *endpoint);
@@ -164,7 +164,7 @@ const char *ast_endpoint_get_id(const struct ast_endpoint *endpoint);
  *
  * \param endpoint The endpoint.
  * \return state.
- * \return \c AST_ENDPOINT_UNKNOWN if endpoint is \c NULL.
+ * \retval AST_ENDPOINT_UNKNOWN if endpoint is \c NULL.
  * \since 13.4
  */
 enum ast_endpoint_state ast_endpoint_get_state(const struct ast_endpoint *endpoint);

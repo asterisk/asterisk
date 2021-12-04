@@ -48,7 +48,7 @@
 
 /*! \brief A private structure for the test channel */
 struct test_bridging_chan_pvt {
-	/* \brief The expected indication */
+	/*! \brief The expected indication */
 	int condition;
 	/*! \brief The number of indicated things */
 	unsigned int indicated;

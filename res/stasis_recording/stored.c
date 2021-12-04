@@ -180,7 +180,7 @@ static int handle_find_recording(const char *dir_name, const char *filename, voi
  * \param dir_name Directory to search (absolute path).
  * \param file File name, without extension.
  * \return Absolute path of the recording file.
- * \return \c NULL if recording is not found.
+ * \retval NULL if recording is not found.
  */
 static char *find_recording(const char *dir_name, const char *file)
 {

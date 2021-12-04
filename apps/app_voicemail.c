@@ -16206,7 +16206,7 @@ static struct ast_vm_mailbox_snapshot *vm_mailbox_snapshot_destroy(struct ast_vm
  * \param vms The voicemail state corresponding to an open mailbox
  * \param msg_ids An array of message identifiers
  * \param num_msgs The number of identifiers in msg_ids
- * \param msg_nums [out] The message indexes corresponding to the given
+ * \param[out] msg_nums The message indexes corresponding to the given
  * \param vmu
  * message IDs
  * \pre vms must have open_mailbox() called on it prior to this function.

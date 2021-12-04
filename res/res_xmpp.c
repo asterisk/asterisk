@@ -1680,7 +1680,7 @@ static int get_buddy_status(struct ast_xmpp_client_config *clientcfg, char *scre
 	return status;
 }
 
-/*
+/*!
  * \internal
  * \brief Dial plan function status(). puts the status of watched user
  * into a channel variable.

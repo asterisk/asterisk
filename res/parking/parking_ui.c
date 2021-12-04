@@ -158,7 +158,7 @@ static char *complete_parking_lot(const char *word, int seeking)
 	return ret;
 }
 
-/* \brief command parking show <name> */
+/*! \brief command parking show \<name\> */
 static char *handle_show_parking_lot_cmd(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	switch (cmd) {

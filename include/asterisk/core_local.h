@@ -51,9 +51,9 @@ struct stasis_message_type;
  * \since 13.17.0, 14.6.0
  *
  * \param chan Must be a local channel
- * \param tech_pvt [out] channel's private tech (ref and lock added)
- * \param base_chan [out] One side of the local channel (ref and lock added)
- * \param base_owner [out] Other side of the local channel (ref and lock added)
+ * \param[out] tech_pvt channel's private tech (ref and lock added)
+ * \param[out] base_chan One side of the local channel (ref and lock added)
+ * \param[out] base_owner Other side of the local channel (ref and lock added)
  */
 void ast_local_lock_all(struct ast_channel *chan, void **tech_pvt,
 	struct ast_channel **base_chan, struct ast_channel **base_owner);

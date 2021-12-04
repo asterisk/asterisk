@@ -91,7 +91,7 @@ struct ast_endpoint_blob {
  *             \c NULL, ast_json_null() is put into the object.
  *
  * \return \ref ast_endpoint_blob message.
- * \return \c NULL on error
+ * \retval NULL on error
  */
 struct stasis_message *ast_endpoint_blob_create(struct ast_endpoint *endpoint,
 	struct stasis_message_type *type, struct ast_json *blob);
@@ -133,7 +133,7 @@ struct stasis_message_type *ast_endpoint_snapshot_type(void);
  * \brief Create a snapshot of an endpoint
  * \param endpoint Endpoint to snap a shot of.
  * \return Snapshot of the endpoint.
- * \return \c NULL on error.
+ * \retval NULL on error.
  * \since 12
  */
 struct ast_endpoint_snapshot *ast_endpoint_snapshot_create(
@@ -200,7 +200,7 @@ struct stasis_cache *ast_endpoint_cache(void);
  * \param tech Name of the endpoint's technology.
  * \param resource Resource name of the endpoint.
  * \return Snapshot of the endpoint with the given name.
- * \return \c NULL if endpoint is not found, or on error.
+ * \retval NULL if endpoint is not found, or on error.
  * \since 12
  */
 struct ast_endpoint_snapshot *ast_endpoint_latest_snapshot(const char *tech,
@@ -216,7 +216,7 @@ struct ast_endpoint_snapshot *ast_endpoint_latest_snapshot(const char *tech,
  * \param sanitize The message sanitizer to use on the snapshot
  *
  * \return JSON object representing endpoint snapshot.
- * \return \c NULL on error
+ * \retval NULL on error
  */
 struct ast_json *ast_endpoint_snapshot_to_json(
 	const struct ast_endpoint_snapshot *snapshot,
