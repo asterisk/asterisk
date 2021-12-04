@@ -76,7 +76,6 @@ int ast_image_register(struct ast_imager *imgdrv);
  * \brief Unregister an image format
  * \param imgdrv pointer to the ast_imager structure you wish to unregister
  * Unregisters the image format passed in.
- * Returns nothing
  */
 void ast_image_unregister(struct ast_imager *imgdrv);
 

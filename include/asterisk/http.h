@@ -311,8 +311,8 @@ int ast_http_response_status_line(const char *buf, const char *version, int code
  *       respectively.
  *
  * \param buf a string containing the name/value to point to
- * \param name out parameter pointing to the header name
- * \param value out parameter pointing to header value
+ * \param[out] name header name
+ * \param[out] value header value
  * \retval -1 if buf is empty
  * \retval 0 if buf could be separated into name and value
  * \retval 1 if name or value portion don't exist

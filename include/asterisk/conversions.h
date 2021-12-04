@@ -37,7 +37,7 @@
  *       or greater than INT_MAX)
  *
  * \param str The string to convert
- * \param res [out] The converted value
+ * \param[out] res The converted value
  *
  * \returns -1 if it fails to convert, 0 on success
  */
@@ -55,7 +55,7 @@ int ast_str_to_int(const char *str, int *res);
  *   Once converted the number is out of range (greater than UINT_MAX)
  *
  * \param str The string to convert
- * \param res [out] The converted value
+ * \param[out] res The converted value
  *
  * \returns -1 if it fails to convert, 0 on success
  */
@@ -73,7 +73,7 @@ int ast_str_to_uint(const char *str, unsigned int *res);
  *       or greater than LONG_MAX)
  *
  * \param str The string to convert
- * \param res [out] The converted value
+ * \param[out] res The converted value
  *
  * \returns -1 if it fails to convert, 0 on success
  */
@@ -91,7 +91,7 @@ int ast_str_to_long(const char *str, long *res);
  *   Once converted the number is out of range (greater than ULONG_MAX)
  *
  * \param str The string to convert
- * \param res [out] The converted value
+ * \param[out] res The converted value
  *
  * \returns -1 if it fails to convert, 0 on success
  */
@@ -109,7 +109,7 @@ int ast_str_to_ulong(const char *str, unsigned long *res);
  *       or greater than INTMAX_MAX)
  *
  * \param str The string to convert
- * \param res [out] The converted value
+ * \param[out] res The converted value
  *
  * \returns -1 if it fails to convert, 0 on success
  */
@@ -127,7 +127,7 @@ int ast_str_to_imax(const char *str, intmax_t *res);
  *   Once converted the number is out of range (greater than UINTMAX_MAX)
  *
  * \param str The string to convert
- * \param res [out] The converted value
+ * \param[out] res The converted value
  *
  * \returns -1 if it fails to convert, 0 on success
  */

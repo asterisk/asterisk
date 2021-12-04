@@ -58,7 +58,7 @@
  *  relevant if \c needs_mailbox is non-zero.
  * \param file, lineno, func
  * \return New \ref stasis_subscription object.
- * \return \c NULL on error.
+ * \retval NULL on error.
  * \since 12
  */
 struct stasis_subscription *internal_stasis_subscribe(
