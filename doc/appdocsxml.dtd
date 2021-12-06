@@ -81,7 +81,7 @@
   <!ATTLIST configOption default CDATA #IMPLIED>
   <!ATTLIST configOption type CDATA #IMPLIED>
 
-  <!ELEMENT matchInfo (category|field?)>
+  <!ELEMENT matchInfo (category,field?)>
 
   <!ELEMENT dataType (#PCDATA)>
 
