@@ -295,6 +295,9 @@
 					<para>If the call was not answered by an agent this variable will be TRUE.</para>
 					<value name="TRUE" />
 				</variable>
+				<variable name="DIALEDPEERNUMBER">
+					<para>Resource of the agent that was dialed set on the outbound channel.</para>
+				</variable>
 			</variablelist>
 		</description>
 		<see-also>
@@ -4643,6 +4646,9 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 
 	ast_channel_unlock(tmp->chan);
 	ast_channel_unlock(qe->chan);
+
+	/* location is tmp->interface where tech/ has been stripped, so it follow the same syntax as DIALEDPEERNUMBER in app_dial.c */
+	pbx_builtin_setvar_helper(tmp->chan, "DIALEDPEERNUMBER", strlen(location) ? location : tmp->interface);
 
 	/* PREDIAL: Run gosub on the callee's channel */
 	if (qe->predial_callee) {
