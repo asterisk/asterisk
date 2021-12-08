@@ -9885,6 +9885,51 @@ static int vm_intro_no(struct ast_channel *chan, struct vm_state *vms)
 	return res;
 }
 
+/* Danish syntax */
+static int vm_intro_da(struct ast_channel *chan, struct vm_state *vms)
+{
+	/* Introduce messages they have */
+	int res;
+
+	res = ast_play_and_wait(chan, "vm-youhave");
+	if (res)
+		return res;
+
+	if (!vms->oldmessages && !vms->newmessages && !vms->urgentmessages) {
+		res = ast_play_and_wait(chan, "vm-no");
+		res = res ? res : ast_play_and_wait(chan, "vm-messages");
+		return res;
+	}
+
+	if (vms->newmessages) {
+		if ((vms->newmessages == 1)) {
+			res = ast_play_and_wait(chan, "digits/1");
+			res = res ? res : ast_play_and_wait(chan, "vm-INBOX");
+			res = res ? res : ast_play_and_wait(chan, "vm-message");
+		} else {
+			res = say_and_wait(chan, vms->newmessages, ast_channel_language(chan));
+			res = res ? res : ast_play_and_wait(chan, "vm-INBOXs");
+			res = res ? res : ast_play_and_wait(chan, "vm-messages");
+		}
+		if (!res && vms->oldmessages)
+			res = ast_play_and_wait(chan, "vm-and");
+	}
+	if (!res && vms->oldmessages) {
+		if (vms->oldmessages == 1) {
+			res = ast_play_and_wait(chan, "digits/1");
+			res = res ? res : ast_play_and_wait(chan, "vm-Old");
+			res = res ? res : ast_play_and_wait(chan, "vm-message");
+		} else {
+			res = say_and_wait(chan, vms->oldmessages, ast_channel_language(chan));
+			res = res ? res : ast_play_and_wait(chan, "vm-Olds");
+			res = res ? res : ast_play_and_wait(chan, "vm-messages");
+		}
+	}
+
+	return res;
+}
+
+
 /* GERMAN syntax */
 static int vm_intro_de(struct ast_channel *chan, struct vm_state *vms)
 {
@@ -10365,6 +10410,8 @@ static int vm_intro(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm
 		return vm_intro_nl(chan, vms);
 	} else if (!strncasecmp(ast_channel_language(chan), "no", 2)) {  /* NORWEGIAN syntax */
 		return vm_intro_no(chan, vms);
+	} else if (!strncasecmp(ast_channel_language(chan), "da", 2)) {  /* DANISH syntax */
+		return vm_intro_da(chan, vms);
 	} else if (!strncasecmp(ast_channel_language(chan), "pl", 2)) {  /* POLISH syntax */
 		return vm_intro_pl(chan, vms);
 	} else if (!strncasecmp(ast_channel_language(chan), "pt_BR", 5)) {  /* BRAZILIAN PORTUGUESE syntax */
