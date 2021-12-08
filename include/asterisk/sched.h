@@ -72,20 +72,22 @@ extern "C" {
 /*!
  * \brief schedule task to get deleted and call unref function
  *
- * Only calls unref function if the delete succeeded.
+ * Only calls the unref function if the task is actually deleted by
+ * ast_sched_del_nonrunning. If a failure occurs or the task is
+ * currently running and not rescheduled then refcall is not invoked.
  *
  * \sa AST_SCHED_DEL
  * \since 1.6.1
  */
 #define AST_SCHED_DEL_UNREF(sched, id, refcall)			\
 	do { \
-		int _count = 0, _id; \
-		while ((_id = id) > -1 && ast_sched_del(sched, _id) && ++_count < 10) { \
+		int _count = 0, _id, _ret = 0; \
+		while ((_id = id) > -1 && (( _ret = ast_sched_del_nonrunning(sched, _id)) == -1) && ++_count < 10) { \
 			usleep(1); \
 		} \
 		if (_count == 10) { \
 			ast_log(LOG_WARNING, "Unable to cancel schedule ID %d.  This is probably a bug (%s: %s, line %d).\n", _id, __FILE__, __PRETTY_FUNCTION__, __LINE__); \
-		} else if (_id > -1) { \
+		} else if (_id > -1 && _ret >-2) { \
 			refcall; \
 			id = -1; \
 		} \
@@ -294,8 +296,28 @@ const void *ast_sched_find_data(struct ast_sched_context *con, int id);
  *
  * \retval -1 on failure
  * \retval 0 on success
+ *
+ * \deprecated in favor of ast_sched_del_nonrunning which checks if the event is running and rescheduled
+ *
  */
 int ast_sched_del(struct ast_sched_context *con, int id) attribute_warn_unused_result;
+
+/*!
+ * \brief Deletes a scheduled event with care against the event running
+ *
+ * Remove this event from being run.  A procedure should not remove its own
+ * event, but return 0 instead.  In most cases, you should not call this
+ * routine directly, but use the AST_SCHED_DEL() macro instead (especially if
+ * you don't intend to do something different when it returns failure).
+ *
+ * \param con scheduling context to delete item from
+ * \param id ID of the scheduled item to delete
+ *
+ * \retval -1 on failure
+ * \retval -2 event was running but was deleted because it was not rescheduled
+ * \retval 0 on success
+ */
+int ast_sched_del_nonrunning(struct ast_sched_context *con, int id) attribute_warn_unused_result;
 
 /*!
  * \brief Determines number of seconds until the next outstanding event to take place

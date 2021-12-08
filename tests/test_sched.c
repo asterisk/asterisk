@@ -37,6 +37,7 @@
 #include "asterisk/sched.h"
 #include "asterisk/test.h"
 #include "asterisk/cli.h"
+#include "asterisk/astobj2.h"
 
 static int sched_cb(const void *data)
 {
@@ -336,6 +337,132 @@ return_cleanup:
 	return CLI_SUCCESS;
 }
 
+struct test_obj {
+	ast_mutex_t lock;
+	ast_cond_t cond;
+	int scheduledCBstarted;
+	int id;
+};
+
+static void test_obj_cleanup(void *data)
+{
+	struct test_obj *obj = data;
+	ast_mutex_destroy(&obj->lock);
+	ast_cond_destroy(&obj->cond);
+}
+
+static int lockingcb(const void *data)
+{
+	struct test_obj *obj = (struct test_obj *)data;
+	struct timespec delay = {3,0};
+
+	ast_mutex_lock(&obj->lock);
+
+	obj->scheduledCBstarted = 1;
+	ast_cond_signal(&obj->cond);
+
+	ast_mutex_unlock(&obj->lock);
+
+	ao2_ref(obj, -1);
+	while (nanosleep(&delay, &delay));
+	/* sleep to force this scheduled event to remain running long
+	 * enough for the scheduling thread to unlock and call
+	 * AST_SCHED_DEL_UNREF
+	 */
+
+	return 0;
+}
+
+AST_TEST_DEFINE(sched_test_freebird)
+{
+	struct test_obj * obj;
+	struct ast_sched_context * con;
+	enum ast_test_result_state res = AST_TEST_FAIL;
+	int refs;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "sched_test_freebird";
+		info->category = "/main/sched/";
+		info->summary = "Test deadlock avoidance and double-unref";
+		info->description =
+			"This tests a call to AST_SCHED_DEL_UNREF on a running event.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		res = AST_TEST_PASS;
+		break;
+	}
+
+	obj = ao2_alloc(sizeof(struct test_obj), test_obj_cleanup);
+	if (!obj) {
+		ast_test_status_update(test,
+				"ao2_alloc() did not return an object\n");
+		return AST_TEST_FAIL;
+	}
+
+	obj->scheduledCBstarted = 0;
+
+	con = ast_sched_context_create();
+	if (!con) {
+		ast_test_status_update(test,
+				"ast_sched_context_create() did not return a context\n");
+		ao2_cleanup(obj);
+		return AST_TEST_FAIL;
+	}
+
+	if (ast_sched_start_thread(con)) {
+		ast_test_status_update(test, "Failed to start test thread\n");
+		ao2_cleanup(obj);
+		ast_sched_context_destroy(con);
+		return AST_TEST_FAIL;
+	}
+
+	/* This double reference is to ensure that the object isn't destroyed prematurely
+	 * in a case where it is unreffed an additional time.
+	 */
+	ao2_ref(obj, +2);
+	if ((obj->id = ast_sched_add(con, 0, lockingcb, obj)) == -1) {
+		ast_test_status_update(test, "Failed to add scheduler entry\n");
+		ao2_ref(obj, -3);
+		ast_sched_context_destroy(con);
+		return AST_TEST_FAIL;
+	}
+
+	ast_mutex_lock(&obj->lock);
+	while(obj->scheduledCBstarted == 0) {
+		/* Wait for the scheduled thread to indicate that it has started so we can
+		 * then call the AST_SCHED_DEL_UNREF macro
+		 */
+		ast_cond_wait(&obj->cond,&obj->lock);
+	}
+	ast_mutex_unlock(&obj->lock);
+
+	ast_test_status_update(test, "Received signal, calling Scedule and UNREF\n");
+	ast_test_status_update(test, "ID: %d\n", obj->id);
+	AST_SCHED_DEL_UNREF(con, obj->id, ao2_ref(obj, -1));
+
+	refs = ao2_ref(obj, 0);
+
+	switch(refs){
+		case 2:
+			ast_test_status_update(test, "Correct number of references '2'\n");
+			break;
+		default:
+			ast_test_status_update(test, "Incorrect number of references '%d'\n",
+				refs);
+			res = AST_TEST_FAIL;
+			break;
+	}
+
+	/* Based on success or failure, the refcount could change
+	 */
+	while(ao2_ref(obj, -1) > 1);
+
+	ast_sched_context_destroy(con);
+
+	return res;
+}
+
 static struct ast_cli_entry cli_sched[] = {
 	AST_CLI_DEFINE(handle_cli_sched_bench, "Benchmark ast_sched add/del performance"),
 };
@@ -343,6 +470,7 @@ static struct ast_cli_entry cli_sched[] = {
 static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(sched_test_order);
+	AST_TEST_UNREGISTER(sched_test_freebird);
 	ast_cli_unregister_multiple(cli_sched, ARRAY_LEN(cli_sched));
 	return 0;
 }
@@ -350,6 +478,7 @@ static int unload_module(void)
 static int load_module(void)
 {
 	AST_TEST_REGISTER(sched_test_order);
+	AST_TEST_REGISTER(sched_test_freebird);
 	ast_cli_register_multiple(cli_sched, ARRAY_LEN(cli_sched));
 	return AST_MODULE_LOAD_SUCCESS;
 }
