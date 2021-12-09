@@ -1,8 +1,8 @@
                                 Release Summary
 
-                              asterisk-16.23.0-rc1
+                                asterisk-16.23.0
 
-                                Date: 2021-12-02
+                                Date: 2021-12-09
 
                            <asteriskteam@digium.com>
 
@@ -57,8 +57,8 @@
    3 George Joseph                                   1 Mario Ban              
    3 Mike Bradeen                                    1 Shloime Rosenblum      
    2 Kevin Harwell                                   1 Moritz Fain            
-   1 Rodrigo Ramírez Norambuena                      1 Daniel Zanutti         
-   1 Asterisk Development Team                       1 Alexei Gradinari       
+   2 Asterisk Development Team                       1 Daniel Zanutti         
+   1 Rodrigo Ramírez Norambuena                      1 Alexei Gradinari       
    1 Shloime Rosenblum                               1 George Joseph          
    1 Joshua C. Colp                                  1 Boris P. Korzun        
    1 Jaco Kroon                                      1 Jamuel Starkey         
@@ -696,6 +696,9 @@
    +------------------------------------------------------------------------+
    | Revision   | Author               | Summary                            |
    |------------+----------------------+------------------------------------|
+   | f0efd427c4 | Asterisk Development | Update for 16.23.0-rc1             |
+   |            | Team                 |                                    |
+   |------------+----------------------+------------------------------------|
    | 191b92a69e | Asterisk Development | Update CHANGES and UPGRADE.txt for |
    |            | Team                 | 16.23.0                            |
    |------------+----------------------+------------------------------------|
@@ -737,13 +740,12 @@
    This is a summary of the changes to the source code that went into this
    release that was generated using the diffstat utility.
 
- .lastclean                                                                      |    1
- .version                                                                        |    1
- ChangeLog                                                                       |95344 ----------
  asterisk-16.22.0-summary.html                                                   |   75
- asterisk-16.22.0-summary.txt                                                    |  236
+ asterisk-16.22.0-summary.txt                                                    |  236 -
+ b/.version                                                                      |    2
  b/CHANGES                                                                       |  106
  b/CREDITS                                                                       |    2
+ b/ChangeLog                                                                     | 1456 +++++++++
  b/Makefile                                                                      |    4
  b/UPGRADE.txt                                                                   |   20
  b/addons/chan_mobile.c                                                          |   28
@@ -786,7 +788,7 @@
  b/apps/app_jack.c                                                               |    2
  b/apps/app_macro.c                                                              |    2
  b/apps/app_meetme.c                                                             |   12
- b/apps/app_minivm.c                                                             |  169
+ b/apps/app_minivm.c                                                             |  169 -
  b/apps/app_mixmonitor.c                                                         |    1
  b/apps/app_morsecode.c                                                          |    5
  b/apps/app_mp3.c                                                                |    6
@@ -798,11 +800,13 @@
  b/apps/app_stasis.c                                                             |    2
  b/apps/app_statsd.c                                                             |    4
  b/apps/app_test.c                                                               |    2
- b/apps/app_voicemail.c                                                          |  214
+ b/apps/app_voicemail.c                                                          |  214 -
  b/apps/app_waitforsilence.c                                                     |   17
  b/apps/confbridge/conf_config_parser.c                                          |    6
  b/apps/confbridge/conf_state.c                                                  |    2
  b/apps/confbridge/include/confbridge.h                                          |   10
+ b/asterisk-16.23.0-rc1-summary.html                                             |  729 ++++
+ b/asterisk-16.23.0-rc1-summary.txt                                              | 1214 ++++++++
  b/bridges/bridge_holding.c                                                      |    4
  b/bridges/bridge_softmix.c                                                      |   22
  b/bridges/bridge_softmix/bridge_softmix_binaural.c                              |    4
@@ -841,7 +845,7 @@
  b/channels/misdn/isdn_lib_intern.h                                              |    2
  b/channels/misdn/isdn_msg_parser.c                                              |   10
  b/channels/sig_analog.c                                                         |    8
- b/channels/sig_pri.c                                                            |  159
+ b/channels/sig_pri.c                                                            |  159 -
  b/channels/sig_pri.h                                                            |    8
  b/channels/sig_ss7.c                                                            |   64
  b/channels/sig_ss7.h                                                            |    2
@@ -886,14 +890,14 @@
  b/configs/samples/ooh323.conf.sample                                            |    2
  b/configs/samples/queues.conf.sample                                            |    4
  b/configs/samples/rtp.conf.sample                                               |    2
- b/configure                                                                     | 1508
+ b/configure                                                                     | 1508 ++++++----
  b/configure.ac                                                                  |  102
  b/contrib/ast-db-manage/README.md                                               |    2
  b/contrib/ast-db-manage/config/versions/1ae0609b6646_increse_reg_server_size.py |    2
  b/contrib/ast-db-manage/config/versions/4da0c5f79a9c_create_tables.py           |    2
  b/contrib/ast-db-manage/voicemail/versions/a2e9769475e_create_tables.py         |    2
  b/contrib/init.d/rc.debian.asterisk                                             |    2
- b/contrib/scripts/ast_coredumper                                                |  949
+ b/contrib/scripts/ast_coredumper                                                |  949 +++---
  b/contrib/scripts/ast_loggrabber                                                |    4
  b/contrib/scripts/asterisk.ldap-schema                                          |    2
  b/contrib/scripts/asterisk.ldif                                                 |    2
@@ -931,7 +935,7 @@
  b/include/asterisk/callerid.h                                                   |    2
  b/include/asterisk/causes.h                                                     |    6
  b/include/asterisk/cdr.h                                                        |    4
- b/include/asterisk/channel.h                                                    |  202
+ b/include/asterisk/channel.h                                                    |  202 -
  b/include/asterisk/cli.h                                                        |    2
  b/include/asterisk/config.h                                                     |    4
  b/include/asterisk/config_options.h                                             |    2
@@ -1089,7 +1093,7 @@
  b/pbx/pbx_lua.c                                                                 |   17
  b/res/ael/ael.y                                                                 |    2
  b/res/ael/pval.c                                                                |   12
- b/res/ari/ari_model_validators.h                                                |  464
+ b/res/ari/ari_model_validators.h                                                |  464 +--
  b/res/ari/resource_bridges.c                                                    |   12
  b/res/ari/resource_channels.c                                                   |    6
  b/res/ari/resource_events.c                                                     |    4
@@ -1149,7 +1153,7 @@
  b/res/res_pjsip_rfc3326.c                                                       |    2
  b/res/res_pjsip_sdp_rtp.c                                                       |    2
  b/res/res_pjsip_session.c                                                       |   20
- b/res/res_pjsip_stir_shaken.c                                                   |  180
+ b/res/res_pjsip_stir_shaken.c                                                   |  180 +
  b/res/res_pktccops.c                                                            |    2
  b/res/res_rtp_asterisk.c                                                        |    8
  b/res/res_smdi.c                                                                |    2
@@ -1159,10 +1163,10 @@
  b/res/res_stasis.c                                                              |    2
  b/res/res_stasis_playback.c                                                     |    6
  b/res/res_stasis_snoop.c                                                        |    2
- b/res/res_stir_shaken.c                                                         |  175
+ b/res/res_stir_shaken.c                                                         |  175 -
  b/res/res_stir_shaken/curl.c                                                    |    2
  b/res/res_stir_shaken/curl.h                                                    |    2
- b/res/res_tonedetect.c                                                          |  365
+ b/res/res_tonedetect.c                                                          |  365 ++
  b/res/res_xmpp.c                                                                |   70
  b/res/snmp/agent.c                                                              |    2
  b/res/stasis/app.c                                                              |    5
@@ -1205,10 +1209,9 @@
  b/third-party/pjproject/configure.m4                                            |    1
  b/utils/astman.1                                                                |    2
  b/utils/db1-ast/hash/README                                                     |    2
- contrib/realtime/mysql/mysql_cdr.sql                                            |   41
- contrib/realtime/mysql/mysql_config.sql                                         | 1300
- contrib/realtime/mysql/mysql_voicemail.sql                                      |   35
- contrib/realtime/postgresql/postgresql_cdr.sql                                  |   45
- contrib/realtime/postgresql/postgresql_config.sql                               | 1404
- contrib/realtime/postgresql/postgresql_voicemail.sql                            |   39
- 474 files changed, 5252 insertions(+), 103058 deletions(-)
+ b/utils/db1-ast/hash/hash.h                                                     |    2
+ b/utils/db1-ast/mpool/mpool.c                                                   |    2
+ b/utils/extconf.c                                                               |    6
+ b/utils/frame.c                                                                 |    4
+ b/utils/frame.h                                                                 |    2
+ 474 files changed, 8658 insertions(+), 4859 deletions(-)
