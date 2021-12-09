@@ -1,4 +1,4 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-18.9.0-rc1</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-18.9.0-rc1</h3><h3 align="center">Date: 2021-12-02</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-18.9.0</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-18.9.0</h3><h3 align="center">Date: 2021-12-09</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
 <li><a href="#summary">Summary</a></li>
 <li><a href="#contributors">Contributors</a></li>
 <li><a href="#closed_issues">Closed Issues</a></li>
@@ -6,7 +6,7 @@
 <li><a href="#diffstat">Diffstat</a></li>
 </ol><hr><a name="summary"><h2 align="center">Summary</h2></a><center><a href="#top">[Back to Top]</a></center><p>This release is a point release of an existing major version. The changes included were made to address problems that have been identified in this release series, or are minor, backwards compatible new features or improvements. Users should be able to safely upgrade to this version if this release series is already in use. Users considering upgrading from a previous version are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p><p>The data in this summary reflects changes that have been made since the previous release, asterisk-18.8.0.</p><hr><a name="contributors"><h2 align="center">Contributors</h2></a><center><a href="#top">[Back to Top]</a></center><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release. For coders, the number is how many of their patches (of any size) were committed into this release. For testers, the number is the number of times their name was listed as assisting with testing a patch. Finally, for reporters, the number is the number of issues that they reported that were affected by commits that went into this release.</p><table width="100%" border="0">
 <tr><th width="33%">Coders</th><th width="33%">Testers</th><th width="33%">Reporters</th></tr>
-<tr valign="top"><td width="33%">30 Alexander Traud <pabstraud@compuserve.com><br/>24 Josh Soref <jsoref@users.noreply.github.com><br/>9 Naveen Albert <asterisk@phreaknet.org><br/>5 Sean Bright <sean.bright@gmail.com><br/>3 George Joseph <gjoseph@digium.com><br/>3 Mike Bradeen <mbradeen@sangoma.com><br/>2 Kevin Harwell <kharwell@sangoma.com><br/>1 Rodrigo Ramírez Norambuena <a@rodrigoramirez.com><br/>1 Asterisk Development Team <asteriskteam@digium.com><br/>1 Shloime Rosenblum <shloimerosenblum@gmail.com><br/>1 Joshua C. Colp <jcolp@sangoma.com><br/>1 Jaco Kroon <jaco@uls.co.za><br/>1 Ben Ford <bford@digium.com><br/>1 Sebastien Duthil <sduthil@wazo.community><br/>1 Boris P. Korzun <drtr0jan@yandex.ru><br/></td><td width="33%"><td width="33%">29 Alexander Traud <pabstraud@compuserve.com><br/>24 Josh Soref <jsoref@gmail.com><br/>9 N A <mail@interlinked.x10host.com><br/>2 George Joseph <gjoseph@digium.com><br/>1 Mario Ban <mario.ban@bluewin.ch><br/>1 Shloime Rosenblum <shloimerosenblum@gmail.com><br/>1 Moritz Fain <moritz.fain@check24.de><br/>1 Daniel Zanutti <daniel@dazsoft.com.br><br/>1 Alexei Gradinari <alex2grad@gmail.com><br/>1 George Joseph<br/>1 Boris P. Korzun <drtr0jan@yandex.ru><br/>1 Jamuel Starkey <jamuel@my740il.com><br/>1 Dennis Haney <davh@davh.dk><br/>1 Joshua C. Colp <jcolp@digium.com><br/>1 Corey Farrell <git@cfware.com><br/></td></tr>
+<tr valign="top"><td width="33%">30 Alexander Traud <pabstraud@compuserve.com><br/>24 Josh Soref <jsoref@users.noreply.github.com><br/>9 Naveen Albert <asterisk@phreaknet.org><br/>5 Sean Bright <sean.bright@gmail.com><br/>3 George Joseph <gjoseph@digium.com><br/>3 Mike Bradeen <mbradeen@sangoma.com><br/>2 Kevin Harwell <kharwell@sangoma.com><br/>2 Asterisk Development Team <asteriskteam@digium.com><br/>1 Rodrigo Ramírez Norambuena <a@rodrigoramirez.com><br/>1 Shloime Rosenblum <shloimerosenblum@gmail.com><br/>1 Joshua C. Colp <jcolp@sangoma.com><br/>1 Jaco Kroon <jaco@uls.co.za><br/>1 Ben Ford <bford@digium.com><br/>1 Sebastien Duthil <sduthil@wazo.community><br/>1 Boris P. Korzun <drtr0jan@yandex.ru><br/></td><td width="33%"><td width="33%">29 Alexander Traud <pabstraud@compuserve.com><br/>24 Josh Soref <jsoref@gmail.com><br/>9 N A <mail@interlinked.x10host.com><br/>2 George Joseph <gjoseph@digium.com><br/>1 Mario Ban <mario.ban@bluewin.ch><br/>1 Shloime Rosenblum <shloimerosenblum@gmail.com><br/>1 Moritz Fain <moritz.fain@check24.de><br/>1 Daniel Zanutti <daniel@dazsoft.com.br><br/>1 Alexei Gradinari <alex2grad@gmail.com><br/>1 George Joseph<br/>1 Boris P. Korzun <drtr0jan@yandex.ru><br/>1 Jamuel Starkey <jamuel@my740il.com><br/>1 Dennis Haney <davh@davh.dk><br/>1 Joshua C. Colp <jcolp@digium.com><br/>1 Corey Farrell <git@cfware.com><br/></td></tr>
 </table><hr><a name="closed_issues"><h2 align="center">Closed Issues</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p><h3>New Feature</h3><h4>Category: Applications/app_queue</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-18069">ASTERISK-18069</a>: [patch] app_queue Add Login Time and Last Paused Times to Queue Members<br/>Reported by: Jamuel Starkey<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=a203769c9d9053045b16363bfe930424368af7ee">[a203769c9d]</a> Rodrigo Ramírez Norambuena -- app_queue: Add LoginTime field for member in a queue.</li>
 </ul><br><h4>Category: Resources/NewFeature</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29720">ASTERISK-29720</a>: res_tonedetect: Add call progress tone detection<br/>Reported by: N A<ul>
@@ -242,6 +242,7 @@
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=bcb7aee723b73fbc3fb1afb25d961e490c900e06">[bcb7aee723]</a> Naveen Albert -- documentation: Standardize examples</li>
 </ul><br><hr><a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all changes that went into this release that did not reference a JIRA issue.</p><table width="100%" border="1">
 <tr><th>Revision</th><th>Author</th><th>Summary</th></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=82637aaa185910c65f92f519c308af2bb6467211">82637aaa18</a></td><td>Asterisk Development Team</td><td>Update for 18.9.0-rc1</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=868d2d5e537e565d2c8a6749ed0f9c26f10b1bc6">868d2d5e53</a></td><td>Asterisk Development Team</td><td>Update CHANGES and UPGRADE.txt for 18.9.0</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=89237be105390ab2cab94e6c8e9ae46b504bb65f">89237be105</a></td><td>Jaco Kroon</td><td>logger: use __FUNCTION__ instead of __PRETTY_FUNCTION__</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=b4eebfa191bfcc83ff51dd6fcf5fcd199b454c1c">b4eebfa191</a></td><td>Alexander Traud</td><td>ari-stubs: Avoid 'is' as comparism with an literal.</td></tr>
@@ -252,13 +253,12 @@
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=2e55c0fdedd3ebf9d6ae219f5aa93edade8b3a97">2e55c0fded</a></td><td>Ben Ford</td><td>STIR/SHAKEN: Option split and response codes.</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=859f5795046d2f89733fd65417672d38c068cf00">859f579504</a></td><td>Kevin Harwell</td><td>res_speech: Add a type conversion, and new engine unregister methods</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=482281deffb4ff590e41a127ac99688a363f2756">482281deff</a></td><td>Sean Bright</td><td>configure: Remove unused OpenSSL SRTP check.</td></tr>
-</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>.lastclean                                                                      |    1
-.version                                                                        |    1
-ChangeLog                                                                       |96664 ----------
-asterisk-18.8.0-summary.html                                                    |   78
-asterisk-18.8.0-summary.txt                                                     |  245
+</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>asterisk-18.8.0-summary.html                                                    |   78
+asterisk-18.8.0-summary.txt                                                     |  245 -
+b/.version                                                                      |    2
 b/CHANGES                                                                       |  110
 b/CREDITS                                                                       |    2
+b/ChangeLog                                                                     | 1456 +++++++++
 b/Makefile                                                                      |    4
 b/UPGRADE.txt                                                                   |   20
 b/addons/chan_mobile.c                                                          |   28
@@ -301,7 +301,7 @@ b/apps/app_forkcdr.c                                                            
 b/apps/app_jack.c                                                               |    2
 b/apps/app_macro.c                                                              |    2
 b/apps/app_meetme.c                                                             |   12
-b/apps/app_minivm.c                                                             |  169
+b/apps/app_minivm.c                                                             |  169 -
 b/apps/app_mixmonitor.c                                                         |    1
 b/apps/app_morsecode.c                                                          |    5
 b/apps/app_mp3.c                                                                |    6
@@ -313,11 +313,13 @@ b/apps/app_stack.c                                                              
 b/apps/app_stasis.c                                                             |    2
 b/apps/app_statsd.c                                                             |    4
 b/apps/app_test.c                                                               |    2
-b/apps/app_voicemail.c                                                          |  214
+b/apps/app_voicemail.c                                                          |  214 -
 b/apps/app_waitforsilence.c                                                     |   17
 b/apps/confbridge/conf_config_parser.c                                          |    6
 b/apps/confbridge/conf_state.c                                                  |    2
 b/apps/confbridge/include/confbridge.h                                          |   10
+b/asterisk-18.9.0-rc1-summary.html                                              |  737 ++++
+b/asterisk-18.9.0-rc1-summary.txt                                               | 1222 ++++++++
 b/bridges/bridge_holding.c                                                      |    4
 b/bridges/bridge_softmix.c                                                      |   22
 b/bridges/bridge_softmix/bridge_softmix_binaural.c                              |    4
@@ -356,7 +358,7 @@ b/channels/misdn/isdn_lib.c                                                     
 b/channels/misdn/isdn_lib_intern.h                                              |    2
 b/channels/misdn/isdn_msg_parser.c                                              |   10
 b/channels/sig_analog.c                                                         |    8
-b/channels/sig_pri.c                                                            |  159
+b/channels/sig_pri.c                                                            |  159 -
 b/channels/sig_pri.h                                                            |    8
 b/channels/sig_ss7.c                                                            |   64
 b/channels/sig_ss7.h                                                            |    2
@@ -401,14 +403,14 @@ b/configs/samples/motif.conf.sample                                             
 b/configs/samples/ooh323.conf.sample                                            |    2
 b/configs/samples/queues.conf.sample                                            |    4
 b/configs/samples/rtp.conf.sample                                               |    2
-b/configure                                                                     | 1508
+b/configure                                                                     | 1508 ++++++----
 b/configure.ac                                                                  |  102
 b/contrib/ast-db-manage/README.md                                               |    2
 b/contrib/ast-db-manage/config/versions/1ae0609b6646_increse_reg_server_size.py |    2
 b/contrib/ast-db-manage/config/versions/4da0c5f79a9c_create_tables.py           |    2
 b/contrib/ast-db-manage/voicemail/versions/a2e9769475e_create_tables.py         |    2
 b/contrib/init.d/rc.debian.asterisk                                             |    2
-b/contrib/scripts/ast_coredumper                                                |  949
+b/contrib/scripts/ast_coredumper                                                |  949 +++---
 b/contrib/scripts/ast_loggrabber                                                |    4
 b/contrib/scripts/asterisk.ldap-schema                                          |    2
 b/contrib/scripts/asterisk.ldif                                                 |    2
@@ -446,7 +448,7 @@ b/include/asterisk/calendar.h                                                   
 b/include/asterisk/callerid.h                                                   |    2
 b/include/asterisk/causes.h                                                     |    6
 b/include/asterisk/cdr.h                                                        |    4
-b/include/asterisk/channel.h                                                    |  203
+b/include/asterisk/channel.h                                                    |  203 -
 b/include/asterisk/cli.h                                                        |    2
 b/include/asterisk/config.h                                                     |    4
 b/include/asterisk/config_options.h                                             |    2
@@ -608,7 +610,7 @@ b/pbx/pbx_dundi.c                                                               
 b/pbx/pbx_lua.c                                                                 |   17
 b/res/ael/ael.y                                                                 |    2
 b/res/ael/pval.c                                                                |   12
-b/res/ari/ari_model_validators.h                                                |  464
+b/res/ari/ari_model_validators.h                                                |  464 +--
 b/res/ari/resource_bridges.c                                                    |   12
 b/res/ari/resource_channels.c                                                   |    6
 b/res/ari/resource_events.c                                                     |    4
@@ -671,7 +673,7 @@ b/res/res_pjsip_registrar.c                                                     
 b/res/res_pjsip_rfc3326.c                                                       |    2
 b/res/res_pjsip_sdp_rtp.c                                                       |    2
 b/res/res_pjsip_session.c                                                       |   20
-b/res/res_pjsip_stir_shaken.c                                                   |  180
+b/res/res_pjsip_stir_shaken.c                                                   |  180 +
 b/res/res_pktccops.c                                                            |    2
 b/res/res_rtp_asterisk.c                                                        |    8
 b/res/res_smdi.c                                                                |    2
@@ -681,10 +683,10 @@ b/res/res_srtp.c                                                                
 b/res/res_stasis.c                                                              |    2
 b/res/res_stasis_playback.c                                                     |    6
 b/res/res_stasis_snoop.c                                                        |    2
-b/res/res_stir_shaken.c                                                         |  175
+b/res/res_stir_shaken.c                                                         |  175 -
 b/res/res_stir_shaken/curl.c                                                    |    2
 b/res/res_stir_shaken/curl.h                                                    |    2
-b/res/res_tonedetect.c                                                          |  365
+b/res/res_tonedetect.c                                                          |  365 ++
 b/res/res_xmpp.c                                                                |   70
 b/res/snmp/agent.c                                                              |    2
 b/res/stasis/app.c                                                              |    5
@@ -727,11 +729,4 @@ b/third-party/pjproject/Makefile                                                
 b/third-party/pjproject/configure.m4                                            |    1
 b/utils/astman.1                                                                |    2
 b/utils/db1-ast/hash/README                                                     |    2
-b/utils/db1-ast/hash/hash.h                                                     |    2
-contrib/realtime/mysql/mysql_cdr.sql                                            |   41
-contrib/realtime/mysql/mysql_config.sql                                         | 1330
-contrib/realtime/mysql/mysql_voicemail.sql                                      |   35
-contrib/realtime/postgresql/postgresql_cdr.sql                                  |   45
-contrib/realtime/postgresql/postgresql_config.sql                               | 1442
-contrib/realtime/postgresql/postgresql_voicemail.sql                            |   39
-482 files changed, 5272 insertions(+), 104480 deletions(-)</pre><br></html>
+476 files changed, 8685 insertions(+), 4884 deletions(-)</pre><br></html>
