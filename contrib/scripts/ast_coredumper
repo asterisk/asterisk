@@ -314,7 +314,11 @@ for i in "${!COREDUMPS[@]}" ; do
 	fi
 
 	if $DELETE_RESULTS_AFTER ; then
-		rm -rf "${cf//:/-}"-{brief,full,thread1,locks,info}.txt
+		to_delete=$cf
+		if [ -n "$OUTPUTDIR" ] ; then
+			to_delete="$OUTPUTDIR/$cfname"
+		fi
+		rm -rf "${to_delete//:/-}"-{brief,full,thread1,locks,info}.txt
 	fi
 done
 
