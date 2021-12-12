@@ -289,13 +289,13 @@ enum ast_strsep_flags {
 	char *mystr = ast_strdupa("abc=def,ghi='zzz=yyy,456',jkl");
 	char *token, *token2, *token3;
 
-	while((token = ast_strsep(&mystr, ',', AST_SEP_STRIP))) {
+	while((token = ast_strsep(&mystr, ',', AST_STRSEP_STRIP))) {
 		// 1st token will be aaa=def
 		// 2nd token will be ghi='zzz=yyy,456'
-		while((token2 = ast_strsep(&token, '=', AST_SEP_STRIP))) {
+		while((token2 = ast_strsep(&token, '=', AST_STRSEP_STRIP))) {
 			// 1st token2 will be ghi
 			// 2nd token2 will be zzz=yyy,456
-			while((token3 = ast_strsep(&token2, ',', AST_SEP_STRIP))) {
+			while((token3 = ast_strsep(&token2, ',', AST_STRSEP_STRIP))) {
 				// 1st token3 will be zzz=yyy
 				// 2nd token3 will be 456
 				// and so on
