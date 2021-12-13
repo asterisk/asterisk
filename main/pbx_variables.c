@@ -692,7 +692,7 @@ void pbx_substitute_variables_helper_full_location(struct ast_channel *c, struct
 			int offset;
 			int offset2;
 			int isfunction;
-			char *cp4;
+			char *cp4 = NULL;
 			char workspace[VAR_BUF_SIZE] = "";
 
 			/* We have a variable.  Find the start and end, and determine
