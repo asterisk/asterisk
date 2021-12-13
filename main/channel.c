@@ -6813,9 +6813,11 @@ int ast_channel_make_compatible(struct ast_channel *chan, struct ast_channel *pe
 static void __ast_change_name_nolink(struct ast_channel *chan, const char *newname)
 {
 	/*** DOCUMENTATION
-		<managerEventInstance>
-			<synopsis>Raised when the name of a channel is changed.</synopsis>
-		</managerEventInstance>
+		<managerEvent language="en_US" name="Rename">
+			<managerEventInstance class="EVENT_FLAG_CALL">
+				<synopsis>Raised when the name of a channel is changed.</synopsis>
+			</managerEventInstance>
+		</managerEvent>
 	***/
 	ast_manager_event(chan, EVENT_FLAG_CALL, "Rename",
 		"Channel: %s\r\n"

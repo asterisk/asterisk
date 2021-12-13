@@ -1058,6 +1058,85 @@
 		</description>
 	</manager>
 
+	<managerEvent language="en_US" name="QueueParams">
+		<managerEventInstance class="EVENT_FLAG_AGENT">
+			<synopsis>Raised in response to the QueueStatus action.</synopsis>
+			<syntax>
+				<parameter name="Max">
+					<para>The name of the queue.</para>
+				</parameter>
+				<parameter name="Strategy">
+					<para>The strategy of the queue.</para>
+				</parameter>
+				<parameter name="Calls">
+					<para>The queue member's channel technology or location.</para>
+				</parameter>
+				<parameter name="Holdtime">
+					<para>The queue's hold time.</para>
+				</parameter>
+				<parameter name="TalkTime">
+					<para>The queue's talk time.</para>
+				</parameter>
+				<parameter name="Completed">
+					<para>The queue's completion time.</para>
+				</parameter>
+				<parameter name="Abandoned">
+					<para>The queue's call abandonment metric.</para>
+				</parameter>
+				<parameter name="ServiceLevelPerf">
+					<para>Primary service level performance metric.</para>
+				</parameter>
+				<parameter name="ServiceLevelPerf2">
+					<para>Secondary service level performance metric.</para>
+				</parameter>
+			</syntax>
+			<see-also>
+				<ref type="managerEvent">QueueMember</ref>
+				<ref type="managerEvent">QueueEntry</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="QueueEntry">
+		<managerEventInstance class="EVENT_FLAG_AGENT">
+			<synopsis>Raised in response to the QueueStatus action.</synopsis>
+			<syntax>
+				<parameter name="Queue">
+					<para>The name of the queue.</para>
+				</parameter>
+				<parameter name="Position">
+					<para>The caller's position within the queue.</para>
+				</parameter>
+				<parameter name="Channel">
+					<para>The name of the caller's channel.</para>
+				</parameter>
+				<parameter name="Uniqueid">
+					<para>The unique ID of the channel.</para>
+				</parameter>
+				<parameter name="CallerIDNum">
+					<para>The Caller ID number.</para>
+				</parameter>
+				<parameter name="CallerIDName">
+					<para>The Caller ID name.</para>
+				</parameter>
+				<parameter name="ConnectedLineNum">
+					<para>The bridged party's number.</para>
+				</parameter>
+				<parameter name="ConnectedLineName">
+					<para>The bridged party's name.</para>
+				</parameter>
+				<parameter name="Wait">
+					<para>The caller's wait time.</para>
+				</parameter>
+				<parameter name="Priority">
+					<para>The caller's priority within the queue.</para>
+				</parameter>
+			</syntax>
+			<see-also>
+				<ref type="managerEvent">QueueParams</ref>
+				<ref type="managerEvent">QueueMember</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
 	<managerEvent language="en_US" name="QueueMemberStatus">
 		<managerEventInstance class="EVENT_FLAG_AGENT">
 			<synopsis>Raised when a Queue member's status has changed.</synopsis>

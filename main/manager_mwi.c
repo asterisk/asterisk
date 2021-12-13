@@ -103,33 +103,35 @@ static void mwi_update_cb(void *data, struct stasis_subscription *sub,
 	}
 
 	/*** DOCUMENTATION
-		<managerEventInstance>
-			<synopsis>Raised when the state of messages in a voicemail mailbox
-			has changed or when a channel has finished interacting with a
-			mailbox.</synopsis>
-			<syntax>
-				<channel_snapshot/>
-				<parameter name="Mailbox">
-					<para>The mailbox with the new message, specified as <literal>mailbox</literal>@<literal>context</literal></para>
-				</parameter>
-				<parameter name="Waiting">
-					<para>Whether or not the mailbox has messages waiting for it.</para>
-				</parameter>
-				<parameter name="New">
-					<para>The number of new messages.</para>
-				</parameter>
-				<parameter name="Old">
-					<para>The number of old messages.</para>
-				</parameter>
-			</syntax>
-			<description>
-				<note><para>The Channel related parameters are only present if a
-				channel was involved in the manipulation of a mailbox. If no
-				channel is involved, the parameters are not included with the
-				event.</para>
-				</note>
-			</description>
-		</managerEventInstance>
+		<managerEvent language="en_US" name="MessageWaiting">
+			<managerEventInstance class="EVENT_FLAG_CALL">
+				<synopsis>Raised when the state of messages in a voicemail mailbox
+				has changed or when a channel has finished interacting with a
+				mailbox.</synopsis>
+				<syntax>
+					<channel_snapshot/>
+					<parameter name="Mailbox">
+						<para>The mailbox with the new message, specified as <literal>mailbox</literal>@<literal>context</literal></para>
+					</parameter>
+					<parameter name="Waiting">
+						<para>Whether or not the mailbox has messages waiting for it.</para>
+					</parameter>
+					<parameter name="New">
+						<para>The number of new messages.</para>
+					</parameter>
+					<parameter name="Old">
+						<para>The number of old messages.</para>
+					</parameter>
+				</syntax>
+				<description>
+					<note><para>The Channel related parameters are only present if a
+					channel was involved in the manipulation of a mailbox. If no
+					channel is involved, the parameters are not included with the
+					event.</para>
+					</note>
+				</description>
+			</managerEventInstance>
+		</managerEvent>
 	***/
 	manager_event(EVENT_FLAG_CALL, "MessageWaiting",
 			"%s"
