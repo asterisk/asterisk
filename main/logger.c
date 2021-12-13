@@ -1222,14 +1222,16 @@ static int reload_logger(int rotate, const char *altconf)
 		if (f->disabled) {
 			f->disabled = 0;	/* Re-enable logging at reload */
 			/*** DOCUMENTATION
-				<managerEventInstance>
-					<synopsis>Raised when a logging channel is re-enabled after a reload operation.</synopsis>
-					<syntax>
-						<parameter name="Channel">
-							<para>The name of the logging channel.</para>
-						</parameter>
-					</syntax>
-				</managerEventInstance>
+				<managerEvent language="en_US" name="LogChannel">
+					<managerEventInstance class="EVENT_FLAG_SYSTEM">
+						<synopsis>Raised when a logging channel is re-enabled after a reload operation.</synopsis>
+						<syntax>
+							<parameter name="Channel">
+								<para>The name of the logging channel.</para>
+							</parameter>
+						</syntax>
+					</managerEventInstance>
+				</managerEvent>
 			***/
 			manager_event(EVENT_FLAG_SYSTEM, "LogChannel", "Channel: %s\r\nEnabled: Yes\r\n", f->filename);
 		}

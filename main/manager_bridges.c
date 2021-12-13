@@ -376,13 +376,15 @@ static void bridge_merge_cb(void *data, struct stasis_subscription *sub,
 	}
 
 	/*** DOCUMENTATION
-		<managerEventInstance>
-			<synopsis>Raised when two bridges are merged.</synopsis>
-			<syntax>
-				<bridge_snapshot prefix="To"/>
-				<bridge_snapshot prefix="From"/>
-			</syntax>
-		</managerEventInstance>
+		<managerEvent language="en_US" name="BridgeMerge">
+			<managerEventInstance class="EVENT_FLAG_CALL">
+				<synopsis>Raised when two bridges are merged.</synopsis>
+				<syntax>
+					<bridge_snapshot prefix="To"/>
+					<bridge_snapshot prefix="From"/>
+				</syntax>
+			</managerEventInstance>
+		</managerEvent>
 	***/
 	manager_event(EVENT_FLAG_CALL, "BridgeMerge",
 		"%s"
