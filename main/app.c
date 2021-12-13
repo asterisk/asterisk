@@ -2937,6 +2937,9 @@ static int parse_options(const struct ast_app_option *options, void *_flags, cha
 		} else if (argloc) {
 			args[argloc - 1] = "";
 		}
+		if (!options[curarg].flag) {
+			ast_log(LOG_WARNING, "Unrecognized option: '%c'\n", curarg);
+		}
 		if (flaglen == 32) {
 			ast_set_flag(flags, options[curarg].flag);
 		} else {
