@@ -106,6 +106,7 @@
 		<see-also>
 			<ref type="application">Read</ref>
 			<ref type="application">SendMF</ref>
+			<ref type="application">ReceiveSF</ref>
 		</see-also>
 	</application>
 	<application name="SendMF" language="en_US">
@@ -142,6 +143,7 @@
 		</description>
 		<see-also>
 			<ref type="application">ReceiveMF</ref>
+			<ref type="application">SendSF</ref>
 			<ref type="application">SendDTMF</ref>
 		</see-also>
 	</application>

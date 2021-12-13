@@ -830,6 +830,157 @@ static int external_sleep(struct ast_channel *chan, int ms)
 	return 0;
 }
 
+static int sf_stream(struct ast_channel *chan, struct ast_channel *chan2, const char *digits, int frequency, int is_external)
+{
+	/* Bell System Technical Journal 39 (Nov. 1960) */
+	#define SF_ON 67
+	#define SF_OFF 33
+	#define SF_BETWEEN 600
+
+	const char *ptr;
+	int res;
+	struct ast_silence_generator *silgen = NULL, *silgen2 = NULL;
+	char *freq;
+	int (*my_sleep)(struct ast_channel *chan, int ms);
+
+	if (frequency >= 100000) {
+		ast_log(LOG_WARNING, "Frequency too large: %d\n", frequency);
+		return -1;
+	}
+
+	if (is_external) {
+		my_sleep = external_sleep;
+	} else {
+		my_sleep = ast_safe_sleep;
+	}
+
+	/* Need a quiet time before sending digits. */
+	if (ast_opt_transmit_silence) {
+		silgen = ast_channel_start_silence_generator(chan);
+		if (chan2) {
+			silgen2 = ast_channel_start_silence_generator(chan2);
+		}
+	}
+	if (chan2) {
+		ast_autoservice_start(chan2);
+	}
+	res = my_sleep(chan, 100);
+	if (chan2) {
+		ast_autoservice_stop(chan2);
+	}
+	if (res) {
+		goto sf_stream_cleanup;
+	}
+
+/* len(SF_ON) + len(SF_OFF) + len(0) + maxlen(frequency) + /,/ + null terminator = 2 + 2 + 1 + 5 at most + 3 + 1 = 14 */
+#define SF_BUF_LEN  20
+	freq = ast_alloca(SF_BUF_LEN); /* min 20 to avoid compiler warning about insufficient buffer */
+	/* pauses need to send audio, so send 0 Hz */
+	snprintf(freq, SF_BUF_LEN, "%d/%d,%d/%d", frequency, SF_ON, 0, SF_OFF);
+
+	for (ptr = digits; *ptr; ptr++) {
+		if (*ptr == 'w') {
+			/* 'w' -- wait half a second */
+			if (chan2) {
+				ast_autoservice_start(chan2);
+			}
+			res = my_sleep(chan, 500);
+			if (chan2) {
+				ast_autoservice_stop(chan2);
+			}
+			if (res) {
+				break;
+			}
+		} else if (*ptr == 'h' || *ptr == 'H') {
+			/* 'h' -- 2600 Hz for half a second, but
+				only to far end of trunk, not near end */
+			ast_playtones_start(chan, 0, "2600", 0);
+			if (chan2) {
+				ast_playtones_start(chan2, 0, "0", 0);
+				ast_autoservice_start(chan2);
+			}
+			res = my_sleep(chan, 250);
+			ast_senddigit_mf_end(chan);
+			if (chan2) {
+				ast_autoservice_stop(chan2);
+				ast_senddigit_mf_end(chan2);
+			}
+			if (res) {
+				break;
+			}
+		} else if (strchr("0123456789*#ABCDabcdwWfF", *ptr)) {
+			if (*ptr == 'f' || *ptr == 'F') {
+				/* ignore return values if not supported by channel */
+				ast_indicate(chan, AST_CONTROL_FLASH);
+			} else if (*ptr == 'W') {
+				/* ignore return values if not supported by channel */
+				ast_indicate(chan, AST_CONTROL_WINK);
+			} else {
+				/* Character represents valid SF */
+				int beeps;
+				if (*ptr == '*') {
+					beeps = 11;
+				} else if (*ptr == '#') {
+					beeps = 12;
+				} else if (*ptr == 'D') {
+					beeps = 13;
+				} else if (*ptr == 'C') {
+					beeps = 14;
+				} else if (*ptr == 'B') {
+					beeps = 15;
+				} else if (*ptr == 'A') {
+					beeps = 16;
+				} else {
+					beeps = (*ptr == '0') ? 10 : *ptr - '0';
+				}
+				while (beeps-- > 0) {
+					ast_playtones_start(chan, 0, freq, 0);
+					if (chan2) {
+						ast_playtones_start(chan2, 0, freq, 0);
+						ast_autoservice_start(chan2);
+					}
+					res = my_sleep(chan, SF_ON + SF_OFF);
+					ast_senddigit_mf_end(chan);
+					if (chan2) {
+						ast_autoservice_stop(chan2);
+						ast_senddigit_mf_end(chan2);
+					}
+					if (res) {
+						break;
+					}
+				}
+			}
+			/* pause between digits */
+			ast_playtones_start(chan, 0, "0", 0);
+			if (chan2) {
+				ast_playtones_start(chan2, 0, "0", 0);
+				ast_autoservice_start(chan2);
+			}
+			res = my_sleep(chan, SF_BETWEEN);
+			if (chan2) {
+				ast_autoservice_stop(chan2);
+				ast_senddigit_mf_end(chan2);
+			}
+			ast_senddigit_mf_end(chan);
+			if (res) {
+				break;
+			}
+		} else {
+			ast_log(LOG_WARNING, "Illegal SF character '%c' in string. (0-9A-DwWfFhH allowed)\n", *ptr);
+		}
+	}
+
+sf_stream_cleanup:
+	if (silgen) {
+		ast_channel_stop_silence_generator(chan, silgen);
+	}
+	if (silgen2) {
+		ast_channel_stop_silence_generator(chan2, silgen2);
+	}
+
+	return res;
+}
+
 static int mf_stream(struct ast_channel *chan, struct ast_channel *chan2, const char *digits, int between, unsigned int duration,
 	unsigned int durationkp, unsigned int durationst, int is_external)
 {
@@ -869,7 +1020,13 @@ static int mf_stream(struct ast_channel *chan, struct ast_channel *chan2, const 
 	for (ptr = digits; *ptr; ptr++) {
 		if (*ptr == 'w') {
 			/* 'w' -- wait half a second */
+			if (chan2) {
+				ast_autoservice_start(chan2);
+			}
 			res = my_sleep(chan, 500);
+			if (chan2) {
+				ast_autoservice_stop(chan2);
+			}
 			if (res) {
 				break;
 			}
@@ -1004,6 +1161,22 @@ dtmf_stream_cleanup:
 		ast_channel_stop_silence_generator(chan, silgen);
 	}
 
+	return res;
+}
+
+int ast_sf_stream(struct ast_channel *chan, struct ast_channel *peer, struct ast_channel *chan2, const char *digits, int frequency, int is_external)
+{
+	int res;
+	if (frequency <= 0) {
+		frequency = 2600;
+	}
+	if (!is_external && !chan2 && peer && ast_autoservice_start(peer)) {
+		return -1;
+	}
+	res = sf_stream(chan, chan2, digits, frequency, is_external);
+	if (!is_external && !chan2 && peer && ast_autoservice_stop(peer)) {
+		res = -1;
+	}
 	return res;
 }
 

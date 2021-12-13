@@ -942,6 +942,31 @@ void ast_replace_sigchld(void);
 void ast_unreplace_sigchld(void);
 
 /*!
+ * \brief Send a string of SF digits to a channel
+ *
+ * \param chan    The channel that will receive the SF digits
+ * \param peer    (optional) Peer channel that will be autoserviced while the
+ *                primary channel is receiving SF
+ * \param chan2   A second channel that will simultaneously receive SF digits.
+ *                This option may only be used if is_external is 0.
+ * \param digits  This is a string of characters representing the SF digits
+ *                to be sent to the channel.  Valid characters are
+ *                "0123456789".  Note: You can pass arguments 'f' or
+ *                'F', if you want to Flash the channel (if supported by the
+ *                channel), or 'w' or 'W' to add a wink (if supported by the
+ *                channel).
+ * \param frequency  The frequency to use for signaling. 0 can be specified for
+ *                the default, which is 2600 Hz.
+ * \param is_external 1 if called by a thread that is not the channel's media
+ *                handler thread, 0 if called by the channel's media handler
+ *                thread.
+ *
+ * \retval 0 on success.
+ * \retval -1 on failure or a channel hung up.
+ */
+int ast_sf_stream(struct ast_channel *chan, struct ast_channel *peer, struct ast_channel *chan2, const char *digits, int frequency, int is_external);
+
+/*!
  * \brief Send a string of MF digits to a channel
  *
  * \param chan    The channel that will receive the MF digits.
