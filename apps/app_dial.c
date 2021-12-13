@@ -158,6 +158,8 @@
 					<argument name="progress" />
 					<argument name="mfprogress" />
 					<argument name="mfwink" />
+					<argument name="sfprogress" />
+					<argument name="sfwink" />
 					<para>Send the specified DTMF strings <emphasis>after</emphasis> the called
 					party has answered, but before the call gets bridged.  The
 					<replaceable>called</replaceable> DTMF string is sent to the called party, and the
@@ -170,6 +172,11 @@
 					If <replaceable>mfwink</replaceable> is specified, its MF is sent
 					to the called party immediately after receiving a <literal>WINK</literal> message.</para>
 					<para>See <literal>SendMF</literal> for valid digits.</para>
+					<para>If <replaceable>sfprogress</replaceable> is specified, its SF is sent
+					to the called party immediately after receiving a <literal>PROGRESS</literal> message.
+					If <replaceable>sfwink</replaceable> is specified, its SF is sent
+					to the called party immediately after receiving a <literal>WINK</literal> message.</para>
+					<para>See <literal>SendSF</literal> for valid digits.</para>
 				</option>
 				<option name="E">
 					<para>Enable echoing of sent MF or SF digits back to caller (e.g. "hearpulsing").
@@ -1214,6 +1221,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 	struct privacy_args *pa,
 	const struct cause_args *num_in, int *result, char *dtmf_progress,
 	char *mf_progress, char *mf_wink,
+	char *sf_progress, char *sf_wink,
 	const int hearpulsing,
 	const int ignore_cc,
 	struct ast_party_id *forced_clid, struct ast_party_id *stored_clid,
@@ -1580,6 +1588,14 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 							ast_mf_stream(c, (hearpulsing ? NULL : in),
 							(hearpulsing ? in : NULL), mf_progress, 50, 55, 120, 65, 0);
 						}
+						if (!ast_strlen_zero(sf_progress)) {
+							ast_verb(3,
+								"Sending SF '%s' to %s as result of "
+								"receiving a PROGRESS message.\n",
+								sf_progress, (hearpulsing ? "parties" : "called party"));
+							ast_sf_stream(c, (hearpulsing ? NULL : in),
+							(hearpulsing ? in : NULL), sf_progress, 0, 0);
+						}
 						if (!ast_strlen_zero(dtmf_progress)) {
 							ast_verb(3,
 								"Sending DTMF '%s' to the called party as result of "
@@ -1602,7 +1618,16 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 							ast_mf_stream(c, (hearpulsing ? NULL : in),
 							(hearpulsing ? in : NULL), mf_wink, 50, 55, 120, 65, 0);
 						}
+						if (!ast_strlen_zero(sf_wink)) {
+							ast_verb(3,
+								"Sending SF '%s' to %s as result of "
+								"receiving a WINK message.\n",
+								sf_wink, (hearpulsing ? "parties" : "called party"));
+							ast_sf_stream(c, (hearpulsing ? NULL : in),
+							(hearpulsing ? in : NULL), sf_wink, 0, 0);
+						}
 					}
+					ast_indicate(in, AST_CONTROL_WINK);
 					break;
 				case AST_CONTROL_VIDUPDATE:
 				case AST_CONTROL_SRCUPDATE:
@@ -2278,6 +2303,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 	struct timeval calldurationlimit = { 0, };
 	char *dtmfcalled = NULL, *dtmfcalling = NULL, *dtmf_progress = NULL;
 	char *mf_progress = NULL, *mf_wink = NULL;
+	char *sf_progress = NULL, *sf_wink = NULL;
 	struct privacy_args pa = {
 		.sentringing = 0,
 		.privdb_val = 0,
@@ -2413,11 +2439,13 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 	}
 
 	if (ast_test_flag64(&opts, OPT_SENDDTMF) && !ast_strlen_zero(opt_args[OPT_ARG_SENDDTMF])) {
-		mf_wink = opt_args[OPT_ARG_SENDDTMF];
-		dtmfcalled = strsep(&mf_wink, ":");
-		dtmfcalling = strsep(&mf_wink, ":");
-		dtmf_progress = strsep(&mf_wink, ":");
-		mf_progress = strsep(&mf_wink, ":");
+		sf_wink = opt_args[OPT_ARG_SENDDTMF];
+		dtmfcalled = strsep(&sf_wink, ":");
+		dtmfcalling = strsep(&sf_wink, ":");
+		dtmf_progress = strsep(&sf_wink, ":");
+		mf_progress = strsep(&sf_wink, ":");
+		mf_wink = strsep(&sf_wink, ":");
+		sf_progress = strsep(&sf_wink, ":");
 	}
 
 	if (ast_test_flag64(&opts, OPT_DURATION_LIMIT) && !ast_strlen_zero(opt_args[OPT_ARG_DURATION_LIMIT])) {
@@ -2894,7 +2922,8 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 	}
 
 	peer = wait_for_answer(chan, &out_chans, &to, peerflags, opt_args, &pa, &num, &result,
-		dtmf_progress, mf_progress, mf_wink, (ast_test_flag64(&opts, OPT_HEARPULSING) ? 1 : 0),
+		dtmf_progress, mf_progress, mf_wink, sf_progress, sf_wink,
+		(ast_test_flag64(&opts, OPT_HEARPULSING) ? 1 : 0),
 		ignore_cc, &forced_clid, &stored_clid, &config);
 
 	if (!peer) {
