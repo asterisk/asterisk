@@ -908,24 +908,26 @@ static void channel_dtmf_begin_cb(void *data, struct stasis_subscription *sub,
 	}
 
 	/*** DOCUMENTATION
-		<managerEventInstance>
-			<synopsis>Raised when a DTMF digit has started on a channel.</synopsis>
-				<syntax>
-					<channel_snapshot/>
-					<parameter name="Digit">
-						<para>DTMF digit received or transmitted (0-9, A-E, # or *</para>
-					</parameter>
-					<parameter name="Direction">
-						<enumlist>
-							<enum name="Received"/>
-							<enum name="Sent"/>
-						</enumlist>
-					</parameter>
-				</syntax>
-				<see-also>
-					<ref type="managerEvent">DTMFEnd</ref>
-				</see-also>
-		</managerEventInstance>
+		<managerEvent language="en_US" name="DTMFBegin">
+			<managerEventInstance class="EVENT_FLAG_DTMF">
+				<synopsis>Raised when a DTMF digit has started on a channel.</synopsis>
+					<syntax>
+						<channel_snapshot/>
+						<parameter name="Digit">
+							<para>DTMF digit received or transmitted (0-9, A-E, # or *</para>
+						</parameter>
+						<parameter name="Direction">
+							<enumlist>
+								<enum name="Received"/>
+								<enum name="Sent"/>
+							</enumlist>
+						</parameter>
+					</syntax>
+					<see-also>
+						<ref type="managerEvent">DTMFEnd</ref>
+					</see-also>
+			</managerEventInstance>
+		</managerEvent>
 	***/
 	manager_event(EVENT_FLAG_DTMF, "DTMFBegin",
 		"%s"
@@ -954,27 +956,29 @@ static void channel_dtmf_end_cb(void *data, struct stasis_subscription *sub,
 	}
 
 	/*** DOCUMENTATION
-		<managerEventInstance>
-			<synopsis>Raised when a DTMF digit has ended on a channel.</synopsis>
-				<syntax>
-					<channel_snapshot/>
-					<parameter name="Digit">
-						<para>DTMF digit received or transmitted (0-9, A-E, # or *</para>
-					</parameter>
-					<parameter name="DurationMs">
-						<para>Duration (in milliseconds) DTMF was sent/received</para>
-					</parameter>
-					<parameter name="Direction">
-						<enumlist>
-							<enum name="Received"/>
-							<enum name="Sent"/>
-						</enumlist>
-					</parameter>
-				</syntax>
-				<see-also>
-					<ref type="managerEvent">DTMFBegin</ref>
-				</see-also>
-		</managerEventInstance>
+		<managerEvent language="en_US" name="DTMFEnd">
+			<managerEventInstance class="EVENT_FLAG_DTMF">
+				<synopsis>Raised when a DTMF digit has ended on a channel.</synopsis>
+					<syntax>
+						<channel_snapshot/>
+						<parameter name="Digit">
+							<para>DTMF digit received or transmitted (0-9, A-E, # or *</para>
+						</parameter>
+						<parameter name="DurationMs">
+							<para>Duration (in milliseconds) DTMF was sent/received</para>
+						</parameter>
+						<parameter name="Direction">
+							<enumlist>
+								<enum name="Received"/>
+								<enum name="Sent"/>
+							</enumlist>
+						</parameter>
+					</syntax>
+					<see-also>
+						<ref type="managerEvent">DTMFBegin</ref>
+					</see-also>
+			</managerEventInstance>
+		</managerEvent>
 	***/
 	manager_event(EVENT_FLAG_DTMF, "DTMFEnd",
 		"%s"
@@ -996,6 +1000,16 @@ static void channel_flash_cb(void *data, struct stasis_subscription *sub,
 		return;
 	}
 
+	/*** DOCUMENTATION
+		<managerEvent language="en_US" name="Flash">
+			<managerEventInstance class="EVENT_FLAG_CALL">
+				<synopsis>Raised when a hook flash occurs on a channel.</synopsis>
+					<syntax>
+						<channel_snapshot/>
+					</syntax>
+			</managerEventInstance>
+		</managerEvent>
+	***/
 	manager_event(EVENT_FLAG_CALL, "Flash",
 		"%s",
 		ast_str_buffer(channel_event_string));
