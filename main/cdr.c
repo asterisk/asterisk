@@ -96,6 +96,21 @@
 					any loading of backend CDR modules.  Default is "yes".</para>
 					</description>
 				</configOption>
+				<configOption name="channeldefaultenabled">
+					<synopsis>Whether CDR is enabled on a channel by default</synopsis>
+					<description><para>Define whether or not CDR should be enabled on a channel by default.
+					Setting this to "yes" will enable CDR on every channel unless it is explicitly disabled.
+					Setting this to "no" will disable CDR on every channel unless it is explicitly enabled.
+					Default is "yes".</para>
+					<para>Note that CDR must still be globally enabled (<literal>enable = yes</literal>) for this
+					option to have any effect. This only applies to whether CDR is enabled or disabled on
+					newly created channels, which can be changed in the dialplan during a call.</para>
+					<para>If this is set to "yes", you should use <literal>Set(CDR_PROP(disable)=1)</literal>
+					to disable CDR for a call.</para>
+					<para>If this is set to "no", you should use <literal>Set(CDR_PROP(disable)=0)</literal>
+					to undisable (enable) CDR for a call.</para>
+					</description>
+				</configOption>
 				<configOption name="unanswered">
 					<synopsis>Log calls that are never answered and don't set an outgoing party.</synopsis>
 					<description><para>
@@ -200,6 +215,7 @@
 #define DEFAULT_CONGESTION "0"
 #define DEFAULT_END_BEFORE_H_EXTEN "1"
 #define DEFAULT_INITIATED_SECONDS "0"
+#define DEFAULT_CHANNEL_ENABLED "1"
 
 #define DEFAULT_BATCH_SIZE "100"
 #define MAX_BATCH_SIZE 1000
@@ -2297,12 +2313,24 @@ static void handle_channel_cache_message(void *data, struct stasis_subscription 
 	}
 
 	if (new_snapshot && !old_snapshot) {
+		struct module_config *mod_cfg = NULL;
 		cdr = cdr_object_alloc(new_snapshot, stasis_message_timestamp(message));
 		if (!cdr) {
 			return;
 		}
+		mod_cfg = ao2_global_obj_ref(module_configs);
 		cdr->is_root = 1;
 		ao2_link(active_cdrs_master, cdr);
+
+		/* If CDR should be disabled unless enabled on a per-channel basis, then disable
+			CDR, right from the get go */
+		if (mod_cfg) {
+			if (!ast_test_flag(&mod_cfg->general->settings, CDR_CHANNEL_DEFAULT_ENABLED)) {
+				ast_debug(3, "Disable CDR by default\n");
+				ast_set_flag(&cdr->flags, AST_CDR_FLAG_DISABLE_ALL);
+			}
+			ao2_cleanup(mod_cfg);
+		}
 	} else {
 		const char *uniqueid;
 
@@ -4186,6 +4214,7 @@ static char *handle_cli_status(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	ast_cli(a->fd, "  Logging:                    %s\n", ast_test_flag(&mod_cfg->general->settings, CDR_ENABLED) ? "Enabled" : "Disabled");
 	ast_cli(a->fd, "  Mode:                       %s\n", ast_test_flag(&mod_cfg->general->settings, CDR_BATCHMODE) ? "Batch" : "Simple");
 	if (ast_test_flag(&mod_cfg->general->settings, CDR_ENABLED)) {
+		ast_cli(a->fd, "  Log calls by default:       %s\n", ast_test_flag(&mod_cfg->general->settings, CDR_CHANNEL_DEFAULT_ENABLED) ? "Yes" : "No");
 		ast_cli(a->fd, "  Log unanswered calls:       %s\n", ast_test_flag(&mod_cfg->general->settings, CDR_UNANSWERED) ? "Yes" : "No");
 		ast_cli(a->fd, "  Log congestion:             %s\n\n", ast_test_flag(&mod_cfg->general->settings, CDR_CONGESTION) ? "Yes" : "No");
 		if (ast_test_flag(&mod_cfg->general->settings, CDR_BATCHMODE)) {
@@ -4366,6 +4395,7 @@ static int process_config(int reload)
 		aco_option_register(&cfg_info, "safeshutdown", ACO_EXACT, general_options, DEFAULT_BATCH_SAFE_SHUTDOWN, OPT_BOOLFLAG_T, 1, FLDSET(struct ast_cdr_config, batch_settings.settings), BATCH_MODE_SAFE_SHUTDOWN);
 		aco_option_register(&cfg_info, "size", ACO_EXACT, general_options, DEFAULT_BATCH_SIZE, OPT_UINT_T, PARSE_IN_RANGE, FLDSET(struct ast_cdr_config, batch_settings.size), 0, MAX_BATCH_SIZE);
 		aco_option_register(&cfg_info, "time", ACO_EXACT, general_options, DEFAULT_BATCH_TIME, OPT_UINT_T, PARSE_IN_RANGE, FLDSET(struct ast_cdr_config, batch_settings.time), 1, MAX_BATCH_TIME);
+		aco_option_register(&cfg_info, "channeldefaultenabled", ACO_EXACT, general_options, DEFAULT_CHANNEL_ENABLED, OPT_BOOLFLAG_T, 1, FLDSET(struct ast_cdr_config, settings), CDR_CHANNEL_DEFAULT_ENABLED);
 	}
 
 	if (aco_process_config(&cfg_info, reload) == ACO_PROCESS_ERROR) {
