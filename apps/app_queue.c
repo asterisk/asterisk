@@ -2711,16 +2711,11 @@ static int extension_state_cb(const char *context, const char *exten, struct ast
 
 		miter = ao2_iterator_init(q->members, 0);
 		for (; (m = ao2_iterator_next(&miter)); ao2_ref(m, -1)) {
-			if (!strcmp(m->state_context, context) && !strcmp(m->state_exten, exten)) {
-				found = 1;
-			} else if (!strcmp(m->state_exten, exten) && context_included(m->state_context, context)) {
+			if (!strcmp(m->state_exten, exten) &&
+				(!strcmp(m->state_context, context) || context_included(m->state_context, context))) {
 				/* context could be included in m->state_context. We need to check. */
 				found = 1;
-			}
-			if (found) {
 				update_status(q, m, device_state);
-				ao2_ref(m, -1);
-				break;
 			}
 		}
 		ao2_iterator_destroy(&miter);
