@@ -59,17 +59,17 @@ static struct ast_cdr_config *saved_config;
 
 /*! \brief A configuration suitable for 'normal' CDRs */
 static struct ast_cdr_config debug_cdr_config = {
-	.settings.flags = CDR_ENABLED | CDR_DEBUG,
+	.settings.flags = CDR_ENABLED | CDR_CHANNEL_DEFAULT_ENABLED | CDR_DEBUG,
 };
 
 /*! \brief A configuration suitable for CDRs with unanswered records */
 static struct ast_cdr_config unanswered_cdr_config = {
-	.settings.flags = CDR_ENABLED | CDR_UNANSWERED | CDR_DEBUG,
+	.settings.flags = CDR_ENABLED | CDR_CHANNEL_DEFAULT_ENABLED | CDR_UNANSWERED | CDR_DEBUG,
 };
 
 /*! \brief A configuration suitable for CDRs with congestion enabled */
 static struct ast_cdr_config congestion_cdr_config = {
-	.settings.flags = CDR_ENABLED | CDR_UNANSWERED | CDR_DEBUG | CDR_CONGESTION,
+	.settings.flags = CDR_ENABLED | CDR_CHANNEL_DEFAULT_ENABLED | CDR_UNANSWERED | CDR_DEBUG | CDR_CONGESTION,
 };
 
 /*! \brief Macro to swap a configuration out from the CDR engine. This should be
