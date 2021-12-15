@@ -805,6 +805,38 @@ static char *handle_logger_mute(struct ast_cli_entry *e, int cmd, struct ast_cli
 	return CLI_SUCCESS;
 }
 
+static char *handle_refresh(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	/* "module refresh <mod>" */
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "module refresh";
+		e->usage =
+			"Usage: module refresh <module name>\n"
+			"       Unloads and loads the specified module into Asterisk.\n";
+		return NULL;
+
+	case CLI_GENERATE:
+		if (a->pos != e->args) {
+			return NULL;
+		}
+		return ast_module_helper(a->line, a->word, a->pos, a->n, a->pos, AST_MODULE_HELPER_UNLOAD);
+	}
+	if (a->argc != e->args + 1) {
+		return CLI_SHOWUSAGE;
+	}
+	if (ast_unload_resource(a->argv[e->args], AST_FORCE_SOFT)) {
+		ast_cli(a->fd, "Unable to unload resource %s\n", a->argv[e->args]);
+		return CLI_FAILURE;
+	}
+	if (ast_load_resource(a->argv[e->args])) {
+		ast_cli(a->fd, "Unable to load module %s\n", a->argv[e->args]);
+		return CLI_FAILURE;
+	}
+	ast_cli(a->fd, "Unloaded and loaded %s\n", a->argv[e->args]);
+	return CLI_SUCCESS;
+}
+
 static char *handle_unload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	/* "module unload mod_1 [mod_2 .. mod_N]" */
@@ -2015,6 +2047,8 @@ static struct ast_cli_entry cli_cli[] = {
 	AST_CLI_DEFINE(handle_core_reload, "Global reload"),
 
 	AST_CLI_DEFINE(handle_unload, "Unload a module by name"),
+
+	AST_CLI_DEFINE(handle_refresh, "Completely unloads and loads a module by name"),
 
 	AST_CLI_DEFINE(handle_showuptime, "Show uptime information"),
 
