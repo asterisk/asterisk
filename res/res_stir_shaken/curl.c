@@ -20,6 +20,7 @@
 
 #include "asterisk/utils.h"
 #include "asterisk/logger.h"
+#include "asterisk/file.h"
 #include "curl.h"
 #include "general.h"
 #include "stir_shaken.h"
@@ -151,42 +152,11 @@ static CURL *get_curl_instance(struct curl_cb_data *data)
 	return curl;
 }
 
-/*!
- * \brief Create a temporary file located at path
- *
- * \note This function assumes path does not end with a '/'
- *
- * \param path The directory path to create the file in
- * \param filename Function allocates memory and stores full filename (including path) here
- *
- * \retval -1 on failure
- * \return file descriptor on success
- */
-static int create_temp_file(const char *path, char **filename)
-{
-	const char *template_name = "certXXXXXX";
-	int fd;
-
-	if (ast_asprintf(filename, "%s/%s", path, template_name) < 0) {
-		ast_log(LOG_ERROR, "Failed to set up temporary file path for CURL\n");
-		return -1;
-	}
-
-	ast_mkdir(path, 0644);
-
-	if ((fd = mkstemp(*filename)) < 0) {
-		ast_log(LOG_NOTICE, "Failed to create temporary file for CURL\n");
-		ast_free(*filename);
-		return -1;
-	}
-
-	return fd;
-}
-
 char *curl_public_key(const char *public_cert_url, const char *path, struct curl_cb_data *data)
 {
 	FILE *public_key_file;
 	RAII_VAR(char *, tmp_filename, NULL, ast_free);
+	const char *template_name = "certXXXXXX";
 	char *filename;
 	char *serial;
 	int fd;
@@ -199,9 +169,9 @@ char *curl_public_key(const char *public_cert_url, const char *path, struct curl
 	/* For now, it's fine to pass in path as is - it shouldn't end with a '/'. However,
 	 * if we decide to change how certificates are stored in the future (configurable paths),
 	 * then we will need to check to see if path ends with '/', copy everything up to the '/',
-	 * and use this new variable for create_temp_file as well as for ast_asprintf below.
+	 * and use this new variable for ast_create_temp_file as well as for ast_asprintf below.
 	 */
-	fd = create_temp_file(path, &tmp_filename);
+	fd = ast_file_fdtemp(path, &tmp_filename, template_name);
 	if (fd == -1) {
 		ast_log(LOG_ERROR, "Failed to get temporary file descriptor for CURL\n");
 		return NULL;
