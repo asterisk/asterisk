@@ -147,6 +147,23 @@ int ast_filecopy(const char *oldname, const char *newname, const char *fmt);
 FILE *ast_file_mkftemp(char *template, mode_t mode);
 
 /*!
+ * \brief Create a temporary file located at path
+ *
+ * \note The directory containing path will be created if it does not exist
+ * \note This function assumes path does not end with a '/'
+ *
+ * \param path The directory path to create the file in
+ * \param filename Function allocates memory and stores full filename (including path) here
+ * \param template_name mkstemp template to use. Must end with XXXXXX.
+ *
+ * \note filename will need to be freed with ast_free if this function succeeds
+ *
+ * \retval -1 on failure
+ * \return file descriptor on success
+ */
+int ast_file_fdtemp(const char *path, char **filename, const char *template_name);
+
+/*!
  * \brief Callback called for each file found when reading directories
  * \param dir_name the name of the directory
  * \param filename the name of the file
