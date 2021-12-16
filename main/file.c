@@ -199,6 +199,26 @@ FILE *ast_file_mkftemp(char *template, mode_t mode)
 	return p;
 }
 
+int ast_file_fdtemp(const char *path, char **filename, const char *template_name)
+{
+	int fd;
+
+	if (ast_asprintf(filename, "%s/%s", path, template_name) < 0) {
+		ast_log(LOG_ERROR, "Failed to set up temporary file path\n");
+		return -1;
+	}
+
+	ast_mkdir(path, 0644);
+
+	if ((fd = mkstemp(*filename)) < 0) {
+		ast_log(LOG_NOTICE, "Failed to create temporary file\n");
+		ast_free(*filename);
+		return -1;
+	}
+
+	return fd;
+}
+
 int ast_stopstream(struct ast_channel *tmp)
 {
 	ast_channel_lock(tmp);
