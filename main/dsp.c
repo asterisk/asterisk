@@ -165,6 +165,8 @@ enum gsamp_thresh {
 
 #define	MAX_DTMF_DIGITS		128
 
+#define DTMF_MATRIX_SIZE	4
+
 /* Basic DTMF (AT&T) specs:
  *
  * Minimum tone on = 40ms
@@ -280,8 +282,8 @@ typedef struct
 
 typedef struct
 {
-	goertzel_state_t row_out[4];
-	goertzel_state_t col_out[4];
+	goertzel_state_t row_out[DTMF_MATRIX_SIZE];
+	goertzel_state_t col_out[DTMF_MATRIX_SIZE];
 	int hits;			/* How many successive hits we have seen already */
 	int misses;			/* How many successive misses we have seen already */
 	int lasthit;
@@ -532,7 +534,7 @@ static void ast_dtmf_detect_init(dtmf_detect_state_t *s, unsigned int sample_rat
 {
 	int i;
 
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < DTMF_MATRIX_SIZE; i++) {
 		goertzel_init(&s->row_out[i], dtmf_row[i], sample_rate);
 		goertzel_init(&s->col_out[i], dtmf_col[i], sample_rate);
 	}
@@ -692,8 +694,8 @@ static void store_digit(digit_detect_state_t *s, char digit)
 
 static int dtmf_detect(struct ast_dsp *dsp, digit_detect_state_t *s, int16_t amp[], int samples, int squelch, int relax)
 {
-	float row_energy[4];
-	float col_energy[4];
+	float row_energy[DTMF_MATRIX_SIZE];
+	float col_energy[DTMF_MATRIX_SIZE];
 	int i;
 	int j;
 	int sample;
@@ -732,6 +734,7 @@ static int dtmf_detect(struct ast_dsp *dsp, digit_detect_state_t *s, int16_t amp
 			goertzel_sample(s->td.dtmf.col_out + 2, samp);
 			goertzel_sample(s->td.dtmf.row_out + 3, samp);
 			goertzel_sample(s->td.dtmf.col_out + 3, samp);
+			/* go up to DTMF_MATRIX_SIZE - 1 */
 		}
 		s->td.dtmf.current_sample += (limit - sample);
 		if (s->td.dtmf.current_sample < DTMF_GSIZE) {
@@ -742,7 +745,7 @@ static int dtmf_detect(struct ast_dsp *dsp, digit_detect_state_t *s, int16_t amp
 		row_energy[0] = goertzel_result(&s->td.dtmf.row_out[0]);
 		col_energy[0] = goertzel_result(&s->td.dtmf.col_out[0]);
 
-		for (best_row = best_col = 0, i = 1; i < 4; i++) {
+		for (best_row = best_col = 0, i = 1; i < DTMF_MATRIX_SIZE; i++) {
 			row_energy[i] = goertzel_result(&s->td.dtmf.row_out[i]);
 			if (row_energy[i] > row_energy[best_row]) {
 				best_row = i;
@@ -763,7 +766,7 @@ static int dtmf_detect(struct ast_dsp *dsp, digit_detect_state_t *s, int16_t amp
 		    col_energy[best_col] < row_energy[best_row] * (relax ? relax_dtmf_reverse_twist : dtmf_reverse_twist) &&
 		    row_energy[best_row] < col_energy[best_col] * (relax ? relax_dtmf_normal_twist : dtmf_normal_twist)) {
 			/* Relative peak test */
-			for (i = 0; i < 4; i++) {
+			for (i = 0; i < DTMF_MATRIX_SIZE; i++) {
 				if ((i != best_col &&
 				    col_energy[i] * DTMF_RELATIVE_PEAK_COL > col_energy[best_col]) ||
 				    (i != best_row
@@ -772,7 +775,7 @@ static int dtmf_detect(struct ast_dsp *dsp, digit_detect_state_t *s, int16_t amp
 				}
 			}
 			/* ... and fraction of total energy test */
-			if (i >= 4 &&
+			if (i >= DTMF_MATRIX_SIZE &&
 			    (row_energy[best_row] + col_energy[best_col]) > DTMF_TO_TOTAL_ENERGY * s->td.dtmf.energy) {
 				/* Got a hit */
 				hit = dtmf_positions[(best_row << 2) + best_col];
@@ -878,7 +881,7 @@ static int dtmf_detect(struct ast_dsp *dsp, digit_detect_state_t *s, int16_t amp
 		}
 
 		/* Reinitialise the detector for the next block */
-		for (i = 0; i < 4; i++) {
+		for (i = 0; i < DTMF_MATRIX_SIZE; i++) {
 			goertzel_reset(&s->td.dtmf.row_out[i]);
 			goertzel_reset(&s->td.dtmf.col_out[i]);
 		}
@@ -1922,8 +1925,8 @@ static int _dsp_init(int reload)
 	dtmf_reverse_twist = DEF_DTMF_REVERSE_TWIST;
 	relax_dtmf_normal_twist = DEF_RELAX_DTMF_NORMAL_TWIST;
 	relax_dtmf_reverse_twist = DEF_RELAX_DTMF_REVERSE_TWIST;
-        dtmf_hits_to_begin = DEF_DTMF_HITS_TO_BEGIN;
-        dtmf_misses_to_end = DEF_DTMF_MISSES_TO_END;
+	dtmf_hits_to_begin = DEF_DTMF_HITS_TO_BEGIN;
+	dtmf_misses_to_end = DEF_DTMF_MISSES_TO_END;
 
 	if (cfg == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEINVALID) {
 		return 0;
