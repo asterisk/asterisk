@@ -1323,6 +1323,28 @@ static int pbx_builtin_gotoif(struct ast_channel *chan, const char *data)
 	return pbx_builtin_goto(chan, branch);
 }
 
+/*!
+ * \brief Determine if DTMF interruption was requested.
+ *
+ * If the SAY_DTMF_INTERRUPT channel variable is truthy, the caller has
+ * requested DTMF interruption be enabled.
+ *
+ * \param chan the channel to examine
+ *
+ * \retval -1 if DTMF interruption was requested
+ * \retval  0 if DTMF interruption was not requested
+ */
+static int permit_dtmf_interrupt(struct ast_channel *chan)
+{
+	int interrupt;
+
+	ast_channel_lock(chan);
+	interrupt = ast_true(pbx_builtin_getvar_helper(chan, "SAY_DTMF_INTERRUPT"));
+	ast_channel_unlock(chan);
+
+	return interrupt;
+}
+
 static int pbx_builtin_saynumber(struct ast_channel *chan, const char *data)
 {
 	char tmp[256];
@@ -1330,15 +1352,7 @@ static int pbx_builtin_saynumber(struct ast_channel *chan, const char *data)
 	int number_val;
 	char *options;
 	int res;
-	int interrupt = 0;
-	const char *interrupt_string;
-
-	ast_channel_lock(chan);
-	interrupt_string = pbx_builtin_getvar_helper(chan, "SAY_DTMF_INTERRUPT");
-	if (ast_true(interrupt_string)) {
-		interrupt = 1;
-	}
-	ast_channel_unlock(chan);
+	int interrupt = permit_dtmf_interrupt(chan);
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "SayNumber requires an argument (number)\n");
@@ -1377,15 +1391,7 @@ static int pbx_builtin_sayordinal(struct ast_channel *chan, const char *data)
 	int number_val;
 	char *options;
 	int res;
-	int interrupt = 0;
-	const char *interrupt_string;
-
-	ast_channel_lock(chan);
-	interrupt_string = pbx_builtin_getvar_helper(chan, "SAY_DTMF_INTERRUPT");
-	if (ast_true(interrupt_string)) {
-		interrupt = 1;
-	}
-	ast_channel_unlock(chan);
+	int interrupt = permit_dtmf_interrupt(chan);
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "SayOrdinal requires an argument (number)\n");
@@ -1420,18 +1426,9 @@ static int pbx_builtin_sayordinal(struct ast_channel *chan, const char *data)
 static int pbx_builtin_saydigits(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
-	int interrupt = 0;
-	const char *interrupt_string;
-
-	ast_channel_lock(chan);
-	interrupt_string = pbx_builtin_getvar_helper(chan, "SAY_DTMF_INTERRUPT");
-	if (ast_true(interrupt_string)) {
-		interrupt = 1;
-	}
-	ast_channel_unlock(chan);
 
 	if (data) {
-		res = ast_say_digit_str(chan, data, interrupt ? AST_DIGIT_ANY : "", ast_channel_language(chan));
+		res = ast_say_digit_str(chan, data, permit_dtmf_interrupt(chan) ? AST_DIGIT_ANY : "", ast_channel_language(chan));
 	}
 
 	return res;
@@ -1440,18 +1437,9 @@ static int pbx_builtin_saydigits(struct ast_channel *chan, const char *data)
 static int pbx_builtin_saymoney(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
-	int interrupt = 0;
-	const char *interrupt_string;
-
-	ast_channel_lock(chan);
-	interrupt_string = pbx_builtin_getvar_helper(chan, "SAY_DTMF_INTERRUPT");
-	if (ast_true(interrupt_string)) {
-		interrupt = 1;
-	}
-	ast_channel_unlock(chan);
 
 	if (data) {
-		res = ast_say_money_str(chan, data, interrupt ? AST_DIGIT_ANY : "", ast_channel_language(chan));
+		res = ast_say_money_str(chan, data, permit_dtmf_interrupt(chan) ? AST_DIGIT_ANY : "", ast_channel_language(chan));
 	}
 
 	return res;
@@ -1462,20 +1450,11 @@ static int pbx_builtin_saycharacters_case(struct ast_channel *chan, const char *
 	int res = 0;
 	int sensitivity = 0;
 	char *parse;
-	int interrupt = 0;
-	const char *interrupt_string;
 
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(options);
 		AST_APP_ARG(characters);
 	);
-
-	ast_channel_lock(chan);
-	interrupt_string = pbx_builtin_getvar_helper(chan, "SAY_DTMF_INTERRUPT");
-	if (ast_true(interrupt_string)) {
-		interrupt = 1;
-	}
-	ast_channel_unlock(chan);
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "SayAlphaCase requires two arguments (options, characters)\n");
@@ -1508,7 +1487,7 @@ static int pbx_builtin_saycharacters_case(struct ast_channel *chan, const char *
 		return 0;
 	}
 
-	res = ast_say_character_str(chan, args.characters, interrupt ? AST_DIGIT_ANY : "", ast_channel_language(chan), sensitivity);
+	res = ast_say_character_str(chan, args.characters, permit_dtmf_interrupt(chan) ? AST_DIGIT_ANY : "", ast_channel_language(chan), sensitivity);
 
 	return res;
 }
@@ -1516,18 +1495,9 @@ static int pbx_builtin_saycharacters_case(struct ast_channel *chan, const char *
 static int pbx_builtin_saycharacters(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
-	int interrupt = 0;
-	const char *interrupt_string;
-
-	ast_channel_lock(chan);
-	interrupt_string = pbx_builtin_getvar_helper(chan, "SAY_DTMF_INTERRUPT");
-	if (ast_true(interrupt_string)) {
-		interrupt = 1;
-	}
-	ast_channel_unlock(chan);
 
 	if (data) {
-		res = ast_say_character_str(chan, data, interrupt ? AST_DIGIT_ANY : "", ast_channel_language(chan), AST_SAY_CASE_NONE);
+		res = ast_say_character_str(chan, data, permit_dtmf_interrupt(chan) ? AST_DIGIT_ANY : "", ast_channel_language(chan), AST_SAY_CASE_NONE);
 	}
 
 	return res;
@@ -1536,18 +1506,11 @@ static int pbx_builtin_saycharacters(struct ast_channel *chan, const char *data)
 static int pbx_builtin_sayphonetic(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
-	int interrupt = 0;
-	const char *interrupt_string;
 
-	ast_channel_lock(chan);
-	interrupt_string = pbx_builtin_getvar_helper(chan, "SAY_DTMF_INTERRUPT");
-	if (ast_true(interrupt_string)) {
-		interrupt = 1;
+	if (data) {
+		res = ast_say_phonetic_str(chan, data, permit_dtmf_interrupt(chan) ? AST_DIGIT_ANY : "", ast_channel_language(chan));
 	}
-	ast_channel_unlock(chan);
 
-	if (data)
-		res = ast_say_phonetic_str(chan, data, interrupt ? AST_DIGIT_ANY : "", ast_channel_language(chan));
 	return res;
 }
 
