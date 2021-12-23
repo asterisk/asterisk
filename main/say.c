@@ -189,6 +189,13 @@ static int say_filenames(struct ast_channel *chan, const char *ints, const char 
 				res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
 			else
 				res = ast_waitstream(chan, ints);
+
+			if (res > 0) {
+				/* We were interrupted by a digit */
+				ast_stopstream(chan);
+				ast_free(filenames);
+				return res;
+			}
 		}
 		ast_stopstream(chan);
 	}
