@@ -6847,8 +6847,6 @@ static int reload_config(void)
 {
 	struct ast_config *cfg;
 	struct ast_variable *v;
-	struct ast_hostent ahp;
-	struct hostent *hp;
 	struct sockaddr_in bindaddr = { 0, };
 	char *config = "unistim.conf";
 	char *cat;
@@ -6916,11 +6914,11 @@ static int reload_config(void)
 			}
 		} else if (!strcasecmp(v->name, "public_ip")) {
 			if (!ast_strlen_zero(v->value)) {
-				if (!(hp = ast_gethostbyname(v->value, &ahp))) {
+				struct ast_sockaddr addr = { {0,} };
+				if (ast_sockaddr_resolve_first_af(&addr, v->value, PARSE_PORT_FORBID, AF_INET)) {
 					ast_log(LOG_WARNING, "Invalid address: %s\n", v->value);
 				} else {
-					memcpy(&public_ip.sin_addr, hp->h_addr, sizeof(public_ip.sin_addr));
-					public_ip.sin_family = AF_INET;
+					ast_sockaddr_to_sin(&addr, &public_ip);
 				}
 			}
 		}

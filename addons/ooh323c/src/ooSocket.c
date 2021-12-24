@@ -537,8 +537,6 @@ int ooPDWrite(struct pollfd *pfds, int nfds, int fd)
 int ooGetLocalIPAddress(char * pIPAddrs)
 {
    int ret;
-   struct hostent *hp;
-   struct ast_hostent phost;
    char hostname[100];
 
    if(pIPAddrs == NULL)
@@ -546,20 +544,11 @@ int ooGetLocalIPAddress(char * pIPAddrs)
    ret = gethostname(hostname, 100);
    if(ret == 0)
    {
-      if ((hp = ast_gethostbyname(hostname, &phost))) {
-			if (hp->h_addrtype == AF_INET6) {
-				struct in6_addr i;
-				memcpy(&i, hp->h_addr, sizeof(i));
-				strcpy(pIPAddrs, (inet_ntop(AF_INET6, &i,
-				hostname, sizeof(hostname))) == NULL ? "::1" :
-				inet_ntop(AF_INET6, &i, hostname, sizeof(hostname)));
-			} else {
-	  			struct in_addr i;
-				memcpy(&i, hp->h_addr, sizeof(i));
-			  	strcpy(pIPAddrs, (ast_inet_ntoa(i) == NULL) ? "127.0.0.1" : ast_inet_ntoa(i));
-			}
-      } else {
+      struct ast_sockaddr addr = { {0,} };
+      if (ast_sockaddr_resolve_first_af(&addr, hostname, PARSE_PORT_FORBID, AF_UNSPEC)) {
          return -1;
+      } else {
+         strcpy(pIPAddrs, ast_sockaddr_stringify_addr(&addr));
       }
    }
    else{
