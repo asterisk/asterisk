@@ -3863,8 +3863,7 @@ double_done:
 		/* default is either the supplied value or the result itself */
 		struct sockaddr_in *def = (flags & PARSE_DEFAULT) ?
 			va_arg(ap, struct sockaddr_in *) : sa;
-		struct hostent *hp;
-		struct ast_hostent ahp;
+		struct ast_sockaddr addr = { {0,} };
 
 		memset(&_sa_buf, '\0', sizeof(_sa_buf)); /* clear buffer */
 		/* duplicate the string to strip away the :port */
@@ -3890,12 +3889,13 @@ double_done:
 				error = 1;
 		}
 		/* Now deal with host part, even if we have errors before. */
-		hp = ast_gethostbyname(buf, &ahp);
-		if (hp)	/* resolved successfully */
-			memcpy(&sa->sin_addr, hp->h_addr, sizeof(sa->sin_addr));
-		else {
+		if (ast_sockaddr_resolve_first_af(&addr, buf, PARSE_PORT_FORBID, AF_INET)) {
 			error = 1;
 			sa->sin_addr = def->sin_addr;
+		} else {
+			struct sockaddr_in tmp;
+			ast_sockaddr_to_sin(&addr, &tmp);
+			sa->sin_addr = tmp.sin_addr;
 		}
 		ast_debug(3,
 			"extract inaddr from [%s] gives [%s:%d](%d)\n",
