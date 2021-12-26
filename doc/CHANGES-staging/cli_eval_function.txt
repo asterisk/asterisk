@@ -1,0 +1,5 @@
+Subject: cli
+
+A new CLI command 'dialplan eval function' has been
+added which allows users to test the behavior of
+dialplan function calls directly from the CLI.
