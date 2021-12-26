@@ -924,6 +924,52 @@ static char *handle_show_chanvar(struct ast_cli_entry *e, int cmd, struct ast_cl
 	return CLI_SUCCESS;
 }
 
+/*! \brief CLI support for executing function */
+static char *handle_eval_function(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct ast_channel *c = NULL;
+	char *fn, *substituted;
+	int ret;
+	char workspace[1024];
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "dialplan eval function";
+		e->usage =
+			"Usage: dialplan eval function <name(args)>\n"
+			"       Evaluate a dialplan function call\n"
+			"       A dummy channel is used to evaluate\n"
+			"       the function call, so only global\n"
+			"       variables should be used.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != e->args + 1) {
+		return CLI_SHOWUSAGE;
+	}
+
+	c = ast_dummy_channel_alloc();
+	if (!c) {
+		ast_cli(a->fd, "Unable to allocate bogus channel for function evaluation.\n");
+		return CLI_FAILURE;
+	}
+
+	fn = (char *) a->argv[3];
+	pbx_substitute_variables_helper(c, fn, workspace, sizeof(workspace));
+	substituted = ast_strdupa(workspace);
+	workspace[0] = '\0';
+	ret = ast_func_read(c, substituted, workspace, sizeof(workspace));
+
+	c = ast_channel_unref(c);
+
+	ast_cli(a->fd, "Return Value: %s (%d)\n", ret ? "Failure" : "Success", ret);
+	ast_cli(a->fd, "Result: %s\n", workspace);
+
+	return CLI_SUCCESS;
+}
+
 static char *handle_set_global(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	switch (cmd) {
@@ -1218,6 +1264,7 @@ void pbx_builtin_clear_globals(void)
 static struct ast_cli_entry vars_cli[] = {
 	AST_CLI_DEFINE(handle_show_globals, "Show global dialplan variables"),
 	AST_CLI_DEFINE(handle_show_chanvar, "Show channel variables"),
+	AST_CLI_DEFINE(handle_eval_function, "Evaluate dialplan function"),
 	AST_CLI_DEFINE(handle_set_global, "Set global dialplan variable"),
 	AST_CLI_DEFINE(handle_set_chanvar, "Set a channel variable"),
 };
