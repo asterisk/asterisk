@@ -2877,10 +2877,12 @@ int bridge_channel_internal_join(struct ast_bridge_channel *bridge_channel)
 	ast_bridge_lock(bridge_channel->bridge);
 
 	ast_channel_lock(bridge_channel->chan);
-
 	peer = ast_local_get_peer(bridge_channel->chan);
+
 	if (peer) {
 		struct ast_bridge *peer_bridge;
+
+		ast_channel_unlock(bridge_channel->chan);
 
 		ast_channel_lock(peer);
 		peer_bridge = ast_channel_internal_bridge(peer);
@@ -2891,7 +2893,6 @@ int bridge_channel_internal_join(struct ast_bridge_channel *bridge_channel)
 		 * to be reference counted or locked.
 		 */
 		if (peer_bridge == bridge_channel->bridge) {
-			ast_channel_unlock(bridge_channel->chan);
 			ast_bridge_unlock(bridge_channel->bridge);
 			ast_debug(1, "Bridge %s: %p(%s) denying Bridge join to prevent Local channel loop\n",
 				bridge_channel->bridge->uniqueid,
@@ -2899,6 +2900,8 @@ int bridge_channel_internal_join(struct ast_bridge_channel *bridge_channel)
 				ast_channel_name(bridge_channel->chan));
 			return -1;
 		}
+
+		ast_channel_lock(bridge_channel->chan);
 	}
 
 	bridge_channel->read_format = ao2_bump(ast_channel_readformat(bridge_channel->chan));
