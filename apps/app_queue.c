@@ -4181,7 +4181,7 @@ static int say_position(struct queue_ent *qe, int ringing)
 			res = (
 				play_file(qe->chan, qe->parent->sound_thereare) ||
 				ast_say_number(qe->chan, qe->pos, AST_DIGIT_ANY,
-						ast_channel_language(qe->chan), NULL) || /* Needs gender */
+						ast_channel_language(qe->chan), "n") || /* Needs gender */
 				play_file(qe->chan, qe->parent->sound_calls));
 		}
 		if (res) {
@@ -4212,7 +4212,7 @@ static int say_position(struct queue_ent *qe, int ringing)
 		}
 
 		if (avgholdmins >= 1) {
-			res = ast_say_number(qe->chan, avgholdmins, AST_DIGIT_ANY, ast_channel_language(qe->chan), NULL);
+			res = ast_say_number(qe->chan, avgholdmins, AST_DIGIT_ANY, ast_channel_language(qe->chan), "n");
 			if (res) {
 				goto playout;
 			}
@@ -4230,7 +4230,7 @@ static int say_position(struct queue_ent *qe, int ringing)
 			}
 		}
 		if (avgholdsecs >= 1) {
-			res = ast_say_number(qe->chan, avgholdsecs, AST_DIGIT_ANY, ast_channel_language(qe->chan), NULL);
+			res = ast_say_number(qe->chan, avgholdsecs, AST_DIGIT_ANY, ast_channel_language(qe->chan), "n");
 			if (res) {
 				goto playout;
 			}
@@ -7108,13 +7108,13 @@ static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_a
 						holdtime = labs((now - qe->start) / 60);
 						holdtimesecs = labs((now - qe->start) % 60);
 						if (holdtime > 0) {
-							ast_say_number(peer, holdtime, AST_DIGIT_ANY, ast_channel_language(peer), NULL);
+							ast_say_number(peer, holdtime, AST_DIGIT_ANY, ast_channel_language(peer), "n");
 							if (play_file(peer, qe->parent->sound_minutes) < 0) {
 								ast_log(LOG_ERROR, "play_file failed for '%s' on %s\n", qe->parent->sound_minutes, ast_channel_name(peer));
 							}
 						}
 						if (holdtimesecs > 1) {
-							ast_say_number(peer, holdtimesecs, AST_DIGIT_ANY, ast_channel_language(peer), NULL);
+							ast_say_number(peer, holdtimesecs, AST_DIGIT_ANY, ast_channel_language(peer), "n");
 							if (play_file(peer, qe->parent->sound_seconds) < 0) {
 								ast_log(LOG_ERROR, "play_file failed for '%s' on %s\n", qe->parent->sound_seconds, ast_channel_name(peer));
 							}
