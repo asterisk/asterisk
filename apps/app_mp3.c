@@ -179,6 +179,7 @@ static int mp3_exec(struct ast_channel *chan, const char *data)
 	int pid = -1;
 	RAII_VAR(struct ast_format *, owriteformat, NULL, ao2_cleanup);
 	int timeout = 2;
+	int startedmp3 = 0;
 	struct timeval next;
 	struct ast_frame *f;
 	struct myframe {
@@ -242,12 +243,16 @@ static int mp3_exec(struct ast_channel *chan, const char *data)
 				if (res > 0) {
 					myf.f.datalen = res;
 					myf.f.samples = res / 2;
+					startedmp3 = 1;
 					if (ast_write(chan, &myf.f) < 0) {
 						res = -1;
 						break;
 					}
 				} else {
 					ast_debug(1, "No more mp3\n");
+					if (!startedmp3) { /* we couldn't do anything, which means this stream doesn't work */
+						ast_log(LOG_WARNING, "MP3 stream '%s' is broken or nonexistent\n", data);
+					}
 					res = 0;
 					break;
 				}
