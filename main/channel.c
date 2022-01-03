@@ -3417,6 +3417,11 @@ static void send_flash_event(struct ast_channel *chan)
 	ast_channel_publish_blob(chan, ast_channel_flash_type(), NULL);
 }
 
+static void send_wink_event(struct ast_channel *chan)
+{
+	ast_channel_publish_blob(chan, ast_channel_wink_type(), NULL);
+}
+
 static void ast_read_generator_actions(struct ast_channel *chan, struct ast_frame *f)
 {
 	struct ast_generator *generator;
@@ -3885,6 +3890,8 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio, int
 				f = &ast_null_frame;
 			} else if (f->subclass.integer == AST_CONTROL_FLASH) {
 				send_flash_event(chan);
+			} else if (f->subclass.integer == AST_CONTROL_WINK) {
+				send_wink_event(chan);
 			}
 			break;
 		case AST_FRAME_DTMF_END:

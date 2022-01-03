@@ -121,6 +121,7 @@
 							<enum name="ast_channel_dtmf_begin_type" />
 							<enum name="ast_channel_dtmf_end_type" />
 							<enum name="ast_channel_flash_type" />
+							<enum name="ast_channel_wink_type" />
 							<enum name="ast_channel_hold_type" />
 							<enum name="ast_channel_unhold_type" />
 							<enum name="ast_channel_chanspy_start_type" />
