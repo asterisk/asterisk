@@ -529,6 +529,13 @@ struct stasis_message_type *ast_channel_dtmf_end_type(void);
 struct stasis_message_type *ast_channel_flash_type(void);
 
 /*!
+ * \brief Message type for when a wink occurs on a channel.
+ *
+ * \return A stasis message type
+ */
+struct stasis_message_type *ast_channel_wink_type(void);
+
+/*!
  * \since 12
  * \brief Message type for when a channel is placed on hold.
  *
