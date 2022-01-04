@@ -1,0 +1,123 @@
+From 3faf1d2b4da553bbaee04f9a13a5d084b381e5fb Mon Sep 17 00:00:00 2001
+From: sauwming <ming@teluu.com>
+Date: Tue, 4 Jan 2022 15:28:49 +0800
+Subject: [PATCH] Fix incorrect unescaping of tokens during parsing (#2933)
+
+---
+ pjsip/src/pjsip/sip_parser.c | 29 +++++++++++++++++++++++++----
+ pjsip/src/test/msg_test.c    |  6 +++---
+ 2 files changed, 28 insertions(+), 7 deletions(-)
+
+diff --git a/pjsip/src/pjsip/sip_parser.c b/pjsip/src/pjsip/sip_parser.c
+index c2add3299..b9a7c6a5c 100644
+--- a/pjsip/src/pjsip/sip_parser.c
++++ b/pjsip/src/pjsip/sip_parser.c
+@@ -378,17 +378,23 @@ static pj_status_t init_parser()
+     PJ_ASSERT_RETURN(status == PJ_SUCCESS, status);
+     pj_cis_add_str( &pconst.pjsip_TOKEN_SPEC, TOKEN);
+ 
++    /* Token is allowed to have '%' so we do not need this. */
++    /*
+     status = pj_cis_dup(&pconst.pjsip_TOKEN_SPEC_ESC, &pconst.pjsip_TOKEN_SPEC);
+     PJ_ASSERT_RETURN(status == PJ_SUCCESS, status);
+     pj_cis_del_str(&pconst.pjsip_TOKEN_SPEC_ESC, "%");
++    */
+ 
+     status = pj_cis_dup(&pconst.pjsip_VIA_PARAM_SPEC, &pconst.pjsip_TOKEN_SPEC);
+     PJ_ASSERT_RETURN(status == PJ_SUCCESS, status);
+     pj_cis_add_str(&pconst.pjsip_VIA_PARAM_SPEC, "[:]");
+ 
++    /* Token is allowed to have '%' */
++    /*
+     status = pj_cis_dup(&pconst.pjsip_VIA_PARAM_SPEC_ESC, &pconst.pjsip_TOKEN_SPEC_ESC);
+     PJ_ASSERT_RETURN(status == PJ_SUCCESS, status);
+     pj_cis_add_str(&pconst.pjsip_VIA_PARAM_SPEC_ESC, "[:]");
++    */
+ 
+     status = pj_cis_dup(&pconst.pjsip_HOST_SPEC, &pconst.pjsip_ALNUM_SPEC);
+     PJ_ASSERT_RETURN(status == PJ_SUCCESS, status);
+@@ -1210,7 +1216,11 @@ static void parse_param_imp( pj_scanner *scanner, pj_pool_t *pool,
+ 			     unsigned option)
+ {
+     /* pname */
+-    parser_get_and_unescape(scanner, pool, spec, esc_spec, pname);
++    if (!esc_spec) {
++    	pj_scan_get(scanner, spec, pname);
++    } else {
++	parser_get_and_unescape(scanner, pool, spec, esc_spec, pname);
++    }
+ 
+     /* init pvalue */
+     pvalue->ptr = NULL;
+@@ -1240,7 +1250,12 @@ static void parse_param_imp( pj_scanner *scanner, pj_pool_t *pool,
+ 		// pj_scan_get_until_ch(scanner, ']', pvalue);
+ 		// pj_scan_get_char(scanner);
+ 	    } else if(pj_cis_match(spec, *scanner->curptr)) {
+-		parser_get_and_unescape(scanner, pool, spec, esc_spec, pvalue);
++	    	if (!esc_spec) {
++    		    pj_scan_get(scanner, spec, pvalue);
++    		} else {
++		    parser_get_and_unescape(scanner, pool, spec, esc_spec,
++		    			    pvalue);
++		}
+ 	    }
+ 	}
+     }
+@@ -1252,7 +1267,10 @@ PJ_DEF(void) pjsip_parse_param_imp(pj_scanner *scanner, pj_pool_t *pool,
+ 			     	   unsigned option)
+ {
+     parse_param_imp(scanner, pool, pname, pvalue, &pconst.pjsip_TOKEN_SPEC,
+-		    &pconst.pjsip_TOKEN_SPEC_ESC, option);
++		    // Token does not need to be unescaped.
++		    // Refer to PR #2933.
++		    // &pconst.pjsip_TOKEN_SPEC_ESC,
++		    NULL, option);
+ }
+ 
+ 
+@@ -2168,7 +2186,10 @@ static void int_parse_via_param( pjsip_via_hdr *hdr, pj_scanner *scanner,
+ 	pj_scan_get_char(scanner);
+ 	parse_param_imp(scanner, pool, &pname, &pvalue,
+ 			&pconst.pjsip_VIA_PARAM_SPEC,
+-			&pconst.pjsip_VIA_PARAM_SPEC_ESC,
++		    	// Token does not need to be unescaped.
++		     	// Refer to PR #2933.
++		    	// &pconst.pjsip_VIA_PARAM_SPEC_ESC,
++			NULL,
+ 			0);
+ 
+ 	if (!parser_stricmp(pname, pconst.pjsip_BRANCH_STR) && pvalue.slen) {
+diff --git a/pjsip/src/test/msg_test.c b/pjsip/src/test/msg_test.c
+index c511e1cf6..24e3d405d 100644
+--- a/pjsip/src/test/msg_test.c
++++ b/pjsip/src/test/msg_test.c
+@@ -953,7 +953,7 @@ static int hdr_test_subject_utf(pjsip_hdr *h);
+ 
+ 
+ #define GENERIC_PARAM	     "p0=a;p1=\"ab:;cd\";p2=ab%3acd;p3"
+-#define GENERIC_PARAM_PARSED "p0=a;p1=\"ab:;cd\";p2=ab:cd;p3"
++#define GENERIC_PARAM_PARSED "p0=a;p1=\"ab:;cd\";p2=ab%3acd;p3"
+ #define PARAM_CHAR	     "][/:&+$"
+ #define SIMPLE_ADDR_SPEC     "sip:host"
+ #define ADDR_SPEC	     SIMPLE_ADDR_SPEC ";"PARAM_CHAR"="PARAM_CHAR ";p1=\";\""
+@@ -1401,7 +1401,7 @@ static int generic_param_test(pjsip_param *param_head)
+     param = param->next;
+     if (pj_strcmp2(&param->name, "p2"))
+ 	return -956;
+-    if (pj_strcmp2(&param->value, "ab:cd"))
++    if (pj_strcmp2(&param->value, "ab%3acd"))
+ 	return -957;
+ 
+     param = param->next;
+@@ -1621,7 +1621,7 @@ static int hdr_test_content_type(pjsip_hdr *h)
+     prm = prm->next;
+     if (prm == &hdr->media.param) return -1960;
+     if (pj_strcmp2(&prm->name, "p2")) return -1961;
+-    if (pj_strcmp2(&prm->value, "ab:cd")) return -1962;
++    if (pj_strcmp2(&prm->value, "ab%3acd")) return -1962;
+ 
+     prm = prm->next;
+     if (prm == &hdr->media.param) return -1970;
+-- 
+2.32.0
+
