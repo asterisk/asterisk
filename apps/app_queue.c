@@ -4127,9 +4127,8 @@ static int valid_exit(struct queue_ent *qe, char digit)
 
 static int say_position(struct queue_ent *qe, int ringing)
 {
-	int res = 0, announceposition = 0;
+	int res = 0, say_thanks = 0;
 	long avgholdmins, avgholdsecs;
-	int say_thanks = 1;
 	time_t now;
 
 	/* Let minannouncefrequency seconds pass between the start of each position announcement */
@@ -4158,11 +4157,7 @@ static int say_position(struct queue_ent *qe, int ringing)
 		qe->parent->announceposition == ANNOUNCEPOSITION_MORE_THAN ||
 		(qe->parent->announceposition == ANNOUNCEPOSITION_LIMIT &&
 		qe->pos <= qe->parent->announcepositionlimit)) {
-			announceposition = 1;
-	}
-
-
-	if (announceposition == 1) {
+		say_thanks = 1;
 		/* Say we're next, if we are */
 		if (qe->pos == 1) {
 			res = play_file(qe->chan, qe->parent->sound_next);
@@ -4206,6 +4201,7 @@ static int say_position(struct queue_ent *qe, int ringing)
 	if ((avgholdmins+avgholdsecs) > 0 && qe->parent->announceholdtime &&
 		((qe->parent->announceholdtime == ANNOUNCEHOLDTIME_ONCE && !qe->last_pos) ||
 		!(qe->parent->announceholdtime == ANNOUNCEHOLDTIME_ONCE))) {
+		say_thanks = 1;
 		res = play_file(qe->chan, qe->parent->sound_holdtime);
 		if (res) {
 			goto playout;
@@ -4240,8 +4236,6 @@ static int say_position(struct queue_ent *qe, int ringing)
 				goto playout;
 			}
 		}
-	} else if (qe->parent->announceholdtime && !qe->parent->announceposition) {
-		say_thanks = 0;
 	}
 
 posout:
