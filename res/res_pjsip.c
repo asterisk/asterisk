@@ -2050,6 +2050,34 @@ int ast_copy_pj_str2(char **dest, const pj_str_t *src)
 	return res;
 }
 
+int ast_sip_are_media_types_equal(pjsip_media_type *a, pjsip_media_type *b)
+{
+	int rc = 0;
+	if (a != NULL && b != NULL) {
+	    rc = pjsip_media_type_cmp(a, b, 0) ? 0 : 1;
+	}
+	return rc;
+}
+
+int ast_sip_is_media_type_in(pjsip_media_type *a, ...)
+{
+	int rc = 0;
+	pjsip_media_type *b = NULL;
+	va_list ap;
+
+	ast_assert(a != NULL);
+	va_start(ap, a);
+
+	while ((b = va_arg(ap, pjsip_media_type *)) != (pjsip_media_type *)SENTINEL) {
+		if (pjsip_media_type_cmp(a, b, 0) == 0) {
+			rc = 1;
+			break;
+		}
+	}
+	va_end(ap);
+
+	return rc;
+}
 
 int ast_sip_is_content_type(pjsip_media_type *content_type, char *type, char *subtype)
 {
@@ -2602,6 +2630,20 @@ void never_called_res_pjsip(void)
 	pjmedia_strerror(0, NULL, 0);
 }
 
+/* Definitions of media types declared "extern" in res_pjsip.h */
+pjsip_media_type pjsip_media_type_application_json;
+pjsip_media_type pjsip_media_type_application_media_control_xml;
+pjsip_media_type pjsip_media_type_application_pidf_xml;
+pjsip_media_type pjsip_media_type_application_xpidf_xml;
+pjsip_media_type pjsip_media_type_application_cpim_xpidf_xml;
+pjsip_media_type pjsip_media_type_application_rlmi_xml;
+pjsip_media_type pjsip_media_type_application_simple_message_summary;
+pjsip_media_type pjsip_media_type_application_sdp;
+pjsip_media_type pjsip_media_type_multipart_alternative;
+pjsip_media_type pjsip_media_type_multipart_mixed;
+pjsip_media_type pjsip_media_type_multipart_related;
+pjsip_media_type pjsip_media_type_text_plain;
+
 static int load_module(void)
 {
 	struct ast_threadpool_options options;
@@ -2620,6 +2662,21 @@ static int load_module(void)
 		!= PJ_SUCCESS) {
 		ast_log(LOG_WARNING, "Failed to register pjmedia error codes.  Codes will not be decoded.\n");
 	}
+
+	/* Initialize common media types */
+	pjsip_media_type_init2(&pjsip_media_type_application_json, "application", "json");
+	pjsip_media_type_init2(&pjsip_media_type_application_media_control_xml, "application", "media_control+xml");
+	pjsip_media_type_init2(&pjsip_media_type_application_pidf_xml, "application", "pidf+xml");
+	pjsip_media_type_init2(&pjsip_media_type_application_xpidf_xml, "application", "xpidf+xml");
+	pjsip_media_type_init2(&pjsip_media_type_application_cpim_xpidf_xml, "application", "cpim-xpidf+xml");
+	pjsip_media_type_init2(&pjsip_media_type_application_rlmi_xml, "application", "rlmi+xml");
+	pjsip_media_type_init2(&pjsip_media_type_application_sdp, "application", "sdp");
+	pjsip_media_type_init2(&pjsip_media_type_application_simple_message_summary, "application",	"simple-message-summary");
+	pjsip_media_type_init2(&pjsip_media_type_multipart_alternative, "multipart", "alternative");
+	pjsip_media_type_init2(&pjsip_media_type_multipart_mixed, "multipart", "mixed");
+	pjsip_media_type_init2(&pjsip_media_type_multipart_related, "multipart", "related");
+	pjsip_media_type_init2(&pjsip_media_type_text_plain, "text", "plain");
+
 
 	if (ast_sip_initialize_system()) {
 		ast_log(LOG_ERROR, "Failed to initialize SIP 'system' configuration section. Aborting load\n");

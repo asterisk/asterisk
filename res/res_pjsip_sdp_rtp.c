@@ -2310,9 +2310,8 @@ static int video_info_incoming_request(struct ast_sip_session *session, struct p
 	pjsip_tx_data *tdata;
 
 	if (!session->channel
-		|| !ast_sip_is_content_type(&rdata->msg_info.msg->body->content_type,
-			"application",
-			"media_control+xml")) {
+		|| !ast_sip_are_media_types_equal(&rdata->msg_info.msg->body->content_type,
+			&pjsip_media_type_application_media_control_xml)) {
 		return 0;
 	}
 
