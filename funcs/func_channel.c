@@ -234,6 +234,12 @@
 					<enum name="context">
 						<para>R/O returns the context for an outbound channel.</para>
 					</enum>
+					<enum name="lastexten">
+						<para>R/O returns the last unique extension for an outbound channel.</para>
+					</enum>
+					<enum name="lastcontext">
+						<para>R/O returns the last unique context for an outbound channel.</para>
+					</enum>
 					<enum name="channame">
 						<para>R/O returns the channel name for an outbound channel.</para>
 					</enum>
@@ -410,6 +416,10 @@ static int func_channel_read(struct ast_channel *chan, const char *function,
 		locked_copy_string(chan, buf, ast_channel_exten(chan), len);
 	else if (!strcasecmp(data, "context"))
 		locked_copy_string(chan, buf, ast_channel_context(chan), len);
+	else if (!strcasecmp(data, "lastexten"))
+		locked_copy_string(chan, buf, ast_channel_lastexten(chan), len);
+	else if (!strcasecmp(data, "lastcontext"))
+		locked_copy_string(chan, buf, ast_channel_lastcontext(chan), len);
 	else if (!strcasecmp(data, "userfield"))
 		locked_copy_string(chan, buf, ast_channel_userfield(chan), len);
 	else if (!strcasecmp(data, "channame"))
