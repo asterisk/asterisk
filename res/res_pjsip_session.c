@@ -3893,9 +3893,8 @@ static int check_content_disposition(pjsip_rx_data *rdata)
 	pjsip_ctype_hdr *ctype_hdr = rdata->msg_info.ctype;
 
 	if (body && ctype_hdr &&
-		!pj_stricmp2(&ctype_hdr->media.type, "multipart") &&
-		(!pj_stricmp2(&ctype_hdr->media.subtype, "mixed") ||
-		 !pj_stricmp2(&ctype_hdr->media.subtype, "alternative"))) {
+		ast_sip_is_media_type_in(&ctype_hdr->media, &pjsip_media_type_multipart_mixed,
+			&pjsip_media_type_multipart_alternative, SENTINEL)) {
 		pjsip_multipart_part *part = pjsip_multipart_get_first_part(body);
 		while (part != NULL) {
 			if (check_content_disposition_in_multipart(part)) {
@@ -5488,7 +5487,7 @@ static void session_outgoing_nat_hook(pjsip_tx_data *tdata, struct ast_sip_trans
 
 	/* SDP produced by us directly will never be multipart */
 	if (!transport_state || hook || !tdata->msg->body ||
-		!ast_sip_is_content_type(&tdata->msg->body->content_type, "application", "sdp") ||
+		!ast_sip_are_media_types_equal(&tdata->msg->body->content_type, &pjsip_media_type_application_sdp) ||
 		ast_strlen_zero(transport->external_media_address)) {
 		return;
 	}
