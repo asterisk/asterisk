@@ -953,6 +953,40 @@ struct ast_sip_endpoint {
 #define AST_SIP_X_AST_TXP "x-ast-txp"
 #define AST_SIP_X_AST_TXP_LEN 9
 
+/*! Common media types used throughout res_pjsip and pjproject */
+extern pjsip_media_type pjsip_media_type_application_json;
+extern pjsip_media_type pjsip_media_type_application_media_control_xml;
+extern pjsip_media_type pjsip_media_type_application_pidf_xml;
+extern pjsip_media_type pjsip_media_type_application_xpidf_xml;
+extern pjsip_media_type pjsip_media_type_application_cpim_xpidf_xml;
+extern pjsip_media_type pjsip_media_type_application_rlmi_xml;
+extern pjsip_media_type pjsip_media_type_application_simple_message_summary;
+extern pjsip_media_type pjsip_media_type_application_sdp;
+extern pjsip_media_type pjsip_media_type_multipart_alternative;
+extern pjsip_media_type pjsip_media_type_multipart_mixed;
+extern pjsip_media_type pjsip_media_type_multipart_related;
+extern pjsip_media_type pjsip_media_type_text_plain;
+
+/*!
+ * \brief Compare pjsip media types
+ *
+ * \param pjsip_media_type a
+ * \param pjsip_media_type b
+ * \retval 1 Media types are equal
+ * \retval 0 Media types are not equal
+ */
+int ast_sip_are_media_types_equal(pjsip_media_type *a, pjsip_media_type *b);
+
+/*!
+ * \brief Check if a media type is in a list of others
+ *
+ * \param a pjsip_media_type to search for
+ * \param ... one or more pointers to pjsip_media_types the last of which must be "SENTINEL"
+ * \retval 1 Media types are equal
+ * \retval 0 Media types are not equal
+ */
+int ast_sip_is_media_type_in(pjsip_media_type *a, ...) attribute_sentinel;
+
 /*!
  * \brief Initialize an auth vector with the configured values.
  *
