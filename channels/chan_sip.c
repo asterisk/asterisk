@@ -26605,7 +26605,14 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 		if (!error && ast_strlen_zero(pickup.exten) &&
 				ast_channel_state(replaces_chan) != AST_STATE_RINGING &&
 				ast_channel_state(replaces_chan) != AST_STATE_RING &&
-				ast_channel_state(replaces_chan) != AST_STATE_UP) {
+				ast_channel_state(replaces_chan) != AST_STATE_UP &&
+				/*
+				* Check the down state as well because some SIP devices do not
+				* give 180 ringing when they can just give 183 session progress
+				* instead. same fix the one in ast_can_pickup
+				* git show 0a8f9d2cf08
+				*/
+				ast_channel_state(replaces_chan) != AST_STATE_DOWN) {
 			ast_log(LOG_NOTICE, "Supervised transfer attempted to replace non-ringing or active call id (%s)!\n", replace_id);
 			transmit_response_reliable(p, "603 Declined (Replaces)", req);
 			error = 1;
