@@ -392,6 +392,8 @@ struct sip_outbound_registration_client_state {
 	char *transport_name;
 	/*! \brief The name of the registration sorcery object */
 	char *registration_name;
+	/*! \brief Expected time of registration lapse/expiration */
+	unsigned int registration_expires;
 };
 
 /*! \brief Outbound registration state information (persists for lifetime that registration should exist) */
@@ -738,6 +740,7 @@ static void schedule_registration(struct sip_outbound_registration_client_state 
 				(int) info.client_uri.slen, info.client_uri.ptr);
 		ao2_ref(client_state, -1);
 	}
+	client_state->registration_expires = ((int) time(NULL)) + seconds;
 }
 
 static void update_client_state_status(struct sip_outbound_registration_client_state *client_state, enum sip_outbound_registration_status status)
@@ -2261,7 +2264,7 @@ static int cli_print_header(void *obj, void *arg, int flags)
 	ast_assert(context->output_buffer != NULL);
 
 	ast_str_append(&context->output_buffer, 0,
-		" <Registration/ServerURI..............................>  <Auth..........>  <Status.......>\n");
+		" <Registration/ServerURI..............................>  <Auth....................>  <Status.......>\n");
 
 	return 0;
 }
@@ -2272,11 +2275,13 @@ static int cli_print_body(void *obj, void *arg, int flags)
 	struct ast_sip_cli_context *context = arg;
 	const char *id = ast_sorcery_object_get_id(registration);
 	struct sip_outbound_registration_state *state = get_state(id);
+	int expsecs;
 #define REGISTRATION_URI_FIELD_LEN	53
 
 	ast_assert(context->output_buffer != NULL);
+	expsecs = state ? state->client_state->registration_expires - ((int) time(NULL)) : 0;
 
-	ast_str_append(&context->output_buffer, 0, " %-s/%-*.*s  %-16s  %-16s\n",
+	ast_str_append(&context->output_buffer, 0, " %-s/%-*.*s  %-26s  %-16s %s%d%s\n",
 		id,
 		(int) (REGISTRATION_URI_FIELD_LEN - strlen(id)),
 		(int) (REGISTRATION_URI_FIELD_LEN - strlen(id)),
@@ -2284,7 +2289,8 @@ static int cli_print_body(void *obj, void *arg, int flags)
 		AST_VECTOR_SIZE(&registration->outbound_auths)
 			? AST_VECTOR_GET(&registration->outbound_auths, 0)
 			: "n/a",
-		(state ? sip_outbound_registration_status_str(state->client_state->status) : "Unregistered"));
+		(state ? sip_outbound_registration_status_str(state->client_state->status) : "Unregistered"),
+		state ? " (exp. " : "", abs(expsecs), state ? (expsecs < 0 ? "s ago)" : "s)") : "");
 	ao2_cleanup(state);
 
 	if (context->show_details
