@@ -33,10 +33,25 @@
 /* Used for CURL requests */
 #define GLOBAL_USERAGENT "asterisk-libcurl-agent/1.0"
 
+/* Used to limit download size */
+#define MAX_DOWNLOAD_SIZE 8192
+
+/* Used to limit how many bytes we get from CURL per write */
+#define MAX_BUF_SIZE_PER_WRITE 1024
+
+/* Certificates should begin with this */
+#define BEGIN_CERTIFICATE_STR "-----BEGIN CERTIFICATE-----"
+
 /* CURL callback data to avoid storing useless info in AstDB */
 struct curl_cb_data {
 	char *cache_control;
 	char *expires;
+};
+
+struct curl_cb_write_buf {
+	char buf[MAX_DOWNLOAD_SIZE + 1];
+	size_t size;
+	const char *url;
 };
 
 struct curl_cb_data *curl_cb_data_create(void)
@@ -151,124 +166,133 @@ static CURL *get_curl_instance(struct curl_cb_data *data)
 }
 
 /*!
- * \brief Create a temporary file located at path
+ * \brief Write callback passed to libcurl
  *
- * \note This function assumes path does not end with a '/'
+ * \note If this function returns anything other than the size of the data
+ * libcurl expected us to process, the request will cancel. That's why we return
+ * 0 on error, otherwise the amount of data we were given
  *
- * \param path The directory path to create the file in
- * \param filename Function allocates memory and stores full filename (including path) here
+ * \param curl_data The data from libcurl
+ * \param size Always 1 according to libcurl
+ * \param actual_size The actual size of the data
+ * \param our_data The data we passed to libcurl
  *
- * \retval -1 on failure
- * \retval file descriptor on success
+ * \retval The size of the data we processed
+ * \retval 0 if there was an error
  */
-static int create_temp_file(const char *path, char **filename)
+static size_t curl_write_cb(void *curl_data, size_t size, size_t actual_size, void *our_data)
 {
-	const char *template_name = "certXXXXXX";
-	int fd;
+	/* Just in case size is NOT always 1 or if it's changed in the future, let's go ahead
+	 * and do the math for the actual size */
+	size_t real_size = size * actual_size;
+	struct curl_cb_write_buf *buf = our_data;
+	size_t new_size = buf->size + real_size;
 
-	if (ast_asprintf(filename, "%s/%s", path, template_name) < 0) {
-		ast_log(LOG_ERROR, "Failed to set up temporary file path for CURL\n");
-		return -1;
+	if (new_size > MAX_DOWNLOAD_SIZE) {
+		ast_log(LOG_WARNING, "Attempted to retrieve certificate from %s failed "
+			"because it's size exceeds the maximum %d bytes\n", buf->url, MAX_DOWNLOAD_SIZE);
+		return 0;
 	}
 
-	ast_mkdir(path, 0644);
+	memcpy(&(buf->buf[buf->size]), curl_data, real_size);
+	buf->size += real_size;
+	buf->buf[buf->size] = 0;
 
-	if ((fd = mkstemp(*filename)) < 0) {
-		ast_log(LOG_NOTICE, "Failed to create temporary file for CURL\n");
-		ast_free(*filename);
-		return -1;
-	}
-
-	return fd;
+	return real_size;
 }
 
 char *curl_public_key(const char *public_cert_url, const char *path, struct curl_cb_data *data)
 {
 	FILE *public_key_file;
-	RAII_VAR(char *, tmp_filename, NULL, ast_free);
 	char *filename;
 	char *serial;
-	int fd;
 	long http_code;
 	CURL *curl;
 	char curl_errbuf[CURL_ERROR_SIZE + 1];
+	struct curl_cb_write_buf *buf;
 
 	curl_errbuf[CURL_ERROR_SIZE] = '\0';
 
-	/* For now, it's fine to pass in path as is - it shouldn't end with a '/'. However,
-	 * if we decide to change how certificates are stored in the future (configurable paths),
-	 * then we will need to check to see if path ends with '/', copy everything up to the '/',
-	 * and use this new variable for create_temp_file as well as for ast_asprintf below.
-	 */
-	fd = create_temp_file(path, &tmp_filename);
-	if (fd == -1) {
-		ast_log(LOG_ERROR, "Failed to get temporary file descriptor for CURL\n");
+	buf = ast_calloc(1, sizeof(*buf));
+	if (!buf) {
+		ast_log(LOG_ERROR, "Failed to allocate memory for CURL write buffer for %s\n", public_cert_url);
 		return NULL;
 	}
 
-	public_key_file = fdopen(fd, "wb");
-	if (!public_key_file) {
-		ast_log(LOG_ERROR, "Failed to open file '%s' to write public key from '%s': %s (%d)\n",
-			tmp_filename, public_cert_url, strerror(errno), errno);
-		close(fd);
-		remove(tmp_filename);
-		return NULL;
-	}
+	buf->url = public_cert_url;
+	curl_errbuf[CURL_ERROR_SIZE] = '\0';
 
 	curl = get_curl_instance(data);
 	if (!curl) {
 		ast_log(LOG_ERROR, "Failed to set up CURL instance for '%s'\n", public_cert_url);
-		fclose(public_key_file);
-		remove(tmp_filename);
+		ast_free(buf);
 		return NULL;
 	}
 
 	curl_easy_setopt(curl, CURLOPT_URL, public_cert_url);
-	curl_easy_setopt(curl, CURLOPT_WRITEDATA, public_key_file);
+	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_write_cb);
+	curl_easy_setopt(curl, CURLOPT_WRITEDATA, buf);
 	curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, curl_errbuf);
+	curl_easy_setopt(curl, CURLOPT_BUFFERSIZE, MAX_BUF_SIZE_PER_WRITE);
 
 	if (curl_easy_perform(curl)) {
 		ast_log(LOG_ERROR, "%s\n", curl_errbuf);
 		curl_easy_cleanup(curl);
-		fclose(public_key_file);
-		remove(tmp_filename);
+		ast_free(buf);
 		return NULL;
 	}
 
 	curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
 
 	curl_easy_cleanup(curl);
-	fclose(public_key_file);
 
 	if (http_code / 100 != 2) {
 		ast_log(LOG_ERROR, "Failed to retrieve URL '%s': code %ld\n", public_cert_url, http_code);
-		remove(tmp_filename);
+		ast_free(buf);
 		return NULL;
 	}
 
-	serial = stir_shaken_get_serial_number_x509(tmp_filename);
+	if (!ast_begins_with(buf->buf, BEGIN_CERTIFICATE_STR)) {
+		ast_log(LOG_WARNING, "Certificate from %s does not begin with what we expect\n", public_cert_url);
+		ast_free(buf);
+		return NULL;
+	}
+
+	serial = stir_shaken_get_serial_number_x509(buf->buf, buf->size);
 	if (!serial) {
-		ast_log(LOG_ERROR, "Failed to get serial from cert %s\n", tmp_filename);
-		remove(tmp_filename);
+		ast_log(LOG_ERROR, "Failed to get serial from CURL buffer from %s\n", public_cert_url);
+		ast_free(buf);
 		return NULL;
 	}
 
 	if (ast_asprintf(&filename, "%s/%s.pem", path, serial) < 0) {
-		ast_log(LOG_ERROR, "Failed to allocate memory for new filename for temporary "
-			"file %s after CURL\n", tmp_filename);
+		ast_log(LOG_ERROR, "Failed to allocate memory for filename after CURL from %s\n", public_cert_url);
 		ast_free(serial);
-		remove(tmp_filename);
+		ast_free(buf);
 		return NULL;
 	}
 
 	ast_free(serial);
 
-	if (rename(tmp_filename, filename)) {
-		ast_log(LOG_ERROR, "Failed to rename temporary file %s to %s after CURL\n", tmp_filename, filename);
+	public_key_file = fopen(filename, "w");
+	if (!public_key_file) {
+		ast_log(LOG_ERROR, "Failed to open file '%s' to write public key from '%s': %s (%d)\n",
+			filename, public_cert_url, strerror(errno), errno);
+		ast_free(buf);
 		ast_free(filename);
-		remove(tmp_filename);
 		return NULL;
 	}
+
+	if (fputs(buf->buf, public_key_file) == EOF) {
+		ast_log(LOG_ERROR, "Failed to write string to file from URL %s\n", public_cert_url);
+		fclose(public_key_file);
+		ast_free(buf);
+		ast_free(filename);
+		return NULL;
+	}
+
+	fclose(public_key_file);
+	ast_free(buf);
 
 	return filename;
 }
