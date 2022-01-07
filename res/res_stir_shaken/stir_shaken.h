@@ -53,15 +53,16 @@ char *stir_shaken_tab_complete_name(const char *word, struct ao2_container *cont
 EVP_PKEY *stir_shaken_read_key(const char *path, int priv);
 
 /*!
- * \brief Gets the serial number in hex form from the X509 certificate at path
+ * \brief Gets the serial number in hex form from the buffer (for X509)
  *
  * \note The returned string will need to be freed by the caller
  *
- * \param path The full path of the X509 certificate
+ * \param buf The BASE64 encoded buffer
+ * \param buf_size The size of the data in buf
  *
  * \retval NULL on failure
  * \retval serial number on success
  */
-char *stir_shaken_get_serial_number_x509(const char *path);
+char *stir_shaken_get_serial_number_x509(const char *buf, size_t buf_size);
 
 #endif /* _STIR_SHAKEN_H */
