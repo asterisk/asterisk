@@ -49,6 +49,55 @@
 		</syntax>
 		<description>
 			<para>Variables starting with <literal>AST_</literal> are reserved to the system and may not be set.</para>
+			<para>Additionally, the following system variables are available as special built-in dialplan variables.
+			These variables cannot be set or modified and are read-only.</para>
+			<variablelist>
+				<variable name="EPOCH">
+					<para>Current unix style epoch</para>
+				</variable>
+				<variable name="SYSTEMNAME">
+					<para>value of the <literal>systemname</literal> option from <literal>asterisk.conf</literal></para>
+				</variable>
+				<variable name="ASTCACHEDIR">
+					<para>value of the <literal>astcachedir</literal> option from <literal>asterisk.conf</literal></para>
+				</variable>
+				<variable name="ASTETCDIR">
+					<para>value of the <literal>astetcdir</literal> option from <literal>asterisk.conf</literal></para>
+				</variable>
+				<variable name="ASTMODDIR">
+					<para>value of the <literal>astmoddir</literal> option from <literal>asterisk.conf</literal></para>
+				</variable>
+				<variable name="ASTVARLIBDIR">
+					<para>value of the <literal>astvarlib</literal> option from <literal>asterisk.conf</literal></para>
+				</variable>
+				<variable name="ASTDBDIR">
+					<para>value of the <literal>astdbdir</literal> option from <literal>asterisk.conf</literal></para>
+				</variable>
+				<variable name="ASTKEYDIR">
+					<para>value of the <literal>astkeydir</literal> option from <literal>asterisk.conf</literal></para>
+				</variable>
+				<variable name="ASTDATADIR">
+					<para>value of the <literal>astdatadir</literal> option from <literal>asterisk.conf</literal></para>
+				</variable>
+				<variable name="ASTAGIDIR">
+					<para>value of the <literal>astagidir</literal> option from <literal>asterisk.conf</literal></para>
+				</variable>
+				<variable name="ASTSPOOLDIR">
+					<para>value of the <literal>astspooldir</literal> option from <literal>asterisk.conf</literal></para>
+				</variable>
+				<variable name="ASTRUNDIR">
+					<para>value of the <literal>astrundir</literal> option from <literal>asterisk.conf</literal></para>
+				</variable>
+				<variable name="ASTLOGDIR">
+					<para>value of the <literal>astlogdir</literal> option from <literal>asterisk.conf</literal></para>
+				</variable>
+				<variable name="ASTSBINDIR">
+					<para>value of the <literal>astsbindir</literal> option from <literal>asterisk.conf</literal></para>
+				</variable>
+				<variable name="ENTITYID">
+					<para>Global Entity ID set automatically, or from <literal>asterisk.conf</literal></para>
+				</variable>
+			</variablelist>
 		</description>
 	</function>
 	<function name="STAT" language="en_US">
