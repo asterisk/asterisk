@@ -350,6 +350,8 @@ const char *ast_str_retrieve_variable(struct ast_str **str, ssize_t maxlen, stru
 			s = ast_config_AST_RUN_DIR;
 		} else if (!strcmp(var, "ASTLOGDIR")) {
 			s = ast_config_AST_LOG_DIR;
+		} else if (!strcmp(var, "ASTSBINDIR")) {
+			s = ast_config_AST_SBIN_DIR;
 		} else if (!strcmp(var, "ENTITYID")) {
 			ast_eid_to_str(workspace, sizeof(workspace), &ast_eid_default);
 			s = workspace;
