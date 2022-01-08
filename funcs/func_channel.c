@@ -278,6 +278,41 @@
 				same => n,Log(NOTICE, This channel is: ${CHANNEL(state)})
 			</example>
 			<xi:include xpointer="xpointer(/docs/info[@name='CHANNEL_EXAMPLES'])" />
+			<para>The following channel variables are available as special built-in
+			dialplan channel variables. These variables cannot be set or modified
+			and are read-only.</para>
+			<variablelist>
+				<variable name="CALLINGPRES">
+					<para>Caller ID presentation for incoming calls (PRI channels)</para>
+				</variable>
+				<variable name="CALLINGANI2">
+					<para>Caller ANI2 (PRI channels)</para>
+				</variable>
+				<variable name="CALLINGTON">
+					<para>Caller Type of Number (PRI channels)</para>
+				</variable>
+				<variable name="CALLINGTNS">
+					<para>Transit Network Selector (PRI channels)</para>
+				</variable>
+				<variable name="EXTEN">
+					<para>Current extension</para>
+				</variable>
+				<variable name="CONTEXT">
+					<para>Current context</para>
+				</variable>
+				<variable name="PRIORITY">
+					<para>Current priority</para>
+				</variable>
+				<variable name="CHANNEL">
+					<para>Current channel name</para>
+				</variable>
+				<variable name="UNIQUEID">
+					<para>Current call unique identifier</para>
+				</variable>
+				<variable name="HANGUPCAUSE">
+					<para>Asterisk cause of hangup (inbound/outbound)</para>
+				</variable>
+			</variablelist>
 		</description>
 	</function>
  ***/
