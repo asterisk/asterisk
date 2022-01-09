@@ -1,0 +1,4 @@
+Subject: ami
+
+AMI events can now be globally disabled using
+the disabledevents [general] setting.

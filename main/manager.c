@@ -1479,6 +1479,7 @@ static int manager_debug = 0;	/*!< enable some debugging code in the manager */
 static int authtimeout;
 static int authlimit;
 static char *manager_channelvars;
+static char *manager_disabledevents;
 
 #define DEFAULT_REALM		"asterisk"
 static char global_realm[MAXHOSTNAMELEN];	/*!< Default realm */
@@ -7237,6 +7238,15 @@ int __ast_manager_event_multichan(int category, const char *event, int chancount
 	va_list ap;
 	int res;
 
+	if (!ast_strlen_zero(manager_disabledevents)) {
+		if (ast_in_delimited_string(event, manager_disabledevents, ',')) {
+			ast_debug(3, "AMI Event '%s' is globally disabled, skipping\n", event);
+			/* Event is globally disabled */
+			ao2_cleanup(sessions);
+			return 0;
+		}
+	}
+
 	if (!any_manager_listeners(sessions)) {
 		/* Nobody is listening */
 		ao2_cleanup(sessions);
@@ -8701,6 +8711,7 @@ static char *handle_manager_show_settings(struct ast_cli_entry *e, int cmd, stru
 	ast_cli(a->fd, FORMAT, "Display connects:", AST_CLI_YESNO(displayconnects));
 	ast_cli(a->fd, FORMAT, "Timestamp events:", AST_CLI_YESNO(timestampevents));
 	ast_cli(a->fd, FORMAT, "Channel vars:", S_OR(manager_channelvars, ""));
+	ast_cli(a->fd, FORMAT, "Disabled events:", S_OR(manager_disabledevents, ""));
 	ast_cli(a->fd, FORMAT, "Debug:", AST_CLI_YESNO(manager_debug));
 #undef FORMAT
 #undef FORMAT2
@@ -8921,10 +8932,10 @@ static struct ast_cli_entry cli_manager[] = {
  */
 static void load_channelvars(struct ast_variable *var)
 {
-        char *parse = NULL;
-        AST_DECLARE_APP_ARGS(args,
-                AST_APP_ARG(vars)[MAX_VARS];
-        );
+	char *parse = NULL;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(vars)[MAX_VARS];
+	);
 
 	ast_free(manager_channelvars);
 	manager_channelvars = ast_strdup(var->value);
@@ -8934,6 +8945,18 @@ static void load_channelvars(struct ast_variable *var)
 	AST_STANDARD_APP_ARGS(args, parse);
 
 	ast_channel_set_manager_vars(args.argc, args.vars);
+}
+
+/*!
+ * \internal
+ * \brief Load the config disabledevents variable.
+ *
+ * \param var Config variable to load.
+ */
+static void load_disabledevents(struct ast_variable *var)
+{
+	ast_free(manager_disabledevents);
+	manager_disabledevents = ast_strdup(var->value);
 }
 
 /*!
@@ -9050,6 +9073,7 @@ static void manager_shutdown(void)
 	acl_change_stasis_unsubscribe();
 
 	ast_free(manager_channelvars);
+	ast_free(manager_disabledevents);
 }
 
 
@@ -9344,6 +9368,8 @@ static int __init_manager(int reload, int by_external_config)
 			}
 		} else if (!strcasecmp(var->name, "channelvars")) {
 			load_channelvars(var);
+		} else if (!strcasecmp(var->name, "disabledevents")) {
+			load_disabledevents(var);
 		} else {
 			ast_log(LOG_NOTICE, "Invalid keyword <%s> = <%s> in manager.conf [general]\n",
 				var->name, val);
