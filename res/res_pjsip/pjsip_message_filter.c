@@ -231,6 +231,8 @@ static pj_status_t filter_on_tx_message(pjsip_tx_data *tdata)
 	pjsip_via_hdr *via;
 	pjsip_fromto_hdr *from;
 	pjsip_tpselector sel;
+	pjsip_sdp_info *sdp_info;
+	pjmedia_sdp_session *sdp;
 
 	sanitize_tdata(tdata);
 
@@ -326,10 +328,23 @@ static pj_status_t filter_on_tx_message(pjsip_tx_data *tdata)
 		}
 	}
 
-	/* Update the SDP if it is present */
-	if (tdata->msg->body && ast_sip_is_content_type(&tdata->msg->body->content_type, "application", "sdp") &&
-		multihomed_rewrite_sdp(tdata->msg->body->data)) {
-		struct pjmedia_sdp_session *sdp = tdata->msg->body->data;
+	/* If there's no body in the tdata we can just return here. */
+	if (!tdata->msg->body) {
+		return PJ_SUCCESS;
+	}
+
+	/*
+	 * pjsip_get_sdp_info will search for an SDP even if it's in
+	 * a multipart message body.
+	 */
+	sdp_info = pjsip_get_sdp_info(tdata->pool, tdata->msg->body, NULL, &pjsip_media_type_application_sdp);
+	if (sdp_info->sdp_err != PJ_SUCCESS || !sdp_info->sdp) {
+		return PJ_SUCCESS;
+	}
+
+	sdp = sdp_info->sdp;
+
+	if (multihomed_rewrite_sdp(sdp)) {
 		static const pj_str_t STR_IP4 = { "IP4", 3 };
 		static const pj_str_t STR_IP6 = { "IP6", 3 };
 		pj_str_t STR_IP;

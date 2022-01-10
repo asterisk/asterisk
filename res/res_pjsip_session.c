@@ -5480,19 +5480,25 @@ static void session_outgoing_nat_hook(pjsip_tx_data *tdata, struct ast_sip_trans
 	RAII_VAR(struct ast_sip_transport_state *, transport_state, ast_sip_get_transport_state(ast_sorcery_object_get_id(transport)), ao2_cleanup);
 	struct ast_sip_nat_hook *hook = ast_sip_mod_data_get(
 		tdata->mod_data, session_module.id, MOD_DATA_NAT_HOOK);
-	struct pjmedia_sdp_session *sdp;
+	pjsip_sdp_info *sdp_info;
+	pjmedia_sdp_session *sdp;
 	pjsip_dialog *dlg = pjsip_tdata_get_dlg(tdata);
 	RAII_VAR(struct ast_sip_session *, session, dlg ? ast_sip_dialog_get_session(dlg) : NULL, ao2_cleanup);
 	int stream;
 
-	/* SDP produced by us directly will never be multipart */
-	if (!transport_state || hook || !tdata->msg->body ||
-		!ast_sip_are_media_types_equal(&tdata->msg->body->content_type, &pjsip_media_type_application_sdp) ||
-		ast_strlen_zero(transport->external_media_address)) {
+	/*
+	 * If there's no transport_state or body, or the hook
+	 * has already been run, just return.
+	 */
+	if (ast_strlen_zero(transport->external_media_address) || !transport_state || hook || !tdata->msg->body) {
 		return;
 	}
 
-	sdp = tdata->msg->body->data;
+	sdp_info = pjsip_get_sdp_info(tdata->pool, tdata->msg->body, NULL, &pjsip_media_type_application_sdp);
+	if (sdp_info->sdp_err != PJ_SUCCESS || !sdp_info->sdp) {
+		return;
+	}
+	sdp = sdp_info->sdp;
 
 	if (sdp->conn) {
 		char host[NI_MAXHOST];
