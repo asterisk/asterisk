@@ -596,11 +596,11 @@ static int detect_write(struct ast_channel *chan, const char *cmd, char *data, c
 	parse = ast_strdupa(data);
 	AST_STANDARD_APP_ARGS(args, parse);
 
-	if (ast_test_flag(&flags, OPT_END_FILTER)) {
-		return remove_detect(chan);
-	}
 	if (!ast_strlen_zero(args.options)) {
 		ast_app_parse_options(td_opts, &flags, opt_args, args.options);
+	}
+	if (ast_test_flag(&flags, OPT_END_FILTER)) {
+		return remove_detect(chan);
 	}
 	if (freq_parser(args.freqs, &freq1, &freq2)) {
 		return -1;
@@ -739,7 +739,7 @@ static int wait_exec(struct ast_channel *chan, const char *data)
 		pbx_builtin_setvar_helper(chan, "WAITFORTONESTATUS", "ERROR");
 		return -1;
 	}
-	if (!ast_strlen_zero(args.timeout) && (sscanf(args.timeout, "%30lf", &timeoutf) != 1 || timeout < 0)) {
+	if (!ast_strlen_zero(args.timeout) && (sscanf(args.timeout, "%30lf", &timeoutf) != 1 || timeoutf < 0)) {
 		ast_log(LOG_WARNING, "Invalid timeout: %s\n", args.timeout);
 		pbx_builtin_setvar_helper(chan, "WAITFORTONESTATUS", "ERROR");
 		return -1;
