@@ -227,13 +227,13 @@ static int frame_drop_helper(struct ast_channel *chan, const char *cmd, char *da
 	buffer = ast_malloc(sizeof(value) + 3); /* leading and trailing comma and null terminator */
 	snprintf(buffer, sizeof(value) + 2, ",%s,", value);
 	for (i = 0; i < ARRAY_LEN(frametype2str); i++) {
-		if (strcasestr(value, frametype2str[i].str)) {
+		if (strcasestr(buffer, frametype2str[i].str)) {
 			framedata->values[i] = 1;
 		}
 	}
 
 	for (i = 0; i < ARRAY_LEN(controlframetype2str); i++) {
-		if (strcasestr(value, controlframetype2str[i].str)) {
+		if (strcasestr(buffer, controlframetype2str[i].str)) {
 			framedata->controlvalues[i] = 1;
 		}
 	}
