@@ -5757,7 +5757,7 @@ static struct ast_frame *process_cn_rfc3389(struct ast_rtp_instance *instance, u
 			ast_format_get_name(rtp->lastrxformat), len);
 	}
 
-	if (ast_test_flag(rtp, FLAG_3389_WARNING)) {
+	if (!ast_test_flag(rtp, FLAG_3389_WARNING)) {
 		struct ast_sockaddr remote_address = { {0,} };
 
 		ast_rtp_instance_get_remote_address(instance, &remote_address);
