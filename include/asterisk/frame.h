@@ -49,10 +49,10 @@ extern "C" {
  * \arg \b IMAGE:  Image transport, mostly used in IAX
  * \arg \b TEXT:   Text messages and character by character (real time text)
  * \arg \b TEXT_DATA:   Text messages in an ast_msg_data structure
- * \arg \b HTML:   URL's and web pages
+ * \arg \b HTML:   URLs and web pages
  * \arg \b MODEM:  Modulated data encodings, such as T.38 and V.150
  * \arg \b IAX:    Private frame type for the IAX protocol
- * \arg \b CNG:    Comfort noice frames
+ * \arg \b CNG:    Comfort noise frames
  * \arg \b CONTROL:A control frame, subclass defined as AST_CONTROL_
  * \arg \b NULL:   Empty, useless frame
  *
