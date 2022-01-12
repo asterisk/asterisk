@@ -1,0 +1,176 @@
+From 7e3dfd8a15fd0f98dbf0e04d2d7a5bded90ee401 Mon Sep 17 00:00:00 2001
+From: George Joseph <gjoseph@sangoma.com>
+Date: Tue, 11 Jan 2022 09:27:23 -0700
+Subject: [PATCH] Create generic pjsip_hdr_find functions
+
+pjsip_msg_find_hdr(), pjsip_msg_find_hdr_by_name(), and
+pjsip_msg_find_hdr_by_names() require a pjsip_msg to be passed in
+so if you need to search a header list that's not in a pjsip_msg,
+you have to do it yourself.  This commit adds generic versions of
+those 3 functions that take in the actual header list head instead
+of a pjsip_msg so if you need to search a list of headers in
+something like a pjsip_multipart_part, you can do so easily.
+---
+ pjsip/include/pjsip/sip_msg.h | 53 +++++++++++++++++++++++++++++++++++
+ pjsip/src/pjsip/sip_msg.c     | 51 +++++++++++++++++++++++----------
+ 2 files changed, 89 insertions(+), 15 deletions(-)
+
+diff --git a/pjsip/include/pjsip/sip_msg.h b/pjsip/include/pjsip/sip_msg.h
+index 4c9100d39..e3502e94e 100644
+--- a/pjsip/include/pjsip/sip_msg.h
++++ b/pjsip/include/pjsip/sip_msg.h
+@@ -362,6 +362,59 @@ PJ_DECL(void*) pjsip_hdr_shallow_clone( pj_pool_t *pool, const void *hdr );
+  */
+ PJ_DECL(int) pjsip_hdr_print_on( void *hdr, char *buf, pj_size_t len);
+ 
++/**
++ * Find a header in a header list by the header type.
++ *
++ * @param hdr_list  The "head" of the header list.
++ * @param type      The header type to find.
++ * @param start     The first header field where the search should begin.
++ *                  If NULL is specified, then the search will begin from the
++ *                  first header, otherwise the search will begin at the
++ *                  specified header.
++ *
++ * @return          The header field, or NULL if no header with the specified
++ *                  type is found.
++ */
++PJ_DECL(void*)  pjsip_hdr_find( const void *hdr_list,
++				pjsip_hdr_e type,
++				const void *start);
++
++/**
++ * Find a header in a header list by its name.
++ *
++ * @param hdr_list  The "head" of the header list.
++ * @param name      The header name to find.
++ * @param start     The first header field where the search should begin.
++ *                  If NULL is specified, then the search will begin from the
++ *                  first header, otherwise the search will begin at the
++ *                  specified header.
++ *
++ * @return          The header field, or NULL if no header with the specified
++ *                  type is found.
++ */
++PJ_DECL(void*)  pjsip_hdr_find_by_name( const void *hdr_list,
++					const pj_str_t *name,
++					const void *start);
++
++/**
++ * Find a header in a header list by its name and short name version.
++ *
++ * @param hdr_list  The "head" of the header list.
++ * @param name      The header name to find.
++ * @param sname     The short name version of the header name.
++ * @param start     The first header field where the search should begin.
++ *                  If NULL is specified, then the search will begin from the
++ *                  first header, otherwise the search will begin at the
++ *                  specified header.
++ *
++ * @return	    The header field, or NULL if no header with the specified
++ *		    type is found.
++ */
++PJ_DECL(void*)  pjsip_hdr_find_by_names( const void *hdr_list,
++					 const pj_str_t *name,
++					 const pj_str_t *sname,
++					 const void *start);
++
+ /**
+  * @}
+  */
+diff --git a/pjsip/src/pjsip/sip_msg.c b/pjsip/src/pjsip/sip_msg.c
+index 6ba3054da..2a6a96af0 100644
+--- a/pjsip/src/pjsip/sip_msg.c
++++ b/pjsip/src/pjsip/sip_msg.c
+@@ -356,13 +356,13 @@ PJ_DEF(pjsip_msg*) pjsip_msg_clone( pj_pool_t *pool, const pjsip_msg *src)
+     return dst;
+ }
+ 
+-PJ_DEF(void*)  pjsip_msg_find_hdr( const pjsip_msg *msg, 
+-				   pjsip_hdr_e hdr_type, const void *start)
++PJ_DEF(void*)  pjsip_hdr_find( const void *hdr_list,
++			       pjsip_hdr_e hdr_type, const void *start)
+ {
+-    const pjsip_hdr *hdr=(const pjsip_hdr*) start, *end=&msg->hdr;
++    const pjsip_hdr *hdr=(const pjsip_hdr*) start, *end=hdr_list;
+ 
+     if (hdr == NULL) {
+-	hdr = msg->hdr.next;
++	hdr = end->next;
+     }
+     for (; hdr!=end; hdr = hdr->next) {
+ 	if (hdr->type == hdr_type)
+@@ -371,14 +371,14 @@ PJ_DEF(void*)  pjsip_msg_find_hdr( const pjsip_msg *msg,
+     return NULL;
+ }
+ 
+-PJ_DEF(void*)  pjsip_msg_find_hdr_by_name( const pjsip_msg *msg, 
+-					   const pj_str_t *name, 
+-					   const void *start)
++PJ_DEF(void*)  pjsip_hdr_find_by_name( const void *hdr_list,
++				       const pj_str_t *name,
++				       const void *start)
+ {
+-    const pjsip_hdr *hdr=(const pjsip_hdr*)start, *end=&msg->hdr;
++    const pjsip_hdr *hdr=(const pjsip_hdr*) start, *end=hdr_list;
+ 
+     if (hdr == NULL) {
+-	hdr = msg->hdr.next;
++	hdr = end->next;
+     }
+     for (; hdr!=end; hdr = hdr->next) {
+ 	if (pj_stricmp(&hdr->name, name) == 0)
+@@ -387,15 +387,15 @@ PJ_DEF(void*)  pjsip_msg_find_hdr_by_name( const pjsip_msg *msg,
+     return NULL;
+ }
+ 
+-PJ_DEF(void*)  pjsip_msg_find_hdr_by_names( const pjsip_msg *msg, 
+-					    const pj_str_t *name, 
+-					    const pj_str_t *sname,
+-					    const void *start)
++PJ_DEF(void*)  pjsip_hdr_find_by_names( const void *hdr_list,
++					const pj_str_t *name,
++					const pj_str_t *sname,
++					const void *start)
+ {
+-    const pjsip_hdr *hdr=(const pjsip_hdr*)start, *end=&msg->hdr;
++    const pjsip_hdr *hdr=(const pjsip_hdr*) start, *end=hdr_list;
+ 
+     if (hdr == NULL) {
+-	hdr = msg->hdr.next;
++	hdr = end->next;
+     }
+     for (; hdr!=end; hdr = hdr->next) {
+ 	if (pj_stricmp(&hdr->name, name) == 0)
+@@ -406,6 +406,27 @@ PJ_DEF(void*)  pjsip_msg_find_hdr_by_names( const pjsip_msg *msg,
+     return NULL;
+ }
+ 
++PJ_DEF(void*)  pjsip_msg_find_hdr( const pjsip_msg *msg,
++				   pjsip_hdr_e hdr_type, const void *start)
++{
++    return pjsip_hdr_find(&msg->hdr, hdr_type, start);
++}
++
++PJ_DEF(void*)  pjsip_msg_find_hdr_by_name( const pjsip_msg *msg,
++					   const pj_str_t *name,
++					   const void *start)
++{
++    return pjsip_hdr_find_by_name(&msg->hdr, name, start);
++}
++
++PJ_DEF(void*)  pjsip_msg_find_hdr_by_names( const pjsip_msg *msg,
++					    const pj_str_t *name,
++					    const pj_str_t *sname,
++					    const void *start)
++{
++    return pjsip_hdr_find_by_names(&msg->hdr, name, sname, start);
++}
++
+ PJ_DEF(void*) pjsip_msg_find_remove_hdr( pjsip_msg *msg, 
+ 				         pjsip_hdr_e hdr_type, void *start)
+ {
+-- 
+2.34.1
+
