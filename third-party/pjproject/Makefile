@@ -126,7 +126,7 @@ source/pjlib/include/pj/%.h: patches/%.h
 	$(ECHO_PREFIX) Rebuilding
 	$(CMD_PREFIX) $(MAKE) clean $(REALLY_QUIET)
 
-source/build.mak: Makefile.rules source/user.mak $(if $(PJPROJECT_BUNDLED_OOT),,.rebuild_needed)
+source/build.mak: Makefile.rules source/user.mak $(if $(PJPROJECT_BUNDLED_OOT),,.rebuild_needed) $(subst patches,source/pjlib/include/pj,$(wildcard patches/*.h))
 	$(ECHO_PREFIX) Configuring with $(PJPROJECT_CONFIG_OPTS) 
 	$(CMD_PREFIX) (cd source ; ./aconfigure $(QUIET_CONFIGURE) $(PJPROJECT_CONFIG_OPTS))
 
