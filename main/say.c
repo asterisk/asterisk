@@ -180,6 +180,13 @@ static int say_filenames(struct ast_channel *chan, const char *ints, const char 
 	if (!filenames) {
 		return -1;
 	}
+
+	/* No filenames to play? Return success so we don't hang up erroneously */
+	if (ast_str_strlen(filenames) == 0) {
+		ast_free(filenames);
+		return 0;
+	}
+
 	files = ast_str_buffer(filenames);
 
 	while ((fn = strsep(&files, "&"))) {
