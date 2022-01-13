@@ -600,8 +600,6 @@ static size_t WriteMemoryCallback(void *ptr, size_t size, size_t nmemb, void *da
 	return realsize;
 }
 
-static const char * const global_useragent = "asterisk-libcurl-agent/1.0";
-
 static int curl_instance_init(void *data)
 {
 	CURL **curl = data;
@@ -612,7 +610,7 @@ static int curl_instance_init(void *data)
 	curl_easy_setopt(*curl, CURLOPT_NOSIGNAL, 1);
 	curl_easy_setopt(*curl, CURLOPT_TIMEOUT, 180);
 	curl_easy_setopt(*curl, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
-	curl_easy_setopt(*curl, CURLOPT_USERAGENT, global_useragent);
+	curl_easy_setopt(*curl, CURLOPT_USERAGENT, AST_CURL_USER_AGENT);
 
 	return 0;
 }
