@@ -42,8 +42,6 @@
 #include "asterisk/threadstorage.h"
 #include "asterisk/uri.h"
 
-#define GLOBAL_USERAGENT "asterisk-libcurl-agent/1.0"
-
 #define MAX_HEADER_LENGTH 1023
 
 /*! \brief Data passed to cURL callbacks */
@@ -328,7 +326,7 @@ static CURL *get_curl_instance(struct curl_bucket_file_data *cb_data)
 	curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
 	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 180);
 	curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, curl_header_callback);
-	curl_easy_setopt(curl, CURLOPT_USERAGENT, GLOBAL_USERAGENT);
+	curl_easy_setopt(curl, CURLOPT_USERAGENT, AST_CURL_USER_AGENT);
 	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1);
 	curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 8);
 	curl_easy_setopt(curl, CURLOPT_URL, ast_sorcery_object_get_id(cb_data->bucket_file));

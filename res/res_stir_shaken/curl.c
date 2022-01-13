@@ -31,9 +31,6 @@
 /* Used to check CURL headers */
 #define MAX_HEADER_LENGTH 1023
 
-/* Used for CURL requests */
-#define GLOBAL_USERAGENT "asterisk-libcurl-agent/1.0"
-
 /* CURL callback data to avoid storing useless info in AstDB */
 struct curl_cb_data {
 	char *cache_control;
@@ -144,7 +141,7 @@ static CURL *get_curl_instance(struct curl_cb_data *data)
 
 	curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
 	curl_easy_setopt(curl, CURLOPT_TIMEOUT, curl_timeout);
-	curl_easy_setopt(curl, CURLOPT_USERAGENT, GLOBAL_USERAGENT);
+	curl_easy_setopt(curl, CURLOPT_USERAGENT, AST_CURL_USER_AGENT);
 	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1);
 	curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, curl_header_callback);
 	curl_easy_setopt(curl, CURLOPT_HEADERDATA, data);

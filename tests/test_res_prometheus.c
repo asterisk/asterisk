@@ -54,8 +54,6 @@ static void prometheus_metric_free_wrapper(void *ptr)
 	}
 }
 
-#define GLOBAL_USERAGENT "asterisk-libcurl-agent/1.0"
-
 static struct prometheus_general_config *config_alloc(void)
 {
 	struct prometheus_general_config *config;
@@ -84,7 +82,7 @@ static CURL *get_curl_instance(void)
 
 	curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
 	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 180);
-	curl_easy_setopt(curl, CURLOPT_USERAGENT, GLOBAL_USERAGENT);
+	curl_easy_setopt(curl, CURLOPT_USERAGENT, AST_CURL_USER_AGENT);
 	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1);
 	curl_easy_setopt(curl, CURLOPT_URL, server_uri);
 
