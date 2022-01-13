@@ -441,6 +441,55 @@ AST_OPTIONAL_API(struct ast_websocket *, ast_websocket_client_create,
 		  enum ast_websocket_result *result), { return NULL;});
 
 /*!
+ * \brief Options used for a websocket client
+ */
+struct ast_websocket_client_options {
+	/*!
+	 * The URI to connect to
+	 *
+	 * Expected uri form:
+	 *     \verbatim ws[s]://<address>[:port][/<path>] \endverbatim
+	 *     The address (can be a host name) and port are parsed out and used to connect
+	 *     to the remote server.  If multiple IPs are returned during address
+	 *     resolution then the first one is chosen.
+	 */
+	const char *uri;
+	/*!
+	 * A comma separated string of supported protocols
+	 */
+	const char *protocols;
+	/*!
+	 * Optional connection timeout
+	 *
+	 * How long (in milliseconds) to attempt to connect (-1 equals infinite)
+	 */
+	int timeout;
+	/*!
+	 * Secure websocket credentials
+	 */
+	struct ast_tls_config *tls_cfg;
+};
+
+/*!
+ * \brief Create, and connect, a websocket client using given options.
+ *
+ * If the client websocket successfully connects, then the accepted protocol can be
+ * checked via a call to ast_websocket_client_accept_protocol.
+ *
+ * \note While connecting this *will* block until a response is received
+ *       from the remote host, or the connection timeout is reached
+ *
+ * \param options Websocket client options
+ * \param result result code set on client failure
+ *
+ * \return a client websocket.
+ * \retval NULL if object could not be created or connected
+ */
+AST_OPTIONAL_API(struct ast_websocket *, ast_websocket_client_create_with_options,
+	(struct ast_websocket_client_options *options,
+	enum ast_websocket_result *result), { return NULL;});
+
+/*!
  * \brief Retrieve the server accepted sub-protocol on the client.
  *
  * \param ws the websocket client
