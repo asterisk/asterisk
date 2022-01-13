@@ -1223,8 +1223,7 @@ static void websocket_client_destroy(void *obj)
 }
 
 static struct ast_websocket * websocket_client_create(
-	const char *uri, const char *protocols,	struct ast_tls_config *tls_cfg,
-	enum ast_websocket_result *result)
+	struct ast_websocket_client_options *options, enum ast_websocket_result *result)
 {
 	struct ast_websocket *ws = ao2_alloc(sizeof(*ws), session_destroy_fn);
 
@@ -1248,18 +1247,18 @@ static struct ast_websocket * websocket_client_create(
 	}
 
 	if (websocket_client_parse_uri(
-		    uri, &ws->client->host, &ws->client->resource_name)) {
+		    options->uri, &ws->client->host, &ws->client->resource_name)) {
 		ao2_ref(ws, -1);
 		*result = WS_URI_PARSE_ERROR;
 		return NULL;
 	}
 
 	if (!(ws->client->args = websocket_client_args_create(
-		      ws->client->host, tls_cfg, result))) {
+		      ws->client->host, options->tls_cfg, result))) {
 		ao2_ref(ws, -1);
 		return NULL;
 	}
-	ws->client->protocols = ast_strdup(protocols);
+	ws->client->protocols = ast_strdup(options->protocols);
 
 	ws->client->version = 13;
 	ws->opcode = -1;
@@ -1395,13 +1394,13 @@ static enum ast_websocket_result websocket_client_handshake(
 	return websocket_client_handshake_get_response(client);
 }
 
-static enum ast_websocket_result websocket_client_connect(struct ast_websocket *ws)
+static enum ast_websocket_result websocket_client_connect(struct ast_websocket *ws, int timeout)
 {
 	enum ast_websocket_result res;
 	/* create and connect the client - note client_start
 	   releases the session instance on failure */
-	if (!(ws->client->ser = ast_tcptls_client_start(
-		      ast_tcptls_client_create(ws->client->args)))) {
+	if (!(ws->client->ser = ast_tcptls_client_start_timeout(
+		      ast_tcptls_client_create(ws->client->args), timeout))) {
 		return WS_CLIENT_START_ERROR;
 	}
 
@@ -1422,14 +1421,26 @@ struct ast_websocket *AST_OPTIONAL_API_NAME(ast_websocket_client_create)
 	(const char *uri, const char *protocols, struct ast_tls_config *tls_cfg,
 	 enum ast_websocket_result *result)
 {
-	struct ast_websocket *ws = websocket_client_create(
-		uri, protocols, tls_cfg, result);
+	struct ast_websocket_client_options options = {
+		.uri = uri,
+		.protocols = protocols,
+		.timeout = -1,
+		.tls_cfg = tls_cfg,
+	};
+
+	return ast_websocket_client_create_with_options(&options, result);
+}
+
+struct ast_websocket *AST_OPTIONAL_API_NAME(ast_websocket_client_create_with_options)
+	(struct ast_websocket_client_options *options, enum ast_websocket_result *result)
+{
+	struct ast_websocket *ws = websocket_client_create(options, result);
 
 	if (!ws) {
 		return NULL;
 	}
 
-	if ((*result = websocket_client_connect(ws)) != WS_OK) {
+	if ((*result = websocket_client_connect(ws, options->timeout)) != WS_OK) {
 		ao2_ref(ws, -1);
 		return NULL;
 	}
