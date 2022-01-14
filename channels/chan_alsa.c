@@ -34,6 +34,7 @@
 
 /*** MODULEINFO
 	<depend>alsa</depend>
+	<defaultenabled>no</defaultenabled>
 	<support_level>extended</support_level>
 	<deprecated_in>19</deprecated_in>
 	<removed_in>21</removed_in>

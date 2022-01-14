@@ -27,6 +27,7 @@
 /*** MODULEINFO
 	<use>pjproject</use>
 	<use type="module">res_pjsip</use>
+	<defaultenabled>no</defaultenabled>
 	<support_level>extended</support_level>
  ***/
 

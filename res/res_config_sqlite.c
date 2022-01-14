@@ -82,6 +82,7 @@
 
 /*** MODULEINFO
 	<depend>sqlite</depend>
+	<defaultenabled>no</defaultenabled>
 	<support_level>deprecated</support_level>
 	<deprecated_in>16</deprecated_in>
 	<removed_in>19</removed_in>

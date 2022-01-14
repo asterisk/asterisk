@@ -79,6 +79,7 @@ new regions inside the keypad pictureas comments
  */
 
 /*** MODULEINFO
+	<defaultenabled>no</defaultenabled>
 	<support_level>extended</support_level>
  ***/
 

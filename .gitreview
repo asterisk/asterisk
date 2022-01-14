@@ -1,5 +1,5 @@
 [gerrit]
-defaultbranch=18
+defaultbranch=certified/18.9
 #
 # Intentional padding to ensure it is possible to point a commit
 # to an alternative gerrit server/repository without breaking

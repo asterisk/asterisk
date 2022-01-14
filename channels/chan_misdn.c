@@ -76,6 +76,7 @@
 	<depend>isdnnet</depend>
 	<depend>misdn</depend>
 	<depend>suppserv</depend>
+	<defaultenabled>no</defaultenabled>
 	<support_level>deprecated</support_level>
 	<replacement>chan_dahdi</replacement>
 	<deprecated_in>16</deprecated_in>

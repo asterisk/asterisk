@@ -27,6 +27,7 @@
 /*** MODULEINFO
 	<depend>pjproject</depend>
 	<depend>res_pjsip</depend>
+	<defaultenabled>no</defaultenabled>
 	<support_level>extended</support_level>
  ***/
 

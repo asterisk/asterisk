@@ -25,6 +25,7 @@
 	<depend>neon</depend>
 	<depend>ical</depend>
 	<depend>libxml2</depend>
+	<defaultenabled>no</defaultenabled>
 	<support_level>extended</support_level>
 ***/
 

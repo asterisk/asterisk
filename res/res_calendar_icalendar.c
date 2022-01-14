@@ -24,6 +24,7 @@
 	<depend>res_calendar</depend>
 	<depend>neon</depend>
 	<depend>ical</depend>
+	<defaultenabled>no</defaultenabled>
 	<support_level>extended</support_level>
 ***/
 

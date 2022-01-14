@@ -37,6 +37,7 @@
 //#define OLD_FFMPEG	1	/* set for old ffmpeg with no swscale */
 
 /*** MODULEINFO
+	<defaultenabled>no</defaultenabled>
 	<support_level>extended</support_level>
  ***/
 

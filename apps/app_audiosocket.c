@@ -27,6 +27,7 @@
 
 /*** MODULEINFO
 	<depend>res_audiosocket</depend>
+	<defaultenabled>no</defaultenabled>
 	<support_level>extended</support_level>
  ***/
 
