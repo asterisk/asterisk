@@ -446,6 +446,23 @@ void ast_unregister_thread(void *id)
 	}
 }
 
+/*! \brief Print the contents of a file */
+static int print_file(int fd, char *desc, const char *filename)
+{
+	FILE *f;
+	char c;
+	if (!(f = fopen(filename, "r"))) {
+		return -1;
+	}
+	ast_cli(fd, "%s", desc);
+	while ((c = fgetc(f)) != EOF) {
+		ast_cli(fd, "%c", c);
+	}
+	fclose(f);
+	/* no need for trailing new line, the file already has one */
+	return 0;
+}
+
 /*! \brief Give an overview of core settings */
 static char *handle_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
@@ -454,6 +471,9 @@ static char *handle_show_settings(struct ast_cli_entry *e, int cmd, struct ast_c
 	char eid_str[128];
 	struct rlimit limits;
 	char pbx_uuid[AST_UUID_STR_LEN];
+#if defined(HAVE_EACCESS) || defined(HAVE_EUIDACCESS)
+	char dir[PATH_MAX];
+#endif
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -491,6 +511,8 @@ static char *handle_show_settings(struct ast_cli_entry *e, int cmd, struct ast_c
 	ast_cli(a->fd, "  Current console verbosity:   %d\n", ast_verb_console_get());
 	ast_cli(a->fd, "  Debug level:                 %d\n", option_debug);
 	ast_cli(a->fd, "  Trace level:                 %d\n", option_trace);
+	ast_cli(a->fd, "  Dump core on crash:          %s\n", ast_opt_dump_core ? "Yes" : "No");
+	print_file(a->fd, "  Core dump file:              ", "/proc/sys/kernel/core_pattern");
 	ast_cli(a->fd, "  Maximum load average:        %lf\n", ast_option_maxload);
 #if defined(HAVE_SYSINFO)
 	ast_cli(a->fd, "  Minimum free memory:         %ld MB\n", option_minmemfree);
@@ -510,6 +532,20 @@ static char *handle_show_settings(struct ast_cli_entry *e, int cmd, struct ast_c
 	ast_cli(a->fd, "  Default language:            %s\n", ast_defaultlanguage);
 	ast_cli(a->fd, "  Language prefix:             %s\n", ast_language_is_prefix ? "Enabled" : "Disabled");
 	ast_cli(a->fd, "  User name and group:         %s/%s\n", ast_config_AST_RUN_USER, ast_config_AST_RUN_GROUP);
+#if defined(HAVE_EACCESS) || defined(HAVE_EUIDACCESS)
+#if defined(HAVE_EUIDACCESS) && !defined(HAVE_EACCESS)
+#define eaccess euidaccess
+#endif
+	if (!getcwd(dir, sizeof(dir))) {
+		if (eaccess(dir, R_OK | X_OK | F_OK)) {
+			ast_cli(a->fd, "  Running directory:           %s\n", "Unable to access");
+		} else {
+			ast_cli(a->fd, "  Running directory:           %s (%s)\n", dir, "Unable to access");
+		}
+	} else {
+		ast_cli(a->fd, "  Running directory:           %s\n", dir);
+	}
+#endif /* defined(HAVE_EACCESS) || defined(HAVE_EUIDACCESS) */
 	ast_cli(a->fd, "  Executable includes:         %s\n", ast_test_flag(&ast_options, AST_OPT_FLAG_EXEC_INCLUDES) ? "Enabled" : "Disabled");
 	ast_cli(a->fd, "  Transcode via SLIN:          %s\n", ast_test_flag(&ast_options, AST_OPT_FLAG_TRANSCODE_VIA_SLIN) ? "Enabled" : "Disabled");
 	ast_cli(a->fd, "  Transmit silence during rec: %s\n", ast_test_flag(&ast_options, AST_OPT_FLAG_TRANSMIT_SILENCE) ? "Enabled" : "Disabled");
@@ -3861,9 +3897,6 @@ int main(int argc, char *argv[])
 
 	{
 #if defined(HAVE_EACCESS) || defined(HAVE_EUIDACCESS)
-#if defined(HAVE_EUIDACCESS) && !defined(HAVE_EACCESS)
-#define eaccess euidaccess
-#endif
 		char dir[PATH_MAX];
 		if (!getcwd(dir, sizeof(dir)) || eaccess(dir, R_OK | X_OK | F_OK)) {
 			fprintf(stderr, "Unable to access the running directory (%s).  Changing to '/' for compatibility.\n", strerror(errno));
