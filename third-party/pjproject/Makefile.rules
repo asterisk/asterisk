@@ -37,7 +37,7 @@ PJPROJECT_CONFIG_OPTS = $(PJPROJECT_CONFIGURE_OPTS) --prefix=/opt/pjproject \
 	--disable-ipp \
 	--disable-libwebrtc \
 	--without-external-pa \
-	--with-external-srtp
+	--without-external-srtp
 
 ifneq ($(AST_DEVMODE),yes)
     PJPROJECT_CONFIG_OPTS += --disable-resample --disable-g711-codec
