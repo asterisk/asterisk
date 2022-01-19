@@ -2173,7 +2173,7 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session,
 	ast_rtp_instance_activate(session_media->rtp);
 
 	/* audio stream handles music on hold */
-	if (media_type != AST_MEDIA_TYPE_AUDIO) {
+	if (media_type != AST_MEDIA_TYPE_AUDIO && media_type != AST_MEDIA_TYPE_VIDEO) {
 		if ((pjmedia_sdp_neg_was_answer_remote(session->inv_session->neg) == PJ_FALSE)
 			&& (session->inv_session->state == PJSIP_INV_STATE_CONFIRMED)) {
 			ast_queue_control(session->channel, AST_CONTROL_UPDATE_RTP_PEER);
@@ -2205,7 +2205,8 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session,
 	session_media->encryption = session->endpoint->media.rtp.encryption;
 
 	if (session->endpoint->media.rtp.keepalive > 0 &&
-			session_media->type == AST_MEDIA_TYPE_AUDIO) {
+		(session_media->type == AST_MEDIA_TYPE_AUDIO ||
+			session_media->type == AST_MEDIA_TYPE_VIDEO)) {
 		ast_rtp_instance_set_keepalive(session_media->rtp, session->endpoint->media.rtp.keepalive);
 		/* Schedule the initial keepalive early in case this is being used to punch holes through
 		 * a NAT. This way there won't be an awkward delay before media starts flowing in some
