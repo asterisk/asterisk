@@ -4359,6 +4359,9 @@ cleanup:
 	rtp->sending_digit = 0;
 	rtp->send_digit = 0;
 
+	/* Re-Learn expected seqno */
+	rtp->expectedseqno = -1;
+
 	return res;
 }
 
