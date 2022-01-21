@@ -206,6 +206,10 @@
 /* Define DAHDI headers version */
 #undef HAVE_DAHDI_VERSION
 
+/* Define to 1 if you have the declaration of `gethostbyname_r', and to 0 if
+   you don't. */
+#undef HAVE_DECL_GETHOSTBYNAME_R
+
 /* Define to 1 if you have the <dirent.h> header file, and it defines `DIR'.
    */
 #undef HAVE_DIRENT_H
