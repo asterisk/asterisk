@@ -10,6 +10,10 @@
 ; Because Prometheus scrapes statistics from HTTP servers, this module requires
 ; Asterisk's built-in HTTP server to be enabled and configured properly.
 ;
+; Module Dependencies:
+; only if Asterisk is build with pjproject bundled (default)
+; * res_pjsip.so
+; * res_pjsip_outbound_registration.so
 
 ; Settings that affect all statistic generation
 [general]
