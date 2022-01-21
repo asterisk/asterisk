@@ -9398,8 +9398,8 @@ $as_echo "$as_me: checking whether system openssl > 1.1.0" >&6;}
    if test "x${PBX_OPENSSL}" != "x1" -a "${USE_OPENSSL}" != "no"; then
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for OPENSSL" >&5
-$as_echo_n "checking for OPENSSL... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for openssl >= 1.1.0" >&5
+$as_echo_n "checking for openssl >= 1.1.0... " >&6; }
 
 if test -n "$OPENSSL_CFLAGS"; then
     pkg_cv_OPENSSL_CFLAGS="$OPENSSL_CFLAGS"
@@ -9439,7 +9439,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -9460,7 +9460,7 @@ fi
 
 
 elif test $pkg_failed = untried; then
-     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
             PBX_OPENSSL=0
@@ -9489,8 +9489,8 @@ $as_echo "$as_me: checking whether alternate openssl11 is installed" >&6;}
    if test "x${PBX_OPENSSL}" != "x1" -a "${USE_OPENSSL}" != "no"; then
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for OPENSSL" >&5
-$as_echo_n "checking for OPENSSL... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for openssl11" >&5
+$as_echo_n "checking for openssl11... " >&6; }
 
 if test -n "$OPENSSL_CFLAGS"; then
     pkg_cv_OPENSSL_CFLAGS="$OPENSSL_CFLAGS"
@@ -9530,7 +9530,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -9551,7 +9551,7 @@ fi
 
 
 elif test $pkg_failed = untried; then
-     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
             PBX_OPENSSL=0
@@ -9585,8 +9585,8 @@ $as_echo "$as_me: checking fallback system openssl" >&6;}
    if test "x${PBX_OPENSSL}" != "x1" -a "${USE_OPENSSL}" != "no"; then
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for OPENSSL" >&5
-$as_echo_n "checking for OPENSSL... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for openssl" >&5
+$as_echo_n "checking for openssl... " >&6; }
 
 if test -n "$OPENSSL_CFLAGS"; then
     pkg_cv_OPENSSL_CFLAGS="$OPENSSL_CFLAGS"
@@ -9626,7 +9626,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -9647,7 +9647,7 @@ fi
 
 
 elif test $pkg_failed = untried; then
-     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
             PBX_OPENSSL=0
@@ -14063,8 +14063,8 @@ done
    if test "x${PBX_LIBEDIT}" != "x1" -a "${USE_LIBEDIT}" != "no"; then
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for LIBEDIT" >&5
-$as_echo_n "checking for LIBEDIT... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libedit" >&5
+$as_echo_n "checking for libedit... " >&6; }
 
 if test -n "$LIBEDIT_CFLAGS"; then
     pkg_cv_LIBEDIT_CFLAGS="$LIBEDIT_CFLAGS"
@@ -14104,7 +14104,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -14125,7 +14125,7 @@ fi
 
 
 elif test $pkg_failed = untried; then
-     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
             PBX_LIBEDIT=0
@@ -14523,8 +14523,8 @@ if test "$JANSSON_BUNDLED" = "no" ; then
    if test "x${PBX_JANSSON}" != "x1" -a "${USE_JANSSON}" != "no"; then
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for JANSSON" >&5
-$as_echo_n "checking for JANSSON... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for jansson >= 2.11" >&5
+$as_echo_n "checking for jansson >= 2.11... " >&6; }
 
 if test -n "$JANSSON_CFLAGS"; then
     pkg_cv_JANSSON_CFLAGS="$JANSSON_CFLAGS"
@@ -14564,7 +14564,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -14585,7 +14585,7 @@ fi
 
 
 elif test $pkg_failed = untried; then
-     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
             PBX_JANSSON=0
@@ -15380,7 +15380,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -15426,7 +15426,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -15450,7 +15450,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -15495,7 +15495,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -15519,7 +15519,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -16819,6 +16819,8 @@ main ()
     if (*(data + i) != *(data3 + i))
       return 14;
   close (fd);
+  free (data);
+  free (data3);
   return 0;
 }
 _ACEOF
@@ -21245,8 +21247,8 @@ if test "${USE_ILBC}" != "no"; then
    if test "x${PBX_ILBC}" != "x1" -a "${USE_ILBC}" != "no"; then
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for ILBC" >&5
-$as_echo_n "checking for ILBC... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libilbc" >&5
+$as_echo_n "checking for libilbc... " >&6; }
 
 if test -n "$ILBC_CFLAGS"; then
     pkg_cv_ILBC_CFLAGS="$ILBC_CFLAGS"
@@ -21286,7 +21288,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -21307,7 +21309,7 @@ fi
 
 
 elif test $pkg_failed = untried; then
-     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
             PBX_ILBC=0
@@ -23966,8 +23968,8 @@ rm -f core conftest.err conftest.$ac_objext \
    if test "x${PBX_NETSNMP}" != "x1" -a "${USE_NETSNMP}" != "no"; then
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for NETSNMP" >&5
-$as_echo_n "checking for NETSNMP... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for netsnmp-agent" >&5
+$as_echo_n "checking for netsnmp-agent... " >&6; }
 
 if test -n "$NETSNMP_CFLAGS"; then
     pkg_cv_NETSNMP_CFLAGS="$NETSNMP_CFLAGS"
@@ -24007,7 +24009,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -24028,7 +24030,7 @@ fi
 
 
 elif test $pkg_failed = untried; then
-     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
             PBX_NETSNMP=0
@@ -25574,8 +25576,8 @@ if test "$USE_PJPROJECT" != "no" ; then
    if test "x${PBX_PJPROJECT}" != "x1" -a "${USE_PJPROJECT}" != "no"; then
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for PJPROJECT" >&5
-$as_echo_n "checking for PJPROJECT... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libpjproject" >&5
+$as_echo_n "checking for libpjproject... " >&6; }
 
 if test -n "$PJPROJECT_CFLAGS"; then
     pkg_cv_PJPROJECT_CFLAGS="$PJPROJECT_CFLAGS"
@@ -25615,7 +25617,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -25636,7 +25638,7 @@ fi
 
 
 elif test $pkg_failed = untried; then
-     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
             PBX_PJPROJECT=0
@@ -26747,8 +26749,8 @@ fi
    if test "x${PBX_PYTHONDEV}" != "x1" -a "${USE_PYTHONDEV}" != "no"; then
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for PYTHONDEV" >&5
-$as_echo_n "checking for PYTHONDEV... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for python-2.7" >&5
+$as_echo_n "checking for python-2.7... " >&6; }
 
 if test -n "$PYTHONDEV_CFLAGS"; then
     pkg_cv_PYTHONDEV_CFLAGS="$PYTHONDEV_CFLAGS"
@@ -26788,7 +26790,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -26809,7 +26811,7 @@ fi
 
 
 elif test $pkg_failed = untried; then
-     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
             PBX_PYTHONDEV=0
@@ -26835,8 +26837,8 @@ fi
    if test "x${PBX_PYTHONDEV}" != "x1" -a "${USE_PYTHONDEV}" != "no"; then
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for PYTHONDEV" >&5
-$as_echo_n "checking for PYTHONDEV... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for python2" >&5
+$as_echo_n "checking for python2... " >&6; }
 
 if test -n "$PYTHONDEV_CFLAGS"; then
     pkg_cv_PYTHONDEV_CFLAGS="$PYTHONDEV_CFLAGS"
@@ -26876,7 +26878,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -26897,7 +26899,7 @@ fi
 
 
 elif test $pkg_failed = untried; then
-     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
             PBX_PYTHONDEV=0
@@ -26923,8 +26925,8 @@ fi
    if test "x${PBX_PYTHONDEV}" != "x1" -a "${USE_PYTHONDEV}" != "no"; then
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for PYTHONDEV" >&5
-$as_echo_n "checking for PYTHONDEV... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for python" >&5
+$as_echo_n "checking for python... " >&6; }
 
 if test -n "$PYTHONDEV_CFLAGS"; then
     pkg_cv_PYTHONDEV_CFLAGS="$PYTHONDEV_CFLAGS"
@@ -26964,7 +26966,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -26985,7 +26987,7 @@ fi
 
 
 elif test $pkg_failed = untried; then
-     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
             PBX_PYTHONDEV=0
@@ -27119,8 +27121,8 @@ fi
    if test "x${PBX_PORTAUDIO}" != "x1" -a "${USE_PORTAUDIO}" != "no"; then
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for PORTAUDIO" >&5
-$as_echo_n "checking for PORTAUDIO... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for portaudio-2.0" >&5
+$as_echo_n "checking for portaudio-2.0... " >&6; }
 
 if test -n "$PORTAUDIO_CFLAGS"; then
     pkg_cv_PORTAUDIO_CFLAGS="$PORTAUDIO_CFLAGS"
@@ -27160,7 +27162,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -27181,7 +27183,7 @@ fi
 
 
 elif test $pkg_failed = untried; then
-     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
             PBX_PORTAUDIO=0
@@ -33130,8 +33132,8 @@ for ver in 3.0 2.6 2.4 2.2 2.0; do
    if test "x${PBX_GMIME}" != "x1" -a "${USE_GMIME}" != "no"; then
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for GMIME" >&5
-$as_echo_n "checking for GMIME... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for gmime-$ver" >&5
+$as_echo_n "checking for gmime-$ver... " >&6; }
 
 if test -n "$GMIME_CFLAGS"; then
     pkg_cv_GMIME_CFLAGS="$GMIME_CFLAGS"
@@ -33171,7 +33173,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -33192,7 +33194,7 @@ fi
 
 
 elif test $pkg_failed = untried; then
-     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
             PBX_GMIME=0
@@ -34567,8 +34569,8 @@ fi
    if test "x${PBX_GTK2}" != "x1" -a "${USE_GTK2}" != "no"; then
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for GTK2" >&5
-$as_echo_n "checking for GTK2... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for gtk+-2.0" >&5
+$as_echo_n "checking for gtk+-2.0... " >&6; }
 
 if test -n "$GTK2_CFLAGS"; then
     pkg_cv_GTK2_CFLAGS="$GTK2_CFLAGS"
@@ -34608,7 +34610,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -34629,7 +34631,7 @@ fi
 
 
 elif test $pkg_failed = untried; then
-     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
             PBX_GTK2=0
@@ -34678,8 +34680,8 @@ fi
    if test "x${PBX_SYSTEMD}" != "x1" -a "${USE_SYSTEMD}" != "no"; then
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for SYSTEMD" >&5
-$as_echo_n "checking for SYSTEMD... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libsystemd" >&5
+$as_echo_n "checking for libsystemd... " >&6; }
 
 if test -n "$SYSTEMD_CFLAGS"; then
     pkg_cv_SYSTEMD_CFLAGS="$SYSTEMD_CFLAGS"
@@ -34719,7 +34721,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -34740,7 +34742,7 @@ fi
 
 
 elif test $pkg_failed = untried; then
-     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
             PBX_SYSTEMD=0
