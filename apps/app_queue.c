@@ -3902,6 +3902,40 @@ static struct call_queue *find_load_queue_rt_friendly(const char *queuename)
 	return q;
 }
 
+/*!
+ * \internal
+ * \brief Load queues and members from realtime.
+ *
+ * \param queuename - name of the desired queue to load or empty if need to load all queues
+*/
+static void load_realtime_queues(const char *queuename)
+{
+	struct ast_config *cfg = NULL;
+	char *category = NULL;
+	const char *name = NULL;
+	struct call_queue *q = NULL;
+
+	if (!ast_check_realtime("queues")) {
+		return;
+	}
+
+	if (ast_strlen_zero(queuename)) {
+		if ((cfg = ast_load_realtime_multientry("queues", "name LIKE", "%", SENTINEL))) {
+			while ((category = ast_category_browse(cfg, category))) {
+				name = ast_variable_retrieve(cfg, category, "name");
+				if (!ast_strlen_zero(name) && (q = find_load_queue_rt_friendly(name))) {
+					queue_unref(q);
+				}
+			}
+			ast_config_destroy(cfg);
+		}
+	} else {
+		if ((q = find_load_queue_rt_friendly(queuename))) {
+			queue_unref(q);
+		}
+	}
+}
+
 static int update_realtime_member_field(struct member *mem, const char *queue_name, const char *field, const char *value)
 {
 	int ret = -1;
@@ -3910,7 +3944,7 @@ static int update_realtime_member_field(struct member *mem, const char *queue_na
  		return ret;
 	}
 
-	if ((ast_update_realtime("queue_members", "uniqueid", mem->rt_uniqueid, field, value, SENTINEL)) > 0) {
+	if ((ast_update_realtime("queue_members", "uniqueid", mem->rt_uniqueid, field, value, SENTINEL)) >= 0) {
 		ret = 0;
 	}
 
@@ -7670,6 +7704,10 @@ static int set_member_paused(const char *queuename, const char *interface, const
 	struct call_queue *q;
 	struct ao2_iterator queue_iter;
 
+	if (ast_check_realtime("queues")) {
+		load_realtime_queues(queuename);
+	}
+
 	queue_iter = ao2_iterator_init(queues, 0);
 	while ((q = ao2_t_iterator_next(&queue_iter, "Iterate over queues"))) {
 		ao2_lock(q);
@@ -7841,6 +7879,8 @@ static int set_member_value(const char *queuename, const char *interface, int pr
 						queue_unref(q);
 					}
 				}
+
+				ast_config_destroy(queue_config);
 			}
 		}
 
@@ -10173,6 +10213,10 @@ static int manager_queues_summary(struct mansession *s, const struct message *m)
 	struct ao2_iterator queue_iter;
 	struct ao2_iterator mem_iter;
 
+	if (ast_check_realtime("queues")) {
+		load_realtime_queues(queuefilter);
+	}
+
 	astman_send_listack(s, m, "Queue summary will follow", "start");
 	time(&now);
 	idText[0] = '\0';
@@ -10250,6 +10294,10 @@ static int manager_queues_status(struct mansession *s, const struct message *m)
 	struct member *mem;
 	struct ao2_iterator queue_iter;
 	struct ao2_iterator mem_iter;
+
+	if (ast_check_realtime("queues")) {
+		load_realtime_queues(queuefilter);
+	}
 
 	astman_send_listack(s, m, "Queue status will follow", "start");
 	time(&now);
