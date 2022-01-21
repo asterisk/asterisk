@@ -1,0 +1,5 @@
+Subject: app_queue
+
+Load queues and members from Realtime for
+AMI actions: QueuePause, QueueStatus and QueueSummary,
+Applications: PauseQueueMember and UnpauseQueueMember.
