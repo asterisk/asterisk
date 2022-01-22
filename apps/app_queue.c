@@ -185,10 +185,6 @@
 					<option name="H">
 						<para>Allow <emphasis>caller</emphasis> to hang up by pressing <literal>*</literal>.</para>
 					</option>
-					<option name="n">
-						<para>No retries on the timeout; will exit this application and
-						go to the next step.</para>
-					</option>
 					<option name="i">
 						<para>Ignore call forward requests from queue members and do nothing
 						when they are requested.</para>
@@ -196,6 +192,23 @@
 					<option name="I">
 						<para>Asterisk will ignore any connected line update requests or any redirecting party
 						update requests it may receive on this dial attempt.</para>
+					</option>
+					<option name="k">
+						<para>Allow the <emphasis>called</emphasis> party to enable parking of the call by sending
+						the DTMF sequence defined for call parking in <filename>features.conf</filename>.</para>
+					</option>
+					<option name="K">
+						<para>Allow the <emphasis>calling</emphasis> party to enable parking of the call by sending
+						the DTMF sequence defined for call parking in <filename>features.conf</filename>.</para>
+					</option>
+					<option name="m">
+						<para>Custom music on hold class to use, which will override the music on hold class configured
+						in <filename>queues.conf</filename>, if specified.</para>
+						<para>Note that CHANNEL(musicclass), if set, will still override this option.</para>
+					</option>
+					<option name="n">
+						<para>No retries on the timeout; will exit this application and
+						go to the next step.</para>
 					</option>
 					<option name="r">
 						<para>Ring instead of playing MOH. Periodic Announcements are still made, if applicable.</para>
@@ -216,14 +229,6 @@
 					<option name="W">
 						<para>Allow the <emphasis>calling</emphasis> user to write the conversation to
 						disk via Monitor.</para>
-					</option>
-					<option name="k">
-						<para>Allow the <emphasis>called</emphasis> party to enable parking of the call by sending
-						the DTMF sequence defined for call parking in <filename>features.conf</filename>.</para>
-					</option>
-					<option name="K">
-						<para>Allow the <emphasis>calling</emphasis> party to enable parking of the call by sending
-						the DTMF sequence defined for call parking in <filename>features.conf</filename>.</para>
 					</option>
 					<option name="x">
 						<para>Allow the <emphasis>called</emphasis> user to write the conversation
@@ -1468,12 +1473,14 @@ enum {
 	OPT_CALLER_AUTOMON =         (1 << 18),
 	OPT_PREDIAL_CALLEE =         (1 << 19),
 	OPT_PREDIAL_CALLER =         (1 << 20),
+	OPT_MUSICONHOLD_CLASS =      (1 << 21),
 };
 
 enum {
 	OPT_ARG_CALLEE_GO_ON = 0,
 	OPT_ARG_PREDIAL_CALLEE,
 	OPT_ARG_PREDIAL_CALLER,
+	OPT_ARG_MUSICONHOLD_CLASS,
 	/* note: this entry _MUST_ be the last one in the enum */
 	OPT_ARG_ARRAY_SIZE
 };
@@ -1491,6 +1498,7 @@ AST_APP_OPTIONS(queue_exec_options, BEGIN_OPTIONS
 	AST_APP_OPTION('I', OPT_IGNORE_CONNECTEDLINE),
 	AST_APP_OPTION('k', OPT_CALLEE_PARK),
 	AST_APP_OPTION('K', OPT_CALLER_PARK),
+	AST_APP_OPTION_ARG('m', OPT_MUSICONHOLD_CLASS, OPT_ARG_MUSICONHOLD_CLASS),
 	AST_APP_OPTION('n', OPT_NO_RETRY),
 	AST_APP_OPTION('r', OPT_RINGING),
 	AST_APP_OPTION('R', OPT_RING_WHEN_RINGING),
@@ -8623,6 +8631,12 @@ static int queue_exec(struct ast_channel *chan, const char *data)
 		&& !ast_strlen_zero(opt_args[OPT_ARG_PREDIAL_CALLER])) {
 		ast_replace_subargument_delimiter(opt_args[OPT_ARG_PREDIAL_CALLER]);
 		ast_app_exec_sub(NULL, chan, opt_args[OPT_ARG_PREDIAL_CALLER], 0);
+	}
+
+	/* Music on hold class override */
+	if (ast_test_flag(&opts, OPT_MUSICONHOLD_CLASS)
+		&& !ast_strlen_zero(opt_args[OPT_ARG_MUSICONHOLD_CLASS])) {
+		ast_copy_string(qe.moh, opt_args[OPT_ARG_MUSICONHOLD_CLASS], sizeof(qe.moh));
 	}
 
 	copy_rules(&qe, args.rule);
