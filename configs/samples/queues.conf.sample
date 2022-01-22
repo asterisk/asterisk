@@ -64,8 +64,9 @@ monitor-type = MixMonitor
 ;
 ; Musicclass sets which music applies for this particular call queue.
 ; The only class which can override this one is if the MOH class is set
+; using the m option when calling the Queue application or if set
 ; directly on the channel using Set(CHANNEL(musicclass)=whatever) in the
-; dialplan.
+; dialplan (the latter of which overrides everything).
 ;
 ;musicclass = default
 ;
