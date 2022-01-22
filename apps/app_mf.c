@@ -71,6 +71,9 @@
 					<option name="m">
 						<para>Mute conference.</para>
 					</option>
+					<option name="n">
+						<para>Maximum number of digits, regardless of the sequence.</para>
+					</option>
 					<option name="o">
 						<para>Enable override. Repeated KPs will clear all previous digits.</para>
 					</option>
@@ -179,6 +182,13 @@ enum read_option_flags {
 	OPT_NO_KP = (1 << 6),
 	OPT_NO_ST = (1 << 7),
 	OPT_KP_OVERRIDE = (1 << 8),
+	OPT_MAXDIGITS = (1 << 9),
+};
+
+enum {
+	OPT_ARG_MAXDIGITS,
+	/* Must be the last element */
+	OPT_ARG_ARRAY_SIZE,
 };
 
 AST_APP_OPTIONS(read_app_options, {
@@ -186,6 +196,7 @@ AST_APP_OPTIONS(read_app_options, {
 	AST_APP_OPTION('l', OPT_LAX_KP),
 	AST_APP_OPTION('k', OPT_NO_KP),
 	AST_APP_OPTION('m', OPT_MUTE),
+	AST_APP_OPTION_ARG('n', OPT_MAXDIGITS, OPT_ARG_MAXDIGITS),
 	AST_APP_OPTION('o', OPT_KP_OVERRIDE),
 	AST_APP_OPTION('p', OPT_PROCESS),
 	AST_APP_OPTION('q', OPT_QUELCH),
@@ -212,11 +223,12 @@ static const char sendmf_name[] = "SendMF";
  * \param override Start over if we receive additional KPs
  * \param no_kp Don't include KP in the output
  * \param no_st Don't include start digits in the output
+ * \param maxdigits If greater than 0, only read this many digits no matter what
  *
  * \retval 0 if successful
  * \retval -1 if unsuccessful.
  */
-static int read_mf_digits(struct ast_channel *chan, char *buf, int buflen, int timeout, int features, int laxkp, int override, int no_kp, int no_st) {
+static int read_mf_digits(struct ast_channel *chan, char *buf, int buflen, int timeout, int features, int laxkp, int override, int no_kp, int no_st, int maxdigits) {
 	struct ast_dsp *dsp;
 	struct ast_frame *frame = NULL;
 	struct timeval start;
@@ -245,7 +257,7 @@ static int read_mf_digits(struct ast_channel *chan, char *buf, int buflen, int t
 				break;
 			}
 		}
-		if (digits_read >= (buflen - 1)) { /* we don't have room to store any more digits (very unlikely to happen for a legitimate reason) */
+		if ((maxdigits && digits_read >= maxdigits) || digits_read >= (buflen - 1)) { /* we don't have room to store any more digits (very unlikely to happen for a legitimate reason) */
 			/* This result will probably not be usable, so status should not be START */
 			pbx_builtin_setvar_helper(chan, "RECEIVEMFSTATUS", "MAXDIGITS");
 			break;
@@ -320,8 +332,9 @@ static int read_mf_exec(struct ast_channel *chan, const char *data)
 	int to = 0;
 	double tosec;
 	struct ast_flags flags = {0};
+	char *optargs[OPT_ARG_ARRAY_SIZE];
 	char *argcopy = NULL;
-	int features = 0;
+	int features = 0, maxdigits = 0;
 
 	AST_DECLARE_APP_ARGS(arglist,
 		AST_APP_ARG(variable);
@@ -339,7 +352,7 @@ static int read_mf_exec(struct ast_channel *chan, const char *data)
 	AST_STANDARD_APP_ARGS(arglist, argcopy);
 
 	if (!ast_strlen_zero(arglist.options)) {
-		ast_app_parse_options(read_app_options, &flags, NULL, arglist.options);
+		ast_app_parse_options(read_app_options, &flags, optargs, arglist.options);
 	}
 
 	if (!ast_strlen_zero(arglist.timeout)) {
@@ -354,6 +367,13 @@ static int read_mf_exec(struct ast_channel *chan, const char *data)
 	if (ast_strlen_zero(arglist.variable)) {
 		ast_log(LOG_WARNING, "Invalid! Usage: ReceiveMF(variable[,timeout][,option])\n");
 		return -1;
+	}
+	if (ast_test_flag(&flags, OPT_MAXDIGITS) && !ast_strlen_zero(optargs[OPT_ARG_MAXDIGITS])) {
+		maxdigits = atoi(optargs[OPT_ARG_MAXDIGITS]);
+		if (maxdigits <= 0) {
+			ast_log(LOG_WARNING, "Invalid maximum number of digits, ignoring: '%s'\n", optargs[OPT_ARG_MAXDIGITS]);
+			maxdigits = 0;
+		}
 	}
 
 	if (ast_test_flag(&flags, OPT_DELAY)) {
@@ -373,7 +393,7 @@ static int read_mf_exec(struct ast_channel *chan, const char *data)
 	}
 
 	read_mf_digits(chan, tmp, BUFFER_SIZE, to, features, (ast_test_flag(&flags, OPT_LAX_KP)),
-		(ast_test_flag(&flags, OPT_KP_OVERRIDE)), (ast_test_flag(&flags, OPT_NO_KP)), (ast_test_flag(&flags, OPT_NO_ST)));
+		(ast_test_flag(&flags, OPT_KP_OVERRIDE)), (ast_test_flag(&flags, OPT_NO_KP)), (ast_test_flag(&flags, OPT_NO_ST)), maxdigits);
 	pbx_builtin_setvar_helper(chan, arglist.variable, tmp);
 	if (!ast_strlen_zero(tmp)) {
 		ast_verb(3, "MF digits received: '%s'\n", tmp);
