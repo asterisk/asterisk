@@ -1,5 +1,6 @@
 [gerrit]
 defaultbranch=16
+basebranch=16
 #
 # Intentional padding to ensure it is possible to point a commit
 # to an alternative gerrit server/repository without breaking
