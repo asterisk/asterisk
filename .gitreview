@@ -1,5 +1,5 @@
 [gerrit]
-defaultbranch=16
+defaultbranch=development/16/geolocation
 basebranch=16
 #
 # Intentional padding to ensure it is possible to point a commit
