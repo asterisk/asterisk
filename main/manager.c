@@ -7639,6 +7639,7 @@ static void xml_copy_escape(struct ast_str **out, const char *src, int mode)
 	/* store in a local buffer to avoid calling ast_str_append too often */
 	char buf[256];
 	char *dst = buf;
+	const char *save = src;
 	int space = sizeof(buf);
 	/* repeat until done and nothing to flush */
 	for ( ; *src || dst != buf ; src++) {
@@ -7652,10 +7653,19 @@ static void xml_copy_escape(struct ast_str **out, const char *src, int mode)
 			}
 		}
 
-		if ( (mode & 2) && !isalnum(*src)) {
-			*dst++ = '_';
-			space--;
-			continue;
+		if (mode & 2) {
+			if (save == src && isdigit(*src)) {
+				/* The first character of an XML attribute cannot be a digit */
+				*dst++ = '_';
+				*dst++ = *src;
+				space -= 2;
+				continue;
+			} else if (!isalnum(*src)) {
+				/* Replace non-alphanumeric with an underscore */
+				*dst++ = '_';
+				space--;
+				continue;
+			}
 		}
 		switch (*src) {
 		case '<':
