@@ -560,8 +560,10 @@ static int digest_create_request_with_auth(const struct ast_sip_auth_vector *aut
 
 cleanup:
 #if defined(HAVE_PJSIP_AUTH_CLT_DEINIT)
-	/* Release any cached auths */
-	pjsip_auth_clt_deinit(&auth_sess);
+	/* If we initialized the auth_sess, clean it up */
+	if (auth_sess.endpt) {
+		pjsip_auth_clt_deinit(&auth_sess);
+	}
 #endif
 
 	ast_sip_cleanup_auth_objects_vector(&auth_objects_vector);
