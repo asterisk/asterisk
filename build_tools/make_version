@@ -101,7 +101,7 @@ elif [ -d ${1}/.git ]; then
     SVN_REV=`${GIT} log --pretty=full -1 | sed -n '/git-svn-id:/ s/.*\@\([^ ]*\) .*/\1/p'`
     if [ -z "$SVN_REV" ]; then
         MAINLINE_BRANCH=$(${GIT} config -f .gitreview --get gerrit.basebranch)
-        if [ "x${MAINLINE_BRANCH}" == "x" ] ; then
+        if [ "x${MAINLINE_BRANCH}" = "x" ] ; then
             MAINLINE_BRANCH=$(${GIT} config -f .gitreview --get gerrit.defaultbranch)
         fi
 
