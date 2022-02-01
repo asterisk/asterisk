@@ -210,6 +210,15 @@
 						many notifications.</para>
 					</description>
 				</configOption>
+				<configOption name="resource_display_name" default="no">
+					<synopsis>Indicates whether display name of resource or the resource name being reported.</synopsis>
+					<description>
+						<para>If this option is enabled, the Display Name will be reported as resource name.
+						If the <replaceable>event</replaceable> set to <literal>presence</literal> or <literal>dialog</literal>,
+						the non-empty HINT name will be set as the Display Name.
+						The <literal>message-summary</literal> is not supported yet.</para>
+					</description>
+				</configOption>
 			</configObject>
 			<configObject name="inbound-publication">
 				<synopsis>The configuration for inbound publications</synopsis>
@@ -332,6 +341,8 @@ struct resource_list {
 	unsigned int full_state;
 	/*! Time, in milliseconds Asterisk waits before sending a batched notification.*/
 	unsigned int notification_batch_interval;
+	/*! Indicates whether display name of resource or the resource name being reported.*/
+	unsigned int resource_display_name;
 };
 
 /*!
@@ -499,6 +510,8 @@ struct ast_sip_subscription {
 	pjsip_sip_uri *uri;
 	/*! Data to be persisted with the subscription */
 	struct ast_json *persistence_data;
+	/*! Display Name of resource */
+	char *display_name;
 	/*! Name of resource being subscribed to */
 	char resource[0];
 };
@@ -886,6 +899,7 @@ struct resource_tree;
 struct tree_node {
 	AST_VECTOR(, struct tree_node *) children;
 	unsigned int full_state;
+	char *display_name;
 	char resource[0];
 };
 
@@ -929,7 +943,7 @@ static struct resource_list *retrieve_resource_list(const char *resource, const 
  * \retval NULL Allocation failure.
  * \retval non-NULL The newly-allocated tree_node
  */
-static struct tree_node *tree_node_alloc(const char *resource, struct resources *visited, unsigned int full_state)
+static struct tree_node *tree_node_alloc(const char *resource, struct resources *visited, unsigned int full_state, const char *display_name)
 {
 	struct tree_node *node;
 
@@ -944,6 +958,7 @@ static struct tree_node *tree_node_alloc(const char *resource, struct resources 
 		return NULL;
 	}
 	node->full_state = full_state;
+	node->display_name = ast_strdup(display_name);
 
 	if (visited) {
 		AST_VECTOR_APPEND(visited, resource);
@@ -971,6 +986,7 @@ static void tree_node_destroy(struct tree_node *node)
 		tree_node_destroy(AST_VECTOR_GET(&node->children, i));
 	}
 	AST_VECTOR_FREE(&node->children);
+	ast_free(node->display_name);
 	ast_free(node);
 }
 
@@ -1035,7 +1051,11 @@ static void build_node_children(struct ast_sip_endpoint *endpoint, const struct 
 		if (!child_list) {
 			int resp = handler->notifier->new_subscribe(endpoint, resource);
 			if (PJSIP_IS_STATUS_IN_CLASS(resp, 200)) {
-				current = tree_node_alloc(resource, visited, 0);
+				char display_name[AST_MAX_EXTENSION] = "";
+				if (list->resource_display_name && handler->notifier->get_resource_display_name) {
+					handler->notifier->get_resource_display_name(endpoint, resource, display_name, sizeof(display_name));
+				}
+				current = tree_node_alloc(resource, visited, 0, ast_strlen_zero(display_name) ? NULL : display_name);
 				if (!current) {
 					ast_debug(1,
 						"Subscription to leaf resource %s was successful, but encountered allocation error afterwards\n",
@@ -1053,7 +1073,7 @@ static void build_node_children(struct ast_sip_endpoint *endpoint, const struct 
 			}
 		} else {
 			ast_debug(2, "Resource %s (child of %s) is a list\n", resource, parent->resource);
-			current = tree_node_alloc(resource, visited, child_list->full_state);
+			current = tree_node_alloc(resource, visited, child_list->full_state, NULL);
 			if (!current) {
 				ast_debug(1, "Cannot build children of resource %s due to allocation failure\n", resource);
 				continue;
@@ -1139,7 +1159,7 @@ static int build_resource_tree(struct ast_sip_endpoint *endpoint, const struct a
 	if (!has_eventlist_support || !(list = retrieve_resource_list(resource, handler->event_name))) {
 		ast_debug(2, "Subscription '%s->%s' is not to a list\n",
 			ast_sorcery_object_get_id(endpoint), resource);
-		tree->root = tree_node_alloc(resource, NULL, 0);
+		tree->root = tree_node_alloc(resource, NULL, 0, NULL);
 		if (!tree->root) {
 			return 500;
 		}
@@ -1152,7 +1172,7 @@ static int build_resource_tree(struct ast_sip_endpoint *endpoint, const struct a
 		return 500;
 	}
 
-	tree->root = tree_node_alloc(resource, &visited, list->full_state);
+	tree->root = tree_node_alloc(resource, &visited, list->full_state, NULL);
 	if (!tree->root) {
 		AST_VECTOR_FREE(&visited);
 		return 500;
@@ -1207,6 +1227,7 @@ static void destroy_subscription(struct ast_sip_subscription *sub)
 	AST_VECTOR_FREE(&sub->children);
 	ao2_cleanup(sub->datastores);
 	ast_json_unref(sub->persistence_data);
+	ast_free(sub->display_name);
 	ast_free(sub);
 }
 
@@ -1229,7 +1250,7 @@ static void destroy_subscriptions(struct ast_sip_subscription *root)
 }
 
 static struct ast_sip_subscription *allocate_subscription(const struct ast_sip_subscription_handler *handler,
-		const char *resource, struct sip_subscription_tree *tree)
+		const char *resource, const char *display_name, struct sip_subscription_tree *tree)
 {
 	struct ast_sip_subscription *sub;
 	pjsip_sip_uri *contact_uri;
@@ -1239,6 +1260,8 @@ static struct ast_sip_subscription *allocate_subscription(const struct ast_sip_s
 		return NULL;
 	}
 	strcpy(sub->resource, resource); /* Safe */
+
+	sub->display_name = ast_strdup(display_name);
 
 	sub->datastores = ast_datastores_alloc();
 	if (!sub->datastores) {
@@ -1288,7 +1311,7 @@ static struct ast_sip_subscription *create_virtual_subscriptions(const struct as
 	int i;
 	struct ast_sip_subscription *sub;
 
-	sub = allocate_subscription(handler, resource, tree);
+	sub = allocate_subscription(handler, resource, current->display_name, tree);
 	if (!sub) {
 		return NULL;
 	}
@@ -1880,7 +1903,7 @@ struct ast_sip_subscription *ast_sip_create_subscription(const struct ast_sip_su
 		return NULL;
 	}
 
-	sub = allocate_subscription(handler, resource, sub_tree);
+	sub = allocate_subscription(handler, resource, NULL, sub_tree);
 	if (!sub) {
 		ao2_cleanup(sub_tree);
 		return NULL;
@@ -2088,6 +2111,8 @@ struct body_part {
 	pjsip_evsub_state state;
 	/*! The actual body part that will be present in the multipart body */
 	pjsip_multipart_part *part;
+	/*! Display name for the resource */
+	const char *display_name;
 };
 
 /*!
@@ -2186,7 +2211,7 @@ static pjsip_multipart_part *build_rlmi_body(pj_pool_t *pool, struct ast_sip_sub
 	for (i = 0; i < AST_VECTOR_SIZE(body_parts); ++i) {
 		const struct body_part *part = AST_VECTOR_GET(body_parts, i);
 
-		add_rlmi_resource(pool, rlmi, part->cid, part->resource, part->uri, part->state);
+		add_rlmi_resource(pool, rlmi, part->cid, S_OR(part->display_name, part->resource), part->uri, part->state);
 	}
 
 	rlmi_part = pjsip_multipart_create_part(pool);
@@ -2243,6 +2268,7 @@ static struct body_part *allocate_body_part(pj_pool_t *pool, const struct ast_si
 	bp->resource = sub->resource;
 	bp->state = sub->subscription_state;
 	bp->uri = sub->uri;
+	bp->display_name = sub->display_name;
 
 	return bp;
 }
@@ -4873,6 +4899,8 @@ static int apply_list_configuration(struct ast_sorcery *sorcery)
 			"0", OPT_UINT_T, 0, FLDSET(struct resource_list, notification_batch_interval));
 	ast_sorcery_object_field_register_custom(sorcery, "resource_list", "list_item",
 			"", list_item_handler, list_item_to_str, NULL, 0, 0);
+	ast_sorcery_object_field_register(sorcery, "resource_list", "resource_display_name", "no",
+			OPT_BOOL_T, 1, FLDSET(struct resource_list, resource_display_name));
 
 	ast_sorcery_reload_object(sorcery, "resource_list");
 

@@ -1,0 +1,10 @@
+Subject: res_pjsip_pubsub
+
+A new resource_list option, resource_display_name, indicates
+whether display name of resource or the resource name being
+provided for RLS entries.
+If this option is enabled, the Display Name will be provided.
+This option is disabled by default to remain the previous behavior.
+If the 'event' set to 'presence' or 'dialog' the non-empty HINT name
+will be set as the Display Name.
+The 'message-summary' is not supported yet.
