@@ -1502,6 +1502,19 @@
                            ; Time Asterisk should wait, in milliseconds,
                            ; before sending notifications.
 
+;resource_display_name=no  ; Indicates whether display name of resource
+                           ; or the resource name being reported.
+                           ; If this option is enabled, the Display Name
+                           ; will be reported as resource name.
+                           ; If the event set to presence or dialog,
+                           ; the HINT name will be set as the Display Name.
+                           ; For example:
+                           ;  exten => 1234,hint,PJSIP/user1234(Alice)
+                           ; If enabled the resource name will be 'Alice'.
+                           ; If disabled the resource name will be '1234'.
+                           ; The message-summary is not supported yet.
+
+
 ;==========================INBOUND_PUBLICATION================================
 ; See https://wiki.asterisk.org/wiki/display/AST/Exchanging+Device+and+Mailbox+State+Using+PJSIP
 ; for more information.
