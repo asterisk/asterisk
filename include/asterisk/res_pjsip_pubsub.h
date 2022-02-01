@@ -292,6 +292,17 @@ struct ast_sip_notifier {
 	 * \return An ao2 object that can be used to create a NOTIFY body.
 	 */
 	void *(*get_notify_data)(struct ast_sip_subscription *sub);
+	/*!
+	 * \brief Supply Display Name for resource
+	 *
+	 * \param endpoint The endpoint from which we received the SUBSCRIBE
+	 * \param resource The name of the resource to which the subscription is being made
+	 * \param display_name buffer for Display Name
+	 * \param display_name_size size of display_name buffer
+	 * \retval 0 Success
+	 * \retval -1 Failure
+	 */
+	int (*get_resource_display_name)(struct ast_sip_endpoint *endpoint, const char *resource, char *display_name, int display_name_size);
 };
 
 struct ast_sip_subscriber {
