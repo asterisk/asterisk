@@ -1,5 +1,0 @@
-Subject: cli
-
-The "module refresh" command has been added,
-which allows unloading and then loading a
-module with a single command.

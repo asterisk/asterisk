@@ -1,3 +1,0 @@
-Subject: chan_sip.c
-
-resolve issue with pickup on device that uses "183" and not "180"

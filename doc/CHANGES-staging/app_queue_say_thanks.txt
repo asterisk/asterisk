@@ -1,4 +1,0 @@
-Subject: app_queues
-
-Don't play sound_thanks if there is no leading hold_time message
-When the only announcement is hold time, and there is no hold time (0 min, 0 sec), asterisk will say "thank you for your patience"

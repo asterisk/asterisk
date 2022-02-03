@@ -1,6 +1,0 @@
-Subject: app_voicemail
-Subject: Applications
-
-added support for Danish syntax, playing the correct plural sound file
-dependen on where you have 1 or multipe messages
-based on the existing SE/NO code
