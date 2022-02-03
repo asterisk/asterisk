@@ -998,12 +998,13 @@
                ; headers.  If not specified, the global object's
                ; "default_realm" will be used.
                ;
-               ; For outgoing authentication (asterisk is the UAS), this
+               ; For outgoing authentication (asterisk is the UAC), this
                ; must either be the realm the server is expected to send,
                ; or left blank or contain a single '*' to automatically
                ; use the realm sent by the server. If you have multiple
-               ; auth object for an endpoint, the realm is also used to
+               ; auth objects for an endpoint, the realm is also used to
                ; match the auth object to the realm the server sent.
+               ;
                ; Using the same auth section for inbound and outbound
                ; authentication is not recommended.  There is a difference in
                ; meaning for an empty realm setting between inbound and outbound
