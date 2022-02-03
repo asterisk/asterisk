@@ -1,6 +1,0 @@
-Subject: app_queue
-Subject: Applications
-
-added that we set DIALEDPEERNUMBER on the outgoing channels
-so it is avalible in b(content^extension^line)
-this add the same behaviour as Dial

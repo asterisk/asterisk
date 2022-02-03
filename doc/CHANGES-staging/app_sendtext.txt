@@ -1,4 +1,0 @@
-Subject: app_sendtext
-
-A ReceiveText application has been added that can be
-used in conjunction with the SendText application.

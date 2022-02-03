@@ -1,8 +1,0 @@
-Subject: Core
-
-Bundled PJProject Build
-
-The build process has been updated to make pjproject troubleshooting
-and development easier. See third-party/pjproject/README-hacking.md or
-https://wiki.asterisk.org/wiki/display/AST/Bundled+PJProject
-for more info.

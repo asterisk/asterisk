@@ -1,5 +1,0 @@
-Subject: func_json
-
-The JSON_DECODE dialplan function can now be used
-to parse JSON strings, such as in conjunction with
-CURL for using API responses.

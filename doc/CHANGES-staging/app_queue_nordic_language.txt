@@ -1,3 +1,0 @@
-Subject: app_queues
-
-adding support for playing the correct en/et for nordic languages

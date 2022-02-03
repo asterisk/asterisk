@@ -13,6 +13,92 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 16.23.0 to Asterisk 16.24.0 ----------
+------------------------------------------------------------------------------
+
+Applications
+------------------
+ * added support for Danish syntax, playing the correct plural sound file
+   dependen on where you have 1 or multipe messages
+   based on the existing SE/NO code
+
+ * added that we set DIALEDPEERNUMBER on the outgoing channels
+   so it is avalible in b(content^extension^line)
+   this add the same behaviour as Dial
+
+Core
+------------------
+ * Bundled PJProject Build
+
+   The build process has been updated to make pjproject troubleshooting
+   and development easier. See third-party/pjproject/README-hacking.md or
+   https://wiki.asterisk.org/wiki/display/AST/Bundled+PJProject
+   for more info.
+
+ami
+------------------
+ * An AMI event now exists for "Wink".
+
+app_mf
+------------------
+ * Adds MF receiver and sender applications to support
+   the R1 MF signaling protocol, including integration
+   with the Dial application.
+
+app_queue
+------------------
+ * added that we set DIALEDPEERNUMBER on the outgoing channels
+   so it is avalible in b(content^extension^line)
+   this add the same behaviour as Dial
+
+app_queues
+------------------
+ * adding support for playing the correct en/et for nordic languages
+
+ * Don't play sound_thanks if there is no leading hold_time message
+   When the only announcement is hold time, and there is no hold time (0 min, 0 sec), asterisk will say "thank you for your patience"
+
+app_sendtext
+------------------
+ * A ReceiveText application has been added that can be
+   used in conjunction with the SendText application.
+
+app_voicemail
+------------------
+ * added support for Danish syntax, playing the correct plural sound file
+   dependen on where you have 1 or multipe messages
+   based on the existing SE/NO code
+
+cdr
+------------------
+ * A new CDR option, channeldefaultenabled, allows controlling
+   whether CDR is enabled or disabled by default on
+   newly created channels. The default behavior remains
+   unchanged from previous versions of Asterisk (new
+   channels will have CDR enabled, as long as CDR is
+   enabled globally).
+
+chan_sip.c
+------------------
+ * resolve issue with pickup on device that uses "183" and not "180"
+
+cli
+------------------
+ * The "module refresh" command has been added,
+   which allows unloading and then loading a
+   module with a single command.
+
+func_json
+------------------
+ * The JSON_DECODE dialplan function can now be used
+   to parse JSON strings, such as in conjunction with
+   CURL for using API responses.
+
+res_fax_spandsp
+------------------
+ * Adds support for spandsp 3.0.0.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 16.22.0 to Asterisk 16.23.0 ----------
 ------------------------------------------------------------------------------
 
