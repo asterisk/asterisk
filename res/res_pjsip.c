@@ -1605,11 +1605,11 @@
 						<para>
 						</para>
 						<para>
-						For outgoing authentication (asterisk is the UAS), this
+						For outgoing authentication (asterisk is the UAC), this
 						must either be the realm the server is expected to send,
 						or left blank or contain a single '*' to automatically
 						use the realm sent by the server. If you have multiple
-						auth object for an endpoint, the realm is also used to
+						auth objects for an endpoint, the realm is also used to
 						match the auth object to the realm the server sent.
 						</para>
 						<para>
