@@ -156,6 +156,9 @@ static char *cli_subsystem_alert_report(struct ast_cli_entry *e, int cmd, struct
 static char *cli_tps_reset_stats(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static char *cli_tps_reset_stats_all(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 
+static int tps_sort_cb(const void *obj_left, const void *obj_right, int flags);
+
+
 static struct ast_cli_entry taskprocessor_clis[] = {
 	AST_CLI_DEFINE(cli_tps_ping, "Ping a named task processor"),
 	AST_CLI_DEFINE(cli_tps_report, "List instantiated task processors and statistics"),
@@ -284,12 +287,76 @@ static const struct ast_taskprocessor_listener_callbacks default_listener_callba
 	.dtor = default_listener_pvt_dtor,
 };
 
+/*! \brief How many seconds to wait for running taskprocessors to finish on shutdown. */
+#define AST_TASKPROCESSOR_SHUTDOWN_MAX_WAIT 10
+
 /*!
  * \internal
  * \brief Clean up resources on Asterisk shutdown
  */
 static void tps_shutdown(void)
 {
+	int objcount;
+	int tries;
+	struct ao2_container *sorted_tps;
+	struct ast_taskprocessor *tps;
+	struct ao2_iterator iter;
+	struct timespec delay = {1, 0};
+
+	/* During shutdown there may still be taskprocessor threads running and those
+	 * tasprocessors reference tps_singletons.  When those taskprocessors finish
+	 * they will call ast_taskprocessor_unreference, creating a race condition which
+	 * can result in tps_singletons being referenced after being deleted. To try and
+	 * avoid this we check the container count and if greater than zero, give the
+	 * running taskprocessors a chance to finish */
+	objcount = ao2_container_count(tps_singletons);
+	if (objcount > 0) {
+		ast_log(LOG_DEBUG,
+    		"waiting for taskprocessor shutdown, %d tps object(s) still allocated.\n",
+			objcount);
+
+		/* give the running taskprocessors a chance to finish, up to
+		 * AST_TASKPROCESSOR_SHUTDOWN_MAX_WAIT seconds */
+		for (tries = 0; tries < AST_TASKPROCESSOR_SHUTDOWN_MAX_WAIT; tries++) {
+  			while (nanosleep(&delay, &delay));
+  			objcount = ao2_container_count(tps_singletons);
+			/* if count is 0, we are done waiting */
+			if (objcount == 0) {
+				break;
+			}
+			delay.tv_sec = 1;
+			delay.tv_nsec = 0;
+			ast_log(LOG_DEBUG,
+    			"waiting for taskprocessor shutdown, %d tps object(s) still allocated.\n",
+				objcount);
+		}
+	}
+
+	/* rather than try forever, risk an assertion on shutdown.  This probably indicates
+ 	 * a taskprocessor was not cleaned up somewhere */
+	if (objcount > 0) {
+  		ast_log(LOG_ERROR,
+    		"Asertion may occur, the following taskprocessors are still runing:\n");
+
+		sorted_tps = ao2_container_alloc_rbtree(AO2_ALLOC_OPT_LOCK_NOLOCK, 0, tps_sort_cb,
+			NULL);
+		if (!sorted_tps || ao2_container_dup(sorted_tps, tps_singletons, 0)) {
+			ast_log(LOG_ERROR, "unable to get sorted list of taskprocessors");
+		}
+		else {
+			iter = ao2_iterator_init(sorted_tps, AO2_ITERATOR_UNLINK);
+			while ((tps = ao2_iterator_next(&iter))) {
+				ast_log(LOG_ERROR, "taskprocessor '%s'\n", tps->name);
+			}
+		}
+
+		ao2_cleanup(sorted_tps);
+	}
+	else {
+		ast_log(LOG_DEBUG,
+    			"All waiting taskprocessors cleared!\n");
+	}
+
 	ast_cli_unregister_multiple(taskprocessor_clis, ARRAY_LEN(taskprocessor_clis));
 	AST_VECTOR_CALLBACK_VOID(&overloaded_subsystems, ast_free);
 	AST_VECTOR_RW_FREE(&overloaded_subsystems);
