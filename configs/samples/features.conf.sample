@@ -6,7 +6,11 @@
 
 [general]
 ;transferdigittimeout => 3      ; Number of seconds to wait between digits when transferring a call
-                                ; (default is 3 seconds)
+                                ; (default is 3 seconds). If the TRANSFER_EXTEN dialplan variable has been set
+                                ; on the channel of the user that is invoking the transfer feature, then
+                                ; this option is not used as the user is transferred directly to the extension
+                                ; specified by TRANSFER_EXTEN (the transfer context remains the context specified
+                                ; by TRANSFER_CONTEXT, if set, and otherwise the default context).
 ;xfersound = beep               ; to indicate an attended transfer is complete
 ;xferfailsound = beeperr        ; to indicate a failed transfer
 ;pickupexten = *8               ; Configure the pickup extension. (default is *8)
@@ -26,12 +30,13 @@
                                 ; By default, this is 2.
 ;transferdialattempts = 3       ; Number of times that a transferer may attempt to dial an extension before
                                 ; being kicked back to the original call.
+;transferannouncesound = beep   ; Sound to play to a transferer to indicate transfer process has begun. If empty, no sound will be played.
 ;transferretrysound = beep      ; Sound to play when a transferer fails to dial a valid extension.
 ;transferinvalidsound = beeperr ; Sound to play when a transferer fails to dial a valid extension and is out of retries.
 ;atxferabort = *1               ; cancel the attended transfer
 ;atxfercomplete = *2            ; complete the attended transfer, dropping out of the call
 ;atxferthreeway = *3            ; complete the attended transfer, but stay in the call. This will turn the call into a multi-party bridge
-;atxferswap = *4                ; swap to the other party. Once an attended transfer has begun, this options may be used multiple times
+;atxferswap = *4                ; swap to the other party. Once an attended transfer has begun, this option may be used multiple times
 
 ; Note that the DTMF features listed below only work when two channels have answered and are bridged together.
 ; They can not be used while the remote party is ringing or in progress. If you require this feature you can use

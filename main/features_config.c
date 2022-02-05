@@ -143,6 +143,9 @@
 				<configOption name="transferinvalidsound" default="privacy-incorrect">
 					<synopsis>Sound that is played when an incorrect extension is dialed and the transferer has no attempts remaining.</synopsis>
 				</configOption>
+				<configOption name="transferannouncesound" default="pbx-transfer">
+					<synopsis>Sound that is played to the transferer when a transfer is initiated. If empty, no sound will be played.</synopsis>
+				</configOption>
 			</configObject>
 			<configObject name="featuremap">
 				<synopsis>DTMF options that can be triggered during bridged calls</synopsis>
@@ -324,6 +327,7 @@
 					<enum name="transferdialattempts"><para><xi:include xpointer="xpointer(/docs/configInfo[@name='features']/configFile[@name='features.conf']/configObject[@name='globals']/configOption[@name='transferdialattempts']/synopsis/text())" /></para></enum>
 					<enum name="transferretrysound"><para><xi:include xpointer="xpointer(/docs/configInfo[@name='features']/configFile[@name='features.conf']/configObject[@name='globals']/configOption[@name='transferretrysound']/synopsis/text())" /></para></enum>
 					<enum name="transferinvalidsound"><para><xi:include xpointer="xpointer(/docs/configInfo[@name='features']/configFile[@name='features.conf']/configObject[@name='globals']/configOption[@name='transferinvalidsound']/synopsis/text())" /></para></enum>
+					<enum name="transferannouncesound"><para><xi:include xpointer="xpointer(/docs/configInfo[@name='features']/configFile[@name='features.conf']/configObject[@name='globals']/configOption[@name='transferannouncesound']/synopsis/text())" /></para></enum>
 				</enumlist>
 			</parameter>
 		</syntax>
@@ -387,6 +391,7 @@
 #define DEFAULT_TRANSFER_DIAL_ATTEMPTS              3
 #define DEFAULT_TRANSFER_RETRY_SOUND                "pbx-invalid"
 #define DEFAULT_TRANSFER_INVALID_SOUND              "privacy-incorrect"
+#define DEFAULT_TRANSFER_ANNOUNCE_SOUND             "pbx-transfer"
 
 /*! Default pickup options */
 #define DEFAULT_PICKUPEXTEN                         "*8"
@@ -910,6 +915,8 @@ static int xfer_set(struct ast_features_xfer_config *xfer, const char *name,
 		ast_string_field_set(xfer, transferretrysound, value);
 	} else if (!strcasecmp(name, "transferinvalidsound")) {
 		ast_string_field_set(xfer, transferinvalidsound, value);
+	} else if (!strcasecmp(name, "transferannouncesound")) {
+		ast_string_field_set(xfer, transferannouncesound, value);
 	} else {
 		/* Unrecognized option */
 		res = -1;
@@ -1801,6 +1808,8 @@ static int load_config(void)
 			DEFAULT_TRANSFER_RETRY_SOUND, xfer_handler, 0);
 	aco_option_register_custom(&cfg_info, "transferinvalidsound", ACO_EXACT, global_options,
 			DEFAULT_TRANSFER_INVALID_SOUND, xfer_handler, 0);
+	aco_option_register_custom(&cfg_info, "transferannouncesound", ACO_EXACT, global_options,
+			DEFAULT_TRANSFER_ANNOUNCE_SOUND, xfer_handler, 0);
 
 	aco_option_register_custom(&cfg_info, "pickupexten", ACO_EXACT, global_options,
 			DEFAULT_PICKUPEXTEN, pickup_handler, 0);
