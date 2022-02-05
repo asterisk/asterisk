@@ -3007,6 +3007,23 @@ static char *cli_complete(EditLine *editline, int ch)
 			/* Only read 1024 bytes at a time */
 			res = read(ast_consock, mbuf + mlen, 1024);
 			if (res > 0) {
+				if (!strncmp(mbuf, "Usage:", 6)) {
+					/*
+					 * Abort on malformed tab completes
+					 * If help (tab complete) follows certain
+					 * special characters, the main Asterisk process
+					 * provides usage for the internal tab complete
+					 * helper command that the remote console processes
+					 * use.
+					 * If this happens, the AST_CLI_COMPLETE_EOF sentinel
+					 * value never gets sent. As a result, we'll just block
+					 * forever if we don't handle this case.
+					 * If we get command usage on a tab complete, then
+					 * we know this scenario just happened and we should
+					 * just silently ignore and do nothing.
+					 */
+					break;
+				}
 				mlen += res;
 				mbuf[mlen] = '\0';
 			}
