@@ -90,10 +90,10 @@
 					of use when debugging CDR behavior.</para>
 					</description>
 				</configOption>
-				<configOption name="enable">
+				<configOption name="enable" default="yes">
 					<synopsis>Enable/disable CDR logging.</synopsis>
 					<description><para>Define whether or not to use CDR logging. Setting this to "no" will override
-					any loading of backend CDR modules.  Default is "yes".</para>
+					any loading of backend CDR modules.</para>
 					</description>
 				</configOption>
 				<configOption name="unanswered">
