@@ -64,8 +64,9 @@
 		</syntax>
 		<description>
 			<para>Executes mpg123 to play the given location, which typically would be a mp3 filename
-			or m3u playlist filename or a URL. Please read http://en.wikipedia.org/wiki/M3U
+			or m3u playlist filename or a URL. Please read https://en.wikipedia.org/wiki/M3U
 			to see what the M3U playlist file format is like.</para>
+			<para>Note that mpg123 does not support HTTPS, so use HTTP for web streams.</para>
 			<para>User can exit by pressing any key on the dialpad, or by hanging up.</para>
 			<example title="Play an MP3 playlist">
 			exten => 1234,1,MP3Player(/var/lib/asterisk/playlist.m3u)
@@ -251,6 +252,9 @@ static int mp3_exec(struct ast_channel *chan, const char *data)
 				} else {
 					ast_debug(1, "No more mp3\n");
 					if (!startedmp3) { /* we couldn't do anything, which means this stream doesn't work */
+						if (!strncasecmp(data, "https://", 8)) {
+							ast_log(LOG_WARNING, "%s() does not support HTTPS streams. Use HTTP instead.\n", app);
+						}
 						ast_log(LOG_WARNING, "MP3 stream '%s' is broken or nonexistent\n", data);
 					}
 					res = 0;
