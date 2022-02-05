@@ -1398,6 +1398,27 @@ static const char *get_transfer_context(struct ast_channel *transferer, const ch
 }
 
 /*!
+ * \internal
+ * \brief Determine the transfer extension to use.
+ *
+ * \param transferer Channel initiating the transfer.
+ * \param extension User supplied extension if available.  May be NULL.
+ *
+ * \return The extension to use for the transfer.
+ */
+static const char *get_transfer_exten(struct ast_channel *transferer, const char *exten)
+{
+	if (!ast_strlen_zero(exten)) {
+		return exten;
+	}
+	exten = pbx_builtin_getvar_helper(transferer, "TRANSFER_EXTEN");
+	if (!ast_strlen_zero(exten)) {
+		return exten;
+	}
+	return ""; /* empty default, to get transfer extension from user now */
+}
+
+/*!
  * \brief Allocate and initialize attended transfer properties
  *
  * \param transferer The channel performing the attended transfer
@@ -3162,10 +3183,25 @@ static int grab_transfer(struct ast_channel *chan, char *exten, size_t exten_len
 	int attempts = 0;
 	int max_attempts;
 	struct ast_features_xfer_config *xfer_cfg;
-	char *retry_sound;
-	char *invalid_sound;
+	char *announce_sound, *retry_sound, *invalid_sound;
+	const char *extenoverride;
 
 	ast_channel_lock(chan);
+	extenoverride = get_transfer_exten(chan, NULL);
+
+	if (!ast_strlen_zero(extenoverride)) {
+		int extenres = ast_exists_extension(chan, context, extenoverride, 1,
+			S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL)) ? 1 : 0;
+		if (extenres) {
+			ast_copy_string(exten, extenoverride, exten_len);
+			ast_channel_unlock(chan);
+			ast_verb(3, "Transfering call to '%s@%s'", exten, context);
+			return 0;
+		}
+		ast_log(LOG_WARNING, "Override extension '%s' does not exist in context '%s'\n", extenoverride, context);
+		/* since we didn't get a valid extension from the channel, fall back and grab it from the user as usual now */
+	}
+
 	xfer_cfg = ast_get_chan_features_xfer_config(chan);
 	if (!xfer_cfg) {
 		ast_log(LOG_ERROR, "Channel %s: Unable to get transfer configuration\n",
@@ -3175,21 +3211,24 @@ static int grab_transfer(struct ast_channel *chan, char *exten, size_t exten_len
 	}
 	digit_timeout = xfer_cfg->transferdigittimeout * 1000;
 	max_attempts = xfer_cfg->transferdialattempts;
+	announce_sound = ast_strdupa(xfer_cfg->transferannouncesound);
 	retry_sound = ast_strdupa(xfer_cfg->transferretrysound);
 	invalid_sound = ast_strdupa(xfer_cfg->transferinvalidsound);
 	ao2_ref(xfer_cfg, -1);
 	ast_channel_unlock(chan);
 
 	/* Play the simple "transfer" prompt out and wait */
-	res = ast_stream_and_wait(chan, "pbx-transfer", AST_DIGIT_ANY);
-	ast_stopstream(chan);
-	if (res < 0) {
-		/* Hangup or error */
-		return -1;
-	}
-	if (res) {
-		/* Store the DTMF digit that interrupted playback of the file. */
-		exten[0] = res;
+	if (!ast_strlen_zero(announce_sound)) {
+		res = ast_stream_and_wait(chan, announce_sound, AST_DIGIT_ANY);
+		ast_stopstream(chan);
+		if (res < 0) {
+			/* Hangup or error */
+			return -1;
+		}
+		if (res) {
+			/* Store the DTMF digit that interrupted playback of the file. */
+			exten[0] = res;
+		}
 	}
 
 	/* Drop to dialtone so they can enter the extension they want to transfer to */
