@@ -1130,8 +1130,7 @@ static int build_member_list(void)
 	return res;
 }
 
-/*! \brief Given the string representation of a member and category, mark it as present in a given input file */
-static void mark_as_present(const char *member, const char *category)
+static void mark_as_present_helper(const char *member, const char *category, int present)
 {
 	struct category *cat;
 	struct member *mem;
@@ -1142,30 +1141,43 @@ static void mark_as_present(const char *member, const char *category)
 		negate = 1;
 	}
 
-	print_debug("Marking %s of %s as present\n", member, category);
+	print_debug("Marking %s of %s as %s\n", member, category, present ? "present" : "not present");
 
 	AST_LIST_TRAVERSE(&categories, cat, list) {
-		if (strcmp(category, cat->name))
+		if (strcmp(category, cat->name)) {
 			continue;
+		}
 		AST_LIST_TRAVERSE(&cat->members, mem, list) {
 			if (mem->is_separator) {
 				continue;
 			}
 
 			if (!strcmp(member, mem->name)) {
-				mem->was_enabled = mem->enabled = (negate ? !cat->positive_output : cat->positive_output);
+				if (present) {
+					mem->was_enabled = mem->enabled = (negate ? !cat->positive_output : cat->positive_output);
+				} else {
+					mem->was_enabled = mem->enabled = 0;
+				}
 				print_debug("Just set %s enabled to %d\n", mem->name, mem->enabled);
 				break;
 			}
 		}
-		if (!mem)
+		if (!mem) {
 			fprintf(stderr, "member '%s' in category '%s' not found, ignoring.\n", member, category);
+		}
 		break;
 	}
 
-	if (!cat)
+	if (!cat) {
 		fprintf(stderr, "category '%s' not found! Can't mark '%s' as disabled.\n", category, member);
+	}
 }
+
+/*! \brief Given the string representation of a member and category, mark it as present in a given input file */
+#define mark_as_present(member, category) mark_as_present_helper(member, category, 1)
+
+/*! \brief Given the string representation of a member and category, mark it as not present in a given input file */
+#define mark_as_not_present(member, category) mark_as_present_helper(member, category, 0)
 
 unsigned int enable_member(struct member *mem)
 {
@@ -1380,6 +1392,9 @@ static int parse_existing_config(const char *infile)
 	}
 
 	while (fgets(buf, PARSE_BUF_SIZE, f)) {
+		struct category *cat;
+		struct member *mem;
+
 		lineno++;
 
 		if (strlen_zero(buf))
@@ -1414,11 +1429,44 @@ static int parse_existing_config(const char *infile)
 			continue;
 		}
 
-		while ((member = strsep(&parse, " \n"))) {
-			member = skip_blanks(member);
-			if (strlen_zero(member))
+		AST_LIST_TRAVERSE(&categories, cat, list) {
+			if (strcmp(category, cat->name)) {
 				continue;
-			mark_as_present(member, category);
+			}
+			if (!cat->positive_output) {
+				print_debug("Category %s is NOT positive output\n", cat->name);
+				/* if NOT positive_output, then if listed in makeopts, it's disabled! */
+				/* this means that what's listed in menuselect.makeopts is a list of modules
+				 * that are NOT selected, so we can't use that to mark things as present.
+				 * In fact, we need to mark everything as present, UNLESS it's listed
+				* in menuselect.makeopts */
+				AST_LIST_TRAVERSE(&cat->members, mem, list) {
+					if (mem->is_separator) {
+						continue;
+					}
+					mem->was_enabled = 1;
+					print_debug("Just set %s enabled to %d\n", mem->name, mem->enabled);
+				}	
+				/* okay, now go ahead, and mark anything listed in makeopts as NOT present */
+				while ((member = strsep(&parse, " \n"))) {
+					member = skip_blanks(member);
+					if (strlen_zero(member)) {
+						continue;
+					}
+					mark_as_not_present(member, category);
+				}
+			} else {
+				print_debug("Category %s is positive output\n", cat->name);
+				/* if present, it was enabled (e.g. MENUSELECT_CFLAGS, MENUSELECT_UTILS, MENUSELECT_MOH, etc. */
+				while ((member = strsep(&parse, " \n"))) {
+					member = skip_blanks(member);
+					if (strlen_zero(member)) {
+						continue;
+					}
+					mark_as_present(member, category);
+				}
+			}
+			break;
 		}
 	}
 
