@@ -3204,7 +3204,7 @@ int ast_settimeout_full(struct ast_channel *c, unsigned int rate, int (*func)(co
 		real_rate = max_rate;
 	}
 
-	ast_debug(1, "Scheduling timer at (%u requested / %u actual) timer ticks per second\n", rate, real_rate);
+	ast_debug(3, "Scheduling timer at (%u requested / %u actual) timer ticks per second\n", rate, real_rate);
 
 	res = ast_timer_set_rate(ast_channel_timer(c), real_rate);
 
@@ -5039,7 +5039,7 @@ int ast_prod(struct ast_channel *chan)
 
 	/* Send an empty audio frame to get things moving */
 	if (ast_channel_state(chan) != AST_STATE_UP) {
-		ast_debug(1, "Prodding channel '%s'\n", ast_channel_name(chan));
+		ast_debug(3, "Prodding channel '%s'\n", ast_channel_name(chan));
 		a.subclass.format = ast_channel_rawwriteformat(chan);
 		a.data.ptr = nothing + AST_FRIENDLY_OFFSET;
 		a.src = "ast_prod"; /* this better match check in ast_write */
