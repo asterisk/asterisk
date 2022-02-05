@@ -90,18 +90,18 @@
 					of use when debugging CDR behavior.</para>
 					</description>
 				</configOption>
-				<configOption name="enable">
+				<configOption name="enable" default="yes">
 					<synopsis>Enable/disable CDR logging.</synopsis>
 					<description><para>Define whether or not to use CDR logging. Setting this to "no" will override
-					any loading of backend CDR modules.  Default is "yes".</para>
+					any loading of backend CDR modules.</para>
 					</description>
 				</configOption>
-				<configOption name="channeldefaultenabled">
+				<configOption name="channeldefaultenabled" default="yes">
 					<synopsis>Whether CDR is enabled on a channel by default</synopsis>
 					<description><para>Define whether or not CDR should be enabled on a channel by default.
 					Setting this to "yes" will enable CDR on every channel unless it is explicitly disabled.
 					Setting this to "no" will disable CDR on every channel unless it is explicitly enabled.
-					Default is "yes".</para>
+					</para>
 					<para>Note that CDR must still be globally enabled (<literal>enable = yes</literal>) for this
 					option to have any effect. This only applies to whether CDR is enabled or disabled on
 					newly created channels, which can be changed in the dialplan during a call.</para>
