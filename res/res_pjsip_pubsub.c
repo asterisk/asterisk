@@ -2492,6 +2492,8 @@ static int serialized_send_notify(void *userdata)
 
 	pjsip_dlg_inc_lock(dlg);
 
+	sub_tree->notify_sched_id = -1;
+
 	/* It's possible that between when the notification was scheduled
 	 * and now a new SUBSCRIBE arrived requiring full state to be
 	 * sent out in an immediate NOTIFY. It's also possible that we're
@@ -2517,7 +2519,6 @@ static int serialized_send_notify(void *userdata)
 			? "SUBSCRIPTION_TERMINATED" : "SUBSCRIPTION_STATE_CHANGED",
 		"Resource: %s", sub_tree->root->resource);
 
-	sub_tree->notify_sched_id = -1;
 	pjsip_dlg_dec_lock(dlg);
 	ao2_cleanup(sub_tree);
 	return 0;
