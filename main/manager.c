@@ -6469,36 +6469,30 @@ static int action_loggerrotate(struct mansession *s, const struct message *m)
 /*! \brief Manager function to check if module is loaded */
 static int manager_modulecheck(struct mansession *s, const struct message *m)
 {
-	int res;
 	const char *module = astman_get_header(m, "Module");
 	const char *id = astman_get_header(m, "ActionID");
-	char idText[256];
-	char filename[PATH_MAX];
-	char *cut;
 
-	ast_copy_string(filename, module, sizeof(filename));
-	if ((cut = strchr(filename, '.'))) {
-		*cut = '\0';
-	} else {
-		cut = filename + strlen(filename);
-	}
-	snprintf(cut, (sizeof(filename) - strlen(filename)) - 1, ".so");
-	ast_debug(1, "**** ModuleCheck .so file %s\n", filename);
-	res = ast_module_check(filename);
-	if (!res) {
+	ast_debug(1, "**** ModuleCheck .so file %s\n", module);
+	if (!ast_module_check(module)) {
 		astman_send_error(s, m, "Module not loaded");
 		return 0;
 	}
 
+	astman_append(s, "Response: Success\r\n");
+
 	if (!ast_strlen_zero(id)) {
-		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
-	} else {
-		idText[0] = '\0';
+		astman_append(s, "ActionID: %s\r\n", id);
 	}
-	astman_append(s, "Response: Success\r\n%s", idText);
+
 #if !defined(LOW_MEMORY)
-	astman_append(s, "Version: %s\r\n\r\n", "");
+	/* When we switched from subversion to git we lost the ability to
+	 * retrieve the 'ASTERISK_FILE_VERSION' from that file, but we retain
+	 * the response header here for backwards compatibility. */
+	astman_append(s, "Version: \r\n");
 #endif
+
+	astman_append(s, "\r\n");
+
 	return 0;
 }
 
