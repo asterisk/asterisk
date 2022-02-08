@@ -1,0 +1,7 @@
+Subject: res_pjsip_pubsub
+
+The Resource List Subscriptions (RLS) is dynamic now.
+The asterisk now updates current subscriptions to reflect the changes
+to the list on subscription refresh. If list items are added,
+removed, updated or do not exist anymore, the asterisk regenerates
+the resource list.

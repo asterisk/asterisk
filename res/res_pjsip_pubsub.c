@@ -475,6 +475,10 @@ struct sip_subscription_tree {
 	 * Only used for reliable transports.
 	 */
 	pjsip_transport *transport;
+	/*! Indicator if initial notify should be generated.
+	 * Used to refresh modified RLS.
+	 */
+	unsigned int generate_initial_notify;
 };
 
 /*!
@@ -3902,6 +3906,15 @@ static int pubsub_on_refresh_timeout(void *userdata)
 		set_state_terminated(sub_tree->root);
 	}
 
+	if (sub_tree->generate_initial_notify) {
+		sub_tree->generate_initial_notify = 0;
+		if (generate_initial_notify(sub_tree->root)) {
+			pjsip_evsub_terminate(sub_tree->evsub, PJ_TRUE);
+			pjsip_dlg_dec_lock(dlg);
+			return 0;
+		}
+	}
+
 	send_notify(sub_tree, 1);
 
 	ast_test_suite_event_notify(sub_tree->root->subscription_state == PJSIP_EVSUB_STATE_TERMINATED ?
@@ -3922,6 +3935,52 @@ static int serialized_pubsub_on_refresh_timeout(void *userdata)
 
 	pubsub_on_refresh_timeout(userdata);
 	ao2_cleanup(sub_tree);
+
+	return 0;
+}
+
+/*!
+ * \brief Compare strings for equality checking for NULL.
+ *
+ * This function considers NULL values as empty strings.
+ * This means NULL or empty strings are equal.
+ *
+ * \retval 0 The strings are equal
+ * \retval 1 The strings are not equal
+ */
+static int cmp_strings(char *s1, char *s2)
+{
+	if (!ast_strlen_zero(s1) && !ast_strlen_zero(s2)) {
+		return strcmp(s1, s2);
+	}
+
+	return ast_strlen_zero(s1) == ast_strlen_zero(s2) ? 0 : 1;
+}
+
+/*!
+ * \brief compares the childrens of two ast_sip_subscription s1 and s2
+ *
+ * \retval 0 The s1 childrens match the s2 childrens
+ * \retval 1 The s1 childrens do not match the s2 childrens
+ */
+static int cmp_subscription_childrens(struct ast_sip_subscription *s1, struct ast_sip_subscription *s2)
+{
+	int i;
+
+	if (AST_VECTOR_SIZE(&s1->children) != AST_VECTOR_SIZE(&s2->children)) {
+		return 1;
+	}
+
+	for (i = 0; i < AST_VECTOR_SIZE(&s1->children); ++i) {
+		struct ast_sip_subscription *c1 = AST_VECTOR_GET(&s1->children, i);
+		struct ast_sip_subscription *c2 = AST_VECTOR_GET(&s2->children, i);
+
+		if (cmp_strings(c1->resource, c2->resource)
+			|| cmp_strings(c1->display_name, c2->display_name)) {
+
+			return 1;
+		}
+	}
 
 	return 0;
 }
@@ -3964,6 +4023,48 @@ static void pubsub_on_rx_refresh(pjsip_evsub *evsub, pjsip_rx_data *rdata,
 
 	if (pjsip_evsub_get_state(sub_tree->evsub) == PJSIP_EVSUB_STATE_TERMINATED) {
 		sub_tree->state = SIP_SUB_TREE_TERMINATE_PENDING;
+	}
+
+	if (sub_tree->state == SIP_SUB_TREE_NORMAL && sub_tree->is_list) {
+		/* update RLS */
+		const char *resource = sub_tree->root->resource;
+		struct ast_sip_subscription *old_root = sub_tree->root;
+		struct ast_sip_subscription *new_root = NULL;
+		RAII_VAR(struct ast_sip_endpoint *, endpoint, NULL, ao2_cleanup);
+		struct ast_sip_subscription_handler *handler = NULL;
+		struct ast_sip_pubsub_body_generator *generator = NULL;
+
+		if ((endpoint = ast_pjsip_rdata_get_endpoint(rdata))
+			&& (handler = subscription_get_handler_from_rdata(rdata, ast_sorcery_object_get_id(endpoint)))
+			&& (generator = subscription_get_generator_from_rdata(rdata, handler))) {
+
+			struct resource_tree tree;
+			int resp;
+
+			memset(&tree, 0, sizeof(tree));
+			resp = build_resource_tree(endpoint, handler, resource, &tree,
+				ast_sip_pubsub_has_eventlist_support(rdata));
+			if (PJSIP_IS_STATUS_IN_CLASS(resp, 200)) {
+				new_root = create_virtual_subscriptions(handler, resource, generator, sub_tree, tree.root);
+				if (new_root) {
+					if (cmp_subscription_childrens(old_root, new_root)) {
+						ast_debug(1, "RLS '%s->%s' was modified, regenerate it\n", ast_sorcery_object_get_id(endpoint), old_root->resource);
+						new_root->version = old_root->version;
+						sub_tree->root = new_root;
+						sub_tree->generate_initial_notify = 1;
+						shutdown_subscriptions(old_root);
+						destroy_subscriptions(old_root);
+					} else {
+						destroy_subscriptions(new_root);
+					}
+				}
+			} else {
+				sub_tree->state = SIP_SUB_TREE_TERMINATE_PENDING;
+				pjsip_evsub_terminate(sub_tree->evsub, PJ_TRUE);
+			}
+
+			resource_tree_destroy(&tree);
+		}
 	}
 
 	subscription_persistence_update(sub_tree, rdata, SUBSCRIPTION_PERSISTENCE_REFRESHED);
