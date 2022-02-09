@@ -290,6 +290,7 @@
 					<value name="JOINUNAVAIL" />
 					<value name="LEAVEUNAVAIL" />
 					<value name="CONTINUE" />
+					<value name="WITHDRAW" />
 				</variable>
 				<variable name="ABANDONED">
 					<para>If the call was not answered by an agent this variable will be TRUE.</para>
@@ -297,6 +298,9 @@
 				</variable>
 				<variable name="DIALEDPEERNUMBER">
 					<para>Resource of the agent that was dialed set on the outbound channel.</para>
+				</variable>
+				<variable name="QUEUE_WITHDRAW_INFO">
+					<para>If the call was successfully withdrawn from the queue, and the withdraw request was provided with optional withdraw info, the withdraw info will be stored in this variable.</para>
 				</variable>
 			</variablelist>
 		</description>
@@ -1057,6 +1061,25 @@
 		<description>
 		</description>
 	</manager>
+	<manager name="QueueWithdrawCaller" language="en_US">
+		<synopsis>
+			Request to withdraw a caller from the queue back to the dialplan.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Queue" required="true">
+				<para>The name of the queue to take action on.</para>
+			</parameter>
+			<parameter name="Caller" required="true">
+				<para>The caller (channel) to withdraw from the queue.</para>
+			</parameter>
+			<parameter name="WithdrawInfo" required="false">
+				<para>Optional info to store. If the call is successfully withdrawn from the queue, this information will be available in the QUEUE_WITHDRAW_INFO variable.</para>
+			</parameter>
+		</syntax>
+		<description>
+		</description>
+	</manager>
 
 	<managerEvent language="en_US" name="QueueParams">
 		<managerEventInstance class="EVENT_FLAG_AGENT">
@@ -1605,6 +1628,7 @@ enum queue_result {
 	QUEUE_LEAVEUNAVAIL = 5,
 	QUEUE_FULL = 6,
 	QUEUE_CONTINUE = 7,
+	QUEUE_WITHDRAW = 8,
 };
 
 static const struct {
@@ -1619,6 +1643,7 @@ static const struct {
 	{ QUEUE_LEAVEUNAVAIL, "LEAVEUNAVAIL" },
 	{ QUEUE_FULL, "FULL" },
 	{ QUEUE_CONTINUE, "CONTINUE" },
+	{ QUEUE_WITHDRAW, "WITHDRAW" },
 };
 
 enum queue_timeout_priority {
@@ -1687,6 +1712,8 @@ struct queue_ent {
 	time_t start;                          /*!< When we started holding */
 	time_t expire;                         /*!< When this entry should expire (time out of queue) */
 	int cancel_answered_elsewhere;         /*!< Whether we should force the CAE flag on this call (C) option*/
+	unsigned int withdraw:1;               /*!< Should this call exit the queue at its next iteration? Used for QueueWithdrawCaller */
+	char *withdraw_info;                   /*!< Optional info passed by the caller of QueueWithdrawCaller */
 	struct ast_channel *chan;              /*!< Our channel */
 	AST_LIST_HEAD_NOLOCK(,penalty_rule) qe_rules; /*!< Local copy of the queue's penalty rules */
 	struct penalty_rule *pr;               /*!< Pointer to the next penalty rule to implement */
@@ -5805,6 +5832,13 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
 	/* This is the holding pen for callers 2 through maxlen */
 	for (;;) {
 
+		/* A request to withdraw this call from the queue arrived */
+		if (qe->withdraw) {
+			*reason = QUEUE_WITHDRAW;
+			res = 1;
+			break;
+		}
+
 		if (is_our_turn(qe)) {
 			break;
 		}
@@ -7625,6 +7659,51 @@ static int change_priority_caller_on_queue(const char *queuename, const char *ca
 }
 
 
+/*! \brief Request to withdraw a caller from a queue
+ * \retval RES_NOSUCHQUEUE queue does not exist
+ * \retval RES_OKAY withdraw request sent
+ * \retval RES_NOT_CALLER queue exists but no caller
+ * \retval RES_EXISTS a withdraw request was already sent for this caller (channel) and queue
+*/
+static int request_withdraw_caller_from_queue(const char *queuename, const char *caller, const char *withdraw_info)
+{
+	struct call_queue *q;
+	struct queue_ent *qe;
+	int res = RES_NOSUCHQUEUE;
+
+	/*! \note Ensure the appropriate realtime queue is loaded.  Note that this
+	 * short-circuits if the queue is already in memory. */
+	if (!(q = find_load_queue_rt_friendly(queuename))) {
+		return res;
+	}
+
+	ao2_lock(q);
+	res = RES_NOT_CALLER;
+	for (qe = q->head; qe; qe = qe->next) {
+		if (!strcmp(ast_channel_name(qe->chan), caller)) {
+			if (qe->withdraw) {
+				ast_debug(1, "Ignoring duplicate withdraw request of caller %s from queue %s\n", caller, queuename);
+				res = RES_EXISTS;
+			} else {
+				ast_debug(1, "Requested withdraw of caller %s from queue %s\n", caller, queuename);
+				/* It is not possible to change the withdraw info by further withdraw requests for this caller (channel)
+				   in this queue, so we do not need to worry about a memory leak here. */
+				if (withdraw_info) {
+					qe->withdraw_info = ast_strdup(withdraw_info);
+				}
+				qe->withdraw = 1;
+				res = RES_OKAY;
+			}
+			break;
+		}
+	}
+	ao2_unlock(q);
+	queue_unref(q);
+
+	return res;
+}
+
+
 static int publish_queue_member_pause(struct call_queue *q, struct member *member, const char *reason)
 {
 	struct ast_json *json_blob = queue_member_blob_create(q, member);
@@ -8576,6 +8655,13 @@ check_turns:
 		/* they may dial a digit from the queue context; */
 		/* or, they may timeout. */
 
+		/* A request to withdraw this call from the queue arrived */
+		if (qe.withdraw) {
+			reason = QUEUE_WITHDRAW;
+			res = 1;
+			break;
+		}
+
 		/* Leave if we have exceeded our queuetimeout */
 		if (qe.expire && (time(NULL) >= qe.expire)) {
 			record_abandoned(&qe);
@@ -8601,6 +8687,13 @@ check_turns:
 			if ((res = say_periodic_announcement(&qe, ringing))) {
 				goto stop;
 			}
+		}
+
+		/* A request to withdraw this call from the queue arrived */
+		if (qe.withdraw) {
+			reason = QUEUE_WITHDRAW;
+			res = 1;
+			break;
 		}
 
 		/* Leave if we have exceeded our queuetimeout */
@@ -8677,7 +8770,14 @@ check_turns:
 
 stop:
 	if (res) {
-		if (res < 0) {
+		if (reason == QUEUE_WITHDRAW) {
+			record_abandoned(&qe);
+			ast_queue_log(qe.parent->name, ast_channel_uniqueid(qe.chan), "NONE", "WITHDRAW", "%d|%d|%ld|%.40s", qe.pos, qe.opos, (long) (time(NULL) - qe.start), qe.withdraw_info ? qe.withdraw_info : "");
+			if (qe.withdraw_info) {
+				pbx_builtin_setvar_helper(qe.chan, "QUEUE_WITHDRAW_INFO", qe.withdraw_info);
+			}
+			res = 0;
+		} else if (res < 0) {
 			if (!qe.handled) {
 				record_abandoned(&qe);
 				ast_queue_log(args.queuename, ast_channel_uniqueid(chan), "NONE", "ABANDON",
@@ -8695,6 +8795,13 @@ stop:
 			ast_queue_log(args.queuename, ast_channel_uniqueid(chan), "NONE", "EXITWITHKEY",
 				"%s|%d|%d|%ld", qe.digits, qe.pos, qe.opos, (long) (time(NULL) - qe.start));
 		}
+	}
+
+	/* Free the optional withdraw info if present */
+	/* This is done here to catch all cases. e.g. if the call eventually wasn't withdrawn, e.g. answered */
+	if (qe.withdraw_info) {
+		ast_free(qe.withdraw_info);
+		qe.withdraw_info = NULL;
 	}
 
 	/* Don't allow return code > 0 */
@@ -10738,6 +10845,41 @@ static int manager_change_priority_caller_on_queue(struct mansession *s, const s
 	return 0;
 }
 
+static int manager_request_withdraw_caller_from_queue(struct mansession *s, const struct message *m)
+{
+	const char *queuename, *caller, *withdraw_info;
+
+	queuename = astman_get_header(m, "Queue");
+	caller = astman_get_header(m, "Caller");
+	withdraw_info = astman_get_header(m, "WithdrawInfo");
+
+	if (ast_strlen_zero(queuename)) {
+		astman_send_error(s, m, "'Queue' not specified.");
+		return 0;
+	}
+
+	if (ast_strlen_zero(caller)) {
+		astman_send_error(s, m, "'Caller' not specified.");
+		return 0;
+	}
+
+	switch (request_withdraw_caller_from_queue(queuename, caller, withdraw_info)) {
+	case RES_OKAY:
+		astman_send_ack(s, m, "Withdraw requested successfully");
+		break;
+	case RES_NOSUCHQUEUE:
+		astman_send_error(s, m, "Unable to request withdraw from queue: No such queue");
+		break;
+	case RES_NOT_CALLER:
+		astman_send_error(s, m, "Unable to request withdraw from queue: No such caller");
+		break;
+	case RES_EXISTS:
+		astman_send_error(s, m, "Unable to request withdraw from queue: Already requested");
+		break;
+	}
+
+	return 0;
+}
 
 
 static char *handle_queue_add_member(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
@@ -11467,6 +11609,7 @@ static int unload_module(void)
 	ast_manager_unregister("QueueReset");
 	ast_manager_unregister("QueueMemberRingInUse");
 	ast_manager_unregister("QueueChangePriorityCaller");
+	ast_manager_unregister("QueueWithdrawCaller");
 	ast_unregister_application(app_aqm);
 	ast_unregister_application(app_rqm);
 	ast_unregister_application(app_pqm);
@@ -11580,6 +11723,7 @@ static int load_module(void)
 	err |= ast_manager_register_xml("QueueReload", 0, manager_queue_reload);
 	err |= ast_manager_register_xml("QueueReset", 0, manager_queue_reset);
 	err |= ast_manager_register_xml("QueueChangePriorityCaller", 0,  manager_change_priority_caller_on_queue);
+	err |= ast_manager_register_xml("QueueWithdrawCaller", 0,  manager_request_withdraw_caller_from_queue);
 	err |= ast_custom_function_register(&queuevar_function);
 	err |= ast_custom_function_register(&queueexists_function);
 	err |= ast_custom_function_register(&queuemembercount_function);
