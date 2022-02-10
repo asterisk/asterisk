@@ -1,4 +1,4 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-18.10.0-rc1</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-18.10.0-rc1</h3><h3 align="center">Date: 2022-02-03</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-18.10.0</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-18.10.0</h3><h3 align="center">Date: 2022-02-10</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
 <li><a href="#summary">Summary</a></li>
 <li><a href="#contributors">Contributors</a></li>
 <li><a href="#closed_issues">Closed Issues</a></li>
@@ -7,7 +7,7 @@
 <li><a href="#diffstat">Diffstat</a></li>
 </ol><hr><a name="summary"><h2 align="center">Summary</h2></a><center><a href="#top">[Back to Top]</a></center><p>This release is a point release of an existing major version. The changes included were made to address problems that have been identified in this release series, or are minor, backwards compatible new features or improvements. Users should be able to safely upgrade to this version if this release series is already in use. Users considering upgrading from a previous version are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p><p>The data in this summary reflects changes that have been made since the previous release, asterisk-18.9.0.</p><hr><a name="contributors"><h2 align="center">Contributors</h2></a><center><a href="#top">[Back to Top]</a></center><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release. For coders, the number is how many of their patches (of any size) were committed into this release. For testers, the number is the number of times their name was listed as assisting with testing a patch. Finally, for reporters, the number is the number of issues that they reported that were affected by commits that went into this release.</p><table width="100%" border="0">
 <tr><th width="33%">Coders</th><th width="33%">Testers</th><th width="33%">Reporters</th></tr>
-<tr valign="top"><td width="33%">24 Naveen Albert <asterisk@phreaknet.org><br/>10 George Joseph <gjoseph@digium.com><br/>8 Sean Bright <sean.bright@gmail.com><br/>7 Alexander Traud <pabstraud@compuserve.com><br/>6 Mark Petersen <bugs.digium.com@zombie.dk><br/>5 Michał Górny <mgorny@NetBSD.org><br/>3 Kevin Harwell <kharwell@sangoma.com><br/>2 Mike Bradeen <mbradeen@sangoma.com><br/>1 Luke Escude <luke@primevox.net><br/>1 Frederic Van Espen <frederic.ve@gmail.com><br/>1 Torrey Searle <tsearle@voxbone.com><br/>1 Asterisk Development Team <asteriskteam@digium.com><br/>1 Joshua C. Colp <jcolp@sangoma.com><br/>1 Florentin Mayer <f.mayer@commend.com><br/>1 Dustin Marquess <jailbird@fdf.net><br/>1 Josh Soref <jsoref@gmail.com><br/>1 Steve Davies <steve@one47.co.uk><br/></td><td width="33%"><td width="33%">20 N A <mail@interlinked.x10host.com><br/>6 Mark Petersen <asterisk.org@zombie.dk><br/>6 Michał Górny <mgorny@NetBSD.org><br/>6 George Joseph <gjoseph@digium.com><br/>5 Alexander Traud <pabstraud@compuserve.com><br/>3 Sean Bright <sean@seanbright.com><br/>2 Luke Escude <luke@primevox.net><br/>1 Steve Davies <steve@one47.co.uk><br/>1 Dustin Marquess <jailbird@fdf.net><br/>1 Alexei Gradinari <alex2grad@gmail.com><br/>1 Kevin Harwell <kharwell@digium.com><br/>1 Simone Lazzaris <simone.lazzaris@qcom.it><br/>1 Ross Beer <ross.beer@voicehost.co.uk><br/>1 Frederic Van Espen <frederic.ve@gmail.com><br/>1 Joshua C. Colp <jcolp@digium.com><br/>1 Thomas Guebels <tgu@escaux.com><br/>1 Dan Cropp <dan@amtelco.com><br/>1 Vincent Dubois <vdubois@b2b2c.com><br/>1 Anil Gupta <anilgupta83@gmail.com><br/>1 Krzysztof Trempala <k.trempala@slican.pl><br/>1 Dafi Ni <zbyszek.wieczorek@gmail.com><br/>1 Josh Soref <jsoref@gmail.com><br/>1 Mark Murawski <markm@intellasoft.net><br/>1 Mark Petersen <bugs.digium.com@zombie.dk><br/>1 Torrey Searle <tsearle@gmail.com><br/>1 Andrew Latham <lathama@gmail.com><br/></td></tr>
+<tr valign="top"><td width="33%">24 Naveen Albert <asterisk@phreaknet.org><br/>10 George Joseph <gjoseph@digium.com><br/>8 Sean Bright <sean.bright@gmail.com><br/>7 Alexander Traud <pabstraud@compuserve.com><br/>6 Mark Petersen <bugs.digium.com@zombie.dk><br/>5 Michał Górny <mgorny@NetBSD.org><br/>3 Kevin Harwell <kharwell@sangoma.com><br/>2 Asterisk Development Team <asteriskteam@digium.com><br/>2 Mike Bradeen <mbradeen@sangoma.com><br/>1 Luke Escude <luke@primevox.net><br/>1 Frederic Van Espen <frederic.ve@gmail.com><br/>1 Torrey Searle <tsearle@voxbone.com><br/>1 Joshua C. Colp <jcolp@sangoma.com><br/>1 Florentin Mayer <f.mayer@commend.com><br/>1 Dustin Marquess <jailbird@fdf.net><br/>1 Josh Soref <jsoref@gmail.com><br/>1 Steve Davies <steve@one47.co.uk><br/></td><td width="33%"><td width="33%">20 N A <mail@interlinked.x10host.com><br/>6 Mark Petersen <asterisk.org@zombie.dk><br/>6 Michał Górny <mgorny@NetBSD.org><br/>6 George Joseph <gjoseph@digium.com><br/>5 Alexander Traud <pabstraud@compuserve.com><br/>3 Sean Bright <sean@seanbright.com><br/>2 Luke Escude <luke@primevox.net><br/>1 Steve Davies <steve@one47.co.uk><br/>1 Dustin Marquess <jailbird@fdf.net><br/>1 Alexei Gradinari <alex2grad@gmail.com><br/>1 Kevin Harwell <kharwell@digium.com><br/>1 Simone Lazzaris <simone.lazzaris@qcom.it><br/>1 Ross Beer <ross.beer@voicehost.co.uk><br/>1 Frederic Van Espen <frederic.ve@gmail.com><br/>1 Joshua C. Colp <jcolp@digium.com><br/>1 Thomas Guebels <tgu@escaux.com><br/>1 Dan Cropp <dan@amtelco.com><br/>1 Vincent Dubois <vdubois@b2b2c.com><br/>1 Anil Gupta <anilgupta83@gmail.com><br/>1 Krzysztof Trempala <k.trempala@slican.pl><br/>1 Dafi Ni <zbyszek.wieczorek@gmail.com><br/>1 Josh Soref <jsoref@gmail.com><br/>1 Mark Murawski <markm@intellasoft.net><br/>1 Mark Petersen <bugs.digium.com@zombie.dk><br/>1 Torrey Searle <tsearle@gmail.com><br/>1 Andrew Latham <lathama@gmail.com><br/></td></tr>
 </table><hr><a name="closed_issues"><h2 align="center">Closed Issues</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p><h3>New Feature</h3><h4>Category: Applications/NewFeature</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29802">ASTERISK-29802</a>: app_sf: Add full tech-agnostic SF support<br/>Reported by: N A<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=dd6df4253410c2c1e09be55ba982a5621ff75d47">[dd6df42534]</a> Naveen Albert -- app_sf: Add full tech-agnostic SF support</li>
 </ul><br><h4>Category: Applications/app_sendtext</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29759">ASTERISK-29759</a>: app_sendtext: Add ReceiveText application<br/>Reported by: N A<ul>
@@ -159,6 +159,7 @@
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=c37cc5d3bce9a881423d2aaea9d45a10bdbcbce8">[c37cc5d3bc]</a> Sean Bright -- channel: Short-circuit ast_channel_get_by_name() on empty arg.</li>
 </ul><br><hr><a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all changes that went into this release that did not reference a JIRA issue.</p><table width="100%" border="1">
 <tr><th>Revision</th><th>Author</th><th>Summary</th></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=80be78001282b29ac0ed9a339dea0aa1a4121a6b">80be780012</a></td><td>Asterisk Development Team</td><td>Update for 18.10.0-rc1</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=aa6a50630f66236426395ab32a45419ed100de96">aa6a50630f</a></td><td>Asterisk Development Team</td><td>Update CHANGES and UPGRADE.txt for 18.10.0</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=c51353e4db8e5e946cf19c8623bed1498ec81b8d">c51353e4db</a></td><td>Sean Bright</td><td>build_tools/make_version: Fix bashism in comparison.</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0d53ce35f9f1ef83c5157e75866fce79d9e2bae5">0d53ce35f9</a></td><td>George Joseph</td><td>bundled_pjproject:  Add additional multipart search utils</td></tr>
@@ -170,23 +171,24 @@
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=087f25d3fd30c8a578beda6998d98d4cd5c29b3a">087f25d3fd</a></td><td>Sean Bright</td><td>CHANGES: Correct reference to configuration file.</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=2b2b708d4330010bbaac5a36309fb0926c5129b2">2b2b708d43</a></td><td>Naveen Albert</td><td>app_mf: Add full tech-agnostic MF support</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=4b6c72572cc0dc2077a63324a2caff6b77bfd328">4b6c72572c</a></td><td>Alexander Traud</td><td>progdocs: Fix Doxygen left-overs.</td></tr>
-</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>.lastclean                                                                                      |    1
-.version                                                                                        |    1
-ChangeLog                                                                                       |98120 ----------
-asterisk-18.9.0-summary.html                                                                    |  732
-asterisk-18.9.0-summary.txt                                                                     | 1219
+</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>asterisk-18.9.0-summary.html                                                                    |  732 ----
+asterisk-18.9.0-summary.txt                                                                     | 1219 -------
 b/.gitreview                                                                                    |    1
+b/.version                                                                                      |    2
 b/CHANGES                                                                                       |   88
+b/ChangeLog                                                                                     | 1082 ++++++
 b/Makefile                                                                                      |   32
 b/addons/ooh323c/src/ooSocket.c                                                                 |   19
 b/apps/app_dial.c                                                                               |  116
 b/apps/app_festival.c                                                                           |   12
-b/apps/app_mf.c                                                                                 |  400
+b/apps/app_mf.c                                                                                 |  400 +-
 b/apps/app_mp3.c                                                                                |    5
 b/apps/app_queue.c                                                                              |  116
 b/apps/app_sendtext.c                                                                           |   87
-b/apps/app_sf.c                                                                                 |  440
+b/apps/app_sf.c                                                                                 |  440 ++
 b/apps/app_voicemail.c                                                                          |   49
+b/asterisk-18.10.0-rc1-summary.html                                                             |  449 ++
+b/asterisk-18.10.0-rc1-summary.txt                                                              |  889 +++++
 b/build_tools/make_version                                                                      |    8
 b/channels/chan_mgcp.c                                                                          |   50
 b/channels/chan_sip.c                                                                           |    9
@@ -195,11 +197,11 @@ b/channels/chan_unistim.c                                                       
 b/channels/iax2/provision.c                                                                     |   17
 b/channels/sip/dialplan_functions.c                                                             |    8
 b/configs/samples/cdr.conf.sample                                                               |    5
-b/configs/samples/extensions.conf.sample                                                        |  259
+b/configs/samples/extensions.conf.sample                                                        |  259 -
 b/configs/samples/iax.conf.sample                                                               |   12
 b/configs/samples/say.conf.sample                                                               |    8
 b/configs/samples/stasis.conf.sample                                                            |    1
-b/configure                                                                                     |  279
+b/configure                                                                                     |  279 +
 b/configure.ac                                                                                  |   52
 b/contrib/scripts/ast_coredumper                                                                |    6
 b/doc/.gitignore                                                                                |    2
@@ -209,12 +211,12 @@ b/doc/appdocsxml.xslt                                                           
 b/funcs/func_channel.c                                                                          |   35
 b/funcs/func_env.c                                                                              |   49
 b/funcs/func_frame_drop.c                                                                       |    4
-b/funcs/func_json.c                                                                             |  228
+b/funcs/func_json.c                                                                             |  228 +
 b/include/asterisk/_private.h                                                                   |    4
 b/include/asterisk/acl.h                                                                        |   16
 b/include/asterisk/alertpipe.h                                                                  |   35
 b/include/asterisk/app.h                                                                        |   58
-b/include/asterisk/astobj2.h                                                                    |  177
+b/include/asterisk/astobj2.h                                                                    |  177 -
 b/include/asterisk/autochan.h                                                                   |    4
 b/include/asterisk/autoconfig.h.in                                                              |    7
 b/include/asterisk/backtrace.h                                                                  |   16
@@ -264,7 +266,7 @@ b/include/asterisk/http_websocket.h                                             
 b/include/asterisk/image.h                                                                      |    1
 b/include/asterisk/io.h                                                                         |   38
 b/include/asterisk/iostream.h                                                                   |   20
-b/include/asterisk/json.h                                                                       |  179
+b/include/asterisk/json.h                                                                       |  179 -
 b/include/asterisk/logger.h                                                                     |   29
 b/include/asterisk/logger_category.h                                                            |   29
 b/include/asterisk/manager.h                                                                    |   42
@@ -315,7 +317,7 @@ b/include/asterisk/utils.h                                                      
 b/include/asterisk/vector.h                                                                     |   91
 b/include/asterisk/xml.h                                                                        |   28
 b/main/aoc.c                                                                                    |    8
-b/main/app.c                                                                                    |  299
+b/main/app.c                                                                                    |  299 +
 b/main/asterisk.c                                                                               |    4
 b/main/astobj2.c                                                                                |    4
 b/main/astobj2_container_private.h                                                              |   27
@@ -344,7 +346,7 @@ b/main/dsp.c                                                                    
 b/main/features.c                                                                               |    6
 b/main/file.c                                                                                   |    8
 b/main/format_cap.c                                                                             |    8
-b/main/http.c                                                                                   |  404
+b/main/http.c                                                                                   |  404 ++
 b/main/io.c                                                                                     |    6
 b/main/logger.c                                                                                 |   26
 b/main/manager.c                                                                                |   20
@@ -431,19 +433,13 @@ b/third-party/apply_patches                                                     
 b/third-party/jansson/Makefile                                                                  |    2
 b/third-party/pjproject/.gitignore                                                              |    3
 b/third-party/pjproject/Makefile                                                                |  158
-b/third-party/pjproject/README-hacking.md                                                       |  213
+b/third-party/pjproject/README-hacking.md                                                       |  213 +
 b/third-party/pjproject/configure.m4                                                            |   25
 b/third-party/pjproject/dependency_utils                                                        |   96
-b/third-party/pjproject/patches/0130-sip_inv-Additional-multipart-support-2919-2920.patch       |  661
+b/third-party/pjproject/patches/0130-sip_inv-Additional-multipart-support-2919-2920.patch       |  661 +++
 b/third-party/pjproject/patches/0140-Fix-incorrect-unescaping-of-tokens-during-parsing-29.patch |  123
-b/third-party/pjproject/patches/0150-Create-generic-pjsip_hdr_find-functions.patch              |  176
-b/third-party/pjproject/patches/0160-Additional-multipart-improvements.patch                    |  524
+b/third-party/pjproject/patches/0150-Create-generic-pjsip_hdr_find-functions.patch              |  176 +
+b/third-party/pjproject/patches/0160-Additional-multipart-improvements.patch                    |  586 +++
 contrib/asterisk-doxygen-header                                                                 |   10
-contrib/realtime/mysql/mysql_cdr.sql                                                            |   41
-contrib/realtime/mysql/mysql_config.sql                                                         | 1330
-contrib/realtime/mysql/mysql_voicemail.sql                                                      |   35
-contrib/realtime/postgresql/postgresql_cdr.sql                                                  |   45
-contrib/realtime/postgresql/postgresql_config.sql                                               | 1442
-contrib/realtime/postgresql/postgresql_voicemail.sql                                            |   39
-doc/asterisk-ng-doxygen.in                                                                      | 1689
-276 files changed, 7145 insertions(+), 107429 deletions(-)</pre><br></html>
+doc/asterisk-ng-doxygen.in                                                                      | 1689 ----------
+271 files changed, 9626 insertions(+), 6378 deletions(-)</pre><br></html>
