@@ -1,8 +1,8 @@
                                 Release Summary
 
-                              asterisk-16.24.0-rc1
+                                asterisk-16.24.0
 
-                                Date: 2022-02-03
+                                Date: 2022-02-10
 
                            <asteriskteam@digium.com>
 
@@ -58,11 +58,11 @@
    6 Mark Petersen                                   5 George Joseph          
    5 Michał Górny                                    3 Sean Bright            
    3 Kevin Harwell                                   2 Luke Escude            
-   2 Mike Bradeen                                    1 Steve Davies           
-   1 Luke Escude                                     1 Dustin Marquess        
-   1 Frederic Van Espen                              1 Alexei Gradinari       
-   1 Torrey Searle                                   1 Kevin Harwell          
-   1 Asterisk Development Team                       1 Simone Lazzaris        
+   2 Asterisk Development Team                       1 Steve Davies           
+   2 Mike Bradeen                                    1 Dustin Marquess        
+   1 Luke Escude                                     1 Alexei Gradinari       
+   1 Frederic Van Espen                              1 Kevin Harwell          
+   1 Torrey Searle                                   1 Simone Lazzaris        
    1 Joshua C. Colp                                  1 Frederic Van Espen     
    1 Dustin Marquess                                 1 Joshua C. Colp         
    1 Josh Soref                                      1 Thomas Guebels         
@@ -556,6 +556,9 @@
    +------------------------------------------------------------------------+
    | Revision   | Author           | Summary                                |
    |------------+------------------+----------------------------------------|
+   | c2b346abac | Asterisk         | Update for 16.24.0-rc1                 |
+   |            | Development Team |                                        |
+   |------------+------------------+----------------------------------------|
    | df9ef1d8d3 | Asterisk         | Update CHANGES and UPGRADE.txt for     |
    |            | Development Team | 16.24.0                                |
    |------------+------------------+----------------------------------------|
@@ -597,23 +600,24 @@
    This is a summary of the changes to the source code that went into this
    release that was generated using the diffstat utility.
 
- .lastclean                                                                                      |    1
- .version                                                                                        |    1
- ChangeLog                                                                                       |96800 ----------
- asterisk-16.23.0-summary.html                                                                   |  730
- asterisk-16.23.0-summary.txt                                                                    | 1217
+ asterisk-16.23.0-summary.html                                                                   |  730 ----
+ asterisk-16.23.0-summary.txt                                                                    | 1217 -------
  b/.gitreview                                                                                    |    1
+ b/.version                                                                                      |    2
  b/CHANGES                                                                                       |   88
+ b/ChangeLog                                                                                     | 1066 ++++++
  b/Makefile                                                                                      |   32
  b/addons/ooh323c/src/ooSocket.c                                                                 |   19
  b/apps/app_dial.c                                                                               |  116
  b/apps/app_festival.c                                                                           |   12
- b/apps/app_mf.c                                                                                 |  400
+ b/apps/app_mf.c                                                                                 |  400 +-
  b/apps/app_mp3.c                                                                                |    5
  b/apps/app_queue.c                                                                              |  116
  b/apps/app_sendtext.c                                                                           |   87
- b/apps/app_sf.c                                                                                 |  440
+ b/apps/app_sf.c                                                                                 |  440 ++
  b/apps/app_voicemail.c                                                                          |   49
+ b/asterisk-16.24.0-rc1-summary.html                                                             |  438 ++
+ b/asterisk-16.24.0-rc1-summary.txt                                                              |  869 +++++
  b/build_tools/make_version                                                                      |    8
  b/channels/chan_mgcp.c                                                                          |   50
  b/channels/chan_sip.c                                                                           |    9
@@ -622,11 +626,11 @@
  b/channels/iax2/provision.c                                                                     |   17
  b/channels/sip/dialplan_functions.c                                                             |    8
  b/configs/samples/cdr.conf.sample                                                               |    5
- b/configs/samples/extensions.conf.sample                                                        |  259
+ b/configs/samples/extensions.conf.sample                                                        |  259 -
  b/configs/samples/iax.conf.sample                                                               |   12
  b/configs/samples/say.conf.sample                                                               |    8
  b/configs/samples/stasis.conf.sample                                                            |    1
- b/configure                                                                                     |  279
+ b/configure                                                                                     |  279 +
  b/configure.ac                                                                                  |   52
  b/contrib/scripts/ast_coredumper                                                                |    6
  b/doc/.gitignore                                                                                |    2
@@ -636,12 +640,12 @@
  b/funcs/func_channel.c                                                                          |   35
  b/funcs/func_env.c                                                                              |   49
  b/funcs/func_frame_drop.c                                                                       |    4
- b/funcs/func_json.c                                                                             |  228
+ b/funcs/func_json.c                                                                             |  228 +
  b/include/asterisk/_private.h                                                                   |    4
  b/include/asterisk/acl.h                                                                        |   16
  b/include/asterisk/alertpipe.h                                                                  |   35
  b/include/asterisk/app.h                                                                        |   58
- b/include/asterisk/astobj2.h                                                                    |  177
+ b/include/asterisk/astobj2.h                                                                    |  177 -
  b/include/asterisk/autochan.h                                                                   |    4
  b/include/asterisk/autoconfig.h.in                                                              |    7
  b/include/asterisk/backtrace.h                                                                  |   16
@@ -691,7 +695,7 @@
  b/include/asterisk/image.h                                                                      |    1
  b/include/asterisk/io.h                                                                         |   38
  b/include/asterisk/iostream.h                                                                   |   20
- b/include/asterisk/json.h                                                                       |  179
+ b/include/asterisk/json.h                                                                       |  179 -
  b/include/asterisk/logger.h                                                                     |   29
  b/include/asterisk/logger_category.h                                                            |   29
  b/include/asterisk/manager.h                                                                    |   42
@@ -741,7 +745,7 @@
  b/include/asterisk/vector.h                                                                     |   91
  b/include/asterisk/xml.h                                                                        |   28
  b/main/aoc.c                                                                                    |    8
- b/main/app.c                                                                                    |  299
+ b/main/app.c                                                                                    |  299 +
  b/main/asterisk.c                                                                               |    4
  b/main/astobj2.c                                                                                |    4
  b/main/astobj2_container_private.h                                                              |   27
@@ -770,7 +774,7 @@
  b/main/features.c                                                                               |    6
  b/main/file.c                                                                                   |    8
  b/main/format_cap.c                                                                             |    8
- b/main/http.c                                                                                   |  404
+ b/main/http.c                                                                                   |  404 ++
  b/main/io.c                                                                                     |    6
  b/main/logger.c                                                                                 |   26
  b/main/manager.c                                                                                |   20
@@ -851,19 +855,13 @@
  b/third-party/jansson/Makefile                                                                  |    2
  b/third-party/pjproject/.gitignore                                                              |    3
  b/third-party/pjproject/Makefile                                                                |  158
- b/third-party/pjproject/README-hacking.md                                                       |  213
+ b/third-party/pjproject/README-hacking.md                                                       |  213 +
  b/third-party/pjproject/configure.m4                                                            |   25
  b/third-party/pjproject/dependency_utils                                                        |   96
- b/third-party/pjproject/patches/0130-sip_inv-Additional-multipart-support-2919-2920.patch       |  661
+ b/third-party/pjproject/patches/0130-sip_inv-Additional-multipart-support-2919-2920.patch       |  661 +++
  b/third-party/pjproject/patches/0140-Fix-incorrect-unescaping-of-tokens-during-parsing-29.patch |  123
- b/third-party/pjproject/patches/0150-Create-generic-pjsip_hdr_find-functions.patch              |  176
- b/third-party/pjproject/patches/0160-Additional-multipart-improvements.patch                    |  524
+ b/third-party/pjproject/patches/0150-Create-generic-pjsip_hdr_find-functions.patch              |  176 +
+ b/third-party/pjproject/patches/0160-Additional-multipart-improvements.patch                    |  644 +++
  contrib/asterisk-doxygen-header                                                                 |   10
- contrib/realtime/mysql/mysql_cdr.sql                                                            |   41
- contrib/realtime/mysql/mysql_config.sql                                                         | 1300
- contrib/realtime/mysql/mysql_voicemail.sql                                                      |   35
- contrib/realtime/postgresql/postgresql_cdr.sql                                                  |   45
- contrib/realtime/postgresql/postgresql_config.sql                                               | 1404
- contrib/realtime/postgresql/postgresql_voicemail.sql                                            |   39
- doc/asterisk-ng-doxygen.in                                                                      | 1689
- 269 files changed, 7071 insertions(+), 105958 deletions(-)
+ doc/asterisk-ng-doxygen.in                                                                      | 1689 ----------
+ 264 files changed, 9563 insertions(+), 6295 deletions(-)
