@@ -36,6 +36,10 @@
 ; to use the dialplan function SQL_ESC() to escape the data prior to its
 ; inclusion in the SQL statement.
 ;
+; If you have data which may potentially contain backslashes, you may wish to
+; use the dialplan function SQL_ESC_BACKSLASHES() to escape the backslashes.
+; Note that not all databases may require escaping of the backslashes.
+;
 ;
 ; The following options are available in this configuration file:
 ;
