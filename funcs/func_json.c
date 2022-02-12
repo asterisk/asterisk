@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 2021, Naveen Albert
+ * Copyright (C) 2021-2022, Naveen Albert
  *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
@@ -54,6 +54,21 @@
 			</parameter>
 			<parameter name="item" required="true">
 				<para>The name of the key whose value to return.</para>
+				<para>Multiple keys can be listed separated by a hierarchy delimeter, which will recursively index into a nested JSON string to retrieve a specific subkey's value.</para>
+			</parameter>
+			<parameter name="separator" required="false">
+				<para>A single character that delimits a key hierarchy for nested indexing. Default is a period (.)</para>
+				<para>This value should not appear in the key or hierarchy of keys itself, except to delimit the hierarchy of keys.</para>
+			</parameter>
+			<parameter name="options" required="no">
+				<optionlist>
+					<option name="c">
+						<para>For keys that reference a JSON array, return
+						the number of items in the array.</para>
+						<para>This option has no effect on any other type
+						of value.</para>
+					</option>
+				</optionlist>
 			</parameter>
 		</syntax>
 		<description>
@@ -69,18 +84,130 @@
 
 AST_THREADSTORAGE(result_buf);
 
+enum json_option_flags {
+	OPT_COUNT = (1 << 0),
+};
+
+AST_APP_OPTIONS(json_options, {
+	AST_APP_OPTION('c', OPT_COUNT),
+});
+
+#define MAX_JSON_STACK 32
+
+static int parse_node(char **key, char *currentkey, char *nestchar, int count, struct ast_json *json, char *buf, size_t len, int *depth)
+{
+	const char *result = NULL;
+	char *previouskey;
+	struct ast_json *jsonval = json;
+
+	/* Prevent a huge JSON string from blowing the stack. */
+	if (*depth > MAX_JSON_STACK) {
+		ast_log(LOG_WARNING, "Max JSON stack (%d) exceeded\n", MAX_JSON_STACK);
+		return -1;
+	}
+
+	snprintf(buf, len, "%s", ""); /* clear the buffer from previous round if necessary */
+	if (!json) { /* no error or warning should be thrown */
+		ast_debug(1, "Could not find key '%s' in parsed JSON\n", currentkey);
+		return -1;
+	}
+
+	switch(ast_json_typeof(jsonval)) {
+		unsigned long int size;
+		int r;
+
+		case AST_JSON_STRING:
+			result = ast_json_string_get(jsonval);
+			ast_debug(1, "Got JSON string: %s\n", result);
+			ast_copy_string(buf, result, len);
+			break;
+		case AST_JSON_INTEGER:
+			r = ast_json_integer_get(jsonval);
+			ast_debug(1, "Got JSON integer: %d\n", r);
+			snprintf(buf, len, "%d", r); /* the snprintf below is mutually exclusive with this one */
+			break;
+		case AST_JSON_ARRAY:
+			ast_debug(1, "Got JSON array\n");
+			previouskey = currentkey;
+			currentkey = strsep(key, nestchar); /* retrieve the desired index */
+			size = ast_json_array_size(jsonval);
+			ast_debug(1, "Parsed JSON array of size %lu, key: %s\n", size, currentkey);
+			if (!currentkey) { /* this is the end, so just dump the array */
+				if (count) {
+					ast_debug(1, "No key on which to index in the array, so returning count: %lu\n", size);
+					snprintf(buf, len, "%lu", size);
+					return 0;
+				} else {
+					char *result2 = ast_json_dump_string(jsonval);
+					ast_debug(1, "No key on which to index in the array, so dumping '%s' array\n", previouskey);
+					ast_copy_string(buf, result2, len);
+					ast_json_free(result2);
+				}
+			} else if (ast_str_to_int(currentkey, &r) || r < 0) {
+				ast_debug(1, "Requested index '%s' is not numeric or is invalid\n", currentkey);
+			} else if (r >= size) {
+				ast_debug(1, "Requested index '%d' does not exist in parsed array\n", r);
+			} else {
+				struct ast_json *json2 = ast_json_array_get(jsonval, r);
+				if (!json2) {
+					ast_debug(1, "Array index %d contains empty item\n", r);
+					return -1;
+				}
+				previouskey = currentkey;
+				currentkey = strsep(key, nestchar); /* get the next subkey */
+				ast_debug(1, "Recursing on index %d in array (key was '%s' and is now '%s')\n", r, previouskey, currentkey);
+				/* json2 is a borrowed ref. That's fine, since json won't get freed until recursing is over */
+				/* If there are keys remaining, then parse the next object we can get. Otherwise, just dump the child */
+				if (parse_node(key, currentkey, nestchar, count, currentkey ? ast_json_object_get(json2, currentkey) : json2, buf, len, depth)) { /* recurse on this node */
+					return -1;
+				}
+			}
+			break;
+		case AST_JSON_OBJECT:
+		default:
+			ast_debug(1, "Got generic JSON object for key %s\n", currentkey);
+			if (!currentkey) { /* this is the end, so just dump the object */
+				char *result2 = ast_json_dump_string(jsonval);
+				ast_copy_string(buf, result2, len);
+				ast_json_free(result2);
+			} else {
+				previouskey = currentkey;
+				currentkey = strsep(key, nestchar); /* retrieve the desired index */
+				ast_debug(1, "Recursing on object (key was '%s' and is now '%s')\n", previouskey, currentkey);
+				if (parse_node(key, currentkey, nestchar, count, ast_json_object_get(jsonval, currentkey), buf, len, depth)) { /* recurse on this node */
+					return -1;
+				}
+			}
+			break;
+	}
+	return 0;
+}
+
 static int json_decode_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
-	struct ast_json *json, *jsonval;
+	int count = 0;
+	struct ast_flags flags = {0};
+	struct ast_json *json = NULL;
+	char *nestchar = "."; /* default delimeter for nesting key indexing is . */
+	int res, depth = 0;
+
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(varname);
 		AST_APP_ARG(key);
+		AST_APP_ARG(nestchar);
+		AST_APP_ARG(options);
 	);
-	char *varsubst, *result2;
-	const char *result = NULL;
+	char *varsubst, *key, *currentkey, *nextkey, *firstkey, *tmp;
 	struct ast_str *str = ast_str_thread_get(&result_buf, 16);
 
 	AST_STANDARD_APP_ARGS(args, data);
+
+	if (!ast_strlen_zero(args.options)) {
+		ast_app_parse_options(json_options, &flags, NULL, args.options);
+		if (ast_test_flag(&flags, OPT_COUNT)) {
+			count = 1;
+		}
+	}
 
 	if (ast_strlen_zero(args.varname)) {
 		ast_log(LOG_WARNING, "%s requires a variable name\n", cmd);
@@ -90,6 +217,15 @@ static int json_decode_read(struct ast_channel *chan, const char *cmd, char *dat
 		ast_log(LOG_WARNING, "%s requires a key\n", cmd);
 		return -1;
 	}
+	key = ast_strdupa(args.key);
+	if (!ast_strlen_zero(args.nestchar)) {
+		int seplen = strlen(args.nestchar);
+		if (seplen != 1) {
+			ast_log(LOG_WARNING, "Nesting separator '%s' has length %d and is invalid (must be a single character)\n", args.nestchar, seplen);
+		} else {
+			nestchar = args.nestchar;
+		}
+	}
 
 	varsubst = ast_alloca(strlen(args.varname) + 4); /* +4 for ${} and null terminator */
 	if (!varsubst) {
@@ -98,45 +234,43 @@ static int json_decode_read(struct ast_channel *chan, const char *cmd, char *dat
 	}
 	sprintf(varsubst, "${%s}", args.varname); /* safe, because of the above allocation */
 	ast_str_substitute_variables(&str, 0, chan, varsubst);
+
+	ast_debug(1, "Parsing JSON using nesting delimeter '%s'\n", nestchar);
+
 	if (ast_str_strlen(str) == 0) {
 		ast_debug(1, "Variable '%s' contains no data, nothing to search!\n", args.varname);
 		return -1; /* empty json string */
 	}
 
-	ast_debug(1, "Parsing JSON: %s\n", ast_str_buffer(str));
+	/* allow for multiple key nesting */
+	currentkey = key;
+	firstkey = ast_strdupa(currentkey);
+	tmp = strstr(firstkey, nestchar);
+	if (tmp) {
+		*tmp = '\0';
+	}
 
+	/* parse a string as JSON */
+	ast_debug(1, "Parsing JSON: %s (key: '%s')\n", ast_str_buffer(str), currentkey);
+	if (ast_strlen_zero(currentkey)) {
+		ast_debug(1, "Empty JSON key\n");
+		return -1;
+	}
+	if (ast_str_strlen(str) == 0) {
+		ast_debug(1, "JSON node '%s', contains no data, nothing to search!\n", currentkey);
+		return -1; /* empty json string */
+	}
 	json = ast_json_load_str(str, NULL);
-
 	if (!json) {
 		ast_log(LOG_WARNING, "Failed to parse as JSON: %s\n", ast_str_buffer(str));
 		return -1;
 	}
 
-	jsonval = ast_json_object_get(json, args.key);
-	if (!jsonval) { /* no error or warning should be thrown */
-		ast_debug(1, "Could not find key '%s' in parsed JSON\n", args.key);
-		ast_json_unref(json);
-		return -1;
-	}
-	switch(ast_json_typeof(jsonval)) {
-		int r;
-		case AST_JSON_STRING:
-			result = ast_json_string_get(jsonval);
-			snprintf(buf, len, "%s", result);
-			break;
-		case AST_JSON_INTEGER:
-			r = ast_json_integer_get(jsonval);
-			snprintf(buf, len, "%d", r); /* the snprintf below is mutually exclusive with this one */
-			break;
-		default:
-			result2 = ast_json_dump_string(jsonval);
-			snprintf(buf, len, "%s", result2);
-			ast_json_free(result2);
-			break;
-	}
+	/* parse the JSON object, potentially recursively */
+	nextkey = strsep(&key, nestchar);
+	res = parse_node(&key, nextkey, nestchar, count, ast_json_object_get(json, firstkey), buf, len, &depth);
 	ast_json_unref(json);
-
-	return 0;
+	return res;
 }
 
 static struct ast_custom_function json_decode_function = {
@@ -151,12 +285,26 @@ AST_TEST_DEFINE(test_JSON_DECODE)
 	struct ast_channel *chan; /* dummy channel */
 	struct ast_str *str; /* fancy string for holding comparing value */
 
-	const char *test_strings[][5] = {
-		{"{\"city\": \"Anytown\", \"state\": \"USA\"}", "city", "Anytown"},
-		{"{\"city\": \"Anytown\", \"state\": \"USA\"}", "state", "USA"},
-		{"{\"city\": \"Anytown\", \"state\": \"USA\"}", "blah", ""},
-		{"{\"key1\": \"123\", \"key2\": \"456\"}", "key1", "123"},
-		{"{\"key1\": 123, \"key2\": 456}", "key1", "123"},
+	const char *test_strings[][6] = {
+		{"{\"city\": \"Anytown\", \"state\": \"USA\"}", "", "city", "Anytown"},
+		{"{\"city\": \"Anytown\", \"state\": \"USA\"}", "", "state", "USA"},
+		{"{\"city\": \"Anytown\", \"state\": \"USA\"}", "", "blah", ""},
+		{"{\"key1\": \"123\", \"key2\": \"456\"}", "", "key1", "123"},
+		{"{\"key1\": 123, \"key2\": 456}", "", "key1", "123"},
+		{"{ \"path\": { \"to\": { \"elem\": \"someVar\" } } }", "/", "path/to/elem", "someVar"},
+		{"{ \"path\": { \"to\": { \"elem\": \"someVar\" } } }", "", "path.to.elem2", ""},
+		{"{ \"path\": { \"to\": { \"arr\": [ \"item0\", \"item1\" ] } } }", "/", "path/to/arr/2", ""}, /* nonexistent index */
+		{"{ \"path\": { \"to\": { \"arr\": [ \"item0\", \"item1\" ] } } }", "/", "path/to/arr/-1", ""}, /* bogus index */
+		{"{ \"path\": { \"to\": { \"arr\": [ \"item0\", \"item1\" ] } } }", "/", "path/to/arr/test", ""}, /* bogus index */
+		{"{ \"path\": { \"to\": { \"arr\": [ \"item0\", \"item1\" ] } } }", "", "path.to.arr.test.test2.subkey", ""}, /* bogus index */
+		{"{ \"path\": { \"to\": { \"arr\": [ \"item0\", \"item1\" ] } } }", ",c", "path.to.arr", "2"}, /* test count */
+		{"{ \"path\": { \"to\": { \"arr\": [ \"item0\", \"item1\" ] } } }", "", "path.to.arr", "[\"item0\",\"item1\"]"},
+		{"{ \"path\": { \"to\": { \"arr\": [ \"item0\", \"item1\" ] } } }", ".", "path.to.arr.1", "item1"},
+		{"{ \"path\": { \"to\": { \"arr\": [ \"item0\", \"item1\" ] } } }", "/", "path/to/arr", "[\"item0\",\"item1\"]"},
+		{"{ \"path\": { \"to\": { \"arr\": [ \"item0\", \"item1\" ] } } }", "/", "path/to/arr/1", "item1"},
+		{"{ \"path\": { \"to\": { \"arr\": [ {\"name\": \"John Smith\", \"phone\": \"123\"}, {\"name\": \"Jane Doe\", \"phone\": \"234\"} ] } } }", ",c", "path.to.arr.0.name", "John Smith"},
+		{"{ \"path\": { \"to\": { \"arr\": [ {\"name\": 1, \"phone\": 123}, {\"name\": 2, \"phone\": 234} ] } } }", ",c", "path.to.arr.0.name", "1"},
+		{"{ \"path\": { \"to\": { \"arr\": [ {\"name\": [ \"item11\", \"item12\" ], \"phone\": [ \"item13\", \"item14\" ]}, {\"name\": [ \"item15\", \"item16\" ], \"phone\": [ \"item17\", \"item18\" ]} ] } } }", ",c", "path.to.arr.0.name.1", "item12"},
 	};
 
 	switch (cmd) {
@@ -182,7 +330,7 @@ AST_TEST_DEFINE(test_JSON_DECODE)
 	}
 
 	for (i = 0; i < ARRAY_LEN(test_strings); i++) {
-		char tmp[512], tmp2[512] = "";
+		char tmp[512];
 
 		struct ast_var_t *var = ast_var_assign("test_string", test_strings[i][0]);
 		if (!var) {
@@ -194,11 +342,11 @@ AST_TEST_DEFINE(test_JSON_DECODE)
 
 		AST_LIST_INSERT_HEAD(ast_channel_varshead(chan), var, entries);
 
-		snprintf(tmp, sizeof(tmp), "${JSON_DECODE(%s,%s)}", "test_string", test_strings[i][1]);
+		snprintf(tmp, sizeof(tmp), "${JSON_DECODE(%s,%s,%s)}", "test_string", test_strings[i][2], test_strings[i][1]);
 
 		ast_str_substitute_variables(&str, 0, chan, tmp);
-		if (strcmp(test_strings[i][2], ast_str_buffer(str))) {
-			ast_test_status_update(test, "Format string '%s' substituted to '%s'.  Expected '%s'.\n", test_strings[i][0], tmp2, test_strings[i][2]);
+		if (strcmp(test_strings[i][3], ast_str_buffer(str))) {
+			ast_test_status_update(test, "Format string '%s' substituted to '%s' (key: %s). Expected '%s'.\n", test_strings[i][0], ast_str_buffer(str), test_strings[i][2], test_strings[i][3]);
 			res = AST_TEST_FAIL;
 		}
 	}
@@ -214,7 +362,9 @@ static int unload_module(void)
 {
 	int res;
 
+#ifdef TEST_FRAMEWORK
 	AST_TEST_UNREGISTER(test_JSON_DECODE);
+#endif
 	res = ast_custom_function_unregister(&json_decode_function);
 
 	return res;
@@ -224,7 +374,9 @@ static int load_module(void)
 {
 	int res;
 
+#ifdef TEST_FRAMEWORK
 	AST_TEST_REGISTER(test_JSON_DECODE);
+#endif
 	res = ast_custom_function_register(&json_decode_function);
 
 	return res;
