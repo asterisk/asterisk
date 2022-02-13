@@ -25,6 +25,7 @@
 
 #include <inttypes.h>
 #include <string.h>
+#include <strings.h>
 #include <time.h>
 
 #include "asterisk/time.h"
@@ -143,3 +144,31 @@ struct timeval ast_time_create_by_unit_str(unsigned long val, const char *unit)
 {
 	return ast_time_create_by_unit(val, ast_time_str_to_unit(unit));
 }
+
+/*!
+ * \brief Returns a string representation of a time_t as decimal seconds
+ * since the epoch.
+ */
+int ast_time_t_to_string(time_t time, char *buf, size_t length)
+{
+	struct tm tm;
+
+	localtime_r(&time, &tm);
+	return (strftime(buf, length, "%s", &tm) == 0) ? -1 : 0;
+}
+
+/*!
+ * \brief Returns a time_t from a string containing seconds since the epoch.
+ */
+time_t ast_string_to_time_t(const char *str)
+{
+	struct tm tm = { 0, };
+
+	/* handle leading spaces */
+	if (strptime(str, " %s", &tm) == NULL) {
+		return (time_t)-1;
+	}
+	tm.tm_isdst = -1;
+	return mktime(&tm);
+}
+

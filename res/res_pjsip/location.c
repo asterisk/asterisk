@@ -489,7 +489,10 @@ static int expiration_str2struct(const struct aco_option *opt, struct ast_variab
 static int expiration_struct2str(const void *obj, const intptr_t *args, char **buf)
 {
 	const struct ast_sip_contact *contact = obj;
-	return (ast_asprintf(buf, "%ld", contact->expiration_time.tv_sec) < 0) ? -1 : 0;
+	char secs[AST_TIME_T_LEN];
+
+	ast_time_t_to_string(contact->expiration_time.tv_sec, secs, sizeof(secs));
+	return (ast_asprintf(buf, "%s", secs) < 0) ? -1 : 0;
 }
 
 static int permanent_uri_sort_fn(const void *obj_left, const void *obj_right, int flags)
