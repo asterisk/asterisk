@@ -35,6 +35,13 @@
 
 #include "asterisk/inline_api.h"
 
+/* A time_t can be represented as an unsigned long long (or uint64_t).
+ * Formatted in base 10, UINT64_MAX is 20 digits long, plus one for NUL.
+ * This should be the size of the receiving char buffer for calls to
+ * ast_time_t_to_string().
+ */
+#define AST_TIME_T_LEN		21
+
 /* We have to let the compiler learn what types to use for the elements of a
    struct timeval since on linux, it's time_t and suseconds_t, but on *BSD,
    they are just a long.
@@ -315,5 +322,18 @@ struct timeval ast_time_create_by_unit(unsigned long val, enum TIME_UNIT unit);
  * \return A timeval object
  */
 struct timeval ast_time_create_by_unit_str(unsigned long val, const char *unit);
+
+/*!
+ * \brief Converts to a string representation of a time_t as decimal
+ * seconds since the epoch. Returns -1 on failure, zero otherwise.
+ *
+ * The buffer should be at least 22 bytes long.
+ */
+int ast_time_t_to_string(time_t time, char *buf, size_t length);
+
+/*!
+ * \brief Returns a time_t from a string containing seconds since the epoch.
+ */
+time_t ast_string_to_time_t(const char *str);
 
 #endif /* _ASTERISK_TIME_H */

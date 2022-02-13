@@ -1029,7 +1029,9 @@ static odbc_status odbc_obj_connect(struct odbc_obj *obj)
 	/* Dont connect while server is marked as unreachable via negative_connection_cache */
 	negative_cache_expiration = obj->parent->last_negative_connect.tv_sec + obj->parent->negative_connection_cache.tv_sec;
 	if (time(NULL) < negative_cache_expiration) {
-		ast_log(LOG_WARNING, "Not connecting to %s. Negative connection cache for %ld seconds\n", obj->parent->name, negative_cache_expiration - time(NULL));
+		char secs[AST_TIME_T_LEN];
+		ast_time_t_to_string(negative_cache_expiration - time(NULL), secs, sizeof(secs));
+		ast_log(LOG_WARNING, "Not connecting to %s. Negative connection cache for %s seconds\n", obj->parent->name, secs);
 		return ODBC_FAIL;
 	}
 

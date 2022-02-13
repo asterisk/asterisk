@@ -116,7 +116,7 @@ static size_t curl_body_callback(void *ptr, size_t size, size_t nitems, void *da
 static void bucket_file_set_expiration(struct ast_bucket_file *bucket_file)
 {
 	struct ast_bucket_metadata *metadata;
-	char time_buf[32];
+	char time_buf[32], secs[AST_TIME_T_LEN];
 	struct timeval actual_expires = ast_tvnow();
 
 	metadata = ast_bucket_file_metadata_get(bucket_file, "cache-control");
@@ -150,7 +150,8 @@ static void bucket_file_set_expiration(struct ast_bucket_file *bucket_file)
 	}
 
 	/* Use 'now' if we didn't get an expiration time */
-	snprintf(time_buf, sizeof(time_buf), "%30lu", actual_expires.tv_sec);
+	ast_time_t_to_string(actual_expires.tv_sec, secs, sizeof(secs));
+	snprintf(time_buf, sizeof(time_buf), "%30s", secs);
 
 	ast_bucket_file_metadata_set(bucket_file, "__actual_expires", time_buf);
 }
@@ -304,7 +305,7 @@ static int bucket_file_expired(struct ast_bucket_file *bucket_file)
 		return 1;
 	}
 
-	if (sscanf(metadata->value, "%lu", &expires.tv_sec) != 1) {
+	if ((expires.tv_sec = ast_string_to_time_t(metadata->value)) == -1) {
 		return 1;
 	}
 
