@@ -351,7 +351,7 @@ int ast_stir_shaken_add_verification(struct ast_channel *chan, const char *ident
  */
 static void set_public_key_expiration(const char *public_cert_url, const struct curl_cb_data *data)
 {
-	char time_buf[32];
+	char time_buf[32], secs[AST_TIME_T_LEN];
 	char *value;
 	struct timeval actual_expires = ast_tvnow();
 	char hash[41];
@@ -389,7 +389,9 @@ static void set_public_key_expiration(const char *public_cert_url, const struct 
 		actual_expires.tv_sec += EXPIRATION_BUFFER;
 	}
 
-	snprintf(time_buf, sizeof(time_buf), "%30lu", actual_expires.tv_sec);
+	ast_time_t_to_string(actual_expires.tv_sec, secs, sizeof(secs));
+
+	snprintf(time_buf, sizeof(time_buf), "%30s", secs);
 
 	ast_db_put(hash, "expiration", time_buf);
 }

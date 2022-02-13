@@ -199,7 +199,7 @@ static int evaluate_equal(struct operator *op, enum aco_option_type type, void *
 	{
 		struct timeval right = { 0, };
 
-		if (sscanf(op_right->field, "%ld", &right.tv_sec) != 1) {
+		if ((right.tv_sec = ast_string_to_time_t(op_right->field)) == -1) {
 			ast_log(LOG_WARNING, "Unable to extract field '%s': not a timestamp\n", op_right->field);
 			return -1;
 		}
@@ -270,7 +270,7 @@ static int evaluate_less_than(struct operator *op, enum aco_option_type type, vo
 	{
 		struct timeval right = { 0, };
 
-		if (sscanf(op_right->field, "%ld", &right.tv_sec) != 1) {
+		if ((right.tv_sec = ast_string_to_time_t(op_right->field)) == -1) {
 			ast_log(LOG_WARNING, "Unable to extract field '%s': not a timestamp\n", op_right->field);
 			return -1;
 		}
@@ -319,7 +319,7 @@ static int evaluate_greater_than(struct operator *op, enum aco_option_type type,
 	{
 		struct timeval right = { 0, };
 
-		if (sscanf(op_right->field, "%ld", &right.tv_sec) != 1) {
+		if ((right.tv_sec = ast_string_to_time_t(op_right->field)) == -1) {
 			ast_log(LOG_WARNING, "Unable to extract field '%s': not a timestamp\n", op_right->field);
 			return -1;
 		}
@@ -656,7 +656,7 @@ static struct pjsip_history_entry *pjsip_history_entry_alloc(pjsip_msg *msg)
 /*! \brief Format single line history entry */
 static void sprint_list_entry(struct pjsip_history_entry *entry, char *line, int len)
 {
-	char addr[64];
+	char addr[64], secs[AST_TIME_T_LEN];
 
 	if (entry->transmitted) {
 		pj_sockaddr_print(&entry->dst, addr, sizeof(addr), 3);
@@ -664,22 +664,24 @@ static void sprint_list_entry(struct pjsip_history_entry *entry, char *line, int
 		pj_sockaddr_print(&entry->src, addr, sizeof(addr), 3);
 	}
 
+	ast_time_t_to_string(entry->timestamp.tv_sec, secs, sizeof(secs));
+
 	if (entry->msg->type == PJSIP_REQUEST_MSG) {
 		char uri[128];
 
 		pjsip_uri_print(PJSIP_URI_IN_REQ_URI, entry->msg->line.req.uri, uri, sizeof(uri));
-		snprintf(line, len, "%-5.5d %-10.10ld %-5.5s %-24.24s %.*s %s SIP/2.0",
+		snprintf(line, len, "%-5.5d %-10.10s %-5.5s %-24.24s %.*s %s SIP/2.0",
 			entry->number,
-			entry->timestamp.tv_sec,
+			secs,
 			entry->transmitted ? "* ==>" : "* <==",
 			addr,
 			(int)pj_strlen(&entry->msg->line.req.method.name),
 			pj_strbuf(&entry->msg->line.req.method.name),
 			uri);
 	} else {
-		snprintf(line, len, "%-5.5d %-10.10ld %-5.5s %-24.24s SIP/2.0 %u %.*s",
+		snprintf(line, len, "%-5.5d %-10.10s %-5.5s %-24.24s SIP/2.0 %u %.*s",
 			entry->number,
-			entry->timestamp.tv_sec,
+			secs,
 			entry->transmitted ? "* ==>" : "* <==",
 			addr,
 			entry->msg->line.status.code,
@@ -1149,7 +1151,7 @@ static struct vector_history_t *filter_history(struct ast_cli_args *a)
 /*! \brief Print a detailed view of a single entry in the history to the CLI */
 static void display_single_entry(struct ast_cli_args *a, struct pjsip_history_entry *entry)
 {
-	char addr[64];
+	char addr[64], secs[AST_TIME_T_LEN];
 	char *buf;
 
 	buf = ast_calloc(1, PJSIP_MAX_PKT_LEN * sizeof(char));
@@ -1169,11 +1171,12 @@ static void display_single_entry(struct ast_cli_args *a, struct pjsip_history_en
 		pj_sockaddr_print(&entry->src, addr, sizeof(addr), 3);
 	}
 
-	ast_cli(a->fd, "<--- History Entry %d %s %s at %-10.10ld --->\n",
+	ast_time_t_to_string(entry->timestamp.tv_sec, secs, sizeof(secs));
+	ast_cli(a->fd, "<--- History Entry %d %s %s at %-10.10s --->\n",
 		entry->number,
 		entry->transmitted ? "Sent to" : "Received from",
 		addr,
-		entry->timestamp.tv_sec);
+		secs);
 	ast_cli(a->fd, "%s\n", buf);
 
 	ast_free(buf);
