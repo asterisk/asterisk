@@ -4879,7 +4879,11 @@ static int persistence_expires_str2struct(const struct aco_option *opt, struct a
 static int persistence_expires_struct2str(const void *obj, const intptr_t *args, char **buf)
 {
 	const struct subscription_persistence *persistence = obj;
-	return (ast_asprintf(buf, "%ld", persistence->expires.tv_sec) < 0) ? -1 : 0;
+	char secs[AST_TIME_T_LEN];
+
+	ast_time_t_to_string(persistence->expires.tv_sec, secs, sizeof(secs));
+
+	return (ast_asprintf(buf, "%s", secs) < 0) ? -1 : 0;
 }
 
 #define RESOURCE_LIST_INIT_SIZE 4

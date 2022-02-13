@@ -1365,12 +1365,13 @@ static void *check_expiration_thread(void *data)
 {
 	struct ao2_container *contacts;
 	struct ast_variable *var;
-	char *time = alloca(64);
+	char time[AST_TIME_T_LEN];
 
 	while (check_interval) {
 		sleep(check_interval);
 
-		sprintf(time, "%ld", ast_tvnow().tv_sec);
+		ast_time_t_to_string(ast_tvnow().tv_sec, time, sizeof(time));
+
 		var = ast_variable_new("expiration_time <=", time, "");
 
 		ast_debug(4, "Woke up at %s  Interval: %d\n", time, check_interval);
