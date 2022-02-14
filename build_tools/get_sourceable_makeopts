@@ -1,0 +1,54 @@
+#!/bin/sh
+PROGNAME="${0##*/}"
+
+if [ "$1" = "-h"  ] || [ "$1" = "--help" ] ; then
+	cat <<-EOF
+		Usage: ${PROGNAME}: [ <input_file> ] [ <output_file> ]
+
+		This script takes an Asterisk makeopts file, or any file containing
+		"make" style variable assignments, and converts it into a format
+		that can be directly 'sourced' by shell scripts.
+
+		* Any spaces around the equals sign are removed.
+		* The variable value is quoted.
+		* The "make" "or" command is evaluated.
+
+		Both input and output files are optional and will default to
+		stdin and stdout respectively.
+
+		NOTE: This script relies on NO external commands and only POSIX
+		constructs.  It should be runnable by any shell.
+	EOF
+	exit 1
+fi
+
+input_file="/dev/stdin"
+if [ "$1" != "" ] ; then
+	input_file="$1"
+fi
+
+output_file="/dev/stdout"
+if [ "$2" != "" ] ; then
+	output_file="$2"
+fi
+
+# orfunc is a code fragment to be added to the outp[ut file.
+# We don't WANT the variables evaluated.
+# shellcheck disable=SC2016
+orfunc='or (){ before="${1%,*}" ; after="${1#*,}" ; if [ "$before" = "" ] ; then echo "${after}" ; else echo "${before}" ; fi ; }'
+echo "${orfunc}" >"${output_file}"
+
+while read -r LINE ; do
+	var="${LINE%%=*}"
+	if [ "${var}" != "" ] ; then
+		val="${LINE#*=}"
+		if [ "${val}" != "${var}" ] ; then
+			if [ "${val%% *}" = "" ] ; then
+				echo "${var% *}=\"${val#* }\""
+			else
+				echo "${var% *}=\"${val}\""
+			fi
+		fi
+	fi
+done <"${input_file}"  >>"${output_file}"
+
