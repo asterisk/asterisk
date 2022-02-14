@@ -475,60 +475,24 @@ endif
 		$(INSTALL) -m 644 $$x "$(DESTDIR)$(ASTDATADIR)/rest-api" ; \
 	done
 
-ifeq ($(GREP),)
-else ifeq ($(GREP),:)
-else
-  XML_core_en_US = $(foreach dir,$(MOD_SUBDIRS),$(shell $(GREP) -l "language=\"en_US\"" $(dir)/*.c $(dir)/*.cc 2>/dev/null))
-endif
-
+DOC_MOD_SUBDIRS := $(filter-out third-party,$(MOD_SUBDIRS))
+XML_core_en_US := $(shell build_tools/make_xml_documentation --command=print_dependencies --source-tree=. --mod-subdirs="$(DOC_MOD_SUBDIRS)")
+# core-en_US.xml is the normal documentation created with asterisk builds.
 doc/core-en_US.xml: makeopts .lastclean $(XML_core_en_US)
-	@printf "Building Documentation For: "
-	@echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" > $@
-	@echo "<!DOCTYPE docs SYSTEM \"appdocsxml.dtd\">" >> $@
-	@echo "<?xml-stylesheet type=\"text/xsl\" href=\"appdocsxml.xslt\"?>" >> $@
-	@echo "<docs xmlns:xi=\"http://www.w3.org/2001/XInclude\">" >> $@
-	@for x in $(MOD_SUBDIRS); do \
-		printf "$$x " ; \
-		for i in `find $$x -name '*.c'`; do \
-			MODULEINFO=$$($(AWK) -f build_tools/get_moduleinfo $$i) ; \
-			if [ -n "$$MODULEINFO" ] ; \
-			then \
-				echo "<module language=\"en_US\" name=\"`$(BASENAME) $$i .c`\">" >> $@ ; \
-				echo "$$MODULEINFO" >> $@ ; \
-				echo "</module>" >> $@ ; \
-			fi ; \
-			$(AWK) -f build_tools/get_documentation $$i >> $@ ; \
-		done ; \
-	done
-	@echo
-	@echo "</docs>" >> $@
+	@build_tools/make_xml_documentation --command=create_xml --source-tree=. --mod-subdirs="$(DOC_MOD_SUBDIRS)" \
+		--with-moduleinfo --validate --output-file=$@
 
-ifeq ($(GREP),)
-else ifeq ($(GREP),:)
-else
-  XML_full_en_US = $(foreach dir,$(MOD_SUBDIRS),$(shell $(GREP) -l "language=\"en_US\"" $(dir)/*.c $(dir)/*.cc 2>/dev/null))
-endif
-
-doc/full-en_US.xml: makeopts .lastclean $(XML_full_en_US)
+# The full-en_US.xml target is only called by the wiki documentation generation process
+# and does special post-processing in preparation for uploading to the wiki.
+# It creates full-en_US.xml but then re-creates core-en_US.xml as well.
+doc/full-en_US.xml: makeopts .lastclean $(XML_core_en_US)
 ifeq ($(PYTHON),:)
 	@echo "--------------------------------------------------------------------------"
 	@echo "---        Please install python to build full documentation           ---"
 	@echo "--------------------------------------------------------------------------"
 else
-	@printf "Building Documentation For: "
-	@echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" > $@
-	@echo "<!DOCTYPE docs SYSTEM \"appdocsxml.dtd\">" >> $@
-	@echo "<?xml-stylesheet type=\"text/xsl\" href=\"appdocsxml.xslt\"?>" >> $@
-	@echo "<docs xmlns:xi=\"http://www.w3.org/2001/XInclude\">" >> $@
-	@for x in $(filter-out third-party,$(MOD_SUBDIRS)); do \
-		printf "$$x " ; \
-		for i in `find $$x -name '*.c'`; do \
-			$(PYTHON) build_tools/get_documentation.py < $$i >> $@ ; \
-		done ; \
-	done
-	@echo
-	@echo "</docs>" >> $@
-	@$(PYTHON) build_tools/post_process_documentation.py -i $@ -o "doc/core-en_US.xml"
+	@build_tools/make_xml_documentation --command=create_xml --source-tree=. --mod-subdirs="$(DOC_MOD_SUBDIRS)" \
+		--for-wiki --validate --output-file=$@ --core-output-file=./doc/core-en_US.xml
 endif
 
 validate-docs: doc/core-en_US.xml
