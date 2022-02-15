@@ -70,6 +70,10 @@ $(call MOD_ADD_C,res_ari_model,ari/ari_model_validators.c)
 $(call MOD_ADD_C,res_stasis_recording,stasis_recording/stored.c)
 $(call MOD_ADD_C,res_stir_shaken,$(wildcard res_stir_shaken/*.c))
 $(call MOD_ADD_C,res_aeap,$(wildcard res_aeap/*.c))
+$(call MOD_ADD_C,res_geolocation,$(wildcard res_geolocation/*.c))
+
+# These are the xml and xslt files to be embedded
+res_geolocation.so: res_geolocation/pidf_lo_test.o res_geolocation/pidf_to_eprofile.o res_geolocation/eprofile_to_pidf.o
 
 res_parking.o: _ASTCFLAGS+=$(AST_NO_FORMAT_TRUNCATION)
 snmp/agent.o: _ASTCFLAGS+=-fPIC
@@ -77,3 +81,4 @@ res_snmp.o: _ASTCFLAGS+=-fPIC
 
 # Dependencies for res_ari_*.so are generated, so they're in this file
 include ari.make
+
