@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE docs SYSTEM "appdocsxml.dtd">
+<docs>
+	<configInfo name="res_geolocation" language="en_US">
+		<synopsis>Core Geolocation Support</synopsis>
+		<configFile name="geolocation.conf">
+			<configObject name="location">
+				<synopsis>Location</synopsis>
+				<description>
+					<para>cffdffff</para>
+				</description>
+				<configOption name="type">
+					<synopsis>Must be of type 'location'.</synopsis>
+				</configOption>
+				<configOption name="format" default="">
+					<synopsis>Location specification type</synopsis>
+					<description>
+						<enumlist>
+							<enum name="civicAddress">
+								<para>
+									The <literal>location_info</literal>
+									parameter must contain a comma separated list of IANA codes
+									or synonyms describing the civicAddress of this location.
+									The IANA codes and synonyms can be obtained by executing
+									the CLI command <literal>geoloc show civicAddr_mapping</literal>.
+								</para>
+							</enum>
+							<enum name="GML">
+								<para>
+									The
+									<literal>location_info</literal> parameter must contain a comma
+									separated list valid GML elements describing this location.
+								</para>
+							</enum>
+							<enum name="URI">
+								<para>
+									The
+									<literal>location_info</literal> parameter must contain a single
+									URI parameter which contains an external URI describing this location.
+								</para>
+							</enum>
+						</enumlist>
+					</description>
+				</configOption>
+				<configOption name="location_info" default="">
+					<synopsis>Location information</synopsis>
+					<description>
+						<para>The contents of this parameter are specific to the
+							location <literal>format</literal>.</para>
+						<enumlist>
+						<enum name="civicAddress">
+						<para>
+						location_info = country=US,A1="New York",city_district=Manhattan,
+						A3="New York", house_number=1633, street=46th, street_suffix = Street,
+						postal_code=10222,floor=20,room=20A2
+						</para>
+						</enum>
+						<enum name="GML">
+						<para>
+						location_info = Shape=Sphere, pos3d="39.12345 -105.98766 1920", radius=200
+						</para>
+						</enum>
+						<enum name="URI">
+						<para>
+						location_info = URI=https:/something.com?exten=${EXTEN}
+						</para>
+						</enum>
+						</enumlist>
+					</description>
+				</configOption>
+				<configOption name="location_source" default="">
+					<synopsis>Fully qualified host name</synopsis>
+					<description>
+						<para>This parameter isn't required but if provided, RFC8787 says it MUST be a fully
+						qualified host name.  IP addresses are specifically NOT allowed.  The value will be placed
+						in a <literal>loc-src</literal> parameter appended to the URI in the <literal>
+						Geolocation</literal> header.</para>
+					</description>
+				</configOption>
+				<configOption name="method" default="">
+					<synopsis>Location determination method</synopsis>
+					<description>
+						<para>This is a rarely used field in the specification that would
+						indicate the method used to determine the location.  Its usage and values should be
+						pre-negotiated with any recipients.</para>
+						<enumlist>
+						<enum name="GPS"/>
+						<enum name="A-GPS"/>
+						<enum name="Manual"/>
+						<enum name="DHCP"/>
+						<enum name="Triangulation"/>
+						<enum name="Cell"/>
+						<enum name="802.11"/>
+						</enumlist>
+					</description>
+				</configOption>
+			</configObject>
+			<configObject name="profile">
+				<synopsis>Profile</synopsis>
+				<description>
+					<para>cffdffff</para>
+				</description>
+				<configOption name="type">
+					<synopsis>Must be of type 'profile'.</synopsis>
+				</configOption>
+				<configOption name="pidf_element" default="device">
+					<synopsis>PIDF-LO element to place this profile in</synopsis>
+					<description>
+						<enumlist>
+							<enum name="tuple" />
+							<enum name="device" />
+							<enum name="person" />
+						</enumlist>
+						<para>
+							Based on RFC5491 (see below) the recommended and default element
+							is <literal>device</literal>.
+						</para>
+					</description>
+					<see-also>
+						<ref type="link">https://www.rfc-editor.org/rfc/rfc5491.html#section-3.4</ref>
+					</see-also>
+				</configOption>
+				<configOption name="location_reference" default="">
+					<synopsis>Reference to a location object</synopsis>
+				</configOption>
+				<configOption name="location_info_refinement" default="">
+					<synopsis>Reference to a location object</synopsis>
+				</configOption>
+				<configOption name="location_variables" default="">
+					<synopsis>Reference to a location object</synopsis>
+				</configOption>
+				<configOption name="usage_rules" default="yes">
+					<synopsis>location specification type</synopsis>
+					<description>
+						<para>xxxx</para>
+					</description>
+				</configOption>
+				<configOption name="notes" default="">
+					<synopsis>Notes to be added to the outgoing PIDF-LO document</synopsis>
+					<description>
+						<para>The specification of this parameter will cause a
+						<literal>&lt;note-well&gt;</literal> element to be added to the
+						outgoing PIDF-LO document.  Its usage should be pre-negotiated with
+						any recipients.</para>
+					</description>
+				</configOption>
+				<configOption name="profile_action" default="discard_incoming">
+					<synopsis>Determine which profile on a channel should be used</synopsis>
+					<description>
+						<enumlist>
+							<enum name="prefer_incoming">
+							<para>Use the incoming profile if it exists and has location information, otherwise use the
+							configured profile if it exists and has location information. If neither profile has location
+							information, nothing is sent.
+							</para></enum>
+							<enum name="prefer_config">
+							<para>Use the configured profile if it exists and has location information, otherwise use the
+							incoming profile if it exists and has location information. If neither profile has location
+							information, nothing is sent.
+							</para></enum>
+							<enum name="discard_incoming"
+							><para>Discard any incoming profile and use the configured profile if it exists and
+							it has location information.  If the configured profile doesn't exist or has no
+							location information, nothing is sent.
+							</para></enum>
+							<enum name="discard_config">
+							<para>Discard any configured profile and use the incoming profile if it exists and
+							it has location information.  If the incoming profile doesn't exist or has no
+							location information, nothing is sent.
+							</para></enum>
+						</enumlist>
+					</description>
+				</configOption>
+			</configObject>
+		</configFile>
+	</configInfo>
+	<function name="GEOLOC_PROFILE" language="en_US">
+		<synopsis>
+			Get or Set a field in a geolocation profile
+		</synopsis>
+		<syntax>
+			<parameter name="field" required="true">
+				<para>The profile field to operate on.</para>
+			</parameter>
+			<parameter name="profile_index" required="false">
+				<para>The index of the profile to operate on.  Not required for the special fields.</para>
+			</parameter>
+		</syntax>
+	</function>
+	<application name="GeolocProfileCreate" language="en_US">
+		<synopsis>
+			Create a new, empty Geolocation Profile on a channel
+		</synopsis>
+		<syntax>
+			<parameter name="id" required="true"><para>
+				The id of the new profile.
+			</para></parameter>
+			<parameter name="profile_index" required="false"><para>
+			 The position at which to insert the new eprofile.
+			 Existing profiles will be moved forward to make room.
+			 Leave empty to append to the end of the list.
+			</para></parameter>
+		</syntax>
+		<description>
+			<para>This application adds a new, empty Geolocation Profile to a channel.</para>
+			<para>The following variable is set:</para>
+			<variablelist>
+				<variable name="GEOLOC_PROFILE_COUNT">
+					<para>The number of profiles on the channel after the new one is created</para>
+				</variable>
+			</variablelist>
+		</description>
+	</application>
+	<application name="GeolocProfileDelete" language="en_US">
+		<synopsis>
+			Delete a Geolocation Profile from a channel
+		</synopsis>
+		<syntax>
+			<parameter name="profile_index" required="true"><para>
+			 The position of the profile to be deleted
+			 Existing profiles will be moved back.
+			</para></parameter>
+		</syntax>
+		<description>
+			<para>This application deletes a Geolocation Profile from a channel.</para>
+			<para>The following variable is set:</para>
+			<variablelist>
+				<variable name="GEOLOC_PROFILE_COUNT">
+					<para>The number of profiles left on the channel after the delete.</para>
+				</variable>
+			</variablelist>
+		</description>
+	</application>
+</docs>
+
