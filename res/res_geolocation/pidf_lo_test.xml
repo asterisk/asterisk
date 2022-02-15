@@ -1,0 +1,312 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<presence entity="pres:alice@asterisk.org"
+	xmlns="urn:ietf:params:xml:ns:pidf"
+	xmlns:ca="urn:ietf:params:xml:ns:pidf:geopriv10:civicAddr"
+	xmlns:dm="urn:ietf:params:xml:ns:pidf:data-model"
+	xmlns:gbp="urn:ietf:params:xml:ns:pidf:geopriv10:basicPolicy"
+	xmlns:gml="http://www.opengis.net/gml"
+	xmlns:gp="urn:ietf:params:xml:ns:pidf:geopriv10"
+	xmlns:gs="http://www.opengis.net/pidflo/1.0">
+	<tuple id="point-2d">
+		<status>
+			<gp:geopriv>
+				<gp:location-info>
+					<gml:Point srsName="urn:ogc:def:crs:EPSG::4326">
+						<gml:pos>-34.410649 150.87651</gml:pos>
+					</gml:Point>
+				</gp:location-info>
+				<gp:usage-rules>
+					<gbp:retransmission-allowed>no</gbp:retransmission-allowed>
+					<gbp:retention-expiry>2010-11-14T20:00:00Z</gbp:retention-expiry>
+				</gp:usage-rules>
+				<gp:method>Manual</gp:method>
+			</gp:geopriv>
+		</status>
+		<timestamp>2007-06-22T20:57:29Z</timestamp>
+	</tuple>
+	<dm:person id="point-3d">
+		<gp:geopriv>
+			<gp:location-info>
+				<gml:Point srsName="urn:ogc:def:crs:EPSG::4979">
+					<gml:pos>-34.410649 150.87651 1800</gml:pos>
+				</gml:Point>
+			</gp:location-info>
+			<gp:usage-rules>
+				<gbp:retransmission-allowed>no</gbp:retransmission-allowed>
+				<gbp:retention-expiry>2010-11-14T20:00:00Z</gbp:retention-expiry>
+			</gp:usage-rules>
+			<gp:method>802.11</gp:method>
+		</gp:geopriv>
+		<dm:timestamp>2007-06-24T12:28:04Z</dm:timestamp>
+	</dm:person>
+	<tuple id="circle-2d">
+		<status>
+			<gp:geopriv>
+				<gp:location-info>
+					<gs:Circle srsName="urn:ogc:def:crs:EPSG::4326">
+						<gml:pos>-34.410649 150.87651</gml:pos>
+						<gs:radius uom="urn:ogc:def:uom:EPSG::9001">30</gs:radius>
+					</gs:Circle>
+				</gp:location-info>
+				<gp:usage-rules>
+					<gbp:retransmission-allowed>no</gbp:retransmission-allowed>
+					<gbp:retention-expiry>2010-11-14T20:00:00Z</gbp:retention-expiry>
+				</gp:usage-rules>
+				<gp:method>802.11</gp:method>
+			</gp:geopriv>
+		</status>
+		<timestamp>2007-06-22T20:57:29Z</timestamp>
+	</tuple>
+	<tuple id="circle-3d">
+		<status>
+			<gp:geopriv>
+				<gp:location-info>
+					<gs:Circle srsName="urn:ogc:def:crs:EPSG::4979">
+						<gml:pos>-34.410649 150.87651 1800</gml:pos>
+						<gs:radius uom="urn:ogc:def:uom:EPSG::9001">30</gs:radius>
+					</gs:Circle>
+				</gp:location-info>
+				<gp:usage-rules>
+					<gbp:retransmission-allowed>no</gbp:retransmission-allowed>
+					<gbp:retention-expiry>2010-11-14T20:00:00Z</gbp:retention-expiry>
+				</gp:usage-rules>
+				<gp:method>802.11</gp:method>
+			</gp:geopriv>
+		</status>
+		<timestamp>2007-06-22T20:57:29Z</timestamp>
+	</tuple>
+	<dm:person id="polygon-2d">
+		<gp:geopriv>
+			<gp:location-info>
+				<gml:Polygon srsName="urn:ogc:def:crs:EPSG::4326">
+					<gml:exterior>
+						<gml:LinearRing>
+							<gml:pos>43.311 -73.422</gml:pos>
+							<gml:pos>43.111 -73.322</gml:pos>
+							<gml:pos>43.111 -73.222</gml:pos>
+							<gml:pos>43.311 -73.122</gml:pos>
+							<gml:pos>43.411 -73.222</gml:pos>
+							<gml:pos>43.411 -73.322</gml:pos>
+							<gml:pos>43.311 -73.422</gml:pos>
+						</gml:LinearRing>
+					</gml:exterior>
+				</gml:Polygon>
+			</gp:location-info>
+			<gp:usage-rules>
+				<gbp:retransmission-allowed>no</gbp:retransmission-allowed>
+				<gbp:retention-expiry>2010-11-14T20:00:00Z</gbp:retention-expiry>
+			</gp:usage-rules>
+			<gp:method>802.11</gp:method>
+		</gp:geopriv>
+		<dm:timestamp>2007-06-24T12:28:04Z</dm:timestamp>
+	</dm:person>
+	<dm:person id="polygon-3d">
+		<gp:geopriv>
+			<gp:location-info>
+				<gml:Polygon srsName="urn:ogc:def:crs:EPSG::4979">
+					<gml:exterior>
+						<gml:LinearRing>
+							<gml:pos>43.311 -73.422 1800</gml:pos>
+							<gml:pos>43.111 -73.322 1800</gml:pos>
+							<gml:pos>43.111 -73.222 1800</gml:pos>
+							<gml:pos>43.311 -73.122 1800</gml:pos>
+							<gml:pos>43.411 -73.222 1800</gml:pos>
+							<gml:pos>43.411 -73.322 1800</gml:pos>
+							<gml:pos>43.311 -73.422 1800</gml:pos>
+						</gml:LinearRing>
+					</gml:exterior>
+				</gml:Polygon>
+			</gp:location-info>
+			<gp:usage-rules>
+				<gbp:retransmission-allowed>no</gbp:retransmission-allowed>
+				<gbp:retention-expiry>2010-11-14T20:00:00Z</gbp:retention-expiry>
+			</gp:usage-rules>
+			<gp:method>802.11</gp:method>
+		</gp:geopriv>
+		<dm:timestamp>2007-06-24T12:28:04Z</dm:timestamp>
+	</dm:person>
+	<tuple id="polygon-poslist-2d">
+		<status>
+			<gp:geopriv>
+				<gp:location-info>
+					<gml:Polygon srsName="urn:ogc:def:crs:EPSG::4326">
+						<gml:exterior>
+							<gml:LinearRing>
+								<gml:posList>
+									43.311 -73.422 43.111 -73.322
+									43.111 -73.222 43.311 -73.122
+									43.411 -73.222 43.411 -73.322
+									43.311 -73.422
+								</gml:posList>
+							</gml:LinearRing>
+						</gml:exterior>
+					</gml:Polygon>
+				</gp:location-info>
+				<gp:usage-rules>
+					<gbp:retransmission-allowed>no</gbp:retransmission-allowed>
+					<gbp:retention-expiry>2010-11-14T20:00:00Z</gbp:retention-expiry>
+				</gp:usage-rules>
+				<gp:method>Wiremap</gp:method>
+			</gp:geopriv>
+		</status>
+		<timestamp>2007-06-22T20:57:29Z</timestamp>
+	</tuple>
+	<tuple id="polygon-poslist-3d">
+		<status>
+			<gp:geopriv>
+				<gp:location-info>
+					<gml:Polygon srsName="urn:ogc:def:crs:EPSG::4979">
+						<gml:exterior>
+							<gml:LinearRing>
+								<gml:posList>
+									43.311 -73.422 1800 43.111 -73.322 1800
+									43.111 -73.222 1800 43.311 -73.122 1800
+									43.411 -73.222 1800 43.411 -73.322 1800
+									43.311 -73.422 1800
+								</gml:posList>
+							</gml:LinearRing>
+						</gml:exterior>
+					</gml:Polygon>
+				</gp:location-info>
+				<gp:usage-rules>
+					<gbp:retransmission-allowed>no</gbp:retransmission-allowed>
+					<gbp:retention-expiry>2010-11-14T20:00:00Z</gbp:retention-expiry>
+				</gp:usage-rules>
+				<gp:method>Wiremap</gp:method>
+			</gp:geopriv>
+		</status>
+		<timestamp>2007-06-22T20:57:29Z</timestamp>
+	</tuple>
+	<tuple id="ellipse-2d">
+		<status>
+			<gp:geopriv>
+				<gp:location-info>
+					<gs:Ellipse srsName="urn:ogc:def:crs:EPSG::4326">
+						<gml:pos>42.5463 -73.2512</gml:pos>
+						<gs:semiMajorAxis uom="urn:ogc:def:uom:EPSG::9001">1275</gs:semiMajorAxis>
+						<gs:semiMinorAxis uom="urn:ogc:def:uom:EPSG::9001">670</gs:semiMinorAxis>
+						<gs:orientation uom="urn:ogc:def:uom:EPSG::9102">43.2</gs:orientation>
+					</gs:Ellipse>
+				</gp:location-info>
+				<gp:usage-rules/>
+				<gp:method>Device-Assisted_A-GPS</gp:method>
+			</gp:geopriv>
+		</status>
+		<timestamp>2007-06-22T20:57:29Z</timestamp>
+	</tuple>
+	<dm:device id="arcband-2d">
+		<gp:geopriv>
+			<gp:location-info>
+				<gs:ArcBand srsName="urn:ogc:def:crs:EPSG::4326">
+					<gml:pos>-43.5723 153.21760</gml:pos>
+					<gs:innerRadius uom="urn:ogc:def:uom:EPSG::9001">3594</gs:innerRadius>
+					<gs:outerRadius uom="urn:ogc:def:uom:EPSG::9001">4148</gs:outerRadius>
+					<gs:startAngle uom="urn:ogc:def:uom:EPSG::9102">20</gs:startAngle>
+					<gs:openingAngle uom="urn:ogc:def:uom:EPSG::9102">20</gs:openingAngle>
+				</gs:ArcBand>
+			</gp:location-info>
+			<gp:usage-rules>
+				<gp:retransmission-allowed>yes</gp:retransmission-allowed>
+				<gp:ruleset-preference>https:/www/more.com</gp:ruleset-preference>
+				<gp:retention-expires>2007-06-22T20:57:29Z</gp:retention-expires>
+			</gp:usage-rules>
+			<gp:method>TA-NMR</gp:method>
+		</gp:geopriv>
+		<dm:deviceID>mac:1234567890ab</dm:deviceID>
+		<dm:timestamp>2007-06-22T20:57:29Z</dm:timestamp>
+	</dm:device>
+	<tuple id="sphere">
+		<status>
+			<gp:geopriv>
+				<gp:location-info>
+					<gs:Sphere srsName="urn:ogc:def:crs:EPSG::4979">
+						<gml:pos>42.5463 -73.2512 26.3</gml:pos>
+						<gs:radius uom="urn:ogc:def:uom:EPSG::9001">850.24</gs:radius>
+					</gs:Sphere>
+				</gp:location-info>
+				<gp:usage-rules>
+					<gbp:retransmission-allowed>no</gbp:retransmission-allowed>
+					<gbp:retention-expiry>2010-11-14T20:00:00Z</gbp:retention-expiry>
+				</gp:usage-rules>
+				<gp:method>Device-Based_A-GPS</gp:method>
+			</gp:geopriv>
+		</status>
+	</tuple>
+	<tuple id="ellipsoid">
+		<status>
+			<gp:geopriv>
+				<gp:location-info>
+					<gs:Ellipsoid srsName="urn:ogc:def:crs:EPSG::4979">
+						<gml:pos>42.5463 -73.2512 26.3</gml:pos>
+						<gs:semiMajorAxis uom="urn:ogc:def:uom:EPSG::9001">7.7156</gs:semiMajorAxis>
+						<gs:semiMinorAxis uom="urn:ogc:def:uom:EPSG::9001">3.31</gs:semiMinorAxis>
+						<gs:verticalAxis uom="urn:ogc:def:uom:EPSG::9001">28.7</gs:verticalAxis>
+						<gs:orientation uom="urn:ogc:def:uom:EPSG::9102">90</gs:orientation>
+					</gs:Ellipsoid>
+				</gp:location-info>
+				<gp:usage-rules/>
+				<gp:method>Hybrid_A-GPS</gp:method>
+			</gp:geopriv>
+		</status>
+		<timestamp>2007-06-22T20:57:29Z</timestamp>
+	</tuple>
+	<tuple id="prism">
+		<status>
+			<gp:geopriv>
+				<gp:location-info>
+					<gs:Prism srsName="urn:ogc:def:crs:EPSG::4979">
+						<gs:base>
+							<gml:Polygon>
+								<gml:exterior>
+									<gml:LinearRing>
+										<gml:posList>
+											42.556844 -73.248157 36.6 <!--A -->
+											42.656844 -73.248157 36.6 <!--B -->
+											42.656844 -73.348157 36.6 <!--C -->
+											42.556844 -73.348157 36.6 <!--D -->
+											42.556844 -73.248157 36.6 <!--A -->
+										</gml:posList>
+									</gml:LinearRing>
+								</gml:exterior>
+							</gml:Polygon>
+						</gs:base>
+						<gs:height uom="urn:ogc:def:uom:EPSG::9001">2.4</gs:height>
+					</gs:Prism>
+				</gp:location-info>
+				<gp:usage-rules/>
+				<gp:method>Wiremap</gp:method>
+			</gp:geopriv>
+		</status>
+		<timestamp>2007-06-22T20:57:29Z</timestamp>
+	</tuple>
+	<dm:device>
+		<gp:geopriv>
+			<gp:location-info>
+				<ca:civicAddress xml:lang="en-AU">
+					<ca:country>AU</ca:country>
+					<ca:A1>NSW</ca:A1>
+					<ca:A3>Wollongong</ca:A3>
+					<ca:A4>North Wollongong</ca:A4>
+					<ca:RD>Flinders</ca:RD>
+					<ca:STS>Street</ca:STS>
+					<ca:RDBR>Campbell Street</ca:RDBR>
+					<ca:LMK>Gilligan's Island</ca:LMK>
+					<ca:LOC>Corner</ca:LOC>
+					<ca:NAM> Video Rental Store </ca:NAM>
+					<ca:PC>2500</ca:PC>
+					<ca:ROOM> Westerns and Classics </ca:ROOM>
+					<ca:PLC>store</ca:PLC>
+					<ca:POBOX>Private Box 15</ca:POBOX>
+				</ca:civicAddress>
+			</gp:location-info>
+			<gp:usage-rules>
+				<gp:retransmission-allowed>yes</gp:retransmission-allowed>
+				<gp:ruleset-preference>https:/www/more.com</gp:ruleset-preference>
+				<gp:retention-expires>2007-06-22T20:57:29Z</gp:retention-expires>
+			</gp:usage-rules>
+			<gp:method>GPS</gp:method>
+		</gp:geopriv>
+		<dm:deviceID>mac:1234567890ab</dm:deviceID>
+		<dm:timestamp>2007-06-22T20:57:29Z</dm:timestamp>
+	</dm:device>
+</presence>

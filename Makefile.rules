@@ -204,4 +204,19 @@ endif
 	$(ECHO_PREFIX) echo "   [LD] $^ -> $@"
 	$(CMD_PREFIX) $(CXX) -o $@ $(PTHREAD_CFLAGS) $(_ASTLDFLAGS) $^ $(CXX_LIBS) $(ASTLDFLAGS)
 
+# These CC commands just create an object file with the input file embedded in it.
+# It can be access from code as follows:
+# If your input file is named abc_def.xml...
+#
+# extern const uint8_t _binary_abc_def_xml_start[];
+# extern const uint8_t _binary_abc_def_xml_end[];
+# extern const size_t _binary_abc_def_xml_size;
+%.o: %.xml
+	$(ECHO_PREFIX) echo "   [LD] $^ -> $@"
+	$(CMD_PREFIX) $(CC) -g -nostartfiles  -nodefaultlibs -nostdlib -r -Wl,-b,binary -o $@ $^
+
+%.o: %.xslt
+	$(ECHO_PREFIX) echo "   [LD] $^ -> $@"
+	$(CMD_PREFIX) $(CC) -g -nostartfiles  -nodefaultlibs -nostdlib -r -Wl,-b,binary -o $@ $^
+
 dist-clean:: clean
