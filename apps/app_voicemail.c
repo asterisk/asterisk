@@ -11512,10 +11512,16 @@ static int vm_execmain(struct ast_channel *chan, const char *data)
 		else
 			ast_copy_string(vms.username, args.argv0, sizeof(vms.username));
 
-		if (!ast_strlen_zero(vms.username) && (vmu = find_user(&vmus, context ,vms.username)))
-			skipuser++;
-		else
+		if (!ast_strlen_zero(vms.username)) {
+			if ((vmu = find_user(&vmus, context ,vms.username))) {
+				skipuser++;
+			} else {
+				ast_log(LOG_WARNING, "Mailbox '%s%s%s' doesn't exist\n", vms.username, context ? "@": "", context ? context : "");
+				valid = 0;
+			}
+		} else {
 			valid = 0;
+		}
 	}
 
 	if (!valid)
