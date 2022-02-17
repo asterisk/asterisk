@@ -602,15 +602,6 @@ exten => t,1,Goto(#,1)			; If they take too long, give up
 exten => i,1,Playback(invalid)		; "That's not valid, try again"
 
 ;
-; Create an extension, 500, for dialing the
-; Asterisk demo.
-;
-exten => 500,1,Playback(demo-abouttotry)	; Let them know what's going on
-	same => n,Dial(IAX2/guest@pbx.digium.com/s@default)	; Call the Asterisk demo
-	same => n,Playback(demo-nogo)	; Couldn't connect to the demo site
-	same => n,Goto(s,6)		; Return to the start over message.
-
-;
 ; Create an extension, 600, for evaluating echo latency.
 ;
 exten => 600,1,Playback(demo-echotest)	; Let them know what's going on
