@@ -3,11 +3,13 @@
 AWK=${AWK:-awk}
 GIT=${GIT:-git}
 GREP=${GREP:-grep}
+SED=${SED:-sed}
+
 
 if [ -f ${1}/.version ]; then
     cat ${1}/.version
 elif [ -d ${1}/.svn ]; then
-    PARTS=`LANG=C svn info ${1} | ${GREP} URL | ${AWK} '{print $2;}' | sed -e 's:^.*/svn/asterisk/::' | sed -e 's:/: :g'`
+    PARTS=`LANG=C svn info ${1} | ${GREP} URL | ${AWK} '{print $2;}' | ${SED} -e 's:^.*/svn/asterisk/::' | ${SED} -e 's:/: :g'`
     BRANCH=0
     TEAM=0
     TAG=0
@@ -93,16 +95,33 @@ elif [ -d ${1}/.git ]; then
         echo "UNKNOWN__and_probably_unsupported"
         exit 1
     fi
-	cd ${1}
+    cd ${1}
 
     # If the first log commit messages indicates that this is checked into
     # subversion, we'll just use the SVN- form of the revision.
     MODIFIED=""
-    SVN_REV=`${GIT} log --pretty=full -1 | sed -n '/git-svn-id:/ s/.*\@\([^ ]*\) .*/\1/p'`
+    SVN_REV=`${GIT} log --pretty=full -1 | ${SED} -n '/git-svn-id:/ s/.*\@\([^ ]*\) .*/\1/p'`
     if [ -z "$SVN_REV" ]; then
-        MAINLINE_BRANCH=$(${GIT} config -f .gitreview --get gerrit.basebranch)
-        if [ "x${MAINLINE_BRANCH}" = "x" ] ; then
-            MAINLINE_BRANCH=$(${GIT} config -f .gitreview --get gerrit.defaultbranch)
+        # If MAINLINE_BRANCH is already set in the environment, use it.
+        if [ -z "${MAINLINE_BRANCH}" ] ; then
+            # Try to retrieve MAINLINE_BRANCH from a local .develvars file first.
+            # .develvars is keyed by the branch name so we need to get that first.
+            BRANCH=$(${GIT} symbolic-ref --short HEAD)
+            if [ -f .develvars ] ; then
+                MAINLINE_BRANCH=$(${GIT} config -f .develvars --get branch.${BRANCH}.mainline-branch)
+            fi
+
+            # If we didn't find it, see if this is a well-known development branch.
+            # development/<mainline_branch>/<branchname> or
+            # devel/<mainline_branch>/<branchname>
+            if [ "x${MAINLINE_BRANCH}" = "x" ] ; then
+                MAINLINE_BRANCH=$(echo "${BRANCH}" | ${SED} -n -r -e "s@devel(opment)?/([0-9]+)/.+@\2@p")
+            fi
+
+            # If we didn't find it, get it from .gitreview defaultbranch.
+            if [ "x${MAINLINE_BRANCH}" = "x" ] ; then
+                MAINLINE_BRANCH=$(${GIT} config -f .gitreview --get gerrit.defaultbranch)
+            fi
         fi
 
         VERSION=`${GIT} describe --long --always --tags --dirty=M 2> /dev/null`
@@ -116,7 +135,7 @@ elif [ -d ${1}/.git ]; then
         fi
         echo GIT-${MAINLINE_BRANCH}-${VERSION}
     else
-        PARTS=`LANG=C ${GIT} log --pretty=full | ${GREP} -F "git-svn-id:" | head -1 | ${AWK} '{print $2;}' | sed -e s:^.*/svn/$2/:: | sed -e 's:/: :g' | sed -e 's/@.*$//g'`
+        PARTS=`LANG=C ${GIT} log --pretty=full | ${GREP} -F "git-svn-id:" | head -1 | ${AWK} '{print $2;}' | ${SED} -e s:^.*/svn/$2/:: | ${SED} -e 's:/: :g' | ${SED} -e 's/@.*$//g'`
         BRANCH=0
         TEAM=0
         TAG=0

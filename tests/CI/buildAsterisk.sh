@@ -17,6 +17,10 @@ if [ -z $BRANCH_NAME ]; then
 	BRANCH_NAME=$(git config -f .gitreview --get gerrit.defaultbranch)
 fi
 
+if [[ "$BRANCH_NAME" =~ devel(opment)?/([0-9]+)/.+ ]] ; then
+	export MAINLINE_BRANCH="${BASH_REMATCH[2]}"
+fi
+
 gen_cats() {
 	set +x
 	action=$1
@@ -90,6 +94,11 @@ runner ulimit -a
 MAKE=`which make`
 PKGCONFIG=`which pkg-config`
 _libdir=`${CIDIR}/findLibdir.sh`
+
+_version=$(./build_tools/make_version .)
+for var in BRANCH_NAME MAINLINE_BRANCH OUTPUT_DIR CACHE_DIR CCACHE_DISABLE CCACHE_DIR _libdir _version ; do
+	declare -p $var || :
+done
 
 common_config_args="--prefix=/usr ${_libdir:+--libdir=${_libdir}} --sysconfdir=/etc --with-pjproject-bundled"
 $PKGCONFIG 'jansson >= 2.11' || common_config_args+=" --with-jansson-bundled"
