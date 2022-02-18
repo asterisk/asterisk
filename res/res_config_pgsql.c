@@ -1234,8 +1234,8 @@ static int require_pgsql(const char *database, const char *tablename, va_list ap
 		AST_LIST_TRAVERSE(&table->columns, column, list) {
 			if (strcmp(column->name, elm) == 0) {
 				/* Char can hold anything, as long as it is large enough */
-				if ((strncmp(column->type, "char", 4) == 0 || strncmp(column->type, "varchar", 7) == 0 || strcmp(column->type, "bpchar") == 0)) {
-					if ((size > column->len) && column->len != -1) {
+				if ((strncmp(column->type, "char", 4) == 0 || strncmp(column->type, "varchar", 7) == 0 || strcmp(column->type, "bpchar") == 0 || strncmp(column->type, "text", 4) == 0)) {
+					if (column->len != -1 && (size > column->len)) {
 						ast_log(LOG_WARNING, "Column '%s' should be at least %d long, but is only %d long.\n", column->name, size, column->len);
 						res = -1;
 					}
