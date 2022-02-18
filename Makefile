@@ -561,9 +561,9 @@ bininstall: _all installdirs $(SUBDIRS_INSTALL) main-bininstall install-headers
 	$(INSTALL) -m 755 contrib/scripts/astversion "$(DESTDIR)$(ASTSBINDIR)/"
 	$(INSTALL) -m 755 contrib/scripts/astgenkey "$(DESTDIR)$(ASTSBINDIR)/"
 	$(INSTALL) -m 755 contrib/scripts/autosupport "$(DESTDIR)$(ASTSBINDIR)/"
-	if [ ! -f /sbin/launchd ]; then \
-		./build_tools/install_subst contrib/scripts/safe_asterisk "$(DESTDIR)$(ASTSBINDIR)/safe_asterisk"; \
-	fi
+ifneq ($(HAVE_SBIN_LAUNCHD),1)
+	./build_tools/install_subst contrib/scripts/safe_asterisk "$(DESTDIR)$(ASTSBINDIR)/safe_asterisk";
+endif
 
 ifneq ($(DISABLE_XMLDOC),yes)
 	$(INSTALL) -m 644 doc/core-*.xml "$(DESTDIR)$(ASTDATADIR)/documentation"
