@@ -173,7 +173,13 @@ static int function_db_write(struct ast_channel *chan, const char *cmd, char *pa
 		ast_log(LOG_WARNING, "DB requires an argument, DB(<family>/<key>)=value\n");
 		return -1;
 	}
-
+	/*
+	* When keynames are dynamically created using variables, if the variable is empty, this put bad data into the DB.
+	* In particular, a few cases: an empty key name, a key starting or ending with a /, and a key containing // two slashes.
+	* If this happens, allow it to go in, but warn the user of the issue and possible data corruption. */
+	if (ast_strlen_zero(args.key) || args.key[0] == '/' || args.key[strlen(args.key) - 1] == '/' || strstr(args.key, "//")) {
+		ast_log(LOG_WARNING, "DB: key '%s' seems malformed\n", args.key);
+	}
 	if (ast_db_put(args.family, args.key, value)) {
 		ast_log(LOG_WARNING, "DB: Error writing value to database.\n");
 	}
