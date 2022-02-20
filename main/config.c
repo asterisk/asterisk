@@ -679,6 +679,49 @@ int ast_variable_list_replace(struct ast_variable **head, struct ast_variable *r
 	return -1;
 }
 
+int ast_variable_list_replace_variable(struct ast_variable **head, struct ast_variable *old,
+	struct ast_variable *new)
+{
+	struct ast_variable *v, **prev = head;
+
+	for (v = *head; v; prev = &v->next, v = v->next) {
+		if (v == old) {
+			new->next = v->next;
+			*prev = new;
+			ast_free(v);
+			return 0;
+		}
+	}
+
+	return -1;
+}
+
+struct ast_str *ast_variable_list_join(const struct ast_variable *head, const char *item_separator,
+	const char *name_value_separator, const char *quote_char, struct ast_str **str)
+{
+	struct ast_variable *var = (struct ast_variable *)head;
+	struct ast_str *local_str = NULL;
+
+	if (str == NULL || *str == NULL) {
+		local_str = ast_str_create(AST_MAX_USER_FIELD);
+		if (!local_str) {
+			return NULL;
+		}
+	} else {
+		local_str = *str;
+	}
+
+	for (; var; var = var->next) {
+		ast_str_append(&local_str, 0, "%s%s%s%s%s%s", var->name, name_value_separator, S_OR(quote_char, ""),
+			var->value, S_OR(quote_char, ""), var->next ? item_separator : "");
+	}
+
+	if (str != NULL) {
+		*str = local_str;
+	}
+	return local_str;
+}
+
 const char *ast_config_option(struct ast_config *cfg, const char *cat, const char *var)
 {
 	const char *tmp;

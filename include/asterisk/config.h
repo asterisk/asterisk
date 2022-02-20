@@ -968,6 +968,44 @@ struct ast_variable *ast_variable_list_append_hint(struct ast_variable **head, s
 int ast_variable_list_replace(struct ast_variable **head, struct ast_variable *replacement);
 
 /*!
+ * \brief Replace a variable in the given list with a new variable
+ *
+ * \param head A pointer to the current variable list head.  Since the variable to be
+ *             replaced, this pointer may be updated with the new head.
+ * \param old  A pointer to the existing variable to be replaced.
+ * \param new  A pointer to the new variable that will replace the old one.
+ *
+ * \retval 0 if a variable was replaced in the list
+ * \retval -1 if no replacement occured
+ *
+ * \note The search for the old variable is done simply on the pointer.
+ * \note If a variable is replaced, its memory is freed.
+ */
+int ast_variable_list_replace_variable(struct ast_variable **head, struct ast_variable *old,
+	struct ast_variable *new);
+
+/*!
+ * \brief Join an ast_variable list with specified separators and quoted values
+ *
+ * \param head                 A pointer to an ast_variable list head.
+ * \param item_separator       The string to use to separate the list items.
+ *                             If NULL, "," will be used.
+ * \param name_value_separator The string to use to separate each item's name and value.
+ *                             If NULL, "=" will be used.
+ * \param str                  A pointer to a pre-allocated ast_str in which to put the results.
+ *                             If NULL, one will be allocated and returned.
+ * \param quote_char           The quote char to use for the values.
+ *                             May be NULL or empty for no quoting.
+ *
+ * \retval A pointer to the result ast_str. This may NOT be the same as the pointer
+ *         passed in if the original ast_str wasn't large enough to hold the result.
+ *         Regardless, the pointer MUST be freed after use.
+ * \retval NULL if there was an error.
+ */
+struct ast_str *ast_variable_list_join(const struct ast_variable *head, const char *item_separator,
+	const char *name_value_separator, const char *quote_char, struct ast_str **str);
+
+/*!
  * \brief Update variable value within a config
  *
  * \param category Category element within the config
