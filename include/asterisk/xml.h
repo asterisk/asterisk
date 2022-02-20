@@ -202,6 +202,13 @@ const char *ast_xml_get_text(struct ast_xml_node *node);
 void ast_xml_set_text(struct ast_xml_node *node, const char *content);
 
 /*!
+ * \brief Set or reset an element's name.
+ * \param node Node whose name is to be set.
+ * \param name New name.
+ */
+void ast_xml_set_name(struct ast_xml_node *node, const char *name);
+
+/*!
  * \brief Get the name of a node. */
 const char *ast_xml_node_get_name(struct ast_xml_node *node);
 
