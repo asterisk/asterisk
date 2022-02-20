@@ -332,6 +332,15 @@ void ast_xml_set_text(struct ast_xml_node *node, const char *content)
 	xmlNodeSetContent((xmlNode *) node, (const xmlChar *) content);
 }
 
+void ast_xml_set_name(struct ast_xml_node *node, const char *name)
+{
+	if (!node || !name) {
+		return;
+	}
+
+	xmlNodeSetName((xmlNode *) node, (const xmlChar *) name);
+}
+
 int ast_xml_doc_dump_file(FILE *output, struct ast_xml_doc *doc)
 {
 	return xmlDocDump(output, (xmlDocPtr)doc);

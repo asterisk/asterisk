@@ -1893,6 +1893,56 @@ AST_TEST_DEFINE(variable_lists_match)
 	return AST_TEST_PASS;
 }
 
+AST_TEST_DEFINE(variable_list_join_replace)
+{
+	RAII_VAR(struct ast_variable *, list, NULL, ast_variables_destroy);
+	RAII_VAR(struct ast_str *, str, NULL, ast_free);
+	struct ast_variable *bbb;
+	int rc;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "variable_list_join_replace";
+		info->category = "/main/config/";
+		info->summary = "Test joining a variable list";
+		info->description =	info->summary;
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	list = ast_variable_new("aaa", "111", "");
+	bbb = ast_variable_new("bbb", "222", "");
+	ast_variable_list_append(&list, bbb);
+	ast_variable_list_append(&list, ast_variable_new("ccc", "33 33", ""));
+
+	str = ast_variable_list_join(list, ", ", " = ", "\"", &str);
+	ast_test_validate(test, strcmp(ast_str_buffer(str), "aaa = \"111\", bbb = \"222\", ccc = \"33 33\"") == 0);
+	ast_free(str);
+
+	str = ast_str_create(AST_MAX_USER_FIELD);
+	str = ast_variable_list_join(list, ", ", " = ", "\"", &str);
+	ast_test_validate(test, strcmp(ast_str_buffer(str), "aaa = \"111\", bbb = \"222\", ccc = \"33 33\"") == 0);
+	ast_free(str);
+
+	str = ast_variable_list_join(list, ", ", " = ", "\"", NULL);
+	ast_test_validate(test, strcmp(ast_str_buffer(str), "aaa = \"111\", bbb = \"222\", ccc = \"33 33\"") == 0);
+	ast_free(str);
+
+	/* Replace the head item in the list */
+	rc = ast_variable_list_replace_variable(&list, list, ast_variable_new("ddd", "444", ""));
+	ast_test_validate(test, rc == 0);
+	str = ast_variable_list_join(list, ", ", " = ", "\"", NULL);
+	ast_test_validate(test, strcmp(ast_str_buffer(str), "ddd = \"444\", bbb = \"222\", ccc = \"33 33\"") == 0);
+	ast_free(str);
+
+	rc = ast_variable_list_replace_variable(&list, bbb, ast_variable_new("eee", "555", ""));
+	ast_test_validate(test, rc == 0);
+	str = ast_variable_list_join(list, ", ", " = ", "\"", NULL);
+	ast_test_validate(test, strcmp(ast_str_buffer(str), "ddd = \"444\", eee = \"555\", ccc = \"33 33\"") == 0);
+
+	return AST_TEST_PASS;
+}
 static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(config_save);
@@ -1905,6 +1955,7 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(config_options_test);
 	AST_TEST_UNREGISTER(config_dialplan_function);
 	AST_TEST_UNREGISTER(variable_lists_match);
+	AST_TEST_UNREGISTER(variable_list_join_replace);
 	return 0;
 }
 
@@ -1920,6 +1971,7 @@ static int load_module(void)
 	AST_TEST_REGISTER(config_options_test);
 	AST_TEST_REGISTER(config_dialplan_function);
 	AST_TEST_REGISTER(variable_lists_match);
+	AST_TEST_REGISTER(variable_list_join_replace);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
