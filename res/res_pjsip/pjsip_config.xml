@@ -2030,6 +2030,17 @@
 				<configOption name="norefersub" default="yes">
 					<synopsis>Advertise support for RFC4488 REFER subscription suppression</synopsis>
 				</configOption>
+				<configOption name="allow_sending_180_after_183" default="no">
+					<synopsis>Allow 180 after 183</synopsis>
+					<description><para>
+						Allow Asterisk to send 180 Ringing to an endpoint
+						after 183 Session Progress has been send.
+						If disabled Asterisk will instead send only a
+						183 Session Progress to the endpoint.
+						(default: "no")
+						</para>
+					</description>
+				</configOption>
 			</configObject>
 		</configFile>
 	</configInfo>

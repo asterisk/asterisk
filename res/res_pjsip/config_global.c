@@ -48,6 +48,7 @@
 #define DEFAULT_MWI_TPS_QUEUE_HIGH AST_TASKPROCESSOR_HIGH_WATER_LEVEL
 #define DEFAULT_MWI_TPS_QUEUE_LOW -1
 #define DEFAULT_MWI_DISABLE_INITIAL_UNSOLICITED 0
+#define DEFAULT_ALLOW_SENDING_180_AFTER_183 0
 #define DEFAULT_IGNORE_URI_USER_OPTIONS 0
 #define DEFAULT_USE_CALLERID_CONTACT 0
 #define DEFAULT_SEND_CONTACT_STATUS_ON_UPDATE_REGISTRATION 0
@@ -92,6 +93,8 @@ struct global_config {
 	unsigned int contact_expiration_check_interval;
 	/*! Nonzero to disable multi domain support */
 	unsigned int disable_multi_domain;
+	/*! Nonzero to disable changing 180/SDP to 183/SDP */
+	unsigned int allow_sending_180_after_183;
 	/*! The maximum number of unidentified requests per source IP address before a security event is logged */
 	unsigned int unidentified_request_count;
 	/*! The period during which unidentified requests are accumulated */
@@ -444,6 +447,21 @@ unsigned int ast_sip_get_mwi_disable_initial_unsolicited(void)
 	return disable_initial_unsolicited;
 }
 
+unsigned int ast_sip_get_allow_sending_180_after_183(void)
+{
+	unsigned int allow_sending_180_after_183;
+	struct global_config *cfg;
+
+	cfg = get_global_cfg();
+	if (!cfg) {
+		return DEFAULT_ALLOW_SENDING_180_AFTER_183;
+	}
+
+	allow_sending_180_after_183 = cfg->allow_sending_180_after_183;
+	ao2_ref(cfg, -1);
+	return allow_sending_180_after_183;
+}
+
 unsigned int ast_sip_get_ignore_uri_user_options(void)
 {
 	unsigned int ignore_uri_user_options;
@@ -708,6 +726,9 @@ int ast_sip_initialize_sorcery_global(void)
 	ast_sorcery_object_field_register(sorcery, "global", "mwi_disable_initial_unsolicited",
 		DEFAULT_MWI_DISABLE_INITIAL_UNSOLICITED ? "yes" : "no",
 		OPT_BOOL_T, 1, FLDSET(struct global_config, mwi.disable_initial_unsolicited));
+	ast_sorcery_object_field_register(sorcery, "global", "allow_sending_180_after_183",
+		DEFAULT_ALLOW_SENDING_180_AFTER_183 ? "yes" : "no",
+		OPT_BOOL_T, 1, FLDSET(struct global_config, allow_sending_180_after_183));
 	ast_sorcery_object_field_register(sorcery, "global", "ignore_uri_user_options",
 		DEFAULT_IGNORE_URI_USER_OPTIONS ? "yes" : "no",
 		OPT_BOOL_T, 1, FLDSET(struct global_config, ignore_uri_user_options));

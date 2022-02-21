@@ -1258,6 +1258,12 @@
                     ; creating an implicit subscription (see RFC 4488).
                     ; (default: "yes")
 
+;allow_sending_180_after_183=yes	; Allow Asterisk to send 180 Ringing to an endpoint
+					; after 183 Session Progress has been send.
+					; If disabled Asterisk will instead send only a
+					; 183 Session Progress to the endpoint.
+					; (default: "no")
+
 ; MODULE PROVIDING BELOW SECTION(S): res_pjsip_acl
 ;==========================ACL SECTION OPTIONS=========================
 ;[acl]

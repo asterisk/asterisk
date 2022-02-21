@@ -2990,6 +2990,13 @@ int ast_sip_get_mwi_tps_queue_low(void);
 unsigned int ast_sip_get_mwi_disable_initial_unsolicited(void);
 
 /*!
+ * \brief Retrieve the global setting 'allow_sending_180_after_183'.
+ *
+ * \retval non zero if disable.
+ */
+unsigned int ast_sip_get_allow_sending_180_after_183(void);
+
+/*!
  * \brief Retrieve the global setting 'use_callerid_contact'.
  * \since 13.24.0
  *

@@ -1,0 +1,8 @@
+Subject: chan_pjsip
+
+added global config option "allow_sending_180_after_183"
+
+Allow Asterisk to send 180 Ringing to an endpoint
+after 183 Session Progress has been send.
+If disabled Asterisk will instead send only a
+183 Session Progress to the endpoint.
