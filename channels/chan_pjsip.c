@@ -1630,8 +1630,12 @@ static int chan_pjsip_indicate(struct ast_channel *ast, int condition, const voi
 			if (channel->session->endpoint->inband_progress ||
 				(channel->session->inv_session && channel->session->inv_session->neg &&
 				pjmedia_sdp_neg_get_state(channel->session->inv_session->neg) == PJMEDIA_SDP_NEG_STATE_DONE)) {
-				response_code = 183;
 				res = -1;
+				if (ast_sip_get_allow_sending_180_after_183()) {
+					response_code = 180;
+				} else {
+					response_code = 183;
+				}
 			} else {
 				response_code = 180;
 			}
