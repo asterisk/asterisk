@@ -1,0 +1,8 @@
+Subject: app_confbridge
+
+Added the hear_own_join_sound option to the confbridge user profile to
+control who hears the sound_join audio file. When set to 'yes' the user
+entering the conference and the participants already in the conference
+will hear the sound_join audio file. When set to 'no' the user entering
+the conference will not hear the sound_join audio file, but the
+participants already in the conference will hear the sound_join audio file.
