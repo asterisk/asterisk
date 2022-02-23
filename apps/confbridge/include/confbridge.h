@@ -70,6 +70,7 @@ enum user_profile_flags {
 	USER_OPT_ECHO_EVENTS = (1 << 18), /*!< Send events only to the admin(s) */
 	USER_OPT_TEXT_MESSAGING = (1 << 19), /*!< Send text messages to the user */
 	USER_OPT_ANSWER_CHANNEL = (1 << 20), /*!< Sets if the channel should be answered if currently unanswered */
+	USER_OPT_HEAR_OWN_JOIN_SOUND  = (1 << 21), /*!< Set if the caller should hear the join sound */
 };
 
 enum bridge_profile_flags {

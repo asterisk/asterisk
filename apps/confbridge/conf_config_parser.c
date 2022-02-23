@@ -97,6 +97,9 @@
 				<configOption name="quiet">
 					<synopsis>Silence enter/leave prompts and user intros for this user</synopsis>
 				</configOption>
+				<configOption name="hear_own_join_sound">
+					<synopsis>Determines if the user also hears the join sound when they enter a conference</synopsis>
+				</configOption>
 				<configOption name="announce_user_count">
 					<synopsis>Sets if the number of users should be announced to the user</synopsis>
 				</configOption>
@@ -1574,6 +1577,9 @@ static char *handle_cli_confbridge_show_user_profile(struct ast_cli_entry *e, in
 	ast_cli(a->fd,"Quiet:                   %s\n",
 		u_profile.flags & USER_OPT_QUIET ?
 		"enabled" : "disabled");
+	ast_cli(a->fd,"Hear Join:               %s\n",
+		u_profile.flags & USER_OPT_HEAR_OWN_JOIN_SOUND ?
+		"enabled" : "disabled");
 	ast_cli(a->fd,"Wait Marked:             %s\n",
 		u_profile.flags & USER_OPT_WAITMARKED ?
 		"enabled" : "disabled");
@@ -2396,6 +2402,7 @@ int conf_load_config(void)
 	aco_option_register(&cfg_info, "startmuted", ACO_EXACT, user_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct user_profile, flags), USER_OPT_STARTMUTED);
 	aco_option_register(&cfg_info, "music_on_hold_when_empty", ACO_EXACT, user_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct user_profile, flags), USER_OPT_MUSICONHOLD);
 	aco_option_register(&cfg_info, "quiet", ACO_EXACT, user_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct user_profile, flags), USER_OPT_QUIET);
+	aco_option_register(&cfg_info, "hear_own_join_sound", ACO_EXACT, user_types, "yes", OPT_BOOLFLAG_T, 1, FLDSET(struct user_profile, flags), USER_OPT_HEAR_OWN_JOIN_SOUND);
 	aco_option_register_custom(&cfg_info, "announce_user_count_all", ACO_EXACT, user_types, "no", announce_user_count_all_handler, 0);
 	aco_option_register(&cfg_info, "announce_user_count", ACO_EXACT, user_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct user_profile, flags), USER_OPT_ANNOUNCEUSERCOUNT);
 	/* Negative logic. Defaults to "yes" and evaluates with ast_false(). If !ast_false(), USER_OPT_NOONLYPERSON is cleared */

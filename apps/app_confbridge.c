@@ -2725,17 +2725,24 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 		ast_autoservice_stop(chan);
 	}
 
-	/* Play the Join sound to both the conference and the user entering. */
 	if (!quiet) {
 		const char *join_sound = conf_get_sound(CONF_SOUND_JOIN, conference->b_profile.sounds);
 
-		if (strcmp(conference->b_profile.language, ast_channel_language(chan))) {
-			ast_stream_and_wait(chan, join_sound, "");
+		/* if hear_own_join_sound is enabled play the Join sound to everyone */
+		if (ast_test_flag(&user.u_profile, USER_OPT_HEAR_OWN_JOIN_SOUND) ) {
+			if (strcmp(conference->b_profile.language, ast_channel_language(chan))) {
+				ast_stream_and_wait(chan, join_sound, "");
+				ast_autoservice_start(chan);
+				play_sound_file(conference, join_sound);
+				ast_autoservice_stop(chan);
+			} else {
+				async_play_sound_file(conference, join_sound, chan);
+			}
+		/* if hear_own_join_sound is disabled only play the Join sound to just the conference */
+		} else {
 			ast_autoservice_start(chan);
 			play_sound_file(conference, join_sound);
 			ast_autoservice_stop(chan);
-		} else {
-			async_play_sound_file(conference, join_sound, chan);
 		}
 	}
 
