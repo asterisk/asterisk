@@ -7234,7 +7234,7 @@ int __ast_manager_event_multichan(int category, const char *event, int chancount
 	int res;
 
 	if (!ast_strlen_zero(manager_disabledevents)) {
-		if (strstr(manager_disabledevents, event)) {
+		if (ast_in_delimited_string(event, manager_disabledevents, ',')) {
 			ast_debug(3, "AMI Event '%s' is globally disabled, skipping\n", event);
 			/* Event is globally disabled */
 			ao2_cleanup(sessions);
