@@ -36,4 +36,4 @@ chan_unistim.o: _ASTCFLAGS+=$(AST_NO_FORMAT_TRUNCATION)
 chan_phone.o: _ASTCFLAGS+=$(AST_NO_FORMAT_TRUNCATION)
 chan_sip.o: _ASTCFLAGS+=$(AST_NO_FORMAT_TRUNCATION)
 
-$(call MOD_ADD_C,chan_oss,console_video.c vgrabbers.c console_board.c)
+$(call MOD_ADD_C,console_video.c vgrabbers.c console_board.c)

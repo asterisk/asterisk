@@ -16,9 +16,11 @@ renamed; the new names are:
 
   chan_zap.so -> chan_dahdi.so
   app_zapbarge.so -> app_dahdibarge.so
-  app_zapras.so -> app_dahdiras.so
   app_zapscan.so -> app_dahdiscan.so
   codec_zap.so -> codec_dahdi.so
+
+The following modules have been removed:
+  app_zapras.so -> app_dahdiras.so
 
 Second, the behavior of many modules has changed due to the switch to
 DAHDI; the changes are listed below.
@@ -46,7 +48,8 @@ app_dahdibarge.so:
 
 app_dahdiras.so:
 
-  The ZapRAS application has been renamed to DAHDIRAS.
+  The ZapRAS application was renamed to DAHDIRAS. This application has
+  since been removed.
 
 app_dahdiscan.so:
 

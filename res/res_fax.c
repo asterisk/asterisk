@@ -35,7 +35,6 @@
  */
 
 /*** MODULEINFO
-	<conflict>app_fax</conflict>
 	<support_level>core</support_level>
 ***/
 
