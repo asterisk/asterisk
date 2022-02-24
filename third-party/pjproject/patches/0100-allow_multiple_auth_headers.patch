@@ -1,0 +1,413 @@
+commit 8e95490e37938f45d9d812905246036c3185b94f
+Author: Riza Sulistyo <trengginas@users.noreply.github.com>
+Date:   Thu Mar 24 12:53:03 2022 +0700
+
+    Add compile time option to allow multiple Authorization header (#3010)
+
+diff --git a/pjsip/include/pjsip/sip_config.h b/pjsip/include/pjsip/sip_config.h
+index dfd9ce977..ccce6ed01 100644
+--- a/pjsip/include/pjsip/sip_config.h
++++ b/pjsip/include/pjsip/sip_config.h
+@@ -1280,6 +1280,18 @@ PJ_INLINE(pjsip_cfg_t*) pjsip_cfg(void)
+ #   define PJSIP_AUTH_CNONCE_USE_DIGITS_ONLY	1
+ #endif
+ 
++/**
++ * Allow client to send multiple Authorization header when receiving multiple 
++ * WWW-Authenticate header fields. If this is disabled, the stack will send
++ * Authorization header field containing credentials that match the
++ * topmost header field.
++ *
++ * Default is 0
++ */
++#ifndef PJSIP_AUTH_ALLOW_MULTIPLE_AUTH_HEADER
++#   define PJSIP_AUTH_ALLOW_MULTIPLE_AUTH_HEADER 0
++#endif
++
+ /*****************************************************************************
+  *  SIP Event framework and presence settings.
+  */
+@@ -1458,6 +1470,11 @@ PJ_INLINE(pjsip_cfg_t*) pjsip_cfg(void)
+ #   define PJSIP_INV_ACCEPT_UNKNOWN_BODY    PJ_FALSE
+ #endif
+ 
++/**
++ * Dump configuration to log with verbosity equal to info(3).
++ */
++PJ_DECL(void) pjsip_dump_config(void);
++
+ PJ_END_DECL
+ 
+ /**
+diff --git a/pjsip/src/pjsip/sip_auth_client.c b/pjsip/src/pjsip/sip_auth_client.c
+index 35460d01e..ab1a0cd87 100644
+--- a/pjsip/src/pjsip/sip_auth_client.c
++++ b/pjsip/src/pjsip/sip_auth_client.c
+@@ -1367,7 +1367,7 @@ PJ_DEF(pj_status_t) pjsip_auth_clt_reinit_req(	pjsip_auth_clt_sess *sess,
+     chal_cnt = 0;
+     auth_cnt = 0;
+     last_auth_err = PJSIP_EAUTHNOAUTH;
+-    while (hdr != &rdata->msg_info.msg->hdr && auth_cnt == 0) {
++    while (hdr != &rdata->msg_info.msg->hdr) {
+ 	pjsip_cached_auth *cached_auth;
+ 	const pjsip_www_authenticate_hdr *hchal;
+ 	pjsip_authorization_hdr *hauth;
+@@ -1431,6 +1431,11 @@ PJ_DEF(pj_status_t) pjsip_auth_clt_reinit_req(	pjsip_auth_clt_sess *sess,
+ 	/* Process next header. */
+ 	hdr = hdr->next;
+ 	auth_cnt++;
++
++#if defined(PJSIP_AUTH_ALLOW_MULTIPLE_AUTH_HEADER) && \
++	    PJSIP_AUTH_ALLOW_MULTIPLE_AUTH_HEADER==0
++	break;
++#endif
+     }
+ 
+     /* Check if challenge is present */
+diff --git a/pjsip/src/pjsip/sip_config.c b/pjsip/src/pjsip/sip_config.c
+index 957f9fad4..6920b3dfe 100644
+--- a/pjsip/src/pjsip/sip_config.c
++++ b/pjsip/src/pjsip/sip_config.c
+@@ -19,6 +19,9 @@
+  */
+ 
+ #include <pjsip/sip_config.h>
++#include <pj/log.h>
++
++static const char *id = "sip_config.c";
+ 
+ /* pjsip configuration instance, initialized with default values */
+ pjsip_cfg_t pjsip_sip_cfg_var =
+@@ -65,6 +68,195 @@ pjsip_cfg_t pjsip_sip_cfg_var =
+     }
+ };
+ 
++PJ_DEF(void) pjsip_dump_config(void)
++{
++    PJ_LOG(3, (id, "Dumping PJSIP configurations:"));
++    PJ_LOG(3, (id, " PJSIP_MAX_DIALOG_COUNT                             : %d", 
++	       PJSIP_MAX_DIALOG_COUNT));
++    PJ_LOG(3, (id, " PJSIP_MAX_TRANSPORTS                               : %d", 
++	       PJSIP_MAX_TRANSPORTS));
++    PJ_LOG(3, (id, " PJSIP_TPMGR_HTABLE_SIZE                            : %d", 
++	       PJSIP_TPMGR_HTABLE_SIZE));
++    PJ_LOG(3, (id, " PJSIP_MAX_URL_SIZE                                 : %d", 
++	       PJSIP_MAX_URL_SIZE));
++    PJ_LOG(3, (id, " PJSIP_MAX_MODULE                                   : %d", 
++	       PJSIP_MAX_MODULE));
++    PJ_LOG(3, (id, " PJSIP_MAX_PKT_LEN                                  : %d", 
++	       PJSIP_MAX_PKT_LEN));
++    PJ_LOG(3, (id, " PJSIP_HANDLE_EVENTS_HAS_SLEEP_ON_ERR               : %d", 
++	       PJSIP_HANDLE_EVENTS_HAS_SLEEP_ON_ERR));
++    PJ_LOG(3, (id, " PJSIP_ACCEPT_MULTIPLE_SDP_ANSWERS                  : %d", 
++	       PJSIP_ACCEPT_MULTIPLE_SDP_ANSWERS));
++    PJ_LOG(3, (id, " PJSIP_UDP_SIZE_THRESHOLD                           : %d", 
++	       PJSIP_UDP_SIZE_THRESHOLD));
++    PJ_LOG(3, (id, " PJSIP_INCLUDE_ALLOW_HDR_IN_DLG                     : %d", 
++	       PJSIP_INCLUDE_ALLOW_HDR_IN_DLG));
++    PJ_LOG(3, (id, " PJSIP_SAFE_MODULE                                  : %d", 
++	       PJSIP_SAFE_MODULE));
++    PJ_LOG(3, (id, " PJSIP_CHECK_VIA_SENT_BY                            : %d", 
++	       PJSIP_CHECK_VIA_SENT_BY));
++    PJ_LOG(3, (id, " PJSIP_UNESCAPE_IN_PLACE                            : %d", 
++	       PJSIP_UNESCAPE_IN_PLACE));
++    PJ_LOG(3, (id, " PJSIP_MAX_NET_EVENTS                               : %d", 
++	       PJSIP_MAX_NET_EVENTS));
++    PJ_LOG(3, (id, " PJSIP_MAX_TIMED_OUT_ENTRIES                        : %d", 
++	       PJSIP_MAX_TIMED_OUT_ENTRIES));
++    PJ_LOG(3, (id, " PJSIP_TRANSPORT_IDLE_TIME                          : %d", 
++	       PJSIP_TRANSPORT_IDLE_TIME));
++    PJ_LOG(3, (id, " PJSIP_TRANSPORT_SERVER_IDLE_TIME                   : %d", 
++	       PJSIP_TRANSPORT_SERVER_IDLE_TIME));
++    PJ_LOG(3, (id, " PJSIP_MAX_TRANSPORT_USAGE                          : %d", 
++	       PJSIP_MAX_TRANSPORT_USAGE));
++    PJ_LOG(3, (id, " PJSIP_TCP_TRANSPORT_BACKLOG                        : %d", 
++	       PJSIP_TCP_TRANSPORT_BACKLOG));
++    PJ_LOG(3, (id, " PJSIP_TCP_TRANSPORT_REUSEADDR                      : %d", 
++	       PJSIP_TCP_TRANSPORT_REUSEADDR));
++    PJ_LOG(3, (id, " PJSIP_TCP_TRANSPORT_DONT_CREATE_LISTENER           : %d", 
++	       PJSIP_TCP_TRANSPORT_DONT_CREATE_LISTENER));
++    PJ_LOG(3, (id, " PJSIP_TLS_TRANSPORT_DONT_CREATE_LISTENER           : %d", 
++	       PJSIP_TLS_TRANSPORT_DONT_CREATE_LISTENER));
++    PJ_LOG(3, (id, " PJSIP_TCP_KEEP_ALIVE_INTERVAL                      : %d", 
++	       PJSIP_TCP_KEEP_ALIVE_INTERVAL));
++    PJ_LOG(3, (id, " PJSIP_POOL_INC_TRANSPORT                           : %d", 
++	       PJSIP_POOL_INC_TRANSPORT));
++    PJ_LOG(3, (id, " PJSIP_POOL_LEN_TDATA                               : %d", 
++	       PJSIP_POOL_LEN_TDATA));
++    PJ_LOG(3, (id, " PJSIP_POOL_INC_TDATA                               : %d", 
++	       PJSIP_POOL_INC_TDATA));
++    PJ_LOG(3, (id, " PJSIP_POOL_LEN_UA                                  : %d", 
++	       PJSIP_POOL_LEN_UA));
++    PJ_LOG(3, (id, " PJSIP_POOL_INC_UA                                  : %d", 
++	       PJSIP_POOL_INC_UA));
++    PJ_LOG(3, (id, " PJSIP_POOL_EVSUB_LEN                               : %d", 
++	       PJSIP_POOL_EVSUB_LEN));
++    PJ_LOG(3, (id, " PJSIP_POOL_EVSUB_INC                               : %d", 
++	       PJSIP_POOL_EVSUB_INC));
++    PJ_LOG(3, (id, " PJSIP_MAX_FORWARDS_VALUE                           : %d", 
++	       PJSIP_MAX_FORWARDS_VALUE));
++    PJ_LOG(3, (id, " PJSIP_RFC3261_BRANCH_ID                            : %s", 
++	       PJSIP_RFC3261_BRANCH_ID));
++    PJ_LOG(3, (id, " PJSIP_RFC3261_BRANCH_LEN                           : %d", 
++	       PJSIP_RFC3261_BRANCH_LEN));
++    PJ_LOG(3, (id, " PJSIP_POOL_TSX_LAYER_LEN                           : %d", 
++	       PJSIP_POOL_TSX_LAYER_LEN));
++    PJ_LOG(3, (id, " PJSIP_POOL_TSX_LAYER_INC                           : %d", 
++	       PJSIP_POOL_TSX_LAYER_INC));
++    PJ_LOG(3, (id, " PJSIP_POOL_TSX_LEN                                 : %d", 
++	       PJSIP_POOL_TSX_LEN));
++    PJ_LOG(3, (id, " PJSIP_POOL_TSX_INC                                 : %d", 
++	       PJSIP_POOL_TSX_INC));
++    PJ_LOG(3, (id, " PJSIP_TSX_1XX_RETRANS_DELAY                        : %d", 
++	       PJSIP_TSX_1XX_RETRANS_DELAY));
++    PJ_LOG(3, (id, " PJSIP_TSX_UAS_CONTINUE_ON_TP_ERROR                 : %d", 
++	       PJSIP_TSX_UAS_CONTINUE_ON_TP_ERROR));
++    PJ_LOG(3, (id, " PJSIP_MAX_TSX_KEY_LEN                              : %d", 
++	       PJSIP_MAX_TSX_KEY_LEN));
++    PJ_LOG(3, (id, " PJSIP_POOL_LEN_USER_AGENT                          : %d", 
++	       PJSIP_POOL_LEN_USER_AGENT));
++    PJ_LOG(3, (id, " PJSIP_POOL_INC_USER_AGENT                          : %d", 
++	       PJSIP_POOL_INC_USER_AGENT));
++    PJ_LOG(3, (id, " PJSIP_MAX_BRANCH_LEN                               : %d", 
++	       PJSIP_MAX_HNAME_LEN));
++    PJ_LOG(3, (id, " PJSIP_POOL_LEN_DIALOG                              : %d", 
++	       PJSIP_POOL_LEN_DIALOG));
++    PJ_LOG(3, (id, " PJSIP_POOL_INC_DIALOG                              : %d", 
++	       PJSIP_POOL_INC_DIALOG));
++    PJ_LOG(3, (id, " PJSIP_MAX_HEADER_TYPES                             : %d", 
++	       PJSIP_MAX_HEADER_TYPES));
++    PJ_LOG(3, (id, " PJSIP_MAX_URI_TYPES                                : %d", 
++	       PJSIP_MAX_URI_TYPES));
++    PJ_LOG(3, (id, " PJSIP_AUTH_HEADER_CACHING                          : %d", 
++	       PJSIP_AUTH_HEADER_CACHING));
++    PJ_LOG(3, (id, " PJSIP_AUTH_AUTO_SEND_NEXT                          : %d", 
++	       PJSIP_AUTH_AUTO_SEND_NEXT));
++    PJ_LOG(3, (id, " PJSIP_AUTH_QOP_SUPPORT                             : %d", 
++	       PJSIP_AUTH_QOP_SUPPORT));
++    PJ_LOG(3, (id, " PJSIP_MAX_STALE_COUNT                              : %d", 
++	       PJSIP_MAX_STALE_COUNT));
++    PJ_LOG(3, (id, " PJSIP_HAS_DIGEST_AKA_AUTH                          : %d", 
++	       PJSIP_HAS_DIGEST_AKA_AUTH));
++    PJ_LOG(3, (id, " PJSIP_REGISTER_CLIENT_DELAY_BEFORE_REFRESH         : %d", 
++	       PJSIP_REGISTER_CLIENT_DELAY_BEFORE_REFRESH));
++    PJ_LOG(3, (id, " PJSIP_REGISTER_ALLOW_EXP_REFRESH                   : %d", 
++	       PJSIP_REGISTER_ALLOW_EXP_REFRESH));
++    PJ_LOG(3, (id, " PJSIP_AUTH_CACHED_POOL_MAX_SIZE                    : %d", 
++	       PJSIP_AUTH_CACHED_POOL_MAX_SIZE));
++    PJ_LOG(3, (id, " PJSIP_AUTH_CNONCE_USE_DIGITS_ONLY                  : %d", 
++	       PJSIP_AUTH_CNONCE_USE_DIGITS_ONLY));
++    PJ_LOG(3, (id, " PJSIP_AUTH_ALLOW_MULTIPLE_AUTH_HEADER              : %d", 
++	       PJSIP_AUTH_ALLOW_MULTIPLE_AUTH_HEADER));
++    PJ_LOG(3, (id, " PJSIP_EVSUB_TIME_UAC_REFRESH                       : %d", 
++	       PJSIP_EVSUB_TIME_UAC_REFRESH));
++    PJ_LOG(3, (id, " PJSIP_PUBLISHC_DELAY_BEFORE_REFRESH                : %d", 
++	       PJSIP_PUBLISHC_DELAY_BEFORE_REFRESH));
++    PJ_LOG(3, (id, " PJSIP_EVSUB_TIME_UAC_TERMINATE                     : %d", 
++	       PJSIP_EVSUB_TIME_UAC_TERMINATE));
++    PJ_LOG(3, (id, " PJSIP_EVSUB_TIME_UAC_WAIT_NOTIFY                   : %d", 
++	       PJSIP_EVSUB_TIME_UAC_WAIT_NOTIFY));
++    PJ_LOG(3, (id, " PJSIP_PRES_DEFAULT_EXPIRES                         : %d", 
++	       PJSIP_PRES_DEFAULT_EXPIRES));
++    PJ_LOG(3, (id, " PJSIP_PRES_BAD_CONTENT_RESPONSE                    : %d", 
++	       PJSIP_PRES_BAD_CONTENT_RESPONSE));
++    PJ_LOG(3, (id, " PJSIP_PRES_PIDF_ADD_TIMESTAMP                      : %d", 
++	       PJSIP_PRES_PIDF_ADD_TIMESTAMP));
++    PJ_LOG(3, (id, " PJSIP_SESS_TIMER_DEF_SE                            : %d", 
++	       PJSIP_SESS_TIMER_DEF_SE));
++    PJ_LOG(3, (id, " PJSIP_SESS_TIMER_RETRY_DELAY                       : %d", 
++	       PJSIP_SESS_TIMER_RETRY_DELAY));
++    PJ_LOG(3, (id, " PJSIP_PUBLISHC_QUEUE_REQUEST                       : %d", 
++	       PJSIP_PUBLISHC_QUEUE_REQUEST));
++    PJ_LOG(3, (id, " PJSIP_MWI_DEFAULT_EXPIRES                          : %d", 
++	       PJSIP_MWI_DEFAULT_EXPIRES));
++    PJ_LOG(3, (id, " PJSIP_HAS_TX_DATA_LIST                             : %d", 
++	       PJSIP_HAS_TX_DATA_LIST));
++    PJ_LOG(3, (id, " PJSIP_INV_ACCEPT_UNKNOWN_BODY                      : %d", 
++	       PJSIP_INV_ACCEPT_UNKNOWN_BODY));
++    PJ_LOG(3, (id, " pjsip_cfg()->endpt.allow_port_in_fromto_hdr        : %d", 
++	       pjsip_cfg()->endpt.allow_port_in_fromto_hdr));
++    PJ_LOG(3, (id, " pjsip_cfg()->endpt.accept_replace_in_early_state   : %d", 
++	       pjsip_cfg()->endpt.accept_replace_in_early_state));
++    PJ_LOG(3, (id, " pjsip_cfg()->endpt.allow_tx_hash_in_uri            : %d", 
++	       pjsip_cfg()->endpt.allow_tx_hash_in_uri));
++    PJ_LOG(3, (id, " pjsip_cfg()->endpt.disable_rport                   : %d", 
++	       pjsip_cfg()->endpt.disable_rport));
++    PJ_LOG(3, (id, " pjsip_cfg()->endpt.disable_tcp_switch              : %d", 
++	       pjsip_cfg()->endpt.disable_tcp_switch));
++    PJ_LOG(3, (id, " pjsip_cfg()->endpt.disable_tls_switch              : %d", 
++	       pjsip_cfg()->endpt.disable_tls_switch));
++    PJ_LOG(3, (id, " pjsip_cfg()->endpt.follow_early_media_fork         : %d", 
++	       pjsip_cfg()->endpt.follow_early_media_fork));
++    PJ_LOG(3, (id, " pjsip_cfg()->endpt.req_has_via_alias               : %d", 
++	       pjsip_cfg()->endpt.req_has_via_alias));
++    PJ_LOG(3, (id, " pjsip_cfg()->endpt.resolve_hostname_to_get_interface:%d", 
++	       pjsip_cfg()->endpt.resolve_hostname_to_get_interface));
++    PJ_LOG(3, (id, " pjsip_cfg()->endpt.disable_secure_dlg_check        : %d", 
++	       pjsip_cfg()->endpt.disable_secure_dlg_check));
++    PJ_LOG(3, (id, " pjsip_cfg()->endpt.use_compact_form                : %d", 
++	       pjsip_cfg()->endpt.use_compact_form));
++    PJ_LOG(3, (id, " pjsip_cfg()->endpt.accept_multiple_sdp_answers     : %d", 
++	       pjsip_cfg()->endpt.accept_multiple_sdp_answers));
++    PJ_LOG(3, (id, " pjsip_cfg()->endpt.keep_inv_after_tsx_timeout      : %d", 
++	       pjsip_cfg()->endpt.keep_inv_after_tsx_timeout));
++    PJ_LOG(3, (id, " pjsip_cfg()->tsx.max_count                         : %d", 
++	       pjsip_cfg()->tsx.max_count));
++    PJ_LOG(3, (id, " pjsip_cfg()->tsx.t1                                : %d", 
++	       pjsip_cfg()->tsx.t1));
++    PJ_LOG(3, (id, " pjsip_cfg()->tsx.t2                                : %d", 
++	       pjsip_cfg()->tsx.t2));
++    PJ_LOG(3, (id, " pjsip_cfg()->tsx.t4                                : %d", 
++	       pjsip_cfg()->tsx.t4));
++    PJ_LOG(3, (id, " pjsip_cfg()->td                                    : %d", 
++	       pjsip_cfg()->tsx.td));
++    PJ_LOG(3, (id, " pjsip_cfg()->regc.check_contact                    : %d", 
++	       pjsip_cfg()->regc.check_contact));
++    PJ_LOG(3, (id, " pjsip_cfg()->regc.add_xuid_param                   : %d", 
++	       pjsip_cfg()->regc.add_xuid_param));
++    PJ_LOG(3, (id, " pjsip_cfg()->tcp.keep_alive_interval               : %d", 
++	       pjsip_cfg()->tcp.keep_alive_interval));
++    PJ_LOG(3, (id, " pjsip_cfg()->tls.keep_alive_interval               : %d", 
++	       pjsip_cfg()->tls.keep_alive_interval));
++}
++
+ 
+ #ifdef PJ_DLL
+ PJ_DEF(pjsip_cfg_t*) pjsip_cfg(void)
+diff --git a/pjsip/src/pjsua-lib/pjsua_core.c b/pjsip/src/pjsua-lib/pjsua_core.c
+index c437011b5..343316b56 100644
+--- a/pjsip/src/pjsua-lib/pjsua_core.c
++++ b/pjsip/src/pjsua-lib/pjsua_core.c
+@@ -3443,8 +3443,10 @@ PJ_DEF(void) pjsua_dump(pj_bool_t detail)
+     old_decor = pj_log_get_decor();
+     pj_log_set_decor(old_decor & (PJ_LOG_HAS_NEWLINE | PJ_LOG_HAS_CR));
+ 
+-    if (detail)
++    if (detail) {
+ 	pj_dump_config();
++	pjsip_dump_config();
++    }
+ 
+     pjsip_endpt_dump(pjsua_get_pjsip_endpt(), detail);
+ 
+diff --git a/tests/pjsua/inc_sip.py b/tests/pjsua/inc_sip.py
+index f7e64816e..2cc1a17a8 100644
+--- a/tests/pjsua/inc_sip.py
++++ b/tests/pjsua/inc_sip.py
+@@ -306,9 +306,11 @@ class RecvfromTransaction:
+ 	body = None
+ 	# Pattern to be expected on pjsua when receiving the response
+ 	expect = ""
++	# Required config
++	pj_config = ""
+ 	
+ 	def __init__(self, title, resp_code, check_cseq=True,
+-			include=[], exclude=[], cmds=[], resp_hdr=[], resp_body=None, expect=""):
++			include=[], exclude=[], cmds=[], resp_hdr=[], resp_body=None, expect="", pj_config=""):
+ 		self.title = title
+ 		self.cmds = cmds
+ 		self.include = include
+@@ -317,6 +319,7 @@ class RecvfromTransaction:
+ 		self.resp_hdr = resp_hdr
+ 		self.body = resp_body
+ 		self.expect = expect
++		self.pj_config=pj_config
+ 			
+ 
+ class RecvfromCfg:
+@@ -328,15 +331,18 @@ class RecvfromCfg:
+ 	transaction = None
+ 	# Use TCP?
+ 	tcp = False
++	# Required config
++	pj_config = ""
+ 
+ 	# Note:
+ 	#  Any "$PORT" string in the pjsua_args will be replaced
+ 	#  by server port
+-	def __init__(self, name, pjsua_args, transaction, tcp=False):
++	def __init__(self, name, pjsua_args, transaction, tcp=False, pj_config=""):
+ 		self.name = name
+ 		self.inst_param = cfg.InstanceParam("pjsua", pjsua_args)
+ 		self.transaction = transaction
+ 		self.tcp=tcp
++		self.pj_config=pj_config
+ 
+ 
+ 
+diff --git a/tests/pjsua/mod_recvfrom.py b/tests/pjsua/mod_recvfrom.py
+index 918006aff..4305bfb42 100644
+--- a/tests/pjsua/mod_recvfrom.py
++++ b/tests/pjsua/mod_recvfrom.py
+@@ -18,10 +18,20 @@ def test_func(test):
+              local_port=srv_port, 
+              tcp=cfg_file.recvfrom_cfg.tcp)
+ 
++    config = pjsua.get_config(cfg_file.recvfrom_cfg.pj_config)
++    print "Config : " + config
++
+     last_cseq = 0
+     last_method = ""
+     last_call_id = ""
+     for t in cfg_file.recvfrom_cfg.transaction:
++        # Check if transaction requires configuration
++        if t.pj_config != "":
++            r = re.compile(t.pj_config, re.I)
++            if r.search(config) == None:
++                print "Configuration : " + t.pj_config + " not found, skipping"
++                continue
++
+         # Print transaction title
+         if t.title != "":
+             dlg.trace(t.title)
+diff --git a/tests/pjsua/run.py b/tests/pjsua/run.py
+index 35b00dec5..cffc38470 100644
+--- a/tests/pjsua/run.py
++++ b/tests/pjsua/run.py
+@@ -249,6 +249,10 @@ class Expect(threading.Thread):
+                     time.sleep(0.01)
+         return None
+                             
++    def get_config(self, key_config):
++        self.send("dd")
++        line = self.expect(key_config);
++        return line
+ 
+     def sync_stdout(self):
+         if not self.use_telnet:
+diff --git a/tests/pjsua/scripts-recvfrom/215_reg_good_multi_ok.py b/tests/pjsua/scripts-recvfrom/215_reg_good_multi_ok.py
+index a98b8b1d8..909ba229b 100644
+--- a/tests/pjsua/scripts-recvfrom/215_reg_good_multi_ok.py
++++ b/tests/pjsua/scripts-recvfrom/215_reg_good_multi_ok.py
+@@ -14,16 +14,27 @@ req1 = sip.RecvfromTransaction("Initial registration", 401,
+ 				expect="SIP/2.0 401"
+ 			  )
+ 
+-req2 = sip.RecvfromTransaction("Registration retry with auth", 200,
++req2 = sip.RecvfromTransaction("Registration retry with auth (not allowed multiple auth)", 200,
+ 				include=["REGISTER sip", 
+-					 # Must only have 1 Auth hdr since #2887
+ 					 "Authorization:", # [\\s\\S]+Authorization:"
+ 					 "realm=\"python1\"", # "realm=\"python2\"", 
+ 					 "username=\"theuser1\"", # "username=\"theuser2\"", 
+ 					 "nonce=\"1234\"", # "nonce=\"6789\"", 
+ 					 "response="],
+-				expect="registration success"	     
++				expect="registration success",
++				pj_config="PJSIP_AUTH_ALLOW_MULTIPLE_AUTH_HEADER.*: 0"
+ 			  )
+ 
++req3 = sip.RecvfromTransaction("Registration retry with auth (allowed multiple auth)", 200,
++				include=["REGISTER sip", 
++					 "Authorization:[\\s\\S]+Authorization:", # Must have 2 Auth hdrs
++					 "realm=\"python1\"", "realm=\"python2\"", 
++					 "username=\"theuser1\"", "username=\"theuser2\"", 
++					 "nonce=\"1234\"", "nonce=\"6789\"", 
++					 "response="],
++				expect="registration success",
++				pj_config="PJSIP_AUTH_ALLOW_MULTIPLE_AUTH_HEADER.*: 1"	     
++			  )                          
++
+ recvfrom_cfg = sip.RecvfromCfg("Multiple authentication challenges",
+-			       pjsua, [req1, req2])
++			       pjsua, [req1, req2, req3], pj_config="PJSIP_AUTH_ALLOW_MULTIPLE_AUTH_HEADER")
