@@ -28,9 +28,6 @@
 <member name="app_dahdibarge" displayname="Barge in on DAHDI channel application" remove_on_change="apps/app_dahdibarge.o apps/app_dahdibarge.so">
 	<depend name="dahdi">DAHDI</depend>
 </member>
-<member name="app_dahdiras" displayname="DAHDI ISDN Remote Access Server" remove_on_change="apps/app_dahdiras.o apps/app_dahdiras.so">
-	<depend name="dahdi">DAHDI</depend>
-</member>
 <member name="app_dahdiscan" displayname="Scan DAHDI channels application" remove_on_change="apps/app_dahdiscan.o apps/app_dahdiscan.so">
 	<depend name="dahdi">DAHDI</depend>
 </member>
@@ -56,9 +53,6 @@
 </member>
 <member name="app_externalivr" displayname="External IVR Interface Application" remove_on_change="apps/app_externalivr.o apps/app_externalivr.so">
 </member>
-<member name="app_fax" displayname="Simple FAX Application" remove_on_change="apps/app_fax.o apps/app_fax.so">
-	 <depend>spandsp</depend>
-</member>
 <member name="app_festival" displayname="Simple Festival Interface" remove_on_change="apps/app_festival.o apps/app_festival.so">
 </member>
 <member name="app_flash" displayname="Flash channel application" remove_on_change="apps/app_flash.o apps/app_flash.so">
@@ -70,10 +64,6 @@
 <member name="app_forkcdr" displayname="Fork The CDR into 2 separate entities" remove_on_change="apps/app_forkcdr.o apps/app_forkcdr.so">
 </member>
 <member name="app_getcpeid" displayname="Get ADSI CPE ID" remove_on_change="apps/app_getcpeid.o apps/app_getcpeid.so">
-</member>
-<member name="app_ices" displayname="Encode and Stream via icecast and ices" remove_on_change="apps/app_ices.o apps/app_ices.so">
-</member>
-<member name="app_image" displayname="Image Transmission Application" remove_on_change="apps/app_image.o apps/app_image.so">
 </member>
 <member name="app_ivrdemo" displayname="IVR Demo Application" remove_on_change="apps/app_ivrdemo.o apps/app_ivrdemo.so">
 	<defaultenabled>no</defaultenabled>
@@ -97,8 +87,6 @@
 <member name="app_morsecode" displayname="Morse code" remove_on_change="apps/app_morsecode.o apps/app_morsecode.so">
 </member>
 <member name="app_mp3" displayname="Silly MP3 Application" remove_on_change="apps/app_mp3.o apps/app_mp3.so">
-</member>
-<member name="app_nbscat" displayname="Silly NBS Stream Application" remove_on_change="apps/app_nbscat.o apps/app_nbscat.so">
 </member>
 <member name="app_osplookup" displayname="Open Settlement Protocol Applications" remove_on_change="apps/app_osplookup.o apps/app_osplookup.so">
 	<depend>osptk</depend>
@@ -156,8 +144,6 @@
 <member name="app_test" displayname="Interface Test Application" remove_on_change="apps/app_test.o apps/app_test.so">
 </member>
 <member name="app_transfer" displayname="Transfers a caller to another extension" remove_on_change="apps/app_transfer.o apps/app_transfer.so">
-</member>
-<member name="app_url" displayname="Send URL Applications" remove_on_change="apps/app_url.o apps/app_url.so">
 </member>
 <member name="app_userevent" displayname="Custom User Event Application" remove_on_change="apps/app_userevent.o apps/app_userevent.so">
 </member>
@@ -248,20 +234,6 @@
 </member>
 <member name="chan_mgcp" displayname="Media Gateway Control Protocol (MGCP)" remove_on_change="channels/chan_mgcp.o channels/chan_mgcp.so">
 </member>
-<member name="chan_misdn" displayname="Channel driver for mISDN Support (BRI/PRI)" remove_on_change="channels/chan_misdn.o channels/chan_misdn.so">
-	<depend>isdnnet</depend>
-	<depend>misdn</depend>
-	<depend>suppserv</depend>
-</member>
-<member name="chan_nbs" displayname="Network Broadcast Sound Support" remove_on_change="channels/chan_nbs.o channels/chan_nbs.so">
-	<depend>nbs</depend>
-</member>
-<member name="chan_oss" displayname="OSS Console Channel Driver" remove_on_change="channels/chan_oss.o channels/chan_oss.so">
-	<depend>ossaudio</depend>
-</member>
-<member name="chan_phone" displayname="Linux Telephony API Support" remove_on_change="channels/chan_phone.o channels/chan_phone.so">
-	<depend>ixjuser</depend>
-</member>
 <member name="chan_sip" displayname="Session Initiation Protocol (SIP)" remove_on_change="channels/chan_sip.o channels/chan_sip.so">
         <depend>chan_local</depend>
 </member>
@@ -273,9 +245,6 @@
 	<depend>ossaudio</depend>
 	<depend>usb</depend>
 	<defaultenabled>no</defaultenabled>
-</member>
-<member name="chan_vpb" displayname="Voicetronix API driver" remove_on_change="channels/chan_vpb.oo channels/chan_vpb.so">
-	<depend>vpbapi</depend>
 </member>
 </category>
 <category name="MENUSELECT_CODECS" displayname="Codec Translators" remove_on_change="codecs/modules.link">
@@ -476,9 +445,6 @@
 </member>
 <member name="res_config_pgsql" displayname="PostgreSQL RealTime Configuration Driver" remove_on_change="res/res_config_pgsql.o res/res_config_pgsql.so">
 	<depend>pgsql</depend>
-</member>
-<member name="res_config_sqlite" displayname="Realtime SQLite configuration" remove_on_change="res/res_config_sqlite.o res/res_config_sqlite.so">
-	<depend>sqlite</depend>
 </member>
 <member name="res_convert" displayname="File format conversion CLI command" remove_on_change="res/res_convert.o res/res_convert.so">
 </member>

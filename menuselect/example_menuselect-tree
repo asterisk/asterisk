@@ -57,10 +57,6 @@
 		</member>
 		<member name="app_hasnewvoicemail" displayname="Indicator for whether a voice mailbox has messages in a given folder." remove_on_change="apps/app_hasnewvoicemail.o apps/app_hasnewvoicemail.so">
 		</member>
-		<member name="app_ices" displayname="Encode and Stream via icecast and ices" remove_on_change="apps/app_ices.o apps/app_ices.so">
-		</member>
-		<member name="app_image" displayname="Image Transmission Application" remove_on_change="apps/app_image.o apps/app_image.so">
-		</member>
 		<member name="app_ivrdemo" displayname="IVR Demo Application" remove_on_change="apps/app_ivrdemo.o apps/app_ivrdemo.so">
 	<defaultenabled>no</defaultenabled>
 		</member>
@@ -80,8 +76,6 @@
 		<member name="app_morsecode" displayname="Morse code" remove_on_change="apps/app_morsecode.o apps/app_morsecode.so">
 		</member>
 		<member name="app_mp3" displayname="Silly MP3 Application" remove_on_change="apps/app_mp3.o apps/app_mp3.so">
-		</member>
-		<member name="app_nbscat" displayname="Silly NBS Stream Application" remove_on_change="apps/app_nbscat.o apps/app_nbscat.so">
 		</member>
 		<member name="app_osplookup" displayname="Open Settlement Protocol Applications" remove_on_change="apps/app_osplookup.o apps/app_osplookup.so">
 	<depend>libosptk</depend>
@@ -142,8 +136,6 @@
 		<member name="app_test" displayname="Interface Test Application" remove_on_change="apps/app_test.o apps/app_test.so">
 		</member>
 		<member name="app_transfer" displayname="Transfer" remove_on_change="apps/app_transfer.o apps/app_transfer.so">
-		</member>
-		<member name="app_url" displayname="Send URL Applications" remove_on_change="apps/app_url.o apps/app_url.so">
 		</member>
 		<member name="app_userevent" displayname="Custom User Event Application" remove_on_change="apps/app_userevent.o apps/app_userevent.so">
 		</member>
@@ -212,23 +204,9 @@
 		</member>
 		<member name="chan_mgcp" displayname="Media Gateway Control Protocol (MGCP)" remove_on_change="channels/chan_mgcp.o channels/chan_mgcp.so">
 		</member>
-		<member name="chan_misdn" displayname="Channel driver for mISDN Support (Bri/Pri)" remove_on_change="channels/chan_misdn.o channels/chan_misdn.so">
-		</member>
-		<member name="chan_nbs" displayname="Network Broadcast Sound Driver" remove_on_change="channels/chan_nbs.o channels/chan_nbs.so">
-	<depend>nbs</depend>
-		</member>
-		<member name="chan_oss" displayname="OSS Console Channel Driver" remove_on_change="channels/chan_oss.o channels/chan_oss.so">
-	<depend>ossaudio</depend>
-		</member>
-		<member name="chan_phone" displayname="Standard Linux Telephony API Driver" remove_on_change="channels/chan_phone.o channels/chan_phone.so">
-	<depend>ixjuser</depend>
-		</member>
 		<member name="chan_sip" displayname="Session Initiation Protocol (SIP)" remove_on_change="channels/chan_sip.o channels/chan_sip.so">
 		</member>
 		<member name="chan_skinny" displayname="Skinny Client Control Protocol (Skinny)" remove_on_change="channels/chan_skinny.o channels/chan_skinny.so">
-		</member>
-		<member name="chan_vpb" displayname="Standard VoiceTronix API Driver" remove_on_change="channels/chan_vpb.o channels/chan_vpb.so">
-	<depend>vpbapi</depend>
 		</member>
 		<member name="chan_zap" displayname="Zapata Telephony" remove_on_change="channels/chan_zap.o channels/chan_zap.so">
 	<depend>zaptel</depend>
