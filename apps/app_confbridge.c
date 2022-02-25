@@ -131,6 +131,11 @@
 		</see-also>
 	</application>
 	<application name="ConfKick" language="en_US">
+		<since>
+			<version>16.19.0</version>
+			<version>18.5.0</version>
+			<version>19.0.0</version>
+		</since>
 		<synopsis>
 			Kicks channel(s) from the requested ConfBridge.
 		</synopsis>

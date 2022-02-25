@@ -42,6 +42,11 @@
 
 /*** DOCUMENTATION
 	<application name="ReceiveSF" language="en_US">
+		<since>
+			<version>16.24.0</version>
+			<version>18.10.0</version>
+			<version>19.2.0</version>
+		</since>
 		<synopsis>
 			Detects SF digits on a channel and saves them to a variable.
 		</synopsis>
@@ -107,6 +112,11 @@
 		</see-also>
 	</application>
 	<application name="SendSF" language="en_US">
+		<since>
+			<version>16.24.0</version>
+			<version>18.10.0</version>
+			<version>19.2.0</version>
+		</since>
 		<synopsis>
 			Sends arbitrary SF digits on the current or specified channel.
 		</synopsis>
