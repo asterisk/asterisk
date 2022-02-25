@@ -3404,7 +3404,7 @@ int ast_sip_requires_authentication(struct ast_sip_endpoint *endpoint, pjsip_rx_
 	}
 
 	if (!registered_authenticator) {
-		ast_log(LOG_WARNING, "No SIP authenticator registered. Assuming authentication is not required\n");
+		ast_log(LOG_DEBUG, "No SIP authenticator registered. Assuming authentication is not required\n");
 		return 0;
 	}
 
