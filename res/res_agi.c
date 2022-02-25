@@ -794,14 +794,10 @@
 			Enable/Disable Music on hold generator
 		</synopsis>
 		<syntax>
-			<parameter required="true">
+			<parameter name="boolean" required="true">
 				<enumlist>
-					<enum>
-						<parameter name="on" literal="true" required="true" />
-					</enum>
-					<enum>
-						<parameter name="off" literal="true" required="true" />
-					</enum>
+					<enum name="on" />
+					<enum name="off" />
 				</enumlist>
 			</parameter>
 			<parameter name="class" required="true" />
