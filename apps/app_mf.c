@@ -42,6 +42,11 @@
 
 /*** DOCUMENTATION
 	<application name="ReceiveMF" language="en_US">
+		<since>
+			<version>16.21.0</version>
+			<version>18.7.0</version>
+			<version>19.0.0</version>
+		</since>
 		<synopsis>
 			Detects MF digits on a channel and saves them to a variable.
 		</synopsis>
@@ -113,6 +118,11 @@
 		</see-also>
 	</application>
 	<application name="SendMF" language="en_US">
+		<since>
+			<version>16.21.0</version>
+			<version>18.7.0</version>
+			<version>19.0.0</version>
+		</since>
 		<synopsis>
 			Sends arbitrary MF digits on the current or specified channel.
 		</synopsis>
@@ -151,6 +161,11 @@
 		</see-also>
 	</application>
 	<manager name="PlayMF" language="en_US">
+		<since>
+			<version>16.21.0</version>
+			<version>18.7.0</version>
+			<version>19.0.0</version>
+		</since>
 		<synopsis>
 			Play MF digit on a specific channel.
 		</synopsis>

@@ -146,6 +146,11 @@
 		</description>
 	</function>
 	<function name="PJSIP_HEADERS" language="en_US">
+		<since>
+			<version>16.20.0</version>
+			<version>18.6.0</version>
+			<version>19.0.0</version>
+		</since>
 		<synopsis>
 			Gets the list of SIP header names from an INVITE message.
 		</synopsis>

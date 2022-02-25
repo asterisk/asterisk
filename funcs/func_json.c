@@ -39,6 +39,11 @@
 
 /*** DOCUMENTATION
 	<function name="JSON_DECODE" language="en_US">
+		<since>
+			<version>16.24.0</version>
+			<version>18.10.0</version>
+			<version>19.2.0</version>
+		</since>
 		<synopsis>
 			Returns the string value of a JSON object key from a string containing a
 			JSON array.

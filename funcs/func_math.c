@@ -109,6 +109,11 @@
 		</description>
 	</function>
 	<function name="MIN" language="en_US">
+		<since>
+			<version>16.19.0</version>
+			<version>18.5.0</version>
+			<version>19.0.0</version>
+		</since>
 		<synopsis>
 			Returns the minimum of two numbers.
 		</synopsis>
@@ -123,6 +128,11 @@
 		</description>
 	</function>
 	<function name="MAX" language="en_US">
+		<since>
+			<version>16.19.0</version>
+			<version>18.5.0</version>
+			<version>19.0.0</version>
+		</since>
 		<synopsis>
 			Returns the maximum of two numbers.
 		</synopsis>
@@ -137,6 +147,11 @@
 		</description>
 	</function>
 	<function name="ABS" language="en_US">
+		<since>
+			<version>16.19.0</version>
+			<version>18.5.0</version>
+			<version>19.0.0</version>
+		</since>
 		<synopsis>
 			Returns absolute value of a number.
 		</synopsis>

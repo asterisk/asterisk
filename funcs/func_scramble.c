@@ -32,6 +32,11 @@
 
 /*** DOCUMENTATION
 	<function name="SCRAMBLE" language="en_US">
+		<since>
+			<version>16.21.0</version>
+			<version>18.7.0</version>
+			<version>19.0.0</version>
+		</since>
 		<synopsis>
 			Scrambles audio on a channel.
 		</synopsis>

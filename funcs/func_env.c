@@ -291,6 +291,11 @@
 		</see-also>
 	</function>
 	<function name="BASENAME" language="en_US">
+		<since>
+			<version>16.21.0</version>
+			<version>18.7.0</version>
+			<version>19.0.0</version>
+		</since>
 		<synopsis>
 			Return the name of a file.
 		</synopsis>
@@ -309,6 +314,11 @@
 		</see-also>
 	</function>
 	<function name="DIRNAME" language="en_US">
+		<since>
+			<version>16.21.0</version>
+			<version>18.7.0</version>
+			<version>19.0.0</version>
+		</since>
 		<synopsis>
 			Return the directory of a file.
 		</synopsis>
