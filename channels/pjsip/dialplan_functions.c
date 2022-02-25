@@ -69,6 +69,12 @@
 	</see-also>
 </function>
 <function name="PJSIP_DTMF_MODE" language="en_US">
+	<since>
+		<version>13.18.0</version>
+		<version>14.7.0</version>
+		<version>15.1.0</version>
+		<version>16.0.0</version>
+	</since>
 	<synopsis>
 		Get or change the DTMF mode for a SIP call.
 	</synopsis>
@@ -94,6 +100,11 @@
 	</description>
 </function>
 <function name="PJSIP_SEND_SESSION_REFRESH" language="en_US">
+	<since>
+		<version>13.12.0</version>
+		<version>14.1.0</version>
+		<version>15.0.0</version>
+	</since>
 	<synopsis>
 		W/O: Initiate a session refresh via an UPDATE or re-INVITE on an established media session
 	</synopsis>
@@ -135,6 +146,11 @@
 	</see-also>
 </function>
 <function name="PJSIP_PARSE_URI" language="en_US">
+	<since>
+		<version>13.24.0</version>
+		<version>16.1.0</version>
+		<version>17.0.0</version>
+	</since>
 	<synopsis>
 		Parse an uri and return a type part of the URI.
 	</synopsis>

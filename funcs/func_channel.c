@@ -64,6 +64,11 @@
 		</description>
 	</function>
 	<function name="CHANNEL_EXISTS" language="en_US">
+		<since>
+			<version>16.22.0</version>
+			<version>18.8.0</version>
+			<version>19.0.0</version>
+		</since>
 		<synopsis>
 			Checks if the specified channel exists.
 		</synopsis>

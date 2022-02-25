@@ -46,6 +46,11 @@
 
 /*** DOCUMENTATION
 	<application name="WaitForTone" language="en_US">
+		<since>
+			<version>16.21.0</version>
+			<version>18.7.0</version>
+			<version>19.0.0</version>
+		</since>
 		<synopsis>
 			Wait for tone
 		</synopsis>
@@ -94,6 +99,11 @@
 		</see-also>
 	</application>
 	<application name="ToneScan" language="en_US">
+		<since>
+			<version>16.23.0</version>
+			<version>18.9.0</version>
+			<version>19.1.0</version>
+		</since>
 		<synopsis>
 			Wait for period of time while scanning for call progress tones
 		</synopsis>
@@ -169,6 +179,11 @@
 		</see-also>
 	</application>
 	<function name="TONE_DETECT" language="en_US">
+		<since>
+			<version>16.21.0</version>
+			<version>18.7.0</version>
+			<version>19.0.0</version>
+		</since>
 		<synopsis>
 			Asynchronously detects a tone
 		</synopsis>

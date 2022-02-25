@@ -145,6 +145,11 @@
 		</see-also>
 	</application>
 	<application name="ReceiveText" language="en_US">
+		<since>
+			<version>16.24.0</version>
+			<version>18.10.0</version>
+			<version>19.2.0</version>
+		</since>
 		<synopsis>
 			Receive a Text Message on a channel.
 		</synopsis>

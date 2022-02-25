@@ -41,6 +41,11 @@
 
 /*** DOCUMENTATION
 	<application name="StoreDTMF" language="en_US">
+		<since>
+			<version>16.20.0</version>
+			<version>18.6.0</version>
+			<version>19.0.0</version>
+		</since>
 		<synopsis>
 			Stores DTMF digits transmitted or received on a channel.
 		</synopsis>

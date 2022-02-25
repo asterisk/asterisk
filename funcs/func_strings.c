@@ -155,6 +155,11 @@ AST_THREADSTORAGE(tmp_buf);
 		</description>
 	</function>
 	<function name="STRBETWEEN" language="en_US">
+		<since>
+			<version>16.21.0</version>
+			<version>18.7.0</version>
+			<version>19.0.0</version>
+		</since>
 		<synopsis>
 			Inserts a substring between each character in a string.
 		</synopsis>

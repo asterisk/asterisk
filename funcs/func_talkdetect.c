@@ -42,6 +42,9 @@
 
 /*** DOCUMENTATION
 	<function name="TALK_DETECT" language="en_US">
+		<since>
+			<version>12.4.0</version>
+		</since>
 		<synopsis>
 			Raises notifications when Asterisk detects silence or talking on a channel.
 		</synopsis>

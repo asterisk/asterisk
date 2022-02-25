@@ -633,6 +633,12 @@
 		</see-also>
 	</manager>
 	<manager name="CancelAtxfer" language="en_US">
+		<since>
+			<version>13.18.0</version>
+			<version>14.7.0</version>
+			<version>15.1.0</version>
+			<version>16.0.0</version>
+		</since>
 		<synopsis>
 			Cancel an attended transfer.
 		</synopsis>
