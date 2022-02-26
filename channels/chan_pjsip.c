@@ -1585,6 +1585,10 @@ static int handle_topology_request_change(struct ast_sip_session *session,
 	return res;
 }
 
+/* Forward declarations */
+static int transmit_info_dtmf(void *data);
+static struct info_dtmf_data *info_dtmf_data_alloc(struct ast_sip_session *session, char digit, unsigned int duration);
+
 /*! \brief Function called by core to ask the channel to indicate some sort of condition */
 static int chan_pjsip_indicate(struct ast_channel *ast, int condition, const void *data, size_t datalen)
 {
@@ -1605,6 +1609,10 @@ static int chan_pjsip_indicate(struct ast_channel *ast, int condition, const voi
 		.data.ptr = (void *)data,
 	};
 	char condition_name[256];
+	unsigned int duration;
+	char digit;
+	struct info_dtmf_data *dtmf_data;
+
 	SCOPE_ENTER(3, "%s: Indicated %s\n", ast_channel_name(ast),
 		ast_frame_subclass2str(&f, condition_name, sizeof(condition_name), NULL, 0));
 
@@ -1663,6 +1671,22 @@ static int chan_pjsip_indicate(struct ast_channel *ast, int condition, const voi
 			res = -1;
 		}
 		ast_devstate_changed(AST_DEVICE_UNKNOWN, AST_DEVSTATE_CACHABLE, "PJSIP/%s", ast_sorcery_object_get_id(channel->session->endpoint));
+		break;
+	case AST_CONTROL_FLASH:
+		duration = 300;
+		digit = '!';
+		dtmf_data = info_dtmf_data_alloc(channel->session, digit, duration);
+
+		if (!dtmf_data) {
+			res = -1;
+			break;
+		}
+
+		if (ast_sip_push_task(channel->session->serializer, transmit_info_dtmf, dtmf_data)) {
+			ast_log(LOG_WARNING, "Error sending FLASH via INFO on channel %s\n", ast_channel_name(ast));
+			ao2_ref(dtmf_data, -1); /* dtmf_data can't be null here */
+			res = -1;
+		}
 		break;
 	case AST_CONTROL_VIDUPDATE:
 		for (i = 0; i < AST_VECTOR_SIZE(&channel->session->active_media_state->sessions); ++i) {
