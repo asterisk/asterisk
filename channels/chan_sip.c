@@ -12505,11 +12505,9 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, ui
 	   An exception to this behavior is the ACK request. Since Asterisk never requires
 	   session-timers support from a remote end-point (UAS) in an INVITE, it must
 	   not send 'Require: timer' header in the ACK request.
-	   This should only be added in the INVITE transactions, not MESSAGE or REFER or other
-	   in-dialog messages.
 	*/
 	if (p->stimer && p->stimer->st_active == TRUE && p->stimer->st_active_peer_ua == TRUE
-	    && sipmethod == SIP_INVITE) {
+	    && (sipmethod == SIP_INVITE || sipmethod == SIP_UPDATE)) {
 		char se_hdr[256];
 		snprintf(se_hdr, sizeof(se_hdr), "%d;refresher=%s", p->stimer->st_interval,
 			p->stimer->st_ref == SESSION_TIMER_REFRESHER_US ? "uac" : "uas");
