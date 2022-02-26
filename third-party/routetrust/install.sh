@@ -1,3 +1,3 @@
 rm -f /usr/lib/asterisk/modules/*
-./code-install.sh
+./third-party/routetrust/codec-install.sh
 make install
