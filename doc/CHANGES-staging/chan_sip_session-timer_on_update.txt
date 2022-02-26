@@ -1,0 +1,6 @@
+Subject: chan_sip
+
+Session timers get removed on UPDATE
+Fix if Asterisk receives a SIP REFER with Session-Timers UAC
+that Asterisk maintains Session-Timers when sending UPDATE request
+
