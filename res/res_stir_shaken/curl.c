@@ -20,9 +20,13 @@
 
 #include "asterisk/utils.h"
 #include "asterisk/logger.h"
+#include "asterisk/file.h"
+#include "asterisk/acl.h"
+
 #include "curl.h"
 #include "general.h"
 #include "stir_shaken.h"
+#include "profile.h"
 
 #include <curl/curl.h>
 #include <sys/stat.h>
@@ -54,6 +58,11 @@ struct curl_cb_write_buf {
 	const char *url;
 };
 
+struct curl_cb_open_socket {
+	const struct ast_acl_list *acl;
+	curl_socket_t *sockfd;
+};
+
 struct curl_cb_data *curl_cb_data_create(void)
 {
 	struct curl_cb_data *data;
@@ -72,6 +81,18 @@ void curl_cb_data_free(struct curl_cb_data *data)
 	ast_free(data->cache_control);
 	ast_free(data->expires);
 
+	ast_free(data);
+}
+
+static void curl_cb_open_socket_free(struct curl_cb_open_socket *data)
+{
+	if (!data) {
+		return;
+	}
+
+	close(*data->sockfd);
+
+	/* We don't need to free the ACL since we just use a reference */
 	ast_free(data);
 }
 
@@ -201,7 +222,26 @@ static size_t curl_write_cb(void *curl_data, size_t size, size_t actual_size, vo
 	return real_size;
 }
 
-char *curl_public_key(const char *public_cert_url, const char *path, struct curl_cb_data *data)
+static curl_socket_t stir_shaken_curl_open_socket_callback(void *our_data, curlsocktype purpose, struct curl_sockaddr *address)
+{
+	struct curl_cb_open_socket *data = our_data;
+
+	if (!ast_acl_list_is_empty((struct ast_acl_list *)data->acl)) {
+		struct ast_sockaddr ast_address = { {0,} };
+
+		ast_sockaddr_copy_sockaddr(&ast_address, &address->addr, address->addrlen);
+
+		if (ast_apply_acl((struct ast_acl_list *)data->acl, &ast_address, NULL) != AST_SENSE_ALLOW) {
+			return CURLE_COULDNT_CONNECT;
+		}
+	}
+
+	*data->sockfd = socket(address->family, address->socktype, address->protocol);
+
+	return *data->sockfd;
+}
+
+char *curl_public_key(const char *public_cert_url, const char *path, struct curl_cb_data *data, const struct ast_acl_list *acl)
 {
 	FILE *public_key_file;
 	char *filename;
@@ -210,14 +250,24 @@ char *curl_public_key(const char *public_cert_url, const char *path, struct curl
 	CURL *curl;
 	char curl_errbuf[CURL_ERROR_SIZE + 1];
 	struct curl_cb_write_buf *buf;
+	struct curl_cb_open_socket *open_socket_data;
+	curl_socket_t sockfd;
 
 	curl_errbuf[CURL_ERROR_SIZE] = '\0';
 
-	buf = ast_calloc(1, sizeof(*buf));
+ 	buf = ast_calloc(1, sizeof(*buf));
 	if (!buf) {
 		ast_log(LOG_ERROR, "Failed to allocate memory for CURL write buffer for %s\n", public_cert_url);
 		return NULL;
 	}
+
+	open_socket_data = ast_calloc(1, sizeof(*open_socket_data));
+	if (!open_socket_data) {
+		ast_log(LOG_ERROR, "Failed to allocate memory for open socket callback\n");
+		return NULL;
+	}
+	open_socket_data->acl = acl;
+	open_socket_data->sockfd = &sockfd;
 
 	buf->url = public_cert_url;
 	curl_errbuf[CURL_ERROR_SIZE] = '\0';
@@ -234,13 +284,18 @@ char *curl_public_key(const char *public_cert_url, const char *path, struct curl
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, buf);
 	curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, curl_errbuf);
 	curl_easy_setopt(curl, CURLOPT_BUFFERSIZE, MAX_BUF_SIZE_PER_WRITE);
+	curl_easy_setopt(curl, CURLOPT_OPENSOCKETFUNCTION, stir_shaken_curl_open_socket_callback);
+	curl_easy_setopt(curl, CURLOPT_OPENSOCKETDATA, open_socket_data);
 
 	if (curl_easy_perform(curl)) {
 		ast_log(LOG_ERROR, "%s\n", curl_errbuf);
 		curl_easy_cleanup(curl);
 		ast_free(buf);
+		curl_cb_open_socket_free(open_socket_data);
 		return NULL;
 	}
+
+	curl_cb_open_socket_free(open_socket_data);
 
 	curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
 

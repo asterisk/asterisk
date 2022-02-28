@@ -349,6 +349,7 @@
 ; STIR/SHAKEN support.
 ;
 ;stir_shaken=no
+;stir_shaken_profile=my_profile
 
 ;[6001]
 ;type=auth
@@ -930,6 +931,9 @@
                            ; happens to the call if verification fails; it's up to
                            ; you to determine what to do with the results.
                            ; (default: no)
+;stir_shaken_profile =
+                           ; If a profile is specified (defined in stir_shaken.conf),
+                           ; this endpoint will follow the rules defined there.
 ;allow_unauthenticated_options =
                            ; By default, chan_pjsip will challenge an incoming
                            ; OPTIONS request for authentication credentials just
