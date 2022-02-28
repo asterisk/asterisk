@@ -1118,6 +1118,13 @@
 						INVITEs, an Identity header will be added.</para>
 					</description>
 				</configOption>
+				<configOption name="stir_shaken_profile" default="">
+					<synopsis>STIR/SHAKEN profile containing additional configuration options</synopsis>
+					<description><para>
+						A STIR/SHAKEN profile that is defined in stir_shaken.conf. Contains
+						several options and rules used for STIR/SHAKEN.</para>
+					</description>
+				</configOption>
 				<configOption name="allow_unauthenticated_options" default="no">
 					<synopsis>Skip authentication when receiving OPTIONS requests</synopsis>
 					<description><para>

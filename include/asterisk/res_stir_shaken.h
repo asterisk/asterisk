@@ -38,6 +38,8 @@ enum ast_stir_shaken_verify_failure_reason {
 
 struct ast_stir_shaken_payload;
 
+struct ast_acl_list;
+
 struct ast_json;
 
 /*!
@@ -64,6 +66,38 @@ char *ast_stir_shaken_payload_get_public_cert_url(const struct ast_stir_shaken_p
  * \retval The signature timeout
  */
 unsigned int ast_stir_shaken_get_signature_timeout(void);
+
+/*!
+ * \brief Retrieve a stir_shaken_profile by id
+ *
+ * \note The profile will need to be unref'd when not needed anymore
+ *
+ * \param id The id of the stir_shaken_profile to get
+ *
+ * \retval stir_shaken_profile on success
+ * \retval NULL on failure
+ */
+struct stir_shaken_profile *ast_stir_shaken_get_profile(const char *id);
+
+/*!
+ * \brief Check if a stir_shaken_profile supports attestation
+ *
+ * \param profile The stir_shaken_profile to test
+ *
+ * \retval 0 if not supported
+ * \retval 1 if supported
+ */
+unsigned int ast_stir_shaken_profile_supports_attestation(const struct stir_shaken_profile *profile);
+
+/*!
+ * \brief Check if a stir_shaken_profile supports verification
+ *
+ * \param profile The stir_shaken_profile to test
+ *
+ * \retval 0 if not supported
+ * \retval 1 if supported
+ */
+unsigned int ast_stir_shaken_profile_supports_verification(const struct stir_shaken_profile *profile);
 
 /*!
  * \brief Add a STIR/SHAKEN verification result to a channel
@@ -111,6 +145,26 @@ struct ast_stir_shaken_payload *ast_stir_shaken_verify(const char *header, const
  */
 struct ast_stir_shaken_payload *ast_stir_shaken_verify2(const char *header, const char *payload, const char *signature,
 	const char *algorithm, const char *public_cert_url, int *failure_code);
+
+/*!
+ * \brief Same as ast_stir_shaken_verify2, but passes in a stir_shaken_profile with additional configuration
+ *
+ * \note failure_code will be written to in this function
+ *
+ * \param header The payload header
+ * \param payload The payload section
+ * \param signature The payload signature
+ * \param algorithm The signature algorithm
+ * \param public_cert_url The public key URL
+ * \param failure_code Additional failure information
+ * \param profile The stir_shaken_profile
+ *
+ * \retval ast_stir_shaken_payload on success
+ * \retval NULL on failure
+ */
+struct ast_stir_shaken_payload *ast_stir_shaken_verify_with_profile(const char *header, const char *payload,
+	const char *signature, const char *algorithm, const char *public_cert_url, int *failure,
+	const struct stir_shaken_profile *profile);
 
 /*!
  * \brief Retrieve the stir/shaken sorcery context
