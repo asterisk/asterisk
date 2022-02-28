@@ -1,5 +1,3 @@
-cd ~/projects/asterisk
-./contrib/scripts/get_mp3_source.sh
-./configure --with-pjproject-bundled --with-jansson-bundled
-cp menuselect.makeopts.routetrust ~/asterisk.makeopts
+cd /home/rtsupport/projects/asterisk
+cp menuselect.makeopts.routetrust /home/rtsupport/asterisk.makeopts
 make
