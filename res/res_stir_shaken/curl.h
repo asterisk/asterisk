@@ -18,6 +18,8 @@
 #ifndef _STIR_SHAKEN_CURL_H
 #define _STIR_SHAKEN_CURL_H
 
+struct ast_acl_list;
+
 /* Forward declaration for CURL callback data */
 struct curl_cb_data;
 
@@ -66,10 +68,11 @@ char *curl_cb_data_get_expires(const struct curl_cb_data *data);
  * \param public_cert_url The public cert URL
  * \param path The path to download the file to
  * \param data The curl_cb_data
+ * \param acl The ACL to use for cURL (if not NULL)
  *
  * \retval NULL on failure
  * \retval full path filename on success
  */
-char *curl_public_key(const char *public_cert_url, const char *path, struct curl_cb_data *data);
+char *curl_public_key(const char *public_cert_url, const char *path, struct curl_cb_data *data, const struct ast_acl_list *acl);
 
 #endif /* _STIR_SHAKEN_CURL_H */

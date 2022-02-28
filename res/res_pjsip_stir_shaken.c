@@ -217,13 +217,16 @@ static int stir_shaken_incoming_request(struct ast_sip_session *session, pjsip_r
 	int mismatch = 0;
 	struct ast_stir_shaken_payload *ss_payload;
 	int failure_code = 0;
+	RAII_VAR(struct stir_shaken_profile *, profile, NULL, ao2_cleanup);
 
 	/* Check if this is a reinvite. If it is, we don't need to do anything */
 	if (rdata->msg_info.to->tag.slen) {
 		return 0;
 	}
 
-	if ((session->endpoint->stir_shaken & AST_SIP_STIR_SHAKEN_VERIFY) == 0) {
+	profile = ast_stir_shaken_get_profile(session->endpoint->stir_shaken_profile);
+	if ((profile && !ast_stir_shaken_profile_supports_verification(profile))
+		&& ((session->endpoint->stir_shaken & AST_SIP_STIR_SHAKEN_VERIFY) == 0)) {
 		return 0;
 	}
 
@@ -309,7 +312,8 @@ static int stir_shaken_incoming_request(struct ast_sip_session *session, pjsip_r
 
 	attestation = get_attestation_from_payload(payload);
 
-	ss_payload = ast_stir_shaken_verify2(header, payload, signature, algorithm, public_cert_url, &failure_code);
+	ss_payload = ast_stir_shaken_verify_with_profile(header, payload, signature, algorithm, public_cert_url, &failure_code, profile);
+
 	if (!ss_payload) {
 
 		if (failure_code == AST_STIR_SHAKEN_VERIFY_FAILED_TO_GET_CERT) {
@@ -471,7 +475,11 @@ static void add_date_header(const struct ast_sip_session *session, pjsip_tx_data
 
 static void stir_shaken_outgoing_request(struct ast_sip_session *session, pjsip_tx_data *tdata)
 {
-	if ((session->endpoint->stir_shaken & AST_SIP_STIR_SHAKEN_ATTEST) == 0) {
+	RAII_VAR(struct stir_shaken_profile *, profile, NULL, ao2_cleanup);
+
+	profile = ast_stir_shaken_get_profile(session->endpoint->stir_shaken_profile);
+	if ((profile && !ast_stir_shaken_profile_supports_attestation(profile))
+		&& ((session->endpoint->stir_shaken & AST_SIP_STIR_SHAKEN_ATTEST) == 0)) {
 		return;
 	}
 

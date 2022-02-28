@@ -83,3 +83,21 @@
 ;
 ; Must have an attestation of A, B, or C
 ;attestation=C
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Profiles can be defined here which can be referenced by channel drivers.
+;[my_profile]
+;
+; type must be "profile"
+;type=profile
+;
+; Set stir_shaken to 'attest', 'verify', or 'on', which is the default
+;stir_shaken=on
+;
+; You can specify an ACL that will be used strictly for the Identity header when downloading public certificates
+;acllist=myacllist
+;
+; You can also do permit / deny lines if you want (also supports IPv6)
+;permit=0.0.0.0/0.0.0.0
+;deny=127.0.0.1
