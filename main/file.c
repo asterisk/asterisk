@@ -1097,6 +1097,12 @@ int ast_stream_fastforward(struct ast_filestream *fs, off_t ms)
 
 int ast_stream_rewind(struct ast_filestream *fs, off_t ms)
 {
+	off_t offset = ast_tellstream(fs);
+	if (ms * DEFAULT_SAMPLES_PER_MS > offset) {
+		/* Don't even bother asking the file format to seek to a negative offset... */
+		ast_debug(1, "Restarting, rather than seeking to negative offset %ld\n", (long) (offset - (ms * DEFAULT_SAMPLES_PER_MS)));
+		return ast_seekstream(fs, 0, SEEK_SET);
+	}
 	return ast_seekstream(fs, -ms * DEFAULT_SAMPLES_PER_MS, SEEK_CUR);
 }
 
