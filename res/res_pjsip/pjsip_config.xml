@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE docs SYSTEM "appdocsxml.dtd">
-<docs>
+<?xml-stylesheet type="text/xsl" href="appdocsxml.xslt"?>
+<docs xmlns:xi="http://www.w3.org/2001/XInclude">
 	<configInfo name="res_pjsip" language="en_US">
 		<synopsis>SIP Resource using PJProject</synopsis>
 		<configFile name="pjsip.conf">

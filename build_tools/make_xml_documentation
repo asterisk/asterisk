@@ -224,7 +224,8 @@ for subdir in ${mod_subdirs} ; do
 			if [ "${XMLLINT}" != ":" ] ; then
 				${XMLLINT} --dtdvalid "${source_tree}/doc/appdocsxml.dtd" --path "${source_tree}/doc" --noout "${i}" || { echo "" ; exit 1 ; }
 			else
-				${XMLSTARLET} val -d "${source_tree}/doc/appdocsxml.dtd" "${i}" || { echo "" ; exit 1 ; }
+				${XMLSTARLET} val -q -d "${source_tree}/doc/appdocsxml.dtd" "${i}" ||
+					${XMLSTARLET} val -e -d "${source_tree}/doc/appdocsxml.dtd" "${i}" || { echo "" ; exit 1 ; }
 			fi
 		fi
 		${SED} -r "/^\s*(<[?]xml|<.DOCTYPE|<.?docs)/d" "${i}" >> "${output_file}"
@@ -241,7 +242,8 @@ if [ "${validate}" -eq "1" ] ;then
 	if [ "${XMLLINT}" != ":" ] ; then
 		${XMLLINT} --dtdvalid "${source_tree}/doc/appdocsxml.dtd" --path "${source_tree}/doc" --noout "${output_file}" || exit 1
 	else
-		${XMLSTARLET} val -d "${source_tree}/doc/appdocsxml.dtd" "${output_file}" || exit 1
+		${XMLSTARLET} val -q -d "${source_tree}/doc/appdocsxml.dtd" "${output_file}" ||
+			${XMLSTARLET} val -e -d "${source_tree}/doc/appdocsxml.dtd" "${output_file}" || { echo "" ; exit 1 ; }
 	fi
 fi
 
