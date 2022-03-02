@@ -1943,6 +1943,35 @@ AST_TEST_DEFINE(variable_list_join_replace)
 
 	return AST_TEST_PASS;
 }
+
+AST_TEST_DEFINE(variable_list_from_string)
+{
+	RAII_VAR(struct ast_variable *, list, NULL, ast_variables_destroy);
+	RAII_VAR(struct ast_str *, str, NULL, ast_free);
+	char *parse_string;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "variable_list_from_string";
+		info->category = "/main/config/";
+		info->summary = "Test parsing a string into a variable list";
+		info->description =	info->summary;
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	parse_string = "abc = 'def', ghi = 'j,kl', mno='pq=r', stu = 'vwx=\"yz\", ABC = \"DEF\"'";
+	list = ast_variable_list_from_string(parse_string, ",", "=");
+	ast_test_validate(test, list != NULL);
+	str = ast_variable_list_join(list, "|", "^", "@", NULL);
+
+	ast_test_validate(test,
+		strcmp(ast_str_buffer(str), "abc^@def@|ghi^@j,kl@|mno^@pq=r@|stu^@vwx=\"yz\", ABC = \"DEF\"@") == 0);
+
+	return AST_TEST_PASS;
+}
+
 static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(config_save);
@@ -1956,6 +1985,7 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(config_dialplan_function);
 	AST_TEST_UNREGISTER(variable_lists_match);
 	AST_TEST_UNREGISTER(variable_list_join_replace);
+	AST_TEST_UNREGISTER(variable_list_from_string);
 	return 0;
 }
 
@@ -1972,6 +2002,7 @@ static int load_module(void)
 	AST_TEST_REGISTER(config_dialplan_function);
 	AST_TEST_REGISTER(variable_lists_match);
 	AST_TEST_REGISTER(variable_list_join_replace);
+	AST_TEST_REGISTER(variable_list_from_string);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 

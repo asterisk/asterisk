@@ -36,25 +36,33 @@
 #include <libxml/tree.h>
 #include <libxml/xinclude.h>
 #include <libxml/xpath.h>
+#include <libxml/xpathInternals.h>
 /* libxml2 ast_xml implementation. */
 #ifdef HAVE_LIBXSLT
 	#include <libxslt/xsltInternals.h>
 	#include <libxslt/transform.h>
+	#include <libxslt/xsltutils.h>
 #endif /* HAVE_LIBXSLT */
 
 
 int ast_xml_init(void)
 {
 	LIBXML_TEST_VERSION
-
+#ifdef HAVE_LIBXSLT
+	xsltInit();
+#endif
 	return 0;
 }
 
 int ast_xml_finish(void)
 {
 	xmlCleanupParser();
+#ifdef HAVE_LIBXSLT
 #ifdef HAVE_LIBXSLT_CLEANUP
 	xsltCleanupGlobals();
+#else
+	xsltUninit();
+#endif
 #endif
 
 	return 0;
@@ -67,6 +75,8 @@ struct ast_xml_doc *ast_xml_open(char *filename)
 	if (!filename) {
 		return NULL;
 	}
+
+	xmlSubstituteEntitiesDefault(1);
 
 	doc = xmlReadFile(filename, NULL, XML_PARSE_RECOVER);
 	if (!doc) {
@@ -309,6 +319,11 @@ struct ast_xml_ns *ast_xml_find_namespace(struct ast_xml_doc *doc, struct ast_xm
 	return (struct ast_xml_ns *) ns;
 }
 
+const char *ast_xml_get_ns_prefix(struct ast_xml_ns *ns)
+{
+	return (const char *) ((xmlNsPtr) ns)->prefix;
+}
+
 const char *ast_xml_get_ns_href(struct ast_xml_ns *ns)
 {
 	return (const char *) ((xmlNsPtr) ns)->href;
@@ -376,13 +391,24 @@ struct ast_xml_node *ast_xml_xpath_get_first_result(struct ast_xml_xpath_results
 	return (struct ast_xml_node *) ((xmlXPathObjectPtr) results)->nodesetval->nodeTab[0];
 }
 
+struct ast_xml_node *ast_xml_xpath_get_result(struct ast_xml_xpath_results *results, int i)
+{
+	return (struct ast_xml_node *) ((xmlXPathObjectPtr) results)->nodesetval->nodeTab[i];
+}
+
 void ast_xml_xpath_results_free(struct ast_xml_xpath_results *results)
 {
+	if (!results) {
+		return;
+	}
 	xmlXPathFreeObject((xmlXPathObjectPtr) results);
 }
 
 int ast_xml_xpath_num_results(struct ast_xml_xpath_results *results)
 {
+	if (!results) {
+		return 0;
+	}
 	return ((xmlXPathObjectPtr) results)->nodesetval->nodeNr;
 }
 
@@ -408,4 +434,149 @@ struct ast_xml_xpath_results *ast_xml_query(struct ast_xml_doc *doc, const char 
 	return (struct ast_xml_xpath_results *) result;
 }
 
+struct ast_xml_xpath_results *ast_xml_query_with_namespaces(struct ast_xml_doc *doc, const char *xpath_str,
+	struct ast_xml_namespace_def_vector *namespaces)
+{
+	xmlXPathContextPtr context;
+	xmlXPathObjectPtr result;
+	int i;
+
+	if (!(context = xmlXPathNewContext((xmlDoc *) doc))) {
+		ast_log(LOG_ERROR, "Could not create XPath context!\n");
+		return NULL;
+	}
+
+	for (i = 0; i < AST_VECTOR_SIZE(namespaces); i++) {
+		struct ast_xml_namespace_def ns = AST_VECTOR_GET(namespaces, i);
+		if (xmlXPathRegisterNs(context, (xmlChar *)ns.prefix,
+			(xmlChar *)ns.href) != 0) {
+			xmlXPathFreeContext(context);
+			ast_log(LOG_ERROR, "Could not register namespace %s:%s\n",
+				ns.prefix, ns.href);
+			return NULL;
+		}
+	}
+
+	result = xmlXPathEvalExpression((xmlChar *) xpath_str, context);
+	xmlXPathFreeContext(context);
+	if (!result) {
+		ast_log(LOG_WARNING, "Error for query: %s\n", xpath_str);
+		return NULL;
+	}
+	if (xmlXPathNodeSetIsEmpty(result->nodesetval)) {
+		xmlXPathFreeObject(result);
+		ast_debug(5, "No results for query: %s\n", xpath_str);
+		return NULL;
+	}
+	return (struct ast_xml_xpath_results *) result;
+}
+
+#ifdef HAVE_LIBXSLT
+struct ast_xslt_doc *ast_xslt_open(char *filename)
+{
+	xsltStylesheet *xslt;
+	xmlDoc *xml;
+
+	xmlSubstituteEntitiesDefault(1);
+
+	xml = xmlReadFile(filename, NULL, XML_PARSE_RECOVER);
+	if (!xml) {
+		return NULL;
+	}
+
+	if (xmlXIncludeProcess(xml) < 0) {
+		xmlFreeDoc(xml);
+		return NULL;
+	}
+	xmlXPathOrderDocElems(xml);
+
+	if (!(xslt = xsltParseStylesheetDoc(xml))) {
+		xmlFreeDoc(xml);
+		return NULL;
+	}
+
+	return (struct ast_xslt_doc *) xslt;
+}
+
+struct ast_xslt_doc *ast_xslt_read_memory(char *buffer, size_t size)
+{
+	xsltStylesheet *xslt;
+	xmlDoc *doc;
+
+	if (!buffer) {
+		return NULL;
+	}
+
+	xmlSubstituteEntitiesDefault(1);
+
+	if (!(doc = xmlParseMemory(buffer, (int) size))) {
+		return NULL;
+	}
+
+	if (xmlXIncludeProcess(doc) < 0) {
+		xmlFreeDoc(doc);
+		return NULL;
+	}
+
+	if (!(xslt = xsltParseStylesheetDoc(doc))) {
+		xmlFreeDoc(doc);
+		return NULL;
+	}
+
+	return (struct ast_xslt_doc *) xslt;
+}
+
+void ast_xslt_close(struct ast_xslt_doc *axslt)
+{
+	if (!axslt) {
+		return;
+	}
+
+	xsltFreeStylesheet((xsltStylesheet *) axslt);
+}
+
+struct ast_xml_doc *ast_xslt_apply(struct ast_xslt_doc *axslt, struct ast_xml_doc *axml, const char **params)
+{
+	xsltStylesheet *xslt = (xsltStylesheet *)axslt;
+	xmlDoc *xml = (xmlDoc *)axml;
+	xsltTransformContextPtr ctxt;
+	xmlNs *ns;
+	xmlDoc *res;
+	int options = XSLT_PARSE_OPTIONS;
+
+	/*
+	 * Normally we could just call xsltApplyStylesheet() without creating
+	 * our own transform context but we need to pass parameters to it
+	 * that have namespace prefixes and that's not supported.  Instead
+	 * we have to create a transform context, iterate over the namespace
+	 * declarations in the stylesheet (not the incoming xml document),
+	 * and add them to the transform context's xpath context.
+	 *
+	 * The alternative would be to pass the parameters with namespaces
+	 * as text strings but that's not intuitive and results in much
+	 * slower performance than adding the namespaces here.
+	 */
+	ctxt = xsltNewTransformContext(xslt, xml);
+	xsltSetCtxtParseOptions(ctxt, options);
+
+	for (ns = xslt->doc->children->nsDef; ns; ns = ns->next) {
+		if (xmlXPathRegisterNs(ctxt->xpathCtxt, ns->prefix, ns->href) != 0) {
+			xmlXPathFreeContext(ctxt->xpathCtxt);
+			xsltFreeTransformContext(ctxt);
+			return NULL;
+		}
+	}
+
+	res = xsltApplyStylesheetUser(xslt, xml, params, NULL, NULL, ctxt);
+
+	return (struct ast_xml_doc *)res;
+}
+
+int ast_xslt_save_result_to_string(char **buffer, int *length, struct ast_xml_doc *result,
+	struct ast_xslt_doc *axslt)
+{
+	return xsltSaveResultToString((xmlChar **)buffer, length, (xmlDoc *)result, (xsltStylesheet *)axslt);
+}
+
+#endif /* defined(HAVE_LIBXSLT) */
 #endif /* defined(HAVE_LIBXML2) */
