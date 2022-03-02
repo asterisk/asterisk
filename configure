@@ -15022,6 +15022,8 @@ if test "${DISABLE_XMLDOC}" != "yes"; then
 
 $as_echo "#define AST_XML_DOCS 1" >>confdefs.h
 
+fi
+
 
 if test "x${PBX_LIBXSLT}" != "x1" -a "${USE_LIBXSLT}" != "no"; then
    pbxlibdir=""
@@ -15214,8 +15216,6 @@ _ACEOF
 fi
 
 
-
-fi
 
 # Check whether --enable-permanent-dlopen was given.
 if test "${enable_permanent_dlopen+set}" = set; then :
@@ -23863,8 +23863,8 @@ rm -f core conftest.err conftest.$ac_objext \
    if test "x${PBX_NETSNMP}" != "x1" -a "${USE_NETSNMP}" != "no"; then
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for netsnmp-agent" >&5
-$as_echo_n "checking for netsnmp-agent... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for NETSNMP" >&5
+$as_echo_n "checking for NETSNMP... " >&6; }
 
 if test -n "$NETSNMP_CFLAGS"; then
     pkg_cv_NETSNMP_CFLAGS="$NETSNMP_CFLAGS"
@@ -23904,7 +23904,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -23925,7 +23925,7 @@ fi
 
 
 elif test $pkg_failed = untried; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
             PBX_NETSNMP=0
