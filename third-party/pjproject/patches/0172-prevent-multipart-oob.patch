@@ -1,0 +1,42 @@
+From 077b465c33f0aec05a49cd2ca456f9a1b112e896 Mon Sep 17 00:00:00 2001
+From: sauwming <ming@teluu.com>
+Date: Wed, 26 Jan 2022 13:28:57 +0800
+Subject: [PATCH] Merge pull request from GHSA-7fw8-54cv-r7pm
+
+---
+ pjlib-util/src/pjlib-util/scanner.c | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/pjlib-util/src/pjlib-util/scanner.c b/pjlib-util/src/pjlib-util/scanner.c
+index 27a0b8831..a54edf2d8 100644
+--- a/pjlib-util/src/pjlib-util/scanner.c
++++ b/pjlib-util/src/pjlib-util/scanner.c
+@@ -444,16 +444,21 @@ PJ_DEF(void) pj_scan_get_n( pj_scanner *scanner,
+ 
+ PJ_DEF(int) pj_scan_get_char( pj_scanner *scanner )
+ {
+-    int chr = *scanner->curptr;
++    register char *s = scanner->curptr;
++    int chr;
+ 
+-    if (!chr) {
++    if (s >= scanner->end || !*s) {
+ 	pj_scan_syntax_err(scanner);
+ 	return 0;
+     }
+ 
+-    ++scanner->curptr;
++    chr = *s;
+ 
+-    if (PJ_SCAN_IS_PROBABLY_SPACE(*scanner->curptr) && scanner->skip_ws) {
++    ++s;
++    scanner->curptr = s;
++    if (PJ_SCAN_CHECK_EOF(s) && PJ_SCAN_IS_PROBABLY_SPACE(*s) &&
++    	scanner->skip_ws)
++    {
+ 	pj_scan_skip_whitespace(scanner);
+     }
+     return chr;
+-- 
+2.25.1
+
