@@ -85,7 +85,7 @@ int parse_uri_full(char *uri, const char *scheme, char **user, char **pass,
 /*!
  * \brief  Get caller id name from SIP headers, copy into output buffer
  *
- * \retval input string pointer placed after display-name field if possible
+ * \return input string pointer placed after display-name field if possible
  */
 const char *get_calleridname(const char *input, char *output, size_t outputsize);
 
@@ -143,7 +143,7 @@ int get_in_brackets_full(char *tmp, char **out, char **residue);
 int parse_name_andor_addr(char *uri, const char *scheme, char **name,
 			  char **user, char **pass, char **domain,
 			  struct uriparams *params, char **headers,
-			  char **remander);
+			  char **residue);
 
 /*! \brief Parse all contact header contacts
  * \retval 0 success
@@ -173,9 +173,9 @@ void sip_request_parser_unregister_tests(void);
  * item is found that is not supported, it is copied to the unsupported
  * out buffer.
  *
- * \param option list
- * \param unsupported out buffer (optional)
- * \param unsupported out buffer length (optional)
+ * \param options list
+ * \param[in,out] unsupported buffer (optional)
+ * \param[in,out] unsupported_len buffer length
  *
  * \note Because this function can be called multiple times, it will append
  * whatever options are specified in \c options to \c unsupported. Callers
@@ -242,7 +242,7 @@ void sip_reqresp_parser_exit(void);
  */
 struct sip_via *parse_via(const char *header);
 
-/*
+/*!
  * \brief Free parsed Via data.
  */
 void free_via(struct sip_via *v);

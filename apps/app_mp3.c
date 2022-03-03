@@ -65,9 +65,11 @@
 		<description>
 			<para>Executes mpg123 to play the given location, which typically would be a mp3 filename
 			or m3u playlist filename or a URL. Please read http://en.wikipedia.org/wiki/M3U
-			to see how M3U playlist file format is like, Example usage would be
+			to see what the M3U playlist file format is like.</para>
+			<para>User can exit by pressing any key on the dialpad, or by hanging up.</para>
+			<example title="Play an MP3 playlist">
 			exten => 1234,1,MP3Player(/var/lib/asterisk/playlist.m3u)
-			User can exit by pressing any key on the dialpad, or by hanging up.</para>
+			</example>
 			<para>This application does not automatically answer and should be preceeded by an
 			application such as Answer() or Progress().</para>
 		</description>
@@ -100,37 +102,37 @@ static int mp3play(const char *filename, unsigned int sampling_rate, int fd)
 	    char buffer_size_str[8];
 	    snprintf(buffer_size_str, 8, "%u", (int) 0.5*2*sampling_rate/1000); // 0.5 seconds for a live stream
 		/* Most commonly installed in /usr/local/bin */
-	    execl(LOCAL_MPG_123, "mpg123", "-q", "-s", "-b", buffer_size_str, "-f", "8192", "--mono", "-r", sampling_rate_str, "-@", filename, (char *)NULL);
+	    execl(LOCAL_MPG_123, "mpg123", "-e", "s16", "-q", "-s", "-b", buffer_size_str, "-f", "8192", "--mono", "-r", sampling_rate_str, "-@", filename, (char *)NULL);
 		/* But many places has it in /usr/bin */
-	    execl(MPG_123, "mpg123", "-q", "-s", "-b", buffer_size_str, "-f", "8192", "--mono", "-r", sampling_rate_str, "-@", filename, (char *)NULL);
+	    execl(MPG_123, "mpg123", "-e", "s16", "-q", "-s", "-b", buffer_size_str, "-f", "8192", "--mono", "-r", sampling_rate_str, "-@", filename, (char *)NULL);
 		/* As a last-ditch effort, try to use PATH */
-	    execlp("mpg123", "mpg123", "-q", "-s", "-b", buffer_size_str, "-f", "8192", "--mono", "-r", sampling_rate_str, "-@", filename, (char *)NULL);
+	    execlp("mpg123", "mpg123", "-e", "s16", "-q", "-s", "-b", buffer_size_str, "-f", "8192", "--mono", "-r", sampling_rate_str, "-@", filename, (char *)NULL);
 	}
 	else if (!strncasecmp(filename, "http://", 7)) {
 	    char buffer_size_str[8];
 	    snprintf(buffer_size_str, 8, "%u", 6*2*sampling_rate/1000); // 6 seconds for a remote MP3 file
 		/* Most commonly installed in /usr/local/bin */
-	    execl(LOCAL_MPG_123, "mpg123", "-q", "-s", "-b", buffer_size_str, "-f", "8192", "--mono", "-r", sampling_rate_str, filename, (char *)NULL);
+	    execl(LOCAL_MPG_123, "mpg123", "-e", "s16", "-q", "-s", "-b", buffer_size_str, "-f", "8192", "--mono", "-r", sampling_rate_str, filename, (char *)NULL);
 		/* But many places has it in /usr/bin */
-	    execl(MPG_123, "mpg123", "-q", "-s", "-b", buffer_size_str, "-f", "8192", "--mono", "-r", sampling_rate_str, filename, (char *)NULL);
+	    execl(MPG_123, "mpg123", "-e", "s16", "-q", "-s", "-b", buffer_size_str, "-f", "8192", "--mono", "-r", sampling_rate_str, filename, (char *)NULL);
 		/* As a last-ditch effort, try to use PATH */
-	    execlp("mpg123", "mpg123", "-q", "-s", "-b", buffer_size_str, "-f", "8192", "--mono", "-r", sampling_rate_str, filename, (char *)NULL);
+	    execlp("mpg123", "mpg123", "-e", "s16", "-q", "-s", "-b", buffer_size_str, "-f", "8192", "--mono", "-r", sampling_rate_str, filename, (char *)NULL);
 	}
 	else if (strstr(filename, ".m3u")) {
 		/* Most commonly installed in /usr/local/bin */
-	    execl(LOCAL_MPG_123, "mpg123", "-q", "-z", "-s", "-f", "8192", "--mono", "-r", sampling_rate_str, "-@", filename, (char *)NULL);
+	    execl(LOCAL_MPG_123, "mpg123", "-e", "s16", "-q", "-z", "-s", "-f", "8192", "--mono", "-r", sampling_rate_str, "-@", filename, (char *)NULL);
 		/* But many places has it in /usr/bin */
-	    execl(MPG_123, "mpg123", "-q", "-z", "-s", "-f", "8192", "--mono", "-r", sampling_rate_str, "-@", filename, (char *)NULL);
+	    execl(MPG_123, "mpg123", "-e", "s16", "-q", "-z", "-s", "-f", "8192", "--mono", "-r", sampling_rate_str, "-@", filename, (char *)NULL);
 		/* As a last-ditch effort, try to use PATH */
-	    execlp("mpg123", "mpg123", "-q", "-z", "-s",  "-f", "8192", "--mono", "-r", sampling_rate_str, "-@", filename, (char *)NULL);
+	    execlp("mpg123", "mpg123", "-e", "s16", "-q", "-z", "-s",  "-f", "8192", "--mono", "-r", sampling_rate_str, "-@", filename, (char *)NULL);
 	}
 	else {
 		/* Most commonly installed in /usr/local/bin */
-	    execl(MPG_123, "mpg123", "-q", "-s", "-f", "8192", "--mono", "-r", sampling_rate_str, filename, (char *)NULL);
+	    execl(MPG_123, "mpg123", "-e", "s16", "-q", "-s", "-f", "8192", "--mono", "-r", sampling_rate_str, filename, (char *)NULL);
 		/* But many places has it in /usr/bin */
-	    execl(LOCAL_MPG_123, "mpg123", "-q", "-s", "-f", "8192", "--mono", "-r", sampling_rate_str, filename, (char *)NULL);
+	    execl(LOCAL_MPG_123, "mpg123", "-e", "s16", "-q", "-s", "-f", "8192", "--mono", "-r", sampling_rate_str, filename, (char *)NULL);
 		/* As a last-ditch effort, try to use PATH */
-	    execlp("mpg123", "mpg123", "-q", "-s", "-f", "8192", "--mono", "-r", sampling_rate_str, filename, (char *)NULL);
+	    execlp("mpg123", "mpg123", "-e", "s16", "-q", "-s", "-f", "8192", "--mono", "-r", sampling_rate_str, filename, (char *)NULL);
 	}
 	/* Can't use ast_log since FD's are closed */
 	fprintf(stderr, "Execute of mpg123 failed\n");
@@ -177,6 +179,7 @@ static int mp3_exec(struct ast_channel *chan, const char *data)
 	int pid = -1;
 	RAII_VAR(struct ast_format *, owriteformat, NULL, ao2_cleanup);
 	int timeout = 2;
+	int startedmp3 = 0;
 	struct timeval next;
 	struct ast_frame *f;
 	struct myframe {
@@ -240,12 +243,16 @@ static int mp3_exec(struct ast_channel *chan, const char *data)
 				if (res > 0) {
 					myf.f.datalen = res;
 					myf.f.samples = res / 2;
+					startedmp3 = 1;
 					if (ast_write(chan, &myf.f) < 0) {
 						res = -1;
 						break;
 					}
 				} else {
 					ast_debug(1, "No more mp3\n");
+					if (!startedmp3) { /* we couldn't do anything, which means this stream doesn't work */
+						ast_log(LOG_WARNING, "MP3 stream '%s' is broken or nonexistent\n", data);
+					}
 					res = 0;
 					break;
 				}

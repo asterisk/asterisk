@@ -35,6 +35,8 @@
 
 /*** MODULEINFO
 	<support_level>extended</support_level>
+	<deprecated_in>19</deprecated_in>
+	<removed_in>21</removed_in>
  ***/
 
 #include "asterisk.h"
@@ -311,7 +313,7 @@ struct keypad_button_message {
 
 #define ENBLOC_CALL_MESSAGE 0x0004
 struct enbloc_call_message {
-	char calledParty[24];
+	char calledParty[AST_MAX_EXTENSION];
 };
 
 #define STIMULUS_MESSAGE 0x0005
@@ -1232,8 +1234,6 @@ static struct sockaddr_in bindaddr;
 static char ourhost[256];
 static int ourport;
 static struct in_addr __ourip;
-static struct ast_hostent ahp;
-static struct hostent *hp;
 static int skinnysock = -1;
 static pthread_t accept_t;
 static int callnums = 1;
@@ -1363,7 +1363,7 @@ static int gendigittimeout = 8000;
 static int matchdigittimeout = 3000;
 
 /*!
- * To apease the stupid compiler option on ast_sched_del()
+ * To appease the stupid compiler option on ast_sched_del()
  * since we don't care about the return value.
  */
 static int not_used;
@@ -2791,7 +2791,7 @@ static void transmit_clear_display_message(struct skinny_device *d, int instance
 		return;
 
 	//what do we want hear CLEAR_DISPLAY_MESSAGE or CLEAR_PROMPT_STATUS???
-	//if we are clearing the display, it appears there is no instance and refernece info (size 0)
+	//if we are clearing the display, it appears there is no instance and reference info (size 0)
 	//req->data.clearpromptstatus.lineInstance = instance;
 	//req->data.clearpromptstatus.callReference = reference;
 
@@ -3141,7 +3141,7 @@ static void transmit_cfwdstate(struct skinny_device *d, struct skinny_line *l)
 	else
 		req->data.forwardstat.activeforward = htolel(0);
 
-	SKINNY_DEBUG(DEBUG_PACKET, 3, "Transmitting FORWARD_STAT_MESSAGE to %s, inst %d, all %s, busy %s, noans %s, acitve %d\n",
+	SKINNY_DEBUG(DEBUG_PACKET, 3, "Transmitting FORWARD_STAT_MESSAGE to %s, inst %d, all %s, busy %s, noans %s, active %d\n",
 		d->name, l->instance, l->call_forward_all, l->call_forward_busy, l->call_forward_noanswer, anyon ? 7 : 0);
 	transmit_response(d, req);
 }
@@ -3573,7 +3573,7 @@ static void mwi_event_cb(void *userdata, struct stasis_subscription *sub, struct
 		transmit_lamp_indication(d, STIMULUS_VOICEMAIL, l->instance, SKINNY_LAMP_OFF);
 	}
 
-	/* find out wether the device lamp should be on or off */
+	/* find out whether the device lamp should be on or off */
 	AST_LIST_TRAVERSE(&d->lines, l2, list) {
 		if (l2->newmsgs) {
 			dev_msgs++;
@@ -7756,6 +7756,31 @@ static struct ast_channel *skinny_request(const char *type, struct ast_format_ca
 	return tmpc;
 }
 
+/*!
+ * \brief Resolve the given hostname and save its IPv4 address.
+ *
+ * \param[in]  hostname The hostname to resolve.
+ * \param[out] sin_addr Pointer to a <tt>struct in_addr</tt> in which to
+ *                      store the resolved IPv4 address. \c sin_addr will
+ *                      not be changed if resolution fails.
+ *
+ * \retval 0 if successful
+ * \retval 1 on failure
+ */
+static int resolve_first_addr(const char *hostname, struct in_addr *sin_addr)
+{
+	struct ast_sockaddr addr = { {0,} };
+	struct sockaddr_in tmp;
+
+	if (ast_sockaddr_resolve_first_af(&addr, hostname, PARSE_PORT_FORBID, AF_INET)) {
+		return 1;
+	}
+
+	ast_sockaddr_to_sin(&addr, &tmp);
+	*sin_addr = tmp.sin_addr;
+	return 0;
+}
+
 #define TYPE_GENERAL	1
 #define TYPE_DEF_DEVICE 2
 #define TYPE_DEF_LINE	4
@@ -7787,10 +7812,8 @@ static void config_parse_variables(int type, void *item, struct ast_variable *vp
 				continue;
 			}
 			if (!strcasecmp(v->name, "bindaddr")) {
-				if (!(hp = ast_gethostbyname(v->value, &ahp))) {
+				if (resolve_first_addr(v->value, &bindaddr.sin_addr)) {
 					ast_log(LOG_WARNING, "Invalid address: %s\n", v->value);
-				} else {
-					memcpy(&bindaddr.sin_addr, hp->h_addr, sizeof(bindaddr.sin_addr));
 				}
 				continue;
 			} else if (!strcasecmp(v->name, "keepalive")) {
@@ -8477,13 +8500,11 @@ static int config_load(void)
 	if (ntohl(bindaddr.sin_addr.s_addr)) {
 		__ourip = bindaddr.sin_addr;
 	} else {
-		hp = ast_gethostbyname(ourhost, &ahp);
-		if (!hp) {
+		if (resolve_first_addr(ourhost, &__ourip)) {
 			ast_log(LOG_WARNING, "Unable to get our IP address, Skinny disabled\n");
 			ast_config_destroy(cfg);
 			return 0;
 		}
-		memcpy(&__ourip, hp->h_addr, sizeof(__ourip));
 	}
 	if (!ntohs(bindaddr.sin_port)) {
 		bindaddr.sin_port = htons(DEFAULT_SKINNY_PORT);

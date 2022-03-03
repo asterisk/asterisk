@@ -133,8 +133,6 @@ static void native_bridge_destroy(struct ast_bridge *bridge)
  *
  * \param bridge What to operate upon.
  *
- * \return Nothing
- *
  * \note On entry, bridge is already locked.
  */
 static void native_stop(struct ast_bridge *bridge)
@@ -176,8 +174,6 @@ static void native_stop(struct ast_bridge *bridge)
  * \since 12.0.0
  *
  * \param bridge What to operate upon.
- *
- * \return Nothing
  *
  * \note On entry, bridge is already locked.
  */
@@ -278,7 +274,7 @@ static int native_start(struct ast_bridge *bridge)
 #if defined(HAVE_PRI)
 		/*
 		 * PRI nobch channels (hold and call waiting) are equivalent to
-		 * pseudo channels and cannot be nativly bridged.
+		 * pseudo channels and cannot be natively bridged.
 		 */
 		|| (dahdi_sig_pri_lib_handles(p0->sig)
 			&& ((struct sig_pri_chan *) p0->sig_pvt)->no_b_channel)
@@ -475,8 +471,6 @@ static int native_start(struct ast_bridge *bridge)
  * \since 12.0.0
  *
  * \param bridge What to operate upon.
- *
- * \return Nothing
  *
  * \note On entry, bridge may or may not already be locked.
  * However, it can be accessed as if it were locked.
@@ -885,8 +879,6 @@ static struct ast_bridge_technology native_bridge = {
  * \internal
  * \brief Destroy the DAHDI native bridge support.
  * \since 12.0.0
- *
- * \return Nothing
  */
 void dahdi_native_unload(void)
 {

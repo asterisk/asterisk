@@ -590,8 +590,8 @@ static int gosub_exec(struct ast_channel *chan, const char *data)
 	ast_channel_unlock(chan);
 
 	if (!ast_exists_extension(chan, dest_context, dest_exten, dest_priority, caller_id)) {
-		ast_log(LOG_ERROR, "Attempt to reach a non-existent destination for %s: (Context:%s, Extension:%s, Priority:%d)\n",
-			app_gosub, dest_context, dest_exten, dest_priority);
+		ast_log(LOG_ERROR, "%s attempted to reach non-existent destination '%s,%s,%d' from '%s,%s,%d'",
+			app_gosub, dest_context, dest_exten, dest_priority, orig_context, orig_exten, orig_priority);
 		goto error_exit;
 	}
 
@@ -924,8 +924,6 @@ static struct ast_custom_function stackpeek_function = {
  * \param chan Channel to balance stack on.
  *
  * \note The channel is already locked when called.
- *
- * \return Nothing
  */
 static void balance_stack(struct ast_channel *chan)
 {

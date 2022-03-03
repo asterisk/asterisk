@@ -26,7 +26,7 @@
 #include "asterisk/callerid.h"
 
 /*! \name ADSI parameters */
-/*@{ */
+/*! @{ */
 
 /* ADSI Message types */
 #define ADSI_MSG_DISPLAY	132
@@ -122,7 +122,7 @@
 
 #define AST_ADSI_VERSION 1
 
-/*@} */
+/*! @} */
 
 int ast_adsi_begin_download(struct ast_channel *chan, char *service, unsigned char *fdn, unsigned char *sec, int version);
 

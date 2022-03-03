@@ -66,15 +66,6 @@ typedef struct {
 
 } fsk_data;
 
-/* \brief Retrieve a serial byte into outbyte.
-   Buffer is a pointer into a series of
-   shorts and len records the number of bytes in the buffer.  len will be
-   overwritten with the number of bytes left that were not consumed.
-   \return return value is as follows:
-   \arg 0: Still looking for something...
-   \arg 1: An output byte was received and stored in outbyte
-   \arg -1: An error occured in the transmission
-   This must be called with at least 80 bytes of buffer. */
 int fsk_serial(fsk_data *fskd, short *buffer, int *len, int *outbyte);
 int fskmodem_init(fsk_data *fskd);
 

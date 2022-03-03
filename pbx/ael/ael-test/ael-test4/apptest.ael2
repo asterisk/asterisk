@@ -128,7 +128,7 @@
 	TrySystem(command);
 	TxFAX(filename,caller,debug);
 	UnpauseQueueMember(queuename,iface,j);
-	UserEvent(eventanme,body);
+	UserEvent(eventname,body);
 	Verbose(5,message);
 	VMAuthenticate(mailbox@cont,s);
 	VoiceMail(mailbox@cont,bg()suj);

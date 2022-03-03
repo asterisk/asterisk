@@ -152,7 +152,7 @@ extern int placea_(integer *ipitch, integer *voibuf, integer *obound, integer *a
 /*   a phase-synchronous placement which does not overlap these onsets. */
 
 /*   Case 2:  Voiced Transition */
-/*   If at least one voicing decision in AF is voicied, and there are no
+/*   If at least one voicing decision in AF is voiced, and there are no
 */
 /*   onsets, then the window is placed as in case 1. */
 

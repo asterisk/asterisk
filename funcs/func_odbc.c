@@ -143,7 +143,7 @@ struct odbc_datastore {
 	char names[0];
 };
 
-/* \brief Data source name
+/*! \brief Data source name
  *
  * This holds data that pertains to a DSN
  */
@@ -296,7 +296,7 @@ static int connection_dead(struct odbc_obj *connection)
  * to callers in most cases.
  *
  * When finished with the returned structure, the caller must call
- * \ref release_dsn
+ * \ref release_obj_or_dsn
  *
  * \param name Name of the DSN as found in res_odbc.conf
  * \retval NULL Unable to retrieve or create the DSN

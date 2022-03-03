@@ -39,7 +39,7 @@
  * \param name the name of the device
  * \param state the device state
  * \return JSON representation.
- * \return \c NULL on error.
+ * \retval NULL on error.
  */
 struct ast_json *stasis_app_device_state_to_json(
 	const char *name, enum ast_device_state state);
@@ -48,7 +48,7 @@ struct ast_json *stasis_app_device_state_to_json(
  * \brief Convert device states to json array.
  *
  * \return JSON representation.
- * \return \c NULL on error.
+ * \retval NULL on error.
  */
 struct ast_json *stasis_app_device_states_to_json(void);
 
@@ -85,7 +85,7 @@ enum stasis_device_state_result stasis_app_device_state_update(
  *
  * \param name the name of the ARI controlled device
  *
- * \returna stasis device state application result.
+ * \return stasis device state application result.
  */
 enum stasis_device_state_result stasis_app_device_state_delete(
 	const char *name);

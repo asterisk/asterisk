@@ -52,8 +52,6 @@ void conf_invalid_event_fn(struct confbridge_user *user)
  * \brief Mute the user and play MOH if the user requires it.
  *
  * \param user Conference user to mute and optionally start MOH on.
- *
- * \return Nothing
  */
 static void conf_mute_moh_inactive_waitmarked(struct confbridge_user *user)
 {

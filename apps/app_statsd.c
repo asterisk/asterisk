@@ -78,7 +78,7 @@ static const char app[] = "StatsD";
  *
  * \param value The value of the statistic to be sent to StatsD.
  *
- * This function checks to see if the value given to the StatsD daialplan
+ * This function checks to see if the value given to the StatsD dailplan
  * application is within the allowed range of [-2^63, 2^63] as specified by StatsD.
  *
  * \retval zero on success.
@@ -100,7 +100,7 @@ static int value_in_range(const char *value) {
  *
  * \param value The value of the statistic to be sent to StatsD.
  *
- * This function checks to see if the value given to the StatsD daialplan
+ * This function checks to see if the value given to the StatsD dailplan
  * application is within the allowed range of [0, 2^64] as specified by StatsD.
  *
  * \retval zero on success.

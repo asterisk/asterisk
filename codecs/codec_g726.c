@@ -309,7 +309,7 @@ static int quantize(
 	/*
 	 * QUAN
 	 *
-	 * Obtain codword i for 'd'.
+	 * Obtain codeword i for 'd'.
 	 */
 	i = quan(dln, table, size);
 	if (d < 0) {			/* take 1's complement of i */

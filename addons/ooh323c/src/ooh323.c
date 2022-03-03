@@ -616,7 +616,7 @@ int ooOnReceivedSetup(OOH323CallData *call, Q931Message *q931Msg)
               removeEventHandler(call->pctxt);
               return OO_FAILED;
          }
-         /* For now, just add decoded fast start elemts to list. This list
+         /* For now, just add decoded fast start elements to list. This list
             will be processed at the time of sending CONNECT message. */
          dListAppend(call->pctxt, &call->remoteFastStartOLCs, olc);
       }
@@ -1062,16 +1062,17 @@ int ooOnReceivedAlerting(OOH323CallData *call, Q931Message *q931Msg)
    if(q931Msg->userInfo->h323_uu_pdu.m.h245TunnelingPresent &&
       q931Msg->userInfo->h323_uu_pdu.h245Tunneling &&
 	 OO_TESTFLAG (call->flags, OO_M_TUNNELING)) {
-      if (alerting->m.h245AddressPresent)
+      if (alerting->m.h245AddressPresent) {
       	OOTRACEINFO3("Tunneling and h245address provided."
                      "Giving preference to Tunneling (%s, %s)\n",
                    	call->callType, call->callToken);
-	if (call->h225version >= 4) {
-		ret =ooSendTCSandMSD(call);
-	}
-	if (ret != OO_OK)
-		return ret;
-
+      }
+	   if (call->h225version >= 4) {
+		   ret =ooSendTCSandMSD(call);
+	   }
+	   if (ret != OO_OK) {
+		   return ret;
+      }
    } else if(alerting->m.h245AddressPresent) {
       if (OO_TESTFLAG (call->flags, OO_M_TUNNELING))
       {
@@ -1314,15 +1315,17 @@ int ooOnReceivedProgress(OOH323CallData *call, Q931Message *q931Msg)
    if(q931Msg->userInfo->h323_uu_pdu.m.h245TunnelingPresent &&
       q931Msg->userInfo->h323_uu_pdu.h245Tunneling &&
       OO_TESTFLAG (call->flags, OO_M_TUNNELING)) {
-      if (progress->m.h245AddressPresent)
+      if (progress->m.h245AddressPresent) {
       	OOTRACEINFO3("Tunneling and h245address provided."
                      "Giving preference to Tunneling (%s, %s)\n",
                      call->callType, call->callToken);
-	if (call->h225version >= 4) {
-		ret =ooSendTCSandMSD(call);
-	}
-	if (ret != OO_OK)
+      }
+	   if (call->h225version >= 4) {
+		   ret =ooSendTCSandMSD(call);
+	   }
+	   if (ret != OO_OK) {
 		return ret;
+      }
    } else if(progress->m.h245AddressPresent) {
       if (OO_TESTFLAG (call->flags, OO_M_TUNNELING))
       {

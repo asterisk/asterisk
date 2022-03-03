@@ -90,7 +90,8 @@ int sip_parse_register_line(struct sip_registry *reg, int default_expiry, const 
 
 	ast_copy_string(buf, value, sizeof(buf));
 
-	/*! register => [peer?][transport://]user[@domain][:secret[:authuser]]@host[:port][/extension][~expiry]
+	/*
+	 * register => [peer?][transport://]user[@domain][:secret[:authuser]]@host[:port][/extension][~expiry]
 	 * becomes
 	 *   userpart => [peer?][transport://]user[@domain][:secret[:authuser]]
 	 *   hostpart => host[:port][/extension][~expiry]
@@ -105,7 +106,7 @@ int sip_parse_register_line(struct sip_registry *reg, int default_expiry, const 
 		return -1;
 	}
 
-	/*!
+	/*
 	 * pre1.peer => peer
 	 * pre1.userpart => [transport://]user[@domain][:secret[:authuser]]
 	 * hostpart => host[:port][/extension][~expiry]
@@ -116,7 +117,7 @@ int sip_parse_register_line(struct sip_registry *reg, int default_expiry, const 
 		pre1.peer = NULL;
 	}
 
-	/*!
+	/*
 	 * pre1.peer => peer
 	 * pre2.transport = transport
 	 * pre2.userpart => user[@domain][:secret[:authuser]]
@@ -135,7 +136,7 @@ int sip_parse_register_line(struct sip_registry *reg, int default_expiry, const 
 		return -1;
 	}
 
-	/*!
+	/*
 	 * pre1.peer => peer
 	 * pre2.transport = transport
 	 * user1.userpart => user[@domain]
@@ -145,7 +146,7 @@ int sip_parse_register_line(struct sip_registry *reg, int default_expiry, const 
 	 */
 	AST_NONSTANDARD_RAW_ARGS(user1, pre2.userpart, ':');
 
-	/*!
+	/*
 	 * pre1.peer => peer
 	 * pre2.transport = transport
 	 * user1.userpart => user[@domain]
@@ -156,7 +157,7 @@ int sip_parse_register_line(struct sip_registry *reg, int default_expiry, const 
 	 */
 	AST_NONSTANDARD_RAW_ARGS(host1, hostpart, '~');
 
-	/*!
+	/*
 	 * pre1.peer => peer
 	 * pre2.transport = transport
 	 * user1.userpart => user[@domain]
@@ -168,7 +169,7 @@ int sip_parse_register_line(struct sip_registry *reg, int default_expiry, const 
 	 */
 	AST_NONSTANDARD_RAW_ARGS(host2, host1.hostpart, '/');
 
-	/*!
+	/*
 	 * pre1.peer => peer
 	 * pre2.transport = transport
 	 * user1.userpart => user[@domain]
@@ -181,32 +182,32 @@ int sip_parse_register_line(struct sip_registry *reg, int default_expiry, const 
 	 */
 	AST_NONSTANDARD_RAW_ARGS(host3, host2.hostpart, ':');
 
-	/*!
-	  * pre1.peer => peer
-	  * pre2.transport = transport
-	  * user2.user => user
-	  * user2.domain => domain
-	  * user1.secret => secret
-	  * user1.authuser => authuser
-	  * host3.host => host
-	  * host3.port => port
-	  * host2.extension => extension
-	  * host1.expiry => expiry
+	/*
+	 * pre1.peer => peer
+	 * pre2.transport = transport
+	 * user2.user => user
+	 * user2.domain => domain
+	 * user1.secret => secret
+	 * user1.authuser => authuser
+	 * host3.host => host
+	 * host3.port => port
+	 * host2.extension => extension
+	 * host1.expiry => expiry
 	 */
 	AST_NONSTANDARD_RAW_ARGS(user2, user1.userpart, '@');
 
-	/*!
-	  * pre1.peer => peer
-	  * pre2.transport = transport
-	  * user2.user => user
-	  * user2.domain => domain
-	  * user1.secret => secret
-	  * user3.authuser => authuser
-	  * user3.domainport => domainport
-	  * host3.host => host
-	  * host3.port => port
-	  * host2.extension => extension
-	  * host1.expiry => expiry
+	/*
+	 * pre1.peer => peer
+	 * pre2.transport = transport
+	 * user2.user => user
+	 * user2.domain => domain
+	 * user1.secret => secret
+	 * user3.authuser => authuser
+	 * user3.domainport => domainport
+	 * host3.host => host
+	 * host3.port => port
+	 * host2.extension => extension
+	 * host1.expiry => expiry
 	 */
 	AST_NONSTANDARD_RAW_ARGS(user3, user1.authuser, ':');
 

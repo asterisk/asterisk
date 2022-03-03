@@ -56,7 +56,7 @@ int ast_max_forwards_get(struct ast_channel *chan);
  *
  * \pre chan is locked
  *
- * \chan The channel for which the max forwards value should be decremented
+ * \param chan The channel for which the max forwards value should be decremented
  * \retval 0 Success
  * \retval -1 Failure
  */

@@ -178,7 +178,7 @@
        (float)1.049988, (float)1.087524, (float)1.125000,
        (float)1.162476, (float)1.200012};
 
-   /* Enhancer - Upsamling a factor 4 (ENH_UPS0 = 4) */
+   /* Enhancer - Upsampling a factor 4 (ENH_UPS0 = 4) */
    float polyphaserTbl[ENH_UPS0*(2*ENH_FL0+1)]={
        (float)0.000000, (float)0.000000, (float)0.000000,
    (float)1.000000,

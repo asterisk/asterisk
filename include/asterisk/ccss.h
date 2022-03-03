@@ -141,7 +141,6 @@ struct ast_cc_config_params *__ast_cc_config_params_init(const char *file, int l
  * Just a call to ast_free for now...
  *
  * \param params Pointer to structure whose memory we need to free
- * \retval void
  */
 void ast_cc_config_params_destroy(struct ast_cc_config_params *params);
 
@@ -197,8 +196,6 @@ int ast_cc_is_config_param(const char * const name);
  * You are simply "copying" defaults into the destination.
  *
  * \param params CC config params to set to default values.
- *
- * \return Nothing
  */
 void ast_cc_default_config_params(struct ast_cc_config_params *params);
 
@@ -214,8 +211,6 @@ void ast_cc_default_config_params(struct ast_cc_config_params *params);
  *
  * \param src The structure from which data is copied
  * \param dest The structure to which data is copied
- *
- * \return Nothing
  */
 void ast_cc_copy_config_params(struct ast_cc_config_params *dest, const struct ast_cc_config_params *src);
 
@@ -268,7 +263,6 @@ unsigned int ast_get_cc_offer_timer(struct ast_cc_config_params *config);
  * \brief Set the cc_offer_timer
  * \param config The configuration to set the cc_offer_timer on
  * \param value The new cc_offer_timer we want to change to
- * \retval void
  */
 void ast_set_cc_offer_timer(struct ast_cc_config_params *config, unsigned int value);
 
@@ -285,7 +279,6 @@ unsigned int ast_get_ccnr_available_timer(struct ast_cc_config_params *config);
  * \brief Set the ccnr_available_timer
  * \param config The configuration to set the ccnr_available_timer on
  * \param value The new ccnr_available_timer we want to change to
- * \retval void
  */
 void ast_set_ccnr_available_timer(struct ast_cc_config_params *config, unsigned int value);
 
@@ -302,7 +295,6 @@ unsigned int ast_get_cc_recall_timer(struct ast_cc_config_params *config);
  * \brief Set the cc_recall_timer
  * \param config The configuration to set the cc_recall_timer on
  * \param value The new cc_recall_timer we want to change to
- * \retval void
  */
 void ast_set_cc_recall_timer(struct ast_cc_config_params *config, unsigned int value);
 
@@ -319,7 +311,6 @@ unsigned int ast_get_ccbs_available_timer(struct ast_cc_config_params *config);
  * \brief Set the ccbs_available_timer
  * \param config The configuration to set the ccbs_available_timer on
  * \param value The new ccbs_available_timer we want to change to
- * \retval void
  */
 void ast_set_ccbs_available_timer(struct ast_cc_config_params *config, unsigned int value);
 
@@ -336,7 +327,6 @@ const char *ast_get_cc_agent_dialstring(struct ast_cc_config_params *config);
  * \brief Set the cc_agent_dialstring
  * \param config The configuration to set the cc_agent_dialstring on
  * \param value The new cc_agent_dialstring we want to change to
- * \retval void
  */
 void ast_set_cc_agent_dialstring(struct ast_cc_config_params *config, const char *const value);
 
@@ -353,7 +343,6 @@ unsigned int ast_get_cc_max_agents(struct ast_cc_config_params *config);
  * \brief Set the cc_max_agents
  * \param config The configuration to set the cc_max_agents on
  * \param value The new cc_max_agents we want to change to
- * \retval void
  */
 void ast_set_cc_max_agents(struct ast_cc_config_params *config, unsigned int value);
 
@@ -370,7 +359,6 @@ unsigned int ast_get_cc_max_monitors(struct ast_cc_config_params *config);
  * \brief Set the cc_max_monitors
  * \param config The configuration to set the cc_max_monitors on
  * \param value The new cc_max_monitors we want to change to
- * \retval void
  */
 void ast_set_cc_max_monitors(struct ast_cc_config_params *config, unsigned int value);
 
@@ -387,7 +375,6 @@ const char *ast_get_cc_callback_macro(struct ast_cc_config_params *config);
  * \brief Set the callback_macro name
  * \param config The configuration to set the callback_macro on
  * \param value The new callback macro we want to change to
- * \retval void
  */
 void ast_set_cc_callback_macro(struct ast_cc_config_params *config, const char * const value);
 
@@ -404,7 +391,6 @@ const char *ast_get_cc_callback_sub(struct ast_cc_config_params *config);
  * \brief Set the callback subroutine name
  * \param config The configuration to set the callback_sub on
  * \param value The new callback subroutine we want to change to
- * \retval void
  */
 void ast_set_cc_callback_sub(struct ast_cc_config_params *config, const char * const value);
 
@@ -438,8 +424,6 @@ int ast_cc_monitor_register(const struct ast_cc_monitor_callbacks *callbacks);
  * unregister its monitor callbacks with the core.
  *
  * \param callbacks The callbacks used by the monitor implementation
- * \retval 0 Successfully unregistered
- * \retval -1 Failure to unregister
  */
 void ast_cc_monitor_unregister(const struct ast_cc_monitor_callbacks *callbacks);
 
@@ -469,8 +453,6 @@ int ast_cc_agent_register(const struct ast_cc_agent_callbacks *callbacks);
  * unregister its agent callbacks with the core.
  *
  * \param callbacks The callbacks used by the agent implementation
- * \retval 0 Successfully unregistered
- * \retval -1 Failure to unregister
  */
 void ast_cc_agent_unregister(const struct ast_cc_agent_callbacks *callbacks);
 
@@ -695,7 +677,6 @@ int ast_cc_available_timer_expire(const void *data);
  * CC processing should be ignored, this function should be called.
  *
  * \param chan The channel for which further CC processing should be ignored.
- * \retval void
  */
 void ast_ignore_cc(struct ast_channel *chan);
 
@@ -713,7 +694,6 @@ void ast_ignore_cc(struct ast_channel *chan);
  * \param inbound The inbound channel
  * \param outbound The outbound channel (The one from which the CC frame was read)
  * \param frame_data The ast_frame's data.ptr field.
- * \retval void
  */
 void ast_handle_cc_control_frame(struct ast_channel *inbound, struct ast_channel *outbound, void *frame_data);
 
@@ -753,7 +733,6 @@ int ast_cc_call_init(struct ast_channel *chan, int *ignore_cc);
  * \param incoming The caller's channel
  * \param dialstring The dialstring used when requesting the outbound channel
  * \param device_name The device name associated with the requested outbound channel
- * \retval void
  */
 void ast_cc_extension_monitor_add_dialstring(struct ast_channel *incoming, const char * const dialstring, const char * const device_name);
 
@@ -1242,7 +1221,6 @@ int __attribute__((format(printf, 2, 3))) ast_cc_failed(int core_id, const char 
  * \param core_id The core ID for the CC transaction
  * \param monitor_name The name of the monitor on which the failure occurred
  * \param debug A debug message to print to the CC log
- * \return void
  */
 int __attribute__((format(printf, 3, 4))) ast_cc_monitor_failed(int core_id, const char * const monitor_name, const char * const debug, ...);
 
@@ -1596,8 +1574,6 @@ int ast_cc_build_frame(struct ast_channel *chan, struct ast_cc_config_params *cc
  * For channel types that fail ast_request when the device is busy, we call into the
  * channel driver with ast_cc_callback. This is the callback that is called in that
  * case for each device found which could have been returned by ast_request.
- *
- * \return Nothing
  */
 typedef void (*ast_cc_callback_fn)(struct ast_channel *chan, struct ast_cc_config_params *cc_params,
 	const char *monitor_type, const char * const device_name, const char * const dialstring, void *private_data);
@@ -1614,7 +1590,7 @@ typedef void (*ast_cc_callback_fn)(struct ast_channel *chan, struct ast_cc_confi
  * \param tech Channel technology to use
  * \param dest Channel/group/peer or whatever the specific technology uses
  * \param callback Function to call when a target is reached
- * \retval Always 0, I guess.
+ * \retval 0 Always, I guess.
  */
 int ast_cc_callback(struct ast_channel *inbound, const char * const tech, const char * const dest, ast_cc_callback_fn callback);
 

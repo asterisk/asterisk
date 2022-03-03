@@ -70,6 +70,7 @@ void ast_sip_sanitize_xml(const char *input, char *output, size_t len);
  * \param[out] pidfstate
  * \param[out] pidfnote
  * \param[out] local_state
+ * \param notify_early_inuse_ringing
  */
 void ast_sip_presence_exten_state_to_str(int state, char **statestring,
 		char **pidfstate, char **pidfnote, enum ast_sip_pidf_state *local_state,
@@ -113,7 +114,6 @@ pj_xml_node *ast_sip_presence_xml_create_node(pj_pool_t *pool,
  * \param attr_name Name of attribute to find
  * \param[out] node Node that was found or created
  * \param[out] attr Attribute that was found or created
- * \return The found attribute
  */
 void ast_sip_presence_xml_find_node_attr(pj_pool_t* pool,
 		pj_xml_node *parent, const char *node_name, const char *attr_name,

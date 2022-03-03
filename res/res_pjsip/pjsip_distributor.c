@@ -1219,8 +1219,6 @@ static struct ast_sorcery_observer global_observer = {
  * \internal
  * \brief Shutdown the serializers in the distributor pool.
  * \since 13.10.0
- *
- * \return Nothing
  */
 static void distributor_pool_shutdown(void)
 {

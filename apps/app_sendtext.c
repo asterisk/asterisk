@@ -21,6 +21,7 @@
  * \brief App to transmit a text message
  *
  * \author Mark Spencer <markster@digium.com>
+ * \author Naveen Albert <asterisk@phreaknet.org>
  *
  * \note Requires support of sending text messages from channel driver
  *
@@ -140,11 +141,50 @@
 		<see-also>
 			<ref type="application">SendImage</ref>
 			<ref type="application">SendURL</ref>
+			<ref type="application">ReceiveText</ref>
+		</see-also>
+	</application>
+	<application name="ReceiveText" language="en_US">
+		<synopsis>
+			Receive a Text Message on a channel.
+		</synopsis>
+		<syntax>
+			<parameter name="timeout" required="false">
+				<para>Time in seconds to wait for text. Default is 0 (forever).</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Waits for <replaceable>timeout</replaceable> seconds on the current channel
+			to receive text.</para>
+			<para>Result of transmission will be stored in the following variables:</para>
+			<variablelist>
+				<variable name="RECEIVETEXTMESSAGE">
+					<para>The received text message.</para>
+				</variable>
+				<variable name="RECEIVETEXTSTATUS">
+					<value name="SUCCESS">
+						Transmission succeeded.
+					</value>
+					<value name="FAILURE">
+						Transmission failed or timed out.
+					</value>
+				</variable>
+			</variablelist>
+			<example title="Receive message on channel">
+			 same => n,ReceiveText()
+			 same => n,NoOp(${RECEIVETEXTMESSAGE})
+			</example>
+		</description>
+		<see-also>
+			<ref type="application">SendText</ref>
+			<ref type="application">SendImage</ref>
+			<ref type="application">SendURL</ref>
 		</see-also>
 	</application>
  ***/
 
 static const char * const app = "SendText";
+static const char * const app2 = "ReceiveText";
 
 static int sendtext_exec(struct ast_channel *chan, const char *data)
 {
@@ -237,14 +277,55 @@ cleanup:
 	return rc;
 }
 
+static int recvtext_exec(struct ast_channel *chan, const char *data)
+{
+	double timeout = 0, timeout_ms = 0;
+	char *parse, *buf;
+
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(timeout);
+	);
+
+	parse = ast_strdupa(data);
+
+	AST_STANDARD_APP_ARGS(args, parse);
+
+	if (!ast_strlen_zero(args.timeout)) {
+		if (sscanf(args.timeout, "%30lg", &timeout) != 1) {
+			ast_log(LOG_WARNING, "Invalid timeout provided: %s. No timeout set.\n", args.timeout);
+			return -1;
+		}
+		timeout_ms = timeout * 1000.0;
+	}
+
+	buf = ast_recvtext(chan, timeout_ms);
+	pbx_builtin_setvar_helper(chan, "RECEIVETEXTSTATUS", buf ? "SUCCESS" : "FAILURE");
+	if (buf) {
+		pbx_builtin_setvar_helper(chan, "RECEIVETEXTMESSAGE", buf);
+		ast_free(buf);
+	}
+
+	return 0;
+}
+
 static int unload_module(void)
 {
-	return ast_unregister_application(app);
+	int res;
+	
+	res = ast_unregister_application(app);
+	res |= ast_unregister_application(app2);
+
+	return res;
 }
 
 static int load_module(void)
 {
-	return ast_register_application_xml(app, sendtext_exec);
+	int res;
+
+	res = ast_register_application_xml(app, sendtext_exec);
+	res |= ast_register_application_xml(app2, recvtext_exec);
+
+	return res;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Send Text Applications");
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Send and Receive Text Applications");

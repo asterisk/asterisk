@@ -1316,3 +1316,15 @@ ALTER TABLE ps_endpoints ADD COLUMN allow_unauthenticated_options ENUM('0','1','
 
 UPDATE alembic_version SET version_num='c20d6e3992f4' WHERE alembic_version.version_num = '8915fcc5766f';
 
+-- Running upgrade c20d6e3992f4 -> f56d79a9f337
+
+ALTER TABLE ps_aors ADD COLUMN remove_unavailable ENUM('0','1','off','on','false','true','no','yes');
+
+UPDATE alembic_version SET version_num='f56d79a9f337' WHERE alembic_version.version_num = 'c20d6e3992f4';
+
+-- Running upgrade f56d79a9f337 -> a06d8f8462d9
+
+ALTER TABLE ps_endpoints ADD COLUMN t38_bind_udptl_to_media_address ENUM('0','1','off','on','false','true','no','yes');
+
+UPDATE alembic_version SET version_num='a06d8f8462d9' WHERE alembic_version.version_num = 'f56d79a9f337';
+

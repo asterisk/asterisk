@@ -74,6 +74,10 @@
 /*** DOCUMENTATION
  ***/
 
+static int logger_register_level(const char *name);
+static int logger_unregister_level(const char *name);
+static int logger_get_dynamic_level(const char *name);
+
 static char dateformat[256] = "%b %e %T";		/* Original Asterisk Format */
 
 static char queue_log_name[256] = QUEUELOG;
@@ -210,6 +214,15 @@ static char *levels[NUMLOGLEVELS] = {
 	"VERBOSE",
 	"DTMF",
 };
+
+/*! \brief Custom dynamic logging levels added by the user
+ *
+ * The first 16 levels are reserved for system usage, and the remaining
+ * levels are reserved for usage by dynamic levels registered via
+ * ast_logger_register_level.
+ */
+
+static char *custom_dynamic_levels[NUMLOGLEVELS];
 
 /*! \brief Colors used in the console for logging */
 static const int colors[NUMLOGLEVELS] = {
@@ -697,6 +710,26 @@ void ast_init_logger_for_socket_console(void)
 }
 
 /*!
+ * \brief Checks if level exists in array of level names
+ * \param levels Array of level names
+ * \param level Name to search for
+ * \param len Size of levels
+ *
+ * \retval 1 Found
+ * \retval 0 Not Found
+ */
+static int custom_level_still_exists(char **levels, char *level, size_t len)
+{
+	int i;
+	for (i = 0; i < len; i++) {
+		if (!strcmp(levels[i], level)) {
+			return 1;
+		}
+	}
+	return 0;
+}
+
+/*!
  * \brief Read config, setup channels.
  * \param altconf Alternate configuration file to read.
  *
@@ -806,6 +839,39 @@ static int init_logger_chain(const char *altconf)
 		if (logger_queue_limit < 10) {
 			fprintf(stderr, "logger_queue_limit must be >= 10. Setting to 10.\n");
 			logger_queue_limit = 10;
+		}
+	}
+
+	/* Custom dynamic logging levels defined by user */
+	if ((s = ast_variable_retrieve(cfg, "general", "custom_levels"))) {
+		char *customlogs = ast_strdupa(s);
+		char *logfile;
+		char *new_custom_levels[16] = { };
+		unsigned int level, new_level = 0;
+
+		/* get the custom levels we need to register or reload */
+		while ((logfile = strsep(&customlogs, ","))) {
+			new_custom_levels[new_level++] = logfile;
+		}
+
+		/* unregister existing custom levels, if they're not still
+			specified in customlogs, to make room for new levels */
+		for (level = 16; level < ARRAY_LEN(levels); level++) {
+			if (levels[level] && custom_dynamic_levels[level] &&
+				!custom_level_still_exists(new_custom_levels, levels[level], ARRAY_LEN(new_custom_levels))) {
+				logger_unregister_level(levels[level]);
+				custom_dynamic_levels[level] = 0;
+			}
+		}
+
+		new_level = 0;
+		while ((logfile = new_custom_levels[new_level++])) {
+			/* Lock already held, so directly register the level,
+				unless it's already registered (as during reload) */
+			if (logger_get_dynamic_level(logfile) == -1) {
+				int custom_level = logger_register_level(logfile);
+				custom_dynamic_levels[custom_level] = logfile;
+			}
 		}
 	}
 
@@ -1156,14 +1222,16 @@ static int reload_logger(int rotate, const char *altconf)
 		if (f->disabled) {
 			f->disabled = 0;	/* Re-enable logging at reload */
 			/*** DOCUMENTATION
-				<managerEventInstance>
-					<synopsis>Raised when a logging channel is re-enabled after a reload operation.</synopsis>
-					<syntax>
-						<parameter name="Channel">
-							<para>The name of the logging channel.</para>
-						</parameter>
-					</syntax>
-				</managerEventInstance>
+				<managerEvent language="en_US" name="LogChannel">
+					<managerEventInstance class="EVENT_FLAG_SYSTEM">
+						<synopsis>Raised when a logging channel is re-enabled after a reload operation.</synopsis>
+						<syntax>
+							<parameter name="Channel">
+								<para>The name of the logging channel.</para>
+							</parameter>
+						</syntax>
+					</managerEventInstance>
+				</managerEvent>
 			***/
 			manager_event(EVENT_FLAG_SYSTEM, "LogChannel", "Channel: %s\r\nEnabled: Yes\r\n", f->filename);
 		}
@@ -1403,6 +1471,35 @@ static char *handle_logger_show_channels(struct ast_cli_entry *e, int cmd, struc
 	return CLI_SUCCESS;
 }
 
+/*! \brief CLI command to show logging levels */
+static char *handle_logger_show_levels(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+#define FORMATL2	"%5s %s\n"
+	unsigned int level;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "logger show levels";
+		e->usage =
+			"Usage: logger show levels\n"
+			"       List configured logger levels.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	ast_cli(a->fd, FORMATL2, "Level", "Name");
+	ast_cli(a->fd, FORMATL2, "-----", "----");
+	AST_RWLIST_RDLOCK(&logchannels);
+	for (level = 0; level < ARRAY_LEN(levels); level++) {
+		if (levels[level]) {
+			ast_cli(a->fd, "%5d %s\n", level, levels[level]);
+		}
+	}
+	AST_RWLIST_UNLOCK(&logchannels);
+	ast_cli(a->fd, "\n");
+
+	return CLI_SUCCESS;
+}
+
 int ast_logger_create_channel(const char *log_channel, const char *components)
 {
 	struct logchannel *chan;
@@ -1545,6 +1642,7 @@ static char *handle_logger_remove_channel(struct ast_cli_entry *e, int cmd, stru
 
 static struct ast_cli_entry cli_logger[] = {
 	AST_CLI_DEFINE(handle_logger_show_channels, "List configured log channels"),
+	AST_CLI_DEFINE(handle_logger_show_levels, "List configured log levels"),
 	AST_CLI_DEFINE(handle_logger_reload, "Reopens the log files"),
 	AST_CLI_DEFINE(handle_logger_rotate, "Rotates and reopens the log files"),
 	AST_CLI_DEFINE(handle_logger_set_level, "Enables/Disables a specific logging level for this console"),
@@ -1798,8 +1896,6 @@ static void *logger_thread(void *data)
  * \brief Initialize the logger queue.
  *
  * \note Assumes logchannels is write locked on entry.
- *
- * \return Nothing
  */
 static void logger_queue_init(void)
 {
@@ -1835,8 +1931,6 @@ int ast_is_logger_initialized(void)
  *
  * \note Called when the system is fully booted after startup
  * so preloaded realtime modules can get up.
- *
- * \return Nothing
  */
 void logger_queue_start(void)
 {
@@ -2117,7 +2211,7 @@ void ast_log_safe(int level, const char *file, int line, const char *function, c
 		return;
 	}
 
-	if (ast_threadstorage_set_ptr(&in_safe_log, (void*)1)) {
+	if (ast_threadstorage_set_ptr(&in_safe_log, &(int) { 1 })) {
 		/* We've failed to set the flag that protects against
 		 * recursion, so bail. */
 		return;
@@ -2256,8 +2350,6 @@ void ast_verb_update(void)
  * \brief Unregister a console verbose level.
  *
  * \param console Which console to unregister.
- *
- * \return Nothing
  */
 static void verb_console_unregister(struct verb_console *console)
 {
@@ -2348,18 +2440,13 @@ static void update_logchannels(void)
 {
 	struct logchannel *cur;
 
-	AST_RWLIST_WRLOCK(&logchannels);
-
 	global_logmask = 0;
 
 	AST_RWLIST_TRAVERSE(&logchannels, cur, list) {
 		make_components(cur);
 		global_logmask |= cur->logmask;
 	}
-
-	AST_RWLIST_UNLOCK(&logchannels);
 }
-
 
 #ifdef AST_DEVMODE
 
@@ -2452,12 +2539,11 @@ void __ast_trace(const char *file, int line, const char *func, enum ast_trace_in
 }
 #endif
 
-int ast_logger_register_level(const char *name)
+/* Lock should be held before calling this function */
+static int logger_register_level(const char *name)
 {
 	unsigned int level;
 	unsigned int available = 0;
-
-	AST_RWLIST_WRLOCK(&logchannels);
 
 	for (level = 0; level < ARRAY_LEN(levels); level++) {
 		if ((level >= 16) && !available && !levels[level]) {
@@ -2469,7 +2555,6 @@ int ast_logger_register_level(const char *name)
 			ast_log(LOG_WARNING,
 				"Unable to register dynamic logger level '%s': a standard logger level uses that name.\n",
 				name);
-			AST_RWLIST_UNLOCK(&logchannels);
 
 			return -1;
 		}
@@ -2479,14 +2564,11 @@ int ast_logger_register_level(const char *name)
 		ast_log(LOG_WARNING,
 			"Unable to register dynamic logger level '%s'; maximum number of levels registered.\n",
 			name);
-		AST_RWLIST_UNLOCK(&logchannels);
 
 		return -1;
 	}
 
 	levels[available] = ast_strdup(name);
-
-	AST_RWLIST_UNLOCK(&logchannels);
 
 	ast_debug(1, "Registered dynamic logger level '%s' with index %u.\n", name, available);
 
@@ -2495,42 +2577,79 @@ int ast_logger_register_level(const char *name)
 	return available;
 }
 
-void ast_logger_unregister_level(const char *name)
+int ast_logger_register_level(const char *name)
 {
-	unsigned int found = 0;
-	unsigned int x;
+	int available = 0;
 
 	AST_RWLIST_WRLOCK(&logchannels);
+	available = logger_register_level(name);
+	AST_RWLIST_UNLOCK(&logchannels);
+
+	return available;
+}
+
+static int logger_get_dynamic_level(const char *name)
+{
+	int level = -1;
+	unsigned int x;
 
 	for (x = 16; x < ARRAY_LEN(levels); x++) {
 		if (!levels[x]) {
 			continue;
 		}
-
-		if (strcasecmp(levels[x], name)) {
-			continue;
+		if (!strcasecmp(levels[x], name)) {
+			level = x;
+			break;
 		}
-
-		found = 1;
-		break;
 	}
 
-	if (found) {
-		/* take this level out of the global_logmask, to ensure that no new log messages
-		 * will be queued for it
-		 */
+	return level;
+}
 
-		global_logmask &= ~(1 << x);
+int ast_logger_get_dynamic_level(const char *name)
+{
+	int level = -1;
 
-		ast_free(levels[x]);
-		levels[x] = NULL;
-		AST_RWLIST_UNLOCK(&logchannels);
+	AST_RWLIST_RDLOCK(&logchannels);
 
-		ast_debug(1, "Unregistered dynamic logger level '%s' with index %u.\n", name, x);
+	level = logger_get_dynamic_level(name);
 
+	AST_RWLIST_UNLOCK(&logchannels);
+
+	return level;
+}
+
+static int logger_unregister_level(const char *name) {
+	unsigned int x;
+
+	x = logger_get_dynamic_level(name);
+	if (x == -1) {
+		return 0;
+	}
+	/* take this level out of the global_logmask, to ensure that no new log messages
+	 * will be queued for it
+	 */
+	global_logmask &= ~(1 << x);
+	ast_free(levels[x]);
+	levels[x] = NULL;
+	return x;
+}
+
+void ast_logger_unregister_level(const char *name)
+{
+	int x;
+
+	AST_RWLIST_WRLOCK(&logchannels);
+	x = logger_unregister_level(name);
+
+	if (x) {
 		update_logchannels();
-	} else {
-		AST_RWLIST_UNLOCK(&logchannels);
+	}
+
+	AST_RWLIST_UNLOCK(&logchannels);
+
+	if (x) {
+		ast_debug(1, "Unregistered dynamic logger level '%s' with index %u.\n", name, x);
 	}
 }
 

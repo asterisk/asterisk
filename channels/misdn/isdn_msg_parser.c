@@ -36,8 +36,6 @@
  * \param display_format Display format enumeration
  * \param name Name string to use
  * \param number Number string to use
- *
- * \return Nothing
  */
 static void build_display_str(char *display, size_t display_length, int display_format, const char *name, const char *number)
 {
@@ -71,8 +69,6 @@ static void build_display_str(char *display, size_t display_length, int display_
  * \param msg General message structure
  * \param fac Data to encode into the facility ie.
  * \param nt TRUE if in NT mode.
- *
- * \return Nothing
  */
 static void enc_ie_facility(unsigned char **ntmode, msg_t *msg, struct FacParm *fac, int nt)
 {
@@ -114,8 +110,6 @@ static void enc_ie_facility(unsigned char **ntmode, msg_t *msg, struct FacParm *
  * \param fac Where to put the decoded facility ie data if it is available.
  * \param nt TRUE if in NT mode.
  * \param bc Associated B channel
- *
- * \return Nothing
  */
 static void dec_ie_facility(unsigned char *p, Q931_info_t *qi, struct FacParm *fac, int nt, struct misdn_bchannel *bc)
 {
@@ -303,8 +297,6 @@ static msg_t *build_progress (struct isdn_msg msgs[], struct misdn_bchannel *bc,
  * \param setup Indexed setup message contents
  * \param nt TRUE if in NT mode.
  * \param bc Associated B channel
- *
- * \return Nothing
  */
 static void extract_setup_Bc_Hlc_Llc(SETUP_t *setup, int nt, struct misdn_bchannel *bc)
 {
@@ -1400,8 +1392,6 @@ static msg_t *build_facility (struct isdn_msg msgs[], struct misdn_bchannel *bc,
  * \param msg Received message contents
  * \param bc Associated B channel
  * \param nt TRUE if in NT mode.
- *
- * \return Nothing
  */
 static void parse_register(struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt)
 {

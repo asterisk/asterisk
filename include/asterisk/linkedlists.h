@@ -23,7 +23,8 @@
 #include "asterisk/lock.h"
 
 /*!
- * \file linkedlists.h
+ * \file
+ *
  * \brief A set of macros to manage forward-linked lists.
  */
 

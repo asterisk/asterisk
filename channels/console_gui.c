@@ -54,12 +54,12 @@ handled differently according to their location:
   enable/disable Picture-in-Picture, freeze the incoming video,
   dial numbers, pick up or hang up a call, ...)
 
-Configuration options control the appeareance of the gui:
+Configuration options control the appearance of the gui:
 
     keypad = /tmp/kpad2.jpg	; the skin
     keypad_font = /tmp/font.png	; the font to use for output
 
-For future implementation, intresting features can be the following:
+For future implementation, interesting features can be the following:
 - save of the whole SDL window as a picture
 - audio output device switching
 
@@ -231,7 +231,7 @@ static struct gui_info *cleanup_sdl(struct gui_info *gui, int device_num)
  * below the source windows
  */
 
-/* costants defined to describe status of devices */
+/* constants defined to describe status of devices */
 #define IS_PRIMARY 1
 #define IS_SECONDARY 2
 #define IS_ON 4
@@ -781,13 +781,13 @@ static void handle_mousedown(struct video_desc *env, SDL_MouseButtonEvent button
 			  button.x < x0+gui->keypad->w/2+BORDER+pip_loc_x+env->loc_dpy.w/3 &&
 			  button.y >= BORDER+pip_loc_y &&
 			  button.y < BORDER+pip_loc_y+env->loc_dpy.h/3) {
-				/* set the y cordinate to his previous value */
+				/* set the y coordinate to his previous value */
 				button.y += (env->out.device_num ? SRC_WIN_H+2*BORDER+SRC_MSG_BD_H : 0);
 				/* starts dragging the picture inside the picture */
 				set_drag(&gui->drag, button.x, button.y, DRAG_PIP);
 			}
 			else if (index == KEY_LOC_DPY) {
-				/* set the y cordinate to his previous value */
+				/* set the y coordinate to his previous value */
 				button.y += (env->out.device_num ? SRC_WIN_H+2*BORDER+SRC_MSG_BD_H : 0);
 				/* click in the local display, but not on the PiP */
 				set_drag(&gui->drag, button.x, button.y, DRAG_LOCAL);
@@ -1057,7 +1057,7 @@ static SDL_Surface *load_image(const char *file)
 
 static void keypad_setup(struct gui_info *gui, const char *kp_file);
 
-/* TODO: consistency checks, check for bpp, widht and height */
+/* TODO: consistency checks, check for bpp, width and height */
 /* Init the mask image used to grab the action. */
 static struct gui_info *gui_init(const char *keypad_file, const char *font)
 {

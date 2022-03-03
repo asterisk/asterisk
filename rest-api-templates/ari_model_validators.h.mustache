@@ -46,8 +46,8 @@
  * \brief Validator for native Swagger void.
  *
  * \param json JSON object to validate.
- * \returns True (non-zero) if valid.
- * \returns False (zero) if invalid.
+ * \retval True (non-zero) if valid.
+ * \retval False (zero) if invalid.
  */
 int ast_ari_validate_void(struct ast_json *json);
 
@@ -55,8 +55,8 @@ int ast_ari_validate_void(struct ast_json *json);
  * \brief Validator for native Swagger object.
  *
  * \param json JSON object to validate.
- * \returns True (non-zero) if valid.
- * \returns False (zero) if invalid.
+ * \retval True (non-zero) if valid.
+ * \retval False (zero) if invalid.
  */
 int ast_ari_validate_object(struct ast_json *json);
 
@@ -64,8 +64,8 @@ int ast_ari_validate_object(struct ast_json *json);
  * \brief Validator for native Swagger byte.
  *
  * \param json JSON object to validate.
- * \returns True (non-zero) if valid.
- * \returns False (zero) if invalid.
+ * \retval True (non-zero) if valid.
+ * \retval False (zero) if invalid.
  */
 int ast_ari_validate_byte(struct ast_json *json);
 
@@ -73,8 +73,8 @@ int ast_ari_validate_byte(struct ast_json *json);
  * \brief Validator for native Swagger boolean.
  *
  * \param json JSON object to validate.
- * \returns True (non-zero) if valid.
- * \returns False (zero) if invalid.
+ * \retval True (non-zero) if valid.
+ * \retval False (zero) if invalid.
  */
 int ast_ari_validate_boolean(struct ast_json *json);
 
@@ -82,8 +82,8 @@ int ast_ari_validate_boolean(struct ast_json *json);
  * \brief Validator for native Swagger int.
  *
  * \param json JSON object to validate.
- * \returns True (non-zero) if valid.
- * \returns False (zero) if invalid.
+ * \retval True (non-zero) if valid.
+ * \retval False (zero) if invalid.
  */
 int ast_ari_validate_int(struct ast_json *json);
 
@@ -91,8 +91,8 @@ int ast_ari_validate_int(struct ast_json *json);
  * \brief Validator for native Swagger long.
  *
  * \param json JSON object to validate.
- * \returns True (non-zero) if valid.
- * \returns False (zero) if invalid.
+ * \retval True (non-zero) if valid.
+ * \retval False (zero) if invalid.
  */
 int ast_ari_validate_long(struct ast_json *json);
 
@@ -100,8 +100,8 @@ int ast_ari_validate_long(struct ast_json *json);
  * \brief Validator for native Swagger float.
  *
  * \param json JSON object to validate.
- * \returns True (non-zero) if valid.
- * \returns False (zero) if invalid.
+ * \retval True (non-zero) if valid.
+ * \retval False (zero) if invalid.
  */
 int ast_ari_validate_float(struct ast_json *json);
 
@@ -109,8 +109,8 @@ int ast_ari_validate_float(struct ast_json *json);
  * \brief Validator for native Swagger double.
  *
  * \param json JSON object to validate.
- * \returns True (non-zero) if valid.
- * \returns False (zero) if invalid.
+ * \retval True (non-zero) if valid.
+ * \retval False (zero) if invalid.
  */
 int ast_ari_validate_double(struct ast_json *json);
 
@@ -118,8 +118,8 @@ int ast_ari_validate_double(struct ast_json *json);
  * \brief Validator for native Swagger string.
  *
  * \param json JSON object to validate.
- * \returns True (non-zero) if valid.
- * \returns False (zero) if invalid.
+ * \retval True (non-zero) if valid.
+ * \retval False (zero) if invalid.
  */
 int ast_ari_validate_string(struct ast_json *json);
 
@@ -127,8 +127,8 @@ int ast_ari_validate_string(struct ast_json *json);
  * \brief Validator for native Swagger date.
  *
  * \param json JSON object to validate.
- * \returns True (non-zero) if valid.
- * \returns False (zero) if invalid.
+ * \retval True (non-zero) if valid.
+ * \retval False (zero) if invalid.
  */
 int ast_ari_validate_date(struct ast_json *json);
 
@@ -137,8 +137,8 @@ int ast_ari_validate_date(struct ast_json *json);
  *
  * \param json JSON object to validate.
  * \param fn Validator to call on every element in the array.
- * \returns True (non-zero) if valid.
- * \returns False (zero) if invalid.
+ * \retval True (non-zero) if valid.
+ * \retval False (zero) if invalid.
  */
 int ast_ari_validate_list(struct ast_json *json, int (*fn)(struct ast_json *));
 
@@ -158,15 +158,13 @@ typedef int (*ari_validator)(struct ast_json *json);
  * {{{description_dox}}}
  *
  * \param json JSON object to validate.
- * \returns True (non-zero) if valid.
- * \returns False (zero) if invalid.
+ * \retval True (non-zero) if valid.
+ * \retval False (zero) if invalid.
  */
 int ast_ari_validate_{{c_id}}(struct ast_json *json);
 
 /*!
  * \brief Function pointer to ast_ari_validate_{{c_id}}().
- *
- * See \ref ast_ari_model_validators.h for more details.
  */
 ari_validator ast_ari_validate_{{c_id}}_fn(void);
 {{/models}}

@@ -185,8 +185,9 @@
    These are default values in the source. There are other recommended values in the
    sip.conf.sample for new installations. These may differ to keep backwards compatibility,
    yet encouraging new behaviour on new installations
+
+   @{
  */
-/*@{*/
 #define DEFAULT_CONTEXT        "default"  /*!< The default context for [general] section as well as devices */
 #define DEFAULT_RECORD_FEATURE   "automon"  /*!< The default feature specified for use with INFO */
 #define DEFAULT_MOHINTERPRET   "default"  /*!< The default music class */
@@ -235,7 +236,8 @@
 #define DEFAULT_ENGINE     "asterisk"      /*!< Default RTP engine to use for sessions */
 #define DEFAULT_STORE_SIP_CAUSE FALSE      /*!< Don't store HASH(SIP_CAUSE,<channel name>) for channels by default */
 #endif
-/*@}*/
+
+/*! @} */
 
 /*! \name SIPflags
 	Various flags for the flags field in the pvt structure
@@ -245,8 +247,8 @@
 	G: Global flag
 	When flags are used by multiple structures, it is important that
 	they have a common layout so it is easy to copy them.
-*/
-/*@{*/
+   @{
+ */
 #define SIP_OUTGOING        (1 << 0) /*!< D: Direction of the last transaction in this dialog */
 #define SIP_OFFER_CC        (1 << 1) /*!< D: Offer CC on subsequent responses */
 #define SIP_RINGING         (1 << 2) /*!< D: Have sent 180 ringing */
@@ -307,11 +309,13 @@
 	(SIP_PROMISCREDIR | SIP_TRUSTRPID | SIP_SENDRPID | SIP_DTMF | SIP_REINVITE | \
 	 SIP_PROG_INBAND | SIP_USECLIENTCODE | SIP_NAT_FORCE_RPORT | SIP_G726_NONSTANDARD | \
 	 SIP_USEREQPHONE | SIP_INSECURE | SIP_USEPATH)
-/*@}*/
+
+/*! @} */
 
 /*! \name SIPflags2
-	a second page of flags (for flags[1] */
-/*@{*/
+	a second page of flags (for flags[1]
+   @{
+ */
 /* realtime flags */
 #define SIP_PAGE2_RTCACHEFRIENDS            (1 <<  0)   /*!< GP: Should we keep RT objects in memory for extended time? */
 #define SIP_PAGE2_RTAUTOCLEAR               (1 <<  1)   /*!< GP: Should we clean memory from peers after expiry? */
@@ -393,7 +397,7 @@
 
 #define CHECK_AUTH_BUF_INITLEN   256
 
-/*@}*/
+/*! @} */
 
 /*----------------------------------------------------------*/
 /*----                    ENUMS                         ----*/
@@ -444,7 +448,7 @@ enum invitestates {
 };
 
 /*! \brief When sending a SIP message, we can send with a few options, depending on
- * type of SIP request. UNRELIABLE is moslty used for responses to repeated requests,
+ * type of SIP request. UNRELIABLE is mostly used for responses to repeated requests,
  * where the original response would be sent RELIABLE in an INVITE transaction
  */
 enum xmittype {
@@ -731,8 +735,8 @@ struct __show_chan_arg {
 /*! \name GlobalSettings
 	Global settings apply to the channel (often settings you can change in the general section
 	of sip.conf
-*/
-/*@{*/
+   @{
+ */
 /*! \brief a place to store all global settings for the sip channel driver
 
 	These are settings that will be possibly to apply on a group level later on.
@@ -783,6 +787,8 @@ struct sip_settings {
 	int websocket_write_timeout; /*!< Socket write timeout for websocket transports, in ms */
 	int websocket_enabled;       /*!< Are websockets enabled? */
 };
+
+/*! @} */
 
 struct ast_websocket;
 
@@ -841,7 +847,7 @@ struct sip_request {
 	unsigned int reqsipoptions; /*!< Items needed for Required header in responses */
 };
 
-/* \brief given a sip_request and an offset, return the char * that resides there
+/*! \brief given a sip_request and an offset, return the char * that resides there
  *
  * It used to be that rlpart1, rlpart2, and the header and line arrays were character
  * pointers. They are now offsets into the ast_str portion of the sip_request structure.
@@ -1100,7 +1106,7 @@ struct sip_pvt {
 	int t38_maxdatagram;              /*!< T.38 FaxMaxDatagram override */
 	int request_queue_sched_id;       /*!< Scheduler ID of any scheduled action to process queued requests */
 	int provisional_keepalive_sched_id;   /*!< Scheduler ID for provisional responses that need to be sent out to avoid cancellation */
-	const char *last_provisional;         /*!< The last successfully transmitted provisonal response message */
+	const char *last_provisional;         /*!< The last successfully transmitted provisional response message */
 	int authtries;                        /*!< Times we've tried to authenticate */
 	struct sip_proxy *outboundproxy;      /*!< Outbound proxy for this dialog. Use ref_proxy to set this instead of setting it directly*/
 	struct t38properties t38;             /*!< T38 settings */

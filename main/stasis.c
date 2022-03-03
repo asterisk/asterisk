@@ -121,6 +121,7 @@
 							<enum name="ast_channel_dtmf_begin_type" />
 							<enum name="ast_channel_dtmf_end_type" />
 							<enum name="ast_channel_flash_type" />
+							<enum name="ast_channel_wink_type" />
 							<enum name="ast_channel_hold_type" />
 							<enum name="ast_channel_unhold_type" />
 							<enum name="ast_channel_chanspy_start_type" />
@@ -250,8 +251,8 @@
  * The destructors of both have assertions regarding this to catch ref-counting
  * problems where a subscription or topic has had an extra ao2_cleanup().
  *
- * The \ref dispatch object is a transient object, which is posted to a
- * subscription's taskprocessor to send a message to the subscriber. They have
+ * The \ref dispatch_exec_sync object is a transient object, which is posted to
+ * a subscription's taskprocessor to send a message to the subscriber. They have
  * short life cycles, allocated on one thread, destroyed on another.
  *
  * During shutdown, or the deletion of a domain object, there are a flurry of
@@ -750,7 +751,6 @@ static void subscription_dtor(void *obj)
 /*!
  * \brief Invoke the subscription's callback.
  * \param sub Subscription to invoke.
- * \param topic Topic message was published to.
  * \param message Message to send.
  */
 static void subscription_invoke(struct stasis_subscription *sub,
@@ -1433,8 +1433,8 @@ static void publish_msg(struct stasis_topic *topic,
 	struct stasis_message *message, struct stasis_subscription *sync_sub)
 {
 	size_t i;
-	unsigned int dispatched = 0;
 #ifdef AST_DEVMODE
+	unsigned int dispatched = 0;
 	int message_type_id = stasis_message_type_id(stasis_message_type(message));
 	struct stasis_message_type_statistics *statistics;
 	struct timeval start;
@@ -1484,8 +1484,10 @@ static void publish_msg(struct stasis_topic *topic,
 		struct stasis_subscription *sub = AST_VECTOR_GET(&topic->subscribers, i);
 
 		ast_assert(sub != NULL);
-
-		dispatched += dispatch_message(sub, message, (sub == sync_sub));
+#ifdef AST_DEVMODE
+		dispatched +=
+#endif
+			dispatch_message(sub, message, (sub == sync_sub));
 	}
 	ao2_unlock(topic);
 

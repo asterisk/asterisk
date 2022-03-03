@@ -18,7 +18,7 @@
 #ifndef _STIR_SHAKEN_CURL_H
 #define _STIR_SHAKEN_CURL_H
 
-/* Forward declarion for CURL callback data */
+/* Forward declaration for CURL callback data */
 struct curl_cb_data;
 
 /*!

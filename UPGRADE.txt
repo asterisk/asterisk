@@ -19,6 +19,38 @@
 ===========================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 18.8.0 to Asterisk 18.9.0 ------------
+------------------------------------------------------------------------------
+
+STIR/SHAKEN
+------------------
+ * The STIR/SHAKEN configuration option has been split into
+   4 different choices: off, attest, verify, and on. Off and
+   on behave the same way as before. Attest will only perform
+   attestation on the endpoint, and verify will only perform
+   verification on the endpoint.
+
+------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 18.7.0 to Asterisk 18.8.0 ------------
+------------------------------------------------------------------------------
+
+chan_iax2
+------------------
+ * Encryption is now supported for RSA authentication.
+
+   Currently, these auth configurations will cause a crash:
+   auth = md5,rsa
+   auth = plaintext,md5,rsa
+
+   With a patched peer, the following will cause a crash:
+   auth = rsa
+   auth = md5,rsa
+   auth = plaintext,md5,rsa
+
+   If both the peer and user are patches, no crash occurs.
+   Existing good configurations should continue to work.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 18.4.0 to Asterisk 18.5.0 ------------
 ------------------------------------------------------------------------------
 
@@ -652,7 +684,7 @@ chan_unistim:
    values used inside Unistim protocol
 
  - Added 'dtmf_duration' option with changing default operation to disable
-   receivied dtmf playback on unistim phone
+   received dtmf playback on unistim phone
 
 Core:
 
@@ -1570,7 +1602,7 @@ UDPTL:
 From 10.4 to 10.5:
 
 * The complex processor detection and optimization has been removed from
-  the makefile in favor of using native optimization suppport when available.
+  the makefile in favor of using native optimization support when available.
   BUILD_NATIVE can be disabled via menuselect under "Compiler Flags".
 
 From 10.2 to 10.3:
@@ -1643,7 +1675,7 @@ From 1.8.13 to 1.8.14:
 
 From 1.8.12 to 1.8.13:
 * The complex processor detection and optimization has been removed from
-  the makefile in favor of using native optimization suppport when available.
+  the makefile in favor of using native optimization support when available.
   BUILD_NATIVE can be disabled via menuselect under "Compiler Flags".
 
 From 1.8.10 to 1.8.11:
@@ -2422,7 +2454,7 @@ Applications:
   the 'm' option now provides the functionality of "initially muted".
   In practice, most existing dialplans using the 'm' flag should not notice
   any difference, unless the keypad menu is enabled, allowing the user
-  to unmute themsleves.
+  to unmute themselves.
 
 * ast_play_and_record would attempt to cancel the recording if a DTMF
   '0' was received.  This behavior was not documented in most of the

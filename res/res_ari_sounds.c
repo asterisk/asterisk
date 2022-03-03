@@ -69,9 +69,11 @@ int ast_ari_sounds_list_parse_body(
 
 /*!
  * \brief Parameter parsing callback for /sounds.
+ * \param ser TCP/TLS session object
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
+ * \param body
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_sounds_list_cb(
@@ -133,9 +135,11 @@ fin: __attribute__((unused))
 }
 /*!
  * \brief Parameter parsing callback for /sounds/{soundId}.
+ * \param ser TCP/TLS session object
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
+ * \param body
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_sounds_get_cb(

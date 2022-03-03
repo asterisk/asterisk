@@ -86,6 +86,25 @@ int ast_say_number(struct ast_channel *chan, int num,
 SAY_EXTERN int (* ast_say_number_full)(struct ast_channel *chan, int num, const char *ints, const char *lang, const char *options, int audiofd, int ctrlfd) SAY_INIT(ast_say_number_full);
 
 /*!
+ * \brief says an ordinal number
+ * \param chan channel to say them number on
+ * \param num ordinal number to say on the channel
+ * \param ints which dtmf to interrupt on
+ * \param lang language to speak the number
+ * \param options set to 'f' for female, 'm' for male, 'c' for commune, 'n' for neuter
+ * \details
+ * Vocally says an ordinal number on a given channel
+ * \retval 0 on success
+ * \retval DTMF digit on interrupt
+ * \retval -1 on failure
+ */
+int ast_say_ordinal(struct ast_channel *chan, int num,
+	const char *ints, const char *lang, const char *options);
+
+/*! \brief Same as \ref ast_say_number() with audiofd for received audio and returns 1 on ctrlfd being readable */
+SAY_EXTERN int (* ast_say_ordinal_full)(struct ast_channel *chan, int num, const char *ints, const char *lang, const char *options, int audiofd, int ctrlfd) SAY_INIT(ast_say_ordinal_full);
+
+/*!
  * \brief says an enumeration
  * \param chan channel to say them enumeration on
  * \param num number to say on the channel
@@ -93,7 +112,7 @@ SAY_EXTERN int (* ast_say_number_full)(struct ast_channel *chan, int num, const 
  * \param lang language to speak the enumeration
  * \param options set to 'f' for female, 'm' for male, 'c' for commune, 'n' for neuter
  * \details
- * Vocally says an enumeration on a given channel (first, sencond, third, forth, thirtyfirst, hundredth, ....)
+ * Vocally says an enumeration on a given channel (first, second, third, forth, thirtyfirst, hundredth, ....)
  * Especially useful for dates and messages. Says 'last' if num equals to INT_MAX
  * \retval 0 on success
  * \retval DTMF digit on interrupt
@@ -143,6 +162,14 @@ int ast_say_digit_str(struct ast_channel *chan, const char *num,
 SAY_EXTERN int (* ast_say_digit_str_full)(struct ast_channel *chan, const char *num, const char *ints, const char *lang, int audiofd, int ctrlfd) SAY_INIT(ast_say_digit_str_full);
 
 /*! \brief
+ * function to pronounce monetary amounts
+ */
+int ast_say_money_str(struct ast_channel *chan, const char *num,
+	const char *ints, const char *lang);
+
+SAY_EXTERN int (* ast_say_money_str_full)(struct ast_channel *chan, const char *num, const char *ints, const char *lang, int audiofd, int ctrlfd) SAY_INIT(ast_say_money_str_full);
+
+/*! \brief
  * the generic 'say' routine, with the first chars in the string
  * defining the format to use
  */
@@ -183,6 +210,79 @@ SAY_EXTERN int (* ast_say_date_with_format)(struct ast_channel *chan, time_t t, 
 int ast_say_counted_noun(struct ast_channel *chan, int num, const char *noun);
 
 int ast_say_counted_adjective(struct ast_channel *chan, int num, const char *adjective, const char *gender);
+
+/*!
+ * \brief Returns an ast_str of files for SayAlpha playback.
+ *
+ * \param str Text to be translated to the corresponding audio files.
+ * \param lang Channel language
+ * \param sensitivity Case sensitivity
+ *
+ * Computes the list of files to be played by SayAlpha.
+ *
+ * \retval ampersand-separated string of Asterisk sound files that can be played back.
+ */
+struct ast_str* ast_get_character_str(const char *str, const char *lang, enum ast_say_case_sensitivity sensitivity);
+
+/*!
+ * \brief Returns an ast_str of files for SayPhonetic playback.
+ *
+ * \param str Text to be translated to the corresponding audio files.
+ * \param lang Channel language
+ *
+ * Computes the list of files to be played by SayPhonetic.
+ *
+ * \retval ampersand-separated string of Asterisk sound files that can be played back.
+ */
+struct ast_str* ast_get_phonetic_str(const char *str, const char *lang);
+
+/*!
+ * \brief Returns an ast_str of files for SayDigits playback.
+ *
+ * \param str Text to be translated to the corresponding audio files.
+ * \param lang Channel language
+ *
+ * Computes the list of files to be played by SayDigits.
+ *
+ * \retval ampersand-separated string of Asterisk sound files that can be played back.
+ */
+struct ast_str* ast_get_digit_str(const char *str, const char *lang);
+
+/*!
+ * \brief Returns an ast_str of files for SayMoney playback.
+ *
+ * \param str Text to be translated to the corresponding audio files.
+ * \param lang Channel language
+ *
+ * Computes the list of files to be played by SayMoney.
+ *
+ * \retval ampersand-separated string of Asterisk sound files that can be played back.
+ */
+struct ast_str* ast_get_money_str(const char *str, const char *lang);
+
+/*!
+ * \brief Returns an ast_str of files for SayNumber playback.
+ *
+ * \param num Integer to be translated to the corresponding audio files.
+ * \param lang Channel language
+ *
+ * Computes the list of files to be played by SayNumber.
+ *
+ * \retval ampersand-separated string of Asterisk sound files that can be played back.
+ */
+struct ast_str* ast_get_number_str(int num, const char *lang);
+
+/*!
+ * \brief Returns an ast_str of files for SayOrdinal playback.
+ *
+ * \param num Integer to be translated to the corresponding audio files.
+ * \param lang Channel language
+ *
+ * Computes the list of files to be played by SayOrdinal.
+ *
+ * \retval ampersand-separated string of Asterisk sound files that can be played back.
+ */
+struct ast_str* ast_get_ordinal_str(int num, const char *lang);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

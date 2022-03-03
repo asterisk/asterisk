@@ -38,10 +38,8 @@ enum ast_dns_search_result {
  * \param  dname     Domain name to lookup (host, SRV domain, TXT record name).
  * \param  class     Record Class (see "man res_search").
  * \param  type      Record type (see "man res_search").
- * \param  answer    The full DNS response.
- * \param  len       The length of the full DNS response.
  * \param  callback  Callback function for handling the discovered resource records from
- *                   the DNS search.
+ *                   the DNS search. len gets the length of the full DNS response.
  *
  * \retval -1 on search failure
  * \retval  0 on no records found

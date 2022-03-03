@@ -43,7 +43,7 @@
  * The structure of the generated code is:
  *
  *  - res/ari/resource_{resource}.h
- *    - For each operation in the resouce, a generated argument structure
+ *    - For each operation in the resource, a generated argument structure
  *      (holding the parsed arguments from the request) and function
  *      declarations (to implement in res/ari/resource_{resource}.c)
  *  - res_ari_{resource}.c
@@ -815,7 +815,7 @@ enum ast_json_encoding_format ast_ari_json_format(void)
  *
  * \param api_key API key query parameter
  * \return User object for the authenticated user.
- * \return \c NULL if authentication failed.
+ * \retval NULL if authentication failed.
  */
 static struct ast_ari_conf_user *authenticate_api_key(const char *api_key)
 {
@@ -841,9 +841,9 @@ static struct ast_ari_conf_user *authenticate_api_key(const char *api_key)
  * \brief Authenticate an HTTP request.
  *
  * \param get_params GET parameters of the request.
- * \param header HTTP headers.
+ * \param headers HTTP headers.
  * \return User object for the authenticated user.
- * \return \c NULL if authentication failed.
+ * \retval NULL if authentication failed.
  */
 static struct ast_ari_conf_user *authenticate_user(struct ast_variable *get_params,
 	struct ast_variable *headers)

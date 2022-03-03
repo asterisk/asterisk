@@ -48,8 +48,6 @@ struct ast_bridge_parking
  * \param self Bridge to operate upon.
  *
  * \note XXX Stub... and it might go unused.
- *
- * \return Nothing
  */
 static void bridge_parking_destroy(struct ast_bridge_parking *self)
 {
@@ -92,7 +90,7 @@ static int parked_user_set_parker_dial_string(struct parked_user *pu, const char
  * \brief Construct a parked_user struct assigned to the specified parking lot
  *
  * \param lot The parking lot we are assigning the user to
- * \param parkee The channel being parked
+ * \param chan The channel being parked
  * \param parker_channel_name The name of the parker of this channel
  * \param parker_dial_string Takes priority over parker for setting the parker dial string if included
  * \param use_random_space if true, prioritize using a random parking space instead
@@ -102,7 +100,7 @@ static int parked_user_set_parker_dial_string(struct parked_user *pu, const char
  *        use the parking lot limit instead.
  *
  * \retval NULL on failure
- * \retval reference to the parked user
+ * \return reference to the parked user
  *
  * \note ao2_cleanup this reference when you are done using it or you'll cause leaks.
  */
@@ -336,8 +334,6 @@ static int bridge_parking_push(struct ast_bridge_parking *self, struct ast_bridg
  * \param bridge_channel Bridge channel to pull.
  *
  * \note On entry, self is already locked.
- *
- * \return Nothing
  */
 static void bridge_parking_pull(struct ast_bridge_parking *self, struct ast_bridge_channel *bridge_channel)
 {
@@ -412,8 +408,6 @@ static void bridge_parking_pull(struct ast_bridge_parking *self, struct ast_brid
  *
  * \note On entry, self is already locked.
  * \note XXX Stub... and it will probably go unused.
- *
- * \return Nothing
  */
 static void bridge_parking_notify_masquerade(struct ast_bridge_parking *self, struct ast_bridge_channel *bridge_channel)
 {

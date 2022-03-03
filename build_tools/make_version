@@ -98,9 +98,13 @@ elif [ -d ${1}/.git ]; then
     # If the first log commit messages indicates that this is checked into
     # subversion, we'll just use the SVN- form of the revision.
     MODIFIED=""
-    SVN_REV=`${GIT} log --pretty=full -1 | ${GREP} -F "git-svn-id:" | sed -e "s/.*\@\([^\s]*\)\s.*/\1/g"`
+    SVN_REV=`${GIT} log --pretty=full -1 | sed -n '/git-svn-id:/ s/.*\@\([^ ]*\) .*/\1/p'`
     if [ -z "$SVN_REV" ]; then
-        MAINLINE_BRANCH=$(git config -f .gitreview --get gerrit.defaultbranch)
+        MAINLINE_BRANCH=$(${GIT} config -f .gitreview --get gerrit.basebranch)
+        if [ "x${MAINLINE_BRANCH}" = "x" ] ; then
+            MAINLINE_BRANCH=$(${GIT} config -f .gitreview --get gerrit.defaultbranch)
+        fi
+
         VERSION=`${GIT} describe --long --always --tags --dirty=M 2> /dev/null`
         if [ $? -ne 0 ]; then
             if [ "`${GIT} ls-files -m | wc -l`" != "0" ]; then

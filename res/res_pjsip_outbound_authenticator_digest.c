@@ -118,7 +118,7 @@ static int is_digest_algorithm_supported(pjsip_www_authenticate_hdr *auth_hdr)
  * In the end, we'll have accumulated a list of credentials we can pass to
  * pjproject that it can use to add Authentication headers to a request.
  *
- * \NOTE: Neither we nor pjproject can currently handle digest algorithms
+ * \note: Neither we nor pjproject can currently handle digest algorithms
  * other than MD5.  We don't even have a place for it in the ast_sip_auth
  * object. For this reason, we just skip processing any Authenticate
  * header that's not MD5.  When we support the others, we'll move the
@@ -141,7 +141,7 @@ static pj_status_t set_outbound_authentication_credentials(pjsip_auth_clt_sess *
 	 * structures. In this case however, the elements are the
 	 * structures themselves instead of pointers to them.  This is due
 	 * to the fact that pjsip_auth_clt_set_credentials() expects an
-	 * array of structues, not an array of pointers to structures.
+	 * array of structures, not an array of pointers to structures.
 	 * Thankfully, vectors allow you to "steal" their underlying
 	 * arrays, in this case an array of pjsip_cred_info structures,
 	 * which we'll pass to pjsip_auth_clt_set_credentials() at the
@@ -563,8 +563,10 @@ static int digest_create_request_with_auth(const struct ast_sip_auth_vector *aut
 
 cleanup:
 #if defined(HAVE_PJSIP_AUTH_CLT_DEINIT)
-	/* Release any cached auths */
-	pjsip_auth_clt_deinit(&auth_sess);
+	/* If we initialized the auth_sess, clean it up */
+	if (auth_sess.endpt) {
+		pjsip_auth_clt_deinit(&auth_sess);
+	}
 #endif
 
 	ast_sip_cleanup_auth_objects_vector(&auth_objects_vector);

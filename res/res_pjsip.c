@@ -940,6 +940,13 @@
 						When enabled the UDPTL stack will use IPv6.
 					</para></description>
 				</configOption>
+				<configOption name="t38_bind_udptl_to_media_address" default="no">
+					<synopsis>Bind the UDPTL instance to the media_adress</synopsis>
+					<description><para>
+						If media_address is specified, this option causes the UDPTL instance to be bound to
+						the specified ip address which causes the packets to be sent from that address.
+					</para></description>
+				</configOption>
 				<configOption name="tone_zone">
 					<synopsis>Set which country's indications to use for channels created for this endpoint.</synopsis>
 				</configOption>
@@ -1045,7 +1052,7 @@
 						It can be one of the following values:
 						</para><enumlist>
 							<enum name="no"><para>
-								meaning no verificaton is done.
+								meaning no verification is done.
 							</para></enum>
 							<enum name="fingerprint"><para>
 								meaning to verify the remote fingerprint.
@@ -1558,7 +1565,7 @@
 						in their WWW-Authenticate header.  It can't be blank
 						unless you expect the server to be sending a blank
 						realm in the header.  You can't use pre-hashed
-						paswords with a wildcard auth object.
+						passwords with a wildcard auth object.
 						You can generate the hash with the following shell
 						command:
 						</para>
@@ -1997,8 +2004,9 @@
 						TLS.  Unfortunately, refreshing a registration may register a
 						different contact address and exceed
 						<replaceable>max_contacts</replaceable>.  The
-						<replaceable>remove_existing</replaceable> option can help by
-						removing the soonest to expire contact(s) over
+						<replaceable>remove_existing</replaceable> and
+						<replaceable>remove_unavailable</replaceable> options can help by
+						removing either the soonest to expire or unavailable contact(s) over
 						<replaceable>max_contacts</replaceable> which is likely the
 						old <replaceable>rewrite_contact</replaceable> contact source
 						address being refreshed.
@@ -2038,6 +2046,26 @@
 						<note><para>This should be set to <literal>yes</literal> and
 						<replaceable>max_contacts</replaceable> set to <literal>1</literal> if you
 						wish to stick with the older <literal>chan_sip</literal> behaviour.
+						</para></note>
+					</description>
+				</configOption>
+				<configOption name="remove_unavailable" default="no">
+					<synopsis>Determines whether new contacts should replace unavailable ones.</synopsis>
+					<description><para>
+						The effect of this setting depends on the setting of
+						<replaceable>remove_existing</replaceable>.</para>
+						<para>If <replaceable>remove_existing</replaceable> is set to
+						<literal>no</literal> (default), setting remove_unavailable to
+						<literal>yes</literal> will remove only unavailable contacts that exceed
+						<replaceable>max_contacts</replaceable>	to allow an incoming
+						REGISTER to complete sucessfully.</para>
+						<para>If <replaceable>remove_existing</replaceable> is set to
+						<literal>yes</literal>, setting remove_unavailable to
+						<literal>yes</literal> will prioritize unavailable contacts for removal
+						instead of just removing the contact that expires the soonest.</para>
+						<note><para>See <replaceable>remove_existing</replaceable> and
+						<replaceable>max_contacts</replaceable> for further information about how
+						these 3 settings interact.
 						</para></note>
 					</description>
 				</configOption>
@@ -2444,6 +2472,9 @@
 				<parameter name="RemoveExisting">
 					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='aor']/configOption[@name='remove_existing']/synopsis/node())"/></para>
 				</parameter>
+				<parameter name="RemoveUnavailable">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='aor']/configOption[@name='remove_unavailable']/synopsis/node())"/></para>
+				</parameter>
 				<parameter name="Mailboxes">
 					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='aor']/configOption[@name='mailboxes']/synopsis/node())"/></para>
 				</parameter>
@@ -2759,6 +2790,9 @@
 				<parameter name="T38UdptlIpv6">
 					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='t38_udptl_ipv6']/synopsis/node())"/></para>
 				</parameter>
+				<parameter name="T38BindUdptlToMediaAddress">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='t38_bind_udptl_to_media_address']/synopsis/node())"/></para>
+				</parameter>
 				<parameter name="ToneZone">
 					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='tone_zone']/synopsis/node())"/></para>
 				</parameter>
@@ -2903,6 +2937,9 @@
 				</parameter>
 				<parameter name="RemoveExisting">
 					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='aor']/configOption[@name='remove_existing']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="RemoveUnavailable">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='aor']/configOption[@name='remove_unavailable']/synopsis/node())"/></para>
 				</parameter>
 				<parameter name="Mailboxes">
 					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='aor']/configOption[@name='mailboxes']/synopsis/node())"/></para>
@@ -5255,6 +5292,34 @@ int ast_copy_pj_str2(char **dest, const pj_str_t *src)
 	return res;
 }
 
+int ast_sip_are_media_types_equal(pjsip_media_type *a, pjsip_media_type *b)
+{
+	int rc = 0;
+	if (a != NULL && b != NULL) {
+	    rc = pjsip_media_type_cmp(a, b, 0) ? 0 : 1;
+	}
+	return rc;
+}
+
+int ast_sip_is_media_type_in(pjsip_media_type *a, ...)
+{
+	int rc = 0;
+	pjsip_media_type *b = NULL;
+	va_list ap;
+
+	ast_assert(a != NULL);
+	va_start(ap, a);
+
+	while ((b = va_arg(ap, pjsip_media_type *)) != (pjsip_media_type *)SENTINEL) {
+		if (pjsip_media_type_cmp(a, b, 0) == 0) {
+			rc = 1;
+			break;
+		}
+	}
+	va_end(ap);
+
+	return rc;
+}
 
 int ast_sip_is_content_type(pjsip_media_type *content_type, char *type, char *subtype)
 {
@@ -5807,6 +5872,20 @@ void never_called_res_pjsip(void)
 	pjmedia_strerror(0, NULL, 0);
 }
 
+/* Definitions of media types declared "extern" in res_pjsip.h */
+pjsip_media_type pjsip_media_type_application_json;
+pjsip_media_type pjsip_media_type_application_media_control_xml;
+pjsip_media_type pjsip_media_type_application_pidf_xml;
+pjsip_media_type pjsip_media_type_application_xpidf_xml;
+pjsip_media_type pjsip_media_type_application_cpim_xpidf_xml;
+pjsip_media_type pjsip_media_type_application_rlmi_xml;
+pjsip_media_type pjsip_media_type_application_simple_message_summary;
+pjsip_media_type pjsip_media_type_application_sdp;
+pjsip_media_type pjsip_media_type_multipart_alternative;
+pjsip_media_type pjsip_media_type_multipart_mixed;
+pjsip_media_type pjsip_media_type_multipart_related;
+pjsip_media_type pjsip_media_type_text_plain;
+
 static int load_module(void)
 {
 	struct ast_threadpool_options options;
@@ -5825,6 +5904,21 @@ static int load_module(void)
 		!= PJ_SUCCESS) {
 		ast_log(LOG_WARNING, "Failed to register pjmedia error codes.  Codes will not be decoded.\n");
 	}
+
+	/* Initialize common media types */
+	pjsip_media_type_init2(&pjsip_media_type_application_json, "application", "json");
+	pjsip_media_type_init2(&pjsip_media_type_application_media_control_xml, "application", "media_control+xml");
+	pjsip_media_type_init2(&pjsip_media_type_application_pidf_xml, "application", "pidf+xml");
+	pjsip_media_type_init2(&pjsip_media_type_application_xpidf_xml, "application", "xpidf+xml");
+	pjsip_media_type_init2(&pjsip_media_type_application_cpim_xpidf_xml, "application", "cpim-xpidf+xml");
+	pjsip_media_type_init2(&pjsip_media_type_application_rlmi_xml, "application", "rlmi+xml");
+	pjsip_media_type_init2(&pjsip_media_type_application_sdp, "application", "sdp");
+	pjsip_media_type_init2(&pjsip_media_type_application_simple_message_summary, "application",	"simple-message-summary");
+	pjsip_media_type_init2(&pjsip_media_type_multipart_alternative, "multipart", "alternative");
+	pjsip_media_type_init2(&pjsip_media_type_multipart_mixed, "multipart", "mixed");
+	pjsip_media_type_init2(&pjsip_media_type_multipart_related, "multipart", "related");
+	pjsip_media_type_init2(&pjsip_media_type_text_plain, "text", "plain");
+
 
 	if (ast_sip_initialize_system()) {
 		ast_log(LOG_ERROR, "Failed to initialize SIP 'system' configuration section. Aborting load\n");

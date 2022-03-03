@@ -783,7 +783,7 @@ OOH323CallData* ooFindCallByToken(const char *callToken)
 
 
 
-/* Checks whether session with suplied ID and direction is already active*/
+/* Checks whether session with supplied ID and direction is already active*/
 ASN1BOOL ooIsSessionEstablished(OOH323CallData *call, int sessionID, char* dir)
 {
    OOLogicalChannel * temp = NULL;

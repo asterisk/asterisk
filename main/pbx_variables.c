@@ -98,6 +98,7 @@
 			double-quotes from the right-hand side (value). If you need to put a separator
 			character (comma or vert-bar), you will need to escape them by inserting a backslash
 			before them. Avoid its use if possible.</para>
+			<para>This application allows up to 99 variables to be set at once.</para>
 		</description>
 		<see-also>
 			<ref type="application">Set</ref>
@@ -349,6 +350,8 @@ const char *ast_str_retrieve_variable(struct ast_str **str, ssize_t maxlen, stru
 			s = ast_config_AST_RUN_DIR;
 		} else if (!strcmp(var, "ASTLOGDIR")) {
 			s = ast_config_AST_LOG_DIR;
+		} else if (!strcmp(var, "ASTSBINDIR")) {
+			s = ast_config_AST_SBIN_DIR;
 		} else if (!strcmp(var, "ENTITYID")) {
 			ast_eid_to_str(workspace, sizeof(workspace), &ast_eid_default);
 			s = workspace;
@@ -625,6 +628,11 @@ void ast_str_substitute_variables_varshead(struct ast_str **buf, ssize_t maxlen,
 
 void pbx_substitute_variables_helper_full(struct ast_channel *c, struct varshead *headp, const char *cp1, char *cp2, int count, size_t *used)
 {
+	pbx_substitute_variables_helper_full_location(c, headp, cp1, cp2, count, used, NULL, NULL, 0);
+}
+
+void pbx_substitute_variables_helper_full_location(struct ast_channel *c, struct varshead *headp, const char *cp1, char *cp2, int count, size_t *used, char *context, char *exten, int pri)
+{
 	/* Substitutes variables into cp2, based on string cp1, cp2 NO LONGER NEEDS TO BE ZEROED OUT!!!!  */
 	const char *whereweare;
 	const char *orig_cp2 = cp2;
@@ -686,7 +694,7 @@ void pbx_substitute_variables_helper_full(struct ast_channel *c, struct varshead
 			int offset;
 			int offset2;
 			int isfunction;
-			char *cp4;
+			char *cp4 = NULL;
 			char workspace[VAR_BUF_SIZE] = "";
 
 			/* We have a variable.  Find the start and end, and determine
@@ -759,7 +767,16 @@ void pbx_substitute_variables_helper_full(struct ast_channel *c, struct varshead
 				ast_debug(2, "Function %s result is '%s'\n", vars, cp4 ? cp4 : "(null)");
 			} else {
 				/* Retrieve variable value */
-				pbx_retrieve_variable(c, vars, &cp4, workspace, VAR_BUF_SIZE, headp);
+				/* For dialplan location, if we were told what to substitute explicitly, use that instead */
+				if (exten && !strcmp(vars, "EXTEN")) {
+					ast_copy_string(workspace, exten, VAR_BUF_SIZE);
+				} else if (context && !strcmp(vars, "CONTEXT")) {
+					ast_copy_string(workspace, context, VAR_BUF_SIZE);
+				} else if (pri && !strcmp(vars, "PRIORITY")) {
+					snprintf(workspace, VAR_BUF_SIZE, "%d", pri);
+				} else {
+					pbx_retrieve_variable(c, vars, &cp4, workspace, VAR_BUF_SIZE, headp);
+				}
 			}
 			if (cp4) {
 				cp4 = substring(cp4, offset, offset2, workspace, VAR_BUF_SIZE);
@@ -1157,7 +1174,7 @@ int pbx_builtin_setvar_multiple(struct ast_channel *chan, const char *vdata)
 	char *data;
 	int x;
 	AST_DECLARE_APP_ARGS(args,
-		AST_APP_ARG(pair)[24];
+		AST_APP_ARG(pair)[99]; /* parse up to 99 variables */
 	);
 	AST_DECLARE_APP_ARGS(pair,
 		AST_APP_ARG(name);

@@ -80,7 +80,7 @@ static void stun_close_sock(void)
 	}
 }
 
-/* \brief called by scheduler to send STUN request */
+/*! \brief called by scheduler to send STUN request */
 static int stun_monitor_request(const void *blarg)
 {
 	int res;
@@ -202,8 +202,6 @@ monitor_request_cleanup:
  * \brief Stops the STUN monitor thread.
  *
  * \note do not hold the args->lock while calling this
- *
- * \return Nothing
  */
 static void stun_stop_monitor(void)
 {
@@ -226,8 +224,6 @@ static void stun_stop_monitor(void)
  * \brief Starts the STUN monitor thread.
  *
  * \note The args->lock MUST be held when calling this function
- *
- * \return Nothing
  */
 static int stun_start_monitor(void)
 {
@@ -265,6 +261,7 @@ static int stun_start_monitor(void)
  * \brief Parse and setup the stunaddr parameter.
  *
  * \param value Configuration parameter variable value.
+ * \param reload
  *
  * \retval 0 on success.
  * \retval -1 on error.

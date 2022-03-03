@@ -300,8 +300,6 @@ static void sig_pri_dial_digits(struct sig_pri_chan *p, const char *dial_string)
  *
  * \param pri PRI span control structure.
  *
- * \return Nothing
- *
  * \note Assumes the pri->lock is already obtained.
  */
 static void sig_pri_span_devstate_changed(struct sig_pri_span *pri)
@@ -317,8 +315,6 @@ static void sig_pri_span_devstate_changed(struct sig_pri_span *pri)
  * \since 1.8
  *
  * \param p sig_pri channel structure.
- *
- * \return Nothing
  */
 static void sig_pri_set_caller_id(struct sig_pri_chan *p)
 {
@@ -361,8 +357,6 @@ static void sig_pri_set_caller_id(struct sig_pri_chan *p)
  *
  * \param p sig_pri channel structure.
  * \param dnid Dialed Number Identifier string.
- *
- * \return Nothing
  */
 static void sig_pri_set_dnid(struct sig_pri_chan *p, const char *dnid)
 {
@@ -378,8 +372,6 @@ static void sig_pri_set_dnid(struct sig_pri_chan *p, const char *dnid)
  *
  * \param p sig_pri channel structure.
  * \param rdnis Redirecting Directory Number Information Service (RDNIS) string.
- *
- * \return Nothing
  */
 static void sig_pri_set_rdnis(struct sig_pri_chan *p, const char *rdnis)
 {
@@ -715,9 +707,6 @@ static int ast_to_pri_char_set(enum AST_PARTY_CHAR_SET ast_char_set)
  *
  * \param ast_subaddress Asterisk party subaddress structure.
  * \param pri_subaddress PRI party subaddress structure.
- *
- * \return Nothing
- *
  */
 static void sig_pri_set_subaddress(struct ast_party_subaddress *ast_subaddress, const struct pri_party_subaddress *pri_subaddress)
 {
@@ -838,8 +827,6 @@ static int ast_pri_pack_hex_string(unsigned char *dst, char *src, int maxlen)
  * \param pri_subaddress PRI party subaddress structure.
  * \param ast_subaddress Asterisk party subaddress structure.
  *
- * \return Nothing
- *
  * \note Assumes that pri_subaddress has been previously memset to zero.
  */
 static void sig_pri_party_subaddress_from_ast(struct pri_party_subaddress *pri_subaddress, const struct ast_party_subaddress *ast_subaddress)
@@ -884,8 +871,6 @@ static void sig_pri_party_subaddress_from_ast(struct pri_party_subaddress *pri_s
  * \param pri_name PRI party name structure.
  * \param ast_name Asterisk party name structure.
  *
- * \return Nothing
- *
  * \note Assumes that pri_name has been previously memset to zero.
  */
 static void sig_pri_party_name_from_ast(struct pri_party_name *pri_name, const struct ast_party_name *ast_name)
@@ -908,8 +893,6 @@ static void sig_pri_party_name_from_ast(struct pri_party_name *pri_name, const s
  *
  * \param pri_number PRI party number structure.
  * \param ast_number Asterisk party number structure.
- *
- * \return Nothing
  *
  * \note Assumes that pri_number has been previously memset to zero.
  */
@@ -934,8 +917,6 @@ static void sig_pri_party_number_from_ast(struct pri_party_number *pri_number, c
  * \param pri_id PRI party id structure.
  * \param ast_id Asterisk party id structure.
  *
- * \return Nothing
- *
  * \note Assumes that pri_id has been previously memset to zero.
  */
 static void sig_pri_party_id_from_ast(struct pri_party_id *pri_id, const struct ast_party_id *ast_id)
@@ -954,8 +935,6 @@ static void sig_pri_party_id_from_ast(struct pri_party_id *pri_id, const struct 
  *
  * \param pvt sig_pri private channel structure.
  * \param ast Asterisk channel
- *
- * \return Nothing
  *
  * \note Assumes that the PRI lock is already obtained.
  */
@@ -985,8 +964,6 @@ static void sig_pri_redirecting_update(struct sig_pri_chan *pvt, struct ast_chan
  * \since 1.8
  *
  * \param p sig_pri channel structure.
- *
- * \return Nothing
  */
 static void sig_pri_dsp_reset_and_flush_digits(struct sig_pri_chan *p)
 {
@@ -1060,8 +1037,6 @@ static struct ast_channel *sig_pri_new_ast_channel(struct sig_pri_chan *p, int s
  * \since 1.8
  *
  * \param p Channel private control structure.
- *
- * \return Nothing
  */
 static void sig_pri_open_media(struct sig_pri_chan *p)
 {
@@ -1082,8 +1057,6 @@ static void sig_pri_open_media(struct sig_pri_chan *p)
  * \param p Channel private control structure.
  *
  * \note Assumes the private and owner are locked.
- *
- * \return Nothing
  */
 static void sig_pri_ami_channel_event(struct sig_pri_chan *p)
 {
@@ -1262,8 +1235,6 @@ int sig_pri_is_chan_available(struct sig_pri_chan *pvt)
  *
  * \note Assumes the pri->lock is already obtained.
  * \note Assumes the sig_pri_lock_private(pri->pvts[chanpos]) is already obtained.
- *
- * \return Nothing
  */
 static void sig_pri_lock_owner(struct sig_pri_span *pri, int chanpos)
 {
@@ -1295,8 +1266,6 @@ static void sig_pri_lock_owner(struct sig_pri_span *pri, int chanpos)
  *
  * \note Assumes the pri->lock is already obtained.
  * \note Assumes the sig_pri_lock_private(pri->pvts[chanpos]) is already obtained.
- *
- * \return Nothing
  */
 static void pri_queue_frame(struct sig_pri_span *pri, int chanpos, struct ast_frame *frame)
 {
@@ -1317,8 +1286,6 @@ static void pri_queue_frame(struct sig_pri_span *pri, int chanpos, struct ast_fr
  *
  * \note Assumes the pri->lock is already obtained.
  * \note Assumes the sig_pri_lock_private(pri->pvts[chanpos]) is already obtained.
- *
- * \return Nothing
  */
 static void sig_pri_queue_hold(struct sig_pri_span *pri, int chanpos)
 {
@@ -1339,8 +1306,6 @@ static void sig_pri_queue_hold(struct sig_pri_span *pri, int chanpos)
  *
  * \note Assumes the pri->lock is already obtained.
  * \note Assumes the sig_pri_lock_private(pri->pvts[chanpos]) is already obtained.
- *
- * \return Nothing
  */
 static void sig_pri_queue_unhold(struct sig_pri_span *pri, int chanpos)
 {
@@ -1362,8 +1327,6 @@ static void sig_pri_queue_unhold(struct sig_pri_span *pri, int chanpos)
  *
  * \note Assumes the pri->lock is already obtained.
  * \note Assumes the sig_pri_lock_private(pri->pvts[chanpos]) is already obtained.
- *
- * \return Nothing
  */
 static void pri_queue_control(struct sig_pri_span *pri, int chanpos, int subclass)
 {
@@ -1390,8 +1353,6 @@ static void pri_queue_control(struct sig_pri_span *pri, int chanpos, int subclas
  * \note The unlocking/locking sequence now present has been stress tested
  *       without deadlocks.  Please don't change it without consulting
  *       core development team members.
- *
- * \return Nothing
  */
 static void sig_pri_queue_hangup(struct sig_pri_span *pri, int chanpos)
 {
@@ -1427,11 +1388,10 @@ static void sig_pri_queue_hangup(struct sig_pri_span *pri, int chanpos)
  * \param pri PRI span control structure.
  * \param chanpos Channel position in the span.
  * \param cause String describing the cause to be placed into the frame.
+ * \param ast_cause
  *
  * \note Assumes the pri->lock is already obtained.
  * \note Assumes the sig_pri_lock_private(pri->pvts[chanpos]) is already obtained.
- *
- * \return Nothing
  */
 static void pri_queue_pvt_cause_data(struct sig_pri_span *pri, int chanpos, const char *cause, int ast_cause)
 {
@@ -1493,8 +1453,6 @@ static int pri_find_principle_by_call(struct sig_pri_span *pri, q931_call *call)
  * Asks the channel driver to queue the span for destruction at a
  * possibly later time, if (e.g.) locking considerations don't allow
  * destroying it right now.
- *
- * \return Nothing
  */
 static void pri_destroy_later(struct sig_pri_span *pri)
 {
@@ -1514,8 +1472,6 @@ static void pri_destroy_later(struct sig_pri_span *pri)
  * \param cause Reason call was killed.
  *
  * \note Assumes the pvt->pri->lock is already obtained.
- *
- * \return Nothing
  */
 static void sig_pri_kill_call(struct sig_pri_span *pri, q931_call *call, int cause)
 {
@@ -1613,7 +1569,7 @@ static int pri_fixup_principle(struct sig_pri_span *pri, int principle, q931_cal
 	int x;
 
 	if (principle < 0 || pri->numchans <= principle) {
-		/* Out of rannge */
+		/* Out of range */
 		return -1;
 	}
 	if (!call) {
@@ -1850,8 +1806,6 @@ static char *dialplan2str(int dialplan)
  * \param pri PRI span control structure.
  * \param number Number to apply numbering plan.
  * \param plan Numbering plan to apply.
- *
- * \return Nothing
  */
 static void apply_plan_to_number(char *buf, size_t size, const struct sig_pri_span *pri, const char *number, int plan)
 {
@@ -1886,8 +1840,6 @@ static void apply_plan_to_number(char *buf, size_t size, const struct sig_pri_sp
  * \param pri PRI span control structure.
  * \param number Number to apply numbering plan.
  * \param plan Numbering plan to apply.
- *
- * \return Nothing
  */
 static void apply_plan_to_existing_number(char *buf, size_t size, const struct sig_pri_span *pri, const char *number, int plan)
 {
@@ -1908,8 +1860,6 @@ static void apply_plan_to_existing_number(char *buf, size_t size, const struct s
  * \param pri PRI span control structure.
  *
  * \note Assumes the pri->lock is already obtained.
- *
- * \return Nothing
  */
 static void pri_check_restart(struct sig_pri_span *pri)
 {
@@ -1956,8 +1906,6 @@ static void pri_check_restart(struct sig_pri_span *pri)
  * \param pri PRI span control structure.
  *
  * \note Assumes the pri->lock is already obtained.
- *
- * \return Nothing
  */
 static void sig_pri_init_config(struct sig_pri_chan *pvt, struct sig_pri_span *pri)
 {
@@ -2108,7 +2056,7 @@ static void *do_idle_thread(void *v_pvt)
 		}
 		ast_frfree(f);
 	}
-	/* Hangup the channel since nothing happend */
+	/* Hangup the channel since nothing happened */
 	ast_hangup(chan);
 	return NULL;
 }
@@ -2270,8 +2218,6 @@ void pri_event_noalarm(struct sig_pri_span *pri, int index, int before_start_pri
  *
  * \note The filled in ast_name structure needs to be destroyed by
  * ast_party_name_free() when it is no longer needed.
- *
- * \return Nothing
  */
 static void sig_pri_party_name_convert(struct ast_party_name *ast_name, const struct pri_party_name *pri_name)
 {
@@ -2292,8 +2238,6 @@ static void sig_pri_party_name_convert(struct ast_party_name *ast_name, const st
  *
  * \note The filled in ast_number structure needs to be destroyed by
  * ast_party_number_free() when it is no longer needed.
- *
- * \return Nothing
  */
 static void sig_pri_party_number_convert(struct ast_party_number *ast_number, const struct pri_party_number *pri_number, struct sig_pri_span *pri)
 {
@@ -2318,8 +2262,6 @@ static void sig_pri_party_number_convert(struct ast_party_number *ast_number, co
  *
  * \note The filled in ast_id structure needs to be destroyed by
  * ast_party_id_free() when it is no longer needed.
- *
- * \return Nothing
  */
 static void sig_pri_party_id_convert(struct ast_party_id *ast_id, const struct pri_party_id *pri_id, struct sig_pri_span *pri)
 {
@@ -2348,8 +2290,6 @@ static void sig_pri_party_id_convert(struct ast_party_id *ast_id, const struct p
  *
  * \note The filled in ast_redirecting structure needs to be destroyed by
  * ast_party_redirecting_free() when it is no longer needed.
- *
- * \return Nothing
  */
 static void sig_pri_redirecting_convert(struct ast_party_redirecting *ast_redirecting,
 	const struct pri_party_redirecting *pri_redirecting,
@@ -2473,8 +2413,6 @@ static void party_subaddress_json_to_ami(struct ast_str **msg, const char *prefi
  * \param msg Event message string being built.
  * \param prefix Prefix to add to the party id lines.
  * \param party Party information to encode.
- *
- * \return Nothing
  */
 static void party_json_to_ami(struct ast_str **msg, const char *prefix, struct ast_json *party)
 {
@@ -2554,8 +2492,6 @@ static void send_mcid(struct ast_channel *chan, struct ast_party_id *caller, str
  *
  * \note Assumes the pri->lock is already obtained.
  * \note Assumes the owner channel lock is already obtained if still present.
- *
- * \return Nothing
  */
 static void sig_pri_mcid_event(struct sig_pri_span *pri, const struct pri_subcmd_mcid_req *mcid, struct ast_channel *owner)
 {
@@ -2609,8 +2545,6 @@ struct xfer_rsp_data {
  * \param is_successful TRUE if the transfer was successful.
  *
  * \note Assumes the rsp->pri->lock is already obtained.
- *
- * \return Nothing
  */
 static void sig_pri_transfer_rsp(struct xfer_rsp_data *rsp, int is_successful)
 {
@@ -2879,8 +2813,6 @@ static struct sig_pri_cc_monitor_instance *sig_pri_find_cc_monitor_by_cc_id(stru
  * \since 1.8
  *
  * \param data Monitor instance to destroy.
- *
- * \return Nothing
  */
 static void sig_pri_cc_monitor_instance_destroy(void *data)
 {
@@ -3028,8 +2960,6 @@ static int sig_pri_cc_available(struct sig_pri_span *pri, int chanpos, long cc_i
  *
  * \note Assumes the pri->lock is already obtained.
  * \note Assumes the sig_pri_lock_private(pri->pvts[chanpos]) is already obtained.
- *
- * \return Nothing
  */
 static void sig_pri_cc_generic_check(struct sig_pri_span *pri, int chanpos, enum ast_cc_service_type service)
 {
@@ -3125,8 +3055,6 @@ done:
  * \param pri PRI span control structure.
  * \param cc_id CC record ID.
  * \param is_agent TRUE if the cc_id is for an agent.
- *
- * \return Nothing
  */
 static void sig_pri_cc_link_canceled(struct sig_pri_span *pri, long cc_id, int is_agent)
 {
@@ -3359,8 +3287,6 @@ static enum ast_aoc_time_scale sig_pri_aoc_scale_to_ast(enum PRI_AOC_TIME_SCALE 
  * \note Assumes the pri->lock is already obtained.
  * \note Assumes the sig_pri private is locked
  * \note Assumes the owner channel lock is already obtained.
- *
- * \return Nothing
  */
 static void sig_pri_aoc_s_from_pri(const struct pri_subcmd_aoc_s *aoc_s, struct ast_channel *owner, int passthrough)
 {
@@ -3447,13 +3373,11 @@ static void sig_pri_aoc_s_from_pri(const struct pri_subcmd_aoc_s *aoc_s, struct 
  * \brief Generate AOC Request Response
  * \since 1.8
  *
- * \param aoc_request
+ * \param aoc_request, pvt, call
  *
  * \note Assumes the pri->lock is already obtained.
  * \note Assumes the sig_pri private is locked
  * \note Assumes the owner channel lock is already obtained.
- *
- * \return Nothing
  */
 static void sig_pri_aoc_request_from_pri(const struct pri_subcmd_aoc_request *aoc_request, struct sig_pri_chan *pvt, q931_call *call)
 {
@@ -3516,15 +3440,13 @@ static void sig_pri_aoc_request_from_pri(const struct pri_subcmd_aoc_request *ao
  * \brief Generate AOC-D AST_CONTROL_AOC frame
  * \since 1.8
  *
- * \param aoc_e AOC-D event parameters.
+ * \param aoc_d AOC-D event parameters.
  * \param owner Asterisk channel associated with the call.
  * \param passthrough indicating if this message should be queued on the ast channel
  *
  * \note Assumes the pri->lock is already obtained.
  * \note Assumes the sig_pri private is locked
  * \note Assumes the owner channel lock is already obtained.
- *
- * \return Nothing
  */
 static void sig_pri_aoc_d_from_pri(const struct pri_subcmd_aoc_d *aoc_d, struct ast_channel *owner, int passthrough)
 {
@@ -3632,8 +3554,6 @@ static void sig_pri_aoc_d_from_pri(const struct pri_subcmd_aoc_d *aoc_d, struct 
  * \note Assumes the sig_pri private is locked
  * \note Assumes the owner channel lock is already obtained.
  * \note owner channel may be NULL. In that case, generate event only
- *
- * \return Nothing
  */
 static void sig_pri_aoc_e_from_pri(const struct pri_subcmd_aoc_e *aoc_e, struct ast_channel *owner, int passthrough)
 {
@@ -3748,9 +3668,7 @@ static void sig_pri_aoc_e_from_pri(const struct pri_subcmd_aoc_e *aoc_e, struct 
  * \brief send an AOC-S message on the current call
  *
  * \param pvt sig_pri private channel structure.
- * \param generic decoded ast AOC message
- *
- * \return Nothing
+ * \param decoded decoded ast AOC message
  *
  * \note Assumes that the PRI lock is already obtained.
  */
@@ -3847,9 +3765,7 @@ static void sig_pri_aoc_s_from_ast(struct sig_pri_chan *pvt, struct ast_aoc_deco
  * \brief send an AOC-D message on the current call
  *
  * \param pvt sig_pri private channel structure.
- * \param generic decoded ast AOC message
- *
- * \return Nothing
+ * \param decoded decoded ast AOC message
  *
  * \note Assumes that the PRI lock is already obtained.
  */
@@ -3930,9 +3846,7 @@ static void sig_pri_aoc_d_from_ast(struct sig_pri_chan *pvt, struct ast_aoc_deco
  * \brief send an AOC-E message on the current call
  *
  * \param pvt sig_pri private channel structure.
- * \param generic decoded ast AOC message
- *
- * \return Nothing
+ * \param decoded decoded ast AOC message
  *
  * \note Assumes that the PRI lock is already obtained.
  */
@@ -4050,8 +3964,6 @@ static void sig_pri_aoc_e_from_ast(struct sig_pri_chan *pvt, struct ast_aoc_deco
  *
  * \note Assumes the pri->lock is already obtained.
  * \note Assumes the sig_pri_lock_private(pri->pvts[chanpos]) is already obtained.
- *
- * \return Nothing
  */
 static void sig_pri_send_aoce_termination_request(struct sig_pri_span *pri, int chanpos, unsigned int ms)
 {
@@ -4127,8 +4039,6 @@ static int sig_pri_is_cis_call(int channel)
  * need to use the pointer to send a response message back.
  *
  * \note Assumes the pri->lock is already obtained.
- *
- * \return Nothing
  */
 static void sig_pri_handle_cis_subcmds(struct sig_pri_span *pri, int event_id,
 	const struct pri_subcommands *subcmds, q931_call *call_rsp)
@@ -4344,8 +4254,6 @@ static void sig_pri_handle_cis_subcmds(struct sig_pri_span *pri, int event_id,
  *
  * \note Assumes the pri->lock is already obtained.
  * \note Assumes the sig_pri_lock_private(pri->pvts[chanpos]) is already obtained.
- *
- * \return Nothing
  */
 static void sig_pri_handle_subcmds(struct sig_pri_span *pri, int chanpos, int event_id,
 	const struct pri_subcommands *subcmds, q931_call *call_rsp)
@@ -5329,8 +5237,6 @@ static const sig_pri_moh_fsm_state sig_pri_moh_fsm[SIG_PRI_MOH_STATE_NUM] = {
  *
  * \note Assumes the pvt->pri->lock is already obtained.
  * \note Assumes the sig_pri_lock_private(pvt) is already obtained.
- *
- * \return Nothing
  */
 static void sig_pri_moh_fsm_event(struct ast_channel *chan, struct sig_pri_chan *pvt, enum sig_pri_moh_event event)
 {
@@ -5507,8 +5413,6 @@ done_with_private:;
  * \param ev Hold acknowledge event received.
  *
  * \note Assumes the pri->lock is already obtained.
- *
- * \return Nothing
  */
 static void sig_pri_handle_hold_ack(struct sig_pri_span *pri, pri_event *ev)
 {
@@ -5560,8 +5464,6 @@ static void sig_pri_handle_hold_ack(struct sig_pri_span *pri, pri_event *ev)
  * \param ev Hold reject event received.
  *
  * \note Assumes the pri->lock is already obtained.
- *
- * \return Nothing
  */
 static void sig_pri_handle_hold_rej(struct sig_pri_span *pri, pri_event *ev)
 {
@@ -5609,8 +5511,6 @@ static void sig_pri_handle_hold_rej(struct sig_pri_span *pri, pri_event *ev)
  * \param ev Retrieve event received.
  *
  * \note Assumes the pri->lock is already obtained.
- *
- * \return Nothing
  */
 static void sig_pri_handle_retrieve(struct sig_pri_span *pri, pri_event *ev)
 {
@@ -5683,8 +5583,6 @@ static void sig_pri_handle_retrieve(struct sig_pri_span *pri, pri_event *ev)
  * \param ev Retrieve acknowledge event received.
  *
  * \note Assumes the pri->lock is already obtained.
- *
- * \return Nothing
  */
 static void sig_pri_handle_retrieve_ack(struct sig_pri_span *pri, pri_event *ev)
 {
@@ -5723,8 +5621,6 @@ static void sig_pri_handle_retrieve_ack(struct sig_pri_span *pri, pri_event *ev)
  * \param ev Retrieve reject event received.
  *
  * \note Assumes the pri->lock is already obtained.
- *
- * \return Nothing
  */
 static void sig_pri_handle_retrieve_rej(struct sig_pri_span *pri, pri_event *ev)
 {
@@ -5773,8 +5669,6 @@ static void sig_pri_handle_retrieve_rej(struct sig_pri_span *pri, pri_event *ev)
  *
  * \note Assumes the pri->lock is already obtained.
  * \note Assumes the sig_pri_lock_private(pri->pvts[chanpos]) is already obtained.
- *
- * \return Nothing
  */
 static void setup_incoming_channel(struct sig_pri_span *pri, int chanpos, pri_event *ev)
 {
@@ -5867,8 +5761,6 @@ static void setup_incoming_channel(struct sig_pri_span *pri, int chanpos, pri_ev
  * \param e SETUP event received.
  *
  * \note Assumes the pri->lock is already obtained.
- *
- * \return Nothing
  */
 static void sig_pri_handle_setup(struct sig_pri_span *pri, pri_event *e)
 {
@@ -6485,7 +6377,7 @@ static void *pri_dchannel(void *vpri)
 					pri_find_dchan(pri);
 				}
 
-				/* Note presense of D-channel */
+				/* Note presence of D-channel */
 				time(&pri->lastreset);
 
 				/* Restart in 5 seconds */
@@ -7794,12 +7686,10 @@ int sig_pri_hangup(struct sig_pri_chan *p, struct ast_channel *ast)
  *
  * \param p sig_pri channel structure.
  * \param rdest Dial string buffer to extract called number and subaddress.
- * \param called Buffer to fill with extracted <number>[:<subaddress>]
+ * \param called Buffer to fill with extracted \<number\>[:\<subaddress\>]
  * \param called_buff_size Size of buffer to fill.
  *
  * \note Parsing must remain in sync with sig_pri_call().
- *
- * \return Nothing
  */
 void sig_pri_extract_called_num_subaddr(struct sig_pri_chan *p, const char *rdest, char *called, size_t called_buff_size)
 {
@@ -8604,7 +8494,7 @@ int sig_pri_indicate(struct sig_pri_chan *p, struct ast_channel *chan, int condi
 					}
 					/*
 					 * If hangup was delayed for this AOC-E msg, waiting_for_aoc
-					 * will be set.  A hangup is already occuring via a timeout during
+					 * will be set.  A hangup is already occurring via a timeout during
 					 * this delay.  Instead of waiting for that timeout to occur, go ahead
 					 * and initiate the hangup since the delay is no longer necessary.
 					 */
@@ -8832,8 +8722,6 @@ int sig_pri_digit_begin(struct sig_pri_chan *pvt, struct ast_channel *ast, char 
  * \param ast Asterisk channel
  *
  * \note Channel and private lock are already held.
- *
- * \return Nothing
  */
 void sig_pri_dial_complete(struct sig_pri_chan *pvt, struct ast_channel *ast)
 {
@@ -8869,8 +8757,6 @@ void sig_pri_dial_complete(struct sig_pri_chan *pvt, struct ast_channel *ast)
  * \param vm_box Voicemail mailbox number
  * \param mbox_id Mailbox id
  * \param num_messages Number of messages waiting.
- *
- * \return Nothing
  */
 static void sig_pri_send_mwi_indication(struct sig_pri_span *pri, const char *vm_number, const char *vm_box, const char *mbox_id, int num_messages)
 {
@@ -8913,10 +8799,7 @@ static void sig_pri_send_mwi_indication(struct sig_pri_span *pri, const char *vm
  *
  * \param userdata the data provider in the call to stasis_subscribe()
  * \param sub the subscription to which the message was delivered for this callback
- * \param topic the topic on which the message was published
  * \param msg the message being passed to the subscriber
- *
- * \return Nothing
  */
 static void sig_pri_mwi_event_cb(void *userdata, struct stasis_subscription *sub, struct stasis_message *msg)
 {
@@ -8953,8 +8836,6 @@ static void sig_pri_mwi_event_cb(void *userdata, struct stasis_subscription *sub
  * \since 1.8
  *
  * \param pri PRI span control structure.
- *
- * \return Nothing
  */
 static void sig_pri_mwi_cache_update(struct sig_pri_span *pri)
 {
@@ -8987,8 +8868,6 @@ static void sig_pri_mwi_cache_update(struct sig_pri_span *pri)
  * \since 1.8
  *
  * \param pri PRI span control structure.
- *
- * \return Nothing
  */
 void sig_pri_stop_pri(struct sig_pri_span *pri)
 {
@@ -9047,8 +8926,6 @@ static int sig_pri_cmp_pri_chans(const void *left, const void *right)
  * \details
  * Since the chan_dahdi.conf file can declare channels in any order, we need to sort
  * the private channel pointer array.
- *
- * \return Nothing
  */
 static void sig_pri_sort_pri_chans(struct sig_pri_span *pri)
 {
@@ -9282,8 +9159,6 @@ int sig_pri_start_pri(struct sig_pri_span *pri)
  * \param noalarm Non-zero if not in alarm mode.
  *
  * \note Assumes the sig_pri_lock_private(p) is already obtained.
- *
- * \return Nothing
  */
 void sig_pri_chan_alarm_notify(struct sig_pri_chan *p, int noalarm)
 {
@@ -9307,7 +9182,7 @@ void sig_pri_chan_alarm_notify(struct sig_pri_chan *p, int noalarm)
 /*!
  * \brief Determine if layer 1 alarms are ignored.
  *
- * \param p Channel private pointer.
+ * \param pri Channel private pointer.
  *
  * \return TRUE if the alarm is ignored.
  */
@@ -9340,8 +9215,6 @@ struct sig_pri_chan *sig_pri_chan_new(void *pvt_data, struct sig_pri_span *pri, 
  * \since 1.8
  *
  * \param doomed sig_pri private channel structure to delete.
- *
- * \return Nothing
  */
 void sig_pri_chan_delete(struct sig_pri_chan *doomed)
 {
@@ -9514,8 +9387,6 @@ void sig_pri_fixup(struct ast_channel *oldchan, struct ast_channel *newchan, str
  *
  * \param p Channel to send text over
  * \param text Text to send.
- *
- * \return Nothing
  */
 void sig_pri_sendtext(struct sig_pri_chan *p, const char *text)
 {
@@ -9639,8 +9510,6 @@ int sig_pri_cc_agent_stop_offer_timer(struct ast_cc_agent *agent)
  * The duty of this is to issue a propper response to a
  * CC request from the caller by acknowledging receipt
  * of that request or rejecting it.
- *
- * \return Nothing
  */
 void sig_pri_cc_agent_req_rsp(struct ast_cc_agent *agent, enum ast_cc_agent_response_reason reason)
 {
@@ -9863,8 +9732,6 @@ int sig_pri_cc_agent_callee_available(struct ast_cc_agent *agent)
  * \note
  * The agent private_data pointer may be NULL if the agent
  * constructor failed.
- *
- * \return Nothing
  */
 void sig_pri_cc_agent_destructor(struct ast_cc_agent *agent)
 {
@@ -10159,8 +10026,6 @@ int sig_pri_load(const char *cc_type_name)
 /*!
  * \brief Unload the sig_pri submodule.
  * \since 1.8
- *
- * \return Nothing
  */
 void sig_pri_unload(void)
 {

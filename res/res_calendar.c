@@ -83,7 +83,7 @@
 					<enum name="summary"><para>The VEVENT SUMMARY property or Exchange event 'subject'</para></enum>
 					<enum name="description"><para>The text description of the event</para></enum>
 					<enum name="organizer"><para>The organizer of the event</para></enum>
-					<enum name="location"><para>The location of the eventt</para></enum>
+					<enum name="location"><para>The location of the event</para></enum>
 					<enum name="categories"><para>The categories of the event</para></enum>
 					<enum name="priority"><para>The priority of the event</para></enum>
 					<enum name="calendar"><para>The name of the calendar associated with the event</para></enum>
@@ -1112,8 +1112,8 @@ static int calendar_busy_exec(struct ast_channel *chan, const char *cmd, char *d
 }
 
 static struct ast_custom_function calendar_busy_function = {
-    .name = "CALENDAR_BUSY",
-    .read = calendar_busy_exec,
+	.name = "CALENDAR_BUSY",
+	.read = calendar_busy_exec,
 };
 
 static int add_event_to_list(struct eventlist *events, struct ast_calendar_event *event, time_t start, time_t end)
@@ -1297,8 +1297,8 @@ static int calendar_query_exec(struct ast_channel *chan, const char *cmd, char *
 }
 
 static struct ast_custom_function calendar_query_function = {
-    .name = "CALENDAR_QUERY",
-    .read = calendar_query_exec,
+	.name = "CALENDAR_QUERY",
+	.read = calendar_query_exec,
 };
 
 static void calendar_join_attendees(struct ast_calendar_event *event, char *buf, size_t len)

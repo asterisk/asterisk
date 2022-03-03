@@ -33,6 +33,8 @@
 /*** MODULEINFO
         <defaultenabled>no</defaultenabled>
 	<support_level>extended</support_level>
+	<deprecated_in>19</deprecated_in>
+	<removed_in>21</removed_in>
  ***/
 
 #include "asterisk.h"
@@ -158,7 +160,6 @@ static uint16_t t1 = 250;
 static uint16_t t7 = 200;
 static uint16_t t8 = 300;
 static uint32_t keepalive = 60;
-static int pktccopsdebug = 0;
 static int pktcreload = 0;
 static int gateinfoperiod = 60;
 static int gatetimeout = 150;
@@ -637,9 +638,7 @@ static struct cops_gate *cops_gate_cmd(int cmd, struct cops_cmts *cmts,
 		ast_debug(1, "Construct new gate\n");
 		cops_construct_gate(cmd, gateset->object->next->next->next->contents, trid, mta, actcount, bitrate, psize, ssip, ssport, 0, cmts);
 	}
-	if (pktccopsdebug) {
-		ast_debug(3, "send cmd\n");
-	}
+	ast_debug(3, "send cmd\n");
 	cops_sendmsg(cmts->sfd, gateset);
 	cops_freemsg(gateset);
 	ast_free(gateset);
@@ -1335,7 +1334,7 @@ static char *pktccops_gateset(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	case CLI_INIT:
 		e->command = "pktccops gateset";
 		e->usage =
-			"Usage: pktccops gateset <cmts> <mta> <acctcount> <bitrate> <packet size> <switch ip> <switch port>\n"
+			"Usage: pktccops gateset <cmts> <mta> <actcount> <bitrate> <packet size> <switch ip> <switch port>\n"
 			"       Send Gate-Set to cmts.\n";
 		return NULL;
 	case CLI_GENERATE:
@@ -1380,41 +1379,12 @@ static char *pktccops_gateset(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	return CLI_SUCCESS;
 }
 
-static char *pktccops_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "pktccops set debug {on|off}";
-		e->usage =
-			"Usage: pktccops set debug {on|off}\n"
-			"	Turn on/off debuging\n";
-		return NULL;
-	case CLI_GENERATE:
-		return NULL;
-	}
-
-	if (a->argc != e->args)
-		return CLI_SHOWUSAGE;
-	if (!strncasecmp(a->argv[e->args - 1], "on", 2)) {
-		pktccopsdebug = 1;
-		ast_cli(a->fd, "PktcCOPS Debugging Enabled\n");
-	} else if (!strncasecmp(a->argv[e->args - 1], "off", 2)) {
-		pktccopsdebug = 0;
-		ast_cli(a->fd, "PktcCOPS Debugging Disabled\n");
-	} else {
-		return CLI_SHOWUSAGE;
-	}
-	return CLI_SUCCESS;
-
-}
-
 static struct ast_cli_entry cli_pktccops[] = {
 	AST_CLI_DEFINE(pktccops_show_cmtses, "List PacketCable COPS CMTSes"),
 	AST_CLI_DEFINE(pktccops_show_gates, "List PacketCable COPS GATEs"),
 	AST_CLI_DEFINE(pktccops_show_pools, "List PacketCable MTA pools"),
 	AST_CLI_DEFINE(pktccops_gateset, "Send Gate-Set to cmts"),
 	AST_CLI_DEFINE(pktccops_gatedel, "Send Gate-Det to cmts"),
-	AST_CLI_DEFINE(pktccops_debug, "Enable/Disable COPS debugging")
 };
 
 static int pktccops_add_ippool(struct cops_ippool *ippool)

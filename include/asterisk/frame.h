@@ -49,10 +49,10 @@ extern "C" {
  * \arg \b IMAGE:  Image transport, mostly used in IAX
  * \arg \b TEXT:   Text messages and character by character (real time text)
  * \arg \b TEXT_DATA:   Text messages in an ast_msg_data structure
- * \arg \b HTML:   URL's and web pages
+ * \arg \b HTML:   URLs and web pages
  * \arg \b MODEM:  Modulated data encodings, such as T.38 and V.150
  * \arg \b IAX:    Private frame type for the IAX protocol
- * \arg \b CNG:    Comfort noice frames
+ * \arg \b CNG:    Comfort noise frames
  * \arg \b CONTROL:A control frame, subclass defined as AST_CONTROL_
  * \arg \b NULL:   Empty, useless frame
  *
@@ -430,7 +430,7 @@ struct ast_control_pvt_cause_code {
  * Option data is a single signed char value 0 or 1 */
 #define AST_OPTION_TONE_VERIFY		1
 
-/*! Put a compatible channel into TDD (TTY for the hearing-impared) mode
+/*! Put a compatible channel into TDD (TTY for the hearing-impaired) mode
  * Option data is a single signed char value 0 or 1 */
 #define	AST_OPTION_TDD			2
 
@@ -535,23 +535,23 @@ struct ast_option_header {
 		uint8_t data[0];
 };
 
+#if 0 /* Unimplemented */
 /*! \brief  Requests a frame to be allocated
  *
- * \param source
+ * \param source, len
  * Request a frame be allocated.  source is an optional source of the frame,
  * len is the requested length, or "0" if the caller will supply the buffer
  */
-#if 0 /* Unimplemented */
 struct ast_frame *ast_fralloc(char *source, int len);
 #endif
 
 /*!
  * \brief Frees a frame or list of frames
  *
- * \param fr Frame to free, or head of list to free
+ * \param frame Frame to free, or head of list to free
  * \param cache Whether to consider this frame for frame caching
  */
-void ast_frame_free(struct ast_frame *fr, int cache);
+void ast_frame_free(struct ast_frame *frame, int cache);
 
 #define ast_frfree(fr) ast_frame_free(fr, 1)
 

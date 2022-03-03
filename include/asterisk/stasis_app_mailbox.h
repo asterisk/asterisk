@@ -31,8 +31,6 @@
 #include "asterisk/app.h"
 #include "asterisk/stasis_app.h"
 
-/*! @{ */
-
 /*! Stasis mailbox operation result codes */
 enum stasis_mailbox_result {
 	/*! Mailbox operation completed successfully */
@@ -51,15 +49,15 @@ enum stasis_mailbox_result {
  *        be set to the JSON representation of the mailbox
  *
  * \return stasis mailbox result code indicating success or failure and cause
- * \return \c NULL on error.
+ * \retval NULL on error.
  */
 enum stasis_mailbox_result stasis_app_mailbox_to_json(const char *name, struct ast_json **json);
 
 /*!
- * brief Convert mailboxes to json array
+ * \brief Convert mailboxes to json array
  *
  * \return JSON representation of the mailboxes
- * \return \c NULL on error.
+ * \retval NULL on error.
  */
 struct ast_json *stasis_app_mailboxes_to_json(void);
 
@@ -72,8 +70,8 @@ struct ast_json *stasis_app_mailboxes_to_json(void);
  * \param old_messages count of old (read) messages in the mailbox
  * \param new_messages count of new (unread) messages in the mailbox
  *
- * \return 0 if successful
- * \return -1 on internal error.
+ * \retval 0 if successful
+ * \retval -1 on internal error.
  */
 int stasis_app_mailbox_update(
 	const char *name, int old_messages, int new_messages);

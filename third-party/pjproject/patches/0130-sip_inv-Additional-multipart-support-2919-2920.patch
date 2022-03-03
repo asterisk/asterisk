@@ -1,0 +1,661 @@
+From 0ed41eb5fd0e4192e1b7dc374f819d17aef3e805 Mon Sep 17 00:00:00 2001
+From: George Joseph <gtjoseph@users.noreply.github.com>
+Date: Tue, 21 Dec 2021 19:32:22 -0700
+Subject: [PATCH] sip_inv:  Additional multipart support (#2919) (#2920)
+
+---
+ pjsip/include/pjsip-ua/sip_inv.h       | 108 ++++++++++-
+ pjsip/src/pjsip-ua/sip_inv.c           | 240 ++++++++++++++++++++-----
+ pjsip/src/test/inv_offer_answer_test.c | 103 ++++++++++-
+ 3 files changed, 394 insertions(+), 57 deletions(-)
+
+diff --git a/pjsip/include/pjsip-ua/sip_inv.h b/pjsip/include/pjsip-ua/sip_inv.h
+index 14f2d23fa..c33551786 100644
+--- a/pjsip/include/pjsip-ua/sip_inv.h
++++ b/pjsip/include/pjsip-ua/sip_inv.h
+@@ -451,11 +451,11 @@ struct pjsip_inv_session
+ 
+ 
+ /**
+- * This structure represents SDP information in a pjsip_rx_data. Application
+- * retrieve this information by calling #pjsip_rdata_get_sdp_info(). This
++ * This structure represents SDP information in a pjsip_(rx|tx)_data. Application
++ * retrieve this information by calling #pjsip_get_sdp_info(). This
+  * mechanism supports multipart message body.
+  */
+-typedef struct pjsip_rdata_sdp_info
++typedef struct pjsip_sdp_info
+ {
+     /**
+      * Pointer and length of the text body in the incoming message. If
+@@ -475,7 +475,15 @@ typedef struct pjsip_rdata_sdp_info
+      */
+     pjmedia_sdp_session *sdp;
+ 
+-} pjsip_rdata_sdp_info;
++} pjsip_sdp_info;
++
++/**
++ * For backwards compatibility and completeness,
++ * pjsip_rdata_sdp_info and pjsip_tdata_sdp_info
++ * are typedef'd to pjsip_sdp_info.
++ */
++typedef pjsip_sdp_info pjsip_rdata_sdp_info;
++typedef pjsip_sdp_info pjsip_tdata_sdp_info;
+ 
+ 
+ /**
+@@ -1045,6 +1053,44 @@ PJ_DECL(pj_status_t) pjsip_create_sdp_body(pj_pool_t *pool,
+ 					   pjmedia_sdp_session *sdp,
+ 					   pjsip_msg_body **p_body);
+ 
++/**
++ * This is a utility function to create a multipart body with the
++ * SIP body as the first part.
++ *
++ * @param pool		Pool to allocate memory.
++ * @param sdp		SDP session to be put in the SIP message body.
++ * @param p_body	Pointer to receive SIP message body containing
++ *			the SDP session.
++ *
++ * @return		PJ_SUCCESS on success.
++ */
++PJ_DECL(pj_status_t) pjsip_create_multipart_sdp_body( pj_pool_t *pool,
++                                           pjmedia_sdp_session *sdp,
++                                           pjsip_msg_body **p_body);
++
++/**
++ * Retrieve SDP information from a message body. Application should
++ * prefer to use this function rather than parsing the SDP manually since
++ * this function supports multipart message body.
++ *
++ * This function will only parse the SDP once, the first time it is called
++ * on the same message. Subsequent call on the same message will just pick
++ * up the already parsed SDP from the message.
++ *
++ * @param pool               Pool to allocate memory.
++ * @param body               The message body.
++ * @param msg_media_type     From the rdata or tdata Content-Type header, if available.
++ *                           If NULL, the content_type from the body will be used.
++ * @param search_media_type  The media type to search for.
++ *                           If NULL, "application/sdp" will be used.
++ *
++ * @return                   The SDP info.
++ */
++PJ_DECL(pjsip_sdp_info*) pjsip_get_sdp_info(pj_pool_t *pool,
++					   pjsip_msg_body *body,
++					   pjsip_media_type *msg_media_type,
++					   const pjsip_media_type *search_media_type);
++
+ /**
+  * Retrieve SDP information from an incoming message. Application should
+  * prefer to use this function rather than parsing the SDP manually since
+@@ -1061,6 +1107,60 @@ PJ_DECL(pj_status_t) pjsip_create_sdp_body(pj_pool_t *pool,
+ PJ_DECL(pjsip_rdata_sdp_info*) pjsip_rdata_get_sdp_info(pjsip_rx_data *rdata);
+ 
+ 
++/**
++ * Retrieve SDP information from an incoming message. Application should
++ * prefer to use this function rather than parsing the SDP manually since
++ * this function supports multipart message body.
++ *
++ * This function will only parse the SDP once, the first time it is called
++ * on the same message. Subsequent call on the same message will just pick
++ * up the already parsed SDP from the message.
++ *
++ * @param rdata               The incoming message.
++ * @param search_media_type   The SDP media type to search for.
++ *                            If NULL, "application/sdp" will be used.
++ *
++ * @return                    The SDP info.
++ */
++PJ_DECL(pjsip_rdata_sdp_info*) pjsip_rdata_get_sdp_info2(
++					    pjsip_rx_data *rdata,
++					    const pjsip_media_type *search_media_type);
++
++/**
++ * Retrieve SDP information from an outgoing message. Application should
++ * prefer to use this function rather than parsing the SDP manually since
++ * this function supports multipart message body.
++ *
++ * This function will only parse the SDP once, the first time it is called
++ * on the same message. Subsequent call on the same message will just pick
++ * up the already parsed SDP from the message.
++ *
++ * @param tdata    The outgoing message.
++ *
++ * @return         The SDP info.
++ */
++PJ_DECL(pjsip_tdata_sdp_info*) pjsip_tdata_get_sdp_info(pjsip_tx_data *tdata);
++
++/**
++ * Retrieve SDP information from an outgoing message. Application should
++ * prefer to use this function rather than parsing the SDP manually since
++ * this function supports multipart message body.
++ *
++ * This function will only parse the SDP once, the first time it is called
++ * on the same message. Subsequent call on the same message will just pick
++ * up the already parsed SDP from the message.
++ *
++ * @param tdata               The outgoing message.
++ * @param search_media_type   The SDP media type to search for.
++ *                            If NULL, "application/sdp" will be used.
++ *
++ * @return                    The SDP info.
++ */
++PJ_DECL(pjsip_tdata_sdp_info*) pjsip_tdata_get_sdp_info2(
++					    pjsip_tx_data *tdata,
++					    const pjsip_media_type *search_media_type);
++
++
+ PJ_END_DECL
+ 
+ /**
+diff --git a/pjsip/src/pjsip-ua/sip_inv.c b/pjsip/src/pjsip-ua/sip_inv.c
+index ca225015b..b68ae0f16 100644
+--- a/pjsip/src/pjsip-ua/sip_inv.c
++++ b/pjsip/src/pjsip-ua/sip_inv.c
+@@ -118,6 +118,8 @@ static pj_status_t handle_timer_response(pjsip_inv_session *inv,
+ static pj_bool_t inv_check_secure_dlg(pjsip_inv_session *inv,
+ 				      pjsip_event *e);
+ 
++static int print_sdp(pjsip_msg_body *body, char *buf, pj_size_t len);
++
+ static void (*inv_state_handler[])( pjsip_inv_session *inv, pjsip_event *e) = 
+ {
+     &inv_on_state_null,
+@@ -946,66 +948,170 @@ PJ_DEF(pj_status_t) pjsip_inv_create_uac( pjsip_dialog *dlg,
+     return PJ_SUCCESS;
+ }
+ 
+-PJ_DEF(pjsip_rdata_sdp_info*) pjsip_rdata_get_sdp_info(pjsip_rx_data *rdata)
++PJ_DEF(pjsip_sdp_info*) pjsip_get_sdp_info(pj_pool_t *pool,
++                                           pjsip_msg_body *body,
++                                           pjsip_media_type *msg_media_type,
++                                           const pjsip_media_type *search_media_type)
+ {
+-    pjsip_rdata_sdp_info *sdp_info;
+-    pjsip_msg_body *body = rdata->msg_info.msg->body;
+-    pjsip_ctype_hdr *ctype_hdr = rdata->msg_info.ctype;
+-    pjsip_media_type app_sdp;
++    pjsip_sdp_info *sdp_info;
++    pjsip_media_type search_type;
++    pjsip_media_type multipart_mixed;
++    pjsip_media_type multipart_alternative;
++    pjsip_media_type *msg_type;
++    pj_status_t status;
+ 
+-    sdp_info = (pjsip_rdata_sdp_info*)
+-	       rdata->endpt_info.mod_data[mod_inv.mod.id];
+-    if (sdp_info)
+-	return sdp_info;
++    sdp_info = PJ_POOL_ZALLOC_T(pool,
++                                pjsip_sdp_info);
+ 
+-    sdp_info = PJ_POOL_ZALLOC_T(rdata->tp_info.pool,
+-				pjsip_rdata_sdp_info);
+     PJ_ASSERT_RETURN(mod_inv.mod.id >= 0, sdp_info);
+-    rdata->endpt_info.mod_data[mod_inv.mod.id] = sdp_info;
+ 
+-    pjsip_media_type_init2(&app_sdp, "application", "sdp");
++    if (!body) {
++        return sdp_info;
++    }
+ 
+-    if (body && ctype_hdr &&
+-	pj_stricmp(&ctype_hdr->media.type, &app_sdp.type)==0 &&
+-	pj_stricmp(&ctype_hdr->media.subtype, &app_sdp.subtype)==0)
++    if (msg_media_type) {
++	msg_type = msg_media_type;
++    } else {
++	if (body->content_type.type.slen == 0) {
++	    return sdp_info;
++	}
++	msg_type = &body->content_type;
++    }
++
++    if (!search_media_type) {
++        pjsip_media_type_init2(&search_type, "application", "sdp");
++    } else {
++        pj_memcpy(&search_type, search_media_type, sizeof(search_type));
++    }
++
++    pjsip_media_type_init2(&multipart_mixed, "multipart", "mixed");
++    pjsip_media_type_init2(&multipart_alternative, "multipart", "alternative");
++
++    if (pjsip_media_type_cmp(msg_type, &search_type, PJ_FALSE) == 0)
+     {
+-	sdp_info->body.ptr = (char*)body->data;
+-	sdp_info->body.slen = body->len;
+-    } else if  (body && ctype_hdr &&
+-	    	pj_stricmp2(&ctype_hdr->media.type, "multipart")==0 &&
+-	    	(pj_stricmp2(&ctype_hdr->media.subtype, "mixed")==0 ||
+-	    	 pj_stricmp2(&ctype_hdr->media.subtype, "alternative")==0))
++	/*
++	 * If the print_body function is print_sdp, we know that
++	 * body->data is a pjmedia_sdp_session object and came from
++	 * a tx_data.  If not, it's the text representation of the
++	 * sdp from an rx_data.
++	 */
++        if (body->print_body == print_sdp) {
++            sdp_info->sdp = body->data;
++        } else {
++            sdp_info->body.ptr = (char*)body->data;
++            sdp_info->body.slen = body->len;
++        }
++    } else if (pjsip_media_type_cmp(&multipart_mixed, msg_type, PJ_FALSE) == 0 ||
++	pjsip_media_type_cmp(&multipart_alternative, msg_type, PJ_FALSE) == 0)
+     {
+-	pjsip_multipart_part *part;
++        pjsip_multipart_part *part;
++        part = pjsip_multipart_find_part(body, &search_type, NULL);
++        if (part) {
++            if (part->body->print_body == print_sdp) {
++                sdp_info->sdp = part->body->data;
++            } else {
++                sdp_info->body.ptr = (char*)part->body->data;
++                sdp_info->body.slen = part->body->len;
++            }
++        }
++    }
+ 
+-	part = pjsip_multipart_find_part(body, &app_sdp, NULL);
+-	if (part) {
+-	    sdp_info->body.ptr = (char*)part->body->data;
+-	    sdp_info->body.slen = part->body->len;
+-	}
++    /*
++     * If the body was already a pjmedia_sdp_session, we can just
++     * return it.  If not and there wasn't a text representation
++     * of the sdp either, we can also just return.
++     */
++    if (sdp_info->sdp || !sdp_info->body.ptr) {
++	return sdp_info;
+     }
+ 
+-    if (sdp_info->body.ptr) {
+-	pj_status_t status;
+-	status = pjmedia_sdp_parse(rdata->tp_info.pool,
+-				   sdp_info->body.ptr,
+-				   sdp_info->body.slen,
+-				   &sdp_info->sdp);
+-	if (status == PJ_SUCCESS)
+-	    status = pjmedia_sdp_validate2(sdp_info->sdp, PJ_FALSE);
++    /*
++     * If the body was the text representation of teh SDP, we need
++     * to parse it to create a pjmedia_sdp_session object.
++     */
++    status = pjmedia_sdp_parse(pool,
++				sdp_info->body.ptr,
++				sdp_info->body.slen,
++				&sdp_info->sdp);
++    if (status == PJ_SUCCESS)
++	status = pjmedia_sdp_validate2(sdp_info->sdp, PJ_FALSE);
+ 
+-	if (status != PJ_SUCCESS) {
+-	    sdp_info->sdp = NULL;
+-	    PJ_PERROR(1,(THIS_FILE, status,
+-			 "Error parsing/validating SDP body"));
+-	}
++    if (status != PJ_SUCCESS) {
++	sdp_info->sdp = NULL;
++	PJ_PERROR(1, (THIS_FILE, status,
++	    "Error parsing/validating SDP body"));
++    }
++
++    sdp_info->sdp_err = status;
++
++    return sdp_info;
++}
+ 
+-	sdp_info->sdp_err = status;
++PJ_DEF(pjsip_rdata_sdp_info*) pjsip_rdata_get_sdp_info2(
++                                            pjsip_rx_data *rdata,
++                                            const pjsip_media_type *search_media_type)
++{
++    pjsip_media_type *msg_media_type = NULL;
++    pjsip_rdata_sdp_info *sdp_info;
++
++    if (rdata->endpt_info.mod_data[mod_inv.mod.id]) {
++	return (pjsip_rdata_sdp_info *)rdata->endpt_info.mod_data[mod_inv.mod.id];
++    }
++
++    /*
++     * rdata should have a Content-Type header at this point but we'll
++     * make sure.
++     */
++    if (rdata->msg_info.ctype) {
++	msg_media_type = &rdata->msg_info.ctype->media;
++    }
++    sdp_info = pjsip_get_sdp_info(rdata->tp_info.pool,
++				   rdata->msg_info.msg->body,
++				   msg_media_type,
++				   search_media_type);
++    rdata->endpt_info.mod_data[mod_inv.mod.id] = sdp_info;
++
++    return sdp_info;
++}
++
++PJ_DEF(pjsip_rdata_sdp_info*) pjsip_rdata_get_sdp_info(pjsip_rx_data *rdata)
++{
++    return pjsip_rdata_get_sdp_info2(rdata, NULL);
++}
++
++PJ_DEF(pjsip_tdata_sdp_info*) pjsip_tdata_get_sdp_info2(
++                                            pjsip_tx_data *tdata,
++                                            const pjsip_media_type *search_media_type)
++{
++    pjsip_ctype_hdr *ctype_hdr = NULL;
++    pjsip_media_type *msg_media_type = NULL;
++    pjsip_tdata_sdp_info *sdp_info;
++
++    if (tdata->mod_data[mod_inv.mod.id]) {
++	return (pjsip_tdata_sdp_info *)tdata->mod_data[mod_inv.mod.id];
++    }
++    /*
++     * tdata won't usually have a Content-Type header at this point
++     * but we'll check just the same,
++     */
++    ctype_hdr = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_CONTENT_TYPE, NULL);
++    if (ctype_hdr) {
++	msg_media_type = &ctype_hdr->media;
+     }
+ 
++    sdp_info = pjsip_get_sdp_info(tdata->pool,
++				   tdata->msg->body,
++				   msg_media_type,
++				   search_media_type);
++    tdata->mod_data[mod_inv.mod.id] = sdp_info;
++
+     return sdp_info;
+ }
+ 
++PJ_DEF(pjsip_tdata_sdp_info*) pjsip_tdata_get_sdp_info(pjsip_tx_data *tdata)
++{
++    return pjsip_tdata_get_sdp_info2(tdata, NULL);
++}
+ 
+ /*
+  * Verify incoming INVITE request.
+@@ -1730,13 +1836,55 @@ PJ_DEF(pj_status_t) pjsip_create_sdp_body( pj_pool_t *pool,
+     return PJ_SUCCESS;
+ }
+ 
++static pjsip_multipart_part* create_sdp_part(pj_pool_t *pool, pjmedia_sdp_session *sdp)
++{
++    pjsip_multipart_part *sdp_part;
++    pjsip_media_type media_type;
++
++    pjsip_media_type_init2(&media_type, "application", "sdp");
++
++    sdp_part = pjsip_multipart_create_part(pool);
++    PJ_ASSERT_RETURN(sdp_part != NULL, NULL);
++
++    sdp_part->body = PJ_POOL_ZALLOC_T(pool, pjsip_msg_body);
++    PJ_ASSERT_RETURN(sdp_part->body != NULL, NULL);
++
++    pjsip_media_type_cp(pool, &sdp_part->body->content_type, &media_type);
++
++    sdp_part->body->data = sdp;
++    sdp_part->body->clone_data = clone_sdp;
++    sdp_part->body->print_body = print_sdp;
++
++    return sdp_part;
++}
++
++PJ_DEF(pj_status_t) pjsip_create_multipart_sdp_body(pj_pool_t *pool,
++						     pjmedia_sdp_session *sdp,
++						     pjsip_msg_body **p_body)
++{
++    pjsip_media_type media_type;
++    pjsip_msg_body *multipart;
++    pjsip_multipart_part *sdp_part;
++
++    pjsip_media_type_init2(&media_type, "multipart", "mixed");
++    multipart = pjsip_multipart_create(pool, &media_type, NULL);
++    PJ_ASSERT_RETURN(multipart != NULL, PJ_ENOMEM);
++
++    sdp_part = create_sdp_part(pool, sdp);
++    PJ_ASSERT_RETURN(sdp_part != NULL, PJ_ENOMEM);
++    pjsip_multipart_add_part(pool, multipart, sdp_part);
++    *p_body = multipart;
++
++    return PJ_SUCCESS;
++}
++
+ static pjsip_msg_body *create_sdp_body(pj_pool_t *pool,
+ 				       const pjmedia_sdp_session *c_sdp)
+ {
+     pjsip_msg_body *body;
+     pj_status_t status;
+ 
+-    status = pjsip_create_sdp_body(pool, 
++    status = pjsip_create_sdp_body(pool,
+ 				   pjmedia_sdp_session_clone(pool, c_sdp),
+ 				   &body);
+ 
+@@ -2059,6 +2207,7 @@ static pj_status_t inv_check_sdp_in_incoming_msg( pjsip_inv_session *inv,
+ 	       )
+ 	   )
+ 	{
++	    pjsip_sdp_info *tdata_sdp_info;
+ 	    const pjmedia_sdp_session *reoffer_sdp = NULL;
+ 
+ 	    PJ_LOG(4,(inv->obj_name, "Received %s response "
+@@ -2067,14 +2216,15 @@ static pj_status_t inv_check_sdp_in_incoming_msg( pjsip_inv_session *inv,
+ 		      (st_code/10==18? "early" : "final" )));
+ 
+ 	    /* Retrieve original SDP offer from INVITE request */
+-	    reoffer_sdp = (const pjmedia_sdp_session*) 
+-			  tsx->last_tx->msg->body->data;
++	    tdata_sdp_info = pjsip_tdata_get_sdp_info(tsx->last_tx);
++	    reoffer_sdp = tdata_sdp_info->sdp;
+ 
+ 	    /* Feed the original offer to negotiator */
+ 	    status = pjmedia_sdp_neg_modify_local_offer2(inv->pool_prov, 
+ 							 inv->neg,
+                                                          inv->sdp_neg_flags,
+ 						         reoffer_sdp);
++
+ 	    if (status != PJ_SUCCESS) {
+ 		PJ_LOG(1,(inv->obj_name, "Error updating local offer for "
+ 			  "forked 2xx/18x response (err=%d)", status));
+diff --git a/pjsip/src/test/inv_offer_answer_test.c b/pjsip/src/test/inv_offer_answer_test.c
+index ad5fcd409..9cdd2654b 100644
+--- a/pjsip/src/test/inv_offer_answer_test.c
++++ b/pjsip/src/test/inv_offer_answer_test.c
+@@ -137,6 +137,7 @@ typedef struct inv_test_param_t
+     pj_bool_t	need_established;
+     unsigned	count;
+     oa_t	oa[4];
++    pj_bool_t	multipart_body;
+ } inv_test_param_t;
+ 
+ typedef struct inv_test_t
+@@ -257,6 +258,17 @@ static void on_media_update(pjsip_inv_session *inv_ses,
+ 	    }
+ 	}
+ 
++	/* Special handling for standard offer/answer */
++	if (inv_test.param.count == 1 &&
++	    inv_test.param.oa[0] == OFFERER_UAC &&
++	    inv_test.param.need_established)
++	{
++	    jobs[job_cnt].type = ESTABLISH_CALL;
++	    jobs[job_cnt].who = PJSIP_ROLE_UAS;
++	    job_cnt++;
++	    TRACE_((THIS_FILE, "      C+++"));
++	}
++
+ 	pj_assert(job_cnt <= PJ_ARRAY_SIZE(jobs));
+     }
+ }
+@@ -333,6 +345,15 @@ static pj_bool_t on_rx_request(pjsip_rx_data *rdata)
+ 					  NULL, &tdata);
+ 	pj_assert(status == PJ_SUCCESS);
+ 
++	/* Use multipart body, if configured */
++	if (sdp && inv_test.param.multipart_body) {
++	     status = pjsip_create_multipart_sdp_body(
++				tdata->pool,
++				pjmedia_sdp_session_clone(tdata->pool, sdp),
++				&tdata->msg->body);
++	}
++	pj_assert(status == PJ_SUCCESS);
++
+ 	status = pjsip_inv_send_msg(inv_test.uas, tdata);
+ 	pj_assert(status == PJ_SUCCESS);
+ 
+@@ -426,6 +447,7 @@ static int perform_test(inv_test_param_t *param)
+ 	sdp = NULL;
+ 
+     status = pjsip_inv_create_uac(dlg, sdp, inv_test.param.inv_option, &inv_test.uac);
++    //inv_test.uac->create_multipart = param->multipart_body;
+     PJ_ASSERT_RETURN(status==PJ_SUCCESS, -20);
+ 
+     TRACE_((THIS_FILE, "    Sending INVITE %s offer", (sdp ? "with" : "without")));
+@@ -436,8 +458,17 @@ static int perform_test(inv_test_param_t *param)
+     status = pjsip_inv_invite(inv_test.uac, &tdata);
+     PJ_ASSERT_RETURN(status==PJ_SUCCESS, -30);
+ 
++    /* Use multipart body, if configured */
++    if (sdp && param->multipart_body) {
++	 status = pjsip_create_multipart_sdp_body(
++			    tdata->pool,
++			    pjmedia_sdp_session_clone(tdata->pool, sdp),
++			    &tdata->msg->body);
++    }
++    PJ_ASSERT_RETURN(status==PJ_SUCCESS, -40);
++
+     status = pjsip_inv_send_msg(inv_test.uac, tdata);
+-    PJ_ASSERT_RETURN(status==PJ_SUCCESS, -30);
++    PJ_ASSERT_RETURN(status==PJ_SUCCESS, -50);
+ 
+     /*
+      * Wait until test completes
+@@ -525,13 +556,14 @@ static inv_test_param_t test_params[] =
+     200/INVITE (answer)	<--
+     ACK    		-->
+  */
+-#if 0
++#if 1
+     {
+ 	"Standard INVITE with offer",
+ 	0,
+ 	PJ_TRUE,
+ 	1,
+-	{ OFFERER_UAC }
++	{ OFFERER_UAC },
++	PJ_FALSE
+     },
+ 
+     {
+@@ -539,7 +571,25 @@ static inv_test_param_t test_params[] =
+ 	PJSIP_INV_REQUIRE_100REL,
+ 	PJ_TRUE,
+ 	1,
+-	{ OFFERER_UAC }
++	{ OFFERER_UAC },
++	PJ_FALSE
++    },
++    {
++	"Standard INVITE with offer, with Multipart",
++	0,
++	PJ_TRUE,
++	1,
++	{ OFFERER_UAC },
++	PJ_TRUE
++    },
++
++    {
++	"Standard INVITE with offer, with 100rel, with Multipart",
++	PJSIP_INV_REQUIRE_100REL,
++	PJ_TRUE,
++	1,
++	{ OFFERER_UAC },
++	PJ_TRUE
+     },
+ #endif
+ 
+@@ -555,7 +605,8 @@ static inv_test_param_t test_params[] =
+ 	0,
+ 	PJ_TRUE,
+ 	1,
+-	{ OFFERER_UAS }
++	{ OFFERER_UAS },
++	PJ_FALSE
+     },
+ 
+     {
+@@ -563,7 +614,25 @@ static inv_test_param_t test_params[] =
+ 	PJSIP_INV_REQUIRE_100REL,
+ 	PJ_TRUE,
+ 	1,
+-	{ OFFERER_UAS }
++	{ OFFERER_UAS },
++	PJ_FALSE
++    },
++    {
++	"INVITE with no offer, with Multipart",
++	0,
++	PJ_TRUE,
++	1,
++	{ OFFERER_UAS },
++	PJ_TRUE
++    },
++
++    {
++	"INVITE with no offer, with 100rel, with Multipart",
++	PJSIP_INV_REQUIRE_100REL,
++	PJ_TRUE,
++	1,
++	{ OFFERER_UAS },
++	PJ_TRUE
+     },
+ #endif
+ 
+@@ -584,14 +653,24 @@ static inv_test_param_t test_params[] =
+ 	0,
+ 	PJ_TRUE,
+ 	2,
+-	{ OFFERER_UAC, OFFERER_UAC }
++	{ OFFERER_UAC, OFFERER_UAC },
++	PJ_FALSE
++    },
++    {
++	"INVITE and UPDATE by UAC, with Multipart",
++	0,
++	PJ_TRUE,
++	2,
++	{ OFFERER_UAC, OFFERER_UAC },
++	PJ_TRUE
+     },
+     {
+ 	"INVITE and UPDATE by UAC, with 100rel",
+ 	PJSIP_INV_REQUIRE_100REL,
+ 	PJ_TRUE,
+ 	2,
+-	{ OFFERER_UAC, OFFERER_UAC }
++	{ OFFERER_UAC, OFFERER_UAC },
++	PJ_FALSE
+     },
+ #endif
+ 
+@@ -617,6 +696,14 @@ static inv_test_param_t test_params[] =
+ 	4,
+ 	{ OFFERER_UAC, OFFERER_UAS, OFFERER_UAC, OFFERER_UAS }
+     },
++    {
++	"INVITE and many UPDATE by UAC and UAS, with Multipart",
++	0,
++	PJ_TRUE,
++	4,
++	{ OFFERER_UAC, OFFERER_UAS, OFFERER_UAC, OFFERER_UAS },
++	PJ_TRUE
++    },
+ 
+ };
+ 
+-- 
+2.33.1
+

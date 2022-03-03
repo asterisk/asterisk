@@ -534,8 +534,6 @@ static char *parse_hint_device(struct ast_str *hint_args);
  * \brief Destroy the given hintdevice object.
  *
  * \param obj Hint device to destroy.
- *
- * \return Nothing
  */
 static void hintdevice_destroy(void *obj)
 {
@@ -1045,7 +1043,7 @@ static void pbx_destroy(struct ast_pbx *p)
  *   Hope the limit on stack depth won't be a problem... this routine should
  *   be pretty lean as far a stack usage goes. Any non-match terminates the recursion down a branch.
  *
- *   In the above example, with the number "3077549999" as the pattern, the traversor could match extensions a, b and d.  All are
+ *   In the above example, with the number "3077549999" as the pattern, the traverser could match extensions a, b and d.  All are
  *   of length 10; they have total specificities of  24580, 10246, and 25090, respectively, not that this matters
  *   at all. (b) wins purely because the first character "3" is much more specific (lower specificity) than "N". I have
  *   left the specificity totals in the code as an artifact; at some point, I will strip it out.
@@ -1914,7 +1912,7 @@ static int ext_cmp_exten(const char *left, const char *right)
  *		and MATCHMORE. Only allowed at the end of a pattern.
  *		In the core routine, ! causes a match with a return code of 2.
  *		In turn, depending on the search mode: (XXX check if it is implemented)
- *		- E_MATCH retuns 1 (does match)
+ *		- E_MATCH returns 1 (does match)
  *		- E_MATCHMORE returns 0 (no match)
  *		- E_CANMATCH returns 1 (does match)
  *
@@ -2410,9 +2408,9 @@ static int extension_match_core(const char *pattern, const char *data, enum ext_
 	return i;
 }
 
-int ast_extension_match(const char *pattern, const char *data)
+int ast_extension_match(const char *pattern, const char *extension)
 {
-	return extension_match_core(pattern, data, E_MATCH);
+	return extension_match_core(pattern, extension, E_MATCH);
 }
 
 int ast_extension_close(const char *pattern, const char *data, int needmore)
@@ -3287,8 +3285,8 @@ static int execute_state_callback(ast_state_cb_type cb,
 }
 
 /*!
- * /internal
- * /brief Identify a channel for every device which is supposedly responsible for the device state.
+ * \internal
+ * \brief Identify a channel for every device which is supposedly responsible for the device state.
  *
  * Especially when the device is ringing, the oldest ringing channel is chosen.
  * For all other cases the first encountered channel in the specific state is chosen.
@@ -3710,8 +3708,6 @@ end:
  * \brief Destroy the given state callback object.
  *
  * \param doomed State callback to destroy.
- *
- * \return Nothing
  */
 static void destroy_state_cb(void *doomed)
 {
@@ -3901,8 +3897,6 @@ static int hint_id_cmp(void *obj, void *arg, int flags)
  * \brief Destroy the given hint object.
  *
  * \param obj Hint to destroy.
- *
- * \return Nothing
  */
 static void destroy_hint(void *obj)
 {
@@ -4010,7 +4004,7 @@ static int ast_add_hint(struct ast_exten *e)
 	}
 	hint_new->exten = e;
 	if (strstr(e->app, "${") && e->exten[0] == '_') {
-		/* The hint is dynamic and hasn't been evaluted yet */
+		/* The hint is dynamic and hasn't been evaluated yet */
 		hint_new->laststate = AST_DEVICE_INVALID;
 		hint_new->last_presence_state = AST_PRESENCE_INVALID;
 	} else {
@@ -4671,7 +4665,7 @@ static void destroy_exten(struct ast_exten *e)
 
 static void *pbx_thread(void *data)
 {
-	/* Oh joyeous kernel, we're a new thread, with nothing to do but
+	/* Oh joyous kernel, we're a new thread, with nothing to do but
 	   answer this channel and get it going.
 	*/
 	/* NOTE:
@@ -4871,7 +4865,7 @@ int ast_context_remove_include2(struct ast_context *con, const char *include, co
 }
 
 /*!
- * \note This function locks contexts list by &conlist, search for the rigt context
+ * \note This function locks contexts list by &conlist, search for the right context
  * structure, leave context list locked and call ast_context_remove_switch2
  * which removes switch, unlock contexts list and return ...
  */
@@ -5137,14 +5131,13 @@ int ast_context_remove_extension_callerid2(struct ast_context *con, const char *
  * \note This function locks contexts list by &conlist, searches for the right context
  * structure, and locks the macrolock mutex in that context.
  * macrolock is used to limit a macro to be executed by one call at a time.
- * \param context The context
  */
-int ast_context_lockmacro(const char *context)
+int ast_context_lockmacro(const char *macrocontext)
 {
 	struct ast_context *c;
 	int ret = -1;
 
-	c = find_context_locked(context);
+	c = find_context_locked(macrocontext);
 	if (c) {
 		ast_unlock_contexts();
 
@@ -5159,14 +5152,13 @@ int ast_context_lockmacro(const char *context)
  * \note This function locks contexts list by &conlist, searches for the right context
  * structure, and unlocks the macrolock mutex in that context.
  * macrolock is used to limit a macro to be executed by one call at a time.
- * \param context The context
  */
-int ast_context_unlockmacro(const char *context)
+int ast_context_unlockmacro(const char *macrocontext)
 {
 	struct ast_context *c;
 	int ret = -1;
 
-	c = find_context_locked(context);
+	c = find_context_locked(macrocontext);
 	if (c) {
 		ast_unlock_contexts();
 
@@ -6588,7 +6580,7 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, struct ast_
 		if (!hint) {
 			/*
 			 * Notify watchers of this removed hint later when we aren't
-			 * encumberd by so many locks.
+			 * encumbered by so many locks.
 			 */
 			AST_LIST_INSERT_HEAD(&hints_removed, saved_hint, list);
 		} else {
@@ -7041,7 +7033,7 @@ int ast_async_goto_by_name(const char *channame, const char *context, const char
  * \param dst Destination buffer to copy src string.
  * \param src Null terminated string to copy.
  * \param dst_size Number of bytes in the dst buffer.
- * \param nofluf Nonzero if '-' chars are not copied.
+ * \param nofluff Nonzero if '-' chars are not copied.
  *
  * \return Number of bytes written to dst including null terminator.
  */
@@ -7333,7 +7325,7 @@ static int ast_add_extension2_lockopt(struct ast_context *con,
 		return -1;
 	}
 
-	/* If we are adding a hint evalulate in variables and global variables */
+	/* If we are adding a hint evaluate in variables and global variables */
 	if (priority == PRIORITY_HINT && strstr(application, "${") && extension[0] != '_') {
 		int inhibited;
 		struct ast_channel *c = ast_dummy_channel_alloc();
@@ -7360,7 +7352,14 @@ static int ast_add_extension2_lockopt(struct ast_context *con,
 		}
 	}
 
-	exten_fluff = ext_fluff_count(extension);
+	if (priority == PRIORITY_HINT) {
+		/* Fluff in a hint is fine. This prevents the removal of dashes from dynamically
+		 * created hints during a reload. */
+		exten_fluff = 0;
+	} else {
+		exten_fluff = ext_fluff_count(extension);
+	}
+
 	callerid_fluff = callerid ? ext_fluff_count(callerid) : 0;
 
 	length = sizeof(struct ast_exten);
@@ -8581,6 +8580,27 @@ const char *ast_get_extension_app(struct ast_exten *e)
 void *ast_get_extension_app_data(struct ast_exten *e)
 {
 	return e ? e->data : NULL;
+}
+
+int ast_get_extension_data(char *buf, int bufsize, struct ast_channel *c,
+	const char *context, const char *exten, int priority)
+{
+	struct ast_exten *e;
+	struct pbx_find_info q = { .stacklen = 0 }; /* the rest is set in pbx_find_context */
+	ast_rdlock_contexts();
+	e = pbx_find_extension(c, NULL, &q, context, exten, priority, NULL, "", E_MATCH);
+	if (e) {
+		if (buf) {
+			const char *tmp = ast_get_extension_app_data(e);
+			if (tmp) {
+				ast_copy_string(buf, tmp, bufsize);
+			}
+		}
+		ast_unlock_contexts();
+		return 0;
+	}
+	ast_unlock_contexts();
+	return -1;
 }
 
 /*

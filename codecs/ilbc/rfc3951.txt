@@ -3657,7 +3657,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
    }
 
    /*----------------------------------------------------------------*
-    *  frame residual decoder function (subrutine to iLBC_decode)
+    *  frame residual decoder function (subroutine to iLBC_decode)
     *---------------------------------------------------------------*/
 
    void Decode(
@@ -4732,7 +4732,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
        (float)1.049988, (float)1.087524, (float)1.125000,
        (float)1.162476, (float)1.200012};
 
-   /* Enhancer - Upsamling a factor 4 (ENH_UPS0 = 4) */
+   /* Enhancer - Upsampling a factor 4 (ENH_UPS0 = 4) */
    float polyphaserTbl[ENH_UPS0*(2*ENH_FL0+1)]={
        (float)0.000000, (float)0.000000, (float)0.000000,
    (float)1.000000,
@@ -5522,7 +5522,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
        float *buffer,      /* (i) Pointer to the end of the
                                   buffer for augmented codebook
                                   construction */
-       float *cbVec    /* (o) The construced codebook vector */
+       float *cbVec    /* (o) The constructed codebook vector */
    );
 
    #endif
@@ -5734,7 +5734,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
                               to be created */
        float *buffer,  /* (i) Pointer to the end of the buffer for
                               augmented codebook construction */
-       float *cbVec/* (o) The construced codebook vector */
+       float *cbVec/* (o) The constructed codebook vector */
    ) {
        int ilow, j;
        float *pp, *ppo, *ppi, alfa, alfa1, weighted;
@@ -6122,8 +6122,8 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
    );
 
    int enhancerInterface(
-       float *out,         /* (o) the enhanced recidual signal */
-       float *in,          /* (i) the recidual signal to enhance */
+       float *out,         /* (o) the enhanced residual signal */
+       float *in,          /* (i) the residual signal to enhance */
        iLBC_Dec_Inst_t *iLBCdec_inst
                            /* (i/o) the decoder state structure */
    );
@@ -9357,7 +9357,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
    /*----------------------------------------------------------------*
-    *  lpc analysis (subrutine to LPCencode)
+    *  lpc analysis (subroutine to LPCencode)
     *---------------------------------------------------------------*/
 
    void SimpleAnalysis(
@@ -9413,7 +9413,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
     *  lsf interpolator and conversion from lsf to a coefficients
-    *  (subrutine to SimpleInterpolateLSF)
+    *  (subroutine to SimpleInterpolateLSF)
     *---------------------------------------------------------------*/
 
    void LSFinterpolate2a_enc(
@@ -9431,7 +9431,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
    }
 
    /*----------------------------------------------------------------*
-    *  lsf interpolator (subrutine to LPCencode)
+    *  lsf interpolator (subroutine to LPCencode)
     *---------------------------------------------------------------*/
 
    void SimpleInterpolateLSF(
@@ -9528,7 +9528,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
    }
 
    /*----------------------------------------------------------------*
-    *  lsf quantizer (subrutine to LPCencode)
+    *  lsf quantizer (subroutine to LPCencode)
     *---------------------------------------------------------------*/
 
    void SimplelsfQ(
@@ -10342,7 +10342,7 @@ A.45.  StateSearchW.h
                            /* (i) Encoder instance */
        float *residual,/* (i) target residual vector */
        float *syntDenum,   /* (i) lpc synthesis filter */
-       float *weightDenum, /* (i) weighting filter denuminator */
+       float *weightDenum, /* (i) weighting filter denumerator */
        int *idxForMax,     /* (o) quantizer index for maximum
                                   amplitude */
        int *idxVec,    /* (o) vector of quantization indexes */
@@ -10387,7 +10387,7 @@ A.46.  StateSearchW.c
 
    /*----------------------------------------------------------------*
     *  predictive noise shaping encoding of scaled start state
-    *  (subrutine for StateSearchW)
+    *  (subroutine for StateSearchW)
     *---------------------------------------------------------------*/
 
    void AbsQuantW(
@@ -10496,7 +10496,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
                            /* (i) Encoder instance */
        float *residual,/* (i) target residual vector */
        float *syntDenum,   /* (i) lpc synthesis filter */
-       float *weightDenum, /* (i) weighting filter denuminator */
+       float *weightDenum, /* (i) weighting filter denumerator */
        int *idxForMax,     /* (o) quantizer index for maximum
                                   amplitude */
        int *idxVec,    /* (o) vector of quantization indexes */

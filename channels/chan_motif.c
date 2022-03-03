@@ -209,7 +209,7 @@
 					<synopsis>Maximum number of ICE candidates to offer</synopsis>
 				</configOption>
 				<configOption name="maxpayloads">
-					<synopsis>Maximum number of pyaloads to offer</synopsis>
+					<synopsis>Maximum number of payloads to offer</synopsis>
 				</configOption>
 			</configObject>
 		</configFile>
@@ -328,7 +328,7 @@ static AO2_GLOBAL_OBJ_STATIC(globals);
 
 static struct ast_sched_context *sched; /*!< Scheduling context for RTCP */
 
-/* \brief Asterisk core interaction functions */
+/*! \brief Asterisk core interaction functions */
 static struct ast_channel *jingle_request(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *data, int *cause);
 static int jingle_sendtext(struct ast_channel *ast, const char *text);
 static int jingle_digit_begin(struct ast_channel *ast, char digit);
@@ -2310,7 +2310,7 @@ static int jingle_interpret_content(struct jingle_session *session, ikspak *pak)
 				rtp = session->vrtp;
 			}
 		} else {
-			/* Google-V1 has no concept of assocating things like the above does, so since we only support audio over it assume they want audio */
+			/* Google-V1 has no concept of associating things like the above does, so since we only support audio over it assume they want audio */
 			rtp = session->rtp;
 		}
 

@@ -174,12 +174,12 @@ enum ast_framehook_event {
  * The ast_channel will always be locked during this callback. Never attempt to unlock the
  * channel for any reason.
  *
- * \param channel, The ast_channel this framehook is attached to
- * \param frame, The ast_frame being intercepted for viewing and manipulation
- * \param event, The type of event which is occurring
- * \param data, The data pointer provided at framehook initilization.
+ * \param chan The ast_channel this framehook is attached to
+ * \param frame The ast_frame being intercepted for viewing and manipulation
+ * \param event The type of event which is occurring
+ * \param data The data pointer provided at framehook initialization.
  *
- * \retval the resulting frame.
+ * \return the resulting frame.
  */
 typedef struct ast_frame *(*ast_framehook_event_callback)(
 	struct ast_channel *chan,
@@ -193,7 +193,7 @@ typedef struct ast_frame *(*ast_framehook_event_callback)(
  * \note  This function should be used to clean up any pointers pointing to the
  * framehook structure as the framehook will be freed immediately afterwards.
  *
- * \param data, The data pointer provided at framehook initialization. This
+ * \param data The data pointer provided at framehook initialization. This
  * is a good place to clean up any state data allocated for the framehook stored in this
  * pointer.
  */
@@ -204,8 +204,8 @@ typedef void (*ast_framehook_destroy_callback)(void *data);
  * frames of a given type
  * \since 12
  *
- * \param data, The data pointer provided at framehook initilization.
- * \param type, The type of frame.
+ * \param data The data pointer provided at framehook initialization.
+ * \param type The type of frame.
  *
  * \return 0 if frame type is being ignored
  * \return 1 if frame type is not being ignored
@@ -216,10 +216,10 @@ typedef int (*ast_framehook_consume_callback)(void *data, enum ast_frame_type ty
  * \brief This callback is called when a masquerade occurs on a channel with a framehook
  * \since 12
  *
- * \param data, The data pointer provided at framehook initialization.
- * \param framehook_id, The framehook ID where the framehook lives now
- * \param old_chan, The channel that was masqueraded.
- * \param new_chan, The channel that the masqueraded channel became.
+ * \param data The data pointer provided at framehook initialization.
+ * \param framehook_id The framehook ID where the framehook lives now
+ * \param old_chan The channel that was masqueraded.
+ * \param new_chan The channel that the masqueraded channel became.
  */
 typedef void (*ast_framehook_chan_fixup_callback)(void *data, int framehook_id,
 	struct ast_channel *old_chan, struct ast_channel *new_chan);
@@ -268,8 +268,8 @@ struct ast_framehook_interface {
  * provide it during the event and destruction callbacks.  It is entirely up to the
  * application using this API to manage the memory associated with the data pointer.
  *
- * \retval On success, non-negative id representing this hook on the channel
- * \retval On failure, -1
+ * \retval non-negative success, id representing this hook on the channel
+ * \retval -1 failure
  */
 int ast_framehook_attach(struct ast_channel *chan, struct ast_framehook_interface *i);
 
@@ -356,8 +356,8 @@ struct ast_frame *ast_framehook_list_write_event(struct ast_framehook_list *fram
  * \pre The Channel must be locked during this function call.
  *
  * \param framehooks the framehook list
- * \retval 0, not empty
- * \retval 1, is empty
+ * \retval 0 not empty
+ * \retval 1 is empty
  */
 int ast_framehook_list_is_empty(struct ast_framehook_list *framehooks);
 
@@ -367,8 +367,8 @@ int ast_framehook_list_is_empty(struct ast_framehook_list *framehooks);
  * \pre The channel must be locked during this function call.
  *
  * \param framehooks the framehook list
- * \retval 0, not empty
- * \retval 1, is empty (aside from dying framehooks)
+ * \retval 0 not empty
+ * \retval 1 is empty (aside from dying framehooks)
  *
  * \note This function is very similar to ast_framehook_list_is_empty, but it checks individual
  *       framehooks to see if they have been marked for destruction and doesn't count them if they are.
@@ -381,8 +381,9 @@ int ast_framehook_list_contains_no_active(struct ast_framehook_list *framehooks)
  * \pre The channel must be locked during this function call.
  *
  * \param framehooks the framehook list
- * \retval 0, not empty
- * \retval 1, is empty (aside from dying framehooks)
+ * \param type type of frame
+ * \retval 0 not empty
+ * \retval 1 is empty (aside from dying framehooks)
  *
  * \note This function is very similar to ast_framehook_list_is_empty, but it checks individual
  *       framehooks to see if they have been marked for destruction and doesn't count them if they are.

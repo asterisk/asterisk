@@ -97,9 +97,13 @@ unsigned long global_fin, global_fout;
 AST_THREADSTORAGE(state2str_threadbuf);
 #define STATE2STR_BUFSIZE   32
 
-/*! Default amount of time to use when emulating a digit as a begin and end
+/*! Default amount of time to use when emulating a DTMF digit as a begin and end
  *  100ms */
 #define AST_DEFAULT_EMULATE_DTMF_DURATION 100
+
+/*! Default amount of time to use when emulating an MF digit as a begin and end
+ *  55ms */
+#define DEFAULT_EMULATE_MF_DURATION 55
 
 #define DEFAULT_AMA_FLAGS AST_AMA_DOCUMENTATION
 
@@ -629,12 +633,6 @@ int ast_str2cause(const char *name)
 	return -1;
 }
 
-/*! \brief Gives the string form of a given channel state.
- *
- * \note This function is not reentrant.
- *
- * \param state
- */
 const char *ast_state2str(enum ast_channel_state state)
 {
 	char *buf;
@@ -1432,15 +1430,15 @@ struct ast_channel *ast_channel_get_by_name_prefix(const char *name, size_t name
 	struct ast_channel *chan;
 	char *l_name = (char *) name;
 
+	if (ast_strlen_zero(l_name)) {
+		/* We didn't have a name to search for so quit. */
+		return NULL;
+	}
+
 	chan = ast_channel_callback(ast_channel_by_name_cb, l_name, &name_len,
 		(name_len == 0) /* optimize if it is a complete name match */ ? OBJ_KEY : 0);
 	if (chan) {
 		return chan;
-	}
-
-	if (ast_strlen_zero(l_name)) {
-		/* We didn't have a name to search for so quit. */
-		return NULL;
 	}
 
 	/* Now try a search for uniqueid. */
@@ -2627,8 +2625,6 @@ void ast_hangup(struct ast_channel *chan)
  * \since 13.11.0
  *
  * \param chan Channel to set answered time.
- *
- * \return Nothing
  */
 static void set_channel_answer_time(struct ast_channel *chan)
 {
@@ -2869,7 +2865,7 @@ static inline int should_trigger_dtmf_emulating(struct ast_channel *chan)
 			ast_tvdiff_ms(ast_tvnow(), *ast_channel_dtmf_tv(chan)) < 2*AST_MIN_DTMF_GAP) {
 		/*
 		 * We're not in the middle of a digit, but it hasn't been long enough
-		 * since the last digit, so we'll have to trigger DTMF furtheron.
+		 * since the last digit, so we'll have to trigger DTMF further on.
 		 * Using 2 times AST_MIN_DTMF_GAP to trigger readq reading for possible
 		 * buffered next dtmf event
 		 */
@@ -3409,6 +3405,11 @@ static void send_flash_event(struct ast_channel *chan)
 	ast_channel_publish_blob(chan, ast_channel_flash_type(), NULL);
 }
 
+static void send_wink_event(struct ast_channel *chan)
+{
+	ast_channel_publish_blob(chan, ast_channel_wink_type(), NULL);
+}
+
 static void ast_read_generator_actions(struct ast_channel *chan, struct ast_frame *f)
 {
 	struct ast_generator *generator;
@@ -3587,7 +3588,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio, int
 		switch (res) {
 		case AST_TIMING_EVENT_EXPIRED:
 			if (ast_timer_ack(ast_channel_timer(chan), 1) < 0) {
-				ast_log(LOG_ERROR, "Failed to acknoweldge timer in ast_read\n");
+				ast_log(LOG_ERROR, "Failed to acknowledge timer in ast_read\n");
 				goto done;
 			}
 
@@ -3618,7 +3619,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio, int
 					break;
 				}
 			} else if (trigger_dtmf_emulating) {
-				/* generate null frame to trigger dtmf emualating */
+				/* generate null frame to trigger dtmf emulating */
 				f = &ast_null_frame;
 				break;
 			} else {
@@ -3877,6 +3878,8 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio, int
 				f = &ast_null_frame;
 			} else if (f->subclass.integer == AST_CONTROL_FLASH) {
 				send_flash_event(chan);
+			} else if (f->subclass.integer == AST_CONTROL_WINK) {
+				send_wink_event(chan);
 			}
 			break;
 		case AST_FRAME_DTMF_END:
@@ -4864,6 +4867,45 @@ int ast_sendtext(struct ast_channel *chan, const char *text)
 	return rc;
 }
 
+int ast_senddigit_mf_begin(struct ast_channel *chan, char digit)
+{
+	static const char * const mf_tones[] = {
+		"1300+1500", /* 0 */
+		"700+900",   /* 1 */
+		"700+1100",  /* 2 */
+		"900+1100",  /* 3 */
+		"700+1300",  /* 4 */
+		"900+1300",  /* 5 */
+		"1100+1300", /* 6 */
+		"700+1500",  /* 7 */
+		"900+1500",  /* 8 */
+		"1100+1500", /* 9 */
+		"1100+1700", /* * (KP) */
+		"1500+1700", /* # (ST) */
+		"900+1700",  /* A (STP) */
+		"1300+1700", /* B (ST2P) */
+		"700+1700"   /* C (ST3P) */
+	};
+
+	if (digit >= '0' && digit <='9') {
+		ast_playtones_start(chan, 0, mf_tones[digit-'0'], 0);
+	} else if (digit == '*') {
+		ast_playtones_start(chan, 0, mf_tones[10], 0);
+	} else if (digit == '#') {
+		ast_playtones_start(chan, 0, mf_tones[11], 0);
+	} else if (digit == 'A') {
+		ast_playtones_start(chan, 0, mf_tones[12], 0);
+	} else if (digit == 'B') {
+		ast_playtones_start(chan, 0, mf_tones[13], 0);
+	} else if (digit == 'C') {
+		ast_playtones_start(chan, 0, mf_tones[14], 0);
+	} else {
+		/* not handled */
+		ast_log(LOG_WARNING, "Unable to generate MF tone '%c' for '%s'\n", digit, ast_channel_name(chan));
+	}
+	return 0;
+}
+
 int ast_senddigit_begin(struct ast_channel *chan, char digit)
 {
 	/* Device does not support DTMF tones, lets fake
@@ -4931,6 +4973,37 @@ int ast_senddigit_end(struct ast_channel *chan, char digit, unsigned int duratio
 		ast_playtones_stop(chan);
 
 	return 0;
+}
+
+int ast_senddigit_mf_end(struct ast_channel *chan)
+{
+	if (ast_channel_generator(chan)) {
+		ast_playtones_stop(chan);
+		return 0;
+	}
+	return -1;
+}
+
+int ast_senddigit_mf(struct ast_channel *chan, char digit, unsigned int duration,
+	unsigned int durationkp, unsigned int durationst, int is_external)
+{
+	if (duration < DEFAULT_EMULATE_MF_DURATION) {
+		duration = DEFAULT_EMULATE_MF_DURATION;
+	}
+	if (ast_channel_tech(chan)->send_digit_begin) {
+		if (digit == '*') {
+			duration = durationkp;
+		} else if (digit == '#' || digit == 'A' || digit == 'B' || digit == 'C') {
+			duration = durationst;
+		}
+		ast_senddigit_mf_begin(chan, digit);
+		if (is_external) {
+			usleep(duration * 1000);
+		} else {
+			ast_safe_sleep(chan, duration);
+		}
+	}
+	return ast_senddigit_mf_end(chan);
 }
 
 int ast_senddigit(struct ast_channel *chan, char digit, unsigned int duration)
@@ -5870,8 +5943,6 @@ static void handle_cause(int cause, int *outstate)
  * \param new_chan Channel inheriting information.
  * \param parent Channel new_chan inherits information.
  * \param orig Channel being replaced by the call forward channel.
- *
- * \return Nothing
  */
 static void call_forward_inherit(struct ast_channel *new_chan, struct ast_channel *parent, struct ast_channel *orig)
 {
@@ -6379,8 +6450,6 @@ struct ast_channel *ast_request_with_stream_topology(const char *type, struct as
  * \param precious TRUE if pre-existing accountcodes on chan will not be overwritten.
  *
  * \pre The chan and requestor channels are already locked.
- *
- * \return Nothing
  */
 static void channel_req_accountcodes(struct ast_channel *chan, const struct ast_channel *requestor, enum ast_channel_requestor_relationship relationship, int precious)
 {
@@ -6499,11 +6568,6 @@ int ast_transfer(struct ast_channel *chan, char *dest)
 
 /*!
   \brief Transfer a call to dest, if the channel supports transfer
-
-  \param chan channel to transfer
-  \param dest destination to transfer to
-  \param protocol is the protocol result
-  SIP example, 0=success, 3xx-6xx is SIP error code
 
   Called by:
 	\arg app_transfer
@@ -6756,9 +6820,11 @@ int ast_channel_make_compatible(struct ast_channel *chan, struct ast_channel *pe
 static void __ast_change_name_nolink(struct ast_channel *chan, const char *newname)
 {
 	/*** DOCUMENTATION
-		<managerEventInstance>
-			<synopsis>Raised when the name of a channel is changed.</synopsis>
-		</managerEventInstance>
+		<managerEvent language="en_US" name="Rename">
+			<managerEventInstance class="EVENT_FLAG_CALL">
+				<synopsis>Raised when the name of a channel is changed.</synopsis>
+			</managerEventInstance>
+		</managerEvent>
 	***/
 	ast_manager_event(chan, EVENT_FLAG_CALL, "Rename",
 		"Channel: %s\r\n"
@@ -6942,7 +7008,7 @@ static void channel_do_masquerade(struct ast_channel *original, struct ast_chann
 	ast_channel_unlock(original);
 	ast_indicate(original, -1);
 
-	/* Start the masquerade channel contents rearangement. */
+	/* Start the masquerade channel contents rearrangement. */
 	ast_channel_lock_both(original, clonechan);
 
 	ast_debug(1, "Actually Masquerading %s(%u) into the structure of %s(%u)\n",
@@ -7823,8 +7889,6 @@ static int ast_channel_hash_cb(const void *obj, const int flags)
  * \param v_obj A pointer to the object we want the key printed.
  * \param where User data needed by prnt to determine where to put output.
  * \param prnt Print output callback function to use.
- *
- * \return Nothing
  */
 static void prnt_channel_key(void *v_obj, void *where, ao2_prnt_fn *prnt)
 {
@@ -8257,6 +8321,12 @@ int ast_say_number(struct ast_channel *chan, int num,
 	return ast_say_number_full(chan, num, ints, language, options, -1, -1);
 }
 
+int ast_say_ordinal(struct ast_channel *chan, int num,
+	const char *ints, const char *language, const char *options)
+{
+	return ast_say_ordinal_full(chan, num, ints, language, options, -1, -1);
+}
+
 int ast_say_enumeration(struct ast_channel *chan, int num,
 	const char *ints, const char *language, const char *options)
 {
@@ -8273,6 +8343,12 @@ int ast_say_digit_str(struct ast_channel *chan, const char *str,
 	const char *ints, const char *lang)
 {
 	return ast_say_digit_str_full(chan, str, ints, lang, -1, -1);
+}
+
+int ast_say_money_str(struct ast_channel *chan, const char *str,
+	const char *ints, const char *lang)
+{
+	return ast_say_money_str_full(chan, str, ints, lang, -1, -1);
 }
 
 int ast_say_character_str(struct ast_channel *chan, const char *str,
@@ -10324,15 +10400,13 @@ AST_THREADSTORAGE_RAW(in_intercept_routine);
  * \since 13.14.0
  *
  * \param in_intercept_mode New intercept mode.  (Non-zero if in intercept mode)
- *
- * \return Nothing
  */
 static void channel_set_intercept_mode(int in_intercept_mode)
 {
 	int status;
 
 	status = ast_threadstorage_set_ptr(&in_intercept_routine,
-		in_intercept_mode ? (void *) 1 : (void *) 0);
+		in_intercept_mode ? &(int) { 1 } : NULL);
 	if (status) {
 		ast_log(LOG_ERROR, "Failed to set dialplan intercept mode\n");
 	}

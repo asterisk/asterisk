@@ -1,0 +1,32 @@
+From 2ae784030b0d9cf217c3d562af20e4967f19a3dc Mon Sep 17 00:00:00 2001
+From: George Joseph <gjoseph@sangoma.com>
+Date: Tue, 14 Sep 2021 10:47:29 -0600
+Subject: [PATCH] pjmedia_sdp_attr_get_rtpmap: Strip param trailing whitespace
+
+Use pj_scan_get() to parse the param part of rtpmap so
+trailing whitespace is automatically stripped.
+
+Fixes #2827
+---
+ pjmedia/src/pjmedia/sdp.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/pjmedia/src/pjmedia/sdp.c b/pjmedia/src/pjmedia/sdp.c
+index 5d05a0d9c..3448749c9 100644
+--- a/pjmedia/src/pjmedia/sdp.c
++++ b/pjmedia/src/pjmedia/sdp.c
+@@ -313,9 +313,9 @@ PJ_DEF(pj_status_t) pjmedia_sdp_attr_get_rtpmap( const pjmedia_sdp_attr *attr,
+ 
+ 	/* Expecting either '/' or EOF */
+ 	if (*scanner.curptr == '/') {
++	    /* Skip the '/' */
+ 	    pj_scan_get_char(&scanner);
+-	    rtpmap->param.ptr = scanner.curptr;
+-	    rtpmap->param.slen = scanner.end - scanner.curptr;
++	    pj_scan_get(&scanner, &cs_token, &rtpmap->param);
+ 	} else {
+ 	    rtpmap->param.slen = 0;
+ 	}
+-- 
+2.31.1
+

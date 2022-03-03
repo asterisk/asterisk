@@ -340,7 +340,7 @@ static char *handle_cli_refresh(struct ast_cli_entry *e, int cmd, struct ast_cli
 		e->command = "dnsmgr refresh";
 		e->usage =
 			"Usage: dnsmgr refresh [pattern]\n"
-			"       Peforms an immediate refresh of the managed DNS entries.\n"
+			"       Performs an immediate refresh of the managed DNS entries.\n"
 			"       Optional regular expression pattern is used to filter the entries to refresh.\n";
 		return NULL;
 	case CLI_GENERATE:

@@ -2,7 +2,7 @@
  * Asterisk -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2005, Anthony Minessale anthmct@yahoo.com
- * Development of this app Sponsered/Funded  by TAAN Softworks Corp
+ * Development of this app Sponsored/Funded  by TAAN Softworks Corp
  *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact

@@ -24,8 +24,8 @@
 
 #if defined(OPTIONAL_API)
 
-/*
- * \file Optional API innards.
+/*!
+ * \file
  *
  * The calls to ast_optional_api_*() happen implicitly from \c __constructor__
  * calls which are defined in header files. This means that some number of them
@@ -88,7 +88,7 @@ static void optional_api_user_destroy(struct optional_api_user *user)
  * \param module Name of the module requesting the API.
  *
  * \return New \ref optional_api_user.
- * \return \c NULL on error.
+ * \retval NULL on error.
  */
 static struct optional_api_user *optional_api_user_create(
 	ast_optional_fn *optional_ref, ast_optional_fn stub, const char *module)
@@ -129,7 +129,7 @@ static void optional_api_destroy(struct optional_api *api)
  *
  * \param symname Name of the optional function.
  * \return New \ref optional_api.
- * \return \c NULL on error.
+ * \retval NULL on error.
  */
 static struct optional_api *optional_api_create(const char *symname)
 {
@@ -151,9 +151,9 @@ static struct optional_api *optional_api_create(const char *symname)
 /*!
  * \brief Gets (or creates) the \ref optional_api for the given function.
  *
- * \param sysname Name of the function to look up.
+ * \param symname Name of the function to look up.
  * \return Corresponding \ref optional_api.
- * \return \c NULL on error.
+ * \retval NULL on error.
  */
 static struct optional_api *get_api(const char *symname)
 {

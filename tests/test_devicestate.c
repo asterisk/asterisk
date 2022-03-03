@@ -240,7 +240,7 @@ static AST_VECTOR(, enum ast_device_state) result_states;
 /*! \brief The current device state for our device state provider */
 static enum ast_device_state current_device_state;
 
-/*! \brief Clear out all recorded device states in \ref result_states */
+/*! \brief Clear out all recorded device states in \p result_states */
 static void clear_result_states(void)
 {
 	ast_mutex_lock(&update_lock);

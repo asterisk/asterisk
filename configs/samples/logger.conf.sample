@@ -85,6 +85,11 @@
 ; The default is 1000
 ;logger_queue_limit = 250
 ;
+; Any custom logging levels you may want to use, which can then
+; be sent to logging channels. The maximum number of custom
+; levels is 16, but not all of these may be available if modules
+; in Asterisk define their own.
+;custom_levels = foobar,important,compliance
 ;
 [logfiles]
 ;
@@ -116,7 +121,7 @@
 ;   - [json]    - Log the output in JSON. Note that JSON formatted log entries,
 ;                 if specified for a logger type of 'console', will be formatted
 ;                 per the 'default' formatter for log messages of type VERBOSE.
-;                 This is due to the remote consoles intepreting verbosity
+;                 This is due to the remote consoles interpreting verbosity
 ;                 outside of the logging subsystem.
 ;
 ; Log levels include the following, and are specified in a comma delineated
@@ -130,6 +135,7 @@
 ;    dtmf
 ;    fax
 ;    security
+;    <customlevel>
 ;
 ; Verbose takes an optional argument, in the form of an integer level. The
 ; verbose level can be set per logfile. Verbose messages with higher levels
@@ -176,3 +182,5 @@ messages => notice,warning,error
 ;
 ;syslog.local0 => notice,warning,error
 ;
+; A log level defined in 'custom_levels' above
+;important.log = important

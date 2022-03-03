@@ -43,6 +43,8 @@
 	<defaultenabled>no</defaultenabled>
 	<support_level>extended</support_level>
 	<replacement>app_confbridge</replacement>
+	<deprecated_in>19</deprecated_in>
+	<removed_in>21</removed_in>
  ***/
 
 #include "asterisk.h"
@@ -1334,7 +1336,7 @@ static struct ast_json *status_to_json(int on)
  * \brief Generate a stasis message associated with a meetme event
  * \since 12.0.0
  *
- * \param meetme_confere The conference responsible for generating this message
+ * \param meetme_conference The conference responsible for generating this message
  * \param chan The channel involved in the message (NULL allowed)
  * \param user The conference user involved in the message (NULL allowed)
  * \param message_type the type the stasis message being generated
@@ -2834,7 +2836,7 @@ static void meetme_menu_normal(enum menu_modes *menu_mode, int *dtmf, struct ast
 }
 
 /*! \internal
- * \brief Processes menu options for the adminstrator menu (accessible through the 's' option for app_meetme)
+ * \brief Processes menu options for the administrator menu (accessible through the 's' option for app_meetme)
  *
  * \param menu_mode a pointer to the currently active menu_mode.
  * \param dtmf a pointer to the dtmf value currently being processed against the menu.
@@ -2961,7 +2963,8 @@ static void meetme_menu_admin(enum menu_modes *menu_mode, int *dtmf, struct ast_
  * \param confflags flags used by conf for various options
  * \param chan ast_channel belonging to the user who called the menu
  * \param user which meetme conference user invoked the menu
- * \param recordingtmp character buffer which may hold the name of the conference recording file
+ * \param recordingtmp, recordingtmp_size character buffer which may hold the name of the conference recording file
+ * \param cap_slin
  */
 static void meetme_menu_admin_extended(enum menu_modes *menu_mode, int *dtmf,
 	struct ast_conference *conf, struct ast_flags64 *confflags, struct ast_channel *chan,
@@ -3148,7 +3151,8 @@ static void meetme_menu_admin_extended(enum menu_modes *menu_mode, int *dtmf,
  * \param confflags flags used by conf for various options
  * \param chan ast_channel belonging to the user who called the menu
  * \param user which meetme conference user invoked the menu
- * \param recordingtmp character buffer which may hold the name of the conference recording file
+ * \param recordingtmp,recordingtmp_size character buffer which may hold the name of the conference recording file
+ * \param cap_slin
  */
 static void meetme_menu(enum menu_modes *menu_mode, int *dtmf,
 	struct ast_conference *conf, struct ast_flags64 *confflags, struct ast_channel *chan,
@@ -5219,7 +5223,7 @@ static int user_chan_cb(void *obj, void *args, int flags)
 	return 0;
 }
 
-/*! \brief The MeetMeadmin application
+/*! \brief The MeetMeAdmin application
 
   MeetMeAdmin(confno, command, caller) */
 static int admin_exec(struct ast_channel *chan, const char *data) {

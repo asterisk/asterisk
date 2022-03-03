@@ -98,6 +98,8 @@ struct sched {
 	ast_cond_t cond;
 	/*! Indication that a running task was deleted. */
 	unsigned int deleted:1;
+	/*! Indication that a running task was rescheduled. */
+	unsigned int rescheduled:1;
 };
 
 struct sched_thread {
@@ -606,11 +608,27 @@ const void *ast_sched_find_data(struct ast_sched_context *con, int id)
  * "id".  It's nearly impossible that there
  * would be two or more in the list with that
  * id.
+ * Deprecated in favor of ast_sched_del_nonrunning
+ * which checks running event status.
  */
 int ast_sched_del(struct ast_sched_context *con, int id)
 {
+	return ast_sched_del_nonrunning(con, id) ? -1 : 0;
+}
+
+/*! \brief
+ * Delete the schedule entry with number "id".
+ * If running, wait for the task to complete,
+ * check to see if it is rescheduled then
+ * schedule the release.
+ * It's nearly impossible that there would be
+ * two or more in the list with that id.
+ */
+int ast_sched_del_nonrunning(struct ast_sched_context *con, int id)
+{
 	struct sched *s = NULL;
 	int *last_id = ast_threadstorage_get(&last_del_id, sizeof(int));
+	int res = 0;
 
 	DEBUG(ast_debug(1, "ast_sched_del(%d)\n", id));
 
@@ -645,7 +663,17 @@ int ast_sched_del(struct ast_sched_context *con, int id)
 			while (con->currently_executing && (id == con->currently_executing->sched_id->id)) {
 				ast_cond_wait(&s->cond, &con->lock);
 			}
-			/* Do not sched_release() here because ast_sched_runq() will do it */
+			/* This is not rescheduled so the caller of ast_sched_del_nonrunning needs to know
+			 * that it was still deleted
+			 */
+			if (!s->rescheduled) {
+				res = -2;
+			}
+			/* ast_sched_runq knows we are waiting on this item and is passing responsibility for
+			 * its destruction to us
+			 */
+			sched_release(con, s);
+			s = NULL;
 		}
 	}
 
@@ -658,7 +686,10 @@ int ast_sched_del(struct ast_sched_context *con, int id)
 	}
 	ast_mutex_unlock(&con->lock);
 
-	if (!s && *last_id != id) {
+	if(res == -2){
+		return res;
+	}
+	else if (!s && *last_id != id) {
 		ast_debug(1, "Attempted to delete nonexistent schedule entry %d!\n", id);
 		/* Removing nonexistent schedule entry shouldn't trigger assert (it was enabled in DEV_MODE);
 		 * because in many places entries is deleted without having valid id. */
@@ -668,7 +699,7 @@ int ast_sched_del(struct ast_sched_context *con, int id)
 		return -1;
 	}
 
-	return 0;
+	return res;
 }
 
 void ast_sched_report(struct ast_sched_context *con, struct ast_str **buf, struct ast_cb_names *cbnames)
@@ -793,7 +824,13 @@ int ast_sched_runq(struct ast_sched_context *con)
 		con->currently_executing = NULL;
 		ast_cond_signal(&current->cond);
 
-		if (res && !current->deleted) {
+		if (current->deleted) {
+			/*
+			 * Another thread is waiting on this scheduled item.  That thread
+			 * will be responsible for it's destruction
+			 */
+			current->rescheduled = res ? 1 : 0;
+		} else if (res) {
 			/*
 			 * If they return non-zero, we should schedule them to be
 			 * run again.

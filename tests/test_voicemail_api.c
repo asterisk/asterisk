@@ -283,9 +283,9 @@
 	} } while (0)
 
 /*!
- * \internal                                                                                                              .
- * \brief Playback a message on a channel or callback function                                                            .
- *                                                                                                                        .
+ * \internal
+ * \brief Playback a message on a channel or callback function
+ *
  * \note The channel name must be test_channel.
  * \note Fail the test if the message could not be played.
  */
@@ -411,7 +411,7 @@ static void test_vm_api_destroy_mock_snapshot(struct ast_vm_msg_snapshot *snapsh
  * \internal
  * \brief Make a voicemail mailbox folder based on the values provided in a message snapshot
  *
- * \param snapshot The snapshot containing the information to create the folder from
+ * \param folder_path The snapshot containing the information to create the folder from
  *
  * \returns 0 on success
  * \returns 1 on failure
@@ -615,10 +615,10 @@ static void test_vm_api_remove_all_messages(void)
  * This creates 4 voicemails, stores them on the file system, and creates snapshot objects
  * representing them for expected/actual value comparisons in the array test_snapshots.
  *
- * test_snapshots[0] => in test_vm_1234@default, folder INBOX, message 0
- * test_snapshots[1] => in test_vm_1234@default, folder Old, message 0
- * test_snapshots[2] => in test_vm_2345@default, folder INBOX, message 0
- * test_snapshots[3] => in test_vm_2345@default, folder Old, message 1
+ * test_snapshots[0] => in test_vm_1234\@default, folder INBOX, message 0
+ * test_snapshots[1] => in test_vm_1234\@default, folder Old, message 0
+ * test_snapshots[2] => in test_vm_2345\@default, folder INBOX, message 0
+ * test_snapshots[3] => in test_vm_2345\@default, folder Old, message 1
  *
  * \returns 0 on success
  * \returns 1 on failure
@@ -1156,7 +1156,7 @@ AST_TEST_DEFINE(voicemail_api_off_nominal_remove)
 {
 	const char *inbox_msg_id;
 	const char *multi_msg_ids[2];
-	const char *empty_msg_ids[] = { };
+	const char *empty_msg_ids = "";
 
 	switch (cmd) {
 	case TEST_INIT:
@@ -1207,7 +1207,7 @@ AST_TEST_DEFINE(voicemail_api_off_nominal_remove)
 	VM_API_REMOVE_MESSAGE_OFF_NOMINAL("test_vm_api_2345", "default", 2, "INBOX", multi_msg_ids);
 
 	ast_test_status_update(test, "Test removing no messages with no message numbers\n");
-	VM_API_REMOVE_MESSAGE_OFF_NOMINAL("test_vm_api_1234", "default", 0, "INBOX", empty_msg_ids);
+	VM_API_REMOVE_MESSAGE_OFF_NOMINAL("test_vm_api_1234", "default", 0, "INBOX", &empty_msg_ids);
 
 	ast_test_status_update(test, "Test removing multiple messages with an invalid size specifier\n");
 	VM_API_REMOVE_MESSAGE_OFF_NOMINAL("test_vm_api_2345", "default", -30, "INBOX", multi_msg_ids);
@@ -1330,7 +1330,7 @@ AST_TEST_DEFINE(voicemail_api_off_nominal_forward)
 	const char *inbox_msg_id;
 	const char *multi_msg_ids[4];
 
-	const char *empty_msg_ids[] = { };
+	const char *empty_msg_ids = "";
 
 	switch (cmd) {
 	case TEST_INIT:
@@ -1393,7 +1393,7 @@ AST_TEST_DEFINE(voicemail_api_off_nominal_forward)
 	VM_API_FORWARD_MESSAGE_OFF_NOMINAL("test_vm_api_1234", "default", "INBOX", "test_vm_api_2345", "default", NULL, 1, &inbox_msg_id, 0);
 
 	ast_test_status_update(test, "Test forwarding when no messages are select\n");
-	VM_API_FORWARD_MESSAGE_OFF_NOMINAL("test_vm_api_1234", "default", "INBOX", "test_vm_api_2345", "default", "INBOX", 0, empty_msg_ids, 0);
+	VM_API_FORWARD_MESSAGE_OFF_NOMINAL("test_vm_api_1234", "default", "INBOX", "test_vm_api_2345", "default", "INBOX", 0, &empty_msg_ids, 0);
 
 	ast_test_status_update(test, "Test forwarding a message that doesn't exist\n");
 	inbox_msg_id = "POOPOO";

@@ -23,9 +23,6 @@
  *
  * \brief Wait for Silence
  *   - Waits for up to 'x' milliseconds of silence, 'y' times \n
- *   - WaitForSilence(500,2) will wait for 1/2 second of silence, twice \n
- *   - WaitForSilence(1000,1) will wait for 1 second of silence, once \n
- *   - WaitForSilence(300,3,10) will wait for 300ms of silence, 3 times, and return after 10sec \n
  *
  * \author David C. Troy <dave@popvox.com>
  *
@@ -78,11 +75,15 @@
 			playing a message.</para>
 			<para>Typically you will want to include two or more calls to WaitForSilence when dealing with an answering
 			machine; first waiting for the spiel to finish, then waiting for the beep, etc.</para>
-			<para>Examples:</para>
-			<para>WaitForSilence(500,2) will wait for 1/2 second of silence, twice</para>
-			<para>WaitForSilence(1000) will wait for 1 second of silence, once</para>
-			<para>WaitForSilence(300,3,10) will wait for 300ms silence, 3 times, and returns after 10 sec, even if silence
-			is not detected</para>
+			<example title="Wait for half a second of silence, twice">
+			same => n,WaitForSilence(500,2)
+			</example>
+			<example title="Wait for one second of silence, once">
+			same => n,WaitForSilence(1000)
+			</example>
+			<example title="Wait for 300 ms of silence, 3 times, and returns after 10 seconds, even if no silence detected">
+			same => n,WaitForSilence(300,3,10)
+			</example>
 			<para>Sets the channel variable <variable>WAITSTATUS</variable> to one of these values:</para>
 			<variablelist>
 				<variable name="WAITSTATUS">

@@ -265,7 +265,7 @@ void* memHeapAlloc (void** ppvMemHeap, int nbytes)
                   if (nunits <= (ASN1UINT)pElem_nunits (pElem)) {
                      RTMEMDIAG3
                         ("memHeapAlloc: "
-                         "found an exisiting free element 0x%x, size %d\n",
+                         "found an existing free element 0x%x, size %d\n",
                         pElem, (pElem_nunits (pElem) * 8u));
 
                      if (pMemBlk->freeElemOff ==
@@ -373,7 +373,7 @@ void* memHeapAlloc (void** ppvMemHeap, int nbytes)
          CHECKMEMBLOCK (pMemHeap, pMemBlk);
       }
       else  {
-	 ast_mutex_unlock(&pMemHeap->pLock);
+	      ast_mutex_unlock(&pMemHeap->pLock);
          return NULL;
       }
    }
@@ -753,9 +753,10 @@ void* memHeapRealloc (void** ppvMemHeap, void* mem_p, int nbytes_)
              if (newMemBlk == 0)
                 return 0;
              pMemLink->pMemBlk = newMemBlk;
-	 }
-         else
+	      }
+         else {
             return 0;
+         }
          *(int*)(((char*)pMemLink) + sizeof (OSMemLink)) = nbytes_;
          return pMemLink->pMemBlk;
       }
@@ -1132,7 +1133,7 @@ void* memHeapMarkSaved (void** ppvMemHeap, const void* mem_p,
          RTMEMDIAG2 ("memHeapMarkSaved: the element 0x%x is "
                          "already free!\n", pElem);
 
-	 ast_mutex_unlock(&pMemHeap->pLock);
+	      ast_mutex_unlock(&pMemHeap->pLock);
          return 0;
       }
 
@@ -1151,9 +1152,10 @@ void* memHeapMarkSaved (void** ppvMemHeap, const void* mem_p,
             CLEAR_SAVED (pMemBlk, pElem);
          nsaved = pMemBlk->nsaved;
       }
-      else
-	 ast_mutex_unlock(&pMemHeap->pLock);
-         return 0;
+      else {
+	      ast_mutex_unlock(&pMemHeap->pLock);
+      }
+      return 0;
    }
    if (saved && nsaved > 0)
       pMemLink->blockType |= RTMEMSAVED;
@@ -1212,7 +1214,7 @@ static OSMemLink* memHeapAddBlock (OSMemLink** ppMemLink,
 
    /* if pMemBlk has RTMEMLINK flags it means that it is allocated
     * cooperatively with OSMemLink, and we don't need to do additional
-    * allocations for it. Just use pointer's arithemtic. */
+    * allocations for it. Just use pointer's arithmetic. */
 
    if (blockType & RTMEMLINK)
       pMemLink = (OSMemLink*) (((ASN1OCTET*)pMemBlk) - sizeof (OSMemLink));

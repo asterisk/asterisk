@@ -147,7 +147,7 @@ static int channel_state_invalid(struct stasis_app_control *control,
  * \param[out] response Response to fill with an error if control is not found.
  * \param channel_id ID of the channel to lookup.
  * \return Channel control object.
- * \return \c NULL if control object does not exist.
+ * \retval NULL if control object does not exist.
  */
 static struct stasis_app_control *find_control(
 	struct ast_ari_response *response,
@@ -1726,8 +1726,8 @@ struct ast_datastore_info dialstring_info = {
  *
  * \param chan The channel on which to save the dialstring
  * \param dialstring The dialstring to save
- * \retval 0 SUCCESS!
- * \reval -1 Failure :(
+ * \retval 0 on success.
+ * \retval -1 on error.
  */
 static int save_dialstring(struct ast_channel *chan, const char *dialstring)
 {
@@ -2101,7 +2101,7 @@ static void external_media_rtp_udp(struct ast_ari_channels_external_media_args *
 		0,
 		NULL,
 		args->app,
-		NULL,
+		args->data,
 		NULL,
 		0,
 		variables,
@@ -2151,7 +2151,7 @@ static void external_media_audiosocket_tcp(struct ast_ari_channels_external_medi
 		0,
 		NULL,
 		args->app,
-		NULL,
+		args->data,
 		NULL,
 		0,
 		variables,
@@ -2188,6 +2188,18 @@ void ast_ari_channels_external_media(struct ast_variable *headers,
 
 	ast_assert(response != NULL);
 
+	/* Parse any query parameters out of the body parameter */
+	if (args->variables) {
+		struct ast_json *json_variables;
+
+		ast_ari_channels_external_media_parse_body(args->variables, args);
+		json_variables = ast_json_object_get(args->variables, "variables");
+		if (json_variables
+			&& json_to_ast_variables(response, json_variables, &variables)) {
+			return;
+		}
+	}
+
 	if (ast_strlen_zero(args->app)) {
 		ast_ari_response_error(response, 400, "Bad Request", "app cannot be empty");
 		return;
@@ -2220,17 +2232,6 @@ void ast_ari_channels_external_media(struct ast_variable *headers,
 	}
 	if (ast_strlen_zero(args->direction)) {
 		args->direction = "both";
-	}
-
-	if (args->variables) {
-		struct ast_json *json_variables;
-
-		ast_ari_channels_external_media_parse_body(args->variables, args);
-		json_variables = ast_json_object_get(args->variables, "variables");
-		if (json_variables
-			&& json_to_ast_variables(response, json_variables, &variables)) {
-			return;
-		}
 	}
 
 	if (strcasecmp(args->encapsulation, "rtp") == 0 && strcasecmp(args->transport, "udp") == 0) {

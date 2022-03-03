@@ -35,7 +35,7 @@
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
 #include "asterisk/app.h"
-/* This file provides config-file based 'say' functions, and implenents
+/* This file provides config-file based 'say' functions, and implements
  * some CLI commands.
  */
 #include "asterisk/say.h"	/*!< provides config-file based 'say' functions */
@@ -61,6 +61,12 @@
 						<para>Playback without answering, otherwise the channel will
 						be answered before the sound is played.</para>
 						<note><para>Not all channel types support playing messages while still on hook.</para></note>
+					</option>
+					<option name="say">
+						<para>Play using the say.conf file.</para>
+					</option>
+					<option name="mix">
+						<para>Play using a mix of filename and the say.conf file.</para>
 					</option>
 				</optionlist>
 			</parameter>
@@ -446,6 +452,7 @@ static int playback_exec(struct ast_channel *chan, const char *data)
 	char *tmp;
 	int option_skip=0;
 	int option_say=0;
+	int option_mix=0;
 	int option_noanswer = 0;
 
 	AST_DECLARE_APP_ARGS(args,
@@ -466,6 +473,8 @@ static int playback_exec(struct ast_channel *chan, const char *data)
 			option_skip = 1;
 		if (strcasestr(args.options, "say"))
 			option_say = 1;
+		if (strcasestr(args.options, "mix"))
+			option_mix = 1;
 		if (strcasestr(args.options, "noanswer"))
 			option_noanswer = 1;
 	}
@@ -486,6 +495,13 @@ static int playback_exec(struct ast_channel *chan, const char *data)
 		while (!res && (front = strsep(&back, "&"))) {
 			if (option_say)
 				res = say_full(chan, front, "", ast_channel_language(chan), NULL, -1, -1);
+			else if (option_mix){
+				/* Check if it is in say format but not remote audio file */
+				if (strcasestr(front, ":") && !strcasestr(front, "://"))
+					res = say_full(chan, front, "", ast_channel_language(chan), NULL, -1, -1);
+				else
+					res = ast_streamfile(chan, front, ast_channel_language(chan));
+			}
 			else
 				res = ast_streamfile(chan, front, ast_channel_language(chan));
 			if (!res) {

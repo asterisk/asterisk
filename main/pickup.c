@@ -191,7 +191,6 @@ struct ast_channel *ast_pickup_find_by_group(struct ast_channel *chan)
 
 /*!
  * \brief Pickup a call
- * \param chan channel that initiated pickup.
  *
  * Walk list of channels, checking it is not itself, channel is pbx one,
  * check that the callgroup for both channels are the same and the channel is ringing.

@@ -168,7 +168,7 @@ enum {
 	FLAG_DEAD =        (1 << 1),  /*!< Transaction is dead */
 	FLAG_FINAL =       (1 << 2),  /*!< Transaction has final message sent */
 	FLAG_ISQUAL =      (1 << 3),  /*!< Transaction is a qualification */
-	FLAG_ENCRYPT =     (1 << 4),  /*!< Transaction is encrypted wiht ECX/DCX */
+	FLAG_ENCRYPT =     (1 << 4),  /*!< Transaction is encrypted with ECX/DCX */
 	FLAG_SENDFULLKEY = (1 << 5),  /*!< Send full key on transaction */
 	FLAG_STOREHIST =   (1 << 6),  /*!< Record historic performance */
 };
@@ -2164,7 +2164,7 @@ static void load_password(void)
 		}
 	}
 	if (current) {
-		/* Current key is still valid, just setup rotatation properly */
+		/* Current key is still valid, just setup rotation properly */
 		ast_copy_string(cursecret, current, sizeof(cursecret));
 		rotatetime = expired;
 	} else {
@@ -4527,7 +4527,7 @@ static void build_mapping(const char *name, const char *value)
 		ast_log(LOG_WARNING, "Expected at least %d arguments in map, but got only %d\n", 4, x);
 }
 
-/* \note Called with the peers list already locked */
+/*! \note Called with the peers list already locked */
 static int do_register(const void *data)
 {
 	struct dundi_ie_data ied;

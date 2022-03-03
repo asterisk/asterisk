@@ -205,7 +205,7 @@ struct ast_frame *ast_smoother_read(struct ast_smoother *s)
 	/* Move remaining data to the front if applicable */
 	if (s->len) {
 		/* In principle this should all be fine because if we are sending
-		   G.729 VAD, the next timestamp will take over anyawy */
+		   G.729 VAD, the next timestamp will take over anyway */
 		memmove(s->data, s->data + len, s->len);
 		if (!ast_tvzero(s->delivery)) {
 			/* If we have delivery time, increment it, otherwise, leave it at 0 */

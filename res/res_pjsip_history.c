@@ -73,11 +73,8 @@ struct pjsip_history_entry {
 	pjsip_msg *msg;
 };
 
-/*! \brief Mutex that protects \ref vector_history */
+/*! \brief Mutex that protects \c vector_history */
 AST_MUTEX_DEFINE_STATIC(history_lock);
-
-/*! \brief The one and only history that we've captured */
-static AST_VECTOR(vector_history_t, struct pjsip_history_entry *) vector_history;
 
 struct expression_token;
 
@@ -161,6 +158,9 @@ struct expression_token {
 /*! \brief Log level for history output */
 static int log_level = -1;
 
+/*! \brief The one and only history that we've captured */
+static AST_VECTOR(vector_history_t, struct pjsip_history_entry *) vector_history;
+
 /*!
  * \brief Operator callback for determining equality
  */
@@ -236,7 +236,7 @@ static int evaluate_not_equal(struct operator *op, enum aco_option_type type, vo
 	return !evaluate_equal(op, type, op_left, op_right);
 }
 
-/*
+/*!
  * \brief Operator callback for determining if one operand is less than another
  */
 static int evaluate_less_than(struct operator *op, enum aco_option_type type, void *op_left, struct expression_token *op_right)
@@ -285,7 +285,7 @@ static int evaluate_less_than(struct operator *op, enum aco_option_type type, vo
 	return -1;
 }
 
-/*
+/*!
  * \brief Operator callback for determining if one operand is greater than another
  */
 static int evaluate_greater_than(struct operator *op, enum aco_option_type type, void *op_left, struct expression_token *op_right)
@@ -334,7 +334,7 @@ static int evaluate_greater_than(struct operator *op, enum aco_option_type type,
 	return -1;
 }
 
-/*
+/*!
  * \brief Operator callback for determining if one operand is less than or equal to another
  */
 static int evaluate_less_than_or_equal(struct operator *op, enum aco_option_type type, void *op_left, struct expression_token *op_right)
@@ -342,7 +342,7 @@ static int evaluate_less_than_or_equal(struct operator *op, enum aco_option_type
 	return !evaluate_greater_than(op, type, op_left, op_right);
 }
 
-/*
+/*!
  * \brief Operator callback for determining if one operand is greater than or equal to another
  */
 static int evaluate_greater_than_or_equal(struct operator *op, enum aco_option_type type, void *op_left, struct expression_token *op_right)
@@ -350,7 +350,7 @@ static int evaluate_greater_than_or_equal(struct operator *op, enum aco_option_t
 	return !evaluate_less_than(op, type, op_left, op_right);
 }
 
-/*
+/*!
  * \brief Operator callback for determining logical NOT
  */
 static int evaluate_not(struct operator *op, enum aco_option_type type, void *operand)
@@ -368,7 +368,7 @@ static int evaluate_not(struct operator *op, enum aco_option_type type, void *op
 	return -1;
 }
 
-/*
+/*!
  * \brief Operator callback for determining logical AND
  */
 static int evaluate_and(struct operator *op, enum aco_option_type type, void *op_left, struct expression_token *op_right)
@@ -386,7 +386,7 @@ static int evaluate_and(struct operator *op, enum aco_option_type type, void *op
 	return -1;
 }
 
-/*
+/*!
  * \brief Operator callback for determining logical OR
  */
 static int evaluate_or(struct operator *op, enum aco_option_type type, void *op_left, struct expression_token *op_right)
@@ -404,7 +404,7 @@ static int evaluate_or(struct operator *op, enum aco_option_type type, void *op_
 	return -1;
 }
 
-/*
+/*!
  * \brief Operator callback for regex 'like'
  */
 static int evaluate_like(struct operator *op, enum aco_option_type type, void *op_left, struct expression_token *op_right)
@@ -542,7 +542,7 @@ static struct expression_token *expression_token_free(struct expression_token *t
  * \param value The value/operator/result to pack into the token
  *
  * \retval NULL on failure
- * \retval \c expression_token on success
+ * \retval expression_token on success
  */
 static struct expression_token *expression_token_alloc(enum expression_token_type token_type, void *value)
 {
@@ -772,7 +772,7 @@ static void clear_history_entry_cb(struct pjsip_history_entry *entry)
 }
 
 /*!
- * \brief Remove all entries from \ref vector_history
+ * \brief Remove all entries from \c vector_history
  *
  * This must be called from a registered PJSIP thread
  */
@@ -794,7 +794,7 @@ static int clear_history_entries(void *obj)
  * polish notation expression, which is a queue of tokens that can be easily
  * parsed.
  *
- * \params a The CLI arguments provided by the User, containing the infix expression
+ * \param a The CLI arguments provided by the User, containing the infix expression
  *
  * \retval NULL error
  * \retval expression_token A 'queue' of expression tokens in RPN

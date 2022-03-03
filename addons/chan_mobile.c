@@ -102,7 +102,7 @@ struct adapter_pvt {
 	char id[31];					/* the 'name' from mobile.conf */
 	bdaddr_t addr;					/* adddress of adapter */
 	unsigned int inuse:1;				/* are we in use ? */
-	unsigned int alignment_detection:1;		/* do alignment detection on this adpater? */
+	unsigned int alignment_detection:1;		/* do alignment detection on this adapter? */
 	struct io_context *io;				/*!< io context for audio connections */
 	struct io_context *accept_io;			/*!< io context for sco listener */
 	int *sco_id;					/*!< the io context id of the sco listener socket */
@@ -2006,7 +2006,7 @@ static int at_match_prefix(char *buf, char *prefix)
 }
 
 /*!
- * \brief Read an AT message and clasify it.
+ * \brief Read an AT message and classify it.
  * \param rsock an rfcomm socket
  * \param buf the buffer to store the result in
  * \param count the size of the buffer or the maximum number of characters to read
@@ -2156,10 +2156,12 @@ static inline const char *at_msg2str(at_message_t msg)
  * \param buf the buffer to parse (null terminated)
  * \return -1 on error (parse error) or a ECAM value on success
  *
- * Example string: *ECAV: <ccid>,<ccstatus>,<calltype>[,<processid>]
- * [,exitcause][,<number>,<type>]
+ * Example:
+ * \verbatim *ECAV: <ccid>,<ccstatus>,<calltype>[,<processid>]
+                    [,exitcause][,<number>,<type>] \endverbatim
  *
- * Example indicating busy: *ECAV: 1,7,1
+ * Example indicating busy:
+ * \verbatim *ECAV: 1,7,1 \endverbatim
  */
 static int hfp_parse_ecav(struct hfp_pvt *hfp, char *buf)
 {
@@ -2176,7 +2178,7 @@ static int hfp_parse_ecav(struct hfp_pvt *hfp, char *buf)
 }
 
 /*!
- * \brief Enable Sony Erricson extensions / indications.
+ * \brief Enable Sony Ericsson extensions / indications.
  * \param hfp an hfp_pvt struct
  */
 static int hfp_send_ecam(struct hfp_pvt *hfp)
@@ -3040,7 +3042,7 @@ static void msg_queue_free_and_pop(struct mbl_pvt *pvt)
 }
 
 /*!
- * \brief Remove all itmes from the queue and free them.
+ * \brief Remove all items from the queue and free them.
  * \param pvt a mbl_pvt structure
  */
 static void msg_queue_flush(struct mbl_pvt *pvt)
@@ -3347,7 +3349,7 @@ static int handle_response_ok(struct mbl_pvt *pvt, char *buf)
 			}
 			break;
 		case AT_CLIP:
-			ast_debug(1, "[%s] caling line indication enabled\n", pvt->id);
+			ast_debug(1, "[%s] calling line indication enabled\n", pvt->id);
 			if (hfp_send_ecam(pvt->hfp) || msg_queue_push(pvt, AT_OK, AT_ECAM)) {
 				ast_debug(1, "[%s] error enabling Sony Ericsson call monitoring extensions\n", pvt->id);
 				goto e_return;
@@ -3567,7 +3569,7 @@ static int handle_response_ciev(struct mbl_pvt *pvt, char *buf)
 			if (pvt->owner) {
 				ast_debug(1, "[%s] hanging up owner\n", pvt->id);
 				if (mbl_queue_hangup(pvt)) {
-					ast_log(LOG_ERROR, "[%s] error queueing hangup, disconnectiong...\n", pvt->id);
+					ast_log(LOG_ERROR, "[%s] error queueing hangup, disconnecting...\n", pvt->id);
 					return -1;
 				}
 			}
@@ -3601,7 +3603,7 @@ static int handle_response_ciev(struct mbl_pvt *pvt, char *buf)
 						handle_response_busy(pvt);
 					}
 					if (mbl_queue_hangup(pvt)) {
-						ast_log(LOG_ERROR, "[%s] error queueing hangup, disconnectiong...\n", pvt->id);
+						ast_log(LOG_ERROR, "[%s] error queueing hangup, disconnecting...\n", pvt->id);
 						return -1;
 					}
 				}
@@ -4431,7 +4433,7 @@ static struct adapter_pvt *mbl_load_adapter(struct ast_config *cfg, const char *
 
 	/* bind the sco listener socket */
 	if (sco_bind(adapter) < 0) {
-		ast_log(LOG_ERROR, "Skipping adapter %s. Error binding audio connection listerner socket.\n", adapter->id);
+		ast_log(LOG_ERROR, "Skipping adapter %s. Error binding audio connection listener socket.\n", adapter->id);
 		goto e_destroy_io;
 	}
 
@@ -4443,7 +4445,7 @@ static struct adapter_pvt *mbl_load_adapter(struct ast_config *cfg, const char *
 
 	/* start the sco listener for this adapter */
 	if (ast_pthread_create_background(&adapter->sco_listener_thread, NULL, do_sco_listen, adapter)) {
-		ast_log(LOG_ERROR, "Skipping adapter %s. Error creating audio connection listerner thread.\n", adapter->id);
+		ast_log(LOG_ERROR, "Skipping adapter %s. Error creating audio connection listener thread.\n", adapter->id);
 		goto e_remove_sco;
 	}
 
@@ -4499,7 +4501,7 @@ static struct mbl_pvt *mbl_load_device(struct ast_config *cfg, const char *cat)
 	}
 	AST_RWLIST_UNLOCK(&adapters);
 	if (!adapter) {
-		ast_log(LOG_ERROR, "Skiping device %s. Unknown adapter '%s' specified.\n", cat, adapter_str);
+		ast_log(LOG_ERROR, "Skipping device %s. Unknown adapter '%s' specified.\n", cat, adapter_str);
 		goto e_return;
 	}
 

@@ -52,7 +52,7 @@
  * \param bridge_id ID of the bridge to lookup.
  *
  * \return Bridget.
- * \return \c NULL if bridge does not exist.
+ * \retval NULL if bridge does not exist.
  */
 static struct ast_bridge *find_bridge(
 	struct ast_ari_response *response,
@@ -87,7 +87,7 @@ static struct ast_bridge *find_bridge(
  * \param[out] response Response to fill with an error if control is not found.
  * \param channel_id ID of the channel to lookup.
  * \return Channel control object.
- * \return \c NULL if control object does not exist.
+ * \retval NULL if control object does not exist.
  */
 static struct stasis_app_control *find_channel_control(
 	struct ast_ari_response *response,
@@ -343,16 +343,17 @@ static struct ast_channel *prepare_bridge_media_channel(const char *type)
  * \param args_media_count number of media items in \c media
  * \param args_lang language string split from arguments
  * \param args_offset_ms milliseconds offset split from arguments
+ * \param args_skipms
  * \param args_playback_id string to use for playback split from
  *        arguments (null valid)
  * \param response ARI response being built
- * \param bridge Bridge the playback is being peformed on
+ * \param bridge Bridge the playback is being performed on
  * \param control Control being used for the playback channel
  * \param json contents of the response to ARI
  * \param playback_url stores playback URL for use with response
  *
  * \retval -1 operation failed
- * \retval operation was successful
+ * \return operation was successful
  */
 static int ari_bridges_play_helper(const char **args_media,
 	size_t args_media_count,
@@ -514,10 +515,11 @@ enum play_found_result {
  * \param args_media_count number of media items in \c media
  * \param args_lang language string split from arguments
  * \param args_offset_ms milliseconds offset split from arguments
+ * \param args_skipms
  * \param args_playback_id string to use for playback split from
  *        arguments (null valid)
  * \param response ARI response being built
- * \param bridge Bridge the playback is being peformed on
+ * \param bridge Bridge the playback is being performed on
  * \param found_channel The channel that was found controlling playback
  *
  * \retval PLAY_FOUND_SUCCESS The operation was successful
@@ -905,12 +907,23 @@ void ast_ari_bridges_list(struct ast_variable *headers,
 
 	i = ao2_iterator_init(bridges, 0);
 	while ((bridge = ao2_iterator_next(&i))) {
-		struct ast_bridge_snapshot *snapshot = ast_bridge_get_snapshot(bridge);
-		/* ast_bridge_snapshot_to_json will return NULL if snapshot is NULL */
-		struct ast_json *json_bridge = ast_bridge_snapshot_to_json(snapshot, stasis_app_get_sanitizer());
+		struct ast_bridge_snapshot *snapshot;
+		struct ast_json *json_bridge = NULL;
+
+		/* Invisible bridges don't get shown externally and have no snapshot */
+		if (ast_test_flag(&bridge->feature_flags, AST_BRIDGE_FLAG_INVISIBLE)) {
+			ao2_ref(bridge, -1);
+			continue;
+		}
+
+		snapshot = ast_bridge_get_snapshot(bridge);
+		if (snapshot) {
+			json_bridge = ast_bridge_snapshot_to_json(snapshot, stasis_app_get_sanitizer());
+			ao2_ref(snapshot, -1);
+		}
 
 		ao2_ref(bridge, -1);
-		ao2_cleanup(snapshot);
+
 		if (!json_bridge || ast_json_array_append(json, json_bridge)) {
 			ao2_iterator_destroy(&i);
 			ast_ari_response_alloc_failed(response);

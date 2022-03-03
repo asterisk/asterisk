@@ -665,6 +665,8 @@ PJPROJECT_LIBS
 PJPROJECT_CFLAGS
 PG_CONFIG
 CONFIG_NETSNMP
+NETSNMP_LIBS
+NETSNMP_CFLAGS
 CONFIG_NEON29
 CONFIG_NEON
 CONFIG_MYSQLCLIENT
@@ -711,9 +713,6 @@ UUID_LIB
 UUID_INCLUDE
 LIBEDIT_LIBS
 LIBEDIT_CFLAGS
-PKG_CONFIG_LIBDIR
-PKG_CONFIG_PATH
-PKG_CONFIG
 ALLOCA
 PBX_ZLIB
 ZLIB_DIR
@@ -759,10 +758,6 @@ PBX_RT
 RT_DIR
 RT_INCLUDE
 RT_LIB
-PBX_OPENSSL
-OPENSSL_DIR
-OPENSSL_INCLUDE
-OPENSSL_LIB
 PBX_SRTP_GET_VERSION
 SRTP_GET_VERSION_DIR
 SRTP_GET_VERSION_INCLUDE
@@ -1153,18 +1148,6 @@ PBX_DAHDI
 DAHDI_DIR
 DAHDI_INCLUDE
 DAHDI_LIB
-PBX_OPENSSL_BIO_METHOD
-OPENSSL_BIO_METHOD_DIR
-OPENSSL_BIO_METHOD_INCLUDE
-OPENSSL_BIO_METHOD_LIB
-PBX_OPENSSL_SRTP
-OPENSSL_SRTP_DIR
-OPENSSL_SRTP_INCLUDE
-OPENSSL_SRTP_LIB
-PBX_CRYPTO
-CRYPTO_DIR
-CRYPTO_INCLUDE
-CRYPTO_LIB
 PBX_CRYPT
 CRYPT_DIR
 CRYPT_INCLUDE
@@ -1205,6 +1188,7 @@ PJPROJECT_INCLUDE
 PJPROJECT_LIB
 PBX_PJPROJECT
 PJPROJECT_DIR
+PJPROJECT_BUNDLED_OOT
 PJPROJECT_BUNDLED
 PJPROJECT_CONFIGURE_OPTS
 JANSSON_INCLUDE
@@ -1212,6 +1196,20 @@ JANSSON_LIB
 PBX_JANSSON
 JANSSON_BUNDLED
 JANSSON_CONFIGURE_OPTS
+OPENSSL_LIBS
+OPENSSL_CFLAGS
+PBX_OPENSSL_BIO_METHOD
+OPENSSL_BIO_METHOD_DIR
+OPENSSL_BIO_METHOD_INCLUDE
+OPENSSL_BIO_METHOD_LIB
+PBX_OPENSSL
+OPENSSL_DIR
+OPENSSL_INCLUDE
+OPENSSL_LIB
+PBX_CRYPTO
+CRYPTO_DIR
+CRYPTO_INCLUDE
+CRYPTO_LIB
 AST_C_COMPILER_FAMILY
 AST_CLANG_BLOCKS
 AST_CLANG_BLOCKS_LIBS
@@ -1234,6 +1232,9 @@ PBX_BASH
 PBX_XMLSTARLET
 PBX_FLEX
 PBX_BISON
+PKG_CONFIG_LIBDIR
+PKG_CONFIG_PATH
+PKG_CONFIG
 OPENSSL
 SHA1SUM
 LDCONFIG
@@ -1241,6 +1242,7 @@ DOWNLOAD_TIMEOUT
 DOWNLOAD_TO_STDOUT
 DOWNLOAD
 FETCH
+REALPATH
 NM
 PATCH
 TAR
@@ -1296,7 +1298,6 @@ BUILD_OS
 BUILD_VENDOR
 BUILD_CPU
 BUILD_PLATFORM
-astcachedir
 astvarrundir
 astlogdir
 astspooldir
@@ -1309,6 +1310,7 @@ astmoddir
 astlibdir
 astheaderdir
 astetcdir
+astcachedir
 astsbindir
 EGREP
 GREP
@@ -1349,6 +1351,7 @@ infodir
 docdir
 oldincludedir
 includedir
+runstatedir
 localstatedir
 sharedstatedir
 sysconfdir
@@ -1380,6 +1383,8 @@ with_externals_cache
 enable_coverage
 with_jansson_bundled
 with_pjproject_bundled
+with_crypto
+with_ssl
 with_asound
 with_bfd
 with_execinfo
@@ -1388,7 +1393,6 @@ with_cap
 with_codec2
 with_cpg
 with_crypt
-with_crypto
 with_dahdi
 with_avcodec
 with_gsm
@@ -1445,7 +1449,6 @@ with_speexdsp
 with_sqlite
 with_sqlite3
 with_srtp
-with_ssl
 with_suppserv
 with_tds
 with_timerfd
@@ -1476,18 +1479,22 @@ CXX
 CXXFLAGS
 CCC
 CXXCPP
-JANSSON_CONFIGURE_OPTS
-PJPROJECT_CONFIGURE_OPTS
-LUA_VERSIONS
 PKG_CONFIG
 PKG_CONFIG_PATH
 PKG_CONFIG_LIBDIR
+OPENSSL_CFLAGS
+OPENSSL_LIBS
+JANSSON_CONFIGURE_OPTS
+PJPROJECT_CONFIGURE_OPTS
+LUA_VERSIONS
 LIBEDIT_CFLAGS
 LIBEDIT_LIBS
 JANSSON_CFLAGS
 JANSSON_LIBS
 ILBC_CFLAGS
 ILBC_LIBS
+NETSNMP_CFLAGS
+NETSNMP_LIBS
 PJPROJECT_CFLAGS
 PJPROJECT_LIBS
 PYTHONDEV_CFLAGS
@@ -1538,6 +1545,7 @@ datadir='${datarootdir}'
 sysconfdir='${prefix}/etc'
 sharedstatedir='${prefix}/com'
 localstatedir='${prefix}/var'
+runstatedir='${localstatedir}/run'
 includedir='${prefix}/include'
 oldincludedir='/usr/include'
 docdir='${datarootdir}/doc/${PACKAGE_TARNAME}'
@@ -1790,6 +1798,15 @@ do
   | -silent | --silent | --silen | --sile | --sil)
     silent=yes ;;
 
+  -runstatedir | --runstatedir | --runstatedi | --runstated \
+  | --runstate | --runstat | --runsta | --runst | --runs \
+  | --run | --ru | --r)
+    ac_prev=runstatedir ;;
+  -runstatedir=* | --runstatedir=* | --runstatedi=* | --runstated=* \
+  | --runstate=* | --runstat=* | --runsta=* | --runst=* | --runs=* \
+  | --run=* | --ru=* | --r=*)
+    runstatedir=$ac_optarg ;;
+
   -sbindir | --sbindir | --sbindi | --sbind | --sbin | --sbi | --sb)
     ac_prev=sbindir ;;
   -sbindir=* | --sbindir=* | --sbindi=* | --sbind=* | --sbin=* \
@@ -1927,7 +1944,7 @@ fi
 for ac_var in	exec_prefix prefix bindir sbindir libexecdir datarootdir \
 		datadir sysconfdir sharedstatedir localstatedir includedir \
 		oldincludedir docdir infodir htmldir dvidir pdfdir psdir \
-		libdir localedir mandir
+		libdir localedir mandir runstatedir
 do
   eval ac_val=\$$ac_var
   # Remove trailing slashes.
@@ -2080,6 +2097,7 @@ Fine tuning of the installation directories:
   --sysconfdir=DIR        read-only single-machine data [PREFIX/etc]
   --sharedstatedir=DIR    modifiable architecture-independent data [PREFIX/com]
   --localstatedir=DIR     modifiable single-machine data [PREFIX/var]
+  --runstatedir=DIR       modifiable per-process data [LOCALSTATEDIR/run]
   --libdir=DIR            object code libraries [EPREFIX/lib]
   --includedir=DIR        C header files [PREFIX/include]
   --oldincludedir=DIR     C header files for non-gcc [/usr/include]
@@ -2140,6 +2158,8 @@ Optional Packages:
   --with-jansson-bundled  Use bundled jansson library
   --with-pjproject-bundled
                           Use bundled pjproject libraries (default)
+  --with-crypto=PATH      use OpenSSL Cryptography files in PATH
+  --with-ssl=PATH         use OpenSSL Secure Sockets Layer files in PATH
   --with-asound=PATH      use Advanced Linux Sound Architecture files in PATH
   --with-bfd=PATH         use Debug symbol decoding files in PATH
   --with-execinfo=PATH    use Stack Backtrace files in PATH
@@ -2148,7 +2168,6 @@ Optional Packages:
   --with-codec2=PATH      use Codec 2 Audio Decoder/Encoder files in PATH
   --with-cpg=PATH         use Corosync files in PATH
   --with-crypt=PATH       use password and data encryption files in PATH
-  --with-crypto=PATH      use OpenSSL Cryptography files in PATH
   --with-dahdi=PATH       use DAHDI files in PATH
   --with-avcodec=PATH     use Ffmpeg and avcodec files in PATH
   --with-gsm=PATH         use External GSM files in PATH, use 'internal' GSM
@@ -2209,7 +2228,6 @@ Optional Packages:
   --with-sqlite=PATH      use SQLite files in PATH
   --with-sqlite3=PATH     use SQLite files in PATH
   --with-srtp=PATH        use Secure RTP files in PATH
-  --with-ssl=PATH         use OpenSSL Secure Sockets Layer files in PATH
   --with-suppserv=PATH    use mISDN Supplemental Services files in PATH
   --with-tds=PATH         use FreeTDS files in PATH
   --with-timerfd=PATH     use timerfd files in PATH
@@ -2233,17 +2251,21 @@ Some influential environment variables:
   CXX         C++ compiler command
   CXXFLAGS    C++ compiler flags
   CXXCPP      C++ preprocessor
+  PKG_CONFIG  path to pkg-config utility
+  PKG_CONFIG_PATH
+              directories to add to pkg-config's search path
+  PKG_CONFIG_LIBDIR
+              path overriding pkg-config's built-in search path
+  OPENSSL_CFLAGS
+              C compiler flags for OPENSSL, overriding pkg-config
+  OPENSSL_LIBS
+              linker flags for OPENSSL, overriding pkg-config
   JANSSON_CONFIGURE_OPTS
               Additional configure options to pass to bundled jansson
   PJPROJECT_CONFIGURE_OPTS
               Additional configure options to pass to bundled pjproject
   LUA_VERSIONS
               A space separated list of target lua versions to test.
-  PKG_CONFIG  path to pkg-config utility
-  PKG_CONFIG_PATH
-              directories to add to pkg-config's search path
-  PKG_CONFIG_LIBDIR
-              path overriding pkg-config's built-in search path
   LIBEDIT_CFLAGS
               C compiler flags for LIBEDIT, overriding pkg-config
   LIBEDIT_LIBS
@@ -2254,6 +2276,10 @@ Some influential environment variables:
               linker flags for JANSSON, overriding pkg-config
   ILBC_CFLAGS C compiler flags for ILBC, overriding pkg-config
   ILBC_LIBS   linker flags for ILBC, overriding pkg-config
+  NETSNMP_CFLAGS
+              C compiler flags for NETSNMP, overriding pkg-config
+  NETSNMP_LIBS
+              linker flags for NETSNMP, overriding pkg-config
   PJPROJECT_CFLAGS
               C compiler flags for PJPROJECT, overriding pkg-config
   PJPROJECT_LIBS
@@ -2895,6 +2921,52 @@ $as_echo "$ac_res" >&6; }
   eval $as_lineno_stack; ${as_lineno_stack:+:} unset as_lineno
 
 } # ac_fn_c_check_member
+
+# ac_fn_c_check_decl LINENO SYMBOL VAR INCLUDES
+# ---------------------------------------------
+# Tests whether SYMBOL is declared in INCLUDES, setting cache variable VAR
+# accordingly.
+ac_fn_c_check_decl ()
+{
+  as_lineno=${as_lineno-"$1"} as_lineno_stack=as_lineno_stack=$as_lineno_stack
+  as_decl_name=`echo $2|sed 's/ *(.*//'`
+  as_decl_use=`echo $2|sed -e 's/(/((/' -e 's/)/) 0&/' -e 's/,/) 0& (/g'`
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether $as_decl_name is declared" >&5
+$as_echo_n "checking whether $as_decl_name is declared... " >&6; }
+if eval \${$3+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+$4
+int
+main ()
+{
+#ifndef $as_decl_name
+#ifdef __cplusplus
+  (void) $as_decl_use;
+#else
+  (void) $as_decl_name;
+#endif
+#endif
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  eval "$3=yes"
+else
+  eval "$3=no"
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+fi
+eval ac_res=\$$3
+	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+$as_echo "$ac_res" >&6; }
+  eval $as_lineno_stack; ${as_lineno_stack:+:} unset as_lineno
+
+} # ac_fn_c_check_decl
 
 # ac_fn_c_compute_int LINENO EXPR VAR INCLUDES
 # --------------------------------------------
@@ -4940,7 +5012,7 @@ $as_echo "no" >&6; }
 fi
 
   if test "x$ac_pt_UNAME" = x; then
-    UNAME="No"
+    UNAME=":"
   else
     case $cross_compiling:$ac_tool_warned in
 yes:)
@@ -4954,7 +5026,7 @@ else
   UNAME="$ac_cv_path_UNAME"
 fi
 
-if test ! x"${UNAME}" = xNo; then
+if test "x${UNAME}" != "x:"; then
    PBX_OSREV=$(${UNAME} -r)
 fi
 
@@ -7674,15 +7746,57 @@ $as_echo "no" >&6; }
 fi
 
 
+# Extract the first word of "realpath", so it can be a program name with args.
+set dummy realpath; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_path_REALPATH+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  case $REALPATH in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_REALPATH="$REALPATH" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_REALPATH="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  test -z "$ac_cv_path_REALPATH" && ac_cv_path_REALPATH=":"
+  ;;
+esac
+fi
+REALPATH=$ac_cv_path_REALPATH
+if test -n "$REALPATH"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $REALPATH" >&5
+$as_echo "$REALPATH" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+
 
 DOWNLOAD=":"
 DOWNLOAD_TO_STDOUT=
 DOWNLOAD_TIMEOUT=
-if test "${WGET}" != ":" ; then
+if test "x${WGET}" != "x:"; then
   DOWNLOAD=${WGET}
   DOWNLOAD_TO_STDOUT="${WGET} -q -O-"
   DOWNLOAD_TIMEOUT='--timeout=$1'
-elif test "${CURL}" != ":" ; then
+elif test "x${CURL}" != "x:"; then
   DOWNLOAD="${CURL} -O --progress-bar -w \"%{url_effective}\n\""
   DOWNLOAD_TO_STDOUT="${CURL} -Ls"
   DOWNLOAD_TIMEOUT='--max-time $(or $2,$1)'
@@ -7728,7 +7842,7 @@ $as_echo "no" >&6; }
 fi
 
 
-  if test "${FETCH}" != ":" ; then
+  if test "x${FETCH}" != "x:"; then
     DOWNLOAD=${FETCH}
     DOWNLOAD_TO_STDOUT="${FETCH} -o-"
     DOWNLOAD_TIMEOUT='--timeout=$(or $2,$1)'
@@ -7862,6 +7976,127 @@ fi
 
 
 
+
+
+
+
+
+
+
+if test "x$ac_cv_env_PKG_CONFIG_set" != "xset"; then
+	if test -n "$ac_tool_prefix"; then
+  # Extract the first word of "${ac_tool_prefix}pkg-config", so it can be a program name with args.
+set dummy ${ac_tool_prefix}pkg-config; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_path_PKG_CONFIG+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  case $PKG_CONFIG in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_PKG_CONFIG="$PKG_CONFIG" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_PKG_CONFIG="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+PKG_CONFIG=$ac_cv_path_PKG_CONFIG
+if test -n "$PKG_CONFIG"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $PKG_CONFIG" >&5
+$as_echo "$PKG_CONFIG" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+fi
+if test -z "$ac_cv_path_PKG_CONFIG"; then
+  ac_pt_PKG_CONFIG=$PKG_CONFIG
+  # Extract the first word of "pkg-config", so it can be a program name with args.
+set dummy pkg-config; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_path_ac_pt_PKG_CONFIG+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  case $ac_pt_PKG_CONFIG in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_ac_pt_PKG_CONFIG="$ac_pt_PKG_CONFIG" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_ac_pt_PKG_CONFIG="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+ac_pt_PKG_CONFIG=$ac_cv_path_ac_pt_PKG_CONFIG
+if test -n "$ac_pt_PKG_CONFIG"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_pt_PKG_CONFIG" >&5
+$as_echo "$ac_pt_PKG_CONFIG" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+  if test "x$ac_pt_PKG_CONFIG" = x; then
+    PKG_CONFIG=""
+  else
+    case $cross_compiling:$ac_tool_warned in
+yes:)
+{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: using cross tools not prefixed with host triplet" >&5
+$as_echo "$as_me: WARNING: using cross tools not prefixed with host triplet" >&2;}
+ac_tool_warned=yes ;;
+esac
+    PKG_CONFIG=$ac_pt_PKG_CONFIG
+  fi
+else
+  PKG_CONFIG="$ac_cv_path_PKG_CONFIG"
+fi
+
+fi
+if test -n "$PKG_CONFIG"; then
+	_pkg_min_version=0.9.0
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking pkg-config is at least version $_pkg_min_version" >&5
+$as_echo_n "checking pkg-config is at least version $_pkg_min_version... " >&6; }
+	if $PKG_CONFIG --atleast-pkgconfig-version $_pkg_min_version; then
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+	else
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+		PKG_CONFIG=""
+	fi
+fi
+
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for bison that supports parse-param" >&5
 $as_echo_n "checking for bison that supports parse-param... " >&6; }
 if ${ac_cv_path_BISON2+:} false; then :
@@ -7906,21 +8141,22 @@ else
 	PBX_BISON=1
 fi
 
-if test "x${FLEX}" = "x:" ; then
+
+if test "${FLEX}" = ":"; then
 	PBX_FLEX=0
 else
 	PBX_FLEX=1
 fi
 
 
-if test "x${XMLSTARLET}" = "x:" ; then
+if test "${XMLSTARLET}" = ":"; then
 	PBX_XMLSTARLET=0
 else
 	PBX_XMLSTARLET=1
 fi
 
 
-if test "x${BASH}" = "x:" ; then
+if test "${BASH}" = ":"; then
 	PBX_BASH=0
 else
 	PBX_BASH=1
@@ -8019,7 +8255,7 @@ else
   SOXMIX="$ac_cv_prog_SOXMIX"
 fi
 
-if test "${SOXMIX}" != ":" ; then
+if test "x${SOXMIX}" != "x:"; then
 
 $as_echo "#define HAVE_SOXMIX 1" >>confdefs.h
 
@@ -9053,7 +9289,7 @@ JANSSON_BUNDLED=no
 # Check whether --with-jansson-bundled was given.
 if test "${with_jansson_bundled+set}" = set; then :
   withval=$with_jansson_bundled; case "${withval}" in
-		y|yes) JANSSON_BUNDLED=yes ;;
+		y|ye|yes) JANSSON_BUNDLED=yes ;;
 		*) JANSSON_BUNDLED=no ;;
 	esac
 fi
@@ -9072,9 +9308,682 @@ if test "${with_pjproject_bundled+set}" = set; then :
 fi
 
 
-if test "${with_pjproject}" == "no" || test "${with_pjproject}" == "n" ; then
+if test "${with_pjproject}" = "no" || test "${with_pjproject}" = "n" ; then
 	PJPROJECT_BUNDLED=no
 fi
+
+#
+# OpenSSL stuff has to be done here because we want to pass
+# any resulting CFLAGS and LDFLAGS to the bundled pjproject
+# configure done in THIRD_PARTY_CONFIGURE()
+#
+
+    CRYPTO_DESCRIP="OpenSSL Cryptography"
+    CRYPTO_OPTION="crypto"
+    PBX_CRYPTO=0
+
+# Check whether --with-crypto was given.
+if test "${with_crypto+set}" = set; then :
+  withval=$with_crypto;
+	case ${withval} in
+	n|no)
+	USE_CRYPTO=no
+	# -1 is a magic value used by menuselect to know that the package
+	# was disabled, other than 'not found'
+	PBX_CRYPTO=-1
+	;;
+	y|ye|yes)
+	ac_mandatory_list="${ac_mandatory_list} CRYPTO"
+	;;
+	*)
+	CRYPTO_DIR="${withval}"
+	ac_mandatory_list="${ac_mandatory_list} CRYPTO"
+	;;
+	esac
+
+fi
+
+
+
+
+
+
+
+
+    OPENSSL_DESCRIP="OpenSSL Secure Sockets Layer"
+    OPENSSL_OPTION="ssl"
+    PBX_OPENSSL=0
+
+# Check whether --with-ssl was given.
+if test "${with_ssl+set}" = set; then :
+  withval=$with_ssl;
+	case ${withval} in
+	n|no)
+	USE_OPENSSL=no
+	# -1 is a magic value used by menuselect to know that the package
+	# was disabled, other than 'not found'
+	PBX_OPENSSL=-1
+	;;
+	y|ye|yes)
+	ac_mandatory_list="${ac_mandatory_list} OPENSSL"
+	;;
+	*)
+	OPENSSL_DIR="${withval}"
+	ac_mandatory_list="${ac_mandatory_list} OPENSSL"
+	;;
+	esac
+
+fi
+
+
+
+
+
+
+
+
+OPENSSL_BIO_METHOD_DESCRIP="OpenSSL BIO Method Support"
+OPENSSL_BIO_METHOD_OPTION=crypto
+OPENSSL_BIO_METHOD_DIR=${CRYPTO_DIR}
+
+PBX_OPENSSL_BIO_METHOD=0
+
+
+
+
+
+
+
+# If neither --without-ssl (PBX_OPENSSL=-1) nor --without-crypto (PBX_CRYPTO=-1)
+# and there were no directories atdded to --with-ssl and --with-crypto, and
+# pkg-config is installed (which is should be by install_prereq).
+if test "x$PKG_CONFIG" != "x" -a $PBX_OPENSSL -ge 0 -a $PBX_CRYPTO -ge 0 -a "x$OPENSSL_DIR" = "x" ; then
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking OPENSSL with pkg-config" >&5
+$as_echo "$as_me: checking OPENSSL with pkg-config" >&6;}
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether system openssl > 1.1.0" >&5
+$as_echo "$as_me: checking whether system openssl > 1.1.0" >&6;}
+
+   if test "x${PBX_OPENSSL}" != "x1" -a "${USE_OPENSSL}" != "no"; then
+
+pkg_failed=no
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for openssl >= 1.1.0" >&5
+$as_echo_n "checking for openssl >= 1.1.0... " >&6; }
+
+if test -n "$OPENSSL_CFLAGS"; then
+    pkg_cv_OPENSSL_CFLAGS="$OPENSSL_CFLAGS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"openssl >= 1.1.0\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "openssl >= 1.1.0") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_OPENSSL_CFLAGS=`$PKG_CONFIG --cflags "openssl >= 1.1.0" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+if test -n "$OPENSSL_LIBS"; then
+    pkg_cv_OPENSSL_LIBS="$OPENSSL_LIBS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"openssl >= 1.1.0\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "openssl >= 1.1.0") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_OPENSSL_LIBS=`$PKG_CONFIG --libs "openssl >= 1.1.0" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+
+
+
+if test $pkg_failed = yes; then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
+        _pkg_short_errors_supported=yes
+else
+        _pkg_short_errors_supported=no
+fi
+        if test $_pkg_short_errors_supported = yes; then
+	        OPENSSL_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "openssl >= 1.1.0" 2>&1`
+        else
+	        OPENSSL_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "openssl >= 1.1.0" 2>&1`
+        fi
+	# Put the nasty error message in config.log where it belongs
+	echo "$OPENSSL_PKG_ERRORS" >&5
+
+
+            PBX_OPENSSL=0
+
+
+elif test $pkg_failed = untried; then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+            PBX_OPENSSL=0
+
+
+else
+	OPENSSL_CFLAGS=$pkg_cv_OPENSSL_CFLAGS
+	OPENSSL_LIBS=$pkg_cv_OPENSSL_LIBS
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+            PBX_OPENSSL=1
+            OPENSSL_INCLUDE=$(echo ${OPENSSL_CFLAGS} | $SED -e "s|-std=c99||g")
+            OPENSSL_LIB="$OPENSSL_LIBS"
+
+$as_echo "#define HAVE_OPENSSL 1" >>confdefs.h
+
+
+fi
+   fi
+
+	if test $PBX_OPENSSL -eq 0 ; then
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether alternate openssl11 is installed" >&5
+$as_echo "$as_me: checking whether alternate openssl11 is installed" >&6;}
+
+   if test "x${PBX_OPENSSL}" != "x1" -a "${USE_OPENSSL}" != "no"; then
+
+pkg_failed=no
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for openssl11" >&5
+$as_echo_n "checking for openssl11... " >&6; }
+
+if test -n "$OPENSSL_CFLAGS"; then
+    pkg_cv_OPENSSL_CFLAGS="$OPENSSL_CFLAGS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"openssl11\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "openssl11") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_OPENSSL_CFLAGS=`$PKG_CONFIG --cflags "openssl11" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+if test -n "$OPENSSL_LIBS"; then
+    pkg_cv_OPENSSL_LIBS="$OPENSSL_LIBS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"openssl11\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "openssl11") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_OPENSSL_LIBS=`$PKG_CONFIG --libs "openssl11" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+
+
+
+if test $pkg_failed = yes; then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
+        _pkg_short_errors_supported=yes
+else
+        _pkg_short_errors_supported=no
+fi
+        if test $_pkg_short_errors_supported = yes; then
+	        OPENSSL_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "openssl11" 2>&1`
+        else
+	        OPENSSL_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "openssl11" 2>&1`
+        fi
+	# Put the nasty error message in config.log where it belongs
+	echo "$OPENSSL_PKG_ERRORS" >&5
+
+
+            PBX_OPENSSL=0
+
+
+elif test $pkg_failed = untried; then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+            PBX_OPENSSL=0
+
+
+else
+	OPENSSL_CFLAGS=$pkg_cv_OPENSSL_CFLAGS
+	OPENSSL_LIBS=$pkg_cv_OPENSSL_LIBS
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+            PBX_OPENSSL=1
+            OPENSSL_INCLUDE=$(echo ${OPENSSL_CFLAGS} | $SED -e "s|-std=c99||g")
+            OPENSSL_LIB="$OPENSSL_LIBS"
+
+$as_echo "#define HAVE_OPENSSL 1" >>confdefs.h
+
+
+fi
+   fi
+
+	fi
+	if test $PBX_OPENSSL -eq 1 ; then
+		$as_echo "#define HAVE_OPENSSL_BIO_METHOD 1" >>confdefs.h
+
+		PBX_OPENSSL_BIO_METHOD=1
+	else
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking fallback system openssl" >&5
+$as_echo "$as_me: checking fallback system openssl" >&6;}
+
+   if test "x${PBX_OPENSSL}" != "x1" -a "${USE_OPENSSL}" != "no"; then
+
+pkg_failed=no
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for openssl" >&5
+$as_echo_n "checking for openssl... " >&6; }
+
+if test -n "$OPENSSL_CFLAGS"; then
+    pkg_cv_OPENSSL_CFLAGS="$OPENSSL_CFLAGS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"openssl\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "openssl") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_OPENSSL_CFLAGS=`$PKG_CONFIG --cflags "openssl" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+if test -n "$OPENSSL_LIBS"; then
+    pkg_cv_OPENSSL_LIBS="$OPENSSL_LIBS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"openssl\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "openssl") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_OPENSSL_LIBS=`$PKG_CONFIG --libs "openssl" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+
+
+
+if test $pkg_failed = yes; then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
+        _pkg_short_errors_supported=yes
+else
+        _pkg_short_errors_supported=no
+fi
+        if test $_pkg_short_errors_supported = yes; then
+	        OPENSSL_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "openssl" 2>&1`
+        else
+	        OPENSSL_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "openssl" 2>&1`
+        fi
+	# Put the nasty error message in config.log where it belongs
+	echo "$OPENSSL_PKG_ERRORS" >&5
+
+
+            PBX_OPENSSL=0
+
+
+elif test $pkg_failed = untried; then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+            PBX_OPENSSL=0
+
+
+else
+	OPENSSL_CFLAGS=$pkg_cv_OPENSSL_CFLAGS
+	OPENSSL_LIBS=$pkg_cv_OPENSSL_LIBS
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+            PBX_OPENSSL=1
+            OPENSSL_INCLUDE=$(echo ${OPENSSL_CFLAGS} | $SED -e "s|-std=c99||g")
+            OPENSSL_LIB="$OPENSSL_LIBS"
+
+$as_echo "#define HAVE_OPENSSL 1" >>confdefs.h
+
+
+fi
+   fi
+
+	fi
+
+	if test $PBX_OPENSSL -eq 1; then
+		$as_echo "#define HAVE_CRYPTO 1" >>confdefs.h
+
+		PBX_CRYPTO=1
+	fi
+else
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: Checking OPENSSL without pkg-config" >&5
+$as_echo "$as_me: Checking OPENSSL without pkg-config" >&6;}
+
+if test "x${PBX_CRYPTO}" != "x1" -a "${USE_CRYPTO}" != "no"; then
+   pbxlibdir=""
+   # if --with-CRYPTO=DIR has been specified, use it.
+   if test "x${CRYPTO_DIR}" != "x"; then
+      if test -d ${CRYPTO_DIR}/lib; then
+         pbxlibdir="-L${CRYPTO_DIR}/lib"
+      else
+         pbxlibdir="-L${CRYPTO_DIR}"
+      fi
+   fi
+
+      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
+      CFLAGS="${CFLAGS} "
+      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for AES_encrypt in -lcrypto" >&5
+$as_echo_n "checking for AES_encrypt in -lcrypto... " >&6; }
+if ${ac_cv_lib_crypto_AES_encrypt+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lcrypto ${pbxlibdir}  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char AES_encrypt ();
+int
+main ()
+{
+return AES_encrypt ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_crypto_AES_encrypt=yes
+else
+  ac_cv_lib_crypto_AES_encrypt=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_crypto_AES_encrypt" >&5
+$as_echo "$ac_cv_lib_crypto_AES_encrypt" >&6; }
+if test "x$ac_cv_lib_crypto_AES_encrypt" = xyes; then :
+  AST_CRYPTO_FOUND=yes
+else
+  AST_CRYPTO_FOUND=no
+fi
+
+      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
+
+
+   # now check for the header.
+   if test "${AST_CRYPTO_FOUND}" = "yes"; then
+      CRYPTO_LIB="${pbxlibdir} -lcrypto "
+      # if --with-CRYPTO=DIR has been specified, use it.
+      if test "x${CRYPTO_DIR}" != "x"; then
+         CRYPTO_INCLUDE="-I${CRYPTO_DIR}/include"
+      fi
+      CRYPTO_INCLUDE="${CRYPTO_INCLUDE} "
+
+         # check for the header
+         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
+         CPPFLAGS="${CPPFLAGS} ${CRYPTO_INCLUDE}"
+         ac_fn_c_check_header_mongrel "$LINENO" "openssl/aes.h" "ac_cv_header_openssl_aes_h" "$ac_includes_default"
+if test "x$ac_cv_header_openssl_aes_h" = xyes; then :
+  CRYPTO_HEADER_FOUND=1
+else
+  CRYPTO_HEADER_FOUND=0
+fi
+
+
+         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
+
+      if test "x${CRYPTO_HEADER_FOUND}" = "x0" ; then
+         CRYPTO_LIB=""
+         CRYPTO_INCLUDE=""
+      else
+
+         PBX_CRYPTO=1
+         cat >>confdefs.h <<_ACEOF
+#define HAVE_CRYPTO 1
+_ACEOF
+
+      fi
+   fi
+fi
+
+
+	if test "$PBX_CRYPTO" = "1";
+	then
+
+if test "x${PBX_OPENSSL}" != "x1" -a "${USE_OPENSSL}" != "no"; then
+   pbxlibdir=""
+   # if --with-OPENSSL=DIR has been specified, use it.
+   if test "x${OPENSSL_DIR}" != "x"; then
+      if test -d ${OPENSSL_DIR}/lib; then
+         pbxlibdir="-L${OPENSSL_DIR}/lib"
+      else
+         pbxlibdir="-L${OPENSSL_DIR}"
+      fi
+   fi
+
+      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
+      CFLAGS="${CFLAGS} "
+      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for SSL_connect in -lssl" >&5
+$as_echo_n "checking for SSL_connect in -lssl... " >&6; }
+if ${ac_cv_lib_ssl_SSL_connect+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lssl ${pbxlibdir} -lcrypto $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char SSL_connect ();
+int
+main ()
+{
+return SSL_connect ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_ssl_SSL_connect=yes
+else
+  ac_cv_lib_ssl_SSL_connect=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_ssl_SSL_connect" >&5
+$as_echo "$ac_cv_lib_ssl_SSL_connect" >&6; }
+if test "x$ac_cv_lib_ssl_SSL_connect" = xyes; then :
+  AST_OPENSSL_FOUND=yes
+else
+  AST_OPENSSL_FOUND=no
+fi
+
+      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
+
+
+   # now check for the header.
+   if test "${AST_OPENSSL_FOUND}" = "yes"; then
+      OPENSSL_LIB="${pbxlibdir} -lssl -lcrypto"
+      # if --with-OPENSSL=DIR has been specified, use it.
+      if test "x${OPENSSL_DIR}" != "x"; then
+         OPENSSL_INCLUDE="-I${OPENSSL_DIR}/include"
+      fi
+      OPENSSL_INCLUDE="${OPENSSL_INCLUDE} "
+
+         # check for the header
+         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
+         CPPFLAGS="${CPPFLAGS} ${OPENSSL_INCLUDE}"
+         ac_fn_c_check_header_mongrel "$LINENO" "openssl/ssl.h" "ac_cv_header_openssl_ssl_h" "$ac_includes_default"
+if test "x$ac_cv_header_openssl_ssl_h" = xyes; then :
+  OPENSSL_HEADER_FOUND=1
+else
+  OPENSSL_HEADER_FOUND=0
+fi
+
+
+         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
+
+      if test "x${OPENSSL_HEADER_FOUND}" = "x0" ; then
+         OPENSSL_LIB=""
+         OPENSSL_INCLUDE=""
+      else
+
+         PBX_OPENSSL=1
+         cat >>confdefs.h <<_ACEOF
+#define HAVE_OPENSSL 1
+_ACEOF
+
+      fi
+   fi
+fi
+
+
+
+if test "x${PBX_OPENSSL_BIO_METHOD}" != "x1" -a "${USE_OPENSSL_BIO_METHOD}" != "no"; then
+   pbxlibdir=""
+   # if --with-OPENSSL_BIO_METHOD=DIR has been specified, use it.
+   if test "x${OPENSSL_BIO_METHOD_DIR}" != "x"; then
+      if test -d ${OPENSSL_BIO_METHOD_DIR}/lib; then
+         pbxlibdir="-L${OPENSSL_BIO_METHOD_DIR}/lib"
+      else
+         pbxlibdir="-L${OPENSSL_BIO_METHOD_DIR}"
+      fi
+   fi
+
+      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
+      CFLAGS="${CFLAGS} "
+      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for BIO_meth_new in -lssl" >&5
+$as_echo_n "checking for BIO_meth_new in -lssl... " >&6; }
+if ${ac_cv_lib_ssl_BIO_meth_new+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lssl ${pbxlibdir} -lcrypto $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char BIO_meth_new ();
+int
+main ()
+{
+return BIO_meth_new ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_ssl_BIO_meth_new=yes
+else
+  ac_cv_lib_ssl_BIO_meth_new=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_ssl_BIO_meth_new" >&5
+$as_echo "$ac_cv_lib_ssl_BIO_meth_new" >&6; }
+if test "x$ac_cv_lib_ssl_BIO_meth_new" = xyes; then :
+  AST_OPENSSL_BIO_METHOD_FOUND=yes
+else
+  AST_OPENSSL_BIO_METHOD_FOUND=no
+fi
+
+      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
+
+
+   # now check for the header.
+   if test "${AST_OPENSSL_BIO_METHOD_FOUND}" = "yes"; then
+      OPENSSL_BIO_METHOD_LIB="${pbxlibdir} -lssl -lcrypto"
+      # if --with-OPENSSL_BIO_METHOD=DIR has been specified, use it.
+      if test "x${OPENSSL_BIO_METHOD_DIR}" != "x"; then
+         OPENSSL_BIO_METHOD_INCLUDE="-I${OPENSSL_BIO_METHOD_DIR}/include"
+      fi
+      OPENSSL_BIO_METHOD_INCLUDE="${OPENSSL_BIO_METHOD_INCLUDE} "
+
+         # check for the header
+         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
+         CPPFLAGS="${CPPFLAGS} ${OPENSSL_BIO_METHOD_INCLUDE}"
+         ac_fn_c_check_header_mongrel "$LINENO" "openssl/ssl.h" "ac_cv_header_openssl_ssl_h" "$ac_includes_default"
+if test "x$ac_cv_header_openssl_ssl_h" = xyes; then :
+  OPENSSL_BIO_METHOD_HEADER_FOUND=1
+else
+  OPENSSL_BIO_METHOD_HEADER_FOUND=0
+fi
+
+
+         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
+
+      if test "x${OPENSSL_BIO_METHOD_HEADER_FOUND}" = "x0" ; then
+         OPENSSL_BIO_METHOD_LIB=""
+         OPENSSL_BIO_METHOD_INCLUDE=""
+      else
+
+         PBX_OPENSSL_BIO_METHOD=1
+         cat >>confdefs.h <<_ACEOF
+#define HAVE_OPENSSL_BIO_METHOD 1
+_ACEOF
+
+      fi
+   fi
+fi
+
+
+	fi
+fi
+if test $PBX_OPENSSL -eq 0 ; then
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: OpenSSL does not seem to be installed" >&5
+$as_echo "$as_me: WARNING: OpenSSL does not seem to be installed" >&2;}
+fi
+
 
 
 
@@ -9245,6 +10154,14 @@ $as_echo "configuring" >&6; }
 		if test "${GREP}" = ":" ; then
 			as_fn_error $? "grep is required to build bundled pjproject" "$LINENO" 5
 		fi
+		if test "${FIND}" = ":" ; then
+			as_fn_error $? "find is required to build bundled pjproject" "$LINENO" 5
+		fi
+		if test "x${AST_DEVMODE}" != "x" ; then
+			if test "${REALPATH}" = ":" ; then
+				as_fn_error $? "realpath is required to build bundled pjproject in dev mode" "$LINENO" 5
+			fi
+		fi
 
 
 		this_host=$(./config.sub $(./config.guess))
@@ -9272,11 +10189,20 @@ $as_echo "configuring" >&6; }
 			esac
 		fi
 
-		export TAR PATCH SED NM EXTERNALS_CACHE_DIR AST_DOWNLOAD_CACHE DOWNLOAD_TO_STDOUT DOWNLOAD_TIMEOUT DOWNLOAD MD5 CAT CUT GREP
+		# Determine if we're doing an out-of-tree build...
+
+		if test -L ${PJPROJECT_DIR}/source -o -d ${PJPROJECT_DIR}/source/.git ; then
+			$as_echo "#define HAVE_PJPROJECT_BUNDLED_OOT 1" >>confdefs.h
+
+			PJPROJECT_BUNDLED_OOT=yes
+		fi
+
+		export TAR PATCH SED NM EXTERNALS_CACHE_DIR AST_DOWNLOAD_CACHE DOWNLOAD_TO_STDOUT DOWNLOAD_TIMEOUT DOWNLOAD MD5 CAT CUT GREP FIND REALPATH
 		export NOISY_BUILD AST_DEVMODE
 		${GNU_MAKE} --quiet --no-print-directory -C ${PJPROJECT_DIR} \
 			PJPROJECT_CONFIGURE_OPTS="$PJPROJECT_CONFIGURE_OPTS" \
 			EXTERNALS_CACHE_DIR="${EXTERNALS_CACHE_DIR:-${AST_DOWNLOAD_CACHE}}" \
+			PJPROJECT_BUNDLED_OOT="${PJPROJECT_BUNDLED_OOT}" \
 			configure
 		if test $? -ne 0 ; then
 			{ $as_echo "$as_me:${as_lineno-$LINENO}: result: failed" >&5
@@ -9289,7 +10215,11 @@ $as_echo "$as_me: Unable to configure ${PJPROJECT_DIR}" >&6;}
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for bundled pjproject" >&5
 $as_echo_n "checking for bundled pjproject... " >&6; }
 
-		PJPROJECT_INCLUDE=$(${GNU_MAKE} --quiet --no-print-directory -C ${PJPROJECT_DIR} PJPROJECT_CONFIGURE_OPTS="$PJPROJECT_CONFIGURE_OPTS" EXTERNALS_CACHE_DIR="${EXTERNALS_CACHE_DIR:-${AST_DOWNLOAD_CACHE}}" echo_cflags)
+		PJPROJECT_INCLUDE=$(${GNU_MAKE} --quiet --no-print-directory -C ${PJPROJECT_DIR} \
+			PJPROJECT_CONFIGURE_OPTS="$PJPROJECT_CONFIGURE_OPTS" \
+			EXTERNALS_CACHE_DIR="${EXTERNALS_CACHE_DIR:-${AST_DOWNLOAD_CACHE}}" \
+			PJPROJECT_BUNDLED_OOT="${PJPROJECT_BUNDLED_OOT}" \
+			echo_cflags)
 		PJPROJECT_CFLAGS="$PJPROJECT_INCLUDE"
 		PBX_PJPROJECT=1
 
@@ -9347,6 +10277,8 @@ $as_echo "#define HAVE_PJSIP_OAUTH_AUTHENTICATION 1" >>confdefs.h
 
 
 $as_echo "#define HAVE_PJPROJECT_ON_VALID_ICE_PAIR_CALLBACK 1" >>confdefs.h
+
+
 
 
 
@@ -9638,62 +10570,6 @@ if test "${with_crypt+set}" = set; then :
 
 fi
 
-
-
-
-
-
-
-
-    CRYPTO_DESCRIP="OpenSSL Cryptography"
-    CRYPTO_OPTION="crypto"
-    PBX_CRYPTO=0
-
-# Check whether --with-crypto was given.
-if test "${with_crypto+set}" = set; then :
-  withval=$with_crypto;
-	case ${withval} in
-	n|no)
-	USE_CRYPTO=no
-	# -1 is a magic value used by menuselect to know that the package
-	# was disabled, other than 'not found'
-	PBX_CRYPTO=-1
-	;;
-	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} CRYPTO"
-	;;
-	*)
-	CRYPTO_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} CRYPTO"
-	;;
-	esac
-
-fi
-
-
-
-
-
-
-
-
-OPENSSL_SRTP_DESCRIP="OpenSSL SRTP Extension Support"
-OPENSSL_SRTP_OPTION=crypto
-OPENSSL_SRTP_DIR=${CRYPTO_DIR}
-
-PBX_OPENSSL_SRTP=0
-
-
-
-
-
-
-
-OPENSSL_BIO_METHOD_DESCRIP="OpenSSL BIO Method Support"
-OPENSSL_BIO_METHOD_OPTION=crypto
-OPENSSL_BIO_METHOD_DIR=${CRYPTO_DIR}
-
-PBX_OPENSSL_BIO_METHOD=0
 
 
 
@@ -10840,6 +11716,7 @@ if test "${with_lua+set}" = set; then :
 	esac
 
 fi
+
 
 
 
@@ -12403,38 +13280,6 @@ PBX_SRTP_GET_VERSION=0
 
 
 
-    OPENSSL_DESCRIP="OpenSSL Secure Sockets Layer"
-    OPENSSL_OPTION="ssl"
-    PBX_OPENSSL=0
-
-# Check whether --with-ssl was given.
-if test "${with_ssl+set}" = set; then :
-  withval=$with_ssl;
-	case ${withval} in
-	n|no)
-	USE_OPENSSL=no
-	# -1 is a magic value used by menuselect to know that the package
-	# was disabled, other than 'not found'
-	PBX_OPENSSL=-1
-	;;
-	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} OPENSSL"
-	;;
-	*)
-	OPENSSL_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} OPENSSL"
-	;;
-	esac
-
-fi
-
-
-
-
-
-
-
-
 RT_DESCRIP="Realtime functions"
 
 RT_DIR=${rt_DIR}
@@ -13245,134 +14090,13 @@ fi
 done
 
 
-
-
-
-
-
-
-
-if test "x$ac_cv_env_PKG_CONFIG_set" != "xset"; then
-	if test -n "$ac_tool_prefix"; then
-  # Extract the first word of "${ac_tool_prefix}pkg-config", so it can be a program name with args.
-set dummy ${ac_tool_prefix}pkg-config; ac_word=$2
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
-$as_echo_n "checking for $ac_word... " >&6; }
-if ${ac_cv_path_PKG_CONFIG+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  case $PKG_CONFIG in
-  [\\/]* | ?:[\\/]*)
-  ac_cv_path_PKG_CONFIG="$PKG_CONFIG" # Let the user override the test with a path.
-  ;;
-  *)
-  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
-for as_dir in $PATH
-do
-  IFS=$as_save_IFS
-  test -z "$as_dir" && as_dir=.
-    for ac_exec_ext in '' $ac_executable_extensions; do
-  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
-    ac_cv_path_PKG_CONFIG="$as_dir/$ac_word$ac_exec_ext"
-    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
-    break 2
-  fi
-done
-  done
-IFS=$as_save_IFS
-
-  ;;
-esac
-fi
-PKG_CONFIG=$ac_cv_path_PKG_CONFIG
-if test -n "$PKG_CONFIG"; then
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $PKG_CONFIG" >&5
-$as_echo "$PKG_CONFIG" >&6; }
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-fi
-
-
-fi
-if test -z "$ac_cv_path_PKG_CONFIG"; then
-  ac_pt_PKG_CONFIG=$PKG_CONFIG
-  # Extract the first word of "pkg-config", so it can be a program name with args.
-set dummy pkg-config; ac_word=$2
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
-$as_echo_n "checking for $ac_word... " >&6; }
-if ${ac_cv_path_ac_pt_PKG_CONFIG+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  case $ac_pt_PKG_CONFIG in
-  [\\/]* | ?:[\\/]*)
-  ac_cv_path_ac_pt_PKG_CONFIG="$ac_pt_PKG_CONFIG" # Let the user override the test with a path.
-  ;;
-  *)
-  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
-for as_dir in $PATH
-do
-  IFS=$as_save_IFS
-  test -z "$as_dir" && as_dir=.
-    for ac_exec_ext in '' $ac_executable_extensions; do
-  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
-    ac_cv_path_ac_pt_PKG_CONFIG="$as_dir/$ac_word$ac_exec_ext"
-    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
-    break 2
-  fi
-done
-  done
-IFS=$as_save_IFS
-
-  ;;
-esac
-fi
-ac_pt_PKG_CONFIG=$ac_cv_path_ac_pt_PKG_CONFIG
-if test -n "$ac_pt_PKG_CONFIG"; then
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_pt_PKG_CONFIG" >&5
-$as_echo "$ac_pt_PKG_CONFIG" >&6; }
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-fi
-
-  if test "x$ac_pt_PKG_CONFIG" = x; then
-    PKG_CONFIG=""
-  else
-    case $cross_compiling:$ac_tool_warned in
-yes:)
-{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: using cross tools not prefixed with host triplet" >&5
-$as_echo "$as_me: WARNING: using cross tools not prefixed with host triplet" >&2;}
-ac_tool_warned=yes ;;
-esac
-    PKG_CONFIG=$ac_pt_PKG_CONFIG
-  fi
-else
-  PKG_CONFIG="$ac_cv_path_PKG_CONFIG"
-fi
-
-fi
-if test -n "$PKG_CONFIG"; then
-	_pkg_min_version=0.9.0
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking pkg-config is at least version $_pkg_min_version" >&5
-$as_echo_n "checking pkg-config is at least version $_pkg_min_version... " >&6; }
-	if $PKG_CONFIG --atleast-pkgconfig-version $_pkg_min_version; then
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-	else
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-		PKG_CONFIG=""
-	fi
-fi
-
 # Find required NetBSD Editline library (libedit).
 
    if test "x${PBX_LIBEDIT}" != "x1" -a "${USE_LIBEDIT}" != "no"; then
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for LIBEDIT" >&5
-$as_echo_n "checking for LIBEDIT... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libedit" >&5
+$as_echo_n "checking for libedit... " >&6; }
 
 if test -n "$LIBEDIT_CFLAGS"; then
     pkg_cv_LIBEDIT_CFLAGS="$LIBEDIT_CFLAGS"
@@ -13412,7 +14136,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -13433,7 +14157,7 @@ fi
 
 
 elif test $pkg_failed = untried; then
-     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
             PBX_LIBEDIT=0
@@ -13831,8 +14555,8 @@ if test "$JANSSON_BUNDLED" = "no" ; then
    if test "x${PBX_JANSSON}" != "x1" -a "${USE_JANSSON}" != "no"; then
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for JANSSON" >&5
-$as_echo_n "checking for JANSSON... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for jansson >= 2.11" >&5
+$as_echo_n "checking for jansson >= 2.11... " >&6; }
 
 if test -n "$JANSSON_CFLAGS"; then
     pkg_cv_JANSSON_CFLAGS="$JANSSON_CFLAGS"
@@ -13872,7 +14596,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -13893,7 +14617,7 @@ fi
 
 
 elif test $pkg_failed = untried; then
-     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
             PBX_JANSSON=0
@@ -14618,7 +15342,7 @@ fi
 
 
 
-if test "${PERMANENT_DLOPEN}" == "yes"; then
+if test "${PERMANENT_DLOPEN}" = "yes"; then
 
 $as_echo "#define HAVE_PERMANENT_DLOPEN 1" >>confdefs.h
 
@@ -14688,7 +15412,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -14734,7 +15458,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -14758,7 +15482,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -14803,7 +15527,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -14827,7 +15551,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -16127,6 +16851,8 @@ main ()
     if (*(data + i) != *(data3 + i))
       return 14;
   close (fd);
+  free (data);
+  free (data3);
   return 0;
 }
 _ACEOF
@@ -16976,8 +17702,30 @@ fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
 
-# some systems already have gethostbyname_r so we don't need to build ours in main/utils.c
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing gethostbyname_r" >&5
+# NetBSD libc ships with an internal-only incompatible symbol gethostbyname_r
+ac_fn_c_check_decl "$LINENO" "gethostbyname_r" "ac_cv_have_decl_gethostbyname_r" "#include <stdlib.h>
+         #include <netdb.h>
+
+"
+if test "x$ac_cv_have_decl_gethostbyname_r" = xyes; then :
+  ac_have_decl=1
+else
+  ac_have_decl=0
+fi
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_DECL_GETHOSTBYNAME_R $ac_have_decl
+_ACEOF
+if test $ac_have_decl = 1; then :
+  have_gethostbyname_r_public_declaration=yes
+else
+  have_gethostbyname_r_public_declaration=no
+fi
+
+
+if test "x$have_gethostbyname_r_public_declaration" = "xyes"; then
+        # some systems already have gethostbyname_r so we don't need to build ours in main/utils.c
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing gethostbyname_r" >&5
 $as_echo_n "checking for library containing gethostbyname_r... " >&6; }
 if ${ac_cv_search_gethostbyname_r+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -17034,12 +17782,12 @@ if test "$ac_res" != no; then :
 fi
 
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for gethostbyname_r with 6 arguments" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for gethostbyname_r with 6 arguments" >&5
 $as_echo_n "checking for gethostbyname_r with 6 arguments... " >&6; }
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+        cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 #include <stdlib.h>
-                         #include <netdb.h>
+                                 #include <netdb.h>
 int
 main ()
 {
@@ -17062,12 +17810,12 @@ fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for gethostbyname_r with 5 arguments" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for gethostbyname_r with 5 arguments" >&5
 $as_echo_n "checking for gethostbyname_r with 5 arguments... " >&6; }
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+        cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 #include <stdlib.h>
-	                 #include <netdb.h>
+	                         #include <netdb.h>
 int
 main ()
 {
@@ -17089,6 +17837,7 @@ $as_echo "no" >&6; }
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
+fi
 
 ac_fn_c_check_header_mongrel "$LINENO" "byteswap.h" "ac_cv_header_byteswap_h" "$ac_includes_default"
 if test "x$ac_cv_header_byteswap_h" = xyes; then :
@@ -18957,6 +19706,17 @@ $as_echo "no" >&6; }
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
+	ac_fn_c_check_member "$LINENO" "struct __res_state" "_u._ext.nsaddrs" "ac_cv_member_struct___res_state__u__ext_nsaddrs" "#include <resolv.h>
+"
+if test "x$ac_cv_member_struct___res_state__u__ext_nsaddrs" = xyes; then :
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_STRUCT___RES_STATE__U__EXT_NSADDRS 1
+_ACEOF
+
+
+fi
+
 else
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
@@ -20519,8 +21279,8 @@ if test "${USE_ILBC}" != "no"; then
    if test "x${PBX_ILBC}" != "x1" -a "${USE_ILBC}" != "no"; then
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for ILBC" >&5
-$as_echo_n "checking for ILBC... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libilbc" >&5
+$as_echo_n "checking for libilbc... " >&6; }
 
 if test -n "$ILBC_CFLAGS"; then
     pkg_cv_ILBC_CFLAGS="$ILBC_CFLAGS"
@@ -20560,7 +21320,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -20581,7 +21341,7 @@ fi
 
 
 elif test $pkg_failed = untried; then
-     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
             PBX_ILBC=0
@@ -23237,6 +23997,94 @@ rm -f core conftest.err conftest.$ac_objext \
 
 
 
+   if test "x${PBX_NETSNMP}" != "x1" -a "${USE_NETSNMP}" != "no"; then
+
+pkg_failed=no
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for netsnmp-agent" >&5
+$as_echo_n "checking for netsnmp-agent... " >&6; }
+
+if test -n "$NETSNMP_CFLAGS"; then
+    pkg_cv_NETSNMP_CFLAGS="$NETSNMP_CFLAGS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"netsnmp-agent\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "netsnmp-agent") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_NETSNMP_CFLAGS=`$PKG_CONFIG --cflags "netsnmp-agent" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+if test -n "$NETSNMP_LIBS"; then
+    pkg_cv_NETSNMP_LIBS="$NETSNMP_LIBS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"netsnmp-agent\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "netsnmp-agent") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_NETSNMP_LIBS=`$PKG_CONFIG --libs "netsnmp-agent" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+
+
+
+if test $pkg_failed = yes; then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
+        _pkg_short_errors_supported=yes
+else
+        _pkg_short_errors_supported=no
+fi
+        if test $_pkg_short_errors_supported = yes; then
+	        NETSNMP_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "netsnmp-agent" 2>&1`
+        else
+	        NETSNMP_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "netsnmp-agent" 2>&1`
+        fi
+	# Put the nasty error message in config.log where it belongs
+	echo "$NETSNMP_PKG_ERRORS" >&5
+
+
+            PBX_NETSNMP=0
+
+
+elif test $pkg_failed = untried; then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+            PBX_NETSNMP=0
+
+
+else
+	NETSNMP_CFLAGS=$pkg_cv_NETSNMP_CFLAGS
+	NETSNMP_LIBS=$pkg_cv_NETSNMP_LIBS
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+            PBX_NETSNMP=1
+            NETSNMP_INCLUDE=$(echo ${NETSNMP_CFLAGS} | $SED -e "s|-std=c99||g")
+            NETSNMP_LIB="$NETSNMP_LIBS"
+
+$as_echo "#define HAVE_NETSNMP 1" >>confdefs.h
+
+
+fi
+   fi
+
+
 		if test "x${PBX_NETSNMP}" != "x1" -a "${USE_NETSNMP}" != "no"; then
 		PBX_NETSNMP=0
 		if test -n "$ac_tool_prefix"; then
@@ -24425,7 +25273,7 @@ fi
 
 
 
-PG_CONFIG=No
+PG_CONFIG=":"
 if test "${USE_PGSQL}" != "no"; then
    if test "x${PGSQL_DIR}" != "x"; then
       if test -n "$ac_tool_prefix"; then
@@ -24512,7 +25360,7 @@ $as_echo "no" >&6; }
 fi
 
   if test "x$ac_pt_PG_CONFIG" = x; then
-    PG_CONFIG="No"
+    PG_CONFIG=":"
   else
     case $cross_compiling:$ac_tool_warned in
 yes:)
@@ -24526,7 +25374,7 @@ else
   PG_CONFIG="$ac_cv_path_PG_CONFIG"
 fi
 
-      if test x"${PG_CONFIG}" = xNo; then
+      if test "${PG_CONFIG}" = ":"; then
          { $as_echo "$as_me:${as_lineno-$LINENO}: ***" >&5
 $as_echo "$as_me: ***" >&6;}
          { $as_echo "$as_me:${as_lineno-$LINENO}: *** pg_config was not found in the path you specified:" >&5
@@ -24624,7 +25472,7 @@ $as_echo "no" >&6; }
 fi
 
   if test "x$ac_pt_PG_CONFIG" = x; then
-    PG_CONFIG="No"
+    PG_CONFIG=":"
   else
     case $cross_compiling:$ac_tool_warned in
 yes:)
@@ -24640,7 +25488,7 @@ fi
 
    fi
 fi
-if test "${PG_CONFIG}" != No; then
+if test "x${PG_CONFIG}" != "x:"; then
    PGSQL_libdir=`${PG_CONFIG} --libdir`
    PGSQL_includedir=`${PG_CONFIG} --includedir`
    if test "x$?" != "x0" ; then
@@ -24760,8 +25608,8 @@ if test "$USE_PJPROJECT" != "no" ; then
    if test "x${PBX_PJPROJECT}" != "x1" -a "${USE_PJPROJECT}" != "no"; then
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for PJPROJECT" >&5
-$as_echo_n "checking for PJPROJECT... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libpjproject" >&5
+$as_echo_n "checking for libpjproject... " >&6; }
 
 if test -n "$PJPROJECT_CFLAGS"; then
     pkg_cv_PJPROJECT_CFLAGS="$PJPROJECT_CFLAGS"
@@ -24801,7 +25649,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -24822,7 +25670,7 @@ fi
 
 
 elif test $pkg_failed = untried; then
-     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
             PBX_PJPROJECT=0
@@ -26013,8 +26861,8 @@ fi
    if test "x${PBX_PYTHONDEV}" != "x1" -a "${USE_PYTHONDEV}" != "no"; then
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for PYTHONDEV" >&5
-$as_echo_n "checking for PYTHONDEV... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for python-2.7" >&5
+$as_echo_n "checking for python-2.7... " >&6; }
 
 if test -n "$PYTHONDEV_CFLAGS"; then
     pkg_cv_PYTHONDEV_CFLAGS="$PYTHONDEV_CFLAGS"
@@ -26054,7 +26902,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -26075,7 +26923,7 @@ fi
 
 
 elif test $pkg_failed = untried; then
-     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
             PBX_PYTHONDEV=0
@@ -26101,8 +26949,8 @@ fi
    if test "x${PBX_PYTHONDEV}" != "x1" -a "${USE_PYTHONDEV}" != "no"; then
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for PYTHONDEV" >&5
-$as_echo_n "checking for PYTHONDEV... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for python2" >&5
+$as_echo_n "checking for python2... " >&6; }
 
 if test -n "$PYTHONDEV_CFLAGS"; then
     pkg_cv_PYTHONDEV_CFLAGS="$PYTHONDEV_CFLAGS"
@@ -26142,7 +26990,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -26163,7 +27011,7 @@ fi
 
 
 elif test $pkg_failed = untried; then
-     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
             PBX_PYTHONDEV=0
@@ -26189,8 +27037,8 @@ fi
    if test "x${PBX_PYTHONDEV}" != "x1" -a "${USE_PYTHONDEV}" != "no"; then
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for PYTHONDEV" >&5
-$as_echo_n "checking for PYTHONDEV... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for python" >&5
+$as_echo_n "checking for python... " >&6; }
 
 if test -n "$PYTHONDEV_CFLAGS"; then
     pkg_cv_PYTHONDEV_CFLAGS="$PYTHONDEV_CFLAGS"
@@ -26230,7 +27078,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -26251,7 +27099,7 @@ fi
 
 
 elif test $pkg_failed = untried; then
-     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
             PBX_PYTHONDEV=0
@@ -26385,8 +27233,8 @@ fi
    if test "x${PBX_PORTAUDIO}" != "x1" -a "${USE_PORTAUDIO}" != "no"; then
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for PORTAUDIO" >&5
-$as_echo_n "checking for PORTAUDIO... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for portaudio-2.0" >&5
+$as_echo_n "checking for portaudio-2.0... " >&6; }
 
 if test -n "$PORTAUDIO_CFLAGS"; then
     pkg_cv_PORTAUDIO_CFLAGS="$PORTAUDIO_CFLAGS"
@@ -26426,7 +27274,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -26447,7 +27295,7 @@ fi
 
 
 elif test $pkg_failed = untried; then
-     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
             PBX_PORTAUDIO=0
@@ -30997,299 +31845,6 @@ $as_echo "#define HAVE_CRYPT_R 1" >>confdefs.h
 fi
 
 
-
-if test "x${PBX_CRYPTO}" != "x1" -a "${USE_CRYPTO}" != "no"; then
-   pbxlibdir=""
-   # if --with-CRYPTO=DIR has been specified, use it.
-   if test "x${CRYPTO_DIR}" != "x"; then
-      if test -d ${CRYPTO_DIR}/lib; then
-         pbxlibdir="-L${CRYPTO_DIR}/lib"
-      else
-         pbxlibdir="-L${CRYPTO_DIR}"
-      fi
-   fi
-
-      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
-      CFLAGS="${CFLAGS} "
-      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for AES_encrypt in -lcrypto" >&5
-$as_echo_n "checking for AES_encrypt in -lcrypto... " >&6; }
-if ${ac_cv_lib_crypto_AES_encrypt+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-lcrypto ${pbxlibdir}  $LIBS"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char AES_encrypt ();
-int
-main ()
-{
-return AES_encrypt ();
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_lib_crypto_AES_encrypt=yes
-else
-  ac_cv_lib_crypto_AES_encrypt=no
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_crypto_AES_encrypt" >&5
-$as_echo "$ac_cv_lib_crypto_AES_encrypt" >&6; }
-if test "x$ac_cv_lib_crypto_AES_encrypt" = xyes; then :
-  AST_CRYPTO_FOUND=yes
-else
-  AST_CRYPTO_FOUND=no
-fi
-
-      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
-
-
-   # now check for the header.
-   if test "${AST_CRYPTO_FOUND}" = "yes"; then
-      CRYPTO_LIB="${pbxlibdir} -lcrypto "
-      # if --with-CRYPTO=DIR has been specified, use it.
-      if test "x${CRYPTO_DIR}" != "x"; then
-         CRYPTO_INCLUDE="-I${CRYPTO_DIR}/include"
-      fi
-      CRYPTO_INCLUDE="${CRYPTO_INCLUDE} "
-
-         # check for the header
-         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
-         CPPFLAGS="${CPPFLAGS} ${CRYPTO_INCLUDE}"
-         ac_fn_c_check_header_mongrel "$LINENO" "openssl/aes.h" "ac_cv_header_openssl_aes_h" "$ac_includes_default"
-if test "x$ac_cv_header_openssl_aes_h" = xyes; then :
-  CRYPTO_HEADER_FOUND=1
-else
-  CRYPTO_HEADER_FOUND=0
-fi
-
-
-         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
-
-      if test "x${CRYPTO_HEADER_FOUND}" = "x0" ; then
-         CRYPTO_LIB=""
-         CRYPTO_INCLUDE=""
-      else
-
-         PBX_CRYPTO=1
-         cat >>confdefs.h <<_ACEOF
-#define HAVE_CRYPTO 1
-_ACEOF
-
-      fi
-   fi
-fi
-
-
-
-if test "$PBX_CRYPTO" = "1";
-then
-
-if test "x${PBX_OPENSSL}" != "x1" -a "${USE_OPENSSL}" != "no"; then
-   pbxlibdir=""
-   # if --with-OPENSSL=DIR has been specified, use it.
-   if test "x${OPENSSL_DIR}" != "x"; then
-      if test -d ${OPENSSL_DIR}/lib; then
-         pbxlibdir="-L${OPENSSL_DIR}/lib"
-      else
-         pbxlibdir="-L${OPENSSL_DIR}"
-      fi
-   fi
-
-      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
-      CFLAGS="${CFLAGS} "
-      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for SSL_connect in -lssl" >&5
-$as_echo_n "checking for SSL_connect in -lssl... " >&6; }
-if ${ac_cv_lib_ssl_SSL_connect+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-lssl ${pbxlibdir} -lcrypto $LIBS"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char SSL_connect ();
-int
-main ()
-{
-return SSL_connect ();
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_lib_ssl_SSL_connect=yes
-else
-  ac_cv_lib_ssl_SSL_connect=no
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_ssl_SSL_connect" >&5
-$as_echo "$ac_cv_lib_ssl_SSL_connect" >&6; }
-if test "x$ac_cv_lib_ssl_SSL_connect" = xyes; then :
-  AST_OPENSSL_FOUND=yes
-else
-  AST_OPENSSL_FOUND=no
-fi
-
-      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
-
-
-   # now check for the header.
-   if test "${AST_OPENSSL_FOUND}" = "yes"; then
-      OPENSSL_LIB="${pbxlibdir} -lssl -lcrypto"
-      # if --with-OPENSSL=DIR has been specified, use it.
-      if test "x${OPENSSL_DIR}" != "x"; then
-         OPENSSL_INCLUDE="-I${OPENSSL_DIR}/include"
-      fi
-      OPENSSL_INCLUDE="${OPENSSL_INCLUDE} "
-
-         # check for the header
-         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
-         CPPFLAGS="${CPPFLAGS} ${OPENSSL_INCLUDE}"
-         ac_fn_c_check_header_mongrel "$LINENO" "openssl/ssl.h" "ac_cv_header_openssl_ssl_h" "$ac_includes_default"
-if test "x$ac_cv_header_openssl_ssl_h" = xyes; then :
-  OPENSSL_HEADER_FOUND=1
-else
-  OPENSSL_HEADER_FOUND=0
-fi
-
-
-         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
-
-      if test "x${OPENSSL_HEADER_FOUND}" = "x0" ; then
-         OPENSSL_LIB=""
-         OPENSSL_INCLUDE=""
-      else
-
-         PBX_OPENSSL=1
-         cat >>confdefs.h <<_ACEOF
-#define HAVE_OPENSSL 1
-_ACEOF
-
-      fi
-   fi
-fi
-
-
-
-if test "x${PBX_OPENSSL_BIO_METHOD}" != "x1" -a "${USE_OPENSSL_BIO_METHOD}" != "no"; then
-   pbxlibdir=""
-   # if --with-OPENSSL_BIO_METHOD=DIR has been specified, use it.
-   if test "x${OPENSSL_BIO_METHOD_DIR}" != "x"; then
-      if test -d ${OPENSSL_BIO_METHOD_DIR}/lib; then
-         pbxlibdir="-L${OPENSSL_BIO_METHOD_DIR}/lib"
-      else
-         pbxlibdir="-L${OPENSSL_BIO_METHOD_DIR}"
-      fi
-   fi
-
-      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
-      CFLAGS="${CFLAGS} "
-      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for BIO_meth_new in -lssl" >&5
-$as_echo_n "checking for BIO_meth_new in -lssl... " >&6; }
-if ${ac_cv_lib_ssl_BIO_meth_new+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-lssl ${pbxlibdir} -lcrypto $LIBS"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char BIO_meth_new ();
-int
-main ()
-{
-return BIO_meth_new ();
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_lib_ssl_BIO_meth_new=yes
-else
-  ac_cv_lib_ssl_BIO_meth_new=no
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_ssl_BIO_meth_new" >&5
-$as_echo "$ac_cv_lib_ssl_BIO_meth_new" >&6; }
-if test "x$ac_cv_lib_ssl_BIO_meth_new" = xyes; then :
-  AST_OPENSSL_BIO_METHOD_FOUND=yes
-else
-  AST_OPENSSL_BIO_METHOD_FOUND=no
-fi
-
-      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
-
-
-   # now check for the header.
-   if test "${AST_OPENSSL_BIO_METHOD_FOUND}" = "yes"; then
-      OPENSSL_BIO_METHOD_LIB="${pbxlibdir} -lssl -lcrypto"
-      # if --with-OPENSSL_BIO_METHOD=DIR has been specified, use it.
-      if test "x${OPENSSL_BIO_METHOD_DIR}" != "x"; then
-         OPENSSL_BIO_METHOD_INCLUDE="-I${OPENSSL_BIO_METHOD_DIR}/include"
-      fi
-      OPENSSL_BIO_METHOD_INCLUDE="${OPENSSL_BIO_METHOD_INCLUDE} "
-
-         # check for the header
-         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
-         CPPFLAGS="${CPPFLAGS} ${OPENSSL_BIO_METHOD_INCLUDE}"
-         ac_fn_c_check_header_mongrel "$LINENO" "openssl/ssl.h" "ac_cv_header_openssl_ssl_h" "$ac_includes_default"
-if test "x$ac_cv_header_openssl_ssl_h" = xyes; then :
-  OPENSSL_BIO_METHOD_HEADER_FOUND=1
-else
-  OPENSSL_BIO_METHOD_HEADER_FOUND=0
-fi
-
-
-         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
-
-      if test "x${OPENSSL_BIO_METHOD_HEADER_FOUND}" = "x0" ; then
-         OPENSSL_BIO_METHOD_LIB=""
-         OPENSSL_BIO_METHOD_INCLUDE=""
-      else
-
-         PBX_OPENSSL_BIO_METHOD=1
-         cat >>confdefs.h <<_ACEOF
-#define HAVE_OPENSSL_BIO_METHOD 1
-_ACEOF
-
-      fi
-   fi
-fi
-
-
-fi
-
 if test "$PBX_OPENSSL" = "1";
 then
 
@@ -32689,8 +33244,8 @@ for ver in 3.0 2.6 2.4 2.2 2.0; do
    if test "x${PBX_GMIME}" != "x1" -a "${USE_GMIME}" != "no"; then
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for GMIME" >&5
-$as_echo_n "checking for GMIME... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for gmime-$ver" >&5
+$as_echo_n "checking for gmime-$ver... " >&6; }
 
 if test -n "$GMIME_CFLAGS"; then
     pkg_cv_GMIME_CFLAGS="$GMIME_CFLAGS"
@@ -32730,7 +33285,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -32751,7 +33306,7 @@ fi
 
 
 elif test $pkg_failed = untried; then
-     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
             PBX_GMIME=0
@@ -34126,8 +34681,8 @@ fi
    if test "x${PBX_GTK2}" != "x1" -a "${USE_GTK2}" != "no"; then
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for GTK2" >&5
-$as_echo_n "checking for GTK2... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for gtk+-2.0" >&5
+$as_echo_n "checking for gtk+-2.0... " >&6; }
 
 if test -n "$GTK2_CFLAGS"; then
     pkg_cv_GTK2_CFLAGS="$GTK2_CFLAGS"
@@ -34167,7 +34722,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -34188,7 +34743,7 @@ fi
 
 
 elif test $pkg_failed = untried; then
-     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
             PBX_GTK2=0
@@ -34237,8 +34792,8 @@ fi
    if test "x${PBX_SYSTEMD}" != "x1" -a "${USE_SYSTEMD}" != "no"; then
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for SYSTEMD" >&5
-$as_echo_n "checking for SYSTEMD... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libsystemd" >&5
+$as_echo_n "checking for libsystemd... " >&6; }
 
 if test -n "$SYSTEMD_CFLAGS"; then
     pkg_cv_SYSTEMD_CFLAGS="$SYSTEMD_CFLAGS"
@@ -34278,7 +34833,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -34299,7 +34854,7 @@ fi
 
 
 elif test $pkg_failed = untried; then
-     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
             PBX_SYSTEMD=0
@@ -36192,7 +36747,7 @@ fi
 
 
 ${ac_cv_path_EGREP} 'CURSES|GTK2|OSARCH|NEWT' makeopts > makeopts.acbak2
-if test "x${ac_cv_path_CMP}" = "x:"; then
+if test "${ac_cv_path_CMP}" = ":"; then
 	( cd "`pwd`/menuselect" && ./configure )
 elif ${ac_cv_path_CMP} -s makeopts.acbak makeopts.acbak2; then : ; else
 	( cd "`pwd`/menuselect" && ./configure )

@@ -137,7 +137,7 @@ struct parking_lot_cfg *parking_lot_cfg_create(const char *cat);
  * \param cfg The configuration being used as a reference to build the parking lot from.
  * \param dynamic non-zero if creating a dynamic parking lot with this. Don't replace existing parking lots. Ever.
  *
- * \retval A reference to the new parking lot
+ * \return A reference to the new parking lot
  * \retval NULL if it was not found and could not be allocated
  *
  * \note The parking lot will need to be unreffed if it ever falls out of scope
@@ -166,7 +166,7 @@ int parking_lot_remove_if_unused(struct parking_lot *lot);
  * \param bridge_lot Parking lot which the new bridge should be based on
  *
  * \retval NULL if the bridge can not be created
- * \retval Newly created parking bridge
+ * \return Newly created parking bridge
  */
 struct ast_bridge *bridge_parking_new(struct parking_lot *bridge_lot);
 
@@ -176,7 +176,7 @@ struct ast_bridge *bridge_parking_new(struct parking_lot *bridge_lot);
  *
  * \param lot Which parking lot we need the bridge from. This parking lot must be locked before calling this function.
  *
- * \retval A reference to the ast_bridge associated with the parking lot
+ * \return A reference to the ast_bridge associated with the parking lot
  * \retval NULL if it didn't already have a bridge and one couldn't be created
  *
  * \note This bridge will need to be unreffed if it ever falls out of scope.
@@ -191,7 +191,7 @@ struct ast_bridge *parking_lot_get_bridge(struct parking_lot *lot);
  * \param target_override If there is a specific slot we want, provide it here and we'll start from that position
  *
  * \retval -1 if No slot can be found
- * \retval integer value of parking space selected
+ * \return integer value of parking space selected
  *
  * \note lot should be locked before this is called and unlocked only after a parked_user with the space
  *       returned has been added to the parking lot.
@@ -206,7 +206,7 @@ int parking_lot_get_space(struct parking_lot *lot, int target_override);
  *               If >= 0  Only pull from the indicated target
  *
  * \retval NULL if no parked user could be pulled from the requested parking lot at the requested parking space
- * \retval reference to the requested parked user
+ * \return reference to the requested parked user
  *
  */
 struct parked_user *parking_lot_inspect_parked_user(struct parking_lot *lot, int target);
@@ -220,7 +220,7 @@ struct parked_user *parking_lot_inspect_parked_user(struct parking_lot *lot, int
  *               If >= 0  Only pull from the indicated target
  *
  * \retval NULL if no parked user could be pulled from the requested parking lot at the requested parking space
- * \retval reference to the requested parked user
+ * \return reference to the requested parked user
  *
  * \note The parked user will be removed from parking lot as part of this process
  * \note Remove this reference with ao2_cleanup once it falls out of scope.
@@ -271,7 +271,7 @@ void parking_set_duration(struct ast_bridge_features *features, struct parked_us
  * \since 12.0.0
  * \brief Get a pointer to the parking lot container for purposes such as iteration
  *
- * \retval pointer to the parking lot container.
+ * \return pointer to the parking lot container.
  */
 struct ao2_container *get_parking_lot_container(void);
 
@@ -281,7 +281,7 @@ struct ao2_container *get_parking_lot_container(void);
  *
  * \param lot_name Name of the parking lot sought
  *
- * \retval The parking lot if found
+ * \return The parking lot if found
  * \retval NULL if no parking lot with the name specified exists
  *
  * \note ao2_cleanup this reference when you are done using it or you'll cause leaks.
@@ -295,7 +295,7 @@ struct parking_lot *parking_lot_find_by_name(const char *lot_name);
  * \param name Dynamic parking lot name to create
  * \param chan Channel parkee to get dynamic parking lot parameters from
  *
- * \retval dynamically created parking lot on success
+ * \return dynamically created parking lot on success
  * \retval NULL on error
  *
  * \note This should be called only after verifying that the named parking lot doesn't already exist in a non-dynamic way.
@@ -310,7 +310,7 @@ struct parking_lot *parking_create_dynamic_lot(const char *name, struct ast_chan
  * \param name Dynamic parking lot name to create
  * \param chan Channel parkee to get the dynamic parking lot parameters from
  *
- * \retval dynamically created parking lot on success
+ * \return dynamically created parking lot on success
  * \retval NULL on error
  *
  * \note This should be called only after verifying that the named parking lot doesn't already exist in a non-dynamic way.
@@ -336,7 +336,7 @@ const char *find_channel_parking_lot_name(struct ast_channel *chan);
  * \since 12.0.0
  * \brief Flattens a dial string so that it can be written to/found from PBX extensions
  *
- * \param peername unflattened dial string. This will be flattened in place.
+ * \param dialstring unflattened dial string. This will be flattened in place.
  */
 void flatten_dial_string(char *dialstring);
 
@@ -431,13 +431,13 @@ struct ast_bridge *park_common_setup(struct ast_channel *parkee, struct ast_chan
  *        to necessary parking information when joining, and applying various bridge roles to the
  *        channel.
  *
- * \param parkee The channel being preparred for parking
+ * \param parkee The channel being prepared for parking
  * \param parker The channel initiating the park; may be the parkee as well. May be NULL.
  * \param app_data arguments supplied to the Park application. May be NULL.
  * \param silence_announcements optional pointer to an integer where we want to store the silence option flag
  *        this value should be initialized to 0 prior to calling park_common_setup.
  *
- * \retval reference to a parking bridge if successful
+ * \return reference to a parking bridge if successful
  * \retval NULL on failure
  *
  * \note ao2_cleanup this reference when you are done using it or you'll cause leaks.
@@ -460,7 +460,7 @@ struct park_common_datastore {
  *
  * \param parkee The channel entering parking with the datastore we are checking
  *
- * \retval Pointer to a copy of the park common datastore for parkee if it could be cloned. This needs to be free'd with park_common_datastore free.
+ * \return Pointer to a copy of the park common datastore for parkee if it could be cloned. This needs to be free'd with park_common_datastore free.
  * \retval NULL if the park_common_datastore could not be copied off of the channel.
  */
 struct park_common_datastore *get_park_common_datastore_copy(struct ast_channel *parkee);
@@ -573,8 +573,6 @@ int load_parking_tests(void);
 /*!
  * \since 12.0.0
  * \brief Unregister parking unit tests
- *
- * \return Nothing
  */
 void unload_parking_tests(void);
 

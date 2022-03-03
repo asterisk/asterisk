@@ -27,6 +27,8 @@
 	<use type="module">func_periodic_hook</use>
 	<support_level>deprecated</support_level>
 	<replacement>app_mixmonitor</replacement>
+	<deprecated_in>16</deprecated_in>
+	<removed_in>21</removed_in>
  ***/
 
 #include "asterisk.h"
@@ -297,6 +299,7 @@ static int ast_monitor_set_state(struct ast_channel *chan, int state)
  * \param fname_base filename base to record to
  * \param need_lock whether to lock the channel mutex
  * \param stream_action whether to record the input and/or output streams.  X_REC_IN | X_REC_OUT is most often used
+ * \param beep_id
  * Creates the file to record, if no format is specified it assumes WAV
  * It also sets channel variable __MONITORED=yes
  * \retval 0 on success
@@ -456,7 +459,7 @@ static const char *get_soxmix_format(const char *format)
  * \param chan
  * \param need_lock
  * Stop the recording, close any open streams, mix in/out channels if required
- * \return Always 0
+ * \retval 0 Always
 */
 int AST_OPTIONAL_API_NAME(ast_monitor_stop)(struct ast_channel *chan, int need_lock)
 {

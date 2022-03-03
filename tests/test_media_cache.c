@@ -170,7 +170,7 @@ AST_TEST_DEFINE(exists_off_nominal)
 		info->summary = "Test off nominal existance of resources in the cache";
 		info->description =
 			"This test verifies that checking for bad resources (NULL, bad "
-			"scheme, etc.) does not result in false positivies.";
+			"scheme, etc.) does not result in false positives.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;

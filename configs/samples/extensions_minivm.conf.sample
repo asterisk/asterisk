@@ -120,7 +120,7 @@ exten => record,n,noop(Recording status: ${MINIVM_APPMESS_STATUS})
 exten => record,n,macroreturn
 
 ;.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-; To set a counter and use a template for voicemail to users without acounts
+; To set a counter and use a template for voicemail to users without accounts
 ; use something like this
 ;
 ; email address is in the "account" channel variable. Set from ast_db or a script

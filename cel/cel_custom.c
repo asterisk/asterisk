@@ -22,9 +22,6 @@
  * \brief Custom Comma Separated Value CEL records.
  *
  * \author Steve Murphy <murf@digium.com>
- *
- * \arg See also \ref AstCEL
- *
  * Logs in LOG_DIR/cel_custom
  * \ingroup cel_drivers
  */

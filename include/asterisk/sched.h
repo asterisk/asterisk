@@ -72,20 +72,22 @@ extern "C" {
 /*!
  * \brief schedule task to get deleted and call unref function
  *
- * Only calls unref function if the delete succeeded.
+ * Only calls the unref function if the task is actually deleted by
+ * ast_sched_del_nonrunning. If a failure occurs or the task is
+ * currently running and not rescheduled then refcall is not invoked.
  *
  * \sa AST_SCHED_DEL
  * \since 1.6.1
  */
 #define AST_SCHED_DEL_UNREF(sched, id, refcall)			\
 	do { \
-		int _count = 0, _id; \
-		while ((_id = id) > -1 && ast_sched_del(sched, _id) && ++_count < 10) { \
+		int _count = 0, _id, _ret = 0; \
+		while ((_id = id) > -1 && (( _ret = ast_sched_del_nonrunning(sched, _id)) == -1) && ++_count < 10) { \
 			usleep(1); \
 		} \
 		if (_count == 10) { \
 			ast_log(LOG_WARNING, "Unable to cancel schedule ID %d.  This is probably a bug (%s: %s, line %d).\n", _id, __FILE__, __PRETTY_FUNCTION__, __LINE__); \
-		} else if (_id > -1) { \
+		} else if (_id > -1 && _ret >-2) { \
 			refcall; \
 			id = -1; \
 		} \
@@ -153,7 +155,8 @@ extern "C" {
 /*!
  * \brief Create a scheduler context
  *
- * \return Returns a malloc'd sched_context structure, NULL on failure
+ * \retval NULL on failure
+ * \return a malloc'd sched_context structure
  */
 struct ast_sched_context *ast_sched_context_create(void);
 
@@ -215,7 +218,8 @@ void ast_sched_report(struct ast_sched_context *con, struct ast_str **buf, struc
  * \param callback function to call when the amount of time expires
  * \param data data to pass to the callback
  *
- * \return Returns a schedule item ID on success, -1 on failure
+ * \retval -1 on failure
+ * \return schedule item ID
  */
 int ast_sched_add(struct ast_sched_context *con, int when, ast_sched_cb callback, const void *data) attribute_warn_unused_result;
 
@@ -227,8 +231,8 @@ int ast_sched_add(struct ast_sched_context *con, int when, ast_sched_cb callback
  * calls ast_sched_add to create a new entry.  A negative old_id will
  * be ignored.
  *
- * \retval -1 failure
- * \retval otherwise, returns scheduled item ID
+ * \retval -1 on failure
+ * \return scheduled item ID
  */
 int ast_sched_replace(int old_id, struct ast_sched_context *con, int when, ast_sched_cb callback, const void *data) attribute_warn_unused_result;
 
@@ -248,7 +252,8 @@ int ast_sched_replace(int old_id, struct ast_sched_context *con, int when, ast_s
  *
  * If callback returns 0, no further events will be re-scheduled
  *
- * \return Returns a schedule item ID on success, -1 on failure
+ * \retval -1 on failure
+ * \return scheduled item ID
  */
 int ast_sched_add_variable(struct ast_sched_context *con, int when, ast_sched_cb callback, const void *data, int variable) attribute_warn_unused_result;
 
@@ -260,8 +265,8 @@ int ast_sched_add_variable(struct ast_sched_context *con, int when, ast_sched_cb
  * calls ast_sched_add to create a new entry.  A negative old_id will
  * be ignored.
  *
- * \retval -1 failure
- * \retval otherwise, returns scheduled item ID
+ * \retval -1 on failure
+ * \return scheduled item ID
  */
 int ast_sched_replace_variable(int old_id, struct ast_sched_context *con, int when, ast_sched_cb callback, const void *data, int variable) attribute_warn_unused_result;
 
@@ -270,7 +275,9 @@ int ast_sched_replace_variable(int old_id, struct ast_sched_context *con, int wh
  *
  * \param con scheduling context in which to search fro the matching id
  * \param id ID of the scheduled item to find
- * \return the data field from the matching sched struct if found; else return NULL if not found.
+ *
+ * \retval NULL if not found
+ * \return the data field from the matching sched struct if found.
  *
  * \since 1.6.1
  */
@@ -287,9 +294,30 @@ const void *ast_sched_find_data(struct ast_sched_context *con, int id);
  * \param con scheduling context to delete item from
  * \param id ID of the scheduled item to delete
  *
- * \return Returns 0 on success, -1 on failure
+ * \retval -1 on failure
+ * \retval 0 on success
+ *
+ * \deprecated in favor of ast_sched_del_nonrunning which checks if the event is running and rescheduled
+ *
  */
 int ast_sched_del(struct ast_sched_context *con, int id) attribute_warn_unused_result;
+
+/*!
+ * \brief Deletes a scheduled event with care against the event running
+ *
+ * Remove this event from being run.  A procedure should not remove its own
+ * event, but return 0 instead.  In most cases, you should not call this
+ * routine directly, but use the AST_SCHED_DEL() macro instead (especially if
+ * you don't intend to do something different when it returns failure).
+ *
+ * \param con scheduling context to delete item from
+ * \param id ID of the scheduled item to delete
+ *
+ * \retval -1 on failure
+ * \retval -2 event was running but was deleted because it was not rescheduled
+ * \retval 0 on success
+ */
+int ast_sched_del_nonrunning(struct ast_sched_context *con, int id) attribute_warn_unused_result;
 
 /*!
  * \brief Determines number of seconds until the next outstanding event to take place
@@ -301,7 +329,7 @@ int ast_sched_del(struct ast_sched_context *con, int id) attribute_warn_unused_r
  *
  * \param con context to act upon
  *
- * \return Returns "-1" if there is nothing there are no scheduled events
+ * \retval -1 if there is nothing there are no scheduled events
  * (and thus the poll should not timeout)
  */
 int ast_sched_wait(struct ast_sched_context *con) attribute_warn_unused_result;
@@ -313,9 +341,8 @@ int ast_sched_wait(struct ast_sched_context *con) attribute_warn_unused_result;
  * at this time.
  *
  * \param con Scheduling context to run
- * \param con context to act upon
  *
- * \return Returns the number of events processed.
+ * \return the number of events processed.
  */
 int ast_sched_runq(struct ast_sched_context *con);
 

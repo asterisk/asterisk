@@ -222,8 +222,6 @@ struct sig_pri_callback {
 	 *
 	 * \param pvt Private structure of the user of this module.
 	 * \param chan Channel associated with the private pointer
-	 *
-	 * \return Nothing
 	 */
 	void (* const ami_channel_event)(void *pvt, struct ast_channel *chan);
 
@@ -282,7 +280,7 @@ struct sig_pri_chan {
 	unsigned int hidecallerid:1;
 	unsigned int hidecalleridname:1;      /*!< Hide just the name not the number for legacy PBX use */
 	unsigned int immediate:1;			/*!< Answer before getting digits? */
-	unsigned int priexclusive:1;			/*!< Whether or not to override and use exculsive mode for channel selection */
+	unsigned int priexclusive:1;			/*!< Whether or not to override and use exclusive mode for channel selection */
 	unsigned int priindication_oob:1;
 	unsigned int use_callerid:1;			/*!< Whether or not to use caller id on this channel */
 	unsigned int use_callingpres:1;			/*!< Whether to use the callingpres the calling switch sends */
@@ -574,7 +572,7 @@ struct sig_pri_span {
 		unsigned int hidecallerid:1;
 		unsigned int hidecalleridname:1;      /*!< Hide just the name not the number for legacy PBX use */
 		unsigned int immediate:1;			/*!< Answer before getting digits? */
-		unsigned int priexclusive:1;			/*!< Whether or not to override and use exculsive mode for channel selection */
+		unsigned int priexclusive:1;			/*!< Whether or not to override and use exclusive mode for channel selection */
 		unsigned int priindication_oob:1;
 		unsigned int use_callerid:1;			/*!< Whether or not to use caller id on this channel */
 		unsigned int use_callingpres:1;			/*!< Whether to use the callingpres the calling switch sends */
@@ -639,7 +637,7 @@ struct sig_pri_span {
 	 *    the configured threshold.
 	 * AST_DEVICE_UNAVAILABLE - Span is in alarm.
 	 * \note
-	 * Device name:  DAHDI/I<span>/threshold
+	 * Device name: \verbatim DAHDI/I<span>/threshold \endverbatim
 	 */
 	int threshold_devstate;
 	/*!

@@ -2559,7 +2559,7 @@ int ooOnReceivedRequestChannelClose(OOH323CallData *call,
    if (lChannel->state == OO_LOGICALCHAN_ESTABLISHED) {
      ret = ooSendCloseLogicalChannel(call, lChannel);
      if (ret != OO_OK) {
-      OOTRACEERR3("ERROR:Failed to build CloseLgicalChannel message(%s, %s)\n",
+      OOTRACEERR3("ERROR:Failed to build CloseLogicalChannel message(%s, %s)\n",
                    call->callType, call->callToken);
       return OO_FAILED;
      }

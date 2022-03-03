@@ -94,7 +94,7 @@ struct ast_include *include_alloc(const char *value, const char *registrar)
 	new_include->rname = p;
 	strcpy(p, value);
 	/* Strip off timing info, and process if it is there */
-	if ((c = strchr(p, ',')) ) {
+	if ( (c = strchr(p, '|')) || (c = strchr(p, ',')) ) {
 		*c++ = '\0';
 		new_include->hastime = ast_build_timing(&(new_include->timing), c);
 	}

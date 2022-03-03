@@ -27,7 +27,7 @@
  * \author Anthony Minessale II <anthmct@yahoo.com>
  * \author Tilghman Lesher <tilghman@digium.com>
  *
- * \arg See also: \ref cdr_odbc
+ * \arg See also: \ref cdr_odbc.c
  */
 
 /*! \li \ref res_odbc.c uses the configuration file \ref res_odbc.conf
@@ -215,13 +215,6 @@ static void destroy_table_cache(struct odbc_cache_tables *table)
 }
 
 /*!
- * \brief Find or create an entry describing the table specified.
- * \param database Name of an ODBC class on which to query the table
- * \param tablename Tablename to describe
- * \retval A structure describing the table layout, or NULL, if the table is not found or another error occurs.
- * When a structure is returned, the contained columns list will be
- * rdlock'ed, to ensure that it will be retained in memory.
- *
  * XXX This creates a connection and disconnects it. In some situations, the caller of
  * this function has its own connection and could donate it to this function instead of
  * needing to create another one.
@@ -235,8 +228,6 @@ static void destroy_table_cache(struct odbc_cache_tables *table)
  *   the need to cache tables is questionable. Instead, the table structure can be fetched from
  *   the DB directly each time, resulting in a single owner of the data.
  * * Make odbc_cache_tables a refcounted object.
- *
- * \since 1.6.1
  */
 struct odbc_cache_tables *ast_odbc_find_table(const char *database, const char *tablename)
 {
@@ -870,7 +861,7 @@ unsigned int ast_odbc_get_max_connections(const char *name)
 	return max_connections;
 }
 
-/*
+/*!
  * \brief Determine if the connection has died.
  *
  * \param connection The connection to check

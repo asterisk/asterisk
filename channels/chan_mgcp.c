@@ -36,6 +36,8 @@
 /*** MODULEINFO
         <use type="module">res_pktccops</use>
 	<support_level>extended</support_level>
+	<deprecated_in>19</deprecated_in>
+	<removed_in>21</removed_in>
  ***/
 
 #include "asterisk.h"
@@ -239,8 +241,6 @@ static char ourhost[MAXHOSTNAMELEN];
 static struct in_addr __ourip;
 static int ourport;
 
-static int mgcpdebug = 0;
-
 static struct ast_sched_context *sched;
 static struct io_context *io;
 /*! The private structures of the mgcp channels are linked for
@@ -334,7 +334,7 @@ struct mgcp_endpoint {
 	char name[80];
 	struct mgcp_subchannel *sub;		/*!< Pointer to our current connection, channel and stuff */
 	char accountcode[AST_MAX_ACCOUNT_CODE];
-	char exten[AST_MAX_EXTENSION];		/*!< Extention where to start */
+	char exten[AST_MAX_EXTENSION];		/*!< Extension where to start */
 	char context[AST_MAX_EXTENSION];
 	char language[MAX_LANGUAGE];
 	char cid_num[AST_MAX_EXTENSION];	/*!< Caller*ID number */
@@ -1070,13 +1070,13 @@ static char *handle_mgcp_audit_endpoint(struct ast_cli_entry *e, int cmd, struct
 		e->usage =
 			"Usage: mgcp audit endpoint <endpointid>\n"
 			"       Lists the capabilities of an endpoint in the MGCP (Media Gateway Control Protocol) subsystem.\n"
-			"       mgcp debug MUST be on to see the results of this command.\n";
+			"       Debug logging (core set debug on) MUST be on to see the results of this command.\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
 	}
 
-	if (!mgcpdebug) {
+	if (!DEBUG_ATLEAST(1)) {
 		return CLI_SHOWUSAGE;
 	}
 	if (a->argc != 4)
@@ -1118,38 +1118,9 @@ static char *handle_mgcp_audit_endpoint(struct ast_cli_entry *e, int cmd, struct
 	return CLI_SUCCESS;
 }
 
-static char *handle_mgcp_set_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "mgcp set debug {on|off}";
-		e->usage =
-			"Usage: mgcp set debug {on|off}\n"
-			"       Enables/Disables dumping of MGCP packets for debugging purposes\n";
-		return NULL;
-	case CLI_GENERATE:
-		return NULL;
-	}
-
-	if (a->argc != e->args)
-		return CLI_SHOWUSAGE;
-
-	if (!strncasecmp(a->argv[e->args - 1], "on", 2)) {
-		mgcpdebug = 1;
-		ast_cli(a->fd, "MGCP Debugging Enabled\n");
-	} else if (!strncasecmp(a->argv[3], "off", 3)) {
-		mgcpdebug = 0;
-		ast_cli(a->fd, "MGCP Debugging Disabled\n");
-	} else {
-		return CLI_SHOWUSAGE;
-	}
-	return CLI_SUCCESS;
-}
-
 static struct ast_cli_entry cli_mgcp[] = {
 	AST_CLI_DEFINE(handle_mgcp_audit_endpoint, "Audit specified MGCP endpoint"),
 	AST_CLI_DEFINE(handle_mgcp_show_endpoints, "List defined MGCP endpoints"),
-	AST_CLI_DEFINE(handle_mgcp_set_debug, "Enable/Disable MGCP debugging"),
 	AST_CLI_DEFINE(mgcp_reload, "Reload MGCP configuration"),
 };
 
@@ -1977,10 +1948,8 @@ static int process_sdp(struct mgcp_subchannel *sub, struct mgcp_request *req)
 	int portno;
 	struct ast_format_cap *peercap;
 	int peerNonCodecCapability;
-	struct sockaddr_in sin;
-	struct ast_sockaddr sin_tmp;
+	struct ast_sockaddr addr = { {0,} };
 	char *codecs;
-	struct ast_hostent ahp; struct hostent *hp;
 	int codec, codec_count=0;
 	int iterator;
 	struct mgcp_endpoint *p = sub->parent;
@@ -2000,8 +1969,7 @@ static int process_sdp(struct mgcp_subchannel *sub, struct mgcp_request *req)
 		return -1;
 	}
 	/* XXX This could block for a long time, and block the main thread! XXX */
-	hp = ast_gethostbyname(host, &ahp);
-	if (!hp) {
+	if (ast_sockaddr_resolve_first_af(&addr, host, PARSE_PORT_FORBID, AF_INET)) {
 		ast_log(LOG_WARNING, "Unable to lookup host in c= line, '%s'\n", c);
 		return -1;
 	}
@@ -2009,12 +1977,9 @@ static int process_sdp(struct mgcp_subchannel *sub, struct mgcp_request *req)
 		ast_log(LOG_WARNING, "Malformed media stream descriptor: %s\n", m);
 		return -1;
 	}
-	sin.sin_family = AF_INET;
-	memcpy(&sin.sin_addr, hp->h_addr, sizeof(sin.sin_addr));
-	sin.sin_port = htons(portno);
-	ast_sockaddr_from_sin(&sin_tmp, &sin);
-	ast_rtp_instance_set_remote_address(sub->rtp, &sin_tmp);
-	ast_debug(3, "Peer RTP is at port %s:%d\n", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
+	ast_sockaddr_set_port(&addr, portno);
+	ast_rtp_instance_set_remote_address(sub->rtp, &addr);
+	ast_debug(3, "Peer RTP is at port %s\n", ast_sockaddr_stringify(&addr));
 	/* Scan through the RTP payload types specified in a "m=" line: */
 	codecs = ast_strdupa(m + len);
 	while (!ast_strlen_zero(codecs)) {
@@ -3117,7 +3082,7 @@ static void *mgcp_ss(void *data)
 			timeout = firstdigittimeout;
 		} else if (!strcmp(p->dtmf_buf, pickupexten)) {
 			/* Scan all channels and see if any there
-			 * ringing channqels with that have call groups
+			 * ringing channels with that have call groups
 			 * that equal this channels pickup group
 			 */
 			if (ast_pickup_call(chan)) {
@@ -3473,7 +3438,7 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
 			sub->cxmode = MGCP_CX_SENDRECV;
 
 			if (p) {
-			  /* When the endpoint have a Off hook transition we allways
+			  /* When the endpoint have a Off hook transition we always
 			     starts without any previous dtmfs */
 			  memset(p->dtmf_buf, 0, sizeof(p->dtmf_buf));
 			}
@@ -3562,7 +3527,7 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
 			}
 			*/
 			if (p->transfer && (sub->owner && sub->next->owner) && ((!sub->outgoing) || (!sub->next->outgoing))) {
-				/* We're allowed to transfer, we have two avtive calls and */
+				/* We're allowed to transfer, we have two active calls and */
 				/* we made at least one of the calls.  Let's try and transfer */
 				ast_mutex_lock(&p->sub->next->lock);
 				res = attempt_transfer(p, sub);
@@ -4679,6 +4644,30 @@ static struct ast_variable *copy_vars(struct ast_variable *src)
 	return res;
 }
 
+/*!
+ * \brief Resolve the given hostname and save its IPv4 address.
+ *
+ * \param[in]  hostname The hostname to resolve.
+ * \param[out] sin_addr Pointer to a <tt>struct in_addr</tt> in which to
+ *                      store the resolved IPv4 address. \c sin_addr will
+ *                      not be changed if resolution fails.
+ *
+ * \retval 0 if successful
+ * \retval 1 on failure
+ */
+static int resolve_first_addr(const char *hostname, struct in_addr *sin_addr)
+{
+	struct ast_sockaddr addr = { {0,} };
+	struct sockaddr_in tmp;
+
+	if (ast_sockaddr_resolve_first_af(&addr, hostname, PARSE_PORT_FORBID, AF_INET)) {
+		return 1;
+	}
+
+	ast_sockaddr_to_sin(&addr, &tmp);
+	*sin_addr = tmp.sin_addr;
+	return 0;
+}
 
 static int reload_config(int reload)
 {
@@ -4687,8 +4676,6 @@ static int reload_config(int reload)
 	struct mgcp_gateway *g;
 	struct mgcp_endpoint *e;
 	char *cat;
-	struct ast_hostent ahp;
-	struct hostent *hp;
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 
 	if (gethostname(ourhost, sizeof(ourhost)-1)) {
@@ -4722,10 +4709,8 @@ static int reload_config(int reload)
 
 		/* Create the interface list */
 		if (!strcasecmp(v->name, "bindaddr")) {
-			if (!(hp = ast_gethostbyname(v->value, &ahp))) {
+			if (resolve_first_addr(v->value, &bindaddr.sin_addr)) {
 				ast_log(LOG_WARNING, "Invalid address: %s\n", v->value);
-			} else {
-				memcpy(&bindaddr.sin_addr, hp->h_addr, sizeof(bindaddr.sin_addr));
 			}
 		} else if (!strcasecmp(v->name, "allow")) {
 			ast_format_cap_update_by_allow_disallow(global_capability, v->value, 1);
@@ -4793,13 +4778,11 @@ static int reload_config(int reload)
 	if (ntohl(bindaddr.sin_addr.s_addr)) {
 		memcpy(&__ourip, &bindaddr.sin_addr, sizeof(__ourip));
 	} else {
-		hp = ast_gethostbyname(ourhost, &ahp);
-		if (!hp) {
+		if (resolve_first_addr(ourhost, &__ourip)) {
 			ast_log(LOG_WARNING, "Unable to get our IP address, MGCP disabled\n");
 			ast_config_destroy(cfg);
 			return 0;
 		}
-		memcpy(&__ourip, hp->h_addr, sizeof(__ourip));
 	}
 	if (!ntohs(bindaddr.sin_port))
 		bindaddr.sin_port = htons(DEFAULT_MGCP_CA_PORT);

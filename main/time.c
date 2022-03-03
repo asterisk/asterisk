@@ -97,7 +97,7 @@ struct timeval ast_time_create(ast_time_t sec, ast_suseconds_t usec)
 }
 
 /*!
- * \brief Create a timeval first onverting the given microsecond value
+ * \brief Create a timeval first converting the given microsecond value
  *        into seconds and microseconds
  *
  * \param usec microsecond value

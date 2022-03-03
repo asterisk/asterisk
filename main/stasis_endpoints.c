@@ -378,7 +378,7 @@ struct ast_endpoint_snapshot *ast_endpoint_latest_snapshot(const char *tech,
  *
  * \param message Message to extract id from.
  * \return String representing the snapshot's id.
- * \return \c NULL if the message_type of the message isn't a handled snapshot.
+ * \retval NULL if the message_type of the message isn't a handled snapshot.
  * \since 12
  */
 static const char *endpoint_snapshot_get_id(struct stasis_message *message)

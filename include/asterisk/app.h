@@ -42,7 +42,8 @@ AST_THREADSTORAGE_EXTERNAL(ast_str_thread_global_buf);
 /* IVR stuff */
 
 /*! \brief Callback function for IVR
-    \return returns 0 on completion, -1 on hangup or digit if interrupted
+    \retval 0 on completion.
+    \retval -1 on hangup or digit if interrupted.
   */
 typedef int (ast_ivr_callback)(struct ast_channel *chan, char *option, void *cbdata);
 
@@ -56,7 +57,7 @@ typedef enum {
 	AST_ACTION_MENU,	/*!< adata is a pointer to an ast_ivr_menu */
 	AST_ACTION_REPEAT,	/*!< adata is max # of repeats, cast to a pointer */
 	AST_ACTION_RESTART,	/*!< adata is like repeat, but resets repeats to 0 */
-	AST_ACTION_TRANSFER,	/*!< adata is a string with exten\verbatim[@context]\endverbatim */
+	AST_ACTION_TRANSFER,	/*!< adata is a string with exten[\@context] */
 	AST_ACTION_WAITOPTION,	/*!< adata is a timeout, or 0 for defaults */
 	AST_ACTION_NOOP,	/*!< adata is unused */
 	AST_ACTION_BACKLIST,	/*!< adata is list of files separated by ; allows interruption */
@@ -118,7 +119,10 @@ enum ast_timelen {
 };
 
 /*!	\brief Runs an IVR menu
-	\return returns 0 on successful completion, -1 on hangup, or -2 on user error in menu */
+	\retval 0 on successful completion.
+	\retval -1 on hangup.
+	\retval -2 on user error in menu.
+*/
 int ast_ivr_menu_run(struct ast_channel *c, struct ast_ivr_menu *menu, void *cbdata);
 
 /*! \brief Plays a stream and gets DTMF data from a channel
@@ -136,6 +140,23 @@ int ast_ivr_menu_run(struct ast_channel *c, struct ast_ivr_menu *menu, void *cbd
  *  execution of your code.
  */
 int ast_app_getdata(struct ast_channel *c, const char *prompt, char *s, int maxlen, int timeout);
+
+/*! \brief Plays a stream and gets DTMF data from a channel
+ * \param c Which channel one is interacting with
+ * \param prompt File to pass to ast_streamfile (the one that you wish to play).
+ *        It is also valid for this to be multiple files concatenated by "&".
+ *        For example, "file1&file2&file3".
+ * \param s The location where the DTMF data will be stored
+ * \param maxlen Max Length of the data
+ * \param timeout Timeout length waiting for data(in milliseconds).  Set to 0 for standard timeout(six seconds), or -1 for no time out.
+ * \param terminator A string of characters that may be used as terminators to end input. If NULL, "#" will be used.
+ *
+ *  This function was designed for application programmers for situations where they need
+ *  to play a message and then get some DTMF data in response to the message.  If a digit
+ *  is pressed during playback, it will immediately break out of the message and continue
+ *  execution of your code.
+ */
+int ast_app_getdata_terminator(struct ast_channel *c, const char *prompt, char *s, int maxlen, int timeout, char *terminator);
 
 /*! \brief Full version with audiofd and controlfd.  NOTE: returns '2' on ctrlfd available, not '1' like other full functions */
 int ast_app_getdata_full(struct ast_channel *c, const char *prompt, char *s, int maxlen, int timeout, int audiofd, int ctrlfd);
@@ -217,7 +238,7 @@ struct ast_app_stack_funcs {
 	 * \details
 	 * Fills in the optional context and exten from the given channel.
 	 *
-	 * \retval New-args Gosub argument string on success.  Must be freed.
+	 * \return New-args Gosub argument string on success.  Must be freed.
 	 * \retval NULL on error.
 	 */
 	const char *(*expand_sub_args)(struct ast_channel *chan, const char *args);
@@ -241,7 +262,7 @@ void ast_install_stack_functions(const struct ast_app_stack_funcs *funcs);
  * \details
  * Fills in the optional context and exten from the given channel.
  *
- * \retval New-args Gosub argument string on success.  Must be freed.
+ * \return New-args Gosub argument string on success.  Must be freed.
  * \retval NULL on error.
  */
 const char *ast_app_expand_sub_args(struct ast_channel *chan, const char *args);
@@ -334,7 +355,7 @@ typedef void (ast_vm_msg_play_cb)(struct ast_channel *chan, const char *playfile
 /*!
  * \brief Determines if the given folder has messages.
  *
- * \param mailboxes Comma or & delimited list of mailboxes (user@context).
+ * \param mailboxes Comma or & delimited list of mailboxes (user\@context).
  *          If no context is found, uses 'default' for the context.
  * \param folder The folder to look in.  Default is INBOX if not provided.
  *
@@ -346,7 +367,7 @@ typedef int (ast_has_voicemail_fn)(const char *mailboxes, const char *folder);
 /*!
  * \brief Gets the number of messages that exist for the mailbox list.
  *
- * \param mailboxes Comma or space delimited list of mailboxes (user@context).
+ * \param mailboxes Comma or space delimited list of mailboxes (user\@context).
  *          If no context is found, uses 'default' for the context.
  * \param newmsgs Where to put the count of new messages. (Can be NULL)
  * \param oldmsgs Where to put the count of old messages. (Can be NULL)
@@ -363,7 +384,7 @@ typedef int (ast_inboxcount_fn)(const char *mailboxes, int *newmsgs, int *oldmsg
 /*!
  * \brief Gets the number of messages that exist for the mailbox list.
  *
- * \param mailboxes Comma or space delimited list of mailboxes (user@context).
+ * \param mailboxes Comma or space delimited list of mailboxes (user\@context).
  *          If no context is found, uses 'default' for the context.
  * \param urgentmsgs Where to put the count of urgent messages. (Can be NULL)
  * \param newmsgs Where to put the count of new messages. (Can be NULL)
@@ -398,7 +419,7 @@ typedef int (ast_messagecount_fn)(const char *mailbox_id, const char *folder);
  * \param mailbox_id The mailbox name.
  *
  * \retval 0 Name played without interruption
- * \retval dtmf ASCII value of the DTMF which interrupted playback.
+ * \return dtmf ASCII value of the DTMF which interrupted playback.
  * \retval -1 Unable to locate mailbox or hangup occurred.
  */
 typedef int (ast_sayname_fn)(struct ast_channel *chan, const char *mailbox_id);
@@ -427,8 +448,8 @@ typedef const char *(ast_vm_index_to_foldername_fn)(int id);
 /*!
  * \brief Create a snapshot of a mailbox which contains information about every msg.
  *
- * \param user The user part of user@context.
- * \param context The context part of user@context.  Must be explicit.
+ * \param user The user part of user\@context.
+ * \param context The context part of user\@context.  Must be explicit.
  * \param folder When not NULL only msgs from the specified folder will be included.
  * \param descending list the msgs in descending order rather than ascending order.
  * \param sort_val What to sort in the snapshot.
@@ -438,7 +459,7 @@ typedef const char *(ast_vm_index_to_foldername_fn)(int id);
  *
  * \note Only used by voicemail unit tests.
  *
- * \retval snapshot on success
+ * \return snapshot on success
  * \retval NULL on failure
  */
 typedef struct ast_vm_mailbox_snapshot *(ast_vm_mailbox_snapshot_create_fn)(const char *user,
@@ -590,9 +611,7 @@ int __ast_vm_register(const struct ast_vm_functions *vm_table, struct ast_module
 /*!
  * \brief Unregister the specified voicemail provider
  *
- * \param The module name of the provider to unregister
- *
- * \return Nothing
+ * \param module_name The module name of the provider to unregister
  */
 void ast_vm_unregister(const char *module_name);
 
@@ -660,9 +679,7 @@ int __ast_vm_greeter_register(const struct ast_vm_greeter_functions *vm_table, s
  * \brief Unregister the specified voicemail greeter provider
  * \since 13.0.0
  *
- * \param The module name of the provider to unregister
- *
- * \return Nothing
+ * \param module_name The module name of the provider to unregister
  */
 void ast_vm_greeter_unregister(const char *module_name);
 
@@ -715,7 +732,8 @@ int ast_app_inboxcount(const char *mailboxes, int *newmsgs, int *oldmsgs);
  * \param[out] urgentmsgs the urgent message count
  * \param[out] newmsgs the new message count
  * \param[out] oldmsgs the old message count
- * \return Returns 0 for success, negative upon error
+ * \retval 0 for success
+ * \retval negative upon error
  * \since 1.6.1
  */
 int ast_app_inboxcount2(const char *mailboxes, int *urgentmsgs, int *newmsgs, int *oldmsgs);
@@ -754,15 +772,16 @@ const char *ast_vm_index_to_foldername(int id);
 /*!
  * \brief Create a snapshot of a mailbox which contains information about every msg.
  *
- * \param mailbox, the mailbox to look for
- * \param context, the context to look for the mailbox in
- * \param folder, OPTIONAL.  When not NULL only msgs from the specified folder will be included.
- * \param descending, list the msgs in descending order rather than ascending order.
- * \param combine_INBOX_and_OLD, When this argument is set, The OLD folder will be represented
+ * \param mailbox the mailbox to look for
+ * \param context the context to look for the mailbox in
+ * \param folder OPTIONAL.  When not NULL only msgs from the specified folder will be included.
+ * \param descending list the msgs in descending order rather than ascending order.
+ * \param sort_val What to sort in the snapshot.
+ * \param combine_INBOX_and_OLD When this argument is set, The OLD folder will be represented
  *        in the INBOX folder of the snapshot. This allows the snapshot to represent the
  *        OLD and INBOX messages in sorted order merged together.
  *
- * \retval snapshot on success
+ * \return snapshot on success
  * \retval NULL on failure
  */
 struct ast_vm_mailbox_snapshot *ast_vm_mailbox_snapshot_create(const char *mailbox,
@@ -923,6 +942,64 @@ void ast_replace_sigchld(void);
 void ast_unreplace_sigchld(void);
 
 /*!
+ * \brief Send a string of SF digits to a channel
+ *
+ * \param chan    The channel that will receive the SF digits
+ * \param peer    (optional) Peer channel that will be autoserviced while the
+ *                primary channel is receiving SF
+ * \param chan2   A second channel that will simultaneously receive SF digits.
+ *                This option may only be used if is_external is 0.
+ * \param digits  This is a string of characters representing the SF digits
+ *                to be sent to the channel.  Valid characters are
+ *                "0123456789".  Note: You can pass arguments 'f' or
+ *                'F', if you want to Flash the channel (if supported by the
+ *                channel), or 'w' or 'W' to add a wink (if supported by the
+ *                channel).
+ * \param frequency  The frequency to use for signaling. 0 can be specified for
+ *                the default, which is 2600 Hz.
+ * \param is_external 1 if called by a thread that is not the channel's media
+ *                handler thread, 0 if called by the channel's media handler
+ *                thread.
+ *
+ * \retval 0 on success.
+ * \retval -1 on failure or a channel hung up.
+ */
+int ast_sf_stream(struct ast_channel *chan, struct ast_channel *peer, struct ast_channel *chan2, const char *digits, int frequency, int is_external);
+
+/*!
+ * \brief Send a string of MF digits to a channel
+ *
+ * \param chan    The channel that will receive the MF digits.
+ * \param peer    (optional) Peer channel that will be autoserviced while the
+ *                primary channel is receiving MF
+ * \param chan2   A second channel that will simultaneously receive MF digits.
+ *                This option may only be used if is_external is 0.
+ * \param digits  This is a string of characters representing the MF digits
+ *                to be sent to the channel.  Valid characters are
+ *                "0123456789*#abcdABCD".  Note: You can pass arguments 'f' or
+ *                'F', if you want to Flash the channel (if supported by the
+ *                channel), or 'w' or 'W' to add a wink (if supported by the
+ *                channel).
+ * \param between This is the number of milliseconds to wait in between each
+ *                MF digit.  If zero milliseconds is specified, then the
+ *                default value of 50 will be used.
+ * \param duration This is the duration that each numeric MF digit should have.
+ *                 Default value is 55.
+ * \param durationkp This is the duration that each KP digit should have. Default
+ *                is 120.
+ * \param durationst This is the duration that each ST, STP, ST2P, or ST3P digit
+ *                should have. Default is 65.
+ * \param is_external 1 if called by a thread that is not the channel's media
+ *                handler thread, 0 if called by the channel's media handler
+ *                thread.
+ *
+ * \retval 0 on success.
+ * \retval -1 on failure or a channel hung up.
+ */
+int ast_mf_stream(struct ast_channel *chan, struct ast_channel *peer, struct ast_channel *chan2, const char *digits,
+	int between, unsigned int duration, unsigned int durationkp, unsigned int durationst, int is_external);
+
+/*!
  * \brief Send a string of DTMF digits to a channel
  *
  * \param chan    The channel that will receive the DTMF frames
@@ -963,8 +1040,6 @@ int ast_dtmf_stream(struct ast_channel *chan, struct ast_channel *peer, const ch
  *
  * \pre This must only be called by threads that are not the channel's
  * media handler thread.
- *
- * \return Nothing
  */
 void ast_dtmf_stream_external(struct ast_channel *chan, const char *digits, int between, unsigned int duration);
 
@@ -1013,7 +1088,7 @@ int ast_control_tone(struct ast_channel *chan, const char *tone);
  * \param chan
  * \param file filename
  * \param fwd, rev, stop, pause, restart, skipms, offsetms
- * \param cb waitstream callback to invoke when fastforward or rewind occurrs.
+ * \param cb waitstream callback to invoke when fastforward or rewind occurs.
  *
  * Before calling this function, set this to be the number
  * of ms to start from the beginning of the file.  When the function
@@ -1388,7 +1463,8 @@ struct ast_app_option {
   \param flags The flag structure to have option flags set
   \param args The array of argument pointers to hold arguments found
   \param optstr The string containing the options to be parsed
-  \return zero for success, non-zero if an error occurs
+  \retval zero for success
+  \retval non-zero if an error occurs
   \sa AST_APP_OPTIONS
  */
 int ast_app_parse_options(const struct ast_app_option *options, struct ast_flags *flags, char **args, char *optstr);
@@ -1399,7 +1475,8 @@ int ast_app_parse_options(const struct ast_app_option *options, struct ast_flags
   \param flags The 64-bit flag structure to have option flags set
   \param args The array of argument pointers to hold arguments found
   \param optstr The string containing the options to be parsed
-  \return zero for success, non-zero if an error occurs
+  \retval zero for success
+  \retval non-zero if an error occurs
   \sa AST_APP_OPTIONS
  */
 int ast_app_parse_options64(const struct ast_app_option *options, struct ast_flags64 *flags, char **args, char *optstr);
@@ -1413,7 +1490,9 @@ int ast_app_parse_options64(const struct ast_app_option *options, struct ast_fla
 void ast_app_options2str64(const struct ast_app_option *options, struct ast_flags64 *flags, char *buf, size_t len);
 
 /*! \brief Present a dialtone and collect a certain length extension.
-    \return Returns 1 on valid extension entered, -1 on hangup, or 0 on invalid extension.
+    \retval 1 if extension exists
+    \retval 0 if extension does not exist
+    \retval -1 on hangup
 \note Note that if 'collect' holds digits already, new digits will be appended, so be sure it's initialized properly */
 int ast_app_dtget(struct ast_channel *chan, const char *context, char *collect, size_t size, int maxlen, int timeout);
 
@@ -1475,7 +1554,7 @@ int ast_app_parse_timelen(const char *timestr, int *result, enum ast_timelen def
 
 /*!
  * \brief Get the \ref stasis topic for queue messages
- * \retval The topic structure for queue messages
+ * \return The topic structure for queue messages
  * \retval NULL if it has not been allocated
  * \since 12
  */
@@ -1484,12 +1563,11 @@ struct stasis_topic *ast_queue_topic_all(void);
 /*!
  * \brief Get the \ref stasis topic for queue messages for a particular queue name
  * \param queuename The name for which to get the topic
- * \retval The topic structure for queue messages for a given name
+ * \return The topic structure for queue messages for a given name
  * \retval NULL if it failed to be found or allocated
  * \since 12
  */
 struct stasis_topic *ast_queue_topic(const char *queuename);
-/*! @} */
 
 /*!
  * \brief Initialize the application core

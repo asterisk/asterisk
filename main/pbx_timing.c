@@ -194,12 +194,6 @@ static const char * const months[] =
 	NULL,
 };
 
-/*! /brief Build timing
- *
- * /param i info
- * /param info_in
- *
- */
 int ast_build_timing(struct ast_timing *i, const char *info_in)
 {
 	char *info;
@@ -217,7 +211,7 @@ int ast_build_timing(struct ast_timing *i, const char *info_in)
 
 	/* count the number of fields in the timespec */
 	for (j = 0, num_fields = 1; info[j] != '\0'; j++) {
-		if (info[j] == ',') {
+		if (info[j] == '|' || info[j] == ',') {
 			last_sep = j;
 			num_fields++;
 		}

@@ -56,10 +56,20 @@
 						parameters. Can be called multiple times to change parameters
 						on a channel with talk detection already enabled.</para>
 						<argument name="dsp_silence_threshold" required="false">
-							<para>The time in milliseconds before which a user is considered silent.</para>
+							<para>The time in milliseconds of sound falling below the
+							<replaceable>dsp_talking_threshold</replaceable> option when
+							a user is considered to stop talking. The default value is
+							2500.</para>
 						</argument>
 						<argument name="dsp_talking_threshold" required="false">
-							<para>The time in milliseconds after which a user is considered talking.</para>
+							<para>The minimum average magnitude per sample in a frame
+							for the DSP to consider talking/noise present. A value below
+							this level is considered silence. If not specified, the
+							value comes from the <filename>dsp.conf</filename>
+							<replaceable>silencethreshold</replaceable> option or 256
+							if <filename>dsp.conf</filename> doesn't exist or the
+							<replaceable>silencethreshold</replaceable> option is not
+							set.</para>
 						</argument>
 					</option>
 				</optionlist>
@@ -67,7 +77,7 @@
 		</syntax>
 		<description>
 			<para>The TALK_DETECT function enables events on the channel
-			it is applied to. These events can be emited over AMI, ARI, and
+			it is applied to. These events can be emitted over AMI, ARI, and
 			potentially other Asterisk modules that listen for the internal
 			notification.</para>
 			<para>The function has two parameters that can optionally be passed
@@ -159,6 +169,7 @@ static const struct ast_datastore_info talk_detect_datastore = {
 static int talk_detect_audiohook_cb(struct ast_audiohook *audiohook, struct ast_channel *chan, struct ast_frame *frame, enum ast_audiohook_direction direction)
 {
 	int total_silence;
+	int is_talking;
 	int update_talking = 0;
 	struct ast_datastore *datastore;
 	struct talk_detect_params *td_params;
@@ -181,15 +192,14 @@ static int talk_detect_audiohook_cb(struct ast_audiohook *audiohook, struct ast_
 	}
 	td_params = datastore->data;
 
-	ast_dsp_silence(td_params->dsp, frame, &total_silence);
-
-	if (total_silence < td_params->dsp_silence_threshold) {
+	is_talking = !ast_dsp_silence(td_params->dsp, frame, &total_silence);
+	if (is_talking) {
 		if (!td_params->talking) {
 			update_talking = 1;
 			td_params->talking_start = ast_tvnow();
 		}
 		td_params->talking = 1;
-	} else {
+	} else if (total_silence >= td_params->dsp_silence_threshold) {
 		if (td_params->talking) {
 			update_talking = 1;
 		}
@@ -357,7 +367,7 @@ static int talk_detect_fn_write(struct ast_channel *chan, const char *function, 
 
 				if (dsp_talking_threshold < 1) {
 					ast_log(AST_LOG_WARNING, "Invalid value %d for dsp_talking_threshold\n",
-					        dsp_silence_threshold);
+					        dsp_talking_threshold);
 					return -1;
 				}
 			}

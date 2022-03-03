@@ -111,7 +111,7 @@
 			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
 		</syntax>
 		<description>
-			<para>A 'Ping' action will ellicit a 'Pong' response. Used to keep the
+			<para>A 'Ping' action will elicit a 'Pong' response. Used to keep the
 			manager connection open.</para>
 		</description>
 	</manager>
@@ -931,7 +931,7 @@
 			</parameter>
 		</syntax>
 		<description>
-			<para>This action will ellicit a <literal>Success</literal> response. Whenever
+			<para>This action will elicit a <literal>Success</literal> response. Whenever
 			a manager event is queued. Once WaitEvent has been called on an HTTP manager
 			session, events will be generated and queued.</para>
 		</description>
@@ -1618,7 +1618,7 @@ enum mansession_message_parsing {
 };
 
 /*! \brief In case you didn't read that giant block of text above the mansession_session struct, the
- * \ref struct mansession is named this solely to keep the API the same in Asterisk. This structure really
+ * \ref mansession is named this solely to keep the API the same in Asterisk. This structure really
  * represents data that is different from Manager action to Manager action. The mansession_session pointer
  * contained within points to session-specific data.
  */
@@ -3735,8 +3735,6 @@ static void json_escape(char *out, const char *in)
  *
  * \param s AMI stream to append a string.
  * \param str String to append to the stream after JSON escaping it.
- *
- * \return Nothing
  */
 static void astman_append_json(struct mansession *s, const char *str)
 {
@@ -4859,7 +4857,8 @@ static int action_status(struct mansession *s, const struct message *m)
  * \param payload_size The size of the given payload
  * \param action The type of read action to queue
  *
- * \return -1 on error, 0 on success
+ * \retval -1 on error
+ * \retval 0 on success
  */
 static int queue_read_action_payload(struct ast_channel *chan, const unsigned char *payload,
 	size_t payload_size, enum ast_frame_read_action action)
@@ -4891,7 +4890,8 @@ static int queue_read_action_payload(struct ast_channel *chan, const unsigned ch
  * \param chan The channel to queue the action on
  * \param body The body of the message
  *
- * \return -1 on error, 0 on success
+ * \retval -1 on error
+ * \retval 0 on success
  */
 static int queue_sendtext(struct ast_channel *chan, const char *body)
 {
@@ -4906,7 +4906,8 @@ static int queue_sendtext(struct ast_channel *chan, const char *body)
  * \param body The body of the message
  * \param content_type The message's content type
  *
- * \return -1 on error, 0 on success
+ * \retval -1 on error
+ * \retval 0 on success
  */
 static int queue_sendtext_data(struct ast_channel *chan, const char *body,
 	const char *content_type)
@@ -5399,8 +5400,6 @@ struct fast_originate_helper {
  * \internal
  *
  * \param doomed Struct to destroy.
- *
- * \return Nothing
  */
 static void destroy_fast_originate_helper(struct fast_originate_helper *doomed)
 {
@@ -6142,6 +6141,7 @@ static int action_filter(struct mansession *s, const struct message *m)
  * \brief Add an event filter to a manager session
  *
  * \param filter_pattern  Filter syntax to add, see below for syntax
+ * \param whitefilters, blackfilters
  *
  * \return FILTER_ALLOC_FAILED   Memory allocation failure
  * \return FILTER_COMPILE_FAIL   If the filter did not compile
@@ -7366,8 +7366,6 @@ static int ast_manager_register_struct(struct manager_action *act)
  * \brief Destroy the registered AMI action object.
  *
  * \param obj Object to destroy.
- *
- * \return Nothing
  */
 static void action_destroy(void *obj)
 {
@@ -7946,7 +7944,7 @@ static int generic_http_callback(struct ast_tcptls_session_instance *ser,
 		/*!
 		 * \note There is approximately a 1 in 1.8E19 chance that the following
 		 * calculation will produce 0, which is an invalid ID, but due to the
-		 * properties of the rand() function (and the constantcy of s), that
+		 * properties of the rand() function (and the constancy of s), that
 		 * won't happen twice in a row.
 		 */
 		while ((session->managerid = ast_random() ^ (unsigned long) session) == 0) {
@@ -8911,8 +8909,6 @@ static struct ast_cli_entry cli_manager[] = {
  * \brief Load the config channelvars variable.
  *
  * \param var Config variable to load.
- *
- * \return Nothing
  */
 static void load_channelvars(struct ast_variable *var)
 {

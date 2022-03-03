@@ -294,7 +294,7 @@ EXTERN int ooCapabilityDisableDTMFQ931Keypad(struct OOH323CallData *call);
  * and txframes parameters to the endpoint or call.(ex. G711, G728, G723.1,
  * G729)
  * @param call                 Handle to a call. If this is not Null, then
- *                             capability is added to call's remote enpoint
+ *                             capability is added to call's remote endpoint
  *                             capability list, else it is added to local H323
  *                             endpoint list.
  * @param cap                  Type of G711 capability to be added.
@@ -326,7 +326,7 @@ EXTERN int ooCapabilityAddSimpleCapability
  * to local endpoints capability list or to remote endpoints capability list or
  * to a call's capability list.
  * @param call                 Handle to a call. If this is not Null, then
- *                             capability is added to call's remote enpoint
+ *                             capability is added to call's remote endpoint
  *                             capability list, else it is added to local H323
  *                             endpoint list.
  * @param cap                  Type of GSM capability to be added.
@@ -357,7 +357,7 @@ int ooCapabilityAddGSMCapability(struct OOH323CallData *call, int cap,
  * capability list or to remote endpoints capability list or to a call's
  * capability list.
  * @param call                 Handle to a call. If this is not Null, then
- *                             capability is added to call's remote enpoint
+ *                             capability is added to call's remote endpoint
  *                             capability list, else it is added to local H323
  *                             endpoint list.
  * @param sqcifMPI             Minimum picture interval for encoding/decoding
@@ -396,7 +396,7 @@ EXTERN int ooCapabilityAddH263VideoCapability(struct OOH323CallData *call,
 /**
  * This function is an helper function to ooCapabilityAddH263VideoCapability.
  * @param call                 Handle to a call. If this is not Null, then
- *                             capability is added to call's remote enpoint
+ *                             capability is added to call's remote endpoint
  *                             capability list, else it is added to local H323
  *                             endpoint list.
  * @param sqcifMPI             Minimum picture interval for encoding/decoding
@@ -717,11 +717,11 @@ EXTERN int ooAppendCapToCapPrefs(struct OOH323CallData *call, int cap);
 EXTERN int ooChangeCapPrefOrder(struct OOH323CallData *call, int cap, int pos);
 
 /**
- * This function is used to preppend a particular capability to preference
+ * This function is used to prepend a particular capability to preference
  * list.
  * @param call     Handle to call, if call's preference list has to be modified
  *                 else NULL, to modify endpoint's preference list.
- * @param cap      Capability to be preppended.
+ * @param cap      Capability to be prepended.
  *
  * @return         OO_OK, on success. OO_FAILED, otherwise.
  */

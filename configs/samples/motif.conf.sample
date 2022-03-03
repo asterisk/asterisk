@@ -34,7 +34,7 @@
 ;
 ; When placing an outgoing call through an endpoint the requested target is searched for in the roster list. If present
 ; the first Jingle or Google Jingle capable resource is specifically targetted. Since the capabilities of the resource are
-; known the outgoing session initation will disregard the configured transport and use the determined one.
+; known the outgoing session initiation will disregard the configured transport and use the determined one.
 ;
 ; If the target is not found in the roster the target will be used as-is and a session will be initiated using the
 ; transport specified in this configuration file. If no transport has been specified the endpoint defaults to ice-udp.

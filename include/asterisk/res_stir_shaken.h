@@ -29,6 +29,13 @@ enum ast_stir_shaken_verification_result {
 	AST_STIR_SHAKEN_VERIFY_PASSED, /*! Signature verified and contents match signaling */
 };
 
+/*! Different from ast_stir_shaken_verification_result. Used to determine why ast_stir_shaken_verify returned NULL */
+enum ast_stir_shaken_verify_failure_reason {
+	AST_STIR_SHAKEN_VERIFY_FAILED_MEMORY_ALLOC, /*! Memory allocation failure */
+	AST_STIR_SHAKEN_VERIFY_FAILED_TO_GET_CERT, /*! Failed to get the credentials to verify */
+	AST_STIR_SHAKEN_VERIFY_FAILED_SIGNATURE_VALIDATION, /*! Failed validating the signature */
+};
+
 struct ast_stir_shaken_payload;
 
 struct ast_json;
@@ -86,6 +93,24 @@ int ast_stir_shaken_add_verification(struct ast_channel *chan, const char *ident
  */
 struct ast_stir_shaken_payload *ast_stir_shaken_verify(const char *header, const char *payload, const char *signature,
 	const char *algorithm, const char *public_cert_url);
+
+/*!
+ * \brief Same as ast_stir_shaken_verify, but will populate a struct with additional information on failure
+ *
+ * \note failure_code will be written to in this function
+ *
+ * \param header The payload header
+ * \param payload The payload section
+ * \param signature The payload signature
+ * \param algorithm The signature algorithm
+ * \param public_cert_url The public key URL
+ * \param failure_code Additional failure information
+ *
+ * \retval ast_stir_shaken_payload on success
+ * \retval NULL on failure
+ */
+struct ast_stir_shaken_payload *ast_stir_shaken_verify2(const char *header, const char *payload, const char *signature,
+	const char *algorithm, const char *public_cert_url, int *failure_code);
 
 /*!
  * \brief Retrieve the stir/shaken sorcery context

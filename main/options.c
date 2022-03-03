@@ -53,7 +53,7 @@
 
 /*! \defgroup main_options Main Configuration Options
  * \brief Main configuration options from asterisk.conf or OS command line on starting Asterisk.
- * \arg \ref Config_ast "asterisk.conf"
+ * \arg \ref asterisk.conf "Config_ast"
  * \note Some of them can be changed in the CLI
  */
 /*! @{ */

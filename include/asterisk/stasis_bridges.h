@@ -45,7 +45,7 @@ struct ast_bridge_snapshot_update {
  *
  * \param bridge The bridge from which to generate a snapshot
  *
- * \retval AO2 refcounted snapshot on success
+ * \return AO2 refcounted snapshot on success
  * \retval NULL on error
  */
 struct ast_bridge_snapshot *ast_bridge_snapshot_create(struct ast_bridge *bridge);
@@ -54,7 +54,7 @@ struct ast_bridge_snapshot *ast_bridge_snapshot_create(struct ast_bridge *bridge
  * \since 12
  * \brief Message type for \ref ast_bridge_snapshot.
  *
- * \retval Message type for \ref ast_bridge_snapshot.
+ * \return Message type for \ref ast_bridge_snapshot.
  */
 struct stasis_message_type *ast_bridge_snapshot_type(void);
 
@@ -66,7 +66,7 @@ struct stasis_message_type *ast_bridge_snapshot_type(void);
  *
  * \param bridge Bridge for which to get a topic or \c NULL.
  *
- * \retval Topic for bridge's events.
+ * \return Topic for bridge's events.
  * \retval ast_bridge_topic_all() if \a bridge is \c NULL.
  */
 struct stasis_topic *ast_bridge_topic(struct ast_bridge *bridge);
@@ -74,7 +74,7 @@ struct stasis_topic *ast_bridge_topic(struct ast_bridge *bridge);
 /*!
  * \since 12
  * \brief A topic which publishes the events for all bridges.
- * \retval Topic for all bridge events.
+ * \return Topic for all bridge events.
  */
 struct stasis_topic *ast_bridge_topic_all(void);
 
@@ -98,7 +98,7 @@ struct ast_bridge_merge_message {
  * \since 12
  * \brief Message type for \ref ast_bridge_merge_message.
  *
- * \retval Message type for \ref ast_bridge_merge_message.
+ * \return Message type for \ref ast_bridge_merge_message.
  */
 struct stasis_message_type *ast_bridge_merge_message_type(void);
 
@@ -131,17 +131,17 @@ struct ast_bridge_blob {
 
 /*!
  * \since 12
- * \brief Message type for \ref channel enter bridge blob messages.
+ * \brief Message type for \ref ast_channel enter bridge blob messages.
  *
- * \retval Message type for \ref channel enter bridge blob messages.
+ * \return Message type for \ref ast_channel enter bridge blob messages.
  */
 struct stasis_message_type *ast_channel_entered_bridge_type(void);
 
 /*!
  * \since 12
- * \brief Message type for \ref channel leave bridge blob messages.
+ * \brief Message type for \ref ast_channel leave bridge blob messages.
  *
- * \retval Message type for \ref channel leave bridge blob messages.
+ * \return Message type for \ref ast_channel leave bridge blob messages.
  */
 struct stasis_message_type *ast_channel_left_bridge_type(void);
 
@@ -156,10 +156,12 @@ struct stasis_message_type *ast_channel_left_bridge_type(void);
  * \pre bridge is locked.
  * \pre No channels are locked.
  *
+ * \param type
  * \param bridge Channel blob is associated with, or NULL for global/all bridges.
+ * \param chan The channel that started the bridge
  * \param blob JSON object representing the data.
  * \return \ref ast_bridge_blob message.
- * \return \c NULL on error
+ * \retval NULL on error
  */
 struct stasis_message *ast_bridge_blob_create(struct stasis_message_type *type,
 	struct ast_bridge *bridge,
@@ -178,11 +180,12 @@ struct stasis_message *ast_bridge_blob_create(struct stasis_message_type *type,
  * \pre bridge is locked.
  * \pre No channels are locked.
  *
+ * \param type
  * \param bridge_snapshot Bridge snapshot
- * \param channel_snapshot Channel snapshot
+ * \param chan_snapshot Channel snapshot
  * \param blob JSON object representing the data.
  * \return \ref ast_bridge_blob message.
- * \return \c NULL on error
+ * \retval NULL on error
  */
 struct stasis_message *ast_bridge_blob_create_from_snapshots(struct stasis_message_type *type,
 	struct ast_bridge_snapshot *bridge_snapshot,
@@ -222,7 +225,7 @@ void ast_bridge_publish_leave(struct ast_bridge *bridge, struct ast_channel *cha
  * \param sanitize The message sanitizer to use on the snapshot
  *
  * \return JSON object representing bridge snapshot.
- * \return \c NULL on error
+ * \retval NULL on error
  */
 struct ast_json *ast_bridge_snapshot_to_json(const struct ast_bridge_snapshot *snapshot,
 	const struct stasis_message_sanitizer *sanitize);
@@ -239,7 +242,7 @@ struct ast_bridge_channel_snapshot_pair {
  * \since 12
  * \brief Message type for \ref ast_blind_transfer_message.
  *
- * \retval Message type for \ref ast_blind_transfer_message.
+ * \return Message type for \ref ast_blind_transfer_message.
  */
 struct stasis_message_type *ast_blind_transfer_type(void);
 
@@ -270,9 +273,8 @@ struct ast_blind_transfer_message {
  *
  * \param is_external Whether the blind transfer was initiated externally (e.g. via AMI or native protocol)
  * \param transferer The transferer's channel that is bridged to the transferee
- * \param bridge The bridge the transferer and transferee are in
- * \param context The destination context for the blind transfer
  * \param exten The destination extension for the blind transfer
+ * \param context The destination context for the blind transfer
  *
  * \retval NULL Failure to allocate or create snapshots
  * \retval non-NULL The created blind transfer message
@@ -285,16 +287,7 @@ struct ast_blind_transfer_message *ast_blind_transfer_message_create(int is_exte
  *
  * \pre Bridges involved are locked. Channels involved are not locked.
  *
- * \param is_external Whether the blind transfer was initiated externally (e.g. via AMI or native protocol)
- * \param result The success or failure of the transfer
- * \param to_transferee The bridge between the transferer and transferee plus the transferer channel
- * \param context The destination context for the blind transfer
- * \param exten The destination extension for the blind transfer
- * \param transferee_channel If a single channel is being transferred, this is it. If
- *                           multiple parties are being transferred, this is NULL.
- * \param replace_channel If multiple parties are being transferred or the transfer
- *                        cannot reach across the bridge due to bridge flags, this is
- *                        the channel connecting their bridge to the destination.
+ * \param transfer_message
  */
 void ast_bridge_publish_blind_transfer(struct ast_blind_transfer_message *transfer_message);
 
@@ -460,7 +453,7 @@ struct stasis_message_type *ast_attended_transfer_type(void);
  *
  * \param bridge_id Uniqueid of the bridge from which to get the snapshot.
  * \return Most recent snapshot. ao2_cleanup() when done.
- * \return \c NULL if bridge or snapshot doesn't exist.
+ * \retval NULL if bridge or snapshot doesn't exist.
  */
 struct ast_bridge_snapshot *ast_bridge_get_snapshot_by_uniqueid(
 	const char *bridge_id);
@@ -473,7 +466,7 @@ struct ast_bridge_snapshot *ast_bridge_get_snapshot_by_uniqueid(
  *
  * \param bridge The bridge from which to get the snapshot.
  * \return Most recent snapshot. ao2_cleanup() when done.
- * \return \c NULL if there isn't a snapshot.
+ * \retval NULL if there isn't a snapshot.
  */
 struct ast_bridge_snapshot *ast_bridge_get_snapshot(
 	struct ast_bridge *bridge);
@@ -481,8 +474,8 @@ struct ast_bridge_snapshot *ast_bridge_get_snapshot(
 /*!
  * \internal
  * \brief Initialize the topics for a single bridge.
- * \return 0 on success.
- * \return Non-zero on error.
+ * \retval 0 on success.
+ * \retval Non-zero on error.
  */
 int bridge_topics_init(struct ast_bridge *bridge);
 

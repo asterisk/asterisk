@@ -51,7 +51,7 @@ struct naptr_record {
  * the data ourselves and have sized the buffer to be way larger
  * than necessary for the tests.
  *
- * \param string The NAPTR record to encode
+ * \param dns_record The NAPTR record to encode
  * \param buf The buffer to write the record into
  * \return The number of bytes written to the buffer
  */

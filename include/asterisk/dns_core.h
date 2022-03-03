@@ -109,7 +109,7 @@ unsigned int ast_dns_result_get_bogus(const struct ast_dns_result *result);
 /*!
  * \brief Get the error rcode of a DN result
  *
- * \param query The DNS result
+ * \param result The DNS result
  *
  * \return the DNS rcode
  */
@@ -287,7 +287,7 @@ int ast_dns_resolve(const char *name, int rr_type, int rr_class, struct ast_dns_
  * 		 is used.
  *
  * \warning This function is synchronous and will block until records are returned or an error
- *          occurrs.
+ *          occurs.
  */
 int ast_dns_resolve_ipv6_and_ipv4(struct ast_sockaddr *address, const char *host, const char *port);
 

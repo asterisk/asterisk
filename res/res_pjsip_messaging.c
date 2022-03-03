@@ -278,10 +278,13 @@ static int insert_user_in_contact_uri(const char *to, const char *endpoint_name,
  * \brief Get endpoint and URI when the destination is only a single token
  *
  * "to" could be one of the following:
- *		endpoint_name
- *		hostname
+ * \verbatim
+		endpoint_name
+		hostname
+ * \endverbatim
  *
  * \param to Destination specified in MessageSend
+ * \param destination
  * \param uri Pointer to URI variable.  Must be freed by caller
  * \return endpoint
  */
@@ -341,18 +344,21 @@ static struct ast_sip_endpoint *handle_single_token(const char *to, char *destin
  * \brief Get endpoint and URI when the destination contained a '/'
  *
  * "to" could be one of the following:
- *		endpoint/aor
- *		endpoint/<sip[s]:host>
- *		endpoint/<sip[s]:user@host>
- *		endpoint/"Bob" <sip[s]:host>
- *		endpoint/"Bob" <sip[s]:user@host>
- *		endpoint/sip[s]:host
- *		endpoint/sip[s]:user@host
- *		endpoint/host
- *		endpoint/user@host
+ * \verbatim
+		endpoint/aor
+		endpoint/<sip[s]:host>
+		endpoint/<sip[s]:user@host>
+		endpoint/"Bob" <sip[s]:host>
+		endpoint/"Bob" <sip[s]:user@host>
+		endpoint/sip[s]:host
+		endpoint/sip[s]:user@host
+		endpoint/host
+		endpoint/user@host
+ * \endverbatim
  *
  * \param to Destination specified in MessageSend
  * \param uri Pointer to URI variable.  Must be freed by caller
+ * \param destination, slash, atsign, scheme
  * \return endpoint
  */
 static struct ast_sip_endpoint *handle_slash(const char *to, char *destination, char **uri,
@@ -490,16 +496,19 @@ static struct ast_sip_endpoint *handle_slash(const char *to, char *destination, 
 
 /*!
  * \internal
- * \brief Get endpoint and URI when the destination contained a '@' but no '/' or scheme
+ * \brief Get endpoint and URI when the destination contained a '\@' but no '/' or scheme
  *
  * "to" could be one of the following:
- *		<sip[s]:user@host>
- *		"Bob" <sip[s]:user@host>
- *		sip[s]:user@host
- *		user@host
+ * \verbatim
+		<sip[s]:user@host>
+		"Bob" <sip[s]:user@host>
+		sip[s]:user@host
+		user@host
+ * \endverbatim
  *
  * \param to Destination specified in MessageSend
  * \param uri Pointer to URI variable.  Must be freed by caller
+ * \param destination, slash, atsign, scheme
  * \return endpoint
  */
 static struct ast_sip_endpoint *handle_atsign(const char *to, char *destination, char **uri,
@@ -513,7 +522,7 @@ static struct ast_sip_endpoint *handle_atsign(const char *to, char *destination,
 	*atsign = '\0';
 	endpoint_name = destination;
 
-	/* Apprently there may be ';<user_options>' after the endpoint name ??? */
+	/* Apparently there may be ';<user_options>' after the endpoint name ??? */
 	AST_SIP_USER_OPTIONS_TRUNCATE_CHECK(endpoint_name);
 	endpoint = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint", endpoint_name);
 	if (!endpoint) {
@@ -564,35 +573,45 @@ static struct ast_sip_endpoint *handle_atsign(const char *to, char *destination,
  * Expects the given 'to' to be in one of the following formats:
  * Why we allow so many is a mystery.
  *
- *   Basic:
- *      endpoint             - We'll get URI from the default aor/contact
- *      endpoint/aor         - We'll get the URI from the specific aor/contact
- *      endpoint@domain      - We toss the domain part and just use the endpoint
+ * Basic:
+ *
+ *      endpoint        : We'll get URI from the default aor/contact
+ *      endpoint/aor    : We'll get the URI from the specific aor/contact
+ *      endpoint@domain : We toss the domain part and just use the endpoint
  *
  *   These all use the endpoint and specified URI:
- *      endpoint/<sip[s]:host>
- *      endpoint/<sip[s]:user@host>
- *      endpoint/"Bob" <sip[s]:host>
- *      endpoint/"Bob" <sip[s]:user@host>
- *      endpoint/sip[s]:host
- *      endpoint/sip[s]:user@host
- *      endpoint/host
- *      endpoint/user@host
+ * \verbatim
+        endpoint/<sip[s]:host>
+        endpoint/<sip[s]:user@host>
+        endpoint/"Bob" <sip[s]:host>
+        endpoint/"Bob" <sip[s]:user@host>
+        endpoint/sip[s]:host
+        endpoint/sip[s]:user@host
+        endpoint/host
+        endpoint/user@host
+   \endverbatim
  *
  *   These all use the default endpoint and specified URI:
- *      <sip[s]:host>
- *      <sip[s]:user@host>
- *      "Bob" <sip[s]:host>
- *      "Bob" <sip[s]:user@host>
- *      sip[s]:host
- *      sip[s]:user@host
+ * \verbatim
+        <sip[s]:host>
+        <sip[s]:user@host>
+        "Bob" <sip[s]:host>
+        "Bob" <sip[s]:user@host>
+        sip[s]:host
+        sip[s]:user@host
+   \endverbatim
  *
  *   These use the default endpoint and specified host:
- *      host
- *      user@host
+ * \verbatim
+        host
+        user@host
+   \endverbatim
  *
  *   This form is similar to a dialstring:
- *      PJSIP/user@endpoint
+ * \verbatim
+        PJSIP/user@endpoint
+   \endverbatim
+ *
  *   In this case, the user will be added to the endpoint contact's URI.
  *   If the contact URI already has a user, it will be replaced.
  *
@@ -1203,7 +1222,7 @@ static void update_content_type(pjsip_tx_data *tdata, struct ast_msg *msg, struc
  * \internal
  * \brief Send a MESSAGE
  *
- * \param mdata The outbound message data structure
+ * \param data The outbound message data structure
  *
  * \return 0: success, -1: failure
  *

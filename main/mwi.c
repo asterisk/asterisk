@@ -26,13 +26,15 @@
 #include "asterisk/mwi.h"
 #include "asterisk/stasis_channels.h"
 
-/*
- * @{ \brief Define \ref stasis topic objects
+/*!
+ * \brief Define \ref stasis topic objects
+ * @{
  */
 static struct stasis_state_manager *mwi_state_manager;
 static struct stasis_cache *mwi_state_cache;
 static struct stasis_caching_topic *mwi_topic_cached;
-/* @} */
+
+/*! @} */
 
 /*! \brief Convert a MWI \ref stasis_message to a \ref ast_event */
 static struct ast_event *mwi_to_event(struct stasis_message *message)
@@ -66,13 +68,15 @@ static struct ast_event *mwi_to_event(struct stasis_message *message)
 	return event;
 }
 
-/*
- * @{ \brief Define \ref stasis message types for MWI
+/*!
+ * \brief Define \ref stasis message types for MWI
+ * @{
  */
 STASIS_MESSAGE_TYPE_DEFN(ast_mwi_state_type,
 	.to_event = mwi_to_event, );
 STASIS_MESSAGE_TYPE_DEFN(ast_mwi_vm_app_type);
-/* @} */
+
+/*! @} */
 
 static void mwi_state_dtor(void *obj)
 {
@@ -157,13 +161,14 @@ struct ast_mwi_state *ast_mwi_create(const char *mailbox, const char *context)
  *
  * \param[in] mailbox The mailbox identifier string.
  * \param[in] context The context this mailbox resides in (NULL or "" if only using mailbox)
+ * \param urgent_msgs
  * \param[in] new_msgs The number of new messages in this mailbox
  * \param[in] old_msgs The number of old messages in this mailbox
  * \param[in] channel_id A unique identifier for a channel associated with this
  * change in mailbox state
  * \param[in] eid The EID of the server that originally published the message
  *
- * \retval message on success.  Use ao2_cleanup() when done with it.
+ * \return message on success.  Use ao2_cleanup() when done with it.
  * \retval NULL on error.
  */
 static struct stasis_message *mwi_state_create_message(
