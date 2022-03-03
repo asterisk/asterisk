@@ -1,0 +1,26 @@
+From 15663e3f37091069b8c98a7fce680dc04bc8e865 Mon Sep 17 00:00:00 2001
+From: sauwming <ming@teluu.com>
+Date: Tue, 10 Aug 2021 11:53:25 +0800
+Subject: [PATCH] Merge pull request from GHSA-2qpg-f6wf-w984
+
+---
+ pjnath/src/pjnath/stun_msg.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/pjnath/src/pjnath/stun_msg.c b/pjnath/src/pjnath/stun_msg.c
+index cd5870f82..bd83351e6 100644
+--- a/pjnath/src/pjnath/stun_msg.c
++++ b/pjnath/src/pjnath/stun_msg.c
+@@ -1763,6 +1763,9 @@ static pj_status_t decode_errcode_attr(pj_pool_t *pool,
+     /* Get pointer to the string in the message */
+     value.ptr = ((char*)buf + ATTR_HDR_LEN + 4);
+     value.slen = attr->hdr.length - 4;
++    /* Make sure the length is never negative */
++    if (value.slen < 0)
++    	value.slen = 0;
+ 
+     /* Copy the string to the attribute */
+     pj_strdup(pool, &attr->reason, &value);
+-- 
+2.25.1
+
