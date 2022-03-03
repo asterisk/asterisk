@@ -175,10 +175,10 @@ Map merge(Map onto, Map... overrides) {
 
 /*
  * The job setup steps such as reading the config file and merging the
- * defaults can be done on the "master" node before we send the job off
+ * defaults can be done on the "built-in" node before we send the job off
  * to an agent.
  */
-node('master') {
+node('built-in') {
     def tempJobConfig
 	configFileProvider([configFile(fileId: 'jobConfig',
 		replaceTokens: true, variable: 'JOB_CONFIG_FILE')]) {

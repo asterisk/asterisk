@@ -78,7 +78,7 @@ OOLogicalChannel* ooAddNewLogicalChannel(OOH323CallData *call, int channelNo,
       OOTRACEDBGC3("Using configured media info (%s, %s)\n", call->callType,
                    call->callToken);
       pNewChannel->localRtpPort = pMediaInfo->lMediaRedirPort ? pMediaInfo->lMediaRedirPort : pMediaInfo->lMediaPort;
-      /* check MediaRedirPort here because RedirCPort is ReditPort + 1 and can't be 0 ;) */
+      /* check MediaRedirPort here because RedirCPort is RedirPort + 1 and can't be 0 ;) */
       pNewChannel->localRtcpPort = pMediaInfo->lMediaRedirPort ? pMediaInfo->lMediaRedirCPort : pMediaInfo->lMediaCntrlPort;
       /* If user application has not specified a specific ip and is using
          multihomed mode, substitute appropriate ip.

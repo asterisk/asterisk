@@ -81,6 +81,7 @@ char *curl_cb_data_get_expires(const struct curl_cb_data *data)
 /*!
  * \brief Called when a CURL request completes
  *
+ * \param buffer, size, nitems
  * \param data The curl_cb_data structure to store expiration info
  */
 static size_t curl_header_callback(char *buffer, size_t size, size_t nitems, void *data)
@@ -123,7 +124,7 @@ static size_t curl_header_callback(char *buffer, size_t size, size_t nitems, voi
  * \param data The CURL callback data
  *
  * \retval NULL on failure
- * \retval CURL instance on success
+ * \return CURL instance on success
  */
 static CURL *get_curl_instance(struct curl_cb_data *data)
 {
@@ -159,7 +160,7 @@ static CURL *get_curl_instance(struct curl_cb_data *data)
  * \param filename Function allocates memory and stores full filename (including path) here
  *
  * \retval -1 on failure
- * \retval file descriptor on success
+ * \return file descriptor on success
  */
 static int create_temp_file(const char *path, char **filename)
 {
@@ -217,7 +218,7 @@ char *curl_public_key(const char *public_cert_url, const char *path, struct curl
 
 	curl = get_curl_instance(data);
 	if (!curl) {
-		ast_log(LOG_ERROR, "Failed to set up CURL isntance for '%s'\n", public_cert_url);
+		ast_log(LOG_ERROR, "Failed to set up CURL instance for '%s'\n", public_cert_url);
 		fclose(public_key_file);
 		remove(tmp_filename);
 		return NULL;

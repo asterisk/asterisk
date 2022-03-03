@@ -13,6 +13,9 @@ QUIET_CONFIGURE=
 REALLY_QUIET=
 endif
 
+# The following exports are set during a configure but if
+# it hasn't been run yet, we'll set some defaults
+# to be able to still allow clean and distclean to run
 export SUBMAKE
 export ECHO_PREFIX
 export CMD_PREFIX
@@ -24,12 +27,16 @@ export DESTDIR
 export ASTDATADIR
 export TAR
 export PATCH
-export SED
+export SED ?= sed
 export NM
 export MD5
 export CAT
 export CUT
-export GREP
+export GREP ?= grep
+export FIND ?= find
+export REALPATH ?= realpath
+export BASENAME ?= basename
+export DIRNAME ?= dirname
 export DOWNLOAD
 export DOWNLOAD_TO_STDOUT
 export DOWNLOAD_TIMEOUT

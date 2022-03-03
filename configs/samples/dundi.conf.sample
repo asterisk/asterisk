@@ -183,7 +183,7 @@ autokill=yes
 ;           host.  This is also the context in which peers are permitted
 ;           to precache.
 ;
-; noinclude - Disincludes this peer when searching a particular context
+; noinclude - Excludes this peer when searching a particular context
 ;             for lookup (set "all" to perform no lookups with that
 ;             host.
 ;

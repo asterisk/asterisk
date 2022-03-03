@@ -119,7 +119,7 @@ void ast_sip_session_remove_supplements(struct ast_sip_session *session)
 	/* free the supplements */
 	while ((iter = AST_LIST_REMOVE_HEAD(&session->supplements, next))) {
 		if (iter->module) {
-			/* referenced session closed. decreasing modue reference. */
+			/* referenced session closed. decreasing module reference. */
 			ast_module_unref(iter->module);
 		}
 

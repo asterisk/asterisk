@@ -20,6 +20,7 @@
  *
  * \author Kevin P. Fleming <kpfleming@digium.com>
  * \author Ben Winslow
+ * \author Naveen Albert <asterisk@phreaknet.org>
  *
  * \ingroup functions
  */
@@ -60,6 +61,19 @@
 			<replaceable>regular_expression</replaceable> must correspond to
 			the POSIX.2 specification, as shown in <emphasis>regex(7)</emphasis>. The list returned
 			will be space-delimited.</para>
+		</description>
+	</function>
+	<function name="CHANNEL_EXISTS" language="en_US">
+		<synopsis>
+			Checks if the specified channel exists.
+		</synopsis>
+		<syntax>
+			<parameter name="name_or_uid" required="true">
+				<para>The name or unique ID of the channel to check.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Returns 1 if the channel <replaceable>name_or_uid</replaceable> exists, 0 if not.</para>
 		</description>
 	</function>
 	<function name="MASTER_CHANNEL" language="en_US">
@@ -264,6 +278,41 @@
 				same => n,Log(NOTICE, This channel is: ${CHANNEL(state)})
 			</example>
 			<xi:include xpointer="xpointer(/docs/info[@name='CHANNEL_EXAMPLES'])" />
+			<para>The following channel variables are available as special built-in
+			dialplan channel variables. These variables cannot be set or modified
+			and are read-only.</para>
+			<variablelist>
+				<variable name="CALLINGPRES">
+					<para>Caller ID presentation for incoming calls (PRI channels)</para>
+				</variable>
+				<variable name="CALLINGANI2">
+					<para>Caller ANI2 (PRI channels)</para>
+				</variable>
+				<variable name="CALLINGTON">
+					<para>Caller Type of Number (PRI channels)</para>
+				</variable>
+				<variable name="CALLINGTNS">
+					<para>Transit Network Selector (PRI channels)</para>
+				</variable>
+				<variable name="EXTEN">
+					<para>Current extension</para>
+				</variable>
+				<variable name="CONTEXT">
+					<para>Current context</para>
+				</variable>
+				<variable name="PRIORITY">
+					<para>Current priority</para>
+				</variable>
+				<variable name="CHANNEL">
+					<para>Current channel name</para>
+				</variable>
+				<variable name="UNIQUEID">
+					<para>Current call unique identifier</para>
+				</variable>
+				<variable name="HANGUPCAUSE">
+					<para>Asterisk cause of hangup (inbound/outbound)</para>
+				</variable>
+			</variablelist>
 		</description>
 	</function>
  ***/
@@ -711,6 +760,28 @@ static struct ast_custom_function channels_function = {
 	.read = func_channels_read,
 };
 
+static int func_chan_exists_read(struct ast_channel *chan, const char *function, char *data, char *buf, size_t maxlen)
+{
+	struct ast_channel *chan_found = NULL;
+
+	if (ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "%s: Channel name or unique ID required\n", function);
+		return -1;
+	}
+
+	chan_found = ast_channel_get_by_name(data);
+	snprintf(buf, maxlen, "%d", (chan_found ? 1 : 0));
+	if (chan_found) {
+		ast_channel_unref(chan_found);
+	}
+	return 0;
+}
+
+static struct ast_custom_function chan_exists_function = {
+	.name = "CHANNEL_EXISTS",
+	.read = func_chan_exists_read,
+};
+
 static int func_mchan_read(struct ast_channel *chan, const char *function,
 			     char *data, struct ast_str **buf, ssize_t len)
 {
@@ -761,6 +832,7 @@ static int unload_module(void)
 
 	res |= ast_custom_function_unregister(&channel_function);
 	res |= ast_custom_function_unregister(&channels_function);
+	res |= ast_custom_function_unregister(&chan_exists_function);
 	res |= ast_custom_function_unregister(&mchan_function);
 
 	return res;
@@ -772,6 +844,7 @@ static int load_module(void)
 
 	res |= ast_custom_function_register(&channel_function);
 	res |= ast_custom_function_register(&channels_function);
+	res |= ast_custom_function_register(&chan_exists_function);
 	res |= ast_custom_function_register(&mchan_function);
 
 	return res;

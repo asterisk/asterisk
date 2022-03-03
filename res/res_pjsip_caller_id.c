@@ -33,6 +33,7 @@
 #include "asterisk/channel.h"
 #include "asterisk/module.h"
 #include "asterisk/callerid.h"
+#include "asterisk/conversions.h"
 
 /*!
  * \internal
@@ -117,6 +118,47 @@ static pjsip_fromto_hdr *get_id_header(pjsip_rx_data *rdata, const pj_str_t *hea
 	}
 
 	return parsed_hdr;
+}
+
+/*!
+ * \internal
+ * \brief Set an ANI2 integer based on OLI data in a From header
+ *
+ * This uses the contents of a From header in order to set Originating Line information.
+ *
+ * \param rdata The incoming message
+ * \param ani2 The ANI2 field to set
+ * \retval 0 Successfully parsed OLI
+ * \retval non-zero Could not parse OLI
+ */
+static int set_id_from_oli(pjsip_rx_data *rdata, int *ani2)
+{
+	char oli[AST_CHANNEL_NAME];
+
+	pjsip_param *oli1, *oli2, *oli3;
+
+	static const pj_str_t oli_str1 = { "isup-oli", 8 };
+	static const pj_str_t oli_str2 = { "ss7-oli", 7 };
+	static const pj_str_t oli_str3 = { "oli", 3 };
+
+	pjsip_fromto_hdr *from = pjsip_msg_find_hdr(rdata->msg_info.msg,
+			PJSIP_H_FROM, rdata->msg_info.msg->hdr.next);
+
+	if (!from) {
+		return -1; /* This had better not happen */
+	}
+
+	if ((oli1 = pjsip_param_find(&from->other_param, &oli_str1))) {
+		ast_copy_pj_str(oli, &oli1->value, sizeof(oli));
+	} else if ((oli2 = pjsip_param_find(&from->other_param, &oli_str2))) {
+		ast_copy_pj_str(oli, &oli2->value, sizeof(oli));
+	} else if ((oli3 = pjsip_param_find(&from->other_param, &oli_str3))) {
+		ast_copy_pj_str(oli, &oli3->value, sizeof(oli));
+	} else {
+		return -1;
+	}
+
+	return ast_str_to_int(oli, ani2);
 }
 
 /*!
@@ -371,6 +413,7 @@ static void update_incoming_connected_line(struct ast_sip_session *session, pjsi
 static int caller_id_incoming_request(struct ast_sip_session *session, pjsip_rx_data *rdata)
 {
 	if (!session->channel) {
+		int ani2;
 		/*
 		 * Since we have no channel this must be the initial inbound
 		 * INVITE.  Set the session ID directly because the channel
@@ -386,6 +429,11 @@ static int caller_id_incoming_request(struct ast_sip_session *session, pjsip_rx_
 		ast_party_id_copy(&session->id, &session->endpoint->id.self);
 		if (!session->endpoint->id.self.number.valid) {
 			set_id_from_from(rdata, &session->id);
+		}
+		if (!set_id_from_oli(rdata, &ani2)) {
+			session->ani2 = ani2;
+		} else {
+			session->ani2 = 0;
 		}
 	} else {
 		/*
@@ -419,6 +467,7 @@ static void caller_id_incoming_response(struct ast_sip_session *session, pjsip_r
  * \internal
  * \brief Create an identity header for an outgoing message
  * \param hdr_name The name of the header to create
+ * \param base
  * \param tdata The message to place the header on
  * \param id The identification information for the new header
  * \return newly-created header
@@ -495,6 +544,7 @@ static void add_privacy_header(pjsip_tx_data *tdata, const struct ast_party_id *
 /*!
  * \internal
  * \brief Add a P-Asserted-Identity header to an outbound message
+ * \param session The session on which communication is happening
  * \param tdata The message to add the header to
  * \param id The identification information used to populate the header
  */
@@ -631,6 +681,7 @@ static void add_privacy_params(pjsip_tx_data *tdata, pjsip_fromto_hdr *hdr, cons
 /*!
  * \internal
  * \brief Add a Remote-Party-ID header to an outbound message
+ * \param session The session on which communication is happening
  * \param tdata The message to add the header to
  * \param id The identification information used to populate the header
  */
@@ -689,7 +740,7 @@ static void add_rpid_header(const struct ast_sip_session *session, pjsip_tx_data
  *
  * \param session The session on which we will be sending the message
  * \param tdata The outbound message
- * \param The identity information to place on the message
+ * \param id The identity information to place on the message
  */
 static void add_id_headers(const struct ast_sip_session *session, pjsip_tx_data *tdata, const struct ast_party_id *id)
 {

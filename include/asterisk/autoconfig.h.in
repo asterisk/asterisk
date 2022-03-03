@@ -206,6 +206,10 @@
 /* Define DAHDI headers version */
 #undef HAVE_DAHDI_VERSION
 
+/* Define to 1 if you have the declaration of `gethostbyname_r', and to 0 if
+   you don't. */
+#undef HAVE_DECL_GETHOSTBYNAME_R
+
 /* Define to 1 if you have the <dirent.h> header file, and it defines `DIR'.
    */
 #undef HAVE_DIRENT_H
@@ -585,14 +589,11 @@
 /* Define to 1 if you have the MFR2 library. */
 #undef HAVE_OPENR2
 
-/* Define to 1 if you have the OpenSSL Secure Sockets Layer library. */
+/* Define if your system has the OPENSSL libraries. */
 #undef HAVE_OPENSSL
 
 /* Define to 1 if CRYPTO has the OpenSSL BIO Method Support feature. */
 #undef HAVE_OPENSSL_BIO_METHOD
-
-/* Define to 1 if CRYPTO has the OpenSSL SRTP Extension Support feature. */
-#undef HAVE_OPENSSL_SRTP
 
 /* Define to 1 if you have the Opus library. */
 #undef HAVE_OPUS
@@ -629,6 +630,9 @@
 
 /* Define if your system has PJPROJECT_BUNDLED */
 #undef HAVE_PJPROJECT_BUNDLED
+
+/* Define if doing a bundled pjproject out-of-tree build. */
+#undef HAVE_PJPROJECT_BUNDLED_OOT
 
 /* Define to 1 if on_valid_pair callback is present. */
 #undef HAVE_PJPROJECT_ON_VALID_ICE_PAIR_CALLBACK
@@ -1072,6 +1076,9 @@
 
 /* Define to 1 if `uid' is a member of `struct ucred'. */
 #undef HAVE_STRUCT_UCRED_UID
+
+/* Define to 1 if `_u._ext.nsaddrs' is a member of `struct __res_state'. */
+#undef HAVE_STRUCT___RES_STATE__U__EXT_NSADDRS
 
 /* Define to 1 if you have the mISDN Supplemental Services library. */
 #undef HAVE_SUPPSERV

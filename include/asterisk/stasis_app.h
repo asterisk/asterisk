@@ -71,7 +71,7 @@ typedef void (*stasis_app_cb)(void *data, const char *app_name,
  * \brief Gets the names of all registered Stasis applications.
  *
  * \return \c ast_str_container of container names.
- * \return \c NULL on error.
+ * \retval NULL on error.
  */
 struct ao2_container *stasis_app_get_all(void);
 
@@ -81,7 +81,7 @@ struct ao2_container *stasis_app_get_all(void);
  * \param name The name of the registered Stasis application
  *
  * \return \c stasis_app on success.
- * \return \c NULL on error.
+ * \retval NULL on error.
  */
 struct stasis_app *stasis_app_get_by_name(const char *name);
 
@@ -154,7 +154,7 @@ const char *stasis_app_name(const struct stasis_app *app);
  * \param app The application.
  *
  * \return JSON representation of app with given name.
- * \return \c NULL on error.
+ * \retval NULL on error.
  */
 struct ast_json *stasis_app_object_to_json(struct stasis_app *app);
 
@@ -164,7 +164,7 @@ struct ast_json *stasis_app_object_to_json(struct stasis_app *app);
  * \param app_name Name of the application.
  *
  * \return JSON representation of app with given name.
- * \return \c NULL on error.
+ * \retval NULL on error.
  */
 struct ast_json *stasis_app_to_json(const char *app_name);
 
@@ -452,8 +452,6 @@ int stasis_app_control_is_done(
  * \since 13.9.0
  *
  * \param control Control object to flush command queue.
- *
- * \return Nothing
  */
 void stasis_app_control_flush_queue(struct stasis_app_control *control);
 
@@ -463,7 +461,7 @@ void stasis_app_control_flush_queue(struct stasis_app_control *control);
  * \param control Control object.
  *
  * \return Uniqueid of the associate channel.
- * \return \c NULL if \a control is \c NULL.
+ * \retval NULL if \a control is \c NULL.
  */
 const char *stasis_app_control_get_channel_id(
 	const struct stasis_app_control *control);
@@ -649,7 +647,7 @@ void stasis_app_control_silence_stop(struct stasis_app_control *control);
  * \param control Control for \c res_stasis.
  *
  * \return Most recent snapshot. ao2_cleanup() when done.
- * \return \c NULL if channel isn't in cache.
+ * \retval NULL if channel isn't in cache.
  */
 struct ast_channel_snapshot *stasis_app_control_get_snapshot(
 	const struct stasis_app_control *control);
@@ -690,7 +688,7 @@ int stasis_app_control_queue_control(struct stasis_app_control *control,
  * \param id Optional Unique ID to give to the bridge
  *
  * \return New bridge.
- * \return \c NULL on error.
+ * \retval NULL on error.
  */
 struct ast_bridge *stasis_app_bridge_create(const char *type, const char *name, const char *id);
 
@@ -702,7 +700,7 @@ struct ast_bridge *stasis_app_bridge_create(const char *type, const char *name, 
  * \param id Optional Unique ID to give to the bridge
  *
  * \return New bridge.
- * \return \c NULL on error.
+ * \retval NULL on error.
  */
 struct ast_bridge *stasis_app_bridge_create_invisible(const char *type, const char *name, const char *id);
 
@@ -754,6 +752,7 @@ struct ast_channel *stasis_app_bridge_playback_channel_find(
  *
  * \param bridge Bridge we are adding the playback channel for
  * \param chan Channel being added as a playback channel (must be ;1)
+ * \param control The app control structure for the playback channel
  *
  * \retval -1 failed to add channel for any reason
  * \retval 0 on success
@@ -842,7 +841,7 @@ void stasis_app_control_mute_in_bridge(
  * \brief Set whether COLP frames should be generated when joining the bridge
  *
  * \param control Control whose channel should have its COLP frames inhibited when bridged
- * \param mute Whether COLP frames should be generated (0) or not (1).
+ * \param inhibit_colp Whether COLP frames should be generated (0) or not (1).
  */
 void stasis_app_control_inhibit_colp_in_bridge(
 	struct stasis_app_control *control, int inhibit_colp);
@@ -858,7 +857,7 @@ void stasis_app_control_inhibit_colp_in_bridge(
  * \param control Control object for the channel to query.
  *
  * \return Associated \ref ast_bridge.
- * \return \c NULL if not associated with a bridge.
+ * \retval NULL if not associated with a bridge.
  */
 struct ast_bridge *stasis_app_get_bridge(struct stasis_app_control *control);
 
@@ -866,9 +865,6 @@ struct ast_bridge *stasis_app_get_bridge(struct stasis_app_control *control);
  * \brief Destroy the bridge.
  *
  * \param bridge_id Uniqueid of bridge to be destroyed
- *
- * \retval non-zero on failure
- * \retval zero on success
  */
 void stasis_app_bridge_destroy(const char *bridge_id);
 
@@ -882,7 +878,7 @@ struct stasis_message_sanitizer *stasis_app_get_sanitizer(void);
 /*!
  * \brief Indicate that this channel has had a StasisEnd published for it
  *
- * \param The channel that is exiting Stasis.
+ * \param chan The channel that is exiting Stasis.
  */
 void stasis_app_channel_set_stasis_end_published(struct ast_channel *chan);
 

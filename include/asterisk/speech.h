@@ -47,6 +47,9 @@ enum ast_speech_results_type {
 	AST_SPEECH_RESULTS_TYPE_NBEST,
 };
 
+/*! \brief Convert a speech results type to a string */
+const char *ast_speech_results_type_to_string(enum ast_speech_results_type type);
+
 /* Speech structure */
 struct ast_speech {
 	/*! Structure lock */
@@ -152,6 +155,9 @@ int ast_speech_change_state(struct ast_speech *speech, int state);
 int ast_speech_register(struct ast_speech_engine *engine);
 /*! \brief Unregister a speech recognition engine */
 int ast_speech_unregister(const char *engine_name);
+/*! \brief Unregister a speech recognition engine */
+struct ast_speech_engine *ast_speech_unregister2(const char *engine_name);
+
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

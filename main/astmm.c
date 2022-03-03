@@ -119,7 +119,7 @@ struct ast_region {
 	 *
 	 * \note Must be right before data[].
 	 *
-	 * \note Padding between fence and data[] is irrelevent because
+	 * \note Padding between fence and data[] is irrelevant because
 	 * data[] is used to fill in the lower fence check value and not
 	 * the fence member.  The fence member is to ensure that there
 	 * is space reserved for the fence check value.
@@ -218,8 +218,6 @@ static void print_backtrace(struct ast_bt *bt, struct ast_cli_args *a)
  * \internal
  *
  * \note If DO_CRASH is not defined then the function returns.
- *
- * \return Nothing
  */
 static void my_do_crash(void)
 {
@@ -282,8 +280,6 @@ static void *__ast_alloc_region(size_t size, const enum func_type which, const c
  * \brief Wipe the region payload data with a known value.
  *
  * \param reg Region block to be wiped.
- *
- * \return Nothing
  */
 static void region_data_wipe(struct ast_region *reg)
 {
@@ -305,8 +301,6 @@ static void region_data_wipe(struct ast_region *reg)
  * \brief Check the region payload data for memory corruption.
  *
  * \param reg Region block to be checked.
- *
- * \return Nothing
  */
 static void region_data_check(struct ast_region *reg)
 {
@@ -334,8 +328,6 @@ static void region_data_check(struct ast_region *reg)
  * \brief Flush the circular array of freed regions.
  *
  * \param freed Already freed region blocks storage.
- *
- * \return Nothing
  */
 static void freed_regions_flush(struct ast_freed_regions *freed)
 {
@@ -361,8 +353,6 @@ static void freed_regions_flush(struct ast_freed_regions *freed)
  *
  * \param freed Already freed region blocks storage.
  * \param reg Region block to be freed.
- *
- * \return Nothing
  */
 static void region_free(struct ast_freed_regions *freed, struct ast_region *reg)
 {
@@ -393,7 +383,7 @@ static void region_free(struct ast_freed_regions *freed, struct ast_region *reg)
  *
  * \param ptr Region payload data pointer.
  *
- * \retval region on success.
+ * \return region on success.
  * \retval NULL if not found.
  */
 static struct ast_region *region_remove(void *ptr)
@@ -426,8 +416,6 @@ static struct ast_region *region_remove(void *ptr)
  * \brief Check the fences of a region.
  *
  * \param reg Region block to check.
- *
- * \return Nothing
  */
 static void region_check_fences(struct ast_region *reg)
 {
@@ -457,8 +445,6 @@ static void region_check_fences(struct ast_region *reg)
 /*!
  * \internal
  * \brief Check the fences of all regions currently allocated.
- *
- * \return Nothing
  */
 static void regions_check_all_fences(void)
 {
@@ -808,8 +794,6 @@ static char *handle_memory_atexit_summary(struct ast_cli_entry *e, int cmd, stru
  * \param selected_len Accumulated size of the selected allocations.
  * \param cache_len Accumulated size of the allocations that are part of a cache.
  * \param count Number of selected allocations.
- *
- * \return Nothing
  */
 static void print_memory_show_common_stats(int fd,
 	unsigned int whales_len,
@@ -1133,8 +1117,6 @@ static size_t mm_atexit_hash_list(struct region_list *list)
  * \param list List to put into the allocated regions hash table.
  *
  * \note reglock must be locked before calling.
- *
- * \return Nothing
  */
 static void mm_atexit_hash_restore(struct region_list *list)
 {
@@ -1205,8 +1187,6 @@ static int mm_atexit_cmp(struct ast_region *left, struct ast_region *right)
  * \param list Merge sublists onto this list.
  * \param sub1 First sublist to merge.
  * \param sub2 Second sublist to merge.
- *
- * \return Nothing
  */
 static void mm_atexit_list_merge(struct region_list *list, struct region_list *sub1, struct region_list *sub2)
 {
@@ -1242,8 +1222,6 @@ static void mm_atexit_list_merge(struct region_list *list, struct region_list *s
  * \param num_lists Number of lists to remove from the source list.
  * \param size Size of the sublists to remove.
  * \param remaining Remaining number of elements on the source list.
- *
- * \return Nothing
  */
 static void mm_atexit_list_split(struct region_list *list, struct region_list sub[], size_t num_lists, size_t size, size_t *remaining)
 {
@@ -1276,8 +1254,6 @@ static void mm_atexit_list_split(struct region_list *list, struct region_list su
  *
  * \param list Allocated regions list to sort.
  * \param length Length of the list.
- *
- * \return Nothing
  */
 static void mm_atexit_list_sort(struct region_list *list, size_t length)
 {
@@ -1320,8 +1296,6 @@ static void mm_atexit_list_sort(struct region_list *list, size_t length)
  * \brief List all regions currently allocated.
  *
  * \param alloced regions list.
- *
- * \return Nothing
  */
 static void mm_atexit_regions_list(struct region_list *alloced)
 {
@@ -1339,8 +1313,6 @@ static void mm_atexit_regions_list(struct region_list *alloced)
  * \brief Summarize all regions currently allocated.
  *
  * \param alloced Sorted regions list.
- *
- * \return Nothing
  */
 static void mm_atexit_regions_summary(struct region_list *alloced)
 {
@@ -1448,8 +1420,6 @@ static void mm_atexit_regions_summary(struct region_list *alloced)
  * \brief Dump the memory allocations atexit.
  *
  * \note reglock must be locked before calling.
- *
- * \return Nothing
  */
 static void mm_atexit_dump(void)
 {
@@ -1484,7 +1454,6 @@ static void mm_atexit_dump(void)
 
 /*!
  * \internal
- * \return Nothing
  */
 static void mm_atexit_final(void)
 {
@@ -1502,7 +1471,7 @@ static void mm_atexit_final(void)
 	freed_regions_flush(&whales);
 	freed_regions_flush(&minnows);
 
-	/* Peform atexit allocation dumps. */
+	/* Perform atexit allocation dumps. */
 	if (atexit_list || atexit_summary) {
 		ast_mutex_lock(&reglock);
 		mm_atexit_dump();
@@ -1524,7 +1493,6 @@ void load_astmm_phase_1(void)
 
 /*!
  * \internal
- * \return Nothing
  */
 static void mm_atexit_ast(void)
 {

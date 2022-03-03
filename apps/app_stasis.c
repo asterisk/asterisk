@@ -79,7 +79,7 @@
 /*! \brief Dialplan application name */
 static const char *stasis = "Stasis";
 
-/*! /brief Stasis dialplan application callback */
+/*! \brief Stasis dialplan application callback */
 static int app_exec(struct ast_channel *chan, const char *data)
 {
 	char *parse = NULL;

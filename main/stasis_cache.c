@@ -390,7 +390,7 @@ struct stasis_message *stasis_cache_entry_get_remote(struct stasis_cache_entry *
  *
  * \note The entries container is already locked.
  *
- * \retval Cache-entry on success.
+ * \return Cache-entry on success.
  * \retval NULL Not in cache.
  */
 static struct stasis_cache_entry *cache_find(struct ao2_container *entries, struct stasis_message_type *type, const char *id)
@@ -463,7 +463,7 @@ static struct stasis_message *cache_remove(struct ao2_container *entries, struct
  *
  * \return Previous stasis entry snapshot.
  */
-static struct stasis_message *cache_udpate(struct stasis_cache_entry *cached_entry, const struct ast_eid *eid, struct stasis_message *new_snapshot)
+static struct stasis_message *cache_update(struct stasis_cache_entry *cached_entry, const struct ast_eid *eid, struct stasis_message *new_snapshot)
 {
 	struct stasis_message *old_snapshot;
 	int is_remote;
@@ -528,7 +528,7 @@ static struct cache_put_snapshots cache_put(struct stasis_cache *cache,
 		}
 	} else if (cached_entry) {
 		/* Update snapshot in cache */
-		snapshots.old = cache_udpate(cached_entry, eid, new_snapshot);
+		snapshots.old = cache_update(cached_entry, eid, new_snapshot);
 	} else {
 		/* Insert into the cache */
 		cached_entry = cache_entry_create(type, id, new_snapshot);
@@ -625,8 +625,8 @@ struct ao2_container *stasis_cache_get_all(struct stasis_cache *cache, struct st
  *
  * \note The returned snapshot has not had its reference bumped.
  *
- * \retval Snapshot from the cache.
- * \retval \c NULL if snapshot is not found.
+ * \return Snapshot from the cache.
+ * \retval NULL if snapshot is not found.
  */
 static struct stasis_message *cache_entry_by_eid(const struct stasis_cache_entry *entry, const struct ast_eid *eid)
 {

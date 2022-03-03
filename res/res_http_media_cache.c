@@ -181,8 +181,10 @@ static char *file_extension_from_url(struct ast_bucket_file *bucket_file, char *
  * \brief Normalize the value of a Content-Type header
  *
  * This will trim off any optional parameters after the type/subtype.
+ *
+ * \return 0 if no normalization occurred, otherwise true (non-zero)
  */
-static void normalize_content_type_header(char *content_type)
+static int normalize_content_type_header(char *content_type)
 {
 	char *params = strchr(content_type, ';');
 
@@ -191,7 +193,27 @@ static void normalize_content_type_header(char *content_type)
 		while (params > content_type && (*params == ' ' || *params == '\t')) {
 			*params-- = 0;
 		}
+		return 1;
 	}
+
+	return 0;
+}
+
+static int derive_extension_from_mime_type(const char *mime_type, char *buffer, size_t capacity)
+{
+	int res = 0;
+
+	/* Compare the provided Content-Type directly, parameters and all */
+	res = ast_get_extension_for_mime_type(mime_type, buffer, sizeof(buffer));
+	if (!res) {
+		char *m = ast_strdupa(mime_type);
+		/* Strip MIME type parameters and then check */
+		if (normalize_content_type_header(m)) {
+			res = ast_get_extension_for_mime_type(m, buffer, sizeof(buffer));
+		}
+	}
+
+	return res;
 }
 
 static char *file_extension_from_content_type(struct ast_bucket_file *bucket_file, char *buffer, size_t capacity)
@@ -203,28 +225,20 @@ static char *file_extension_from_content_type(struct ast_bucket_file *bucket_fil
 	 * corresponding to the mime-type and use that to rename the file */
 
 	struct ast_bucket_metadata *header;
-	char *mime_type;
 
 	header = ast_bucket_file_metadata_get(bucket_file, "content-type");
 	if (!header) {
 		return NULL;
 	}
 
-	mime_type = ast_strdup(header->value);
-	if (mime_type) {
-		normalize_content_type_header(mime_type);
-		if (!ast_strlen_zero(mime_type)) {
-			if (ast_get_extension_for_mime_type(mime_type, buffer, sizeof(buffer))) {
-				ast_debug(3, "Derived extension '%s' from MIME type %s\n",
-					buffer,
-					mime_type);
-				ast_free(mime_type);
-				ao2_ref(header, -1);
-				return buffer;
-			}
-		}
+	if (derive_extension_from_mime_type(header->value, buffer, capacity)) {
+		ast_debug(3, "Derived extension '%s' from MIME type %s\n",
+			buffer,
+			header->value);
+		ao2_ref(header, -1);
+		return buffer;
 	}
-	ast_free(mime_type);
+
 	ao2_ref(header, -1);
 
 	return NULL;

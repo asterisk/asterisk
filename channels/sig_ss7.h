@@ -91,7 +91,7 @@ enum sig_ss7_law {
 	SIG_SS7_ALAW
 };
 
-enum sig_ss7_redirect_idication {
+enum sig_ss7_redirect_indication {
 	SS7_INDICATION_NO_REDIRECTION = 0,
 	SS7_INDICATION_REROUTED_PRES_ALLOWED,
 	SS7_INDICATION_REROUTED_INFO_RESTRICTED,

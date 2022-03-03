@@ -737,6 +737,9 @@
                         ; (default: "0")
 ;t38_udptl_nat=no       ; Whether NAT support is enabled on UDPTL sessions
                         ; (default: "no")
+;t38_bind_rtp_to_media_address=     ; Bind the UDPTL session to the media_address.
+                                    ; This causes all UDPTL packets to be sent from
+                                    ; the specified address. (default: "no")
 ;tone_zone=     ; Set which country s indications to use for channels created
                 ; for this endpoint (default: "")
 ;language=      ; Set the default language to use for channels created for this
@@ -1108,6 +1111,16 @@
                         ; is greater than one.  The removed contact is likely the old
                         ; contact created by rewrite_contact that the device is
                         ; refreshing.
+                        ; (default: "no")
+;remove_unavailable=no  ; If remove_existing is disabled, will allow a registration
+                        ; to succeed by removing only unavailable contacts when
+                        ; max_contacts is exceeded. This will reject a registration
+                        ; that exceeds max_contacts if no unavailable contacts are
+                        ; present to remove. If remove_existing is enabled, will
+                        ; prioritize removal of unavailable contacts before removing
+                        ; expiring soonest.  This tames the behavior of remove_existing
+                        ; to only remove an available contact if an unavailable one is
+                        ; not present.
                         ; (default: "no")
 ;type=  ; Must be of type aor (default: "")
 ;qualify_frequency=0    ; Interval at which to qualify an AoR via OPTIONS requests.

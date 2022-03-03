@@ -18,7 +18,7 @@
  */
 
 /*!
-	\file timing.h
+	\file
 	\brief Timing source management
 	\author Kevin P. Fleming <kpfleming@digium.com>
 	\author Russell Bryant <russell@digium.com>
@@ -124,7 +124,6 @@ struct ast_timer *ast_timer_open(void);
  *
  * \param handle timer handle returned from timer_open()
  *
- * \return nothing
  * \since 1.6.1
  */
 void ast_timer_close(struct ast_timer *handle);

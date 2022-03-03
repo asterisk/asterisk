@@ -27,10 +27,10 @@ struct stir_shaken_certificate;
 /*!
  * \brief Get a STIR/SHAKEN certificate by caller ID number
  *
- * \param callier_id_number The caller ID number
+ * \param caller_id_number The caller ID number
  *
  * \retval NULL if not found
- * \retval The certificate on success
+ * \return The certificate on success
  */
 struct stir_shaken_certificate *stir_shaken_certificate_get_by_caller_id_number(const char *caller_id_number);
 
@@ -40,7 +40,7 @@ struct stir_shaken_certificate *stir_shaken_certificate_get_by_caller_id_number(
  * \param cert The certificate to get the public key URL from
  *
  * \retval NULL on failure
- * \retval The public key URL on success
+ * \return The public key URL on success
  */
 const char *stir_shaken_certificate_get_public_cert_url(struct stir_shaken_certificate *cert);
 
@@ -60,7 +60,7 @@ const char *stir_shaken_certificate_get_attestation(struct stir_shaken_certifica
  * \param cert The certificate to get the private key from
  *
  * \retval NULL on failure
- * \retval The private key on success
+ * \return The private key on success
  */
 EVP_PKEY *stir_shaken_certificate_get_private_key(struct stir_shaken_certificate *cert);
 
@@ -94,14 +94,16 @@ int test_stir_shaken_create_cert(const char *caller_id_number, const char *file_
 /*!
  * \brief Load time initialization for the stir/shaken 'certificate' configuration
  *
- * \retval 0 on success, -1 on error
+ * \retval 0 on success
+ * \retval -1 on error
  */
 int stir_shaken_certificate_load(void);
 
 /*!
  * \brief Unload time cleanup for the stir/shaken 'certificate' configuration
  *
- * \retval 0 on success, -1 on error
+ * \retval 0 on success
+ * \retval -1 on error
  */
 int stir_shaken_certificate_unload(void);
 

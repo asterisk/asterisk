@@ -318,7 +318,7 @@ EXTERN int ooSocketSendTo(OOSOCKET socket, const ASN1OCTET* pdata,
 
 /**
  * This function is used for synchronous monitoring of multiple sockets.
- * For more information refer to documnetation of "select" system call.
+ * For more information refer to documentation of "select" system call.
  *
  * @param nfds         The highest numbered descriptor to be monitored
  *                     plus one.

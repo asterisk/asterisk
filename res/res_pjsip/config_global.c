@@ -96,7 +96,7 @@ struct global_config {
 	unsigned int unidentified_request_count;
 	/*! The period during which unidentified requests are accumulated */
 	unsigned int unidentified_request_period;
-	/*! Interval at which expired unidentifed requests will be pruned */
+	/*! Interval at which expired unidentified requests will be pruned */
 	unsigned int unidentified_request_prune_interval;
 	struct {
 		/*! Taskprocessor high water alert trigger level */
@@ -564,8 +564,6 @@ static int overload_trigger_to_str(const void *obj, const intptr_t *args, char *
  * \param sorcery Instance being observed.
  * \param object_type Name of object being observed.
  * \param reloaded Non-zero if the object is being reloaded.
- *
- * \return Nothing
  */
 static void global_loaded_observer(const char *name, const struct ast_sorcery *sorcery, const char *object_type, int reloaded)
 {

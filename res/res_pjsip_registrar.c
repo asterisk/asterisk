@@ -204,6 +204,7 @@ static int registrar_validate_contacts(const pjsip_rx_data *rdata, pj_pool_t *po
 enum contact_delete_type {
 	CONTACT_DELETE_ERROR,
 	CONTACT_DELETE_EXISTING,
+	CONTACT_DELETE_UNAVAILABLE,
 	CONTACT_DELETE_EXPIRE,
 	CONTACT_DELETE_REQUEST,
 	CONTACT_DELETE_SHUTDOWN,
@@ -363,8 +364,6 @@ static int register_contact_transport_remove_cb(void *data)
  * \param data What contact needs to be removed.
  *
  * \note Normally executed by the pjsip monitor thread.
- *
- * \return Nothing
  */
 static void register_contact_transport_shutdown_cb(void *data)
 {
@@ -448,6 +447,9 @@ static int registrar_contact_delete(enum contact_delete_type type, pjsip_transpo
 			case CONTACT_DELETE_EXISTING:
 				reason = "remove existing";
 				break;
+			case CONTACT_DELETE_UNAVAILABLE:
+				reason = "remove unavailable";
+				break;
 			case CONTACT_DELETE_EXPIRE:
 				reason = "expiration";
 				break;
@@ -483,7 +485,48 @@ static int vec_contact_cmp(struct ast_sip_contact *left, struct ast_sip_contact 
 	struct ast_sip_contact *right_contact = right;
 
 	/* Sort from soonest to expire to last to expire */
-	return ast_tvcmp(left_contact->expiration_time, right_contact->expiration_time);
+	int time_sorted = ast_tvcmp(left_contact->expiration_time, right_contact->expiration_time);
+
+	struct ast_sip_aor *aor = ast_sip_location_retrieve_aor(left_contact->aor);
+	struct ast_sip_contact_status *left_status;
+	struct ast_sip_contact_status *right_status;
+	int remove_unavailable = 0;
+	int left_unreachable;
+	int right_unreachable;
+
+	if (aor) {
+		remove_unavailable = aor->remove_unavailable;
+		ao2_ref(aor, -1);
+	}
+
+	if (!remove_unavailable) {
+		return time_sorted;
+	}
+
+	/* Get contact status if available */
+	left_status = ast_sip_get_contact_status(left_contact);
+	if (!left_status) {
+		return time_sorted;
+	}
+
+	right_status = ast_sip_get_contact_status(right_contact);
+	if (!right_status) {
+		ao2_ref(left_status, -1);
+		return time_sorted;
+	}
+
+	left_unreachable = (left_status->status == UNAVAILABLE);
+	right_unreachable = (right_status->status == UNAVAILABLE);
+	ao2_ref(left_status, -1);
+	ao2_ref(right_status, -1);
+	if (left_unreachable != right_unreachable) {
+		/* Set unavailable contact to top of vector */
+		if (left_unreachable) return -1;
+		if (right_unreachable) return 1;
+	}
+
+	/* Either both available or both unavailable */
+	return time_sorted;
 }
 
 static int vec_contact_add(void *obj, void *arg, int flags)
@@ -512,16 +555,15 @@ static int vec_contact_add(void *obj, void *arg, int flags)
 
 /*!
  * \internal
- * \brief Remove excess existing contacts that expire the soonest.
+ * \brief Remove excess existing contacts that are unavailable or expire soonest.
  * \since 13.18.0
  *
  * \param contacts Container of unmodified contacts that could remove.
  * \param to_remove Maximum number of contacts to remove.
- *
- * \return Nothing
+ * \param response_contacts, remove_existing
  */
 static void remove_excess_contacts(struct ao2_container *contacts, struct ao2_container *response_contacts,
-	unsigned int to_remove)
+	unsigned int to_remove, unsigned int remove_existing)
 {
 	struct excess_contact_vector contact_vec;
 
@@ -545,13 +587,17 @@ static void remove_excess_contacts(struct ao2_container *contacts, struct ao2_co
 	ast_assert(AST_VECTOR_SIZE(&contact_vec) == to_remove);
 	to_remove = AST_VECTOR_SIZE(&contact_vec);
 
-	/* Remove the excess contacts that expire the soonest */
+	/* Remove the excess contacts that are unavailable or expire the soonest */
 	while (to_remove--) {
 		struct ast_sip_contact *contact;
 
 		contact = AST_VECTOR_GET(&contact_vec, to_remove);
 
-		registrar_contact_delete(CONTACT_DELETE_EXISTING, NULL, contact, contact->aor);
+		if (!remove_existing) {
+			registrar_contact_delete(CONTACT_DELETE_UNAVAILABLE, NULL, contact, contact->aor);
+		} else {
+			registrar_contact_delete(CONTACT_DELETE_EXISTING, NULL, contact, contact->aor);
+		}
 
 		ao2_unlink(response_contacts, contact);
 	}
@@ -570,6 +616,29 @@ static int registrar_add_non_permanent(void *obj, void *arg, int flags)
 	}
 
 	ao2_link(container, contact);
+
+	return 0;
+}
+
+/*! \brief Internal callback function which adds any contact which is unreachable */
+static int registrar_add_unreachable(void *obj, void *arg, int flags)
+{
+	struct ast_sip_contact *contact = obj;
+	struct ao2_container *container = arg;
+	struct ast_sip_contact_status *status;
+	int unreachable;
+
+	status = ast_sip_get_contact_status(contact);
+	if (!status) {
+		return 0;
+	}
+
+	unreachable = (status->status == UNAVAILABLE);
+	ao2_ref(status, -1);
+
+	if (unreachable) {
+		ao2_link(container, contact);
+	}
 
 	return 0;
 }
@@ -596,6 +665,7 @@ static void register_aor_core(pjsip_rx_data *rdata,
 	int permanent = 0;
 	int contact_count;
 	struct ao2_container *existing_contacts = NULL;
+	struct ao2_container *unavail_contacts = NULL;
 	pjsip_contact_hdr *contact_hdr = (pjsip_contact_hdr *)&rdata->msg_info.msg->hdr;
 	struct registrar_contact_details details = { 0, };
 	pjsip_tx_data *tdata;
@@ -666,6 +736,33 @@ static void register_aor_core(pjsip_rx_data *rdata,
 		/* Total contacts after this registration */
 		contact_count = ao2_container_count(contacts) - permanent + added - deleted;
 	}
+
+	if (contact_count > aor->max_contacts && aor->remove_unavailable) {
+		/* Get unavailable contact total */
+		int unavail_count = 0;
+
+		unavail_contacts = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK, 0,
+			NULL, ast_sorcery_object_id_compare);
+		if (!unavail_contacts) {
+			response->code = 500;
+			pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), details.pool);
+			return;
+		}
+		ao2_callback(contacts, OBJ_NODATA, registrar_add_unreachable, unavail_contacts);
+		if (unavail_contacts) {
+			unavail_count = ao2_container_count(unavail_contacts);
+		}
+
+		/* Check to see if removing unavailable contacts will help */
+		if (contact_count - unavail_count <= aor->max_contacts) {
+			/* Remove any unavailable contacts */
+			remove_excess_contacts(unavail_contacts, contacts, contact_count - aor->max_contacts, aor->remove_existing);
+			ao2_cleanup(unavail_contacts);
+			/* We're only here if !aor->remove_existing so this count is correct */
+			contact_count = ao2_container_count(contacts) - permanent + added - deleted;
+		}
+	}
+
 	if (contact_count > aor->max_contacts) {
 		/* Enforce the maximum number of contacts */
 		ast_sip_report_failed_acl(endpoint, rdata, "registrar_attempt_exceeds_maximum_configured_contacts");
@@ -867,8 +964,9 @@ static void register_aor_core(pjsip_rx_data *rdata,
 		/* Total contacts after this registration */
 		contact_count = ao2_container_count(existing_contacts) + updated + added;
 		if (contact_count > aor->max_contacts) {
-			/* Remove excess existing contacts that expire the soonest */
-			remove_excess_contacts(existing_contacts, contacts, contact_count - aor->max_contacts);
+			/* Remove excess existing contacts that are unavailable or expire soonest */
+			remove_excess_contacts(existing_contacts, contacts, contact_count - aor->max_contacts,
+				aor->remove_existing);
 		}
 		ao2_ref(existing_contacts, -1);
 	}

@@ -807,10 +807,10 @@ int64_t ast_profile(int i, int64_t delta)
 /* The RDTSC instruction was introduced on the Pentium processor and is not
  * implemented on certain clones, like the Cyrix 586. Hence, the previous
  * expectation of __i386__ was in error. */
-#if defined ( __i686__) && (defined(__FreeBSD__) || defined(linux))
+#if defined ( __i686__) && (defined(__FreeBSD__) || defined(__NetBSD__) || defined(linux))
 #if defined(__FreeBSD__)
 #include <machine/cpufunc.h>
-#elif defined(linux)
+#elif defined(__NetBSD__) || defined(linux)
 static __inline uint64_t
 rdtsc(void)
 {
@@ -4156,7 +4156,7 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 	 */
 	check_init(ast_media_cache_init(), "Media Cache");
 
-	/* loads the cli_permissoins.conf file needed to implement cli restrictions. */
+	/* loads the cli_permissions.conf file needed to implement cli restrictions. */
 	ast_cli_perms_init(0);
 
 	ast_stun_init();

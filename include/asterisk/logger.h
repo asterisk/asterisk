@@ -17,10 +17,11 @@
  */
 
 /*!
-  \file logger.h
-  \brief Support for logging to various files, console and syslog
-	Configuration in file logger.conf
-*/
+ * \file
+ *
+ * \brief Support for logging to various files, console and syslog
+ *        Configuration in file logger.conf
+ */
 
 #ifndef _ASTERISK_LOGGER_H
 #define _ASTERISK_LOGGER_H
@@ -37,6 +38,8 @@ extern "C" {
 #define DEBUG_M(a) { \
 	a; \
 }
+
+#define _A_ __FILE__, __LINE__, __FUNCTION__
 
 #define VERBOSE_PREFIX_1 " "
 #define VERBOSE_PREFIX_2 "  == "
@@ -174,8 +177,8 @@ void __attribute__((format(printf, 5, 6))) __ast_verbose(const char *file, int l
  */
 void __attribute__((format(printf, 6, 7))) __ast_verbose_callid(const char *file, int line, const char *func, int level, ast_callid callid, const char *fmt, ...);
 
-#define ast_verbose(...) __ast_verbose(__FILE__, __LINE__, __PRETTY_FUNCTION__, -1, __VA_ARGS__)
-#define ast_verbose_callid(callid, ...) __ast_verbose_callid(__FILE__, __LINE__, __PRETTY_FUNCTION__, -1, callid, __VA_ARGS__)
+#define ast_verbose(...) __ast_verbose(_A_, -1, __VA_ARGS__)
+#define ast_verbose_callid(callid, ...) __ast_verbose_callid(_A_, -1, callid, __VA_ARGS__)
 
 void __attribute__((format(printf, 6, 0))) __ast_verbose_ap(const char *file, int line, const char *func, int level, ast_callid callid, const char *fmt, va_list ap);
 
@@ -231,8 +234,6 @@ void ast_console_toggle_loglevel(int fd, int level, int state);
  * the LOG_* macros from the source since these may be still
  * needed for third-party modules
  */
-
-#define _A_ __FILE__, __LINE__, __PRETTY_FUNCTION__
 
 #ifdef LOG_DEBUG
 #undef LOG_DEBUG
@@ -330,9 +331,16 @@ unsigned int ast_debug_get_by_module(const char *module);
 int ast_logger_register_level(const char *name);
 
 /*!
+ * \brief Retrieve dynamic logging level id
+ * \param name The name of the level
+ * \return The unique integer id for the given level
+ * \retval -1 if level name not found
+ */
+int ast_logger_get_dynamic_level(const char *name);
+
+/*!
  * \brief Unregister a previously registered logger level
  * \param name The name of the level to be unregistered
- * \return nothing
  * \since 1.8
  */
 void ast_logger_unregister_level(const char *name);
@@ -340,7 +348,7 @@ void ast_logger_unregister_level(const char *name);
 /*!
  * \brief Get the logger configured date format
  *
- * \retval The date format string
+ * \return The date format string
  *
  * \since 13.0.0
  */
@@ -349,7 +357,7 @@ const char *ast_logger_get_dateformat(void);
 /*!
  * \brief factory function to create a new uniquely identifying callid.
  *
- * \retval The call id
+ * \return The call id
  */
 ast_callid ast_create_callid(void);
 
@@ -424,11 +432,10 @@ void ast_callid_strnprint(char *buffer, size_t buffer_size, ast_callid callid);
  * the data for these must be provided as additional parameters after
  * the log message.
  *
- * \return nothing
  * \since 1.8
  */
 
-#define ast_log_dynamic_level(level, ...) ast_log(level, __FILE__, __LINE__, __PRETTY_FUNCTION__, __VA_ARGS__)
+#define ast_log_dynamic_level(level, ...) ast_log(level, _A_, __VA_ARGS__)
 
 #define DEBUG_ATLEAST(level) \
 	(option_debug >= (level) \
@@ -455,21 +462,19 @@ extern int ast_verb_sys_level;
 #define ast_verb(level, ...) \
 	do { \
 		if (VERBOSITY_ATLEAST(level) ) { \
-			__ast_verbose(__FILE__, __LINE__, __PRETTY_FUNCTION__, level, __VA_ARGS__); \
+			__ast_verbose(_A_, level, __VA_ARGS__); \
 		} \
 	} while (0)
 
 #define ast_verb_callid(level, callid, ...) \
 	do { \
 		if (VERBOSITY_ATLEAST(level) ) { \
-			__ast_verbose_callid(__FILE__, __LINE__, __PRETTY_FUNCTION__, level, callid, __VA_ARGS__); \
+			__ast_verbose_callid(_A_, level, callid, __VA_ARGS__); \
 		} \
 	} while (0)
 
 /*!
  * \brief Re-evaluate the system max verbosity level (ast_verb_sys_level).
- *
- * \return Nothing
  */
 void ast_verb_update(void);
 
@@ -477,22 +482,18 @@ void ast_verb_update(void);
  * \brief Register this thread's console verbosity level pointer.
  *
  * \param level Where the verbose level value is.
- *
- * \return Nothing
  */
 void ast_verb_console_register(int *level);
 
 /*!
  * \brief Unregister this thread's console verbosity level.
- *
- * \return Nothing
  */
 void ast_verb_console_unregister(void);
 
 /*!
  * \brief Get this thread's console verbosity level.
  *
- * \retval verbosity level of the console.
+ * \return verbosity level of the console.
  */
 int ast_verb_console_get(void);
 
@@ -500,8 +501,6 @@ int ast_verb_console_get(void);
  * \brief Set this thread's console verbosity level.
  *
  * \param verb_level New level to set.
- *
- * \return Nothing
  */
 void ast_verb_console_set(int verb_level);
 
@@ -516,8 +515,6 @@ int ast_is_logger_initialized(void);
  * \brief Set the maximum number of messages allowed in the processing queue
  *
  * \param queue_limit
- *
- * \return Nothing
  */
 void ast_logger_set_queue_limit(int queue_limit);
 
@@ -539,10 +536,11 @@ To start using it:
  * You must have used --enable-dev-mode.
  * In logger.conf, set a logger channel to output the "trace" level.
  * Instrument your code as specified below.
- * Use the cli or cli.conf to enable tracing: CLI> core set trace <trace_level> [ module ]
+ * Use the cli or cli.conf to enable tracing:
+   \verbatim CLI> core set trace <trace_level> [ module ] \endverbatim
 
 Its simplest usage requires only 1 macro call that...
-	- Registers a descructor for a special variable that gets called when the
+	- Registers a destructor for a special variable that gets called when the
 	  variable goes out of scope.  Uses the same principle as RAII_VAR.
 	  The destructor prints the name of the function with an "exiting" indicator
 	  along with an optional message.
@@ -662,35 +660,33 @@ void __attribute__((format (printf, 6, 7))) __ast_trace(const char *file, int li
  *
  * \param level The trace level
  * \param indent_type One of the \ref ast_trace_indent_type values
- * \param (optional) A printf style format string
- * \param (optional) Arguments
+ * \param ... A printf style format string, optionally with arguments
  *
  */
 #define ast_trace_raw(level, indent_type, ...) \
 	ast_debug(level < 0 ? __scope_level : level, " " __VA_ARGS__); \
 	if (TRACE_ATLEAST(level < 0 ? __scope_level : level)) { \
-		__ast_trace(__FILE__, __LINE__, __PRETTY_FUNCTION__, indent_type, 0, " " __VA_ARGS__); \
+		__ast_trace(_A_, indent_type, 0, " " __VA_ARGS__); \
 	}
 
 /*!
  * \brief Print a basic trace message
  *
  * \param level The trace level
- * \param (optional) A printf style format string
- * \param (optional) Arguments
+ * \param ... A printf style format string, optionally with arguments
  *
  *  This will print the file, line and function at the current indent level
  */
 #define ast_trace(level, ...) \
 	ast_debug(level < 0 ? __scope_level : level, " " __VA_ARGS__); \
 	if (TRACE_ATLEAST(level < 0 ? __scope_level : level)) { \
-		__ast_trace(__FILE__, __LINE__, __PRETTY_FUNCTION__, AST_TRACE_INDENT_SAME, 0, " " __VA_ARGS__); \
+		__ast_trace(_A_, AST_TRACE_INDENT_SAME, 0, " " __VA_ARGS__); \
 	}
 
 /*!
  * \brief Get the current indent level
  *
- * \returns The current indent level
+ * \return The current indent level
  */
 unsigned long _ast_trace_get_indent(void);
 #define ast_trace_get_indent() _ast_trace_get_indent()
@@ -706,7 +702,7 @@ void _ast_trace_set_indent(unsigned long indent);
 /*!
  * \brief Increment the indent level
  *
- * \returns The new indent level
+ * \return The new indent level
  */
 unsigned long _ast_trace_inc_indent(void);
 #define ast_trace_inc_indent() _ast_trace_inc_indent()
@@ -714,7 +710,7 @@ unsigned long _ast_trace_inc_indent(void);
 /*!
  * \brief Decrement the indent level
  *
- * \returns The new indent level
+ * \return The new indent level
  */
 unsigned long _ast_trace_dec_indent(void);
 #define ast_trace_dec_indent() _ast_trace_dec_indent()
@@ -723,8 +719,7 @@ unsigned long _ast_trace_dec_indent(void);
  * \brief Print a trace message with details when a scope is entered or existed.
  *
  * \param level The trace level
- * \param (optional) A printf style format string
- * \param (optional) Arguments
+ * \param ... A printf style format string, optionally with arguments
  *
  *  This will print the file, line and function plus details at the current indent level.
  * \note Like RAII_VAR, this macro must be called before any code in the scope.
@@ -766,15 +761,14 @@ unsigned long _ast_trace_dec_indent(void);
  * \brief Scope Enter
  *
  * \param level The trace level
- * \param (optional) A printf style format string
- * \param (optional) Arguments
+ * \param ... A printf style format string, optionally with arguments
  */
 #define SCOPE_ENTER(level, ...) \
 	int __scope_level = level; \
 	int __scope_task = 0; \
 	ast_debug(__scope_level, " " __VA_ARGS__); \
 	if (TRACE_ATLEAST(level)) { \
-		__ast_trace(__FILE__, __LINE__, __PRETTY_FUNCTION__, AST_TRACE_INDENT_INC_AFTER, 0, " " __VA_ARGS__); \
+		__ast_trace(_A_, AST_TRACE_INDENT_INC_AFTER, 0, " " __VA_ARGS__); \
 	} \
 
 #define SCOPE_ENTER_TASK(level, indent, ...) \
@@ -782,14 +776,13 @@ unsigned long _ast_trace_dec_indent(void);
 	int __scope_task = 1; \
 	ast_debug(__scope_level, " " __VA_ARGS__); \
 	if (TRACE_ATLEAST(level)) { \
-		__ast_trace(__FILE__, __LINE__, __PRETTY_FUNCTION__, AST_TRACE_INDENT_PROVIDED, indent, " " __VA_ARGS__); \
+		__ast_trace(_A_, AST_TRACE_INDENT_PROVIDED, indent, " " __VA_ARGS__); \
 	} \
 
 /*!
  * \brief Scope Exit
  *
- * \param (optional) A printf style format string
- * \param (optional) Arguments
+ * \param ... A printf style format string, optionally with arguments
  *
  * \details
  * This macro can be used at the exit points of a statement block since it just prints the message.
@@ -797,7 +790,7 @@ unsigned long _ast_trace_dec_indent(void);
 #define SCOPE_EXIT(...) \
 	ast_debug(__scope_level, " " __VA_ARGS__); \
 	if (TRACE_ATLEAST(__scope_level)) { \
-		__ast_trace(__FILE__, __LINE__, __PRETTY_FUNCTION__, AST_TRACE_INDENT_DEC_BEFORE, 0, " " __VA_ARGS__); \
+		__ast_trace(_A_, AST_TRACE_INDENT_DEC_BEFORE, 0, " " __VA_ARGS__); \
 		if (__scope_task) { \
 			_ast_trace_set_indent(0); \
 		} \
@@ -807,26 +800,26 @@ unsigned long _ast_trace_dec_indent(void);
  * \brief Scope Exit with expression
  *
  * \param __expr An expression to execute after printing the message
- * \param (optional) A printf style format string
- * \param (optional) Arguments
+ * \param ... A printf style format string, optionally with arguments
  *
  * \details
  * Handy for getting out of or continuing loops.
  *
- * \example
+ * \code
  * while(something) {
  *     SCOPE_ENTER(2, "In a while\n");
  *     if (something) {
  *         SCOPE_EXIT_EXPR(break, "Somethiung broke me\n");
  *     } else {
- *         SCOPE_EXIT_EXPR(contniue, "Somethiung continued me\n");
+ *         SCOPE_EXIT_EXPR(continue, "Somethiung continued me\n");
  *     }
  * }
+ * \endcode
  */
 #define SCOPE_EXIT_EXPR(__expr, ...) \
 	ast_debug(__scope_level, " " __VA_ARGS__); \
 	if (TRACE_ATLEAST(__scope_level)) { \
-		__ast_trace(__FILE__, __LINE__, __PRETTY_FUNCTION__, AST_TRACE_INDENT_DEC_BEFORE, 0, " " __VA_ARGS__); \
+		__ast_trace(_A_, AST_TRACE_INDENT_DEC_BEFORE, 0, " " __VA_ARGS__); \
 		if (__scope_task) { \
 			_ast_trace_set_indent(0); \
 		} \
@@ -836,8 +829,7 @@ unsigned long _ast_trace_dec_indent(void);
 /*!
  * \brief Scope Exit with return
  *
- * \param (optional) A printf style format string
- * \param (optional) Arguments
+ * \param ... A printf style format string, optionally with arguments
  *
  * \details
  * This macro can be used at the exit points of a function when no value
@@ -846,7 +838,7 @@ unsigned long _ast_trace_dec_indent(void);
 #define SCOPE_EXIT_RTN(...) \
 	ast_debug(__scope_level, " " __VA_ARGS__); \
 	if (TRACE_ATLEAST(__scope_level)) { \
-		__ast_trace(__FILE__, __LINE__, __PRETTY_FUNCTION__, AST_TRACE_INDENT_DEC_BEFORE, 0, " " __VA_ARGS__); \
+		__ast_trace(_A_, AST_TRACE_INDENT_DEC_BEFORE, 0, " " __VA_ARGS__); \
 		if (__scope_task) { \
 			_ast_trace_set_indent(0); \
 		} \
@@ -857,8 +849,7 @@ unsigned long _ast_trace_dec_indent(void);
  * \brief Scope Exit with return value
  *
  * \param __return_value The return value
- * \param (optional) A printf style format string
- * \param (optional) Arguments
+ * \param ... A printf style format string, optionally with arguments
  *
  * \details
  * This macro can be used at the exit points of a function when a value
@@ -867,7 +858,7 @@ unsigned long _ast_trace_dec_indent(void);
 #define SCOPE_EXIT_RTN_VALUE(__return_value, ...) \
 	ast_debug(__scope_level, " " __VA_ARGS__); \
 	if (TRACE_ATLEAST(__scope_level)) { \
-		__ast_trace(__FILE__, __LINE__, __PRETTY_FUNCTION__, AST_TRACE_INDENT_DEC_BEFORE, 0, " " __VA_ARGS__); \
+		__ast_trace(_A_, AST_TRACE_INDENT_DEC_BEFORE, 0, " " __VA_ARGS__); \
 		if (__scope_task) { \
 			_ast_trace_set_indent(0); \
 		} \

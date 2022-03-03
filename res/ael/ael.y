@@ -464,7 +464,7 @@ switch_statement : KW_SWITCH test_expr LC case_statements RC {
 	;
 
 /*
- * Definition of a statememt in our language
+ * Definition of a statement in our language
  */
 statement : LC statements RC {
 		$$ = npval2(PV_STATEMENTBLOCK, &@1, &@3);

@@ -615,8 +615,6 @@ static int queue_voice_frame(struct jack_data *jack_data, struct ast_frame *f)
  * Read data from the input ringbuffer, which is the properly resampled audio
  * that was read from the jack input port.  Write it to the channel in 20 ms frames,
  * or fill up an output frame instead if one is provided.
- *
- * \return Nothing.
  */
 static void handle_jack_audio(struct ast_channel *chan, struct jack_data *jack_data,
 	struct ast_frame *out_frame)

@@ -65,7 +65,7 @@ struct __priv_data {
 	 * \brief The ao2 object option flags.
 	 *
 	 * \note This field is constant after object creation.  It shares
-	 *       a uint32_t with \ref lockused and \ref magic.
+	 *       a uint32_t with \p lockused and \p magic.
 	 */
 	uint32_t options:3;
 	/*!
@@ -82,7 +82,7 @@ struct __priv_data {
 	 * reference.
 	 *
 	 * \note This field is constant after object creation.  It shares
-	 *       a uint32_t with \ref options and \ref lockused.
+	 *       a uint32_t with \p options and \p lockused.
 	 *
 	 * \warning Stealing bits for any additional writable fields would cause
 	 *          reentrancy issues if using bitfields.  If any additional
@@ -504,6 +504,7 @@ int __ao2_ref(void *user_data, int delta,
 	struct astobj2_lockobj *obj_lockobj;
 	int32_t current_value;
 	int32_t ret;
+	uint32_t privdataoptions;
 	struct ao2_weakproxy *weakproxy = NULL;
 	const char *lock_state;
 
@@ -621,6 +622,8 @@ int __ao2_ref(void *user_data, int delta,
 
 	/* In case someone uses an object after it's been freed */
 	obj->priv_data.magic = 0;
+	/* Save the options locally so the ref_log print at the end doesn't access freed data */
+	privdataoptions = obj->priv_data.options;
 
 	switch (obj->priv_data.options & AO2_ALLOC_OPT_LOCK_MASK) {
 	case AO2_ALLOC_OPT_LOCK_MUTEX:
@@ -655,7 +658,7 @@ int __ao2_ref(void *user_data, int delta,
 		break;
 	}
 
-	if (ref_log && !(obj->priv_data.options & AO2_ALLOC_OPT_NO_REF_DEBUG)) {
+	if (ref_log && !(privdataoptions & AO2_ALLOC_OPT_NO_REF_DEBUG)) {
 		fprintf(ref_log, "%p,%d,%d,%s,%d,%s,**destructor**lock-state:%s**,%s\n",
 			user_data, delta, ast_get_tid(), file, line, func, lock_state, tag ?: "");
 		fflush(ref_log);

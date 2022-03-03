@@ -40,19 +40,29 @@
 /*** DOCUMENTATION
 	<application name="Milliwatt" language="en_US">
 		<synopsis>
-			Generate a Constant 1004Hz tone at 0dbm (mu-law).
+			Generates a 1004 Hz test tone at 0dbm (mu-law).
 		</synopsis>
 		<syntax>
 			<parameter name="options">
 				<optionlist>
+					<option name="m">
+						<para>Generate a 1004 Hz Milliwatt test tone at 0dbm, with a
+						1 second silent interval. This option must be specified
+						if you are using this for a milliwatt test line.</para>
+					</option>
 					<option name="o">
-						<para>Generate the tone at 1000Hz like previous version.</para>
+						<para>Generate a constant tone at 1000 Hz like previous version.</para>
 					</option>
 				</optionlist>
 			</parameter>
 		</syntax>
 		<description>
-			<para>Previous versions of this application generated the tone at 1000Hz.  If for
+			<para>Generates a 1004 Hz test tone.</para>
+			<para>By default, this application does not provide a Milliwatt test tone. It simply
+			plays a 1004 Hz tone, which is not suitable for performing a milliwatt test.
+			The <literal>m</literal> option should be used so that a real Milliwatt test tone
+			is provided. This will include a 1 second silent interval every 10 seconds.</para>
+			<para>Previous versions of this application generated a constant tone at 1000 Hz. If for
 			some reason you would prefer that behavior, supply the <literal>o</literal> option to get the
 			old behavior.</para>
 		</description>
@@ -155,8 +165,11 @@ static int milliwatt_exec(struct ast_channel *chan, const char *data)
 	if (!ast_strlen_zero(options) && strchr(options, 'o')) {
 		return old_milliwatt_exec(chan);
 	}
-
-	res = ast_playtones_start(chan, 23255, "1004/1000", 0);
+	if (!ast_strlen_zero(options) && strchr(options, 'm')) {
+		res = ast_playtones_start(chan, 23255, "1004/9000,0/1000", 0);
+	} else {
+		res = ast_playtones_start(chan, 23255, "1004/1000", 0);
+	}
 
 	while (!res) {
 		res = ast_safe_sleep(chan, 10000);

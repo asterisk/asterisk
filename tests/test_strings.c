@@ -22,7 +22,7 @@
  *
  * \author Mark Michelson <mmichelson@digium.com>
  *
- * This module will run some dyanmic string tests.
+ * This module will run some dynamic string tests.
  *
  * \ingroup tests
  */
@@ -620,6 +620,120 @@ AST_TEST_DEFINE(temp_strings)
 	return AST_TEST_PASS;
 }
 
+AST_TEST_DEFINE(in_delimited_string)
+{
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "in_delimited_string";
+		info->category = "/main/strings/";
+		info->summary = "Test ast_in_delimited_string";
+		info->description = info->summary;
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	/* Single letter */
+	ast_test_validate(test, ast_in_delimited_string("a", "a,b", ','));
+	ast_test_validate(test, ast_in_delimited_string("b", "a,b", ','));
+
+	ast_test_validate(test, !ast_in_delimited_string("c", "a,b", ','));
+	ast_test_validate(test, !ast_in_delimited_string("aa", "a,b", ','));
+	ast_test_validate(test, !ast_in_delimited_string("bb", "a,b", ','));
+	ast_test_validate(test, !ast_in_delimited_string("a,", "a,b", ','));
+	ast_test_validate(test, !ast_in_delimited_string(",b", "a,b", ','));
+	ast_test_validate(test, !ast_in_delimited_string("a,b", "a,b", ','));
+
+	/* Bad delimiter (ends up being just a strcmp) */
+	ast_test_validate(test, !ast_in_delimited_string("a", "a,b", '#'));
+	ast_test_validate(test, !ast_in_delimited_string("b", "a,b", '#'));
+
+	ast_test_validate(test, !ast_in_delimited_string("c", "a,b", '#'));
+	ast_test_validate(test, !ast_in_delimited_string("aa", "a,b", '#'));
+	ast_test_validate(test, !ast_in_delimited_string("bb", "a,b", '#'));
+	ast_test_validate(test, !ast_in_delimited_string("a,", "a,b", '#'));
+	ast_test_validate(test, !ast_in_delimited_string(",b", "a,b", '#'));
+
+	ast_test_validate(test, ast_in_delimited_string("a,b", "a,b", '#'));
+
+	/* Multi letter */
+	ast_test_validate(test, ast_in_delimited_string("abc", "abc,def", ','));
+	ast_test_validate(test, ast_in_delimited_string("def", "abc,def", ','));
+
+	ast_test_validate(test, !ast_in_delimited_string("a", "abc,def", ','));
+	ast_test_validate(test, !ast_in_delimited_string("b", "abc,def", ','));
+	ast_test_validate(test, !ast_in_delimited_string("c", "abc,def", ','));
+
+	ast_test_validate(test, !ast_in_delimited_string("d", "abc,def", ','));
+	ast_test_validate(test, !ast_in_delimited_string("e", "abc,def", ','));
+	ast_test_validate(test, !ast_in_delimited_string("f", "abc,def", ','));
+
+	ast_test_validate(test, !ast_in_delimited_string("abc,", "abc,def", ','));
+	ast_test_validate(test, !ast_in_delimited_string(",def", "abc,def", ','));
+	ast_test_validate(test, !ast_in_delimited_string("abc,def", "abc,def", ','));
+
+	/* Embedded */
+	ast_test_validate(test, ast_in_delimited_string("abc", "abcdef,abc", ','));
+	ast_test_validate(test, ast_in_delimited_string("abcdef", "abcdef,abc", ','));
+
+	ast_test_validate(test, !ast_in_delimited_string("abc", "abcdef,def", ','));
+	ast_test_validate(test, !ast_in_delimited_string("def", "abcdef,abc", ','));
+	ast_test_validate(test, !ast_in_delimited_string("def", "abcdefghi,abc", ','));
+
+	/* NULL and empty values */
+	ast_test_validate(test, !ast_in_delimited_string(NULL, "abc,def", ','));
+
+	ast_test_validate(test, ast_in_delimited_string("abc", ",abc,def", ','));
+	ast_test_validate(test, ast_in_delimited_string("abc", "abc,def,", ','));
+	ast_test_validate(test, ast_in_delimited_string("abc", "abc,,def,", ','));
+	ast_test_validate(test, ast_in_delimited_string("def", "abc,,def", ','));
+	ast_test_validate(test, ast_in_delimited_string("def", ",abc,,def,", ','));
+
+	ast_test_validate(test, ast_in_delimited_string("", ",abc,def", ','));
+	ast_test_validate(test, ast_in_delimited_string("", "abc,def,", ','));
+	ast_test_validate(test, ast_in_delimited_string("", "abc,,def,", ','));
+	ast_test_validate(test, !ast_in_delimited_string("", "abc,def", ','));
+
+	/* Multi word */
+	ast_test_validate(test, ast_in_delimited_string("abc", "abc,def,ghi", ','));
+	ast_test_validate(test, ast_in_delimited_string("def", "abc,def,ghi", ','));
+	ast_test_validate(test, ast_in_delimited_string("ghi", "abc,def,ghi", ','));
+
+	ast_test_validate(test, !ast_in_delimited_string("a", "abc,def,ghi", ','));
+	ast_test_validate(test, !ast_in_delimited_string("d", "abc,def,ghi", ','));
+	ast_test_validate(test, !ast_in_delimited_string("g", "abc,def,ghi", ','));
+
+	ast_test_validate(test, !ast_in_delimited_string("ab", "abc,def,ghi", ','));
+	ast_test_validate(test, !ast_in_delimited_string("de", "abc,def,ghi", ','));
+	ast_test_validate(test, !ast_in_delimited_string("gh", "abc,def,ghi", ','));
+
+
+	/* With leading spaces */
+	ast_test_validate(test, ast_in_delimited_string("abc", " abc", ','));
+	ast_test_validate(test, ast_in_delimited_string("abc", " abc, def", ','));
+	ast_test_validate(test, ast_in_delimited_string("def", " abc, def", ','));
+	ast_test_validate(test, ast_in_delimited_string("abc", " abc, def, ghi", ','));
+	ast_test_validate(test, ast_in_delimited_string("def", " abc, def, ghi", ','));
+	ast_test_validate(test, ast_in_delimited_string("ghi", " abc, def, ghi", ','));
+
+	ast_test_validate(test, ast_in_delimited_string("abc", "   abc", ','));
+	ast_test_validate(test, ast_in_delimited_string("abc", "   abc,   def", ','));
+	ast_test_validate(test, ast_in_delimited_string("def", "   abc,   def", ','));
+	ast_test_validate(test, ast_in_delimited_string("abc", "   abc,   def,   ghi", ','));
+	ast_test_validate(test, ast_in_delimited_string("def", "   abc,   def,   ghi", ','));
+	ast_test_validate(test, ast_in_delimited_string("ghi", "   abc,   def,   ghi", ','));
+
+	/* With leading spaces and space as a delimiter */
+	ast_test_validate(test, ast_in_delimited_string("abc", "   abc", ' '));
+	ast_test_validate(test, ast_in_delimited_string("abc", "   abc   def", ' '));
+	ast_test_validate(test, ast_in_delimited_string("def", "   abc   def", ' '));
+	ast_test_validate(test, ast_in_delimited_string("abc", "   abc   def   ghi", ' '));
+	ast_test_validate(test, ast_in_delimited_string("def", "   abc   def   ghi", ' '));
+	ast_test_validate(test, ast_in_delimited_string("ghi", "   abc   def   ghi", ' '));
+
+	return AST_TEST_PASS;
+}
+
 static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(str_test);
@@ -630,6 +744,7 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(escape_test);
 	AST_TEST_UNREGISTER(strings_match);
 	AST_TEST_UNREGISTER(temp_strings);
+	AST_TEST_UNREGISTER(in_delimited_string);
 	return 0;
 }
 
@@ -643,6 +758,7 @@ static int load_module(void)
 	AST_TEST_REGISTER(escape_test);
 	AST_TEST_REGISTER(strings_match);
 	AST_TEST_REGISTER(temp_strings);
+	AST_TEST_REGISTER(in_delimited_string);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 

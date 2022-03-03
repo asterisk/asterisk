@@ -1174,8 +1174,8 @@ static int tls_method_to_str(const void *obj, const intptr_t *args, char **buf)
 	return 0;
 }
 
-/*! \brief Helper function which turns a cipher name into an identifier */
 #if defined(PJ_HAS_SSL_SOCK) && PJ_HAS_SSL_SOCK != 0
+/*! \brief Helper function which turns a cipher name into an identifier */
 static pj_ssl_cipher cipher_name_to_id(const char *name)
 {
 	pj_ssl_cipher ciphers[PJ_SSL_SOCK_MAX_CIPHERS];
@@ -1197,17 +1197,17 @@ static pj_ssl_cipher cipher_name_to_id(const char *name)
 }
 #endif
 
+#if defined(PJ_HAS_SSL_SOCK) && PJ_HAS_SSL_SOCK != 0
 /*!
  * \internal
  * \brief Add a new cipher to the transport's cipher list array.
  *
- * \param transport Which transport to add the cipher to.
+ * \param state Which transport to add the cipher to.
  * \param name Cipher identifier name.
  *
  * \retval 0 on success.
  * \retval -1 on error.
  */
-#if defined(PJ_HAS_SSL_SOCK) && PJ_HAS_SSL_SOCK != 0
 static int transport_cipher_add(struct ast_sip_transport_state *state, const char *name)
 {
 	pj_ssl_cipher cipher;
@@ -1240,8 +1240,8 @@ static int transport_cipher_add(struct ast_sip_transport_state *state, const cha
 }
 #endif
 
-/*! \brief Custom handler for TLS cipher setting */
 #if defined(PJ_HAS_SSL_SOCK) && PJ_HAS_SSL_SOCK != 0
+/*! \brief Custom handler for TLS cipher setting */
 static int transport_tls_cipher_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
 {
 	struct ast_sip_transport *transport = obj;

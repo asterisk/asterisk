@@ -174,7 +174,7 @@ EXTERN int ooSendMasterSlaveDeterminationReject (struct OOH323CallData* call);
  * MasterSlaveDetermination procedure.
  * @param call        Handle to the call for which MasterSlaveReject is
  *                    received.
- * @param reject      Poinetr to the received reject message.
+ * @param reject      Pointer to the received reject message.
  *
  * @return            OO_OK, on success. OO_FAILED, on failure.
  */
@@ -271,7 +271,7 @@ EXTERN int ooOnReceivedUserInputIndication
    (OOH323CallData *call, H245UserInputIndication *indication);
 
 /**
- * This function is called on receiving a TreminalCapabilitySetAck message.
+ * This function is called on receiving a TerminalCapabilitySetAck message.
  * If the MasterSlaveDetermination process is also over, this function
  * initiates the process of opening logical channels.
  * @param call          Pointer to call for which TCSAck is received.

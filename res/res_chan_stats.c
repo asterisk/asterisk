@@ -49,9 +49,6 @@ static struct stasis_message_router *router;
  * \brief Subscription callback for all channel messages.
  * \param data Data pointer given when creating the subscription.
  * \param sub This subscription.
- * \param topic The topic the message was posted to. This is not necessarily the
- *              topic you subscribed to, since messages may be forwarded between
- *              topics.
  * \param message The message itself.
  */
 static void statsmaker(void *data, struct stasis_subscription *sub,
@@ -81,9 +78,6 @@ static void statsmaker(void *data, struct stasis_subscription *sub,
  * \brief Router callback for \ref ast_channel_snapshot_update messages.
  * \param data Data pointer given when added to router.
  * \param sub This subscription.
- * \param topic The topic the message was posted to. This is not necessarily the
- *              topic you subscribed to, since messages may be forwarded between
- *              topics.
  * \param message The message itself.
  */
 static void updates(void *data, struct stasis_subscription *sub,
@@ -122,9 +116,6 @@ static void updates(void *data, struct stasis_subscription *sub,
  * \brief Router callback for any message that doesn't otherwise have a route.
  * \param data Data pointer given when added to router.
  * \param sub This subscription.
- * \param topic The topic the message was posted to. This is not necessarily the
- *              topic you subscribed to, since messages may be forwarded between
- *              topics.
  * \param message The message itself.
  */
 static void default_route(void *data, struct stasis_subscription *sub,

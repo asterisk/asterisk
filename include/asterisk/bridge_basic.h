@@ -70,7 +70,7 @@ int ast_bridge_features_ds_get_string(struct ast_channel *chan, char *buffer, si
  * \note The channel should be locked before calling this function.
  * \note The channel must remain locked until the flags returned have been consumed.
  *
- * \retval flags on success.
+ * \return flags on success.
  * \retval NULL if the datastore does not exist.
  */
 struct ast_flags *ast_bridge_features_ds_get(struct ast_channel *chan);
@@ -111,7 +111,7 @@ extern struct ast_bridge_methods ast_bridge_basic_v_table;
 /*!
  * \brief Create a new basic class bridge
  *
- * \retval a pointer to a new bridge on success
+ * \return a pointer to a new bridge on success
  * \retval NULL on failure
  *
  * Example usage:
@@ -134,7 +134,8 @@ struct ast_bridge *ast_bridge_basic_new(void);
  * ensure that after operations such as an attended transfer,
  * the bridge will maintain the flags that were set on it.
  *
- * \params Flags to set on the bridge. These are added to the flags already set.
+ * \param bridge
+ * \param flags These are added to the flags already set.
  */
 void ast_bridge_basic_set_flags(struct ast_bridge *bridge, unsigned int flags);
 

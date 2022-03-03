@@ -17,10 +17,7 @@
 /*! \file
  *
  * \brief FreeTDS CEL logger
- *
- * See also
- * \arg \ref Config_cel
- * \arg http://www.freetds.org/
+ * http://www.freetds.org/
  * \ingroup cel_drivers
  */
 

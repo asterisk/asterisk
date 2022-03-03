@@ -21,9 +21,6 @@
  * \brief syslog CDR logger
  *
  * \author Sean Bright <sean@malleable.com>
- *
- * See also
- * \arg \ref Config_cdr
  * \ingroup cdr_drivers
  */
 
@@ -40,6 +37,8 @@
 	<depend>syslog</depend>
 	<defaultenabled>no</defaultenabled>
 	<support_level>deprecated</support_level>
+	<deprecated_in>16</deprecated_in>
+	<removed_in>19</removed_in>
 ***/
 
 #include "asterisk.h"

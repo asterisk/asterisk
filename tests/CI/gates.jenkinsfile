@@ -8,7 +8,7 @@
  * pipeline, you can define the trigger in the pipeline file.  This keeps
  * everything in one place.  We transition to scripted pipeline later on because
  * we need to dynamically determine which docker image we're going to use and
- * you can't do that in a delcarative pipeline.
+ * you can't do that in a declarative pipeline.
  */
 def timeoutTime = 60
 def timeoutUnits = 'MINUTES'
@@ -139,7 +139,7 @@ pipeline {
 					def r = currentBuild.startTimeInMillis % images.length
 					def ri = images[(int)r]
 					def randomImage = env.DOCKER_REGISTRY + "/" + ri
-					/* FYI... Jenkins takes care of mouting the workspace for the container */
+					/* FYI... Jenkins takes care of mounting the workspace for the container */
 					def dockerOptions = "--privileged --ulimit core=0 --ulimit nofile=10240 " +
 						" --tmpfs /tmp:exec,size=1G -v /srv/jenkins:/srv/jenkins:rw -v /srv/cache:/srv/cache:rw " +
 						" --entrypoint=''"

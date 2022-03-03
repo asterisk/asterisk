@@ -19,7 +19,7 @@
 
 /*!
  * \file
- * A condensation of the pbx_config stuff, to read into exensions.conf, and provide an interface to the data there,
+ * A condensation of the pbx_config stuff, to read into extensions.conf, and provide an interface to the data there,
  * for operations outside of asterisk. A huge, awful hack.
  *
  */
@@ -980,7 +980,6 @@ char *ast_skip_blanks(const char *str),
 
 /*!
   \brief Trims trailing whitespace characters from a string.
-  \param ast_trim_blanks function being used
   \param str the input string
   \return a pointer to the modified string
  */
@@ -2863,8 +2862,8 @@ static struct ast_config *ast_config_internal_load(const char *filename, struct 
 
 static struct ast_config *ast_config_internal_load(const char *filename, struct ast_config *cfg, int withcomments, const char *suggested_incl_file)
 {
-	char db[256];
-	char table[256];
+	char db[256] = "";
+	char table[256] = "";
 	struct ast_config_engine *loader = &text_file_engine;
 	struct ast_config *result;
 
@@ -3822,7 +3821,7 @@ int ast_build_timing(struct ast_timing *i, const char *info_in)
 
 	/* count the number of fields in the timespec */
 	for (j = 0, num_fields = 1; info[j] != '\0'; j++) {
-		if (info[j] == ',') {
+		if (info[j] == '|' || info[j] == ',') {
 			last_sep = j;
 			num_fields++;
 		}
@@ -4525,7 +4524,7 @@ static int ast_context_add_include2(struct ast_context *con, const char *value,
 	new_include->rname = p;
 	strcpy(p, value);
 	/* Strip off timing info, and process if it is there */
-	if ( (c = strchr(p, '|')) ) {
+	if ( (c = strchr(p, '|')) || (c = strchr(p, ',')) ) {
 		*c++ = '\0';
 		new_include->hastime = ast_build_timing(&(new_include->timing), c);
 	}

@@ -155,16 +155,16 @@ static SQLHSTMT custom_prepare(struct odbc_obj *obj, void *data)
 }
 
 /*!
- * \brief Excute an SQL query and return ast_variable list
+ * \brief Execute an SQL query and return ast_variable list
  * \param database
  * \param table
- * \param ap list containing one or more field/operator/value set.
+ * \param fields list containing one or more field/operator/value set.
  *
  * Select database and preform query on table, prepare the sql statement
  * Sub-in the values to the prepared statement and execute it. Return results
  * as a ast_variable list.
  *
- * \retval var on success
+ * \return var on success
  * \retval NULL on failure
  */
 static struct ast_variable *realtime_odbc(const char *database, const char *table, const struct ast_variable *fields)
@@ -326,17 +326,17 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
 }
 
 /*!
- * \brief Excute an Select query and return ast_config list
+ * \brief Execute an Select query and return ast_config list
  * \param database
  * \param table
- * \param ap list containing one or more field/operator/value set.
+ * \param fields list containing one or more field/operator/value set.
  *
  * Select database and preform query on table, prepare the sql statement
  * Sub-in the values to the prepared statement and execute it.
  * Execute this prepared query against several ODBC connected databases.
  * Return results as an ast_config variable.
  *
- * \retval var on success
+ * \return var on success
  * \retval NULL on failure
  */
 static struct ast_config *realtime_multi_odbc(const char *database, const char *table, const struct ast_variable *fields)
@@ -499,18 +499,18 @@ next_sql_fetch:;
 }
 
 /*!
- * \brief Excute an UPDATE query
+ * \brief Execute an UPDATE query
  * \param database
  * \param table
  * \param keyfield where clause field
  * \param lookup value of field for where clause
- * \param ap list containing one or more field/value set(s).
+ * \param fields list containing one or more field/value set(s).
  *
  * Update a database table, prepare the sql statement using keyfield and lookup
  * control the number of records to change. All values to be changed are stored in ap list.
  * Sub-in the values to the prepared statement and execute it.
  *
- * \retval number of rows affected
+ * \return number of rows affected
  * \retval -1 on failure
  */
 static int update_odbc(const char *database, const char *table, const char *keyfield, const char *lookup, const struct ast_variable *fields)
@@ -660,16 +660,15 @@ static SQLHSTMT update2_prepare(struct odbc_obj *obj, void *data)
 
 /*!
  * \brief Execute an UPDATE query
- * \param database
- * \param table
- * \param ap list containing one or more field/value set(s).
+ * \param database, table, lookup_fields
+ * \param update_fields list containing one or more field/value set(s).
  *
  * Update a database table, preparing the sql statement from a list of
  * key/value pairs specified in ap.  The lookup pairs are specified first
  * and are separated from the update pairs by a sentinel value.
  * Sub-in the values to the prepared statement and execute it.
  *
- * \retval number of rows affected
+ * \return number of rows affected
  * \retval -1 on failure
 */
 static int update2_odbc(const char *database, const char *table, const struct ast_variable *lookup_fields, const struct ast_variable *update_fields)
@@ -726,16 +725,16 @@ static int update2_odbc(const char *database, const char *table, const struct as
 }
 
 /*!
- * \brief Excute an INSERT query
+ * \brief Execute an INSERT query
  * \param database
  * \param table
- * \param ap list containing one or more field/value set(s)
+ * \param fields list containing one or more field/value set(s)
  *
  * Insert a new record into database table, prepare the sql statement.
  * All values to be changed are stored in ap list.
  * Sub-in the values to the prepared statement and execute it.
  *
- * \retval number of rows affected
+ * \return number of rows affected
  * \retval -1 on failure
  */
 static int store_odbc(const char *database, const char *table, const struct ast_variable *fields)
@@ -807,18 +806,18 @@ static int store_odbc(const char *database, const char *table, const struct ast_
 }
 
 /*!
- * \brief Excute an DELETE query
+ * \brief Execute an DELETE query
  * \param database
  * \param table
  * \param keyfield where clause field
  * \param lookup value of field for where clause
- * \param ap list containing one or more field/value set(s)
+ * \param fields list containing one or more field/value set(s)
  *
  * Delete a row from a database table, prepare the sql statement using keyfield and lookup
  * control the number of records to change. Additional params to match rows are stored in ap list.
  * Sub-in the values to the prepared statement and execute it.
  *
- * \retval number of rows affected
+ * \return number of rows affected
  * \retval -1 on failure
  */
 static int destroy_odbc(const char *database, const char *table, const char *keyfield, const char *lookup, const struct ast_variable *fields)

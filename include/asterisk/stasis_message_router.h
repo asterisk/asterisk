@@ -51,13 +51,13 @@ struct stasis_message_router;
  * \param topic Topic to subscribe route to.
  *
  * \return New \ref stasis_message_router.
- * \return \c NULL on error.
+ * \retval NULL on error.
  *
  * \since 12
  */
+#define stasis_message_router_create(topic) __stasis_message_router_create(topic, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 struct stasis_message_router *__stasis_message_router_create(
 	struct stasis_topic *topic, const char *file, int lineno, const char *func);
-#define stasis_message_router_create(topic) __stasis_message_router_create(topic, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 /*!
  * \brief Create a new message router object.
@@ -68,13 +68,13 @@ struct stasis_message_router *__stasis_message_router_create(
  * \param topic Topic to subscribe route to.
  *
  * \return New \ref stasis_message_router.
- * \return \c NULL on error.
+ * \retval NULL on error.
  *
  * \since 12.8.0
  */
+#define stasis_message_router_create_pool(topic) __stasis_message_router_create_pool(topic, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 struct stasis_message_router *__stasis_message_router_create_pool(
 	struct stasis_topic *topic, const char *file, int lineno, const char *func);
-#define stasis_message_router_create_pool(topic) __stasis_message_router_create_pool(topic, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 /*!
  * \brief Unsubscribe the router from the upstream topic.
@@ -104,9 +104,9 @@ void stasis_message_router_unsubscribe_and_join(
  *
  * \param router Router.
  *
- * \return True (non-zero) if stasis_subscription_final_message() has been
+ * \retval True (non-zero) if stasis_subscription_final_message() has been
  *         received.
- * \return False (zero) if waiting for the end.
+ * \retval False (zero) if waiting for the end.
  */
 int stasis_message_router_is_done(struct stasis_message_router *router);
 
@@ -155,7 +155,7 @@ int stasis_message_router_set_congestion_limits(struct stasis_message_router *ro
  *
  * \param router Router to add the route to.
  * \param message_type Type of message to route.
- * \param callback Callback to forard messages of \a message_type to.
+ * \param callback Callback to forward messages of \a message_type to.
  * \param data Data pointer to pass to \a callback.
  *
  * \retval 0 on success
@@ -179,7 +179,7 @@ int stasis_message_router_add(struct stasis_message_router *router,
  *
  * \param router Router to add the route to.
  * \param message_type Subtype of cache update to route.
- * \param callback Callback to forard messages of \a message_type to.
+ * \param callback Callback to forward messages of \a message_type to.
  * \param data Data pointer to pass to \a callback.
  *
  * \retval 0 on success

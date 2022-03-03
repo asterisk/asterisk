@@ -211,8 +211,8 @@ AC_COMPILE_IFELSE(
 AC_SUBST(CONFIG_SIGNED_CHAR)
 
 #  check for uname
-AC_PATH_TOOL([UNAME], [uname], No)
-if test ! x"${UNAME}" = xNo; then
+AC_PATH_TOOL([UNAME], [uname], :)
+if test "x${UNAME}" != "x:"; then
    PBX_OSREV=$(${UNAME} -r)
 fi
 AC_SUBST(PBX_OSREV)
@@ -285,21 +285,23 @@ AC_PATH_PROG([TAR], [tar], :)
 AC_PATH_PROG([PATCH], [patch], :)
 AC_PATH_PROG([SED], [sed], :)
 AC_PATH_PROG([NM], [nm], :)
+AC_PATH_PROG([REALPATH], [realpath], :)
+
 
 DOWNLOAD=":"
 DOWNLOAD_TO_STDOUT=
 DOWNLOAD_TIMEOUT=
-if test "${WGET}" != ":" ; then
+if test "x${WGET}" != "x:"; then
   DOWNLOAD=${WGET}
   DOWNLOAD_TO_STDOUT="${WGET} -q -O-"
   DOWNLOAD_TIMEOUT='--timeout=$1'
-elif test "${CURL}" != ":" ; then
+elif test "x${CURL}" != "x:"; then
   DOWNLOAD="${CURL} -O --progress-bar -w \"%{url_effective}\n\""
   DOWNLOAD_TO_STDOUT="${CURL} -Ls"
   DOWNLOAD_TIMEOUT='--max-time $(or $2,$1)'
 else
   AC_PATH_PROG([FETCH], [fetch], :)
-  if test "${FETCH}" != ":" ; then
+  if test "x${FETCH}" != "x:"; then
     DOWNLOAD=${FETCH}
     DOWNLOAD_TO_STDOUT="${FETCH} -o-"
     DOWNLOAD_TIMEOUT='--timeout=$(or $2,$1)'
@@ -312,6 +314,8 @@ AC_SUBST(DOWNLOAD_TIMEOUT)
 AC_PATH_PROG([LDCONFIG], [ldconfig], :)
 AC_PATH_PROG([SHA1SUM], [sha1sum], $ac_aux_dir/build_tools/sha1sum-sh)
 AC_PATH_PROG([OPENSSL], [openssl], :)
+
+PKG_PROG_PKG_CONFIG()
 
 AC_CACHE_CHECK([for bison that supports parse-param], [ac_cv_path_BISON2], [
 	if test "x$BISON" != "x:" ; then
@@ -349,29 +353,30 @@ else
 	PBX_BISON=1
 fi
 AC_SUBST(PBX_BISON)
-if test "x${FLEX}" = "x:" ; then
+
+if test "${FLEX}" = ":"; then
 	PBX_FLEX=0
 else
 	PBX_FLEX=1
 fi
 AC_SUBST(PBX_FLEX)
 
-if test "x${XMLSTARLET}" = "x:" ; then
+if test "${XMLSTARLET}" = ":"; then
 	PBX_XMLSTARLET=0
 else
 	PBX_XMLSTARLET=1
 fi
 AC_SUBST(PBX_XMLSTARLET)
 
-if test "x${BASH}" = "x:" ; then
+if test "${BASH}" = ":"; then
 	PBX_BASH=0
 else
 	PBX_BASH=1
 fi
 AC_SUBST(PBX_BASH)
 
-AC_CHECK_TOOL([SOXMIX], [soxmix], [:])
-if test "${SOXMIX}" != ":" ; then
+AC_CHECK_TOOL([SOXMIX], [soxmix], :)
+if test "x${SOXMIX}" != "x:"; then
 	AC_DEFINE([HAVE_SOXMIX], 1, [Define to 1 if your system has soxmix application.])
 fi
 
@@ -439,7 +444,7 @@ AC_ARG_WITH([jansson-bundled],
 	[AS_HELP_STRING([--with-jansson-bundled],
 		[Use bundled jansson library])],
 	[case "${withval}" in
-		y|yes) JANSSON_BUNDLED=yes ;;
+		y|ye|yes) JANSSON_BUNDLED=yes ;;
 		*) JANSSON_BUNDLED=no ;;
 	esac])
 
@@ -454,9 +459,55 @@ AC_ARG_WITH([pjproject-bundled],
 	      *) PJPROJECT_BUNDLED=yes ;;
 	esac])
 
-if test "${with_pjproject}" == "no" || test "${with_pjproject}" == "n" ; then
+if test "${with_pjproject}" = "no" || test "${with_pjproject}" = "n" ; then
 	PJPROJECT_BUNDLED=no
 fi
+
+#
+# OpenSSL stuff has to be done here because we want to pass
+# any resulting CFLAGS and LDFLAGS to the bundled pjproject
+# configure done in THIRD_PARTY_CONFIGURE()
+#
+AST_EXT_LIB_SETUP([CRYPTO], [OpenSSL Cryptography], [crypto])
+AST_EXT_LIB_SETUP([OPENSSL], [OpenSSL Secure Sockets Layer], [ssl])
+AST_EXT_LIB_SETUP_OPTIONAL([OPENSSL_BIO_METHOD], [OpenSSL BIO Method Support], [CRYPTO], [crypto])
+
+# If neither --without-ssl (PBX_OPENSSL=-1) nor --without-crypto (PBX_CRYPTO=-1)
+# and there were no directories atdded to --with-ssl and --with-crypto, and
+# pkg-config is installed (which is should be by install_prereq).
+if test "x$PKG_CONFIG" != "x" -a $PBX_OPENSSL -ge 0 -a $PBX_CRYPTO -ge 0 -a "x$OPENSSL_DIR" = "x" ; then
+	AC_MSG_NOTICE(checking OPENSSL with pkg-config)
+	AC_MSG_NOTICE(checking whether system openssl > 1.1.0)
+	AST_PKG_CONFIG_CHECK([OPENSSL], [openssl >= 1.1.0])
+	if test $PBX_OPENSSL -eq 0 ; then
+		AC_MSG_NOTICE(checking whether alternate openssl11 is installed)
+		AST_PKG_CONFIG_CHECK([OPENSSL], [openssl11])
+	fi
+	if test $PBX_OPENSSL -eq 1 ; then
+		AC_DEFINE([HAVE_OPENSSL_BIO_METHOD], 1)
+		PBX_OPENSSL_BIO_METHOD=1
+	else
+		AC_MSG_NOTICE(checking fallback system openssl)
+		AST_PKG_CONFIG_CHECK([OPENSSL], [openssl])
+	fi
+
+	if test $PBX_OPENSSL -eq 1; then
+		AC_DEFINE([HAVE_CRYPTO], 1)
+		PBX_CRYPTO=1
+	fi
+else
+	AC_MSG_NOTICE(Checking OPENSSL without pkg-config)
+	AST_EXT_LIB_CHECK([CRYPTO], [crypto], [AES_encrypt], [openssl/aes.h])
+	if test "$PBX_CRYPTO" = "1";
+	then
+		AST_EXT_LIB_CHECK([OPENSSL], [ssl], [SSL_connect], [openssl/ssl.h], [-lcrypto])
+		AST_EXT_LIB_CHECK([OPENSSL_BIO_METHOD], [ssl], [BIO_meth_new], [openssl/ssl.h], [-lcrypto])
+	fi
+fi
+if test $PBX_OPENSSL -eq 0 ; then
+	AC_MSG_WARN(OpenSSL does not seem to be installed)
+fi
+
 
 THIRD_PARTY_CONFIGURE()
 
@@ -482,9 +533,6 @@ AST_EXT_LIB_SETUP([CODEC2], [Codec 2 Audio Decoder/Encoder], [codec2])
 AST_EXT_LIB_SETUP([COROSYNC], [Corosync], [cpg])
 AST_EXT_LIB_SETUP_OPTIONAL([COROSYNC_CFG_STATE_TRACK], [A callback only in corosync 1.x], [COROSYNC], [cfg])
 AST_EXT_LIB_SETUP([CRYPT], [password and data encryption], [crypt])
-AST_EXT_LIB_SETUP([CRYPTO], [OpenSSL Cryptography], [crypto])
-AST_EXT_LIB_SETUP_OPTIONAL([OPENSSL_SRTP], [OpenSSL SRTP Extension Support], [CRYPTO], [crypto])
-AST_EXT_LIB_SETUP_OPTIONAL([OPENSSL_BIO_METHOD], [OpenSSL BIO Method Support], [CRYPTO], [crypto])
 AST_EXT_LIB_SETUP([DAHDI], [DAHDI], [dahdi])
 AST_EXT_LIB_SETUP([FFMPEG], [Ffmpeg and avcodec], [avcodec])
 AST_EXT_LIB_SETUP([GSM], [External GSM], [gsm], [, use 'internal' GSM otherwise])
@@ -594,7 +642,6 @@ AST_EXT_LIB_SETUP_OPTIONAL([SRTP_192], [SRTP Library AES-192 (ICM)], [SRTP], [sr
 AST_EXT_LIB_SETUP_OPTIONAL([SRTP_GCM], [SRTP Library AES-128 (GCM) and AES-256 (GCM)], [SRTP], [srtp])
 AST_EXT_LIB_SETUP_OPTIONAL([SRTP_SHUTDOWN], [SRTP Library Shutdown Function], [SRTP], [srtp])
 AST_EXT_LIB_SETUP_OPTIONAL([SRTP_GET_VERSION], [SRTP Library Version Function], [SRTP], [srtp])
-AST_EXT_LIB_SETUP([OPENSSL], [OpenSSL Secure Sockets Layer], [ssl])
 AST_EXT_LIB_SETUP_OPTIONAL([RT], [Realtime functions], [rt])
 AST_EXT_LIB_SETUP([SUPPSERV], [mISDN Supplemental Services], [suppserv])
 AST_EXT_LIB_SETUP([FREETDS], [FreeTDS], [tds])
@@ -640,8 +687,6 @@ AC_CHECK_HEADERS([ \
 ])
 
 AC_CHECK_HEADERS([arpa/inet.h libintl.h malloc.h netdb.h stddef.h strings.h sys/event.h utime.h])
-
-PKG_PROG_PKG_CONFIG()
 
 # Find required NetBSD Editline library (libedit).
 AST_PKG_CONFIG_CHECK(LIBEDIT, libedit)
@@ -740,7 +785,7 @@ AC_ARG_ENABLE([permanent-dlopen],
 	esac], [PERMANENT_DLOPEN=no])
 
 AC_SUBST([PERMANENT_DLOPEN])
-if test "${PERMANENT_DLOPEN}" == "yes"; then
+if test "${PERMANENT_DLOPEN}" = "yes"; then
 	AC_DEFINE([HAVE_PERMANENT_DLOPEN], 1, [Define to support libc with permanent dlopen.])
 fi
 
@@ -907,28 +952,38 @@ AC_LINK_IFELSE(
 		AC_MSG_RESULT(no)
 )
 
-# some systems already have gethostbyname_r so we don't need to build ours in main/utils.c
-AC_SEARCH_LIBS(gethostbyname_r, [socket nsl])
-
-AC_MSG_CHECKING(for gethostbyname_r with 6 arguments)
-AC_LINK_IFELSE(
-        [AC_LANG_PROGRAM([#include <stdlib.h>
-                         #include <netdb.h>],
-                        [struct hostent *he = gethostbyname_r((const char *)NULL, (struct hostent *)NULL, (char *)NULL, (int)0, (struct hostent **)NULL, (int *)NULL);])],
-        AC_MSG_RESULT(yes)
-        AC_DEFINE([HAVE_GETHOSTBYNAME_R_6], 1, [Define to 1 if your system has gethostbyname_r with 6 arguments.]),
-        AC_MSG_RESULT(no)
+# NetBSD libc ships with an internal-only incompatible symbol gethostbyname_r
+AC_CHECK_DECLS([gethostbyname_r],
+        [have_gethostbyname_r_public_declaration=yes],
+        [have_gethostbyname_r_public_declaration=no],
+        [#include <stdlib.h>
+         #include <netdb.h>]
 )
 
-AC_MSG_CHECKING(for gethostbyname_r with 5 arguments)
-AC_LINK_IFELSE(
-        [AC_LANG_PROGRAM([#include <stdlib.h>
-	                 #include <netdb.h>],
-                        [struct hostent *he = gethostbyname_r((const char *)NULL, (struct hostent *)NULL, (char *)NULL, (int)0, (int *)NULL);])],
-        AC_MSG_RESULT(yes)
-        AC_DEFINE([HAVE_GETHOSTBYNAME_R_5], 1, [Define to 1 if your system has gethostbyname_r with 5 arguments.]),
-        AC_MSG_RESULT(no)
-)
+if test "x$have_gethostbyname_r_public_declaration" = "xyes"; then
+        # some systems already have gethostbyname_r so we don't need to build ours in main/utils.c
+        AC_SEARCH_LIBS(gethostbyname_r, [socket nsl])
+
+        AC_MSG_CHECKING(for gethostbyname_r with 6 arguments)
+        AC_LINK_IFELSE(
+                [AC_LANG_PROGRAM([#include <stdlib.h>
+                                 #include <netdb.h>],
+                                [struct hostent *he = gethostbyname_r((const char *)NULL, (struct hostent *)NULL, (char *)NULL, (int)0, (struct hostent **)NULL, (int *)NULL);])],
+                AC_MSG_RESULT(yes)
+                AC_DEFINE([HAVE_GETHOSTBYNAME_R_6], 1, [Define to 1 if your system has gethostbyname_r with 6 arguments.]),
+                AC_MSG_RESULT(no)
+        )
+
+        AC_MSG_CHECKING(for gethostbyname_r with 5 arguments)
+        AC_LINK_IFELSE(
+                [AC_LANG_PROGRAM([#include <stdlib.h>
+	                         #include <netdb.h>],
+                                [struct hostent *he = gethostbyname_r((const char *)NULL, (struct hostent *)NULL, (char *)NULL, (int)0, (int *)NULL);])],
+                AC_MSG_RESULT(yes)
+                AC_DEFINE([HAVE_GETHOSTBYNAME_R_5], 1, [Define to 1 if your system has gethostbyname_r with 5 arguments.]),
+                AC_MSG_RESULT(no)
+        )
+fi
 
 AC_CHECK_HEADER([byteswap.h], [AC_DEFINE_UNQUOTED([HAVE_BYTESWAP_H], 1, [Define to 1 if byteswap.h macros are available.])])
 
@@ -1470,7 +1525,8 @@ AC_LINK_IFELSE(
 		AC_MSG_RESULT(yes)
 		AC_DEFINE([HAVE_RES_CLOSE], 1, [Define to 1 if your system has the close resolver function.]),
 		AC_MSG_RESULT(no)
-	),
+	)
+	AC_CHECK_MEMBERS([struct __res_state._u._ext.nsaddrs], [], [], [[#include <resolv.h>]]),
 	AC_MSG_RESULT(no)
 )
 
@@ -2315,6 +2371,7 @@ AST_EXT_TOOL_CHECK([NEON29], [neon-config], , [--libs],
 #error Need libneon >= 0.29.0
 #endif])
 
+AST_PKG_CONFIG_CHECK(NETSNMP, netsnmp-agent)
 AST_EXT_TOOL_CHECK([NETSNMP], [net-snmp-config], , [--agent-libs],
 [#include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-includes.h>
@@ -2353,11 +2410,11 @@ AST_EXT_LIB_CHECK([OSS], [ossaudio], [], [linux/soundcard.h])
 AST_EXT_LIB_CHECK([OSS], [ossaudio], [], [sys/soundcard.h])
 AST_EXT_LIB_CHECK([OSS], [ossaudio], [oss_ioctl_mixer], [soundcard.h])
 
-PG_CONFIG=No
+PG_CONFIG=":"
 if test "${USE_PGSQL}" != "no"; then
    if test "x${PGSQL_DIR}" != "x"; then
-      AC_PATH_TOOL([PG_CONFIG], [pg_config], No, [${PGSQL_DIR}/bin])
-      if test x"${PG_CONFIG}" = xNo; then
+      AC_PATH_TOOL([PG_CONFIG], [pg_config], :, [${PGSQL_DIR}/bin])
+      if test "${PG_CONFIG}" = ":"; then
          AC_MSG_NOTICE([***])
          AC_MSG_NOTICE([*** pg_config was not found in the path you specified:])
          AC_MSG_NOTICE([*** ${PGSQL_DIR}/bin])
@@ -2366,10 +2423,10 @@ if test "${USE_PGSQL}" != "no"; then
          exit 1
       fi
    else
-      AC_PATH_TOOL([PG_CONFIG], [pg_config], No)
+      AC_PATH_TOOL([PG_CONFIG], [pg_config], :)
    fi
 fi
-if test "${PG_CONFIG}" != No; then
+if test "x${PG_CONFIG}" != "x:"; then
    PGSQL_libdir=`${PG_CONFIG} --libdir`
    PGSQL_includedir=`${PG_CONFIG} --includedir`
    if test "x$?" != "x0" ; then
@@ -2648,14 +2705,6 @@ AC_SUBST(CRYPT_INCLUDE)
 AC_CHECK_LIB([crypt], [crypt_r],
     [AC_DEFINE([HAVE_CRYPT_R], [1], [Define to 1 if you have the 'crypt_r' function.])])
 
-AST_EXT_LIB_CHECK([CRYPTO], [crypto], [AES_encrypt], [openssl/aes.h])
-
-if test "$PBX_CRYPTO" = "1";
-then
-	AST_EXT_LIB_CHECK([OPENSSL], [ssl], [SSL_connect], [openssl/ssl.h], [-lcrypto])
-	AST_EXT_LIB_CHECK([OPENSSL_BIO_METHOD], [ssl], [BIO_meth_new], [openssl/ssl.h], [-lcrypto])
-fi
-
 if test "$PBX_OPENSSL" = "1";
 then
         AST_CHECK_OSPTK([4], [0], [0])
@@ -2916,7 +2965,7 @@ fi
 AC_OUTPUT
 
 ${ac_cv_path_EGREP} 'CURSES|GTK2|OSARCH|NEWT' makeopts > makeopts.acbak2
-if test "x${ac_cv_path_CMP}" = "x:"; then
+if test "${ac_cv_path_CMP}" = ":"; then
 	( cd "`pwd`/menuselect" && ./configure )
 elif ${ac_cv_path_CMP} -s makeopts.acbak makeopts.acbak2; then : ; else
 	( cd "`pwd`/menuselect" && ./configure )

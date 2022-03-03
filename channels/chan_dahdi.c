@@ -226,7 +226,7 @@
 				canceller on the channel (if any), for the current call
 				only.</para>
 				<para>Possible values are:</para>
-				<para>	<literal>on</literal>	Normal mode (the echo canceller is actually reinitalized)</para>
+				<para>	<literal>on</literal>	Normal mode (the echo canceller is actually reinitialized)</para>
 				<para>	<literal>off</literal>	Disabled</para>
 				<para>	<literal>fax</literal>	FAX/data mode (NLP disabled if possible, otherwise
 					completely disabled)</para>
@@ -952,6 +952,10 @@ static struct dahdi_chan_conf dahdi_chan_conf_default(void)
 			.mohsuggest = "",
 			.parkinglot = "",
 			.transfertobusy = 1,
+
+			.ani_info_digits = 2,
+			.ani_wink_time = 1000,
+			.ani_timeout = 10000,
 
 			.cid_signalling = CID_SIG_BELL,
 			.cid_start = CID_START_RING,
@@ -1795,8 +1799,6 @@ static void publish_dahdichannel(struct ast_channel *chan, ast_group_t group, in
  *
  * \param p DAHDI private pointer
  * \param chan Channel associated with the private pointer
- *
- * \return Nothing
  */
 static void dahdi_ami_channel_event(struct dahdi_pvt *p, struct ast_channel *chan)
 {
@@ -1823,8 +1825,6 @@ static void dahdi_ami_channel_event(struct dahdi_pvt *p, struct ast_channel *cha
  *
  * \param pvt DAHDI private pointer
  * \param chan Channel associated with the private pointer
- *
- * \return Nothing
  */
 static void my_ami_channel_event(void *pvt, struct ast_channel *chan)
 {
@@ -2217,6 +2217,7 @@ static void my_swap_subchannels(void *pvt, enum analog_sub a, struct ast_channel
  * \note this variant of dahdi should only be used in conjunction with ast_callid_threadstorage_auto()
  *
  * \param callid_created value returned from ast_callid_threadstorage_auto()
+ * \param i, state, startpbx, idx, law, assignedids, requestor, callid
  */
 static struct ast_channel *dahdi_new_callid_clean(struct dahdi_pvt *i, int state, int startpbx, int idx, int law, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, ast_callid callid, int callid_created);
 
@@ -2302,8 +2303,6 @@ static int set_actual_gain(int fd, float rxgain, float txgain, float rxdrc, floa
  * \since 1.8
  *
  * \param p Channel private control structure.
- *
- * \return Nothing
  */
 static void my_pri_ss7_open_media(void *p)
 {
@@ -2355,8 +2354,6 @@ static void my_pri_ss7_open_media(void *p)
  * \param dial_string String to pass to DAHDI to dial.
  *
  * \note The channel private lock needs to be held when calling.
- *
- * \return Nothing
  */
 static void my_pri_dial_digits(void *p, const char *dial_string)
 {
@@ -2815,8 +2812,6 @@ static int my_pri_play_tone(void *pvt, enum sig_pri_tone tone)
  *
  * \param pvt DAHDI private structure
  * \param caller Caller-id information to set.
- *
- * \return Nothing
  */
 static void my_set_callerid(void *pvt, const struct ast_party_caller *caller)
 {
@@ -2851,8 +2846,6 @@ static void my_set_callerid(void *pvt, const struct ast_party_caller *caller)
  *
  * \param pvt DAHDI private structure
  * \param dnid Dialed Number Identifier string.
- *
- * \return Nothing
  */
 static void my_set_dnid(void *pvt, const char *dnid)
 {
@@ -2870,8 +2863,6 @@ static void my_set_dnid(void *pvt, const char *dnid)
  *
  * \param pvt DAHDI private structure
  * \param rdnis Redirecting Directory Number Information Service (RDNIS) string.
- *
- * \return Nothing
  */
 static void my_set_rdnis(void *pvt, const char *rdnis)
 {
@@ -2893,18 +2884,20 @@ static void my_set_rdnis(void *pvt, const char *rdnis)
  *
  * \details
  * original dialstring:
- * DAHDI/[i<span>-](g|G|r|R)<group#(0-63)>[c|r<cadance#>|d][/extension[/options]]
+ * \verbatim
+   DAHDI/[i<span>-](g|G|r|R)<group#(0-63)>[c|r<cadence#>|d][/extension[/options]]
+   \endverbatim
  *
  * The modified dialstring will have prefixed the channel-group section
  * with the ISDN channel restriction.
  *
  * buf:
- * DAHDI/i<span>-(g|G|r|R)<group#(0-63)>[c|r<cadance#>|d][/extension[/options]]
+ * \verbatim
+   DAHDI/i<span>-(g|G|r|R)<group#(0-63)>[c|r<cadence#>|d][/extension[/options]]
+   \endverbatim
  *
  * The routine will check to see if the ISDN channel restriction is already
  * in the original dialstring.
- *
- * \return Nothing
  */
 static void my_pri_make_cc_dialstring(void *priv, char *buf, size_t buf_size)
 {
@@ -2948,8 +2941,6 @@ static void my_pri_make_cc_dialstring(void *priv, char *buf, size_t buf_size)
  * \since 1.8
  *
  * \param pri Asterisk D channel control structure.
- *
- * \return Nothing
  *
  * \note Assumes the pri->lock is already obtained.
  */
@@ -3014,8 +3005,6 @@ static void dahdi_pri_update_span_devstate(struct sig_pri_span *pri)
  * \internal
  * \brief Reference this module.
  * \since 1.8
- *
- * \return Nothing
  */
 static void my_module_ref(void)
 {
@@ -3028,8 +3017,6 @@ static void my_module_ref(void)
  * \internal
  * \brief Unreference this module.
  * \since 1.8
- *
- * \return Nothing
  */
 static void my_module_unref(void)
 {
@@ -3085,8 +3072,6 @@ struct sig_pri_callback sig_pri_callbacks =
  *
  * \param linkset Controlling linkset for the channel.
  * \param which Link index of the signaling channel.
- *
- * \return Nothing
  */
 static void my_handle_link_exception(struct sig_ss7_linkset *linkset, int which)
 {
@@ -3166,9 +3151,10 @@ static struct sig_ss7_linkset *my_ss7_find_linkset(struct ss7 *ss7)
  *
  * \param pvt Private channel structure.
  * \param state Initial state of new channel.
- * \param law Combanding law to use.
+ * \param law Companding law to use.
  * \param exten Dialplan extension for incoming call.
  * \param requestor Channel requesting this new channel.
+ * \param assignedids
  *
  * \retval ast_channel on success.
  * \retval NULL on error.
@@ -3278,8 +3264,6 @@ struct sig_ss7_callback sig_ss7_callbacks =
  *      MWI state has changed on.
  * \param thereornot This argument should simply be set to 1 or 0, to indicate
  *      whether there are messages waiting or not.
- *
- *  \return nothing
  *
  * This function does two things:
  *
@@ -3459,8 +3443,6 @@ int _dahdi_get_index(struct ast_channel *ast, struct dahdi_pvt *p, int nullok, c
  * \note
  * Because deadlock avoidance may have been necessary, you need to confirm
  * the state of things before continuing.
- *
- * \return Nothing
  */
 static void dahdi_lock_sub_owner(struct dahdi_pvt *pvt, int sub_idx)
 {
@@ -4403,7 +4385,7 @@ static char *dahdi_sig2str(int sig)
 	case SIG_FEATDMF:
 		return "Feature Group D (MF)";
 	case SIG_FEATDMF_TA:
-		return "Feature Groud D (MF) Tandem Access";
+		return "Feature Group D (MF) Tandem Access";
 	case SIG_FEATB:
 		return "Feature Group B (MF)";
 	case SIG_E911:
@@ -5276,8 +5258,6 @@ static int dahdi_call(struct ast_channel *ast, const char *rdest, int timeout)
  * Any duplicates are inserted after the existing entries.
  *
  * \note The new interface must not already be in the list.
- *
- * \return Nothing
  */
 static void dahdi_iflist_insert(struct dahdi_pvt *pvt)
 {
@@ -5326,8 +5306,6 @@ static void dahdi_iflist_insert(struct dahdi_pvt *pvt)
  * \note
  * The given interface structure can be either in the interface list or a stand alone
  * structure that has not been put in the list if the next and prev pointers are NULL.
- *
- * \return Nothing
  */
 static void dahdi_iflist_extract(struct dahdi_pvt *pvt)
 {
@@ -5367,8 +5345,6 @@ static void dahdi_iflist_extract(struct dahdi_pvt *pvt)
  * Any duplicates are inserted after the existing entries.
  *
  * \note The new interface must not already be in the list.
- *
- * \return Nothing
  */
 static void dahdi_nobch_insert(struct sig_pri_span *pri, struct dahdi_pvt *pvt)
 {
@@ -5420,8 +5396,6 @@ static void dahdi_nobch_insert(struct sig_pri_span *pri, struct dahdi_pvt *pvt)
  * \note
  * The given interface structure can be either in the interface list or a stand alone
  * structure that has not been put in the list if the next and prev pointers are NULL.
- *
- * \return Nothing
  */
 static void dahdi_nobch_extract(struct sig_pri_span *pri, struct dahdi_pvt *pvt)
 {
@@ -5455,8 +5429,6 @@ static void dahdi_nobch_extract(struct sig_pri_span *pri, struct dahdi_pvt *pvt)
  * \since 1.8
  *
  * \param pvt chan_dahdi private interface structure to unlink.
- *
- * \return Nothing
  */
 static void dahdi_unlink_pri_pvt(struct dahdi_pvt *pvt)
 {
@@ -5487,8 +5459,6 @@ static void dahdi_unlink_pri_pvt(struct dahdi_pvt *pvt)
  * \since 1.8
  *
  * \param pvt chan_dahdi private interface structure to unlink.
- *
- * \return Nothing
  */
 static void dahdi_unlink_ss7_pvt(struct dahdi_pvt *pvt)
 {
@@ -5518,8 +5488,6 @@ static void dahdi_unlink_ss7_pvt(struct dahdi_pvt *pvt)
  * \brief Unlink the channel interface from the MFC/R2 private pointer array.
  *
  * \param pvt chan_dahdi private interface structure to unlink.
- *
- * \return Nothing
  */
 static void dahdi_unlink_mfcr2_pvt(struct dahdi_pvt *pvt)
 {
@@ -6184,7 +6152,7 @@ static int dahdi_hangup(struct ast_channel *ast)
 				ast_debug(1, "Normal call hung up with both three way call and a call waiting call in place?\n");
 				if (p->subs[SUB_CALLWAIT].inthreeway) {
 					/* We had flipped over to answer a callwait and now it's gone */
-					ast_debug(1, "We were flipped over to the callwait, moving back and unowning.\n");
+					ast_debug(1, "We were flipped over to the callwait, moving back and not owning.\n");
 					/* Move to the call-wait, but un-own us until they flip back. */
 					swap_subs(p, SUB_CALLWAIT, SUB_REAL);
 					unalloc_sub(p, SUB_CALLWAIT);
@@ -12839,6 +12807,9 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 
 		tmp->polarityonanswerdelay = conf->chan.polarityonanswerdelay;
 		tmp->answeronpolarityswitch = conf->chan.answeronpolarityswitch;
+		tmp->ani_info_digits = conf->chan.ani_info_digits;
+		tmp->ani_wink_time = conf->chan.ani_wink_time;
+		tmp->ani_timeout = conf->chan.ani_timeout;
 		tmp->hanguponpolarityswitch = conf->chan.hanguponpolarityswitch;
 		tmp->sendcalleridafter = conf->chan.sendcalleridafter;
 		ast_cc_copy_config_params(tmp->cc_params, conf->chan.cc_params);
@@ -12944,6 +12915,9 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 				analog_p->channel = tmp->channel;
 				analog_p->polarityonanswerdelay = conf->chan.polarityonanswerdelay;
 				analog_p->answeronpolarityswitch = conf->chan.answeronpolarityswitch;
+				analog_p->ani_info_digits = conf->chan.ani_info_digits;
+				analog_p->ani_timeout = conf->chan.ani_timeout;
+				analog_p->ani_wink_time = conf->chan.ani_wink_time;
 				analog_p->hanguponpolarityswitch = conf->chan.hanguponpolarityswitch;
 				analog_p->permcallwaiting = conf->chan.callwaiting; /* permcallwaiting possibly modified in analog_config_complete */
 				analog_p->callreturn = conf->chan.callreturn;
@@ -13119,8 +13093,6 @@ static int available(struct dahdi_pvt **pvt, int is_specific_channel)
  * \param pri sig_pri PRI control structure.
  *
  * \note Assumes the pri->lock is already obtained.
- *
- * \return Nothing
  */
 static void my_pri_init_config(void *priv, struct sig_pri_span *pri)
 {
@@ -13318,8 +13290,8 @@ struct dahdi_starting_point {
 	int rr_starting_point;
 	/*! ISDN span where channels can be picked (Zero if not specified) */
 	int span;
-	/*! Analog channel distinctive ring cadance index. */
-	int cadance;
+	/*! Analog channel distinctive ring cadence index. */
+	int cadence;
 	/*! Dialing option. c/r/d if present and valid. */
 	char opt;
 	/*! TRUE if to search the channel list backwards. */
@@ -13345,10 +13317,10 @@ static struct dahdi_pvt *determine_starting_point(const char *data, struct dahdi
 	/*
 	 * data is ---v
 	 * Dial(DAHDI/pseudo[/extension[/options]])
-	 * Dial(DAHDI/<channel#>[c|r<cadance#>|d][/extension[/options]])
-	 * Dial(DAHDI/<subdir>!<channel#>[c|r<cadance#>|d][/extension[/options]])
+	 * Dial(DAHDI/<channel#>[c|r<cadence#>|d][/extension[/options]])
+	 * Dial(DAHDI/<subdir>!<channel#>[c|r<cadence#>|d][/extension[/options]])
 	 * Dial(DAHDI/i<span>[/extension[/options]])
-	 * Dial(DAHDI/[i<span>-](g|G|r|R)<group#(0-63)>[c|r<cadance#>|d][/extension[/options]])
+	 * Dial(DAHDI/[i<span>-](g|G|r|R)<group#(0-63)>[c|r<cadence#>|d][/extension[/options]])
 	 *
 	 * i - ISDN span channel restriction.
 	 *     Used by CC to ensure that the CC recall goes out the same span.
@@ -13361,7 +13333,7 @@ static struct dahdi_pvt *determine_starting_point(const char *data, struct dahdi
 	 * R - channel group allocation round robin search backward
 	 *
 	 * c - Wait for DTMF digit to confirm answer
-	 * r<cadance#> - Set distintive ring cadance number
+	 * r<cadence#> - Set distinctive ring cadence number
 	 * d - Force bearer capability for ISDN/SS7 call to digital.
 	 */
 
@@ -13411,7 +13383,7 @@ static struct dahdi_pvt *determine_starting_point(const char *data, struct dahdi
 	if (toupper(args.group[0]) == 'G' || toupper(args.group[0])=='R') {
 		/* Retrieve the group number */
 		s = args.group + 1;
-		res = sscanf(s, "%30d%1c%30d", &x, &param->opt, &param->cadance);
+		res = sscanf(s, "%30d%1c%30d", &x, &param->opt, &param->cadence);
 		if (res < 1) {
 			ast_log(LOG_WARNING, "Unable to determine group for data %s\n", data);
 			return NULL;
@@ -13450,7 +13422,7 @@ static struct dahdi_pvt *determine_starting_point(const char *data, struct dahdi
 			x = CHAN_PSEUDO;
 			param->channelmatch = x;
 		} else {
-			res = sscanf(s, "%30d%1c%30d", &x, &param->opt, &param->cadance);
+			res = sscanf(s, "%30d%1c%30d", &x, &param->opt, &param->cadence);
 			if (res < 1) {
 				ast_log(LOG_WARNING, "Unable to determine channel for data %s\n", data);
 				return NULL;
@@ -13556,7 +13528,7 @@ static struct ast_channel *dahdi_request(const char *type, struct ast_format_cap
 				break;
 			case 'r':
 				/* Distinctive ring */
-				p->distinctivering = start.cadance;
+				p->distinctivering = start.cadence;
 				break;
 			case 'd':
 #if defined(HAVE_PRI) || defined(HAVE_SS7)
@@ -17493,8 +17465,6 @@ static int dahdi_pri_cc_agent_init(struct ast_cc_agent *agent, struct ast_channe
  * \details
  * The core will call this function upon completion
  * or failure of CC.
- *
- * \return Nothing
  */
 static void dahdi_pri_cc_agent_destructor(struct ast_cc_agent *agent)
 {
@@ -17690,7 +17660,7 @@ static int build_channels(struct dahdi_chan_conf *conf, const char *value, int r
 			return -1;
 		}
 		if (finish < start) {
-			ast_log(LOG_WARNING, "Sillyness: %d < %d\n", start, finish);
+			ast_log(LOG_WARNING, "Silliness: %d < %d\n", start, finish);
 			x = finish;
 			finish = start;
 			start = x;
@@ -18241,6 +18211,12 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 			confp->chan.polarityonanswerdelay = atoi(v->value);
 		} else if (!strcasecmp(v->name, "answeronpolarityswitch")) {
 			confp->chan.answeronpolarityswitch = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "ani_info_digits")) {
+			confp->chan.ani_info_digits = atoi(v->value);
+		} else if (!strcasecmp(v->name, "ani_wink_time")) {
+			confp->chan.ani_wink_time = atoi(v->value);
+		} else if (!strcasecmp(v->name, "ani_timeout")) {
+			confp->chan.ani_timeout = atoi(v->value);
 		} else if (!strcasecmp(v->name, "hanguponpolarityswitch")) {
 			confp->chan.hanguponpolarityswitch = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "sendcalleridafter")) {
@@ -19320,8 +19296,6 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
  *
  * \param dest Destination.
  * \param src Source.
- *
- * \return Nothing
  */
 static void deep_copy_dahdi_chan_conf(struct dahdi_chan_conf *dest, const struct dahdi_chan_conf *src)
 {

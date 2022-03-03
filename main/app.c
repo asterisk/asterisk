@@ -23,10 +23,9 @@
  * \author Mark Spencer <markster@digium.com>
  */
 
-/** \example
- * \par This is an example of how to develop an app.
+/*!
  * Application Skeleton is an example of creating an application for Asterisk.
- * \verbinclude app_skel.c
+ * \example app_skel.c
  */
 
 /*** MODULEINFO
@@ -84,12 +83,14 @@ static AST_LIST_HEAD_STATIC(zombies, zombie);
 #ifdef HAVE_CAP
 static cap_t child_cap;
 #endif
-/*
- * @{ \brief Define \ref stasis topic objects
+/*!
+ * \brief Define \ref stasis topic objects
+ * @{
  */
 static struct stasis_topic *queue_topic_all;
 static struct stasis_topic_pool *queue_topic_pool;
-/* @} */
+
+/*! @} */
 
 static void *shaun_of_the_dead(void *data)
 {
@@ -133,8 +134,6 @@ static AST_RWLIST_HEAD_STATIC(groups, ast_group_info);
  * \param size
  * \param maxlen
  * \param timeout timeout in milliseconds
- *
- * \return 0 if extension does not exist, 1 if extension exists
 */
 int ast_app_dtget(struct ast_channel *chan, const char *context, char *collect, size_t size, int maxlen, int timeout)
 {
@@ -186,15 +185,13 @@ int ast_app_dtget(struct ast_channel *chan, const char *context, char *collect, 
 	return res;
 }
 
-/*!
- * \brief ast_app_getdata
- * \param c The channel to read from
- * \param prompt The file to stream to the channel
- * \param s The string to read in to.  Must be at least the size of your length
- * \param maxlen How many digits to read (maximum)
- * \param timeout set timeout to 0 for "standard" timeouts. Set timeout to -1 for
- *      "ludicrous time" (essentially never times out) */
 enum ast_getdata_result ast_app_getdata(struct ast_channel *c, const char *prompt, char *s, int maxlen, int timeout)
+{
+	return ast_app_getdata_terminator(c, prompt, s, maxlen, timeout, NULL);
+}
+
+enum ast_getdata_result ast_app_getdata_terminator(struct ast_channel *c, const char *prompt, char *s,
+	int maxlen, int timeout, char *terminator)
 {
 	int res = 0, to, fto;
 	char *front, *filename;
@@ -232,7 +229,7 @@ enum ast_getdata_result ast_app_getdata(struct ast_channel *c, const char *promp
 			fto = 50;
 			to = ast_channel_pbx(c) ? ast_channel_pbx(c)->dtimeoutms : 2000;
 		}
-		res = ast_readstring(c, s, maxlen, to, fto, "#");
+		res = ast_readstring(c, s, maxlen, to, fto, (terminator ? terminator : "#"));
 		if (res == AST_GETDATA_EMPTY_END_TERMINATED) {
 			return res;
 		}
@@ -833,6 +830,272 @@ static int external_sleep(struct ast_channel *chan, int ms)
 	return 0;
 }
 
+static int sf_stream(struct ast_channel *chan, struct ast_channel *chan2, const char *digits, int frequency, int is_external)
+{
+	/* Bell System Technical Journal 39 (Nov. 1960) */
+	#define SF_ON 67
+	#define SF_OFF 33
+	#define SF_BETWEEN 600
+
+	const char *ptr;
+	int res;
+	struct ast_silence_generator *silgen = NULL, *silgen2 = NULL;
+	char *freq;
+	int (*my_sleep)(struct ast_channel *chan, int ms);
+
+	if (frequency >= 100000) {
+		ast_log(LOG_WARNING, "Frequency too large: %d\n", frequency);
+		return -1;
+	}
+
+	if (is_external) {
+		my_sleep = external_sleep;
+	} else {
+		my_sleep = ast_safe_sleep;
+	}
+
+	/* Need a quiet time before sending digits. */
+	if (ast_opt_transmit_silence) {
+		silgen = ast_channel_start_silence_generator(chan);
+		if (chan2) {
+			silgen2 = ast_channel_start_silence_generator(chan2);
+		}
+	}
+	if (chan2) {
+		ast_autoservice_start(chan2);
+	}
+	res = my_sleep(chan, 100);
+	if (chan2) {
+		ast_autoservice_stop(chan2);
+	}
+	if (res) {
+		goto sf_stream_cleanup;
+	}
+
+/* len(SF_ON) + len(SF_OFF) + len(0) + maxlen(frequency) + /,/ + null terminator = 2 + 2 + 1 + 5 at most + 3 + 1 = 14 */
+#define SF_BUF_LEN  20
+	freq = ast_alloca(SF_BUF_LEN); /* min 20 to avoid compiler warning about insufficient buffer */
+	/* pauses need to send audio, so send 0 Hz */
+	snprintf(freq, SF_BUF_LEN, "%d/%d,%d/%d", frequency, SF_ON, 0, SF_OFF);
+
+	for (ptr = digits; *ptr; ptr++) {
+		if (*ptr == 'w') {
+			/* 'w' -- wait half a second */
+			if (chan2) {
+				ast_autoservice_start(chan2);
+			}
+			res = my_sleep(chan, 500);
+			if (chan2) {
+				ast_autoservice_stop(chan2);
+			}
+			if (res) {
+				break;
+			}
+		} else if (*ptr == 'h' || *ptr == 'H') {
+			/* 'h' -- 2600 Hz for half a second, but
+				only to far end of trunk, not near end */
+			ast_playtones_start(chan, 0, "2600", 0);
+			if (chan2) {
+				ast_playtones_start(chan2, 0, "0", 0);
+				ast_autoservice_start(chan2);
+			}
+			res = my_sleep(chan, 250);
+			ast_senddigit_mf_end(chan);
+			if (chan2) {
+				ast_autoservice_stop(chan2);
+				ast_senddigit_mf_end(chan2);
+			}
+			if (res) {
+				break;
+			}
+		} else if (strchr("0123456789*#ABCDabcdwWfF", *ptr)) {
+			if (*ptr == 'f' || *ptr == 'F') {
+				/* ignore return values if not supported by channel */
+				ast_indicate(chan, AST_CONTROL_FLASH);
+			} else if (*ptr == 'W') {
+				/* ignore return values if not supported by channel */
+				ast_indicate(chan, AST_CONTROL_WINK);
+			} else {
+				/* Character represents valid SF */
+				int beeps;
+				if (*ptr == '*') {
+					beeps = 11;
+				} else if (*ptr == '#') {
+					beeps = 12;
+				} else if (*ptr == 'D') {
+					beeps = 13;
+				} else if (*ptr == 'C') {
+					beeps = 14;
+				} else if (*ptr == 'B') {
+					beeps = 15;
+				} else if (*ptr == 'A') {
+					beeps = 16;
+				} else {
+					beeps = (*ptr == '0') ? 10 : *ptr - '0';
+				}
+				while (beeps-- > 0) {
+					ast_playtones_start(chan, 0, freq, 0);
+					if (chan2) {
+						ast_playtones_start(chan2, 0, freq, 0);
+						ast_autoservice_start(chan2);
+					}
+					res = my_sleep(chan, SF_ON + SF_OFF);
+					ast_senddigit_mf_end(chan);
+					if (chan2) {
+						ast_autoservice_stop(chan2);
+						ast_senddigit_mf_end(chan2);
+					}
+					if (res) {
+						break;
+					}
+				}
+			}
+			/* pause between digits */
+			ast_playtones_start(chan, 0, "0", 0);
+			if (chan2) {
+				ast_playtones_start(chan2, 0, "0", 0);
+				ast_autoservice_start(chan2);
+			}
+			res = my_sleep(chan, SF_BETWEEN);
+			if (chan2) {
+				ast_autoservice_stop(chan2);
+				ast_senddigit_mf_end(chan2);
+			}
+			ast_senddigit_mf_end(chan);
+			if (res) {
+				break;
+			}
+		} else {
+			ast_log(LOG_WARNING, "Illegal SF character '%c' in string. (0-9A-DwWfFhH allowed)\n", *ptr);
+		}
+	}
+
+sf_stream_cleanup:
+	if (silgen) {
+		ast_channel_stop_silence_generator(chan, silgen);
+	}
+	if (silgen2) {
+		ast_channel_stop_silence_generator(chan2, silgen2);
+	}
+
+	return res;
+}
+
+static int mf_stream(struct ast_channel *chan, struct ast_channel *chan2, const char *digits, int between, unsigned int duration,
+	unsigned int durationkp, unsigned int durationst, int is_external)
+{
+	const char *ptr;
+	int res;
+	struct ast_silence_generator *silgen = NULL, *silgen2 = NULL;
+	int (*my_sleep)(struct ast_channel *chan, int ms);
+
+	if (is_external) {
+		my_sleep = external_sleep;
+	} else {
+		my_sleep = ast_safe_sleep;
+	}
+
+	if (!between) {
+		between = 100;
+	}
+
+	/* Need a quiet time before sending digits. */
+	if (ast_opt_transmit_silence) {
+		silgen = ast_channel_start_silence_generator(chan);
+		if (chan2) {
+			silgen2 = ast_channel_start_silence_generator(chan2);
+		}
+	}
+	if (chan2) {
+		ast_autoservice_start(chan2);
+	}
+	res = my_sleep(chan, 100);
+	if (chan2) {
+		ast_autoservice_stop(chan2);
+	}
+	if (res) {
+		goto mf_stream_cleanup;
+	}
+
+	for (ptr = digits; *ptr; ptr++) {
+		if (*ptr == 'w') {
+			/* 'w' -- wait half a second */
+			if (chan2) {
+				ast_autoservice_start(chan2);
+			}
+			res = my_sleep(chan, 500);
+			if (chan2) {
+				ast_autoservice_stop(chan2);
+			}
+			if (res) {
+				break;
+			}
+		} else if (*ptr == 'h' || *ptr == 'H') {
+			/* 'h' -- 2600 Hz for half a second, but
+				only to far end of trunk, not near end */
+			ast_playtones_start(chan, 0, "2600", 0);
+			if (chan2) {
+				ast_playtones_start(chan2, 0, "0", 0);
+				ast_autoservice_start(chan2);
+			}
+			res = my_sleep(chan, 250);
+			ast_senddigit_mf_end(chan);
+			if (chan2) {
+				ast_autoservice_stop(chan2);
+				ast_senddigit_mf_end(chan2);
+			}
+			if (res) {
+				break;
+			}
+		} else if (strchr("0123456789*#ABCwWfF", *ptr)) {
+			if (*ptr == 'f' || *ptr == 'F') {
+				/* ignore return values if not supported by channel */
+				ast_indicate(chan, AST_CONTROL_FLASH);
+			} else if (*ptr == 'W') {
+				/* ignore return values if not supported by channel */
+				ast_indicate(chan, AST_CONTROL_WINK);
+			} else {
+				/* Character represents valid MF */
+				ast_senddigit_mf(chan, *ptr, duration, durationkp, durationst, is_external);
+				if (chan2) {
+					ast_senddigit_mf(chan2, *ptr, duration, durationkp, durationst, is_external);
+				}
+			}
+			/* pause between digits */
+			/* The DSP code in Asterisk does not currently properly receive repeated tones
+				if no audio is sent in the middle. Simply sending audio (even 0 Hz)
+				works around this limitation and guarantees the correct behavior.
+				*/
+			ast_playtones_start(chan, 0, "0", 0);
+			if (chan2) {
+				ast_playtones_start(chan2, 0, "0", 0);
+				ast_autoservice_start(chan2);
+			}
+			res = my_sleep(chan, between);
+			ast_senddigit_mf_end(chan);
+			if (chan2) {
+				ast_autoservice_stop(chan2);
+				ast_senddigit_mf_end(chan2);
+			}
+			if (res) {
+				break;
+			}
+		} else {
+			ast_log(LOG_WARNING, "Illegal MF character '%c' in string. (0-9*#ABCwWfFhH allowed)\n", *ptr);
+		}
+	}
+
+mf_stream_cleanup:
+	if (silgen) {
+		ast_channel_stop_silence_generator(chan, silgen);
+	}
+	if (silgen2) {
+		ast_channel_stop_silence_generator(chan2, silgen2);
+	}
+
+	return res;
+}
+
 static int dtmf_stream(struct ast_channel *chan, const char *digits, int between, unsigned int duration, int is_external)
 {
 	const char *ptr;
@@ -898,6 +1161,36 @@ dtmf_stream_cleanup:
 		ast_channel_stop_silence_generator(chan, silgen);
 	}
 
+	return res;
+}
+
+int ast_sf_stream(struct ast_channel *chan, struct ast_channel *peer, struct ast_channel *chan2, const char *digits, int frequency, int is_external)
+{
+	int res;
+	if (frequency <= 0) {
+		frequency = 2600;
+	}
+	if (!is_external && !chan2 && peer && ast_autoservice_start(peer)) {
+		return -1;
+	}
+	res = sf_stream(chan, chan2, digits, frequency, is_external);
+	if (!is_external && !chan2 && peer && ast_autoservice_stop(peer)) {
+		res = -1;
+	}
+	return res;
+}
+
+int ast_mf_stream(struct ast_channel *chan, struct ast_channel *peer, struct ast_channel *chan2, const char *digits,
+	int between, unsigned int duration, unsigned int durationkp, unsigned int durationst, int is_external)
+{
+	int res;
+	if (!is_external && !chan2 && peer && ast_autoservice_start(peer)) {
+		return -1;
+	}
+	res = mf_stream(chan, chan2, digits, between, duration, durationkp, durationst, is_external);
+	if (!is_external && !chan2 && peer && ast_autoservice_stop(peer)) {
+		res = -1;
+	}
 	return res;
 }
 
@@ -1408,11 +1701,11 @@ int ast_play_and_wait(struct ast_channel *chan, const char *fn)
 /*!
  * \brief Construct a silence frame of the same duration as \a orig.
  *
- * The \a orig frame must be \ref AST_FORMAT_SLINEAR.
+ * The \a orig frame must be \ref ast_format_slin.
  *
  * \param orig Frame as basis for silence to generate.
  * \return New frame of silence; free with ast_frfree().
- * \return \c NULL on error.
+ * \retval NULL on error.
  */
 static struct ast_frame *make_silence(const struct ast_frame *orig)
 {
@@ -1457,7 +1750,7 @@ static struct ast_frame *make_silence(const struct ast_frame *orig)
 }
 
 /*!
- * \brief Sets a channel's read format to \ref AST_FORMAT_SLINEAR, recording
+ * \brief Sets a channel's read format to \ref ast_format_slin, recording
  * its original format.
  *
  * \param chan Channel to modify.
@@ -1494,6 +1787,7 @@ static int global_maxsilence = 0;
  * \param acceptdtmf DTMF digits that will end the recording.
  * \param canceldtmf DTMF digits that will cancel the recording.
  * \param skip_confirmation_sound If true, don't play auth-thankyou at end. Nice for custom recording prompts in apps.
+ * \param if_exists
  *
  * \retval -1 failure or hangup
  * \retval 'S' Recording ended from silence timeout
@@ -2815,6 +3109,9 @@ static int parse_options(const struct ast_app_option *options, void *_flags, cha
 			}
 		} else if (argloc) {
 			args[argloc - 1] = "";
+		}
+		if (!options[curarg].flag) {
+			ast_log(LOG_WARNING, "Unrecognized option: '%c'\n", curarg);
 		}
 		if (flaglen == 32) {
 			ast_set_flag(flags, options[curarg].flag);

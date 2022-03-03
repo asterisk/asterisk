@@ -214,7 +214,7 @@ struct ast_channel {
 	char dtmf_digit_to_emulate;			/*!< Digit being emulated */
 	char sending_dtmf_digit;			/*!< Digit this channel is currently sending out. (zero if not sending) */
 	struct timeval sending_dtmf_tv;		/*!< The time this channel started sending the current digit. (Invalid if sending_dtmf_digit is zero.) */
-	struct stasis_topic *topic;		/*!< Topic for trhis channel */
+	struct stasis_topic *topic;		/*!< Topic for this channel */
 	struct stasis_forward *channel_forward; /*!< Subscription for event forwarding to all channel topic */
 	struct stasis_forward *endpoint_forward;	/*!< Subscription for event forwarding to endpoint's topic */
 	struct ast_stream_topology *stream_topology; /*!< Stream topology */
@@ -1310,14 +1310,14 @@ void ast_channel_dialed_causes_clear(const struct ast_channel *chan)
 	ao2_callback(chan->dialed_causes, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL, NULL);
 }
 
-/* \brief Hash function for pvt cause code frames */
+/*! \brief Hash function for pvt cause code frames */
 static int pvt_cause_hash_fn(const void *vpc, const int flags)
 {
 	const struct ast_control_pvt_cause_code *pc = vpc;
 	return ast_str_hash(ast_tech_to_upper(ast_strdupa(pc->chan_name)));
 }
 
-/* \brief Comparison function for pvt cause code frames */
+/*! \brief Comparison function for pvt cause code frames */
 static int pvt_cause_cmp_fn(void *obj, void *vstr, int flags)
 {
 	struct ast_control_pvt_cause_code *pc = obj;

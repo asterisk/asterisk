@@ -100,7 +100,7 @@ static void rfc3326_add_reason_header(struct ast_sip_session *session, struct pj
 	}
 
 	if (session->endpoint && session->endpoint->suppress_q850_reason_headers) {
-		ast_debug(1, "A Q.850 '%s'(%i) Reason header was suppresed for endpoint '%s'\n",
+		ast_debug(1, "A Q.850 '%s'(%i) Reason header was suppressed for endpoint '%s'\n",
 			ast_cause2str((ast_channel_hangupcause(session->channel) & 0x7f)),
 			(ast_channel_hangupcause(session->channel) & 0x7f),
 			ast_sorcery_object_get_id(session->endpoint));

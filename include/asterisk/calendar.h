@@ -27,7 +27,9 @@
 #include "asterisk/dial.h"
 #include "asterisk/module.h"
 
-/*! \file calendar.h
+/*!
+ * \file
+ *
  * \brief A general API for managing calendar events with Asterisk
  *
  * \author Terry Wilson <twilson@digium.com>
@@ -51,7 +53,7 @@
  * a load_calendar callback which will be passed an ast_calendar_load_data structure.
  * The load_calendar callback function should then set the values it needs from this
  * cfg, load the calendar data, and then loop updating the calendar data and events
- * baesd on the refresh interval in the ast_calendar object.  Each call to
+ * based on the refresh interval in the ast_calendar object.  Each call to
  * the load_calendar callback will be will run in its own thread.
  *
  * Updating events involves creating an astobj2 container of new events and passing
@@ -89,7 +91,7 @@ struct ast_calendar_attendee {
 	AST_LIST_ENTRY(ast_calendar_attendee) next;
 };
 
-/* \brief Calendar events */
+/*! \brief Calendar events */
 struct ast_calendar_event {
 	AST_DECLARE_STRING_FIELDS(
 		AST_STRING_FIELD(summary);
@@ -150,9 +152,6 @@ int ast_calendar_register(struct ast_calendar_tech *tech);
 /*! \brief Unregister a new calendar technology
  *
  * \param tech calendar technology to unregister
- *
- * \retval 0 success
- * \retval -1 failure
  */
 void ast_calendar_unregister(struct ast_calendar_tech *tech);
 

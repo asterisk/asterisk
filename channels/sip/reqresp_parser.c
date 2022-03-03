@@ -690,7 +690,7 @@ AST_TEST_DEFINE(sip_parse_uri_test)
 
 /*! \brief  Get caller id name from SIP headers, copy into output buffer
  *
- *  \retval input string pointer placed after display-name field if possible
+ *  \return input string pointer placed after display-name field if possible
  */
 const char *get_calleridname(const char *input, char *output, size_t outputsize)
 {
@@ -728,7 +728,7 @@ const char *get_calleridname(const char *input, char *output, size_t outputsize)
 	/* clear any empty characters in the beginning */
 	input = ast_skip_blanks(input);
 
-	/* make sure the output buffer is initilized */
+	/* make sure the output buffer is initialized */
 	*orig_output = '\0';
 
 	/* make room for '\0' at the end of the output buffer */
@@ -1685,10 +1685,6 @@ AST_TEST_DEFINE(parse_contact_header_test)
  * builds a bit field representing all the SIP options in that field. When an
  * item is found that is not supported, it is copied to the unsupported
  * out buffer.
- *
- * \param options list
- * \param unsupported out buffer (optional)
- * \param unsupported_len out buffer length (optional)
  */
 unsigned int parse_sip_options(const char *options, char *unsupported, size_t unsupported_len)
 {

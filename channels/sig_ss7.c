@@ -171,8 +171,6 @@ static void sig_ss7_set_remotelyblocked(struct sig_ss7_chan *p, int is_blocked, 
  * \since 1.8.12
  *
  * \param p Channel private control structure.
- *
- * \return Nothing
  */
 static void sig_ss7_open_media(struct sig_ss7_chan *p)
 {
@@ -187,8 +185,6 @@ static void sig_ss7_open_media(struct sig_ss7_chan *p)
  * \since 1.8
  *
  * \param p sig_ss7 channel structure.
- *
- * \return Nothing
  */
 static void sig_ss7_set_caller_id(struct sig_ss7_chan *p)
 {
@@ -230,8 +226,6 @@ static void sig_ss7_set_caller_id(struct sig_ss7_chan *p)
  *
  * \param p sig_ss7 channel structure.
  * \param dnid Dialed Number Identifier string.
- *
- * \return Nothing
  */
 static void sig_ss7_set_dnid(struct sig_ss7_chan *p, const char *dnid)
 {
@@ -327,7 +321,7 @@ static struct sig_ss7_linkset *sig_ss7_find_linkset(struct ss7 *ss7)
  *
  * \param pvt Channel to determine if available.
  *
- * \return TRUE if the channel is available.
+ * \retval TRUE if the channel is available.
  */
 static int sig_ss7_is_chan_available(struct sig_ss7_chan *pvt)
 {
@@ -349,8 +343,6 @@ static int sig_ss7_is_chan_available(struct sig_ss7_chan *pvt)
  *
  * \note Assumes the ss7->lock is already obtained.
  * \note Assumes the sig_ss7_lock_private(ss7->pvts[chanpos]) is already obtained.
- *
- * \return Nothing
  */
 static void sig_ss7_lock_owner(struct sig_ss7_linkset *ss7, int chanpos)
 {
@@ -382,8 +374,6 @@ static void sig_ss7_lock_owner(struct sig_ss7_linkset *ss7, int chanpos)
  *
  * \note Assumes the ss7->lock is already obtained.
  * \note Assumes the sig_ss7_lock_private(ss7->pvts[chanpos]) is already obtained.
- *
- * \return Nothing
  */
 static void sig_ss7_queue_frame(struct sig_ss7_linkset *ss7, int chanpos, struct ast_frame *frame)
 {
@@ -405,8 +395,6 @@ static void sig_ss7_queue_frame(struct sig_ss7_linkset *ss7, int chanpos, struct
  *
  * \note Assumes the ss7->lock is already obtained.
  * \note Assumes the sig_ss7_lock_private(ss7->pvts[chanpos]) is already obtained.
- *
- * \return Nothing
  */
 static void sig_ss7_queue_control(struct sig_ss7_linkset *ss7, int chanpos, int subclass)
 {
@@ -428,12 +416,11 @@ static void sig_ss7_queue_control(struct sig_ss7_linkset *ss7, int chanpos, int 
  *
  * \param owner Owner channel of the pvt.
  * \param cause String describing the cause to be placed into the frame.
+ * \param ast_cause
  *
  * \note Assumes the linkset->lock is already obtained.
  * \note Assumes the sig_ss7_lock_private(linkset->pvts[chanpos]) is already obtained.
  * \note Assumes linkset->pvts[chanpos]->owner is non-NULL and its lock is already obtained.
- *
- * \return Nothing
  */
 static void ss7_queue_pvt_cause_data(struct ast_channel *owner, const char *cause, int ast_cause)
 {
@@ -457,7 +444,7 @@ static void ss7_queue_pvt_cause_data(struct ast_channel *owner, const char *caus
  * \param cic Circuit Identification Code
  * \param dpc Destination Point Code
  *
- * \retval chanpos on success.
+ * \return chanpos on success.
  * \retval -1 on error.
  */
 int sig_ss7_find_cic(struct sig_ss7_linkset *linkset, int cic, unsigned int dpc)
@@ -482,7 +469,7 @@ int sig_ss7_find_cic(struct sig_ss7_linkset *linkset, int cic, unsigned int dpc)
  * \param dpc Destination Point Code
  * \param msg_name Message type name that failed.
  *
- * \retval chanpos on success.
+ * \return chanpos on success.
  * \retval -1 on error.
  */
 static int ss7_find_cic_gripe(struct sig_ss7_linkset *linkset, int cic, unsigned int dpc, const char *msg_name)
@@ -583,8 +570,6 @@ void sig_ss7_cb_notinservice(struct ss7 *ss7, int cic, unsigned int dpc)
  * \param endcic Circuit Identification Code to search up-to
  * \param dpc Destination Point Code
  * \param state Array containing the status of the search
- *
- * \retval Nothing.
  */
 static void ss7_check_range(struct sig_ss7_linkset *linkset, int startcic, int endcic, unsigned int dpc, unsigned char *state)
 {
@@ -618,7 +603,7 @@ static int ss7_match_range(struct sig_ss7_chan *pvt, int startcic, int endcic, u
  *
  * \note Assumes the linkset->lock is already obtained.
  *
- * \return TRUE if all CICs in the range are present
+ * \retval TRUE if all CICs in the range are present
  */
 int sig_ss7_find_cic_range(struct sig_ss7_linkset *linkset, int startcic, int endcic, unsigned int dpc)
 {
@@ -720,8 +705,6 @@ static inline void ss7_hangup_cics(struct sig_ss7_linkset *linkset, int startcic
  *
  * \note Assumes the linkset->lock is already obtained.
  * \note Must be called without sig_ss7_lock_private() obtained.
- *
- * \return Nothing.
  */
 static inline void ss7_block_cics(struct sig_ss7_linkset *linkset, int startcic, int endcic, unsigned int dpc, unsigned char state[], int block, int remotely, int type)
 {
@@ -767,8 +750,6 @@ static inline void ss7_block_cics(struct sig_ss7_linkset *linkset, int startcic,
  * \param dpc Destination Point Code.
  *
  * \note Must be called without sig_ss7_lock_private() obtained.
- *
- * \return Nothing.
  */
 static void ss7_inservice(struct sig_ss7_linkset *linkset, int startcic, int endcic, unsigned int dpc)
 {
@@ -859,8 +840,6 @@ static void ss7_reset_linkset(struct sig_ss7_linkset *linkset)
  *
  * \note Assumes the ss7->lock is already obtained.
  * \note Assumes sig_ss7_lock_private(p) is already obtained.
- *
- * \return Nothing.
  */
 static void ss7_do_rsc(struct sig_ss7_chan *p)
 {
@@ -882,13 +861,13 @@ static void ss7_do_rsc(struct sig_ss7_chan *p)
  * \brief Start RSC procedure on a specific link
  * \since 11.0
  *
- * \param ss7 SS7 linkset control structure.
+ * \param linkset SS7 linkset control structure.
  * \param which Channel position in the span.
  *
  * \note Assumes the ss7->lock is already obtained.
  * \note Assumes the sig_ss7_lock_private(ss7->pvts[chanpos]) is already obtained.
  *
- * \return TRUE on success
+ * \retval TRUE on success
  */
 static int ss7_start_rsc(struct sig_ss7_linkset *linkset, int which)
 {
@@ -930,8 +909,6 @@ static int ss7_start_rsc(struct sig_ss7_linkset *linkset, int which)
  *
  * \note Assumes the linkset->lock is already obtained.
  * \note Must be called without sig_ss7_lock_private() obtained.
- *
- * \return Nothing.
  */
 static void ss7_clear_channels(struct sig_ss7_linkset *linkset, int startcic, int endcic, int dpc, int do_hangup)
 {
@@ -966,8 +943,6 @@ static void ss7_clear_channels(struct sig_ss7_linkset *linkset, int startcic, in
  *
  * \note Assumes the linkset->lock is already obtained.
  * \note Assumes the sig_ss7_lock_private(ss7->pvts[chanpos]) is already obtained.
- *
- * \return Nothing.
  */
 static void ss7_start_call(struct sig_ss7_chan *p, struct sig_ss7_linkset *linkset)
 {
@@ -1346,8 +1321,6 @@ static ast_callid func_ss7_linkset_callid(struct sig_ss7_linkset *linkset, int c
  *
  * \note Assumes the linkset->lock is already obtained.
  * \note Assumes the sig_ss7_lock_private(ss7->pvts[chanpos]) is already obtained.
- *
- * \return Nothing.
  */
 static void ss7_match_extension(struct sig_ss7_linkset *linkset, struct sig_ss7_chan *p, ss7_event *e)
 {
@@ -2067,7 +2040,7 @@ void *ss7_linkset(void *data)
 					break;
 				}
 				p = linkset->pvts[chanpos];
-				ast_debug(1, "Unequiped Circuit Id Code on CIC %d\n", e->ucic.cic);
+				ast_debug(1, "Unequipped Circuit Id Code on CIC %d\n", e->ucic.cic);
 				sig_ss7_lock_private(p);
 				sig_ss7_lock_owner(linkset, chanpos);
 				if (p->owner) {
@@ -2378,7 +2351,7 @@ static void ss7_grab(struct sig_ss7_chan *pvt, struct sig_ss7_linkset *ss7)
  * \param cic Circuit Identification Code
  * \param dpc Destination Point Code
  *
- * \return TRUE on success
+ * \retval TRUE on success
  */
 int sig_ss7_reset_cic(struct sig_ss7_linkset *linkset, int cic, unsigned int dpc)
 {
@@ -2410,7 +2383,7 @@ int sig_ss7_reset_cic(struct sig_ss7_linkset *linkset, int cic, unsigned int dpc
  * \param do_block Action to perform. Block if TRUE.
  * \param which On which CIC to perform the operation.
  *
- * \return 0 on success
+ * \retval 0 on success
  */
 int sig_ss7_cic_blocking(struct sig_ss7_linkset *linkset, int do_block, int which)
 {
@@ -2447,7 +2420,7 @@ int sig_ss7_cic_blocking(struct sig_ss7_linkset *linkset, int do_block, int whic
  *
  * \note Assumes the linkset->lock is already obtained.
  *
- * \return 0 on success
+ * \retval 0 on success
  */
 int sig_ss7_group_blocking(struct sig_ss7_linkset *linkset, int do_block, int chanpos, int endcic, unsigned char state[], int type)
 {
@@ -2478,7 +2451,7 @@ int sig_ss7_group_blocking(struct sig_ss7_linkset *linkset, int do_block, int ch
  *
  * \note Assumes the linkset->lock is already obtained.
  *
- * \return 0 on success
+ * \retval 0 on success
  */
 int sig_ss7_reset_group(struct sig_ss7_linkset *linkset, int cic, unsigned int dpc, int range)
 {
@@ -2547,8 +2520,6 @@ static int ss7_parse_prefix(struct sig_ss7_chan *p, const char *number, char *na
  *
  * \param linkset Controlling linkset for the channel.
  * \param which Link index of the signaling channel.
- *
- * \return Nothing
  */
 void sig_ss7_link_alarm(struct sig_ss7_linkset *linkset, int which)
 {
@@ -2563,8 +2534,6 @@ void sig_ss7_link_alarm(struct sig_ss7_linkset *linkset, int which)
  *
  * \param linkset Controlling linkset for the channel.
  * \param which Link index of the signaling channel.
- *
- * \return Nothing
  */
 void sig_ss7_link_noalarm(struct sig_ss7_linkset *linkset, int which)
 {
@@ -2585,6 +2554,7 @@ void sig_ss7_link_noalarm(struct sig_ss7_linkset *linkset, int which)
  * \param networkindicator User configuration parameter.
  * \param pointcode User configuration parameter.
  * \param adjpointcode User configuration parameter.
+ * \param cur_slc
  *
  * \retval 0 on success.
  * \retval -1 on error.
@@ -3121,8 +3091,6 @@ int sig_ss7_answer(struct sig_ss7_chan *p, struct ast_channel *ast)
  * \param oldchan Old channel pointer to replace.
  * \param newchan New channel pointer to set.
  * \param pchan Signaling private structure pointer.
- *
- * \return Nothing
  */
 void sig_ss7_fixup(struct ast_channel *oldchan, struct ast_channel *newchan, struct sig_ss7_chan *pchan)
 {
@@ -3268,7 +3236,7 @@ int sig_ss7_indicate(struct sig_ss7_chan *p, struct ast_channel *chan, int condi
  * \param p Signaling private structure pointer.
  * \param law Companding law preferred
  * \param requestor Asterisk channel requesting a channel to dial (Can be NULL)
- * \param transfercapability
+ * \param assignedids, transfercapability
  *
  * \retval ast_channel on success.
  * \retval NULL on error.
@@ -3306,8 +3274,6 @@ struct ast_channel *sig_ss7_request(struct sig_ss7_chan *p, enum sig_ss7_law law
  * \since 1.8
  *
  * \param doomed sig_ss7 private channel structure to delete.
- *
- * \return Nothing
  */
 void sig_ss7_chan_delete(struct sig_ss7_chan *doomed)
 {
@@ -3389,8 +3355,6 @@ struct sig_ss7_chan *sig_ss7_chan_new(void *pvt_data, struct sig_ss7_linkset *ss
  * \since 1.8
  *
  * \param ss7 SS7 linkset control structure.
- *
- * \return Nothing
  */
 void sig_ss7_init_linkset(struct sig_ss7_linkset *ss7)
 {

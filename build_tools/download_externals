@@ -73,8 +73,13 @@ major_version=${major_version}.0
 
 if [[ "${HOST_CPU}" = "x86_64" ]] ; then
 	host_bits=64
-else
+elif [[ "${HOST_CPU}" = "i386" ]] ; then
 	host_bits=32
+elif [[ "${HOST_CPU}" = "i686" ]] ; then
+	host_bits=32
+else
+	echo "${module_name}: External module downloading is not available for the ${HOST_CPU} platform.  Only x86 based platforms are currently supported.  Please disable this module in menuselect."
+	exit 1
 fi
 
 if [[ -z "${variant}" ]] ; then
@@ -155,7 +160,7 @@ if [[ -f ${DESTDIR}${ASTMODDIR}/${module_name}.manifest.xml ]] ; then
 				break
 			else
 				if [[ "$executable" = "yes" ]] ; then
-					# There are easier ways of doing this (objcopy --dump-section) but not in older bunutils
+					# There are easier ways of doing this (objcopy --dump-section) but not in older binutils
 					length_offset=$(objdump -h $f | sed -n -r -e "s/^\s+[0-9]+\s+.ast_manifest\s+([0-9a-fA-F]+)\s+[0-9a-fA-F]+\s+[0-9a-fA-F]+\s+([0-9a-fA-F]+)\s+.*$/0x\1 0x\2/p")
 					tags=$($(eval 'printf "dd if=$f bs=1 count=%d skip=%d\n" $length_offset') 2>/dev/null)
 					if [[ -n "${tags}" && "${tags}" != "${module_name},${variant},${rpv}" ]] ; then

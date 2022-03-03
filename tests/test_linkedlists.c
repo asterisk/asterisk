@@ -148,6 +148,7 @@ AST_TEST_DEFINE(single_ll_tests)
 	if (!(bogus = ast_alloca(sizeof(*bogus)))) {
 		return AST_TEST_FAIL;
 	}
+	memset(bogus, 0, sizeof(*bogus));
 
 	if (AST_LIST_REMOVE(&test_list, bogus, list)) {
 		ast_test_status_update(test, "AST_LIST_REMOVE should safely return NULL for missing element from empty list\n");

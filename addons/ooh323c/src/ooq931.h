@@ -582,7 +582,7 @@ EXTERN int ooH323MakeCall_helper(struct OOH323CallData *call);
  * @param dest      Destination string to be parsed.
  * @param parsedIP  Pointer to buffer in which parsed ip:port will be returned.
  * @param len       Length of the buffer passed.
- * @param aliasList Aliase List in which new aliases will be added.
+ * @param aliasList Aliases List in which new aliases will be added.
  *
  * @return          OO_OK, on success. OO_FAILED, on failure.
  */

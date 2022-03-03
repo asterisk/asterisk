@@ -797,8 +797,8 @@ struct confbridge_conference *conf_find_bridge(const char *conference_name)
  *
  * \note Must be called with the conference locked
  *
- * \retval 1, conference is recording.
- * \retval 0, conference is NOT recording.
+ * \retval 1 conference is recording.
+ * \retval 0 conference is NOT recording.
  */
 static int conf_is_recording(struct confbridge_conference *conference)
 {
@@ -909,7 +909,7 @@ static int conf_start_record(struct confbridge_conference *conference)
 	return 0;
 }
 
-/* \brief Playback the given filename and monitor for any dtmf interrupts.
+/*! \brief Playback the given filename and monitor for any dtmf interrupts.
  *
  * This function is used to playback sound files on a given channel and optionally
  * allow dtmf interrupts to occur.
@@ -923,7 +923,9 @@ static int conf_start_record(struct confbridge_conference *conference)
  * \param channel Optional channel to play file on if bridge_channel not given
  * \param filename The file name to playback
  *
- * \retval -1 failure during playback, 0 on file was fully played, 1 on dtmf interrupt.
+ * \retval -1 failure during playback.
+ * \retval 0 on file was fully played.
+ * \retval 1 on dtmf interrupt.
  */
 static int play_file(struct ast_bridge_channel *bridge_channel, struct ast_channel *channel,
 		     const char *filename)
@@ -980,7 +982,8 @@ static int sound_file_exists(const char *filename)
  * \param bridge_channel The bridged channel involved
  *
  * \note if caller is NULL, the announcment will be sent to all participants in the conference.
- * \return Returns 0 on success, -1 if the user hung up
+ * \retval 0 on success.
+ * \retval -1 if the user hung up.
  */
 static int announce_user_count(struct confbridge_conference *conference, struct confbridge_user *user,
 			       struct ast_bridge_channel *bridge_channel)
@@ -1030,7 +1033,9 @@ static int announce_user_count(struct confbridge_conference *conference, struct 
  * \param user User to play audio prompt to
  * \param filename Prompt to play
  *
- * \return Returns 0 on success, -1 if the user hung up
+ * \retval 0 on success.
+ * \retval -1 if the user hung up.
+ *
  * \note Generally this should be called when the conference is unlocked to avoid blocking
  * the entire conference while the sound is played. But don't unlock the conference bridge
  * in the middle of a state transition.
@@ -1167,8 +1172,6 @@ static void hangup_data_destroy(struct hangup_data *hangup)
  * \brief Destroy a conference bridge
  *
  * \param obj The conference bridge object
- *
- * \return Returns nothing
  */
 static void destroy_conference_bridge(void *obj)
 {
@@ -1305,7 +1308,7 @@ void conf_update_user_mute(struct confbridge_user *user)
 		ast_channel_name(user->chan));
 }
 
-/*
+/*!
  * \internal
  * \brief Mute/unmute a single user.
  */
@@ -1389,8 +1392,6 @@ void conf_moh_start(struct confbridge_user *user)
  * \brief Unsuspend MOH for the conference user.
  *
  * \param user Conference user to unsuspend MOH on.
- *
- * \return Nothing
  */
 static void conf_moh_unsuspend(struct confbridge_user *user)
 {
@@ -1406,8 +1407,6 @@ static void conf_moh_unsuspend(struct confbridge_user *user)
  * \brief Suspend MOH for the conference user.
  *
  * \param user Conference user to suspend MOH on.
- *
- * \return Nothing
  */
 static void conf_moh_suspend(struct confbridge_user *user)
 {
@@ -1682,7 +1681,7 @@ static struct confbridge_conference *join_conference_bridge(const char *conferen
 	struct post_join_action *action;
 	int max_members_reached = 0;
 
-	/* We explictly lock the conference bridges container ourselves so that other callers can not create duplicate conferences at the same */
+	/* We explicitly lock the conference bridges container ourselves so that other callers can not create duplicate conferences at the same */
 	ao2_lock(conference_bridges);
 
 	ast_debug(1, "Trying to find conference bridge '%s'\n", conference_name);
@@ -3494,7 +3493,7 @@ static char *handle_cli_confbridge_list(struct ast_cli_entry *e, int cmd, struct
 	return CLI_SHOWUSAGE;
 }
 
-/* \internal
+/*! \internal
  * \brief finds a conference by name and locks/unlocks.
  *
  * \retval 0 success
@@ -3518,7 +3517,7 @@ static int generic_lock_unlock_helper(int lock, const char *conference_name)
 	return res;
 }
 
-/* \internal
+/*! \internal
  * \brief finds a conference user by channel name and mutes/unmutes them.
  *
  * \retval 0 success
@@ -4355,8 +4354,6 @@ void conf_remove_user_waiting(struct confbridge_conference *conference, struct c
  * \since 12.0.0
  *
  * \param tech What to unregister.
- *
- * \return Nothing
  */
 static void unregister_channel_tech(struct ast_channel_tech *tech)
 {

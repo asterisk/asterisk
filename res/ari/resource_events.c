@@ -86,7 +86,7 @@ static void stasis_app_message_handler(
 	ast_assert(session != NULL);
 
 	/*
-	 * We need to get the debug flag before lockinf session
+	 * We need to get the debug flag before locking session
 	 * to help prevent a deadlock with the apps_registry container.
 	 */
 	app_debug_enabled = stasis_app_get_debug_by_name(app_name);
@@ -574,7 +574,7 @@ void ast_ari_events_user_event(struct ast_variable *headers,
 
 	case STASIS_APP_USER_USEREVENT_INVALID:
 		ast_ari_response_error(response, 400, "Bad Request",
-			"Invalid userevnet data");
+			"Invalid userevent data");
 		break;
 
 	case STASIS_APP_USER_INTERNAL_ERROR:

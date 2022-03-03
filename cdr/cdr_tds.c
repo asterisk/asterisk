@@ -17,10 +17,7 @@
 /*!
  * \file
  * \brief FreeTDS CDR logger
- *
- * See also
- * \arg \ref Config_cdr
- * \arg http://www.freetds.org/
+ * http://www.freetds.org/
  * \ingroup cdr_drivers
  */
 

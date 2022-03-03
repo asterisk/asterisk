@@ -32,6 +32,9 @@
 
 #include "asterisk/res_stir_shaken.h"
 
+/*! The Date header will not be valid after this many milliseconds (60 seconds recommended) */
+#define STIR_SHAKEN_DATE_HEADER_TIMEOUT 60000
+
 /*!
  * \brief Get the attestation from the payload
  *
@@ -58,7 +61,8 @@ static char *get_attestation_from_payload(const char *json_str)
 /*!
  * \brief Compare the caller ID from the INVITE with the one in the payload
  *
- * \param json_str The JSON string represntation of the payload
+ * \param caller_id
+ * \param json_str The JSON string representation of the payload
  *
  * \retval -1 on failure
  * \retval 0 on success
@@ -109,6 +113,62 @@ static int compare_timestamp(const char *json_str)
 	return 0;
 }
 
+static int check_date_header(pjsip_rx_data *rdata)
+{
+	static const pj_str_t date_hdr_str = { "Date", 4 };
+	char *date_hdr_val;
+	struct ast_tm date_hdr_tm;
+	struct timeval date_hdr_timeval;
+	struct timeval current_timeval;
+	char *remainder;
+	char timezone[80] = { 0 };
+	int64_t time_diff;
+
+	date_hdr_val = ast_sip_rdata_get_header_value(rdata, date_hdr_str);
+	if (ast_strlen_zero(date_hdr_val)) {
+		ast_log(LOG_ERROR, "Failed to get Date header from incoming INVITE for STIR/SHAKEN\n");
+		return -1;
+	}
+
+	if (!(remainder = ast_strptime(date_hdr_val, "%a, %d %b %Y %T", &date_hdr_tm))) {
+		ast_log(LOG_ERROR, "Failed to parse Date header\n");
+		return -1;
+	}
+
+	sscanf(remainder, "%79s", timezone);
+
+	if (ast_strlen_zero(timezone)) {
+		ast_log(LOG_ERROR, "A timezone is required for STIR/SHAKEN Date header, but we didn't get one\n");
+		return -1;
+	}
+
+	date_hdr_timeval = ast_mktime(&date_hdr_tm, timezone);
+	current_timeval = ast_tvnow();
+
+	time_diff = ast_tvdiff_ms(current_timeval, date_hdr_timeval);
+	if (time_diff < 0) {
+		/* An INVITE from the future! */
+		ast_log(LOG_ERROR, "STIR/SHAKEN Date header has a future date\n");
+		return -1;
+	} else if (time_diff > STIR_SHAKEN_DATE_HEADER_TIMEOUT) {
+		ast_log(LOG_ERROR, "STIR/SHAKEN Date header was outside of the allowable range (60 seconds)\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+/* Send a response back and end the session */
+static void stir_shaken_inv_end_session(struct ast_sip_session *session, pjsip_rx_data *rdata, int response_code, const pj_str_t response_str)
+{
+	pjsip_tx_data *tdata;
+
+	if (pjsip_inv_end_session(session->inv_session, response_code, &response_str, &tdata) == PJ_SUCCESS) {
+		pjsip_endpt_send_response2(ast_sip_get_pjsip_endpoint(), rdata, tdata, NULL, NULL);
+	}
+	ast_hangup(session->channel);
+}
+
 /*!
  * \internal
  * \brief Session supplement callback on an incoming INVITE request
@@ -122,6 +182,27 @@ static int compare_timestamp(const char *json_str)
 static int stir_shaken_incoming_request(struct ast_sip_session *session, pjsip_rx_data *rdata)
 {
 	static const pj_str_t identity_str = { "Identity", 8 };
+	const pj_str_t bad_identity_info_str = {
+		AST_STIR_SHAKEN_RESPONSE_STR_BAD_IDENTITY_INFO,
+		strlen(AST_STIR_SHAKEN_RESPONSE_STR_BAD_IDENTITY_INFO)
+	};
+	const pj_str_t unsupported_credential_str = {
+		AST_STIR_SHAKEN_RESPONSE_STR_UNSUPPORTED_CREDENTIAL,
+		strlen(AST_STIR_SHAKEN_RESPONSE_STR_UNSUPPORTED_CREDENTIAL)
+	};
+	const pj_str_t stale_date_str = {
+		AST_STIR_SHAKEN_RESPONSE_STR_STALE_DATE,
+		strlen(AST_STIR_SHAKEN_RESPONSE_STR_STALE_DATE)
+	};
+	const pj_str_t use_supported_passport_format_str = {
+		AST_STIR_SHAKEN_RESPONSE_STR_USE_SUPPORTED_PASSPORT_FORMAT,
+		strlen(AST_STIR_SHAKEN_RESPONSE_STR_USE_SUPPORTED_PASSPORT_FORMAT)
+	};
+	const pj_str_t invalid_identity_hdr_str = {
+		AST_STIR_SHAKEN_RESPONSE_STR_INVALID_IDENTITY_HEADER,
+		strlen(AST_STIR_SHAKEN_RESPONSE_STR_INVALID_IDENTITY_HEADER)
+	};
+	const pj_str_t server_internal_error_str = { "Server Internal Error", 21 };
 	char *identity_hdr_val;
 	char *encoded_val;
 	struct ast_channel *chan = session->channel;
@@ -132,10 +213,17 @@ static int stir_shaken_incoming_request(struct ast_sip_session *session, pjsip_r
 	char *algorithm;
 	char *public_cert_url;
 	char *attestation;
+	char *ppt;
 	int mismatch = 0;
 	struct ast_stir_shaken_payload *ss_payload;
+	int failure_code = 0;
 
-	if (!session->endpoint->stir_shaken) {
+	/* Check if this is a reinvite. If it is, we don't need to do anything */
+	if (rdata->msg_info.to->tag.slen) {
+		return 0;
+	}
+
+	if ((session->endpoint->stir_shaken & AST_SIP_STIR_SHAKEN_VERIFY) == 0) {
 		return 0;
 	}
 
@@ -148,50 +236,100 @@ static int stir_shaken_incoming_request(struct ast_sip_session *session, pjsip_r
 	encoded_val = strtok_r(identity_hdr_val, ".", &identity_hdr_val);
 	header = ast_base64url_decode_string(encoded_val);
 	if (ast_strlen_zero(header)) {
-		ast_stir_shaken_add_verification(chan, caller_id, "", AST_STIR_SHAKEN_VERIFY_SIGNATURE_FAILED);
-		return 0;
+		ast_debug(3, "STIR/SHAKEN INVITE for %s is missing header\n",
+			ast_sorcery_object_get_id(session->endpoint));
+		stir_shaken_inv_end_session(session, rdata, AST_STIR_SHAKEN_RESPONSE_CODE_BAD_IDENTITY_INFO, bad_identity_info_str);
+		return 1;
 	}
 
 	encoded_val = strtok_r(identity_hdr_val, ".", &identity_hdr_val);
 	payload = ast_base64url_decode_string(encoded_val);
 	if (ast_strlen_zero(payload)) {
-		ast_stir_shaken_add_verification(chan, caller_id, "", AST_STIR_SHAKEN_VERIFY_SIGNATURE_FAILED);
-		return 0;
+		ast_debug(3, "STIR/SHAKEN INVITE for %s is missing payload\n",
+			ast_sorcery_object_get_id(session->endpoint));
+		stir_shaken_inv_end_session(session, rdata, AST_STIR_SHAKEN_RESPONSE_CODE_BAD_IDENTITY_INFO, bad_identity_info_str);
+		return 1;
 	}
 
 	/* It's fine to leave the signature encoded */
 	signature = strtok_r(identity_hdr_val, ";", &identity_hdr_val);
 	if (ast_strlen_zero(signature)) {
-		ast_stir_shaken_add_verification(chan, caller_id, "", AST_STIR_SHAKEN_VERIFY_SIGNATURE_FAILED);
-		return 0;
+		ast_debug(3, "STIR/SHAKEN INVITE for %s is missing signature\n",
+			ast_sorcery_object_get_id(session->endpoint));
+		stir_shaken_inv_end_session(session, rdata, AST_STIR_SHAKEN_RESPONSE_CODE_BAD_IDENTITY_INFO, bad_identity_info_str);
+		return 1;
 	}
 
 	/* Trim "info=<" to get public cert URL */
 	strtok_r(identity_hdr_val, "<", &identity_hdr_val);
 	public_cert_url = strtok_r(identity_hdr_val, ">", &identity_hdr_val);
-	if (ast_strlen_zero(public_cert_url)) {
-		ast_stir_shaken_add_verification(chan, caller_id, "", AST_STIR_SHAKEN_VERIFY_SIGNATURE_FAILED);
-		return 0;
-	}
 
 	/* Make sure the public URL is actually a URL */
-	if (!ast_begins_with(public_cert_url, "http")) {
-		ast_stir_shaken_add_verification(chan, caller_id, "", AST_STIR_SHAKEN_VERIFY_SIGNATURE_FAILED);
-		return 0;
+	if (ast_strlen_zero(public_cert_url) || !ast_begins_with(public_cert_url, "http")) {
+		/* RFC8224 states that if we can't acquire the credentials needed
+		 * by the verification service, we should send a 436 */
+		ast_debug(3, "STIR/SHAKEN INVITE for %s did not  have valid URL (%s)\n",
+			ast_sorcery_object_get_id(session->endpoint), public_cert_url);
+		stir_shaken_inv_end_session(session, rdata, AST_STIR_SHAKEN_RESPONSE_CODE_BAD_IDENTITY_INFO, bad_identity_info_str);
+		return 1;
 	}
 
 	algorithm = strtok_r(identity_hdr_val, ";", &identity_hdr_val);
 	if (ast_strlen_zero(algorithm)) {
-		ast_stir_shaken_add_verification(chan, caller_id, "", AST_STIR_SHAKEN_VERIFY_SIGNATURE_FAILED);
-		return 0;
+		/* RFC8224 states that if the algorithm is not specified, use ES256 */
+		algorithm = STIR_SHAKEN_ENCRYPTION_ALGORITHM;
+	} else {
+		strtok_r(algorithm, "=", &algorithm);
+		if (strcmp(algorithm, STIR_SHAKEN_ENCRYPTION_ALGORITHM)) {
+			/* RFC8224 states that if we don't support the algorithm, send a 437 */
+			ast_debug(3, "STIR/SHAKEN INVITE for %s uses an unsupported algorithm (%s)\n",
+				ast_sorcery_object_get_id(session->endpoint), algorithm);
+			stir_shaken_inv_end_session(session, rdata, AST_STIR_SHAKEN_RESPONSE_CODE_UNSUPPORTED_CREDENTIAL, unsupported_credential_str);
+			return 1;
+		}
+	}
+
+	/* The only thing left should be ppt=shaken (which could have more values later),
+	 * unless using the compact PASSport form */
+	strtok_r(identity_hdr_val, "=", &identity_hdr_val);
+	ppt = ast_strip(identity_hdr_val);
+	if (!ast_strlen_zero(ppt) && strcmp(ppt, STIR_SHAKEN_PPT)) {
+		ast_log(LOG_ERROR, "STIR/SHAKEN INVITE for %s has unsupported ppt (%s)\n",
+			ast_sorcery_object_get_id(session->endpoint), ppt);
+		stir_shaken_inv_end_session(session, rdata, AST_STIR_SHAKEN_RESPONSE_CODE_USE_SUPPORTED_PASSPORT_FORMAT, use_supported_passport_format_str);
+		return 1;
+	}
+
+	if (check_date_header(rdata)) {
+		ast_debug(3, "STIR/SHAKEN INVITE for %s has old Date header\n",
+			ast_sorcery_object_get_id(session->endpoint));
+		stir_shaken_inv_end_session(session, rdata, AST_STIR_SHAKEN_RESPONSE_CODE_STALE_DATE, stale_date_str);
+		return 1;
 	}
 
 	attestation = get_attestation_from_payload(payload);
 
-	ss_payload = ast_stir_shaken_verify(header, payload, signature, algorithm, public_cert_url);
+	ss_payload = ast_stir_shaken_verify2(header, payload, signature, algorithm, public_cert_url, &failure_code);
 	if (!ss_payload) {
-		ast_stir_shaken_add_verification(chan, caller_id, attestation, AST_STIR_SHAKEN_VERIFY_SIGNATURE_FAILED);
-		return 0;
+
+		if (failure_code == AST_STIR_SHAKEN_VERIFY_FAILED_TO_GET_CERT) {
+			/* RFC8224 states that if we can't get the credentials we need, send a 437 */
+			ast_debug(3, "STIR/SHAKEN INVITE for %s failed to acquire cert during verification process\n",
+				ast_sorcery_object_get_id(session->endpoint));
+			stir_shaken_inv_end_session(session, rdata, AST_STIR_SHAKEN_RESPONSE_CODE_UNSUPPORTED_CREDENTIAL, unsupported_credential_str);
+		} else if (failure_code == AST_STIR_SHAKEN_VERIFY_FAILED_MEMORY_ALLOC) {
+			ast_log(LOG_ERROR, "Failed to allocate memory during STIR/SHAKEN verification"
+				" for %s\n", ast_sorcery_object_get_id(session->endpoint));
+			stir_shaken_inv_end_session(session, rdata, 500, server_internal_error_str);
+		} else if (failure_code == AST_STIR_SHAKEN_VERIFY_FAILED_SIGNATURE_VALIDATION) {
+			/* RFC8224 states that if we can't validate the signature, send a 438 */
+			ast_debug(3, "STIR/SHAKEN INVITE for %s failed signature validation during verification process\n",
+				ast_sorcery_object_get_id(session->endpoint));
+			ast_stir_shaken_add_verification(chan, caller_id, attestation, AST_STIR_SHAKEN_VERIFY_SIGNATURE_FAILED);
+			stir_shaken_inv_end_session(session, rdata, AST_STIR_SHAKEN_RESPONSE_CODE_INVALID_IDENTITY_HEADER, invalid_identity_hdr_str);
+		}
+
+		return 1;
 	}
 	ast_stir_shaken_payload_free(ss_payload);
 
@@ -333,7 +471,7 @@ static void add_date_header(const struct ast_sip_session *session, pjsip_tx_data
 
 static void stir_shaken_outgoing_request(struct ast_sip_session *session, pjsip_tx_data *tdata)
 {
-	if (!session->endpoint->stir_shaken) {
+	if ((session->endpoint->stir_shaken & AST_SIP_STIR_SHAKEN_ATTEST) == 0) {
 		return;
 	}
 

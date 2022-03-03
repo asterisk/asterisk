@@ -161,7 +161,7 @@ struct ast_key * AST_OPTIONAL_API_NAME(ast_key_get)(const char *kname, int ktype
  * \param ifd incoming file descriptor
  * \param ofd outgoing file descriptor
  * \param not2
- * \retval key on success.
+ * \return key on success.
  * \retval NULL on failure.
 */
 static struct ast_key *try_load_key(const char *dir, const char *fname, int ifd, int ofd, int *not2)
@@ -487,7 +487,6 @@ void AST_OPTIONAL_API_NAME(ast_aes_decrypt)(const unsigned char *in, unsigned ch
  * \brief refresh RSA keys from file
  * \param ifd file descriptor
  * \param ofd file descriptor
- * \return void
 */
 static void crypto_load(int ifd, int ofd)
 {
@@ -546,7 +545,7 @@ static void md52sum(char *sum, unsigned char *md5)
  * \param e CLI command
  * \param cmd
  * \param a list of CLI arguments
- * \return CLI_SUCCESS
+ * \retval CLI_SUCCESS
 */
 static char *handle_cli_keys_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
@@ -592,7 +591,7 @@ static char *handle_cli_keys_show(struct ast_cli_entry *e, int cmd, struct ast_c
  * \param e CLI command
  * \param cmd
  * \param a list of CLI arguments
- * \return CLI_SUCCESS
+ * \retval CLI_SUCCESS
 */
 static char *handle_cli_keys_init(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {

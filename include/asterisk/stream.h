@@ -110,7 +110,7 @@ extern const char *ast_stream_state_map[AST_STREAM_STATE_END];
  * \since 18
  *
  * \param stream_state One of enum ast_stream_state
- * \returns A constant string with the name of the state or an empty string
+ * \return A constant string with the name of the state or an empty string
  * if an invalid value was passed in.
  */
 #define ast_stream_state_to_str(stream_state) _stream_maps_to_str(ast_stream_state_map, stream_state)
@@ -238,7 +238,7 @@ extern const char *ast_stream_codec_negotiation_transcode_map[CODEC_NEGOTIATION_
  * \since 18
  *
  * \param value One of enum \ref ast_stream_codec_negotiation_params
- * \returns A constant string with the name of the preference or an empty string
+ * \return A constant string with the name of the preference or an empty string
  * if an invalid value was passed in.
  */
 #define ast_stream_codec_param_to_str(value) _stream_maps_to_str(ast_stream_codec_negotiation_params_map, value)
@@ -247,8 +247,8 @@ extern const char *ast_stream_codec_negotiation_transcode_map[CODEC_NEGOTIATION_
  * \brief Safely get the name of a "prefer" parameter value
  * \since 18
  *
- * \param value One of enum \ref ast_stream_codec_negotiation_prefer_values
- * \returns A constant string with the name of the value or an empty string
+ * \param value One of enum \ref ast_stream_codec_negotiation_prefs_prefer_values
+ * \return A constant string with the name of the value or an empty string
  * if an invalid value was passed in.
  */
 #define ast_stream_codec_prefer_to_str(value) _stream_maps_to_str(ast_stream_codec_negotiation_prefer_map, value)
@@ -257,8 +257,8 @@ extern const char *ast_stream_codec_negotiation_transcode_map[CODEC_NEGOTIATION_
  * \brief Safely get the name of an "operation" parameter value
  * \since 18
  *
- * \param value One of enum \ref ast_stream_codec_negotiation_operation_values
- * \returns A constant string with the name of the value or an empty string
+ * \param value One of enum \ref ast_stream_codec_negotiation_prefs_operation_values
+ * \return A constant string with the name of the value or an empty string
  * if an invalid value was passed in.
  */
 #define ast_stream_codec_operation_to_str(value) _stream_maps_to_str(ast_stream_codec_negotiation_operation_map, value)
@@ -267,8 +267,8 @@ extern const char *ast_stream_codec_negotiation_transcode_map[CODEC_NEGOTIATION_
  * \brief Safely get the name of a "keep" parameter value
  * \since 18
  *
- * \param value One of enum \ref ast_stream_codec_negotiation_keep_values
- * \returns A constant string with the name of the value or an empty string
+ * \param value One of enum \ref ast_stream_codec_negotiation_prefs_keep_values
+ * \return A constant string with the name of the value or an empty string
  * if an invalid value was passed in.
  */
 #define ast_stream_codec_keep_to_str(value) _stream_maps_to_str(ast_stream_codec_negotiation_keep_map, value)
@@ -277,8 +277,8 @@ extern const char *ast_stream_codec_negotiation_transcode_map[CODEC_NEGOTIATION_
  * \brief Safely get the name of a "transcode" parameter value
  * \since 18
  *
- * \param value One of enum \ref ast_stream_codec_negotiation_transcode_values
- * \returns A constant string with the name of the value or an empty string
+ * \param value One of enum \ref ast_stream_codec_negotiation_prefs_transcode_values
+ * \return A constant string with the name of the value or an empty string
  * if an invalid value was passed in.
  */
 #define ast_stream_codec_transcode_to_str(value) _stream_maps_to_str(ast_stream_codec_negotiation_transcode_map, value)
@@ -316,7 +316,7 @@ struct ast_stream_codec_negotiation_prefs {
  * \param prefs A pointer to a ast_stream_codec_negotiation_prefs structure
  * \param buf A pointer to an ast_str* used for the output.  See note below.
  *
- * \returns the contents of the ast_str as a const char *.
+ * \return the contents of the ast_str as a const char *.
  *
  * \warning No attempt should ever be made to free the returned
  * char * and it should be dup'd if needed after the ast_str is freed.
@@ -389,7 +389,7 @@ void ast_stream_free(struct ast_stream *stream);
  * \brief Create a deep clone of an existing stream
  *
  * \param stream The existing stream
- * \param Optional name for cloned stream. If NULL, then existing stream's name is copied.
+ * \param name Optional for cloned stream. If NULL, then existing stream's name is copied.
  *
  * \retval non-NULL success
  * \retval NULL failure
@@ -457,7 +457,7 @@ const struct ast_format_cap *ast_stream_get_formats(const struct ast_stream *str
  *
  * \retval "" (empty string) if either buf or *buf are NULL
  * \retval "(null stream)" if *stream was NULL
- * \retval <stream_representation> otherwise
+ * \return \<stream_representation\> otherwise
  *
  * \warning No attempt should ever be made to free the returned
  * char * and it should be dup'd if needed after the ast_str is freed.
@@ -465,10 +465,10 @@ const struct ast_format_cap *ast_stream_get_formats(const struct ast_stream *str
  * \details
  *
  * Return format:
- * <name>:<media_type>:<stream_state> (formats)
+ * \verbatim <name>:<media_type>:<stream_state> (formats) \endverbatim
  *
  * Sample return:
- * "audio:audio:sendrecv (ulaw,g722)"
+ * \verbatim "audio:audio:sendrecv (ulaw,g722)" \endverbatim
  *
  */
 const char *ast_stream_to_str(const struct ast_stream *stream, struct ast_str **buf);
@@ -476,9 +476,9 @@ const char *ast_stream_to_str(const struct ast_stream *stream, struct ast_str **
 /*!
  * \brief Get a stack allocated string representing the stream for debugging/display purposes
  *
- * \param stream A stream
+ * \param __stream A stream
  *
- * \returns a stack allocated pointer to a string representing the stream.
+ * \return A stack allocated pointer to a string representing the stream.
  *
  * \warning No attempt should ever be made to free the returned
  * char* as it is allocated from the stack.
@@ -574,7 +574,7 @@ const char *ast_stream_get_metadata(const struct ast_stream *stream,
  *
  * \param stream The media stream
  *
- * \retval An ast_variable list of the metadata key/value pairs.
+ * \return An ast_variable list of the metadata key/value pairs.
  * \retval NULL if error or no variables are set.
  *
  * When you're finished with the list, you must call
@@ -650,7 +650,7 @@ void ast_stream_set_rtp_codecs(struct ast_stream *stream, struct ast_rtp_codecs 
  * some catastrophic allocation failure.
  *
  * \retval NULL if there was some allocation failure.
- * \retval A new, resolved stream.
+ * \return A new, resolved stream.
  *
  */
 struct ast_stream *ast_stream_create_resolved(struct ast_stream *pending_stream,
@@ -715,11 +715,11 @@ void ast_stream_topology_free(struct ast_stream_topology *topology);
  * \param topology The topology of streams
  * \param stream The stream to append
  *
- * \returns the position of the stream in the topology (-1 on error)
+ * \return The position of the stream in the topology (-1 on error)
  *
  * \since 15
  *
- * \note If the stream's name is empty, it'll be set to <stream_type>-<position>
+ * \note If the stream's name is empty, it'll be set to \<stream_type\>-\<position\>
  */
 int ast_stream_topology_append_stream(struct ast_stream_topology *topology,
 	struct ast_stream *stream);
@@ -729,7 +729,7 @@ int ast_stream_topology_append_stream(struct ast_stream_topology *topology,
  *
  * \param topology The topology of streams
  *
- * \return the number of streams (-1 on error)
+ * \return The number of streams (-1 on error)
  *
  * \since 15
  */
@@ -778,7 +778,7 @@ struct ast_stream *ast_stream_topology_get_stream(
  *
  * \since 15
  *
- * \note If the stream's name is empty, it'll be set to <stream_type>-<position>
+ * \note If the stream's name is empty, it'll be set to \<stream_type\>-\<position\>
  */
 int ast_stream_topology_set_stream(struct ast_stream_topology *topology,
 	unsigned int position, struct ast_stream *stream);
@@ -796,8 +796,6 @@ int ast_stream_topology_set_stream(struct ast_stream_topology *topology,
  *
  * \retval 0 on success.
  * \retval -1 on failure.
- *
- * \return Nothing
  */
 int ast_stream_topology_del_stream(struct ast_stream_topology *topology,
 	unsigned int position);
@@ -807,7 +805,7 @@ int ast_stream_topology_del_stream(struct ast_stream_topology *topology,
  * creates a topology and separates the media types in format_cap into
  * separate streams.
  *
- * \param caps The format capabilities structure (NULL creates an empty topology)
+ * \param cap The format capabilities structure (NULL creates an empty topology)
  *
  * \retval non-NULL success
  * \retval NULL failure
@@ -853,16 +851,16 @@ struct ast_format_cap *ast_stream_topology_get_formats(
  *
  * \retval "" (empty string) if either buf or *buf are NULL
  * \retval "(null topology)" if *topology was NULL
- * \retval <topology_representation> otherwise
+ * \return \<topology_representation\> otherwise
  *
  * \warning No attempt should ever be made to free the returned
  * char * and it should be dup'd if needed after the ast_str is freed.
   *
  * Return format:
- * <final>? <stream> ...
+ * \verbatim <final>? <stream> ... \endverbatim
  *
  * Sample return:
- * "final <audio:audio:sendrecv (ulaw,g722)> <video:video:sendonly (h264)>"
+ * \verbatim "final <audio:audio:sendrecv (ulaw,g722)> <video:video:sendonly (h264)>" \endverbatim
  *
  */
 const char *ast_stream_topology_to_str(const struct ast_stream_topology *topology, struct ast_str **buf);
@@ -947,7 +945,7 @@ void ast_stream_set_group(struct ast_stream *stream, int group);
  *
  * \param pending_topology The "live" topology created from an SDP,
  *        passed through the core, or used to create an SDP.
- * \param configured_topology The static topology used to validate the pending topology.
+ * \param validation_topology The static topology used to validate the pending topology.
  *        It MUST have only 1 stream per media type.
  * \param prefs A pointer to an ast_stream_codec_negotiation_prefs structure.
  * \param error_message If supplied, error messages will be appended.
@@ -964,7 +962,7 @@ void ast_stream_set_group(struct ast_stream *stream, int group);
  * number of streams, in the same order, as the pending topology.
  *
  * \retval NULL if there was some allocation failure.
- * \retval The joint topology.
+ * \return The joint topology.
  */
 struct ast_stream_topology *ast_stream_topology_create_resolved(
 	struct ast_stream_topology *pending_topology, struct ast_stream_topology *validation_topology,
@@ -974,9 +972,9 @@ struct ast_stream_topology *ast_stream_topology_create_resolved(
 /*!
  * \brief Get a stack allocated string representing the topology for debugging/display purposes
  *
- * \param topology A topology
+ * \param __topology A topology
  *
- * \returns a stack allocated pointer to a string representing the topology.
+ * \return A stack allocated pointer to a string representing the topology.
  *
  * \warning No attempt should ever be made to free the returned
  * char* as it is allocated from the stack.

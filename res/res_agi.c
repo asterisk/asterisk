@@ -1185,21 +1185,17 @@
 			after a channel hangup is detected, set the <variable>AGIEXITONHANGUP</variable>
 			variable to <literal>yes</literal>.</para>
 			</note>
-			<example title="AGI invocation examples">
-				; Start the AGI script /tmp/my-cool-script.sh, passing it the contents
-				; of the channel variable FOO
-				same => n,AGI(/tmp/my-cool-script.sh,${FOO})
-
-				; Start the AGI script my-cool-script.sh located in the astagidir
-				; directory, specified in asterisk.conf
-				same => n,AGI(my-cool-script.sh)
-
-				; Connect to the FastAGI server located at 127.0.0.1 and start the script
-				; awesome-script
-				same => n,AGI(agi://127.0.0.1/awesome-script)
-
-				; Start AsyncAGI
-				same => n,AGI(agi:async)
+			<example title="Start the AGI script /tmp/my-cool-script.sh, passing it the contents of the channel variable FOO">
+			same => n,AGI(/tmp/my-cool-script.sh,${FOO})
+			</example>
+			<example title="Start the AGI script my-cool-script.sh located in the astagidir directory, specified in asterisk.conf">
+			same => n,AGI(my-cool-script.sh)
+			</example>
+			<example title="Connect to the FastAGI server located at 127.0.0.1 and start the script awesome-script">
+			same => n,AGI(agi://127.0.0.1/awesome-script)
+			</example>
+			<example title="Start AsyncAGI">
+			same => n,AGI(agi:async)
 			</example>
 			<para>This application sets the following channel variable upon completion:</para>
 			<variablelist>
@@ -3010,7 +3006,7 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, const
 			switch(f->frametype) {
 			case AST_FRAME_DTMF:
 				if (strchr(argv[4], f->subclass.integer)) {
-					/* This is an interrupting chracter, so rewind to chop off any small
+					/* This is an interrupting character, so rewind to chop off any small
 					   amount of DTMF that may have been recorded
 					*/
 					ast_stream_rewind(fs, 200);

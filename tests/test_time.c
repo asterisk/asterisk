@@ -91,8 +91,12 @@ AST_TEST_DEFINE(test_timezone_watch)
 			ast_localtime(&tv, &atm[i], tzfile);
 			if (i != 0) {
 				if (atm[i].tm_hour == atm[i - 1].tm_hour) {
-					res = AST_TEST_FAIL;
-					ast_test_status_update(test, "Failed %s test: %d(%s) = %d(%s)\n", type == 0 ? "deletion" : "symlink", atm[i].tm_hour, zones[i], atm[i-1].tm_hour, zones[i-1]);
+					if (atm[i].tm_isdst == atm[i - 1].tm_isdst) {
+						res = AST_TEST_FAIL;
+						ast_test_status_update(test, "Failed %s test: %d(%s) = %d(%s)\n", type == 0 ? "deletion" : "symlink", atm[i].tm_hour, zones[i], atm[i-1].tm_hour, zones[i-1]);
+					} else {
+						ast_log(LOG_WARNING, "DST transition during %s test: %d(%s/%d) != %d(%s/%d)\n", type == 0 ? "deletion" : "symlink", atm[i].tm_hour, zones[i], atm[i].tm_isdst, atm[i-1].tm_hour, zones[i-1], atm[i-1].tm_isdst);
+					}
 				}
 			}
 

@@ -297,7 +297,7 @@ int ooCreateH225Connection(OOH323CallData *call)
       {
          call->pH225Channel->sock = channelSocket;
 
-         OOTRACEINFO3("H2250 transmiter channel creation - successful "
+         OOTRACEINFO3("H2250 transmitter channel creation - successful "
                       "(%s, %s)\n", call->callType, call->callToken);
 
          /* If multihomed, get ip from socket */

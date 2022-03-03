@@ -726,7 +726,7 @@ static struct ao2_container *applicationmap_alloc(int replace_duplicates)
  * need to allocate these structures because they are not used.
  *
  * \param allocate_applicationmap See previous explanation
- * \retval NULL Failed to alloate configuration
+ * \retval NULL Failed to allocate configuration
  * \retval non-NULL Allocated configuration
  */
 static struct features_config *__features_config_alloc(int allocate_applicationmap)
@@ -817,7 +817,7 @@ static void features_copy(struct features_config *dest, const struct features_co
 
 	/* applicationmap and featuregroups are purposely not copied. A channel's applicationmap
 	 * is produced on the fly when ast_get_chan_applicationmap() is called
-	 * NOTE: This does not apply to the global cfg->applicationmap and cfg->featuresgroups
+	 * NOTE: This does not apply to the global cfg->applicationmap and cfg->featuregroups
 	 */
 }
 

@@ -752,7 +752,7 @@ struct ast_json *ast_bridge_snapshot_to_json(
  * \internal
  * \brief Allocate the fields of an \ref ast_bridge_channel_snapshot_pair.
  *
- * \param pair A bridge and channel to get snapshots of
+ * \param channel, bridge A bridge and channel to get snapshots of
  * \param[out] snapshot_pair An allocated snapshot pair.
  * \retval 0 Success
  * \retval non-zero Failure

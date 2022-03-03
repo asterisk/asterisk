@@ -126,7 +126,7 @@ static void destroy_table(struct tables *table)
 	ast_free(table);
 }
 
-/*! \brief Helper function for pgsql_exec.  For running querys, use pgsql_exec()
+/*! \brief Helper function for pgsql_exec.  For running queries, use pgsql_exec()
  *
  *  Connect if not currently connected.  Run the given query.
  *

@@ -103,6 +103,7 @@ int ast_odbc_smart_execute(struct odbc_obj *obj, SQLHSTMT stmt) __attribute__((d
  *
  * This is only around for backwards-compatibility with older versions of Asterisk.
  */
+#define ast_odbc_request_obj2(name, check) _ast_odbc_request_obj2(name, check, __FILE__, __PRETTY_FUNCTION__, __LINE__)
 struct odbc_obj *_ast_odbc_request_obj2(const char *name, struct ast_flags flags, const char *file, const char *function, int lineno);
 
 /*!
@@ -116,10 +117,8 @@ struct odbc_obj *_ast_odbc_request_obj2(const char *name, struct ast_flags flags
  * \param check unused
  * \return A connection to the database. Call ast_odbc_release_obj() when finished.
  */
+#define ast_odbc_request_obj(name, check) _ast_odbc_request_obj(name, check, __FILE__, __PRETTY_FUNCTION__, __LINE__)
 struct odbc_obj *_ast_odbc_request_obj(const char *name, int check, const char *file, const char *function, int lineno);
-
-#define ast_odbc_request_obj2(a, b)	_ast_odbc_request_obj2(a, b, __FILE__, __PRETTY_FUNCTION__, __LINE__)
-#define ast_odbc_request_obj(a, b)	_ast_odbc_request_obj(a, b, __FILE__, __PRETTY_FUNCTION__, __LINE__)
 
 /*!
  * \brief Releases an ODBC object previously allocated by ast_odbc_request_obj()
@@ -137,7 +136,8 @@ int ast_odbc_sanity_check(struct odbc_obj *obj);
 
 /*! \brief Checks if the database natively supports backslash as an escape character.
  * \param obj The ODBC object
- * \return Returns 1 if backslash is a native escape character, 0 if an ESCAPE clause is needed to support '\'
+ * \retval 1 if backslash is a native escape character
+ * \retval 0 if an ESCAPE clause is needed to support '\'
  */
 int ast_odbc_backslash_is_escape(struct odbc_obj *obj);
 
@@ -146,7 +146,7 @@ int ast_odbc_backslash_is_escape(struct odbc_obj *obj);
  * \param obj The ODBC object
  * \param exec_cb A function callback, which, when called, should return a statement handle with result columns bound.
  * \param data A parameter to be passed to the exec_cb parameter function, indicating which statement handle is to be prepared.
- * \retval a statement handle
+ * \return a statement handle
  * \retval NULL on error
  */
 SQLHSTMT ast_odbc_direct_execute(struct odbc_obj *obj, SQLHSTMT (*exec_cb)(struct odbc_obj *obj, void *data), void *data);
@@ -156,7 +156,7 @@ SQLHSTMT ast_odbc_direct_execute(struct odbc_obj *obj, SQLHSTMT (*exec_cb)(struc
  * \param obj The ODBC object
  * \param prepare_cb A function callback, which, when called, should return a statement handle prepared, with any necessary parameters or result columns bound.
  * \param data A parameter to be passed to the prepare_cb parameter function, indicating which statement handle is to be prepared.
- * \retval a statement handle
+ * \return a statement handle
  * \retval NULL on error
  */
 SQLHSTMT ast_odbc_prepare_and_execute(struct odbc_obj *obj, SQLHSTMT (*prepare_cb)(struct odbc_obj *obj, void *data), void *data);
@@ -165,13 +165,14 @@ SQLHSTMT ast_odbc_prepare_and_execute(struct odbc_obj *obj, SQLHSTMT (*prepare_c
  * \brief Prepares a SQL query on a statement.
  * \param obj The ODBC object
  * \param stmt The statement
- * \parma sql The SQL query
+ * \param sql The SQL query
  * \note This should be used in place of SQLPrepare
  */
 int ast_odbc_prepare(struct odbc_obj *obj, SQLHSTMT *stmt, const char *sql);
 
-/*! \brief Execute a nonprepared SQL query.
+/*! \brief Execute a unprepared SQL query.
  * \param obj The ODBC object
+ * \param stmt The statement
  * \param sql The SQL query
  * \note This should be used in place of SQLExecDirect
  */
@@ -181,7 +182,8 @@ SQLRETURN ast_odbc_execute_sql(struct odbc_obj *obj, SQLHSTMT *stmt, const char 
  * \brief Find or create an entry describing the table specified.
  * \param database Name of an ODBC class on which to query the table
  * \param tablename Tablename to describe
- * \retval A structure describing the table layout, or NULL, if the table is not found or another error occurs.
+ * \return A structure describing the table layout.
+ * \retval NULL if the table is not found or another error occurs.
  * When a structure is returned, the contained columns list will be
  * rdlock'ed, to ensure that it will be retained in memory.  The information
  * will be cached until a reload event or when ast_odbc_clear_cache() is called
@@ -194,7 +196,7 @@ struct odbc_cache_tables *ast_odbc_find_table(const char *database, const char *
  * \brief Find a column entry within a cached table structure
  * \param table Cached table structure, as returned from ast_odbc_find_table()
  * \param colname The column name requested
- * \retval A structure describing the column type, or NULL, if the column is not found.
+ * \return A structure describing the column type, or NULL, if the column is not found.
  * \since 1.6.1
  */
 struct odbc_cache_columns *ast_odbc_find_column(struct odbc_cache_tables *table, const char *colname);
@@ -205,7 +207,8 @@ struct odbc_cache_columns *ast_odbc_find_column(struct odbc_cache_tables *table,
  * ast_odbc_find_table() API call.
  * \param database Name of an ODBC class (used to ensure like-named tables in different databases are not confused)
  * \param tablename Tablename for which a cached record should be removed
- * \retval 0 if the cache entry was removed, or -1 if no matching entry was found.
+ * \retval 0 if the cache entry was removed.
+ * \retval -1 if no matching entry was found.
  * \since 1.6.1
  */
 int ast_odbc_clear_cache(const char *database, const char *tablename);

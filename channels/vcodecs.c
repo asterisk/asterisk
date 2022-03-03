@@ -416,7 +416,7 @@ static struct ast_frame *h263p_encap(struct fbuf_t *b, int mtu,
 	return first;
 }
 
-/*! \brief extract the bitstreem from the RTP payload.
+/*! \brief extract the bitstream from the RTP payload.
  * This is format dependent.
  * For h263+, the format is defined in RFC 2429
  * and basically has a fixed 2-byte header as follows:

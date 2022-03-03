@@ -26,7 +26,7 @@
  * based on the Comedian Mail voicemail system (app_voicemail.c).
  *
  * \par See also
- * \arg \ref Config_minivm_examples
+ * \arg \ref minivm.conf "Config_minivm"
  * \arg \ref App_minivm
  *
  * \ingroup applications
@@ -78,16 +78,16 @@
  *		- English, GB		en_gb
  *
  * \par See also
- * \arg \ref Config_minivm
+ * \arg \ref minivm.conf "Config_minivm"
  * \arg \ref Config_minivm_examples
  * \arg \ref Minivm_directories
  * \arg \ref app_minivm.c
  * \arg Comedian mail: app_voicemail.c
- * \arg \ref descrip_minivm_accmess
- * \arg \ref descrip_minivm_greet
- * \arg \ref descrip_minivm_record
- * \arg \ref descrip_minivm_delete
- * \arg \ref descrip_minivm_notify
+ * \arg \ref minivm_accmess_exec
+ * \arg \ref minivm_greet_exec
+ * \arg \ref minivm_record_exec
+ * \arg \ref minivm_delete_exec
+ * \arg \ref minivm_notify_exec
  *
  * \arg \ref App_minivm_todo
  */
@@ -109,6 +109,13 @@
  *	To avoid transcoding, these sound files should be converted into several formats
  *	They are recorded in the format closest to the incoming streams
  *
+ *
+ * Back: \ref App_minivm
+ */
+
+/*!
+ * \page minivm.conf minivm.conf
+ * \verbinclude minivm.conf.sample
  *
  * Back: \ref App_minivm
  */
@@ -153,7 +160,6 @@
 #include <time.h>
 #include <dirent.h>
 #include <locale.h>
-
 
 #include "asterisk/paths.h"	/* use various paths */
 #include "asterisk/lock.h"
@@ -535,8 +541,6 @@
 #define SENDMAIL "/usr/sbin/sendmail -t"
 
 #define SOUND_INTRO		"vm-intro"
-#define B64_BASEMAXINLINE 	256	/*!< Buffer size for Base 64 attachment encoding */
-#define B64_BASELINELEN 	72	/*!< Line length for Base 64 endoded messages */
 #define EOL			"\r\n"
 
 #define MAX_DATETIME_FORMAT	512
@@ -650,15 +654,6 @@ static AST_LIST_HEAD_STATIC(message_templates, minivm_template);
 struct leave_vm_options {
 	unsigned int flags;
 	signed char record_gain;
-};
-
-/*! \brief Structure for base64 encoding */
-struct b64_baseio {
-	int iocp;
-	int iolen;
-	int linelength;
-	int ateof;
-	unsigned char iobuf[B64_BASEMAXINLINE];
 };
 
 /*! \brief Voicemail time zones */
@@ -844,134 +839,6 @@ static void message_destroy_list(void)
 	}
 
 	AST_LIST_UNLOCK(&message_templates);
-}
-
-/*!\internal
- * \brief read buffer from file (base64 conversion) */
-static int b64_inbuf(struct b64_baseio *bio, FILE *fi)
-{
-	int l;
-
-	if (bio->ateof)
-		return 0;
-
-	if ((l = fread(bio->iobuf, 1, B64_BASEMAXINLINE, fi)) != B64_BASEMAXINLINE) {
-		bio->ateof = 1;
-		if (l == 0) {
-			/* Assume EOF */
-			return 0;
-		}
-	}
-
-	bio->iolen = l;
-	bio->iocp = 0;
-
-	return 1;
-}
-
-/*!\internal
- * \brief read character from file to buffer (base64 conversion) */
-static int b64_inchar(struct b64_baseio *bio, FILE *fi)
-{
-	if (bio->iocp >= bio->iolen) {
-		if (!b64_inbuf(bio, fi))
-			return EOF;
-	}
-
-	return bio->iobuf[bio->iocp++];
-}
-
-/*!\internal
- * \brief write buffer to file (base64 conversion) */
-static int b64_ochar(struct b64_baseio *bio, int c, FILE *so)
-{
-	if (bio->linelength >= B64_BASELINELEN) {
-		if (fputs(EOL,so) == EOF)
-			return -1;
-
-		bio->linelength= 0;
-	}
-
-	if (putc(((unsigned char) c), so) == EOF)
-		return -1;
-
-	bio->linelength++;
-
-	return 1;
-}
-
-/*!\internal
- * \brief Encode file to base64 encoding for email attachment (base64 conversion) */
-static int base_encode(char *filename, FILE *so)
-{
-	unsigned char dtable[B64_BASEMAXINLINE];
-	int i,hiteof= 0;
-	FILE *fi;
-	struct b64_baseio bio;
-
-	memset(&bio, 0, sizeof(bio));
-	bio.iocp = B64_BASEMAXINLINE;
-
-	if (!(fi = fopen(filename, "rb"))) {
-		ast_log(LOG_WARNING, "Failed to open file: %s: %s\n", filename, strerror(errno));
-		return -1;
-	}
-
-	for (i= 0; i<9; i++) {
-		dtable[i]= 'A'+i;
-		dtable[i+9]= 'J'+i;
-		dtable[26+i]= 'a'+i;
-		dtable[26+i+9]= 'j'+i;
-	}
-	for (i= 0; i < 8; i++) {
-		dtable[i+18]= 'S'+i;
-		dtable[26+i+18]= 's'+i;
-	}
-	for (i= 0; i < 10; i++) {
-		dtable[52+i]= '0'+i;
-	}
-	dtable[62]= '+';
-	dtable[63]= '/';
-
-	while (!hiteof){
-		unsigned char igroup[3], ogroup[4];
-		int c,n;
-
-		igroup[0]= igroup[1]= igroup[2]= 0;
-
-		for (n= 0; n < 3; n++) {
-			if ((c = b64_inchar(&bio, fi)) == EOF) {
-				hiteof= 1;
-				break;
-			}
-			igroup[n]= (unsigned char)c;
-		}
-
-		if (n> 0) {
-			ogroup[0]= dtable[igroup[0]>>2];
-			ogroup[1]= dtable[((igroup[0]&3)<<4) | (igroup[1]>>4)];
-			ogroup[2]= dtable[((igroup[1]&0xF)<<2) | (igroup[2]>>6)];
-			ogroup[3]= dtable[igroup[2]&0x3F];
-
-			if (n<3) {
-				ogroup[3]= '=';
-
-				if (n<2)
-					ogroup[2]= '=';
-			}
-
-			for (i= 0;i<4;i++)
-				b64_ochar(&bio, ogroup[i], so);
-		}
-	}
-
-	/* Put end of line - line feed */
-	if (fputs(EOL, so) == EOF)
-		return 0;
-
-	fclose(fi);
-
-	return 1;
 }
 
 static int get_date(char *s, int len)
@@ -1474,7 +1341,7 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 		fprintf(p, "Content-Description: Voicemail sound attachment.\n");
 		fprintf(p, "Content-Disposition: attachment; filename=\"voicemail%s.%s\"\n\n", counter ? counter : "", format);
 
-		base_encode(fname, p);
+		ast_base64_encode_file_path(fname, p, EOL);
 		fprintf(p, "\n\n--%s--\n.\n", bound);
 	}
 	fclose(p);
@@ -1737,7 +1604,7 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 			}
 			return cmd;
  		default:
-			/* If the caller is an ouside caller, and the review option is enabled,
+			/* If the caller is an outside caller, and the review option is enabled,
 			   allow them to review the message, but let the owner of the box review
 			   their OGM's */
 			if (outsidecaller && !ast_test_flag(vmu, MVM_REVIEW))
@@ -2827,7 +2694,7 @@ static int apply_general_options(struct ast_variable *var)
 		} else if (!strcmp(var->name, "externnotify")) {
 			/* External voicemail notify application */
 			ast_copy_string(global_externnotify, var->value, sizeof(global_externnotify));
-		} else if (!strcmp(var->name, "silencetreshold")) {
+		} else if (!strcmp(var->name, "silencethreshold") || !strcmp(var->name, "silencetreshold")) {
 			/* Silence treshold */
 			global_silencethreshold = atoi(var->value);
 		} else if (!strcmp(var->name, "maxmessage")) {
@@ -2955,6 +2822,8 @@ static int load_config(int reload)
 	if ((chanvar = ast_variable_retrieve(cfg, "general", "emailfromstring")))
 		ast_copy_string(template->fromaddress, chanvar, sizeof(template->fromaddress));
 	if ((chanvar = ast_variable_retrieve(cfg, "general", "emailaaddress")))
+		ast_copy_string(template->serveremail, chanvar, sizeof(template->serveremail));
+	if ((chanvar = ast_variable_retrieve(cfg, "general", "emailaddress")))
 		ast_copy_string(template->serveremail, chanvar, sizeof(template->serveremail));
 	if ((chanvar = ast_variable_retrieve(cfg, "general", "emailcharset")))
 		ast_copy_string(template->charset, chanvar, sizeof(template->charset));

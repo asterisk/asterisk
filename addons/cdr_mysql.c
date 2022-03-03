@@ -38,6 +38,8 @@
 	<defaultenabled>no</defaultenabled>
 	<support_level>deprecated</support_level>
 	<replacement>cdr_adaptive_odbc</replacement>
+	<deprecated_in>1.8</deprecated_in>
+	<removed_in>19</removed_in>
  ***/
 
 #include "asterisk.h"

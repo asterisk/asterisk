@@ -110,7 +110,7 @@ struct ast_filestream {
 	struct ast_filestream *vfs;
 	/*! Transparently translate from another format -- just once */
 	struct ast_trans_pvt *trans;
-	struct ast_tranlator_pvt *tr;
+	struct ast_translator_pvt *tr;
 	struct ast_format *lastwriteformat;
 	int lasttimeout;
 	struct ast_channel *owner;

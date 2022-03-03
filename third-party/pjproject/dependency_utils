@@ -1,0 +1,96 @@
+#!/bin/sh
+
+[ "x${SED}" = "x" ] && SED=sed
+[ "x${GREP}" = "x" ] && GREP=grep
+[ "x${REALPATH}" = "x" ] && REALPATH=realpath
+[ "x${DIRNAME}" = "x" ] && DIRNAME=dirname
+[ "x${BASENAME}" = "x" ] && BASENAME=basename
+[ "x${GREP}" = "x" ] && GREP=grep
+if [ "x${TARGET_NAME}" = "x" ] ; then
+	if [ ! -f build.mak ] ; then
+		exit 0;
+	fi
+	TARGET_NAME=$(${SED} -n -r -e "s/export\s+TARGET_NAME\s*:=\s*(.*)/\1/gp" build.mak)
+fi
+
+getlibname() {
+	dep="$1"
+	libdir=$(${DIRNAME} $(${DIRNAME} "${dep}"))/lib
+	depname=$(${BASENAME} "${dep}")
+	depprefix="${depname%%-${TARGET_NAME}.depend}"
+	case ${depprefix} in
+		.pjlib)
+			libfile=libpj
+			;;
+		.pjsua-lib)
+			libfile=libpjsua
+			;;
+		.*)
+			libfile=lib${depprefix#.*}
+			;;
+	esac
+	echo "${libdir}/${libfile}-${TARGET_NAME}.a"
+}
+
+gendepfile() {
+	pjdf="$1"
+	astdf="${pjdf%*.depend}.astdep"
+	dirname=$(${DIRNAME} "${astdf}")
+	lines=$(grep -E -o -- "[.][.]/[^ ]+" "${pjdf}" | sort -u | wc -l)
+	libname=$(getlibname "${pjdf}")
+	backslash="\\"
+	echo "${libname}: ${backslash}" >"${astdf}"
+	for dep in $(grep -E -o -- "[.][.]/[^ ]+" "${pjdf}" | sort -u) ; do
+		( echo "${dep}" | grep -Eq "(test|/bin/)" ; ) && continue
+		newdep=$( cd "${dirname}" ; ${REALPATH} -L --relative-to=../../ "${dep}" ; )
+		lines=$(( ${lines} - 1 ))
+		if [ ${lines} -eq 0 ] ; then
+			echo "source/${newdep}" >>"${astdf}"
+		else
+			echo "source/${newdep} ${backslash}" >>"${astdf}"
+		fi
+	done
+	echo >>"${astdf}"
+}
+
+getpjdepname () {
+	lib="$1"
+	builddir=$(${DIRNAME} $(${DIRNAME} "${lib}"))/build
+	libname=$(${BASENAME} "${lib}")
+	libprefix="${libname%%-${TARGET_NAME}.a}"
+	nolib=$(echo "${libprefix}" | ${SED} -r -e "s@^lib@@g")
+	case ${nolib} in
+		pj)
+			depfile=.pjlib
+			;;
+		pjsua)
+			depfile=.pjsua-lib
+			;;
+		resample)
+			depfile=resample/.libresample
+			;;
+		*)
+			depfile=.${nolib}
+			;;
+	esac
+	echo "${builddir}/${depfile}-${TARGET_NAME}.depend"
+}
+
+case $1 in
+	getpjdepname)
+		shift
+		for lib in $@ ; do getpjdepname "${lib}" ; done
+		;;
+	gendepfile)
+		shift
+		for dep in $@ ; do gendepfile "${dep}" ; done
+		;;
+	getlibname)
+		shift
+		for dep in $@ ; do getlibname "${dep}" ; done
+		;;
+	*)
+		echo Invalid command
+		exit 1
+		;;
+esac

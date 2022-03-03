@@ -127,7 +127,7 @@ typedef struct {
 			/* fields in third byte */
 	unsigned	qr:1;           /*!< response flag */
 	unsigned	opcode:4;       /*!< purpose of message */
-	unsigned	aa:1;           /*!< authoritive answer */
+	unsigned	aa:1;           /*!< authoritative answer */
 	unsigned	tc:1;           /*!< truncated message */
 	unsigned	rd:1;           /*!< recursion desired */
 			/* fields in fourth byte */
@@ -141,7 +141,7 @@ typedef struct {
 			/* fields in third byte */
 	unsigned	rd:1;           /*!< recursion desired */
 	unsigned	tc:1;           /*!< truncated message */
-	unsigned	aa:1;           /*!< authoritive answer */
+	unsigned	aa:1;           /*!< authoritative answer */
 	unsigned	opcode:4;       /*!< purpose of message */
 	unsigned	qr:1;           /*!< response flag */
 			/* fields in fourth byte */
@@ -173,7 +173,7 @@ struct dn_answer {
  * \param  s    A char pointer to the current frame in the DNS response.
  * \param  len  The remaining available length of the DNS response.
  *
- * \retval The position of the next field
+ * \return The position of the next field
  * \retval -1 if there are no remaining fields
  */
 static int skip_name(unsigned char *s, int len)
@@ -217,7 +217,7 @@ static int skip_name(unsigned char *s, int len)
  * \param  field_size     A positive value representing the size of the current field
                           pointed to by the dns_response parameter.
  *
- * \retval The remaining length in the DNS response
+ * \return The remaining length in the DNS response
  * \retval -1 there are no frames remaining in the DNS response
  */
 static int dns_advance_field(unsigned char **dns_response, int remaining_len, int field_size)
@@ -244,7 +244,7 @@ static int dns_advance_field(unsigned char **dns_response, int remaining_len, in
  * \param  dns_response      The full DNS response.
  * \param  dns_response_len  The length of the full DNS response.
  *
- * \retval The length of the DNS response
+ * \return The length of the DNS response
  * \retval -1 on search failure
  */
 static int dns_search_res(const char *dname, int rr_class, int rr_type,
@@ -281,7 +281,7 @@ static int dns_search_res(const char *dname, int rr_class, int rr_type,
  * \param  dns_response      The full DNS response.
  * \param  dns_response_len  The length of the full DNS response.
  *
- * \retval The length of the DNS response
+ * \return The length of the DNS response
  * \retval -1 on search failure
  */
 static int dns_search_res(const char *dname, int rr_class, int rr_type,
@@ -316,7 +316,6 @@ static int dns_search_res(const char *dname, int rr_class, int rr_type,
  * \internal
  *
  * \param  context   Void pointer containing data to use in the callback functions.
- * \param  dname     Domain name to lookup (host, SRV domain, TXT record name).
  * \param  class     Record Class (see "man res_search").
  * \param  type      Record type (see "man res_search").
  * \param  answer    The full DNS response.
@@ -394,7 +393,6 @@ static int dns_parse_answer(void *context,
  * \internal
  *
  * \param  context           Void pointer containing data to use in the callback functions.
- * \param  dname             Domain name to lookup (host, SRV domain, TXT record name).
  * \param  rr_class          Record Class (see "man res_search").
  * \param  rr_type           Record type (see "man res_search").
  * \param  answer            The full DNS response.
@@ -605,7 +603,22 @@ struct ao2_container *ast_dns_get_nameservers(void)
 #endif
 
 	for (i = 0; i < state->nscount; i++) {
-		ast_str_container_add(nameservers, ast_inet_ntoa(state->nsaddr_list[i].sin_addr));
+		char addr[INET6_ADDRSTRLEN];
+		const char *addrp = NULL;
+
+		/* glibc sets sin_family to 0 when the nameserver is an IPv6 address */
+		if (state->nsaddr_list[i].sin_family) {
+			addrp = inet_ntop(AF_INET, &state->nsaddr_list[i].sin_addr, addr, sizeof(addr));
+#if defined(HAVE_RES_NINIT) && defined(HAVE_STRUCT___RES_STATE__U__EXT_NSADDRS)
+		} else if (state->_u._ext.nsaddrs[i]) {
+			addrp = inet_ntop(AF_INET6, &state->_u._ext.nsaddrs[i]->sin6_addr, addr, sizeof(addr));
+#endif
+		}
+
+		if (addrp) {
+			ast_debug(1, "Discovered nameserver: %s\n", addrp);
+			ast_str_container_add(nameservers, addrp);
+		}
 	}
 
 #ifdef HAVE_RES_NINIT

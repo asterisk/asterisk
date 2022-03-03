@@ -73,7 +73,7 @@ struct misdn_stack {
 	/*! \brief D Channel mISDN driver stack ID (Parent stack ID) */
 	int d_stid;
 
-	/*! /brief Number of B channels supported by this port */
+	/*! \brief Number of B channels supported by this port */
 	int b_num;
 
 	/*! \brief B Channel mISDN driver stack IDs (Child stack IDs) */

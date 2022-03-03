@@ -17,7 +17,7 @@
  */
 
 /*! \file
- * \brief print libtonozone data as Asterisk indications.conf
+ * \brief print libtonezone data as Asterisk indications.conf
  */
 
 #include <stdio.h>
@@ -107,7 +107,7 @@ int print_all() {
 
 void usage() {
   fprintf(stderr,
-      PROGRAM ": print libtonozone data as Asterisk indications.conf\n"
+      PROGRAM ": print libtonezone data as Asterisk indications.conf\n"
       "\n"
       "Usage:\n"
       "  " PROGRAM " -a         Print all countries\n"

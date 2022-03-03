@@ -201,7 +201,7 @@ context ael-iaxtel700 {
 // The SWITCH statement permits a server to share the dialplan with
 // another server. Use with care: Reciprocal switch statements are not
 // allowed (e.g. both A -> B and B -> A), and the switched server needs
-// to be on-line or else dialing can be severly delayed.
+// to be on-line or else dialing can be severely delayed.
 //
 context ael-iaxprovider {
 	switches {

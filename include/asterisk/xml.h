@@ -45,7 +45,7 @@ int ast_xml_finish(void);
  * \brief Open an XML document.
  * \param filename Document path.
  * \retval NULL on error.
- * \retval The ast_xml_doc reference to the open document.
+ * \return The ast_xml_doc reference to the open document.
  */
 struct ast_xml_doc *ast_xml_open(char *filename);
 
@@ -102,7 +102,7 @@ struct ast_xml_node *ast_xml_copy_node_list(struct ast_xml_node *list);
 /*!
  * \brief Close an already open document and free the used
  *        structure.
- * \retval doc The document reference.
+ * \param doc XML Document to close
  */
 void ast_xml_close(struct ast_xml_doc *doc);
 
@@ -110,22 +110,22 @@ void ast_xml_close(struct ast_xml_doc *doc);
  * \param buffer The address where the document is stored
  * \param size The number of bytes in the document
  * \retval NULL on error.
- * \retval The ast_xml_doc reference to the open document.
+ * \return The ast_xml_doc reference to the open document.
  */
 struct ast_xml_doc *ast_xml_read_memory(char *buffer, size_t size);
 
 /*!
  * \brief Specify the root node of a XML document.
- * \param doc The document pointer.
+ * \param doc XML Document reference
  * \param node A pointer to the node we want to set as root node.
  */
 void ast_xml_set_root(struct ast_xml_doc *doc, struct ast_xml_node *node);
 
 /*!
  * \brief Get the document root node.
- * \param doc Document reference
+ * \param doc XML Document reference
  * \retval NULL on error
- * \retval The root node on success.
+ * \return The root node on success.
  */
 struct ast_xml_node *ast_xml_get_root(struct ast_xml_doc *doc);
 
@@ -144,7 +144,7 @@ void ast_xml_free_attr(const char *attribute);
 /*!
  * \brief Get the document based on a node.
  * \param node A node that is part of the dom.
- * \returns The dom pointer where this node resides.
+ * \return The dom pointer where this node resides.
  */
 struct ast_xml_doc *ast_xml_get_doc(struct ast_xml_node *node);
 
@@ -159,7 +159,7 @@ void ast_xml_free_text(const char *text);
  * \param node Node where to search the attribute.
  * \param attrname Attribute name.
  * \retval NULL on error
- * \retval The attribute value on success.
+ * \return The attribute value on success.
  */
 const char *ast_xml_get_attribute(struct ast_xml_node *node, const char *attrname);
 
@@ -180,7 +180,7 @@ int ast_xml_set_attribute(struct ast_xml_node *node, const char *name, const cha
  * \param attrname attribute name to match (if NULL it won't be matched).
  * \param attrvalue attribute value to match (if NULL it won't be matched).
  * \retval NULL if not found.
- * \retval The node on success.
+ * \return The node on success.
  */
 struct ast_xml_node *ast_xml_find_element(struct ast_xml_node *root_node, const char *name, const char *attrname, const char *attrvalue);
 struct ast_xml_ns *ast_xml_find_namespace(struct ast_xml_doc *doc, struct ast_xml_node *node, const char *ns_name);
@@ -190,7 +190,7 @@ const char *ast_xml_get_ns_href(struct ast_xml_ns *ns);
  * \brief Get an element content string.
  * \param node Node from where to get the string.
  * \retval NULL on error.
- * \retval The text content of node.
+ * \return The text content of node.
  */
 const char *ast_xml_get_text(struct ast_xml_node *node);
 
@@ -236,7 +236,7 @@ void ast_xml_xpath_results_free(struct ast_xml_xpath_results *results);
 /*!
  * \brief Return the number of results from an XPath query
  * \param results The XPath results object to count
- * \retval The number of results in the XPath object
+ * \return The number of results in the XPath object
  *
  * \since 12
  */
@@ -245,7 +245,7 @@ int ast_xml_xpath_num_results(struct ast_xml_xpath_results *results);
 /*!
  * \brief Return the first result node of an XPath query
  * \param results The XPath results object to get the first result from
- * \retval The first result in the XPath object on success
+ * \return The first result in the XPath object on success
  * \retval NULL on error
  *
  * \since 12
@@ -254,9 +254,9 @@ struct ast_xml_node *ast_xml_xpath_get_first_result(struct ast_xml_xpath_results
 
 /*!
  * \brief Execute an XPath query on an XML document
- * \param doc The XML document to query
+ * \param doc XML document to query
  * \param xpath_str The XPath query string to execute on the document
- * \retval An object containing the results of the XPath query on success
+ * \return An object containing the results of the XPath query on success
  * \retval NULL on failure
  *
  * \since 12

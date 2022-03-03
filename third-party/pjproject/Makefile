@@ -3,6 +3,7 @@
 .NOTPARALLEL:
 
 include ../versions.mak
+
 export PJDIR := $(shell pwd -P)/source
 
 SPECIAL_TARGETS :=
@@ -40,21 +41,21 @@ ifeq ($(SPECIAL_TARGETS),)
     endif
 
     ifeq ($(PJPROJECT_BUNDLED),yes)
+        all: _all
+        install: _install
+
         ifneq ($(wildcard ../../menuselect.makeopts),)
             include ../../menuselect.makeopts
         else
             $(warning ASTTOPDIR/menuselect hasn't been run yet.  Can't find debug options.)
         endif
 		include ../../Makefile.rules
-		include ../Makefile.rules
+        include ../Makefile.rules
 		include Makefile.rules
 
-        all: _all
-        install: _install
-
-        include source/user.mak
-        include source/version.mak
-        include source/build.mak
+        -include source/user.mak
+        -include source/version.mak
+        -include source/build.mak
         CF := $(filter-out -W%,$(CC_CFLAGS))
         CF := $(filter-out -I%,$(CF))
         ifeq ($(AST_DEVMODE),yes)
@@ -88,15 +89,14 @@ else
 endif
 
 export PJ_CFLAGS := $(filter-out -O% -g%,$(PJ_CFLAGS))
-export CFLAGS += $(CF)
-export LDFLAGS += $(CC_LDFLAGS)
+export CFLAGS += $(CF) $(OPENSSL_INCLUDE)
+export LDFLAGS += $(CC_LDFLAGS) $(OPENSSL_LIB)
 
 ECHO_PREFIX := $(ECHO_PREFIX) echo '[pjproject] '
+ECHO_PREFIX_NONL := $(ECHO_PREFIX) echo -n '[pjproject] '
 SHELL_ECHO_PREFIX := echo '[pjproject] '
 
 _all: $(TARGETS)
-
-.DELETE_ON_ERROR:
 
 $(DOWNLOAD_DIR)/$(TARBALL_FILE): ../versions.mak
 	$(CMD_PREFIX) ($(TARBALL_EXISTS) && $(TARBALL_VERIFY) && touch $@) || (rm -rf $@ ;\
@@ -104,19 +104,17 @@ $(DOWNLOAD_DIR)/$(TARBALL_FILE): ../versions.mak
 	$(SHELL_ECHO_PREFIX) Retrying download ; $(TARBALL_DOWNLOAD))
 
 source/.unpacked: $(DOWNLOAD_DIR)/$(TARBALL_FILE)
-	$(CMD_PREFIX) $(TARBALL_VERIFY) || (rm -rf $@ ;\
-	$(SHELL_ECHO_PREFIX) Retrying download ; $(TARBALL_DOWNLOAD))
-	$(ECHO_PREFIX) Unpacking $<
-	-@rm -rf source pjproject-*/ >/dev/null 2>&1
-	$(CMD_PREFIX) $(TAR) -xjf $<
-	@mv pjproject-$(PJPROJECT_VERSION) source
+	$(CMD_PREFIX) \
+		$(TARBALL_VERIFY) || (rm -rf $@ ; $(SHELL_ECHO_PREFIX) Retrying download ; $(TARBALL_DOWNLOAD)) ;\
+		$(SHELL_ECHO_PREFIX) Unpacking $< ;\
+		rm -rf source pjproject-*/ $(REALLY_QUIET) || : ;\
+		$(TAR) -xjf $< ;\
+		mv pjproject-$(PJPROJECT_VERSION) source
 	$(ECHO_PREFIX) Applying patches "$(realpath patches)" "$(realpath .)/source"
 	$(CMD_PREFIX) ../apply_patches $(QUIET_CONFIGURE) "$(realpath patches)" "$(realpath .)/source"
 	-@touch source/.unpacked
 
-source/version.mak: source/.unpacked
-
-source/user.mak: source/.unpacked patches/user.mak
+source/user.mak: $(if $(PJPROJECT_BUNDLED_OOT),,source/.unpacked) patches/user.mak
 	$(ECHO_PREFIX) Applying user.mak
 	$(CMD_PREFIX) cp -f patches/user.mak source/
 
@@ -128,8 +126,8 @@ source/pjlib/include/pj/%.h: patches/%.h
 	$(ECHO_PREFIX) Rebuilding
 	$(CMD_PREFIX) $(MAKE) clean $(REALLY_QUIET)
 
-source/build.mak: Makefile.rules source/version.mak source/user.mak $(addprefix source/pjlib/include/pj/,$(notdir $(wildcard patches/*.h))) .rebuild_needed
-	$(ECHO_PREFIX) Configuring with $(PJPROJECT_CONFIG_OPTS)
+source/build.mak: Makefile.rules source/user.mak $(if $(PJPROJECT_BUNDLED_OOT),,.rebuild_needed) $(subst patches,source/pjlib/include/pj,$(wildcard patches/*.h))
+	$(ECHO_PREFIX) Configuring with $(PJPROJECT_CONFIG_OPTS) 
 	$(CMD_PREFIX) (cd source ; ./aconfigure $(QUIET_CONFIGURE) $(PJPROJECT_CONFIG_OPTS))
 
 build.mak: source/build.mak
@@ -144,24 +142,73 @@ configure: source/build.mak
 echo_cflags: source/build.mak
 	@echo $(filter-out -O% -g%,$(PJ_CFLAGS))
 
-libpj%.a: source/build.mak
-	$(ECHO_PREFIX) Compiling lib $(@F)
-	$(CMD_PREFIX) $(MAKE) -C $(dir $(shell dirname $@))/build $(@F) $(REALLY_QUIET)
+# The dependency_utils script needs TARGET_NAME in the environment
+export TARGET_NAME
 
-# pjsua needs resample and g711 to successfully run the testsuite
-libresample%.a: source/build.mak
-	$(ECHO_PREFIX) Compiling lib $(@F)
-	$(CMD_PREFIX) $(MAKE) -C $(dir $(shell dirname $@))/build/resample all $(REALLY_QUIET)
+# PJ_LIB_FILES is set by the pjproject build.mak and contains the libs we
+# need, but not in the order they need to be built.  We need to compile
+# pjlib, then pjlib-util, then the rest so we separate them out and create
+# the dependencies.  First though, we shorten all file paths by making them
+# relative to the current directory.
+SHORTENED_PJ_LIB_FILES = $(subst $(CURDIR)/,,$(PJ_LIB_FILES))
+# Now separate them
+PJLIB_LIB_FILES = $(filter %/libpj-$(TARGET_NAME).a,$(SHORTENED_PJ_LIB_FILES))
+PJLIB_UTIL_LIB_FILES = $(filter %/libpjlib-util-$(TARGET_NAME).a,$(SHORTENED_PJ_LIB_FILES))
+RESAMPLE_LIB_FILE = $(filter %/libresample-$(TARGET_NAME).a,$(SHORTENED_PJ_LIB_FILES))
+# The rest.
+PJSIP_LIB_FILES = $(filter-out $(PJLIB_LIB_FILES) $(PJLIB_UTIL_LIB_FILES) $(RESAMPLE_LIB_FILE),$(SHORTENED_PJ_LIB_FILES))
 
-# We need to compile pjlib, then pjlib-util, then the rest
-# so we separate them out and create the dependencies
-PJLIB_LIB_FILES = $(foreach lib,$(PJ_LIB_FILES),$(if $(findstring libpj-,$(lib)),$(lib),))
-PJLIB_UTIL_LIB_FILES = $(foreach lib,$(PJ_LIB_FILES),$(if $(findstring libpjlib-util,$(lib)),$(lib),))
-PJSIP_LIB_FILES = $(filter-out $(PJLIB_LIB_FILES) $(PJLIB_UTIL_LIB_FILES) $(APP_THIRD_PARTY_LIB_FILES),$(PJ_LIB_FILES))
-ALL_LIB_FILES = $(PJLIB_LIB_FILES) $(PJLIB_UTIL_LIB_FILES) $(PJSIP_LIB_FILES)
-
+# Create the dependency order we need
 $(PJLIB_UTIL_LIB_FILES): $(PJLIB_LIB_FILES)
 $(PJSIP_LIB_FILES): $(PJLIB_UTIL_LIB_FILES)
+
+# and here's the full list
+ALL_LIB_FILES = $(PJLIB_LIB_FILES) $(PJLIB_UTIL_LIB_FILES) $(PJSIP_LIB_FILES) $(RESAMPLE_LIB_FILE)
+
+# Assuming that since you're doing an out-of-tree build you're modifying
+# the pjproject source files, we need to create dependencies between
+# the libraries and their respective source files.  Pjproject does
+# create dependency files if you run 'make dep' but those files include
+# the system include files and the paths are relative to the lib's
+# "build" directory.  Neither really works for us.
+# So...
+# We create our own "astdep" files with dependency paths relative
+# to "this" directory and strip out all the system includes.
+# The dependency_utils script does all the heavy lifting.
+#
+# REMINDER: None of this gets invoked unless you're doing an out-of-tree
+# pjproject build.
+
+ifdef PJPROJECT_BUNDLED_OOT
+    ALL_PJDEP_FILES = $(shell TARGET_NAME=$(TARGET_NAME) ./dependency_utils getpjdepname $(ALL_LIB_FILES))
+    ALL_ASTDEP_FILES = $(ALL_PJDEP_FILES:.depend=.astdep)
+
+    $(ALL_PJDEP_FILES): build.mak
+		$(ECHO_PREFIX) Generating pjproject dependency file $(@F)
+		$(CMD_PREFIX) $(MAKE) -C $(@D) dep $(REALLY_QUIET)
+
+    $(ALL_ASTDEP_FILES): %.astdep: %.depend
+		$(ECHO_PREFIX) Generating asterisk dependency file $(@F)
+		$(CMD_PREFIX) ./dependency_utils gendepfile $<
+    ifeq ($(SPECIAL_TARGETS),)
+        ifneq ($(ALL_ASTDEP_FILES),)
+            include $(ALL_ASTDEP_FILES)
+            depends: $(ALL_ASTDEP_FILES)
+        endif
+    endif
+endif
+
+# resample's a little odd in that it's build directory is one directory
+# level down from the other libraries.  We set the RESAMPLE_OPTS
+# variable for it then let the ALL_LIB_FILE build rules take over.
+$(RESAMPLE_LIB_FILE): RESAMPLE_OPTS=/resample all
+
+.PRECIOUS: $(ALL_LIB_FILES)
+
+$(ALL_LIB_FILES): BUILD_DIR=$(dir $(@D))
+$(ALL_LIB_FILES): source/build.mak source/pjlib/include/pj/config_site.h
+	$(ECHO_PREFIX) Compiling $(@F)
+	$(CMD_PREFIX) ( $(MAKE) -C $(BUILD_DIR)build$(if $(RESAMPLE_OPTS),$(RESAMPLE_OPTS), $(@F)) >/dev/null ) $(if $(PJPROJECT_BUNDLED_OOT),2>&1 | ($(GREP) -E -v "^(r - output|ar:)" || : ),$(REALLY_QUIET))
 
 pjproject.symbols: $(ALL_LIB_FILES)
 	$(ECHO_PREFIX) Generating symbols
@@ -170,21 +217,22 @@ pjproject.symbols: $(ALL_LIB_FILES)
 source/pjsip-apps/src/asterisk_malloc_debug.c: patches/asterisk_malloc_debug.c
 	$(ECHO_PREFIX) Copying $< to $@
 	$(CMD_PREFIX) cp -f $< $@
-	$(CMD_PREFIX) mkdir source/pjsip-apps/lib/
+	-$(CMD_PREFIX) mkdir source/pjsip-apps/lib/ $(REALLY_QUIET)
 
-source/pjsip-apps/lib/asterisk_malloc_debug.o: source/pjsip-apps/src/asterisk_malloc_debug.c .rebuild_needed
+source/pjsip-apps/lib/asterisk_malloc_debug.o: source/pjsip-apps/src/asterisk_malloc_debug.c | source/pjlib/include/pj/config_site.h source/pjlib/include/pj/asterisk_malloc_debug.h
 	$(ECHO_PREFIX) Compiling asterisk debug malloc stubs
 	$(CMD_PREFIX) $(CC) -fPIC  $(PJ_CFLAGS) -c $< -o $@
 
 source/pjsip-apps/lib/libasterisk_malloc_debug.a: source/pjsip-apps/lib/asterisk_malloc_debug.o
 	$(ECHO_PREFIX) Creating archive $(@F)
-	$(CMD_PREFIX) ar qs $@ $< >/dev/null 2>&1
+	$(CMD_PREFIX) ar qs $@ $< $(REALLY_QUIET)
 
 $(apps): APP = $(filter pj%,$(subst -, ,$(notdir $@)))
 $(apps): LDFLAGS += $(MALLOC_DEBUG_LDFLAGS)
-$(apps): $(MALLOC_DEBUG_LIBS) pjproject.symbols $(APP_THIRD_PARTY_LIB_FILES)
+$(apps): $(MALLOC_DEBUG_LIBS) pjproject.symbols
 	$(ECHO_PREFIX) Compiling $(APP)
-	$(CMD_PREFIX) +$(MAKE) -C source/pjsip-apps/build $(filter pj%,$(subst -, ,$(notdir $@))) $(REALLY_QUIET)
+	$(CMD_PREFIX) +$(MAKE) -C source/pjsip-apps/build $(APP) $(REALLY_QUIET)
+	$(CMD_PREFIX) touch $@
 
 source/pjsip-apps/src/python/_pjsua.o: source/pjsip-apps/src/python/_pjsua.c $(apps)
 	$(ECHO_PREFIX) Compiling python bindings
@@ -210,19 +258,33 @@ ifneq ($(findstring _pjsua.so,$(TARGETS)),)
 	$(CMD_PREFIX) $(INSTALL) -m 644 source/pjsip-apps/src/python/pjsua.py "$(DESTDIR)$(ASTDATADIR)/third-party/pjproject/"
 endif
 
+all: _all
+
 uninstall:
 	$(ECHO_PREFIX) Uninstalling apps and python bindings
 	$(CMD_PREFIX) rm -rf "$(DESTDIR)$(ASTDATADIR)/third-party/pjproject"
 
 clean:
 	$(ECHO_PREFIX) Cleaning
-	+-$(CMD_PREFIX) test -d source && ($(SUBMAKE) -C source clean || : ;\
-		rm -rf source/pjsip-apps/bin/* || : ;\
-		find source -name *.a | xargs rm -rf  ;\
-		find source -name *.o | xargs rm -rf  ;\
-		find source -name *.so  | xargs rm -rf ; ) || :
-	-$(CMD_PREFIX) rm -rf pjproject.symbols
+	+-$(CMD_PREFIX) {\
+		if [ -d source ] ; then  \
+			$(SUBMAKE) -C source clean ;\
+			rm -rf source/pjsip-apps/bin/* ;\
+			$(FIND) source/ '(' -name *.a -or -name *.o -or -name *.so ')' -delete ;\
+		fi ;\
+		rm -rf pjproject.symbols ;\
+		} $(REALLY_QUIET) || :
 
-distclean:
+distclean: clean
 	$(ECHO_PREFIX) Distcleaning
-	-$(CMD_PREFIX) rm -rf source pjproject.symbols pjproject-*.tar.bz2 build.mak .rebuild_needed
+	+-$(CMD_PREFIX) {\
+		rm -rf build.mak .rebuild_needed ;\
+		if [ "x$(PJPROJECT_BUNDLED_OOT)" = "x" -a ! -d source/.git ] ; then \
+			rm -rf source pjproject-*.tar.bz2 ;\
+		else \
+			$(SUBMAKE) -C source distclean ;\
+			rm -rf source/build.mak source/user.mak ;\
+			$(FIND) source/ -name '*asterisk_malloc_debug*' -delete ;\
+			$(FIND) source/ '(' -name '.*.depend' -or -name '.*.astdep' ')' -delete ;\
+		fi \
+		} $(REALLY_QUIET) || :

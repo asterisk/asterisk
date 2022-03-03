@@ -22,7 +22,7 @@
  * \author\verbatim David M. Lee, II <dlee@digium.com> \endverbatim
  *
  * Inspired by the original hashtest.c by Steve Murphy <murf@digium.com>.  This test runs
- * several threads manipulatings a concurrent hastab to see if they maintain
+ * several threads manipulating a concurrent hastab to see if they maintain
  * consistency. While the tests attempt to check consistency and error normally, threading
  * errors often result in segfaults.
  * \ingroup tests
@@ -51,7 +51,7 @@ struct hash_test {
 	struct ast_hashtab *to_be_thrashed;
 	/*! Number of entries to insert in the grow thread. */
 	int max_grow;
-	/*! Number of enteries added by the grow thread. */
+	/*! Number of entries added by the grow thread. */
 	int grow_count;
 	/*! Entries preloaded into the hashtab; to be deleted by the shrink thread */
 	int preload;
@@ -73,7 +73,7 @@ static int is_timed_out(struct hash_test const *data) {
 	return val;
 }
 
-/*! /brief Create test element */
+/*! \brief Create test element */
 static char *ht_new(int i)
 {
 	const int buflen = 12;
@@ -87,13 +87,13 @@ static char *ht_new(int i)
 	return keybuf;
 }
 
-/*! /brief Free test element */
+/*! \brief Free test element */
 static void ht_delete(void *obj)
 {
 	ast_free(obj);
 }
 
-/*! /brief Grow the hash data as specified */
+/*! \brief Grow the hash data as specified */
 static void *hash_test_grow(void *d)
 {
 	struct hash_test *data = d;

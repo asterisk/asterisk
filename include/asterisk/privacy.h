@@ -17,7 +17,7 @@
  */
 
 /*! \file
- * \brief Persistant data storage (akin to *doze registry)
+ * \brief Persistent data storage (akin to *doze registry)
  */
 
 #ifndef _ASTERISK_PRIVACY_H

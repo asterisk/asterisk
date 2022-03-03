@@ -73,23 +73,26 @@ static force_inline int attribute_pure ast_strlen_zero(const char *s)
 #define ast_strlen_imaginary(a)	ast_random()
 #endif
 
-/*! \brief returns the equivalent of logic or for strings:
+/*!
+ * \brief returns the equivalent of logic or for strings:
  * first one if not empty, otherwise second one.
  */
 #define S_OR(a, b) ({typeof(&((a)[0])) __x = (a); ast_strlen_zero(__x) ? (b) : __x;})
 
-/*! \brief returns the equivalent of logic or for strings, with an additional boolean check:
+/*!
+ * \brief returns the equivalent of logic or for strings, with an additional boolean check:
  * second one if not empty and first one is true, otherwise third one.
  * example: S_COR(usewidget, widget, "<no widget>")
  */
 #define S_COR(a, b, c) ({typeof(&((b)[0])) __x = (b); (a) && !ast_strlen_zero(__x) ? (__x) : (c);})
 
-/*
+/*!
   \brief Checks whether a string begins with another.
   \since 12.0.0
   \param str String to check.
   \param prefix Prefix to look for.
-  \param 1 if \a str begins with \a prefix, 0 otherwise.
+  \retval 1 if \a str begins with \a prefix
+  \retval 0 otherwise.
  */
 static int force_inline attribute_pure ast_begins_with(const char *str, const char *prefix)
 {
@@ -102,12 +105,13 @@ static int force_inline attribute_pure ast_begins_with(const char *str, const ch
 	return *prefix == '\0';
 }
 
-/*
+/*!
   \brief Checks whether a string ends with another.
   \since 12.0.0
   \param str String to check.
   \param suffix Suffix to look for.
-  \param 1 if \a str ends with \a suffix, 0 otherwise.
+  \retval 1 if \a str ends with \a suffix
+  \retval 0 otherwise.
  */
 static int force_inline attribute_pure ast_ends_with(const char *str, const char *suffix)
 {
@@ -133,8 +137,8 @@ static int force_inline attribute_pure ast_ends_with(const char *str, const char
  * expected, and translations would cause problems.
  *
  * \param x Boolean value
- * \return "Yes" if x is true (non-zero)
- * \return "No" if x is false (zero)
+ * \retval "Yes" if x is true (non-zero)
+ * \retval "No" if x is false (zero)
  */
 #define AST_YESNO(x) ((x) ? "Yes" : "No")
 
@@ -285,13 +289,13 @@ enum ast_strsep_flags {
 	char *mystr = ast_strdupa("abc=def,ghi='zzz=yyy,456',jkl");
 	char *token, *token2, *token3;
 
-	while((token = ast_strsep(&mystr, ',', AST_SEP_STRIP))) {
+	while((token = ast_strsep(&mystr, ',', AST_STRSEP_STRIP))) {
 		// 1st token will be aaa=def
 		// 2nd token will be ghi='zzz=yyy,456'
-		while((token2 = ast_strsep(&token, '=', AST_SEP_STRIP))) {
+		while((token2 = ast_strsep(&token, '=', AST_STRSEP_STRIP))) {
 			// 1st token2 will be ghi
 			// 2nd token2 will be zzz=yyy,456
-			while((token3 = ast_strsep(&token2, ',', AST_SEP_STRIP))) {
+			while((token3 = ast_strsep(&token2, ',', AST_STRSEP_STRIP))) {
 				// 1st token3 will be zzz=yyy
 				// 2nd token3 will be 456
 				// and so on
@@ -377,7 +381,6 @@ char *ast_escape_c_alloc(const char *s);
   \param dst The destination buffer.
   \param src The source string
   \param size The size of the destination buffer
-  \return Nothing.
 
   This is similar to \a strncpy, with two important differences:
     - the destination buffer will \b always be null-terminated
@@ -401,6 +404,20 @@ void ast_copy_string(char *dst, const char *src, size_t size),
 )
 
 /*!
+ * \brief Check if there is an exact match for 'needle' between delimiters in 'haystack'.
+ *
+ * \note This will skip extra leading spaces between delimiters.
+ *
+ * \param needle The string to search for
+ * \param haystack The string searched in
+ * \param delim The haystack delimiter
+ *
+ * \retval true If an exact match for needle is in haystack.
+ * \retval false otherwise
+ */
+int ast_in_delimited_string(const char *needle, const char *haystack, char delim);
+
+/*!
   \brief Build a string in a buffer, designed to be called repeatedly
 
   \note This method is not recommended. New code should use ast_str_*() instead.
@@ -422,7 +439,8 @@ int ast_build_string(char **buffer, size_t *space, const char *fmt, ...) __attri
   This is a wrapper for snprintf, that properly handles the buffer pointer
   and buffer space available.
 
-  \return 0 on success, non-zero on failure.
+  \retval zero on success.
+  \retval non-zero on failure.
   \param buffer current position in buffer to place string into (will be updated on return)
   \param space remaining space in buffer (will be updated on return)
   \param fmt printf-style format string
@@ -436,9 +454,8 @@ int ast_build_string_va(char **buffer, size_t *space, const char *fmt, va_list a
  * This function checks to see whether a string passed to it is an indication of an "true" value.
  * It checks to see if the string is "yes", "true", "y", "t", "on" or "1".
  *
- * \retval 0 if val is a NULL pointer.
  * \retval -1 if "true".
- * \retval 0 otherwise.
+ * \retval 0 otherwise, like NULL pointer.
  */
 int attribute_pure ast_true(const char *val);
 
@@ -448,13 +465,12 @@ int attribute_pure ast_true(const char *val);
  * This function checks to see whether a string passed to it is an indication of an "false" value.
  * It checks to see if the string is "no", "false", "n", "f", "off" or "0".
  *
- * \retval 0 if val is a NULL pointer.
  * \retval -1 if "true".
- * \retval 0 otherwise.
+ * \retval 0 otherwise, like NUL pointer.
  */
 int attribute_pure ast_false(const char *val);
 
-/*
+/*!
  * \brief Join an array of strings into a single string.
  * \param s the resulting string buffer
  * \param len the length of the result buffer, s
@@ -470,7 +486,7 @@ int attribute_pure ast_false(const char *val);
 void ast_join_delim(char *s, size_t len, const char * const w[],
 		    unsigned int size, char delim);
 
-/*
+/*!
  * \brief Join an array of strings into a single string.
  * \param s the resulting string buffer
  * \param len the length of the result buffer, s
@@ -482,7 +498,7 @@ void ast_join_delim(char *s, size_t len, const char * const w[],
 */
 #define ast_join(s, len, w) ast_join_delim(s, len, w, -1, ' ')
 
-/*
+/*!
  * \brief Attempts to convert the given string to camel case using
  *        the specified delimiter.
  *
@@ -491,12 +507,12 @@ void ast_join_delim(char *s, size_t len, const char * const w[],
  * \param s the string to convert
  * \param delim delimiter to parse out
  *
- * \retval The string converted to "CamelCase"
+ * \return The string converted to "CamelCase"
  * \since 12
 */
 char *ast_to_camel_case_delim(const char *s, const char *delim);
 
-/*
+/*!
  * \brief Attempts to convert the given string to camel case using
  *        an underscore as the specified delimiter.
  *
@@ -504,33 +520,34 @@ char *ast_to_camel_case_delim(const char *s, const char *delim);
  *
  * \param s the string to convert
  *
- * \retval The string converted to "CamelCase"
+ * \return The string converted to "CamelCase"
 */
 #define ast_to_camel_case(s) ast_to_camel_case_delim(s, "_")
 
-/*
+/*!
   \brief Parse a time (integer) string.
   \param src String to parse
   \param dst Destination
   \param _default Value to use if the string does not contain a valid time
   \param consumed The number of characters 'consumed' in the string by the parse (see 'man sscanf' for details)
-  \retval 0 on success
+  \retval zero on success.
   \retval non-zero on failure.
 */
 int ast_get_time_t(const char *src, time_t *dst, time_t _default, int *consumed);
 
-/*
+/*!
   \brief Parse a time (float) string.
   \param src String to parse
   \param dst Destination
   \param _default Value to use if the string does not contain a valid time
   \param consumed The number of characters 'consumed' in the string by the parse (see 'man sscanf' for details)
-  \return zero on success, non-zero on failure
+  \retval zero on success.
+  \retval non-zero on failure.
 */
 int ast_get_timeval(const char *src, struct timeval *tv, struct timeval _default, int *consumed);
 
 /*!
- * Support for dynamic strings.
+ * \brief Support for dynamic strings.
  *
  * A dynamic string is just a C string prefixed by a few control fields
  * that help setting/appending/extending it using a printf-like syntax.
@@ -574,7 +591,8 @@ int ast_get_timeval(const char *src, struct timeval *tv, struct timeval _default
  *	to the ast_str.
  */
 
-/*! \brief The descriptor of a dynamic string
+/*!
+ * \brief The descriptor of a dynamic string
  *  XXX storage will be optimized later if needed
  * We use the ts field to indicate the type of storage.
  * Three special constants indicate malloc, ast_alloca() or static
@@ -597,10 +615,10 @@ struct ast_str {
  * This function will trim one leading / and one trailing / from a given input string
  * ast_str regex_pattern must be preallocated before calling this function
  *
- * \return 0 on success, non-zero on failure.
- * \return 1 if we only stripped a leading /
- * \return 2 if we only stripped a trailing /
- * \return 3 if we did not strip any / characters
+ * \retval 0 on success, non-zero on failure.
+ * \retval 1 if we only stripped a leading /
+ * \retval 2 if we only stripped a trailing /
+ * \retval 3 if we did not strip any / characters
  * \param regex_string  the string containing /regex/
  * \param regex_pattern the destination ast_str which will contain "regex" after execution
  */
@@ -637,7 +655,8 @@ struct ast_str * attribute_malloc _ast_str_create(size_t init_len,
 }
 )
 
-/*! \brief Reset the content of a dynamic string.
+/*!
+ * \brief Reset the content of a dynamic string.
  * Useful before a series of ast_str_append.
  */
 AST_INLINE_API(
@@ -662,8 +681,9 @@ void ast_str_update(struct ast_str *buf),
 }
 )
 
-/*! \brief Trims trailing whitespace characters from an ast_str string.
- *  \param buf A pointer to the ast_str string.
+/*!
+ * \brief Trims trailing whitespace characters from an ast_str string.
+ * \param buf A pointer to the ast_str string.
  */
 AST_INLINE_API(
 void ast_str_trim_blanks(struct ast_str *buf),
@@ -677,7 +697,8 @@ void ast_str_trim_blanks(struct ast_str *buf),
 }
 )
 
-/*!\brief Returns the current length of the string stored within buf.
+/*!
+ * \brief Returns the current length of the string stored within buf.
  * \param buf A pointer to the ast_str structure.
  */
 AST_INLINE_API(
@@ -687,9 +708,10 @@ size_t attribute_pure ast_str_strlen(const struct ast_str *buf),
 }
 )
 
-/*!\brief Returns the current maximum length (without reallocation) of the current buffer.
+/*!
+ * \brief Returns the current maximum length (without reallocation) of the current buffer.
  * \param buf A pointer to the ast_str structure.
- * \retval Current maximum length of the buffer.
+ * \return Current maximum length of the buffer.
  */
 AST_INLINE_API(
 size_t attribute_pure ast_str_size(const struct ast_str *buf),
@@ -698,9 +720,10 @@ size_t attribute_pure ast_str_size(const struct ast_str *buf),
 }
 )
 
-/*!\brief Returns the string buffer within the ast_str buf.
+/*!
+ * \brief Returns the string buffer within the ast_str buf.
  * \param buf A pointer to the ast_str structure.
- * \retval A pointer to the enclosed string.
+ * \return A pointer to the enclosed string.
  */
 AST_INLINE_API(
 char * attribute_pure ast_str_buffer(const struct ast_str *buf),
@@ -713,12 +736,13 @@ char * attribute_pure ast_str_buffer(const struct ast_str *buf),
 }
 )
 
-/*!\brief Truncates the enclosed string to the given length.
+/*!
+ * \brief Truncates the enclosed string to the given length.
  * \param buf A pointer to the ast_str structure.
  * \param len Maximum length of the string. If len is larger than the
  *        current maximum length, things will explode. If it is negative
  *        at most -len characters will be trimmed off the end.
- * \retval A pointer to the resulting string.
+ * \return A pointer to the resulting string.
  */
 AST_INLINE_API(
 char *ast_str_truncate(struct ast_str *buf, ssize_t len),
@@ -885,7 +909,7 @@ struct ast_str *__ast_str_thread_get(struct ast_threadstorage *ts,
 
 /*!
  * \brief Error codes from __ast_str_helper()
- * The undelying processing to manipulate dynamic string is done
+ * The underlying processing to manipulate dynamic string is done
  * by __ast_str_helper(), which can return a success or a
  * permanent failure (e.g. no memory).
  */
@@ -999,28 +1023,28 @@ AST_INLINE_API(int __attribute__((format(printf, 3, 0))) ast_str_append_va(struc
 }
 )
 
-/*!\brief Set a dynamic string to a non-NULL terminated substring. */
+/*! \brief Set a dynamic string to a non-NULL terminated substring. */
 AST_INLINE_API(char *ast_str_set_substr(struct ast_str **buf, ssize_t maxlen, const char *src, size_t maxsrc),
 {
 	return __ast_str_helper2(buf, maxlen, src, maxsrc, 0, 0);
 }
 )
 
-/*!\brief Append a non-NULL terminated substring to the end of a dynamic string. */
+/*! \brief Append a non-NULL terminated substring to the end of a dynamic string. */
 AST_INLINE_API(char *ast_str_append_substr(struct ast_str **buf, ssize_t maxlen, const char *src, size_t maxsrc),
 {
 	return __ast_str_helper2(buf, maxlen, src, maxsrc, 1, 0);
 }
 )
 
-/*!\brief Set a dynamic string to a non-NULL terminated substring, with escaping of commas. */
+/*! \brief Set a dynamic string to a non-NULL terminated substring, with escaping of commas. */
 AST_INLINE_API(char *ast_str_set_escapecommas(struct ast_str **buf, ssize_t maxlen, const char *src, size_t maxsrc),
 {
 	return __ast_str_helper2(buf, maxlen, src, maxsrc, 0, 1);
 }
 )
 
-/*!\brief Append a non-NULL terminated substring to the end of a dynamic string, with escaping of commas. */
+/*! \brief Append a non-NULL terminated substring to the end of a dynamic string, with escaping of commas. */
 AST_INLINE_API(char *ast_str_append_escapecommas(struct ast_str **buf, ssize_t maxlen, const char *src, size_t maxsrc),
 {
 	return __ast_str_helper2(buf, maxlen, src, maxsrc, 1, 1);
@@ -1099,35 +1123,40 @@ int __attribute__((format(printf, 3, 4))) ast_str_append(
  * \param init_len The initial length of the temporary ast_str needed.
  * \param __expr An expression that needs the temporary ast_str and returns a char *.
  *
- * \returns A copy of __expr's return buffer allocated on the stack.
+ * \return A copy of __expr's return buffer allocated on the stack.
  *
  * \details
  * There are a few query functions scattered around that need an ast_str in which
  * to assemble the results but it's not always convenient to create an ast_str
- * and ensure it's freed just to print a log message.  For example...
+ * and ensure it's freed just to print a log message.  For example:
  *
+ * \code
  * struct ast_str *temp = ast_str_create(128);
  * ast_log(LOG_INFO, "Format caps: %s\n", ast_format_cap_get_names(caps, &temp));
  * ast_free(temp);
+ * \endcode
  *
  * That's not bad if you only have to do it once but some of our code that deals
  * with streams and codecs is pretty complex and good instrumentation is essential.
  * The aim of this function is to make that easier.
  *
- * With this macro, the above code can be simplified as follows...
- * \example
+ * With this macro, the above code can be simplified:
+ *
+ * \code
  * ast_log(LOG_INFO, "Format caps: %s\n",
  *     ast_str_tmp(128, ast_format_cap_get_names(caps, &STR_TMP));
+ * \endcode
  *
  * STR_TMP will always be a reference to the temporary ast_str created
  * by the macro.  Its scope is limited by the macro so you can use it multiple
- * times without conflict.
+ * times without conflict:
  *
- * \example
+ * \code
  * ast_log(LOG_INFO, "Format caps in: %s  Format caps out: %s\n",
  *     ast_str_tmp(128, ast_format_cap_get_names(caps_in, &STR_TMP),
  *     ast_str_tmp(128, ast_format_cap_get_names(caps_out, &STR_TMP)
  *     );
+ * \endcode
  *
  * \warning
  * The returned string is stack allocated so don't go overboard.
@@ -1165,7 +1194,7 @@ int ast_check_digits(const char *arg),
 /*!
  * \brief Convert the tech portion of a device string to upper case
  *
- * \retval dev_str Returns the char* passed in for convenience
+ * \retval dev_str the char* passed in for convenience
  */
 AST_INLINE_API(
 char *ast_tech_to_upper(char *dev_str),
@@ -1263,7 +1292,7 @@ static force_inline int attribute_pure ast_str_case_hash(const char *str)
  *
  * \param str The string to be converted to lower case
  *
- * \retval str for convenience
+ * \retval str the char* passed in for convenience
  */
 static force_inline char *ast_str_to_lower(char *str)
 {
@@ -1284,7 +1313,7 @@ static force_inline char *ast_str_to_lower(char *str)
  *
  * \param str The string to be converted to upper case
  *
- * \retval str for convenience
+ * \retval str the char* passed in for convenience
  */
 static force_inline char *ast_str_to_upper(char *str)
 {
@@ -1306,7 +1335,7 @@ static force_inline char *ast_str_to_upper(char *str)
  *
  * \param buckets The number of buckets to use for the hash container
  *
- * \retval AO2 container for strings
+ * \return AO2 container for strings
  * \retval NULL if allocation failed
  */
 #define ast_str_container_alloc(buckets) ast_str_container_alloc_options(AO2_ALLOC_OPT_LOCK_MUTEX, buckets)
@@ -1318,7 +1347,7 @@ static force_inline char *ast_str_to_upper(char *str)
  * \param opts Options to be provided to the container
  * \param buckets The number of buckets to use for the hash container
  *
- * \retval AO2 container for strings
+ * \return AO2 container for strings
  * \retval NULL if allocation failed
  */
 //struct ao2_container *ast_str_container_alloc_options(enum ao2_container_opts opts, int buckets);
@@ -1373,7 +1402,8 @@ char *ast_generate_random_string(char *buf, size_t size);
  * \param str1 The string to compare to str2
  * \param str2 The string to compare to str1
  *
- * \return true if valid strings and equal, false otherwise.
+ * \retval true if valid strings and equal.
+ * \retval false otherwise.
  */
 int ast_strings_equal(const char *str1, const char *str2);
 
@@ -1410,18 +1440,18 @@ int ast_strings_match(const char *left, const char *op, const char *right);
  * \brief Read lines from a string buffer
  * \since 13.18.0
  *
- * \param buffer [IN/OUT] A pointer to a char * string with either Unix or Windows line endings
+ * \param[in,out] buffer A pointer to a char * string with either Unix or Windows line endings
  *
  * \return The "next" line
  *
  * \warning The original string and *buffer will be modified.
  *
  * \details
- * Both '\n' and '\r\n' are treated as single delimiters but consecutive occurrances of
+ * Both '\\n' and '\\r\\n' are treated as single delimiters but consecutive occurrences of
  * the delimiters are NOT considered to be a single delimiter.  This preserves blank
  * lines in the input.
  *
- * MacOS line endings ('\r') are not supported at this time.
+ * macOS line endings ('\\r') are not supported at this time.
  *
  */
 char *ast_read_line_from_buffer(char **buffer);

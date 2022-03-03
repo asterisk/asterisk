@@ -108,7 +108,7 @@ int ast_tvzero(const struct timeval t),
 )
 
 /*!
- * \brief Compres two \c struct \c timeval instances returning
+ * \brief Compress two \c struct \c timeval instances returning
  * -1, 0, 1 if the first arg is smaller, equal or greater to the second.
  */
 AST_INLINE_API(
@@ -263,7 +263,7 @@ enum TIME_UNIT {
  * given string at least starts with one of the form values it will match.
  *
  * For example: us, usec, microsecond will all map to TIME_UNIT_MICROSECOND.
- * So will uss, usecs, miscroseconds, or even microsecondvals
+ * So will uss, usecs, microseconds, or even microsecondvals
  *
  * Matching is also not case sensitive.
  *

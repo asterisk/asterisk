@@ -30,10 +30,6 @@
  *
  * \author Steve Murphy <murf@digium.com>
  * PostgreSQL http://www.postgresql.org/
- *
- * See also
- * \arg \ref Config_cel
- * PostgreSQL http://www.postgresql.org/
  * \ingroup cel_drivers
  */
 

@@ -481,7 +481,7 @@ struct ast_sip_subscription {
 	const struct ast_sip_subscription_handler *handler;
 	/*! Pointer to the base of the tree */
 	struct sip_subscription_tree *tree;
-	/*! Body generaator for NOTIFYs */
+	/*! Body generator for NOTIFYs */
 	struct ast_sip_pubsub_body_generator *body_generator;
 	/*! Vector of child subscriptions */
 	AST_VECTOR(, struct ast_sip_subscription *) children;
@@ -597,8 +597,6 @@ static int sub_tree_subscription_terminate_cb(void *data)
  * \param data What subscription needs to be terminated.
  *
  * \note Normally executed by the pjsip monitor thread.
- *
- * \return Nothing
  */
 static void sub_tree_transport_cb(void *data)
 {
@@ -927,7 +925,7 @@ static struct resource_list *retrieve_resource_list(const char *resource, const 
  *
  * \param resource The name of the resource for this tree node.
  * \param visited The vector of resources that have been visited.
- * \param if allocating a list, indicate whether full state is requested in notifications.
+ * \param full_state if allocating a list, indicate whether full state is requested in notifications.
  * \retval NULL Allocation failure.
  * \retval non-NULL The newly-allocated tree_node
  */
@@ -1456,7 +1454,8 @@ static struct sip_subscription_tree *allocate_subscription_tree(struct ast_sip_e
  * \param resource The requested resource in the SUBSCRIBE request
  * \param generator The body generator to use in leaf subscriptions
  * \param tree The resource tree on which the subscription tree is based
- * \param dlg_status[out] The result of attempting to create a dialog.
+ * \param[out] dlg_status The result of attempting to create a dialog
+ * \param persistence
  *
  * \retval NULL Could not create the subscription tree
  * \retval non-NULL The root of the created subscription tree
@@ -2021,6 +2020,7 @@ static int sip_subscription_send_request(struct sip_subscription_tree *sub_tree,
  * elements refer to later parts in the multipart body.
  *
  * \param pool PJLIB allocation pool
+ * \param rlmi
  * \param cid Content-ID header of the resource
  * \param resource_name Name of the resource
  * \param resource_uri URI of the resource

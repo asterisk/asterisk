@@ -22,7 +22,9 @@ endif
 
 # Basic set of sources and flags/libraries/includes
 OBJS:=menuselect.o strcompat.o
-CFLAGS+=-g -D_GNU_SOURCE -Wall
+# Adding -Wdeprecated-declarations to deal with internal deprecation warnings
+# from gtk+ for GTypeDebugFlags and GTimeVal deprecated in later glib versions
+CFLAGS+=-g -D_GNU_SOURCE -Wall -Wno-deprecated-declarations
 
 ifneq ($(findstring dragonfly,$(OSARCH)),)
   CFLAGS += -isystem /usr/local/include

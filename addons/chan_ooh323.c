@@ -2055,7 +2055,7 @@ int onOutgoingCall(ooCallData *call)
 			}
 			ooCallAddAliasDialedDigits(call, p->caller_dialedDigits);
 		} else if (!ast_strlen_zero(p->callerid_num)) {
-			if (ooIsDailedDigit(p->callerid_num)) {
+			if (ooIsDialedDigit(p->callerid_num)) {
 				if (gH323Debug) {
 					ast_verb(0, "setting callid number %s\n", p->callerid_num);
 				}
@@ -2136,7 +2136,7 @@ int onNewCallCreated(ooCallData *call)
 			}
 			ooCallAddAliasDialedDigits(call, p->caller_dialedDigits);
 		} else if (!ast_strlen_zero(p->callerid_num)) {
-			if (ooIsDailedDigit(p->callerid_num)) {
+			if (ooIsDialedDigit(p->callerid_num)) {
 				if (gH323Debug) {
 					ast_verb(0, "setting callid number %s\n", p->callerid_num);
 				}
@@ -2148,7 +2148,7 @@ int onNewCallCreated(ooCallData *call)
 
 
 		if (!ast_strlen_zero(p->exten))  {
-			if (ooIsDailedDigit(p->exten)) {
+			if (ooIsDialedDigit(p->exten)) {
 				ooCallSetCalledPartyNumber(call, p->exten);
 				ooCallAddRemoteAliasDialedDigits(call, p->exten);
 			} else {

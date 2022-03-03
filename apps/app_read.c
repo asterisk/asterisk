@@ -75,6 +75,16 @@
 					<option name="n">
 						<para>to read digits even if the line is not up.</para>
 					</option>
+					<option name="t">
+						<para>Terminator digit(s) to use for ending input.
+						Default is <literal>#</literal>. If you need to read
+						the digit <literal>#</literal> literally, you should
+						remove or change the terminator character. Multiple
+						terminator characters may be specified. If no terminator
+						digit is present, input cannot be ended using digits
+						and you will need to rely on duration and max digits
+						for ending input.</para>
+					</option>
 				</optionlist>
 			</parameter>
 			<parameter name="attempts">
@@ -114,12 +124,20 @@ enum read_option_flags {
 	OPT_SKIP = (1 << 0),
 	OPT_INDICATION = (1 << 1),
 	OPT_NOANSWER = (1 << 2),
+	OPT_TERMINATOR = (1 << 3),
+};
+
+enum {
+	OPT_ARG_TERMINATOR,
+	/* note: this entry _MUST_ be the last one in the enum */
+	OPT_ARG_ARRAY_SIZE,
 };
 
 AST_APP_OPTIONS(read_app_options, {
 	AST_APP_OPTION('s', OPT_SKIP),
 	AST_APP_OPTION('i', OPT_INDICATION),
 	AST_APP_OPTION('n', OPT_NOANSWER),
+	AST_APP_OPTION_ARG('t', OPT_TERMINATOR, OPT_ARG_TERMINATOR),
 });
 
 static char *app = "Read";
@@ -132,9 +150,11 @@ static int read_exec(struct ast_channel *chan, const char *data)
 	int tries = 1, to = 0, x = 0;
 	double tosec;
 	char *argcopy = NULL;
+	char *opt_args[OPT_ARG_ARRAY_SIZE];
 	struct ast_tone_zone_sound *ts = NULL;
 	struct ast_flags flags = {0};
 	const char *status = "ERROR";
+	char *terminator = "#"; /* use default terminator # by default */
 
 	AST_DECLARE_APP_ARGS(arglist,
 		AST_APP_ARG(variable);
@@ -156,7 +176,7 @@ static int read_exec(struct ast_channel *chan, const char *data)
 	AST_STANDARD_APP_ARGS(arglist, argcopy);
 
 	if (!ast_strlen_zero(arglist.options)) {
-		ast_app_parse_options(read_app_options, &flags, NULL, arglist.options);
+		ast_app_parse_options(read_app_options, &flags, opt_args, arglist.options);
 	}
 
 	if (!ast_strlen_zero(arglist.attempts)) {
@@ -192,6 +212,13 @@ static int read_exec(struct ast_channel *chan, const char *data)
 			ts = ast_get_indication_tone(ast_channel_zone(chan), arglist.filename);
 		}
 	}
+	if (ast_test_flag(&flags, OPT_TERMINATOR)) {
+		if (!ast_strlen_zero(opt_args[OPT_ARG_TERMINATOR])) {
+			terminator = opt_args[OPT_ARG_TERMINATOR];
+		} else {
+			terminator = ""; /* no digit inherently will terminate input */
+		}
+	}
 	if (ast_channel_state(chan) != AST_STATE_UP) {
 		if (ast_test_flag(&flags, OPT_SKIP)) {
 			/* At the user's option, skip if the line is not up */
@@ -223,7 +250,7 @@ static int read_exec(struct ast_channel *chan, const char *data)
 						break;
 					}
 					tmp[x++] = res;
-					if (tmp[x-1] == '#') {
+					if (terminator && strchr(terminator, tmp[x-1])) {
 						tmp[x-1] = '\0';
 						status = "OK";
 						break;
@@ -233,7 +260,7 @@ static int read_exec(struct ast_channel *chan, const char *data)
 					}
 				}
 			} else {
-				res = ast_app_getdata(chan, arglist.filename, tmp, maxdigits, to);
+				res = ast_app_getdata_terminator(chan, arglist.filename, tmp, maxdigits, to, terminator);
 				if (res == AST_GETDATA_COMPLETE || res == AST_GETDATA_EMPTY_END_TERMINATED)
 					status = "OK";
 				else if (res == AST_GETDATA_TIMEOUT)

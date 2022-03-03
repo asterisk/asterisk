@@ -65,7 +65,7 @@
 use strict;
 use Getopt::Long;
 
-# Holds global dependncy information. Keys are module names.
+# Holds global dependency information. Keys are module names.
 my %ModInfo = ();
 
 # extract configuration from kernel modules:
@@ -79,8 +79,8 @@ my $ConfFile = "build_tools/conf";
 
 my $DumpFile = 'build_tools/dump_deps';
 
-# Modules removed randomely:
-my $RandomeModsFile = "build_tools/mods_removed_random";
+# Modules removed randomly:
+my $RandomModsFile = "build_tools/mods_removed_random";
 
 my $MakedepsFile = "menuselect.makedeps";
 
@@ -99,7 +99,7 @@ my @ExcludedModules = ();
 # Do try building those. Overrides 'exclude' and 'defaultenable: no'
 my @IncludedModules = ();
 
-# A chance to rule-out a module randomely.
+# A chance to rule-out a module randomly.
 my $RandomKnockoutFactor = 0;
 
 sub warning($) {
@@ -354,9 +354,9 @@ sub read_conf() {
 }
 
 # generate menuselect.makedeps.
-# In this file menuselect writes dependecies of each module. CFLAGS will
+# In this file menuselect writes dependencies of each module. CFLAGS will
 # then automatically include for each module the _INCLUDE and LDFLAGS
-# will include the _LIBS from all the depedencies of the module.
+# will include the _LIBS from all the dependencies of the module.
 sub gen_makedeps() {
 	open MAKEDEPSS, ">$MakedepsFile" or
 		die "Failed to open deps file $MakedepsFile for writing. Aborting: $!\n";
@@ -409,8 +409,8 @@ sub apply_included_patterns() {
 sub apply_random_drop() {
 	return if ($RandomKnockoutFactor <= 0);
 
-	open MODS_LIST, ">$RandomeModsFile" or
-		die "Failed to open modules list file $RandomeModsFile for writing. Aborting: $!\n";
+	open MODS_LIST, ">$RandomModsFile" or
+		die "Failed to open modules list file $RandomModsFile for writing. Aborting: $!\n";
 	for my $mod (keys %ModInfo) {
 		next unless ($ModInfo{$mod}{Type} eq 'module');
 		next unless (rand() < $RandomKnockoutFactor);
@@ -531,7 +531,7 @@ sub resolve_deps() {
 
 # generate menuselect.makeopts.
 # The values in this file obey to different semantics:
-# 1. For modules, a module will be built unles listed here
+# 1. For modules, a module will be built unless listed here
 # 2. For XML values (sounds, CFLAGS) it will be enabled if listed here
 sub gen_makeopts() {
 	open MAKEDEPS, ">$MakeoptsFile" or
@@ -703,7 +703,7 @@ sub usage() {
 	print "\n";
 	print "Usage:\n";
 	print "$0  # menuselect processing\n";
-	print "$0 -m|--modinfo|--moduls-info PATTERN # Status of modules\n";
+	print "$0 -m|--modinfo|--modules-info PATTERN # Status of modules\n";
 	print "$0 -v|--verbose                       # verbose (modinfo)\n";
 	print "$0 -c|--check-deps                    # Check for dependencies\n";
 	print "\n";

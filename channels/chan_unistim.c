@@ -465,7 +465,7 @@ static struct unistimsession {
 	unsigned short last_seq_ack;    /*!< sequence number of the last ACK received */
 	unsigned long tick_next_ping;   /*!< time for the next ping */
 	int last_buf_available;	 /*!< number of a free slot */
-	int nb_retransmit;		      /*!< number of retransmition */
+	int nb_retransmit;		      /*!< number of retransmission */
 	int state;				      /*!< state of the phone (see phone_state) */
 	int size_buff_entry;	    /*!< size of the buffer used to enter datas */
 	char buff_entry[16];	    /*!< Buffer for temporary datas */
@@ -684,10 +684,10 @@ static const unsigned char packet_send_charset_iso_8859_2[] =
 /* ISO-8859-4 - Baltic) */
 static const unsigned char packet_send_charset_iso_8859_4[] =
 	{ 0x17, 0x08, 0x21, 0x1b, 0x2d, 0x44, 0x1b, 0x00 };
-/* ISO 8859-5 - cyrilic */
+/* ISO 8859-5 - cyrillic */
 static const unsigned char packet_send_charset_iso_8859_5[] =
 	{ 0x17, 0x08, 0x21, 0x1b, 0x2d, 0x4c, 0x1b, 0x00 };
-/* Japaneese (ISO-2022-JP ?) */
+/* Japanese (ISO-2022-JP ?) */
 static const unsigned char packet_send_charset_iso_2022_jp[] =
 	{ 0x17, 0x08, 0x21, 0x1b, 0x29, 0x49, 0x1b, 0x7e };
 
@@ -3118,7 +3118,7 @@ static void handle_call_outgoing(struct unistimsession *s)
 
 	sub = get_sub(s->device, SUB_THREEWAY);
 	if (sub) {
-		/* If sub for threway call created than we use transfer behaviuor */
+		/* If sub for threway call created than we use transfer behavior */
 		struct unistim_subchannel *sub_trans = NULL;
 		struct unistim_device *d = s->device;
 
@@ -6847,8 +6847,6 @@ static int reload_config(void)
 {
 	struct ast_config *cfg;
 	struct ast_variable *v;
-	struct ast_hostent ahp;
-	struct hostent *hp;
 	struct sockaddr_in bindaddr = { 0, };
 	char *config = "unistim.conf";
 	char *cat;
@@ -6916,11 +6914,11 @@ static int reload_config(void)
 			}
 		} else if (!strcasecmp(v->name, "public_ip")) {
 			if (!ast_strlen_zero(v->value)) {
-				if (!(hp = ast_gethostbyname(v->value, &ahp))) {
+				struct ast_sockaddr addr = { {0,} };
+				if (ast_sockaddr_resolve_first_af(&addr, v->value, PARSE_PORT_FORBID, AF_INET)) {
 					ast_log(LOG_WARNING, "Invalid address: %s\n", v->value);
 				} else {
-					memcpy(&public_ip.sin_addr, hp->h_addr, sizeof(public_ip.sin_addr));
-					public_ip.sin_family = AF_INET;
+					ast_sockaddr_to_sin(&addr, &public_ip);
 				}
 			}
 		}

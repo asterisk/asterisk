@@ -47,7 +47,7 @@ static struct stasis_message_router *router;
  *
  * \details We keep a wrapper around the metric so we can easily
  * update the value when the state of the registration changes, as
- * well as remove and unregsiter the metric when someone destroys
+ * well as remove and unregister the metric when someone destroys
  * or reloads the registration
  */
 struct prometheus_metric_wrapper {
@@ -64,8 +64,6 @@ struct prometheus_metric_wrapper {
 	char key[128];
 };
 
-AST_MUTEX_DEFINE_STATIC(metrics_lock);
-
 /*!
  * \internal Vector of metric wrappers
  *
@@ -76,6 +74,8 @@ AST_MUTEX_DEFINE_STATIC(metrics_lock);
  * (2) The lifetime of wrappers is well contained
  */
 static AST_VECTOR(, struct prometheus_metric_wrapper *) metrics;
+
+AST_MUTEX_DEFINE_STATIC(metrics_lock);
 
 /*!
  * \internal

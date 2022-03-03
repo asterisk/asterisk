@@ -78,6 +78,8 @@
 	<depend>suppserv</depend>
 	<support_level>deprecated</support_level>
 	<replacement>chan_dahdi</replacement>
+	<deprecated_in>16</deprecated_in>
+	<removed_in>19</removed_in>
  ***/
 
 #include "asterisk.h"
@@ -243,7 +245,7 @@ struct misdn_cc_record {
 			/*! \brief CallLinkageID (valid when port determined) */
 			int linkage_id;
 
-			/*! \breif CCBSReference (valid when activated is TRUE) */
+			/*! \brief CCBSReference (valid when activated is TRUE) */
 			int reference_id;
 
 			/*! \brief globalRecall(0),	specificRecall(1) */
@@ -821,8 +823,6 @@ static struct chan_list *get_chan_by_ast_name(const char *name)
  *    destroyed.  If this is the case, then the call completion events have
  *    already occurred and the appropriate channel variables have already been
  *    set on the original channel that requested call completion services.
- *
- * \return Nothing
  */
 static void misdn_cc_ds_destroy(void *data)
 {
@@ -877,8 +877,6 @@ static const struct ast_datastore_info misdn_cc_ds_info = {
  *
  * This function may be called from outside of the channel thread.  It handles
  * the fact that the peer channel may be hung up and destroyed at any time.
- *
- * \return nothing
  */
 static void misdn_cc_set_peer_var(struct misdn_cc_caller *peer, const char *var,
 	const char *value)
@@ -1084,8 +1082,6 @@ static struct misdn_cc_record *misdn_cc_find_by_bc(const struct misdn_bchannel *
  *
  * \param doomed Call completion record to destroy
  *
- * \return Nothing
- *
  * \note Assumes the misdn_cc_records_db lock is already obtained.
  */
 static void misdn_cc_delete(struct misdn_cc_record *doomed)
@@ -1109,8 +1105,6 @@ static void misdn_cc_delete(struct misdn_cc_record *doomed)
 /*!
  * \internal
  * \brief Delete all old call completion records
- *
- * \return Nothing
  *
  * \note Assumes the misdn_cc_records_db lock is already obtained.
  */
@@ -1217,8 +1211,6 @@ static struct misdn_cc_record *misdn_cc_new(void)
 /*!
  * \internal
  * \brief Destroy the call completion record database
- *
- * \return Nothing
  */
 static void misdn_cc_destroy(void)
 {
@@ -1235,8 +1227,6 @@ static void misdn_cc_destroy(void)
 /*!
  * \internal
  * \brief Initialize the call completion record database
- *
- * \return Nothing
  */
 static void misdn_cc_init(void)
 {
@@ -1286,8 +1276,6 @@ static int misdn_cc_response_check(void *data)
  * \param chan Asterisk channel to operate upon.
  * \param wait_seconds Number of seconds to wait
  * \param record_id Call completion record ID.
- *
- * \return Nothing
  */
 static void misdn_cc_response_wait(struct ast_channel *chan, int wait_seconds, long record_id)
 {
@@ -2390,8 +2378,6 @@ static const char *bearer2str(int cap)
  *
  * \param party PartyNumber structure to fill in.
  * \param id Information to put in PartyNumber structure.
- *
- * \return Nothing
  */
 static void misdn_PartyNumber_fill(struct FacPartyNumber *party, const struct misdn_party_id *id)
 {
@@ -2419,8 +2405,6 @@ static void misdn_PartyNumber_fill(struct FacPartyNumber *party, const struct mi
  *
  * \param id Where to put extracted PartyNumber information
  * \param party PartyNumber information to extract
- *
- * \return Nothing
  */
 static void misdn_PartyNumber_extract(struct misdn_party_id *id, const struct FacPartyNumber *party)
 {
@@ -2454,8 +2438,6 @@ static void misdn_PartyNumber_extract(struct misdn_party_id *id, const struct Fa
  *
  * \param Address Address structure to fill in.
  * \param id Information to put in Address structure.
- *
- * \return Nothing
  */
 static void misdn_Address_fill(struct FacAddress *Address, const struct misdn_party_id *id)
 {
@@ -2473,8 +2455,6 @@ static void misdn_Address_fill(struct FacAddress *Address, const struct misdn_pa
  *
  * \param presented PresentedNumberUnscreened structure to fill in.
  * \param id Information to put in PresentedNumberUnscreened structure.
- *
- * \return Nothing
  */
 static void misdn_PresentedNumberUnscreened_fill(struct FacPresentedNumberUnscreened *presented, const struct misdn_party_id *id)
 {
@@ -2490,8 +2470,6 @@ static void misdn_PresentedNumberUnscreened_fill(struct FacPresentedNumberUnscre
  *
  * \param id Where to put extracted PresentedNumberUnscreened information
  * \param presented PresentedNumberUnscreened information to extract
- *
- * \return Nothing
  */
 static void misdn_PresentedNumberUnscreened_extract(struct misdn_party_id *id, const struct FacPresentedNumberUnscreened *presented)
 {
@@ -3375,8 +3353,6 @@ static void print_bearer(struct misdn_bchannel *bc)
  * \param size Buffer size of the main string (Includes null terminator).
  *
  * \note The str_main buffer size must be greater than one.
- *
- * \return Nothing
  */
 static void misdn_prefix_string(const char *str_prefix, char *str_main, size_t size)
 {
@@ -3418,8 +3394,6 @@ static void misdn_prefix_string(const char *str_prefix, char *str_main, size_t s
  * \param number_type Type-of-number passed in.
  * \param number Given number string to add prefix
  * \param size Buffer size number string occupies.
- *
- * \return Nothing
  */
 static void misdn_add_number_prefix(int port, enum mISDN_NUMBER_TYPE number_type, char *number, size_t size)
 {
@@ -6129,8 +6103,6 @@ static int read_config(struct chan_list *ch)
  * \param id Party id information to send to the other side
  * \param source Why are we sending this update
  * \param cid_tag User tag to apply to the party id.
- *
- * \return Nothing
  */
 static void misdn_queue_connected_line_update(struct ast_channel *ast, const struct misdn_party_id *id, enum AST_CONNECTED_LINE_UPDATE_SOURCE source, char *cid_tag)
 {
@@ -6165,8 +6137,6 @@ static void misdn_queue_connected_line_update(struct ast_channel *ast, const str
  * \param ast Current Asterisk channel
  * \param id Remote party id information to update.
  * \param cid_tag User tag to apply to the party id.
- *
- * \return Nothing
  */
 static void misdn_update_caller_id(struct ast_channel *ast, const struct misdn_party_id *id, char *cid_tag)
 {
@@ -6204,8 +6174,6 @@ static void misdn_update_caller_id(struct ast_channel *ast, const struct misdn_p
  * \param id Remote party id information to update.
  * \param source Why are we sending this update
  * \param cid_tag User tag to apply to the party id.
- *
- * \return Nothing
  */
 static void misdn_update_remote_party(struct ast_channel *ast, const struct misdn_party_id *id, enum AST_CONNECTED_LINE_UPDATE_SOURCE source, char *cid_tag)
 {
@@ -6220,8 +6188,6 @@ static void misdn_update_remote_party(struct ast_channel *ast, const struct misd
  * \param ast Current Asterisk channel
  * \param bc Associated B channel
  * \param originator Who originally created this channel. ORG_AST or ORG_MISDN
- *
- * \return Nothing
  */
 static void misdn_get_connected_line(struct ast_channel *ast, struct misdn_bchannel *bc, int originator)
 {
@@ -6294,8 +6260,6 @@ static void misdn_get_connected_line(struct ast_channel *ast, struct misdn_bchan
  * \param ast Current Asterisk channel
  * \param bc Associated B channel
  * \param originator Who originally created this channel. ORG_AST or ORG_MISDN
- *
- * \return Nothing
  */
 static void misdn_update_connected_line(struct ast_channel *ast, struct misdn_bchannel *bc, int originator)
 {
@@ -6376,8 +6340,6 @@ static void misdn_update_connected_line(struct ast_channel *ast, struct misdn_bc
  *
  * \param bc Associated B channel
  * \param ast Current Asterisk channel
- *
- * \return Nothing
  */
 static void misdn_copy_redirecting_from_ast(struct misdn_bchannel *bc, struct ast_channel *ast)
 {
@@ -6431,8 +6393,6 @@ static void misdn_copy_redirecting_from_ast(struct misdn_bchannel *bc, struct as
  * \param ast Current Asterisk channel
  * \param redirect Associated B channel redirecting info
  * \param tag Caller ID tag to set in the redirecting party fields
- *
- * \return Nothing
  */
 static void misdn_copy_redirecting_to_ast(struct ast_channel *ast, const struct misdn_party_redirecting *redirect, char *tag)
 {
@@ -6477,8 +6437,6 @@ static void misdn_copy_redirecting_to_ast(struct ast_channel *ast, const struct 
  * \param ast Current Asterisk channel
  * \param bc Associated B channel
  * \param originator Who originally created this channel. ORG_AST or ORG_MISDN
- *
- * \return Nothing
  */
 static void misdn_update_redirecting(struct ast_channel *ast, struct misdn_bchannel *bc, int originator)
 {
@@ -7786,8 +7744,6 @@ static int stop_bc_tones(struct chan_list *cl)
  * \brief Destroy the chan_list object.
  *
  * \param obj chan_list object to destroy.
- *
- * \return Nothing
  */
 static void chan_list_destructor(void *obj)
 {
@@ -8488,8 +8444,6 @@ static void hangup_chan(struct chan_list *ch, struct misdn_bchannel *bc)
  * \param ch Call channel record to release.
  * \param bc Current B channel record associated with ch.
  *
- * \return Nothing
- *
  * \note The only valid thing to do with ch after calling is to chan_list_unref(ch, "").
  */
 static void release_chan(struct chan_list *ch, struct misdn_bchannel *bc)
@@ -8553,8 +8507,6 @@ static void release_chan(struct chan_list *ch, struct misdn_bchannel *bc)
  * \brief Do everything in release_chan() that makes sense without a bc.
  *
  * \param ch Call channel record to release.
- *
- * \return Nothing
  *
  * \note The only valid thing to do with ch after calling is to chan_list_unref(ch, "").
  */
@@ -8902,8 +8854,6 @@ static void wait_for_digits(struct chan_list *ch, struct misdn_bchannel *bc, str
  *
  * \param port Logical port number.
  * \param facility Facility ie contents.
- *
- * \return Nothing
  */
 static void misdn_cc_handle_ccbs_status_request(int port, const struct FacParm *facility)
 {
@@ -8948,8 +8898,6 @@ static void misdn_cc_handle_ccbs_status_request(int port, const struct FacParm *
  *
  * \param record_id Call completion record ID
  * \param notify Dialplan location to start processing.
- *
- * \return Nothing
  */
 static void misdn_cc_pbx_notify(long record_id, const struct misdn_cc_notify *notify)
 {
@@ -8988,8 +8936,6 @@ static void misdn_cc_pbx_notify(long record_id, const struct misdn_cc_notify *no
  * \brief Handle the FACILITY CCBS_T_RemoteUserFree message.
  *
  * \param bc B channel control structure message came in on
- *
- * \return Nothing
  */
 static void misdn_cc_handle_T_remote_user_free(struct misdn_bchannel *bc)
 {
@@ -9030,8 +8976,6 @@ static void misdn_cc_handle_T_remote_user_free(struct misdn_bchannel *bc)
  *
  * \param port Logical port number.
  * \param facility Facility ie contents.
- *
- * \return Nothing
  */
 static void misdn_cc_handle_remote_user_free(int port, const struct FacParm *facility)
 {
@@ -9059,8 +9003,6 @@ static void misdn_cc_handle_remote_user_free(int port, const struct FacParm *fac
  *
  * \param port Logical port number.
  * \param facility Facility ie contents.
- *
- * \return Nothing
  */
 static void misdn_cc_handle_b_free(int port, const struct FacParm *facility)
 {
@@ -9089,8 +9031,6 @@ static void misdn_cc_handle_b_free(int port, const struct FacParm *facility)
  * \param event Message type facility ie came in on
  * \param bc B channel control structure message came in on
  * \param ch Associated channel call record
- *
- * \return Nothing
  */
 static void misdn_facility_ie_handler(enum event_e event, struct misdn_bchannel *bc, struct chan_list *ch)
 {
@@ -11790,8 +11730,9 @@ static int misdn_command_cc_a_busy(struct ast_channel *chan, struct misdn_comman
  * \internal
  * \brief misdn_command(cc-b-free) subcommand handler
  *
- * \details
- * misdn_command(cc-b-free,${MISDN_CC_RECORD_ID},<notify-context>,<user-a-extension>,<priority>)
+ * \verbatim
+   misdn_command(cc-b-free,${MISDN_CC_RECORD_ID},<notify-context>,<user-a-extension>,<priority>)
+   \endverbatim
  * Set the dialplan location to notify when User-B is free and User-A is busy.
  *
  * \param chan Asterisk channel to operate upon.
@@ -11856,9 +11797,10 @@ struct misdn_cc_request {
  * \internal
  * \brief misdn_command(ccbs-request/ccnr-request) subcommand handler helper
  *
- * \details
- * misdn_command(ccbs-request,${MISDN_CC_RECORD_ID},<notify-context>,<user-a-extension>,<priority>)
- * misdn_command(ccnr-request,${MISDN_CC_RECORD_ID},<notify-context>,<user-a-extension>,<priority>)
+ * \verbatim
+   misdn_command(ccbs-request,${MISDN_CC_RECORD_ID},<notify-context>,<user-a-extension>,<priority>)
+   misdn_command(ccnr-request,${MISDN_CC_RECORD_ID},<notify-context>,<user-a-extension>,<priority>)
+   \endverbatim
  * Set the dialplan location to notify when User-B is free and User-A is free.
  *
  * \param chan Asterisk channel to operate upon.
@@ -12043,8 +11985,9 @@ static int misdn_command_cc_request(struct ast_channel *chan, struct misdn_comma
  * \internal
  * \brief misdn_command(ccbs-request) subcommand handler
  *
- * \details
- * misdn_command(ccbs-request,${MISDN_CC_RECORD_ID},<notify-context>,<user-a-extension>,<priority>)
+ * \verbatim
+   misdn_command(ccbs-request,${MISDN_CC_RECORD_ID},<notify-context>,<user-a-extension>,<priority>)
+   \endverbatim
  * Set the dialplan location to notify when User-B is free and User-A is free.
  *
  * \param chan Asterisk channel to operate upon.
@@ -12069,8 +12012,9 @@ static int misdn_command_ccbs_request(struct ast_channel *chan, struct misdn_com
  * \internal
  * \brief misdn_command(ccnr-request) subcommand handler
  *
- * \details
- * misdn_command(ccnr-request,${MISDN_CC_RECORD_ID},<notify-context>,<user-a-extension>,<priority>)
+ * \verbatim
+   misdn_command(ccnr-request,${MISDN_CC_RECORD_ID},<notify-context>,<user-a-extension>,<priority>)
+   \endverbatim
  * Set the dialplan location to notify when User-B is free and User-A is free.
  *
  * \param chan Asterisk channel to operate upon.

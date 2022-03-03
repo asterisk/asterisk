@@ -26,8 +26,8 @@
    );
 
    int enhancerInterface(
-       float *out,         /* (o) the enhanced recidual signal */
-       float *in,          /* (i) the recidual signal to enhance */
+       float *out,         /* (o) the enhanced residual signal */
+       float *in,          /* (i) the residual signal to enhance */
        iLBC_Dec_Inst_t *iLBCdec_inst
                            /* (i/o) the decoder state structure */
    );

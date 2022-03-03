@@ -404,7 +404,7 @@ publish_failure:
 
 /*!
  * \internal
- * \brief secondary handler for the 'acl show <name>' command (with arg)
+ * \brief secondary handler for the 'acl show \<name\>' command (with arg)
  *
  * \param fd file descriptor of the cli
  * \name name of the ACL requested for display
@@ -467,7 +467,7 @@ static void cli_display_named_acl_list(int fd)
 	ao2_iterator_destroy(&i);
 }
 
-/* \brief ACL command show <name> */
+/*! \brief ACL command show \<name\> */
 static char *handle_show_named_acl_cmd(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct named_acl_config *cfg;

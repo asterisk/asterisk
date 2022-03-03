@@ -302,17 +302,18 @@ static struct iax2_ie infoelts[] = {
 	{ IAX_IE_TRANSFERID, "TRANSFER ID", dump_int },
 	{ IAX_IE_RDNIS, "REFERRING DNIS", dump_string },
 	{ IAX_IE_PROVISIONING, "PROVISIONING", dump_prov },
-	{ IAX_IE_AESPROVISIONING, "AES PROVISIONG" },
+	{ IAX_IE_AESPROVISIONING, "AES PROVISIONING" },
 	{ IAX_IE_DATETIME, "DATE TIME", dump_datetime },
 	{ IAX_IE_DEVICETYPE, "DEVICE TYPE", dump_string },
 	{ IAX_IE_SERVICEIDENT, "SERVICE IDENT", dump_string },
 	{ IAX_IE_FIRMWAREVER, "FIRMWARE VER", dump_short },
 	{ IAX_IE_FWBLOCKDESC, "FW BLOCK DESC", dump_int },
 	{ IAX_IE_FWBLOCKDATA, "FW BLOCK DATA" },
-	{ IAX_IE_PROVVER, "PROVISIONG VER", dump_int },
+	{ IAX_IE_PROVVER, "PROVISIONING VER", dump_int },
 	{ IAX_IE_CALLINGPRES, "CALLING PRESNTN", dump_byte },
 	{ IAX_IE_CALLINGTON, "CALLING TYPEOFNUM", dump_byte },
 	{ IAX_IE_CALLINGTNS, "CALLING TRANSITNET", dump_short },
+	{ IAX_IE_CALLINGANI2, "CALLING ANI2", dump_int },
 	{ IAX_IE_SAMPLINGRATE, "SAMPLINGRATE", dump_samprate },
 	{ IAX_IE_CAUSECODE, "CAUSE CODE", dump_byte },
 	{ IAX_IE_ENCRYPTION, "ENCRYPTION", dump_short },
@@ -552,7 +553,7 @@ void iax_frame_subclass2str(enum iax_frame_subclass subclass, char *str, size_t 
 		cmd = "QUELCH ";
 		break;
 	case IAX_COMMAND_UNQUELCH:
-		cmd = "UNQULCH";
+		cmd = "UNQUELCH";
 		break;
 	case IAX_COMMAND_POKE:
 		cmd = "POKE   ";
@@ -805,6 +806,7 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 	ies->calling_ton = -1;
 	ies->calling_tns = -1;
 	ies->calling_pres = -1;
+	ies->calling_ani2 = -1;
 	ies->samprate = IAX_RATE_8KHZ;
 	while(datalen >= 2) {
 		ie = data[0];
@@ -1054,6 +1056,14 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 				ies->calling_ton = data[2];
 			else {
 				snprintf(tmp, (int)sizeof(tmp), "Expected single byte callington, but was %d long\n", len);
+				errorf(tmp);
+			}
+			break;
+		case IAX_IE_CALLINGANI2:
+			if (len == (int)sizeof(unsigned int)) {
+				ies->calling_ani2 = ntohl(get_unaligned_uint32(data + 2));
+			} else {
+				snprintf(tmp, (int)sizeof(tmp), "callingani2 was %d long: %s\n", len, data + 2);
 				errorf(tmp);
 			}
 			break;

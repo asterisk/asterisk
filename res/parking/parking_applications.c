@@ -740,8 +740,6 @@ static struct park_announce_subscription_data *park_announce_subscription_data_c
  *
  * \param oh outgoing helper struct we are bestowing inheritable variables to
  * \param channel_id name or uniqueID of the channel to inherit variables from
- *
- * \return Nothing
  */
 static void inherit_channel_vars_from_id(struct outgoing_helper *oh, const char *channel_id)
 {

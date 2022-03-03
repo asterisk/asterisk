@@ -1,5 +1,5 @@
 //
-// AN EXCERSIZE IN BAD DIALPLAN DESIGN
+// AN EXERCISE IN BAD DIALPLAN DESIGN
 //  (What better testing ground than on telemarketers?)
 //
 
@@ -66,7 +66,7 @@ context telemarket-charity {
 		begin:
 		Playback(telemark-charity-intro);
                                                //  We have contributed generously to many worthy causes in the past, and will
-                                               // continue to do so in the future. But we suspect that such organizatons
+                                               // continue to do so in the future. But we suspect that such organizations
                                                // have sold our name and phone number to each other until we are now hounded
                                                // day and night by literally hundreds of such organizations.
                                                // Enough is Enough!
@@ -87,7 +87,7 @@ context telemarket-charity {
                                                // If your organization is a police or fireman or other similar support entity,  please dial 3.
                                                // If your organization is a grade school to high school related
                                                //        fund raiser or other type of activity,  please dial 4.
-                                               // If your organization is a college or univerity or alumnis organization,  please dial 5.
+                                               // If your organization is a college or university or alumnis organization,  please dial 5.
                                                // If your organization is animal rights or ecology related organization, please dial 6.
                                                // If your organization is a political action or candidate support related, please dial 7.
                                                // If your organization is a substance abuse related organization or cause, please dial 8.
@@ -275,7 +275,7 @@ context telemarket-political3 {
 		begin:
 		Playback(telemark-politx-intro);
 		Playback(telemark-polit3-choices);
-                                               //  if You represent the Independant American Party, dial 1.
+                                               //  if You represent the Independent American Party, dial 1.
                                                //  if You represent the Labor Party, dial 2.
                                                //  if You represent the Libertarian Party, dial 3.
                                                //  if You represent the Light Party, dial 4.
@@ -722,7 +722,7 @@ context telemark-mag-renew {
                                                // Do you need verification information? Normally I opt out of such nonsense, if possible.
                                                // If not, use whatever of the following you can:
                                                // My birth month is October.
-                                               // My birthplace is Kigali, in Rwanda, in Afica.
+                                               // My birthplace is Kigali, in Rwanda, in Africa.
                                                // My eye color is orange.
                                                // All of these are wonderfully false, but I use them regularly for such purposes. Thank you.
 		Hangup();

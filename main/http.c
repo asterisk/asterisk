@@ -113,17 +113,20 @@ static struct ast_tls_config http_tls_cfg;
 static void *httpd_helper_thread(void *arg);
 
 /*!
- * we have up to two accepting threads, one for http, one for https
+ * For standard configuration we have up to two accepting threads,
+ * one for http, one for https. If TEST_FRAMEWORK is enabled it's
+ * possible to have more than one running http server.
  */
-static struct ast_tcptls_session_args http_desc = {
-	.accept_fd = -1,
-	.master = AST_PTHREADT_NULL,
-	.tls_cfg = NULL,
-	.poll_timeout = -1,
-	.name = "http server",
-	.accept_fn = ast_tcptls_server_root,
-	.worker_fn = httpd_helper_thread,
+struct ast_http_server {
+	struct ast_tcptls_session_args args;
+	char *name;
+	char *address;
 };
+
+/*!
+ * The default configured HTTP server
+ */
+struct ast_http_server *global_http_server = NULL;
 
 static struct ast_tcptls_session_args https_desc = {
 	.accept_fd = -1,
@@ -394,9 +397,9 @@ static int httpstatus_callback(struct ast_tcptls_session_instance *ser,
 	ast_str_append(&out, 0, "<tr><td><i>Server</i></td><td><b>%s</b></td></tr>\r\n", http_server_name);
 	ast_str_append(&out, 0, "<tr><td><i>Prefix</i></td><td><b>%s</b></td></tr>\r\n", prefix);
 	ast_str_append(&out, 0, "<tr><td><i>Bind Address</i></td><td><b>%s</b></td></tr>\r\n",
-		       ast_sockaddr_stringify_addr(&http_desc.old_address));
+		       ast_sockaddr_stringify_addr(&global_http_server->args.old_address));
 	ast_str_append(&out, 0, "<tr><td><i>Bind Port</i></td><td><b>%s</b></td></tr>\r\n",
-		       ast_sockaddr_stringify_port(&http_desc.old_address));
+		       ast_sockaddr_stringify_port(&global_http_server->args.old_address));
 	if (http_tls_cfg.enabled) {
 		ast_str_append(&out, 0, "<tr><td><i>SSL Bind Port</i></td><td><b>%s</b></td></tr>\r\n",
 			       ast_sockaddr_stringify_port(&https_desc.old_address));
@@ -734,7 +737,7 @@ void ast_http_uri_unlink_all_with_key(const char *key)
  * \param headers Headers to search.
  * \param field_name Name of the header to find.
  * \return Associated header value.
- * \return \c NULL if header is not present.
+ * \retval NULL if header is not present.
  */
 static const char *get_header(struct ast_variable *headers, const char *field_name)
 {
@@ -756,7 +759,8 @@ static const char *get_header(struct ast_variable *headers, const char *field_na
  *
  * \note the return value is an allocated string that needs to be freed.
  *
- * \retval the content type/subtype or NULL if the header is not found.
+ * \return the content type/subtype
+ * \retval NULL if the header is not found.
  */
 static char *get_content_type(struct ast_variable *headers)
 {
@@ -779,7 +783,7 @@ static char *get_content_type(struct ast_variable *headers)
  *
  * \param headers HTTP headers.
  *
- * \retval length Value of the Content-Length header.
+ * \return length Value of the Content-Length header.
  * \retval 0 if header is not present.
  * \retval -1 if header is invalid.
  */
@@ -805,7 +809,7 @@ static int get_content_length(struct ast_variable *headers)
  * \brief Returns the value of the Transfer-Encoding header.
  *
  * \param headers HTTP headers.
- * \retval string Value of the Transfer-Encoding header.
+ * \return string Value of the Transfer-Encoding header.
  * \retval NULL if header is not present.
  */
 static const char *get_transfer_encoding(struct ast_variable *headers)
@@ -846,8 +850,6 @@ void ast_http_request_close_on_completion(struct ast_tcptls_session_instance *se
  * \since 12.4.0
  *
  * \param request Request tracking information.
- *
- * \return Nothing
  */
 static void http_request_tracking_init(struct http_worker_private_data *request)
 {
@@ -981,7 +983,7 @@ static int http_body_discard_contents(struct ast_tcptls_session_instance *ser, i
  * \param s string to decode
  * \param len length of string
  *
- * \retval length on success.
+ * \return length on success.
  * \retval -1 on error.
  */
 static int chunked_atoh(const char *s, int len)
@@ -1035,7 +1037,7 @@ static int chunked_atoh(const char *s, int len)
  *
  * \param ser HTTP TCP/TLS session object.
  *
- * \retval length Size of chunk to expect.
+ * \return length Size of chunk to expect.
  * \retval -1 on error.
  */
 static int http_body_get_chunk_length(struct ast_tcptls_session_instance *ser)
@@ -1175,7 +1177,8 @@ int ast_http_body_discard(struct ast_tcptls_session_instance *ser)
  * \param return_length ptr to int that returns content length
  * \param ser HTTP TCP/TLS session object
  * \param headers List of HTTP headers
- * \return ptr to content (zero terminated) or NULL on failure
+ * \return ptr to content (zero terminated)
+ * \retval NULL on failure
  * \note Since returned ptr is malloc'd, it should be free'd by caller
  */
 static char *ast_http_get_contents(int *return_length,
@@ -2074,6 +2077,293 @@ static void add_redirect(const char *value)
 	AST_RWLIST_UNLOCK(&uri_redirects);
 }
 
+/*! \brief Number of HTTP server buckets */
+#define HTTP_SERVER_BUCKETS 5
+
+struct ao2_container *http_servers = NULL;
+
+AO2_STRING_FIELD_HASH_FN(ast_http_server, address);
+AO2_STRING_FIELD_CMP_FN(ast_http_server, address);
+
+static void http_server_destroy(void *obj)
+{
+	struct ast_http_server *server = obj;
+
+	ast_tcptls_server_stop(&server->args);
+
+	ast_verb(1, "Stopped http server '%s' listening at '%s'\n", server->name, server->address);
+
+	ast_free(server->name);
+	ast_free(server->address);
+}
+
+static struct ast_http_server *http_server_create(const char *name, const char *address,
+	const struct ast_sockaddr *addr)
+{
+	struct ast_http_server *server;
+
+	server = ao2_alloc(sizeof(*server), http_server_destroy);
+	if (!server) {
+		ast_log(LOG_ERROR, "Unable to allocate HTTP server '%s' at address '%s'\n",
+			name, address);
+		return NULL;
+	}
+
+	if (!(server->address = ast_strdup(address)) || !(server->name = ast_strdup(name))) {
+		ast_log(LOG_ERROR, "Unable to complete setup for HTTP server '%s' at address '%s'\n",
+			name, address);
+		ao2_ref(server, -1);
+		return NULL;
+	}
+
+	server->args.accept_fd = -1;
+	server->args.master = AST_PTHREADT_NULL;
+	server->args.tls_cfg = NULL;
+	server->args.poll_timeout = -1;
+	server->args.name = server->name;
+	server->args.accept_fn = ast_tcptls_server_root;
+	server->args.worker_fn = httpd_helper_thread;
+
+	ast_sockaddr_copy(&server->args.local_address, addr);
+
+	return server;
+}
+
+static int http_server_start(struct ast_http_server *server)
+{
+	if (server->args.accept_fd != -1) {
+		/* Already running */
+		return 0;
+	}
+
+	ast_tcptls_server_start(&server->args);
+	if (server->args.accept_fd == -1) {
+		ast_log(LOG_WARNING, "Failed to start HTTP server '%s' at address '%s'\n",
+				server->name, server->address);
+		return -1;
+	}
+
+	if (!ao2_link_flags(http_servers, server, OBJ_NOLOCK)) {
+		ast_log(LOG_WARNING, "Failed to link HTTP server '%s' at address '%s'\n",
+				server->name, server->address);
+		return -1;
+	}
+
+	ast_verb(1, "Bound HTTP server '%s' to address %s\n", server->name, server->address);
+
+	return 0;
+}
+
+/*!
+ * \brief Discard/Drop a HTTP server
+ *
+ * Decrements the reference to the given object, and unlinks it from the servers
+ * container if it's the last reference.
+ *
+ * After a server object has been added to the container this method should always
+ * be called to decrement the object's reference instead of the regular ao2 methods.
+ *
+ * \note NULL tolerant
+ *
+ * \param server The server object
+ */
+static void http_server_discard(struct ast_http_server *server)
+{
+	if (!server) {
+		return;
+	}
+
+	/*
+	 * If only two references were on the object then the last one is from
+	 * the servers container, so remove from container now.
+	 */
+	if (ao2_ref(server, -1) == 2) {
+		ao2_unlink(http_servers, server);
+	}
+}
+
+/*!
+ * \brief Retrieve, or create a HTTP server object by sock address
+ *
+ * Look for, and return a matching server object by addr. If an object is not found
+ * then create a new one.
+ *
+ * \note This method should be called with the http_servers container already locked.
+ *
+ * \param name The name of the server
+ * \param addr The address to match on, or create a new object with
+ *
+ * \return a HTTP server object, or NULL on error
+ */
+static struct ast_http_server *http_server_get_by_addr(
+	const char *name, const struct ast_sockaddr *addr)
+{
+	struct ast_http_server *server;
+	const char *address;
+
+	address = ast_sockaddr_stringify(addr);
+	if (ast_strlen_zero(address)) {
+		return NULL;
+	}
+
+	server = ao2_find(http_servers, address, OBJ_KEY | OBJ_NOLOCK);
+
+	return server ?: http_server_create(name, address, addr);
+}
+
+/*!
+ * \brief Retrieve, or create a HTTP server object by host
+ *
+ * Resolve the given host, and then look for, and return a matching server object.
+ * If an object is not found then create a new one.
+ *
+ * \note This method should be called with the http_servers container already locked.
+ *
+ * \param name The name of the server
+ * \param host The host to resolve, and match on or create a new object with
+ * \param port Optional port used if one is not specified with the host (default 8088)
+ *
+ * \return a HTTP server object, or NULL on error
+ */
+static struct ast_http_server *http_server_get_by_host(const char *name, const char *host,
+	uint32_t port)
+{
+	struct ast_sockaddr *addrs = NULL;
+	int num_addrs;
+	int i;
+
+	if (!(num_addrs = ast_sockaddr_resolve(&addrs, host, 0, AST_AF_UNSPEC))) {
+		ast_log(LOG_WARNING, "Unable to resolve host '%s'\n", host);
+		return NULL;
+	}
+
+	if (port == 0) {
+		port = DEFAULT_PORT;
+	}
+
+	for (i = 0; i < num_addrs; ++i) {
+		struct ast_http_server *server;
+
+		/* Use the given port if one was not specified already */
+		if (!ast_sockaddr_port(&addrs[i])) {
+			ast_sockaddr_set_port(&addrs[i], port);
+		}
+
+		server = http_server_get_by_addr(name, &addrs[i]);
+		if (server) {
+			ast_free(addrs);
+			return server;
+		}
+	}
+
+	ast_free(addrs);
+	return NULL;
+}
+
+/*!
+ * \brief Retrieve, or create and start a HTTP server
+ *
+ * Resolve the given host, and retrieve a listening server object. If the server is
+ * not already listening then start it. If a replace_me parameter is given, and it
+ * points to a non-NULL value then that server is discarded and replaced.
+ *
+ * \param name The name of the server
+ * \param host The host to resolve, and match on or create a new object with
+ * \param port Optional port used if one is not specified with the host (default 8088)
+ * \param[out] replace_me Optional server to be replaced
+ *
+ * \note If replace_me is specified the returned value is always the same as what's
+ *       passed back out in the variable.
+ *
+ * \return a HTTP server object, or NULL on error
+ */
+static struct ast_http_server *http_server_get(const char *name, const char *host,
+	uint32_t port, struct ast_http_server **replace_me)
+{
+	struct ast_http_server *server;
+
+	ao2_lock(http_servers);
+
+	server = http_server_get_by_host(name, host, port);
+
+	if (replace_me) {
+		/* Only replace if different */
+		if (*replace_me == server) {
+			ao2_cleanup(server);
+			ao2_unlock(http_servers);
+			return *replace_me;
+		}
+
+		if (*replace_me) {
+			http_server_discard(*replace_me);
+		}
+
+		*replace_me = server;
+	}
+
+	if (server && http_server_start(server)) {
+		if (replace_me) {
+			*replace_me = NULL;
+		}
+
+		ao2_ref(server, -1);
+		server = NULL;
+	}
+
+	ao2_unlock(http_servers);
+	return server;
+}
+
+#ifdef TEST_FRAMEWORK
+
+struct ast_http_server *ast_http_test_server_get(const char *name, const char *host)
+{
+	struct ast_http_server *server;
+
+	/*
+	 * Currently multiple HTTP servers are only allowed when the TEST_FRAMEWORK
+	 * is enabled, leaving the follow 'todos' if they become a problem or if this
+	 * ability moves outside the TEST_FRAMEWORK.
+	 *
+	 * TODO: Add locking around global_http_server use. If this module is reloading
+	 *       it's possible for the global_http_server to exist here, and then become
+	 *       NULL between the check and return.
+	 *
+	 * TODO: Make it so 'localhost' and 'any' addresses equate.
+	 */
+
+	if (ast_strlen_zero(host)) {
+		/* Use configured server if one available */
+		if (global_http_server) {
+			ast_module_ref(ast_module_info->self);
+			return ao2_bump(global_http_server);
+		}
+
+		host = "localhost:8088";
+	}
+
+	if (!name) {
+		name = "http test server";
+	}
+
+	server = http_server_get(name, host, 0, NULL);
+	if (server) {
+		ast_module_ref(ast_module_info->self);
+	}
+
+	return server;
+}
+
+void ast_http_test_server_discard(struct ast_http_server *server)
+{
+	if (server) {
+		http_server_discard(server);
+		ast_module_unref(ast_module_info->self);
+	}
+}
+
+#endif
+
 static int __ast_http_load(int reload)
 {
 	struct ast_config *cfg;
@@ -2086,9 +2376,8 @@ static int __ast_http_load(int reload)
 	struct http_uri_redirect *redirect;
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 	uint32_t bindport = DEFAULT_PORT;
-	RAII_VAR(struct ast_sockaddr *, addrs, NULL, ast_free);
-	int num_addrs = 0;
 	int http_tls_was_enabled = 0;
+	char *bindaddr = NULL;
 
 	cfg = ast_config_load2("http.conf", "http", config_flags);
 	if (!cfg || cfg == CONFIG_STATUS_FILEINVALID) {
@@ -2169,9 +2458,7 @@ static int __ast_http_load(int reload)
 					v->value, DEFAULT_PORT);
 			}
 		} else if (!strcasecmp(v->name, "bindaddr")) {
-			if (!(num_addrs = ast_sockaddr_resolve(&addrs, v->value, 0, AST_AF_UNSPEC))) {
-				ast_log(LOG_WARNING, "Invalid bind address %s\n", v->value);
-			}
+			bindaddr = ast_strdupa(v->value);
 		} else if (!strcasecmp(v->name, "prefix")) {
 			if (!ast_strlen_zero(v->value)) {
 				newprefix[0] = '/';
@@ -2213,34 +2500,27 @@ static int __ast_http_load(int reload)
 
 	ast_copy_string(http_server_name, server_name, sizeof(http_server_name));
 
-	if (num_addrs && enabled) {
-		int i;
-		for (i = 0; i < num_addrs; ++i) {
-			ast_sockaddr_copy(&http_desc.local_address, &addrs[i]);
-			if (!ast_sockaddr_port(&http_desc.local_address)) {
-				ast_sockaddr_set_port(&http_desc.local_address, bindport);
-			}
-			ast_tcptls_server_start(&http_desc);
-			if (http_desc.accept_fd == -1) {
-				ast_log(LOG_WARNING, "Failed to start HTTP server for address %s\n", ast_sockaddr_stringify(&addrs[i]));
-				ast_sockaddr_setnull(&http_desc.local_address);
-			} else {
-				ast_verb(1, "Bound HTTP server to address %s\n", ast_sockaddr_stringify(&addrs[i]));
-				break;
-			}
-		}
-		/* When no specific TLS bindaddr is specified, we just use
-		 * the non-TLS bindaddress here.
-		 */
-		if (ast_sockaddr_isnull(&https_desc.local_address) && http_desc.accept_fd != -1) {
-			ast_sockaddr_copy(&https_desc.local_address, &http_desc.local_address);
-			/* Of course, we can't use the same port though.
-			 * Since no bind address was specified, we just use the
-			 * default TLS port
-			 */
-			ast_sockaddr_set_port(&https_desc.local_address, DEFAULT_TLS_PORT);
-		}
+	if (enabled) {
+		http_server_get("http server", bindaddr, bindport, &global_http_server);
+	} else if (global_http_server) {
+		http_server_discard(global_http_server);
+		global_http_server = NULL;
 	}
+
+	/* When no specific TLS bindaddr is specified, we just use
+	 * the non-TLS bindaddress here.
+	 */
+	if (global_http_server && ast_sockaddr_isnull(&https_desc.local_address) &&
+		global_http_server->args.accept_fd != -1) {
+
+		ast_sockaddr_copy(&https_desc.local_address, &global_http_server->args.local_address);
+		/* Of course, we can't use the same port though.
+		 * Since no bind address was specified, we just use the
+		 * default TLS port
+		 */
+		ast_sockaddr_set_port(&https_desc.local_address, DEFAULT_TLS_PORT);
+	}
+
 	if (http_tls_was_enabled && !http_tls_cfg.enabled) {
 		ast_tcptls_server_stop(&https_desc);
 	} else if (http_tls_cfg.enabled && !ast_sockaddr_isnull(&https_desc.local_address)) {
@@ -2298,11 +2578,11 @@ static char *handle_show_http(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	ast_cli(a->fd, "HTTP Server Status:\n");
 	ast_cli(a->fd, "Prefix: %s\n", prefix);
 	ast_cli(a->fd, "Server: %s\n", http_server_name);
-	if (ast_sockaddr_isnull(&http_desc.old_address)) {
+	if (!global_http_server) {
 		ast_cli(a->fd, "Server Disabled\n\n");
 	} else {
 		ast_cli(a->fd, "Server Enabled and Bound to %s\n\n",
-			ast_sockaddr_stringify(&http_desc.old_address));
+			ast_sockaddr_stringify(&global_http_server->args.old_address));
 		if (http_tls_cfg.enabled) {
 			ast_cli(a->fd, "HTTPS Server Enabled and Bound to %s\n\n",
 				ast_sockaddr_stringify(&https_desc.old_address));
@@ -2345,7 +2625,9 @@ static int unload_module(void)
 	struct http_uri_redirect *redirect;
 	ast_cli_unregister_multiple(cli_http, ARRAY_LEN(cli_http));
 
-	ast_tcptls_server_stop(&http_desc);
+	ao2_cleanup(global_http_server);
+	ao2_cleanup(http_servers);
+
 	if (http_tls_cfg.enabled) {
 		ast_tcptls_server_stop(&https_desc);
 	}
@@ -2375,7 +2657,19 @@ static int load_module(void)
 {
 	ast_cli_register_multiple(cli_http, ARRAY_LEN(cli_http));
 
-	return __ast_http_load(0) ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_SUCCESS;
+	http_servers = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		HTTP_SERVER_BUCKETS, ast_http_server_hash_fn, NULL, ast_http_server_cmp_fn);
+	if (!http_servers) {
+		return AST_MODULE_LOAD_FAILURE;
+	}
+
+	if (__ast_http_load(0)) {
+		ao2_cleanup(http_servers);
+		http_servers = NULL;
+		return AST_MODULE_LOAD_FAILURE;
+	}
+
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "Built-in HTTP Server",

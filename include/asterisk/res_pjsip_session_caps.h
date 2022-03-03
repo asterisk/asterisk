@@ -31,7 +31,7 @@ struct ast_sip_session;
  * \param remote The "remote" capabilities
  * \param local The "local" capabilities
  * \param media_type The media type
- * \param codec_prefs One or more of enum ast_sip_call_codec_pref
+ * \param codec_pref One or more of enum ast_sip_call_codec_pref
  *
  * \retval A pointer to the joint capabilities (which may be empty).
  *         NULL will be returned only if no memory was available to allocate the structure.

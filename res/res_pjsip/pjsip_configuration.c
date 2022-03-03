@@ -427,7 +427,7 @@ static int ident_handler(const struct aco_option *opt, struct ast_variable *var,
 			return -1;
 		}
 		if (endpoint->ident_method & method) {
-			/* We are already indentifying by this method.  No need to do it again. */
+			/* We are already identifying by this method.  No need to do it again. */
 			continue;
 		}
 
@@ -713,6 +713,44 @@ static int media_encryption_to_str(const void *obj, const intptr_t *args, char *
 	if (ARRAY_IN_BOUNDS(endpoint->media.rtp.encryption, media_encryption_map)) {
 		*buf = ast_strdup(media_encryption_map[
 					  endpoint->media.rtp.encryption]);
+	}
+	return 0;
+}
+
+static int stir_shaken_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
+{
+	struct ast_sip_endpoint *endpoint = obj;
+
+	if (!strcasecmp("off", var->value)) {
+		endpoint->stir_shaken = AST_SIP_STIR_SHAKEN_OFF;
+	} else if (!strcasecmp("attest", var->value)) {
+		endpoint->stir_shaken = AST_SIP_STIR_SHAKEN_ATTEST;
+	} else if (!strcasecmp("verify", var->value)) {
+		endpoint->stir_shaken = AST_SIP_STIR_SHAKEN_VERIFY;
+	} else if (!strcasecmp("on", var->value)) {
+		endpoint->stir_shaken = AST_SIP_STIR_SHAKEN_ON;
+	} else {
+		ast_log(LOG_WARNING, "'%s' is not a valid value for option "
+			"'stir_shaken' for endpoint %s\n",
+			var->value, ast_sorcery_object_get_id(endpoint));
+		return -1;
+	}
+
+	return 0;
+}
+
+static const char *stir_shaken_map[] = {
+	[AST_SIP_STIR_SHAKEN_OFF] = "off",
+	[AST_SIP_STIR_SHAKEN_ATTEST] = "attest",
+	[AST_SIP_STIR_SHAKEN_VERIFY] = "verify",
+	[AST_SIP_STIR_SHAKEN_ON] = "on",
+};
+
+static int stir_shaken_to_str(const void *obj, const intptr_t *args, char **buf)
+{
+	const struct ast_sip_endpoint *endpoint = obj;
+	if (ARRAY_IN_BOUNDS(endpoint->stir_shaken, stir_shaken_map)) {
+		*buf = ast_strdup(stir_shaken_map[endpoint->stir_shaken]);
 	}
 	return 0;
 }
@@ -2077,6 +2115,7 @@ int ast_res_pjsip_initialize_configuration(void)
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "fax_detect_timeout", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, faxdetect_timeout));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "t38_udptl_nat", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, media.t38.nat));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "t38_udptl_ipv6", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, media.t38.ipv6));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "t38_bind_udptl_to_media_address", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, media.t38.bind_udptl_to_media_address));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "tone_zone", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, zone));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "language", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, language));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "record_on_feature", "automixmon", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, info.recording.onfeature));
@@ -2152,7 +2191,7 @@ int ast_res_pjsip_initialize_configuration(void)
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "codec_prefs_outgoing_answer",
 		"prefer: pending, operation: intersect, keep: all",
 		codec_prefs_handler, outgoing_answer_codec_prefs_to_str, NULL, 0, 0);
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "stir_shaken", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, stir_shaken));
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "stir_shaken", "off", stir_shaken_handler, stir_shaken_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "allow_unauthenticated_options", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, allow_unauthenticated_options));
 
 	if (ast_sip_initialize_sorcery_transport()) {
