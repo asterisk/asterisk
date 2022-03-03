@@ -4423,6 +4423,7 @@ static int create_out_of_dialog_request(const pjsip_method *method, struct ast_s
 	pj_pool_t *pool;
 	pjsip_tpselector selector = { .type = PJSIP_TPSELECTOR_NONE, };
 	pjsip_uri *sip_uri;
+	pj_status_t ret_val;
 	const char *fromuser;
 
 	if (ast_strlen_zero(uri)) {
@@ -4475,9 +4476,13 @@ static int create_out_of_dialog_request(const pjsip_method *method, struct ast_s
 		return -1;
 	}
 
-	if (pjsip_endpt_create_request(ast_sip_get_pjsip_endpoint(), method, &remote_uri,
-			&from, &remote_uri, &from, NULL, -1, NULL, tdata) != PJ_SUCCESS) {
-		ast_log(LOG_ERROR, "Unable to create outbound %.*s request to endpoint %s\n",
+	ret_val = pjsip_endpt_create_request(ast_sip_get_pjsip_endpoint(), method, &remote_uri,
+			&from, &remote_uri, &from, NULL, -1, NULL, tdata);
+	if (ret_val != PJ_SUCCESS) {
+		char errmsg[PJ_ERR_MSG_SIZE];
+		pj_strerror(ret_val, errmsg, sizeof(errmsg));
+		ast_log(LOG_ERROR, "Error %d '%s' Unable to create outbound %.*s request to endpoint %s\n",
+				(int) ret_val, errmsg,
 				(int) pj_strlen(&method->name), pj_strbuf(&method->name),
 				endpoint ? ast_sorcery_object_get_id(endpoint) : "<none>");
 		pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
