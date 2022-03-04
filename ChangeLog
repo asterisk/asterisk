@@ -1,3 +1,31 @@
+2022-03-04 19:01 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 19.2.1 Released.
+
+2022-03-03 16:44 +0000 [5491429e14]  Kevin Harwell <kharwell@sangoma.com>
+
+	* AST-2022-006: pjproject - unconstrained malformed multipart SIP message
+
+	  ASTERISK-29945 #close
+
+	  Change-Id: Ic58957afc453195d53c2bd25c905df3d91d1abe6
+
+2022-03-03 16:42 +0000 [ade59d62a4]  Kevin Harwell <kharwell@sangoma.com>
+
+	* AST-2022-005: pjproject - undefined behavior after freeing a dialog set
+
+	  ASTERISK-29945 #close
+
+	  Change-Id: Ia8ce6d82b115c82c1138747c72a0adcaa42b718c
+
+2022-03-03 16:41 +0000 [5d53d4d926]  Kevin Harwell <kharwell@sangoma.com>
+
+	* AST-2022-004: pjproject - possible integer underflow on STUN message
+
+	  ASTERISK-29945 #close
+
+	  Change-Id: I721cd254e4f8aa6d3a97a37529cca53519694c54
+
 2022-02-10 12:02 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 19.2.0 Released.
