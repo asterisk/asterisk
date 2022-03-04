@@ -99,7 +99,7 @@ int ast_str_to_imax(const char *str, intmax_t *res)
 	}
 
 	errno = 0;
-	val = strtoimax(str, &end, 0);
+	val = strtoimax(str, &end, 10);
 
 	/*
 	 * If str equals end then no digits were found. If end is not pointing to
@@ -126,7 +126,7 @@ int ast_str_to_umax(const char *str, uintmax_t *res)
 	}
 
 	errno = 0;
-	val = strtoumax(str, &end, 0);
+	val = strtoumax(str, &end, 10);
 
 	/*
 	 * If str equals end then no digits were found. If end is not pointing to
