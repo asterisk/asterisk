@@ -4761,7 +4761,7 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 				}
 			}
 			if (!var) {
-				ast_debug(1, "%s isn't a valid conference\n", confno);
+				ast_log(LOG_WARNING, "%s isn't a valid conference\n", confno);
 			}
 			ast_config_destroy(cfg);
 		}
