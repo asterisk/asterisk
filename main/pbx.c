@@ -2506,7 +2506,7 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 		q->data = NULL;
 		q->foundcontext = NULL;
 	} else if (q->stacklen >= AST_PBX_MAX_STACK) {
-		ast_log(LOG_WARNING, "Maximum PBX stack exceeded\n");
+		ast_log(LOG_WARNING, "Maximum PBX stack (%d) exceeded. Too many includes?\n", AST_PBX_MAX_STACK);
 		return NULL;
 	}
 
@@ -8771,8 +8771,14 @@ int ast_context_verify_includes(struct ast_context *con)
 {
 	int idx;
 	int res = 0;
+	int includecount = ast_context_includes_count(con);
 
-	for (idx = 0; idx < ast_context_includes_count(con); idx++) {
+	if (includecount >= AST_PBX_MAX_STACK) {
+		ast_log(LOG_WARNING, "Context %s contains too many includes (%d). Maximum is %d.\n",
+			ast_get_context_name(con), includecount, AST_PBX_MAX_STACK);
+	}
+
+	for (idx = 0; idx < includecount; idx++) {
 		const struct ast_include *inc = ast_context_includes_get(con, idx);
 
 		if (ast_context_find(include_rname(inc))) {
