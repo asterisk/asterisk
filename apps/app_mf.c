@@ -226,7 +226,7 @@ static const char sendmf_name[] = "SendMF";
  * \param maxdigits If greater than 0, only read this many digits no matter what
  *
  * \retval 0 if successful
- * \retval -1 if unsuccessful.
+ * \retval -1 if unsuccessful (including hangup).
  */
 static int read_mf_digits(struct ast_channel *chan, char *buf, int buflen, int timeout, int features, int laxkp, int override, int no_kp, int no_st, int maxdigits) {
 	struct ast_dsp *dsp;
@@ -236,6 +236,7 @@ static int read_mf_digits(struct ast_channel *chan, char *buf, int buflen, int t
 	int digits_read = 0;
 	int is_start_digit = 0;
 	char *str = buf;
+	int res = 0;
 
 	if (!(dsp = ast_dsp_new())) {
 		ast_log(LOG_WARNING, "Unable to allocate DSP!\n");
@@ -318,11 +319,12 @@ static int read_mf_digits(struct ast_channel *chan, char *buf, int buflen, int t
 			}
 		} else {
 			pbx_builtin_setvar_helper(chan, "RECEIVEMFSTATUS", "HANGUP");
+			res = -1;
 		}
 	}
 	ast_dsp_free(dsp);
 	ast_debug(3, "channel '%s' - event loop stopped { timeout: %d, remaining_time: %d }\n", ast_channel_name(chan), timeout, remaining_time);
-	return 0;
+	return res;
 }
 
 static int read_mf_exec(struct ast_channel *chan, const char *data)
@@ -334,7 +336,7 @@ static int read_mf_exec(struct ast_channel *chan, const char *data)
 	struct ast_flags flags = {0};
 	char *optargs[OPT_ARG_ARRAY_SIZE];
 	char *argcopy = NULL;
-	int features = 0, maxdigits = 0;
+	int res, features = 0, maxdigits = 0;
 
 	AST_DECLARE_APP_ARGS(arglist,
 		AST_APP_ARG(variable);
@@ -392,15 +394,15 @@ static int read_mf_exec(struct ast_channel *chan, const char *data)
 		features |= DSP_DIGITMODE_RELAXDTMF;
 	}
 
-	read_mf_digits(chan, tmp, BUFFER_SIZE, to, features, (ast_test_flag(&flags, OPT_LAX_KP)),
+	res = read_mf_digits(chan, tmp, BUFFER_SIZE, to, features, (ast_test_flag(&flags, OPT_LAX_KP)),
 		(ast_test_flag(&flags, OPT_KP_OVERRIDE)), (ast_test_flag(&flags, OPT_NO_KP)), (ast_test_flag(&flags, OPT_NO_ST)), maxdigits);
 	pbx_builtin_setvar_helper(chan, arglist.variable, tmp);
 	if (!ast_strlen_zero(tmp)) {
 		ast_verb(3, "MF digits received: '%s'\n", tmp);
-	} else {
+	} else if (!res) { /* if channel hung up, don't print anything out */
 		ast_verb(3, "No MF digits received.\n");
 	}
-	return 0;
+	return res;
 }
 
 static int sendmf_exec(struct ast_channel *chan, const char *vdata)
