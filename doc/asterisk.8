@@ -158,6 +158,7 @@ too many simultaneous calls.
 .TP
 \-n
 Disable ANSI colors even on terminals capable of displaying them.
+This option can be used only at startup (e.g. not with remote console).
 .TP
 \-p
 If supported by the operating system (and executing as root),
@@ -195,7 +196,8 @@ then move them into the final location when done.
 .TP
 \-T
 Add timestamp to all non-command related output going to the console
-when running with verbose and/or logging to the console.
+when running with verbose and/or logging to the console. Can only be
+used at startup (e.g. not with remote console mode).
 .TP
 \-U \fIuser\fR
 Run as user \fIuser\fR instead of the

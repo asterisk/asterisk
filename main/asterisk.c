@@ -3348,7 +3348,7 @@ static int show_cli_help(void)
 	printf("   -L <load>       Limit the maximum load average before rejecting new calls\n");
 	printf("   -M <value>      Limit the maximum number of calls to the specified value\n");
 	printf("   -m              Mute debugging and console output on the console\n");
-	printf("   -n              Disable console colorization\n");
+	printf("   -n              Disable console colorization. Can be used only at startup.\n");
 	printf("   -p              Run as pseudo-realtime thread\n");
 	printf("   -q              Quiet mode (suppress output)\n");
 	printf("   -r              Connect to Asterisk on this machine\n");
@@ -3357,7 +3357,7 @@ static int show_cli_help(void)
 	printf("   -t              Record soundfiles in /var/tmp and move them where they\n");
 	printf("                   belong after they are done\n");
 	printf("   -T              Display the time in [Mmm dd hh:mm:ss] format for each line\n");
-	printf("                   of output to the CLI\n");
+	printf("                   of output to the CLI. Cannot be used with remote console mode.\n\n");
 	printf("   -v              Increase verbosity (multiple v's = more verbose)\n");
 	printf("   -x <cmd>        Execute command <cmd> (implies -r)\n");
 	printf("   -X              Enable use of #exec in asterisk.conf\n");
@@ -3710,6 +3710,55 @@ int main(int argc, char *argv[])
 		case '?':
 			/* already processed. */
 			break;
+		}
+	}
+
+	if (ast_opt_remote) {
+		int didwarn = 0;
+		optind = 1;
+
+		/* Not all options can be used with remote console. Warn if they're used. */
+		while ((c = getopt(argc, argv, getopt_settings)) != -1) {
+			switch (c) {
+			/* okay to run with remote console */
+			case 'B': /* force black background */
+			case 'd': /* debug */
+			case 'h': /* help */
+			case 'I': /* obsolete timing option: warning already thrown if used */
+			case 'L': /* max load */
+			case 'M': /* max calls */
+			case 'R': /* reconnect */
+			case 'r': /* remote */
+			case 's': /* set socket path */
+			case 'V': /* version */
+			case 'v': /* verbose */
+			case 'W': /* white background */
+			case 'x': /* remote execute */
+			case '?': /* ? */
+				break;
+			/* can only be run when Asterisk is starting */
+			case 'X': /* enables #exec for asterisk.conf only. */
+			case 'C': /* set config path */
+			case 'c': /* foreground console */
+			case 'e': /* minimum memory free */
+			case 'F': /* always fork */
+			case 'f': /* no fork */
+			case 'G': /* run group */
+			case 'g': /* dump core */
+			case 'i': /* init keys */
+			case 'm': /* mute */
+			case 'n': /* no color */
+			case 'p': /* high priority */
+			case 'q': /* quiet */
+			case 'T': /* timestamp */
+			case 't': /* cache record files */
+			case 'U': /* run user */
+				fprintf(stderr, "'%c' option is not compatible with remote console mode and has no effect.\n", c);
+				didwarn = 1;
+			}
+		}
+		if (didwarn) {
+			fprintf(stderr, "\n"); /* if any warnings print out, make them stand out */
 		}
 	}
 
