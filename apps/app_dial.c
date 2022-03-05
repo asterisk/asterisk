@@ -613,12 +613,31 @@
 				</variable>
 				<variable name="DIALSTATUS">
 					<para>This is the status of the call</para>
-					<value name="CHANUNAVAIL" />
-					<value name="CONGESTION" />
-					<value name="NOANSWER" />
-					<value name="BUSY" />
-					<value name="ANSWER" />
-					<value name="CANCEL" />
+					<value name="CHANUNAVAIL">
+						Either the dialed peer exists but is not currently reachable, e.g.
+						endpoint is not registered, or an attempt was made to call a
+						nonexistent location, e.g. nonexistent DNS hostname.
+					</value>
+					<value name="CONGESTION">
+						Channel or switching congestion occured when routing the call.
+						This can occur if there is a slow or no response from the remote end.
+					</value>
+					<value name="NOANSWER">
+						Called party did not answer.
+					</value>
+					<value name="BUSY">
+						The called party was busy or indicated a busy status.
+						Note that some SIP devices will respond with 486 Busy if their Do Not Disturb
+						modes are active. In this case, you can use DEVICE_STATUS to check if the
+						endpoint is actually in use, if needed.
+					</value>
+					<value name="ANSWER">
+						The call was answered.
+						Any other result implicitly indicates the call was not answered.
+					</value>
+					<value name="CANCEL">
+						Dial was cancelled before call was answered or reached some other terminating event.
+					</value>
 					<value name="DONTCALL">
 						For the Privacy and Screening Modes.
 						Will be set if the called party chooses to send the calling party to the 'Go Away' script.
@@ -627,7 +646,9 @@
 						For the Privacy and Screening Modes.
 						Will be set if the called party chooses to send the calling party to the 'torture' script.
 					</value>
-					<value name="INVALIDARGS" />
+					<value name="INVALIDARGS">
+						Dial failed due to invalid syntax.
+					</value>
 				</variable>
 			</variablelist>
 		</description>
