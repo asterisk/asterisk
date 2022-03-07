@@ -12443,9 +12443,8 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, ui
 	 * Send UPDATE to the same destination as CANCEL, if call is not in final state.
 	 */
 	if (!sip_route_empty(&p->route) &&
-			!(sipmethod == SIP_CANCEL ||
-				(sipmethod == SIP_ACK && (p->invitestate == INV_COMPLETED || p->invitestate == INV_CANCELLED)) ||
-				(sipmethod == SIP_UPDATE && (p->invitestate == INV_PROCEEDING || p->invitestate == INV_EARLY_MEDIA)))) {
+		!(sipmethod == SIP_CANCEL ||
+			(sipmethod == SIP_ACK && (p->invitestate == INV_COMPLETED || p->invitestate == INV_CANCELLED)))) {
 		if (p->socket.type != AST_TRANSPORT_UDP && p->socket.tcptls_session) {
 			/* For TCP/TLS sockets that are connected we won't need
 			 * to do any hostname/IP lookups */
@@ -12453,6 +12452,11 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, ui
 			/* For NATed traffic, we ignore the contact/route and
 			 * simply send to the received-from address. No need
 			 * for lookups. */
+		} else if (sipmethod == SIP_UPDATE && (p->invitestate == INV_PROCEEDING || p->invitestate == INV_EARLY_MEDIA)) {
+			/* Calling set_destination for an UPDATE in early dialog
+			 * will result in mangling of the target for a subsequent
+			 * CANCEL according to ASTERISK-24628 so do not do it.
+			 */
 		} else {
 			set_destination(p, sip_route_first_uri(&p->route));
 		}
