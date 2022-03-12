@@ -104,6 +104,15 @@
 				<configOption name="outbound_proxy" default="">
 					<synopsis>Full SIP URI of the outbound proxy used to send registrations</synopsis>
 				</configOption>
+				<configOption name="max_random_initial_delay" default="10">
+					<synopsis>Maximum interval in seconds for which an initial registration may be randomly delayed</synopsis>
+					<description>
+						<para>By default, registrations are randomly delayed by a small amount to prevent
+						too many registrations from being made simultaneously.</para>
+						<para>Depending on your system usage, it may be desirable to set this to a smaller
+						or larger value to have fine grained control over the size of this random delay.</para>
+					</description>
+				</configOption>
 				<configOption name="retry_interval" default="60">
 					<synopsis>Interval in seconds between retries if outbound registration is unsuccessful</synopsis>
 				</configOption>
@@ -305,6 +314,8 @@ struct sip_outbound_registration {
 	);
 	/*! \brief Requested expiration time */
 	unsigned int expiration;
+	/*! \brief Maximum random initial delay interval for initial registrations */
+	unsigned int max_random_initial_delay;
 	/*! \brief Interval at which retries should occur for temporal responses */
 	unsigned int retry_interval;
 	/*! \brief Interval at which retries should occur for permanent responses */
@@ -1464,6 +1475,7 @@ static int sip_outbound_registration_perform(void *data)
 	struct sip_outbound_registration_state *state = data;
 	struct sip_outbound_registration *registration = ao2_bump(state->registration);
 	size_t i;
+	int max_delay;
 
 	/* Just in case the client state is being reused for this registration, free the auth information */
 	ast_sip_auth_vector_destroy(&state->client_state->outbound_auths);
@@ -1483,10 +1495,12 @@ static int sip_outbound_registration_perform(void *data)
 	state->client_state->retries = 0;
 	state->client_state->support_path = registration->support_path;
 	state->client_state->auth_rejection_permanent = registration->auth_rejection_permanent;
+	max_delay = registration->max_random_initial_delay;
 
 	pjsip_regc_update_expires(state->client_state->client, registration->expiration);
 
-	schedule_registration(state->client_state, (ast_random() % 10) + 1);
+	/* n mod 0 is undefined, so don't let that happen */
+	schedule_registration(state->client_state, (max_delay ? ast_random() % max_delay : 0) + 1);
 
 	ao2_ref(registration, -1);
 	ao2_ref(state, -1);
@@ -2296,6 +2310,7 @@ static int load_module(void)
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "registration", "transport", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct sip_outbound_registration, transport));
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "registration", "outbound_proxy", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct sip_outbound_registration, outbound_proxy));
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "registration", "expiration", "3600", OPT_UINT_T, 0, FLDSET(struct sip_outbound_registration, expiration));
+	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "registration", "max_random_initial_delay", "10", OPT_UINT_T, 0, FLDSET(struct sip_outbound_registration, max_random_initial_delay));
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "registration", "retry_interval", "60", OPT_UINT_T, 0, FLDSET(struct sip_outbound_registration, retry_interval));
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "registration", "forbidden_retry_interval", "0", OPT_UINT_T, 0, FLDSET(struct sip_outbound_registration, forbidden_retry_interval));
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "registration", "fatal_retry_interval", "0", OPT_UINT_T, 0, FLDSET(struct sip_outbound_registration, fatal_retry_interval));

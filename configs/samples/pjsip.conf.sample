@@ -1297,6 +1297,11 @@
                 ; (default: "")
 ;outbound_proxy=        ; Proxy through which to send registrations, a full SIP URI
                         ; must be provided (default: "")
+;max_random_initial_delay=10    ; Maximum random delay for initial registrations (default: 10)
+                                ; Generally it is a good idea to space out registrations
+                                ; to not overload the system. If you have a small number
+                                ; of registrations and need them to register more quickly,
+                                ; you can reduce this to a lower value.
 ;retry_interval=60      ; Interval in seconds between retries if outbound
                         ; registration is unsuccessful (default: "60")
 ;forbidden_retry_interval=0     ; Interval used when receiving a 403 Forbidden
