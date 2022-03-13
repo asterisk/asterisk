@@ -7375,7 +7375,7 @@ static char *handle_cli_iax2_show_registry(struct ast_cli_entry *e, int cmd, str
 	AST_LIST_TRAVERSE(&registrations, reg, entry) {
 		snprintf(host, sizeof(host), "%s", ast_sockaddr_stringify(&reg->addr));
 
-		snprintf(perceived, sizeof(perceived), "%s", ast_sockaddr_isnull(&reg->addr) ? "<Unregistered>" : ast_sockaddr_stringify(&reg->addr));
+		snprintf(perceived, sizeof(perceived), "%s", ast_sockaddr_isnull(&reg->us) ? "<Unregistered>" : ast_sockaddr_stringify(&reg->us));
 
 		ast_cli(a->fd, FORMAT, host,
 				(reg->dnsmgr) ? "Y" : "N",
@@ -7407,7 +7407,7 @@ static int manager_iax2_show_registry(struct mansession *s, const struct message
 	AST_LIST_TRAVERSE(&registrations, reg, entry) {
 		snprintf(host, sizeof(host), "%s", ast_sockaddr_stringify(&reg->addr));
 
-		snprintf(perceived, sizeof(perceived), "%s", ast_sockaddr_isnull(&reg->addr) ? "<Unregistered>" : ast_sockaddr_stringify(&reg->addr));
+		snprintf(perceived, sizeof(perceived), "%s", ast_sockaddr_isnull(&reg->us) ? "<Unregistered>" : ast_sockaddr_stringify(&reg->us));
 
 		astman_append(s,
 			"Event: RegistryEntry\r\n"
