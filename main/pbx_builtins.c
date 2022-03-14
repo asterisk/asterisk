@@ -83,6 +83,9 @@
 						<para>Only break if a digit hit matches a one digit
 						extension in the destination context.</para>
 					</option>
+					<option name="p">
+						<para>Do not allow playback to be interrupted with digits.</para>
+					</option>
 				</optionlist>
 			</parameter>
 			<parameter name="langoverride">
@@ -697,6 +700,10 @@
 							<para>Specify the class for music on hold. <emphasis>CHANNEL(musicclass) will
 							be used instead if set</emphasis></para>
 						</argument>
+					</option>
+					<option name="d">
+						<para>Play <literal>dial</literal> indications tone on channel while waiting
+						for digits.</para>
 					</option>
 				</optionlist>
 			</parameter>
