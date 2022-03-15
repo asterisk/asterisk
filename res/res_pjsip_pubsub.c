@@ -1257,7 +1257,14 @@ static struct ast_sip_subscription *allocate_subscription(const struct ast_sip_s
 		const char *resource, const char *display_name, struct sip_subscription_tree *tree)
 {
 	struct ast_sip_subscription *sub;
-	pjsip_sip_uri *contact_uri;
+	pjsip_msg *msg;
+	pjsip_sip_uri *request_uri;
+
+	msg = ast_sip_mod_data_get(tree->dlg->mod_data, pubsub_module.id, MOD_DATA_MSG);
+	if (!msg) {
+		ast_log(LOG_ERROR, "No dialog message saved for SIP subscription. Cannot allocate subscription for resource %s\n", resource);
+		return NULL;
+	}
 
 	sub = ast_calloc(1, sizeof(*sub) + strlen(resource) + 1);
 	if (!sub) {
@@ -1280,8 +1287,8 @@ static struct ast_sip_subscription *allocate_subscription(const struct ast_sip_s
 	}
 
 	sub->uri = pjsip_sip_uri_create(tree->dlg->pool, PJ_FALSE);
-	contact_uri = pjsip_uri_get_uri(tree->dlg->local.contact->uri);
-	pjsip_sip_uri_assign(tree->dlg->pool, sub->uri, contact_uri);
+	request_uri = pjsip_uri_get_uri(msg->line.req.uri);
+	pjsip_sip_uri_assign(tree->dlg->pool, sub->uri, request_uri);
 	pj_strdup2(tree->dlg->pool, &sub->uri->user, resource);
 
 	/* If there is any persistence information available for this subscription that was persisted
