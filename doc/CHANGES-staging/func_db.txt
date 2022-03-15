@@ -1,0 +1,6 @@
+Subject: func_db
+
+The function DB_KEYCOUNT has been added, which
+returns the cardinality of the keys at a specified
+prefix in AstDB, i.e. the number of keys at a
+given prefix.
