@@ -12,7 +12,7 @@ if [ -f addons/mp3/mpg123.h ]; then
             addons/mp3/interface.c
     fi
 
-    exit 1
+    exit 0
 fi
 
 svn export https://svn.digium.com/svn/thirdparty/mp3/trunk addons/mp3 $@
