@@ -1,0 +1,142 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-16.25.0-rc1</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-16.25.0-rc1</h3><h3 align="center">Date: 2022-03-17</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
+<li><a href="#summary">Summary</a></li>
+<li><a href="#contributors">Contributors</a></li>
+<li><a href="#closed_issues">Closed Issues</a></li>
+<li><a href="#commits">Other Changes</a></li>
+<li><a href="#diffstat">Diffstat</a></li>
+</ol><hr><a name="summary"><h2 align="center">Summary</h2></a><center><a href="#top">[Back to Top]</a></center><p>This release is a point release of an existing major version. The changes included were made to address problems that have been identified in this release series, or are minor, backwards compatible new features or improvements. Users should be able to safely upgrade to this version if this release series is already in use. Users considering upgrading from a previous version are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p><p>The data in this summary reflects changes that have been made since the previous release, asterisk-16.24.0.</p><hr><a name="contributors"><h2 align="center">Contributors</h2></a><center><a href="#top">[Back to Top]</a></center><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release. For coders, the number is how many of their patches (of any size) were committed into this release. For testers, the number is the number of times their name was listed as assisting with testing a patch. Finally, for reporters, the number is the number of issues that they reported that were affected by commits that went into this release.</p><table width="100%" border="0">
+<tr><th width="33%">Coders</th><th width="33%">Testers</th><th width="33%">Reporters</th></tr>
+<tr valign="top"><td width="33%">12 Naveen Albert <asterisk@phreaknet.org><br/>5 George Joseph <gjoseph@digium.com><br/>4 Alexei Gradinari <alex2grad@gmail.com><br/>3 Kevin Harwell <kharwell@sangoma.com><br/>3 Sean Bright <sean.bright@gmail.com><br/>1 Kfir Itzhak <mastertheknife@gmail.com><br/>1 Asterisk Development Team <asteriskteam@digium.com><br/>1 Mike Bradeen <mbradeen@sangoma.com><br/>1 Joshua C. Colp <jcolp@sangoma.com><br/>1 Ben Ford <bford@digium.com><br/>1 Boris P. Korzun <drtr0jan@yandex.ru><br/></td><td width="33%"><td width="33%">12 N A <mail@interlinked.x10host.com><br/>4 Alexei Gradinari <alex2grad@gmail.com><br/>3 Kevin Harwell <kharwell@digium.com><br/>1 George Joseph <gjoseph@digium.com><br/>1 cagdas kopuz <cagdas.kopuz@netgsm.com.tr><br/>1 Boris P. Korzun <drtr0jan@yandex.ru><br/>1 Kfir Itzhak <mastertheknife@gmail.com><br/>1 Joshua C. Colp <jcolp@digium.com><br/>1 kwk <Konrad.Kleine@GONICUS.de><br/>1 Napadailo Yaroslav <experimental.rabbit.1986@gmail.com><br/></td></tr>
+</table><hr><a name="closed_issues"><h2 align="center">Closed Issues</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p><h3>Security</h3><h4>Category: pjproject/pjsip</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29945">ASTERISK-29945</a>: pjproject: Security fixes for things<br/>Reported by: Kevin Harwell<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0d4dfbf8e3bbcda7211d074f5527577d48426441">[0d4dfbf8e3]</a> Kevin Harwell -- AST-2022-006: pjproject - unconstrained malformed multipart SIP message</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=7f76dce133412a8a3ce53e73921c43d5b5d2dd18">[7f76dce133]</a> Kevin Harwell -- AST-2022-005: pjproject - undefined behavior after freeing a dialog set</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=08c92cb9973fe42dd14c04c3a73bd8c9024a4d75">[08c92cb997]</a> Kevin Harwell -- AST-2022-004: pjproject - possible integer underflow on STUN message</li>
+</ul><br><h3>New Feature</h3><h4>Category: Channels/General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29840">ASTERISK-29840</a>: func_channel: Add LASTCONTEXT and LASTEXTEN fields<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=f60dcfc333b7f4b2d1f5748fdd56236a6bd9a50b">[f60dcfc333]</a> Naveen Albert -- func_channel: Add lastcontext and lastexten.</li>
+</ul><br><h4>Category: Core/ManagerInterface/NewFeature</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29853">ASTERISK-29853</a>: ami: Allow events to be globally disabled<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=466a361626df9cd5bdf6f50a0d1d3a2635722bdd">[466a361626]</a> Naveen Albert -- ami: Allow events to be globally disabled.</li>
+</ul><br><h3>Bug</h3><h4>Category: Applications/app_queue</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29873">ASTERISK-29873</a>: [patch] Queue Realtime load<br/>Reported by: Alexei Gradinari<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=aaf507fa368d185fc20dde1f5a5ade0dcdc70559">[aaf507fa36]</a> Alexei Gradinari -- app_queue: load queues and members from Realtime when needed</li>
+</ul><br><h4>Category: Core/General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29365">ASTERISK-29365</a>: taskprocessor: Can cause assert at shutdown<br/>Reported by: Joshua C. Colp<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=e6cff954abf751bd8056195f5ea3493b09bda21b">[e6cff954ab]</a> Mike Bradeen -- taskprocessor.c: Prevent crash on graceful shutdown</li>
+</ul><br><h4>Category: Core/ManagerInterface</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-18416">ASTERISK-18416</a>: [patch] Realtime queue agents unavailable via AMI before a call event.<br/>Reported by: kwk<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=aaf507fa368d185fc20dde1f5a5ade0dcdc70559">[aaf507fa36]</a> Alexei Gradinari -- app_queue: load queues and members from Realtime when needed</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27597">ASTERISK-27597</a>: AMI Queuestatus not working (with realtime queue)<br/>Reported by: cagdas kopuz<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=aaf507fa368d185fc20dde1f5a5ade0dcdc70559">[aaf507fa36]</a> Alexei Gradinari -- app_queue: load queues and members from Realtime when needed</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29886">ASTERISK-29886</a>: Asterisk AMI sends not-valid XML<br/>Reported by: Napadailo Yaroslav<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=ba4d6aac20d626edff8a6aeeae8f54587d3527d8">[ba4d6aac20]</a> Sean Bright -- manager.c: Generate valid XML if attribute names have leading digits.</li>
+</ul><br><h4>Category: General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29923">ASTERISK-29923</a>: docs, LICENSE: pbx.digium.com no longer exists<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=c214e0d115be4e88c82d78a5fda960f4cc498a7f">[c214e0d115]</a> Naveen Albert -- configs, LICENSE: remove pbx.digium.com.</li>
+</ul><br><h4>Category: Resources/res_config_pgsql</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29924">ASTERISK-29924</a>: res_config_pgsql: omit "unsupported column type 'text'" error<br/>Reported by: Boris P. Korzun<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=e82627c001cf503635a30af437cbf7ce4bcc055d">[e82627c001]</a> Boris P. Korzun -- res_config_pgsql: Add text-type column check in require_pgsql()</li>
+</ul><br><h4>Category: Resources/res_pjsip_pubsub</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29904">ASTERISK-29904</a>: RLS: Batched Notifications stop working<br/>Reported by: Alexei Gradinari<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=99e0bedf7bf0c8a28016eb7bd669c957a0b0354a">[99e0bedf7b]</a> Alexei Gradinari -- res_pjsip_pubsub: fix Batched Notifications stop working</li>
+</ul><br><h3>Improvement</h3><h4>Category: Applications/app_mp3</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29900">ASTERISK-29900</a>: app_mp3: Document and warn about https incompatibility<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=312e8989dd2b72b902db70d6e7c6ed5fdde2c6fb">[312e8989dd]</a> Naveen Albert -- app_mp3: Document and warn about HTTPS incompatibility.</li>
+</ul><br><h4>Category: Applications/app_queue</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29909">ASTERISK-29909</a>: app_queue: Add support for withdrawing a call<br/>Reported by: Kfir Itzhak<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=3069e1c64053c0d2fd10fc86fb8389926f533859">[3069e1c640]</a> Kfir Itzhak -- app_queue: Add QueueWithdrawCaller AMI action</li>
+</ul><br><h4>Category: Applications/app_voicemail</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29920">ASTERISK-29920</a>: app_voicemail: Warn if trying to manage nonexistent mailbox<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=76e3fb402ff2adfaab49c3a7d6076f6e7326faea">[76e3fb402f]</a> Naveen Albert -- app_voicemail: Emit warning if asking for nonexistent mailbox.</li>
+</ul><br><h4>Category: Core/Channels</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29897">ASTERISK-29897</a>: channels: Increase core debug levels for chatty debugs<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=a1f207bcf7e302c816c64336eeecaab41b367a2d">[a1f207bcf7]</a> Naveen Albert -- channel.c: Clean up debug level 1.</li>
+</ul><br><h4>Category: Core/Portability</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29353">ASTERISK-29353</a>: Qualify jansson 2.14 for asterisk<br/>Reported by: George Joseph<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=be09484831667f2c0e10a0d5809436967a910e90">[be09484831]</a> Joshua C. Colp -- jansson: Update bundled to 2.14 version.</li>
+</ul><br><h4>Category: Documentation</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29896">ASTERISK-29896</a>: xmldocs: Add since tag<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=c4afe9e6642b43ce5938165bbfb43e2e98942761">[c4afe9e664]</a> Naveen Albert -- documentation: Add since tag to xmldocs DTD</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29898">ASTERISK-29898</a>: documentation: Add default attributes to documentation<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=248f670470baa3762391234f00936f9ad21f52db">[248f670470]</a> Naveen Albert -- documentation: Adds missing default attributes.</li>
+</ul><br><h4>Category: Functions/func_curl</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29809">ASTERISK-29809</a>: curl, stir_shaken: refactor curl code<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=78b7ab11a42bd93f850964af30e5dbc3405c0579">[78b7ab11a4]</a> Naveen Albert -- res_stir_shaken: refactor utility function</li>
+</ul><br><h4>Category: Functions/func_db</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29925">ASTERISK-29925</a>: func_db: Warn about malformed key names<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=b471b40bc7973f9f0602143945d50c7b0f83afa2">[b471b40bc7]</a> Naveen Albert -- func_db: Add validity check for key names when writing.</li>
+</ul><br><h4>Category: General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29861">ASTERISK-29861</a>: asterisk.h: add macro for curl user agent<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=6f128da80c2ea5841bbccfe37b25d91366c7c17e">[6f128da80c]</a> Naveen Albert -- asterisk: Add macro for curl user agent.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29866">ASTERISK-29866</a>: cli: add core dump information to core show settings<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=f0c6b900de77a36575b2103e2ee3ae2910bae18a">[f0c6b900de]</a> Naveen Albert -- cli: Add core dump info to core show settings.</li>
+</ul><br><h4>Category: Resources/res_pjsip_pubsub</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29906">ASTERISK-29906</a>: [patch] update RLS to reflect the changes to the lists<br/>Reported by: Alexei Gradinari<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=90eaf227c67a00ffdd0eb0fb51a5e5a2fa08b0c4">[90eaf227c6]</a> Alexei Gradinari -- res_pjsip_pubsub: update RLS to reflect the changes to the lists</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29891">ASTERISK-29891</a>: [patch] provide a display name for RLS subscriptions<br/>Reported by: Alexei Gradinari<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=dffc4408e77900224eb3fba4fb8321478e48cb07">[dffc4408e7]</a> Alexei Gradinari -- res_pjsip_pubsub: provide a display name for RLS subscriptions</li>
+</ul><br><h4>Category: Resources/res_stir_shaken</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29809">ASTERISK-29809</a>: curl, stir_shaken: refactor curl code<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=78b7ab11a42bd93f850964af30e5dbc3405c0579">[78b7ab11a4]</a> Naveen Albert -- res_stir_shaken: refactor utility function</li>
+</ul><br><hr><a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all changes that went into this release that did not reference a JIRA issue.</p><table width="100%" border="1">
+<tr><th>Revision</th><th>Author</th><th>Summary</th></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=8663dab8658bcd6fc019375629e09bf8b24dfb95">8663dab865</a></td><td>Asterisk Development Team</td><td>Update CHANGES and UPGRADE.txt for 16.25.0</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=705600d48e58986af5b1572070ccd20005c31b63">705600d48e</a></td><td>Ben Ford</td><td>AMI: Bump version for 16.25.0.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=45fec4bb7c7bbdcb10a04c6682912cb96734b3cf">45fec4bb7c</a></td><td>George Joseph</td><td>xml.c, config,c:  Add stylesheets and variable list string parsing</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=f7158cc659a2e2448a782691f2809155fdc412ab">f7158cc659</a></td><td>George Joseph</td><td>xmldoc: Fix issue with xmlstarlet validation</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=2fcd80ef38f0d92e97458129e8948975f01a8d7f">2fcd80ef38</a></td><td>George Joseph</td><td>Makefile: Allow XML documentation to exist outside source files</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=13177a310d5af1933394c21419afe4331a8281f5">13177a310d</a></td><td>George Joseph</td><td>build: Refactor the earlier "basebranch" commit</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=83372e7ab56e70f727d7b4f8a0bf8c13048d9ebb">83372e7ab5</a></td><td>George Joseph</td><td>core: Config and XML tweaks needed for geolocation</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=a2eb55523073a169bc7f97e424b449ee31b5cecb">a2eb555230</a></td><td>Sean Bright</td><td>manager.c: Simplify AMI ModuleCheck handling</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=7857e7914dc92f4496d4bc8e90828944471b2d8e">7857e7914d</a></td><td>Sean Bright</td><td>res_pjsip.c: Correct minor typos in 'realm' documentation.</td></tr>
+</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>.lastclean                                                                                  |    1
+.version                                                                                    |    1
+ChangeLog                                                                                   |97866 ----------
+asterisk-16.24.0-summary.html                                                               |  434
+asterisk-16.24.0-summary.txt                                                                |  867
+b/.gitignore                                                                                |    2
+b/CHANGES                                                                                   |   50
+b/LICENSE                                                                                   |    3
+b/Makefile                                                                                  |   58
+b/UPGRADE.txt                                                                               |   13
+b/apps/app_mp3.c                                                                            |    6
+b/apps/app_queue.c                                                                          |  196
+b/apps/app_reload.c                                                                         |    5
+b/apps/app_voicemail.c                                                                      |   12
+b/build_tools/get_sourceable_makeopts                                                       |   54
+b/build_tools/make_version                                                                  |   33
+b/build_tools/make_xml_documentation                                                        |  249
+b/build_tools/menuselect-deps.in                                                            |    1
+b/configs/samples/extensions.conf.sample                                                    |    9
+b/configs/samples/manager.conf.sample                                                       |   11
+b/configs/samples/pjsip.conf.sample                                                         |   18
+b/configure                                                                                 |  136
+b/configure.ac                                                                              |    6
+b/contrib/ast-db-manage/config/versions/8f72185e437f_res_pjsip_pubsub_add_resource_list_.py |   29
+b/doc/appdocsxml.dtd                                                                        |   14
+b/funcs/func_channel.c                                                                      |   10
+b/funcs/func_curl.c                                                                         |    4
+b/funcs/func_db.c                                                                           |    8
+b/include/asterisk.h                                                                        |    2
+b/include/asterisk/channel.h                                                                |    2
+b/include/asterisk/config.h                                                                 |   55
+b/include/asterisk/file.h                                                                   |   17
+b/include/asterisk/manager.h                                                                |    2
+b/include/asterisk/res_pjsip_pubsub.h                                                       |   11
+b/include/asterisk/xml.h                                                                    |  108
+b/main/asterisk.c                                                                           |   39
+b/main/audiohook.c                                                                          |   10
+b/main/cdr.c                                                                                |    8
+b/main/channel.c                                                                            |    4
+b/main/channel_internal_api.c                                                               |   18
+b/main/config.c                                                                             |   76
+b/main/file.c                                                                               |   20
+b/main/manager.c                                                                            |   84
+b/main/taskprocessor.c                                                                      |   67
+b/main/xml.c                                                                                |  182
+b/makeopts.in                                                                               |    2
+b/res/res_ari.c                                                                             |    4
+b/res/res_config_pgsql.c                                                                    |    4
+b/res/res_http_media_cache.c                                                                |    4
+b/res/res_pjsip.c                                                                           | 2924
+b/res/res_pjsip/pjsip_config.xml                                                            | 2029
+b/res/res_pjsip/pjsip_manager.xml                                                           |  901
+b/res/res_pjsip_exten_state.c                                                               |   24
+b/res/res_pjsip_pubsub.c                                                                    |  150
+b/res/res_stir_shaken/curl.c                                                                |   43
+b/tests/CI/buildAsterisk.sh                                                                 |    9
+b/tests/CI/installAsterisk.sh                                                               |    9
+b/tests/test_config.c                                                                       |   83
+b/third-party/jansson/jansson-2.14.tar.bz2.md5                                              |    1
+b/third-party/pjproject/patches/0170-stun-integer-underflow.patch                           |   26
+b/third-party/pjproject/patches/0171-dialog-set-free.patch                                  |  114
+b/third-party/pjproject/patches/0172-prevent-multipart-oob.patch                            |   37
+contrib/realtime/mysql/mysql_cdr.sql                                                        |   41
+contrib/realtime/mysql/mysql_config.sql                                                     | 1300
+contrib/realtime/mysql/mysql_voicemail.sql                                                  |   35
+contrib/realtime/postgresql/postgresql_cdr.sql                                              |   45
+contrib/realtime/postgresql/postgresql_config.sql                                           | 1404
+contrib/realtime/postgresql/postgresql_voicemail.sql                                        |   39
+third-party/jansson/jansson-2.12.tar.bz2.md5                                                |    1
+69 files changed, 4819 insertions(+), 105211 deletions(-)</pre><br></html>
