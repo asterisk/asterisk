@@ -19,6 +19,19 @@
 ===========================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 16.24.0 to Asterisk 16.25.0 ----------
+------------------------------------------------------------------------------
+
+AMI
+------------------
+ * The XML Manager Event Interface (amxml) now generates attribute names
+   that are compliant with the XML 1.1 specification. Previously, an
+   attribute name that started with a digit would be rendered as-is, even
+   though attribute names must not begin with a digit. We now prefix
+   attribute names that start with a digit with an underscore ('_') to
+   prevent XML validation failures.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 16.22.0 to Asterisk 16.23.0 ----------
 ------------------------------------------------------------------------------
 

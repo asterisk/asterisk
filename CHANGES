@@ -13,6 +13,56 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 16.24.0 to Asterisk 16.25.0 ----------
+------------------------------------------------------------------------------
+
+ami
+------------------
+ * AMI events can now be globally disabled using
+   the disabledevents [general] setting.
+
+app_queue
+------------------
+ * Load queues and members from Realtime for
+   AMI actions: QueuePause, QueueStatus and QueueSummary,
+   Applications: PauseQueueMember and UnpauseQueueMember.
+
+ * Added a new AMI action: QueueWithdrawCaller
+   This AMI action makes it possible to withdraw a caller from a queue
+   back to the dialplan. The call will be signaled to leave the queue
+   whenever it can, hence, it not guaranteed that the call will leave
+   the queue.
+
+   Optional custom data can be passed in the request, in the WithdrawInfo
+   parameter. If the call successfully withdrawn the queue,
+   it can be retrieved using the QUEUE_WITHDRAW_INFO variable.
+
+   This can be useful for certain uses, such as dispatching the call
+   to a specific extension.
+
+channel_internal_api
+------------------
+ * CHANNEL(lastcontext) and CHANNEL(lastexten)
+   are now available for use in the dialplan.
+
+res_pjsip_pubsub
+------------------
+ * A new resource_list option, resource_display_name, indicates
+   whether display name of resource or the resource name being
+   provided for RLS entries.
+   If this option is enabled, the Display Name will be provided.
+   This option is disabled by default to remain the previous behavior.
+   If the 'event' set to 'presence' or 'dialog' the non-empty HINT name
+   will be set as the Display Name.
+   The 'message-summary' is not supported yet.
+
+ * The Resource List Subscriptions (RLS) is dynamic now.
+   The asterisk now updates current subscriptions to reflect the changes
+   to the list on subscription refresh. If list items are added,
+   removed, updated or do not exist anymore, the asterisk regenerates
+   the resource list.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 16.23.0 to Asterisk 16.24.0 ----------
 ------------------------------------------------------------------------------
 
