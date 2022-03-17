@@ -1,4 +1,0 @@
-Subject: channel_internal_api
-
-CHANNEL(lastcontext) and CHANNEL(lastexten)
-are now available for use in the dialplan.
