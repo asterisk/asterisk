@@ -109,7 +109,7 @@ if [[ -z "${remote_url}" ]] ; then
 		remote_url="${remote_url}/asterisk-${major_version}/x86-${host_bits}"
 	else
 		directory_name=$(${XMLSTARLET} sel -t -v "/menu/category/member[@name = '${member_name}']/member_data/downloader/@directory_name" ${ASTTOPDIR}/menuselect-tree || :)
-		remote_url="http://downloads.digium.com/pub/telephony/${directory_name:-${module_name}}/asterisk-${major_version}/x86-${host_bits}"
+		remote_url="https://downloads.digium.com/pub/telephony/${directory_name:-${module_name}}/asterisk-${major_version}/x86-${host_bits}"
 	fi
 fi
 
