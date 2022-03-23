@@ -747,7 +747,6 @@ static struct ast_custom_function pjsip_headers_function = {
  */
 static void outgoing_request(struct ast_sip_session *session, pjsip_tx_data * tdata)
 {
-	pj_pool_t *pool = session->inv_session->dlg->pool;
 	struct hdr_list *list;
 	struct hdr_list_entry *le;
 	RAII_VAR(struct ast_datastore *, datastore,
@@ -760,7 +759,7 @@ static void outgoing_request(struct ast_sip_session *session, pjsip_tx_data * td
 
 	list = datastore->data;
 	AST_LIST_TRAVERSE(list, le, nextptr) {
-		pjsip_msg_add_hdr(tdata->msg, (pjsip_hdr *) pjsip_hdr_clone(pool, le->hdr));
+		pjsip_msg_add_hdr(tdata->msg, (pjsip_hdr *) pjsip_hdr_clone(tdata->pool, le->hdr));
 	}
 	ast_sip_session_remove_datastore(session, datastore->uid);
 }
