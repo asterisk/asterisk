@@ -998,10 +998,15 @@ static int schedule_calendar_event(struct ast_calendar *cal, struct ast_calendar
 	if (!cmp_event || old_event->end != event->end) {
 		changed = 1;
 		devstate_sched_end = (event->end - now.tv_sec) * 1000;
-		ast_mutex_lock(&refreshlock);
-		AST_SCHED_REPLACE(old_event->bs_end_sched, sched, devstate_sched_end, calendar_devstate_change, old_event);
-		ast_mutex_unlock(&refreshlock);
-		ast_debug(3, "Calendar bs_end event notification scheduled to happen in %ld ms\n", (long) devstate_sched_end);
+
+		if (devstate_sched_end <= 0) { /* if we let this slip by, Asterisk will assert */
+			ast_log(LOG_WARNING, "Whoops! Event end notification scheduled in the past: %ld ms\n", (long) devstate_sched_end);
+		} else {
+			ast_mutex_lock(&refreshlock);
+			AST_SCHED_REPLACE(old_event->bs_end_sched, sched, devstate_sched_end, calendar_devstate_change, old_event);
+			ast_mutex_unlock(&refreshlock);
+			ast_debug(3, "Calendar bs_end event notification scheduled to happen in %ld ms\n", (long) devstate_sched_end);
+		}
 	}
 
 	if (changed) {
