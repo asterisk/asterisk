@@ -742,6 +742,7 @@ fi
 # See if clock_gettime is in librt
 AST_EXT_LIB_CHECK([RT], [rt], [clock_gettime], [])
 
+AST_PKG_CONFIG_CHECK([LIBXML2], [libxml-2.0])
 AST_EXT_TOOL_CHECK([LIBXML2], [xml2-config], , ,
         [#include <libxml/tree.h>
         #include <libxml/parser.h>],
