@@ -35,14 +35,11 @@
 
 #include <dirent.h>                 /* for closedir, opendir, readdir, DIR */
 
-#define OPENSSL_SUPPRESS_DEPRECATED 1
-
-#include <openssl/aes.h>            /* for AES_decrypt, AES_encrypt, AES_set... */
 #include <openssl/err.h>            /* for ERR_print_errors_fp */
 #include <openssl/ssl.h>            /* for NID_sha1, RSA */
-#include <openssl/pem.h>            /* for PEM_read_RSAPrivateKey, PEM_read_... */
-#include <openssl/rsa.h>            /* for RSA_free, RSA_private_decrypt, RSA */
-#include <openssl/sha.h>            /* for SHA1 */
+#include <openssl/evp.h>            /* for EVP_PKEY, EVP_sha1(), ... */
+#include <openssl/md5.h>            /* for MD5_DIGEST_LENGTH */
+#include <openssl/sha.h>            /* for SHA_DIGEST_LENGTH */
 
 #include "asterisk/cli.h"           /* for ast_cli, ast_cli_args, ast_cli_entry */
 #include "asterisk/compat.h"        /* for strcasecmp */
@@ -73,6 +70,11 @@
 
 #define KEY_NEEDS_PASSCODE (1 << 16)
 
+/* From RFC-2437, section 9.1.1 the padding size is 1+2*hLen, where
+ * the hLen for SHA-1 is 20 bytes (or 160 bits).
+ */
+#define RSA_PKCS1_OAEP_PADDING_SIZE		(1 + 2 * SHA_DIGEST_LENGTH)
+
 struct ast_key {
 	/*! Name of entity */
 	char name[80];
@@ -80,8 +82,8 @@ struct ast_key {
 	char fn[256];
 	/*! Key type (AST_KEY_PUB or AST_KEY_PRIV, along with flags from above) */
 	int ktype;
-	/*! RSA structure (if successfully loaded) */
-	RSA *rsa;
+	/*! RSA key structure (if successfully loaded) */
+	EVP_PKEY *pkey;
 	/*! Whether we should be deleted */
 	int delme;
 	/*! FD for input (or -1 if no input allowed, or -2 if we needed input) */
@@ -89,7 +91,7 @@ struct ast_key {
 	/*! FD for output */
 	int outfd;
 	/*! Last MD5 Digest */
-	unsigned char digest[16];
+	unsigned char digest[MD5_DIGEST_LENGTH];
 	AST_RWLIST_ENTRY(ast_key) list;
 };
 
@@ -172,9 +174,10 @@ static struct ast_key *try_load_key(const char *dir, const char *fname, int ifd,
 {
 	int ktype = 0, found = 0;
 	char *c = NULL, ffname[256];
-	unsigned char digest[16];
+	unsigned char digest[MD5_DIGEST_LENGTH];
+	unsigned digestlen;
 	FILE *f;
-	struct MD5Context md5;
+	EVP_MD_CTX *ctx = NULL;
 	struct ast_key *key;
 	static int notice = 0;
 
@@ -196,7 +199,14 @@ static struct ast_key *try_load_key(const char *dir, const char *fname, int ifd,
 		return NULL;
 	}
 
-	MD5Init(&md5);
+	ctx = EVP_MD_CTX_create();
+	if (ctx == NULL) {
+		ast_log(LOG_ERROR, "Out of memory\n");
+		fclose(f);
+		return NULL;
+	}
+	EVP_DigestInit(ctx, EVP_md5());
+
 	while (!feof(f)) {
 		/* Calculate a "whatever" quality md5sum of the key */
 		char buf[256] = "";
@@ -204,10 +214,11 @@ static struct ast_key *try_load_key(const char *dir, const char *fname, int ifd,
 			continue;
 		}
 		if (!feof(f)) {
-			MD5Update(&md5, (unsigned char *) buf, strlen(buf));
+			EVP_DigestUpdate(ctx, (unsigned char *)buf, strlen(buf));
 		}
 	}
-	MD5Final(digest, &md5);
+	EVP_DigestFinal(ctx, digest, &digestlen);
+	EVP_MD_CTX_destroy(ctx);
 
 	/* Look for an existing key */
 	AST_RWLIST_TRAVERSE(&keys, key, list) {
@@ -219,7 +230,7 @@ static struct ast_key *try_load_key(const char *dir, const char *fname, int ifd,
 	if (key) {
 		/* If the MD5 sum is the same, and it isn't awaiting a passcode
 		   then this is far enough */
-		if (!memcmp(digest, key->digest, 16) &&
+		if (!memcmp(digest, key->digest, sizeof(digest)) &&
 		    !(key->ktype & KEY_NEEDS_PASSCODE)) {
 			fclose(f);
 			key->delme = 0;
@@ -248,7 +259,7 @@ static struct ast_key *try_load_key(const char *dir, const char *fname, int ifd,
 	/* Yes, assume we're going to be deleted */
 	key->delme = 1;
 	/* Keep the key type */
-	memcpy(key->digest, digest, 16);
+	memcpy(key->digest, digest, sizeof(key->digest));
 	/* Can I/O takes the FD we're given */
 	key->infd = ifd;
 	key->outfd = ofd;
@@ -256,13 +267,13 @@ static struct ast_key *try_load_key(const char *dir, const char *fname, int ifd,
 	rewind(f);
 	/* Now load the key with the right method */
 	if (ktype == AST_KEY_PUBLIC) {
-		key->rsa = PEM_read_RSA_PUBKEY(f, NULL, pw_cb, key);
+		PEM_read_PUBKEY(f, &key->pkey, pw_cb, key);
 	} else {
-		key->rsa = PEM_read_RSAPrivateKey(f, NULL, pw_cb, key);
+		PEM_read_PrivateKey(f, &key->pkey, pw_cb, key);
 	}
 	fclose(f);
-	if (key->rsa) {
-		if (RSA_size(key->rsa) == 128) {
+	if (key->pkey) {
+		if (EVP_PKEY_size(key->pkey) == (AST_CRYPTO_RSA_KEY_BITS / 8)) {
 			/* Key loaded okay */
 			key->ktype &= ~KEY_NEEDS_PASSCODE;
 			ast_verb(3, "Loaded %s key '%s'\n", key->ktype == AST_KEY_PUBLIC ? "PUBLIC" : "PRIVATE", key->name);
@@ -301,36 +312,121 @@ static struct ast_key *try_load_key(const char *dir, const char *fname, int ifd,
 	return key;
 }
 
+static int evp_pkey_sign(EVP_PKEY *pkey, const unsigned char *in, unsigned inlen, unsigned char *sig, unsigned *siglen, unsigned padding)
+{
+	EVP_PKEY_CTX *ctx = NULL;
+	int res = -1;
+	size_t _siglen;
+
+	if (*siglen < EVP_PKEY_size(pkey)) {
+		return -1;
+	}
+
+	if ((ctx = EVP_PKEY_CTX_new(pkey, NULL)) == NULL) {
+		return -1;
+	}
+
+	do {
+		if ((res = EVP_PKEY_sign_init(ctx)) <= 0) {
+			break;
+		}
+		if ((res = EVP_PKEY_CTX_set_rsa_padding(ctx, padding)) <= 0) {
+			break;
+		}
+		if ((res = EVP_PKEY_CTX_set_signature_md(ctx, EVP_sha1())) <= 0) {
+			break;
+		}
+		_siglen = *siglen;
+		if ((res = EVP_PKEY_sign(ctx, sig, &_siglen, in, inlen)) <= 0) {
+			break;
+		}
+		*siglen = _siglen;
+	} while (0);
+
+	EVP_PKEY_CTX_free(ctx);
+	return res;
+}
+
 /*!
  * \brief signs outgoing message with public key
  * \see ast_sign_bin
 */
 int AST_OPTIONAL_API_NAME(ast_sign_bin)(struct ast_key *key, const char *msg, int msglen, unsigned char *dsig)
 {
-	unsigned char digest[20];
-	unsigned int siglen = 128;
+	unsigned char digest[SHA_DIGEST_LENGTH];
+	unsigned digestlen, siglen = 128;
 	int res;
+	EVP_MD_CTX *ctx = NULL;
 
 	if (key->ktype != AST_KEY_PRIVATE) {
 		ast_log(LOG_WARNING, "Cannot sign with a public key\n");
 		return -1;
 	}
 
-	/* Calculate digest of message */
-	SHA1((unsigned char *)msg, msglen, digest);
-
-	/* Verify signature */
-	if ((res = RSA_sign(NID_sha1, digest, sizeof(digest), dsig, &siglen, key->rsa)) != 1) {
-		ast_log(LOG_WARNING, "RSA Signature (key %s) failed\n", key->name);
+	if (siglen < EVP_PKEY_size(key->pkey)) {
+		ast_log(LOG_WARNING, "Signature buffer too small\n");
 		return -1;
 	}
 
-	if (siglen != 128) {
-		ast_log(LOG_WARNING, "Unexpected signature length %d, expecting %d\n", (int)siglen, (int)128);
+	/* Calculate digest of message */
+	ctx = EVP_MD_CTX_create();
+	if (ctx == NULL) {
+		ast_log(LOG_ERROR, "Out of memory\n");
+		return -1;
+	}
+	EVP_DigestInit(ctx, EVP_sha1());
+	EVP_DigestUpdate(ctx, msg, msglen);
+	EVP_DigestFinal(ctx, digest, &digestlen);
+	EVP_MD_CTX_destroy(ctx);
+
+	/* Verify signature */
+	if ((res = evp_pkey_sign(key->pkey, digest, sizeof(digest), dsig, &siglen, RSA_PKCS1_PADDING)) <= 0) {
+		ast_log(LOG_WARNING, "RSA Signature (key %s) failed %d\n", key->name, res);
+		return -1;
+	}
+
+	if (siglen != EVP_PKEY_size(key->pkey)) {
+		ast_log(LOG_WARNING, "Unexpected signature length %u, expecting %d\n", siglen, EVP_PKEY_size(key->pkey));
 		return -1;
 	}
 
 	return 0;
+}
+
+static int evp_pkey_decrypt(EVP_PKEY *pkey, const unsigned char *in, unsigned inlen, unsigned char *out, unsigned *outlen, unsigned padding)
+{
+	EVP_PKEY_CTX *ctx = NULL;
+	int res = -1;
+	size_t _outlen;
+
+	if (*outlen < EVP_PKEY_size(pkey)) {
+		return -1;
+	}
+
+	if (inlen != EVP_PKEY_size(pkey)) {
+		return -1;
+	}
+
+	if ((ctx = EVP_PKEY_CTX_new(pkey, NULL)) == NULL) {
+		return -1;
+	}
+
+	do {
+		if ((res = EVP_PKEY_decrypt_init(ctx)) <= 0) {
+			break;
+		}
+		if ((res = EVP_PKEY_CTX_set_rsa_padding(ctx, padding)) <= 0) {
+			break;
+		}
+		_outlen = *outlen;
+		if ((res = EVP_PKEY_decrypt(ctx, out, &_outlen, in, inlen)) <= 0) {
+			break;
+		}
+		res = *outlen = _outlen;
+	} while (0);
+
+	EVP_PKEY_CTX_free(ctx);
+	return res;
 }
 
 /*!
@@ -339,30 +435,75 @@ int AST_OPTIONAL_API_NAME(ast_sign_bin)(struct ast_key *key, const char *msg, in
 */
 int AST_OPTIONAL_API_NAME(ast_decrypt_bin)(unsigned char *dst, const unsigned char *src, int srclen, struct ast_key *key)
 {
-	int res, pos = 0;
+	int res;
+	unsigned pos = 0, dstlen, blocksize;
 
 	if (key->ktype != AST_KEY_PRIVATE) {
 		ast_log(LOG_WARNING, "Cannot decrypt with a public key\n");
 		return -1;
 	}
 
-	if (srclen % 128) {
-		ast_log(LOG_NOTICE, "Tried to decrypt something not a multiple of 128 bytes\n");
+	blocksize = EVP_PKEY_size(key->pkey);
+
+	if (srclen % blocksize) {
+		ast_log(LOG_NOTICE, "Tried to decrypt something not a multiple of %u bytes\n", blocksize);
 		return -1;
 	}
 
-	while (srclen) {
+	while (srclen > 0) {
 		/* Process chunks 128 bytes at a time */
-		if ((res = RSA_private_decrypt(128, src, dst, key->rsa, RSA_PKCS1_OAEP_PADDING)) < 0) {
+		dstlen = blocksize;
+		if ((res = evp_pkey_decrypt(key->pkey, src, blocksize, dst, &dstlen, RSA_PKCS1_OAEP_PADDING)) <= 0) {
 			return -1;
 		}
-		pos += res;
-		src += 128;
-		srclen -= 128;
-		dst += res;
+		pos += dstlen;
+		src += blocksize;
+		srclen -= blocksize;
+		dst += dstlen;
 	}
 
 	return pos;
+}
+
+static int evp_pkey_encrypt(EVP_PKEY *pkey, const unsigned char *in, unsigned inlen, unsigned char *out, unsigned *outlen, unsigned padding)
+{
+	EVP_PKEY_CTX *ctx = NULL;
+	int res = -1;
+	size_t _outlen;
+
+	if (padding != RSA_PKCS1_OAEP_PADDING) {
+		ast_log(LOG_WARNING, "Only OAEP padding is supported for now\n");
+		return -1;
+	}
+
+	if (inlen > EVP_PKEY_size(pkey) - RSA_PKCS1_OAEP_PADDING_SIZE) {
+		return -1;
+	}
+
+	if (*outlen < EVP_PKEY_size(pkey)) {
+		return -1;
+	}
+
+	do {
+		if ((ctx = EVP_PKEY_CTX_new(pkey, NULL)) == NULL) {
+			break;
+		}
+
+		if ((res = EVP_PKEY_encrypt_init(ctx)) <= 0) {
+			break;
+		}
+		if ((res = EVP_PKEY_CTX_set_rsa_padding(ctx, padding)) <= 0) {
+			break;
+		}
+		_outlen = *outlen;
+		if ((res = EVP_PKEY_encrypt(ctx, out, &_outlen, in, inlen)) <= 0) {
+			break;
+		}
+		res = *outlen = _outlen;
+	} while (0);
+
+	EVP_PKEY_CTX_free(ctx);
+	return res;
 }
 
 /*!
@@ -371,27 +512,31 @@ int AST_OPTIONAL_API_NAME(ast_decrypt_bin)(unsigned char *dst, const unsigned ch
 */
 int AST_OPTIONAL_API_NAME(ast_encrypt_bin)(unsigned char *dst, const unsigned char *src, int srclen, struct ast_key *key)
 {
-	int res, bytes, pos = 0;
+	unsigned bytes, pos = 0, dstlen, blocksize;
+	int res;
 
 	if (key->ktype != AST_KEY_PUBLIC) {
 		ast_log(LOG_WARNING, "Cannot encrypt with a private key\n");
 		return -1;
 	}
 
+	blocksize = EVP_PKEY_size(key->pkey);
+
 	while (srclen) {
 		bytes = srclen;
-		if (bytes > 128 - 41) {
-			bytes = 128 - 41;
+		if (bytes > blocksize - RSA_PKCS1_OAEP_PADDING_SIZE) {
+			bytes = blocksize - RSA_PKCS1_OAEP_PADDING_SIZE;
 		}
 		/* Process chunks 128-41 bytes at a time */
-		if ((res = RSA_public_encrypt(bytes, src, dst, key->rsa, RSA_PKCS1_OAEP_PADDING)) != 128) {
+		dstlen = blocksize;
+		if ((res = evp_pkey_encrypt(key->pkey, src, bytes, dst, &dstlen, RSA_PKCS1_OAEP_PADDING)) != blocksize) {
 			ast_log(LOG_NOTICE, "How odd, encrypted size is %d\n", res);
 			return -1;
 		}
 		src += bytes;
 		srclen -= bytes;
-		pos += res;
-		dst += res;
+		pos += dstlen;
+		dst += dstlen;
 	}
 	return pos;
 }
@@ -402,6 +547,7 @@ int AST_OPTIONAL_API_NAME(ast_encrypt_bin)(unsigned char *dst, const unsigned ch
 */
 int AST_OPTIONAL_API_NAME(ast_sign)(struct ast_key *key, char *msg, char *sig)
 {
+	/* assumes 1024 bit RSA key size */
 	unsigned char dsig[128];
 	int siglen = sizeof(dsig), res;
 
@@ -413,14 +559,48 @@ int AST_OPTIONAL_API_NAME(ast_sign)(struct ast_key *key, char *msg, char *sig)
 	return res;
 }
 
+static int evp_pkey_verify(EVP_PKEY *pkey, const unsigned char *in, unsigned inlen, const unsigned char *sig, unsigned siglen, unsigned padding)
+{
+	EVP_PKEY_CTX *ctx = NULL;
+	int res = -1;
+
+	if (siglen < EVP_PKEY_size(pkey)) {
+		return -1;
+	}
+
+	if ((ctx = EVP_PKEY_CTX_new(pkey, NULL)) == NULL) {
+		return -1;
+	}
+
+	do {
+		if ((res = EVP_PKEY_verify_init(ctx)) <= 0) {
+			break;
+		}
+		if ((res = EVP_PKEY_CTX_set_rsa_padding(ctx, padding)) <= 0) {
+			break;
+		}
+		if ((res = EVP_PKEY_CTX_set_signature_md(ctx, EVP_sha1())) <= 0) {
+			break;
+		}
+		if ((res = EVP_PKEY_verify(ctx, sig, siglen, in, inlen)) <= 0) {
+			break;
+		}
+	} while (0);
+
+	EVP_PKEY_CTX_free(ctx);
+	return res;
+}
+
 /*!
  * \brief check signature of a message
  * \see ast_check_signature_bin
 */
 int AST_OPTIONAL_API_NAME(ast_check_signature_bin)(struct ast_key *key, const char *msg, int msglen, const unsigned char *dsig)
 {
-	unsigned char digest[20];
+	unsigned char digest[SHA_DIGEST_LENGTH];
+	unsigned digestlen;
 	int res;
+	EVP_MD_CTX *ctx = NULL;
 
 	if (key->ktype != AST_KEY_PUBLIC) {
 		/* Okay, so of course you really *can* but for our purposes
@@ -430,10 +610,18 @@ int AST_OPTIONAL_API_NAME(ast_check_signature_bin)(struct ast_key *key, const ch
 	}
 
 	/* Calculate digest of message */
-	SHA1((unsigned char *)msg, msglen, digest);
+	ctx = EVP_MD_CTX_create();
+	if (ctx == NULL) {
+		ast_log(LOG_ERROR, "Out of memory\n");
+		return -1;
+	}
+	EVP_DigestInit(ctx, EVP_sha1());
+	EVP_DigestUpdate(ctx, msg, msglen);
+	EVP_DigestFinal(ctx, digest, &digestlen);
+	EVP_MD_CTX_destroy(ctx);
 
 	/* Verify signature */
-	if ((res = RSA_verify(NID_sha1, digest, sizeof(digest), (unsigned char *)dsig, 128, key->rsa)) != 1) {
+	if (!(res = evp_pkey_verify(key->pkey, (const unsigned char *)digest, sizeof(digest), (unsigned char *)dsig, 128, RSA_PKCS1_PADDING))) {
 		ast_debug(1, "Key failed verification: %s\n", key->name);
 		return -1;
 	}
@@ -475,22 +663,102 @@ int AST_OPTIONAL_API_NAME(ast_crypto_reload)(void)
 
 int AST_OPTIONAL_API_NAME(ast_aes_set_encrypt_key)(const unsigned char *key, ast_aes_encrypt_key *ctx)
 {
-	return AES_set_encrypt_key(key, 128, ctx);
+	if (key == NULL || ctx == NULL) {
+		return -1;
+	}
+	memcpy(ctx->raw, key, AST_CRYPTO_AES_BLOCKSIZE / 8);
+	return 0;
 }
 
 int AST_OPTIONAL_API_NAME(ast_aes_set_decrypt_key)(const unsigned char *key, ast_aes_decrypt_key *ctx)
 {
-	return AES_set_decrypt_key(key, 128, ctx);
+	if (key == NULL || ctx == NULL) {
+		return -1;
+	}
+	memcpy(ctx->raw, key, AST_CRYPTO_AES_BLOCKSIZE / 8);
+	return 0;
 }
 
-void AST_OPTIONAL_API_NAME(ast_aes_encrypt)(const unsigned char *in, unsigned char *out, const ast_aes_encrypt_key *ctx)
+static int evp_cipher_aes_encrypt(const unsigned char *in, unsigned char *out, unsigned inlen, const ast_aes_encrypt_key *key)
 {
-	return AES_encrypt(in, out, ctx);
+	EVP_CIPHER_CTX *ctx = NULL;
+	int res, outlen, finallen;
+	unsigned char final[AST_CRYPTO_AES_BLOCKSIZE / 8];
+
+	if ((ctx = EVP_CIPHER_CTX_new()) == NULL) {
+		return -1;
+	}
+
+	do {
+		if ((res = EVP_CipherInit(ctx, EVP_aes_128_ecb(), key->raw, NULL, 1)) <= 0) {
+			break;
+		}
+		EVP_CIPHER_CTX_set_padding(ctx, 0);
+		if ((res = EVP_CipherUpdate(ctx, out, &outlen, in, inlen)) <= 0) {
+			break;
+		}
+		/* for ECB, this is a no-op */
+		if ((res = EVP_CipherFinal(ctx, final, &finallen)) <= 0) {
+			break;
+		}
+
+		res = outlen;
+	} while (0);
+
+	EVP_CIPHER_CTX_free(ctx);
+
+	return res;
 }
 
-void AST_OPTIONAL_API_NAME(ast_aes_decrypt)(const unsigned char *in, unsigned char *out, const ast_aes_decrypt_key *ctx)
+int AST_OPTIONAL_API_NAME(ast_aes_encrypt)(const unsigned char *in, unsigned char *out, const ast_aes_encrypt_key *key)
 {
-	return AES_decrypt(in, out, ctx);
+	int res;
+
+	if ((res = evp_cipher_aes_encrypt(in, out, AST_CRYPTO_AES_BLOCKSIZE / 8, key)) <= 0) {
+		ast_log(LOG_ERROR, "AES encryption failed\n");
+	}
+	return res;
+}
+
+static int evp_cipher_aes_decrypt(const unsigned char *in, unsigned char *out, unsigned inlen, const ast_aes_decrypt_key *key)
+{
+	EVP_CIPHER_CTX *ctx = NULL;
+	int res, outlen, finallen;
+	unsigned char final[AST_CRYPTO_AES_BLOCKSIZE / 8];
+
+	if ((ctx = EVP_CIPHER_CTX_new()) == NULL) {
+		return -1;
+	}
+
+	do {
+		if ((res = EVP_CipherInit(ctx, EVP_aes_128_ecb(), key->raw, NULL, 0)) <= 0) {
+			break;
+		}
+		EVP_CIPHER_CTX_set_padding(ctx, 0);
+		if ((res = EVP_CipherUpdate(ctx, out, &outlen, in, inlen)) <= 0) {
+			break;
+		}
+		/* for ECB, this is a no-op */
+		if ((res = EVP_CipherFinal(ctx, final, &finallen)) <= 0) {
+			break;
+		}
+
+		res = outlen;
+	} while (0);
+
+	EVP_CIPHER_CTX_free(ctx);
+
+	return res;
+}
+
+int AST_OPTIONAL_API_NAME(ast_aes_decrypt)(const unsigned char *in, unsigned char *out, const ast_aes_decrypt_key *key)
+{
+	int res;
+
+	if ((res = evp_cipher_aes_decrypt(in, out, AST_CRYPTO_AES_BLOCKSIZE / 8, key)) <= 0) {
+		ast_log(LOG_ERROR, "AES decryption failed\n");
+	}
+	return res;
 }
 
 /*!
@@ -538,8 +806,8 @@ static void crypto_load(int ifd, int ofd)
 		if (key->delme) {
 			ast_debug(1, "Deleting key %s type %d\n", key->name, key->ktype);
 			AST_RWLIST_REMOVE_CURRENT(list);
-			if (key->rsa) {
-				RSA_free(key->rsa);
+			if (key->pkey) {
+				EVP_PKEY_free(key->pkey);
 			}
 			ast_free(key);
 		}
@@ -552,7 +820,7 @@ static void crypto_load(int ifd, int ofd)
 static void md52sum(char *sum, unsigned char *md5)
 {
 	int x;
-	for (x = 0; x < 16; x++) {
+	for (x = 0; x < MD5_DIGEST_LENGTH; x++) {
 		sum += sprintf(sum, "%02hhx", *(md5++));
 	}
 }
@@ -569,7 +837,7 @@ static char *handle_cli_keys_show(struct ast_cli_entry *e, int cmd, struct ast_c
 #define FORMAT "%-18s %-8s %-16s %-33s\n"
 
 	struct ast_key *key;
-	char sum[16 * 2 + 1];
+	char sum[MD5_DIGEST_LENGTH * 2 + 1];
 	int count_keys = 0;
 
 	switch (cmd) {

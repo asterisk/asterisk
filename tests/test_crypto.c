@@ -498,7 +498,10 @@ AST_TEST_DEFINE(crypto_aes_encrypt)
 
 	memset(buf, 0, sizeof(buf));
 	ast_aes_set_encrypt_key(key, &aes_key);
-	ast_aes_encrypt(plaintext, buf, &aes_key);
+	if (ast_aes_encrypt(plaintext, buf, &aes_key) <= 0) {
+		ast_test_status_update(test, "ast_aes_encrypt() failed\n");
+		goto cleanup;
+	}
 
 	args[KEY] = hexstring(key, sizeof(key));
 	if (ast_test_capture_command(&cap, command, args, (const char *)buf, sizeof(buf)) != 1) {
@@ -594,7 +597,10 @@ AST_TEST_DEFINE(crypto_aes_decrypt)
 
 	memset(buf, 0, sizeof(buf));
 	ast_aes_set_decrypt_key(key, &aes_key);
-	ast_aes_decrypt((const unsigned char *)cap.outbuf, buf, &aes_key);
+	if (ast_aes_decrypt((const unsigned char *)cap.outbuf, buf, &aes_key) <= 0) {
+		ast_test_status_update(test, "ast_aes_decrypt() failed\n");
+		goto cleanup;
+	}
 
 	if (memcmp(plaintext, buf, sizeof(plaintext))) {
 		ast_test_status_update(test, "AES decryption mismatch\n");
