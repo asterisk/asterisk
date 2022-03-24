@@ -6394,7 +6394,7 @@ static int invalid_key(ast_aes_decrypt_key *ecx)
 #ifdef HAVE_OPENSSL
 	int i;
 	for (i = 0; i < 60; i++) {
-		if (ecx->rd_key[i]) {
+		if (ecx->raw[i]) {
 			return 0; /* stop if we encounter anything non-zero */
 		}
 	}
