@@ -1,4 +1,4 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-18.11.0-rc1</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-18.11.0-rc1</h3><h3 align="center">Date: 2022-03-17</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-18.11.0</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-18.11.0</h3><h3 align="center">Date: 2022-03-24</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
 <li><a href="#summary">Summary</a></li>
 <li><a href="#contributors">Contributors</a></li>
 <li><a href="#closed_issues">Closed Issues</a></li>
@@ -6,7 +6,7 @@
 <li><a href="#diffstat">Diffstat</a></li>
 </ol><hr><a name="summary"><h2 align="center">Summary</h2></a><center><a href="#top">[Back to Top]</a></center><p>This release is a point release of an existing major version. The changes included were made to address problems that have been identified in this release series, or are minor, backwards compatible new features or improvements. Users should be able to safely upgrade to this version if this release series is already in use. Users considering upgrading from a previous version are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p><p>The data in this summary reflects changes that have been made since the previous release, asterisk-18.10.0.</p><hr><a name="contributors"><h2 align="center">Contributors</h2></a><center><a href="#top">[Back to Top]</a></center><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release. For coders, the number is how many of their patches (of any size) were committed into this release. For testers, the number is the number of times their name was listed as assisting with testing a patch. Finally, for reporters, the number is the number of issues that they reported that were affected by commits that went into this release.</p><table width="100%" border="0">
 <tr><th width="33%">Coders</th><th width="33%">Testers</th><th width="33%">Reporters</th></tr>
-<tr valign="top"><td width="33%">13 Naveen Albert <asterisk@phreaknet.org><br/>5 George Joseph <gjoseph@digium.com><br/>4 Alexei Gradinari <alex2grad@gmail.com><br/>3 Kevin Harwell <kharwell@sangoma.com><br/>3 Sean Bright <sean.bright@gmail.com><br/>1 Kfir Itzhak <mastertheknife@gmail.com><br/>1 Asterisk Development Team <asteriskteam@digium.com><br/>1 Mike Bradeen <mbradeen@sangoma.com><br/>1 Joshua C. Colp <jcolp@sangoma.com><br/>1 Ben Ford <bford@digium.com><br/>1 Mark Petersen <bugs.digium.com@zombie.dk><br/>1 Boris P. Korzun <drtr0jan@yandex.ru><br/></td><td width="33%"><td width="33%">13 N A <mail@interlinked.x10host.com><br/>4 Alexei Gradinari <alex2grad@gmail.com><br/>3 Kevin Harwell <kharwell@digium.com><br/>1 George Joseph <gjoseph@digium.com><br/>1 Mark Petersen <asterisk.org@zombie.dk><br/>1 cagdas kopuz <cagdas.kopuz@netgsm.com.tr><br/>1 Boris P. Korzun <drtr0jan@yandex.ru><br/>1 Kfir Itzhak <mastertheknife@gmail.com><br/>1 Joshua C. Colp <jcolp@digium.com><br/>1 kwk <Konrad.Kleine@GONICUS.de><br/>1 Napadailo Yaroslav <experimental.rabbit.1986@gmail.com><br/></td></tr>
+<tr valign="top"><td width="33%">13 Naveen Albert <asterisk@phreaknet.org><br/>5 George Joseph <gjoseph@digium.com><br/>4 Alexei Gradinari <alex2grad@gmail.com><br/>3 Kevin Harwell <kharwell@sangoma.com><br/>3 Sean Bright <sean.bright@gmail.com><br/>2 Asterisk Development Team <asteriskteam@digium.com><br/>1 Kfir Itzhak <mastertheknife@gmail.com><br/>1 Mike Bradeen <mbradeen@sangoma.com><br/>1 Joshua C. Colp <jcolp@sangoma.com><br/>1 Ben Ford <bford@digium.com><br/>1 Mark Petersen <bugs.digium.com@zombie.dk><br/>1 Boris P. Korzun <drtr0jan@yandex.ru><br/></td><td width="33%"><td width="33%">13 N A <mail@interlinked.x10host.com><br/>4 Alexei Gradinari <alex2grad@gmail.com><br/>3 Kevin Harwell <kharwell@digium.com><br/>1 George Joseph <gjoseph@digium.com><br/>1 Mark Petersen <asterisk.org@zombie.dk><br/>1 cagdas kopuz <cagdas.kopuz@netgsm.com.tr><br/>1 Boris P. Korzun <drtr0jan@yandex.ru><br/>1 Kfir Itzhak <mastertheknife@gmail.com><br/>1 Joshua C. Colp <jcolp@digium.com><br/>1 kwk <Konrad.Kleine@GONICUS.de><br/>1 Napadailo Yaroslav <experimental.rabbit.1986@gmail.com><br/></td></tr>
 </table><hr><a name="closed_issues"><h2 align="center">Closed Issues</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p><h3>Security</h3><h4>Category: pjproject/pjsip</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29945">ASTERISK-29945</a>: pjproject: Security fixes for things<br/>Reported by: Kevin Harwell<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=9e74563a50b767adc03bdcb1dde8b5a9798a7457">[9e74563a50]</a> Kevin Harwell -- AST-2022-006: pjproject - unconstrained malformed multipart SIP message</li>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=742d265ff5c2217e5b5079c7b87cdf4c6167ee55">[742d265ff5]</a> Kevin Harwell -- AST-2022-005: pjproject - undefined behavior after freeing a dialog set</li>
@@ -65,6 +65,7 @@
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=74742cdb5ea6553ccc2abaaa62450b4284f32e81">[74742cdb5e]</a> Naveen Albert -- res_stir_shaken: refactor utility function</li>
 </ul><br><hr><a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all changes that went into this release that did not reference a JIRA issue.</p><table width="100%" border="1">
 <tr><th>Revision</th><th>Author</th><th>Summary</th></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=c12f4940cbd462bce952877460a2279258c2f918">c12f4940cb</a></td><td>Asterisk Development Team</td><td>Update for 18.11.0-rc1</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=5dd61a6e160519fe9722f530e8d46592b1e83b34">5dd61a6e16</a></td><td>Asterisk Development Team</td><td>Update CHANGES and UPGRADE.txt for 18.11.0</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=81de525c6e25a6feeeed2e5d6b50392a8751d781">81de525c6e</a></td><td>Ben Ford</td><td>AMI: Bump version for 18.11.0.</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=b6e482becd30deaaa5950f6f105a958db9e34124">b6e482becd</a></td><td>George Joseph</td><td>xml.c, config,c:  Add stylesheets and variable list string parsing</td></tr>
@@ -74,13 +75,12 @@
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=47106a09b0c7bd3500284bd446e2288701051d40">47106a09b0</a></td><td>George Joseph</td><td>build: Refactor the earlier "basebranch" commit</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=acd6f30cc50a00a492a00911b68c4ff602eeb488">acd6f30cc5</a></td><td>Sean Bright</td><td>manager.c: Simplify AMI ModuleCheck handling</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=de0c29de55668580639e04ae55c7301f00980516">de0c29de55</a></td><td>Sean Bright</td><td>res_pjsip.c: Correct minor typos in 'realm' documentation.</td></tr>
-</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>.lastclean                                                                                  |    1
-.version                                                                                    |    1
-ChangeLog                                                                                   |99202 ----------
-asterisk-18.10.0-summary.html                                                               |  445
-asterisk-18.10.0-summary.txt                                                                |  887
+</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>asterisk-18.10.0-summary.html                                                               |  445 -
+asterisk-18.10.0-summary.txt                                                                |  887 --
 b/.gitignore                                                                                |    2
+b/.version                                                                                  |    2
 b/CHANGES                                                                                   |   56
+b/ChangeLog                                                                                 |  660 ++
 b/LICENSE                                                                                   |    3
 b/Makefile                                                                                  |   58
 b/UPGRADE.txt                                                                               |   13
@@ -89,6 +89,8 @@ b/apps/app_mp3.c                                                                
 b/apps/app_queue.c                                                                          |  196
 b/apps/app_reload.c                                                                         |    5
 b/apps/app_voicemail.c                                                                      |   12
+b/asterisk-18.11.0-rc1-summary.html                                                         |  149
+b/asterisk-18.11.0-rc1-summary.txt                                                          |  381 +
 b/build_tools/get_sourceable_makeopts                                                       |   54
 b/build_tools/make_version                                                                  |   33
 b/build_tools/make_xml_documentation                                                        |  249
@@ -100,6 +102,8 @@ b/configs/samples/prometheus.conf.sample                                        
 b/configure                                                                                 |  136
 b/configure.ac                                                                              |    6
 b/contrib/ast-db-manage/config/versions/8f72185e437f_res_pjsip_pubsub_add_resource_list_.py |   29
+b/contrib/realtime/mysql/mysql_config.sql                                                   |    6
+b/contrib/realtime/postgresql/postgresql_config.sql                                         |    6
 b/doc/appdocsxml.dtd                                                                        |   14
 b/funcs/func_channel.c                                                                      |   10
 b/funcs/func_curl.c                                                                         |    4
@@ -125,9 +129,9 @@ b/makeopts.in                                                                   
 b/res/res_ari.c                                                                             |    4
 b/res/res_config_pgsql.c                                                                    |    4
 b/res/res_http_media_cache.c                                                                |    4
-b/res/res_pjsip.c                                                                           | 3242
-b/res/res_pjsip/pjsip_config.xml                                                            | 2347
-b/res/res_pjsip/pjsip_manager.xml                                                           |  901
+b/res/res_pjsip.c                                                                           | 3242 ----------
+b/res/res_pjsip/pjsip_config.xml                                                            | 2347 +++++++
+b/res/res_pjsip/pjsip_manager.xml                                                           |  901 ++
 b/res/res_pjsip_exten_state.c                                                               |   24
 b/res/res_pjsip_pubsub.c                                                                    |  150
 b/res/res_prometheus.c                                                                      |    4
@@ -138,12 +142,6 @@ b/tests/test_config.c                                                           
 b/tests/test_res_prometheus.c                                                               |    4
 b/third-party/jansson/jansson-2.14.tar.bz2.md5                                              |    1
 b/third-party/pjproject/patches/0170-stun-integer-underflow.patch                           |   26
-b/third-party/pjproject/patches/0171-dialog-set-free.patch                                  |   69
-contrib/realtime/mysql/mysql_cdr.sql                                                        |   41
-contrib/realtime/mysql/mysql_config.sql                                                     | 1330
-contrib/realtime/mysql/mysql_voicemail.sql                                                  |   35
-contrib/realtime/postgresql/postgresql_cdr.sql                                              |   45
-contrib/realtime/postgresql/postgresql_config.sql                                           | 1442
-contrib/realtime/postgresql/postgresql_voicemail.sql                                        |   39
+b/third-party/pjproject/patches/0171-dialog-set-free.patch                                  |   72
 third-party/jansson/jansson-2.12.tar.bz2.md5                                                |    1
-72 files changed, 5094 insertions(+), 106973 deletions(-)</pre><br></html>
+69 files changed, 6298 insertions(+), 4840 deletions(-)</pre><br></html>
