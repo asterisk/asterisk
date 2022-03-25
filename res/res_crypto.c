@@ -35,6 +35,8 @@
 
 #include <dirent.h>                 /* for closedir, opendir, readdir, DIR */
 
+#define OPENSSL_SUPPRESS_DEPRECATED 1
+
 #include <openssl/aes.h>            /* for AES_decrypt, AES_encrypt, AES_set... */
 #include <openssl/err.h>            /* for ERR_print_errors_fp */
 #include <openssl/ssl.h>            /* for NID_sha1, RSA */
