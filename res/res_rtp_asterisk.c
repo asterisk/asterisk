@@ -47,6 +47,7 @@
 #include <math.h>
 
 #ifdef HAVE_OPENSSL
+#define OPENSSL_SUPPRESS_DEPRECATED 1
 #include <openssl/opensslconf.h>
 #include <openssl/opensslv.h>
 #if !defined(OPENSSL_NO_SRTP) && (OPENSSL_VERSION_NUMBER >= 0x10001000L)
