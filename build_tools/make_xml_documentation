@@ -1,10 +1,7 @@
 #!/bin/sh
-# The GREP, SED, FIND, etc variables are all set at run time from
-# makeopts.
 # shellcheck disable=SC2154
 
 PROGNAME="${0##*/}"
-PROGDIR="${0%/*}"
 
 # Fail on errors
 set -e
@@ -111,36 +108,25 @@ if [ ! -d "${source_tree}" ] ; then
 	exit 1
 fi
 
-if [ ! -f "${source_tree}/Makefile" ] ; then
-	echo "There's no 'Makefile' in '${source_tree}'."
-	exit 1
-fi
-
 if [ ! -f "${source_tree}/makeopts" ] ; then
 	echo "There's no 'makeopts' in '${source_tree}'.  Maybe you need to run ./configure?"
 	exit 1
 fi
 
-# This will get the paths to the utilities we need, all
-# of which will be in makeopts.  We need to convert the
-# format so it's sourceable.
-tmpname="/tmp/ast_makeopts.$$.env"
-trap 'rm "$tmpname" >/dev/null 2>&1' INT QUIT TERM EXIT
-"${PROGDIR}/get_sourceable_makeopts" "${source_tree}/makeopts" >"${tmpname}"
-# The file to be sourced is generated at run time and can't be checked.
-# shellcheck disable=SC1090
-. "${tmpname}"
-rm "${tmpname}" > /dev/null 2>&1 || :
-trap - INT QUIT TERM EXIT
-
-# Make sure we have everything we need.
-for c in GREP FIND AWK DIRNAME BASENAME SED CAT ; do
-	bin=$(eval "echo \${${c}}")
-	if [ "${bin}" = "" ] ; then
-		echo "The '${c}' utility was not found."
-		exit 1
-	fi
-done
+# This script is normally run from the top-level Makefile which
+# will set the tools variables to actual paths, or ':' if
+# the tool isn't found.  If this script is run from the
+# command line for testing purposes however, we'll need to
+# set some sane defaults.
+if [ "${GREP}" = "" ] ; then GREP="grep" ; fi
+if [ "${FIND}" = "" ] ; then FIND="find" ; fi
+if [ "${AWK}" = "" ] ; then AWK="awk" ; fi
+if [ "${DIRNAME}" = "" ] ; then DIRNAME="dirname" ; fi
+if [ "${BASENAME}" = "" ] ; then BASENAME="basename" ; fi
+if [ "${SED}" = "" ] ; then SED="sed" ; fi
+if [ "${CAT}" = "" ] ; then CAT="cat" ; fi
+if [ "${XMLLINT}" = "" ] ; then XMLLINT="xmllint" ; fi
+if [ "${XMLSTARLET}" = "" ] ; then XMLSTARLET="xmlstarlet" ; fi
 
 if [ "${for_wiki}" -eq "1" ] || [ "${validate}" -eq "1" ]; then
 	if [ "${XMLLINT}${XMLSTARLET}" = "::" ] ; then
