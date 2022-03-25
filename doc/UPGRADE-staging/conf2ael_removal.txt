@@ -1,6 +1,0 @@
-Subject: conf2ael
-Master-Only: True
-
-This application was deprecated in Asterisk 16
-and is now being removed in accordance with
-the Asterisk Module Deprecation policy.
