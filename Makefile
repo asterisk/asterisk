@@ -480,7 +480,7 @@ XML_core_en_US := $(shell build_tools/make_xml_documentation --command=print_dep
 # core-en_US.xml is the normal documentation created with asterisk builds.
 doc/core-en_US.xml: makeopts .lastclean $(XML_core_en_US)
 	@build_tools/make_xml_documentation --command=create_xml --source-tree=. --mod-subdirs="$(DOC_MOD_SUBDIRS)" \
-		--with-moduleinfo --validate --output-file=$@
+		--with-moduleinfo --output-file=$@
 
 # The full-en_US.xml target is only called by the wiki documentation generation process
 # and does special post-processing in preparation for uploading to the wiki.
@@ -492,7 +492,7 @@ ifeq ($(PYTHON),:)
 	@echo "--------------------------------------------------------------------------"
 else
 	@build_tools/make_xml_documentation --command=create_xml --source-tree=. --mod-subdirs="$(DOC_MOD_SUBDIRS)" \
-		--for-wiki --validate --output-file=$@ --core-output-file=./doc/core-en_US.xml
+		--for-wiki --output-file=$@ --core-output-file=./doc/core-en_US.xml
 endif
 
 validate-docs: doc/core-en_US.xml
