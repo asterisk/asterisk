@@ -101,6 +101,11 @@ export TAR
 export PATCH
 export SED
 export NM
+export FIND
+export BASENAME
+export DIRNAME
+export XMLLINT
+export XMLSTARLET
 
 # makeopts is required unless the goal is just {dist{-}}clean
 ifeq ($(MAKECMDGOALS),clean)
