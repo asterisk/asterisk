@@ -1286,10 +1286,11 @@ pickupgroup=1
 ; You can define your own custom ring cadences here.  You can define up to 8
 ; pairs.  If the silence is negative, it indicates where the caller ID spill is
 ; to be placed.  Also, if you define any custom cadences, the default cadences
-; will be turned off.
+; will be turned off (overwritten).
 ;
 ; This setting is global, rather than per-channel. It will not update on
-; a reload.
+; a reload, but new and modified cadences will update on dahdi restart.
+; A maximum of 24 cadences may be specified.
 ;
 ; Syntax is:  cadence=ring,silence[,ring,silence[...]]
 ;
