@@ -86,6 +86,7 @@
 					<para>If you need more than one enter them as
 					Technology2/Resource2&amp;Technology3/Resource3&amp;.....</para>
 				</argument>
+				<xi:include xpointer="xpointer(/docs/info[@name='Dial_Resource'])" />
 			</parameter>
 			<parameter name="timeout" required="false">
 				<para>Specifies the number of seconds we attempt to dial the specified devices.</para>
