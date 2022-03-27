@@ -1,0 +1,8 @@
+Subject: chan_dahdi
+
+Previously, cadences were appended on dahdi restart,
+rather than reloaded. This prevented cadences from
+being updated and maxed out the available cadences
+if reloaded multiple times. This behavior is fixed
+so that reloading cadences is idempotent and cadences
+can actually be reloaded.

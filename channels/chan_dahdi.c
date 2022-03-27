@@ -17873,6 +17873,9 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 	int y;
 	struct ast_variable *dahdichan = NULL;
 
+	/* Re-parse any cadences from beginning, rather than appending until we run out of room */
+	user_has_defined_cadences = 0;
+
 	for (; v; v = v->next) {
 		if (!ast_jb_read_conf(&global_jbconf, v->name, v->value))
 			continue;
