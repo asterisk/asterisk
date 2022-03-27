@@ -234,6 +234,59 @@
 			</enum>
 		</enumlist>
 	</info>
+	<info name="Dial_Resource" language="en_US" tech="DAHDI">
+		<para>DAHDI allows several modifiers to be specified as part of the resource.</para>
+		<para>The general syntax is :</para>
+		<para><literal>Dial(DAHDI/pseudo[/extension])</literal></para>
+		<para><literal>Dial(DAHDI/&lt;channel#&gt;[c|r&lt;cadance#&gt;|d][/extension])</literal></para>
+		<para><literal>Dial(DAHDI/(g|G|r|R)&lt;group#(0-63)&gt;[c|r&lt;cadance#&gt;|d][/extension])</literal></para>
+		<para>The following modifiers may be used before the channel number:</para>
+		<enumlist>
+		<enum name="g">
+			<para>Search forward, dialing on first available channel in group (lowest to highest).</para>
+		</enum>
+		<enum name="G">
+			<para>Search backward, dialing on first available channel in group (highest to lowest).</para>
+		</enum>
+		<enum name="r">
+			<para>Round robin search forward, picking up from where last left off (lowest to highest).</para>
+		</enum>
+		<enum name="R">
+			<para>Round robin search backward, picking up from where last left off (highest to lowest).</para>
+		</enum>
+		</enumlist>
+		<para>The following modifiers may be used after the channel number:</para>
+		<enumlist>
+		<enum name="c">
+			<para>Wait for DTMF digit <literal>#</literal> before providing answer supervision.</para>
+			<para>This can be useful on outbound calls via FXO ports, as otherwise
+			they would indicate answer immediately.</para>
+		</enum>
+		<enum name="d">
+			<para>Force bearer capability for ISDN/SS7 call to digital.</para>
+		</enum>
+		<enum name="i">
+			<para>ISDN span channel restriction.</para>
+			<para>Used by CC to ensure that the CC recall goes out the same span.
+			Also to make ISDN channel names dialable when the sequence number
+			is stripped off.  (Used by DTMF attended transfer feature.)</para>
+		</enum>
+		<enum name="r">
+			<para>Specifies the distinctive ring cadence number to use immediately after
+			specifying this option. There are 4 default built-in cadences, and up to 24
+			total cadences may be configured.</para>
+		</enum>
+		</enumlist>
+		<example title="Dial 555-1212 on first available channel in group 1, searching from highest to lowest">
+		same => n,Dial(DAHDI/g1/5551212)
+		</example>
+		<example title="Ringing FXS channel 4 with ring cadence 2">
+		same => n,Dial(DAHDI/4r2)
+		</example>
+		<example title="Dial 555-1212 on channel 3 and require answer confirmation">
+		same => n,Dial(DAHDI/3c/5551212)
+		</example>
+	</info>
 	<manager name="DAHDITransfer" language="en_US">
 		<synopsis>
 			Transfer DAHDI Channel.
