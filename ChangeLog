@@ -1,3 +1,36 @@
+2022-03-29 22:26 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 19.3.1 Released.
+
+2022-03-25 09:33 +0000 [01695f4507]  George Joseph <gjoseph@digium.com>
+
+	* make_xml_documentation: Remove usage of get_sourceable_makeopts
+
+	  get_sourceable_makeopts wasn't handling variables with embedded
+	  double quotes in them very well.  One example was the DOWNLOAD
+	  variable when curl was being used instead of wget.  Rather than
+	  trying to fix get_sourceable_makeopts, it's just been removed.
+
+	  ASTERISK-29986
+	  Reported by: Stefan Ruijsenaars
+
+	  Change-Id: Idf2a90902228c2558daa5be7a4f8327556099cd2
+
+2022-03-25 14:00 +0000 [c4d6abf01e]  George Joseph <gjoseph@digium.com>
+
+	* Makefile:  Disable XML doc validation
+
+	  make_xml_documentation was being called with the --validate
+	  flag set when it shouldn't have been.  This was causing
+	  build failures if neither xmllint nor xmlstarlet were installed.
+	  The correct behavior is to simply print a message that either
+	  one of those tools should be installed for validation and
+	  continue with the build.
+
+	  ASTERISK-29988
+
+	  Change-Id: Idc6c44114e7dd3fadae183a4e22f4fdba0b8a645
+
 2022-03-24 13:19 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 19.3.0 Released.
