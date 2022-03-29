@@ -11573,6 +11573,7 @@ static void *do_monitor(void *data)
 							&& !analog_p->fxsoffhookstate
 							&& !last->owner
 							&& !ast_strlen_zero(last->mailbox)
+							&& !analog_p->subs[SUB_REAL].owner /* could be a recall ring from a flash hook hold */
 							&& (thispass - analog_p->onhooktime > 3)) {
 							res = has_voicemail(last);
 							if (analog_p->msgstate != res) {
