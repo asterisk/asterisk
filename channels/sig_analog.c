@@ -1089,6 +1089,10 @@ int analog_call(struct analog_pvt *p, struct ast_channel *ast, const char *rdest
 		if (p->use_callerid) {
 			p->caller.id.name.str = p->lastcid_name;
 			p->caller.id.number.str = p->lastcid_num;
+			p->caller.id.name.valid = ast_channel_connected(ast)->id.name.valid;
+			p->caller.id.number.valid = ast_channel_connected(ast)->id.number.valid;
+			p->caller.id.name.presentation = ast_channel_connected(ast)->id.name.presentation;
+			p->caller.id.number.presentation = ast_channel_connected(ast)->id.number.presentation;
 		}
 
 		ast_setstate(ast, AST_STATE_RINGING);
@@ -2264,10 +2268,8 @@ static void *__analog_ss_thread(void *data)
 				ast_verb(3, "Disabling Caller*ID on %s\n", ast_channel_name(chan));
 				/* Disable Caller*ID if enabled */
 				p->hidecallerid = 1;
-				ast_party_number_free(&ast_channel_caller(chan)->id.number);
-				ast_party_number_init(&ast_channel_caller(chan)->id.number);
-				ast_party_name_free(&ast_channel_caller(chan)->id.name);
-				ast_party_name_init(&ast_channel_caller(chan)->id.name);
+				ast_channel_caller(chan)->id.number.presentation = AST_PRES_PROHIB_USER_NUMBER_NOT_SCREENED;
+				ast_channel_caller(chan)->id.name.presentation = AST_PRES_PROHIB_USER_NUMBER_NOT_SCREENED;
 				res = analog_play_tone(p, idx, ANALOG_TONE_DIALRECALL);
 				if (res) {
 					ast_log(LOG_WARNING, "Unable to do dial recall on channel %s: %s\n",
@@ -2353,7 +2355,8 @@ static void *__analog_ss_thread(void *data)
 				ast_verb(3, "Enabling Caller*ID on %s\n", ast_channel_name(chan));
 				/* Enable Caller*ID if enabled */
 				p->hidecallerid = 0;
-				ast_set_callerid(chan, p->cid_num, p->cid_name, NULL);
+				ast_channel_caller(chan)->id.number.presentation = AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED;
+				ast_channel_caller(chan)->id.name.presentation = AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED;
 				res = analog_play_tone(p, idx, ANALOG_TONE_DIALRECALL);
 				if (res) {
 					ast_log(LOG_WARNING, "Unable to do dial recall on channel %s: %s\n",
