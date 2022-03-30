@@ -3410,7 +3410,7 @@ struct analog_callback analog_callbacks =
 };
 
 /*! Round robin search locations. */
-static struct dahdi_pvt *round_robin[32];
+static struct dahdi_pvt *round_robin[64]; /* groups can range from 0-63 */
 
 int _dahdi_get_index(struct ast_channel *ast, struct dahdi_pvt *p, int nullok, const char *fname, unsigned long line)
 {
