@@ -2221,11 +2221,14 @@ static int insert_silence(struct ast_channel *chan, struct ast_frame *f, struct 
     };
 
     /* Generating silent frame */
-    if( ast_format_cmp(f->subclass.format, ast_format_g729) == AST_FORMAT_CMP_EQUAL) {
-	memcpy(buf, g729_filler, f->datalen);
+    if (ast_format_cmp(f->subclass.format, ast_format_g729) == AST_FORMAT_CMP_EQUAL) {
+        memcpy(buf, g729_filler, f->datalen);
+    } else if ((ast_format_cmp(f->subclass.format, ast_format_alaw) == AST_FORMAT_CMP_EQUAL) ||
+               (ast_format_cmp(f->subclass.format, ast_format_ulaw) == AST_FORMAT_CMP_EQUAL)) {
+        memset(buf, 255, sizeof(buf));
     } else {
-        memset(buf, 0, sizeof(buf));
-    } 
+        memset(buf, 255, sizeof(buf));
+    }
 
     /*switch (f->subclass.format.id) {
         case AST_FORMAT_G729A:
