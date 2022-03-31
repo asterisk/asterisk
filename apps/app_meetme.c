@@ -5239,7 +5239,9 @@ static int admin_exec(struct ast_channel *chan, const char *data) {
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "MeetMeAdmin requires an argument!\n");
-		pbx_builtin_setvar_helper(chan, "MEETMEADMINSTATUS", "NOPARSE");
+		if (chan) {
+			pbx_builtin_setvar_helper(chan, "MEETMEADMINSTATUS", "NOPARSE");
+		}
 		return -1;
 	}
 
@@ -5248,7 +5250,9 @@ static int admin_exec(struct ast_channel *chan, const char *data) {
 
 	if (!args.command) {
 		ast_log(LOG_WARNING, "MeetmeAdmin requires a command!\n");
-		pbx_builtin_setvar_helper(chan, "MEETMEADMINSTATUS", "NOPARSE");
+		if (chan) {
+			pbx_builtin_setvar_helper(chan, "MEETMEADMINSTATUS", "NOPARSE");
+		}
 		return -1;
 	}
 
@@ -5261,7 +5265,9 @@ static int admin_exec(struct ast_channel *chan, const char *data) {
 	if (!cnf) {
 		ast_log(LOG_WARNING, "Conference number '%s' not found!\n", args.confno);
 		AST_LIST_UNLOCK(&confs);
-		pbx_builtin_setvar_helper(chan, "MEETMEADMINSTATUS", "NOTFOUND");
+		if (chan) {
+			pbx_builtin_setvar_helper(chan, "MEETMEADMINSTATUS", "NOTFOUND");
+		}
 		return 0;
 	}
 
@@ -5384,7 +5390,9 @@ usernotfound:
 	AST_LIST_UNLOCK(&confs);
 
 	dispose_conf(cnf);
-	pbx_builtin_setvar_helper(chan, "MEETMEADMINSTATUS", res == -2 ? "NOTFOUND" : res ? "FAILED" : "OK");
+	if (chan) {
+		pbx_builtin_setvar_helper(chan, "MEETMEADMINSTATUS", res == -2 ? "NOTFOUND" : res ? "FAILED" : "OK");
+	}
 
 	return 0;
 }
