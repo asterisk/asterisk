@@ -177,6 +177,35 @@
 			<para>This application will Accept the R2 call either with charge or no charge.</para>
 		</description>
 	</application>
+	<function name="POLARITY" language="en_US">
+		<synopsis>
+			Set or get the polarity of a DAHDI channel.
+		</synopsis>
+		<syntax />
+		<description>
+			<para>The POLARITY function can be used to set the polarity of a DAHDI channel.</para>
+			<para>Applies only to FXS channels (using FXO signalling) with supporting hardware.</para>
+			<para>The polarity can be set to the following numeric or named values:</para>
+			<enumlist>
+				<enum name="0" />
+				<enum name="idle" />
+				<enum name="1" />
+				<enum name="reverse" />
+			</enumlist>
+			<para>However, when read, the function will always return 0 or 1.</para>
+			<example title="Set idle polarity">
+			same => n,Set(POLARITY()=0)
+			</example>
+			<example title="Set reverse polarity">
+			same => n,NoOp(Current Polarity: ${POLARITY()})
+			same => n,Set(POLARITY()=reverse)
+			same => n,NoOp(New Polarity: ${POLARITY()})
+			</example>
+			<example title="Reverse the polarity from whatever it is currently">
+			same => n,Set(POLARITY()=${IF($[ "${POLARITY()}" = "1" ]?0:1)})
+			</example>
+		</description>
+	</function>
 	<info name="CHANNEL" language="en_US" tech="DAHDI">
 		<enumlist>
 			<enum name="dahdi_channel">
@@ -2703,6 +2732,86 @@ static void my_hangup_polarityswitch(void *pvt)
 		my_set_polarity(pvt, 1);
 	}
 }
+
+/*! \brief Return DAHDI pivot if channel is FXO signalled */
+static struct dahdi_pvt *fxo_pvt(struct ast_channel *chan)
+{
+	int res;
+	struct dahdi_params dahdip;
+	struct dahdi_pvt *pvt = NULL;
+
+	if (strcasecmp(ast_channel_tech(chan)->type, "DAHDI")) {
+		ast_log(LOG_WARNING, "%s is not a DAHDI channel\n", ast_channel_name(chan));
+		return NULL;
+	}
+
+	memset(&dahdip, 0, sizeof(dahdip));
+	res = ioctl(ast_channel_fd(chan, 0), DAHDI_GET_PARAMS, &dahdip);
+
+	if (res) {
+		ast_log(LOG_WARNING, "Unable to get parameters of %s: %s\n", ast_channel_name(chan), strerror(errno));
+		return NULL;
+	}
+	if (!(dahdip.sigtype & __DAHDI_SIG_FXO)) {
+		ast_log(LOG_WARNING, "%s is not FXO signalled\n", ast_channel_name(chan));
+		return NULL;
+	}
+
+	pvt = ast_channel_tech_pvt(chan);
+	if (!dahdi_analog_lib_handles(pvt->sig, 0, 0)) {
+		ast_log(LOG_WARNING, "Channel signalling is not analog");
+		return NULL;
+	}
+
+	return pvt;
+}
+
+static int polarity_read(struct ast_channel *chan, const char *cmd, char *data, char *buffer, size_t buflen)
+{
+	struct dahdi_pvt *pvt;
+
+	pvt = fxo_pvt(chan);
+	if (!pvt) {
+		return -1;
+	}
+
+	snprintf(buffer, buflen, "%d", pvt->polarity);
+
+	return 0;
+}
+
+static int polarity_write(struct ast_channel *chan, const char *cmd, char *data, const char *value)
+{
+	struct dahdi_pvt *pvt;
+	int polarity;
+
+	pvt = fxo_pvt(chan);
+	if (!pvt) {
+		return -1;
+	}
+
+	if (!strcasecmp(value, "idle")) {
+		polarity = POLARITY_IDLE;
+	} else if (!strcasecmp(value, "reverse")) {
+		polarity = POLARITY_REV;
+	} else {
+		polarity = atoi(value);
+	}
+
+	if (polarity != POLARITY_IDLE && polarity != POLARITY_REV) {
+		ast_log(LOG_WARNING, "Invalid polarity: '%s'\n", value);
+		return -1;
+	}
+
+	my_set_polarity(pvt, polarity);
+	return 0;
+}
+
+static struct ast_custom_function polarity_function = {
+	.name = "POLARITY",
+	.write = polarity_write,
+	.read = polarity_read,
+};
 
 static int my_start(void *pvt)
 {
@@ -17615,6 +17724,8 @@ static int __unload_module(void)
 	ast_unregister_application(dahdi_accept_r2_call_app);
 #endif
 
+	ast_custom_function_unregister(&polarity_function);
+
 	ast_cli_unregister_multiple(dahdi_cli, ARRAY_LEN(dahdi_cli));
 	ast_manager_unregister("DAHDIDialOffhook");
 	ast_manager_unregister("DAHDIHangup");
@@ -19802,6 +19913,8 @@ static int load_module(void)
 	ast_cli_register_multiple(dahdi_mfcr2_cli, ARRAY_LEN(dahdi_mfcr2_cli));
 	ast_register_application_xml(dahdi_accept_r2_call_app, dahdi_accept_r2_call_exec);
 #endif
+
+	ast_custom_function_register(&polarity_function);
 
 	ast_cli_register_multiple(dahdi_cli, ARRAY_LEN(dahdi_cli));
 	memset(round_robin, 0, sizeof(round_robin));
