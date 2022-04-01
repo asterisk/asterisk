@@ -1,0 +1,5 @@
+Subject: chan_dahdi
+
+A POLARITY function is now available that allows
+getting or setting the polarity on a channel
+from the dialplan.
