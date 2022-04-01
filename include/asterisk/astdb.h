@@ -56,6 +56,17 @@ int ast_db_put(const char *family, const char *key, const char *value);
 /*! \brief Delete entry in astdb */
 int ast_db_del(const char *family, const char *key);
 
+/*! \brief Same as ast_db_del, but with more stringent error checking
+ *
+ * \details
+ * Unlike ast_db_del, if the key does not exist in the first place,
+ * an error is emitted and -1 is returned.
+ *
+ * \retval -1 An error occured (including key not found to begin with)
+ * \retval 0 Successfully deleted
+ */
+int ast_db_del2(const char *family, const char *key);
+
 /*!
  * \brief Delete one or more entries in astdb
  *
