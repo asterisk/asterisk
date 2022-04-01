@@ -454,6 +454,38 @@ int ast_db_del(const char *family, const char *key)
 	return res;
 }
 
+int ast_db_del2(const char *family, const char *key)
+{
+	char fullkey[MAX_DB_FIELD];
+	char tmp[1];
+	size_t fullkey_len;
+	int mres, res = 0;
+
+	if (strlen(family) + strlen(key) + 2 > sizeof(fullkey) - 1) {
+		ast_log(LOG_WARNING, "Family and key length must be less than %zu bytes\n", sizeof(fullkey) - 3);
+		return -1;
+	}
+
+	fullkey_len = snprintf(fullkey, sizeof(fullkey), "/%s/%s", family, key);
+
+	ast_mutex_lock(&dblock);
+	if (ast_db_get(family, key, tmp, sizeof(tmp))) {
+		ast_log(LOG_WARNING, "AstDB key %s does not exist\n", fullkey);
+		res = -1;
+	} else if (sqlite3_bind_text(del_stmt, 1, fullkey, fullkey_len, SQLITE_STATIC) != SQLITE_OK) {
+		ast_log(LOG_WARNING, "Couldn't bind key to stmt: %s\n", sqlite3_errmsg(astdb));
+		res = -1;
+	} else if ((mres = sqlite3_step(del_stmt) != SQLITE_DONE)) {
+		ast_log(LOG_WARNING, "AstDB error (%s): %s\n", fullkey, sqlite3_errstr(mres));
+		res = -1;
+	}
+	sqlite3_reset(del_stmt);
+	db_sync();
+	ast_mutex_unlock(&dblock);
+
+	return res;
+}
+
 int ast_db_deltree(const char *family, const char *keytree)
 {
 	sqlite3_stmt *stmt = deltree_stmt;
@@ -678,9 +710,9 @@ static char *handle_cli_database_del(struct ast_cli_entry *e, int cmd, struct as
 
 	if (a->argc != 4)
 		return CLI_SHOWUSAGE;
-	res = ast_db_del(a->argv[2], a->argv[3]);
+	res = ast_db_del2(a->argv[2], a->argv[3]);
 	if (res) {
-		ast_cli(a->fd, "Database entry does not exist.\n");
+		ast_cli(a->fd, "Database entry could not be removed.\n");
 	} else {
 		ast_cli(a->fd, "Database entry removed.\n");
 	}
@@ -963,9 +995,9 @@ static int manager_dbdel(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	res = ast_db_del(family, key);
+	res = ast_db_del2(family, key);
 	if (res)
-		astman_send_error(s, m, "Database entry not found");
+		astman_send_error(s, m, "Database entry could not be deleted");
 	else
 		astman_send_ack(s, m, "Key deleted successfully");
 
