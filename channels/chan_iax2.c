@@ -6379,6 +6379,18 @@ static void build_rand_pad(unsigned char *buf, ssize_t len)
 	}
 }
 
+static int invalid_key(ast_aes_decrypt_key *ecx)
+{
+	int i;
+	for (i = 0; i < 60; i++) {
+		if (ecx->rd_key[i]) {
+			return 0; /* stop if we encounter anything non-zero */
+		}
+	}
+	/* if ast_aes_encrypt or ast_aes_decrypt is called, then we'll crash when calling AES_encrypt or AES_decrypt */
+	return -1;
+}
+
 static void build_encryption_keys(const unsigned char *digest, struct chan_iax2_pvt *pvt)
 {
 	build_ecx_key(digest, pvt);
@@ -8435,7 +8447,7 @@ static int authenticate(const char *challenge, const char *secret, const char *k
 			iax_ie_append_str(ied, IAX_IE_PASSWORD, secret);
 			res = 0;
 		} else
-			ast_log(LOG_NOTICE, "No way to send secret to peer '%s' (their methods: %d)\n", ast_sockaddr_stringify_addr(addr), authmethods);
+			ast_log(LOG_WARNING, "No way to send secret to peer '%s' (their methods: %d)\n", ast_sockaddr_stringify_addr(addr), authmethods);
 	}
 	return res;
 }
@@ -8520,12 +8532,22 @@ static int authenticate_reply(struct chan_iax2_pvt *p, struct ast_sockaddr *addr
 		}
 	}
 
+	if (!(ies->authmethods & (IAX_AUTH_MD5 | IAX_AUTH_PLAINTEXT)) && (ies->authmethods & IAX_AUTH_RSA) && ast_strlen_zero(okey)) {
+		/* If the only thing available is RSA, and we don't have an outkey, we can't do it... */
+		ast_log(LOG_WARNING, "Call terminated. RSA authentication requires an outkey\n");
+		return -1;
+	}
+
 	if (ies->encmethods) {
 		if (ast_strlen_zero(p->secret) &&
 			((ies->authmethods & IAX_AUTH_RSA) || (ies->authmethods & IAX_AUTH_MD5) || (ies->authmethods & IAX_AUTH_PLAINTEXT))) {
 			ast_log(LOG_WARNING, "Call terminated. Encryption requested by peer but no secret available locally\n");
 			return -1;
 		}
+		/* Don't even THINK about trying to encrypt or decrypt anything if we don't have valid keys, for some reason... */
+		/* If either of these happens, it's our fault, not the user's. But we should abort rather than crash. */
+		ast_assert_return(!invalid_key(&p->ecx), -1);
+		ast_assert_return(!invalid_key(&p->dcx), -1);
 		ast_set_flag64(p, IAX_ENCRYPTED | IAX_KEYPOPULATED);
 	} else if (ast_test_flag64(iaxs[callno], IAX_FORCE_ENCRYPT)) {
 		ast_log(LOG_NOTICE, "Call initiated without encryption while forceencryption=yes option is set\n");
