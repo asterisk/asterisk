@@ -1305,7 +1305,7 @@
 						will not suffice.</para></note>
 				</description>
 				<configOption name="async_operations" default="1">
-					<synopsis>Number of simultaneous Asynchronous Operations</synopsis>
+					<synopsis>Number of simultaneous Asynchronous Operations, can no longer be set, always set to 1</synopsis>
 				</configOption>
 				<configOption name="bind">
 					<synopsis>IP Address and optional port to bind to for this transport</synopsis>

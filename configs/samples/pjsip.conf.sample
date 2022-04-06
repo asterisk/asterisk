@@ -972,8 +972,6 @@
 ;[transport]
 ;  SYNOPSIS: SIP Transport
 ;
-;async_operations=1     ; Number of simultaneous Asynchronous Operations
-                        ; (default: "1")
 ;bind=  ; IP Address and optional port to bind to for this transport (default:
         ; "")
 ; Note that for the Websocket transport the TLS configuration is configured
