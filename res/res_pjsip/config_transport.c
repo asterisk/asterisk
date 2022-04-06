@@ -659,6 +659,12 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 		return -1;
 	}
 
+	if (transport->async_operations != 1) {
+		ast_log(LOG_WARNING, "The async_operations setting on transport '%s' has been set to '%d'. The setting can no longer be set and is always 1.\n",
+			transport_id, transport->async_operations);
+		transport->async_operations = 1;
+	}
+
 	perm_state = find_internal_state_by_transport(transport);
 	if (perm_state) {
 		ast_sorcery_diff(sorcery, perm_state->transport, transport, &changes);
