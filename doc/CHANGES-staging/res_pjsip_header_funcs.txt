@@ -1,0 +1,5 @@
+Subject: res_pjsip_header_funcs
+
+Add function PJSIP_RESPONSE_HEADERS() to get list of header names from 200 response, in the same way as PJSIP_HEADERS() from the request.
+
+Add function PJSIP_RESPONSE_HEADER() to read header from 200 response, in the same way as PJSIP_HEADER() from the request.
