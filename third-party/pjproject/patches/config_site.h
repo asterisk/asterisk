@@ -77,7 +77,7 @@
 /* Increase limits to allow more formats */
 #define	PJMEDIA_MAX_SDP_FMT   64
 #define	PJMEDIA_MAX_SDP_BANDW   4
-#define	PJMEDIA_MAX_SDP_ATTR   (PJMEDIA_MAX_SDP_FMT*2 + 4)
+#define	PJMEDIA_MAX_SDP_ATTR   (PJMEDIA_MAX_SDP_FMT*3 + 4)
 #define	PJMEDIA_MAX_SDP_MEDIA   16
 
 /*
