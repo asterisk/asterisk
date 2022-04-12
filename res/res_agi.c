@@ -2202,7 +2202,7 @@ static int insert_silence(struct ast_channel *chan, struct ast_frame *f, struct 
 {
     int j=0;
     short buf[f->datalen];
-    struct ast_frame *duped_frame = NULL;
+    struct ast_frame *duped_frame = ast_frdup(f);
     unsigned char g729_filler[] = {
         114, 170, 255, 103, 54, 82, 216, 110, 255, 81,
         114, 170, 255, 103, 54, 82, 216, 110, 255, 81,
@@ -2226,24 +2226,14 @@ static int insert_silence(struct ast_channel *chan, struct ast_frame *f, struct 
     } else if ((ast_format_cmp(f->subclass.format, ast_format_alaw) == AST_FORMAT_CMP_EQUAL) ||
                (ast_format_cmp(f->subclass.format, ast_format_ulaw) == AST_FORMAT_CMP_EQUAL)) {
         memset(buf, 255, sizeof(buf));
+    } else if ((ast_format_cmp(f->subclass.format, ast_format_amr) == AST_FORMAT_CMP_EQUAL) ||
+               (ast_format_cmp(f->subclass.format, ast_format_amrwb) == AST_FORMAT_CMP_EQUAL)) {
+	duped_frame->datalen = 33;
+	memset(buf, 255, duped_frame->datalen);
     } else {
         memset(buf, 255, sizeof(buf));
     }
 
-    /*switch (f->subclass.format.id) {
-        case AST_FORMAT_G729A:
-            memcpy(buf, g729_filler, f->datalen);
-            break;
-        case AST_FORMAT_ULAW:
-        case AST_FORMAT_ALAW:
-            memset(buf, 0, sizeof(buf));
-            break;
-        default:
-            memset(buf, 0, sizeof(buf));
-    }
-    */
-
-    duped_frame = ast_frdup(f);
     duped_frame->data.ptr = &buf;
     duped_frame->delivery.tv_sec -= (int) gap_ms/1000;
     duped_frame->delivery.tv_usec -= (long int) f->delivery.tv_usec%1000000;
@@ -2260,8 +2250,9 @@ static int insert_silence(struct ast_channel *chan, struct ast_frame *f, struct 
         j++;
     }
 
-    if (j > 1)
+    if (j > MIN_FRAME_GAP)
     	ast_log(LOG_WARNING, "STREAM %d (SSRC: %u) -- %d EXTRA FRAME WRITTEN !!!\n", stream_no, themssrc, j);
+
     ast_channel_set_extra_pkt_count(chan, stream_no, j);
     ast_frfree(duped_frame); /* free the duped_frame frame */
     return 0;
@@ -3362,19 +3353,31 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, const
 			case AST_FRAME_VOICE:
 				if (!ast_test_flag(ast_channel_flags(chan), AST_FLAG_DUB_PAUSE_RESUME_RECORDING)) {
 					  if (ast_test_flag(f, AST_FRFLAG_STREAM1)) {
-						 ast_debug(3, "Write Stream1\n");
-						 add_silence(chan, f, fs, 1);
-						 ast_writestream(fs, f);
+						ast_debug(3, "Write Stream1\n");
+
+						if (((ast_format_cmp(f->subclass.format, ast_format_amr) == AST_FORMAT_CMP_EQUAL) ||
+						    (ast_format_cmp(f->subclass.format, ast_format_amrwb) == AST_FORMAT_CMP_EQUAL)) &&
+						    (f->datalen == 7)){
+							add_single_silence_packet(chan, f, fs, 1);
+						} else {
+							add_silence(chan, f, fs, 1);
+							ast_writestream(fs, f);
+						}
 					  } else if (ast_test_flag(f, AST_FRFLAG_STREAM2)) {
-						 ast_debug(3, "Write Stream2\n");
-						 add_silence(chan, f, fs2, 2);
-						 ast_writestream(fs2, f);
+						ast_debug(3, "Write Stream2\n");
+
+						if (((ast_format_cmp(f->subclass.format, ast_format_amr) == AST_FORMAT_CMP_EQUAL) ||
+                                                    (ast_format_cmp(f->subclass.format, ast_format_amrwb) == AST_FORMAT_CMP_EQUAL)) &&
+                                                    (f->datalen == 7)){
+                                                        add_single_silence_packet(chan, f, fs2, 2);
+                                                } else {
+							add_silence(chan, f, fs2, 2);
+							ast_writestream(fs2, f);
+						}
 					  } else {
 						 ast_log(LOG_ERROR,"INVALID RTP STREAM NO: Something not right!!!\n");
 					  }
-
 				} else {
-
 					if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_DUB_RECORD_SILENT_PAUSE)) {
                                         	if (ast_test_flag(f, AST_FRFLAG_STREAM1)) {
                                                 	add_single_silence_packet(chan, f, fs, 1);
@@ -3384,7 +3387,6 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, const
                                                 	ast_log(LOG_ERROR,"INVALID RTP STREAM NO: Something not right!!!\n");
 						}
 					}
-
 				}
 
                                 if (ast_test_flag(f, AST_FRFLAG_STREAM1)) {
