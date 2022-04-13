@@ -2228,8 +2228,7 @@ static int insert_silence(struct ast_channel *chan, struct ast_frame *f, struct 
         memset(buf, 255, sizeof(buf));
     } else if ((ast_format_cmp(f->subclass.format, ast_format_amr) == AST_FORMAT_CMP_EQUAL) ||
                (ast_format_cmp(f->subclass.format, ast_format_amrwb) == AST_FORMAT_CMP_EQUAL)) {
-	duped_frame->datalen = 33;
-	memset(buf, 255, duped_frame->datalen);
+	memset(buf, 255, f->datalen);
     } else {
         memset(buf, 255, sizeof(buf));
     }
