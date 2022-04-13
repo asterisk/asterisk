@@ -2587,9 +2587,11 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		struct ast_channel *tc; /* channel for this destination */
 		char *number;
 		char *tech;
+		int i;
 		size_t tech_len;
 		size_t number_len;
 		struct ast_stream_topology *topology;
+		struct ast_stream *stream;
 
 		cur = ast_strip(cur);
 		if (ast_strlen_zero(cur)) {
@@ -2654,6 +2656,21 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		topology = ast_stream_topology_clone(ast_channel_get_stream_topology(chan));
 
 		ast_channel_unlock(chan);
+
+		for (i = 0; i < ast_stream_topology_get_count(topology); ++i) {
+			stream = ast_stream_topology_get_stream(topology, i);
+			/* For both recvonly and sendonly the stream state reflects our state, that is we
+			 * are receiving only and we are sending only. Since we are requesting a
+			 * channel for the peer, we need to swap this to reflect what we will be doing.
+			 * That is, if we are receiving from Alice then we want to be sending to Bob,
+			 * so swap recvonly to sendonly and vice versa.
+			 */
+			if (ast_stream_get_state(stream) == AST_STREAM_STATE_RECVONLY) {
+				ast_stream_set_state(stream, AST_STREAM_STATE_SENDONLY);
+			} else if (ast_stream_get_state(stream) == AST_STREAM_STATE_SENDONLY) {
+				ast_stream_set_state(stream, AST_STREAM_STATE_RECVONLY);
+			}
+		}
 
 		tc = ast_request_with_stream_topology(tmp->tech, topology, NULL, chan, tmp->number, &cause);
 
