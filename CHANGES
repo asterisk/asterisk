@@ -13,6 +13,18 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 18.11.1 to Asterisk 18.11.2 ----------
+------------------------------------------------------------------------------
+
+func_odbc
+------------------
+ * A SQL_ESC_BACKSLASHES dialplan function has been added which
+   escapes backslashes. Usage of this is dependent on whether the
+   database in use can use backslashes to escape ticks or not. If
+   it can, then usage of this prevents a broken SQL query depending
+   on how the SQL query is constructed.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 18.10.0 to Asterisk 18.11.0 ----------
 ------------------------------------------------------------------------------
 
