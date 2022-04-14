@@ -1,3 +1,64 @@
+2022-04-14 20:57 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 16.25.2 Released.
+
+2022-04-14 15:51 +0000 [cdb5f570c3]  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Update CHANGES and UPGRADE.txt for 16.25.2
+2022-04-14 15:49 +0000 [8774302f38]  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Update CHANGES and UPGRADE.txt for 16.25.2
+2022-02-10 06:02 +0000 [f52228199d]  Joshua C. Colp <jcolp@sangoma.com>
+
+	* func_odbc: Add SQL_ESC_BACKSLASHES dialplan function.
+
+	  Some databases depending on their configuration using backslashes
+	  for escaping. When combined with the use of ' this can result in
+	  a broken func_odbc query.
+
+	  This change adds a SQL_ESC_BACKSLASHES dialplan function which can
+	  be used to escape the backslashes.
+
+	  This is done as a dialplan function instead of being always done
+	  as some databases do not require this, and always doing it would
+	  result in incorrect data being put into the database.
+
+	  ASTERISK-29838
+
+	  Change-Id: I152bf34899b96ddb09cca3e767254d8d78f0c83d
+
+2022-02-28 11:19 +0000 [82f3ec6315]  Ben Ford <bford@digium.com>
+
+	* AST-2022-002 - res_stir_shaken/curl: Add ACL checks for Identity header.
+
+	  Adds a new configuration option, stir_shaken_profile, in pjsip.conf that
+	  can be specified on a per endpoint basis. This option will reference a
+	  stir_shaken_profile that can be configured in stir_shaken.conf. The type
+	  of this option must be 'profile'. The stir_shaken option can be
+	  specified on this object with the same values as before (attest, verify,
+	  on), but it cannot be off since having the profile itself implies wanting
+	  STIR/SHAKEN support. You can also specify an ACL from acl.conf (along
+	  with permit and deny lines in the object itself) that will be used to
+	  limit what interfaces Asterisk will attempt to retrieve information from
+	  when reading the Identity header.
+
+	  ASTERISK-29476
+
+	  Change-Id: I87fa61f78a9ea0cd42530691a30da3c781842406
+
+2022-01-07 08:50 +0000 [bf6234e5df]  Ben Ford <bford@digium.com>
+
+	* AST-2022-001 - res_stir_shaken/curl: Limit file size and check start.
+
+	  Put checks in place to limit how much we will actually download, as well
+	  as a check for the data we receive at the start to ensure it begins with
+	  what we would expect a certificate to begin with.
+
+	  ASTERISK-29872
+
+	  Change-Id: Ifd3c6b8bd52b8b6192a04166ccce4fc8a8000b46
+	  (cherry picked from commit 256e1608464f0c7c0fb3a0d461893c01e2c9404e)
+
 2022-03-29 21:38 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 16.25.1 Released.
