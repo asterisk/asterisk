@@ -970,10 +970,10 @@ int ast_variable_list_replace(struct ast_variable **head, struct ast_variable *r
 /*!
  * \brief Replace a variable in the given list with a new variable
  *
- * \param head A pointer to the current variable list head.  Since the variable to be
- *             replaced, this pointer may be updated with the new head.
- * \param old  A pointer to the existing variable to be replaced.
- * \param new  A pointer to the new variable that will replace the old one.
+ * \param head   A pointer to the current variable list head.  Since the variable to be
+ *               replaced, this pointer may be updated with the new head.
+ * \param oldvar A pointer to the existing variable to be replaced.
+ * \param newvar A pointer to the new variable that will replace the old one.
  *
  * \retval 0 if a variable was replaced in the list
  * \retval -1 if no replacement occured
@@ -981,8 +981,9 @@ int ast_variable_list_replace(struct ast_variable **head, struct ast_variable *r
  * \note The search for the old variable is done simply on the pointer.
  * \note If a variable is replaced, its memory is freed.
  */
-int ast_variable_list_replace_variable(struct ast_variable **head, struct ast_variable *old,
-	struct ast_variable *new);
+int ast_variable_list_replace_variable(struct ast_variable **head,
+	struct ast_variable *oldvar,
+	struct ast_variable *newvar);
 
 /*!
  * \brief Join an ast_variable list with specified separators and quoted values
