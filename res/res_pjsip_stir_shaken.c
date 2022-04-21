@@ -225,8 +225,13 @@ static int stir_shaken_incoming_request(struct ast_sip_session *session, pjsip_r
 	}
 
 	profile = ast_stir_shaken_get_profile(session->endpoint->stir_shaken_profile);
+	/* Profile should be checked first as it takes priority over anything else.
+	 * If there is a profile and it doesn't have verification enabled, do nothing.
+	 * If there is no profile and the stir_shaken option is either not set or does
+	 * not support verification, do nothing.
+	 */
 	if ((profile && !ast_stir_shaken_profile_supports_verification(profile))
-		&& ((session->endpoint->stir_shaken & AST_SIP_STIR_SHAKEN_VERIFY) == 0)) {
+		|| (!profile && (session->endpoint->stir_shaken & AST_SIP_STIR_SHAKEN_VERIFY) == 0)) {
 		return 0;
 	}
 
@@ -478,8 +483,13 @@ static void stir_shaken_outgoing_request(struct ast_sip_session *session, pjsip_
 	RAII_VAR(struct stir_shaken_profile *, profile, NULL, ao2_cleanup);
 
 	profile = ast_stir_shaken_get_profile(session->endpoint->stir_shaken_profile);
+	/* Profile should be checked first as it takes priority over anything else.
+	 * If there is a profile and it doesn't have attestation enabled, do nothing.
+	 * If there is no profile and the stir_shaken option is either not set or does
+	 * not support attestation, do nothing.
+	 */
 	if ((profile && !ast_stir_shaken_profile_supports_attestation(profile))
-		&& ((session->endpoint->stir_shaken & AST_SIP_STIR_SHAKEN_ATTEST) == 0)) {
+		|| (!profile && (session->endpoint->stir_shaken & AST_SIP_STIR_SHAKEN_ATTEST) == 0)) {
 		return;
 	}
 
