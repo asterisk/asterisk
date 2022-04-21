@@ -128,6 +128,7 @@ static int simple_bridge_join(struct ast_bridge *bridge, struct ast_bridge_chann
 	struct ast_stream_topology *new_top;
 	struct ast_channel *c0 = AST_LIST_FIRST(&bridge->channels)->chan;
 	struct ast_channel *c1 = AST_LIST_LAST(&bridge->channels)->chan;
+	int unhold_c0, unhold_c1;
 
 	/*
 	 * If this is the first channel we can't make it compatible...
@@ -152,8 +153,28 @@ static int simple_bridge_join(struct ast_bridge *bridge, struct ast_bridge_chann
 		SWAP(c0, c1);
 	}
 	new_top = simple_bridge_request_stream_topology_update(existing_top, req_top);
+
+	/* The ast_channel_hold_state() and ast_channel_name() accessors need to be
+	 * called with the associated channel lock held.
+	 */
+	if ((unhold_c1 = ast_channel_hold_state(c1) == AST_CONTROL_HOLD)) {
+		ast_debug(1, "Channel %s simulating UNHOLD for bridge simple join.\n", ast_channel_name(c1));
+	}
+
+	if ((unhold_c0 = ast_channel_hold_state(c0) == AST_CONTROL_HOLD)) {
+		ast_debug(1, "Channel %s simulating UNHOLD for bridge simple join.\n", ast_channel_name(c0));
+	}
+
 	ast_channel_unlock(c0);
 	ast_channel_unlock(c1);
+
+	if (unhold_c1) {
+		ast_indicate(c1, AST_CONTROL_UNHOLD);
+	}
+
+	if (unhold_c0) {
+		ast_indicate(c0, AST_CONTROL_UNHOLD);
+	}
 
 	if (!new_top) {
 		/* Failure.  We'll just have to live with the current topology. */
