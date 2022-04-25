@@ -1273,7 +1273,7 @@ static const char *chan_pjsip_get_uniqueid(struct ast_channel *ast)
 	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(ast);
 	char *uniqueid = ast_threadstorage_get(&uniqueid_threadbuf, UNIQUEID_BUFSIZE);
 
-	if (!uniqueid) {
+	if (!channel || !uniqueid) {
 		return "";
 	}
 

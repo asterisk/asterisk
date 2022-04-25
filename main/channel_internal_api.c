@@ -587,6 +587,9 @@ void *ast_channel_tech_pvt(const struct ast_channel *chan)
 void ast_channel_tech_pvt_set(struct ast_channel *chan, void *value)
 {
 	chan->tech_pvt = value;
+	if (value != NULL) {
+		ast_channel_snapshot_invalidate_segment(chan, AST_CHANNEL_SNAPSHOT_INVALIDATE_BASE);
+	}
 }
 void *ast_channel_timingdata(const struct ast_channel *chan)
 {
