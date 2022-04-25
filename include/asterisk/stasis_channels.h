@@ -112,6 +112,7 @@ struct ast_channel_snapshot_base {
 	);
 	struct timeval creationtime; /*!< The time of channel creation */
 	int tech_properties;         /*!< Properties of the channel's technology */
+	AST_STRING_FIELD_EXTENDED(protocol_id); /*!< Channel driver protocol id (i.e. Call-ID for chan_sip/chan_pjsip) */
 };
 
 /*!

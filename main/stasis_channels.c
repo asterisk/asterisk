@@ -273,7 +273,7 @@ static struct ast_channel_snapshot_base *channel_snapshot_base_create(struct ast
 		return NULL;
 	}
 
-	if (ast_string_field_init(snapshot, 256)) {
+	if (ast_string_field_init(snapshot, 256) || ast_string_field_init_extended(snapshot, protocol_id)) {
 		ao2_ref(snapshot, -1);
 		return NULL;
 	}
@@ -287,6 +287,10 @@ static struct ast_channel_snapshot_base *channel_snapshot_base_create(struct ast
 
 	snapshot->creationtime = ast_channel_creationtime(chan);
 	snapshot->tech_properties = ast_channel_tech(chan)->properties;
+
+	if (ast_channel_tech(chan)->get_pvt_uniqueid) {
+		ast_string_field_set(snapshot, protocol_id, ast_channel_tech(chan)->get_pvt_uniqueid(chan));
+	}
 
 	return snapshot;
 }
@@ -1266,14 +1270,15 @@ struct ast_json *ast_channel_snapshot_to_json(
 	}
 
 	json_chan = ast_json_pack(
-		/* Broken up into groups of three for readability */
-		"{ s: s, s: s, s: s,"
+		/* Broken up into groups for readability */
+		"{ s: s, s: s, s: s, s: s,"
 		"  s: o, s: o, s: s,"
 		"  s: o, s: o, s: s }",
 		/* First line */
 		"id", snapshot->base->uniqueid,
 		"name", snapshot->base->name,
 		"state", ast_state2str(snapshot->state),
+		"protocol_id", snapshot->base->protocol_id,
 		/* Second line */
 		"caller", ast_json_name_number(
 			snapshot->caller->name, snapshot->caller->number),
