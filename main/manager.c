@@ -6242,7 +6242,7 @@ static int process_events(struct mansession *s)
 			    (s->session->readperm & eqe->category) == eqe->category &&
 			    (s->session->send_events & eqe->category) == eqe->category) {
 					if (match_filter(s, eqe->eventdata)) {
-						if (send_string(s, eqe->eventdata) < 0)
+						if (send_string(s, eqe->eventdata) < 0 || s->write_error)
 							ret = -1;	/* don't send more */
 					}
 			}
