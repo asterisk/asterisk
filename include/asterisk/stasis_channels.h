@@ -73,6 +73,8 @@ struct ast_channel_snapshot {
 	struct varshead *manager_vars;          /*!< Variables to be appended to manager events */
 	int tech_properties;                    /*!< Properties of the channel's technology */
 	struct varshead *ari_vars;              /*!< Variables to be appended to ARI events */
+
+	AST_STRING_FIELD_EXTENDED(protocol_id); /*!< Channel driver protocol id (i.e. Call-ID for chan_sip/chan_pjsip) */
 };
 
 /*!

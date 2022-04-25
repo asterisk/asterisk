@@ -273,7 +273,7 @@ AST_TEST_DEFINE(channel_snapshot_json)
 	ast_test_validate(test, NULL != snapshot);
 
 	actual = ast_channel_snapshot_to_json(snapshot, NULL);
-	expected = ast_json_pack("{ s: s, s: s, s: s, s: s,"
+	expected = ast_json_pack("{ s: s, s: s, s: s, s: s, s: s,"
 				 "  s: { s: s, s: s, s: i, s: s, s: s },"
 				 "  s: { s: s, s: s },"
 				 "  s: { s: s, s: s },"
@@ -284,6 +284,7 @@ AST_TEST_DEFINE(channel_snapshot_json)
 				 "state", "Down",
 				 "accountcode", "acctcode",
 				 "id", ast_channel_uniqueid(chan),
+				 "protocol_id", "",
 				 "dialplan",
 				 "context", "context",
 				 "exten", "exten",

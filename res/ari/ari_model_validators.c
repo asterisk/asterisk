@@ -1043,6 +1043,7 @@ int ast_ari_validate_channel(struct ast_json *json)
 	int has_id = 0;
 	int has_language = 0;
 	int has_name = 0;
+	int has_protocol_id = 0;
 	int has_state = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
@@ -1135,6 +1136,16 @@ int ast_ari_validate_channel(struct ast_json *json)
 				res = 0;
 			}
 		} else
+		if (strcmp("protocol_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_protocol_id = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI Channel field protocol_id failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("state", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_state = 1;
@@ -1190,6 +1201,11 @@ int ast_ari_validate_channel(struct ast_json *json)
 
 	if (!has_name) {
 		ast_log(LOG_ERROR, "ARI Channel missing required field name\n");
+		res = 0;
+	}
+
+	if (!has_protocol_id) {
+		ast_log(LOG_ERROR, "ARI Channel missing required field protocol_id\n");
 		res = 0;
 	}
 
