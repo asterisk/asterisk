@@ -6027,7 +6027,9 @@ static int dahdi_hangup(struct ast_channel *ast)
 
 	ast_mutex_lock(&p->lock);
 	p->exten[0] = '\0';
-	if (dahdi_analog_lib_handles(p->sig, p->radio, p->oprmode)) {
+	/* Always use sig_analog hangup handling for operator mode */
+	if (dahdi_analog_lib_handles(p->sig, p->radio, 0)) {
+		p->oprmode = 0;
 		dahdi_confmute(p, 0);
 		restore_gains(p);
 		p->ignoredtmf = 0;
@@ -7643,7 +7645,11 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 		}
 		if (p->oprmode < 0)
 		{
-			if (p->oprmode != -1) break;
+			if (p->oprmode != -1) { /* Operator flash recall */
+				ast_verb(4, "Operator mode enabled on channel %d, holding line for channel %d\n", p->channel, p->oprpeer->channel);
+				break;
+			}
+			/* Otherwise, immediate recall */
 			if ((p->sig == SIG_FXOLS) || (p->sig == SIG_FXOKS) || (p->sig == SIG_FXOGS))
 			{
 				/* Make sure it starts ringing */
@@ -7651,6 +7657,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 				dahdi_set_hook(p->subs[SUB_REAL].dfd, DAHDI_RING);
 				save_conference(p->oprpeer);
 				tone_zone_play_tone(p->oprpeer->subs[SUB_REAL].dfd, DAHDI_TONE_RINGTONE);
+				ast_verb(4, "Operator recall, channel %d ringing back channel %d\n", p->oprpeer->channel, p->channel);
 			}
 			break;
 		}
@@ -7763,6 +7770,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 				dahdi_set_hook(p->subs[SUB_REAL].dfd, DAHDI_RINGOFF);
 				tone_zone_play_tone(p->oprpeer->subs[SUB_REAL].dfd, -1);
 				restore_conference(p->oprpeer);
+				ast_debug(1, "Operator recall by channel %d for channel %d complete\n", p->oprpeer->channel, p->channel);
 			}
 			break;
 		}
@@ -7976,6 +7984,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 					dahdi_set_hook(p->oprpeer->subs[SUB_REAL].dfd, DAHDI_RING);
 					save_conference(p);
 					tone_zone_play_tone(p->subs[SUB_REAL].dfd, DAHDI_TONE_RINGTONE);
+					ast_verb(4, "Operator flash recall, channel %d ringing back channel %d\n", p->oprpeer->channel, p->channel);
 				}
 			}
 			break;
