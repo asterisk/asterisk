@@ -1,3 +1,21 @@
+2022-04-26 16:28 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 16.25.3 Released.
+
+2022-04-21 10:26 +0000 [94e895d430]  Ben Ford <bford@digium.com>
+
+	* res_pjsip_stir_shaken.c: Fix enabled when not configured.
+
+	  There was an issue with the conditional where STIR/SHAKEN would be
+	  enabled even when not configured. It has been changed to ensure that if
+	  a profile does not exist and stir_shaken is not set in pjsip.conf, then
+	  the conditional will return from the function without performing
+	  STIR/SHAKEN operations.
+
+	  ASTERISK-30024
+
+	  Change-Id: I41286a3d35b033ccbfbe4129427a62cb793a86e6
+
 2022-04-14 21:50 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 16.25.2 Released.
