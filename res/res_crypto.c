@@ -270,7 +270,7 @@ static struct ast_key *try_load_key(const char *dir, const char *fname, int ifd,
 			ast_log(LOG_NOTICE, "Key '%s' is not expected size.\n", key->name);
 		}
 	} else if (key->infd != -2) {
-		ast_log(LOG_WARNING, "Key load %s '%s' failed\n",key->ktype == AST_KEY_PUBLIC ? "PUBLIC" : "PRIVATE", key->name);
+		ast_log(LOG_WARNING, "Key load %s '%s' failed\n", key->ktype == AST_KEY_PUBLIC ? "PUBLIC" : "PRIVATE", key->name);
 		if (ofd > -1) {
 			ERR_print_errors_fp(stderr);
 		} else {
@@ -507,6 +507,13 @@ static void crypto_load(int ifd, int ofd)
 	/* Load new keys */
 	if ((dir = opendir(ast_config_AST_KEY_DIR))) {
 		while ((ent = readdir(dir))) {
+			if (!strcmp(ent->d_name, ".") || !strcmp(ent->d_name, "..")) {
+				continue;
+			}
+			if (ent->d_type != DT_REG) {
+				ast_log(LOG_WARNING, "Non-regular file '%s' in keys directory\n", ent->d_name);
+				continue;
+			}
 			try_load_key(ast_config_AST_KEY_DIR, ent->d_name, ifd, ofd, &note);
 		}
 		closedir(dir);
