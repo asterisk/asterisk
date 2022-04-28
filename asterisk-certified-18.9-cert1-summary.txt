@@ -1,8 +1,8 @@
                                 Release Summary
 
-                       asterisk-certified/18.9-cert1-rc1
+                         asterisk-certified/18.9-cert1
 
-                                Date: 2022-01-21
+                                Date: 2022-04-28
 
                            <asteriskteam@digium.com>
 
@@ -33,7 +33,7 @@
    to this release series.
 
    The data in this summary reflects changes that have been made since the
-   previous release, asterisk-certified/16.8-cert12.
+   previous release, asterisk-certified/16.8-cert14.
 
      ----------------------------------------------------------------------
 
@@ -53,20 +53,20 @@
    Coders                     Testers               Reporters                 
    188 Sean Bright            3 Emmanuel BUU        72 Alexander Traud        
    160 George Joseph          2 Mark Petersen       61 Joshua C. Colp         
-   89 Joshua C. Colp          1 Cao Minh Hiep       49 N A                    
+   90 Joshua C. Colp          1 Cao Minh Hiep       49 N A                    
    88 Alexander Traud         1 tests/test_utils.c. 31 sungtae kim            
-   72 Corey Farrell           1 Abhay Gupta         30 George Joseph          
-   71 Kevin Harwell           1 Joseph Nadiv        24 Josh Soref             
-   53 Joshua Colp                                   20 Kevin Harwell          
+   74 Kevin Harwell           1 Abhay Gupta         30 George Joseph          
+   72 Corey Farrell           1 Joseph Nadiv        24 Josh Soref             
+   53 Joshua Colp                                   23 Kevin Harwell          
    51 Richard Mudgett                               18 Torrey Searle          
    50 Naveen Albert                                 18 Ross Beer              
-   40 Ben Ford                                      14 Alexei Gradinari       
+   43 Ben Ford                                      14 Alexei Gradinari       
    32 Jaco Kroon                                    10 Sean Bright            
    30 Alexei Gradinari                              10 Walter Doekes          
    24 Josh Soref                                    10 Jean Aunis - Prescom   
    21 sungtae kim                                   9 nappsoft                
    19 Torrey Searle                                 8 Guido Falsi             
-   15 Asterisk Development                          8 laszlovl                
+   16 Asterisk Development                          8 laszlovl                
    Team                                             7 Corey Farrell           
    15 Walter Doekes                                 7 Boris P. Korzun         
    11 Sungtae Kim                                   7 Jaco Kroon              
@@ -77,13 +77,13 @@
    9 Guido Falsi                                    6 Sébastien Duthil        
    8 Jean Aunis                                     6 Matt Jordan             
    8 Pirmin Walthert                                6 Dan Cropp               
-   8 laszlovl                                       5 Michael Maier           
-   7 Matt Jordan                                    5 Sebastian Damm          
-   7 Frederic LE FOLL                               5 Gregory Massel          
-   6 Boris P. Korzun                                5 Pascal Cadotte Michaud  
-   5 Salah Ahmed                                    5 cmaj                    
-   5 Pascal Cadotte Michaud                         4 Sergej Kasumovic        
-   5 Tzafrir Cohen                                  4 Benjamin Keith Ford     
+   8 laszlovl                                       5 Benjamin Keith Ford     
+   7 Matt Jordan                                    5 Michael Maier           
+   7 Frederic LE FOLL                               5 Sebastian Damm          
+   6 Boris P. Korzun                                5 Gregory Massel          
+   5 Salah Ahmed                                    5 Pascal Cadotte Michaud  
+   5 Pascal Cadotte Michaud                         5 cmaj                    
+   5 Tzafrir Cohen                                  4 Sergej Kasumovic        
    5 Ivan Poddubnyi                                 4 Emmanuel BUU            
    5 Dan Cropp                                      4 Jonathan Harris         
    5 Igor Goncharovsky                              4 Jeremy Lainé            
@@ -137,54 +137,56 @@
    1 Michael Walton (license                        2 Sebastian Kemper        
    6502)                                            2 Jared Smith             
    1 Jan Hoffmann (license                          2 Brian J. Murrell        
-   6986)                                            2 Michael Neuhauser       
-   1 Rijnhard Hessel                                1 Ramarajan               
-   1 Stanislav                                      1 Juan Carlos Castro y    
-   1 Peter Turczak                                  Castro                    
-   1 David M. Lee                                   1 Adam Secombe            
-   1 Daniel Heckl                                   1 Lucas Tardioli Silveira 
-   1 Francesco Castellano                           1 Jean-Denis Girard       
-   1 Morten Tryfoss                                 1 Adam Secombe            
-   1 Leonid Fainshtein                              1 Mark                    
-   1 Carlos Oliva                                   1 Samuel Galarneau        
-   1 Paulo Vicentini                                1 Thomas Johnson          
-   1 Cao Minh Hiep                                  1 Seán C. McCord          
-   1 Evgenios_Greek                                 1 Speed Dial Dave         
-   1 Alexander Anikin                               1 David Kuehling          
-   1 Xiemin Chen                                    1 Alex                    
-   1 Thomas Arimont (license                        1 Paul Brooks             
-   5525)                                            1 Janu                    
-   1 Jasper van der Neut                            1 Nathan Bruning          
-   1 Martin Tomec                                   1 César Benjamín García   
-   1 Diederik de Groot                              Martínez                  
-   1 Kevin Reeves                                   1 Peter Turczak           
-   1 Stas Kobzar                                    1 Jeremiah Gadd           
-   1 Dennis Buteyn                                  1 Péter Juhász            
-   1 Antoni Goldstein                               1 Kevin Flyn              
-   1 Lucas Mendes                                   1 Kirill Katsnelson       
-   1 Sylvain Afchain                                1 Tomas Maldonado         
-   1 Dovid Bender                                   1 Chris                   
-   1 Evandro César Arruda                           1 Luit van Drongelen      
-   1 Gerald Schnabel                                1 Valentin Safonov        
-   1 Sebastian Damm                                 1 Dmitry Wagin            
-   1 Università di Bologna -                        1 bbawkon                 
-   CESIA VoIP                                       1 Mitch Claborn           
-   1 Mohit Dhiman                                   1 Bob Atkins              
-   1 Nico Kooijman                                  1 Lei Fu                  
-   1 Michael Goryainov                              1 Paul Brooks             
-   1 Roger James                                    1 Gil Richard             
-   1 Valentin Vidic                                 1 Dmitry Svyatogorov      
-   1 Moises Silva                                   1 Vieri                   
-   1 Chris Savinovich                               1 Christoph               
-   1 Alexander Greiner-Baer                         Moench-Tegeder            
-   1 Peter Sokolov (License                         1 Alex Hermann            
-   #7070)                                           1 Cedric BASSAGET         
-   1 Moritz Fain                                    1 Schneur Rosenberg       
-   1 Seán C McCord                                  1 David M. Lee            
-   1 David Hajek                                    1 Richard Kenner          
-   1 snuffy                                         1 Dan Jenkins             
+   6986)                                            2 Leandro Dardini         
+   1 Rijnhard Hessel                                2 Michael Neuhauser       
+   1 Stanislav                                      1 Ramarajan               
+   1 Peter Turczak                                  1 Juan Carlos Castro y    
+   1 David M. Lee                                   Castro                    
+   1 Daniel Heckl                                   1 Claude Diderich         
+   1 Francesco Castellano                           1 Adam Secombe            
+   1 Morten Tryfoss                                 1 Lucas Tardioli Silveira 
+   1 Leonid Fainshtein                              1 Jean-Denis Girard       
+   1 Carlos Oliva                                   1 Adam Secombe            
+   1 Paulo Vicentini                                1 Mark                    
+   1 Cao Minh Hiep                                  1 Samuel Galarneau        
+   1 Evgenios_Greek                                 1 Thomas Johnson          
+   1 Alexander Anikin                               1 Seán C. McCord          
+   1 Xiemin Chen                                    1 Ronald Raikes           
+   1 Thomas Arimont (license                        1 Speed Dial Dave         
+   5525)                                            1 David Kuehling          
+   1 Jasper van der Neut                            1 Alex                    
+   1 Martin Tomec                                   1 Paul Brooks             
+   1 Diederik de Groot                              1 Janu                    
+   1 Kevin Reeves                                   1 Nathan Bruning          
+   1 Stas Kobzar                                    1 César Benjamín García   
+   1 Dennis Buteyn                                  Martínez                  
+   1 Antoni Goldstein                               1 Peter Turczak           
+   1 Lucas Mendes                                   1 Jeremiah Gadd           
+   1 Sylvain Afchain                                1 Péter Juhász            
+   1 Dovid Bender                                   1 Kevin Flyn              
+   1 Evandro César Arruda                           1 Kirill Katsnelson       
+   1 Gerald Schnabel                                1 Tomas Maldonado         
+   1 Sebastian Damm                                 1 Chris                   
+   1 Università di Bologna -                        1 Luit van Drongelen      
+   CESIA VoIP                                       1 Valentin Safonov        
+   1 Mohit Dhiman                                   1 Dmitry Wagin            
+   1 Nico Kooijman                                  1 bbawkon                 
+   1 Michael Goryainov                              1 Mitch Claborn           
+   1 Roger James                                    1 Bob Atkins              
+   1 Valentin Vidic                                 1 Lei Fu                  
+   1 Moises Silva                                   1 Paul Brooks             
+   1 Chris Savinovich                               1 Gil Richard             
+   1 Alexander Greiner-Baer                         1 Dmitry Svyatogorov      
+   1 Peter Sokolov (License                         1 Vieri                   
+   #7070)                                           1 Christoph               
+   1 Moritz Fain                                    Moench-Tegeder            
+   1 Seán C McCord                                  1 Alex Hermann            
+   1 David Hajek                                    1 Cedric BASSAGET         
+   1 snuffy                                         1 Schneur Rosenberg       
+                                                    1 David M. Lee            
+                                                    1 Richard Kenner          
                                                     1 Dalius Mockevicius      
-                                                    1 Krzysztof Trempala      
+                                                    1 Dan Jenkins             
                                                     1 Università di Bologna - 
                                                     CESIA VoIP                
                                                     1 David Wilcox            
@@ -246,7 +248,7 @@
                                                     1 Jim Van Meggelen        
                                                     1 Daniel                  
                                                     1 Jared Hull              
-                                                    1 Ronald Raikes           
+                                                    1 Krzysztof Trempala      
                                                     1 Cao Minh Hiep           
                                                     1 Robert Sutton           
                                                     1 Jonathan Hunter         
@@ -392,6 +394,7 @@
                                                     1 Edvin Vidmar            
                                                     1 rleasure                
                                                     1 Will                    
+                                                    1 Clint Ruoho             
                                                     1 Jonas Swiatek           
                                                     1 Ray                     
                                                     1 Roman Pertsev           
@@ -426,7 +429,6 @@
                                                     1 Marian Piater           
                                                     1 Jacek Konieczny         
                                                     1 David Wilcox            
-                                                    1 Leandro Dardini         
                                                     1 alex                    
                                                     1 Sandro Gauci            
                                                     1 Dovid Bender            
@@ -673,6 +675,13 @@
      * [7e3a6e158f] George Joseph -- manager.c: Prevent the Originate action
        from running the Originate app
 
+    Category: Functions/func_odbc
+
+   ASTERISK-29838: ${SQL_ESC()} not correctly escaping a terminating \
+   Reported by: Leandro Dardini
+     * [77adb9998f] Joshua C. Colp -- func_odbc: Add SQL_ESC_BACKSLASHES
+       dialplan function.
+
     Category: Resources/res_http_websocket
 
    ASTERISK-28013: res_http_websocket: Crash when reading HTTP Upgrade
@@ -724,8 +733,27 @@
    Reported by: Alexander Traud
      * [703158b903] Alexander Traud -- rtp: Enable srtp replay protection
 
+    Category: Resources/res_stir_shaken
+
+   ASTERISK-29476: res_stir_shaken: Blind SSRF vulnerabilities
+   Reported by: Clint Ruoho
+     * [46f5a9c1ae] Ben Ford -- AST-2022-002 - res_stir_shaken/curl: Add ACL
+       checks for Identity header.
+   ASTERISK-29872: res_stir_shaken: Resource exhaustion with large files
+   Reported by: Benjamin Keith Ford
+     * [4e2d36ebdb] Ben Ford -- AST-2022-001 - res_stir_shaken/curl: Limit
+       file size and check start.
+
     Category: pjproject/pjsip
 
+   ASTERISK-29945: pjproject: Security fixes for things
+   Reported by: Kevin Harwell
+     * [b369ac56e3] Kevin Harwell -- AST-2022-006: pjproject - unconstrained
+       malformed multipart SIP message
+     * [4db5e3a498] Kevin Harwell -- AST-2022-005: pjproject - undefined
+       behavior after freeing a dialog set
+     * [c22deb51c3] Kevin Harwell -- AST-2022-004: pjproject - possible
+       integer underflow on STUN message
    ASTERISK-29227: res_pjsip_diversion: sending multiple 181 responses causes
    memory corruption and crash
    Reported by: Ivan Poddubny
@@ -4325,6 +4353,11 @@
 
     Category: Resources/res_stir_shaken
 
+   ASTERISK-30024: Failed to sign STIR/SHAKEN payload with functionality not
+   enabled
+   Reported by: Claude Diderich
+     * [f3b0b4f099] Ben Ford -- res_pjsip_stir_shaken.c: Fix enabled when not
+       configured.
    ASTERISK-29776: stir/shaken: Requires GNU designator
    Reported by: Alexander Traud
      * [b290bb1251] Alexander Traud -- stir/shaken: Avoid a compiler
@@ -5399,6 +5432,9 @@
 
    +------------------------------------------------------------------------+
    | Revision   | Author           | Summary                                |
+   |------------+------------------+----------------------------------------|
+   | b211cb932a | Asterisk         | Update for certified/18.9-cert1-rc1    |
+   |            | Development Team |                                        |
    |------------+------------------+----------------------------------------|
    | fefe1cac3a | Mike Bradeen     | Asterisk Certified 18.9 Preparation    |
    |------------+------------------+----------------------------------------|
@@ -6867,13 +6903,13 @@
    This is a summary of the changes to the source code that went into this
    release that was generated using the diffstat utility.
 
- asterisk-certified-16.8-cert12-summary.html                                                     |   22
- asterisk-certified-16.8-cert12-summary.txt                                                      |   92
+ asterisk-certified-16.8-cert14-summary.html                                                     |   26
+ asterisk-certified-16.8-cert14-summary.txt                                                      |  110
  b/.gitreview                                                                                    |    2
  b/.version                                                                                      |    2
- b/CHANGES                                                                                       | 1032
+ b/CHANGES                                                                                       | 1034
  b/CREDITS                                                                                       |    2
- b/ChangeLog                                                                                     |143513 +++-------
+ b/ChangeLog                                                                                     |19082 +++++++++-
  b/Makefile                                                                                      |   27
  b/UPGRADE.txt                                                                                   |  288
  b/addons/app_mysql.c                                                                            |    2
@@ -6974,8 +7010,8 @@
  b/apps/confbridge/conf_state.c                                                                  |    2
  b/apps/confbridge/confbridge_manager.c                                                          |    4
  b/apps/confbridge/include/confbridge.h                                                          |   14
- b/asterisk-18.9.0-summary.html                                                                  |  732
- b/asterisk-18.9.0-summary.txt                                                                   | 1219
+ b/asterisk-certified-18.9-cert1-rc1-summary.html                                                | 3185 +
+ b/asterisk-certified-18.9-cert1-rc1-summary.txt                                                 | 7670 ++++
  b/bridges/bridge_holding.c                                                                      |    4
  b/bridges/bridge_native_rtp.c                                                                   |    2
  b/bridges/bridge_simple.c                                                                       |    2
@@ -7100,7 +7136,7 @@
  b/configs/samples/musiconhold.conf.sample                                                       |    4
  b/configs/samples/ooh323.conf.sample                                                            |    2
  b/configs/samples/pjproject.conf.sample                                                         |    5
- b/configs/samples/pjsip.conf.sample                                                             |  178
+ b/configs/samples/pjsip.conf.sample                                                             |  182
  b/configs/samples/prometheus.conf.sample                                                        |   58
  b/configs/samples/queues.conf.sample                                                            |   27
  b/configs/samples/res_curl.conf.sample                                                          |    1
@@ -7108,7 +7144,7 @@
  b/configs/samples/sip.conf.sample                                                               |    4
  b/configs/samples/stasis.conf.sample                                                            |    3
  b/configs/samples/statsd.conf.sample                                                            |    3
- b/configs/samples/stir_shaken.conf.sample                                                       |   85
+ b/configs/samples/stir_shaken.conf.sample                                                       |  103
  b/configure                                                                                     |  801
  b/configure.ac                                                                                  |  211
  b/contrib/ast-db-manage/README.md                                                               |    2
@@ -7146,6 +7182,7 @@
  b/contrib/scripts/voicemailpwcheck.py                                                           |    2
  b/contrib/systemd/asterisk.service                                                              |    7
  b/contrib/utils/zones2indications.c                                                             |    4
+ b/doc/CHANGES-staging/func_odbc_esc_backslashes.txt                                             |    7
  b/doc/appdocsxml.dtd                                                                            |   26
  b/doc/asterisk-ng-doxygen.in                                                                    |    4
  b/formats/format_ogg_speex.c                                                                    |   13
@@ -7244,14 +7281,14 @@
  b/include/asterisk/res_audiosocket.h                                                            |   87
  b/include/asterisk/res_mwi_external.h                                                           |    2
  b/include/asterisk/res_odbc.h                                                                   |   25
- b/include/asterisk/res_pjsip.h                                                                  |  411
+ b/include/asterisk/res_pjsip.h                                                                  |  413
  b/include/asterisk/res_pjsip_cli.h                                                              |    6
  b/include/asterisk/res_pjsip_presence_xml.h                                                     |    2
  b/include/asterisk/res_pjsip_pubsub.h                                                           |    7
  b/include/asterisk/res_pjsip_session.h                                                          |   27
  b/include/asterisk/res_pjsip_session_caps.h                                                     |   82
  b/include/asterisk/res_prometheus.h                                                             |  515
- b/include/asterisk/res_stir_shaken.h                                                            |  139
+ b/include/asterisk/res_stir_shaken.h                                                            |  193
  b/include/asterisk/rtp_engine.h                                                                 |   83
  b/include/asterisk/say.h                                                                        |  106
  b/include/asterisk/sched.h                                                                      |    5
@@ -7365,7 +7402,7 @@
  b/main/named_acl.c                                                                              |    9
  b/main/optional_api.c                                                                           |   12
  b/main/options.c                                                                                |   14
- b/main/pbx.c                                                                                    |   48
+ b/main/pbx.c                                                                                    |   39
  b/main/pbx_builtins.c                                                                           |  192
  b/main/pbx_functions.c                                                                          |    6
  b/main/pbx_include.c                                                                            |    2
@@ -7499,7 +7536,7 @@
  b/res/res_pjsip/config_transport.c                                                              |  283
  b/res/res_pjsip/include/res_pjsip_private.h                                                     |    6
  b/res/res_pjsip/location.c                                                                      |    1
- b/res/res_pjsip/pjsip_configuration.c                                                           |  273
+ b/res/res_pjsip/pjsip_configuration.c                                                           |  274
  b/res/res_pjsip/pjsip_distributor.c                                                             |    2
  b/res/res_pjsip/pjsip_message_filter.c                                                          |   11
  b/res/res_pjsip/pjsip_options.c                                                                 |    9
@@ -7539,7 +7576,7 @@
  b/res/res_pjsip_session.c                                                                       |  572
  b/res/res_pjsip_session.exports.in                                                              |    1
  b/res/res_pjsip_session/pjsip_session_caps.c                                                    |  164
- b/res/res_pjsip_stir_shaken.c                                                                   |  519
+ b/res/res_pjsip_stir_shaken.c                                                                   |  537
  b/res/res_pjsip_t38.c                                                                           |   43
  b/res/res_pjsip_transport_websocket.c                                                           |    2
  b/res/res_pktccops.c                                                                            |   38
@@ -7557,16 +7594,19 @@
  b/res/res_stasis_playback.c                                                                     |   43
  b/res/res_stasis_snoop.c                                                                        |   14
  b/res/res_statsd.c                                                                              |   18
- b/res/res_stir_shaken.c                                                                         | 1736
+ b/res/res_stir_shaken.c                                                                         | 1804
  b/res/res_stir_shaken.exports.in                                                                |    6
  b/res/res_stir_shaken/certificate.c                                                             |  380
  b/res/res_stir_shaken/certificate.h                                                             |  109
- b/res/res_stir_shaken/curl.c                                                                    |  274
- b/res/res_stir_shaken/curl.h                                                                    |   75
+ b/res/res_stir_shaken/curl.c                                                                    |  353
+ b/res/res_stir_shaken/curl.h                                                                    |   78
  b/res/res_stir_shaken/general.c                                                                 |  286
  b/res/res_stir_shaken/general.h                                                                 |  111
- b/res/res_stir_shaken/stir_shaken.c                                                             |  200
- b/res/res_stir_shaken/stir_shaken.h                                                             |   67
+ b/res/res_stir_shaken/profile.c                                                                 |  241
+ b/res/res_stir_shaken/profile.h                                                                 |   39
+ b/res/res_stir_shaken/profile_private.h                                                         |   40
+ b/res/res_stir_shaken/stir_shaken.c                                                             |  193
+ b/res/res_stir_shaken/stir_shaken.h                                                             |   68
  b/res/res_stir_shaken/store.c                                                                   |  202
  b/res/res_stir_shaken/store.h                                                                   |   37
  b/res/res_timing_kqueue.c                                                                       |    2
@@ -7659,7 +7699,6 @@
  b/utils/extconf.c                                                                               |   12
  b/utils/frame.c                                                                                 |    4
  b/utils/frame.h                                                                                 |    4
- b/utils/muted.c                                                                                 |    6
  third-party/pjproject/patches/0010-ssl_sock_ossl-sip_transport_tls-Add-peer-to-error-me.patch   |  157
  third-party/pjproject/patches/0020-patch_cnonce_only_digits_option.patch                        |   53
  third-party/pjproject/patches/0030-ssl-regression-fix.patch                                     |  105
@@ -7667,4 +7706,4 @@
  third-party/pjproject/patches/0040-pjsip-timer-refactor.patch                                   | 1148
  third-party/pjproject/patches/0041-pjlib_cancel_timer_0.patch                                   |   39
  third-party/pjproject/pjproject-2.9.tar.bz2.md5                                                 |    2
- 800 files changed, 94220 insertions(+), 105606 deletions(-)
+ 803 files changed, 71812 insertions(+), 13064 deletions(-)
