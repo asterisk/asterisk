@@ -1168,7 +1168,9 @@ struct ast_channel *ast_unreal_new_channels(struct ast_unreal_pvt *p,
 	struct ast_assigned_ids id1 = {NULL, NULL};
 	struct ast_assigned_ids id2 = {NULL, NULL};
 	int generated_seqno = ast_atomic_fetchadd_int((int *) &name_sequence, +1);
-	struct ast_stream_topology *topology;
+	int i;
+	struct ast_stream_topology *chan_topology;
+	struct ast_stream *stream;
 
 	/* set unique ids for the two channels */
 	if (assignedids && !ast_strlen_zero(assignedids->uniqueid)) {
@@ -1186,12 +1188,25 @@ struct ast_channel *ast_unreal_new_channels(struct ast_unreal_pvt *p,
 		id2.uniqueid = uniqueid2;
 	}
 
-	/* We need to create a topology to place on the first channel, as we can't
+	/* We need to create a topology to place on the second channel, as we can't
 	 * share a single one between both.
 	 */
-	topology = ast_stream_topology_clone(p->reqtopology);
-	if (!topology) {
+	chan_topology = ast_stream_topology_clone(p->reqtopology);
+	if (!chan_topology) {
 		return NULL;
+	}
+
+	for (i = 0; i < ast_stream_topology_get_count(chan_topology); ++i) {
+		stream = ast_stream_topology_get_stream(chan_topology, i);
+		/* We need to make sure that the ;2 channel has the opposite stream topology
+		 * of the first channel if the stream is one-way. I.e. if the first channel
+		 * is recvonly, the second channel has to be sendonly and vice versa.
+		 */
+		if (ast_stream_get_state(stream) == AST_STREAM_STATE_RECVONLY) {
+			ast_stream_set_state(stream, AST_STREAM_STATE_SENDONLY);
+		} else if (ast_stream_get_state(stream) == AST_STREAM_STATE_SENDONLY) {
+			ast_stream_set_state(stream, AST_STREAM_STATE_RECVONLY);
+		}
 	}
 
 	/*
@@ -1206,7 +1221,7 @@ struct ast_channel *ast_unreal_new_channels(struct ast_unreal_pvt *p,
 		"%s/%s-%08x;1", tech->type, p->name, (unsigned)generated_seqno);
 	if (!owner) {
 		ast_log(LOG_WARNING, "Unable to allocate owner channel structure\n");
-		ast_stream_topology_free(topology);
+		ast_stream_topology_free(chan_topology);
 		return NULL;
 	}
 
@@ -1221,7 +1236,8 @@ struct ast_channel *ast_unreal_new_channels(struct ast_unreal_pvt *p,
 	ast_channel_nativeformats_set(owner, p->reqcap);
 
 	if (ast_channel_is_multistream(owner)) {
-		ast_channel_set_stream_topology(owner, topology);
+		ast_channel_set_stream_topology(owner, p->reqtopology);
+		p->reqtopology = NULL;
 	}
 
 	/* Determine our read/write format and set it on each channel */
@@ -1279,8 +1295,7 @@ struct ast_channel *ast_unreal_new_channels(struct ast_unreal_pvt *p,
 	ast_channel_nativeformats_set(chan, p->reqcap);
 
 	if (ast_channel_is_multistream(chan)) {
-		ast_channel_set_stream_topology(chan, p->reqtopology);
-		p->reqtopology = NULL;
+		ast_channel_set_stream_topology(chan, chan_topology);
 	}
 
 	/* Format was already determined when setting up owner */
