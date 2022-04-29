@@ -1,0 +1,7 @@
+Subject: app_confbridge
+
+Adds the CONFBRIDGE_CHANNELS function which can
+be used to retrieve a list of channels in a ConfBridge,
+optionally filtered by a particular category. This
+list can then be used with functions like SHIFT, POP,
+UNSHIFT, etc.

@@ -128,6 +128,7 @@
 			<ref type="application">ConfKick</ref>
 			<ref type="function">CONFBRIDGE</ref>
 			<ref type="function">CONFBRIDGE_INFO</ref>
+			<ref type="function">CONFBRIDGE_CHANNELS</ref>
 		</see-also>
 	</application>
 	<application name="ConfKick" language="en_US">
@@ -164,6 +165,7 @@
 			<ref type="application">ConfBridge</ref>
 			<ref type="function">CONFBRIDGE</ref>
 			<ref type="function">CONFBRIDGE_INFO</ref>
+			<ref type="function">CONFBRIDGE_CHANNELS</ref>
 		</see-also>
 	</application>
 	<function name="CONFBRIDGE" language="en_US">
@@ -248,6 +250,50 @@
 			<para>This function returns a non-negative integer for valid conference
 			names and an empty string for invalid conference names.</para>
 		</description>
+		<see-also>
+			<ref type="function">CONFBRIDGE_CHANNELS</ref>
+		</see-also>
+	</function>
+	<function name="CONFBRIDGE_CHANNELS" language="en_US">
+		<since>
+			<version>16.26.0</version>
+			<version>18.12.0</version>
+			<version>19.4.0</version>
+		</since>
+		<synopsis>
+			Get a list of channels in a ConfBridge conference.
+		</synopsis>
+		<syntax>
+			<parameter name="type" required="true">
+				<para>What conference information is requested.</para>
+				<enumlist>
+					<enum name="admins">
+						<para>Get the number of admin users in the conference.</para>
+					</enum>
+					<enum name="marked">
+						<para>Get the number of marked users in the conference.</para>
+					</enum>
+					<enum name="parties">
+						<para>Get the number of total users in the conference.</para>
+					</enum>
+					<enum name="active">
+						<para>Get the number of active users in the conference.</para>
+					</enum>
+					<enum name="waiting">
+						<para>Get the number of waiting users in the conference.</para>
+					</enum>
+				</enumlist>
+			</parameter>
+			<parameter name="conf" required="true">
+				<para>The name of the conference being referenced.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This function returns a comma-separated list of channels in a ConfBridge conference, optionally filtered by a type of participant.</para>
+		</description>
+		<see-also>
+			<ref type="function">CONFBRIDGE_INFO</ref>
+		</see-also>
 	</function>
 	<manager name="ConfbridgeList" language="en_US">
 		<synopsis>
@@ -3829,6 +3875,90 @@ static struct ast_custom_function confbridge_info_function = {
 	.read = func_confbridge_info,
 };
 
+static int func_confbridge_channels(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
+{
+	char *parse, *outbuf;
+	struct confbridge_conference *conference;
+	struct confbridge_user *user;
+	int bytes, count = 0;
+	size_t outlen;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(type);
+		AST_APP_ARG(confno);
+	);
+
+	/* parse all the required arguments and make sure they exist. */
+	if (ast_strlen_zero(data)) {
+		return -1;
+	}
+	parse = ast_strdupa(data);
+	AST_STANDARD_APP_ARGS(args, parse);
+	if (ast_strlen_zero(args.confno) || ast_strlen_zero(args.type)) {
+		ast_log(LOG_WARNING, "Usage: %s(category,confno)", cmd);
+		return -1;
+	}
+	conference = ao2_find(conference_bridges, args.confno, OBJ_KEY);
+	if (!conference) {
+		ast_debug(1, "No such conference: %s\n", args.confno);
+		return -1;
+	}
+
+	outbuf = buf;
+	outlen = len;
+
+	ao2_lock(conference);
+	if (!strcasecmp(args.type, "parties")) {
+		AST_LIST_TRAVERSE(&conference->active_list, user, list) {
+			bytes = snprintf(outbuf, outlen, "%s%s", count++ ? "," : "", ast_channel_name(user->chan));
+			outbuf += bytes;
+			outlen -= bytes;
+		}
+		AST_LIST_TRAVERSE(&conference->waiting_list, user, list) {
+			bytes = snprintf(outbuf, outlen, "%s%s", count++ ? "," : "", ast_channel_name(user->chan));
+			outbuf += bytes;
+			outlen -= bytes;
+		}
+	} else if (!strcasecmp(args.type, "active")) {
+		AST_LIST_TRAVERSE(&conference->active_list, user, list) {
+			bytes = snprintf(outbuf, outlen, "%s%s", count++ ? "," : "", ast_channel_name(user->chan));
+			outbuf += bytes;
+			outlen -= bytes;
+		}
+	} else if (!strcasecmp(args.type, "waiting")) {
+		AST_LIST_TRAVERSE(&conference->waiting_list, user, list) {
+			bytes = snprintf(outbuf, outlen, "%s%s", count++ ? "," : "", ast_channel_name(user->chan));
+			outbuf += bytes;
+			outlen -= bytes;
+		}
+	} else if (!strcasecmp(args.type, "admins")) {
+		AST_LIST_TRAVERSE(&conference->active_list, user, list) {
+			if (ast_test_flag(&user->u_profile, USER_OPT_ADMIN)) {
+				bytes = snprintf(outbuf, outlen, "%s%s", count++ ? "," : "", ast_channel_name(user->chan));
+				outbuf += bytes;
+				outlen -= bytes;
+			}
+		}
+	} else if (!strcasecmp(args.type, "marked")) {
+		AST_LIST_TRAVERSE(&conference->active_list, user, list) {
+			if (ast_test_flag(&user->u_profile, USER_OPT_MARKEDUSER)) {
+				bytes = snprintf(outbuf, outlen, "%s%s", count++ ? "," : "", ast_channel_name(user->chan));
+				outbuf += bytes;
+				outlen -= bytes;
+			}
+		}
+	} else {
+		ast_log(LOG_ERROR, "Invalid keyword '%s' passed to %s.\n", args.type, cmd);
+	}
+	ao2_unlock(conference);
+	ao2_ref(conference, -1);
+	return 0;
+}
+
+static struct ast_custom_function confbridge_channels_function = {
+	.name = "CONFBRIDGE_CHANNELS",
+	.read = func_confbridge_channels,
+};
+
 static int action_confbridgelist_item(struct mansession *s, const char *id_text, struct confbridge_conference *conference, struct confbridge_user *user, int waiting)
 {
 	struct ast_channel_snapshot *snapshot;
@@ -4406,6 +4536,7 @@ static int unload_module(void)
 
 	ast_custom_function_unregister(&confbridge_function);
 	ast_custom_function_unregister(&confbridge_info_function);
+	ast_custom_function_unregister(&confbridge_channels_function);
 
 	ast_cli_unregister_multiple(cli_confbridge, ARRAY_LEN(cli_confbridge));
 
@@ -4477,6 +4608,7 @@ static int load_module(void)
 
 	res |= ast_custom_function_register_escalating(&confbridge_function, AST_CFE_WRITE);
 	res |= ast_custom_function_register(&confbridge_info_function);
+	res |= ast_custom_function_register(&confbridge_channels_function);
 
 	res |= ast_cli_register_multiple(cli_confbridge, ARRAY_LEN(cli_confbridge));
 
