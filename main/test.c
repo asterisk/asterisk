@@ -48,6 +48,16 @@
 #include "asterisk/astobj2.h"
 #include "asterisk/stasis.h"
 #include "asterisk/json.h"
+#include "asterisk/app.h"		/* for ast_replace_sigchld(), etc. */
+
+#include <stdio.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
+#include <signal.h>
 
 /*! \since 12
  * \brief The topic for test suite messages
@@ -99,6 +109,42 @@ enum test_mode {
 	TEST_CATEGORY = 1,
 	TEST_NAME_CATEGORY = 2,
 };
+
+#define zfclose(fp) \
+	({ if (fp != NULL) { \
+		fclose(fp); \
+		fp = NULL; \
+	   } \
+	   (void)0; \
+	 })
+
+#define zclose(fd) \
+	({ if (fd != -1) { \
+		close(fd); \
+		fd = -1; \
+	   } \
+	   (void)0; \
+	 })
+
+#define movefd(oldfd, newfd) \
+	({ if (oldfd != newfd) { \
+		dup2(oldfd, newfd); \
+		close(oldfd); \
+		oldfd = -1; \
+	   } \
+	   (void)0; \
+	 })
+
+#define lowerfd(oldfd) \
+	({ int newfd = dup(oldfd); \
+	   if (newfd > oldfd) \
+		close(newfd); \
+	   else { \
+		close(oldfd); \
+		oldfd = newfd; \
+	   } \
+	   (void)0; \
+	 })
 
 /*! List of registered test definitions */
 static AST_LIST_HEAD_STATIC(tests, ast_test);
@@ -265,6 +311,207 @@ void ast_test_set_result(struct ast_test *test, enum ast_test_result_state state
 		return;
 	}
 	test->state = state;
+}
+
+void ast_test_capture_free(struct ast_test_capture *capture)
+{
+	if (capture) {
+		free(capture->outbuf);
+		capture->outbuf = NULL;
+		free(capture->errbuf);
+		capture->errbuf = NULL;
+	}
+	capture->pid = -1;
+	capture->exitcode = -1;
+}
+
+int ast_test_capture_command(struct ast_test_capture *capture, const char *file, char *const argv[], const char *data, unsigned datalen)
+{
+	int fd0[2] = { -1, -1 }, fd1[2] = { -1, -1 }, fd2[2] = { -1, -1 };
+	pid_t pid = -1;
+	int status = 0;
+
+	memset(capture, 0, sizeof(*capture));
+	capture->pid = capture->exitcode = -1;
+
+	if (data != NULL && datalen > 0) {
+		if (pipe(fd0) == -1) {
+			ast_log(LOG_ERROR, "Couldn't open stdin pipe: %s\n", strerror(errno));
+			goto cleanup;
+		}
+		fcntl(fd0[1], F_SETFL, fcntl(fd0[1], F_GETFL, 0) | O_NONBLOCK);
+	} else {
+		if ((fd0[0] = open("/dev/null", O_RDONLY)) == -1) {
+			ast_log(LOG_ERROR, "Couldn't open /dev/null: %s\n", strerror(errno));
+			goto cleanup;
+		}
+	}
+
+	if (pipe(fd1) == -1) {
+		ast_log(LOG_ERROR, "Couldn't open stdout pipe: %s\n", strerror(errno));
+		goto cleanup;
+	}
+
+	if (pipe(fd2) == -1) {
+		ast_log(LOG_ERROR, "Couldn't open stdout pipe: %s\n", strerror(errno));
+		goto cleanup;
+	}
+
+	/* we don't want anyone else reaping our children */
+	ast_replace_sigchld();
+
+	if ((pid = fork()) == -1) {
+		ast_log(LOG_ERROR, "Failed to fork(): %s\n", strerror(errno));
+		goto cleanup;
+
+	} else if (pid == 0) {
+		fclose(stdin);
+		zclose(fd0[1]);
+		zclose(fd1[0]);
+		zclose(fd2[0]);
+
+		movefd(fd0[0], 0);
+		movefd(fd1[1], 1);
+		movefd(fd2[1], 2);
+
+		execvp(file, argv);
+		ast_log(LOG_ERROR, "Failed to execv(): %s\n", strerror(errno));
+		exit(1);
+
+	} else {
+		FILE *cmd = NULL, *out = NULL, *err = NULL;
+
+		char buf[BUFSIZ];
+		int wstatus, n, nfds;
+		fd_set readfds, writefds;
+		unsigned i;
+
+		zclose(fd0[0]);
+		zclose(fd1[1]);
+		zclose(fd2[1]);
+
+		lowerfd(fd0[1]);
+		lowerfd(fd1[0]);
+		lowerfd(fd2[0]);
+
+		if ((cmd = fmemopen(buf, sizeof(buf), "w")) == NULL) {
+			ast_log(LOG_ERROR, "Failed to open memory buffer: %s\n", strerror(errno));
+			kill(pid, SIGKILL);
+			goto cleanup;
+		}
+		for (i = 0; argv[i] != NULL; ++i) {
+			if (i > 0) {
+				fputc(' ', cmd);
+			}
+			fputs(argv[i], cmd);
+		}
+		zfclose(cmd);
+
+		ast_log(LOG_TRACE, "run: %.*s\n", (int)sizeof(buf), buf);
+
+		if ((out = open_memstream(&capture->outbuf, &capture->outlen)) == NULL) {
+			ast_log(LOG_ERROR, "Failed to open output buffer: %s\n", strerror(errno));
+			kill(pid, SIGKILL);
+			goto cleanup;
+		}
+
+		if ((err = open_memstream(&capture->errbuf, &capture->errlen)) == NULL) {
+			ast_log(LOG_ERROR, "Failed to open error buffer: %s\n", strerror(errno));
+			kill(pid, SIGKILL);
+			goto cleanup;
+		}
+
+		while (1) {
+			n = waitpid(pid, &wstatus, WNOHANG);
+
+			if (n == pid && WIFEXITED(wstatus)) {
+				zclose(fd0[1]);
+				zclose(fd1[0]);
+				zclose(fd2[0]);
+				zfclose(out);
+				zfclose(err);
+
+				capture->pid = pid;
+				capture->exitcode = WEXITSTATUS(wstatus);
+
+				ast_log(LOG_TRACE, "run: pid %d exits %d\n", capture->pid, capture->exitcode);
+
+				break;
+			}
+
+			/* a function that does the opposite of ffs()
+			 * would be handy here for finding the highest
+			 * descriptor number.
+			 */
+			nfds = MAX(fd0[1], MAX(fd1[0], fd2[0])) + 1;
+
+			FD_ZERO(&readfds);
+			FD_ZERO(&writefds);
+
+			if (fd0[1] != -1) {
+				if (data != NULL && datalen > 0)
+					FD_SET(fd0[1], &writefds);
+			}
+			if (fd1[0] != -1) {
+				FD_SET(fd1[0], &readfds);
+			}
+			if (fd2[0] != -1) {
+				FD_SET(fd2[0], &readfds);
+			}
+
+			/* not clear that exception fds are meaningful
+			 * with non-network descriptors.
+			 */
+			n = select(nfds, &readfds, &writefds, NULL, NULL);
+
+			if (FD_ISSET(fd0[1], &writefds)) {
+				n = write(fd0[1], data, datalen);
+				if (n > 0) {
+					data += n;
+					datalen -= MIN(datalen, n);
+					/* out of data, so close stdin */
+					if (datalen == 0)
+						zclose(fd0[1]);
+				} else {
+					zclose(fd0[1]);
+				}
+			}
+
+			if (FD_ISSET(fd1[0], &readfds)) {
+				n = read(fd1[0], buf, sizeof(buf));
+				if (n > 0) {
+					fwrite(buf, sizeof(char), n, out);
+				} else {
+					zclose(fd1[0]);
+				}
+			}
+
+			if (FD_ISSET(fd2[0], &readfds)) {
+				n = read(fd2[0], buf, sizeof(buf));
+				if (n > 0) {
+					fwrite(buf, sizeof(char), n, err);
+				} else {
+					zclose(fd2[0]);
+				}
+			}
+		}
+		status = 1;
+
+cleanup:
+		ast_unreplace_sigchld();
+
+		zfclose(cmd);
+		zfclose(out);
+		zfclose(err);
+
+		zclose(fd0[1]);
+		zclose(fd1[0]);
+		zclose(fd1[1]);
+		zclose(fd2[0]);
+		zclose(fd2[1]);
+
+		return status;
+	}
 }
 
 /*
@@ -1242,3 +1489,4 @@ int ast_test_init(void)
 
 	return 0;
 }
+
