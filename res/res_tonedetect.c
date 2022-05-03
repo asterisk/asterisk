@@ -367,7 +367,7 @@ static int detect_callback(struct ast_audiohook *audiohook, struct ast_channel *
 		return 0;
 	}
 
-	if (!(direction == AST_AUDIOHOOK_DIRECTION_READ ? &di->rx : &di->tx)) {
+	if (!(direction == AST_AUDIOHOOK_DIRECTION_READ ? di->rx : di->tx)) {
 		return 0;
 	}
 

@@ -35418,8 +35418,8 @@ AST_TEST_DEFINE(get_in_brackets_const_test)
 			ast_test_status_update(test, "Unexpected result: %d != %d\n", expected_res, res); \
 			return AST_TEST_FAIL;				\
 		}							\
-		if ((expected_start) != start) {			\
-			const char *e = expected_start ? expected_start : "(null)"; \
+		if ((void *)(expected_start) != (void *)start) {			\
+			const char *e = ((void *)expected_start != (void *)NULL) ? expected_start : "(null)"; \
 			const char *a = start ? start : "(null)";	\
 			ast_test_status_update(test, "Unexpected start: %s != %s\n", e, a); \
 			return AST_TEST_FAIL;				\
