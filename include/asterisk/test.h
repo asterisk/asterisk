@@ -209,6 +209,27 @@ enum ast_test_command {
 struct ast_test;
 
 /*!
+ * \brief A capture of running an external process.
+ *
+ * This contains a buffer holding stdout, another containing stderr,
+ * the process id of the child, and its exit code.
+ */
+struct ast_test_capture {
+	/*! \brief buffer holding stdout */
+	char *outbuf;
+	/*! \brief length of buffer holding stdout */
+	size_t outlen;
+	/*! \brief buffer holding stderr */
+	char *errbuf;
+	/*! \brief length of buffer holding stderr */
+	size_t errlen;
+	/*! \brief process id of child */
+	pid_t pid;
+	/*! \brief exit code of child */
+	int exitcode;
+};
+
+/*!
  * \brief Contains all the initialization information required to store a new test definition
  */
 struct ast_test_info {
@@ -416,6 +437,41 @@ int __ast_test_status_update(const char *file, const char *func, int line, struc
 		goto cleanup_label; \
 	} \
 })
+
+/*!
+ * \brief Release the storage (buffers) associated with capturing
+ * the output of an external child process.
+ *
+ * \since 19.4.0
+ *
+ * \param capture The structure describing the child process and its
+ * associated output.
+ */
+void ast_test_capture_free(struct ast_test_capture *capture);
+
+/*!
+ * \brief Run a child process and capture its output and exit code.
+ *
+ * \!since 19.4.0
+ *
+ * \param capture The structure describing the child process and its
+ * associated output.
+ *
+ * \param file The name of the file to execute (uses $PATH to locate).
+ *
+ * \param argv The NULL-terminated array of arguments to pass to the
+ * child process, starting with the command name itself.
+ *
+ * \param data The buffer of input to be sent to child process's stdin;
+ * optional and may be NULL.
+ *
+ * \param datalen The length of the buffer, if not NULL, otherwise zero.
+ *
+ * \retval 1 for success
+ * \retval other failure
+ */
+
+int ast_test_capture_command(struct ast_test_capture *capture, const char *file, char *const argv[], const char *data, unsigned datalen);
 
 #endif /* TEST_FRAMEWORK */
 #endif /* _AST_TEST_H */
