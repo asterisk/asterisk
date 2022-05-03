@@ -1403,6 +1403,16 @@ else
 fi
 AC_SUBST(AST_NO_FORMAT_TRUNCATION)
 
+AC_MSG_CHECKING(for -Wno-format-y2k)
+if $(${CC} -Wno-format-y2k -Werror -S -o /dev/null -xc /dev/null > /dev/null 2>&1); then
+	AC_MSG_RESULT(yes)
+	AST_NO_FORMAT_Y2K=-Wno-format-y2k
+else
+	AC_MSG_RESULT(no)
+	AST_NO_FORMAT_Y2K=
+fi
+AC_SUBST(AST_NO_FORMAT_Y2K)
+
 AC_MSG_CHECKING(for -Wno-stringop-truncation)
 if $(${CC} -Wno-stringop-truncation -Werror -S -o /dev/null -xc /dev/null > /dev/null 2>&1); then
 	AC_MSG_RESULT(yes)
