@@ -370,7 +370,13 @@ int ast_stun_handle_packet(int s, struct sockaddr_in *src, unsigned char *data, 
 					    st.username ? st.username : "<none>");
 			if (st.username) {
 				append_attr_string(&attr, STUN_USERNAME, st.username, &resplen, &respleft);
-				snprintf(combined, sizeof(combined), "%16s%16s", st.username + 16, st.username);
+				/*
+				 * For Google Voice, the stun username is made up of the local
+				 * and remote usernames, each being fixed at 16 bytes.  We have
+				 * to swap the two at this point.
+				 */
+				snprintf(combined, 17, "%16s", st.username + 16);
+				snprintf(combined + 16, 17, "%16s", st.username);
 			} else {
 				combined[0] = '\0';
 			}

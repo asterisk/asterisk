@@ -62,6 +62,10 @@ chan_ooh323.so: _ASTCFLAGS+=$(H323CFLAGS)
 $(call MOD_ADD_C,chan_ooh323,$(H323SOURCE))
 
 ifneq ($(wildcard mp3/Makefile),)
+# At the current time, the fate of mp3 is in flux so it didn't make sense to
+# add configure/makeopts processing for array-bounds since this is the only
+# source file that needs that warning suppressed.
+mp3/layer3.o: _ASTCFLAGS+=-Wno-array-bounds
 $(call MOD_ADD_C,format_mp3,mp3/common.c mp3/dct64_i386.c mp3/decode_ntom.c mp3/layer3.c mp3/tabinit.c mp3/interface.c)
 
 .PHONY: check_mp3

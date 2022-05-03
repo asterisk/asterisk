@@ -1033,6 +1033,10 @@ int analog_call(struct analog_pvt *p, struct ast_channel *ast, const char *rdest
 				ast_log(LOG_WARNING, "Number '%s' is shorter than stripmsd (%d)\n", c, p->stripmsd);
 				c = NULL;
 			}
+			if (c && (strlen(c) > sizeof(p->dop.dialstr) - 3 /* "Tw\0" */)) {
+				ast_log(LOG_WARNING, "Number '%s' is longer than %d bytes\n", c, (int)sizeof(p->dop.dialstr) - 2);
+				c = NULL;
+			}
 			if (c) {
 				p->dop.op = ANALOG_DIAL_OP_REPLACE;
 				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "Tw%s", c);
