@@ -1654,6 +1654,7 @@ static const char *get_pattern_node(struct pattern_node *node, const char *src, 
 #undef INC_DST_OVERFLOW_CHECK
 }
 
+#define MAX_EXTENBUF_SIZE 512
 static struct match_char *add_exten_to_pattern_tree(struct ast_context *con, struct ast_exten *e1, int findonly)
 {
 	struct match_char *m1 = NULL;
@@ -1664,11 +1665,13 @@ static struct match_char *add_exten_to_pattern_tree(struct ast_context *con, str
 	int pattern = 0;
 	int idx_cur;
 	int idx_next;
-	char extenbuf[512];
+	char extenbuf[MAX_EXTENBUF_SIZE];
+	volatile size_t required_space = strlen(e1->exten) + 1;
 	struct pattern_node pat_node[2];
 
 	if (e1->matchcid) {
-		if (sizeof(extenbuf) < strlen(e1->exten) + strlen(e1->cidmatch) + 2) {
+		required_space += (strlen(e1->cidmatch) + 2 /* '/' + NULL */);
+		if (required_space > MAX_EXTENBUF_SIZE) {
 			ast_log(LOG_ERROR,
 				"The pattern %s/%s is too big to deal with: it will be ignored! Disaster!\n",
 				e1->exten, e1->cidmatch);
@@ -1676,7 +1679,13 @@ static struct match_char *add_exten_to_pattern_tree(struct ast_context *con, str
 		}
 		sprintf(extenbuf, "%s/%s", e1->exten, e1->cidmatch);/* Safe.  We just checked. */
 	} else {
-		ast_copy_string(extenbuf, e1->exten, sizeof(extenbuf));
+		if (required_space > MAX_EXTENBUF_SIZE) {
+			ast_log(LOG_ERROR,
+				"The pattern %s/%s is too big to deal with: it will be ignored! Disaster!\n",
+				e1->exten, e1->cidmatch);
+			return NULL;
+		}
+		ast_copy_string(extenbuf, e1->exten, required_space);
 	}
 
 #ifdef NEED_DEBUG

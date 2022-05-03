@@ -390,11 +390,13 @@ char *ast_escape_c_alloc(const char *s);
 AST_INLINE_API(
 void ast_copy_string(char *dst, const char *src, size_t size),
 {
-	while (*src && size) {
-		*dst++ = *src++;
-		size--;
+	volatile size_t sz = size;
+	volatile char *sp = (char *)src;
+	while (*sp && sz) {
+		*dst++ = *sp++;
+		sz--;
 	}
-	if (__builtin_expect(!size, 0))
+	if (__builtin_expect(!sz, 0))
 		dst--;
 	*dst = '\0';
 }
