@@ -1287,7 +1287,7 @@ static int require_pgsql(const char *database, const char *tablename, va_list ap
 				res = -1;
 			} else {
 				struct ast_str *sql = ast_str_create(100);
-				char fieldtype[10];
+				char fieldtype[20];
 				PGresult *result;
 
 				if (requirements == RQ_CREATECHAR || type == RQ_CHAR) {
