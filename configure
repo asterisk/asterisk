@@ -714,6 +714,7 @@ AST_RPATH
 AST_NATIVE_ARCH
 AST_SHADOW_WARNINGS
 AST_NO_STRINGOP_TRUNCATION
+AST_NO_FORMAT_Y2K
 AST_NO_FORMAT_TRUNCATION
 AST_NO_STRICT_OVERFLOW
 AST_FORTIFY_SOURCE
@@ -21269,6 +21270,19 @@ else
 	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
 printf "%s\n" "no" >&6; }
 	AST_NO_FORMAT_TRUNCATION=
+fi
+
+
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for -Wno-format-y2k" >&5
+printf %s "checking for -Wno-format-y2k... " >&6; }
+if $(${CC} -Wno-format-y2k -Werror -S -o /dev/null -xc /dev/null > /dev/null 2>&1); then
+	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+	AST_NO_FORMAT_Y2K=-Wno-format-y2k
+else
+	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+	AST_NO_FORMAT_Y2K=
 fi
 
 
