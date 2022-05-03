@@ -4266,6 +4266,7 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 
 	/* loads the cli_permissions.conf file needed to implement cli restrictions. */
 	ast_cli_perms_init(0);
+	ast_cli_channels_init(); /* Not always safe to access CLI commands until startup is complete. */
 
 	ast_stun_init();
 
