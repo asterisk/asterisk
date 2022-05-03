@@ -167,6 +167,9 @@ lock.o: _ASTCFLAGS+=$(call get_menuselect_cflags,DETECT_DEADLOCKS)
 options.o: _ASTCFLAGS+=$(call get_menuselect_cflags,REF_DEBUG)
 sched.o: _ASTCFLAGS+=$(call get_menuselect_cflags,DEBUG_SCHEDULER DUMP_SCHEDULER)
 tcptls.o: _ASTCFLAGS+=$(OPENSSL_INCLUDE) -Wno-deprecated-declarations
+# since we're using open_memstream(), we need to release the buffer with
+# the native free() function or we might get unexpected behavior.
+test.o: _ASTCFLAGS+=-DASTMM_LIBC=ASTMM_IGNORE
 uuid.o: _ASTCFLAGS+=$(UUID_INCLUDE)
 stasis.o: _ASTCFLAGS+=$(call get_menuselect_cflags,AO2_DEBUG)
 time.o: _ASTCFLAGS+=-D_XOPEN_SOURCE=700
