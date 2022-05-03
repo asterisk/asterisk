@@ -37,6 +37,7 @@ int ast_term_init(void);		/*!< Provided by term.c */
 int astdb_init(void);			/*!< Provided by db.c */
 int ast_channels_init(void);		/*!< Provided by channel.c */
 void ast_builtins_init(void);		/*!< Provided by cli.c */
+void ast_cli_channels_init(void);	/*!< Provided by cli.c */
 int ast_cli_perms_init(int reload);	/*!< Provided by cli.c */
 void dnsmgr_start_refresh(void);	/*!< Provided by dnsmgr.c */
 int ast_dns_system_resolver_init(void); /*!< Provided by dns_system_resolver.c */
