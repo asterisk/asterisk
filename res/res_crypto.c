@@ -320,7 +320,7 @@ int AST_OPTIONAL_API_NAME(ast_sign_bin)(struct ast_key *key, const char *msg, in
 	SHA1((unsigned char *)msg, msglen, digest);
 
 	/* Verify signature */
-	if (!(res = RSA_sign(NID_sha1, digest, sizeof(digest), dsig, &siglen, key->rsa))) {
+	if ((res = RSA_sign(NID_sha1, digest, sizeof(digest), dsig, &siglen, key->rsa)) != 1) {
 		ast_log(LOG_WARNING, "RSA Signature (key %s) failed\n", key->name);
 		return -1;
 	}
@@ -433,7 +433,7 @@ int AST_OPTIONAL_API_NAME(ast_check_signature_bin)(struct ast_key *key, const ch
 	SHA1((unsigned char *)msg, msglen, digest);
 
 	/* Verify signature */
-	if (!(res = RSA_verify(NID_sha1, digest, sizeof(digest), (unsigned char *)dsig, 128, key->rsa))) {
+	if ((res = RSA_verify(NID_sha1, digest, sizeof(digest), (unsigned char *)dsig, 128, key->rsa)) != 1) {
 		ast_debug(1, "Key failed verification: %s\n", key->name);
 		return -1;
 	}
