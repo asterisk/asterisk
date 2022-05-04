@@ -39,6 +39,12 @@ typedef char ast_aes_encrypt_key;
 typedef char ast_aes_decrypt_key;
 #endif /* HAVE_CRYPTO */
 
+/* We previously used the key length explicitly; replace with constant.
+ * For now, Asterisk is limited to 1024 bit (128 byte) RSA keys.
+ */
+#define AST_CRYPTO_RSA_KEY_BITS		1024
+#define AST_CRYPTO_AES_BLOCKSIZE	128
+
 #define AST_KEY_PUBLIC	(1 << 0)
 #define AST_KEY_PRIVATE	(1 << 1)
 
