@@ -113,7 +113,7 @@ static const char *state_id_by_topic(struct stasis_topic *manager_topic,
 	id = strchr(stasis_topic_name(state_topic), '/');
 
 	/* The state's unique id should always exist */
-	ast_assert(id != NULL && (id + 1) != NULL);
+	ast_assert(id != NULL && *(id + 1) != '\0');
 
 	return (id + 1);
 }
