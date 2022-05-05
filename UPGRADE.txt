@@ -19,6 +19,18 @@
 ===========================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 19.3.3 to Asterisk 19.4.0 ------------
+------------------------------------------------------------------------------
+
+res_pjsip
+------------------
+ * The 'async_operations' setting on transports is no longer
+   obeyed and instead is always set to 1. This is due to the
+   functionality not being applicable to Asterisk and causing
+   excess unnecessary memory usage. This setting will now be
+   ignored but can also be removed from the configuration file.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 19.2.0 to Asterisk 19.3.0 ------------
 ------------------------------------------------------------------------------
 
