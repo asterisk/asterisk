@@ -19,6 +19,18 @@
 ===========================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 18.11.3 to Asterisk 18.12.0 ----------
+------------------------------------------------------------------------------
+
+res_pjsip
+------------------
+ * The 'async_operations' setting on transports is no longer
+   obeyed and instead is always set to 1. This is due to the
+   functionality not being applicable to Asterisk and causing
+   excess unnecessary memory usage. This setting will now be
+   ignored but can also be removed from the configuration file.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 18.10.0 to Asterisk 18.11.0 ----------
 ------------------------------------------------------------------------------
 

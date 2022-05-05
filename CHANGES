@@ -13,6 +13,70 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 18.11.3 to Asterisk 18.12.0 ----------
+------------------------------------------------------------------------------
+
+app_confbridge
+------------------
+ * Added the hear_own_join_sound option to the confbridge user profile to
+   control who hears the sound_join audio file. When set to 'yes' the user
+   entering the conference and the participants already in the conference
+   will hear the sound_join audio file. When set to 'no' the user entering
+   the conference will not hear the sound_join audio file, but the
+   participants already in the conference will hear the sound_join audio file.
+
+app_queue
+------------------
+ * The m option now allows an override music on hold
+   class to be specified for the Queue application
+   within the dialplan.
+
+chan_dahdi
+------------------
+ * Previously, cadences were appended on dahdi restart,
+   rather than reloaded. This prevented cadences from
+   being updated and maxed out the available cadences
+   if reloaded multiple times. This behavior is fixed
+   so that reloading cadences is idempotent and cadences
+   can actually be reloaded.
+
+chan_pjsip
+------------------
+ * added global config option "allow_sending_180_after_183"
+
+   Allow Asterisk to send 180 Ringing to an endpoint
+   after 183 Session Progress has been send.
+   If disabled Asterisk will instead send only a
+   183 Session Progress to the endpoint.
+
+ * Hook flash events can now be sent on a PJSIP channel
+   if requested to do so.
+
+chan_sip
+------------------
+ * Session timers get removed on UPDATE
+   Fix if Asterisk receives a SIP REFER with Session-Timers UAC
+   that Asterisk maintains Session-Timers when sending UPDATE request
+
+cli
+------------------
+ * A new CLI command 'dialplan eval function' has been
+   added which allows users to test the behavior of
+   dialplan function calls directly from the CLI.
+
+func_db
+------------------
+ * The function DB_KEYCOUNT has been added, which
+   returns the cardinality of the keys at a specified
+   prefix in AstDB, i.e. the number of keys at a
+   given prefix.
+
+func_evalexten
+------------------
+ * This adds the EVAL_EXTEN function which may be
+   used to evaluate data at dialplan extensions.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 18.11.1 to Asterisk 18.11.2 ----------
 ------------------------------------------------------------------------------
 

@@ -1,4 +1,0 @@
-Subject: chan_pjsip
-
-Hook flash events can now be sent on a PJSIP channel
-if requested to do so.
