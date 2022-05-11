@@ -296,6 +296,9 @@
 			<replaceable>options</replaceable>.</para>
 			<para>Returns whatever the <replaceable>application</replaceable> returns, or
 			<literal>-2</literal> on failure to find <replaceable>application</replaceable>.</para>
+			<note>
+				<para>exec does not evaluate dialplan functions and variables unless it is explicitly enabled by setting the <variable>AGIEXECFULL</variable> variable to <literal>yes</literal>.</para>
+			</note>
 		</description>
 		<see-also>
 			<ref type="application">AGI</ref>
@@ -3121,6 +3124,9 @@ static int handle_exec(struct ast_channel *chan, AGI *agi, int argc, const char 
 {
 	int res, workaround;
 	struct ast_app *app_to_exec;
+	const char *agi_exec_full_str;
+	int agi_exec_full;
+	struct ast_str *data_with_var = NULL;
 
 	if (argc < 2)
 		return RESULT_SHOWUSAGE;
@@ -3132,8 +3138,21 @@ static int handle_exec(struct ast_channel *chan, AGI *agi, int argc, const char 
 		if (!(workaround = ast_test_flag(ast_channel_flags(chan), AST_FLAG_DISABLE_WORKAROUNDS))) {
 			ast_set_flag(ast_channel_flags(chan), AST_FLAG_DISABLE_WORKAROUNDS);
 		}
+		agi_exec_full_str = pbx_builtin_getvar_helper(chan, "AGIEXECFULL");
+		agi_exec_full = ast_true(agi_exec_full_str);
 		ast_channel_unlock(chan);
-		res = pbx_exec(chan, app_to_exec, argc == 2 ? "" : argv[2]);
+
+		if (agi_exec_full) {
+			if ((data_with_var = ast_str_create(16))) {
+				ast_str_substitute_variables(&data_with_var, 0, chan, argv[2]);
+				res = pbx_exec(chan, app_to_exec, argc == 2 ? "" : ast_str_buffer(data_with_var));
+				ast_free(data_with_var);
+			} else {
+				res = -2;
+			}
+		} else {
+			res = pbx_exec(chan, app_to_exec, argc == 2 ? "" : argv[2]);
+		}
 		if (!workaround) {
 			ast_channel_clear_flag(chan, AST_FLAG_DISABLE_WORKAROUNDS);
 		}
