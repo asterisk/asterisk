@@ -1,0 +1,5 @@
+Subject: res_agi
+
+Agi command 'exec' can now be enabled
+to evaluate dialplan functions and variables
+by setting the variable AGIEXECFULL to yes.
