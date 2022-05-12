@@ -1,8 +1,8 @@
                                 Release Summary
 
-                              asterisk-19.4.0-rc1
+                                asterisk-19.4.0
 
-                                Date: 2022-05-05
+                                Date: 2022-05-12
 
                            <asteriskteam@digium.com>
 
@@ -53,11 +53,11 @@
    24 Naveen Albert                               20 N A                      
    6 Joshua C. Colp                               3 Mark Petersen             
    5 Sean Bright                                  2 Rusty Newton              
-   3 Ben Ford                                     2 Michael Auracher          
-   3 Mark Petersen                                2 George Joseph             
-   2 Kevin Harwell                                2 Michael Auracher          
-   2 Philip Prindeville                           1 Michael Cargile           
-   2 Asterisk Development Team                    1 Andre Heider              
+   3 Asterisk Development Team                    2 Michael Auracher          
+   3 Ben Ford                                     2 George Joseph             
+   3 Mark Petersen                                2 Michael Auracher          
+   2 Kevin Harwell                                1 Michael Cargile           
+   2 Philip Prindeville                           1 Andre Heider              
    2 George Joseph                                1 Alexei Gradinari          
    2 Maximilian Fridrich                          1 Daniel Bonazzi            
    1 Birger Harzenetter (license 5870)            1 Claude Diderich           
@@ -551,6 +551,9 @@
    +------------------------------------------------------------------------+
    | Revision   | Author               | Summary                            |
    |------------+----------------------+------------------------------------|
+   | a26f57a3eb | Asterisk Development | Update for 19.4.0-rc1              |
+   |            | Team                 |                                    |
+   |------------+----------------------+------------------------------------|
    | 9cfbf597bb | Asterisk Development | Update CHANGES and UPGRADE.txt for |
    |            | Team                 | 19.4.0                             |
    |------------+----------------------+------------------------------------|
@@ -570,12 +573,11 @@
    This is a summary of the changes to the source code that went into this
    release that was generated using the diffstat utility.
 
- .lastclean                                                                                    |    1
- .version                                                                                      |    1
- ChangeLog                                                                                     |100545 ----------
  asterisk-19.3.0-summary.html                                                                  |  147
  asterisk-19.3.0-summary.txt                                                                   |  381
+ b/.version                                                                                    |    2
  b/CHANGES                                                                                     |   76
+ b/ChangeLog                                                                                   |  911
  b/Makefile                                                                                    |    9
  b/README.md                                                                                   |    5
  b/UPGRADE.txt                                                                                 |   12
@@ -591,6 +593,8 @@
  b/apps/app_waitforcond.c                                                                      |    5
  b/apps/confbridge/conf_config_parser.c                                                        |    7
  b/apps/confbridge/include/confbridge.h                                                        |    1
+ b/asterisk-19.4.0-rc1-summary.html                                                            |  315
+ b/asterisk-19.4.0-rc1-summary.txt                                                             |  739
  b/bridges/bridge_simple.c                                                                     |   21
  b/build_tools/download_externals                                                              |    2
  b/build_tools/make_xml_documentation                                                          |   42
@@ -611,9 +615,11 @@
  b/configs/samples/pjsip.conf.sample                                                           |   12
  b/configs/samples/queues.conf.sample                                                          |    3
  b/configs/samples/stir_shaken.conf.sample                                                     |   18
- b/configure                                                                                   |17992 -
+ b/configure                                                                                   |17992 +++++-----
  b/configure.ac                                                                                |    1
  b/contrib/ast-db-manage/config/versions/0bee61aa9425_allow_180_ringing_with_sdp.py            |   36
+ b/contrib/realtime/mysql/mysql_config.sql                                                     |    6
+ b/contrib/realtime/postgresql/postgresql_config.sql                                           |    6
  b/doc/asterisk.8                                                                              |    4
  b/funcs/func_channel.c                                                                        |    5
  b/funcs/func_db.c                                                                             |   72
@@ -646,7 +652,7 @@
  b/main/pbx_builtins.c                                                                         |    7
  b/main/pbx_variables.c                                                                        |   54
  b/main/time.c                                                                                 |   29
- b/menuselect/configure                                                                        | 3730
+ b/menuselect/configure                                                                        | 3730 +-
  b/menuselect/configure.ac                                                                     |    2
  b/menuselect/example_menuselect-tree                                                          |   22
  b/menuselect/menuselect.c                                                                     |   70
@@ -708,15 +714,10 @@
  b/third-party/pjproject/patches/0000-configure-ssl-library-path.patch                         |   29
  b/third-party/pjproject/patches/0000-remove-third-party.patch                                 |   33
  b/third-party/pjproject/patches/0100-allow_multiple_auth_headers.patch                        |  413
+ b/third-party/pjproject/patches/config_site.h                                                 |    5
  build_tools/get_sourceable_makeopts                                                           |   54
  configs/samples/app_mysql.conf.sample                                                         |   24
  configs/samples/muted.conf.sample                                                             |   39
- contrib/realtime/mysql/mysql_cdr.sql                                                          |   41
- contrib/realtime/mysql/mysql_config.sql                                                       | 1336
- contrib/realtime/mysql/mysql_voicemail.sql                                                    |   35
- contrib/realtime/postgresql/postgresql_cdr.sql                                                |   45
- contrib/realtime/postgresql/postgresql_config.sql                                             | 1448
- contrib/realtime/postgresql/postgresql_voicemail.sql                                          |   39
  third-party/pjproject/patches/0000-set_apps_initial_log_level.patch                           |   53
  third-party/pjproject/patches/0000-solaris.patch                                              |  135
  third-party/pjproject/patches/0011-sip_inv_patch.patch                                        |   39
@@ -735,5 +736,6 @@
  third-party/pjproject/patches/0150-Create-generic-pjsip_hdr_find-functions.patch              |  176
  third-party/pjproject/patches/0160-Additional-multipart-improvements.patch                    |  644
  third-party/pjproject/patches/0170-stun-integer-underflow.patch                               |   26
- third-party/pjproject/patches/0171-dialog-set-free.patch                                      |   97
- 166 files changed, 19311 insertions(+), 117118 deletions(-)
+ third-party/pjproject/patches/0171-dialog-set-free.patch                                      |  114
+ third-party/pjproject/patches/0172-prevent-multipart-oob.patch                                |   42
+ 165 files changed, 21291 insertions(+), 13690 deletions(-)
