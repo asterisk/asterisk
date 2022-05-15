@@ -1178,23 +1178,7 @@ static int run_app_helper(struct ast_channel *chan, const char *app_name, const 
 	} else if (!strcasecmp("Macro", app_name)) {
 		ast_app_exec_macro(NULL, chan, app_args);
 	} else {
-		struct ast_app *app;
-
-		app = pbx_findapp(app_name);
-		if (!app) {
-			ast_log(LOG_WARNING, "Could not find application (%s)\n", app_name);
-		} else {
-			struct ast_str *substituted_args = ast_str_create(16);
-
-			if (substituted_args) {
-				ast_str_substitute_variables(&substituted_args, 0, chan, app_args);
-				res = pbx_exec(chan, app, ast_str_buffer(substituted_args));
-				ast_free(substituted_args);
-			} else {
-				ast_log(LOG_WARNING, "Could not substitute application argument variables for %s\n", app_name);
-				res = pbx_exec(chan, app, app_args);
-			}
-		}
+		res = ast_pbx_exec_application(chan, app_name, app_args);
 	}
 	return res;
 }
