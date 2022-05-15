@@ -504,12 +504,7 @@ static void bridge_check_monitor(struct ast_channel *chan, struct ast_channel *p
 		ast_channel_unlock(peer);
 	}
 	if (monitor_chan) {
-		struct ast_app *monitor_app;
-
-		monitor_app = pbx_findapp("Monitor");
-		if (monitor_app) {
-			pbx_exec(monitor_chan, monitor_app, monitor_args);
-		}
+		ast_pbx_exec_application(monitor_chan, "Monitor", monitor_args);
 	}
 }
 
