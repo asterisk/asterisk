@@ -269,6 +269,23 @@ struct ast_app *pbx_findapp(const char *app);
 int pbx_exec(struct ast_channel *c, struct ast_app *app, const char *data);
 
 /*!
+ * \brief Execute an application
+ *
+ * \param c channel to execute on
+ * \param app name of app to execute
+ * \param data the data passed into the app
+ *
+ * This application executes an application by name on a given channel.
+ * It is a wrapper around pbx_exec that will perform variable substitution
+ * and then execute the application if it exists.
+ * If the application is not found, a warning is logged.
+ *
+ * \retval 0 success
+ * \retval -1 failure (including application not found)
+ */
+int ast_pbx_exec_application(struct ast_channel *chan, const char *app_name, const char *app_args);
+
+/*!
  * \brief Register a new context or find an existing one
  *
  * \param extcontexts pointer to the ast_context structure pointer
