@@ -252,6 +252,10 @@
 						<para>Use the specified amount of gain when recording a voicemail message.
 						The units are whole-number decibels (dB).</para>
 					</option>
+					<option name="r">
+						<para>"Read only". Prevent user from deleting any messages.</para>
+						<para>This applies only to specific executions of VoiceMailMain, NOT the mailbox itself.</para>
+					</option>
 					<option name="s">
 						<para>Skip checking the passcode for the mailbox.</para>
 					</option>
@@ -675,6 +679,7 @@ enum vm_option_flags {
 	OPT_EARLYM_GREETING =  (1 << 10),
 	OPT_BEEP =             (1 << 11),
 	OPT_SILENT_IF_GREET =  (1 << 12),
+	OPT_READONLY =         (1 << 13),
 };
 
 enum vm_option_args {
@@ -704,7 +709,8 @@ AST_APP_OPTIONS(vm_app_options, {
 	AST_APP_OPTION('U', OPT_MESSAGE_Urgent),
 	AST_APP_OPTION('P', OPT_MESSAGE_PRIORITY),
 	AST_APP_OPTION('e', OPT_EARLYM_GREETING),
-	AST_APP_OPTION_ARG('t', OPT_BEEP, OPT_ARG_BEEP_TONE)
+	AST_APP_OPTION_ARG('t', OPT_BEEP, OPT_ARG_BEEP_TONE),
+	AST_APP_OPTION('r', OPT_READONLY),
 });
 
 static const char * const mailbox_folders[] = {
@@ -10433,7 +10439,7 @@ static int vm_intro(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm
 	}
 }
 
-static int vm_instructions_en(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms, int skipadvanced, int in_urgent)
+static int vm_instructions_en(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms, int skipadvanced, int in_urgent, int nodelete)
 {
 	int res = 0;
 	/* Play instructions and wait for new command */
@@ -10493,10 +10499,12 @@ static int vm_instructions_en(struct ast_channel *chan, struct ast_vm_user *vmu,
 #ifdef IMAP_STORAGE
 				ast_mutex_unlock(&vms->lock);
 #endif
-				if (!curmsg_deleted) {
-					res = ast_play_and_wait(chan, "vm-delete");
-				} else {
-					res = ast_play_and_wait(chan, "vm-undelete");
+				if (!nodelete) {
+					if (!curmsg_deleted) {
+						res = ast_play_and_wait(chan, "vm-delete");
+					} else {
+						res = ast_play_and_wait(chan, "vm-undelete");
+					}
 				}
 				if (!res) {
 					res = ast_play_and_wait(chan, "vm-toforward");
@@ -10521,7 +10529,7 @@ static int vm_instructions_en(struct ast_channel *chan, struct ast_vm_user *vmu,
 	return res;
 }
 
-static int vm_instructions_ja(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms,  int skipadvanced, int in_urgent)
+static int vm_instructions_ja(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms,  int skipadvanced, int in_urgent, int nodelete)
 {
 	int res = 0;
 	/* Play instructions and wait for new command */
@@ -10617,7 +10625,7 @@ static int vm_instructions_ja(struct ast_channel *chan, struct ast_vm_user *vmu,
 	return res;
 }
 
-static int vm_instructions_zh(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms,  int skipadvanced, int in_urgent)
+static int vm_instructions_zh(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms,  int skipadvanced, int in_urgent, int nodelete)
 {
 	int res = 0;
 	/* Play instructions and wait for new command */
@@ -10635,20 +10643,20 @@ static int vm_instructions_zh(struct ast_channel *chan, struct ast_vm_user *vmu,
 			res = ast_play_and_wait(chan, "vm-opts");
 		if (!res) {
 			vms->starting = 0;
-			return vm_instructions_en(chan, vmu, vms, skipadvanced, in_urgent);
+			return vm_instructions_en(chan, vmu, vms, skipadvanced, in_urgent, nodelete);
 		}
 	}
 	return res;
 }
 
-static int vm_instructions(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms, int skipadvanced, int in_urgent)
+static int vm_instructions(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms, int skipadvanced, int in_urgent, int nodelete)
 {
 	if (!strncasecmp(ast_channel_language(chan), "ja", 2)) { /* Japanese syntax */
-		return vm_instructions_ja(chan, vmu, vms, skipadvanced, in_urgent);
+		return vm_instructions_ja(chan, vmu, vms, skipadvanced, in_urgent, nodelete);
 	} else if (vms->starting && !strncasecmp(ast_channel_language(chan), "zh", 2)) { /* CHINESE (Taiwan) syntax */
-		return vm_instructions_zh(chan, vmu, vms, skipadvanced, in_urgent);
+		return vm_instructions_zh(chan, vmu, vms, skipadvanced, in_urgent, nodelete);
 	} else {					/* Default to ENGLISH */
-		return vm_instructions_en(chan, vmu, vms, skipadvanced, in_urgent);
+		return vm_instructions_en(chan, vmu, vms, skipadvanced, in_urgent, nodelete);
 	}
 }
 
@@ -11531,6 +11539,7 @@ static int vm_execmain(struct ast_channel *chan, const char *data)
 	int play_auto = 0;
 	int play_folder = 0;
 	int in_urgent = 0;
+	int nodelete = 0;
 #ifdef IMAP_STORAGE
 	int deleted = 0;
 #endif
@@ -11592,6 +11601,9 @@ static int vm_execmain(struct ast_channel *chan, const char *data)
 						opts[OPT_ARG_PLAYFOLDER]);
 					play_folder = 0;
 				}
+			}
+			if (ast_test_flag(&flags, OPT_READONLY)) {
+				nodelete = 1;
 			}
 		} else {
 			/* old style options parsing */
@@ -12006,7 +12018,7 @@ static int vm_execmain(struct ast_channel *chan, const char *data)
 			}
 			break;
 		case '7': /* Delete the current message */
-			if (vms.curmsg >= 0 && vms.curmsg <= vms.lastmsg) {
+			if (!nodelete && vms.curmsg >= 0 && vms.curmsg <= vms.lastmsg) {
 				vms.deleted[vms.curmsg] = !vms.deleted[vms.curmsg];
 				if (useadsi)
 					adsi_delete(chan, &vms);
@@ -12195,7 +12207,7 @@ static int vm_execmain(struct ast_channel *chan, const char *data)
 					if (!cmd)
 						cmd = ast_play_and_wait(chan, "vm-opts");
 					if (!cmd)
-						cmd = vm_instructions(chan, vmu, &vms, 1, in_urgent);
+						cmd = vm_instructions(chan, vmu, &vms, 1, in_urgent, nodelete);
 					break;
 				}
 				cmd = ast_play_and_wait(chan, "vm-onefor");
@@ -12207,7 +12219,7 @@ static int vm_execmain(struct ast_channel *chan, const char *data)
 				if (!cmd)
 					cmd = ast_play_and_wait(chan, "vm-opts");
 				if (!cmd)
-					cmd = vm_instructions(chan, vmu, &vms, 1, in_urgent);
+					cmd = vm_instructions(chan, vmu, &vms, 1, in_urgent, nodelete);
 			} else
 				cmd = 0;
 			break;
@@ -12224,7 +12236,7 @@ static int vm_execmain(struct ast_channel *chan, const char *data)
  			break;
 		default:	/* Nothing */
 			ast_test_suite_event_notify("PLAYBACK", "Message: instructions");
-			cmd = vm_instructions(chan, vmu, &vms, 0, in_urgent);
+			cmd = vm_instructions(chan, vmu, &vms, 0, in_urgent, nodelete);
 			break;
 		}
 	}
