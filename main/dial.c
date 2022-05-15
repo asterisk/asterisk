@@ -166,14 +166,12 @@ static int predial_disable(void *data)
 static void answer_exec_run(struct ast_dial *dial, struct ast_dial_channel *dial_channel, char *app, char *args)
 {
 	struct ast_channel *chan = dial_channel->owner;
-	struct ast_app *ast_app = pbx_findapp(app);
 
-	/* If the application was not found, return immediately */
-	if (!ast_app)
+	/* Execute the application, if available */
+	if (ast_pbx_exec_application(chan, app, args)) {
+		/* If the application was not found, return immediately */
 		return;
-
-	/* All is well... execute the application */
-	pbx_exec(chan, ast_app, args);
+	}
 
 	/* If another thread is not taking over hang up the channel */
 	ast_mutex_lock(&dial->lock);

@@ -263,14 +263,8 @@ static struct ast_channel_tech snoop_tech = {
 static void *snoop_stasis_thread(void *obj)
 {
 	RAII_VAR(struct stasis_app_snoop *, snoop, obj, ao2_cleanup);
-	struct ast_app *stasis = pbx_findapp("Stasis");
 
-	if (!stasis) {
-		ast_hangup(snoop->chan);
-		return NULL;
-	}
-
-	pbx_exec(snoop->chan, stasis, ast_str_buffer(snoop->app));
+	ast_pbx_exec_application(snoop->chan, "Stasis", ast_str_buffer(snoop->app));
 
 	ast_hangup(snoop->chan);
 
