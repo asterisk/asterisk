@@ -10210,7 +10210,7 @@ printf "%s\n" "$as_me: checking OPENSSL with pkg-config" >&6;}
 	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether system openssl > 1.1.0" >&5
 printf "%s\n" "$as_me: checking whether system openssl > 1.1.0" >&6;}
 
-   if test "x${PBX_OPENSSL}" != "x1" -a "${USE_OPENSSL}" != "no"; then
+      if test "x${PBX_OPENSSL}" != "x1" -a "${USE_OPENSSL}" != "no"; then
 
 pkg_failed=no
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for openssl >= 1.1.0" >&5
@@ -10301,7 +10301,7 @@ fi
 		{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether alternate openssl11 is installed" >&5
 printf "%s\n" "$as_me: checking whether alternate openssl11 is installed" >&6;}
 
-   if test "x${PBX_OPENSSL}" != "x1" -a "${USE_OPENSSL}" != "no"; then
+      if test "x${PBX_OPENSSL}" != "x1" -a "${USE_OPENSSL}" != "no"; then
 
 pkg_failed=no
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for openssl11" >&5
@@ -10397,7 +10397,7 @@ fi
 		{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking fallback system openssl" >&5
 printf "%s\n" "$as_me: checking fallback system openssl" >&6;}
 
-   if test "x${PBX_OPENSSL}" != "x1" -a "${USE_OPENSSL}" != "no"; then
+      if test "x${PBX_OPENSSL}" != "x1" -a "${USE_OPENSSL}" != "no"; then
 
 pkg_failed=no
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for openssl" >&5
@@ -14832,7 +14832,7 @@ fi
 
 # Find required NetBSD Editline library (libedit).
 
-   if test "x${PBX_LIBEDIT}" != "x1" -a "${USE_LIBEDIT}" != "no"; then
+      if test "x${PBX_LIBEDIT}" != "x1" -a "${USE_LIBEDIT}" != "no"; then
 
 pkg_failed=no
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for libedit" >&5
@@ -15293,7 +15293,7 @@ fi
 # Find required JSON support if bundled is not enabled.
 if test "$JANSSON_BUNDLED" = "no" ; then
 
-   if test "x${PBX_JANSSON}" != "x1" -a "${USE_JANSSON}" != "no"; then
+      if test "x${PBX_JANSSON}" != "x1" -a "${USE_JANSSON}" != "no"; then
 
 pkg_failed=no
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for jansson >= 2.11" >&5
@@ -15611,7 +15611,7 @@ fi
 
 
 
-   if test "x${PBX_LIBXML2}" != "x1" -a "${USE_LIBXML2}" != "no"; then
+      if test "x${PBX_LIBXML2}" != "x1" -a "${USE_LIBXML2}" != "no"; then
 
 pkg_failed=no
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for libxml-2.0" >&5
@@ -22886,7 +22886,7 @@ if test "${USE_ILBC}" != "no"; then
    fi
    if test "${ILBC_SYSTEM}" = "yes"; then
 
-   if test "x${PBX_ILBC}" != "x1" -a "${USE_ILBC}" != "no"; then
+      if test "x${PBX_ILBC}" != "x1" -a "${USE_ILBC}" != "no"; then
 
 pkg_failed=no
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for libilbc" >&5
@@ -25145,7 +25145,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.beam \
 
 
 
-   if test "x${PBX_NETSNMP}" != "x1" -a "${USE_NETSNMP}" != "no"; then
+      if test "x${PBX_NETSNMP}" != "x1" -a "${USE_NETSNMP}" != "no"; then
 
 pkg_failed=no
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for netsnmp-agent" >&5
@@ -26572,7 +26572,7 @@ fi
 if test "$USE_PJPROJECT" != "no" ; then
    if test "$PJPROJECT_BUNDLED" = "no" ; then
 
-   if test "x${PBX_PJPROJECT}" != "x1" -a "${USE_PJPROJECT}" != "no"; then
+      if test "x${PBX_PJPROJECT}" != "x1" -a "${USE_PJPROJECT}" != "no"; then
 
 pkg_failed=no
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for libpjproject" >&5
@@ -27832,7 +27832,7 @@ fi
 
 
 
-   if test "x${PBX_PYTHONDEV}" != "x1" -a "${USE_PYTHONDEV}" != "no"; then
+      if test "x${PBX_PYTHONDEV}" != "x1" -a "${USE_PYTHONDEV}" != "no"; then
 
 pkg_failed=no
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for python-2.7" >&5
@@ -27920,7 +27920,7 @@ fi
    fi
 
 
-   if test "x${PBX_PYTHONDEV}" != "x1" -a "${USE_PYTHONDEV}" != "no"; then
+      if test "x${PBX_PYTHONDEV}" != "x1" -a "${USE_PYTHONDEV}" != "no"; then
 
 pkg_failed=no
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for python2" >&5
@@ -28008,7 +28008,7 @@ fi
    fi
 
 
-   if test "x${PBX_PYTHONDEV}" != "x1" -a "${USE_PYTHONDEV}" != "no"; then
+      if test "x${PBX_PYTHONDEV}" != "x1" -a "${USE_PYTHONDEV}" != "no"; then
 
 pkg_failed=no
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for python" >&5
@@ -28204,7 +28204,7 @@ fi
 
 
 
-   if test "x${PBX_PORTAUDIO}" != "x1" -a "${USE_PORTAUDIO}" != "no"; then
+      if test "x${PBX_PORTAUDIO}" != "x1" -a "${USE_PORTAUDIO}" != "no"; then
 
 pkg_failed=no
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for portaudio-2.0" >&5
@@ -34122,7 +34122,7 @@ fi
 
 for ver in 3.0 2.6 2.4 2.2 2.0; do
 
-   if test "x${PBX_GMIME}" != "x1" -a "${USE_GMIME}" != "no"; then
+      if test "x${PBX_GMIME}" != "x1" -a "${USE_GMIME}" != "no"; then
 
 pkg_failed=no
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for gmime-$ver" >&5
@@ -35482,7 +35482,7 @@ fi
 
 
 
-   if test "x${PBX_GTK2}" != "x1" -a "${USE_GTK2}" != "no"; then
+      if test "x${PBX_GTK2}" != "x1" -a "${USE_GTK2}" != "no"; then
 
 pkg_failed=no
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for gtk+-2.0" >&5
@@ -35593,7 +35593,7 @@ fi
 
 
 
-   if test "x${PBX_SYSTEMD}" != "x1" -a "${USE_SYSTEMD}" != "no"; then
+      if test "x${PBX_SYSTEMD}" != "x1" -a "${USE_SYSTEMD}" != "no"; then
 
 pkg_failed=no
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for libsystemd" >&5
