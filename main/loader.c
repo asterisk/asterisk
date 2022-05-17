@@ -2517,9 +2517,9 @@ done:
 	usElapsed = ast_tvdiff_us(end_time, start_time);
 
 #ifdef AST_XML_DOCS
-	ast_debug(1, "Loader time with AST_XML_DOCS: %ld.%06ld\n", usElapsed / 1000000, usElapsed % 1000000);
+	ast_debug(1, "Loader time with AST_XML_DOCS: %" PRId64 ".%06" PRId64 "\n", usElapsed / 1000000, usElapsed % 1000000);
 #else
-	ast_debug(1, "Loader time without AST_XML_DOCS: %ld.%06ld\n", usElapsed / 1000000, usElapsed % 1000000);
+	ast_debug(1, "Loader time without AST_XML_DOCS: %" PRId64 ".%06" PRId64 "\n", usElapsed / 1000000, usElapsed % 1000000);
 #endif
 
 	return res;
