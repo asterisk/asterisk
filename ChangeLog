@@ -1,3 +1,24 @@
+2022-05-19 15:48 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 16.26.1 Released.
+
+2022-05-17 07:18 +0000 [e2748b8ef3]  Joshua C. Colp <jcolp@sangoma.com>
+
+	* res_pjsip_transport_websocket: Also set the remote name.
+
+	  As part of PJSIP 2.11 a behavior change was done to require
+	  a matching remote hostname on an established transport for
+	  secure transports. Since the Websocket transport is considered
+	  a secure transport this caused the existing connection to not
+	  be found and used.
+
+	  We now set the remote hostname and the transport can be found.
+
+	  ASTERISK-30065
+
+	  Change-Id: Ia1cdef33e1411f927985b4b852c95e163c080e94
+	  (cherry picked from commit f01ce810d0bbdd7b8e1e29a758a290b927c9e4ca)
+
 2022-05-12 11:47 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 16.26.0 Released.
