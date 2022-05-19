@@ -1471,18 +1471,13 @@ static int update_connected_line_information(void *data)
 	return 0;
 }
 
-/*! \brief Callback which changes the value of locally held on the media stream */
-static void local_hold_set_state(struct ast_sip_session_media *session_media, unsigned int held)
-{
-	if (session_media) {
-		session_media->locally_held = held;
-	}
-}
-
 /*! \brief Update local hold state and send a re-INVITE with the new SDP */
 static int remote_send_hold_refresh(struct ast_sip_session *session, unsigned int held)
 {
-	AST_VECTOR_CALLBACK_VOID(&session->active_media_state->sessions, local_hold_set_state, held);
+	struct ast_sip_session_media *session_media = session->active_media_state->default_session[AST_MEDIA_TYPE_AUDIO];
+	if (session_media) {
+		session_media->locally_held = held;
+	}
 	ast_sip_session_refresh(session, NULL, NULL, NULL, AST_SIP_SESSION_REFRESH_METHOD_INVITE, 1, NULL);
 	ao2_ref(session, -1);
 
