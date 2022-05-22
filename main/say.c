@@ -189,19 +189,13 @@ static int say_filenames(struct ast_channel *chan, const char *ints, const char 
 
 	files = ast_str_buffer(filenames);
 
-	while ((fn = strsep(&files, "&"))) {
+	while (!res && (fn = strsep(&files, "&"))) {
 		res = ast_streamfile(chan, fn, lang);
 		if (!res) {
-			if ((audiofd  > -1) && (ctrlfd > -1))
+			if ((audiofd  > -1) && (ctrlfd > -1)) {
 				res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
-			else
+			} else {
 				res = ast_waitstream(chan, ints);
-
-			if (res > 0) {
-				/* We were interrupted by a digit */
-				ast_stopstream(chan);
-				ast_free(filenames);
-				return res;
 			}
 		}
 		ast_stopstream(chan);
