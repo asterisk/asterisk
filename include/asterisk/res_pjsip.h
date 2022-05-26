@@ -155,6 +155,14 @@ struct ast_sip_transport_state {
 	 * \since 13.18.0
 	 */
 	struct ast_sockaddr external_media_address;
+	/*!
+	 * Disregard RFC5922 7.2, and allow wildcard certs (TLS only)
+	 */
+	int allow_wildcard_certs;
+	/*!
+	 * If true, fail if server certificate cannot verify (TLS only)
+	 */
+	int verify_server;
 };
 
 #define ast_sip_transport_is_nonlocal(transport_state, addr) \
