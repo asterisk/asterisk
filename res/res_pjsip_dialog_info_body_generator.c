@@ -234,7 +234,10 @@ static int dialog_info_generate_body_content(void *body, void *data)
 
 			pj_strdup2(state_data->pool, &remote_identity_node->content, remote_target);
 			if (!ast_strlen_zero(remote_cid_name)) {
-				ast_sip_presence_xml_create_attr(state_data->pool, remote_identity_node, "display", remote_cid_name);
+				char display_sanitized[PJSIP_MAX_URL_SIZE];
+
+				ast_sip_sanitize_xml(remote_cid_name, display_sanitized, sizeof(display_sanitized));
+				ast_sip_presence_xml_create_attr(state_data->pool, remote_identity_node, "display", display_sanitized);
 			}
 			ast_sip_presence_xml_create_attr(state_data->pool, remote_target_node, "uri", remote_target);
 		}
@@ -247,9 +250,13 @@ static int dialog_info_generate_body_content(void *body, void *data)
 			/* If a channel is not available we fall back to the sanitized local URI instead */
 			pj_strdup2(state_data->pool, &local_identity_node->content, S_OR(local_target, sanitized));
 			if (!ast_strlen_zero(local_cid_name)) {
-				ast_sip_presence_xml_create_attr(state_data->pool, local_identity_node, "display", local_cid_name);
+				char display_sanitized[PJSIP_MAX_URL_SIZE];
+
+				ast_sip_sanitize_xml(local_cid_name, display_sanitized, sizeof(display_sanitized));
+				ast_sip_presence_xml_create_attr(state_data->pool, local_identity_node, "display", display_sanitized);
 			}
-			ast_sip_presence_xml_create_attr(state_data->pool, local_target_node, "uri", S_OR(local_target, sanitized));
+
+			ast_sip_presence_xml_create_attr(state_data->pool, local_target_node, "uri", sanitized);
 		}
 	}
 
