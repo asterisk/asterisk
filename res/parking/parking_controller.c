@@ -110,6 +110,8 @@ int parking_lot_get_space(struct parking_lot *lot, int target_override)
 
 	if (target_override >= lot->cfg->parking_start && target_override <= lot->cfg->parking_stop) {
 		original_target = target_override;
+	} else if (target_override > -1) {
+		ast_log(LOG_WARNING, "Preferred parking spot %d is out of bounds (%d-%d)\n", target_override, lot->cfg->parking_start, lot->cfg->parking_stop);
 	}
 
 	current_target = original_target;
