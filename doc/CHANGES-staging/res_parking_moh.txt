@@ -1,0 +1,4 @@
+Subject: res_parking
+
+An m option to Park and ParkAndAnnounce now allows
+specifying a music on hold class override.
