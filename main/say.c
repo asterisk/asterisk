@@ -4933,6 +4933,8 @@ int ast_say_date_with_format_de(struct ast_channel *chan, time_t t, const char *
 				/* 12-Hour */
 				if (tm.tm_hour == 0)
 					ast_copy_string(nextmsg, "digits/12", sizeof(nextmsg));
+				else if (tm.tm_hour == 1)
+					ast_copy_string(nextmsg, "digits/1N", sizeof(nextmsg));
 				else if (tm.tm_hour > 12)
 					snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_hour - 12);
 				else
@@ -4945,7 +4947,11 @@ int ast_say_date_with_format_de(struct ast_channel *chan, time_t t, const char *
 			case 'H':
 			case 'k':
 				/* 24-Hour */
-				res = ast_say_number(chan, tm.tm_hour, ints, lang, (char *) NULL);
+				if (tm.tm_hour == 1) {
+					res = wait_file(chan, ints, "digits/1N", lang);
+				} else {
+					res = ast_say_number(chan, tm.tm_hour, ints, lang, (char *) NULL);
+				}
 				if (!res) {
 					res = wait_file(chan, ints, "digits/oclock", lang);
 				}
