@@ -111,6 +111,29 @@
 					to undisable (enable) CDR for a call.</para>
 					</description>
 				</configOption>
+				<configOption name="ignorestatechanges" default="no">
+					<synopsis>Whether CDR is updated or forked by bridging changes.</synopsis>
+					<description><para>Define whether or not CDR should be updated by bridging changes.
+					This includes entering and leaving bridges and call parking.</para>
+					<para>If this is set to "no", bridging changes will be ignored for all CDRs.
+					This should only be done if these events should not affect CDRs and are undesired,
+					such as to use a single CDR for the lifetime of the channel.</para>
+					<para>This setting cannot be changed on a reload.</para>
+					</description>
+				</configOption>
+				<configOption name="ignoredialchanges" default="no">
+					<synopsis>Whether CDR is updated or forked by dial updates.</synopsis>
+					<description><para>Define whether or not CDR should be updated by dial updates.</para>
+					<para>If this is set to "no", a single CDR will be used for the channel, even if
+					multiple endpoints or destinations are dialed sequentially. Note that you will also
+					lose detailed nonanswer dial dispositions if this option is enabled, which may not be acceptable,
+					e.g. instead of detailed no-answer dispositions like BUSY and CONGESTION, the disposition
+					will always be NO ANSWER if the channel was unanswered (it will still be ANSWERED
+					if the channel was answered).</para>
+					<para>This option should be enabled if a single CDR is desired for the lifetime of
+					the channel.</para>
+					</description>
+				</configOption>
 				<configOption name="unanswered">
 					<synopsis>Log calls that are never answered and don't set an outgoing party.</synopsis>
 					<description><para>
@@ -208,6 +231,8 @@
 #define DEFAULT_END_BEFORE_H_EXTEN "1"
 #define DEFAULT_INITIATED_SECONDS "0"
 #define DEFAULT_CHANNEL_ENABLED "1"
+#define DEFAULT_IGNORE_STATE_CHANGES "0"
+#define DEFAULT_IGNORE_DIAL_CHANGES "0"
 
 #define DEFAULT_BATCH_SIZE "100"
 #define MAX_BATCH_SIZE 1000
@@ -222,6 +247,7 @@
 	} while (0)
 
 static int cdr_debug_enabled;
+static int dial_changes_ignored;
 
 #define CDR_DEBUG(fmt, ...) \
 	do { \
@@ -2170,6 +2196,10 @@ static void handle_dial_message(void *data, struct stasis_subscription *sub, str
 			if (!it_cdr->fn_table->process_dial_begin) {
 				continue;
 			}
+			if (dial_changes_ignored) {
+				CDR_DEBUG("%p - Ignoring Dial Begin message\n", it_cdr);
+				continue;
+			}
 			CDR_DEBUG("%p - Processing Dial Begin message for channel %s, peer %s\n",
 				it_cdr,
 				caller ? caller->base->name : "(none)",
@@ -2179,6 +2209,12 @@ static void handle_dial_message(void *data, struct stasis_subscription *sub, str
 					peer);
 		} else if (dial_status_end(dial_status)) {
 			if (!it_cdr->fn_table->process_dial_end) {
+				continue;
+			}
+			if (dial_changes_ignored) {
+				/* Set the disposition, and do nothing else. */
+				it_cdr->disposition = dial_status_to_disposition(dial_status);
+				CDR_DEBUG("%p - Setting disposition and that's it (%s)\n", it_cdr, dial_status);
 				continue;
 			}
 			CDR_DEBUG("%p - Processing Dial End message for channel %s, peer %s\n",
@@ -2192,15 +2228,19 @@ static void handle_dial_message(void *data, struct stasis_subscription *sub, str
 		}
 	}
 
-	/* If no CDR handled a dial begin message, make a new one */
-	if (res && ast_strlen_zero(dial_status)) {
-		struct cdr_object *new_cdr;
+	/* If we're ignoring dial changes, don't allow multiple CDRs for this channel. */
+	if (!dial_changes_ignored) {
+		/* If no CDR handled a dial begin message, make a new one */
+		if (res && ast_strlen_zero(dial_status)) {
+			struct cdr_object *new_cdr;
 
-		new_cdr = cdr_object_create_and_append(cdr, stasis_message_timestamp(message));
-		if (new_cdr) {
-			new_cdr->fn_table->process_dial_begin(new_cdr, caller, peer);
+			new_cdr = cdr_object_create_and_append(cdr, stasis_message_timestamp(message));
+			if (new_cdr) {
+				new_cdr->fn_table->process_dial_begin(new_cdr, caller, peer);
+			}
 		}
 	}
+
 	ao2_unlock(cdr);
 	ao2_cleanup(cdr);
 }
@@ -4200,6 +4240,8 @@ static char *handle_cli_status(struct ast_cli_entry *e, int cmd, struct ast_cli_
 		ast_cli(a->fd, "  Log calls by default:       %s\n", ast_test_flag(&mod_cfg->general->settings, CDR_CHANNEL_DEFAULT_ENABLED) ? "Yes" : "No");
 		ast_cli(a->fd, "  Log unanswered calls:       %s\n", ast_test_flag(&mod_cfg->general->settings, CDR_UNANSWERED) ? "Yes" : "No");
 		ast_cli(a->fd, "  Log congestion:             %s\n\n", ast_test_flag(&mod_cfg->general->settings, CDR_CONGESTION) ? "Yes" : "No");
+		ast_cli(a->fd, "  Ignore bridging changes:    %s\n\n", ast_test_flag(&mod_cfg->general->settings, CDR_IGNORE_STATE_CHANGES) ? "Yes" : "No");
+		ast_cli(a->fd, "  Ignore dial state changes:  %s\n\n", ast_test_flag(&mod_cfg->general->settings, CDR_IGNORE_DIAL_CHANGES) ? "Yes" : "No");
 		if (ast_test_flag(&mod_cfg->general->settings, CDR_BATCHMODE)) {
 			ast_cli(a->fd, "* Batch Mode Settings\n");
 			ast_cli(a->fd, "  -------------------\n");
@@ -4379,6 +4421,8 @@ static int process_config(int reload)
 		aco_option_register(&cfg_info, "size", ACO_EXACT, general_options, DEFAULT_BATCH_SIZE, OPT_UINT_T, PARSE_IN_RANGE, FLDSET(struct ast_cdr_config, batch_settings.size), 0, MAX_BATCH_SIZE);
 		aco_option_register(&cfg_info, "time", ACO_EXACT, general_options, DEFAULT_BATCH_TIME, OPT_UINT_T, PARSE_IN_RANGE, FLDSET(struct ast_cdr_config, batch_settings.time), 1, MAX_BATCH_TIME);
 		aco_option_register(&cfg_info, "channeldefaultenabled", ACO_EXACT, general_options, DEFAULT_CHANNEL_ENABLED, OPT_BOOLFLAG_T, 1, FLDSET(struct ast_cdr_config, settings), CDR_CHANNEL_DEFAULT_ENABLED);
+		aco_option_register(&cfg_info, "ignorestatechanges", ACO_EXACT, general_options, DEFAULT_IGNORE_STATE_CHANGES, OPT_BOOLFLAG_T, 1, FLDSET(struct ast_cdr_config, settings), CDR_IGNORE_STATE_CHANGES);
+		aco_option_register(&cfg_info, "ignoredialchanges", ACO_EXACT, general_options, DEFAULT_IGNORE_DIAL_CHANGES, OPT_BOOLFLAG_T, 1, FLDSET(struct ast_cdr_config, settings), CDR_IGNORE_DIAL_CHANGES);
 	}
 
 	if (aco_process_config(&cfg_info, reload) == ACO_PROCESS_ERROR) {
@@ -4541,6 +4585,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
+	struct module_config *mod_cfg = NULL;
 	if (process_config(0)) {
 		return AST_MODULE_LOAD_FAILURE;
 	}
@@ -4561,12 +4606,35 @@ static int load_module(void)
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
+	mod_cfg = ao2_global_obj_ref(module_configs);
+
 	stasis_message_router_add(stasis_router, ast_channel_snapshot_type(), handle_channel_snapshot_update_message, NULL);
+
+	/* Always process dial messages, because even if we ignore most of it, we do want the dial status for the disposition. */
 	stasis_message_router_add(stasis_router, ast_channel_dial_type(), handle_dial_message, NULL);
-	stasis_message_router_add(stasis_router, ast_channel_entered_bridge_type(), handle_bridge_enter_message, NULL);
-	stasis_message_router_add(stasis_router, ast_channel_left_bridge_type(), handle_bridge_leave_message, NULL);
-	stasis_message_router_add(stasis_router, ast_parked_call_type(), handle_parked_call_message, NULL);
+	if (!mod_cfg || !ast_test_flag(&mod_cfg->general->settings, CDR_IGNORE_DIAL_CHANGES)) {
+		dial_changes_ignored = 0;
+	} else {
+		dial_changes_ignored = 1;
+		CDR_DEBUG("Dial messages will be mostly ignored\n");
+	}
+
+	/* If explicitly instructed to ignore call state changes, then ignore bridging events, parking, etc. */
+	if (!mod_cfg || !ast_test_flag(&mod_cfg->general->settings, CDR_IGNORE_STATE_CHANGES)) {
+		stasis_message_router_add(stasis_router, ast_channel_entered_bridge_type(), handle_bridge_enter_message, NULL);
+		stasis_message_router_add(stasis_router, ast_channel_left_bridge_type(), handle_bridge_leave_message, NULL);
+		stasis_message_router_add(stasis_router, ast_parked_call_type(), handle_parked_call_message, NULL);
+	} else {
+		CDR_DEBUG("All bridge and parking messages will be ignored\n");
+	}
+
 	stasis_message_router_add(stasis_router, cdr_sync_message_type(), handle_cdr_sync_message, NULL);
+
+	if (mod_cfg) {
+		ao2_cleanup(mod_cfg);
+	} else {
+		ast_log(LOG_WARNING, "Unable to obtain CDR configuration during module load?\n");
+	}
 
 	active_cdrs_master = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
 		AST_NUM_CHANNEL_BUCKETS, cdr_master_hash_fn, NULL, cdr_master_cmp_fn);
