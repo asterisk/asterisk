@@ -93,7 +93,9 @@
 		<description>
 			<para>Used in SQL templates to escape data which may contain single ticks
 			<literal>'</literal> which are otherwise used to delimit data.</para>
-			<para>Example: SELECT foo FROM bar WHERE baz='${SQL_ESC(${ARG1})}'</para>
+			<example title="Escape example">
+			 SELECT foo FROM bar WHERE baz='${SQL_ESC(${ARG1})}'
+			</example>
 		</description>
 	</function>
 	<function name="SQL_ESC_BACKSLASHES" language="en_US">
@@ -106,7 +108,9 @@
 		<description>
 			<para>Used in SQL templates to escape data which may contain backslashes
 			<literal>\</literal> which are otherwise used to escape data.</para>
-			<para>Example: SELECT foo FROM bar WHERE baz='${SQL_ESC(${SQL_ESC_BACKSLASHES(${ARG1})})}'</para>
+			<example title="Escape with backslashes example">
+			SELECT foo FROM bar WHERE baz='${SQL_ESC(${SQL_ESC_BACKSLASHES(${ARG1})})}'
+			</example>
 		</description>
 	</function>
  ***/

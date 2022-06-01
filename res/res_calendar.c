@@ -193,7 +193,9 @@
 			</parameter>
 		</syntax>
 		<description>
-			<para>Example: CALENDAR_WRITE(calendar,field1,field2,field3)=val1,val2,val3</para>
+			<example title="Set calendar fields">
+			same => n,Set(CALENDAR_WRITE(calendar,field1,field2,field3)=val1,val2,val3)
+			</example>
 			<para>The field and value arguments can easily be set/passed using the HASHKEYS() and HASH() functions</para>
 			<variablelist>
 				<variable name="CALENDAR_SUCCESS">
