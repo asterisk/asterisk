@@ -266,7 +266,7 @@ struct analog_pvt {
 	enum analog_sigtype sig;
 	/* To contain the private structure passed into the channel callbacks */
 	void *chan_pvt;
-	/* All members after this are giong to be transient, and most will probably change */
+	/* All members after this are going to be transient, and most will probably change */
 	struct ast_channel *owner;			/*!< Our current active owner (if applicable) */
 
 	struct analog_subchannel subs[3];		/*!< Sub-channels */

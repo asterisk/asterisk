@@ -507,7 +507,7 @@ int ast_db_deltree(const char *family, const char *keytree)
 
 	ast_mutex_lock(&dblock);
 	if (!ast_strlen_zero(prefix) && (sqlite3_bind_text(stmt, 1, prefix, -1, SQLITE_STATIC) != SQLITE_OK)) {
-		ast_log(LOG_WARNING, "Could bind %s to stmt: %s\n", prefix, sqlite3_errmsg(astdb));
+		ast_log(LOG_WARNING, "Couldn't bind %s to stmt: %s\n", prefix, sqlite3_errmsg(astdb));
 		res = -1;
 	} else if (sqlite3_step(stmt) != SQLITE_DONE) {
 		ast_log(LOG_WARNING, "Couldn't execute stmt: %s\n", sqlite3_errmsg(astdb));
@@ -791,7 +791,7 @@ static char *handle_cli_database_show(struct ast_cli_entry *e, int cmd, struct a
 
 	ast_mutex_lock(&dblock);
 	if (!ast_strlen_zero(prefix) && (sqlite3_bind_text(stmt, 1, prefix, -1, SQLITE_STATIC) != SQLITE_OK)) {
-		ast_log(LOG_WARNING, "Could bind %s to stmt: %s\n", prefix, sqlite3_errmsg(astdb));
+		ast_log(LOG_WARNING, "Couldn't bind %s to stmt: %s\n", prefix, sqlite3_errmsg(astdb));
 		sqlite3_reset(stmt);
 		ast_mutex_unlock(&dblock);
 		return NULL;
@@ -839,7 +839,7 @@ static char *handle_cli_database_showkey(struct ast_cli_entry *e, int cmd, struc
 
 	ast_mutex_lock(&dblock);
 	if (!ast_strlen_zero(a->argv[2]) && (sqlite3_bind_text(showkey_stmt, 1, a->argv[2], -1, SQLITE_STATIC) != SQLITE_OK)) {
-		ast_log(LOG_WARNING, "Could bind %s to stmt: %s\n", a->argv[2], sqlite3_errmsg(astdb));
+		ast_log(LOG_WARNING, "Couldn't bind %s to stmt: %s\n", a->argv[2], sqlite3_errmsg(astdb));
 		sqlite3_reset(showkey_stmt);
 		ast_mutex_unlock(&dblock);
 		return NULL;
