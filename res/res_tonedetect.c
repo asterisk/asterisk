@@ -902,7 +902,7 @@ static int scan_exec(struct ast_channel *chan, const char *data)
 	}
 	ast_dsp_set_features(dsp, features);
 	/* all modems begin negotiating with Bell 103. An answering modem just sends mark tone, or 2225 Hz */
-	ast_dsp_set_freqmode(dsp, 2225, 400, 16, 0); /* this needs to be pretty short, or the progress tones code will thing this is voice */
+	ast_dsp_set_freqmode(dsp, 2225, 400, 16, 0); /* this needs to be pretty short, or the progress tones code will think this is voice */
 
 	if (fax) { /* fax detect uses same tone detect internals as modem and causes things to not work as intended, so use a separate DSP if needed. */
 		ast_dsp_set_features(dsp2, DSP_FEATURE_FAX_DETECT); /* fax tone */

@@ -372,7 +372,7 @@
 					</argument>
 					<para>Enables <emphasis>operator services</emphasis> mode.  This option only
 					works when bridging a DAHDI channel to another DAHDI channel
-					only. if specified on non-DAHDI interfaces, it will be ignored.
+					only. If specified on non-DAHDI interfaces, it will be ignored.
 					When the destination answers (presumably an operator services
 					station), the originator no longer has control of their line.
 					They may hang up, but the switch will not release their line

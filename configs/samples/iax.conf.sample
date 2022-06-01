@@ -386,7 +386,7 @@ autokill=yes
 ; IAX2 clients which request it.  This has only been used for the IAXy,
 ; and it has been recently proven that this firmware distribution method
 ; can be used as a source of traffic amplification attacks.  Also, the
-; IAXy firmware has not been updated for at least 18 months, so unless
+; IAXy firmware has not been updated since at least 2012, so unless
 ; you are provisioning IAXys in a secure network, we recommend that you
 ; leave this option to the default, off.
 ;

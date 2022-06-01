@@ -75,7 +75,7 @@ enum iax_frame_subclass {
 	IAX_COMMAND_VNAK =      18,
 	/*! Request status of a dialplan entry */
 	IAX_COMMAND_DPREQ =     19,
-	/*! Request status of a dialplan entry */
+	/*! Status reply of a dialplan entry status request */
 	IAX_COMMAND_DPREP =     20,
 	/*! Request a dial on channel brought up TBD */
 	IAX_COMMAND_DIAL =      21,

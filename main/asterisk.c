@@ -3568,7 +3568,7 @@ int main(int argc, char *argv[])
 	}
 	ast_mainpid = getpid();
 
-	/* Process command-line options that effect asterisk.conf load. */
+	/* Process command-line options that affect asterisk.conf load. */
 	while ((c = getopt(argc, argv, getopt_settings)) != -1) {
 		switch (c) {
 		case 'X':
@@ -4079,7 +4079,7 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 
 	load_astmm_phase_1();
 
-	/* Check whether high prio was succesfully set by us or some
+	/* Check whether high prio was successfully set by us or some
 	 * other incantation. */
 	if (has_priority()) {
 		ast_set_flag(&ast_options, AST_OPT_FLAG_HIGH_PRIORITY);
