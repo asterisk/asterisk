@@ -32,6 +32,17 @@
 ; is "no".
 ;congestion = no
 
+; Define whether or not to ignore bridging changes in CDRs. This prevents
+; bridging changes from resulting in multiple CDRs for different parts of
+; a call. Default is "no". This setting cannot be changed on a reload.
+;ignorestatechanges = no
+
+; Define whether or not to ignore dial updates in CDRs. This prevents
+; dial updates from resulting in multiple CDRs for different parts of
+; a call. The last disposition on the channel will be used for the CDR.
+; Use with caution. Default is "no".
+;ignoredialchanges = no
+
 ; Normally, CDR's are not closed out until after all extensions are finished
 ; executing.  By enabling this option, the CDR will be ended before executing
 ; the "h" extension and hangup handlers so that CDR values such as "end" and
