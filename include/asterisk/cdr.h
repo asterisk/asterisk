@@ -225,6 +225,8 @@ enum ast_cdr_settings {
 	CDR_INITIATED_SECONDS = 1 << 5,     /*!< Include microseconds into the billing time */
 	CDR_DEBUG = 1 << 6,                 /*!< Enables extra debug statements */
 	CDR_CHANNEL_DEFAULT_ENABLED = 1 << 7, /*!< Whether CDR is enabled for each channel by default */
+	CDR_IGNORE_STATE_CHANGES = 1 << 8,	/*!< Whether to ignore bridge and other call state change events */
+	CDR_IGNORE_DIAL_CHANGES = 1 << 9,	/*!< Whether to ignore dial state changes */
 };
 
 /*! \brief CDR Batch Mode settings */
