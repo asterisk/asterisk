@@ -67,10 +67,11 @@
 			fallback to a queue when the front line people are busy or unavailable, but
 			you still want front line people to log in and out of that group, just like
 			a queue.</para>
-			<para>Example:</para>
-			<para>exten => 1,1,Set(DIALGROUP(mygroup,add)=SIP/10)</para>
-			<para>exten => 1,n,Set(DIALGROUP(mygroup,add)=SIP/20)</para>
-			<para>exten => 1,n,Dial(${DIALGROUP(mygroup)})</para>
+			<example title="Add 2 endpoints to a dial group">
+			exten => 1,1,Set(DIALGROUP(mygroup,add)=SIP/10)
+			same => n,Set(DIALGROUP(mygroup,add)=SIP/20)
+			same => n,Dial(${DIALGROUP(mygroup)})
+			</example>
 		</description>
 	</function>
  ***/

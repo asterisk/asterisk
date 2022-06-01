@@ -69,16 +69,13 @@
 			</parameter>
 		</syntax>
 		<description>
-			<para>The MUTEAUDIO function can be used to mute inbound (to the PBX) or outbound audio in a call.
-			</para>
-			<para>Examples:
-			</para>
-			<para>
-			MUTEAUDIO(in)=on
-			</para>
-			<para>
-			MUTEAUDIO(in)=off
-			</para>
+			<para>The MUTEAUDIO function can be used to mute inbound (to the PBX) or outbound audio in a call.</para>
+			<example title="Mute incoming audio">
+			exten => s,1,Set(MUTEAUDIO(in)=on)
+			</example>
+			<example title="Do not mute incoming audio">
+			exten => s,1,Set(MUTEAUDIO(in)=off)
+			</example>
 		</description>
 	</function>
 	<manager name="MuteAudio" language="en_US">

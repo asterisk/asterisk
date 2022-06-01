@@ -69,9 +69,15 @@
 		</syntax>
 		<description>
 			<para>Examples:</para>
-			<para>exten => 1,1,Set(FRAME_TRACE(white)=DTMF_BEGIN,DTMF_END); view only DTMF frames. </para>
-			<para>exten => 1,1,Set(FRAME_TRACE()=DTMF_BEGIN,DTMF_END); view only DTMF frames. </para>
-			<para>exten => 1,1,Set(FRAME_TRACE(black)=DTMF_BEGIN,DTMF_END); view everything except DTMF frames. </para>
+			<example title="View only DTMF frames">
+			exten => 1,1,Set(FRAME_TRACE(white)=DTMF_BEGIN,DTMF_END)
+			</example>
+			<example title="View only DTMF frames">
+			exten => 1,1,Set(FRAME_TRACE()=DTMF_BEGIN,DTMF_END)
+			</example>
+			<example title="View everything except DTMF frames">
+			exten => 1,1,Set(FRAME_TRACE(black)=DTMF_BEGIN,DTMF_END)
+			</example>
 		</description>
 	</function>
  ***/

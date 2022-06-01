@@ -47,7 +47,7 @@
 				<enumlist>
 					<enum name="ASTERISK_VERSION_NUM">
 						<para>A string of digits is returned, e.g. 10602 for 1.6.2 or 100300 for 10.3.0,
-						or 999999 when using an SVN build.</para>
+						or 999999 when using a Git build.</para>
 					</enum>
 					<enum name="BUILD_USER">
 						<para>The string representing the user's name whose account
@@ -73,9 +73,10 @@
 			</parameter>
 		</syntax>
 		<description>
-			<para>If there are no arguments, return the version of Asterisk in this format: SVN-branch-1.4-r44830M</para>
-			<para>Example:  Set(junky=${VERSION()};</para>
-			<para>Sets junky to the string <literal>SVN-branch-1.6-r74830M</literal>, or possibly, <literal>SVN-trunk-r45126M</literal>.</para>
+			<para>If there are no arguments, return the version of Asterisk in this format: 18.12.0</para>
+			<example title="Get current version">
+			same => n,Set(junky=${VERSION()} ; sets junky to 18.12.0, or possibly GITMasterxxxxxx
+			</example>
 		</description>
 	</function>
  ***/

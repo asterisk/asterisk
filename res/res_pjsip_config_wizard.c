@@ -65,25 +65,24 @@
 			endpoint, aor, contact, auth and phoneprov objects necessary for a phone to
 			get phone provisioning information, register, and make and receive calls.
 			A hint is also created in the default context for extension 1000.</para>
-			<para> </para>
-
-			<para>[myphone]</para>
-			<para>type = wizard</para>
-			<para>sends_auth = no</para>
-			<para>accepts_auth = yes</para>
-			<para>sends_registrations = no</para>
-			<para>accepts_registrations = yes</para>
-			<para>has_phoneprov = yes</para>
-			<para>transport = ipv4</para>
-			<para>has_hint = yes</para>
-			<para>hint_exten = 1000</para>
-			<para>inbound_auth/username = testname</para>
-			<para>inbound_auth/password = test password</para>
-			<para>endpoint/allow = ulaw</para>
-			<para>endpoint/context = default</para>
-			<para>phoneprov/MAC = 001122aa4455</para>
-			<para>phoneprov/PROFILE = profile1</para>
-			<para> </para>
+			<example title="myphone">
+			[myphone]
+			type = wizard
+			sends_auth = no
+			accepts_auth = yes
+			sends_registrations = no
+			accepts_registrations = yes
+			has_phoneprov = yes
+			transport = ipv4
+			has_hint = yes
+			hint_exten = 1000
+			inbound_auth/username = testname
+			inbound_auth/password = test password
+			endpoint/allow = ulaw
+			endpoint/context = default
+			phoneprov/MAC = 001122aa4455
+			phoneprov/PROFILE = profile1
+			</example>
 
 			<para>The first 8 items are specific to the wizard.  The rest of the items
 			are passed verbatim to the underlying objects.</para>
@@ -92,21 +91,20 @@
 			<para>The following configuration snippet would create the
 			endpoint, aor, contact, auth, identify and registration objects necessary for a trunk
 			to another pbx or ITSP that requires registration.</para>
-			<para> </para>
-
-			<para>[mytrunk]</para>
-			<para>type = wizard</para>
-			<para>sends_auth = yes</para>
-			<para>accepts_auth = no</para>
-			<para>sends_registrations = yes</para>
-			<para>accepts_registrations = no</para>
-			<para>transport = ipv4</para>
-			<para>remote_hosts = sip1.myitsp.com:5060,sip2.myitsp.com:5060</para>
-			<para>outbound_auth/username = testname</para>
-			<para>outbound_auth/password = test password</para>
-			<para>endpoint/allow = ulaw</para>
-			<para>endpoint/context = default</para>
-			<para> </para>
+			<example title="mytrunk">
+			[mytrunk]
+			type = wizard
+			sends_auth = yes
+			accepts_auth = no
+			sends_registrations = yes
+			accepts_registrations = no
+			transport = ipv4
+			remote_hosts = sip1.myitsp.com:5060,sip2.myitsp.com:5060
+			outbound_auth/username = testname
+			outbound_auth/password = test password
+			endpoint/allow = ulaw
+			endpoint/context = default
+			</example>
 
 			<para>Of course, any of the items in either example could be placed into
 			templates and shared among wizard objects.</para>
@@ -227,10 +225,10 @@
 					<para>   <literal>exten =&gt; &lt;hint_exten&gt;,1,&lt;hint_application&gt;</literal></para>
 					<para> </para>
 					<para>You can specify any valid extensions.conf application expression.</para>
-					<para>Examples: </para>
-					<para>   <literal>Dial(${HINT})</literal></para>
-					<para>   <literal>Gosub(stdexten,${EXTEN},1(${HINT}))</literal></para>
-					<para> </para>
+					<example title="Valid expressions">
+					Dial(${HINT})
+					Gosub(stdexten,${EXTEN},1(${HINT}))
+					</example>
 					<para>Any extensions.conf style variables specified are passed directly to the
 					dialplan.</para>
 					<para> </para>

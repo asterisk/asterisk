@@ -49,8 +49,9 @@
 			<para>Choose a random number between <replaceable>min</replaceable> and <replaceable>max</replaceable>.
 			<replaceable>min</replaceable> defaults to <literal>0</literal>, if not specified, while <replaceable>max</replaceable> defaults
 			to <literal>RAND_MAX</literal> (2147483647 on many systems).</para>
-			<para>Example:  Set(junky=${RAND(1,8)});
-			Sets junky to a random number between 1 and 8, inclusive.</para>
+			<example title="Set random number between 1 and 8, inclusive">
+			exten => s,1,Set(junky=${RAND(1,8)})
+			</example>
 		</description>
 	</function>
  ***/
