@@ -198,23 +198,29 @@
 			<para>---- Example 1 ----</para>
 			<para>In this example the custom user profile set on the channel will
 			automatically be used by the ConfBridge application.</para>
-			<para>exten => 1,1,Answer()</para>
+			<example title="Example 1">
+			exten => 1,1,Answer()
+			</example>
 			<para>; In this example the effect of the following line is</para>
 			<para>; implied:</para>
-			<para>; same => n,Set(CONFBRIDGE(user,template)=default_user)</para>
-			<para>same => n,Set(CONFBRIDGE(user,announce_join_leave)=yes)</para>
-			<para>same => n,Set(CONFBRIDGE(user,startmuted)=yes)</para>
-			<para>same => n,ConfBridge(1) </para>
+			<example title="Example 1b">
+			same => n,Set(CONFBRIDGE(user,template)=default_user)
+			same => n,Set(CONFBRIDGE(user,announce_join_leave)=yes)
+			same => n,Set(CONFBRIDGE(user,startmuted)=yes)
+			same => n,ConfBridge(1)
+			</example>
 			<para>---- Example 2 ----</para>
 			<para>This example shows how to use a predefined user profile in
 			<filename>confbridge.conf</filename> as a template for a dynamic profile.
 			Here we make an admin/marked user out of the <literal>my_user</literal>
 			profile that you define in <filename>confbridge.conf</filename>.</para>
-			<para>exten => 1,1,Answer()</para>
-			<para>same => n,Set(CONFBRIDGE(user,template)=my_user)</para>
-			<para>same => n,Set(CONFBRIDGE(user,admin)=yes)</para>
-			<para>same => n,Set(CONFBRIDGE(user,marked)=yes)</para>
-			<para>same => n,ConfBridge(1)</para>
+			<example title="Example 2">
+			exten => 1,1,Answer()
+			same => n,Set(CONFBRIDGE(user,template)=my_user)
+			same => n,Set(CONFBRIDGE(user,admin)=yes)
+			same => n,Set(CONFBRIDGE(user,marked)=yes)
+			same => n,ConfBridge(1)
+			</example>
 		</description>
 	</function>
 	<function name="CONFBRIDGE_INFO" language="en_US">
