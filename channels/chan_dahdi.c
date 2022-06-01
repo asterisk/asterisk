@@ -238,8 +238,8 @@
 		<para>DAHDI allows several modifiers to be specified as part of the resource.</para>
 		<para>The general syntax is :</para>
 		<para><literal>Dial(DAHDI/pseudo[/extension])</literal></para>
-		<para><literal>Dial(DAHDI/&lt;channel#&gt;[c|r&lt;cadance#&gt;|d][/extension])</literal></para>
-		<para><literal>Dial(DAHDI/(g|G|r|R)&lt;group#(0-63)&gt;[c|r&lt;cadance#&gt;|d][/extension])</literal></para>
+		<para><literal>Dial(DAHDI/&lt;channel#&gt;[c|r&lt;cadence#&gt;|d][/extension])</literal></para>
+		<para><literal>Dial(DAHDI/(g|G|r|R)&lt;group#(0-63)&gt;[c|r&lt;cadence#&gt;|d][/extension])</literal></para>
 		<para>The following modifiers may be used before the channel number:</para>
 		<enumlist>
 		<enum name="g">

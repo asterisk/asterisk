@@ -6106,7 +6106,7 @@ struct ast_channel *__ast_request_and_dial(const char *type, struct ast_format_c
 	}
 
 	/*
-	 * I seems strange to set the CallerID on an outgoing call leg
+	 * It seems strange to set the CallerID on an outgoing call leg
 	 * to whom we are calling, but this function's callers are doing
 	 * various Originate methods.  This call leg goes to the local
 	 * user.  Once the local user answers, the dialplan needs to be
