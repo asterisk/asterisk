@@ -57,7 +57,9 @@
 		<description>
 			<para>Count the number of voicemails in a specified mailbox, you could also specify
 			the mailbox <replaceable>folder</replaceable>.</para>
-			<para>Example: <literal>exten => s,1,Set(foo=${VMCOUNT(125@default)})</literal></para>
+			<example title="Mailbox folder count">
+			exten => s,1,Set(foo=${VMCOUNT(125@default)})
+			</example>
 			<para>An ampersand-separated list of mailboxes may be specified to count voicemails in
 			multiple mailboxes. If a folder is specified, this will apply to all mailboxes specified.</para>
                         <example title="Multiple mailbox inbox count">

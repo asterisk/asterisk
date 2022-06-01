@@ -71,7 +71,9 @@
 		<description>
 			<para>Performs mathematical functions based on two parameters and an operator.  The returned
 			value type is <replaceable>type</replaceable></para>
-			<para>Example: Set(i=${MATH(123%16,int)}) - sets var i=11</para>
+			<example title="Sets var i to 11">
+			same => n,Set(i=${MATH(123%16,int)})
+			</example>
 		</description>
 	</function>
 	<function name="INC" language="en_US">
@@ -104,8 +106,10 @@
 		</syntax>
 		<description>
 			<para>Decrements the value of a variable, while returning the updated value to the dialplan</para>
-			<para>Example: DEC(MyVAR) - Decrements MyVar</para>
-			<para>Note: DEC(${MyVAR}) - Is wrong, as DEC expects the variable name, not its value</para>
+			<example title="Decrements MyVAR">
+			same => n,NoOp(${DEC(MyVAR)})
+			</example>
+			<note><para>DEC(${MyVAR}) is wrong, as DEC expects the variable name, not its value</para></note>
 		</description>
 	</function>
 	<function name="MIN" language="en_US">
@@ -123,8 +127,9 @@
 		</syntax>
 		<description>
 			<para>Returns the minimum of two numbers <replaceable>num1</replaceable> and <replaceable>num2</replaceable>.</para>
-			<para>Example:  Set(min=${MIN(7,4)});
-			Sets the min variable equal to 4.</para>
+			<example title="Sets the min variable equal to 4">
+			same => n,Set(min=${MIN(7,4)})
+			</example>
 		</description>
 	</function>
 	<function name="MAX" language="en_US">
@@ -142,8 +147,9 @@
 		</syntax>
 		<description>
 			<para>Returns the maximum of two numbers <replaceable>num1</replaceable> and <replaceable>num2</replaceable>.</para>
-			<para>Example:  Set(max=${MAX(4,7)});
-			Sets the max variable equal to 7.</para>
+			<example title="Sets the max variable equal to 13">
+			same => n,Set(max=${MAX(4,7)})
+			</example>
 		</description>
 	</function>
 	<function name="ABS" language="en_US">
@@ -160,8 +166,9 @@
 		</syntax>
 		<description>
 			<para>Returns the absolute value of a number <replaceable>num</replaceable>.</para>
-			<para>Example:  Set(absval=${ABS(-13)});
-			Sets the absval variable equal to 13.</para>
+			<example title="Sets the absval variable equal to 13">
+			same => n,Set(absval=${ABS(-13)})
+			</example>
 		</description>
 	</function>
  ***/
