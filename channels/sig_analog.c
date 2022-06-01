@@ -2235,12 +2235,12 @@ static void *__analog_ss_thread(void *data)
 			} else if (!strcmp(exten, pickupexten)) {
 				/* Scan all channels and see if there are any
 				 * ringing channels that have call groups
-				 * that equal this channels pickup group
+				 * that equal this channel's pickup group
 				 */
 				if (idx == ANALOG_SUB_REAL) {
 					/* Switch us from Third call to Call Wait */
 					if (p->subs[ANALOG_SUB_THREEWAY].owner) {
-						/* If you make a threeway call and the *8# a call, it should actually
+						/* If you make a threeway call and then *8# a call, it should actually
 						   look like a callwait */
 						analog_alloc_sub(p, ANALOG_SUB_CALLWAIT);
 						analog_swap_subs(p, ANALOG_SUB_CALLWAIT, ANALOG_SUB_THREEWAY);
@@ -2808,7 +2808,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 
 	switch (res) {
 	case ANALOG_EVENT_EC_DISABLED:
-		ast_verb(3, "Channel %d echo canceler disabled due to CED detection\n", p->channel);
+		ast_verb(3, "Channel %d echo canceller disabled due to CED detection\n", p->channel);
 		analog_set_echocanceller(p, 0);
 		break;
 #ifdef HAVE_DAHDI_ECHOCANCEL_FAX_MODE
@@ -2819,10 +2819,10 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 		ast_verb(3, "Channel %d detected a CED tone from the network.\n", p->channel);
 		break;
 	case ANALOG_EVENT_EC_NLP_DISABLED:
-		ast_verb(3, "Channel %d echo canceler disabled its NLP.\n", p->channel);
+		ast_verb(3, "Channel %d echo canceller disabled its NLP.\n", p->channel);
 		break;
 	case ANALOG_EVENT_EC_NLP_ENABLED:
-		ast_verb(3, "Channel %d echo canceler enabled its NLP.\n", p->channel);
+		ast_verb(3, "Channel %d echo canceller enabled its NLP.\n", p->channel);
 		break;
 #endif
 	case ANALOG_EVENT_PULSE_START:
@@ -2907,14 +2907,14 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 					analog_lock_sub_owner(p, ANALOG_SUB_CALLWAIT);
 					if (!p->subs[ANALOG_SUB_CALLWAIT].owner) {
 						/*
-						 * The call waiting call dissappeared.
+						 * The call waiting call disappeared.
 						 * This is now a normal hangup.
 						 */
 						analog_set_echocanceller(p, 0);
 						return NULL;
 					}
 
-					/* There's a call waiting call, so ring the phone, but make it unowned in the mean time */
+					/* There's a call waiting call, so ring the phone, but make it unowned in the meantime */
 					analog_swap_subs(p, ANALOG_SUB_CALLWAIT, ANALOG_SUB_REAL);
 					ast_verb(3, "Channel %d still has (callwait) call, ringing phone\n", p->channel);
 					analog_unalloc_sub(p, ANALOG_SUB_CALLWAIT);

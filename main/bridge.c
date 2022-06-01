@@ -2525,7 +2525,7 @@ int ast_bridge_add_channel(struct ast_bridge *bridge, struct ast_channel *chan,
 		if (ast_bridge_impart(bridge, yanked_chan, NULL, features,
 			AST_BRIDGE_IMPART_CHAN_INDEPENDENT)) {
 			/* It is possible for us to yank a channel and have some other
-			 * thread start a PBX on the channl after we yanked it. In particular,
+			 * thread start a PBX on the channel after we yanked it. In particular,
 			 * this can theoretically happen on the ;2 of a Local channel if we
 			 * yank it prior to the ;1 being answered. Make sure that it isn't
 			 * executing a PBX before hanging it up.

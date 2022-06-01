@@ -26,7 +26,7 @@
  *
  * \note This module only handles audio streams today, but can easily be appended to also
  * zero out text streams if there's an application for it.
- * When we know and understands what happens if we zero out video, we can do that too.
+ * When we know and understand what happens if we zero out video, we can do that too.
  */
 
 /*** MODULEINFO

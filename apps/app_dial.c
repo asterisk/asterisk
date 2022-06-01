@@ -372,7 +372,7 @@
 					</argument>
 					<para>Enables <emphasis>operator services</emphasis> mode.  This option only
 					works when bridging a DAHDI channel to another DAHDI channel
-					only. if specified on non-DAHDI interfaces, it will be ignored.
+					only. If specified on non-DAHDI interfaces, it will be ignored.
 					When the destination answers (presumably an operator services
 					station), the originator no longer has control of their line.
 					They may hang up, but the switch will not release their line
@@ -1325,7 +1325,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 			if (is_cc_recall) {
 				ast_cc_failed(cc_recall_core_id, "Everyone is busy/congested for the recall. How sad");
 			}
-			SCOPE_EXIT_RTN_VALUE(NULL, "%s: No outging channels available\n", ast_channel_name(in));
+			SCOPE_EXIT_RTN_VALUE(NULL, "%s: No outgoing channels available\n", ast_channel_name(in));
 		}
 		winner = ast_waitfor_n(watchers, pos, to);
 		AST_LIST_TRAVERSE(out_chans, o, node) {

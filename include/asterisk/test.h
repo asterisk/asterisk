@@ -108,7 +108,7 @@
 \code
    'test show registered all'  will show every registered test.
    'test execute all'          will execute every registered test.
-   'test show results all'     will show detailed results for ever executed test
+   'test show results all'     will show detailed results for every executed test
    'test generate results xml' will generate a test report in xml format
    'test generate results txt' will generate a test report in txt format
 \endcode
