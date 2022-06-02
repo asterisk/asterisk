@@ -327,6 +327,9 @@ else
 SUBMAKE:=$(MAKE) --quiet --no-print-directory
 endif
 
+mkfile_path := $(abspath $(lastword $(MAKEFILE_LIST)))
+mkfile_dir := $(dir $(mkfile_path))
+
 # $(MAKE) is printed in several places, and we want it to be a
 # fixed size string. Define a variable whose name has also the
 # same size, so we can easily align text.
@@ -693,7 +696,17 @@ ifneq ($(filter ~%,$(DESTDIR)),)
 	@exit 1
 endif
 
-install: badshell bininstall datafiles
+versioncheck:
+ifeq ($(ASTERISKVERSION),UNKNOWN__git_check_fail)
+	@echo "Asterisk Version is unknown due to a git error. If you are running make"
+	@echo "as a different user than the project owner, this can be resolved by"
+	@echo "running the following command as the user currently executing make: "$$USER
+	@echo "git config --global --add safe.directory "$(mkfile_dir:/=)
+	@exit 1
+endif
+
+
+install: badshell versioncheck bininstall datafiles
 	@if [ -x /usr/sbin/asterisk-post-install ]; then \
 		/usr/sbin/asterisk-post-install "$(DESTDIR)" . ; \
 	fi
@@ -878,6 +891,12 @@ ifeq ($(AST_DEVMODE),yes)
 endif
 ifeq ($(ASTERISKVERSION),UNKNOWN__and_probably_unsupported)
 	@echo "Asterisk Version is unknown, not configuring Doxygen PROJECT_NUMBER."
+else ifeq ($(ASTERISKVERSION),UNKNOWN__git_check_fail)
+	@echo "Asterisk Version is unknown due to a git error. If you are running make"
+	@echo "as a different user than the project owner, this can be resolved by"
+	@echo "running the following command as the user currently executing make: "$$USER
+	@echo "git config --global --add safe.directory "$(mkfile_dir:/=)
+	@echo "not configuring Doxygen PROJECT_NUMBER."
 else
 	@echo "PROJECT_NUMBER = $(ASTERISKVERSION)" >> doc/Doxyfile
 endif
@@ -967,6 +986,7 @@ sounds:
 .lastclean: .cleancount
 	@$(MAKE) clean
 	@[ -f "$(DESTDIR)$(ASTDBDIR)/astdb.sqlite3" ] || [ ! -f "$(DESTDIR)$(ASTDBDIR)/astdb" ] || [ ! -f menuselect.makeopts ] || grep -q MENUSELECT_UTILS=.*astdb2sqlite3 menuselect.makeopts || (sed -i.orig -e's/MENUSELECT_UTILS=\(.*\)/MENUSELECT_UTILS=\1 astdb2sqlite3/' menuselect.makeopts && echo "Updating menuselect.makeopts to include astdb2sqlite3" && echo "Original version backed up to menuselect.makeopts.orig")
+
 
 $(SUBDIRS_UNINSTALL):
 	+@DESTDIR="$(DESTDIR)" ASTSBINDIR="$(ASTSBINDIR)" ASTDATADIR="$(ASTDATADIR)" $(SUBMAKE) -C $(@:-uninstall=) uninstall
