@@ -95,6 +95,13 @@ elif [ -d ${1}/.git ]; then
         echo "UNKNOWN__and_probably_unsupported"
         exit 1
     fi
+
+    GITCHECK=$(${GIT} describe --always 2>/dev/null || echo gitfail 2>/dev/null)
+    if [ "x${GITCHECK}" = "xgitfail" ]; then
+        echo "UNKNOWN__git_check_fail"
+        exit 1
+    fi
+
     cd ${1}
 
     # If the first log commit messages indicates that this is checked into
