@@ -200,8 +200,17 @@
 		<see-also>
 			<ref type="function">CURL</ref>
 			<ref type="function">HASH</ref>
+			<ref type="application">CURLResetDefaults</ref>
 		</see-also>
 	</function>
+	<application name="CURLResetDefaults" language="en_US">
+		<synopsis>
+			Resets all changes made by the CURLOPT() function to their default values.
+		</synopsis>
+		<see-also>
+			<ref type="function">CURLOPT</ref>
+		</see-also>
+	</application>
  ***/
 
 #define CURLVERSION_ATLEAST(a,b,c) \
@@ -210,6 +219,8 @@
 #define CURLOPT_SPECIAL_HASHCOMPAT ((CURLoption) -500)
 
 #define CURLOPT_SPECIAL_FAILURE_CODE 999
+
+const char *curl_reset_defaults_name = "CURLResetDefaults";
 
 static void curlds_free(void *data);
 
@@ -600,19 +611,25 @@ static size_t WriteMemoryCallback(void *ptr, size_t size, size_t nmemb, void *da
 	return realsize;
 }
 
+static void apply_curl_handle_defaults(CURL *curl)
+{
+	curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
+	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 180);
+	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
+	curl_easy_setopt(curl, CURLOPT_USERAGENT, AST_CURL_USER_AGENT);
+}
+
 static int curl_instance_init(void *data)
 {
 	CURL **curl = data;
 
-	if (!(*curl = curl_easy_init()))
-		return -1;
+	*curl = curl_easy_init();
+	if (*curl) {
+		apply_curl_handle_defaults(*curl);
+		return 0;
+	}
 
-	curl_easy_setopt(*curl, CURLOPT_NOSIGNAL, 1);
-	curl_easy_setopt(*curl, CURLOPT_TIMEOUT, 180);
-	curl_easy_setopt(*curl, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
-	curl_easy_setopt(*curl, CURLOPT_USERAGENT, AST_CURL_USER_AGENT);
-
-	return 0;
+	return -1;
 }
 
 static void curl_instance_cleanup(void *data)
@@ -648,6 +665,41 @@ static int url_is_vulnerable(const char *url)
 	if (strpbrk(url, "\r\n")) {
 		return 1;
 	}
+
+	return 0;
+}
+
+static void reset_curl_handle(CURL **curl)
+{
+#if CURLVERSION_ATLEAST(7, 12, 1)
+	curl_easy_reset(*curl);
+#else
+	/* Make sure we can create a new handle before doing anything crazy */
+	CURL *replacement = curl_easy_init();
+	if (!replacement) {
+		ast_log(LOG_ERROR, "Failed to reset curl structure\n");
+		return;
+	}
+
+	/* Good to go, destroy the old */
+	curl_easy_cleanup(*curl);
+	*curl = replacement;
+#endif
+
+	apply_curl_handle_defaults(*curl);
+}
+
+static int curl_reset_defaults_exec(struct ast_channel *chan, const char *data)
+{
+	CURL **curl;
+
+	curl = ast_threadstorage_get(&curl_instance, sizeof(*curl));
+	if (!curl) {
+		ast_log(LOG_ERROR, "Cannot allocate curl structure\n");
+		return -1;
+	}
+
+	reset_curl_handle(curl);
 
 	return 0;
 }
@@ -980,8 +1032,9 @@ static int unload_module(void)
 {
 	int res;
 
-	res = ast_custom_function_unregister(&acf_curl);
+	res = ast_unregister_application(curl_reset_defaults_name);
 	res |= ast_custom_function_unregister(&acf_curlopt);
+	res |= ast_custom_function_unregister(&acf_curl);
 
 	AST_TEST_UNREGISTER(vulnerable_url);
 
@@ -994,6 +1047,8 @@ static int load_module(void)
 
 	res = ast_custom_function_register_escalating(&acf_curl, AST_CFE_WRITE);
 	res |= ast_custom_function_register(&acf_curlopt);
+	res |= ast_register_application_xml(
+		curl_reset_defaults_name, curl_reset_defaults_exec);
 
 	AST_TEST_REGISTER(vulnerable_url);
 
