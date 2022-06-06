@@ -4061,6 +4061,12 @@ static void pubsub_on_rx_refresh(pjsip_evsub *evsub, pjsip_rx_data *rdata,
 						new_root->version = old_root->version;
 						sub_tree->root = new_root;
 						sub_tree->generate_initial_notify = 1;
+
+						/* If there is scheduled notification need to delete it to avoid use old subscriptions */
+						if (sub_tree->notify_sched_id > -1) {
+							AST_SCHED_DEL_UNREF(sched, sub_tree->notify_sched_id, ao2_ref(sub_tree, -1));
+							sub_tree->send_scheduled_notify = 0;
+						}
 						shutdown_subscriptions(old_root);
 						destroy_subscriptions(old_root);
 					} else {
