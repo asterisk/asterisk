@@ -226,11 +226,13 @@ EXTERN int ooQ931Decode
          screening indicators ;-) */
       if(ie->discriminator == Q931CallingPartyNumberIE)
       {
+         int numoffset=1;
          OOTRACEDBGB1("   CallingPartyNumber IE = {\n");
-         if(ie->length < OO_MAX_NUMBER_LENGTH)
+         if(!(0x80 & ie->data[0])) numoffset = 2;
+
+         if( (ie->length >= numoffset) &&
+             (ie->length < OO_MAX_NUMBER_LENGTH) )
          {
-            int numoffset=1;
-            if(!(0x80 & ie->data[0])) numoffset = 2;
             memcpy(number, ie->data+numoffset,ie->length-numoffset);
             number[ie->length-numoffset]='\0';
             OOTRACEDBGB2("      %s\n", number);
@@ -238,7 +240,7 @@ EXTERN int ooQ931Decode
                ooCallSetCallingPartyNumber(call, number);
          }
          else{
-            OOTRACEERR3("Error:Calling party number too long. (%s, %s)\n",
+            OOTRACEERR3("Error:Calling party number outside range. (%s, %s)\n",
                            call->callType, call->callToken);
          }
          OOTRACEDBGB1("   }\n");
@@ -248,7 +250,8 @@ EXTERN int ooQ931Decode
       if(ie->discriminator == Q931CalledPartyNumberIE)
       {
          OOTRACEDBGB1("   CalledPartyNumber IE = {\n");
-         if(ie->length < OO_MAX_NUMBER_LENGTH)
+         if( (ie->length >= 1) &&
+             (ie->length < OO_MAX_NUMBER_LENGTH) )
          {
             memcpy(number, ie->data+1,ie->length-1);
             number[ie->length-1]='\0';
@@ -257,7 +260,7 @@ EXTERN int ooQ931Decode
                ooCallSetCalledPartyNumber(call, number);
          }
          else{
-            OOTRACEERR3("Error:Calling party number too long. (%s, %s)\n",
+            OOTRACEERR3("Error:Calling party number outside range. (%s, %s)\n",
                            call->callType, call->callToken);
          }
          OOTRACEDBGB1("   }\n");
