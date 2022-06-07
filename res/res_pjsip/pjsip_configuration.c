@@ -220,7 +220,7 @@ static int timers_handler(const struct aco_option *opt, struct ast_variable *var
 	} else if (!strcasecmp(var->value, "required")) {
 		endpoint->extensions.flags |= PJSIP_INV_REQUIRE_TIMER;
 	} else if (!strcasecmp(var->value, "always") || !strcasecmp(var->value, "forced")) {
-		endpoint->extensions.flags |= PJSIP_INV_ALWAYS_USE_TIMER;
+		endpoint->extensions.flags |= (PJSIP_INV_SUPPORT_TIMER | PJSIP_INV_ALWAYS_USE_TIMER);
 	} else if (!ast_false(var->value)) {
 		return -1;
 	}
