@@ -2070,6 +2070,7 @@ static void add_rlmi_resource(pj_pool_t *pool, pj_xml_node *rlmi, const pjsip_ge
 	pj_xml_attr *cid_attr;
 	char id[6];
 	char uri[PJSIP_MAX_URL_SIZE];
+	char name_sanitized[PJSIP_MAX_URL_SIZE];
 
 	/* This creates a string representing the Content-ID without the enclosing < > */
 	const pj_str_t cid_stripped = {
@@ -2084,7 +2085,8 @@ static void add_rlmi_resource(pj_pool_t *pool, pj_xml_node *rlmi, const pjsip_ge
 	pjsip_uri_print(PJSIP_URI_IN_CONTACT_HDR, resource_uri, uri, sizeof(uri));
 	ast_sip_presence_xml_create_attr(pool, resource, "uri", uri);
 
-	pj_strdup2(pool, &name->content, resource_name);
+	ast_sip_sanitize_xml(resource_name, name_sanitized, sizeof(name_sanitized));
+	pj_strdup2(pool, &name->content, name_sanitized);
 
 	ast_generate_random_string(id, sizeof(id));
 
