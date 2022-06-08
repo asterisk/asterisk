@@ -142,6 +142,122 @@ static void transport_state_do_reg_callbacks(struct ao2_container *transports, p
 	}
 }
 
+static void verify_log_result(int log_level, const pjsip_transport *transport,
+	pj_uint32_t verify_status)
+{
+	const char *status[32];
+	unsigned int count;
+	unsigned int i;
+
+	count = ARRAY_LEN(status);
+
+	if (pj_ssl_cert_get_verify_status_strings(verify_status, status, &count) != PJ_SUCCESS) {
+		ast_log(LOG_ERROR, "Error retrieving certificate verification result(s)\n");
+		return;
+	}
+
+	for (i = 0; i < count; ++i) {
+		ast_log(log_level, _A_, "Transport '%s' to remote '%.*s' - %s\n", transport->factory->info,
+			(int)pj_strlen(&transport->remote_name.host), pj_strbuf(&transport->remote_name.host),
+			status[i]);
+	}
+}
+
+static int verify_cert_name(const pj_str_t *local, const pj_str_t *remote)
+{
+	const char *p;
+	pj_ssize_t size;
+
+	ast_debug(3, "Verify certificate name: local = %.*s, remote = %.*s\n",
+		(unsigned int)pj_strlen(local), pj_strbuf(local),
+		(unsigned int)pj_strlen(remote), pj_strbuf(remote));
+
+	if (!pj_stricmp(remote, local)) {
+		return 1;
+	}
+
+	if (pj_strnicmp2(remote, "*.", 2)) {
+		return 0;
+	}
+
+	p = pj_strchr(local, '.');
+	if (!p) {
+		return 0;
+	}
+
+	size = pj_strbuf(local) + pj_strlen(local) - ++p;
+
+	return size == pj_strlen(remote) - 2 ?
+		!pj_memcmp(pj_strbuf(remote) + 2,  p, size) : 0;
+}
+
+static int verify_cert_names(const pj_str_t *host, const pj_ssl_cert_info *remote)
+{
+	unsigned int i;
+
+	for (i = 0; i < remote->subj_alt_name.cnt; ++i) {
+		/*
+		 * DNS is the only type we're matching wildcards against,
+		 * so only recheck those.
+		 */
+		if (remote->subj_alt_name.entry[i].type == PJ_SSL_CERT_NAME_DNS
+			&& verify_cert_name(host, &remote->subj_alt_name.entry[i].name)) {
+			return 1;
+		}
+	}
+
+	return verify_cert_name(host, &remote->subject.cn);
+}
+
+static int transport_tls_verify(const pjsip_transport *transport,
+	const pjsip_tls_state_info *state_info)
+{
+	pj_uint32_t verify_status;
+	const struct ast_sip_transport_state *state;
+
+	if (transport->dir == PJSIP_TP_DIR_INCOMING) {
+		return 1;
+	}
+
+	/* transport_id should always be in factory info (see config_transport) */
+	ast_assert(!ast_strlen_zero(transport->factory->info));
+
+	state = ast_sip_get_transport_state(transport->factory->info);
+	if (!state) {
+		/*
+		 * There should always be an associated state, but if for some
+		 * reason there is not then fail verification
+		 */
+		ast_log(LOG_ERROR, "Transport state not found for '%s'\n", transport->factory->info);
+		return 0;
+	}
+
+	verify_status = state_info->ssl_sock_info->verify_status;
+
+	/*
+	 * By this point pjsip has already completed its verification process. If
+	 * there was a name matching error it could be because they disallow wildcards.
+	 * If this transport has been configured to allow wildcards then we'll need
+	 * to re-check the name(s) for such.
+	 */
+	if (state->allow_wildcard_certs &&
+			(verify_status & PJ_SSL_CERT_EIDENTITY_NOT_MATCH)) {
+		if (verify_cert_names(&transport->remote_name.host,
+			state_info->ssl_sock_info->remote_cert_info)) {
+			/* A name matched a wildcard, so clear the error */
+			verify_status &= ~PJ_SSL_CERT_EIDENTITY_NOT_MATCH;
+		}
+	}
+
+	if (state->verify_server && verify_status != PJ_SSL_CERT_ESUCCESS) {
+		verify_log_result(__LOG_ERROR, transport, verify_status);
+		return 0;
+	}
+
+	verify_log_result(__LOG_NOTICE, transport, verify_status);
+	return 1;
+}
+
 /*! \brief Callback invoked when transport state changes occur */
 static void transport_state_callback(pjsip_transport *transport,
 	pjsip_transport_state state, const pjsip_transport_state_info *info)
@@ -157,6 +273,12 @@ static void transport_state_callback(pjsip_transport *transport,
 			transport->obj_name, transport_state2str(state));
 		switch (state) {
 		case PJSIP_TP_STATE_CONNECTED:
+			if (PJSIP_TRANSPORT_IS_SECURE(transport) &&
+				!transport_tls_verify(transport, info->ext_info)) {
+				pjsip_transport_shutdown(transport);
+				return;
+			}
+
 			monitored = ao2_alloc_options(sizeof(*monitored),
 				transport_monitor_dtor, AO2_ALLOC_OPT_LOCK_NOLOCK);
 			if (!monitored) {
