@@ -3725,13 +3725,18 @@ int main(int argc, char *argv[])
 			switch (c) {
 			/* okay to run with remote console */
 			case 'B': /* force black background */
+			case 'C': /* set config path */
 			case 'd': /* debug */
 			case 'h': /* help */
 			case 'I': /* obsolete timing option: warning already thrown if used */
 			case 'L': /* max load */
 			case 'M': /* max calls */
+			case 'm': /* mute */
+			/*! \note The q option is never used anywhere, only defined */
+			case 'q': /* quiet */
 			case 'R': /* reconnect */
 			case 'r': /* remote */
+			/*! \note Can ONLY be used with remote console */
 			case 's': /* set socket path */
 			case 'V': /* version */
 			case 'v': /* verbose */
@@ -3741,7 +3746,6 @@ int main(int argc, char *argv[])
 				break;
 			/* can only be run when Asterisk is starting */
 			case 'X': /* enables #exec for asterisk.conf only. */
-			case 'C': /* set config path */
 			case 'c': /* foreground console */
 			case 'e': /* minimum memory free */
 			case 'F': /* always fork */
@@ -3749,10 +3753,8 @@ int main(int argc, char *argv[])
 			case 'G': /* run group */
 			case 'g': /* dump core */
 			case 'i': /* init keys */
-			case 'm': /* mute */
 			case 'n': /* no color */
 			case 'p': /* high priority */
-			case 'q': /* quiet */
 			case 'T': /* timestamp */
 			case 't': /* cache record files */
 			case 'U': /* run user */
