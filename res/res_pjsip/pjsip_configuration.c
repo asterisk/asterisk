@@ -2095,8 +2095,6 @@ int ast_res_pjsip_initialize_configuration(void)
 
 	load_all_endpoints();
 
-	ast_sip_location_prune_boot_contacts();
-
 	acl_change_sub = stasis_subscribe(ast_security_topic(), acl_change_stasis_cb, NULL);
 	stasis_subscription_accept_message_type(acl_change_sub, ast_named_acl_change_type());
 	stasis_subscription_set_filter(acl_change_sub, STASIS_SUBSCRIPTION_FILTER_SELECTIVE);

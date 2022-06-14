@@ -2670,6 +2670,14 @@ static int load_module(void)
 		goto error;
 	}
 
+	/*
+	 * It is OK to prune the contacts now that
+	 * ast_res_pjsip_init_options_handling() has added the contact observer
+	 * of res/res_pjsip/pjsip_options.c to sorcery (to ensure that any
+	 * pruned contacts are removed from this module's data structure).
+	 */
+	ast_sip_location_prune_boot_contacts();
+
 	if (ast_res_pjsip_init_message_filter()) {
 		ast_log(LOG_ERROR, "Failed to initialize message IP updating. Aborting load\n");
 		goto error;
