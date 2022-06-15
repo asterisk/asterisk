@@ -45,6 +45,28 @@
 typedef uint16_t ilbc_bytes;
 typedef int16_t  ilbc_block;
 #define BUF_TYPE i16
+/* libilbc 3.x removed the RFC 3951 compatibility macros that 2.x's <ilbc.h>
+ * provided.  Re-add them only when the header did not, so this is a no-op
+ * against libilbc 2.x and only takes effect on 3.x. */
+#ifndef initDecode
+#define initDecode WebRtcIlbcfix_InitDecode
+#endif
+#ifndef initEncode
+#define initEncode WebRtcIlbcfix_InitEncode
+#endif
+#ifndef iLBC_decode
+#define iLBC_decode WebRtcIlbcfix_DecodeImpl
+#endif
+#ifndef iLBC_encode
+#define iLBC_encode WebRtcIlbcfix_EncodeImpl
+#endif
+/* libilbc 3.x also deprecates the iLBC_{Enc,Dec}_Inst_t type names in favour of
+ * IlbcEncoder/IlbcDecoder; use the current names there so the build stays clean
+ * under -Werror=deprecated-declarations.  libilbc 2.x has only the iLBC_* names. */
+#if defined(LIBILBC_VERSION_MAJOR) && LIBILBC_VERSION_MAJOR >= 3
+#define iLBC_Enc_Inst_t IlbcEncoder
+#define iLBC_Dec_Inst_t IlbcDecoder
+#endif
 #else
 #include "ilbc/iLBC_encode.h"
 #include "ilbc/iLBC_decode.h"
