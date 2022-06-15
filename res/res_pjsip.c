@@ -1811,6 +1811,18 @@
 						in-progress calls.</para>
 					</description>
 				</configOption>
+				<configOption name="allow_wildcard_certs" default="false">
+					<synopsis>Allow use of wildcards in certificates (TLS ONLY)</synopsis>
+					<description>
+					  <para>In combination with verify_server, when enabled allow use of wildcards,
+					  i.e. '*.' in certs for common,and subject alt names of type DNS for TLS
+					  transport types. Names must start with the wildcard. Partial wildcards, e.g.
+					  'f*.example.com' and 'foo.*.com' are not allowed. As well, names only match
+					  against a single level meaning '*.example.com' matches 'foo.example.com',
+					  but not 'foo.bar.example.com'.
+					  </para>
+					</description>
+				</configOption>
 				<configOption name="symmetric_transport" default="no">
 					<synopsis>Use the same transport for outgoing requests as incoming ones.</synopsis>
 					<description>

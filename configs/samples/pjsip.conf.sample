@@ -1091,6 +1091,15 @@
                         ; URI is not a hostname, the saved transport will be
                         ; used and the 'x-ast-txp' parameter stripped from the
                         ; outgoing packet.
+;allow_wildcard_certs=no ; In conjunction with verify_server, if 'yes' allow use
+                         ; of wildcards, i.e. '*.' in certs for common, and
+                         ; subject alt names of type DNS for TLS transport
+                         ; types. Note, names must start with the wildcard.
+                         ; Partial wildcards, e.g. 'f*.example.com' and
+                         ; 'foo.*.com' are disallowed. As well, names only
+                         ; match against a single level meaning '*.example.com'
+                         ; matches 'foo.example.com', but not
+                         ; 'foo.bar.example.com'. Defaults to 'no'.
 
 ;==========================AOR SECTION OPTIONS=========================
 ;[aor]
