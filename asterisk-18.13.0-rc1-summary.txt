@@ -1,0 +1,395 @@
+                                Release Summary
+
+                              asterisk-18.13.0-rc1
+
+                                Date: 2022-06-16
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release is a point release of an existing major version. The changes
+   included were made to address problems that have been identified in this
+   release series, or are minor, backwards compatible new features or
+   improvements. Users should be able to safely upgrade to this version if
+   this release series is already in use. Users considering upgrading from a
+   previous version are strongly encouraged to review the UPGRADE.txt
+   document as well as the CHANGES document for information about upgrading
+   to this release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-18.12.0.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were affected by commits that went into
+   this release.
+
+   Coders                      Testers               Reporters                
+   13 Naveen Albert            1 Moritz Fain         12 N A                   
+   3 Alexei Gradinari                                2 George Joseph          
+   2 Kevin Harwell                                   2 Alexei Gradinari       
+   2 Sean Bright                                     1 Shloime Rosenblum      
+   2 George Joseph                                   1 Marco Paland           
+   1 Trevor Peirce                                   1 Matthias Hensler       
+   1 Moritz Fain                                     1 Maximilian Fridrich    
+   1 Asterisk Development Team                       1 Moritz Fain            
+   1 Maximilian Fridrich                             1 Ray Crumrine           
+   1 Joshua C. Colp                                  1 waltermoeller          
+   1 Thomas Guebels                                  1 Josh Alberts           
+   1 Christof Efkemann                               1 LA                     
+   1 Shloime Rosenblum                               1 Christof Efkemann      
+                                                     1 Moritz Fain            
+                                                     1 Thomas Guebels         
+                                                     1 Ray Crumrine           
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Improvement
+
+    Category: Documentation
+
+   ASTERISK-30090: xmldocs: Use example tags for examples
+   Reported by: N A
+     * [6ae9a5835e] Naveen Albert -- xmldocs: Improve examples.
+
+    Category: Resources/res_agi
+
+   ASTERISK-30058: Evaluate dialplan functions and variables in agi exec
+   Reported by: Shloime Rosenblum
+     * [1978732b8b] Shloime Rosenblum -- res_agi: Evaluate dialplan functions
+       and variables in agi exec if enabled
+
+    Category: Resources/res_ari_channels
+
+   ASTERISK-30027: ari: expose channel driver's unique id (i.e. Call-ID for
+   chan_sip/chan_pjsip) in ARI channel resource
+   Reported by: Moritz Fain
+     * [aaa14d3c7d] Moritz Fain -- ari: expose channel driver's unique id to
+       ARI channel resource
+
+    Category: Resources/res_parking
+
+   ASTERISK-30086: res_parking: Warn when invalid parking space requested
+   Reported by: N A
+     * [89f3def351] Naveen Albert -- res_parking: Warn if out of bounds
+       parking spot requested.
+
+    Category: Resources/res_pjsip_outbound_registration
+
+   ASTERISK-29845: res_pjsip_outbound_registration: Show time remaining until
+   registration lapses
+   Reported by: N A
+     * [d5d3788648] Naveen Albert -- res_pjsip_outbound_registration: Show
+       time until expiration
+
+    Category: Resources/res_pjsip_pubsub
+
+   ASTERISK-29906: [patch] update RLS to reflect the changes to the lists
+   Reported by: Alexei Gradinari
+     * [1c5f023af9] Alexei Gradinari -- res_pjsip_pubsub: delete scheduled
+       notification on RLS update
+   ASTERISK-29891: [patch] provide a display name for RLS subscriptions
+   Reported by: Alexei Gradinari
+     * [7480ebe9ea] Alexei Gradinari -- res_pjsip_pubsub: XML sanitized RLS
+       display name
+
+  Bug
+
+    Category: Applications/app_sayunixtime
+
+   ASTERISK-30092: DateTime application: wrong inflection for one o'clock in
+   German
+   Reported by: Christof Efkemann
+     * [0e96b76d01] Christof Efkemann -- app_sayunixtime: Use correct
+       inflection for German time.
+
+    Category: Channels/chan_dahdi
+
+   ASTERISK-30043: Wrong party is disconnected when hook-flashing on 3-way
+   bridge
+   Reported by: Josh Alberts
+     * [1beccc9a0d] Naveen Albert -- sig_analog: Fix broken three-way
+       conferencing.
+   ASTERISK-29993: chan_dahdi: Operator control option borks both lines
+   involved on callee disconnect
+   Reported by: N A
+     * [8a041fab79] Naveen Albert -- chan_dahdi: Fix broken operator mode
+       clearing.
+
+    Category: Channels/chan_iax2
+
+   ASTERISK-30064: pbx: iax2 switch causes crash due to deadlock and
+   assertion
+   Reported by: N A
+     * [879a6a5997] Naveen Albert -- chan_iax2: Prevent deadlock due to
+       duplicate autoservice.
+
+    Category: Core/BuildSystem
+
+   ASTERISK-30044: GCC 12 issues
+   Reported by: George Joseph
+     * [ad6af63895] George Joseph -- GCC12: Fixes for 16+
+     * [dfd2e4006b] George Joseph -- GCC12: Fixes for 18+. state_id_by_topic
+       comparing wrong value
+
+    Category: Core/General
+
+   ASTERISK-30060: loader: format warnings in dev mode
+   Reported by: N A
+     * [91ab286086] Sean Bright -- loader.c: Use portable printf conversion
+       specifier for int64.
+
+    Category: Core/Logging
+
+   ASTERISK-30097: console: Recent documentation changes for connecting to
+   remote console are inconsistent
+   Reported by: Matthias Hensler
+     * [ae08471d8b] Naveen Albert -- asterisk.c: Fix incompatibility warnings
+       for remote console.
+   ASTERISK-30039: cli: Targeted debug on startup deadlocks and creates
+   unstable system
+   Reported by: N A
+     * [193688dd23] Naveen Albert -- loader: Prevent deadlock using tab
+       completion.
+
+    Category: PBX/General
+
+   ASTERISK-30064: pbx: iax2 switch causes crash due to deadlock and
+   assertion
+   Reported by: N A
+     * [879a6a5997] Naveen Albert -- chan_iax2: Prevent deadlock due to
+       duplicate autoservice.
+
+    Category: Resources/res_calendar
+
+   ASTERISK-29981: res_calendar: Asterisk crashes when starting, and will not
+   run
+   Reported by: N A
+     * [d0d74d060b] Naveen Albert -- res_calendar: Prevent assertion if event
+       ends in past.
+
+    Category: Resources/res_pjsip
+
+   ASTERISK-29603: res_pjsip: UPDATE/re-INVITE not sent when "timers=always"
+   is specified in pjsip.conf
+   Reported by: Ray Crumrine
+     * [ff80a61118] Trevor Peirce -- res_pjsip: Actually enable session
+       timers when timers=always
+   ASTERISK-30051: res_pjsip: No video after un-hold with moh_passthrough=yes
+   Reported by: Maximilian Fridrich
+     * [6e8e5e49af] Maximilian Fridrich -- chan_pjsip: Only set default audio
+       stream on hold.
+
+    Category: Resources/res_pjsip_registrar
+
+   ASTERISK-30042: res_pjsip_transport_websocket: Registration over websocket
+   returns a rewritten contact
+   Reported by: Thomas Guebels
+     * [9f6bda1821] Thomas Guebels -- res_pjsip_transport_websocket: save the
+       original contact host
+
+    Category: Resources/res_pjsip_transport_websocket
+
+   ASTERISK-30065: pjsip: Open Websocket connection is not reused for
+   outgoing requests
+   Reported by: LA
+     * [c5c858287a] Joshua C. Colp -- res_pjsip_transport_websocket: Also set
+       the remote name.
+   ASTERISK-30042: res_pjsip_transport_websocket: Registration over websocket
+   returns a rewritten contact
+   Reported by: Thomas Guebels
+     * [9f6bda1821] Thomas Guebels -- res_pjsip_transport_websocket: save the
+       original contact host
+
+    Category: Sounds
+
+   ASTERISK-30059: menuselect: libxml include fails under Gentoo
+   Reported by: waltermoeller
+     * [db824d8f6d] Sean Bright -- ast_pkgconfig.m4: AST_PKG_CONFIG_CHECK()
+       relies on sed.
+
+    Category: pjproject/pjsip
+
+   ASTERISK-24601: [patch]Missing RFC4235 tags and attributes in PJSIP NOTIFY
+   event: dialog XML body
+   Reported by: Marco Paland
+     * [fa84b4c692] Alexei Gradinari -- res_pjsip_dialog_info_body_generator:
+       Set LOCAL target URI as local URI
+   ASTERISK-30065: pjsip: Open Websocket connection is not reused for
+   outgoing requests
+   Reported by: LA
+     * [c5c858287a] Joshua C. Colp -- res_pjsip_transport_websocket: Also set
+       the remote name.
+
+  New Feature
+
+    Category: Applications/app_confbridge
+
+   ASTERISK-30036: app_confbridge: Add CONFBRIDGE_CHANNELS function
+   Reported by: N A
+     * [b0de067565] Naveen Albert -- app_confbridge: Add function to retrieve
+       channels.
+
+    Category: Applications/app_voicemail
+
+   ASTERISK-30063: app_voicemail: Add option to prevent deletion of messages
+   Reported by: N A
+     * [0e65855b9d] Naveen Albert -- app_voicemail: Add option to prevent
+       message deletion.
+
+    Category: Resources/res_parking
+
+   ASTERISK-30087: res_parking: Add music on hold override option
+   Reported by: N A
+     * [c277fd02e0] Naveen Albert -- res_parking: Add music on hold override
+       option.
+
+    Category: Resources/res_pjsip_outbound_registration
+
+   ASTERISK-29965: res_pjsip_outbound_registration: Make max registration
+   delay configurable
+   Reported by: N A
+     * [b81fbbc6dc] Naveen Albert -- res_pjsip_outbound_registration: Make
+       max random delay configurable.
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   reference a JIRA issue.
+
+   +------------------------------------------------------------------------+
+   | Revision   | Author               | Summary                            |
+   |------------+----------------------+------------------------------------|
+   | 7933125535 | Asterisk Development | Update CHANGES and UPGRADE.txt for |
+   |            | Team                 | 18.13.0                            |
+   |------------+----------------------+------------------------------------|
+   | 71ffc92abf | Kevin Harwell        | test_aeap_transport: disable part  |
+   |            |                      | of failing unit test               |
+   |------------+----------------------+------------------------------------|
+   | 6487498033 | Kevin Harwell        | ARI version: increase non-breaking |
+   |            |                      | number                             |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ .lastclean                                                                       |    1
+ .version                                                                         |    1
+ ChangeLog                                                                        |100772 ----------
+ asterisk-18.12.0-summary.html                                                    |  300
+ asterisk-18.12.0-summary.txt                                                     |  716
+ b/CHANGES                                                                        |   43
+ b/addons/Makefile                                                                |    4
+ b/apps/app_confbridge.c                                                          |  158
+ b/apps/app_festival.c                                                            |    2
+ b/apps/app_voicemail.c                                                           |   46
+ b/autoconf/ast_pkgconfig.m4                                                      |    1
+ b/channels/chan_dahdi.c                                                          |   13
+ b/channels/chan_iax2.c                                                           |   48
+ b/channels/chan_pjsip.c                                                          |   13
+ b/channels/chan_sip.c                                                            |    4
+ b/channels/sig_analog.c                                                          |   10
+ b/configs/samples/pjsip.conf.sample                                              |    5
+ b/configure                                                                      |   32
+ b/contrib/ast-db-manage/config/versions/18e0805d367f_max_random_initial_delay.py |   21
+ b/funcs/func_cdr.c                                                               |    4
+ b/funcs/func_dialgroup.c                                                         |    9
+ b/funcs/func_env.c                                                               |   89
+ b/funcs/func_frame_drop.c                                                        |   12
+ b/funcs/func_frame_trace.c                                                       |   12
+ b/funcs/func_math.c                                                              |   25
+ b/funcs/func_odbc.c                                                              |    8
+ b/funcs/func_periodic_hook.c                                                     |   18
+ b/funcs/func_pitchshift.c                                                        |   33
+ b/funcs/func_rand.c                                                              |    5
+ b/funcs/func_scramble.c                                                          |    2
+ b/funcs/func_sha1.c                                                              |    8
+ b/funcs/func_shell.c                                                             |    4
+ b/funcs/func_speex.c                                                             |   14
+ b/funcs/func_strings.c                                                           |   72
+ b/funcs/func_talkdetect.c                                                        |   24
+ b/funcs/func_version.c                                                           |    9
+ b/funcs/func_vmcount.c                                                           |    4
+ b/funcs/func_volume.c                                                            |   23
+ b/include/asterisk/module.h                                                      |    2
+ b/include/asterisk/stasis_channels.h                                             |    1
+ b/include/asterisk/stringfields.h                                                |   65
+ b/include/asterisk/strings.h                                                     |   10
+ b/main/asterisk.c                                                                |    8
+ b/main/channel_internal_api.c                                                    |    3
+ b/main/loader.c                                                                  |    9
+ b/main/pbx.c                                                                     |   15
+ b/main/say.c                                                                     |    8
+ b/main/stasis_channels.c                                                         |   11
+ b/main/stasis_state.c                                                            |    2
+ b/main/stun.c                                                                    |    8
+ b/menuselect/configure                                                           |  156
+ b/res/ari/ari_model_validators.c                                                 |   16
+ b/res/ari/ari_model_validators.h                                                 |    1
+ b/res/parking/parking_applications.c                                             |   30
+ b/res/parking/parking_controller.c                                               |    2
+ b/res/res_agi.c                                                                  |   21
+ b/res/res_calendar.c                                                             |   17
+ b/res/res_config_pgsql.c                                                         |    2
+ b/res/res_mutestream.c                                                           |   17
+ b/res/res_pjsip/pjsip_configuration.c                                            |    2
+ b/res/res_pjsip_config_wizard.c                                                  |   74
+ b/res/res_pjsip_dialog_info_body_generator.c                                     |   13
+ b/res/res_pjsip_header_funcs.c                                                   |  102
+ b/res/res_pjsip_outbound_registration.c                                          |   29
+ b/res/res_pjsip_pubsub.c                                                         |   10
+ b/res/res_pjsip_transport_websocket.c                                            |   31
+ b/res/res_tonedetect.c                                                           |    2
+ b/rest-api/api-docs/channels.json                                                |    5
+ b/rest-api/resources.json                                                        |    2
+ b/tests/test_aeap_transport.c                                                    |   19
+ b/tests/test_stasis_channels.c                                                   |    2
+ contrib/realtime/mysql/mysql_cdr.sql                                             |   41
+ contrib/realtime/mysql/mysql_config.sql                                          | 1342
+ contrib/realtime/mysql/mysql_voicemail.sql                                       |   35
+ contrib/realtime/postgresql/postgresql_cdr.sql                                   |   45
+ contrib/realtime/postgresql/postgresql_config.sql                                | 1454
+ contrib/realtime/postgresql/postgresql_voicemail.sql                             |   39
+ 77 files changed, 990 insertions(+), 105226 deletions(-)
