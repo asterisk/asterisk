@@ -1,7 +1,0 @@
-Subject: ari
-Subject: stasis_channels
-
-Expose channel driver's unique id (which is the Call-ID for SIP/PJSIP)
-to ARI channel resources as 'protocol_id'.
-
-ASTERISK-30027
