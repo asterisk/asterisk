@@ -1133,6 +1133,7 @@ static int require_odbc(const char *database, const char *table, va_list ap)
 					break;
 				case SQL_TYPE_TIMESTAMP:
 				case SQL_TIMESTAMP:
+				case SQL_DATETIME:
 					if (type != RQ_DATE && type != RQ_DATETIME) {
 						warn_type(col, type);
 					}
