@@ -1893,6 +1893,10 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 						ast_verb(3, "Call on %s left from hold\n", ast_channel_name(o->chan));
 						ast_indicate(o->chan, AST_CONTROL_UNHOLD);
 						break;
+					case AST_CONTROL_FLASH:
+						ast_verb(3, "Hook flash on %s\n", ast_channel_name(o->chan));
+						ast_indicate(o->chan, AST_CONTROL_FLASH);
+						break;
 					case AST_CONTROL_VIDUPDATE:
 					case AST_CONTROL_SRCUPDATE:
 					case AST_CONTROL_SRCCHANGE:
