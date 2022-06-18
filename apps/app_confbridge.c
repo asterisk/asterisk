@@ -1804,7 +1804,6 @@ static struct confbridge_conference *join_conference_bridge(const char *conferen
 			ast_bridge_set_talker_src_video_mode(conference->bridge);
 		} else if (ast_test_flag(&conference->b_profile, BRIDGE_OPT_VIDEO_SRC_SFU)) {
 			ast_bridge_set_sfu_video_mode(conference->bridge);
-			ast_bridge_set_video_update_discard(conference->bridge, conference->b_profile.video_update_discard);
 			ast_bridge_set_remb_send_interval(conference->bridge, conference->b_profile.remb_send_interval);
 			if (ast_test_flag(&conference->b_profile, BRIDGE_OPT_REMB_BEHAVIOR_AVERAGE)) {
 				ast_brige_set_remb_behavior(conference->bridge, AST_BRIDGE_VIDEO_SFU_REMB_AVERAGE);
@@ -1823,6 +1822,9 @@ static struct confbridge_conference *join_conference_bridge(const char *conferen
 				ast_bridge_set_remb_estimated_bitrate(conference->bridge, conference->b_profile.remb_estimated_bitrate);
 			}
 		}
+
+		/* Always set the minimum interval between video updates, to avoid infinite video updates. */
+		ast_bridge_set_video_update_discard(conference->bridge, conference->b_profile.video_update_discard);
 
 		if (ast_test_flag(&conference->b_profile, BRIDGE_OPT_ENABLE_EVENTS)) {
 			ast_bridge_set_send_sdp_label(conference->bridge, 1);
