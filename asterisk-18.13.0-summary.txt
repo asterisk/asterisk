@@ -1,8 +1,8 @@
                                 Release Summary
 
-                              asterisk-18.13.0-rc1
+                                asterisk-18.13.0
 
-                                Date: 2022-06-16
+                                Date: 2022-06-23
 
                            <asteriskteam@digium.com>
 
@@ -54,10 +54,10 @@
    3 Alexei Gradinari                                2 George Joseph          
    2 Kevin Harwell                                   2 Alexei Gradinari       
    2 Sean Bright                                     1 Shloime Rosenblum      
-   2 George Joseph                                   1 Marco Paland           
-   1 Trevor Peirce                                   1 Matthias Hensler       
-   1 Moritz Fain                                     1 Maximilian Fridrich    
-   1 Asterisk Development Team                       1 Moritz Fain            
+   2 Asterisk Development Team                       1 Marco Paland           
+   2 George Joseph                                   1 Matthias Hensler       
+   1 Trevor Peirce                                   1 Maximilian Fridrich    
+   1 Moritz Fain                                     1 Moritz Fain            
    1 Maximilian Fridrich                             1 Ray Crumrine           
    1 Joshua C. Colp                                  1 waltermoeller          
    1 Thomas Guebels                                  1 Josh Alberts           
@@ -296,6 +296,9 @@
    +------------------------------------------------------------------------+
    | Revision   | Author               | Summary                            |
    |------------+----------------------+------------------------------------|
+   | 9e716582f1 | Asterisk Development | Update for 18.13.0-rc1             |
+   |            | Team                 |                                    |
+   |------------+----------------------+------------------------------------|
    | 7933125535 | Asterisk Development | Update CHANGES and UPGRADE.txt for |
    |            | Team                 | 18.13.0                            |
    |------------+----------------------+------------------------------------|
@@ -315,16 +318,17 @@
    This is a summary of the changes to the source code that went into this
    release that was generated using the diffstat utility.
 
- .lastclean                                                                       |    1
- .version                                                                         |    1
- ChangeLog                                                                        |100772 ----------
- asterisk-18.12.0-summary.html                                                    |  300
- asterisk-18.12.0-summary.txt                                                     |  716
+ asterisk-18.12.0-summary.html                                                    |  300 ----
+ asterisk-18.12.0-summary.txt                                                     |  716 ----------
+ b/.version                                                                       |    2
  b/CHANGES                                                                        |   43
+ b/ChangeLog                                                                      |  436 ++++++
  b/addons/Makefile                                                                |    4
- b/apps/app_confbridge.c                                                          |  158
+ b/apps/app_confbridge.c                                                          |  158 ++
  b/apps/app_festival.c                                                            |    2
  b/apps/app_voicemail.c                                                           |   46
+ b/asterisk-18.13.0-rc1-summary.html                                              |  151 ++
+ b/asterisk-18.13.0-rc1-summary.txt                                               |  395 +++++
  b/autoconf/ast_pkgconfig.m4                                                      |    1
  b/channels/chan_dahdi.c                                                          |   13
  b/channels/chan_iax2.c                                                           |   48
@@ -334,9 +338,11 @@
  b/configs/samples/pjsip.conf.sample                                              |    5
  b/configure                                                                      |   32
  b/contrib/ast-db-manage/config/versions/18e0805d367f_max_random_initial_delay.py |   21
+ b/contrib/realtime/mysql/mysql_config.sql                                        |    6
+ b/contrib/realtime/postgresql/postgresql_config.sql                              |    6
  b/funcs/func_cdr.c                                                               |    4
  b/funcs/func_dialgroup.c                                                         |    9
- b/funcs/func_env.c                                                               |   89
+ b/funcs/func_env.c                                                               |   89 -
  b/funcs/func_frame_drop.c                                                        |   12
  b/funcs/func_frame_trace.c                                                       |   12
  b/funcs/func_math.c                                                              |   25
@@ -348,7 +354,7 @@
  b/funcs/func_sha1.c                                                              |    8
  b/funcs/func_shell.c                                                             |    4
  b/funcs/func_speex.c                                                             |   14
- b/funcs/func_strings.c                                                           |   72
+ b/funcs/func_strings.c                                                           |   72 -
  b/funcs/func_talkdetect.c                                                        |   24
  b/funcs/func_version.c                                                           |    9
  b/funcs/func_vmcount.c                                                           |    4
@@ -365,7 +371,7 @@
  b/main/stasis_channels.c                                                         |   11
  b/main/stasis_state.c                                                            |    2
  b/main/stun.c                                                                    |    8
- b/menuselect/configure                                                           |  156
+ b/menuselect/configure                                                           |  156 +-
  b/res/ari/ari_model_validators.c                                                 |   16
  b/res/ari/ari_model_validators.h                                                 |    1
  b/res/parking/parking_applications.c                                             |   30
@@ -375,9 +381,9 @@
  b/res/res_config_pgsql.c                                                         |    2
  b/res/res_mutestream.c                                                           |   17
  b/res/res_pjsip/pjsip_configuration.c                                            |    2
- b/res/res_pjsip_config_wizard.c                                                  |   74
+ b/res/res_pjsip_config_wizard.c                                                  |   74 -
  b/res/res_pjsip_dialog_info_body_generator.c                                     |   13
- b/res/res_pjsip_header_funcs.c                                                   |  102
+ b/res/res_pjsip_header_funcs.c                                                   |  102 -
  b/res/res_pjsip_outbound_registration.c                                          |   29
  b/res/res_pjsip_pubsub.c                                                         |   10
  b/res/res_pjsip_transport_websocket.c                                            |   31
@@ -386,10 +392,4 @@
  b/rest-api/resources.json                                                        |    2
  b/tests/test_aeap_transport.c                                                    |   19
  b/tests/test_stasis_channels.c                                                   |    2
- contrib/realtime/mysql/mysql_cdr.sql                                             |   41
- contrib/realtime/mysql/mysql_config.sql                                          | 1342
- contrib/realtime/mysql/mysql_voicemail.sql                                       |   35
- contrib/realtime/postgresql/postgresql_cdr.sql                                   |   45
- contrib/realtime/postgresql/postgresql_config.sql                                | 1454
- contrib/realtime/postgresql/postgresql_voicemail.sql                             |   39
- 77 files changed, 990 insertions(+), 105226 deletions(-)
+ 74 files changed, 1983 insertions(+), 1499 deletions(-)
