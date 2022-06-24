@@ -45,8 +45,8 @@
 #include <lauxlib.h>
 #include <lualib.h>
 
-static char *config = "extensions.lua";
-static char *registrar = "pbx_lua";
+static const char *config = "extensions.lua";
+static const char *registrar = "pbx_lua";
 
 #ifdef LOW_MEMORY
 #define LUA_EXT_DATA_SIZE 256
@@ -60,7 +60,7 @@ static char *registrar = "pbx_lua";
  * applications might return */
 #define LUA_GOTO_DETECTED 5
 
-static char *lua_read_extensions_file(lua_State *L, long *size, int *file_not_openable);
+static char *lua_read_extensions_file(lua_State *L, size_t *size, int *file_not_openable);
 static int lua_load_extensions(lua_State *L, struct ast_channel *chan);
 static int lua_reload_extensions(lua_State *L);
 static void lua_free_extensions(void);
@@ -105,7 +105,7 @@ static int exec(struct ast_channel *chan, const char *context, const char *exten
 
 AST_MUTEX_DEFINE_STATIC(config_file_lock);
 static char *config_file_data = NULL;
-static long config_file_size = 0;
+static size_t config_file_size = 0;
 
 static struct ast_context *local_contexts = NULL;
 static struct ast_hashtab *local_table = NULL;
@@ -1093,7 +1093,7 @@ static int lua_extension_cmp(lua_State *L)
  *
  * \return a pointer to the buffer
  */
-static char *lua_read_extensions_file(lua_State *L, long *size, int *file_not_openable)
+static char *lua_read_extensions_file(lua_State *L, size_t *size, int *file_not_openable)
 {
 	FILE *f;
 	int error_func;
@@ -1217,7 +1217,7 @@ static int lua_load_extensions(lua_State *L, struct ast_channel *chan)
  */
 static int lua_reload_extensions(lua_State *L)
 {
-	long size = 0;
+	size_t size = 0;
 	char *data = NULL;
 	int file_not_openable = 0;
 
@@ -1497,7 +1497,8 @@ static int exec(struct ast_channel *chan, const char *context, const char *exten
  */
 static int lua_find_extension(lua_State *L, const char *context, const char *exten, int priority, ast_switch_f *func, int push_func)
 {
-	int context_table, context_order_table, i;
+	int context_table, context_order_table;
+	size_t i;
 
 	ast_debug(2, "Looking up %s@%s:%i\n", exten, context, priority);
 	if (priority != 1)
@@ -1690,7 +1691,7 @@ static int load_module(void)
 		return res;
 
 	if (ast_register_switch(&lua_switch)) {
-		ast_log(LOG_ERROR, "Unable to register LUA PBX switch\n");
+		ast_log(LOG_ERROR, "Unable to register Lua PBX switch\n");
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
