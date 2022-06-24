@@ -12,13 +12,33 @@ fi
 
 pushd $TESTSUITE_DIR
 
+if [[ "$VIRTUAL_ENV" != "" ]]
+then
+		echo "Detected activated virtual environment:"
+		echo $VIRTUAL_ENV
+		echo "Skipping creation of new environment"
+else
+	python3 -m venv ${TESTSUITE_DIR}/.venv
+	source ${TESTSUITE_DIR}/.venv/bin/activate
+	if [[ "$VIRTUAL_ENV" != "" ]]
+	then
+		echo "Successfully activated virtual environment:"
+		echo $VIRTUAL_ENV
+		python -m pip install --upgrade pip
+		python -m pip install -r ${CIDIR}/requirements.txt
+		python -m pip install -r ${CIDIR}/extras.txt
+	else
+		echo "Virtual environment failed, attempting fall-back method"
+		export PYTHONPATH=./lib/python/
+	fi
+fi
+
 ./cleanup-test-remnants.sh
 
 if [ $REALTIME -eq 1 ] ; then
 	$CIDIR/setupRealtime.sh --initialize-db=${INITIALIZE_DB:?0}
 fi
 
-export PYTHONPATH=./lib/python/
 echo "Running tests ${TESTSUITE_COMMAND} ${AST_WORK_DIR:+with work directory ${AST_WORK_DIR}}"
 ./runtests.py --cleanup --timeout=${TEST_TIMEOUT} ${TESTSUITE_COMMAND} | contrib/scripts/pretty_print --no-color --no-timer --term-width=120 --show-errors || :
 
