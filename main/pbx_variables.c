@@ -394,7 +394,9 @@ const char *ast_str_retrieve_variable(struct ast_str **str, ssize_t maxlen, stru
 	return ret;
 }
 
-void ast_str_substitute_variables_full(struct ast_str **buf, ssize_t maxlen, struct ast_channel *c, struct varshead *headp, const char *templ, size_t *used)
+void ast_str_substitute_variables_full2(struct ast_str **buf, ssize_t maxlen,
+	struct ast_channel *c, struct varshead *headp, const char *templ,
+	size_t *used, int use_both)
 {
 	/* Substitutes variables into buf, based on string templ */
 	const char *whereweare;
@@ -501,7 +503,8 @@ void ast_str_substitute_variables_full(struct ast_str **buf, ssize_t maxlen, str
 
 			/* Store variable name expression to lookup. */
 			ast_str_set_substr(&substr1, 0, vars, len);
-			ast_debug(5, "Evaluating '%s' (from '%s' len %d)\n", ast_str_buffer(substr1), vars, len);
+			ast_debug(5, "Evaluating '%s' (from '%s' len %d)\n",
+				ast_str_buffer(substr1), vars, len);
 
 			/* Substitute if necessary */
 			if (needsub) {
@@ -511,7 +514,8 @@ void ast_str_substitute_variables_full(struct ast_str **buf, ssize_t maxlen, str
 						continue;
 					}
 				}
-				ast_str_substitute_variables_full(&substr2, 0, c, headp, ast_str_buffer(substr1), NULL);
+				ast_str_substitute_variables_full2(&substr2, 0, c, headp,
+					ast_str_buffer(substr1), NULL, use_both);
 				finalvars = ast_str_buffer(substr2);
 			} else {
 				finalvars = ast_str_buffer(substr1);
@@ -520,31 +524,48 @@ void ast_str_substitute_variables_full(struct ast_str **buf, ssize_t maxlen, str
 			parse_variable_name(finalvars, &offset, &offset2, &isfunction);
 			if (isfunction) {
 				/* Evaluate function */
-				if (c || !headp) {
+				res = -1;
+				if (c) {
 					res = ast_func_read2(c, finalvars, &substr3, 0);
-				} else {
+					ast_debug(2, "Function %s result is '%s' from channel\n",
+						finalvars, res ? "" : ast_str_buffer(substr3));
+				}
+				if (!c || (c && res < 0 && use_both)) {
 					struct varshead old;
 					struct ast_channel *bogus;
 
 					bogus = ast_dummy_channel_alloc();
 					if (bogus) {
 						old = *ast_channel_varshead(bogus);
-						*ast_channel_varshead(bogus) = *headp;
+						if (headp) {
+							*ast_channel_varshead(bogus) = *headp;
+						}
 						res = ast_func_read2(bogus, finalvars, &substr3, 0);
 						/* Don't deallocate the varshead that was passed in */
-						*ast_channel_varshead(bogus) = old;
+						if (headp) {
+							*ast_channel_varshead(bogus) = old;
+						}
 						ast_channel_unref(bogus);
 					} else {
 						ast_log(LOG_ERROR, "Unable to allocate bogus channel for function value substitution.\n");
 						res = -1;
 					}
+					ast_debug(2, "Function %s result is '%s' from headp\n",
+						finalvars, res ? "" : ast_str_buffer(substr3));
 				}
-				ast_debug(2, "Function %s result is '%s'\n",
-					finalvars, res ? "" : ast_str_buffer(substr3));
 			} else {
-				/* Retrieve variable value */
-				ast_str_retrieve_variable(&substr3, 0, c, headp, finalvars);
-				res = 0;
+				const char *result;
+				if (c) {
+					result = ast_str_retrieve_variable(&substr3, 0, c, NULL, finalvars);
+					ast_debug(2, "Variable %s result is '%s' from channel\n",
+						finalvars, S_OR(result, ""));
+				}
+				if (!c || (c && !result && use_both)) {
+					result = ast_str_retrieve_variable(&substr3, 0, NULL, headp, finalvars);
+					ast_debug(2, "Variable %s result is '%s' from headp\n",
+						finalvars, S_OR(result, ""));
+				}
+				res = (result ? 0 : -1);
 			}
 			if (!res) {
 				ast_str_substring(substr3, offset, offset2);
@@ -596,7 +617,8 @@ void ast_str_substitute_variables_full(struct ast_str **buf, ssize_t maxlen, str
 						continue;
 					}
 				}
-				ast_str_substitute_variables_full(&substr2, 0, c, headp, ast_str_buffer(substr1), NULL);
+				ast_str_substitute_variables_full2(&substr2, 0, c, headp,
+					ast_str_buffer(substr1), NULL, use_both);
 				finalvars = ast_str_buffer(substr2);
 			} else {
 				finalvars = ast_str_buffer(substr1);
@@ -614,6 +636,12 @@ void ast_str_substitute_variables_full(struct ast_str **buf, ssize_t maxlen, str
 	ast_free(substr1);
 	ast_free(substr2);
 	ast_free(substr3);
+}
+
+void ast_str_substitute_variables_full(struct ast_str **buf, ssize_t maxlen,
+	struct ast_channel *chan, struct varshead *headp, const char *templ, size_t *used)
+{
+	ast_str_substitute_variables_full2(buf, maxlen, chan, headp, templ, used, 0);
 }
 
 void ast_str_substitute_variables(struct ast_str **buf, ssize_t maxlen, struct ast_channel *chan, const char *templ)
