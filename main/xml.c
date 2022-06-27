@@ -361,6 +361,11 @@ int ast_xml_doc_dump_file(FILE *output, struct ast_xml_doc *doc)
 	return xmlDocDump(output, (xmlDocPtr)doc);
 }
 
+void ast_xml_doc_dump_memory(struct ast_xml_doc *doc, char **buffer, int *length)
+{
+	xmlDocDumpFormatMemory((xmlDocPtr)doc, (xmlChar **)buffer, length, 1);
+}
+
 const char *ast_xml_node_get_name(struct ast_xml_node *node)
 {
 	return (const char *) ((xmlNode *) node)->name;
