@@ -1952,7 +1952,7 @@ AST_TEST_DEFINE(variable_list_from_string)
 
 	switch (cmd) {
 	case TEST_INIT:
-		info->name = "variable_list_from_string";
+		info->name = "variable_list_from_quoted_string";
 		info->category = "/main/config/";
 		info->summary = "Test parsing a string into a variable list";
 		info->description =	info->summary;
@@ -1962,7 +1962,7 @@ AST_TEST_DEFINE(variable_list_from_string)
 	}
 
 	parse_string = "abc = 'def', ghi = 'j,kl', mno='pq=r', stu = 'vwx=\"yz\", ABC = \"DEF\"'";
-	list = ast_variable_list_from_string(parse_string, ",", "=");
+	list = ast_variable_list_from_quoted_string(parse_string, ",", "=", "'");
 	ast_test_validate(test, list != NULL);
 	str = ast_variable_list_join(list, "|", "^", "@", NULL);
 
