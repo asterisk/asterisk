@@ -1308,7 +1308,11 @@ static enum ast_websocket_result websocket_client_handshake_get_response(
 	int has_accept = 0;
 	int has_protocol = 0;
 
-	if (ast_iostream_gets(client->ser->stream, buf, sizeof(buf)) <= 0) {
+	while (ast_iostream_gets(client->ser->stream, buf, sizeof(buf)) <= 0) {
+		if (errno == EINTR || errno == EAGAIN) {
+			continue;
+		}
+
 		ast_log(LOG_ERROR, "Unable to retrieve HTTP status line.");
 		return WS_BAD_STATUS;
 	}
@@ -1321,10 +1325,19 @@ static enum ast_websocket_result websocket_client_handshake_get_response(
 
 	/* Ignoring line folding - assuming header field values are contained
 	   within a single line */
-	while (ast_iostream_gets(client->ser->stream, buf, sizeof(buf)) > 0) {
+	while (1) {
+		ssize_t len = ast_iostream_gets(client->ser->stream, buf, sizeof(buf));
 		char *name, *value;
-		int parsed = ast_http_header_parse(buf, &name, &value);
+		int parsed;
 
+		if (len <= 0) {
+			if (errno == EINTR || errno == EAGAIN) {
+				continue;
+			}
+			break;
+		}
+
+		parsed = ast_http_header_parse(buf, &name, &value);
 		if (parsed < 0) {
 			break;
 		}
@@ -1360,6 +1373,7 @@ static enum ast_websocket_result websocket_client_handshake_get_response(
 			return WS_NOT_SUPPORTED;
 		}
 	}
+
 	return has_upgrade && has_connection && has_accept ?
 		WS_OK : WS_HEADER_MISSING;
 }
