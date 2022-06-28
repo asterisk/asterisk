@@ -134,22 +134,15 @@ AST_TEST_DEFINE(transport_connect_fail)
 
 	ast_test_validate(test, !aeap_transport_is_connected(transport));
 
-	/*
-	 * The following section of code has been disabled as it may be the cause
-	 * of subsequent test failures.
-	 *
-	 * See ASTERISK-30099 for more information
-	 */
-
-	/* aeap_transport_destroy(transport); */
+	aeap_transport_destroy(transport);
 
 	/* /\* Test invalid protocol *\/ */
-	/* ast_test_validate(test, (transport = aeap_transport_create(TRANSPORT_URL))); */
+	ast_test_validate(test, (transport = aeap_transport_create(TRANSPORT_URL)));
 
-	/* ast_test_validate(test, aeap_transport_connect(transport, */
-	/* 	TRANSPORT_URL, TRANSPORT_PROTOCOL_INVALID, TRANSPORT_TIMEOUT)); */
+	ast_test_validate(test, aeap_transport_connect(transport,
+		TRANSPORT_URL, TRANSPORT_PROTOCOL_INVALID, TRANSPORT_TIMEOUT));
 
-	/* ast_test_validate(test, !aeap_transport_is_connected(transport)); */
+	ast_test_validate(test, !aeap_transport_is_connected(transport));
 
 	return AST_TEST_PASS;
 }
