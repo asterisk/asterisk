@@ -6381,6 +6381,7 @@ static void build_rand_pad(unsigned char *buf, ssize_t len)
 
 static int invalid_key(ast_aes_decrypt_key *ecx)
 {
+#ifdef HAVE_OPENSSL
 	int i;
 	for (i = 0; i < 60; i++) {
 		if (ecx->rd_key[i]) {
@@ -6389,6 +6390,9 @@ static int invalid_key(ast_aes_decrypt_key *ecx)
 	}
 	/* if ast_aes_encrypt or ast_aes_decrypt is called, then we'll crash when calling AES_encrypt or AES_decrypt */
 	return -1;
+#else
+	return 0; /* Can't verify, but doesn't matter anyways */
+#endif
 }
 
 static void build_encryption_keys(const unsigned char *digest, struct chan_iax2_pvt *pvt)
