@@ -280,21 +280,29 @@ struct scoreboard  /* make sure all fields are 0 before calling new_find_extensi
 	struct ast_exten *exten;
 };
 
-/*! \brief ast_context: An extension context - must remain in sync with fake_context */
+/*! \brief ast_context: An extension context */
 struct ast_context {
-	ast_rwlock_t lock;			/*!< A lock to prevent multiple threads from clobbering the context */
-	struct ast_exten *root;			/*!< The root of the list of extensions */
-	struct ast_hashtab *root_table;            /*!< For exact matches on the extensions in the pattern tree, and for traversals of the pattern_tree  */
-	struct match_char *pattern_tree;        /*!< A tree to speed up extension pattern matching */
-	struct ast_context *next;		/*!< Link them together */
-	struct ast_includes includes;		/*!< Include other contexts */
-	struct ast_ignorepats ignorepats;	/*!< Patterns for which to continue playing dialtone */
-	struct ast_sws alts;			/*!< Alternative switches */
-	char *registrar;			/*!< Registrar -- make sure you malloc this, as the registrar may have to survive module unloads */
-	int refcount;                   /*!< each module that would have created this context should inc/dec this as appropriate */
-	int autohints;                  /*!< Whether autohints support is enabled or not */
-	ast_mutex_t macrolock;			/*!< A lock to implement "exclusive" macros - held whilst a call is executing in the macro */
-	char name[0];				/*!< Name of the context */
+	const char *name;
+	const char *registrar;
+
+	ast_rwlock_t lock;                /*!< A lock to prevent multiple threads from clobbering the context */
+	struct ast_exten *root;           /*!< The root of the list of extensions */
+	struct ast_hashtab *root_table;   /*!< For exact matches on the extensions in the pattern tree, and for traversals of the pattern_tree  */
+	struct match_char *pattern_tree;  /*!< A tree to speed up extension pattern matching */
+	struct ast_context *next;         /*!< Link them together */
+	struct ast_includes includes;     /*!< Include other contexts */
+	struct ast_ignorepats ignorepats; /*!< Patterns for which to continue playing dialtone */
+	struct ast_sws alts;              /*!< Alternative switches */
+	int refcount;                     /*!< each module that would have created this context should inc/dec this as appropriate */
+	int autohints;                    /*!< Whether autohints support is enabled or not */
+	ast_mutex_t macrolock;            /*!< A lock to implement "exclusive" macros - held whilst a call is executing in the macro */
+
+	/*!
+	 * Buffer to hold the name & registrar character data.
+	 *
+	 * The context name *must* be stored first in this buffer.
+	 */
+	char data[];
 };
 
 /*! \brief ast_state_cb: An extension state notify register item */
@@ -2429,35 +2437,18 @@ int ast_extension_close(const char *pattern, const char *data, int needmore)
 	return extension_match_core(pattern, data, needmore);
 }
 
-/* This structure must remain in sync with ast_context for proper hashtab matching */
-struct fake_context /* this struct is purely for matching in the hashtab */
-{
-	ast_rwlock_t lock;
-	struct ast_exten *root;
-	struct ast_hashtab *root_table;
-	struct match_char *pattern_tree;
-	struct ast_context *next;
-	struct ast_includes includes;
-	struct ast_ignorepats ignorepats;
-	struct ast_sws alts;
-	const char *registrar;
-	int refcount;
-	int autohints;
-	ast_mutex_t macrolock;
-	char name[256];
-};
-
 struct ast_context *ast_context_find(const char *name)
 {
 	struct ast_context *tmp;
-	struct fake_context item;
+	struct ast_context item = {
+		.name = name,
+	};
 
 	if (!name) {
 		return NULL;
 	}
 	ast_rdlock_contexts();
 	if (contexts_table) {
-		ast_copy_string(item.name, name, sizeof(item.name));
 		tmp = ast_hashtab_lookup(contexts_table, &item);
 	} else {
 		tmp = NULL;
@@ -2768,7 +2759,10 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 			return NULL;
 		}
 	}
-	q->incstack[q->stacklen++] = tmp->name;	/* Setup the stack */
+	/* Technically we should be using tmp->name here, but if we used that we
+	 * would have to cast away the constness of the 'name' pointer and I do
+	 * not want to do that. */
+	q->incstack[q->stacklen++] = tmp->data;	/* Setup the stack */
 	/* Now try any includes we have in this context */
 	for (idx = 0; idx < ast_context_includes_count(tmp); idx++) {
 		const struct ast_include *i = ast_context_includes_get(tmp, idx);
@@ -4806,9 +4800,9 @@ void pbx_set_overrideswitch(const char *newval)
  */
 static struct ast_context *find_context(const char *context)
 {
-	struct fake_context item;
-
-	ast_copy_string(item.name, context, sizeof(item.name));
+	struct ast_context item = {
+		.name = context,
+	};
 
 	return ast_hashtab_lookup(contexts_table, &item);
 }
@@ -4821,9 +4815,9 @@ static struct ast_context *find_context(const char *context)
 static struct ast_context *find_context_locked(const char *context)
 {
 	struct ast_context *c;
-	struct fake_context item;
-
-	ast_copy_string(item.name, context, sizeof(item.name));
+	struct ast_context item = {
+		.name = context,
+	};
 
 	ast_rdlock_contexts();
 	c = ast_hashtab_lookup(contexts_table, &item);
@@ -6199,8 +6193,12 @@ void unreference_cached_app(struct ast_app *app)
 struct ast_context *ast_context_find_or_create(struct ast_context **extcontexts, struct ast_hashtab *exttable, const char *name, const char *registrar)
 {
 	struct ast_context *tmp, **local_contexts;
-	struct fake_context search;
-	int length = sizeof(struct ast_context) + strlen(name) + 1;
+	struct ast_context search = {
+		.name = name,
+	};
+	size_t name_bytes = strlen(name);
+	size_t registrar_bytes = strlen(registrar);
+	int length = sizeof(struct ast_context) + name_bytes + registrar_bytes + 2;
 
 	if (!contexts_table) {
 		/* Protect creation of contexts_table from reentrancy. */
@@ -6216,7 +6214,6 @@ struct ast_context *ast_context_find_or_create(struct ast_context **extcontexts,
 		ast_unlock_contexts();
 	}
 
-	ast_copy_string(search.name, name, sizeof(search.name));
 	if (!extcontexts) {
 		ast_rdlock_contexts();
 		local_contexts = &contexts;
@@ -6238,14 +6235,19 @@ struct ast_context *ast_context_find_or_create(struct ast_context **extcontexts,
 	if ((tmp = ast_calloc(1, length))) {
 		ast_rwlock_init(&tmp->lock);
 		ast_mutex_init(&tmp->macrolock);
-		strcpy(tmp->name, name);
+		tmp->name = memcpy(&tmp->data[0], name, name_bytes);
+		tmp->registrar = memcpy(&tmp->data[name_bytes + 1], registrar, registrar_bytes);
 		tmp->root = NULL;
 		tmp->root_table = NULL;
-		tmp->registrar = ast_strdup(registrar);
 		AST_VECTOR_INIT(&tmp->includes, 0);
 		AST_VECTOR_INIT(&tmp->ignorepats, 0);
 		AST_VECTOR_INIT(&tmp->alts, 0);
 		tmp->refcount = 1;
+
+		/* The context 'name' must be stored at the beginning of 'data.' The
+		 * order of subsequent strings (currently only 'registrar') is not
+		 * relevant. */
+		ast_assert(tmp->name == &tmp->data[0]);
 	} else {
 		ast_log(LOG_ERROR, "Danger! We failed to allocate a context for %s!\n", name);
 		if (!extcontexts) {
@@ -8071,9 +8073,6 @@ static void __ast_internal_context_destroy( struct ast_context *con)
 	/* Free switches */
 	AST_VECTOR_CALLBACK_VOID(&tmp->alts, sw_free);
 	AST_VECTOR_FREE(&tmp->alts);
-
-	if (tmp->registrar)
-		ast_free(tmp->registrar);
 
 	/* destroy the hash tabs */
 	if (tmp->root_table) {
