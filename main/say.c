@@ -189,19 +189,13 @@ static int say_filenames(struct ast_channel *chan, const char *ints, const char 
 
 	files = ast_str_buffer(filenames);
 
-	while ((fn = strsep(&files, "&"))) {
+	while (!res && (fn = strsep(&files, "&"))) {
 		res = ast_streamfile(chan, fn, lang);
 		if (!res) {
-			if ((audiofd  > -1) && (ctrlfd > -1))
+			if ((audiofd  > -1) && (ctrlfd > -1)) {
 				res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
-			else
+			} else {
 				res = ast_waitstream(chan, ints);
-
-			if (res > 0) {
-				/* We were interrupted by a digit */
-				ast_stopstream(chan);
-				ast_free(filenames);
-				return res;
 			}
 		}
 		ast_stopstream(chan);
@@ -4933,6 +4927,8 @@ int ast_say_date_with_format_de(struct ast_channel *chan, time_t t, const char *
 				/* 12-Hour */
 				if (tm.tm_hour == 0)
 					ast_copy_string(nextmsg, "digits/12", sizeof(nextmsg));
+				else if (tm.tm_hour == 1)
+					ast_copy_string(nextmsg, "digits/1N", sizeof(nextmsg));
 				else if (tm.tm_hour > 12)
 					snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_hour - 12);
 				else
@@ -4945,7 +4941,11 @@ int ast_say_date_with_format_de(struct ast_channel *chan, time_t t, const char *
 			case 'H':
 			case 'k':
 				/* 24-Hour */
-				res = ast_say_number(chan, tm.tm_hour, ints, lang, (char *) NULL);
+				if (tm.tm_hour == 1) {
+					res = wait_file(chan, ints, "digits/1N", lang);
+				} else {
+					res = ast_say_number(chan, tm.tm_hour, ints, lang, (char *) NULL);
+				}
 				if (!res) {
 					res = wait_file(chan, ints, "digits/oclock", lang);
 				}

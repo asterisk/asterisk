@@ -633,6 +633,12 @@
 		</see-also>
 	</manager>
 	<manager name="CancelAtxfer" language="en_US">
+		<since>
+			<version>13.18.0</version>
+			<version>14.7.0</version>
+			<version>15.1.0</version>
+			<version>16.0.0</version>
+		</since>
 		<synopsis>
 			Cancel an attended transfer.
 		</synopsis>
@@ -1479,6 +1485,7 @@ static int manager_debug = 0;	/*!< enable some debugging code in the manager */
 static int authtimeout;
 static int authlimit;
 static char *manager_channelvars;
+static char *manager_disabledevents;
 
 #define DEFAULT_REALM		"asterisk"
 static char global_realm[MAXHOSTNAMELEN];	/*!< Default realm */
@@ -6241,7 +6248,7 @@ static int process_events(struct mansession *s)
 			    (s->session->readperm & eqe->category) == eqe->category &&
 			    (s->session->send_events & eqe->category) == eqe->category) {
 					if (match_filter(s, eqe->eventdata)) {
-						if (send_string(s, eqe->eventdata) < 0)
+						if (send_string(s, eqe->eventdata) < 0 || s->write_error)
 							ret = -1;	/* don't send more */
 					}
 			}
@@ -6469,36 +6476,30 @@ static int action_loggerrotate(struct mansession *s, const struct message *m)
 /*! \brief Manager function to check if module is loaded */
 static int manager_modulecheck(struct mansession *s, const struct message *m)
 {
-	int res;
 	const char *module = astman_get_header(m, "Module");
 	const char *id = astman_get_header(m, "ActionID");
-	char idText[256];
-	char filename[PATH_MAX];
-	char *cut;
 
-	ast_copy_string(filename, module, sizeof(filename));
-	if ((cut = strchr(filename, '.'))) {
-		*cut = '\0';
-	} else {
-		cut = filename + strlen(filename);
-	}
-	snprintf(cut, (sizeof(filename) - strlen(filename)) - 1, ".so");
-	ast_debug(1, "**** ModuleCheck .so file %s\n", filename);
-	res = ast_module_check(filename);
-	if (!res) {
+	ast_debug(1, "**** ModuleCheck .so file %s\n", module);
+	if (!ast_module_check(module)) {
 		astman_send_error(s, m, "Module not loaded");
 		return 0;
 	}
 
+	astman_append(s, "Response: Success\r\n");
+
 	if (!ast_strlen_zero(id)) {
-		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
-	} else {
-		idText[0] = '\0';
+		astman_append(s, "ActionID: %s\r\n", id);
 	}
-	astman_append(s, "Response: Success\r\n%s", idText);
+
 #if !defined(LOW_MEMORY)
-	astman_append(s, "Version: %s\r\n\r\n", "");
+	/* When we switched from subversion to git we lost the ability to
+	 * retrieve the 'ASTERISK_FILE_VERSION' from that file, but we retain
+	 * the response header here for backwards compatibility. */
+	astman_append(s, "Version: \r\n");
 #endif
+
+	astman_append(s, "\r\n");
+
 	return 0;
 }
 
@@ -7238,6 +7239,15 @@ int __ast_manager_event_multichan(int category, const char *event, int chancount
 	va_list ap;
 	int res;
 
+	if (!ast_strlen_zero(manager_disabledevents)) {
+		if (ast_in_delimited_string(event, manager_disabledevents, ',')) {
+			ast_debug(3, "AMI Event '%s' is globally disabled, skipping\n", event);
+			/* Event is globally disabled */
+			ao2_cleanup(sessions);
+			return 0;
+		}
+	}
+
 	if (!any_manager_listeners(sessions)) {
 		/* Nobody is listening */
 		ao2_cleanup(sessions);
@@ -7639,6 +7649,7 @@ static void xml_copy_escape(struct ast_str **out, const char *src, int mode)
 	/* store in a local buffer to avoid calling ast_str_append too often */
 	char buf[256];
 	char *dst = buf;
+	const char *save = src;
 	int space = sizeof(buf);
 	/* repeat until done and nothing to flush */
 	for ( ; *src || dst != buf ; src++) {
@@ -7652,10 +7663,19 @@ static void xml_copy_escape(struct ast_str **out, const char *src, int mode)
 			}
 		}
 
-		if ( (mode & 2) && !isalnum(*src)) {
-			*dst++ = '_';
-			space--;
-			continue;
+		if (mode & 2) {
+			if (save == src && isdigit(*src)) {
+				/* The first character of an XML attribute cannot be a digit */
+				*dst++ = '_';
+				*dst++ = *src;
+				space -= 2;
+				continue;
+			} else if (!isalnum(*src)) {
+				/* Replace non-alphanumeric with an underscore */
+				*dst++ = '_';
+				space--;
+				continue;
+			}
 		}
 		switch (*src) {
 		case '<':
@@ -8692,6 +8712,7 @@ static char *handle_manager_show_settings(struct ast_cli_entry *e, int cmd, stru
 	ast_cli(a->fd, FORMAT, "Display connects:", AST_CLI_YESNO(displayconnects));
 	ast_cli(a->fd, FORMAT, "Timestamp events:", AST_CLI_YESNO(timestampevents));
 	ast_cli(a->fd, FORMAT, "Channel vars:", S_OR(manager_channelvars, ""));
+	ast_cli(a->fd, FORMAT, "Disabled events:", S_OR(manager_disabledevents, ""));
 	ast_cli(a->fd, FORMAT, "Debug:", AST_CLI_YESNO(manager_debug));
 #undef FORMAT
 #undef FORMAT2
@@ -8912,10 +8933,10 @@ static struct ast_cli_entry cli_manager[] = {
  */
 static void load_channelvars(struct ast_variable *var)
 {
-        char *parse = NULL;
-        AST_DECLARE_APP_ARGS(args,
-                AST_APP_ARG(vars)[MAX_VARS];
-        );
+	char *parse = NULL;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(vars)[MAX_VARS];
+	);
 
 	ast_free(manager_channelvars);
 	manager_channelvars = ast_strdup(var->value);
@@ -8925,6 +8946,18 @@ static void load_channelvars(struct ast_variable *var)
 	AST_STANDARD_APP_ARGS(args, parse);
 
 	ast_channel_set_manager_vars(args.argc, args.vars);
+}
+
+/*!
+ * \internal
+ * \brief Load the config disabledevents variable.
+ *
+ * \param var Config variable to load.
+ */
+static void load_disabledevents(struct ast_variable *var)
+{
+	ast_free(manager_disabledevents);
+	manager_disabledevents = ast_strdup(var->value);
 }
 
 /*!
@@ -9041,6 +9074,7 @@ static void manager_shutdown(void)
 	acl_change_stasis_unsubscribe();
 
 	ast_free(manager_channelvars);
+	ast_free(manager_disabledevents);
 }
 
 
@@ -9335,6 +9369,8 @@ static int __init_manager(int reload, int by_external_config)
 			}
 		} else if (!strcasecmp(var->name, "channelvars")) {
 			load_channelvars(var);
+		} else if (!strcasecmp(var->name, "disabledevents")) {
+			load_disabledevents(var);
 		} else {
 			ast_log(LOG_NOTICE, "Invalid keyword <%s> = <%s> in manager.conf [general]\n",
 				var->name, val);

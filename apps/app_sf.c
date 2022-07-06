@@ -42,6 +42,11 @@
 
 /*** DOCUMENTATION
 	<application name="ReceiveSF" language="en_US">
+		<since>
+			<version>16.24.0</version>
+			<version>18.10.0</version>
+			<version>19.2.0</version>
+		</since>
 		<synopsis>
 			Detects SF digits on a channel and saves them to a variable.
 		</synopsis>
@@ -107,6 +112,11 @@
 		</see-also>
 	</application>
 	<application name="SendSF" language="en_US">
+		<since>
+			<version>16.24.0</version>
+			<version>18.10.0</version>
+			<version>19.2.0</version>
+		</since>
 		<synopsis>
 			Sends arbitrary SF digits on the current or specified channel.
 		</synopsis>
@@ -155,6 +165,21 @@ AST_APP_OPTIONS(read_app_options, {
 static const char *readsf_name = "ReceiveSF";
 static const char sendsf_name[] = "SendSF";
 
+/*!
+ * \brief Detects SF digits on channel using DSP
+ *
+ * \param chan channel on which to read digits
+ * \param buf Buffer in which to store digits
+ * \param buflen Size of buffer
+ * \param timeout ms to wait for all digits before giving up
+ * \param maxdigits Maximum number of digits
+ * \param freq Frequency to use
+ * \param features DSP features
+ * \param extrapulses Whether to recognize extra pulses
+ *
+ * \retval 0 if successful
+ * \retval -1 if unsuccessful (including hangup).
+ */
 static int read_sf_digits(struct ast_channel *chan, char *buf, int buflen, int timeout, int maxdigits, int freq, int features, int extrapulses) {
 	/* Bell System Technical Journal 39 (Nov. 1960) */
 	#define SF_MIN_OFF 25
@@ -169,6 +194,7 @@ static int read_sf_digits(struct ast_channel *chan, char *buf, int buflen, int t
 	char *str = buf;
 	int hits = 0, digits_read = 0;
 	unsigned short int sf_on = 0;
+	int res = 0;
 
 	if (!(dsp = ast_dsp_new())) {
 		ast_log(LOG_WARNING, "Unable to allocate DSP!\n");
@@ -261,7 +287,7 @@ static int read_sf_digits(struct ast_channel *chan, char *buf, int buflen, int t
 								ast_debug(2, "Got more than 10 pulses, truncating to 10\n");
 								hits = 0; /* 10 dial pulses = digit 0 */
 								*str++ = hits + '0';
-								}
+							}
 						} else {
 							if (hits == 10) {
 								hits = 0; /* 10 dial pulses = digit 0 */
@@ -281,13 +307,14 @@ static int read_sf_digits(struct ast_channel *chan, char *buf, int buflen, int t
 			ast_frfree(frame);
 		} else {
 			pbx_builtin_setvar_helper(chan, "RECEIVESFSTATUS", "HANGUP");
+			res = -1;
 		}
 	}
 	if (dsp) {
 		ast_dsp_free(dsp);
 	}
 	ast_debug(3, "channel '%s' - event loop stopped { timeout: %d, remaining_time: %d }\n", ast_channel_name(chan), timeout, remaining_time);
-	return 0;
+	return res;
 }
 
 static int read_sf_exec(struct ast_channel *chan, const char *data)
@@ -297,7 +324,7 @@ static int read_sf_exec(struct ast_channel *chan, const char *data)
 	double tosec;
 	struct ast_flags flags = {0};
 	char *argcopy = NULL;
-	int features = 0, digits = 0, to = 0, freq = 2600;
+	int res, features = 0, digits = 0, to = 0, freq = 2600;
 
 	AST_DECLARE_APP_ARGS(arglist,
 		AST_APP_ARG(variable);
@@ -360,14 +387,14 @@ static int read_sf_exec(struct ast_channel *chan, const char *data)
 		features |= DSP_DIGITMODE_RELAXDTMF;
 	}
 
-	read_sf_digits(chan, tmp, BUFFER_SIZE, to, digits, freq, features, ast_test_flag(&flags, OPT_EXTRAPULSES));
+	res = read_sf_digits(chan, tmp, BUFFER_SIZE, to, digits, freq, features, ast_test_flag(&flags, OPT_EXTRAPULSES));
 	pbx_builtin_setvar_helper(chan, arglist.variable, tmp);
 	if (!ast_strlen_zero(tmp)) {
 		ast_verb(3, "SF digits received: '%s'\n", tmp);
-	} else {
+	} else if (!res) { /* if channel hung up, don't print anything out */
 		ast_verb(3, "No SF digits received.\n");
 	}
-	return 0;
+	return res;
 }
 
 static int sendsf_exec(struct ast_channel *chan, const char *vdata)

@@ -173,6 +173,14 @@ struct ast_sip_transport_state {
 	 * \since 17.0.0
 	 */
 	struct ast_sip_service_route_vector *service_routes;
+	/*!
+	 * Disregard RFC5922 7.2, and allow wildcard certs (TLS only)
+	 */
+	int allow_wildcard_certs;
+	/*!
+	 * If true, fail if server certificate cannot verify (TLS only)
+	 */
+	int verify_server;
 };
 
 #define ast_sip_transport_is_nonlocal(transport_state, addr) \
@@ -878,6 +886,8 @@ struct ast_sip_endpoint {
 		AST_STRING_FIELD(accountcode);
 		/*! If set, we'll push incoming MWI NOTIFYs to stasis using this mailbox */
 		AST_STRING_FIELD(incoming_mwi_mailbox);
+		/*! STIR/SHAKEN profile to use */
+		AST_STRING_FIELD(stir_shaken_profile);
 	);
 	/*! Configuration for extensions */
 	struct ast_sip_endpoint_extensions extensions;
@@ -3062,6 +3072,13 @@ int ast_sip_get_mwi_tps_queue_low(void);
  * \retval non zero if disable.
  */
 unsigned int ast_sip_get_mwi_disable_initial_unsolicited(void);
+
+/*!
+ * \brief Retrieve the global setting 'allow_sending_180_after_183'.
+ *
+ * \retval non zero if disable.
+ */
+unsigned int ast_sip_get_allow_sending_180_after_183(void);
 
 /*!
  * \brief Retrieve the global setting 'use_callerid_contact'.

@@ -1,0 +1,235 @@
+#!/bin/sh
+# shellcheck disable=SC2154
+
+PROGNAME="${0##*/}"
+
+# Fail on errors
+set -e
+
+usage() {
+cat <<-EOF
+	Usage: ${PROGNAME} --command=(create_xml | print_dependencies)
+	--source-tree=<asterisk_source_tree> [ --mod-subdirs=<subdir_search_list> ]
+	[ --with-moduleinfo ] [--for-wiki ] [ --validate ]
+	[ --output-file=<output_xml_file> ]
+	[ --core-output-file=<core_output_xml_file> ]
+
+	command:
+	       print_dependencies:  Print the source files that have documentation
+	                            for use by "make" as dependencies.
+	       create_xml:          Create the actual XML output file.
+
+	source-tree:      The path to the Asterisk source tree.
+
+	mod-subdirs:      A quoted, space-separated list of module sub-directories
+	                  to search for documentation.  Defaults to
+	                  "channels pbx apps codecs formats cdr cel bridges funcs tests main res addons"
+
+	with-moduleinfo:  Include the "MODULEINFO" block from source files.
+	                  Default is to not include MODULEINFO
+
+	for-wiki:         Perform special post processing for wiki documentation.
+	                  This creates two output files and therefore needs both
+	                  <output-file> and <core-output-file>.
+	                  Default is to not perform wiki post-processing.
+
+	validate:         Run xmllint or xmlstarlet to validate output-file.
+
+	output-file:      The XML file to write to if the command was
+	                  "create_xml".
+
+	core-output-file: The additional XML file to write to if the command was
+	                  "create_xml" with "for-wiki".
+
+EOF
+}
+
+with_moduleinfo=0
+for_wiki=0
+validate=0
+command=""
+mod_subdirs="channels pbx apps codecs formats cdr cel bridges funcs tests main res addons"
+source_tree=""
+output_file=""
+core_output_file=""
+
+for arg in "$@" ; do
+	case ${arg} in
+	--for-wiki)
+		for_wiki=1
+		;;
+	--with-moduleinfo)
+		with_moduleinfo=1
+		;;
+	--validate)
+		validate=1
+		;;
+	--command=*)
+		command=${arg#*=}
+		;;
+	--source-tree=*)
+		source_tree=${arg#*=}
+		;;
+	--mod-subdirs=*)
+		mod_subdirs="${arg#*=}"
+		;;
+	--output-file=*)
+		output_file=${arg#*=}
+		;;
+	--core-output-file=*)
+		core_output_file=${arg#*=}
+		;;
+	-h|--help)
+		usage
+		exit 0
+		;;
+	*)
+		echo "unknown option '${arg}'."
+		usage
+		exit 1
+		;;
+	esac
+done
+
+if [ "${command}" = "" ] ; then
+	echo "No command specified"
+	usage
+	exit 1
+fi
+
+if [ "${source_tree}" = "" ] ; then
+	echo "No source-tree specified"
+	usage
+	exit 1;
+fi
+
+if [ ! -d "${source_tree}" ] ; then
+	echo "Asterisk source tree '${source_tree}' doesn't exist."
+	exit 1
+fi
+
+if [ ! -f "${source_tree}/makeopts" ] ; then
+	echo "There's no 'makeopts' in '${source_tree}'.  Maybe you need to run ./configure?"
+	exit 1
+fi
+
+# This script is normally run from the top-level Makefile which
+# will set the tools variables to actual paths, or ':' if
+# the tool isn't found.  If this script is run from the
+# command line for testing purposes however, we'll need to
+# set some sane defaults.
+if [ "${GREP}" = "" ] ; then GREP="grep" ; fi
+if [ "${FIND}" = "" ] ; then FIND="find" ; fi
+if [ "${AWK}" = "" ] ; then AWK="awk" ; fi
+if [ "${DIRNAME}" = "" ] ; then DIRNAME="dirname" ; fi
+if [ "${BASENAME}" = "" ] ; then BASENAME="basename" ; fi
+if [ "${SED}" = "" ] ; then SED="sed" ; fi
+if [ "${CAT}" = "" ] ; then CAT="cat" ; fi
+if [ "${XMLLINT}" = "" ] ; then XMLLINT="xmllint" ; fi
+if [ "${XMLSTARLET}" = "" ] ; then XMLSTARLET="xmlstarlet" ; fi
+
+if [ "${for_wiki}" -eq "1" ] || [ "${validate}" -eq "1" ]; then
+	if [ "${XMLLINT}${XMLSTARLET}" = "::" ] ; then
+		echo "Either xmllint or xmlstarlet is required for wiki post-processing or validation."
+		exit 1
+	fi
+fi
+
+if [ "${command}" = "print_dependencies" ] ; then
+	for subdir in ${mod_subdirs} ; do
+		subpath="${source_tree}/${subdir}"
+		# We WANT word splitting in the following line.
+		# shellcheck disable=SC2046
+		${GREP} -l -E '(language="en_US"|appdocsxml.dtd)' $(${FIND} "${subpath}" -name '*.c' -or -name '*.cc' -or -name '*.xml') || :
+	done
+	exit
+fi
+
+if [ "${command}" != "create_xml" ] ; then
+	echo "Command '${command}' is invalid."
+	usage
+	exit 1
+fi
+
+if [ "${output_file}" = "" ] ; then
+	echo "output-file is required for command '${command}'."
+	usage
+	exit 1;
+fi
+
+output_dir=$(${DIRNAME} "${output_file}")
+if [ ! -d "${output_dir}" ] ; then
+	echo "output destination directory '${output_dir}' doesn't exist."
+	exit 1
+fi
+
+if [ "${for_wiki}" -eq "1" ] && [ "${core_output_file}" = "" ] ; then
+	echo "core-output-file is required for command '${command}' and 'for-wiki'."
+	usage
+	exit 1;
+fi
+
+core_output_dir=$(${DIRNAME} "${core_output_file}")
+if [ ! -d "${core_output_dir}" ] ; then
+	echo "core destination directory '${core_output_dir}' doesn't exist."
+	exit 1
+fi
+
+${CAT} > "${output_file}" <<-EOF
+	<?xml version="1.0" encoding="UTF-8"?>
+	<!DOCTYPE docs SYSTEM "appdocsxml.dtd">
+	<?xml-stylesheet type="text/xsl" href="appdocsxml.xslt"?>
+	<docs xmlns:xi="http://www.w3.org/2001/XInclude">
+EOF
+
+printf "Building Documentation For: "
+
+for subdir in ${mod_subdirs} ; do
+	printf "%s " "${subdir}"
+	subdir_path="${source_tree}/${subdir}"
+	for i in $(${FIND} "${subdir_path}" -name '*.c' -or -name '*.cc'); do
+		if [ "${with_moduleinfo}" -eq "1" ] ; then
+			MODULEINFO=$(${AWK} -f "${source_tree}/build_tools/get_moduleinfo" "${i}")
+			if [ "${MODULEINFO}" != "" ] ; then
+				${CAT} >> "${output_file}" <<-EOF
+				<module language="en_US" name="$(${BASENAME} "${i}" .c)">
+				${MODULEINFO}
+				</module>
+				EOF
+			fi
+		fi
+		if [ "${for_wiki}" -eq "1" ] ; then
+			${PYTHON} build_tools/get_documentation.py < "${i}" >> "${output_file}"
+		else
+			${AWK} -f "${source_tree}/build_tools/get_documentation" "${i}" >> "${output_file}"
+		fi
+	done
+	for i in $(${FIND} "${subdir_path}" -name '*.xml') ; do
+		${GREP} -q "appdocsxml.dtd" "${i}" || continue
+		if [ "${validate}" -eq "1" ] ;then
+			if [ "${XMLLINT}" != ":" ] ; then
+				${XMLLINT} --dtdvalid "${source_tree}/doc/appdocsxml.dtd" --path "${source_tree}/doc" --noout "${i}" || { echo "" ; exit 1 ; }
+			else
+				${XMLSTARLET} val -q -d "${source_tree}/doc/appdocsxml.dtd" "${i}" ||
+					${XMLSTARLET} val -e -d "${source_tree}/doc/appdocsxml.dtd" "${i}" || { echo "" ; exit 1 ; }
+			fi
+		fi
+		${SED} -r "/^\s*(<[?]xml|<.DOCTYPE|<.?docs)/d" "${i}" >> "${output_file}"
+	done
+done
+echo "</docs>" >> "${output_file}"
+echo ""
+
+if [ "${for_wiki}" -eq "1" ] ; then
+	${PYTHON} build_tools/post_process_documentation.py -i "${output_file}" -o "${core_output_file}"
+fi
+
+if [ "${validate}" -eq "1" ] ;then
+	if [ "${XMLLINT}" != ":" ] ; then
+		${XMLLINT} --dtdvalid "${source_tree}/doc/appdocsxml.dtd" --path "${source_tree}/doc" --noout "${output_file}" || exit 1
+	else
+		${XMLSTARLET} val -q -d "${source_tree}/doc/appdocsxml.dtd" "${output_file}" ||
+			${XMLSTARLET} val -e -d "${source_tree}/doc/appdocsxml.dtd" "${output_file}" || { echo "" ; exit 1 ; }
+	fi
+fi
+

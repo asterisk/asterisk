@@ -130,6 +130,7 @@ static int split_path(const char *path, char **dir, char **file)
 
 struct match_recording_data {
 	const char *file;
+	size_t length;
 	char *file_with_ext;
 };
 
@@ -160,7 +161,9 @@ static int handle_find_recording(const char *dir_name, const char *filename, voi
 	int num;
 
 	/* If not a recording or the names do not match the keep searching */
-	if (!(num = is_recording(filename)) || strncmp(data->file, filename, num)) {
+	if (!(num = is_recording(filename))
+	   || data->length != num
+	   || strncmp(data->file, filename, num)) {
 		return 0;
 	}
 
@@ -186,6 +189,7 @@ static char *find_recording(const char *dir_name, const char *file)
 {
 	struct match_recording_data data = {
 		.file = file,
+		.length = strlen(file),
 		.file_with_ext = NULL
 	};
 

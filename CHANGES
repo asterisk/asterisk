@@ -13,6 +13,181 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 18.12.0 to Asterisk 18.13.0 ----------
+------------------------------------------------------------------------------
+
+app_confbridge
+------------------
+ * Adds the CONFBRIDGE_CHANNELS function which can
+   be used to retrieve a list of channels in a ConfBridge,
+   optionally filtered by a particular category. This
+   list can then be used with functions like SHIFT, POP,
+   UNSHIFT, etc.
+
+app_voicemail
+------------------
+ * The r option has been added, which prevents deletion
+   of messages from VoiceMailMain, which can be
+   useful for shared mailboxes.
+
+ari
+------------------
+ * Expose channel driver's unique id (which is the Call-ID for SIP/PJSIP)
+   to ARI channel resources as 'protocol_id'.
+
+   ASTERISK-30027
+
+res_agi
+------------------
+ * Agi command 'exec' can now be enabled
+   to evaluate dialplan functions and variables
+   by setting the variable AGIEXECFULL to yes.
+
+res_parking
+------------------
+ * An m option to Park and ParkAndAnnounce now allows
+   specifying a music on hold class override.
+
+stasis_channels
+------------------
+ * Expose channel driver's unique id (which is the Call-ID for SIP/PJSIP)
+   to ARI channel resources as 'protocol_id'.
+
+   ASTERISK-30027
+
+------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 18.11.3 to Asterisk 18.12.0 ----------
+------------------------------------------------------------------------------
+
+app_confbridge
+------------------
+ * Added the hear_own_join_sound option to the confbridge user profile to
+   control who hears the sound_join audio file. When set to 'yes' the user
+   entering the conference and the participants already in the conference
+   will hear the sound_join audio file. When set to 'no' the user entering
+   the conference will not hear the sound_join audio file, but the
+   participants already in the conference will hear the sound_join audio file.
+
+app_queue
+------------------
+ * The m option now allows an override music on hold
+   class to be specified for the Queue application
+   within the dialplan.
+
+chan_dahdi
+------------------
+ * Previously, cadences were appended on dahdi restart,
+   rather than reloaded. This prevented cadences from
+   being updated and maxed out the available cadences
+   if reloaded multiple times. This behavior is fixed
+   so that reloading cadences is idempotent and cadences
+   can actually be reloaded.
+
+chan_pjsip
+------------------
+ * added global config option "allow_sending_180_after_183"
+
+   Allow Asterisk to send 180 Ringing to an endpoint
+   after 183 Session Progress has been send.
+   If disabled Asterisk will instead send only a
+   183 Session Progress to the endpoint.
+
+ * Hook flash events can now be sent on a PJSIP channel
+   if requested to do so.
+
+chan_sip
+------------------
+ * Session timers get removed on UPDATE
+   Fix if Asterisk receives a SIP REFER with Session-Timers UAC
+   that Asterisk maintains Session-Timers when sending UPDATE request
+
+cli
+------------------
+ * A new CLI command 'dialplan eval function' has been
+   added which allows users to test the behavior of
+   dialplan function calls directly from the CLI.
+
+func_db
+------------------
+ * The function DB_KEYCOUNT has been added, which
+   returns the cardinality of the keys at a specified
+   prefix in AstDB, i.e. the number of keys at a
+   given prefix.
+
+func_evalexten
+------------------
+ * This adds the EVAL_EXTEN function which may be
+   used to evaluate data at dialplan extensions.
+
+------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 18.11.1 to Asterisk 18.11.2 ----------
+------------------------------------------------------------------------------
+
+func_odbc
+------------------
+ * A SQL_ESC_BACKSLASHES dialplan function has been added which
+   escapes backslashes. Usage of this is dependent on whether the
+   database in use can use backslashes to escape ticks or not. If
+   it can, then usage of this prevents a broken SQL query depending
+   on how the SQL query is constructed.
+
+------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 18.10.0 to Asterisk 18.11.0 ----------
+------------------------------------------------------------------------------
+
+ami
+------------------
+ * AMI events can now be globally disabled using
+   the disabledevents [general] setting.
+
+app_mf
+------------------
+ * Adds an option to ReceiveMF to cap the
+   number of digits read at a user-specified
+   maximum.
+
+app_queue
+------------------
+ * Load queues and members from Realtime for
+   AMI actions: QueuePause, QueueStatus and QueueSummary,
+   Applications: PauseQueueMember and UnpauseQueueMember.
+
+ * Added a new AMI action: QueueWithdrawCaller
+   This AMI action makes it possible to withdraw a caller from a queue
+   back to the dialplan. The call will be signaled to leave the queue
+   whenever it can, hence, it not guaranteed that the call will leave
+   the queue.
+
+   Optional custom data can be passed in the request, in the WithdrawInfo
+   parameter. If the call successfully withdrawn the queue,
+   it can be retrieved using the QUEUE_WITHDRAW_INFO variable.
+
+   This can be useful for certain uses, such as dispatching the call
+   to a specific extension.
+
+channel_internal_api
+------------------
+ * CHANNEL(lastcontext) and CHANNEL(lastexten)
+   are now available for use in the dialplan.
+
+res_pjsip_pubsub
+------------------
+ * A new resource_list option, resource_display_name, indicates
+   whether display name of resource or the resource name being
+   provided for RLS entries.
+   If this option is enabled, the Display Name will be provided.
+   This option is disabled by default to remain the previous behavior.
+   If the 'event' set to 'presence' or 'dialog' the non-empty HINT name
+   will be set as the Display Name.
+   The 'message-summary' is not supported yet.
+
+ * The Resource List Subscriptions (RLS) is dynamic now.
+   The asterisk now updates current subscriptions to reflect the changes
+   to the list on subscription refresh. If list items are added,
+   removed, updated or do not exist anymore, the asterisk regenerates
+   the resource list.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 18.9.0 to Asterisk 18.10.0 -----------
 ------------------------------------------------------------------------------
 

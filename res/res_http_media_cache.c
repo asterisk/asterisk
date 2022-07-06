@@ -42,8 +42,6 @@
 #include "asterisk/threadstorage.h"
 #include "asterisk/uri.h"
 
-#define GLOBAL_USERAGENT "asterisk-libcurl-agent/1.0"
-
 #define MAX_HEADER_LENGTH 1023
 
 /*! \brief Data passed to cURL callbacks */
@@ -118,7 +116,7 @@ static size_t curl_body_callback(void *ptr, size_t size, size_t nitems, void *da
 static void bucket_file_set_expiration(struct ast_bucket_file *bucket_file)
 {
 	struct ast_bucket_metadata *metadata;
-	char time_buf[32];
+	char time_buf[32], secs[AST_TIME_T_LEN];
 	struct timeval actual_expires = ast_tvnow();
 
 	metadata = ast_bucket_file_metadata_get(bucket_file, "cache-control");
@@ -152,7 +150,8 @@ static void bucket_file_set_expiration(struct ast_bucket_file *bucket_file)
 	}
 
 	/* Use 'now' if we didn't get an expiration time */
-	snprintf(time_buf, sizeof(time_buf), "%30lu", actual_expires.tv_sec);
+	ast_time_t_to_string(actual_expires.tv_sec, secs, sizeof(secs));
+	snprintf(time_buf, sizeof(time_buf), "%30s", secs);
 
 	ast_bucket_file_metadata_set(bucket_file, "__actual_expires", time_buf);
 }
@@ -316,7 +315,7 @@ static int bucket_file_expired(struct ast_bucket_file *bucket_file)
 		return 1;
 	}
 
-	if (sscanf(metadata->value, "%lu", &expires.tv_sec) != 1) {
+	if ((expires.tv_sec = ast_string_to_time_t(metadata->value)) == -1) {
 		return 1;
 	}
 
@@ -338,7 +337,7 @@ static CURL *get_curl_instance(struct curl_bucket_file_data *cb_data)
 	curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
 	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 180);
 	curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, curl_header_callback);
-	curl_easy_setopt(curl, CURLOPT_USERAGENT, GLOBAL_USERAGENT);
+	curl_easy_setopt(curl, CURLOPT_USERAGENT, AST_CURL_USER_AGENT);
 	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1);
 	curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 8);
 	curl_easy_setopt(curl, CURLOPT_URL, ast_sorcery_object_get_id(cb_data->bucket_file));

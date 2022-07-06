@@ -10,7 +10,16 @@ MAKE=`which make`
 if [ x"$DESTDIR" != x ] ; then
 	mkdir -p "$DESTDIR"
 fi
+
+if [[ "$BRANCH_NAME" =~ devel(opment)?/([0-9]+)/.+ ]] ; then
+	export MAINLINE_BRANCH="${BASH_REMATCH[2]}"
+fi
+_version=$(./build_tools/make_version .)
+
 destdir=${DESTDIR:+DESTDIR=$DESTDIR}
+
+declare -p _version
+declare -p destdir
 
 [ $UNINSTALL -gt 0 ] && ${MAKE} ${destdir} uninstall
 [ $UNINSTALL_ALL -gt 0 ] && ${MAKE} ${destdir} uninstall-all

@@ -234,6 +234,59 @@
 			</enum>
 		</enumlist>
 	</info>
+	<info name="Dial_Resource" language="en_US" tech="DAHDI">
+		<para>DAHDI allows several modifiers to be specified as part of the resource.</para>
+		<para>The general syntax is :</para>
+		<para><literal>Dial(DAHDI/pseudo[/extension])</literal></para>
+		<para><literal>Dial(DAHDI/&lt;channel#&gt;[c|r&lt;cadance#&gt;|d][/extension])</literal></para>
+		<para><literal>Dial(DAHDI/(g|G|r|R)&lt;group#(0-63)&gt;[c|r&lt;cadance#&gt;|d][/extension])</literal></para>
+		<para>The following modifiers may be used before the channel number:</para>
+		<enumlist>
+		<enum name="g">
+			<para>Search forward, dialing on first available channel in group (lowest to highest).</para>
+		</enum>
+		<enum name="G">
+			<para>Search backward, dialing on first available channel in group (highest to lowest).</para>
+		</enum>
+		<enum name="r">
+			<para>Round robin search forward, picking up from where last left off (lowest to highest).</para>
+		</enum>
+		<enum name="R">
+			<para>Round robin search backward, picking up from where last left off (highest to lowest).</para>
+		</enum>
+		</enumlist>
+		<para>The following modifiers may be used after the channel number:</para>
+		<enumlist>
+		<enum name="c">
+			<para>Wait for DTMF digit <literal>#</literal> before providing answer supervision.</para>
+			<para>This can be useful on outbound calls via FXO ports, as otherwise
+			they would indicate answer immediately.</para>
+		</enum>
+		<enum name="d">
+			<para>Force bearer capability for ISDN/SS7 call to digital.</para>
+		</enum>
+		<enum name="i">
+			<para>ISDN span channel restriction.</para>
+			<para>Used by CC to ensure that the CC recall goes out the same span.
+			Also to make ISDN channel names dialable when the sequence number
+			is stripped off.  (Used by DTMF attended transfer feature.)</para>
+		</enum>
+		<enum name="r">
+			<para>Specifies the distinctive ring cadence number to use immediately after
+			specifying this option. There are 4 default built-in cadences, and up to 24
+			total cadences may be configured.</para>
+		</enum>
+		</enumlist>
+		<example title="Dial 555-1212 on first available channel in group 1, searching from highest to lowest">
+		same => n,Dial(DAHDI/g1/5551212)
+		</example>
+		<example title="Ringing FXS channel 4 with ring cadence 2">
+		same => n,Dial(DAHDI/4r2)
+		</example>
+		<example title="Dial 555-1212 on channel 3 and require answer confirmation">
+		same => n,Dial(DAHDI/3c/5551212)
+		</example>
+	</info>
 	<manager name="DAHDITransfer" language="en_US">
 		<synopsis>
 			Transfer DAHDI Channel.
@@ -3410,7 +3463,7 @@ struct analog_callback analog_callbacks =
 };
 
 /*! Round robin search locations. */
-static struct dahdi_pvt *round_robin[32];
+static struct dahdi_pvt *round_robin[64]; /* groups can range from 0-63 */
 
 int _dahdi_get_index(struct ast_channel *ast, struct dahdi_pvt *p, int nullok, const char *fname, unsigned long line)
 {
@@ -5974,7 +6027,9 @@ static int dahdi_hangup(struct ast_channel *ast)
 
 	ast_mutex_lock(&p->lock);
 	p->exten[0] = '\0';
-	if (dahdi_analog_lib_handles(p->sig, p->radio, p->oprmode)) {
+	/* Always use sig_analog hangup handling for operator mode */
+	if (dahdi_analog_lib_handles(p->sig, p->radio, 0)) {
+		p->oprmode = 0;
 		dahdi_confmute(p, 0);
 		restore_gains(p);
 		p->ignoredtmf = 0;
@@ -7590,7 +7645,11 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 		}
 		if (p->oprmode < 0)
 		{
-			if (p->oprmode != -1) break;
+			if (p->oprmode != -1) { /* Operator flash recall */
+				ast_verb(4, "Operator mode enabled on channel %d, holding line for channel %d\n", p->channel, p->oprpeer->channel);
+				break;
+			}
+			/* Otherwise, immediate recall */
 			if ((p->sig == SIG_FXOLS) || (p->sig == SIG_FXOKS) || (p->sig == SIG_FXOGS))
 			{
 				/* Make sure it starts ringing */
@@ -7598,6 +7657,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 				dahdi_set_hook(p->subs[SUB_REAL].dfd, DAHDI_RING);
 				save_conference(p->oprpeer);
 				tone_zone_play_tone(p->oprpeer->subs[SUB_REAL].dfd, DAHDI_TONE_RINGTONE);
+				ast_verb(4, "Operator recall, channel %d ringing back channel %d\n", p->oprpeer->channel, p->channel);
 			}
 			break;
 		}
@@ -7710,6 +7770,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 				dahdi_set_hook(p->subs[SUB_REAL].dfd, DAHDI_RINGOFF);
 				tone_zone_play_tone(p->oprpeer->subs[SUB_REAL].dfd, -1);
 				restore_conference(p->oprpeer);
+				ast_debug(1, "Operator recall by channel %d for channel %d complete\n", p->oprpeer->channel, p->channel);
 			}
 			break;
 		}
@@ -7923,6 +7984,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 					dahdi_set_hook(p->oprpeer->subs[SUB_REAL].dfd, DAHDI_RING);
 					save_conference(p);
 					tone_zone_play_tone(p->subs[SUB_REAL].dfd, DAHDI_TONE_RINGTONE);
+					ast_verb(4, "Operator flash recall, channel %d ringing back channel %d\n", p->oprpeer->channel, p->channel);
 				}
 			}
 			break;
@@ -11573,6 +11635,7 @@ static void *do_monitor(void *data)
 							&& !analog_p->fxsoffhookstate
 							&& !last->owner
 							&& !ast_strlen_zero(last->mailbox)
+							&& !analog_p->subs[SUB_REAL].owner /* could be a recall ring from a flash hook hold */
 							&& (thispass - analog_p->onhooktime > 3)) {
 							res = has_voicemail(last);
 							if (analog_p->msgstate != res) {
@@ -17872,6 +17935,9 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 	struct dahdi_pvt *tmp;
 	int y;
 	struct ast_variable *dahdichan = NULL;
+
+	/* Re-parse any cadences from beginning, rather than appending until we run out of room */
+	user_has_defined_cadences = 0;
 
 	for (; v; v = v->next) {
 		if (!ast_jb_read_conf(&global_jbconf, v->name, v->value))

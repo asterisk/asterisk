@@ -1353,6 +1353,7 @@ ari_validator ast_ari_validate_application_fn(void);
  * - id: string (required)
  * - language: string (required)
  * - name: string (required)
+ * - protocol_id: string (required)
  * - state: string (required)
  * Dialed
  * DialplanCEP

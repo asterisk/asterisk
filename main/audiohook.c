@@ -168,17 +168,17 @@ int ast_audiohook_write_frame(struct ast_audiohook *audiohook, enum ast_audiohoo
 	other_factory_ms = other_factory_samples / (audiohook->hook_internal_samp_rate / 1000);
 
 	if (ast_test_flag(audiohook, AST_AUDIOHOOK_TRIGGER_SYNC) && (our_factory_ms - other_factory_ms > AST_AUDIOHOOK_SYNC_TOLERANCE)) {
-		ast_debug(1, "Flushing audiohook %p so it remains in sync\n", audiohook);
+		ast_debug(4, "Flushing audiohook %p so it remains in sync\n", audiohook);
 		ast_slinfactory_flush(factory);
 		ast_slinfactory_flush(other_factory);
 	}
 
 	if (ast_test_flag(audiohook, AST_AUDIOHOOK_SMALL_QUEUE) && ((our_factory_ms > AST_AUDIOHOOK_SMALL_QUEUE_TOLERANCE) || (other_factory_ms > AST_AUDIOHOOK_SMALL_QUEUE_TOLERANCE))) {
-		ast_debug(1, "Audiohook %p has stale audio in its factories. Flushing them both\n", audiohook);
+		ast_debug(4, "Audiohook %p has stale audio in its factories. Flushing them both\n", audiohook);
 		ast_slinfactory_flush(factory);
 		ast_slinfactory_flush(other_factory);
 	} else if ((our_factory_ms > AST_AUDIOHOOK_LONG_QUEUE_TOLERANCE) || (other_factory_ms > AST_AUDIOHOOK_LONG_QUEUE_TOLERANCE)) {
-		ast_debug(1, "Audiohook %p has stale audio in its factories. Flushing them both\n", audiohook);
+		ast_debug(4, "Audiohook %p has stale audio in its factories. Flushing them both\n", audiohook);
 		ast_slinfactory_flush(factory);
 		ast_slinfactory_flush(other_factory);
 	}
@@ -254,7 +254,7 @@ static struct ast_frame *audiohook_read_frame_both(struct ast_audiohook *audioho
 
 	if (!usable_read && !usable_write) {
 		/* If both factories are unusable bail out */
-		ast_debug(1, "Read factory %p and write factory %p both fail to provide %zu samples\n", &audiohook->read_factory, &audiohook->write_factory, samples);
+		ast_debug(3, "Read factory %p and write factory %p both fail to provide %zu samples\n", &audiohook->read_factory, &audiohook->write_factory, samples);
 		return NULL;
 	}
 
@@ -315,7 +315,7 @@ static struct ast_frame *audiohook_read_frame_both(struct ast_audiohook *audioho
 			}
 		}
 	} else {
-		ast_debug(1, "Failed to get %d samples from write factory %p\n", (int)samples, &audiohook->write_factory);
+		ast_debug(3, "Failed to get %d samples from write factory %p\n", (int)samples, &audiohook->write_factory);
 	}
 
 	frame.subclass.format = ast_format_cache_get_slin_by_rate(audiohook->hook_internal_samp_rate);

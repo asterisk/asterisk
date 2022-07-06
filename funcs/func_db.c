@@ -95,6 +95,25 @@
 			at the prefix specified within the Asterisk database.  If no argument is
 			provided, then a list of key families will be returned.</para>
 		</description>
+		<see-also>
+			<ref type="function">DB_KEYCOUNT</ref>
+		</see-also>
+	</function>
+	<function name="DB_KEYCOUNT" language="en_US">
+		<synopsis>
+			Obtain the number of keys at a prefix within the Asterisk database.
+		</synopsis>
+		<syntax>
+			<parameter name="prefix" />
+		</syntax>
+		<description>
+			<para>This function will return the number of keys that exist
+			at the prefix specified within the Asterisk database.  If no argument is
+			provided, then the number of all key families will be returned.</para>
+		</description>
+		<see-also>
+			<ref type="function">DB_KEYS</ref>
+		</see-also>
 	</function>
 	<function name="DB_DELETE" language="en_US">
 		<synopsis>
@@ -173,7 +192,13 @@ static int function_db_write(struct ast_channel *chan, const char *cmd, char *pa
 		ast_log(LOG_WARNING, "DB requires an argument, DB(<family>/<key>)=value\n");
 		return -1;
 	}
-
+	/*
+	* When keynames are dynamically created using variables, if the variable is empty, this put bad data into the DB.
+	* In particular, a few cases: an empty key name, a key starting or ending with a /, and a key containing // two slashes.
+	* If this happens, allow it to go in, but warn the user of the issue and possible data corruption. */
+	if (ast_strlen_zero(args.key) || args.key[0] == '/' || args.key[strlen(args.key) - 1] == '/' || strstr(args.key, "//")) {
+		ast_log(LOG_WARNING, "DB: key '%s' seems malformed\n", args.key);
+	}
 	if (ast_db_put(args.family, args.key, value)) {
 		ast_log(LOG_WARNING, "DB: Error writing value to database.\n");
 	}
@@ -280,6 +305,57 @@ static struct ast_custom_function db_keys_function = {
 	.read2 = function_db_keys,
 };
 
+static int function_db_keycount(struct ast_channel *chan, const char *cmd, char *parse, char *buf, size_t len)
+{
+	size_t parselen = strlen(parse);
+	struct ast_db_entry *dbe, *orig_dbe;
+	const char *last = "";
+	int keycount = 0;
+
+	/* Remove leading and trailing slashes */
+	while (parse[0] == '/') {
+		parse++;
+		parselen--;
+	}
+	while (parse[parselen - 1] == '/') {
+		parse[--parselen] = '\0';
+	}
+
+	/* Nothing within the database at that prefix? */
+	if (!(orig_dbe = dbe = ast_db_gettree(parse, NULL))) {
+		snprintf(buf, len, "%d", keycount);
+		return 0;
+	}
+
+	for (; dbe; dbe = dbe->next) {
+		/* Find the current component */
+		char *curkey = &dbe->key[parselen + 1], *slash;
+		if (*curkey == '/') {
+			curkey++;
+		}
+		/* Remove everything after the current component */
+		if ((slash = strchr(curkey, '/'))) {
+			*slash = '\0';
+		}
+
+		/* Skip duplicates */
+		if (!strcasecmp(last, curkey)) {
+			continue;
+		}
+		last = curkey;
+
+		keycount++;
+	}
+	ast_db_freetree(orig_dbe);
+	snprintf(buf, len, "%d", keycount);
+	return 0;
+}
+
+static struct ast_custom_function db_keycount_function = {
+	.name = "DB_KEYCOUNT",
+	.read = function_db_keycount,
+};
+
 static int function_db_delete(struct ast_channel *chan, const char *cmd,
 			      char *parse, char *buf, size_t len)
 {
@@ -341,6 +417,7 @@ static int unload_module(void)
 	res |= ast_custom_function_unregister(&db_exists_function);
 	res |= ast_custom_function_unregister(&db_delete_function);
 	res |= ast_custom_function_unregister(&db_keys_function);
+	res |= ast_custom_function_unregister(&db_keycount_function);
 
 	return res;
 }
@@ -353,6 +430,7 @@ static int load_module(void)
 	res |= ast_custom_function_register(&db_exists_function);
 	res |= ast_custom_function_register_escalating(&db_delete_function, AST_CFE_READ);
 	res |= ast_custom_function_register(&db_keys_function);
+	res |= ast_custom_function_register(&db_keycount_function);
 
 	return res;
 }

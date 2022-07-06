@@ -564,6 +564,7 @@ static int odbc_log(struct ast_cdr *cdr)
 					break;
 				case SQL_TYPE_TIMESTAMP:
 				case SQL_TIMESTAMP:
+				case SQL_DATETIME:
 					if (ast_strlen_zero(colptr)) {
 						continue;
 					} else {

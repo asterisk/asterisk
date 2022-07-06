@@ -42,6 +42,9 @@
 
 /*** DOCUMENTATION
 	<function name="TALK_DETECT" language="en_US">
+		<since>
+			<version>12.4.0</version>
+		</since>
 		<synopsis>
 			Raises notifications when Asterisk detects silence or talking on a channel.
 		</synopsis>
@@ -100,11 +103,18 @@
 			natural speech.</para>
 			<para>By default this value is 2500ms. Valid values are 1
 			through 2^31.</para>
-			<para>Example:</para>
-			<para>same => n,Set(TALK_DETECT(set)=)     ; Enable talk detection</para>
-			<para>same => n,Set(TALK_DETECT(set)=1200) ; Update existing talk detection's silence threshold to 1200 ms</para>
-			<para>same => n,Set(TALK_DETECT(remove)=)  ; Remove talk detection</para>
-			<para>same => n,Set(TALK_DETECT(set)=,128) ; Enable and set talk threshold to 128</para>
+			<example title="Enable talk detection">
+			same => n,Set(TALK_DETECT(set)=)
+			</example>
+			<example title="Update existing talk detection's silence threshold to 1200 ms">
+			same => n,Set(TALK_DETECT(set)=1200)
+			</example>
+			<example title="Remove talk detection">
+			same => n,Set(TALK_DETECT(remove)=)
+			</example>
+			<example title="Enable and set talk threshold to 128">
+			same => n,Set(TALK_DETECT(set)=,128)
+			</example>
 			<para>This function will set the following variables:</para>
 			<note>
 				<para>The TALK_DETECT function uses an audiohook to inspect the
@@ -114,10 +124,11 @@
 				it typically makes sense to place functions that modify the voice
 				media data prior to placing the TALK_DETECT function, as this will
 				yield better results.</para>
-				<para>Example:</para>
-				<para>same => n,Set(DENOISE(rx)=on)    ; Denoise received audio</para>
-				<para>same => n,Set(TALK_DETECT(set)=) ; Perform talk detection on the denoised received audio</para>
 			</note>
+			<example title="Denoise and then perform talk detection">
+			same => n,Set(DENOISE(rx)=on)    ; Denoise received audio
+			same => n,Set(TALK_DETECT(set)=) ; Perform talk detection on the denoised received audio
+			</example>
 		</description>
 	</function>
  ***/

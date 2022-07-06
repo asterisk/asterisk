@@ -83,6 +83,9 @@
 						<para>Only break if a digit hit matches a one digit
 						extension in the destination context.</para>
 					</option>
+					<option name="p">
+						<para>Do not allow playback to be interrupted with digits.</para>
+					</option>
 				</optionlist>
 			</parameter>
 			<parameter name="langoverride">
@@ -698,6 +701,10 @@
 							be used instead if set</emphasis></para>
 						</argument>
 					</option>
+					<option name="d">
+						<para>Play <literal>dial</literal> indications tone on channel while waiting
+						for digits.</para>
+					</option>
 				</optionlist>
 			</parameter>
 		</syntax>
@@ -993,7 +1000,6 @@ static int pbx_builtin_execiftime(struct ast_channel *chan, const char *data)
 {
 	char *s, *appname;
 	struct ast_timing timing;
-	struct ast_app *app;
 	static const char * const usage = "ExecIfTime requires an argument:\n  <time range>,<days of week>,<days of month>,<months>[,<timezone>]?<appname>[(<appargs>)]";
 
 	if (ast_strlen_zero(data)) {
@@ -1031,13 +1037,7 @@ static int pbx_builtin_execiftime(struct ast_channel *chan, const char *data)
 			ast_log(LOG_WARNING, "Failed to find closing parenthesis\n");
 	}
 
-
-	if ((app = pbx_findapp(appname))) {
-		return pbx_exec(chan, app, S_OR(s, ""));
-	} else {
-		ast_log(LOG_WARNING, "Cannot locate application %s\n", appname);
-		return -1;
-	}
+	return ast_pbx_exec_application(chan, appname, S_OR(s, ""));
 }
 
 /*!

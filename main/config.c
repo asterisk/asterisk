@@ -679,6 +679,82 @@ int ast_variable_list_replace(struct ast_variable **head, struct ast_variable *r
 	return -1;
 }
 
+int ast_variable_list_replace_variable(struct ast_variable **head, struct ast_variable *old,
+	struct ast_variable *new)
+{
+	struct ast_variable *v, **prev = head;
+
+	for (v = *head; v; prev = &v->next, v = v->next) {
+		if (v == old) {
+			new->next = v->next;
+			*prev = new;
+			ast_free(v);
+			return 0;
+		}
+	}
+
+	return -1;
+}
+
+struct ast_str *ast_variable_list_join(const struct ast_variable *head, const char *item_separator,
+	const char *name_value_separator, const char *quote_char, struct ast_str **str)
+{
+	struct ast_variable *var = (struct ast_variable *)head;
+	struct ast_str *local_str = NULL;
+
+	if (str == NULL || *str == NULL) {
+		local_str = ast_str_create(AST_MAX_USER_FIELD);
+		if (!local_str) {
+			return NULL;
+		}
+	} else {
+		local_str = *str;
+	}
+
+	for (; var; var = var->next) {
+		ast_str_append(&local_str, 0, "%s%s%s%s%s%s", var->name, name_value_separator, S_OR(quote_char, ""),
+			var->value, S_OR(quote_char, ""), var->next ? item_separator : "");
+	}
+
+	if (str != NULL) {
+		*str = local_str;
+	}
+	return local_str;
+}
+
+struct ast_variable *ast_variable_list_from_string(const char *input, const char *item_separator,
+	const char *name_value_separator)
+{
+	char item_sep;
+	char nv_sep;
+	struct ast_variable *new_list = NULL;
+	struct ast_variable *new_var = NULL;
+	char *item_string;
+	char *item;
+	char *item_name;
+	char *item_value;
+
+	if (ast_strlen_zero(input)) {
+		return NULL;
+	}
+
+	item_sep = ast_strlen_zero(item_separator) ? ',' : item_separator[0];
+	nv_sep = ast_strlen_zero(name_value_separator) ? '=' : name_value_separator[0];
+	item_string = ast_strip(ast_strdupa(input));
+
+	while ((item = ast_strsep(&item_string, item_sep, AST_STRSEP_ALL))) {
+		item_name = ast_strsep(&item, nv_sep, AST_STRSEP_ALL);
+		item_value = ast_strsep(&item, nv_sep, AST_STRSEP_ALL);
+		new_var = ast_variable_new(item_name, item_value, "");
+		if (!new_var) {
+			ast_variables_destroy(new_list);
+			return NULL;
+		}
+		ast_variable_list_append(&new_list, new_var);
+	}
+	return new_list;
+}
+
 const char *ast_config_option(struct ast_config *cfg, const char *cat, const char *var)
 {
 	const char *tmp;

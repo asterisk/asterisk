@@ -1,0 +1,9 @@
+Subject: res_pjsip
+
+A new transport option 'allow_wildcard_certs' has been added that when it
+and 'verify_server' are both set to 'yes', enables verification against
+wildcards, i.e. '*.' in certs for common, and subject alt names of type DNS
+for TLS transport types. Names must start with the wildcard. Partial wildcards,
+e.g. 'f*.example.com' and 'foo.*.com' are not allowed. As well, names only
+match against a single level meaning '*.example.com' matches 'foo.example.com',
+but not 'foo.bar.example.com'.

@@ -2126,6 +2126,11 @@
 					"type": "string",
 					"description": "Unique identifier of the channel.\n\nThis is the same as the Uniqueid field in AMI."
 				},
+				"protocol_id": {
+					"required": true,
+					"type": "string",
+					"description": "Protocol id from underlying channel driver (i.e. Call-ID for chan_sip/chan_pjsip; will be empty if not applicable or not implemented by driver)."
+				},
 				"name": {
 					"required": true,
 					"type": "string",

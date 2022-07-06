@@ -659,6 +659,12 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 		return -1;
 	}
 
+	if (transport->async_operations != 1) {
+		ast_log(LOG_WARNING, "The async_operations setting on transport '%s' has been set to '%d'. The setting can no longer be set and is always 1.\n",
+			transport_id, transport->async_operations);
+		transport->async_operations = 1;
+	}
+
 	perm_state = find_internal_state_by_transport(transport);
 	if (perm_state) {
 		ast_sorcery_diff(sorcery, perm_state->transport, transport, &changes);
@@ -832,6 +838,16 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 			res = pjsip_tls_transport_start2(ast_sip_get_pjsip_endpoint(), &temp_state->state->tls,
 				&temp_state->state->host, NULL, transport->async_operations,
 				&temp_state->state->factory);
+		}
+
+		if (res == PJ_SUCCESS) {
+			temp_state->state->factory->info = pj_pool_alloc(
+				temp_state->state->factory->pool, (strlen(transport_id) + 1));
+			/*
+			 * Store transport id on the factory instance so it can be used
+			 * later to look up the transport state.
+			 */
+			sprintf(temp_state->state->factory->info, "%s", transport_id);
 		}
 #else
 		ast_log(LOG_ERROR, "Transport: %s: PJSIP has not been compiled with TLS transport support, ensure OpenSSL development packages are installed\n",
@@ -1057,11 +1073,13 @@ static int transport_tls_bool_handler(const struct aco_option *opt, struct ast_v
 	}
 
 	if (!strcasecmp(var->name, "verify_server")) {
-		state->tls.verify_server = ast_true(var->value) ? PJ_TRUE : PJ_FALSE;
+		state->verify_server = ast_true(var->value);
 	} else if (!strcasecmp(var->name, "verify_client")) {
 		state->tls.verify_client = ast_true(var->value) ? PJ_TRUE : PJ_FALSE;
 	} else if (!strcasecmp(var->name, "require_client_cert")) {
 		state->tls.require_client_cert = ast_true(var->value) ? PJ_TRUE : PJ_FALSE;
+	} else if (!strcasecmp(var->name, "allow_wildcard_certs")) {
+		state->allow_wildcard_certs = ast_true(var->value);
 	} else {
 		return -1;
 	}
@@ -1078,7 +1096,7 @@ static int verify_server_to_str(const void *obj, const intptr_t *args, char **bu
 		return -1;
 	}
 
-	*buf = ast_strdup(AST_YESNO(state->tls.verify_server));
+	*buf = ast_strdup(AST_YESNO(state->verify_server));
 
 	return 0;
 }
@@ -1107,6 +1125,20 @@ static int require_client_cert_to_str(const void *obj, const intptr_t *args, cha
 	}
 
 	*buf = ast_strdup(AST_YESNO(state->tls.require_client_cert));
+
+	return 0;
+}
+
+static int allow_wildcard_certs_to_str(const void *obj, const intptr_t *args, char **buf)
+{
+	struct ast_sip_transport_state *state = find_state_by_transport(obj);
+
+	if (!state) {
+		return -1;
+	}
+
+	*buf = ast_strdup(AST_YESNO(state->allow_wildcard_certs));
+	ao2_ref(state, -1);
 
 	return 0;
 }
@@ -1653,6 +1685,7 @@ int ast_sip_initialize_sorcery_transport(void)
 	ast_sorcery_object_field_register_custom(sorcery, "transport", "verify_server", "", transport_tls_bool_handler, verify_server_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sorcery, "transport", "verify_client", "", transport_tls_bool_handler, verify_client_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sorcery, "transport", "require_client_cert", "", transport_tls_bool_handler, require_client_cert_to_str, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(sorcery, "transport", "allow_wildcard_certs", "", transport_tls_bool_handler, allow_wildcard_certs_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sorcery, "transport", "method", "", transport_tls_method_handler, tls_method_to_str, NULL, 0, 0);
 #if defined(PJ_HAS_SSL_SOCK) && PJ_HAS_SSL_SOCK != 0
 	ast_sorcery_object_field_register_custom(sorcery, "transport", "cipher", "", transport_tls_cipher_handler, transport_tls_cipher_to_str, NULL, 0, 0);

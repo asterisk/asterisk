@@ -109,6 +109,15 @@
 				<configOption name="outbound_proxy" default="">
 					<synopsis>Full SIP URI of the outbound proxy used to send registrations</synopsis>
 				</configOption>
+				<configOption name="max_random_initial_delay" default="10">
+					<synopsis>Maximum interval in seconds for which an initial registration may be randomly delayed</synopsis>
+					<description>
+						<para>By default, registrations are randomly delayed by a small amount to prevent
+						too many registrations from being made simultaneously.</para>
+						<para>Depending on your system usage, it may be desirable to set this to a smaller
+						or larger value to have fine grained control over the size of this random delay.</para>
+					</description>
+				</configOption>
 				<configOption name="retry_interval" default="60">
 					<synopsis>Interval in seconds between retries if outbound registration is unsuccessful</synopsis>
 				</configOption>
@@ -319,6 +328,8 @@ struct sip_outbound_registration {
 	);
 	/*! \brief Requested expiration time */
 	unsigned int expiration;
+	/*! \brief Maximum random initial delay interval for initial registrations */
+	unsigned int max_random_initial_delay;
 	/*! \brief Interval at which retries should occur for temporal responses */
 	unsigned int retry_interval;
 	/*! \brief Interval at which retries should occur for permanent responses */
@@ -392,6 +403,8 @@ struct sip_outbound_registration_client_state {
 	char *transport_name;
 	/*! \brief The name of the registration sorcery object */
 	char *registration_name;
+	/*! \brief Expected time of registration lapse/expiration */
+	unsigned int registration_expires;
 };
 
 /*! \brief Outbound registration state information (persists for lifetime that registration should exist) */
@@ -738,6 +751,7 @@ static void schedule_registration(struct sip_outbound_registration_client_state 
 				(int) info.client_uri.slen, info.client_uri.ptr);
 		ao2_ref(client_state, -1);
 	}
+	client_state->registration_expires = ((int) time(NULL)) + seconds;
 }
 
 static void update_client_state_status(struct sip_outbound_registration_client_state *client_state, enum sip_outbound_registration_status status)
@@ -1708,6 +1722,7 @@ static int sip_outbound_registration_perform(void *data)
 	struct sip_outbound_registration_state *state = data;
 	struct sip_outbound_registration *registration = ao2_bump(state->registration);
 	size_t i;
+	int max_delay;
 
 	/* Just in case the client state is being reused for this registration, free the auth information */
 	ast_sip_auth_vector_destroy(&state->client_state->outbound_auths);
@@ -1728,10 +1743,12 @@ static int sip_outbound_registration_perform(void *data)
 	state->client_state->support_path = registration->support_path;
 	state->client_state->support_outbound = registration->support_outbound;
 	state->client_state->auth_rejection_permanent = registration->auth_rejection_permanent;
+	max_delay = registration->max_random_initial_delay;
 
 	pjsip_regc_update_expires(state->client_state->client, registration->expiration);
 
-	schedule_registration(state->client_state, (ast_random() % 10) + 1);
+	/* n mod 0 is undefined, so don't let that happen */
+	schedule_registration(state->client_state, (max_delay ? ast_random() % max_delay : 0) + 1);
 
 	ao2_ref(registration, -1);
 	ao2_ref(state, -1);
@@ -2261,7 +2278,7 @@ static int cli_print_header(void *obj, void *arg, int flags)
 	ast_assert(context->output_buffer != NULL);
 
 	ast_str_append(&context->output_buffer, 0,
-		" <Registration/ServerURI..............................>  <Auth..........>  <Status.......>\n");
+		" <Registration/ServerURI..............................>  <Auth....................>  <Status.......>\n");
 
 	return 0;
 }
@@ -2272,11 +2289,13 @@ static int cli_print_body(void *obj, void *arg, int flags)
 	struct ast_sip_cli_context *context = arg;
 	const char *id = ast_sorcery_object_get_id(registration);
 	struct sip_outbound_registration_state *state = get_state(id);
+	int expsecs;
 #define REGISTRATION_URI_FIELD_LEN	53
 
 	ast_assert(context->output_buffer != NULL);
+	expsecs = state ? state->client_state->registration_expires - ((int) time(NULL)) : 0;
 
-	ast_str_append(&context->output_buffer, 0, " %-s/%-*.*s  %-16s  %-16s\n",
+	ast_str_append(&context->output_buffer, 0, " %-s/%-*.*s  %-26s  %-16s %s%d%s\n",
 		id,
 		(int) (REGISTRATION_URI_FIELD_LEN - strlen(id)),
 		(int) (REGISTRATION_URI_FIELD_LEN - strlen(id)),
@@ -2284,7 +2303,8 @@ static int cli_print_body(void *obj, void *arg, int flags)
 		AST_VECTOR_SIZE(&registration->outbound_auths)
 			? AST_VECTOR_GET(&registration->outbound_auths, 0)
 			: "n/a",
-		(state ? sip_outbound_registration_status_str(state->client_state->status) : "Unregistered"));
+		(state ? sip_outbound_registration_status_str(state->client_state->status) : "Unregistered"),
+		state ? " (exp. " : "", abs(expsecs), state ? (expsecs < 0 ? "s ago)" : "s)") : "");
 	ao2_cleanup(state);
 
 	if (context->show_details
@@ -2540,6 +2560,7 @@ static int load_module(void)
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "registration", "transport", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct sip_outbound_registration, transport));
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "registration", "outbound_proxy", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct sip_outbound_registration, outbound_proxy));
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "registration", "expiration", "3600", OPT_UINT_T, 0, FLDSET(struct sip_outbound_registration, expiration));
+	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "registration", "max_random_initial_delay", "10", OPT_UINT_T, 0, FLDSET(struct sip_outbound_registration, max_random_initial_delay));
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "registration", "retry_interval", "60", OPT_UINT_T, 0, FLDSET(struct sip_outbound_registration, retry_interval));
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "registration", "forbidden_retry_interval", "0", OPT_UINT_T, 0, FLDSET(struct sip_outbound_registration, forbidden_retry_interval));
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "registration", "fatal_retry_interval", "0", OPT_UINT_T, 0, FLDSET(struct sip_outbound_registration, fatal_retry_interval));

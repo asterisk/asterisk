@@ -2722,6 +2722,7 @@ int ast_sip_format_contact_ami(void *obj, void *arg, int flags)
 	struct ast_sip_contact_status *status;
 	struct ast_str *buf;
 	const struct ast_sip_endpoint *endpoint = ami->arg;
+	char secs[AST_TIME_T_LEN];
 
 	buf = ast_sip_create_ami_event("ContactStatusDetail", ami);
 	if (!buf) {
@@ -2733,7 +2734,8 @@ int ast_sip_format_contact_ami(void *obj, void *arg, int flags)
 	ast_str_append(&buf, 0, "AOR: %s\r\n", wrapper->aor_id);
 	ast_str_append(&buf, 0, "URI: %s\r\n", contact->uri);
 	ast_str_append(&buf, 0, "UserAgent: %s\r\n", contact->user_agent);
-	ast_str_append(&buf, 0, "RegExpire: %ld\r\n", contact->expiration_time.tv_sec);
+	ast_time_t_to_string(contact->expiration_time.tv_sec, secs, sizeof(secs));
+	ast_str_append(&buf, 0, "RegExpire: %s\r\n", secs);
 	if (!ast_strlen_zero(contact->via_addr)) {
 		ast_str_append(&buf, 0, "ViaAddress: %s", contact->via_addr);
 		if (contact->via_port) {

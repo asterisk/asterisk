@@ -349,6 +349,7 @@
 ; STIR/SHAKEN support.
 ;
 ;stir_shaken=no
+;stir_shaken_profile=my_profile
 
 ;[6001]
 ;type=auth
@@ -930,6 +931,9 @@
                            ; happens to the call if verification fails; it's up to
                            ; you to determine what to do with the results.
                            ; (default: no)
+;stir_shaken_profile =
+                           ; If a profile is specified (defined in stir_shaken.conf),
+                           ; this endpoint will follow the rules defined there.
 ;allow_unauthenticated_options =
                            ; By default, chan_pjsip will challenge an incoming
                            ; OPTIONS request for authentication credentials just
@@ -994,12 +998,13 @@
                ; headers.  If not specified, the global object's
                ; "default_realm" will be used.
                ;
-               ; For outgoing authentication (asterisk is the UAS), this
+               ; For outgoing authentication (asterisk is the UAC), this
                ; must either be the realm the server is expected to send,
                ; or left blank or contain a single '*' to automatically
                ; use the realm sent by the server. If you have multiple
-               ; auth object for an endpoint, the realm is also used to
+               ; auth objects for an endpoint, the realm is also used to
                ; match the auth object to the realm the server sent.
+               ;
                ; Using the same auth section for inbound and outbound
                ; authentication is not recommended.  There is a difference in
                ; meaning for an empty realm setting between inbound and outbound
@@ -1020,8 +1025,6 @@
 ;[transport]
 ;  SYNOPSIS: SIP Transport
 ;
-;async_operations=1     ; Number of simultaneous Asynchronous Operations
-                        ; (default: "1")
 ;bind=  ; IP Address and optional port to bind to for this transport (default:
         ; "")
 ; Note that for the Websocket transport the TLS configuration is configured
@@ -1087,6 +1090,15 @@
                         ; URI is not a hostname, the saved transport will be
                         ; used and the 'x-ast-txp' parameter stripped from the
                         ; outgoing packet.
+;allow_wildcard_certs=no ; In conjunction with verify_server, if 'yes' allow use
+                         ; of wildcards, i.e. '*.' in certs for common, and
+                         ; subject alt names of type DNS for TLS transport
+                         ; types. Note, names must start with the wildcard.
+                         ; Partial wildcards, e.g. 'f*.example.com' and
+                         ; 'foo.*.com' are disallowed. As well, names only
+                         ; match against a single level meaning '*.example.com'
+                         ; matches 'foo.example.com', but not
+                         ; 'foo.bar.example.com'. Defaults to 'no'.
 
 ;==========================AOR SECTION OPTIONS=========================
 ;[aor]
@@ -1308,6 +1320,12 @@
                     ; creating an implicit subscription (see RFC 4488).
                     ; (default: "yes")
 
+;allow_sending_180_after_183=yes	; Allow Asterisk to send 180 Ringing to an endpoint
+					; after 183 Session Progress has been send.
+					; If disabled Asterisk will instead send only a
+					; 183 Session Progress to the endpoint.
+					; (default: "no")
+
 ; MODULE PROVIDING BELOW SECTION(S): res_pjsip_acl
 ;==========================ACL SECTION OPTIONS=========================
 ;[acl]
@@ -1341,6 +1359,11 @@
                 ; (default: "")
 ;outbound_proxy=        ; Proxy through which to send registrations, a full SIP URI
                         ; must be provided (default: "")
+;max_random_initial_delay=10    ; Maximum random delay for initial registrations (default: 10)
+                                ; Generally it is a good idea to space out registrations
+                                ; to not overload the system. If you have a small number
+                                ; of registrations and need them to register more quickly,
+                                ; you can reduce this to a lower value.
 ;retry_interval=60      ; Interval in seconds between retries if outbound
                         ; registration is unsuccessful (default: "60")
 ;forbidden_retry_interval=0     ; Interval used when receiving a 403 Forbidden
@@ -1500,6 +1523,19 @@
 ;notification_batch_interval=0
                            ; Time Asterisk should wait, in milliseconds,
                            ; before sending notifications.
+
+;resource_display_name=no  ; Indicates whether display name of resource
+                           ; or the resource name being reported.
+                           ; If this option is enabled, the Display Name
+                           ; will be reported as resource name.
+                           ; If the event set to presence or dialog,
+                           ; the HINT name will be set as the Display Name.
+                           ; For example:
+                           ;  exten => 1234,hint,PJSIP/user1234(Alice)
+                           ; If enabled the resource name will be 'Alice'.
+                           ; If disabled the resource name will be '1234'.
+                           ; The message-summary is not supported yet.
+
 
 ;==========================INBOUND_PUBLICATION================================
 ; See https://wiki.asterisk.org/wiki/display/AST/Exchanging+Device+and+Mailbox+State+Using+PJSIP

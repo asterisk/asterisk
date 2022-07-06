@@ -269,6 +269,23 @@ struct ast_app *pbx_findapp(const char *app);
 int pbx_exec(struct ast_channel *c, struct ast_app *app, const char *data);
 
 /*!
+ * \brief Execute an application
+ *
+ * \param c channel to execute on
+ * \param app name of app to execute
+ * \param data the data passed into the app
+ *
+ * This application executes an application by name on a given channel.
+ * It is a wrapper around pbx_exec that will perform variable substitution
+ * and then execute the application if it exists.
+ * If the application is not found, a warning is logged.
+ *
+ * \retval 0 success
+ * \retval -1 failure (including application not found)
+ */
+int ast_pbx_exec_application(struct ast_channel *chan, const char *app_name, const char *app_args);
+
+/*!
  * \brief Register a new context or find an existing one
  *
  * \param extcontexts pointer to the ast_context structure pointer
@@ -1500,6 +1517,25 @@ int ast_explicit_goto(struct ast_channel *chan, const char *context, const char 
  * \note This function will handle locking the channel as needed.
  */
 int ast_async_goto_if_exists(struct ast_channel *chan, const char *context, const char *exten, int priority);
+
+/*!
+ * \brief Parses a dialplan location into context, extension, priority
+ *
+ * \param chan Channel to execute on
+ * \param context Pointer to initial value for context.
+ * \param exten Pointer to initial value for exten.
+ * \param pri Pointer to initial value for pri
+ * \param ipri Pointer to integer value of priority
+ * \param mode Pointer to mode (or NULL if mode is not used)
+ * \param rest Pointer to buffer to capture rest of parsing (or NULL if not used)
+ *
+ * strsep should be used to initially populate context, exten, and pri prior
+ * to calling this function. All arguments are modified in place.
+ *
+ * \retval 0 success
+ * \retval non-zero failure
+ */
+int pbx_parse_location(struct ast_channel *chan, char **context, char **exten, char **pri, int *ipri, int *mode, char *rest);
 
 struct ast_custom_function* ast_custom_function_find(const char *name);
 

@@ -210,6 +210,15 @@
 						many notifications.</para>
 					</description>
 				</configOption>
+				<configOption name="resource_display_name" default="no">
+					<synopsis>Indicates whether display name of resource or the resource name being reported.</synopsis>
+					<description>
+						<para>If this option is enabled, the Display Name will be reported as resource name.
+						If the <replaceable>event</replaceable> set to <literal>presence</literal> or <literal>dialog</literal>,
+						the non-empty HINT name will be set as the Display Name.
+						The <literal>message-summary</literal> is not supported yet.</para>
+					</description>
+				</configOption>
 			</configObject>
 			<configObject name="inbound-publication">
 				<synopsis>The configuration for inbound publications</synopsis>
@@ -332,6 +341,8 @@ struct resource_list {
 	unsigned int full_state;
 	/*! Time, in milliseconds Asterisk waits before sending a batched notification.*/
 	unsigned int notification_batch_interval;
+	/*! Indicates whether display name of resource or the resource name being reported.*/
+	unsigned int resource_display_name;
 };
 
 /*!
@@ -464,6 +475,10 @@ struct sip_subscription_tree {
 	 * Only used for reliable transports.
 	 */
 	pjsip_transport *transport;
+	/*! Indicator if initial notify should be generated.
+	 * Used to refresh modified RLS.
+	 */
+	unsigned int generate_initial_notify;
 };
 
 /*!
@@ -499,6 +514,8 @@ struct ast_sip_subscription {
 	pjsip_sip_uri *uri;
 	/*! Data to be persisted with the subscription */
 	struct ast_json *persistence_data;
+	/*! Display Name of resource */
+	char *display_name;
 	/*! Name of resource being subscribed to */
 	char resource[0];
 };
@@ -886,6 +903,7 @@ struct resource_tree;
 struct tree_node {
 	AST_VECTOR(, struct tree_node *) children;
 	unsigned int full_state;
+	char *display_name;
 	char resource[0];
 };
 
@@ -929,7 +947,7 @@ static struct resource_list *retrieve_resource_list(const char *resource, const 
  * \retval NULL Allocation failure.
  * \retval non-NULL The newly-allocated tree_node
  */
-static struct tree_node *tree_node_alloc(const char *resource, struct resources *visited, unsigned int full_state)
+static struct tree_node *tree_node_alloc(const char *resource, struct resources *visited, unsigned int full_state, const char *display_name)
 {
 	struct tree_node *node;
 
@@ -944,6 +962,7 @@ static struct tree_node *tree_node_alloc(const char *resource, struct resources 
 		return NULL;
 	}
 	node->full_state = full_state;
+	node->display_name = ast_strdup(display_name);
 
 	if (visited) {
 		AST_VECTOR_APPEND(visited, resource);
@@ -971,6 +990,7 @@ static void tree_node_destroy(struct tree_node *node)
 		tree_node_destroy(AST_VECTOR_GET(&node->children, i));
 	}
 	AST_VECTOR_FREE(&node->children);
+	ast_free(node->display_name);
 	ast_free(node);
 }
 
@@ -1035,7 +1055,11 @@ static void build_node_children(struct ast_sip_endpoint *endpoint, const struct 
 		if (!child_list) {
 			int resp = handler->notifier->new_subscribe(endpoint, resource);
 			if (PJSIP_IS_STATUS_IN_CLASS(resp, 200)) {
-				current = tree_node_alloc(resource, visited, 0);
+				char display_name[AST_MAX_EXTENSION] = "";
+				if (list->resource_display_name && handler->notifier->get_resource_display_name) {
+					handler->notifier->get_resource_display_name(endpoint, resource, display_name, sizeof(display_name));
+				}
+				current = tree_node_alloc(resource, visited, 0, ast_strlen_zero(display_name) ? NULL : display_name);
 				if (!current) {
 					ast_debug(1,
 						"Subscription to leaf resource %s was successful, but encountered allocation error afterwards\n",
@@ -1053,7 +1077,7 @@ static void build_node_children(struct ast_sip_endpoint *endpoint, const struct 
 			}
 		} else {
 			ast_debug(2, "Resource %s (child of %s) is a list\n", resource, parent->resource);
-			current = tree_node_alloc(resource, visited, child_list->full_state);
+			current = tree_node_alloc(resource, visited, child_list->full_state, NULL);
 			if (!current) {
 				ast_debug(1, "Cannot build children of resource %s due to allocation failure\n", resource);
 				continue;
@@ -1139,7 +1163,7 @@ static int build_resource_tree(struct ast_sip_endpoint *endpoint, const struct a
 	if (!has_eventlist_support || !(list = retrieve_resource_list(resource, handler->event_name))) {
 		ast_debug(2, "Subscription '%s->%s' is not to a list\n",
 			ast_sorcery_object_get_id(endpoint), resource);
-		tree->root = tree_node_alloc(resource, NULL, 0);
+		tree->root = tree_node_alloc(resource, NULL, 0, NULL);
 		if (!tree->root) {
 			return 500;
 		}
@@ -1152,7 +1176,7 @@ static int build_resource_tree(struct ast_sip_endpoint *endpoint, const struct a
 		return 500;
 	}
 
-	tree->root = tree_node_alloc(resource, &visited, list->full_state);
+	tree->root = tree_node_alloc(resource, &visited, list->full_state, NULL);
 	if (!tree->root) {
 		AST_VECTOR_FREE(&visited);
 		return 500;
@@ -1207,6 +1231,7 @@ static void destroy_subscription(struct ast_sip_subscription *sub)
 	AST_VECTOR_FREE(&sub->children);
 	ao2_cleanup(sub->datastores);
 	ast_json_unref(sub->persistence_data);
+	ast_free(sub->display_name);
 	ast_free(sub);
 }
 
@@ -1229,16 +1254,25 @@ static void destroy_subscriptions(struct ast_sip_subscription *root)
 }
 
 static struct ast_sip_subscription *allocate_subscription(const struct ast_sip_subscription_handler *handler,
-		const char *resource, struct sip_subscription_tree *tree)
+		const char *resource, const char *display_name, struct sip_subscription_tree *tree)
 {
 	struct ast_sip_subscription *sub;
-	pjsip_sip_uri *contact_uri;
+	pjsip_msg *msg;
+	pjsip_sip_uri *request_uri;
+
+	msg = ast_sip_mod_data_get(tree->dlg->mod_data, pubsub_module.id, MOD_DATA_MSG);
+	if (!msg) {
+		ast_log(LOG_ERROR, "No dialog message saved for SIP subscription. Cannot allocate subscription for resource %s\n", resource);
+		return NULL;
+	}
 
 	sub = ast_calloc(1, sizeof(*sub) + strlen(resource) + 1);
 	if (!sub) {
 		return NULL;
 	}
 	strcpy(sub->resource, resource); /* Safe */
+
+	sub->display_name = ast_strdup(display_name);
 
 	sub->datastores = ast_datastores_alloc();
 	if (!sub->datastores) {
@@ -1253,8 +1287,8 @@ static struct ast_sip_subscription *allocate_subscription(const struct ast_sip_s
 	}
 
 	sub->uri = pjsip_sip_uri_create(tree->dlg->pool, PJ_FALSE);
-	contact_uri = pjsip_uri_get_uri(tree->dlg->local.contact->uri);
-	pjsip_sip_uri_assign(tree->dlg->pool, sub->uri, contact_uri);
+	request_uri = pjsip_uri_get_uri(msg->line.req.uri);
+	pjsip_sip_uri_assign(tree->dlg->pool, sub->uri, request_uri);
 	pj_strdup2(tree->dlg->pool, &sub->uri->user, resource);
 
 	/* If there is any persistence information available for this subscription that was persisted
@@ -1288,7 +1322,7 @@ static struct ast_sip_subscription *create_virtual_subscriptions(const struct as
 	int i;
 	struct ast_sip_subscription *sub;
 
-	sub = allocate_subscription(handler, resource, tree);
+	sub = allocate_subscription(handler, resource, current->display_name, tree);
 	if (!sub) {
 		return NULL;
 	}
@@ -1880,7 +1914,7 @@ struct ast_sip_subscription *ast_sip_create_subscription(const struct ast_sip_su
 		return NULL;
 	}
 
-	sub = allocate_subscription(handler, resource, sub_tree);
+	sub = allocate_subscription(handler, resource, NULL, sub_tree);
 	if (!sub) {
 		ao2_cleanup(sub_tree);
 		return NULL;
@@ -2036,6 +2070,7 @@ static void add_rlmi_resource(pj_pool_t *pool, pj_xml_node *rlmi, const pjsip_ge
 	pj_xml_attr *cid_attr;
 	char id[6];
 	char uri[PJSIP_MAX_URL_SIZE];
+	char name_sanitized[PJSIP_MAX_URL_SIZE];
 
 	/* This creates a string representing the Content-ID without the enclosing < > */
 	const pj_str_t cid_stripped = {
@@ -2050,7 +2085,8 @@ static void add_rlmi_resource(pj_pool_t *pool, pj_xml_node *rlmi, const pjsip_ge
 	pjsip_uri_print(PJSIP_URI_IN_CONTACT_HDR, resource_uri, uri, sizeof(uri));
 	ast_sip_presence_xml_create_attr(pool, resource, "uri", uri);
 
-	pj_strdup2(pool, &name->content, resource_name);
+	ast_sip_sanitize_xml(resource_name, name_sanitized, sizeof(name_sanitized));
+	pj_strdup2(pool, &name->content, name_sanitized);
 
 	ast_generate_random_string(id, sizeof(id));
 
@@ -2088,6 +2124,8 @@ struct body_part {
 	pjsip_evsub_state state;
 	/*! The actual body part that will be present in the multipart body */
 	pjsip_multipart_part *part;
+	/*! Display name for the resource */
+	const char *display_name;
 };
 
 /*!
@@ -2186,7 +2224,7 @@ static pjsip_multipart_part *build_rlmi_body(pj_pool_t *pool, struct ast_sip_sub
 	for (i = 0; i < AST_VECTOR_SIZE(body_parts); ++i) {
 		const struct body_part *part = AST_VECTOR_GET(body_parts, i);
 
-		add_rlmi_resource(pool, rlmi, part->cid, part->resource, part->uri, part->state);
+		add_rlmi_resource(pool, rlmi, part->cid, S_OR(part->display_name, part->resource), part->uri, part->state);
 	}
 
 	rlmi_part = pjsip_multipart_create_part(pool);
@@ -2243,6 +2281,7 @@ static struct body_part *allocate_body_part(pj_pool_t *pool, const struct ast_si
 	bp->resource = sub->resource;
 	bp->state = sub->subscription_state;
 	bp->uri = sub->uri;
+	bp->display_name = sub->display_name;
 
 	return bp;
 }
@@ -2466,6 +2505,8 @@ static int serialized_send_notify(void *userdata)
 
 	pjsip_dlg_inc_lock(dlg);
 
+	sub_tree->notify_sched_id = -1;
+
 	/* It's possible that between when the notification was scheduled
 	 * and now a new SUBSCRIBE arrived requiring full state to be
 	 * sent out in an immediate NOTIFY. It's also possible that we're
@@ -2491,7 +2532,6 @@ static int serialized_send_notify(void *userdata)
 			? "SUBSCRIPTION_TERMINATED" : "SUBSCRIPTION_STATE_CHANGED",
 		"Resource: %s", sub_tree->root->resource);
 
-	sub_tree->notify_sched_id = -1;
 	pjsip_dlg_dec_lock(dlg);
 	ao2_cleanup(sub_tree);
 	return 0;
@@ -3875,6 +3915,15 @@ static int pubsub_on_refresh_timeout(void *userdata)
 		set_state_terminated(sub_tree->root);
 	}
 
+	if (sub_tree->generate_initial_notify) {
+		sub_tree->generate_initial_notify = 0;
+		if (generate_initial_notify(sub_tree->root)) {
+			pjsip_evsub_terminate(sub_tree->evsub, PJ_TRUE);
+			pjsip_dlg_dec_lock(dlg);
+			return 0;
+		}
+	}
+
 	send_notify(sub_tree, 1);
 
 	ast_test_suite_event_notify(sub_tree->root->subscription_state == PJSIP_EVSUB_STATE_TERMINATED ?
@@ -3895,6 +3944,52 @@ static int serialized_pubsub_on_refresh_timeout(void *userdata)
 
 	pubsub_on_refresh_timeout(userdata);
 	ao2_cleanup(sub_tree);
+
+	return 0;
+}
+
+/*!
+ * \brief Compare strings for equality checking for NULL.
+ *
+ * This function considers NULL values as empty strings.
+ * This means NULL or empty strings are equal.
+ *
+ * \retval 0 The strings are equal
+ * \retval 1 The strings are not equal
+ */
+static int cmp_strings(char *s1, char *s2)
+{
+	if (!ast_strlen_zero(s1) && !ast_strlen_zero(s2)) {
+		return strcmp(s1, s2);
+	}
+
+	return ast_strlen_zero(s1) == ast_strlen_zero(s2) ? 0 : 1;
+}
+
+/*!
+ * \brief compares the childrens of two ast_sip_subscription s1 and s2
+ *
+ * \retval 0 The s1 childrens match the s2 childrens
+ * \retval 1 The s1 childrens do not match the s2 childrens
+ */
+static int cmp_subscription_childrens(struct ast_sip_subscription *s1, struct ast_sip_subscription *s2)
+{
+	int i;
+
+	if (AST_VECTOR_SIZE(&s1->children) != AST_VECTOR_SIZE(&s2->children)) {
+		return 1;
+	}
+
+	for (i = 0; i < AST_VECTOR_SIZE(&s1->children); ++i) {
+		struct ast_sip_subscription *c1 = AST_VECTOR_GET(&s1->children, i);
+		struct ast_sip_subscription *c2 = AST_VECTOR_GET(&s2->children, i);
+
+		if (cmp_strings(c1->resource, c2->resource)
+			|| cmp_strings(c1->display_name, c2->display_name)) {
+
+			return 1;
+		}
+	}
 
 	return 0;
 }
@@ -3937,6 +4032,54 @@ static void pubsub_on_rx_refresh(pjsip_evsub *evsub, pjsip_rx_data *rdata,
 
 	if (pjsip_evsub_get_state(sub_tree->evsub) == PJSIP_EVSUB_STATE_TERMINATED) {
 		sub_tree->state = SIP_SUB_TREE_TERMINATE_PENDING;
+	}
+
+	if (sub_tree->state == SIP_SUB_TREE_NORMAL && sub_tree->is_list) {
+		/* update RLS */
+		const char *resource = sub_tree->root->resource;
+		struct ast_sip_subscription *old_root = sub_tree->root;
+		struct ast_sip_subscription *new_root = NULL;
+		RAII_VAR(struct ast_sip_endpoint *, endpoint, NULL, ao2_cleanup);
+		struct ast_sip_subscription_handler *handler = NULL;
+		struct ast_sip_pubsub_body_generator *generator = NULL;
+
+		if ((endpoint = ast_pjsip_rdata_get_endpoint(rdata))
+			&& (handler = subscription_get_handler_from_rdata(rdata, ast_sorcery_object_get_id(endpoint)))
+			&& (generator = subscription_get_generator_from_rdata(rdata, handler))) {
+
+			struct resource_tree tree;
+			int resp;
+
+			memset(&tree, 0, sizeof(tree));
+			resp = build_resource_tree(endpoint, handler, resource, &tree,
+				ast_sip_pubsub_has_eventlist_support(rdata));
+			if (PJSIP_IS_STATUS_IN_CLASS(resp, 200)) {
+				new_root = create_virtual_subscriptions(handler, resource, generator, sub_tree, tree.root);
+				if (new_root) {
+					if (cmp_subscription_childrens(old_root, new_root)) {
+						ast_debug(1, "RLS '%s->%s' was modified, regenerate it\n", ast_sorcery_object_get_id(endpoint), old_root->resource);
+						new_root->version = old_root->version;
+						sub_tree->root = new_root;
+						sub_tree->generate_initial_notify = 1;
+
+						/* If there is scheduled notification need to delete it to avoid use old subscriptions */
+						if (sub_tree->notify_sched_id > -1) {
+							AST_SCHED_DEL_UNREF(sched, sub_tree->notify_sched_id, ao2_ref(sub_tree, -1));
+							sub_tree->send_scheduled_notify = 0;
+						}
+						shutdown_subscriptions(old_root);
+						destroy_subscriptions(old_root);
+					} else {
+						destroy_subscriptions(new_root);
+					}
+				}
+			} else {
+				sub_tree->state = SIP_SUB_TREE_TERMINATE_PENDING;
+				pjsip_evsub_terminate(sub_tree->evsub, PJ_TRUE);
+			}
+
+			resource_tree_destroy(&tree);
+		}
 	}
 
 	subscription_persistence_update(sub_tree, rdata, SUBSCRIPTION_PERSISTENCE_REFRESHED);
@@ -4744,7 +4887,11 @@ static int persistence_expires_str2struct(const struct aco_option *opt, struct a
 static int persistence_expires_struct2str(const void *obj, const intptr_t *args, char **buf)
 {
 	const struct subscription_persistence *persistence = obj;
-	return (ast_asprintf(buf, "%ld", persistence->expires.tv_sec) < 0) ? -1 : 0;
+	char secs[AST_TIME_T_LEN];
+
+	ast_time_t_to_string(persistence->expires.tv_sec, secs, sizeof(secs));
+
+	return (ast_asprintf(buf, "%s", secs) < 0) ? -1 : 0;
 }
 
 #define RESOURCE_LIST_INIT_SIZE 4
@@ -4873,6 +5020,8 @@ static int apply_list_configuration(struct ast_sorcery *sorcery)
 			"0", OPT_UINT_T, 0, FLDSET(struct resource_list, notification_batch_interval));
 	ast_sorcery_object_field_register_custom(sorcery, "resource_list", "list_item",
 			"", list_item_handler, list_item_to_str, NULL, 0, 0);
+	ast_sorcery_object_field_register(sorcery, "resource_list", "resource_display_name", "no",
+			OPT_BOOL_T, 1, FLDSET(struct resource_list, resource_display_name));
 
 	ast_sorcery_reload_object(sorcery, "resource_list");
 

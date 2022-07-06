@@ -84,68 +84,67 @@
 			channel. One exception is that you can read headers that you have already
 			added on the outbound channel.</para>
 			<para>Examples:</para>
-			<para>;</para>
-			<para>; Set 'somevar' to the value of the 'From' header.</para>
-			<para>exten => 1,1,Set(somevar=${PJSIP_HEADER(read,From)})</para>
-			<para>;</para>
-			<para>; Set 'via2' to the value of the 2nd 'Via' header.</para>
-			<para>exten => 1,1,Set(via2=${PJSIP_HEADER(read,Via,2)})</para>
-			<para>;</para>
-			<para>; Set 'xhdr' to the value of the 1sx X-header.</para>
-			<para>exten => 1,1,Set(xhdr=${PJSIP_HEADER(read,X-*,1)})</para>
-			<para>;</para>
-			<para>; Add an 'X-Myheader' header with the value of 'myvalue'.</para>
-			<para>exten => 1,1,Set(PJSIP_HEADER(add,X-MyHeader)=myvalue)</para>
-			<para>;</para>
-			<para>; Add an 'X-Myheader' header with an empty value.</para>
-			<para>exten => 1,1,Set(PJSIP_HEADER(add,X-MyHeader)=)</para>
-			<para>;</para>
-			<para>; Update the value of the header named 'X-Myheader' to 'newvalue'.</para>
-			<para>; 'X-Myheader' must already exist or the call will fail.</para>
-			<para>exten => 1,1,Set(PJSIP_HEADER(update,X-MyHeader)=newvalue)</para>
-			<para>;</para>
-			<para>; Remove all headers whose names exactly match 'X-MyHeader'.</para>
-			<para>exten => 1,1,Set(PJSIP_HEADER(remove,X-MyHeader)=)</para>
-			<para>;</para>
-			<para>; Remove all headers that begin with 'X-My'.</para>
-			<para>exten => 1,1,Set(PJSIP_HEADER(remove,X-My*)=)</para>
-			<para>;</para>
-			<para>; Remove all previously added headers.</para>
-			<para>exten => 1,1,Set(PJSIP_HEADER(remove,*)=)</para>
-			<para>;</para>
-
+			<example title="Set somevar to the value of the From header">
+			exten => 1,1,Set(somevar=${PJSIP_HEADER(read,From)})
+			</example>
+			<example title="Set via2 to the value of the 2nd Via header">
+			exten => 1,1,Set(via2=${PJSIP_HEADER(read,Via,2)})
+			</example>
+			<example title="Set xhdr to the value of the 1st X-header">
+			exten => 1,1,Set(xhdr=${PJSIP_HEADER(read,X-*,1)})
+			</example>
+			<example title="Add an X-Myheader header with the value of myvalue">
+			exten => 1,1,Set(PJSIP_HEADER(add,X-MyHeader)=myvalue)
+			</example>
+			<example title="Add an X-Myheader header with an empty value">
+			exten => 1,1,Set(PJSIP_HEADER(add,X-MyHeader)=)
+			</example>
+			<example title="Update the value of the header named X-Myheader to newvalue">
+			; 'X-Myheader' must already exist or the call will fail.
+			exten => 1,1,Set(PJSIP_HEADER(update,X-MyHeader)=newvalue)
+			</example>
+			<example title="Remove all headers whose names exactly match X-MyHeader">
+			exten => 1,1,Set(PJSIP_HEADER(remove,X-MyHeader)=)
+			</example>
+			<example title="Remove all headers that begin with X-My">
+			exten => 1,1,Set(PJSIP_HEADER(remove,X-My*)=)
+			</example>
+			<example title="Remove all previously added headers">
+			exten => 1,1,Set(PJSIP_HEADER(remove,*)=)
+			</example>
 			<note><para>The <literal>remove</literal> action can be called by reading
-			<emphasis>or</emphasis> writing PJSIP_HEADER.</para>
-			<para>;</para>
-			<para>; Display the number of headers removed</para>
-			<para>exten => 1,1,Verbose( Removed ${PJSIP_HEADER(remove,X-MyHeader)} headers)</para>
-			<para>;</para>
-			<para>; Set a variable to the number of headers removed</para>
-			<para>exten => 1,1,Set(count=${PJSIP_HEADER(remove,X-MyHeader)})</para>
-			<para>;</para>
-			<para>; Just remove them ignoring any count</para>
-			<para>exten => 1,1,Set(=${PJSIP_HEADER(remove,X-MyHeader)})</para>
-			<para>exten => 1,1,Set(PJSIP_HEADER(remove,X-MyHeader)=)</para>
-			<para>;</para>
-			</note>
+			<emphasis>or</emphasis> writing PJSIP_HEADER.</para></note>
+			<example title="Display the number of headers removed">
+			exten => 1,1,Verbose( Removed ${PJSIP_HEADER(remove,X-MyHeader)} headers)
+			</example>
+			<example title="Set a variable to the number of headers removed">
+			exten => 1,1,Set(count=${PJSIP_HEADER(remove,X-MyHeader)})
+			</example>
+			<example title="Just remove them ignoring any count">
+			exten => 1,1,Set(=${PJSIP_HEADER(remove,X-MyHeader)})
+			exten => 1,1,Set(PJSIP_HEADER(remove,X-MyHeader)=)
+			</example>
 
 			<note><para>If you call PJSIP_HEADER in a normal dialplan context you'll be
 			operating on the <emphasis>caller's (incoming)</emphasis> channel which
 			may not be what you want. To operate on the <emphasis>callee's (outgoing)</emphasis>
-			channel call PJSIP_HEADER in a pre-dial handler. </para>
-			<para>Example:</para>
-			<para>;</para>
-			<para>[handler]</para>
-			<para>exten => addheader,1,Set(PJSIP_HEADER(add,X-MyHeader)=myvalue)</para>
-			<para>exten => addheader,2,Set(PJSIP_HEADER(add,X-MyHeader2)=myvalue2)</para>
-			<para>;</para>
-			<para>[somecontext]</para>
-			<para>exten => 1,1,Dial(PJSIP/${EXTEN},,b(handler^addheader^1))</para>
-			<para>;</para>
-			</note>
+			channel call PJSIP_HEADER in a pre-dial handler. </para></note>
+			<example title="Set headers on callee channel">
+			[handler]
+			exten => addheader,1,Set(PJSIP_HEADER(add,X-MyHeader)=myvalue)
+			exten => addheader,2,Set(PJSIP_HEADER(add,X-MyHeader2)=myvalue2)
+
+			[somecontext]
+			exten => 1,1,Dial(PJSIP/${EXTEN},,b(handler^addheader^1))
+			</example>
 		</description>
 	</function>
 	<function name="PJSIP_HEADERS" language="en_US">
+		<since>
+			<version>16.20.0</version>
+			<version>18.6.0</version>
+			<version>19.0.0</version>
+		</since>
 		<synopsis>
 			Gets the list of SIP header names from an INVITE message.
 		</synopsis>
@@ -747,7 +746,6 @@ static struct ast_custom_function pjsip_headers_function = {
  */
 static void outgoing_request(struct ast_sip_session *session, pjsip_tx_data * tdata)
 {
-	pj_pool_t *pool = session->inv_session->dlg->pool;
 	struct hdr_list *list;
 	struct hdr_list_entry *le;
 	RAII_VAR(struct ast_datastore *, datastore,
@@ -760,7 +758,7 @@ static void outgoing_request(struct ast_sip_session *session, pjsip_tx_data * td
 
 	list = datastore->data;
 	AST_LIST_TRAVERSE(list, le, nextptr) {
-		pjsip_msg_add_hdr(tdata->msg, (pjsip_hdr *) pjsip_hdr_clone(pool, le->hdr));
+		pjsip_msg_add_hdr(tdata->msg, (pjsip_hdr *) pjsip_hdr_clone(tdata->pool, le->hdr));
 	}
 	ast_sip_session_remove_datastore(session, datastore->uid);
 }

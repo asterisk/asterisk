@@ -1382,6 +1382,11 @@ char *ast_module_helper(const char *line, const char *word, int pos, int state, 
 		return NULL;
 	}
 
+	/* Tab completion can't be used during startup, or CLI and loader will deadlock. */
+	if (!ast_test_flag(&ast_options, AST_OPT_FLAG_FULLY_BOOTED)) {
+		return NULL;
+	}
+
 	if (type == AST_MODULE_HELPER_LOAD) {
 		module_load_helper(word);
 
@@ -2517,9 +2522,9 @@ done:
 	usElapsed = ast_tvdiff_us(end_time, start_time);
 
 #ifdef AST_XML_DOCS
-	ast_debug(1, "Loader time with AST_XML_DOCS: %ld.%06ld\n", usElapsed / 1000000, usElapsed % 1000000);
+	ast_debug(1, "Loader time with AST_XML_DOCS: %" PRId64 ".%06" PRId64 "\n", usElapsed / 1000000, usElapsed % 1000000);
 #else
-	ast_debug(1, "Loader time without AST_XML_DOCS: %ld.%06ld\n", usElapsed / 1000000, usElapsed % 1000000);
+	ast_debug(1, "Loader time without AST_XML_DOCS: %" PRId64 ".%06" PRId64 "\n", usElapsed / 1000000, usElapsed % 1000000);
 #endif
 
 	return res;

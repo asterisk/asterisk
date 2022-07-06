@@ -220,7 +220,7 @@ static int timers_handler(const struct aco_option *opt, struct ast_variable *var
 	} else if (!strcasecmp(var->value, "required")) {
 		endpoint->extensions.flags |= PJSIP_INV_REQUIRE_TIMER;
 	} else if (!strcasecmp(var->value, "always") || !strcasecmp(var->value, "forced")) {
-		endpoint->extensions.flags |= PJSIP_INV_ALWAYS_USE_TIMER;
+		endpoint->extensions.flags |= (PJSIP_INV_SUPPORT_TIMER | PJSIP_INV_ALWAYS_USE_TIMER);
 	} else if (!ast_false(var->value)) {
 		return -1;
 	}
@@ -2192,6 +2192,7 @@ int ast_res_pjsip_initialize_configuration(void)
 		"prefer: pending, operation: intersect, keep: all",
 		codec_prefs_handler, outgoing_answer_codec_prefs_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "stir_shaken", "off", stir_shaken_handler, stir_shaken_to_str, NULL, 0, 0);
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "stir_shaken_profile", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, stir_shaken_profile));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "allow_unauthenticated_options", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, allow_unauthenticated_options));
 
 	if (ast_sip_initialize_sorcery_transport()) {
