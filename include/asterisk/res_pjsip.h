@@ -63,6 +63,9 @@
 #define PJSIP_EXPIRES_NOT_SPECIFIED	((pj_uint32_t)-1)
 #endif
 
+#define PJSTR_PRINTF_SPEC "%.*s"
+#define PJSTR_PRINTF_VAR(_v) ((int)(_v).slen), ((_v).ptr)
+
 /* Response codes from RFC8224 */
 #define AST_STIR_SHAKEN_RESPONSE_CODE_STALE_DATE 403
 #define AST_STIR_SHAKEN_RESPONSE_CODE_USE_IDENTITY_HEADER 428
@@ -957,6 +960,10 @@ struct ast_sip_endpoint {
 	unsigned int stir_shaken;
 	/*! Should we authenticate OPTIONS requests per RFC 3261? */
 	unsigned int allow_unauthenticated_options;
+	/*! The name of the geoloc profile to apply when Asterisk receives a call from this endpoint */
+	AST_STRING_FIELD_EXTENDED(geoloc_incoming_call_profile);
+	/*! The name of the geoloc profile to apply when Asterisk sends a call to this endpoint */
+	AST_STRING_FIELD_EXTENDED(geoloc_outgoing_call_profile);
 };
 
 /*! URI parameter for symmetric transport */
@@ -2456,6 +2463,17 @@ int ast_sip_set_outbound_proxy(pjsip_tx_data *tdata, const char *proxy);
  * \retval -1 Failure
  */
 int ast_sip_add_header(pjsip_tx_data *tdata, const char *name, const char *value);
+
+/*!
+ * \brief Add a header to an outbound SIP message, returning a pointer to the header
+ *
+ * \param tdata The message to add the header to
+ * \param name The header name
+ * \param value The header value
+ * \return The pjsip_generic_string_hdr * added.
+ */
+pjsip_generic_string_hdr *ast_sip_add_header2(pjsip_tx_data *tdata,
+	const char *name, const char *value);
 
 /*!
  * \brief Add a body to an outbound SIP message
