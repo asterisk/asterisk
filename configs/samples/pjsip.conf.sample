@@ -902,6 +902,17 @@
                            ; responses.
                            ; (default: no)
 
+;geoloc_incoming_call_profile =
+                ; This geolocation profile will be applied to all calls received
+                ; by the channel driver from the remote endpoint before they're
+                ; forwarded to the dialplan.
+;geoloc_outgoing_call_profile =
+                ; This geolocation profile will be applied to all calls received
+                ; by the channel driver from the dialplan before they're forwarded
+                ; the remote endpoint.
+;
+
+
 ;==========================AUTH SECTION OPTIONS=========================
 ;[auth]
 ;  SYNOPSIS: Authentication type

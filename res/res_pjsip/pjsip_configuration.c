@@ -21,6 +21,7 @@
 #include <pjsip.h>
 #include <pjsip_ua.h>
 
+#include "asterisk/res_geolocation.h"
 #include "asterisk/res_pjsip.h"
 #include "include/res_pjsip_private.h"
 #include "asterisk/res_pjsip_cli.h"
@@ -1370,6 +1371,36 @@ static int sip_endpoint_apply_handler(const struct ast_sorcery *sorcery, void *o
 		}
 	}
 
+	if (!ast_strlen_zero(endpoint->geoloc_incoming_call_profile) ||
+		!ast_strlen_zero(endpoint->geoloc_outgoing_call_profile)) {
+
+		if (!ast_geoloc_is_loaded()) {
+			ast_log(LOG_ERROR, "A geoloc incoming and/or outgoing call_profile was specified on endpoint '%s'"
+				" but res_geolocation is not loaded.\n", ast_sorcery_object_get_id(endpoint));
+			return -1;
+		}
+
+		if (!ast_strlen_zero(endpoint->geoloc_incoming_call_profile)) {
+			struct ast_geoloc_profile *profile = ast_geoloc_get_profile(endpoint->geoloc_incoming_call_profile);
+			if (!profile) {
+				ast_log(LOG_ERROR, "geoloc_incoming_call_profile '%s' on endpoint '%s' doesn't exist\n",
+					endpoint->geoloc_incoming_call_profile, ast_sorcery_object_get_id(endpoint));
+				return -1;
+			}
+			ao2_cleanup(profile);
+		}
+
+		if (!ast_strlen_zero(endpoint->geoloc_outgoing_call_profile)) {
+			struct ast_geoloc_profile *profile = ast_geoloc_get_profile(endpoint->geoloc_outgoing_call_profile);
+			if (!profile) {
+				ast_log(LOG_ERROR, "geoloc_outgoing_call_profile '%s' on endpoint '%s' doesn't exist\n",
+					endpoint->geoloc_outgoing_call_profile, ast_sorcery_object_get_id(endpoint));
+				return -1;
+			}
+			ao2_cleanup(profile);
+		}
+	}
+
 	return 0;
 }
 
@@ -2009,6 +2040,8 @@ int ast_res_pjsip_initialize_configuration(void)
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "stir_shaken", "off", stir_shaken_handler, stir_shaken_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "stir_shaken_profile", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, stir_shaken_profile));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "allow_unauthenticated_options", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, allow_unauthenticated_options));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "geoloc_incoming_call_profile", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, geoloc_incoming_call_profile));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "geoloc_outgoing_call_profile", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, geoloc_outgoing_call_profile));
 
 	if (ast_sip_initialize_sorcery_transport()) {
 		ast_log(LOG_ERROR, "Failed to register SIP transport support with sorcery\n");
@@ -2165,6 +2198,12 @@ void *ast_sip_endpoint_alloc(const char *name)
 		return NULL;
 	}
 	if (ast_string_field_init(endpoint, 64)) {
+		ao2_cleanup(endpoint);
+		return NULL;
+	}
+
+	if (ast_string_field_init_extended(endpoint, geoloc_incoming_call_profile) ||
+		ast_string_field_init_extended(endpoint, geoloc_outgoing_call_profile)) {
 		ao2_cleanup(endpoint);
 		return NULL;
 	}

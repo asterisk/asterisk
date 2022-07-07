@@ -1142,6 +1142,24 @@
 						responses.</para>
 					</description>
 				</configOption>
+				<configOption name="geoloc_incoming_call_profile" default="">
+					<synopsis>Geolocation profile to apply to incoming calls</synopsis>
+					<description><para>
+						This geolocation profile will be applied to all calls received
+						by the channel driver from the remote endpoint before they're
+						forwarded to the dialplan.
+						</para>
+					</description>
+				</configOption>
+				<configOption name="geoloc_outgoing_call_profile" default="">
+					<synopsis>Geolocation profile to apply to outgoing calls</synopsis>
+					<description><para>
+						This geolocation profile will be applied to all calls received
+						by the channel driver from the dialplan before they're forwarded
+						the remote endpoint.
+						</para>
+					</description>
+				</configOption>
 			</configObject>
 			<configObject name="auth">
 				<synopsis>Authentication type</synopsis>
