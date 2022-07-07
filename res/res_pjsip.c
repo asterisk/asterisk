@@ -53,6 +53,7 @@
 	<depend>res_sorcery_memory</depend>
 	<depend>res_sorcery_astdb</depend>
 	<use type="module">res_statsd</use>
+	<use type="module">res_geolocation</use>
 	<support_level>core</support_level>
  ***/
 
@@ -1870,6 +1871,22 @@ int ast_sip_add_header(pjsip_tx_data *tdata, const char *name, const char *value
 	return 0;
 }
 
+pjsip_generic_string_hdr *ast_sip_add_header2(pjsip_tx_data *tdata,
+	const char *name, const char *value)
+{
+	pj_str_t hdr_name;
+	pj_str_t hdr_value;
+	pjsip_generic_string_hdr *hdr;
+
+	pj_cstr(&hdr_name, name);
+	pj_cstr(&hdr_value, value);
+
+	hdr = pjsip_generic_string_hdr_create(tdata->pool, &hdr_name, &hdr_value);
+
+	pjsip_msg_add_hdr(tdata->msg, (pjsip_hdr *) hdr);
+	return hdr;
+}
+
 static pjsip_msg_body *ast_body_to_pjsip_body(pj_pool_t *pool, const struct ast_sip_body *body)
 {
 	pj_str_t type;
@@ -2810,5 +2827,5 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_
 	.reload = reload_module,
 	.load_pri = AST_MODPRI_CHANNEL_DEPEND - 5,
 	.requires = "dnsmgr,res_pjproject,res_sorcery_config,res_sorcery_memory,res_sorcery_astdb",
-	.optional_modules = "res_statsd",
+	.optional_modules = "res_geolocation,res_statsd",
 );
