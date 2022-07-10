@@ -150,7 +150,7 @@ monitor-type = MixMonitor
 ; Queue application is more important. In the scenario above, timeoutpriority=app
 ; would result in the second member's phone ringing for 1 second.
 ;
-; There are a few exceptions to the priority rules. For instance, if timeoutpriority=appp
+; There are a few exceptions to the priority rules. For instance, if timeoutpriority=app
 ; and the configuration file timeout is set to 0, but the application argument timeout is
 ; non-zero, then the timeoutpriority is ignored and the application argument is used as
 ; the timeout. Furthermore, if no application argument timeout is specified, then the
