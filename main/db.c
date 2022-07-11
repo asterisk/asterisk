@@ -65,6 +65,18 @@
 		<description>
 		</description>
 	</manager>
+	<manager name="DBGetTree" language="en_US">
+		<synopsis>
+			Get DB entries, optionally at a particular family/key
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Family" required="false" />
+			<parameter name="Key" required="false" />
+		</syntax>
+		<description>
+		</description>
+	</manager>
 	<manager name="DBPut" language="en_US">
 		<synopsis>
 			Put DB entry.
@@ -979,6 +991,70 @@ static int manager_dbget(struct mansession *s, const struct message *m)
 	return 0;
 }
 
+static int manager_db_tree_get(struct mansession *s, const struct message *m)
+{
+	char prefix[MAX_DB_FIELD];
+	char idText[256];
+	const char *id = astman_get_header(m,"ActionID");
+	const char *family = astman_get_header(m, "Family");
+	const char *key = astman_get_header(m, "Key");
+	sqlite3_stmt *stmt = gettree_stmt;
+
+	if (!ast_strlen_zero(family) && !ast_strlen_zero(key)) {
+		/* Family and key tree */
+		snprintf(prefix, sizeof(prefix), "/%s/%s", family, key);
+	} else if (!ast_strlen_zero(family)) {
+		/* Family only */
+		snprintf(prefix, sizeof(prefix), "/%s", family);
+	} else {
+		/* Neither */
+		prefix[0] = '\0';
+		stmt = gettree_all_stmt;
+	}
+
+	idText[0] = '\0';
+	if (!ast_strlen_zero(id)) {
+		snprintf(idText, sizeof(idText) ,"ActionID: %s\r\n", id);
+	}
+
+	ast_mutex_lock(&dblock);
+	if (!ast_strlen_zero(prefix) && (sqlite3_bind_text(stmt, 1, prefix, -1, SQLITE_STATIC) != SQLITE_OK)) {
+		ast_log(LOG_WARNING, "Couldn't bind %s to stmt: %s\n", prefix, sqlite3_errmsg(astdb));
+		sqlite3_reset(stmt);
+		ast_mutex_unlock(&dblock);
+		astman_send_error(s, m, "Unable to search database");
+		return 0;
+	}
+
+	astman_send_listack(s, m, "Result will follow", "start");
+
+	while (sqlite3_step(stmt) == SQLITE_ROW) {
+		const char *key_s, *value_s;
+		if (!(key_s = (const char *) sqlite3_column_text(stmt, 0))) {
+			ast_log(LOG_WARNING, "Skipping invalid key!\n");
+			continue;
+		}
+		if (!(value_s = (const char *) sqlite3_column_text(stmt, 1))) {
+			ast_log(LOG_WARNING, "Skipping invalid value!\n");
+			continue;
+		}
+		astman_append(s, "Event: DBGetTreeResponse\r\n"
+			"Key: %s\r\n"
+			"Val: %s\r\n"
+			"%s"
+			"\r\n",
+			key_s, value_s, idText);
+	}
+
+	sqlite3_reset(stmt);
+	ast_mutex_unlock(&dblock);
+
+	astman_send_list_complete_start(s, m, "DBGetTreeComplete", 1);
+	astman_send_list_complete_end(s);
+
+	return 0;
+}
+
 static int manager_dbdel(struct mansession *s, const struct message *m)
 {
 	const char *family = astman_get_header(m, "Family");
@@ -1091,6 +1167,7 @@ static void astdb_atexit(void)
 {
 	ast_cli_unregister_multiple(cli_database, ARRAY_LEN(cli_database));
 	ast_manager_unregister("DBGet");
+	ast_manager_unregister("DBGetTree");
 	ast_manager_unregister("DBPut");
 	ast_manager_unregister("DBDel");
 	ast_manager_unregister("DBDelTree");
@@ -1126,6 +1203,7 @@ int astdb_init(void)
 	ast_register_atexit(astdb_atexit);
 	ast_cli_register_multiple(cli_database, ARRAY_LEN(cli_database));
 	ast_manager_register_xml_core("DBGet", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_dbget);
+	ast_manager_register_xml_core("DBGetTree", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_db_tree_get);
 	ast_manager_register_xml_core("DBPut", EVENT_FLAG_SYSTEM, manager_dbput);
 	ast_manager_register_xml_core("DBDel", EVENT_FLAG_SYSTEM, manager_dbdel);
 	ast_manager_register_xml_core("DBDelTree", EVENT_FLAG_SYSTEM, manager_dbdeltree);
