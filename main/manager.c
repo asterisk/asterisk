@@ -7128,6 +7128,14 @@ static int __attribute__((format(printf, 9, 0))) __manager_event_sessions_va(
 	struct ast_str *buf;
 	int i;
 
+	if (!ast_strlen_zero(manager_disabledevents)) {
+		if (ast_in_delimited_string(event, manager_disabledevents, ',')) {
+			ast_debug(3, "AMI Event '%s' is globally disabled, skipping\n", event);
+			/* Event is globally disabled */
+			return -1;
+		}
+	}
+
 	buf = ast_str_thread_get(&manager_event_buf, MANAGER_EVENT_BUF_INITSIZE);
 	if (!buf) {
 		return -1;
@@ -7238,15 +7246,6 @@ int __ast_manager_event_multichan(int category, const char *event, int chancount
 	struct ao2_container *sessions = ao2_global_obj_ref(mgr_sessions);
 	va_list ap;
 	int res;
-
-	if (!ast_strlen_zero(manager_disabledevents)) {
-		if (ast_in_delimited_string(event, manager_disabledevents, ',')) {
-			ast_debug(3, "AMI Event '%s' is globally disabled, skipping\n", event);
-			/* Event is globally disabled */
-			ao2_cleanup(sessions);
-			return 0;
-		}
-	}
 
 	if (!any_manager_listeners(sessions)) {
 		/* Nobody is listening */
@@ -8694,6 +8693,7 @@ static char *handle_manager_show_settings(struct ast_cli_entry *e, int cmd, stru
 	}
 #define FORMAT "  %-25.25s  %-15.55s\n"
 #define FORMAT2 "  %-25.25s  %-15d\n"
+#define FORMAT3 "  %-25.25s  %s\n"
 	if (a->argc != 3) {
 		return CLI_SHOWUSAGE;
 	}
@@ -8711,11 +8711,12 @@ static char *handle_manager_show_settings(struct ast_cli_entry *e, int cmd, stru
 	ast_cli(a->fd, FORMAT, "Allow multiple login:", AST_CLI_YESNO(allowmultiplelogin));
 	ast_cli(a->fd, FORMAT, "Display connects:", AST_CLI_YESNO(displayconnects));
 	ast_cli(a->fd, FORMAT, "Timestamp events:", AST_CLI_YESNO(timestampevents));
-	ast_cli(a->fd, FORMAT, "Channel vars:", S_OR(manager_channelvars, ""));
-	ast_cli(a->fd, FORMAT, "Disabled events:", S_OR(manager_disabledevents, ""));
+	ast_cli(a->fd, FORMAT3, "Channel vars:", S_OR(manager_channelvars, ""));
+	ast_cli(a->fd, FORMAT3, "Disabled events:", S_OR(manager_disabledevents, ""));
 	ast_cli(a->fd, FORMAT, "Debug:", AST_CLI_YESNO(manager_debug));
 #undef FORMAT
 #undef FORMAT2
+#undef FORMAT3
 
 	return CLI_SUCCESS;
 }
