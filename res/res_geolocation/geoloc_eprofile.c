@@ -193,7 +193,7 @@ static int set_loc_src(struct ast_geoloc_eprofile *eprofile, const char *uri, co
 
 	loc_src = strchr(local_uri, ';');
 	if (loc_src) {
-		loc_src = '\0';
+		*loc_src = '\0';
 		loc_src++;
 	}
 
