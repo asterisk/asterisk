@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE docs SYSTEM "appdocsxml.dtd">
-<docs>
+<?xml-stylesheet type="text/xsl" href="appdocsxml.xslt"?>
+<docs xmlns:xi="http://www.w3.org/2001/XInclude">
 	<configInfo name="res_pjsip" language="en_US">
 		<synopsis>SIP Resource using PJProject</synopsis>
 		<configFile name="pjsip.conf">
@@ -1423,6 +1424,13 @@
 						INVITEs, an Identity header will be added.</para>
 					</description>
 				</configOption>
+				<configOption name="stir_shaken_profile" default="">
+				        <synopsis>STIR/SHAKEN profile containing additional configuration options</synopsis>
+				        <description><para>
+				                A STIR/SHAKEN profile that is defined in stir_shaken.conf. Contains
+				                several options and rules used for STIR/SHAKEN.</para>
+				        </description>
+				</configOption>
 				<configOption name="allow_unauthenticated_options" default="no">
 					<synopsis>Skip authentication when receiving OPTIONS requests</synopsis>
 					<description><para>
@@ -1771,6 +1779,18 @@
 						<para>Allow this transport to be reloaded when res_pjsip is reloaded.
 						This option defaults to "no" because reloading a transport may disrupt
 						in-progress calls.</para>
+					</description>
+				</configOption>
+				<configOption name="allow_wildcard_certs" default="false">
+					<synopsis>Allow use of wildcards in certificates (TLS ONLY)</synopsis>
+					<description>
+						<para>In combination with verify_server, when enabled allow use of wildcards,
+							i.e. '*.' in certs for common,and subject alt names of type DNS for TLS
+							transport types. Names must start with the wildcard. Partial wildcards, e.g.
+							'f*.example.com' and 'foo.*.com' are not allowed. As well, names only match
+							against a single level meaning '*.example.com' matches 'foo.example.com',
+							but not 'foo.bar.example.com'.
+						</para>
 					</description>
 				</configOption>
 				<configOption name="symmetric_transport" default="no">
