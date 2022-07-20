@@ -1,6 +1,0 @@
-Subject: app_originate
-
-Codecs can now be specified for dialplan-originated
-calls, as with call files and the manager action.
-By default, only the slin codec is now used, instead
-of all the slin* codecs.

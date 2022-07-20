@@ -1,7 +1,0 @@
-Subject: app_voicemail
-
-Add a new 'S' option to VoiceMail which prevents the instructions
-(vm-intro) from being played if a busy/unavailable/temporary greeting
-from the voicemail user is played. This is similar to the existing 's'
-option except that instructions will still be played if no user
-greeting is available.

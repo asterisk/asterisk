@@ -19,6 +19,73 @@
 ===========================================================
 
 ------------------------------------------------------------------------------
+--- New functionality introduced in Asterisk 20.0.0 --------------------------
+------------------------------------------------------------------------------
+
+res_monitor
+------------------
+ * This module is no longer built by default in
+   accordance with the Module Deprecation Policy.
+   If you require this functionality you will need
+   to enable it for building in menuselect. Note
+   that in the future res_monitor will be removed.
+
+------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 19.0.0 to Asterisk 20.0.0 ------------
+------------------------------------------------------------------------------
+
+AMI
+------------------
+ * The XML Manager Event Interface (amxml) now generates attribute names
+   that are compliant with the XML 1.1 specification. Previously, an
+   attribute name that started with a digit would be rendered as-is, even
+   though attribute names must not begin with a digit. We now prefix
+   attribute names that start with a digit with an underscore ('_') to
+   prevent XML validation failures.
+
+STIR/SHAKEN
+------------------
+ * The STIR/SHAKEN configuration option has been split into
+   4 different choices: off, attest, verify, and on. Off and
+   on behave the same way as before. Attest will only perform
+   attestation on the endpoint, and verify will only perform
+   verification on the endpoint.
+
+chan_iax2
+------------------
+ * Encryption is now supported for RSA authentication.
+
+   Currently, these auth configurations will cause a crash:
+   auth = md5,rsa
+   auth = plaintext,md5,rsa
+
+   With a patched peer, the following will cause a crash:
+   auth = rsa
+   auth = md5,rsa
+   auth = plaintext,md5,rsa
+
+   If both the peer and user are patches, no crash occurs.
+   Existing good configurations should continue to work.
+
+res_http_media_cache
+------------------
+ * When fetching a file for playback from a URL, Asterisk will now first
+   use the value of the Content-Type header in the HTTP response to
+   determine the format of the audio data, and only if it is unable to do
+   that will it attempt to parse the URL and extract the extension from
+   the path portion. Previously Asterisk would first look at the end of
+   the URL, which may have included query string parameters or a URL
+   fragment, which was error prone.
+
+res_pjsip
+------------------
+ * The 'async_operations' setting on transports is no longer
+   obeyed and instead is always set to 1. This is due to the
+   functionality not being applicable to Asterisk and causing
+   excess unnecessary memory usage. This setting will now be
+   ignored but can also be removed from the configuration file.
+
+------------------------------------------------------------------------------
 --- New functionality introduced in Asterisk 19.0.0 --------------------------
 ------------------------------------------------------------------------------
 

@@ -1,7 +1,0 @@
-Subject: app_queue
-
-Reload behavior in app_queue has been changed so
-queue and agent stats are not reset during full
-app_queue module reloads. The queue reset stats
-CLI command may still be used to reset stats while
-Asterisk is running.

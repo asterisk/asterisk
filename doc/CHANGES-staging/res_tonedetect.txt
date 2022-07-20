@@ -1,5 +1,0 @@
-Subject: res_tonedetect
-
-Arbitrary tone detection is now available through a
-WaitForTone application (blocking) and a TONE_DETECT
-function (non-blocking).

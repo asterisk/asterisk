@@ -1,6 +1,0 @@
-Subject: res_rtp_asterisk
-
-When the address of the STUN server (stunaddr) is a name resolved via DNS, the
-stunaddr will be recurringly resolved when the DNS answer Time-To-Live (TTL)
-expires. This allows the STUN server to change its IP address without having to
-reload the res_rtp_asterisk module.

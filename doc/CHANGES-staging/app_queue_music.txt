@@ -1,5 +1,0 @@
-Subject: app_queue
-
-The m option now allows an override music on hold
-class to be specified for the Queue application
-within the dialplan.

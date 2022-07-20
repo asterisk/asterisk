@@ -1,3 +1,0 @@
-Subject: func_vmcount
-
-Multiple mailboxes may now be specified instead of just one.

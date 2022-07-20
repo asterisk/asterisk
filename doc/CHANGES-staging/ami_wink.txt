@@ -1,3 +1,0 @@
-Subject: ami
-
-An AMI event now exists for "Wink".

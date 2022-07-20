@@ -1,4 +1,0 @@
-Subject: func_channel
-
-Adds the CHANNEL_EXISTS function to check for the existence
-of a channel by name or unique ID.

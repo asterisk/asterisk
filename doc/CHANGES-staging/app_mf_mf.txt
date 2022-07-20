@@ -1,5 +1,0 @@
-Subject: app_mf
-
-Adds MF receiver and sender applications to support
-the R1 MF signaling protocol, including integration
-with the Dial application.

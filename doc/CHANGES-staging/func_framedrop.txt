@@ -1,5 +1,0 @@
-Subject: func_framedrop
-
-New function to selectively drop specified frames
-in either direction on a channel.
-

@@ -1,8 +1,0 @@
-Subject: res_monitor
-Master-Only: True
-
-This module is no longer built by default in
-accordance with the Module Deprecation Policy.
-If you require this functionality you will need
-to enable it for building in menuselect. Note
-that in the future res_monitor will be removed.

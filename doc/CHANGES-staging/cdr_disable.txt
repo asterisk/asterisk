@@ -1,8 +1,0 @@
-Subject: cdr
-
-A new CDR option, channeldefaultenabled, allows controlling
-whether CDR is enabled or disabled by default on
-newly created channels. The default behavior remains
-unchanged from previous versions of Asterisk (new
-channels will have CDR enabled, as long as CDR is
-enabled globally).

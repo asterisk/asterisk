@@ -1,4 +1,0 @@
-Subject: res_pjsip_geolocation
-
-Added res_pjsip_geolocation which gives chan_pjsip
-the ability to use the core geolocation capabilities.

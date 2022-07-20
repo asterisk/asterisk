@@ -1,7 +1,0 @@
-Subject: say.c
-
-Adds SAYFILES function to retrieve the file names that would
-be played by corresponding Say applications, such as
-SayDigits, SayAlpha, etc.
-
-Additionally adds SayMoney and SayOrdinal applications.
