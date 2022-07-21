@@ -5,6 +5,7 @@
  *
  * George Joseph <george.joseph@fairview5.com>
  * José Lopes <jose.lopes@nfon.com>
+ * Naveen Albert <asterisk@phreaknet.org>
  *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
@@ -250,7 +251,53 @@
 			<ref type="function">PJSIP_HEADERS</ref>
 		</see-also>
 	</function>
-
+	<function name="PJSIP_HEADER_PARAM" language="en_US">
+		<synopsis>
+			Get or set header/URI parameters on a PJSIP channel.
+		</synopsis>
+		<syntax>
+			<parameter name="header_name" required="true">
+				<para>Header in which parameter should be read or set.</para>
+				<para>Currently, the only supported header is <literal>From</literal>.</para>
+			</parameter>
+			<parameter name="parameter_type" required="true">
+				<para>The type of parameter to get or set.</para>
+				<para>Default is header parameter.</para>
+				<enumlist>
+					<enum name="header">
+						<para>Header parameter.</para>
+					</enum>
+					<enum name="uri">
+						<para>URI parameter.</para>
+					</enum>
+				</enumlist>
+			</parameter>
+			<parameter name="parameter_name" required="true">
+				<para>Name of parameter.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>PJSIP_HEADER_PARAM allows you to read or set parameters in a SIP header on a
+			PJSIP channel.</para>
+			<para>Both URI parameters and header parameters can be read and set using
+			this function. URI parameters appear in the URI (inside the &lt;&gt; in the header)
+			while header parameters appear afterwards.</para>
+			<note><para>If you call PJSIP_HEADER_PARAM in a normal dialplan context you'll be
+			operating on the <emphasis>caller's (incoming)</emphasis> channel which
+			may not be what you want. To operate on the <emphasis>callee's (outgoing)</emphasis>
+			channel call PJSIP_HEADER_PARAM in a pre-dial handler. </para></note>
+			<example title="Set URI parameter in From header on outbound channel">
+			[handler]
+			exten => addheader,1,Set(PJSIP_HEADER_PARAM(From,uri,isup-oli)=27)
+			same => n,Return()
+			[somecontext]
+			exten => 1,1,Dial(PJSIP/${EXTEN},,b(handler^addheader^1))
+			</example>
+			<example title="Read URI parameter in From header on inbound channel">
+			same => n,Set(value=${PJSIP_HEADER_PARAM(From,uri,isup-oli)})
+			</example>
+		</description>
+	</function>
  ***/
 
 /*! \brief Linked list for accumulating headers */
@@ -996,6 +1043,223 @@ static struct ast_sip_session_supplement header_funcs_supplement = {
 	.incoming_response = incoming_response,
 };
 
+enum param_type {
+	PARAMETER_HEADER,
+	PARAMETER_URI,
+};
+
+struct param_data {
+	struct ast_sip_channel_pvt *channel;
+	char *header_name;
+	char *param_name;
+	const char *param_value; /* Only used for write */
+	enum param_type paramtype;
+	/* For read function only */
+	char *buf;
+	size_t len;
+};
+
+static int read_param(void *obj)
+{
+	struct param_data *data = obj;
+	struct ast_sip_session *session = data->channel->session;
+	pj_str_t param_name;
+
+	pjsip_fromto_hdr *dlg_info;
+	pjsip_name_addr *dlg_info_name_addr;
+	pjsip_sip_uri *dlg_info_uri;
+	pjsip_param *param;
+	size_t param_len;
+
+	dlg_info = session->inv_session->dlg->remote.info; /* Remote dialog for incoming */
+	dlg_info_name_addr = (pjsip_name_addr *) dlg_info->uri;
+	dlg_info_uri = pjsip_uri_get_uri(dlg_info_name_addr);
+
+	pj_cstr(&param_name, data->param_name);
+
+	if (data->paramtype == PARAMETER_URI) { /* URI parameter */
+		param = pjsip_param_find(&dlg_info_uri->other_param, &param_name);
+	} else { /* Header parameter */
+		param = pjsip_param_find(&dlg_info->other_param, &param_name);
+	}
+
+	if (!param) {
+		ast_debug(1, "No %s parameter found named %s\n",
+			data->paramtype == PARAMETER_URI ? "URI" : "header", data->param_name);
+		return -1;
+	}
+
+	param_len = pj_strlen(&param->value);
+	if (param_len >= data->len) {
+		ast_log(LOG_ERROR, "Buffer is too small for parameter value (%zu > %zu)\n", param_len, data->len);
+		return -1;
+	}
+
+	ast_debug(2, "Successfully read %s parameter %s (length %zu)\n",
+		data->paramtype == PARAMETER_URI ? "URI" : "header", data->param_name, param_len);
+	ast_copy_string(data->buf, pj_strbuf(&param->value), data->len);
+	data->buf[pj_strlen(&param->value)] = '\0';
+
+	return 0;
+}
+
+/*!
+ * \internal
+ * \brief Implements PJSIP_HEADER_PARAM 'add' by adding the specified parameter.
+ * \note Unlike add_header, we can't add parameters in the outgoing_request callback: that's too late.
+ *       That's why we do it here and not in a callback.
+ */
+static int add_param(void *obj)
+{
+	struct param_data *data = obj;
+	struct ast_sip_session *session = data->channel->session;
+	pj_pool_t *pool = session->inv_session->dlg->pool;
+
+	pjsip_fromto_hdr *dlg_info;
+	pjsip_name_addr *dlg_info_name_addr;
+	pjsip_sip_uri *dlg_info_uri;
+
+	dlg_info = session->inv_session->dlg->local.info; /* Local for outgoing */
+	dlg_info_name_addr = (pjsip_name_addr *) dlg_info->uri;
+	dlg_info_uri = pjsip_uri_get_uri(dlg_info_name_addr);
+	if (!PJSIP_URI_SCHEME_IS_SIP(dlg_info_uri) && !PJSIP_URI_SCHEME_IS_SIPS(dlg_info_uri)) {
+		ast_log(LOG_WARNING, "Non SIP/SIPS URI\n");
+		return -1;
+	}
+
+	ast_debug(1, "Adding custom %s param %s = %s\n",
+		data->paramtype == PARAMETER_URI ? "URI" : "header", data->param_name, data->param_value);
+
+	/* This works the same as doing this in set_from_header in res_pjsip_session.c
+	 * The way that this maps to pjproject is a little confusing.
+	 * Say we have <sip:foo@bar.com;p1=abc;p2=def?h1=qrs&h2=tuv>;o1=foo;o2=bar
+	 * p1 and p2 are URI parameters.
+	 * (h1 and h2 are URI headers)
+	 * o1 and o2 are header parameters (and don't have anything to do with the URI)
+	 * In pjproject, other_param is used for adding all custom parameters.
+	 * We use the URI for URI stuff, including URI parameters, and the header directly for header parameters.
+	 */
+
+#define param_add(pool, list, pname, pvalue) { \
+	pjsip_param *param; \
+	param = PJ_POOL_ALLOC_T(pool, pjsip_param); \
+	pj_strdup2(pool, &param->name, pname); \
+	pj_strdup2(pool, &param->value, pvalue); \
+	pj_list_insert_before(list, param); \
+}
+
+	if (data->paramtype == PARAMETER_URI) { /* URI parameter */
+		param_add(pool, &dlg_info_uri->other_param, data->param_name, S_OR(data->param_value, ""));
+	} else { /* Header parameter */
+		param_add(pool, &dlg_info->other_param, data->param_name, S_OR(data->param_value, ""));
+	}
+
+	return 0;
+}
+
+static int func_read_param(struct ast_channel *chan, const char *function, char *data, char *buf, size_t len)
+{
+	struct ast_sip_channel_pvt *channel = chan ? ast_channel_tech_pvt(chan) : NULL;
+	struct param_data param_data;
+
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(header_name);
+		AST_APP_ARG(param_type);
+		AST_APP_ARG(param_name);
+	);
+
+	AST_STANDARD_APP_ARGS(args, data);
+
+	param_data.channel = channel;
+
+	if (!channel || strncmp(ast_channel_name(chan), "PJSIP/", 6)) {
+		ast_log(LOG_ERROR, "This function requires a PJSIP channel.\n");
+		return -1;
+	}
+	if (ast_strlen_zero(args.param_type)) {
+		ast_log(AST_LOG_ERROR, "This function requires a parameter type.\n");
+		return -1;
+	}
+	if (ast_strlen_zero(args.param_name)) {
+		ast_log(AST_LOG_ERROR, "This function requires a parameter name.\n");
+		return -1;
+	}
+
+	/* Currently, only From is supported, but this could be extended in the future. */
+	if (ast_strlen_zero(args.header_name) || strcasecmp(args.header_name, "From")) {
+		ast_log(LOG_WARNING, "Only the From header is currently supported\n");
+		return -1;
+	}
+
+	param_data.param_name = args.param_name;
+	if (!strcasecmp(args.param_type, "header")) {
+		param_data.paramtype = PARAMETER_HEADER;
+	} else if (!strcasecmp(args.param_type, "uri")) {
+		param_data.paramtype = PARAMETER_URI;
+	} else {
+		ast_log(LOG_WARNING, "Parameter type '%s' is invalid: must be 'header' or 'uri'\n", args.param_type);
+		return -1;
+	}
+
+	param_data.buf = buf;
+	param_data.len = len;
+
+	return ast_sip_push_task_wait_serializer(channel->session->serializer, read_param, &param_data);
+}
+
+static int func_write_param(struct ast_channel *chan, const char *cmd, char *data, const char *value)
+{
+	struct ast_sip_channel_pvt *channel = chan ? ast_channel_tech_pvt(chan) : NULL;
+	struct param_data param_data;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(header_name);
+		AST_APP_ARG(param_type);
+		AST_APP_ARG(param_name);
+	);
+
+	AST_STANDARD_APP_ARGS(args, data);
+
+	param_data.channel = channel;
+
+	if (!channel || strncmp(ast_channel_name(chan), "PJSIP/", 6)) {
+		ast_log(LOG_ERROR, "This function requires a PJSIP channel.\n");
+		return -1;
+	}
+	if (ast_strlen_zero(args.param_type)) {
+		ast_log(AST_LOG_ERROR, "This function requires a parameter type.\n");
+		return -1;
+	}
+	if (ast_strlen_zero(args.param_name)) {
+		ast_log(AST_LOG_ERROR, "This function requires a parameter name.\n");
+		return -1;
+	}
+
+	/* Currently, only From is supported, but this could be extended in the future. */
+	if (ast_strlen_zero(args.header_name) || strcasecmp(args.header_name, "From")) {
+		ast_log(LOG_WARNING, "Only the From header is currently supported\n");
+		return -1;
+	}
+
+	param_data.param_name = args.param_name;
+	if (!strcasecmp(args.param_type, "header")) {
+		param_data.paramtype = PARAMETER_HEADER;
+	} else if (!strcasecmp(args.param_type, "uri")) {
+		param_data.paramtype = PARAMETER_URI;
+	} else {
+		ast_log(LOG_WARNING, "Parameter type '%s' is invalid: must be 'header' or 'uri'\n", args.param_type);
+		return -1;
+	}
+	param_data.param_value = value;
+
+	return ast_sip_push_task_wait_serializer(channel->session->serializer, add_param, &param_data);
+}
+
+static struct ast_custom_function pjsip_header_param_function = {
+	.name = "PJSIP_HEADER_PARAM",
+	.read = func_read_param,
+	.write = func_write_param,
+};
+
 static int load_module(void)
 {
 	ast_sip_session_register_supplement(&header_funcs_supplement);
@@ -1003,6 +1267,7 @@ static int load_module(void)
 	ast_custom_function_register(&pjsip_headers_function);
 	ast_custom_function_register(&pjsip_response_header_function);
 	ast_custom_function_register(&pjsip_response_headers_function);
+	ast_custom_function_register(&pjsip_header_param_function);
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
@@ -1013,6 +1278,7 @@ static int unload_module(void)
 	ast_custom_function_unregister(&pjsip_headers_function);
 	ast_custom_function_unregister(&pjsip_response_header_function);
 	ast_custom_function_unregister(&pjsip_response_headers_function);
+	ast_custom_function_unregister(&pjsip_header_param_function);
 	ast_sip_session_unregister_supplement(&header_funcs_supplement);
 	return 0;
 }
