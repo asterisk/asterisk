@@ -30,6 +30,7 @@
 #include <pjsip.h>
 
 #include "asterisk/res_pjsip.h"
+#include "asterisk/vector.h"
 #include "asterisk/module.h"
 #include "asterisk/logger.h"
 #include "asterisk/cli.h"
@@ -99,6 +100,12 @@ struct pcap_udp_header {
 	uint16_t checksum;	/*! \brief Packet checksum, left uncalculated for our purposes */
 };
 
+struct method_logging_info {
+	pj_str_t pj_name;    /*! \brief A PJSIP string for the method */
+	pjsip_method method; /*! \brief The PJSIP method structure used for comparisons */
+	char name[];         /*! \brief The method name */
+};
+
 /*! \brief PJSIP Logging Session */
 struct pjsip_logger_session {
 	/*! \brief Explicit addresses or ranges being logged */
@@ -115,6 +122,8 @@ struct pjsip_logger_session {
 	unsigned int log_to_verbose:1;
 	/*! \brief Whether to log to pcap or not */
 	unsigned int log_to_pcap:1;
+	/*! \brief Vector of SIP methods to log */
+	AST_VECTOR(, struct method_logging_info *) log_methods;
 };
 
 /*! \brief The default logger session */
@@ -130,6 +139,9 @@ static void pjsip_logger_session_destroy(void *obj)
 	}
 
 	ast_free_ha(session->matches);
+
+	AST_VECTOR_RESET(&session->log_methods, ast_free);
+	AST_VECTOR_FREE(&session->log_methods);
 }
 
 /*! \brief Allocator for logger session */
@@ -145,11 +157,35 @@ static struct pjsip_logger_session *pjsip_logger_session_alloc(void)
 
 	session->log_to_verbose = 1;
 
+	AST_VECTOR_INIT(&session->log_methods, 0);
+
 	return session;
 }
 
-/*! \brief See if we pass debug IP filter */
-static inline int pjsip_log_test_addr(const struct pjsip_logger_session *session, const char *address, int port)
+/*! \note Must be called with the pjsip_logger_session lock held */
+static int apply_method_filter(const struct pjsip_logger_session *session, const pjsip_method *method)
+{
+	size_t size = AST_VECTOR_SIZE(&session->log_methods);
+	size_t i;
+
+	if (size == 0) {
+		/* Nothing in the vector means everything matches */
+		return 0;
+	}
+
+	for (i = 0; i < size; ++i) {
+		struct method_logging_info *candidate = AST_VECTOR_GET(&session->log_methods, i);
+		if (pjsip_method_cmp(&candidate->method, method) == 0) {
+			return 0;
+		}
+	}
+
+	/* Nothing matched */
+	return 1;
+}
+
+/*! \brief See if we pass debug filter */
+static inline int pjsip_log_test_filter(const struct pjsip_logger_session *session, const char *address, int port, const pjsip_method *method)
 {
 	struct ast_sockaddr test_addr;
 
@@ -161,9 +197,15 @@ static inline int pjsip_log_test_addr(const struct pjsip_logger_session *session
 		return 1;
 	}
 
+	if (apply_method_filter(session, method)) {
+		/* The method filter didn't match anything, so reject. */
+		return 0;
+	}
+
 	/* A null address was passed in or no explicit matches. Just reject it. */
 	if (ast_strlen_zero(address) || !session->matches) {
-		return 0;
+		/* If we matched on method and host is empty, accept, otherwise reject. */
+		return AST_VECTOR_SIZE(&session->log_methods) > 0;
 	}
 
 	ast_sockaddr_parse(&test_addr, address, PARSE_PORT_IGNORE);
@@ -270,7 +312,7 @@ static pj_status_t logging_on_tx_msg(pjsip_tx_data *tdata)
 	char buffer[AST_SOCKADDR_BUFLEN];
 
 	ao2_rdlock(default_logger);
-	if (!pjsip_log_test_addr(default_logger, tdata->tp_info.dst_name, tdata->tp_info.dst_port)) {
+	if (!pjsip_log_test_filter(default_logger, tdata->tp_info.dst_name, tdata->tp_info.dst_port, &tdata->msg->line.req.method)) {
 		ao2_unlock(default_logger);
 		return PJ_SUCCESS;
 	}
@@ -302,7 +344,7 @@ static pj_bool_t logging_on_rx_msg(pjsip_rx_data *rdata)
 	}
 
 	ao2_rdlock(default_logger);
-	if (!pjsip_log_test_addr(default_logger, rdata->pkt_info.src_name, rdata->pkt_info.src_port)) {
+	if (!pjsip_log_test_filter(default_logger, rdata->pkt_info.src_name, rdata->pkt_info.src_port, &rdata->msg_info.msg->line.req.method)) {
 		ao2_unlock(default_logger);
 		return PJ_FALSE;
 	}
@@ -393,6 +435,93 @@ static char *pjsip_enable_logger_host(int fd, const char *arg, unsigned int add_
 	return CLI_SUCCESS;
 }
 
+static struct method_logging_info *method_logging_info_alloc(const char *method)
+{
+	size_t method_bytes = strlen(method);
+	struct method_logging_info *info;
+
+	info = ast_calloc(1, sizeof(struct method_logging_info) + method_bytes + 1);
+	if (!info) {
+		return NULL;
+	}
+
+	memcpy(info->name, method, method_bytes + 1);
+	pj_strset(&info->pj_name, info->name, method_bytes);
+	pjsip_method_init_np(&info->method, &info->pj_name);
+
+	return info;
+}
+
+static int method_logging_info_cmp(const struct method_logging_info *element,
+	const struct method_logging_info *candidate)
+{
+	return pjsip_method_cmp(&element->method, &candidate->method) == 0
+		? CMP_MATCH | CMP_STOP
+		: 0;
+}
+
+static int method_logging_info_sort_cmp(const void *a, const void *b)
+{
+	const struct method_logging_info *const *m_a = a;
+	const struct method_logging_info *const *m_b = b;
+	return strcasecmp((*m_a)->name, (*m_b)->name);
+}
+
+/*! \brief Add the current or an additional method to match for filtering */
+static char *pjsip_enable_logger_method(int fd, const char *arg, int add_method)
+{
+	struct ast_str *str;
+	struct method_logging_info *method;
+
+	method = method_logging_info_alloc(arg);
+	if (!method) {
+		return CLI_FAILURE;
+	}
+
+	ao2_wrlock(default_logger);
+	default_logger->enabled = 1;
+
+	if (!add_method) {
+		/* Remove what already exists */
+		AST_VECTOR_RESET(&default_logger->log_methods, ast_free);
+	}
+
+	/* Already in the list? */
+	if (AST_VECTOR_CALLBACK(&default_logger->log_methods, method_logging_info_cmp, NULL, method) != NULL) {
+		ast_cli(fd, "Method '%s' is already enabled\n", method->name);
+		ao2_unlock(default_logger);
+		ast_free(method);
+		return CLI_SUCCESS;
+	}
+
+	if (AST_VECTOR_APPEND(&default_logger->log_methods, method)) {
+		ast_log(LOG_ERROR, "Cannot register logger method '%s'. Unable to append.\n", method->name);
+		ao2_unlock(default_logger);
+		ast_free(method);
+		return CLI_SUCCESS;
+	}
+
+	AST_VECTOR_SORT(&default_logger->log_methods, method_logging_info_sort_cmp);
+
+	str = ast_str_create(256);
+	if (str) {
+		size_t i;
+		for (i = 0; i < AST_VECTOR_SIZE(&default_logger->log_methods); i++) {
+			method = AST_VECTOR_GET(&default_logger->log_methods, i);
+			ast_str_append(&str, 0, "%s%.*s",
+				ast_str_strlen(str) ? ", " : "",
+				(int) method->pj_name.slen, method->pj_name.ptr);
+		}
+
+		ast_cli(fd, "PJSIP Logging Enabled for SIP Methods: %s\n", ast_str_buffer(str));
+		ast_free(str);
+	}
+
+	ao2_unlock(default_logger);
+
+	return CLI_SUCCESS;
+}
+
 static char *pjsip_disable_logger(int fd)
 {
 	ao2_wrlock(default_logger);
@@ -403,6 +532,8 @@ static char *pjsip_disable_logger(int fd)
 	default_logger->pcap_filename[0] = '\0';
 	default_logger->log_to_verbose = 1;
 	default_logger->log_to_pcap = 0;
+
+	AST_VECTOR_RESET(&default_logger->log_methods, ast_free);
 
 	/* Stop logging to the PCAP file if active */
 	if (default_logger->pcap_file) {
@@ -469,18 +600,32 @@ static char *pjsip_set_logger_pcap(int fd, const char *arg)
 
 static char *pjsip_set_logger(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
+	static const char * const method_choices[] = {
+		"INVITE", "CANCEL", "ACK",
+		"BYE", "REGISTER", "OPTION",
+		"SUBSCRIBE", "NOTIFY", "PUBLISH",
+		"INFO", "MESSAGE",
+		NULL
+	};
+
 	const char *what;
 
 	if (cmd == CLI_INIT) {
-		e->command = "pjsip set logger {on|off|host|add|verbose|pcap}";
+		e->command = "pjsip set logger {on|off|host|add|method|methodadd|verbose|pcap}";
 		e->usage =
-			"Usage: pjsip set logger {on|off|host <name/subnet>|add <name/subnet>|verbose <on/off>|pcap <filename>}\n"
+			"Usage: pjsip set logger {on|off|host <name/subnet>|add <name/subnet>|method <method>|methodadd <method>|verbose <on/off>|pcap <filename>}\n"
 			"       Enables or disabling logging of SIP packets\n"
 			"       read on ports bound to PJSIP transports either\n"
 			"       globally or enables logging for an individual\n"
-			"       host.\n";
+			"       host or particular SIP method(s).\n"
+			"       Messages can be filtered by SIP request methods\n"
+			"       INVITE, CANCEL, ACK, BYE, REGISTER, OPTION\n"
+			"       SUBSCRIBE, NOTIFY, PUBLISH, INFO, and MESSAGE\n";
 		return NULL;
 	} else if (cmd == CLI_GENERATE) {
+		if (a->argc && !strncasecmp(a->argv[e->args - 1], "method", 6)) {
+			return ast_cli_complete(a->word, method_choices, a->n);
+		}
 		return NULL;
 	}
 
@@ -497,6 +642,10 @@ static char *pjsip_set_logger(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 			return pjsip_enable_logger_host(a->fd, a->argv[e->args], 0);
 		} else if (!strcasecmp(what, "add")) {
 			return pjsip_enable_logger_host(a->fd, a->argv[e->args], 1);
+		} else if (!strcasecmp(what, "method")) {
+			return pjsip_enable_logger_method(a->fd, a->argv[e->args], 0);
+		} else if (!strcasecmp(what, "methodadd")) {
+			return pjsip_enable_logger_method(a->fd, a->argv[e->args], 1);
 		} else if (!strcasecmp(what, "verbose")) {
 			return pjsip_set_logger_verbose(a->fd, a->argv[e->args]);
 		} else if (!strcasecmp(what, "pcap")) {
