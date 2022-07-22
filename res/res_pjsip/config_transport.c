@@ -562,7 +562,7 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 
 	if (!transport->allow_reload && perm_state) {
 		/* We inherit the transport from perm state, untouched */
-		ast_log(LOG_WARNING, "Transport '%s' is not fully reloadable, not reloading: protocol, bind, TLS, TCP, ToS, or CoS options.\n", transport_id);
+		ast_log(LOG_NOTICE, "Transport '%s' is not fully reloadable, not reloading: protocol, bind, TLS, TCP, ToS, or CoS options.\n", transport_id);
 		temp_state->state->transport = perm_state->state->transport;
 		perm_state->state->transport = NULL;
 		temp_state->state->factory = perm_state->state->factory;

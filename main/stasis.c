@@ -2298,7 +2298,7 @@ int stasis_message_type_declined(const char *name)
 	ao2_cleanup(name_in_declined);
 	ao2_ref(cfg, -1);
 	if (res) {
-		ast_log(LOG_NOTICE, "Declining to allocate Stasis message type '%s' due to configuration\n", name);
+		ast_debug(4, "Declining to allocate Stasis message type '%s' due to configuration\n", name);
 	}
 	return res;
 }
