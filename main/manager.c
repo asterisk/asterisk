@@ -6204,7 +6204,7 @@ static int match_filter(struct mansession *s, char *eventdata)
 	if (manager_debug) {
 		ast_verbose("<-- Examining AMI event: -->\n%s\n", eventdata);
 	} else {
-		ast_debug(3, "Examining AMI event:\n%s\n", eventdata);
+		ast_debug(4, "Examining AMI event:\n%s\n", eventdata);
 	}
 	if (!ao2_container_count(s->session->whitefilters) && !ao2_container_count(s->session->blackfilters)) {
 		return 1; /* no filtering means match all */
