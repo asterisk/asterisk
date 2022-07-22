@@ -1076,7 +1076,7 @@ static int gosub_run(struct ast_channel *chan, const char *sub_args, int ignore_
 				ast_channel_name(chan), app_gosub, sub_args,
 				S_OR(pbx_builtin_getvar_helper(chan, "GOSUB_RETVAL"), ""));
 		} else {
-			ast_log(LOG_NOTICE, "%s Abnormal '%s(%s)' exit.  Popping routine return locations.\n",
+			ast_log(LOG_WARNING, "%s Abnormal '%s(%s)' exit.  Popping routine return locations.\n",
 				ast_channel_name(chan), app_gosub, sub_args);
 			balance_stack(chan);
 			pbx_builtin_setvar_helper(chan, "GOSUB_RETVAL", "");

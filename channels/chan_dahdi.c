@@ -19411,7 +19411,7 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 					report_alarms = REPORT_SPAN_ALARMS;
 			 }
 		} else if (!(options & PROC_DAHDI_OPT_NOWARN) )
-			ast_log(LOG_WARNING, "Ignoring any changes to '%s' (on reload) at line %d.\n", v->name, v->lineno);
+			ast_log(LOG_NOTICE, "Ignoring any changes to '%s' (on reload) at line %d.\n", v->name, v->lineno);
 	}
 
 	if (dahdichan) {

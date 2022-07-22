@@ -11197,12 +11197,14 @@ static int vm_authenticate(struct ast_channel *chan, char *mailbox, int mailbox_
 			password[0] = '\0';
 		} else {
 			if (ast_streamfile(chan, vm_password, ast_channel_language(chan))) {
-				ast_log(AST_LOG_WARNING, "Unable to stream password file\n");
+				if (!ast_check_hangup(chan)) {
+					ast_log(AST_LOG_WARNING, "Unable to stream password file\n");
+				}
 				free_user(vmu);
 				return -1;
 			}
 			if (ast_readstring(chan, password, sizeof(password) - 1, 2000, 10000, "#") < 0) {
-				ast_log(AST_LOG_WARNING, "Unable to read password\n");
+				ast_log(AST_LOG_NOTICE, "Unable to read password\n");
 				free_user(vmu);
 				return -1;
 			} else if (password[0] == '*') {

@@ -806,7 +806,7 @@ static void qualify_contact_cb(void *token, pjsip_event *e)
 
 	if (ast_sip_push_task(contact_callback_data->aor_options->serializer,
 		sip_options_contact_status_notify_task, contact_callback_data)) {
-		ast_log(LOG_NOTICE, "Unable to queue contact status update for '%s' on AOR '%s', state will be incorrect\n",
+		ast_log(LOG_WARNING, "Unable to queue contact status update for '%s' on AOR '%s', state will be incorrect\n",
 			ast_sorcery_object_get_id(contact_callback_data->contact),
 			contact_callback_data->aor_options->name);
 		ao2_ref(contact_callback_data, -1);
