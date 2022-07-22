@@ -3407,7 +3407,7 @@ static int send_packet(struct iax_frame *f)
 
 	/* Called with iaxsl held */
 	if (iaxdebug) {
-		ast_debug(3, "Sending %u on %d/%d to %s\n", f->ts, callno, iaxs[callno]->peercallno, ast_sockaddr_stringify(&iaxs[callno]->addr));
+		ast_debug(8, "Sending %u on %d/%d to %s\n", f->ts, callno, iaxs[callno]->peercallno, ast_sockaddr_stringify(&iaxs[callno]->addr));
 	}
 	if (f->transfer) {
 		iax_outputframe(f, NULL, 0, &iaxs[callno]->transfer, f->datalen - sizeof(struct ast_iax2_full_hdr));
@@ -10363,7 +10363,7 @@ static int socket_process_helper(struct iax2_thread *thread)
 	}
 	if (ast_test_flag64(iaxs[fr->callno], IAX_ENCRYPTED) && !decrypted) {
 		if (decrypt_frame(fr->callno, fh, &f, &res)) {
-			ast_log(LOG_NOTICE, "Packet Decrypt Failed!\n");
+			ast_log(LOG_WARNING, "Packet Decrypt Failed!\n");
 			ast_variables_destroy(ies.vars);
 			ast_mutex_unlock(&iaxsl[fr->callno]);
 			return 1;
@@ -12033,7 +12033,7 @@ immediatedial:
 		iaxs[fr->callno]->last = fr->ts;
 #if 1
 		if (iaxdebug)
-			ast_debug(3, "For call=%d, set last=%u\n", fr->callno, fr->ts);
+			ast_debug(8, "For call=%d, set last=%u\n", fr->callno, fr->ts);
 #endif
 	}
 
