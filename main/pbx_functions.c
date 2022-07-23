@@ -678,6 +678,7 @@ int ast_func_read2(struct ast_channel *chan, const char *function, struct ast_st
 				ast_str_make_space(str, maxsize);
 			}
 			res = acfptr->read(chan, copy, args, ast_str_buffer(*str), maxsize);
+			ast_str_update(*str); /* Manually set the string length */
 		}
 		if (acfptr->mod && u) {
 			__ast_module_user_remove(acfptr->mod, u);
