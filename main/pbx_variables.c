@@ -40,6 +40,7 @@
 #include "asterisk/paths.h"
 #include "asterisk/pbx.h"
 #include "asterisk/stasis_channels.h"
+#include "asterisk/test.h"
 #include "pbx_private.h"
 
 /*** DOCUMENTATION
@@ -188,6 +189,8 @@ static const char *ast_str_substring(struct ast_str *value, int offset, int leng
 	int lr;	/* length of the input string after the copy */
 
 	lr = ast_str_strlen(value); /* compute length after copy, so we never go out of the workspace */
+
+	ast_assert(lr == strlen(ast_str_buffer(value))); /* ast_str_strlen should always agree with strlen */
 
 	/* Quick check if no need to do anything */
 	if (offset == 0 && length >= lr)	/* take the whole string */
@@ -1292,6 +1295,74 @@ void pbx_builtin_clear_globals(void)
 	ast_rwlock_unlock(&globalslock);
 }
 
+#ifdef TEST_FRAMEWORK
+AST_TEST_DEFINE(test_variable_substrings)
+{
+	int i, res = AST_TEST_PASS;
+	struct ast_channel *chan; /* dummy channel */
+	struct ast_str *str; /* fancy string for holding comparing value */
+
+	const char *test_strings[][5] = {
+		{"somevaluehere", "CALLERID(num):0:25", "somevaluehere"},
+		{"somevaluehere", "CALLERID(num):0:5", "somev"},
+		{"somevaluehere", "CALLERID(num):4:5", "value"},
+		{"somevaluehere", "CALLERID(num):0:-4", "somevalue"},
+		{"somevaluehere", "CALLERID(num):-4", "here"},
+	};
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "variable_substrings";
+		info->category = "/main/pbx/";
+		info->summary = "Test variable substring resolution";
+		info->description = "Verify that variable substrings are calculated correctly";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	if (!(chan = ast_dummy_channel_alloc())) {
+		ast_test_status_update(test, "Unable to allocate dummy channel\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (!(str = ast_str_create(64))) {
+		ast_test_status_update(test, "Unable to allocate dynamic string buffer\n");
+		ast_channel_release(chan);
+		return AST_TEST_FAIL;
+	}
+
+	for (i = 0; i < ARRAY_LEN(test_strings); i++) {
+		char substituted[512], tmp[512] = "";
+
+		ast_set_callerid(chan, test_strings[i][0], NULL, test_strings[i][0]);
+
+		snprintf(tmp, sizeof(tmp), "${%s}", test_strings[i][1]);
+
+		/* test ast_str_substitute_variables */
+		ast_str_substitute_variables(&str, 0, chan, tmp);
+		ast_debug(1, "Comparing STR %s with %s\n", ast_str_buffer(str), test_strings[i][2]);
+		if (strcmp(test_strings[i][2], ast_str_buffer(str))) {
+			ast_test_status_update(test, "Format string '%s' substituted to '%s' using str sub.  Expected '%s'.\n", test_strings[i][0], ast_str_buffer(str), test_strings[i][2]);
+			res = AST_TEST_FAIL;
+		}
+
+		/* test pbx_substitute_variables_helper */
+		pbx_substitute_variables_helper(chan, tmp, substituted, sizeof(substituted) - 1);
+		ast_debug(1, "Comparing PBX %s with %s\n", substituted, test_strings[i][2]);
+		if (strcmp(test_strings[i][2], substituted)) {
+			ast_test_status_update(test, "Format string '%s' substituted to '%s' using pbx sub.  Expected '%s'.\n", test_strings[i][0], substituted, test_strings[i][2]);
+			res = AST_TEST_FAIL;
+		}
+	}
+	ast_free(str);
+
+	ast_channel_release(chan);
+
+	return res;
+}
+#endif
+
 static struct ast_cli_entry vars_cli[] = {
 	AST_CLI_DEFINE(handle_show_globals, "Show global dialplan variables"),
 	AST_CLI_DEFINE(handle_show_chanvar, "Show channel variables"),
@@ -1306,6 +1377,7 @@ static void unload_pbx_variables(void)
 	ast_unregister_application("Set");
 	ast_unregister_application("MSet");
 	pbx_builtin_clear_globals();
+	AST_TEST_UNREGISTER(test_variable_substrings);
 }
 
 int load_pbx_variables(void)
@@ -1316,6 +1388,7 @@ int load_pbx_variables(void)
 	res |= ast_register_application2("Set", pbx_builtin_setvar, NULL, NULL, NULL);
 	res |= ast_register_application2("MSet", pbx_builtin_setvar_multiple, NULL, NULL, NULL);
 	ast_register_cleanup(unload_pbx_variables);
+	AST_TEST_REGISTER(test_variable_substrings);
 
 	return res;
 }
