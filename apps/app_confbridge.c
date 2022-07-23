@@ -393,6 +393,37 @@
 				ConfbridgeListRoomsComplete.</para>
 		</description>
 	</manager>
+	<managerEvent language="en_US" name="ConfbridgeListRooms">
+		<managerEventInstance class="EVENT_FLAG_REPORTING">
+			<synopsis>Raised as part of the ConfbridgeListRooms action response list.</synopsis>
+			<syntax>
+				<parameter name="Conference">
+					<para>The name of the Confbridge conference.</para>
+				</parameter>
+				<parameter name="Parties">
+					<para>Number of users in the conference.</para>
+					<para>This includes both active and waiting users.</para>
+				</parameter>
+				<parameter name="Marked">
+					<para>Number of marked users in the conference.</para>
+				</parameter>
+				<parameter name="Locked">
+					<para>Is the conference locked?</para>
+					<enumlist>
+						<enum name="Yes"/>
+						<enum name="No"/>
+					</enumlist>
+				</parameter>
+				<parameter name="Muted">
+					<para>Is the conference muted?</para>
+					<enumlist>
+						<enum name="Yes"/>
+						<enum name="No"/>
+					</enumlist>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
 	<manager name="ConfbridgeMute" language="en_US">
 		<synopsis>
 			Mute a Confbridge user.
