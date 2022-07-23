@@ -65,6 +65,16 @@
 				as <literal>getnum</literal>, then it will return the total number of results
 				that are available.</para>
 			</parameter>
+			<parameter name="field" required="false">
+				<para>The field of the result to retrieve.</para>
+				<para>The fields that can be retrieved are:</para>
+				<enumlist>
+					<enum name="host"/>
+					<enum name="port"/>
+					<enum name="priority"/>
+					<enum name="weight"/>
+				</enumlist>
+			</parameter>
 		</syntax>
 		<description>
 			<para>This function will retrieve results from a previous use
