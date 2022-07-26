@@ -182,9 +182,16 @@ static int prack_handler(const struct aco_option *opt, struct ast_variable *var,
 
 	if (ast_true(var->value)) {
 		endpoint->extensions.flags |= PJSIP_INV_SUPPORT_100REL;
+		endpoint->rel100 = AST_SIP_100REL_SUPPORTED;
+	} else if (!strcasecmp(var->value, "peer_supported")) {
+		endpoint->extensions.flags |= PJSIP_INV_SUPPORT_100REL;
+		endpoint->rel100 = AST_SIP_100REL_PEER_SUPPORTED;
 	} else if (!strcasecmp(var->value, "required")) {
 		endpoint->extensions.flags |= PJSIP_INV_REQUIRE_100REL;
-	} else if (!ast_false(var->value)){
+		endpoint->rel100 = AST_SIP_100REL_REQUIRED;
+	} else if (ast_false(var->value)) {
+		endpoint->rel100 = AST_SIP_100REL_UNSUPPORTED;
+	} else {
 		return -1;
 	}
 
@@ -195,10 +202,12 @@ static int prack_to_str(const void *obj, const intptr_t *args, char **buf)
 {
 	const struct ast_sip_endpoint *endpoint = obj;
 
-	if (endpoint->extensions.flags & PJSIP_INV_REQUIRE_100REL) {
-		*buf = "required";
-	} else if (endpoint->extensions.flags & PJSIP_INV_SUPPORT_100REL) {
+	if (endpoint->rel100 == AST_SIP_100REL_SUPPORTED) {
 		*buf = "yes";
+	} else if (endpoint->rel100 == AST_SIP_100REL_PEER_SUPPORTED) {
+		*buf = "peer_supported";
+	} else if (endpoint->rel100 == AST_SIP_100REL_REQUIRED) {
+		*buf = "required";
 	} else {
 		*buf = "no";
 	}

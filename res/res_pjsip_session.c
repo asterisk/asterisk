@@ -3795,7 +3795,22 @@ static pjsip_inv_session *pre_session_setup(pjsip_rx_data *rdata, const struct a
 	pjsip_dialog *dlg;
 	pjsip_inv_session *inv_session;
 	unsigned int options = endpoint->extensions.flags;
+	const pj_str_t STR_100REL = { "100rel", 6};
+	unsigned int i;
 	pj_status_t dlg_status = PJ_EUNKNOWN;
+
+	/*
+	 * If 100rel is set to "peer_supported" on the endpoint and the peer indicated support for 100rel
+	 * in the Supported header, send 1xx responses reliably by adding PJSIP_INV_REQUIRE_100REL to pjsip_inv_options flags.
+	 */
+	if (endpoint->rel100 == AST_SIP_100REL_PEER_SUPPORTED && rdata->msg_info.supported != NULL) {
+		for (i = 0; i < rdata->msg_info.supported->count; ++i) {
+			if (pj_stricmp(&rdata->msg_info.supported->values[i], &STR_100REL) == 0) {
+				options |= PJSIP_INV_REQUIRE_100REL;
+				break;
+			}
+		}
+	}
 
 	if (pjsip_inv_verify_request(rdata, &options, NULL, NULL, ast_sip_get_pjsip_endpoint(), &tdata) != PJ_SUCCESS) {
 		if (tdata) {
