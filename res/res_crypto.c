@@ -95,6 +95,8 @@ struct ast_key {
 
 static AST_RWLIST_HEAD_STATIC(keys, ast_key);
 
+static void crypto_load(int ifd, int ofd);
+
 /*!
  * \brief setting of priv key
  * \param buf
@@ -462,6 +464,12 @@ int AST_OPTIONAL_API_NAME(ast_check_signature)(struct ast_key *key, const char *
 
 int AST_OPTIONAL_API_NAME(ast_crypto_loaded)(void)
 {
+	return 1;
+}
+
+int AST_OPTIONAL_API_NAME(ast_crypto_reload)(void)
+{
+	crypto_load(-1, -1);
 	return 1;
 }
 

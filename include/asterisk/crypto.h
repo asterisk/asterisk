@@ -180,6 +180,8 @@ AST_OPTIONAL_API(void, ast_aes_decrypt,
 
 AST_OPTIONAL_API(int, ast_crypto_loaded, (void), { return 0; });
 
+AST_OPTIONAL_API(int, ast_crypto_reload, (void), { return 0; });
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
