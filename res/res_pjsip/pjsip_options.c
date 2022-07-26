@@ -348,6 +348,8 @@ static void sip_contact_status_dtor(void *obj)
 {
 	struct ast_sip_contact_status *contact_status = obj;
 
+	ast_sip_security_mechanisms_vector_destroy(&contact_status->security_mechanisms);
+
 	ast_string_field_free_memory(contact_status);
 }
 
@@ -365,6 +367,7 @@ static struct ast_sip_contact_status *sip_contact_status_alloc(const char *name)
 		ao2_ref(contact_status, -1);
 		return NULL;
 	}
+	AST_VECTOR_INIT(&contact_status->security_mechanisms, 0);
 	strcpy(contact_status->name, name); /* SAFE */
 	return contact_status;
 }
@@ -385,6 +388,8 @@ static struct ast_sip_contact_status *sip_contact_status_copy(const struct ast_s
 	dst->rtt = src->rtt;
 	dst->status = src->status;
 	dst->last_status = src->last_status;
+
+	ast_sip_security_mechanisms_vector_copy(&dst->security_mechanisms, &src->security_mechanisms);
 	return dst;
 }
 

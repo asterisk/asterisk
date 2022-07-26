@@ -1166,6 +1166,22 @@
 						responses.</para>
 					</description>
 				</configOption>
+				<configOption name="security_negotiation" default="no">
+					<synopsis>The kind of security agreement negotiation to use. Currently, only mediasec is supported.</synopsis>
+					<description>
+						<enumlist>
+							<enum name="no" />
+							<enum name="mediasec" />
+						</enumlist>
+					</description>
+				</configOption>
+				<configOption name="security_mechanisms">
+					<synopsis>List of security mechanisms supported.</synopsis>
+					<description><para>
+						This is a comma-delimited list of security mechanisms to use. Each security mechanism
+						must be in the form defined by RFC 3329 section 2.2.
+					</para></description>
+				</configOption>
 				<configOption name="geoloc_incoming_call_profile" default="">
 					<synopsis>Geolocation profile to apply to incoming calls</synopsis>
 					<description><para>

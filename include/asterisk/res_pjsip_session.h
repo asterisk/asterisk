@@ -30,6 +30,8 @@
 #include "asterisk/sdp_srtp.h"
 /* Needed for ast_media_type */
 #include "asterisk/codec.h"
+/* Needed for ast_sip_security_mechanism_vector */
+#include "asterisk/res_pjsip.h"
 
 /* Forward declarations */
 struct ast_sip_endpoint;

@@ -1526,6 +1526,7 @@ static int add_crypto_to_stream(struct ast_sip_session *session,
 	static const pj_str_t STR_PASSIVE = { "passive", 7 };
 	static const pj_str_t STR_ACTPASS = { "actpass", 7 };
 	static const pj_str_t STR_HOLDCONN = { "holdconn", 8 };
+	static const pj_str_t STR_MEDSECREQ = { "requested", 9 };
 	enum ast_rtp_dtls_setup setup;
 
 	switch (session_media->encryption) {
@@ -1555,6 +1556,11 @@ static int add_crypto_to_stream(struct ast_sip_session *session,
 				pj_cstr(&stmp, crypto_attribute));
 			media->attr[media->attr_count++] = attr;
 		} while ((tmp = AST_LIST_NEXT(tmp, sdp_srtp_list)));
+
+		if (session->endpoint->security_negotiation == AST_SIP_SECURITY_NEG_MEDIASEC) {
+			attr = pjmedia_sdp_attr_create(pool, "3ge2ae", &STR_MEDSECREQ);
+			media->attr[media->attr_count++] = attr;
+		}
 
 		break;
 	case AST_SIP_MEDIA_ENCRYPT_DTLS:

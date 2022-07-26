@@ -4759,7 +4759,8 @@ static void session_inv_on_tsx_state_changed(pjsip_inv_session *inv, pjsip_trans
 						ast_debug(1, "%s: reINVITE received final response code %d\n",
 							ast_sip_session_get_name(session),
 							tsx->status_code);
-						if ((tsx->status_code == 401 || tsx->status_code == 407)
+						if ((tsx->status_code == 401 || tsx->status_code == 407
+							|| (session->endpoint->security_negotiation && tsx->status_code == 494))
 							&& ++session->authentication_challenge_count < MAX_RX_CHALLENGES
 							&& !ast_sip_create_request_with_auth(
 								&session->endpoint->outbound_auths,
@@ -4853,7 +4854,7 @@ static void session_inv_on_tsx_state_changed(pjsip_inv_session *inv, pjsip_trans
 						ast_sip_session_get_name(session),
 						(int) pj_strlen(&tsx->method.name), pj_strbuf(&tsx->method.name),
 						tsx->status_code);
-					if ((tsx->status_code == 401 || tsx->status_code == 407)
+					if ((tsx->status_code == 401 || tsx->status_code == 407 || tsx->status_code == 494)
 						&& ++session->authentication_challenge_count < MAX_RX_CHALLENGES
 						&& !ast_sip_create_request_with_auth(
 							&session->endpoint->outbound_auths,
