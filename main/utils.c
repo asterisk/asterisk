@@ -3216,3 +3216,38 @@ int ast_thread_is_user_interface(void)
 
 	return *thread_user_interface;
 }
+
+int ast_check_command_in_path(const char *cmd)
+{
+	char *token, *saveptr, *path = getenv("PATH");
+	char filename[PATH_MAX];
+	int len;
+
+	if (path == NULL) {
+		return 0;
+	}
+
+	path = ast_strdup(path);
+	if (path == NULL) {
+		return 0;
+	}
+
+	token = strtok_r(path, ":", &saveptr);
+	while (token != NULL) {
+		len = snprintf(filename, sizeof(filename), "%s/%s", token, cmd);
+		if (len < 0 || len >= sizeof(filename)) {
+			ast_log(LOG_WARNING, "Path constructed with '%s' too long; skipping\n", token);
+			continue;
+		}
+
+		if (access(filename, X_OK) == 0) {
+			ast_free(path);
+			return 1;
+		}
+
+		token = strtok_r(NULL, ":", &saveptr);
+	}
+	ast_free(path);
+	return 0;
+}
+
