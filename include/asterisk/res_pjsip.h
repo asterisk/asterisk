@@ -450,6 +450,20 @@ struct ast_sip_contact_wrapper {
 };
 
 /*!
+ * \brief 100rel modes for SIP endpoints
+ */
+enum ast_sip_100rel_mode {
+	/*! Do not support 100rel. (no) */
+	AST_SIP_100REL_UNSUPPORTED = 0,
+	/*! As UAC, indicate 100rel support in Supported header. (yes) */
+	AST_SIP_100REL_SUPPORTED,
+	/*! As UAS, send 1xx responses reliably, if the UAC indicated its support. Otherwise same as AST_SIP_100REL_SUPPORTED. (peer_supported) */
+	AST_SIP_100REL_PEER_SUPPORTED,
+	/*! Require the use of 100rel. (required) */
+	AST_SIP_100REL_REQUIRED,
+};
+
+/*!
  * \brief DTMF modes for SIP endpoints
  */
 enum ast_sip_dtmf_mode {
@@ -981,6 +995,8 @@ struct ast_sip_endpoint {
 	AST_STRING_FIELD_EXTENDED(geoloc_incoming_call_profile);
 	/*! The name of the geoloc profile to apply when Asterisk sends a call to this endpoint */
 	AST_STRING_FIELD_EXTENDED(geoloc_outgoing_call_profile);
+	/*! 100rel mode to use with this endpoint */
+	enum ast_sip_100rel_mode rel100;
 };
 
 /*! URI parameter for symmetric transport */

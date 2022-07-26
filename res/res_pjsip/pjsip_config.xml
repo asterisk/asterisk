@@ -32,9 +32,33 @@
 					<synopsis>Allow support for RFC3262 provisional ACK tags</synopsis>
 					<description>
 						<enumlist>
-							<enum name="no" />
-							<enum name="required" />
-							<enum name="yes" />
+							<enum name="no">
+							<para>If set to <literal>no</literal>, do not support transmission of
+							reliable provisional responses. As UAS, if an incoming request contains 100rel
+							in the Required header, it is rejected with 420 Bad Extension.</para>
+							</enum>
+							<enum name="required">
+							<para>If set to <literal>required</literal>, require provisional responses to
+							be sent and received reliably. As UAS, incoming requests without 100rel
+							in the Supported header are rejected with 421 Extension Required. As UAC,
+							outgoing requests will have 100rel in the Required header.</para>
+							</enum>
+							<enum name="peer_supported">
+							<para>If set to <literal>peer_supported</literal>, send provisional responses
+							reliably if the request by the peer contained 100rel in the Supported or
+							Require header. As UAS, if an incoming request contains 100rel in the Supported
+							header, send 1xx responses reliably. If the request by the peer does not contain 100rel
+							in the Supported and Require header, send responses normally. As UAC, outgoing requests
+							will contain 100rel in the Supported header.</para>
+							</enum>
+							<enum name="yes">
+							<para>If set to <literal>yes</literal>, indicate the support of reliable provisional
+							responses and PRACK them if required by the peer. As UAS, if the incoming request
+							contains 100rel in the Supported header but not in the Required header, send 1xx
+							responses normally. If the incoming request contains 100rel in the Required header,
+							send 1xx responses reliably. As UAC add 100rel to the Supported header and PRACK 1xx
+							responses if required.</para>
+							</enum>
 						</enumlist>
 					</description>
 				</configOption>
