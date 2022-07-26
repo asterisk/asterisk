@@ -320,6 +320,45 @@ struct ast_sip_nat_hook {
 };
 
 /*!
+ * \brief The kind of security negotiation
+ */
+enum ast_sip_security_negotiation {
+	/*! No security mechanism negotiation */
+	AST_SIP_SECURITY_NEG_NONE = 0,
+	/*! Use mediasec security mechanism negotiation */
+	AST_SIP_SECURITY_NEG_MEDIASEC,
+	/* Add RFC 3329 (sec-agree) mechanism negotiation in the future */
+};
+
+/*!
+ * \brief The security mechanism type
+ */
+enum ast_sip_security_mechanism_type {
+	AST_SIP_SECURITY_MECH_NONE = 0,
+	/* Use msrp-tls as security mechanism */
+	AST_SIP_SECURITY_MECH_MSRP_TLS,
+	/* Use sdes-srtp as security mechanism */
+	AST_SIP_SECURITY_MECH_SDES_SRTP,
+	/* Use dtls-srtp as security mechanism */
+	AST_SIP_SECURITY_MECH_DTLS_SRTP,
+	/* Add RFC 3329 (sec-agree) mechanisms like tle, digest, ipsec-ike in the future */
+};
+
+/*!
+ * \brief Structure representing a security mechanism as defined in RFC 3329
+ */
+struct ast_sip_security_mechanism {
+	/* Used to determine which security mechanism to use. */
+	enum ast_sip_security_mechanism_type type;
+	/* The preference of this security mechanism. The higher the value, the more preferred. */
+	float qvalue;
+	/* Optional mechanism parameters. */
+	struct ast_vector_string mechanism_parameters;
+};
+
+AST_VECTOR(ast_sip_security_mechanism_vector, struct ast_sip_security_mechanism *);
+
+/*!
  * \brief Contact associated with an address of record
  */
 struct ast_sip_contact {
@@ -390,6 +429,13 @@ struct ast_sip_contact_status {
 	);
 	/*! The round trip time in microseconds */
 	int64_t rtt;
+	/*!
+	 * The security mechanism list of the contact (RFC 3329).
+	 * Stores the values of Security-Server headers in 401/421/494 responses to an
+	 * in-dialog request or successful outbound registration which will be used to
+	 * set the Security-Verify headers of all subsequent requests to the contact.
+	 */
+	struct ast_sip_security_mechanism_vector security_mechanisms;
 	/*! Current status for a contact (default - unavailable) */
 	enum ast_sip_contact_status_type status;
 	/*! Last status for a contact (default - unavailable) */
@@ -987,6 +1033,10 @@ struct ast_sip_endpoint {
 	unsigned int suppress_q850_reason_headers;
 	/*! Ignore 183 if no SDP is present */
 	unsigned int ignore_183_without_sdp;
+	/*! Type of security negotiation to use (RFC 3329). */
+	enum ast_sip_security_negotiation security_negotiation;
+	/*! Client security mechanisms (RFC 3329). */
+	struct ast_sip_security_mechanism_vector security_mechanisms;
 	/*! Set which STIR/SHAKEN behaviors we want on this endpoint */
 	unsigned int stir_shaken;
 	/*! Should we authenticate OPTIONS requests per RFC 3261? */
@@ -1036,6 +1086,87 @@ int ast_sip_are_media_types_equal(pjsip_media_type *a, pjsip_media_type *b);
  * \retval 0 Media types are not equal
  */
 int ast_sip_is_media_type_in(pjsip_media_type *a, ...) attribute_sentinel;
+
+/*!
+ * \brief Add security headers to transmission data
+ *
+ * \param security_mechanisms Vector of security mechanisms.
+ * \param header_name The header name under which to add the security mechanisms.
+ * One of Security-Client, Security-Server, Security-Verify.
+ * \param add_qval If zero, don't add the q-value to the header.
+ * \param tdata The transmission data.
+ * \retval 0 Success
+ * \retval non-zero Failure
+ */
+int ast_sip_add_security_headers(struct ast_sip_security_mechanism_vector *security_mechanisms,
+		const char *header_name, int add_qval, pjsip_tx_data *tdata);
+
+/*!
+ * \brief Append to security mechanism vector from SIP header
+ *
+ * \param hdr The header of the security mechanisms.
+ * \param security_mechanisms Vector of security mechanisms to append to.
+ * Header name must be one of Security-Client, Security-Server, Security-Verify.
+ */
+void ast_sip_header_to_security_mechanism(const pjsip_generic_string_hdr *hdr,
+		struct ast_sip_security_mechanism_vector *security_mechanisms);
+
+/*!
+ * \brief Initialize security mechanism vector from string of security mechanisms.
+ *
+ * \param security_mechanisms Pointer to vector of security mechanisms to initialize.
+ * \param value String of security mechanisms as defined in RFC 3329.
+ * \retval 0 Success
+ * \retval non-zero Failure
+ */
+int ast_sip_security_mechanism_vector_init(struct ast_sip_security_mechanism_vector *security_mechanism, const char *value);
+
+/*!
+ * \brief Removes all headers of a specific name and value from a pjsip_msg.
+ *
+ * \param msg PJSIP message from which to remove headers.
+ * \param hdr_name Name of the header to remove.
+ * \param value Optional string value of the header to remove.
+ * If NULL, remove all headers of given hdr_name.
+ */
+void ast_sip_remove_headers_by_name_and_value(pjsip_msg *msg, const pj_str_t *hdr_name, const char* value);
+
+/*!
+ * \brief Duplicate a security mechanism.
+ *
+ * \param dst Security mechanism to duplicate to.
+ * \param src Security mechanism to duplicate.
+ */
+void ast_sip_security_mechanisms_vector_copy(struct ast_sip_security_mechanism_vector *dst,
+	const struct ast_sip_security_mechanism_vector *src);
+
+/*!
+ * \brief Free contents of a security mechanism vector.
+ *
+ * \param security_mechanisms Vector whose contents are to be freed
+ */
+void ast_sip_security_mechanisms_vector_destroy(struct ast_sip_security_mechanism_vector *security_mechanisms);
+
+/*!
+ * \brief Allocate a security mechanism from a string.
+ *
+ * \param security_mechanism Pointer-pointer to the security mechanism to allocate.
+ * \param value The security mechanism string as defined in RFC 3329 (section 2.2)
+ * \param ... in the form <mechanism_name>;q=<q_value>;<mechanism_parameters>
+ * \retval 0 Success
+ * \retval non-zero Failure
+ */
+int ast_sip_str_to_security_mechanism(struct ast_sip_security_mechanism **security_mechanism, const char *value);
+
+/*!
+ * \brief Set the security negotiation based on a given string.
+ *
+ * \param security_negotiation Security negotiation enum to set.
+ * \param val String that represents a security_negotiation value.
+ * \retval 0 Success
+ * \retval non-zero Failure
+ */
+int ast_sip_set_security_negotiation(enum ast_sip_security_negotiation *security_negotiation, const char *val);
 
 /*!
  * \brief Initialize an auth vector with the configured values.

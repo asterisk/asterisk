@@ -33,6 +33,8 @@
 /* Needed for pjmedia_sdp_session and pjsip_inv_session */
 #include <pjsip_ua.h>
 
+/* Needed for ast_sip_security_mechanism_vector */
+#include "asterisk/res_pjsip.h"
 
 /* Forward declarations */
 struct ast_sip_endpoint;
