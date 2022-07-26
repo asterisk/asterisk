@@ -256,6 +256,31 @@ static int timers_to_str(const void *obj, const intptr_t *args, char **buf)
 	return 0;
 }
 
+static int security_mechanism_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
+{
+	struct ast_sip_endpoint *endpoint = obj;
+
+	return ast_sip_security_mechanism_vector_init(&endpoint->security_mechanisms, var->value);
+}
+
+int ast_sip_set_security_negotiation(enum ast_sip_security_negotiation *security_negotiation, const char *val) {
+	if (!strcasecmp("no", val)) {
+		*security_negotiation = AST_SIP_SECURITY_NEG_NONE;
+	} else if (!strcasecmp("mediasec", val)) {
+		*security_negotiation = AST_SIP_SECURITY_NEG_MEDIASEC;
+	} else {
+		return -1;
+	}
+	return 0;
+}
+
+static int security_negotiation_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
+{
+	struct ast_sip_endpoint *endpoint = obj;
+
+	return ast_sip_set_security_negotiation(&endpoint->security_negotiation, var->value);
+}
+
 void ast_sip_auth_vector_destroy(struct ast_sip_auth_vector *auths)
 {
 	int i;
@@ -2236,6 +2261,8 @@ int ast_res_pjsip_initialize_configuration(void)
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "allow_unauthenticated_options", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, allow_unauthenticated_options));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "geoloc_incoming_call_profile", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, geoloc_incoming_call_profile));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "geoloc_outgoing_call_profile", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, geoloc_outgoing_call_profile));
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "security_mechanisms", "", security_mechanism_handler, NULL, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "security_negotiation", "no", security_negotiation_handler, NULL, NULL, 0, 0);
 
 	if (ast_sip_initialize_sorcery_transport()) {
 		ast_log(LOG_ERROR, "Failed to register SIP transport support with sorcery\n");
