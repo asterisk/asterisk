@@ -38,6 +38,7 @@ static void __attribute__((constructor)) __mtx_init(void)
 
 #include "asterisk/utils.h"
 #include "asterisk/lock.h"
+#include "asterisk/manager.h"
 
 /* Allow direct use of pthread_mutex_* / pthread_cond_* */
 #undef pthread_mutex_init
@@ -311,6 +312,26 @@ int __ast_pthread_mutex_lock(const char *filename, int lineno, const char *func,
 						ast_reentrancy_unlock(lt);
 					}
 					reported_wait = wait_time;
+					if ((int) wait_time < 10) { /* Only emit an event when a deadlock starts, not every 5 seconds */
+						/*** DOCUMENTATION
+							<managerEvent language="en_US" name="DeadlockStart">
+								<managerEventInstance class="EVENT_FLAG_SYSTEM">
+									<synopsis>Raised when a probable deadlock has started.
+									Delivery of this event is attempted but not guaranteed,
+                                                                        and could fail for example if the manager itself is deadlocked.
+                                                                        </synopsis>
+										<syntax>
+											<parameter name="Mutex">
+												<para>The mutex involved in the deadlock.</para>
+											</parameter>
+										</syntax>
+								</managerEventInstance>
+							</managerEvent>
+						***/
+						manager_event(EVENT_FLAG_SYSTEM, "DeadlockStart",
+							"Mutex: %s\r\n",
+							mutex_name);
+					}
 				}
 				usleep(200);
 			}
