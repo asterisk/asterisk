@@ -102,8 +102,6 @@
 ; Here are all the possible back ends:
 ;
 ;   csv, custom, manager, odbc, pgsql, radius, sqlite, tds
-;    (also, mysql is available via the asterisk-addons, due to licensing
-;     requirements)
 ;   (please note, also, that other backends can be created, by creating
 ;    a new backend module in the source cdr/ directory!)
 ;
