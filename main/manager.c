@@ -1283,21 +1283,6 @@
 			this command can be used to create filters that may bypass
 			filters defined in manager.conf</para>
 		</description>
-		<see-also>
-			<ref type="manager">FilterList</ref>
-		</see-also>
-	</manager>
-	<manager name="FilterList" language="en_US">
-		<synopsis>
-			Show current event filters for this session
-		</synopsis>
-		<description>
-			<para>The filters displayed are for the current session.  Only those filters defined in
-                        manager.conf will be present upon starting a new session.</para>
-		</description>
-		<see-also>
-			<ref type="manager">Filter</ref>
-		</see-also>
 	</manager>
 	<manager name="BlindTransfer" language="en_US">
 		<synopsis>
