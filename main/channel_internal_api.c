@@ -1283,7 +1283,8 @@ struct ast_flags *ast_channel_flags(struct ast_channel *chan)
 	return &chan->flags;
 }
 
-static int collect_names_cb(void *obj, void *arg, int flags) {
+static int collect_names_cb(void *obj, void *arg, int flags)
+{
 	struct ast_control_pvt_cause_code *cause_code = obj;
 	struct ast_str **str = arg;
 
