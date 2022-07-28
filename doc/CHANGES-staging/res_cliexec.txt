@@ -1,6 +1,0 @@
-Subject: res_cliexec
-
-A new CLI command, dialplan exec application, has
-been added which allows dialplan applications to be
-executed at the CLI, useful for some quick testing
-without needing to write dialplan.

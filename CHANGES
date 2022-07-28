@@ -13,6 +13,55 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 16.27.0 to Asterisk 16.28.0 ----------
+------------------------------------------------------------------------------
+
+chan_dahdi
+------------------
+ * A POLARITY function is now available that allows
+   getting or setting the polarity on a channel
+   from the dialplan.
+
+db
+------------------
+ * The DBPrefixGet AMI action now allows retrieving
+   all of the DB keys beginning with a particular
+   prefix.
+
+res_cliexec
+------------------
+ * A new CLI command, dialplan exec application, has
+   been added which allows dialplan applications to be
+   executed at the CLI, useful for some quick testing
+   without needing to write dialplan.
+
+res_geolocation
+------------------
+ * Added res_geolocation which creates the core capabilities
+   to manipulate Geolocation information on SIP INVITEs.
+
+res_pjsip
+------------------
+ * A new transport option 'allow_wildcard_certs' has been added that when it
+   and 'verify_server' are both set to 'yes', enables verification against
+   wildcards, i.e. '*.' in certs for common, and subject alt names of type DNS
+   for TLS transport types. Names must start with the wildcard. Partial wildcards,
+   e.g. 'f*.example.com' and 'foo.*.com' are not allowed. As well, names only
+   match against a single level meaning '*.example.com' matches 'foo.example.com',
+   but not 'foo.bar.example.com'.
+
+res_pjsip_geolocation
+------------------
+ * Added res_pjsip_geolocation which gives chan_pjsip
+   the ability to use the core geolocation capabilities.
+
+res_pjsip_header_funcs
+------------------
+ * Add function PJSIP_RESPONSE_HEADERS() to get list of header names from 200 response, in the same way as PJSIP_HEADERS() from the request.
+
+   Add function PJSIP_RESPONSE_HEADER() to read header from 200 response, in the same way as PJSIP_HEADER() from the request.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 16.26.0 to Asterisk 16.27.0 ----------
 ------------------------------------------------------------------------------
 
