@@ -1,0 +1,178 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-18.14.0-rc1</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-18.14.0-rc1</h3><h3 align="center">Date: 2022-07-28</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
+<li><a href="#summary">Summary</a></li>
+<li><a href="#contributors">Contributors</a></li>
+<li><a href="#closed_issues">Closed Issues</a></li>
+<li><a href="#commits">Other Changes</a></li>
+<li><a href="#diffstat">Diffstat</a></li>
+</ol><hr><a name="summary"><h2 align="center">Summary</h2></a><center><a href="#top">[Back to Top]</a></center><p>This release is a point release of an existing major version. The changes included were made to address problems that have been identified in this release series, or are minor, backwards compatible new features or improvements. Users should be able to safely upgrade to this version if this release series is already in use. Users considering upgrading from a previous version are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p><p>The data in this summary reflects changes that have been made since the previous release, asterisk-18.13.0.</p><hr><a name="contributors"><h2 align="center">Contributors</h2></a><center><a href="#top">[Back to Top]</a></center><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release. For coders, the number is how many of their patches (of any size) were committed into this release. For testers, the number is the number of times their name was listed as assisting with testing a patch. Finally, for reporters, the number is the number of issues that they reported that were affected by commits that went into this release.</p><table width="100%" border="0">
+<tr><th width="33%">Coders</th><th width="33%">Testers</th><th width="33%">Reporters</th></tr>
+<tr valign="top"><td width="33%">16 Naveen Albert <asterisk@phreaknet.org><br/>4 George Joseph <gjoseph@digium.com><br/>2 Boris P. Korzun <drtr0jan@yandex.ru><br/>1 Morvai Szabolcs<br/>1 Michael Neuhauser <mike@firmix.at><br/>1 Kevin Harwell <kharwell@sangoma.com><br/>1 Sam Banks <sam.banks.nz@gmail.com><br/>1 Sean Bright <sean@seanbright.com><br/>1 Trevor Peirce <trev@acrovoice.ca><br/>1 Asterisk Development Team <asteriskteam@digium.com><br/>1 Joshua C. Colp <jcolp@sangoma.com><br/>1 Jose Lopes <jose.lopes@nfon.com><br/>1 Mike Bradeen <mbradeen@sangoma.com><br/>1 Stanislav Abramenkov <stas.abramenkov@gmail.com><br/>1 Sergey V. Lobanov <sergey@lobanov.in><br/></td><td width="33%"><td width="33%">15 N A <mail@interlinked.x10host.com><br/>3 George Joseph <gjoseph@digium.com><br/>2 Kevin Harwell <default.enum@gmail.com><br/>2 Boris P. Korzun <drtr0jan@yandex.ru><br/>1 Sergey V. Lobanov <sergey@lobanov.in><br/>1 Michael Neuhauser<br/>1 Sam Banks <sam.banks.nz@gmail.com><br/>1 José Lopes <josemslopes@gmail.com><br/>1 Sean Bright<br/>1 Michael Neuhauser <mike@firmix.at><br/>1 Joshua C. Colp <jcolp@digium.com><br/>1 Dmitry Melekhov <dm@belkam.com><br/>1 Morvai Szabolcs <smorvai@arenim.com><br/>1 Stanislav Abramenkov <stas.abramenkov@gmail.com><br/>1 Trevor Peirce <trev@digitalcon.ca><br/></td></tr>
+</table><hr><a name="closed_issues"><h2 align="center">Closed Issues</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p><h3>Improvement</h3><h4>Category: General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-30089">ASTERISK-30089</a>: general: fix typos<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0fe1a581e5978c444f67c9fbba6aab7ee1fa0d3e">[0fe1a581e5]</a> Naveen Albert -- general: Fix various typos.</li>
+</ul><br><h4>Category: Resources/res_geolocation</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-30127">ASTERISK-30127</a>: Create core Geolocation capability for Asterisk<br/>Reported by: George Joseph<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=f4913553848e906fd6dbaa9e8b514b739fb6311c">[f491355384]</a> George Joseph -- Geolocation:  Core Capability Preview</li>
+</ul><br><h4>Category: Resources/res_pjsip_geolocation</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-30128">ASTERISK-30128</a>: Create PJSIP interface module for Geolocation<br/>Reported by: George Joseph<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=cdbd973ecdc49ff178b43b34180d005c21d06cbf">[cdbd973ecd]</a> George Joseph -- Geolocation:  chan_pjsip Capability Preview</li>
+</ul><br><h4>Category: pjproject/pjsip</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-30050">ASTERISK-30050</a>: Upgrade Asterisk to bundled pjproject 2.12.1<br/>Reported by: Stanislav Abramenkov<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=2d500a090f44b4f145e018d2ff31ae821aace61e">[2d500a090f]</a> Stanislav Abramenkov -- pjsip: Upgrade bundled version to pjproject 2.12.1</li>
+</ul><br><h3>Bug</h3><h4>Category: Applications/app_confbridge</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29907">ASTERISK-29907</a>: res_pjsip, app_confbridge: Video call through ConfBridge with normal endpoints causes infinite loop/crash<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=a4266030cea52f43193e96286ec249d2f1b6e02c">[a4266030ce]</a> Naveen Albert -- app_confbridge: Always set minimum video update interval.</li>
+</ul><br><h4>Category: Applications/app_dial</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29989">ASTERISK-29989</a>: app_dial, chan_dahdi: DIALSTATUS is inconsistent for busy<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=8ce1b7db3c37f6992cce6b08420a8217afe3f2a6">[8ce1b7db3c]</a> Naveen Albert -- app_dial: Fix dial status regression.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-30115">ASTERISK-30115</a>: app_dial: Allow hook flashes to propogate on outbound dials<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0a636927168f45d4ff321baf1e4c807d128f34d8">[0a63692716]</a> Naveen Albert -- app_dial: Propagate outbound hook flashes.</li>
+</ul><br><h4>Category: CEL/cel_odbc</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-30096">ASTERISK-30096</a>:  cel_odbc: Column type 9 (field 'cdr:cel:eventtime') is unsupported at this time<br/>Reported by: Morvai Szabolcs<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=182fee79eb6708d6145cef6511f593cad04e4491">[182fee79eb]</a> Morvai Szabolcs -- cel_odbc & res_config_odbc: Add support for SQL_DATETIME field type</li>
+</ul><br><h4>Category: Channels/chan_dahdi</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29991">ASTERISK-29991</a>: chan_dahdi, callerid: Caller ID does not honor presentation<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=8fddef679cd9a6269ae2fc2314af41a4c9e35062">[8fddef679c]</a> Naveen Albert -- chan_dahdi: Fix buggy and missing Caller ID parameters</li>
+</ul><br><h4>Category: Channels/chan_iax2</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-30083">ASTERISK-30083</a>: chan_iax2: Optional dependency on openssl/res_crypto is now mandatory<br/>Reported by: Dmitry Melekhov<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=1d3d6e49db1912ce8f39e538bf0bd9201227432f">[1d3d6e49db]</a> Naveen Albert -- chan_iax2: Allow compiling without OpenSSL.</li>
+</ul><br><h4>Category: Configs/Samples</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-30126">ASTERISK-30126</a>: Spelling mistake in configs/samples/queues.conf.sample<br/>Reported by: Sam Banks<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=56c6d76a455cd7c15787ab41cc403bf7b7d4fc41">[56c6d76a45]</a> Sam Banks -- queues.conf.sample: Correction of typo</li>
+</ul><br><h4>Category: Core/BuildSystem</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-30029">ASTERISK-30029</a>: build: Git security vulnerability fix is sad with our accessing git as root during "make install"<br/>Reported by: Joshua C. Colp<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=7a82919256e661a4e8456e1d42d17e8567249036">[7a82919256]</a> Mike Bradeen -- Makefile: Avoid git-make user conflict</li>
+</ul><br><h4>Category: Core/CallerID</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29991">ASTERISK-29991</a>: chan_dahdi, callerid: Caller ID does not honor presentation<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=8fddef679cd9a6269ae2fc2314af41a4c9e35062">[8fddef679c]</a> Naveen Albert -- chan_dahdi: Fix buggy and missing Caller ID parameters</li>
+</ul><br><h4>Category: Core/ManagerInterface</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-30137">ASTERISK-30137</a>: manager: Global disabled event filtered is incomplete<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=4580ac7ded4ef617fc3687bee5278d07c3f93b2c">[4580ac7ded]</a> Naveen Albert -- manager: Fix incomplete filtering of AMI events.</li>
+</ul><br><h4>Category: Features</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-30123">ASTERISK-30123</a>: features: Update automixmon documentation to reflect reality<br/>Reported by: Trevor Peirce<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=dbace3334da1631e2d8d4e499ce409d48cff1aa2">[dbace3334d]</a> Trevor Peirce -- features: Update documentation for automon and automixmon</li>
+</ul><br><h4>Category: General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29905">ASTERISK-29905</a>: OSX: bininstall launchd issue on cross-platfrom build<br/>Reported by: Sergey V. Lobanov<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=133ecb346c36857c5e8ecc61dc4b70e51ff2a1a0">[133ecb346c]</a> Sergey V. Lobanov -- build: fix bininstall launchd issue on cross-platform build</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-30001">ASTERISK-30001</a>: db: Removing nonexistent entries shows "Database entry removed"<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=c9955d5fcdeb879edb24e1b165f730738b46c0e5">[c9955d5fcd]</a> Naveen Albert -- db: Notify user if deleted DB entry didn't exist.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29822">ASTERISK-29822</a>: cli: Typing \? freezes the CLI permanently with remote console<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=57d66966a159a6e5af246a5266566c8300018a09">[57d66966a1]</a> Naveen Albert -- cli: Fix CLI blocking forever on terminating backslash</li>
+</ul><br><h4>Category: PBX/General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29966">ASTERISK-29966</a>: pbx_variables: ast_str_strlen can be wrong<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=a2799554d25d74eeb5dfb8bc8e52887fb27637fb">[a2799554d2]</a> Naveen Albert -- pbx_functions.c: Manually update ast_str strlen.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-30075">ASTERISK-30075</a>: say: Abort if channel hangs up during playback<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=93644fca5959e2c296dc9755c525da9f13eabc7e">[93644fca59]</a> Naveen Albert -- say: Abort play loop if caller hangs up.</li>
+</ul><br><h4>Category: PBX/pbx_lua</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-30117">ASTERISK-30117</a>: pbx_lua: Remove compiler warnings<br/>Reported by: Boris P. Korzun<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=d6ff560f20ca974a455b26f0060e0abd62a73eb6">[d6ff560f20]</a> Boris P. Korzun -- pbx_lua: Remove compiler warnings</li>
+</ul><br><h4>Category: Resources/General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-30101">ASTERISK-30101</a>: res_prometheus: Optional load res_pjsip_outbound_registration.so<br/>Reported by: Boris P. Korzun<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=22be2a28578954701ad658d777d2067b94981108">[22be2a2857]</a> Boris P. Korzun -- res_prometheus: Optional load res_pjsip_outbound_registration.so</li>
+</ul><br><h4>Category: Resources/res_calendar_icalendar</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-30106">ASTERISK-30106</a>: res_calendar_icalendar: Microsoft online ICS calendars no longer work<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=53d921a19959018eaac1f98c59c6811d2a316294">[53d921a199]</a> Naveen Albert -- res_calendar_icalendar: Send user agent in request.</li>
+</ul><br><h4>Category: Resources/res_geolocation</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-30138">ASTERISK-30138</a>: Compile failure in res_geolocation/geoloc_eprofile.c when optimization is enabled<br/>Reported by: George Joseph<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=fcc3e7fac61b9e4b37b9f6710e0bfb3074b28242">[fcc3e7fac6]</a> George Joseph -- geoloc_eprofile.c: Fix setting of loc_src in set_loc_src()</li>
+</ul><br><h4>Category: Resources/res_http_websocket</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-30099">ASTERISK-30099</a>: test_aeap_transport: transport_connect_fail sporadically causes failure<br/>Reported by: Kevin Harwell<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=512c711716a05d80acc9b1068f0ed537d18992bc">[512c711716]</a> Joshua C. Colp -- websocket / aeap: Handle poll() interruptions better.</li>
+</ul><br><h4>Category: Resources/res_pjsip</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-30109">ASTERISK-30109</a>: res_pjsip: no contact-status AMI event on register of prune-on-boot contact that uses the same URI as before Asterisk restart<br/>Reported by: Michael Neuhauser<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=75226a4b02027bf63ec222edec76a037c92703fb">[75226a4b02]</a> Michael Neuhauser -- res_pjsip: delay contact pruning on Asterisk start</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-30072">ASTERISK-30072</a>: res_pjsip: allow TLS verification of wildcard cert-bearing servers<br/>Reported by: Kevin Harwell<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0ddbf6bc453276d7d9affa84908465c3b204b49c">[0ddbf6bc45]</a> Kevin Harwell -- res_pjsip: allow TLS verification of wildcard cert-bearing servers</li>
+</ul><br><h4>Category: Tests/General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-30099">ASTERISK-30099</a>: test_aeap_transport: transport_connect_fail sporadically causes failure<br/>Reported by: Kevin Harwell<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=512c711716a05d80acc9b1068f0ed537d18992bc">[512c711716]</a> Joshua C. Colp -- websocket / aeap: Handle poll() interruptions better.</li>
+</ul><br><h3>New Feature</h3><h4>Category: Channels/chan_dahdi</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-30000">ASTERISK-30000</a>: chan_dahdi: Add POLARITY function<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=a78a82016d94881bfc38c33acd54b487020af029">[a78a82016d]</a> Naveen Albert -- chan_dahdi: Add POLARITY function.</li>
+</ul><br><h4>Category: Channels/chan_pjsip</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29999">ASTERISK-29999</a>: pjsip: Get information from 200 OK INVITE reply headers<br/>Reported by: José Lopes<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=b29a0e08a39abaa8539255738a55632d54a75dd8">[b29a0e08a3]</a> Jose Lopes -- res_pjsip_header_funcs: Add functions PJSIP_RESPONSE_HEADER and PJSIP_RESPONSE_HEADERS</li>
+</ul><br><h4>Category: Core/AstDB</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-30136">ASTERISK-30136</a>: db: Add AMI action to retrieve all keys beginning with a prefix<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=7bdab4e20695c37a9be22119624396391e21df05">[7bdab4e206]</a> Naveen Albert -- db: Add AMI action to retrieve DB keys at prefix.</li>
+</ul><br><h4>Category: PBX/General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-30061">ASTERISK-30061</a>: pbx: Add pbx helper application<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=6720caa29ceeeeefd1c1640de0faa4394ff3e8b4">[6720caa29c]</a> Naveen Albert -- pbx: Add helper function to execute applications.</li>
+</ul><br><h4>Category: Resources/res_clioriginate</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-30062">ASTERISK-30062</a>: cli: Add CLI command to execute a dialplan app<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=4adbdfde06bd3cdd8d737eea5abb8a740576cb1f">[4adbdfde06]</a> Naveen Albert -- res_cliexec: Add dialplan exec CLI command.</li>
+</ul><br><hr><a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all changes that went into this release that did not reference a JIRA issue.</p><table width="100%" border="1">
+<tr><th>Revision</th><th>Author</th><th>Summary</th></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=57c4dc1721ee7f5c62772f04c1711f51da6cd1ee">57c4dc1721</a></td><td>Asterisk Development Team</td><td>Update CHANGES and UPGRADE.txt for 18.14.0</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=35ebaed94d90fd86b7074f2cc48051be6d1efa2d">35ebaed94d</a></td><td>Sean Bright</td><td>pbx.c: Simplify ast_context memory management.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=1ed15e18156ab5e78769a3ba5defdcac7b546c2c">1ed15e1815</a></td><td>George Joseph</td><td>Geolocation: Base Asterisk Prereqs</td></tr>
+</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>.lastclean                                                                     |    1
+.version                                                                       |    1
+ChangeLog                                                                      |101208 ----------
+asterisk-18.13.0-summary.html                                                  |  149
+asterisk-18.13.0-summary.txt                                                   |  395
+b/CHANGES                                                                      |   49
+b/Makefile                                                                     |   28
+b/Makefile.rules                                                               |   15
+b/apps/app_confbridge.c                                                        |    6
+b/apps/app_dial.c                                                              |   15
+b/apps/app_disa.c                                                              |    6
+b/apps/app_playback.c                                                          |    4
+b/build_tools/make_version                                                     |    7
+b/cel/cel_odbc.c                                                               |    1
+b/channels/chan_dahdi.c                                                        |  131
+b/channels/chan_iax2.c                                                         |    4
+b/channels/iax2/include/iax2.h                                                 |    2
+b/channels/sig_analog.c                                                        |   27
+b/channels/sig_analog.h                                                        |    2
+b/configs/samples/geolocation.conf.sample                                      |  264
+b/configs/samples/iax.conf.sample                                              |    2
+b/configs/samples/pjsip.conf.sample                                            |   20
+b/configs/samples/queues.conf.sample                                           |    2
+b/contrib/ast-db-manage/config/versions/58e440314c2a_allow_wildcard_certs.py   |   29
+b/contrib/ast-db-manage/config/versions/7197536bb68d_geoloc_endpoint_params.py |   22
+b/funcs/func_logic.c                                                           |    4
+b/include/asterisk/astdb.h                                                     |   11
+b/include/asterisk/callerid.h                                                  |   51
+b/include/asterisk/config.h                                                    |   20
+b/include/asterisk/pbx.h                                                       |   39
+b/include/asterisk/res_geolocation.h                                           |  353
+b/include/asterisk/res_pjsip.h                                                 |   26
+b/include/asterisk/strings.h                                                   |   18
+b/include/asterisk/test.h                                                      |    2
+b/include/asterisk/xml.h                                                       |   23
+b/main/asterisk.c                                                              |   23
+b/main/bridge.c                                                                |    2
+b/main/bridge_channel.c                                                        |   18
+b/main/callerid.c                                                              |   98
+b/main/channel.c                                                               |    2
+b/main/config.c                                                                |   28
+b/main/datastore.c                                                             |    4
+b/main/db.c                                                                    |  124
+b/main/dial.c                                                                  |   10
+b/main/features.c                                                              |    7
+b/main/features_config.c                                                       |   26
+b/main/manager.c                                                               |   23
+b/main/pbx.c                                                                   |   97
+b/main/pbx_app.c                                                               |   25
+b/main/pbx_builtins.c                                                          |    9
+b/main/pbx_functions.c                                                         |    1
+b/main/pbx_variables.c                                                         |  127
+b/main/say.c                                                                   |   12
+b/main/utils.c                                                                 |   61
+b/main/xml.c                                                                   |    5
+b/makeopts.in                                                                  |    2
+b/pbx/pbx_lua.c                                                                |   17
+b/res/Makefile                                                                 |    5
+b/res/res_aeap/transport_websocket.c                                           |    7
+b/res/res_calendar_icalendar.c                                                 |    1
+b/res/res_cliexec.c                                                            |  160
+b/res/res_config_odbc.c                                                        |    1
+b/res/res_geolocation.c                                                        |  125
+b/res/res_geolocation.exports.in                                               |    6
+b/res/res_geolocation/eprofile_to_pidf.xslt                                    |  237
+b/res/res_geolocation/geoloc_civicaddr.c                                       |  151
+b/res/res_geolocation/geoloc_common.c                                          |   36
+b/res/res_geolocation/geoloc_config.c                                          |  641
+b/res/res_geolocation/geoloc_datastore.c                                       |  325
+b/res/res_geolocation/geoloc_dialplan.c                                        |  457
+b/res/res_geolocation/geoloc_doc.xml                                           |  235
+b/res/res_geolocation/geoloc_eprofile.c                                        | 1002
+b/res/res_geolocation/geoloc_gml.c                                             |  362
+b/res/res_geolocation/geoloc_private.h                                         |  168
+b/res/res_geolocation/pidf_lo_test.xml                                         |  312
+b/res/res_geolocation/pidf_to_eprofile.xslt                                    |  212
+b/res/res_http_websocket.c                                                     |   20
+b/res/res_mutestream.c                                                         |    2
+b/res/res_pjsip.c                                                              |   27
+b/res/res_pjsip/config_transport.c                                             |   31
+b/res/res_pjsip/pjsip_config.xml                                               |   30
+b/res/res_pjsip/pjsip_configuration.c                                          |   41
+b/res/res_pjsip/pjsip_transport_events.c                                       |  122
+b/res/res_pjsip_geolocation.c                                                  |  713
+b/res/res_pjsip_header_funcs.c                                                 |  254
+b/res/res_prometheus.c                                                         |   12
+b/res/res_stasis_snoop.c                                                       |    8
+b/res/res_tonedetect.c                                                         |    2
+b/tests/test_aeap_transport.c                                                  |   17
+b/tests/test_config.c                                                          |    4
+b/tests/test_strings.c                                                         |  137
+contrib/realtime/mysql/mysql_cdr.sql                                           |   41
+contrib/realtime/mysql/mysql_config.sql                                        | 1348
+contrib/realtime/mysql/mysql_voicemail.sql                                     |   35
+contrib/realtime/postgresql/postgresql_cdr.sql                                 |   45
+contrib/realtime/postgresql/postgresql_config.sql                              | 1460
+contrib/realtime/postgresql/postgresql_voicemail.sql                           |   39
+97 files changed, 7516 insertions(+), 104973 deletions(-)</pre><br></html>
