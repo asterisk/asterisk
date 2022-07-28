@@ -1,4 +1,0 @@
-Subject: res_geolocation
-
-Added res_geolocation which creates the core capabilities
-to manipulate Geolocation information on SIP INVITEs.
