@@ -226,6 +226,16 @@
 			</enum>
 		</enumlist>
 	</info>
+	<info name="Dial_Resource" language="en_US" tech="IAX2">
+		<para>The general syntax is:</para>
+		<para><literal>Dial(IAX2/[username[:password]@]peer[:port][/exten[@context]][/options]</literal></para>
+		<para>IAX2 optionally allows modifiers to be specified after the extension.</para>
+		<enumlist>
+			<enum name="a">
+				<para>Request auto answer (supporting equipment/configuration required)</para>
+			</enum>
+		</enumlist>
+	</info>
 	<manager name="IAXpeers" language="en_US">
 		<synopsis>
 			List IAX peers.
