@@ -1440,10 +1440,7 @@ static int add_menu_entry(struct conf_menu *menu, const char *dtmf, const char *
 
 	/* if adding any of the actions failed, bail */
 	if (res) {
-		struct conf_menu_action *menu_action;
-		while ((menu_action = AST_LIST_REMOVE_HEAD(&menu_entry->actions, action))) {
-			ast_free(menu_action);
-		}
+		conf_menu_entry_destroy(menu_entry);
 		ast_free(menu_entry);
 		return -1;
 	}
@@ -1452,6 +1449,7 @@ static int add_menu_entry(struct conf_menu *menu, const char *dtmf, const char *
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&menu->entries, cur, entry) {
 		if (!strcasecmp(cur->dtmf, menu_entry->dtmf)) {
 			AST_LIST_REMOVE_CURRENT(entry);
+			conf_menu_entry_destroy(cur);
 			ast_free(cur);
 			break;
 		}
