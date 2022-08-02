@@ -1587,3 +1587,16 @@
 
 ;mailbox_state_filter=     ; Optional regular expression used to filter what
                            ; mailboxes we accept events for.
+
+
+;================================TEL URIs=====================================
+;
+; Asterisk has TEL URI support, but with limited scope. Support is only for
+; TEL URIs present in traffic from a remote party. Asterisk does not generate
+; any TEL URIs of its own.
+;
+; Currently, the allowed request types are INVITE, ACK, BYE, and CANCEL. Any
+; other request type that contains a TEL URI will behave as it did before.
+; TEL URIs are allowed in the request, From, and To headers.
+;
+; You can match a TEL URI From header by IP, header, or auth_username.

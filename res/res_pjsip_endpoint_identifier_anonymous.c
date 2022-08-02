@@ -33,12 +33,10 @@
 static int get_endpoint_details(pjsip_rx_data *rdata, char *domain, size_t domain_size)
 {
 	pjsip_uri *from = rdata->msg_info.from->uri;
-	pjsip_sip_uri *sip_from;
-	if (!PJSIP_URI_SCHEME_IS_SIP(from) && !PJSIP_URI_SCHEME_IS_SIPS(from)) {
+	if (!ast_sip_is_uri_sip_sips(from)) {
 		return -1;
 	}
-	sip_from = (pjsip_sip_uri *) pjsip_uri_get_uri(from);
-	ast_copy_pj_str(domain, &sip_from->host, domain_size);
+	ast_copy_pj_str(domain, ast_sip_pjsip_uri_get_hostname(from), domain_size);
 	return 0;
 }
 
