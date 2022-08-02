@@ -1,2 +1,0 @@
-https://github.com/asterisk/starpy/archive/refs/heads/1.1.zip
-https://github.com/asterisk/yappcap/archive/refs/heads/master.zip

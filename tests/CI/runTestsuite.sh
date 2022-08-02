@@ -25,8 +25,9 @@ else
 		echo "Successfully activated virtual environment:"
 		echo $VIRTUAL_ENV
 		python -m pip install --upgrade pip
-		python -m pip install -r ${CIDIR}/requirements.txt
-		python -m pip install -r ${CIDIR}/extras.txt
+		python -m pip install wheel setuptools build
+		python -m pip install -r ./requirements.txt
+		python -m pip install -r ./extras.txt
 	else
 		echo "Virtual environment failed, attempting fall-back method"
 		export PYTHONPATH=./lib/python/
