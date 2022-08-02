@@ -190,7 +190,7 @@ static void FUNC_ATTRS sanitize_tdata(pjsip_tx_data *tdata)
 	pjsip_hdr *hdr;
 
 	if (tdata->msg->type == PJSIP_REQUEST_MSG) {
-		if (is_sip_uri(tdata->msg->line.req.uri)) {
+		if (ast_sip_is_uri_sip_sips(tdata->msg->line.req.uri)) {
 			uri = pjsip_uri_get_uri(tdata->msg->line.req.uri);
 			print_sanitize_debug("Sanitizing Request", PJSIP_URI_IN_REQ_URI, uri);
 			while ((x_transport = pjsip_param_find(&uri->other_param, &x_name))) {
@@ -201,7 +201,7 @@ static void FUNC_ATTRS sanitize_tdata(pjsip_tx_data *tdata)
 
 	for (hdr = tdata->msg->hdr.next; hdr != &tdata->msg->hdr; hdr = hdr->next) {
 		if (hdr->type == PJSIP_H_TO || hdr->type == PJSIP_H_FROM) {
-			if (is_sip_uri(((pjsip_fromto_hdr *) hdr)->uri)) {
+			if (ast_sip_is_uri_sip_sips(((pjsip_fromto_hdr *) hdr)->uri)) {
 				uri = pjsip_uri_get_uri(((pjsip_fromto_hdr *) hdr)->uri);
 				print_sanitize_debug("Sanitizing From/To header", PJSIP_URI_IN_FROMTO_HDR, uri);
 				while ((x_transport = pjsip_param_find(&uri->other_param, &x_name))) {
@@ -209,7 +209,7 @@ static void FUNC_ATTRS sanitize_tdata(pjsip_tx_data *tdata)
 				}
 			}
 		} else if (hdr->type == PJSIP_H_CONTACT) {
-			if (!((pjsip_contact_hdr *) hdr)->star && is_sip_uri(((pjsip_contact_hdr *) hdr)->uri)) {
+			if (!((pjsip_contact_hdr *) hdr)->star && ast_sip_is_uri_sip_sips(((pjsip_contact_hdr *) hdr)->uri)) {
 				uri = pjsip_uri_get_uri(((pjsip_contact_hdr *) hdr)->uri);
 				print_sanitize_debug("Sanitizing Contact header", PJSIP_URI_IN_CONTACT_HDR, uri);
 				while ((x_transport = pjsip_param_find(&uri->other_param, &x_name))) {
@@ -288,7 +288,7 @@ static pj_status_t filter_on_tx_message(pjsip_tx_data *tdata)
 	if (tdata->msg->type == PJSIP_REQUEST_MSG || !(cseq = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_CSEQ, NULL)) ||
 		pj_strcmp2(&cseq->method.name, "REGISTER")) {
 		pjsip_contact_hdr *contact = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_CONTACT, NULL);
-		if (contact && (PJSIP_URI_SCHEME_IS_SIP(contact->uri) || PJSIP_URI_SCHEME_IS_SIPS(contact->uri))
+		if (contact && ast_sip_is_uri_sip_sips(contact->uri)
 			&& !(tdata->msg->type == PJSIP_RESPONSE_MSG && tdata->msg->line.status.code / 100 == 3)) {
 			pjsip_sip_uri *uri = pjsip_uri_get_uri(contact->uri);
 
@@ -440,6 +440,10 @@ static void remove_x_ast_params(pjsip_uri *header_uri){
 		return;
 	}
 
+	if (PJSIP_URI_SCHEME_IS_TEL(header_uri)) {
+		return;
+	}
+
 	uri = pjsip_uri_get_uri(header_uri);
 	if (!uri) {
 		return;
@@ -458,6 +462,25 @@ static void remove_x_ast_params(pjsip_uri *header_uri){
 	}
 }
 
+/* An allow list helper function for tel URI requests */
+static int is_allowed_tel_uri_request(pjsip_rx_data *rdata)
+{
+	struct pjsip_request_line req = rdata->msg_info.msg->line.req;
+	const pjsip_method method = (const pjsip_method)req.method;
+
+	if (pjsip_method_cmp(&method, pjsip_get_invite_method())) {
+		return 1;
+	} else if (pjsip_method_cmp(&method, pjsip_get_ack_method())) {
+		return 1;
+	} else if (pjsip_method_cmp(&method, pjsip_get_bye_method())) {
+		return 1;
+	} else if (pjsip_method_cmp(&method, pjsip_get_cancel_method())) {
+		return 1;
+	}
+
+	return 0;
+}
+
 static pj_bool_t on_rx_process_uris(pjsip_rx_data *rdata)
 {
 	pjsip_contact_hdr *contact = NULL;
@@ -466,7 +489,8 @@ static pj_bool_t on_rx_process_uris(pjsip_rx_data *rdata)
 		return PJ_FALSE;
 	}
 
-	if (!is_sip_uri(rdata->msg_info.msg->line.req.uri)) {
+	if (PJSIP_URI_SCHEME_IS_TEL(rdata->msg_info.msg->line.req.uri)
+		&& !is_allowed_tel_uri_request(rdata)) {
 		print_uri_debug(URI_TYPE_REQUEST, rdata, NULL);
 		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata,
 			PJSIP_SC_UNSUPPORTED_URI_SCHEME, NULL, NULL, NULL);
@@ -474,7 +498,7 @@ static pj_bool_t on_rx_process_uris(pjsip_rx_data *rdata)
 	}
 	remove_x_ast_params(rdata->msg_info.msg->line.req.uri);
 
-	if (!is_sip_uri(rdata->msg_info.from->uri)) {
+	if (!ast_sip_is_allowed_uri(rdata->msg_info.from->uri)) {
 		print_uri_debug(URI_TYPE_FROM, rdata, (pjsip_hdr *)rdata->msg_info.from);
 		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata,
 			PJSIP_SC_UNSUPPORTED_URI_SCHEME, NULL, NULL, NULL);
@@ -482,7 +506,7 @@ static pj_bool_t on_rx_process_uris(pjsip_rx_data *rdata)
 	}
 	remove_x_ast_params(rdata->msg_info.from->uri);
 
-	if (!is_sip_uri(rdata->msg_info.to->uri)) {
+	if (!ast_sip_is_allowed_uri(rdata->msg_info.to->uri)) {
 		print_uri_debug(URI_TYPE_TO, rdata, (pjsip_hdr *)rdata->msg_info.to);
 		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata,
 			PJSIP_SC_UNSUPPORTED_URI_SCHEME, NULL, NULL, NULL);
