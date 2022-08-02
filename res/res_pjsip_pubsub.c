@@ -1596,17 +1596,17 @@ static int sub_persistence_recreate(void *obj)
 	struct ast_sip_pubsub_body_generator *generator;
 	struct ast_sip_subscription_handler *handler;
 	char *resource;
-	pjsip_sip_uri *request_uri;
 	size_t resource_size;
 	int resp;
 	struct resource_tree tree;
 	pjsip_expires_hdr *expires_header;
 	int64_t expires;
+	const pj_str_t *user;
 
-	request_uri = pjsip_uri_get_uri(rdata->msg_info.msg->line.req.uri);
-	resource_size = pj_strlen(&request_uri->user) + 1;
+	user = ast_sip_pjsip_uri_get_username(rdata->msg_info.msg->line.req.uri);
+	resource_size = pj_strlen(user) + 1;
 	resource = ast_alloca(resource_size);
-	ast_copy_pj_str(resource, &request_uri->user, resource_size);
+	ast_copy_pj_str(resource, user, resource_size);
 
 	/*
 	 * We may want to match without any user options getting
@@ -3015,11 +3015,11 @@ static pj_bool_t pubsub_on_rx_subscribe_request(pjsip_rx_data *rdata)
 	struct ast_sip_pubsub_body_generator *generator;
 	char *resource;
 	pjsip_uri *request_uri;
-	pjsip_sip_uri *request_uri_sip;
 	size_t resource_size;
 	int resp;
 	struct resource_tree tree;
 	pj_status_t dlg_status;
+	const pj_str_t *user;
 
 	endpoint = ast_pjsip_rdata_get_endpoint(rdata);
 	ast_assert(endpoint != NULL);
@@ -3032,7 +3032,7 @@ static pj_bool_t pubsub_on_rx_subscribe_request(pjsip_rx_data *rdata)
 
 	request_uri = rdata->msg_info.msg->line.req.uri;
 
-	if (!PJSIP_URI_SCHEME_IS_SIP(request_uri) && !PJSIP_URI_SCHEME_IS_SIPS(request_uri)) {
+	if (!ast_sip_is_uri_sip_sips(request_uri)) {
 		char uri_str[PJSIP_MAX_URL_SIZE];
 
 		pjsip_uri_print(PJSIP_URI_IN_REQ_URI, request_uri, uri_str, sizeof(uri_str));
@@ -3041,10 +3041,10 @@ static pj_bool_t pubsub_on_rx_subscribe_request(pjsip_rx_data *rdata)
 		return PJ_TRUE;
 	}
 
-	request_uri_sip = pjsip_uri_get_uri(request_uri);
-	resource_size = pj_strlen(&request_uri_sip->user) + 1;
+	user = ast_sip_pjsip_uri_get_username(request_uri);
+	resource_size = pj_strlen(user) + 1;
 	resource = ast_alloca(resource_size);
-	ast_copy_pj_str(resource, &request_uri_sip->user, resource_size);
+	ast_copy_pj_str(resource, user, resource_size);
 
 	/*
 	 * We may want to match without any user options getting
@@ -3260,12 +3260,12 @@ static struct ast_sip_publication *publish_request_initial(struct ast_sip_endpoi
 	RAII_VAR(struct ast_sip_publication_resource *, resource, NULL, ao2_cleanup);
 	struct ast_variable *event_configuration_name = NULL;
 	pjsip_uri *request_uri;
-	pjsip_sip_uri *request_uri_sip;
 	int resp;
+	const pj_str_t *user;
 
 	request_uri = rdata->msg_info.msg->line.req.uri;
 
-	if (!PJSIP_URI_SCHEME_IS_SIP(request_uri) && !PJSIP_URI_SCHEME_IS_SIPS(request_uri)) {
+	if (!ast_sip_is_uri_sip_sips(request_uri)) {
 		char uri_str[PJSIP_MAX_URL_SIZE];
 
 		pjsip_uri_print(PJSIP_URI_IN_REQ_URI, request_uri, uri_str, sizeof(uri_str));
@@ -3274,10 +3274,10 @@ static struct ast_sip_publication *publish_request_initial(struct ast_sip_endpoi
 		return NULL;
 	}
 
-	request_uri_sip = pjsip_uri_get_uri(request_uri);
-	resource_size = pj_strlen(&request_uri_sip->user) + 1;
+	user = ast_sip_pjsip_uri_get_username(request_uri);
+	resource_size = pj_strlen(user) + 1;
 	resource_name = ast_alloca(resource_size);
-	ast_copy_pj_str(resource_name, &request_uri_sip->user, resource_size);
+	ast_copy_pj_str(resource_name, user, resource_size);
 
 	/*
 	 * We may want to match without any user options getting

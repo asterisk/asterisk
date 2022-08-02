@@ -39,7 +39,8 @@ static pj_str_t PATH_SUPPORTED_NAME = { "path", 4 };
 static struct ast_sip_aor *find_aor(struct ast_sip_endpoint *endpoint, pjsip_uri *uri)
 {
 	char *configured_aors, *aor_name;
-	pjsip_sip_uri *sip_uri;
+	const pj_str_t *uri_username;
+	const pj_str_t *uri_hostname;
 	char *domain_name;
 	char *username;
 	struct ast_str *id = NULL;
@@ -48,11 +49,13 @@ static struct ast_sip_aor *find_aor(struct ast_sip_endpoint *endpoint, pjsip_uri
 		return NULL;
 	}
 
-	sip_uri = pjsip_uri_get_uri(uri);
-	domain_name = ast_alloca(sip_uri->host.slen + 1);
-	ast_copy_pj_str(domain_name, &sip_uri->host, sip_uri->host.slen + 1);
-	username = ast_alloca(sip_uri->user.slen + 1);
-	ast_copy_pj_str(username, &sip_uri->user, sip_uri->user.slen + 1);
+	uri_hostname = ast_sip_pjsip_uri_get_hostname(uri);
+	domain_name = ast_alloca(uri_hostname->slen + 1);
+	ast_copy_pj_str(domain_name, uri_hostname, uri_hostname->slen + 1);
+
+	uri_username = ast_sip_pjsip_uri_get_username(uri);
+	username = ast_alloca(uri_username->slen + 1);
+	ast_copy_pj_str(username, uri_username, uri_username->slen + 1);
 
 	/*
 	 * We may want to match without any user options getting
@@ -74,7 +77,7 @@ static struct ast_sip_aor *find_aor(struct ast_sip_endpoint *endpoint, pjsip_uri
 			break;
 		}
 
-		if (!id && !(id = ast_str_create(strlen(username) + sip_uri->host.slen + 2))) {
+		if (!id && !(id = ast_str_create(strlen(username) + uri_hostname->slen + 2))) {
 			aor_name = NULL;
 			break;
 		}

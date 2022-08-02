@@ -493,14 +493,9 @@ static int line_identify_relationship(void *obj, void *arg, int flags)
 
 static struct pjsip_param *get_uri_option_line(const void *uri)
 {
-	pjsip_sip_uri *pjuri;
 	static const pj_str_t LINE_STR = { "line", 4 };
 
-	if (!PJSIP_URI_SCHEME_IS_SIP(uri) && !PJSIP_URI_SCHEME_IS_SIPS(uri)) {
-		return NULL;
-	}
-	pjuri = pjsip_uri_get_uri(uri);
-	return pjsip_param_find(&pjuri->other_param, &LINE_STR);
+	return ast_sip_pjsip_uri_get_other_param((pjsip_uri *)uri, &LINE_STR);
 }
 
 /*! \brief Endpoint identifier which uses the 'line' parameter to establish a relationship to an outgoing registration */

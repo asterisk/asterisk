@@ -763,9 +763,8 @@ static pj_bool_t endpoint_lookup(pjsip_rx_data *rdata)
 		char name[AST_UUID_STR_LEN] = "";
 		pjsip_uri *from = rdata->msg_info.from->uri;
 
-		if (PJSIP_URI_SCHEME_IS_SIP(from) || PJSIP_URI_SCHEME_IS_SIPS(from)) {
-			pjsip_sip_uri *sip_from = pjsip_uri_get_uri(from);
-			ast_copy_pj_str(name, &sip_from->user, sizeof(name));
+		if (ast_sip_is_allowed_uri(from)) {
+			ast_copy_pj_str(name, ast_sip_pjsip_uri_get_username(from), sizeof(name));
 		}
 
 		unid = ao2_find(unidentified_requests, rdata->pkt_info.src_name, OBJ_SEARCH_KEY);
@@ -833,6 +832,7 @@ static int extract_contact_addr(pjsip_contact_hdr *contact, struct ast_sockaddr 
 		*addrs = NULL;
 		return 0;
 	}
+
 	if (!PJSIP_URI_SCHEME_IS_SIP(contact->uri) && !PJSIP_URI_SCHEME_IS_SIPS(contact->uri)) {
 		*addrs = NULL;
 		return 0;

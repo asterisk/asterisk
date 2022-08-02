@@ -102,6 +102,8 @@ struct pjsip_tpselector;
 /*! Maximum number of challenges before assuming that we are in a loop */
 #define MAX_RX_CHALLENGES	10
 
+static const pj_str_t AST_PJ_STR_EMPTY = { "", 0 };
+
 /*!
  * \brief Structure for SIP transport information
  */
@@ -3514,5 +3516,66 @@ void ast_sip_transport_state_register(struct ast_sip_tpmgr_state_callback *eleme
  * \param element What we are unregistering.
  */
 void ast_sip_transport_state_unregister(struct ast_sip_tpmgr_state_callback *element);
+
+/*!
+ * \brief Check whether a pjsip_uri is SIP/SIPS or not
+ * \since 16.28.0
+ *
+ * \param uri The pjsip_uri to check
+ *
+ * \retval 1 if true
+ * \retval 0 if false
+ */
+int ast_sip_is_uri_sip_sips(pjsip_uri *uri);
+
+/*!
+ * \brief Check whether a pjsip_uri is allowed or not
+ * \since 16.28.0
+ *
+ * \param uri The pjsip_uri to check
+ *
+ * \retva; 1 if allowed
+ * \retval 0 if not allowed
+ */
+int ast_sip_is_allowed_uri(pjsip_uri *uri);
+
+/*!
+ * \brief Get the user portion of the pjsip_uri
+ * \since 16.28.0
+ *
+ * \param uri The pjsip_uri to get the user from
+ *
+ * \note This function will check what kind of URI it receives and return
+ * the user based off of that
+ *
+ * \return User string or empty string if not present
+ */
+const pj_str_t *ast_sip_pjsip_uri_get_username(pjsip_uri *uri);
+
+/*!
+ * \brief Get the host portion of the pjsip_uri
+ * \since 16.28.0
+ *
+ * \param uri The pjsip_uri to get the host from
+ *
+ * \note This function will check what kind of URI it receives and return
+ * the host based off of that
+ *
+ * \return Host string or empty string if not present
+ */
+const pj_str_t *ast_sip_pjsip_uri_get_hostname(pjsip_uri *uri);
+
+/*!
+ * \brief Get the other_param portion of the pjsip_uri
+ * \since 16.28.0
+ *
+ * \param uri The pjsip_uri to get hte other_param from
+ *
+ * \note This function will check what kind of URI it receives and return
+ * the other_param based off of that
+ *
+ * \return other_param or NULL if not present
+ */
+struct pjsip_param *ast_sip_pjsip_uri_get_other_param(pjsip_uri *uri, const pj_str_t *param_str);
 
 #endif /* _RES_PJSIP_H */

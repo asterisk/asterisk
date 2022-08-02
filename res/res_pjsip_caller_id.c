@@ -45,13 +45,11 @@ static void set_id_from_hdr(pjsip_fromto_hdr *hdr, struct ast_party_id *id)
 {
 	char cid_name[AST_CHANNEL_NAME];
 	char cid_num[AST_CHANNEL_NAME];
-	pjsip_sip_uri *uri;
 	pjsip_name_addr *id_name_addr = (pjsip_name_addr *) hdr->uri;
 	char *semi;
 
-	uri = pjsip_uri_get_uri(id_name_addr);
 	ast_copy_pj_str(cid_name, &id_name_addr->display, sizeof(cid_name));
-	ast_copy_pj_str(cid_num, &uri->user, sizeof(cid_num));
+	ast_copy_pj_str(cid_num, ast_sip_pjsip_uri_get_username(hdr->uri), sizeof(cid_num));
 
 	/* Always truncate caller-id number at a semicolon. */
 	semi = strchr(cid_num, ';');

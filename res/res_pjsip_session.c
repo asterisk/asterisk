@@ -3671,16 +3671,14 @@ enum sip_get_destination_result {
 static enum sip_get_destination_result get_destination(struct ast_sip_session *session, pjsip_rx_data *rdata)
 {
 	pjsip_uri *ruri = rdata->msg_info.msg->line.req.uri;
-	pjsip_sip_uri *sip_ruri;
 	struct ast_features_pickup_config *pickup_cfg;
 	const char *pickupexten;
 
-	if (!PJSIP_URI_SCHEME_IS_SIP(ruri) && !PJSIP_URI_SCHEME_IS_SIPS(ruri)) {
+	if (!ast_sip_is_allowed_uri(ruri)) {
 		return SIP_GET_DEST_UNSUPPORTED_URI;
 	}
 
-	sip_ruri = pjsip_uri_get_uri(ruri);
-	ast_copy_pj_str(session->exten, &sip_ruri->user, sizeof(session->exten));
+	ast_copy_pj_str(session->exten, ast_sip_pjsip_uri_get_username(ruri), sizeof(session->exten));
 
 	/*
 	 * We may want to match in the dialplan without any user
