@@ -269,7 +269,6 @@ static pj_bool_t options_on_rx_request(pjsip_rx_data *rdata)
 {
 	RAII_VAR(struct ast_sip_endpoint *, endpoint, NULL, ao2_cleanup);
 	pjsip_uri *ruri;
-	pjsip_sip_uri *sip_ruri;
 	char exten[AST_MAX_EXTENSION];
 
 	if (pjsip_method_cmp(&rdata->msg_info.msg->line.req.method, &pjsip_options_method)) {
@@ -281,13 +280,12 @@ static pj_bool_t options_on_rx_request(pjsip_rx_data *rdata)
 	}
 
 	ruri = rdata->msg_info.msg->line.req.uri;
-	if (!PJSIP_URI_SCHEME_IS_SIP(ruri) && !PJSIP_URI_SCHEME_IS_SIPS(ruri)) {
+	if (!ast_sip_is_allowed_uri(ruri)) {
 		send_options_response(rdata, 416);
 		return PJ_TRUE;
 	}
 
-	sip_ruri = pjsip_uri_get_uri(ruri);
-	ast_copy_pj_str(exten, &sip_ruri->user, sizeof(exten));
+	ast_copy_pj_str(exten, ast_sip_pjsip_uri_get_username(ruri), sizeof(exten));
 
 	/*
 	 * We may want to match in the dialplan without any user

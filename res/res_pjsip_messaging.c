@@ -1055,7 +1055,6 @@ static enum pjsip_status_code rx_data_to_ast_msg(pjsip_rx_data *rdata, struct as
 {
 	RAII_VAR(struct ast_sip_endpoint *, endpt, NULL, ao2_cleanup);
 	pjsip_uri *ruri = rdata->msg_info.msg->line.req.uri;
-	pjsip_sip_uri *sip_ruri;
 	pjsip_name_addr *name_addr;
 	char buf[MAX_BODY_SIZE];
 	const char *field;
@@ -1064,12 +1063,11 @@ static enum pjsip_status_code rx_data_to_ast_msg(pjsip_rx_data *rdata, struct as
 	int res = 0;
 	int size;
 
-	if (!PJSIP_URI_SCHEME_IS_SIP(ruri) && !PJSIP_URI_SCHEME_IS_SIPS(ruri)) {
+	if (!ast_sip_is_allowed_uri(ruri)) {
 		return PJSIP_SC_UNSUPPORTED_URI_SCHEME;
 	}
 
-	sip_ruri = pjsip_uri_get_uri(ruri);
-	ast_copy_pj_str(exten, &sip_ruri->user, AST_MAX_EXTENSION);
+	ast_copy_pj_str(exten, ast_sip_pjsip_uri_get_username(ruri), AST_MAX_EXTENSION);
 
 	/*
 	 * We may want to match in the dialplan without any user

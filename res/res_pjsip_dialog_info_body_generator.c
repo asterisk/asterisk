@@ -183,7 +183,6 @@ static int dialog_info_generate_body_content(void *body, void *data)
 			int remote_connected_num_restricted;
 			char *local_caller_num;
 			pjsip_dialog *dlg = ast_sip_subscription_get_dialog(state_data->sub);
-			pjsip_sip_uri *dlg_remote_fromhdr = pjsip_uri_get_uri(dlg->local.info->uri);
 			char remote_target[PJSIP_MAX_URL_SIZE + 32];
 			char dlg_remote_uri[PJSIP_MAX_URL_SIZE];
 			char *from_domain_stripped;
@@ -191,7 +190,7 @@ static int dialog_info_generate_body_content(void *body, void *data)
 			pj_xml_node *remote_node, *remote_identity_node, *remote_target_node;
 
 			/* We use the local dialog URI to determine the domain to use in the XML itself */
-			ast_copy_pj_str(dlg_remote_uri, &dlg_remote_fromhdr->host, sizeof(dlg_remote_uri));
+			ast_copy_pj_str(dlg_remote_uri, ast_sip_pjsip_uri_get_hostname(dlg->local.info->uri), sizeof(dlg_remote_uri));
 			from_domain_stripped = ast_strip_quoted(dlg_remote_uri, "<", ">");
 			ast_sip_sanitize_xml(from_domain_stripped, from_domain_sanitized, sizeof(from_domain_sanitized));
 

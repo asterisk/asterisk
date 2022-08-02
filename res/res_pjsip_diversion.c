@@ -327,15 +327,15 @@ static void set_redirecting_reason_by_cause(pjsip_name_addr *name_addr,
 				   struct ast_party_redirecting_reason *data)
 {
 	static const pj_str_t cause_name = { "cause", 5 };
-	pjsip_sip_uri *uri = pjsip_uri_get_uri(name_addr);
+	pjsip_uri *uri = name_addr->uri;
 	pjsip_param *cause = NULL;
 	unsigned long cause_value = 0;
 
-	if (!PJSIP_URI_SCHEME_IS_SIP(uri) && !PJSIP_URI_SCHEME_IS_SIPS(uri)) {
+	if (!ast_sip_is_allowed_uri(uri)) {
 		return;
 	}
 
-	cause = pjsip_param_find(&uri->other_param, &cause_name);
+	cause = ast_sip_pjsip_uri_get_other_param(uri, &cause_name);
 
 	if (!cause) {
 		return;
@@ -507,7 +507,6 @@ static void add_diversion_header(pjsip_tx_data *tdata, struct ast_party_redirect
 
 	pjsip_fromto_hdr *hdr;
 	pjsip_name_addr *name_addr;
-	pjsip_sip_uri *uri;
 	pjsip_param *param;
 	pjsip_fromto_hdr *old_hdr;
 	const char *reason_str;
@@ -534,10 +533,9 @@ static void add_diversion_header(pjsip_tx_data *tdata, struct ast_party_redirect
 	hdr->sname = hdr->name = diversion_name;
 
 	name_addr = pjsip_uri_clone(tdata->pool, base);
-	uri = pjsip_uri_get_uri(name_addr->uri);
 
 	pj_strdup2(tdata->pool, &name_addr->display, id->name.str);
-	pj_strdup2(tdata->pool, &uri->user, id->number.str);
+	pj_strdup2(tdata->pool, (pj_str_t *)ast_sip_pjsip_uri_get_username(name_addr->uri), id->number.str);
 
 	param = PJ_POOL_ALLOC_T(tdata->pool, pjsip_param);
 	param->name = reason_name;
