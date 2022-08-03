@@ -3994,6 +3994,15 @@ static int cmp_subscription_childrens(struct ast_sip_subscription *s1, struct as
 	return 0;
 }
 
+static int destroy_subscriptions_task(void *obj)
+{
+	struct ast_sip_subscription *sub = (struct ast_sip_subscription *) obj;
+
+	destroy_subscriptions(sub);
+
+	return 0;
+}
+
 /*!
  * \brief Called whenever an in-dialog SUBSCRIBE is received
  *
@@ -4067,8 +4076,19 @@ static void pubsub_on_rx_refresh(pjsip_evsub *evsub, pjsip_rx_data *rdata,
 							AST_SCHED_DEL_UNREF(sched, sub_tree->notify_sched_id, ao2_ref(sub_tree, -1));
 							sub_tree->send_scheduled_notify = 0;
 						}
+
+						/* Terminate old subscriptions to stop sending NOTIFY messages on exten/device state changes */
+						set_state_terminated(old_root);
+
+						/* Shutdown old subscriptions to remove exten/device state change callbacks
+						 that can queue tasks for old subscriptions */
 						shutdown_subscriptions(old_root);
-						destroy_subscriptions(old_root);
+
+						/* Postpone destruction until all already queued tasks that may be using old subscriptions have completed */
+						if (ast_sip_push_task(sub_tree->serializer, destroy_subscriptions_task, old_root)) {
+							ast_log(LOG_ERROR, "Failed to push task to destroy old subscriptions for RLS '%s->%s'.\n",
+								ast_sorcery_object_get_id(endpoint), old_root->resource);
+						}
 					} else {
 						destroy_subscriptions(new_root);
 					}

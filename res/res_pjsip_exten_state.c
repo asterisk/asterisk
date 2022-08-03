@@ -296,7 +296,8 @@ static int notify_task(void *obj)
 		.body_data = &task_data->exten_state_data,
 	};
 
-	/* Terminated subscriptions are no longer associated with a valid tree, and sending
+	/* The subscription was terminated while notify_task was in queue.
+	   Terminated subscriptions are no longer associated with a valid tree, and sending
 	 * NOTIFY messages on a subscription which has already been terminated won't work.
 	 */
 	if (ast_sip_subscription_is_terminated(task_data->exten_state_sub->sip_sub)) {
@@ -338,6 +339,13 @@ static int state_changed(const char *context, const char *exten,
 {
 	struct notify_task_data *task_data;
 	struct exten_state_subscription *exten_state_sub = data;
+
+	/* Terminated subscriptions are no longer associated with a valid tree.
+	 * Do not queue notify_task.
+	 */
+	if (ast_sip_subscription_is_terminated(exten_state_sub->sip_sub)) {
+		return 0;
+	}
 
 	if (!(task_data = alloc_notify_task_data(exten, exten_state_sub, info))) {
 		return -1;
