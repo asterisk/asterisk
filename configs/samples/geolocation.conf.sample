@@ -134,14 +134,24 @@ allowed.  See RFC8787.
 Example:
 location_source = sip1.myserver.net
 
+-- confidence (optional) -----------------------------------------
+The confidence in the location specified.
+confidence = pdf=[ unknown | normal | rectangular ], value=<percent_confident>
+
+Please see RFC7459 for the exact description of this parameter.
+
+Example:
+confidence = pdf=normal, value=75
+
+
 -- Location Example ---------------------------------------------------
 
 [mylocation]
 type = location
 format = civicAddress
 location_info = country=US
-location_info = A1="New York", A3="New York", A4=Manhattan  
-location_info = HNO=1633, PRD=W, RD=46th, STS=Street  
+location_info = A1="New York", A3="New York", A4=Manhattan
+location_info = HNO=1633, PRD=W, RD=46th, STS=Street
 location_info = PC=10222
 method = Manual
 location_source = sip1.myserver.net
@@ -160,9 +170,9 @@ location_source = sip1.myserver.net
 Defines the object type.
 type = profile
 
--- profile_action (optional) ------------------------------------------
+-- profile_precedence (optional) ------------------------------------------
 Sets how to reconcile incoming and configured profiles.
-profile_action = < prefer_incoming | prefer_config | discard_incoming
+profile_precedence = < prefer_incoming | prefer_config | discard_incoming
     | discard_config >
 
 On an incoming call leg, "incoming" is the location description
@@ -188,7 +198,7 @@ discard_config:   Discard any configured location description. If
 discard_incoming is the default.
 
 Example:
-profile_action = prefer_config
+profile_precedence = prefer_config
 
 -- pidf_element (optional) --------------------------------------------
 PIDF-LO element in which to place the location description.
@@ -207,10 +217,10 @@ Per [RFC5491], "device" is preferred and therefore the default.
 Example:
 pidf_element = tuple
 
--- geolocation_routing (optional) -------------------------------------
+-- allow_routing_use (optional) -------------------------------------
 Sets whether the "Geolocation-Routing" header is added to outgoing
 requests.
-geolocation_routing = < yes | no >
+allow_routing_use = < yes | no >
 
 Set to "yes" to indicate that servers later in the path
 can use the location information for routing purposes.  Set to "no"
@@ -218,7 +228,7 @@ if they should not.  If this value isn't specified, no
 "Geolocation-Routing" header will be added.
 
 Example:
-geolocation_routing = yes
+allow_routing_use = yes
 
 -- location_reference (optional) --------------------------------------
 The name of an existing Location object.

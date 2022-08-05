@@ -162,7 +162,8 @@ void ast_xml_free_text(const char *text);
  * \param node Node where to search the attribute.
  * \param attrname Attribute name.
  * \retval NULL on error
- * \retval The attribute value on success.
+ * \return The attribute value on success.
+ * \note The result must be freed with ast_xml_free_attr().
  */
 const char *ast_xml_get_attribute(struct ast_xml_node *node, const char *attrname);
 
