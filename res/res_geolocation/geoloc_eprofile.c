@@ -63,6 +63,7 @@ static void geoloc_eprofile_destructor(void *obj)
 	ast_variables_destroy(eprofile->location_variables);
 	ast_variables_destroy(eprofile->effective_location);
 	ast_variables_destroy(eprofile->usage_rules);
+	ast_variables_destroy(eprofile->confidence);
 }
 
 struct ast_geoloc_eprofile *ast_geoloc_eprofile_alloc(const char *name)
@@ -79,8 +80,12 @@ struct ast_geoloc_eprofile *ast_geoloc_eprofile_alloc(const char *name)
 int ast_geoloc_eprofile_refresh_location(struct ast_geoloc_eprofile *eprofile)
 {
 	struct ast_geoloc_location *loc = NULL;
-	struct ast_variable *temp_locinfo = NULL;
-	struct ast_variable *temp_effloc = NULL;
+	RAII_VAR(struct ast_variable *, temp_locinfo, NULL, ast_variables_destroy);
+	RAII_VAR(struct ast_variable *, temp_effloc, NULL, ast_variables_destroy);
+	RAII_VAR(struct ast_variable *, temp_confidence, NULL, ast_variables_destroy);
+	const char *method = NULL;
+	const char *location_source = NULL;
+	enum ast_geoloc_format format;
 	struct ast_variable *var;
 	int rc = 0;
 
@@ -96,20 +101,32 @@ int ast_geoloc_eprofile_refresh_location(struct ast_geoloc_eprofile *eprofile)
 			return -1;
 		}
 
-		eprofile->format = loc->format;
+		format = loc->format;
+		method = loc->method;
+		location_source = loc->location_source;
 		rc = DUP_VARS(temp_locinfo, loc->location_info);
-		ast_string_field_set(eprofile, method, loc->method);
+		if (rc == 0) {
+			rc = DUP_VARS(temp_confidence, loc->confidence);
+		}
 		ao2_ref(loc, -1);
 		if (rc != 0) {
 			return -1;
 		}
 	} else {
-		temp_locinfo = eprofile->location_info;
+		format = eprofile->format;
+		method = eprofile->method;
+		location_source = eprofile->location_source;
+		rc = DUP_VARS(temp_locinfo, eprofile->location_info);
+		if (rc == 0) {
+			rc = DUP_VARS(temp_confidence, eprofile->confidence);
+		}
+		if (rc != 0) {
+			return -1;
+		}
 	}
 
 	rc = DUP_VARS(temp_effloc, temp_locinfo);
 	if (rc != 0) {
-		ast_variables_destroy(temp_locinfo);
 		return -1;
 	}
 
@@ -117,8 +134,6 @@ int ast_geoloc_eprofile_refresh_location(struct ast_geoloc_eprofile *eprofile)
 		for (var = eprofile->location_refinement; var; var = var->next) {
 			struct ast_variable *newvar = ast_variable_new(var->name, var->value, "");
 			if (!newvar) {
-				ast_variables_destroy(temp_locinfo);
-				ast_variables_destroy(temp_effloc);
 				return -1;
 			}
 			if (ast_variable_list_replace(&temp_effloc, newvar)) {
@@ -127,10 +142,16 @@ int ast_geoloc_eprofile_refresh_location(struct ast_geoloc_eprofile *eprofile)
 		}
 	}
 
+	eprofile->format = format;
+	ast_string_field_set(eprofile, method, method);
+	ast_string_field_set(eprofile, location_source, location_source);
+
 	ast_variables_destroy(eprofile->location_info);
 	eprofile->location_info = temp_locinfo;
+	temp_locinfo = NULL;
 	ast_variables_destroy(eprofile->effective_location);
 	eprofile->effective_location = temp_effloc;
+	temp_effloc = NULL;
 
 	return 0;
 }
@@ -153,7 +174,7 @@ struct ast_geoloc_eprofile *ast_geoloc_eprofile_create_from_profile(struct ast_g
 	}
 
 	ao2_lock(profile);
-	eprofile->geolocation_routing = profile->geolocation_routing;
+	eprofile->allow_routing_use = profile->allow_routing_use;
 	eprofile->pidf_element = profile->pidf_element;
 
 	rc = ast_string_field_set(eprofile, location_reference, profile->location_reference);
@@ -175,7 +196,7 @@ struct ast_geoloc_eprofile *ast_geoloc_eprofile_create_from_profile(struct ast_g
 		return NULL;
 	}
 
-	eprofile->action = profile->action;
+	eprofile->precedence = profile->precedence;
 	ao2_unlock(profile);
 
 	if (ast_geoloc_eprofile_refresh_location(eprofile) != 0) {
@@ -301,20 +322,20 @@ static struct ast_variable *geoloc_eprofile_resolve_varlist(struct ast_variable 
 
 
 const char *ast_geoloc_eprofile_to_uri(struct ast_geoloc_eprofile *eprofile,
-	struct ast_channel *chan, struct ast_str **buf, const char *ref_string)
+	struct ast_channel *chan, struct ast_str **buf, const char *ref_str)
 {
 	const char *uri = NULL;
 	struct ast_variable *resolved = NULL;
 	char *result;
 	int we_created_buf = 0;
 
-	if (!eprofile || !buf) {
+	if (!eprofile || !buf || !chan) {
 		return NULL;
 	}
 
 	if (eprofile->format != AST_GEOLOC_FORMAT_URI) {
 		ast_log(LOG_ERROR, "%s: '%s' is not a URI profile.  It's '%s'\n",
-			ref_string, eprofile->id, geoloc_format_to_name(eprofile->format));
+			ref_str, eprofile->id, ast_geoloc_format_to_name(eprofile->format));
 		return NULL;
 	}
 
@@ -330,7 +351,7 @@ const char *ast_geoloc_eprofile_to_uri(struct ast_geoloc_eprofile *eprofile,
 
 	if (ast_strlen_zero(result)) {
 		ast_log(LOG_ERROR, "%s: '%s' is a URI profile but had no, or an empty, 'URI' entry in location_info\n",
-			ref_string, eprofile->id);
+			ref_str, eprofile->id);
 		return NULL;
 	}
 
@@ -353,14 +374,14 @@ const char *ast_geoloc_eprofile_to_uri(struct ast_geoloc_eprofile *eprofile,
 	return ast_str_buffer(*buf);
 }
 
-static struct ast_variable *var_list_from_node(struct ast_xml_node *node, const char *reference_string)
+static struct ast_variable *var_list_from_node(struct ast_xml_node *node,
+	const char *ref_str)
 {
 	struct ast_variable *list = NULL;
 	struct ast_xml_node *container;
 	struct ast_xml_node *child;
 	struct ast_variable *var;
-	RAII_VAR(struct ast_str *, buf, NULL, ast_free);
-	SCOPE_ENTER(3, "%s\n", reference_string);
+	SCOPE_ENTER(3, "%s\n", ref_str);
 
 	container = ast_xml_node_get_children(node);
 	for (child = container; child; child = ast_xml_node_get_next(child)) {
@@ -370,168 +391,296 @@ static struct ast_variable *var_list_from_node(struct ast_xml_node *node, const 
 
 		if (uom) {
 			/* '20 radians\0' */
-			char *newval = ast_malloc(strlen(value) + 1 + strlen(uom) + 1);
+			char newval[strlen(value) + 1 + strlen(uom) + 1];
 			sprintf(newval, "%s %s", value, uom);
 			var = ast_variable_new(name, newval, "");
-			ast_free(newval);
 		} else {
 			var = ast_variable_new(name, value, "");
 		}
 
+		ast_xml_free_text(value);
+		ast_xml_free_attr(uom);
+
 		if (!var) {
 			ast_variables_destroy(list);
-			SCOPE_EXIT_RTN_VALUE(NULL, "%s: Allocation failure\n", reference_string);
+			SCOPE_EXIT_RTN_VALUE(NULL, "%s: Allocation failure\n", ref_str);
 		}
 		ast_variable_list_append(&list, var);
 	}
 
-	ast_variable_list_join(list, ", ", "=", "\"", &buf);
+	if (TRACE_ATLEAST(5)) {
+		struct ast_str *buf = NULL;
+		ast_variable_list_join(list, ", ", "=", "\"", &buf);
+		ast_trace(5, "%s: Result: %s\n", ref_str, ast_str_buffer(buf));
+		ast_free(buf);
+	}
 
-	SCOPE_EXIT_RTN_VALUE(list, "%s: Done. %s\n", reference_string, ast_str_buffer(buf));
+	SCOPE_EXIT_RTN_VALUE(list, "%s: Done\n", ref_str);
 }
 
 static struct ast_variable *var_list_from_loc_info(struct ast_xml_node *locinfo,
-	enum ast_geoloc_format format, const char *reference_string)
+	enum ast_geoloc_format format, const char *ref_str)
 {
 	struct ast_variable *list = NULL;
 	struct ast_xml_node *container;
-	struct ast_variable *var;
-	RAII_VAR(struct ast_str *, buf, NULL, ast_free);
-	SCOPE_ENTER(3, "%s\n", reference_string);
+	struct ast_variable *var = NULL;
+	const char *attr;
+	SCOPE_ENTER(3, "%s\n", ref_str);
 
 	container = ast_xml_node_get_children(locinfo);
 	if (format == AST_GEOLOC_FORMAT_CIVIC_ADDRESS) {
-		var = ast_variable_new("lang", ast_xml_get_attribute(container, "lang"), "");
-		if (!var) {
-			SCOPE_EXIT_RTN_VALUE(NULL, "%s: Allocation failure\n", reference_string);
+		attr = ast_xml_get_attribute(container, "lang");
+		if (attr) {
+			var = ast_variable_new("lang", attr, "");
+			ast_xml_free_attr(attr);
+			if (!var) {
+				SCOPE_EXIT_RTN_VALUE(NULL, "%s: Allocation failure\n", ref_str);
+			}
+			ast_variable_list_append(&list, var);
 		}
-		ast_variable_list_append(&list, var);
 	} else {
 		var = ast_variable_new("shape", ast_xml_node_get_name(container), "");
 		if (!var) {
-			SCOPE_EXIT_RTN_VALUE(NULL, "%s: Allocation failure\n", reference_string);
+			SCOPE_EXIT_RTN_VALUE(NULL, "%s: Allocation failure\n", ref_str);
 		}
 		ast_variable_list_append(&list, var);
-		var = ast_variable_new("crs", ast_xml_get_attribute(container, "srsName"), "");
+
+		attr = ast_xml_get_attribute(container, "srsName");
+		var = ast_variable_new("crs", attr, "");
+		ast_xml_free_attr(attr);
 		if (!var) {
 			ast_variables_destroy(list);
-			SCOPE_EXIT_RTN_VALUE(NULL, "%s: Allocation failure\n", reference_string);
+			SCOPE_EXIT_RTN_VALUE(NULL, "%s: Allocation failure\n", ref_str);
 		}
 		ast_variable_list_append(&list, var);
 	}
 
-	ast_variable_list_append(&list, var_list_from_node(container, reference_string));
+	ast_variable_list_append(&list, var_list_from_node(container, ref_str));
 
-	ast_variable_list_join(list, ", ", "=", "\"", &buf);
+	if (TRACE_ATLEAST(5)) {
+		struct ast_str *buf = NULL;
+		ast_variable_list_join(list, ", ", "=", "\"", &buf);
+		ast_trace(5, "%s: Result: %s\n", ref_str, ast_str_buffer(buf));
+		ast_free(buf);
+	}
 
-	SCOPE_EXIT_RTN_VALUE(list, "%s: Done. %s\n", reference_string, ast_str_buffer(buf));
+	SCOPE_EXIT_RTN_VALUE(list, "%s: Done\n", ref_str);
+}
+
+static struct ast_variable *var_list_from_confidence(struct ast_xml_node *confidence,
+	const char *ref_str)
+{
+	struct ast_variable *list = NULL;
+	struct ast_variable *var;
+	const char *pdf;
+	const char *value;
+	SCOPE_ENTER(3, "%s\n", ref_str);
+
+	if (!confidence) {
+		SCOPE_EXIT_RTN_VALUE(NULL, "%s: No confidence\n", ref_str);
+	}
+
+	pdf = ast_xml_get_attribute(confidence, "pdf");
+	var = ast_variable_new("pdf", S_OR(pdf, "unknown"), "");
+	ast_xml_free_attr(pdf);
+	if (!var) {
+		SCOPE_EXIT_RTN_VALUE(NULL, "%s: Allocation failure\n", ref_str);
+	}
+	ast_variable_list_append(&list, var);
+
+	value = ast_xml_get_text(confidence);
+	var = ast_variable_new("value", S_OR(value, "95"), "");
+	ast_xml_free_text(value);
+	if (!var) {
+		ast_variables_destroy(list);
+		SCOPE_EXIT_RTN_VALUE(NULL, "%s: Allocation failure\n", ref_str);
+	}
+	ast_variable_list_append(&list, var);
+
+	if (TRACE_ATLEAST(5)) {
+		struct ast_str *buf = NULL;
+		ast_variable_list_join(list, ", ", "=", "\"", &buf);
+		ast_trace(5, "%s: Result: %s\n", ref_str, ast_str_buffer(buf));
+		ast_free(buf);
+	}
+
+	SCOPE_EXIT_RTN_VALUE(list, "%s: Done\n", ref_str);
 }
 
 static struct ast_geoloc_eprofile *geoloc_eprofile_create_from_xslt_result(
-	struct ast_xml_doc *result_doc,
-	const char *reference_string)
+	struct ast_xml_doc *result_doc, const char *ref_str)
 {
 	struct ast_geoloc_eprofile *eprofile;
+	/*
+	 * None of the ast_xml_nodes needs to be freed
+	 * because they're just pointers into result_doc.
+	 */
 	struct ast_xml_node *presence = NULL;
 	struct ast_xml_node *pidf_element = NULL;
 	struct ast_xml_node *location_info = NULL;
+	struct ast_xml_node *confidence = NULL;
 	struct ast_xml_node *usage_rules = NULL;
 	struct ast_xml_node *method = NULL;
 	struct ast_xml_node *note_well = NULL;
-	char *doc_str;
-	int doc_len;
-	const char *id;
-	const char *format_str;
+	/*
+	 * Like nodes, names of nodes are just
+	 * pointers into result_doc and don't need to be freed.
+	 */
 	const char *pidf_element_str;
-	const char *method_str;
-	const char *note_well_str;
-	SCOPE_ENTER(3, "%s\n", reference_string);
+	/*
+	 * Attributes and element text however are allocated on the fly
+	 * so they DO need to be freed after use.
+	 */
+	const char *id = NULL;
+	const char *format_str = NULL;
+	const char *method_str = NULL;
+	const char *note_well_str = NULL;
 
-	ast_xml_doc_dump_memory(result_doc, &doc_str, &doc_len);
-	ast_trace(5, "xslt result doc:\n%s\n", doc_str);
-	ast_xml_free_text(doc_str);
+	SCOPE_ENTER(3, "%s\n", ref_str);
+
+	if (!result_doc) {
+		SCOPE_EXIT_LOG_RTN_VALUE(NULL, LOG_ERROR, "%s: result_doc was NULL", ref_str);
+	}
+
+	if (TRACE_ATLEAST(5)) {
+		char *doc_str = NULL;
+		int doc_len = 0;
+
+		ast_xml_doc_dump_memory(result_doc, &doc_str, &doc_len);
+		ast_trace(5, "xslt result doc len: %d\n%s\n", doc_len, doc_len ? doc_str : "<empty>");
+		ast_xml_free_text(doc_str);
+	}
 
 	presence = ast_xml_get_root(result_doc);
-	pidf_element = ast_xml_node_get_children(presence);
-	location_info = ast_xml_find_child_element(pidf_element, "location-info", NULL, NULL);
-	usage_rules = ast_xml_find_child_element(pidf_element, "usage-rules", NULL, NULL);
-	method = ast_xml_find_child_element(pidf_element, "method", NULL, NULL);
-	note_well = ast_xml_find_child_element(pidf_element, "note-well", NULL, NULL);
+	if (!presence) {
+		SCOPE_EXIT_LOG_RTN_VALUE(NULL, LOG_ERROR, "%s: Can't find 'presence' root element\n",
+			ref_str);
+	}
 
-	id = S_OR(ast_xml_get_attribute(pidf_element, "id"), ast_xml_get_attribute(presence, "entity"));
+	pidf_element = ast_xml_node_get_children(presence);
+	if (!pidf_element) {
+		SCOPE_EXIT_LOG_RTN_VALUE(NULL, LOG_ERROR, "%s: Can't find a device, tuple or person element\n",
+			ref_str);
+	}
+
+	id = ast_xml_get_attribute(pidf_element, "id");
+	if (ast_strlen_zero(id)) {
+		ast_xml_free_attr(id);
+		id = ast_xml_get_attribute(presence, "entity");
+	}
+
+	if (ast_strlen_zero(id)) {
+		SCOPE_EXIT_RTN_VALUE(NULL, "%s: Unable to find 'id' attribute\n", ref_str);
+	}
+
 	eprofile = ast_geoloc_eprofile_alloc(id);
+	ast_xml_free_attr(id);
 	if (!eprofile) {
-		SCOPE_EXIT_RTN_VALUE(NULL, "%s: Allocation failure\n", reference_string);
+		SCOPE_EXIT_RTN_VALUE(NULL, "%s: Allocation failure\n", ref_str);
+	}
+
+	location_info = ast_xml_find_child_element(pidf_element, "location-info", NULL, NULL);
+	if (!location_info) {
+		SCOPE_EXIT_LOG_RTN_VALUE(NULL, LOG_ERROR, "%s: Can't find a location-info element\n",
+			ref_str);
 	}
 
 	format_str = ast_xml_get_attribute(location_info, "format");
+	if (ast_strlen_zero(format_str)) {
+		SCOPE_EXIT_RTN_VALUE(NULL, "%s: Unable to find 'format' attribute\n", ref_str);
+	}
+
+	eprofile->format = AST_GEOLOC_FORMAT_NONE;
 	if (strcasecmp(format_str, "gml") == 0) {
 		eprofile->format = AST_GEOLOC_FORMAT_GML;
 	} else if (strcasecmp(format_str, "civicAddress") == 0) {
 		eprofile->format = AST_GEOLOC_FORMAT_CIVIC_ADDRESS;
-	} else {
-		ao2_ref(eprofile, -1);
-		SCOPE_EXIT_LOG_RTN_VALUE(NULL, LOG_ERROR, "%s: Unknown format '%s'\n", reference_string, format_str);
 	}
 
-	pidf_element_str = ast_xml_node_get_name(pidf_element);
-	eprofile->pidf_element = geoloc_pidf_element_str_to_enum(pidf_element_str);
+	if (eprofile->format == AST_GEOLOC_FORMAT_NONE) {
+		char *dup_format_str = ast_strdupa(format_str);
+		ast_xml_free_attr(format_str);
+		ao2_ref(eprofile, -1);
+		SCOPE_EXIT_LOG_RTN_VALUE(NULL, LOG_ERROR, "%s: Unknown format '%s'\n", ref_str, dup_format_str);
+	}
+	ast_xml_free_attr(format_str);
 
-	eprofile->location_info = var_list_from_loc_info(location_info, eprofile->format, reference_string);
+	pidf_element_str = ast_xml_node_get_name(pidf_element);
+	eprofile->pidf_element = ast_geoloc_pidf_element_str_to_enum(pidf_element_str);
+
+	eprofile->location_info = var_list_from_loc_info(location_info, eprofile->format, ref_str);
 	if (!eprofile->location_info) {
 		ao2_ref(eprofile, -1);
 		SCOPE_EXIT_LOG_RTN_VALUE(NULL, LOG_ERROR,
-			"%s: Unable to create location variables\n", reference_string);
+			"%s: Unable to create location variables\n", ref_str);
 	}
 
-	eprofile->usage_rules = var_list_from_node(usage_rules, reference_string);
+	/*
+	 * The function calls that follow are all NULL tolerant
+	 * so no need for explicit error checking.
+	 */
+	usage_rules = ast_xml_find_child_element(pidf_element, "usage-rules", NULL, NULL);
+	eprofile->usage_rules = var_list_from_node(usage_rules, ref_str);
+	confidence = ast_xml_find_child_element(location_info, "confidence", NULL, NULL);
+	eprofile->confidence = var_list_from_confidence(confidence, ref_str);
 
+	method = ast_xml_find_child_element(pidf_element, "method", NULL, NULL);
 	method_str = ast_xml_get_text(method);
 	ast_string_field_set(eprofile, method, method_str);
+	ast_xml_free_text(method_str);
 
+	note_well = ast_xml_find_child_element(pidf_element, "note-well", NULL, NULL);
 	note_well_str = ast_xml_get_text(note_well);
 	ast_string_field_set(eprofile, notes, note_well_str);
+	ast_xml_free_text(note_well_str);
 
-	SCOPE_EXIT_RTN_VALUE(eprofile, "%s: Done.\n", reference_string);
+	SCOPE_EXIT_RTN_VALUE(eprofile, "%s: Done.\n", ref_str);
+}
+
+static int is_pidf_lo(struct ast_xml_doc *result_doc)
+{
+	struct ast_xml_node *presence;
+	struct ast_xml_node *pidf_element;
+	struct ast_xml_node *location_info;
+	const char *pidf_element_name;
+
+	if (!result_doc) {
+		return 0;
+	}
+	presence = ast_xml_get_root(result_doc);
+	if (!presence || !ast_strings_equal("presence", ast_xml_node_get_name(presence))) {
+		return 0;
+	}
+
+	pidf_element = ast_xml_node_get_children(presence);
+	if (!pidf_element) {
+		return 0;
+	}
+	pidf_element_name = ast_xml_node_get_name(pidf_element);
+	if (!ast_strings_equal(pidf_element_name, "device") &&
+		!ast_strings_equal(pidf_element_name, "tuple") &&
+		!ast_strings_equal(pidf_element_name, "person")) {
+		return 0;
+	}
+
+	location_info = ast_xml_find_child_element(pidf_element, "location-info", NULL, NULL);
+	if (!location_info) {
+		return 0;
+	}
+
+	return 1;
 }
 
 struct ast_geoloc_eprofile *ast_geoloc_eprofile_create_from_pidf(
 	struct ast_xml_doc *pidf_xmldoc, const char *geoloc_uri, const char *ref_str)
 {
-	RAII_VAR(struct ast_xml_doc *, result_doc, NULL, ast_xml_close);
-	struct ast_geoloc_eprofile *eprofile;
-	/*
-	 * The namespace prefixes used here (dm, def, gp, etc) don't have to match
-	 * the ones used in the received PIDF-LO document but they MUST match the
-	 * ones in the embedded pidf_to_eprofile stylesheet.
-	 *
-	 * RFC5491 Rule 8 states that...
-	 * Where a PIDF document contains more than one <geopriv>
-     * element, the priority of interpretation is given to the first
-     * <device> element in the document containing a location.  If no
-     * <device> element containing a location is present in the document,
-     * then priority is given to the first <tuple> element containing a
-     * location.  Locations contained in <person> tuples SHOULD only be
-     * used as a last resort.
-     *
-     * Reminder: xpath arrays are 1-based not 0-based.
-	 */
-	const char *find_device[] = { "path", "/def:presence/dm:device[.//gp:location-info][1]", NULL};
-	const char *find_tuple[] = { "path", "/def:presence/def:tuple[.//gp:location-info][1]", NULL};
-	const char *find_person[] = { "path", "/def:presence/dm:person[.//gp:location-info][1]", NULL};
+	struct ast_xml_doc *result_doc = NULL;
+	struct ast_geoloc_eprofile *eprofile = NULL;
+
 	SCOPE_ENTER(3, "%s\n", ref_str);
 
-
-	result_doc = ast_xslt_apply(pidf_to_eprofile_xslt, pidf_xmldoc, find_device);
-	if (!result_doc || !ast_xml_node_get_children((struct ast_xml_node *)result_doc)) {
-		ast_xml_close(result_doc);
-		result_doc = ast_xslt_apply(pidf_to_eprofile_xslt, pidf_xmldoc, find_tuple);
-	}
-	if (!result_doc || !ast_xml_node_get_children((struct ast_xml_node *)result_doc)) {
-		ast_xml_close(result_doc);
-		result_doc = ast_xslt_apply(pidf_to_eprofile_xslt, pidf_xmldoc, find_person);
-	}
-	if (!result_doc || !ast_xml_node_get_children((struct ast_xml_node *)result_doc)) {
+	result_doc = ast_xslt_apply(pidf_to_eprofile_xslt, pidf_xmldoc, NULL);
+	if (!is_pidf_lo(result_doc)) {
 		SCOPE_EXIT_RTN_VALUE(NULL, "%s: Not a PIDF-LO.  Skipping.\n", ref_str);
 	}
 
@@ -546,17 +695,27 @@ struct ast_geoloc_eprofile *ast_geoloc_eprofile_create_from_pidf(
 	 *  </presence>
 	 *
 	 * Regardless of whether the pidf-element was tuple, device or person and whether
-	 * the format is gml or civicAddress, the presence, pidf-element, location-info,
-	 * usage-rules and method elements should be there although usage-rules and method
-	 * may be empty.
+	 * the format is gml or civicAddress, the presence, pidf-element and location-info
+	 * elements should be there.
 	 *
-	 * The contents of the location-info and usage-rules elements can be passed directly to
-	 * ast_variable_list_from_string().
+	 * The confidence, usage-rules and note-well elements are optional.
 	 */
 
-	eprofile = geoloc_eprofile_create_from_xslt_result(result_doc, ref_str);
+	if (TRACE_ATLEAST(5)) {
+		char *doc_str = NULL;
+		int doc_len = 0;
 
-	if (geoloc_uri) {
+		ast_xml_doc_dump_memory(result_doc, &doc_str, &doc_len);
+		ast_trace(5, "Intermediate doc len: %d\n%s\n", doc_len, doc_len ? doc_str : "<empty>");
+		ast_xml_free_text(doc_str);
+		doc_str = NULL;
+		doc_len = 0;
+	}
+
+	eprofile = geoloc_eprofile_create_from_xslt_result(result_doc, ref_str);
+	ast_xml_close(result_doc);
+
+	if (eprofile && geoloc_uri) {
 		set_loc_src(eprofile, geoloc_uri, ref_str);
 	}
 
@@ -586,6 +745,7 @@ static struct ast_xml_node *geoloc_eprofile_to_intermediate(const char *element_
 	RAII_VAR(struct ast_xml_node *, pidf_node, NULL, ast_xml_free_node);
 	struct ast_xml_node *rtn_pidf_node;
 	struct ast_xml_node *loc_node;
+	struct ast_xml_node *confidence_node;
 	struct ast_xml_node *info_node;
 	struct ast_xml_node *rules_node;
 	struct ast_xml_node *method_node;
@@ -613,7 +773,7 @@ static struct ast_xml_node *geoloc_eprofile_to_intermediate(const char *element_
 		SCOPE_EXIT_LOG_RTN_VALUE(NULL, LOG_ERROR, "%s: Unable to create 'location-info' XML node\n",
 			ref_string);
 	}
-	rc = ast_xml_set_attribute(loc_node, "format", geoloc_format_to_name(eprofile->format));
+	rc = ast_xml_set_attribute(loc_node, "format", ast_geoloc_format_to_name(eprofile->format));
 	if (rc != 0) {
 		SCOPE_EXIT_LOG_RTN_VALUE(NULL, LOG_ERROR, "%s: Unable to set 'format' XML attribute\n", ref_string);
 	}
@@ -625,14 +785,33 @@ static struct ast_xml_node *geoloc_eprofile_to_intermediate(const char *element_
 	} else {
 		info_node = geoloc_gml_list_to_xml(resolved_location, ref_string);
 	}
+	ast_variables_destroy(resolved_location);
+
 	if (!info_node) {
 		SCOPE_EXIT_LOG_RTN_VALUE(NULL, LOG_ERROR, "%s: Unable to create XML from '%s' list\n",
-			ref_string, geoloc_format_to_name(eprofile->format));
+			ref_string, ast_geoloc_format_to_name(eprofile->format));
 	}
 	if (!ast_xml_add_child(loc_node, info_node)) {
 		ast_xml_free_node(info_node);
 		SCOPE_EXIT_LOG_RTN_VALUE(NULL, LOG_ERROR, "%s: Unable add '%s' node to XML document\n",
-			ref_string, geoloc_format_to_name(eprofile->format));
+			ref_string, ast_geoloc_format_to_name(eprofile->format));
+	}
+
+	if (eprofile->confidence) {
+		const char *value = S_OR(ast_variable_find_in_list(eprofile->confidence, "value"), "95");
+		const char *pdf = S_OR(ast_variable_find_in_list(eprofile->confidence, "pdf"), "unknown");
+
+		confidence_node = ast_xml_new_child(loc_node, "confidence");
+		if (!confidence_node) {
+			SCOPE_EXIT_LOG_RTN_VALUE(NULL, LOG_ERROR, "%s: Unable to create 'confidence' XML node\n",
+				ref_string);
+		}
+		rc = ast_xml_set_attribute(confidence_node, "pdf", pdf);
+		if (rc != 0) {
+			SCOPE_EXIT_LOG_RTN_VALUE(NULL, LOG_ERROR, "%s: Unable to set 'pdf' attribute on 'confidence' element\n", ref_string);
+		}
+
+		ast_xml_set_text(confidence_node, value);
 	}
 
 	rules_node = ast_xml_new_child(pidf_node, "usage-rules");
@@ -646,6 +825,7 @@ static struct ast_xml_node *geoloc_eprofile_to_intermediate(const char *element_
 		struct ast_xml_node *ur = ast_xml_new_child(rules_node, var->name);
 		ast_xml_set_text(ur, var->value);
 	}
+	ast_variables_destroy(resolved_usage);
 
 	if (!ast_strlen_zero(eprofile->method)) {
 		method_node = ast_xml_new_child(pidf_node, "method");
@@ -699,8 +879,8 @@ const char *ast_geoloc_eprofiles_to_pidf(struct ast_datastore *ds,
 	struct ast_geoloc_eprofile *eprofile;
 	int eprofile_count = 0;
 	int i;
-	RAII_VAR(char *, doc_str, NULL, ast_xml_free_text);
-	int doc_len;
+	char *doc_str = NULL;
+	int doc_len = 0;
 	int rc = 0;
 	SCOPE_ENTER(3, "%s\n", ref_string);
 
@@ -726,20 +906,28 @@ const char *ast_geoloc_eprofiles_to_pidf(struct ast_datastore *ds,
 		struct ast_xml_node *new_loc = NULL;
 		struct ast_xml_node *new_loc_child = NULL;
 		struct ast_xml_node *new_loc_child_dup = NULL;
+		const char *entity = NULL;
+		int has_no_entity = 0;
 		eprofile = ast_geoloc_datastore_get_eprofile(ds, i);
 		if (eprofile->format == AST_GEOLOC_FORMAT_URI) {
 			continue;
 		}
 
-		if (ast_strlen_zero(ast_xml_get_attribute(root_node, "entity"))) {
+		entity = ast_xml_get_attribute(root_node, "entity");
+		has_no_entity = ast_strlen_zero(entity);
+		ast_xml_free_attr(entity);
+		if (has_no_entity) {
 			rc = ast_xml_set_attribute(root_node, "entity", eprofile->id);
 			if (rc != 0) {
 				SCOPE_EXIT_LOG_RTN_VALUE(NULL, LOG_ERROR, "%s: Unable to set 'entity' XML attribute\n", ref_string);
 			}
 		}
 
-		temp_node = geoloc_eprofile_to_intermediate(geoloc_pidf_element_to_name(eprofile->pidf_element),
+		temp_node = geoloc_eprofile_to_intermediate(ast_geoloc_pidf_element_to_name(eprofile->pidf_element),
 			eprofile, chan, ref_string);
+		if (!temp_node) {
+			SCOPE_EXIT_LOG_RTN_VALUE(NULL, LOG_ERROR, "%s: Unable to create temp_node\n", ref_string);
+		}
 
 		if (!pidfs[eprofile->pidf_element]) {
 			pidfs[eprofile->pidf_element] = temp_node;
@@ -756,18 +944,18 @@ const char *ast_geoloc_eprofiles_to_pidf(struct ast_datastore *ds,
 		ast_xml_free_node(temp_node);
 	}
 
-	ast_xml_doc_dump_memory(intermediate, &doc_str, &doc_len);
-	if (doc_len == 0 || !doc_str) {
-		SCOPE_EXIT_LOG_RTN_VALUE(NULL, LOG_ERROR, "%s: Unable to dump intermediate doc to string\n",
-			ref_string);
+	if (TRACE_ATLEAST(5)) {
+		ast_xml_doc_dump_memory(intermediate, &doc_str, &doc_len);
+		ast_trace(5, "Intermediate doc len: %d\n%s\n", doc_len, doc_len ? doc_str : "<empty>");
+		ast_xml_free_text(doc_str);
+		doc_str = NULL;
+		doc_len = 0;
 	}
-
-	ast_trace(5, "Intermediate doc:\n%s\n", doc_str);
 
 	pidf_doc = ast_xslt_apply(eprofile_to_pidf_xslt, intermediate, NULL);
 	if (!pidf_doc) {
-		SCOPE_EXIT_LOG_RTN_VALUE(NULL, LOG_ERROR, "%s: Unable to create final PIDF-LO doc from intermediate doc:\n%s\n",
-			ref_string, doc_str);
+		SCOPE_EXIT_LOG_RTN_VALUE(NULL, LOG_ERROR, "%s: Unable to create final PIDF-LO doc from intermediate docs\n",
+			ref_string);
 	}
 
 	ast_xml_doc_dump_memory(pidf_doc, &doc_str, &doc_len);
@@ -777,6 +965,93 @@ const char *ast_geoloc_eprofiles_to_pidf(struct ast_datastore *ds,
 	}
 
 	rc = ast_str_set(buf, 0, "%s", doc_str);
+	ast_xml_free_text(doc_str);
+	if (rc <= 0) {
+		SCOPE_EXIT_LOG_RTN_VALUE(NULL, LOG_ERROR, "%s: Unable to extend buffer (%d)\n",
+			ref_string, rc);
+	}
+
+	ast_trace(5, "Final doc:\n%s\n", ast_str_buffer(*buf));
+
+	SCOPE_EXIT_RTN_VALUE(ast_str_buffer(*buf), "%s: Done\n", ref_string);
+}
+
+const char *ast_geoloc_eprofile_to_pidf(struct ast_geoloc_eprofile *eprofile,
+	struct ast_channel *chan, struct ast_str **buf, const char * ref_string)
+{
+	RAII_VAR(struct ast_xml_doc *, intermediate, NULL, ast_xml_close);
+	RAII_VAR(struct ast_xml_doc *, pidf_doc, NULL, ast_xml_close);
+	struct ast_xml_node *root_node;
+	char *doc_str = NULL;
+	int doc_len;
+	int rc = 0;
+	struct ast_xml_node *temp_node = NULL;
+	const char *entity = NULL;
+	int has_no_entity = 0;
+
+	SCOPE_ENTER(3, "%s\n", ref_string);
+
+	if (!eprofile || !chan || !buf || !*buf || ast_strlen_zero(ref_string)) {
+		SCOPE_EXIT_RTN_VALUE(NULL, "%s: One of eprofile, chan or buf was NULL\n",
+			ref_string);
+	}
+
+	if (eprofile->format == AST_GEOLOC_FORMAT_URI) {
+		SCOPE_EXIT_RTN_VALUE(NULL, "%s: eprofile '%s' was a URI format\n",
+			ref_string, eprofile->id);
+	}
+
+	intermediate = ast_xml_new();
+	if (!intermediate) {
+		SCOPE_EXIT_LOG_RTN_VALUE(NULL, LOG_ERROR, "%s: Unable to create XML document\n", ref_string);
+	}
+	root_node = ast_xml_new_node("presence");
+	if (!root_node) {
+		SCOPE_EXIT_LOG_RTN_VALUE(NULL, LOG_ERROR, "%s: Unable to create root XML node\n", ref_string);
+	}
+	ast_xml_set_root(intermediate, root_node);
+
+	entity = ast_xml_get_attribute(root_node, "entity");
+	has_no_entity = ast_strlen_zero(entity);
+	ast_xml_free_attr(entity);
+	if (has_no_entity) {
+		rc = ast_xml_set_attribute(root_node, "entity", eprofile->id);
+		if (rc != 0) {
+			SCOPE_EXIT_LOG_RTN_VALUE(NULL, LOG_ERROR, "%s: Unable to set 'entity' XML attribute\n", ref_string);
+		}
+	}
+
+	temp_node = geoloc_eprofile_to_intermediate(
+		ast_geoloc_pidf_element_to_name(eprofile->pidf_element), eprofile, chan, ref_string);
+	if (!temp_node) {
+		SCOPE_EXIT_LOG_RTN_VALUE(NULL, LOG_ERROR, "%s: Unable to create temp_node for eprofile '%s'\n",
+			ref_string, eprofile->id);
+	}
+
+	ast_xml_add_child(root_node, temp_node);
+
+	if (TRACE_ATLEAST(5)) {
+		ast_xml_doc_dump_memory(intermediate, &doc_str, &doc_len);
+		ast_trace(5, "Intermediate doc len: %d\n%s\n", doc_len, doc_len ? doc_str : "<empty>");
+		ast_xml_free_text(doc_str);
+		doc_str = NULL;
+		doc_len = 0;
+	}
+
+	pidf_doc = ast_xslt_apply(eprofile_to_pidf_xslt, intermediate, NULL);
+	if (!pidf_doc) {
+		SCOPE_EXIT_LOG_RTN_VALUE(NULL, LOG_ERROR, "%s: Unable to create final PIDF-LO doc from intermediate doc\n",
+			ref_string);
+	}
+
+	ast_xml_doc_dump_memory(pidf_doc, &doc_str, &doc_len);
+	if (doc_len == 0 || !doc_str) {
+		SCOPE_EXIT_LOG_RTN_VALUE(NULL, LOG_ERROR, "%s: Unable to dump final PIDF-LO doc to string\n",
+			ref_string);
+	}
+
+	rc = ast_str_set(buf, 0, "%s", doc_str);
+	ast_xml_free_text(doc_str);
 	if (rc <= 0) {
 		SCOPE_EXIT_LOG_RTN_VALUE(NULL, LOG_ERROR, "%s: Unable to extend buffer (%d)\n",
 			ref_string, rc);
@@ -899,10 +1174,9 @@ static enum ast_test_result_state validate_eprofile(struct ast_test *test,
 	RAII_VAR(struct ast_str *, str, NULL, ast_free);
 	RAII_VAR(struct ast_geoloc_eprofile *, eprofile,  NULL, ao2_cleanup);
 	RAII_VAR(struct ast_xml_doc *, result_doc, NULL, ast_xml_close);
-	const char *search[] = { "path", path, NULL };
 
 	if (!ast_strlen_zero(path)) {
-		result_doc = ast_xslt_apply(pidf_to_eprofile_xslt, pidf_xmldoc, (const char **)search);
+		result_doc = ast_xslt_apply(pidf_to_eprofile_xslt, pidf_xmldoc, NULL);
 		ast_test_validate(test, (result_doc && ast_xml_node_get_children((struct ast_xml_node *)result_doc)));
 
 		eprofile = geoloc_eprofile_create_from_xslt_result(result_doc, "test_create_from_xslt");
@@ -912,8 +1186,8 @@ static enum ast_test_result_state validate_eprofile(struct ast_test *test,
 
 	ast_test_validate(test, eprofile != NULL);
 	ast_test_status_update(test, "ID: '%s'  pidf_element: '%s'  format: '%s'  method: '%s'\n", eprofile->id,
-		geoloc_pidf_element_to_name(eprofile->pidf_element),
-		geoloc_format_to_name(eprofile->format),
+		ast_geoloc_pidf_element_to_name(eprofile->pidf_element),
+		ast_geoloc_format_to_name(eprofile->format),
 		eprofile->method);
 
 	ast_test_validate(test, ast_strings_equal(eprofile->id, id));
@@ -959,33 +1233,14 @@ AST_TEST_DEFINE(test_create_from_pidf)
 
 	res = validate_eprofile(test, pidf_xmldoc,
 		NULL,
-		"arcband-2d",
-		AST_PIDF_ELEMENT_DEVICE,
+		"point-2d",
+		AST_PIDF_ELEMENT_TUPLE,
 		AST_GEOLOC_FORMAT_GML,
-		"TA-NMR",
-		"shape=ArcBand,crs=2d,pos=-43.5723 153.21760,innerRadius=3594,"
-				"outerRadius=4148,startAngle=20 radians,openingAngle=20 radians",
-		"retransmission-allowed='yes',ruleset-preference='https:/www/more.com',"
-			"retention-expires='2007-06-22T20:57:29Z'"
+		"Manual",
+		"shape=Point,crs=2d,pos=-34.410649 150.87651",
+		"retransmission-allowed='no',retention-expiry='2010-11-14T20:00:00Z'"
 		);
 	ast_test_validate(test, res == AST_TEST_PASS);
-
-
-	res = validate_eprofile(test, pidf_xmldoc,
-		"/def:presence/dm:device[.//ca:civicAddress][1]",
-		"pres:alice@asterisk.org",
-		AST_PIDF_ELEMENT_DEVICE,
-		AST_GEOLOC_FORMAT_CIVIC_ADDRESS,
-		"GPS",
-		"lang=en-AU,country=AU,A1=NSW,A3=Wollongong,A4=North Wollongong,"
-			"RD=Flinders,STS=Street,RDBR=Campbell Street,LMK=Gilligan's Island,"
-			"LOC=Corner,NAM=Video Rental Store,PC=2500,ROOM=Westerns and Classics,"
-			"PLC=store,POBOX=Private Box 15",
-		"retransmission-allowed='yes',ruleset-preference='https:/www/more.com',"
-			"retention-expires='2007-06-22T20:57:29Z'"
-		);
-	ast_test_validate(test, res == AST_TEST_PASS);
-
 
 	return res;
 }

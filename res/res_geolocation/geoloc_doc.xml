@@ -94,6 +94,34 @@
 						</enumlist>
 					</description>
 				</configOption>
+				<configOption name="confidence" default="">
+					<synopsis>Level of confidence</synopsis>
+					<description>
+						<para>This is a rarely used field in the specification that would
+						indicate the confidence in the location specified.  See RFC7459
+						for exact details.
+						</para>
+						<para>
+						Sub-parameters:
+						</para>
+						<enumlist>
+						<enum name="pdf">
+						<para>One of:</para>
+						<enumlist>
+						<enum name="unknown"/>
+						<enum name="normal"/>
+						<enum name="rectangular"/>
+						</enumlist>
+						</enum>
+						<enum name="value">
+						<para>A percentage indicating the confidence.</para>
+						</enum>
+						</enumlist>
+					</description>
+					<see-also>
+						<ref type="link">https://www.rfc-editor.org/rfc/rfc7459</ref>
+					</see-also>
+				</configOption>
 			</configObject>
 			<configObject name="profile">
 				<synopsis>Profile</synopsis>
@@ -144,7 +172,11 @@
 						any recipients.</para>
 					</description>
 				</configOption>
-				<configOption name="profile_action" default="discard_incoming">
+				<configOption name="allow_routing_use">
+					<synopsis>Sets the value of the Geolocation-Routing header.</synopsis>
+				</configOption>
+
+				<configOption name="profile_precedence" default="discard_incoming">
 					<synopsis>Determine which profile on a channel should be used</synopsis>
 					<description>
 						<enumlist>
@@ -180,56 +212,47 @@
 		</synopsis>
 		<syntax>
 			<parameter name="field" required="true">
-				<para>The profile field to operate on.</para>
-			</parameter>
-			<parameter name="profile_index" required="false">
-				<para>The index of the profile to operate on.  Not required for the special fields.</para>
+				<para>The profile field to operate on. The following fields from the
+				Location and Profile objects are supported.</para>
+				<enumlist>
+					<enum name="id"/>
+					<enum name="location_reference"/>
+					<enum name="method"/>
+					<enum name="allow_routing_use"/>
+					<enum name="profile_precedence"/>
+					<enum name="format"/>
+					<enum name="pidf_element"/>
+					<enum name="location_source"/>
+					<enum name="notes"/>
+					<enum name="location_info"/>
+					<enum name="location_info_refinement"/>
+					<enum name="location_variables"/>
+					<enum name="effective_location"/>
+					<enum name="usage_rules"/>
+					<enum name="confidence"/>
+				</enumlist>
+				<para>Additionally, the <literal>inheritable</literal> field may be
+				set to <literal>true</literal> or <literal>false</literal> to control
+				whether the profile will be passed to the outgoing channel.
+				</para>
 			</parameter>
 		</syntax>
+		<description><para>
+		When used to set a field on a profile, if the profile doesn't already exist, a new
+		one will be created automatically.
+		</para>
+		<para>
+		The <literal>${GEOLOCPROFILESTATUS}</literal> channel variable will be set with
+		a return code indicating the result of the operation.  Possible values are:
+		</para>
+		<enumlist>
+			<enum name="0"><para>Success</para></enum>
+			<enum name="-1"><para>No or not enough parameters were supplied</para></enum>
+			<enum name="-2"><para>There was an internal error finding or creating a profile</para></enum>
+			<enum name="-3"><para>There was an issue specific to the field specified
+			(value not valid or field name not found)</para></enum>
+		</enumlist>
+		</description>
 	</function>
-	<application name="GeolocProfileCreate" language="en_US">
-		<synopsis>
-			Create a new, empty Geolocation Profile on a channel
-		</synopsis>
-		<syntax>
-			<parameter name="id" required="true"><para>
-				The id of the new profile.
-			</para></parameter>
-			<parameter name="profile_index" required="false"><para>
-			 The position at which to insert the new eprofile.
-			 Existing profiles will be moved forward to make room.
-			 Leave empty to append to the end of the list.
-			</para></parameter>
-		</syntax>
-		<description>
-			<para>This application adds a new, empty Geolocation Profile to a channel.</para>
-			<para>The following variable is set:</para>
-			<variablelist>
-				<variable name="GEOLOC_PROFILE_COUNT">
-					<para>The number of profiles on the channel after the new one is created</para>
-				</variable>
-			</variablelist>
-		</description>
-	</application>
-	<application name="GeolocProfileDelete" language="en_US">
-		<synopsis>
-			Delete a Geolocation Profile from a channel
-		</synopsis>
-		<syntax>
-			<parameter name="profile_index" required="true"><para>
-			 The position of the profile to be deleted
-			 Existing profiles will be moved back.
-			</para></parameter>
-		</syntax>
-		<description>
-			<para>This application deletes a Geolocation Profile from a channel.</para>
-			<para>The following variable is set:</para>
-			<variablelist>
-				<variable name="GEOLOC_PROFILE_COUNT">
-					<para>The number of profiles left on the channel after the delete.</para>
-				</variable>
-			</variablelist>
-		</description>
-	</application>
 </docs>
 
