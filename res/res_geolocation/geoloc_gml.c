@@ -247,6 +247,11 @@ struct ast_xml_node *geoloc_gml_list_to_xml(const struct ast_variable *resolved_
 
 	SCOPE_ENTER(3, "%s", ref_string);
 
+	if (!resolved_location) {
+		SCOPE_EXIT_LOG_RTN_VALUE(NULL, LOG_ERROR, "%s: resolved_location was NULL\n",
+			ref_string);
+	}
+
 	shape = ast_variable_find_in_list(resolved_location, "shape");
 	if (ast_strlen_zero(shape)) {
 		SCOPE_EXIT_LOG_RTN_VALUE(NULL, LOG_ERROR, "%s: There's no 'shape' parameter\n",

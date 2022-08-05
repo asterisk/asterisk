@@ -69,6 +69,11 @@ See the [Civic Address] page for more info.
 * GML: A set of sub-parameters that describe the location.
 Example: {{location_info = shape=Circle, pos="39.12345 -105.98766", radius=100}}
 See the [GML] page for more info.|
+|confidence|no|no|yes|This is a rarely used field in the specification that would indicate the confidence in the location specified.  See [RFC7459|https://www.rfc-editor.org/rfc/rfc7459] for exact details.
+Sub-parameters:
+* {{pdf}}: One of: "unknown", "normal", "rectangular".
+* {{value}}: A percentage indicating the confidence.
+|
 
 
 h2. Profile
@@ -78,14 +83,15 @@ The Profile object defines how a location is used and is referenced by channel d
 |type|yes|no|no|Must be "profile"|
 |location_reference|no|no|no|Specifies the id of a Location object to use.|
 |pidf_element|no|no|no|For Civic Address and GML location formats, this parameter specifies the PIDF element that will carry the location description on outgoing SIP requests.  Must be one of "tuple", "device" or "person".  The default is "device".|
-|allow_use_for_routing|no|no|no|This value controls the value of the {{Geolocation-Routing}} header sent on SIP requests,  Must be "yes" or "no".  The default is "no".
+|allow_routing_use|no|no|no|This value controls the value of the {{Geolocation-Routing}} header sent on SIP requests,  Must be "yes" or "no".  The default is "no".
 See [RFC6442|Geolocation Reference Information#rfc6442] for more information.|
-|action|no|no|no|Specifies what should be done with any incoming location descriptions received by a channel referencing this profile.\\
-* {{discard}}: Discard any incoming location descriptions and use only the location description specified by {{location_reference}} (if any).\\
-* {{append}}: Append any incoming location descriptions to the one specified by {{location_reference}} (if any).\\
-* {{prepend}}: Prepend any incoming location descriptions to the one specified by {{location_reference}} (if any).\\
-* {{replace}}: Replace the location description specified by {{location_reference}} (if any) with the ones received.\\
-*WARNING*: Using the {{append}} or {{prepend}} options can cause _multiple_ location objects to be sent to a recipient. [RFC5491|Geolocation Reference Information#rfc5491] discourages the use of multiple location objects but has rules that should be followed if it's necessary.  Unfortunately, as is typical for RFCs, there are many "SHOULD"s and very few "MUST"s in the rules so you should read that RFC carefully before you allow multiple locations.|
+|profile_precedence|no|no|no|Specifies which of the available profiles (configured or incoming) takes precedence.\\
+NOTE: On an incoming call leg/channel, the "incoming" profile is the one received by the channel driver from the calling party in the SIP INVITE and the "configured" profile is the one attached to the calling party's pjsip endpoint.  On an outgoing call segment/channel, the "incoming" profile is the one received by the channel driver from the Asterisk core/dialplan and the "configured" profile one is the one attached to the called party's pjsip endpoint.
+* {{prefer_incoming}}: Use the incoming profile if it exists and has location information, otherwise use the	configured profile if it has location information. If neither profile has location information, nothing is sent.
+* {{force_incoming}}: Discard any configured profile and use the incoming profile if it exists and it has location information.  If the incoming profile doesn't exist or has no location information, nothing is sent.
+* {{prefer_config}}: Use the configured profile if it exists and has location information, otherwise use the	incoming profile if it exists and has location information. If neither profile has location 							information, nothing is sent.
+* {{force_config}}: Discard any incoming profile and use the configured profile if it exists and it has location information.  If the configured profile doesn't exist or has no location information, nothing is sent.
+|
 |usage_rules|no|yes|yes|For Civic Address and GML location formats, this parameter specifies the contents of the {{usage-rules}} PIDF-LO element.\\
 * {{retransmission-allowed}}: Must be "yes" or "no".  The default is "no".\\
 * {{retention-expires}}: An ISO-format timestamp after which the recipient MUST discard and location information associated with this request.  The default is 24 hours after the request was sent.  You can use dialplan functions to create a timestamp yourself if needed.  For example, to set the timestamp to 1 hour after the request is sent, use:

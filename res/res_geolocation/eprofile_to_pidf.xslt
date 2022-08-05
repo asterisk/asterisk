@@ -8,6 +8,7 @@
 	xmlns:gp="urn:ietf:params:xml:ns:pidf:geopriv10"
 	xmlns:gs="http://www.opengis.net/pidflo/1.0"
 	xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+	xmlns:con="urn:ietf:params:xml:ns:geopriv:conf"
 	xmlns:date="http://exslt.org/dates-and-times">
 
 	<xsl:output method="xml" indent="yes"/>
@@ -20,12 +21,16 @@
 		<!-- xslt will take care of adding all of the namespace declarations
 			from the list above -->
 		<presence xmlns="urn:ietf:params:xml:ns:pidf" entity="{@entity}">
-			<xsl:apply-templates select="./device|tuple|person"/>
+			<xsl:apply-templates/>
 		</presence>
 	</xsl:template>
 
-	<xsl:template match="device">
-		<dm:device>
+	<xsl:template match="person|device">
+		<xsl:element name="dm:{local-name(.)}">
+			<xsl:if test="@id">
+				<xsl:attribute name="id"><xsl:value-of select="@id"/></xsl:attribute>
+			</xsl:if>
+
 			<gp:geopriv>
 				<xsl:apply-templates select="./location-info"/>
 				<xsl:apply-templates select="./usage-rules"/>
@@ -42,7 +47,7 @@
 					<xsl:value-of select="./deviceID"/>
 				</dm:deviceID>
 			</xsl:if>
-		</dm:device>
+		</xsl:element>
 	</xsl:template>
 
 	<xsl:template match="tuple">
@@ -63,21 +68,6 @@
 		</xsl:element>
 	</xsl:template>
 
-	<xsl:template match="person">
-		<dm:person>
-			<gp:geopriv>
-				<xsl:apply-templates select="./location-info"/>
-				<xsl:apply-templates select="./usage-rules"/>
-				<xsl:apply-templates select="./method"/>
-				<xsl:apply-templates select="./note-well"/>
-			</gp:geopriv>
-			<xsl:if test="./timestamp">
-				<dm:timestamp>
-					<xsl:value-of select="./timestamp"/>
-				</dm:timestamp>
-			</xsl:if>
-		</dm:person>
-	</xsl:template>
 
 	<xsl:template match="location-info">
 		<gp:location-info>
@@ -233,5 +223,10 @@
 	<xsl:template match="pos"><xsl:call-template name="name-value" /></xsl:template>
 	<xsl:template match="posList"><xsl:call-template name="name-value" /></xsl:template>
 
+	<xsl:template match="confidence">
+		<con:confidence pdf="{@pdf}">
+			<xsl:value-of select="."/>
+		</con:confidence>
+	</xsl:template>
 
 </xsl:stylesheet>

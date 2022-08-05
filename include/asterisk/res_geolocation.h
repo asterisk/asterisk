@@ -29,8 +29,8 @@
 
 enum ast_geoloc_pidf_element {
 	AST_PIDF_ELEMENT_NONE = 0,
-	AST_PIDF_ELEMENT_TUPLE,
 	AST_PIDF_ELEMENT_DEVICE,
+	AST_PIDF_ELEMENT_TUPLE,
 	AST_PIDF_ELEMENT_PERSON,
 	AST_PIDF_ELEMENT_LAST,
 };
@@ -43,12 +43,21 @@ enum ast_geoloc_format {
 	AST_GEOLOC_FORMAT_LAST,
 };
 
-enum ast_geoloc_action {
-	AST_GEOLOC_ACT_PREFER_INCOMING = 0,
-	AST_GEOLOC_ACT_PREFER_CONFIG,
-	AST_GEOLOC_ACT_DISCARD_INCOMING,
-	AST_GEOLOC_ACT_DISCARD_CONFIG,
+enum ast_geoloc_precedence {
+	AST_GEOLOC_PRECED_PREFER_INCOMING = 0,
+	AST_GEOLOC_PRECED_PREFER_CONFIG,
+	AST_GEOLOC_PRECED_DISCARD_INCOMING,
+	AST_GEOLOC_PRECED_DISCARD_CONFIG,
 };
+
+#define CONFIG_STR_TO_ENUM_DECL(_stem) int ast_geoloc_ ## _stem ## _str_to_enum(const char *str);
+CONFIG_STR_TO_ENUM_DECL(pidf_element)
+CONFIG_STR_TO_ENUM_DECL(format);
+CONFIG_STR_TO_ENUM_DECL(precedence);
+#define GEOLOC_ENUM_TO_NAME_DECL(_stem) const char * ast_geoloc_ ## _stem ## _to_name(int ix);
+GEOLOC_ENUM_TO_NAME_DECL(pidf_element)
+GEOLOC_ENUM_TO_NAME_DECL(format);
+GEOLOC_ENUM_TO_NAME_DECL(precedence);
 
 struct ast_geoloc_location {
 	SORCERY_OBJECT(details);
@@ -58,6 +67,7 @@ struct ast_geoloc_location {
 	);
 	enum ast_geoloc_format format;
 	struct ast_variable *location_info;
+	struct ast_variable *confidence;
 };
 
 struct ast_geoloc_profile {
@@ -67,8 +77,8 @@ struct ast_geoloc_profile {
 		AST_STRING_FIELD(notes);
 	);
 	enum ast_geoloc_pidf_element pidf_element;
-	enum ast_geoloc_action action;
-	int geolocation_routing;
+	enum ast_geoloc_precedence precedence;
+	int allow_routing_use;
 	struct ast_variable *location_refinement;
 	struct ast_variable *location_variables;
 	struct ast_variable *usage_rules;
@@ -83,14 +93,15 @@ struct ast_geoloc_eprofile {
 		AST_STRING_FIELD(notes);
 	);
 	enum ast_geoloc_pidf_element pidf_element;
-	enum ast_geoloc_action action;
-	int geolocation_routing;
+	enum ast_geoloc_precedence precedence;
+	int allow_routing_use;
 	enum ast_geoloc_format format;
 	struct ast_variable *location_info;
 	struct ast_variable *location_refinement;
 	struct ast_variable *location_variables;
 	struct ast_variable *effective_location;
 	struct ast_variable *usage_rules;
+	struct ast_variable *confidence;
 };
 
 /*!
@@ -331,10 +342,43 @@ struct ast_geoloc_eprofile *ast_geoloc_eprofile_create_from_pidf(
 struct ast_geoloc_eprofile *ast_geoloc_eprofile_create_from_uri(const char *uri,
 	const char *reference_string);
 
+/*!
+ * \brief Convert a URI eprofile to a URI string
+ *
+ * \param eprofile   Effective profile to convert
+ * \param chan       Channel to use to resolve variables
+ * \param buf        Pointer to ast_str pointer to use for work
+ * \param ref_string An identifying string to use in error messages.
+ *
+ * \return String representation of URI allocated from buf or NULL on failure
+ */
 const char *ast_geoloc_eprofile_to_uri(struct ast_geoloc_eprofile *eprofile,
 	struct ast_channel *chan, struct ast_str **buf, const char *ref_string);
 
+/*!
+ * \brief Convert a datastore containing eprofiles to a PIDF-LO document
+ *
+ * \param ds         Datastore containing effective profiles to convert
+ * \param chan       Channel to use to resolve variables
+ * \param buf        Pointer to ast_str pointer to use for work
+ * \param ref_string An identifying string to use in error messages.
+ *
+ * \return String representation PIDF-LO allocated from buf or NULL on failure.
+ */
 const char *ast_geoloc_eprofiles_to_pidf(struct ast_datastore *ds,
+	struct ast_channel *chan, struct ast_str **buf, const char * ref_string);
+
+/*!
+ * \brief Convert a single eprofile to a PIDF-LO document
+ *
+ * \param eprofile   Effective profile to convert
+ * \param chan       Channel to use to resolve variables
+ * \param buf        Pointer to ast_str pointer to use for work
+ * \param ref_string An identifying string to use in error messages.
+ *
+ * \return String representation PIDF-LO allocated from buf or NULL on failure.
+ */
+const char *ast_geoloc_eprofile_to_pidf(struct ast_geoloc_eprofile *eprofile,
 	struct ast_channel *chan, struct ast_str **buf, const char * ref_string);
 
 /*!

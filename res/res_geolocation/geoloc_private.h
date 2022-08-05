@@ -25,18 +25,8 @@
 #include "asterisk/lock.h"
 #include "asterisk/res_geolocation.h"
 
-#define CONFIG_STR_TO_ENUM_DECL(_stem) int geoloc_ ## _stem ## _str_to_enum(const char *str);
-CONFIG_STR_TO_ENUM_DECL(pidf_element)
-CONFIG_STR_TO_ENUM_DECL(format);
-CONFIG_STR_TO_ENUM_DECL(action);
-#define GEOLOC_ENUM_TO_NAME_DECL(_stem) const char * geoloc_ ## _stem ## _to_name(int ix);
-GEOLOC_ENUM_TO_NAME_DECL(pidf_element)
-GEOLOC_ENUM_TO_NAME_DECL(format);
-GEOLOC_ENUM_TO_NAME_DECL(action);
-
-
 #define CONFIG_STR_TO_ENUM(_stem) \
-int geoloc_ ## _stem ## _str_to_enum(const char *str) \
+int ast_geoloc_ ## _stem ## _str_to_enum(const char *str) \
 { \
 	int i; \
 	for (i = 0; i < ARRAY_LEN(_stem ## _names); i++) { \
@@ -51,7 +41,7 @@ int geoloc_ ## _stem ## _str_to_enum(const char *str) \
 static int _stem ## _handler(const struct aco_option *opt, struct ast_variable *var, void *obj) \
 { \
 	struct ast_geoloc_ ## _object *_thisobject = obj; \
-	int enumval = geoloc_ ## _stem ## _str_to_enum(var->value); \
+	int enumval = ast_geoloc_ ## _stem ## _str_to_enum(var->value); \
 	if (enumval == -1) { \
 		return -1; \
 	} \
@@ -61,7 +51,7 @@ static int _stem ## _handler(const struct aco_option *opt, struct ast_variable *
 
 
 #define GEOLOC_ENUM_TO_NAME(_stem) \
-const char * geoloc_ ## _stem ## _to_name(int ix) \
+const char * ast_geoloc_ ## _stem ## _to_name(int ix) \
 { \
 	if (!ARRAY_IN_BOUNDS(ix, _stem ## _names)) { \
 		return "none"; \
