@@ -8,6 +8,7 @@
 	xmlns:gml="http://www.opengis.net/gml"
 	xmlns:gp="urn:ietf:params:xml:ns:pidf:geopriv10"
 	xmlns:gs="http://www.opengis.net/pidflo/1.0"
+	xmlns:con="urn:ietf:params:xml:ns:geopriv:conf"
 	xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
 
 
@@ -41,34 +42,47 @@
 
 	<xsl:output method="xml" indent="yes"/>
 	<xsl:strip-space elements="*"/>
-	<xsl:param name="path"/>
 
 	<!--
 		Even though the "presence", "tuple", and "status" elements won't have namespaces in the
 		incoming PIDF document, we have to use the pseudo-namespace "def" here because of namespace
-		processing quirks in libxml2 and libxslt.
-
-		We don't use namespace prefixes in the output document at all.
+		processing quirks in libxml2 and libxslt.  We don't use namespace prefixes in the output
+		document at all.
 	-->
 	<xsl:template match="/def:presence">
 		<xsl:element name="presence">
 			<xsl:attribute name="entity"><xsl:value-of select="@entity"/></xsl:attribute>
-			<xsl:apply-templates select="$path"/>
+			<!--
+				We only want devices, tuples and persons (in that order) that
+				have location-info elements.
+			 -->
+			<xsl:apply-templates select="dm:device[./gp:geopriv/gp:location-info]"/>
+			<xsl:apply-templates select="def:tuple[./def:status/gp:geopriv/gp:location-info]"/>
+			<xsl:apply-templates select="dm:person[.//gp:geopriv/gp:location-info]"/>
 		</xsl:element>
 	</xsl:template>
 
-	<xsl:template match="dm:device">
-		<xsl:element name="device">
+	<xsl:template name="geopriv">
+			<xsl:apply-templates select=".//gp:geopriv/gp:location-info"/>
+			<xsl:apply-templates select=".//gp:geopriv/gp:usage-rules"/>
+			<xsl:apply-templates select=".//gp:geopriv/gp:method"/>
+			<xsl:apply-templates select=".//gp:geopriv/gp:note-well"/>
+	</xsl:template>
+
+	<xsl:template match="def:tuple">
+		<xsl:element name="tuple">
 			<xsl:attribute name="id"><xsl:value-of select="@id"/></xsl:attribute>
-			<xsl:apply-templates select=".//gp:location-info"/>
-			<xsl:apply-templates select=".//gp:usage-rules"/>
-			<xsl:apply-templates select=".//gp:method"/>
-			<xsl:apply-templates select=".//gp:note-well"/>
-			<xsl:if test="./dm:timestamp">
-				<timestamp>
-					<xsl:value-of select="./dm:timestamp"/>
-				</timestamp>
-			</xsl:if>
+			<xsl:call-template name="geopriv"/>
+			<xsl:apply-templates select="./def:timestamp"/>
+		</xsl:element>
+	</xsl:template>
+
+	<xsl:template match="dm:device|dm:person">
+		<xsl:element name="{local-name(.)}">
+			<xsl:attribute name="id"><xsl:value-of select="@id"/></xsl:attribute>
+			<xsl:call-template name="geopriv"/>
+			<xsl:apply-templates select="./dm:timestamp"/>
+			<!-- deviceID should only apply to devices -->
 			<xsl:if test="./dm:deviceID">
 				<deviceID>
 					<xsl:value-of select="./dm:deviceID"/>
@@ -77,63 +91,69 @@
 		</xsl:element>
 	</xsl:template>
 
-	<xsl:template match="def:tuple">
-		<xsl:element name="tuple">
-			<xsl:attribute name="id"><xsl:value-of select="@id"/></xsl:attribute>
-			<xsl:apply-templates select=".//gp:location-info"/>
-			<xsl:apply-templates select=".//gp:usage-rules"/>
-			<xsl:apply-templates select=".//gp:method"/>
-			<xsl:apply-templates select=".//gp:note-well"/>
-			<xsl:if test="./timestamp">
-				<timestamp>
-					<xsl:value-of select="./timestamp"/>
-				</timestamp>
-			</xsl:if>
-		</xsl:element>
-	</xsl:template>
-
-	<xsl:template match="dm:person">
-		<xsl:element name="person">
-			<xsl:attribute name="id"><xsl:value-of select="@id"/></xsl:attribute>
-			<xsl:apply-templates select=".//gp:location-info"/>
-			<xsl:apply-templates select=".//gp:usage-rules"/>
-			<xsl:apply-templates select=".//gp:method"/>
-			<xsl:apply-templates select=".//gp:note-well"/>
-			<xsl:if test="./dm:timestamp">
-				<timestamp>
-					<xsl:value-of select="./dm:timestamp"/>
-				</timestamp>
-			</xsl:if>
-		</xsl:element>
-	</xsl:template>
-
-	<xsl:template match="gp:location-info/gml:*">
+	<xsl:template match="gp:geopriv/gp:location-info">
 		<xsl:element name="location-info">
-			<xsl:attribute name="format">gml</xsl:attribute>
-			<xsl:call-template name="shape" />
+			<xsl:choose>
+				<xsl:when test="ca:civicAddress">
+					<xsl:attribute name="format">civicAddress</xsl:attribute>
+				</xsl:when>
+				<xsl:when test="gml:*">
+					<xsl:attribute name="format">gml</xsl:attribute>
+				</xsl:when>
+				<xsl:when test="gs:*">
+					<xsl:attribute name="format">gml</xsl:attribute>
+				</xsl:when>
+			</xsl:choose>
+			<xsl:apply-templates/>  <!-- Down we go! -->
 		</xsl:element>
 	</xsl:template>
 
-	<xsl:template match="gp:location-info/gs:*">
-		<xsl:element name="location-info">
-			<xsl:attribute name="format">gml</xsl:attribute>
-			<xsl:call-template name="shape" />
-		</xsl:element>
-	</xsl:template>
-
+	<!-- Civic Address -->
 	<xsl:template match="gp:location-info/ca:civicAddress">
-		<xsl:element name="location-info">
-			<xsl:attribute name="format">civicAddress</xsl:attribute>
-			<xsl:call-template name="civicAddress" />
+		<xsl:element name="civicAddress">
+			<xsl:attribute name="lang"><xsl:value-of select="@xml:lang"/></xsl:attribute>
+			<!-- The for-each seems to be slightly faster than applying another template -->
+			<xsl:for-each select="./*">
+				<xsl:call-template name="name-value" />
+			</xsl:for-each>
 		</xsl:element>
 	</xsl:template>
 
-	<!--
-		All of the "following-sibling" things just stick a comma after the value if there's another
-		element after it.  The result should be...
+	<!-- End of Civic Address.  Back up to location-info. -->
 
-		name1="value1", name2="value2"
-	-->
+	<!-- The GML shapes:  gml:Point, gs:Circle, etc. -->
+	<xsl:template match="gp:location-info/gml:*|gp:location-info/gs:*">
+		<xsl:element name="{local-name(.)}">
+			<xsl:choose>
+			<xsl:when test="@srsName = 'urn:ogc:def:crs:EPSG::4326'">
+				<xsl:attribute name="srsName">2d</xsl:attribute>
+			</xsl:when>
+			<xsl:when test="@srsName = 'urn:ogc:def:crs:EPSG::4979'">
+				<xsl:attribute name="srsName">3d</xsl:attribute>
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:attribute name="srsName">unknown</xsl:attribute>
+			</xsl:otherwise>
+			</xsl:choose>
+			<xsl:apply-templates />  <!-- Down we go! -->
+		</xsl:element>
+	</xsl:template>
+
+	<!-- The supported GML attributes -->
+	<xsl:template match="gs:orientation"><xsl:call-template name="angle" /></xsl:template>
+	<xsl:template match="gs:radius"><xsl:call-template name="length" /></xsl:template>
+	<xsl:template match="gs:height"><xsl:call-template name="length" /></xsl:template>
+	<xsl:template match="gs:semiMajorAxis"><xsl:call-template name="length" /></xsl:template>
+	<xsl:template match="gs:semiMinorAxis"><xsl:call-template name="length" /></xsl:template>
+	<xsl:template match="gs:verticalAxis"><xsl:call-template name="length" /></xsl:template>
+	<xsl:template match="gs:innerRadius"><xsl:call-template name="length" /></xsl:template>
+	<xsl:template match="gs:outerRadius"><xsl:call-template name="length" /></xsl:template>
+	<xsl:template match="gs:startAngle"><xsl:call-template name="angle" /></xsl:template>
+	<xsl:template match="gs:openingAngle"><xsl:call-template name="angle" /></xsl:template>
+	<xsl:template match="gml:pos"><xsl:call-template name="name-value" /></xsl:template>
+	<xsl:template match="gml:posList"><xsl:call-template name="name-value" /></xsl:template>
+
+	<!-- The GML attribute types -->
 	<xsl:template name="name-value">
 		<xsl:element name="{local-name(.)}">
 			<xsl:value-of select="normalize-space(.)"/>
@@ -154,58 +174,39 @@
 		</xsl:element>
 	</xsl:template>
 
-	<xsl:template match="gs:orientation"><xsl:call-template name="angle" /></xsl:template>
-	<xsl:template match="gs:radius"><xsl:call-template name="length" /></xsl:template>
-	<xsl:template match="gs:height"><xsl:call-template name="length" /></xsl:template>
-	<xsl:template match="gs:semiMajorAxis"><xsl:call-template name="length" /></xsl:template>
-	<xsl:template match="gs:semiMinorAxis"><xsl:call-template name="length" /></xsl:template>
-	<xsl:template match="gs:verticalAxis"><xsl:call-template name="length" /></xsl:template>
-	<xsl:template match="gs:innerRadius"><xsl:call-template name="length" /></xsl:template>
-	<xsl:template match="gs:outerRadius"><xsl:call-template name="length" /></xsl:template>
-	<xsl:template match="gs:startAngle"><xsl:call-template name="angle" /></xsl:template>
-	<xsl:template match="gs:openingAngle"><xsl:call-template name="angle" /></xsl:template>
-	<xsl:template match="gml:pos"><xsl:call-template name="name-value" /></xsl:template>
-	<xsl:template match="gml:posList"><xsl:call-template name="name-value" /></xsl:template>
+	<!-- End of GML.  Back up to location-info -->
 
-	<xsl:template name="shape">
+	<xsl:template match="gp:location-info/con:confidence">
 		<xsl:element name="{local-name(.)}">
-			<xsl:choose>
-			<xsl:when test="@srsName = 'urn:ogc:def:crs:EPSG::4326'">
-				<xsl:attribute name="srsName">2d</xsl:attribute>
-			</xsl:when>
-			<xsl:when test="@srsName = 'urn:ogc:def:crs:EPSG::4979'">
-				<xsl:attribute name="srsName">3d</xsl:attribute>
-			</xsl:when>
-			<xsl:otherwise>
-				<xsl:attribute name="srsName">unknown</xsl:attribute>
-			</xsl:otherwise>
-			</xsl:choose>
-			<xsl:apply-templates />
+			<xsl:attribute name="pdf"><xsl:value-of select="@pdf"/></xsl:attribute>
+			<xsl:value-of select="normalize-space(.)" />
 		</xsl:element>
 	</xsl:template>
 
-	<xsl:template match="ca:civicAddress/*"><xsl:call-template name="name-value" /></xsl:template>
-	<xsl:template name="civicAddress">
-		<xsl:element name="{local-name(.)}">
-			<xsl:attribute name="lang"><xsl:value-of select="@xml:lang"/></xsl:attribute>
-			<xsl:apply-templates select="./*"/>
+	<!-- End of location-info.  Back up to geopriv -->
+
+	<xsl:template match="gp:geopriv/gp:usage-rules">
+		<xsl:element name="usage-rules">
+			<xsl:for-each select="./*">
+				<xsl:call-template name="name-value" />
+			</xsl:for-each>
 		</xsl:element>
 	</xsl:template>
 
-	<xsl:template match="gp:usage-rules/*">
+	<xsl:template match="gp:geopriv/gp:method">
 		<xsl:call-template name="name-value" />
 	</xsl:template>
 
-	<xsl:template match="gp:usage-rules">
-		<xsl:element name="usage-rules">
-			<xsl:apply-templates />
+	<xsl:template match="gp:geopriv/gp:note-well">
+		<xsl:element name="note-well">
+			<xsl:value-of select="." />
 		</xsl:element>
 	</xsl:template>
 
-	<xsl:template match="gp:method">
-		<xsl:element name="method">
-		<xsl:value-of select="normalize-space(.)" />
-		</xsl:element>
+	<!-- End of geopriv.  Back up to device/tuple/person -->
+
+	<xsl:template match="def:timestamp|dm:timestamp">
+		<xsl:call-template name="name-value" />
 	</xsl:template>
 
 
