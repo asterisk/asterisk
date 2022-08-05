@@ -36,6 +36,7 @@
 #include "asterisk/res_pjsip_session.h"
 
 static pj_str_t GEOLOCATION_HDR;
+static pj_str_t GEOLOCATION_ROUTING_HDR;
 
 static int find_pidf(const char *session_name, struct pjsip_rx_data *rdata, char *geoloc_uri,
 	char **pidf_body, unsigned int *pidf_len)
@@ -94,6 +95,42 @@ static int find_pidf(const char *session_name, struct pjsip_rx_data *rdata, char
 	return 0;
 }
 
+static int add_eprofile_to_channel(struct ast_sip_session *session,
+	struct ast_geoloc_eprofile *eprofile, struct ast_str * buf)
+{
+	const char *session_name = (session ? ast_sip_session_get_name(session) : "NULL_SESSION");
+	struct ast_datastore *ds = NULL;
+	int rc = 0;
+	SCOPE_ENTER(4, "%s\n", session_name);
+
+	ds = ast_geoloc_datastore_create(session_name);
+	if (!ds) {
+		SCOPE_EXIT_LOG_RTN_VALUE(-1, LOG_WARNING,
+			"%s: Couldn't allocate a geoloc datastore\n", session_name);
+	}
+
+	/*
+	 * We want the datastore to pass through the dialplan and the core
+	 * so we need to turn inheritance on.
+	 */
+	ast_geoloc_datastore_set_inheritance(ds, 1);
+
+	rc = ast_geoloc_datastore_add_eprofile(ds, eprofile);
+	if (rc <= 0) {
+		ast_datastore_free(ds);
+		SCOPE_EXIT_LOG_RTN_VALUE(-1, LOG_WARNING,
+			"%s: Couldn't add eprofile '%s' to datastore\n", session_name,
+			eprofile->id);
+	}
+
+	ast_channel_lock(session->channel);
+	ast_channel_datastore_add(session->channel, ds);
+	ast_channel_unlock(session->channel);
+
+	SCOPE_EXIT_RTN_VALUE(0, "%s: eprofile: '%s' EffectiveLoc: %s\n",
+		session_name, eprofile->id, ast_str_buffer(
+		ast_variable_list_join(eprofile->effective_location, ",", "=", NULL, &buf)));
+}
 
 static int handle_incoming_request(struct ast_sip_session *session, struct pjsip_rx_data *rdata)
 {
@@ -101,14 +138,16 @@ static int handle_incoming_request(struct ast_sip_session *session, struct pjsip
 	struct ast_sip_endpoint *endpoint = (session ? session->endpoint : NULL);
 	struct ast_channel *channel = (session ? session->channel : NULL);
 	RAII_VAR(struct ast_geoloc_profile *, config_profile, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_geoloc_eprofile *, eprofile, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_geoloc_eprofile *, config_eprofile, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_datastore *, ds, NULL, ast_datastore_free);
-	size_t eprofile_count = 0;
+	RAII_VAR(struct ast_geoloc_eprofile *, incoming_eprofile, NULL, ao2_cleanup);
 	char *geoloc_hdr_value = NULL;
+	char *geoloc_routing_hdr_value = NULL;
 	char *geoloc_uri = NULL;
 	int rc = 0;
 	RAII_VAR(struct ast_str *, buf, ast_str_create(1024), ast_free);
 	pjsip_generic_string_hdr *geoloc_hdr = NULL;
+	pjsip_generic_string_hdr *geoloc_routing_hdr = NULL;
 	SCOPE_ENTER(3, "%s\n", session_name);
 
 	if (!session) {
@@ -130,7 +169,13 @@ static int handle_incoming_request(struct ast_sip_session *session, struct pjsip
 			session_name);
 	}
 
+	/*
+	 * We don't need geoloc_hdr or geoloc_routing_hdr for a while but we get it now
+	 * for trace purposes.
+	 */
 	geoloc_hdr = pjsip_msg_find_hdr_by_name(rdata->msg_info.msg, &GEOLOCATION_HDR, NULL);
+	geoloc_routing_hdr = pjsip_msg_find_hdr_by_name(rdata->msg_info.msg,
+		&GEOLOCATION_ROUTING_HDR, NULL);
 
 	if (!geoloc_hdr) {
 		ast_trace(4, "%s: Message has no Geolocation header\n", session_name);
@@ -143,11 +188,11 @@ static int handle_incoming_request(struct ast_sip_session *session, struct pjsip
 		if (geoloc_hdr) {
 			SCOPE_EXIT_LOG_RTN_VALUE(0, LOG_NOTICE, "%s: Message has Geolocation header '"
 				PJSTR_PRINTF_SPEC "' but endpoint has no geoloc_incoming_call_profile. "
-				"Geolocation info discarded.\n", session_name,
+				"Done.\n", session_name,
 				PJSTR_PRINTF_VAR(geoloc_hdr->hvalue));
 		} else {
 			SCOPE_EXIT_LOG_RTN_VALUE(0, LOG_NOTICE, "%s: Endpoint has no geoloc_incoming_call_profile. "
-				"Skipping.\n", session_name);
+				"Done.\n", session_name);
 		}
 	}
 
@@ -156,252 +201,177 @@ static int handle_incoming_request(struct ast_sip_session *session, struct pjsip
 		if (geoloc_hdr) {
 			SCOPE_EXIT_LOG_RTN_VALUE(0, LOG_NOTICE, "%s: Message has Geolocation header '"
 				PJSTR_PRINTF_SPEC "' but endpoint's geoloc_incoming_call_profile doesn't exist. "
-				"Geolocation info discarded.\n", session_name,
+				"Done.\n", session_name,
 				PJSTR_PRINTF_VAR(geoloc_hdr->hvalue));
 		} else {
 			SCOPE_EXIT_LOG_RTN_VALUE(0, LOG_NOTICE, "%s: Message has no Geolocation header and endpoint has "
-				" an invalid geoloc_incoming_call_profile.  Nothing to do..\n", session_name);
+				" an invalid geoloc_incoming_call_profile. Done.\n", session_name);
 		}
 	}
 
-	ds = ast_geoloc_datastore_create(session_name);
-	if (!ds) {
-		SCOPE_EXIT_LOG_RTN_VALUE(0, LOG_WARNING,
-			"%s: Couldn't allocate a geoloc datastore\n", session_name);
-	}
-
-	/*
-	 * We want the datastore to pass through the dialplan and the core
-	 * so we need to turn inheritance on.
-	 */
-	ast_geoloc_datastore_set_inheritance(ds, 1);
-
-	switch (config_profile->action) {
-	case AST_GEOLOC_ACT_DISCARD_INCOMING:
-		if (geoloc_hdr) {
-			ast_trace(4, "%s: Profile '%s' location_disposition is 'discard_incoming' so "
-				"discarding Geolocation: " PJSTR_PRINTF_SPEC "\n", session_name,
-				ast_sorcery_object_get_id(config_profile),
-				PJSTR_PRINTF_VAR(geoloc_hdr->hvalue));
-		} else {
-			ast_trace(4, "%s: Profile '%s' location_disposition is 'discard_incoming' but there was no Geolocation header"
-				"so there's nothing to discard\n",
-				session_name, ast_sorcery_object_get_id(config_profile));
-		}
-
-		eprofile = ast_geoloc_eprofile_create_from_profile(config_profile);
-		if (!eprofile) {
-			SCOPE_EXIT_LOG_RTN_VALUE(0, LOG_WARNING, "%s: Unable to create eprofile from "
+	if (config_profile->precedence != AST_GEOLOC_PRECED_DISCARD_CONFIG) {
+		config_eprofile = ast_geoloc_eprofile_create_from_profile(config_profile);
+		if (!config_eprofile) {
+			ast_log(LOG_WARNING, "%s: Unable to create config_eprofile from "
 				"profile '%s'\n", session_name, ast_sorcery_object_get_id(config_profile));
 		}
 
-		if (!eprofile->effective_location) {
-			SCOPE_EXIT_LOG_RTN_VALUE(0, LOG_NOTICE, "%s: Configured profile has no effective location.  Skipping."
-				"profile '%s'\n", session_name, ast_sorcery_object_get_id(eprofile));
-		}
+		if (config_eprofile && config_eprofile->effective_location) {
+			ast_trace(4, "%s: config eprofile '%s' has effective location\n",
+				session_name, config_eprofile->id);
 
-		rc = ast_geoloc_datastore_add_eprofile(ds, eprofile);
-		if (rc <= 0) {
-			SCOPE_EXIT_LOG_RTN_VALUE(0, LOG_WARNING,
-				"%s: Couldn't add eprofile '%s' to datastore\n", session_name,
-				eprofile->id);
-		}
+			if (!geoloc_hdr || config_profile->precedence == AST_GEOLOC_PRECED_DISCARD_INCOMING ||
+				config_profile->precedence == AST_GEOLOC_PRECED_PREFER_CONFIG) {
 
-		ast_channel_lock(channel);
-		ast_channel_datastore_add(channel, ds);
-		ast_channel_unlock(channel);
-		/* We gave the datastore to the channel so don't let RAII_VAR clean it up. */
-		ds = NULL;
+				ast_trace(4, "%s: config eprofile '%s' is being used\n",
+					session_name, config_eprofile->id);
 
-		ast_trace(4, "ep: '%s' EffectiveLoc: %s\n", eprofile->id, ast_str_buffer(
-			ast_variable_list_join(eprofile->effective_location, ",", "=", NULL, &buf)));
-		ast_str_reset(buf);
+				/*
+				 * If we have an effective location and there's no geolocation header,
+				 * or the action is either DISCARD_INCOMING or PREFER_CONFIG,
+				 * we don't need to even look for a Geolocation header so just add the
+				 * config eprofile to the channel and exit.
+				 */
 
-		/* We discarded the Geolocation header so there's no need to go on. */
-		SCOPE_EXIT_RTN_VALUE(0, "%s: Added geoloc datastore with 1 eprofile from config\n",
-			session_name);
+				rc = add_eprofile_to_channel(session, config_eprofile, buf);
+				if (rc != 0) {
+					SCOPE_EXIT_LOG_RTN_VALUE(0, LOG_WARNING,
+						"%s: Couldn't add config eprofile '%s' to datastore. Fail.\n", session_name,
+						config_eprofile->id);
+				}
 
-	case AST_GEOLOC_ACT_DISCARD_CONFIG:
-		if (geoloc_hdr) {
-			ast_trace(4, "%s: Profile '%s' location_disposition is 'discard_config' so "
-				"discarding config profile\n", session_name, ast_sorcery_object_get_id(config_profile));
-			/* We process the Geolocation header down below. */
-		} else {
-			/* Discarded the config and there's no Geolocation header so we're done. */
-			SCOPE_EXIT_LOG_RTN_VALUE(0, LOG_NOTICE, "%s: Profile '%s' location_disposition is 'discard_config' but "
-				"there was no Geolocation header so there's nothing left to process\n",
-				session_name, ast_sorcery_object_get_id(config_profile));
-		}
-		break;
-
-	case AST_GEOLOC_ACT_PREFER_CONFIG:
-		eprofile = ast_geoloc_eprofile_create_from_profile(config_profile);
-		if (!eprofile) {
-			SCOPE_EXIT_LOG_RTN_VALUE(0, LOG_WARNING, "%s: Unable to create eprofile from "
-				"profile '%s'\n", session_name, ast_sorcery_object_get_id(config_profile));
-		}
-
-		if (!eprofile->effective_location) {
-			if (geoloc_hdr) {
-				ast_trace(4, "%s: Profile '%s' location_disposition is 'prefer_config' but the configured"
-					"eprofile has no location information.  Falling back to Geolocation: "
-					PJSTR_PRINTF_SPEC "\n", session_name, ast_sorcery_object_get_id(config_profile),
-				PJSTR_PRINTF_VAR(geoloc_hdr->hvalue));
-				/* We process the Geolocation header down below. */
-			} else {
-				SCOPE_EXIT_LOG_RTN_VALUE(0, LOG_NOTICE, "%s: Configured profile '%s' has no effective location"
-					" and there was no Geolocation header.  Skipping.\n",
-					session_name, ast_sorcery_object_get_id(eprofile));
+				SCOPE_EXIT_RTN_VALUE(0, "%s: Added geoloc datastore with eprofile from config. Done.\n",
+					session_name);
 			}
-			break;
-		}
-
-		rc = ast_geoloc_datastore_add_eprofile(ds, eprofile);
-		if (rc <= 0) {
-			SCOPE_EXIT_LOG_RTN_VALUE(0, LOG_WARNING,
-				"%s: Couldn't add eprofile '%s' to datastore\n", session_name,
-				eprofile->id);
-		}
-
-		ast_channel_lock(channel);
-		ast_channel_datastore_add(channel, ds);
-		ast_channel_unlock(channel);
-		/* We gave the datastore to the channel so don't let RAII_VAR clean it up. */
-		ds = NULL;
-
-		if (geoloc_hdr) {
-			ast_trace(4, "%s: Profile '%s' location_disposition is 'prefer_config' so "
-				"discarding Geolocation: " PJSTR_PRINTF_SPEC "\n",
-				session_name, ast_sorcery_object_get_id(config_profile), PJSTR_PRINTF_VAR(geoloc_hdr->hvalue));
-		}
-
-		ast_trace(4, "ep: '%s' EffectiveLoc: %s\n", eprofile->id, ast_str_buffer(
-			ast_variable_list_join(eprofile->effective_location, ",", "=", NULL, &buf)));
-		ast_str_reset(buf);
-
-		/* We discarded the Geolocation header so there's no need to go on. */
-		SCOPE_EXIT_RTN_VALUE(0, "%s: Added geoloc datastore with 1 eprofile from config\n",
-			session_name);
-
-	case AST_GEOLOC_ACT_PREFER_INCOMING:
-		if (geoloc_hdr) {
-			ast_trace(4, "%s: Profile '%s' location_disposition is 'replace' so "
-				"we don't need to do anything with the configured profile", session_name,
-				ast_sorcery_object_get_id(config_profile));
 		} else {
-			SCOPE_EXIT_LOG_RTN_VALUE(0, LOG_NOTICE,
-				"%s: Profile '%s' location_disposition is 'replace' but there's "
-				"no Geolocation header and therefore no location info to replace"
-				"it with\n", session_name, ast_sorcery_object_get_id(config_profile));
+			/*
+			 * If the config eprofile has no effective location, just get rid
+			 * of it.
+			 */
+			ast_trace(4, "%s: Either config_eprofile didn't exist or it had no effective location\n",
+				session_name);
+
+			ao2_cleanup(config_eprofile);
+			config_eprofile = NULL;
+			if (config_profile->precedence == AST_GEOLOC_PRECED_DISCARD_INCOMING) {
+				SCOPE_EXIT_RTN_VALUE(0, "%s: DISCARD_INCOMING set and no config eprofile. Done.\n",
+					session_name);
+			}
 		}
 	}
 
-	geoloc_hdr_value = ast_alloca(geoloc_hdr->hvalue.slen + 1);
-	ast_copy_pj_str(geoloc_hdr_value, &geoloc_hdr->hvalue, geoloc_hdr->hvalue.slen + 1);
-
 	/*
-	 * From RFC-6442:
-	 * Geolocation-header = "Geolocation" HCOLON locationValue
-	 *                      *( COMMA locationValue )
-	 * locationValue      = LAQUOT locationURI RAQUOT
-	 *                      *(SEMI geoloc-param)
-	 * locationURI        = sip-URI / sips-URI / pres-URI
-	 *                        / http-URI / https-URI
-	 *	                      / cid-url ; (from RFC 2392)
-	 *                        / absoluteURI ; (from RFC 3261)
+	 * At this point, if we have a config_eprofile, then the action was
+	 * PREFER_INCOMING so we're going to keep it as a backup if we can't
+	 * get a profile from the incoming message.
 	 */
-	while((geoloc_uri = ast_strsep(&geoloc_hdr_value, ',', AST_STRSEP_TRIM))) {
-		/* geoloc_uri should now be <scheme:location>[;loc-src=fqdn] */
-		char *pidf_body = NULL;
-		unsigned int pidf_len = 0;
-		struct ast_xml_doc *incoming_doc = NULL;
-		struct ast_geoloc_eprofile *eprofile = NULL;
-		int rc = 0;
 
-		ast_trace(4, "Processing URI '%s'\n", geoloc_uri);
+	if (geoloc_hdr && config_profile->precedence != AST_GEOLOC_PRECED_DISCARD_INCOMING) {
 
-		if (geoloc_uri[0] != '<' || strchr(geoloc_uri, '>') == NULL) {
-			ast_log(LOG_WARNING, "%s: Geolocation header has bad URI '%s'.  Skipping\n", session_name,
-				geoloc_uri);
-			continue;
-		}
 		/*
-		 * If the URI isn't "cid" then we're just going to pass it through.
+		 * From RFC-6442:
+		 * Geolocation-header = "Geolocation" HCOLON locationValue
+		 *                      *( COMMA locationValue )
+		 * locationValue      = LAQUOT locationURI RAQUOT
+		 *                      *(SEMI geoloc-param)
+		 * locationURI        = sip-URI / sips-URI / pres-URI
+		 *                        / http-URI / https-URI
+		 *	                      / cid-url ; (from RFC 2392)
+		 *                        / absoluteURI ; (from RFC 3261)
 		 */
-		if (!ast_begins_with(geoloc_uri, "<cid:")) {
+
+		geoloc_hdr_value = ast_alloca(geoloc_hdr->hvalue.slen + 1);
+		ast_copy_pj_str(geoloc_hdr_value, &geoloc_hdr->hvalue, geoloc_hdr->hvalue.slen + 1);
+
+		/*
+		 * We're going to scan the header value for URIs until we find
+		 * one that processes successfully or we run out of URIs.
+		 * I.E.  The first good one wins.
+		 */
+		while (geoloc_hdr_value && !incoming_eprofile) {
+			char *pidf_body = NULL;
+			unsigned int pidf_len = 0;
+			struct ast_xml_doc *incoming_doc = NULL;
+			int rc = 0;
+
+			/* We're only going to consider the first URI in the header for now */
+			geoloc_uri = ast_strsep(&geoloc_hdr_value, ',', AST_STRSEP_TRIM);
+			if (ast_strlen_zero(geoloc_uri) || geoloc_uri[0] != '<' || strchr(geoloc_uri, '>') == NULL) {
+				ast_log(LOG_WARNING, "%s: Geolocation header has no or bad URI '%s'.  Skipping\n", session_name,
+					S_OR(geoloc_uri, "<empty>"));
+				continue;
+			}
+
 			ast_trace(4, "Processing URI '%s'\n", geoloc_uri);
 
-			eprofile = ast_geoloc_eprofile_create_from_uri(geoloc_uri, session_name);
-			if (!eprofile) {
-				ast_log(LOG_WARNING, "%s: Unable to create effective profile for URI '%s'.  Skipping\n",
-					session_name, geoloc_uri);
-				continue;
+			if (!ast_begins_with(geoloc_uri, "<cid:")) {
+				ast_trace(4, "Processing URI '%s'\n", geoloc_uri);
+
+				incoming_eprofile = ast_geoloc_eprofile_create_from_uri(geoloc_uri, session_name);
+				if (!incoming_eprofile) {
+					ast_log(LOG_WARNING, "%s: Unable to create effective profile for URI '%s'.  Skipping\n",
+						session_name, geoloc_uri);
+					continue;
+				}
+			} else {
+				ast_trace(4, "Processing PIDF-LO '%s'\n", geoloc_uri);
+
+				rc = find_pidf(session_name, rdata, geoloc_uri, &pidf_body, &pidf_len);
+				if (rc != 0 || !pidf_body || pidf_len == 0) {
+					continue;
+				}
+				ast_trace(5, "Processing PIDF-LO "PJSTR_PRINTF_SPEC "\n", (int)pidf_len, pidf_body);
+
+				incoming_doc = ast_xml_read_memory(pidf_body, pidf_len);
+				if (!incoming_doc) {
+					ast_log(LOG_WARNING, "%s: Unable to parse pidf document for URI '%s'\n",
+						session_name, geoloc_uri);
+					continue;
+				}
+
+				incoming_eprofile = ast_geoloc_eprofile_create_from_pidf(incoming_doc, geoloc_uri, session_name);
+				ast_xml_close(incoming_doc);
+
+				if (!incoming_eprofile) {
+					ast_log(LOG_WARNING,
+						"%s: Couldn't create incoming_eprofile from pidf\n", session_name);
+					continue;
+				}
 			}
-		} else {
-			ast_trace(4, "Processing PIDF-LO '%s'\n", geoloc_uri);
-
-			rc = find_pidf(session_name, rdata, geoloc_uri, &pidf_body, &pidf_len);
-			if (rc != 0 || !pidf_body || pidf_len == 0) {
-				continue;
-			}
-			ast_trace(5, "Processing PIDF-LO "PJSTR_PRINTF_SPEC "\n", (int)pidf_len, pidf_body);
-
-			incoming_doc = ast_xml_read_memory(pidf_body, pidf_len);
-			if (!incoming_doc) {
-				ast_log(LOG_WARNING, "%s: Unable to parse pidf document for URI '%s'\n",
-					session_name, geoloc_uri);
-				continue;
-			}
-
-			eprofile = ast_geoloc_eprofile_create_from_pidf(incoming_doc, geoloc_uri, session_name);
-		}
-		eprofile->action = config_profile->action;
-
-		ast_trace(4, "Processing URI '%s'.  Adding to datastore\n", geoloc_uri);
-		rc = ast_geoloc_datastore_add_eprofile(ds, eprofile);
-		ao2_ref(eprofile, -1);
-		if (rc <= 0) {
-			ast_log(LOG_WARNING, "%s: Unable to add effective profile for URI '%s' to datastore.  Skipping\n",
-				session_name, geoloc_uri);
 		}
 	}
 
-	if (config_profile->action == AST_GEOLOC_ACT_PREFER_CONFIG) {
-		ast_trace(4, "%s: Profile '%s' location_disposition is 'prepend' so "
-			"adding to datastore first", session_name, ast_sorcery_object_get_id(config_profile));
-
-		eprofile = ast_geoloc_eprofile_create_from_profile(config_profile);
-		if (!eprofile) {
-			SCOPE_EXIT_LOG_RTN_VALUE(0, LOG_WARNING, "%s: Unable to create eprofile from"
-				" profile '%s'\n", session_name, ast_sorcery_object_get_id(config_profile));
+	if (!incoming_eprofile) {
+		/* Use the config_eprofile as a backup if there was one */
+		incoming_eprofile = config_eprofile;
+	} else {
+		ao2_cleanup(config_eprofile);
+		config_eprofile = NULL;
+		if (geoloc_routing_hdr) {
+			geoloc_routing_hdr_value = ast_alloca(geoloc_routing_hdr->hvalue.slen + 1);
+			ast_copy_pj_str(geoloc_routing_hdr_value, &geoloc_routing_hdr->hvalue,
+				geoloc_routing_hdr->hvalue.slen + 1);
+			incoming_eprofile->allow_routing_use = ast_true(geoloc_routing_hdr_value);
 		}
+	}
 
-		rc = ast_geoloc_datastore_add_eprofile(ds, eprofile);
-		if (rc <= 0) {
+	if (incoming_eprofile) {
+		rc = add_eprofile_to_channel(session, incoming_eprofile, buf);
+		if (rc != 0) {
 			SCOPE_EXIT_LOG_RTN_VALUE(0, LOG_WARNING,
-				"%s: Couldn't add eprofile '%s' to datastore\n", session_name,
-				eprofile->id);
+				"%s: Couldn't add eprofile '%s' to channel. Fail.\n", session_name,
+				incoming_eprofile->id);
 		}
+
+		SCOPE_EXIT_RTN_VALUE(0, "%s: Added eprofile '%s' to channel. Done.\n",
+			session_name, incoming_eprofile->id);
 	}
 
-	eprofile_count = ast_geoloc_datastore_size(ds);
-	if (eprofile_count == 0) {
-		SCOPE_EXIT_RTN_VALUE(0,
-			"%s: Unable to add any effective profiles.  Not adding datastore to channel.\n",
-			session_name);
-	}
-
-	ast_channel_lock(channel);
-	ast_channel_datastore_add(channel, ds);
-	ast_channel_unlock(channel);
-	ds = NULL;
-
-	SCOPE_EXIT_RTN_VALUE(0, "%s: Added geoloc datastore with %" PRIu64 " eprofiles\n",
-		session_name, eprofile_count);
+	SCOPE_EXIT_RTN_VALUE(0, "%s: No eprofiles to add to channel. Done.\n",	session_name);
 }
 
-static int add_pidf_to_tdata(struct ast_datastore *tempds, struct ast_channel *channel,
-	struct ast_vector_string *uris, int pidf_index, struct pjsip_tx_data *tdata, const char *session_name)
+static const char *add_eprofile_to_tdata(struct ast_geoloc_eprofile *eprofile, struct ast_channel *channel,
+	struct pjsip_tx_data *tdata, struct ast_str **buf, const char *session_name)
 {
 	static const pj_str_t from_name = { "From", 4};
 	static const pj_str_t cid_name = { "Content-ID", 10 };
@@ -417,9 +387,8 @@ static int add_pidf_to_tdata(struct ast_datastore *tempds, struct ast_channel *c
 	char id[6];
 	size_t alloc_size;
 	RAII_VAR(char *, base_cid, NULL, ast_free);
-	const char *final;
+	const char *final_doc;
 	int rc = 0;
-	RAII_VAR(struct ast_str *, buf, ast_str_create(1024), ast_free);
 	SCOPE_ENTER(3, "%s\n", session_name);
 
 	/*
@@ -427,8 +396,13 @@ static int add_pidf_to_tdata(struct ast_datastore *tempds, struct ast_channel *c
 	 * in it, skips over the ones not needing PIDF processing and combines the
 	 * rest into one document.
 	 */
-	final = ast_geoloc_eprofiles_to_pidf(tempds, channel, &buf, session_name);
-	ast_trace(5, "Final pidf: \n%s\n", final);
+	final_doc = ast_geoloc_eprofile_to_pidf(eprofile, channel, buf, session_name);
+	ast_trace(5, "Final pidf: \n%s\n", final_doc);
+
+	if (!final_doc) {
+		SCOPE_EXIT_LOG_RTN_VALUE(NULL, LOG_ERROR, "%s: Unable to create pidf document from"
+			" eprofile '%s'\n\n", session_name, eprofile->id);
+	}
 
 	/*
 	 * There _should_ be an SDP already attached to the tdata at this point
@@ -450,7 +424,7 @@ static int add_pidf_to_tdata(struct ast_datastore *tempds, struct ast_channel *c
 
 		rc = pjsip_create_multipart_sdp_body(tdata->pool, tdata_sdp_info->sdp, &multipart_body);
 		if (rc != PJ_SUCCESS) {
-			SCOPE_EXIT_LOG_RTN_VALUE(0, LOG_ERROR, "%s: Unable to create sdp multipart body\n",
+			SCOPE_EXIT_LOG_RTN_VALUE(NULL, LOG_ERROR, "%s: Unable to create sdp multipart body\n",
 				session_name);
 		}
 	} else {
@@ -458,7 +432,7 @@ static int add_pidf_to_tdata(struct ast_datastore *tempds, struct ast_channel *c
 	}
 
 	pidf_part = pjsip_multipart_create_part(tdata->pool);
-	pj_cstr(&pidf_body_text, final);
+	pj_cstr(&pidf_body_text, final_doc);
 	pidf_part->body = pjsip_msg_body_create(tdata->pool, &pjsip_media_type_application_pidf_xml.type,
 		&pjsip_media_type_application_pidf_xml.subtype, &pidf_body_text);
 
@@ -471,10 +445,8 @@ static int add_pidf_to_tdata(struct ast_datastore *tempds, struct ast_channel *c
 			ast_generate_random_string(id, sizeof(id)),
 			(int) pj_strlen(&sip_uri->host), pj_strbuf(&sip_uri->host));
 
-	ast_str_set(&buf, 0, "cid:%s", base_cid);
-	ast_trace(4, "cid: '%s' uri: '%s' pidf_index: %d\n", base_cid, ast_str_buffer(buf), pidf_index);
-
-	AST_VECTOR_INSERT_AT(uris, pidf_index, ast_strdup(ast_str_buffer(buf)));
+	ast_str_set(buf, 0, "cid:%s", base_cid);
+	ast_trace(4, "cid: '%s' uri: '%s'\n", base_cid, ast_str_buffer(*buf));
 
 	cid_value.ptr = pj_pool_alloc(tdata->pool, alloc_size);
 	cid_value.slen = sprintf(cid_value.ptr, "<%s>", base_cid);
@@ -485,7 +457,7 @@ static int add_pidf_to_tdata(struct ast_datastore *tempds, struct ast_channel *c
 
     tdata->msg->body = multipart_body;
 
-	SCOPE_EXIT_RTN_VALUE(0, "%s: PIDF-LO added with cid '%s'\n", session_name, base_cid);
+	SCOPE_EXIT_RTN_VALUE(ast_str_buffer(*buf), "%s: PIDF-LO added with cid '%s'\n", session_name, base_cid);
 }
 
 static void handle_outgoing_request(struct ast_sip_session *session, struct pjsip_tx_data *tdata)
@@ -495,18 +467,15 @@ static void handle_outgoing_request(struct ast_sip_session *session, struct pjsi
 	struct ast_channel *channel = session->channel;
 	RAII_VAR(struct ast_geoloc_profile *, config_profile, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_geoloc_eprofile *, config_eprofile, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_geoloc_eprofile *, incoming_eprofile, NULL, ao2_cleanup);
+	struct ast_geoloc_eprofile *final_eprofile = NULL;
 	RAII_VAR(struct ast_str *, buf, ast_str_create(1024), ast_free);
-	RAII_VAR(struct ast_datastore *, tempds, NULL, ast_datastore_free);
 	struct ast_datastore *ds = NULL;  /* The channel cleans up ds */
-	struct ast_vector_string uris;
-	pjsip_msg_body *orig_body;
-	pjsip_generic_string_hdr *geoloc_hdr;
-	int i;
+	pjsip_msg_body *orig_body = NULL;
+	pjsip_generic_string_hdr *geoloc_hdr = NULL;
 	int eprofile_count = 0;
-	int pidf_index = -1;
-	int geoloc_routing = 0;
 	int rc = 0;
-	const char *final;
+	const char *uri;
 	SCOPE_ENTER(3, "%s\n", session_name);
 
 	if (!buf) {
@@ -541,136 +510,111 @@ static void handle_outgoing_request(struct ast_sip_session *session, struct pjsi
 			"profile '%s'\n", session_name, ast_sorcery_object_get_id(config_profile));
 	}
 
-	if (config_profile->action != AST_GEOLOC_ACT_PREFER_INCOMING) {
-		ds = ast_geoloc_datastore_find(channel);
-		if (!ds) {
-			ast_trace(4, "%s: There was no geoloc datastore\n", session_name);
-		} else {
-			eprofile_count = ast_geoloc_datastore_size(ds);
-			ast_trace(4, "%s: There are %d geoloc profiles on this channel\n", session_name,
-				eprofile_count);
-		}
+	if (!config_eprofile->effective_location) {
+		/*
+		 * If there's no effective location on the eprofile
+		 * we don't need to keep it.
+		 */
+		ast_trace(4, "%s: There was no effective location for config profile '%s'\n",
+			session_name, ast_sorcery_object_get_id(config_profile));
+		ao2_ref(config_eprofile, -1);
+		config_eprofile = NULL;
 	}
 
-	/*
-	 * We don't want to alter the datastore that may (or may not) be on
-	 * the channel so we're going to create a temporary one to hold the
-	 * config eprofile plus any in the channel datastore.  Technically
-	 * we could just use a vector but the datastore already has the logic
-	 * to release all the eprofile references and the datastore itself.
-	 */
-	tempds = ast_geoloc_datastore_create("temp");
+	ds = ast_geoloc_datastore_find(channel);
 	if (!ds) {
-		ast_trace(4, "%s: There are no geoloc profiles on this channel\n", session_name);
-		ast_geoloc_datastore_add_eprofile(tempds, config_eprofile);
+		ast_trace(4, "%s: There was no geoloc datastore on the channel\n", session_name);
 	} else {
-		if (config_profile->action == AST_GEOLOC_ACT_PREFER_CONFIG) {
-			ast_trace(4, "%s: prepending config_eprofile\n", session_name);
-			ast_geoloc_datastore_add_eprofile(tempds, config_eprofile);
-		}
-		for (i = 0; i < eprofile_count; i++) {
-			struct ast_geoloc_eprofile *ep = ast_geoloc_datastore_get_eprofile(ds, i);
-			ast_trace(4, "%s: adding eprofile '%s' from channel\n", session_name, ep->id);
-			ast_geoloc_datastore_add_eprofile(tempds, ep);
-		}
-		if (config_profile->action == AST_GEOLOC_ACT_PREFER_INCOMING) {
-			ast_trace(4, "%s: appending config_eprofile\n", session_name);
-			ast_geoloc_datastore_add_eprofile(tempds, config_eprofile);
-		}
+		eprofile_count = ast_geoloc_datastore_size(ds);
+		ast_trace(4, "%s: There are %d geoloc profiles on this channel\n", session_name,
+			eprofile_count);
+		/*
+		 * There'd better be a max of 1 at this time.  In the future
+		 * we may allow more than 1.
+		 */
+		incoming_eprofile = ast_geoloc_datastore_get_eprofile(ds, 0);
 	}
 
-	eprofile_count = ast_geoloc_datastore_size(tempds);
-	if (eprofile_count == 0) {
-		SCOPE_EXIT_RTN("%s: There are no profiles left to send\n", session_name);
-	}
-	ast_trace(4, "%s: There are now %d geoloc profiles to be sent\n", session_name,
-		eprofile_count);
+	ast_trace(4, "%s: Profile precedence: %s\n\n", session_name,
+		ast_geoloc_precedence_to_name(config_profile->precedence));
 
-	/*
-	 * This vector is going to accumulate all of the URIs that
-	 * will need to go on the Geolocation header.
-	 */
-	rc = AST_VECTOR_INIT(&uris, 2);
-	if (rc != 0) {
-		SCOPE_EXIT_LOG_RTN(LOG_ERROR, "%s: Unable to allocate memory for vector\n", session_name);
-	}
-
-	/*
-	 * It's possible that we have a list of eprofiles that have both "pass-by-reference (external URI)"
-	 * and "pass by value (to go in PIDF)" eprofiles.  The ones that just need a URI added to the
-	 * Geolocation header get added to the "uris" vector in this loop. The ones that result in a
-	 * PIDF though, need to be combined into a single PIDF-LO document so we're just going to
-	 * save the first one's index so we can insert the "cid" header in the right place, then
-	 * we'll send the whole list off to add_pidf_to_tdata() so they can be combined into a
-	 * single document.
-	 */
-
-	for (i = 0; i < eprofile_count; i++) {
-		struct ast_geoloc_eprofile *ep = ast_geoloc_datastore_get_eprofile(tempds, i);
-		ast_geoloc_eprofile_refresh_location(ep);
-
-		ast_trace(4, "ep: '%s' EffectiveLoc: %s\n", ep->id, ast_str_buffer(
-			ast_variable_list_join(ep->effective_location, ",", "=", NULL, &buf)));
-		ast_str_reset(buf);
-
-		if (ep->format == AST_GEOLOC_FORMAT_URI) {
-			final = ast_geoloc_eprofile_to_uri(ep, channel, &buf, session_name);
-			ast_trace(4, "URI: %s\n", final);
-			AST_VECTOR_APPEND(&uris, ast_strdup(final));
-			ast_str_reset(buf);
+	switch (config_profile->precedence) {
+	case AST_GEOLOC_PRECED_DISCARD_INCOMING:
+		final_eprofile = config_eprofile;
+		ao2_cleanup(incoming_eprofile);
+		incoming_eprofile = NULL;
+		break;
+	case AST_GEOLOC_PRECED_PREFER_INCOMING:
+		if (incoming_eprofile) {
+			final_eprofile = incoming_eprofile;
+			ao2_cleanup(config_eprofile);
+			config_eprofile = NULL;
 		} else {
-			/*
-			 * If there are GML or civicAddress eprofiles, we need to save the position
-			 * of the first one in relation to any URI ones so we can insert the "cid"
-			 * uri for it in the original position.
-			 */
-			if (pidf_index < 0) {
-				pidf_index = i;
-			}
+			final_eprofile = config_eprofile;
 		}
-		/* The LAST eprofile determines routing */
-		geoloc_routing = ep->geolocation_routing;
-		ao2_ref(ep, -1);
+		break;
+	case AST_GEOLOC_PRECED_DISCARD_CONFIG:
+		final_eprofile = incoming_eprofile;
+		ao2_cleanup(config_eprofile);
+		config_eprofile = NULL;
+		break;
+	case AST_GEOLOC_PRECED_PREFER_CONFIG:
+		if (config_eprofile) {
+			final_eprofile = config_eprofile;
+			ao2_cleanup(incoming_eprofile);
+			incoming_eprofile = NULL;
+		} else {
+			final_eprofile = incoming_eprofile;
+		}
+		break;
 	}
 
-	/*
-	 * If we found at least one eprofile needing PIDF processing, we'll
-	 * send the entire list off to add_pidf_to_tdata().  We're going to save
-	 * the pointer to the original tdata body in case we need to revert
-	 * if we can't add the headers.
-	 */
-	orig_body = tdata->msg->body;
-	if (pidf_index >= 0) {
-		rc = add_pidf_to_tdata(tempds, channel, &uris, pidf_index, tdata, session_name);
+	if (!final_eprofile) {
+		SCOPE_EXIT_RTN("%s: No eprofiles to send.  Done.\n",
+			session_name);
 	}
 
-	/*
-	 * Now that we have all the URIs in the vector, we'll string them together
-	 * to create the data for the Geolocation header.
-	 */
+	ast_geoloc_eprofile_refresh_location(final_eprofile);
+	if (final_eprofile->format == AST_GEOLOC_FORMAT_URI) {
+		uri = ast_geoloc_eprofile_to_uri(final_eprofile, channel, &buf, session_name);
+		if (!uri) {
+			SCOPE_EXIT_LOG_RTN(LOG_ERROR, "%s: Unable to create URI from eprofile '%s'\n",
+				session_name, final_eprofile->id);
+		}
+	} else {
+		orig_body = tdata->msg->body;
+		uri = add_eprofile_to_tdata(final_eprofile, channel, tdata, &buf, session_name);
+		if (!uri) {
+			tdata->msg->body = orig_body;
+			SCOPE_EXIT_LOG_RTN(LOG_ERROR, "%s: Unable to add eprofile '%s' to tdata\n",
+				session_name, final_eprofile->id);
+		}
+	}
+
+	uri = ast_strdupa(ast_str_buffer(buf));
 	ast_str_reset(buf);
-	for (i = 0; i < AST_VECTOR_SIZE(&uris); i++) {
-		char *uri = AST_VECTOR_GET(&uris, i);
-		ast_trace(4, "ix: %d of %d LocRef: %s\n", i, (int)AST_VECTOR_SIZE(&uris), uri);
-		ast_str_append(&buf, 0, "%s<%s>", (i > 0 ? "," : ""), uri);
-	}
+	ast_str_set(&buf, 0, "<%s>", uri);
+	uri = ast_strdupa(ast_str_buffer(buf));
 
-	AST_VECTOR_RESET(&uris, ast_free);
-	AST_VECTOR_FREE(&uris);
+	ast_trace(4, "%s: Using URI '%s'\n", session_name, uri);
 
 	/* It's almost impossible for add header to fail but you never know */
-	geoloc_hdr = ast_sip_add_header2(tdata, "Geolocation", ast_str_buffer(buf));
+	geoloc_hdr = ast_sip_add_header2(tdata, "Geolocation", uri);
 	if (geoloc_hdr == NULL) {
-		tdata->msg->body = orig_body;
+		if (orig_body) {
+			tdata->msg->body = orig_body;
+		}
 		SCOPE_EXIT_LOG_RTN(LOG_ERROR, "%s: Unable to add Geolocation header\n", session_name);
 	}
-	rc = ast_sip_add_header(tdata, "Geolocation-Routing", geoloc_routing ? "yes" : "no");
+	rc = ast_sip_add_header(tdata, "Geolocation-Routing", final_eprofile->allow_routing_use ? "yes" : "no");
 	if (rc != 0) {
-		tdata->msg->body = orig_body;
+		if (orig_body) {
+			tdata->msg->body = orig_body;
+		}
 		pj_list_erase(geoloc_hdr);
 		SCOPE_EXIT_LOG_RTN(LOG_ERROR, "%s: Unable to add Geolocation-Routing header\n", session_name);
 	}
-	SCOPE_EXIT_RTN("%s: Geolocation: %s\n", session_name, ast_str_buffer(buf));
+	SCOPE_EXIT_RTN("%s: Geolocation: %s\n", session_name, uri);
 }
 
 static struct ast_sip_session_supplement geolocation_supplement = {
@@ -697,6 +641,7 @@ static int load_module(void)
 {
 	int res = 0;
 	GEOLOCATION_HDR = pj_str("Geolocation");
+	GEOLOCATION_ROUTING_HDR = pj_str("Geolocation-Routing");
 
 	ast_sip_session_register_supplement(&geolocation_supplement);
 
