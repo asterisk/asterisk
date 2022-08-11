@@ -1,3 +1,46 @@
+2022-08-11 16:00 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 16.28.0-rc2 Released.
+
+2022-08-11 10:40 +0000 [d2fcc78336]  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Update CHANGES and UPGRADE.txt for 16.28.0
+2022-08-05 08:50 +0000 [8335dc3d59]  George Joseph <gjoseph@digium.com>
+
+	* res_geolocation: Address user issues, remove complexity, plug leaks
+
+	  * Added processing for the 'confidence' element.
+	  * Added documentation to some APIs.
+	  * removed a lot of complex code related to the very-off-nominal
+	    case of needing to process multiple location info sources.
+	  * Create a new 'ast_geoloc_eprofile_to_pidf' API that just takes
+	    one eprofile instead of a datastore of multiples.
+	  * Plugged a huge leak in XML processing that arose from
+	    insufficient documentation by the libxml/libxslt authors.
+	  * Refactored stylesheets to be more efficient.
+	  * Renamed 'profile_action' to 'profile_precedence' to better
+	    reflect it's purpose.
+	  * Added the config option for 'allow_routing_use' which
+	    sets the value of the 'Geolocation-Routing' header.
+	  * Removed the GeolocProfileCreate and GeolocProfileDelete
+	    dialplan apps.
+	  * Changed the GEOLOC_PROFILE dialplan function as follows:
+	    * Removed the 'profile' argument.
+	    * Automatically create a profile if it doesn't exist.
+	    * Delete a profile if 'inheritable' is set to no.
+	  * Fixed various bugs and leaks
+	  * Updated Asterisk WiKi documentation.
+
+	  ASTERISK-30167
+
+	  Change-Id: If38c23f26228e96165be161c2f5e849cb8e16fa0
+
+2022-07-19 09:05 +0000 [c258e80f75]  George Joseph <gjoseph@digium.com>
+
+	* Geolocation: Wiki Documentation
+
+	  Change-Id: I68ba22db0a69d9e2eabcc2141b48a2395f7f1a23
+
 2022-07-28 15:44 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 16.28.0-rc1 Released.
