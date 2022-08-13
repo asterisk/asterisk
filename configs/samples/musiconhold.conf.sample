@@ -82,6 +82,9 @@ directory=moh
 ;               ; in alphabetical order. If 'randstart', the files are sorted
 ;               ; in alphabetical order as well, but the first file is chosen
 ;               ; at random. If unspecified, the sort order is undefined.
+;answeredonly=yes       ; Only allow answered channels to have music on hold.
+                        ; Enabling this will prevent MOH on unanswered channels.
+                        ; (default: "no")
 
 ;[native-alphabetical]
 ;mode=files

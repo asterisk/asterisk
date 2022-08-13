@@ -193,6 +193,8 @@ struct mohclass {
 	unsigned int delete:1;
 	AST_LIST_HEAD_NOLOCK(, mohdata) members;
 	AST_LIST_ENTRY(mohclass) list;
+	/*!< Play the moh if the channel answered */
+	int answeredonly;
 };
 
 struct mohdata {
@@ -1193,6 +1195,8 @@ static void moh_parse_options(struct ast_variable *var, struct mohclass *mohclas
 				ast_log(LOG_WARNING, "kill_method '%s' is invalid.  Setting to 'process_group'\n", var->value);
 				mohclass->kill_method = KILL_METHOD_PROCESS_GROUP;
 			}
+		} else if (!strcasecmp(var->name, "answeredonly")) {
+			mohclass->answeredonly = ast_true(var->value) ? 1: 0;
 		}
 	}
 
@@ -1832,6 +1836,11 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 	}
 
 	if (!mohclass) {
+		return -1;
+	}
+
+	if (mohclass->answeredonly && (ast_channel_state(chan) != AST_STATE_UP)) {
+		ast_verb(3, "The channel '%s' is not answered yet. Ignore the moh request.\n", ast_channel_name(chan));
 		return -1;
 	}
 
