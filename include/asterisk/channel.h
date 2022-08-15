@@ -4112,8 +4112,6 @@ struct ast_channel_monitor {
 };
 
 /* ACCESSOR FUNCTIONS */
-/*! \brief Set the channel name */
-void ast_channel_name_set(struct ast_channel *chan, const char *name);
 
 #define DECLARE_STRINGFIELD_SETTERS_FOR(field)	\
 	void ast_channel_##field##_set(struct ast_channel *chan, const char *field); \
