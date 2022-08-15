@@ -92,6 +92,12 @@
 				<para>Is the maximum duration of a word to accept.</para>
 				<para>If exceeded, then the result is detection as a MACHINE</para>
 			</parameter>
+			<parameter name="audioFile" required="false">
+				<para>Is an audio file to play to the caller while AMD is in progress.</para>
+				<para>By default, no audio file is played.</para>
+				<para>If an audio file is configured in amd.conf, then that file will be used
+				if one is not specified here. That file may be overridden by this argument.</para>
+			</parameter>
 		</syntax>
 		<description>
 			<para>This application attempts to detect answering machines at the beginning
@@ -155,6 +161,9 @@ static int dfltBetweenWordsSilence  = 50;
 static int dfltMaximumNumberOfWords = 2;
 static int dfltSilenceThreshold     = 256;
 static int dfltMaximumWordLength    = 5000; /* Setting this to a large default so it is not used unless specify it in the configs or command line */
+static char *dfltAudioFile = NULL;
+
+static ast_mutex_t config_lock;
 
 /* Set to the lowest ms value provided in amd.conf or application parameters */
 static int dfltMaxWaitTimeForFrame  = 50;
@@ -179,7 +188,7 @@ static void isAnsweringMachine(struct ast_channel *chan, const char *data)
 	char amdCause[256] = "", amdStatus[256] = "";
 	char *parse = ast_strdupa(data);
 
-	/* Lets set the initial values of the variables that will control the algorithm.
+	/* Let's set the initial values of the variables that will control the algorithm.
 	   The initial values are the default ones. If they are passed as arguments
 	   when invoking the application, then the default values will be overwritten
 	   by the ones passed as parameters. */
@@ -193,6 +202,7 @@ static void isAnsweringMachine(struct ast_channel *chan, const char *data)
 	int silenceThreshold     = dfltSilenceThreshold;
 	int maximumWordLength    = dfltMaximumWordLength;
 	int maxWaitTimeForFrame  = dfltMaxWaitTimeForFrame;
+	const char *audioFile = NULL;
 
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(argInitialSilence);
@@ -204,7 +214,14 @@ static void isAnsweringMachine(struct ast_channel *chan, const char *data)
 		AST_APP_ARG(argMaximumNumberOfWords);
 		AST_APP_ARG(argSilenceThreshold);
 		AST_APP_ARG(argMaximumWordLength);
+		AST_APP_ARG(audioFile);
 	);
+
+	ast_mutex_lock(&config_lock);
+	if (!ast_strlen_zero(dfltAudioFile)) {
+		audioFile = ast_strdupa(dfltAudioFile);
+	}
+	ast_mutex_unlock(&config_lock);
 
 	ast_verb(3, "AMD: %s %s %s (Fmt: %s)\n", ast_channel_name(chan),
 		S_COR(ast_channel_caller(chan)->ani.number.valid, ast_channel_caller(chan)->ani.number.str, "(N/A)"),
@@ -233,6 +250,9 @@ static void isAnsweringMachine(struct ast_channel *chan, const char *data)
 			silenceThreshold = atoi(args.argSilenceThreshold);
 		if (!ast_strlen_zero(args.argMaximumWordLength))
 			maximumWordLength = atoi(args.argMaximumWordLength);
+		if (!ast_strlen_zero(args.audioFile)) {
+			audioFile = args.audioFile;
+		}
 	} else {
 		ast_debug(1, "AMD using the default parameters.\n");
 	}
@@ -279,6 +299,11 @@ static void isAnsweringMachine(struct ast_channel *chan, const char *data)
 
 	/* Set our start time so we can tie the loop to real world time and not RTP updates */
 	amd_tvstart = ast_tvnow();
+
+	/* Optional audio file to play to caller while AMD is doing its thing. */
+	if (!ast_strlen_zero(audioFile)) {
+		ast_streamfile(chan, audioFile, ast_channel_language(chan));
+	}
 
 	/* Now we go into a loop waiting for frames from the channel */
 	while ((res = ast_waitfor(chan, 2 * maxWaitTimeForFrame)) > -1) {
@@ -462,9 +487,13 @@ static void isAnsweringMachine(struct ast_channel *chan, const char *data)
 	/* Free the DSP used to detect silence */
 	ast_dsp_free(silenceDetector);
 
+	/* If we were playing something to pass the time, stop it now. */
+	if (!ast_strlen_zero(audioFile)) {
+		ast_stopstream(chan);
+	}
+
 	return;
 }
-
 
 static int amd_exec(struct ast_channel *chan, const char *data)
 {
@@ -516,7 +545,16 @@ static int load_config(int reload)
 					dfltMaximumNumberOfWords = atoi(var->value);
 				} else if (!strcasecmp(var->name, "maximum_word_length")) {
 					dfltMaximumWordLength = atoi(var->value);
-
+				} else if (!strcasecmp(var->name, "playback_file")) {
+					ast_mutex_lock(&config_lock);
+					if (dfltAudioFile) {
+						ast_free(dfltAudioFile);
+						dfltAudioFile = NULL;
+					}
+					if (!ast_strlen_zero(var->value)) {
+						dfltAudioFile = ast_strdup(var->value);
+					}
+					ast_mutex_unlock(&config_lock);
 				} else {
 					ast_log(LOG_WARNING, "%s: Cat:%s. Unknown keyword %s at line %d of amd.conf\n",
 						app, cat, var->name, var->lineno);
@@ -539,6 +577,12 @@ static int load_config(int reload)
 
 static int unload_module(void)
 {
+	ast_mutex_lock(&config_lock);
+	if (dfltAudioFile) {
+		ast_free(dfltAudioFile);
+	}
+	ast_mutex_unlock(&config_lock);
+	ast_mutex_destroy(&config_lock);
 	return ast_unregister_application(app);
 }
 
@@ -554,6 +598,7 @@ static int unload_module(void)
  */
 static int load_module(void)
 {
+	ast_mutex_init(&config_lock);
 	if (load_config(0) || ast_register_application_xml(app, amd_exec)) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
