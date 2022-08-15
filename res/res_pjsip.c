@@ -870,6 +870,7 @@ pjsip_dialog *ast_sip_create_dialog_uac(const struct ast_sip_endpoint *endpoint,
 	/* Add the user=phone parameter if applicable */
 	ast_sip_add_usereqphone(endpoint, dlg->pool, dlg->target);
 	ast_sip_add_usereqphone(endpoint, dlg->pool, dlg->remote.info->uri);
+	ast_sip_add_usereqphone(endpoint, dlg->pool, dlg->local.info->uri);
 
 	if (!ast_strlen_zero(outbound_proxy)) {
 		pjsip_route_hdr route_set, *route;
