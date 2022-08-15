@@ -8,6 +8,11 @@ total_analysis_time = 5000	; Maximum time allowed for the algorithm to decide
 silence_threshold = 256		; If the average level of noise in a sample does not reach
 				; this value, from a scale of 0 to 32767, then we will consider
 				; it to be silence.
+;playback_file = 		; Audio file to play while AMD is running, so the caller
+				; does not just hear silence. Note that specifying this here
+				; will apply to ALL AMD runs, so you may wish to set it
+				; in the dialplan as an argument to AMD() instead.
+				; Default is no audio file (not to play anything).
 
 ; Greeting ;
 initial_silence = 2500		; Maximum silence duration before the greeting.
@@ -19,7 +24,7 @@ greeting = 1500			; Maximum length of a greeting. If exceeded, then the
 
 ; Word detection ;
 min_word_length = 100		; Minimum duration of Voice to considered as a word
-maximum_word_length = 5000  	; Maximum duration of a single Voice utterance allowed.
+maximum_word_length = 5000	; Maximum duration of a single Voice utterance allowed.
 between_words_silence = 50	; Minimum duration of silence after a word to consider
 				; the audio what follows as a new word
 
