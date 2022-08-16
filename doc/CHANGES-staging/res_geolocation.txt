@@ -1,0 +1,9 @@
+Subject: res_geolocation
+
+Added 4 built-in profiles:
+  "<prefer_config>"
+  "<discard_config>"
+  "<prefer_incoming>"
+  "<discard_incoming>"
+The profiles are empty except for having their precedence
+set.
