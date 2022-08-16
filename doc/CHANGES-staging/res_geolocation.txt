@@ -21,3 +21,12 @@ Subject: res_geolocation
   * Delete a profile if 'inheritable' is set to no.
 * Fixed various bugs and leaks
 * Updated Asterisk WiKi documentation.
+
+Added 4 built-in profiles:
+  "<prefer_config>"
+  "<discard_config>"
+  "<prefer_incoming>"
+  "<discard_incoming>"
+The profiles are empty except for having their precedence
+set.
+

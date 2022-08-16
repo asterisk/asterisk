@@ -272,3 +272,13 @@ profile_action = discard_incoming
 
 =======================================================================
 --;
+
+-- NOTE ---------------------------------------------------------------
+There are 4 built-in profiles that can be assigned to endpoints:
+  "<prefer_config>"
+  "<discard_config>"
+  "<prefer_incoming>"
+  "<discard_incoming>"
+The profiles are empty except for having their precedence
+set.
+
