@@ -85,7 +85,8 @@ static void geoloc_profile_destructor(void *obj) {
 
 static void *geoloc_profile_alloc(const char *name)
 {
-	struct ast_geoloc_profile *profile = ast_sorcery_generic_alloc(sizeof(*profile), geoloc_profile_destructor);
+	struct ast_geoloc_profile *profile = ast_sorcery_generic_alloc(sizeof(*profile),
+		geoloc_profile_destructor);
 	if (profile) {
 		ast_string_field_init(profile, 128);
 	}
@@ -581,18 +582,64 @@ int geoloc_config_unload(void)
 	return 0;
 }
 
+static int default_profile_create(const char *name)
+{
+	int rc = 0;
+	struct ast_geoloc_profile *profile;
+	char *id = ast_alloca(strlen(name) + 3 /* <, >, NULL */);
+
+	sprintf(id, "<%s>", name); /* Safe */
+	profile = ast_sorcery_alloc(geoloc_sorcery, "profile", id);
+	ast_assert_return(profile != NULL, 0);
+
+	profile->precedence = ast_geoloc_precedence_str_to_enum(name);
+	profile->pidf_element = AST_PIDF_ELEMENT_DEVICE;
+	rc = ast_sorcery_create(geoloc_sorcery, profile);
+	/*
+	 * We're either passing the ref to sorcery or there was an error.
+	 * Either way we need to drop our reference.
+	 */
+	ao2_ref(profile, -1);
+
+	/* ast_assert_return wants a true/false */
+	return rc == 0 ? 1 : 0;
+}
+
+static int geoloc_load_default_profiles(void)
+{
+	/*
+	 * If any of these fail, the module will fail to load
+	 * and clean up the sorcery instance so no error cleanup
+	 * is required here.
+	 */
+	ast_assert_return(default_profile_create("prefer_config"), -1);
+	ast_assert_return(default_profile_create("discard_config"), -1);
+	ast_assert_return(default_profile_create("prefer_incoming"), -1);
+	ast_assert_return(default_profile_create("discard_incoming"), -1);
+
+	return 0;
+}
+
 int geoloc_config_load(void)
 {
+	enum ast_sorcery_apply_result result;
+	int rc = 0;
+
 	if (!(geoloc_sorcery = ast_sorcery_open())) {
 		ast_log(LOG_ERROR, "Failed to open geolocation sorcery\n");
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	ast_sorcery_apply_default(geoloc_sorcery, "location", "config", "geolocation.conf,criteria=type=location");
-	if (ast_sorcery_object_register(geoloc_sorcery, "location", geoloc_location_alloc, NULL, geoloc_location_apply_handler)) {
+	ast_sorcery_apply_config(geoloc_sorcery, "location");
+	result = ast_sorcery_apply_default(geoloc_sorcery, "location", "config", "geolocation.conf,criteria=type=location");
+	if (result != AST_SORCERY_APPLY_SUCCESS) {
+		ast_log(LOG_ERROR, "Failed to apply defaults for geoloc location object with sorcery\n");
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	rc = ast_sorcery_object_register(geoloc_sorcery, "location", geoloc_location_alloc, NULL, geoloc_location_apply_handler);
+	if (rc != 0) {
 		ast_log(LOG_ERROR, "Failed to register geoloc location object with sorcery\n");
-		ast_sorcery_unref(geoloc_sorcery);
-		geoloc_sorcery = NULL;
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -609,11 +656,25 @@ int geoloc_config_load(void)
 		0, STRFLDSET(struct ast_geoloc_location, method));
 
 
-	ast_sorcery_apply_default(geoloc_sorcery, "profile", "config", "geolocation.conf,criteria=type=profile");
-	if (ast_sorcery_object_register(geoloc_sorcery, "profile", geoloc_profile_alloc, NULL, geoloc_profile_apply_handler)) {
+	ast_sorcery_apply_config(geoloc_sorcery, "profile");
+	/*
+	 * The memory backend is used to contain the built-in profiles.
+	 */
+	result = ast_sorcery_apply_wizard_mapping(geoloc_sorcery, "profile", "memory", NULL, 0);
+	if (result == AST_SORCERY_APPLY_FAIL) {
+		ast_log(LOG_ERROR, "Failed to add memory wizard mapping to geoloc profile object\n");
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	result = ast_sorcery_apply_wizard_mapping(geoloc_sorcery, "profile", "config",
+		"geolocation.conf,criteria=type=profile", 0);
+	if (result == AST_SORCERY_APPLY_FAIL) {
+		ast_log(LOG_ERROR, "Failed to add memory wizard mapping to geoloc profile object\n");
+		return AST_MODULE_LOAD_DECLINE;
+	}
+	rc = ast_sorcery_object_register(geoloc_sorcery, "profile", geoloc_profile_alloc, NULL, geoloc_profile_apply_handler);
+	if (rc != 0) {
 		ast_log(LOG_ERROR, "Failed to register geoloc profile object with sorcery\n");
-		ast_sorcery_unref(geoloc_sorcery);
-		geoloc_sorcery = NULL;
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -637,6 +698,13 @@ int geoloc_config_load(void)
 
 
 	ast_sorcery_load(geoloc_sorcery);
+
+	rc = geoloc_load_default_profiles();
+	if (rc != 0) {
+		ast_log(LOG_ERROR, "Failed to load default geoloc profiles\n");
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
 
 	ast_cli_register_multiple(geoloc_location_cli_commands, ARRAY_LEN(geoloc_location_cli_commands));
 
