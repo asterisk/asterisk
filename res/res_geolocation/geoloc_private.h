@@ -90,7 +90,7 @@ static int _stem ## _handler(const struct aco_option *opt, struct ast_variable *
 	while ((item = ast_strsep(&item_string, ',', AST_STRSEP_ALL))) { \
 		item_name = ast_strsep(&item, '=', AST_STRSEP_ALL); \
 		item_value = ast_strsep(&item, '=', AST_STRSEP_ALL); \
-		new_var = ast_variable_new(item_name, item_value, ""); \
+		new_var = ast_variable_new(item_name, S_OR(item_value, ""), ""); \
 		if (!new_var) { \
 			rc = -1; \
 			break; \
