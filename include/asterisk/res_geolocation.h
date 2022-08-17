@@ -82,6 +82,7 @@ struct ast_geoloc_profile {
 	struct ast_variable *location_refinement;
 	struct ast_variable *location_variables;
 	struct ast_variable *usage_rules;
+	int suppress_empty_ca_elements;
 };
 
 struct ast_geoloc_eprofile {
@@ -102,6 +103,7 @@ struct ast_geoloc_eprofile {
 	struct ast_variable *effective_location;
 	struct ast_variable *usage_rules;
 	struct ast_variable *confidence;
+	int suppress_empty_ca_elements;
 };
 
 /*!

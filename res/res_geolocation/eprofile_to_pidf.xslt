@@ -13,6 +13,7 @@
 
 	<xsl:output method="xml" indent="yes"/>
 	<xsl:strip-space elements="*"/>
+	<xsl:param name="suppress_empty_ca_elements" select="false()"/>
 
 	<!-- REMINDER:  The "match" and "select" xpaths refer to the input document,
 		not the output document -->
@@ -80,9 +81,11 @@
 		each element, adding the "ca" namespace -->
 
 	<xsl:template match="civicAddress/*">
-		<xsl:element name="ca:{name()}">
-			<xsl:value-of select="."/>
-		</xsl:element>
+		<xsl:if test="not($suppress_empty_ca_elements) or boolean(node())">
+			<xsl:element name="ca:{name()}">
+				<xsl:value-of select="."/>
+			</xsl:element>
+		</xsl:if>
 	</xsl:template>
 
 	<xsl:template match="location-info/civicAddress">
