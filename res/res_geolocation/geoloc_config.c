@@ -445,7 +445,6 @@ static char *geoloc_config_show_profiles(struct ast_cli_entry *e, int cmd, struc
 
 	iter = ao2_iterator_init(sorted_container, AO2_ITERATOR_UNLINK);
 	for (; (profile = ao2_iterator_next(&iter)); ) {
-		char *action = NULL;
 		struct ast_str *loc_str = NULL;
 		struct ast_str *refinement_str = NULL;
 		struct ast_str *variables_str = NULL;
@@ -463,24 +462,23 @@ static char *geoloc_config_show_profiles(struct ast_cli_entry *e, int cmd, struc
 		variables_str = ast_variable_list_join(eprofile->location_variables, ",", "=", "\"", NULL);
 		usage_rules_str = ast_variable_list_join(eprofile->usage_rules, ",", "=", "\"", NULL);
 
-		precedence_to_str(eprofile, NULL, &action);
-
 		ast_cli(a->fd,
-			"id:                   %-s\n"
-			"profile_disposition:  %-s\n"
-			"pidf_element:         %-s\n"
-			"location_reference:   %-s\n"
-			"Location_format:      %-s\n"
-			"location_details:     %-s\n"
-			"location_method:      %-s\n"
-			"location_refinement:  %-s\n"
-			"location_variables:   %-s\n"
-			"allow_routing_use:    %-s\n"
-			"effective_location:   %-s\n"
-			"usage_rules:          %-s\n"
-			"notes:                %-s\n",
+			"id:                      %-s\n"
+			"profile_precedence:      %-s\n"
+			"pidf_element:            %-s\n"
+			"location_reference:      %-s\n"
+			"Location_format:         %-s\n"
+			"location_details:        %-s\n"
+			"location_method:         %-s\n"
+			"location_refinement:     %-s\n"
+			"location_variables:      %-s\n"
+			"allow_routing_use:       %-s\n"
+			"suppress_empty_elements: %-s\n"
+			"effective_location:      %-s\n"
+			"usage_rules:             %-s\n"
+			"notes:                   %-s\n",
 			eprofile->id,
-			action,
+			precedence_names[eprofile->precedence],
 			pidf_element_names[eprofile->pidf_element],
 			S_OR(eprofile->location_reference, "<none>"),
 			format_names[eprofile->format],
@@ -488,14 +486,14 @@ static char *geoloc_config_show_profiles(struct ast_cli_entry *e, int cmd, struc
 			S_OR(eprofile->method, "<none>"),
 			S_COR(refinement_str, ast_str_buffer(refinement_str), "<none>"),
 			S_COR(variables_str, ast_str_buffer(variables_str), "<none>"),
-			S_COR(eprofile->precedence, "yes", "no"),
+			S_COR(eprofile->allow_routing_use, "yes", "no"),
+			S_COR(eprofile->suppress_empty_ca_elements, "yes", "no"),
 			S_COR(resolved_str, ast_str_buffer(resolved_str), "<none>"),
 			S_COR(usage_rules_str, ast_str_buffer(usage_rules_str), "<none>"),
 			S_OR(eprofile->notes, "<none>")
 			);
 		ao2_ref(eprofile, -1);
 
-		ast_free(action);
 		ast_free(loc_str);
 		ast_free(refinement_str);
 		ast_free(variables_str);
@@ -695,6 +693,8 @@ int geoloc_config_load(void)
 		0, STRFLDSET(struct ast_geoloc_profile, notes));
 	ast_sorcery_object_field_register(geoloc_sorcery, "profile", "allow_routing_use",
 		"no", OPT_BOOL_T, 1, FLDSET(struct ast_geoloc_profile, allow_routing_use));
+	ast_sorcery_object_field_register(geoloc_sorcery, "profile", "suppress_empty_ca_elements",
+		"no", OPT_BOOL_T, 1, FLDSET(struct ast_geoloc_profile, suppress_empty_ca_elements));
 
 
 	ast_sorcery_load(geoloc_sorcery);
