@@ -175,6 +175,10 @@
 				<configOption name="allow_routing_use">
 					<synopsis>Sets the value of the Geolocation-Routing header.</synopsis>
 				</configOption>
+				<configOption name="suppress_empty_ca_elements">
+					<synopsis>Sets if empty Civic Address elements should be suppressed
+					from the PIDF-LO document.</synopsis>
+				</configOption>
 
 				<configOption name="profile_precedence" default="discard_incoming">
 					<synopsis>Determine which profile on a channel should be used</synopsis>
