@@ -176,6 +176,7 @@ struct ast_geoloc_eprofile *ast_geoloc_eprofile_create_from_profile(struct ast_g
 	ao2_lock(profile);
 	eprofile->allow_routing_use = profile->allow_routing_use;
 	eprofile->pidf_element = profile->pidf_element;
+	eprofile->suppress_empty_ca_elements = profile->suppress_empty_ca_elements;
 
 	rc = ast_string_field_set(eprofile, location_reference, profile->location_reference);
 	if (rc == 0) {
@@ -988,6 +989,7 @@ const char *ast_geoloc_eprofile_to_pidf(struct ast_geoloc_eprofile *eprofile,
 	struct ast_xml_node *temp_node = NULL;
 	const char *entity = NULL;
 	int has_no_entity = 0;
+	const char *params[] = { "suppress_empty_ca_elements", "false()", NULL };
 
 	SCOPE_ENTER(3, "%s\n", ref_string);
 
@@ -1038,7 +1040,10 @@ const char *ast_geoloc_eprofile_to_pidf(struct ast_geoloc_eprofile *eprofile,
 		doc_len = 0;
 	}
 
-	pidf_doc = ast_xslt_apply(eprofile_to_pidf_xslt, intermediate, NULL);
+	if (eprofile->suppress_empty_ca_elements) {
+		params[1] = "true()";
+	}
+	pidf_doc = ast_xslt_apply(eprofile_to_pidf_xslt, intermediate, params);
 	if (!pidf_doc) {
 		SCOPE_EXIT_LOG_RTN_VALUE(NULL, LOG_ERROR, "%s: Unable to create final PIDF-LO doc from intermediate doc\n",
 			ref_string);

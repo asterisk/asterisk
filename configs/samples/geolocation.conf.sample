@@ -170,8 +170,9 @@ location_source = sip1.myserver.net
 Defines the object type.
 type = profile
 
--- profile_precedence (optional) ------------------------------------------
+-- profile_precedence (optional) --------------------------------------
 Sets how to reconcile incoming and configured profiles.
+
 profile_precedence = < prefer_incoming | prefer_config | discard_incoming
     | discard_config >
 
@@ -202,7 +203,9 @@ profile_precedence = prefer_config
 
 -- pidf_element (optional) --------------------------------------------
 PIDF-LO element in which to place the location description.
+
 pidf_element = < tuple | device | person >
+Default: device
 
 If the format is civicAddress or GML, this sets the PIDF element into
 which the location information will be placed.
@@ -217,10 +220,12 @@ Per [RFC5491], "device" is preferred and therefore the default.
 Example:
 pidf_element = tuple
 
--- allow_routing_use (optional) -------------------------------------
+-- allow_routing_use (optional) ---------------------------------------
 Sets whether the "Geolocation-Routing" header is added to outgoing
 requests.
+
 allow_routing_use = < yes | no >
+Default: no
 
 Set to "yes" to indicate that servers later in the path
 can use the location information for routing purposes.  Set to "no"
@@ -253,13 +258,33 @@ floor and room just for this profile
 Example:
 location_info_refinement = floor=20, room=20a2
 
--- location_variables -------------------------------------------------
+-- location_variables (optional) --------------------------------------
 
 If the referenced Location object uses any replacement variables, they
 can be assigned here.  There is no need to define variables that come
 from the channel using this profile.  They get assigned automatically.
 
 location_variables = myfloor=20, myroom=222
+
+-- suppress_empty_ca_elements (optional) ------------------------------
+Sets whether empty values for Civic Address elements should be
+suppressed from the outgoing PIDF-LO document.
+
+suppress_empty_ca_elements = < yes | no >
+Default: no
+
+Setting to "yes" allows you to define a location info template
+with channel variables that may or may not exist.
+
+For example, with:
+location_info_refinement = FLR=${MyFlr}
+suppress_empty_ca_elements = no ; the default
+
+If the MyFlr channel variable weren't set, the outgoing PIDF-LO document
+would have an empty <FLR/> element in it.  If suppress_empty_ca_elements
+were set to "yes", the FLR element would be dropped from the PIDF-LO
+document altogether.
+
 
 -- Profile Example ----------------------------------------------------
 
