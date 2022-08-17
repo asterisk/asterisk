@@ -88,6 +88,8 @@ static int geoloc_profile_read(struct ast_channel *chan,
 		ast_str_append(buf, len, "%s", eprofile->method);
 	} else if (ast_strings_equal(args.field, "allow_routing_use")) {
 		ast_str_append(buf, len, "%s", eprofile->allow_routing_use ? "yes" : "no");
+	} else if (ast_strings_equal(args.field, "suppress_empty_ca_elements")) {
+		ast_str_append(buf, len, "%s", eprofile->suppress_empty_ca_elements ? "yes" : "no");
 	} else if (ast_strings_equal(args.field, "profile_precedence")) {
 		ast_str_append(buf, len, "%s", ast_geoloc_precedence_to_name(eprofile->precedence));
 	} else if (ast_strings_equal(args.field, "format")) {
@@ -212,19 +214,16 @@ static int geoloc_profile_write(struct ast_channel *chan, const char *cmd, char 
 		ast_string_field_set(eprofile, location_reference, value);
 	} else if (ast_strings_equal(args.field, "method")) {
 		ast_string_field_set(eprofile, method, value);
-
 	} else if (ast_strings_equal(args.field, "allow_routing_use")) {
 		eprofile->allow_routing_use = ast_true(value);
-
+	} else if (ast_strings_equal(args.field, "suppress_empty_ca_elements")) {
+		eprofile->suppress_empty_ca_elements = ast_true(value);
 	} else if (ast_strings_equal(args.field, "profile_precedence")) {
 		TEST_ENUM_VALUE(chan_name, eprofile, precedence, value);
-
 	} else if (ast_strings_equal(args.field, "format")) {
 		TEST_ENUM_VALUE(chan_name, eprofile, format, value);
-
 	} else if (ast_strings_equal(args.field, "pidf_element")) {
 		TEST_ENUM_VALUE(chan_name, eprofile, pidf_element, value);
-
 	} else if (ast_strings_equal(args.field, "location_info")) {
 		TEST_VARLIST(chan_name, eprofile, location_info, value);
 	} else if (ast_strings_equal(args.field, "location_source")) {

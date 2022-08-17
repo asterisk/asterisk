@@ -7,3 +7,7 @@ Added 4 built-in profiles:
   "<discard_incoming>"
 The profiles are empty except for having their precedence
 set.
+
+Added profile parameter "suppress_empty_ca_elements" that
+will cause Civic Address elements that are empty to be
+suppressed from the outgoing PIDF-LO document.
