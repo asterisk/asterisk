@@ -177,10 +177,21 @@ struct ast_geoloc_eprofile *ast_geoloc_eprofile_create_from_profile(struct ast_g
 	eprofile->allow_routing_use = profile->allow_routing_use;
 	eprofile->pidf_element = profile->pidf_element;
 	eprofile->suppress_empty_ca_elements = profile->suppress_empty_ca_elements;
+	eprofile->format = profile->format;
+
 
 	rc = ast_string_field_set(eprofile, location_reference, profile->location_reference);
 	if (rc == 0) {
 		ast_string_field_set(eprofile, notes, profile->notes);
+	}
+	if (rc == 0) {
+		ast_string_field_set(eprofile, method, profile->method);
+	}
+	if (rc == 0) {
+		ast_string_field_set(eprofile, location_source, profile->location_source);
+	}
+	if (rc == 0) {
+		rc = DUP_VARS(eprofile->location_info, profile->location_info);
 	}
 	if (rc == 0) {
 		rc = DUP_VARS(eprofile->location_refinement, profile->location_refinement);
@@ -190,6 +201,9 @@ struct ast_geoloc_eprofile *ast_geoloc_eprofile_create_from_profile(struct ast_g
 	}
 	if (rc == 0) {
 		rc = DUP_VARS(eprofile->usage_rules, profile->usage_rules);
+	}
+	if (rc == 0) {
+		rc = DUP_VARS(eprofile->confidence, profile->confidence);
 	}
 	if (rc != 0) {
 		ao2_unlock(profile);
