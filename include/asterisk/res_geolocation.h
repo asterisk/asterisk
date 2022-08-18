@@ -75,6 +75,8 @@ struct ast_geoloc_profile {
 	AST_DECLARE_STRING_FIELDS(
 		AST_STRING_FIELD(location_reference);
 		AST_STRING_FIELD(notes);
+		AST_STRING_FIELD(method);
+		AST_STRING_FIELD(location_source);
 	);
 	enum ast_geoloc_pidf_element pidf_element;
 	enum ast_geoloc_precedence precedence;
@@ -83,6 +85,9 @@ struct ast_geoloc_profile {
 	struct ast_variable *location_variables;
 	struct ast_variable *usage_rules;
 	int suppress_empty_ca_elements;
+	enum ast_geoloc_format format;
+	struct ast_variable *location_info;
+	struct ast_variable *confidence;
 };
 
 struct ast_geoloc_eprofile {
