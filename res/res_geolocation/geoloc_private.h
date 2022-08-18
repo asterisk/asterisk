@@ -38,7 +38,7 @@ int ast_geoloc_ ## _stem ## _str_to_enum(const char *str) \
 }
 
 #define CONFIG_ENUM_HANDLER(_object, _stem) \
-static int _stem ## _handler(const struct aco_option *opt, struct ast_variable *var, void *obj) \
+static int  _object ## _ ## _stem ## _handler(const struct aco_option *opt, struct ast_variable *var, void *obj) \
 { \
 	struct ast_geoloc_ ## _object *_thisobject = obj; \
 	int enumval = ast_geoloc_ ## _stem ## _str_to_enum(var->value); \
@@ -61,7 +61,7 @@ const char * ast_geoloc_ ## _stem ## _to_name(int ix) \
 }
 
 #define CONFIG_ENUM_TO_STR(_object, _stem) \
-static int _stem ## _to_str(const void *obj, const intptr_t *args, char **buf) \
+static int _object ## _ ## _stem ## _to_str(const void *obj, const intptr_t *args, char **buf) \
 { \
 	const struct ast_geoloc_ ## _object *_thisobject = obj; \
 	if (!ARRAY_IN_BOUNDS(_thisobject->_stem, _stem ## _names)) { \
@@ -79,7 +79,7 @@ CONFIG_ENUM_HANDLER(_object, _stem) \
 CONFIG_ENUM_TO_STR(_object, _stem)
 
 #define CONFIG_VAR_LIST_HANDLER(_object, _stem) \
-static int _stem ## _handler(const struct aco_option *opt, struct ast_variable *var, void *obj) \
+static int  _object ## _ ## _stem ## _handler(const struct aco_option *opt, struct ast_variable *var, void *obj) \
 { \
 	struct ast_geoloc_ ## _object *_thisobject = obj; \
 	struct ast_variable *new_var; \
@@ -101,7 +101,7 @@ static int _stem ## _handler(const struct aco_option *opt, struct ast_variable *
 }
 
 #define CONFIG_VAR_LIST_DUP(_object, _stem) \
-static int _stem ## _dup(const void *obj, struct ast_variable **fields) \
+static int  _object ## _ ## _stem ## _dup(const void *obj, struct ast_variable **fields) \
 { \
 	const struct ast_geoloc_ ## _object *_thisobject = obj; \
 	if (_thisobject->_stem) { \
@@ -111,7 +111,7 @@ static int _stem ## _dup(const void *obj, struct ast_variable **fields) \
 }
 
 #define CONFIG_VAR_LIST_TO_STR(_object, _stem) \
-static int _stem ## _to_str(const void *obj, const intptr_t *args, char **buf) \
+static int  _object ## _ ## _stem ## _to_str(const void *obj, const intptr_t *args, char **buf) \
 { \
 	const struct ast_geoloc_ ## _object *_thisobject = obj; \
 	struct ast_str *str = ast_variable_list_join(_thisobject->_stem, ",", "=", "\"", NULL); \
