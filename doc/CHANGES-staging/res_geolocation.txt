@@ -11,3 +11,10 @@ set.
 Added profile parameter "suppress_empty_ca_elements" that
 will cause Civic Address elements that are empty to be
 suppressed from the outgoing PIDF-LO document.
+
+You can now specify the location object's format, location_info,
+method, location_source and confidence parameters directly on
+a profile object for simple scenarios where the location
+information isn't common with any other profiles.  This is
+mutually exclusive with setting location_reference on the
+profile.
