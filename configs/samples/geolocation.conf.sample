@@ -285,6 +285,13 @@ would have an empty <FLR/> element in it.  If suppress_empty_ca_elements
 were set to "yes", the FLR element would be dropped from the PIDF-LO
 document altogether.
 
+-- format, location_info, location_source, method, confidence ---------
+You can specify the location object's format, location_info,
+method, location_source and confidence parameters directly on
+a profile object for simple scenarios where the location
+information isn't common with any other profiles.  This is
+mutually exclusive with setting location_reference on the
+profile.
 
 -- Profile Example ----------------------------------------------------
 

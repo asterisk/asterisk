@@ -207,6 +207,11 @@
 						</enumlist>
 					</description>
 				</configOption>
+				<xi:include xpointer="xpointer(/docs/configInfo[@name='res_geolocation']/configFile[@name='geolocation.conf']/configObject[@name='location']/configOption[@name='format'])"/>
+				<xi:include xpointer="xpointer(/docs/configInfo[@name='res_geolocation']/configFile[@name='geolocation.conf']/configObject[@name='location']/configOption[@name='location_info'])"/>
+				<xi:include xpointer="xpointer(/docs/configInfo[@name='res_geolocation']/configFile[@name='geolocation.conf']/configObject[@name='location']/configOption[@name='confidence'])"/>
+				<xi:include xpointer="xpointer(/docs/configInfo[@name='res_geolocation']/configFile[@name='geolocation.conf']/configObject[@name='location']/configOption[@name='location_source'])"/>
+				<xi:include xpointer="xpointer(/docs/configInfo[@name='res_geolocation']/configFile[@name='geolocation.conf']/configObject[@name='location']/configOption[@name='method'])"/>
 			</configObject>
 		</configFile>
 	</configInfo>
