@@ -3943,7 +3943,7 @@ static void dahdi_r2_on_context_log(openr2_context_t *r2context, openr2_log_leve
 {
 #define CONTEXT_TAG "Context - "
 	char logmsg[256];
-	char completemsg[sizeof(logmsg) + sizeof(CONTEXT_TAG) - 1];
+	char completemsg[sizeof(logmsg) * 2];
 	vsnprintf(logmsg, sizeof(logmsg), fmt, ap);
 	snprintf(completemsg, sizeof(completemsg), CONTEXT_TAG "%s", logmsg);
 	dahdi_r2_write_log(level, completemsg);
@@ -3956,10 +3956,11 @@ static void dahdi_r2_on_chan_log(openr2_chan_t *r2chan, openr2_log_level_t level
 {
 #define CHAN_TAG "Chan "
 	char logmsg[256];
-	char completemsg[sizeof(logmsg) + sizeof(CHAN_TAG) - 1];
+	char completemsg[sizeof(logmsg) * 2];
 	vsnprintf(logmsg, sizeof(logmsg), fmt, ap);
 	snprintf(completemsg, sizeof(completemsg), CHAN_TAG "%d - %s", openr2_chan_get_number(r2chan), logmsg);
 	dahdi_r2_write_log(level, completemsg);
+#undef CHAN_TAG
 }
 
 static int dahdi_r2_on_dnis_digit_received(openr2_chan_t *r2chan, char digit)
