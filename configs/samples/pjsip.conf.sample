@@ -1001,11 +1001,16 @@
                 ; and/or "asterisk_ecc.pem" are loaded (certificate, inter-
                 ; mediates, private key), to support multiple algorithms for
                 ; server authentication (RSA, DSA, ECDSA). If the chains are
-                ; different, at least OpenSSL 1.0.2 is required.
+                ; different, at least OpenSSL 1.0.2 is required. This option
+                ; can be reloaded resulting in an updated certificate if the
+                ; filename remains unchanged.
                 ; (default: "")
 ;cipher=        ; Preferred cryptography cipher names TLS ONLY (default: "")
 ;method=        ; Method of SSL transport TLS ONLY (default: "")
-;priv_key_file= ; Private key file TLS ONLY (default: "")
+;priv_key_file= ; Private key file TLS ONLY. This option can be reloaded
+                ; resulting in an updated private key if the filename remains
+                ; unchanged.
+                ; (default: "")
 ;verify_client= ; Require verification of client certificate TLS ONLY (default:
                 ; "")
 ;verify_server= ; Require verification of server certificate TLS ONLY (default:

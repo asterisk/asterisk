@@ -1340,7 +1340,8 @@
 						A path to a .crt or .pem file can be provided.  However, only
 						the certificate is read from the file, not the private key.
 						The <literal>priv_key_file</literal> option must supply a
-						matching key file.
+						matching key file. The certificate file can be reloaded if
+						the filename in configuration remains unchanged.
 					</para></description>
 				</configOption>
 				<configOption name="cipher">
@@ -1404,6 +1405,11 @@
 				</configOption>
 				<configOption name="priv_key_file">
 					<synopsis>Private key file (TLS ONLY, not WSS)</synopsis>
+					<description><para>
+						A path to a key file can be provided. The private key file
+						can be reloaded if the filename in configuration remains
+						unchanged.
+					</para></description>
 				</configOption>
 				<configOption name="protocol" default="udp">
 					<synopsis>Protocol to use for SIP traffic</synopsis>
