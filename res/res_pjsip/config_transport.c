@@ -577,6 +577,22 @@ static void copy_state_to_transport(struct ast_sip_transport *transport)
 	memcpy(&transport->external_address, &transport->state->external_signaling_address, sizeof(transport->external_signaling_address));
 }
 
+#ifdef HAVE_PJSIP_TLS_TRANSPORT_RESTART
+static int file_stat_cmp(const struct stat *old_stat, const struct stat *new_stat)
+{
+	return old_stat->st_size != new_stat->st_size
+		|| old_stat->st_mtime != new_stat->st_mtime
+#if defined(HAVE_STRUCT_STAT_ST_MTIM)
+		|| old_stat->st_mtim.tv_nsec != new_stat->st_mtim.tv_nsec
+#elif defined(HAVE_STRUCT_STAT_ST_MTIMENSEC)
+		|| old_stat->st_mtimensec != new_stat->st_mtimensec
+#elif defined(HAVE_STRUCT_STAT_ST_MTIMESPEC)
+		|| old_stat->st_mtimespec.tv_nsec != new_stat->st_mtimespec.tv_nsec
+#endif
+        ;
+}
+#endif
+
 static int has_state_changed(struct ast_sip_transport_state *a, struct ast_sip_transport_state *b)
 {
 	if (a->type != b->type) {
@@ -617,6 +633,12 @@ static int has_state_changed(struct ast_sip_transport_state *a, struct ast_sip_t
 	if (memcmp(a->ciphers, b->ciphers, sizeof(pj_ssl_cipher) * fmax(a->tls.ciphers_num, b->tls.ciphers_num))) {
 		return -1;
 	}
+
+#ifdef HAVE_PJSIP_TLS_TRANSPORT_RESTART
+	if (file_stat_cmp(&a->cert_file_stat, &b->cert_file_stat) || file_stat_cmp(&a->privkey_file_stat, &b->privkey_file_stat)) {
+		return -1;
+	}
+#endif
 
 	return 0;
 }
@@ -742,11 +764,31 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 		res = PJ_SUCCESS;
 	} else if (!transport->allow_reload && perm_state) {
 		/* We inherit the transport from perm state, untouched */
+#ifdef HAVE_PJSIP_TLS_TRANSPORT_RESTART
+		ast_log(LOG_NOTICE, "Transport '%s' is not fully reloadable, not reloading: protocol, bind, TLS (everything but certificate and private key if filename is unchanged), TCP, ToS, or CoS options.\n", transport_id);
+		/* If this is a TLS transport and the certificate or private key has changed, then restart the transport so it uses the new one */
+		if (transport->type == AST_TRANSPORT_TLS) {
+			if (strcmp(perm_state->transport->cert_file, temp_state->transport->cert_file) ||
+				strcmp(perm_state->transport->privkey_file, temp_state->transport->privkey_file)) {
+				ast_log(LOG_ERROR, "Unable to restart TLS transport '%s' as certificate or private key filename has changed\n",
+					transport_id);
+			} else if (file_stat_cmp(&perm_state->state->cert_file_stat, &temp_state->state->cert_file_stat) ||
+				file_stat_cmp(&perm_state->state->privkey_file_stat, &temp_state->state->privkey_file_stat)) {
+				if (pjsip_tls_transport_restart(perm_state->state->factory, &perm_state->state->host, NULL) != PJ_SUCCESS) {
+					ast_log(LOG_ERROR, "Failed to restart TLS transport '%s'\n", transport_id);
+				} else {
+					sprintf(perm_state->state->factory->info, "%s", transport_id);
+				}
+			}
+		}
+#else
 		ast_log(LOG_NOTICE, "Transport '%s' is not fully reloadable, not reloading: protocol, bind, TLS, TCP, ToS, or CoS options.\n", transport_id);
+#endif
 		temp_state->state->transport = perm_state->state->transport;
 		perm_state->state->transport = NULL;
 		temp_state->state->factory = perm_state->state->factory;
 		perm_state->state->factory = NULL;
+
 		res = PJ_SUCCESS;
 	} else if (transport->type == AST_TRANSPORT_UDP) {
 
@@ -841,8 +883,12 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 		}
 
 		if (res == PJ_SUCCESS) {
+			/*
+			 * PJSIP uses 100 bytes to store information, and during a restart will repopulate
+			 * the field so ensure there is sufficient space - even though we'll revert it after.
+			 */
 			temp_state->state->factory->info = pj_pool_alloc(
-				temp_state->state->factory->pool, (strlen(transport_id) + 1));
+				temp_state->state->factory->pool, (MAX(MAX_OBJECT_FIELD, 100) + 1));
 			/*
 			 * Store transport id on the factory instance so it can be used
 			 * later to look up the transport state.
@@ -918,18 +964,34 @@ static int transport_tls_file_handler(const struct aco_option *opt, struct ast_v
 		ast_string_field_set(transport, ca_list_file, var->value);
 	} else if (!strcasecmp(var->name, "ca_list_path")) {
 #ifdef HAVE_PJ_SSL_CERT_LOAD_FROM_FILES2
-		state->tls.ca_list_path = pj_str((char*)var->value);
+		state->tls.ca_list_path = pj_str((char *)var->value);
 		ast_string_field_set(transport, ca_list_path, var->value);
 #else
 		ast_log(LOG_WARNING, "Asterisk has been built against a version of pjproject that does not "
 				"support the 'ca_list_path' option. Please upgrade to version 2.4 or later.\n");
 #endif
 	} else if (!strcasecmp(var->name, "cert_file")) {
-		state->tls.cert_file = pj_str((char*)var->value);
+		state->tls.cert_file = pj_str((char *)var->value);
 		ast_string_field_set(transport, cert_file, var->value);
+#ifdef HAVE_PJSIP_TLS_TRANSPORT_RESTART
+		if (stat(var->value, &state->cert_file_stat)) {
+			ast_log(LOG_ERROR, "Failed to stat certificate file '%s' for transport '%s' due to '%s'\n",
+				var->value, ast_sorcery_object_get_id(obj), strerror(errno));
+			return -1;
+		}
+		ast_sorcery_object_set_has_dynamic_contents(transport);
+#endif
 	} else if (!strcasecmp(var->name, "priv_key_file")) {
-		state->tls.privkey_file = pj_str((char*)var->value);
+		state->tls.privkey_file = pj_str((char *)var->value);
 		ast_string_field_set(transport, privkey_file, var->value);
+#ifdef HAVE_PJSIP_TLS_TRANSPORT_RESTART
+		if (stat(var->value, &state->privkey_file_stat)) {
+			ast_log(LOG_ERROR, "Failed to stat private key file '%s' for transport '%s' due to '%s'\n",
+				var->value, ast_sorcery_object_get_id(obj), strerror(errno));
+			return -1;
+		}
+		ast_sorcery_object_set_has_dynamic_contents(transport);
+#endif
 	}
 
 	return 0;

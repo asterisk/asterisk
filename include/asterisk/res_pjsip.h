@@ -51,6 +51,11 @@
 #include "asterisk/stasis_endpoints.h"
 #include "asterisk/stream.h"
 
+#ifdef HAVE_PJSIP_TLS_TRANSPORT_RESTART
+/* Needed for knowing if the cert or priv key files changed */
+#include <sys/stat.h>
+#endif
+
 #define PJSIP_MINVERSION(m,n,p) (((m << 24) | (n << 16) | (p << 8)) >= PJ_VERSION_NUM)
 
 #ifndef PJSIP_EXPIRES_NOT_SPECIFIED
@@ -184,6 +189,16 @@ struct ast_sip_transport_state {
 	 * If true, fail if server certificate cannot verify (TLS only)
 	 */
 	int verify_server;
+#ifdef HAVE_PJSIP_TLS_TRANSPORT_RESTART
+	/*!
+	 * The stats information for the certificate file, if configured
+	 */
+	struct stat cert_file_stat;
+	/*!
+	 * The stats information for the private key file, if configured
+	 */
+	struct stat privkey_file_stat;
+#endif
 };
 
 #define ast_sip_transport_is_nonlocal(transport_state, addr) \
