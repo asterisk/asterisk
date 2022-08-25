@@ -940,8 +940,8 @@ static int scan_exec(struct ast_channel *chan, const char *data)
 				} else if (fax) {
 					char result;
 					frame2 = ast_dsp_process(chan, dsp2, frame2);
-					result = frame->subclass.integer;
-					if (result == AST_FRAME_DTMF) {
+					result = frame2->subclass.integer;
+					if (frame2->frametype == AST_FRAME_DTMF) {
 						if (result == 'e') {
 							pbx_builtin_setvar_helper(chan, "TONESCANSTATUS", "FAX");
 							match = 1;
