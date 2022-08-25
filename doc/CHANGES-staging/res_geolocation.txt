@@ -43,3 +43,10 @@ a profile object for simple scenarios where the location
 information isn't common with any other profiles.  This is
 mutually exclusive with setting location_reference on the
 profile.
+
+Added an 'a' option to the GEOLOC_PROFILE function to allow
+variable lists like location_info_refinement to be appended
+to instead of replacing the entire list.
+
+Added an 'r' option to the GEOLOC_PROFILE function to resolve all
+variables before a read operation and after a Set operation.

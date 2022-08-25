@@ -574,7 +574,10 @@ static void handle_outgoing_request(struct ast_sip_session *session, struct pjsi
 			session_name);
 	}
 
-	ast_geoloc_eprofile_refresh_location(final_eprofile);
+	if (!final_eprofile->effective_location) {
+		ast_geoloc_eprofile_refresh_location(final_eprofile);
+	}
+
 	if (final_eprofile->format == AST_GEOLOC_FORMAT_URI) {
 		uri = ast_geoloc_eprofile_to_uri(final_eprofile, channel, &buf, session_name);
 		if (!uri) {
