@@ -156,6 +156,67 @@ int ast_geoloc_eprofile_refresh_location(struct ast_geoloc_eprofile *eprofile)
 	return 0;
 }
 
+struct ast_geoloc_eprofile *ast_geoloc_eprofile_dup(struct ast_geoloc_eprofile *src)
+{
+	struct ast_geoloc_eprofile *eprofile;
+	const char *profile_id;
+	int rc = 0;
+
+	if (!src) {
+		return NULL;
+	}
+
+	profile_id = ast_strdupa(src->id);
+
+	eprofile = ast_geoloc_eprofile_alloc(profile_id);
+	if (!eprofile) {
+		return NULL;
+	}
+
+	eprofile->allow_routing_use = src->allow_routing_use;
+	eprofile->pidf_element = src->pidf_element;
+	eprofile->suppress_empty_ca_elements = src->suppress_empty_ca_elements;
+	eprofile->format = src->format;
+	eprofile->precedence = src->precedence;
+
+
+	rc = ast_string_field_set(eprofile, location_reference, src->location_reference);
+	if (rc == 0) {
+		ast_string_field_set(eprofile, notes, src->notes);
+	}
+	if (rc == 0) {
+		ast_string_field_set(eprofile, method, src->method);
+	}
+	if (rc == 0) {
+		ast_string_field_set(eprofile, location_source, src->location_source);
+	}
+	if (rc == 0) {
+		rc = DUP_VARS(eprofile->location_info, src->location_info);
+	}
+	if (rc == 0) {
+		rc = DUP_VARS(eprofile->effective_location, src->effective_location);
+	}
+	if (rc == 0) {
+		rc = DUP_VARS(eprofile->location_refinement, src->location_refinement);
+	}
+	if (rc == 0) {
+		rc = DUP_VARS(eprofile->location_variables, src->location_variables);
+	}
+	if (rc == 0) {
+		rc = DUP_VARS(eprofile->usage_rules, src->usage_rules);
+	}
+	if (rc == 0) {
+		rc = DUP_VARS(eprofile->confidence, src->confidence);
+	}
+	if (rc != 0) {
+		ao2_ref(eprofile, -1);
+		return NULL;
+	}
+
+
+	return eprofile;
+}
+
 struct ast_geoloc_eprofile *ast_geoloc_eprofile_create_from_profile(struct ast_geoloc_profile *profile)
 {
 	struct ast_geoloc_eprofile *eprofile;
@@ -287,7 +348,7 @@ struct ast_geoloc_eprofile *ast_geoloc_eprofile_create_from_uri(const char *uri,
 	return eprofile;
 }
 
-static struct ast_variable *geoloc_eprofile_resolve_varlist(struct ast_variable *source,
+struct ast_variable *geoloc_eprofile_resolve_varlist(struct ast_variable *source,
 	struct ast_variable *variables, struct ast_channel *chan)
 {
 	struct ast_variable *dest = NULL;
