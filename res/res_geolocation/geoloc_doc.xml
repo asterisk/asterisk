@@ -7,12 +7,14 @@
 			<configObject name="location">
 				<synopsis>Location</synopsis>
 				<description>
-					<para>cffdffff</para>
+					<para>Parameters for defining a Location object</para>
 				</description>
+
 				<configOption name="type">
 					<synopsis>Must be of type 'location'.</synopsis>
 				</configOption>
-				<configOption name="format" default="">
+
+				<configOption name="format" default="none">
 					<synopsis>Location specification type</synopsis>
 					<description>
 						<enumlist>
@@ -42,7 +44,8 @@
 						</enumlist>
 					</description>
 				</configOption>
-				<configOption name="location_info" default="">
+
+				<configOption name="location_info" default="none">
 					<synopsis>Location information</synopsis>
 					<description>
 						<para>The contents of this parameter are specific to the
@@ -68,7 +71,8 @@
 						</enumlist>
 					</description>
 				</configOption>
-				<configOption name="location_source" default="">
+
+				<configOption name="location_source" default="none">
 					<synopsis>Fully qualified host name</synopsis>
 					<description>
 						<para>This parameter isn't required but if provided, RFC8787 says it MUST be a fully
@@ -77,7 +81,8 @@
 						Geolocation</literal> header.</para>
 					</description>
 				</configOption>
-				<configOption name="method" default="">
+
+				<configOption name="method" default="none">
 					<synopsis>Location determination method</synopsis>
 					<description>
 						<para>This is a rarely used field in the specification that would
@@ -94,7 +99,8 @@
 						</enumlist>
 					</description>
 				</configOption>
-				<configOption name="confidence" default="">
+
+				<configOption name="confidence" default="none">
 					<synopsis>Level of confidence</synopsis>
 					<description>
 						<para>This is a rarely used field in the specification that would
@@ -123,14 +129,16 @@
 					</see-also>
 				</configOption>
 			</configObject>
+
 			<configObject name="profile">
 				<synopsis>Profile</synopsis>
 				<description>
-					<para>cffdffff</para>
+					<para>Parameters for defining a Profile object</para>
 				</description>
 				<configOption name="type">
 					<synopsis>Must be of type 'profile'.</synopsis>
 				</configOption>
+
 				<configOption name="pidf_element" default="device">
 					<synopsis>PIDF-LO element to place this profile in</synopsis>
 					<description>
@@ -148,21 +156,25 @@
 						<ref type="link">https://www.rfc-editor.org/rfc/rfc5491.html#section-3.4</ref>
 					</see-also>
 				</configOption>
-				<configOption name="location_reference" default="">
+
+				<configOption name="location_reference" default="none">
 					<synopsis>Reference to a location object</synopsis>
 				</configOption>
-				<configOption name="location_info_refinement" default="">
+
+				<configOption name="location_info_refinement" default="none">
 					<synopsis>Reference to a location object</synopsis>
 				</configOption>
-				<configOption name="location_variables" default="">
+				<configOption name="location_variables" default="none">
 					<synopsis>Reference to a location object</synopsis>
 				</configOption>
-				<configOption name="usage_rules" default="yes">
+
+				<configOption name="usage_rules" default="empty &lt;usage_rules&gt; element">
 					<synopsis>location specification type</synopsis>
 					<description>
 						<para>xxxx</para>
 					</description>
 				</configOption>
+
 				<configOption name="notes" default="">
 					<synopsis>Notes to be added to the outgoing PIDF-LO document</synopsis>
 					<description>
@@ -171,11 +183,13 @@
 						outgoing PIDF-LO document.  Its usage should be pre-negotiated with
 						any recipients.</para>
 					</description>
+
 				</configOption>
-				<configOption name="allow_routing_use">
+				<configOption name="allow_routing_use" default="no">
 					<synopsis>Sets the value of the Geolocation-Routing header.</synopsis>
 				</configOption>
-				<configOption name="suppress_empty_ca_elements">
+
+				<configOption name="suppress_empty_ca_elements" default="no">
 					<synopsis>Sets if empty Civic Address elements should be suppressed
 					from the PIDF-LO document.</synopsis>
 				</configOption>
@@ -207,6 +221,7 @@
 						</enumlist>
 					</description>
 				</configOption>
+
 				<xi:include xpointer="xpointer(/docs/configInfo[@name='res_geolocation']/configFile[@name='geolocation.conf']/configObject[@name='location']/configOption[@name='format'])"/>
 				<xi:include xpointer="xpointer(/docs/configInfo[@name='res_geolocation']/configFile[@name='geolocation.conf']/configObject[@name='location']/configOption[@name='location_info'])"/>
 				<xi:include xpointer="xpointer(/docs/configInfo[@name='res_geolocation']/configFile[@name='geolocation.conf']/configObject[@name='location']/configOption[@name='confidence'])"/>
@@ -220,8 +235,8 @@
 			Get or Set a field in a geolocation profile
 		</synopsis>
 		<syntax>
-			<parameter name="field" required="true">
-				<para>The profile field to operate on. The following fields from the
+			<parameter name="parameter" required="true">
+				<para>The profile parameter to operate on. The following fields from the
 				Location and Profile objects are supported.</para>
 				<enumlist>
 					<enum name="id"/>
@@ -244,10 +259,38 @@
 				set to <literal>true</literal> or <literal>false</literal> to control
 				whether the profile will be passed to the outgoing channel.
 				</para>
+				<para>
+				</para>
+			</parameter>
+
+			<parameter name="options" required="false">
+				<optionlist>
+				<option name="a">
+					<para>Append provided value to the specified parameter
+					instead of replacing the existing value.  This only applies
+					to variable list parameters like
+					<literal>location_info_refinement</literal>.
+					</para>
+				</option>
+				<option name="r">
+					<para>Before reading or after writing the specified parameter,
+					re-resolve the <literal>effective_location</literal> and
+					<literal>usage_rules</literal> parameters using the
+					<literal>location_variables</literal> parameter and the variables
+					set on the channel in effect at the time this function is called.
+					</para>
+					<note><para>On a read operation, this does not alter the actual profile
+						in any way.  On a write operation however, the
+						<literal>effective_location</literal> and/or <literal>usage_rules</literal>
+						parameters may indeed change and those changes will be passed on
+						to any outgoing channel.
+					</para></note>
+				</option>
+				</optionlist>
 			</parameter>
 		</syntax>
 		<description><para>
-		When used to set a field on a profile, if the profile doesn't already exist, a new
+		When used to set a parameter on a profile, if the profile doesn't already exist, a new
 		one will be created automatically.
 		</para>
 		<para>
@@ -258,8 +301,8 @@
 			<enum name="0"><para>Success</para></enum>
 			<enum name="-1"><para>No or not enough parameters were supplied</para></enum>
 			<enum name="-2"><para>There was an internal error finding or creating a profile</para></enum>
-			<enum name="-3"><para>There was an issue specific to the field specified
-			(value not valid or field name not found)</para></enum>
+			<enum name="-3"><para>There was an issue specific to the parameter specified
+			(value not valid or parameter name not found, etc.)</para></enum>
 		</enumlist>
 		</description>
 	</function>

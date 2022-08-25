@@ -155,4 +155,8 @@ int geoloc_eprofile_reload(void);
 
 struct ast_sorcery *geoloc_get_sorcery(void);
 
+struct ast_variable *geoloc_eprofile_resolve_varlist(struct ast_variable *source,
+	struct ast_variable *variables, struct ast_channel *chan);
+
+
 #endif /* GEOLOC_PRIVATE_H_ */
