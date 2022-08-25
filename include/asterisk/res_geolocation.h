@@ -318,6 +318,15 @@ struct ast_datastore *ast_geoloc_datastore_find(struct ast_channel *chan);
 struct ast_geoloc_eprofile *ast_geoloc_eprofile_alloc(const char *name);
 
 /*!
+ * \brief Duplicate an effective profile.
+ *
+ * \param src The eprofile to duplicate.
+ *
+ * \return The duplicated effective profile ao2 object.
+ */
+struct ast_geoloc_eprofile *ast_geoloc_eprofile_dup(struct ast_geoloc_eprofile *src);
+
+/*!
  * \brief Allocate a new effective profile from an existing profile.
  *
  * \param profile The profile to use.
