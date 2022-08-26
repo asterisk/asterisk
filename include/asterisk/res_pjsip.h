@@ -3902,4 +3902,11 @@ const pj_str_t *ast_sip_pjsip_uri_get_hostname(pjsip_uri *uri);
  */
 struct pjsip_param *ast_sip_pjsip_uri_get_other_param(pjsip_uri *uri, const pj_str_t *param_str);
 
+/*!
+ * \brief Retrieve the system setting 'all_codecs_on_empty_reinvite'.
+ *
+ * \retval non zero if we should return all codecs on empty re-INVITE
+ */
+unsigned int ast_sip_get_all_codecs_on_empty_reinvite(void);
+
 #endif /* _RES_PJSIP_H */

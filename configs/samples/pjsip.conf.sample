@@ -1336,6 +1336,13 @@
                     ; creating an implicit subscription (see RFC 4488).
                     ; (default: "yes")
 
+;all_codecs_on_empty_reinvite=yes
+                    ; On reception of a re-INVITE without SDP Asterisk will send an SDP
+                    ; offer in the 200 OK response containing all configured codecs on the
+                    ; endpoint, instead of simply those that have already been negotiated.
+                    ; RFC 3261 specifies this as a SHOULD requirement.
+                    ; (default: "no")
+
 ;allow_sending_180_after_183=yes	; Allow Asterisk to send 180 Ringing to an endpoint
 					; after 183 Session Progress has been send.
 					; If disabled Asterisk will instead send only a
