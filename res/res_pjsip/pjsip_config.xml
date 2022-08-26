@@ -2117,6 +2117,15 @@
 						</para>
 					</description>
 				</configOption>
+				<configOption name="all_codecs_on_empty_reinvite" default="no">
+					<synopsis>If we should return all codecs on re-INVITE without SDP</synopsis>
+					<description><para>
+						On reception of a re-INVITE without SDP Asterisk will send an SDP
+						offer in the 200 OK response containing all configured codecs on the
+						endpoint, instead of simply those that have already been negotiated.
+						RFC 3261 specifies this as a SHOULD requirement.
+					</para></description>
+				</configOption>
 			</configObject>
 		</configFile>
 	</configInfo>
