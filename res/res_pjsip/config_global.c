@@ -54,6 +54,7 @@
 #define DEFAULT_SEND_CONTACT_STATUS_ON_UPDATE_REGISTRATION 0
 #define DEFAULT_TASKPROCESSOR_OVERLOAD_TRIGGER TASKPROCESSOR_OVERLOAD_TRIGGER_GLOBAL
 #define DEFAULT_NOREFERSUB 1
+#define DEFAULT_ALL_CODECS_ON_EMPTY_REINVITE 0
 
 /*!
  * \brief Cached global config object
@@ -119,6 +120,8 @@ struct global_config {
 	enum ast_sip_taskprocessor_overload_trigger overload_trigger;
 	/*! Nonzero if norefersub is to be sent in Supported header */
 	unsigned int norefersub;
+	/*! Nonzero if we should return all codecs on empty re-INVITE */
+	unsigned int all_codecs_on_empty_reinvite;
 };
 
 static void global_destructor(void *obj)
@@ -537,6 +540,21 @@ unsigned int ast_sip_get_norefersub(void)
 	return norefersub;
 }
 
+unsigned int ast_sip_get_all_codecs_on_empty_reinvite(void)
+{
+	unsigned int all_codecs_on_empty_reinvite;
+	struct global_config *cfg;
+
+	cfg = get_global_cfg();
+	if (!cfg) {
+		return DEFAULT_ALL_CODECS_ON_EMPTY_REINVITE;
+	}
+
+	all_codecs_on_empty_reinvite = cfg->all_codecs_on_empty_reinvite;
+	ao2_ref(cfg, -1);
+	return all_codecs_on_empty_reinvite;
+}
+
 static int overload_trigger_handler(const struct aco_option *opt,
 	struct ast_variable *var, void *obj)
 {
@@ -744,6 +762,9 @@ int ast_sip_initialize_sorcery_global(void)
 	ast_sorcery_object_field_register(sorcery, "global", "norefersub",
 		DEFAULT_NOREFERSUB ? "yes" : "no",
 		OPT_YESNO_T, 1, FLDSET(struct global_config, norefersub));
+	ast_sorcery_object_field_register(sorcery, "global", "all_codecs_on_empty_reinvite",
+		DEFAULT_ALL_CODECS_ON_EMPTY_REINVITE ? "yes" : "no",
+		OPT_BOOL_T, 1, FLDSET(struct global_config, all_codecs_on_empty_reinvite));
 
 	if (ast_sorcery_instance_observer_add(sorcery, &observer_callbacks_global)) {
 		return -1;
