@@ -102,7 +102,7 @@ struct sdp_handler_list {
 	char stream_type[1];
 };
 
-static struct pjmedia_sdp_session *create_local_sdp(pjsip_inv_session *inv, struct ast_sip_session *session, const pjmedia_sdp_session *offer);
+static struct pjmedia_sdp_session *create_local_sdp(pjsip_inv_session *inv, struct ast_sip_session *session, const pjmedia_sdp_session *offer, const unsigned int ignore_active_stream_topology);
 
 static int sdp_handler_list_hash(const void *obj, int flags)
 {
@@ -1631,7 +1631,7 @@ static pjmedia_sdp_session *generate_session_refresh_sdp(struct ast_sip_session 
 			pjmedia_sdp_neg_get_active_local(inv_session->neg, &previous_sdp);
 		}
 	}
-	SCOPE_EXIT_RTN_VALUE(create_local_sdp(inv_session, session, previous_sdp));
+	SCOPE_EXIT_RTN_VALUE(create_local_sdp(inv_session, session, previous_sdp, 0));
 }
 
 static void set_from_header(struct ast_sip_session *session)
@@ -2556,7 +2556,7 @@ int ast_sip_session_regenerate_answer(struct ast_sip_session *session,
 		pjmedia_sdp_neg_set_remote_offer(inv_session->pool, inv_session->neg, previous_offer);
 	}
 
-	new_answer = create_local_sdp(inv_session, session, previous_offer);
+	new_answer = create_local_sdp(inv_session, session, previous_offer, 0);
 	if (!new_answer) {
 		ast_log(LOG_WARNING, "Could not create a new local SDP answer for channel '%s'\n",
 			ast_channel_name(session->channel));
@@ -2850,7 +2850,7 @@ int ast_sip_session_create_invite(struct ast_sip_session *session, pjsip_tx_data
 	pjmedia_sdp_session *offer;
 	SCOPE_ENTER(1, "%s\n", ast_sip_session_get_name(session));
 
-	if (!(offer = create_local_sdp(session->inv_session, session, NULL))) {
+	if (!(offer = create_local_sdp(session->inv_session, session, NULL, 0))) {
 		pjsip_inv_terminate(session->inv_session, 500, PJ_FALSE);
 		SCOPE_EXIT_RTN_VALUE(-1, "Couldn't create offer\n");
 	}
@@ -4028,10 +4028,10 @@ static int new_invite(struct new_invite *invite)
 			goto end;
 		}
 		/* We are creating a local SDP which is an answer to their offer */
-		local = create_local_sdp(invite->session->inv_session, invite->session, sdp_info->sdp);
+		local = create_local_sdp(invite->session->inv_session, invite->session, sdp_info->sdp, 0);
 	} else {
 		/* We are creating a local SDP which is an offer */
-		local = create_local_sdp(invite->session->inv_session, invite->session, NULL);
+		local = create_local_sdp(invite->session->inv_session, invite->session, NULL, 0);
 	}
 
 	/* If we were unable to create a local SDP terminate the session early, it won't go anywhere */
@@ -5103,7 +5103,7 @@ static int add_bundle_groups(struct ast_sip_session *session, pj_pool_t *pool, p
 	return 0;
 }
 
-static struct pjmedia_sdp_session *create_local_sdp(pjsip_inv_session *inv, struct ast_sip_session *session, const pjmedia_sdp_session *offer)
+static struct pjmedia_sdp_session *create_local_sdp(pjsip_inv_session *inv, struct ast_sip_session *session, const pjmedia_sdp_session *offer, const unsigned int ignore_active_stream_topology)
 {
 	static const pj_str_t STR_IN = { "IN", 2 };
 	static const pj_str_t STR_IP4 = { "IP4", 3 };
@@ -5136,11 +5136,19 @@ static struct pjmedia_sdp_session *create_local_sdp(pjsip_inv_session *inv, stru
 		/* We've encountered a situation where we have been told to create a local SDP but noone has given us any indication
 		 * of what kind of stream topology they would like. We try to not alter the current state of the SDP negotiation
 		 * by using what is currently negotiated. If this is unavailable we fall back to what is configured on the endpoint.
+		 * We will also do this if wanted by the ignore_active_stream_topology flag.
 		 */
+		ast_trace(-1, "no information about stream topology received\n");
 		ast_stream_topology_free(session->pending_media_state->topology);
-		if (session->active_media_state->topology) {
+		if (session->active_media_state->topology && !ignore_active_stream_topology) {
+			ast_trace(-1, "using existing topology\n");
 			session->pending_media_state->topology = ast_stream_topology_clone(session->active_media_state->topology);
 		} else {
+			if (ignore_active_stream_topology) {
+				ast_trace(-1, "fall back to endpoint configuration - ignore active stream topolog\n");
+			} else {
+				ast_trace(-1, "fall back to endpoint configuration\n");
+			}
 			session->pending_media_state->topology = ast_stream_topology_clone(session->endpoint->media.topology);
 		}
 		if (!session->pending_media_state->topology) {
@@ -5274,7 +5282,7 @@ static void session_inv_on_rx_offer(pjsip_inv_session *inv, const pjmedia_sdp_se
 		SCOPE_EXIT_RTN("%s: handle_incoming_sdp failed\n", ast_sip_session_get_name(session));
 	}
 
-	if ((answer = create_local_sdp(inv, session, offer))) {
+	if ((answer = create_local_sdp(inv, session, offer, 0))) {
 		pjsip_inv_set_sdp_answer(inv, answer);
 		SCOPE_EXIT_RTN("%s: Set SDP answer\n", ast_sip_session_get_name(session));
 	}
@@ -5287,6 +5295,7 @@ static void session_inv_on_create_offer(pjsip_inv_session *inv, pjmedia_sdp_sess
 	const pjmedia_sdp_session *previous_sdp = NULL;
 	pjmedia_sdp_session *offer;
 	int i;
+	unsigned int ignore_active_stream_topology = 0;
 
 	/* We allow PJSIP to produce an SDP if no channel is present. This may result
 	 * in an incorrect SDP occurring, but if no channel is present then we are in
@@ -5294,8 +5303,24 @@ static void session_inv_on_create_offer(pjsip_inv_session *inv, pjmedia_sdp_sess
 	 * produce an SDP doesn't need to worry about a channel being present or not,
 	 * just in case.
 	 */
+	SCOPE_ENTER(3, "%s\n", ast_sip_session_get_name(session));
 	if (!session->channel) {
-		return;
+		SCOPE_EXIT_RTN("%s: No channel\n", ast_sip_session_get_name(session));
+	}
+
+	/* Some devices send a re-INVITE offer with empty SDP. Asterisk by default return
+	 * an answer with the current used codecs, which is not strictly compliant to RFC
+	 * 3261 (SHOULD requirement). So we detect this condition and include all
+	 * configured codecs in the answer if the workaround is activated.
+	 */
+	if (inv->invite_tsx && inv->state == PJSIP_INV_STATE_CONFIRMED
+			&& inv->invite_tsx->method.id == PJSIP_INVITE_METHOD) {
+		ast_trace(-1, "re-INVITE\n");
+		if (inv->invite_tsx->role == PJSIP_ROLE_UAS && !pjmedia_sdp_neg_was_answer_remote(inv->neg)
+				&& ast_sip_get_all_codecs_on_empty_reinvite()) {
+			ast_trace(-1, "no codecs in re-INIVTE, include all codecs in the answer\n");
+			ignore_active_stream_topology = 1;
+		}
 	}
 
 	if (inv->neg) {
@@ -5306,9 +5331,13 @@ static void session_inv_on_create_offer(pjsip_inv_session *inv, pjmedia_sdp_sess
 		}
 	}
 
-	offer = create_local_sdp(inv, session, previous_sdp);
+	if (ignore_active_stream_topology) {
+		offer = create_local_sdp(inv, session, NULL, 1);
+	} else {
+		offer = create_local_sdp(inv, session, previous_sdp, 0);
+	}
 	if (!offer) {
-		return;
+		SCOPE_EXIT_RTN("%s: create offer failed\n", ast_sip_session_get_name(session));
 	}
 
 	ast_queue_unhold(session->channel);
@@ -5354,6 +5383,7 @@ static void session_inv_on_create_offer(pjsip_inv_session *inv, pjmedia_sdp_sess
 	}
 
 	*p_offer = offer;
+	SCOPE_EXIT_RTN("%s: offer created\n", ast_sip_session_get_name(session));
 }
 
 static void session_inv_on_media_update(pjsip_inv_session *inv, pj_status_t status)
