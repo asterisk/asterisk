@@ -1902,6 +1902,16 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 			continue;
 		}
 
+		/* It is possible for some formats not to have SDP information available for them
+		 * and if this is the case, skip over them so the SDP can still be created.
+		 */
+		if (!ast_rtp_lookup_sample_rate2(1, format, 0)) {
+			ast_log(LOG_WARNING, "Format '%s' can not be added to SDP, consider disallowing it on endpoint '%s'\n",
+				ast_format_get_name(format), ast_sorcery_object_get_id(session->endpoint));
+			ao2_ref(format, -1);
+			continue;
+		}
+
 		/* If this stream is not a transport we need to use the transport codecs structure for payload management to prevent
 		 * conflicts.
 		 */
