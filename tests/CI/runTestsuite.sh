@@ -4,7 +4,6 @@ REALTIME=0
 TEST_TIMEOUT=600
 source $CIDIR/ci.functions
 ASTETCDIR=$DESTDIR/etc/asterisk
-SETUPVENV=$TESTSUITE_DIR/setupVenv.sh
 
 if [ x"$WORK_DIR" != x ] ; then
 	export AST_WORK_DIR="$(readlink -f $WORK_DIR)"
@@ -19,11 +18,13 @@ if [ $REALTIME -eq 1 ] ; then
 fi
 
 # check to see if venv scripts exist so we can use them
-if [ -f "$SETUPVENV" ] ; then
+if [ -f ./setupVenv.sh ] ; then
+	echo "Running in Virtual Environment"
 	# explicitly invoking setupVenv to capture output in case of failure
 	./setupVenv.sh
 	VENVPREFIX="runInVenv.sh python "
 else
+	echo "Running in Legacy Mode"
 	export PYTHONPATH=./lib/python/
 fi
 
