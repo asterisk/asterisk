@@ -1432,7 +1432,7 @@ void pbx_substitute_variables_helper_full(struct ast_channel *c, struct varshead
 /*!
  * \brief Substitutes variables, similar to pbx_substitute_variables_helper_full, but allows passing the context, extension, and priority in.
  */
-void pbx_substitute_variables_helper_full_location(struct ast_channel *c, struct varshead *headp, const char *cp1, char *cp2, int cp2_size, size_t *used, char *context, char *exten, int pri);
+void pbx_substitute_variables_helper_full_location(struct ast_channel *c, struct varshead *headp, const char *cp1, char *cp2, int cp2_size, size_t *used, const char *context, const char *exten, int pri);
 /*! @} */
 
 /*! @name Substitution routines, using dynamic string buffers
