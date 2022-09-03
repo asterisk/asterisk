@@ -662,7 +662,7 @@ void pbx_substitute_variables_helper_full(struct ast_channel *c, struct varshead
 	pbx_substitute_variables_helper_full_location(c, headp, cp1, cp2, count, used, NULL, NULL, 0);
 }
 
-void pbx_substitute_variables_helper_full_location(struct ast_channel *c, struct varshead *headp, const char *cp1, char *cp2, int count, size_t *used, char *context, char *exten, int pri)
+void pbx_substitute_variables_helper_full_location(struct ast_channel *c, struct varshead *headp, const char *cp1, char *cp2, int count, size_t *used, const char *context, const char *exten, int pri)
 {
 	/* Substitutes variables into cp2, based on string cp1, cp2 NO LONGER NEEDS TO BE ZEROED OUT!!!!  */
 	const char *whereweare;
