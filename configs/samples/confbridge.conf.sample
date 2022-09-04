@@ -58,8 +58,11 @@ type=user
                           ; when a channel enters a empty conference.  On by default.
 ;wait_marked=yes   ; Sets if the user must wait for a marked user to enter before
                    ; joining the conference. Off by default.
-;end_marked=yes ; This option will kick every user with this option set in their
-                ; user profile after the last Marked user exists the conference.
+;end_marked=yes ; This option will kick every non-marked user with this option set in their
+                ; user profile after the last marked user exits the conference.
+;end_marked_any=no ; This option will kick every user with this option set in
+                   ; their user profile after any marked user exits the conference.
+                   ; Additionally, note that unlike end_marked, this includes marked users.
 
 ;dsp_drop_silence=yes  ; This option drops what Asterisk detects as silence from
                        ; entering into the bridge.  Enabling this option will drastically
