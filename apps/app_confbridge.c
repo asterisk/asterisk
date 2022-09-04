@@ -4022,6 +4022,7 @@ static int action_confbridgelist_item(struct mansession *s, const char *id_text,
 		"MarkedUser: %s\r\n"
 		"WaitMarked: %s\r\n"
 		"EndMarked: %s\r\n"
+		"EndMarkedAny: %s\r\n"
 		"Waiting: %s\r\n"
 		"Muted: %s\r\n"
 		"Talking: %s\r\n"
@@ -4034,6 +4035,7 @@ static int action_confbridgelist_item(struct mansession *s, const char *id_text,
 		AST_YESNO(ast_test_flag(&user->u_profile, USER_OPT_MARKEDUSER)),
 		AST_YESNO(ast_test_flag(&user->u_profile, USER_OPT_WAITMARKED)),
 		AST_YESNO(ast_test_flag(&user->u_profile, USER_OPT_ENDMARKED)),
+		AST_YESNO(ast_test_flag(&user->u_profile, USER_OPT_ENDMARKEDANY)),
 		AST_YESNO(waiting),
 		AST_YESNO(user->muted),
 		AST_YESNO(user->talking),
