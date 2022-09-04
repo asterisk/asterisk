@@ -120,6 +120,9 @@
 				<configOption name="end_marked">
 					<synopsis>Kick the user from the conference when the last marked user leaves</synopsis>
 				</configOption>
+				<configOption name="end_marked_any">
+					<synopsis>Kick the user from the conference when any marked user leaves</synopsis>
+				</configOption>
 				<configOption name="talk_detection_events">
 					<synopsis>Set whether or not notifications of when a user begins and ends talking should be sent out as events over AMI</synopsis>
 				</configOption>
@@ -1581,8 +1584,11 @@ static char *handle_cli_confbridge_show_user_profile(struct ast_cli_entry *e, in
 	ast_cli(a->fd,"Wait Marked:             %s\n",
 		u_profile.flags & USER_OPT_WAITMARKED ?
 		"enabled" : "disabled");
-	ast_cli(a->fd,"END Marked:              %s\n",
+	ast_cli(a->fd,"END Marked (All):        %s\n",
 		u_profile.flags & USER_OPT_ENDMARKED ?
+		"enabled" : "disabled");
+	ast_cli(a->fd,"END Marked (Any):        %s\n",
+		u_profile.flags & USER_OPT_ENDMARKEDANY ?
 		"enabled" : "disabled");
 	ast_cli(a->fd,"Drop_silence:            %s\n",
 		u_profile.flags & USER_OPT_DROP_SILENCE ?
@@ -2407,6 +2413,7 @@ int conf_load_config(void)
 	aco_option_register(&cfg_info, "announce_only_user", ACO_EXACT, user_types, "yes", OPT_BOOLFLAG_T, 0, FLDSET(struct user_profile, flags), USER_OPT_NOONLYPERSON);
 	aco_option_register(&cfg_info, "wait_marked", ACO_EXACT, user_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct user_profile, flags), USER_OPT_WAITMARKED);
 	aco_option_register(&cfg_info, "end_marked", ACO_EXACT, user_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct user_profile, flags), USER_OPT_ENDMARKED);
+	aco_option_register(&cfg_info, "end_marked_any", ACO_EXACT, user_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct user_profile, flags), USER_OPT_ENDMARKEDANY);
 	aco_option_register(&cfg_info, "talk_detection_events", ACO_EXACT, user_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct user_profile, flags), USER_OPT_TALKER_DETECT);
 	aco_option_register(&cfg_info, "dtmf_passthrough", ACO_EXACT, user_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct user_profile, flags), USER_OPT_DTMF_PASS);
 	aco_option_register(&cfg_info, "announce_join_leave", ACO_EXACT, user_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct user_profile, flags), USER_OPT_ANNOUNCE_JOIN_LEAVE);
