@@ -7019,16 +7019,17 @@ done:
 }
 
 /*! \brief remove at most n_max stale session from the list. */
-static void purge_sessions(int n_max)
+static int purge_sessions(int n_max)
 {
 	struct ao2_container *sessions;
 	struct mansession_session *session;
 	time_t now = time(NULL);
 	struct ao2_iterator i;
+	int purged = 0;
 
 	sessions = ao2_global_obj_ref(mgr_sessions);
 	if (!sessions) {
-		return;
+		return 0;
 	}
 	i = ao2_iterator_init(sessions, 0);
 	ao2_ref(sessions, -1);
@@ -7044,12 +7045,14 @@ static void purge_sessions(int n_max)
 			ao2_unlock(session);
 			session_destroy(session);
 			n_max--;
+			purged++;
 		} else {
 			ao2_unlock(session);
 			unref_mansession(session);
 		}
 	}
 	ao2_iterator_destroy(&i);
+	return purged;
 }
 
 /*! \brief
@@ -8642,7 +8645,17 @@ static int webregged = 0;
  */
 static void purge_old_stuff(void *data)
 {
-	purge_sessions(1);
+	struct ast_tcptls_session_args *ser = data;
+	/* purge_sessions will return the number of sessions actually purged,
+	 * up to a maximum of it's arguments, purge one at a time, keeping a
+	 * purge interval of 1ms as long as we purged a session, otherwise
+	 * revert to a purge check every 5s
+	 */
+	if (purge_sessions(1) == 1) {
+		ser->poll_timeout = 1;
+	} else {
+		ser->poll_timeout = 5000;
+	}
 	purge_events();
 }
 
