@@ -1935,15 +1935,7 @@ static struct ast_sip_session_media_state *resolve_refresh_media_states(
 				/* All the same state, no need to update. */
 				SCOPE_EXIT_EXPR(continue, "%s: All in the same state so nothing to do\n", session_name);
 			}
-			if (da_state != ca_state) {
-				/*
-				 * Something set the CA state between the time this request was queued
-				 * and now.  The CA state wins so we don't do anything.
-				 */
-				SCOPE_EXIT_EXPR(continue, "%s: Ignoring request to change state from %s to %s\n",
-					session_name, ast_stream_state2str(ca_state), ast_stream_state2str(dp_state));
-			}
-			if (dp_state != da_state) {
+			if (dp_state != ca_state) {
 				/* DP needs to update the state */
 				ast_stream_set_state(np_stream, dp_state);
 				SCOPE_EXIT_EXPR(continue, "%s: Changed NP stream state from %s to %s\n",
@@ -5879,6 +5871,7 @@ AST_TEST_DEFINE(test_resolve_refresh_media_states)
 
 	test_media_add(expected_pending_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
 	test_media_add(expected_pending_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
 	test_media_add(expected_pending_state, "myvideo3", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
 	CHECKER();
 
@@ -5917,8 +5910,9 @@ AST_TEST_DEFINE(test_resolve_refresh_media_states)
 
 	test_media_add(expected_pending_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
 	test_media_add(expected_pending_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
-	test_media_add(expected_pending_state, "myvideo3", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
 	test_media_add(expected_pending_state, "myvideo4", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "myvideo3", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
 	CHECKER();
 
 	RESET_STATE(7);
@@ -5964,6 +5958,7 @@ AST_TEST_DEFINE(test_resolve_refresh_media_states)
 
 	test_media_add(expected_pending_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
 	test_media_add(expected_pending_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
 	test_media_add(expected_pending_state, "myvideo3", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
 	test_media_add(expected_pending_state, "myvideo4", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
 	CHECKER();
@@ -5984,6 +5979,8 @@ AST_TEST_DEFINE(test_resolve_refresh_media_states)
 	test_media_add(current_active_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_REMOVED, -1);
 
 	test_media_add(expected_pending_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
 	test_media_add(expected_pending_state, "myvideo3", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
 	test_media_add(expected_pending_state, "myvideo4", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
 	CHECKER();
