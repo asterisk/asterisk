@@ -341,8 +341,7 @@ static void print_frame(struct ast_frame *frame)
 			ast_verbose("SubClass: PVT_CAUSE_CODE\n");
 			break;
 		case AST_CONTROL_MASQUERADE_NOTIFY:
-			/* Should never happen. */
-			ast_assert(0);
+			ast_verbose("SubClass: MASQUERADE_NOTIFY\n");
 			break;
 		case AST_CONTROL_STREAM_TOPOLOGY_REQUEST_CHANGE:
 			ast_verbose("SubClass: STREAM_TOPOLOGY_REQUEST_CHANGE\n");
