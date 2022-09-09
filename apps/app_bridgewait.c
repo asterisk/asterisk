@@ -100,6 +100,9 @@
 						<para>Automatically exit the bridge and return to the PBX after
 						<emphasis>duration</emphasis> seconds.</para>
 					</option>
+					<option name="n">
+						<para>Do not automatically answer the channel.</para>
+					</option>
 				</optionlist>
 			</parameter>
 		</syntax>
@@ -108,7 +111,7 @@
 			The channel will then wait in the holding bridge until some event occurs
 			which removes it from the holding bridge.</para>
 			<note><para>This application will answer calls which haven't already
-			been answered.</para></note>
+			been answered, unless the n option is provided.</para></note>
 		</description>
 	</application>
  ***/
@@ -186,6 +189,7 @@ enum bridgewait_flags {
 	MUXFLAG_MOHCLASS = (1 << 0),
 	MUXFLAG_ENTERTAINMENT = (1 << 1),
 	MUXFLAG_TIMEOUT = (1 << 2),
+	MUXFLAG_NOANSWER = (1 << 3),
 };
 
 enum bridgewait_args {
@@ -199,6 +203,7 @@ AST_APP_OPTIONS(bridgewait_opts, {
 	AST_APP_OPTION_ARG('e', MUXFLAG_ENTERTAINMENT, OPT_ARG_ENTERTAINMENT),
 	AST_APP_OPTION_ARG('m', MUXFLAG_MOHCLASS, OPT_ARG_MOHCLASS),
 	AST_APP_OPTION_ARG('S', MUXFLAG_TIMEOUT, OPT_ARG_TIMEOUT),
+	AST_APP_OPTION('n', MUXFLAG_NOANSWER),
 });
 
 static int bridgewait_timeout_callback(struct ast_bridge_channel *bridge_channel, void *hook_pvt)
@@ -458,7 +463,7 @@ static int bridgewait_exec(struct ast_channel *chan, const char *data)
 	}
 
 	/* Answer the channel if needed */
-	if (ast_channel_state(chan) != AST_STATE_UP) {
+	if (ast_channel_state(chan) != AST_STATE_UP && !ast_test_flag(&flags, MUXFLAG_NOANSWER)) {
 		ast_answer(chan);
 	}
 
