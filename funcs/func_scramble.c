@@ -125,6 +125,7 @@ static int scramble_callback(struct ast_audiohook *audiohook, struct ast_channel
 	}
 
 	if (frame->frametype == AST_FRAME_VOICE) { /* only invert voice frequencies */
+		ni = datastore->data;
 		/* Based on direction of frame, and confirm it is applicable */
 		if (!(direction == AST_AUDIOHOOK_DIRECTION_READ ? ni->rx : ni->tx)) {
 			return 0;
