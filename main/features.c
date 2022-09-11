@@ -163,6 +163,12 @@
 							</variable>
 						</variablelist>
 					</option>
+					<option name="n">
+						<para>Do not answer the channel automatically before bridging.</para>
+						<para>Additionally, to prevent a bridged channel (the target of the Bridge application)
+						from answering, the <literal>BRIDGE_NOANSWER</literal> variable can be set to inhibit
+						answering.</para>
+					</option>
 					<option name="S(x)">
 						<para>Hang up the call after <replaceable>x</replaceable> seconds *after* the called party has answered the call.</para>
 					</option>
@@ -524,7 +530,7 @@ static void bridge_failed_peer_goto(struct ast_channel *chan, struct ast_channel
 }
 
 static int pre_bridge_setup(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config,
-		struct ast_bridge_features *chan_features, struct ast_bridge_features *peer_features)
+		struct ast_bridge_features *chan_features, struct ast_bridge_features *peer_features, int noanswer)
 {
 	int res;
 
@@ -548,8 +554,15 @@ static int pre_bridge_setup(struct ast_channel *chan, struct ast_channel *peer, 
 	set_config_flags(chan, config);
 
 	/* Answer if need be */
-	if (ast_channel_state(chan) != AST_STATE_UP) {
-		if (ast_raw_answer(chan)) {
+
+	res = 0;
+
+	if (noanswer) {
+		ast_debug(1, "Skipping answer on %s due to no answer directive\n", ast_channel_name(chan));
+	} else if (ast_channel_state(chan) != AST_STATE_UP) {
+		ast_debug(1, "Answering channel for bridge: %s\n", ast_channel_name(chan));
+		res = ast_raw_answer(chan);
+		if (res != 0) {
 			return -1;
 		}
 	}
@@ -621,6 +634,9 @@ int ast_bridge_call_with_flags(struct ast_channel *chan, struct ast_channel *pee
 	struct ast_bridge_features chan_features;
 	struct ast_bridge_features *peer_features;
 
+	const char *value;
+	int noanswer;
+
 	/* Setup features. */
 	res = ast_bridge_features_init(&chan_features);
 	peer_features = ast_bridge_features_new();
@@ -631,7 +647,12 @@ int ast_bridge_call_with_flags(struct ast_channel *chan, struct ast_channel *pee
 		return -1;
 	}
 
-	if (pre_bridge_setup(chan, peer, config, &chan_features, peer_features)) {
+	ast_channel_lock(chan);
+	value = pbx_builtin_getvar_helper(chan, "BRIDGE_NOANSWER");
+	noanswer = !ast_strlen_zero(value) ? 1 : 0;
+	ast_channel_unlock(chan);
+
+	if (pre_bridge_setup(chan, peer, config, &chan_features, peer_features, noanswer)) {
 		ast_bridge_features_destroy(peer_features);
 		ast_bridge_features_cleanup(&chan_features);
 		bridge_failed_peer_goto(chan, peer);
@@ -840,6 +861,7 @@ enum {
 	OPT_CALLER_PARK = (1 << 10),
 	OPT_CALLEE_KILL = (1 << 11),
 	OPT_CALLEE_GO_ON = (1 << 12),
+	OPT_NOANSWER = (1 << 13),
 };
 
 enum {
@@ -858,6 +880,7 @@ AST_APP_OPTIONS(bridge_exec_options, BEGIN_OPTIONS
 	AST_APP_OPTION('k', OPT_CALLEE_PARK),
 	AST_APP_OPTION('K', OPT_CALLER_PARK),
 	AST_APP_OPTION_ARG('L', OPT_DURATION_LIMIT, OPT_ARG_DURATION_LIMIT),
+	AST_APP_OPTION('n', OPT_NOANSWER),
 	AST_APP_OPTION_ARG('S', OPT_DURATION_STOP, OPT_ARG_DURATION_STOP),
 	AST_APP_OPTION('t', OPT_CALLEE_TRANSFER),
 	AST_APP_OPTION('T', OPT_CALLER_TRANSFER),
@@ -1004,6 +1027,7 @@ static int bridge_exec(struct ast_channel *chan, const char *data)
 	struct ast_bridge_features *peer_features;
 	struct ast_bridge *bridge;
 	struct ast_features_xfer_config *xfer_cfg;
+	int noanswer;
 
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(dest_chan);
@@ -1058,6 +1082,7 @@ static int bridge_exec(struct ast_channel *chan, const char *data)
 		ast_set_flag(&(bconfig.features_callee), AST_FEATURE_PARKCALL);
 	if (ast_test_flag(&opts, OPT_CALLER_PARK))
 		ast_set_flag(&(bconfig.features_caller), AST_FEATURE_PARKCALL);
+	noanswer = ast_test_flag(&opts, OPT_NOANSWER);
 
 	/* Setup after bridge goto location. */
 	if (ast_test_flag(&opts, OPT_CALLEE_GO_ON)) {
@@ -1088,7 +1113,7 @@ static int bridge_exec(struct ast_channel *chan, const char *data)
 		goto done;
 	}
 
-	if (pre_bridge_setup(chan, current_dest_chan, &bconfig, &chan_features, peer_features)) {
+	if (pre_bridge_setup(chan, current_dest_chan, &bconfig, &chan_features, peer_features, noanswer)) {
 		ast_bridge_features_destroy(peer_features);
 		ast_bridge_features_cleanup(&chan_features);
 		goto done;
