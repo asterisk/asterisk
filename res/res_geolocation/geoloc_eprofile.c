@@ -498,6 +498,7 @@ static struct ast_variable *var_list_from_loc_info(struct ast_xml_node *locinfo,
 	enum ast_geoloc_format format, const char *ref_str)
 {
 	struct ast_variable *list = NULL;
+	struct ast_variable *locinfo_list = NULL;
 	struct ast_xml_node *container;
 	struct ast_variable *var = NULL;
 	const char *attr;
@@ -531,7 +532,12 @@ static struct ast_variable *var_list_from_loc_info(struct ast_xml_node *locinfo,
 		ast_variable_list_append(&list, var);
 	}
 
-	ast_variable_list_append(&list, var_list_from_node(container, ref_str));
+	locinfo_list = var_list_from_node(container, ref_str);
+	if (locinfo_list == NULL) {
+		ast_log(LOG_WARNING, "%s: There were no elements in the location info\n", ref_str);
+		SCOPE_EXIT_RTN_VALUE(list, "%s: There were no elements in the location info\n", ref_str);
+	}
+	ast_variable_list_append(&list, locinfo_list);
 
 	if (TRACE_ATLEAST(5)) {
 		struct ast_str *buf = NULL;
