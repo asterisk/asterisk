@@ -786,6 +786,9 @@ static void crypto_load(int ifd, int ofd)
 			if (!strcmp(ent->d_name, ".") || !strcmp(ent->d_name, "..")) {
 				continue;
 			}
+			if (ent->d_type == DT_DIR) {
+				continue;
+			}
 			if (ent->d_type != DT_REG) {
 				ast_log(LOG_WARNING, "Non-regular file '%s' in keys directory\n", ent->d_name);
 				continue;
