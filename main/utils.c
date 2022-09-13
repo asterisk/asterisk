@@ -1847,7 +1847,10 @@ char *ast_strsep(char **iss, const char sep, uint32_t flags)
 	}
 
 	if (flags & AST_STRSEP_TRIM) {
-		st = ast_strip(st);
+		char *trimmed = ast_strip(st);
+		if (!ast_strlen_zero(trimmed)) {
+			st = trimmed;
+		}
 	}
 
 	if (flags & AST_STRSEP_UNESCAPE) {
@@ -1908,7 +1911,10 @@ char *ast_strsep_quoted(char **iss, const char sep, const char quote, uint32_t f
 	}
 
 	if (flags & AST_STRSEP_TRIM) {
-		st = ast_strip(st);
+		char *trimmed = ast_strip(st);
+		if (!ast_strlen_zero(trimmed)) {
+			st = trimmed;
+		}
 	}
 
 	if (flags & AST_STRSEP_UNESCAPE) {

@@ -648,15 +648,16 @@ struct ast_variable *ast_variable_list_sort(struct ast_variable *start)
 struct ast_variable *ast_variable_list_append_hint(struct ast_variable **head, struct ast_variable *search_hint, struct ast_variable *newvar)
 {
 	struct ast_variable *curr;
+	struct ast_variable *sh = search_hint;
 	ast_assert(head != NULL);
 
 	if (!*head) {
 		*head = newvar;
 	} else {
-		if (search_hint == NULL) {
-			search_hint = *head;
+		if (sh == NULL) {
+			sh = *head;
 		}
-		for (curr = search_hint; curr->next; curr = curr->next);
+		for (curr = sh; curr->next; curr = curr->next);
 		curr->next = newvar;
 	}
 
@@ -754,12 +755,8 @@ struct ast_variable *ast_variable_list_from_quoted_string(const char *input, con
 		}
 
 		item_value = ast_strsep_quoted(&item, nv_sep, quote, AST_STRSEP_ALL);
-		if (!item_value) {
-			ast_variables_destroy(new_list);
-			return NULL;
-		}
 
-		new_var = ast_variable_new(item_name, item_value, "");
+		new_var = ast_variable_new(item_name, item_value ?: "", "");
 		if (!new_var) {
 			ast_variables_destroy(new_list);
 			return NULL;

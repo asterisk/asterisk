@@ -261,6 +261,7 @@ enum ast_strsep_flags {
   \param sep A single character delimiter.
   \param flags Controls post-processing of the result.
   AST_STRSEP_TRIM trims all leading and trailing whitespace from the result.
+  If the result containes only whitespace, it'll be passed through unchanged.
   AST_STRSEP_STRIP does a trim then strips the outermost quotes.  You may want
   to trim again after the strip.  Just OR both the TRIM and STRIP flags.
   AST_STRSEP_UNESCAPE unescapes '\' sequences.
