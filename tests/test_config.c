@@ -1961,13 +1961,13 @@ AST_TEST_DEFINE(variable_list_from_string)
 		break;
 	}
 
-	parse_string = "abc = 'def', ghi = 'j,kl', mno='pq=r', stu = 'vwx=\"yz\", ABC = \"DEF\"'";
+	parse_string = "000= '', 111=, 222 = , 333 = ' ', abc = 'def', ghi = 'j,kl', mno='pq=r', stu = 'vwx=\"yz\", ABC = \"DEF\"'";
 	list = ast_variable_list_from_quoted_string(parse_string, ",", "=", "'");
 	ast_test_validate(test, list != NULL);
 	str = ast_variable_list_join(list, "|", "^", "@", NULL);
 
 	ast_test_validate(test,
-		strcmp(ast_str_buffer(str), "abc^@def@|ghi^@j,kl@|mno^@pq=r@|stu^@vwx=\"yz\", ABC = \"DEF\"@") == 0);
+		strcmp(ast_str_buffer(str), "000^@@|111^@@|222^@@|333^@ @|abc^@def@|ghi^@j,kl@|mno^@pq=r@|stu^@vwx=\"yz\", ABC = \"DEF\"@") == 0);
 
 	return AST_TEST_PASS;
 }
