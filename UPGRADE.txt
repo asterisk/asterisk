@@ -19,6 +19,16 @@
 ===========================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 18.14.0 to Asterisk 18.15.0 ----------
+------------------------------------------------------------------------------
+
+res_crypto
+------------------
+ * In addition to only paying attention to files ending with .key or .pub
+   in the keys directory, we now also ignore any files which aren't regular
+   files.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 18.11.3 to Asterisk 18.12.0 ----------
 ------------------------------------------------------------------------------
 
