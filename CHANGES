@@ -13,6 +13,76 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 19.6.0 to Asterisk 19.7.0 ------------
+------------------------------------------------------------------------------
+
+Transfer feature
+------------------
+ * The following capabilities have been added to the
+   transfer feature:
+
+   - The transfer initiation announcement prompt can
+   now be customized in features.conf.
+
+   - The TRANSFER_EXTEN variable now can be set on the
+   transferer's channel in order to allow the transfer
+   function to automatically attempt to go to the extension
+   contained in this variable, if it exists. The transfer
+   context behavior is not changed (TRANSFER_CONTEXT is used
+   if it exists; otherwise the default context is used).
+
+app_confbridge
+------------------
+ * Adds the end_marked_any option which can be used
+   to kick users from a conference after any
+   marked user leaves (including marked users).
+
+locks
+------------------
+ * A new AMI event, DeadlockStart, is now available
+   when Asterisk is compiled with DETECT_DEADLOCKS,
+   and can indicate that a deadlock has occured.
+
+res_geolocation
+------------------
+ * Added 4 built-in profiles:
+     "<prefer_config>"
+     "<discard_config>"
+     "<prefer_incoming>"
+     "<discard_incoming>"
+   The profiles are empty except for having their precedence
+   set.
+
+   Added profile parameter "suppress_empty_ca_elements" that
+   will cause Civic Address elements that are empty to be
+   suppressed from the outgoing PIDF-LO document.
+
+   You can now specify the location object's format, location_info,
+   method, location_source and confidence parameters directly on
+   a profile object for simple scenarios where the location
+   information isn't common with any other profiles.  This is
+   mutually exclusive with setting location_reference on the
+   profile.
+
+   Added an 'a' option to the GEOLOC_PROFILE function to allow
+   variable lists like location_info_refinement to be appended
+   to instead of replacing the entire list.
+
+   Added an 'r' option to the GEOLOC_PROFILE function to resolve all
+   variables before a read operation and after a Set operation.
+
+res_musiconhold_answeredonly
+------------------
+ * This change adds an option, answeredonly, that will prevent music
+   on hold on channels that are not answered.
+
+res_pjsip
+------------------
+ * TLS transports in res_pjsip can now reload their TLS certificate
+   and private key files, provided the filename of them has not
+   changed.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 19.5.0 to Asterisk 19.6.0 ------------
 ------------------------------------------------------------------------------
 

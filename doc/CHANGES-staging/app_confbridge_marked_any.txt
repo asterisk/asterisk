@@ -1,5 +1,0 @@
-Subject: app_confbridge
-
-Adds the end_marked_any option which can be used
-to kick users from a conference after any
-marked user leaves (including marked users).
