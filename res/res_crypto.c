@@ -174,18 +174,20 @@ struct ast_key * AST_OPTIONAL_API_NAME(ast_key_get)(const char *kname, int ktype
 static struct ast_key *try_load_key(const char *dir, const char *fname, int ifd, int ofd, int *not2)
 {
 	int ktype = 0, found = 0;
-	char *c = NULL, ffname[256];
+	const char *c = NULL;
+	char ffname[256];
 	unsigned char digest[MD5_DIGEST_LENGTH];
 	unsigned digestlen;
 	FILE *f;
 	EVP_MD_CTX *ctx = NULL;
 	struct ast_key *key;
 	static int notice = 0;
+	size_t fnamelen = strlen(fname);
 
 	/* Make sure its name is a public or private key */
-	if ((c = strstr(fname, ".pub")) && !strcmp(c, ".pub")) {
+	if (fnamelen > 4 && !strcmp((c = &fname[fnamelen - 4]), ".pub")) {
 		ktype = AST_KEY_PUBLIC;
-	} else if ((c = strstr(fname, ".key")) && !strcmp(c, ".key")) {
+	} else if (fnamelen > 4 && !strcmp((c = &fname[fnamelen - 4]), ".key")) {
 		ktype = AST_KEY_PRIVATE;
 	} else {
 		return NULL;
@@ -244,8 +246,6 @@ static struct ast_key *try_load_key(const char *dir, const char *fname, int ifd,
 		}
 	}
 
-	/* Make fname just be the normal name now */
-	*c = '\0';
 	if (!key) {
 		if (!(key = ast_calloc(1, sizeof(*key)))) {
 			fclose(f);
@@ -254,8 +254,8 @@ static struct ast_key *try_load_key(const char *dir, const char *fname, int ifd,
 	}
 	/* First the filename */
 	ast_copy_string(key->fn, ffname, sizeof(key->fn));
-	/* Then the name */
-	ast_copy_string(key->name, fname, sizeof(key->name));
+	/* Then the name minus the suffix */
+	snprintf(key->name, sizeof(key->name), "%.*s", (int)(c - fname), fname);
 	key->ktype = ktype;
 	/* Yes, assume we're going to be deleted */
 	key->delme = 1;
