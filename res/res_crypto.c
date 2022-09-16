@@ -51,6 +51,7 @@
 #include "asterisk/options.h"       /* for ast_opt_init_keys */
 #include "asterisk/paths.h"         /* for ast_config_AST_KEY_DIR */
 #include "asterisk/utils.h"         /* for ast_copy_string, ast_base64decode */
+#include "asterisk/file.h"          /* for ast_file_read_dirs */
 
 #define AST_API_MODULE
 #include "asterisk/crypto.h"        /* for AST_KEY_PUBLIC, AST_KEY_PRIVATE */
@@ -761,6 +762,20 @@ int AST_OPTIONAL_API_NAME(ast_aes_decrypt)(const unsigned char *in, unsigned cha
 	return res;
 }
 
+struct crypto_load_on_file {
+	int ifd;
+	int ofd;
+	int note;
+};
+
+static int crypto_load_cb(const char *directory, const char *file, void *obj)
+{
+	struct crypto_load_on_file *on_file = obj;
+
+	try_load_key(directory, file, on_file->ifd, on_file->ofd, &on_file->note);
+	return 0;
+}
+
 /*!
  * \brief refresh RSA keys from file
  * \param ifd file descriptor
@@ -769,9 +784,7 @@ int AST_OPTIONAL_API_NAME(ast_aes_decrypt)(const unsigned char *in, unsigned cha
 static void crypto_load(int ifd, int ofd)
 {
 	struct ast_key *key;
-	DIR *dir = NULL;
-	struct dirent *ent;
-	int note = 0;
+	struct crypto_load_on_file on_file = { ifd, ofd, 0 };
 
 	AST_RWLIST_WRLOCK(&keys);
 
@@ -780,27 +793,11 @@ static void crypto_load(int ifd, int ofd)
 		key->delme = 1;
 	}
 
-	/* Load new keys */
-	if ((dir = opendir(ast_config_AST_KEY_DIR))) {
-		while ((ent = readdir(dir))) {
-			if (!strcmp(ent->d_name, ".") || !strcmp(ent->d_name, "..")) {
-				continue;
-			}
-			if (ent->d_type == DT_DIR) {
-				continue;
-			}
-			if (ent->d_type != DT_REG) {
-				ast_log(LOG_WARNING, "Non-regular file '%s' in keys directory\n", ent->d_name);
-				continue;
-			}
-			try_load_key(ast_config_AST_KEY_DIR, ent->d_name, ifd, ofd, &note);
-		}
-		closedir(dir);
-	} else {
+	if (ast_file_read_dirs(ast_config_AST_KEY_DIR, crypto_load_cb, &on_file, 1) == -1) {
 		ast_log(LOG_WARNING, "Unable to open key directory '%s'\n", ast_config_AST_KEY_DIR);
 	}
 
-	if (note) {
+	if (on_file.note) {
 		ast_log(LOG_NOTICE, "Please run the command 'keys init' to enter the passcodes for the keys\n");
 	}
 
