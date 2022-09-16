@@ -439,6 +439,16 @@ int __ast_test_status_update(const char *file, const char *func, int line, struc
 })
 
 /*!
+ * \brief Initialize the capture structure.
+ *
+ * \since 16.30.0, 18.16.0, 19.8.0, 20.1.0
+ *
+ * \param capture The structure describing the child process and its
+ * associated output.
+ */
+void ast_test_capture_init(struct ast_test_capture *capture);
+
+/*!
  * \brief Release the storage (buffers) associated with capturing
  * the output of an external child process.
  *
