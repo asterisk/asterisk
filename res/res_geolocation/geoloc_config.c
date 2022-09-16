@@ -187,7 +187,7 @@ static int geoloc_profile_apply_handler(const struct ast_sorcery *sorcery, void 
 	struct ast_geoloc_location *location;
 	const char *id = ast_sorcery_object_get_id(profile);
 	enum ast_geoloc_validate_result result;
-	enum ast_geoloc_format format;
+	enum ast_geoloc_format format = AST_GEOLOC_FORMAT_NONE;
 	int rc = 0;
 
 	if (!ast_strlen_zero(profile->location_reference)) {
