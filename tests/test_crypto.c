@@ -40,6 +40,7 @@
 #include "asterisk/file.h"
 
 #include <assert.h>
+#include <sys/stat.h>
 #include <linux/limits.h>
 #include <openssl/evp.h>
 
@@ -116,6 +117,9 @@ AST_TEST_DEFINE(crypto_rsa_encrypt)
 	snprintf(key_dir, sizeof(key_dir), "%s/%s", wd, "tests/keys");
 	push_key_dir((const char *)key_dir);
 	snprintf(priv, sizeof(priv), "%s/%s.key", key_dir, keypair1);
+
+	/* because git doesn't preserve permissions */
+	(void)chmod(priv, 0400);
 
 	if (ast_crypto_reload() != 1) {
 		ast_test_status_update(test, "Couldn't force crypto reload\n");
@@ -413,6 +417,9 @@ AST_TEST_DEFINE(crypto_verify)
 	snprintf(key_dir, sizeof(key_dir), "%s/%s", wd, "tests/keys");
 	push_key_dir((const char *)key_dir);
 	snprintf(priv, sizeof(priv), "%s/%s.key", key_dir, keypair1);
+
+	/* because git doesn't preserve permissions */
+	(void)chmod(priv, 0400);
 
 	if (ast_crypto_reload() != 1) {
 		ast_test_status_update(test, "Couldn't force crypto reload\n");
