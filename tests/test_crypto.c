@@ -49,7 +49,7 @@ static const char *old_key_dir = NULL;
 
 static char *hexstring(const unsigned char *data, unsigned datalen)
 {
-	char *buf = alloca(datalen * 2 + 1);
+	char *buf = ast_malloc(datalen * 2 + 1);
 	unsigned n;
 
 	for (n = 0; n < datalen; ++n) {
@@ -532,6 +532,7 @@ AST_TEST_DEFINE(crypto_aes_encrypt)
 	res = AST_TEST_PASS;
 
 cleanup:
+	ast_free(args[KEY]);
 	ast_test_capture_free(&cap);
 	return res;
 }
@@ -610,6 +611,7 @@ AST_TEST_DEFINE(crypto_aes_decrypt)
 	res = AST_TEST_PASS;
 
 cleanup:
+	ast_free(args[KEY]);
 	ast_test_capture_free(&cap);
 	return res;
 }
