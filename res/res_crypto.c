@@ -34,6 +34,7 @@
 #include "asterisk.h"
 
 #include <dirent.h>                 /* for closedir, opendir, readdir, DIR */
+#include <sys/stat.h>               /* for fstat */
 
 #include <openssl/err.h>            /* for ERR_print_errors_fp */
 #include <openssl/ssl.h>            /* for NID_sha1, RSA */
@@ -173,7 +174,7 @@ struct ast_key * AST_OPTIONAL_API_NAME(ast_key_get)(const char *kname, int ktype
 */
 static struct ast_key *try_load_key(const char *dir, const char *fname, int ifd, int ofd, int *not2)
 {
-	int ktype = 0, found = 0;
+	int n, ktype = 0, found = 0;
 	const char *c = NULL;
 	char ffname[256];
 	unsigned char digest[MD5_DIGEST_LENGTH];
@@ -182,6 +183,7 @@ static struct ast_key *try_load_key(const char *dir, const char *fname, int ifd,
 	EVP_MD_CTX *ctx = NULL;
 	struct ast_key *key;
 	static int notice = 0;
+	struct stat st;
 	size_t fnamelen = strlen(fname);
 
 	/* Make sure its name is a public or private key */
@@ -199,6 +201,27 @@ static struct ast_key *try_load_key(const char *dir, const char *fname, int ifd,
 	/* Open file */
 	if (!(f = fopen(ffname, "r"))) {
 		ast_log(LOG_WARNING, "Unable to open key file %s: %s\n", ffname, strerror(errno));
+		return NULL;
+	}
+
+	n = fstat(fileno(f), &st);
+	if (n != 0) {
+		ast_log(LOG_ERROR, "Unable to stat key file: %s: %s\n", ffname, strerror(errno));
+		fclose(f);
+		return NULL;
+	}
+
+	if (!S_ISREG(st.st_mode)) {
+		ast_log(LOG_ERROR, "Key file is not a regular file: %s\n", ffname);
+		fclose(f);
+		return NULL;
+	}
+
+	/* only user read or read/write modes allowed */
+	if (ktype == AST_KEY_PRIVATE &&
+	    ((st.st_mode & ALLPERMS) & ~(S_IRUSR | S_IWUSR)) != 0) {
+		ast_log(LOG_ERROR, "Private key file has bad permissions: %s: %#4o\n", ffname, st.st_mode & ALLPERMS);
+		fclose(f);
 		return NULL;
 	}
 
