@@ -313,6 +313,12 @@ void ast_test_set_result(struct ast_test *test, enum ast_test_result_state state
 	test->state = state;
 }
 
+void ast_test_capture_init(struct ast_test_capture *capture)
+{
+	capture->outbuf = capture->errbuf = NULL;
+	capture->pid = capture->exitcode = -1;
+}
+
 void ast_test_capture_free(struct ast_test_capture *capture)
 {
 	if (capture) {
@@ -336,8 +342,7 @@ int ast_test_capture_command(struct ast_test_capture *capture, const char *file,
 	int status = 0;
 	FILE *cmd = NULL, *out = NULL, *err = NULL;
 
-	memset(capture, 0, sizeof(*capture));
-	capture->pid = capture->exitcode = -1;
+	ast_test_capture_init(capture);
 
 	if (data != NULL && datalen > 0) {
 		if (pipe(fd0) == -1) {

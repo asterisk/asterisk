@@ -105,6 +105,8 @@ AST_TEST_DEFINE(crypto_rsa_encrypt)
 
 	ast_test_status_update(test, "Executing RSA encryption test\n");
 
+	ast_test_capture_init(&cap);
+
 	if (!ast_check_command_in_path(command)) {
 		ast_test_status_update(test, "couldn't find %s\n", command);
 		return res;
@@ -189,6 +191,8 @@ AST_TEST_DEFINE(crypto_rsa_decrypt)
 	}
 
 	ast_test_status_update(test, "Executing RSA decryption test\n");
+
+	ast_test_capture_init(&cap);
 
 	if (!ast_check_command_in_path(command)) {
 		ast_test_status_update(test, "couldn't find %s\n", command);
@@ -284,6 +288,8 @@ AST_TEST_DEFINE(crypto_sign)
 	}
 
 	ast_test_status_update(test, "Executing RSA signing test\n");
+
+	ast_test_capture_init(&cap);
 
 	if (!ast_check_command_in_path(command)) {
 		ast_test_status_update(test, "couldn't find %s\n", command);
@@ -396,6 +402,8 @@ AST_TEST_DEFINE(crypto_verify)
 
 	ast_test_status_update(test, "Executing RSA signature verification test\n");
 
+	ast_test_capture_init(&cap);
+
 	if (!ast_check_command_in_path(command)) {
 		ast_test_status_update(test, "couldn't find %s\n", command);
 		return res;
@@ -491,6 +499,8 @@ AST_TEST_DEFINE(crypto_aes_encrypt)
 
 	ast_test_status_update(test, "Executing AES-ECB encryption test\n");
 
+	ast_test_capture_init(&cap);
+
 	if (!ast_check_command_in_path(command)) {
 		ast_test_status_update(test, "couldn't find %s\n", command);
 		return res;
@@ -564,6 +574,8 @@ AST_TEST_DEFINE(crypto_aes_decrypt)
 	}
 
 	ast_test_status_update(test, "Executing AES-ECB decryption test\n");
+
+	ast_test_capture_init(&cap);
 
 	if (!ast_check_command_in_path(command)) {
 		ast_test_status_update(test, "couldn't find %s\n", command);
