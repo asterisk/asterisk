@@ -316,9 +316,13 @@ void ast_test_set_result(struct ast_test *test, enum ast_test_result_state state
 void ast_test_capture_free(struct ast_test_capture *capture)
 {
 	if (capture) {
-		free(capture->outbuf);
+		/*
+		 * Need to use ast_std_free because this memory wasn't
+		 * allocated by the astmm functions.
+		 */
+		ast_std_free(capture->outbuf);
 		capture->outbuf = NULL;
-		free(capture->errbuf);
+		ast_std_free(capture->errbuf);
 		capture->errbuf = NULL;
 	}
 	capture->pid = -1;
@@ -330,6 +334,7 @@ int ast_test_capture_command(struct ast_test_capture *capture, const char *file,
 	int fd0[2] = { -1, -1 }, fd1[2] = { -1, -1 }, fd2[2] = { -1, -1 };
 	pid_t pid = -1;
 	int status = 0;
+	FILE *cmd = NULL, *out = NULL, *err = NULL;
 
 	memset(capture, 0, sizeof(*capture));
 	capture->pid = capture->exitcode = -1;
@@ -379,8 +384,6 @@ int ast_test_capture_command(struct ast_test_capture *capture, const char *file,
 		exit(1);
 
 	} else {
-		FILE *cmd = NULL, *out = NULL, *err = NULL;
-
 		char buf[BUFSIZ];
 		int wstatus, n, nfds;
 		fd_set readfds, writefds;
