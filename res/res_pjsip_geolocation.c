@@ -145,7 +145,7 @@ static int handle_incoming_request(struct ast_sip_session *session, struct pjsip
 	char *geoloc_routing_hdr_value = NULL;
 	char *geoloc_uri = NULL;
 	int rc = 0;
-	RAII_VAR(struct ast_str *, buf, ast_str_create(1024), ast_free);
+	RAII_VAR(struct ast_str *, buf, NULL, ast_free);
 	pjsip_generic_string_hdr *geoloc_hdr = NULL;
 	pjsip_generic_string_hdr *geoloc_routing_hdr = NULL;
 	SCOPE_ENTER(3, "%s\n", session_name);
@@ -191,7 +191,7 @@ static int handle_incoming_request(struct ast_sip_session *session, struct pjsip
 				"Done.\n", session_name,
 				PJSTR_PRINTF_VAR(geoloc_hdr->hvalue));
 		} else {
-			SCOPE_EXIT_LOG_RTN_VALUE(0, LOG_NOTICE, "%s: Endpoint has no geoloc_incoming_call_profile. "
+			SCOPE_EXIT_RTN_VALUE(0, "%s: Endpoint has no geoloc_incoming_call_profile. "
 				"Done.\n", session_name);
 		}
 	}
@@ -207,6 +207,11 @@ static int handle_incoming_request(struct ast_sip_session *session, struct pjsip
 			SCOPE_EXIT_LOG_RTN_VALUE(0, LOG_NOTICE, "%s: Message has no Geolocation header and endpoint has "
 				" an invalid geoloc_incoming_call_profile. Done.\n", session_name);
 		}
+	}
+
+	buf = ast_str_create(1024);
+	if (!buf) {
+		SCOPE_EXIT_LOG_RTN_VALUE(0, LOG_WARNING, "%s: Unable to allocate buf\n", session_name);
 	}
 
 	if (config_profile->precedence != AST_GEOLOC_PRECED_DISCARD_CONFIG) {
@@ -469,7 +474,7 @@ static void handle_outgoing_request(struct ast_sip_session *session, struct pjsi
 	RAII_VAR(struct ast_geoloc_eprofile *, config_eprofile, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_geoloc_eprofile *, incoming_eprofile, NULL, ao2_cleanup);
 	struct ast_geoloc_eprofile *final_eprofile = NULL;
-	RAII_VAR(struct ast_str *, buf, ast_str_create(1024), ast_free);
+	RAII_VAR(struct ast_str *, buf, NULL, ast_free);
 	struct ast_datastore *ds = NULL;  /* The channel cleans up ds */
 	pjsip_msg_body *orig_body = NULL;
 	pjsip_generic_string_hdr *geoloc_hdr = NULL;
@@ -477,11 +482,6 @@ static void handle_outgoing_request(struct ast_sip_session *session, struct pjsi
 	int rc = 0;
 	const char *uri;
 	SCOPE_ENTER(3, "%s\n", session_name);
-
-	if (!buf) {
-		SCOPE_EXIT_LOG_RTN(LOG_WARNING, "%s: Unable to allocate buf\n",
-			session_name);
-	}
 
 	if (!endpoint) {
 		SCOPE_EXIT_LOG_RTN(LOG_WARNING, "%s: Session has no endpoint.  Skipping.\n",
@@ -494,8 +494,8 @@ static void handle_outgoing_request(struct ast_sip_session *session, struct pjsi
 	}
 
 	if (ast_strlen_zero(endpoint->geoloc_outgoing_call_profile)) {
-			SCOPE_EXIT_LOG_RTN(LOG_NOTICE, "%s: Endpoint has no geoloc_outgoing_call_profile. "
-				"Skipping.\n", session_name);
+		SCOPE_EXIT_RTN("%s: Endpoint has no geoloc_outgoing_call_profile. Skipping.\n",
+			session_name);
 	}
 
 	config_profile = ast_geoloc_get_profile(endpoint->geoloc_outgoing_call_profile);
@@ -576,6 +576,11 @@ static void handle_outgoing_request(struct ast_sip_session *session, struct pjsi
 
 	if (!final_eprofile->effective_location) {
 		ast_geoloc_eprofile_refresh_location(final_eprofile);
+	}
+
+	buf = ast_str_create(1024);
+	if (!buf) {
+		SCOPE_EXIT_LOG_RTN(LOG_WARNING, "%s: Unable to allocate buf\n", session_name);
 	}
 
 	if (final_eprofile->format == AST_GEOLOC_FORMAT_URI) {
