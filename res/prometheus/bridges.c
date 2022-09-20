@@ -125,7 +125,17 @@ static void bridges_scrape_cb(struct ast_str **response)
 	/* Bridge dependent values */
 	it_bridges = ao2_iterator_init(bridges, 0);
 	for (i = 0; (bridge = ao2_iterator_next(&it_bridges)); ao2_ref(bridge, -1), i++) {
-		struct ast_bridge_snapshot *snapshot = ast_bridge_get_snapshot(bridge);
+		struct ast_bridge_snapshot *snapshot;
+
+		/* Invisible bridges don't get shown externally and have no snapshot */
+		if (ast_test_flag(&bridge->feature_flags, AST_BRIDGE_FLAG_INVISIBLE)) {
+			continue;
+		}
+
+		snapshot = ast_bridge_get_snapshot(bridge);
+		if (!snapshot) {
+			continue;
+		}
 
 		for (j = 0; j < ARRAY_LEN(bridge_metric_defs); j++) {
 			int index = i * ARRAY_LEN(bridge_metric_defs) + j;
