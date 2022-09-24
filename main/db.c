@@ -999,6 +999,7 @@ static int manager_db_tree_get(struct mansession *s, const struct message *m)
 	const char *family = astman_get_header(m, "Family");
 	const char *key = astman_get_header(m, "Key");
 	sqlite3_stmt *stmt = gettree_stmt;
+	int count = 0;
 
 	if (!ast_strlen_zero(family) && !ast_strlen_zero(key)) {
 		/* Family and key tree */
@@ -1044,12 +1045,13 @@ static int manager_db_tree_get(struct mansession *s, const struct message *m)
 			"%s"
 			"\r\n",
 			key_s, value_s, idText);
+		count++;
 	}
 
 	sqlite3_reset(stmt);
 	ast_mutex_unlock(&dblock);
 
-	astman_send_list_complete_start(s, m, "DBGetTreeComplete", 1);
+	astman_send_list_complete_start(s, m, "DBGetTreeComplete", count);
 	astman_send_list_complete_end(s);
 
 	return 0;
