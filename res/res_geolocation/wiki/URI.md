@@ -56,9 +56,8 @@ In extensions.conf:
 ; the outgoing channel when 911 is dialed and does nothing if another number is dialed.
 [pre-dial-handler]
 exten = 911,1,NoOp(Entering PDH for Outgoing Channel)
-same  = n,GeolocProfileCreate(geoloc.example@myserver.com)
-same  = n,Set(GEOLOC_PROFILE(format,0)=URI)
-same  = n,Set(GEOLOC_PROFILE(location_info,0)=URI=https://my.company.com/location_query?DID=${CALLERID(num)})
+same  = n,Set(GEOLOC_PROFILE(format)=URI)
+same  = n,Set(GEOLOC_PROFILE(location_info)=URI=https://my.company.com/location_query?DID=${CALLERID(num)})
 same  = n,Return(0)
 exten = _X.,1,Return(0)
 
