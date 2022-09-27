@@ -55,7 +55,7 @@ h3. By Value
 This method involves sending or receiving a PIDF-LO document attached to a SIP message. For details on how this works generally, See [RFC6442|Geolocation Reference Information#rfc6442] and [RFC5491|Geolocation Reference Information#rfc5491].  An example {{Geolocation}} header might look like: {{Geolocation: <cid:gyytfr@your.pbx.com>}}.  The {{cid}} scheme indicates that the recipient should look in the SIP message body (or bodies since there could also be an SDP for example) for the location document.
 
 h3. Multiple URIs
-The {{Geolocation}} header can contain multiple URIs and they can be a mix of "by-reference" and "by-value".  As mentioned above though, the process of dealing with multiple location references is pretty complex and should be avoided.
+Technically, the {{Geolocation}} header can contain multiple URIs and they can be a mix of "by-reference" and "by-value".  The process of dealing with multiple location references is _very_ complex however and should be avoided.
 
 h3. Geolocation-Routing
 [RFC6442|Geolocation Reference Information#rfc6442] also defines the {{Geolocation-Routing}} header which indicates to a recipient that the location information may or may not be used for call routing purposes.  If set to "no" (the default if absent), the recipient MUST NOT use the location information for routing purposes.  If set to "yes", the recipient MAY use the location information for routing purposes and may also reset the value to "no" to prevent downstream systems from using the location information for routing.

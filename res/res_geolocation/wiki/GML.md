@@ -16,7 +16,7 @@ The coordinate reference system (crs) for a shape specifies whether the points t
 
 h2. Units of Measure
 h3. Position
-Positions are always specified in decimal degrees latitude and longitude.  A 3d position adds the altitude in meters.  `pos` and `posList` are the two attributes that specify position.
+Positions are always specified in decimal degrees latitude and longitude.  A 3d position adds the altitude in meters.  `pos` and `pos3d` are the two attributes that specify position.
 h3. Distance
 Distance is _always_ specified in  meters.  `height`, `radius` and the altitude component of `pos` are some of the distance attributes.
 
@@ -29,15 +29,18 @@ h3. Angle
 Angle may be specified in either degrees or radians by specifying the `degrees` or `radians` suffix to the angle value.  The default it `degrees` if no suffix is provided.  `orientation`, `startAngle` and `openingAngle` are some of the angle attributes.
 
 h2. Shapes
-h3. Point
-A Point isn't really a "shape" because it's a one dimensional construct but we'll ignore that.  It's simply a point in space specified with either two or three dimensions.
+See the references above for the exact shape definitions.
 
+|| Shape || Attributes ||
+| Point | pos or pos3d |
+| Circle | pos or pos3d, radius |
+| Sphere | pos3d, radius |
+| Ellipse| pos or pos3d, semiMajorAxis, semiMinorAxis, orientation |
+| ArcBand | pos or pos3d, innerRadius, outerRadius, startAngle, openingAngle |
+| Ellipsoid | pos3d, semiMajorAxis, semiMinorAxis, verticalAxis, orientation |
+| Polygon | 3 or more pos or pos3d |
+| Prism | 3 or more pos3d, height |
 
-
-|| Shape || Attributes || Description ||
-| Point | pos or pos3d | A single point |
-| Circle | pos or pos3d, radius | A two dimensional circle around a point |
-| Sphere | pos3d, radius | A 3 dimensional sphere around a point |
 
 || Attribute || Description || Units || Example ||
 | pos | A two dimensional point | Decimal degrees | pos="39.12345 -105.98766" |
@@ -45,6 +48,25 @@ A Point isn't really a "shape" because it's a one dimensional construct but we'l
 | radius | Distance | Meters | radius="20" |
 | height | Distance | Meters | height="45" |
 | orientation | Angle | Degrees (default) or Radians | orientation="90", orientation="25 radians" |
+| semiMajorAxis | Distance | Meters | semiMajorAxis="145" |
+| semiMinorAxis | Distance | Meters | semiMinorAxis="145" |
+| innerRadius | Distance | Meters | innerRadius="350" |
+| outerRadius | Distance | Meters | outerRadius="350" |
+| verticalAxis | Distance | Meters | verticalAxis="20" |
+
+h2. Examples:
+
+{code}
+location_info = shape=Point, crs=2d, pos="39.12345 -105.98766"
+location_info = shape=Point, crs=3d, pos="39.12345 -105.98766 1892.0"
+location_info = shape=Circle, crs=2d, pos="39.12345 -105.98766" radius="45"
+location_info = shape=Sphere, crs=3d, pos="39.12345 -105.98766 1902" radius="20"
+location_info = shape=Ellipse, crs=2d, pos="39.12345 -105.98766" semiMajorAxis="20", semiMinorAxis="10", orientation="25 radians"
+location_info = shape=ArcBand, crs=2d, pos="39.12345 -105.98766" innerRadius="1200", outerRadius="1500", startAngle="90", openingAngle="120"
+location_info = shape=Polygon, crs=2d, pos="39.12345 -105.98766", pos=40.7890 -105.98766", pos="40.7890 -106.3456", pos=39.12345 -106.3456"
+location_info = shape=Prism, crs=3d, pos="39.12345 -105.98766 1890", pos="40.7890 -105.98766 1890", pos="40.7890 -106.3456 1890", pos=39.12345 -106.3456 1890", height="45"
+{code}
+
 
 {column}
 {column:width=30%}
