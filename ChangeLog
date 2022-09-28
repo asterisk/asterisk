@@ -1,3 +1,46 @@
+2022-09-28 12:52 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 18.15.0-rc2 Released.
+
+2022-09-19 12:35 +0000 [7d7165ded1]  Naveen Albert <asterisk@phreaknet.org>
+
+	* res_pjsip_geolocation: Change some notices to debugs.
+
+	  If geolocation is not in use for an endpoint, the NOTICE
+	  log level is currently spammed with messages about this,
+	  even though nothing is wrong and these messages provide
+	  no real value. These log messages are therefore changed
+	  to debugs.
+
+	  ASTERISK-30241 #close
+
+	  Change-Id: I656b355d812f67cc0f0fdf09b00b0e1458598bb4
+	  (cherry picked from commit fb603e58b552c3d937a25bd81247298f1a548319)
+
+2022-09-28 06:58 +0000 [cec323b4c8]  George Joseph <gjoseph@digium.com>
+
+	* manager.h: Bump version to 7.0.3
+
+	  Change-Id: I5c365e141769f8ce2a1aeb4ae2cdb9842dd2fd5b
+
+2022-09-16 09:58 +0000 [2bb1665829]  George Joseph <gjoseph@digium.com>
+
+	* res_crypto: Memory issues and uninitialized variable errors
+
+	  ASTERISK-30235
+
+	  Change-Id: Ia1e326e7b52cd06fd5e6c9009e3e63193c92f6cd
+
+2022-09-16 08:43 +0000 [03c8c59632]  George Joseph <gjoseph@digium.com>
+
+	* res_geolocation: Fix issues exposed by compiling with -O2
+
+	  Fixed "may be used uninitialized" errors in geoloc_config.c.
+
+	  ASTERISK-30234
+
+	  Change-Id: I1ea336bf7abbc16fa59b75720f0db8f1d960b3d4
+
 2022-09-14 14:32 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 18.15.0-rc1 Released.
