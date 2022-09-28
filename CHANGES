@@ -16,6 +16,46 @@
 --- Functionality changes from Asterisk 16.28.0 to Asterisk 16.29.0 ----------
 ------------------------------------------------------------------------------
 
+New EXPORT function
+------------------
+ * A new function, EXPORT, allows writing variables
+   and functions on other channels, the complement
+   of the IMPORT function.
+
+app_amd
+------------------
+ * An audio file to play during AMD processing can
+   now be specified to the AMD application or configured
+   in the amd.conf configuration file.
+
+app_bridgewait
+------------------
+ * Adds the n option to not answer the channel when
+   the BridgeWait application is called.
+
+features
+------------------
+ * The Bridge application now has the n "no answer" option
+   that can be used to prevent the channel from being
+   automatically answered prior to bridging.
+
+func_strings
+------------------
+ * Three new functions, TRIM, LTRIM, and RTRIM, are
+   now available for trimming leading and trailing
+   whitespace.
+
+res_pjsip
+------------------
+ * A new option named "peer_supported" has been added to the endpoint option
+   100rel. When set to this option, Asterisk sends provisional responses
+   reliably if the peer supports it. If the peer does not support reliable
+   provisional responses, Asterisk sends them normally.
+
+------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 16.28.0 to Asterisk 16.29.0 ----------
+------------------------------------------------------------------------------
+
 Transfer feature
 ------------------
  * The following capabilities have been added to the
