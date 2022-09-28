@@ -1328,3 +1328,27 @@ ALTER TABLE ps_endpoints ADD COLUMN t38_bind_udptl_to_media_address ENUM('0','1'
 
 UPDATE alembic_version SET version_num='a06d8f8462d9' WHERE alembic_version.version_num = 'f56d79a9f337';
 
+-- Running upgrade a06d8f8462d9 -> 58e440314c2a
+
+ALTER TABLE ps_transports ADD COLUMN allow_wildcard_certs ENUM('yes','no');
+
+UPDATE alembic_version SET version_num='58e440314c2a' WHERE alembic_version.version_num = 'a06d8f8462d9';
+
+-- Running upgrade 58e440314c2a -> 7197536bb68d
+
+ALTER TABLE ps_endpoints ADD COLUMN geoloc_incoming_call_profile VARCHAR(80);
+
+ALTER TABLE ps_endpoints ADD COLUMN geoloc_outgoing_call_profile VARCHAR(80);
+
+UPDATE alembic_version SET version_num='7197536bb68d' WHERE alembic_version.version_num = '58e440314c2a';
+
+-- Running upgrade 7197536bb68d -> 9f3692b1654b
+
+ALTER TABLE ps_endpoints ADD COLUMN incoming_call_offer_pref ENUM('local','local_first','remote','remote_first');
+
+ALTER TABLE ps_endpoints ADD COLUMN outgoing_call_offer_pref ENUM('local','local_merge','local_first','remote','remote_merge','remote_first');
+
+ALTER TABLE ps_endpoints ADD COLUMN stir_shaken_profile VARCHAR(80);
+
+UPDATE alembic_version SET version_num='9f3692b1654b' WHERE alembic_version.version_num = '7197536bb68d';
+

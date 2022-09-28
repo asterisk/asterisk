@@ -1438,5 +1438,33 @@ ALTER TABLE ps_endpoints ADD COLUMN t38_bind_udptl_to_media_address ast_bool_val
 
 UPDATE alembic_version SET version_num='a06d8f8462d9' WHERE alembic_version.version_num = 'f56d79a9f337';
 
+-- Running upgrade a06d8f8462d9 -> 58e440314c2a
+
+ALTER TABLE ps_transports ADD COLUMN allow_wildcard_certs yesno_values;
+
+UPDATE alembic_version SET version_num='58e440314c2a' WHERE alembic_version.version_num = 'a06d8f8462d9';
+
+-- Running upgrade 58e440314c2a -> 7197536bb68d
+
+ALTER TABLE ps_endpoints ADD COLUMN geoloc_incoming_call_profile VARCHAR(80);
+
+ALTER TABLE ps_endpoints ADD COLUMN geoloc_outgoing_call_profile VARCHAR(80);
+
+UPDATE alembic_version SET version_num='7197536bb68d' WHERE alembic_version.version_num = '58e440314c2a';
+
+-- Running upgrade 7197536bb68d -> 9f3692b1654b
+
+CREATE TYPE pjsip_incoming_call_offer_pref_values AS ENUM ('local', 'local_first', 'remote', 'remote_first');
+
+CREATE TYPE pjsip_outgoing_call_offer_pref_values AS ENUM ('local', 'local_merge', 'local_first', 'remote', 'remote_merge', 'remote_first');
+
+ALTER TABLE ps_endpoints ADD COLUMN incoming_call_offer_pref pjsip_incoming_call_offer_pref_values;
+
+ALTER TABLE ps_endpoints ADD COLUMN outgoing_call_offer_pref pjsip_outgoing_call_offer_pref_values;
+
+ALTER TABLE ps_endpoints ADD COLUMN stir_shaken_profile VARCHAR(80);
+
+UPDATE alembic_version SET version_num='9f3692b1654b' WHERE alembic_version.version_num = '7197536bb68d';
+
 COMMIT;
 

@@ -1,0 +1,143 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-certified/18.9-cert2</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-certified/18.9-cert2</h3><h3 align="center">Date: 2022-09-28</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
+<li><a href="#summary">Summary</a></li>
+<li><a href="#contributors">Contributors</a></li>
+<li><a href="#closed_issues">Closed Issues</a></li>
+<li><a href="#commits">Other Changes</a></li>
+<li><a href="#diffstat">Diffstat</a></li>
+</ol><hr><a name="summary"><h2 align="center">Summary</h2></a><center><a href="#top">[Back to Top]</a></center><p>This release is a point release of an existing major version. The changes included were made to address problems that have been identified in this release series, or are minor, backwards compatible new features or improvements. Users should be able to safely upgrade to this version if this release series is already in use. Users considering upgrading from a previous version are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p><p>The data in this summary reflects changes that have been made since the previous release, asterisk-certified/18.9-cert1.</p><hr><a name="contributors"><h2 align="center">Contributors</h2></a><center><a href="#top">[Back to Top]</a></center><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release. For coders, the number is how many of their patches (of any size) were committed into this release. For testers, the number is the number of times their name was listed as assisting with testing a patch. Finally, for reporters, the number is the number of issues that they reported that were affected by commits that went into this release.</p><table width="100%" border="0">
+<tr><th width="33%">Coders</th><th width="33%">Testers</th><th width="33%">Reporters</th></tr>
+<tr valign="top"><td width="33%">22 George Joseph <gjoseph@digium.com><br/>4 Mike Bradeen <mbradeen@sangoma.com><br/>2 Naveen Albert <asterisk@phreaknet.org><br/>1 Kevin Harwell <kharwell@sangoma.com><br/>1 Sean Bright <sean.bright@gmail.com><br/>1 Asterisk Development Team <asteriskteam@digium.com><br/></td><td width="33%"><td width="33%">12 George Joseph <gjoseph@digium.com><br/>2 N A <mail@interlinked.x10host.com><br/>2 Joshua C. Colp <jcolp@digium.com><br/>1 Dan Cropp <dan@amtelco.com><br/>1 Daniel Thümen <daniel.thuemen@auerswald.de><br/>1 Michael Bradeen <mbradeen@sangoma.com><br/>1 Sean Bright<br/>1 Dan Cropp<br/>1 Kevin Harwell <default.enum@gmail.com><br/></td></tr>
+</table><hr><a name="closed_issues"><h2 align="center">Closed Issues</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p><h3>Bug</h3><h4>Category: Contrib/General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29453">ASTERISK-29453</a>: alembic: incoming_call_offer_pref and outgoing_call_offer_pref missing in "ps_endpoints" table<br/>Reported by: Daniel Thümen<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=a7c71b1b714095329ec2fb6be59a763dcaae7231">[a7c71b1b71]</a> Mike Bradeen -- alembic: add missing ps_endpoints columns</li>
+</ul><br><h4>Category: Core/BuildSystem</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-30044">ASTERISK-30044</a>: GCC 12 issues<br/>Reported by: George Joseph<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=8d4a298cd4ba6409836ff002433f6eb1b50e3e92">[8d4a298cd4]</a> George Joseph -- GCC12: Fixes for 18+.  state_id_by_topic comparing wrong value</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=c0612ccc283a8ca6edc86535884486f206cfc3dc">[c0612ccc28]</a> George Joseph -- GCC12: Fixes for 16+</li>
+</ul><br><h4>Category: Core/Sorcery</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29453">ASTERISK-29453</a>: alembic: incoming_call_offer_pref and outgoing_call_offer_pref missing in "ps_endpoints" table<br/>Reported by: Daniel Thümen<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=a7c71b1b714095329ec2fb6be59a763dcaae7231">[a7c71b1b71]</a> Mike Bradeen -- alembic: add missing ps_endpoints columns</li>
+</ul><br><h4>Category: Resources/res_geolocation</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-30234">ASTERISK-30234</a>: res_geolocation: ...may be used uninitialized error in geoloc_config.c<br/>Reported by: George Joseph<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=002272ad8b3c2a7e3394b70cace2ac17d582f722">[002272ad8b]</a> George Joseph -- res_geolocation: Fix issues exposed by compiling with -O2</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-30215">ASTERISK-30215</a>: Inbound SIP INVITE with Geo Location causing a Segmentation Fault<br/>Reported by: Dan Cropp<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=3196ba7fcb2b946278797752451e63bb4d96341e">[3196ba7fcb]</a> George Joseph -- res_geolocation: Fix segfault when there's an empty element</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-30190">ASTERISK-30190</a>: res_geolocation:  GEOLOC_PROFILE isn't returning correct values on incoming channel<br/>Reported by: George Joseph<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=aeb465fdf1b67d52d82b9d2564426ce6e6700430">[aeb465fdf1]</a> George Joseph -- res_geolocation: Add two new options to GEOLOC_PROFILE</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-30167">ASTERISK-30167</a>: res_geolocation:  Refactor for issues found by users<br/>Reported by: George Joseph<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=1bb1d3b5efa5493b7369e49937ffdd3e8fb004a8">[1bb1d3b5ef]</a> George Joseph -- res_geolocation: Address user issues, remove complexity, plug leaks</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-30138">ASTERISK-30138</a>: Compile failure in res_geolocation/geoloc_eprofile.c when optimization is enabled<br/>Reported by: George Joseph<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=336209b319f704bd3a893a86abd5b643f46582f5">[336209b319]</a> George Joseph -- geoloc_eprofile.c: Fix setting of loc_src in set_loc_src()</li>
+</ul><br><h4>Category: Resources/res_pjsip</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29453">ASTERISK-29453</a>: alembic: incoming_call_offer_pref and outgoing_call_offer_pref missing in "ps_endpoints" table<br/>Reported by: Daniel Thümen<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=a7c71b1b714095329ec2fb6be59a763dcaae7231">[a7c71b1b71]</a> Mike Bradeen -- alembic: add missing ps_endpoints columns</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-30072">ASTERISK-30072</a>: res_pjsip: allow TLS verification of wildcard cert-bearing servers<br/>Reported by: Kevin Harwell<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=2074cf07f652dc7f1b70ad068a67d63bbde0938b">[2074cf07f6]</a> Kevin Harwell -- res_pjsip: allow TLS verification of wildcard cert-bearing servers</li>
+</ul><br><h4>Category: Tests/testsuite</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26826">ASTERISK-26826</a>: testsuite: Add support for Python 3<br/>Reported by: Joshua C. Colp<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=b10cfb34e901bf2dc5843e65b36cc54955d177be">[b10cfb34e9]</a> Mike Bradeen -- CI: Fixing path issue on venv check</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=7b7ba8cbd1b64fc52afd788941184fe1c364bd6b">[7b7ba8cbd1]</a> Mike Bradeen -- CI: use Python3 virtual environment</li>
+</ul><br><h4>Category: Third-Party/pjproject</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29804">ASTERISK-29804</a>: bundled_pjproject: sip_inv is missing multipart support in some cases<br/>Reported by: George Joseph<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=2ff2ccedc62c8e3f7456e7afea104c5546c2a7a7">[2ff2ccedc6]</a> George Joseph -- bundled_pjproject:  Add more support for multipart bodies</li>
+</ul><br><h3>Improvement</h3><h4>Category: Documentation</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29898">ASTERISK-29898</a>: documentation: Add default attributes to documentation<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=bdcaf87bf249c64228862961550c947bf02da164">[bdcaf87bf2]</a> Naveen Albert -- documentation: Adds missing default attributes.</li>
+</ul><br><h4>Category: Resources/res_geolocation</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-30185">ASTERISK-30185</a>: res_geolocation: Allow location parameters to be specified in profiles<br/>Reported by: George Joseph<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=22fc2b58d2f02e90377f13fa8b1f25a9dd950544">[22fc2b58d2]</a> George Joseph -- res_geolocation:  Allow location parameters on the profile object</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-30177">ASTERISK-30177</a>: res_geolocation:  Add option to suppress empty elements<br/>Reported by: George Joseph<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=d6f6a30a49e0e8ab5d7978aaba207ca575b423c9">[d6f6a30a49]</a> George Joseph -- res_geolocation: Add profile parameter suppress_empty_ca_elements</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-30182">ASTERISK-30182</a>: res_geolocation: Add built-in profiles to use in fully dynamic configurations<br/>Reported by: George Joseph<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=e9ae638978fb2470e1c5c871c827e3207eed8a1e">[e9ae638978]</a> George Joseph -- res_geolocation:  Add built-in profiles</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-30127">ASTERISK-30127</a>: Create core Geolocation capability for Asterisk<br/>Reported by: George Joseph<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=547e3590ef8ef3e83ad3cf49dc3740c8651ba2d0">[547e3590ef]</a> George Joseph -- Geolocation:  Core Capability Preview</li>
+</ul><br><h4>Category: Resources/res_pjsip</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-30178">ASTERISK-30178</a>: extend user_eq_phone behavior to local uri's<br/>Reported by: Michael Bradeen<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=fc2f8368e5a2e1b5be8f1687ae0a8ea8affed67b">[fc2f8368e5]</a> Mike Bradeen -- res_pjsip: Add user=phone on From and PAID for usereqphone=yes</li>
+</ul><br><h4>Category: Resources/res_pjsip_geolocation</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-30241">ASTERISK-30241</a>: res_pjsip_gelocation: Downgrade some NOTICE scope trace debugs to DEBUG level<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=29495aafce8afae02c98be5faa2392f75a43d8a8">[29495aafce]</a> Naveen Albert -- res_pjsip_geolocation: Change some notices to debugs.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-30128">ASTERISK-30128</a>: Create PJSIP interface module for Geolocation<br/>Reported by: George Joseph<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=b17e95a7924e114c931a8613ee925fa8f4063c29">[b17e95a792]</a> George Joseph -- Geolocation:  chan_pjsip Capability Preview</li>
+</ul><br><hr><a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all changes that went into this release that did not reference a JIRA issue.</p><table width="100%" border="1">
+<tr><th>Revision</th><th>Author</th><th>Summary</th></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=e21d1e769570a2637e28d56055287261b906f67e">e21d1e7695</a></td><td>Asterisk Development Team</td><td>Update CHANGES and UPGRADE.txt for certified/18.9-cert2</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=f08a172893a67aaea9262888d712aa0acc27093b">f08a172893</a></td><td>George Joseph</td><td>Geolocation: Wiki Documentation</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=5e3a2dd5b0a5f785295f7217380d194ad0504948">5e3a2dd5b0</a></td><td>George Joseph</td><td>pjsip_config.xml: Fix omissions caused by wrong cherry-pick order</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=cc26b1d52bac5959c685a80f6469f8ec508ca7ed">cc26b1d52b</a></td><td>George Joseph</td><td>Geolocation: Base Asterisk Prereqs</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=4e604f03a7241c531eb767cbb8c42f10241bf4cb">4e604f03a7</a></td><td>George Joseph</td><td>xml.c, config,c:  Add stylesheets and variable list string parsing</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=157a9e64c1470f37ea134811b758f25f83ce3349">157a9e64c1</a></td><td>George Joseph</td><td>core: Config and XML tweaks needed for geolocation</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=4afe2355beb249c67d1c21bd2102c1f497052b3a">4afe2355be</a></td><td>George Joseph</td><td>res_pjsip: Add utils for checking media types</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=23bc002815554872dd1f3325c130a881a8cc1347">23bc002815</a></td><td>George Joseph</td><td>bundled_pjproject:  Add additional multipart search utils</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=d3d525315589c6c240d3f0e13691f3f5df5de8f9">d3d5253155</a></td><td>George Joseph</td><td>bundled_pjproject: Create generic pjsip_hdr_find functions</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=39b9607d4df3fbf28dddf9a220523bb876434cc6">39b9607d4d</a></td><td>George Joseph</td><td>Makefile: Allow XML documentation to exist outside source files</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=65a63e534a26b70123e5090989044363e45ef5d5">65a63e534a</a></td><td>Sean Bright</td><td>res_pjsip.c: Correct minor typos in 'realm' documentation.</td></tr>
+</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>b/CHANGES                                                                                  |   80
+b/Makefile                                                                                 |   58
+b/Makefile.rules                                                                           |   15
+b/addons/Makefile                                                                          |    4
+b/apps/app_festival.c                                                                      |    2
+b/build_tools/get_sourceable_makeopts                                                      |   54
+b/build_tools/make_xml_documentation                                                       |  247
+b/build_tools/menuselect-deps.in                                                           |    1
+b/channels/chan_sip.c                                                                      |    4
+b/channels/sig_analog.c                                                                    |    4
+b/configs/samples/geolocation.conf.sample                                                  |  316
+b/configs/samples/pjsip.conf.sample                                                        |   25
+b/configure                                                                                |   12
+b/configure.ac                                                                             |    6
+b/contrib/ast-db-manage/config/versions/58e440314c2a_allow_wildcard_certs.py               |   29
+b/contrib/ast-db-manage/config/versions/7197536bb68d_geoloc_endpoint_params.py             |   22
+b/contrib/ast-db-manage/config/versions/9f3692b1654b_add_stir_shaken_profile_and_codec_.py |   58
+b/doc/appdocsxml.dtd                                                                       |    4
+b/funcs/func_scramble.c                                                                    |    2
+b/include/asterisk/config.h                                                                |   75
+b/include/asterisk/pbx.h                                                                   |   22
+b/include/asterisk/res_geolocation.h                                                       |  413 +
+b/include/asterisk/res_pjsip.h                                                             |   60
+b/include/asterisk/stringfields.h                                                          |   65
+b/include/asterisk/strings.h                                                               |   29
+b/include/asterisk/xml.h                                                                   |  134
+b/main/cdr.c                                                                               |    4
+b/main/config.c                                                                            |   97
+b/main/datastore.c                                                                         |    4
+b/main/pbx.c                                                                               |   15
+b/main/pbx_variables.c                                                                     |   54
+b/main/stasis_state.c                                                                      |    2
+b/main/stun.c                                                                              |    8
+b/main/utils.c                                                                             |   69
+b/main/xml.c                                                                               |  197
+b/makeopts.in                                                                              |    2
+b/res/Makefile                                                                             |    5
+b/res/res_ari.c                                                                            |    4
+b/res/res_config_pgsql.c                                                                   |    2
+b/res/res_geolocation.c                                                                    |  125
+b/res/res_geolocation.exports.in                                                           |    6
+b/res/res_geolocation/eprofile_to_pidf.xslt                                                |  235
+b/res/res_geolocation/geoloc_civicaddr.c                                                   |  151
+b/res/res_geolocation/geoloc_common.c                                                      |   36
+b/res/res_geolocation/geoloc_config.c                                                      |  761 ++
+b/res/res_geolocation/geoloc_datastore.c                                                   |  325
+b/res/res_geolocation/geoloc_dialplan.c                                                    |  376 +
+b/res/res_geolocation/geoloc_doc.xml                                                       |  310
+b/res/res_geolocation/geoloc_eprofile.c                                                    | 1343 ++++
+b/res/res_geolocation/geoloc_gml.c                                                         |  367 +
+b/res/res_geolocation/geoloc_private.h                                                     |  162
+b/res/res_geolocation/pidf_lo_test.xml                                                     |   33
+b/res/res_geolocation/pidf_to_eprofile.xslt                                                |  213
+b/res/res_geolocation/wiki/AsteriskImplementation.md                                       |  183
+b/res/res_geolocation/wiki/CivicAddress.md                                                 |  167
+b/res/res_geolocation/wiki/GML.md                                                          |   60
+b/res/res_geolocation/wiki/Geolocation.md                                                  |   74
+b/res/res_geolocation/wiki/ReferenceInformation.md                                         |   33
+b/res/res_geolocation/wiki/URI.md                                                          |   86
+b/res/res_pjsip.c                                                                          | 3319 ----------
+b/res/res_pjsip.exports.in                                                                 |    1
+b/res/res_pjsip/config_transport.c                                                         |   31
+b/res/res_pjsip/pjsip_config.xml                                                           | 2384 +++++++
+b/res/res_pjsip/pjsip_configuration.c                                                      |   39
+b/res/res_pjsip/pjsip_manager.xml                                                          |  901 ++
+b/res/res_pjsip/pjsip_transport_events.c                                                   |  122
+b/res/res_pjsip_geolocation.c                                                              |  666 ++
+b/res/res_pjsip_sdp_rtp.c                                                                  |    5
+b/res/res_pjsip_session.c                                                                  |    7
+b/res/res_tonedetect.c                                                                     |    2
+b/tests/CI/runTestsuite.sh                                                                 |   15
+b/tests/test_config.c                                                                      |   83
+b/tests/test_strings.c                                                                     |  139
+b/tests/test_vector.c                                                                      |    2
+b/third-party/pjproject/patches/0130-sip_inv-Additional-multipart-support-2919-2920.patch  |  661 +
+b/third-party/pjproject/patches/0150-Create-generic-pjsip_hdr_find-functions.patch         |  176
+b/third-party/pjproject/patches/0160-Additional-multipart-improvements.patch               |  576 +
+doc/CHANGES-staging/func_odbc_esc_backslashes.txt                                          |    7
+78 files changed, 12994 insertions(+), 3392 deletions(-)</pre><br></html>
