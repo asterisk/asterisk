@@ -1,6 +1,0 @@
-Subject: res_pjsip
-
-A new option named "peer_supported" has been added to the endpoint option
-100rel. When set to this option, Asterisk sends provisional responses
-reliably if the peer supports it. If the peer does not support reliable
-provisional responses, Asterisk sends them normally.

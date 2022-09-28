@@ -1,5 +1,0 @@
-Subject: features
-
-The Bridge application now has the n "no answer" option
-that can be used to prevent the channel from being
-automatically answered prior to bridging.
