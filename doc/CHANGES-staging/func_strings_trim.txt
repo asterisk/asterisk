@@ -1,5 +1,0 @@
-Subject: func_strings
-
-Three new functions, TRIM, LTRIM, and RTRIM, are
-now available for trimming leading and trailing
-whitespace.
