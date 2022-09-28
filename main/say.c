@@ -160,7 +160,7 @@ struct ast_str* ast_get_character_str(const char *str, const char *lang, enum as
 		}
 		if ((fn && ast_fileexists(fn, NULL, lang) > 0) ||
 			(snprintf(asciibuf + 13, sizeof(asciibuf) - 13, "%d", str[num]) > 0 && ast_fileexists(asciibuf, NULL, lang) > 0 && (fn = asciibuf))) {
-			ast_str_append(&filenames, 0, (num == 0 ? "%s" : "&%s"), fn);
+			ast_str_append(&filenames, 0, "%s%s", ast_str_strlen(filenames) ? "&" : "", fn);
 		}
 		if (upper || lower) {
 			continue;
@@ -282,7 +282,7 @@ struct ast_str* ast_get_phonetic_str(const char *str, const char *lang)
 			fn = fnbuf;
 		}
 		if (fn && ast_fileexists(fn, NULL, lang) > 0) {
-			ast_str_append(&filenames, 0, (num == 0 ? "%s" : "&%s"), fn);
+			ast_str_append(&filenames, 0, "%s%s", ast_str_strlen(filenames) ? "&" : "", fn);
 		}
 		num++;
 	}
@@ -336,7 +336,7 @@ struct ast_str* ast_get_digit_str(const char *str, const char *lang)
 			break;
 		}
 		if (fn && ast_fileexists(fn, NULL, lang) > 0) {
-			ast_str_append(&filenames, 0, (num == 0 ? "%s" : "&%s"), fn);
+			ast_str_append(&filenames, 0, "%s%s", ast_str_strlen(filenames) ? "&" : "", fn);
 		}
 		num++;
 	}
