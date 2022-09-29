@@ -118,6 +118,7 @@ struct ast_audiohook {
 	ast_audiohook_manipulate_callback manipulate_callback; /*!< Manipulation callback */
 	struct ast_audiohook_options options;                  /*!< Applicable options */
 	unsigned int hook_internal_samp_rate;                  /*!< internal read/write sample rate on the audiohook.*/
+	enum ast_audiohook_direction direction;                /*!< Intended audiohook direction, BOTH by default on init */
 	AST_LIST_ENTRY(ast_audiohook) list;                    /*!< Linked list information */
 };
 
@@ -139,6 +140,14 @@ int ast_audiohook_init(struct ast_audiohook *audiohook, enum ast_audiohook_type 
  * \retval -1 on failure
  */
 int ast_audiohook_destroy(struct ast_audiohook *audiohook);
+
+/*! \brief Sets direction on audiohook
+ * \param audiohook
+ * \param direction In which direction should the audiohook feed frames, ie if we are snooping 'in', set direction to READ so that only the 'in' frames are fed to the slin factory
+ * \retval 0 on success
+ * \retval -1 on failure due to audiohook already in use or in shutdown. Can only set direction on NEW audiohooks
+ */
+int ast_audiohook_set_frame_feed_direction(struct ast_audiohook *audiohook, enum ast_audiohook_direction direction);
 
 /*! \brief Writes a frame into the audiohook structure
  * \param audiohook
