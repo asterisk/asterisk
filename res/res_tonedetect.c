@@ -228,6 +228,10 @@
 						provided timeout) before going to the destination provided in the <literal>g</literal>
 						or <literal>h</literal> option. Default is 1.</para>
 					</option>
+					<option name="p">
+						<para>Match immediately on audible ringback tone, instead of or in addition to
+						a particular frequency.</para>
+					</option>
 					<option name="r">
 						<para>Apply to received frames only. Default is both directions.</para>
 					</option>
@@ -297,6 +301,7 @@ enum td_opts {
 	OPT_SIT = (1 << 9),
 	OPT_BUSY = (1 << 10),
 	OPT_DIALTONE = (1 << 11),
+	OPT_RINGING = (1 << 12),
 };
 
 enum {
@@ -316,6 +321,7 @@ AST_APP_OPTIONS(td_opts, {
 	AST_APP_OPTION_ARG('g', OPT_GOTO_RX, OPT_ARG_GOTO_RX),
 	AST_APP_OPTION_ARG('h', OPT_GOTO_TX, OPT_ARG_GOTO_TX),
 	AST_APP_OPTION_ARG('n', OPT_HITS_REQ, OPT_ARG_HITS_REQ),
+	AST_APP_OPTION('p', OPT_RINGING),
 	AST_APP_OPTION('s', OPT_SQUELCH),
 	AST_APP_OPTION('t', OPT_TX),
 	AST_APP_OPTION('r', OPT_RX),
@@ -403,18 +409,31 @@ static int detect_callback(struct ast_audiohook *audiohook, struct ast_channel *
 		if (tstate > 0) {
 			ast_debug(3, "tcount: %d, tstate: %d\n", tcount, tstate);
 			switch (tstate) {
+			case DSP_TONE_STATE_RINGING:
+				if (di->signalfeatures & DSP_PROGRESS_RINGING) {
+					ast_debug(1, "Detected ringing on %s in %s direction\n", ast_channel_name(chan),
+						direction == AST_AUDIOHOOK_DIRECTION_READ ? "read" : "write");
+					match = 1;
+				}
+				break;
 			case DSP_TONE_STATE_DIALTONE:
 				if (di->signalfeatures & DSP_FEATURE_WAITDIALTONE) {
+					ast_debug(1, "Detected dial tone on %s in %s direction\n", ast_channel_name(chan),
+						direction == AST_AUDIOHOOK_DIRECTION_READ ? "read" : "write");
 					match = 1;
 				}
 				break;
 			case DSP_TONE_STATE_BUSY:
 				if (di->signalfeatures & DSP_PROGRESS_BUSY) {
+					ast_debug(1, "Detected busy tone on %s in %s direction\n", ast_channel_name(chan),
+						direction == AST_AUDIOHOOK_DIRECTION_READ ? "read" : "write");
 					match = 1;
 				}
 				break;
 			case DSP_TONE_STATE_SPECIAL3:
 				if (di->signalfeatures & DSP_PROGRESS_CONGESTION) {
+					ast_debug(1, "Detected SIT on %s in %s direction\n", ast_channel_name(chan),
+						direction == AST_AUDIOHOOK_DIRECTION_READ ? "read" : "write");
 					match = 1;
 				}
 				break;
@@ -427,7 +446,8 @@ static int detect_callback(struct ast_audiohook *audiohook, struct ast_channel *
 				} else if (di->gototx) {
 					ast_async_parseable_goto(chan, di->gototx);
 				} else {
-					ast_debug(3, "Detected call progress signal, but don't know where to go\n");
+					ast_debug(3, "Detected call progress signal in %s direction, but don't know where to go\n",
+						direction == AST_AUDIOHOOK_DIRECTION_READ ? "read" : "write");
 				}
 			}
 		}
@@ -582,6 +602,9 @@ static int parse_signal_features(struct ast_flags *flags)
 	}
 	if (ast_test_flag(flags, OPT_DIALTONE)) {
 		features |= DSP_FEATURE_WAITDIALTONE;
+	}
+	if (ast_test_flag(flags, OPT_RINGING)) {
+		features |= DSP_PROGRESS_RINGING;
 	}
 
 	return features;
