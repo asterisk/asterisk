@@ -3447,7 +3447,7 @@ struct sig_ss7_callback sig_ss7_callbacks =
  */
 static void notify_message(char *mailbox, int thereornot)
 {
-	char s[sizeof(mwimonitornotify) + 80];
+	char s[sizeof(mwimonitornotify) + 164];
 
 	if (ast_strlen_zero(mailbox)) {
 		return;
