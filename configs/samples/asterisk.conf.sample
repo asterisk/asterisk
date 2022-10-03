@@ -95,10 +95,13 @@ documentation_language = en_US	; Set the language you want documentation
 				;         documented in extensions.conf.sample.
 				; Default gosub.
 ;live_dangerously = no		; Enable the execution of 'dangerous' dialplan
-				; functions from external sources (AMI,
-				; etc.) These functions (such as SHELL) are
-				; considered dangerous because they can allow
-				; privilege escalation.
+				; functions and configuration file access from
+				; external sources (AMI, etc.) These functions
+				; (such as SHELL) are considered dangerous
+				; because they can allow privilege escalation.
+				; Configuration files are considered dangerous
+				; if they exist outside of the Asterisk
+				; configuration directory.
 				; Default no
 ;entityid=00:11:22:33:44:55	; Entity ID.
 				; This is in the form of a MAC address.

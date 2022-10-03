@@ -476,6 +476,7 @@ void load_asterisk_conf(void)
 	}
 	if (!ast_opt_remote) {
 		pbx_live_dangerously(live_dangerously);
+		astman_live_dangerously(live_dangerously);
 	}
 
 	option_debug += option_debug_new;

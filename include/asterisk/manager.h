@@ -356,6 +356,18 @@ void astman_send_list_complete_start(struct mansession *s, const struct message 
  */
 void astman_send_list_complete_end(struct mansession *s);
 
+/*!
+ * \brief Enable/disable the inclusion of 'dangerous' configurations outside
+ * of the ast_config_AST_CONFIG_DIR
+ *
+ * This function can globally enable/disable the loading of configuration files
+ * outside of ast_config_AST_CONFIG_DIR.
+ *
+ * \param new_live_dangerously If true, enable the access of files outside
+ * ast_config_AST_CONFIG_DIR from astman.
+ */
+void astman_live_dangerously(int new_live_dangerously);
+
 void __attribute__((format(printf, 2, 3))) astman_append(struct mansession *s, const char *fmt, ...);
 
 /*! \brief Determine if a manager session ident is authenticated */
