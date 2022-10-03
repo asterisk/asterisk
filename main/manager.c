@@ -1491,6 +1491,11 @@ static struct stasis_forward *rtp_topic_forwarder;
 /*! \brief The \ref stasis_subscription for forwarding the Security topic to the AMI topic */
 static struct stasis_forward *security_topic_forwarder;
 
+/*!
+ * \brief Set to true (non-zero) to globally allow all dangerous AMI actions to run
+ */
+static int live_dangerously;
+
 #ifdef TEST_FRAMEWORK
 /*! \brief The \ref stasis_subscription for forwarding the Test topic to the AMI topic */
 static struct stasis_forward *test_suite_forwarder;
@@ -3610,6 +3615,29 @@ static int action_ping(struct mansession *s, const struct message *m)
 	return 0;
 }
 
+void astman_live_dangerously(int new_live_dangerously)
+{
+	if (new_live_dangerously && !live_dangerously)
+	{
+		ast_log(LOG_WARNING, "Manager Configuration load protection disabled.\n");
+	}
+
+	if (!new_live_dangerously && live_dangerously)
+	{
+		ast_log(LOG_NOTICE, "Manager Configuration load protection enabled.\n");
+	}
+	live_dangerously = new_live_dangerously;
+}
+
+static int restrictedFile(const char *filename)
+{
+	if (!live_dangerously && !strncasecmp(filename, "/", 1) &&
+		 strncasecmp(filename, ast_config_AST_CONFIG_DIR, strlen(ast_config_AST_CONFIG_DIR))) {
+		return 1;
+	}
+	return 0;
+}
+
 static int action_getconfig(struct mansession *s, const struct message *m)
 {
 	struct ast_config *cfg;
@@ -3625,6 +3653,11 @@ static int action_getconfig(struct mansession *s, const struct message *m)
 
 	if (ast_strlen_zero(fn)) {
 		astman_send_error(s, m, "Filename not specified");
+		return 0;
+	}
+
+	if (restrictedFile(fn)) {
+		astman_send_error(s, m, "File requires escalated priveledges");
 		return 0;
 	}
 
@@ -3752,6 +3785,11 @@ static int action_getconfigjson(struct mansession *s, const struct message *m)
 
 	if (ast_strlen_zero(fn)) {
 		astman_send_error(s, m, "Filename not specified");
+		return 0;
+	}
+
+	if (restrictedFile(fn)) {
+		astman_send_error(s, m, "File requires escalated priveledges");
 		return 0;
 	}
 
@@ -4104,6 +4142,10 @@ static int action_updateconfig(struct mansession *s, const struct message *m)
 
 	if (ast_strlen_zero(sfn) || ast_strlen_zero(dfn)) {
 		astman_send_error(s, m, "Filename not specified");
+		return 0;
+	}
+	if (restrictedFile(sfn) || restrictedFile(dfn)) {
+		astman_send_error(s, m, "File requires escalated priveledges");
 		return 0;
 	}
 	if (!(cfg = ast_config_load2(sfn, "manager", config_flags))) {
