@@ -1043,8 +1043,17 @@ enum ast_dial_result ast_dial_join(struct ast_dial *dial)
 			ast_channel_unlock(chan);
 		}
 	} else {
+		struct ast_dial_channel *channel = NULL;
+
 		/* Now we signal it with SIGURG so it will break out of it's waitfor */
 		pthread_kill(thread, SIGURG);
+
+		/* pthread_kill may not be enough, if outgoing channel has already got an answer (no more in waitfor) but is not yet running an application. Force soft hangup. */
+		AST_LIST_TRAVERSE(&dial->channels, channel, list) {
+			if (channel->owner) {
+				ast_softhangup(channel->owner, AST_SOFTHANGUP_EXPLICIT);
+			}
+		}
 	}
 	AST_LIST_UNLOCK(&dial->channels);
 
