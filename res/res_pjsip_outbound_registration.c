@@ -842,6 +842,8 @@ struct registration_response {
 	pjsip_rx_data *rdata;
 	/*! \brief Request for which the response was received */
 	pjsip_tx_data *old_request;
+	/*! \brief Key for the reliable transport in use */
+	char transport_key[IP6ADDR_COLON_PORT_BUFLEN];
 };
 
 /*! \brief Registration response structure destructor */
@@ -957,13 +959,10 @@ static int monitor_matcher(void *a, void *b)
 	return strcmp(ma, mb) == 0;
 }
 
-static void registration_transport_monitor_setup(pjsip_transport *transport, const char *registration_name)
+static void registration_transport_monitor_setup(const char *transport_key, const char *registration_name)
 {
 	char *monitor;
 
-	if (!PJSIP_TRANSPORT_IS_RELIABLE(transport)) {
-		return;
-	}
 	monitor = ao2_alloc_options(strlen(registration_name) + 1, NULL,
 		AO2_ALLOC_OPT_LOCK_NOLOCK);
 	if (!monitor) {
@@ -976,8 +975,8 @@ static void registration_transport_monitor_setup(pjsip_transport *transport, con
 	 * register the monitor.  We might get into a message spamming infinite
 	 * loop of registration, shutdown, reregistration...
 	 */
-	ast_sip_transport_monitor_register(transport, registration_transport_shutdown_cb,
-		monitor);
+	ast_sip_transport_monitor_register_replace_key(transport_key, registration_transport_shutdown_cb,
+		monitor, monitor_matcher);
 	ao2_ref(monitor, -1);
 }
 
@@ -1130,14 +1129,18 @@ static int handle_registration_response(void *data)
 			schedule_registration(response->client_state, next_registration_round);
 
 			/* See if we should monitor for transport shutdown */
-			registration_transport_monitor_setup(response->rdata->tp_info.transport,
-				response->client_state->registration_name);
+			if (PJSIP_TRANSPORT_IS_RELIABLE(response->rdata->tp_info.transport)) {
+				registration_transport_monitor_setup(response->transport_key,
+					response->client_state->registration_name);
+			}
 		} else {
 			ast_debug(1, "Outbound unregistration to '%s' with client '%s' successful\n", server_uri, client_uri);
 			update_client_state_status(response->client_state, SIP_REGISTRATION_UNREGISTERED);
-			ast_sip_transport_monitor_unregister(response->rdata->tp_info.transport,
-				registration_transport_shutdown_cb, response->client_state->registration_name,
-				monitor_matcher);
+			if (PJSIP_TRANSPORT_IS_RELIABLE(response->rdata->tp_info.transport)) {
+				ast_sip_transport_monitor_unregister_key(response->transport_key,
+					registration_transport_shutdown_cb, response->client_state->registration_name,
+					monitor_matcher);
+			}
 		}
 
 		save_response_fields_to_transport(response);
@@ -1253,6 +1256,9 @@ static void sip_outbound_registration_response_cb(struct pjsip_regc_cbparam *par
 		response->old_request = tsx->last_tx;
 		pjsip_tx_data_add_ref(response->old_request);
 		pjsip_rx_data_clone(param->rdata, 0, &response->rdata);
+		AST_SIP_MAKE_REMOTE_IPADDR_PORT_STR(param->rdata->tp_info.transport,
+			response->transport_key);
+
 	} else {
 		/* old_request steals the reference */
 		response->old_request = client_state->last_tdata;

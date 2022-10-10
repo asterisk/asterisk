@@ -30,6 +30,7 @@
 #include "asterisk.h"
 
 #include "asterisk/res_pjsip.h"
+#include "asterisk/res_pjsip_cli.h"
 #include "include/res_pjsip_private.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/vector.h"
@@ -49,8 +50,14 @@ struct transport_monitor_notifier {
 
 /*! \brief Structure for transport to be monitored */
 struct transport_monitor {
+	/*! \brief Key <ipaddr>:<port> */
+	char key[IP6ADDR_COLON_PORT_BUFLEN];
 	/*! \brief The underlying PJSIP transport */
 	pjsip_transport *transport;
+	/*! For debugging purposes, we save the obj_name
+	 * in case the transport goes away.
+	 */
+	char *transport_obj_name;
 	/*! Who is interested in when this transport shuts down. */
 	AST_VECTOR(, struct transport_monitor_notifier) monitors;
 };
@@ -64,12 +71,14 @@ static pjsip_tp_state_callback tpmgr_state_callback;
 /*! List of registered transport state callbacks. */
 static AST_RWLIST_HEAD(, ast_sip_tpmgr_state_callback) transport_state_list;
 
-
 /*! \brief Hashing function for struct transport_monitor */
-AO2_STRING_FIELD_HASH_FN(transport_monitor, transport->obj_name);
+AO2_STRING_FIELD_HASH_FN(transport_monitor, key);
 
 /*! \brief Comparison function for struct transport_monitor */
-AO2_STRING_FIELD_CMP_FN(transport_monitor, transport->obj_name);
+AO2_STRING_FIELD_CMP_FN(transport_monitor, key);
+
+/*! \brief Sort function for struct transport_monitor */
+AO2_STRING_FIELD_SORT_FN(transport_monitor, key);
 
 static const char *transport_state2str(pjsip_transport_state state)
 {
@@ -112,6 +121,11 @@ static void transport_monitor_dtor(void *vdoomed)
 		ao2_cleanup(notifier->data);
 	}
 	AST_VECTOR_FREE(&monitored->monitors);
+	ast_debug(3, "Transport %s(%s,%s) RefCnt: %ld : state:MONITOR_DESTROYED\n",
+		monitored->key, monitored->transport->obj_name,
+		monitored->transport->type_name,pj_atomic_get(monitored->transport->ref_cnt));
+	ast_free(monitored->transport_obj_name);
+	pjsip_transport_dec_ref(monitored->transport);
 }
 
 /*!
@@ -125,8 +139,11 @@ static void transport_monitor_dtor(void *vdoomed)
 static void transport_state_do_reg_callbacks(struct ao2_container *transports, pjsip_transport *transport)
 {
 	struct transport_monitor *monitored;
+	char key[IP6ADDR_COLON_PORT_BUFLEN];
 
-	monitored = ao2_find(transports, transport->obj_name, OBJ_SEARCH_KEY | OBJ_UNLINK);
+	AST_SIP_MAKE_REMOTE_IPADDR_PORT_STR(transport, key);
+
+	monitored = ao2_find(transports, key, OBJ_SEARCH_KEY | OBJ_UNLINK);
 	if (monitored) {
 		int idx;
 
@@ -134,8 +151,10 @@ static void transport_state_do_reg_callbacks(struct ao2_container *transports, p
 			struct transport_monitor_notifier *notifier;
 
 			notifier = AST_VECTOR_GET_ADDR(&monitored->monitors, idx);
-			ast_debug(3, "running callback %p(%p) for transport %s\n",
-				notifier->cb, notifier->data, transport->obj_name);
+			ast_debug(3, "Transport %s(%s,%s) RefCnt: %ld : running callback %p(%p)\n",
+				monitored->key, monitored->transport->obj_name,
+				monitored->transport->type_name,
+				pj_atomic_get(monitored->transport->ref_cnt), notifier->cb, notifier->data);
 			notifier->cb(notifier->data);
 		}
 		ao2_ref(monitored, -1);
@@ -269,8 +288,11 @@ static void transport_state_callback(pjsip_transport *transport,
 		&& (transports = ao2_global_obj_ref(active_transports))) {
 		struct transport_monitor *monitored;
 
-		ast_debug(3, "Reliable transport '%s' state:%s\n",
-			transport->obj_name, transport_state2str(state));
+		ast_debug(3, "Transport " PJSTR_PRINTF_SPEC ":%d(%s,%s): RefCnt: %ld state:%s\n",
+			PJSTR_PRINTF_VAR(transport->remote_name.host),
+			transport->remote_name.port, transport->obj_name,
+			transport->type_name,
+			pj_atomic_get(transport->ref_cnt), transport_state2str(state));
 		switch (state) {
 		case PJSIP_TP_STATE_CONNECTED:
 			if (PJSIP_TRANSPORT_IS_SECURE(transport) &&
@@ -285,10 +307,18 @@ static void transport_state_callback(pjsip_transport *transport,
 				break;
 			}
 			monitored->transport = transport;
+			AST_SIP_MAKE_REMOTE_IPADDR_PORT_STR(transport, monitored->key);
+			monitored->transport_obj_name = ast_strdup(transport->obj_name);
+
 			if (AST_VECTOR_INIT(&monitored->monitors, 5)) {
 				ao2_ref(monitored, -1);
 				break;
 			}
+			pjsip_transport_add_ref(monitored->transport);
+			ast_debug(3, "Transport %s(%s,%s): RefCnt: %ld state:MONITOR_CREATED\n",
+				monitored->key,	monitored->transport_obj_name,
+				monitored->transport->type_name,
+				pj_atomic_get(monitored->transport->ref_cnt));
 
 			ao2_link(transports, monitored);
 			ao2_ref(monitored, -1);
@@ -362,8 +392,10 @@ static int transport_monitor_unregister_cb(void *obj, void *arg, int flags)
 			|| cb_data->matches(cb_data->data, notifier->data))) {
 			ao2_cleanup(notifier->data);
 			AST_VECTOR_REMOVE_UNORDERED(&monitored->monitors, idx);
-			ast_debug(3, "Unregistered monitor %p(%p) from transport %s\n",
-				notifier->cb, notifier->data, monitored->transport->obj_name);
+			ast_debug(3, "Transport %s(%s,%s) RefCnt: %ld : Unregistered monitor %p(%p)\n",
+				monitored->key, monitored->transport_obj_name,
+				monitored->transport->type_name,
+				pj_atomic_get(monitored->transport->ref_cnt), notifier->cb, notifier->data);
 		}
 	}
 	return 0;
@@ -397,10 +429,18 @@ void ast_sip_transport_monitor_unregister_all(ast_transport_monitor_shutdown_cb 
 void ast_sip_transport_monitor_unregister(pjsip_transport *transport,
 	ast_transport_monitor_shutdown_cb cb, void *data, ast_transport_monitor_data_matcher matches)
 {
+	char key[IP6ADDR_COLON_PORT_BUFLEN];
+	AST_SIP_MAKE_REMOTE_IPADDR_PORT_STR(transport, key);
+	ast_sip_transport_monitor_unregister_key(key, cb, data, matches);
+}
+
+void ast_sip_transport_monitor_unregister_key(const char *transport_key,
+	ast_transport_monitor_shutdown_cb cb, void *data, ast_transport_monitor_data_matcher matches)
+{
 	struct ao2_container *transports;
 	struct transport_monitor *monitored;
 
-	ast_assert(transport != NULL && cb != NULL);
+	ast_assert(transport_key != NULL && cb != NULL);
 
 	transports = ao2_global_obj_ref(active_transports);
 	if (!transports) {
@@ -408,7 +448,7 @@ void ast_sip_transport_monitor_unregister(pjsip_transport *transport,
 	}
 
 	ao2_lock(transports);
-	monitored = ao2_find(transports, transport->obj_name, OBJ_SEARCH_KEY | OBJ_NOLOCK);
+	monitored = ao2_find(transports, transport_key, OBJ_SEARCH_KEY | OBJ_NOLOCK);
 	if (monitored) {
 		struct callback_data cb_data = {
 			.cb = cb,
@@ -426,17 +466,35 @@ void ast_sip_transport_monitor_unregister(pjsip_transport *transport,
 enum ast_transport_monitor_reg ast_sip_transport_monitor_register(pjsip_transport *transport,
 	ast_transport_monitor_shutdown_cb cb, void *ao2_data)
 {
-	return ast_sip_transport_monitor_register_replace(transport, cb, ao2_data, NULL);
+	char key[IP6ADDR_COLON_PORT_BUFLEN];
+	AST_SIP_MAKE_REMOTE_IPADDR_PORT_STR(transport, key);
+
+	return ast_sip_transport_monitor_register_replace_key(key, cb, ao2_data, NULL);
+}
+
+enum ast_transport_monitor_reg ast_sip_transport_monitor_register_key(const char *transport_key,
+	ast_transport_monitor_shutdown_cb cb, void *ao2_data)
+{
+	return ast_sip_transport_monitor_register_replace_key(transport_key, cb, ao2_data, NULL);
 }
 
 enum ast_transport_monitor_reg ast_sip_transport_monitor_register_replace(pjsip_transport *transport,
+	ast_transport_monitor_shutdown_cb cb, void *ao2_data, ast_transport_monitor_data_matcher matches)
+{
+	char key[IP6ADDR_COLON_PORT_BUFLEN];
+
+	AST_SIP_MAKE_REMOTE_IPADDR_PORT_STR(transport, key);
+	return ast_sip_transport_monitor_register_replace_key(key, cb, ao2_data, NULL);
+}
+
+enum ast_transport_monitor_reg ast_sip_transport_monitor_register_replace_key(const char *transport_key,
 	ast_transport_monitor_shutdown_cb cb, void *ao2_data, ast_transport_monitor_data_matcher matches)
 {
 	struct ao2_container *transports;
 	struct transport_monitor *monitored;
 	enum ast_transport_monitor_reg res = AST_TRANSPORT_MONITOR_REG_NOT_FOUND;
 
-	ast_assert(transport != NULL && cb != NULL);
+	ast_assert(transport_key != NULL && cb != NULL);
 
 	transports = ao2_global_obj_ref(active_transports);
 	if (!transports) {
@@ -444,7 +502,7 @@ enum ast_transport_monitor_reg ast_sip_transport_monitor_register_replace(pjsip_
 	}
 
 	ao2_lock(transports);
-	monitored = ao2_find(transports, transport->obj_name, OBJ_SEARCH_KEY | OBJ_NOLOCK);
+	monitored = ao2_find(transports, transport_key, OBJ_SEARCH_KEY | OBJ_NOLOCK);
 	if (monitored) {
 		struct transport_monitor_notifier new_monitor;
 		struct callback_data cb_data = {
@@ -461,12 +519,15 @@ enum ast_transport_monitor_reg ast_sip_transport_monitor_register_replace(pjsip_
 		if (AST_VECTOR_APPEND(&monitored->monitors, new_monitor)) {
 			ao2_cleanup(ao2_data);
 			res = AST_TRANSPORT_MONITOR_REG_FAILED;
-			ast_debug(3, "Register monitor %p(%p) to transport %s FAILED\n",
-				cb, ao2_data, transport->obj_name);
+			ast_debug(3, "Transport %s(%s) RefCnt: %ld : Monitor registration failed %p(%p)\n",
+				monitored->key, monitored->transport_obj_name,
+				pj_atomic_get(monitored->transport->ref_cnt), cb, ao2_data);
 		} else {
 			res = AST_TRANSPORT_MONITOR_REG_SUCCESS;
-			ast_debug(3, "Registered monitor %p(%p) to transport %s\n",
-				cb, ao2_data, transport->obj_name);
+			ast_debug(3, "Transport %s(%s,%s) RefCnt: %ld : Registered monitor %p(%p)\n",
+				monitored->key, monitored->transport_obj_name,
+				monitored->transport->type_name,
+				pj_atomic_get(monitored->transport->ref_cnt), cb, ao2_data);
 		}
 
 		ao2_ref(monitored, -1);
@@ -499,9 +560,119 @@ void ast_sip_transport_state_register(struct ast_sip_tpmgr_state_callback *eleme
 	AST_RWLIST_UNLOCK(&transport_state_list);
 }
 
+static char *cli_show_monitors(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	char *cli_rc = CLI_FAILURE;
+	int rc = 0;
+	int using_regex = 0;
+	regex_t regex = { 0, };
+	int container_count;
+	struct ao2_iterator iter;
+	struct ao2_container *sorted_monitors = NULL;
+	struct ao2_container *transports;
+	struct transport_monitor *monitored;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "pjsip show transport-monitors";
+		e->usage = "Usage: pjsip show transport-monitors [ like <pattern> ]\n"
+		            "      Show pjsip transport monitors\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 3 && a->argc != 5) {
+		return CLI_SHOWUSAGE;
+	}
+
+	if (a->argc == 5) {
+		int regrc;
+		if (strcasecmp(a->argv[3], "like")) {
+			return CLI_SHOWUSAGE;
+		}
+		regrc = regcomp(&regex, a->argv[4], REG_EXTENDED | REG_ICASE | REG_NOSUB);
+		if (regrc) {
+			char err[256];
+			regerror(regrc, &regex, err, 256);
+			ast_cli(a->fd, "PJSIP Transpoirt Monitor: Error: %s\n", err);
+			return CLI_FAILURE;
+		}
+		using_regex = 1;
+	}
+
+	/* Get a sorted snapshot of the scheduled tasks */
+	sorted_monitors = ao2_container_alloc_rbtree(AO2_ALLOC_OPT_LOCK_NOLOCK, 0,
+		transport_monitor_sort_fn, NULL);
+	if (!sorted_monitors) {
+		ast_cli(a->fd, "PJSIP Transport Monitor: Unable to allocate temporary container\n");
+		goto error;
+	}
+
+	transports = ao2_global_obj_ref(active_transports);
+	if (!transports) {
+		ast_cli(a->fd, "PJSIP Transport Monitor: Unable to get transports\n");
+		goto error;
+	}
+
+	ao2_lock(transports);
+	rc = ao2_container_dup(sorted_monitors, transports, 0);
+	ao2_unlock(transports);
+	ao2_ref(transports, -1);
+	if (rc != 0) {
+		ast_cli(a->fd, "PJSIP Transport Monitors: Unable to sort temporary container\n");
+		goto error;
+	}
+	container_count = ao2_container_count(sorted_monitors);
+
+	ast_cli(a->fd, "PJSIP Transport Monitors:\n\n");
+
+	ast_cli(a->fd,
+		"<Remote Host...................................> <State.....> <Direction> <RefCnt> <Monitors> <ObjName............>\n");
+
+	iter = ao2_iterator_init(sorted_monitors, AO2_ITERATOR_UNLINK);
+	for (; (monitored = ao2_iterator_next(&iter)); ao2_ref(monitored, -1)) {
+		char *state;
+
+		if (using_regex && regexec(&regex, monitored->key, 0, NULL, 0) == REG_NOMATCH) {
+			continue;
+		}
+
+		if (monitored->transport->is_destroying) {
+			state = "DESTROYING";
+		} else if (monitored->transport->is_shutdown) {
+			state = "SHUTDOWN";
+		} else {
+			state = "ACTIVE";
+		}
+
+		ast_cli(a->fd, " %-46.46s   %-10s   %-9s   %6ld   %8" PRIu64 "   %s\n",
+			monitored->key, state,
+			monitored->transport->dir == PJSIP_TP_DIR_OUTGOING ? "Outgoing" : "Incoming",
+			pj_atomic_get(monitored->transport->ref_cnt),
+			AST_VECTOR_SIZE(&monitored->monitors), monitored->transport->obj_name);
+	}
+	ao2_iterator_destroy(&iter);
+	ast_cli(a->fd, "\nTotal Transport Monitors: %d\n\n", container_count);
+	cli_rc = CLI_SUCCESS;
+error:
+	if (using_regex) {
+		regfree(&regex);
+	}
+	ao2_cleanup(sorted_monitors);
+
+	return cli_rc;
+}
+
+static struct ast_cli_entry cli_commands[] = {
+	AST_CLI_DEFINE(cli_show_monitors, "Show pjsip transport monitors"),
+};
+
 void ast_sip_destroy_transport_events(void)
 {
 	pjsip_tpmgr *tpmgr;
+
+	ast_cli_unregister_multiple(cli_commands, ARRAY_LEN(cli_commands));
 
 	tpmgr = pjsip_endpt_get_tpmgr(ast_sip_get_pjsip_endpoint());
 	if (tpmgr) {
@@ -522,7 +693,7 @@ int ast_sip_initialize_transport_events(void)
 	}
 
 	transports = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
-		ACTIVE_TRANSPORTS_BUCKETS, transport_monitor_hash_fn, NULL,
+		ACTIVE_TRANSPORTS_BUCKETS, transport_monitor_hash_fn, transport_monitor_sort_fn,
 		transport_monitor_cmp_fn);
 	if (!transports) {
 		return -1;
@@ -532,6 +703,9 @@ int ast_sip_initialize_transport_events(void)
 
 	tpmgr_state_callback = pjsip_tpmgr_get_state_cb(tpmgr);
 	pjsip_tpmgr_set_state_cb(tpmgr, &transport_state_callback);
+
+	ast_cli_register_multiple(cli_commands, ARRAY_LEN(cli_commands));
+
 
 	return 0;
 }

@@ -378,8 +378,8 @@ struct subscription_persistence {
 	char src_name[PJ_INET6_ADDRSTRLEN];
 	/*! Source port of the message */
 	int src_port;
-	/*! Local transport key type */
-	char transport_key[32];
+	/*! Local transport type (UDB,TCP,TLS)*/
+	char transport_type[32];
 	/*! Local transport address */
 	char local_name[PJ_INET6_ADDRSTRLEN];
 	/*! Local transport port */
@@ -463,7 +463,7 @@ struct sip_subscription_tree {
 	/*! The transport the subscription was received on.
 	 * Only used for reliable transports.
 	 */
-	pjsip_transport *transport;
+	char transport_key[IP6ADDR_COLON_PORT_BUFLEN];
 };
 
 /*!
@@ -694,8 +694,9 @@ static void subscription_persistence_update(struct sip_subscription_tree *sub_tr
 							rdata->tp_info.transport->obj_name,
 							sub_tree->persistence->endpoint, sub_tree->root->resource,
 							sub_tree->persistence->prune_on_boot);
-						sub_tree->transport = rdata->tp_info.transport;
-						ast_sip_transport_monitor_register(rdata->tp_info.transport,
+						AST_SIP_MAKE_REMOTE_IPADDR_PORT_STR(rdata->tp_info.transport,
+							sub_tree->transport_key);
+						ast_sip_transport_monitor_register_key(sub_tree->transport_key,
 							sub_tree_transport_cb, sub_tree);
 						/*
 						 * FYI: ast_sip_transport_monitor_register holds a reference to the sub_tree
@@ -729,8 +730,8 @@ static void subscription_persistence_update(struct sip_subscription_tree *sub_tr
 		ast_copy_string(sub_tree->persistence->src_name, rdata->pkt_info.src_name,
 				sizeof(sub_tree->persistence->src_name));
 		sub_tree->persistence->src_port = rdata->pkt_info.src_port;
-		ast_copy_string(sub_tree->persistence->transport_key, rdata->tp_info.transport->type_name,
-			sizeof(sub_tree->persistence->transport_key));
+		ast_copy_string(sub_tree->persistence->transport_type, rdata->tp_info.transport->type_name,
+			sizeof(sub_tree->persistence->transport_type));
 		ast_copy_pj_str(sub_tree->persistence->local_name, &rdata->tp_info.transport->local_name.host,
 			sizeof(sub_tree->persistence->local_name));
 		sub_tree->persistence->local_port = rdata->tp_info.transport->local_name.port;
@@ -746,12 +747,12 @@ static void subscription_persistence_remove(struct sip_subscription_tree *sub_tr
 		return;
 	}
 
-	if (sub_tree->persistence->prune_on_boot && sub_tree->transport) {
+	if (sub_tree->persistence->prune_on_boot && !ast_strlen_zero(sub_tree->transport_key)) {
 		ast_debug(3, "Unregistering transport monitor on %s '%s->%s'\n",
-			sub_tree->transport->obj_name,
+			sub_tree->transport_key,
 			sub_tree->endpoint ? ast_sorcery_object_get_id(sub_tree->endpoint) : "Unknown",
 			sub_tree->root ? sub_tree->root->resource : "Unknown");
-		ast_sip_transport_monitor_unregister(sub_tree->transport,
+		ast_sip_transport_monitor_unregister_key(sub_tree->transport_key,
 			sub_tree_transport_cb, sub_tree, NULL);
 	}
 
@@ -1709,7 +1710,7 @@ static int subscription_persistence_recreate(void *obj, void *arg, int flags)
 	rdata.tp_info.pool = pool;
 
 	if (ast_sip_create_rdata_with_contact(&rdata, persistence->packet, persistence->src_name,
-		persistence->src_port, persistence->transport_key, persistence->local_name,
+		persistence->src_port, persistence->transport_type, persistence->local_name,
 		persistence->local_port, persistence->contact_uri)) {
 		ast_log(LOG_WARNING, "Failed recreating '%s' subscription: The message could not be parsed\n",
 			persistence->endpoint);
@@ -5590,7 +5591,7 @@ static int load_module(void)
 	ast_sorcery_object_field_register(sorcery, "subscription_persistence", "src_port", "0", OPT_UINT_T, 0,
 		FLDSET(struct subscription_persistence, src_port));
 	ast_sorcery_object_field_register(sorcery, "subscription_persistence", "transport_key", "0", OPT_CHAR_ARRAY_T, 0,
-		CHARFLDSET(struct subscription_persistence, transport_key));
+		CHARFLDSET(struct subscription_persistence, transport_type));
 	ast_sorcery_object_field_register(sorcery, "subscription_persistence", "local_name", "", OPT_CHAR_ARRAY_T, 0,
 		CHARFLDSET(struct subscription_persistence, local_name));
 	ast_sorcery_object_field_register(sorcery, "subscription_persistence", "local_port", "0", OPT_UINT_T, 0,
