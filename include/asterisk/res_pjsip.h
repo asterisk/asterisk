@@ -86,6 +86,26 @@
 #define AST_STIR_SHAKEN_RESPONSE_STR_UNSUPPORTED_CREDENTIAL "Unsupported Credential"
 #define AST_STIR_SHAKEN_RESPONSE_STR_INVALID_IDENTITY_HEADER "Invalid Identity Header"
 
+/* ":12345" */
+#define COLON_PORT_STRLEN 6
+/*
+ * "<ipaddr>:<port>"
+ * PJ_INET6_ADDRSTRLEN includes the NULL terminator
+ */
+#define IP6ADDR_COLON_PORT_BUFLEN (PJ_INET6_ADDRSTRLEN + COLON_PORT_STRLEN)
+
+/*!
+ * \brief Fill a buffer with a pjsip transport's remote ip address and port
+ *
+ * \param transport The pjsip_transport to use
+ * \param dest The destination buffer of at least IP6ADDR_COLON_PORT_BUFLEN bytes
+ */
+#define AST_SIP_MAKE_REMOTE_IPADDR_PORT_STR(_transport, _dest) \
+	snprintf(_dest, IP6ADDR_COLON_PORT_BUFLEN, \
+		PJSTR_PRINTF_SPEC ":%d", \
+		PJSTR_PRINTF_VAR(_transport->remote_name.host), \
+		_transport->remote_name.port);
+
 /* Forward declarations of PJSIP stuff */
 struct pjsip_rx_data;
 struct pjsip_module;
@@ -3421,6 +3441,7 @@ enum ast_transport_monitor_reg {
 
 /*!
  * \brief Register a reliable transport shutdown monitor callback.
+ * \deprecated Replaced with ast_sip_transport_monitor_register_key().
  * \since 13.20.0
  *
  * \param transport Transport to monitor for shutdown.
@@ -3439,7 +3460,28 @@ enum ast_transport_monitor_reg ast_sip_transport_monitor_register(pjsip_transpor
 	ast_transport_monitor_shutdown_cb cb, void *ao2_data);
 
 /*!
+ * \brief Register a reliable transport shutdown monitor callback.
+ *
+ * \param transport_key Key for the transport to monitor for shutdown.
+ *                      Create the key with AST_SIP_MAKE_REMOTE_IPADDR_PORT_STR.
+ * \param cb Who to call when transport is shutdown.
+ * \param ao2_data Data to pass with the callback.
+ *
+ * \note The data object passed will have its reference count automatically
+ * incremented by this call and automatically decremented after the callback
+ * runs or when the callback is unregistered.
+ *
+ * There is no checking for duplicate registrations.
+ *
+ * \return enum ast_transport_monitor_reg
+ */
+enum ast_transport_monitor_reg ast_sip_transport_monitor_register_key(
+	const char *transport_key, ast_transport_monitor_shutdown_cb cb,
+	void *ao2_data);
+
+/*!
  * \brief Register a reliable transport shutdown monitor callback replacing any duplicate.
+ * \deprecated Replaced with ast_sip_transport_monitor_register_replace_key().
  * \since 13.26.0
  * \since 16.3.0
  *
@@ -3462,7 +3504,31 @@ enum ast_transport_monitor_reg ast_sip_transport_monitor_register_replace(pjsip_
 	ast_transport_monitor_shutdown_cb cb, void *ao2_data, ast_transport_monitor_data_matcher matches);
 
 /*!
+ * \brief Register a reliable transport shutdown monitor callback replacing any duplicate.
+ *
+ * \param transport_key Key for the transport to monitor for shutdown.
+ *                      Create the key with AST_SIP_MAKE_REMOTE_IPADDR_PORT_STR.
+ * \param cb Who to call when transport is shutdown.
+ * \param ao2_data Data to pass with the callback.
+ * \param matches Matcher function that returns true if data matches a previously
+ *                registered data object
+ *
+ * \note The data object passed will have its reference count automatically
+ * incremented by this call and automatically decremented after the callback
+ * runs or when the callback is unregistered.
+ *
+ * This function checks for duplicates, and overwrites/replaces the old monitor
+ * with the given one.
+ *
+ * \return enum ast_transport_monitor_reg
+ */
+enum ast_transport_monitor_reg ast_sip_transport_monitor_register_replace_key(
+	const char *transport_key, ast_transport_monitor_shutdown_cb cb,
+	void *ao2_data, ast_transport_monitor_data_matcher matches);
+
+/*!
  * \brief Unregister a reliable transport shutdown monitor
+ * \deprecated Replaced with ast_sip_transport_monitor_unregister_key().
  * \since 13.20.0
  *
  * \param transport Transport to monitor for shutdown.
@@ -3476,6 +3542,23 @@ enum ast_transport_monitor_reg ast_sip_transport_monitor_register_replace(pjsip_
  * automatically decremented.
  */
 void ast_sip_transport_monitor_unregister(pjsip_transport *transport,
+	ast_transport_monitor_shutdown_cb cb, void *data, ast_transport_monitor_data_matcher matches);
+
+/*!
+ * \brief Unregister a reliable transport shutdown monitor
+ *
+ * \param transport_key Key for the transport to monitor for shutdown.
+ *                      Create the key with AST_SIP_MAKE_REMOTE_IPADDR_PORT_STR.
+ * \param cb The callback that was used for the original register.
+ * \param data Data to pass to the matcher. May be NULL and does NOT need to be an ao2 object.
+ *             If NULL, all monitors with the provided callback are unregistered.
+ * \param matches Matcher function that returns true if data matches the previously
+ *                registered data object.  If NULL, a simple pointer comparison is done.
+ *
+ * \note The data object passed into the original register will have its reference count
+ * automatically decremented.
+ */
+void ast_sip_transport_monitor_unregister_key(const char *transport_key,
 	ast_transport_monitor_shutdown_cb cb, void *data, ast_transport_monitor_data_matcher matches);
 
 /*!
