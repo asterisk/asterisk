@@ -313,6 +313,16 @@
 				<configOption name="allow_overlap" default="yes">
 					<synopsis>Enable RFC3578 overlap dialing support.</synopsis>
 				</configOption>
+				<configOption name="overlap_context">
+					<synopsis>Dialplan context to use for RFC3578 overlap dialing.</synopsis>
+					<description>
+						<para>Dialplan context to use for overlap dialing extension matching.
+						If not specified, the context configured for the endpoint will be used.
+						If specified, the extensions/patterns in the specified context will be used
+						for determining if a full number has been received from the endpoint.
+						</para>
+					</description>
+				</configOption>
 				<configOption name="aors">
 					<synopsis>AoR(s) to be used with the endpoint</synopsis>
 					<description><para>
