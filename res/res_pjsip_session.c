@@ -3713,8 +3713,10 @@ static enum sip_get_destination_result get_destination(struct ast_sip_session *s
 
 	fetch_callerid_num(session, rdata, cid_num, sizeof(cid_num));
 
+	/* If there's an overlap_context override specified, use that; otherwise, just use the endpoint's context */
+
 	if (!strcmp(session->exten, pickupexten) ||
-		ast_exists_extension(NULL, session->endpoint->context, session->exten, 1, S_OR(cid_num, NULL))) {
+		ast_exists_extension(NULL, S_OR(session->endpoint->overlap_context, session->endpoint->context), session->exten, 1, S_OR(cid_num, NULL))) {
 		/*
 		 * Save off the INVITE Request-URI in case it is
 		 * needed: CHANNEL(pjsip,request_uri)
@@ -3729,7 +3731,7 @@ static enum sip_get_destination_result get_destination(struct ast_sip_session *s
 	 */
 	if (session->endpoint->allow_overlap && (
 		!strncmp(session->exten, pickupexten, strlen(session->exten)) ||
-		ast_canmatch_extension(NULL, session->endpoint->context, session->exten, 1, S_OR(cid_num, NULL)))) {
+		ast_canmatch_extension(NULL, S_OR(session->endpoint->overlap_context, session->endpoint->context), session->exten, 1, S_OR(cid_num, NULL)))) {
 		/* Overlap partial match */
 		return SIP_GET_DEST_EXTEN_PARTIAL;
 	}

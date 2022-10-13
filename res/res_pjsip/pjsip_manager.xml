@@ -507,6 +507,9 @@
 				<parameter name="Allowoverlap">
 					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='allow_overlap']/synopsis/node())"/></para>
 				</parameter>
+				<parameter name="OverlapContext">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='overlap_context']/synopsis/node())"/></para>
+				</parameter>
 			</syntax>
 		</managerEventInstance>
 	</managerEvent>
