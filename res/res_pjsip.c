@@ -2258,31 +2258,62 @@ int ast_sip_send_response(pjsip_response_addr *res_addr, pjsip_tx_data *tdata, s
 	return status == PJ_SUCCESS ? 0 : -1;
 }
 
+static void pool_destroy_callback(void *arg)
+{
+	pj_pool_t *pool = (pj_pool_t *)arg;
+	pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
+}
+
+static void clean_contact_from_tdata(pjsip_tx_data *tdata)
+{
+	struct ast_sip_contact *contact;
+	contact = ast_sip_mod_data_get(tdata->mod_data, supplement_module.id, MOD_DATA_CONTACT);
+	ao2_cleanup(contact);
+	ast_sip_mod_data_set(tdata->pool, tdata->mod_data, supplement_module.id, MOD_DATA_CONTACT, NULL);
+	pjsip_tx_data_dec_ref(tdata);
+}
+
 int ast_sip_send_stateful_response(pjsip_rx_data *rdata, pjsip_tx_data *tdata, struct ast_sip_endpoint *sip_endpoint)
 {
 	pjsip_transaction *tsx;
+	pj_grp_lock_t *tsx_glock;
+	pj_pool_t *pool;
 
-	if (pjsip_tsx_create_uas(NULL, rdata, &tsx) != PJ_SUCCESS) {
-		struct ast_sip_contact *contact;
-
+	/* Create and initialize global lock pool */
+	pool = pjsip_endpt_create_pool(ast_sip_get_pjsip_endpoint(), "stateful response", PJSIP_POOL_TSX_LEN, PJSIP_POOL_TSX_INC);
+	if (!pool){
 		/* ast_sip_create_response bumps the refcount of the contact and adds it to the tdata.
 		 * We'll leak that reference if we don't get rid of it here.
 		 */
-		contact = ast_sip_mod_data_get(tdata->mod_data, supplement_module.id, MOD_DATA_CONTACT);
-		ao2_cleanup(contact);
-		ast_sip_mod_data_set(tdata->pool, tdata->mod_data, supplement_module.id, MOD_DATA_CONTACT, NULL);
-		pjsip_tx_data_dec_ref(tdata);
+		clean_contact_from_tdata(tdata);
 		return -1;
 	}
-	pjsip_tsx_recv_msg(tsx, rdata);
+	/* Create with handler so that we can release the pool once the glock derefs out */
+	if(pj_grp_lock_create_w_handler(pool, NULL, pool, &pool_destroy_callback, &tsx_glock) != PJ_SUCCESS) {
+		clean_contact_from_tdata(tdata);
+		pool_destroy_callback((void *) pool);
+		return -1;
+	}
+	/* We need an additional reference as the qualify thread may destroy this out
+	 * from under us. Add it now before it gets added to the tsx. */
+	pj_grp_lock_add_ref(tsx_glock);
 
+	if (pjsip_tsx_create_uas2(NULL, rdata, tsx_glock, &tsx) != PJ_SUCCESS) {
+		clean_contact_from_tdata(tdata);
+		pj_grp_lock_dec_ref(tsx_glock);
+		return -1;
+	}
+
+	pjsip_tsx_recv_msg(tsx, rdata);
 	supplement_outgoing_response(tdata, sip_endpoint);
 
 	if (pjsip_tsx_send_msg(tsx, tdata) != PJ_SUCCESS) {
+		pj_grp_lock_dec_ref(tsx_glock);
 		pjsip_tx_data_dec_ref(tdata);
 		return -1;
 	}
 
+	pj_grp_lock_dec_ref(tsx_glock);
 	return 0;
 }
 
