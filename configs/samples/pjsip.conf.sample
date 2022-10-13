@@ -616,6 +616,8 @@
 ;aggregate_mwi=yes      ;  (default: "yes")
 ;allow= ; Media Codec s to allow (default: "")
 ;allow_overlap=yes ; Enable RFC3578 overlap dialing support. (default: "yes")
+;overlap_context=default ; Context to used for overlap dialing matches
+                         ; (default: same as context option)
 ;aors=  ; AoR s to be used with the endpoint (default: "")
 ;auth=  ; Authentication Object s associated with the endpoint (default: "")
 ;callerid=      ; CallerID information for the endpoint (default: "")

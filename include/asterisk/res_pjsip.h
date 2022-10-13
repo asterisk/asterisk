@@ -1065,6 +1065,8 @@ struct ast_sip_endpoint {
 	AST_STRING_FIELD_EXTENDED(geoloc_incoming_call_profile);
 	/*! The name of the geoloc profile to apply when Asterisk sends a call to this endpoint */
 	AST_STRING_FIELD_EXTENDED(geoloc_outgoing_call_profile);
+	/*! The context to use for overlap dialing, if different from the endpoint's context */
+	AST_STRING_FIELD_EXTENDED(overlap_context);
 	/*! 100rel mode to use with this endpoint */
 	enum ast_sip_100rel_mode rel100;
 	/*! Send Advice-of-Charge messages */
