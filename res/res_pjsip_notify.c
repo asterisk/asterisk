@@ -52,11 +52,16 @@
 			<parameter name="channel" required="false">
 				<para>Channel name to send the NOTIFY. Must be a PJSIP channel.</para>
 			</parameter>
-			<parameter name="Variable" required="true">
+			<parameter name="Option" required="false">
+				<para>The config section name from <literal>pjsip_notify.conf</literal> to use.</para>
+				<para>One of Option or Variable must be specified.</para>
+			</parameter>
+			<parameter name="Variable" required="false">
 				<para>Appends variables as headers/content to the NOTIFY. If the variable is
 				named <literal>Content</literal>, then the value will compose the body
 				of the message if another variable sets <literal>Content-Type</literal>.
 				<replaceable>name</replaceable>=<replaceable>value</replaceable></para>
+				<para>One of Option or Variable must be specified.</para>
 			</parameter>
 		</syntax>
 		<description>
@@ -1071,6 +1076,47 @@ static struct ast_cli_entry cli_options[] = {
 	AST_CLI_DEFINE(cli_notify, "Send a NOTIFY request to a SIP endpoint")
 };
 
+enum notify_type {
+	NOTIFY_ENDPOINT,
+	NOTIFY_URI,
+	NOTIFY_CHANNEL,
+};
+
+static void manager_send_response(struct mansession *s, const struct message *m, enum notify_type type, enum notify_result res, struct ast_variable *vars, const char *endpoint_name)
+{
+	switch (res) {
+	case INVALID_CHANNEL:
+		if (type == NOTIFY_CHANNEL) {
+			ast_variables_destroy(vars);
+			astman_send_error(s, m, "Channel not found");
+		} else {
+			/* Shouldn't be possible. */
+			ast_assert(0);
+		}
+		break;
+	case INVALID_ENDPOINT:
+		if (type == NOTIFY_ENDPOINT) {
+			ast_variables_destroy(vars);
+			astman_send_error_va(s, m, "Unable to retrieve endpoint %s", endpoint_name);
+		} else {
+			/* Shouldn't be possible. */
+			ast_assert(0);
+		}
+		break;
+	case ALLOC_ERROR:
+		ast_variables_destroy(vars);
+		astman_send_error(s, m, "Unable to allocate NOTIFY task data");
+		break;
+	case TASK_PUSH_ERROR:
+		/* Don't need to destroy vars since it is handled by cleanup in push_notify, push_notify_uri, etc. */
+		astman_send_error(s, m, "Unable to push Notify task");
+		break;
+	case SUCCESS:
+		astman_send_ack(s, m, "NOTIFY sent");
+		break;
+	}
+}
+
 /*!
  * \internal
  * \brief Completes SIPNotify AMI command in Endpoint mode.
@@ -1078,7 +1124,19 @@ static struct ast_cli_entry cli_options[] = {
 static void manager_notify_endpoint(struct mansession *s,
 	const struct message *m, const char *endpoint_name)
 {
-	struct ast_variable *vars = astman_get_variables_order(m, ORDER_NATURAL);
+	RAII_VAR(struct notify_cfg *, cfg, NULL, ao2_cleanup);
+	RAII_VAR(struct notify_option *, option, NULL, ao2_cleanup);
+	struct ast_variable *vars = NULL;
+	enum notify_result res;
+	const char *option_name = astman_get_header(m, "Option");
+
+	if (!ast_strlen_zero(option_name) && (cfg = ao2_global_obj_ref(globals)) && !(option = notify_option_find(cfg->notify_options, option_name))) {
+		astman_send_error_va(s, m, "Unable to find notify type '%s'\n", option_name);
+		return;
+	}
+	if (!option) {
+		vars = astman_get_variables_order(m, ORDER_NATURAL);
+	}
 
 	if (!strncasecmp(endpoint_name, "sip/", 4)) {
 		endpoint_name += 4;
@@ -1088,28 +1146,13 @@ static void manager_notify_endpoint(struct mansession *s,
 		endpoint_name += 6;
 	}
 
-	switch (push_notify(endpoint_name, vars, notify_ami_data_create)) {
-	case INVALID_CHANNEL:
-		/* Shouldn't be possible. */
-		ast_assert(0);
-		break;
-	case INVALID_ENDPOINT:
-		ast_variables_destroy(vars);
-		astman_send_error_va(s, m, "Unable to retrieve endpoint %s",
-			endpoint_name);
-		break;
-	case ALLOC_ERROR:
-		ast_variables_destroy(vars);
-		astman_send_error(s, m, "Unable to allocate NOTIFY task data");
-		break;
-	case TASK_PUSH_ERROR:
-		/* Don't need to destroy vars since it is handled by cleanup in push_notify */
-		astman_send_error(s, m, "Unable to push NOTIFY task");
-		break;
-	case SUCCESS:
-		astman_send_ack(s, m, "NOTIFY sent");
-		break;
+	if (option) {
+		res = push_notify(endpoint_name, option, notify_cli_data_create); /* The CLI version happens to be suitable for options. */
+	} else {
+		res = push_notify(endpoint_name, vars, notify_ami_data_create);
 	}
+
+	manager_send_response(s, m, NOTIFY_ENDPOINT, res, vars, endpoint_name);
 }
 
 /*!
@@ -1119,29 +1162,27 @@ static void manager_notify_endpoint(struct mansession *s,
 static void manager_notify_uri(struct mansession *s,
 	const struct message *m, const char *uri)
 {
-	struct ast_variable *vars = astman_get_variables_order(m, ORDER_NATURAL);
+	RAII_VAR(struct notify_cfg *, cfg, NULL, ao2_cleanup);
+	RAII_VAR(struct notify_option *, option, NULL, ao2_cleanup);
+	enum notify_result res;
+	const char *option_name = astman_get_header(m, "Option");
+	struct ast_variable *vars = NULL;
 
-	switch (push_notify_uri(uri, vars, notify_ami_uri_data_create)) {
-	case INVALID_CHANNEL:
-		/* Shouldn't be possible. */
-		ast_assert(0);
-		break;
-	case INVALID_ENDPOINT:
-		/* Shouldn't be possible. */
-		ast_assert(0);
-		break;
-	case ALLOC_ERROR:
-		ast_variables_destroy(vars);
-		astman_send_error(s, m, "Unable to allocate NOTIFY task data");
-		break;
-	case TASK_PUSH_ERROR:
-		/* Don't need to destroy vars since it is handled by cleanup in push_notify_uri */
-		astman_send_error(s, m, "Unable to push Notify task");
-		break;
-	case SUCCESS:
-		astman_send_ack(s, m, "NOTIFY sent");
-		break;
+	if (!ast_strlen_zero(option_name) && (cfg = ao2_global_obj_ref(globals)) && !(option = notify_option_find(cfg->notify_options, option_name))) {
+		astman_send_error_va(s, m, "Unable to find notify type '%s'\n", option_name);
+		return;
 	}
+	if (!option) {
+		vars = astman_get_variables_order(m, ORDER_NATURAL);
+	}
+
+	if (option) {
+		res = push_notify_uri(uri, option, notify_cli_uri_data_create);
+	} else {
+		res = push_notify_uri(uri, vars, notify_ami_uri_data_create);
+	}
+
+	manager_send_response(s, m, NOTIFY_URI, res, vars, NULL);
 }
 
 /*!
@@ -1151,29 +1192,13 @@ static void manager_notify_uri(struct mansession *s,
 static void manager_notify_channel(struct mansession *s,
 	const struct message *m, const char *channel)
 {
-	struct ast_variable *vars = astman_get_variables_order(m, ORDER_NATURAL);
+	enum notify_result res;
+	struct ast_variable *vars = NULL;
 
-	switch (push_notify_channel(channel, vars, notify_ami_channel_data_create)) {
-	case INVALID_CHANNEL:
-		ast_variables_destroy(vars);
-		astman_send_error(s, m, "Channel not found");
-		break;
-	case INVALID_ENDPOINT:
-		/* Shouldn't be possible. */
-		ast_assert(0);
-		break;
-	case ALLOC_ERROR:
-		ast_variables_destroy(vars);
-		astman_send_error(s, m, "Unable to allocate NOTIFY task data");
-		break;
-	case TASK_PUSH_ERROR:
-		/* Don't need to destroy vars since it is handled by cleanup in push_notify_channel */
-		astman_send_error(s, m, "Unable to push Notify task");
-		break;
-	case SUCCESS:
-		astman_send_ack(s, m, "NOTIFY sent");
-		break;
-	}
+	vars = astman_get_variables_order(m, ORDER_NATURAL);
+	res = push_notify_channel(channel, vars, notify_ami_channel_data_create);
+
+	manager_send_response(s, m, NOTIFY_CHANNEL, res, vars, NULL);
 }
 
 /*!
@@ -1185,6 +1210,8 @@ static int manager_notify(struct mansession *s, const struct message *m)
 	const char *endpoint_name = astman_get_header(m, "Endpoint");
 	const char *uri = astman_get_header(m, "URI");
 	const char *channel = astman_get_header(m, "Channel");
+	const char *variables = astman_get_header(m, "Variable");
+	const char *option = astman_get_header(m, "Option");
 	int count = 0;
 
 	if (!ast_strlen_zero(endpoint_name)) {
@@ -1197,7 +1224,11 @@ static int manager_notify(struct mansession *s, const struct message *m)
 		++count;
 	}
 
-	if (1 < count) {
+	if ((!ast_strlen_zero(option) && !ast_strlen_zero(variables)) || (ast_strlen_zero(option) && ast_strlen_zero(variables))) {
+		astman_send_error(s, m,
+			"PJSIPNotify requires either an Option or Variable(s)."
+			"You must use only one of them.");
+	} else if (1 < count) {
 		astman_send_error(s, m,
 			"PJSIPNotify requires either an endpoint name, a SIP URI, or a channel.  "
 			"You must use only one of them.");
