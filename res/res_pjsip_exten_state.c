@@ -973,6 +973,7 @@ static int publisher_stop(struct ast_sip_outbound_publish_client *client)
 
 static int unload_module(void)
 {
+#if 0
 	ast_sip_unregister_event_publisher_handler(&dialog_publisher);
 	ast_sip_unregister_subscription_handler(&dialog_handler);
 	ast_sip_unregister_event_publisher_handler(&presence_publisher);
@@ -987,6 +988,18 @@ static int unload_module(void)
 	publishers = NULL;
 
 	return 0;
+#else
+	/* If we were allowed to unload, the above is what we would do.
+	 * pjsip_evsub_register_pkg is called by ast_sip_register_subscription_handler
+	 * but there is no corresponding unregister function, so unloading
+	 * a module does not remove the event package. If this module is ever
+	 * loaded again, then pjproject will assert and cause a crash.
+	 * For that reason, we must not be allowed to unload, but if
+	 * a pjsip_evsub_unregister_pkg API is added in the future
+	 * then we should go back to unloading the module as intended.
+	 */
+	return -1;
+#endif
 }
 
 static int load_module(void)
