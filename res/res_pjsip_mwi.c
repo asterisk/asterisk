@@ -1524,6 +1524,7 @@ static int reload(void)
 
 static int unload_module(void)
 {
+#if 0
 	struct ao2_container *unsolicited_mwi;
 
 	ast_sorcery_observer_remove(ast_sip_get_sorcery(), "global", &global_observer);
@@ -1548,6 +1549,18 @@ static int unload_module(void)
 	ast_free(default_voicemail_extension);
 	default_voicemail_extension = NULL;
 	return 0;
+#else
+	/* If we were allowed to unload, the above is what we would do.
+	 * pjsip_evsub_register_pkg is called by ast_sip_register_subscription_handler
+	 * but there is no corresponding unregister function, so unloading
+	 * a module does not remove the event package. If this module is ever
+	 * loaded again, then pjproject will assert and cause a crash.
+	 * For that reason, we must not be allowed to unload, but if
+	 * a pjsip_evsub_unregister_pkg API is added in the future
+	 * then we should go back to unloading the module as intended.
+	 */
+	return -1;
+#endif
 }
 
 static int load_module(void)
