@@ -1,0 +1,69 @@
+;
+; Sample configuration for res_http_media_cache
+;
+; res_http_media_cache is the HTTP backend for the core media cache. The
+; following options can be used to tune the behavior of the implementation
+; or left as default.
+;
+; See the module's and cURL's documentation for the exact meaning of these
+; options.
+
+
+[general]
+; Maximum time in seconds the transfer is allowed to complete in.
+;
+; See https://curl.se/libcurl/c/CURLOPT_TIMEOUT.html for details.
+;
+;timeout_secs = 180
+
+
+; The HTTP User-Agent to use for requests.
+;
+; See https://curl.se/libcurl/c/CURLOPT_USERAGENT.html for details.
+;
+;user_agent = asterisk-libcurl-agent/1.0
+
+
+; Follow HTTP 3xx redirects on requests. This can be combined with the
+; max_redirects option to limit the number of times a redirect will be
+; followed per request.
+;
+; See https://curl.se/libcurl/c/CURLOPT_FOLLOWLOCATION.html for details.
+;
+;follow_location =  false
+
+
+; The maximum number of redirects to follow.
+;
+; See https://curl.se/libcurl/c/CURLOPT_MAXREDIRS.html for details.
+;
+;max_redirects = 8
+
+; The HTTP/HTTPS proxy to use for requests. Leave unspecified to not use
+; a proxy. This can be a URL with scheme, host and port.
+;
+; See https://curl.se/libcurl/c/CURLOPT_PROXY.html for details.
+;
+;proxy = https://localhost:1234
+
+
+; The life-time for DNS cache entries.
+;
+; See https://curl.se/libcurl/c/CURLOPT_DNS_CACHE_TIMEOUT.html for details.
+;
+;dns_cache_timeout_secs = 60
+
+
+; The comma separated list of allowed protocols for the request. Available with
+; cURL version 7.85.0 or later.
+; See https://curl.se/libcurl/c/CURLOPT_PROTOCOLS_STR.html for details.
+;
+;protocols = http,https
+
+; The comma separated list of allowed protocols for redirects. Available with
+; cURL version 7.85.0 or later. This can be used to prevent a redirect from
+; a protocol like HTTPS to another supported protocol of cURL.
+;
+; See https://curl.se/libcurl/c/CURLOPT_REDIR_PROTOCOLS_STR.html for details.
+;
+;redirect_protocols = http,https
