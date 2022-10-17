@@ -3665,6 +3665,11 @@ static enum sip_get_destination_result get_destination(struct ast_sip_session *s
 	}
 
 	ast_copy_pj_str(session->exten, ast_sip_pjsip_uri_get_username(ruri), sizeof(session->exten));
+	if (ast_strlen_zero(session->exten)) {
+		/* Some SIP devices send an empty extension for PLAR: this should map to s */
+		ast_debug(1, "RURI contains no user portion: defaulting to extension 's'\n");
+		ast_copy_string(session->exten, "s", sizeof(session->exten));
+	}
 
 	/*
 	 * We may want to match in the dialplan without any user
