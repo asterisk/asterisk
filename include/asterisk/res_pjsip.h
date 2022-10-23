@@ -1067,6 +1067,8 @@ struct ast_sip_endpoint {
 	AST_STRING_FIELD_EXTENDED(geoloc_outgoing_call_profile);
 	/*! 100rel mode to use with this endpoint */
 	enum ast_sip_100rel_mode rel100;
+	/*! Send Advice-of-Charge messages */
+	unsigned int send_aoc;
 };
 
 /*! URI parameter for symmetric transport */

@@ -1506,6 +1506,9 @@
 						</para>
 					</description>
 				</configOption>
+				<configOption name="send_aoc" default="no">
+					<synopsis>Send Advice-of-Charge messages</synopsis>
+				</configOption>
 			</configObject>
 			<configObject name="auth">
 				<synopsis>Authentication type</synopsis>
