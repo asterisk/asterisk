@@ -13652,6 +13652,7 @@ static struct ast_channel *dahdi_request(const char *type, struct ast_format_cap
 	struct ast_channel *tmp = NULL;
 	struct dahdi_pvt *exitpvt;
 	int channelmatched = 0;
+	int foundowner = 0;
 	int groupmatched = 0;
 #if defined(HAVE_PRI) || defined(HAVE_SS7)
 	int transcapdigital = 0;
@@ -13674,6 +13675,10 @@ static struct ast_channel *dahdi_request(const char *type, struct ast_format_cap
 	while (p && !tmp) {
 		if (start.roundrobin)
 			round_robin[start.rr_starting_point] = p;
+
+		if (p->owner) {
+			foundowner++;
+		}
 
 		if (is_group_or_channel_match(p, start.span, start.groupmatch, &groupmatched, start.channelmatch, &channelmatched)
 			&& available(&p, channelmatched)) {
@@ -13793,7 +13798,7 @@ next:
 	ast_mutex_unlock(&iflock);
 	restart_monitor();
 	if (cause && !tmp) {
-		if (callwait || channelmatched) {
+		if (callwait || (channelmatched && foundowner)) {
 			*cause = AST_CAUSE_BUSY;
 		} else if (groupmatched) {
 			*cause = AST_CAUSE_CONGESTION;
