@@ -63,6 +63,7 @@ static int num_to_mailbox(char *mailbox, size_t size, size_t num)
 
 static int mailbox_to_num(const char *mailbox, size_t *num)
 {
+	uintmax_t tmp;
 	const char *p = strchr(mailbox, '~');
 
 	if (!p) {
@@ -70,10 +71,11 @@ static int mailbox_to_num(const char *mailbox, size_t *num)
 		return -1;
 	}
 
-	if (ast_str_to_umax(++p, num)) {
+	if (ast_str_to_umax(++p, &tmp)) {
 		ast_log(LOG_ERROR, "Unable to convert mailbox '%s' to numeric\n", mailbox);
 		return -1;
 	}
+	*num = (size_t) tmp;
 
 	return 0;
 }
