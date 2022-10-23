@@ -964,6 +964,11 @@
                 ; by the channel driver from the dialplan before they're forwarded
                 ; the remote endpoint.
 ;
+; send_aoc =
+                ; This options turns on and off support for sending AOC to endpoints.
+                ; AOC updates can be sent using the AOCMessage AMI action or come
+                ; from PRI channels.
+                ; (default: no)
 
 
 ;==========================AUTH SECTION OPTIONS=========================
