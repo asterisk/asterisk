@@ -2195,7 +2195,7 @@ static void dump_consumer(struct ast_test *test, struct cts *cts)
 	int i;
 	struct stasis_subscription_change *data;
 
-	ast_test_status_update(test, "Messages received: %ld  Final? %s\n", cts->consumer->messages_rxed_len,
+	ast_test_status_update(test, "Messages received: %zu  Final? %s\n", cts->consumer->messages_rxed_len,
 		cts->consumer->complete ? "yes" : "no");
 	for (i = 0; i < cts->consumer->messages_rxed_len; i++) {
 		data = stasis_message_data(cts->consumer->messages_rxed[i]);
