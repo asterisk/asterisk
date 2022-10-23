@@ -2568,13 +2568,20 @@ int ast_sip_session_regenerate_answer(struct ast_sip_session *session,
 
 void ast_sip_session_send_response(struct ast_sip_session *session, pjsip_tx_data *tdata)
 {
-	handle_outgoing_response(session, tdata);
+	pjsip_dialog *dlg = pjsip_tdata_get_dlg(tdata);
+	RAII_VAR(struct ast_sip_session *, dlg_session, dlg ? ast_sip_dialog_get_session(dlg) : NULL, ao2_cleanup);
+	if (!dlg_session) {
+		/* If the dialog has a session, handle_outgoing_response will be called
+		   from session_on_tx_response. If it does not, call it from here. */
+		handle_outgoing_response(session, tdata);
+	}
 	pjsip_inv_send_msg(session->inv_session, tdata);
 	return;
 }
 
 static pj_bool_t session_on_rx_request(pjsip_rx_data *rdata);
 static pj_bool_t session_on_rx_response(pjsip_rx_data *rdata);
+static pj_status_t session_on_tx_response(pjsip_tx_data *tdata);
 static void session_on_tsx_state(pjsip_transaction *tsx, pjsip_event *e);
 
 static pjsip_module session_module = {
@@ -2583,6 +2590,7 @@ static pjsip_module session_module = {
 	.on_rx_request = session_on_rx_request,
 	.on_rx_response = session_on_rx_response,
 	.on_tsx_state = session_on_tsx_state,
+	.on_tx_response = session_on_tx_response,
 };
 
 /*! \brief Determine whether the SDP provided requires deferral of negotiating or not
@@ -4264,6 +4272,18 @@ static pj_bool_t session_on_rx_request(pjsip_rx_data *rdata)
 	SCOPE_EXIT_RTN_VALUE(handled, "%s Handled request %.*s %s ? %s\n", ast_sip_session_get_name(session),
 		(int) pj_strlen(&req.method.name), pj_strbuf(&req.method.name), req_uri,
 		handled == PJ_TRUE ? "yes" : "no");
+}
+
+
+static pj_bool_t session_on_tx_response(pjsip_tx_data *tdata)
+{
+	pjsip_dialog *dlg = pjsip_tdata_get_dlg(tdata);
+	RAII_VAR(struct ast_sip_session *, session, dlg ? ast_sip_dialog_get_session(dlg) : NULL, ao2_cleanup);
+	if (session) {
+		handle_outgoing_response(session, tdata);
+	}
+
+	return PJ_SUCCESS;
 }
 
 static void resend_reinvite(pj_timer_heap_t *timer, pj_timer_entry *entry)
