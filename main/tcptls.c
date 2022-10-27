@@ -126,7 +126,7 @@ static void write_openssl_error_to_log(void)
 		ast_log(LOG_ERROR, "%.*s\n", (int) length, buffer);
 	}
 
-	ast_free(buffer);
+	ast_std_free(buffer);
 }
 #endif
 
