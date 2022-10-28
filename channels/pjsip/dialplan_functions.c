@@ -304,6 +304,12 @@
 							<enum name="rtt">
 								<para>Round trip time</para>
 							</enum>
+							<enum name="txmes">
+								<para>Transmitted Media Experience Score</para>
+							</enum>
+							<enum name="rxmes">
+								<para>Received Media Experience Score</para>
+							</enum>
 						</enumlist>
 					</enum>
 					<enum name="all_jitter">
@@ -387,6 +393,37 @@
 							</enum>
 						</enumlist>
 					</enum>
+					<enum name="all_mes">
+						<para>Retrieve a summary of all RTCP Media Experience Score information.</para>
+						<para>The following data items are returned in a semi-colon
+						delineated list:</para>
+						<enumlist>
+							<enum name="minmes">
+								<para>Minimum MES based on us analysing received packets.</para>
+							</enum>
+							<enum name="maxmes">
+								<para>Maximum MES based on us analysing received packets.</para>
+							</enum>
+							<enum name="avgmes">
+								<para>Average MES based on us analysing received packets.</para>
+							</enum>
+							<enum name="stdevmes">
+								<para>Standard deviation MES based on us analysing received packets.</para>
+							</enum>
+							<enum name="reported_minmes">
+								<para>Minimum MES based on data we get in Sender and Receiver Reports sent by the remote end</para>
+							</enum>
+							<enum name="reported_maxmes">
+								<para>Maximum MES based on data we get in Sender and Receiver Reports sent by the remote end</para>
+							</enum>
+							<enum name="reported_avgmes">
+								<para>Average MES based on data we get in Sender and Receiver Reports sent by the remote end</para>
+							</enum>
+							<enum name="reported_stdevmes">
+								<para>Standard deviation MES based on data we get in Sender and Receiver Reports sent by the remote end</para>
+							</enum>
+						</enumlist>
+					</enum>
 					<enum name="txcount"><para>Transmitted packet count</para></enum>
 					<enum name="rxcount"><para>Received packet count</para></enum>
 					<enum name="txjitter"><para>Transmitted packet jitter</para></enum>
@@ -416,6 +453,24 @@
 					<enum name="stdevrtt"><para>Standard deviation round trip time</para></enum>
 					<enum name="local_ssrc"><para>Our Synchronization Source identifier</para></enum>
 					<enum name="remote_ssrc"><para>Their Synchronization Source identifier</para></enum>
+					<enum name="txmes"><para>
+					Current MES based on us analyzing rtt, jitter and loss
+					in the actual received RTP stream received from the remote end.
+					I.E.  This is the MES for the incoming audio stream.
+					</para></enum>
+					<enum name="rxmes"><para>
+					Current MES based on rtt and the jitter and loss values in
+					RTCP sender and receiver reports we receive from the
+					remote end. I.E.  This is the MES for the outgoing audio stream.
+					</para></enum>
+					<enum name="remote_maxmes"><para>Max MES based on data we get in Sender and Receiver Reports sent by the remote end</para></enum>
+					<enum name="remote_minmes"><para>Min MES based on data we get in Sender and Receiver Reports sent by the remote end</para></enum>
+					<enum name="remote_normdevmes"><para>Average MES based on data we get in Sender and Receiver Reports sent by the remote end</para></enum>
+					<enum name="remote_stdevmes"><para>Standard deviation MES based on data we get in Sender and Receiver Reports sent by the remote end</para></enum>
+					<enum name="local_maxmes"><para>Max MES based on us analyzing the received RTP stream</para></enum>
+					<enum name="local_minmes"><para>Min MES based on us analyzing the received RTP stream</para></enum>
+					<enum name="local_normdevmes"><para>Average MES based on us analyzing the received RTP stream</para></enum>
+					<enum name="local_stdevmes"><para>Standard deviation MES based on us analyzing the received RTP stream</para></enum>
 				</enumlist>
 			</parameter>
 			<parameter name="media_type" required="false">
@@ -678,6 +733,8 @@ static int channel_read_rtcp(struct ast_channel *chan, const char *type, const c
 			stat_field = AST_RTP_INSTANCE_STAT_FIELD_QUALITY_RTT;
 		} else if (!strcasecmp(type, "all_loss")) {
 			stat_field = AST_RTP_INSTANCE_STAT_FIELD_QUALITY_LOSS;
+		} else if (!strcasecmp(type, "all_mes")) {
+			stat_field = AST_RTP_INSTANCE_STAT_FIELD_QUALITY_MES;
 		}
 
 		if (!ast_rtp_instance_get_quality(media->rtp, stat_field, buf, buflen)) {
@@ -724,6 +781,16 @@ static int channel_read_rtcp(struct ast_channel *chan, const char *type, const c
 			{ "stdevrtt",              DBL, { .d8 = &stats.stdevrtt, }, },
 			{ "local_ssrc",            INT, { .i4 = &stats.local_ssrc, }, },
 			{ "remote_ssrc",           INT, { .i4 = &stats.remote_ssrc, }, },
+			{ "txmes",                 DBL, { .d8 = &stats.txmes, }, },
+			{ "rxmes",                 DBL, { .d8 = &stats.rxmes, }, },
+			{ "remote_maxmes",         DBL, { .d8 = &stats.remote_maxmes, }, },
+			{ "remote_minmes",         DBL, { .d8 = &stats.remote_minmes, }, },
+			{ "remote_normdevmes",     DBL, { .d8 = &stats.remote_normdevmes, }, },
+			{ "remote_stdevmes",       DBL, { .d8 = &stats.remote_stdevmes, }, },
+			{ "local_maxmes",          DBL, { .d8 = &stats.local_maxmes, }, },
+			{ "local_minmes",          DBL, { .d8 = &stats.local_minmes, }, },
+			{ "local_normdevmes",      DBL, { .d8 = &stats.local_normdevmes, }, },
+			{ "local_stdevmes",        DBL, { .d8 = &stats.local_stdevmes, }, },
 			{ NULL, },
 		};
 
