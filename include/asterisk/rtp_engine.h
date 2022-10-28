@@ -174,6 +174,8 @@ enum ast_rtp_instance_stat_field {
 	AST_RTP_INSTANCE_STAT_FIELD_QUALITY_LOSS,
 	/*! Retrieve quality information about round trip time */
 	AST_RTP_INSTANCE_STAT_FIELD_QUALITY_RTT,
+	/*! Retrieve quality information about Media Experience Score */
+	AST_RTP_INSTANCE_STAT_FIELD_QUALITY_MES,
 };
 
 /*! Statistics that can be retrieved from an RTP instance */
@@ -250,6 +252,29 @@ enum ast_rtp_instance_stat {
 	AST_RTP_INSTANCE_STAT_TXOCTETCOUNT,
 	/*! Retrieve number of octets received */
 	AST_RTP_INSTANCE_STAT_RXOCTETCOUNT,
+
+	/*! Retrieve ALL statistics relating to Media Experience Score */
+	AST_RTP_INSTANCE_STAT_COMBINED_MES,
+	/*! Retrieve MES on transmitted packets */
+	AST_RTP_INSTANCE_STAT_TXMES,
+	/*! Retrieve MES on received packets */
+	AST_RTP_INSTANCE_STAT_RXMES,
+	/*! Retrieve maximum MES on remote side */
+	AST_RTP_INSTANCE_STAT_REMOTE_MAXMES,
+	/*! Retrieve minimum MES on remote side */
+	AST_RTP_INSTANCE_STAT_REMOTE_MINMES,
+	/*! Retrieve average MES on remote side */
+	AST_RTP_INSTANCE_STAT_REMOTE_NORMDEVMES,
+	/*! Retrieve standard deviation MES on remote side */
+	AST_RTP_INSTANCE_STAT_REMOTE_STDEVMES,
+	/*! Retrieve maximum MES on local side */
+	AST_RTP_INSTANCE_STAT_LOCAL_MAXMES,
+	/*! Retrieve minimum MES on local side */
+	AST_RTP_INSTANCE_STAT_LOCAL_MINMES,
+	/*! Retrieve average MES on local side */
+	AST_RTP_INSTANCE_STAT_LOCAL_NORMDEVMES,
+	/*! Retrieve standard deviation MES on local side */
+	AST_RTP_INSTANCE_STAT_LOCAL_STDEVMES,
 };
 
 enum ast_rtp_instance_rtcp {
@@ -428,6 +453,27 @@ struct ast_rtp_instance_stats {
 	unsigned int txoctetcount;
 	/*! Number of octets received */
 	unsigned int rxoctetcount;
+
+	/*! Media Experience Score on transmitted packets */
+	double txmes;
+	/*! Media Experience Score on received packets */
+	double rxmes;
+	/*! Maximum MES on remote side */
+	double remote_maxmes;
+	/*! Minimum MES on remote side */
+	double remote_minmes;
+	/*! Average MES on remote side */
+	double remote_normdevmes;
+	/*! Standard deviation MES on remote side */
+	double remote_stdevmes;
+	/*! Maximum MES on local side */
+	double local_maxmes;
+	/*! Minimum MES on local side */
+	double local_minmes;
+	/*! Average MES on local side */
+	double local_normdevmes;
+	/*! Standard deviation MES on local side */
+	double local_stdevmes;
 };
 
 #define AST_RTP_STAT_SET(current_stat, combined, placement, value) \
@@ -2860,6 +2906,10 @@ uintmax_t ast_debug_category_ice_id(void);
 #define ast_debug_rtp(sublevel, ...) \
 	ast_debug_category(sublevel, AST_DEBUG_CATEGORY_RTP,  __VA_ARGS__)
 
+/* Allow logging of RTP? */
+#define ast_debug_rtp_is_allowed \
+	ast_debug_category_is_allowed(AST_LOG_CATEGORY_ENABLED, AST_DEBUG_CATEGORY_RTP)
+
 /* Allow logging of RTP packets? */
 #define ast_debug_rtp_packet_is_allowed \
 	ast_debug_category_is_allowed(AST_LOG_CATEGORY_ENABLED, AST_DEBUG_CATEGORY_RTP_PACKET)
@@ -2872,6 +2922,10 @@ uintmax_t ast_debug_category_ice_id(void);
  */
 #define ast_debug_rtcp(sublevel, ...) \
 	ast_debug_category(sublevel, AST_DEBUG_CATEGORY_RTCP, __VA_ARGS__)
+
+/* Allow logging of RTCP? */
+#define ast_debug_rtcp_is_allowed \
+	ast_debug_category_is_allowed(AST_LOG_CATEGORY_ENABLED, AST_DEBUG_CATEGORY_RTCP)
 
 /* Allow logging of RTCP packets? */
 #define ast_debug_rtcp_packet_is_allowed \
