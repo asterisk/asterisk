@@ -143,7 +143,6 @@
 
 #include "asterisk.h"
 
-#include <math.h>                       /* for sqrt, MAX */
 #include <sched.h>                      /* for sched_yield */
 #include <sys/time.h>                   /* for timeval */
 #include <time.h>                       /* for time_t */
@@ -457,6 +456,28 @@ static void instance_destructor(void *obj)
 
 int ast_rtp_instance_destroy(struct ast_rtp_instance *instance)
 {
+	if (!instance) {
+		return 0;
+	}
+	if (ast_debug_rtp_is_allowed) {
+		char buffer[4][512];
+		ast_debug_rtp(1, "%s:\n"
+			"  RTT:    %s\n"
+			"  Loss:   %s\n"
+			"  Jitter: %s\n"
+			"  MES:    %s\n",
+			instance->channel_uniqueid,
+			ast_rtp_instance_get_quality(instance, AST_RTP_INSTANCE_STAT_FIELD_QUALITY_RTT,
+				buffer[0], sizeof(buffer[0])),
+			ast_rtp_instance_get_quality(instance, AST_RTP_INSTANCE_STAT_FIELD_QUALITY_LOSS,
+				buffer[1], sizeof(buffer[1])),
+			ast_rtp_instance_get_quality(instance, AST_RTP_INSTANCE_STAT_FIELD_QUALITY_JITTER,
+				buffer[2], sizeof(buffer[2])),
+			ast_rtp_instance_get_quality(instance, AST_RTP_INSTANCE_STAT_FIELD_QUALITY_MES,
+				buffer[3], sizeof(buffer[3]))
+		);
+	}
+
 	ao2_cleanup(instance);
 
 	return 0;
@@ -2463,6 +2484,8 @@ char *ast_rtp_instance_get_quality(struct ast_rtp_instance *instance, enum ast_r
 		stat = AST_RTP_INSTANCE_STAT_COMBINED_LOSS;
 	} else if (field == AST_RTP_INSTANCE_STAT_FIELD_QUALITY_RTT) {
 		stat = AST_RTP_INSTANCE_STAT_COMBINED_RTT;
+	} else if (field == AST_RTP_INSTANCE_STAT_FIELD_QUALITY_MES) {
+		stat = AST_RTP_INSTANCE_STAT_COMBINED_MES;
 	} else {
 		return NULL;
 	}
@@ -2474,16 +2497,25 @@ char *ast_rtp_instance_get_quality(struct ast_rtp_instance *instance, enum ast_r
 
 	/* Now actually fill the buffer with the good information */
 	if (field == AST_RTP_INSTANCE_STAT_FIELD_QUALITY) {
-		snprintf(buf, size, "ssrc=%u;themssrc=%u;lp=%u;rxjitter=%f;rxcount=%u;txjitter=%f;txcount=%u;rlp=%u;rtt=%f",
-			 stats.local_ssrc, stats.remote_ssrc, stats.rxploss, stats.rxjitter, stats.rxcount, stats.txjitter, stats.txcount, stats.txploss, stats.rtt);
+		snprintf(buf, size, "ssrc=%u;themssrc=%u;lp=%u;rxjitter=%f;rxcount=%u;"
+			"txjitter=%f;txcount=%u;rlp=%u;rtt=%f;rxmes=%f;txmes=%f",
+			 stats.local_ssrc, stats.remote_ssrc, stats.rxploss, stats.rxjitter,
+			 stats.rxcount, stats.txjitter, stats.txcount, stats.txploss, stats.rtt,
+			 stats.rxmes, stats.txmes);
 	} else if (field == AST_RTP_INSTANCE_STAT_FIELD_QUALITY_JITTER) {
-		snprintf(buf, size, "minrxjitter=%f;maxrxjitter=%f;avgrxjitter=%f;stdevrxjitter=%f;reported_minjitter=%f;reported_maxjitter=%f;reported_avgjitter=%f;reported_stdevjitter=%f;",
-			 stats.local_minjitter, stats.local_maxjitter, stats.local_normdevjitter, sqrt(stats.local_stdevjitter), stats.remote_minjitter, stats.remote_maxjitter, stats.remote_normdevjitter, sqrt(stats.remote_stdevjitter));
+		snprintf(buf, size, "minrxjitter=%010.6f;maxrxjitter=%010.6f;avgrxjitter=%010.6f;stdevrxjitter=%010.6f;mintxjitter=%010.6f;maxtxjitter=%010.6f;avgtxjitter=%010.6f;stdevtxjitter=%010.6f;",
+			 stats.local_minjitter, stats.local_maxjitter, stats.local_normdevjitter, stats.local_stdevjitter, stats.remote_minjitter, stats.remote_maxjitter, stats.remote_normdevjitter, stats.remote_stdevjitter);
 	} else if (field == AST_RTP_INSTANCE_STAT_FIELD_QUALITY_LOSS) {
-		snprintf(buf, size, "minrxlost=%f;maxrxlost=%f;avgrxlost=%f;stdevrxlost=%f;reported_minlost=%f;reported_maxlost=%f;reported_avglost=%f;reported_stdevlost=%f;",
-			 stats.local_minrxploss, stats.local_maxrxploss, stats.local_normdevrxploss, sqrt(stats.local_stdevrxploss), stats.remote_minrxploss, stats.remote_maxrxploss, stats.remote_normdevrxploss, sqrt(stats.remote_stdevrxploss));
+		snprintf(buf, size, "  minrxlost=%010.6f;  maxrxlost=%010.6f;  avgrxlost=%010.6f;  stdevrxlost=%010.6f;  mintxlost=%010.6f;  maxtxlost=%010.6f;  avgtxlost=%010.6f;  stdevtxlost=%010.6f;",
+			 stats.local_minrxploss, stats.local_maxrxploss, stats.local_normdevrxploss, stats.local_stdevrxploss, stats.remote_minrxploss, stats.remote_maxrxploss, stats.remote_normdevrxploss, stats.remote_stdevrxploss);
 	} else if (field == AST_RTP_INSTANCE_STAT_FIELD_QUALITY_RTT) {
-		snprintf(buf, size, "minrtt=%f;maxrtt=%f;avgrtt=%f;stdevrtt=%f;", stats.minrtt, stats.maxrtt, stats.normdevrtt, stats.stdevrtt);
+		snprintf(buf, size, "     minrtt=%010.6f;     maxrtt=%010.6f;     avgrtt=%010.6f;     stdevrtt=%010.6f;", stats.minrtt, stats.maxrtt, stats.normdevrtt, stats.stdevrtt);
+	} else if (field == AST_RTP_INSTANCE_STAT_FIELD_QUALITY_MES) {
+		snprintf(buf, size, "   minrxmes=%010.6f;   maxrxmes=%010.6f;   avgrxmes=%010.6f;   stdevrxmes=%010.6f;   mintxmes=%010.6f;   maxtxmes=%010.6f;   avgtxmes=%010.6f;   stdevtxmes=%010.6f;",
+			 stats.local_minmes, stats.local_maxmes,
+			 stats.local_normdevmes, stats.local_stdevmes,
+			 stats.remote_minmes, stats.remote_maxmes,
+			 stats.remote_normdevmes, stats.remote_stdevmes);
 	}
 
 	return buf;
@@ -2537,6 +2569,15 @@ void ast_rtp_instance_set_stats_vars(struct ast_channel *chan, struct ast_rtp_in
 		pbx_builtin_setvar_helper(chan, "RTPAUDIOQOSRTT", quality);
 		if (bridge) {
 			pbx_builtin_setvar_helper(bridge, "RTPAUDIOQOSRTTBRIDGED", quality);
+		}
+	}
+
+	quality = ast_rtp_instance_get_quality(instance,
+		AST_RTP_INSTANCE_STAT_FIELD_QUALITY_MES, quality_buf, sizeof(quality_buf));
+	if (quality) {
+		pbx_builtin_setvar_helper(chan, "RTPAUDIOQOSMES", quality);
+		if (bridge) {
+			pbx_builtin_setvar_helper(bridge, "RTPAUDIOQOSMESBRIDGED", quality);
 		}
 	}
 
@@ -3312,6 +3353,7 @@ static struct ast_manager_event_blob *rtcp_report_to_ami(struct stasis_message *
 		struct ast_json *to = ast_json_object_get(payload->blob, "to");
 		struct ast_json *from = ast_json_object_get(payload->blob, "from");
 		struct ast_json *rtt = ast_json_object_get(payload->blob, "rtt");
+		struct ast_json *mes = ast_json_object_get(payload->blob, "mes");
 		if (to) {
 			ast_str_append(&packet_string, 0, "To: %s\r\n", ast_json_string_get(to));
 		}
@@ -3320,6 +3362,9 @@ static struct ast_manager_event_blob *rtcp_report_to_ami(struct stasis_message *
 		}
 		if (rtt) {
 			ast_str_append(&packet_string, 0, "RTT: %4.4f\r\n", ast_json_real_get(rtt));
+		}
+		if (mes) {
+			ast_str_append(&packet_string, 0, "MES: %4.1f\r\n", ast_json_real_get(mes));
 		}
 	}
 
@@ -4005,6 +4050,19 @@ struct ast_json *ast_rtp_convert_stats_json(const struct ast_rtp_instance_stats 
 	SET_AST_JSON_OBJ(j_res, "minrtt", ast_json_real_create(stats->minrtt));
 	SET_AST_JSON_OBJ(j_res, "normdevrtt", ast_json_real_create(stats->normdevrtt));
 	SET_AST_JSON_OBJ(j_res, "stdevrtt", ast_json_real_create(stats->stdevrtt));
+
+	SET_AST_JSON_OBJ(j_res, "txmes", ast_json_integer_create(stats->txmes));
+	SET_AST_JSON_OBJ(j_res, "rxmes", ast_json_integer_create(stats->rxmes));
+
+	SET_AST_JSON_OBJ(j_res, "remote_maxmes", ast_json_real_create(stats->remote_maxmes));
+	SET_AST_JSON_OBJ(j_res, "remote_minmes", ast_json_real_create(stats->remote_minmes));
+	SET_AST_JSON_OBJ(j_res, "remote_normdevmes", ast_json_real_create(stats->remote_normdevmes));
+	SET_AST_JSON_OBJ(j_res, "remote_stdevmes", ast_json_real_create(stats->remote_stdevmes));
+
+	SET_AST_JSON_OBJ(j_res, "local_maxmes", ast_json_real_create(stats->local_maxmes));
+	SET_AST_JSON_OBJ(j_res, "local_minmes", ast_json_real_create(stats->local_minmes));
+	SET_AST_JSON_OBJ(j_res, "local_normdevmes", ast_json_real_create(stats->local_normdevmes));
+	SET_AST_JSON_OBJ(j_res, "local_stdevmes", ast_json_real_create(stats->local_stdevmes));
 
 	return j_res;
 }
