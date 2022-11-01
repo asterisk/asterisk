@@ -1122,8 +1122,9 @@
 		</synopsis>
 		<syntax>
 			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
-			<parameter name="Channel" required="true">
-				<para>Channel name to generate the AOC message on.</para>
+			<parameter name="Channel">
+				<para>Channel name to generate the AOC message on.
+				This value is required unless ChannelPrefix is given.</para>
 			</parameter>
 			<parameter name="ChannelPrefix">
 				<para>Partial channel prefix.  By using this option one can match the beginning part
@@ -1133,14 +1134,15 @@
 				the first matched channel has the message sent on it. </para>
 			</parameter>
 			<parameter name="MsgType" required="true">
-				<para>Defines what type of AOC message to create, AOC-D or AOC-E</para>
+				<para>Defines what type of AOC message to create, AOC-S, AOC-D or AOC-E</para>
 				<enumlist>
+					<enum name="S" />
 					<enum name="D" />
 					<enum name="E" />
 				</enumlist>
 			</parameter>
-			<parameter name="ChargeType" required="true">
-				<para>Defines what kind of charge this message represents.</para>
+			<parameter name="ChargeType">
+				<para>Defines what kind of charge this message represents for AOC-D and AOC-E.</para>
 				<enumlist>
 					<enum name="NA" />
 					<enum name="FREE" />
@@ -1168,11 +1170,13 @@
 				<para>Specifies the currency's name.  Note that this value is truncated after 10 characters.</para>
 			</parameter>
 			<parameter name="CurrencyAmount">
-				<para>Specifies the charge unit amount as a positive integer.  This value is required
-				when ChargeType==Currency.</para>
+				<para>Specifies the charge unit amount as a positive integer.
+				This value is required when ChargeType==Currency (AOC-D or AOC-E) or
+				RateType==Duration/Flat/Volume (AOC-S).</para>
 			</parameter>
 			<parameter name="CurrencyMultiplier">
-				<para>Specifies the currency multiplier.  This value is required when ChargeType==Currency.</para>
+				<para>Specifies the currency multiplier.
+				This value is required when CurrencyAmount is given.</para>
 				<enumlist>
 					<enum name="OneThousandth" />
 					<enum name="OneHundredth" />
@@ -1217,11 +1221,102 @@
 				The value is bits 7 through 1 of the Q.931 octet containing the type-of-number and
 				numbering-plan-identification fields.</para>
 			</parameter>
+			<parameter name="ChargedItem">
+				<para>Defines what part of the call is charged in AOC-S. Usually this is set to
+				BasicCommunication, which refers to the time after the call is answered, but establishment
+				(CallAttempt) or successful establishment (CallSetup) of a call can also be used.
+				Other options are available, but these generally do not carry enough information to actually
+				calculate the price of a call.
+				It is possible to have multiple ChargedItem entries for a single call -- for example to
+				charge for both the establishment of the call and the actual call. In this case, each
+				ChargedItem is described by a ChargedItem: header and all other headers that follow it up to
+				the next ChargedItem: header.</para>
+				<enumlist>
+					<enum name="NA" />
+					<enum name="SpecialArrangement" />
+					<enum name="BasicCommunication" />
+					<enum name="CallAttempt" />
+					<enum name="CallSetup" />
+					<enum name="UserUserInfo" />
+					<enum name="SupplementaryService" />
+				</enumlist>
+			</parameter>
+			<parameter name="RateType">
+				<para>Defines how an AOC-S ChargedItem is charged.
+				The Duration option is only available when ChargedItem==BasicCommunication.</para>
+				<enumlist>
+					<enum name="NA" />
+					<enum name="Free" />
+					<enum name="FreeFromBeginning" />
+					<enum name="Duration" />
+					<enum name="Flat" />
+					<enum name="Volume" />
+					<enum name="SpecialCode" />
+				</enumlist>
+			</parameter>
+			<parameter name="Time">
+				<para>Specifies a positive integer which is the amount of time is paid for by one
+				CurrencyAmount.
+				This value is required when RateType==Duration.</para>
+			</parameter>
+			<parameter name="TimeScale">
+				<para>Specifies the time multiplier.
+				This value is required when Time is given.</para>
+				<enumlist>
+					<enum name="OneHundredthSecond" />
+					<enum name="OneTenthSecond" />
+					<enum name="Second" />
+					<enum name="TenSeconds" />
+					<enum name="Minute" />
+					<enum name="Hour" />
+					<enum name="Day" />
+				</enumlist>
+			</parameter>
+			<parameter name="Granularity">
+				<para>Specifies a positive integer which is the size of the charged time increments.
+				This value is optional when RateType==Duration and ChargingType==StepFunction.</para>
+			</parameter>
+			<parameter name="GranularityTimeScale">
+				<para>Specifies the granularity time multiplier.
+				This value is required when Granularity is given.</para>
+				<enumlist>
+					<enum name="OneHundredthSecond" />
+					<enum name="OneTenthSecond" />
+					<enum name="Second" />
+					<enum name="TenSeconds" />
+					<enum name="Minute" />
+					<enum name="Hour" />
+					<enum name="Day" />
+				</enumlist>
+			</parameter>
+			<parameter name="ChargingType">
+				<para>Specifies whether the charge increases continuously with time or in increments of
+				Time or, if provided, Granularity.
+				This value is required when RateType==Duration.</para>
+				<enumlist>
+					<enum name="ContinuousCharging" />
+					<enum name="StepFunction" />
+				</enumlist>
+			</parameter>
+			<parameter name="VolumeUnit">
+				<para>Specifies the quantity of which one unit is paid for by one CurrencyAmount.
+				This value is required when RateType==Volume.</para>
+				<enumlist>
+					<enum name="Octet" />
+					<enum name="Segment" />
+					<enum name="Message" />
+				</enumlist>
+			</parameter>
+			<parameter name="Code">
+				<para>Specifies the charging code, which can be set to a value between 1 and 10.
+				This value is required when ChargedItem==SpecialArrangement or RateType==SpecialCode.</para>
+			</parameter>
 		</syntax>
 		<description>
-			<para>Generates an AOC-D or AOC-E message on a channel.</para>
+			<para>Generates an AOC-S, AOC-D or AOC-E message on a channel.</para>
 		</description>
 		<see-also>
+			<ref type="managerEvent">AOC-S</ref>
 			<ref type="managerEvent">AOC-D</ref>
 			<ref type="managerEvent">AOC-E</ref>
 		</see-also>
@@ -5549,10 +5644,8 @@ static int aocmessage_get_unit_entry(const struct message *m, struct ast_aoc_uni
 	return 0;
 }
 
-static int action_aocmessage(struct mansession *s, const struct message *m)
+static struct ast_aoc_decoded *action_aoc_de_message(struct mansession *s, const struct message *m)
 {
-	const char *channel = astman_get_header(m, "Channel");
-	const char *pchannel = astman_get_header(m, "ChannelPrefix");
 	const char *msgtype = astman_get_header(m, "MsgType");
 	const char *chargetype = astman_get_header(m, "ChargeType");
 	const char *currencyname = astman_get_header(m, "CurrencyName");
@@ -5572,30 +5665,8 @@ static int action_aocmessage(struct mansession *s, const struct message *m)
 	unsigned int _currencyamount = 0;
 	int _association_id = 0;
 	unsigned int _association_plan = 0;
-	struct ast_channel *chan = NULL;
 
 	struct ast_aoc_decoded *decoded = NULL;
-	struct ast_aoc_encoded *encoded = NULL;
-	size_t encoded_size = 0;
-
-	if (ast_strlen_zero(channel) && ast_strlen_zero(pchannel)) {
-		astman_send_error(s, m, "Channel and PartialChannel are not specified. Specify at least one of these.");
-		goto aocmessage_cleanup;
-	}
-
-	if (!(chan = ast_channel_get_by_name(channel)) && !ast_strlen_zero(pchannel)) {
-		chan = ast_channel_get_by_name_prefix(pchannel, strlen(pchannel));
-	}
-
-	if (!chan) {
-		astman_send_error(s, m, "No such channel");
-		goto aocmessage_cleanup;
-	}
-
-	if (ast_strlen_zero(msgtype) || (strcasecmp(msgtype, "d") && strcasecmp(msgtype, "e"))) {
-		astman_send_error(s, m, "Invalid MsgType");
-		goto aocmessage_cleanup;
-	}
 
 	if (ast_strlen_zero(chargetype)) {
 		astman_send_error(s, m, "ChargeType not specified");
@@ -5736,8 +5807,324 @@ static int action_aocmessage(struct mansession *s, const struct message *m)
 	ast_aoc_set_billing_id(decoded, _billingid);
 	ast_aoc_set_total_type(decoded, _totaltype);
 
+	return decoded;
 
-	if ((encoded = ast_aoc_encode(decoded, &encoded_size, NULL)) && !ast_indicate_data(chan, AST_CONTROL_AOC, encoded, encoded_size)) {
+aocmessage_cleanup:
+
+	ast_aoc_destroy_decoded(decoded);
+	return NULL;
+}
+
+static int action_aoc_s_submessage(struct mansession *s, const struct message *m,
+		struct ast_aoc_decoded *decoded)
+{
+	const char *chargeditem = __astman_get_header(m, "ChargedItem", GET_HEADER_LAST_MATCH);
+	const char *ratetype = __astman_get_header(m, "RateType", GET_HEADER_LAST_MATCH);
+	const char *currencyname = __astman_get_header(m, "CurrencyName", GET_HEADER_LAST_MATCH);
+	const char *currencyamount = __astman_get_header(m, "CurrencyAmount", GET_HEADER_LAST_MATCH);
+	const char *mult = __astman_get_header(m, "CurrencyMultiplier", GET_HEADER_LAST_MATCH);
+	const char *time = __astman_get_header(m, "Time", GET_HEADER_LAST_MATCH);
+	const char *timescale = __astman_get_header(m, "TimeScale", GET_HEADER_LAST_MATCH);
+	const char *granularity = __astman_get_header(m, "Granularity", GET_HEADER_LAST_MATCH);
+	const char *granularitytimescale = __astman_get_header(m, "GranularityTimeScale", GET_HEADER_LAST_MATCH);
+	const char *chargingtype = __astman_get_header(m, "ChargingType", GET_HEADER_LAST_MATCH);
+	const char *volumeunit = __astman_get_header(m, "VolumeUnit", GET_HEADER_LAST_MATCH);
+	const char *code = __astman_get_header(m, "Code", GET_HEADER_LAST_MATCH);
+
+	enum ast_aoc_s_charged_item _chargeditem;
+	enum ast_aoc_s_rate_type _ratetype;
+	enum ast_aoc_currency_multiplier _mult = AST_AOC_MULT_ONE;
+	unsigned int _currencyamount = 0;
+	unsigned int _code;
+	unsigned int _time = 0;
+	enum ast_aoc_time_scale _scale = 0;
+	unsigned int _granularity = 0;
+	enum ast_aoc_time_scale _granularity_time_scale = AST_AOC_TIME_SCALE_MINUTE;
+	int _step = 0;
+	enum ast_aoc_volume_unit _volumeunit = 0;
+
+	if (ast_strlen_zero(chargeditem)) {
+		astman_send_error(s, m, "ChargedItem not specified");
+		goto aocmessage_cleanup;
+	}
+
+	if (ast_strlen_zero(ratetype)) {
+		astman_send_error(s, m, "RateType not specified");
+		goto aocmessage_cleanup;
+	}
+
+	if (!strcasecmp(chargeditem, "NA")) {
+		_chargeditem = AST_AOC_CHARGED_ITEM_NA;
+	} else if (!strcasecmp(chargeditem, "SpecialArrangement")) {
+		_chargeditem = AST_AOC_CHARGED_ITEM_SPECIAL_ARRANGEMENT;
+	} else if (!strcasecmp(chargeditem, "BasicCommunication")) {
+		_chargeditem = AST_AOC_CHARGED_ITEM_BASIC_COMMUNICATION;
+	} else if (!strcasecmp(chargeditem, "CallAttempt")) {
+		_chargeditem = AST_AOC_CHARGED_ITEM_CALL_ATTEMPT;
+	} else if (!strcasecmp(chargeditem, "CallSetup")) {
+		_chargeditem = AST_AOC_CHARGED_ITEM_CALL_SETUP;
+	} else if (!strcasecmp(chargeditem, "UserUserInfo")) {
+		_chargeditem = AST_AOC_CHARGED_ITEM_USER_USER_INFO;
+	} else if (!strcasecmp(chargeditem, "SupplementaryService")) {
+		_chargeditem = AST_AOC_CHARGED_ITEM_SUPPLEMENTARY_SERVICE;
+	} else {
+		astman_send_error(s, m, "Invalid ChargedItem");
+		goto aocmessage_cleanup;
+	}
+
+	if (!strcasecmp(ratetype, "NA")) {
+		_ratetype = AST_AOC_RATE_TYPE_NA;
+	} else if (!strcasecmp(ratetype, "Free")) {
+		_ratetype = AST_AOC_RATE_TYPE_FREE;
+	} else if (!strcasecmp(ratetype, "FreeFromBeginning")) {
+		_ratetype = AST_AOC_RATE_TYPE_FREE_FROM_BEGINNING;
+	} else if (!strcasecmp(ratetype, "Duration")) {
+		_ratetype = AST_AOC_RATE_TYPE_DURATION;
+	} else if (!strcasecmp(ratetype, "Flat")) {
+		_ratetype = AST_AOC_RATE_TYPE_FLAT;
+	} else if (!strcasecmp(ratetype, "Volume")) {
+		_ratetype = AST_AOC_RATE_TYPE_VOLUME;
+	} else if (!strcasecmp(ratetype, "SpecialCode")) {
+		_ratetype = AST_AOC_RATE_TYPE_SPECIAL_CODE;
+	} else {
+		astman_send_error(s, m, "Invalid RateType");
+		goto aocmessage_cleanup;
+	}
+
+	if (_ratetype > AST_AOC_RATE_TYPE_FREE_FROM_BEGINNING) {
+		if (ast_strlen_zero(currencyamount) || (sscanf(currencyamount, "%30u",
+				&_currencyamount) != 1)) {
+			astman_send_error(s, m, "Invalid CurrencyAmount, CurrencyAmount is a required when RateType is non-free");
+			goto aocmessage_cleanup;
+		}
+
+		if (ast_strlen_zero(mult)) {
+			astman_send_error(s, m, "ChargeMultiplier unspecified, ChargeMultiplier is required when ChargeType is Currency.");
+			goto aocmessage_cleanup;
+		} else if (!strcasecmp(mult, "onethousandth")) {
+			_mult = AST_AOC_MULT_ONETHOUSANDTH;
+		} else if (!strcasecmp(mult, "onehundredth")) {
+			_mult = AST_AOC_MULT_ONEHUNDREDTH;
+		} else if (!strcasecmp(mult, "onetenth")) {
+			_mult = AST_AOC_MULT_ONETENTH;
+		} else if (!strcasecmp(mult, "one")) {
+			_mult = AST_AOC_MULT_ONE;
+		} else if (!strcasecmp(mult, "ten")) {
+			_mult = AST_AOC_MULT_TEN;
+		} else if (!strcasecmp(mult, "hundred")) {
+			_mult = AST_AOC_MULT_HUNDRED;
+		} else if (!strcasecmp(mult, "thousand")) {
+			_mult = AST_AOC_MULT_THOUSAND;
+		} else {
+			astman_send_error(s, m, "Invalid ChargeMultiplier");
+			goto aocmessage_cleanup;
+		}
+	}
+
+	if (_ratetype == AST_AOC_RATE_TYPE_DURATION) {
+		if (ast_strlen_zero(timescale)) {
+			astman_send_error(s, m, "TimeScale unspecified, TimeScale is required when RateType is Duration.");
+			goto aocmessage_cleanup;
+		} else if (!strcasecmp(timescale, "onehundredthsecond")) {
+			_scale = AST_AOC_TIME_SCALE_HUNDREDTH_SECOND;
+		} else if (!strcasecmp(timescale, "onetenthsecond")) {
+			_scale = AST_AOC_TIME_SCALE_TENTH_SECOND;
+		} else if (!strcasecmp(timescale, "second")) {
+			_scale = AST_AOC_TIME_SCALE_SECOND;
+		} else if (!strcasecmp(timescale, "tenseconds")) {
+			_scale = AST_AOC_TIME_SCALE_TEN_SECOND;
+		} else if (!strcasecmp(timescale, "minute")) {
+			_scale = AST_AOC_TIME_SCALE_MINUTE;
+		} else if (!strcasecmp(timescale, "hour")) {
+			_scale = AST_AOC_TIME_SCALE_HOUR;
+		} else if (!strcasecmp(timescale, "day")) {
+			_scale = AST_AOC_TIME_SCALE_DAY;
+		} else {
+			astman_send_error(s, m, "Invalid TimeScale");
+			goto aocmessage_cleanup;
+		}
+
+		if (ast_strlen_zero(time) || (sscanf(time, "%30u", &_time) != 1)) {
+			astman_send_error(s, m, "Invalid Time, Time is a required when RateType is Duration");
+			goto aocmessage_cleanup;
+		}
+
+		if (!ast_strlen_zero(granularity)) {
+			if ((sscanf(time, "%30u", &_granularity) != 1)) {
+				astman_send_error(s, m, "Invalid Granularity");
+				goto aocmessage_cleanup;
+			}
+
+			if (ast_strlen_zero(granularitytimescale)) {
+				astman_send_error(s, m, "Invalid GranularityTimeScale, GranularityTimeScale is a required when Granularity is specified");
+			} else if (!strcasecmp(granularitytimescale, "onehundredthsecond")) {
+				_granularity_time_scale = AST_AOC_TIME_SCALE_HUNDREDTH_SECOND;
+			} else if (!strcasecmp(granularitytimescale, "onetenthsecond")) {
+				_granularity_time_scale = AST_AOC_TIME_SCALE_TENTH_SECOND;
+			} else if (!strcasecmp(granularitytimescale, "second")) {
+				_granularity_time_scale = AST_AOC_TIME_SCALE_SECOND;
+			} else if (!strcasecmp(granularitytimescale, "tenseconds")) {
+				_granularity_time_scale = AST_AOC_TIME_SCALE_TEN_SECOND;
+			} else if (!strcasecmp(granularitytimescale, "minute")) {
+				_granularity_time_scale = AST_AOC_TIME_SCALE_MINUTE;
+			} else if (!strcasecmp(granularitytimescale, "hour")) {
+				_granularity_time_scale = AST_AOC_TIME_SCALE_HOUR;
+			} else if (!strcasecmp(granularitytimescale, "day")) {
+				_granularity_time_scale = AST_AOC_TIME_SCALE_DAY;
+			} else {
+				astman_send_error(s, m, "Invalid GranularityTimeScale");
+				goto aocmessage_cleanup;
+			}
+		}
+
+		if (ast_strlen_zero(chargingtype) || strcasecmp(chargingtype, "continuouscharging") == 0) {
+			_step = 0;
+		} else if (strcasecmp(chargingtype, "stepfunction") == 0 ) {
+			_step = 1;
+		} else {
+			astman_send_error(s, m, "Invalid ChargingType");
+			goto aocmessage_cleanup;
+		}
+	}
+
+	if (_ratetype == AST_AOC_RATE_TYPE_VOLUME) {
+		if (ast_strlen_zero(volumeunit)) {
+			astman_send_error(s, m, "VolumeUnit unspecified, VolumeUnit is required when RateType is Volume.");
+			goto aocmessage_cleanup;
+		} else if (!strcasecmp(timescale, "octet")) {
+			_volumeunit = AST_AOC_VOLUME_UNIT_OCTET;
+		} else if (!strcasecmp(timescale, "segment")) {
+			_volumeunit = AST_AOC_VOLUME_UNIT_SEGMENT;
+		} else if (!strcasecmp(timescale, "message")) {
+			_volumeunit = AST_AOC_VOLUME_UNIT_MESSAGE;
+		}else {
+			astman_send_error(s, m, "Invalid VolumeUnit");
+			goto aocmessage_cleanup;
+		}
+	}
+
+	if (_chargeditem == AST_AOC_CHARGED_ITEM_SPECIAL_ARRANGEMENT
+			|| _ratetype == AST_AOC_RATE_TYPE_SPECIAL_CODE) {
+		if (ast_strlen_zero(code) || (sscanf(code, "%30u", &_code) != 1)) {
+			astman_send_error(s, m, "Invalid Code, Code is a required when ChargedItem is SpecialArrangement and when RateType is SpecialCode");
+			goto aocmessage_cleanup;
+		}
+	}
+
+	if (_chargeditem == AST_AOC_CHARGED_ITEM_SPECIAL_ARRANGEMENT) {
+		ast_aoc_s_add_special_arrangement(decoded, _code);
+	} else if (_ratetype == AST_AOC_RATE_TYPE_DURATION) {
+		ast_aoc_s_add_rate_duration(decoded, _chargeditem, _currencyamount, _mult,
+			currencyname, _time, _scale, _granularity, _granularity_time_scale, _step);
+	} else if (_ratetype == AST_AOC_RATE_TYPE_FLAT) {
+		ast_aoc_s_add_rate_flat(decoded, _chargeditem, _currencyamount, _mult,
+				currencyname);
+	} else if (_ratetype == AST_AOC_RATE_TYPE_VOLUME) {
+		ast_aoc_s_add_rate_volume(decoded, _chargeditem, _volumeunit, _currencyamount,
+			_mult, currencyname);
+	} else if (_ratetype == AST_AOC_RATE_TYPE_SPECIAL_CODE) {
+		ast_aoc_s_add_rate_special_charge_code(decoded, _chargeditem, _code);
+	} else if (_ratetype == AST_AOC_RATE_TYPE_FREE) {
+		ast_aoc_s_add_rate_free(decoded, _chargeditem, 0);
+	} else if (_ratetype == AST_AOC_RATE_TYPE_FREE_FROM_BEGINNING) {
+		ast_aoc_s_add_rate_free(decoded, _chargeditem, 1);
+	} else if (_ratetype == AST_AOC_RATE_TYPE_NA) {
+		ast_aoc_s_add_rate_na(decoded, _chargeditem);
+	}
+
+	return 0;
+
+aocmessage_cleanup:
+
+	return -1;
+}
+
+static struct ast_aoc_decoded *action_aoc_s_message(struct mansession *s,
+		const struct message *m)
+{
+	struct ast_aoc_decoded *decoded = NULL;
+	int hdrlen;
+	int x;
+	static const char hdr[] = "ChargedItem:";
+	struct message sm = { 0 };
+	int rates = 0;
+
+	if (!(decoded = ast_aoc_create(AST_AOC_S, 0, 0))) {
+		astman_send_error(s, m, "Message Creation Failed");
+		goto aocmessage_cleanup;
+	}
+
+	hdrlen = strlen(hdr);
+	for (x = 0; x < m->hdrcount; x++) {
+		if (strncasecmp(hdr, m->headers[x], hdrlen) == 0) {
+			if (rates > ast_aoc_s_get_count(decoded)) {
+				if (action_aoc_s_submessage(s, &sm, decoded) == -1) {
+					goto aocmessage_cleanup;
+				}
+			}
+			++rates;
+		}
+
+		sm.headers[sm.hdrcount] = m->headers[x];
+		++sm.hdrcount;
+	}
+	if (rates > ast_aoc_s_get_count(decoded)) {
+		if (action_aoc_s_submessage(s, &sm, decoded) == -1) {
+			goto aocmessage_cleanup;
+		}
+	}
+
+	return decoded;
+
+aocmessage_cleanup:
+
+	ast_aoc_destroy_decoded(decoded);
+	return NULL;
+}
+
+static int action_aocmessage(struct mansession *s, const struct message *m)
+{
+	const char *msgtype = astman_get_header(m, "MsgType");
+	const char *channel = astman_get_header(m, "Channel");
+	const char *pchannel = astman_get_header(m, "ChannelPrefix");
+
+	struct ast_channel *chan = NULL;
+
+	struct ast_aoc_decoded *decoded = NULL;
+	struct ast_aoc_encoded *encoded = NULL;
+	size_t encoded_size = 0;
+
+	if (ast_strlen_zero(channel) && ast_strlen_zero(pchannel)) {
+		astman_send_error(s, m, "Channel and PartialChannel are not specified. Specify at least one of these.");
+		goto aocmessage_cleanup;
+	}
+
+	if (!(chan = ast_channel_get_by_name(channel)) && !ast_strlen_zero(pchannel)) {
+		chan = ast_channel_get_by_name_prefix(pchannel, strlen(pchannel));
+	}
+
+	if (!chan) {
+		astman_send_error(s, m, "No such channel");
+		goto aocmessage_cleanup;
+	}
+
+	if (strcasecmp(msgtype, "d") == 0 || strcasecmp(msgtype, "e") == 0) {
+		decoded = action_aoc_de_message(s, m);
+	}
+	else if (strcasecmp(msgtype, "s") == 0) {
+		decoded = action_aoc_s_message(s, m);
+	}
+	else {
+		astman_send_error(s, m, "Invalid MsgType");
+		goto aocmessage_cleanup;
+	}
+
+	if (!decoded) {
+		goto aocmessage_cleanup;
+	}
+
+	if ((encoded = ast_aoc_encode(decoded, &encoded_size, chan))
+			&& !ast_indicate_data(chan, AST_CONTROL_AOC, encoded, encoded_size)) {
 		astman_send_ack(s, m, "AOC Message successfully queued on channel");
 	} else {
 		astman_send_error(s, m, "Error encoding AOC message, could not queue onto channel");
