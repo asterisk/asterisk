@@ -52,7 +52,7 @@ run_tests_socket() {
 
 # If DESTDIR is used to install and run asterisk from non standard locations,
 # the directory entries in asterisk.conf need to be munged to prepend DESTDIR.
-ALTERED=$(head -10 ../tmp/DESTDIR/etc/asterisk/asterisk.conf | grep -q "DESTDIR" && echo yes)
+ALTERED=$(head -10 "$ASTETCDIR/asterisk.conf" | grep -q "DESTDIR" && echo yes)
 if [ x"$ALTERED" = x ] ; then
 	# In the section that starts with [directories and ends with a blank line,
 	# replace "=> " with "=> ${DESTDIR}"
@@ -119,7 +119,7 @@ else
 fi
 
 # Cleanup "just in case"
-sudo killall -qe -ABRT $ASTERISK 
+sudo killall -qe -ABRT $ASTERISK
 
 runner rsync -vaH $DESTDIR/var/log/asterisk/. $OUTPUTDIR
 set +x
@@ -128,11 +128,11 @@ set +x
 
 for core in $(asterisk_corefile_glob)
 do
-	if [ -f $core ]
+	if [ -f "$core" ] && [ "${core##*.}" != "txt" ]
 	then
 		echo "*** Found a core file ($core) after running unit tests ***"
 		set -x
-		sudo OUTPUTDIR=$OUTPUTDIR $DESTDIR/var/lib/asterisk/scripts/ast_coredumper --no-default-search $core
+		sudo $DESTDIR/var/lib/asterisk/scripts/ast_coredumper --outputdir=$OUTPUTDIR --no-default-search $core
 	fi
 done
 
