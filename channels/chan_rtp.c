@@ -381,9 +381,9 @@ static struct ast_channel *unicast_rtp_request(const char *type, struct ast_form
 
 	ast_channel_tech_pvt_set(chan, instance);
 
+	ast_rtp_instance_get_local_address(instance, &local_address);
 	pbx_builtin_setvar_helper(chan, "UNICASTRTP_LOCAL_ADDRESS",
 		ast_sockaddr_stringify_addr(&local_address));
-	ast_rtp_instance_get_local_address(instance, &local_address);
 	pbx_builtin_setvar_helper(chan, "UNICASTRTP_LOCAL_PORT",
 		ast_sockaddr_stringify_port(&local_address));
 
