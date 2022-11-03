@@ -1109,7 +1109,8 @@
 		</syntax>
 		<description>
 			<para>Checks if Asterisk module is loaded. Will return Success/Failure.
-			For success returns, the module revision number is included.</para>
+			An empty Version header is also returned (which doesn't contain
+			the module revision number).</para>
 		</description>
 		<see-also>
 			<ref type="manager">ModuleLoad</ref>
