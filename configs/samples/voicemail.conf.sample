@@ -262,6 +262,8 @@ pagerdateformat=%A, %B %d, %Y at %r
 			; option lets you customize the format sent to particular mailboxes.
 			; Useful if Windows users want wav49, but Linux users want gsm.
 			; [per-mailbox only]
+; attachextrecs=no	; Whether to attach recordings that are externally added to mailboxes,
+			; such as through MixMonitor. Default is no.
 ; saycid=yes 		; Say the caller id information before the message. If not described,
 			;     or set to no, it will be in the envelope. When enabled, if a recorded file
 			;     with the same name as the caller id exists in
