@@ -90,6 +90,11 @@
 						<para>Play a periodic beep while this call is being recorded.</para>
 						<argument name="interval"><para>Interval, in seconds. Default is 15.</para></argument>
 					</option>
+					<option name="d">
+						<para>Delete the recording file as soon as MixMonitor is done with it.</para>
+						<para>For example, if you use the m option to dispatch the recording to a voicemail box,
+						you can specify this option to delete the original copy of it afterwards.</para>
+					</option>
 					<option name="v">
 						<para>Adjust the <emphasis>heard</emphasis> volume by a factor of <replaceable>x</replaceable>
 						(range <literal>-4</literal> to <literal>4</literal>)</para>
@@ -407,6 +412,7 @@ enum mixmonitor_flags {
 	MUXFLAG_BEEP_STOP = (1 << 13),
 	MUXFLAG_DEPRECATED_RWSYNC = (1 << 14),
 	MUXFLAG_NO_RWSYNC = (1 << 15),
+	MUXFLAG_AUTO_DELETE = (1 << 16),
 };
 
 enum mixmonitor_args {
@@ -427,6 +433,7 @@ AST_APP_OPTIONS(mixmonitor_opts, {
 	AST_APP_OPTION('a', MUXFLAG_APPEND),
 	AST_APP_OPTION('b', MUXFLAG_BRIDGED),
 	AST_APP_OPTION_ARG('B', MUXFLAG_BEEP, OPT_ARG_BEEP_INTERVAL),
+	AST_APP_OPTION('d', MUXFLAG_AUTO_DELETE),
 	AST_APP_OPTION('p', MUXFLAG_BEEP_START),
 	AST_APP_OPTION('P', MUXFLAG_BEEP_STOP),
 	AST_APP_OPTION_ARG('v', MUXFLAG_READVOLUME, OPT_ARG_READVOLUME),
@@ -858,6 +865,19 @@ static void *mixmonitor_thread(void *obj)
 		}
 	} else {
 		ast_debug(3, "No recipients to forward monitor to, moving on.\n");
+	}
+
+	if (ast_test_flag(mixmonitor, MUXFLAG_AUTO_DELETE)) {
+		ast_debug(3, "Deleting our copies of recording files\n");
+		if (!ast_strlen_zero(fs_ext)) {
+			ast_filedelete(mixmonitor->filename, fs_ext);
+		}
+		if (!ast_strlen_zero(fs_read_ext)) {
+			ast_filedelete(mixmonitor->filename_read, fs_ext);
+		}
+		if (!ast_strlen_zero(fs_write_ext)) {
+			ast_filedelete(mixmonitor->filename_write, fs_ext);
+		}
 	}
 
 	mixmonitor_free(mixmonitor);
