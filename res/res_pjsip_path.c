@@ -36,71 +36,16 @@
 static const pj_str_t PATH_NAME = { "Path", 4 };
 static pj_str_t PATH_SUPPORTED_NAME = { "path", 4 };
 
-static struct ast_sip_aor *find_aor(struct ast_sip_endpoint *endpoint, pjsip_uri *uri)
+static struct ast_sip_aor *find_aor(struct ast_sip_contact *contact)
 {
-	char *configured_aors, *aor_name;
-	const pj_str_t *uri_username;
-	const pj_str_t *uri_hostname;
-	char *domain_name;
-	char *username;
-	struct ast_str *id = NULL;
-
-	if (ast_strlen_zero(endpoint->aors)) {
+	if (!contact) {
+		return NULL;
+	}
+	if (ast_strlen_zero(contact->aor)) {
 		return NULL;
 	}
 
-	uri_hostname = ast_sip_pjsip_uri_get_hostname(uri);
-	domain_name = ast_alloca(uri_hostname->slen + 1);
-	ast_copy_pj_str(domain_name, uri_hostname, uri_hostname->slen + 1);
-
-	uri_username = ast_sip_pjsip_uri_get_username(uri);
-	username = ast_alloca(uri_username->slen + 1);
-	ast_copy_pj_str(username, uri_username, uri_username->slen + 1);
-
-	/*
-	 * We may want to match without any user options getting
-	 * in the way.
-	 */
-	AST_SIP_USER_OPTIONS_TRUNCATE_CHECK(username);
-
-	configured_aors = ast_strdupa(endpoint->aors);
-
-	/* Iterate the configured AORs to see if the user or the user+domain match */
-	while ((aor_name = ast_strip(strsep(&configured_aors, ",")))) {
-		struct ast_sip_domain_alias *alias = NULL;
-
-		if (ast_strlen_zero(aor_name)) {
-			continue;
-		}
-
-		if (!strcmp(username, aor_name)) {
-			break;
-		}
-
-		if (!id && !(id = ast_str_create(strlen(username) + uri_hostname->slen + 2))) {
-			aor_name = NULL;
-			break;
-		}
-
-		ast_str_set(&id, 0, "%s@", username);
-		if ((alias = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "domain_alias", domain_name))) {
-			ast_str_append(&id, 0, "%s", alias->domain);
-			ao2_cleanup(alias);
-		} else {
-			ast_str_append(&id, 0, "%s", domain_name);
-		}
-
-		if (!strcmp(aor_name, ast_str_buffer(id))) {
-			break;
-		}
-	}
-	ast_free(id);
-
-	if (ast_strlen_zero(aor_name)) {
-		return NULL;
-	}
-
-	return ast_sip_location_retrieve_aor(aor_name);
+	return ast_sip_location_retrieve_aor(contact->aor);
 }
 
 /*!
@@ -173,7 +118,7 @@ static void path_outgoing_request(struct ast_sip_endpoint *endpoint, struct ast_
 		return;
 	}
 
-	aor = find_aor(endpoint, tdata->msg->line.req.uri);
+	aor = find_aor(contact);
 	if (!aor || !aor->support_path) {
 		return;
 	}
@@ -205,7 +150,6 @@ static void path_outgoing_response(struct ast_sip_endpoint *endpoint, struct ast
 	struct pjsip_status_line status = tdata->msg->line.status;
 	pj_str_t path_dup;
 	pjsip_generic_string_hdr *path_hdr;
-	pjsip_contact_hdr *contact_hdr;
 	RAII_VAR(struct ast_sip_aor *, aor, NULL, ao2_cleanup);
 	pjsip_cseq_hdr *cseq = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_CSEQ, NULL);
 	const pj_str_t REGISTER_METHOD = {"REGISTER", 8};
@@ -216,12 +160,7 @@ static void path_outgoing_response(struct ast_sip_endpoint *endpoint, struct ast
 		return;
 	}
 
-	contact_hdr = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_CONTACT, NULL);
-	if (!contact_hdr) {
-		return;
-	}
-
-	aor = find_aor(endpoint, contact_hdr->uri);
+	aor = find_aor(contact);
 	if (!aor || !aor->support_path || add_supported(tdata)
 		|| path_get_string(tdata->pool, contact, &path_dup)) {
 		return;
