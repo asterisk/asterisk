@@ -90,6 +90,11 @@
 						<para>Play a periodic beep while this call is being recorded.</para>
 						<argument name="interval"><para>Interval, in seconds. Default is 15.</para></argument>
 					</option>
+					<option name="c">
+						<para>Use the real Caller ID from the channel for the voicemail Caller ID.</para>
+						<para>By default, the Connected Line is used. If you want the channel caller's
+						real number, you may need to specify this option.</para>
+					</option>
 					<option name="d">
 						<para>Delete the recording file as soon as MixMonitor is done with it.</para>
 						<para>For example, if you use the m option to dispatch the recording to a voicemail box,
@@ -413,6 +418,7 @@ enum mixmonitor_flags {
 	MUXFLAG_DEPRECATED_RWSYNC = (1 << 14),
 	MUXFLAG_NO_RWSYNC = (1 << 15),
 	MUXFLAG_AUTO_DELETE = (1 << 16),
+	MUXFLAG_REAL_CALLERID = (1 << 17),
 };
 
 enum mixmonitor_args {
@@ -433,6 +439,7 @@ AST_APP_OPTIONS(mixmonitor_opts, {
 	AST_APP_OPTION('a', MUXFLAG_APPEND),
 	AST_APP_OPTION('b', MUXFLAG_BRIDGED),
 	AST_APP_OPTION_ARG('B', MUXFLAG_BEEP, OPT_ARG_BEEP_INTERVAL),
+	AST_APP_OPTION('c', MUXFLAG_REAL_CALLERID),
 	AST_APP_OPTION('d', MUXFLAG_AUTO_DELETE),
 	AST_APP_OPTION('p', MUXFLAG_BEEP_START),
 	AST_APP_OPTION('P', MUXFLAG_BEEP_STOP),
@@ -1035,20 +1042,37 @@ static int launch_monitor_thread(struct ast_channel *chan, const char *filename,
 
 	if (!ast_strlen_zero(recipients)) {
 		char callerid[256];
-		struct ast_party_connected_line *connected;
 
 		ast_channel_lock(chan);
 
-		/* We use the connected line of the invoking channel for caller ID. */
+		/* We use the connected line of the invoking channel for caller ID,
+		 * unless we've been told to use the Caller ID.
+		 * The initial use for this relied on Connected Line to get the
+		 * actual number for recording with Digium phones,
+		 * but in generic use the Caller ID is likely what people want.
+		 */
 
-		connected = ast_channel_connected(chan);
-		ast_debug(3, "Connected Line CID = %d - %s : %d - %s\n", connected->id.name.valid,
-			connected->id.name.str, connected->id.number.valid,
-			connected->id.number.str);
-		ast_callerid_merge(callerid, sizeof(callerid),
-			S_COR(connected->id.name.valid, connected->id.name.str, NULL),
-			S_COR(connected->id.number.valid, connected->id.number.str, NULL),
-			"Unknown");
+		if (ast_test_flag(mixmonitor, MUXFLAG_REAL_CALLERID)) {
+			struct ast_party_caller *caller;
+			caller = ast_channel_caller(chan);
+			ast_debug(3, "Caller ID = %d - %s : %d - %s\n", caller->id.name.valid,
+				caller->id.name.str, caller->id.number.valid,
+				caller->id.number.str);
+			ast_callerid_merge(callerid, sizeof(callerid),
+				S_COR(caller->id.name.valid, caller->id.name.str, NULL),
+				S_COR(caller->id.number.valid, caller->id.number.str, NULL),
+				"Unknown");
+		} else {
+			struct ast_party_connected_line *connected;
+			connected = ast_channel_connected(chan);
+			ast_debug(3, "Connected Line CID = %d - %s : %d - %s\n", connected->id.name.valid,
+				connected->id.name.str, connected->id.number.valid,
+				connected->id.number.str);
+			ast_callerid_merge(callerid, sizeof(callerid),
+				S_COR(connected->id.name.valid, connected->id.name.str, NULL),
+				S_COR(connected->id.number.valid, connected->id.number.str, NULL),
+				"Unknown");
+		}
 
 		ast_string_field_set(mixmonitor, call_context, ast_channel_context(chan));
 		ast_string_field_set(mixmonitor, call_macrocontext, ast_channel_macrocontext(chan));
