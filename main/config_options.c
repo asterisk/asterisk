@@ -1099,7 +1099,9 @@ static int xmldoc_update_config_type(const char *module, const char *name, const
 	}
 
 	if (!(results = ast_xmldoc_query("/docs/configInfo[@name='%s']/configFile/configObject[@name='%s']", module, name))) {
-		ast_log(LOG_WARNING, "Cannot update type '%s' in module '%s' because it has no existing documentation!\n", name, module);
+		ast_log(LOG_WARNING, "Cannot update type '%s' in module '%s' because it has no existing documentation!"
+			" If this module was recently built, run 'xmldoc reload' to refresh documentation, then load the module again\n",
+			name, module);
 		return XMLDOC_STRICT ? -1 : 0;
 	}
 
