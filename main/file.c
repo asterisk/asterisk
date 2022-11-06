@@ -1744,6 +1744,7 @@ static int waitstream_core(struct ast_channel *c,
 				case AST_CONTROL_UPDATE_RTP_PEER:
 				case AST_CONTROL_PVT_CAUSE_CODE:
 				case AST_CONTROL_FLASH:
+				case AST_CONTROL_WINK:
 				case -1:
 					/* Unimportant */
 					break;
