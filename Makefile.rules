@@ -213,10 +213,10 @@ endif
 # extern const size_t _binary_abc_def_xml_size;
 %.o: %.xml
 	$(ECHO_PREFIX) echo "   [LD] $^ -> $@"
-	$(CMD_PREFIX) $(CC) -g -nostartfiles  -nodefaultlibs -nostdlib -r -Wl,-b,binary -o $@ $^
+	$(CMD_PREFIX) $(CC) -g -Wl,-znoexecstack -nostartfiles  -nodefaultlibs -nostdlib -r -Wl,-b,binary -o $@ $^
 
 %.o: %.xslt
 	$(ECHO_PREFIX) echo "   [LD] $^ -> $@"
-	$(CMD_PREFIX) $(CC) -g -nostartfiles  -nodefaultlibs -nostdlib -r -Wl,-b,binary -o $@ $^
+	$(CMD_PREFIX) $(CC) -g -Wl,-znoexecstack -nostartfiles  -nodefaultlibs -nostdlib -r -Wl,-b,binary -o $@ $^
 
 dist-clean:: clean
