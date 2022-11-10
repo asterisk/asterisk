@@ -115,7 +115,7 @@ static int json_decode_read(struct ast_channel *chan, const char *cmd, char *dat
 	jsonval = ast_json_object_get(json, args.key);
 	if (!jsonval) { /* no error or warning should be thrown */
 		ast_debug(1, "Could not find key '%s' in parsed JSON\n", args.key);
-		ast_json_free(json);
+		ast_json_unref(json);
 		return -1;
 	}
 	switch(ast_json_typeof(jsonval)) {
@@ -134,7 +134,7 @@ static int json_decode_read(struct ast_channel *chan, const char *cmd, char *dat
 			ast_json_free(result2);
 			break;
 	}
-	ast_json_free(json);
+	ast_json_unref(json);
 
 	return 0;
 }
