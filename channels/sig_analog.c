@@ -3731,6 +3731,32 @@ void *analog_handle_init_event(struct analog_pvt *i, int event)
 	/* Handle an event on a given channel for the monitor thread. */
 	switch (event) {
 	case ANALOG_EVENT_WINKFLASH:
+	case ANALOG_EVENT_RINGBEGIN:
+		switch (i->sig) {
+		case ANALOG_SIG_FXSLS:
+		case ANALOG_SIG_FXSGS:
+		case ANALOG_SIG_FXSKS:
+			if (i->immediate) {
+				if (i->use_callerid || i->usedistinctiveringdetection) {
+					ast_log(LOG_WARNING, "Can't start PBX immediately, must wait for Caller ID / distinctive ring\n");
+				} else {
+					/* If we don't care about Caller ID or Distinctive Ring, then there's
+					 * no need to wait for anything before accepting the call, as
+					 * waiting will buy us nothing.
+					 * So if the channel is configured for immediate, actually start immediately
+					 * and get the show on the road as soon as possible. */
+					ast_debug(1, "Disabling ring timeout (previously %d) to begin handling immediately\n", i->ringt_base);
+					analog_set_ringtimeout(i, 0);
+				}
+			}
+			break;
+		default:
+			break;
+		}
+		/* Fall through */
+		if (!(ISTRUNK(i) && i->immediate && !i->use_callerid && !i->usedistinctiveringdetection)) {
+			break;
+		}
 	case ANALOG_EVENT_RINGOFFHOOK:
 		if (i->inalarm) {
 			break;
