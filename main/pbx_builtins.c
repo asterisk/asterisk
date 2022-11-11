@@ -49,11 +49,23 @@
 			<parameter name="delay">
 				<para>Asterisk will wait this number of milliseconds before returning to
 				the dialplan after answering the call.</para>
+				<para>The minimum is 500 ms. To answer immediately without waiting for media,
+				use the i option.</para>
+			</parameter>
+			<parameter name="options">
+				<optionlist>
+					<option name="i">
+						<para>Answer the channel immediately without waiting for media.</para>
+					</option>
+				</optionlist>
 			</parameter>
 		</syntax>
 		<description>
 			<para>If the call has not been answered, this application will
 			answer it. Otherwise, it has no effect on the call.</para>
+			<para>By default, Asterisk will wait for media for up to 500 ms, or
+			the user specified delay, whichever is longer. If you do not want
+			to wait for media at all, use the i option.</para>
 		</description>
 		<see-also>
 			<ref type="application">Hangup</ref>
@@ -834,6 +846,11 @@ static int pbx_builtin_answer(struct ast_channel *chan, const char *data)
 
 	if (delay < 0) {
 		delay = 0;
+	}
+
+	if (!ast_strlen_zero(args.answer_cdr) && !strcmp(args.answer_cdr, "i")) {
+		/*! \todo We will remove the nocdr stuff for 21 entirely, as part of another review. */
+		return ast_raw_answer(chan);
 	}
 
 	if (!ast_strlen_zero(args.answer_cdr) && !strcasecmp(args.answer_cdr, "nocdr")) {
