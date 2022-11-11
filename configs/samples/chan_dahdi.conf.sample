@@ -936,8 +936,13 @@ pickupgroup=1
                                                 ; target of the transfer.
 
 ;
-; Specify whether the channel should be answered immediately or if the simple
-; switch should provide dialtone, read digits, etc.
+; On FXS channels (FXO signaled), specifies whether the channel should enter the dialplan
+; immediately or if the simple switch should provide dialtone, read digits, etc.
+; On FXO channels (FXS signaled), specifies whether the call should enter the dialplan
+; immediately or if we should wait for at least one ring. This is required if
+; Caller ID or distinctive ringing is enabled. If you do not need either, you can
+; skip waiting for the first ring to begin call processing sooner.
+;
 ; Note: If immediate=yes the dialplan execution will always start at extension
 ; 's' priority 1 regardless of the dialed number!
 ;
