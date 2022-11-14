@@ -4484,15 +4484,16 @@ static void rename_file(char *sdir, int smsg, char *mailboxuser, char *mailboxco
  */
 static int remove_file(char *dir, int msgnum)
 {
-	char fn[PATH_MAX];
-	char full_fn[PATH_MAX];
+	char fn[PATH_MAX] = "";
+	char full_fn[PATH_MAX + 4]; /* Plus .txt */
 	char msgnums[80];
 
 	if (msgnum > -1) {
 		snprintf(msgnums, sizeof(msgnums), "%d", msgnum);
 		make_file(fn, sizeof(fn), dir, msgnum);
-	} else
+	} else {
 		ast_copy_string(fn, dir, sizeof(fn));
+	}
 	ast_filedelete(fn, NULL);
 	snprintf(full_fn, sizeof(full_fn), "%s.txt", fn);
 	unlink(full_fn);
