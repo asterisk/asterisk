@@ -51,8 +51,7 @@
 #   going to http://www.mpg123.de/cgi-bin/sitexplorer.cgi?/mpg123/
 #   Be sure to download mpg123-0.59r.tar.gz because it is known to
 #   work with Asterisk and hopefully isn't the release with that
-#   awful security problem.  If you're using Fedora Core 3 with
-#   Alsa like me, make linux-alsa isn't going to work.  Do make
+#   awful security problem.  If you're using Fedora Core 3 do make
 #   linux-devel and you're peachy keen.
 #
 # - You won't get nifty STDERR debug messages if you're using a

@@ -29,12 +29,6 @@
  * This section contains a (not yet complete) list of libraries that are used
  * by various parts of Asterisk, including related licensing information.
  *
- * \subsection alsa_lib ALSA Library
- * \arg <b>Library</b>: libasound
- * \arg <b>Website</b>: http://www.alsa-project.org
- * \arg <b>Used by</b>: chan_alsa
- * \arg <b>License</b>: LGPL
- *
  * \subsection openssl_lib OpenSSL
  * \arg <b>Library</b>: libcrypto, libssl
  * \arg <b>Website</b>: http://www.openssl.org
@@ -57,8 +51,7 @@
  * \arg <b>Note</b>:    Even though PortAudio is licensed under a BSD style
  *                      license, PortAudio will make use of some audio interface,
  *                      depending on how it was built.  That audio interface may
- *                      introduce additional licensing restrictions.  On Linux,
- *                      this would most commonly be ALSA: \ref alsa_lib.
+ *                      introduce additional licensing restrictions.
  *
  * \subsection rawlist Raw list of libraries that used by any part of Asterisk
  * \li c-client.a (app_voicemail with IMAP support)

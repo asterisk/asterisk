@@ -193,9 +193,6 @@
 <member name="chan_agent" displayname="Agent Proxy Channel" remove_on_change="channels/chan_agent.o channels/chan_agent.so">
         <depend>chan_local</depend>
 </member>
-<member name="chan_alsa" displayname="ALSA Console Channel Driver" remove_on_change="channels/chan_alsa.o channels/chan_alsa.so">
-	<depend>asound</depend>
-</member>
 <member name="chan_console" displayname="Console Channel Driver" remove_on_change="channels/chan_console.o channels/chan_console.so">
 	<depend>portaudio</depend>
 </member>

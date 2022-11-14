@@ -521,7 +521,6 @@ THIRD_PARTY_CONFIGURE()
 # by the --with option name (the third field),
 # to make things easier for the users.
 
-AST_EXT_LIB_SETUP([ALSA], [Advanced Linux Sound Architecture], [asound])
 AST_EXT_LIB_SETUP([BFD], [Debug symbol decoding], [bfd])
 
 # BKTR is used for backtrace support on platforms that do not
@@ -1609,8 +1608,6 @@ fi
 
 
 # do the package library checks now
-
-AST_EXT_LIB_CHECK([ALSA], [asound], [snd_pcm_open], [alsa/asoundlib.h])
 
 AST_EXT_LIB_CHECK([BFD], [bfd], [bfd_openr], [bfd.h])
 # Fedora/RedHat/CentOS require extra libraries

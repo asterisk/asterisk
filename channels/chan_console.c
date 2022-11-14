@@ -35,11 +35,9 @@
  *  - svn co https://www.portaudio.com/repos/portaudio/branches/v19-devel
  *
  * \note Since this works with any audio system that libportaudio supports,
- * including ALSA and OSS, this may someday deprecate chan_alsa and chan_oss.
- * However, before that can be done, it needs to *at least* have all of the
- * features that these other channel drivers have.  The features implemented
- * in at least one of the other console channel drivers that are not yet
- * implemented here are:
+ * including ALSA and OSS, it has come to replace the deprecated chan_alsa and
+ * chan_oss. However, the following features *at least* need to be implemented
+ * here for this to be a full replacement:
  *
  * - Set Auto-answer from the dialplan
  * - transfer CLI command

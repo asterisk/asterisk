@@ -183,9 +183,6 @@
 	<category name="MENUSELECT_CHANNELS" displayname="Channel Drivers">
 		<member name="chan_agent" displayname="Agent Proxy Channel" remove_on_change="channels/chan_agent.o channels/chan_agent.so">
 		</member>
-		<member name="chan_alsa" displayname="ALSA Console Channel Driver" remove_on_change="channels/chan_alsa.o channels/chan_alsa.so">
-	<depend>asound</depend>
-		</member>
 		<member name="chan_features" displayname="Feature Proxy Channel" remove_on_change="channels/chan_features.o channels/chan_features.so">
 		</member>
 		<member name="chan_h323" displayname="The NuFone Network's Open H.323 Channel Driver" remove_on_change="channels/chan_h323.o channels/chan_h323.so">

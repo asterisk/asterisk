@@ -31,10 +31,9 @@ autoload=yes
 ;
 ;load = res_musiconhold.so
 ;
-; Load one of: alsa, or console (portaudio).
+; Load one of: console (portaudio).
 ; By default, load chan_console only (automatically).
 ;
-noload = chan_alsa.so
 ;noload = chan_console.so
 ;
 ; Do not load res_hep and kin unless you are using HEP monitoring

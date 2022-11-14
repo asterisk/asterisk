@@ -1179,10 +1179,6 @@ PBX_BFD
 BFD_DIR
 BFD_INCLUDE
 BFD_LIB
-PBX_ALSA
-ALSA_DIR
-ALSA_INCLUDE
-ALSA_LIB
 PJPROJECT_INCLUDE
 PJPROJECT_LIB
 PBX_PJPROJECT
@@ -11115,32 +11111,6 @@ printf "%s\n" "yes" >&6; }
 # by the --with option name (the third field),
 # to make things easier for the users.
 
-
-    ALSA_DESCRIP="Advanced Linux Sound Architecture"
-    ALSA_OPTION="asound"
-    PBX_ALSA=0
-
-# Check whether --with-asound was given.
-if test ${with_asound+y}
-then :
-  withval=$with_asound;
-	case ${withval} in
-	n|no)
-	USE_ALSA=no
-	# -1 is a magic value used by menuselect to know that the package
-	# was disabled, other than 'not found'
-	PBX_ALSA=-1
-	;;
-	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} ALSA"
-	;;
-	*)
-	ALSA_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} ALSA"
-	;;
-	esac
-
-fi
 
 
 
@@ -21872,102 +21842,6 @@ fi
 
 
 # do the package library checks now
-
-
-if test "x${PBX_ALSA}" != "x1" -a "${USE_ALSA}" != "no"; then
-   pbxlibdir=""
-   # if --with-ALSA=DIR has been specified, use it.
-   if test "x${ALSA_DIR}" != "x"; then
-      if test -d ${ALSA_DIR}/lib; then
-         pbxlibdir="-L${ALSA_DIR}/lib"
-      else
-         pbxlibdir="-L${ALSA_DIR}"
-      fi
-   fi
-
-      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
-      CFLAGS="${CFLAGS} "
-      { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for snd_pcm_open in -lasound" >&5
-printf %s "checking for snd_pcm_open in -lasound... " >&6; }
-if test ${ac_cv_lib_asound_snd_pcm_open+y}
-then :
-  printf %s "(cached) " >&6
-else $as_nop
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-lasound ${pbxlibdir}  $LIBS"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-char snd_pcm_open ();
-int
-main (void)
-{
-return snd_pcm_open ();
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"
-then :
-  ac_cv_lib_asound_snd_pcm_open=yes
-else $as_nop
-  ac_cv_lib_asound_snd_pcm_open=no
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.beam \
-    conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_asound_snd_pcm_open" >&5
-printf "%s\n" "$ac_cv_lib_asound_snd_pcm_open" >&6; }
-if test "x$ac_cv_lib_asound_snd_pcm_open" = xyes
-then :
-  AST_ALSA_FOUND=yes
-else $as_nop
-  AST_ALSA_FOUND=no
-fi
-
-      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
-
-
-   # now check for the header.
-   if test "${AST_ALSA_FOUND}" = "yes"; then
-      ALSA_LIB="${pbxlibdir} -lasound "
-      # if --with-ALSA=DIR has been specified, use it.
-      if test "x${ALSA_DIR}" != "x"; then
-         ALSA_INCLUDE="-I${ALSA_DIR}/include"
-      fi
-      ALSA_INCLUDE="${ALSA_INCLUDE} "
-
-         # check for the header
-         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
-         CPPFLAGS="${CPPFLAGS} ${ALSA_INCLUDE}"
-         ac_fn_c_check_header_compile "$LINENO" "alsa/asoundlib.h" "ac_cv_header_alsa_asoundlib_h" "$ac_includes_default"
-if test "x$ac_cv_header_alsa_asoundlib_h" = xyes
-then :
-  ALSA_HEADER_FOUND=1
-else $as_nop
-  ALSA_HEADER_FOUND=0
-fi
-
-         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
-
-      if test "x${ALSA_HEADER_FOUND}" = "x0" ; then
-         ALSA_LIB=""
-         ALSA_INCLUDE=""
-      else
-
-         PBX_ALSA=1
-         cat >>confdefs.h <<_ACEOF
-#define HAVE_ALSA 1
-_ACEOF
-
-      fi
-   fi
-fi
-
 
 
 
