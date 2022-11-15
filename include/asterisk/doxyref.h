@@ -250,7 +250,7 @@
 /*!
  * \page Config_rtp RTP configuration
  * \arg Implemented in \ref rtp.c
- * Used in \ref chan_sip.c and \ref chan_mgcp.c (and various H.323 channels)
+ * Used in \ref chan_sip.c (and various H.323 channels)
  * \section rtpconf rtp.conf
  * \verbinclude rtp.conf.sample
  */

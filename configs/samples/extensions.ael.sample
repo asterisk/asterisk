@@ -423,7 +423,6 @@ context ael-default {
 //       };
 
 // 6361 => Dial(IAX2/JaneDoe,,rm);                // ring without time limit
-// 6389 => Dial(MGCP/aaln/1@192.168.0.14);
 // 6394 => Dial(Local/6275/n);                    // this will dial ${MARK}
 
 // 6275 => &ael-stdexten(6275,${MARK});           // assuming ${MARK} is something like DAHDI/2
