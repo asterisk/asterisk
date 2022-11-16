@@ -2908,6 +2908,7 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, const
 	int gotsilence = 0;             /* did we timeout for silence? */
 	char *silencestr = NULL;
 	RAII_VAR(struct ast_format *, rfmt, NULL, ao2_cleanup);
+	struct ast_silence_generator *silgen = NULL;
 
 	/* XXX EAGI FIXME XXX */
 
@@ -2985,6 +2986,10 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, const
 		ast_seekstream(fs, sample_offset, SEEK_SET);
 		ast_truncstream(fs);
 
+		if (ast_opt_transmit_silence) {
+			silgen = ast_channel_start_silence_generator(chan);
+		}
+
 		start = ast_tvnow();
 		while ((ms < 0) || ast_tvdiff_ms(ast_tvnow(), start) < ms) {
 			res = ast_waitfor(chan, ms - ast_tvdiff_ms(ast_tvnow(), start));
@@ -2993,6 +2998,8 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, const
 				ast_agi_send(agi->fd, chan, "200 result=%d (waitfor) endpos=%ld\n", res,sample_offset);
 				if (sildet)
 					ast_dsp_free(sildet);
+				if (silgen)
+					ast_channel_stop_silence_generator(chan, silgen);
 				return RESULT_FAILURE;
 			}
 			f = ast_read(chan);
@@ -3001,6 +3008,8 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, const
 				ast_agi_send(agi->fd, chan, "200 result=%d (hangup) endpos=%ld\n", -1, sample_offset);
 				if (sildet)
 					ast_dsp_free(sildet);
+				if (silgen)
+					ast_channel_stop_silence_generator(chan, silgen);
 				return RESULT_FAILURE;
 			}
 			switch(f->frametype) {
@@ -3017,6 +3026,8 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, const
 					ast_frfree(f);
 					if (sildet)
 						ast_dsp_free(sildet);
+					if (silgen)
+						ast_channel_stop_silence_generator(chan, silgen);
 					return RESULT_SUCCESS;
 				}
 				break;
@@ -3066,6 +3077,10 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, const
 		if (res)
 			ast_log(LOG_WARNING, "Unable to restore read format on '%s'\n", ast_channel_name(chan));
 		ast_dsp_free(sildet);
+	}
+
+	if (silgen) {
+		ast_channel_stop_silence_generator(chan, silgen);
 	}
 
 	return RESULT_SUCCESS;
