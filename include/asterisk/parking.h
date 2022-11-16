@@ -224,9 +224,6 @@ int ast_parking_is_exten_park(const char *context, const char *exten);
  * is very difficult to do with the new asynchronous design.  That information may
  * not be available anywhere by the time this function currently returns.
  *
- * Only, chan_skinny is known to call this function and use the exten parameter
- * for the phone display.
- *
  * \retval 0 on success
  * \retval non-zero on error
  */

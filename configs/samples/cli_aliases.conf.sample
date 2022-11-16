@@ -174,7 +174,6 @@ agi dumphtml=agi dump html
 ael debug=ael set debug
 funcdevstate list=devstate list
 sip history=sip set history on
-skinny debug=skinny set debug on
 mgcp set debug=mgcp set debug on
 abort shutdown=core abort shutdown
 stop now=core stop now

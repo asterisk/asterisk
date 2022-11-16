@@ -237,8 +237,6 @@
 <member name="chan_sip" displayname="Session Initiation Protocol (SIP)" remove_on_change="channels/chan_sip.o channels/chan_sip.so">
         <depend>chan_local</depend>
 </member>
-<member name="chan_skinny" displayname="Skinny Client Control Protocol (Skinny)" remove_on_change="channels/chan_skinny.o channels/chan_skinny.so">
-</member>
 <member name="chan_unistim" displayname="UNISTIM Protocol (USTM)" remove_on_change="channels/chan_unistim.o channels/chan_unistim.so">
 </member>
 <member name="chan_usbradio" displayname="usb Console Channel Driver" remove_on_change="channels/chan_usbradio.o channels/chan_usbradio.so">
