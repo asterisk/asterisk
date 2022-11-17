@@ -75,8 +75,8 @@
 						on networking specifics and configuration of the registrar.
 					</para></description>
 				</configOption>
-				<configOption name="contact_user">
-					<synopsis>Contact User to use in request</synopsis>
+				<configOption name="contact_user" default="s">
+					<synopsis>Contact User to use in request. If this value is not set, this defaults to 's'</synopsis>
 				</configOption>
 				<configOption name="contact_header_params">
 					<synopsis>Header parameters to place in the Contact header</synopsis>
