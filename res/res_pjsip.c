@@ -40,6 +40,7 @@
 #include "asterisk/uuid.h"
 #include "asterisk/sorcery.h"
 #include "asterisk/file.h"
+#include "asterisk/causes.h"
 #include "asterisk/cli.h"
 #include "asterisk/callerid.h"
 #include "asterisk/res_pjsip_cli.h"
@@ -2794,6 +2795,97 @@ struct pjsip_param *ast_sip_pjsip_uri_get_other_param(pjsip_uri *uri, const pj_s
 	}
 
 	return NULL;
+}
+
+/*! \brief Convert SIP hangup causes to Asterisk hangup causes */
+const int ast_sip_hangup_sip2cause(int cause)
+{
+	/* Possible values taken from causes.h */
+
+	switch(cause) {
+	case 401:       /* Unauthorized */
+		return AST_CAUSE_CALL_REJECTED;
+	case 403:       /* Not found */
+		return AST_CAUSE_CALL_REJECTED;
+	case 404:       /* Not found */
+		return AST_CAUSE_UNALLOCATED;
+	case 405:       /* Method not allowed */
+		return AST_CAUSE_INTERWORKING;
+	case 407:       /* Proxy authentication required */
+		return AST_CAUSE_CALL_REJECTED;
+	case 408:       /* No reaction */
+		return AST_CAUSE_NO_USER_RESPONSE;
+	case 409:       /* Conflict */
+		return AST_CAUSE_NORMAL_TEMPORARY_FAILURE;
+	case 410:       /* Gone */
+		return AST_CAUSE_NUMBER_CHANGED;
+	case 411:       /* Length required */
+		return AST_CAUSE_INTERWORKING;
+	case 413:       /* Request entity too large */
+		return AST_CAUSE_INTERWORKING;
+	case 414:       /* Request URI too large */
+		return AST_CAUSE_INTERWORKING;
+	case 415:       /* Unsupported media type */
+		return AST_CAUSE_INTERWORKING;
+	case 420:       /* Bad extension */
+		return AST_CAUSE_NO_ROUTE_DESTINATION;
+	case 480:       /* No answer */
+		return AST_CAUSE_NO_ANSWER;
+	case 481:       /* No answer */
+		return AST_CAUSE_INTERWORKING;
+	case 482:       /* Loop detected */
+		return AST_CAUSE_INTERWORKING;
+	case 483:       /* Too many hops */
+		return AST_CAUSE_NO_ANSWER;
+	case 484:       /* Address incomplete */
+		return AST_CAUSE_INVALID_NUMBER_FORMAT;
+	case 485:       /* Ambiguous */
+		return AST_CAUSE_UNALLOCATED;
+	case 486:       /* Busy everywhere */
+		return AST_CAUSE_BUSY;
+	case 487:       /* Request terminated */
+		return AST_CAUSE_INTERWORKING;
+	case 488:       /* No codecs approved */
+		return AST_CAUSE_BEARERCAPABILITY_NOTAVAIL;
+	case 491:       /* Request pending */
+		return AST_CAUSE_INTERWORKING;
+	case 493:       /* Undecipherable */
+		return AST_CAUSE_INTERWORKING;
+	case 500:       /* Server internal failure */
+		return AST_CAUSE_FAILURE;
+	case 501:       /* Call rejected */
+		return AST_CAUSE_FACILITY_REJECTED;
+	case 502:
+		return AST_CAUSE_DESTINATION_OUT_OF_ORDER;
+	case 503:       /* Service unavailable */
+		return AST_CAUSE_CONGESTION;
+	case 504:       /* Gateway timeout */
+		return AST_CAUSE_RECOVERY_ON_TIMER_EXPIRE;
+	case 505:       /* SIP version not supported */
+		return AST_CAUSE_INTERWORKING;
+	case 600:       /* Busy everywhere */
+		return AST_CAUSE_USER_BUSY;
+	case 603:       /* Decline */
+		return AST_CAUSE_CALL_REJECTED;
+	case 604:       /* Does not exist anywhere */
+		return AST_CAUSE_UNALLOCATED;
+	case 606:       /* Not acceptable */
+		return AST_CAUSE_BEARERCAPABILITY_NOTAVAIL;
+	default:
+		if (cause < 500 && cause >= 400) {
+			/* 4xx class error that is unknown - someting wrong with our request */
+			return AST_CAUSE_INTERWORKING;
+		} else if (cause < 600 && cause >= 500) {
+			/* 5xx class error - problem in the remote end */
+			return AST_CAUSE_CONGESTION;
+		} else if (cause < 700 && cause >= 600) {
+			/* 6xx - global errors in the 4xx class */
+			return AST_CAUSE_INTERWORKING;
+		}
+		return AST_CAUSE_NORMAL;
+	}
+	/* Never reached */
+	return 0;
 }
 
 #ifdef TEST_FRAMEWORK

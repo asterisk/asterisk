@@ -3962,7 +3962,7 @@ int ast_sip_is_uri_sip_sips(pjsip_uri *uri);
  *
  * \param uri The pjsip_uri to check
  *
- * \retva; 1 if allowed
+ * \retval 1 if allowed
  * \retval 0 if not allowed
  */
 int ast_sip_is_allowed_uri(pjsip_uri *uri);
@@ -4012,5 +4012,16 @@ struct pjsip_param *ast_sip_pjsip_uri_get_other_param(pjsip_uri *uri, const pj_s
  * \retval non zero if we should return all codecs on empty re-INVITE
  */
 unsigned int ast_sip_get_all_codecs_on_empty_reinvite(void);
+
+
+/*!
+ * \brief Convert SIP hangup causes to Asterisk hangup causes
+ *
+ * \param cause SIP cause
+ *
+ * \retval matched cause code from causes.h
+ */
+const int ast_sip_hangup_sip2cause(int cause);
+
 
 #endif /* _RES_PJSIP_H */
