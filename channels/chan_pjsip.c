@@ -2881,97 +2881,6 @@ static int chan_pjsip_sendtext(struct ast_channel *ast, const char *text)
 	return rc;
 }
 
-/*! \brief Convert SIP hangup causes to Asterisk hangup causes */
-static int hangup_sip2cause(int cause)
-{
-	/* Possible values taken from causes.h */
-
-	switch(cause) {
-	case 401:       /* Unauthorized */
-		return AST_CAUSE_CALL_REJECTED;
-	case 403:       /* Not found */
-		return AST_CAUSE_CALL_REJECTED;
-	case 404:       /* Not found */
-		return AST_CAUSE_UNALLOCATED;
-	case 405:       /* Method not allowed */
-		return AST_CAUSE_INTERWORKING;
-	case 407:       /* Proxy authentication required */
-		return AST_CAUSE_CALL_REJECTED;
-	case 408:       /* No reaction */
-		return AST_CAUSE_NO_USER_RESPONSE;
-	case 409:       /* Conflict */
-		return AST_CAUSE_NORMAL_TEMPORARY_FAILURE;
-	case 410:       /* Gone */
-		return AST_CAUSE_NUMBER_CHANGED;
-	case 411:       /* Length required */
-		return AST_CAUSE_INTERWORKING;
-	case 413:       /* Request entity too large */
-		return AST_CAUSE_INTERWORKING;
-	case 414:       /* Request URI too large */
-		return AST_CAUSE_INTERWORKING;
-	case 415:       /* Unsupported media type */
-		return AST_CAUSE_INTERWORKING;
-	case 420:       /* Bad extension */
-		return AST_CAUSE_NO_ROUTE_DESTINATION;
-	case 480:       /* No answer */
-		return AST_CAUSE_NO_ANSWER;
-	case 481:       /* No answer */
-		return AST_CAUSE_INTERWORKING;
-	case 482:       /* Loop detected */
-		return AST_CAUSE_INTERWORKING;
-	case 483:       /* Too many hops */
-		return AST_CAUSE_NO_ANSWER;
-	case 484:       /* Address incomplete */
-		return AST_CAUSE_INVALID_NUMBER_FORMAT;
-	case 485:       /* Ambiguous */
-		return AST_CAUSE_UNALLOCATED;
-	case 486:       /* Busy everywhere */
-		return AST_CAUSE_BUSY;
-	case 487:       /* Request terminated */
-		return AST_CAUSE_INTERWORKING;
-	case 488:       /* No codecs approved */
-		return AST_CAUSE_BEARERCAPABILITY_NOTAVAIL;
-	case 491:       /* Request pending */
-		return AST_CAUSE_INTERWORKING;
-	case 493:       /* Undecipherable */
-		return AST_CAUSE_INTERWORKING;
-	case 500:       /* Server internal failure */
-		return AST_CAUSE_FAILURE;
-	case 501:       /* Call rejected */
-		return AST_CAUSE_FACILITY_REJECTED;
-	case 502:
-		return AST_CAUSE_DESTINATION_OUT_OF_ORDER;
-	case 503:       /* Service unavailable */
-		return AST_CAUSE_CONGESTION;
-	case 504:       /* Gateway timeout */
-		return AST_CAUSE_RECOVERY_ON_TIMER_EXPIRE;
-	case 505:       /* SIP version not supported */
-		return AST_CAUSE_INTERWORKING;
-	case 600:       /* Busy everywhere */
-		return AST_CAUSE_USER_BUSY;
-	case 603:       /* Decline */
-		return AST_CAUSE_CALL_REJECTED;
-	case 604:       /* Does not exist anywhere */
-		return AST_CAUSE_UNALLOCATED;
-	case 606:       /* Not acceptable */
-		return AST_CAUSE_BEARERCAPABILITY_NOTAVAIL;
-	default:
-		if (cause < 500 && cause >= 400) {
-			/* 4xx class error that is unknown - someting wrong with our request */
-			return AST_CAUSE_INTERWORKING;
-		} else if (cause < 600 && cause >= 500) {
-			/* 5xx class error - problem in the remote end */
-			return AST_CAUSE_CONGESTION;
-		} else if (cause < 700 && cause >= 600) {
-			/* 6xx - global errors in the 4xx class */
-			return AST_CAUSE_INTERWORKING;
-		}
-		return AST_CAUSE_NORMAL;
-	}
-	/* Never reached */
-	return 0;
-}
-
 static void chan_pjsip_session_begin(struct ast_sip_session *session)
 {
 	RAII_VAR(struct ast_datastore *, datastore, NULL, ao2_cleanup);
@@ -3016,7 +2925,7 @@ static void chan_pjsip_session_end(struct ast_sip_session *session)
 
 	ast_set_hangupsource(session->channel, ast_channel_name(session->channel), 0);
 	if (!ast_channel_hangupcause(session->channel) && session->inv_session) {
-		int cause = hangup_sip2cause(session->inv_session->cause);
+		int cause = ast_sip_hangup_sip2cause(session->inv_session->cause);
 
 		ast_queue_hangup_with_cause(session->channel, cause);
 	} else {
@@ -3210,7 +3119,7 @@ static void chan_pjsip_incoming_response_update_cause(struct ast_sip_session *se
 	snprintf(cause_code->code, data_size - sizeof(*cause_code) + 1, "SIP %d %.*s", status.code,
 	(int) pj_strlen(&status.reason), pj_strbuf(&status.reason));
 
-	cause_code->ast_cause = hangup_sip2cause(status.code);
+	cause_code->ast_cause = ast_sip_hangup_sip2cause(status.code);
 	ast_queue_control_data(session->channel, AST_CONTROL_PVT_CAUSE_CODE, cause_code, data_size);
 	ast_channel_hangupcause_hash_set(session->channel, cause_code, data_size);
 
