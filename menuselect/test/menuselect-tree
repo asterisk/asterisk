@@ -88,10 +88,6 @@
 </member>
 <member name="app_mp3" displayname="Silly MP3 Application" remove_on_change="apps/app_mp3.o apps/app_mp3.so">
 </member>
-<member name="app_osplookup" displayname="Open Settlement Protocol Applications" remove_on_change="apps/app_osplookup.o apps/app_osplookup.so">
-	<depend>osptk</depend>
-	<depend>ssl</depend>
-</member>
 <member name="app_page" displayname="Page Multiple Phones" remove_on_change="apps/app_page.o apps/app_page.so">
 	<depend name="dahdi">DAHDI</depend>
 	<depend>app_meetme</depend>

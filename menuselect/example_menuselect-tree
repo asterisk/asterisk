@@ -77,10 +77,6 @@
 		</member>
 		<member name="app_mp3" displayname="Silly MP3 Application" remove_on_change="apps/app_mp3.o apps/app_mp3.so">
 		</member>
-		<member name="app_osplookup" displayname="Open Settlement Protocol Applications" remove_on_change="apps/app_osplookup.o apps/app_osplookup.so">
-	<depend>libosptk</depend>
-	<depend>ssl</depend>
-		</member>
 		<member name="app_page" displayname="Page Multiple Phones" remove_on_change="apps/app_page.o apps/app_page.so">
 	<depend>zaptel</depend>
 		</member>
@@ -371,10 +367,6 @@
 		</member>
 		<member name="res_odbc" displayname="ODBC Resource" remove_on_change="res/res_odbc.o res/res_odbc.so">
 	<depend>unixodbc</depend>
-		</member>
-		<member name="res_osp" displayname="Open Settlement Protocol Support" remove_on_change="res/res_osp.o res/res_osp.so">
-	<depend>libosptk</depend>
-	<depend>ssl</depend>
 		</member>
 		<member name="res_smdi" displayname="Asterisk Simplified Message Desk Interface (SMDI) Module" remove_on_change="res/res_smdi.o res/res_smdi.so">
 		</member>

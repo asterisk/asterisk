@@ -1013,10 +1013,6 @@ PBX_PGSQL
 PGSQL_DIR
 PGSQL_INCLUDE
 PGSQL_LIB
-PBX_OSPTK
-OSPTK_DIR
-OSPTK_INCLUDE
-OSPTK_LIB
 PBX_OPUSFILE
 OPUSFILE_DIR
 OPUSFILE_INCLUDE
@@ -1428,7 +1424,6 @@ with_ogg
 with_openr2
 with_opus
 with_opusfile
-with_osptk
 with_postgres
 with_beanstalk
 with_pjproject
@@ -2199,7 +2194,6 @@ Optional Packages:
   --with-openr2=PATH      use MFR2 files in PATH
   --with-opus=PATH        use Opus files in PATH
   --with-opusfile=PATH    use Opusfile files in PATH
-  --with-osptk=PATH       use OSP Toolkit files in PATH
   --with-postgres=PATH    use PostgreSQL files in PATH
   --with-beanstalk=PATH   use Beanstalk Job Queue files in PATH
   --with-pjproject=PATH   use PJPROJECT files in PATH
@@ -12845,39 +12839,6 @@ then :
 	*)
 	OPUSFILE_DIR="${withval}"
 	ac_mandatory_list="${ac_mandatory_list} OPUSFILE"
-	;;
-	esac
-
-fi
-
-
-
-
-
-
-
-
-    OSPTK_DESCRIP="OSP Toolkit"
-    OSPTK_OPTION="osptk"
-    PBX_OSPTK=0
-
-# Check whether --with-osptk was given.
-if test ${with_osptk+y}
-then :
-  withval=$with_osptk;
-	case ${withval} in
-	n|no)
-	USE_OSPTK=no
-	# -1 is a magic value used by menuselect to know that the package
-	# was disabled, other than 'not found'
-	PBX_OSPTK=-1
-	;;
-	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} OSPTK"
-	;;
-	*)
-	OSPTK_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} OSPTK"
 	;;
 	esac
 
@@ -32849,138 +32810,6 @@ if test "x$ac_cv_lib_crypt_crypt_r" = xyes
 then :
 
 printf "%s\n" "#define HAVE_CRYPT_R 1" >>confdefs.h
-
-fi
-
-
-if test "$PBX_OPENSSL" = "1";
-then
-
-	# if OSPTK has not been checked and is not excluded
-	if test "x${PBX_OSPTK}" != "x1" -a "${USE_OSPTK}" != "no"; then
-		# if --with-osptk=DIR has been specified, use it.
-		if test "x${OSPTK_DIR}" != "x"; then
-			osptk_cflags="-I${OSPTK_DIR}/include"
-			osptk_ldflags="-L${OSPTK_DIR}/lib"
-		else
-			osptk_cflags=""
-			osptk_ldflags=""
-		fi
-
-		# check for the header
-		osptk_saved_cppflags="${CPPFLAGS}"
-		CPPFLAGS="${CPPFLAGS} ${osptk_cflags}"
-		ac_fn_c_check_header_compile "$LINENO" "osp/osp.h" "ac_cv_header_osp_osp_h" "$ac_includes_default"
-if test "x$ac_cv_header_osp_osp_h" = xyes
-then :
-  osptk_header_found=yes
-else $as_nop
-  osptk_header_found=no
-fi
-
-		CPPFLAGS="${osptk_saved_cppflags}"
-
-		# check for the library
-		if test "${osptk_header_found}" = "yes"; then
-			osptk_extralibs="-lssl -lcrypto"
-
-			{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for OSPPInit in -losptk" >&5
-printf %s "checking for OSPPInit in -losptk... " >&6; }
-if test ${ac_cv_lib_osptk_OSPPInit+y}
-then :
-  printf %s "(cached) " >&6
-else $as_nop
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-losptk ${osptk_ldflags} ${osptk_extralibs} $LIBS"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-char OSPPInit ();
-int
-main (void)
-{
-return OSPPInit ();
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"
-then :
-  ac_cv_lib_osptk_OSPPInit=yes
-else $as_nop
-  ac_cv_lib_osptk_OSPPInit=no
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.beam \
-    conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_osptk_OSPPInit" >&5
-printf "%s\n" "$ac_cv_lib_osptk_OSPPInit" >&6; }
-if test "x$ac_cv_lib_osptk_OSPPInit" = xyes
-then :
-  osptk_library_found=yes
-else $as_nop
-  osptk_library_found=no
-fi
-
-
-			# check OSP Toolkit version
-			if test "${osptk_library_found}" = "yes"; then
-				{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking if OSP Toolkit version is compatible with app_osplookup" >&5
-printf %s "checking if OSP Toolkit version is compatible with app_osplookup... " >&6; }
-
-				osptk_saved_cppflags="${CPPFLAGS}"
-				CPPFLAGS="${CPPFLAGS} ${osptk_cflags}"
-				if test "$cross_compiling" = yes
-then :
-  { { printf "%s\n" "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
-printf "%s\n" "$as_me: error: in \`$ac_pwd':" >&2;}
-as_fn_error $? "cannot run test program while cross compiling
-See \`config.log' for more details" "$LINENO" 5; }
-else $as_nop
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-						#include <osp/osp.h>
-						int main(void) {
-							int ver = OSP_CLIENT_TOOLKIT_VERSION_MAJOR * 10000 + OSP_CLIENT_TOOLKIT_VERSION_MINOR * 100 + OSP_CLIENT_TOOLKIT_VERSION_BUGFIX;
-							int req = 4 * 10000 + 0 * 100 + 0;
-							return (ver < req) ? 1 : 0;
-						}
-
-_ACEOF
-if ac_fn_c_try_run "$LINENO"
-then :
-  osptk_compatible=yes
-else $as_nop
-  osptk_compatible=no
-
-fi
-rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
-  conftest.$ac_objext conftest.beam conftest.$ac_ext
-fi
-
-				CPPFLAGS="${osptk_saved_cppflags}"
-
-				if test "${osptk_compatible}" = "yes"; then
-					{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-printf "%s\n" "yes" >&6; }
-					PBX_OSPTK=1
-					OSPTK_INCLUDE="${osptk_cflags}"
-					OSPTK_LIB="${osptk_ldflags} -losptk ${osptk_extralibs}"
-
-printf "%s\n" "#define HAVE_OSPTK 1" >>confdefs.h
-
-				else
-					{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
-printf "%s\n" "no" >&6; }
-				fi
-			fi
-		fi
-	fi
 
 fi
 

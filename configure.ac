@@ -568,7 +568,6 @@ AST_EXT_LIB_SETUP([OGG], [OGG], [ogg])
 AST_EXT_LIB_SETUP([OPENR2], [MFR2], [openr2])
 AST_EXT_LIB_SETUP([OPUS], [Opus], [opus])
 AST_EXT_LIB_SETUP([OPUSFILE], [Opusfile], [opusfile])
-AST_EXT_LIB_SETUP([OSPTK], [OSP Toolkit], [osptk])
 AST_EXT_LIB_SETUP([PGSQL], [PostgreSQL], [postgres])
 AST_EXT_LIB_SETUP([BEANSTALK], [Beanstalk Job Queue], [beanstalk])
 
@@ -2683,11 +2682,6 @@ AC_SUBST(CRYPT_INCLUDE)
 # Find crypt_r support
 AC_CHECK_LIB([crypt], [crypt_r],
     [AC_DEFINE([HAVE_CRYPT_R], [1], [Define to 1 if you have the 'crypt_r' function.])])
-
-if test "$PBX_OPENSSL" = "1";
-then
-        AST_CHECK_OSPTK([4], [0], [0])
-fi
 
 AST_EXT_LIB_CHECK([SRTP], [srtp2], [srtp_init], [srtp2/srtp.h], [], [], [2])
 AST_EXT_LIB_CHECK_SHARED([SRTP], [srtp2], [srtp_init], [srtp2/srtp.h], [], [], [], [
