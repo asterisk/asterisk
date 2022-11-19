@@ -39,10 +39,10 @@
 					<synopsis>Milliseconds allowed between digit presses when entering a feature code.</synopsis>
 				</configOption>
 				<configOption name="courtesytone">
-					<synopsis>Sound to play when automon or automixmon is activated</synopsis>
+					<synopsis>Sound to play when automixmon is activated</synopsis>
 				</configOption>
 				<configOption name="recordingfailsound">
-					<synopsis>Sound to play when automon or automixmon is attempted but fails to start</synopsis>
+					<synopsis>Sound to play when automixmon is attempted but fails to start</synopsis>
 				</configOption>
 				<configOption name="transferdigittimeout" default="3">
 					<synopsis>Seconds allowed between digit presses when dialing a transfer destination</synopsis>
@@ -186,22 +186,6 @@
 						is used. The call is parked in the next available space in the parking lot.</para>
 					</description>
 				</configOption>
-				<configOption name="automon">
-					<synopsis>DTMF sequence to start or stop Monitor on a call</synopsis>
-					<description>
-						<para>This will cause the channel that pressed the DTMF sequence
-						to be monitored by the <literal>Monitor</literal> application. The
-						format for the recording is determined by the <replaceable>TOUCH_MONITOR_FORMAT</replaceable>
-						channel variable. If this variable is not specified, then <literal>wav</literal> is the
-						default. The filename is constructed in the following manner:</para>
-						<para>    prefix-timestamp-suffix.fmt</para>
-						<para>where prefix is either the value of the <replaceable>TOUCH_MONITOR_PREFIX</replaceable>
-						channel variable or <literal>auto</literal> if the variable is not set. The timestamp
-						is a UNIX timestamp. The suffix is either the value of the <replaceable>TOUCH_MONITOR</replaceable>
-						channel variable or the callerID of the channels if the variable is not set.</para>
-					</description>
-					<see-also><ref type="configOption">automixmon</ref></see-also>
-				</configOption>
 				<configOption name="automixmon">
 					<synopsis>DTMF sequence to start or stop MixMonitor on a call</synopsis>
 					<description>
@@ -216,7 +200,6 @@
 						is a UNIX timestamp. The suffix is either the value of the <replaceable>TOUCH_MIXMONITOR</replaceable>
 						channel variable or the callerID of the channels if the variable is not set.</para>
 					</description>
-					<see-also><ref type="configOption">automon</ref></see-also>
 				</configOption>
 			</configObject>
 			<configObject name="applicationmap">
@@ -352,7 +335,6 @@
 				<enumlist>
 					<enum name="atxfer"><para>Attended Transfer</para></enum>
 					<enum name="blindxfer"><para>Blind Transfer</para></enum>
-					<enum name="automon"><para>Auto Monitor</para></enum>
 					<enum name="disconnect"><para>Call Disconnect</para></enum>
 					<enum name="parkcall"><para>Park Call</para></enum>
 					<enum name="automixmon"><para>Auto MixMonitor</para></enum>
@@ -1013,8 +995,6 @@ static int featuremap_set(struct ast_featuremap_config *featuremap, const char *
 		ast_string_field_set(featuremap, blindxfer, value);
 	} else if (!strcasecmp(name, "disconnect")) {
 		ast_string_field_set(featuremap, disconnect, value);
-	} else if (!strcasecmp(name, "automon")) {
-		ast_string_field_set(featuremap, automon, value);
 	} else if (!strcasecmp(name, "atxfer")) {
 		ast_string_field_set(featuremap, atxfer, value);
 	} else if (!strcasecmp(name, "automixmon")) {
@@ -1038,8 +1018,6 @@ static int featuremap_get(struct ast_featuremap_config *featuremap, const char *
 		ast_copy_string(buf, featuremap->blindxfer, len);
 	} else if (!strcasecmp(field, "disconnect")) {
 		ast_copy_string(buf, featuremap->disconnect, len);
-	} else if (!strcasecmp(field, "automon")) {
-		ast_copy_string(buf, featuremap->automon, len);
 	} else if (!strcasecmp(field, "atxfer")) {
 		ast_copy_string(buf, featuremap->atxfer, len);
 	} else if (!strcasecmp(field, "automixmon")) {
@@ -1857,8 +1835,6 @@ static int load_config(void)
 			DEFAULT_FEATUREMAP_BLINDXFER, featuremap_handler, 0);
 	aco_option_register_custom(&cfg_info, "disconnect", ACO_EXACT, featuremap_options,
 			DEFAULT_FEATUREMAP_DISCONNECT, featuremap_handler, 0);
-	aco_option_register_custom(&cfg_info, "automon", ACO_EXACT, featuremap_options,
-			DEFAULT_FEATUREMAP_AUTOMON, featuremap_handler, 0);
 	aco_option_register_custom(&cfg_info, "atxfer", ACO_EXACT, featuremap_options,
 			DEFAULT_FEATUREMAP_ATXFER, featuremap_handler, 0);
 	aco_option_register_custom(&cfg_info, "parkcall", ACO_EXACT, featuremap_options,
@@ -1957,7 +1933,6 @@ static char *handle_feature_show(struct ast_cli_entry *e, int cmd, struct ast_cl
 	ast_cli(a->fd, HFS_FORMAT, "Pickup", DEFAULT_PICKUPEXTEN, cfg->global->pickup->pickupexten);
 	ast_cli(a->fd, HFS_FORMAT, "Blind Transfer", DEFAULT_FEATUREMAP_BLINDXFER, cfg->featuremap->blindxfer);
 	ast_cli(a->fd, HFS_FORMAT, "Attended Transfer", DEFAULT_FEATUREMAP_ATXFER, cfg->featuremap->atxfer);
-	ast_cli(a->fd, HFS_FORMAT, "One Touch Monitor", DEFAULT_FEATUREMAP_AUTOMON, cfg->featuremap->automon);
 	ast_cli(a->fd, HFS_FORMAT, "Disconnect Call", DEFAULT_FEATUREMAP_DISCONNECT, cfg->featuremap->disconnect);
 	ast_cli(a->fd, HFS_FORMAT, "Park Call", DEFAULT_FEATUREMAP_PARKCALL, cfg->featuremap->parkcall);
 	ast_cli(a->fd, HFS_FORMAT, "One Touch MixMonitor", DEFAULT_FEATUREMAP_AUTOMIXMON, cfg->featuremap->automixmon);

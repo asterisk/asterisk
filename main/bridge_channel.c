@@ -1626,8 +1626,6 @@ static void testsuite_notify_feature_success(struct ast_channel *chan, const cha
 			feature = "atxfer";
 		} else if (!strcmp(dtmf, featuremap->disconnect)) {
 			feature = "disconnect";
-		} else if (!strcmp(dtmf, featuremap->automon)) {
-			feature = "automon";
 		} else if (!strcmp(dtmf, featuremap->automixmon)) {
 			feature = "automixmon";
 		} else if (!strcmp(dtmf, featuremap->parkcall)) {

@@ -130,8 +130,6 @@
 							<enum name="ast_channel_hangup_handler_type" />
 							<enum name="ast_channel_moh_start_type" />
 							<enum name="ast_channel_moh_stop_type" />
-							<enum name="ast_channel_monitor_start_type" />
-							<enum name="ast_channel_monitor_stop_type" />
 							<enum name="ast_channel_mixmonitor_start_type" />
 							<enum name="ast_channel_mixmonitor_stop_type" />
 							<enum name="ast_channel_mixmonitor_mute_type" />

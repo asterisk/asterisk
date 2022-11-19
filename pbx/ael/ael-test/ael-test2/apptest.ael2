@@ -65,7 +65,6 @@
 	MeetMeCount(5555,var);
 	Milliwatt();
 	MixMonitor(filename,abv()V()W(),command);
-	Monitor(file.fmt,base,mb);
 	MP3Player(location);
 	MusicOnHold(class);
 	NBScat();

@@ -28,16 +28,9 @@ persistentmembers = yes
 ;autofill = no
 ;
 ; Monitor Type
-;    By setting monitor-type = MixMonitor, when specifying monitor-format
-;    to enable recording of queue member conversations, app_queue will
-;    now use the new MixMonitor application instead of Monitor so
-;    the concept of "joining/mixing" the in/out files now goes away
-;    when this is enabled. You can set the default type for all queues
-;    here, and then also change monitor-type for individual queues within
-;    queue by using the same configuration parameter within a queue
-;    configuration block. If you do not specify or comment out this option,
-;    it will default to the old 'Monitor' behavior to keep backward
-;    compatibility.
+;    monitor-type = MixMonitor is the only currently supported option.
+;    As MixMonitor mixes the audio by default, "joining/mixing" the in/out
+;    files is not necissary.
 ;
 monitor-type = MixMonitor
 ;
@@ -370,7 +363,7 @@ monitor-type = MixMonitor
 ; The announcements will be played in the order in which they are defined. After
 ; playing the last announcement, the announcements begin again from the beginning.
 ;
-; Calls may be recorded using Asterisk's monitor/MixMonitor resource
+; Calls may be recorded using Asterisk's MixMonitor resource.
 ; This can be enabled from within the Queue application, starting recording
 ; when the call is actually picked up; thus, only successful calls are
 ; recorded, and you are not recording while people are listening to MOH.
@@ -387,13 +380,9 @@ monitor-type = MixMonitor
 ; monitor-format = gsm|wav|wav49
 ;
 ; Monitor Type
-;    By setting monitor-type = MixMonitor, when specifying monitor-format
-;    to enable recording of queue member conversations, app_queue will
-;    now use the new MixMonitor application instead of Monitor so
-;    the concept of "joining/mixing" the in/out files now goes away
-;    when this is enabled. If you do not specify or comment out this option,
-;    it will default to the old 'Monitor' behavior to keep backward
-;    compatibility.
+;    monitor-type = MixMonitor is the only currently supported option.
+;    As MixMonitor mixes the audio by default, "joining/mixing" the in/out
+;    files is not necissary.
 ;
 ; monitor-type = MixMonitor
 ;
@@ -408,21 +397,15 @@ monitor-type = MixMonitor
 ; You can specify a post recording command to be executed after the end of
 ; recording by calling (from the dialplan)
 ;
-;   Set(MONITOR_EXEC=mv /var/spool/asterisk/monitor/^{MONITOR_FILENAME} /tmp/^{MONITOR_FILENAME})
-;
-; or
-;
 ;   Set(MONITOR_EXEC=mv /var/spool/asterisk/monitor/^{MIXMONITOR_FILENAME} /tmp/^{MIXMONITOR_FILENAME})
 ;
-; If you choose to use the latter, you will not be able to switch the monitor-type back to Monitor
-; without changing this in the dialplan.
 ;
 ;
 ; The command specified within the contents of MONITOR_EXEC will be executed when
 ; the recording is over. Any strings matching ^{X} will be unescaped to ${X} and
 ; all variables will be evaluated just prior to recording being started.
 ;
-; The contents of MONITOR_FILENAME will also be unescaped from ^{X} to ${X} and
+; The contents of MIXMONITOR_FILENAME will also be unescaped from ^{X} to ${X} and
 ; all variables will be evaluated just prior to recording being started.
 ;
 ; ---------------------- Queue Empty Options ----------------------------------

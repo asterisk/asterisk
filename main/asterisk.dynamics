@@ -3,7 +3,6 @@
 	*ast_agi_*;
 	*ast_beep_*;
 	*ast_smdi_*;
-	*ast_monitor_*;
 	*ast_key_get;
 	*ast_check_signature;
 	*ast_check_signature_bin;

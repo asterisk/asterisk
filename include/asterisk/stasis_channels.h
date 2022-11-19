@@ -585,22 +585,6 @@ struct stasis_message_type *ast_channel_fax_type(void);
 struct stasis_message_type *ast_channel_hangup_handler_type(void);
 
 /*!
- * \since 12
- * \brief Message type for starting monitor on a channel
- *
- * \return A stasis message type
- */
-struct stasis_message_type *ast_channel_monitor_start_type(void);
-
-/*!
- * \since 12
- * \brief Message type for stopping monitor on a channel
- *
- * \return A stasis message type
- */
-struct stasis_message_type *ast_channel_monitor_stop_type(void);
-
-/*!
  * \since 18
  * \brief Message type for starting mixmonitor on a channel
  *

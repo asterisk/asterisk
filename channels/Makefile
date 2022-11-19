@@ -19,10 +19,6 @@ all: _all
 
 include $(ASTTOPDIR)/Makefile.moddir_rules
 
-ifneq ($(findstring $(OSARCH), mingw32 cygwin ),)
-  LIBS+= -lres_monitor.so
-endif
-
 $(call MOD_ADD_C,chan_iax2,$(wildcard iax2/*.c))
 iax2/parser.o: _ASTCFLAGS+=$(call get_menuselect_cflags,MALLOC_DEBUG)
 

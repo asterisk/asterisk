@@ -2195,11 +2195,6 @@ static void ast_channel_destructor(void *obj)
 
 	ast_debug(1, "Channel %p '%s' destroying\n", chan, ast_channel_name(chan));
 
-	/* Stop monitoring */
-	if (ast_channel_monitor(chan)) {
-		ast_channel_monitor(chan)->stop(chan, 0);
-	}
-
 	/* If there is native format music-on-hold state, free it */
 	if (ast_channel_music_state(chan)) {
 		ast_moh_cleanup(chan);
@@ -2516,15 +2511,13 @@ void ast_set_hangupsource(struct ast_channel *chan, const char *source, int forc
 
 int ast_channel_has_audio_frame_or_monitor(struct ast_channel *chan)
 {
-	return ast_channel_monitor(chan)
-		|| !ast_audiohook_write_list_empty(ast_channel_audiohooks(chan))
+	return !ast_audiohook_write_list_empty(ast_channel_audiohooks(chan))
 		|| !ast_framehook_list_contains_no_active(ast_channel_framehooks(chan));
 }
 
 int ast_channel_has_hook_requiring_audio(struct ast_channel *chan)
 {
-	return ast_channel_monitor(chan)
-		|| !ast_audiohook_write_list_empty(ast_channel_audiohooks(chan))
+	return !ast_audiohook_write_list_empty(ast_channel_audiohooks(chan))
 		|| !ast_framehook_list_contains_no_active_of_type(ast_channel_framehooks(chan), AST_FRAME_VOICE);
 }
 
@@ -4164,40 +4157,6 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio, int
 				}
 			}
 
-			if (ast_channel_monitor(chan) && ast_channel_monitor(chan)->read_stream) {
-				/* XXX what does this do ? */
-#ifndef MONITOR_CONSTANT_DELAY
-				int jump = ast_channel_outsmpl(chan) - ast_channel_insmpl(chan) - 4 * f->samples;
-				if (jump >= 0) {
-					jump = calc_monitor_jump((ast_channel_outsmpl(chan) - ast_channel_insmpl(chan)),
-						ast_format_get_sample_rate(f->subclass.format),
-						ast_format_get_sample_rate(ast_channel_monitor(chan)->read_stream->fmt->format));
-					if (ast_seekstream(ast_channel_monitor(chan)->read_stream, jump, SEEK_FORCECUR) == -1) {
-						ast_log(LOG_WARNING, "Failed to perform seek in monitoring read stream, synchronization between the files may be broken\n");
-					}
-					ast_channel_insmpl_set(chan, ast_channel_insmpl(chan) + (ast_channel_outsmpl(chan) - ast_channel_insmpl(chan)) + f->samples);
-				} else {
-					ast_channel_insmpl_set(chan, ast_channel_insmpl(chan) + f->samples);
-				}
-#else
-				int jump = calc_monitor_jump((ast_channel_outsmpl(chan) - ast_channel_insmpl(chan)),
-					ast_format_get_sample_rate(f->subclass.format),
-					ast_format_get_sample_rate(ast_channel_monitor(chan)->read_stream->fmt->format));
-				if (jump - MONITOR_DELAY >= 0) {
-					if (ast_seekstream(ast_channel_monitor(chan)->read_stream, jump - f->samples, SEEK_FORCECUR) == -1) {
-						ast_log(LOG_WARNING, "Failed to perform seek in monitoring read stream, synchronization between the files may be broken\n");
-					}
-					ast_channel_insmpl(chan) += ast_channel_outsmpl(chan) - ast_channel_insmpl(chan);
-				} else {
-					ast_channel_insmpl(chan) += f->samples;
-				}
-#endif
-				if (ast_channel_monitor(chan)->state == AST_MONITOR_RUNNING) {
-					if (ast_writestream(ast_channel_monitor(chan)->read_stream, f) < 0)
-						ast_log(LOG_WARNING, "Failed to write data to channel monitor read stream\n");
-				}
-			}
-
 			if (ast_channel_readtrans(chan)
 				&& ast_format_cmp(f->subclass.format, ast_channel_rawreadformat(chan)) == AST_FORMAT_CMP_EQUAL) {
 				f = ast_translate(ast_channel_readtrans(chan), f, 1);
@@ -5437,48 +5396,6 @@ int ast_write_stream(struct ast_channel *chan, int stream_num, struct ast_frame 
 					f = cur; /* set f to be the beginning of our new list */
 				}
 				prev = cur;
-			}
-		}
-
-		/* If Monitor is running on this channel, then we have to write frames out there too */
-		/* the translator on chan->writetrans may have returned multiple frames
-		   from the single frame we passed in; if so, feed each one of them to the
-		   monitor */
-		if ((stream == default_stream) && ast_channel_monitor(chan) && ast_channel_monitor(chan)->write_stream) {
-			struct ast_frame *cur;
-
-			for (cur = f; cur; cur = AST_LIST_NEXT(cur, frame_list)) {
-			/* XXX must explain this code */
-#ifndef MONITOR_CONSTANT_DELAY
-				int jump = ast_channel_insmpl(chan) - ast_channel_outsmpl(chan) - 4 * cur->samples;
-				if (jump >= 0) {
-					jump = calc_monitor_jump((ast_channel_insmpl(chan) - ast_channel_outsmpl(chan)),
-					                         ast_format_get_sample_rate(f->subclass.format),
-					                         ast_format_get_sample_rate(ast_channel_monitor(chan)->write_stream->fmt->format));
-					if (ast_seekstream(ast_channel_monitor(chan)->write_stream, jump, SEEK_FORCECUR) == -1) {
-						ast_log(LOG_WARNING, "Failed to perform seek in monitoring write stream, synchronization between the files may be broken\n");
-					}
-					ast_channel_outsmpl_set(chan, ast_channel_outsmpl(chan) + (ast_channel_insmpl(chan) - ast_channel_outsmpl(chan)) + cur->samples);
-				} else {
-					ast_channel_outsmpl_set(chan, ast_channel_outsmpl(chan) + cur->samples);
-				}
-#else
-				int jump = calc_monitor_jump((ast_channel_insmpl(chan) - ast_channel_outsmpl(chan)),
-				                             ast_format_get_sample_rate(f->subclass.format),
-				                             ast_format_get_sample_rate(ast_channel_monitor(chan)->write_stream->fmt->format));
-				if (jump - MONITOR_DELAY >= 0) {
-					if (ast_seekstream(ast_channel_monitor(chan)->write_stream, jump - cur->samples, SEEK_FORCECUR) == -1) {
-						ast_log(LOG_WARNING, "Failed to perform seek in monitoring write stream, synchronization between the files may be broken\n");
-					}
-					ast_channel_outsmpl_set(chan, ast_channel_outsmpl(chan) + ast_channel_insmpl(chan) - ast_channel_outsmpl(chan));
-				} else {
-					ast_channel_outsmpl_set(chan, ast_channel_outsmpl(chan) + cur->samples);
-				}
-#endif
-				if (ast_channel_monitor(chan)->state == AST_MONITOR_RUNNING) {
-					if (ast_writestream(ast_channel_monitor(chan)->write_stream, cur) < 0)
-						ast_log(LOG_WARNING, "Failed to write data to channel monitor write stream\n");
-				}
 			}
 		}
 
@@ -7129,11 +7046,6 @@ static void channel_do_masquerade(struct ast_channel *original, struct ast_chann
 			ast_clear_flag(ast_channel_flags(clonechan), AST_FLAG_DISABLE_DEVSTATE_CACHE);
 		}
 	}
-
-	/* Update the type. */
-	t_pvt = ast_channel_monitor(original);
-	ast_channel_monitor_set(original, ast_channel_monitor(clonechan));
-	ast_channel_monitor_set(clonechan, t_pvt);
 
 	/* Keep the same language.  */
 	ast_channel_language_set(original, ast_channel_language(clonechan));

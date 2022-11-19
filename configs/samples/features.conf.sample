@@ -1,5 +1,5 @@
 ;
-; Sample Call Features (transfer, monitor/mixmonitor, etc) configuration
+; Sample Call Features (transfer, mixmonitor, etc) configuration
 ;
 
 ; Note: From Asterisk 12 - All parking lot configuration is now done in res_parking.conf
@@ -18,7 +18,7 @@
 ;pickupfailsound = beeperr      ; to indicate that the pickup failed (default: no sound)
 ;featuredigittimeout = 1000     ; Max time (ms) between digits for
                                 ; feature activation  (default is 1000 ms)
-;recordingfailsound = beeperr   ; indicates that a one-touch monitor or one-touch mixmonitor feature failed
+;recordingfailsound = beeperr   ; indicates that a one-touch mixmonitor feature failed
                                 ; to be applied to the call. (default: no sound)
 ;atxfernoanswertimeout = 15     ; Timeout for answer on attended transfer default is 15 seconds.
 ;atxferdropcall = no            ; If someone does an attended transfer, then hangs up before the transfer
@@ -45,7 +45,6 @@
 [featuremap]
 ;blindxfer => #1                ; Blind transfer  (default is #) -- Make sure to set the T and/or t option in the Dial() or Queue() app call!
 ;disconnect => *0               ; Disconnect  (default is *) -- Make sure to set the H and/or h option in the Dial() or Queue() app call!
-;automon => *1                  ; One Touch Record a.k.a. Touch Monitor -- Make sure to set the W and/or w option in the Dial() or Queue() app call!
 ;atxfer => *2                   ; Attended transfer  -- Make sure to set the T and/or t option in the Dial() or Queue()  app call!
 ;parkcall => #72                ; Park call (one step parking)  -- Make sure to set the K and/or k option in the Dial() app call!
 ;automixmon => *3               ; One Touch Record a.k.a. Touch MixMonitor -- Make sure to set the X and/or x option in the Dial() or Queue() app call!
@@ -109,11 +108,6 @@
 ; Set arbitrary channel variables, based upon CALLERID number (Note that the application
 ; argument contains commas)
 ;retrieveinfo => #8,peer,Set(ARRAY(CDR(mark),CDR(name))=${ODBC_FOO(${CALLERID(num)})})
-;
-;pauseMonitor   => #1,self/callee,Pausemonitor     ;Allow the callee to pause monitoring
-;                                                  ;on their channel
-;unpauseMonitor => #3,self/callee,UnPauseMonitor   ;Allow the callee to unpause monitoring
-;                                                  ;on their channel
 
 ; Dynamic Feature Groups:
 ;   Dynamic feature groups are groupings of features defined in [applicationmap]
@@ -123,5 +117,5 @@
 ; example:
 ; [myGroupName]         ; defines the group named myGroupName
 ; testfeature => #9     ; associates testfeature with the group and the keycode '#9'.
-; pauseMonitor =>       ; associates pauseMonitor with the group and uses the keycode specified
+; retrieveinfo =>       ; associates retrieveinfo with the group and uses the keycode specified
 ;                       ; in the [applicationmap].

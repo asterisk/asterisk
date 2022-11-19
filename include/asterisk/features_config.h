@@ -28,9 +28,9 @@ struct ast_channel;
  */
 struct ast_features_general_config {
 	AST_DECLARE_STRING_FIELDS(
-		/*! Sound played when automon or automixmon features are used */
+		/*! Sound played when automixmon features are used */
 		AST_STRING_FIELD(courtesytone);
-		/*! Sound played when automon or automixmon features fail when used */
+		/*! Sound played when automixmon features fail when used */
 		AST_STRING_FIELD(recordingfailsound);
 	);
 	/*! Milliseconds allowed between digit presses when entering feature code */
@@ -170,8 +170,6 @@ struct ast_featuremap_config {
 		AST_STRING_FIELD(blindxfer);
 		/*! Disconnect DTMF code */
 		AST_STRING_FIELD(disconnect);
-		/*! Automon DTMF code */
-		AST_STRING_FIELD(automon);
 		/*! Attended Transfer DTMF code */
 		AST_STRING_FIELD(atxfer);
 		/*! One-touch parking DTMF code */

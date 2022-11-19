@@ -185,7 +185,6 @@ Some examples of modules that provide C APIs (potentially among other things) ar
  - res_crypto.c
  - res_curl.c
  - res_xmpp.c
- - res_monitor.c
  - res_smdi.c
  - res_speech.c
    - provides a speech recognition engine interface.

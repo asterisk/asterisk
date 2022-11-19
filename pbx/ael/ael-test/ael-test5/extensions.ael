@@ -425,7 +425,6 @@ context apps-include {
 		app-idblock;
 		app-helpdesk;
 		app-dictate;
-		app-set-monitor;
 	};
 };
 
@@ -481,21 +480,6 @@ context app-calltrace-perform {
 
 	t => {
 		Playback(vm-goodbye);
-		Hangup;
-	};
-};
-
-context app-set-monitor {
-	*50 => {
-		Realtime(call_info,exten,${CALLERIDNUM:5},mon_set_);
-		if ("${mon_set_monitor}" = "YES") {
-			RealtimeUpdate(call_info,exten,${CALLERIDNUM:5},monitor|);
-			System(/usr/local/bin/db_update.sh call_info monitor '' exten ${CALLERIDNUM:5} &);
-		} else {
-			RealtimeUpdate(call_info,exten,${CALLERIDNUM:5},monitor,YES);
-			System(/usr/local/bin/db_update.sh call_info monitor YES exten ${CALLERIDNUM:5} &);
-		};
-		NoOp(${mon_set_monitor});
 		Hangup;
 	};
 };

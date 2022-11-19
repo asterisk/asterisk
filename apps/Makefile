@@ -58,6 +58,6 @@ app_voicemail_imap.o: _ASTCFLAGS+=$(AST_NO_FORMAT_TRUNCATION) -DIMAP_STORAGE
 app_while.o: _ASTCFLAGS+=$(AST_NO_FORMAT_TRUNCATION)
 
 ifneq ($(findstring $(OSARCH), mingw32 cygwin ),)
-  LIBS+= -lres_ael_share.so -lres_monitor.so -lres_speech.so
+  LIBS+= -lres_ael_share.so -lres_speech.so
   LIBS+= -lres_smdi.so
 endif

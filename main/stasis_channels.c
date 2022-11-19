@@ -1611,8 +1611,6 @@ STASIS_MESSAGE_TYPE_DEFN(ast_channel_fax_type);
 STASIS_MESSAGE_TYPE_DEFN(ast_channel_hangup_handler_type);
 STASIS_MESSAGE_TYPE_DEFN(ast_channel_moh_start_type);
 STASIS_MESSAGE_TYPE_DEFN(ast_channel_moh_stop_type);
-STASIS_MESSAGE_TYPE_DEFN(ast_channel_monitor_start_type);
-STASIS_MESSAGE_TYPE_DEFN(ast_channel_monitor_stop_type);
 STASIS_MESSAGE_TYPE_DEFN(ast_channel_mixmonitor_start_type);
 STASIS_MESSAGE_TYPE_DEFN(ast_channel_mixmonitor_stop_type);
 STASIS_MESSAGE_TYPE_DEFN(ast_channel_mixmonitor_mute_type);
@@ -1659,8 +1657,6 @@ static void stasis_channels_cleanup(void)
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_hangup_handler_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_moh_start_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_moh_stop_type);
-	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_monitor_start_type);
-	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_monitor_stop_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_mixmonitor_start_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_mixmonitor_stop_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_mixmonitor_mute_type);
@@ -1714,8 +1710,6 @@ int ast_stasis_channels_init(void)
 	res |= STASIS_MESSAGE_TYPE_INIT(ast_channel_hangup_handler_type);
 	res |= STASIS_MESSAGE_TYPE_INIT(ast_channel_moh_start_type);
 	res |= STASIS_MESSAGE_TYPE_INIT(ast_channel_moh_stop_type);
-	res |= STASIS_MESSAGE_TYPE_INIT(ast_channel_monitor_start_type);
-	res |= STASIS_MESSAGE_TYPE_INIT(ast_channel_monitor_stop_type);
 	res |= STASIS_MESSAGE_TYPE_INIT(ast_channel_mixmonitor_start_type);
 	res |= STASIS_MESSAGE_TYPE_INIT(ast_channel_mixmonitor_stop_type);
 	res |= STASIS_MESSAGE_TYPE_INIT(ast_channel_mixmonitor_mute_type);

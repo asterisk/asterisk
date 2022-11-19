@@ -414,7 +414,6 @@ static int setup_bridge_features_builtin(struct ast_bridge_features *features, s
 	res |= builtin_features_helper(features, chan, flags, AST_FEATURE_REDIRECT, "atxfer", AST_BRIDGE_BUILTIN_ATTENDEDTRANSFER);
 	res |= builtin_features_helper(features, chan, flags, AST_FEATURE_DISCONNECT, "disconnect", AST_BRIDGE_BUILTIN_HANGUP);
 	res |= builtin_features_helper(features, chan, flags, AST_FEATURE_PARKCALL, "parkcall", AST_BRIDGE_BUILTIN_PARKCALL);
-	res |= builtin_features_helper(features, chan, flags, AST_FEATURE_AUTOMON, "automon", AST_BRIDGE_BUILTIN_AUTOMON);
 	res |= builtin_features_helper(features, chan, flags, AST_FEATURE_AUTOMIXMON, "automixmon", AST_BRIDGE_BUILTIN_AUTOMIXMON);
 
 	return res ? -1 : 0;

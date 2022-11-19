@@ -451,32 +451,6 @@
 			</see-also>
 		</managerEventInstance>
 	</managerEvent>
-	<managerEvent language="en_US" name="MonitorStart">
-		<managerEventInstance class="EVENT_FLAG_CALL">
-			<synopsis>Raised when monitoring has started on a channel.</synopsis>
-			<syntax>
-				<channel_snapshot/>
-			</syntax>
-			<see-also>
-				<ref type="managerEvent">MonitorStop</ref>
-				<ref type="application">Monitor</ref>
-				<ref type="manager">Monitor</ref>
-			</see-also>
-		</managerEventInstance>
-	</managerEvent>
-	<managerEvent language="en_US" name="MonitorStop">
-		<managerEventInstance class="EVENT_FLAG_CALL">
-		<synopsis>Raised when monitoring has stopped on a channel.</synopsis>
-		<syntax>
-			<channel_snapshot/>
-		</syntax>
-		<see-also>
-			<ref type="managerEvent">MonitorStart</ref>
-			<ref type="application">StopMonitor</ref>
-			<ref type="manager">StopMonitor</ref>
-		</see-also>
-		</managerEventInstance>
-	</managerEvent>
 ***/
 
 /*! \brief The \ref stasis subscription returned by the forwarding of the channel topic
@@ -1160,22 +1134,6 @@ static void channel_moh_stop_cb(void *data, struct stasis_subscription *sub,
 	publish_basic_channel_event("MusicOnHoldStop", EVENT_FLAG_CALL, payload->snapshot);
 }
 
-static void channel_monitor_start_cb(void *data, struct stasis_subscription *sub,
-		struct stasis_message *message)
-{
-	struct ast_channel_blob *payload = stasis_message_data(message);
-
-	publish_basic_channel_event("MonitorStart", EVENT_FLAG_CALL, payload->snapshot);
-}
-
-static void channel_monitor_stop_cb(void *data, struct stasis_subscription *sub,
-		struct stasis_message *message)
-{
-	struct ast_channel_blob *payload = stasis_message_data(message);
-
-	publish_basic_channel_event("MonitorStop", EVENT_FLAG_CALL, payload->snapshot);
-}
-
 static void channel_mixmonitor_start_cb(void *data, struct stasis_subscription *sub,
 		struct stasis_message *message)
 {
@@ -1425,13 +1383,6 @@ int manager_channels_init(void)
 
 	ret |= stasis_message_router_add(message_router,
 		ast_channel_moh_stop_type(), channel_moh_stop_cb, NULL);
-
-	ret |= stasis_message_router_add(message_router,
-		ast_channel_monitor_start_type(), channel_monitor_start_cb,
-		NULL);
-
-	ret |= stasis_message_router_add(message_router,
-		ast_channel_monitor_stop_type(), channel_monitor_stop_cb, NULL);
 
 	ret |= stasis_message_router_add(message_router,
 		ast_channel_mixmonitor_start_type(), channel_mixmonitor_start_cb, NULL);

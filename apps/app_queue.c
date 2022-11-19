@@ -41,7 +41,6 @@
  *    - Position announcement
  *    - Abandoned/completed call counters
  *    - Failout timer passed as optional app parameter
- *    - Optional monitoring of calls, started when call is answered
  *
  * Patch Version 1.07 2003-12-24 01
  *
@@ -63,7 +62,6 @@
  */
 
 /*** MODULEINFO
-	<use type="module">res_monitor</use>
 	<support_level>core</support_level>
  ***/
 
@@ -88,7 +86,6 @@
 #include "asterisk/cli.h"
 #include "asterisk/manager.h"
 #include "asterisk/config.h"
-#include "asterisk/monitor.h"
 #include "asterisk/utils.h"
 #include "asterisk/causes.h"
 #include "asterisk/astdb.h"
@@ -221,14 +218,6 @@
 					</option>
 					<option name="T">
 						<para>Allow the <emphasis>calling</emphasis> user to transfer the call.</para>
-					</option>
-					<option name="w">
-						<para>Allow the <emphasis>called</emphasis> user to write the conversation to
-						disk via Monitor.</para>
-					</option>
-					<option name="W">
-						<para>Allow the <emphasis>calling</emphasis> user to write the conversation to
-						disk via Monitor.</para>
 					</option>
 					<option name="x">
 						<para>Allow the <emphasis>called</emphasis> user to write the conversation
@@ -1862,7 +1851,6 @@ struct call_queue {
 	int servicelevel;                   /*!< seconds setting for servicelevel*/
 	int callscompletedinsl;             /*!< Number of calls answered with servicelevel*/
 	char monfmt[8];                     /*!< Format to use when recording calls */
-	int montype;                        /*!< Monitor type  Monitor vs. MixMonitor */
 	int count;                          /*!< How many entries */
 	int maxlen;                         /*!< Max number of entries */
 	int wrapuptime;                     /*!< Wrapup Time */
@@ -2966,7 +2954,6 @@ static void init_queue(struct call_queue *q)
 	q->setqueuevar = 0;
 	q->setqueueentryvar = 0;
 	q->autofill = autofill_default;
-	q->montype = montype_default;
 	q->monfmt[0] = '\0';
 	q->reportholdtime = 0;
 	q->wrapuptime = 0;
@@ -3448,10 +3435,6 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 		}
 	} else if (!strcasecmp(param, "autofill")) {
 		q->autofill = ast_true(val);
-	} else if (!strcasecmp(param, "monitor-type")) {
-		if (!strcasecmp(val, "mixmonitor")) {
-			q->montype = 1;
-		}
 	} else if (!strcasecmp(param, "autopause")) {
 		q->autopause = autopause2int(val);
 	} else if (!strcasecmp(param, "autopausedelay")) {
@@ -6907,7 +6890,6 @@ static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_a
 	char oldcontext[AST_MAX_CONTEXT]="";
 	char queuename[256]="";
 	struct ast_channel *peer;
-	struct ast_channel *which;
 	struct callattempt *lpeer;
 	struct member *member;
 	struct ast_app *application;
@@ -6922,7 +6904,6 @@ static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_a
 	char *agiexec = NULL;
 	char *gosubexec = NULL;
 	const char *monitorfilename;
-	char tmpid[256];
 	int forwardsallowed = 1;
 	int block_connected_line = 0;
 	struct ao2_iterator memi;
@@ -6931,7 +6912,6 @@ static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_a
 	time_t starttime;
 
 	memset(&bridge_config, 0, sizeof(bridge_config));
-	tmpid[0] = 0;
 	time(&now);
 
 	/* If we've already exceeded our timeout, then just stop
@@ -7252,32 +7232,7 @@ static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_a
 
 		/* Begin Monitoring */
 		if (*qe->parent->monfmt) {
-			if (!qe->parent->montype) {
-				const char *monexec;
-				ast_debug(1, "Starting Monitor as requested.\n");
-				ast_channel_lock(qe->chan);
-				if ((monexec = pbx_builtin_getvar_helper(qe->chan, "MONITOR_EXEC")) || pbx_builtin_getvar_helper(qe->chan, "MONITOR_EXEC_ARGS")) {
-					which = qe->chan;
-					monexec = monexec ? ast_strdupa(monexec) : NULL;
-				} else {
-					which = peer;
-				}
-				ast_channel_unlock(qe->chan);
-				if (monitorfilename) {
-					ast_monitor_start(which, qe->parent->monfmt, monitorfilename, 1, X_REC_IN | X_REC_OUT, NULL);
-				} else if (qe->chan) {
-					ast_monitor_start(which, qe->parent->monfmt, ast_channel_uniqueid(qe->chan), 1, X_REC_IN | X_REC_OUT, NULL);
-				} else {
-					/* Last ditch effort -- no channel, make up something */
-					snprintf(tmpid, sizeof(tmpid), "chan-%lx", (unsigned long)ast_random());
-					ast_monitor_start(which, qe->parent->monfmt, tmpid, 1, X_REC_IN | X_REC_OUT, NULL);
-				}
-				if (!ast_strlen_zero(monexec)) {
-					ast_monitor_setjoinfiles(which, 1);
-				}
-			} else {
-				setup_mixmonitor(qe, monitorfilename);
-			}
+			setup_mixmonitor(qe, monitorfilename);
 		}
 		/* Drop out of the queue at this point, to prepare for next caller */
 		leave_queue(qe);
@@ -11802,5 +11757,4 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "True Call Queueing",
 	.unload = unload_module,
 	.reload = reload,
 	.load_pri = AST_MODPRI_DEVSTATE_CONSUMER,
-	.optional_modules = "res_monitor",
 );

@@ -4033,21 +4033,6 @@ enum AST_MONITORING_STATE {
 	AST_MONITOR_PAUSED
 };
 
-/*! Responsible for channel monitoring data */
-struct ast_channel_monitor {
-	struct ast_filestream *read_stream;
-	struct ast_filestream *write_stream;
-	char read_filename[FILENAME_MAX];
-	char write_filename[FILENAME_MAX];
-	char filename_base[FILENAME_MAX];
-	char beep_id[64];
-	int filename_changed;
-	char *format;
-	int joinfiles;
-	enum AST_MONITORING_STATE state;
-	int (*stop)(struct ast_channel *chan, int need_lock);
-};
-
 /* ACCESSOR FUNCTIONS */
 
 #define DECLARE_STRINGFIELD_SETTERS_FOR(field)	\
@@ -4168,8 +4153,6 @@ struct ast_channel *ast_channel_masq(const struct ast_channel *chan);
 void ast_channel_masq_set(struct ast_channel *chan, struct ast_channel *value);
 struct ast_channel *ast_channel_masqr(const struct ast_channel *chan);
 void ast_channel_masqr_set(struct ast_channel *chan, struct ast_channel *value);
-struct ast_channel_monitor *ast_channel_monitor(const struct ast_channel *chan);
-void ast_channel_monitor_set(struct ast_channel *chan, struct ast_channel_monitor *value);
 struct ast_filestream *ast_channel_stream(const struct ast_channel *chan);
 void ast_channel_stream_set(struct ast_channel *chan, struct ast_filestream *value);
 struct ast_filestream *ast_channel_vstream(const struct ast_channel *chan);

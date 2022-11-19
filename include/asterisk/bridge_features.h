@@ -91,12 +91,6 @@ enum ast_bridge_builtin_feature {
 	 */
 	AST_BRIDGE_BUILTIN_PARKCALL,
 	/*!
-	 * DTMF one-touch-record toggle using Monitor app.
-	 *
-	 * \note Only valid on two party bridges.
-	 */
-	AST_BRIDGE_BUILTIN_AUTOMON,
-	/*!
 	 * DTMF one-touch-record toggle using MixMonitor app.
 	 *
 	 * \note Only valid on two party bridges.
@@ -305,17 +299,12 @@ struct ast_bridge_features_attended_transfer {
 };
 
 enum ast_bridge_features_monitor {
-	/*! Toggle start/stop of Monitor/MixMonitor. */
+	/*! Toggle start/stop of MixMonitor. */
 	AUTO_MONITOR_TOGGLE,
-	/*! Start Monitor/MixMonitor if not already started. */
+	/*! Start MixMonitor if not already started. */
 	AUTO_MONITOR_START,
-	/*! Stop Monitor/MixMonitor if not already stopped. */
+	/*! Stop MixMonitor if not already stopped. */
 	AUTO_MONITOR_STOP,
-};
-
-struct ast_bridge_features_automonitor {
-	/*! Start/Stop behavior. */
-	enum ast_bridge_features_monitor start_stop;
 };
 
 struct ast_bridge_features_automixmonitor {

@@ -183,10 +183,7 @@
 			function <variable>FILTER()</variable>.</para></warning>
 		</description>
 		<see-also>
-			<ref type="application">Monitor</ref>
 			<ref type="application">StopMixMonitor</ref>
-			<ref type="application">PauseMonitor</ref>
-			<ref type="application">UnpauseMonitor</ref>
 			<ref type="function">AUDIOHOOK_INHERIT</ref>
 		</see-also>
 	</application>

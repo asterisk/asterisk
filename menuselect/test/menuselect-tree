@@ -97,7 +97,6 @@
 <member name="app_privacy" displayname="Require phone number to be entered, if no CallerID sent" remove_on_change="apps/app_privacy.o apps/app_privacy.so">
 </member>
 <member name="app_queue" displayname="True Call Queueing" remove_on_change="apps/app_queue.o apps/app_queue.so">
-	<depend>res_monitor</depend>
 </member>
 <member name="app_read" displayname="Read Variable Application" remove_on_change="apps/app_read.o apps/app_read.so">
 </member>
@@ -448,8 +447,6 @@
 	<use>openssl</use>
 </member>
 <member name="res_limit" displayname="Resource limits" remove_on_change="res/res_limit.o res/res_limit.so">
-</member>
-<member name="res_monitor" displayname="Call Monitoring Resource" remove_on_change="res/res_monitor.o res/res_monitor.so">
 </member>
 <member name="res_musiconhold" displayname="Music On Hold Resource" remove_on_change="res/res_musiconhold.o res/res_musiconhold.so">
 	<conflict>win32</conflict>

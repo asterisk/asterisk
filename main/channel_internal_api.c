@@ -94,7 +94,6 @@ struct ast_channel {
 	struct ast_cdr *cdr;				/*!< Call Detail Record */
 	struct ast_tone_zone *zone;			/*!< Tone zone as set in indications.conf or
 							 *   in the CHANNEL dialplan function */
-	struct ast_channel_monitor *monitor;		/*!< Channel monitoring */
 	ast_callid callid;			/*!< Bound call identifier pointer */
 	struct ao2_container *dialed_causes;		/*!< Contains tech-specific and Asterisk cause data from dialed channels */
 
@@ -603,14 +602,6 @@ struct ast_channel *ast_channel_masqr(const struct ast_channel *chan)
 void ast_channel_masqr_set(struct ast_channel *chan, struct ast_channel *value)
 {
 	chan->masqr = value;
-}
-struct ast_channel_monitor *ast_channel_monitor(const struct ast_channel *chan)
-{
-	return chan->monitor;
-}
-void ast_channel_monitor_set(struct ast_channel *chan, struct ast_channel_monitor *value)
-{
-	chan->monitor = value;
 }
 struct ast_filestream *ast_channel_stream(const struct ast_channel *chan)
 {

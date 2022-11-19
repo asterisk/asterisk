@@ -480,41 +480,6 @@ static void bridge_config_set_limits(struct ast_bridge_config *config, struct as
 
 /*!
  * \internal
- * \brief Check if Monitor needs to be started on a channel.
- * \since 12.0.0
- *
- * \param chan The bridge considers this channel the caller.
- * \param peer The bridge considers this channel the callee.
- */
-static void bridge_check_monitor(struct ast_channel *chan, struct ast_channel *peer)
-{
-	const char *value;
-	const char *monitor_args = NULL;
-	struct ast_channel *monitor_chan = NULL;
-
-	ast_channel_lock(chan);
-	value = pbx_builtin_getvar_helper(chan, "AUTO_MONITOR");
-	if (!ast_strlen_zero(value)) {
-		monitor_args = ast_strdupa(value);
-		monitor_chan = chan;
-	}
-	ast_channel_unlock(chan);
-	if (!monitor_chan) {
-		ast_channel_lock(peer);
-		value = pbx_builtin_getvar_helper(peer, "AUTO_MONITOR");
-		if (!ast_strlen_zero(value)) {
-			monitor_args = ast_strdupa(value);
-			monitor_chan = peer;
-		}
-		ast_channel_unlock(peer);
-	}
-	if (monitor_chan) {
-		ast_pbx_exec_application(monitor_chan, "Monitor", monitor_args);
-	}
-}
-
-/*!
- * \internal
  * \brief Send the peer channel on its way on bridge start failure.
  * \since 12.0.0
  *
@@ -549,8 +514,6 @@ static int pre_bridge_setup(struct ast_channel *chan, struct ast_channel *peer, 
 		&& ast_channel_visible_indication(peer) != AST_CONTROL_RINGING) {
 		ast_indicate(peer, AST_CONTROL_RINGING);
 	}
-
-	bridge_check_monitor(chan, peer);
 
 	set_config_flags(chan, config);
 

@@ -351,8 +351,6 @@
 		<member name="res_jabber" displayname="AJI - Asterisk JABBER Interface" remove_on_change="res/res_jabber.o res/res_jabber.so">
 	<depend>iksemel</depend>
 		</member>
-		<member name="res_monitor" displayname="Call Monitoring Resource" remove_on_change="res/res_monitor.o res/res_monitor.so">
-		</member>
 		<member name="res_musiconhold" displayname="Music On Hold Resource" remove_on_change="res/res_musiconhold.o res/res_musiconhold.so">
 	<conflict>win32</conflict>
 		</member>
