@@ -1,6 +1,6 @@
 # Version 0.0.3
 FROM centos:7
-MAINTAINER Leif Madsen <leif@leifmadsen.com>
+LABEL Leif Madsen <leif@leifmadsen.com>
 ENV REFRESHED_AT 2016-02-25
 ENV STARTDIR /tmp
 ENV RPMPATH ./out
