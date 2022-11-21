@@ -226,6 +226,16 @@
 			</enum>
 		</enumlist>
 	</info>
+	<info name="Dial_Resource" language="en_US" tech="IAX2">
+		<para>The general syntax is:</para>
+		<para><literal>Dial(IAX2/[username[:password]@]peer[:port][/exten[@context]][/options]</literal></para>
+		<para>IAX2 optionally allows modifiers to be specified after the extension.</para>
+		<enumlist>
+			<enum name="a">
+				<para>Request auto answer (supporting equipment/configuration required)</para>
+			</enum>
+		</enumlist>
+	</info>
 	<manager name="IAXpeers" language="en_US">
 		<synopsis>
 			List IAX peers.
@@ -3407,7 +3417,7 @@ static int send_packet(struct iax_frame *f)
 
 	/* Called with iaxsl held */
 	if (iaxdebug) {
-		ast_debug(3, "Sending %u on %d/%d to %s\n", f->ts, callno, iaxs[callno]->peercallno, ast_sockaddr_stringify(&iaxs[callno]->addr));
+		ast_debug(8, "Sending %u on %d/%d to %s\n", f->ts, callno, iaxs[callno]->peercallno, ast_sockaddr_stringify(&iaxs[callno]->addr));
 	}
 	if (f->transfer) {
 		iax_outputframe(f, NULL, 0, &iaxs[callno]->transfer, f->datalen - sizeof(struct ast_iax2_full_hdr));
@@ -6379,6 +6389,22 @@ static void build_rand_pad(unsigned char *buf, ssize_t len)
 	}
 }
 
+static int invalid_key(ast_aes_decrypt_key *ecx)
+{
+#ifdef HAVE_OPENSSL
+	int i;
+	for (i = 0; i < 60; i++) {
+		if (ecx->raw[i]) {
+			return 0; /* stop if we encounter anything non-zero */
+		}
+	}
+	/* if ast_aes_encrypt or ast_aes_decrypt is called, then we'll crash when calling AES_encrypt or AES_decrypt */
+	return -1;
+#else
+	return 0; /* Can't verify, but doesn't matter anyways */
+#endif
+}
+
 static void build_encryption_keys(const unsigned char *digest, struct chan_iax2_pvt *pvt)
 {
 	build_ecx_key(digest, pvt);
@@ -7375,7 +7401,7 @@ static char *handle_cli_iax2_show_registry(struct ast_cli_entry *e, int cmd, str
 	AST_LIST_TRAVERSE(&registrations, reg, entry) {
 		snprintf(host, sizeof(host), "%s", ast_sockaddr_stringify(&reg->addr));
 
-		snprintf(perceived, sizeof(perceived), "%s", ast_sockaddr_isnull(&reg->addr) ? "<Unregistered>" : ast_sockaddr_stringify(&reg->addr));
+		snprintf(perceived, sizeof(perceived), "%s", ast_sockaddr_isnull(&reg->us) ? "<Unregistered>" : ast_sockaddr_stringify(&reg->us));
 
 		ast_cli(a->fd, FORMAT, host,
 				(reg->dnsmgr) ? "Y" : "N",
@@ -7407,7 +7433,7 @@ static int manager_iax2_show_registry(struct mansession *s, const struct message
 	AST_LIST_TRAVERSE(&registrations, reg, entry) {
 		snprintf(host, sizeof(host), "%s", ast_sockaddr_stringify(&reg->addr));
 
-		snprintf(perceived, sizeof(perceived), "%s", ast_sockaddr_isnull(&reg->addr) ? "<Unregistered>" : ast_sockaddr_stringify(&reg->addr));
+		snprintf(perceived, sizeof(perceived), "%s", ast_sockaddr_isnull(&reg->us) ? "<Unregistered>" : ast_sockaddr_stringify(&reg->us));
 
 		astman_append(s,
 			"Event: RegistryEntry\r\n"
@@ -7503,7 +7529,7 @@ static int ast_cli_netstats(struct mansession *s, int fd, int limit_fmt)
 	int numchans = 0;
 	char first_message[10] = { 0, };
 	char last_message[10] = { 0, };
-#define ACN_FORMAT1 "%-20.25s %4u %4d %4d %5d %3d %5d %4d %6d %4d %4d %5d %3d %5d %4d %6d %s%s %4s%s\n"
+#define ACN_FORMAT1 "%-24.25s %4u %4d %4d %5d %3d %5d %4d %6d %4d %4d %5d %3d %5d %4d %6d %s%s %4s%s\n"
 #define ACN_FORMAT2 "%s %u %d %d %d %d %d %d %d %d %d %d %d %d %d %d %s%s %s%s\n"
 	for (x = 0; x < ARRAY_LEN(iaxs); x++) {
 		ast_mutex_lock(&iaxsl[x]);
@@ -7597,8 +7623,8 @@ static char *handle_cli_iax2_show_netstats(struct ast_cli_entry *e, int cmd, str
 	}
 	if (a->argc != 3)
 		return CLI_SHOWUSAGE;
-	ast_cli(a->fd, "                           -------- LOCAL ---------------------  -------- REMOTE --------------------\n");
-	ast_cli(a->fd, "Channel               RTT  Jit  Del  Lost   %%  Drop  OOO  Kpkts  Jit  Del  Lost   %%  Drop  OOO  Kpkts FirstMsg    LastMsg\n");
+	ast_cli(a->fd, "                                -------- LOCAL ---------------------  -------- REMOTE --------------------\n");
+	ast_cli(a->fd, "Channel                    RTT  Jit  Del  Lost   %%  Drop  OOO  Kpkts  Jit  Del  Lost   %%  Drop  OOO  Kpkts FirstMsg    LastMsg\n");
 	numchans = ast_cli_netstats(NULL, a->fd, 1);
 	ast_cli(a->fd, "%d active IAX channel%s\n", numchans, (numchans != 1) ? "s" : "");
 	return CLI_SUCCESS;
@@ -8435,7 +8461,7 @@ static int authenticate(const char *challenge, const char *secret, const char *k
 			iax_ie_append_str(ied, IAX_IE_PASSWORD, secret);
 			res = 0;
 		} else
-			ast_log(LOG_NOTICE, "No way to send secret to peer '%s' (their methods: %d)\n", ast_sockaddr_stringify_addr(addr), authmethods);
+			ast_log(LOG_WARNING, "No way to send secret to peer '%s' (their methods: %d)\n", ast_sockaddr_stringify_addr(addr), authmethods);
 	}
 	return res;
 }
@@ -8520,12 +8546,22 @@ static int authenticate_reply(struct chan_iax2_pvt *p, struct ast_sockaddr *addr
 		}
 	}
 
+	if (!(ies->authmethods & (IAX_AUTH_MD5 | IAX_AUTH_PLAINTEXT)) && (ies->authmethods & IAX_AUTH_RSA) && ast_strlen_zero(okey)) {
+		/* If the only thing available is RSA, and we don't have an outkey, we can't do it... */
+		ast_log(LOG_WARNING, "Call terminated. RSA authentication requires an outkey\n");
+		return -1;
+	}
+
 	if (ies->encmethods) {
 		if (ast_strlen_zero(p->secret) &&
 			((ies->authmethods & IAX_AUTH_RSA) || (ies->authmethods & IAX_AUTH_MD5) || (ies->authmethods & IAX_AUTH_PLAINTEXT))) {
 			ast_log(LOG_WARNING, "Call terminated. Encryption requested by peer but no secret available locally\n");
 			return -1;
 		}
+		/* Don't even THINK about trying to encrypt or decrypt anything if we don't have valid keys, for some reason... */
+		/* If either of these happens, it's our fault, not the user's. But we should abort rather than crash. */
+		ast_assert_return(!invalid_key(&p->ecx), -1);
+		ast_assert_return(!invalid_key(&p->dcx), -1);
 		ast_set_flag64(p, IAX_ENCRYPTED | IAX_KEYPOPULATED);
 	} else if (ast_test_flag64(iaxs[callno], IAX_FORCE_ENCRYPT)) {
 		ast_log(LOG_NOTICE, "Call initiated without encryption while forceencryption=yes option is set\n");
@@ -10337,7 +10373,7 @@ static int socket_process_helper(struct iax2_thread *thread)
 	}
 	if (ast_test_flag64(iaxs[fr->callno], IAX_ENCRYPTED) && !decrypted) {
 		if (decrypt_frame(fr->callno, fh, &f, &res)) {
-			ast_log(LOG_NOTICE, "Packet Decrypt Failed!\n");
+			ast_log(LOG_WARNING, "Packet Decrypt Failed!\n");
 			ast_variables_destroy(ies.vars);
 			ast_mutex_unlock(&iaxsl[fr->callno]);
 			return 1;
@@ -12007,7 +12043,7 @@ immediatedial:
 		iaxs[fr->callno]->last = fr->ts;
 #if 1
 		if (iaxdebug)
-			ast_debug(3, "For call=%d, set last=%u\n", fr->callno, fr->ts);
+			ast_debug(8, "For call=%d, set last=%u\n", fr->callno, fr->ts);
 #endif
 	}
 
@@ -14192,9 +14228,7 @@ static struct iax2_dpcache *find_cache(struct ast_channel *chan, const char *dat
 {
 	struct iax2_dpcache *dp = NULL;
 	struct timeval now = ast_tvnow();
-	int x, com[2], timeout, old = 0, outfd, doabort, callno;
-	struct ast_channel *c = NULL;
-	struct ast_frame *f = NULL;
+	int x, com[2], timeout, doabort, callno;
 
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&dpcache, dp, cache_list) {
 		if (ast_tvcmp(now, dp->expiry) > 0) {
@@ -14241,8 +14275,8 @@ static struct iax2_dpcache *find_cache(struct ast_channel *chan, const char *dat
 
 	/* By here we must have a dp */
 	if (dp->flags & CACHE_FLAG_PENDING) {
-		struct timeval start;
-		int ms;
+		int res;
+		struct pollfd pfd;
 		/* Okay, here it starts to get nasty.  We need a pipe now to wait
 		   for a reply to come back so long as it's pending */
 		for (x = 0; x < ARRAY_LEN(dp->waiters); x++) {
@@ -14263,35 +14297,31 @@ static struct iax2_dpcache *find_cache(struct ast_channel *chan, const char *dat
 		timeout = iaxdefaulttimeout * 1000;
 		/* Temporarily unlock */
 		AST_LIST_UNLOCK(&dpcache);
-		/* Defer any dtmf */
-		if (chan)
-			old = ast_channel_defer_dtmf(chan);
 		doabort = 0;
-		start = ast_tvnow();
-		while ((ms = ast_remaining_ms(start, timeout))) {
-			c = ast_waitfor_nandfds(&chan, chan ? 1 : 0, &com[0], 1, NULL, &outfd, &ms);
-			if (outfd > -1)
-				break;
-			if (!c)
-				continue;
-			if (!(f = ast_read(c))) {
-				doabort = 1;
-				break;
-			}
-			ast_frfree(f);
-		}
-		if (!ms) {
+
+		/* chan is in autoservice here, so do NOT service it here! */
+		pfd.fd = com[0];
+		pfd.events = POLLIN;
+		pfd.revents = 0;
+		/* Wait for pipe activity... if the channel hangs up, we'll catch it on the way out. */
+		res = ast_poll(&pfd, 1, timeout);
+		if (res < 0) {
+			ast_log(LOG_WARNING, "poll returned < 0: %s\n", strerror(errno));
+			return NULL;
+		} else if (!pfd.revents) {
 			ast_log(LOG_WARNING, "Timeout waiting for %s exten %s\n", data, exten);
 		}
+
+		if (ast_check_hangup(chan)) {
+			doabort = 1;
+		}
+
 		AST_LIST_LOCK(&dpcache);
 		dp->waiters[x] = -1;
 		close(com[1]);
 		close(com[0]);
 		if (doabort) {
-			/* Don't interpret anything, just abort.  Not sure what th epoint
-			  of undeferring dtmf on a hung up channel is but hey whatever */
-			if (!old && chan)
-				ast_channel_undefer_dtmf(chan);
+			/* Don't interpret anything, just abort. */
 			return NULL;
 		}
 		if (!(dp->flags & CACHE_FLAG_TIMEOUT)) {
@@ -14314,8 +14344,6 @@ static struct iax2_dpcache *find_cache(struct ast_channel *chan, const char *dat
 			}
 		}
 		/* Our caller will obtain the rest */
-		if (!old && chan)
-			ast_channel_undefer_dtmf(chan);
 	}
 	return dp;
 }

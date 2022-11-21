@@ -46,6 +46,11 @@
 
 /*** DOCUMENTATION
 	<application name="WaitForTone" language="en_US">
+		<since>
+			<version>16.21.0</version>
+			<version>18.7.0</version>
+			<version>19.0.0</version>
+		</since>
 		<synopsis>
 			Wait for tone
 		</synopsis>
@@ -94,6 +99,11 @@
 		</see-also>
 	</application>
 	<application name="ToneScan" language="en_US">
+		<since>
+			<version>16.23.0</version>
+			<version>18.9.0</version>
+			<version>19.1.0</version>
+		</since>
 		<synopsis>
 			Wait for period of time while scanning for call progress tones
 		</synopsis>
@@ -169,6 +179,11 @@
 		</see-also>
 	</application>
 	<function name="TONE_DETECT" language="en_US">
+		<since>
+			<version>16.21.0</version>
+			<version>18.7.0</version>
+			<version>19.0.0</version>
+		</since>
 		<synopsis>
 			Asynchronously detects a tone
 		</synopsis>
@@ -352,7 +367,7 @@ static int detect_callback(struct ast_audiohook *audiohook, struct ast_channel *
 		return 0;
 	}
 
-	if (!(direction == AST_AUDIOHOOK_DIRECTION_READ ? &di->rx : &di->tx)) {
+	if (!(direction == AST_AUDIOHOOK_DIRECTION_READ ? di->rx : di->tx)) {
 		return 0;
 	}
 
@@ -887,7 +902,7 @@ static int scan_exec(struct ast_channel *chan, const char *data)
 	}
 	ast_dsp_set_features(dsp, features);
 	/* all modems begin negotiating with Bell 103. An answering modem just sends mark tone, or 2225 Hz */
-	ast_dsp_set_freqmode(dsp, 2225, 400, 16, 0); /* this needs to be pretty short, or the progress tones code will thing this is voice */
+	ast_dsp_set_freqmode(dsp, 2225, 400, 16, 0); /* this needs to be pretty short, or the progress tones code will think this is voice */
 
 	if (fax) { /* fax detect uses same tone detect internals as modem and causes things to not work as intended, so use a separate DSP if needed. */
 		ast_dsp_set_features(dsp2, DSP_FEATURE_FAX_DETECT); /* fax tone */
@@ -925,8 +940,8 @@ static int scan_exec(struct ast_channel *chan, const char *data)
 				} else if (fax) {
 					char result;
 					frame2 = ast_dsp_process(chan, dsp2, frame2);
-					result = frame->subclass.integer;
-					if (result == AST_FRAME_DTMF) {
+					result = frame2->subclass.integer;
+					if (frame2->frametype == AST_FRAME_DTMF) {
 						if (result == 'e') {
 							pbx_builtin_setvar_helper(chan, "TONESCANSTATUS", "FAX");
 							match = 1;

@@ -42,6 +42,11 @@
 
 /*** DOCUMENTATION
 	<function name="SAYFILES" language="en_US">
+		<since>
+			<version>16.21.0</version>
+			<version>18.7.0</version>
+			<version>19.0.0</version>
+		</since>
 		<synopsis>
 			Returns the ampersand-delimited file names that would be played by the Say applications (e.g. SayAlpha, SayDigits).
 		</synopsis>

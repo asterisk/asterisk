@@ -1,0 +1,316 @@
+;--
+  Geolocation Profile Sample Configuration
+
+--;
+
+;--
+=======================================================================
+  Overview
+=======================================================================
+
+Geolocation information is actually comprised of two objects, a
+Location object, and a Profile object.
+
+Location objects must contain one of the following:
+
+  - Location information specified in Geographic Markup Language
+    (GML) or civicAddress formats.
+
+  - A URI that points to externally hosted location information.
+
+Profile objects contain instructions for the disposition of location
+information, an optional reference to a Location object, and updates or
+overrides to that Location object if specified.
+
+Channel drivers and the dialplan functions are responsible for
+associating Profiles to endpoints/devices and calls.  Normally, two
+profiles would be assigned to an endpoint to control behavior in each
+direction and to optionally specify location information.  One for
+incoming calls (Asterisk is the UAS) and and one for outgoing calls
+(Asterisk is the UAC).
+
+NOTE:
+
+See https://wiki.asterisk.org/wiki/display/AST/Geolocation for the most
+complete and up-to-date information on valid values for the object
+parameters and a full list of references.
+
+GENERAL CAUTION:  You must coordinate with your partners with regards
+to what location information is expected by each party and how it should
+be formatted.  An outgoing configuration mismatch for instance, could
+result in misinformation or no information being sent to an emergency
+response center or even call failure for which you are solely responsible.
+--;
+
+
+;--
+=======================================================================
+  Location Object Description
+=======================================================================
+[<location_id>]
+
+-- type (required) ----------------------------------------------------
+Defines the object type.
+type = location
+
+Must be "location" to identify this configuration section as a
+Geolocation Location object.
+
+-- format (required) --------------------------------------------------
+Sets the format used to express the location.
+format = < civicAddress | GML | URI >
+
+Values:
+civicAddress: [RFC4119] [RFC5139] [RFC5491]
+              The location information will be placed in an XML document
+              conforming to the PIDF-LO standard.
+              For chan_pjsip, this will be placed in the body of
+              outgoing INVITE messages in addition to any SDP.
+
+GML:          [RFC4119] [RFC5491] [GeoShape]
+              The location information will be placed in an XML document
+              conforming to the PIDF-LO standard.
+              For chan_pjsip, this will be placed in the body of
+              outgoing INVITE messages in addition to any SDP.
+
+URI:          [RFC6442]
+              The external URI at which the the location information
+              can be found.  For chan_pjsip, this URI will be placed
+              in a "Geolocation" header in outgoing INVITE messages.
+
+There is no default.
+
+Example:
+format = civicAddress
+
+-- location_info (required) -------------------------------------------
+The location-format-specific information describing the location.
+location_info = <location_format_specific_description>
+
+For readability, multiple "location" parameters can be specified and
+they will be concatenated into one specification.  The description may
+contain replacement variables which may be the names of common channel
+variables like ${EXTEN}, channel variables you may have added in the
+dialplan, or variables you may have specified in the profile that
+references this location object.
+
+NOTE: See https://wiki.asterisk.org/wiki/display/AST/Geolocation for the
+most complete and up-to-date information on valid values for the object
+parameters and a full list of references.
+
+WARNING: Asterisk can only validate that a particular sub-parameter
+name is valid for a particular format. It can't validate the actual
+value of the sub-parameter.
+
+Example for civicAddress:
+
+location_info = country=US
+location_info = A1="New York", A3="New York", A4=Manhattan,  
+location_info = HNO=1633, PRD=W, RD=46th, STS=Street  
+location_info = PC=10222
+
+Example for GML with replacement variables:
+
+location_info = type=Point, crs=2d, pos="${mylat} ${mylon}"
+
+Example for URI with replacement variables:
+location_info = URI=https://some.company.com?number=${phone_number}
+
+-- method (optional) --------------------------------------------------
+The method used to determine the location_info
+method = <"GPS" | "A-GPS" | "Manual" | "DHCP"
+              | "Triangulation" | "Cell" | "802.11">
+
+Example:
+method = Manual
+
+-- location_source (optional) -----------------------------------------
+Original source of the location-info.
+location_source = < FQDN >
+
+The value MUST be a FQDN.  IP addresses are specifically not
+allowed.  See RFC8787.
+
+Example:
+location_source = sip1.myserver.net
+
+-- confidence (optional) -----------------------------------------
+The confidence in the location specified.
+confidence = pdf=[ unknown | normal | rectangular ], value=<percent_confident>
+
+Please see RFC7459 for the exact description of this parameter.
+
+Example:
+confidence = pdf=normal, value=75
+
+
+-- Location Example ---------------------------------------------------
+
+[mylocation]
+type = location
+format = civicAddress
+location_info = country=US
+location_info = A1="New York", A3="New York", A4=Manhattan
+location_info = HNO=1633, PRD=W, RD=46th, STS=Street
+location_info = PC=10222
+method = Manual
+location_source = sip1.myserver.net
+
+=======================================================================
+--;
+
+
+;--
+=======================================================================
+  Profile Object Descriptions
+=======================================================================
+[<profile_id>]
+
+-- type (required) ----------------------------------------------------
+Defines the object type.
+type = profile
+
+-- profile_precedence (optional) --------------------------------------
+Sets how to reconcile incoming and configured profiles.
+
+profile_precedence = < prefer_incoming | prefer_config | discard_incoming
+    | discard_config >
+
+On an incoming call leg, "incoming" is the location description
+received in the SIP INVITE (if any) and "config" is this profile.
+
+On an outgoing call leg, "incoming" is the location description
+passed through the dialplan to this channel (if any) and "config"
+is this profile.
+
+Values:
+
+prefer_incoming:  If there's an incoming location description, use it
+                  even if there's also a configured one.
+prefer_config:    If there's a configured location description, use it
+                  even if there's also an incoming one.
+discard_incoming: Discard any incoming location description. If there's
+                  a configured one, use it.  If not, no location
+                  information is propagated.
+discard_config:   Discard any configured location description. If
+                  there's an incoming one, use it.  If not, no location
+                  information is propagated.
+
+discard_incoming is the default.
+
+Example:
+profile_precedence = prefer_config
+
+-- pidf_element (optional) --------------------------------------------
+PIDF-LO element in which to place the location description.
+
+pidf_element = < tuple | device | person >
+Default: device
+
+If the format is civicAddress or GML, this sets the PIDF element into
+which the location information will be placed.
+
+Values:
+tuple:  Places the information in a "tuple" element.
+device: Places the information in a "device" element.
+person: Places the information in a "person" element.
+
+Per [RFC5491], "device" is preferred and therefore the default.
+
+Example:
+pidf_element = tuple
+
+-- allow_routing_use (optional) ---------------------------------------
+Sets whether the "Geolocation-Routing" header is added to outgoing
+requests.
+
+allow_routing_use = < yes | no >
+Default: no
+
+Set to "yes" to indicate that servers later in the path
+can use the location information for routing purposes.  Set to "no"
+if they should not.  If this value isn't specified, no
+"Geolocation-Routing" header will be added.
+
+Example:
+allow_routing_use = yes
+
+-- location_reference (optional) --------------------------------------
+The name of an existing Location object.
+location_reference = <location_id>
+
+The location_info_refinement and location_variables parameters below can
+be used to refine the location object for this specific profile.
+
+Example:
+location_reference = "my_building"
+
+-- location_info_refinement (optional) --------------------------------
+Location info to add to that already retrieved from the location object.
+
+location_info_refinement = <location_format_specific_description>
+
+The information in the referenced Location object can be refined on a
+per-profile basis.  For example, if the referenced Location object has a
+civicAddress for a building, you could set location_refinement to add a
+floor and room just for this profile
+
+Example:
+location_info_refinement = floor=20, room=20a2
+
+-- location_variables (optional) --------------------------------------
+
+If the referenced Location object uses any replacement variables, they
+can be assigned here.  There is no need to define variables that come
+from the channel using this profile.  They get assigned automatically.
+
+location_variables = myfloor=20, myroom=222
+
+-- suppress_empty_ca_elements (optional) ------------------------------
+Sets whether empty values for Civic Address elements should be
+suppressed from the outgoing PIDF-LO document.
+
+suppress_empty_ca_elements = < yes | no >
+Default: no
+
+Setting to "yes" allows you to define a location info template
+with channel variables that may or may not exist.
+
+For example, with:
+location_info_refinement = FLR=${MyFlr}
+suppress_empty_ca_elements = no ; the default
+
+If the MyFlr channel variable weren't set, the outgoing PIDF-LO document
+would have an empty <FLR/> element in it.  If suppress_empty_ca_elements
+were set to "yes", the FLR element would be dropped from the PIDF-LO
+document altogether.
+
+-- format, location_info, location_source, method, confidence ---------
+You can specify the location object's format, location_info,
+method, location_source and confidence parameters directly on
+a profile object for simple scenarios where the location
+information isn't common with any other profiles.  This is
+mutually exclusive with setting location_reference on the
+profile.
+
+-- Profile Example ----------------------------------------------------
+
+[myprofile]
+type = profile
+location_reference = mylocation
+location_info_refinement = floor=20, room=20a2
+pidf_element = tuple
+profile_action = discard_incoming
+
+=======================================================================
+--;
+
+-- NOTE ---------------------------------------------------------------
+There are 4 built-in profiles that can be assigned to endpoints:
+  "<prefer_config>"
+  "<discard_config>"
+  "<prefer_incoming>"
+  "<discard_incoming>"
+The profiles are empty except for having their precedence
+set.
+

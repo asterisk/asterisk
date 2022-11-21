@@ -38,6 +38,11 @@
 
 /*** DOCUMENTATION
 	<function name="FRAME_DROP" language="en_US">
+		<since>
+			<version>16.21.0</version>
+			<version>18.7.0</version>
+			<version>19.0.0</version>
+		</since>
 		<synopsis>
 			Drops specific frame types in the TX or RX direction on a channel.
 		</synopsis>
@@ -86,9 +91,15 @@
 		</syntax>
 		<description>
 			<para>Examples:</para>
-			<para>exten => 1,1,Set(FRAME_DROP(TX)=DTMF_BEGIN,DTMF_END); drop only DTMF frames towards this channel.</para>
-			<para>exten => 1,1,Set(FRAME_DROP(TX)=ANSWER); drop only ANSWER CONTROL frames towards this channel.</para>
-			<para>exten => 1,1,Set(FRAME_DROP(RX)=DTMF_BEGIN,DTMF_END); drop only DTMF frames received on this channel.</para>
+			<example title="Drop only DTMF frames towards this channel">
+			exten => 1,1,Set(FRAME_DROP(TX)=DTMF_BEGIN,DTMF_END)
+			</example>
+			<example title="Drop only Answer control frames towards this channel">
+			exten => 1,1,Set(FRAME_DROP(TX)=ANSWER)
+			</example>
+			<example title="Drop only DTMF frames received on this channel">
+			exten => 1,1,Set(FRAME_DROP(RX)=DTMF_BEGIN,DTMF_END)
+			</example>
 		</description>
 	</function>
  ***/

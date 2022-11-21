@@ -137,41 +137,35 @@ EVP_PKEY *stir_shaken_read_key(const char *path, int priv)
 	return key;
 }
 
-char *stir_shaken_get_serial_number_x509(const char *path)
+char *stir_shaken_get_serial_number_x509(const char *buf, size_t buf_size)
 {
-	FILE *fp;
+	BIO *certBIO;
 	X509 *cert;
 	ASN1_INTEGER *serial;
 	BIGNUM *bignum;
 	char *serial_hex;
 	char *ret;
 
-	fp = fopen(path, "r");
-	if (!fp) {
-		ast_log(LOG_ERROR, "Failed to open file %s\n", path);
-		return NULL;
-	}
-
-	cert = PEM_read_X509(fp, NULL, NULL, NULL);
+	certBIO = BIO_new(BIO_s_mem());
+	BIO_write(certBIO, buf, buf_size);
+	cert = PEM_read_bio_X509(certBIO, NULL, NULL, NULL);
+	BIO_free(certBIO);
 	if (!cert) {
-		ast_log(LOG_ERROR, "Failed to read X.509 cert from file %s\n", path);
-		fclose(fp);
+		ast_log(LOG_ERROR, "Failed to read X.509 cert from buffer\n");
 		return NULL;
 	}
 
 	serial = X509_get_serialNumber(cert);
 	if (!serial) {
-		ast_log(LOG_ERROR, "Failed to get serial number from certificate %s\n", path);
+		ast_log(LOG_ERROR, "Failed to get serial number from certificate\n");
 		X509_free(cert);
-		fclose(fp);
 		return NULL;
 	}
 
 	bignum = ASN1_INTEGER_to_BN(serial, NULL);
 	if (bignum == NULL) {
-		ast_log(LOG_ERROR, "Failed to convert serial to bignum for certificate %s\n", path);
+		ast_log(LOG_ERROR, "Failed to convert serial to bignum for certificate\n");
 		X509_free(cert);
-		fclose(fp);
 		return NULL;
 	}
 
@@ -181,18 +175,17 @@ char *stir_shaken_get_serial_number_x509(const char *path)
 	 */
 	serial_hex = BN_bn2hex(bignum);
 	X509_free(cert);
-	fclose(fp);
 	BN_free(bignum);
 
 	if (!serial_hex) {
-		ast_log(LOG_ERROR, "Failed to convert bignum to hex for certificate %s\n", path);
+		ast_log(LOG_ERROR, "Failed to convert bignum to hex for certificate\n");
 		return NULL;
 	}
 
 	ret = ast_strdup(serial_hex);
 	OPENSSL_free(serial_hex);
 	if (!ret) {
-		ast_log(LOG_ERROR, "Failed to dup serial from openssl for certificate %s\n", path);
+		ast_log(LOG_ERROR, "Failed to dup serial from openssl for certificate\n");
 		return NULL;
 	}
 

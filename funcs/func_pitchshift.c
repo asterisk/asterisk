@@ -97,15 +97,30 @@
 		</syntax>
 		<description>
 			<para>Examples:</para>
-			<para>exten => 1,1,Set(PITCH_SHIFT(tx)=highest); raises pitch an octave </para>
-			<para>exten => 1,1,Set(PITCH_SHIFT(rx)=higher) ; raises pitch more </para>
-			<para>exten => 1,1,Set(PITCH_SHIFT(both)=high)   ; raises pitch </para>
-			<para>exten => 1,1,Set(PITCH_SHIFT(rx)=low)    ; lowers pitch </para>
-			<para>exten => 1,1,Set(PITCH_SHIFT(tx)=lower)  ; lowers pitch more </para>
-			<para>exten => 1,1,Set(PITCH_SHIFT(both)=lowest) ; lowers pitch an octave </para>
-
-			<para>exten => 1,1,Set(PITCH_SHIFT(rx)=0.8)    ; lowers pitch </para>
-			<para>exten => 1,1,Set(PITCH_SHIFT(tx)=1.5)    ; raises pitch </para>
+			<example title="Raises pitch an octave">
+			exten => 1,1,Set(PITCH_SHIFT(tx)=highest)
+			</example>
+			<example title="Raises pitch more">
+			exten => 1,1,Set(PITCH_SHIFT(rx)=higher)
+			</example>
+			<example title="Raises pitch">
+			exten => 1,1,Set(PITCH_SHIFT(both)=high)
+			</example>
+			<example title="Lowers pitch">
+			exten => 1,1,Set(PITCH_SHIFT(rx)=low)
+			</example>
+			<example title="Lowers pitch more">
+			exten => 1,1,Set(PITCH_SHIFT(tx)=lower)
+			</example>
+			<example title="Lowers pitch an octave">
+			exten => 1,1,Set(PITCH_SHIFT(both)=lowest)
+			</example>
+			<example title="Lowers pitch">
+			exten => 1,1,Set(PITCH_SHIFT(rx)=0.8)
+			</example>
+			<example title="Raises pitch">
+			exten => 1,1,Set(PITCH_SHIFT(tx)=1.5)
+			</example>
 		</description>
 	</function>
  ***/

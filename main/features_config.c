@@ -143,6 +143,9 @@
 				<configOption name="transferinvalidsound" default="privacy-incorrect">
 					<synopsis>Sound that is played when an incorrect extension is dialed and the transferer has no attempts remaining.</synopsis>
 				</configOption>
+				<configOption name="transferannouncesound" default="pbx-transfer">
+					<synopsis>Sound that is played to the transferer when a transfer is initiated. If empty, no sound will be played.</synopsis>
+				</configOption>
 			</configObject>
 			<configObject name="featuremap">
 				<synopsis>DTMF options that can be triggered during bridged calls</synopsis>
@@ -184,30 +187,34 @@
 					</description>
 				</configOption>
 				<configOption name="automon">
-					<synopsis>DTMF sequence to start or stop monitoring a call</synopsis>
+					<synopsis>DTMF sequence to start or stop Monitor on a call</synopsis>
 					<description>
 						<para>This will cause the channel that pressed the DTMF sequence
 						to be monitored by the <literal>Monitor</literal> application. The
 						format for the recording is determined by the <replaceable>TOUCH_MONITOR_FORMAT</replaceable>
 						channel variable. If this variable is not specified, then <literal>wav</literal> is the
 						default. The filename is constructed in the following manner:</para>
-
-						<para>    prefix-timestamp-filename</para>
-
+						<para>    prefix-timestamp-suffix.fmt</para>
 						<para>where prefix is either the value of the <replaceable>TOUCH_MONITOR_PREFIX</replaceable>
 						channel variable or <literal>auto</literal> if the variable is not set. The timestamp
-						is a UNIX timestamp. The filename is either the value of the <replaceable>TOUCH_MONITOR</replaceable>
+						is a UNIX timestamp. The suffix is either the value of the <replaceable>TOUCH_MONITOR</replaceable>
 						channel variable or the callerID of the channels if the variable is not set.</para>
 					</description>
+					<see-also><ref type="configOption">automixmon</ref></see-also>
 				</configOption>
 				<configOption name="automixmon">
-					<synopsis>DTMF sequence to start or stop mixmonitoring a call </synopsis>
+					<synopsis>DTMF sequence to start or stop MixMonitor on a call</synopsis>
 					<description>
-						<para>Operation of the automixmon is similar to the <literal> automon </literal>
-						feature, with the following exceptions:
-							<replaceable>TOUCH_MIXMONITOR</replaceable> is used in place of <replaceable>TOUCH_MONITOR</replaceable>
-							<replaceable>TOUCH_MIXMONITOR_FORMAT</replaceable> is used in place of <replaceable>TOUCH_MIXMONITOR</replaceable>
-							There is no equivalent for <replaceable>TOUCH_MONITOR_PREFIX</replaceable>. <literal>"auto"</literal> is always how the filename begins.</para>
+						<para>This will cause the channel that pressed the DTMF sequence
+						to be monitored by the <literal>MixMonitor</literal> application. The
+						format for the recording is determined by the <replaceable>TOUCH_MIXMONITOR_FORMAT</replaceable>
+						channel variable. If this variable is not specified, then <literal>wav</literal> is the
+						default. The filename is constructed in the following manner:</para>
+						<para>    prefix-timestamp-suffix.fmt</para>
+						<para>where prefix is either the value of the <replaceable>TOUCH_MIXMONITOR_PREFIX</replaceable>
+						channel variable or <literal>auto</literal> if the variable is not set. The timestamp
+						is a UNIX timestamp. The suffix is either the value of the <replaceable>TOUCH_MIXMONITOR</replaceable>
+						channel variable or the callerID of the channels if the variable is not set.</para>
 					</description>
 					<see-also><ref type="configOption">automon</ref></see-also>
 				</configOption>
@@ -320,6 +327,7 @@
 					<enum name="transferdialattempts"><para><xi:include xpointer="xpointer(/docs/configInfo[@name='features']/configFile[@name='features.conf']/configObject[@name='globals']/configOption[@name='transferdialattempts']/synopsis/text())" /></para></enum>
 					<enum name="transferretrysound"><para><xi:include xpointer="xpointer(/docs/configInfo[@name='features']/configFile[@name='features.conf']/configObject[@name='globals']/configOption[@name='transferretrysound']/synopsis/text())" /></para></enum>
 					<enum name="transferinvalidsound"><para><xi:include xpointer="xpointer(/docs/configInfo[@name='features']/configFile[@name='features.conf']/configObject[@name='globals']/configOption[@name='transferinvalidsound']/synopsis/text())" /></para></enum>
+					<enum name="transferannouncesound"><para><xi:include xpointer="xpointer(/docs/configInfo[@name='features']/configFile[@name='features.conf']/configObject[@name='globals']/configOption[@name='transferannouncesound']/synopsis/text())" /></para></enum>
 				</enumlist>
 			</parameter>
 		</syntax>
@@ -383,6 +391,7 @@
 #define DEFAULT_TRANSFER_DIAL_ATTEMPTS              3
 #define DEFAULT_TRANSFER_RETRY_SOUND                "pbx-invalid"
 #define DEFAULT_TRANSFER_INVALID_SOUND              "privacy-incorrect"
+#define DEFAULT_TRANSFER_ANNOUNCE_SOUND             "pbx-transfer"
 
 /*! Default pickup options */
 #define DEFAULT_PICKUPEXTEN                         "*8"
@@ -906,6 +915,8 @@ static int xfer_set(struct ast_features_xfer_config *xfer, const char *name,
 		ast_string_field_set(xfer, transferretrysound, value);
 	} else if (!strcasecmp(name, "transferinvalidsound")) {
 		ast_string_field_set(xfer, transferinvalidsound, value);
+	} else if (!strcasecmp(name, "transferannouncesound")) {
+		ast_string_field_set(xfer, transferannouncesound, value);
 	} else {
 		/* Unrecognized option */
 		res = -1;
@@ -1797,6 +1808,8 @@ static int load_config(void)
 			DEFAULT_TRANSFER_RETRY_SOUND, xfer_handler, 0);
 	aco_option_register_custom(&cfg_info, "transferinvalidsound", ACO_EXACT, global_options,
 			DEFAULT_TRANSFER_INVALID_SOUND, xfer_handler, 0);
+	aco_option_register_custom(&cfg_info, "transferannouncesound", ACO_EXACT, global_options,
+			DEFAULT_TRANSFER_ANNOUNCE_SOUND, xfer_handler, 0);
 
 	aco_option_register_custom(&cfg_info, "pickupexten", ACO_EXACT, global_options,
 			DEFAULT_PICKUPEXTEN, pickup_handler, 0);

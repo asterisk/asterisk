@@ -33,22 +33,22 @@
 
   <!ELEMENT removed_in (#PCDATA)>
 
-  <!ELEMENT application (synopsis?,syntax?,description?,see-also?)>
+  <!ELEMENT application (since?,synopsis?,syntax?,description?,see-also?)>
   <!ATTLIST application name CDATA #REQUIRED>
   <!ATTLIST application language CDATA #REQUIRED>
   <!ATTLIST application module CDATA #IMPLIED>
 
-  <!ELEMENT function (synopsis?,syntax?,description?,see-also?)>
+  <!ELEMENT function (since?,synopsis?,syntax?,description?,see-also?)>
   <!ATTLIST function name CDATA #REQUIRED>
   <!ATTLIST function language CDATA #REQUIRED>
   <!ATTLIST function module CDATA #IMPLIED>
 
-  <!ELEMENT agi (synopsis?,syntax?,description?,see-also?)>
+  <!ELEMENT agi (since?,synopsis?,syntax?,description?,see-also?)>
   <!ATTLIST agi name CDATA #REQUIRED>
   <!ATTLIST agi language CDATA #REQUIRED>
   <!ATTLIST agi module CDATA #IMPLIED>
 
-  <!ELEMENT manager (synopsis?,syntax?,description?,see-also?,responses?)>
+  <!ELEMENT manager (since?,synopsis?,syntax?,description?,see-also?,responses?)>
   <!ATTLIST manager name CDATA #REQUIRED>
   <!ATTLIST manager language CDATA #REQUIRED>
   <!ATTLIST manager module CDATA #IMPLIED>
@@ -62,17 +62,17 @@
   <!ATTLIST managerEvent language CDATA #REQUIRED>
   <!ATTLIST managerEvent module CDATA #IMPLIED>
 
-  <!ELEMENT managerEventInstance (synopsis?,syntax?,description?,see-also?)*>
+  <!ELEMENT managerEventInstance (since?,synopsis?,syntax?,description?,see-also?)*>
   <!ATTLIST managerEventInstance class CDATA #REQUIRED>
 
   <!ELEMENT configInfo (synopsis?,description?,configFile+)>
   <!ATTLIST configInfo name CDATA #REQUIRED>
   <!ATTLIST configInfo language CDATA #REQUIRED>
 
-  <!ELEMENT configFile (configObject+)>
+  <!ELEMENT configFile (configObject|xi:include)+>
   <!ATTLIST configFile name CDATA #REQUIRED>
 
-  <!ELEMENT configObject (synopsis?|description?|syntax?|see-also?|configOption)*>
+  <!ELEMENT configObject (synopsis?|description?|syntax?|see-also?|(configOption|xi:include))*>
   <!ATTLIST configObject name CDATA #REQUIRED>
 
   <!ELEMENT configOption (synopsis,description?,syntax?,see-also?)*>
@@ -101,6 +101,10 @@
   <!ELEMENT ref (#PCDATA)>
   <!ATTLIST ref type (application|function|astcli|link|manpage|filename|agi|manager|managerEvent|configOption) #REQUIRED>
   <!ATTLIST ref module CDATA #IMPLIED>
+
+  <!ELEMENT since (version+)>
+
+  <!ELEMENT version (#PCDATA)>
 
   <!ELEMENT synopsis (#PCDATA)>
 

@@ -65,6 +65,18 @@
 		<description>
 		</description>
 	</manager>
+	<manager name="DBGetTree" language="en_US">
+		<synopsis>
+			Get DB entries, optionally at a particular family/key
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Family" required="false" />
+			<parameter name="Key" required="false" />
+		</syntax>
+		<description>
+		</description>
+	</manager>
 	<manager name="DBPut" language="en_US">
 		<synopsis>
 			Put DB entry.
@@ -454,6 +466,38 @@ int ast_db_del(const char *family, const char *key)
 	return res;
 }
 
+int ast_db_del2(const char *family, const char *key)
+{
+	char fullkey[MAX_DB_FIELD];
+	char tmp[1];
+	size_t fullkey_len;
+	int mres, res = 0;
+
+	if (strlen(family) + strlen(key) + 2 > sizeof(fullkey) - 1) {
+		ast_log(LOG_WARNING, "Family and key length must be less than %zu bytes\n", sizeof(fullkey) - 3);
+		return -1;
+	}
+
+	fullkey_len = snprintf(fullkey, sizeof(fullkey), "/%s/%s", family, key);
+
+	ast_mutex_lock(&dblock);
+	if (ast_db_get(family, key, tmp, sizeof(tmp))) {
+		ast_log(LOG_WARNING, "AstDB key %s does not exist\n", fullkey);
+		res = -1;
+	} else if (sqlite3_bind_text(del_stmt, 1, fullkey, fullkey_len, SQLITE_STATIC) != SQLITE_OK) {
+		ast_log(LOG_WARNING, "Couldn't bind key to stmt: %s\n", sqlite3_errmsg(astdb));
+		res = -1;
+	} else if ((mres = sqlite3_step(del_stmt) != SQLITE_DONE)) {
+		ast_log(LOG_WARNING, "AstDB error (%s): %s\n", fullkey, sqlite3_errstr(mres));
+		res = -1;
+	}
+	sqlite3_reset(del_stmt);
+	db_sync();
+	ast_mutex_unlock(&dblock);
+
+	return res;
+}
+
 int ast_db_deltree(const char *family, const char *keytree)
 {
 	sqlite3_stmt *stmt = deltree_stmt;
@@ -475,7 +519,7 @@ int ast_db_deltree(const char *family, const char *keytree)
 
 	ast_mutex_lock(&dblock);
 	if (!ast_strlen_zero(prefix) && (sqlite3_bind_text(stmt, 1, prefix, -1, SQLITE_STATIC) != SQLITE_OK)) {
-		ast_log(LOG_WARNING, "Could bind %s to stmt: %s\n", prefix, sqlite3_errmsg(astdb));
+		ast_log(LOG_WARNING, "Couldn't bind %s to stmt: %s\n", prefix, sqlite3_errmsg(astdb));
 		res = -1;
 	} else if (sqlite3_step(stmt) != SQLITE_DONE) {
 		ast_log(LOG_WARNING, "Couldn't execute stmt: %s\n", sqlite3_errmsg(astdb));
@@ -678,9 +722,9 @@ static char *handle_cli_database_del(struct ast_cli_entry *e, int cmd, struct as
 
 	if (a->argc != 4)
 		return CLI_SHOWUSAGE;
-	res = ast_db_del(a->argv[2], a->argv[3]);
+	res = ast_db_del2(a->argv[2], a->argv[3]);
 	if (res) {
-		ast_cli(a->fd, "Database entry does not exist.\n");
+		ast_cli(a->fd, "Database entry could not be removed.\n");
 	} else {
 		ast_cli(a->fd, "Database entry removed.\n");
 	}
@@ -759,7 +803,7 @@ static char *handle_cli_database_show(struct ast_cli_entry *e, int cmd, struct a
 
 	ast_mutex_lock(&dblock);
 	if (!ast_strlen_zero(prefix) && (sqlite3_bind_text(stmt, 1, prefix, -1, SQLITE_STATIC) != SQLITE_OK)) {
-		ast_log(LOG_WARNING, "Could bind %s to stmt: %s\n", prefix, sqlite3_errmsg(astdb));
+		ast_log(LOG_WARNING, "Couldn't bind %s to stmt: %s\n", prefix, sqlite3_errmsg(astdb));
 		sqlite3_reset(stmt);
 		ast_mutex_unlock(&dblock);
 		return NULL;
@@ -807,7 +851,7 @@ static char *handle_cli_database_showkey(struct ast_cli_entry *e, int cmd, struc
 
 	ast_mutex_lock(&dblock);
 	if (!ast_strlen_zero(a->argv[2]) && (sqlite3_bind_text(showkey_stmt, 1, a->argv[2], -1, SQLITE_STATIC) != SQLITE_OK)) {
-		ast_log(LOG_WARNING, "Could bind %s to stmt: %s\n", a->argv[2], sqlite3_errmsg(astdb));
+		ast_log(LOG_WARNING, "Couldn't bind %s to stmt: %s\n", a->argv[2], sqlite3_errmsg(astdb));
 		sqlite3_reset(showkey_stmt);
 		ast_mutex_unlock(&dblock);
 		return NULL;
@@ -947,6 +991,70 @@ static int manager_dbget(struct mansession *s, const struct message *m)
 	return 0;
 }
 
+static int manager_db_tree_get(struct mansession *s, const struct message *m)
+{
+	char prefix[MAX_DB_FIELD];
+	char idText[256];
+	const char *id = astman_get_header(m,"ActionID");
+	const char *family = astman_get_header(m, "Family");
+	const char *key = astman_get_header(m, "Key");
+	sqlite3_stmt *stmt = gettree_stmt;
+
+	if (!ast_strlen_zero(family) && !ast_strlen_zero(key)) {
+		/* Family and key tree */
+		snprintf(prefix, sizeof(prefix), "/%s/%s", family, key);
+	} else if (!ast_strlen_zero(family)) {
+		/* Family only */
+		snprintf(prefix, sizeof(prefix), "/%s", family);
+	} else {
+		/* Neither */
+		prefix[0] = '\0';
+		stmt = gettree_all_stmt;
+	}
+
+	idText[0] = '\0';
+	if (!ast_strlen_zero(id)) {
+		snprintf(idText, sizeof(idText) ,"ActionID: %s\r\n", id);
+	}
+
+	ast_mutex_lock(&dblock);
+	if (!ast_strlen_zero(prefix) && (sqlite3_bind_text(stmt, 1, prefix, -1, SQLITE_STATIC) != SQLITE_OK)) {
+		ast_log(LOG_WARNING, "Couldn't bind %s to stmt: %s\n", prefix, sqlite3_errmsg(astdb));
+		sqlite3_reset(stmt);
+		ast_mutex_unlock(&dblock);
+		astman_send_error(s, m, "Unable to search database");
+		return 0;
+	}
+
+	astman_send_listack(s, m, "Result will follow", "start");
+
+	while (sqlite3_step(stmt) == SQLITE_ROW) {
+		const char *key_s, *value_s;
+		if (!(key_s = (const char *) sqlite3_column_text(stmt, 0))) {
+			ast_log(LOG_WARNING, "Skipping invalid key!\n");
+			continue;
+		}
+		if (!(value_s = (const char *) sqlite3_column_text(stmt, 1))) {
+			ast_log(LOG_WARNING, "Skipping invalid value!\n");
+			continue;
+		}
+		astman_append(s, "Event: DBGetTreeResponse\r\n"
+			"Key: %s\r\n"
+			"Val: %s\r\n"
+			"%s"
+			"\r\n",
+			key_s, value_s, idText);
+	}
+
+	sqlite3_reset(stmt);
+	ast_mutex_unlock(&dblock);
+
+	astman_send_list_complete_start(s, m, "DBGetTreeComplete", 1);
+	astman_send_list_complete_end(s);
+
+	return 0;
+}
+
 static int manager_dbdel(struct mansession *s, const struct message *m)
 {
 	const char *family = astman_get_header(m, "Family");
@@ -963,9 +1071,9 @@ static int manager_dbdel(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	res = ast_db_del(family, key);
+	res = ast_db_del2(family, key);
 	if (res)
-		astman_send_error(s, m, "Database entry not found");
+		astman_send_error(s, m, "Database entry could not be deleted");
 	else
 		astman_send_ack(s, m, "Key deleted successfully");
 
@@ -1059,6 +1167,7 @@ static void astdb_atexit(void)
 {
 	ast_cli_unregister_multiple(cli_database, ARRAY_LEN(cli_database));
 	ast_manager_unregister("DBGet");
+	ast_manager_unregister("DBGetTree");
 	ast_manager_unregister("DBPut");
 	ast_manager_unregister("DBDel");
 	ast_manager_unregister("DBDelTree");
@@ -1094,6 +1203,7 @@ int astdb_init(void)
 	ast_register_atexit(astdb_atexit);
 	ast_cli_register_multiple(cli_database, ARRAY_LEN(cli_database));
 	ast_manager_register_xml_core("DBGet", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_dbget);
+	ast_manager_register_xml_core("DBGetTree", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_db_tree_get);
 	ast_manager_register_xml_core("DBPut", EVENT_FLAG_SYSTEM, manager_dbput);
 	ast_manager_register_xml_core("DBDel", EVENT_FLAG_SYSTEM, manager_dbdel);
 	ast_manager_register_xml_core("DBDelTree", EVENT_FLAG_SYSTEM, manager_dbdeltree);

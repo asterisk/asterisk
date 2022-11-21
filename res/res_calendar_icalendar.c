@@ -245,8 +245,8 @@ static void icalendar_add_event(icalcomponent *comp, struct icaltime_span *span,
 		if (!ast_strlen_zero(event->summary)) {
 			ast_string_field_set(event, uid, event->summary);
 		} else {
-			char tmp[100];
-			snprintf(tmp, sizeof(tmp), "%ld", event->start);
+			char tmp[AST_TIME_T_LEN];
+			ast_time_t_to_string(event->start, tmp, sizeof(tmp));
 			ast_string_field_set(event, uid, tmp);
 		}
 	}
@@ -465,6 +465,7 @@ static void *ical_load_calendar(void *void_data)
 	pvt->session = ne_session_create(pvt->uri.scheme, pvt->uri.host, pvt->uri.port);
 	ne_redirect_register(pvt->session);
 	ne_set_server_auth(pvt->session, auth_credentials, pvt);
+	ne_set_useragent(pvt->session, "Asterisk");
 	if (!strcasecmp(pvt->uri.scheme, "https")) {
 		ne_ssl_trust_default_ca(pvt->session);
 	}

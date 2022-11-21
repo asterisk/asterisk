@@ -177,6 +177,35 @@
 			<para>This application will Accept the R2 call either with charge or no charge.</para>
 		</description>
 	</application>
+	<function name="POLARITY" language="en_US">
+		<synopsis>
+			Set or get the polarity of a DAHDI channel.
+		</synopsis>
+		<syntax />
+		<description>
+			<para>The POLARITY function can be used to set the polarity of a DAHDI channel.</para>
+			<para>Applies only to FXS channels (using FXO signalling) with supporting hardware.</para>
+			<para>The polarity can be set to the following numeric or named values:</para>
+			<enumlist>
+				<enum name="0" />
+				<enum name="idle" />
+				<enum name="1" />
+				<enum name="reverse" />
+			</enumlist>
+			<para>However, when read, the function will always return 0 or 1.</para>
+			<example title="Set idle polarity">
+			same => n,Set(POLARITY()=0)
+			</example>
+			<example title="Set reverse polarity">
+			same => n,NoOp(Current Polarity: ${POLARITY()})
+			same => n,Set(POLARITY()=reverse)
+			same => n,NoOp(New Polarity: ${POLARITY()})
+			</example>
+			<example title="Reverse the polarity from whatever it is currently">
+			same => n,Set(POLARITY()=${IF($[ "${POLARITY()}" = "1" ]?0:1)})
+			</example>
+		</description>
+	</function>
 	<info name="CHANNEL" language="en_US" tech="DAHDI">
 		<enumlist>
 			<enum name="dahdi_channel">
@@ -233,6 +262,59 @@
 				<para>	<literal>voice</literal>	Voice mode (returns from FAX mode, reverting the changes that were made)</para>
 			</enum>
 		</enumlist>
+	</info>
+	<info name="Dial_Resource" language="en_US" tech="DAHDI">
+		<para>DAHDI allows several modifiers to be specified as part of the resource.</para>
+		<para>The general syntax is :</para>
+		<para><literal>Dial(DAHDI/pseudo[/extension])</literal></para>
+		<para><literal>Dial(DAHDI/&lt;channel#&gt;[c|r&lt;cadence#&gt;|d][/extension])</literal></para>
+		<para><literal>Dial(DAHDI/(g|G|r|R)&lt;group#(0-63)&gt;[c|r&lt;cadence#&gt;|d][/extension])</literal></para>
+		<para>The following modifiers may be used before the channel number:</para>
+		<enumlist>
+		<enum name="g">
+			<para>Search forward, dialing on first available channel in group (lowest to highest).</para>
+		</enum>
+		<enum name="G">
+			<para>Search backward, dialing on first available channel in group (highest to lowest).</para>
+		</enum>
+		<enum name="r">
+			<para>Round robin search forward, picking up from where last left off (lowest to highest).</para>
+		</enum>
+		<enum name="R">
+			<para>Round robin search backward, picking up from where last left off (highest to lowest).</para>
+		</enum>
+		</enumlist>
+		<para>The following modifiers may be used after the channel number:</para>
+		<enumlist>
+		<enum name="c">
+			<para>Wait for DTMF digit <literal>#</literal> before providing answer supervision.</para>
+			<para>This can be useful on outbound calls via FXO ports, as otherwise
+			they would indicate answer immediately.</para>
+		</enum>
+		<enum name="d">
+			<para>Force bearer capability for ISDN/SS7 call to digital.</para>
+		</enum>
+		<enum name="i">
+			<para>ISDN span channel restriction.</para>
+			<para>Used by CC to ensure that the CC recall goes out the same span.
+			Also to make ISDN channel names dialable when the sequence number
+			is stripped off.  (Used by DTMF attended transfer feature.)</para>
+		</enum>
+		<enum name="r">
+			<para>Specifies the distinctive ring cadence number to use immediately after
+			specifying this option. There are 4 default built-in cadences, and up to 24
+			total cadences may be configured.</para>
+		</enum>
+		</enumlist>
+		<example title="Dial 555-1212 on first available channel in group 1, searching from highest to lowest">
+		same => n,Dial(DAHDI/g1/5551212)
+		</example>
+		<example title="Ringing FXS channel 4 with ring cadence 2">
+		same => n,Dial(DAHDI/4r2)
+		</example>
+		<example title="Dial 555-1212 on channel 3 and require answer confirmation">
+		same => n,Dial(DAHDI/3c/5551212)
+		</example>
 	</info>
 	<manager name="DAHDITransfer" language="en_US">
 		<synopsis>
@@ -1560,19 +1642,29 @@ static int my_send_callerid(void *pvt, int cwcid, struct ast_party_caller *calle
 	}
 
 	if ((p->cidspill = ast_malloc(MAX_CALLERID_SIZE))) {
+		int pres = ast_party_id_presentation(&caller->id);
 		if (cwcid == 0) {
-			p->cidlen = ast_callerid_generate(p->cidspill,
+			p->cidlen = ast_callerid_full_generate(p->cidspill,
 				caller->id.name.str,
 				caller->id.number.str,
+				NULL,
+				-1,
+				pres,
+				0,
+				CID_TYPE_MDMF,
 				AST_LAW(p));
 		} else {
 			ast_verb(3, "CPE supports Call Waiting Caller*ID.  Sending '%s/%s'\n",
 				caller->id.name.str, caller->id.number.str);
 			p->callwaitcas = 0;
 			p->cidcwexpire = 0;
-			p->cidlen = ast_callerid_callwaiting_generate(p->cidspill,
+			p->cidlen = ast_callerid_callwaiting_full_generate(p->cidspill,
 				caller->id.name.str,
 				caller->id.number.str,
+				NULL,
+				-1,
+				pres,
+				0,
 				AST_LAW(p));
 			p->cidlen += READ_SIZE * 4;
 		}
@@ -2641,6 +2733,86 @@ static void my_hangup_polarityswitch(void *pvt)
 	}
 }
 
+/*! \brief Return DAHDI pivot if channel is FXO signalled */
+static struct dahdi_pvt *fxo_pvt(struct ast_channel *chan)
+{
+	int res;
+	struct dahdi_params dahdip;
+	struct dahdi_pvt *pvt = NULL;
+
+	if (strcasecmp(ast_channel_tech(chan)->type, "DAHDI")) {
+		ast_log(LOG_WARNING, "%s is not a DAHDI channel\n", ast_channel_name(chan));
+		return NULL;
+	}
+
+	memset(&dahdip, 0, sizeof(dahdip));
+	res = ioctl(ast_channel_fd(chan, 0), DAHDI_GET_PARAMS, &dahdip);
+
+	if (res) {
+		ast_log(LOG_WARNING, "Unable to get parameters of %s: %s\n", ast_channel_name(chan), strerror(errno));
+		return NULL;
+	}
+	if (!(dahdip.sigtype & __DAHDI_SIG_FXO)) {
+		ast_log(LOG_WARNING, "%s is not FXO signalled\n", ast_channel_name(chan));
+		return NULL;
+	}
+
+	pvt = ast_channel_tech_pvt(chan);
+	if (!dahdi_analog_lib_handles(pvt->sig, 0, 0)) {
+		ast_log(LOG_WARNING, "Channel signalling is not analog");
+		return NULL;
+	}
+
+	return pvt;
+}
+
+static int polarity_read(struct ast_channel *chan, const char *cmd, char *data, char *buffer, size_t buflen)
+{
+	struct dahdi_pvt *pvt;
+
+	pvt = fxo_pvt(chan);
+	if (!pvt) {
+		return -1;
+	}
+
+	snprintf(buffer, buflen, "%d", pvt->polarity);
+
+	return 0;
+}
+
+static int polarity_write(struct ast_channel *chan, const char *cmd, char *data, const char *value)
+{
+	struct dahdi_pvt *pvt;
+	int polarity;
+
+	pvt = fxo_pvt(chan);
+	if (!pvt) {
+		return -1;
+	}
+
+	if (!strcasecmp(value, "idle")) {
+		polarity = POLARITY_IDLE;
+	} else if (!strcasecmp(value, "reverse")) {
+		polarity = POLARITY_REV;
+	} else {
+		polarity = atoi(value);
+	}
+
+	if (polarity != POLARITY_IDLE && polarity != POLARITY_REV) {
+		ast_log(LOG_WARNING, "Invalid polarity: '%s'\n", value);
+		return -1;
+	}
+
+	my_set_polarity(pvt, polarity);
+	return 0;
+}
+
+static struct ast_custom_function polarity_function = {
+	.name = "POLARITY",
+	.write = polarity_write,
+	.read = polarity_read,
+};
+
 static int my_start(void *pvt)
 {
 	struct dahdi_pvt *p = pvt;
@@ -3410,7 +3582,7 @@ struct analog_callback analog_callbacks =
 };
 
 /*! Round robin search locations. */
-static struct dahdi_pvt *round_robin[32];
+static struct dahdi_pvt *round_robin[64]; /* groups can range from 0-63 */
 
 int _dahdi_get_index(struct ast_channel *ast, struct dahdi_pvt *p, int nullok, const char *fname, unsigned long line)
 {
@@ -3943,7 +4115,7 @@ static void dahdi_r2_on_context_log(openr2_context_t *r2context, openr2_log_leve
 {
 #define CONTEXT_TAG "Context - "
 	char logmsg[256];
-	char completemsg[sizeof(logmsg) + sizeof(CONTEXT_TAG) - 1];
+	char completemsg[sizeof(logmsg) * 2];
 	vsnprintf(logmsg, sizeof(logmsg), fmt, ap);
 	snprintf(completemsg, sizeof(completemsg), CONTEXT_TAG "%s", logmsg);
 	dahdi_r2_write_log(level, completemsg);
@@ -3956,10 +4128,11 @@ static void dahdi_r2_on_chan_log(openr2_chan_t *r2chan, openr2_log_level_t level
 {
 #define CHAN_TAG "Chan "
 	char logmsg[256];
-	char completemsg[sizeof(logmsg) + sizeof(CHAN_TAG) - 1];
+	char completemsg[sizeof(logmsg) * 2];
 	vsnprintf(logmsg, sizeof(logmsg), fmt, ap);
 	snprintf(completemsg, sizeof(completemsg), CHAN_TAG "%d - %s", openr2_chan_get_number(r2chan), logmsg);
 	dahdi_r2_write_log(level, completemsg);
+#undef CHAN_TAG
 }
 
 static int dahdi_r2_on_dnis_digit_received(openr2_chan_t *r2chan, char digit)
@@ -5974,7 +6147,9 @@ static int dahdi_hangup(struct ast_channel *ast)
 
 	ast_mutex_lock(&p->lock);
 	p->exten[0] = '\0';
-	if (dahdi_analog_lib_handles(p->sig, p->radio, p->oprmode)) {
+	/* Always use sig_analog hangup handling for operator mode */
+	if (dahdi_analog_lib_handles(p->sig, p->radio, 0)) {
+		p->oprmode = 0;
 		dahdi_confmute(p, 0);
 		restore_gains(p);
 		p->ignoredtmf = 0;
@@ -7590,7 +7765,11 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 		}
 		if (p->oprmode < 0)
 		{
-			if (p->oprmode != -1) break;
+			if (p->oprmode != -1) { /* Operator flash recall */
+				ast_verb(4, "Operator mode enabled on channel %d, holding line for channel %d\n", p->channel, p->oprpeer->channel);
+				break;
+			}
+			/* Otherwise, immediate recall */
 			if ((p->sig == SIG_FXOLS) || (p->sig == SIG_FXOKS) || (p->sig == SIG_FXOGS))
 			{
 				/* Make sure it starts ringing */
@@ -7598,6 +7777,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 				dahdi_set_hook(p->subs[SUB_REAL].dfd, DAHDI_RING);
 				save_conference(p->oprpeer);
 				tone_zone_play_tone(p->oprpeer->subs[SUB_REAL].dfd, DAHDI_TONE_RINGTONE);
+				ast_verb(4, "Operator recall, channel %d ringing back channel %d\n", p->oprpeer->channel, p->channel);
 			}
 			break;
 		}
@@ -7710,6 +7890,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 				dahdi_set_hook(p->subs[SUB_REAL].dfd, DAHDI_RINGOFF);
 				tone_zone_play_tone(p->oprpeer->subs[SUB_REAL].dfd, -1);
 				restore_conference(p->oprpeer);
+				ast_debug(1, "Operator recall by channel %d for channel %d complete\n", p->oprpeer->channel, p->channel);
 			}
 			break;
 		}
@@ -7923,6 +8104,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 					dahdi_set_hook(p->oprpeer->subs[SUB_REAL].dfd, DAHDI_RING);
 					save_conference(p);
 					tone_zone_play_tone(p->subs[SUB_REAL].dfd, DAHDI_TONE_RINGTONE);
+					ast_verb(4, "Operator flash recall, channel %d ringing back channel %d\n", p->oprpeer->channel, p->channel);
 				}
 			}
 			break;
@@ -11573,6 +11755,7 @@ static void *do_monitor(void *data)
 							&& !analog_p->fxsoffhookstate
 							&& !last->owner
 							&& !ast_strlen_zero(last->mailbox)
+							&& !analog_p->subs[SUB_REAL].owner /* could be a recall ring from a flash hook hold */
 							&& (thispass - analog_p->onhooktime > 3)) {
 							res = has_voicemail(last);
 							if (analog_p->msgstate != res) {
@@ -17542,6 +17725,8 @@ static int __unload_module(void)
 	ast_unregister_application(dahdi_accept_r2_call_app);
 #endif
 
+	ast_custom_function_unregister(&polarity_function);
+
 	ast_cli_unregister_multiple(dahdi_cli, ARRAY_LEN(dahdi_cli));
 	ast_manager_unregister("DAHDIDialOffhook");
 	ast_manager_unregister("DAHDIHangup");
@@ -17872,6 +18057,9 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 	struct dahdi_pvt *tmp;
 	int y;
 	struct ast_variable *dahdichan = NULL;
+
+	/* Re-parse any cadences from beginning, rather than appending until we run out of room */
+	user_has_defined_cadences = 0;
 
 	for (; v; v = v->next) {
 		if (!ast_jb_read_conf(&global_jbconf, v->name, v->value))
@@ -19224,7 +19412,7 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 					report_alarms = REPORT_SPAN_ALARMS;
 			 }
 		} else if (!(options & PROC_DAHDI_OPT_NOWARN) )
-			ast_log(LOG_WARNING, "Ignoring any changes to '%s' (on reload) at line %d.\n", v->name, v->lineno);
+			ast_log(LOG_NOTICE, "Ignoring any changes to '%s' (on reload) at line %d.\n", v->name, v->lineno);
 	}
 
 	if (dahdichan) {
@@ -19726,6 +19914,8 @@ static int load_module(void)
 	ast_cli_register_multiple(dahdi_mfcr2_cli, ARRAY_LEN(dahdi_mfcr2_cli));
 	ast_register_application_xml(dahdi_accept_r2_call_app, dahdi_accept_r2_call_exec);
 #endif
+
+	ast_custom_function_register(&polarity_function);
 
 	ast_cli_register_multiple(dahdi_cli, ARRAY_LEN(dahdi_cli));
 	memset(round_robin, 0, sizeof(round_robin));

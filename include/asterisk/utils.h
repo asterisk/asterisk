@@ -1105,4 +1105,14 @@ int ast_thread_user_interface_set(int is_user_interface);
  */
 int ast_thread_is_user_interface(void);
 
+/*!
+ * \brief Test for the presence of an executable command in $PATH
+ *
+ * \param cmd Name of command to locate.
+ *
+ * \retval True (non-zero) if command is in $PATH.
+ * \retval False (zero) command not found.
+ */
+int ast_check_command_in_path(const char *cmd);
+
 #endif /* _ASTERISK_UTILS_H */

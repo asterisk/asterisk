@@ -101,6 +101,11 @@ export TAR
 export PATCH
 export SED
 export NM
+export FIND
+export BASENAME
+export DIRNAME
+export XMLLINT
+export XMLSTARLET
 
 # makeopts is required unless the goal is just {dist{-}}clean
 ifeq ($(MAKECMDGOALS),clean)
@@ -322,6 +327,9 @@ else
 SUBMAKE:=$(MAKE) --quiet --no-print-directory
 endif
 
+mkfile_path := $(abspath $(lastword $(MAKEFILE_LIST)))
+mkfile_dir := $(dir $(mkfile_path))
+
 # $(MAKE) is printed in several places, and we want it to be a
 # fixed size string. Define a variable whose name has also the
 # same size, so we can easily align text.
@@ -475,60 +483,24 @@ endif
 		$(INSTALL) -m 644 $$x "$(DESTDIR)$(ASTDATADIR)/rest-api" ; \
 	done
 
-ifeq ($(GREP),)
-else ifeq ($(GREP),:)
-else
-  XML_core_en_US = $(foreach dir,$(MOD_SUBDIRS),$(shell $(GREP) -l "language=\"en_US\"" $(dir)/*.c $(dir)/*.cc 2>/dev/null))
-endif
-
+DOC_MOD_SUBDIRS := $(filter-out third-party,$(MOD_SUBDIRS))
+XML_core_en_US := $(shell build_tools/make_xml_documentation --command=print_dependencies --source-tree=. --mod-subdirs="$(DOC_MOD_SUBDIRS)")
+# core-en_US.xml is the normal documentation created with asterisk builds.
 doc/core-en_US.xml: makeopts .lastclean $(XML_core_en_US)
-	@printf "Building Documentation For: "
-	@echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" > $@
-	@echo "<!DOCTYPE docs SYSTEM \"appdocsxml.dtd\">" >> $@
-	@echo "<?xml-stylesheet type=\"text/xsl\" href=\"appdocsxml.xslt\"?>" >> $@
-	@echo "<docs xmlns:xi=\"http://www.w3.org/2001/XInclude\">" >> $@
-	@for x in $(MOD_SUBDIRS); do \
-		printf "$$x " ; \
-		for i in `find $$x -name '*.c'`; do \
-			MODULEINFO=$$($(AWK) -f build_tools/get_moduleinfo $$i) ; \
-			if [ -n "$$MODULEINFO" ] ; \
-			then \
-				echo "<module language=\"en_US\" name=\"`$(BASENAME) $$i .c`\">" >> $@ ; \
-				echo "$$MODULEINFO" >> $@ ; \
-				echo "</module>" >> $@ ; \
-			fi ; \
-			$(AWK) -f build_tools/get_documentation $$i >> $@ ; \
-		done ; \
-	done
-	@echo
-	@echo "</docs>" >> $@
+	@build_tools/make_xml_documentation --command=create_xml --source-tree=. --mod-subdirs="$(DOC_MOD_SUBDIRS)" \
+		--with-moduleinfo --output-file=$@
 
-ifeq ($(GREP),)
-else ifeq ($(GREP),:)
-else
-  XML_full_en_US = $(foreach dir,$(MOD_SUBDIRS),$(shell $(GREP) -l "language=\"en_US\"" $(dir)/*.c $(dir)/*.cc 2>/dev/null))
-endif
-
-doc/full-en_US.xml: makeopts .lastclean $(XML_full_en_US)
+# The full-en_US.xml target is only called by the wiki documentation generation process
+# and does special post-processing in preparation for uploading to the wiki.
+# It creates full-en_US.xml but then re-creates core-en_US.xml as well.
+doc/full-en_US.xml: makeopts .lastclean $(XML_core_en_US)
 ifeq ($(PYTHON),:)
 	@echo "--------------------------------------------------------------------------"
 	@echo "---        Please install python to build full documentation           ---"
 	@echo "--------------------------------------------------------------------------"
 else
-	@printf "Building Documentation For: "
-	@echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" > $@
-	@echo "<!DOCTYPE docs SYSTEM \"appdocsxml.dtd\">" >> $@
-	@echo "<?xml-stylesheet type=\"text/xsl\" href=\"appdocsxml.xslt\"?>" >> $@
-	@echo "<docs xmlns:xi=\"http://www.w3.org/2001/XInclude\">" >> $@
-	@for x in $(filter-out third-party,$(MOD_SUBDIRS)); do \
-		printf "$$x " ; \
-		for i in `find $$x -name '*.c'`; do \
-			$(PYTHON) build_tools/get_documentation.py < $$i >> $@ ; \
-		done ; \
-	done
-	@echo
-	@echo "</docs>" >> $@
-	@$(PYTHON) build_tools/post_process_documentation.py -i $@ -o "doc/core-en_US.xml"
+	@build_tools/make_xml_documentation --command=create_xml --source-tree=. --mod-subdirs="$(DOC_MOD_SUBDIRS)" \
+		--for-wiki --output-file=$@ --core-output-file=./doc/core-en_US.xml
 endif
 
 validate-docs: doc/core-en_US.xml
@@ -589,9 +561,9 @@ bininstall: _all installdirs $(SUBDIRS_INSTALL) main-bininstall
 	$(INSTALL) -m 755 contrib/scripts/astversion "$(DESTDIR)$(ASTSBINDIR)/"
 	$(INSTALL) -m 755 contrib/scripts/astgenkey "$(DESTDIR)$(ASTSBINDIR)/"
 	$(INSTALL) -m 755 contrib/scripts/autosupport "$(DESTDIR)$(ASTSBINDIR)/"
-	if [ ! -f /sbin/launchd ]; then \
-		./build_tools/install_subst contrib/scripts/safe_asterisk "$(DESTDIR)$(ASTSBINDIR)/safe_asterisk"; \
-	fi
+ifneq ($(HAVE_SBIN_LAUNCHD),1)
+	./build_tools/install_subst contrib/scripts/safe_asterisk "$(DESTDIR)$(ASTSBINDIR)/safe_asterisk";
+endif
 
 ifneq ($(DISABLE_XMLDOC),yes)
 	$(INSTALL) -m 644 doc/core-*.xml "$(DESTDIR)$(ASTDATADIR)/documentation"
@@ -724,7 +696,17 @@ ifneq ($(filter ~%,$(DESTDIR)),)
 	@exit 1
 endif
 
-install: badshell bininstall datafiles
+versioncheck:
+ifeq ($(ASTERISKVERSION),UNKNOWN__git_check_fail)
+	@echo "Asterisk Version is unknown due to a git error. If you are running make"
+	@echo "as a different user than the project owner, this can be resolved by"
+	@echo "running the following command as the user currently executing make: "$$USER
+	@echo "git config --global --add safe.directory "$(mkfile_dir:/=)
+	@exit 1
+endif
+
+
+install: badshell versioncheck bininstall datafiles
 	@if [ -x /usr/sbin/asterisk-post-install ]; then \
 		/usr/sbin/asterisk-post-install "$(DESTDIR)" . ; \
 	fi
@@ -909,6 +891,12 @@ ifeq ($(AST_DEVMODE),yes)
 endif
 ifeq ($(ASTERISKVERSION),UNKNOWN__and_probably_unsupported)
 	@echo "Asterisk Version is unknown, not configuring Doxygen PROJECT_NUMBER."
+else ifeq ($(ASTERISKVERSION),UNKNOWN__git_check_fail)
+	@echo "Asterisk Version is unknown due to a git error. If you are running make"
+	@echo "as a different user than the project owner, this can be resolved by"
+	@echo "running the following command as the user currently executing make: "$$USER
+	@echo "git config --global --add safe.directory "$(mkfile_dir:/=)
+	@echo "not configuring Doxygen PROJECT_NUMBER."
 else
 	@echo "PROJECT_NUMBER = $(ASTERISKVERSION)" >> doc/Doxyfile
 endif
@@ -998,6 +986,7 @@ sounds:
 .lastclean: .cleancount
 	@$(MAKE) clean
 	@[ -f "$(DESTDIR)$(ASTDBDIR)/astdb.sqlite3" ] || [ ! -f "$(DESTDIR)$(ASTDBDIR)/astdb" ] || [ ! -f menuselect.makeopts ] || grep -q MENUSELECT_UTILS=.*astdb2sqlite3 menuselect.makeopts || (sed -i.orig -e's/MENUSELECT_UTILS=\(.*\)/MENUSELECT_UTILS=\1 astdb2sqlite3/' menuselect.makeopts && echo "Updating menuselect.makeopts to include astdb2sqlite3" && echo "Original version backed up to menuselect.makeopts.orig")
+
 
 $(SUBDIRS_UNINSTALL):
 	+@DESTDIR="$(DESTDIR)" ASTSBINDIR="$(ASTSBINDIR)" ASTDATADIR="$(ASTDATADIR)" $(SUBMAKE) -C $(@:-uninstall=) uninstall

@@ -62,7 +62,10 @@ AST_THREADSTORAGE(tmp_buf);
 			carriage return, and tab characters, respectively.  Also, octal and hexadecimal specifications are recognized
 			by the patterns <literal>\0nnn</literal> and <literal>\xHH</literal>, respectively.  For example, if you wanted
 			to encode a comma as the delimiter, you could use either <literal>\054</literal> or <literal>\x2C</literal>.</para>
-			<para>Example: If ${example} contains <literal>ex-amp-le</literal>, then ${FIELDQTY(example,-)} returns 3.</para>
+			<example title="Prints 3">
+			exten => s,1,Set(example=ex-amp-le)
+				same => n,NoOp(${FIELDQTY(example,-)})
+			</example>
 		</description>
 	</function>
 	<function name="FIELDNUM" language="en_US">
@@ -83,7 +86,10 @@ AST_THREADSTORAGE(tmp_buf);
 			carriage return, and tab characters, respectively.  Also, octal and hexadecimal specifications are recognized
 			by the patterns <literal>\0nnn</literal> and <literal>\xHH</literal>, respectively.  For example, if you wanted
 			to encode a comma as the delimiter, you could use either <literal>\054</literal> or <literal>\x2C</literal>.</para>
-		        <para>Example: If ${example} contains <literal>ex-amp-le</literal>, then ${FIELDNUM(example,-,amp)} returns 2.</para>
+			<example title="Prints 2">
+			exten => s,1,Set(example=ex-amp-le)
+				same => n,NoOp(${FIELDNUM(example,-,amp)})
+			</example>
 		</description>
 	</function>
 	<function name="LISTFILTER" language="en_US">
@@ -155,6 +161,11 @@ AST_THREADSTORAGE(tmp_buf);
 		</description>
 	</function>
 	<function name="STRBETWEEN" language="en_US">
+		<since>
+			<version>16.21.0</version>
+			<version>18.7.0</version>
+			<version>19.0.0</version>
+		</since>
 		<synopsis>
 			Inserts a substring between each character in a string.
 		</synopsis>
@@ -185,8 +196,10 @@ AST_THREADSTORAGE(tmp_buf);
 			string, instead.</para>
 			<note><para>The functions which take a variable name need to be passed var and not
 			${var}.  Similarly, use PASSTHRU() and not ${PASSTHRU()}.</para></note>
-			<para>Example: ${CHANNEL} contains SIP/321-1</para>
-			<para>         ${CUT(PASSTHRU(${CUT(CHANNEL,-,1)}),/,2)}) will return 321</para>
+			<example title="Prints 321">
+			exten => s,1,NoOp(${CHANNEL}) ; contains SIP/321-1
+				same => n,NoOp(${CUT(PASSTHRU(${CUT(CHANNEL,-,1)}),/,2)})
+			</example>
 		</description>
 	</function>
 	<function name="REGEX" language="en_US">
@@ -252,7 +265,9 @@ AST_THREADSTORAGE(tmp_buf);
 			<parameter name="string" required="true" />
 		</syntax>
 		<description>
-			<para>Example: ${KEYPADHASH(Les)} returns "537"</para>
+			<example title="Returns 537">
+			exten => s,1,Return(${KEYPADHASH(Les)})
+			</example>
 		</description>
 	</function>
 	<function name="ARRAY" language="en_US">
@@ -268,7 +283,9 @@ AST_THREADSTORAGE(tmp_buf);
 			<para>The comma-delimited list passed as a value to which the function is set will
 			be interpreted as a set of values to which the comma-delimited list of
 			variable names in the argument should be set.</para>
-			<para>Example: Set(ARRAY(var1,var2)=1,2) will set var1 to 1 and var2 to 2</para>
+			<example title="Set var1 to 1 and var2 to 2">
+			same => n,Set(ARRAY(var1,var2)=1,2)
+			</example>
 		</description>
 	</function>
 	<function name="STRPTIME" language="en_US">
@@ -284,7 +301,9 @@ AST_THREADSTORAGE(tmp_buf);
 			<para>This is useful for converting a date into <literal>EPOCH</literal> time,
 			possibly to pass to an application like SayUnixTime or to calculate the difference
 			between the two date strings</para>
-			<para>Example: ${STRPTIME(2006-03-01 07:30:35,America/Chicago,%Y-%m-%d %H:%M:%S)} returns 1141219835</para>
+			<example title="Prints 1141219835">
+			same => n,NoOp(${STRPTIME(2006-03-01 07:30:35,America/Chicago,%Y-%m-%d %H:%M:%S)})
+			</example>
 		</description>
 	</function>
 	<function name="STRFTIME" language="en_US">
@@ -338,7 +357,9 @@ AST_THREADSTORAGE(tmp_buf);
 			<parameter name="string" required="true" />
 		</syntax>
 		<description>
-			<para>Example: ${TOUPPER(Example)} returns "EXAMPLE"</para>
+			<example title="Prints EXAMPLE">
+			exten => s,1,NoOp(${TOUPPER(Example)})
+			</example>
 		</description>
 	</function>
 	<function name="TOLOWER" language="en_US">
@@ -349,7 +370,9 @@ AST_THREADSTORAGE(tmp_buf);
 			<parameter name="string" required="true" />
 		</syntax>
 		<description>
-			<para>Example: ${TOLOWER(Example)} returns "example"</para>
+			<example title="Prints example">
+			exten => s,1,NoOp(${TOLOWER(Example)})
+			</example>
 		</description>
 	</function>
 	<function name="LEN" language="en_US">
@@ -360,7 +383,9 @@ AST_THREADSTORAGE(tmp_buf);
 			<parameter name="string" required="true" />
 		</syntax>
 		<description>
-			<para>Example: ${LEN(example)} returns 7</para>
+			<example title="Prints 7">
+			exten => s,1,NoOp(${LEN(example)})
+			</example>
 		</description>
 	</function>
 	<function name="QUOTE" language="en_US">
@@ -394,11 +419,12 @@ AST_THREADSTORAGE(tmp_buf);
 			<parameter name="delimiter" required="false" default="," />
 		</syntax>
 		<description>
-			<para>Example:</para>
-			<para>exten => s,1,Set(array=one,two,three)</para>
-			<para>exten => s,n,While($["${SET(var=${SHIFT(array)})}" != ""])</para>
-			<para>exten => s,n,NoOp(var is ${var})</para>
-			<para>exten => s,n,EndWhile</para>
+			<example title="SHIFT example">
+			exten => s,1,Set(array=one,two,three)
+			exten => s,n,While($["${SET(var=${SHIFT(array)})}" != ""])
+			exten => s,n,NoOp(var is ${var})
+			exten => s,n,EndWhile
+			</example>
 			<para>This would iterate over each value in array, left to right, and
 				would result in NoOp(var is one), NoOp(var is two), and
 				NoOp(var is three) being executed.
@@ -414,11 +440,12 @@ AST_THREADSTORAGE(tmp_buf);
 			<parameter name="delimiter" required="false" default="," />
 		</syntax>
 		<description>
-			<para>Example:</para>
-			<para>exten => s,1,Set(array=one,two,three)</para>
-			<para>exten => s,n,While($["${SET(var=${POP(array)})}" != ""])</para>
-			<para>exten => s,n,NoOp(var is ${var})</para>
-			<para>exten => s,n,EndWhile</para>
+			<example title="POP example">
+			exten => s,1,Set(array=one,two,three)
+			exten => s,n,While($["${SET(var=${POP(array)})}" != ""])
+			exten => s,n,NoOp(var is ${var})
+			exten => s,n,EndWhile
+			</example>
 			<para>This would iterate over each value in array, right to left, and
 				would result in NoOp(var is three), NoOp(var is two), and
 				NoOp(var is one) being executed.
@@ -434,7 +461,10 @@ AST_THREADSTORAGE(tmp_buf);
 			<parameter name="delimiter" required="false" default="," />
 		</syntax>
 		<description>
-			<para>Example: Set(PUSH(array)=one,two,three) would append one,
+			<example title="PUSH example">
+			exten => s,1,Set(PUSH(array)=one,two,three)
+			</example>
+			<para>This would append one,
 				two, and three to the end of the values stored in the variable
 				"array".
 			</para>
@@ -449,7 +479,10 @@ AST_THREADSTORAGE(tmp_buf);
 			<parameter name="delimiter" required="false" default="," />
 		</syntax>
 		<description>
-			<para>Example: Set(UNSHIFT(array)=one,two,three) would insert one,
+			<example title="UNSHIFT example">
+			exten => s,1,Set(UNSHIFT(array)=one,two,three)
+			</example>
+			<para>This would insert one,
 				two, and three before the values stored in the variable
 				"array".
 			</para>

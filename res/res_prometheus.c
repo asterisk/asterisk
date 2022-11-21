@@ -27,6 +27,7 @@
 /*** MODULEINFO
 	<use>pjproject</use>
 	<use type="module">res_pjsip</use>
+	<use type="module">res_pjsip_outbound_registration</use>
 	<support_level>extended</support_level>
  ***/
 
@@ -973,8 +974,13 @@ static int load_module(void)
 	if (cli_init()
 		|| channel_metrics_init()
 		|| endpoint_metrics_init()
-		|| bridge_metrics_init()
-		|| pjsip_outbound_registration_metrics_init()) {
+		|| bridge_metrics_init()) {
+		goto cleanup;
+	}
+	
+	if(ast_module_check("res_pjsip_outbound_registration.so")) {
+		/* Call a local function, used in the core prometheus code only */
+		if (pjsip_outbound_registration_metrics_init())
 		goto cleanup;
 	}
 
@@ -1002,6 +1008,8 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_
 	.reload = reload_module,
 	.load_pri = AST_MODPRI_DEFAULT,
 #ifdef HAVE_PJPROJECT
+	/* This module explicitly calls into res_pjsip if Asterisk is built with PJSIP support, so they are required. */
 	.requires = "res_pjsip",
+	.optional_modules = "res_pjsip_outbound_registration",
 #endif
 );

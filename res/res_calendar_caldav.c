@@ -404,8 +404,8 @@ static void caldav_add_event(icalcomponent *comp, struct icaltime_span *span, vo
 		if (!ast_strlen_zero(event->summary)) {
 			ast_string_field_set(event, uid, event->summary);
 		} else {
-			char tmp[100];
-			snprintf(tmp, sizeof(tmp), "%ld", event->start);
+			char tmp[AST_TIME_T_LEN];
+			ast_time_t_to_string(event->start, tmp, sizeof(tmp));
 			ast_string_field_set(event, uid, tmp);
 		}
 	}

@@ -112,7 +112,6 @@ static void rewrite_uri(pjsip_rx_data *rdata, pjsip_sip_uri *uri, pj_pool_t *poo
  * for the subsequent requests and responses & then be able to properly update
  * the dialog object for all required events.
  */
-
 static int rewrite_route_set(pjsip_rx_data *rdata, pjsip_dialog *dlg)
 {
 	pjsip_rr_hdr *rr = NULL;

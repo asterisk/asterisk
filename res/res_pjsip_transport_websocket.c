@@ -225,6 +225,7 @@ static int transport_create(void *data)
 	pj_sockaddr_parse(pj_AF_UNSPEC(), 0, pj_cstr(&buf, ws_addr_str), &newtransport->transport.local_addr);
 	pj_strdup2(pool, &newtransport->transport.local_name.host, ast_sockaddr_stringify_addr(ast_websocket_local_address(newtransport->ws_session)));
 	newtransport->transport.local_name.port = ast_sockaddr_port(ast_websocket_local_address(newtransport->ws_session));
+	pj_strdup2(pool, &newtransport->transport.remote_name.host, ast_sockaddr_stringify_addr(ast_websocket_remote_address(newtransport->ws_session)));
 
 	newtransport->transport.flag = pjsip_transport_get_flag_from_type((pjsip_transport_type_e)newtransport->transport.key.type);
 	newtransport->transport.dir = PJSIP_TP_DIR_INCOMING;
@@ -415,6 +416,32 @@ static void websocket_cb(struct ast_websocket *session, struct ast_variable *par
 	ast_websocket_unref(session);
 }
 
+static void save_orig_contact_host(pjsip_rx_data *rdata, pjsip_sip_uri *uri)
+{
+	pjsip_param *x_orig_host;
+	pj_str_t p_value;
+#define COLON_LEN 1
+#define MAX_PORT_LEN 5
+
+	if (rdata->msg_info.msg->type != PJSIP_REQUEST_MSG ||
+		rdata->msg_info.msg->line.req.method.id != PJSIP_REGISTER_METHOD) {
+		return;
+	}
+
+	ast_debug(1, "Saving contact '%.*s:%d'\n",
+		(int)uri->host.slen, uri->host.ptr, uri->port);
+
+	x_orig_host = PJ_POOL_ALLOC_T(rdata->tp_info.pool, pjsip_param);
+	x_orig_host->name = pj_strdup3(rdata->tp_info.pool, "x-ast-orig-host");
+	p_value.slen = pj_strlen(&uri->host) + COLON_LEN + MAX_PORT_LEN;
+	p_value.ptr = (char*)pj_pool_alloc(rdata->tp_info.pool, p_value.slen + 1);
+	p_value.slen = snprintf(p_value.ptr, p_value.slen + 1, "%.*s:%d", (int)uri->host.slen, uri->host.ptr, uri->port);
+	pj_strassign(&x_orig_host->value, &p_value);
+	pj_list_insert_before(&uri->other_param, x_orig_host);
+
+	return;
+}
+
 /*!
  * \brief Store the transport a message came in on, so it can be used for outbound messages to that contact.
  */
@@ -435,6 +462,10 @@ static pj_bool_t websocket_on_rx_msg(pjsip_rx_data *rdata)
 		&& (PJSIP_URI_SCHEME_IS_SIP(contact->uri) || PJSIP_URI_SCHEME_IS_SIPS(contact->uri))) {
 		pjsip_sip_uri *uri = pjsip_uri_get_uri(contact->uri);
 		const pj_str_t *txp_str = &STR_WS;
+
+		/* Saving the contact on REGISTER so it can be restored on outbound response
+		 * This will actually be done by restore_orig_contact_host in res_pjsip_nat, via nat_on_tx_message */
+		save_orig_contact_host(rdata, uri);
 
 		if (DEBUG_ATLEAST(4)) {
 			char src_addr_buffer[AST_SOCKADDR_BUFLEN];

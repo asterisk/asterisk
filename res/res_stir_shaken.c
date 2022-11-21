@@ -38,6 +38,7 @@
 #include "asterisk/global_datastores.h"
 #include "asterisk/app.h"
 #include "asterisk/test.h"
+#include "asterisk/acl.h"
 
 #include "asterisk/res_stir_shaken.h"
 #include "res_stir_shaken/stir_shaken.h"
@@ -45,6 +46,7 @@
 #include "res_stir_shaken/store.h"
 #include "res_stir_shaken/certificate.h"
 #include "res_stir_shaken/curl.h"
+#include "res_stir_shaken/profile.h"
 
 /*** DOCUMENTATION
 	<configInfo name="res_stir_shaken" language="en_US">
@@ -106,6 +108,29 @@
 				</configOption>
 				<configOption name="caller_id_number" default="">
 					<synopsis>The caller ID number to match on.</synopsis>
+				</configOption>
+			</configObject>
+			<configObject name="profile">
+				<synopsis>STIR/SHAKEN profile configuration options</synopsis>
+				<configOption name="type">
+					<synopsis>Must be of type 'profile'.</synopsis>
+				</configOption>
+				<configOption name="stir_shaken" default="on">
+					<synopsis>STIR/SHAKEN configuration settings</synopsis>
+					<description><para>
+					        Attest, verify, or do both STIR/SHAKEN operations. On incoming
+						INVITEs, the Identity header will be checked for validity. On
+						outgoing INVITEs, an Identity header will be added.</para>
+					</description>
+				</configOption>
+				<configOption name="acllist" default="">
+					<synopsis>An existing ACL from acl.conf to use</synopsis>
+				</configOption>
+				<configOption name="permit" default="">
+					<synopsis>An IP or subnet to permit</synopsis>
+				</configOption>
+				<configOption name="deny" default="">
+					<synopsis>An IP or subnet to deny</synopsis>
 				</configOption>
 			</configObject>
 		</configFile>
@@ -203,6 +228,33 @@ char *ast_stir_shaken_payload_get_public_cert_url(const struct ast_stir_shaken_p
 unsigned int ast_stir_shaken_get_signature_timeout(void)
 {
 	return ast_stir_shaken_signature_timeout(stir_shaken_general_get());
+}
+
+struct stir_shaken_profile *ast_stir_shaken_get_profile(const char *id)
+{
+	if (ast_strlen_zero(id)) {
+		return NULL;
+	}
+
+	return ast_stir_shaken_get_profile_by_name(id);
+}
+
+unsigned int ast_stir_shaken_profile_supports_attestation(const struct stir_shaken_profile *profile)
+{
+	if (!profile) {
+		return 0;
+	}
+
+	return (profile->stir_shaken & STIR_SHAKEN_ATTEST);
+}
+
+unsigned int ast_stir_shaken_profile_supports_verification(const struct stir_shaken_profile *profile)
+{
+	if (!profile) {
+		return 0;
+	}
+
+	return (profile->stir_shaken & STIR_SHAKEN_VERIFY);
 }
 
 /*!
@@ -351,7 +403,7 @@ int ast_stir_shaken_add_verification(struct ast_channel *chan, const char *ident
  */
 static void set_public_key_expiration(const char *public_cert_url, const struct curl_cb_data *data)
 {
-	char time_buf[32];
+	char time_buf[32], secs[AST_TIME_T_LEN];
 	char *value;
 	struct timeval actual_expires = ast_tvnow();
 	char hash[41];
@@ -389,7 +441,9 @@ static void set_public_key_expiration(const char *public_cert_url, const struct 
 		actual_expires.tv_sec += EXPIRATION_BUFFER;
 	}
 
-	snprintf(time_buf, sizeof(time_buf), "%30lu", actual_expires.tv_sec);
+	ast_time_t_to_string(actual_expires.tv_sec, secs, sizeof(secs));
+
+	snprintf(time_buf, sizeof(time_buf), "%30s", secs);
 
 	ast_db_put(hash, "expiration", time_buf);
 }
@@ -554,7 +608,7 @@ static int stir_shaken_verify_signature(const char *msg, const char *signature, 
  * \retval NULL on failure
  * \retval full path filename on success
  */
-static char *run_curl(const char *public_cert_url, const char *path)
+static char *run_curl(const char *public_cert_url, const char *path, const struct ast_acl_list *acl)
 {
 	struct curl_cb_data *data;
 	char *filename;
@@ -565,7 +619,7 @@ static char *run_curl(const char *public_cert_url, const char *path)
 		return NULL;
 	}
 
-	filename = curl_public_key(public_cert_url, path, data);
+	filename = curl_public_key(public_cert_url, path, data, acl);
 	if (!filename) {
 		ast_log(LOG_ERROR, "Could not retrieve public key for '%s'\n", public_cert_url);
 		curl_cb_data_free(data);
@@ -591,7 +645,7 @@ static char *run_curl(const char *public_cert_url, const char *path)
  * \retval NULL on failure
  * \retval full path filename on success
  */
-static char *curl_and_check_expiration(const char *public_cert_url, const char *path, int *curl)
+static char *curl_and_check_expiration(const char *public_cert_url, const char *path, int *curl, const struct ast_acl_list *acl)
 {
 	char *filename;
 
@@ -600,7 +654,7 @@ static char *curl_and_check_expiration(const char *public_cert_url, const char *
 		return NULL;
 	}
 
-	filename = run_curl(public_cert_url, path);
+	filename = run_curl(public_cert_url, path, acl);
 	if (!filename) {
 		return NULL;
 	}
@@ -662,7 +716,8 @@ static int stir_shaken_verify_check_empty_strings(const char *header, const char
  * \retval 0 on success
  * \retval 1 on failure
  */
-static int stir_shaken_verify_setup_file_paths(const char *public_cert_url, char **file_path, char **dir_path, int *curl)
+static int stir_shaken_verify_setup_file_paths(const char *public_cert_url, char **file_path, char **dir_path, int *curl,
+	const struct ast_acl_list *acl)
 {
 	*file_path = get_path_to_public_key(public_cert_url);
 	if (ast_asprintf(dir_path, "%s/keys/%s", ast_config_AST_DATA_DIR, STIR_SHAKEN_DIR_NAME) < 0) {
@@ -680,7 +735,7 @@ static int stir_shaken_verify_setup_file_paths(const char *public_cert_url, char
 		ast_free(*file_path);
 
 		/* Download to the default path */
-		*file_path = run_curl(public_cert_url, *dir_path);
+		*file_path = run_curl(public_cert_url, *dir_path, acl);
 		if (!(*file_path)) {
 			return 1;
 		}
@@ -704,7 +759,7 @@ static int stir_shaken_verify_setup_file_paths(const char *public_cert_url, char
  * \retval 1 on failure
  */
 static int stir_shaken_verify_validate_cert(const char *public_cert_url, char **file_path, char *dir_path, int *curl,
-	EVP_PKEY **public_key)
+	EVP_PKEY **public_key, const struct ast_acl_list *acl)
 {
 	if (public_key_is_expired(public_cert_url)) {
 
@@ -714,7 +769,7 @@ static int stir_shaken_verify_validate_cert(const char *public_cert_url, char **
 
 		/* If this fails, then there's nothing we can do */
 		ast_free(*file_path);
-		*file_path = curl_and_check_expiration(public_cert_url, dir_path, curl);
+		*file_path = curl_and_check_expiration(public_cert_url, dir_path, curl, acl);
 		if (!(*file_path)) {
 			return 1;
 		}
@@ -730,7 +785,7 @@ static int stir_shaken_verify_validate_cert(const char *public_cert_url, char **
 		remove_public_key_from_astdb(public_cert_url);
 
 		ast_free(*file_path);
-		*file_path = curl_and_check_expiration(public_cert_url, dir_path, curl);
+		*file_path = curl_and_check_expiration(public_cert_url, dir_path, curl, acl);
 		if (!(*file_path)) {
 			return 1;
 		}
@@ -757,6 +812,12 @@ struct ast_stir_shaken_payload *ast_stir_shaken_verify(const char *header, const
 struct ast_stir_shaken_payload *ast_stir_shaken_verify2(const char *header, const char *payload, const char *signature,
 	const char *algorithm, const char *public_cert_url, int *failure_code)
 {
+	return ast_stir_shaken_verify_with_profile(header, payload, signature, algorithm, public_cert_url, failure_code, NULL);
+}
+
+struct ast_stir_shaken_payload *ast_stir_shaken_verify_with_profile(const char *header, const char *payload, const char *signature,
+	const char *algorithm, const char *public_cert_url, int *failure_code, const struct stir_shaken_profile *profile)
+{
 	struct ast_stir_shaken_payload *ret_payload;
 	EVP_PKEY *public_key;
 	int curl = 0;
@@ -764,10 +825,13 @@ struct ast_stir_shaken_payload *ast_stir_shaken_verify2(const char *header, cons
 	RAII_VAR(char *, dir_path, NULL, ast_free);
 	RAII_VAR(char *, combined_str, NULL, ast_free);
 	size_t combined_size;
+	const struct ast_acl_list *acl;
 
 	if (stir_shaken_verify_check_empty_strings(header, payload, signature, algorithm, public_cert_url)) {
 		return NULL;
 	}
+
+	acl = profile ? (const struct ast_acl_list *)profile->acl : NULL;
 
 	/* Check to see if we have already downloaded this public cert. The reason we
 	 * store the file path is because:
@@ -779,12 +843,12 @@ struct ast_stir_shaken_payload *ast_stir_shaken_verify2(const char *header, cons
 	 * {configurable) directories, we already have the storage mechanism in place.
 	 * The only thing that would be left to do is pull from the configuration.
 	 */
-	if (stir_shaken_verify_setup_file_paths(public_cert_url, &file_path, &dir_path, &curl)) {
+	if (stir_shaken_verify_setup_file_paths(public_cert_url, &file_path, &dir_path, &curl, acl)) {
 		return NULL;
 	}
 
 	/* Check to see if the cert we downloaded (or already had) is expired */
-	if (stir_shaken_verify_validate_cert(public_cert_url, &file_path, dir_path, &curl, &public_key)) {
+	if (stir_shaken_verify_validate_cert(public_cert_url, &file_path, dir_path, &curl, &public_key, acl)) {
 		*failure_code = AST_STIR_SHAKEN_VERIFY_FAILED_TO_GET_CERT;
 		return NULL;
 	}
@@ -1677,6 +1741,7 @@ static int unload_module(void)
 {
 	int res = 0;
 
+	stir_shaken_profile_unload();
 	stir_shaken_certificate_unload();
 	stir_shaken_store_unload();
 	stir_shaken_general_unload();
@@ -1712,6 +1777,11 @@ static int load_module(void)
 	}
 
 	if (stir_shaken_certificate_load()) {
+		unload_module();
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	if (stir_shaken_profile_load()) {
 		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}

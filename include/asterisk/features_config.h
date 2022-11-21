@@ -72,6 +72,8 @@ struct ast_features_xfer_config {
 		AST_STRING_FIELD(transferretrysound);
 		/*! Sound played when an invalid extension is dialed, and the transferer is being returned to the call. */
 		AST_STRING_FIELD(transferinvalidsound);
+		/*! Sound to play to announce the transfer process has started. */
+		AST_STRING_FIELD_EXTENDED(transferannouncesound);
 	);
 	/*! Seconds allowed between digit presses when dialing transfer destination */
 	unsigned int transferdigittimeout;

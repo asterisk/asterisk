@@ -4112,8 +4112,6 @@ struct ast_channel_monitor {
 };
 
 /* ACCESSOR FUNCTIONS */
-/*! \brief Set the channel name */
-void ast_channel_name_set(struct ast_channel *chan, const char *name);
 
 #define DECLARE_STRINGFIELD_SETTERS_FOR(field)	\
 	void ast_channel_##field##_set(struct ast_channel *chan, const char *field); \
@@ -4164,8 +4162,10 @@ void ast_channel_blockproc_set(struct ast_channel *chan, const char *value);
 const char *ast_channel_data(const struct ast_channel *chan);
 void ast_channel_data_set(struct ast_channel *chan, const char *value);
 
+const char *ast_channel_lastcontext(const struct ast_channel *chan);
 const char *ast_channel_context(const struct ast_channel *chan);
 void ast_channel_context_set(struct ast_channel *chan, const char *value);
+const char *ast_channel_lastexten(const struct ast_channel *chan);
 const char *ast_channel_exten(const struct ast_channel *chan);
 void ast_channel_exten_set(struct ast_channel *chan, const char *value);
 const char *ast_channel_macrocontext(const struct ast_channel *chan);

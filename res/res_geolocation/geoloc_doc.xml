@@ -1,0 +1,310 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE docs SYSTEM "appdocsxml.dtd">
+<docs>
+	<configInfo name="res_geolocation" language="en_US">
+		<synopsis>Core Geolocation Support</synopsis>
+		<configFile name="geolocation.conf">
+			<configObject name="location">
+				<synopsis>Location</synopsis>
+				<description>
+					<para>Parameters for defining a Location object</para>
+				</description>
+
+				<configOption name="type">
+					<synopsis>Must be of type 'location'.</synopsis>
+				</configOption>
+
+				<configOption name="format" default="none">
+					<synopsis>Location specification type</synopsis>
+					<description>
+						<enumlist>
+							<enum name="civicAddress">
+								<para>
+									The <literal>location_info</literal>
+									parameter must contain a comma separated list of IANA codes
+									or synonyms describing the civicAddress of this location.
+									The IANA codes and synonyms can be obtained by executing
+									the CLI command <literal>geoloc show civicAddr_mapping</literal>.
+								</para>
+							</enum>
+							<enum name="GML">
+								<para>
+									The
+									<literal>location_info</literal> parameter must contain a comma
+									separated list valid GML elements describing this location.
+								</para>
+							</enum>
+							<enum name="URI">
+								<para>
+									The
+									<literal>location_info</literal> parameter must contain a single
+									URI parameter which contains an external URI describing this location.
+								</para>
+							</enum>
+						</enumlist>
+					</description>
+				</configOption>
+
+				<configOption name="location_info" default="none">
+					<synopsis>Location information</synopsis>
+					<description>
+						<para>The contents of this parameter are specific to the
+							location <literal>format</literal>.</para>
+						<enumlist>
+						<enum name="civicAddress">
+						<para>
+						location_info = country=US,A1="New York",city_district=Manhattan,
+						A3="New York", house_number=1633, street=46th, street_suffix = Street,
+						postal_code=10222,floor=20,room=20A2
+						</para>
+						</enum>
+						<enum name="GML">
+						<para>
+						location_info = Shape=Sphere, pos3d="39.12345 -105.98766 1920", radius=200
+						</para>
+						</enum>
+						<enum name="URI">
+						<para>
+						location_info = URI=https:/something.com?exten=${EXTEN}
+						</para>
+						</enum>
+						</enumlist>
+					</description>
+				</configOption>
+
+				<configOption name="location_source" default="none">
+					<synopsis>Fully qualified host name</synopsis>
+					<description>
+						<para>This parameter isn't required but if provided, RFC8787 says it MUST be a fully
+						qualified host name.  IP addresses are specifically NOT allowed.  The value will be placed
+						in a <literal>loc-src</literal> parameter appended to the URI in the <literal>
+						Geolocation</literal> header.</para>
+					</description>
+				</configOption>
+
+				<configOption name="method" default="none">
+					<synopsis>Location determination method</synopsis>
+					<description>
+						<para>This is a rarely used field in the specification that would
+						indicate the method used to determine the location.  Its usage and values should be
+						pre-negotiated with any recipients.</para>
+						<enumlist>
+						<enum name="GPS"/>
+						<enum name="A-GPS"/>
+						<enum name="Manual"/>
+						<enum name="DHCP"/>
+						<enum name="Triangulation"/>
+						<enum name="Cell"/>
+						<enum name="802.11"/>
+						</enumlist>
+					</description>
+				</configOption>
+
+				<configOption name="confidence" default="none">
+					<synopsis>Level of confidence</synopsis>
+					<description>
+						<para>This is a rarely used field in the specification that would
+						indicate the confidence in the location specified.  See RFC7459
+						for exact details.
+						</para>
+						<para>
+						Sub-parameters:
+						</para>
+						<enumlist>
+						<enum name="pdf">
+						<para>One of:</para>
+						<enumlist>
+						<enum name="unknown"/>
+						<enum name="normal"/>
+						<enum name="rectangular"/>
+						</enumlist>
+						</enum>
+						<enum name="value">
+						<para>A percentage indicating the confidence.</para>
+						</enum>
+						</enumlist>
+					</description>
+					<see-also>
+						<ref type="link">https://www.rfc-editor.org/rfc/rfc7459</ref>
+					</see-also>
+				</configOption>
+			</configObject>
+
+			<configObject name="profile">
+				<synopsis>Profile</synopsis>
+				<description>
+					<para>Parameters for defining a Profile object</para>
+				</description>
+				<configOption name="type">
+					<synopsis>Must be of type 'profile'.</synopsis>
+				</configOption>
+
+				<configOption name="pidf_element" default="device">
+					<synopsis>PIDF-LO element to place this profile in</synopsis>
+					<description>
+						<enumlist>
+							<enum name="tuple" />
+							<enum name="device" />
+							<enum name="person" />
+						</enumlist>
+						<para>
+							Based on RFC5491 (see below) the recommended and default element
+							is <literal>device</literal>.
+						</para>
+					</description>
+					<see-also>
+						<ref type="link">https://www.rfc-editor.org/rfc/rfc5491.html#section-3.4</ref>
+					</see-also>
+				</configOption>
+
+				<configOption name="location_reference" default="none">
+					<synopsis>Reference to a location object</synopsis>
+				</configOption>
+
+				<configOption name="location_info_refinement" default="none">
+					<synopsis>Reference to a location object</synopsis>
+				</configOption>
+				<configOption name="location_variables" default="none">
+					<synopsis>Reference to a location object</synopsis>
+				</configOption>
+
+				<configOption name="usage_rules" default="empty &lt;usage_rules&gt; element">
+					<synopsis>location specification type</synopsis>
+					<description>
+						<para>xxxx</para>
+					</description>
+				</configOption>
+
+				<configOption name="notes" default="">
+					<synopsis>Notes to be added to the outgoing PIDF-LO document</synopsis>
+					<description>
+						<para>The specification of this parameter will cause a
+						<literal>&lt;note-well&gt;</literal> element to be added to the
+						outgoing PIDF-LO document.  Its usage should be pre-negotiated with
+						any recipients.</para>
+					</description>
+
+				</configOption>
+				<configOption name="allow_routing_use" default="no">
+					<synopsis>Sets the value of the Geolocation-Routing header.</synopsis>
+				</configOption>
+
+				<configOption name="suppress_empty_ca_elements" default="no">
+					<synopsis>Sets if empty Civic Address elements should be suppressed
+					from the PIDF-LO document.</synopsis>
+				</configOption>
+
+				<configOption name="profile_precedence" default="discard_incoming">
+					<synopsis>Determine which profile on a channel should be used</synopsis>
+					<description>
+						<enumlist>
+							<enum name="prefer_incoming">
+							<para>Use the incoming profile if it exists and has location information, otherwise use the
+							configured profile if it exists and has location information. If neither profile has location
+							information, nothing is sent.
+							</para></enum>
+							<enum name="prefer_config">
+							<para>Use the configured profile if it exists and has location information, otherwise use the
+							incoming profile if it exists and has location information. If neither profile has location
+							information, nothing is sent.
+							</para></enum>
+							<enum name="discard_incoming"
+							><para>Discard any incoming profile and use the configured profile if it exists and
+							it has location information.  If the configured profile doesn't exist or has no
+							location information, nothing is sent.
+							</para></enum>
+							<enum name="discard_config">
+							<para>Discard any configured profile and use the incoming profile if it exists and
+							it has location information.  If the incoming profile doesn't exist or has no
+							location information, nothing is sent.
+							</para></enum>
+						</enumlist>
+					</description>
+				</configOption>
+
+				<xi:include xpointer="xpointer(/docs/configInfo[@name='res_geolocation']/configFile[@name='geolocation.conf']/configObject[@name='location']/configOption[@name='format'])"/>
+				<xi:include xpointer="xpointer(/docs/configInfo[@name='res_geolocation']/configFile[@name='geolocation.conf']/configObject[@name='location']/configOption[@name='location_info'])"/>
+				<xi:include xpointer="xpointer(/docs/configInfo[@name='res_geolocation']/configFile[@name='geolocation.conf']/configObject[@name='location']/configOption[@name='confidence'])"/>
+				<xi:include xpointer="xpointer(/docs/configInfo[@name='res_geolocation']/configFile[@name='geolocation.conf']/configObject[@name='location']/configOption[@name='location_source'])"/>
+				<xi:include xpointer="xpointer(/docs/configInfo[@name='res_geolocation']/configFile[@name='geolocation.conf']/configObject[@name='location']/configOption[@name='method'])"/>
+			</configObject>
+		</configFile>
+	</configInfo>
+	<function name="GEOLOC_PROFILE" language="en_US">
+		<synopsis>
+			Get or Set a field in a geolocation profile
+		</synopsis>
+		<syntax>
+			<parameter name="parameter" required="true">
+				<para>The profile parameter to operate on. The following fields from the
+				Location and Profile objects are supported.</para>
+				<enumlist>
+					<enum name="id"/>
+					<enum name="location_reference"/>
+					<enum name="method"/>
+					<enum name="allow_routing_use"/>
+					<enum name="profile_precedence"/>
+					<enum name="format"/>
+					<enum name="pidf_element"/>
+					<enum name="location_source"/>
+					<enum name="notes"/>
+					<enum name="location_info"/>
+					<enum name="location_info_refinement"/>
+					<enum name="location_variables"/>
+					<enum name="effective_location"/>
+					<enum name="usage_rules"/>
+					<enum name="confidence"/>
+				</enumlist>
+				<para>Additionally, the <literal>inheritable</literal> field may be
+				set to <literal>true</literal> or <literal>false</literal> to control
+				whether the profile will be passed to the outgoing channel.
+				</para>
+				<para>
+				</para>
+			</parameter>
+
+			<parameter name="options" required="false">
+				<optionlist>
+				<option name="a">
+					<para>Append provided value to the specified parameter
+					instead of replacing the existing value.  This only applies
+					to variable list parameters like
+					<literal>location_info_refinement</literal>.
+					</para>
+				</option>
+				<option name="r">
+					<para>Before reading or after writing the specified parameter,
+					re-resolve the <literal>effective_location</literal> and
+					<literal>usage_rules</literal> parameters using the
+					<literal>location_variables</literal> parameter and the variables
+					set on the channel in effect at the time this function is called.
+					</para>
+					<note><para>On a read operation, this does not alter the actual profile
+						in any way.  On a write operation however, the
+						<literal>effective_location</literal> and/or <literal>usage_rules</literal>
+						parameters may indeed change and those changes will be passed on
+						to any outgoing channel.
+					</para></note>
+				</option>
+				</optionlist>
+			</parameter>
+		</syntax>
+		<description><para>
+		When used to set a parameter on a profile, if the profile doesn't already exist, a new
+		one will be created automatically.
+		</para>
+		<para>
+		The <literal>${GEOLOCPROFILESTATUS}</literal> channel variable will be set with
+		a return code indicating the result of the operation.  Possible values are:
+		</para>
+		<enumlist>
+			<enum name="0"><para>Success</para></enum>
+			<enum name="-1"><para>No or not enough parameters were supplied</para></enum>
+			<enum name="-2"><para>There was an internal error finding or creating a profile</para></enum>
+			<enum name="-3"><para>There was an issue specific to the parameter specified
+			(value not valid or parameter name not found, etc.)</para></enum>
+		</enumlist>
+		</description>
+	</function>
+</docs>
+

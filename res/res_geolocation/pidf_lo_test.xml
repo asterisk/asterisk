@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<presence entity="pres:alice@asterisk.org"
+	xmlns="urn:ietf:params:xml:ns:pidf"
+	xmlns:ca="urn:ietf:params:xml:ns:pidf:geopriv10:civicAddr"
+	xmlns:dm="urn:ietf:params:xml:ns:pidf:data-model"
+	xmlns:gbp="urn:ietf:params:xml:ns:pidf:geopriv10:basicPolicy"
+	xmlns:gml="http://www.opengis.net/gml"
+	xmlns:gp="urn:ietf:params:xml:ns:pidf:geopriv10"
+	xmlns:con="urn:ietf:params:xml:ns:geopriv:conf"
+	xmlns:gs="http://www.opengis.net/pidflo/1.0">
+	<tuple id="point-2d">
+		<status>
+			<gp:geopriv>
+				<gp:location-info>
+					<gml:Point srsName="urn:ogc:def:crs:EPSG::4326">
+						<gml:pos>-34.410649 150.87651</gml:pos>
+					</gml:Point>
+				<con:confidence pdf="normal">66</con:confidence>
+				</gp:location-info>
+				<gp:usage-rules>
+					<gbp:retransmission-allowed>no</gbp:retransmission-allowed>
+					<gbp:retention-expiry>2010-11-14T20:00:00Z</gbp:retention-expiry>
+				</gp:usage-rules>
+				<gp:method>Manual</gp:method>
+				<gp:note-well>
+					this is a test
+					of the emergency broadcast system
+				</gp:note-well>
+			</gp:geopriv>
+		</status>
+		<timestamp>2007-06-22T20:57:29Z</timestamp>
+	</tuple>
+</presence>

@@ -283,7 +283,7 @@ int ast_loader_unregister(int (*updater)(void));
  * \param type The type of action that will be performed by CLI.
  *
  * \retval A possible completion of the partial match.
- * \retval NULL if no matches were found.
+ * \retval NULL if no matches were found or Asterisk is not yet fully booted.
  */
 char *ast_module_helper(const char *line, const char *word, int pos, int state, int rpos, enum ast_module_helper_type type);
 

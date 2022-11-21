@@ -498,6 +498,31 @@ int pbx_exec(struct ast_channel *c,	/*!< Channel */
 	return res;
 }
 
+int ast_pbx_exec_application(struct ast_channel *chan, const char *app_name, const char *app_args)
+{
+	int res = -1;
+	struct ast_app *app;
+
+	app = pbx_findapp(app_name);
+	if (!app) {
+		ast_log(LOG_WARNING, "Could not find application (%s)\n", app_name);
+	} else {
+		struct ast_str *substituted_args = NULL;
+
+		if (!ast_strlen_zero(app_args) && (substituted_args = ast_str_create(16))) {
+			ast_str_substitute_variables(&substituted_args, 0, chan, app_args);
+			res = pbx_exec(chan, app, ast_str_buffer(substituted_args));
+			ast_free(substituted_args);
+		} else {
+			if (!ast_strlen_zero(app_args)) {
+				ast_log(LOG_WARNING, "Could not substitute application argument variables for %s\n", app_name);
+			}
+			res = pbx_exec(chan, app, app_args);
+		}
+	}
+	return res;
+}
+
 static struct ast_cli_entry app_cli[] = {
 	AST_CLI_DEFINE(handle_show_applications, "Shows registered dialplan applications"),
 	AST_CLI_DEFINE(handle_show_application, "Describe a specific dialplan application"),

@@ -639,6 +639,82 @@
 			</syntax>
 		</managerEventInstance>
 	</managerEvent>
+	<managerEvent language="en_US" name="MeetmeList">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised in response to a MeetmeList command.</synopsis>
+			<syntax>
+				<parameter name="Conference">
+					<para>Conference ID.</para>
+				</parameter>
+				<parameter name="UserNumber">
+					<para>User ID.</para>
+				</parameter>
+				<parameter name="CallerIDNum">
+					<para>Caller ID number.</para>
+				</parameter>
+				<parameter name="CallerIDName">
+					<para>Caller ID name.</para>
+				</parameter>
+				<parameter name="ConnectedLineNum">
+					<para>Connected Line number.</para>
+				</parameter>
+				<parameter name="ConnectedLineName">
+					<para>Connected Line name.</para>
+				</parameter>
+				<parameter name="Channel">
+					<para>Channel name</para>
+				</parameter>
+				<parameter name="Admin">
+					<para>Whether or not the user is an admin.</para>
+				</parameter>
+				<parameter name="Role">
+					<para>User role. Can be "Listen only", "Talk only", or "Talk and listen".</para>
+				</parameter>
+				<parameter name="MarkedUser">
+					<para>Whether or not the user is a marked user.</para>
+				</parameter>
+				<parameter name="Muted">
+					<para>Whether or not the user is currently muted.</para>
+				</parameter>
+				<parameter name="Talking">
+					<para>Whether or not the user is currently talking.</para>
+				</parameter>
+			</syntax>
+			<see-also>
+				<ref type="manager">MeetmeList</ref>
+				<ref type="application">MeetMe</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="MeetmeListRooms">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised in response to a MeetmeListRooms command.</synopsis>
+			<syntax>
+				<parameter name="Conference">
+					<para>Conference ID.</para>
+				</parameter>
+				<parameter name="Parties">
+					<para>Number of parties in the conference.</para>
+				</parameter>
+				<parameter name="Marked">
+					<para>Number of marked users in the conference.</para>
+				</parameter>
+				<parameter name="Activity">
+					<para>Total duration of conference in HH:MM:SS format.</para>
+				</parameter>
+				<parameter name="Creation">
+					<para>How the conference was created: "Dyanmic" or "Static".</para>
+				</parameter>
+				<parameter name="Locked">
+					<para>Whether or not the conference is locked.</para>
+				</parameter>
+			</syntax>
+			<see-also>
+				<ref type="manager">MeetmeListRooms</ref>
+				<ref type="application">MeetMe</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
  ***/
 
 #define CONFIG_FILE_NAME	"meetme.conf"
@@ -4761,7 +4837,7 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 				}
 			}
 			if (!var) {
-				ast_debug(1, "%s isn't a valid conference\n", confno);
+				ast_log(LOG_WARNING, "%s isn't a valid conference\n", confno);
 			}
 			ast_config_destroy(cfg);
 		}
@@ -5239,7 +5315,9 @@ static int admin_exec(struct ast_channel *chan, const char *data) {
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "MeetMeAdmin requires an argument!\n");
-		pbx_builtin_setvar_helper(chan, "MEETMEADMINSTATUS", "NOPARSE");
+		if (chan) {
+			pbx_builtin_setvar_helper(chan, "MEETMEADMINSTATUS", "NOPARSE");
+		}
 		return -1;
 	}
 
@@ -5248,7 +5326,9 @@ static int admin_exec(struct ast_channel *chan, const char *data) {
 
 	if (!args.command) {
 		ast_log(LOG_WARNING, "MeetmeAdmin requires a command!\n");
-		pbx_builtin_setvar_helper(chan, "MEETMEADMINSTATUS", "NOPARSE");
+		if (chan) {
+			pbx_builtin_setvar_helper(chan, "MEETMEADMINSTATUS", "NOPARSE");
+		}
 		return -1;
 	}
 
@@ -5261,7 +5341,9 @@ static int admin_exec(struct ast_channel *chan, const char *data) {
 	if (!cnf) {
 		ast_log(LOG_WARNING, "Conference number '%s' not found!\n", args.confno);
 		AST_LIST_UNLOCK(&confs);
-		pbx_builtin_setvar_helper(chan, "MEETMEADMINSTATUS", "NOTFOUND");
+		if (chan) {
+			pbx_builtin_setvar_helper(chan, "MEETMEADMINSTATUS", "NOTFOUND");
+		}
 		return 0;
 	}
 
@@ -5384,7 +5466,9 @@ usernotfound:
 	AST_LIST_UNLOCK(&confs);
 
 	dispose_conf(cnf);
-	pbx_builtin_setvar_helper(chan, "MEETMEADMINSTATUS", res == -2 ? "NOTFOUND" : res ? "FAILED" : "OK");
+	if (chan) {
+		pbx_builtin_setvar_helper(chan, "MEETMEADMINSTATUS", res == -2 ? "NOTFOUND" : res ? "FAILED" : "OK");
+	}
 
 	return 0;
 }

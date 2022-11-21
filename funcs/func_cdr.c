@@ -161,7 +161,9 @@
 			<note><para>CDRs can only be modified before the bridge between two channels is
 			torn down. For example, CDRs may not be modified after the <literal>Dial</literal>
 			application has returned.</para></note>
-			<para>Example: exten => 1,1,Set(CDR(userfield)=test)</para>
+			<example title="Set the userfield">
+			 exten => 1,1,Set(CDR(userfield)=test)
+			</example>
 		</description>
 	</function>
 	<function name="CDR_PROP" language="en_US">

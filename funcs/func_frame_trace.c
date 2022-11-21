@@ -69,9 +69,15 @@
 		</syntax>
 		<description>
 			<para>Examples:</para>
-			<para>exten => 1,1,Set(FRAME_TRACE(white)=DTMF_BEGIN,DTMF_END); view only DTMF frames. </para>
-			<para>exten => 1,1,Set(FRAME_TRACE()=DTMF_BEGIN,DTMF_END); view only DTMF frames. </para>
-			<para>exten => 1,1,Set(FRAME_TRACE(black)=DTMF_BEGIN,DTMF_END); view everything except DTMF frames. </para>
+			<example title="View only DTMF frames">
+			exten => 1,1,Set(FRAME_TRACE(white)=DTMF_BEGIN,DTMF_END)
+			</example>
+			<example title="View only DTMF frames">
+			exten => 1,1,Set(FRAME_TRACE()=DTMF_BEGIN,DTMF_END)
+			</example>
+			<example title="View everything except DTMF frames">
+			exten => 1,1,Set(FRAME_TRACE(black)=DTMF_BEGIN,DTMF_END)
+			</example>
 		</description>
 	</function>
  ***/
@@ -335,8 +341,7 @@ static void print_frame(struct ast_frame *frame)
 			ast_verbose("SubClass: PVT_CAUSE_CODE\n");
 			break;
 		case AST_CONTROL_MASQUERADE_NOTIFY:
-			/* Should never happen. */
-			ast_assert(0);
+			ast_verbose("SubClass: MASQUERADE_NOTIFY\n");
 			break;
 		case AST_CONTROL_STREAM_TOPOLOGY_REQUEST_CHANGE:
 			ast_verbose("SubClass: STREAM_TOPOLOGY_REQUEST_CHANGE\n");

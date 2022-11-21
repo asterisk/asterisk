@@ -97,6 +97,9 @@
 				<configOption name="quiet">
 					<synopsis>Silence enter/leave prompts and user intros for this user</synopsis>
 				</configOption>
+				<configOption name="hear_own_join_sound">
+					<synopsis>Determines if the user also hears the join sound when they enter a conference</synopsis>
+				</configOption>
 				<configOption name="announce_user_count">
 					<synopsis>Sets if the number of users should be announced to the user</synopsis>
 				</configOption>
@@ -116,6 +119,9 @@
 				</configOption>
 				<configOption name="end_marked">
 					<synopsis>Kick the user from the conference when the last marked user leaves</synopsis>
+				</configOption>
+				<configOption name="end_marked_any">
+					<synopsis>Kick the user from the conference when any marked user leaves</synopsis>
 				</configOption>
 				<configOption name="talk_detection_events">
 					<synopsis>Set whether or not notifications of when a user begins and ends talking should be sent out as events over AMI</synopsis>
@@ -1437,10 +1443,7 @@ static int add_menu_entry(struct conf_menu *menu, const char *dtmf, const char *
 
 	/* if adding any of the actions failed, bail */
 	if (res) {
-		struct conf_menu_action *menu_action;
-		while ((menu_action = AST_LIST_REMOVE_HEAD(&menu_entry->actions, action))) {
-			ast_free(menu_action);
-		}
+		conf_menu_entry_destroy(menu_entry);
 		ast_free(menu_entry);
 		return -1;
 	}
@@ -1449,6 +1452,7 @@ static int add_menu_entry(struct conf_menu *menu, const char *dtmf, const char *
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&menu->entries, cur, entry) {
 		if (!strcasecmp(cur->dtmf, menu_entry->dtmf)) {
 			AST_LIST_REMOVE_CURRENT(entry);
+			conf_menu_entry_destroy(cur);
 			ast_free(cur);
 			break;
 		}
@@ -1574,11 +1578,17 @@ static char *handle_cli_confbridge_show_user_profile(struct ast_cli_entry *e, in
 	ast_cli(a->fd,"Quiet:                   %s\n",
 		u_profile.flags & USER_OPT_QUIET ?
 		"enabled" : "disabled");
+	ast_cli(a->fd,"Hear Join:               %s\n",
+		u_profile.flags & USER_OPT_HEAR_OWN_JOIN_SOUND ?
+		"enabled" : "disabled");
 	ast_cli(a->fd,"Wait Marked:             %s\n",
 		u_profile.flags & USER_OPT_WAITMARKED ?
 		"enabled" : "disabled");
-	ast_cli(a->fd,"END Marked:              %s\n",
+	ast_cli(a->fd,"END Marked (All):        %s\n",
 		u_profile.flags & USER_OPT_ENDMARKED ?
+		"enabled" : "disabled");
+	ast_cli(a->fd,"END Marked (Any):        %s\n",
+		u_profile.flags & USER_OPT_ENDMARKEDANY ?
 		"enabled" : "disabled");
 	ast_cli(a->fd,"Drop_silence:            %s\n",
 		u_profile.flags & USER_OPT_DROP_SILENCE ?
@@ -2396,12 +2406,14 @@ int conf_load_config(void)
 	aco_option_register(&cfg_info, "startmuted", ACO_EXACT, user_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct user_profile, flags), USER_OPT_STARTMUTED);
 	aco_option_register(&cfg_info, "music_on_hold_when_empty", ACO_EXACT, user_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct user_profile, flags), USER_OPT_MUSICONHOLD);
 	aco_option_register(&cfg_info, "quiet", ACO_EXACT, user_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct user_profile, flags), USER_OPT_QUIET);
+	aco_option_register(&cfg_info, "hear_own_join_sound", ACO_EXACT, user_types, "yes", OPT_BOOLFLAG_T, 1, FLDSET(struct user_profile, flags), USER_OPT_HEAR_OWN_JOIN_SOUND);
 	aco_option_register_custom(&cfg_info, "announce_user_count_all", ACO_EXACT, user_types, "no", announce_user_count_all_handler, 0);
 	aco_option_register(&cfg_info, "announce_user_count", ACO_EXACT, user_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct user_profile, flags), USER_OPT_ANNOUNCEUSERCOUNT);
 	/* Negative logic. Defaults to "yes" and evaluates with ast_false(). If !ast_false(), USER_OPT_NOONLYPERSON is cleared */
 	aco_option_register(&cfg_info, "announce_only_user", ACO_EXACT, user_types, "yes", OPT_BOOLFLAG_T, 0, FLDSET(struct user_profile, flags), USER_OPT_NOONLYPERSON);
 	aco_option_register(&cfg_info, "wait_marked", ACO_EXACT, user_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct user_profile, flags), USER_OPT_WAITMARKED);
 	aco_option_register(&cfg_info, "end_marked", ACO_EXACT, user_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct user_profile, flags), USER_OPT_ENDMARKED);
+	aco_option_register(&cfg_info, "end_marked_any", ACO_EXACT, user_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct user_profile, flags), USER_OPT_ENDMARKEDANY);
 	aco_option_register(&cfg_info, "talk_detection_events", ACO_EXACT, user_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct user_profile, flags), USER_OPT_TALKER_DETECT);
 	aco_option_register(&cfg_info, "dtmf_passthrough", ACO_EXACT, user_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct user_profile, flags), USER_OPT_DTMF_PASS);
 	aco_option_register(&cfg_info, "announce_join_leave", ACO_EXACT, user_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct user_profile, flags), USER_OPT_ANNOUNCE_JOIN_LEAVE);

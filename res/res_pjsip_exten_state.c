@@ -117,6 +117,7 @@ static void subscription_shutdown(struct ast_sip_subscription *sub);
 static int new_subscribe(struct ast_sip_endpoint *endpoint, const char *resource);
 static int subscription_established(struct ast_sip_subscription *sub);
 static void *get_notify_data(struct ast_sip_subscription *sub);
+static int get_resource_display_name(struct ast_sip_endpoint *endpoint, const char *resource, char *display_name, int display_name_size);
 static void to_ami(struct ast_sip_subscription *sub,
 		   struct ast_str **buf);
 static int publisher_start(struct ast_sip_outbound_publish *configuration,
@@ -128,6 +129,7 @@ struct ast_sip_notifier presence_notifier = {
 	.new_subscribe = new_subscribe,
 	.subscription_established = subscription_established,
 	.get_notify_data = get_notify_data,
+	.get_resource_display_name = get_resource_display_name,
 };
 
 struct ast_sip_notifier dialog_notifier = {
@@ -135,6 +137,7 @@ struct ast_sip_notifier dialog_notifier = {
 	.new_subscribe = new_subscribe,
 	.subscription_established = subscription_established,
 	.get_notify_data = get_notify_data,
+	.get_resource_display_name = get_resource_display_name,
 };
 
 struct ast_sip_subscription_handler presence_handler = {
@@ -293,7 +296,8 @@ static int notify_task(void *obj)
 		.body_data = &task_data->exten_state_data,
 	};
 
-	/* Terminated subscriptions are no longer associated with a valid tree, and sending
+	/* The subscription was terminated while notify_task was in queue.
+	   Terminated subscriptions are no longer associated with a valid tree, and sending
 	 * NOTIFY messages on a subscription which has already been terminated won't work.
 	 */
 	if (ast_sip_subscription_is_terminated(task_data->exten_state_sub->sip_sub)) {
@@ -335,6 +339,13 @@ static int state_changed(const char *context, const char *exten,
 {
 	struct notify_task_data *task_data;
 	struct exten_state_subscription *exten_state_sub = data;
+
+	/* Terminated subscriptions are no longer associated with a valid tree.
+	 * Do not queue notify_task.
+	 */
+	if (ast_sip_subscription_is_terminated(exten_state_sub->sip_sub)) {
+		return 0;
+	}
 
 	if (!(task_data = alloc_notify_task_data(exten, exten_state_sub, info))) {
 		return -1;
@@ -422,6 +433,27 @@ static int new_subscribe(struct ast_sip_endpoint *endpoint,
 	}
 
 	return 200;
+}
+
+static int get_resource_display_name(struct ast_sip_endpoint *endpoint,
+		const char *resource, char *display_name, int display_name_size)
+{
+	const char *context;
+
+	if (!endpoint || ast_strlen_zero(resource) || !display_name || display_name_size <= 0) {
+		return -1;
+	}
+
+	context = S_OR(endpoint->subscription.context, endpoint->context);
+
+	if (!ast_get_hint(NULL, 0, display_name, display_name_size, NULL, context, resource)) {
+		ast_log(LOG_NOTICE, "Endpoint '%s': "
+			"Extension '%s' does not exist in context '%s' or has no associated hint\n",
+			ast_sorcery_object_get_id(endpoint), resource, context);
+		return -1;
+	}
+
+	return 0;
 }
 
 static int subscription_established(struct ast_sip_subscription *sip_sub)

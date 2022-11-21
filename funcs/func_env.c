@@ -178,48 +178,61 @@
 		<description>
 			<para>Read and write text file in character and line mode.</para>
 			<para>Examples:</para>
-			<para/>
 			<para>Read mode (byte):</para>
-			<para>    ;reads the entire content of the file.</para>
-			<para>    Set(foo=${FILE(/tmp/test.txt)})</para>
-			<para>    ;reads from the 11th byte to the end of the file (i.e. skips the first 10).</para>
-			<para>    Set(foo=${FILE(/tmp/test.txt,10)})</para>
-			<para>    ;reads from the 11th to 20th byte in the file (i.e. skip the first 10, then read 10 bytes).</para>
-			<para>    Set(foo=${FILE(/tmp/test.txt,10,10)})</para>
-			<para/>
+			<example title="Reads the entire content of the file">
+			same => n,Set(foo=${FILE(/tmp/test.txt)})
+			</example>
+			<example title="Reads from the 11th byte to the end of the file (i.e. skips the first 10)">
+			same => n,Set(foo=${FILE(/tmp/test.txt,10)})
+			</example>
+			<example title="Reads from the 11th to 20th byte in the file (i.e. skip the first 10, then read 10 bytes)">
+			same => n,Set(foo=${FILE(/tmp/test.txt,10,10)})
+			</example>
 			<para>Read mode (line):</para>
-			<para>    ; reads the 3rd line of the file.</para>
-			<para>    Set(foo=${FILE(/tmp/test.txt,3,1,l)})</para>
-			<para>    ; reads the 3rd and 4th lines of the file.</para>
-			<para>    Set(foo=${FILE(/tmp/test.txt,3,2,l)})</para>
-			<para>    ; reads from the third line to the end of the file.</para>
-			<para>    Set(foo=${FILE(/tmp/test.txt,3,,l)})</para>
-			<para>    ; reads the last three lines of the file.</para>
-			<para>    Set(foo=${FILE(/tmp/test.txt,-3,,l)})</para>
-			<para>    ; reads the 3rd line of a DOS-formatted file.</para>
-			<para>    Set(foo=${FILE(/tmp/test.txt,3,1,l,d)})</para>
-			<para/>
+			<example title="Reads the 3rd line of the file">
+			same => n,Set(foo=${FILE(/tmp/test.txt,3,1,l)})
+			</example>
+			<example title="Reads the 3rd and 4th lines of the file">
+			same => n,Set(foo=${FILE(/tmp/test.txt,3,2,l)})
+			</example>
+			<example title="Reads from the third line to the end of the file">
+			same => n,Set(foo=${FILE(/tmp/test.txt,3,,l)})
+			</example>
+			<example title="Reads the last three lines of the file">
+			same => n,Set(foo=${FILE(/tmp/test.txt,-3,,l)})
+			</example>
+			<example title="Reads the 3rd line of a DOS-formatted file">
+			same => n,Set(foo=${FILE(/tmp/test.txt,3,1,l,d)})
+			</example>
 			<para>Write mode (byte):</para>
-			<para>    ; truncate the file and write "bar"</para>
-			<para>    Set(FILE(/tmp/test.txt)=bar)</para>
-			<para>    ; Append "bar"</para>
-			<para>    Set(FILE(/tmp/test.txt,,,a)=bar)</para>
-			<para>    ; Replace the first byte with "bar" (replaces 1 character with 3)</para>
-			<para>    Set(FILE(/tmp/test.txt,0,1)=bar)</para>
-			<para>    ; Replace 10 bytes beginning at the 21st byte of the file with "bar"</para>
-			<para>    Set(FILE(/tmp/test.txt,20,10)=bar)</para>
-			<para>    ; Replace all bytes from the 21st with "bar"</para>
-			<para>    Set(FILE(/tmp/test.txt,20)=bar)</para>
-			<para>    ; Insert "bar" after the 4th character</para>
-			<para>    Set(FILE(/tmp/test.txt,4,0)=bar)</para>
-			<para/>
+			<example title="Truncate the file and write bar">
+			same => n,Set(FILE(/tmp/test.txt)=bar)
+			</example>
+			<example title="Append bar">
+			same => n,Set(FILE(/tmp/test.txt,,,a)=bar)
+			</example>
+			<example title="Replace the first byte with bar (replaces 1 character with 3)">
+			same => n,Set(FILE(/tmp/test.txt,0,1)=bar)
+			</example>
+			<example title="Replace 10 bytes beginning at the 21st byte of the file with bar">
+			same => n,Set(FILE(/tmp/test.txt,20,10)=bar)
+			</example>
+			<example title="Replace all bytes from the 21st with bar">
+			same => n,Set(FILE(/tmp/test.txt,20)=bar)
+			</example>
+			<example title="Insert bar after the 4th character">
+			same => n,Set(FILE(/tmp/test.txt,4,0)=bar)
+			</example>
 			<para>Write mode (line):</para>
-			<para>    ; Replace the first line of the file with "bar"</para>
-			<para>    Set(FILE(/tmp/foo.txt,0,1,l)=bar)</para>
-			<para>    ; Replace the last line of the file with "bar"</para>
-			<para>    Set(FILE(/tmp/foo.txt,-1,,l)=bar)</para>
-			<para>    ; Append "bar" to the file with a newline</para>
-			<para>    Set(FILE(/tmp/foo.txt,,,al)=bar)</para>
+			<example title="Replace the first line of the file with bar">
+			same => n,Set(FILE(/tmp/foo.txt,0,1,l)=bar)
+			</example>
+			<example title="Replace the last line of the file with bar">
+			same => n,Set(FILE(/tmp/foo.txt,-1,,l)=bar)
+			</example>
+			<example title="Append bar to the file with a newline">
+			same => n,Set(FILE(/tmp/foo.txt,,,al)=bar)
+			</example>
 			<note>
 				<para>If <literal>live_dangerously</literal> in <literal>asterisk.conf</literal>
 				is set to <literal>no</literal>, this function can only be executed from the
@@ -291,6 +304,11 @@
 		</see-also>
 	</function>
 	<function name="BASENAME" language="en_US">
+		<since>
+			<version>16.21.0</version>
+			<version>18.7.0</version>
+			<version>19.0.0</version>
+		</since>
 		<synopsis>
 			Return the name of a file.
 		</synopsis>
@@ -309,6 +327,11 @@
 		</see-also>
 	</function>
 	<function name="DIRNAME" language="en_US">
+		<since>
+			<version>16.21.0</version>
+			<version>18.7.0</version>
+			<version>19.0.0</version>
+		</since>
 		<synopsis>
 			Return the directory of a file.
 		</synopsis>

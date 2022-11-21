@@ -1033,6 +1033,10 @@ int analog_call(struct analog_pvt *p, struct ast_channel *ast, const char *rdest
 				ast_log(LOG_WARNING, "Number '%s' is shorter than stripmsd (%d)\n", c, p->stripmsd);
 				c = NULL;
 			}
+			if (c && (strlen(c) > sizeof(p->dop.dialstr) - 3 /* "Tw\0" */)) {
+				ast_log(LOG_WARNING, "Number '%s' is longer than %d bytes\n", c, (int)sizeof(p->dop.dialstr) - 2);
+				c = NULL;
+			}
 			if (c) {
 				p->dop.op = ANALOG_DIAL_OP_REPLACE;
 				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "Tw%s", c);
@@ -1085,6 +1089,10 @@ int analog_call(struct analog_pvt *p, struct ast_channel *ast, const char *rdest
 		if (p->use_callerid) {
 			p->caller.id.name.str = p->lastcid_name;
 			p->caller.id.number.str = p->lastcid_num;
+			p->caller.id.name.valid = ast_channel_connected(ast)->id.name.valid;
+			p->caller.id.number.valid = ast_channel_connected(ast)->id.number.valid;
+			p->caller.id.name.presentation = ast_channel_connected(ast)->id.name.presentation;
+			p->caller.id.number.presentation = ast_channel_connected(ast)->id.number.presentation;
 		}
 
 		ast_setstate(ast, AST_STATE_RINGING);
@@ -2231,12 +2239,12 @@ static void *__analog_ss_thread(void *data)
 			} else if (!strcmp(exten, pickupexten)) {
 				/* Scan all channels and see if there are any
 				 * ringing channels that have call groups
-				 * that equal this channels pickup group
+				 * that equal this channel's pickup group
 				 */
 				if (idx == ANALOG_SUB_REAL) {
 					/* Switch us from Third call to Call Wait */
 					if (p->subs[ANALOG_SUB_THREEWAY].owner) {
-						/* If you make a threeway call and the *8# a call, it should actually
+						/* If you make a threeway call and then *8# a call, it should actually
 						   look like a callwait */
 						analog_alloc_sub(p, ANALOG_SUB_CALLWAIT);
 						analog_swap_subs(p, ANALOG_SUB_CALLWAIT, ANALOG_SUB_THREEWAY);
@@ -2260,10 +2268,8 @@ static void *__analog_ss_thread(void *data)
 				ast_verb(3, "Disabling Caller*ID on %s\n", ast_channel_name(chan));
 				/* Disable Caller*ID if enabled */
 				p->hidecallerid = 1;
-				ast_party_number_free(&ast_channel_caller(chan)->id.number);
-				ast_party_number_init(&ast_channel_caller(chan)->id.number);
-				ast_party_name_free(&ast_channel_caller(chan)->id.name);
-				ast_party_name_init(&ast_channel_caller(chan)->id.name);
+				ast_channel_caller(chan)->id.number.presentation = AST_PRES_PROHIB_USER_NUMBER_NOT_SCREENED;
+				ast_channel_caller(chan)->id.name.presentation = AST_PRES_PROHIB_USER_NUMBER_NOT_SCREENED;
 				res = analog_play_tone(p, idx, ANALOG_TONE_DIALRECALL);
 				if (res) {
 					ast_log(LOG_WARNING, "Unable to do dial recall on channel %s: %s\n",
@@ -2349,7 +2355,8 @@ static void *__analog_ss_thread(void *data)
 				ast_verb(3, "Enabling Caller*ID on %s\n", ast_channel_name(chan));
 				/* Enable Caller*ID if enabled */
 				p->hidecallerid = 0;
-				ast_set_callerid(chan, p->cid_num, p->cid_name, NULL);
+				ast_channel_caller(chan)->id.number.presentation = AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED;
+				ast_channel_caller(chan)->id.name.presentation = AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED;
 				res = analog_play_tone(p, idx, ANALOG_TONE_DIALRECALL);
 				if (res) {
 					ast_log(LOG_WARNING, "Unable to do dial recall on channel %s: %s\n",
@@ -2804,7 +2811,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 
 	switch (res) {
 	case ANALOG_EVENT_EC_DISABLED:
-		ast_verb(3, "Channel %d echo canceler disabled due to CED detection\n", p->channel);
+		ast_verb(3, "Channel %d echo canceller disabled due to CED detection\n", p->channel);
 		analog_set_echocanceller(p, 0);
 		break;
 #ifdef HAVE_DAHDI_ECHOCANCEL_FAX_MODE
@@ -2815,10 +2822,10 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 		ast_verb(3, "Channel %d detected a CED tone from the network.\n", p->channel);
 		break;
 	case ANALOG_EVENT_EC_NLP_DISABLED:
-		ast_verb(3, "Channel %d echo canceler disabled its NLP.\n", p->channel);
+		ast_verb(3, "Channel %d echo canceller disabled its NLP.\n", p->channel);
 		break;
 	case ANALOG_EVENT_EC_NLP_ENABLED:
-		ast_verb(3, "Channel %d echo canceler enabled its NLP.\n", p->channel);
+		ast_verb(3, "Channel %d echo canceller enabled its NLP.\n", p->channel);
 		break;
 #endif
 	case ANALOG_EVENT_PULSE_START:
@@ -2903,14 +2910,14 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 					analog_lock_sub_owner(p, ANALOG_SUB_CALLWAIT);
 					if (!p->subs[ANALOG_SUB_CALLWAIT].owner) {
 						/*
-						 * The call waiting call dissappeared.
+						 * The call waiting call disappeared.
 						 * This is now a normal hangup.
 						 */
 						analog_set_echocanceller(p, 0);
 						return NULL;
 					}
 
-					/* There's a call waiting call, so ring the phone, but make it unowned in the mean time */
+					/* There's a call waiting call, so ring the phone, but make it unowned in the meantime */
 					analog_swap_subs(p, ANALOG_SUB_CALLWAIT, ANALOG_SUB_REAL);
 					ast_verb(3, "Channel %d still has (callwait) call, ringing phone\n", p->channel);
 					analog_unalloc_sub(p, ANALOG_SUB_CALLWAIT);
@@ -3382,10 +3389,8 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 						/* Put them in the threeway, and flip */
 						analog_set_inthreeway(p, ANALOG_SUB_THREEWAY, 1);
 						analog_set_inthreeway(p, ANALOG_SUB_REAL, 1);
-						if (ast_channel_state(ast) == AST_STATE_UP) {
-							analog_swap_subs(p, ANALOG_SUB_THREEWAY, ANALOG_SUB_REAL);
-							orig_3way_sub = ANALOG_SUB_REAL;
-						}
+						analog_swap_subs(p, ANALOG_SUB_THREEWAY, ANALOG_SUB_REAL);
+						orig_3way_sub = ANALOG_SUB_REAL;
 						ast_queue_unhold(p->subs[orig_3way_sub].owner);
 						analog_set_new_owner(p, p->subs[ANALOG_SUB_REAL].owner);
 					} else {

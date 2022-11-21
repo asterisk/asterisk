@@ -20,5 +20,8 @@ all: _all
 include $(ASTTOPDIR)/Makefile.moddir_rules
 
 test_astobj2.o: _ASTCFLAGS+=$(call get_menuselect_cflags,AO2_DEBUG)
+# can't use '%y' in strftime() without warnings since it's not y2k compliant
+test_capture.o: _ASTCFLAGS+=$(AST_NO_FORMAT_Y2K)
+test_crypto.o: _ASTCFLAGS+=$(AST_NO_FORMAT_TRUNCATION)
 test_strings.o: _ASTCFLAGS+=$(AST_NO_FORMAT_TRUNCATION) $(AST_NO_STRINGOP_TRUNCATION)
 test_voicemail_api.o: _ASTCFLAGS+=$(AST_NO_FORMAT_TRUNCATION)

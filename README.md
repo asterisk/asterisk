@@ -91,7 +91,10 @@ guides in the [configs] directory.
 2. Run `./configure`
 
   Execute the configure script to guess values for system-dependent
-variables used during compilation.
+variables used during compilation. If the script indicates that some required 
+components are missing, you can run `./contrib/scripts/install_prereq install`
+to install the necessary components. Note that this will install all dependencies for every functionality of Asterisk. After running the script, you will need
+to rerun `./configure`.
 
 3. Run `make menuselect` _\[optional]_
 

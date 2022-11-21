@@ -11,16 +11,25 @@ if [ x"$WORK_DIR" != x ] ; then
 fi
 
 pushd $TESTSUITE_DIR
-
 ./cleanup-test-remnants.sh
 
 if [ $REALTIME -eq 1 ] ; then
 	$CIDIR/setupRealtime.sh --initialize-db=${INITIALIZE_DB:?0}
 fi
 
-export PYTHONPATH=./lib/python/
+# check to see if venv scripts exist so we can use them
+if [ -f ./setupVenv.sh ] ; then
+	echo "Running in Virtual Environment"
+	# explicitly invoking setupVenv to capture output in case of failure
+	./setupVenv.sh
+	VENVPREFIX="runInVenv.sh python "
+else
+	echo "Running in Legacy Mode"
+	export PYTHONPATH=./lib/python/
+fi
+
 echo "Running tests ${TESTSUITE_COMMAND} ${AST_WORK_DIR:+with work directory ${AST_WORK_DIR}}"
-./runtests.py --cleanup --timeout=${TEST_TIMEOUT} ${TESTSUITE_COMMAND} | contrib/scripts/pretty_print --no-color --no-timer --term-width=120 --show-errors || :
+./${VENVPREFIX}runtests.py --cleanup --timeout=${TEST_TIMEOUT} ${TESTSUITE_COMMAND} | contrib/scripts/pretty_print --no-color --no-timer --term-width=120 --show-errors || :
 
 if [ $REALTIME -eq 1 ] ; then
 	$CIDIR/teardownRealtime.sh --cleanup-db=${CLEANUP_DB:?0}

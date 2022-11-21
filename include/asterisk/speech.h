@@ -158,6 +158,12 @@ int ast_speech_unregister(const char *engine_name);
 /*! \brief Unregister a speech recognition engine */
 struct ast_speech_engine *ast_speech_unregister2(const char *engine_name);
 
+/*! \brief Retrieve a speech recognition engine */
+struct ast_speech_engine *ast_speech_find_engine(const char *engine_name);
+/*! \brief Unregister all speech recognition engines told to by callback */
+void ast_speech_unregister_engines(
+	int (*should_unregister)(const struct ast_speech_engine *engine, void *data), void *data,
+	void (*on_unregistered)(void *obj));
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

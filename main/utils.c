@@ -1849,7 +1849,74 @@ char *ast_strsep(char **iss, const char sep, uint32_t flags)
 	}
 
 	if (flags & AST_STRSEP_TRIM) {
-		st = ast_strip(st);
+		char *trimmed = ast_strip(st);
+		if (!ast_strlen_zero(trimmed)) {
+			st = trimmed;
+		}
+	}
+
+	if (flags & AST_STRSEP_UNESCAPE) {
+		ast_unescape_quoted(st);
+	}
+
+	return st;
+}
+
+char *ast_strsep_quoted(char **iss, const char sep, const char quote, uint32_t flags)
+{
+	char *st = *iss;
+	char *is;
+	int inquote = 0;
+	int found = 0;
+	char stack[8];
+	const char qstr[] = { quote };
+
+	if (ast_strlen_zero(st)) {
+		return NULL;
+	}
+
+	memset(stack, 0, sizeof(stack));
+
+	for(is = st; *is; is++) {
+		if (*is == '\\') {
+			if (*++is != '\0') {
+				is++;
+			} else {
+				break;
+			}
+		}
+
+		if (*is == quote) {
+			if (*is == stack[inquote]) {
+				stack[inquote--] = '\0';
+			} else {
+				if (++inquote >= sizeof(stack)) {
+					return NULL;
+				}
+				stack[inquote] = *is;
+			}
+		}
+
+		if (*is == sep && !inquote) {
+			*is = '\0';
+			found = 1;
+			*iss = is + 1;
+			break;
+		}
+	}
+	if (!found) {
+		*iss = NULL;
+	}
+
+	if (flags & AST_STRSEP_STRIP) {
+		st = ast_strip_quoted(st, qstr, qstr);
+	}
+
+	if (flags & AST_STRSEP_TRIM) {
+		char *trimmed = ast_strip(st);
+		if (!ast_strlen_zero(trimmed)) {
+			st = trimmed;
+		}
 	}
 
 	if (flags & AST_STRSEP_UNESCAPE) {
@@ -3155,3 +3222,38 @@ int ast_thread_is_user_interface(void)
 
 	return *thread_user_interface;
 }
+
+int ast_check_command_in_path(const char *cmd)
+{
+	char *token, *saveptr, *path = getenv("PATH");
+	char filename[PATH_MAX];
+	int len;
+
+	if (path == NULL) {
+		return 0;
+	}
+
+	path = ast_strdup(path);
+	if (path == NULL) {
+		return 0;
+	}
+
+	token = strtok_r(path, ":", &saveptr);
+	while (token != NULL) {
+		len = snprintf(filename, sizeof(filename), "%s/%s", token, cmd);
+		if (len < 0 || len >= sizeof(filename)) {
+			ast_log(LOG_WARNING, "Path constructed with '%s' too long; skipping\n", token);
+			continue;
+		}
+
+		if (access(filename, X_OK) == 0) {
+			ast_free(path);
+			return 1;
+		}
+
+		token = strtok_r(NULL, ":", &saveptr);
+	}
+	ast_free(path);
+	return 0;
+}
+

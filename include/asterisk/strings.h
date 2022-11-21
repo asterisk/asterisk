@@ -265,6 +265,7 @@ enum ast_strsep_flags {
   \param sep A single character delimiter.
   \param flags Controls post-processing of the result.
   AST_STRSEP_TRIM trims all leading and trailing whitespace from the result.
+  If the result containes only whitespace, it'll be passed through unchanged.
   AST_STRSEP_STRIP does a trim then strips the outermost quotes.  You may want
   to trim again after the strip.  Just OR both the TRIM and STRIP flags.
   AST_STRSEP_UNESCAPE unescapes '\' sequences.
@@ -307,6 +308,24 @@ enum ast_strsep_flags {
   \endcode
  */
 char *ast_strsep(char **s, const char sep, uint32_t flags);
+
+/*!
+ * \brief Like ast_strsep() except you can specify a specific quote character
+ *
+  \param s Pointer to address of the string to be processed.
+  Will be modified and can't be constant.
+  \param sep A single character delimiter.
+  \param quote The quote character
+  \param flags Controls post-processing of the result.
+  AST_STRSEP_TRIM trims all leading and trailing whitespace from the result.
+  AST_STRSEP_STRIP does a trim then strips the outermost quotes.  You may want
+  to trim again after the strip.  Just OR both the TRIM and STRIP flags.
+  AST_STRSEP_UNESCAPE unescapes '\' sequences.
+  AST_STRSEP_ALL does all of the above processing.
+  \return The next token or NULL if done or if there are more than 8 levels of
+  nested quotes.
+ */
+char *ast_strsep_quoted(char **s, const char sep, const char quote, uint32_t flags);
 
 /*!
   \brief Strip backslash for "escaped" semicolons,
@@ -393,11 +412,13 @@ char *ast_escape_c_alloc(const char *s);
 AST_INLINE_API(
 void ast_copy_string(char *dst, const char *src, size_t size),
 {
-	while (*src && size) {
-		*dst++ = *src++;
-		size--;
+	volatile size_t sz = size;
+	volatile char *sp = (char *)src;
+	while (*sp && sz) {
+		*dst++ = *sp++;
+		sz--;
 	}
-	if (__builtin_expect(!size, 0))
+	if (__builtin_expect(!sz, 0))
 		dst--;
 	*dst = '\0';
 }
@@ -1350,7 +1371,6 @@ static force_inline char *ast_str_to_upper(char *str)
  * \return AO2 container for strings
  * \retval NULL if allocation failed
  */
-//struct ao2_container *ast_str_container_alloc_options(enum ao2_container_opts opts, int buckets);
 struct ao2_container *ast_str_container_alloc_options(enum ao2_alloc_opts opts, int buckets);
 
 /*!

@@ -93,7 +93,24 @@
 		<description>
 			<para>Used in SQL templates to escape data which may contain single ticks
 			<literal>'</literal> which are otherwise used to delimit data.</para>
-			<para>Example: SELECT foo FROM bar WHERE baz='${SQL_ESC(${ARG1})}'</para>
+			<example title="Escape example">
+			 SELECT foo FROM bar WHERE baz='${SQL_ESC(${ARG1})}'
+			</example>
+		</description>
+	</function>
+	<function name="SQL_ESC_BACKSLASHES" language="en_US">
+		<synopsis>
+			Escapes backslashes for use in SQL statements.
+		</synopsis>
+		<syntax>
+			<parameter name="string" required="true" />
+		</syntax>
+		<description>
+			<para>Used in SQL templates to escape data which may contain backslashes
+			<literal>\</literal> which are otherwise used to escape data.</para>
+			<example title="Escape with backslashes example">
+			SELECT foo FROM bar WHERE baz='${SQL_ESC(${SQL_ESC_BACKSLASHES(${ARG1})})}'
+			</example>
 		</description>
 	</function>
  ***/
@@ -1102,13 +1119,13 @@ end_acf_read:
 	return 0;
 }
 
-static int acf_escape(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
+static int acf_escape(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len, char character)
 {
 	char *out = buf;
 
 	for (; *data && out - buf < len; data++) {
-		if (*data == '\'') {
-			*out = '\'';
+		if (*data == character) {
+			*out = character;
 			out++;
 		}
 		*out++ = *data;
@@ -1118,9 +1135,25 @@ static int acf_escape(struct ast_channel *chan, const char *cmd, char *data, cha
 	return 0;
 }
 
+static int acf_escape_ticks(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
+{
+	return acf_escape(chan, cmd, data, buf, len, '\'');
+}
+
 static struct ast_custom_function escape_function = {
 	.name = "SQL_ESC",
-	.read = acf_escape,
+	.read = acf_escape_ticks,
+	.write = NULL,
+};
+
+static int acf_escape_backslashes(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
+{
+	return acf_escape(chan, cmd, data, buf, len, '\\');
+}
+
+static struct ast_custom_function escape_backslashes_function = {
+	.name = "SQL_ESC_BACKSLASHES",
+	.read = acf_escape_backslashes,
 	.write = NULL,
 };
 
@@ -1858,6 +1891,7 @@ static int load_module(void)
 
 	ast_config_destroy(cfg);
 	res |= ast_custom_function_register(&escape_function);
+	res |= ast_custom_function_register(&escape_backslashes_function);
 	ast_cli_register_multiple(cli_func_odbc, ARRAY_LEN(cli_func_odbc));
 
 	AST_RWLIST_UNLOCK(&queries);
@@ -1877,6 +1911,7 @@ static int unload_module(void)
 	}
 
 	res |= ast_custom_function_unregister(&escape_function);
+	res |= ast_custom_function_unregister(&escape_backslashes_function);
 	res |= ast_custom_function_unregister(&fetch_function);
 	res |= ast_unregister_application(app_odbcfinish);
 	ast_cli_unregister_multiple(cli_func_odbc, ARRAY_LEN(cli_func_odbc));

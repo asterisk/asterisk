@@ -51,6 +51,11 @@
 #include "asterisk/stasis_endpoints.h"
 #include "asterisk/stream.h"
 
+#ifdef HAVE_PJSIP_TLS_TRANSPORT_RESTART
+/* Needed for knowing if the cert or priv key files changed */
+#include <sys/stat.h>
+#endif
+
 #define PJSIP_MINVERSION(m,n,p) (((m << 24) | (n << 16) | (p << 8)) >= PJ_VERSION_NUM)
 
 #ifndef PJSIP_EXPIRES_NOT_SPECIFIED
@@ -62,6 +67,9 @@
  */
 #define PJSIP_EXPIRES_NOT_SPECIFIED	((pj_uint32_t)-1)
 #endif
+
+#define PJSTR_PRINTF_SPEC "%.*s"
+#define PJSTR_PRINTF_VAR(_v) ((int)(_v).slen), ((_v).ptr)
 
 /* Response codes from RFC8224 */
 #define AST_STIR_SHAKEN_RESPONSE_CODE_STALE_DATE 403
@@ -96,6 +104,8 @@ struct pjsip_tpselector;
 #define MAX_RX_CHALLENGES	10
 
 AST_VECTOR(ast_sip_service_route_vector, char *);
+
+static const pj_str_t AST_PJ_STR_EMPTY = { "", 0 };
 
 /*!
  * \brief Structure for SIP transport information
@@ -173,6 +183,24 @@ struct ast_sip_transport_state {
 	 * \since 17.0.0
 	 */
 	struct ast_sip_service_route_vector *service_routes;
+	/*!
+	 * Disregard RFC5922 7.2, and allow wildcard certs (TLS only)
+	 */
+	int allow_wildcard_certs;
+	/*!
+	 * If true, fail if server certificate cannot verify (TLS only)
+	 */
+	int verify_server;
+#ifdef HAVE_PJSIP_TLS_TRANSPORT_RESTART
+	/*!
+	 * The stats information for the certificate file, if configured
+	 */
+	struct stat cert_file_stat;
+	/*!
+	 * The stats information for the private key file, if configured
+	 */
+	struct stat privkey_file_stat;
+#endif
 };
 
 #define ast_sip_transport_is_nonlocal(transport_state, addr) \
@@ -878,6 +906,8 @@ struct ast_sip_endpoint {
 		AST_STRING_FIELD(accountcode);
 		/*! If set, we'll push incoming MWI NOTIFYs to stasis using this mailbox */
 		AST_STRING_FIELD(incoming_mwi_mailbox);
+		/*! STIR/SHAKEN profile to use */
+		AST_STRING_FIELD(stir_shaken_profile);
 	);
 	/*! Configuration for extensions */
 	struct ast_sip_endpoint_extensions extensions;
@@ -947,6 +977,10 @@ struct ast_sip_endpoint {
 	unsigned int stir_shaken;
 	/*! Should we authenticate OPTIONS requests per RFC 3261? */
 	unsigned int allow_unauthenticated_options;
+	/*! The name of the geoloc profile to apply when Asterisk receives a call from this endpoint */
+	AST_STRING_FIELD_EXTENDED(geoloc_incoming_call_profile);
+	/*! The name of the geoloc profile to apply when Asterisk sends a call to this endpoint */
+	AST_STRING_FIELD_EXTENDED(geoloc_outgoing_call_profile);
 };
 
 /*! URI parameter for symmetric transport */
@@ -2448,6 +2482,17 @@ int ast_sip_set_outbound_proxy(pjsip_tx_data *tdata, const char *proxy);
 int ast_sip_add_header(pjsip_tx_data *tdata, const char *name, const char *value);
 
 /*!
+ * \brief Add a header to an outbound SIP message, returning a pointer to the header
+ *
+ * \param tdata The message to add the header to
+ * \param name The header name
+ * \param value The header value
+ * \return The pjsip_generic_string_hdr * added.
+ */
+pjsip_generic_string_hdr *ast_sip_add_header2(pjsip_tx_data *tdata,
+	const char *name, const char *value);
+
+/*!
  * \brief Add a body to an outbound SIP message
  *
  * If this is called multiple times, the latest body will replace the current
@@ -3064,6 +3109,13 @@ int ast_sip_get_mwi_tps_queue_low(void);
 unsigned int ast_sip_get_mwi_disable_initial_unsolicited(void);
 
 /*!
+ * \brief Retrieve the global setting 'allow_sending_180_after_183'.
+ *
+ * \retval non zero if disable.
+ */
+unsigned int ast_sip_get_allow_sending_180_after_183(void);
+
+/*!
  * \brief Retrieve the global setting 'use_callerid_contact'.
  * \since 13.24.0
  *
@@ -3641,5 +3693,66 @@ void ast_sip_transport_state_register(struct ast_sip_tpmgr_state_callback *eleme
  * \param element What we are unregistering.
  */
 void ast_sip_transport_state_unregister(struct ast_sip_tpmgr_state_callback *element);
+
+/*!
+ * \brief Check whether a pjsip_uri is SIP/SIPS or not
+ * \since 16.28.0
+ *
+ * \param uri The pjsip_uri to check
+ *
+ * \retval 1 if true
+ * \retval 0 if false
+ */
+int ast_sip_is_uri_sip_sips(pjsip_uri *uri);
+
+/*!
+ * \brief Check whether a pjsip_uri is allowed or not
+ * \since 16.28.0
+ *
+ * \param uri The pjsip_uri to check
+ *
+ * \retva; 1 if allowed
+ * \retval 0 if not allowed
+ */
+int ast_sip_is_allowed_uri(pjsip_uri *uri);
+
+/*!
+ * \brief Get the user portion of the pjsip_uri
+ * \since 16.28.0
+ *
+ * \param uri The pjsip_uri to get the user from
+ *
+ * \note This function will check what kind of URI it receives and return
+ * the user based off of that
+ *
+ * \return User string or empty string if not present
+ */
+const pj_str_t *ast_sip_pjsip_uri_get_username(pjsip_uri *uri);
+
+/*!
+ * \brief Get the host portion of the pjsip_uri
+ * \since 16.28.0
+ *
+ * \param uri The pjsip_uri to get the host from
+ *
+ * \note This function will check what kind of URI it receives and return
+ * the host based off of that
+ *
+ * \return Host string or empty string if not present
+ */
+const pj_str_t *ast_sip_pjsip_uri_get_hostname(pjsip_uri *uri);
+
+/*!
+ * \brief Get the other_param portion of the pjsip_uri
+ * \since 16.28.0
+ *
+ * \param uri The pjsip_uri to get hte other_param from
+ *
+ * \note This function will check what kind of URI it receives and return
+ * the other_param based off of that
+ *
+ * \return other_param or NULL if not present
+ */
+struct pjsip_param *ast_sip_pjsip_uri_get_other_param(pjsip_uri *uri, const pj_str_t *param_str);
 
 #endif /* _RES_PJSIP_H */

@@ -337,14 +337,6 @@ static int check_for_rtp_changes(struct ast_channel *chan, struct ast_rtp_instan
 		ast_sockaddr_setnull(&media->direct_media_addr);
 		changed = 1;
 		if (media->rtp) {
-			/* Direct media has ended - reset time of last received RTP packet
-			 * to avoid premature RTP timeout. Synchronisation between the
-			 * modification of direct_mdedia_addr+last_rx here and reading the
-			 * values in res_pjsip_sdp_rtp.c:rtp_check_timeout() is provided
-			 * by the channel's lock (which is held while this function is
-			 * executed).
-			 */
-			ast_rtp_instance_set_last_rx(media->rtp, time(NULL));
 			ast_rtp_instance_set_prop(media->rtp, AST_RTP_PROPERTY_RTCP, 1);
 			if (position != -1) {
 				ast_channel_set_fd(chan, position + AST_EXTENDED_FDS, ast_rtp_instance_fd(media->rtp, 1));
@@ -1281,7 +1273,7 @@ static const char *chan_pjsip_get_uniqueid(struct ast_channel *ast)
 	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(ast);
 	char *uniqueid = ast_threadstorage_get(&uniqueid_threadbuf, UNIQUEID_BUFSIZE);
 
-	if (!uniqueid) {
+	if (!channel || !uniqueid) {
 		return "";
 	}
 
@@ -1479,18 +1471,13 @@ static int update_connected_line_information(void *data)
 	return 0;
 }
 
-/*! \brief Callback which changes the value of locally held on the media stream */
-static void local_hold_set_state(struct ast_sip_session_media *session_media, unsigned int held)
-{
-	if (session_media) {
-		session_media->locally_held = held;
-	}
-}
-
 /*! \brief Update local hold state and send a re-INVITE with the new SDP */
 static int remote_send_hold_refresh(struct ast_sip_session *session, unsigned int held)
 {
-	AST_VECTOR_CALLBACK_VOID(&session->active_media_state->sessions, local_hold_set_state, held);
+	struct ast_sip_session_media *session_media = session->active_media_state->default_session[AST_MEDIA_TYPE_AUDIO];
+	if (session_media) {
+		session_media->locally_held = held;
+	}
 	ast_sip_session_refresh(session, NULL, NULL, NULL, AST_SIP_SESSION_REFRESH_METHOD_INVITE, 1, NULL);
 	ao2_ref(session, -1);
 
@@ -1609,6 +1596,10 @@ static int handle_topology_request_change(struct ast_sip_session *session,
 	SCOPE_EXIT_RTN_VALUE(res, "RC: %d\n", res);
 }
 
+/* Forward declarations */
+static int transmit_info_dtmf(void *data);
+static struct info_dtmf_data *info_dtmf_data_alloc(struct ast_sip_session *session, char digit, unsigned int duration);
+
 /*! \brief Function called by core to ask the channel to indicate some sort of condition */
 static int chan_pjsip_indicate(struct ast_channel *ast, int condition, const void *data, size_t datalen)
 {
@@ -1629,6 +1620,10 @@ static int chan_pjsip_indicate(struct ast_channel *ast, int condition, const voi
 		.data.ptr = (void *)data,
 	};
 	char condition_name[256];
+	unsigned int duration;
+	char digit;
+	struct info_dtmf_data *dtmf_data;
+
 	SCOPE_ENTER(3, "%s: Indicated %s\n", ast_channel_name(ast),
 		ast_frame_subclass2str(&f, condition_name, sizeof(condition_name), NULL, 0));
 
@@ -1638,8 +1633,12 @@ static int chan_pjsip_indicate(struct ast_channel *ast, int condition, const voi
 			if (channel->session->endpoint->inband_progress ||
 				(channel->session->inv_session && channel->session->inv_session->neg &&
 				pjmedia_sdp_neg_get_state(channel->session->inv_session->neg) == PJMEDIA_SDP_NEG_STATE_DONE)) {
-				response_code = 183;
 				res = -1;
+				if (ast_sip_get_allow_sending_180_after_183()) {
+					response_code = 180;
+				} else {
+					response_code = 183;
+				}
 			} else {
 				response_code = 180;
 			}
@@ -1683,6 +1682,22 @@ static int chan_pjsip_indicate(struct ast_channel *ast, int condition, const voi
 			res = -1;
 		}
 		ast_devstate_changed(AST_DEVICE_UNKNOWN, AST_DEVSTATE_CACHABLE, "PJSIP/%s", ast_sorcery_object_get_id(channel->session->endpoint));
+		break;
+	case AST_CONTROL_FLASH:
+		duration = 300;
+		digit = '!';
+		dtmf_data = info_dtmf_data_alloc(channel->session, digit, duration);
+
+		if (!dtmf_data) {
+			res = -1;
+			break;
+		}
+
+		if (ast_sip_push_task(channel->session->serializer, transmit_info_dtmf, dtmf_data)) {
+			ast_log(LOG_WARNING, "Error sending FLASH via INFO on channel %s\n", ast_channel_name(ast));
+			ao2_ref(dtmf_data, -1); /* dtmf_data can't be null here */
+			res = -1;
+		}
 		break;
 	case AST_CONTROL_VIDUPDATE:
 		for (i = 0; i < AST_VECTOR_SIZE(&channel->session->active_media_state->sessions); ++i) {
@@ -2994,11 +3009,11 @@ static void chan_pjsip_session_end(struct ast_sip_session *session)
 
 static void set_sipdomain_variable(struct ast_sip_session *session)
 {
-	pjsip_sip_uri *sip_ruri = pjsip_uri_get_uri(session->request_uri);
-	size_t size = pj_strlen(&sip_ruri->host) + 1;
+	const pj_str_t *host = ast_sip_pjsip_uri_get_hostname(session->request_uri);
+	size_t size = pj_strlen(host) + 1;
 	char *domain = ast_alloca(size);
 
-	ast_copy_pj_str(domain, &sip_ruri->host, size);
+	ast_copy_pj_str(domain, host, size);
 
 	pbx_builtin_setvar_helper(session->channel, "SIPDOMAIN", domain);
 	return;

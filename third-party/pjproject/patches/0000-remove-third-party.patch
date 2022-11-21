@@ -1,14 +1,5 @@
-From 665a2fbc3a09a71cd77988ae2deb3f5d3e205f63 Mon Sep 17 00:00:00 2001
-From: Richard Mudgett <rmudgett@digium.com>
-Date: Thu, 23 Feb 2017 17:10:07 -0600
-Subject: [PATCH 2/5] 0000-remove-third-party.patch
-
----
- build.mak.in | 97 ------------------------------------------------------------
- 1 file changed, 97 deletions(-)
-
 diff --git a/build.mak.in b/build.mak.in
-index 80ccad1..41ec64e 100644
+index 4bc464f8c..80681d961 100644
 --- a/build.mak.in
 +++ b/build.mak.in
 @@ -1,4 +1,3 @@
@@ -16,7 +7,7 @@ index 80ccad1..41ec64e 100644
  include $(PJDIR)/version.mak
  export PJ_DIR := $(PJDIR)
  
-@@ -37,19 +36,6 @@ export APP_THIRD_PARTY_EXT :=
+@@ -41,19 +40,6 @@ export APP_THIRD_PARTY_EXT :=
  export APP_THIRD_PARTY_LIBS :=
  export APP_THIRD_PARTY_LIB_FILES :=
  
@@ -36,7 +27,7 @@ index 80ccad1..41ec64e 100644
  ifeq (@ac_pjmedia_resample@,libresample)
  APP_THIRD_PARTY_LIB_FILES += $(PJ_DIR)/third_party/lib/libresample-$(LIB_SUFFIX)
  ifeq ($(PJ_SHARED_LIBRARIES),)
-@@ -66,89 +52,6 @@ APP_THIRD_PARTY_LIB_FILES += $(PJ_DIR)/third_party/lib/libresample.$(SHLIB_SUFFI
+@@ -70,102 +56,6 @@ APP_THIRD_PARTY_LIB_FILES += $(PJ_DIR)/third_party/lib/libresample.$(SHLIB_SUFFI
  endif
  endif
  
@@ -122,10 +113,20 @@ index 80ccad1..41ec64e 100644
 -endif
 -endif
 -
+-ifneq (@ac_no_webrtc_aec3@,1)
+-ifeq (@ac_external_webrtc_aec3@,1)
+-APP_THIRD_PARTY_EXT += -lwebrtc-aec3
+-else
+-APP_THIRD_PARTY_LIB_FILES += $(PJ_DIR)/third_party/lib/libwebrtc-aec3-$(LIB_SUFFIX)
+-ifeq ($(PJ_SHARED_LIBRARIES),)
+-APP_THIRD_PARTY_LIBS += -lwebrtc-aec3-$(TARGET_NAME)
+-else
+-APP_THIRD_PARTY_LIBS += -lwebrtc-aec3
+-APP_THIRD_PARTY_LIB_FILES += $(PJ_DIR)/third_party/lib/libwebrtc-aec3.$(SHLIB_SUFFIX).$(PJ_VERSION_MAJOR) $(PJ_DIR)/third_party/lib/libwebrtc.$(SHLIB_SUFFIX)
+-endif
+-endif
+-endif
 -
+
  # Additional flags
  @ac_build_mak_vars@
- 
--- 
-2.7.4
-

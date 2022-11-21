@@ -72,10 +72,10 @@
 	</function>
 	<function name="IF" language="en_US">
 		<synopsis>
-			Check for an expresion.
+			Check for an expression.
 		</synopsis>
 		<syntax argsep="?">
-			<parameter name="expresion" required="true" />
+			<parameter name="expression" required="true" />
 			<parameter name="retvalue" argsep=":" required="true">
 				<argument name="true" />
 				<argument name="false" />

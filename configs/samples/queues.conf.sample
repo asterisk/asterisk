@@ -64,8 +64,9 @@ monitor-type = MixMonitor
 ;
 ; Musicclass sets which music applies for this particular call queue.
 ; The only class which can override this one is if the MOH class is set
+; using the m option when calling the Queue application or if set
 ; directly on the channel using Set(CHANNEL(musicclass)=whatever) in the
-; dialplan.
+; dialplan (the latter of which overrides everything).
 ;
 ;musicclass = default
 ;
@@ -149,7 +150,7 @@ monitor-type = MixMonitor
 ; Queue application is more important. In the scenario above, timeoutpriority=app
 ; would result in the second member's phone ringing for 1 second.
 ;
-; There are a few exceptions to the priority rules. For instance, if timeoutpriority=appp
+; There are a few exceptions to the priority rules. For instance, if timeoutpriority=app
 ; and the configuration file timeout is set to 0, but the application argument timeout is
 ; non-zero, then the timeoutpriority is ignored and the application argument is used as
 ; the timeout. Furthermore, if no application argument timeout is specified, then the

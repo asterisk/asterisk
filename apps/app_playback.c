@@ -73,8 +73,8 @@
 		</syntax>
 		<description>
 			<para>Plays back given filenames (do not put extension of wav/alaw etc).
-			The playback command answer the channel if no options are specified.
-			If the file is non-existant it will fail</para>
+			The Playback application answers the channel if no options are specified.
+			If the file is non-existent it will fail.</para>
 			<para>This application sets the following channel variable upon completion:</para>
 			<variablelist>
 				<variable name="PLAYBACKSTATUS">

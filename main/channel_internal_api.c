@@ -206,6 +206,8 @@ struct ast_channel {
 
 	char context[AST_MAX_CONTEXT];			/*!< Dialplan: Current extension context */
 	char exten[AST_MAX_EXTENSION];			/*!< Dialplan: Current extension number */
+	char lastcontext[AST_MAX_CONTEXT];		/*!< Dialplan: Previous extension context */
+	char lastexten[AST_MAX_EXTENSION];		/*!< Dialplan: Previous extension number */
 	char macrocontext[AST_MAX_CONTEXT];		/*!< Macro: Current non-macro context. See app_macro.c */
 	char macroexten[AST_MAX_EXTENSION];		/*!< Macro: Current non-macro extension. See app_macro.c */
 	char unbridged;							/*!< non-zero if the bridge core needs to re-evaluate the current
@@ -345,8 +347,16 @@ const char *ast_channel_context(const struct ast_channel *chan)
 {
 	return chan->context;
 }
+const char *ast_channel_lastcontext(const struct ast_channel *chan)
+{
+	return chan->lastcontext;
+}
 void ast_channel_context_set(struct ast_channel *chan, const char *value)
 {
+	if (!*chan->lastcontext || strcmp(value, chan->context)) {
+		/* only copy to last context when it changes, unless it's empty to begin with */
+		ast_copy_string(chan->lastcontext, chan->context, sizeof(chan->lastcontext));
+	}
 	ast_copy_string(chan->context, value, sizeof(chan->context));
 	ast_channel_snapshot_invalidate_segment(chan, AST_CHANNEL_SNAPSHOT_INVALIDATE_DIALPLAN);
 }
@@ -354,8 +364,16 @@ const char *ast_channel_exten(const struct ast_channel *chan)
 {
 	return chan->exten;
 }
+const char *ast_channel_lastexten(const struct ast_channel *chan)
+{
+	return chan->lastexten;
+}
 void ast_channel_exten_set(struct ast_channel *chan, const char *value)
 {
+	if (!*chan->lastexten || strcmp(value, chan->exten)) {
+		/* only copy to last exten when it changes, unless it's empty to begin with */
+		ast_copy_string(chan->lastexten, chan->exten, sizeof(chan->lastexten));
+	}
 	ast_copy_string(chan->exten, value, sizeof(chan->exten));
 	ast_channel_snapshot_invalidate_segment(chan, AST_CHANNEL_SNAPSHOT_INVALIDATE_DIALPLAN);
 }
@@ -569,6 +587,9 @@ void *ast_channel_tech_pvt(const struct ast_channel *chan)
 void ast_channel_tech_pvt_set(struct ast_channel *chan, void *value)
 {
 	chan->tech_pvt = value;
+	if (value != NULL) {
+		ast_channel_snapshot_invalidate_segment(chan, AST_CHANNEL_SNAPSHOT_INVALIDATE_BASE);
+	}
 }
 void *ast_channel_timingdata(const struct ast_channel *chan)
 {
@@ -1262,7 +1283,8 @@ struct ast_flags *ast_channel_flags(struct ast_channel *chan)
 	return &chan->flags;
 }
 
-static int collect_names_cb(void *obj, void *arg, int flags) {
+static int collect_names_cb(void *obj, void *arg, int flags)
+{
 	struct ast_control_pvt_cause_code *cause_code = obj;
 	struct ast_str **str = arg;
 

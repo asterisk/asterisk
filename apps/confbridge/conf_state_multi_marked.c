@@ -14,9 +14,6 @@
  * This program is free software, distributed under the terms of
  * the GNU General Public License Version 2. See the LICENSE file
  * at the top of the source tree.
- *
- * Please follow coding guidelines
- * http://svn.digium.com/view/asterisk/trunk/doc/CODING-GUIDELINES
  */
 
 /*! \file
@@ -85,37 +82,39 @@ static void leave_marked(struct confbridge_user *user)
 
 	conf_remove_user_marked(user->conference, user);
 
-	if (user->conference->markedusers == 0) {
-		AST_LIST_TRAVERSE_SAFE_BEGIN(&user->conference->active_list, user_iter, list) {
-			/* Kick ENDMARKED cbu_iters */
-			if (ast_test_flag(&user_iter->u_profile, USER_OPT_ENDMARKED) && !user_iter->kicked) {
-				if (ast_test_flag(&user_iter->u_profile, USER_OPT_WAITMARKED)
-					&& !ast_test_flag(&user_iter->u_profile, USER_OPT_MARKEDUSER)) {
-					AST_LIST_REMOVE_CURRENT(list);
-					user_iter->conference->activeusers--;
-					AST_LIST_INSERT_TAIL(&user_iter->conference->waiting_list, user_iter, list);
-					user_iter->conference->waitingusers++;
-				}
-				user_iter->kicked = 1;
-				pbx_builtin_setvar_helper(user_iter->chan, "CONFBRIDGE_RESULT", "ENDMARKED");
-				ast_bridge_remove(user_iter->conference->bridge, user_iter->chan);
-			} else if (ast_test_flag(&user_iter->u_profile, USER_OPT_WAITMARKED)
-				&& !ast_test_flag(&user_iter->u_profile, USER_OPT_MARKEDUSER)) {
-				need_prompt = 1;
-
+	/* If all marked users have left, or we're set to kick if any marked user leaves, then boot everyone */
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&user->conference->active_list, user_iter, list) {
+		if (user->conference->markedusers > 0 && !ast_test_flag(&user_iter->u_profile, USER_OPT_ENDMARKEDANY)) {
+			continue;
+		}
+		/* Kick ENDMARKED cbu_iters */
+		if ((ast_test_flag(&user_iter->u_profile, USER_OPT_ENDMARKED) || ast_test_flag(&user_iter->u_profile, USER_OPT_ENDMARKEDANY)) && !user_iter->kicked) {
+			if (ast_test_flag(&user_iter->u_profile, USER_OPT_WAITMARKED)
+				&& (!ast_test_flag(&user_iter->u_profile, USER_OPT_MARKEDUSER) || ast_test_flag(&user_iter->u_profile, USER_OPT_ENDMARKEDANY))) {
 				AST_LIST_REMOVE_CURRENT(list);
 				user_iter->conference->activeusers--;
 				AST_LIST_INSERT_TAIL(&user_iter->conference->waiting_list, user_iter, list);
 				user_iter->conference->waitingusers++;
-			} else {
-				/* User is neither wait_marked nor end_marked; however, they
-				 * should still hear the prompt.
-				 */
-				need_prompt = 1;
 			}
+			user_iter->kicked = 1;
+			pbx_builtin_setvar_helper(user_iter->chan, "CONFBRIDGE_RESULT", "ENDMARKED");
+			ast_bridge_remove(user_iter->conference->bridge, user_iter->chan);
+		} else if (ast_test_flag(&user_iter->u_profile, USER_OPT_WAITMARKED)
+			&& !ast_test_flag(&user_iter->u_profile, USER_OPT_MARKEDUSER)) {
+			need_prompt = 1;
+
+			AST_LIST_REMOVE_CURRENT(list);
+			user_iter->conference->activeusers--;
+			AST_LIST_INSERT_TAIL(&user_iter->conference->waiting_list, user_iter, list);
+			user_iter->conference->waitingusers++;
+		} else {
+			/* User is neither wait_marked nor end_marked nor end_marked_any; however, they
+			 * should still hear the prompt.
+			 */
+			need_prompt = 1;
 		}
-		AST_LIST_TRAVERSE_SAFE_END;
 	}
+	AST_LIST_TRAVERSE_SAFE_END;
 
 	switch (user->conference->activeusers) {
 	case 0:
