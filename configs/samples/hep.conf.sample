@@ -22,6 +22,9 @@ capture_password = foo             ; If specified, the authorization password
 capture_id = 1234                  ; A unique integer identifier for this
                                    ; server. This ID will be embedded sent
                                    ; with each packet from this server.
+;capture_name = asterisk           ; A unique string identifier for this
+                                   ; server. This ID will be embedded sent
+                                   ; with each packet from this server.
 uuid_type = call-id                ; Specify the preferred source for the Homer
                                    ; correlation UUID. Valid options are:
                                    ; - 'call-id' for the PJSIP or chan_sip SIP
