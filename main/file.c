@@ -1862,6 +1862,10 @@ int ast_stream_and_wait(struct ast_channel *chan, const char *file, const char *
 			res = ast_waitstream(chan, digits);
 		}
 	}
+	if (res == -1) {
+		ast_stopstream(chan);
+	}
+
 	return res;
 }
 

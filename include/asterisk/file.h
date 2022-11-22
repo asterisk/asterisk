@@ -80,6 +80,7 @@ int ast_streamfile(struct ast_channel *c, const char *filename, const char *pref
  * \brief stream file until digit
  * If the file name is non-empty, try to play it.
  * \note If digits == "" then we can simply check for non-zero.
+ * \note If a failure is encountered, the stream will be closed before returning.
  * \retval 0 if success.
  * \retval -1 if error.
  * \retval digit if interrupted by a digit.
