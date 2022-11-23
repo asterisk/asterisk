@@ -157,7 +157,6 @@ static int adsi_careful_send(struct ast_channel *chan, unsigned char *buf, int l
 	struct ast_frame outf = {
 		.frametype = AST_FRAME_VOICE,
 		.subclass.format = ast_format_ulaw,
-		.data.ptr = buf,
 	};
 	int amt;
 
@@ -171,6 +170,7 @@ static int adsi_careful_send(struct ast_channel *chan, unsigned char *buf, int l
 			*remain = *remain - amt;
 		}
 
+		outf.data.ptr = buf;
 		outf.datalen = amt;
 		outf.samples = amt;
 		if (ast_write(chan, &outf)) {
@@ -211,6 +211,7 @@ static int adsi_careful_send(struct ast_channel *chan, unsigned char *buf, int l
 		} else if (remain) {
 			*remain = inf->datalen - amt;
 		}
+		outf.data.ptr = buf;
 		outf.datalen = amt;
 		outf.samples = amt;
 		if (ast_write(chan, &outf)) {
@@ -236,6 +237,7 @@ static int __adsi_transmit_messages(struct ast_channel *chan, unsigned char **ms
 
 	if (ast_channel_adsicpe(chan) == AST_ADSI_UNAVAILABLE) {
 		/* Don't bother if we know they don't support ADSI */
+		ast_log(LOG_WARNING, "ADSI is not supported for %s\n", ast_channel_name(chan));
 		errno = ENOSYS;
 		return -1;
 	}
@@ -255,7 +257,7 @@ static int __adsi_transmit_messages(struct ast_channel *chan, unsigned char **ms
 			for (;;) {
 				if (((res = ast_waitfor(chan, waittime)) < 1)) {
 					/* Didn't get back DTMF A in time */
-					ast_debug(1, "No ADSI CPE detected (%d)\n", res);
+					ast_verb(4, "No ADSI CPE detected (%d)\n", res);
 					if (!ast_channel_adsicpe(chan)) {
 						ast_channel_adsicpe_set(chan, AST_ADSI_UNAVAILABLE);
 					}
@@ -291,7 +293,7 @@ static int __adsi_transmit_messages(struct ast_channel *chan, unsigned char **ms
 				ast_frfree(f);
 			}
 
-			ast_debug(1, "ADSI Compatible CPE Detected\n");
+			ast_verb(4, "ADSI Compatible CPE Detected\n");
 		} else {
 			ast_debug(1, "Already in data mode\n");
 		}
