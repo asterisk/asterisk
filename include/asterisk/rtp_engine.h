@@ -1719,7 +1719,7 @@ void ast_rtp_codecs_payload_formats(struct ast_rtp_codecs *codecs, struct ast_fo
  * Example usage:
  *
  * \code
- * int payload = ast_rtp_codecs_payload_code(&codecs, 1, ast_format_set(&tmp_fmt, AST_FORMAT_ULAW, 0), 0);
+ * int payload = ast_rtp_codecs_payload_code(&codecs, 1, ast_format_ulaw, 0);
  * \endcode
  *
  * This looks for the numerical payload for ULAW in the codecs structure.
@@ -1788,7 +1788,7 @@ int ast_rtp_codecs_find_payload_code(struct ast_rtp_codecs *codecs, int payload)
  * Example usage:
  *
  * \code
- * const char *subtype = ast_rtp_lookup_mime_subtype2(1, ast_format_set(&tmp_fmt, AST_FORMAT_ULAW, 0), 0, 0);
+ * const char *subtype = ast_rtp_lookup_mime_subtype2(1, ast_format_ulaw, 0, 0);
  * \endcode
  *
  * This looks up the mime subtype for the ULAW format.
@@ -1816,8 +1816,8 @@ const char *ast_rtp_lookup_mime_subtype2(const int asterisk_format,
  * char buf[256] = "";
  * struct ast_format tmp_fmt;
  * struct ast_format_cap *cap = ast_format_cap_alloc_nolock();
- * ast_format_cap_append(cap, ast_format_set(&tmp_fmt, AST_FORMAT_ULAW, 0));
- * ast_format_cap_append(cap, ast_format_set(&tmp_fmt, AST_FORMAT_GSM, 0));
+ * ast_format_cap_append(cap, ast_format_ulaw, 0);
+ * ast_format_cap_append(cap, ast_format_ulaw, 0);
  * char *mime = ast_rtp_lookup_mime_multiple2(&buf, sizeof(buf), cap, 0, 1, 0);
  * ast_format_cap_destroy(cap);
  * \endcode
@@ -2220,7 +2220,7 @@ char *ast_rtp_instance_get_quality(struct ast_rtp_instance *instance, enum ast_r
  *
  * \code
  * struct ast_format tmp_fmt;
- * ast_rtp_instance_set_read_format(instance, ast_format_set(&tmp_fmt, AST_FORMAT_ULAW, 0));
+ * ast_rtp_instance_set_read_format(instance, ast_format_ulaw);
  * \endcode
  *
  * This requests that the RTP engine provide audio frames in the ULAW format.
@@ -2242,7 +2242,7 @@ int ast_rtp_instance_set_read_format(struct ast_rtp_instance *instance, struct a
  *
  * \code
  * struct ast_format tmp_fmt;
- * ast_rtp_instance_set_write_format(instance, ast_format_set(&tmp_fmt, AST_FORMAT_ULAW, 0));
+ * ast_rtp_instance_set_write_format(instance, ast_format_ulaw);
  * \endcode
  *
  * This tells the underlying RTP engine that audio frames will be provided to it in ULAW format.
