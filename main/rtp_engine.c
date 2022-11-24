@@ -3678,6 +3678,7 @@ int ast_rtp_engine_init(void)
 	set_next_mime_type(ast_format_g722, 0, "audio", "G722", 8000);
 	set_next_mime_type(ast_format_g726_aal2, 0, "audio", "AAL2-G726-32", 8000);
 	set_next_mime_type(NULL, AST_RTP_DTMF, "audio", "telephone-event", 8000);
+	set_next_mime_type(NULL, AST_RTP_DTMF, "audio", "telephone-event", 16000);
 	set_next_mime_type(NULL, AST_RTP_CISCO_DTMF, "audio", "cisco-telephone-event", 8000);
 	set_next_mime_type(NULL, AST_RTP_CN, "audio", "CN", 8000);
 	set_next_mime_type(ast_format_jpeg, 0, "video", "JPEG", 90000);
