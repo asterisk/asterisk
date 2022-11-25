@@ -1010,7 +1010,7 @@
 					<synopsis>Username to use in From header for unsolicited MWI NOTIFYs to this endpoint.</synopsis>
 				</configOption>
 				<configOption name="from_domain">
-					<synopsis>Domain to user in From header for requests to this endpoint.</synopsis>
+					<synopsis>Domain to use in From header for requests to this endpoint.</synopsis>
 				</configOption>
 				<configOption name="dtls_verify">
 					<synopsis>Verify that the provided peer certificate is valid</synopsis>
