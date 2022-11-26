@@ -3641,6 +3641,21 @@ struct ast_sip_session *ast_sip_dialog_get_session(pjsip_dialog *dlg)
 	return session;
 }
 
+/*! \brief Fetch just the Caller ID number in order of PAI, RPID, From */
+static int fetch_callerid_num(struct ast_sip_session *session, pjsip_rx_data *rdata, char *buf, size_t len)
+{
+	int res = -1;
+	struct ast_party_id id;
+
+	ast_party_id_init(&id);
+	if (!ast_sip_set_id_from_invite(rdata, &id, &session->endpoint->id.self, session->endpoint->id.trust_inbound)) {
+		ast_copy_string(buf, id.number.str, len);
+		res = 0;
+	}
+	ast_party_id_free(&id);
+	return res;
+}
+
 enum sip_get_destination_result {
 	/*! The extension was successfully found */
 	SIP_GET_DEST_EXTEN_FOUND,
@@ -3664,6 +3679,7 @@ enum sip_get_destination_result {
  */
 static enum sip_get_destination_result get_destination(struct ast_sip_session *session, pjsip_rx_data *rdata)
 {
+	char cid_num[AST_CHANNEL_NAME];
 	pjsip_uri *ruri = rdata->msg_info.msg->line.req.uri;
 	struct ast_features_pickup_config *pickup_cfg;
 	const char *pickupexten;
@@ -3695,8 +3711,10 @@ static enum sip_get_destination_result get_destination(struct ast_sip_session *s
 		ao2_ref(pickup_cfg, -1);
 	}
 
+	fetch_callerid_num(session, rdata, cid_num, sizeof(cid_num));
+
 	if (!strcmp(session->exten, pickupexten) ||
-		ast_exists_extension(NULL, session->endpoint->context, session->exten, 1, NULL)) {
+		ast_exists_extension(NULL, session->endpoint->context, session->exten, 1, S_OR(cid_num, NULL))) {
 		/*
 		 * Save off the INVITE Request-URI in case it is
 		 * needed: CHANNEL(pjsip,request_uri)
@@ -3711,7 +3729,7 @@ static enum sip_get_destination_result get_destination(struct ast_sip_session *s
 	 */
 	if (session->endpoint->allow_overlap && (
 		!strncmp(session->exten, pickupexten, strlen(session->exten)) ||
-		ast_canmatch_extension(NULL, session->endpoint->context, session->exten, 1, NULL))) {
+		ast_canmatch_extension(NULL, session->endpoint->context, session->exten, 1, S_OR(cid_num, NULL)))) {
 		/* Overlap partial match */
 		return SIP_GET_DEST_EXTEN_PARTIAL;
 	}

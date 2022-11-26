@@ -37,89 +37,6 @@
 
 /*!
  * \internal
- * \brief Set an ast_party_id name and number based on an identity header.
- * \param hdr From, P-Asserted-Identity, or Remote-Party-ID header on incoming message
- * \param[out] id The ID to set data on
- */
-static void set_id_from_hdr(pjsip_fromto_hdr *hdr, struct ast_party_id *id)
-{
-	char cid_name[AST_CHANNEL_NAME];
-	char cid_num[AST_CHANNEL_NAME];
-	pjsip_name_addr *id_name_addr = (pjsip_name_addr *) hdr->uri;
-	char *semi;
-
-	ast_copy_pj_str(cid_name, &id_name_addr->display, sizeof(cid_name));
-	ast_copy_pj_str(cid_num, ast_sip_pjsip_uri_get_username(hdr->uri), sizeof(cid_num));
-
-	/* Always truncate caller-id number at a semicolon. */
-	semi = strchr(cid_num, ';');
-	if (semi) {
-		/*
-		 * We need to be able to handle URI's looking like
-		 * "sip:1235557890;phone-context=national@x.x.x.x;user=phone"
-		 *
-		 * Where the uri->user field will result in:
-		 * "1235557890;phone-context=national"
-		 *
-		 * People don't care about anything after the semicolon
-		 * showing up on their displays even though the RFC
-		 * allows the semicolon.
-		 */
-		*semi = '\0';
-	}
-
-	ast_free(id->name.str);
-	id->name.str = ast_strdup(cid_name);
-	if (!ast_strlen_zero(cid_name)) {
-		id->name.valid = 1;
-	}
-	ast_free(id->number.str);
-	id->number.str = ast_strdup(cid_num);
-	if (!ast_strlen_zero(cid_num)) {
-		id->number.valid = 1;
-	}
-}
-
-/*!
- * \internal
- * \brief Get a P-Asserted-Identity or Remote-Party-ID header from an incoming message
- *
- * This function will parse the header as if it were a From header. This allows for us
- * to easily manipulate the URI, as well as add, modify, or remove parameters from the
- * header
- *
- * \param rdata The incoming message
- * \param header_name The name of the ID header to find
- * \retval NULL No ID header present or unable to parse ID header
- * \retval non-NULL The parsed ID header
- */
-static pjsip_fromto_hdr *get_id_header(pjsip_rx_data *rdata, const pj_str_t *header_name)
-{
-	static const pj_str_t from = { "From", 4 };
-	pj_str_t header_content;
-	pjsip_fromto_hdr *parsed_hdr;
-	pjsip_generic_string_hdr *ident = pjsip_msg_find_hdr_by_name(rdata->msg_info.msg,
-			header_name, NULL);
-	int parsed_len;
-
-	if (!ident) {
-		return NULL;
-	}
-
-	pj_strdup_with_null(rdata->tp_info.pool, &header_content, &ident->hvalue);
-
-	parsed_hdr = pjsip_parse_hdr(rdata->tp_info.pool, &from, header_content.ptr,
-			pj_strlen(&header_content), &parsed_len);
-
-	if (!parsed_hdr) {
-		return NULL;
-	}
-
-	return parsed_hdr;
-}
-
-/*!
- * \internal
  * \brief Set an ANI2 integer based on OLI data in a From header
  *
  * This uses the contents of a From header in order to set Originating Line information.
@@ -157,130 +74,6 @@ static int set_id_from_oli(pjsip_rx_data *rdata, int *ani2)
 	}
 
 	return ast_str_to_int(oli, ani2);
-}
-
-/*!
- * \internal
- * \brief Set an ast_party_id structure based on data in a P-Asserted-Identity header
- *
- * This makes use of \ref set_id_from_hdr for setting name and number. It uses
- * the contents of a Privacy header in order to set presentation information.
- *
- * \param rdata The incoming message
- * \param[out] id The ID to set
- * \retval 0 Successfully set the party ID
- * \retval non-zero Could not set the party ID
- */
-static int set_id_from_pai(pjsip_rx_data *rdata, struct ast_party_id *id)
-{
-	static const pj_str_t pai_str = { "P-Asserted-Identity", 19 };
-	static const pj_str_t privacy_str = { "Privacy", 7 };
-	pjsip_fromto_hdr *pai_hdr = get_id_header(rdata, &pai_str);
-	pjsip_generic_string_hdr *privacy;
-
-	if (!pai_hdr) {
-		return -1;
-	}
-
-	set_id_from_hdr(pai_hdr, id);
-
-	if (!id->number.valid) {
-		return -1;
-	}
-
-	privacy = pjsip_msg_find_hdr_by_name(rdata->msg_info.msg, &privacy_str, NULL);
-	if (!privacy || !pj_stricmp2(&privacy->hvalue, "none")) {
-		id->number.presentation = AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED;
-		id->name.presentation = AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED;
-	} else {
-		id->number.presentation = AST_PRES_PROHIB_USER_NUMBER_NOT_SCREENED;
-		id->name.presentation = AST_PRES_PROHIB_USER_NUMBER_NOT_SCREENED;
-	}
-
-	return 0;
-}
-
-/*!
- * \internal
- * \brief Set an ast_party_id structure based on data in a Remote-Party-ID header
- *
- * This makes use of \ref set_id_from_hdr for setting name and number. It uses
- * the privacy and screen parameters in order to set presentation information.
- *
- * \param rdata The incoming message
- * \param[out] id The ID to set
- * \retval 0 Succesfully set the party ID
- * \retval non-zero Could not set the party ID
- */
-static int set_id_from_rpid(pjsip_rx_data *rdata, struct ast_party_id *id)
-{
-	static const pj_str_t rpid_str = { "Remote-Party-ID", 15 };
-	static const pj_str_t privacy_str = { "privacy", 7 };
-	static const pj_str_t screen_str = { "screen", 6 };
-	pjsip_fromto_hdr *rpid_hdr = get_id_header(rdata, &rpid_str);
-	pjsip_param *screen;
-	pjsip_param *privacy;
-
-	if (!rpid_hdr) {
-		return -1;
-	}
-
-	set_id_from_hdr(rpid_hdr, id);
-
-	if (!id->number.valid) {
-		return -1;
-	}
-
-	privacy = pjsip_param_find(&rpid_hdr->other_param, &privacy_str);
-	screen = pjsip_param_find(&rpid_hdr->other_param, &screen_str);
-	if (privacy && !pj_stricmp2(&privacy->value, "full")) {
-		id->number.presentation = AST_PRES_RESTRICTED;
-		id->name.presentation = AST_PRES_RESTRICTED;
-	} else {
-		id->number.presentation = AST_PRES_ALLOWED;
-		id->name.presentation = AST_PRES_ALLOWED;
-	}
-	if (screen && !pj_stricmp2(&screen->value, "yes")) {
-		id->number.presentation |= AST_PRES_USER_NUMBER_PASSED_SCREEN;
-		id->name.presentation |= AST_PRES_USER_NUMBER_PASSED_SCREEN;
-	} else {
-		id->number.presentation |= AST_PRES_USER_NUMBER_UNSCREENED;
-		id->name.presentation |= AST_PRES_USER_NUMBER_UNSCREENED;
-	}
-
-	return 0;
-}
-
-/*!
- * \internal
- * \brief Set an ast_party_id structure based on data in a From
- *
- * This makes use of \ref set_id_from_hdr for setting name and number. It uses
- * no information from the message in order to set privacy. It relies on endpoint
- * configuration for privacy information.
- *
- * \param rdata The incoming message
- * \param[out] id The ID to set
- * \retval 0 Succesfully set the party ID
- * \retval non-zero Could not set the party ID
- */
-static int set_id_from_from(struct pjsip_rx_data *rdata, struct ast_party_id *id)
-{
-	pjsip_fromto_hdr *from = pjsip_msg_find_hdr(rdata->msg_info.msg,
-			PJSIP_H_FROM, rdata->msg_info.msg->hdr.next);
-
-	if (!from) {
-		/* This had better not happen */
-		return -1;
-	}
-
-	set_id_from_hdr(from, id);
-
-	if (!id->number.valid) {
-		return -1;
-	}
-
-	return 0;
 }
 
 /*!
@@ -388,7 +181,7 @@ static void update_incoming_connected_line(struct ast_sip_session *session, pjsi
 	}
 
 	ast_party_id_init(&id);
-	if (!set_id_from_pai(rdata, &id) || !set_id_from_rpid(rdata, &id)) {
+	if (!ast_sip_set_id_connected_line(rdata, &id)) {
 		if (should_queue_connected_line_update(session, &id)) {
 			queue_connected_line_update(session, &id);
 		}
@@ -417,22 +210,8 @@ static int caller_id_incoming_request(struct ast_sip_session *session, pjsip_rx_
 		 * INVITE.  Set the session ID directly because the channel
 		 * has not been created yet.
 		 */
-		if (session->endpoint->id.trust_inbound
-			&& (!set_id_from_pai(rdata, &session->id)
-				|| !set_id_from_rpid(rdata, &session->id))) {
-			ast_free(session->id.tag);
-			session->id.tag = ast_strdup(session->endpoint->id.self.tag);
-			return 0;
-		}
-		ast_party_id_copy(&session->id, &session->endpoint->id.self);
-		if (!session->endpoint->id.self.number.valid) {
-			set_id_from_from(rdata, &session->id);
-		}
-		if (!set_id_from_oli(rdata, &ani2)) {
-			session->ani2 = ani2;
-		} else {
-			session->ani2 = 0;
-		}
+		ast_sip_set_id_from_invite(rdata, &session->id, &session->endpoint->id.self, session->endpoint->id.trust_inbound);
+		session->ani2 = set_id_from_oli(rdata, &ani2) ? 0 : ani2;
 	} else {
 		/*
 		 * ReINVITE or UPDATE.  Check for changes to the ID and queue
