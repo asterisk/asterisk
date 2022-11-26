@@ -3604,6 +3604,25 @@ struct ast_sip_service_route_vector *ast_sip_service_route_vector_alloc(void);
 void ast_sip_service_route_vector_destroy(struct ast_sip_service_route_vector *service_routes);
 
 /*!
+ * \brief Set the ID for a connected line update
+ *
+ * \retval -1 on failure, 0 on success
+ */
+int ast_sip_set_id_connected_line(struct pjsip_rx_data *rdata, struct ast_party_id *id);
+
+/*!
+ * \brief Set the ID from an INVITE
+ *
+ * \param rdata
+ * \param id ID structure to fill
+ * \param default_id Default ID structure with data to use (for non-trusted endpoints)
+ * \param trusted_inbound Whether or not the endpoint is trusted (controls whether PAI or RPID can be used)
+ *
+ * \retval -1 on failure, 0 on success
+ */
+int ast_sip_set_id_from_invite(struct pjsip_rx_data *rdata, struct ast_party_id *id, struct ast_party_id *default_id, int trust_inbound);
+
+/*!
  * \brief Set name and number information on an identity header.
  *
  * \param pool Memory pool to use for string duplication
