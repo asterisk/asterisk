@@ -1611,6 +1611,7 @@ static int redirecting_write(struct ast_channel *chan, const char *cmd, char *da
 			 * reason, so we can just set the reason string to what was given and set the
 			 * code to be unknown
 			 */
+				ast_log(LOG_WARNING, "Unknown redirecting reason '%s', defaulting to unknown\n", val);
 				redirecting.orig_reason.code = AST_REDIRECTING_REASON_UNKNOWN;
 				redirecting.orig_reason.str = val;
 				set_it(chan, &redirecting, NULL);
