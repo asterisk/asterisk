@@ -273,7 +273,6 @@ static struct ast_ha *ast_duplicate_ha(struct ast_ha *original)
 }
 
 /* Create duplicate HA link list */
-/*  Used in chan_sip2 templates */
 struct ast_ha *ast_duplicate_ha_list(struct ast_ha *original)
 {
 	struct ast_ha *start = original;

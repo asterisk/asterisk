@@ -1998,10 +1998,6 @@ static void pbx_load_users(void)
 		if (!strcasecmp(cat, "general"))
 			continue;
 		iface[0] = '\0';
-		if (ast_true(ast_config_option(cfg, cat, "hassip"))) {
-			snprintf(tmp, sizeof(tmp), "SIP/%s", cat);
-			append_interface(iface, sizeof(iface), tmp);
-		}
 		if (ast_true(ast_config_option(cfg, cat, "hasiax"))) {
 			snprintf(tmp, sizeof(tmp), "IAX2/%s", cat);
 			append_interface(iface, sizeof(iface), tmp);

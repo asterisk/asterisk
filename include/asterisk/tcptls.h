@@ -26,7 +26,7 @@
  * in or out the DO_SSL macro.
  *
  * TLS/SSL support is basically implemented by reading from a config file
- * (currently manager.conf, http.conf and sip.conf) the names of the certificate
+ * (currently manager.conf, http.conf and pjsip.conf) the names of the certificate
  * files and cipher to use, and then run ssl_setup() to create an appropriate
  * data structure named ssl_ctx.
  *

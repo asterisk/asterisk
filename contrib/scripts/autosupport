@@ -192,7 +192,6 @@ if [ -e /var/run/asterisk.ctl ] || [ -e /var/run/asterisk/asterisk.ctl ]; then
       "core show uptime" "core show settings" "core show sysinfo" "core show channels" \
       "pri show spans" "dahdi show status" "dahdi show channels" "dahdi show channel 1" \
       "pjsip show endpoints" "pjsip show registrations" "pjsip list channels" \
-      "sip show peers" "sip show registry" "sip show channels" "sip show subscriptions" "sip show settings" \
       "show g729" "g729 show version" "g729 show licenses" "g729 show hostid" \
       "digium_phones show version" "digium_phones show alerts" "digium_phones show applications" \
       "digium_phones show firmwares" "digium_phones show lines" "digium_phones show networks" \

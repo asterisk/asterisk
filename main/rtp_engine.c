@@ -1760,7 +1760,7 @@ static int find_unused_payload(const struct ast_rtp_codecs *codecs)
 	 * in Asterisk because when Compact Headers are activated, no rtpmap is
 	 * send for those below 35. If you want to use 35 and below
 	 * A) do not use Compact Headers,
-	 * B) remove that code in chan_sip/res_pjsip, or
+	 * B) remove that code in res_pjsip, or
 	 * C) add a flag that this RTP Payload Type got reassigned dynamically
 	 *    and requires a rtpmap even with Compact Headers enabled.
 	 */

@@ -99,13 +99,19 @@ if the formats are equivalent. This will save some unnecessary format
 conversion.
 
 
-In order to handle video you need to add to sip.conf (and presumably
-iax.conf too) the following:
+In order to handle video you need to add the following to the endpoint in
+pjsip.conf
 
-	[general](+)
-		videosupport=yes
 		allow=h263	; this or other video formats
 		allow=h263p	; this or other video formats
+
+(Presumably, iax.conf would require):
+
+       [general](+)
+               videosupport=yes
+                allow=h263      ; this or other video formats
+                allow=h263p     ; this or other video formats
+
 
  */
 

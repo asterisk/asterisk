@@ -36,14 +36,12 @@
  * \page T38fax_udptl T.38 support :: UDPTL
  *
  * Asterisk supports T.38 fax passthrough, origination and termination. It does
- * not support gateway operation. The only channel driver that supports T.38 at
- * this time is chan_sip.
+ * not support gateway operation.
  *
  * UDPTL is handled very much like RTP. It can be reinvited to go directly between
  * the endpoints, without involving Asterisk in the media stream.
  *
  * \b References:
- * - chan_sip.c
  * - udptl.c
  * - app_fax.c
  */
@@ -1317,7 +1315,7 @@ static void *udptl_snapshot_alloc(void)
 static int removed_options_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
 {
 	if (!strcasecmp(var->name, "t38faxudpec")) {
-		ast_log(LOG_WARNING, "t38faxudpec in udptl.conf is no longer supported; use the t38pt_udptl configuration option in sip.conf instead.\n");
+		ast_log(LOG_WARNING, "t38faxudpec in udptl.conf is no longer supported.\n");
 	} else if (!strcasecmp(var->name, "t38faxmaxdatagram")) {
 		ast_log(LOG_WARNING, "t38faxmaxdatagram in udptl.conf is no longer supported; value is now supplied by T.38 applications.\n");
 	}

@@ -43,9 +43,6 @@ noload = res_hep.so
 noload = res_hep_pjsip.so
 noload = res_hep_rtcp.so
 ;
-; Do not load chan_sip by default, it may conflict with res_pjsip.
-noload = chan_sip.so
-;
 ; Load one of the voicemail modules as they are mutually exclusive.
 ; By default, load app_voicemail only (automatically).
 ;

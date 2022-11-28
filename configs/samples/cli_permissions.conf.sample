@@ -30,7 +30,7 @@ default_perm=permit	; To leave asterisk working as normal
 ; This list is read in the sequence that is being written, so
 ; In this example the user 'eliel' is allow to run only the following
 ; commands:
-;          sip show peer
+;          pjsip show endpoints
 ;          core set debug
 ;          core set verbose
 ; If the user is not specified, the default_perm option will be apply to
@@ -39,14 +39,14 @@ default_perm=permit	; To leave asterisk working as normal
 ; Notice that you can also use regular expressions to allow or deny access to a
 ; certain command like: 'core show application D*'. In this example the user will be
 ; allowed to view the documentation for all the applications starting with 'D'.
-; Another regular expression could be: 'channel originate SIP/[0-9]* extension *'
-; allowing the user to use 'channel originate' on a sip channel and with the 'extension'
+; Another regular expression could be: 'channel originate PJSIP/[0-9]* extension *'
+; allowing the user to use 'channel originate' on a pjsip channel and with the 'extension'
 ; parameter and avoiding the use of the 'application' parameter.
 ;
 ; We can also use the templates syntax:
 ; [supportTemplate](!)
 ; deny=all
-; permit=sip show       ; all commands starting with 'sip show' will be allowed
+; permit=pjsip show       ; all commands starting with 'pjsip show' will be allowed
 ; permit=core show
 ;
 ; You can specify permissions for a local group instead of a user,
@@ -55,20 +55,20 @@ default_perm=permit	; To leave asterisk working as normal
 ;
 ;[@adm]
 ;deny=all
-;permit=sip
+;permit=pjsip
 ;permit=core
 ;
 ;
 ;[eliel]
 ;deny=all
-;permit=sip show peer
-;deny=sip show peers
+;permit=pjsip show endpoint
+;deny=pjsip show endpoints
 ;permit=core set
 ;
 ;
 ;User 'tommy' inherits from template 'supportTemplate':
 ;	deny=all
-;	permit=sip show
+;	permit=pjsip show
 ;	permit=core show
 ;[tommy](supportTemplate)
 ;permit=core set debug

@@ -195,8 +195,6 @@
 		</member>
 		<member name="chan_local" displayname="Local Proxy Channel" remove_on_change="channels/chan_local.o channels/chan_local.so">
 		</member>
-		<member name="chan_sip" displayname="Session Initiation Protocol (SIP)" remove_on_change="channels/chan_sip.o channels/chan_sip.so">
-		</member>
 		<member name="chan_zap" displayname="Zapata Telephony" remove_on_change="channels/chan_zap.o channels/chan_zap.so">
 	<depend>zaptel</depend>
 		</member>

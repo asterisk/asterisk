@@ -518,7 +518,7 @@ struct ast_cc_monitor {
 	 * \details
 	 * When issuing a CC recall, some technologies will require
 	 * that a name other than the device name is dialed. For instance,
-	 * with SIP, a specific URI will be used which chan_sip will be able
+	 * with SIP, a specific URI will be used which sip will be able
 	 * to recognize as being a CC recall. Similarly, ISDN will need a specific
 	 * dial string to know that the call is a recall.
 	 */

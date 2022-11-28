@@ -1,16 +1,15 @@
 [general]
-; This section applies only to the default sip.conf/users.conf config provider
+; This section applies only to the default users.conf config provider
 ; embedded in res_phoneprov.  Other providers may provide their own default settings.
 
 ; The default behavior of res_phoneprov will be to set the SERVER template variable to
-; the IP address that the phone uses to contact the provisioning server and the
-; SERVER_PORT variable to the bindport setting in sip.conf.  Unless you have a very
-; unusual setup, you should not need to set serveraddr, serveriface, or serverport.
+; the IP address that the phone uses to contact the provisioning server. Unless you have
+; an unusual setup, you should not need to set serveraddr, serveriface, or serverport.
 
 ;serveraddr=192.168.1.1 ; Override address to send to the phone to use as server address.
 ;serveriface=eth0       ; Same as above, except an ethernet interface.
                         ; Useful for when the interface uses DHCP and the asterisk http
-                        ; server listens on a different IP than chan_sip.
+                        ; server listens on a different IP than sip.
 ;serverport=5060        ; Override port to send to the phone to use as server port.
 default_profile=polycom ; The default profile to use if none specified in users.conf
 

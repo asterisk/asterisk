@@ -83,10 +83,10 @@ genericplc_on_equal_codecs => false
 ; Once this config file is loaded, silk8 can be used anywhere a
 ; peer's codec capabilities are defined.
 ;
-; In sip.conf 'silk8' can be defined as a capability for a peer.
-; [peer1]
+; In pjsip.conf 'silk8' can be defined as a capability for an endpoint.
+; [endpoint1]
 ; type=peer
-; host=dynamic
+; aor=endpoint1
 ; disallow=all
 ; allow=silk8 ;custom codec defined in codecs.conf
 ;

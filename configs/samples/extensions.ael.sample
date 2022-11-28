@@ -129,7 +129,7 @@ context ael-dundi-e164-customers {
 	//
 	// If you are an ITSP or Reseller, list your customers here.
 	//
-	//_12564286000 => Dial(SIP/customer1);
+	//_12564286000 => Dial(PJSIP/customer1);
 	//_12564286001 => Dial(IAX2/customer2);
 };
 
@@ -143,7 +143,7 @@ context ael-dundi-e164-via-pstn {
 
 context ael-dundi-e164-local {
 	//
-	// Context to put your dundi IAX2 or SIP user in for
+	// Context to put your dundi or IAX2 user in for
 	// full access
 	//
 	includes {
@@ -396,11 +396,8 @@ context ael-default {
 	};
 //
 // Extensions like the two below can be used for FWD, Nikotel, sipgate etc.
-// Note that you must have a [sipprovider] section in sip.conf whereas
-// the otherprovider.net example does not require such a peer definition
 //
-//_41X. => Dial(SIP/${EXTEN:2}@sipprovider,,r);
-//_42X. => Dial(SIP/user:passwd@${EXTEN:2}@otherprovider.net,30,rT);
+//_42X. => Dial(PJSIP/user:passwd@${EXTEN:2}@otherprovider.net,30,rT);
 
 // Real extensions would go here. Generally you want real extensions to be
 // 4 or 5 digits long (although there is no such requirement) and start with a
@@ -409,8 +406,8 @@ context ael-default {
 // them with names, too, and use global variables
 
 // 6245  => {
-//		hint(SIP/Grandstream1&SIP/Xlite1,Joe Schmoe); // Channel hints for presence
-// 		Dial(SIP/Grandstream1,20,rt);                 // permit transfer
+//		hint(PJSIP/Grandstream1&PJSIP/Xlite1,Joe Schmoe); // Channel hints for presence
+// 		Dial(PJSIP/Grandstream1,20,rt);                 // permit transfer
 //        Dial(${HINT}/5245},20,rtT);                    // Use hint as listed
 //        switch(${DIALSTATUS}) {
 //        case BUSY:

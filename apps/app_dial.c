@@ -401,8 +401,6 @@
 						to send no cause.  See the <filename>causes.h</filename> file for the
 						full list of valid causes and names.
 						</para>
-					<para>NOTE: chan_sip does not support setting the cause on a CANCEL to anything
-					other than ANSWERED_ELSEWHERE.</para>
 				</option>
 				<option name="r">
 					<para>Default: Indicate ringing to the calling party, even if the called party isn't actually ringing. Pass no audio to the calling

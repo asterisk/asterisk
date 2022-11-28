@@ -439,9 +439,7 @@
 						<para>This setting allows to choose the DTMF mode for endpoint communication.</para>
 						<enumlist>
 							<enum name="rfc4733">
-								<para>DTMF is sent out of band of the main audio stream.  This
-								supercedes the older <emphasis>RFC-2833</emphasis> used within
-								the older <literal>chan_sip</literal>.</para>
+								<para>DTMF is sent out of band of the main audio stream.</para>
 							</enum>
 							<enum name="inband">
 								<para>DTMF is sent as part of audio stream.</para>

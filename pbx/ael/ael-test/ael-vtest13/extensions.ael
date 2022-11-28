@@ -2003,7 +2003,7 @@ macro ciddial(dialnum, lookup, waittime, dialopts, ddev)
 	{
 		BackGround(try_voip);
 		CALLERID(num)=7075679201;
-		Dial(SIP/1${lookup}@tctwest,${waittime},${dialopts});
+		Dial(PJSIP/1${lookup}@tctwest,${waittime},${dialopts});
 		if( "${DIALSTATUS}" = "CHANUNAVAIL" )
 		{
 			BackGround(try_cell);
@@ -2032,7 +2032,7 @@ macro ciddial2(dialnum, lookup, waittime, dialopts, ddev) // give priority to tc
 	Set(cidnu=${CALLERID(num)});
 	Set(CALLERID(name)=${cidn});
 	Set(CALLERID(num)=7075679201);
-	Dial(SIP/1${lookup}@tctwest,${waittime},${dialopts});
+	Dial(PJSIP/1${lookup}@tctwest,${waittime},${dialopts});
 	if( "${DIALSTATUS}" = "CHANUNAVAIL" )
 	{
 		Set(CALLERID(num)=${cidnu}); // put the original number back

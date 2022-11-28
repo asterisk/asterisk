@@ -15,7 +15,7 @@ SYNOPSIS
 	$prog [ --help ] | [ [ --reset ] | [
 		[ --uniqueid="<uniqueid>" ]
 
-		[ --pjsip-debug=<on|off> ] [ --sip-debug=<on|off> ]
+		[ --pjsip-debug=<on|off> ]
 		[ --iax2-debug=<on|off> ]
 
 		[ --agi-debug=<on|off> ] [ --ami-debug=<on|off> ]
@@ -26,7 +26,7 @@ SYNOPSIS
 		[ --dtmf-debug=<on|off> ] [ --fax-debug=<on|off> ]
 		[ --security-debug=<on|off> ]
 
-		[ --pjsip-history=<on|off> ] [ --sip-history=<on|off> ]
+		[ --pjsip-history=<on|off> ]
 
 		[ --verbose=<level> ] [ --debug=<level> ]
 		] ]
@@ -51,7 +51,7 @@ DESCRIPTION
 		on/off commands will use the same uniqueid.  Use the --reset
 		option to reset it (and everything else).
 
-	--pjsip-debug  --sip-debug --iax2-debug --agi-debug --ami-debug
+	--pjsip-debug  --iax2-debug --agi-debug --ami-debug
 	--ari-debug --cdr-debug --channel-debug --rtp-debug --rtcp-debug
 		Issues the subsystem appropriate command to turn on
 		or off debugging.  These are usually functional debug messages
@@ -62,10 +62,10 @@ DESCRIPTION
 		These subsystems set up their own log channels so if turned
 		on, log files will be created in \$astlogdir for them.
 
-	--pjsip-history  --sip-history
-		The pjsip and sip channels have the ability to output an
-		abbreviated, one-line, packet summary.  If enabled, the summaries
-		will be written to \$astlogdir/pjsip_history.\$UNIQUEID and
+	--pjsip-history
+		The pjsip channels have the ability to output an abbreviated,
+		one-line, packet summary.  If enabled, the summaries will be
+		written to \$astlogdir/pjsip_history.\$UNIQUEID and
 		\$astlogdir/sip_history.\$UNIQUEID.
 
 	--verbose-level --debug-level
@@ -114,7 +114,6 @@ RESET=false
 
 declare -A DEBUG_COMMANDS=(
 [PJSIP,on]="pjsip set logger on" [PJSIP,off]="pjsip set logger off"
-[SIP,on]="sip set debug on" [SIP,off]="sip set debug off"
 [IAX2,on]="iax2 set debug on" [IAX2,off]="iax2 set debug off"
 [ARI,on]="ari set debug all on" [ARI,off]="ari set debug all off"
 [AMI,on]="manager set debug on" [AMI,off]="manager set debug off"
@@ -152,8 +151,6 @@ for a in "$@" ; do
 		DEBUGS=true
 		;;
 	--pjsip-history=*)
-		;&
-	--sip-history=*)
 		subsystem=${a%-history=*}
 		subsystem=${subsystem#--}
 		if [[ ${a#*=} =~ ^[Yy].* ]] ; then
@@ -224,8 +221,6 @@ if $RESET ; then
 		asterisk -rx "core set debug 0"
 		asterisk -rx "pjsip set logger off"
 		asterisk -rx "pjsip set history off"
-		asterisk -rx "sip set debug off"
-		asterisk -rx "sip set history off"
 		asterisk -rx "iax2 set debug off"
 		asterisk -rx "manager set debug off"
 		asterisk -rx "ari set debug all off"
@@ -258,9 +253,6 @@ if ! grep -q "; --START DEBUG_LOGGING-- ;" $CLI_CONF ; then
 
 	[pjsip_debug](!)
 	pjsip set logger on = yes
-
-	[sip_debug](!)
-	sip set debug on = yes
 
 	[iax2_debug](!)
 	iax2 set debug on = yes
@@ -299,10 +291,6 @@ if ! grep -q "; --START DEBUG_LOGGING-- ;" $CLI_CONF ; then
 	logger add channel $PJSIP_HISTORY_LOG PJSIP_HISTORY = yes
 	pjsip set history on = yes
 
-	[sip_history](!)
-	logger add channel $SIP_HISTORY_LOG SIP_HISTORY = yes
-	sip set history on = yes
-
 	[verbose_level](!)
 	core set verbose 3 = yes
 
@@ -327,13 +315,12 @@ else
 	VERBOSE_LOG=$(sed -n -r -e "s@logger add channel ($LOG_DIR/message\..+)\s+NOTICE.*@\1@p" "$CLI_CONF")
 	DEBUG_LOG=$(sed -n -r -e "s@logger add channel ($LOG_DIR/debug\..+)\s+DEBUG.*@\1@p" "$CLI_CONF")
 	PJSIP_HISTORY_LOG=$(sed -n -r -e "s@logger add channel ($LOG_DIR/pjsip_history\..+)\s+PJSIP.*@\1@p" "$CLI_CONF")
-	SIP_HISTORY_LOG=$(sed -n -r -e "s@logger add channel ($LOG_DIR/sip_history\..+)\s+SIP.*@\1@p" "$CLI_CONF")
 	DTMF_LOG=$(sed -n -r -e "s@logger add channel ($LOG_DIR/dtmf\..+)\s+DTMF.*@\1@p" "$CLI_CONF")
 	FAX_LOG=$(sed -n -r -e "s@logger add channel ($LOG_DIR/fax\..+)\s+FAX.*@\1@p" "$CLI_CONF")
 	SECURITY_LOG=$(sed -n -r -e "s@logger add channel ($LOG_DIR/security\..+)\s+SECURITY.*@\1@p" "$CLI_CONF")
 fi
 
-for x in PJSIP SIP ARI AMI AGI ARI IAX2 CDR RTP RTCP ; do
+for x in PJSIP ARI AMI AGI ARI IAX2 CDR RTP RTCP ; do
 	if eval \$${x}_DEBUG_SPECIFIED ; then
 		if eval \$${x}_DEBUG ; then
 			if $ASTERISK_IS_RUNNING ; then
@@ -367,7 +354,7 @@ for x in DTMF FAX SECURITY ; do
 	fi
 done
 
-for x in PJSIP SIP ; do
+for x in PJSIP ; do
 	if eval \$${x}_HISTORY_SPECIFIED ; then
 		if eval \$${x}_HISTORY ; then
 			if $ASTERISK_IS_RUNNING ; then

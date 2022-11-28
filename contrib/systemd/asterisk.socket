@@ -17,10 +17,6 @@ ListenStream=0.0.0.0:5039
 ListenStream=127.0.0.1:8088
 # HTTPS
 ListenStream=127.0.0.1:8089
-# chan_sip TCP
-ListenStream=0.0.0.0:5060
-# chan_sip TLS
-ListenStream=0.0.0.0:5061
 
 [Install]
 WantedBy=sockets.target

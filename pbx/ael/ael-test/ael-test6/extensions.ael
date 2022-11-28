@@ -116,11 +116,11 @@ context huntsville-calling {
 macro dialout( number ) {
 	Realtime(call_info|exten|${CALLERIDNUM:5}|mon_);
 	if ("${mon_monitor}" = "YES") {
-		Dial(SIP/${number}@sgw1.shsu.edu,,wW);
-		Dial(SIP/${number}@sgw2.shsu.edu,,wW);
+		Dial(PJSIP/${number}@sgw1.shsu.edu,,wW);
+		Dial(PJSIP/${number}@sgw2.shsu.edu,,wW);
 	} else {
-		Dial(SIP/${number}@sgw1.shsu.edu);
-		Dial(SIP/${number}@sgw2.shsu.edu);
+		Dial(PJSIP/${number}@sgw1.shsu.edu);
+		Dial(PJSIP/${number}@sgw2.shsu.edu);
 	};
 };
 
@@ -142,9 +142,9 @@ macro stdexten( ext ) {
 	&checkcf(${ext});
 	Realtime(call_info|exten|${CALLERIDNUM:5}|mon_);
 	if ("${mon_monitor}" = "YES") {
-		Dial(SIP/${info_forwardto},25,wW);
+		Dial(PJSIP/${info_forwardto},25,wW);
 	} else {
-		Dial(SIP/${info_forwardto},25);
+		Dial(PJSIP/${info_forwardto},25);
 	};
 	switch ("${DIALSTATUS}") {
 		case "BUSY":
@@ -182,7 +182,7 @@ macro stdexten( ext ) {
 };
 
 macro uvm( ext ) {
-	Dial(SIP/u${ext}@svm1.shsu.edu);
+	Dial(PJSIP/u${ext}@svm1.shsu.edu);
 	Playback(im-sorry);
 	Playback(voice-mail-system);
 	Playback(down);
@@ -191,7 +191,7 @@ macro uvm( ext ) {
 };
 
 macro bvm( ext ) {
-	Dial(SIP/b${ext}@svm1.shsu.edu);
+	Dial(PJSIP/b${ext}@svm1.shsu.edu);
 	Playback(im-sorry);
 	Playback(voice-mail-system);
 	Playback(down);
@@ -211,7 +211,7 @@ macro checkcf( ext ) {
 		if ("${ext}" = "43974") {
 			Set(info_forwardto=${ext}&SCCP/${ext});
 		} else {
-			Set(info_forwardto=${ext}&SIP/${ext}w);
+			Set(info_forwardto=${ext}&PJSIP/${ext}w);
 		};
 };
 
@@ -340,14 +340,14 @@ context local1 {
 
 context from-scm2 {
 	_4XXXX => {
-		NoOp(DIALING SIP EXTENSION ${EXTEN} - FROM ${CALLERIDNUM});
-		Dial(SIP/${EXTEN},20,wW);
+		NoOp(DIALING PJSIP EXTENSION ${EXTEN} - FROM ${CALLERIDNUM});
+		Dial(PJSIP/${EXTEN},20,wW);
 		Hangup;
 	};
 
 	_6XXXX => {
-		NoOp(DIALING SIP EXTENSION ${EXTEN} - FROM ${CALLERIDNUM});
-		Dial(SIP/${EXTEN},20,wW);
+		NoOp(DIALING PJSIP EXTENSION ${EXTEN} - FROM ${CALLERIDNUM});
+		Dial(PJSIP/${EXTEN},20,wW);
 		Hangup;
 	};
 };
@@ -798,7 +798,7 @@ context vm-include {
 
 context vm-direct {
 	s => {
-		Dial(SIP/5555@svm1.shsu.edu,20);
+		Dial(PJSIP/5555@svm1.shsu.edu,20);
 		Playback(im-sorry);
 		Playback(voice-mail-system);
 		Playback(down);
@@ -810,7 +810,7 @@ context vm-direct {
 
 context vm-extension {
 	s => {
-		Dial(SIP/62100@svm1.shsu.edu,20);
+		Dial(PJSIP/62100@svm1.shsu.edu,20);
 		Playback(im-sorry);
 		Playback(voice-mail-system);
 		Playback(down);
@@ -822,7 +822,7 @@ context vm-extension {
 
 context vm-directory {
 	5556 => {
-		Dial(SIP/5556@svm1.shsu.edu);
+		Dial(PJSIP/5556@svm1.shsu.edu);
 		Playback(im-sorry);
 		Playback(voice-mail-system);
 		Playback(down);

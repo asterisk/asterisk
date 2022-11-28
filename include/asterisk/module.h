@@ -242,7 +242,7 @@ int ast_update_module_list_condition(int (*modentry)(const char *module, const c
 
 /*!
  * \brief Check if module with the name given is loaded
- * \param name Module name, like "chan_sip.so"
+ * \param name Module name, like "chan_pjsip.so"
  * \retval 1 if true
  * \retval 0 if false
  */

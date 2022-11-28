@@ -10,11 +10,6 @@
 		"testcmd": "-t tests/channels/pjsip"
 	},
 	{
-		"name": "sip ",
-		"dir": "tests/CI/output/sip",
-		"testcmd": "-t tests/channels/SIP"
-	},
-	{
 		"name": "iax ",
 		"dir": "tests/CI/output/iax2_local",
 		"testcmd": " -t tests/channels/iax2 -t tests/channels/local"

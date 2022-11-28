@@ -7,9 +7,7 @@
 ; In order to use this module, you start
 ; in extconfig.conf with a configuration like this:
 ;
-; 	sippeers = ldap,"dc=myDomain,dc=myDomainExt",sip
 ; 	extensions = ldap,"dc=myDomain,dc=myDomainExt",extensions
-; 	sip.conf = ldap,"dc=myDomain,dc=myDomainExt",config
 ;
 ; In the case of LDAP the last keyword in each line above specifies
 ; a section in this file.
@@ -69,60 +67,6 @@ priority = AstExtensionPriority
 app = AstExtensionApplication
 appdata = AstExtensionApplicationData
 additionalFilter=(objectClass=AstExtension)
-
-;
-; Sip Users Table
-;
-[sip]
-name = cn       ; We use the "cn" as the default value for name on the line above
-                ; because objectClass=AsteriskSIPUser does not include a uid as an allowed field
-                ; If your entry combines other objectClasses and uid is available, you may
-                ; prefer to change the line to be name = uid, especially if your LDAP entries
-                ; contain spaces in the cn field.
-                ; You may also find it appropriate to use something completely different.
-                ; This is possible by changing the line above to name = AstAccountName (or whatever you
-                ; prefer).
-                ;
-amaflags = AstAccountAMAFlags
-callgroup = AstAccountCallGroup
-callerid = AstAccountCallerID
-directmedia = AstAccountDirectMedia
-context = AstAccountContext
-dtmfmode = AstAccountDTMFMode
-fromuser = AstAccountFromUser
-fromdomain = AstAccountFromDomain
-fullcontact = AstAccountFullContact
-fullcontact = gecos
-host = AstAccountHost
-insecure = AstAccountInsecure
-mailbox = AstAccountMailbox
-md5secret = AstAccountRealmedPassword           ; Must be an MD5 hash. Field value can start with
-                                                ; {md5} but it is not required.
-                                                ; Generate the password via the md5sum command, e.g.
-                                                ; echo "my_password" | md5sum
-nat = AstAccountNAT
-deny = AstAccountDeny
-permit = AstAccountPermit
-pickupgroup = AstAccountPickupGroup
-port = AstAccountPort
-qualify = AstAccountQualify
-restrictcid = AstAccountRestrictCID
-rtptimeout = AstAccountRTPTimeout
-rtpholdtimeout = AstAccountRTPHoldTimeout
-type = AstAccountType
-disallow = AstAccountDisallowedCodec
-allow = AstAccountAllowedCodec
-MusicOnHold = AstAccountMusicOnHold
-regseconds = AstAccountExpirationTimestamp
-regcontext = AstAccountRegistrationContext
-regexten = AstAccountRegistrationExten
-CanCallForward = AstAccountCanCallForward
-ipaddr = AstAccountIPAddress
-defaultuser = AstAccountDefaultUser
-regserver = AstAccountRegistrationServer
-lastms = AstAccountLastQualifyMilliseconds
-supportpath = AstAccountPathSupport
-additionalFilter=(objectClass=AsteriskSIPUser)
 
 ;
 ; IAX Users Table

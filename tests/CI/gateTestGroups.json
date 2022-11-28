@@ -37,18 +37,6 @@
 		"testcmd": "--test-regex=tests/channels/pjsip/[s-z]"
 	},
 	{
-		"name": "sip1",
-		"dir": "tests/CI/output/sip1",
-		"runTestsuiteOptions": "--test-timeout=240",
-		"testcmd": "--test-regex=tests/channels/SIP/[Sa-r]"
-	},
-	{
-		"name": "sip2",
-		"dir": "tests/CI/output/sip2",
-		"runTestsuiteOptions": "--test-timeout=240",
-		"testcmd": "--test-regex=tests/channels/SIP/[s-z]"
-	},
-	{
 		"name": "iax ",
 		"dir": "tests/CI/output/iax2_local",
 		"runTestsuiteOptions": "--test-timeout=180",

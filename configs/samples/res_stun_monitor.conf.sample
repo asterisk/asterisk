@@ -6,11 +6,10 @@
 ; provided by the STUN server an event is sent out internally within Asterisk
 ; to alert all listeners to that event of the change.
 
-; The current default listeners for the network change event include chan_sip
-; and chan_iax.  Both of these channel drivers by default react to this event
-; by renewing all outbound registrations.  This allows the endpoints Asterisk
-; is registering with to become aware of the address change and know the new
-; location.
+; The current default listeners for the network change event include chan_iax.
+; Both of these channel drivers by default react to this event by renewing all
+; outbound registrations.  This allows the endpoints Asterisk is registering with
+; to become aware of the address change and know the new location.
 ;
 [general]
 ;

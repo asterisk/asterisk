@@ -242,8 +242,7 @@ static pj_status_t send_options_response(pjsip_rx_data *rdata, int code)
 	/*
 	 * XXX TODO: pjsip doesn't care a lot about either of these headers -
 	 * while it provides specific methods to create them, they are defined
-	 * to be the standard string header creation. We never did add them
-	 * in chan_sip, although RFC 3261 says they SHOULD. Hard coded here.
+	 * to be the standard string header creation. Hard coded here.
 	 */
 	ast_sip_add_header(tdata, "Accept-Encoding", DEFAULT_ENCODING);
 	ast_sip_add_header(tdata, "Accept-Language", DEFAULT_LANGUAGE);

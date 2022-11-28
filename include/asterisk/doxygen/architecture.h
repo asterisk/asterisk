@@ -497,7 +497,7 @@ Example dialplan:
 <code>exten => 5551212,n,Hangup()</code><br/>
 
  -# <b>Call Setup:</b> An incoming SIP INVITE begins this scenario.  It is received by
-    the SIP channel driver (chan_sip.c).  Specifically, the monitor thread in chan_sip
+    the SIP channel driver (chan_pjsip.c).  Specifically, the monitor thread in chan_pjsip
     is responsible for handling this incoming request.  Further, the monitor thread
     is responsible for completing any handshake necessary to complete the call setup
     process.
@@ -517,8 +517,8 @@ Example dialplan:
     code simply executes the ast_answer() API call.  This API call operates on an
     ast_channel.  It handles generic ast_channel hangup processing, as well as executes
     the answer callback function defined in the associated ast_channel_tech for the
-    active channel.  In this case, the sip_answer() function in chan_sip.c will get
-    executed to handle the SIP specific operations required to answer a call.
+    active channel.  In this case, the chan_pjsip_answer() function in chan_pjsip.c will
+    get executed to handle the SIP specific operations required to answer a call.
  -# <b>Play the File:</b> The next step of the dialplan says to play back a %sound file
     to the caller.  The <code>Playback()</code> application will be executed.
     The code for this application is in apps/app_playback.c.  The code in the application
@@ -562,7 +562,7 @@ Example dialplan:
 <code>exten => 5551212,n,Dial(IAX2/mypeer)</code><br/>
 
  -# <b>Call Setup:</b> An incoming SIP INVITE begins this scenario.  It is received by
-    the SIP channel driver (chan_sip.c).  Specifically, the monitor thread in chan_sip
+    the SIP channel driver (chan_pjsip.c).  Specifically, the monitor thread in chan_pjsip
     is responsible for handling this incoming request.  Further, the monitor thread
     is responsible for completing any handshake necessary to complete the call setup
     process.

@@ -225,9 +225,6 @@
 </member>
 <member name="chan_local" displayname="Local Proxy Channel (Note: used internally by other modules)" remove_on_change="channels/chan_local.o channels/chan_local.so">
 </member>
-<member name="chan_sip" displayname="Session Initiation Protocol (SIP)" remove_on_change="channels/chan_sip.o channels/chan_sip.so">
-        <depend>chan_local</depend>
-</member>
 <member name="chan_unistim" displayname="UNISTIM Protocol (USTM)" remove_on_change="channels/chan_unistim.o channels/chan_unistim.so">
 </member>
 <member name="chan_usbradio" displayname="usb Console Channel Driver" remove_on_change="channels/chan_usbradio.o channels/chan_usbradio.so">

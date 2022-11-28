@@ -426,14 +426,14 @@ exten => _X!,1,Verbose(2,Performing ISN lookup for ${EXTEN})
 	same => n,GotoIf($["${FILTER(0-9,${SUFFIX})}" != "${SUFFIX}"]?fn-CONGESTION,1)
                                                                         ; filter out bad characters per the README-SERIOUSLY.best-practices.txt document
 	same => n,Set(TIMEOUT(absolute)=10800)
-	same => n,Set(isnresult=${ENUMLOOKUP(${EXTEN},sip,,1,freenum.org)})     ; perform our lookup with freenum.org
+	same => n,Set(isnresult=${ENUMLOOKUP(${EXTEN},pjsip,,1,freenum.org)})     ; perform our lookup with freenum.org
 	same => n,GotoIf($["${isnresult}" != ""]?from)
 	same => n,Set(DIALSTATUS=CONGESTION)
 	same => n,Goto(fn-CONGESTION,1)
 	same => n(from),Set(__SIPFROMUSER=${CALLERID(num)})
 	same => n,GotoIf($["${GLOBAL(FREENUMDOMAIN)}" = ""]?dial)               ; check if we set the FREENUMDOMAIN global variable in [global]
 	same => n,Set(__SIPFROMDOMAIN=${GLOBAL(FREENUMDOMAIN)})                 ;    if we did set it, then we'll use it for our outbound dialing domain
-	same => n(dial),Dial(SIP/${isnresult},40)
+	same => n(dial),Dial(PJSIP/${isnresult},40)
 	same => n,Goto(fn-${DIALSTATUS},1)
 
 exten => fn-BUSY,1,Busy()
@@ -661,9 +661,7 @@ exten => _X.,1,Gosub(sub-page,s,1(SIP/${EXTEN}))
 
 [public]
 ;
-; ATTENTION: If your Asterisk is connected to the internet and you do
-; not have allowguest=no in sip.conf, everybody out there may use your
-; public context without authentication.  In that case you want to
+; ATTENTION: If your Asterisk is connected to the internet,
 ; double check which services you offer to the world.
 ;
 include => demo
@@ -675,20 +673,14 @@ include => demo
 ;
 include => demo
 
-;
-; An extension like the one below can be used for FWD, Nikotel, sipgate etc.
-; Note that you must have a [sipprovider] section in sip.conf
-;
-;exten => _41X.,1,Dial(SIP/${FILTER(0-9,${EXTEN:2})}@sipprovider,,r)
-
 ; Real extensions would go here. Generally you want real extensions to be
 ; 4 or 5 digits long (although there is no such requirement) and start with a
 ; single digit that is fairly large (like 6 or 7) so that you have plenty of
 ; room to overlap extensions and menu options without conflict.  You can alias
 ; them with names, too, and use global variables
 
-;exten => 6245,hint,SIP/Grandstream1&SIP/Xlite1(Joe Schmoe) ; Channel hints for presence
-;exten => 6245,1,Dial(SIP/Grandstream1,20,rt)	; permit transfer
+;exten => 6245,hint,PJSIP/Grandstream1&PJSIP/Xlite1(Joe Schmoe) ; Channel hints for presence
+;exten => 6245,1,Dial(PJSIP/Grandstream1,20,rt)	; permit transfer
 ;exten => 6245,n(dial),Dial(${HINT},20,rtT)	; Use hint as listed
 ;exten => 6245,n,VoiceMail(6245,u)		; Voicemail (unavailable)
 ;exten => 6245,s+1,Hangup			; s+1, same as n
@@ -708,7 +700,7 @@ include => demo
 ;exten => wil,1,Goto(6236,1)
 
 ;If you want to subscribe to the status of a parking space, this is
-;how you do it. Subscribe to extension 6600 in sip, and you will see
+;how you do it. Subscribe to extension 6600, and you will see
 ;the status of the first parking lot with this extensions' help
 ;exten => 6600,hint,park:701@parkedcalls
 ;exten => 6600,1,noop
@@ -758,7 +750,7 @@ include => demo
 ;
 ;exten => t,1,Goto(s,goodbye)
 ;
-; this is the context our internal SIP hardphones use (see sip.conf)
+; this is the context our internal SIP hardphones use
 ;
 ;[acme-internal]
 ;exten => s,1,Answer()
@@ -799,28 +791,6 @@ include => demo
 ; ...
 ; include => time
 ;
-; Note: if you're geographically spread out, you can have SIP extensions
-; specify their own local timezone in sip.conf as:
-;
-; [boi]
-; type=friend
-; context=acme-internal
-; callerid="Boise Ofc. <2083451111>"
-; ...
-; ; use system-wide default timezone of MST7MDT
-;
-; [lws]
-; type=friend
-; context=acme-internal
-; callerid="Lewiston Ofc. <2087431111>"
-; ...
-; setvar=timezone=PST8PDT
-;
-; "timezone" isn't a 'reserved' name in any way, and other places where
-; the timezone is significant (e.g. calls to "SayUnixTime()", etc) will
-; require modification as well.  Note that voicemail.conf already has
-; a mechanism for timezones.
-;
 
 [time]
 exten => _X.,30000(time),NoOp(Time: ${EXTEN} ${timezone})
@@ -831,7 +801,6 @@ exten => _X.,30000(time),NoOp(Time: ${EXTEN} ${timezone})
 	same => n,Set(FUTURETIME=$[${EPOCH} + 12])
 	same => n,SayUnixTime(${FUTURETIME},Zulu,HNS)
 	same => n,SayPhonetic(z)
-; use the timezone associated with the extension (sip only), or system-wide
 ; default if one hasn't been set.
 	same => n,SayUnixTime(${FUTURETIME},${timezone},HNS)
 	same => n,Playback(spy-local)

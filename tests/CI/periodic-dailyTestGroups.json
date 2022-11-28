@@ -18,12 +18,6 @@
 		"testcmd": "-t tests/channels/pjsip"
 	},
 	{
-		"name": "sip ",
-		"dir": "tests/CI/output/sip",
-		"runTestsuiteOptions": "--test-timeout=240",
-		"testcmd": "-t tests/channels/SIP"
-	},
-	{
 		"name": "iax ",
 		"dir": "tests/CI/output/iax2_local",
 		"runTestsuiteOptions": "--test-timeout=180",

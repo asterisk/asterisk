@@ -141,9 +141,9 @@ repeat:
 		Wait(1);
 		Hangup;
 	};
-	1 => &stdexten(1,SIP/1);
-	2 => &stdexten(2,SIP/2);
-	3 => &stdexten(3,SIP/3);
+	1 => &stdexten(1,PJSIP/1);
+	2 => &stdexten(2,PJSIP/2);
+	3 => &stdexten(3,PJSIP/3);
 
 	2271653 => jump 1;
 	7322271653 => jump 1;
@@ -166,7 +166,7 @@ repeat:
 	17322271677 => jump 3;
 	galka => jump 3;
 	911 => Dial(${PSTNPROTO}/911@${PSTN},60,);
-	380 => Dial(SIP/topspeen@212.40.38.70,60,T);
+	380 => Dial(PJSIP/topspeen@212.40.38.70,60,T);
 
 	// Fun stuff
 	100 => {

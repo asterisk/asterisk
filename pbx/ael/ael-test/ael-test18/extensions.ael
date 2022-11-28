@@ -6,7 +6,7 @@ context default
 
                  switch(${StatusCode}) {
                          case 1:
-                                 Dial(SIP/706,12);
+                                 Dial(PJSIP/706,12);
                                  switch(${DIALSTATUS}) {
                                         case BUSY:
                                                  Voicemail(b706);

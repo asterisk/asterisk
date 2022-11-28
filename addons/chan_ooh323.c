@@ -3248,7 +3248,7 @@ static char *handle_cli_ooh323_show_peer(struct ast_cli_entry *e, int cmd, struc
 		if (peer->t38support == T38_DISABLED) {
 			ast_cli(a->fd, "%s\n", "disabled");
 		} else if (peer->t38support == T38_FAXGW) {
-			ast_cli(a->fd, "%s\n", "faxgw/chan_sip compatible");
+			ast_cli(a->fd, "%s\n", "faxgw compatible");
 		}
 		if (peer->faxdetect == (FAXDETECT_CNG | FAXDETECT_T38)) {
 			ast_cli(a->fd,"%-20s%s\n", "FAX Detect:", "Yes");
@@ -3386,7 +3386,7 @@ static char *handle_cli_ooh323_show_user(struct ast_cli_entry *e, int cmd, struc
 		if (user->t38support == T38_DISABLED) {
 			ast_cli(a->fd, "%s\n", "disabled");
 		} else if (user->t38support == T38_FAXGW) {
-			ast_cli(a->fd, "%s\n", "faxgw/chan_sip compatible");
+			ast_cli(a->fd, "%s\n", "faxgw compatible");
 		}
 		if (user->faxdetect == (FAXDETECT_CNG | FAXDETECT_T38)) {
 			ast_cli(a->fd,"%-20s%s\n", "FAX Detect:", "Yes");
@@ -3633,7 +3633,7 @@ static char *handle_cli_ooh323_show_config(struct ast_cli_entry *e, int cmd, str
 	if (gT38Support == T38_DISABLED) {
 		ast_cli(a->fd, "%s\n", "disabled");
 	} else if (gT38Support == T38_FAXGW) {
-		ast_cli(a->fd, "%s\n", "faxgw/chan_sip compatible");
+		ast_cli(a->fd, "%s\n", "faxgw compatible");
 	}
 	if (gFAXdetect == (FAXDETECT_CNG | FAXDETECT_T38)) {
 		ast_cli(a->fd,"%-20s%s\n", "FAX Detect:", "Yes");

@@ -52,28 +52,28 @@ request.
 ```INI
 [incoming]
 exten => _X.,1,Verbose(2,Incoming call to extension ${EXTEN})
-exten => _X.,n,Dial(SIP/${EXTEN})
+exten => _X.,n,Dial(PJSIP/${EXTEN})
 exten => _X.,n,Hangup()
 ```
 
 This dialplan may be utilized to accept calls to extensions, which then dial a
 numbered device name configured in one of the channel configuration files (such
-as sip.conf, iax.conf, etc...) (see [Proper Device Naming] for more information
+as pjsip.conf, iax.conf, etc...) (see [Proper Device Naming] for more information
 on why this approach is flawed).
 
 The example we've given above looks harmless enough until you take into
 consideration that several channel technologies accept characters that could
 be utilized in a clever attack. For example, instead of just sending a request
 to dial extension 500 (which in our example above would create the string
-SIP/500 and is then used by the Dial() application to place a call), someone
-could potentially send a string like "500&SIP/itsp/14165551212".
+PJSIP/500 and is then used by the Dial() application to place a call), someone
+could potentially send a string like "500&PJSIP/itsp/14165551212".
 
-The string "500&SIP/itsp/14165551212" would then be contained within the
+The string "500&PJSIP/itsp/14165551212" would then be contained within the
 ${EXTEN} channel variable, which is then utilized by the Dial() application in
 our example, thereby giving you the dialplan line of:
 
 ```INI
-exten => _X.,n,Dial(SIP/500&SIP/itsp/14165551212)
+exten => _X.,n,Dial(PJSIP/500&PJSIP/itsp/14165551212)
 ```
 
 Our example above has now provided someone with a method to place calls out of
@@ -98,7 +98,7 @@ to only accept three digit extensions, we could change our pattern match to
 be:
 
 ```INI
-exten => _XXX,n,Dial(SIP/${EXTEN})
+exten => _XXX,n,Dial(PJSIP/${EXTEN})
 ```
 
 In this way, we have minimized our impact because we're not allowing anything
@@ -124,7 +124,7 @@ we will accept to just numbers. Our example would then change to something like:
 ```INI
 [incoming]
 exten => _X.,1,Verbose(2,Incoming call to extension ${EXTEN})
-exten => _X.,n,Dial(SIP/${FILTER(0-9,${EXTEN})})
+exten => _X.,n,Dial(PJSIP/${FILTER(0-9,${EXTEN})})
 exten => _X.,n,Hangup()
 ```
 
@@ -141,7 +141,7 @@ necessary, and to handle error checking in a separate location.
 [incoming]
 exten => _X.,1,Verbose(2,Incoming call to extension ${EXTEN})
 exten => _X.,n,Set(SAFE_EXTEN=${FILTER(0-9,${EXTEN})})
-exten => _X.,n,Dial(SIP/${SAFE_EXTEN})
+exten => _X.,n,Dial(PJSIP/${SAFE_EXTEN})
 exten => _X.,n,Hangup()
 ```
 
@@ -155,7 +155,7 @@ passed back by FILTER(), and to fail the call if things do not match.
 exten => _X.,1,Verbose(2,Incoming call to extension ${EXTEN})
 exten => _X.,n,Set(SAFE_EXTEN=${FILTER(0-9,${EXTEN})})
 exten => _X.,n,GotoIf($[${EXTEN} != ${SAFE_EXTEN}]?error,1)
-exten => _X.,n,Dial(SIP/${SAFE_EXTEN})
+exten => _X.,n,Dial(PJSIP/${SAFE_EXTEN})
 exten => _X.,n,Hangup()
 
 exten => error,1,Verbose(2,Values of EXTEN and SAFE_EXTEN did not match.)
@@ -170,7 +170,7 @@ we're expecting to get a SIP URI for dialing.
 ```INI
 [incoming]
 exten => _[0-9a-zA-Z].,1,Verbose(2,Incoming call to extension ${EXTEN})
-exten => _[0-9a-zA-Z].,n,Dial(SIP/${FILTER(.@0-9a-zA-Z,${EXTEN})
+exten => _[0-9a-zA-Z].,n,Dial(PJSIP/${FILTER(.@0-9a-zA-Z,${EXTEN})
 exten => _[0-9a-zA-Z].,n,Hangup()
 ```
 
@@ -201,13 +201,14 @@ It can also be a security hazard to name your devices with a number, as this can
 open you up to brute force attacks. Many of the current exploits deal with
 device configurations which utilize a number, and even worse, a password that
 matches the devices name. For example, take a look at this poorly created device
-in sip.conf:
+in pjsip.conf:
 
 ```INI
 [1000]
-type=friend
-context=international_dialing
-secret=1000
+type=auth
+auth_type=userpass
+password=1000
+username=1000
 ```
 
 As implied by the context, we've permitted a device named 1000 with a password
@@ -223,9 +224,10 @@ Passwords). The following example would be more secure:
 
 ```INI
 [0004f2040001]
-type=friend
-context=international_dialing
-secret=aE3%B8*$jk^G
+type=auth
+auth_type=userpass
+password=aE3%B8*$jk^G
+username=0004f2040001
 ```
 
 Then in your dialplan, you would reference the device via the MAC address of the
@@ -323,7 +325,7 @@ the Originate manager command:
 
 ```
 Action: Originate
-Channel: SIP/foo
+Channel: PJSIP/foo
 Exten: s
 Context: default
 Priority: 1
@@ -340,7 +342,7 @@ circumvent these checks.  For example, take the following dialplan:
 ```INI
 exten => s,1,Verbose(Incoming call)
 same => n,MixMonitor(foo.wav,,${EXEC_COMMAND})
-same => n,Dial(SIP/bar)
+same => n,Dial(PJSIP/bar)
 same => n,Hangup()
 ```
 

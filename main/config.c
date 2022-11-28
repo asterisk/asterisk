@@ -3053,10 +3053,7 @@ static int reload_module(void)
 
 		if (!driver || !database)
 			continue;
-		if (!strcasecmp(v->name, "sipfriends")) {
-			ast_log(LOG_WARNING, "The 'sipfriends' table is obsolete, update your config to use sippeers instead.\n");
-			ast_realtime_append_mapping("sippeers", driver, database, table ? table : "sipfriends", pri);
-		} else if (!strcasecmp(v->name, "iaxfriends")) {
+		if (!strcasecmp(v->name, "iaxfriends")) {
 			ast_log(LOG_WARNING, "The 'iaxfriends' table is obsolete, update your config to use iaxusers and iaxpeers, though they can point to the same table.\n");
 			ast_realtime_append_mapping("iaxusers", driver, database, table ? table : "iaxfriends", pri);
 			ast_realtime_append_mapping("iaxpeers", driver, database, table ? table : "iaxfriends", pri);
