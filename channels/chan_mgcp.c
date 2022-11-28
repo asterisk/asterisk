@@ -2276,7 +2276,7 @@ static int add_sdp(struct mgcp_request *resp, struct mgcp_subchannel *sub, struc
 				strncat(m, costr, sizeof(m) - strlen(m) - 1);
 				snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, ast_rtp_lookup_mime_subtype2(0, NULL, x, 0));
 				strncat(a, costr, sizeof(a) - strlen(a) - 1);
-				if (x == AST_RTP_DTMF) {
+				if (x == AST_RTP_DTMF || x == AST_RTP_DTMF_WB) {
 					/* Indicate we support DTMF...  Not sure about 16,
 					   but MSN supports it so dang it, we will too... */
 					snprintf(costr, sizeof costr, "a=fmtp:%d 0-16\r\n", codec);

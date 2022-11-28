@@ -6341,8 +6341,10 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 	if ((ast_test_flag(&dialog->flags[0], SIP_DTMF) == SIP_DTMF_RFC2833) ||
 	    (ast_test_flag(&dialog->flags[0], SIP_DTMF) == SIP_DTMF_AUTO)) {
 		dialog->noncodeccapability |= AST_RTP_DTMF;
+		dialog->noncodeccapability |= AST_RTP_DTMF_WB;
 	} else {
 		dialog->noncodeccapability &= ~AST_RTP_DTMF;
+		dialog->noncodeccapability &= ~AST_RTP_DTMF_WB;
 	}
 
 	dialog->directmediaacl = ast_duplicate_acl_list(peer->directmediaacl);
@@ -9202,6 +9204,7 @@ struct sip_pvt *__sip_alloc(ast_string_field callid, struct ast_sockaddr *addr,
 	if ((ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_RFC2833) ||
 	    (ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_AUTO)) {
 		p->noncodeccapability |= AST_RTP_DTMF;
+		p->noncodeccapability |= AST_RTP_DTMF_WB;
 	}
 	ast_string_field_set(p, context, sip_cfg.default_context);
 	ast_string_field_set(p, parkinglot, default_parkinglot);
@@ -11262,7 +11265,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 
 			if (ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_AUTO) {
 				ast_clear_flag(&p->flags[0], SIP_DTMF);
-				if (newnoncodeccapability & AST_RTP_DTMF) {
+				if (newnoncodeccapability & AST_RTP_DTMF || newnoncodeccapability & AST_RTP_DTMF_WB) {
 					/* XXX Would it be reasonable to drop the DSP at this point? XXX */
 					ast_set_flag(&p->flags[0], SIP_DTMF_RFC2833);
 					/* Since RFC2833 is now negotiated we need to change some properties of the RTP stream */
@@ -13682,7 +13685,7 @@ static void add_noncodec_to_sdp(const struct sip_pvt *p, int format,
 	ast_str_append(a_buf, 0, "a=rtpmap:%d %s/%u\r\n", rtp_code,
 		       ast_rtp_lookup_mime_subtype2(0, NULL, format, 0),
 		       ast_rtp_lookup_sample_rate2(0, NULL, format));
-	if (format == AST_RTP_DTMF)	/* Indicate we support DTMF and FLASH... */
+	if (format == AST_RTP_DTMF || format == AST_RTP_DTMF_WB)	/* Indicate we support DTMF and FLASH... */
 		ast_str_append(a_buf, 0, "a=fmtp:%d 0-16\r\n", rtp_code);
 }
 
@@ -14139,6 +14142,8 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 			ast_format_cap_append(alreadysent, tmp_fmt, 0);
 			ao2_ref(tmp_fmt, -1);
 		}
+
+		ast_debug(3, "-- p->jointnoncodeccapability: %u\n",p->jointnoncodeccapability);
 
 		/* Now add DTMF RFC2833 telephony-event as a codec */
 		for (x = 1LL; x <= AST_RTP_MAX; x <<= 1) {
@@ -19848,9 +19853,15 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 		p->maxcallbitrate = peer->maxcallbitrate;
 		if ((ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_RFC2833) ||
 		    (ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_AUTO))
+        {
 			p->noncodeccapability |= AST_RTP_DTMF;
+			p->noncodeccapability |= AST_RTP_DTMF_WB;
+        }
 		else
+        {
 			p->noncodeccapability &= ~AST_RTP_DTMF;
+			p->noncodeccapability &= ~AST_RTP_DTMF_WB;
+        }
 		p->jointnoncodeccapability = p->noncodeccapability;
 		p->rtptimeout = peer->rtptimeout;
 		p->rtpholdtimeout = peer->rtpholdtimeout;
@@ -34610,18 +34621,22 @@ static int sip_dtmfmode(struct ast_channel *chan, const char *data)
 		ast_clear_flag(&p->flags[0], SIP_DTMF);
 		ast_set_flag(&p->flags[0], SIP_DTMF_INFO);
 		p->jointnoncodeccapability &= ~AST_RTP_DTMF;
+		p->jointnoncodeccapability &= ~AST_RTP_DTMF_WB;
 	} else if (!strcasecmp(mode, "shortinfo")) {
 		ast_clear_flag(&p->flags[0], SIP_DTMF);
 		ast_set_flag(&p->flags[0], SIP_DTMF_SHORTINFO);
 		p->jointnoncodeccapability &= ~AST_RTP_DTMF;
+		p->jointnoncodeccapability &= ~AST_RTP_DTMF_WB;
 	} else if (!strcasecmp(mode, "rfc2833")) {
 		ast_clear_flag(&p->flags[0], SIP_DTMF);
 		ast_set_flag(&p->flags[0], SIP_DTMF_RFC2833);
 		p->jointnoncodeccapability |= AST_RTP_DTMF;
+		p->jointnoncodeccapability |= AST_RTP_DTMF_WB;
 	} else if (!strcasecmp(mode, "inband")) {
 		ast_clear_flag(&p->flags[0], SIP_DTMF);
 		ast_set_flag(&p->flags[0], SIP_DTMF_INBAND);
 		p->jointnoncodeccapability &= ~AST_RTP_DTMF;
+		p->jointnoncodeccapability &= ~AST_RTP_DTMF_WB;
 	} else {
 		ast_log(LOG_WARNING, "I don't know about this dtmf mode: %s\n", mode);
 	}
