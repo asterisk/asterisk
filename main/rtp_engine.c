@@ -3734,7 +3734,7 @@ int ast_rtp_engine_init(void)
 	add_static_payload(99, ast_format_h264, 0);
 	add_static_payload(100, ast_format_vp8, 0);
 	add_static_payload(101, NULL, AST_RTP_DTMF);
-	add_static_payload(111, NULL, AST_RTP_DTMF_WB);
+	add_static_payload(-1, NULL, AST_RTP_DTMF_WB);
 	add_static_payload(102, ast_format_siren7, 0);
 	add_static_payload(103, ast_format_h263p, 0);
 	add_static_payload(104, ast_format_mp4, 0);
@@ -3747,7 +3747,7 @@ int ast_rtp_engine_init(void)
 	add_static_payload(109, ast_format_h265, 0);
 
 	add_static_payload(110, ast_format_speex, 0);
-	//add_static_payload(111, ast_format_g726, 0);
+	add_static_payload(111, ast_format_g726, 0);
 	add_static_payload(112, ast_format_g726_aal2, 0);
 
 	add_static_payload(115, ast_format_siren14, 0);
