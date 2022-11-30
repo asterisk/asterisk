@@ -4145,6 +4145,7 @@ static int ast_rtp_dtmf_begin(struct ast_rtp_instance *instance, char digit)
 	}
 
 	/* Grab the payload that they expect the RFC2833 packet to be received in */
+    // ###### TODO
 	payload = ast_rtp_codecs_payload_code_tx(ast_rtp_instance_get_codecs(instance), 0, NULL, AST_RTP_DTMF);
 
 	rtp->dtmfmute = ast_tvadd(ast_tvnow(), ast_tv(0, 500000));
@@ -7279,7 +7280,7 @@ static struct ast_frame *ast_rtp_interpret(struct ast_rtp_instance *instance, st
 	/* If the payload is not actually an Asterisk one but a special one pass it off to the respective handler */
 	if (!payload->asterisk_format) {
 		struct ast_frame *f = NULL;
-		if (payload->rtp_code == AST_RTP_DTMF) {
+		if (payload->rtp_code == AST_RTP_DTMF || payload->rtp_code == AST_RTP_DTMF_WB) {
 			/* process_dtmf_rfc2833 may need to return multiple frames. We do this
 			 * by passing the pointer to the frame list to it so that the method
 			 * can append frames to the list as needed.

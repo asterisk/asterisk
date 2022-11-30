@@ -269,7 +269,8 @@ enum ast_rtp_instance_rtcp {
 /*! DTMF (Cisco Proprietary) */
 #define AST_RTP_CISCO_DTMF              (1 << 2)
 /*! Maximum RTP-specific code */
-#define AST_RTP_MAX                     AST_RTP_CISCO_DTMF
+#define AST_RTP_DTMF_WB                 (1 << 3)
+#define AST_RTP_MAX                     AST_RTP_DTMF_WB
 
 /*! Structure that represents a payload */
 struct ast_rtp_payload_type {
