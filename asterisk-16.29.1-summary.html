@@ -1,0 +1,34 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-16.29.1</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-16.29.1</h3><h3 align="center">Date: 2022-12-01</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
+<li><a href="#summary">Summary</a></li>
+<li><a href="#contributors">Contributors</a></li>
+<li><a href="#closed_issues">Closed Issues</a></li>
+<li><a href="#commits">Other Changes</a></li>
+<li><a href="#diffstat">Diffstat</a></li>
+</ol><hr><a name="summary"><h2 align="center">Summary</h2></a><center><a href="#top">[Back to Top]</a></center><p>This release has been made to address one or more security vulnerabilities that have been identified. A security advisory document has been published for each vulnerability that includes additional information. Users of versions of Asterisk that are affected are strongly encouraged to review the advisories and determine what action they should take to protect their systems from these issues.</p><p>Security Advisories:</p><ul>
+<li><a href="http://downloads.asterisk.org/pub/security/AST-2022-007,AST-2022-008,AST-2022-009.html">AST-2022-007,AST-2022-008,AST-2022-009</a></li>
+</ul><p>The data in this summary reflects changes that have been made since the previous release, asterisk-16.29.0.</p><hr><a name="contributors"><h2 align="center">Contributors</h2></a><center><a href="#top">[Back to Top]</a></center><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release. For coders, the number is how many of their patches (of any size) were committed into this release. For testers, the number is the number of times their name was listed as assisting with testing a patch. Finally, for reporters, the number is the number of issues that they reported that were affected by commits that went into this release.</p><table width="100%" border="0">
+<tr><th width="33%">Coders</th><th width="33%">Testers</th><th width="33%">Reporters</th></tr>
+<tr valign="top"><td width="33%">2 Mike Bradeen <mbradeen@sangoma.com><br/>1 Asterisk Development Team <asteriskteam@digium.com><br/>1 George Joseph <gjoseph@digium.com><br/>1 Ben Ford <bford@digium.com><br/></td><td width="33%"><td width="33%">1 shawty <shawty.d.ds@googlemail.com><br/>1 nappsoft <infos@nappsoft.ch><br/>1 Benjamin Keith Ford <bford@digium.com><br/>1 Michael Bradeen <mbradeen@sangoma.com><br/></td></tr>
+</table><hr><a name="closed_issues"><h2 align="center">Closed Issues</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p><h3>Security</h3><h4>Category: Addons/chan_ooh323</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-30103">ASTERISK-30103</a>: chan_ooh323 Vulnerability in calling/called party IE<br/>Reported by: Michael Bradeen<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=36c79fa5f93298ad8feff94af1dae1bcc9d1c2a5">[36c79fa5f9]</a> Mike Bradeen -- ooh323c: not checking for IE minimum length</li>
+</ul><br><h4>Category: Core/ManagerInterface</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-30176">ASTERISK-30176</a>: manager: GetConfig can read files outside of Asterisk<br/>Reported by: shawty<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=939cc67ae9e0d175cc800442b138e21338bbb03a">[939cc67ae9]</a> Mike Bradeen -- manager: prevent file access outside of config dir</li>
+</ul><br><h4>Category: pjproject/pjsip</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-30338">ASTERISK-30338</a>: pjproject: Backport security fixes from 2.13<br/>Reported by: Benjamin Keith Ford<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=fd0c27a066ffd69baf83b196b6ce001b867f075d">[fd0c27a066]</a> Ben Ford -- pjproject: 2.13 security fixes</li>
+</ul><br><h3>Bug</h3><h4>Category: Resources/res_pjsip_pubsub</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-30244">ASTERISK-30244</a>: res_pjsip_pubsub: Occasional crash when TCP/TLS connection terminated and subscription persistence is removed<br/>Reported by: nappsoft<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=1bc3b3098028c2badd8ba71eda8afd68a2ee9ce7">[1bc3b30980]</a> George Joseph -- pjsip_transport_events: Fix possible use after free on transport</li>
+</ul><br><hr><a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all changes that went into this release that did not reference a JIRA issue.</p><table width="100%" border="1">
+<tr><th>Revision</th><th>Author</th><th>Summary</th></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=8446ad13607eab69f71f7127d1d991aab75d2c33">8446ad1360</a></td><td>Asterisk Development Team</td><td>Update for 16.29.1</td></tr>
+</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>UPGRADE.txt                                                                                     |   13
+addons/ooh323c/src/ooq931.c                                                                     |   15
+configs/samples/asterisk.conf.sample                                                            |   11
+include/asterisk/manager.h                                                                      |   12
+include/asterisk/res_pjsip.h                                                                    |   83 ++
+main/manager.c                                                                                  |   42 +
+main/options.c                                                                                  |    1
+res/res_pjsip/pjsip_transport_events.c                                                          |  214 ++++++-
+res/res_pjsip_outbound_registration.c                                                           |   28
+res/res_pjsip_pubsub.c                                                                          |   25
+third-party/pjproject/patches/0200-potential-buffer-overflow-in-pjlib-scanner-and-pjmedia.patch |  287 ++++++++++
+11 files changed, 678 insertions(+), 53 deletions(-)</pre><br></html>
