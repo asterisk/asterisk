@@ -1,0 +1,137 @@
+                                Release Summary
+
+                                asterisk-20.0.1
+
+                                Date: 2022-12-01
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release has been made to address one or more security vulnerabilities
+   that have been identified. A security advisory document has been published
+   for each vulnerability that includes additional information. Users of
+   versions of Asterisk that are affected are strongly encouraged to review
+   the advisories and determine what action they should take to protect their
+   systems from these issues.
+
+   Security Advisories:
+
+     * AST-2022-007,AST-2022-008,AST-2022-009
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-20.0.0.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were affected by commits that went into
+   this release.
+
+   Coders                      Testers               Reporters                
+   2 Mike Bradeen                                    1 shawty                 
+   1 Asterisk Development Team                       1 nappsoft               
+   1 George Joseph                                   1 Benjamin Keith Ford    
+   1 Ben Ford                                        1 Michael Bradeen        
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Security
+
+    Category: Addons/chan_ooh323
+
+   ASTERISK-30103: chan_ooh323 Vulnerability in calling/called party IE
+   Reported by: Michael Bradeen
+     * [d420314ffd] Mike Bradeen -- ooh323c: not checking for IE minimum
+       length
+
+    Category: Core/ManagerInterface
+
+   ASTERISK-30176: manager: GetConfig can read files outside of Asterisk
+   Reported by: shawty
+     * [0f44cd885a] Mike Bradeen -- manager: prevent file access outside of
+       config dir
+
+    Category: pjproject/pjsip
+
+   ASTERISK-30338: pjproject: Backport security fixes from 2.13
+   Reported by: Benjamin Keith Ford
+     * [702f400e3e] Ben Ford -- pjproject: 2.13 security fixes
+
+  Bug
+
+    Category: Resources/res_pjsip_pubsub
+
+   ASTERISK-30244: res_pjsip_pubsub: Occasional crash when TCP/TLS connection
+   terminated and subscription persistence is removed
+   Reported by: nappsoft
+     * [ed45a9182d] George Joseph -- pjsip_transport_events: Fix possible use
+       after free on transport
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   reference a JIRA issue.
+
+   +------------------------------------------------------------------------+
+   | Revision   | Author                    | Summary                       |
+   |------------+---------------------------+-------------------------------|
+   | cdc655b2a6 | Asterisk Development Team | Update CHANGES and            |
+   |            |                           | UPGRADE.txt for 20.0.1        |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ UPGRADE.txt                                                                                     |   13
+ addons/ooh323c/src/ooq931.c                                                                     |   15
+ configs/samples/asterisk.conf.sample                                                            |   11
+ include/asterisk/manager.h                                                                      |   12
+ include/asterisk/res_pjsip.h                                                                    |   83 ++
+ main/manager.c                                                                                  |   42 +
+ main/options.c                                                                                  |    1
+ res/res_pjsip/pjsip_transport_events.c                                                          |  214 ++++++-
+ res/res_pjsip_outbound_registration.c                                                           |   28
+ res/res_pjsip_pubsub.c                                                                          |   25
+ third-party/pjproject/patches/0200-potential-buffer-overflow-in-pjlib-scanner-and-pjmedia.patch |  289 ++++++++++
+ 11 files changed, 680 insertions(+), 53 deletions(-)
