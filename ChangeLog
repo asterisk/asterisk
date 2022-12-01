@@ -1,3 +1,94 @@
+2022-12-01 20:01 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 18.15.1 Released.
+
+2022-12-01 13:43 +0000 [7c6fe5168b]  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Update CHANGES and UPGRADE.txt for 18.15.1
+2022-12-01 13:43 +0000 [4bc9c23aad]  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Update for 18.15.1
+
+2022-11-29 14:02 +0000 [9b893ce332]  Ben Ford <bford@digium.com>
+
+	* pjproject: 2.13 security fixes
+
+	  Backports two security fixes (c4d3498 and 450baca) from pjproject 2.13.
+
+	  ASTERISK-30338
+
+	  Change-Id: I86fdc003d5d22cb66e7cc6dc3313a8194f27eb69
+
+2022-10-10 09:35 +0000 [936d95bfe9]  George Joseph <gjoseph@digium.com>
+
+	* pjsip_transport_events: Fix possible use after free on transport
+
+	  It was possible for a module that registered for transport monitor
+	  events to pass in a pjsip_transport that had already been freed.
+	  This caused pjsip_transport_events to crash when looking up the
+	  monitor for the transport.  The fix is a two pronged approach.
+
+	  1. We now increment the reference count on pjsip_transports when we
+	  create monitors for them, then decrement the count when the
+	  transport is going to be destroyed.
+
+	  2. There are now APIs to register and unregister monitor callbacks
+	  by "transport key" which is a string concatenation of the remote ip
+	  address and port.  This way the module needing to monitor the
+	  transport doesn't have to hold on to the transport object itself to
+	  unregister.  It just has to save the transport_key.
+
+	  * Added the pjsip_transport reference increment and decrement.
+
+	  * Changed the internal transport monitor container key from the
+	    transport->obj_name (which may not be unique anyway) to the
+	    transport_key.
+
+	  * Added a helper macro AST_SIP_MAKE_REMOTE_IPADDR_PORT_STR() that
+	    fills a buffer with the transport_key using a passed-in
+	    pjsip_transport.
+
+	  * Added the following functions:
+	    ast_sip_transport_monitor_register_key
+	    ast_sip_transport_monitor_register_replace_key
+	    ast_sip_transport_monitor_unregister_key
+	    and marked their non-key counterparts as deprecated.
+
+	  * Updated res_pjsip_pubsub and res_pjsip_outbound_register to use
+	    the new "key" monitor functions.
+
+	  NOTE: res_pjsip_registrar also uses the transport monitor
+	  functionality but doesn't have a persistent object other than
+	  contact to store a transport key.  At this time, it continues to
+	  use the non-key monitor functions.
+
+	  ASTERISK-30244
+
+	  Change-Id: I1a20baf2a8643c272dcf819871d6c395f148f00b
+
+2022-10-03 13:54 +0000 [d309e25d61]  Mike Bradeen <mbradeen@sangoma.com>
+
+	* manager: prevent file access outside of config dir
+
+	  Add live_dangerously flag to manager and use this flag to
+	  determine if a configuation file outside of AST_CONFIG_DIR
+	  should be read.
+
+	  ASTERISK-30176
+
+	  Change-Id: I46b26af4047433b49ae5c8a85cb8cda806a07404
+
+2022-06-06 18:11 +0000 [47a483dc8c]  Mike Bradeen <mbradeen@sangoma.com>
+
+	* ooh323c: not checking for IE minimum length
+
+	  When decoding q.931 encoded calling/called number
+	  now checking for length being less than minimum required.
+
+	  ASTERISK-30103
+
+	  Change-Id: I3dcfce0f35eca258dc450f87c92d4d7af402c2e7
+
 2022-10-19 14:23 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 18.15.0 Released.
