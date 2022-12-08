@@ -1779,7 +1779,7 @@ void ast_ari_channels_create(struct ast_variable *headers,
 	struct ast_ari_channels_create_args *args,
 	struct ast_ari_response *response)
 {
-	struct ast_variable *variables = NULL;
+	RAII_VAR(struct ast_variable *, variables, NULL, ast_variables_destroy);
 	struct ast_assigned_ids assignedids;
 	struct ari_channel_thread_data *chan_data;
 	struct ast_channel_snapshot *snapshot;
