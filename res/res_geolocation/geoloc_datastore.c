@@ -255,7 +255,7 @@ struct ast_datastore *ast_geoloc_datastore_create_from_eprofile(
 	}
 
 	rc = ast_geoloc_datastore_add_eprofile(ds, eprofile);
-	if (rc != 0) {
+	if (rc <= 0) {
 		ast_datastore_free(ds);
 		ds = NULL;
 	}
@@ -297,7 +297,7 @@ struct ast_datastore *ast_geoloc_datastore_create_from_profile_name(const char *
 
 	rc = ast_geoloc_datastore_add_eprofile(ds, eprofile);
 	ao2_ref(eprofile, -1);
-	if (rc != 0) {
+	if (rc <= 0) {
 		ast_datastore_free(ds);
 		ds = NULL;
 	}
