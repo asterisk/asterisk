@@ -236,6 +236,8 @@ static char *proto2str(int proto, char *buf, int bufsiz)
 	case DUNDI_PROTO_H323:
 		strncpy(buf, "H.323", bufsiz - 1);
 		break;
+	case DUNDI_PROTO_PJSIP:
+		strncpy(buf, "PJSIP", bufsiz - 1);
 	default:
 		snprintf(buf, bufsiz, "Unknown Proto(%d)", proto);
 	}
