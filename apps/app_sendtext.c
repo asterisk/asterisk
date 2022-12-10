@@ -139,8 +139,6 @@
 			</example>
 		</description>
 		<see-also>
-			<ref type="application">SendImage</ref>
-			<ref type="application">SendURL</ref>
 			<ref type="application">ReceiveText</ref>
 		</see-also>
 	</application>
@@ -182,8 +180,6 @@
 		</description>
 		<see-also>
 			<ref type="application">SendText</ref>
-			<ref type="application">SendImage</ref>
-			<ref type="application">SendURL</ref>
 		</see-also>
 	</application>
  ***/
