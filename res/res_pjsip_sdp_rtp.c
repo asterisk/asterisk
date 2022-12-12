@@ -2240,9 +2240,9 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session,
 	 * instance itself.
 	 */
 	ast_rtp_instance_set_timeout(session_media->rtp, 0);
-	if (session->endpoint->media.rtp.timeout && !session_media->remotely_held) {
+	if (session->endpoint->media.rtp.timeout && !session_media->remotely_held && !session_media->locally_held) {
 		ast_rtp_instance_set_timeout(session_media->rtp, session->endpoint->media.rtp.timeout);
-	} else if (session->endpoint->media.rtp.timeout_hold && session_media->remotely_held) {
+	} else if (session->endpoint->media.rtp.timeout_hold && (session_media->remotely_held || session_media->locally_held)) {
 		ast_rtp_instance_set_timeout(session_media->rtp, session->endpoint->media.rtp.timeout_hold);
 	}
 
