@@ -208,7 +208,7 @@
 					and <emphasis>start</emphasis> execution at that location.</para>
 					<para>NOTE: Any channel variables you want the called channel to inherit from the caller channel must be
 					prefixed with one or two underbars ('_').</para>
-					<para>NOTE: Using this option from a Macro() or GoSub() might not make sense as there would be no return points.</para>
+					<para>NOTE: Using this option from a GoSub() might not make sense as there would be no return points.</para>
 				</option>
 				<option name="g">
 					<para>Proceed with dialplan execution at the next priority in the current extension if the
@@ -296,47 +296,6 @@
 					<para>Provide hold music to the calling party until a requested
 					channel answers. A specific music on hold <replaceable>class</replaceable>
 					(as defined in <filename>musiconhold.conf</filename>) can be specified.</para>
-				</option>
-				<option name="M" argsep="^">
-					<argument name="macro" required="true">
-						<para>Name of the macro that should be executed.</para>
-					</argument>
-					<argument name="arg" multiple="true">
-						<para>Macro arguments</para>
-					</argument>
-					<para>Execute the specified <replaceable>macro</replaceable> for the <emphasis>called</emphasis> channel
-					before connecting to the calling channel. Arguments can be specified to the Macro
-					using <literal>^</literal> as a delimiter. The macro can set the variable
-					<variable>MACRO_RESULT</variable> to specify the following actions after the macro is
-					finished executing:</para>
-					<variablelist>
-						<variable name="MACRO_RESULT">
-							<para>If set, this action will be taken after the macro finished executing.</para>
-							<value name="ABORT">
-								Hangup both legs of the call
-							</value>
-							<value name="CONGESTION">
-								Behave as if line congestion was encountered
-							</value>
-							<value name="BUSY">
-								Behave as if a busy signal was encountered
-							</value>
-							<value name="CONTINUE">
-								Hangup the called party and allow the calling party to continue dialplan execution at the next priority
-							</value>
-							<value name="GOTO:[[&lt;context&gt;^]&lt;exten&gt;^]&lt;priority&gt;">
-								Transfer the call to the specified destination.
-							</value>
-						</variable>
-					</variablelist>
-					<para>NOTE: You cannot use any additional action post answer options in conjunction
-					with this option. Also, pbx services are run on the peer (called) channel,
-					so you will not be able to set timeouts via the <literal>TIMEOUT()</literal> function in this macro.</para>
-					<para>WARNING: Be aware of the limitations that macros have, specifically with regards to use of
-					the <literal>WaitExten</literal> application. For more information, see the documentation for
-					<literal>Macro()</literal>.</para>
-					<para>NOTE: Macros are deprecated, GoSub should be used instead,
-					see the <literal>U</literal> option.</para>
 				</option>
 				<option name="n">
 					<argument name="delete">
@@ -655,7 +614,6 @@
 			<ref type="application">RetryDial</ref>
 			<ref type="application">SendDTMF</ref>
 			<ref type="application">Gosub</ref>
-			<ref type="application">Macro</ref>
 		</see-also>
 	</application>
 	<application name="RetryDial" language="en_US">
@@ -710,7 +668,6 @@ enum {
 	OPT_ORIGINAL_CLID =     (1 << 8),
 	OPT_DURATION_LIMIT =    (1 << 9),
 	OPT_MUSICBACK =         (1 << 10),
-	OPT_CALLEE_MACRO =      (1 << 11),
 	OPT_SCREEN_NOINTRO =    (1 << 12),
 	OPT_SCREEN_NOCALLERID = (1 << 13),
 	OPT_IGNORE_CONNECTEDLINE = (1 << 14),
@@ -755,7 +712,6 @@ enum {
 	OPT_ARG_GOTO,
 	OPT_ARG_DURATION_LIMIT,
 	OPT_ARG_MUSICBACK,
-	OPT_ARG_CALLEE_MACRO,
 	OPT_ARG_RINGBACK,
 	OPT_ARG_CALLEE_GOSUB,
 	OPT_ARG_CALLEE_GO_ON,
@@ -797,7 +753,6 @@ AST_APP_OPTIONS(dial_exec_options, BEGIN_OPTIONS
 	AST_APP_OPTION('K', OPT_CALLER_PARK),
 	AST_APP_OPTION_ARG('L', OPT_DURATION_LIMIT, OPT_ARG_DURATION_LIMIT),
 	AST_APP_OPTION_ARG('m', OPT_MUSICBACK, OPT_ARG_MUSICBACK),
-	AST_APP_OPTION_ARG('M', OPT_CALLEE_MACRO, OPT_ARG_CALLEE_MACRO),
 	AST_APP_OPTION_ARG('n', OPT_SCREEN_NOINTRO, OPT_ARG_SCREEN_NOINTRO),
 	AST_APP_OPTION('N', OPT_SCREEN_NOCALLERID),
 	AST_APP_OPTION_ARG('o', OPT_ORIGINAL_CLID, OPT_ARG_ORIGINAL_CLID),
@@ -823,7 +778,7 @@ END_OPTIONS );
 #define CAN_EARLY_BRIDGE(flags,chan,peer) (!ast_test_flag64(flags, OPT_CALLEE_HANGUP | \
 	OPT_CALLER_HANGUP | OPT_CALLEE_TRANSFER | OPT_CALLER_TRANSFER | \
 	OPT_CALLEE_MONITOR | OPT_CALLER_MONITOR | OPT_CALLEE_PARK |  \
-	OPT_CALLER_PARK | OPT_ANNOUNCE | OPT_CALLEE_MACRO | OPT_CALLEE_GOSUB) && \
+	OPT_CALLER_PARK | OPT_ANNOUNCE | OPT_CALLEE_GOSUB) && \
 	!ast_channel_audiohooks(chan) && !ast_channel_audiohooks(peer) && \
 	ast_framehook_list_is_empty(ast_channel_framehooks(chan)) && ast_framehook_list_is_empty(ast_channel_framehooks(peer)))
 
@@ -925,10 +880,6 @@ static int onedigit_goto(struct ast_channel *chan, const char *context, char ext
 	} else {
 		if (!ast_goto_if_exists(chan, ast_channel_context(chan), rexten, pri))
 			return 1;
-		else if (!ast_strlen_zero(ast_channel_macrocontext(chan))) {
-			if (!ast_goto_if_exists(chan, ast_channel_macrocontext(chan), rexten, pri))
-				return 1;
-		}
 	}
 	return 0;
 }
@@ -940,8 +891,8 @@ static const char *get_cid_name(char *name, int namelen, struct ast_channel *cha
 	const char *exten;
 
 	ast_channel_lock(chan);
-	context = ast_strdupa(S_OR(ast_channel_macrocontext(chan), ast_channel_context(chan)));
-	exten = ast_strdupa(S_OR(ast_channel_macroexten(chan), ast_channel_exten(chan)));
+	context = ast_strdupa(ast_channel_context(chan));
+	exten = ast_strdupa(ast_channel_exten(chan));
 	ast_channel_unlock(chan);
 
 	return ast_get_hint(NULL, 0, name, namelen, chan, context, exten) ? name : "";
@@ -1076,7 +1027,7 @@ static void do_forward(struct chanlist *o, struct cause_args *num,
 			ast_party_number_init(&ast_channel_redirecting(c)->from.number);
 			ast_channel_redirecting(c)->from.number.valid = 1;
 			ast_channel_redirecting(c)->from.number.str =
-				ast_strdup(S_OR(ast_channel_macroexten(in), ast_channel_exten(in)));
+				ast_strdup(ast_channel_exten(in));
 		}
 
 		ast_channel_dialed(c)->transit_network_select = ast_channel_dialed(in)->transit_network_select;
@@ -1125,17 +1076,12 @@ static void do_forward(struct chanlist *o, struct cause_args *num,
 			 * Redirecting updates to the caller make sense only on single
 			 * calls.
 			 *
-			 * We must unlock c before calling
-			 * ast_channel_redirecting_macro, because we put c into
-			 * autoservice there.  That is pretty much a guaranteed
-			 * deadlock.  This is why the handling of c's lock may seem a
-			 * bit unusual here.
+			 * Need to re-evalute if unlocking is still required here as macro is gone
 			 */
 			ast_party_redirecting_init(&redirecting);
 			ast_party_redirecting_copy(&redirecting, ast_channel_redirecting(c));
 			ast_channel_unlock(c);
-			if (ast_channel_redirecting_sub(c, in, &redirecting, 0) &&
-				ast_channel_redirecting_macro(c, in, &redirecting, 1, 0)) {
+			if (ast_channel_redirecting_sub(c, in, &redirecting, 0)) {
 				ast_channel_update_redirecting(in, &redirecting, NULL);
 			}
 			ast_party_redirecting_free(&redirecting);
@@ -1211,8 +1157,7 @@ static void update_connected_line_from_peer(struct ast_channel *chan, struct ast
 	ast_connected_line_copy_from_caller(&connected_caller, ast_channel_caller(peer));
 	ast_channel_unlock(peer);
 	connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
-	if (ast_channel_connected_line_sub(peer, chan, &connected_caller, 0)
-		&& ast_channel_connected_line_macro(peer, chan, &connected_caller, is_caller, 0)) {
+	if (ast_channel_connected_line_sub(peer, chan, &connected_caller, 0)) {
 		ast_channel_update_connected_line(chan, &connected_caller, NULL);
 	}
 	ast_party_connected_line_free(&connected_caller);
@@ -1344,8 +1289,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 						update_connected_line_from_peer(in, c, 1);
 					} else if (!single && !ast_test_flag64(o, OPT_IGNORE_CONNECTEDLINE)) {
 						if (o->pending_connected_update) {
-							if (ast_channel_connected_line_sub(c, in, &o->connected, 0) &&
-								ast_channel_connected_line_macro(c, in, &o->connected, 1, 0)) {
+							if (ast_channel_connected_line_sub(c, in, &o->connected, 0)) {
 								ast_channel_update_connected_line(in, &o->connected, NULL);
 							}
 						} else if (!ast_test_flag64(o, DIAL_CALLERID_ABSENT)) {
@@ -1443,8 +1387,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 							update_connected_line_from_peer(in, c, 1);
 						} else if (!single && !ast_test_flag64(o, OPT_IGNORE_CONNECTEDLINE)) {
 							if (o->pending_connected_update) {
-								if (ast_channel_connected_line_sub(c, in, &o->connected, 0) &&
-									ast_channel_connected_line_macro(c, in, &o->connected, 1, 0)) {
+								if (ast_channel_connected_line_sub(c, in, &o->connected, 0)) {
 									ast_channel_update_connected_line(in, &o->connected, NULL);
 								}
 							} else if (!ast_test_flag64(o, DIAL_CALLERID_ABSENT)) {
@@ -1676,8 +1619,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 						o->pending_connected_update = 1;
 						break;
 					}
-					if (ast_channel_connected_line_sub(c, in, f, 1) &&
-						ast_channel_connected_line_macro(c, in, f, 1, 1)) {
+					if (ast_channel_connected_line_sub(c, in, f, 1)) {
 						ast_indicate_data(in, AST_CONTROL_CONNECTED_LINE, f->data.ptr, f->datalen);
 					}
 					break;
@@ -1706,8 +1648,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 					}
 					ast_verb(3, "%s redirecting info has changed, passing it to %s\n",
 						ast_channel_name(c), ast_channel_name(in));
-					if (ast_channel_redirecting_sub(c, in, f, 1) &&
-						ast_channel_redirecting_macro(c, in, f, 1, 1)) {
+					if (ast_channel_redirecting_sub(c, in, f, 1)) {
 						ast_indicate_data(in, AST_CONTROL_REDIRECTING, f->data.ptr, f->datalen);
 					}
 					pa->sentringing = 0;
@@ -1915,8 +1856,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 							ast_verb(3, "Connected line update to %s prevented.\n", ast_channel_name(o->chan));
 							break;
 						}
-						if (ast_channel_connected_line_sub(in, o->chan, f, 1) &&
-							ast_channel_connected_line_macro(in, o->chan, f, 0, 1)) {
+						if (ast_channel_connected_line_sub(in, o->chan, f, 1)) {
 							ast_indicate_data(o->chan, f->subclass.integer, f->data.ptr, f->datalen);
 						}
 						break;
@@ -1925,8 +1865,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 							ast_verb(3, "Redirecting update to %s prevented.\n", ast_channel_name(o->chan));
 							break;
 						}
-						if (ast_channel_redirecting_sub(in, o->chan, f, 1) &&
-							ast_channel_redirecting_macro(in, o->chan, f, 0, 1)) {
+						if (ast_channel_redirecting_sub(in, o->chan, f, 1)) {
 							ast_indicate_data(o->chan, f->subclass.integer, f->data.ptr, f->datalen);
 						}
 						break;
@@ -2483,7 +2422,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 	if (ast_test_flag64(&opts, OPT_FORCECLID)) {
 		if (ast_strlen_zero(opt_args[OPT_ARG_FORCECLID])) {
 			ast_channel_lock(chan);
-			forced_clid.number.str = ast_strdupa(S_OR(ast_channel_macroexten(chan), ast_channel_exten(chan)));
+			forced_clid.number.str = ast_strdupa(ast_channel_exten(chan));
 			ast_channel_unlock(chan);
 			forced_clid_name[0] = '\0';
 			forced_clid.name.str = (char *) get_cid_name(forced_clid_name,
@@ -2560,7 +2499,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			stored_clid.name.valid = 1;
 		}
 		ast_channel_lock(chan);
-		stored_clid.number.str = ast_strdupa(S_OR(ast_channel_macroexten(chan), ast_channel_exten(chan)));
+		stored_clid.number.str = ast_strdupa(ast_channel_exten(chan));
 		stored_clid.number.valid = 1;
 		ast_channel_unlock(chan);
 	}
@@ -2595,7 +2534,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 	/* Set per dial instance flags.  These flags are also passed back to RetryDial. */
 	ast_copy_flags64(peerflags, &opts, OPT_DTMF_EXIT | OPT_GO_ON | OPT_ORIGINAL_CLID
 		| OPT_CALLER_HANGUP | OPT_IGNORE_FORWARDING | OPT_CANCEL_TIMEOUT
-		| OPT_ANNOUNCE | OPT_CALLEE_MACRO | OPT_CALLEE_GOSUB | OPT_FORCECLID);
+		| OPT_ANNOUNCE | OPT_CALLEE_GOSUB | OPT_FORCECLID);
 
 	/* PREDIAL: Run gosub on the caller's channel */
 	if (ast_test_flag64(&opts, OPT_PREDIAL_CALLER)
@@ -2821,11 +2760,8 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 
 
 		/* Inherit context and extension */
-		ast_channel_dialcontext_set(tc, ast_strlen_zero(ast_channel_macrocontext(chan)) ? ast_channel_context(chan) : ast_channel_macrocontext(chan));
-		if (!ast_strlen_zero(ast_channel_macroexten(chan)))
-			ast_channel_exten_set(tc, ast_channel_macroexten(chan));
-		else
-			ast_channel_exten_set(tc, ast_channel_exten(chan));
+		ast_channel_dialcontext_set(tc, ast_channel_context(chan));
+		ast_channel_exten_set(tc, ast_channel_exten(chan));
 
 		ast_channel_stage_snapshot_done(tc);
 
@@ -3148,9 +3084,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 							} else {
 								other_chan = chan;
 							}
-							if (ast_channel_connected_line_sub(active_chan, other_chan, fr, 1)
-								&& ast_channel_connected_line_macro(active_chan,
-									other_chan, fr, other_chan == chan, 1)) {
+							if (ast_channel_connected_line_sub(active_chan, other_chan, fr, 1)) {
 								ast_indicate_data(other_chan, fr->subclass.integer,
 									fr->data.ptr, fr->datalen);
 							}
@@ -3195,66 +3129,6 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			res = 0;
 			ast_channel_publish_dial(chan, peer, NULL, "ANSWER");
 			goto done;
-		}
-
-		if (ast_test_flag64(&opts, OPT_CALLEE_MACRO) && !ast_strlen_zero(opt_args[OPT_ARG_CALLEE_MACRO])) {
-			const char *macro_result_peer;
-			int macro_res;
-
-			/* Set peer->exten and peer->context so that MACRO_EXTEN and MACRO_CONTEXT get set */
-			ast_channel_lock_both(chan, peer);
-			ast_channel_context_set(peer, ast_channel_context(chan));
-			ast_channel_exten_set(peer, ast_channel_exten(chan));
-			ast_channel_unlock(peer);
-			ast_channel_unlock(chan);
-			ast_replace_subargument_delimiter(opt_args[OPT_ARG_CALLEE_MACRO]);
-			macro_res = ast_app_exec_macro(chan, peer, opt_args[OPT_ARG_CALLEE_MACRO]);
-
-			ast_channel_lock(peer);
-
-			if (!macro_res && (macro_result_peer = pbx_builtin_getvar_helper(peer, "MACRO_RESULT"))) {
-				char *macro_result = ast_strdupa(macro_result_peer);
-				char *macro_transfer_dest;
-
-				ast_channel_unlock(peer);
-
-				if (!strcasecmp(macro_result, "BUSY")) {
-					ast_copy_string(pa.status, macro_result, sizeof(pa.status));
-					ast_set_flag64(peerflags, OPT_GO_ON);
-					macro_res = -1;
-				} else if (!strcasecmp(macro_result, "CONGESTION") || !strcasecmp(macro_result, "CHANUNAVAIL")) {
-					ast_copy_string(pa.status, macro_result, sizeof(pa.status));
-					ast_set_flag64(peerflags, OPT_GO_ON);
-					macro_res = -1;
-				} else if (!strcasecmp(macro_result, "CONTINUE")) {
-					/* hangup peer and keep chan alive assuming the macro has changed
-					   the context / exten / priority or perhaps
-					   the next priority in the current exten is desired.
-					*/
-					ast_set_flag64(peerflags, OPT_GO_ON);
-					macro_res = -1;
-				} else if (!strcasecmp(macro_result, "ABORT")) {
-					/* Hangup both ends unless the caller has the g flag */
-					macro_res = -1;
-				} else if (!strncasecmp(macro_result, "GOTO:", 5)) {
-					macro_transfer_dest = macro_result + 5;
-					macro_res = -1;
-					/* perform a transfer to a new extension */
-					if (strchr(macro_transfer_dest, '^')) { /* context^exten^priority*/
-						ast_replace_subargument_delimiter(macro_transfer_dest);
-					}
-					if (!ast_parseable_goto(chan, macro_transfer_dest)) {
-						ast_set_flag64(peerflags, OPT_GO_ON);
-					}
-				}
-				if (macro_res && !dial_end_raised) {
-					ast_channel_publish_dial(chan, peer, NULL, macro_result);
-					dial_end_raised = 1;
-				}
-			} else {
-				ast_channel_unlock(peer);
-			}
-			res = macro_res;
 		}
 
 		if (ast_test_flag64(&opts, OPT_CALLEE_GOSUB) && !ast_strlen_zero(opt_args[OPT_ARG_CALLEE_GOSUB])) {

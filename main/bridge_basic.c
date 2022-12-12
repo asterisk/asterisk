@@ -1386,10 +1386,6 @@ static const char *get_transfer_context(struct ast_channel *transferer, const ch
 	if (!ast_strlen_zero(context)) {
 		return context;
 	}
-	context = ast_channel_macrocontext(transferer);
-	if (!ast_strlen_zero(context)) {
-		return context;
-	}
 	context = ast_channel_context(transferer);
 	if (!ast_strlen_zero(context)) {
 		return context;

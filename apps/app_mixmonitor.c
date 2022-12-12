@@ -389,7 +389,6 @@ struct mixmonitor {
 	/* the below string fields describe data used for creating voicemails from the recording */
 	AST_DECLARE_STRING_FIELDS(
 		AST_STRING_FIELD(call_context);
-		AST_STRING_FIELD(call_macrocontext);
 		AST_STRING_FIELD(call_extension);
 		AST_STRING_FIELD(call_callerchan);
 		AST_STRING_FIELD(call_callerid);
@@ -660,7 +659,6 @@ static void copy_to_voicemail(struct mixmonitor *mixmonitor, const char *ext, co
 	ast_string_field_set(&recording_data, recording_file, filename);
 	ast_string_field_set(&recording_data, recording_ext, ext);
 	ast_string_field_set(&recording_data, call_context, mixmonitor->call_context);
-	ast_string_field_set(&recording_data, call_macrocontext, mixmonitor->call_macrocontext);
 	ast_string_field_set(&recording_data, call_extension, mixmonitor->call_extension);
 	ast_string_field_set(&recording_data, call_callerchan, mixmonitor->call_callerchan);
 	ast_string_field_set(&recording_data, call_callerid, mixmonitor->call_callerid);
@@ -1075,7 +1073,6 @@ static int launch_monitor_thread(struct ast_channel *chan, const char *filename,
 		}
 
 		ast_string_field_set(mixmonitor, call_context, ast_channel_context(chan));
-		ast_string_field_set(mixmonitor, call_macrocontext, ast_channel_macrocontext(chan));
 		ast_string_field_set(mixmonitor, call_extension, ast_channel_exten(chan));
 		ast_string_field_set(mixmonitor, call_callerchan, ast_channel_name(chan));
 		ast_string_field_set(mixmonitor, call_callerid, callerid);

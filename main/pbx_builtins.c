@@ -227,7 +227,6 @@
 			<ref type="application">GotoIf</ref>
 			<ref type="application">GotoIfTime</ref>
 			<ref type="application">Gosub</ref>
-			<ref type="application">Macro</ref>
 		</see-also>
 	</application>
 	<application name="GotoIf" language="en_US">
@@ -266,7 +265,6 @@
 			<ref type="application">Goto</ref>
 			<ref type="application">GotoIfTime</ref>
 			<ref type="application">GosubIf</ref>
-			<ref type="application">MacroIf</ref>
 		</see-also>
 	</application>
 	<application name="GotoIfTime" language="en_US">
@@ -685,7 +683,6 @@
 		<description>
 			<para>This application waits for the user to enter a new extension for a specified number
 			of <replaceable>seconds</replaceable>.</para>
-			<xi:include xpointer="xpointer(/docs/application[@name='Macro']/description/warning[2])" />
 		</description>
 		<see-also>
 			<ref type="application">Background</ref>
@@ -1146,13 +1143,8 @@ static int pbx_builtin_background(struct ast_channel *chan, const char *data)
 		args.lang = (char *)ast_channel_language(chan);	/* XXX this is const */
 
 	if (ast_strlen_zero(args.context)) {
-		const char *context;
 		ast_channel_lock(chan);
-		if ((context = pbx_builtin_getvar_helper(chan, "MACRO_CONTEXT"))) {
-			args.context = ast_strdupa(context);
-		} else {
-			args.context = ast_strdupa(ast_channel_context(chan));
-		}
+		args.context = ast_strdupa(ast_channel_context(chan));
 		ast_channel_unlock(chan);
 	}
 
@@ -1208,9 +1200,7 @@ static int pbx_builtin_background(struct ast_channel *chan, const char *data)
 	/*
 	 * If the single digit DTMF is an extension in the specified context, then
 	 * go there and signal no DTMF.  Otherwise, we should exit with that DTMF.
-	 * If we're in Macro, we'll exit and seek that DTMF as the beginning of an
-	 * extension in the Macro's calling context.  If we're not in Macro, then
-	 * we'll simply seek that extension in the calling context.  Previously,
+	 * We'll simply seek that extension in the calling context.  Previously,
 	 * someone complained about the behavior as it related to the interior of a
 	 * Gosub routine, and the fix (#14011) inadvertently broke FreePBX
 	 * (#14940).  This change should fix both of these situations, but with the

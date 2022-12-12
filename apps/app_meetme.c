@@ -3596,8 +3596,6 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 		ast_channel_lock(chan);
 		if ((tmpvar = pbx_builtin_getvar_helper(chan, "MEETME_EXIT_CONTEXT"))) {
 			ast_copy_string(exitcontext, tmpvar, sizeof(exitcontext));
-		} else if (!ast_strlen_zero(ast_channel_macrocontext(chan))) {
-			ast_copy_string(exitcontext, ast_channel_macrocontext(chan), sizeof(exitcontext));
 		} else {
 			ast_copy_string(exitcontext, ast_channel_context(chan), sizeof(exitcontext));
 		}

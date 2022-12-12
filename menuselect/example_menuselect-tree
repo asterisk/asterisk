@@ -64,8 +64,6 @@
 		</member>
 		<member name="app_lookupcidname" displayname="Look up CallerID Name from local database" remove_on_change="apps/app_lookupcidname.o apps/app_lookupcidname.so">
 		</member>
-		<member name="app_macro" displayname="Extension Macros" remove_on_change="apps/app_macro.o apps/app_macro.so">
-		</member>
 		<member name="app_meetme" displayname="MeetMe conference bridge" remove_on_change="apps/app_meetme.o apps/app_meetme.so">
 	<depend>zaptel</depend>
 		</member>

@@ -181,15 +181,10 @@
 ;
 ; When using a generic CC agent, the caller who requested CC will be
 ; called back when a called party becomes available. When the caller
-; answers his phone, the administrator may opt to have a macro run.
-; What this macro does is up to the administrator. By default there
-; is no callback macro configured.
-;
-;cc_callback_macro=
-;
-; Alternatively, the administrator may run a subroutine. By default
-; there is no callback subroutine configured.  The subroutine should
-; be specified in the format: [[context,]exten,]priority
+; answers his phone, the administrator may opt to have a subroutine
+; run. By default there is no callback subroutine configured.  The
+; subroutine should be specified in the format:
+; [[context,]exten,]priority
 ;
 ;cc_callback_sub=
 ;

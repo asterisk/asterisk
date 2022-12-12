@@ -654,8 +654,7 @@ static void handle_frame(struct ast_dial *dial, struct ast_dial_channel *channel
 				break;
 			}
 			ast_verb(3, "%s connected line has changed, passing it to %s\n", ast_channel_name(channel->owner), ast_channel_name(chan));
-			if (ast_channel_connected_line_sub(channel->owner, chan, fr, 1) &&
-				ast_channel_connected_line_macro(channel->owner, chan, fr, 1, 1)) {
+			if (ast_channel_connected_line_sub(channel->owner, chan, fr, 1)) {
 				ast_indicate_data(chan, AST_CONTROL_CONNECTED_LINE, fr->data.ptr, fr->datalen);
 			}
 			break;
@@ -664,8 +663,7 @@ static void handle_frame(struct ast_dial *dial, struct ast_dial_channel *channel
 				break;
 			}
 			ast_verb(3, "%s redirecting info has changed, passing it to %s\n", ast_channel_name(channel->owner), ast_channel_name(chan));
-			if (ast_channel_redirecting_sub(channel->owner, chan, fr, 1) &&
-				ast_channel_redirecting_macro(channel->owner, chan, fr, 1, 1)) {
+			if (ast_channel_redirecting_sub(channel->owner, chan, fr, 1)) {
 				ast_indicate_data(chan, AST_CONTROL_REDIRECTING, fr->data.ptr, fr->datalen);
 			}
 			break;

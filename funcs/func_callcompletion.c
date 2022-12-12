@@ -49,7 +49,6 @@
 					<enum name="cc_recall_timer" />
 					<enum name="cc_max_agents" />
 					<enum name="cc_max_monitors" />
-					<enum name="cc_callback_macro" />
 					<enum name="cc_agent_dialstring" />
 				</enumlist>
 			</parameter>

@@ -2053,14 +2053,8 @@ static void pbx_load_users(void)
 			ast_add_extension2(con, 0, cat, -1, NULL, NULL, iface, NULL, NULL, registrar, NULL, 0);
 			/* If voicemail, use "stdexten" else use plain old dial */
 			if (hasvoicemail) {
-				if (ast_opt_stdexten_macro) {
-					/* Use legacy stdexten macro method. */
-					snprintf(tmp, sizeof(tmp), "stdexten,%s,${HINT}", cat);
-					ast_add_extension2(con, 0, cat, 1, NULL, NULL, "Macro", ast_strdup(tmp), ast_free_ptr, registrar, NULL, 0);
-				} else {
-					snprintf(tmp, sizeof(tmp), "%s,stdexten(${HINT})", cat);
-					ast_add_extension2(con, 0, cat, 1, NULL, NULL, "Gosub", ast_strdup(tmp), ast_free_ptr, registrar, NULL, 0);
-				}
+				snprintf(tmp, sizeof(tmp), "%s,stdexten(${HINT})", cat);
+				ast_add_extension2(con, 0, cat, 1, NULL, NULL, "Gosub", ast_strdup(tmp), ast_free_ptr, registrar, NULL, 0);
 			} else {
 				ast_add_extension2(con, 0, cat, 1, NULL, NULL, "Dial", ast_strdup("${HINT}"), ast_free_ptr, registrar, NULL, 0);
 			}

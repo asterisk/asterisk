@@ -22,7 +22,7 @@ fullname = New User
 ;
 userbase = 6000
 ;
-; Create voicemail mailbox and use use macro-stdexten
+; Create voicemail mailbox
 ;
 hasvoicemail = yes
 ;

@@ -5047,7 +5047,7 @@ struct ast_frame *ooh323_rtp_read(struct ast_channel *ast, struct ooh323_pvt *p)
 			p->faxdetected = 1;
 			ooRequestChangeMode(p->callToken, 1);
 		} else if ((dfr->subclass.integer == 'f') && !p->faxdetected) {
-			const char *target_context = S_OR(ast_channel_macrocontext(p->owner), ast_channel_context(p->owner));
+			const char *target_context = ast_channel_context(p->owner);
 			if ((strcmp(ast_channel_exten(p->owner), "fax")) &&
 			    (ast_exists_extension(p->owner, target_context, "fax", 1,
 		            S_COR(ast_channel_caller(p->owner)->id.number.valid, ast_channel_caller(p->owner)->id.number.str, NULL)))) {
@@ -5123,7 +5123,7 @@ void onModeChanged(ooCallData *call, int t38mode) {
 			if ((p->faxdetect & FAXDETECT_T38) && !p->faxdetected) {
                        		const char *target_context;
 				ast_debug(1, "* Detected T.38 Request\n");
-				target_context = S_OR(ast_channel_macrocontext(p->owner), ast_channel_context(p->owner));
+				target_context = ast_channel_context(p->owner);
                         	if ((strcmp(ast_channel_exten(p->owner), "fax")) &&
                             		(ast_exists_extension(p->owner, target_context, "fax", 1,
                             		S_COR(ast_channel_caller(p->owner)->id.number.valid, ast_channel_caller(p->owner)->id.number.str, NULL)))) {

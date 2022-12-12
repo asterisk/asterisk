@@ -1878,11 +1878,10 @@ static int leave_voicemail(struct ast_channel *chan, char *username, struct leav
 			S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL),
 			"Unknown");
 		snprintf(logbuf, sizeof(logbuf),
-			/* "Mailbox:domain:macrocontext:exten:priority:callerchan:callerid:origdate:origtime:duration:durationstatus:accountcode" */
-			"%s:%s:%s:%s:%d:%s:%s:%s:%s:%d:%s:%s\n",
+			/* "Mailbox:domain:exten:priority:callerchan:callerid:origdate:origtime:duration:durationstatus:accountcode" */
+			"%s:%s:%s:%d:%s:%s:%s:%s:%d:%s:%s\n",
 			username,
 			ast_channel_context(chan),
-			ast_channel_macrocontext(chan),
 			ast_channel_exten(chan),
 			ast_channel_priority(chan),
 			ast_channel_name(chan),
@@ -2140,8 +2139,6 @@ static int minivm_greet_exec(struct ast_channel *chan, const char *data)
 	struct ast_flags flags = { 0 };
 	char *opts[OPT_ARG_ARRAY_SIZE];
 	int res = 0;
-	int ausemacro = 0;
-	int ousemacro = 0;
 	int ouseexten = 0;
 	char tmp[PATH_MAX];
 	char dest[PATH_MAX];
@@ -2212,7 +2209,7 @@ static int minivm_greet_exec(struct ast_channel *chan, const char *data)
 	}
 	ast_debug(2, "Preparing to play message ...\n");
 
-	/* Check current or macro-calling context for special extensions */
+	/* Check current context for special extensions */
 	if (ast_test_flag(vmu, MVM_OPERATOR)) {
 		if (!ast_strlen_zero(vmu->exit)) {
 			if (ast_exists_extension(chan, vmu->exit, "o", 1,
@@ -2225,12 +2222,6 @@ static int minivm_greet_exec(struct ast_channel *chan, const char *data)
 			strncat(ecodes, "0", sizeof(ecodes) - strlen(ecodes) - 1);
 			ouseexten = 1;
 		}
-		else if (!ast_strlen_zero(ast_channel_macrocontext(chan))
-			&& ast_exists_extension(chan, ast_channel_macrocontext(chan), "o", 1,
-				S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))) {
-			strncat(ecodes, "0", sizeof(ecodes) - strlen(ecodes) - 1);
-			ousemacro = 1;
-		}
 	}
 
 	if (!ast_strlen_zero(vmu->exit)) {
@@ -2241,11 +2232,6 @@ static int minivm_greet_exec(struct ast_channel *chan, const char *data)
 	} else if (ast_exists_extension(chan, ast_channel_context(chan), "a", 1,
 		S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))) {
 		strncat(ecodes, "*", sizeof(ecodes) -  strlen(ecodes) - 1);
-	} else if (!ast_strlen_zero(ast_channel_macrocontext(chan))
-		&& ast_exists_extension(chan, ast_channel_macrocontext(chan), "a", 1,
-			S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))) {
-		strncat(ecodes, "*", sizeof(ecodes) -  strlen(ecodes) - 1);
-		ausemacro = 1;
 	}
 
 	res = 0;	/* Reset */
@@ -2286,19 +2272,15 @@ static int minivm_greet_exec(struct ast_channel *chan, const char *data)
 		ast_channel_exten_set(chan, "a");
 		if (!ast_strlen_zero(vmu->exit)) {
 			ast_channel_context_set(chan, vmu->exit);
-		} else if (ausemacro && !ast_strlen_zero(ast_channel_macrocontext(chan))) {
-			ast_channel_context_set(chan, ast_channel_macrocontext(chan));
 		}
 		ast_channel_priority_set(chan, 0);
 		pbx_builtin_setvar_helper(chan, "MVM_GREET_STATUS", "USEREXIT");
 		res = 0;
 	} else if (res == '0') { /* Check for a '0' here */
-		if(ouseexten || ousemacro) {
+		if(ouseexten) {
 			ast_channel_exten_set(chan, "o");
 			if (!ast_strlen_zero(vmu->exit)) {
 				ast_channel_context_set(chan, vmu->exit);
-			} else if (ousemacro && !ast_strlen_zero(ast_channel_macrocontext(chan))) {
-				ast_channel_context_set(chan, ast_channel_macrocontext(chan));
 			}
 			ast_play_and_wait(chan, "transfer");
 			ast_channel_priority_set(chan, 0);

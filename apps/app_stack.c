@@ -58,7 +58,6 @@
 		</description>
 		<see-also>
 			<ref type="application">GosubIf</ref>
-			<ref type="application">Macro</ref>
 			<ref type="application">Goto</ref>
 			<ref type="application">Return</ref>
 			<ref type="application">StackPop</ref>
@@ -93,7 +92,6 @@
 		<see-also>
 			<ref type="application">Gosub</ref>
 			<ref type="application">Return</ref>
-			<ref type="application">MacroIf</ref>
 			<ref type="function">IF</ref>
 			<ref type="application">GotoIf</ref>
 			<ref type="application">Goto</ref>

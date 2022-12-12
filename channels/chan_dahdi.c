@@ -1777,7 +1777,7 @@ static void my_handle_dtmf(void *pvt, struct ast_channel *ast, enum analog_sub a
 					ast_debug(1, "Disabling FAX tone detection on %s after tone received\n", ast_channel_name(ast));
 				}
 				if (strcmp(ast_channel_exten(ast), "fax")) {
-					const char *target_context = S_OR(ast_channel_macrocontext(ast), ast_channel_context(ast));
+					const char *target_context = ast_channel_context(ast);
 
 					/*
 					 * We need to unlock 'ast' here because ast_exists_extension has the
@@ -7433,7 +7433,7 @@ static void dahdi_handle_dtmf(struct ast_channel *ast, int idx, struct ast_frame
 					ast_debug(1, "Disabling FAX tone detection on %s after tone received\n", ast_channel_name(ast));
 				}
 				if (strcmp(ast_channel_exten(ast), "fax")) {
-					const char *target_context = S_OR(ast_channel_macrocontext(ast), ast_channel_context(ast));
+					const char *target_context = ast_channel_context(ast);
 
 					/*
 					 * We need to unlock 'ast' here because ast_exists_extension has the

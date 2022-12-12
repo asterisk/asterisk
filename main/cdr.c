@@ -1702,7 +1702,7 @@ static int single_state_process_dial_begin(struct cdr_object *cdr, struct ast_ch
 
 		/* If we have two parties, lock the application that caused the
 		 * two parties to be associated. This prevents mid-call event
-		 * macros/gosubs from perturbing the CDR application/data
+		 * gosubs from perturbing the CDR application/data
 		 */
 		ast_set_flag(&cdr->flags, AST_CDR_LOCK_APP);
 	} else if (!strcasecmp(cdr->party_a.snapshot->base->name, peer->base->name)) {

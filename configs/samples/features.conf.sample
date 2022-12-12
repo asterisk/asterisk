@@ -95,8 +95,8 @@
 ;   by the PBX core. In this case, these applications are executed outside of the
 ;   PBX core, so it does *not* make sense to use any application which has any
 ;   concept of dialplan flow. Examples of this would be things like Goto,
-;   Background, WaitExten, and many more.  The exceptions to this are Gosub and
-;   Macro routines which must complete for the call to continue.
+;   Background, WaitExten, and many more.  The exceptions to this are Gosub
+;   routines which must complete for the call to continue.
 ;
 ; Enabling these features means that the PBX needs to stay in the media flow and
 ; media will not be re-directed if DTMF is sent in the media stream.

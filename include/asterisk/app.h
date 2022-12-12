@@ -95,9 +95,7 @@ struct ast_vm_recording_data {
 		AST_STRING_FIELD(folder);
 		AST_STRING_FIELD(recording_file);
 		AST_STRING_FIELD(recording_ext);
-
 		AST_STRING_FIELD(call_context);
-		AST_STRING_FIELD(call_macrocontext);
 		AST_STRING_FIELD(call_extension);
 		AST_STRING_FIELD(call_callerchan);
 		AST_STRING_FIELD(call_callerid);
@@ -160,50 +158,6 @@ int ast_app_getdata_terminator(struct ast_channel *c, const char *prompt, char *
 
 /*! \brief Full version with audiofd and controlfd.  NOTE: returns '2' on ctrlfd available, not '1' like other full functions */
 int ast_app_getdata_full(struct ast_channel *c, const char *prompt, char *s, int maxlen, int timeout, int audiofd, int ctrlfd);
-
-/*!
- * \brief Run a macro on a channel, placing an optional second channel into autoservice.
- * \since 11.0
- *
- * \details
- * This is a shorthand method that makes it very easy to run a
- * macro on any given channel.  It is perfectly reasonable to
- * supply a NULL autoservice_chan here in case there is no
- * channel to place into autoservice.
- *
- * \note Absolutely _NO_ channel locks should be held before calling this function.
- *
- * \param autoservice_chan A channel to place into autoservice while the macro is run
- * \param macro_chan Channel to execute macro on.
- * \param macro_args Macro application argument string.
- *
- * \retval 0 success
- * \retval -1 on error
- */
-int ast_app_exec_macro(struct ast_channel *autoservice_chan, struct ast_channel *macro_chan, const char *macro_args);
-
-/*!
- * \since 1.8
- * \brief Run a macro on a channel, placing an optional second channel into autoservice.
- *
- * \details
- * This is a shorthand method that makes it very easy to run a
- * macro on any given channel.  It is perfectly reasonable to
- * supply a NULL autoservice_chan here in case there is no
- * channel to place into autoservice.
- *
- * \note Absolutely _NO_ channel locks should be held before calling this function.
- *
- * \param autoservice_chan A channel to place into autoservice while the macro is run
- * \param macro_chan Channel to execute macro on.
- * \param macro_name The name of the macro to run.
- * \param macro_args The arguments to pass to the macro.
- *
- * \retval 0 success
- * \retval -1 on error
- */
-int ast_app_run_macro(struct ast_channel *autoservice_chan,
-	struct ast_channel *macro_chan, const char *macro_name, const char *macro_args);
 
 /*!
  * \brief Stack applications callback functions.

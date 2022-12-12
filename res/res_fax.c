@@ -3848,7 +3848,7 @@ static struct ast_frame *fax_detect_framehook(struct ast_channel *chan, struct a
 		switch (result) {
 		case 'f':
 		case 't':
-			target_context = S_OR(ast_channel_macrocontext(chan), ast_channel_context(chan));
+			target_context = ast_channel_context(chan);
 
 			ast_channel_unlock(chan);
 			ast_frfree(f);

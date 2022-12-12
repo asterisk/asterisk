@@ -4786,29 +4786,9 @@ static int dundi_helper(struct ast_channel *chan, const char *context, const cha
 	int res;
 	int x;
 	int found = 0;
-	if (!strncasecmp(context, "macro-", 6)) {
-		if (!chan) {
-			ast_log(LOG_NOTICE, "Can't use macro mode without a channel!\n");
-			return -1;
-		}
-		/* If done as a macro, use macro extension */
-		if (!strcasecmp(exten, "s")) {
-			exten = pbx_builtin_getvar_helper(chan, "ARG1");
-			if (ast_strlen_zero(exten))
-				exten = ast_channel_macroexten(chan);
-			if (ast_strlen_zero(exten))
-				exten = ast_channel_exten(chan);
-			if (ast_strlen_zero(exten)) {
-				ast_log(LOG_WARNING, "Called in Macro mode with no ARG1 or MACRO_EXTEN?\n");
-				return -1;
-			}
-		}
-		if (ast_strlen_zero(data))
-			data = "e164";
-	} else {
-		if (ast_strlen_zero(data))
-			data = context;
-	}
+	if (ast_strlen_zero(data))
+		data = context;
+
 	res = dundi_lookup(results, MAX_RESULTS, chan, data, exten, 0);
 	for (x=0;x<res;x++) {
 		if (ast_test_flag(results + x, flag))
@@ -4838,29 +4818,9 @@ static int dundi_exec(struct ast_channel *chan, const char *context, const char 
 	const char *dundiargs;
 	struct ast_app *dial;
 
-	if (!strncasecmp(context, "macro-", 6)) {
-		if (!chan) {
-			ast_log(LOG_NOTICE, "Can't use macro mode without a channel!\n");
-			return -1;
-		}
-		/* If done as a macro, use macro extension */
-		if (!strcasecmp(exten, "s")) {
-			exten = pbx_builtin_getvar_helper(chan, "ARG1");
-			if (ast_strlen_zero(exten))
-				exten = ast_channel_macroexten(chan);
-			if (ast_strlen_zero(exten))
-				exten = ast_channel_exten(chan);
-			if (ast_strlen_zero(exten)) {
-				ast_log(LOG_WARNING, "Called in Macro mode with no ARG1 or MACRO_EXTEN?\n");
-				return -1;
-			}
-		}
-		if (ast_strlen_zero(data))
-			data = "e164";
-	} else {
-		if (ast_strlen_zero(data))
-			data = context;
-	}
+	if (ast_strlen_zero(data))
+		data = context;
+
 	res = dundi_lookup(results, MAX_RESULTS, chan, data, exten, 0);
 	if (res > 0) {
 		sort_results(results, res);

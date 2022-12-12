@@ -142,9 +142,6 @@ static oid asterisk_oid[] = { 1, 3, 6, 1, 4, 1, 22736, 1 };
 #define			ASTCHANAPP				10
 #define			ASTCHANDATA				11
 #define			ASTCHANCONTEXT			12
-#define			ASTCHANMACROCONTEXT		13
-#define			ASTCHANMACROEXTEN		14
-#define			ASTCHANMACROPRI			15
 #define			ASTCHANEXTEN			16
 #define			ASTCHANPRI				17
 #define			ASTCHANACCOUNTCODE		18
@@ -354,20 +351,6 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 		ast_copy_string(string_ret, ast_channel_context(chan), sizeof(string_ret));
 		*var_len = strlen(string_ret);
 		ret = (u_char *)string_ret;
-		break;
-	case ASTCHANMACROCONTEXT:
-		ast_copy_string(string_ret, ast_channel_macrocontext(chan), sizeof(string_ret));
-		*var_len = strlen(string_ret);
-		ret = (u_char *)string_ret;
-		break;
-	case ASTCHANMACROEXTEN:
-		ast_copy_string(string_ret, ast_channel_macroexten(chan), sizeof(string_ret));
-		*var_len = strlen(string_ret);
-		ret = (u_char *)string_ret;
-		break;
-	case ASTCHANMACROPRI:
-		long_ret = ast_channel_macropriority(chan);
-		ret = (u_char *)&long_ret;
 		break;
 	case ASTCHANEXTEN:
 		ast_copy_string(string_ret, ast_channel_exten(chan), sizeof(string_ret));
@@ -854,9 +837,6 @@ static void init_asterisk_mib(void)
 		{ASTCHANAPP,             ASN_OCTET_STR, RONLY, ast_var_channels_table,      4, {ASTCHANNELS, ASTCHANTABLE, 1, ASTCHANAPP}},
 		{ASTCHANDATA,            ASN_OCTET_STR, RONLY, ast_var_channels_table,      4, {ASTCHANNELS, ASTCHANTABLE, 1, ASTCHANDATA}},
 		{ASTCHANCONTEXT,         ASN_OCTET_STR, RONLY, ast_var_channels_table,      4, {ASTCHANNELS, ASTCHANTABLE, 1, ASTCHANCONTEXT}},
-		{ASTCHANMACROCONTEXT,    ASN_OCTET_STR, RONLY, ast_var_channels_table,      4, {ASTCHANNELS, ASTCHANTABLE, 1, ASTCHANMACROCONTEXT}},
-		{ASTCHANMACROEXTEN,      ASN_OCTET_STR, RONLY, ast_var_channels_table,      4, {ASTCHANNELS, ASTCHANTABLE, 1, ASTCHANMACROEXTEN}},
-		{ASTCHANMACROPRI,        ASN_INTEGER,   RONLY, ast_var_channels_table,      4, {ASTCHANNELS, ASTCHANTABLE, 1, ASTCHANMACROPRI}},
 		{ASTCHANEXTEN,           ASN_OCTET_STR, RONLY, ast_var_channels_table,      4, {ASTCHANNELS, ASTCHANTABLE, 1, ASTCHANEXTEN}},
 		{ASTCHANPRI,             ASN_INTEGER,   RONLY, ast_var_channels_table,      4, {ASTCHANNELS, ASTCHANTABLE, 1, ASTCHANPRI}},
 		{ASTCHANACCOUNTCODE,     ASN_OCTET_STR, RONLY, ast_var_channels_table,      4, {ASTCHANNELS, ASTCHANTABLE, 1, ASTCHANACCOUNTCODE}},

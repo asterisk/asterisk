@@ -4227,7 +4227,7 @@ static void copy_file(char *sdir, int smsg, char *ddir, int dmsg, char *dmailbox
 
 	snprintf(msgnums, sizeof(msgnums), "%d", smsg);
 	snprintf(msgnumd, sizeof(msgnumd), "%d", dmsg);
-	snprintf(sql, sizeof(sql), "INSERT INTO %s (dir, msgnum, msg_id, context, macrocontext, callerid, origtime, duration, recording, flag, mailboxuser, mailboxcontext) SELECT ?,?,?,context,macrocontext,callerid,origtime,duration,recording,flag,?,? FROM %s WHERE dir=? AND msgnum=?", odbc_table, odbc_table);
+	snprintf(sql, sizeof(sql), "INSERT INTO %s (dir, msgnum, msg_id, context, callerid, origtime, duration, recording, flag, mailboxuser, mailboxcontext) SELECT ?,?,?,context,callerid,origtime,duration,recording,flag,?,? FROM %s WHERE dir=? AND msgnum=?", odbc_table, odbc_table);
 	stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, &gps);
 	if (!stmt)
 		ast_log(AST_LOG_WARNING, "SQL Execute error!\n[%s] (You probably don't have MySQL 4.1 or later installed)\n\n", sql);
@@ -4246,7 +4246,6 @@ struct insert_data {
 	SQLLEN datalen;
 	SQLLEN indlen;
 	const char *context;
-	const char *macrocontext;
 	const char *callerid;
 	const char *origtime;
 	const char *duration;
@@ -4273,7 +4272,6 @@ static SQLHSTMT insert_data_cb(struct odbc_obj *obj, void *vdata)
 	SQLBindParameter(stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(data->msgnums), 0, (void *) data->msgnums, 0, NULL);
 	SQLBindParameter(stmt, 3, SQL_PARAM_INPUT, SQL_C_BINARY, SQL_LONGVARBINARY, data->datalen, 0, (void *) data->data, data->datalen, &data->indlen);
 	SQLBindParameter(stmt, 4, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(data->context), 0, (void *) data->context, 0, NULL);
-	SQLBindParameter(stmt, 5, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(data->macrocontext), 0, (void *) data->macrocontext, 0, NULL);
 	SQLBindParameter(stmt, 6, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(data->callerid), 0, (void *) data->callerid, 0, NULL);
 	SQLBindParameter(stmt, 7, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(data->origtime), 0, (void *) data->origtime, 0, NULL);
 	SQLBindParameter(stmt, 8, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(data->duration), 0, (void *) data->duration, 0, NULL);
@@ -4323,7 +4321,7 @@ static int store_file(const char *dir, const char *mailboxuser, const char *mail
 	struct ast_config *cfg = NULL;
 	struct odbc_obj *obj;
 	struct insert_data idata = { .sql = sql, .msgnums = msgnums, .dir = dir, .mailboxuser = mailboxuser, .mailboxcontext = mailboxcontext,
-		.context = "", .macrocontext = "", .callerid = "", .origtime = "", .duration = "", .category = "", .flag = "", .msg_id = "" };
+		.context = "", .callerid = "", .origtime = "", .duration = "", .category = "", .flag = "", .msg_id = "" };
 	struct ast_flags config_flags = { CONFIG_FLAG_NOCACHE };
 
 	delete_file(dir, msgnum);
@@ -4358,9 +4356,6 @@ static int store_file(const char *dir, const char *mailboxuser, const char *mail
 		if (valid_config(cfg)) {
 			if (!(idata.context = ast_variable_retrieve(cfg, "message", "context"))) {
 				idata.context = "";
-			}
-			if (!(idata.macrocontext = ast_variable_retrieve(cfg, "message", "macrocontext"))) {
-				idata.macrocontext = "";
 			}
 			if (!(idata.callerid = ast_variable_retrieve(cfg, "message", "callerid"))) {
 				idata.callerid = "";
@@ -4397,9 +4392,9 @@ static int store_file(const char *dir, const char *mailboxuser, const char *mail
 		idata.datalen = idata.indlen = fdlen;
 
 		if (!ast_strlen_zero(idata.category))
-			snprintf(sql, sizeof(sql), "INSERT INTO %s (dir,msgnum,recording,context,macrocontext,callerid,origtime,duration,mailboxuser,mailboxcontext,flag,msg_id,category) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)", odbc_table);
+			snprintf(sql, sizeof(sql), "INSERT INTO %s (dir,msgnum,recording,context,callerid,origtime,duration,mailboxuser,mailboxcontext,flag,msg_id,category) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", odbc_table);
 		else
-			snprintf(sql, sizeof(sql), "INSERT INTO %s (dir,msgnum,recording,context,macrocontext,callerid,origtime,duration,mailboxuser,mailboxcontext,flag,msg_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", odbc_table);
+			snprintf(sql, sizeof(sql), "INSERT INTO %s (dir,msgnum,recording,context,callerid,origtime,duration,mailboxuser,mailboxcontext,flag,msg_id) VALUES (?,?,?,?,?,?,?,?,?,?,?)", odbc_table);
 
 		if (ast_strlen_zero(idata.origtime)) {
 			idata.origtime = "0";
@@ -4684,7 +4679,7 @@ static void copy_plain_file(char *frompath, char *topath)
 {
 	char frompath2[PATH_MAX], topath2[PATH_MAX];
 	struct ast_variable *tmp, *var = NULL;
-	const char *origmailbox = "", *context = "", *macrocontext = "", *exten = "";
+	const char *origmailbox = "", *context = "", *exten = "";
 	const char *priority = "", *callerchan = "", *callerid = "", *origdate = "";
 	const char *origtime = "", *category = "", *duration = "";
 
@@ -4700,8 +4695,6 @@ static void copy_plain_file(char *frompath, char *topath)
 				origmailbox = tmp->value;
 			} else if (!strcasecmp(tmp->name, "context")) {
 				context = tmp->value;
-			} else if (!strcasecmp(tmp->name, "macrocontext")) {
-				macrocontext = tmp->value;
 			} else if (!strcasecmp(tmp->name, "exten")) {
 				exten = tmp->value;
 			} else if (!strcasecmp(tmp->name, "priority")) {
@@ -4720,7 +4713,7 @@ static void copy_plain_file(char *frompath, char *topath)
 				duration = tmp->value;
 			}
 		}
-		ast_store_realtime("voicemail_data", "filename", topath, "origmailbox", origmailbox, "context", context, "macrocontext", macrocontext, "exten", exten, "priority", priority, "callerchan", callerchan, "callerid", callerid, "origdate", origdate, "origtime", origtime, "category", category, "duration", duration, SENTINEL);
+		ast_store_realtime("voicemail_data", "filename", topath, "origmailbox", origmailbox, "context", context, "exten", exten, "priority", priority, "callerchan", callerchan, "callerid", callerid, "origdate", origdate, "origtime", origtime, "category", category, "duration", duration, SENTINEL);
 	}
 	copy(frompath2, topath2);
 	ast_variables_destroy(var);
@@ -6271,7 +6264,6 @@ static int msg_create_from_file(struct ast_vm_recording_data *recdata)
 			"[message]\n"
 			"origmailbox=%s\n"
 			"context=%s\n"
-			"macrocontext=%s\n"
 			"exten=%s\n"
 			"rdnis=Unknown\n"
 			"priority=%d\n"
@@ -6286,7 +6278,6 @@ static int msg_create_from_file(struct ast_vm_recording_data *recdata)
 
 			recdata->mailbox,
 			S_OR(recdata->call_context, ""),
-			S_OR(recdata->call_macrocontext, ""),
 			S_OR(recdata->call_extension, ""),
 			recdata->call_priority,
 			S_OR(recdata->call_callerchan, "Unknown"),
@@ -6433,7 +6424,6 @@ static int msg_create_from_file(struct ast_vm_recording_data *recdata)
 			ast_store_realtime("voicemail_data",
 				"origmailbox", recdata->mailbox,
 				"context", S_OR(recdata->context, ""),
-				"macrocontext", S_OR(recdata->call_macrocontext, ""),
 				"exten", S_OR(recdata->call_extension, ""),
 				"priority", recdata->call_priority,
 				"callerchan", S_OR(recdata->call_callerchan, "Unknown"),
@@ -6501,8 +6491,6 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 	int msgnum;
 	int duration = 0;
 	int sound_duration = 0;
-	int ausemacro = 0;
-	int ousemacro = 0;
 	int ouseexten = 0;
 	int greeting_only = 0;
 	char tmpdur[16];
@@ -6613,7 +6601,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 	}
 #endif
 
-	/* Check current or macro-calling context for special extensions */
+	/* Check current context for special extensions */
 	if (ast_test_flag(vmu, VM_OPERATOR)) {
 		if (!ast_strlen_zero(vmu->exit)) {
 			if (ast_exists_extension(chan, vmu->exit, "o", 1,
@@ -6625,11 +6613,6 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 			S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))) {
 			strncat(ecodes, "0", sizeof(ecodes) - strlen(ecodes) - 1);
 			ouseexten = 1;
-		} else if (!ast_strlen_zero(ast_channel_macrocontext(chan))
-			&& ast_exists_extension(chan, ast_channel_macrocontext(chan), "o", 1,
-				S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))) {
-			strncat(ecodes, "0", sizeof(ecodes) - strlen(ecodes) - 1);
-			ousemacro = 1;
 		}
 	}
 
@@ -6641,11 +6624,6 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 	} else if (ast_exists_extension(chan, ast_channel_context(chan), "a", 1,
 		S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))) {
 		strncat(ecodes, "*", sizeof(ecodes) - strlen(ecodes) - 1);
-	} else if (!ast_strlen_zero(ast_channel_macrocontext(chan))
-		&& ast_exists_extension(chan, ast_channel_macrocontext(chan), "a", 1,
-			S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))) {
-		strncat(ecodes, "*", sizeof(ecodes) - strlen(ecodes) - 1);
-		ausemacro = 1;
 	}
 
 	if (ast_test_flag(options, OPT_DTMFEXIT)) {
@@ -6716,8 +6694,6 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		ast_channel_exten_set(chan, "a");
 		if (!ast_strlen_zero(vmu->exit)) {
 			ast_channel_context_set(chan, vmu->exit);
-		} else if (ausemacro && !ast_strlen_zero(ast_channel_macrocontext(chan))) {
-			ast_channel_context_set(chan, ast_channel_macrocontext(chan));
 		}
 		ast_channel_priority_set(chan, 0);
 		free_user(vmu);
@@ -6729,12 +6705,10 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 	/* Check for a '0' here */
 	if (ast_test_flag(vmu, VM_OPERATOR) && res == '0') {
 	transfer:
-		if (ouseexten || ousemacro) {
+		if (ouseexten) {
 			ast_channel_exten_set(chan, "o");
 			if (!ast_strlen_zero(vmu->exit)) {
 				ast_channel_context_set(chan, vmu->exit);
-			} else if (ousemacro && !ast_strlen_zero(ast_channel_macrocontext(chan))) {
-				ast_channel_context_set(chan, ast_channel_macrocontext(chan));
 			}
 			ast_play_and_wait(chan, "transfer");
 			ast_channel_priority_set(chan, 0);
@@ -6858,7 +6832,6 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 			ast_store_realtime("voicemail_data",
 				"origmailbox", ext,
 				"context", ast_channel_context(chan),
-				"macrocontext", ast_channel_macrocontext(chan),
 				"exten", ast_channel_exten(chan),
 				"priority", priority,
 				"callerchan", ast_channel_name(chan),
@@ -6886,7 +6859,6 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 				"[message]\n"
 				"origmailbox=%s\n"
 				"context=%s\n"
-				"macrocontext=%s\n"
 				"exten=%s\n"
 				"rdnis=%s\n"
 				"priority=%d\n"
@@ -6898,7 +6870,6 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 				"msg_id=%s\n",
 				ext,
 				ast_channel_context(chan),
-				ast_channel_macrocontext(chan),
 				ast_channel_exten(chan),
 				S_COR(ast_channel_redirecting(chan)->from.number.valid,
 					ast_channel_redirecting(chan)->from.number.str, "unknown"),
@@ -8854,8 +8825,6 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 	category = ast_variable_retrieve(msg_cfg, "message", "category");
 
 	context = ast_variable_retrieve(msg_cfg, "message", "context");
-	if (!strncasecmp("macro", context, 5)) /* Macro names in contexts are useless for our needs */
-		context = ast_variable_retrieve(msg_cfg, "message", "macrocontext");
 	if (!res) {
 		res = play_message_category(chan, category);
 	}
@@ -15289,8 +15258,6 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 	cid = ast_strdupa(ast_variable_retrieve(msg_cfg, "message", "callerid"));
 
 	context = ast_variable_retrieve(msg_cfg, "message", "context");
-	if (!strncasecmp("macro", context, 5)) /* Macro names in contexts are useless for our needs */
-		context = ast_variable_retrieve(msg_cfg, "message", "macrocontext");
 	switch (option) {
 	case 3: /* Play message envelope */
 		if (!res) {

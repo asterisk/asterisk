@@ -776,7 +776,7 @@ static struct ast_frame *chan_pjsip_cng_tone_detected(struct ast_channel *ast, s
 		return f;
 	}
 
-	target_context = S_OR(ast_channel_macrocontext(ast), ast_channel_context(ast));
+	target_context =  ast_channel_context(ast);
 
 	/*
 	 * We need to unlock the channel here because ast_exists_extension has the

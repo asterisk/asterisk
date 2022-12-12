@@ -4,6 +4,9 @@
 ; This is an example on how to use the Mini-Voicemail system to build
 ; voicemail systems.
 ;
+; This example remains for now despite using macro, with the idea that if anyone is still
+; using this sample, they can be encouraged to re-write it using gosub.
+;
 ;.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 ; A macro to test the MINIVMACCOUNT dialplan function
 ; 	Currently, accountcode and pincode is not used in the application

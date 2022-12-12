@@ -490,7 +490,6 @@ static int test_vm_api_create_voicemail_files(const char *context, const char *m
 		"[message]\n"
 		"origmailbox=%s\n"
 		"context=%s\n"
-		"macrocontext=%s\n"
 		"exten=%s\n"
 		"rdnis=%s\n"
 		"priority=%d\n"
@@ -504,7 +503,6 @@ static int test_vm_api_create_voicemail_files(const char *context, const char *m
 		"duration=%s\n",
 		mailbox,
 		context,
-		"",
 		snapshot->exten,
 		"unknown",
 		1,

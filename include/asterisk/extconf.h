@@ -157,7 +157,6 @@ struct ast_context {
 	struct ast_ignorepat *ignorepats;	/*!< Patterns for which to continue playing dialtone */
 	const char *registrar;			/*!< Registrar */
 	AST_LIST_HEAD_NOLOCK(, ast_sw) alts;	/*!< Alternative switches */
-	ast_mutex_t macrolock;			/*!< A lock to implement "exclusive" macros - held whilst a call is executing in the macro */
 	char name[0];				/*!< Name of the context */
 };
 

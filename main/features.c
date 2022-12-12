@@ -117,7 +117,7 @@
 							prefixed with one or two underbars ('_').</para>
 						</note>
 						<note>
-							<para>Using this option from a Macro() or GoSub() might not make sense as there would be no return points.</para>
+							<para>Using this option from a or GoSub() might not make sense as there would be no return points.</para>
 						</note>
 						<note>
 							<para>This option will override the 'x' option</para>
@@ -372,9 +372,8 @@ void ast_channel_log(char *title, struct ast_channel *chan) /* for debug, this i
 	ast_log(LOG_NOTICE, "CHAN: name: %s;  appl: %s; data: %s; contxt: %s;  exten: %s; pri: %d;\n",
 		ast_channel_name(chan), ast_channel_appl(chan), ast_channel_data(chan),
 		ast_channel_context(chan), ast_channel_exten(chan), ast_channel_priority(chan));
-	ast_log(LOG_NOTICE, "CHAN: acctcode: %s;  dialcontext: %s; amaflags: %x; maccontxt: %s;  macexten: %s; macpri: %d;\n",
-		ast_channel_accountcode(chan), ast_channel_dialcontext(chan), ast_channel_amaflags(chan),
-		ast_channel_macrocontext(chan), ast_channel_macroexten(chan), ast_channel_macropriority(chan));
+	ast_log(LOG_NOTICE, "CHAN: acctcode: %s;  dialcontext: %s; amaflags: %x;\n",
+		ast_channel_accountcode(chan), ast_channel_dialcontext(chan), ast_channel_amaflags(chan));
 	ast_log(LOG_NOTICE, "CHAN: masq: %p;  masqr: %p; uniqueID: %s; linkedID:%s\n",
 		ast_channel_masq(chan), ast_channel_masqr(chan),
 		ast_channel_uniqueid(chan), ast_channel_linkedid(chan));

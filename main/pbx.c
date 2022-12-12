@@ -295,7 +295,6 @@ struct ast_context {
 	struct ast_sws alts;              /*!< Alternative switches */
 	int refcount;                     /*!< each module that would have created this context should inc/dec this as appropriate */
 	int autohints;                    /*!< Whether autohints support is enabled or not */
-	ast_mutex_t macrolock;            /*!< A lock to implement "exclusive" macros - held whilst a call is executing in the macro */
 
 	/*!
 	 * Buffer to hold the name & registrar character data.
@@ -5149,49 +5148,6 @@ int ast_context_remove_extension_callerid2(struct ast_context *con, const char *
 	return found ? 0 : -1;
 }
 
-
-/*!
- * \note This function locks contexts list by &conlist, searches for the right context
- * structure, and locks the macrolock mutex in that context.
- * macrolock is used to limit a macro to be executed by one call at a time.
- */
-int ast_context_lockmacro(const char *macrocontext)
-{
-	struct ast_context *c;
-	int ret = -1;
-
-	c = find_context_locked(macrocontext);
-	if (c) {
-		ast_unlock_contexts();
-
-		/* if we found context, lock macrolock */
-		ret = ast_mutex_lock(&c->macrolock);
-	}
-
-	return ret;
-}
-
-/*!
- * \note This function locks contexts list by &conlist, searches for the right context
- * structure, and unlocks the macrolock mutex in that context.
- * macrolock is used to limit a macro to be executed by one call at a time.
- */
-int ast_context_unlockmacro(const char *macrocontext)
-{
-	struct ast_context *c;
-	int ret = -1;
-
-	c = find_context_locked(macrocontext);
-	if (c) {
-		ast_unlock_contexts();
-
-		/* if we found context, unlock macrolock */
-		ret = ast_mutex_unlock(&c->macrolock);
-	}
-
-	return ret;
-}
-
 /*
  * Help for CLI commands ...
  */
@@ -6234,7 +6190,6 @@ struct ast_context *ast_context_find_or_create(struct ast_context **extcontexts,
 
 	if ((tmp = ast_calloc(1, length))) {
 		ast_rwlock_init(&tmp->lock);
-		ast_mutex_init(&tmp->macrolock);
 		tmp->name = memcpy(&tmp->data[0], name, name_bytes);
 		tmp->registrar = memcpy(&tmp->data[name_bytes + 1], registrar, registrar_bytes);
 		tmp->root = NULL;
@@ -8094,7 +8049,6 @@ static void __ast_internal_context_destroy( struct ast_context *con)
 	}
 	tmp->root = NULL;
 	ast_rwlock_destroy(&tmp->lock);
-	ast_mutex_destroy(&tmp->macrolock);
 	ast_free(tmp);
 }
 

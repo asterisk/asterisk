@@ -34,7 +34,7 @@ format=wav49
 ;
 ;Turn on logfile with the following syntax. One line per voicemail received
 ;with minivmRecord()
-; Mailbox:domain:macrocontext:exten:priority:callerchan:callerid:origdate:origtime:duration:durationstatus:accountcode
+; Mailbox:domain:exten:priority:callerchan:callerid:origdate:origtime:duration:durationstatus:accountcode
 ;logfile=/var/log/asterisk/minivm.log
 ; Who the e-mail notification should appear to come from
 serveremail=asterisk
