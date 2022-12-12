@@ -234,7 +234,8 @@ static int if_helper(struct ast_channel *chan, const char *data, int end)
 	const char *if_pri = NULL;
 	char *my_name = NULL;
 	const char *label = NULL;
-	char varname[VAR_SIZE], end_varname[VAR_SIZE + 4];
+	char varname[VAR_SIZE + 3]; /* + IF_ */
+	char end_varname[sizeof(varname) + 4]; /* + END_ + sizeof(varname) */
 	const char *prefix = "IF";
 	size_t size = 0;
 	int used_index_i = -1, x = 0;
@@ -252,8 +253,8 @@ static int if_helper(struct ast_channel *chan, const char *data, int end)
 		}
 	}
 
-	snprintf(used_index, VAR_SIZE, "%d", used_index_i);
-	snprintf(new_index, VAR_SIZE, "%d", used_index_i + 1);
+	snprintf(used_index, sizeof(used_index), "%d", used_index_i);
+	snprintf(new_index, sizeof(new_index), "%d", used_index_i + 1);
 
 	size = strlen(ast_channel_context(chan)) + strlen(ast_channel_exten(chan)) + 32;
 	my_name = ast_alloca(size);
