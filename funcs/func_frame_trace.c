@@ -397,6 +397,7 @@ static void print_frame(struct ast_frame *frame)
 		break;
 	case AST_FRAME_TEXT:
 		ast_verbose("FrameType: TXT\n");
+		ast_verbose("Text: %.*s\n", frame->datalen, (char*) frame->data.ptr);
 		break;
 	case AST_FRAME_TEXT_DATA:
 		ast_verbose("FrameType: TXT_DATA\n");
