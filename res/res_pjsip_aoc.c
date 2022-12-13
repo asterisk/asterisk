@@ -628,7 +628,7 @@ static void aoc_invite_outgoing_response(struct ast_sip_session *session,
 		return;
 	}
 
-	if (pjsip_media_type_cmp(&tdata->msg->body->content_type,
+	if (tdata->msg->body && pjsip_media_type_cmp(&tdata->msg->body->content_type,
 			&pjsip_media_type_multipart_mixed, 0) == 0) {
 		multipart_body = tdata->msg->body;
 	} else {
