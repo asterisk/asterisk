@@ -4158,9 +4158,19 @@ static void __get_from_jb(const void *p)
 	now.tv_usec += 1000;
 
 	ms = ast_tvdiff_ms(now, pvt->rxcore);
-
-	voicefmt = ast_format_compatibility_bitfield2format(pvt->voiceformat);
-	if (voicefmt && ms >= (next = jb_next(pvt->jb))) {
+	if (ms >= (next = jb_next(pvt->jb))) {
+		voicefmt = ast_format_compatibility_bitfield2format(pvt->voiceformat);
+		if (!voicefmt) {
+			/* pvt->voiceformat won't be set if we haven't received any voice frames yet.
+			 * In this case, fall back to using the format negotiated during call setup,
+			 * so we don't stall the jitterbuffer completely. */
+			voicefmt = ast_format_compatibility_bitfield2format(pvt->peerformat);
+		}
+		if (!voicefmt) {
+			/* Really shouldn't happen, but if it does, should be looked into */
+			ast_log(LOG_WARNING, "No voice format and no peer format available on %s, backlogging frame\n", ast_channel_name(pvt->owner));
+			goto cleanup; /* Don't crash if there's no voice format */
+		}
 		ret = jb_get(pvt->jb, &frame, ms, ast_format_get_default_ms(voicefmt));
 		switch(ret) {
 		case JB_OK:
@@ -4202,6 +4212,7 @@ static void __get_from_jb(const void *p)
 			break;
 		}
 	}
+cleanup:
 	if (pvt)
 		update_jbsched(pvt);
 	ast_mutex_unlock(&iaxsl[callno]);
