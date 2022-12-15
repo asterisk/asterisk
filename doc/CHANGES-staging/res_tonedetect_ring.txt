@@ -1,5 +1,0 @@
-Subject: res_tonedetect
-
-The TONE_DETECT function now supports
-detection of audible ringback tone
-using the p option.

@@ -13,6 +13,112 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 18.15.0 to Asterisk 18.16.0 ----------
+------------------------------------------------------------------------------
+
+AMI
+------------------
+ * The AOCMessage action can now be used to generate AOC-S messages.
+
+Add support for named capture agent.
+------------------
+ * A name for the capture agent can now be specified
+   using the capture_name option which, if specified,
+   will be sent to the HEP server.
+
+app_if
+------------------
+ * Adds the If, ElseIf, Else, EndIf, and ExitIf applications
+   for conditional execution of a block of code.
+
+app_mixmonitor
+------------------
+ * The d option for MixMonitor now allows deleting
+   the original recording when MixMonitor exits,
+   which can be useful when MixMonitor copies it
+   somewhere else before exiting.
+
+ * Adds the c option to use the real Caller ID on
+   the channel in voicemail recordings as opposed
+   to the Connected Line.
+
+app_voicemail
+------------------
+ * The voicemail user option attachextrecs can
+   now be set to control whether external recordings
+   trigger voicemail email notifications.
+
+cdr
+------------------
+ * Two new options have been added which allow
+   bridging and dial state changes to be ignored
+   in CDRs, which can be useful if a single CDR
+   is desired for a channel.
+
+chan_dahdi
+------------------
+ * FXO channels (FXS signaled) that don't use callerid or
+   distinctive ring detection can now be configured
+   to enter the dialplan immediately using immediate=yes,
+   instead of waiting for at least one ring.
+
+pbx_builtins
+------------------
+ * It is now possible to not wait for media on
+   a channel when answering it using Answer,
+   by specifying the i option.
+
+res_pjsip
+------------------
+ * Added options "security_negotiation" and "security_mechanisms" to pjsip
+   endpoints and registrations. "security_negotiation" can be set to "no" (default)
+   or "mediasec", and "security_mechanisms" can be a list of comma-separated
+   security_mechanisms in the form defined by RFC 3329 section 2.2.
+
+ * A new option named "all_codecs_on_empty_reinvite" has been added to the
+   global section. When this option is enabled, on reception of a re-INVITE
+   without SDP, Asterisk will send an SDP offer in the 200 OK response containing
+   all configured codecs on the endpoint, instead of simply those that have
+   already been negotiated. RFC 3261 specifies this as a SHOULD requirement.
+   The default value is "off".
+
+res_pjsip_aoc
+------------------
+ * Added res_pjsip_aoc which gives chan_pjsip the ability to send Advice-of-Charge messages.
+   A new endpoint option, send_aoc, controls this.
+
+res_pjsip_header_funcs
+------------------
+ * The new PJSIP_HEADER_PARAM function now fully supports both
+   URI and header parameters. Both reading and writing
+   parameters are supported.
+
+res_pjsip_logger
+------------------
+ * SIP messages can now be filtered by SIP request method
+   (INVITE, CANCEL, ACK, BYE, REGISTER, OPTION,
+   SUBSCRIBE, NOTIFY, PUBLISH, INFO, and MESSAGE),
+   allowing for more granular debugging to be done
+   in the CLI. This applies to requests but not responses.
+
+res_pjsip_notify
+------------------
+ * Allows using the config options in pjsip_notify.conf
+   from AMI actions as with the existing CLI commands.
+
+res_tonedetect
+------------------
+ * The TONE_DETECT function now supports
+   detection of audible ringback tone
+   using the p option.
+
+xmldocs
+------------------
+ * The XML documentation can now be reloaded without restarting
+   Asterisk, which makes it possible to load new modules that
+   enforce documentation without restarting Asterisk.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 18.14.0 to Asterisk 18.15.0 ----------
 ------------------------------------------------------------------------------
 
