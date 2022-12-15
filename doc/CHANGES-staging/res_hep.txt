@@ -1,5 +1,0 @@
-Subject: Add support for named capture agent.
-
-A name for the capture agent can now be specified
-using the capture_name option which, if specified,
-will be sent to the HEP server.

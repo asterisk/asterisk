@@ -1,7 +1,0 @@
-Subject: res_pjsip_logger
-
-SIP messages can now be filtered by SIP request method
-(INVITE, CANCEL, ACK, BYE, REGISTER, OPTION,
-SUBSCRIBE, NOTIFY, PUBLISH, INFO, and MESSAGE),
-allowing for more granular debugging to be done
-in the CLI. This applies to requests but not responses.
