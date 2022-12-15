@@ -1,4 +1,0 @@
-Subject: res_pjsip_notify
-
-Allows using the config options in pjsip_notify.conf
-from AMI actions as with the existing CLI commands.

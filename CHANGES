@@ -13,6 +13,50 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 19.7.0 to Asterisk 19.8.0 ------------
+------------------------------------------------------------------------------
+
+cdr
+------------------
+ * Two new options have been added which allow
+   bridging and dial state changes to be ignored
+   in CDRs, which can be useful if a single CDR
+   is desired for a channel.
+
+res_pjsip
+------------------
+ * Added options "security_negotiation" and "security_mechanisms" to pjsip
+   endpoints and registrations. "security_negotiation" can be set to "no" (default)
+   or "mediasec", and "security_mechanisms" can be a list of comma-separated
+   security_mechanisms in the form defined by RFC 3329 section 2.2.
+
+ * A new option named "all_codecs_on_empty_reinvite" has been added to the
+   global section. When this option is enabled, on reception of a re-INVITE
+   without SDP, Asterisk will send an SDP offer in the 200 OK response containing
+   all configured codecs on the endpoint, instead of simply those that have
+   already been negotiated. RFC 3261 specifies this as a SHOULD requirement.
+   The default value is "off".
+
+res_pjsip_logger
+------------------
+ * SIP messages can now be filtered by SIP request method
+   (INVITE, CANCEL, ACK, BYE, REGISTER, OPTION,
+   SUBSCRIBE, NOTIFY, PUBLISH, INFO, and MESSAGE),
+   allowing for more granular debugging to be done
+   in the CLI. This applies to requests but not responses.
+
+res_pjsip_notify
+------------------
+ * Allows using the config options in pjsip_notify.conf
+   from AMI actions as with the existing CLI commands.
+
+res_tonedetect
+------------------
+ * The TONE_DETECT function now supports
+   detection of audible ringback tone
+   using the p option.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 19.6.0 to Asterisk 19.7.0 ------------
 ------------------------------------------------------------------------------
 
