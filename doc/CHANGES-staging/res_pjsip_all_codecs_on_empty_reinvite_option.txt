@@ -1,8 +1,0 @@
-Subject: res_pjsip
-
-A new option named "all_codecs_on_empty_reinvite" has been added to the
-global section. When this option is enabled, on reception of a re-INVITE
-without SDP, Asterisk will send an SDP offer in the 200 OK response containing
-all configured codecs on the endpoint, instead of simply those that have
-already been negotiated. RFC 3261 specifies this as a SHOULD requirement.
-The default value is "off".
