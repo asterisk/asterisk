@@ -593,6 +593,15 @@ struct ast_json *ast_json_object_get(struct ast_json *object, const char *key);
 #define ast_json_object_integer_get(object, key) ast_json_integer_get(ast_json_object_get(object, key))
 
 /*!
+ * \brief Get a double field from a JSON object.
+ * \param object JSON object.
+ * \param key Key of double field to look up.
+ * \return Value of a JSON double.
+ * \retval 0 if \a real is not a JSON real number.
+ */
+#define ast_json_object_real_get(object, key) ast_json_real_get(ast_json_object_get(object, key))
+
+/*!
  * \brief Set a field in a JSON object.
  * \since 12.0.0
  *
