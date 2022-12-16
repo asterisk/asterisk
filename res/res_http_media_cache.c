@@ -240,6 +240,7 @@ static char *file_extension_from_content_type(struct ast_bucket_file *bucket_fil
 
 static char *file_extension_from_url_path(struct ast_bucket_file *bucket_file, char *buffer, size_t capacity)
 {
+	const char *path;
 	struct ast_uri *uri;
 
 	uri = ast_uri_parse(ast_sorcery_object_get_id(bucket_file));
@@ -249,8 +250,14 @@ static char *file_extension_from_url_path(struct ast_bucket_file *bucket_file, c
 		return NULL;
 	}
 
+	path = ast_uri_path(uri);
+	if (!path) {
+		ao2_cleanup(uri);
+		return NULL;
+	}
+
 	/* Just parse it as a string like before, but without the extra cruft */
-	buffer = file_extension_from_string(ast_uri_path(uri), buffer, capacity);
+	buffer = file_extension_from_string(path, buffer, capacity);
 	ao2_cleanup(uri);
 	return buffer;
 }
