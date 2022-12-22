@@ -87,7 +87,7 @@
 		</description>
 		<see-also>
 			<ref type="function">CDR</ref>
-			<ref type="application">NoCDR</ref>
+			<ref type="function">CDR_PROP</ref>
 			<ref type="application">ResetCDR</ref>
 		</see-also>
 	</application>
