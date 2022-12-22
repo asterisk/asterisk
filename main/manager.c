@@ -6274,14 +6274,12 @@ static int action_originate(struct mansession *s, const struct message *m)
 		old = vars;
 		vars = NULL;
 
-		/* The variables in the AMI originate action are appended at the end of the list, to override any user variables that apply*/
+		/* The variables in the AMI originate action are appended at the end of the list, to override any user variables that apply */
 
 		vars = ast_variables_dup(s->session->chanvars);
 		if (old) {
 			for (v = vars; v->next; v = v->next );
-			if (v->next) {
-				v->next = old;	/* Append originate variables at end of list */
-			}
+			v->next = old;	/* Append originate variables at end of list */
 		}
 	}
 
