@@ -226,6 +226,7 @@ static int transport_create(void *data)
 	pj_strdup2(pool, &newtransport->transport.local_name.host, ast_sockaddr_stringify_addr(ast_websocket_local_address(newtransport->ws_session)));
 	newtransport->transport.local_name.port = ast_sockaddr_port(ast_websocket_local_address(newtransport->ws_session));
 	pj_strdup2(pool, &newtransport->transport.remote_name.host, ast_sockaddr_stringify_addr(ast_websocket_remote_address(newtransport->ws_session)));
+	newtransport->transport.remote_name.port = ast_sockaddr_port(ast_websocket_remote_address(newtransport->ws_session));
 
 	newtransport->transport.flag = pjsip_transport_get_flag_from_type((pjsip_transport_type_e)newtransport->transport.key.type);
 	newtransport->transport.dir = PJSIP_TP_DIR_INCOMING;
