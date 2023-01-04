@@ -1,3 +1,45 @@
+2023-01-04 19:09 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 16.30.0-rc2 Released.
+
+2022-09-28 07:38 +0000 [eb2acd9a68]  Naveen Albert <asterisk@phreaknet.org>
+
+	* say: Don't prepend ampersand erroneously.
+
+	  Some logic in say.c for determining if we need
+	  to also add an ampersand for file seperation was faulty,
+	  as non-successful files would increment the count, causing
+	  a leading ampersand to be added improperly.
+
+	  This is fixed, and a unit test that captures this regression
+	  is also added.
+
+	  ASTERISK-30248 #close
+
+	  Change-Id: I02c1d3a11d82fe4ea8b462070cbd1effb5834d2b
+	  (cherry picked from commit bf6194be45acb277cd69e6236050c77880ccb2af)
+
+2022-12-23 06:02 +0000 [5ffec8cc41]  George Joseph <gjoseph@digium.com>
+
+	* res_pjsip_transport_websocket: Add remote port to transport
+
+	  When Asterisk receives a new websocket conenction, it creates a new
+	  pjsip transport for it and copies connection data into it.  The
+	  transport manager then uses the remote IP address and port on the
+	  transport to create a monitor for each connection.  However, the
+	  remote port wasn't being copied, only the IP address which meant
+	  that the transport manager was creating only 1 monitoring entry for
+	  all websocket connections from the same IP address. Therefore, if
+	  one of those connections failed, it deleted the transport taking
+	  all the the connections from that same IP address with it.
+
+	  * We now copy the remote port into the created transport and the
+	    transport manager behaves correctly.
+
+	  ASTERISK-30369
+
+	  Change-Id: Ib506d40897ea6286455ac0be4dfbb0ed43b727e1
+
 2022-12-15 12:53 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 16.30.0-rc1 Released.
