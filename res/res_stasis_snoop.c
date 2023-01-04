@@ -135,9 +135,13 @@ static void publish_chanspy_message(struct stasis_app_snoop *snoop, int start)
 	}
 	ast_multi_channel_blob_add_channel(payload, "spyer_channel", snoop_snapshot);
 
-	spyee_snapshot = ast_channel_snapshot_get_latest(ast_channel_uniqueid(snoop->spyee_chan));
-	if (spyee_snapshot) {
-		ast_multi_channel_blob_add_channel(payload, "spyee_channel", spyee_snapshot);
+	if (snoop->spyee_chan) {
+		ast_channel_lock(snoop->spyee_chan);
+		spyee_snapshot = ast_channel_snapshot_get_latest(ast_channel_uniqueid(snoop->spyee_chan));
+		ast_channel_unlock(snoop->spyee_chan);
+		if (spyee_snapshot) {
+			ast_multi_channel_blob_add_channel(payload, "spyee_channel", spyee_snapshot);
+		}
 	}
 
 	message = stasis_message_create(type, payload);
