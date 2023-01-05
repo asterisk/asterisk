@@ -398,13 +398,11 @@ static int httpstatus_callback(struct ast_tcptls_session_instance *ser,
 	ast_str_append(&out, 0, "<tr><td><i>Prefix</i></td><td><b>%s</b></td></tr>\r\n", prefix);
 	if (global_http_server) {
 		ast_str_append(&out, 0, "<tr><td><i>Bind Address</i></td><td><b>%s</b></td></tr>\r\n",
-			       ast_sockaddr_stringify_addr(&global_http_server->args.old_address));
-		ast_str_append(&out, 0, "<tr><td><i>Bind Port</i></td><td><b>%s</b></td></tr>\r\n",
-			       ast_sockaddr_stringify_port(&global_http_server->args.old_address));
+			       ast_sockaddr_stringify(&global_http_server->args.old_address));
 	}
 	if (http_tls_cfg.enabled) {
-		ast_str_append(&out, 0, "<tr><td><i>SSL Bind Port</i></td><td><b>%s</b></td></tr>\r\n",
-			       ast_sockaddr_stringify_port(&https_desc.old_address));
+		ast_str_append(&out, 0, "<tr><td><i>TLS Bind Address</i></td><td><b>%s</b></td></tr>\r\n",
+			       ast_sockaddr_stringify(&https_desc.old_address));
 	}
 	ast_str_append(&out, 0, "<tr><td colspan=\"2\"><hr></td></tr>\r\n");
 	for (v = get_vars; v; v = v->next) {
