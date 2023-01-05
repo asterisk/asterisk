@@ -507,8 +507,7 @@ static int playback_exec(struct ast_channel *chan, const char *data)
 			if (!res) {
 				res = ast_waitstream(chan, "");
 				ast_stopstream(chan);
-			}
-			if (res) {
+			} else {
 				if (!ast_check_hangup(chan)) {
 					ast_log(LOG_WARNING, "Playback failed on %s for %s\n", ast_channel_name(chan), (char *)data);
 				}
