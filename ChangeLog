@@ -1,3 +1,28 @@
+2023-01-05 19:14 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 19.8.0-rc2 Released.
+
+2022-12-23 06:02 +0000 [7129752201]  George Joseph <gjoseph@digium.com>
+
+	* res_pjsip_transport_websocket: Add remote port to transport
+
+	  When Asterisk receives a new websocket conenction, it creates a new
+	  pjsip transport for it and copies connection data into it.  The
+	  transport manager then uses the remote IP address and port on the
+	  transport to create a monitor for each connection.  However, the
+	  remote port wasn't being copied, only the IP address which meant
+	  that the transport manager was creating only 1 monitoring entry for
+	  all websocket connections from the same IP address. Therefore, if
+	  one of those connections failed, it deleted the transport taking
+	  all the the connections from that same IP address with it.
+
+	  * We now copy the remote port into the created transport and the
+	    transport manager behaves correctly.
+
+	  ASTERISK-30369
+
+	  Change-Id: Ib506d40897ea6286455ac0be4dfbb0ed43b727e1
+
 2022-12-15 12:54 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 19.8.0-rc1 Released.
