@@ -874,6 +874,8 @@ static int phoneprov_callback(struct ast_tcptls_session_instance *ser, const str
 	char path[PATH_MAX];
 	char *file = NULL;
 	char *server;
+	char *newserver = NULL;
+	struct extension *exten_iter;
 	int len;
 	int fd;
 	struct ast_str *http_header;
@@ -955,8 +957,7 @@ static int phoneprov_callback(struct ast_tcptls_session_instance *ser, const str
 			if ((res = getsockname(ast_iostream_get_fd(ser->stream), &name.sa, &namelen))) {
 				ast_log(LOG_WARNING, "Could not get server IP, breakage likely.\n");
 			} else {
-				struct extension *exten_iter;
-				const char *newserver = ast_inet_ntoa(name.sa_in.sin_addr);
+				newserver = ast_strdupa(ast_inet_ntoa(name.sa_in.sin_addr));
 
 				AST_LIST_TRAVERSE(&route->user->extensions, exten_iter, entry) {
 					AST_VAR_LIST_INSERT_TAIL(exten_iter->headp,
@@ -966,6 +967,21 @@ static int phoneprov_callback(struct ast_tcptls_session_instance *ser, const str
 		}
 
 		ast_str_substitute_variables_varshead(&tmp, 0, AST_LIST_FIRST(&route->user->extensions)->headp, file);
+
+		/* Do not retain dynamic SERVER address because next request from the phone might arrive on
+		 * different interface IP address eg. if this is a multi-homed server on multiple subnets */
+		if (newserver) {
+			struct ast_var_t *varns;
+			AST_LIST_TRAVERSE(&route->user->extensions, exten_iter, entry) {
+				AST_LIST_TRAVERSE_SAFE_BEGIN(exten_iter->headp, varns, entries) {
+					if (!strcmp(variable_lookup[AST_PHONEPROV_STD_SERVER], ast_var_name(varns))) {
+						AST_LIST_REMOVE_CURRENT(entries);
+						ast_var_delete(varns);
+					}
+				}
+				AST_LIST_TRAVERSE_SAFE_END
+			}
+		}
 
 		ast_free(file);
 
