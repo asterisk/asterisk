@@ -2513,15 +2513,6 @@ static int hangup(void *data)
 		if (session) {
 			int cause = h_data->cause;
 
-			if (channel->session->active_media_state &&
-				channel->session->active_media_state->default_session[AST_MEDIA_TYPE_AUDIO]) {
-				struct ast_sip_session_media *media =
-					channel->session->active_media_state->default_session[AST_MEDIA_TYPE_AUDIO];
-				if (media->rtp) {
-					ast_rtp_instance_set_stats_vars(ast, media->rtp);
-				}
-			}
-
 			/*
 	 		* It's possible that session_terminate might cause the session to be destroyed
 	 		* immediately so we need to keep a reference to it so we can NULL session->channel
@@ -3000,16 +2991,6 @@ static void chan_pjsip_session_end(struct ast_sip_session *session)
 
 	if (!session->channel) {
 		SCOPE_EXIT_RTN("No channel\n");
-	}
-
-
-	if (session->active_media_state &&
-		session->active_media_state->default_session[AST_MEDIA_TYPE_AUDIO]) {
-		struct ast_sip_session_media *media =
-			session->active_media_state->default_session[AST_MEDIA_TYPE_AUDIO];
-		if (media->rtp) {
-			ast_rtp_instance_set_stats_vars(session->channel, media->rtp);
-		}
 	}
 
 	chan_pjsip_remove_hold(ast_channel_uniqueid(session->channel));
