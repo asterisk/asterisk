@@ -442,6 +442,7 @@ struct ast_rtp {
 	int send_payload;
 	int send_duration;
 	unsigned int flags;
+	struct timeval rxcore;
 	struct timeval txcore;
 
 	struct timeval dtmfmute;
@@ -5496,10 +5497,10 @@ static void calc_rxstamp_and_jitter(struct timeval *tv,
 {
 	int rate = ast_rtp_get_rate(rtp->f.subclass.format);
 
-	double estimated_elapsed;
 	double jitter = 0.0;
 	double prev_jitter = 0.0;
 	struct timeval now;
+	struct timeval tmp;
 	double rxnow;
 	double arrival_sec;
 	unsigned int arrival;
@@ -5512,9 +5513,22 @@ static void calc_rxstamp_and_jitter(struct timeval *tv,
 		rtp->rxstart = ast_tv2double(&now);
 		rtp->remote_seed_rx_rtp_ts = rx_rtp_ts;
 
-		/* Round to 0.1ms for nice, pretty timestamps */
-		rtp->rxstart = floor( rtp->rxstart * 10000.0 ) / 10000.0;
-		*tv = ast_double2tv(rtp->rxstart);
+		/*
+		 * "tv" is placed in the received frame's
+		 * "delivered" field and when this frame is
+		 * sent out again on the other side, it's
+		 * used to calculate the timestamp on the
+		 * outgoing RTP packets.
+		 *
+		 * NOTE: We need to do integer math here
+		 * because double math rounding issues can
+		 * generate incorrect timestamps.
+		 */
+		rtp->rxcore = now;
+		tmp = ast_samp2tv(rx_rtp_ts, rate);
+		rtp->rxcore = ast_tvsub(rtp->rxcore, tmp);
+		rtp->rxcore.tv_usec -= rtp->rxcore.tv_usec % 100;
+		*tv = ast_tvadd(rtp->rxcore, tmp);
 
 		ast_debug_rtcp(3, "%s: "
 			"Seed ts: %u current time: %f\n",
@@ -5526,8 +5540,14 @@ static void calc_rxstamp_and_jitter(struct timeval *tv,
 		return;
 	}
 
-	estimated_elapsed = ast_samp2sec(rx_rtp_ts - rtp->remote_seed_rx_rtp_ts, rate);
-	*tv = ast_double2tv(rtp->rxstart + estimated_elapsed);
+	tmp = ast_samp2tv(rx_rtp_ts, rate);
+	/* See the comment about "tv" above. Even if
+	 * we don't use this received packet for jitter
+	 * calculations, we still need to set tv so the
+	 * timestamp will be correct when this packet is
+	 * sent out again.
+	 */
+	*tv = ast_tvadd(rtp->rxcore, tmp);
 
 	/*
 	 * The first few packets are generally unstable so let's
