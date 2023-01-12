@@ -1,0 +1,430 @@
+                                Release Summary
+
+                                asterisk-16.30.0
+
+                                Date: 2023-01-12
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Open Issues
+    5. Other Changes
+    6. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release is a point release of an existing major version. The changes
+   included were made to address problems that have been identified in this
+   release series, or are minor, backwards compatible new features or
+   improvements. Users should be able to safely upgrade to this version if
+   this release series is already in use. Users considering upgrading from a
+   previous version are strongly encouraged to review the UPGRADE.txt
+   document as well as the CHANGES document for information about upgrading
+   to this release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-16.29.0.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were affected by commits that went into
+   this release.
+
+   Coders                              Testers       Reporters                
+   12 Naveen Albert                                  12 N A                   
+   6 George Joseph                                   4 Philip Prindeville     
+   5 Philip Prindeville                              3 George Joseph          
+   4 Asterisk Development Team                       2 Michael Bradeen        
+   4 Mike Bradeen                                    2 Maximilian Fridrich    
+   2 Maximilian Fridrich                             1 Alexandre Fournier     
+   1 Birger Harzenetter (license 5870)               1 Igor Goncharovsky      
+   1 Igor Goncharovsky                               1 Henning Westerholt     
+   1 Alexandre Fournier                              1 shawty                 
+   1 Jaco Kroon                                      1 nappsoft               
+   1 Ben Ford                                        1 David Woolley          
+   1 Henning Westerholt                              1 Joshua C. Colp         
+                                                     1 Benjamin Keith Ford    
+                                                     1 Jesse Ross             
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Security
+
+    Category: Addons/chan_ooh323
+
+   ASTERISK-30103: chan_ooh323 Vulnerability in calling/called party IE
+   Reported by: Michael Bradeen
+     * [993ebe302b] Mike Bradeen -- ooh323c: not checking for IE minimum
+       length
+
+    Category: Core/ManagerInterface
+
+   ASTERISK-30176: manager: GetConfig can read files outside of Asterisk
+   Reported by: shawty
+     * [282e1cbf9f] Mike Bradeen -- manager: prevent file access outside of
+       config dir
+
+    Category: pjproject/pjsip
+
+   ASTERISK-30338: pjproject: Backport security fixes from 2.13
+   Reported by: Benjamin Keith Ford
+     * [c5b1fafb04] Ben Ford -- pjproject: 2.13 security fixes
+
+  Improvement
+
+    Category: Core/Bridging
+
+   ASTERISK-30223: features: add no-answer option to Bridge application
+   Reported by: N A
+     * [7400939d73] Naveen Albert -- features: Add no answer option to
+       Bridge.
+
+    Category: Resources/res_pjsip
+
+   ASTERISK-30158: PJSIP: Add new 100rel option "peer_supported"
+   Reported by: Maximilian Fridrich
+     * [7b56859a42] Maximilian Fridrich -- res_pjsip: Add 100rel option
+       "peer_supported".
+
+    Category: Resources/res_pjsip_geolocation
+
+   ASTERISK-30241: res_pjsip_gelocation: Downgrade some NOTICE scope trace
+   debugs to DEBUG level
+   Reported by: N A
+     * [ae4ee53731] Naveen Albert -- res_pjsip_geolocation: Change some
+       notices to debugs.
+
+  Bug
+
+    Category: Applications/app_saynumber
+
+   ASTERISK-30248: ast_get_digit_str adds bogus initial delimiter if first
+   character not to be spoken
+   Reported by: David Woolley
+     * [eb2acd9a68] Naveen Albert -- say: Don't prepend ampersand
+       erroneously.
+
+    Category: Applications/app_voicemail
+
+   ASTERISK-30248: ast_get_digit_str adds bogus initial delimiter if first
+   character not to be spoken
+   Reported by: David Woolley
+     * [eb2acd9a68] Naveen Albert -- say: Don't prepend ampersand
+       erroneously.
+
+    Category: Channels/chan_dahdi
+
+   ASTERISK-30256: chan_dahdi: Fix format truncation warnings
+   Reported by: N A
+     * [83afb94f79] Naveen Albert -- chan_dahdi: Resolve format truncation
+       warning.
+
+    Category: Channels/chan_pjsip
+
+   ASTERISK-30193: chan_pjsip should return all codecs on a re-INVITE without
+   SDP
+   Reported by: Henning Westerholt
+     * [15265aeea9] Henning Westerholt -- res_pjsip: return all codecs on a
+       re-INVITE without SDP
+
+    Category: Core/AstDB
+
+   ASTERISK-30245: db: ListItems is incorrect
+   Reported by: N A
+     * [7c6538c7f1] Birger Harzenetter -- db: Fix incorrect DB tree count for
+       AMI.
+
+    Category: Functions/General
+
+   ASTERISK-30220: func_scramble: Fix segfault due to null pointer deref
+   Reported by: N A
+     * [21b1651646] Naveen Albert -- func_scramble: Fix null pointer
+       dereference.
+
+    Category: Functions/func_logic
+
+   ASTERISK-30243: func_logic: IF function complains if both branches are
+   empty
+   Reported by: N A
+     * [07a4a9b8ec] Naveen Albert -- func_logic: Don't emit warning if both
+       IF branches are empty.
+
+    Category: Resources/res_crypto
+
+   ASTERISK-30213: Make crypto_load() reentrant and handle symlinks correctly
+   Reported by: Philip Prindeville
+     * [95bb23ce4c] Philip Prindeville -- res_crypto: handle unsafe private
+       key files
+     * [c19fe636df] Philip Prindeville -- res_crypto: don't modify fname in
+       try_load_key()
+     * [24b677db88] Philip Prindeville -- res_crypto: use
+       ast_file_read_dirs() to iterate
+   ASTERISK-30235: res_crypto and tests: Memory issues and and uninitialized
+   variable error
+   Reported by: George Joseph
+     * [148d077b52] George Joseph -- res_crypto: Memory issues and
+       uninitialized variable errors
+   ASTERISK-30226: REGRESSION: res_crypto complains about the stir_shaken
+   directory in /var/lib/asterisk/keys
+   Reported by: George Joseph
+     * [029ac0e882] Philip Prindeville -- res_crypto: don't complain about
+       directories
+
+    Category: Resources/res_geolocation
+
+   ASTERISK-30234: res_geolocation: ...may be used uninitialized error in
+   geoloc_config.c
+   Reported by: George Joseph
+     * [78cb7d6fec] George Joseph -- res_geolocation: Fix issues exposed by
+       compiling with -O2
+
+    Category: Resources/res_pjsip
+
+   ASTERISK-30369: res_pjsip: Websockets from same IP shut down when they
+   shouldn't be
+   Reported by: Joshua C. Colp
+     * [5ffec8cc41] George Joseph -- res_pjsip_transport_websocket: Add
+       remote port to transport
+
+    Category: Resources/res_pjsip_outbound_registration
+
+   ASTERISK-30217: Registration do not allow multiple proxies
+   Reported by: Igor Goncharovsky
+     * [bc18b2d567] Igor Goncharovsky -- res_pjsip_outbound_registration:
+       Allow to use multiple proxies for registration
+
+    Category: Resources/res_pjsip_pubsub
+
+   ASTERISK-30244: res_pjsip_pubsub: Occasional crash when TCP/TLS connection
+   terminated and subscription persistence is removed
+   Reported by: nappsoft
+     * [23560be802] George Joseph -- pjsip_transport_events: Fix possible use
+       after free on transport
+
+    Category: Tests/General
+
+   ASTERISK-30232: Initialize stack-based ast_test_capture structures
+   correctly
+   Reported by: Philip Prindeville
+     * [5b9f91d0a1] Philip Prindeville -- test: initialize capture structure
+       before freeing
+
+    Category: pjproject/pjsip
+
+   ASTERISK-28689: res_pjsip: Crash when locking group lock when sending
+   stateful response
+   Reported by: Jesse Ross
+     * [7f2a13786b] Mike Bradeen -- res_pjsip: prevent crash on websocket
+       disconnect
+
+  New Feature
+
+    Category: Applications/app_amd
+
+   ASTERISK-30179: app_amd: Allow audio to be played while AMD is running
+   Reported by: N A
+     * [383a93cdfb] Naveen Albert -- app_amd: Add option to play audio during
+       AMD.
+
+    Category: Applications/app_bridgewait
+
+   ASTERISK-30216: app_bridgewait: Add option for BridgeWait to not answer
+   Reported by: N A
+     * [c19a2eb1f5] Naveen Albert -- app_bridgewait: Add option to not answer
+       channel.
+
+    Category: CDR/General
+
+   ASTERISK-30091: cdr: Allow CDRs to ignore call state changes
+   Reported by: N A
+     * [a587258733] Naveen Albert -- cdr: Allow bridging and dial state
+       changes to be ignored.
+
+    Category: Functions/NewFeature
+
+   ASTERISK-29432: New function to allow access to any channel
+   Reported by: N A
+     * [1500de2b09] Naveen Albert -- func_export: Add EXPORT function
+
+    Category: Functions/func_strings
+
+   ASTERISK-30222: func_strings: Add trim functions
+   Reported by: N A
+     * [2f10855177] Naveen Albert -- func_strings: Add trim functions.
+
+    Category: Resources/General
+
+   ASTERISK-30254: res_tonedetect: Add audible ringback detection to
+   TONE_DETECT
+   Reported by: N A
+     * [1c97a1d141] Naveen Albert -- res_tonedetect: Add ringback support to
+       TONE_DETECT.
+
+    Category: Resources/res_pjsip
+
+   ASTERISK-30032: Support of mediasec SIP headers and SDP attributes
+   Reported by: Maximilian Fridrich
+     * [fc6f91eebb] Maximilian Fridrich -- res_pjsip: Add mediasec
+       capabilities.
+
+     ----------------------------------------------------------------------
+
+                                  Open Issues
+
+                                 [Back to Top]
+
+   This is a list of all open issues from the issue tracker that were
+   referenced by changes that went into this release.
+
+  Bug
+
+    Category: Resources/res_geolocation
+
+   ASTERISK-30346: Fix NULL dereferencing issue in Geolocation
+   Reported by: Alexandre Fournier
+     * [fabdbed47c] Alexandre Fournier -- res_geoloc: fix NULL pointer
+       dereference bug
+
+    Category: Resources/res_stasis_snoop
+
+   ASTERISK-30252: Unidirectional snoop on resampled channel causes garbled
+   audio
+   Reported by: Michael Bradeen
+     * [14e1ba19ee] Mike Bradeen -- audiohook: add directional awareness
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   reference a JIRA issue.
+
+   +------------------------------------------------------------------------+
+   | Revision   | Author               | Summary                            |
+   |------------+----------------------+------------------------------------|
+   | 41087eedf2 | Asterisk Development | Update for 16.30.0-rc2             |
+   |            | Team                 |                                    |
+   |------------+----------------------+------------------------------------|
+   | cb556105bf | Asterisk Development | Update for 16.30.0-rc1             |
+   |            | Team                 |                                    |
+   |------------+----------------------+------------------------------------|
+   | 0e455fdd6d | Asterisk Development | Update CHANGES and UPGRADE.txt for |
+   |            | Team                 | 16.30.0                            |
+   |------------+----------------------+------------------------------------|
+   | a5f2cbb9e2 | George Joseph        | res_geolocation: Update wiki       |
+   |            |                      | documentation                      |
+   |------------+----------------------+------------------------------------|
+   | 61dbbc4268 | Asterisk Development | Update CHANGES and UPGRADE.txt for |
+   |            | Team                 | 16.29.0                            |
+   |------------+----------------------+------------------------------------|
+   | 608c1df651 | George Joseph        | manager.h: Bump version to 5.0.5   |
+   |------------+----------------------+------------------------------------|
+   | 86735ebfc2 | Jaco Kroon           | manager: be more aggressive about  |
+   |            |                      | purging http sessions.             |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ asterisk-16.29.0-summary.html                                                                                    |  213 ----
+ asterisk-16.29.0-summary.txt                                                                                     |  531 ----------
+ b/.version                                                                                                       |    2
+ b/CHANGES                                                                                                        |   71 +
+ b/ChangeLog                                                                                                      |  502 +++++++++
+ b/UPGRADE.txt                                                                                                    |   13
+ b/addons/ooh323c/src/ooq931.c                                                                                    |   15
+ b/apps/app_amd.c                                                                                                 |   51
+ b/apps/app_bridgewait.c                                                                                          |    9
+ b/asterisk-16.30.0-rc2-summary.html                                                                              |   15
+ b/asterisk-16.30.0-rc2-summary.txt                                                                               |   99 +
+ b/channels/chan_dahdi.c                                                                                          |    2
+ b/configs/samples/amd.conf.sample                                                                                |    7
+ b/configs/samples/asterisk.conf.sample                                                                           |   11
+ b/configs/samples/cdr.conf.sample                                                                                |   11
+ b/configs/samples/geolocation.conf.sample                                                                        |    2
+ b/configs/samples/pjsip.conf.sample                                                                              |    7
+ b/contrib/ast-db-manage/config/versions/417c0247fd7e_add_security_negotiation_and_security_.py                   |   49
+ b/contrib/ast-db-manage/config/versions/539f68bede2c_add_peer_supported_to_100rel.py                             |   57 +
+ b/contrib/ast-db-manage/config/versions/ccf795ee535f_all_codecs_on_empty_reinvite.py                             |   37
+ b/contrib/realtime/mysql/mysql_config.sql                                                                        |   24
+ b/contrib/realtime/postgresql/postgresql_config.sql                                                              |   30
+ b/funcs/func_export.c                                                                                            |  107 ++
+ b/funcs/func_logic.c                                                                                             |    3
+ b/funcs/func_sayfiles.c                                                                                          |    9
+ b/funcs/func_scramble.c                                                                                          |    1
+ b/funcs/func_strings.c                                                                                           |  186 +++
+ b/include/asterisk/audiohook.h                                                                                   |    9
+ b/include/asterisk/cdr.h                                                                                         |    2
+ b/include/asterisk/manager.h                                                                                     |   12
+ b/include/asterisk/res_pjsip.h                                                                                   |  237 ++++
+ b/include/asterisk/res_pjsip_session.h                                                                           |    2
+ b/include/asterisk/test.h                                                                                        |   10
+ b/main/audiohook.c                                                                                               |   22
+ b/main/cdr.c                                                                                                     |   86 +
+ b/main/db.c                                                                                                      |    4
+ b/main/features.c                                                                                                |   35
+ b/main/manager.c                                                                                                 |   61 +
+ b/main/options.c                                                                                                 |    1
+ b/main/say.c                                                                                                     |    6
+ b/main/test.c                                                                                                    |    9
+ b/res/res_crypto.c                                                                                               |   75 -
+ b/res/res_geolocation/geoloc_datastore.c                                                                         |    4
+ b/res/res_geolocation/wiki/AsteriskImplementation.md                                                             |  251 +++-
+ b/res/res_geolocation/wiki/GML.md                                                                                |   38
+ b/res/res_geolocation/wiki/Geolocation.md                                                                        |    2
+ b/res/res_geolocation/wiki/README.txt                                                                            |   31
+ b/res/res_geolocation/wiki/URI.md                                                                                |    5
+ b/res/res_pjsip.c                                                                                                |   47
+ b/res/res_pjsip/config_global.c                                                                                  |   21
+ b/res/res_pjsip/pjsip_config.xml                                                                                 |   55 -
+ b/res/res_pjsip/pjsip_configuration.c                                                                            |   44
+ b/res/res_pjsip/pjsip_options.c                                                                                  |    5
+ b/res/res_pjsip/pjsip_transport_events.c                                                                         |  214 +++-
+ b/res/res_pjsip/security_agreements.c                                                                            |  340 ++++++
+ b/res/res_pjsip_outbound_registration.c                                                                          |  249 ++++
+ b/res/res_pjsip_pubsub.c                                                                                         |   25
+ b/res/res_pjsip_rfc3329.c                                                                                        |  150 ++
+ b/res/res_pjsip_sdp_rtp.c                                                                                        |    6
+ b/res/res_pjsip_session.c                                                                                        |   74 +
+ b/res/res_pjsip_transport_websocket.c                                                                            |    1
+ b/res/res_stasis_snoop.c                                                                                         |   22
+ b/res/res_tonedetect.c                                                                                           |   25
+ b/tests/test_crypto.c                                                                                            |   19
+ b/third-party/pjproject/patches/0200-potential-buffer-overflow-in-pjlib-scanner-and-pjmedia.patch                |  306 +++++
+ b/third-party/pjproject/patches/0201-potential-stack-buffer-overflow-when-parsing-message-as-a-STUN-client.patch |   10
+ 66 files changed, 3579 insertions(+), 1000 deletions(-)
