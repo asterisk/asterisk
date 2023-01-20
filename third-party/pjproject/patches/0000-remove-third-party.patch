@@ -7,10 +7,11 @@ index 4bc464f8c..80681d961 100644
  include $(PJDIR)/version.mak
  export PJ_DIR := $(PJDIR)
  
-@@ -41,19 +40,6 @@ export APP_THIRD_PARTY_EXT :=
+@@ -42,21 +41,6 @@ export APP_THIRD_PARTY_EXT :=
  export APP_THIRD_PARTY_LIBS :=
  export APP_THIRD_PARTY_LIB_FILES :=
  
+-ifneq (@ac_no_srtp@,1)
 -ifneq (@ac_external_srtp@,0)
 -# External SRTP library
 -APP_THIRD_PARTY_EXT += -l@ac_external_srtp_lib@
@@ -23,11 +24,12 @@ index 4bc464f8c..80681d961 100644
 -APP_THIRD_PARTY_LIB_FILES += $(PJ_DIR)/third_party/lib/libsrtp.$(SHLIB_SUFFIX).$(PJ_VERSION_MAJOR) $(PJ_DIR)/third_party/lib/libsrtp.$(SHLIB_SUFFIX)
 -endif
 -endif
+-endif
 -
  ifeq (@ac_pjmedia_resample@,libresample)
  APP_THIRD_PARTY_LIB_FILES += $(PJ_DIR)/third_party/lib/libresample-$(LIB_SUFFIX)
  ifeq ($(PJ_SHARED_LIBRARIES),)
-@@ -70,102 +56,6 @@ APP_THIRD_PARTY_LIB_FILES += $(PJ_DIR)/third_party/lib/libresample.$(SHLIB_SUFFI
+@@ -73,102 +57,6 @@ APP_THIRD_PARTY_LIB_FILES += $(PJ_DIR)/third_party/lib/libresample.$(SHLIB_SUFFI
  endif
  endif
  
