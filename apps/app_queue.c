@@ -1618,6 +1618,9 @@ static int negative_penalty_invalid;
 /*! \brief queues.conf [general] option */
 static int log_membername_as_agent;
 
+/*! \brief queues.conf [general] option */
+static int force_longest_waiting_caller;
+
 /*! \brief name of the ringinuse field in the realtime database */
 static char *realtime_ringinuse_field;
 
@@ -4575,6 +4578,56 @@ static int compare_weight(struct call_queue *rq, struct member *member)
 	return found;
 }
 
+static int is_longest_waiting_caller(struct queue_ent *caller, struct member *member)
+{
+	struct call_queue *q;
+	struct member *mem;
+	int is_longest_waiting = 1;
+	struct ao2_iterator queue_iter;
+	struct queue_ent *ch;
+
+	queue_iter = ao2_iterator_init(queues, 0);
+	while ((q = ao2_t_iterator_next(&queue_iter, "Iterate through queues"))) {
+		if (q == caller->parent) { /* don't check myself, could deadlock */
+			queue_t_unref(q, "Done with iterator");
+			continue;
+		}
+		ao2_lock(q);
+		/*
+		 * If the other queue has equal weight, see if we should let that handle
+		 * their call first. If weights are not equal, compare_weights will step in.
+		 */
+		if (q->weight == caller->parent->weight && q->count && q->members) {
+			if ((mem = ao2_find(q->members, member, OBJ_POINTER))) {
+				ast_debug(2, "Found matching member %s in queue '%s'\n", mem->interface, q->name);
+
+				/* Does this queue have a caller that's been waiting longer? */
+				ch = q->head;
+				while (ch) {
+					/* If ch->pending, the other call (which may be waiting for a longer period of time),
+					 * is already ringing at another agent. Ignore such callers; otherwise, all agents
+					 * will be unused until the first caller is picked up.
+					 */
+					if (ch->start < caller->start && !ch->pending) {
+						ast_debug(1, "Queue %s has a call at position %i that's been waiting longer (%li vs %li)\n",
+								  q->name, ch->pos, ch->start, caller->start);
+						is_longest_waiting = 0;
+						break;
+					}
+					ch = ch->next;
+				}
+			}
+		}
+		ao2_unlock(q);
+		queue_t_unref(q, "Done with iterator");
+		if (!is_longest_waiting) {
+			break;
+		}
+	}
+	ao2_iterator_destroy(&queue_iter);
+	return is_longest_waiting;
+}
+
 /*! \brief common hangup actions */
 static void do_hang(struct callattempt *o)
 {
@@ -4636,6 +4689,12 @@ static int can_ring_entry(struct queue_ent *qe, struct callattempt *call)
 	if (use_weight && compare_weight(qe->parent, memberp)) {
 		ast_debug(1, "Priority queue delaying call to %s:%s\n",
 			qe->parent->name, call->interface);
+		return 0;
+	}
+
+	if (force_longest_waiting_caller && !is_longest_waiting_caller(qe, memberp)) {
+		ast_debug(1, "Another caller was waiting longer; delaying call to %s:%s\n",
+				  qe->parent->name, call->interface);
 		return 0;
 	}
 
@@ -9520,6 +9579,7 @@ static void queue_reset_global_params(void)
 	shared_lastcall = 0;
 	negative_penalty_invalid = 0;
 	log_membername_as_agent = 0;
+	force_longest_waiting_caller = 0;
 }
 
 /*! Set the global queue parameters as defined in the "general" section of queues.conf */
@@ -9544,6 +9604,9 @@ static void queue_set_global_params(struct ast_config *cfg)
 	}
 	if ((general_val = ast_variable_retrieve(cfg, "general", "log_membername_as_agent"))) {
 		log_membername_as_agent = ast_true(general_val);
+	}
+	if ((general_val = ast_variable_retrieve(cfg, "general", "force_longest_waiting_caller"))) {
+		force_longest_waiting_caller = ast_true(general_val);
 	}
 }
 

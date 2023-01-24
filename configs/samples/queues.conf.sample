@@ -58,6 +58,14 @@ monitor-type = MixMonitor
 ;
 ;log_membername_as_agent = no
 ;
+; force_longest_waiting_caller will cause app_queue to make sure callers are offered
+; in order (longest waiting first), even for callers across multiple queues.
+; Before a call is offered to an agent, an additional check is made to see if the agent
+; is a member of another queue with a call that's been waiting longer. If so, the current
+; call is not offered to the agent. The default value is 'no'.
+;
+;force_longest_waiting_caller = no
+;
 ;[markq]
 ;
 ; A sample call queue
