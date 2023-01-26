@@ -4414,7 +4414,11 @@ int ast_compile_ael2(struct ast_context **local_contexts, struct ast_hashtab *lo
 {
 	pval *p,*p2;
 	struct ast_context *context;
+#ifdef LOW_MEMORY
 	char buf[2000];
+#else
+	char buf[8192];
+#endif
 	struct ael_extension *exten;
 	struct ael_extension *exten_list = 0;
 
@@ -4427,9 +4431,13 @@ int ast_compile_ael2(struct ast_context **local_contexts, struct ast_hashtab *lo
 		case PV_GLOBALS:
 			/* just VARDEC elements */
 			for (p2=p->u1.list; p2; p2=p2->next) {
-				char buf2[2000];
-				snprintf(buf2,sizeof(buf2),"%s=%s", p2->u1.str, p2->u2.val);
-				pbx_builtin_setvar(NULL, buf2);
+#ifdef STANDALONE
+				snprintf(buf, sizeof(buf), "%s=%s", p2->u1.str, p2->u2.val);
+				pbx_builtin_setvar(NULL, buf);
+#else
+				pbx_substitute_variables_helper(NULL, p2->u2.val, buf, sizeof(buf) - 1);
+				pbx_builtin_setvar_helper(NULL, p2->u1.str, buf);
+#endif
 			}
 			break;
 		default:
