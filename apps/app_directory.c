@@ -107,6 +107,10 @@
 						<para>Load the specified config file instead of voicemail.conf</para>
 						<argument name="filename" required="true" />
 					</option>
+					<option name="s">
+						<para>Skip calling the extension, instead set it in the <variable>DIRECTORY_EXTEN</variable>
+						channel variable.</para>
+					</option>
 				</optionlist>
 				<note><para>Only one of the <replaceable>f</replaceable>, <replaceable>l</replaceable>, or <replaceable>b</replaceable>
 				options may be specified. <emphasis>If more than one is specified</emphasis>, then Directory will act as
@@ -123,7 +127,7 @@
 			received and the extension to jump to exists:</para>
 			<para><literal>0</literal> - Jump to the 'o' extension, if it exists.</para>
 			<para><literal>*</literal> - Jump to the 'a' extension, if it exists.</para>
-			<para>This application will set the following channel variable before completion:</para>
+			<para>This application will set the following channel variables before completion:</para>
 			<variablelist>
 				<variable name="DIRECTORY_RESULT">
 					<para>Reason Directory application exited.</para>
@@ -134,6 +138,10 @@
 					<value name="SELECTED">User selected a user to call from the directory</value>
 					<value name="USEREXIT">User exited with '#' during selection</value>
 					<value name="FAILED">The application failed</value>
+				</variable>
+				<variable name="DIRECTORY_EXTEN">
+					<para>If the skip calling option is set this will be set to the selected extension
+					provided one is selected.</para>
 				</variable>
 			</variablelist>
 		</description>
@@ -158,6 +166,7 @@ enum {
 	OPT_NOANSWER =        (1 << 6),
 	OPT_ALIAS =           (1 << 7),
 	OPT_CONFIG_FILE =     (1 << 8),
+	OPT_SKIP =            (1 << 9),
 };
 
 enum {
@@ -190,6 +199,7 @@ AST_APP_OPTIONS(directory_app_options, {
 	AST_APP_OPTION('n', OPT_NOANSWER),
 	AST_APP_OPTION('a', OPT_ALIAS),
 	AST_APP_OPTION_ARG('c', OPT_CONFIG_FILE, OPT_ARG_FILENAME),
+	AST_APP_OPTION('s', OPT_SKIP),
 });
 
 static int compare(const char *text, const char *template)
@@ -323,6 +333,9 @@ static int select_entry(struct ast_channel *chan, const char *dialcontext, const
 	if (ast_test_flag(flags, OPT_FROMVOICEMAIL)) {
 		/* We still want to set the exten though */
 		ast_channel_exten_set(chan, item->exten);
+	} else if (ast_test_flag(flags, OPT_SKIP)) {
+		/* Skip calling the extension, only set it in the channel variable. */
+		pbx_builtin_setvar_helper(chan, "DIRECTORY_EXTEN", item->exten);
 	} else if (ast_goto_if_exists(chan, S_OR(dialcontext, item->context), item->exten, 1)) {
 		ast_log(LOG_WARNING,
 			"Can't find extension '%s' in context '%s'.  "
