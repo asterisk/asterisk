@@ -165,7 +165,7 @@ const char *ast_geoloc_validate_result_to_str(enum ast_geoloc_validate_result re
  * \brief Validate that the names of the variables in the list are valid codes or synonyms
  *
  * \param varlist Variable list to check.
- * \param result[OUT] Pointer to char * to receive failing item.
+ * \param[out] result Pointer to char * to receive failing item.
  *
  * \return result code.
  */
@@ -176,7 +176,7 @@ enum ast_geoloc_validate_result ast_geoloc_civicaddr_validate_varlist(
  * \brief Validate that the variables in the list represent a valid GML shape
  *
  * \param varlist Variable list to check.
- * \param result[OUT] Pointer to char * to receive failing item.
+ * \param[out] result Pointer to char * to receive failing item.
  *
  * \return result code.
  */

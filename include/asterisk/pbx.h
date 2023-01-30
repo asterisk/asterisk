@@ -271,9 +271,9 @@ int pbx_exec(struct ast_channel *c, struct ast_app *app, const char *data);
 /*!
  * \brief Execute an application
  *
- * \param c channel to execute on
- * \param app name of app to execute
- * \param data the data passed into the app
+ * \param chan channel to execute on
+ * \param app_name name of app to execute
+ * \param app_args the data passed into the app
  *
  * This application executes an application by name on a given channel.
  * It is a wrapper around pbx_exec that will perform variable substitution

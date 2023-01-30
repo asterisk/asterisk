@@ -98,8 +98,8 @@
 /*!
  * \brief Fill a buffer with a pjsip transport's remote ip address and port
  *
- * \param transport The pjsip_transport to use
- * \param dest The destination buffer of at least IP6ADDR_COLON_PORT_BUFLEN bytes
+ * \param _transport The pjsip_transport to use
+ * \param _dest The destination buffer of at least IP6ADDR_COLON_PORT_BUFLEN bytes
  */
 #define AST_SIP_MAKE_REMOTE_IPADDR_PORT_STR(_transport, _dest) \
 	snprintf(_dest, IP6ADDR_COLON_PORT_BUFLEN, \
@@ -1094,8 +1094,8 @@ extern pjsip_media_type pjsip_media_type_text_plain;
 /*!
  * \brief Compare pjsip media types
  *
- * \param pjsip_media_type a
- * \param pjsip_media_type b
+ * \param a the first media type
+ * \param b the second media type
  * \retval 1 Media types are equal
  * \retval 0 Media types are not equal
  */
@@ -1138,7 +1138,7 @@ void ast_sip_header_to_security_mechanism(const pjsip_generic_string_hdr *hdr,
 /*!
  * \brief Initialize security mechanism vector from string of security mechanisms.
  *
- * \param security_mechanisms Pointer to vector of security mechanisms to initialize.
+ * \param security_mechanism Pointer to vector of security mechanisms to initialize.
  * \param value String of security mechanisms as defined in RFC 3329.
  * \retval 0 Success
  * \retval non-zero Failure
@@ -1176,7 +1176,7 @@ void ast_sip_security_mechanisms_vector_destroy(struct ast_sip_security_mechanis
  *
  * \param security_mechanism Pointer-pointer to the security mechanism to allocate.
  * \param value The security mechanism string as defined in RFC 3329 (section 2.2)
- * \param ... in the form <mechanism_name>;q=<q_value>;<mechanism_parameters>
+ * \param ... in the form \<mechanism_name>;q=\<q_value>;\<mechanism_parameters>
  * \retval 0 Success
  * \retval non-zero Failure
  */
@@ -3618,7 +3618,7 @@ int ast_sip_set_id_connected_line(struct pjsip_rx_data *rdata, struct ast_party_
  * \param rdata
  * \param id ID structure to fill
  * \param default_id Default ID structure with data to use (for non-trusted endpoints)
- * \param trusted_inbound Whether or not the endpoint is trusted (controls whether PAI or RPID can be used)
+ * \param trust_inbound Whether or not the endpoint is trusted (controls whether PAI or RPID can be used)
  *
  * \retval -1 on failure, 0 on success
  */
@@ -3996,15 +3996,27 @@ const pj_str_t *ast_sip_pjsip_uri_get_username(pjsip_uri *uri);
 const pj_str_t *ast_sip_pjsip_uri_get_hostname(pjsip_uri *uri);
 
 /*!
- * \brief Get the other_param portion of the pjsip_uri
+ * \brief Find an 'other' SIP/SIPS URI parameter by name
  * \since 16.28.0
  *
- * \param uri The pjsip_uri to get hte other_param from
+ * A convenience function to find a named parameter from a SIP/SIPS URI. This
+ * function will not find the following standard SIP/SIPS URI parameters which
+ * are stored separately by PJSIP:
+ *
+ * \li `user`
+ * \li `method`
+ * \li `transport`
+ * \li `ttl`
+ * \li `lr`
+ * \li `maddr`
+ *
+ * \param uri The pjsip_uri to get the parameter from
+ * \param param_str The name of the parameter to find
  *
  * \note This function will check what kind of URI it receives and return
- * the other_param based off of that
+ * the parameter based off of that
  *
- * \return other_param or NULL if not present
+ * \return Find parameter or NULL if not present
  */
 struct pjsip_param *ast_sip_pjsip_uri_get_other_param(pjsip_uri *uri, const pj_str_t *param_str);
 

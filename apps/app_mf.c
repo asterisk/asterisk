@@ -235,6 +235,7 @@ static const char sendmf_name[] = "SendMF";
  * \param buflen Size of buffer
  * \param timeout ms to wait for all digits before giving up
  * \param features Any additional DSP features to use
+ * \param laxkp Receive digits even if KP not received
  * \param override Start over if we receive additional KPs
  * \param no_kp Don't include KP in the output
  * \param no_st Don't include start digits in the output

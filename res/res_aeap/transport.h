@@ -166,8 +166,6 @@ int aeap_transport_is_connected(struct aeap_transport *transport);
  * \brief Destroy a transport
  *
  * \param transport The transport to destroy
- *
- * \returns 0 on success, or -1 on error
  */
 void aeap_transport_destroy(struct aeap_transport *transport);
 

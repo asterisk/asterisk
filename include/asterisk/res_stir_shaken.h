@@ -156,7 +156,7 @@ struct ast_stir_shaken_payload *ast_stir_shaken_verify2(const char *header, cons
  * \param signature The payload signature
  * \param algorithm The signature algorithm
  * \param public_cert_url The public key URL
- * \param failure_code Additional failure information
+ * \param failure Additional failure information
  * \param profile The stir_shaken_profile
  *
  * \retval ast_stir_shaken_payload on success

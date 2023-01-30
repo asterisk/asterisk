@@ -50,7 +50,7 @@ struct transport_monitor_notifier {
 
 /*! \brief Structure for transport to be monitored */
 struct transport_monitor {
-	/*! \brief Key <ipaddr>:<port> */
+	/*! \brief Key \<ipaddr>:\<port> */
 	char key[IP6ADDR_COLON_PORT_BUFLEN];
 	/*! \brief The underlying PJSIP transport */
 	pjsip_transport *transport;

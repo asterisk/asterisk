@@ -808,15 +808,15 @@ struct ast_geoloc_eprofile *ast_geoloc_eprofile_create_from_pidf(
  * \internal
  * \brief Create an common, intermediate XML document to pass to the outgoing XSLT process
  *
- * \param eprofile    The eprofile
- * \param chan        The channel to resolve variables against
- * \param ref_string  A reference string for error messages
- * \return            An XML doc
+ * \param element_name The name of the top-level XML element to create
+ * \param eprofile     The eprofile
+ * \param chan         The channel to resolve variables against
+ * \param ref_string   A reference string for error messages
+ * \return             An XML doc
  *
  * \note Given that the document is simple and static, it was easier to just
  * create the elements in a string buffer and call ast_xml_read_memory()
  * at the end instead of creating
- *
  */
 static struct ast_xml_node *geoloc_eprofile_to_intermediate(const char *element_name, struct ast_geoloc_eprofile *eprofile,
 	struct ast_channel *chan, const char *ref_string)
@@ -846,8 +846,8 @@ static struct ast_xml_node *geoloc_eprofile_to_intermediate(const char *element_
 
 	pidf_node = ast_xml_new_node(element_name);
 	if (!pidf_node) {
-		SCOPE_EXIT_LOG_RTN_VALUE(NULL, LOG_ERROR, "%s: Unable to create 'pidf' XML node\n",
-			ref_string);
+		SCOPE_EXIT_LOG_RTN_VALUE(NULL, LOG_ERROR, "%s: Unable to create '%s' XML node\n",
+			ref_string, element_name);
 	}
 
 	loc_node = ast_xml_new_child(pidf_node, "location-info");
