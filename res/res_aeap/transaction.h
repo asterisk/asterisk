@@ -105,7 +105,7 @@ int aeap_transaction_result(struct aeap_transaction *tsx);
  *
  * Stops the transaction timer, but does not end/stop the transaction itself
  *
- * \param transaction A transaction to cancel the timer on
+ * \param tsx A transaction to cancel the timer on
  *
  * \returns 0 if canceled, non zero otherwise
  */
@@ -114,7 +114,7 @@ int aeap_transaction_cancel_timer(struct aeap_transaction *tsx);
 /*!
  * \brief Retrieve the user object associated with the transaction
  *
- * \param transaction A transaction object
+ * \param tsx A transaction object
  *
  * \returns A user object, or NULL if non associated
  */

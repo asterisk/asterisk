@@ -255,9 +255,9 @@ struct timeval ast_double2tv(double _td),
 
 /*!
  * \brief Returns a double corresponding to the number of seconds
- * in the timeval _tv.
+ * in the timeval \c tv.
  *
- * \param _tv A pointer to a timeval structure.
+ * \param tv A pointer to a timeval structure.
  * \returns A double containing the number of seconds.
  *
  * This is the inverse of ast_double2tv().

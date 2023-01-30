@@ -6103,8 +6103,9 @@ static void update_lost_stats(struct ast_rtp *rtp, unsigned int lost_packets)
  * The tallied score is based upon recommendations and formulas from ITU-T G.107,
  * ITU-T G.109, ITU-T G.113, and other various internet sources.
  *
+ * \param instance RTP instance
  * \param normdevrtt The average round trip time
- * \param rxjitter The smoothed jitter
+ * \param normdev_rxjitter The smoothed jitter
  * \param stdev_rxjitter The jitter standard deviation value
  * \param normdev_rxlost The average number of packets lost since last check
  *

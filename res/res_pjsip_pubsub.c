@@ -945,6 +945,8 @@ static struct resource_list *retrieve_resource_list(const char *resource, const 
  * \param resource The name of the resource for this tree node.
  * \param visited The vector of resources that have been visited.
  * \param full_state if allocating a list, indicate whether full state is requested in notifications.
+ * \param display_name the display name to include with this tree node.
+ *
  * \retval NULL Allocation failure.
  * \retval non-NULL The newly-allocated tree_node
  */

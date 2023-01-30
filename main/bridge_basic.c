@@ -1402,7 +1402,7 @@ static const char *get_transfer_context(struct ast_channel *transferer, const ch
  * \brief Determine the transfer extension to use.
  *
  * \param transferer Channel initiating the transfer.
- * \param extension User supplied extension if available.  May be NULL.
+ * \param exten User supplied extension if available.  May be NULL.
  *
  * \return The extension to use for the transfer.
  */
