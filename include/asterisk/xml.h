@@ -191,10 +191,10 @@ struct ast_xml_ns *ast_xml_find_namespace(struct ast_xml_doc *doc, struct ast_xm
 
 /*!
  * \brief Find a direct child element by name.
- * \param parent_node This is the parent node to search.
- * \param name Node name to find.
- * \param attrname attribute name to match (if NULL it won't be matched).
- * \param attrvalue attribute value to match (if NULL it won't be matched).
+ * \param _parent_node This is the parent node to search.
+ * \param _name Node name to find.
+ * \param _attrname attribute name to match (if NULL it won't be matched).
+ * \param _attrvalue attribute value to match (if NULL it won't be matched).
  * \retval NULL if not found.
  * \return The node on success.
  */
@@ -371,7 +371,7 @@ void ast_xslt_close(struct ast_xslt_doc *xslt);
  * \brief Apply an XSLT stylesheet to an XML document
  *
  * \param xslt    XSLT stylesheet to apply.
- * \param xml     XML document the stylesheet will be applied to.
+ * \param doc     XML document the stylesheet will be applied to.
  * \param params  An array of name value pairs to pass as parameters
  *                The array must terminate with a NULL sentinel.
  *                Example:  { "name1", "value1", "name2", "value2", NULL }
@@ -383,11 +383,11 @@ struct ast_xml_doc *ast_xslt_apply(struct ast_xslt_doc *xslt, struct ast_xml_doc
 /*!
  * \brief Save the results of applying a stylesheet to a string
  *
- * \param buffer[out]  A pointer to a char * to receive the address of the result string.
+ * \param[out] buffer  A pointer to a char * to receive the address of the result string.
  *                     The buffer must be freed with ast_xml_free_text().
- * \param length[out]  A pointer to an int to receive the result string length.
- * \param result       The result document from ast_xslt_apply.
- * \param xslt         The stylesheet that was applied.
+ * \param[out] length  A pointer to an int to receive the result string length.
+ * \param      result  The result document from ast_xslt_apply.
+ * \param      xslt    The stylesheet that was applied.
  *
  * \return 0 on success, any other value on failure.
  */

@@ -55,7 +55,7 @@ struct ao2_container *ast_aeap_client_configs_get(const char *protocol);
 /*!
  * \brief Retrieve codec capabilities from the configuration
  *
- * \param config A configuration object
+ * \param cfg A configuration object
  *
  * \returns The configuration's codec capabilities
  */
@@ -64,7 +64,7 @@ const struct ast_format_cap *ast_aeap_client_config_codecs(const struct ast_aeap
 /*!
  * \brief Check a given protocol against that in an Asterisk external application configuration
  *
- * \param config A configuration object
+ * \param cfg A configuration object
  * \param protocol The protocol to check
  *
  * \returns True if the configuration's protocol matches, false otherwise
@@ -294,7 +294,8 @@ void ast_aeap_user_data_unregister(struct ast_aeap *aeap, const char *id);
  *       handler that [potentially] frees it the caller of this function must ensure
  *       it's done using the returned object before it's unregistered.
  *
- * \param data A user data object
+ * \param aeap An Asterisk external application object
+ * \param id The look up id for the object
  *
  * \returns A user data object
  */
@@ -359,7 +360,6 @@ struct ast_aeap_tsx_params {
  *       is specified in "params".
  *
  * \param aeap An Asterisk external application object
- * \param msg The message to send
  * \param params (optional) Additional parameters to consider when sending. Heap allocation
  *     not required.
  *

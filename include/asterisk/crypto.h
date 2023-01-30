@@ -110,10 +110,10 @@ AST_OPTIONAL_API(int, ast_sign_bin, (struct ast_key *key, const char *msg, int m
 
 /*!
  * \brief Encrypt a message using a given private key
- * \param key a private key to use to encrypt
+ * \param dst a pointer to a buffer of at least srclen * 1.5 bytes in which the encrypted
  * \param src the message to encrypt
  * \param srclen the length of the message to encrypt
- * \param dst a pointer to a buffer of at least srclen * 1.5 bytes in which the encrypted
+ * \param key a private key to use to encrypt
  * answer will be stored
  *
  * \retval length of encrypted data on success.
@@ -124,10 +124,10 @@ AST_OPTIONAL_API(int, ast_encrypt_bin, (unsigned char *dst, const unsigned char 
 
 /*!
  * \brief Decrypt a message using a given private key
- * \param key a private key to use to decrypt
+ * \param dst a pointer to a buffer of at least srclen bytes in which the decrypted
  * \param src the message to decrypt
  * \param srclen the length of the message to decrypt
- * \param dst a pointer to a buffer of at least srclen bytes in which the decrypted
+ * \param key a private key to use to decrypt
  * answer will be stored
  *
  * \retval length of decrypted data on success.
@@ -164,7 +164,7 @@ AST_OPTIONAL_API(int, ast_aes_set_decrypt_key,
  * \brief AES encrypt data
  * \param in data to be encrypted
  * \param out pointer to a buffer to hold the encrypted output
- * \param ctx address of an aes encryption context filled in with ast_aes_set_encrypt_key
+ * \param key pointer to the ast_aes_encrypt_key to use for encryption
  * \retval <= 0 failure
  * \retval otherwise number of bytes in output buffer
  */
@@ -176,7 +176,7 @@ AST_OPTIONAL_API(int, ast_aes_encrypt,
  * \brief AES decrypt data
  * \param in encrypted data
  * \param out pointer to a buffer to hold the decrypted output
- * \param ctx address of an aes encryption context filled in with ast_aes_set_decrypt_key
+ * \param key pointer to the ast_aes_decrypt_key to use for decryption
  * \retval <= 0 failure
  * \retval otherwise number of bytes in output buffer
  */

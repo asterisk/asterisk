@@ -604,6 +604,7 @@ static int stir_shaken_verify_signature(const char *msg, const char *signature, 
  *
  * \param public_cert_url The public cert URL
  * \param path The path to download the file to
+ * \param acl The ACL to use for cURL (if not NULL)
  *
  * \retval NULL on failure
  * \retval full path filename on success
@@ -641,6 +642,7 @@ static char *run_curl(const char *public_cert_url, const char *path, const struc
  * \param public_cert_url The public cert URL
  * \param path The path to download the file to
  * \param curl Flag signaling if we have run CURL or not
+ * \param acl The ACL to use for cURL (if not NULL)
  *
  * \retval NULL on failure
  * \retval full path filename on success
