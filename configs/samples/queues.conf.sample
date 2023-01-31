@@ -78,6 +78,12 @@ monitor-type = MixMonitor
 ;
 ;announce = queue-markq
 ;
+; An announcement may be specified which is played to the caller just
+; before they are bridged with an agent. The default is to not play an
+; announcement to the caller.
+;
+;queue-callerannounce = you-are-being-connected
+;
 ; A strategy may be specified.  Valid strategies include:
 ;
 ; ringall - ring all available channels until one answers (default)
@@ -354,6 +360,10 @@ monitor-type = MixMonitor
 ;queue-thereare	= queue-thereare
 			;	("calls waiting.")
 ;queue-callswaiting = queue-callswaiting
+			;	("Currently there are more than")
+;queue-quantity1 = queue-quantity1
+			;	("callers waiting to speak with a representative")
+;queue-quantity2 = queue-quantity2
 			;	("The current est. holdtime is")
 ;queue-holdtime = queue-holdtime
 			;	("minute.")
