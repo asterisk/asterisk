@@ -1277,7 +1277,7 @@
 			</syntax>
 			<see-also>
 				<ref type="application">PauseQueueMember</ref>
-				<ref type="application">UnPauseQueueMember</ref>
+				<ref type="application">UnpauseQueueMember</ref>
 			</see-also>
 		</managerEventInstance>
 	</managerEvent>
@@ -8180,7 +8180,7 @@ static int pqm_exec(struct ast_channel *chan, const char *data)
 	return 0;
 }
 
-/*! \brief UnPauseQueueMember application */
+/*! \brief UnpauseQueueMember application */
 static int upqm_exec(struct ast_channel *chan, const char *data)
 {
 	char *parse;
@@ -8201,7 +8201,7 @@ static int upqm_exec(struct ast_channel *chan, const char *data)
 	AST_STANDARD_APP_ARGS(args, parse);
 
 	if (ast_strlen_zero(args.interface)) {
-		ast_log(LOG_WARNING, "Missing interface argument to PauseQueueMember ([queuename],interface[,options[,reason]])\n");
+		ast_log(LOG_WARNING, "Missing interface argument to UnpauseQueueMember ([queuename],interface[,options[,reason]])\n");
 		return -1;
 	}
 
