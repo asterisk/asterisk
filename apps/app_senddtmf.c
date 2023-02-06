@@ -57,6 +57,15 @@
 			<parameter name="channel" required="false">
 				<para>Channel where digits will be played</para>
 			</parameter>
+			<parameter name="options">
+				<optionlist>
+					<option name="a">
+						<para>Answer the channel specified by the <literal>channel</literal>
+						parameter if it is not already up. If no <literal>channel</literal>
+						parameter is provided, the current channel will be answered.</para>
+					</option>
+				</optionlist>
+			</parameter>
 		</syntax>
 		<description>
 			<para>It will send all digits or terminate if it encounters an error.</para>
@@ -90,6 +99,19 @@
 	</manager>
  ***/
 
+enum read_option_flags {
+	OPT_ANSWER = (1 << 0),
+};
+
+AST_APP_OPTIONS(senddtmf_app_options, {
+	AST_APP_OPTION('a', OPT_ANSWER),
+});
+
+enum {
+	/* note: this entry _MUST_ be the last one in the enum */
+	OPT_ARG_ARRAY_SIZE,
+};
+
 static const char senddtmf_name[] = "SendDTMF";
 
 static int senddtmf_exec(struct ast_channel *chan, const char *vdata)
@@ -100,11 +122,14 @@ static int senddtmf_exec(struct ast_channel *chan, const char *vdata)
 	struct ast_channel *chan_found = NULL;
 	struct ast_channel *chan_dest = chan;
 	struct ast_channel *chan_autoservice = NULL;
+	char *opt_args[OPT_ARG_ARRAY_SIZE];
+	struct ast_flags flags = {0};
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(digits);
 		AST_APP_ARG(dinterval);
 		AST_APP_ARG(duration);
 		AST_APP_ARG(channel);
+		AST_APP_ARG(options);
 	);
 
 	if (ast_strlen_zero(vdata)) {
@@ -135,6 +160,12 @@ static int senddtmf_exec(struct ast_channel *chan, const char *vdata)
 		if (chan_found != chan) {
 			chan_autoservice = chan;
 		}
+	}
+	if (!ast_strlen_zero(args.options)) {
+		ast_app_parse_options(senddtmf_app_options, &flags, opt_args, args.options);
+	}
+	if (ast_test_flag(&flags, OPT_ANSWER)) {
+		ast_auto_answer(chan_dest);
 	}
 	res = ast_dtmf_stream(chan_dest, chan_autoservice, args.digits,
 		dinterval <= 0 ? 250 : dinterval, duration);
