@@ -74,12 +74,16 @@ AC_DEFUN([_PJPROJECT_CONFIGURE],
 			y|ye|yes)
 			# Not to mention SSL is the default in PJProject and means "autodetect".
 			# In Asterisk, "./configure --with-ssl" means "must be present".
-			PJPROJECT_CONFIGURE_OPTS="${PJPROJECT_CONFIGURE_OPTS}"
+			PJPROJECT_CONFIGURE_OPTS="${PJPROJECT_CONFIGURE_OPTS} --with-ssl"
 			;;
 			*)
 			PJPROJECT_CONFIGURE_OPTS="${PJPROJECT_CONFIGURE_OPTS} --with-ssl=${with_ssl}"
 			;;
 			esac
+		else
+			if test $PBX_OPENSSL -eq 1 ; then
+				PJPROJECT_CONFIGURE_OPTS="${PJPROJECT_CONFIGURE_OPTS} --with-ssl"
+			fi
 		fi
 
 		# Determine if we're doing an out-of-tree build...
