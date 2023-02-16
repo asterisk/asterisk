@@ -47,6 +47,7 @@
 #include "asterisk/test.h"
 #include "asterisk/res_pjsip_presence_xml.h"
 #include "asterisk/res_pjproject.h"
+#include "asterisk/utf8.h"
 
 /*** MODULEINFO
 	<depend>pjproject</depend>
@@ -2461,12 +2462,12 @@ static void set_id_from_hdr(pjsip_fromto_hdr *hdr, struct ast_party_id *id)
 {
 	char cid_name[AST_CHANNEL_NAME];
 	char cid_num[AST_CHANNEL_NAME];
+	size_t cid_name_size = AST_CHANNEL_NAME;
 	pjsip_name_addr *id_name_addr = (pjsip_name_addr *) hdr->uri;
 	char *semi;
+	enum ast_utf8_replace_result result;
 
-	ast_copy_pj_str(cid_name, &id_name_addr->display, sizeof(cid_name));
 	ast_copy_pj_str(cid_num, ast_sip_pjsip_uri_get_username(hdr->uri), sizeof(cid_num));
-
 	/* Always truncate caller-id number at a semicolon. */
 	semi = strchr(cid_num, ';');
 	if (semi) {
@@ -2482,6 +2483,21 @@ static void set_id_from_hdr(pjsip_fromto_hdr *hdr, struct ast_party_id *id)
 		 * allows the semicolon.
 		 */
 		*semi = '\0';
+	}
+
+	/*
+	 * It's safe to pass a NULL or empty string as the source.
+	 * The result will be an empty string assuming the destination
+	 * size was at least 1.
+	 */
+	result = ast_utf8_replace_invalid_chars(cid_name, &cid_name_size,
+		id_name_addr->display.ptr, id_name_addr->display.slen);
+
+	if (result != AST_UTF8_REPLACE_VALID) {
+		ast_log(LOG_WARNING, "CallerID Name '" PJSTR_PRINTF_SPEC
+			"' for number '%s' has invalid UTF-8 characters which "
+			"were replaced",
+			PJSTR_PRINTF_VAR(id_name_addr->display), cid_num);
 	}
 
 	ast_free(id->name.str);
