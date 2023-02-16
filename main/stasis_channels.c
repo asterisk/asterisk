@@ -39,6 +39,7 @@
 #include "asterisk/stasis_channels.h"
 #include "asterisk/dial.h"
 #include "asterisk/linkedlists.h"
+#include "asterisk/utf8.h"
 
 /*** DOCUMENTATION
 	<managerEvent language="en_US" name="VarSet">
@@ -1154,13 +1155,43 @@ void ast_channel_publish_blob(struct ast_channel *chan, struct stasis_message_ty
 void ast_channel_publish_varset(struct ast_channel *chan, const char *name, const char *value)
 {
 	struct ast_json *blob;
+	enum ast_utf8_replace_result result;
+	char *new_value = NULL;
+	size_t new_value_size = 0;
 
 	ast_assert(name != NULL);
 	ast_assert(value != NULL);
 
+	/*
+	 * Call with new-value == NULL to just check for invalid UTF-8
+	 * sequences and get size of buffer needed.
+	 */
+	result = ast_utf8_replace_invalid_chars(new_value, &new_value_size,
+			value, strlen(value));
+
+	if (result == AST_UTF8_REPLACE_VALID) {
+		/*
+		 * If there were no invalid sequences, we can use
+		 * the value directly.
+		 */
+		new_value = (char *)value;
+	} else {
+		/*
+		 * If there were invalid sequences, we need to replace
+		 * them with the UTF-8 U+FFFD replacement character.
+		 */
+		new_value = ast_alloca(new_value_size);
+
+		result = ast_utf8_replace_invalid_chars(new_value, &new_value_size,
+			value, strlen(value));
+
+		ast_log(LOG_WARNING, "%s: The contents of variable '%s' had invalid UTF-8 sequences which were replaced",
+			ast_channel_name(chan), name);
+	}
+
 	blob = ast_json_pack("{s: s, s: s}",
 			     "variable", name,
-			     "value", value);
+			     "value", new_value);
 	if (!blob) {
 		ast_log(LOG_ERROR, "Error creating message\n");
 		return;
