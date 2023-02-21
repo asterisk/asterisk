@@ -4137,7 +4137,7 @@ static void pubsub_on_rx_refresh(pjsip_evsub *evsub, pjsip_rx_data *rdata,
 	   SUBSCRIBE's 200 OK. The previous solution was to push the NOTIFY, but now pjproject
 	   looks for the NOTIFY on send and delays it until after it auto-replies.
 	   If the NOTIFY is not there when it looks to send, pjproject will assert. */
-	serialized_pubsub_on_refresh_timeout(sub_tree);
+	pubsub_on_refresh_timeout(sub_tree);
 #else
 	if (ast_sip_push_task(sub_tree->serializer, serialized_pubsub_on_refresh_timeout, ao2_bump(sub_tree))) {
 		/* If we can't push the NOTIFY refreshing task...we'll just go with it. */
