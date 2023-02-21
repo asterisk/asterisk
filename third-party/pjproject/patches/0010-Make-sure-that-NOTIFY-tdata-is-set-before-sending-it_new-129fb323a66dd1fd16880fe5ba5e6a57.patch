@@ -1,0 +1,46 @@
+From ac685b30c17be461b2bf5b46a772ed9742b8e985 Mon Sep 17 00:00:00 2001
+From: Riza Sulistyo <trengginas@users.noreply.github.com>
+Date: Thu, 9 Feb 2023 13:19:23 +0700
+Subject: [PATCH] Make sure that NOTIFY tdata is set before sending it.
+
+---
+ pjsip/src/pjsip-simple/evsub.c | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/pjsip/src/pjsip-simple/evsub.c b/pjsip/src/pjsip-simple/evsub.c
+index da0a9b416..68c1d3951 100644
+--- a/pjsip/src/pjsip-simple/evsub.c
++++ b/pjsip/src/pjsip-simple/evsub.c
+@@ -2216,23 +2216,26 @@ static void on_tsx_state_uas( pjsip_evsub *sub, pjsip_transaction *tsx,
+             }
+ 
+         }  else {
+             sub->state = old_state;
+             sub->state_str = old_state_str;
+         }
+ 
+         /* Send the pending NOTIFY sent by app from inside
+          * on_rx_refresh() callback.
+          */
+-        pj_assert(sub->pending_notify);
+-        status = pjsip_evsub_send_request(sub, sub->pending_notify);
+-        sub->pending_notify = NULL;
++        //pj_assert(sub->pending_notify);
++        /* Make sure that pending_notify is set. */
++        if (sub->pending_notify) {
++            status = pjsip_evsub_send_request(sub, sub->pending_notify);
++            sub->pending_notify = NULL;
++        }
+ 
+     } else if (pjsip_method_cmp(&tsx->method, &pjsip_notify_method)==0) {
+ 
+         /* Handle authentication */
+         if (tsx->state == PJSIP_TSX_STATE_COMPLETED &&
+             (tsx->status_code==401 || tsx->status_code==407))
+         {
+             pjsip_tx_data *tdata;
+             pj_status_t status;
+             pjsip_rx_data *rdata = event->body.tsx_state.src.rdata;
+-- 
+2.39.1
+
