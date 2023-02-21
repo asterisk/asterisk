@@ -1845,6 +1845,7 @@ struct call_queue {
 	int announcepositionlimit;          /*!< How many positions we announce? */
 	int announcefrequency;              /*!< How often to announce their position */
 	int minannouncefrequency;           /*!< The minimum number of seconds between position announcements (def. 15) */
+	int periodicannouncestartdelay;     /*!< How long into the queue should the periodic accouncement start */
 	int periodicannouncefrequency;      /*!< How often to play periodic announcement */
 	int numperiodicannounce;            /*!< The number of periodic announcements configured */
 	int randomperiodicannounce;         /*!< Are periodic announcments randomly chosen */
@@ -2975,6 +2976,7 @@ static void init_queue(struct call_queue *q)
 	q->weight = 0;
 	q->timeoutrestart = 0;
 	q->periodicannouncefrequency = 0;
+	q->periodicannouncestartdelay = -1;
 	q->randomperiodicannounce = 0;
 	q->numperiodicannounce = 0;
 	q->relativeperiodicannounce = 0;
@@ -3431,6 +3433,8 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 			ast_str_set(&q->sound_periodicannounce[0], 0, "%s", val);
 			q->numperiodicannounce = 1;
 		}
+	} else if (!strcasecmp(param, "periodic-announce-startdelay")) {
+		q->periodicannouncestartdelay = atoi(val);
 	} else if (!strcasecmp(param, "periodic-announce-frequency")) {
 		q->periodicannouncefrequency = atoi(val);
 	} else if (!strcasecmp(param, "relative-periodic-announce")) {
@@ -8651,6 +8655,11 @@ static int queue_exec(struct ast_channel *chan, const char *data)
 		return 0;
 	}
 	ast_assert(qe.parent != NULL);
+
+	if (qe.parent->periodicannouncestartdelay >= 0) {
+		qe.last_periodic_announce_time += qe.parent->periodicannouncestartdelay;
+		qe.last_periodic_announce_time -= qe.parent->periodicannouncefrequency;
+	}
 
 	ast_queue_log(args.queuename, ast_channel_uniqueid(chan), "NONE", "ENTERQUEUE", "%s|%s|%d",
 		S_OR(args.url, ""),
