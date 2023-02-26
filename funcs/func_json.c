@@ -174,7 +174,11 @@ static int parse_node(char **key, char *currentkey, char *nestchar, int count, s
 				previouskey = currentkey;
 				currentkey = strsep(key, nestchar); /* retrieve the desired index */
 				ast_debug(1, "Recursing on object (key was '%s' and is now '%s')\n", previouskey, currentkey);
-				if (parse_node(key, currentkey, nestchar, count, ast_json_object_get(jsonval, currentkey), buf, len, depth)) { /* recurse on this node */
+				if (!currentkey) { /* this is the end, so just dump the object */
+					char *result2 = ast_json_dump_string(jsonval);
+					ast_copy_string(buf, result2, len);
+					ast_json_free(result2);
+				} else if (parse_node(key, currentkey, nestchar, count, ast_json_object_get(jsonval, currentkey), buf, len, depth)) { /* recurse on this node */
 					return -1;
 				}
 			}
@@ -305,6 +309,7 @@ AST_TEST_DEFINE(test_JSON_DECODE)
 		{"{ \"path\": { \"to\": { \"arr\": [ {\"name\": \"John Smith\", \"phone\": \"123\"}, {\"name\": \"Jane Doe\", \"phone\": \"234\"} ] } } }", ",c", "path.to.arr.0.name", "John Smith"},
 		{"{ \"path\": { \"to\": { \"arr\": [ {\"name\": 1, \"phone\": 123}, {\"name\": 2, \"phone\": 234} ] } } }", ",c", "path.to.arr.0.name", "1"},
 		{"{ \"path\": { \"to\": { \"arr\": [ {\"name\": [ \"item11\", \"item12\" ], \"phone\": [ \"item13\", \"item14\" ]}, {\"name\": [ \"item15\", \"item16\" ], \"phone\": [ \"item17\", \"item18\" ]} ] } } }", ",c", "path.to.arr.0.name.1", "item12"},
+		{"{ \"startId\": \"foobar\", \"abcd\": { \"id\": \"abcd\", \"type\": \"EXT\" }, \"bcde\": { \"id\": \"bcde\", \"type\": \"CONDITION\" }, \"defg\": { \"id\": \"defg\", \"type\": \"EXT\" }, \"efgh\": { \"id\": \"efgh\", \"type\": \"VOICEMAIL\" } }", "", "bcde", "{\"id\":\"bcde\",\"type\":\"CONDITION\"}"},
 	};
 
 	switch (cmd) {
