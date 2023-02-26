@@ -97,6 +97,23 @@
 			<para>Plays a dtmf digit on the specified channel.</para>
 		</description>
 	</manager>
+	<manager name="SendFlash" language="en_US">
+		<synopsis>
+			Send a hook flash on a specific channel.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Channel" required="true">
+				<para>Channel name to send hook flash to.</para>
+			</parameter>
+			<parameter name="Receive" required="false">
+				<para>Emulate receiving a hook flash on this channel instead of sending it out.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Sends a hook flash on the specified channel.</para>
+		</description>
+	</manager>
  ***/
 
 enum read_option_flags {
@@ -218,12 +235,41 @@ static int manager_play_dtmf(struct mansession *s, const struct message *m)
 	return 0;
 }
 
+static int manager_send_flash(struct mansession *s, const struct message *m)
+{
+	const char *channel = astman_get_header(m, "Channel");
+	const char *receive_s = astman_get_header(m, "Receive");
+	struct ast_channel *chan;
+
+	if (!(chan = ast_channel_get_by_name(channel))) {
+		astman_send_error(s, m, "Channel not found");
+		return 0;
+	}
+
+	if (ast_true(receive_s)) {
+		struct ast_frame f = { AST_FRAME_CONTROL, };
+		f.subclass.integer = AST_CONTROL_FLASH;
+		ast_queue_frame(chan, &f);
+	} else {
+		struct ast_frame f = { AST_FRAME_CONTROL, };
+		f.subclass.integer = AST_CONTROL_FLASH;
+		ast_channel_lock(chan);
+		ast_write(chan, &f);
+		ast_channel_unlock(chan);
+	}
+
+	chan = ast_channel_unref(chan);
+	astman_send_ack(s, m, "Flash successfully queued");
+	return 0;
+}
+
 static int unload_module(void)
 {
 	int res;
 
 	res = ast_unregister_application(senddtmf_name);
 	res |= ast_manager_unregister("PlayDTMF");
+	res |= ast_manager_unregister("SendFlash");
 
 	return res;
 }
@@ -233,6 +279,7 @@ static int load_module(void)
 	int res;
 
 	res = ast_manager_register_xml("PlayDTMF", EVENT_FLAG_CALL, manager_play_dtmf);
+	res |= ast_manager_register_xml("SendFlash", EVENT_FLAG_CALL, manager_send_flash);
 	res |= ast_register_application_xml(senddtmf_name, senddtmf_exec);
 
 	return res;
