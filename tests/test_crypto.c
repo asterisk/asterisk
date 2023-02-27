@@ -110,10 +110,16 @@ AST_TEST_DEFINE(crypto_rsa_encrypt)
 
 	if (!ast_check_command_in_path(command)) {
 		ast_test_status_update(test, "couldn't find %s\n", command);
+		ast_test_capture_free(&cap);
 		return res;
 	}
 
-	getcwd(wd, sizeof(wd));
+	if (getcwd(wd, sizeof(wd)) == NULL) {
+		ast_test_status_update(test, "Could not determine current working directory\n");
+		ast_test_capture_free(&cap);
+		return res;
+	}
+
 	snprintf(key_dir, sizeof(key_dir), "%s/%s", wd, "tests/keys");
 	push_key_dir((const char *)key_dir);
 	snprintf(priv, sizeof(priv), "%s/%s.key", key_dir, keypair1);
@@ -200,10 +206,16 @@ AST_TEST_DEFINE(crypto_rsa_decrypt)
 
 	if (!ast_check_command_in_path(command)) {
 		ast_test_status_update(test, "couldn't find %s\n", command);
+		ast_test_capture_free(&cap);
 		return res;
 	}
 
-	getcwd(wd, sizeof(wd));
+	if (getcwd(wd, sizeof(wd)) == NULL) {
+		ast_test_status_update(test, "Could not determine current working directory\n");
+		ast_test_capture_free(&cap);
+		return res;
+	}
+
 	snprintf(key_dir, sizeof(key_dir), "%s/%s", wd, "tests/keys");
 	push_key_dir((const char *)key_dir);
 	snprintf(pub, sizeof(pub), "%s/%s.pub", key_dir, keypair1);
@@ -297,10 +309,16 @@ AST_TEST_DEFINE(crypto_sign)
 
 	if (!ast_check_command_in_path(command)) {
 		ast_test_status_update(test, "couldn't find %s\n", command);
+		ast_test_capture_free(&cap);
 		return res;
 	}
 
-	getcwd(wd, sizeof(wd));
+	if (getcwd(wd, sizeof(wd)) == NULL) {
+		ast_test_status_update(test, "Could not determine current working directory\n");
+		ast_test_capture_free(&cap);
+		return res;
+	}
+
 	snprintf(key_dir, sizeof(key_dir), "%s/%s", wd, "tests/keys");
 	push_key_dir((const char *)key_dir);
 	snprintf(pub, sizeof(pub), "%s/%s.pub", key_dir, keypair1);
@@ -410,10 +428,16 @@ AST_TEST_DEFINE(crypto_verify)
 
 	if (!ast_check_command_in_path(command)) {
 		ast_test_status_update(test, "couldn't find %s\n", command);
+		ast_test_capture_free(&cap);
 		return res;
 	}
 
-	getcwd(wd, sizeof(wd));
+	if (getcwd(wd, sizeof(wd)) == NULL) {
+		ast_test_status_update(test, "Could not determine current working directory\n");
+		ast_test_capture_free(&cap);
+		return res;
+	}
+
 	snprintf(key_dir, sizeof(key_dir), "%s/%s", wd, "tests/keys");
 	push_key_dir((const char *)key_dir);
 	snprintf(priv, sizeof(priv), "%s/%s.key", key_dir, keypair1);
