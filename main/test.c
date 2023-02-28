@@ -363,7 +363,7 @@ int ast_test_capture_command(struct ast_test_capture *capture, const char *file,
 	}
 
 	if (pipe(fd2) == -1) {
-		ast_log(LOG_ERROR, "Couldn't open stdout pipe: %s\n", strerror(errno));
+		ast_log(LOG_ERROR, "Couldn't open stderr pipe: %s\n", strerror(errno));
 		goto cleanup;
 	}
 
@@ -472,7 +472,10 @@ int ast_test_capture_command(struct ast_test_capture *capture, const char *file,
 			 */
 			n = select(nfds, &readfds, &writefds, NULL, NULL);
 
-			if (FD_ISSET(fd0[1], &writefds)) {
+			/* A version of FD_ISSET() that is tolerant of -1 file descriptors */
+#define SAFE_FD_ISSET(fd, setptr) ((fd) != -1 && FD_ISSET((fd), setptr))
+
+			if (SAFE_FD_ISSET(fd0[1], &writefds)) {
 				n = write(fd0[1], data, datalen);
 				if (n > 0) {
 					data += n;
@@ -485,7 +488,7 @@ int ast_test_capture_command(struct ast_test_capture *capture, const char *file,
 				}
 			}
 
-			if (FD_ISSET(fd1[0], &readfds)) {
+			if (SAFE_FD_ISSET(fd1[0], &readfds)) {
 				n = read(fd1[0], buf, sizeof(buf));
 				if (n > 0) {
 					fwrite(buf, sizeof(char), n, out);
@@ -494,7 +497,7 @@ int ast_test_capture_command(struct ast_test_capture *capture, const char *file,
 				}
 			}
 
-			if (FD_ISSET(fd2[0], &readfds)) {
+			if (SAFE_FD_ISSET(fd2[0], &readfds)) {
 				n = read(fd2[0], buf, sizeof(buf));
 				if (n > 0) {
 					fwrite(buf, sizeof(char), n, err);
@@ -502,6 +505,8 @@ int ast_test_capture_command(struct ast_test_capture *capture, const char *file,
 					zclose(fd2[0]);
 				}
 			}
+
+#undef SAFE_FD_ISSET
 		}
 		status = 1;
 
