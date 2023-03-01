@@ -198,16 +198,27 @@
 						channel variable or <literal>auto</literal> if the variable is not set. The timestamp
 						is a UNIX timestamp. The filename is either the value of the <replaceable>TOUCH_MONITOR</replaceable>
 						channel variable or the callerID of the channels if the variable is not set.</para>
+						<para>To play a periodic beep while this call is being recorded, set the
+						<replaceable>TOUCH_MONITOR_BEEP</replaceable> to the interval in seconds. The interval will default
+						to 15 seconds if invalid.  The minimum interval is 5 seconds.</para>
 					</description>
 				</configOption>
 				<configOption name="automixmon">
 					<synopsis>DTMF sequence to start or stop mixmonitoring a call </synopsis>
 					<description>
-						<para>Operation of the automixmon is similar to the <literal> automon </literal>
-						feature, with the following exceptions:
-							<replaceable>TOUCH_MIXMONITOR</replaceable> is used in place of <replaceable>TOUCH_MONITOR</replaceable>
-							<replaceable>TOUCH_MIXMONITOR_FORMAT</replaceable> is used in place of <replaceable>TOUCH_MIXMONITOR</replaceable>
-							There is no equivalent for <replaceable>TOUCH_MONITOR_PREFIX</replaceable>. <literal>"auto"</literal> is always how the filename begins.</para>
+						<para>This will cause the channel that pressed the DTMF sequence
+						to be monitored by the <literal>MixMonitor</literal> application. The
+						format for the recording is determined by the <replaceable>TOUCH_MIXMONITOR_FORMAT</replaceable>
+						channel variable. If this variable is not specified, then <literal>wav</literal> is the
+						default. The filename is constructed in the following manner:</para>
+						<para>    prefix-timestamp-suffix.fmt</para>
+						<para>where prefix is either the value of the <replaceable>TOUCH_MIXMONITOR_PREFIX</replaceable>
+						channel variable or <literal>auto</literal> if the variable is not set. The timestamp
+						is a UNIX timestamp. The suffix is either the value of the <replaceable>TOUCH_MIXMONITOR</replaceable>
+						channel variable or the callerID of the channels if the variable is not set.</para>
+						<para>To play a periodic beep while this call is being recorded, set the
+						<replaceable>TOUCH_MIXMONITOR_BEEP</replaceable> to the interval in seconds. The interval will default
+						to 15 seconds if invalid.  The minimum interval is 5 seconds.</para>
 					</description>
 					<see-also><ref type="configOption">automon</ref></see-also>
 				</configOption>
