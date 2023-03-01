@@ -51,6 +51,7 @@
 #include "asterisk/mixmonitor.h"
 #include "asterisk/audiohook.h"
 #include "asterisk/causes.h"
+#include "asterisk/beep.h"
 
 enum set_touch_variables_res {
 	SET_TOUCH_SUCCESS,
@@ -76,22 +77,25 @@ static void set_touch_variable(enum set_touch_variables_res *res, struct ast_cha
 	}
 }
 
-static enum set_touch_variables_res set_touch_variables(struct ast_channel *chan, char **touch_format, char **touch_monitor, char **touch_monitor_prefix)
+static enum set_touch_variables_res set_touch_variables(struct ast_channel *chan, char **touch_format, char **touch_monitor, char **touch_monitor_prefix, char **touch_monitor_beep)
 {
 	enum set_touch_variables_res res = SET_TOUCH_UNSET;
 	const char *var_format;
 	const char *var_monitor;
 	const char *var_prefix;
+	const char *var_beep;
 
 	SCOPED_CHANNELLOCK(lock, chan);
 
 	var_format = "TOUCH_MIXMONITOR_FORMAT";
 	var_monitor = "TOUCH_MIXMONITOR";
 	var_prefix = "TOUCH_MIXMONITOR_PREFIX";
+	var_beep = "TOUCH_MIXMONITOR_BEEP";
 
 	set_touch_variable(&res, chan, var_format, touch_format);
 	set_touch_variable(&res, chan, var_monitor, touch_monitor);
 	set_touch_variable(&res, chan, var_prefix, touch_monitor_prefix);
+	set_touch_variable(&res, chan, var_beep, touch_monitor_beep);
 
 	return res;
 }
@@ -122,7 +126,7 @@ static void stop_automixmonitor(struct ast_bridge_channel *bridge_channel, struc
 
 static void start_automixmonitor(struct ast_bridge_channel *bridge_channel, struct ast_channel *peer_chan, struct ast_features_general_config *features_cfg, const char *start_message)
 {
-	char *touch_filename;
+	char *touch_filename, mix_options[32] = "b";
 	size_t len;
 	int x;
 	enum set_touch_variables_res set_touch_res;
@@ -130,15 +134,16 @@ static void start_automixmonitor(struct ast_bridge_channel *bridge_channel, stru
 	RAII_VAR(char *, touch_format, NULL, ast_free);
 	RAII_VAR(char *, touch_monitor, NULL, ast_free);
 	RAII_VAR(char *, touch_monitor_prefix, NULL, ast_free);
+	RAII_VAR(char *, touch_monitor_beep, NULL, ast_free);
 
 	set_touch_res = set_touch_variables(bridge_channel->chan, &touch_format,
-		&touch_monitor, &touch_monitor_prefix);
+		&touch_monitor, &touch_monitor_prefix, &touch_monitor_beep);
 	switch (set_touch_res) {
 	case SET_TOUCH_SUCCESS:
 		break;
 	case SET_TOUCH_UNSET:
 		set_touch_res = set_touch_variables(peer_chan, &touch_format, &touch_monitor,
-			&touch_monitor_prefix);
+			&touch_monitor_prefix, &touch_monitor_beep);
 		if (set_touch_res == SET_TOUCH_ALLOC_FAILURE) {
 			return;
 		}
@@ -181,7 +186,22 @@ static void start_automixmonitor(struct ast_bridge_channel *bridge_channel, stru
 
 	ast_verb(4, "AutoMixMonitor used to record call. Filename: %s\n", touch_filename);
 
-	if (ast_start_mixmonitor(peer_chan, touch_filename, "b")) {
+	if (!ast_strlen_zero(touch_monitor_beep)) {
+		unsigned int interval = 15;
+		if (sscanf(touch_monitor_beep, "%30u", &interval) != 1) {
+			ast_log(LOG_WARNING, "Invalid interval '%s' for periodic beep. Using default of %u\n",
+						touch_monitor_beep, interval);
+		}
+
+		if (interval < 5) {
+			interval = 5;
+			ast_log(LOG_WARNING, "Interval '%s' too small for periodic beep. Using minimum of %u\n",
+					touch_monitor_beep, interval);
+		}
+		snprintf(mix_options, sizeof(mix_options), "bB(%d)", interval);
+	}
+
+	if (ast_start_mixmonitor(peer_chan, touch_filename, mix_options)) {
 		ast_verb(4, "AutoMixMonitor feature was tried by '%s' but MixMonitor failed to start.\n",
 			ast_channel_name(bridge_channel->chan));
 
