@@ -199,6 +199,9 @@
 						channel variable or <literal>auto</literal> if the variable is not set. The timestamp
 						is a UNIX timestamp. The suffix is either the value of the <replaceable>TOUCH_MONITOR</replaceable>
 						channel variable or the callerID of the channels if the variable is not set.</para>
+						<para>To play a periodic beep while this call is being recorded, set the
+						<replaceable>TOUCH_MONITOR_BEEP</replaceable> to the interval in seconds. The interval will default
+						to 15 seconds if invalid.  The minimum interval is 5 seconds.</para>
 					</description>
 					<see-also><ref type="configOption">automixmon</ref></see-also>
 				</configOption>
@@ -215,6 +218,9 @@
 						channel variable or <literal>auto</literal> if the variable is not set. The timestamp
 						is a UNIX timestamp. The suffix is either the value of the <replaceable>TOUCH_MIXMONITOR</replaceable>
 						channel variable or the callerID of the channels if the variable is not set.</para>
+						<para>To play a periodic beep while this call is being recorded, set the
+						<replaceable>TOUCH_MIXMONITOR_BEEP</replaceable> to the interval in seconds. The interval will default
+						to 15 seconds if invalid.  The minimum interval is 5 seconds.</para>
 					</description>
 					<see-also><ref type="configOption">automon</ref></see-also>
 				</configOption>
