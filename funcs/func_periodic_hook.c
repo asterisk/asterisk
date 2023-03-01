@@ -40,6 +40,7 @@
 #include "asterisk/pbx.h"
 #include "asterisk/app.h"
 #include "asterisk/audiohook.h"
+#include "asterisk/test.h"
 #define AST_API_MODULE
 #include "asterisk/beep.h"
 
@@ -343,6 +344,8 @@ static int hook_on(struct ast_channel *chan, const char *data, unsigned int hook
 
 	ast_debug(1, "hook to %s@%s enabled on %s with interval of %u seconds\n",
 			args.exten, args.context, ast_channel_name(chan), interval);
+	ast_test_suite_event_notify("PERIODIC_HOOK_ENABLED", "Exten: %s\r\nChannel: %s\r\nInterval: %u\r\n",
+			args.exten, ast_channel_name(chan), interval);
 
 	return init_hook(chan, args.context, args.exten, interval, hook_id);
 }
