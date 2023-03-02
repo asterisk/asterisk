@@ -1,0 +1,496 @@
+                                Release Summary
+
+                              asterisk-20.2.0-rc1
+
+                                Date: 2023-03-02
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release is a point release of an existing major version. The changes
+   included were made to address problems that have been identified in this
+   release series, or are minor, backwards compatible new features or
+   improvements. Users should be able to safely upgrade to this version if
+   this release series is already in use. Users considering upgrading from a
+   previous version are strongly encouraged to review the UPGRADE.txt
+   document as well as the CHANGES document for information about upgrading
+   to this release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-20.1.0.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were affected by commits that went into
+   this release.
+
+   Coders                       Testers              Reporters                
+   14 Naveen Albert                                  11 N A                   
+   7 Sean Bright                                     5 Michael Bradeen        
+   6 George Joseph                                   3 Sean Bright            
+   6 Mike Bradeen                                    3 George Joseph          
+   2 Igor Goncharovsky                               1 Sebastian Gutierrez    
+   1 Peter Fern                                      1 Jaco Kroon             
+   1 Holger Hans Peter Freyther                      1 Yury Kirsanov          
+   1 Boris P. Korzun                                 1 Benjamin Keith Ford    
+   1 Ben Ford                                        1 Nick French            
+   1 Alexei Gradinari                                1 AvayaXAsterisk         
+   1 cmaj                                            1 Ross Beer              
+   1 Asterisk Development Team                       1 Igor Goncharovsky      
+   1 Nick French                                     1 Boris P. Korzun        
+   1 sungtae kim                                     1 Joshua C. Colp         
+                                                     1 Stanislav Abramenkov   
+                                                     1 Julien Alie            
+                                                     1 Oleg                   
+                                                     1 cmaj                   
+                                                     1 Danila Evgrafov        
+                                                     1 Sebastian Gutierrez    
+                                                     1 Julien Alie            
+                                                     1 Yury Kirsanov          
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  New Feature
+
+    Category: Applications/NewFeature
+
+   ASTERISK-29810: app_signal: Add channel signaling applications
+   Reported by: N A
+     * [88b2c741ca] Naveen Albert -- app_signal: Add signaling applications
+   ASTERISK-30180: app_broadcast: Add a channel audio multicasting
+   application
+   Reported by: N A
+     * [e06fe8e344] Naveen Albert -- app_broadcast: Add Broadcast application
+
+    Category: Resources/res_pjsip_rfc3326
+
+   ASTERISK-30319: Add BYE Reason support for SIP
+   Reported by: Igor Goncharovsky
+     * [3526441e41] Igor Goncharovsky -- res_pjsip_rfc3326: Add SIP causes
+       support for RFC3326
+
+    Category: Resources/res_pjsip_session
+
+   ASTERISK-30262: res_pjsip_session: Allow a context to be specified for
+   overlap dialing
+   Reported by: N A
+     * [a1da8042d1] Naveen Albert -- res_pjsip_session: Add overlap_context
+       option.
+
+  Bug
+
+    Category: Applications/app_mixmonitor
+
+   ASTERISK-30198: Error `Too many open files` occurs after about ~8000 calls
+   when using mixmonitor
+   Reported by: Julien Alie
+     * [58404b5c22] Peter Fern -- streams: Ensure that stream is closed in
+       ast_stream_and_wait on error
+
+    Category: Applications/app_queue
+
+   ASTERISK-30417: Copy/Paste error in UnpauseQueueMember
+   Reported by: Sean Bright
+     * [aeb16aa7d8] Sean Bright -- app_queue: Minor docs and logging fixes
+       for UnpauseQueueMember.
+
+    Category: Applications/app_stasis
+
+   ASTERISK-29604: ari: Segfault with lots of calls
+   Reported by: Danila Evgrafov
+     * [f99849f8d5] sungtae kim -- res_stasis_snoop: Fix snoop crash
+
+    Category: Applications/app_voicemail/ODBC
+
+   ASTERISK-30240: app voicemail odbc build error with gcc 11.1
+   Reported by: Michael Bradeen
+     * [20d4775d0a] Naveen Albert -- app_voicemail_odbc: Fix string overflow
+       warning.
+
+    Category: Channels/chan_iax2
+
+   ASTERISK-30354: chan_iax2: Lack of formats prior to receiving voice frames
+   causes jitterbuffer to stall
+   Reported by: N A
+     * [ede67a99be] Naveen Albert -- chan_iax2: Fix jitterbuffer regression
+       prior to receiving audio.
+   ASTERISK-30162: when chan_iax is used to relay calls, no ringing
+   indication is played
+   Reported by: Jaco Kroon
+     * [ede67a99be] Naveen Albert -- chan_iax2: Fix jitterbuffer regression
+       prior to receiving audio.
+
+    Category: Channels/chan_pjsip
+
+   ASTERISK-28767: chan_pjsip: Caller ID not used when checking for
+   extension, callerid supplement executed too late
+   Reported by: Oleg
+     * [c7598ee947] Naveen Albert -- res_pjsip_session: Use Caller ID for
+       extension matching.
+
+    Category: Channels/chan_sip/General
+
+   ASTERISK-29604: ari: Segfault with lots of calls
+   Reported by: Danila Evgrafov
+     * [f99849f8d5] sungtae kim -- res_stasis_snoop: Fix snoop crash
+
+    Category: Core/BuildSystem
+
+   ASTERISK-27830: Asterisk crashes on Invalid UTF-8 string
+   Reported by: AvayaXAsterisk
+     * [ceda5a9859] George Joseph -- res_pjsip: Replace invalid UTF-8
+       sequences in callerid name
+
+    Category: Core/General
+
+   ASTERISK-30345: loader.c: Modules that decline to load cannot be reloaded
+   Reported by: N A
+     * [d33bd6d67a] Naveen Albert -- loader: Allow declined modules to be
+       unloaded.
+
+    Category: Core/HTTP
+
+   ASTERISK-30379: http: fix NULL pointer dereference while enable_status on
+   TLS-only
+   Reported by: Boris P. Korzun
+     * [edc90c96ac] Boris P. Korzun -- http.c: Fix NULL pointer dereference
+       bug
+
+    Category: Core/ManagerInterface
+
+   ASTERISK-30351: manager: Originate variables are not added when setvar
+   used in manager.conf
+   Reported by: Sebastian Gutierrez
+     * [7b8f7428da] Naveen Albert -- manager: Fix appending variables.
+
+    Category: Core/PBX
+
+   ASTERISK-30367: pbx: Fix outdated channel snapshots with pbx_exec
+   Reported by: N A
+     * [cc8d9b947b] Naveen Albert -- pbx_app: Update outdated pbx_exec
+       channel snapshots.
+
+    Category: Documentation
+
+   ASTERISK-30347: xmldocs: Remove references to removed applications
+   Reported by: N A
+     * [36bea9ad33] Naveen Albert -- app_sendtext: Remove references to
+       removed applications.
+
+    Category: PBX/pbx_ael
+
+   ASTERISK-30406: pbx_ael: Global variables are not expanded.
+   Reported by: Sean Bright
+     * [56051d1ac5] Sean Bright -- pbx_ael: Global variables are not
+       expanded.
+
+    Category: Resources/res_http_media_cache
+
+   ASTERISK-30375: res_http_media_cache: Crash when URL has no path
+   component.
+   Reported by: Sean Bright
+     * [3d9b9a2b16] Holger Hans Peter Freyther -- res_http_media_cache: Do
+       not crash when there is no extension
+
+    Category: Resources/res_phoneprov
+
+   ASTERISK-30388: res_phoneprov: Stale SERVER variable when multi-homed
+   Reported by: cmaj
+     * [5b0e3444c3] cmaj -- res_phoneprov.c: Multihomed SERVER cache
+       prevention
+
+    Category: Resources/res_pjsip
+
+   ASTERISK-30369: res_pjsip: Websockets from same IP shut down when they
+   shouldn't be
+   Reported by: Joshua C. Colp
+     * [24102ba236] George Joseph -- res_pjsip_transport_websocket: Add
+       remote port to transport
+   ASTERISK-30100: res_pjsip: Path is ignored on INVITE to endpoint
+   Reported by: Yury Kirsanov
+     * [115a1b4f0a] Igor Goncharovsky -- res_pjsip: Fix path usage in case
+       dialing with '@'
+
+    Category: Resources/res_pjsip_caller_id
+
+   ASTERISK-28767: chan_pjsip: Caller ID not used when checking for
+   extension, callerid supplement executed too late
+   Reported by: Oleg
+     * [c7598ee947] Naveen Albert -- res_pjsip_session: Use Caller ID for
+       extension matching.
+
+    Category: Resources/res_pjsip_pubsub
+
+   ASTERISK-30419: pjsip: Crash when sending NOTIFY in PJSIP 2.13
+   Reported by: Ross Beer
+     * [37e558f6ef] Mike Bradeen -- res_pjsip: Prevent SEGV in
+       pjsip_evsub_send_request
+
+    Category: Resources/res_pjsip_sdp_rtp
+
+   ASTERISK-30350: res_pjsip_sdp_rtp: rtp_timeout_hold is not used when
+   moh_passthrough has call on hold
+   Reported by: Benjamin Keith Ford
+     * [881faf544f] Ben Ford -- res_pjsip_sdp_rtp.c: Use correct timeout when
+       put on hold.
+
+    Category: Resources/res_rtp_asterisk
+
+   ASTERISK-30391: res_rtp_asterisk: Issue with transcoding g722 after MES
+   changes
+   Reported by: George Joseph
+     * [2f5aece0c9] George Joseph -- res_rtp_asterisk: Don't use double math
+       to generate timestamps
+     * [4710f37ef6] George Joseph -- res_rtp_asterisk: Asterisk Media
+       Experience Score (MES)
+
+    Category: pjproject/pjsip
+
+   ASTERISK-30424: pjproject_bundled: cross-compilation broken when ssl
+   autodetected
+   Reported by: Nick French
+     * [200dc7d0e8] Nick French -- pjproject_bundled: Fix cross-compilation
+       with SSL libs.
+   ASTERISK-30419: pjsip: Crash when sending NOTIFY in PJSIP 2.13
+   Reported by: Ross Beer
+     * [37e558f6ef] Mike Bradeen -- res_pjsip: Prevent SEGV in
+       pjsip_evsub_send_request
+
+  Improvement
+
+    Category: Applications/app_directory
+
+   ASTERISK-30405: app_directory: Add 's' option to skip channel call
+   Reported by: Michael Bradeen
+     * [2308afed8e] Mike Bradeen -- app_directory: Add a 'skip call' option.
+   ASTERISK-30404: app_directory: Add reading directory configuration from
+   custom file
+   Reported by: Michael Bradeen
+     * [70856e865f] Mike Bradeen -- app_directory: add ability to specify
+       configuration file
+
+    Category: Applications/app_read
+
+   ASTERISK-30411: app_read: add option to include terminating digit on
+   empty, terminated strings
+   Reported by: Michael Bradeen
+     * [5c11d7adea] Mike Bradeen -- app_read: Add an option to return
+       terminator on empty digits.
+
+    Category: Applications/app_senddtmf
+
+   ASTERISK-30422: app_senddtmf: add the option for senddtmf to answer
+   Reported by: Michael Bradeen
+     * [98742388b6] Mike Bradeen -- app_senddtmf: Add option to answer target
+       channel.
+
+    Category: Core/General
+
+   ASTERISK-30361: json.h: Add missing ast_json_object_real_get
+   Reported by: N A
+     * [3b3fef2347] Naveen Albert -- json.h: Add ast_json_object_real_get.
+
+    Category: Functions/General
+
+   ASTERISK-29913: func_json: Adds multi-level and array parsing to
+   JSON_DECODE
+   Reported by: N A
+     * [8a45cd7af4] Naveen Albert -- func_json: Enhance parsing capabilities
+       of JSON_DECODE
+   ASTERISK-30353: func_frame_trace: Print text for text frames
+   Reported by: N A
+     * [68e345286b] Naveen Albert -- func_frame_trace: Print text for text
+       frames.
+
+    Category: Functions/func_callerid
+
+   ASTERISK-30332: func_callerid: Warn if invalid redirecting reason provided
+   Reported by: N A
+     * [cbb1fd2cb9] Naveen Albert -- func_callerid: Warn about invalid
+       redirecting reason.
+
+    Category: Resources/res_pjsip
+
+   ASTERISK-30325: Upgrade Asterisk to bundled pjproject 2.13
+   Reported by: Stanislav Abramenkov
+     * [58636a6ea6] Mike Bradeen -- res_pjsip: Upgraded bundled pjsip to 2.13
+
+    Category: Resources/res_rtp_asterisk
+
+   ASTERISK-30280: Create capability to assign a Media Experience Score to
+   RTP streams
+   Reported by: George Joseph
+     * [d454801c2d] George Joseph -- res_rtp_asterisk: Asterisk Media
+       Experience Score (MES)
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   reference a JIRA issue.
+
+   +------------------------------------------------------------------------+
+   | Revision   | Author               | Summary                            |
+   |------------+----------------------+------------------------------------|
+   | 93813c9dca | Asterisk Development | Update CHANGES and UPGRADE.txt for |
+   |            | Team                 | 20.2.0                             |
+   |------------+----------------------+------------------------------------|
+   | e5c5cd6e25 | Sean Bright          | test.c: Avoid passing -1 to FD_*   |
+   |            |                      | family of functions.               |
+   |------------+----------------------+------------------------------------|
+   | 827222d607 | Sean Bright          | test_crypto.c: Fix getcwd(…) build |
+   |            |                      | error.                             |
+   |------------+----------------------+------------------------------------|
+   | aef0c0ce0e | Sean Bright          | app_queue: Reset all queue         |
+   |            |                      | defaults before reload.            |
+   |------------+----------------------+------------------------------------|
+   | 96d9ad51ac | Sean Bright          | doxygen: Fix doxygen errors.       |
+   |------------+----------------------+------------------------------------|
+   | ef16eaee36 | Sean Bright          | app_playback.c: Fix PLAYBACKSTATUS |
+   |            |                      | regression.                        |
+   |------------+----------------------+------------------------------------|
+   |            |                      | format_wav: replace                |
+   | e86d5d7fda | Alexei Gradinari     | ast_log(LOG_DEBUG, ...) by         |
+   |            |                      | ast_debug(1, ...)                  |
+   |------------+----------------------+------------------------------------|
+   | 62ca063fca | George Joseph        | Revert "res_rtp_asterisk: Asterisk |
+   |            |                      | Media Experience Score (MES)"      |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ .lastclean                                                                                                                           |    1
+ .version                                                                                                                             |    1
+ ChangeLog                                                                                                                            |105422 ----------
+ asterisk-20.1.0-summary.html                                                                                                         |  279
+ asterisk-20.1.0-summary.txt                                                                                                          |  768
+ b/CHANGES                                                                                                                            |   66
+ b/UPGRADE.txt                                                                                                                        |   13
+ b/apps/app_broadcast.c                                                                                                               |  619
+ b/apps/app_directory.c                                                                                                               |   36
+ b/apps/app_mf.c                                                                                                                      |    1
+ b/apps/app_playback.c                                                                                                                |    3
+ b/apps/app_queue.c                                                                                                                   |   14
+ b/apps/app_read.c                                                                                                                    |   23
+ b/apps/app_senddtmf.c                                                                                                                |   31
+ b/apps/app_sendtext.c                                                                                                                |    4
+ b/apps/app_signal.c                                                                                                                  |  471
+ b/apps/app_voicemail.c                                                                                                               |    7
+ b/channels/chan_iax2.c                                                                                                               |   17
+ b/channels/chan_pjsip.c                                                                                                              |  114
+ b/channels/pjsip/dialplan_functions.c                                                                                                |   67
+ b/configs/samples/pjsip.conf.sample                                                                                                  |    2
+ b/configs/samples/queues.conf.sample                                                                                                 |   10
+ b/configure                                                                                                                          |18025 -
+ b/configure.ac                                                                                                                       |   13
+ b/contrib/ast-db-manage/config/versions/f261363a857f_add_overlap_context.py                                                          |   21
+ b/formats/format_wav.c                                                                                                               |    2
+ b/funcs/func_callerid.c                                                                                                              |    1
+ b/funcs/func_frame_trace.c                                                                                                           |    1
+ b/funcs/func_json.c                                                                                                                  |  232
+ b/include/asterisk/autoconfig.h.in                                                                                                   |  124
+ b/include/asterisk/channel.h                                                                                                         |    4
+ b/include/asterisk/crypto.h                                                                                                          |   12
+ b/include/asterisk/file.h                                                                                                            |    1
+ b/include/asterisk/json.h                                                                                                            |    9
+ b/include/asterisk/pbx.h                                                                                                             |    6
+ b/include/asterisk/res_aeap.h                                                                                                        |    8
+ b/include/asterisk/res_aeap_message.h                                                                                                |    3
+ b/include/asterisk/res_geolocation.h                                                                                                 |    4
+ b/include/asterisk/res_pjsip.h                                                                                                       |   66
+ b/include/asterisk/res_stir_shaken.h                                                                                                 |    2
+ b/include/asterisk/rtp_engine.h                                                                                                      |   54
+ b/include/asterisk/time.h                                                                                                            |   88
+ b/include/asterisk/utf8.h                                                                                                            |   53
+ b/include/asterisk/xml.h                                                                                                             |   18
+ b/main/bridge_basic.c                                                                                                                |    2
+ b/main/file.c                                                                                                                        |    4
+ b/main/http.c                                                                                                                        |   10
+ b/main/loader.c                                                                                                                      |   25
+ b/main/manager.c                                                                                                                     |    6
+ b/main/pbx_app.c                                                                                                                     |    2
+ b/main/rtp_engine.c                                                                                                                  |   74
+ b/main/stasis_channels.c                                                                                                             |   33
+ b/main/test.c                                                                                                                        |   13
+ b/main/utf8.c                                                                                                                        |  544
+ b/menuselect/autoconfig.h.in                                                                                                         |   22
+ b/menuselect/configure                                                                                                               | 3476
+ b/res/ael/pval.c                                                                                                                     |   14
+ b/res/res_aeap/transaction.h                                                                                                         |    4
+ b/res/res_aeap/transport.h                                                                                                           |    2
+ b/res/res_geolocation/geoloc_eprofile.c                                                                                              |   14
+ b/res/res_http_media_cache.c                                                                                                         |    9
+ b/res/res_phoneprov.c                                                                                                                |   20
+ b/res/res_pjsip.c                                                                                                                    |  337
+ b/res/res_pjsip/pjsip_config.xml                                                                                                     |   10
+ b/res/res_pjsip/pjsip_configuration.c                                                                                                |    5
+ b/res/res_pjsip/pjsip_manager.xml                                                                                                    |    3
+ b/res/res_pjsip/pjsip_transport_events.c                                                                                             |    2
+ b/res/res_pjsip_caller_id.c                                                                                                          |  227
+ b/res/res_pjsip_path.c                                                                                                               |   73
+ b/res/res_pjsip_pubsub.c                                                                                                             |  101
+ b/res/res_pjsip_rfc3326.c                                                                                                            |   31
+ b/res/res_pjsip_sdp_rtp.c                                                                                                            |    4
+ b/res/res_pjsip_session.c                                                                                                            |   24
+ b/res/res_rtp_asterisk.c                                                                                                             |  547
+ b/res/res_speech_aeap.c                                                                                                              |   51
+ b/res/res_stasis_snoop.c                                                                                                             |   10
+ b/res/res_stir_shaken.c                                                                                                              |    2
+ b/tests/test_crypto.c                                                                                                                |   32
+ b/tests/test_res_rtp.c                                                                                                               |  189
+ b/third-party/pjproject/configure.m4                                                                                                 |    7
+ b/third-party/pjproject/patches/0000-remove-third-party.patch                                                                        |    6
+ b/third-party/pjproject/patches/0010-Make-sure-that-NOTIFY-tdata-is-set-before-sending-it_new-129fb323a66dd1fd16880fe5ba5e6a57.patch |   46
+ contrib/realtime/mysql/mysql_cdr.sql                                                                                                 |   41
+ contrib/realtime/mysql/mysql_config.sql                                                                                              | 1402
+ contrib/realtime/mysql/mysql_voicemail.sql                                                                                           |   35
+ contrib/realtime/postgresql/postgresql_cdr.sql                                                                                       |   45
+ contrib/realtime/postgresql/postgresql_config.sql                                                                                    | 1524
+ contrib/realtime/postgresql/postgresql_voicemail.sql                                                                                 |   39
+ third-party/pjproject/patches/0100-allow_multiple_auth_headers.patch                                                                 |  413
+ third-party/pjproject/patches/0200-potential-buffer-overflow-in-pjlib-scanner-and-pjmedia.patch                                      |  306
+ third-party/pjproject/patches/0201-potential-stack-buffer-overflow-when-parsing-message-as-a-STUN-client.patch                       |   44
+ third-party/pjproject/pjproject-2.12.1.tar.bz2.md5                                                                                   |    1
+ 92 files changed, 13653 insertions(+), 122894 deletions(-)
