@@ -45,7 +45,7 @@ case "$1" in
   stop)
     if [ -r ${ASTVARRUNDIR}/asterisk.pid ]; then
       stat_busy "Stopping Asterisk..."
-      ${DAEMON} -rx "core stop now" > /dev/null 2&>1
+      ${DAEMON} -rx "core stop now" &>/dev/null
       if [ $? -gt 0 ]; then
         stat_fail
       else
