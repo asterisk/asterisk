@@ -1,4 +1,0 @@
-Subject: res_pjsip_session
-
-The overlap_context option now allows explicitly
-specifying a context to use for overlap dialing matches.
