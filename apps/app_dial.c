@@ -1762,6 +1762,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 			case AST_FRAME_VIDEO:
 			case AST_FRAME_VOICE:
 			case AST_FRAME_IMAGE:
+			case AST_FRAME_DTMF_BEGIN:
+			case AST_FRAME_DTMF_END:
 				if (caller_entertained) {
 					break;
 				}
