@@ -1494,7 +1494,11 @@ AC_LINK_IFELSE(
 			#include <arpa/nameser.h>
 			#endif
 			#include <resolv.h>],
-			[int foo = res_ninit(NULL);])],
+			[
+				int foo;
+				foo = res_ninit(NULL);
+				foo = res_nsearch(NULL, NULL, 0, 0, NULL, 0);
+			])],
 	AC_MSG_RESULT(yes)
 	AC_DEFINE([HAVE_RES_NINIT], 1, [Define to 1 if your system has the re-entrant resolver functions.])
 	AC_SEARCH_LIBS(res_9_ndestroy, resolv)
