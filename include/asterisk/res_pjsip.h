@@ -232,6 +232,8 @@ struct ast_sip_transport {
 		AST_STRING_FIELD(external_media_address);
 		/*! Optional domain to use for messages if provided could not be found */
 		AST_STRING_FIELD(domain);
+		/*! Contact user */
+		AST_STRING_FIELD(contact_user);
 		);
 	/*! Type of transport */
 	enum ast_transport type;

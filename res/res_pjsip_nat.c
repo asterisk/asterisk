@@ -475,6 +475,11 @@ static pj_status_t process_nat(pjsip_tx_data *tdata)
 		}
 	}
 
+	if (uri && (pj_strlen(&uri->user) == 0) && !ast_strlen_zero(transport->contact_user)) {
+		ast_debug(4, "Setting contact user to %s\n", transport->contact_user);
+		pj_strdup2(tdata->pool, &uri->user, transport->contact_user);
+	}
+
 	/* Invoke any additional hooks that may be registered */
 	if ((hooks = ast_sorcery_retrieve_by_fields(ast_sip_get_sorcery(), "nat_hook", AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL))) {
 		struct nat_hook_details hook_details = {
