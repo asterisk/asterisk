@@ -19270,7 +19270,11 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 int
 main ()
 {
-int foo = res_ninit(NULL);
+
+				int foo;
+				foo = res_ninit(NULL);
+				foo = res_nsearch(NULL, NULL, 0, 0, NULL, 0);
+
   ;
   return 0;
 }
