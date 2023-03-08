@@ -2955,12 +2955,18 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, const
 
 	/* backward compatibility, if no offset given, arg[6] would have been
 	 * caught below and taken to be a beep, else if it is a digit then it is a
-	 * offset */
-	if ((argc >6) && (sscanf(argv[6], "%30ld", &sample_offset) != 1) && (!strchr(argv[6], '=')))
+	 * offset.
+	 *
+	 * In other words, if the argument does not look like the offset_samples
+	 * argument (a number) and it doesn't look like the silence argument (starts
+	 * with "s=") then it must be the beep argument. The beep argument has no
+	 * required value, the presence of anything in the argument slot we are
+	 * inspecting is an indication that the user wants a beep played.
+	 */
+	if ((argc > 6 && sscanf(argv[6], "%30ld", &sample_offset) != 1 && !ast_begins_with(argv[6], "s="))
+	   || (argc > 7 && !ast_begins_with(argv[7], "s="))) {
 		res = ast_streamfile(chan, "beep", ast_channel_language(chan));
-
-	if ((argc > 7) && (!strchr(argv[7], '=')))
-		res = ast_streamfile(chan, "beep", ast_channel_language(chan));
+	}
 
 	if (!res)
 		res = ast_waitstream(chan, argv[4]);
