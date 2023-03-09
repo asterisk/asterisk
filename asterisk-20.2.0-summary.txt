@@ -1,8 +1,8 @@
                                 Release Summary
 
-                              asterisk-20.2.0-rc1
+                                asterisk-20.2.0
 
-                                Date: 2023-03-02
+                                Date: 2023-03-09
 
                            <asteriskteam@digium.com>
 
@@ -54,14 +54,14 @@
    7 Sean Bright                                     5 Michael Bradeen        
    6 George Joseph                                   3 Sean Bright            
    6 Mike Bradeen                                    3 George Joseph          
-   2 Igor Goncharovsky                               1 Sebastian Gutierrez    
-   1 Peter Fern                                      1 Jaco Kroon             
-   1 Holger Hans Peter Freyther                      1 Yury Kirsanov          
-   1 Boris P. Korzun                                 1 Benjamin Keith Ford    
-   1 Ben Ford                                        1 Nick French            
-   1 Alexei Gradinari                                1 AvayaXAsterisk         
-   1 cmaj                                            1 Ross Beer              
-   1 Asterisk Development Team                       1 Igor Goncharovsky      
+   2 Asterisk Development Team                       1 Sebastian Gutierrez    
+   2 Igor Goncharovsky                               1 Jaco Kroon             
+   1 Peter Fern                                      1 Yury Kirsanov          
+   1 Holger Hans Peter Freyther                      1 Benjamin Keith Ford    
+   1 Boris P. Korzun                                 1 Nick French            
+   1 Ben Ford                                        1 AvayaXAsterisk         
+   1 Alexei Gradinari                                1 Ross Beer              
+   1 cmaj                                            1 Igor Goncharovsky      
    1 Nick French                                     1 Boris P. Korzun        
    1 sungtae kim                                     1 Joshua C. Colp         
                                                      1 Stanislav Abramenkov   
@@ -367,6 +367,9 @@
    +------------------------------------------------------------------------+
    | Revision   | Author               | Summary                            |
    |------------+----------------------+------------------------------------|
+   | 460d13e916 | Asterisk Development | Update for 20.2.0-rc1              |
+   |            | Team                 |                                    |
+   |------------+----------------------+------------------------------------|
    | 93813c9dca | Asterisk Development | Update CHANGES and UPGRADE.txt for |
    |            | Team                 | 20.2.0                             |
    |------------+----------------------+------------------------------------|
@@ -401,12 +404,11 @@
    This is a summary of the changes to the source code that went into this
    release that was generated using the diffstat utility.
 
- .lastclean                                                                                                                           |    1
- .version                                                                                                                             |    1
- ChangeLog                                                                                                                            |105422 ----------
  asterisk-20.1.0-summary.html                                                                                                         |  279
  asterisk-20.1.0-summary.txt                                                                                                          |  768
+ b/.version                                                                                                                           |    2
  b/CHANGES                                                                                                                            |   66
+ b/ChangeLog                                                                                                                          |  708
  b/UPGRADE.txt                                                                                                                        |   13
  b/apps/app_broadcast.c                                                                                                               |  619
  b/apps/app_directory.c                                                                                                               |   36
@@ -418,14 +420,18 @@
  b/apps/app_sendtext.c                                                                                                                |    4
  b/apps/app_signal.c                                                                                                                  |  471
  b/apps/app_voicemail.c                                                                                                               |    7
+ b/asterisk-20.2.0-rc1-summary.html                                                                                                   |  191
+ b/asterisk-20.2.0-rc1-summary.txt                                                                                                    |  496
  b/channels/chan_iax2.c                                                                                                               |   17
  b/channels/chan_pjsip.c                                                                                                              |  114
  b/channels/pjsip/dialplan_functions.c                                                                                                |   67
  b/configs/samples/pjsip.conf.sample                                                                                                  |    2
  b/configs/samples/queues.conf.sample                                                                                                 |   10
- b/configure                                                                                                                          |18025 -
+ b/configure                                                                                                                          |18025 ++++------
  b/configure.ac                                                                                                                       |   13
  b/contrib/ast-db-manage/config/versions/f261363a857f_add_overlap_context.py                                                          |   21
+ b/contrib/realtime/mysql/mysql_config.sql                                                                                            |    6
+ b/contrib/realtime/postgresql/postgresql_config.sql                                                                                  |    6
  b/formats/format_wav.c                                                                                                               |    2
  b/funcs/func_callerid.c                                                                                                              |    1
  b/funcs/func_frame_trace.c                                                                                                           |    1
@@ -456,7 +462,7 @@
  b/main/test.c                                                                                                                        |   13
  b/main/utf8.c                                                                                                                        |  544
  b/menuselect/autoconfig.h.in                                                                                                         |   22
- b/menuselect/configure                                                                                                               | 3476
+ b/menuselect/configure                                                                                                               | 3476 -
  b/res/ael/pval.c                                                                                                                     |   14
  b/res/res_aeap/transaction.h                                                                                                         |    4
  b/res/res_aeap/transport.h                                                                                                           |    2
@@ -483,14 +489,6 @@
  b/third-party/pjproject/configure.m4                                                                                                 |    7
  b/third-party/pjproject/patches/0000-remove-third-party.patch                                                                        |    6
  b/third-party/pjproject/patches/0010-Make-sure-that-NOTIFY-tdata-is-set-before-sending-it_new-129fb323a66dd1fd16880fe5ba5e6a57.patch |   46
- contrib/realtime/mysql/mysql_cdr.sql                                                                                                 |   41
- contrib/realtime/mysql/mysql_config.sql                                                                                              | 1402
- contrib/realtime/mysql/mysql_voicemail.sql                                                                                           |   35
- contrib/realtime/postgresql/postgresql_cdr.sql                                                                                       |   45
- contrib/realtime/postgresql/postgresql_config.sql                                                                                    | 1524
- contrib/realtime/postgresql/postgresql_voicemail.sql                                                                                 |   39
  third-party/pjproject/patches/0100-allow_multiple_auth_headers.patch                                                                 |  413
- third-party/pjproject/patches/0200-potential-buffer-overflow-in-pjlib-scanner-and-pjmedia.patch                                      |  306
- third-party/pjproject/patches/0201-potential-stack-buffer-overflow-when-parsing-message-as-a-STUN-client.patch                       |   44
- third-party/pjproject/pjproject-2.12.1.tar.bz2.md5                                                                                   |    1
- 92 files changed, 13653 insertions(+), 122894 deletions(-)
+ third-party/pjproject/patches/0200-potential-buffer-overflow-in-pjlib-scanner-and-pjmedia.patch                                      |  300
+ 87 files changed, 15055 insertions(+), 14340 deletions(-)
