@@ -1447,6 +1447,50 @@ static char *handle_cli_mixmonitor(struct ast_cli_entry *e, int cmd, struct ast_
 	return CLI_SUCCESS;
 }
 
+/*! \brief  Mute / unmute  an individual MixMonitor by id */
+static int mute_mixmonitor_instance(struct ast_channel *chan, const char *data,
+									enum ast_audiohook_flags flag, int clearmute)
+{
+	struct ast_datastore *datastore = NULL;
+	char *parse = "";
+	struct mixmonitor_ds *mixmonitor_ds;
+
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(mixmonid);
+	);
+
+	if (!ast_strlen_zero(data)) {
+		parse = ast_strdupa(data);
+	}
+
+	AST_STANDARD_APP_ARGS(args, parse);
+
+	ast_channel_lock(chan);
+
+	datastore = ast_channel_datastore_find(chan, &mixmonitor_ds_info,
+		S_OR(args.mixmonid, NULL));
+	if (!datastore) {
+		ast_channel_unlock(chan);
+		return -1;
+	}
+	mixmonitor_ds = datastore->data;
+
+	ast_mutex_lock(&mixmonitor_ds->lock);
+
+	if (mixmonitor_ds->audiohook) {
+		if (clearmute) {
+			ast_clear_flag(mixmonitor_ds->audiohook, flag);
+		} else {
+			ast_set_flag(mixmonitor_ds->audiohook, flag);
+		}
+	}
+
+	ast_mutex_unlock(&mixmonitor_ds->lock);
+	ast_channel_unlock(chan);
+
+	return 0;
+}
+
 /*! \brief  Mute / unmute  a MixMonitor channel */
 static int manager_mute_mixmonitor(struct mansession *s, const struct message *m)
 {
@@ -1455,7 +1499,8 @@ static int manager_mute_mixmonitor(struct mansession *s, const struct message *m
 	const char *id = astman_get_header(m, "ActionID");
 	const char *state = astman_get_header(m, "State");
 	const char *direction = astman_get_header(m,"Direction");
-	int clearmute = 1;
+	const char *mixmonitor_id = astman_get_header(m, "MixMonitorID");
+	int clearmute = 1, mutedcount = 0;
 	enum ast_audiohook_flags flag;
 	RAII_VAR(struct stasis_message *, stasis_message, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_json *, stasis_message_blob, NULL, ast_json_unref);
@@ -1494,15 +1539,28 @@ static int manager_mute_mixmonitor(struct mansession *s, const struct message *m
 		return AMI_SUCCESS;
 	}
 
-	if (ast_audiohook_set_mute(c, mixmonitor_spy_type, flag, clearmute)) {
-		ast_channel_unref(c);
-		astman_send_error(s, m, "Cannot set mute flag");
-		return AMI_SUCCESS;
+	if (ast_strlen_zero(mixmonitor_id)) {
+		mutedcount = ast_audiohook_set_mute_all(c, mixmonitor_spy_type, flag, clearmute);
+		if (mutedcount < 0) {
+			ast_channel_unref(c);
+			astman_send_error(s, m, "Cannot set mute flag");
+			return AMI_SUCCESS;
+		}
+	} else {
+		if (mute_mixmonitor_instance(c, mixmonitor_id, flag, clearmute)) {
+			ast_channel_unref(c);
+			astman_send_error(s, m, "Cannot set mute flag");
+			return AMI_SUCCESS;
+		}
+		mutedcount = 1;
 	}
 
-	stasis_message_blob = ast_json_pack("{s: s, s: b}",
+
+	stasis_message_blob = ast_json_pack("{s: s, s: b, s: s, s: i}",
 		"direction", direction,
-		"state", ast_true(state));
+		"state", ast_true(state),
+		"mixmonitorid", mixmonitor_id,
+		"count", mutedcount);
 
 	stasis_message = ast_channel_blob_create_from_cache(ast_channel_uniqueid(c),
 		ast_channel_mixmonitor_mute_type(), stasis_message_blob);
