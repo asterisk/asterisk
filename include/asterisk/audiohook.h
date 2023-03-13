@@ -358,6 +358,16 @@ int ast_audiohook_volume_adjust(struct ast_channel *chan, enum ast_audiohook_dir
  */
 int ast_audiohook_set_mute(struct ast_channel *chan, const char *source, enum ast_audiohook_flags flag, int clear);
 
+/*! \brief Mute frames read from or written for all audiohooks on a channel
+ * \param chan Channel to muck with
+ * \param source Type of audiohooks
+ * \param flag which direction to set / clear
+ * \param clear set or clear muted frames on direction based on flag parameter
+ * \retval >=0 number of muted audiohooks
+ * \retval -1 failure
+ */
+int ast_audiohook_set_mute_all(struct ast_channel *chan, const char *source, enum ast_audiohook_flags flag, int clear);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
