@@ -34,12 +34,12 @@
 #include "asterisk/channel.h"
 #include "asterisk/utils.h"
 #include "asterisk/lock.h"
-#include "asterisk/linkedlists.h"
 #include "asterisk/audiohook.h"
 #include "asterisk/slinfactory.h"
 #include "asterisk/frame.h"
 #include "asterisk/translate.h"
 #include "asterisk/format_cache.h"
+#include "asterisk/test.h"
 
 #define AST_AUDIOHOOK_SYNC_TOLERANCE 100 /*!< Tolerance in milliseconds for audiohooks synchronization */
 #define AST_AUDIOHOOK_SMALL_QUEUE_TOLERANCE 100 /*!< When small queue is enabled, this is the maximum amount of audio that can remain queued at a time. */
@@ -1375,4 +1375,34 @@ int ast_audiohook_set_mute(struct ast_channel *chan, const char *source, enum as
 	ast_channel_unlock(chan);
 
 	return (audiohook ? 0 : -1);
+}
+
+int ast_audiohook_set_mute_all(struct ast_channel *chan, const char *source, enum ast_audiohook_flags flag, int clearmute)
+{
+	struct ast_audiohook *audiohook = NULL;
+	int count = 0;
+
+	ast_channel_lock(chan);
+
+	if (!ast_channel_audiohooks(chan)) {
+		return -1;
+	}
+
+	AST_LIST_TRAVERSE(&ast_channel_audiohooks(chan)->spy_list, audiohook, list) {
+		if (!strcasecmp(audiohook->source, source)) {
+			count++;
+			if (clearmute) {
+				ast_clear_flag(audiohook, flag);
+			} else {
+				ast_set_flag(audiohook, flag);
+			}
+		}
+	}
+
+	ast_test_suite_event_notify("AUDIOHOOK_GROUP_MUTE_TOGGLE", "Channel: %s\r\nSource: %s\r\nCount: %d\r\n",
+									ast_channel_name(chan), source, count);
+
+	ast_channel_unlock(chan);
+
+	return count;
 }
