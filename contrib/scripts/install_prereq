@@ -270,6 +270,43 @@ handle_debian() {
 	fi
 }
 
+handle_linuxmint() {
+	# Store temporary variable to contain list of missing packages
+	missing_packages=""
+
+	# Check installed packages for Mint
+	for package in $PACKAGES_DEBIAN; do
+		if [ "$package" = "libgmime-2.6-dev" ] || [ "$package" = "libsrtp0-dev" ]; then
+			continue
+		fi
+
+		missing_package_check=$(apt list --installed 2>/dev/null | grep -c $package)
+
+		if [ "$missing_package_check" -eq 0 ]; then
+			echo "This package is missing: "$package
+			missing_packages="${missing_packages} $package"
+		else
+			echo "Package "$package" is present."
+		fi
+	done
+
+	# Update the packages on our local system
+	echo "==========================="
+	echo "Updating your system's packages"
+	echo "==========================="
+	$testcmd apt update
+
+	# Inform user of packages to be installed
+	echo "==========================="
+	echo "The following packages will be installed on your system:"
+	echo $missing_packages
+	echo "==========================="
+
+	if [ "$missing_packages" != "" ] ; then
+		$testcmd apt -m install -y $missing_packages
+	fi
+}
+
 handle_rh() {
 	extra_packs=`check_installed_rpms $PACKAGES_RH`
 	if [ x"$extra_packs" != "x" ] ; then
@@ -405,7 +442,11 @@ fi
 
 # The distributions we do support:
 if [ -r /etc/debian_version ]; then
-	handle_debian
+	if [ -f /etc/linuxmint/info ]; then
+		handle_linuxmint
+	else
+		handle_debian
+	fi
 elif [ -r /etc/redhat-release ]; then
 	handle_rh
 elif [ -f /etc/SuSE-release -o -f /etc/novell-release ]; then
