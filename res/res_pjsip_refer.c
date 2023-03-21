@@ -1019,6 +1019,10 @@ static int refer_incoming_invite_request(struct ast_sip_session *session, struct
 	ast_debug(3, "INVITE with Replaces being attempted.  '%s' --> '%s'\n",
 		ast_channel_name(session->channel), ast_channel_name(invite.channel));
 
+	/* Unhold the channel now, as later we are not having access to it anymore */
+	ast_queue_unhold(session->channel);
+	ast_queue_frame(session->channel, &ast_null_frame);
+
 	if (!invite.bridge) {
 		struct ast_channel *chan = session->channel;
 
