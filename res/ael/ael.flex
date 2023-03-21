@@ -68,9 +68,6 @@
 %option bison-locations
 
 %{
-#define ASTMM_LIBC ASTMM_REDIRECT
-#include "asterisk.h"
-
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
