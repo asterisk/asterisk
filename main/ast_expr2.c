@@ -2,20 +2,20 @@
 /* A Bison parser, made by GNU Bison 2.4.1.  */
 
 /* Skeleton implementation for Bison's Yacc-like parsers in C
-
+   
       Copyright (C) 1984, 1989, 1990, 2000, 2001, 2002, 2003, 2004, 2005, 2006
    Free Software Foundation, Inc.
-
+   
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation, either version 3 of the License, or
    (at your option) any later version.
-
+   
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-
+   
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
@@ -28,7 +28,7 @@
    special exception, which will cause the skeleton and the resulting
    Bison output files to be licensed under the GNU General Public
    License without this special exception.
-
+   
    This special exception was added by the Free Software Foundation in
    version 2.2 of Bison.  */
 
@@ -413,7 +413,7 @@ int		ast_yyerror(const char *,YYLTYPE *, struct parse_io *);
 
 
 /* Line 189 of yacc.c  */
-#line 419 "ast_expr2.c"
+#line 417 "ast_expr2.c"
 
 /* Enabling traces.  */
 #ifndef YYDEBUG
@@ -473,7 +473,7 @@ typedef union YYSTYPE
 {
 
 /* Line 214 of yacc.c  */
-#line 345 "ast_expr2.y"
+#line 343 "ast_expr2.y"
 
 	struct val *val;
 	struct expr_node *arglist;
@@ -481,7 +481,7 @@ typedef union YYSTYPE
 
 
 /* Line 214 of yacc.c  */
-#line 487 "ast_expr2.c"
+#line 485 "ast_expr2.c"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
@@ -505,13 +505,13 @@ typedef struct YYLTYPE
 /* Copy the second part of user declarations.  */
 
 /* Line 264 of yacc.c  */
-#line 350 "ast_expr2.y"
+#line 348 "ast_expr2.y"
 
 extern int		ast_yylex __P((YYSTYPE *, YYLTYPE *, yyscan_t));
 
 
 /* Line 264 of yacc.c  */
-#line 517 "ast_expr2.c"
+#line 515 "ast_expr2.c"
 
 #ifdef short
 # undef short
@@ -809,9 +809,9 @@ static const yytype_int8 yyrhs[] =
 /* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
 static const yytype_uint16 yyrline[] =
 {
-       0,   374,   374,   382,   389,   390,   396,   405,   411,   412,
-     416,   420,   424,   428,   432,   436,   440,   444,   448,   452,
-     456,   460,   464,   468,   472,   476,   480,   484,   489
+       0,   372,   372,   380,   387,   388,   394,   403,   409,   410,
+     414,   418,   422,   426,   430,   434,   438,   442,   446,   450,
+     454,   458,   462,   466,   470,   474,   478,   482,   487
 };
 #endif
 
@@ -1226,7 +1226,7 @@ int yydebug;
 # define YYMAXDEPTH 10000
 #endif
 
-
+
 
 #if YYERROR_VERBOSE
 
@@ -1437,7 +1437,7 @@ yysyntax_error (char *yyresult, int yystate, int yychar)
     }
 }
 #endif /* YYERROR_VERBOSE */
-
+
 
 /*-----------------------------------------------.
 | Release the memory associated to this symbol.  |
@@ -1469,209 +1469,209 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp)
       case 4: /* "TOK_COLONCOLON" */
 
 /* Line 1000 of yacc.c  */
-#line 368 "ast_expr2.y"
+#line 366 "ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
 
 /* Line 1000 of yacc.c  */
-#line 1479 "ast_expr2.c"
+#line 1477 "ast_expr2.c"
 	break;
       case 5: /* "TOK_COND" */
 
 /* Line 1000 of yacc.c  */
-#line 368 "ast_expr2.y"
+#line 366 "ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
 
 /* Line 1000 of yacc.c  */
-#line 1488 "ast_expr2.c"
+#line 1486 "ast_expr2.c"
 	break;
       case 6: /* "TOK_OR" */
 
 /* Line 1000 of yacc.c  */
-#line 368 "ast_expr2.y"
+#line 366 "ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
 
 /* Line 1000 of yacc.c  */
-#line 1497 "ast_expr2.c"
+#line 1495 "ast_expr2.c"
 	break;
       case 7: /* "TOK_AND" */
 
 /* Line 1000 of yacc.c  */
-#line 368 "ast_expr2.y"
+#line 366 "ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
 
 /* Line 1000 of yacc.c  */
-#line 1506 "ast_expr2.c"
+#line 1504 "ast_expr2.c"
 	break;
       case 8: /* "TOK_NE" */
 
 /* Line 1000 of yacc.c  */
-#line 368 "ast_expr2.y"
+#line 366 "ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
 
 /* Line 1000 of yacc.c  */
-#line 1515 "ast_expr2.c"
+#line 1513 "ast_expr2.c"
 	break;
       case 9: /* "TOK_LE" */
 
 /* Line 1000 of yacc.c  */
-#line 368 "ast_expr2.y"
+#line 366 "ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
 
 /* Line 1000 of yacc.c  */
-#line 1524 "ast_expr2.c"
+#line 1522 "ast_expr2.c"
 	break;
       case 10: /* "TOK_GE" */
 
 /* Line 1000 of yacc.c  */
-#line 368 "ast_expr2.y"
+#line 366 "ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
 
 /* Line 1000 of yacc.c  */
-#line 1533 "ast_expr2.c"
+#line 1531 "ast_expr2.c"
 	break;
       case 11: /* "TOK_LT" */
 
 /* Line 1000 of yacc.c  */
-#line 368 "ast_expr2.y"
+#line 366 "ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
 
 /* Line 1000 of yacc.c  */
-#line 1542 "ast_expr2.c"
+#line 1540 "ast_expr2.c"
 	break;
       case 12: /* "TOK_GT" */
 
 /* Line 1000 of yacc.c  */
-#line 368 "ast_expr2.y"
+#line 366 "ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
 
 /* Line 1000 of yacc.c  */
-#line 1551 "ast_expr2.c"
+#line 1549 "ast_expr2.c"
 	break;
       case 13: /* "TOK_EQ" */
 
 /* Line 1000 of yacc.c  */
-#line 368 "ast_expr2.y"
+#line 366 "ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
 
 /* Line 1000 of yacc.c  */
-#line 1560 "ast_expr2.c"
+#line 1558 "ast_expr2.c"
 	break;
       case 14: /* "TOK_MINUS" */
 
 /* Line 1000 of yacc.c  */
-#line 368 "ast_expr2.y"
+#line 366 "ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
 
 /* Line 1000 of yacc.c  */
-#line 1569 "ast_expr2.c"
+#line 1567 "ast_expr2.c"
 	break;
       case 15: /* "TOK_PLUS" */
 
 /* Line 1000 of yacc.c  */
-#line 368 "ast_expr2.y"
+#line 366 "ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
 
 /* Line 1000 of yacc.c  */
-#line 1578 "ast_expr2.c"
+#line 1576 "ast_expr2.c"
 	break;
       case 16: /* "TOK_MOD" */
 
 /* Line 1000 of yacc.c  */
-#line 368 "ast_expr2.y"
+#line 366 "ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
 
 /* Line 1000 of yacc.c  */
-#line 1587 "ast_expr2.c"
+#line 1585 "ast_expr2.c"
 	break;
       case 17: /* "TOK_DIV" */
 
 /* Line 1000 of yacc.c  */
-#line 368 "ast_expr2.y"
+#line 366 "ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
 
 /* Line 1000 of yacc.c  */
-#line 1596 "ast_expr2.c"
+#line 1594 "ast_expr2.c"
 	break;
       case 18: /* "TOK_MULT" */
 
 /* Line 1000 of yacc.c  */
-#line 368 "ast_expr2.y"
+#line 366 "ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
 
 /* Line 1000 of yacc.c  */
-#line 1605 "ast_expr2.c"
+#line 1603 "ast_expr2.c"
 	break;
       case 19: /* "TOK_COMPL" */
 
 /* Line 1000 of yacc.c  */
-#line 368 "ast_expr2.y"
+#line 366 "ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
 
 /* Line 1000 of yacc.c  */
-#line 1614 "ast_expr2.c"
+#line 1612 "ast_expr2.c"
 	break;
       case 20: /* "TOK_TILDETILDE" */
 
 /* Line 1000 of yacc.c  */
-#line 368 "ast_expr2.y"
+#line 366 "ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
 
 /* Line 1000 of yacc.c  */
-#line 1623 "ast_expr2.c"
+#line 1621 "ast_expr2.c"
 	break;
       case 21: /* "TOK_EQTILDE" */
 
 /* Line 1000 of yacc.c  */
-#line 368 "ast_expr2.y"
+#line 366 "ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
 
 /* Line 1000 of yacc.c  */
-#line 1632 "ast_expr2.c"
+#line 1630 "ast_expr2.c"
 	break;
       case 22: /* "TOK_COLON" */
 
 /* Line 1000 of yacc.c  */
-#line 368 "ast_expr2.y"
+#line 366 "ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
 
 /* Line 1000 of yacc.c  */
-#line 1641 "ast_expr2.c"
+#line 1639 "ast_expr2.c"
 	break;
       case 23: /* "TOK_LP" */
 
 /* Line 1000 of yacc.c  */
-#line 368 "ast_expr2.y"
+#line 366 "ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
 
 /* Line 1000 of yacc.c  */
-#line 1650 "ast_expr2.c"
+#line 1648 "ast_expr2.c"
 	break;
       case 24: /* "TOK_RP" */
 
 /* Line 1000 of yacc.c  */
-#line 368 "ast_expr2.y"
+#line 366 "ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
 
 /* Line 1000 of yacc.c  */
-#line 1659 "ast_expr2.c"
+#line 1657 "ast_expr2.c"
 	break;
       case 25: /* "TOKEN" */
 
 /* Line 1000 of yacc.c  */
-#line 368 "ast_expr2.y"
+#line 366 "ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
 
 /* Line 1000 of yacc.c  */
-#line 1668 "ast_expr2.c"
+#line 1666 "ast_expr2.c"
 	break;
       case 29: /* "expr" */
 
 /* Line 1000 of yacc.c  */
-#line 368 "ast_expr2.y"
+#line 366 "ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
 
 /* Line 1000 of yacc.c  */
-#line 1677 "ast_expr2.c"
+#line 1675 "ast_expr2.c"
 	break;
 
       default:
@@ -2002,7 +2002,7 @@ yyreduce:
         case 2:
 
 /* Line 1455 of yacc.c  */
-#line 374 "ast_expr2.y"
+#line 372 "ast_expr2.y"
     { ((struct parse_io *)parseio)->val = (struct val *)calloc(sizeof(struct val),1);
               ((struct parse_io *)parseio)->val->type = (yyvsp[(1) - (1)].val)->type;
               if( (yyvsp[(1) - (1)].val)->type == AST_EXPR_number )
@@ -2016,7 +2016,7 @@ yyreduce:
   case 3:
 
 /* Line 1455 of yacc.c  */
-#line 382 "ast_expr2.y"
+#line 380 "ast_expr2.y"
     {/* nothing */ ((struct parse_io *)parseio)->val = (struct val *)calloc(sizeof(struct val),1);
               ((struct parse_io *)parseio)->val->type = AST_EXPR_string;
 			  ((struct parse_io *)parseio)->val->u.s = strdup("");
@@ -2026,14 +2026,14 @@ yyreduce:
   case 4:
 
 /* Line 1455 of yacc.c  */
-#line 389 "ast_expr2.y"
+#line 387 "ast_expr2.y"
     { (yyval.arglist) = alloc_expr_node(AST_EXPR_NODE_VAL); (yyval.arglist)->val = (yyvsp[(1) - (1)].val);;}
     break;
 
   case 5:
 
 /* Line 1455 of yacc.c  */
-#line 390 "ast_expr2.y"
+#line 388 "ast_expr2.y"
     {struct expr_node *x = alloc_expr_node(AST_EXPR_NODE_VAL);
                                  struct expr_node *t;
 								 DESTROY((yyvsp[(2) - (3)].val));
@@ -2045,7 +2045,7 @@ yyreduce:
   case 6:
 
 /* Line 1455 of yacc.c  */
-#line 396 "ast_expr2.y"
+#line 394 "ast_expr2.y"
     {struct expr_node *x = alloc_expr_node(AST_EXPR_NODE_VAL);
                                  struct expr_node *t;  /* NULL args should OK */
 								 DESTROY((yyvsp[(2) - (2)].val));
@@ -2057,7 +2057,7 @@ yyreduce:
   case 7:
 
 /* Line 1455 of yacc.c  */
-#line 405 "ast_expr2.y"
+#line 403 "ast_expr2.y"
     { (yyval.val) = op_func((yyvsp[(1) - (4)].val),(yyvsp[(3) - (4)].arglist), ((struct parse_io *)parseio)->chan);
 		                            DESTROY((yyvsp[(2) - (4)].val));
 									DESTROY((yyvsp[(4) - (4)].val));
@@ -2069,14 +2069,14 @@ yyreduce:
   case 8:
 
 /* Line 1455 of yacc.c  */
-#line 411 "ast_expr2.y"
+#line 409 "ast_expr2.y"
     {(yyval.val) = (yyvsp[(1) - (1)].val);;}
     break;
 
   case 9:
 
 /* Line 1455 of yacc.c  */
-#line 412 "ast_expr2.y"
+#line 410 "ast_expr2.y"
     { (yyval.val) = (yyvsp[(2) - (3)].val);
 	                       (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column;
 						   (yyloc).first_line=0; (yyloc).last_line=0;
@@ -2086,7 +2086,7 @@ yyreduce:
   case 10:
 
 /* Line 1455 of yacc.c  */
-#line 416 "ast_expr2.y"
+#line 414 "ast_expr2.y"
     { (yyval.val) = op_or ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val));
 						DESTROY((yyvsp[(2) - (3)].val));
                          (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column;
@@ -2096,7 +2096,7 @@ yyreduce:
   case 11:
 
 /* Line 1455 of yacc.c  */
-#line 420 "ast_expr2.y"
+#line 418 "ast_expr2.y"
     { (yyval.val) = op_and ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val));
 						DESTROY((yyvsp[(2) - (3)].val));
 	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column;
@@ -2106,7 +2106,7 @@ yyreduce:
   case 12:
 
 /* Line 1455 of yacc.c  */
-#line 424 "ast_expr2.y"
+#line 422 "ast_expr2.y"
     { (yyval.val) = op_eq ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val));
 						DESTROY((yyvsp[(2) - (3)].val));
 	                     (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column;
@@ -2116,7 +2116,7 @@ yyreduce:
   case 13:
 
 /* Line 1455 of yacc.c  */
-#line 428 "ast_expr2.y"
+#line 426 "ast_expr2.y"
     { (yyval.val) = op_gt ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val));
 						DESTROY((yyvsp[(2) - (3)].val));
                          (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column;
@@ -2126,7 +2126,7 @@ yyreduce:
   case 14:
 
 /* Line 1455 of yacc.c  */
-#line 432 "ast_expr2.y"
+#line 430 "ast_expr2.y"
     { (yyval.val) = op_lt ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val));
 						DESTROY((yyvsp[(2) - (3)].val));
 	                     (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column;
@@ -2136,7 +2136,7 @@ yyreduce:
   case 15:
 
 /* Line 1455 of yacc.c  */
-#line 436 "ast_expr2.y"
+#line 434 "ast_expr2.y"
     { (yyval.val) = op_ge ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val));
 						DESTROY((yyvsp[(2) - (3)].val));
 	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column;
@@ -2146,7 +2146,7 @@ yyreduce:
   case 16:
 
 /* Line 1455 of yacc.c  */
-#line 440 "ast_expr2.y"
+#line 438 "ast_expr2.y"
     { (yyval.val) = op_le ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val));
 						DESTROY((yyvsp[(2) - (3)].val));
 	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column;
@@ -2156,7 +2156,7 @@ yyreduce:
   case 17:
 
 /* Line 1455 of yacc.c  */
-#line 444 "ast_expr2.y"
+#line 442 "ast_expr2.y"
     { (yyval.val) = op_ne ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val));
 						DESTROY((yyvsp[(2) - (3)].val));
 	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column;
@@ -2166,7 +2166,7 @@ yyreduce:
   case 18:
 
 /* Line 1455 of yacc.c  */
-#line 448 "ast_expr2.y"
+#line 446 "ast_expr2.y"
     { (yyval.val) = op_plus ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val));
 						DESTROY((yyvsp[(2) - (3)].val));
 	                       (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column;
@@ -2176,7 +2176,7 @@ yyreduce:
   case 19:
 
 /* Line 1455 of yacc.c  */
-#line 452 "ast_expr2.y"
+#line 450 "ast_expr2.y"
     { (yyval.val) = op_minus ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val));
 						DESTROY((yyvsp[(2) - (3)].val));
 	                        (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column;
@@ -2186,7 +2186,7 @@ yyreduce:
   case 20:
 
 /* Line 1455 of yacc.c  */
-#line 456 "ast_expr2.y"
+#line 454 "ast_expr2.y"
     { (yyval.val) = op_negate ((yyvsp[(2) - (2)].val));
 						DESTROY((yyvsp[(1) - (2)].val));
 	                        (yyloc).first_column = (yylsp[(1) - (2)]).first_column; (yyloc).last_column = (yylsp[(2) - (2)]).last_column;
@@ -2196,7 +2196,7 @@ yyreduce:
   case 21:
 
 /* Line 1455 of yacc.c  */
-#line 460 "ast_expr2.y"
+#line 458 "ast_expr2.y"
     { (yyval.val) = op_compl ((yyvsp[(2) - (2)].val));
 						DESTROY((yyvsp[(1) - (2)].val));
 	                        (yyloc).first_column = (yylsp[(1) - (2)]).first_column; (yyloc).last_column = (yylsp[(2) - (2)]).last_column;
@@ -2206,7 +2206,7 @@ yyreduce:
   case 22:
 
 /* Line 1455 of yacc.c  */
-#line 464 "ast_expr2.y"
+#line 462 "ast_expr2.y"
     { (yyval.val) = op_times ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val));
 						DESTROY((yyvsp[(2) - (3)].val));
 	                       (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column;
@@ -2216,7 +2216,7 @@ yyreduce:
   case 23:
 
 /* Line 1455 of yacc.c  */
-#line 468 "ast_expr2.y"
+#line 466 "ast_expr2.y"
     { (yyval.val) = op_div ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val));
 						DESTROY((yyvsp[(2) - (3)].val));
 	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column;
@@ -2226,7 +2226,7 @@ yyreduce:
   case 24:
 
 /* Line 1455 of yacc.c  */
-#line 472 "ast_expr2.y"
+#line 470 "ast_expr2.y"
     { (yyval.val) = op_rem ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val));
 						DESTROY((yyvsp[(2) - (3)].val));
 	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column;
@@ -2236,7 +2236,7 @@ yyreduce:
   case 25:
 
 /* Line 1455 of yacc.c  */
-#line 476 "ast_expr2.y"
+#line 474 "ast_expr2.y"
     { (yyval.val) = op_colon ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val));
 						DESTROY((yyvsp[(2) - (3)].val));
 	                        (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column;
@@ -2246,7 +2246,7 @@ yyreduce:
   case 26:
 
 /* Line 1455 of yacc.c  */
-#line 480 "ast_expr2.y"
+#line 478 "ast_expr2.y"
     { (yyval.val) = op_eqtilde ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val));
 						DESTROY((yyvsp[(2) - (3)].val));
 	                        (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column;
@@ -2256,7 +2256,7 @@ yyreduce:
   case 27:
 
 /* Line 1455 of yacc.c  */
-#line 484 "ast_expr2.y"
+#line 482 "ast_expr2.y"
     { (yyval.val) = op_cond ((yyvsp[(1) - (5)].val), (yyvsp[(3) - (5)].val), (yyvsp[(5) - (5)].val));
 						DESTROY((yyvsp[(2) - (5)].val));
 						DESTROY((yyvsp[(4) - (5)].val));
@@ -2267,7 +2267,7 @@ yyreduce:
   case 28:
 
 /* Line 1455 of yacc.c  */
-#line 489 "ast_expr2.y"
+#line 487 "ast_expr2.y"
     { (yyval.val) = op_tildetilde ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val));
 						DESTROY((yyvsp[(2) - (3)].val));
 	                        (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column;
@@ -2277,7 +2277,7 @@ yyreduce:
 
 
 /* Line 1455 of yacc.c  */
-#line 2283 "ast_expr2.c"
+#line 2281 "ast_expr2.c"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
@@ -2496,7 +2496,7 @@ yyreturn:
 
 
 /* Line 1675 of yacc.c  */
-#line 495 "ast_expr2.y"
+#line 493 "ast_expr2.y"
 
 
 static struct expr_node *alloc_expr_node(enum node_type nt)
@@ -3685,3 +3685,4 @@ op_tildetilde (struct val *a, struct val *b)
 
 	return v;
 }
+

@@ -133,13 +133,10 @@ else
 ast_expr2f.c:
 endif
 	$(ECHO_PREFIX) echo "   [FLEX] $< -> $@"
-	$(CMD_PREFIX) $(FLEX) -o $@ ast_expr2.fl
-	$(CMD_PREFIX) sed 's@#if __STDC_VERSION__ >= 199901L@#if !defined __STDC_VERSION__ || __STDC_VERSION__ >= 199901L@' $@ > $@.fix
 	$(CMD_PREFIX) echo "#define ASTMM_LIBC ASTMM_REDIRECT" > $@
 	$(CMD_PREFIX) echo "#include \"asterisk.h\"" >> $@
 	$(CMD_PREFIX) echo >> $@
-	$(CMD_PREFIX) cat $@.fix >> $@
-	$(CMD_PREFIX) rm $@.fix
+	$(CMD_PREFIX) $(FLEX) -t ast_expr2.fl >> $@
 
 ifneq ($(findstring ENABLE_UPLOADS,$(MENUSELECT_CFLAGS)),)
 GMIMELDFLAGS+=$(GMIME_LIB)
