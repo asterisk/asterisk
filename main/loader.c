@@ -885,17 +885,7 @@ static int printdigest(const unsigned char *d)
 	return 0;
 }
 
-static int key_matches(const unsigned char *key1, const unsigned char *key2)
-{
-	int x;
-
-	for (x = 0; x < 16; x++) {
-		if (key1[x] != key2[x])
-			return 0;
-	}
-
-	return 1;
-}
+#define key_matches(a, b) (memcmp((a), (b), 16) == 0)
 
 static int verify_key(const unsigned char *key)
 {
