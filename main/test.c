@@ -455,8 +455,8 @@ static int test_execute_multiple(const char *name, const char *category, struct 
 		/* update total counts as well during this iteration
 		 * even if the current test did not execute this time */
 		last_results.total_time += test->time;
-		last_results.total_tests++;
 		if (test->state != AST_TEST_NOT_RUN) {
+			last_results.total_tests++;
 			if (test->state == AST_TEST_PASS) {
 				last_results.total_passed++;
 			} else {
@@ -533,10 +533,10 @@ static int test_generate_results(const char *name, const char *category, const c
 		 */
 		fprintf(f_xml, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
 		fprintf(f_xml, "<testsuites>\n");
-		fprintf(f_xml, "\t<testsuite errors=\"0\" time=\"%u.%u\" tests=\"%u\" "
+		fprintf(f_xml, "\t<testsuite errors=\"0\" time=\"%u.%u\" tests=\"%u\" failures=\"%u\" "
 				"name=\"AsteriskUnitTests\">\n",
 				last_results.total_time / 1000, last_results.total_time % 1000,
-				last_results.total_tests);
+				last_results.total_tests, last_results.total_failed);
 		fprintf(f_xml, "\t\t<properties>\n");
 		fprintf(f_xml, "\t\t\t<property name=\"version\" value=\"%s\"/>\n", ast_get_version());
 		fprintf(f_xml, "\t\t</properties>\n");
