@@ -4,10 +4,14 @@
 
 ; ********* NOTICE ************************************************************
 ;
-; NOTE: Asterisk has to edit this file to change a user's password.  This does
-; not currently work with the "#include <file>" directive for Asterisk
-; configuration files, nor when using realtime static configuration.
-; Do not use them with this configuration file.
+; NOTE: Asterisk has to edit this file to change a user's password, so
+; do not use realtime static configuration with this file.
+; To avoid requiring config updates on password updates, you could use the
+; passwordlocation option to store passwords separately.
+;
+; If your "source of truth" for voicemail passwords is elsewhere, you should
+; use the externpassnotify option to notify whatever stores the passwords
+; (e.g. external database) when there are changes, to keep it synchronized.
 ;
 ; NOTE: Mailboxes defined by app_voicemail MUST be referenced by the rest
 ; of the system as mailbox@context.  The rest of the system cannot add
