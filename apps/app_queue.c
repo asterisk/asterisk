@@ -161,7 +161,10 @@
 						<para>Continue in the dialplan if the callee hangs up.</para>
 					</option>
 					<option name="d">
-						<para>data-quality (modem) call (minimum delay).</para>
+						<para>Data-quality (modem) call (minimum delay).</para>
+						<para>This option only applies to DAHDI channels. By default,
+						DTMF is verified by muting audio TX/RX to verify the tone
+						is still present. This option disables that behavior.</para>
 					</option>
 					<option name="F" argsep="^">
 						<argument name="context" required="false" />
@@ -169,12 +172,6 @@
 						<argument name="priority" required="true" />
 						<para>When the caller hangs up, transfer the <emphasis>called member</emphasis>
 						to the specified destination and <emphasis>start</emphasis> execution at that location.</para>
-						<para>NOTE: Any channel variables you want the called channel to inherit from the caller channel must be
-						prefixed with one or two underbars ('_').</para>
-					</option>
-					<option name="F">
-						<para>When the caller hangs up, transfer the <emphasis>called member</emphasis> to the next priority of
-						the current extension and <emphasis>start</emphasis> execution at that location.</para>
 						<para>NOTE: Any channel variables you want the called channel to inherit from the caller channel must be
 						prefixed with one or two underbars ('_').</para>
 						<para>NOTE: Using this option from a Macro() or GoSub() might not make sense as there would be no return points.</para>
