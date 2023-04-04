@@ -30,6 +30,7 @@
 	<support_level>extended</support_level>
  ***/
 
+
 #include "asterisk.h"
 #include <uuid/uuid.h>
 
@@ -45,8 +46,9 @@
 #define FD_OUTPUT 1	/* A fd of -1 means an error, 0 is stdin */
 
 struct audiosocket_instance {
-	int svc;	/* The file descriptor for the AudioSocket instance */
-	char id[38];	/* The UUID identifying this AudioSocket instance */
+	int svc;	  /* The file descriptor for the AudioSocket instance */
+	char server[50];  /* The IP/port of the server the instance is connected to */
+	char id[38];	  /* The UUID identifying this AudioSocket instance */
 } audiosocket_instance;
 
 /* Forward declarations */
@@ -73,13 +75,22 @@ static struct ast_channel_tech audiosocket_channel_tech = {
 static struct ast_frame *audiosocket_read(struct ast_channel *ast)
 {
 	struct audiosocket_instance *instance;
+	struct ast_frame *frame;
+	int hangup;
+
 
 	/* The channel should always be present from the API */
 	instance = ast_channel_tech_pvt(ast);
 	if (instance == NULL || instance->svc < FD_OUTPUT) {
 		return NULL;
 	}
-	return ast_audiosocket_receive_frame(instance->svc);
+
+	frame = ast_audiosocket_receive_frame_with_hangup(instance->svc, &hangup);
+	if (!frame && !hangup) {
+		ast_log(LOG_ERROR, "Failed to receive frame from AudioSocket server '%s'"
+			" connected to channel '%s'\n", instance->server, ast_channel_name(ast));
+	}
+	return frame;
 }
 
 /*! \brief Function called when we should write a frame to the channel */
@@ -92,7 +103,13 @@ static int audiosocket_write(struct ast_channel *ast, struct ast_frame *f)
 	if (instance == NULL || instance->svc < 1) {
 		return -1;
 	}
-	return ast_audiosocket_send_frame(instance->svc, f);
+
+	if (ast_audiosocket_send_frame(instance->svc, f)) {
+		ast_log(LOG_ERROR, "Failed to forward frame from channel '%s' to AudioSocket server '%s'\n",
+				ast_channel_name(ast), instance->server);
+		return -1;
+	}
+	return 0;
 }
 
 /*! \brief Function called when we should actually call the destination */
@@ -222,6 +239,8 @@ static struct ast_channel *audiosocket_request(const char *type,
 	if ((fd = ast_audiosocket_connect(args.destination, NULL)) < 0) {
 		goto failure;
 	}
+	/* Make a copy of the server address for display in error messages. */
+	ast_copy_string(instance->server, args.destination, sizeof(instance->server));
 	instance->svc = fd;
 
 	chan = ast_channel_alloc(1, AST_STATE_DOWN, "", "", "", "", "", assignedids,
