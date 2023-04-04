@@ -2035,10 +2035,12 @@ int ast_safe_sleep_conditional(struct ast_channel *chan, int ms, int (*cond)(voi
  * \param nfds the number of fds to wait upon
  * \param exception exception flag
  * \param outfd fd that had activity on it
- * \param ms how long the wait was
+ * \param ms On invocation, max wait time. Upon returning, how long the wait
+ * actually was (in/out parameter).
  * \details
  * Big momma function here.  Wait for activity on any of the n channels, or any of the nfds
- * file descriptors.
+ * file descriptors. -1 can be passed as the ms timeout to wait forever, 0 to
+ * return instantly if theres no activity immediantely available.
  * \return Returns the channel with activity, or NULL on error or if an FD
  * came first.  If the FD came first, it will be returned in outfd, otherwise, outfd
  * will be -1
