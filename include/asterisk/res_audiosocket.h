@@ -36,6 +36,22 @@ extern "C" {
 #include "asterisk/frame.h"
 #include "asterisk/uuid.h"
 
+
+enum ast_audiosocket_msg_kind {
+	/*! \brief Message indicates the channel should be hung up, direction: Sent only. */
+	AST_AUDIOSOCKET_KIND_HANGUP = 0x00,
+
+	/*! \brief Message contains the connection's UUID, direction: Received only. */
+	AST_AUDIOSOCKET_KIND_UUID   = 0x01,
+
+	/*! \brief Messages contains audio data, direction: Sent and received. */
+	AST_AUDIOSOCKET_KIND_AUDIO  = 0x10,
+
+	/*! \brief An Asterisk-side error occurred, direction: Received only. */
+	AST_AUDIOSOCKET_KIND_ERROR  = 0xFF,
+};
+
+
 /*!
  * \brief Send the initial message to an AudioSocket server
  *
@@ -77,11 +93,15 @@ const int ast_audiosocket_send_frame(const int svc, const struct ast_frame *f);
  * This returned object is a pointer to an Asterisk frame which must be
  * manually freed by the caller.
  *
- * \param svc The file descriptor of the network socket to the AudioSocket server.
+ * \param svc The file descriptor of the network socket to the AudioSocket
+ * server.
+ * \param hangup Will be true if the AudioSocket server requested the channel
+ * be hung up, otherwise false. Used as an out-parameter only, pass NULL if
+ * not needed. The function return value will always be NULL when true.
  *
  * \retval A \ref ast_frame on success
- * \retval NULL on error
+ * \retval NULL on error or when the hungup parameter is true.
  */
-struct ast_frame *ast_audiosocket_receive_frame(const int svc);
+struct ast_frame *ast_audiosocket_receive_frame(const int svc, int *const hangup);
 
 #endif /* _ASTERISK_RES_AUDIOSOCKET_H */

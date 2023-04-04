@@ -31,6 +31,7 @@
 #include "asterisk.h"
 #include "errno.h"
 #include <uuid/uuid.h>
+#include <arpa/inet.h>  /* For byte-order conversion. */
 
 #include "asterisk/file.h"
 #include "asterisk/res_audiosocket.h"
@@ -82,7 +83,7 @@ static int handle_audiosocket_connection(const char *server,
 	}
 
 	if (getsockopt(pfds[0].fd, SOL_SOCKET, SO_ERROR, &conresult, &reslen) < 0) {
-		ast_log(LOG_WARNING, "Connection to %s failed with error: %s\n",
+		ast_log(LOG_WARNING, "Connection to '%s' failed with error: %s\n",
 			ast_sockaddr_stringify(&addr), strerror(errno));
 		return -1;
 	}
@@ -104,7 +105,7 @@ const int ast_audiosocket_connect(const char *server, struct ast_channel *chan)
 
 	if (chan && ast_autoservice_start(chan) < 0) {
 		ast_log(LOG_WARNING, "Failed to start autoservice for channel "
-			"%s\n", ast_channel_name(chan));
+			"'%s'\n", ast_channel_name(chan));
 		goto end;
 	}
 
@@ -115,7 +116,7 @@ const int ast_audiosocket_connect(const char *server, struct ast_channel *chan)
 
 	if (!(num_addrs = ast_sockaddr_resolve(&addrs, server, PARSE_PORT_REQUIRE,
 		AST_AF_UNSPEC))) {
-		ast_log(LOG_ERROR, "Failed to resolve AudioSocket service using %s - "
+		ast_log(LOG_ERROR, "Failed to resolve AudioSocket service using '%s' - "
 			"requires a valid hostname and port\n", server);
 		goto end;
 	}
@@ -127,7 +128,7 @@ const int ast_audiosocket_connect(const char *server, struct ast_channel *chan)
 			/* If there's no port, other addresses should have the
 			 * same problem. Stop here.
 			 */
-			ast_log(LOG_ERROR, "No port provided for %s\n",
+			ast_log(LOG_ERROR, "No port provided for '%s'\n",
 				ast_sockaddr_stringify(&addrs[i]));
 			s = -1;
 			goto end;
@@ -135,7 +136,7 @@ const int ast_audiosocket_connect(const char *server, struct ast_channel *chan)
 
 		if ((s = ast_socket_nonblock(addrs[i].ss.ss_family, SOCK_STREAM,
 			IPPROTO_TCP)) < 0) {
-			ast_log(LOG_WARNING, "Unable to create socket: %s\n", strerror(errno));
+			ast_log(LOG_WARNING, "Unable to create socket: '%s'\n", strerror(errno));
 			continue;
 		}
 
@@ -147,7 +148,7 @@ const int ast_audiosocket_connect(const char *server, struct ast_channel *chan)
 			}
 
 		} else {
-			ast_log(LOG_ERROR, "Connection to %s failed with unexpected error: %s\n",
+			ast_log(LOG_ERROR, "Connection to '%s' failed with unexpected error: %s\n",
 				ast_sockaddr_stringify(&addrs[i]), strerror(errno));
 			close(s);
 			s = -1;
@@ -162,7 +163,7 @@ end:
 	}
 
 	if (chan && ast_autoservice_stop(chan) < 0) {
-		ast_log(LOG_WARNING, "Failed to stop autoservice for channel %s\n",
+		ast_log(LOG_WARNING, "Failed to stop autoservice for channel '%s'\n",
 		ast_channel_name(chan));
 		close(s);
 		return -1;
@@ -193,13 +194,13 @@ const int ast_audiosocket_init(const int svc, const char *id)
 		return -1;
 	}
 
-	buf[0] = 0x01;
+	buf[0] = AST_AUDIOSOCKET_KIND_UUID;
 	buf[1] = 0x00;
 	buf[2] = 0x10;
 	memcpy(buf + 3, uu, 16);
 
 	if (write(svc, buf, 3 + 16) != 3 + 16) {
-		ast_log(LOG_WARNING, "Failed to write data to AudioSocket\n");
+		ast_log(LOG_WARNING, "Failed to write data to AudioSocket because: %s\n", strerror(errno));
 		ret = -1;
 	}
 
@@ -208,81 +209,69 @@ const int ast_audiosocket_init(const int svc, const char *id)
 
 const int ast_audiosocket_send_frame(const int svc, const struct ast_frame *f)
 {
-	int ret = 0;
-	uint8_t kind = 0x10;	/* always 16-bit, 8kHz signed linear mono, for now */
-	uint8_t *p;
 	uint8_t buf[3 + f->datalen];
+	uint16_t *length = (uint16_t *) &buf[1];
 
-	p = buf;
-
-	*(p++) = kind;
-	*(p++) = f->datalen >> 8;
-	*(p++) = f->datalen & 0xff;
-	memcpy(p, f->data.ptr, f->datalen);
+	/* Audio format is 16-bit, 8kHz signed linear mono for dialplan app,
+           depends on agreed upon audio codec for channel driver interface. */
+	buf[0] = AST_AUDIOSOCKET_KIND_AUDIO;
+	*length = htons(f->datalen);
+	memcpy(&buf[3], f->data.ptr, f->datalen);
 
 	if (write(svc, buf, 3 + f->datalen) != 3 + f->datalen) {
-		ast_log(LOG_WARNING, "Failed to write data to AudioSocket\n");
-		ret = -1;
+		ast_log(LOG_WARNING, "Failed to write data to AudioSocket because: %s\n", strerror(errno));
+		return -1;
 	}
 
-	return ret;
+	return 0;
 }
 
-struct ast_frame *ast_audiosocket_receive_frame(const int svc)
+struct ast_frame *ast_audiosocket_receive_frame(const int svc, int *const hangup)
 {
 
-	int i = 0, n = 0, ret = 0, not_audio = 0;
+	int i = 0, n = 0, ret = 0;
 	struct ast_frame f = {
 		.frametype = AST_FRAME_VOICE,
 		.subclass.format = ast_format_slin,
 		.src = "AudioSocket",
 		.mallocd = AST_MALLOCD_DATA,
 	};
-	uint8_t kind;
-	uint8_t len_high;
-	uint8_t len_low;
-	uint16_t len = 0;
+	uint8_t header[3];
+	uint8_t *kind = &header[0];
+	uint16_t *length = (uint16_t *) &header[1];
 	uint8_t *data;
 
-	n = read(svc, &kind, 1);
-	if (n < 0 && errno == EAGAIN) {
-		return &ast_null_frame;
-	}
-	if (n == 0) {
-		return &ast_null_frame;
-	}
-	if (n != 1) {
-		ast_log(LOG_WARNING, "Failed to read type header from AudioSocket\n");
-		return NULL;
-	}
-	if (kind == 0x00) {
-		/* AudioSocket ended by remote */
-		return NULL;
-	}
-	if (kind != 0x10) {
-		/* read but ignore non-audio message */
-		ast_log(LOG_WARNING, "Received non-audio AudioSocket message\n");
-		not_audio = 1;
+	if (hangup) {
+		*hangup = 0;
 	}
 
-	n = read(svc, &len_high, 1);
-	if (n != 1) {
-		ast_log(LOG_WARNING, "Failed to read data length from AudioSocket\n");
+	n = read(svc, &header, 3);
+	if (n == -1) {
+		ast_log(LOG_WARNING, "Failed to read header from AudioSocket because: %s\n", strerror(errno));
 		return NULL;
 	}
-	len += len_high * 256;
-	n = read(svc, &len_low, 1);
-	if (n != 1) {
-		ast_log(LOG_WARNING, "Failed to read data length from AudioSocket\n");
+
+	if (n == 0 || *kind == AST_AUDIOSOCKET_KIND_HANGUP) {
+		/* Socket closure or requested hangup. */
+		if (hangup) {
+			*hangup = 1;
+		}
 		return NULL;
 	}
-	len += len_low;
 
-	if (len < 1) {
-		return &ast_null_frame;
+	if (*kind != AST_AUDIOSOCKET_KIND_AUDIO) {
+		ast_log(LOG_ERROR, "Received AudioSocket message other than hangup or audio, refer to protocol specification for valid message types: https://wiki.asterisk.org/wiki/display/AST/AudioSocket\n");
+		return NULL;
 	}
 
-	data = ast_malloc(len);
+	/* Swap endianess of length if needed. */
+	*length = ntohs(*length);
+	if (*length < 1) {
+		ast_log(LOG_ERROR, "Invalid message length received from AudioSocket server. \n");
+		return NULL;
+	}
+
+	data = ast_malloc(*length);
 	if (!data) {
 		ast_log(LOG_ERROR, "Failed to allocate for data from AudioSocket\n");
 		return NULL;
@@ -291,15 +280,15 @@ struct ast_frame *ast_audiosocket_receive_frame(const int svc)
 	ret = 0;
 	n = 0;
 	i = 0;
-	while (i < len) {
-		n = read(svc, data + i, len - i);
-		if (n < 0) {
-			ast_log(LOG_ERROR, "Failed to read data from AudioSocket\n");
-			ret = n;
+	while (i < *length) {
+		n = read(svc, data + i, *length - i);
+		if (n == -1) {
+			ast_log(LOG_ERROR, "Failed to read payload from AudioSocket: %s\n", strerror(errno));
+			ret = -1;
 			break;
 		}
 		if (n == 0) {
-			ast_log(LOG_ERROR, "Insufficient data read from AudioSocket\n");
+			ast_log(LOG_ERROR, "Insufficient payload read from AudioSocket\n");
 			ret = -1;
 			break;
 		}
@@ -311,14 +300,9 @@ struct ast_frame *ast_audiosocket_receive_frame(const int svc)
 		return NULL;
 	}
 
-	if (not_audio) {
-		ast_free(data);
-		return &ast_null_frame;
-	}
-
 	f.data.ptr = data;
-	f.datalen = len;
-	f.samples = len / 2;
+	f.datalen = *length;
+	f.samples = *length / 2;
 
 	/* The frame steals data, so it doesn't need to be freed here */
 	return ast_frisolate(&f);
