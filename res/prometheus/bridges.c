@@ -83,7 +83,7 @@ static void bridges_scrape_cb(struct ast_str **response)
 	struct ast_bridge *bridge;
 	struct prometheus_metric *bridge_metrics;
 	char eid_str[32];
-	int i, j, num_bridges;
+	int i, j, num_bridges, num_outputs = 0;
 	struct prometheus_metric bridge_count = PROMETHEUS_METRIC_STATIC_INITIALIZATION(
 		PROMETHEUS_METRIC_GAUGE,
 		"asterisk_bridges_count",
@@ -138,7 +138,7 @@ static void bridges_scrape_cb(struct ast_str **response)
 		}
 
 		for (j = 0; j < ARRAY_LEN(bridge_metric_defs); j++) {
-			int index = i * ARRAY_LEN(bridge_metric_defs) + j;
+			int index = num_outputs++;
 
 			bridge_metrics[index].type = PROMETHEUS_METRIC_GAUGE;
 			ast_copy_string(bridge_metrics[index].name, bridge_metric_defs[j].name, sizeof(bridge_metrics[index].name));
@@ -159,7 +159,7 @@ static void bridges_scrape_cb(struct ast_str **response)
 	}
 	ao2_iterator_destroy(&it_bridges);
 
-	for (j = 0; j < ARRAY_LEN(bridge_metric_defs); j++) {
+	for (j = 0; j < num_outputs; j++) {
 		prometheus_metric_to_string(&bridge_metrics[j], response);
 	}
 
