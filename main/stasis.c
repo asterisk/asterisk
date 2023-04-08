@@ -1872,7 +1872,7 @@ void stasis_topic_pool_delete_topic(struct stasis_topic_pool *pool, const char *
 	int pool_topic_name_len = strlen(pool_topic_name);
 	const char *search_topic_name;
 
-	if (strncmp(pool_topic_name, topic_name, pool_topic_name_len) == 0) {
+	if (pool_topic_name && strncmp(pool_topic_name, topic_name, pool_topic_name_len) == 0) {
 		search_topic_name = topic_name + pool_topic_name_len + 1;
 	} else {
 		search_topic_name = topic_name;
