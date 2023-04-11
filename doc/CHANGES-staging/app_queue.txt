@@ -1,9 +1,0 @@
-Subject: app_queue
-
-Introduce a new queue configuration option called
-'periodic-announce-startdelay' which will vary the normal (historic) behavior
-of starting the periodic announcement cycle at periodic-announce-frequency
-seconds after entering the queue to start the periodic announcement cycle at
-period-announce-startdelay seconds after joining the queue.
-
-The default behavior if this config option is not set remains unchanged.
