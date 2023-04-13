@@ -4896,7 +4896,7 @@ static int dundi_exec(struct ast_channel *chan, const char *context, const char 
 		/* PJSIP requires an endpoint to be specified explicitly. */
 		if (outgoing_sip_tech == DUNDI_PROTO_PJSIP) {
 			char *number, *ip = ast_strdupa(results[x].dest);
-			if (!ast_strlen_zero(pjsip_outgoing_endpoint)) {
+			if (ast_strlen_zero(pjsip_outgoing_endpoint)) {
 				ast_log(LOG_WARNING, "PJSIP calls require an endpoint to be specified explicitly (use the pjsip_outgoing_endpoint option in dundi.conf)\n");
 				return -1;
 			}
