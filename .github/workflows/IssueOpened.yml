@@ -1,0 +1,15 @@
+name: Issue Opened
+run-name: "Issue ${{github.event.number}} ${{github.event.action}} by ${{github.actor}}"
+on:
+  issues:
+    types: opened
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: initial labeling
+        uses: andymckay/labeler@master
+        with:
+          add-labels: "triage"
+          ignore-if-labeled: true
