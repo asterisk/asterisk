@@ -1,0 +1,47 @@
+name: Nightly Admin
+on:
+  schedule:
+    - cron: '30 1 * * *'
+
+env:
+  ASTERISK_REPO:     ${{ github.repository }}
+  PR_NUMBER:         0
+  PR_COMMIT:         ''
+  GITHUB_TOKEN:      ${{ secrets.GITHUB_TOKEN }}
+  GH_TOKEN:          ${{ secrets.GITHUB_TOKEN }}
+  MODULES_BLACKLIST: ${{ vars.GATETEST_MODULES_BLACKLIST }} ${{ vars.UNITTEST_MODULES_BLACKLIST }}
+
+jobs:
+  CloseStaleIssues:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Close Stale Issues
+        uses: actions/stale@v7
+        with:
+          stale-issue-message: 'This issue is stale because it has been open 7 days with no activity. Remove stale label or comment or this will be closed in 14 days.'
+          close-issue-message: 'This issue was closed because it has been stalled for 14 days with no activity.'
+          days-before-stale: 7
+          days-before-close: 14
+          days-before-pr-close: -1
+          only-label: triage,feedback-required
+
+  PublishWikiDocs:
+    if: ${{fromJSON(vars.WIKIDOCS_ENABLE) == true}}
+    strategy:
+      fail-fast: false
+      matrix:
+        branch: ${{ fromJSON(vars.WIKIDOC_BRANCHES) }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: PublishWikiDocs
+        uses: asterisk/asterisk-ci-actions/AsteriskPublishDocsComposite@main
+        with:
+          asterisk_repo:     ${{env.ASTERISK_REPO}}
+          base_branch:       ${{matrix.branch}}
+          modules_blacklist: ${{env.MODULES_BLACKLIST}}
+          github_token:      ${{secrets.GITHUB_TOKEN}}
+          publish_docs_repo:   ${{vars.PUBLISH_DOCS_REPO}}
+          publish_docs_branch: ${{vars.PUBLISH_DOCS_BRANCH}}
+          confluence_url:      ${{vars.CONFLUENCE_URL}}
+          confluence_userpass: ${{secrets.CONFLUENCE_USERPASS}}
+          confluence_space:    ${{vars.CONFLUENCE_SPACE}}
