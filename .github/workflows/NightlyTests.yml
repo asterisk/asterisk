@@ -1,0 +1,59 @@
+name: NightlyTests
+on:
+  workflow_dispatch:
+
+  schedule:
+    - cron: '0 2 * * *'
+
+env:
+  ASTERISK_REPO:     ${{ github.repository }}
+  PR_NUMBER:         0
+  PR_COMMIT:         ''
+  GITHUB_TOKEN:      ${{ secrets.GITHUB_TOKEN }}
+  GH_TOKEN:          ${{ secrets.GITHUB_TOKEN }}
+  MODULES_BLACKLIST: ${{ vars.GATETEST_MODULES_BLACKLIST }}
+
+jobs:
+  AsteriskNightly:
+    strategy:
+      fail-fast: false
+      matrix:
+        branch: ${{ fromJSON(vars.NIGHTLYTEST_BRANCHES) }}
+        group: ${{ fromJSON(vars.NIGHTLYTEST_LIST) }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run Nightly Tests for ${{ matrix.group }}/${{ matrix.branch }}
+        uses: asterisk/asterisk-ci-actions/AsteriskGateComposite@main
+        with:
+          test_type:         Nightly
+          asterisk_repo:     ${{env.ASTERISK_REPO}}
+          pr_number:         ${{env.PR_NUMBER}}
+          base_branch:       ${{matrix.branch}}
+          modules_blacklist: ${{env.MODULES_BLACKLIST}}
+          github_token:      ${{secrets.GITHUB_TOKEN}}
+          testsuite_repo:    ${{vars.TESTSUITE_REPO}}
+          gatetest_group:    ${{matrix.group}}
+          gatetest_commands: ${{vars.GATETEST_COMMANDS}}
+
+  AsteriskNightlyTests:
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    needs: AsteriskNightly
+    steps:
+      - name: Check test matrix status
+        env:
+          RESULT: ${{needs.AsteriskNightly.result}}
+        run: |
+          case $RESULT in
+            success)
+              echo "::notice::All Testsuite tests passed"
+              exit 0
+              ;;
+            skipped)
+              echo "::error::Testsuite tests were skipped because of an earlier failure"
+              exit 1
+              ;;
+              *)
+              echo "::error::One or more Testsuite tests failed"
+              exit 1
+          esac
