@@ -1131,9 +1131,18 @@ pickupgroup=1
 ;
 ; For FXO (FXS signalled) devices, whether to use pulse dial instead of DTMF
 ; Pulse digits from phones (FXS devices, FXO signalling) are always
-; detected.
+; detected, unless the dialmode setting has been changed from the default.
 ;
 ;pulsedial=yes
+;
+; For FXS (FXO signalled) devices, the dialing modes to support for the channel.
+; By default, both pulse and tone (DTMF) dialing are always detected.
+; May be set to "pulse" if you only want to allow pulse dialing on a line.
+; May be set to "dtmf" or "tone" to only allow tone dialing on a line.
+; May be set to "none" to prevent dialing entirely.
+; You can also change this during a call using the CHANNEL function in the dialplan.
+;
+;dialmode=both
 ;
 ; For fax detection, uncomment one of the following lines.  The default is *OFF*
 ;
