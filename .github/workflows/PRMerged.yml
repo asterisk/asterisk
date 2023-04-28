@@ -1,0 +1,69 @@
+name: PRMerged
+run-name: "PR ${{github.event.number || inputs.pr_number}} ${{github.event.action || 'MANUAL POST MERGE'}} by ${{ github.actor }}"
+on:
+  pull_request_target:
+    types: [closed]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number'
+        required: true
+        type: number
+
+concurrency:
+  group: ${{github.workflow}}-${{github.event.number || inputs.pr_number}}
+  cancel-in-progress: true
+
+env:
+  REPO:              ${{github.repository}}
+  PR_NUMBER:         ${{github.event.number || inputs.pr_number}}
+  GITHUB_TOKEN:      ${{secrets.GITHUB_TOKEN}}
+
+jobs:
+  CloseIssues:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: wow-actions/auto-close-fixed-issues@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  IdentifyBranches:
+    if: github.event.pull_request.merged == true || inputs.pr_number
+    outputs:
+      branches:     ${{ steps.getbranches.outputs.branches }}
+      branch_count: ${{ steps.getbranches.outputs.branch_count }}
+      github_token: ${{steps.get_workflow_token.outputs.token}}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get cherry-pick branches
+        uses: asterisk/asterisk-ci-actions/GetCherryPickBranchesFromPR@main
+        id: getbranches
+        with:
+          repo:              ${{env.REPO}}
+          pr_number:         ${{env.PR_NUMBER}}
+          cherry_pick_regex: ${{vars.CHERRY_PICK_REGEX}}
+          github_token:      ${{env.GITHUB_TOKEN}}
+
+  MergeCherryPicks:
+    needs: [ IdentifyBranches ]
+    if: needs.IdentifyBranches.outputs.branch_count > 0
+    continue-on-error: false
+    strategy:
+      fail-fast: true
+      matrix:
+        branch: ${{ fromJSON(needs.IdentifyBranches.outputs.branches) }}
+    runs-on: ubuntu-latest
+    steps:
+    
+      - name: Cherry Pick PR ${{env.PR_NUMBER}} to branch ${{matrix.branch}}
+        uses: asterisk/asterisk-ci-actions/CherryPick@main
+        with:
+          repo:              ${{env.REPO}}
+          pr_number:         ${{env.PR_NUMBER}}
+          branch:            ${{matrix.branch}}
+          github_token:      ${{secrets.ASTERISKTEAM_PAT}}
+          access_app_id:     ${{secrets.ASTERISK_ORG_ACCESS_APP_ID}}
+          access_app_key:    ${{secrets.ASTERISK_ORG_ACCESS_APP_PRIV_KEY}}
