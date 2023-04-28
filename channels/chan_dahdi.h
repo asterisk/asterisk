@@ -146,6 +146,7 @@ struct dahdi_pvt {
 	 * \note Set to a couple of nonzero values but it is only tested like a boolean.
 	 */
 	int radio;
+	int dialmode;					/*!< Dialing Modes Allowed (Pulse/Tone) */
 	int outsigmod;					/*!< Outbound Signalling style (modifier) */
 	int oprmode;					/*!< "Operator Services" mode */
 	struct dahdi_pvt *oprpeer;				/*!< "Operator Services" peer tech_pvt ptr */
