@@ -1608,6 +1608,21 @@ static char *epoch_to_string(char *buf, size_t buflen, time_t epoch)
 	return buf;
 }
 
+static const char *ast_calendar_busy_state_to_str(enum ast_calendar_busy_state busy_state)
+{
+	switch (busy_state) {
+	case AST_CALENDAR_BS_FREE:
+		return "Free";
+	case AST_CALENDAR_BS_BUSY_TENTATIVE:
+		return "Busy (Tentative)";
+	case AST_CALENDAR_BS_BUSY:
+		return "Busy";
+	default:
+		return "Unknown (Busy)";
+	}
+}
+
+
 static char *handle_show_calendar(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 #define FORMAT  "%-18.18s : %-20.20s\n"
@@ -1683,6 +1698,7 @@ static char *handle_show_calendar(struct ast_cli_entry *e, int cmd, struct ast_c
 		ast_cli(a->fd, FORMAT2, "Start", epoch_to_string(buf, sizeof(buf), event->start));
 		ast_cli(a->fd, FORMAT2, "End", epoch_to_string(buf, sizeof(buf), event->end));
 		ast_cli(a->fd, FORMAT2, "Alarm", epoch_to_string(buf, sizeof(buf), event->alarm));
+		ast_cli(a->fd, FORMAT2, "Busy State", ast_calendar_busy_state_to_str(event->busy_state));
 		ast_cli(a->fd, "\n");
 
 		event = ast_calendar_unref_event(event);

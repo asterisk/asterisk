@@ -383,8 +383,48 @@ AST_TEST_DEFINE(call_backtrace)
 	return AST_TEST_PASS;
 }
 
+AST_TEST_DEFINE(just_fail)
+{
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "JUST_FAIL";
+		info->category = "/TEST_PASS_FAIL/";
+		info->summary = "Just fails";
+		info->description = "Just fails. "
+			"This test is mainly used for testing CI and tool failure scenarios.";
+		info->explicit_only = 1;
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+	ast_test_status_update(test, "This test just forces a fail\n");
+
+	return AST_TEST_FAIL;
+}
+
+AST_TEST_DEFINE(just_pass)
+{
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "JUST_PASS";
+		info->category = "/TEST_PASS_FAIL/";
+		info->summary = "Just passes";
+		info->description = "Just passes. "
+			"This test is mainly used for testing CI and tool failure scenarios.";
+		info->explicit_only = 1;
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+	ast_test_status_update(test, "This test just forces a pass\n");
+
+	return AST_TEST_PASS;
+}
+
 static int unload_module(void)
 {
+	AST_TEST_UNREGISTER(just_pass);
+	AST_TEST_UNREGISTER(just_fail);
 	AST_TEST_UNREGISTER(call_backtrace);
 	AST_TEST_UNREGISTER(call_assert);
 	AST_TEST_UNREGISTER(segv);
@@ -398,6 +438,8 @@ static int load_module(void)
 	AST_TEST_REGISTER(segv);
 	AST_TEST_REGISTER(call_assert);
 	AST_TEST_REGISTER(call_backtrace);
+	AST_TEST_REGISTER(just_fail);
+	AST_TEST_REGISTER(just_pass);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 

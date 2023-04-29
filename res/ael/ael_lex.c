@@ -37,7 +37,7 @@
 #if defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
 
 /* C99 says to define __STDC_LIMIT_MACROS before including stdint.h,
- * if you want the limit (max/min) macros for int types.
+ * if you want the limit (max/min) macros for int types. 
  */
 #ifndef __STDC_LIMIT_MACROS
 #define __STDC_LIMIT_MACROS 1
@@ -54,9 +54,10 @@ typedef uint32_t flex_uint32_t;
 typedef signed char flex_int8_t;
 typedef short int flex_int16_t;
 typedef int flex_int32_t;
-typedef unsigned char flex_uint8_t;
+typedef unsigned char flex_uint8_t; 
 typedef unsigned short int flex_uint16_t;
 typedef unsigned int flex_uint32_t;
+#endif /* ! C99 */
 
 /* Limits of integral types. */
 #ifndef INT8_MIN
@@ -86,8 +87,6 @@ typedef unsigned int flex_uint32_t;
 #ifndef UINT32_MAX
 #define UINT32_MAX             (4294967295U)
 #endif
-
-#endif /* ! C99 */
 
 #endif /* ! FLEXINT_H */
 
@@ -162,15 +161,7 @@ typedef void* yyscan_t;
 
 /* Size of default input buffer. */
 #ifndef YY_BUF_SIZE
-#ifdef __ia64__
-/* On IA-64, the buffer size is 16k, not 8k.
- * Moreover, YY_BUF_SIZE is 2*YY_READ_BUF_SIZE in the general case.
- * Ditto for the __ia64__ case accordingly.
- */
-#define YY_BUF_SIZE 32768
-#else
 #define YY_BUF_SIZE 16384
-#endif /* __ia64__ */
 #endif
 
 /* The state buf must be large enough to hold one state per character in the main buffer.
@@ -187,7 +178,7 @@ typedef struct yy_buffer_state *YY_BUFFER_STATE;
 #define EOB_ACT_LAST_MATCH 2
 
     #define YY_LESS_LINENO(n)
-
+    
 /* Return all but the first "n" matched characters back to the input stream. */
 #define yyless(n) \
 	do \
@@ -249,7 +240,7 @@ struct yy_buffer_state
 
     int yy_bs_lineno; /**< The line count. */
     int yy_bs_column; /**< The column count. */
-
+    
 	/* Whether to try to fill the input buffer when we reach the
 	 * end of it.
 	 */
@@ -828,8 +819,6 @@ static yyconst flex_int16_t yy_chk[1073] =
  * bison-locations is probably not needed.
  */
 #line 71 "ael.flex"
-#include "asterisk.h"
-
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -967,7 +956,7 @@ static void pbcwhere(const char *text, int *line, int *col )
 #define	STORE_POS
 #define	STORE_LOC
 #endif
-#line 963 "ael_lex.c"
+#line 957 "ael_lex.c"
 
 #define INITIAL 0
 #define paren 1
@@ -1033,9 +1022,9 @@ static int yy_init_globals (yyscan_t yyscanner );
     /* This must go here because YYSTYPE and YYLTYPE are included
      * from bison output in section 1.*/
     #    define yylval yyg->yylval_r
-
+    
     #    define yylloc yyg->yylloc_r
-
+    
 int ael_yylex_init (yyscan_t* scanner);
 
 int ael_yylex_init_extra (YY_EXTRA_TYPE user_defined,yyscan_t* scanner);
@@ -1074,9 +1063,9 @@ YYSTYPE * ael_yyget_lval (yyscan_t yyscanner );
 void ael_yyset_lval (YYSTYPE * yylval_param ,yyscan_t yyscanner );
 
        YYLTYPE *ael_yyget_lloc (yyscan_t yyscanner );
-
+    
         void ael_yyset_lloc (YYLTYPE * yylloc_param ,yyscan_t yyscanner );
-
+    
 /* Macros after this point can all be overridden by user definitions in
  * section 1.
  */
@@ -1090,7 +1079,7 @@ extern int ael_yywrap (yyscan_t yyscanner );
 #endif
 
     static void yyunput (int c,char *buf_ptr  ,yyscan_t yyscanner);
-
+    
 #ifndef yytext_ptr
 static void yy_flex_strncpy (char *,yyconst char *,int ,yyscan_t yyscanner);
 #endif
@@ -1111,12 +1100,7 @@ static int input (yyscan_t yyscanner );
 
 /* Amount of stuff to slurp up with each read. */
 #ifndef YY_READ_BUF_SIZE
-#ifdef __ia64__
-/* On IA-64, the buffer size is 16k, not 8k */
-#define YY_READ_BUF_SIZE 16384
-#else
 #define YY_READ_BUF_SIZE 8192
-#endif /* __ia64__ */
 #endif
 
 /* Copy whatever the last rule matched to the standard output. */
@@ -1124,7 +1108,7 @@ static int input (yyscan_t yyscanner );
 /* This used to be an fputs(), but since the string might contain NUL's,
  * we now use fwrite().
  */
-#define ECHO do { if (fwrite( yytext, yyleng, 1, yyout )) {} } while (0)
+#define ECHO fwrite( yytext, yyleng, 1, yyout )
 #endif
 
 /* Gets input and stuffs it into "buf".  number of characters read, or YY_NULL,
@@ -1135,7 +1119,7 @@ static int input (yyscan_t yyscanner );
 	if ( YY_CURRENT_BUFFER_LVALUE->yy_is_interactive ) \
 		{ \
 		int c = '*'; \
-		size_t n; \
+		int n; \
 		for ( n = 0; n < max_size && \
 			     (c = getc( yyin )) != EOF && c != '\n'; ++n ) \
 			buf[n] = (char) c; \
@@ -1220,10 +1204,10 @@ YY_DECL
 	register int yy_act;
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 
-#line 217 "ael.flex"
+#line 220 "ael.flex"
 
 
-#line 1219 "ael_lex.c"
+#line 1208 "ael_lex.c"
 
     yylval = yylval_param;
 
@@ -1314,260 +1298,260 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 219 "ael.flex"
+#line 222 "ael.flex"
 { STORE_POS; return LC;}
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 220 "ael.flex"
+#line 223 "ael.flex"
 { STORE_POS; return RC;}
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 221 "ael.flex"
+#line 224 "ael.flex"
 { STORE_POS; return LP;}
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 222 "ael.flex"
+#line 225 "ael.flex"
 { STORE_POS; return RP;}
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 223 "ael.flex"
+#line 226 "ael.flex"
 { STORE_POS; return SEMI;}
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 224 "ael.flex"
+#line 227 "ael.flex"
 { STORE_POS; return EQ;}
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 225 "ael.flex"
+#line 228 "ael.flex"
 { STORE_POS; return COMMA;}
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 226 "ael.flex"
+#line 229 "ael.flex"
 { STORE_POS; return COLON;}
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 227 "ael.flex"
+#line 230 "ael.flex"
 { STORE_POS; return AMPER;}
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 228 "ael.flex"
+#line 231 "ael.flex"
 { STORE_POS; return BAR;}
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 229 "ael.flex"
+#line 232 "ael.flex"
 { STORE_POS; return EXTENMARK;}
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 230 "ael.flex"
+#line 233 "ael.flex"
 { STORE_POS; return AT;}
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 231 "ael.flex"
+#line 234 "ael.flex"
 {/*comment*/}
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 232 "ael.flex"
+#line 235 "ael.flex"
 { STORE_POS; return KW_CONTEXT;}
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 233 "ael.flex"
+#line 236 "ael.flex"
 { STORE_POS; return KW_ABSTRACT;}
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 234 "ael.flex"
+#line 237 "ael.flex"
 { STORE_POS; return KW_EXTEND;}
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 235 "ael.flex"
+#line 238 "ael.flex"
 { STORE_POS; return KW_MACRO;};
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 236 "ael.flex"
+#line 239 "ael.flex"
 { STORE_POS; return KW_GLOBALS;}
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 237 "ael.flex"
+#line 240 "ael.flex"
 { STORE_POS; return KW_LOCAL;}
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 238 "ael.flex"
+#line 241 "ael.flex"
 { STORE_POS; return KW_IGNOREPAT;}
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 239 "ael.flex"
+#line 242 "ael.flex"
 { STORE_POS; return KW_SWITCH;}
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 240 "ael.flex"
+#line 243 "ael.flex"
 { STORE_POS; return KW_IF;}
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 241 "ael.flex"
+#line 244 "ael.flex"
 { STORE_POS; return KW_IFTIME;}
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 242 "ael.flex"
+#line 245 "ael.flex"
 { STORE_POS; return KW_RANDOM;}
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
-#line 243 "ael.flex"
+#line 246 "ael.flex"
 { STORE_POS; return KW_REGEXTEN;}
 	YY_BREAK
 case 26:
 YY_RULE_SETUP
-#line 244 "ael.flex"
+#line 247 "ael.flex"
 { STORE_POS; return KW_HINT;}
 	YY_BREAK
 case 27:
 YY_RULE_SETUP
-#line 245 "ael.flex"
+#line 248 "ael.flex"
 { STORE_POS; return KW_ELSE;}
 	YY_BREAK
 case 28:
 YY_RULE_SETUP
-#line 246 "ael.flex"
+#line 249 "ael.flex"
 { STORE_POS; return KW_GOTO;}
 	YY_BREAK
 case 29:
 YY_RULE_SETUP
-#line 247 "ael.flex"
+#line 250 "ael.flex"
 { STORE_POS; return KW_JUMP;}
 	YY_BREAK
 case 30:
 YY_RULE_SETUP
-#line 248 "ael.flex"
+#line 251 "ael.flex"
 { STORE_POS; return KW_RETURN;}
 	YY_BREAK
 case 31:
 YY_RULE_SETUP
-#line 249 "ael.flex"
+#line 252 "ael.flex"
 { STORE_POS; return KW_BREAK;}
 	YY_BREAK
 case 32:
 YY_RULE_SETUP
-#line 250 "ael.flex"
+#line 253 "ael.flex"
 { STORE_POS; return KW_CONTINUE;}
 	YY_BREAK
 case 33:
 YY_RULE_SETUP
-#line 251 "ael.flex"
+#line 254 "ael.flex"
 { STORE_POS; return KW_FOR;}
 	YY_BREAK
 case 34:
 YY_RULE_SETUP
-#line 252 "ael.flex"
+#line 255 "ael.flex"
 { STORE_POS; return KW_WHILE;}
 	YY_BREAK
 case 35:
 YY_RULE_SETUP
-#line 253 "ael.flex"
+#line 256 "ael.flex"
 { STORE_POS; return KW_CASE;}
 	YY_BREAK
 case 36:
 YY_RULE_SETUP
-#line 254 "ael.flex"
+#line 257 "ael.flex"
 { STORE_POS; return KW_DEFAULT;}
 	YY_BREAK
 case 37:
 YY_RULE_SETUP
-#line 255 "ael.flex"
+#line 258 "ael.flex"
 { STORE_POS; return KW_PATTERN;}
 	YY_BREAK
 case 38:
 YY_RULE_SETUP
-#line 256 "ael.flex"
+#line 259 "ael.flex"
 { STORE_POS; return KW_CATCH;}
 	YY_BREAK
 case 39:
 YY_RULE_SETUP
-#line 257 "ael.flex"
+#line 260 "ael.flex"
 { STORE_POS; return KW_SWITCHES;}
 	YY_BREAK
 case 40:
 YY_RULE_SETUP
-#line 258 "ael.flex"
+#line 261 "ael.flex"
 { STORE_POS; return KW_ESWITCHES;}
 	YY_BREAK
 case 41:
 YY_RULE_SETUP
-#line 259 "ael.flex"
+#line 262 "ael.flex"
 { STORE_POS; return KW_INCLUDES;}
 	YY_BREAK
 case 42:
 YY_RULE_SETUP
-#line 260 "ael.flex"
+#line 263 "ael.flex"
 { BEGIN(comment); my_col += 2; }
 	YY_BREAK
 case 43:
 YY_RULE_SETUP
-#line 262 "ael.flex"
+#line 265 "ael.flex"
 { my_col += yyleng; }
 	YY_BREAK
 case 44:
 /* rule 44 can match eol */
 YY_RULE_SETUP
-#line 263 "ael.flex"
+#line 266 "ael.flex"
 { ++my_lineno; my_col=1;}
 	YY_BREAK
 case 45:
 YY_RULE_SETUP
-#line 264 "ael.flex"
+#line 267 "ael.flex"
 { my_col += yyleng; }
 	YY_BREAK
 case 46:
 /* rule 46 can match eol */
 YY_RULE_SETUP
-#line 265 "ael.flex"
+#line 268 "ael.flex"
 { ++my_lineno; my_col=1;}
 	YY_BREAK
 case 47:
 YY_RULE_SETUP
-#line 266 "ael.flex"
+#line 269 "ael.flex"
 { my_col += 2; BEGIN(INITIAL); } /* the nice thing about comments is that you know exactly what ends them */
 	YY_BREAK
 case 48:
 /* rule 48 can match eol */
 YY_RULE_SETUP
-#line 268 "ael.flex"
+#line 271 "ael.flex"
 { my_lineno++; my_col = 1; }
 	YY_BREAK
 case 49:
 YY_RULE_SETUP
-#line 269 "ael.flex"
+#line 272 "ael.flex"
 { my_col += yyleng; }
 	YY_BREAK
 case 50:
 YY_RULE_SETUP
-#line 270 "ael.flex"
+#line 273 "ael.flex"
 { my_col += (yyleng*8)-(my_col%8); }
 	YY_BREAK
 case 51:
 YY_RULE_SETUP
-#line 272 "ael.flex"
+#line 275 "ael.flex"
 {
       /* boy did I open a can of worms when I changed the lexical token "word".
   	  	 all the above keywords can be used as a beginning to a "word".-
@@ -1596,22 +1580,22 @@ YY_RULE_SETUP
 	YY_BREAK
 case 52:
 YY_RULE_SETUP
-#line 298 "ael.flex"
+#line 301 "ael.flex"
 { yymore(); /* Keep going */ }
 	YY_BREAK
 case 53:
 YY_RULE_SETUP
-#line 299 "ael.flex"
+#line 302 "ael.flex"
 { yymore(); /* Keep going */ }
 	YY_BREAK
 case 54:
 YY_RULE_SETUP
-#line 300 "ael.flex"
+#line 303 "ael.flex"
 { yymore(); /* Keep Going */ }
 	YY_BREAK
 case 55:
 YY_RULE_SETUP
-#line 301 "ael.flex"
+#line 304 "ael.flex"
 { /* the beginning of a ${} construct. prepare and pop into curlystate */
 	   	parencount2 = 0;
 		pbcpos2 = 0;
@@ -1622,7 +1606,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 56:
 YY_RULE_SETUP
-#line 308 "ael.flex"
+#line 311 "ael.flex"
 { /* the beginning of a $[] construct. prepare and pop into brackstate */
 	   	parencount3 = 0;
 		pbcpos3 = 0;
@@ -1634,7 +1618,7 @@ YY_RULE_SETUP
 case 57:
 /* rule 57 can match eol */
 YY_RULE_SETUP
-#line 315 "ael.flex"
+#line 318 "ael.flex"
 {
 		/* a non-word constituent char, like a space, tab, curly, paren, etc */
 		char c = yytext[yyleng-1];
@@ -1650,7 +1634,7 @@ YY_RULE_SETUP
 case 58:
 /* rule 58 can match eol */
 YY_RULE_SETUP
-#line 328 "ael.flex"
+#line 331 "ael.flex"
 {
 		if ( pbcpop2('}') ) {	/* error */
 			STORE_LOC;
@@ -1673,7 +1657,7 @@ YY_RULE_SETUP
 case 59:
 /* rule 59 can match eol */
 YY_RULE_SETUP
-#line 347 "ael.flex"
+#line 350 "ael.flex"
 {
 		char c = yytext[yyleng-1];
 		if (c == '{')
@@ -1685,7 +1669,7 @@ YY_RULE_SETUP
 case 60:
 /* rule 60 can match eol */
 YY_RULE_SETUP
-#line 355 "ael.flex"
+#line 358 "ael.flex"
 {
 		char c = yytext[yyleng-1];
 		if ( pbcpop2(c))  { /* error */
@@ -1704,7 +1688,7 @@ YY_RULE_SETUP
 case 61:
 /* rule 61 can match eol */
 YY_RULE_SETUP
-#line 371 "ael.flex"
+#line 374 "ael.flex"
 {
 		if ( pbcpop3(']') ) {	/* error */
 			STORE_LOC;
@@ -1727,7 +1711,7 @@ YY_RULE_SETUP
 case 62:
 /* rule 62 can match eol */
 YY_RULE_SETUP
-#line 390 "ael.flex"
+#line 393 "ael.flex"
 {
 		char c = yytext[yyleng-1];
 		if (c == '[')
@@ -1739,7 +1723,7 @@ YY_RULE_SETUP
 case 63:
 /* rule 63 can match eol */
 YY_RULE_SETUP
-#line 398 "ael.flex"
+#line 401 "ael.flex"
 {
 		char c = yytext[yyleng-1];
 		if ( pbcpop3(c))  { /* error */
@@ -1765,7 +1749,7 @@ YY_RULE_SETUP
 case 64:
 /* rule 64 can match eol */
 YY_RULE_SETUP
-#line 421 "ael.flex"
+#line 424 "ael.flex"
 {
 		if ( pbcpop(')') ) {	/* error */
 			STORE_LOC;
@@ -1794,7 +1778,7 @@ YY_RULE_SETUP
 case 65:
 /* rule 65 can match eol */
 YY_RULE_SETUP
-#line 446 "ael.flex"
+#line 449 "ael.flex"
 {
 		char c = yytext[yyleng-1];
 		if (c == '(')
@@ -1806,7 +1790,7 @@ YY_RULE_SETUP
 case 66:
 /* rule 66 can match eol */
 YY_RULE_SETUP
-#line 454 "ael.flex"
+#line 457 "ael.flex"
 {
 		char c = yytext[yyleng-1];
 		if ( pbcpop(c))  { /* error */
@@ -1833,7 +1817,7 @@ YY_RULE_SETUP
 case 67:
 /* rule 67 can match eol */
 YY_RULE_SETUP
-#line 478 "ael.flex"
+#line 481 "ael.flex"
 {
 		char c = yytext[yyleng-1];
 		if (c == '(')
@@ -1845,7 +1829,7 @@ YY_RULE_SETUP
 case 68:
 /* rule 68 can match eol */
 YY_RULE_SETUP
-#line 486 "ael.flex"
+#line 489 "ael.flex"
 {
 		if ( pbcpop(')') ) { /* error */
 			STORE_LOC;
@@ -1876,7 +1860,7 @@ YY_RULE_SETUP
 case 69:
 /* rule 69 can match eol */
 YY_RULE_SETUP
-#line 513 "ael.flex"
+#line 516 "ael.flex"
 {
 		if( parencount != 0) { /* ast_log(LOG_NOTICE,"Folding in a comma!\n"); */
 			yymore();
@@ -1895,7 +1879,7 @@ YY_RULE_SETUP
 case 70:
 /* rule 70 can match eol */
 YY_RULE_SETUP
-#line 528 "ael.flex"
+#line 531 "ael.flex"
 {
 		char c = yytext[yyleng-1];
 		if ( pbcpop(c) ) { /* error */
@@ -1918,7 +1902,7 @@ YY_RULE_SETUP
 case 71:
 /* rule 71 can match eol */
 YY_RULE_SETUP
-#line 547 "ael.flex"
+#line 550 "ael.flex"
 {
 		char c = yytext[yyleng-1];
 		yymore();
@@ -1928,7 +1912,7 @@ YY_RULE_SETUP
 case 72:
 /* rule 72 can match eol */
 YY_RULE_SETUP
-#line 553 "ael.flex"
+#line 556 "ael.flex"
 {
 		char c = yytext[yyleng-1];
 		if ( pbcpop(c) ) { /* error */
@@ -1946,7 +1930,7 @@ YY_RULE_SETUP
 case 73:
 /* rule 73 can match eol */
 YY_RULE_SETUP
-#line 567 "ael.flex"
+#line 570 "ael.flex"
 {
 		STORE_LOC;
 		yylval->str = malloc(yyleng);
@@ -1960,7 +1944,7 @@ YY_RULE_SETUP
 case 74:
 /* rule 74 can match eol */
 YY_RULE_SETUP
-#line 577 "ael.flex"
+#line 580 "ael.flex"
 {
 		char fnamebuf[1024],*p1,*p2;
 		int glob_ret;
@@ -2013,7 +1997,7 @@ case YY_STATE_EOF(comment):
 case YY_STATE_EOF(curlystate):
 case YY_STATE_EOF(wordstate):
 case YY_STATE_EOF(brackstate):
-#line 622 "ael.flex"
+#line 625 "ael.flex"
 {
 		char fnamebuf[2048];
 		if (include_stack_index > 0 && include_stack[include_stack_index-1].globbuf_pos < include_stack[include_stack_index-1].globbuf.gl_pathc-1) {
@@ -2049,15 +2033,15 @@ case YY_STATE_EOF(brackstate):
 case 75:
 /* rule 75 can match eol */
 YY_RULE_SETUP
-#line 654 "ael.flex"
+#line 657 "ael.flex"
 { /* default rule */ ast_log(LOG_ERROR,"Unhandled char(s): %s\n", yytext); }
 	YY_BREAK
 case 76:
 YY_RULE_SETUP
-#line 656 "ael.flex"
+#line 659 "ael.flex"
 YY_FATAL_ERROR( "flex scanner jammed" );
 	YY_BREAK
-#line 2053 "ael_lex.c"
+#line 2042 "ael_lex.c"
 
 	case YY_END_OF_BUFFER:
 		{
@@ -2574,7 +2558,7 @@ static void ael_yy_load_buffer_state  (yyscan_t yyscanner)
     YY_BUFFER_STATE ael_yy_create_buffer  (FILE * file, int  size , yyscan_t yyscanner)
 {
 	YY_BUFFER_STATE b;
-
+    
 	b = (YY_BUFFER_STATE) ael_yyalloc(sizeof( struct yy_buffer_state ) ,yyscanner );
 	if ( ! b )
 		YY_FATAL_ERROR( "out of dynamic memory in ael_yy_create_buffer()" );
@@ -2618,7 +2602,7 @@ static void ael_yy_load_buffer_state  (yyscan_t yyscanner)
 #ifndef __cplusplus
 extern int isatty (int );
 #endif /* __cplusplus */
-
+    
 /* Initializes or reinitializes a buffer.
  * This function is sometimes called more than once on the same buffer,
  * such as during a ael_yyrestart() or at EOF.
@@ -2644,7 +2628,7 @@ extern int isatty (int );
     }
 
         b->yy_is_interactive = file ? (isatty( fileno(file) ) > 0) : 0;
-
+    
 	errno = oerrno;
 }
 
@@ -2750,9 +2734,9 @@ static void ael_yyensure_buffer_stack (yyscan_t yyscanner)
 								, yyscanner);
 		if ( ! yyg->yy_buffer_stack )
 			YY_FATAL_ERROR( "out of dynamic memory in ael_yyensure_buffer_stack()" );
-
+								  
 		memset(yyg->yy_buffer_stack, 0, num_to_alloc * sizeof(struct yy_buffer_state*));
-
+				
 		yyg->yy_buffer_stack_max = num_to_alloc;
 		yyg->yy_buffer_stack_top = 0;
 		return;
@@ -2781,12 +2765,12 @@ static void ael_yyensure_buffer_stack (yyscan_t yyscanner)
  * @param base the character buffer
  * @param size the size in bytes of the character buffer
  * @param yyscanner The scanner object.
- * @return the newly allocated buffer state object.
+ * @return the newly allocated buffer state object. 
  */
 YY_BUFFER_STATE ael_yy_scan_buffer  (char * base, yy_size_t  size , yyscan_t yyscanner)
 {
 	YY_BUFFER_STATE b;
-
+    
 	if ( size < 2 ||
 	     base[size-2] != YY_END_OF_BUFFER_CHAR ||
 	     base[size-1] != YY_END_OF_BUFFER_CHAR )
@@ -2822,14 +2806,14 @@ YY_BUFFER_STATE ael_yy_scan_buffer  (char * base, yy_size_t  size , yyscan_t yys
  */
 YY_BUFFER_STATE ael_yy_scan_string (yyconst char * yystr , yyscan_t yyscanner)
 {
-
+    
 	return ael_yy_scan_bytes(yystr,strlen(yystr) ,yyscanner);
 }
 
 /** Setup the input buffer state to scan the given bytes. The next call to ael_yylex() will
  * scan from a @e copy of @a bytes.
- * @param yybytes the byte buffer to scan
- * @param _yybytes_len the number of bytes in the buffer pointed to by @a bytes.
+ * @param bytes the byte buffer to scan
+ * @param len the number of bytes in the buffer pointed to by @a bytes.
  * @param yyscanner The scanner object.
  * @return the newly allocated buffer state object.
  */
@@ -2839,7 +2823,7 @@ YY_BUFFER_STATE ael_yy_scan_bytes  (yyconst char * yybytes, int  _yybytes_len , 
 	char *buf;
 	yy_size_t n;
 	int i;
-
+    
 	/* Get memory for full buffer, including space for trailing EOB's. */
 	n = _yybytes_len + 2;
 	buf = (char *) ael_yyalloc(n ,yyscanner );
@@ -2907,10 +2891,10 @@ YY_EXTRA_TYPE ael_yyget_extra  (yyscan_t yyscanner)
 int ael_yyget_lineno  (yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
-
+    
         if (! YY_CURRENT_BUFFER)
             return 0;
-
+    
     return yylineno;
 }
 
@@ -2920,10 +2904,10 @@ int ael_yyget_lineno  (yyscan_t yyscanner)
 int ael_yyget_column  (yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
-
+    
         if (! YY_CURRENT_BUFFER)
             return 0;
-
+    
     return yycolumn;
 }
 
@@ -2984,13 +2968,13 @@ void ael_yyset_lineno (int  line_number , yyscan_t yyscanner)
 
         /* lineno is only valid if an input buffer exists. */
         if (! YY_CURRENT_BUFFER )
-           yy_fatal_error( "ael_yyset_lineno called with no buffer" , yyscanner);
-
+           yy_fatal_error( "ael_yyset_lineno called with no buffer" , yyscanner); 
+    
     yylineno = line_number;
 }
 
 /** Set the current column.
- * @param column_no
+ * @param line_number
  * @param yyscanner The scanner object.
  */
 void ael_yyset_column (int  column_no , yyscan_t yyscanner)
@@ -2999,8 +2983,8 @@ void ael_yyset_column (int  column_no , yyscan_t yyscanner)
 
         /* column is only valid if an input buffer exists. */
         if (! YY_CURRENT_BUFFER )
-           yy_fatal_error( "ael_yyset_column called with no buffer" , yyscanner);
-
+           yy_fatal_error( "ael_yyset_column called with no buffer" , yyscanner); 
+    
     yycolumn = column_no;
 }
 
@@ -3053,13 +3037,13 @@ YYLTYPE *ael_yyget_lloc  (yyscan_t yyscanner)
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
     return yylloc;
 }
-
+    
 void ael_yyset_lloc (YYLTYPE *  yylloc_param , yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
     yylloc = yylloc_param;
 }
-
+    
 /* User-visible API */
 
 /* ael_yylex_init is special because it creates the scanner itself, so it is
@@ -3107,20 +3091,20 @@ int ael_yylex_init_extra(YY_EXTRA_TYPE yy_user_defined,yyscan_t* ptr_yy_globals 
         errno = EINVAL;
         return 1;
     }
-
+	
     *ptr_yy_globals = (yyscan_t) ael_yyalloc ( sizeof( struct yyguts_t ), &dummy_yyguts );
-
+	
     if (*ptr_yy_globals == NULL){
         errno = ENOMEM;
         return 1;
     }
-
+    
     /* By setting to 0xAA, we expose bugs in
     yy_init_globals. Leave at 0x00 for releases. */
     memset(*ptr_yy_globals,0x00,sizeof(struct yyguts_t));
-
+    
     ael_yyset_extra (yy_user_defined, *ptr_yy_globals);
-
+    
     return yy_init_globals ( *ptr_yy_globals );
 }
 
@@ -3230,7 +3214,7 @@ void *ael_yyrealloc  (void * ptr, yy_size_t  size , yyscan_t yyscanner)
 
 #define YYTABLES_NAME "yytables"
 
-#line 656 "ael.flex"
+#line 659 "ael.flex"
 
 
 
@@ -3492,3 +3476,4 @@ static void setup_filestack(char *fnamebuf2, int fnamebuf_siz, glob_t *globbuf, 
 		}
 	}
 }
+
