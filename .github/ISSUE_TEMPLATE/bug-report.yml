@@ -1,7 +1,7 @@
 name: Bug
 description: File a bug report
-title: "[Bug]: "
-labels: ["Bug", "triage"]
+title: "[bug]: "
+labels: ["bug", "triage"]
 #assignees:
 #  - octocat
 body:
@@ -66,6 +66,8 @@ body:
     id: description
     attributes:
       label: Issue Description
+    validations:
+      required: true
   - type: textarea
     id: logs
     attributes:
