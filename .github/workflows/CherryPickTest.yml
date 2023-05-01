@@ -40,7 +40,6 @@ jobs:
         with:
           repo:                    ${{github.repository}}
           pr_number:               ${{env.PR_NUMBER}}
-          cherry_pick_test_label:  ${{vars.CHERRY_PICK_TEST_LABEL}}
           cherry_pick_regex:       ${{vars.CHERRY_PICK_REGEX}}
           github_token:            ${{secrets.GITHUB_TOKEN}}
 
