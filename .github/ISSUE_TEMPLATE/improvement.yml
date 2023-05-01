@@ -1,7 +1,7 @@
 name: Improvement
 description: Request an improvement to existing functionality
-title: "[Improvement]: "
-labels: ["Improvement", "triage"]
+title: "[improvement]: "
+labels: ["improvement", "triage"]
 body:
   - type: markdown
     attributes:
@@ -22,3 +22,6 @@ body:
     attributes:
       label: Improvement Description
       description: Describe the improvement requested in as much detail as possible
+    validations:
+      required: true
+      
