@@ -1,7 +1,7 @@
 name: New Feature
 description: Request a New Feature
-title: "[New Feature]: "
-labels: ["New Feature", "triage"]
+title: "[new-feature]: "
+labels: ["new-feature", "triage"]
 body:
   - type: markdown
     attributes:
@@ -22,3 +22,6 @@ body:
     attributes:
       label: Feature Description
       description: Describe the new feature requested in as much detail as possible
+    validations:
+      required: true
+      
