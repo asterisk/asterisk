@@ -1321,7 +1321,7 @@ if __name__ == "__main__":
     # configuration parser for sip.conf
     sip = astconfigparser.MultiOrderedConfigParser()
     info('Please, report any issue at:')
-    info('    https://issues.asterisk.org/')
+    info('    https://github.com/asterisk/asterisk/issues/')
     info('Reading ' + sip_filename)
     sip.read(sip_filename)
     info('Converting to PJSIP...')
