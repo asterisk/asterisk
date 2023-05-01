@@ -415,7 +415,7 @@
  <refsect1>
   <title>BUGS</title>
   <para>
-  Bug reports and feature requests may be filed at https://issues.asterisk.org
+    Bug reports and feature requests may be filed at https://github.com/asterisk/asterisk/issues/
   </para>
  </refsect1>
  <refsect1>
