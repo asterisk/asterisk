@@ -3890,6 +3890,11 @@ static void clean_sub_tree(pjsip_evsub *evsub){
 	ao2_ref(sub_tree, -1);
 }
 
+/* This functionality appeared in pjsip 2.13 */
+#if PJ_VERSION_NUM >= 0x020D0000
+# define HAVE_PJSIP_EVSUB_PENDING_NOTIFY 1
+#endif
+
 /*!
  * \brief PJSIP callback when underlying SIP subscription changes state
  *
