@@ -33,7 +33,12 @@ jobs:
         run: | 
           gh pr edit --repo ${{github.repository}} \
             --remove-label ${{vars.CHERRY_PICK_TEST_LABEL}} \
-            --add-label ${{vars.TESTING_CHERRY_PICKS_LABEL}} ${{env.PR_NUMBER}} || :
+            --remove-label ${{vars.CHERRY_PICK_CHECKS_PASSED_LABEL}} \
+            --remove-label ${{vars.CHERRY_PICK_CHECKS_FAILED_LABEL}} \
+            --remove-label ${{vars.CHERRY_PICK_GATES_PASSED_LABEL}} \
+            --remove-label ${{vars.CHERRY_PICK_GATES_FAILED_LABEL}} \
+            --add-label ${{vars.CHERRY_PICK_TESTING_IN_PROGRESS}} \
+            ${{env.PR_NUMBER}} || :
 
       - name: Get cherry-pick branches
         uses: asterisk/asterisk-ci-actions/GetCherryPickBranchesFromPR@main
@@ -78,21 +83,24 @@ jobs:
           case $RESULT in
             success)
               gh pr edit --repo ${{github.repository}} \
-                --add-label ${{vars.CHERRY_PICK_CHECKS_PASSED_LABEL}} ${{env.PR_NUMBER}} || :
+                --add-label ${{vars.CHERRY_PICK_CHECKS_PASSED_LABEL}} \
+                ${{env.PR_NUMBER}} || :
               echo "::notice::All tests passed"
               exit 0
               ;;
             skipped)
               gh pr edit --repo ${{github.repository}} \
-                --remove-label ${{vars.TESTING_CHERRY_PICKS_LABEL}} \
-                --add-label ${{vars.CHERRY_PICK_CHECKS_FAILED_LABEL}} ${{env.PR_NUMBER}} || :
+                --remove-label ${{CHERRY_PICK_TESTING_IN_PROGRESS}} \
+                --add-label ${{vars.CHERRY_PICK_CHECKS_FAILED_LABEL}} \
+                ${{env.PR_NUMBER}} || :
               echo "::notice::Unit tests were skipped because of an earlier failure"
               exit 1
               ;;
-              *)
-                gh pr edit --repo ${{github.repository}} \
-                  --remove-label ${{vars.TESTING_CHERRY_PICKS_LABEL}} \
-                  --add-label ${{vars.CHERRY_PICK_CHECKS_FAILED_LABEL}} ${{env.PR_NUMBER}} || :
+            *)
+              gh pr edit --repo ${{github.repository}} \
+                --remove-label ${{CHERRY_PICK_TESTING_IN_PROGRESS}} \
+                --add-label ${{vars.CHERRY_PICK_CHECKS_FAILED_LABEL}} \
+                ${{env.PR_NUMBER}} || :
               echo "::error::One or more tests failed ($RESULT)"
               exit 1
           esac
@@ -132,24 +140,25 @@ jobs:
           RESULT:    ${{needs.AsteriskGateTestMatrix.result}}
           GH_TOKEN:  ${{ secrets.GITHUB_TOKEN }}
         run: |
+          gh pr edit --repo ${{github.repository}} \
+            --remove-label ${{vars.CHERRY_PICK_TESTING_IN_PROGRESS}} \
+            ${{env.PR_NUMBER}} || :
           case $RESULT in
             success)
               gh pr edit --repo ${{github.repository}} \
-                --remove-label ${{vars.TESTING_CHERRY_PICKS_LABEL}} \
-                --add-label ${{vars.CHERRY_PICK_GATES_PASSED_LABEL}} ${{env.PR_NUMBER}} || :
+                --add-label ${{vars.CHERRY_PICK_GATES_PASSED_LABEL}} \
+                ${{env.PR_NUMBER}} || :
               echo "::notice::All Testsuite tests passed"
               exit 0
               ;;
             skipped)
-              gh pr edit --repo ${{github.repository}} \
-                --remove-label ${{vars.TESTING_CHERRY_PICKS_LABEL}} ${{env.PR_NUMBER}} || :
               echo "::error::Testsuite tests were skipped because of an earlier failure"
               exit 1
               ;;
             *)
               gh pr edit --repo ${{github.repository}} \
-                --remove-label ${{vars.TESTING_CHERRY_PICKS_LABEL}} \
-                --add-label ${{vars.CHERRY_PICK_GATES_FAILED_LABEL}} ${{env.PR_NUMBER}} || :
+                --add-label ${{vars.CHERRY_PICK_GATES_FAILED_LABEL}} \
+                ${{env.PR_NUMBER}} || :
               echo "::error::One or more Testsuite tests failed ($RESULT)"
               exit 1
           esac
