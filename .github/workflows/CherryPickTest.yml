@@ -27,12 +27,13 @@ jobs:
       branch_count: ${{ steps.getbranches.outputs.branch_count }}
     runs-on: ubuntu-latest
     steps:
-      - name: Remove Trigger Label
+      - name: Remove Trigger Label, Add InProgress Label
         env:
           GH_TOKEN:          ${{ secrets.GITHUB_TOKEN }}
         run: | 
           gh pr edit --repo ${{github.repository}} \
-            --remove-label ${{vars.CHERRY_PICK_TEST_LABEL}} ${{env.PR_NUMBER}} || :
+            --remove-label ${{vars.CHERRY_PICK_TEST_LABEL}} \
+            --add-label ${{vars.TESTING_CHERRY_PICKS_LABEL}} ${{env.PR_NUMBER}} || :
 
       - name: Get cherry-pick branches
         uses: asterisk/asterisk-ci-actions/GetCherryPickBranchesFromPR@main
@@ -71,18 +72,27 @@ jobs:
     steps:
       - name: Check unit test matrix status
         env:
-          RESULT: ${{needs.AsteriskUnitTestMatrix.result}}
+          RESULT:    ${{needs.AsteriskUnitTestMatrix.result}}
+          GH_TOKEN:  ${{ secrets.GITHUB_TOKEN }}
         run: |
           case $RESULT in
             success)
+              gh pr edit --repo ${{github.repository}} \
+                --add-label ${{vars.CHERRY_PICK_CHECKS_PASSED_LABEL}} ${{env.PR_NUMBER}} || :
               echo "::notice::All tests passed"
               exit 0
               ;;
             skipped)
+              gh pr edit --repo ${{github.repository}} \
+                --remove-label ${{vars.TESTING_CHERRY_PICKS_LABEL}} \
+                --add-label ${{vars.CHERRY_PICK_CHECKS_FAILED_LABEL}} ${{env.PR_NUMBER}} || :
               echo "::notice::Unit tests were skipped because of an earlier failure"
               exit 1
               ;;
               *)
+                gh pr edit --repo ${{github.repository}} \
+                  --remove-label ${{vars.TESTING_CHERRY_PICKS_LABEL}} \
+                  --add-label ${{vars.CHERRY_PICK_CHECKS_FAILED_LABEL}} ${{env.PR_NUMBER}} || :
               echo "::error::One or more tests failed ($RESULT)"
               exit 1
           esac
@@ -119,18 +129,27 @@ jobs:
     steps:
       - name: Check test matrix status
         env:
-          RESULT: ${{needs.AsteriskGateTestMatrix.result}}
+          RESULT:    ${{needs.AsteriskGateTestMatrix.result}}
+          GH_TOKEN:  ${{ secrets.GITHUB_TOKEN }}
         run: |
           case $RESULT in
             success)
+              gh pr edit --repo ${{github.repository}} \
+                --remove-label ${{vars.TESTING_CHERRY_PICKS_LABEL}} \
+                --add-label ${{vars.CHERRY_PICK_GATES_PASSED_LABEL}} ${{env.PR_NUMBER}} || :
               echo "::notice::All Testsuite tests passed"
               exit 0
               ;;
             skipped)
+              gh pr edit --repo ${{github.repository}} \
+                --remove-label ${{vars.TESTING_CHERRY_PICKS_LABEL}} ${{env.PR_NUMBER}} || :
               echo "::error::Testsuite tests were skipped because of an earlier failure"
               exit 1
               ;;
-              *)
+            *)
+              gh pr edit --repo ${{github.repository}} \
+                --remove-label ${{vars.TESTING_CHERRY_PICKS_LABEL}} \
+                --add-label ${{vars.CHERRY_PICK_GATES_FAILED_LABEL}} ${{env.PR_NUMBER}} || :
               echo "::error::One or more Testsuite tests failed ($RESULT)"
               exit 1
           esac
