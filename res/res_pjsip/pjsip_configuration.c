@@ -256,11 +256,32 @@ static int timers_to_str(const void *obj, const intptr_t *args, char **buf)
 	return 0;
 }
 
+static int security_mechanism_to_str(const void *obj, const intptr_t *args, char **buf)
+{
+	const struct ast_sip_endpoint *endpoint = obj;
+
+	return ast_sip_security_mechanisms_to_str(&endpoint->security_mechanisms, 0, buf);
+}
+
 static int security_mechanism_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
 {
 	struct ast_sip_endpoint *endpoint = obj;
 
 	return ast_sip_security_mechanism_vector_init(&endpoint->security_mechanisms, var->value);
+}
+
+static const char *security_negotiation_map[] = {
+	[AST_SIP_SECURITY_NEG_NONE] = "no",
+	[AST_SIP_SECURITY_NEG_MEDIASEC] = "mediasec",
+};
+
+static int security_negotiation_to_str(const void *obj, const intptr_t *args, char **buf)
+{
+	const struct ast_sip_endpoint *endpoint = obj;
+	if (ARRAY_IN_BOUNDS(endpoint->security_negotiation, security_negotiation_map)) {
+		*buf = ast_strdup(security_negotiation_map[endpoint->security_negotiation]);
+	}
+	return 0;
 }
 
 int ast_sip_set_security_negotiation(enum ast_sip_security_negotiation *security_negotiation, const char *val) {
@@ -2262,8 +2283,8 @@ int ast_res_pjsip_initialize_configuration(void)
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "allow_unauthenticated_options", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, allow_unauthenticated_options));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "geoloc_incoming_call_profile", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, geoloc_incoming_call_profile));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "geoloc_outgoing_call_profile", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, geoloc_outgoing_call_profile));
-	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "security_mechanisms", "", security_mechanism_handler, NULL, NULL, 0, 0);
-	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "security_negotiation", "no", security_negotiation_handler, NULL, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "security_mechanisms", "", security_mechanism_handler, security_mechanism_to_str, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "security_negotiation", "no", security_negotiation_handler, security_negotiation_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "send_aoc", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, send_aoc));
 
 	if (ast_sip_initialize_sorcery_transport()) {

@@ -137,8 +137,8 @@ static char *ast_sip_security_mechanism_type_to_str(enum ast_sip_security_mechan
 	}
 }
 
-static int ast_sip_security_mechanism_to_str(const struct ast_sip_security_mechanism *security_mechanism, int add_qvalue, char **buf) {
-	char tmp[64];
+static int security_mechanism_to_str(const struct ast_sip_security_mechanism *security_mechanism, int add_qvalue, char **buf)
+{
 	size_t size;
 	size_t buf_size = 128;
 	int i;
@@ -152,19 +152,47 @@ static int ast_sip_security_mechanism_to_str(const struct ast_sip_security_mecha
 		return EINVAL;
 	}
 
-	strncat(ret, ast_sip_security_mechanism_type_to_str(security_mechanism->type), buf_size - strlen(ret) - 1);
+    snprintf(ret, buf_size - 1, "%s", ast_sip_security_mechanism_type_to_str(security_mechanism->type));
 	if (add_qvalue) {
-		snprintf(tmp, sizeof(tmp), ";q=%f.4", security_mechanism->qvalue);
-		strncat(ret, tmp, buf_size - strlen(ret) - 1);
+		snprintf(ret + strlen(ret), buf_size - 1, ";q=%f.4", security_mechanism->qvalue);
 	}
 
 	size = AST_VECTOR_SIZE(&security_mechanism->mechanism_parameters);
 	for (i = 0; i < size; ++i) {
-		snprintf(tmp, sizeof(tmp), ";%s", AST_VECTOR_GET(&security_mechanism->mechanism_parameters, i));
-		strncat(ret, tmp, buf_size - strlen(ret) - 1);
+		snprintf(ret + strlen(ret), buf_size - 1, ";%s", AST_VECTOR_GET(&security_mechanism->mechanism_parameters, i));
 	}
 
 	*buf = ret;
+	return 0;
+}
+
+int ast_sip_security_mechanisms_to_str(const struct ast_sip_security_mechanism_vector *security_mechanisms, int add_qvalue, char **buf)
+{
+	size_t vec_size;
+	struct ast_sip_security_mechanism *mech;
+	char *tmp_buf;
+	char ret[512];
+	size_t i;
+
+	if (!security_mechanisms) {
+		return -1;
+	}
+
+	vec_size = AST_VECTOR_SIZE(security_mechanisms);
+	ret[0] = '\0';
+
+	for (i = 0; i < vec_size; ++i) {
+		mech = AST_VECTOR_GET(security_mechanisms, i);
+		if (security_mechanism_to_str(mech, add_qvalue, &tmp_buf)) {
+			continue;
+		}
+		snprintf(ret + strlen(ret), sizeof(ret) - 1, "%s%s",
+		   tmp_buf, i == vec_size - 1 ? "" : ", ");
+		ast_free(tmp_buf);
+	}
+
+	*buf = ast_strdup(ret);
+
 	return 0;
 }
 
@@ -186,7 +214,7 @@ void ast_sip_remove_headers_by_name_and_value(pjsip_msg *msg, const pj_str_t *hd
  * \brief Parses a string representing a q_value to a float.
  *
  * Valid q values must be in the range from 0.0 to 1.0 inclusively.
- * 
+ *
  * \param q_value
  * \retval The parsed qvalue or -1.0 on failure.
  */
@@ -234,9 +262,10 @@ int ast_sip_str_to_security_mechanism(struct ast_sip_security_mechanism **securi
 			err = EINVAL;
 			goto out;
 		}
-		if (!strncmp(param, "q=0", 4) || !strncmp(param, "q=1", 4)) {
+		if (!strncmp(param, "q=", 2)) {
 			mech->qvalue = parse_qvalue(&param[2]);
 			if (mech->qvalue < 0.0) {
+				err = EINVAL;
 				goto out;
 			}
 			continue;
@@ -279,7 +308,7 @@ int ast_sip_add_security_headers(struct ast_sip_security_mechanism_vector *secur
 	mech_cnt = AST_VECTOR_SIZE(security_mechanisms);
 	for (i = 0; i < mech_cnt; ++i) {
 		mech = AST_VECTOR_GET(security_mechanisms, i);
-		if (ast_sip_security_mechanism_to_str(mech, add_qvalue, &buf)) {
+		if (security_mechanism_to_str(mech, add_qvalue, &buf)) {
 			continue;
 		}
 		ast_sip_add_header(tdata, header_name, buf);
