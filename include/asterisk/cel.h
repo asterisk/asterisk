@@ -73,8 +73,10 @@ enum ast_cel_event_type {
 	AST_CEL_PICKUP = 15,
 	/*! \brief this call was forwarded somewhere else  */
 	AST_CEL_FORWARD = 16,
-	/*! \brief A local channel optimization occurred */
+	/*! \brief A local channel optimization occurred, this marks the end */
 	AST_CEL_LOCAL_OPTIMIZE = 17,
+	/*! \brief A local channel optimization has begun */
+	AST_CEL_LOCAL_OPTIMIZE_BEGIN = 18,
 };
 
 /*!
