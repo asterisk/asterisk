@@ -2775,9 +2775,13 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 		analog_set_pulsedial(p, (res & ANALOG_EVENT_PULSEDIGIT) ? 1 : 0);
 		ast_debug(1, "Detected %sdigit '%c'\n", (res & ANALOG_EVENT_PULSEDIGIT) ? "pulse ": "", res & 0xff);
 		analog_confmute(p, 0);
-		p->subs[idx].f.frametype = AST_FRAME_DTMF_END;
-		p->subs[idx].f.subclass.integer = res & 0xff;
-		analog_handle_dtmf(p, ast, idx, &f);
+		if (p->dialmode == ANALOG_DIALMODE_BOTH || p->dialmode == ANALOG_DIALMODE_PULSE) {
+			p->subs[idx].f.frametype = AST_FRAME_DTMF_END;
+			p->subs[idx].f.subclass.integer = res & 0xff;
+			analog_handle_dtmf(p, ast, idx, &f);
+		} else {
+			ast_debug(1, "Dropping pulse digit '%c' because pulse dialing disabled on channel %d\n", res & 0xff, p->channel);
+		}
 		return f;
 	}
 
