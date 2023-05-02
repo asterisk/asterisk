@@ -1176,11 +1176,24 @@ void ast_sip_security_mechanisms_vector_destroy(struct ast_sip_security_mechanis
  *
  * \param security_mechanism Pointer-pointer to the security mechanism to allocate.
  * \param value The security mechanism string as defined in RFC 3329 (section 2.2)
- * \param ... in the form \<mechanism_name>;q=\<q_value>;\<mechanism_parameters>
+ *				in the form <mechanism_name>;q=<q_value>;<mechanism_parameters>
  * \retval 0 Success
  * \retval non-zero Failure
  */
 int ast_sip_str_to_security_mechanism(struct ast_sip_security_mechanism **security_mechanism, const char *value);
+
+/*!
+ * \brief Writes the security mechanisms of an endpoint into a buffer as a string and returns the buffer.
+ *
+ * \note The buffer must be freed by the caller.
+ *
+ * \param endpoint Pointer to endpoint.
+ * \param add_qvalue If non-zero, the q-value is printed as well
+ * \param buf The buffer to write the string into
+ * \retval 0 Success
+ * \retval non-zero Failure
+ */
+int ast_sip_security_mechanisms_to_str(const struct ast_sip_security_mechanism_vector *security_mechanisms, int add_qvalue, char **buf);
 
 /*!
  * \brief Set the security negotiation based on a given string.
