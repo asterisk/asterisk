@@ -102,6 +102,7 @@
 						<enum name="FORWARD"/>
 						<enum name="LINKEDID_END"/>
 						<enum name="LOCAL_OPTIMIZE"/>
+						<enum name="LOCAL_OPTIMIZE_BEGIN"/>
 					</enumlist>
 					</description>
 				</configOption>
@@ -321,6 +322,7 @@ static const char * const cel_event_types[CEL_MAX_EVENT_IDS] = {
 	[AST_CEL_FORWARD]          = "FORWARD",
 	[AST_CEL_LINKEDID_END]     = "LINKEDID_END",
 	[AST_CEL_LOCAL_OPTIMIZE]   = "LOCAL_OPTIMIZE",
+	[AST_CEL_LOCAL_OPTIMIZE_BEGIN]   = "LOCAL_OPTIMIZE_BEGIN",
 };
 
 struct cel_backend {
@@ -1389,9 +1391,11 @@ static void cel_pickup_cb(
 	ast_json_unref(extra);
 }
 
-static void cel_local_cb(
+
+static void cel_local_optimization_cb_helper(
 	void *data, struct stasis_subscription *sub,
-	struct stasis_message *message)
+	struct stasis_message *message,
+	enum ast_cel_event_type event_type)
 {
 	struct ast_multi_channel_blob *obj = stasis_message_data(message);
 	struct ast_channel_snapshot *localone = ast_multi_channel_blob_get_channel(obj, "1");
@@ -1409,8 +1413,25 @@ static void cel_local_cb(
 		return;
 	}
 
-	cel_report_event(localone, AST_CEL_LOCAL_OPTIMIZE, stasis_message_timestamp(message), NULL, extra, NULL);
+	cel_report_event(localone, event_type, stasis_message_timestamp(message), NULL, extra, NULL);
 	ast_json_unref(extra);
+}
+
+static void cel_local_optimization_end_cb(
+	void *data, struct stasis_subscription *sub,
+	struct stasis_message *message)
+{
+	/* The AST_CEL_LOCAL_OPTIMIZE event has always been triggered by the end of optimization.
+	   This can either be used as an indication that the call was locally optimized, or as
+	   the END event in combination with the subsequently added BEGIN event. */
+	cel_local_optimization_cb_helper(data, sub, message, AST_CEL_LOCAL_OPTIMIZE);
+}
+
+static void cel_local_optimization_begin_cb(
+	void *data, struct stasis_subscription *sub,
+	struct stasis_message *message)
+{
+	cel_local_optimization_cb_helper(data, sub, message, AST_CEL_LOCAL_OPTIMIZE_BEGIN);
 }
 
 static void destroy_routes(void)
@@ -1555,7 +1576,12 @@ static int create_routes(void)
 
 	ret |= stasis_message_router_add(cel_state_router,
 		ast_local_optimization_end_type(),
-		cel_local_cb,
+		cel_local_optimization_end_cb,
+		NULL);
+
+	ret |= stasis_message_router_add(cel_state_router,
+		ast_local_optimization_begin_type(),
+		cel_local_optimization_begin_cb,
 		NULL);
 
 	if (ret) {
