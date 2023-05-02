@@ -90,7 +90,7 @@ jobs:
               ;;
             skipped)
               gh pr edit --repo ${{github.repository}} \
-                --remove-label ${{CHERRY_PICK_TESTING_IN_PROGRESS}} \
+                --remove-label ${{vars.CHERRY_PICK_TESTING_IN_PROGRESS}} \
                 --add-label ${{vars.CHERRY_PICK_CHECKS_FAILED_LABEL}} \
                 ${{env.PR_NUMBER}} || :
               echo "::notice::Unit tests were skipped because of an earlier failure"
@@ -98,7 +98,7 @@ jobs:
               ;;
             *)
               gh pr edit --repo ${{github.repository}} \
-                --remove-label ${{CHERRY_PICK_TESTING_IN_PROGRESS}} \
+                --remove-label ${{vars.CHERRY_PICK_TESTING_IN_PROGRESS}} \
                 --add-label ${{vars.CHERRY_PICK_CHECKS_FAILED_LABEL}} \
                 ${{env.PR_NUMBER}} || :
               echo "::error::One or more tests failed ($RESULT)"
