@@ -1507,7 +1507,7 @@ static int age_cmp(void *a, void *b)
  */
 static void *sorcery_memory_cache_open(const char *data)
 {
-	char *options = ast_strdup(data), *option;
+	char *options = ast_strdupa(data), *option;
 	RAII_VAR(struct sorcery_memory_cache *, cache, NULL, ao2_cleanup);
 
 	cache = ao2_alloc_options(sizeof(*cache), sorcery_memory_cache_destructor, AO2_ALLOC_OPT_LOCK_NOLOCK);
