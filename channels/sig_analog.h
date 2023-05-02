@@ -116,6 +116,13 @@ enum analog_dsp_digitmode {
 	ANALOG_DIGITMODE_MF,
 };
 
+enum analog_dialmode {
+	ANALOG_DIALMODE_BOTH = 0,
+	ANALOG_DIALMODE_PULSE,
+	ANALOG_DIALMODE_DTMF,
+	ANALOG_DIALMODE_NONE,
+};
+
 enum analog_cid_start {
 	ANALOG_CID_START_POLARITY = 1,
 	ANALOG_CID_START_POLARITY_IN,
@@ -308,6 +315,7 @@ struct analog_pvt {
 	int channel;					/*!< Channel Number */
 
 	enum analog_sigtype outsigmod;
+	enum analog_dialmode dialmode;	/*!< Which of pulse and/or tone dialing to support */
 	int echotraining;
 	int cid_signalling;				/*!< Asterisk callerid type we're using */
 	int polarityonanswerdelay;
