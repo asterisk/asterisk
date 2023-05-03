@@ -5348,14 +5348,16 @@ static void session_inv_on_create_offer(pjsip_inv_session *inv, pjmedia_sdp_sess
 	/* Some devices send a re-INVITE offer with empty SDP. Asterisk by default return
 	 * an answer with the current used codecs, which is not strictly compliant to RFC
 	 * 3261 (SHOULD requirement). So we detect this condition and include all
-	 * configured codecs in the answer if the workaround is activated.
+	 * configured codecs in the answer if the workaround is activated. The actual
+	 * logic is in the create_local_sdp function. We can't detect here that we have
+	 * no SDP body in the INVITE, as we don't have access to the message.
 	 */
 	if (inv->invite_tsx && inv->state == PJSIP_INV_STATE_CONFIRMED
 			&& inv->invite_tsx->method.id == PJSIP_INVITE_METHOD) {
 		ast_trace(-1, "re-INVITE\n");
-		if (inv->invite_tsx->role == PJSIP_ROLE_UAS && !pjmedia_sdp_neg_was_answer_remote(inv->neg)
+		if (inv->invite_tsx->role == PJSIP_ROLE_UAS
 				&& ast_sip_get_all_codecs_on_empty_reinvite()) {
-			ast_trace(-1, "no codecs in re-INIVTE, include all codecs in the answer\n");
+			ast_trace(-1, "UAS role, include all codecs in the answer on empty SDP\n");
 			ignore_active_stream_topology = 1;
 		}
 	}
