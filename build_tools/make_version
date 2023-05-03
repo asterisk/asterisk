@@ -2,6 +2,7 @@
 
 GIT=${GIT:-git}
 SED=${SED:-sed}
+AWK=${AWK:-awk}
 
 if [ -f ${1}/.version ]; then
     cat ${1}/.version
@@ -48,9 +49,9 @@ if [ -z "${MAINLINE_BRANCH}" ] ; then
         MAINLINE_BRANCH=$(echo "${BRANCH}" | ${SED} -n -r -e "s@devel(opment)?/([0-9]+)/.+@\2@p")
     fi
 
-    # If we didn't find it, get it from .gitreview defaultbranch.
+    # If we didn't find it, get it from configure.ac.
     if [ "x${MAINLINE_BRANCH}" = "x" ] ; then
-        MAINLINE_BRANCH=$(${GIT} config -f .gitreview --get gerrit.defaultbranch)
+        MAINLINE_BRANCH=$(${AWK} '/AC_INIT/ { print substr($2, 2, length($2) - 3) }' configure.ac)
     fi
 fi
 
