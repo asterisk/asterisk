@@ -1,32 +1,31 @@
 name: CherryPickTest
-run-name: "Cherry-Pick Tests for PR ${{github.event.number || inputs.pr_number}}"
+run-name: "Cherry-Pick Tests for PR ${{github.event.number}}"
 on:
   pull_request_target:
     types: [ labeled ]
-  workflow_dispatch:
-    inputs:
-      pr_number:
-        description: 'PR number'
-        required: true
-        type: number
 
 concurrency:
-  group: ${{github.workflow}}-${{github.event.number || inputs.pr_number }}
+  group: ${{github.workflow}}-${{github.event.number}}
   cancel-in-progress: true
 
 env:
-  PR_NUMBER:          ${{ github.event.number || inputs.pr_number }}
+  PR_NUMBER:          ${{ github.event.number }}
   MODULES_BLACKLIST:  ${{ vars.GATETEST_MODULES_BLACKLIST }} ${{ vars.UNITTEST_MODULES_BLACKLIST }}
 
 jobs:
   IdentifyBranches:
     name: IdentifyBranches
-    if: github.event.label.name == ${{vars.CHERRY_PICK_TEST_LABEL}}
+    if: ${{ github.event.label.name == vars.CHERRY_PICK_TEST_LABEL }}
     outputs:
       branches:     ${{ steps.getbranches.outputs.branches }}
       branch_count: ${{ steps.getbranches.outputs.branch_count }}
     runs-on: ubuntu-latest
     steps:
+      - name: DumpEnvironment
+        uses: asterisk/asterisk-ci-actions/DumpEnvironmentAction@main
+        with:
+          action-vars: ${{toJSON(vars)}}
+
       - name: Remove Trigger Label, Add InProgress Label
         env:
           GH_TOKEN:          ${{ secrets.GITHUB_TOKEN }}
@@ -37,7 +36,7 @@ jobs:
             --remove-label ${{vars.CHERRY_PICK_CHECKS_FAILED_LABEL}} \
             --remove-label ${{vars.CHERRY_PICK_GATES_PASSED_LABEL}} \
             --remove-label ${{vars.CHERRY_PICK_GATES_FAILED_LABEL}} \
-            --add-label ${{vars.CHERRY_PICK_TESTING_IN_PROGRESS}} \
+            --remove-label ${{vars.CHERRY_PICK_TESTING_IN_PROGRESS}} \
             ${{env.PR_NUMBER}} || :
 
       - name: Get cherry-pick branches
@@ -49,9 +48,18 @@ jobs:
           cherry_pick_regex:       ${{vars.CHERRY_PICK_REGEX}}
           github_token:            ${{secrets.GITHUB_TOKEN}}
 
+      - name: Check Branch Count
+        if: ${{ steps.getbranches.outputs.branch_count > 0 }}
+        env:
+          GH_TOKEN:          ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr edit --repo ${{github.repository}} \
+          --add-label ${{vars.CHERRY_PICK_TESTING_IN_PROGRESS}} \
+          ${{env.PR_NUMBER}} || :
+
   AsteriskUnitTestMatrix:
     needs: [ IdentifyBranches ]
-    if: needs.IdentifyBranches.outputs.branch_count > 0
+    if: ${{ needs.IdentifyBranches.outputs.branch_count > 0 && ( success() || failure() ) }}
     continue-on-error: false
     strategy:
       fail-fast: false
@@ -71,9 +79,9 @@ jobs:
           unittest_command:  ${{vars.UNITTEST_COMMAND}}
 
   AsteriskUnitTests:
-    if: ${{ always() }}
+    needs: [ IdentifyBranches, AsteriskUnitTestMatrix ]
+    if: ${{ needs.IdentifyBranches.outputs.branch_count > 0 && ( success() || failure() ) }}
     runs-on: ubuntu-latest
-    needs: [ AsteriskUnitTestMatrix ] 
     steps:
       - name: Check unit test matrix status
         env:
@@ -131,9 +139,9 @@ jobs:
           gatetest_commands: ${{vars.GATETEST_COMMANDS}}
 
   AsteriskGateTests:
-    if: ${{ always() }}
+    needs: [ IdentifyBranches, AsteriskGateTestMatrix ]
+    if: ${{ success() || failure() }}
     runs-on: ubuntu-latest
-    needs: AsteriskGateTestMatrix
     steps:
       - name: Check test matrix status
         env:
