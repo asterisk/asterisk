@@ -126,6 +126,13 @@ const char *ast_sip_session_get_name(const struct ast_sip_session *session)
 	}
 }
 
+int ast_sip_can_present_connected_id(const struct ast_sip_session *session, const struct ast_party_id *id)
+{
+	return id->number.valid
+		&& (session->endpoint->id.trust_outbound
+		   || (ast_party_id_presentation(id) & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED);
+}
+
 static int sdp_handler_list_cmp(void *obj, void *arg, int flags)
 {
 	struct sdp_handler_list *handler_list1 = obj;

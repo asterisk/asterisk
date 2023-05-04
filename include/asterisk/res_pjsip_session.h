@@ -963,4 +963,15 @@ struct ast_sip_session_media *ast_sip_session_media_get_transport(struct ast_sip
  */
 const char *ast_sip_session_get_name(const struct ast_sip_session *session);
 
+/*!
+ * \brief Determines if the Connected Line info can be presented for this session
+ *
+ * \param session The session
+ * \param id The Connected Line info to evaluate
+ *
+ * \retval 1 The Connected Line info can be presented
+ * \retval 0 The Connected Line info cannot be presented
+ */
+int ast_sip_can_present_connected_id(const struct ast_sip_session *session, const struct ast_party_id *id);
+
 #endif /* _RES_PJSIP_SESSION_H */

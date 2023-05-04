@@ -521,9 +521,7 @@ static void add_rpid_header(const struct ast_sip_session *session, pjsip_tx_data
  */
 static void add_id_headers(const struct ast_sip_session *session, pjsip_tx_data *tdata, const struct ast_party_id *id)
 {
-	if (!id->number.valid
-		|| (!session->endpoint->id.trust_outbound
-			&& (ast_party_id_presentation(id) & AST_PRES_RESTRICTION) != AST_PRES_ALLOWED)) {
+	if (!ast_sip_can_present_connected_id(session, id)) {
 		return;
 	}
 	if (session->endpoint->id.send_pai) {

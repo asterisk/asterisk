@@ -26,6 +26,7 @@
 
 #include "asterisk.h"
 
+#include "asterisk/callerid.h"
 #include "asterisk/res_pjsip.h"
 #include "asterisk/res_pjsip_session.h"
 #include "asterisk/module.h"
@@ -355,7 +356,7 @@ static int stir_shaken_incoming_request(struct ast_sip_session *session, pjsip_r
 	return 0;
 }
 
-static int add_identity_header(const struct ast_sip_session *session, pjsip_tx_data *tdata)
+static int add_identity_header(pjsip_tx_data *tdata, const struct ast_party_id *party_id)
 {
 	static const pj_str_t identity_str = { "Identity", 8 };
 	pjsip_generic_string_hdr *identity_hdr;
@@ -420,7 +421,7 @@ static int add_identity_header(const struct ast_sip_session *session, pjsip_tx_d
 	json = ast_json_pack("{s: {s: s, s: s, s: s}, s: {s: {s: [s]}, s: {s: s}}}",
 		"header", "alg", "ES256", "ppt", "shaken", "typ", "passport",
 		"payload", "dest", "tn", dest_tn, "orig", "tn",
-		session->id.number.str);
+		party_id->number.str);
 	if (!json) {
 		ast_log(LOG_ERROR, "Failed to allocate memory for STIR/SHAKEN JSON\n");
 		return -1;
@@ -498,6 +499,8 @@ static void add_date_header(const struct ast_sip_session *session, pjsip_tx_data
 static void stir_shaken_outgoing_request(struct ast_sip_session *session, pjsip_tx_data *tdata)
 {
 	RAII_VAR(struct stir_shaken_profile *, profile, NULL, ao2_cleanup);
+	struct ast_party_id effective_id;
+	struct ast_party_id connected_id;
 
 	profile = ast_stir_shaken_get_profile(session->endpoint->stir_shaken_profile);
 	/* Profile should be checked first as it takes priority over anything else.
@@ -510,17 +513,23 @@ static void stir_shaken_outgoing_request(struct ast_sip_session *session, pjsip_
 		return;
 	}
 
-	if (ast_strlen_zero(session->id.number.str) && session->id.number.valid) {
+	ast_party_id_init(&connected_id);
+	ast_channel_lock(session->channel);
+	effective_id = ast_channel_connected_effective_id(session->channel);
+	ast_party_id_copy(&connected_id, &effective_id);
+	ast_channel_unlock(session->channel);
+
+	if (!ast_sip_can_present_connected_id(session, &connected_id)) {
+		ast_party_id_free(&connected_id);
 		return;
 	}
 
-	/* If adding the Identity header fails for some reason, there's no point
-	 * adding the Date header.
-	 */
-	if ((add_identity_header(session, tdata)) != 0) {
-		return;
+	if (add_identity_header(tdata, &connected_id) == 0) {
+		/* Only add the Date header if we succeeded in adding the Identity header */
+		add_date_header(session, tdata);
 	}
-	add_date_header(session, tdata);
+
+	ast_party_id_free(&connected_id);
 }
 
 static struct ast_sip_session_supplement stir_shaken_supplement = {
