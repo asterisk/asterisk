@@ -1621,6 +1621,9 @@ static int log_membername_as_agent;
 /*! \brief name of the ringinuse field in the realtime database */
 static char *realtime_ringinuse_field;
 
+/*! \brief does realtime backend support reason_paused */
+static int realtime_reason_paused;
+
 enum queue_result {
 	QUEUE_UNKNOWN = 0,
 	QUEUE_TIMEOUT = 1,
@@ -3592,6 +3595,7 @@ static void rt_handle_member_record(struct call_queue *q, char *category, struct
 	const char *penalty_str = ast_variable_retrieve(member_config, category, "penalty");
 	const char *paused_str = ast_variable_retrieve(member_config, category, "paused");
 	const char *wrapuptime_str = ast_variable_retrieve(member_config, category, "wrapuptime");
+	const char *reason_paused = ast_variable_retrieve(member_config, category, "reason_paused");
 
 	if (ast_strlen_zero(rt_uniqueid)) {
 		ast_log(LOG_WARNING, "Realtime field 'uniqueid' is empty for member %s\n",
@@ -3658,6 +3662,9 @@ static void rt_handle_member_record(struct call_queue *q, char *category, struct
 			m->penalty = penalty;
 			m->ringinuse = ringinuse;
 			m->wrapuptime = wrapuptime;
+			if (realtime_reason_paused) {
+				ast_copy_string(m->reason_paused, S_OR(reason_paused, ""), sizeof(m->reason_paused));
+			}
 			found = 1;
 			ao2_ref(m, -1);
 			break;
@@ -3672,6 +3679,9 @@ static void rt_handle_member_record(struct call_queue *q, char *category, struct
 			m->dead = 0;
 			m->realtime = 1;
 			ast_copy_string(m->rt_uniqueid, rt_uniqueid, sizeof(m->rt_uniqueid));
+			if (!ast_strlen_zero(reason_paused)) {
+				ast_copy_string(m->reason_paused, reason_paused, sizeof(m->reason_paused));
+			}
 			if (!log_membername_as_agent) {
 				ast_queue_log(q->name, "REALTIME", m->interface, "ADDMEMBER", "%s", paused ? "PAUSED" : "");
 			} else {
@@ -7745,10 +7755,17 @@ static void set_queue_member_pause(struct call_queue *q, struct member *mem, con
 			(paused ? "" : "un"), (paused ? "" : "un"), q->name, mem->interface);
 	}
 
-	if (mem->realtime) {
-		if (update_realtime_member_field(mem, q->name, "paused", paused ? "1" : "0")) {
-			ast_log(LOG_WARNING, "Failed %spause update of realtime queue member %s:%s\n",
-				(paused ? "" : "un"), q->name, mem->interface);
+	if (mem->realtime && !ast_strlen_zero(mem->rt_uniqueid)) {
+		if (realtime_reason_paused) {
+			if (ast_update_realtime("queue_members", "uniqueid", mem->rt_uniqueid, "reason_paused", S_OR(reason, ""), "paused", paused ? "1" : "0", SENTINEL) < 0) {
+				ast_log(LOG_WARNING, "Failed update of realtime queue member %s:%s %spause and reason '%s'\n",
+					q->name, mem->interface, (paused ? "" : "un"), S_OR(reason, ""));
+			}
+		} else {
+			if (ast_update_realtime("queue_members", "uniqueid", mem->rt_uniqueid, "paused", paused ? "1" : "0", SENTINEL) < 0) {
+				ast_log(LOG_WARNING, "Failed %spause update of realtime queue member %s:%s\n",
+					(paused ? "" : "un"), q->name, mem->interface);
+			}
 		}
 	}
 
@@ -11698,11 +11715,13 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	ast_realtime_require_field("queue_members", "paused", RQ_INTEGER1, 1, "uniqueid", RQ_UINTEGER2, 5, SENTINEL);
+	ast_realtime_require_field("queue_members", "paused", RQ_INTEGER1, 1, "uniqueid", RQ_UINTEGER2, 5, "reason_paused", RQ_CHAR, 80, SENTINEL);
 
 	/*
 	 * This section is used to determine which name for 'ringinuse' to use in realtime members
 	 * Necessary for supporting older setups.
+	 *
+	 * It also checks if 'reason_paused' exists in the realtime backend
 	 */
 	member_config = ast_load_realtime_multientry("queue_members", "interface LIKE", "%", "queue_name LIKE", "%", SENTINEL);
 	if (!member_config) {
@@ -11719,6 +11738,10 @@ static int load_module(void)
 		} else {
 			ast_log(LOG_NOTICE, "No entries were found for ringinuse/ignorebusy in queue_members table. Using 'ringinuse'\n");
 			realtime_ringinuse_field = "ringinuse";
+		}
+
+		if (ast_variable_retrieve(member_config, NULL, "reason_paused")) {
+			realtime_reason_paused = 1;
 		}
 	}
 	ast_config_destroy(member_config);
