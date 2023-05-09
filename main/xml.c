@@ -68,6 +68,29 @@ int ast_xml_finish(void)
 	return 0;
 }
 
+/*!
+ * \internal
+ * \brief Process XML Inclusions (XInclude).
+ *
+ * XIncludes can result in new includes being inserted, so we need to reprocess
+ * until no changes are made or we encounter an error.
+ *
+ * \param doc the document to process
+ *
+ * \retval 0 if XInclude processing concluded successfully
+ * \retval -1 if an error occurred during XInclude processing
+ */
+static int process_xincludes(xmlDoc *doc)
+{
+	int res;
+
+	do {
+		res = xmlXIncludeProcess(doc);
+	} while (res > 0);
+
+	return res;
+}
+
 struct ast_xml_doc *ast_xml_open(char *filename)
 {
 	xmlDoc *doc;
@@ -84,7 +107,7 @@ struct ast_xml_doc *ast_xml_open(char *filename)
 	}
 
 	/* process xinclude elements. */
-	if (xmlXIncludeProcess(doc) < 0) {
+	if (process_xincludes(doc) < 0) {
 		xmlFreeDoc(doc);
 		return NULL;
 	}
@@ -178,7 +201,7 @@ struct ast_xml_doc *ast_xml_read_memory(char *buffer, size_t size)
 
 	if (!(doc = xmlParseMemory(buffer, (int) size))) {
 		/* process xinclude elements. */
-		if (xmlXIncludeProcess(doc) < 0) {
+		if (process_xincludes(doc) < 0) {
 			xmlFreeDoc(doc);
 			return NULL;
 		}
@@ -489,7 +512,7 @@ struct ast_xslt_doc *ast_xslt_open(char *filename)
 		return NULL;
 	}
 
-	if (xmlXIncludeProcess(xml) < 0) {
+	if (process_xincludes(xml) < 0) {
 		xmlFreeDoc(xml);
 		return NULL;
 	}
@@ -518,7 +541,7 @@ struct ast_xslt_doc *ast_xslt_read_memory(char *buffer, size_t size)
 		return NULL;
 	}
 
-	if (xmlXIncludeProcess(doc) < 0) {
+	if (process_xincludes(doc) < 0) {
 		xmlFreeDoc(doc);
 		return NULL;
 	}
