@@ -1,5 +1,5 @@
 name: Improvement
-description: Request an improvement to existing functionality
+description: Submit an improvement to existing functionality
 title: "[improvement]: "
 labels: ["improvement", "triage"]
 body:
@@ -21,7 +21,7 @@ body:
     id: description
     attributes:
       label: Improvement Description
-      description: Describe the improvement requested in as much detail as possible
+      description: Describe the improvement in as much detail as possible
     validations:
       required: true
       
