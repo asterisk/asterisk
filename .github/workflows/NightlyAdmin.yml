@@ -24,7 +24,7 @@ jobs:
           days-before-stale: 7
           days-before-close: 14
           days-before-pr-close: -1
-          only-label: triage,feedback-required
+          only-labels: triage,feedback-required
 
   PublishWikiDocs:
     if: ${{fromJSON(vars.WIKIDOCS_ENABLE) == true}}
