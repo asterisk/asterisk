@@ -1,5 +1,5 @@
-name: New Feature
-description: Request a New Feature
+name: New Feature Submission
+description: Submit a New Feature
 title: "[new-feature]: "
 labels: ["new-feature", "triage"]
 body:
@@ -21,7 +21,7 @@ body:
     id: description
     attributes:
       label: Feature Description
-      description: Describe the new feature requested in as much detail as possible
+      description: Describe the new feature in as much detail as possible
     validations:
       required: true
-      
+
