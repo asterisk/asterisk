@@ -17911,7 +17911,7 @@ $as_echo_n "checking for gethostbyname_r with 6 arguments... " >&6; }
 int
 main ()
 {
-struct hostent *he = gethostbyname_r((const char *)NULL, (struct hostent *)NULL, (char *)NULL, (int)0, (struct hostent **)NULL, (int *)NULL);
+int r = gethostbyname_r((const char *)NULL, (struct hostent *)NULL, (char *)NULL, (int)0, (struct hostent **)NULL, (int *)NULL);
   ;
   return 0;
 }
@@ -17939,7 +17939,7 @@ $as_echo_n "checking for gethostbyname_r with 5 arguments... " >&6; }
 int
 main ()
 {
-struct hostent *he = gethostbyname_r((const char *)NULL, (struct hostent *)NULL, (char *)NULL, (int)0, (int *)NULL);
+int r = gethostbyname_r((const char *)NULL, (struct hostent *)NULL, (char *)NULL, (int)0, (int *)NULL);
   ;
   return 0;
 }
