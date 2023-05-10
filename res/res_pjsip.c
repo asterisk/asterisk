@@ -27,6 +27,8 @@
 #include <pjmedia/errno.h>
 
 #include "asterisk/res_pjsip.h"
+#include "asterisk/strings.h"
+#include "pjsip/sip_parser.h"
 #include "res_pjsip/include/res_pjsip_private.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/logger.h"
@@ -48,6 +50,7 @@
 #include "asterisk/res_pjsip_presence_xml.h"
 #include "asterisk/res_pjproject.h"
 #include "asterisk/utf8.h"
+#include "asterisk/acl.h"
 
 /*** MODULEINFO
 	<depend>pjproject</depend>
@@ -558,6 +561,140 @@ int ast_sip_will_uri_survive_restart(pjsip_sip_uri *uri, struct ast_sip_endpoint
 	return result;
 }
 
+pjsip_sip_uri *ast_sip_get_contact_sip_uri(pjsip_tx_data *tdata)
+{
+	pjsip_contact_hdr *contact = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_CONTACT, NULL);
+
+	if (!contact || (!PJSIP_URI_SCHEME_IS_SIP(contact->uri) && !PJSIP_URI_SCHEME_IS_SIPS(contact->uri))) {
+		return NULL;
+	}
+
+	return pjsip_uri_get_uri(contact->uri);
+}
+
+/*! \brief Callback function for finding the transport the request is going out on */
+static int find_transport_state_in_use(void *obj, void *arg, int flags)
+{
+	struct ast_sip_transport_state *transport_state = obj;
+	struct ast_sip_request_transport_details *details = arg;
+
+	/* If an explicit transport or factory matches then this is what is in use, if we are unavailable
+	 * to compare based on that we make sure that the type is the same and the source IP address/port are the same
+	 */
+	if (transport_state && ((details->transport && details->transport == transport_state->transport) ||
+		(details->factory && details->factory == transport_state->factory) ||
+		((details->type == transport_state->type) && (transport_state->factory) &&
+			!pj_strcmp(&transport_state->factory->addr_name.host, &details->local_address) &&
+			transport_state->factory->addr_name.port == details->local_port))) {
+		return CMP_MATCH | CMP_STOP;
+	}
+
+	return 0;
+}
+
+struct ast_sip_transport_state *ast_sip_find_transport_state_in_use(struct ast_sip_request_transport_details *details) {
+	RAII_VAR(struct ao2_container *, transport_states, NULL, ao2_cleanup);
+
+	if (!(transport_states = ast_sip_get_transport_states())) {
+		return NULL;
+	}
+
+	return ao2_callback(transport_states, 0, find_transport_state_in_use, details);
+}
+
+int ast_sip_rewrite_uri_to_local(pjsip_sip_uri *uri, pjsip_tx_data *tdata) {
+	RAII_VAR(struct ast_sip_transport *, transport, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_sip_transport_state *, transport_state, NULL, ao2_cleanup);
+	struct ast_sip_request_transport_details details;
+	pjsip_sip_uri *tmp_uri;
+	pjsip_dialog *dlg;
+	struct ast_sockaddr addr = { { 0, } };
+
+	if ((tmp_uri = ast_sip_get_contact_sip_uri(tdata))) {
+		pj_strdup(tdata->pool, &uri->host, &tmp_uri->host);
+		uri->port = tmp_uri->port;
+	} else if ((dlg = pjsip_tdata_get_dlg(tdata))
+		&& (tmp_uri = pjsip_uri_get_uri(dlg->local.info->uri))
+		&& (PJSIP_URI_SCHEME_IS_SIP(tmp_uri) || PJSIP_URI_SCHEME_IS_SIPS(tmp_uri))) {
+		pj_strdup(tdata->pool, &uri->host, &tmp_uri->host);
+		uri->port = tmp_uri->port;
+	}
+
+	if (ast_sip_set_request_transport_details(&details, tdata, 1)
+		|| !(transport_state = ast_sip_find_transport_state_in_use(&details))
+		|| !(transport = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "transport", transport_state->id))) {
+		return 0;
+	}
+
+	if (transport_state->localnet) {
+		ast_sockaddr_parse(&addr, tdata->tp_info.dst_name, PARSE_PORT_FORBID);
+		ast_sockaddr_set_port(&addr, tdata->tp_info.dst_port);
+		if (ast_sip_transport_is_local(transport_state, &addr)) {
+			return 0;
+		}
+	}
+
+	if (!ast_sockaddr_isnull(&transport_state->external_signaling_address)) {
+		pj_strdup2(tdata->pool, &uri->host, ast_sockaddr_stringify_host(&transport_state->external_signaling_address));
+	}
+
+	if (transport->external_signaling_port) {
+		uri->port = transport->external_signaling_port;
+	}
+
+	return 0;
+}
+
+int ast_sip_set_request_transport_details(struct ast_sip_request_transport_details *details, pjsip_tx_data *tdata,
+	int use_ipv6) {
+	pjsip_sip_uri *uri;
+	pjsip_via_hdr *via;
+	long transport_type;
+
+	if (!details || !tdata) {
+		return -1;
+	}
+
+	/* If IPv6 should be considered, un-set Bit 7 to make TCP6 equal to TCP and TLS6 equal to TLS */
+	transport_type = use_ipv6 ? tdata->tp_info.transport->key.type & ~(PJSIP_TRANSPORT_IPV6)
+		: tdata->tp_info.transport->key.type;
+
+	if (tdata->tp_sel.type == PJSIP_TPSELECTOR_TRANSPORT) {
+		details->transport = tdata->tp_sel.u.transport;
+	} else if (tdata->tp_sel.type == PJSIP_TPSELECTOR_LISTENER) {
+		details->factory = tdata->tp_sel.u.listener;
+	} else if (transport_type == PJSIP_TRANSPORT_UDP || transport_type == PJSIP_TRANSPORT_UDP6) {
+		/* Connectionless uses the same transport for all requests */
+		details->type = AST_TRANSPORT_UDP;
+		details->transport = tdata->tp_info.transport;
+	} else {
+		if (transport_type == PJSIP_TRANSPORT_TCP) {
+			details->type = AST_TRANSPORT_TCP;
+		} else if (transport_type == PJSIP_TRANSPORT_TLS) {
+			details->type = AST_TRANSPORT_TLS;
+		} else {
+			/* Unknown transport type, we can't map. */
+			return -1;
+		}
+
+		if ((uri = ast_sip_get_contact_sip_uri(tdata))) {
+			details->local_address = uri->host;
+			details->local_port = uri->port;
+		} else if ((tdata->msg->type == PJSIP_REQUEST_MSG) &&
+			(via = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_VIA, NULL))) {
+			details->local_address = via->sent_by.host;
+			details->local_port = via->sent_by.port;
+		} else {
+			return -1;
+		}
+
+		if (!details->local_port) {
+			details->local_port = (details->type == AST_TRANSPORT_TLS) ? 5061 : 5060;
+		}
+	}
+	return 0;
+}
+
 int ast_sip_get_transport_name(const struct ast_sip_endpoint *endpoint,
 	pjsip_sip_uri *sip_uri, char *buf, size_t buf_len)
 {
@@ -835,7 +972,11 @@ pjsip_dialog *ast_sip_create_dialog_uac(const struct ast_sip_endpoint *endpoint,
 	pjsip_tpselector selector = { .type = PJSIP_TPSELECTOR_NONE, };
 	static const pj_str_t HCONTACT = { "Contact", 7 };
 
-	snprintf(enclosed_uri, sizeof(enclosed_uri), "<%s>", uri);
+	if (!ast_begins_with(uri, "<")) {
+		snprintf(enclosed_uri, sizeof(enclosed_uri), "<%s>", uri);
+	} else {
+		snprintf(enclosed_uri, sizeof(enclosed_uri), "%s", uri);
+	}
 	pj_cstr(&remote_uri, enclosed_uri);
 
 	pj_cstr(&target_uri, uri);
@@ -1130,6 +1271,7 @@ int ast_sip_create_rdata(pjsip_rx_data *rdata, char *packet, const char *src_nam
 /* PJSIP doesn't know about the INFO method, so we have to define it ourselves */
 static const pjsip_method info_method = {PJSIP_OTHER_METHOD, {"INFO", 4} };
 static const pjsip_method message_method = {PJSIP_OTHER_METHOD, {"MESSAGE", 7} };
+static const pjsip_method refer_method = {PJSIP_OTHER_METHOD, {"REFER", 5} };
 
 static struct {
 	const char *method;
@@ -1146,6 +1288,7 @@ static struct {
 	{ "PUBLISH", &pjsip_publish_method },
 	{ "INFO", &info_method },
 	{ "MESSAGE", &message_method },
+	{ "REFER", &refer_method },
 };
 
 static const pjsip_method *get_pjsip_method(const char *method)
@@ -2727,6 +2870,575 @@ void ast_sip_modify_id_header(pj_pool_t *pool, pjsip_fromto_hdr *id_hdr, const s
 	}
 }
 
+/*!
+ * \brief Find a contact and insert a "user@" into its URI.
+ *
+ * \param to Original destination (for error messages only)
+ * \param endpoint_name Endpoint name (for error messages only)
+ * \param aors Command separated list of AORs
+ * \param user The user to insert in the contact URI
+ * \param uri Pointer to buffer in which to return the URI. Must be freed by caller.
+ *
+ * \return  0 Success
+ * \return -1 Fail
+ *
+ * \note If the contact URI found for the endpoint already has a user in
+ * its URI, it will be replaced by the user passed as an argument to this function.
+ */
+static int insert_user_in_contact_uri(const char *to, const char *endpoint_name, const char *aors,
+	const char *user, char **uri)
+{
+	RAII_VAR(struct ast_sip_contact *, contact, NULL, ao2_cleanup);
+	pj_pool_t *pool;
+	pjsip_name_addr *name_addr;
+	pjsip_sip_uri *sip_uri;
+	int err = 0;
+
+	contact = ast_sip_location_retrieve_contact_from_aor_list(aors);
+	if (!contact) {
+		ast_log(LOG_WARNING, "Dest: '%s'. Couldn't find contact for endpoint '%s'\n",
+			to, endpoint_name);
+		return -1;
+	}
+
+	pool = pjsip_endpt_create_pool(ast_sip_get_pjsip_endpoint(), "uri-user-insert", 128, 128);
+	if (!pool) {
+		ast_log(LOG_WARNING, "Failed to allocate ParseUri endpoint pool.\n");
+		return -1;
+	}
+
+	name_addr = (pjsip_name_addr *) pjsip_parse_uri(pool, (char*)contact->uri, strlen(contact->uri), PJSIP_PARSE_URI_AS_NAMEADDR);
+	if (!name_addr || (!PJSIP_URI_SCHEME_IS_SIP(name_addr->uri) && !PJSIP_URI_SCHEME_IS_SIPS(name_addr->uri))) {
+		ast_log(LOG_WARNING, "Failed to parse URI '%s'\n", contact->uri);
+		err = -1;
+		goto out;
+	}
+
+	ast_debug(3, "Dest: '%s' User: '%s'  Endpoint: '%s'  ContactURI: '%s'\n", to, user, endpoint_name, contact->uri);
+
+	sip_uri = pjsip_uri_get_uri(name_addr->uri);
+	pj_strset2(&sip_uri->user, (char*)user);
+
+	*uri = ast_malloc(PJSIP_MAX_URL_SIZE);
+	if (!(*uri)) {
+		err = -1;
+		goto out;
+	}
+	pjsip_uri_print(PJSIP_URI_IN_REQ_URI, name_addr, *uri, PJSIP_MAX_URL_SIZE);
+
+out:
+	pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
+
+	return err;
+}
+
+/*!
+ * \internal
+ * \brief Get endpoint and URI when the destination is only a single token
+ *
+ * "destination" could be one of the following:
+ * \verbatim
+		endpoint_name
+		hostname
+ * \endverbatim
+ *
+ * \param to
+ * \param destination
+ * \param get_default_outbound If nonzero, try to retrieve the default
+ * 			       outbound endpoint if no endpoint was found.
+ * 			       Otherwise, return NULL if no endpoint was found.
+ * \param uri Pointer to URI variable.  Must be freed by caller - even if the return value is NULL!
+ * \return endpoint
+ */
+static struct ast_sip_endpoint *handle_single_token(const char *to, char *destination, int get_default_outbound, char **uri) {
+	RAII_VAR(struct ast_sip_contact*, contact, NULL, ao2_cleanup);
+	char *endpoint_name = NULL;
+	struct ast_sip_endpoint *endpoint = NULL;
+
+	/*
+	 * If "destination" is just one token, it could be an endpoint name
+	 * or a hostname without a scheme.
+	 */
+
+	endpoint = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint", destination);
+	if (!endpoint) {
+		/*
+		 * We can only assume it's a hostname.
+		 */
+		char *temp_uri = ast_malloc(strlen(destination) + strlen("sip:") + 1);
+		if (!temp_uri) {
+			goto failure;
+		}
+		sprintf(temp_uri, "sip:%s", destination);
+		*uri = temp_uri;
+		if (get_default_outbound) {
+			endpoint = ast_sip_default_outbound_endpoint();
+		}
+		ast_debug(3, "Dest: '%s' Didn't find endpoint so adding scheme and using URI '%s'%s\n",
+			to, *uri, get_default_outbound ? " with default endpoint" : "");
+		return endpoint;
+	}
+
+	/*
+	 * It's an endpoint
+	 */
+
+	endpoint_name = destination;
+	contact = ast_sip_location_retrieve_contact_from_aor_list(endpoint->aors);
+	if (!contact) {
+		ast_log(LOG_WARNING, "Dest: '%s'. Found endpoint '%s' but didn't find an aor/contact for it\n",
+			to, endpoint_name);
+		ao2_cleanup(endpoint);
+		goto failure;
+	}
+
+	*uri = ast_strdup(contact->uri);
+	if (!(*uri)) {
+		ao2_cleanup(endpoint);
+		goto failure;
+	}
+
+	ast_debug(3, "Dest: '%s' Found endpoint '%s' and found contact with URI '%s'\n",
+		to, endpoint_name, *uri);
+	return endpoint;
+
+failure:
+	*uri = NULL;
+	return NULL;
+}
+
+/*!
+ * \internal
+ * \brief Get endpoint and URI when the destination contained a '/'
+ *
+ * "to" could be one of the following:
+ * \verbatim
+		endpoint/aor
+		endpoint/<sip[s]:host>
+		endpoint/<sip[s]:user@host>
+		endpoint/"Bob" <sip[s]:host>
+		endpoint/"Bob" <sip[s]:user@host>
+		endpoint/sip[s]:host
+		endpoint/sip[s]:user@host
+		endpoint/host
+		endpoint/user@host
+ * \endverbatim
+ *
+ * \param to Destination
+ * \param uri Pointer to URI variable.  Must be freed by caller - even if the return value is NULL!
+ * \param destination, slash, atsign, scheme
+ * \return endpoint
+ */
+static struct ast_sip_endpoint *handle_slash(const char *to, char *destination, char **uri,
+	char *slash, char *atsign, char *scheme)
+{
+	char *endpoint_name = NULL;
+	struct ast_sip_endpoint *endpoint = NULL;
+	struct ast_sip_contact *contact = NULL;
+	char *user = NULL;
+	char *afterslash = slash + 1;
+	struct ast_sip_aor *aor;
+
+	if (ast_begins_with(destination, "PJSIP/")) {
+		ast_debug(3, "Dest: '%s' Dialplan format'\n", to);
+		/*
+		 * This has to be the form PJSIP/user@endpoint
+		 */
+		if (!atsign || strchr(afterslash, '/')) {
+			/*
+			 * If there's no "user@" or there's a slash somewhere after
+			 * "PJSIP/" then we go no further.
+			 */
+			ast_log(LOG_WARNING,
+				"Dest: '%s'. Destinations beginning with 'PJSIP/' must be in the form of 'PJSIP/user@endpoint'\n",
+				to);
+			goto failure;
+		}
+		*atsign = '\0';
+		user = afterslash;
+		endpoint_name = atsign + 1;
+		ast_debug(3, "Dest: '%s' User: '%s'  Endpoint: '%s'\n", to, user, endpoint_name);
+	} else {
+		/*
+		 * Either...
+		 *	endpoint/aor
+		 *	endpoint/uri
+		 */
+		*slash = '\0';
+		endpoint_name = destination;
+		ast_debug(3, "Dest: '%s' Endpoint: '%s'\n", to, endpoint_name);
+	}
+
+	endpoint = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint", endpoint_name);
+	if (!endpoint) {
+		ast_log(LOG_WARNING, "Dest: '%s'. Didn't find endpoint with name '%s'\n",
+			to, endpoint_name);
+		goto failure;
+	}
+
+	if (scheme) {
+		/*
+		 * If we found a scheme, then everything after the slash MUST be a URI.
+		 * We don't need to do any further modification.
+		 */
+		*uri = ast_strdup(afterslash);
+		if (!(*uri)) {
+			goto failure;
+		}
+		ast_debug(3, "Dest: '%s' Found endpoint '%s' and found URI '%s' after '/'\n",
+			to, endpoint_name, *uri);
+		return endpoint;
+	}
+
+	if (user) {
+		/*
+		 * This has to be the form PJSIP/user@endpoint
+		 */
+		int rc;
+
+		/*
+		 * Set the return URI to be the endpoint's contact URI with the user
+		 * portion set to the user that was specified before the endpoint name.
+		 */
+		rc = insert_user_in_contact_uri(to, endpoint_name, endpoint->aors, user, uri);
+		if (rc != 0) {
+			/*
+			 * insert_user_in_contact_uri prints the warning message.
+			 */
+			goto failure;
+		}
+		ast_debug(3, "Dest: '%s' User: '%s'  Endpoint: '%s'  URI: '%s'\n", to, user,
+			endpoint_name, *uri);
+
+		return endpoint;
+	}
+
+	/*
+	 * We're now left with two possibilities...
+	 * 	endpoint/aor
+	 *	endpoint/uri-without-scheme
+	 */
+	aor = ast_sip_location_retrieve_aor(afterslash);
+	if (!aor) {
+		/*
+		 * It's probably a URI without a scheme but we don't have a way to tell
+		 * for sure.  We're going to assume it is and prepend it with a scheme.
+		 */
+		*uri = ast_malloc(strlen(afterslash) + strlen("sip:") + 1);
+		if (!(*uri)) {
+			goto failure;
+		}
+		sprintf(*uri, "sip:%s", afterslash);
+		ast_debug(3, "Dest: '%s' Found endpoint '%s' but didn't find aor after '/' so using URI '%s'\n",
+			to, endpoint_name, *uri);
+		return endpoint;
+	}
+
+	/*
+	 * Only one possibility left... There was an aor name after the slash.
+	 */
+	ast_debug(3, "Dest: '%s' Found endpoint '%s' and found aor '%s' after '/'\n",
+		to, endpoint_name, ast_sorcery_object_get_id(aor));
+
+	contact = ast_sip_location_retrieve_first_aor_contact(aor);
+	if (!contact) {
+		ast_log(LOG_WARNING, "Dest: '%s'. Found endpoint '%s' but didn't find contact for aor '%s'\n",
+			to, endpoint_name, ast_sorcery_object_get_id(aor));
+		ao2_cleanup(aor);
+		goto failure;
+	}
+
+	*uri = ast_strdup(contact->uri);
+	ao2_cleanup(contact);
+	ao2_cleanup(aor);
+	if (!(*uri)) {
+		goto failure;
+	}
+
+	ast_debug(3, "Dest: '%s' Found endpoint '%s' and found contact with URI '%s' for aor '%s'\n",
+		to, endpoint_name, *uri, ast_sorcery_object_get_id(aor));
+
+	return endpoint;
+
+failure:
+	ao2_cleanup(endpoint);
+	*uri = NULL;
+	return NULL;
+}
+
+/*!
+ * \internal
+ * \brief Get endpoint and URI when the destination contained a '@' but no '/' or scheme
+ *
+ * "to" could be one of the following:
+ * \verbatim
+		<sip[s]:user@host>
+		"Bob" <sip[s]:user@host>
+		sip[s]:user@host
+		user@host
+ * \endverbatim
+ *
+ * \param to Destination
+ * \param uri Pointer to URI variable.  Must be freed by caller - even if the return value is NULL!
+ * \param destination, slash, atsign, scheme
+ * \param get_default_outbound If nonzero, try to retrieve the default
+ * 			       outbound endpoint if no endpoint was found.
+ * 			       Otherwise, return NULL if no endpoint was found.
+ * \return endpoint
+ */
+static struct ast_sip_endpoint *handle_atsign(const char *to, char *destination, char **uri,
+	char *slash, char *atsign, char *scheme, int get_default_outbound)
+{
+	char *endpoint_name = NULL;
+	struct ast_sip_endpoint *endpoint = NULL;
+	struct ast_sip_contact *contact = NULL;
+	char *afterat = atsign + 1;
+
+	*atsign = '\0';
+	endpoint_name = destination;
+
+	/* Apparently there may be ';<user_options>' after the endpoint name ??? */
+	AST_SIP_USER_OPTIONS_TRUNCATE_CHECK(endpoint_name);
+	endpoint = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint", endpoint_name);
+	if (!endpoint) {
+		/*
+		 * It's probably a uri with a user but without a scheme but we don't have a way to tell.
+		 * We're going to assume it is and prepend it with a scheme.
+		 */
+		*uri = ast_malloc(strlen(to) + strlen("sip:") + 1);
+		if (!(*uri)) {
+			goto failure;
+		}
+		sprintf(*uri, "sip:%s", to);
+		if (get_default_outbound) {
+			endpoint = ast_sip_default_outbound_endpoint();
+		}
+		ast_debug(3, "Dest: '%s' Didn't find endpoint before the '@' so using URI '%s'%s\n",
+			to, *uri, get_default_outbound ? " with default endpoint" : "");
+		return endpoint;
+	}
+
+	/*
+	 * OK, it's an endpoint and a domain (which we ignore)
+	 */
+	contact = ast_sip_location_retrieve_contact_from_aor_list(endpoint->aors);
+	if (!contact) {
+		ast_log(LOG_WARNING, "Dest: '%s'. Found endpoint '%s' but didn't find contact\n",
+			to, endpoint_name);
+		goto failure;
+	}
+
+	*uri = ast_strdup(contact->uri);
+	ao2_cleanup(contact);
+	if (!(*uri)) {
+		goto failure;
+	}
+	ast_debug(3, "Dest: '%s' Found endpoint '%s' and found contact with URI '%s' (discarding domain %s)\n",
+		to, endpoint_name, *uri, afterat);
+
+	return endpoint;
+
+failure:
+	ao2_cleanup(endpoint);
+	*uri = NULL;
+	return NULL;
+}
+
+struct ast_sip_endpoint *ast_sip_get_endpoint(const char *to, int get_default_outbound, char **uri)
+{
+	char *destination;
+	char *slash = NULL;
+	char *atsign = NULL;
+	char *scheme = NULL;
+	struct ast_sip_endpoint *endpoint = NULL;
+
+	destination = ast_strdupa(to);
+
+	slash = strchr(destination, '/');
+	atsign = strchr(destination, '@');
+	scheme = S_OR(strstr(destination, "sip:"), strstr(destination, "sips:"));
+
+	if (!slash && !atsign && !scheme) {
+		/*
+		 * If there's only a single token, it can be either...
+		 * 	endpoint
+		 * 	host
+		 */
+		return handle_single_token(to, destination, get_default_outbound, uri);
+	}
+
+	if (slash) {
+		/*
+		 * If there's a '/', then the form must be one of the following...
+		 * 	PJSIP/user@endpoint
+		 * 	endpoint/aor
+		 * 	endpoint/uri
+		 */
+		return handle_slash(to, destination, uri, slash, atsign, scheme);
+	}
+
+	if (atsign && !scheme) {
+		/*
+		 * If there's an '@' but no scheme then it's either following an endpoint name
+		 * and being followed by a domain name (which we discard).
+		 * OR is's a user@host uri without a scheme.  It's probably the latter but because
+		 * endpoint@domain looks just like user@host, we'll test for endpoint first.
+		 */
+		return handle_atsign(to, destination, uri, slash, atsign, scheme, get_default_outbound);
+	}
+
+	/*
+	 * If all else fails, we assume it's a URI or just a hostname.
+	 */
+	if (scheme) {
+		*uri = ast_strdup(destination);
+		if (!(*uri)) {
+			goto failure;
+		}
+		ast_debug(3, "Dest: '%s' Didn't find an endpoint but did find a scheme so using URI '%s'%s\n",
+			to, *uri, get_default_outbound ? " with default endpoint" : "");
+	} else {
+		*uri = ast_malloc(strlen(destination) + strlen("sip:") + 1);
+		if (!(*uri)) {
+			goto failure;
+		}
+		sprintf(*uri, "sip:%s", destination);
+		ast_debug(3, "Dest: '%s' Didn't find an endpoint and didn't find scheme so adding scheme and using URI '%s'%s\n",
+			to, *uri, get_default_outbound ? " with default endpoint" : "");
+	}
+	if (get_default_outbound) {
+		endpoint = ast_sip_default_outbound_endpoint();
+	}
+
+	return endpoint;
+
+failure:
+	ao2_cleanup(endpoint);
+	*uri = NULL;
+	return NULL;
+}
+
+int ast_sip_update_to_uri(pjsip_tx_data *tdata, const char *to)
+{
+	pjsip_name_addr *parsed_name_addr;
+	pjsip_sip_uri *sip_uri;
+	pjsip_name_addr *tdata_name_addr;
+	pjsip_sip_uri *tdata_sip_uri;
+	pjsip_to_hdr *to_hdr;
+	char *buf = NULL;
+#define DEBUG_BUF_SIZE 256
+
+	parsed_name_addr = (pjsip_name_addr *) pjsip_parse_uri(tdata->pool, (char*)to, strlen(to),
+		PJSIP_PARSE_URI_AS_NAMEADDR);
+
+	if (!parsed_name_addr || (!PJSIP_URI_SCHEME_IS_SIP(parsed_name_addr->uri)
+			&& !PJSIP_URI_SCHEME_IS_SIPS(parsed_name_addr->uri))) {
+		ast_log(LOG_WARNING, "To address '%s' is not a valid SIP/SIPS URI\n", to);
+		return -1;
+	}
+
+	sip_uri = pjsip_uri_get_uri(parsed_name_addr->uri);
+	if (DEBUG_ATLEAST(3)) {
+		buf = ast_alloca(DEBUG_BUF_SIZE);
+		pjsip_uri_print(PJSIP_URI_IN_FROMTO_HDR, sip_uri, buf, DEBUG_BUF_SIZE);
+		ast_debug(3, "Parsed To: %.*s  %s\n", (int)parsed_name_addr->display.slen,
+			parsed_name_addr->display.ptr, buf);
+	}
+
+	to_hdr = PJSIP_MSG_TO_HDR(tdata->msg);
+	tdata_name_addr = to_hdr ? (pjsip_name_addr *) to_hdr->uri : NULL;
+	if (!tdata_name_addr || (!PJSIP_URI_SCHEME_IS_SIP(tdata_name_addr->uri)
+			&& !PJSIP_URI_SCHEME_IS_SIPS(tdata_name_addr->uri))) {
+		/* Highly unlikely but we have to check */
+		ast_log(LOG_WARNING, "tdata To address '%s' is not a valid SIP/SIPS URI\n", to);
+		return -1;
+	}
+
+	tdata_sip_uri = pjsip_uri_get_uri(tdata_name_addr->uri);
+	if (DEBUG_ATLEAST(3)) {
+		buf[0] = '\0';
+		pjsip_uri_print(PJSIP_URI_IN_FROMTO_HDR, tdata_sip_uri, buf, DEBUG_BUF_SIZE);
+		ast_debug(3, "Original tdata To: %.*s  %s\n", (int)tdata_name_addr->display.slen,
+			tdata_name_addr->display.ptr, buf);
+	}
+
+	/* Replace the uri */
+	pjsip_sip_uri_assign(tdata->pool, tdata_sip_uri, sip_uri);
+	/* The display name isn't part of the URI so we need to replace it separately */
+	pj_strdup(tdata->pool, &tdata_name_addr->display, &parsed_name_addr->display);
+
+	if (DEBUG_ATLEAST(3)) {
+		buf[0] = '\0';
+		pjsip_uri_print(PJSIP_URI_IN_FROMTO_HDR, tdata_sip_uri, buf, 256);
+		ast_debug(3, "New tdata To: %.*s  %s\n", (int)tdata_name_addr->display.slen,
+			tdata_name_addr->display.ptr, buf);
+	}
+
+	return 0;
+#undef DEBUG_BUF_SIZE
+}
+
+int ast_sip_update_from(pjsip_tx_data *tdata, char *from)
+{
+	pjsip_name_addr *name_addr;
+	pjsip_sip_uri *uri;
+	pjsip_name_addr *parsed_name_addr;
+	pjsip_from_hdr *from_hdr;
+
+	if (ast_strlen_zero(from)) {
+		return 0;
+	}
+
+	from_hdr = PJSIP_MSG_FROM_HDR(tdata->msg);
+	if (!from_hdr) {
+		return -1;
+	}
+	name_addr = (pjsip_name_addr *) from_hdr->uri;
+	uri = pjsip_uri_get_uri(name_addr);
+
+	parsed_name_addr = (pjsip_name_addr *) pjsip_parse_uri(tdata->pool, from,
+		strlen(from), PJSIP_PARSE_URI_AS_NAMEADDR);
+	if (parsed_name_addr) {
+		pjsip_sip_uri *parsed_uri;
+
+		if (!PJSIP_URI_SCHEME_IS_SIP(parsed_name_addr->uri)
+				&& !PJSIP_URI_SCHEME_IS_SIPS(parsed_name_addr->uri)) {
+			ast_log(LOG_WARNING, "From address '%s' is not a valid SIP/SIPS URI\n", from);
+			return -1;
+		}
+
+		parsed_uri = pjsip_uri_get_uri(parsed_name_addr->uri);
+
+		if (pj_strlen(&parsed_name_addr->display)) {
+			pj_strdup(tdata->pool, &name_addr->display, &parsed_name_addr->display);
+		}
+
+		/* Unlike the To header, we only want to replace the user, host and port */
+		pj_strdup(tdata->pool, &uri->user, &parsed_uri->user);
+		pj_strdup(tdata->pool, &uri->host, &parsed_uri->host);
+		uri->port = parsed_uri->port;
+
+		return 0;
+	} else {
+		/* assume it is 'user[@domain]' format */
+		char *domain = strchr(from, '@');
+
+		if (domain) {
+			pj_str_t pj_from;
+
+			pj_strset3(&pj_from, from, domain);
+			pj_strdup(tdata->pool, &uri->user, &pj_from);
+
+			pj_strdup2(tdata->pool, &uri->host, domain + 1);
+		} else {
+			pj_strdup2(tdata->pool, &uri->user, from);
+		}
+
+		return 0;
+	}
+
+	return -1;
+}
 
 static void remove_request_headers(pjsip_endpoint *endpt)
 {

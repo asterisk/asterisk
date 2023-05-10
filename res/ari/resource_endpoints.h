@@ -58,6 +58,7 @@ struct ast_ari_endpoints_send_message_args {
 	const char *from;
 	/*! The body of the message */
 	const char *body;
+	/*! The "variables" key in the body object holds technology specific key/value pairs to append to the message. These can be interpreted and used by the various resource types; for example, pjsip and sip resource types will add the key/value pairs as SIP headers, */
 	struct ast_json *variables;
 };
 /*!
@@ -79,6 +80,38 @@ int ast_ari_endpoints_send_message_parse_body(
  * \param[out] response HTTP response
  */
 void ast_ari_endpoints_send_message(struct ast_variable *headers, struct ast_ari_endpoints_send_message_args *args, struct ast_ari_response *response);
+/*! Argument struct for ast_ari_endpoints_refer() */
+struct ast_ari_endpoints_refer_args {
+	/*! The endpoint resource or technology specific URI that should be referred to somewhere. Valid resource is pjsip. */
+	const char *to;
+	/*! The endpoint resource or technology specific identity to refer from. */
+	const char *from;
+	/*! The endpoint resource or technology specific URI to refer to. */
+	const char *refer_to;
+	/*! If true and "refer_to" refers to an Asterisk endpoint, the "refer_to" value is set to point to this Asterisk endpoint - so the referee is referred to Asterisk. Otherwise, use the contact URI associated with the endpoint. */
+	int to_self;
+	/*! The "variables" key in the body object holds technology specific key/value pairs to append to the message. These can be interpreted and used by the various resource types; for example, the pjsip resource type will add the key/value pairs as SIP headers. The "display_name" key is used by the PJSIP technology. Its value will be prepended as a display name to the Refer-To URI. */
+	struct ast_json *variables;
+};
+/*!
+ * \brief Body parsing function for /endpoints/refer.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_endpoints_refer_parse_body(
+	struct ast_json *body,
+	struct ast_ari_endpoints_refer_args *args);
+
+/*!
+ * \brief Refer an endpoint or technology URI to some technology URI or endpoint.
+ *
+ * \param headers HTTP headers
+ * \param args Swagger parameters
+ * \param[out] response HTTP response
+ */
+void ast_ari_endpoints_refer(struct ast_variable *headers, struct ast_ari_endpoints_refer_args *args, struct ast_ari_response *response);
 /*! Argument struct for ast_ari_endpoints_list_by_tech() */
 struct ast_ari_endpoints_list_by_tech_args {
 	/*! Technology of the endpoints (pjsip,iax2,...) */
@@ -117,6 +150,7 @@ struct ast_ari_endpoints_send_message_to_endpoint_args {
 	const char *from;
 	/*! The body of the message */
 	const char *body;
+	/*! The "variables" key in the body object holds technology specific key/value pairs to append to the message. These can be interpreted and used by the various resource types; for example, pjsip and sip resource types will add the key/value pairs as SIP headers, */
 	struct ast_json *variables;
 };
 /*!
@@ -138,5 +172,39 @@ int ast_ari_endpoints_send_message_to_endpoint_parse_body(
  * \param[out] response HTTP response
  */
 void ast_ari_endpoints_send_message_to_endpoint(struct ast_variable *headers, struct ast_ari_endpoints_send_message_to_endpoint_args *args, struct ast_ari_response *response);
+/*! Argument struct for ast_ari_endpoints_refer_to_endpoint() */
+struct ast_ari_endpoints_refer_to_endpoint_args {
+	/*! Technology of the endpoint */
+	const char *tech;
+	/*! ID of the endpoint */
+	const char *resource;
+	/*! The endpoint resource or technology specific identity to refer from. */
+	const char *from;
+	/*! The endpoint resource or technology specific URI to refer to. */
+	const char *refer_to;
+	/*! If true and "refer_to" refers to an Asterisk endpoint, the "refer_to" value is set to point to this Asterisk endpoint - so the referee is referred to Asterisk. Otherwise, use the contact URI associated with the endpoint. */
+	int to_self;
+	/*! The "variables" key in the body object holds technology specific key/value pairs to append to the message. These can be interpreted and used by the various resource types; for example, the pjsip resource type will add the key/value pairs as SIP headers, */
+	struct ast_json *variables;
+};
+/*!
+ * \brief Body parsing function for /endpoints/{tech}/{resource}/refer.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_endpoints_refer_to_endpoint_parse_body(
+	struct ast_json *body,
+	struct ast_ari_endpoints_refer_to_endpoint_args *args);
+
+/*!
+ * \brief Refer an endpoint or technology URI to some technology URI or endpoint.
+ *
+ * \param headers HTTP headers
+ * \param args Swagger parameters
+ * \param[out] response HTTP response
+ */
+void ast_ari_endpoints_refer_to_endpoint(struct ast_variable *headers, struct ast_ari_endpoints_refer_to_endpoint_args *args, struct ast_ari_response *response);
 
 #endif /* _ASTERISK_RESOURCE_ENDPOINTS_H */
