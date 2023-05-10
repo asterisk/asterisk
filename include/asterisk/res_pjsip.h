@@ -339,6 +339,20 @@ struct ast_sip_nat_hook {
 	void (*outgoing_external_message)(struct pjsip_tx_data *tdata, struct ast_sip_transport *transport);
 };
 
+/*! \brief Structure which contains information about a transport */
+struct ast_sip_request_transport_details {
+	/*! \brief Type of transport */
+	enum ast_transport type;
+	/*! \brief Potential pointer to the transport itself, if UDP */
+	pjsip_transport *transport;
+	/*! \brief Potential pointer to the transport factory itself, if TCP/TLS */
+	pjsip_tpfactory *factory;
+	/*! \brief Local address for transport */
+	pj_str_t local_address;
+	/*! \brief Local port for transport */
+	int local_port;
+};
+
 /*!
  * \brief The kind of security negotiation
  */
@@ -3506,18 +3520,65 @@ struct ast_threadpool *ast_sip_threadpool(void);
  * \brief Retrieve transport state
  * \since 13.7.1
  *
- * @param transport_id
- * @returns transport_state
+ * \param transport_id
+ * \retval transport_state
  *
  * \note ao2_cleanup(...) or ao2_ref(...,  -1) must be called on the returned object
  */
 struct ast_sip_transport_state *ast_sip_get_transport_state(const char *transport_id);
 
 /*!
+ * \brief Return the SIP URI of the Contact header
+ * 
+ * \param tdata
+ * \retval Pointer to SIP URI of Contact
+ * \retval NULL if Contact header not found or not a SIP(S) URI
+ *
+ * \note Do not free the returned object.
+ */
+pjsip_sip_uri *ast_sip_get_contact_sip_uri(pjsip_tx_data *tdata);
+
+/*!
+ * \brief Returns the transport state currently in use based on request transport details
+ *
+ * \param details
+ * \retval transport_state
+ *
+ * \note ao2_cleanup(...) or ao2_ref(...,  -1) must be called on the returned object
+ */
+struct ast_sip_transport_state *ast_sip_find_transport_state_in_use(struct ast_sip_request_transport_details *details);
+
+/*!
+ * \brief Sets request transport details based on tdata
+ *
+ * \param details pre-allocated request transport details to set
+ * \param tdata
+ * \param use_ipv6 if non-zero, ipv6 transports will be considered
+ * \retval 0 success
+ * \retval -1 failure
+ */
+int ast_sip_set_request_transport_details(struct ast_sip_request_transport_details *details, pjsip_tx_data *tdata, int use_ipv6);
+
+/*!
+ * \brief Replace domain and port of SIP URI to point to (external) signaling address of this Asterisk instance
+ *
+ * \param uri
+ * \param tdata
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ *
+ * \note Uses domain and port in Contact header if it exists, otherwise the local URI of the dialog is used if the
+ *       message is sent within the context of a dialog. Further, NAT settings are considered - i.e. if the target
+ *       is not in the localnet, the external_signaling_address and port are used.
+ */
+int ast_sip_rewrite_uri_to_local(pjsip_sip_uri *uri, pjsip_tx_data *tdata);
+
+/*!
  * \brief Retrieves all transport states
  * \since 13.7.1
  *
- * @returns ao2_container
+ * \retval ao2_container
  *
  * \note ao2_cleanup(...) or ao2_ref(...,  -1) must be called on the returned object
  */
@@ -3646,6 +3707,105 @@ int ast_sip_set_id_from_invite(struct pjsip_rx_data *rdata, struct ast_party_id 
  */
 void ast_sip_modify_id_header(pj_pool_t *pool, pjsip_fromto_hdr *id_hdr,
 	const struct ast_party_id *id);
+
+/*!
+ * \brief Retrieves an endpoint and URI from the "to" string.
+ *
+ * This URI is used as the Request URI.
+ *
+ * Expects the given 'to' to be in one of the following formats:
+ * Why we allow so many is a mystery.
+ *
+ * Basic:
+ *
+ *      endpoint        : We'll get URI from the default aor/contact
+ *      endpoint/aor    : We'll get the URI from the specific aor/contact
+ *      endpoint@domain : We toss the domain part and just use the endpoint
+ *
+ *   These all use the endpoint and specified URI:
+ * \verbatim
+        endpoint/<sip[s]:host>
+        endpoint/<sip[s]:user@host>
+        endpoint/"Bob" <sip[s]:host>
+        endpoint/"Bob" <sip[s]:user@host>
+        endpoint/sip[s]:host
+        endpoint/sip[s]:user@host
+        endpoint/host
+        endpoint/user@host
+   \endverbatim
+ *
+ *   These all use the default endpoint and specified URI:
+ * \verbatim
+        <sip[s]:host>
+        <sip[s]:user@host>
+        "Bob" <sip[s]:host>
+        "Bob" <sip[s]:user@host>
+        sip[s]:host
+        sip[s]:user@host
+   \endverbatim
+ *
+ *   These use the default endpoint and specified host:
+ * \verbatim
+        host
+        user@host
+   \endverbatim
+ *
+ *   This form is similar to a dialstring:
+ * \verbatim
+        PJSIP/user@endpoint
+   \endverbatim
+ *
+ *   In this case, the user will be added to the endpoint contact's URI.
+ *   If the contact URI already has a user, it will be replaced.
+ *
+ * The ones that have the sip[s] scheme are the easiest to parse.
+ * The rest all have some issue.
+ *
+ *      endpoint vs host              : We have to test for endpoint first
+ *      endpoint/aor vs endpoint/host : We have to test for aor first
+ *                                      What if there's an aor with the same
+ *                                      name as the host?
+ *      endpoint@domain vs user@host  : We have to test for endpoint first.
+ *                                      What if there's an endpoint with the
+ *                                      same name as the user?
+ *
+ * \param to 'To' field with possible endpoint
+ * \param get_default_outbound If nonzero, try to retrieve the default
+ * 			       outbound endpoint if no endpoint was found.
+ * 			       Otherwise, return NULL if no endpoint was found.
+ * \param uri Pointer to a char* which will be set to the URI.
+ *            Always must be ast_free'd by the caller - even if the return value is NULL!
+ *
+ * \note The logic below could probably be condensed but then it wouldn't be
+ * as clear.
+ */
+struct ast_sip_endpoint *ast_sip_get_endpoint(const char *to, int get_default_outbound, char **uri);
+
+/*!
+ * \brief Replace the To URI in the tdata with the supplied one
+ *
+ * \param tdata the outbound message data structure
+ * \param to URI to replace the To URI with. Must be a valid SIP URI.
+ *
+ * \retval 0: success, -1: failure
+ */
+int ast_sip_update_to_uri(pjsip_tx_data *tdata, const char *to);
+
+/*!
+ * \brief Overwrite fields in the outbound 'From' header
+ *
+ * The outbound 'From' header is created/added in ast_sip_create_request with
+ * default data.  If available that data may be info specified in the 'from_user'
+ * and 'from_domain' options found on the endpoint.  That information will be
+ * overwritten with data in the given 'from' parameter.
+ *
+ * \param tdata the outbound message data structure
+ * \param from info to copy into the header.
+ *		  Can be either a SIP URI, or in the format user[@domain]
+ *
+ * \retval 0: success, -1: failure
+ */
+int ast_sip_update_from(pjsip_tx_data *tdata, char *from);
 
 /*!
  * \brief Retrieve the unidentified request security event thresholds
