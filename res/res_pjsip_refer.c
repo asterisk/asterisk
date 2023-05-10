@@ -39,6 +39,11 @@
 #include "asterisk/stasis_bridges.h"
 #include "asterisk/stasis_channels.h"
 #include "asterisk/causes.h"
+#include "asterisk/refer.h"
+
+static struct ast_taskprocessor *refer_serializer;
+
+static pj_status_t refer_on_tx_request(pjsip_tx_data *tdata);
 
 /*! \brief REFER Progress structure */
 struct refer_progress {
@@ -786,6 +791,499 @@ static void refer_blind_callback(struct ast_channel *chan, struct transfer_chann
 		ast_channel_unlock((session)->channel);											\
 	} while (0)																			\
 
+struct refer_data {
+	struct ast_refer *refer;
+	char *destination;
+	char *from;
+	char *refer_to;
+	int to_self;
+};
+
+static void refer_data_destroy(void *obj)
+{
+	struct refer_data *rdata = obj;
+
+	ast_free(rdata->destination);
+	ast_free(rdata->from);
+	ast_free(rdata->refer_to);
+
+	ast_refer_destroy(rdata->refer);
+}
+
+static struct refer_data *refer_data_create(const struct ast_refer *refer)
+{
+	char *uri_params;
+	const char *destination;
+	struct refer_data *rdata = ao2_alloc_options(sizeof(*rdata), refer_data_destroy, AO2_ALLOC_OPT_LOCK_NOLOCK);
+
+	if (!rdata) {
+		return NULL;
+	}
+
+	/* typecast to suppress const warning */
+	rdata->refer = ast_refer_ref((struct ast_refer *) refer);
+	destination = ast_refer_get_to(refer);
+
+	/* To starts with 'pjsip:' which needs to be removed. */
+	if (!(destination = strchr(destination, ':'))) {
+		goto failure;
+	}
+	++destination;/* Now skip the ':' */
+
+	rdata->destination = ast_strdup(destination);
+	if (!rdata->destination) {
+		goto failure;
+	}
+
+	rdata->from = ast_strdup(ast_refer_get_from(refer));
+	if (!rdata->from) {
+		goto failure;
+	}
+
+	rdata->refer_to = ast_strdup(ast_refer_get_refer_to(refer));
+	if (!rdata->refer_to) {
+		goto failure;
+	}
+	rdata->to_self = ast_refer_get_to_self(refer);
+
+	/*
+	 * Sometimes from URI can contain URI parameters, so remove them.
+	 *
+	 * sip:user;user-options@domain;uri-parameters
+	 */
+	uri_params = strchr(rdata->from, '@');
+	if (uri_params && (uri_params = strchr(uri_params, ';'))) {
+		*uri_params = '\0';
+	}
+	return rdata;
+
+failure:
+	ao2_cleanup(rdata);
+	return NULL;
+}
+
+/*!
+ * \internal
+ * \brief Checks if the given refer var name should be blocked.
+ *
+ * \details Some headers are not allowed to be overridden by the user.
+ *  Determine if the given var header name from the user is blocked for
+ *  an outgoing REFER.
+ *
+ * \param name name of header to see if it is blocked.
+ *
+ * \retval TRUE if the given header is blocked.
+ */
+static int is_refer_var_blocked(const char *name)
+{
+	int i;
+
+	/* Don't block the Max-Forwards header because the user can override it */
+	static const char *hdr[] = {
+		"To",
+		"From",
+		"Via",
+		"Route",
+		"Contact",
+		"Call-ID",
+		"CSeq",
+		"Allow",
+		"Content-Length",
+		"Content-Type",
+		"Request-URI",
+	};
+
+	for (i = 0; i < ARRAY_LEN(hdr); ++i) {
+		if (!strcasecmp(name, hdr[i])) {
+			/* Block addition of this header. */
+			return 1;
+		}
+	}
+	return 0;
+}
+
+/*!
+ * \internal
+ * \brief Copies any other refer vars over to the request headers.
+ *
+ * \param refer The refer structure to copy headers from
+ * \param tdata The SIP transmission data
+ */
+static enum pjsip_status_code vars_to_headers(const struct ast_refer *refer, pjsip_tx_data *tdata)
+{
+	const char *name;
+	const char *value;
+	struct ast_refer_var_iterator *iter;
+
+	for (iter = ast_refer_var_iterator_init(refer);
+		ast_refer_var_iterator_next(iter, &name, &value);
+		ast_refer_var_unref_current(iter)) {
+		if (!is_refer_var_blocked(name)) {
+			ast_sip_add_header(tdata, name, value);
+		}
+	}
+	ast_refer_var_iterator_destroy(iter);
+
+	return PJSIP_SC_OK;
+}
+
+struct refer_out_of_dialog {
+	pjsip_dialog *dlg;
+	int authentication_challenge_count;
+};
+
+/*! \brief REFER Out-of-dialog module, used to attach session data structure to subscription */
+static pjsip_module refer_out_of_dialog_module = {
+	.name = { "REFER Out-of-dialog Module", 26 },
+	.id = -1,
+	.on_tx_request = refer_on_tx_request,
+	/* Ensure that we are called after res_pjsp_nat module and before transport priority */
+	.priority = PJSIP_MOD_PRIORITY_TSX_LAYER - 4,
+};
+
+/*! \brief Helper function which returns the name-addr of the Refer-To header or NULL */
+static pjsip_uri *get_refer_to_uri(pjsip_tx_data *tdata)
+{
+	const pj_str_t REFER_TO = { "Refer-To", 8 };
+	pjsip_generic_string_hdr *refer_to;
+	pjsip_uri *parsed_uri;
+
+	if (!(refer_to = pjsip_msg_find_hdr_by_name(tdata->msg, &REFER_TO, NULL))
+		|| !(parsed_uri = pjsip_parse_uri(tdata->pool, refer_to->hvalue.ptr, refer_to->hvalue.slen, 0))
+		|| (!PJSIP_URI_SCHEME_IS_SIP(parsed_uri) && !PJSIP_URI_SCHEME_IS_SIPS(parsed_uri))) {
+		return NULL;
+	}
+
+	return parsed_uri;
+}
+
+static pj_status_t refer_on_tx_request(pjsip_tx_data *tdata) {
+	RAII_VAR(struct ast_str *, refer_to_str, ast_str_create(PJSIP_MAX_URL_SIZE), ast_free_ptr);
+	const pj_str_t REFER_TO = { "Refer-To", 8 };
+	pjsip_generic_string_hdr *refer_to_hdr;
+	pjsip_dialog *dlg;
+	struct refer_data *refer_data;
+	pjsip_uri *parsed_uri;
+	pjsip_sip_uri *refer_to_uri;
+
+	/*
+	 * If this is a request in response to a 401/407 Unauthorized challenge, the
+	 * Refer-To URI has been rewritten already, so don't attempt to re-write it again.
+	 * Checking for presence of the Authorization header is not an ideal solution. We do this because
+	 * there exists some race condition where this dialog is not the same as the one used
+	 * to send the original request in which case we don't have the correct refer_data.
+	 */
+	if (!refer_to_str
+		|| pjsip_msg_find_hdr(tdata->msg, PJSIP_H_AUTHORIZATION, NULL)
+		|| !(dlg = pjsip_tdata_get_dlg(tdata))
+		|| !(refer_data = pjsip_dlg_get_mod_data(dlg, refer_out_of_dialog_module.id))
+		|| !refer_data->to_self
+		|| !(parsed_uri = get_refer_to_uri(tdata))) {
+		goto out;
+	}
+	refer_to_uri = pjsip_uri_get_uri(parsed_uri);
+	ast_sip_rewrite_uri_to_local(refer_to_uri, tdata);
+
+	pjsip_uri_print(PJSIP_URI_IN_CONTACT_HDR, parsed_uri, ast_str_buffer(refer_to_str), ast_str_size(refer_to_str));
+	refer_to_hdr = pjsip_msg_find_hdr_by_name(tdata->msg, &REFER_TO, NULL);
+	pj_strdup2(tdata->pool, &refer_to_hdr->hvalue, ast_str_buffer(refer_to_str));
+
+out:
+	return PJ_SUCCESS;
+}
+
+static int refer_unreference_dialog(void *obj)
+{
+	struct refer_out_of_dialog *data = obj;
+
+	/* This is why we keep the dialog on the subscription. When the subscription
+	 * is destroyed, there is no guarantee that the underlying dialog is ready
+	 * to be destroyed. Furthermore, there's no guarantee in the opposite direction
+	 * either. The dialog could be destroyed before our subscription is. We fix
+	 * this problem by keeping a reference to the dialog until it is time to
+	 * destroy the subscription.
+	 */
+	pjsip_dlg_dec_session(data->dlg, &refer_out_of_dialog_module);
+	data->dlg = NULL;
+
+	return 0;
+}
+/*! \brief Destructor for REFER out of dialog structure */
+static void refer_out_of_dialog_destroy(void *obj) {
+	struct refer_out_of_dialog *data = obj;
+
+	if (data->dlg) {
+		/* ast_sip_push_task_wait_servant should not be called in a destructor,
+		 * however in this case it seems to be fine.
+		 */
+		ast_sip_push_task_wait_servant(refer_serializer, refer_unreference_dialog, data);
+	}
+}
+
+/*!
+ * \internal
+ * \brief Callback function to report status of implicit REFER-NOTIFY subscription.
+ *
+ * This function will be called on any state change in the REFER-NOTIFY subscription.
+ * Its primary purpose is to report SUCCESS/FAILURE of a refer initiated via
+ * \ref refer_send as well as to terminate the subscription, if necessary.
+ */
+static void refer_client_on_evsub_state(pjsip_evsub *sub, pjsip_event *event)
+{
+	pjsip_tx_data *tdata;
+	RAII_VAR(struct ast_sip_endpoint *, endpt, NULL, ao2_cleanup);
+	struct refer_out_of_dialog *refer_data;
+	int refer_success;
+	int res = 0;
+
+	if (!event) {
+		return;
+	}
+
+	refer_data = pjsip_evsub_get_mod_data(sub, refer_out_of_dialog_module.id);
+	if (!refer_data || !refer_data->dlg) {
+		return;
+	}
+
+	endpt = ast_sip_dialog_get_endpoint(refer_data->dlg);
+
+	if (pjsip_evsub_get_state(sub) == PJSIP_EVSUB_STATE_ACCEPTED) {
+		/* Check if subscription is suppressed and terminate and send completion code, if so. */
+		pjsip_rx_data *rdata;
+		pjsip_generic_string_hdr *refer_sub;
+		const pj_str_t REFER_SUB = { "Refer-Sub", 9 };
+
+		ast_debug(3, "Refer accepted by %s\n", endpt ? ast_sorcery_object_get_id(endpt) : "(unknown endpoint)");
+
+		/* Check if response message */
+		if (event->type == PJSIP_EVENT_TSX_STATE && event->body.tsx_state.type == PJSIP_EVENT_RX_MSG) {
+			rdata = event->body.tsx_state.src.rdata;
+
+			/* Find Refer-Sub header */
+			refer_sub = pjsip_msg_find_hdr_by_name(rdata->msg_info.msg, &REFER_SUB, NULL);
+
+			/* Check if subscription is suppressed. If it is, the far end will not terminate it,
+			 * and the subscription will remain active until it times out.  Terminating it here
+			 * eliminates the unnecessary timeout.
+			 */
+			if (refer_sub && !pj_stricmp2(&refer_sub->hvalue, "false")) {
+				/* Since no subscription is desired, assume that call has been referred successfully
+				 * and terminate subscription.
+				 */
+				pjsip_evsub_set_mod_data(sub, refer_out_of_dialog_module.id, NULL);
+				pjsip_evsub_terminate(sub, PJ_TRUE);
+				res = -1;
+			}
+		}
+	} else if (pjsip_evsub_get_state(sub) == PJSIP_EVSUB_STATE_ACTIVE ||
+			pjsip_evsub_get_state(sub) == PJSIP_EVSUB_STATE_TERMINATED) {
+		/* Check for NOTIFY complete or error. */
+		pjsip_msg *msg;
+		pjsip_msg_body *body;
+		pjsip_status_line status_line = { .code = 0 };
+		pj_bool_t is_last;
+		pj_status_t status;
+
+		if (event->type == PJSIP_EVENT_TSX_STATE && event->body.tsx_state.type == PJSIP_EVENT_RX_MSG) {
+			pjsip_rx_data *rdata;
+			pj_str_t refer_str;
+			pj_cstr(&refer_str, "REFER");
+
+			rdata = event->body.tsx_state.src.rdata;
+			msg = rdata->msg_info.msg;
+
+			if (msg->type == PJSIP_RESPONSE_MSG
+				&& (event->body.tsx_state.tsx->status_code == 401
+					|| event->body.tsx_state.tsx->status_code == 407)
+				&& pj_stristr(&refer_str, &event->body.tsx_state.tsx->method.name)
+				&& ++refer_data->authentication_challenge_count < MAX_RX_CHALLENGES
+				&& endpt) {
+
+				if (!ast_sip_create_request_with_auth(&endpt->outbound_auths,
+					event->body.tsx_state.src.rdata, event->body.tsx_state.tsx->last_tx, &tdata)) {
+					/* Send authed REFER */
+					ast_sip_send_request(tdata, refer_data->dlg, NULL, NULL, NULL);
+					goto out;
+				}
+			}
+
+			if (msg->type == PJSIP_REQUEST_MSG) {
+				if (!pjsip_method_cmp(&msg->line.req.method, pjsip_get_notify_method())) {
+					body = msg->body;
+					if (body && !pj_stricmp2(&body->content_type.type, "message")
+						&& !pj_stricmp2(&body->content_type.subtype, "sipfrag")) {
+						pjsip_parse_status_line((char *)body->data, body->len, &status_line);
+					}
+				}
+			} else {
+				status_line.code = msg->line.status.code;
+				status_line.reason = msg->line.status.reason;
+			}
+		} else {
+			status_line.code = 500;
+			status_line.reason = *pjsip_get_status_text(500);
+		}
+
+		is_last = (pjsip_evsub_get_state(sub) == PJSIP_EVSUB_STATE_TERMINATED);
+		/* If the status code is >= 200, the subscription is finished. */
+		if (status_line.code >= 200 || is_last) {
+			res = -1;
+
+			refer_success = status_line.code >= 200 && status_line.code < 300;
+
+			/* If subscription not terminated and subscription is finished (status code >= 200)
+			 * terminate it */
+			if (!is_last) {
+				pjsip_tx_data *tdata;
+
+				status = pjsip_evsub_initiate(sub, pjsip_get_subscribe_method(), 0, &tdata);
+				if (status == PJ_SUCCESS) {
+					pjsip_evsub_send_request(sub, tdata);
+				}
+			}
+			ast_debug(3, "Refer completed: %d %.*s (%s)\n",
+					status_line.code,
+					(int)status_line.reason.slen, status_line.reason.ptr,
+					refer_success ? "Success" : "Failure");
+		}
+	}
+
+out:
+	if (res) {
+		ao2_cleanup(refer_data);
+	}
+}
+
+/*!
+ * \internal
+ * \brief Send a REFER
+ *
+ * \param data The outbound refer data structure
+ *
+ * \return 0: success, -1: failure
+ */
+static int refer_send(void *data)
+{
+	struct refer_data *rdata = data; /* The caller holds a reference */
+	pjsip_tx_data *tdata;
+	pjsip_evsub *sub;
+	pj_str_t tmp;
+	char refer_to_str[PJSIP_MAX_URL_SIZE];
+	char disp_name_escaped[128];
+	struct refer_out_of_dialog *refer;
+	struct pjsip_evsub_user xfer_cb;
+	RAII_VAR(char *, uri, NULL, ast_free);
+	RAII_VAR(char *, tmp_str, NULL, ast_free);
+	RAII_VAR(char *, display_name, NULL, ast_free);
+	RAII_VAR(struct ast_sip_endpoint *, endpoint, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_sip_endpoint *, refer_to_endpoint, NULL, ao2_cleanup);
+
+	endpoint = ast_sip_get_endpoint(rdata->destination, 1, &uri);
+	if (!endpoint) {
+		ast_log(LOG_ERROR,
+			"PJSIP REFER - Could not find endpoint '%s' and no default outbound endpoint configured\n",
+			rdata->destination);
+		return -1;
+	}
+	ast_debug(3, "Request URI: %s\n", uri);
+
+	refer_to_endpoint = ast_sip_get_endpoint(rdata->refer_to, 0, &tmp_str);
+	if (!tmp_str) {
+		ast_log(LOG_WARNING, "PJSIP REFER - Refer to not a valid resource identifier or SIP URI\n");
+		return -1;
+	}
+	if (!(refer = ao2_alloc(sizeof(struct refer_out_of_dialog), refer_out_of_dialog_destroy))) {
+		ast_log(LOG_ERROR, "PJSIP REFER - Could not allocate resources.\n");
+		return -1;
+	}
+	/* The dialog will be terminated in the subscription event callback
+	 * when the subscription has terminated. */
+	refer->authentication_challenge_count = 0;
+	refer->dlg = ast_sip_create_dialog_uac(endpoint, uri, NULL);
+	if (!refer->dlg) {
+		ast_log(LOG_WARNING, "PJSIP REFER - Could not create dialog\n");
+		ao2_cleanup(refer);
+		return -1;
+	}
+	ast_sip_dialog_set_endpoint(refer->dlg, endpoint);
+
+	pj_bzero(&xfer_cb, sizeof(xfer_cb));
+	xfer_cb.on_evsub_state = &refer_client_on_evsub_state;
+	if (pjsip_xfer_create_uac(refer->dlg, &xfer_cb, &sub) != PJ_SUCCESS) {
+		ast_log(LOG_WARNING, "PJSIP REFER - Could not create uac\n");
+		ao2_cleanup(refer);
+		return -1;
+	}
+
+	display_name = ast_refer_get_var_and_unlink(rdata->refer, "display_name");
+	if (display_name) {
+		ast_escape_quoted(display_name, disp_name_escaped, sizeof(disp_name_escaped));
+		snprintf(refer_to_str, sizeof(refer_to_str), "\"%s\" <%s>", disp_name_escaped, tmp_str);
+	} else {
+		snprintf(refer_to_str, sizeof(refer_to_str), "%s", tmp_str);
+	}
+
+	/* refer_out_of_dialog_module requires a reference to dlg
+	 * which will be released in refer_client_on_evsub_state()
+	 * when the implicit REFER subscription terminates */
+	pjsip_evsub_set_mod_data(sub, refer_out_of_dialog_module.id, refer);
+	if (pjsip_xfer_initiate(sub, pj_cstr(&tmp, refer_to_str), &tdata) != PJ_SUCCESS) {
+		ast_log(LOG_WARNING, "PJSIP REFER - Could not create request\n");
+		goto failure;
+	}
+
+	if (refer_to_endpoint && rdata->to_self) {
+		pjsip_dlg_add_usage(refer->dlg, &refer_out_of_dialog_module, rdata);
+	}
+
+	ast_sip_update_to_uri(tdata, uri);
+	ast_sip_update_from(tdata, rdata->from);
+
+	/*
+	 * This copies any headers found in the refer's variables to
+	 * tdata.
+	 */
+	vars_to_headers(rdata->refer, tdata);
+	ast_debug(1, "Sending REFER to '%s' (via endpoint %s) from '%s'\n",
+		rdata->destination, ast_sorcery_object_get_id(endpoint), rdata->from);
+
+	if (pjsip_xfer_send_request(sub, tdata) == PJ_SUCCESS) {
+		return 0;
+	}
+
+failure:
+	ao2_cleanup(refer);
+	pjsip_evsub_set_mod_data(sub, refer_out_of_dialog_module.id, NULL);
+	pjsip_evsub_terminate(sub, PJ_FALSE);
+	return -1;
+}
+
+static int sip_refer_send(const struct ast_refer *refer)
+{
+	struct refer_data *rdata;
+	int res;
+
+	if (ast_strlen_zero(ast_refer_get_to(refer))) {
+		ast_log(LOG_ERROR, "SIP REFER - a 'To' URI  must be specified\n");
+		return -1;
+	}
+
+	rdata = refer_data_create(refer);
+	if (!rdata) {
+		return -1;
+	}
+
+	res = ast_sip_push_task_wait_serializer(refer_serializer, refer_send, rdata);
+	ao2_ref(rdata, -1);
+
+	return res;
+}
+
+static const struct ast_refer_tech refer_tech = {
+	.name = "pjsip",
+	.refer_send = sip_refer_send,
+};
+
 static int refer_incoming_attended_request(struct ast_sip_session *session, pjsip_rx_data *rdata, pjsip_sip_uri *target_uri,
 	pjsip_param *replaces_param, struct refer_progress *progress)
 {
@@ -1274,6 +1772,17 @@ static int load_module(void)
 		pjsip_endpt_add_capability(ast_sip_get_pjsip_endpoint(), NULL, PJSIP_H_SUPPORTED, NULL, 1, &str_norefersub);
 	}
 
+	if (ast_refer_tech_register(&refer_tech)) {
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	refer_serializer = ast_sip_create_serializer("pjsip/refer");
+	if (!refer_serializer) {
+		ast_refer_tech_unregister(&refer_tech);
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	ast_sip_register_service(&refer_out_of_dialog_module);
 	ast_sip_register_service(&refer_progress_module);
 	ast_sip_session_register_supplement(&refer_supplement);
 
@@ -1285,7 +1794,9 @@ static int load_module(void)
 static int unload_module(void)
 {
 	ast_sip_session_unregister_supplement(&refer_supplement);
+	ast_sip_unregister_service(&refer_out_of_dialog_module);
 	ast_sip_unregister_service(&refer_progress_module);
+	ast_taskprocessor_unreference(refer_serializer);
 
 	return 0;
 }

@@ -33,6 +33,7 @@
 #include "asterisk/stasis_endpoints.h"
 #include "asterisk/channel.h"
 #include "asterisk/message.h"
+#include "asterisk/refer.h"
 
 void ast_ari_endpoints_list(struct ast_variable *headers,
 	struct ast_ari_endpoints_list_args *args,
@@ -305,5 +306,137 @@ void ast_ari_endpoints_send_message_to_endpoint(struct ast_variable *headers,
 	snprintf(msg_to, sizeof(msg_to), "%s:%s", ast_str_to_lower(tech), args->resource);
 
 	send_message(msg_to, args->from, args->body, variables, response);
+	ast_variables_destroy(variables);
+}
+
+static void send_refer(const char *to, const char *from, const char *refer_to, int to_self, struct ast_variable *variables, struct ast_ari_response *response)
+{
+	struct ast_variable *current;
+	struct ast_refer *refer;
+	int res = 0;
+
+	if (ast_strlen_zero(to)) {
+		ast_ari_response_error(response, 400, "Bad Request",
+			"To must be specified");
+		return;
+	}
+
+	refer = ast_refer_alloc();
+	if (!refer) {
+		ast_ari_response_alloc_failed(response);
+		return;
+	}
+
+	ast_refer_set_to(refer, "%s", to);
+	ast_refer_set_to_self(refer, to_self);
+
+	if (!ast_strlen_zero(from)) {
+		ast_refer_set_from(refer, "%s", from);
+	}
+	if (!ast_strlen_zero(refer_to)) {
+		ast_refer_set_refer_to(refer, "%s", refer_to);
+	}
+
+	for (current = variables; current; current = current->next) {
+		res |= ast_refer_set_var_outbound(refer, current->name, current->value);
+	}
+
+	if (res) {
+		ast_ari_response_alloc_failed(response);
+		ast_refer_destroy(refer);
+		return;
+	}
+
+	if (ast_refer_send(refer)) {
+		ast_ari_response_error(response, 404, "Not Found",
+			"Endpoint not found");
+		return;
+	}
+
+	response->message = ast_json_null();
+	response->response_code = 202;
+	response->response_text = "Accepted";
+}
+
+static int parse_refer_json(struct ast_json *body,
+	struct ast_ari_response *response,
+	struct ast_variable **variables)
+{
+	const char *known_variables[] = { "display_name" };
+	const char *value;
+	struct ast_variable *new_var;
+	struct ast_json *json_variable;
+	int err = 0;
+	int i;
+
+	if (!body) {
+		return 0;
+	}
+
+	json_variable = ast_json_object_get(body, "variables");
+	if (json_variable) {
+		err = json_to_ast_variables(response, json_variable, variables);
+		if (err) {
+			return err;
+		}
+	}
+
+	for (i = 0; i < sizeof(known_variables) / sizeof(*known_variables); ++i) {
+		json_variable = ast_json_object_get(body, known_variables[i]);
+		if (json_variable && ast_json_typeof(json_variable) == AST_JSON_STRING) {
+			value = ast_json_string_get(json_variable);
+			new_var = ast_variable_new(known_variables[i], value, "");
+			if (new_var) {
+				ast_variable_list_append(variables, new_var);
+			}
+		}
+	}
+
+	return err;
+}
+
+void ast_ari_endpoints_refer(struct ast_variable *headers,
+	struct ast_ari_endpoints_refer_args *args,
+	struct ast_ari_response *response)
+{
+	struct ast_variable *variables = NULL;
+
+	ast_ari_endpoints_refer_parse_body(args->variables, args);
+
+	if (parse_refer_json(args->variables, response, &variables)) {
+		return;
+	}
+
+	send_refer(args->to, args->from, args->refer_to, args->to_self, variables, response);
+	ast_variables_destroy(variables);
+}
+
+void ast_ari_endpoints_refer_to_endpoint(struct ast_variable *headers,
+	struct ast_ari_endpoints_refer_to_endpoint_args *args,
+	struct ast_ari_response *response)
+{
+	struct ast_variable *variables = NULL;
+	struct ast_endpoint_snapshot *snapshot;
+	char to[128];
+	char *tech = ast_strdupa(args->tech);
+
+	/* Really, we just want to know if this thing exists */
+	snapshot = ast_endpoint_latest_snapshot(args->tech, args->resource);
+	if (!snapshot) {
+		ast_ari_response_error(response, 404, "Not Found",
+			"Endpoint not found");
+		return;
+	}
+	ao2_ref(snapshot, -1);
+
+	ast_ari_endpoints_refer_to_endpoint_parse_body(args->variables, args);
+
+	if (parse_refer_json(args->variables, response, &variables)) {
+		return;
+	}
+
+	snprintf(to, sizeof(to), "%s:%s", ast_str_to_lower(tech), args->resource);
+
+	send_refer(to, args->from, args->refer_to, args->to_self, variables, response);
 	ast_variables_destroy(variables);
 }
