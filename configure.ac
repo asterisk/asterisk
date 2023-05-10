@@ -1,6 +1,6 @@
 AC_PREREQ(2.60a)
 
-AC_INIT([asterisk], [trunk], [https://issues.asterisk.org])
+AC_INIT([asterisk], [certified/18.9], [https://github.com/asterisk/asterisk/issues])
 
 # cross-compile macros
 AC_CANONICAL_BUILD
