@@ -136,7 +136,6 @@ AC_DEFUN([_PJPROJECT_CONFIGURE],
 		AC_DEFINE([HAVE_PJSIP_OAUTH_AUTHENTICATION], 1, [Define if your system has HAVE_PJSIP_OAUTH_AUTHENTICATION declared])
 		AC_DEFINE([HAVE_PJPROJECT_ON_VALID_ICE_PAIR_CALLBACK], 1, [Define if your system has the on_valid_pair pjnath callback.])
 		AC_DEFINE([HAVE_PJSIP_TLS_TRANSPORT_RESTART], 1, [Define if your system has pjsip_tls_transport_restart support.])
-		AC_DEFINE([HAVE_PJSIP_EVSUB_PENDING_NOTIFY], 1, [Define to 1 if evsub requires a NOTIFY on SUBSCRIBE.])
 
 		AC_SUBST([PJPROJECT_BUNDLED])
 		AC_SUBST([PJPROJECT_BUNDLED_OOT])
