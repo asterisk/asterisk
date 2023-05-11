@@ -1018,6 +1018,8 @@ static int have_visited(const char *resource, struct resources *visited)
 	return 0;
 }
 
+#define NEW_SUBSCRIBE(notifier, endpoint, resource, rdata) notifier->new_subscribe_with_rdata ? notifier->new_subscribe_with_rdata(endpoint, resource, rdata) : notifier->new_subscribe(endpoint, resource)
+
 /*!
  * \brief Build child nodes for a given parent.
  *
@@ -1040,7 +1042,7 @@ static int have_visited(const char *resource, struct resources *visited)
  * \param visited The resources that have already been visited.
  */
 static void build_node_children(struct ast_sip_endpoint *endpoint, const struct ast_sip_subscription_handler *handler,
-		struct resource_list *list, struct tree_node *parent, struct resources *visited)
+		struct resource_list *list, struct tree_node *parent, struct resources *visited, pjsip_rx_data *rdata)
 {
 	int i;
 
@@ -1056,7 +1058,7 @@ static void build_node_children(struct ast_sip_endpoint *endpoint, const struct 
 
 		child_list = retrieve_resource_list(resource, list->event);
 		if (!child_list) {
-			int resp = handler->notifier->new_subscribe(endpoint, resource);
+			int resp = NEW_SUBSCRIBE(handler->notifier, endpoint, resource, rdata);
 			if (PJSIP_IS_STATUS_IN_CLASS(resp, 200)) {
 				char display_name[AST_MAX_EXTENSION] = "";
 				if (list->resource_display_name && handler->notifier->get_resource_display_name) {
@@ -1085,7 +1087,7 @@ static void build_node_children(struct ast_sip_endpoint *endpoint, const struct 
 				ast_debug(1, "Cannot build children of resource %s due to allocation failure\n", resource);
 				continue;
 			}
-			build_node_children(endpoint, handler, child_list, current, visited);
+			build_node_children(endpoint, handler, child_list, current, visited, rdata);
 			if (AST_VECTOR_SIZE(&current->children) > 0) {
 				ast_debug(1, "List %s had no successful children.\n", resource);
 				if (AST_VECTOR_APPEND(&parent->children, current)) {
@@ -1158,19 +1160,21 @@ static void resource_tree_destroy(struct resource_tree *tree)
  * \retval 300-699 Failure to subscribe to requested resource.
  */
 static int build_resource_tree(struct ast_sip_endpoint *endpoint, const struct ast_sip_subscription_handler *handler,
-		const char *resource, struct resource_tree *tree, int has_eventlist_support)
+		const char *resource, struct resource_tree *tree, int has_eventlist_support, pjsip_rx_data *rdata)
 {
 	RAII_VAR(struct resource_list *, list, NULL, ao2_cleanup);
 	struct resources visited;
 
-	if (!has_eventlist_support || !(list = retrieve_resource_list(resource, handler->event_name))) {
+	int not_eventlist_but_needs_children = !strcmp(handler->body_type, AST_SIP_DEVICE_FEATURE_SYNC_DATA);
+
+	if ((!has_eventlist_support && !not_eventlist_but_needs_children) || !(list = retrieve_resource_list(resource, handler->event_name))) {
 		ast_debug(2, "Subscription '%s->%s' is not to a list\n",
 			ast_sorcery_object_get_id(endpoint), resource);
 		tree->root = tree_node_alloc(resource, NULL, 0, NULL);
 		if (!tree->root) {
 			return 500;
 		}
-		return handler->notifier->new_subscribe(endpoint, resource);
+		return NEW_SUBSCRIBE(handler->notifier, endpoint, resource, rdata);
 	}
 
 	ast_debug(2, "Subscription '%s->%s' is a list\n",
@@ -1187,7 +1191,7 @@ static int build_resource_tree(struct ast_sip_endpoint *endpoint, const struct a
 
 	tree->notification_batch_interval = list->notification_batch_interval;
 
-	build_node_children(endpoint, handler, list, tree->root, &visited);
+	build_node_children(endpoint, handler, list, tree->root, &visited, rdata);
 	AST_VECTOR_FREE(&visited);
 
 	if (AST_VECTOR_SIZE(&tree->root->children) > 0) {
@@ -1380,6 +1384,7 @@ static void shutdown_subscriptions(struct ast_sip_subscription *sub)
 		sub->handler->subscription_shutdown(sub);
 	}
 }
+
 static int subscription_unreference_dialog(void *obj)
 {
 	struct sip_subscription_tree *sub_tree = obj;
@@ -1674,7 +1679,7 @@ static int sub_persistence_recreate(void *obj)
 
 	memset(&tree, 0, sizeof(tree));
 	resp = build_resource_tree(endpoint, handler, resource, &tree,
-		ast_sip_pubsub_has_eventlist_support(rdata));
+		ast_sip_pubsub_has_eventlist_support(rdata), rdata);
 	if (PJSIP_IS_STATUS_IN_CLASS(resp, 200)) {
 		pj_status_t dlg_status;
 
@@ -2454,6 +2459,16 @@ static pjsip_require_hdr *create_require_eventlist(pj_pool_t *pool)
 	return require;
 }
 
+static void set_state_terminated(struct ast_sip_subscription *sub)
+{
+	int i;
+
+	sub->subscription_state = PJSIP_EVSUB_STATE_TERMINATED;
+	for (i = 0; i < AST_VECTOR_SIZE(&sub->children); ++i) {
+		set_state_terminated(AST_VECTOR_GET(&sub->children, i));
+	}
+}
+
 /*!
  * \brief Send a NOTIFY request to a subscriber
  *
@@ -2489,6 +2504,12 @@ static int send_notify(struct sip_subscription_tree *sub_tree, unsigned int forc
 	if (sub_tree->is_list) {
 		pjsip_require_hdr *require = create_require_eventlist(tdata->pool);
 		pjsip_msg_add_hdr(tdata->msg, (pjsip_hdr *) require);
+	}
+
+	if (sub_tree->root->handler->notifier->notify_created) {
+		/* The module for this event wants a callback to the pjsip_tx_data,
+		 * e.g. so it can add custom headers or do something custom to the response. */
+		sub_tree->root->handler->notifier->notify_created(sub_tree->root, tdata);
 	}
 
 	if (sip_subscription_send_request(sub_tree, tdata)) {
@@ -2954,6 +2975,7 @@ static int generate_initial_notify(struct ast_sip_subscription *sub)
 
 	notify_data = sub->handler->notifier->get_notify_data(sub);
 	if (!notify_data) {
+		ast_debug(3, "No notify data, not generating any body content\n");
 		return -1;
 	}
 
@@ -3085,7 +3107,7 @@ static pj_bool_t pubsub_on_rx_subscribe_request(pjsip_rx_data *rdata)
 
 	memset(&tree, 0, sizeof(tree));
 	resp = build_resource_tree(endpoint, handler, resource, &tree,
-		ast_sip_pubsub_has_eventlist_support(rdata));
+		ast_sip_pubsub_has_eventlist_support(rdata), rdata);
 	if (!PJSIP_IS_STATUS_IN_CLASS(resp, 200)) {
 		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, resp, NULL, NULL, NULL);
 		resource_tree_destroy(&tree);
@@ -3095,6 +3117,7 @@ static pj_bool_t pubsub_on_rx_subscribe_request(pjsip_rx_data *rdata)
 	sub_tree = create_subscription_tree(handler, endpoint, rdata, resource, generator, &tree, &dlg_status, NULL);
 	if (!sub_tree) {
 		if (dlg_status != PJ_EEXISTS) {
+			ast_debug(3, "No dialog exists, rejecting\n");
 			pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 500, NULL, NULL, NULL);
 		}
 	} else {
@@ -3331,6 +3354,7 @@ static struct ast_sip_publication *publish_request_initial(struct ast_sip_endpoi
 	publication->handler = handler;
 	if (publication->handler->publication_state_change(publication, rdata->msg_info.msg->body,
 			AST_SIP_PUBLISH_STATE_INITIALIZED)) {
+		ast_debug(3, "Publication state change failed\n");
 		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 500, NULL, NULL, NULL);
 		ao2_cleanup(publication);
 		return NULL;
@@ -3760,16 +3784,6 @@ static pj_bool_t pubsub_on_rx_request(pjsip_rx_data *rdata)
 	return PJ_FALSE;
 }
 
-static void set_state_terminated(struct ast_sip_subscription *sub)
-{
-	int i;
-
-	sub->subscription_state = PJSIP_EVSUB_STATE_TERMINATED;
-	for (i = 0; i < AST_VECTOR_SIZE(&sub->children); ++i) {
-		set_state_terminated(AST_VECTOR_GET(&sub->children, i));
-	}
-}
-
 /*!
  * \brief Callback sequence for subscription terminate:
  *
@@ -3852,7 +3866,8 @@ static void set_state_terminated(struct ast_sip_subscription *sub)
 
 
 /* The code in this function was previously in pubsub_on_evsub_state. */
-static void clean_sub_tree(pjsip_evsub *evsub){
+static void clean_sub_tree(pjsip_evsub *evsub)
+{
 
 	struct sip_subscription_tree *sub_tree;
 	sub_tree = pjsip_evsub_get_mod_data(evsub, pubsub_module.id);
@@ -3912,7 +3927,6 @@ static void pubsub_on_evsub_state(pjsip_evsub *evsub, pjsip_event *event)
 		return;
 	}
 
-
 	/* It's easier to write this as what we WANT to process, then negate it. */
 	if (!(sub_tree->state == SIP_SUB_TREE_TERMINATE_IN_PROGRESS
 		|| (event->type == PJSIP_EVENT_TSX_STATE && sub_tree->state == SIP_SUB_TREE_NORMAL)
@@ -3927,9 +3941,8 @@ static void pubsub_on_evsub_state(pjsip_evsub *evsub, pjsip_event *event)
 	   This was previously handled by pubsub_on_rx_refresh setting:
 	   'sub_tree->state = SIP_SUB_TREE_TERMINATE_PENDING' */
 	if (event->body.tsx_state.type == PJSIP_EVENT_RX_MSG &&
-	    !pjsip_method_cmp(&event->body.tsx_state.tsx->method, &pjsip_subscribe_method) &&
-	    pjsip_evsub_get_expires(evsub) == 0) {
-
+		!pjsip_method_cmp(&event->body.tsx_state.tsx->method, &pjsip_subscribe_method) &&
+		pjsip_evsub_get_expires(evsub) == 0) {
 		ast_debug(3, "Subscription ending, do nothing.\n");
 		return;
 	}
@@ -4058,6 +4071,7 @@ static void pubsub_on_rx_refresh(pjsip_evsub *evsub, pjsip_rx_data *rdata,
 		int *p_st_code, pj_str_t **p_st_text, pjsip_hdr *res_hdr, pjsip_msg_body **p_body)
 {
 	struct sip_subscription_tree *sub_tree;
+	RAII_VAR(struct ast_sip_endpoint *, endpoint, NULL, ao2_cleanup);
 
 	sub_tree = pjsip_evsub_get_mod_data(evsub, pubsub_module.id);
 	ast_debug(3, "evsub %p sub_tree %p sub_tree state %s\n", evsub, sub_tree,
@@ -4085,27 +4099,33 @@ static void pubsub_on_rx_refresh(pjsip_evsub *evsub, pjsip_rx_data *rdata,
 		sub_tree->state = SIP_SUB_TREE_TERMINATE_PENDING;
 	}
 
+	endpoint = ast_pjsip_rdata_get_endpoint(rdata);
+
+	/* If the handler wants a callback on refresh, then do it (some protocols require this). */
+	if (sub_tree->state == SIP_SUB_TREE_NORMAL && sub_tree->root->handler->notifier->refresh_subscribe) {
+		if (!sub_tree->root->handler->notifier->refresh_subscribe(sub_tree->root, rdata)) {
+			return; /* If the callback handled it, we're done. */
+		}
+	}
+
 	if (sub_tree->state == SIP_SUB_TREE_NORMAL && sub_tree->is_list) {
 		/* update RLS */
 		const char *resource = sub_tree->root->resource;
 		struct ast_sip_subscription *old_root = sub_tree->root;
 		struct ast_sip_subscription *new_root = NULL;
-		RAII_VAR(struct ast_sip_endpoint *, endpoint, NULL, ao2_cleanup);
-		struct ast_sip_subscription_handler *handler = NULL;
+
 		struct ast_sip_pubsub_body_generator *generator = NULL;
 
-		if ((endpoint = ast_pjsip_rdata_get_endpoint(rdata))
-			&& (handler = subscription_get_handler_from_rdata(rdata, ast_sorcery_object_get_id(endpoint)))
-			&& (generator = subscription_get_generator_from_rdata(rdata, handler))) {
+		if (endpoint && (generator = subscription_get_generator_from_rdata(rdata, sub_tree->root->handler))) {
 
 			struct resource_tree tree;
 			int resp;
 
 			memset(&tree, 0, sizeof(tree));
-			resp = build_resource_tree(endpoint, handler, resource, &tree,
-				ast_sip_pubsub_has_eventlist_support(rdata));
+			resp = build_resource_tree(endpoint, sub_tree->root->handler, resource, &tree,
+				ast_sip_pubsub_has_eventlist_support(rdata), rdata);
 			if (PJSIP_IS_STATUS_IN_CLASS(resp, 200)) {
-				new_root = create_virtual_subscriptions(handler, resource, generator, sub_tree, tree.root);
+				new_root = create_virtual_subscriptions(sub_tree->root->handler, resource, generator, sub_tree, tree.root);
 				if (new_root) {
 					if (cmp_subscription_childrens(old_root, new_root)) {
 						ast_debug(1, "RLS '%s->%s' was modified, regenerate it\n", ast_sorcery_object_get_id(endpoint), old_root->resource);
@@ -5330,7 +5350,7 @@ AST_TEST_DEFINE(resource_tree)
 	}
 
 	tree = ast_calloc(1, sizeof(*tree));
-	resp = build_resource_tree(NULL, &test_handler, "foo", tree, 1);
+	resp = build_resource_tree(NULL, &test_handler, "foo", tree, 1, NULL);
 	if (resp != 200) {
 		ast_test_status_update(test, "Unexpected response %d when building resource tree\n", resp);
 		return AST_TEST_FAIL;
@@ -5400,7 +5420,7 @@ AST_TEST_DEFINE(complex_resource_tree)
 	}
 
 	tree = ast_calloc(1, sizeof(*tree));
-	resp = build_resource_tree(NULL, &test_handler, "foo", tree, 1);
+	resp = build_resource_tree(NULL, &test_handler, "foo", tree, 1, NULL);
 	if (resp != 200) {
 		ast_test_status_update(test, "Unexpected response %d when building resource tree\n", resp);
 		return AST_TEST_FAIL;
@@ -5461,7 +5481,7 @@ AST_TEST_DEFINE(bad_resource)
 	}
 
 	tree = ast_calloc(1, sizeof(*tree));
-	resp = build_resource_tree(NULL, &test_handler, "foo", tree, 1);
+	resp = build_resource_tree(NULL, &test_handler, "foo", tree, 1, NULL);
 	if (resp != 200) {
 		ast_test_status_update(test, "Unexpected response %d when building resource tree\n", resp);
 		return AST_TEST_FAIL;
@@ -5530,7 +5550,7 @@ AST_TEST_DEFINE(bad_branch)
 	}
 
 	tree = ast_calloc(1, sizeof(*tree));
-	resp = build_resource_tree(NULL, &test_handler, "foo", tree, 1);
+	resp = build_resource_tree(NULL, &test_handler, "foo", tree, 1, NULL);
 	if (resp != 200) {
 		ast_test_status_update(test, "Unexpected response %d when building resource tree\n", resp);
 		return AST_TEST_FAIL;
@@ -5603,7 +5623,7 @@ AST_TEST_DEFINE(duplicate_resource)
 	}
 
 	tree = ast_calloc(1, sizeof(*tree));
-	resp = build_resource_tree(NULL, &test_handler, "foo", tree, 1);
+	resp = build_resource_tree(NULL, &test_handler, "foo", tree, 1, NULL);
 	if (resp != 200) {
 		ast_test_status_update(test, "Unexpected response %d when building resource tree\n", resp);
 		return AST_TEST_FAIL;
@@ -5675,7 +5695,7 @@ AST_TEST_DEFINE(loop)
 	}
 
 	tree = ast_calloc(1, sizeof(*tree));
-	resp = build_resource_tree(NULL, &test_handler, "herp", tree, 1);
+	resp = build_resource_tree(NULL, &test_handler, "herp", tree, 1, NULL);
 	if (resp == 200) {
 		ast_test_status_update(test, "Unexpected response %d when building resource tree\n", resp);
 		return AST_TEST_FAIL;
@@ -5722,7 +5742,7 @@ AST_TEST_DEFINE(bad_event)
 	/* Since the test_handler is for event "test", this should not build a list, but
 	 * instead result in a single resource being created, called "foo"
 	 */
-	resp = build_resource_tree(NULL, &test_handler, "foo", tree, 1);
+	resp = build_resource_tree(NULL, &test_handler, "foo", tree, 1, NULL);
 	if (resp != 200) {
 		ast_test_status_update(test, "Unexpected response %d when building resource tree\n", resp);
 		return AST_TEST_FAIL;

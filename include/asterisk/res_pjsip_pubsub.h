@@ -232,6 +232,8 @@ enum ast_sip_subscription_notify_reason {
 #define AST_SIP_EXTEN_STATE_DATA "ast_sip_exten_state_data"
 /*! Type used for conveying mailbox state */
 #define AST_SIP_MESSAGE_ACCUMULATOR "ast_sip_message_accumulator"
+/*! Type used for device feature synchronization */
+#define AST_SIP_DEVICE_FEATURE_SYNC_DATA "ast_sip_device_feature_sync_data"
 
 /*!
  * \brief Data used to create bodies for NOTIFY/PUBLISH requests.
@@ -269,6 +271,18 @@ struct ast_sip_notifier {
 	 */
 	int (*new_subscribe)(struct ast_sip_endpoint *endpoint, const char *resource);
 	/*!
+	 * \brief Same as new_subscribe, but also pass a handle to the pjsip_rx_data
+	 *
+	 * \note If this callback exists, it will be executed, otherwise new_subscribe will be.
+	 *       Only use this if you need the rdata. Otherwise, use new_subscribe.
+	 *
+	 * \param endpoint The endpoint from which we received the SUBSCRIBE
+	 * \param resource The name of the resource to which the subscription is being made
+	 * \param rdata The pjsip_rx_data for incoming subscription
+	 * \return The response code to send to the SUBSCRIBE.
+	 */
+	int (*new_subscribe_with_rdata)(struct ast_sip_endpoint *endpoint, const char *resource, pjsip_rx_data *rdata);
+	/*!
 	 * \brief Called when an inbound subscription has been accepted.
 	 *
 	 * This is a prime opportunity for notifiers to add any notifier-specific
@@ -282,6 +296,25 @@ struct ast_sip_notifier {
 	 * \retval -1 Failure
 	 */
 	int (*subscription_established)(struct ast_sip_subscription *sub);
+	/*!
+	 * \brief Called when a SUBSCRIBE arrives for an already active subscription.
+	 *
+	 * \param sub The existing subscription
+	 * \retval 0 Success
+	 * \retval -1 Failure
+	 */
+	int (*refresh_subscribe)(struct ast_sip_subscription *sub, pjsip_rx_data *rdata);
+	/*!
+	 * \brief Optional callback to execute before sending outgoing NOTIFY requests.
+	 *        Because res_pjsip_pubsub creates the tdata internally, this allows modules
+	 *        to access the tdata if needed, e.g. to add custom headers.
+	 *
+	 * \param sub The existing subscription
+	 * \param tdata The pjsip_tx_data to use for the outgoing NOTIFY
+	 * \retval 0 Success
+	 * \retval -1 Failure
+	 */
+	int (*notify_created)(struct ast_sip_subscription *sub, pjsip_tx_data *tdata);
 	/*!
 	 * \brief Supply data needed to create a NOTIFY body.
 	 *
