@@ -594,7 +594,6 @@ AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_ENDPOINT_COMPACT_FORM], [PJSIP Compact Form Su
 AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_TRANSPORT_DISABLE_CONNECTION_REUSE], [PJSIP Transport Connection Reuse Disabling], [PJPROJECT], [pjsip])
 AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_OAUTH_AUTHENTICATION], [PJSIP OAuth Authentication Support], [PJPROJECT], [pjsip])
 AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_TLS_TRANSPORT_RESTART], [PJSIP TLS Transport Restart Support], [PJPROJECT], [pjsip])
-AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_EVSUB_PENDING_NOTIFY], [PJSIP NOTIFY Required on SUBSCRIBE], [PJPROJECT], [pjsip])
 fi
 
 AST_EXT_LIB_SETUP([POPT], [popt], [popt])
@@ -2538,18 +2537,6 @@ if test "$USE_PJPROJECT" != "no" ; then
          AST_EXT_LIB_CHECK([PJSIP_AUTH_CLT_DEINIT], [pjsip], [pjsip_auth_clt_deinit], [pjsip.h], [$PJPROJECT_LIB], [$PJPROJECT_CFLAGS])
          AST_EXT_LIB_CHECK([PJSIP_TSX_LAYER_FIND_TSX2], [pjsip], [pjsip_tsx_layer_find_tsx2], [pjsip.h], [$PJPROJECT_LIB], [$PJPROJECT_CFLAGS])
          AST_EXT_LIB_CHECK([PJSIP_TLS_TRANSPORT_RESTART], [pjsip], [pjsip_tls_transport_restart], [pjsip.h], [$PJPROJECT_LIB], [$PJPROJECT_CFLAGS])
-
-      	 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for pending_notify in evsub.c" >&5
-		   $as_echo_n "checking for pending_notify in evsub... " >&6; }
-		 pending_notify=$(${SED} -n -r -e '/^struct\s+pjsip_evsub/,/^\s+void\s+*mod_data/!d ; /pending_notify/p' $(find $PJSIP_EVSUB_PENDING_NOTIFY_DIR -name evsub.c))
-		 if test -n "$pending_notify" ; then
-		 	AC_DEFINE(HAVE_PJSIP_EVSUB_PENDING_NOTIFY, 1, [Define to 1 if evsub requires a NOTIFY on SUBSCRIBE.])
-			{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-			  $as_echo "yes" >&6; }
-		 else
-			{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-			  $as_echo "no" >&6; }
-		 fi
       fi
    fi
 
