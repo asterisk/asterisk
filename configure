@@ -914,10 +914,6 @@ PBX_POPT
 POPT_DIR
 POPT_INCLUDE
 POPT_LIB
-PBX_PJSIP_EVSUB_PENDING_NOTIFY
-PJSIP_EVSUB_PENDING_NOTIFY_DIR
-PJSIP_EVSUB_PENDING_NOTIFY_INCLUDE
-PJSIP_EVSUB_PENDING_NOTIFY_LIB
 PBX_PJSIP_TLS_TRANSPORT_RESTART
 PJSIP_TLS_TRANSPORT_RESTART_DIR
 PJSIP_TLS_TRANSPORT_RESTART_INCLUDE
@@ -10212,9 +10208,6 @@ $as_echo "#define HAVE_PJPROJECT_ON_VALID_ICE_PAIR_CALLBACK 1" >>confdefs.h
 $as_echo "#define HAVE_PJSIP_TLS_TRANSPORT_RESTART 1" >>confdefs.h
 
 
-$as_echo "#define HAVE_PJSIP_EVSUB_PENDING_NOTIFY 1" >>confdefs.h
-
-
 
 
 
@@ -12232,18 +12225,6 @@ PJSIP_TLS_TRANSPORT_RESTART_OPTION=pjsip
 PJSIP_TLS_TRANSPORT_RESTART_DIR=${PJPROJECT_DIR}
 
 PBX_PJSIP_TLS_TRANSPORT_RESTART=0
-
-
-
-
-
-
-
-PJSIP_EVSUB_PENDING_NOTIFY_DESCRIP="PJSIP NOTIFY Required on SUBSCRIBE"
-PJSIP_EVSUB_PENDING_NOTIFY_OPTION=pjsip
-PJSIP_EVSUB_PENDING_NOTIFY_DIR=${PJPROJECT_DIR}
-
-PBX_PJSIP_EVSUB_PENDING_NOTIFY=0
 
 
 
@@ -26077,20 +26058,6 @@ _ACEOF
 fi
 
 
-
-      	 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for pending_notify in evsub.c" >&5
-		   $as_echo_n "checking for pending_notify in evsub... " >&6; }
-		 pending_notify=$(${SED} -n -r -e '/^struct\s+pjsip_evsub/,/^\s+void\s+*mod_data/!d ; /pending_notify/p' $(find $PJSIP_EVSUB_PENDING_NOTIFY_DIR -name evsub.c))
-		 if test -n "$pending_notify" ; then
-
-$as_echo "#define HAVE_PJSIP_EVSUB_PENDING_NOTIFY 1" >>confdefs.h
-
-			{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-			  $as_echo "yes" >&6; }
-		 else
-			{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-			  $as_echo "no" >&6; }
-		 fi
       fi
    fi
 

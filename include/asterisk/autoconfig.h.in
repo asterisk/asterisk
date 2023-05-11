@@ -632,9 +632,6 @@
 /* Define to 1 if PJPROJECT has the PJSIP EVSUB Group Lock support feature. */
 #undef HAVE_PJSIP_EVSUB_GRP_LOCK
 
-/* Define to 1 if evsub requires a NOTIFY on SUBSCRIBE. */
-#undef HAVE_PJSIP_EVSUB_PENDING_NOTIFY
-
 /* Define to 1 if PJPROJECT has the PJSIP External Resolver Support feature.
    */
 #undef HAVE_PJSIP_EXTERNAL_RESOLVER
