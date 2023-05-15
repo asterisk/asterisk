@@ -22,6 +22,23 @@ jobs:
   AsteriskUnitTests:
     runs-on: ubuntu-latest
     steps:
+      - name: Add cherry-pick reminder
+        if: github.event.action == "opened"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cat <<-EOF | gh pr comment --repo ${{github.repository}} ${{env.PR_NUMBER}} -F -
+          REMINDER: If this PR applies to other branches, please add a
+          comment with the appropriate "cherry-pick-to" headers as per
+          the [Create a Pull Request](https://wiki.asterisk.org/wiki/display/AST/Code+Contribution#CodeContribution-CreateaPullRequest) process.
+          If you don't want it cherry-picked, please add a comment stating
+          "No cherry-picks required" so we don't keep asking.
+          
+          If, after adding "cherry-pick-to" comments, you change your mind,
+          please edit the comment to DELETE the header lines and add
+          "No cherry-picks required".
+          EOF
+
       - name: Set Labels
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -31,6 +48,10 @@ jobs:
             --remove-label ${{vars.TEST_CHECKS_FAILED_LABEL}} \
             --remove-label ${{vars.TEST_GATES_PASSED_LABEL}} \
             --remove-label ${{vars.TEST_GATES_FAILED_LABEL}} \
+            --remove-label ${{vars.CHERRY_PICK_CHECKS_PASSED_LABEL}} \
+            --remove-label ${{vars.CHERRY_PICK_CHECKS_FAILED_LABEL}} \
+            --remove-label ${{vars.CHERRY_PICK_GATES_PASSED_LABEL}} \
+            --remove-label ${{vars.CHERRY_PICK_GATES_FAILED_LABEL}} \
             --add-label ${{vars.TESTING_IN_PROGRESS}} \
             ${{env.PR_NUMBER}} || :
 
