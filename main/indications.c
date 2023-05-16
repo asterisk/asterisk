@@ -411,11 +411,17 @@ static int ast_set_indication_country(const char *country)
 {
 	struct ast_tone_zone *zone = NULL;
 
-	if (ast_strlen_zero(country) || !(zone = ast_get_indication_zone(country))) {
+	if (ast_strlen_zero(country)) {
+		ast_log(LOG_WARNING, "Failed to get indication zone, country not set\n");
 		return -1;
 	}
 
-	ast_verb(3, "Setting default indication country to '%s'\n", country);
+	if (!(zone = ast_get_indication_zone(country))) {
+		ast_log(LOG_WARNING, "Failed to get indication zone: %s\n", country);
+		return -1;
+	}
+
+	ast_log(LOG_NOTICE, "Setting default indication country to '%s'\n", country);
 
 	ao2_lock(ast_tone_zones);
 	if (default_tone_zone) {
@@ -836,6 +842,15 @@ static char *handle_cli_indication_show(struct ast_cli_entry *e, int cmd, struct
 			tz = ast_tone_zone_unref(tz);
 		}
 		ao2_iterator_destroy(&iter);
+
+		ao2_lock(ast_tone_zones);
+		if (default_tone_zone) {
+			ast_cli(a->fd, "===========================\n");
+			tz = ast_tone_zone_ref(default_tone_zone);
+			ast_cli(a->fd, "Default tone zone: %s\n", tz->country);
+			ast_tone_zone_unref(tz);
+		}
+		ao2_unlock(ast_tone_zones);
 		return CLI_SUCCESS;
 	}
 
@@ -1081,8 +1096,13 @@ static int load_indications(int reload)
 
 	/* determine which country is the default */
 	country = ast_variable_retrieve(cfg, "general", "country");
-	if (ast_strlen_zero(country) || ast_set_indication_country(country)) {
-		ast_log(LOG_WARNING, "Unable to set the default country (for indication tones)\n");
+	if (!ast_strlen_zero(country)) {
+		ast_log(LOG_NOTICE, "Default country for indication tones: %s\n", country);
+		if (ast_set_indication_country(country)) {
+			ast_log(LOG_WARNING, "Unable to set the default country (for indication tones)\n");
+		}
+	} else {
+		ast_log(LOG_WARNING, "Missing default country (for indication tones)\n");
 	}
 
 	res = 0;
