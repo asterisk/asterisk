@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Add cherry-pick reminder
-        if: github.event.action == "opened"
+        if: github.event.action == 'opened'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
