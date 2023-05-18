@@ -13178,7 +13178,8 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 				analog_p->canpark = conf->chan.canpark;
 				analog_p->dahditrcallerid = conf->chan.dahditrcallerid;
 				analog_p->immediate = conf->chan.immediate;
-				analog_p->permhidecallerid = conf->chan.permhidecallerid;
+				analog_p->permhidecallerid = conf->chan.hidecallerid; /* hidecallerid is the config setting, not permhidecallerid (~permcallwaiting above) */
+				/* It's not necessary to set analog_p->hidecallerid here, sig_analog will set hidecallerid=permhidecaller before each call */
 				analog_p->pulse = conf->chan.pulse;
 				analog_p->threewaycalling = conf->chan.threewaycalling;
 				analog_p->transfer = conf->chan.transfer;
