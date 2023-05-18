@@ -1073,6 +1073,8 @@ int analog_call(struct analog_pvt *p, struct ast_channel *ast, const char *rdest
 			}
 
 		}
+
+		/* Name and Number */
 		n = ast_channel_connected(ast)->id.name.valid ? ast_channel_connected(ast)->id.name.str : NULL;
 		l = ast_channel_connected(ast)->id.number.valid ? ast_channel_connected(ast)->id.number.str : NULL;
 		if (l) {
@@ -1087,12 +1089,25 @@ int analog_call(struct analog_pvt *p, struct ast_channel *ast, const char *rdest
 		}
 
 		if (p->use_callerid) {
+			const char *qual_var;
+
+			/* Caller ID Name and Number */
 			p->caller.id.name.str = p->lastcid_name;
 			p->caller.id.number.str = p->lastcid_num;
 			p->caller.id.name.valid = ast_channel_connected(ast)->id.name.valid;
 			p->caller.id.number.valid = ast_channel_connected(ast)->id.number.valid;
 			p->caller.id.name.presentation = ast_channel_connected(ast)->id.name.presentation;
 			p->caller.id.number.presentation = ast_channel_connected(ast)->id.number.presentation;
+
+			/* Redirecting Reason */
+			p->redirecting_reason = ast_channel_redirecting(ast)->from.number.valid ? ast_channel_redirecting(ast)->reason.code : -1;
+
+			/* Call Qualifier */
+			ast_channel_lock(ast);
+			/* XXX In the future, we may want to make this a CALLERID or CHANNEL property and fetch it from there. */
+			qual_var = pbx_builtin_getvar_helper(ast, "CALL_QUALIFIER");
+			p->call_qualifier = ast_true(qual_var) ? 1 : 0;
+			ast_channel_unlock(ast);
 		}
 
 		ast_setstate(ast, AST_STATE_RINGING);
