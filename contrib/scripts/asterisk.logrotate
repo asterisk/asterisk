@@ -1,13 +1,13 @@
-__LOGDIR__/debug.log __LOGDIR__/console __LOGDIR__/full.log __LOGDIR__/messages.log __LOGDIR__/*log {
+__LOGDIR__/*.log __LOGDIR__/queue_log __LOGDIR__/mmlog {
 	weekly
 	missingok
 	rotate 52
 	compress
 	delaycompress
 	notifempty
-	create 640 root root 
+	create 640 root root
 	sharedscripts
 	postrotate
-		__SBINDIR__/asterisk -rx 'logger reload' > /dev/null 2> /dev/null	
+		__SBINDIR__/asterisk -rx 'logger reload' > /dev/null 2> /dev/null
 	endscript
-} 
+}
