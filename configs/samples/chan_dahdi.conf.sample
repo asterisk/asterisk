@@ -572,6 +572,15 @@ context=public
 ;
 usecallerid=yes
 ;
+; NOTE: If the CALL_QUALIFIER variable on the channel is set to 1,
+; the Stentor Call Qualifier parameter will be sent for Caller ID spills
+; using the Multiple Data Message Format (MDMF).
+; This is used by capable Caller ID units to activate the
+; "LDC" (Long Distance Call) indicator.
+; This variable is not automatically set anywhere. You are responsible
+; for setting it in the dialplan if you want to activate the indicator,
+; and you must have compatible CPE.
+;
 ; Type of caller ID signalling in use
 ;     bell     = bell202 as used in US (default)
 ;     v23      = v23 as used in the UK

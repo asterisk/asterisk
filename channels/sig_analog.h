@@ -342,12 +342,15 @@ struct analog_pvt {
 	 * gives a positive reply.
 	 */
 	unsigned int callwaitcas:1;
+	unsigned int call_qualifier:1;	/*!< Call qualifier delivery */
 
 	char callwait_num[AST_MAX_EXTENSION];
 	char callwait_name[AST_MAX_EXTENSION];
 	char lastcid_num[AST_MAX_EXTENSION];
 	char lastcid_name[AST_MAX_EXTENSION];
 	struct ast_party_caller caller;
+	int redirecting_reason;			/*!< Redirecting reason */
+
 	int cidrings;					/*!< Which ring to deliver CID on */
 	char echorest[20];
 	int polarity;
