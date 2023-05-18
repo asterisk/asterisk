@@ -1645,6 +1645,7 @@ static int my_callwait(void *pvt)
 static int my_send_callerid(void *pvt, int cwcid, struct ast_party_caller *caller)
 {
 	struct dahdi_pvt *p = pvt;
+	struct analog_pvt *analog_p = p->sig_pvt;
 
 	ast_debug(2, "Starting cid spill\n");
 
@@ -1656,13 +1657,20 @@ static int my_send_callerid(void *pvt, int cwcid, struct ast_party_caller *calle
 	if ((p->cidspill = ast_malloc(MAX_CALLERID_SIZE))) {
 		int pres = ast_party_id_presentation(&caller->id);
 		if (cwcid == 0) {
+			/* Some CPE support additional parameters for on-hook Caller*ID,
+			 * such as redirecting reason and call qualifier, so send those
+			 * if available.
+			 * I don't know of any CPE that supports this for Call Waiting (unfortunately),
+			 * so don't send those for call waiting as that will just lengthen the CID spill
+			 * for no good reason.
+			 */
 			p->cidlen = ast_callerid_full_generate(p->cidspill,
 				caller->id.name.str,
 				caller->id.number.str,
 				NULL,
-				-1,
+				analog_p->redirecting_reason,
 				pres,
-				0,
+				analog_p->call_qualifier,
 				CID_TYPE_MDMF,
 				AST_LAW(p));
 		} else {
