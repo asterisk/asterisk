@@ -737,7 +737,7 @@ void callerid_free(struct callerid_state *cid)
 }
 
 static int callerid_genmsg(char *msg, int size, const char *number, const char *name, int flags, int format,
-	const char *ddn, int redirecting)
+	const char *ddn, int redirecting, const char *tz)
 {
 	struct timeval now = ast_tvnow();
 	struct ast_tm tm;
@@ -746,7 +746,7 @@ static int callerid_genmsg(char *msg, int size, const char *number, const char *
 	int i, x;
 
 	/* Get the time */
-	ast_localtime(&now, &tm, NULL);
+	ast_localtime(&now, &tm, tz);
 
 	ptr = msg;
 
@@ -850,8 +850,7 @@ static int callerid_genmsg(char *msg, int size, const char *number, const char *
 	return (ptr - msg);
 }
 
-int ast_callerid_vmwi_generate(unsigned char *buf, int active, int type, struct ast_format *codec,
-			       const char* name, const char* number, int flags)
+int ast_callerid_vmwi_generate(unsigned char *buf, int active, int type, struct ast_format *codec, const char* name, const char* number, int flags)
 {
 	char msg[256];
 	int len = 0;
@@ -867,7 +866,7 @@ int ast_callerid_vmwi_generate(unsigned char *buf, int active, int type, struct 
 		msg[0] = 0x82;
 
 		/* put date, number info at the right place */
-		len = callerid_genmsg(msg+2, sizeof(msg)-2, number, name, flags, CID_TYPE_MDMF, "", -1);
+		len = callerid_genmsg(msg+2, sizeof(msg)-2, number, name, flags, CID_TYPE_MDMF, "", -1, NULL);
 
 		/* length of MDMF CLI plus Message Waiting Structure */
 		msg[1] = len+3;
@@ -946,6 +945,13 @@ int callerid_generate(unsigned char *buf, const char *number, const char *name, 
 int callerid_full_generate(unsigned char *buf, const char *number, const char *name, const char *ddn, int redirecting,
 	int flags, int format, int callwaiting, struct ast_format *codec)
 {
+	/* Default time zone is NULL (system time zone) */
+	return callerid_full_tz_generate(buf, number, name, ddn, redirecting, flags, format, callwaiting, codec, NULL);
+}
+
+int callerid_full_tz_generate(unsigned char *buf, const char *number, const char *name, const char *ddn, int redirecting,
+	int flags, int format, int callwaiting, struct ast_format *codec, const char *tz)
+{
 	int bytes = 0;
 	int x, sum;
 	int len;
@@ -955,7 +961,7 @@ int callerid_full_generate(unsigned char *buf, const char *number, const char *n
 	float ci = 0.0;
 	float scont = 0.0;
 	char msg[256];
-	len = callerid_genmsg(msg, sizeof(msg), number, name, flags, format, ddn, redirecting);
+	len = callerid_genmsg(msg, sizeof(msg), number, name, flags, format, ddn, redirecting, tz);
 	if (!callwaiting) {
 		/* Wait a half a second */
 		for (x = 0; x < 4000; x++)
@@ -1101,11 +1107,11 @@ int ast_callerid_parse(char *input_str, char **name, char **location)
 }
 
 static int __ast_callerid_generate(unsigned char *buf, const char *name, const char *number,
-	const char *ddn, int redirecting, int pres, int qualifier, int format, int callwaiting, struct ast_format *codec)
+	const char *ddn, int redirecting, int pres, int qualifier, int format, int callwaiting, struct ast_format *codec, const char *tz)
 {
 	int flags = 0;
 
-	ast_debug(1, "Caller ID Type %s: Number: %s, Name: %s, Redirecting No: %s, Redirecting Reason: %s, Pres: %s, Qualifier: %s, Format: %s\n",
+	ast_debug(1, "Caller ID Type %s: Number: %s, Name: %s, DDN: %s, Redirecting Reason: %s, Pres: %s, Qualifier: %s, Format: %s\n",
 		callwaiting ? "II" : "I", number, name, ddn, ast_redirecting_reason_describe(redirecting),
 		ast_named_caller_presentation(pres), qualifier ? "LDC" : "None", format == CID_TYPE_MDMF ? "MDMF" : "SDMF");
 
@@ -1126,30 +1132,43 @@ static int __ast_callerid_generate(unsigned char *buf, const char *name, const c
 		flags |= CID_QUALIFIER;
 	}
 
-	return callerid_full_generate(buf, number, name, ddn, redirecting, flags, format, callwaiting, codec);
+	return callerid_full_tz_generate(buf, number, name, ddn, redirecting, flags, format, callwaiting, codec, tz);
 }
 
 int ast_callerid_generate(unsigned char *buf, const char *name, const char *number, struct ast_format *codec)
 {
-	return __ast_callerid_generate(buf, name, number, "", -1, 0, 0, CID_TYPE_MDMF, 0, codec);
+	return __ast_callerid_generate(buf, name, number, "", -1, 0, 0, CID_TYPE_MDMF, 0, codec, NULL);
 }
 
 int ast_callerid_callwaiting_generate(unsigned char *buf, const char *name, const char *number, struct ast_format *codec)
 {
-	return __ast_callerid_generate(buf, name, number, "", -1, 0, 0, CID_TYPE_MDMF, 1, codec);
+	return __ast_callerid_generate(buf, name, number, "", -1, 0, 0, CID_TYPE_MDMF, 1, codec, NULL);
 }
 
 int ast_callerid_full_generate(unsigned char *buf, const char *name, const char *number,
 	const char *ddn, int redirecting, int pres, int qualifier, int format, struct ast_format *codec)
 {
-	return __ast_callerid_generate(buf, name, number, ddn, redirecting, pres, qualifier, format, 0, codec);
+	return __ast_callerid_generate(buf, name, number, ddn, redirecting, pres, qualifier, format, 0, codec, NULL);
 }
 
 int ast_callerid_callwaiting_full_generate(unsigned char *buf, const char *name, const char *number,
 	const char *ddn, int redirecting, int pres, int qualifier, struct ast_format *codec)
 {
 	/* Type II Caller ID (CWCID) only uses MDMF, so format isn't an argument */
-	return __ast_callerid_generate(buf, name, number, ddn, redirecting, pres, qualifier, CID_TYPE_MDMF, 1, codec);
+	return __ast_callerid_generate(buf, name, number, ddn, redirecting, pres, qualifier, CID_TYPE_MDMF, 1, codec, NULL);
+}
+
+int ast_callerid_full_tz_generate(unsigned char *buf, const char *name, const char *number,
+	const char *ddn, int redirecting, int pres, int qualifier, int format, struct ast_format *codec, const char *tz)
+{
+	return __ast_callerid_generate(buf, name, number, ddn, redirecting, pres, qualifier, format, 0, codec, tz);
+}
+
+int ast_callerid_callwaiting_full_tz_generate(unsigned char *buf, const char *name, const char *number,
+	const char *ddn, int redirecting, int pres, int qualifier, struct ast_format *codec, const char *tz)
+{
+	/* Type II Caller ID (CWCID) only uses MDMF, so format isn't an argument */
+	return __ast_callerid_generate(buf, name, number, ddn, redirecting, pres, qualifier, CID_TYPE_MDMF, 1, codec, tz);
 }
 
 char *ast_callerid_merge(char *buf, int bufsiz, const char *name, const char *num, const char *unknown)
