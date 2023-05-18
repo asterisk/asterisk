@@ -68,6 +68,7 @@
 #include "asterisk/module.h"
 #include "asterisk/config.h"
 #include "asterisk/callerid.h"
+#include "asterisk/core_local.h"
 #include "asterisk/lock.h"
 #include "asterisk/cli.h"
 #include "asterisk/app.h"
@@ -1040,6 +1041,33 @@
 			</list-elements>
 			<xi:include xpointer="xpointer(/docs/managerEvent[@name='CoreShowChannelsComplete'])" />
 		</responses>
+	</manager>
+	<managerEvent language="en_US" name="CoreShowChannelMapComplete">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised at the end of the CoreShowChannelMap list produced by the CoreShowChannelMap command.</synopsis>
+			<syntax>
+				<parameter name="EventList">
+					<para>Conveys the status of the command response list</para>
+				</parameter>
+				<parameter name="ListItems">
+					<para>The total number of list items produced</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<manager name="CoreShowChannelMap" language="en_US">
+		<synopsis>
+			List all channels connected to the specified channel.
+		</synopsis>
+		<syntax>
+			<parameter name="Channel">
+				<para>The channel to get the mapping for. Requires a channel name.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>List all channels currently connected to the specified channel. This can be any channel, including
+			Local channels, and Local channels will be followed through to their other half.</para>
+		</description>
 	</manager>
 	<manager name="LoggerRotate" language="en_US">
 		<synopsis>
@@ -6873,6 +6901,180 @@ static int action_coreshowchannels(struct mansession *s, const struct message *m
 	return 0;
 }
 
+/*! \brief Helper function to add a channel name to the vector */
+static int coreshowchannelmap_add_to_map(struct ao2_container *c, const char *s)
+{
+	char *str;
+
+	str = ast_strdup(s);
+	if (!str) {
+		ast_log(LOG_ERROR, "Unable to append channel to channel map\n");
+		return 1;
+	}
+
+	/* If this is a duplicate, it will be ignored */
+	ast_str_container_add(c, str);
+
+	return 0;
+}
+
+/*! \brief Recursive function to get all channels in a bridge. Follow local channels as well */
+static int coreshowchannelmap_add_connected_channels(struct ao2_container *channel_map,
+	struct ast_channel_snapshot *channel_snapshot, struct ast_bridge_snapshot *bridge_snapshot)
+{
+	int res = 0;
+	struct ao2_iterator iter;
+	char *current_channel_uid;
+
+	iter = ao2_iterator_init(bridge_snapshot->channels, 0);
+	while ((current_channel_uid = ao2_iterator_next(&iter))) {
+		struct ast_channel_snapshot *current_channel_snapshot;
+		int add_channel_res;
+
+		/* Don't add the original channel to the list - it's either already in there,
+		 * or it's the channel we want the map for */
+		if (!strcmp(current_channel_uid, channel_snapshot->base->uniqueid)) {
+			ao2_ref(current_channel_uid, -1);
+			continue;
+		}
+
+		current_channel_snapshot = ast_channel_snapshot_get_latest(current_channel_uid);
+		if (!current_channel_snapshot) {
+			ast_debug(5, "Unable to get channel snapshot\n");
+			ao2_ref(current_channel_uid, -1);
+			continue;
+		}
+
+		add_channel_res = coreshowchannelmap_add_to_map(channel_map, current_channel_snapshot->base->name);
+		if (add_channel_res) {
+			res = 1;
+			ao2_ref(current_channel_snapshot, -1);
+			ao2_ref(current_channel_uid, -1);
+			break;
+		}
+
+		/* If this is a local channel that we haven't seen yet, let's go ahead and find out what else is connected to it */
+		if (ast_begins_with(current_channel_snapshot->base->name, "Local")) {
+			struct ast_channel_snapshot *other_local_snapshot;
+			struct ast_bridge_snapshot *other_bridge_snapshot;
+			int size = strlen(current_channel_snapshot->base->name);
+			char other_local[size + 1];
+
+			/* Don't copy the trailing number - set it to 1 or 2, whichever one it currently is not */
+			ast_copy_string(other_local, current_channel_snapshot->base->name, size);
+			other_local[size - 1] = ast_ends_with(current_channel_snapshot->base->name, "1") ? '2' : '1';
+			other_local[size] = '\0';
+
+			other_local_snapshot = ast_channel_snapshot_get_latest_by_name(other_local);
+			if (!other_local_snapshot) {
+				ast_debug(5, "Unable to get other local channel snapshot\n");
+				ao2_ref(current_channel_snapshot, -1);
+				ao2_ref(current_channel_uid, -1);
+				continue;
+			}
+
+			if (coreshowchannelmap_add_to_map(channel_map, other_local_snapshot->base->name)) {
+				res = 1;
+				ao2_ref(current_channel_snapshot, -1);
+				ao2_ref(current_channel_uid, -1);
+				ao2_ref(other_local_snapshot, -1);
+				break;
+			}
+
+			other_bridge_snapshot = ast_bridge_get_snapshot_by_uniqueid(other_local_snapshot->bridge->id);
+			if (other_bridge_snapshot) {
+				res = coreshowchannelmap_add_connected_channels(channel_map, other_local_snapshot, other_bridge_snapshot);
+			}
+
+			ao2_ref(current_channel_snapshot, -1);
+			ao2_ref(current_channel_uid, -1);
+			ao2_ref(other_local_snapshot, -1);
+			ao2_ref(other_bridge_snapshot, -1);
+
+			if (res) {
+				break;
+			}
+		}
+	}
+	ao2_iterator_destroy(&iter);
+
+	return res;
+}
+
+/*! \brief  Manager command "CoreShowChannelMap" - Lists all channels connected to
+ *          the specified channel. */
+static int action_coreshowchannelmap(struct mansession *s, const struct message *m)
+{
+	const char *actionid = astman_get_header(m, "ActionID");
+	const char *channel_name = astman_get_header(m, "Channel");
+	char *current_channel_name;
+	char id_text[256];
+	int total = 0;
+	struct ao2_container *channel_map;
+	struct ao2_iterator i;
+	RAII_VAR(struct ast_bridge_snapshot *, bridge_snapshot, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_channel_snapshot *, channel_snapshot, NULL, ao2_cleanup);
+
+	if (!ast_strlen_zero(actionid)) {
+		snprintf(id_text, sizeof(id_text), "ActionID: %s\r\n", actionid);
+	} else {
+		id_text[0] = '\0';
+	}
+
+	if (ast_strlen_zero(channel_name)) {
+		astman_send_error(s, m, "CoreShowChannelMap requires a channel.\n");
+		return 0;
+	}
+
+	channel_snapshot = ast_channel_snapshot_get_latest_by_name(channel_name);
+	if (!channel_snapshot) {
+		astman_send_error(s, m, "Could not get channel snapshot\n");
+		return 0;
+	}
+
+	bridge_snapshot = ast_bridge_get_snapshot_by_uniqueid(channel_snapshot->bridge->id);
+	if (!bridge_snapshot) {
+		astman_send_listack(s, m, "Channel map will follow", "start");
+		astman_send_list_complete_start(s, m, "CoreShowChannelMapComplete", 0);
+		astman_send_list_complete_end(s);
+		return 0;
+	}
+
+	channel_map = ast_str_container_alloc_options(AO2_ALLOC_OPT_LOCK_NOLOCK | AO2_CONTAINER_ALLOC_OPT_DUPS_OBJ_REJECT, 1);
+	if (!channel_map) {
+		astman_send_error(s, m, "Could not create channel map\n");
+		return 0;
+	}
+
+	astman_send_listack(s, m, "Channel map will follow", "start");
+
+	if (coreshowchannelmap_add_connected_channels(channel_map, channel_snapshot, bridge_snapshot)) {
+		astman_send_error(s, m, "Could not complete channel map\n");
+		ao2_ref(channel_map, -1);
+		return 0;
+	}
+
+	i = ao2_iterator_init(channel_map, 0);
+	while ((current_channel_name = ao2_iterator_next(&i))) {
+		astman_append(s,
+			"Event: CoreShowChannelMap\r\n"
+			"%s"
+			"Channel: %s\r\n"
+			"ConnectedChannel: %s\r\n\n",
+			id_text,
+			channel_name,
+			current_channel_name);
+		total++;
+	}
+	ao2_iterator_destroy(&i);
+
+	ao2_ref(channel_map, -1);
+	astman_send_list_complete_start(s, m, "CoreShowChannelMapComplete", total);
+	astman_send_list_complete_end(s);
+
+	return 0;
+}
+
 /*! \brief  Manager command "LoggerRotate" - reloads and rotates the logger in
  *          the same manner as the CLI command 'logger rotate'. */
 static int action_loggerrotate(struct mansession *s, const struct message *m)
@@ -9450,6 +9652,7 @@ static void manager_shutdown(void)
 	ast_manager_unregister("Reload");
 	ast_manager_unregister("LoggerRotate");
 	ast_manager_unregister("CoreShowChannels");
+	ast_manager_unregister("CoreShowChannelMap");
 	ast_manager_unregister("ModuleLoad");
 	ast_manager_unregister("ModuleCheck");
 	ast_manager_unregister("AOCMessage");
@@ -9665,6 +9868,7 @@ static int __init_manager(int reload, int by_external_config)
 		ast_manager_register_xml_core("Reload", EVENT_FLAG_CONFIG | EVENT_FLAG_SYSTEM, action_reload);
 		ast_manager_register_xml_core("LoggerRotate", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, action_loggerrotate);
 		ast_manager_register_xml_core("CoreShowChannels", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, action_coreshowchannels);
+		ast_manager_register_xml_core("CoreShowChannelMap", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, action_coreshowchannelmap);
 		ast_manager_register_xml_core("ModuleLoad", EVENT_FLAG_SYSTEM, manager_moduleload);
 		ast_manager_register_xml_core("ModuleCheck", EVENT_FLAG_SYSTEM, manager_modulecheck);
 		ast_manager_register_xml_core("AOCMessage", EVENT_FLAG_AOC, action_aocmessage);
