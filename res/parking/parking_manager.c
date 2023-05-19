@@ -93,6 +93,11 @@
 			<parameter name="Parkinglot" required="false">
 				<para>The parking lot to use when parking the channel</para>
 			</parameter>
+			<parameter name="ParkingSpace" required="false">
+				<para>The parking space extension in the parking lot.
+					If the space is already in use then execution will continue at the next priority.
+				</para>
+			</parameter>
 		</syntax>
 		<description>
 			<para>Park an arbitrary channel with optional arguments for specifying the parking lot used, how long
@@ -523,6 +528,7 @@ static int manager_park(struct mansession *s, const struct message *m)
 	const char *announce_channel = astman_get_header(m, "AnnounceChannel");
 	const char *timeout = astman_get_header(m, "Timeout");
 	const char *parkinglot = astman_get_header(m, "Parkinglot");
+	const char *parkingspace = astman_get_header(m, "ParkingSpace");
 	char buf[BUFSIZ];
 	int timeout_override = -1;
 
@@ -557,7 +563,11 @@ static int manager_park(struct mansession *s, const struct message *m)
 		ast_bridge_set_transfer_variables(chan, timeout_channel, 0);
 		ast_channel_unlock(chan);
 	}
-
+	
+	if (!ast_strlen_zero(parkingspace)) {
+		pbx_builtin_setvar_helper(chan, "PARKINGEXTEN", parkingspace);
+	}
+	
 	parker_chan = ast_channel_bridge_peer(chan);
 	if (!parker_chan || strcmp(ast_channel_name(parker_chan), timeout_channel)) {
 		if (!ast_strlen_zero(announce_channel)) {
