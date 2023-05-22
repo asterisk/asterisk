@@ -26,18 +26,13 @@ jobs:
         if: github.event.action == 'opened'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CHERRY_PICK_REMINDER: ${{vars.CHERRY_PICK_REMINDER}}
         run: |
-          cat <<-EOF | gh pr comment --repo ${{github.repository}} ${{env.PR_NUMBER}} -F -
-          REMINDER: If this PR applies to other branches, please add a
-          comment with the appropriate "cherry-pick-to" headers as per
-          the [Create a Pull Request](https://wiki.asterisk.org/wiki/display/AST/Code+Contribution#CodeContribution-CreateaPullRequest) process.
-          If you don't want it cherry-picked, please add a comment stating
-          "No cherry-picks required" so we don't keep asking.
-          
-          If, after adding "cherry-pick-to" comments, you change your mind,
-          please edit the comment to DELETE the header lines and add
-          "No cherry-picks required".
-          EOF
+          # If there's already a reminder comment, don't add another one.
+          gh pr view --json comments \
+            --jq ".comments[].body | select(. | startswith(\"${CHERRY_PICK_REMINDER:0:20}\")) | halt_error(1)" \
+            ${{env.PR_NUMBER}} >/dev/null 2>&1 || exit 0
+          gh pr comment --repo ${{github.repository}} -b "${CHERRY_PICK_REMINDER}" ${{env.PR_NUMBER}}
 
       - name: Set Labels
         env:
