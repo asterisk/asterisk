@@ -971,6 +971,9 @@ struct thr_lock_info {
 		const char *lock_name;
 		void *lock_addr;
 		int times_locked;
+		int times_lock_attempted;
+		struct timeval last_locked;
+		struct timeval last_unlocked;
 		int line_num;
 		enum ast_lock_type type;
 		/*! This thread is waiting on this lock */
@@ -1063,6 +1066,8 @@ void ast_store_lock_info(enum ast_lock_type type, const char *filename,
 	for (i = 0; i < lock_info->num_locks; i++) {
 		if (lock_info->locks[i].lock_addr == lock_addr) {
 			lock_info->locks[i].times_locked++;
+			lock_info->locks[i].times_lock_attempted++;
+			lock_info->locks[i].last_locked = ast_tvnow();
 #ifdef HAVE_BKTR
 			lock_info->locks[i].backtrace = bt;
 #endif
@@ -1094,6 +1099,8 @@ void ast_store_lock_info(enum ast_lock_type type, const char *filename,
 	lock_info->locks[i].lock_name = lock_name;
 	lock_info->locks[i].lock_addr = lock_addr;
 	lock_info->locks[i].times_locked = 1;
+	lock_info->locks[i].times_lock_attempted = 1;
+	lock_info->locks[i].last_locked = ast_tvnow();
 	lock_info->locks[i].type = type;
 	lock_info->locks[i].pending = 1;
 #ifdef HAVE_BKTR
@@ -1133,6 +1140,7 @@ void ast_mark_lock_failed(void *lock_addr)
 	if (lock_info->locks[lock_info->num_locks - 1].lock_addr == lock_addr) {
 		lock_info->locks[lock_info->num_locks - 1].pending = -1;
 		lock_info->locks[lock_info->num_locks - 1].times_locked--;
+		lock_info->locks[lock_info->num_locks - 1].last_unlocked = ast_tvnow();
 	}
 	pthread_mutex_unlock(&lock_info->lock);
 #endif /* ! LOW_MEMORY */
@@ -1255,6 +1263,7 @@ void ast_remove_lock_info(void *lock_addr, struct ast_bt *bt)
 
 	if (lock_info->locks[i].times_locked > 1) {
 		lock_info->locks[i].times_locked--;
+		lock_info->locks[i].last_unlocked = ast_tvnow();
 #ifdef HAVE_BKTR
 		lock_info->locks[i].backtrace = bt;
 #endif
@@ -1322,16 +1331,36 @@ static void append_lock_information(struct ast_str **str, struct thr_lock_info *
 	int j;
 	ast_mutex_t *lock;
 	struct ast_lock_track *lt;
+	struct timeval held_for;
+	struct timeval now = ast_tvnow();
+	char lock_time[32], unlock_time[32], held_time[32];
 
-	ast_str_append(str, 0, "=== ---> %sLock #%d (%s): %s %d %s %s %p (%d%s)\n",
+	held_for = ast_tvsub(now, lock_info->locks[i].last_locked);
+	/* format time duration strings */
+	ast_format_duration_hh_mm_ss(lock_info->locks[i].last_locked.tv_sec,
+									lock_time, sizeof(lock_time));
+	ast_format_duration_hh_mm_ss(lock_info->locks[i].last_unlocked.tv_sec,
+									unlock_time, sizeof(unlock_time));
+	ast_format_duration_hh_mm_ss(held_for.tv_sec, held_time, sizeof(held_time));
+
+	ast_str_append(str, 0, "=== ---> %sLock #%d (%s): %s %d %s %s %p\n"
+						"===      %s.%06ld, %s.%06ld, %s.%06ld (%d, %d%s)\n",
 				   lock_info->locks[i].pending > 0 ? "Waiting for " :
 				   lock_info->locks[i].pending < 0 ? "Tried and failed to get " : "", i,
 				   lock_info->locks[i].file,
 				   locktype2str(lock_info->locks[i].type),
 				   lock_info->locks[i].line_num,
-				   lock_info->locks[i].func, lock_info->locks[i].lock_name,
+				   lock_info->locks[i].func,
+				   lock_info->locks[i].lock_name,
 				   lock_info->locks[i].lock_addr,
+				   lock_time,
+				   lock_info->locks[i].last_locked.tv_usec,
+				   unlock_time,
+				   lock_info->locks[i].last_unlocked.tv_usec,
+				   held_time,
+				   held_for.tv_usec,
 				   lock_info->locks[i].times_locked,
+				   lock_info->locks[i].times_lock_attempted,
 				   lock_info->locks[i].suspended ? " - suspended" : "");
 #ifdef HAVE_BKTR
 	append_backtrace_information(str, lock_info->locks[i].backtrace);
@@ -1412,20 +1441,24 @@ struct ast_str *ast_dump_locks(void)
 #if !defined(LOW_MEMORY)
 	struct thr_lock_info *lock_info;
 	struct ast_str *str;
+	char print_time[32];
+	struct timeval now = ast_tvnow();
 
 	if (!(str = ast_str_create(4096))) {
 		return NULL;
 	}
 
+	ast_format_duration_hh_mm_ss(now.tv_sec, print_time, sizeof(print_time));
+
 	ast_str_append(&str, 0, "\n"
 	               "=======================================================================\n"
 	               "=== %s\n"
-	               "=== Currently Held Locks\n"
+	               "=== Currently Held Locks at Time: %s.%06ld =================\n"
 	               "=======================================================================\n"
 	               "===\n"
-	               "=== <pending> <lock#> (<file>): <lock type> <line num> <function> <lock name> <lock addr> (times locked)\n"
-	               "===\n", ast_get_version());
-
+	               "=== <pending> <lock#> (<file>): <lock type> <line num> <function> <lock name> <lock addr>\n"
+	               "=== <locked at>, <failed at>, <held for> (attempts, times locked)\n"
+	               "===\n", ast_get_version(), print_time, now.tv_usec);
 	if (!str) {
 		return NULL;
 	}
