@@ -1,10 +1,11 @@
 
-Change Log for Release 18.18.0-rc1
+Change Log for Release 18.18.0
 ========================================
 
 Summary:
 ----------------------------------------
 
+- Set up new ChangeLogs directory
 - .github: Add AsteriskReleaser
 - chan_pjsip: also return all codecs on empty re-INVITE for late offers
 - cel: add local optimization begin event
@@ -64,37 +65,10 @@ User Notes:
   at any point during a call using the CHANNEL
   function.
 
-- ### res_http_media_cache: Introduce options and customize
-  The res_http_media_cache module now attempts to load
-  configuration from the res_http_media_cache.conf file.
-  The following options were added:
-    * timeout_secs
-    * user_agent
-    * follow_location
-    * max_redirects
-    * protocols
-    * redirect_protocols
-    * dns_cache_timeout_secs
-
-- ### bridge_builtin_features: add beep via touch variable
-  Add optional touch variable : TOUCH_MIXMONITOR_BEEP(interval)
-  Setting TOUCH_MIXMONITOR_BEEP/TOUCH_MONITOR_BEEP to a valid
-  interval in seconds will result in a periodic beep being
-  played to the monitored channel upon MixMontior/Monitor
-  feature start.
-  If an interval less than 5 seconds is specified, the interval
-  will default to 5 seconds.  If the value is set to an invalid
-  interval, the default of 15 seconds will be used.
-
 - ### pbx_dundi: Add PJSIP support.
   DUNDi now supports chan_pjsip. Outgoing calls using
   PJSIP require the pjsip_outgoing_endpoint option
   to be set in dundi.conf.
-
-- ### format_sln: add .slin as supported file extension
-  format_sln now recognizes '.slin' as a valid
-  file extension in addition to the existing
-  '.sln' and '.raw'.
 
 - ### cli: increase channel column width
   This change increases the display width on 'core show channels'
@@ -109,6 +83,18 @@ User Notes:
 - ### app_senddtmf: Add SendFlash AMI action.
   The SendFlash AMI action now allows sending
   a hook flash event on a channel.
+
+- ### res_http_media_cache: Introduce options and customize
+  The res_http_media_cache module now attempts to load
+  configuration from the res_http_media_cache.conf file.
+  The following options were added:
+    * timeout_secs
+    * user_agent
+    * follow_location
+    * max_redirects
+    * protocols
+    * redirect_protocols
+    * dns_cache_timeout_secs
 
 - ### test.c: Fix counting of tests and add 2 new tests
   The "tests" attribute of the "testsuite" element in the
@@ -132,6 +118,21 @@ User Notes:
   behavior would set the flag on the first MixMonitor audiohook
   found.
 
+- ### bridge_builtin_features: add beep via touch variable
+  Add optional touch variable : TOUCH_MIXMONITOR_BEEP(interval)
+  Setting TOUCH_MIXMONITOR_BEEP/TOUCH_MONITOR_BEEP to a valid
+  interval in seconds will result in a periodic beep being
+  played to the monitored channel upon MixMontior/Monitor
+  feature start.
+  If an interval less than 5 seconds is specified, the interval
+  will default to 5 seconds.  If the value is set to an invalid
+  interval, the default of 15 seconds will be used.
+
+- ### format_sln: add .slin as supported file extension
+  format_sln now recognizes '.slin' as a valid
+  file extension in addition to the existing
+  '.sln' and '.raw'.
+
 
 Upgrade Notes:
 ----------------------------------------
@@ -154,11 +155,14 @@ Closed Issues:
 Commits By Author:
 ----------------------------------------
 
+- ### Asterisk Development Team (1):
+  - Update for 18.18.0-rc1
+
 - ### Fabrice Fontaine (2):
   - main/iostream.c: fix build with libressl
   - configure: fix detection of re-entrant resolver functions
 
-- ### George Joseph (12):
+- ### George Joseph (13):
   - make_version: Strip svn stuff and suppress ref HEAD errors
   - test.c: Fix counting of tests and add 2 new tests
   - Initial GitHub Issue Templates
@@ -171,6 +175,7 @@ Commits By Author:
   - .github: Fix reference to CHERRY_PICK_TESTING_IN_PROGRESS
   - .github: Fix CherryPickTest to only run when it should
   - .github: Add AsteriskReleaser
+  - Set up new ChangeLogs directory
 
 - ### Henning Westerholt (2):
   - chan_pjsip: fix music on hold continues after INVITE with replaces
@@ -225,6 +230,11 @@ Commits By Author:
 
 Detail:
 ----------------------------------------
+
+- ### Set up new ChangeLogs directory
+  Author: George Joseph  
+  Date:   2023-05-09  
+
 
 - ### .github: Add AsteriskReleaser
   Author: George Joseph  
