@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
 name: Asterisk Release
-run-name: ${{ github.actor }} is creating an Asterisk release
+run-name: ${{ github.actor }} is creating Asterisk release ${{inputs.new_version}}
 on:
   workflow_dispatch:
     inputs:
