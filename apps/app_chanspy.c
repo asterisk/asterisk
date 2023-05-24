@@ -971,7 +971,7 @@ static int channel_spy_consume_iterator(struct ast_channel_iterator *iter,
 					ARRAY_LEN(groups));
 			}
 
-			for (y = 0; y < num_mygroups; y++) {
+			for (y = 0; y < num_mygroups && !igrp; y++) {
 				for (x = 0; x < num_groups; x++) {
 					if (!strcmp(mygroups[y], groups[x])) {
 						igrp = 1;
