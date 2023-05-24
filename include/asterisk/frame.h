@@ -414,6 +414,7 @@ struct ast_control_pvt_cause_code {
 	char chan_name[AST_CHANNEL_NAME];	/*!< Name of the channel that originated the cause information */
 	unsigned int emulate_sip_cause:1;	/*!< Indicates whether this should be used to emulate SIP_CAUSE support */
 	int ast_cause;				/*!< Asterisk cause code associated with this message */
+	unsigned int tech2_offset;		/*!< Offset of second string in .code. If zero second string not present */
 	char code[1];				/*!< Tech-specific cause code information, beginning with the name of the tech */
 };
 

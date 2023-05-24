@@ -38,11 +38,17 @@ static void rfc3326_use_reason_header(struct ast_sip_session *session, struct pj
 {
 	static const pj_str_t str_reason = { "Reason", 6 };
 	pjsip_generic_string_hdr *header;
-	char buf[20];
+	struct ast_control_pvt_cause_code *cause_code;
+	struct ast_channel *peer;
+	char buf[255];
 	char *cause;
 	char *text;
 	int code;
-	int cause_q850, cause_sip;
+	int cause_q850 = 0;
+	int cause_sip = 0;
+	int cause_preemption = 0;
+	int hangupcause = 0;
+	int data_size;
 
 	header = pjsip_msg_find_hdr_by_name(rdata->msg_info.msg, &str_reason, NULL);
 	for (; header;
@@ -52,7 +58,8 @@ static void rfc3326_use_reason_header(struct ast_sip_session *session, struct pj
 
 		cause_q850 = !strncasecmp(cause, "Q.850", 5);
 		cause_sip = !strncasecmp(cause, "SIP", 3);
-		if ((cause_q850 || cause_sip) && (cause = strstr(cause, "cause="))) {
+		cause_preemption = !strncasecmp(cause, "preemption", 10);
+		if ((cause_q850 || cause_sip || cause_preemption) && (cause = strstr(cause, "cause="))) {
 			/* If text is present get rid of it */
 			if ((text = strchr(cause, ';'))) {
 				*text = '\0';
@@ -61,14 +68,31 @@ static void rfc3326_use_reason_header(struct ast_sip_session *session, struct pj
 			if (sscanf(cause, "cause=%30d", &code) != 1) {
 				continue;
 			}
-		} else {
-			continue;
-		}
-		if (cause_q850) {
-			ast_channel_hangupcause_set(session->channel, code & 0x7f);
-			break;
-		} else if (cause_sip) {
-			ast_channel_hangupcause_set(session->channel, ast_sip_hangup_sip2cause(code));
+
+			if (cause_q850) {
+				hangupcause = code & 0x7f;
+				ast_channel_hangupcause_set(session->channel, hangupcause);
+			} else if (cause_sip) {
+				hangupcause = ast_sip_hangup_sip2cause(code);
+				ast_channel_hangupcause_set(session->channel, hangupcause);
+			} else if (cause_preemption) {
+				hangupcause = AST_CAUSE_PRE_EMPTED;
+				ast_channel_hangupcause_set(session->channel, hangupcause);
+			}
+
+			data_size = sizeof(*cause_code) + pj_strlen(&header->hvalue) + 1;
+			cause_code = ast_alloca(data_size);
+			memset(cause_code, 0, data_size);
+			ast_copy_string(cause_code->chan_name, ast_channel_name(session->channel), AST_CHANNEL_NAME);
+			cause_code->tech2_offset = 1;
+			cause_code->ast_cause = hangupcause;
+			ast_copy_pj_str(cause_code->code + 1, &header->hvalue, pj_strlen(&header->hvalue) + 1);
+			peer = ast_channel_bridge_peer(session->channel);
+			if (peer) {
+				ast_indicate_data(peer, AST_CONTROL_PVT_CAUSE_CODE, cause_code, data_size);
+				ast_channel_unref(peer);
+			}
+			ast_channel_hangupcause_hash_set(session->channel, cause_code, data_size);
 			break;
 		}
 	}

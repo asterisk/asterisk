@@ -52,6 +52,7 @@
 				<para>Parameter describing which type of information is requested. Types are:</para>
 				<enumlist>
 					<enum name="tech"><para>Technology-specific cause information</para></enum>
+					<enum name="tech2"><para>Additional technology specific cause information</para></enum>
 					<enum name="ast"><para>Translated Asterisk cause code</para></enum>
 				</enumlist>
 			</parameter>
@@ -112,7 +113,7 @@ static int hangupcause_read(struct ast_channel *chan, const char *cmd, char *dat
 	int res = 0;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(channel);	/*!< Channel name */
-		AST_APP_ARG(type);	/*!< Type of information requested (ast or tech) */
+		AST_APP_ARG(type);	/*!< Type of information requested (ast or tech or tech2) */
 		);
 
 	/* Ensure that the buffer is empty */
@@ -143,6 +144,10 @@ static int hangupcause_read(struct ast_channel *chan, const char *cmd, char *dat
 		ast_copy_string(buf, ast_cause2str(cause_code->ast_cause), len);
 	} else if (!strcmp(args.type, "tech")) {
 		ast_copy_string(buf, cause_code->code, len);
+	} else if (!strcmp(args.type, "tech2")) {
+		if (cause_code->tech2_offset) {
+			ast_copy_string(buf, cause_code->code + cause_code->tech2_offset, len);
+		}
 	} else {
 		ast_log(LOG_WARNING, "Information type not recognized (%s)\n", args.type);
 		res = -1;
