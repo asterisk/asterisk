@@ -56,6 +56,7 @@
 #include "asterisk/stasis_channels.h"
 #include "asterisk/json.h"
 #include "asterisk/format_cache.h"
+#include "asterisk/vector.h"
 
 #define AST_NAME_STRLEN 256
 #define NUM_SPYGROUPS 128
@@ -856,7 +857,7 @@ static int channel_spy(struct ast_channel *chan, struct ast_autochan *spyee_auto
 }
 
 static struct ast_autochan *next_channel(struct ast_channel_iterator *iter,
-	struct ast_channel *chan)
+	struct ast_channel *chan, struct ast_vector_const_string *skip)
 {
 	struct ast_channel *next;
 	struct ast_autochan *autochan_store;
@@ -867,8 +868,21 @@ static struct ast_autochan *next_channel(struct ast_channel_iterator *iter,
 	}
 
 	for (; (next = ast_channel_iterator_next(iter)); ast_channel_unref(next)) {
-		if (!strncmp(ast_channel_name(next), "DAHDI/pseudo", pseudo_len)
-			|| next == chan) {
+		const char *name = ast_channel_name(next);
+		int do_next = 0;
+
+		if (!strncmp(name, "DAHDI/pseudo", pseudo_len) || next == chan) {
+			do_next = 1;
+		} else {
+			for (unsigned i = 0; i < AST_VECTOR_SIZE(skip); ++i) {
+				if (!strcmp(name, AST_VECTOR_GET(skip, i))) {
+					do_next = 1;
+					break;
+				}
+			}
+		}
+
+		if (do_next) {
 			continue;
 		}
 
@@ -899,7 +913,8 @@ struct channel_spy_context {
 	const char *name_context;
 };
 
-static int channel_spy_consume_iterator(struct ast_channel_iterator *iter,
+static int channel_spy_select_one(struct ast_channel_iterator *iter,
+	struct ast_vector_const_string *channels_spied_upon,
 	struct ast_channel *chan, int *num_spied_upon,
 	int *volfactor, const int fd, const struct spy_dtmf_options *user_options,
 	struct ast_flags *flags, const char *exitcontext, const struct channel_spy_context *ctx)
@@ -908,11 +923,12 @@ static int channel_spy_consume_iterator(struct ast_channel_iterator *iter,
 	struct ast_channel *prev = NULL;
 	int res = 0;
 
-	for (autochan = next_channel(iter, chan);
+	for (autochan = next_channel(iter, chan, channels_spied_upon);
 		autochan;
 		prev = autochan->chan,
 			ast_autochan_destroy(autochan),
-			autochan = next_autochan ?: next_channel(iter, chan),
+			autochan = next_autochan ?: (
+				iter ? next_channel(iter, chan, channels_spied_upon) : NULL),
 			next_autochan = NULL) {
 		int igrp = !ctx->mygroup;
 		int ienf = !ctx->myenforced;
@@ -1010,6 +1026,19 @@ static int channel_spy_consume_iterator(struct ast_channel_iterator *iter,
 			continue;
 		}
 
+		/* Important! We destroy the channel iterator here, freeing unrelated channels
+		 * that are held by refcount. We're now holding on to exactly one victim channel. */
+		iter = ast_channel_iterator_destroy(iter);
+
+		/* BUG: In theory, we're leaking (hoarding) memory until either:
+		 * - the spying channels hangs up, or
+		 * - we do a full iteration without getting finding a single channel to spy on.
+		 * When either event occurs, the memory is freed. This is more
+		 * likely to happen than not. */
+		AST_VECTOR_APPEND(channels_spied_upon, ast_strdup(ast_channel_name(autochan->chan)));
+		ast_debug(1, "After adding %s we have %zu items in the channels_spied_upon list\n",
+			ast_channel_name(autochan->chan), AST_VECTOR_SIZE(channels_spied_upon));
+
 		if (!ast_test_flag(flags, OPTION_QUIET)) {
 			char peer_name[AST_NAME_STRLEN + 5];
 			char *ptr, *s;
@@ -1088,17 +1117,22 @@ static int channel_spy_consume_iterator(struct ast_channel_iterator *iter,
 			}
 		} else if (res == 0 && ast_test_flag(flags, OPTION_EXITONHANGUP)) {
 			ast_autochan_destroy(autochan);
-			res = -2;
+			res = -2; /* propagates stop, but with 0 exit status */
 			break;
 		}
 	}
 
-	if (ast_test_flag(flags, OPTION_STOP) && !next_autochan) {
-		/* a single iteration was completed */
-		res = -2;
+	if (iter) {
+		iter = ast_channel_iterator_destroy(iter);
 	}
 
 	return res;
+}
+
+/* Same as ast_free_ptr(), but this allows us to free const char*'s without the
+ * compiler complaining about touching const. */
+static void free_const_ptr(const char *ptr) {
+	ast_free((char *)ptr);
 }
 
 static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
@@ -1111,6 +1145,7 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 	int res;
 	int num_spied_upon = 1;
 	struct ast_channel_iterator *iter = NULL;
+	struct ast_vector_const_string channels_spied_upon;
 
 	if (ast_test_flag(flags, OPTION_EXIT)) {
 		const char *c;
@@ -1128,6 +1163,7 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 
 	ast_channel_set_flag(chan, AST_FLAG_SPYING);
 
+	AST_VECTOR_INIT(&channels_spied_upon, 0);
 
 	for (;;) {
 		if (!ast_test_flag(flags, OPTION_QUIET) && num_spied_upon) {
@@ -1177,7 +1213,6 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 
 		res = ast_waitfordigit(chan, waitms);
 		if (res < 0) {
-			iter = ast_channel_iterator_destroy(iter);
 			ast_channel_clear_flag(chan, AST_FLAG_SPYING);
 			break;
 		}
@@ -1186,24 +1221,49 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 			tmp[0] = res;
 			tmp[1] = '\0';
 			if (!ast_goto_if_exists(chan, exitcontext, tmp, 1)) {
-				iter = ast_channel_iterator_destroy(iter);
 				break;
 			}
 			ast_debug(2, "Exit by single digit did not work in chanspy. Extension %s does not exist in context %s\n", tmp, exitcontext);
 		}
 
+		/* The channel_spy_select_one spies on at most one channel. It
+		 * destroys the iterator so the unused channels can be freed asap. */
 		num_spied_upon = 0;
-		res = channel_spy_consume_iterator(iter, chan, &num_spied_upon, &volfactor, fd, user_options, flags, exitcontext, ctx);
-
-		iter = ast_channel_iterator_destroy(iter);
+		res = channel_spy_select_one(iter, &channels_spied_upon, chan, &num_spied_upon, &volfactor, fd, user_options, flags, exitcontext, ctx);
+		iter = NULL;
 
 		if (res == -2) {
+			/* propagated stop */
 			res = 0;
 			break;
-		} else if (res == -1 || ast_check_hangup(chan)) {
+		} else if (res == -1) {
+			/* stop because of error */
+			break;
+		} else if (ast_check_hangup(chan)) {
+			/* stop because spy hung up */
 			break;
 		}
+
+		if (num_spied_upon == 0) {
+			if (ast_test_flag(flags, OPTION_STOP)) {
+				/* stop after one fully depleted iterator */
+				break;
+			}
+
+			/* If we did spy on a channel, we'll keep the channels_spied_upon
+			 * list. If we spied on nothing, we'll wipe it so we
+			 * can restart the iteration. */
+			AST_VECTOR_RESET(&channels_spied_upon, free_const_ptr);
+		}
 	}
+
+	if (iter) {
+		iter = ast_channel_iterator_destroy(iter);
+	}
+
+	/* Make sure we free our temp storage. */
+	AST_VECTOR_RESET(&channels_spied_upon, free_const_ptr);
+	AST_VECTOR_FREE(&channels_spied_upon);
 
 	ast_channel_clear_flag(chan, AST_FLAG_SPYING);
 
