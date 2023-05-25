@@ -30,7 +30,7 @@
 					"parameters": [
 						{
 							"name": "type",
-							"description": "Comma separated list of bridge type attributes (mixing, holding, dtmf_events, proxy_media, video_sfu, video_single).",
+							"description": "Comma separated list of bridge type attributes (mixing, holding, dtmf_events, proxy_media, video_sfu, video_single, sdp_label).",
 							"paramType": "query",
 							"required": false,
 							"allowMultiple": false,
@@ -69,7 +69,7 @@
 					"parameters": [
 						{
 							"name": "type",
-							"description": "Comma separated list of bridge type attributes (mixing, holding, dtmf_events, proxy_media, video_sfu, video_single) to set.",
+							"description": "Comma separated list of bridge type attributes (mixing, holding, dtmf_events, proxy_media, video_sfu, video_single, sdp_label) to set.",
 							"paramType": "query",
 							"required": false,
 							"allowMultiple": false,
