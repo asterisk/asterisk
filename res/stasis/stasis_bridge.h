@@ -55,7 +55,7 @@ extern "C" {
  * \retval a pointer to a new bridge on success
  * \retval NULL on failure
  */
-struct ast_bridge *bridge_stasis_new(uint32_t capabilities, unsigned int flags, const char *name, const char *id, enum ast_bridge_video_mode_type video_mode);
+struct ast_bridge *bridge_stasis_new(uint32_t capabilities, unsigned int flags, const char *name, const char *id, enum ast_bridge_video_mode_type video_mode, unsigned int send_sdp_label);
 
 /*!
  * \internal
