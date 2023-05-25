@@ -153,6 +153,8 @@ struct moh_files_state {
 #define MOH_ANNOUNCEMENT	(1 << 6)	/*!< Do we play announcement files between songs on this channel? */
 #define MOH_PREFERCHANNELCLASS	(1 << 7)	/*!< Should queue moh override channel moh */
 
+#define MOH_LOOPLAST (1 << 8) /*!< Whether to loop the last file in the music class when we reach the end, rather than starting over */
+
 /* Custom astobj2 flag */
 #define MOH_NOTDELETED          (1 << 30)       /*!< Find only records that aren't deleted? */
 #define MOH_REALTIME          (1 << 31)       /*!< Find only records that are realtime */
@@ -366,7 +368,11 @@ static int ast_moh_files_next(struct ast_channel *chan)
 	} else {
 		/* This is easy, just increment our position and make sure we don't exceed the total file count */
 		state->pos++;
-		state->pos %= file_count;
+		if (ast_test_flag(state->class, MOH_LOOPLAST)) {
+			state->pos = MIN(file_count - 1, state->pos);
+		} else {
+			state->pos %= file_count;
+		}
 		state->save_pos = -1;
 		state->samples = 0;
 	}
@@ -1171,6 +1177,12 @@ static void moh_parse_options(struct ast_variable *var, struct mohclass *mohclas
 				ast_set_flag(mohclass, MOH_SORTALPHA);
 			} else if (!strcasecmp(var->value, "randstart")) {
 				ast_set_flag(mohclass, MOH_RANDSTART);
+			}
+		} else if (!strcasecmp(var->name, "loop_last")) {
+			if (ast_true(var->value)) {
+				ast_set_flag(mohclass, MOH_LOOPLAST);
+			} else {
+				ast_clear_flag(mohclass, MOH_LOOPLAST);
 			}
 		} else if (!strcasecmp(var->name, "format") && !ast_strlen_zero(var->value)) {
 			ao2_cleanup(mohclass->format);
