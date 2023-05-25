@@ -1459,6 +1459,18 @@ static int my_get_callerid(void *pvt, char *namebuf, char *numbuf, enum analog_e
 			if (num)
 				ast_copy_string(numbuf, num, ANALOG_MAX_CID);
 
+			if (flags & (CID_PRIVATE_NUMBER | CID_UNKNOWN_NUMBER)) {
+				/* If we got a presentation, we must set it on the channel */
+				struct ast_channel *chan = analog_p->ss_astchan;
+				struct ast_party_caller caller;
+
+				ast_party_caller_set_init(&caller, ast_channel_caller(chan));
+				caller.id.name.presentation = caller.id.number.presentation = (flags & CID_PRIVATE_NUMBER) ?
+					AST_PRES_RESTRICTED | AST_PRES_USER_NUMBER_UNSCREENED : AST_PRES_UNAVAILABLE | AST_PRES_USER_NUMBER_UNSCREENED;
+				ast_party_caller_set(ast_channel_caller(chan), &caller, NULL);
+				ast_party_caller_free(&caller);
+			}
+
 			ast_debug(1, "CallerID number: %s, name: %s, flags=%d\n", num, name, flags);
 			return 0;
 		}
