@@ -1374,8 +1374,8 @@ static int ast_say_number_full_ps(struct ast_channel *chan, int num, const char 
 		} else if (num < 1000) {
 			int hundreds = num / 100;
 			num = num % 100;
-			if (hundreds == 1) {
-				ast_copy_string(fn, "digits/1N", sizeof(fn));
+			if (hundreds == 2) {
+				ast_copy_string(fn, "digits/sawa", sizeof(fn));
 			} else {
 				snprintf(fn, sizeof(fn), "digits/%d", hundreds);
 			}
@@ -1387,9 +1387,9 @@ static int ast_say_number_full_ps(struct ast_channel *chan, int num, const char 
 			int thousands = num / 1000;
 			num = num % 1000;
 			t = 1;
-			if (thousands == 1) {
-				ast_copy_string(fn, "digits/1N", sizeof(fn));
-				ast_copy_string(fna, "digits/thousand", sizeof(fna));
+			if (thousands == 2) {
+				ast_copy_string(fn, "digits/zara", sizeof(fn));
+				//ast_copy_string(fna, "digits/thousand", sizeof(fna));
 			} else {
 				res = ast_say_number_full_de(chan, thousands, ints, language, options, audiofd, ctrlfd);
 				if (res)
