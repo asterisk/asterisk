@@ -1298,10 +1298,11 @@ static int ast_say_number_full_de(struct ast_channel *chan, int num, const char 
 	return res;
 }
 
-/*! \brief  ast_say_number_full_de: German syntax
+/*! \brief  ast_say_number_full_ps: Pashto syntax
 
  New files:
  In addition to English, the following sounds are required:
+ - wesht
  - "millions"
  - "1-and" through "9-and"
  - "1F" (eine)
@@ -1320,11 +1321,14 @@ static int ast_say_number_full_ps(struct ast_channel *chan, int num, const char 
 	if (options && (!strncasecmp(options, "f", 1)))
 		mf = -1;
 
+    int playWesht = 0;
 	while (!res && num) {
-		/* The grammar for German numbers is the same as for English except
+		/* The grammar for Pashto numbers is the same as for English except
 		* for the following:
 		* - numbers 20 through 99 are said in reverse order, i.e. 21 is
 		*   "one-and twenty" and 68 is "eight-and sixty".
+        * - 20 has unique pronounciation if there is a unit number after it
+        *   i.e. 21 is one.wav-wesht.wav while 20 is "shall" / 20.wav. 
 		* - "one" varies according to gender
 		* - 100 is 'hundert', however all other instances are 'ein hundert'
 		* - 1000 is 'tausend', however all other instances are 'ein tausend'
@@ -1342,7 +1346,7 @@ static int ast_say_number_full_ps(struct ast_channel *chan, int num, const char 
 				num = 0;
 			}
 		} else if (num == 1 && mf == -1) {
-			snprintf(fn, sizeof(fn), "digits/%dF", num);
+			snprintf(fn, sizeof(fn), "digits/%dF", num); // idk why this works for ps as we don't have any "digits/1F" file in ps sounds dir
 			num = 0;
 		} else if (num < 20) {
 			snprintf(fn, sizeof(fn), "digits/%d", num);
@@ -1350,10 +1354,18 @@ static int ast_say_number_full_ps(struct ast_channel *chan, int num, const char 
 		} else if (num < 100) {
 			int ones = num % 10;
 			if (ones) {
-				snprintf(fn, sizeof(fn), "digits/%d-and", ones);
+				snprintf(fn, sizeof(fn), "digits/%d", ones);
 				num -= ones;
+                if (num == 20){
+                    playWesht = 1;
+                }
 			} else {
-				snprintf(fn, sizeof(fn), "digits/%d", num);
+                if (num == 20 && playWesht == 1){
+				    snprintf(fn, sizeof(fn), "digits/wesht");
+                    playWesht = 0;
+                } else{
+				    snprintf(fn, sizeof(fn), "digits/%d", num);
+                }
 				num = 0;
 			}
 		} else if (num == 100 && t == 0) {
