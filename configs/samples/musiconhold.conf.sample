@@ -82,6 +82,14 @@ directory=moh
 ;               ; in alphabetical order. If 'randstart', the files are sorted
 ;               ; in alphabetical order as well, but the first file is chosen
 ;               ; at random. If unspecified, the sort order is undefined.
+;loop_last=no   ; If enabled, once the end of the directory is reached,
+                ; the last file played will be looped perpetually, rather than
+                ; starting over at the beginning again.
+                ; Can be used with sort=alpha or randstart so you can control
+                ; which file gets looped (the last one sorted alphabetically).
+                ; (If sort=alpha, all files will be played at least once, but
+                ; this may not be true with sort=randstart.)
+                ; Default is no.
 ;answeredonly=yes       ; Only allow answered channels to have music on hold.
                         ; Enabling this will prevent MOH on unanswered channels.
                         ; (default: "no")
