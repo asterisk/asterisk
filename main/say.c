@@ -741,7 +741,7 @@ static int ast_say_number_full_cs(struct ast_channel *chan, int num, const char 
 static int ast_say_number_full_da(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd);
 static int ast_say_number_full_de(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd);
 static int ast_say_number_full_ps(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd);
-static int ast_say_number_full_dr(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd);
+static int ast_say_number_full_dr(struct ast_channel *chan, int num, const char *ints, const char *language, int audiofd, int ctrlfd);
 static int ast_say_number_full_en_GB(struct ast_channel *chan, int num, const char *ints, const char *language, int audiofd, int ctrlfd);
 static int ast_say_number_full_es(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd);
 static int ast_say_number_full_fr(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd);
@@ -903,8 +903,8 @@ static int say_number_full(struct ast_channel *chan, int num, const char *ints, 
 	} else if (!strncasecmp(language, "vi", 2)) { /* Vietnamese syntax */
 		return ast_say_number_full_vi(chan, num, ints, language, audiofd, ctrlfd);
 	} else if (!strncasecmp(language, "dr", 2)) { /* Dari syntax */
-		return ast_say_number_full_dr(chan, num, ints, language, options, audiofd, ctrlfd);
-	} else if (!strncasecmp(language, "ps", 2)) { /* Pashto syntax */
+		return ast_say_number_full_dr(chan, num, ints, language, audiofd, ctrlfd);
+    } else if (!strncasecmp(language, "ps", 2)) { /* Pashto syntax */
 		return ast_say_number_full_ps(chan, num, ints, language, options, audiofd, ctrlfd);
 	}	
     /* Default to english */
@@ -1519,7 +1519,7 @@ static int ast_say_number_full_en_GB(struct ast_channel *chan, int num, const ch
 
 /*! \brief  ast_say_number_full_en_dr: Dari syntax
  New files:
-  - In addition to American English, the following sounds are required:  "vm-and"
+  - In addition to American English, the following sounds are required:  "o"
  */
 static int ast_say_number_full_dr(struct ast_channel *chan, int num, const char *ints, const char *language, int audiofd, int ctrlfd)
 {
@@ -1542,7 +1542,7 @@ static int ast_say_number_full_dr(struct ast_channel *chan, int num, const char 
 			ast_copy_string(fn, "digits/hundred", sizeof(fn));
 			playh = 0;
 		} else if (playa) {
-			ast_copy_string(fn, "vm-and", sizeof(fn));
+			ast_copy_string(fn, "digits/o", sizeof(fn));
 			playa = 0;
 		} else if (num < 20) {
 			snprintf(fn, sizeof(fn), "digits/%d", num);
