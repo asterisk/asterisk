@@ -545,7 +545,7 @@ struct ast_str* ast_get_number_str(int num, const char *lang)
 {
 	if (!strncasecmp(lang, "en", 2)) { /* English syntax */
 		return get_number_str_en(num, lang);
-	}
+    }
 
 	ast_log(LOG_WARNING, "Language %s not currently supported, defaulting to English\n", lang);
 	/* Default to english */
@@ -740,6 +740,8 @@ static int ast_say_number_full_en(struct ast_channel *chan, int num, const char 
 static int ast_say_number_full_cs(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd);
 static int ast_say_number_full_da(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd);
 static int ast_say_number_full_de(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd);
+static int ast_say_number_full_ps(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd);
+//static int ast_say_number_full_dr(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd);
 static int ast_say_number_full_en_GB(struct ast_channel *chan, int num, const char *ints, const char *language, int audiofd, int ctrlfd);
 static int ast_say_number_full_es(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd);
 static int ast_say_number_full_fr(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd);
@@ -900,9 +902,12 @@ static int say_number_full(struct ast_channel *chan, int num, const char *ints, 
 		return ast_say_number_full_ur(chan, num, ints, language, options, audiofd, ctrlfd);
 	} else if (!strncasecmp(language, "vi", 2)) { /* Vietnamese syntax */
 		return ast_say_number_full_vi(chan, num, ints, language, audiofd, ctrlfd);
-	}
-
-	/* Default to english */
+//	} else if (!strncasecmp(language, "dr", 2)) { /* Dari syntax */
+//		return ast_say_number_full_dr(chan, num, ints, language, options, audiofd, ctrlfd);
+	} else if (!strncasecmp(language, "ps", 2)) { /* Pashto syntax */
+		return ast_say_number_full_ps(chan, num, ints, language, options, audiofd, ctrlfd);
+	}	
+    /* Default to english */
 	return ast_say_number_full_en(chan, num, ints, language, audiofd, ctrlfd);
 }
 
@@ -1293,6 +1298,145 @@ static int ast_say_number_full_de(struct ast_channel *chan, int num, const char 
 	return res;
 }
 
+/*! \brief  ast_say_number_full_de: German syntax
+
+ New files:
+ In addition to English, the following sounds are required:
+ - "millions"
+ - "1-and" through "9-and"
+ - "1F" (eine)
+ - "1N" (ein)
+ - NB "1" is recorded as 'eins'
+ */
+static int ast_say_number_full_ps(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd)
+{
+	int res = 0, t = 0;
+	int mf = 1;                            /* +1 = male and neuter; -1 = female */
+	char fn[256] = "";
+	char fna[256] = "";
+	if (!num)
+		return ast_say_digits_full(chan, 0, ints, language, audiofd, ctrlfd);
+
+	if (options && (!strncasecmp(options, "f", 1)))
+		mf = -1;
+
+	while (!res && num) {
+		/* The grammar for German numbers is the same as for English except
+		* for the following:
+		* - numbers 20 through 99 are said in reverse order, i.e. 21 is
+		*   "one-and twenty" and 68 is "eight-and sixty".
+		* - "one" varies according to gender
+		* - 100 is 'hundert', however all other instances are 'ein hundert'
+		* - 1000 is 'tausend', however all other instances are 'ein tausend'
+		* - 1000000 is always 'eine million'
+		* - "million" is different in singular and plural form
+		* - 'and' should not go between a hundreds place value and any
+		*   tens/ones place values that follows it. i.e 136 is ein hundert
+		*   sechs und dreizig, not ein hundert und sechs und dreizig.
+		*/
+		if (num < 0) {
+			ast_copy_string(fn, "digits/minus", sizeof(fn));
+			if ( num > INT_MIN ) {
+				num = -num;
+			} else {
+				num = 0;
+			}
+		} else if (num == 1 && mf == -1) {
+			snprintf(fn, sizeof(fn), "digits/%dF", num);
+			num = 0;
+		} else if (num < 20) {
+			snprintf(fn, sizeof(fn), "digits/%d", num);
+			num = 0;
+		} else if (num < 100) {
+			int ones = num % 10;
+			if (ones) {
+				snprintf(fn, sizeof(fn), "digits/%d-and", ones);
+				num -= ones;
+			} else {
+				snprintf(fn, sizeof(fn), "digits/%d", num);
+				num = 0;
+			}
+		} else if (num == 100 && t == 0) {
+			ast_copy_string(fn, "digits/hundred", sizeof(fn));
+			num = 0;
+		} else if (num < 1000) {
+			int hundreds = num / 100;
+			num = num % 100;
+			if (hundreds == 1) {
+				ast_copy_string(fn, "digits/1N", sizeof(fn));
+			} else {
+				snprintf(fn, sizeof(fn), "digits/%d", hundreds);
+			}
+			ast_copy_string(fna, "digits/hundred", sizeof(fna));
+		} else if (num == 1000 && t == 0) {
+			ast_copy_string(fn, "digits/thousand", sizeof(fn));
+			num = 0;
+		} else if (num < 1000000) {
+			int thousands = num / 1000;
+			num = num % 1000;
+			t = 1;
+			if (thousands == 1) {
+				ast_copy_string(fn, "digits/1N", sizeof(fn));
+				ast_copy_string(fna, "digits/thousand", sizeof(fna));
+			} else {
+				res = ast_say_number_full_de(chan, thousands, ints, language, options, audiofd, ctrlfd);
+				if (res)
+					return res;
+				ast_copy_string(fn, "digits/thousand", sizeof(fn));
+			}
+		} else if (num < 1000000000) {
+			int millions = num / 1000000;
+			num = num % 1000000;
+			t = 1;
+			if (millions == 1) {
+				ast_copy_string(fn, "digits/1F", sizeof(fn));
+				ast_copy_string(fna, "digits/million", sizeof(fna));
+			} else {
+				res = ast_say_number_full_de(chan, millions, ints, language, options, audiofd, ctrlfd);
+				if (res)
+					return res;
+				ast_copy_string(fn, "digits/millions", sizeof(fn));
+			}
+		} else if (num <= INT_MAX) {
+			int billions = num / 1000000000;
+			num = num % 1000000000;
+			t = 1;
+			if (billions == 1) {
+				ast_copy_string(fn, "digits/1F", sizeof(fn));
+				ast_copy_string(fna, "digits/milliard", sizeof(fna));
+			} else {
+				res = ast_say_number_full_de(chan, billions, ints, language, options, audiofd, ctrlfd);
+				if (res) {
+					return res;
+				}
+				ast_copy_string(fn, "digits/milliards", sizeof(fn));
+			}
+		} else {
+			ast_debug(1, "Number '%d' is too big for me\n", num);
+			res = -1;
+		}
+		if (!res) {
+			if (!ast_streamfile(chan, fn, language)) {
+				if ((audiofd > -1) && (ctrlfd > -1))
+					res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
+				else
+					res = ast_waitstream(chan, ints);
+			}
+			ast_stopstream(chan);
+			if (!res) {
+				if (strlen(fna) != 0 && !ast_streamfile(chan, fna, language)) {
+					if ((audiofd > -1) && (ctrlfd > -1))
+						res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
+					else
+						res = ast_waitstream(chan, ints);
+				}
+				ast_stopstream(chan);
+				strcpy(fna, "");
+			}
+		}
+	}
+	return res;
+}
 /*! \brief  ast_say_number_full_en_GB: British syntax
  New files:
   - In addition to American English, the following sounds are required:  "vm-and"
