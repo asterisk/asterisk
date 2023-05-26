@@ -5,32 +5,35 @@ on:
   workflow_dispatch:
     inputs:
       is_security:
-        description: 'Security or Hotfix?'
+        description: |
+          Security or Hotfix?
         required: true
         type: boolean
         default: false
       new_version:
         description: |
-          New Version
+          New Version:
           Examples:
-            21.4.0-rc1, 21.4.0-rc2, 21.4.0, 21.4.1
-            certified/21.4-cert1-rc1, certified/21.4-cert1
+            20.4.0-rc1, 20.4.0-rc2, 20.4.0, 20.4.1
+            certified-20.4-cert1-rc1, certified-20.4-cert1
         required: true
         type: string
       start_version:
         description: |
-          Last Version
+          Last Version:
           Only use when you KNOW that the automated
-          process won't get it right.'
+          process won't get it right.
         required: false
         type: string
       push_live:
-        description: 'Push live?'
+        description: |
+          Push live to GitHub and downloads server?
         required: true
         type: boolean
         default: false
       send_email:
-        description: 'Send announcement emails?'
+        description: |
+          Send announcement emails?
         required: true
         type: boolean
         default: false
