@@ -2433,6 +2433,7 @@ int ast_res_pjsip_initialize_configuration(void)
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "tenantid", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, tenantid));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "suppress_moh_on_sendonly",
 		"no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, suppress_moh_on_sendonly));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "device_feature_key_autoapprove", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, device_feature_key_autoapprove));
 
 	if (ast_sip_initialize_sorcery_transport()) {
 		ast_log(LOG_ERROR, "Failed to register SIP transport support with sorcery\n");

@@ -1182,6 +1182,8 @@ struct ast_sip_endpoint {
 	AST_STRING_FIELD_EXTENDED(tenantid);
 	/*! Ignore remote hold requests */
 	int suppress_moh_on_sendonly;
+	/*! Whether to auto approve device feature change requests */
+	unsigned int device_feature_key_autoapprove;
 };
 
 /*! URI parameter for symmetric transport */
