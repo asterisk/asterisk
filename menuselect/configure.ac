@@ -10,7 +10,7 @@ AC_INIT(menuselect, MENUSELECT_VERSION, www.asterisk.org)
 AC_CONFIG_SRCDIR([menuselect.c])
 
 # specify output header file
-AC_CONFIG_HEADER(autoconfig.h)
+AC_CONFIG_HEADERS([autoconfig.h])
 
 AC_COPYRIGHT("Menuselect")
 
