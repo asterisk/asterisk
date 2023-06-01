@@ -24,7 +24,7 @@ AC_SUBST(CONFIG_CFLAGS)
 AC_SUBST(CONFIG_LDFLAGS)
 
 # specify output header file
-AC_CONFIG_HEADER(include/asterisk/autoconfig.h)
+AC_CONFIG_HEADERS([include/asterisk/autoconfig.h])
 
 # Note: AC_PROG_CC *must* be specified before AC_USE_SYSTEM_EXTENSIONS or any
 # other macro that uses the C compiler, or the default order will be used.
@@ -809,7 +809,6 @@ AC_CHECK_MEMBERS([struct stat.st_blksize])
 AC_CHECK_MEMBERS([struct ucred.uid, struct ucred.cr_uid, struct sockpeercred.uid], [], [], [#include <sys/types.h>
 #include <sys/socket.h> ])
 AC_CHECK_MEMBERS([struct ifreq.ifr_ifru.ifru_hwaddr], [], [], [#include <net/if.h>])
-AC_HEADER_TIME
 AC_STRUCT_TM
 AC_C_VOLATILE
 AC_CHECK_TYPES([ptrdiff_t])
