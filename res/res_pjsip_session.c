@@ -3641,6 +3641,28 @@ struct ast_sip_session *ast_sip_dialog_get_session(pjsip_dialog *dlg)
 	return session;
 }
 
+pjsip_dialog *ast_sip_session_get_dialog(const struct ast_sip_session *session)
+{
+	pjsip_inv_session *inv_session = session->inv_session;
+
+	if (!inv_session) {
+		return NULL;
+	}
+
+	return inv_session->dlg;
+}
+
+pjsip_inv_state ast_sip_session_get_pjsip_inv_state(const struct ast_sip_session *session)
+{
+	pjsip_inv_session *inv_session = session->inv_session;
+
+	if (!inv_session) {
+		return PJSIP_INV_STATE_NULL;
+	}
+
+	return inv_session->state;
+}
+
 enum sip_get_destination_result {
 	/*! The extension was successfully found */
 	SIP_GET_DEST_EXTEN_FOUND,
