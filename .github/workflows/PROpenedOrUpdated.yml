@@ -22,17 +22,41 @@ jobs:
   AsteriskUnitTests:
     runs-on: ubuntu-latest
     steps:
-      - name: Add cherry-pick reminder
+      - name: Get Token needed to add reviewers
+        if: github.event.action == 'opened'
+        id: get_workflow_token
+        uses: peter-murray/workflow-application-token-action@v1
+        with:
+          application_id: ${{secrets.ASTERISK_ORG_ACCESS_APP_ID}}
+          application_private_key: ${{secrets.ASTERISK_ORG_ACCESS_APP_PRIV_KEY}}
+          organization: asterisk
+
+      - name: Add cherry-pick reminder and reviewers
         if: github.event.action == 'opened'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{steps.get_workflow_token.outputs.token}}
+          GH_TOKEN: ${{steps.get_workflow_token.outputs.token}}
           CHERRY_PICK_REMINDER: ${{vars.CHERRY_PICK_REMINDER}}
+          REVIEWERS: ${{vars.PR_REVIEWERS}}
         run: |
+          IFS=$'; \n'
+          for r in $REVIEWERS ; do
+            echo "Adding reviewer $r"
+            gh pr edit --repo ${{github.repository}} ${PR_NUMBER} --add-reviewer $r || :
+          done
           # If there's already a reminder comment, don't add another one.
-          gh pr view --json comments \
-            --jq ".comments[].body | select(. | startswith(\"${CHERRY_PICK_REMINDER:0:20}\")) | halt_error(1)" \
-            ${{env.PR_NUMBER}} >/dev/null 2>&1 || exit 0
-          gh pr comment --repo ${{github.repository}} -b "${CHERRY_PICK_REMINDER}" ${{env.PR_NUMBER}}
+          ADD_COMMENT=true
+          # This query will FAIL if it finds the comment.
+          gh pr view --repo ${{github.repository}} --json comments \
+            --jq '.comments[].body | select(. | startswith("<!--CPR-->")) | halt_error(1)' \
+            ${{env.PR_NUMBER}} >/dev/null 2>&1 || ADD_COMMENT=false
+          if $ADD_COMMENT ; then
+            echo "Adding CPR comment"
+            gh pr comment --repo ${{github.repository}} \
+              -b "${CHERRY_PICK_REMINDER}" ${{env.PR_NUMBER}}
+          else
+            echo "CPR comment already present"
+          fi
 
       - name: Set Labels
         env:
@@ -60,27 +84,11 @@ jobs:
           github_token:      ${{secrets.GITHUB_TOKEN}}
           unittest_command:  ${{vars.UNITTEST_COMMAND}}
 
-      - name: Get Token needed to add reviewers
-        if: ${{ success() }}
-        id: get_workflow_token
-        uses: peter-murray/workflow-application-token-action@v1
-        with:
-          application_id: ${{secrets.ASTERISK_ORG_ACCESS_APP_ID}}
-          application_private_key: ${{secrets.ASTERISK_ORG_ACCESS_APP_PRIV_KEY}}
-          organization: asterisk
-
-      - name: Add Reviewers
+      - name: Add Checks Passed Label
         if: ${{ success() }}
         env:
-          GITHUB_TOKEN: ${{steps.get_workflow_token.outputs.token}}
-          GH_TOKEN: ${{steps.get_workflow_token.outputs.token}}
-          REVIEWERS: ${{vars.PR_REVIEWERS}}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "${{env.GITHUB_ACTION}} Add reviewers"
-          IFS=$'; \n'
-          for r in $REVIEWERS ; do
-            gh pr edit --repo ${ASTERISK_REPO} ${PR_NUMBER} --add-reviewer $r || :
-          done
           gh pr edit --repo ${{github.repository}} \
             --add-label ${{vars.TEST_CHECKS_PASSED_LABEL}} \
             ${{env.PR_NUMBER}} || :
