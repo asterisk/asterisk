@@ -646,7 +646,7 @@ static char *cli_show_monitors(struct ast_cli_entry *e, int cmd, struct ast_cli_
 			state = "ACTIVE";
 		}
 
-		ast_cli(a->fd, " %-46.46s   %-10s   %-9s   %6ld   %8" PRIu64 "   %s\n",
+		ast_cli(a->fd, " %-46.46s   %-10s   %-9s   %6ld   %8zu   %s\n",
 			monitored->key, state,
 			monitored->transport->dir == PJSIP_TP_DIR_OUTGOING ? "Outgoing" : "Incoming",
 			pj_atomic_get(monitored->transport->ref_cnt),
