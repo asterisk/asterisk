@@ -79,7 +79,7 @@ jobs:
           echo "${{env.GITHUB_ACTION}} Add reviewers"
           IFS=$'; \n'
           for r in $REVIEWERS ; do
-            gh pr edit --repo ${ASTERISK_REPO} ${PR_NUMBER} --add-reviewer $r
+            gh pr edit --repo ${ASTERISK_REPO} ${PR_NUMBER} --add-reviewer $r || :
           done
           gh pr edit --repo ${{github.repository}} \
             --add-label ${{vars.TEST_CHECKS_PASSED_LABEL}} \
