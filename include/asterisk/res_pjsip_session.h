@@ -799,6 +799,26 @@ void ast_sip_session_send_request_with_cb(struct ast_sip_session *session, pjsip
 struct ast_sip_session *ast_sip_dialog_get_session(pjsip_dialog *dlg);
 
 /*!
+ * \brief Retrieves a dialog from a session
+ *
+ * \param session The session to retrieve the dialog from
+ *
+ * \retval non-NULL if dialog exists
+ * \retval NULL if no dialog
+ */
+pjsip_dialog *ast_sip_session_get_dialog(const struct ast_sip_session *session);
+
+/*!
+ * \brief Retrieves the pjsip_inv_state from a session
+ *
+ * \param session The session to retrieve the state from
+ *
+ * \retval state if inv_session exists
+ * \retval PJSIP_INV_STATE_NULL if inv_session is NULL
+ */
+pjsip_inv_state ast_sip_session_get_pjsip_inv_state(const struct ast_sip_session *session);
+
+/*!
  * \brief Resumes processing of a deferred incoming re-invite
  *
  * \param session The session which has a pending incoming re-invite
