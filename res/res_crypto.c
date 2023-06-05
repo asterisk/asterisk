@@ -196,7 +196,14 @@ static struct ast_key *try_load_key(const char *dir, const char *fname, int ifd,
 	}
 
 	/* Get actual filename */
-	snprintf(ffname, sizeof(ffname), "%s/%s", dir, fname);
+	n = snprintf(ffname, sizeof(ffname), "%s/%s", dir, fname);
+	if (n >= sizeof(ffname)) {
+		ast_log(LOG_WARNING,
+			"Key filenames can be up to %zu bytes long, but the filename for the"
+			" key we are currently trying to load (%s/%s) is %d bytes long.",
+			sizeof(ffname) - 1, dir, fname, n);
+		return NULL;
+	}
 
 	/* Open file */
 	if (!(f = fopen(ffname, "r"))) {
