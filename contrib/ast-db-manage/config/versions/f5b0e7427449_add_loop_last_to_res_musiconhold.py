@@ -1,14 +1,14 @@
 """Add loop_last to res_musiconhold
 
 Revision ID: f5b0e7427449
-Revises: f261363a857f
+Revises: 4042a0ff4d9f
 Create Date: 2023-03-13 23:59:00.835055
 
 """
 
 # revision identifiers, used by Alembic.
 revision = 'f5b0e7427449'
-down_revision = 'f261363a857f'
+down_revision = '4042a0ff4d9f'
 
 from alembic import op
 import sqlalchemy as sa
