@@ -836,8 +836,9 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 								}
 							}
 						} else {
-							ast_verb(3, "Skip playback of caller name / norecording\n");
-							tmpuser->state = 2;
+							ast_debug(1, "Taking call with no prompt\n");
+							ast_frfree(f);
+							return tmpuser->ochan;
 						}
 						break;
 					case AST_CONTROL_BUSY:
@@ -963,11 +964,6 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 							f->subclass.integer, ast_channel_name(winner));
 						break;
 					}
-				}
-				if (!tpargs->enable_callee_prompt && tmpuser) {
-					ast_debug(1, "Taking call with no prompt\n");
-					ast_frfree(f);
-					return tmpuser->ochan;
 				}
 				if (tmpuser && tmpuser->state == 3 && f->frametype == AST_FRAME_DTMF) {
 					int cmp_len;
