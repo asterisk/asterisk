@@ -21,11 +21,6 @@ jobs:
       branch_count: ${{ steps.getbranches.outputs.branch_count }}
     runs-on: ubuntu-latest
     steps:
-      - name: DumpEnvironment
-        uses: asterisk/asterisk-ci-actions/DumpEnvironmentAction@main
-        with:
-          action-vars: ${{toJSON(vars)}}
-
       - name: Remove Trigger Label, Add InProgress Label
         env:
           GH_TOKEN:          ${{ secrets.GITHUB_TOKEN }}
@@ -57,7 +52,7 @@ jobs:
           --add-label ${{vars.CHERRY_PICK_TESTING_IN_PROGRESS}} \
           ${{env.PR_NUMBER}} || :
 
-  AsteriskUnitTestMatrix:
+  CherryPickUnitTestMatrix:
     needs: [ IdentifyBranches ]
     if: ${{ needs.IdentifyBranches.outputs.branch_count > 0 && ( success() || failure() ) }}
     continue-on-error: false
@@ -78,14 +73,14 @@ jobs:
           github_token:      ${{secrets.GITHUB_TOKEN}}
           unittest_command:  ${{vars.UNITTEST_COMMAND}}
 
-  AsteriskUnitTests:
-    needs: [ IdentifyBranches, AsteriskUnitTestMatrix ]
+  CherryPickUnitTests:
+    needs: [ IdentifyBranches, CherryPickUnitTestMatrix ]
     if: ${{ needs.IdentifyBranches.outputs.branch_count > 0 && ( success() || failure() ) }}
     runs-on: ubuntu-latest
     steps:
       - name: Check unit test matrix status
         env:
-          RESULT:    ${{needs.AsteriskUnitTestMatrix.result}}
+          RESULT:    ${{needs.CherryPickUnitTestMatrix.result}}
           GH_TOKEN:  ${{ secrets.GITHUB_TOKEN }}
         run: |
           case $RESULT in
@@ -113,8 +108,8 @@ jobs:
               exit 1
           esac
 
-  AsteriskGateTestMatrix:
-    needs: [ IdentifyBranches, AsteriskUnitTests ]
+  CherryPickGateTestMatrix:
+    needs: [ IdentifyBranches, CherryPickUnitTests ]
     if: ${{ success() }}
     continue-on-error: false
     strategy:
@@ -138,14 +133,14 @@ jobs:
           gatetest_group:    ${{matrix.group}}
           gatetest_commands: ${{vars.GATETEST_COMMANDS}}
 
-  AsteriskGateTests:
-    needs: [ IdentifyBranches, AsteriskGateTestMatrix ]
+  CherryPickGateTests:
+    needs: [ IdentifyBranches, CherryPickGateTestMatrix ]
     if: ${{ success() || failure() }}
     runs-on: ubuntu-latest
     steps:
       - name: Check test matrix status
         env:
-          RESULT:    ${{needs.AsteriskGateTestMatrix.result}}
+          RESULT:    ${{needs.CherryPickGateTestMatrix.result}}
           GH_TOKEN:  ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh pr edit --repo ${{github.repository}} \
