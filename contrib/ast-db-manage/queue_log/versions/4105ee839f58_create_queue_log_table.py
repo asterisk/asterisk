@@ -1,7 +1,7 @@
 """create queue_log table
 
 Revision ID: 4105ee839f58
-Revises:
+Revises: None
 Create Date: 2016-09-30 22:32:45.918340
 
 """

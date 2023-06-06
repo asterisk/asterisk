@@ -1,7 +1,7 @@
 """Fix mwi_subscribe_replaces_unsolicited
 
 Revision ID: fe6592859b85
-Revises: 19b00bc19b7b
+Revises: 1d3ed26d9978
 Create Date: 2018-08-06 15:50:44.405534
 
 """
