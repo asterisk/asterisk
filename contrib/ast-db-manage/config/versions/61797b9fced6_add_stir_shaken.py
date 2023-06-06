@@ -1,7 +1,7 @@
 """add stir shaken
 
 Revision ID: 61797b9fced6
-Revises: fbb7766f17bc
+Revises: b80485ff4dd0
 Create Date: 2020-06-29 11:52:59.946929
 
 """

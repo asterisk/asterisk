@@ -1,7 +1,7 @@
 """res_pjsip: add contact via_addr and callid
 
 Revision ID: a845e4d8ade8
-Revises: bca7113d796f
+Revises: d7e3c73eb2bf
 Create Date: 2016-05-19 15:51:33.410852
 
 """
