@@ -1,7 +1,7 @@
 """add_keep_alive_interval
 
 Revision ID: 189a235b3fd7
-Revises: 28ce1e718f05
+Revises: 339a3bdf53fc
 Create Date: 2015-12-16 11:23:16.994523
 
 """
