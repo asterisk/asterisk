@@ -41,7 +41,7 @@ static void rfc3326_use_reason_header(struct ast_sip_session *session, struct pj
 	char buf[20];
 	char *cause;
 	char *text;
-	int code;
+	int code = 0;
 	int cause_q850, cause_sip;
 
 	header = pjsip_msg_find_hdr_by_name(rdata->msg_info.msg, &str_reason, NULL);
@@ -53,12 +53,17 @@ static void rfc3326_use_reason_header(struct ast_sip_session *session, struct pj
 		cause_q850 = !strncasecmp(cause, "Q.850", 5);
 		cause_sip = !strncasecmp(cause, "SIP", 3);
 		if ((cause_q850 || cause_sip) && (cause = strstr(cause, "cause="))) {
-			/* If text is present get rid of it */
+			/* If text is present, process and get rid of it */
 			if ((text = strchr(cause, ';'))) {
+				if (!strncasecmp(text, "text=\"Call completed elsewhere\"", 31)) {
+					code = AST_CAUSE_ANSWERED_ELSEWHERE;
+				}
 				*text = '\0';
 			}
 
-			if (sscanf(cause, "cause=%30d", &code) != 1) {
+			if (code) {
+				continue;
+			} else if (sscanf(cause, "cause=%30d", &code) != 1) {
 				continue;
 			}
 		} else {
@@ -66,6 +71,9 @@ static void rfc3326_use_reason_header(struct ast_sip_session *session, struct pj
 		}
 		if (cause_q850) {
 			ast_channel_hangupcause_set(session->channel, code & 0x7f);
+			break;
+		} else if (cause_sip && code == AST_CAUSE_ANSWERED_ELSEWHERE) {
+			ast_channel_hangupcause_set(session->channel, AST_CAUSE_ANSWERED_ELSEWHERE);
 			break;
 		} else if (cause_sip) {
 			ast_channel_hangupcause_set(session->channel, ast_sip_hangup_sip2cause(code));
