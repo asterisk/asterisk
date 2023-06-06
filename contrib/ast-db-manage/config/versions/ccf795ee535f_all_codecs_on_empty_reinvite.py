@@ -1,7 +1,7 @@
 """all_codecs_on_empty_reinvite
 
 Revision ID: ccf795ee535f
-Revises: 539f68bede2c
+Revises: 417c0247fd7e
 Create Date: 2022-09-28 09:14:36.709781
 
 """
