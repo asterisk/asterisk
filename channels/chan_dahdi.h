@@ -299,6 +299,12 @@ struct dahdi_pvt {
 	 * \note Set from the "immediate" value read in from chan_dahdi.conf
 	 */
 	unsigned int immediate:1;
+	/*!
+	 * \brief TRUE if audible ringback should be provided
+	 * when immediate = yes.
+	 * \note Set from the "immediatering" value read in from chan_dahdi.conf
+	 */
+	unsigned int immediatering:1;
 	/*! \brief TRUE if in an alarm condition. */
 	unsigned int inalarm:1;
 	/*! \brief TRUE if TDD in MATE mode */
