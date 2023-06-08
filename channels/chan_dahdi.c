@@ -1038,6 +1038,7 @@ static struct dahdi_chan_conf dahdi_chan_conf_default(void)
 #endif
 		.chan = {
 			.context = "default",
+			.immediatering = 1,
 			.cid_num = "",
 			.cid_name = "",
 			.cid_tag = "",
@@ -12868,6 +12869,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 		}
 #endif
 		tmp->immediate = conf->chan.immediate;
+		tmp->immediatering = conf->chan.immediatering;
 		tmp->transfertobusy = conf->chan.transfertobusy;
 		tmp->dialmode = conf->chan.dialmode;
 		if (chan_sig & __DAHDI_SIG_FXS) {
@@ -13198,6 +13200,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 				analog_p->canpark = conf->chan.canpark;
 				analog_p->dahditrcallerid = conf->chan.dahditrcallerid;
 				analog_p->immediate = conf->chan.immediate;
+				analog_p->immediatering = conf->chan.immediatering;
 				analog_p->permhidecallerid = conf->chan.hidecallerid; /* hidecallerid is the config setting, not permhidecallerid (~permcallwaiting above) */
 				/* It's not necessary to set analog_p->hidecallerid here, sig_analog will set hidecallerid=permhidecaller before each call */
 				analog_p->pulse = conf->chan.pulse;
@@ -18404,6 +18407,8 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 			}
 		} else if (!strcasecmp(v->name, "immediate")) {
 			confp->chan.immediate = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "immediatering")) {
+			confp->chan.immediatering = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "transfertobusy")) {
 			confp->chan.transfertobusy = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "dialmode")) {

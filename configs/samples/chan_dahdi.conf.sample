@@ -957,6 +957,13 @@ pickupgroup=1
 ;
 ;immediate=yes
 ;
+; On FXS channels (FXO signaled), specifies whether fake audible ringback should
+; be provided as soon as the channel goes off hook and immediate=yes.
+; If audio should come only from the dialplan, this option should be disabled.
+; Default is 'yes'
+;
+;immediatering=no
+;
 ; Specify whether flash-hook transfers to 'busy' channels should complete or
 ; return to the caller performing the transfer (default is yes).
 ;
