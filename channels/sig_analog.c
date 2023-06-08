@@ -3815,7 +3815,10 @@ void *analog_handle_init_event(struct analog_pvt *i, int event)
 			if (i->immediate) {
 				analog_set_echocanceller(i, 1);
 				/* The channel is immediately up.  Start right away */
-				res = analog_play_tone(i, ANALOG_SUB_REAL, ANALOG_TONE_RINGTONE);
+				if (i->immediatering) {
+					/* Play fake ringing, if we've been told to... */
+					res = analog_play_tone(i, ANALOG_SUB_REAL, ANALOG_TONE_RINGTONE);
+				}
 				chan = analog_new_ast_channel(i, AST_STATE_RING, 1, ANALOG_SUB_REAL, NULL);
 				if (!chan) {
 					ast_log(LOG_WARNING, "Unable to start PBX on channel %d\n", i->channel);
