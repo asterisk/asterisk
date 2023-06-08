@@ -295,6 +295,7 @@ struct analog_pvt {
 	unsigned int dahditrcallerid:1;			/*!< should we use the callerid from incoming call on dahdi transfer or not */
 	unsigned int hanguponpolarityswitch:1;
 	unsigned int immediate:1;
+	unsigned int immediatering:1;			/*!< TRUE if ringing should be provided for immediate execution */
 	unsigned int permcallwaiting:1;			/*!< TRUE if call waiting is enabled. (Configured option) */
 	unsigned int permhidecallerid:1;		/*!< Whether to hide our outgoing caller ID or not */
 	unsigned int pulse:1;
