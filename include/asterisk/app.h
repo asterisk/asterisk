@@ -139,7 +139,7 @@ int ast_ivr_menu_run(struct ast_channel *c, struct ast_ivr_menu *menu, void *cbd
  *  is pressed during playback, it will immediately break out of the message and continue
  *  execution of your code.
  */
-int ast_app_getdata(struct ast_channel *c, const char *prompt, char *s, int maxlen, int timeout);
+enum ast_getdata_result ast_app_getdata(struct ast_channel *c, const char *prompt, char *s, int maxlen, int timeout);
 
 /*! \brief Plays a stream and gets DTMF data from a channel
  * \param c Which channel one is interacting with
@@ -156,7 +156,7 @@ int ast_app_getdata(struct ast_channel *c, const char *prompt, char *s, int maxl
  *  is pressed during playback, it will immediately break out of the message and continue
  *  execution of your code.
  */
-int ast_app_getdata_terminator(struct ast_channel *c, const char *prompt, char *s, int maxlen, int timeout, char *terminator);
+enum ast_getdata_result ast_app_getdata_terminator(struct ast_channel *c, const char *prompt, char *s, int maxlen, int timeout, char *terminator);
 
 /*! \brief Full version with audiofd and controlfd.  NOTE: returns '2' on ctrlfd available, not '1' like other full functions */
 int ast_app_getdata_full(struct ast_channel *c, const char *prompt, char *s, int maxlen, int timeout, int audiofd, int ctrlfd);
