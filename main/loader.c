@@ -1816,9 +1816,9 @@ prestart_error:
 	return res;
 }
 
-int ast_load_resource(const char *resource_name)
+enum ast_module_load_result ast_load_resource(const char *resource_name)
 {
-	int res;
+	enum ast_module_load_result res;
 	AST_DLLIST_LOCK(&module_list);
 	res = load_resource(resource_name, 0, NULL, 0, 0);
 	if (!res) {
