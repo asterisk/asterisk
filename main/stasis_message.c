@@ -53,7 +53,7 @@ static void message_type_dtor(void *obj)
 	type->name = NULL;
 }
 
-int stasis_message_type_create(const char *name,
+enum stasis_message_type_result stasis_message_type_create(const char *name,
 	struct stasis_message_vtable *vtable,
 	struct stasis_message_type **result)
 {
