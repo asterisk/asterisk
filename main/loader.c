@@ -1821,10 +1821,10 @@ prestart_error:
 	return res;
 }
 
-int ast_load_resource(const char *resource_name)
+enum ast_module_load_result ast_load_resource(const char *resource_name)
 {
 	struct ast_module *mod;
-	int res;
+	enum ast_module_load_result res;
 
 	/* If we're trying to load a module that previously declined to load,
 	 * transparently unload it first so we dlclose, then dlopen it afresh.
