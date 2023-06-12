@@ -215,8 +215,8 @@ AST_TEST_DEFINE(channel_messages)
 	int expected_count;
 	int actual_count;
 	int i;
-	int got_channel = 0;
-	int got_endpoint = 0;
+	int channel_index = -1;
+	int endpoint_index = -1;
 
 	switch (cmd) {
 	case TEST_INIT:
@@ -268,15 +268,14 @@ AST_TEST_DEFINE(channel_messages)
 		msg = sink->messages[i];
 		type = stasis_message_type(msg);
 		if (type == ast_channel_snapshot_type()) {
-			got_channel = 1;
+			channel_index = i;
 		}
 		if (type == ast_endpoint_snapshot_type()) {
-			got_endpoint = 1;
+			endpoint_index = i;
 		}
 	}
-	ast_test_validate(test, got_channel && got_endpoint);
-
-	actual_snapshot = stasis_message_data(msg);
+	ast_test_validate(test, channel_index >= 0 && endpoint_index >= 0);
+	actual_snapshot = stasis_message_data(sink->messages[endpoint_index]);
 	ast_test_validate(test, 0 == actual_snapshot->num_channels);
 
 	return AST_TEST_PASS;
