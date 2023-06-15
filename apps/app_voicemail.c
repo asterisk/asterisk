@@ -2598,11 +2598,13 @@ static int messagecount(const char *mailbox_id, const char *folder)
 		return 0;
 	}
 
+	int count;
 	if (ast_strlen_zero(folder) || !strcmp(folder, "INBOX")) {
-		return __messagecount(context, mailbox, "INBOX") + __messagecount(context, mailbox, "Urgent");
+		count = __messagecount(context, mailbox, "INBOX") + __messagecount(context, mailbox, "Urgent");
 	} else {
-		return __messagecount(context, mailbox, folder);
+		count = __messagecount(context, mailbox, folder);
 	}
+	return count < 0 ? 0 : count;
 }
 
 static int imap_store_file(const char *dir, const char *mailboxuser, const char *mailboxcontext, int msgnum, struct ast_channel *chan, struct ast_vm_user *vmu, char *fmt, int duration, struct vm_state *vms, const char *flag, const char *msg_id)
@@ -2764,6 +2766,7 @@ static int inboxcount2(const char *mailbox_context, int *urgentmsgs, int *newmsg
 	char *context;
 	char *mb;
 	char *cur;
+	int count = 0;
 	if (newmsgs)
 		*newmsgs = 0;
 	if (oldmsgs)
@@ -2813,21 +2816,24 @@ static int inboxcount2(const char *mailbox_context, int *urgentmsgs, int *newmsg
 			ast_log(AST_LOG_ERROR, "Couldn't find mailbox %s in context %s\n", mailboxnc, context);
 			return -1;
 		}
-		if ((*newmsgs = __messagecount(context, mailboxnc, vmu->imapfolder)) < 0) {
+		if ((count = __messagecount(context, mailboxnc, vmu->imapfolder)) < 0) {
 			free_user(vmu);
 			return -1;
 		}
+		*newmsgs = count;
 		free_user(vmu);
 	}
 	if (oldmsgs) {
-		if ((*oldmsgs = __messagecount(context, mailboxnc, "Old")) < 0) {
+		if ((count = __messagecount(context, mailboxnc, "Old")) < 0) {
 			return -1;
 		}
+		*oldmsgs = count;
 	}
 	if (urgentmsgs) {
-		if ((*urgentmsgs = __messagecount(context, mailboxnc, "Urgent")) < 0) {
+		if ((count = __messagecount(context, mailboxnc, "Urgent")) < 0) {
 			return -1;
 		}
+		*urgentmsgs = count;
 	}
 	return 0;
 }
@@ -2861,7 +2867,7 @@ static int has_voicemail(const char *mailbox, const char *folder)
 	} else {
 		context = "default";
 	}
-	return __messagecount(context, tmp, folder) ? 1 : 0;
+	return __messagecount(context, tmp, folder) > 0 ? 1 : 0;
 }
 
 /*!
