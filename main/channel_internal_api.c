@@ -1277,14 +1277,37 @@ struct ast_control_pvt_cause_code *ast_channel_dialed_causes_find(const struct a
 
 int ast_channel_dialed_causes_add(const struct ast_channel *chan, const struct ast_control_pvt_cause_code *cause_code, int datalen)
 {
-	struct ast_control_pvt_cause_code *ao2_cause_code;
-	ao2_find(chan->dialed_causes, cause_code->chan_name, OBJ_KEY | OBJ_UNLINK | OBJ_NODATA);
-	ao2_cause_code = ao2_alloc(datalen, NULL);
+	struct ast_control_pvt_cause_code *ao2_cause_code_new;
+	const char *code;
+	const char *tech2;
+	int objsize;
+	RAII_VAR(struct ast_control_pvt_cause_code *, ao2_cause_code_prev, NULL, ao2_cleanup);
 
-	if (ao2_cause_code) {
-		memcpy(ao2_cause_code, cause_code, datalen);
-		ao2_link(chan->dialed_causes, ao2_cause_code);
-		ao2_ref(ao2_cause_code, -1);
+	ao2_cause_code_prev = ao2_find(chan->dialed_causes, cause_code->chan_name, OBJ_KEY | OBJ_UNLINK);
+	if (cause_code->code[0] || !ao2_cause_code_prev) {
+		code = cause_code->code;
+	} else {
+		code = ao2_cause_code_prev->code;
+	}
+
+	if (cause_code->tech2_offset && cause_code->code[cause_code->tech2_offset]) {
+		tech2 = cause_code->code + cause_code->tech2_offset;
+	} else if (ao2_cause_code_prev) {
+		tech2 = ao2_cause_code_prev->code + ao2_cause_code_prev->tech2_offset;
+	} else {
+		tech2 = "";
+	}
+
+	objsize = sizeof(struct ast_control_pvt_cause_code) + strlen(code) + strlen(tech2) + 1;
+	ao2_cause_code_new = ao2_alloc(objsize, NULL);
+
+	if (ao2_cause_code_new) {
+		memcpy(ao2_cause_code_new, cause_code, sizeof(struct ast_control_pvt_cause_code));
+		ao2_cause_code_new->tech2_offset = strlen(code) + 1;
+		strcpy(ao2_cause_code_new->code, code);
+		strcpy(ao2_cause_code_new->code + ao2_cause_code_new->tech2_offset, tech2);
+		ao2_link(chan->dialed_causes, ao2_cause_code_new);
+		ao2_ref(ao2_cause_code_new, -1);
 		return 0;
 	} else {
 		return -1;
