@@ -332,6 +332,37 @@ static int parse_curlopt_key(const char *name, CURLoption *key, enum optiontype 
 	return 0;
 }
 
+static void replace_or_add_header(struct curl_slist **headers, const char *header) {
+    struct curl_slist *current = *headers;
+    struct curl_slist *prev = NULL;
+
+    while (current) {
+        const char *colon = strchr(current->data, ':');
+        if (colon) {
+            size_t len = colon - current->data;
+            if (strncmp(current->data, header, len) == 0) {
+                struct curl_slist *new_header = curl_slist_append(NULL, header);
+                if (new_header) {
+                    if (prev) {
+                        prev->next = new_header;
+                    } else {
+                        *headers = new_header;
+                    }
+                    new_header->next = current->next;
+                    return;
+                } else {
+                	ast_log(LOG_ERROR, "Unable to allocate memory for new header: %s\n", header);
+                    return;
+                }
+            }
+        }
+        prev = current;
+        current = current->next;
+    }
+
+    *headers = curl_slist_append(*headers, header);
+}
+
 static int acf_curlopt_write(struct ast_channel *chan, const char *cmd, char *name, const char *value)
 {
 	struct ast_datastore *store;
@@ -698,7 +729,7 @@ static int acf_curl_helper(struct ast_channel *chan, struct curl_args *args)
 		if (cur->key == CURLOPT_SPECIAL_HASHCOMPAT) {
 			hashcompat = (long) cur->value;
 		} else if (cur->key == CURLOPT_HTTPHEADER) {
-			headers = curl_slist_append(headers, (char*) cur->value);
+			replace_or_add_header(&headers, (char*) cur->value);
 		} else if (cur->key == CURLOPT_SPECIAL_FAILURE_CODE) {
 			failurecodestrings = (char*) cur->value;
 			while( (found = strsep(&failurecodestrings, ",")) != NULL) {
@@ -721,7 +752,7 @@ static int acf_curl_helper(struct ast_channel *chan, struct curl_args *args)
 				if (cur->key == CURLOPT_SPECIAL_HASHCOMPAT) {
 					hashcompat = (long) cur->value;
 				} else if (cur->key == CURLOPT_HTTPHEADER) {
-					headers = curl_slist_append(headers, (char*) cur->value);
+					replace_or_add_header(&headers, (char*) cur->value);
 				} else if (cur->key == CURLOPT_SPECIAL_FAILURE_CODE) {
 					failurecodestrings = (char*) cur->value;
 					while( (found = strsep(&failurecodestrings, ",")) != NULL) {
