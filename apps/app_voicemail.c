@@ -11357,6 +11357,383 @@ static int vm_playmsgexec(struct ast_channel *chan, const char *data)
 	return 0;
 }
 
+static int show_mailbox_details(struct ast_cli_args *a)
+{
+#define VMBOX_STRING_HEADER_FORMAT "%-32.32s %-32.32s %-16.16s %-16.16s %-16.16s %-16.16s\n"
+#define VMBOX_STRING_DATA_FORMAT   "%-32.32s %-32.32s %-16.16s %-16.16s %-16.16s %-16.16s\n"
+
+	const char *mailbox = a->argv[3];
+	const char *context = a->argv[4];
+	struct vm_state vms;
+	struct ast_vm_user *vmu = NULL, vmus;
+	memset(&vmus, 0, sizeof(vmus));
+	memset(&vms, 0, sizeof(vms));
+
+	if (!(vmu = find_user(&vmus, context, mailbox))) {
+		ast_cli(a->fd, "Can't find voicemail user %s@%s\n", mailbox, context);
+		return -1;
+	}
+
+	ast_cli(a->fd, VMBOX_STRING_HEADER_FORMAT, "Full Name", "Email", "Pager", "Language", "Locale", "Time Zone");
+	ast_cli(a->fd, VMBOX_STRING_DATA_FORMAT, vmu->fullname, vmu->email, vmu->pager, vmu->language, vmu->locale, vmu->zonetag);
+
+	return 0;
+}
+
+static int show_mailbox_snapshot(struct ast_cli_args *a)
+{
+#define VM_STRING_HEADER_FORMAT "%-8.8s %-32.32s %-32.32s %-9.9s %-6.6s %-30.30s\n"
+	const char *mailbox = a->argv[3];
+	const char *context = a->argv[4];
+	struct ast_vm_mailbox_snapshot *mailbox_snapshot;
+	struct ast_vm_msg_snapshot *msg;
+
+	/* Take a snapshot of the mailbox and walk through each folder's contents */
+	mailbox_snapshot = ast_vm_mailbox_snapshot_create(mailbox, context, NULL, 0, AST_VM_SNAPSHOT_SORT_BY_ID, 0);
+	if (!mailbox_snapshot) {
+		ast_cli(a->fd, "Can't create snapshot for voicemail user %s@%s\n", mailbox, context);
+		return -1;
+	}
+
+	ast_cli(a->fd, VM_STRING_HEADER_FORMAT, "Folder", "Caller ID", "Date", "Duration", "Flag", "ID");
+
+	for (int i = 0; i < mailbox_snapshot->folders; i++) {
+		AST_LIST_TRAVERSE(&((mailbox_snapshot)->snapshots[i]), msg, msg) {
+			ast_cli(a->fd, VM_STRING_HEADER_FORMAT, msg->folder_name, msg->callerid, msg->origdate, msg->duration,
+					msg->flag, msg->msg_id);
+		}
+	}
+
+	ast_cli(a->fd, "%d Message%s Total\n", mailbox_snapshot->total_msg_num, ESS(mailbox_snapshot->total_msg_num));
+	/* done, destroy. */
+	mailbox_snapshot = ast_vm_mailbox_snapshot_destroy(mailbox_snapshot);
+
+	return 0;
+}
+
+static int show_messages_for_mailbox(struct ast_cli_args *a)
+{
+	if (show_mailbox_details(a)){
+		return -1;
+	}
+	ast_cli(a->fd, "\n");
+	return show_mailbox_snapshot(a);
+}
+
+static int forward_message_from_mailbox(struct ast_cli_args *a)
+{
+	const char *from_mailbox = a->argv[2];
+	const char *from_context = a->argv[3];
+	const char *from_folder = a->argv[4];
+	const char *id[] = { a->argv[5] };
+	const char *to_mailbox = a->argv[6];
+	const char *to_context = a->argv[7];
+	const char *to_folder = a->argv[8];
+	int ret = vm_msg_forward(from_mailbox, from_context, from_folder, to_mailbox, to_context, to_folder, 1, id, 0);
+	if (ret) {
+		ast_cli(a->fd, "Error forwarding message %s from mailbox %s@%s %s to mailbox %s@%s %s\n",
+					id[0], from_mailbox, from_context, from_folder, to_mailbox, to_context, to_folder);
+	} else {
+		ast_cli(a->fd, "Forwarded message %s from mailbox %s@%s %s to mailbox %s@%s %s\n",
+					id[0], from_mailbox, from_context, from_folder, to_mailbox, to_context, to_folder);
+	}
+	return ret;
+}
+
+static int move_message_from_mailbox(struct ast_cli_args *a)
+{
+	const char *mailbox = a->argv[2];
+	const char *context = a->argv[3];
+	const char *from_folder = a->argv[4];
+	const char *id[] = { a->argv[5] };
+	const char *to_folder = a->argv[6];
+	int ret =  vm_msg_move(mailbox, context, 1, from_folder, id, to_folder);
+	if (ret) {
+		ast_cli(a->fd, "Error moving message %s from mailbox %s@%s %s to %s\n",
+					id[0], mailbox, context, from_folder, to_folder);
+	} else {
+		ast_cli(a->fd, "Moved message %s from mailbox %s@%s %s to %s\n",
+					id[0], mailbox, context, from_folder, to_folder);
+	}
+	return ret;
+}
+
+static int remove_message_from_mailbox(struct ast_cli_args *a)
+{
+	const char *mailbox = a->argv[2];
+	const char *context = a->argv[3];
+	const char *folder = a->argv[4];
+	const char *id[] = { a->argv[5] };
+	int ret = vm_msg_remove(mailbox, context, 1, folder, id);
+	if (ret) {
+		ast_cli(a->fd, "Error removing message %s from mailbox %s@%s %s\n",
+					id[0], mailbox, context, folder);
+	} else {
+		ast_cli(a->fd, "Removed message %s from mailbox %s@%s %s\n",
+					id[0], mailbox, context, folder);
+	}
+	return ret;
+}
+
+static char *complete_voicemail_show_mailbox(struct ast_cli_args *a)
+{
+	const char *word = a->word;
+	int pos = a->pos;
+	int state = a->n;
+	int which = 0;
+	int wordlen;
+	struct ast_vm_user *vmu;
+	const char *context = "", *mailbox = "";
+	char *ret = NULL;
+
+	/* 0 - voicemail; 1 - show; 2 - mailbox; 3 - <mailbox>; 4 - <context> */
+	if (pos == 3) {
+		wordlen = strlen(word);
+		AST_LIST_LOCK(&users);
+		AST_LIST_TRAVERSE(&users, vmu, list) {
+			if (!strncasecmp(word, vmu->mailbox , wordlen)) {
+				if (mailbox && strcmp(mailbox, vmu->mailbox) && ++which > state) {
+					ret = ast_strdup(vmu->mailbox);
+					AST_LIST_UNLOCK(&users);
+					return ret;
+				}
+				mailbox = vmu->mailbox;
+			}
+		}
+		AST_LIST_UNLOCK(&users);
+	} else if (pos == 4) {
+		/* Only display contexts that match the user in pos 3 */
+		const char *box = a->argv[3];
+		wordlen = strlen(word);
+		AST_LIST_LOCK(&users);
+		AST_LIST_TRAVERSE(&users, vmu, list) {
+			if (!strncasecmp(word, vmu->context, wordlen) && !strcasecmp(box, vmu->mailbox)) {
+				if (context && strcmp(context, vmu->context) && ++which > state) {
+					ret = ast_strdup(vmu->context);
+					AST_LIST_UNLOCK(&users);
+					return ret;
+				}
+				context = vmu->context;
+			}
+		}
+		AST_LIST_UNLOCK(&users);
+	}
+
+	return ret;
+}
+
+static char *handle_voicemail_show_mailbox(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "voicemail show mailbox";
+		e->usage =
+		"Usage: voicemail show mailbox <mailbox> <context>\n"
+		"       Show contents of mailbox <mailbox>@<context>\n";
+		return NULL;
+	case CLI_GENERATE:
+		return complete_voicemail_show_mailbox(a);
+	case CLI_HANDLER:
+		break;
+	}
+
+	if (a->argc != 5) {
+		return CLI_SHOWUSAGE;
+	}
+
+	if (show_messages_for_mailbox(a)) {
+		return CLI_FAILURE;
+	}
+
+	return CLI_SUCCESS;
+}
+
+/* Handles filling in data for one of the following three formats (based on maxpos = 5|6|8):
+
+	maxpos = 5
+	0 - voicemail; 1 - forward; 2 - <from_mailbox>; 3 - <from_context>; 4 - <from_folder>; 5 - <messageid>;
+	maxpos = 6
+	0 - voicemail; 1 - forward; 2 - <from_mailbox>; 3 - <from_context>; 4 - <from_folder>; 5 - <messageid>;
+                                                                        6 - <to_folder>;
+	maxpos = 8
+	0 - voicemail; 1 - forward; 2 - <from_mailbox>; 3 - <from_context>; 4 - <from_folder>; 5 - <messageid>;
+                                6 - <to_mailbox>;   7 - <to_context>;   8 - <to_folder>;
+
+	Passing in the maximum expected position 'maxpos' helps us fill in the missing entries in one function
+	instead of three by taking advantage of the overlap in the command sequence between forward, move and
+	remove as each of these use nearly the same syntax up until their maximum number of arguments.
+	The value of pos = 6 changes to be either <messageid> or <folder> based on maxpos being 6 or 8.
+*/
+
+static char *complete_voicemail_move_message(struct ast_cli_args *a, int maxpos)
+{
+	const char *word = a->word;
+	int pos = a->pos;
+	int state = a->n;
+	int which = 0;
+	int wordlen;
+	struct ast_vm_user *vmu;
+	const char *context = "", *mailbox = "", *folder = "", *id = "";
+	char *ret = NULL;
+
+	if (pos > maxpos) {
+		/* If the passed in pos is above the max, return NULL to avoid 'over-filling' the cli */
+		return NULL;
+	}
+
+	/* if we are in pos 2 or pos 6 in 'forward' mode */
+	if (pos == 2 || (pos == 6 && maxpos == 8)) {
+		/* find users */
+		wordlen = strlen(word);
+		AST_LIST_LOCK(&users);
+		AST_LIST_TRAVERSE(&users, vmu, list) {
+			if (!strncasecmp(word, vmu->mailbox , wordlen)) {
+				if (mailbox && strcmp(mailbox, vmu->mailbox) && ++which > state) {
+					ret = ast_strdup(vmu->mailbox);
+					AST_LIST_UNLOCK(&users);
+					return ret;
+				}
+				mailbox = vmu->mailbox;
+			}
+		}
+		AST_LIST_UNLOCK(&users);
+	} else if (pos == 3 || pos == 7) {
+		/* find contexts that match the user */
+		mailbox = (pos == 3) ? a->argv[2] : a->argv[6];
+		wordlen = strlen(word);
+		AST_LIST_LOCK(&users);
+		AST_LIST_TRAVERSE(&users, vmu, list) {
+			if (!strncasecmp(word, vmu->context, wordlen) && !strcasecmp(mailbox, vmu->mailbox)) {
+				if (context && strcmp(context, vmu->context) && ++which > state) {
+					ret = ast_strdup(vmu->context);
+					AST_LIST_UNLOCK(&users);
+					return ret;
+				}
+				context = vmu->context;
+			}
+		}
+		AST_LIST_UNLOCK(&users);
+	} else if (pos == 4 || pos == 8 || (pos == 6 && maxpos == 6) ) {
+		/* Walk through the standard folders */
+		wordlen = strlen(word);
+		for (int i = 0; i < ARRAY_LEN(mailbox_folders); i++) {
+			if (folder && !strncasecmp(word, mailbox_folders[i], wordlen) && ++which > state) {
+				return ast_strdup(mailbox_folders[i]);
+			}
+			folder = mailbox_folders[i];
+		}
+	} else if (pos == 5) {
+		/* find messages in the folder */
+		struct ast_vm_mailbox_snapshot *mailbox_snapshot;
+		struct ast_vm_msg_snapshot *msg;
+		int i = 0;
+		mailbox = a->argv[2];
+		context = a->argv[3];
+		folder = a->argv[4];
+		wordlen = strlen(word);
+
+		/* Take a snapshot of the mailbox and snag the individual info */
+		if ((mailbox_snapshot = ast_vm_mailbox_snapshot_create(mailbox, context, folder, 0, AST_VM_SNAPSHOT_SORT_BY_ID, 0))) {
+			/* we are only requesting the one folder, but we still need to know it's index */
+			for (i = 0; i < ARRAY_LEN(mailbox_folders); i++) {
+				if (!strcasecmp(mailbox_folders[i], folder)) {
+					break;
+				}
+			}
+			AST_LIST_TRAVERSE(&((mailbox_snapshot)->snapshots[i]), msg, msg) {
+				if (id && !strncasecmp(word, msg->msg_id, wordlen) && ++which > state) {
+					ret = ast_strdup(msg->msg_id);
+					break;
+				}
+				id = msg->msg_id;
+			}
+			/* done, destroy. */
+			mailbox_snapshot = ast_vm_mailbox_snapshot_destroy(mailbox_snapshot);
+		}
+	}
+
+	return ret;
+}
+
+static char *handle_voicemail_forward_message(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "voicemail forward";
+		e->usage =
+		"Usage: voicemail forward <from_mailbox> <from_context> <from_folder> <messageid> <to_mailbox> <to_context> <to_folder>\n"
+		"       Forward message <messageid> in mailbox <mailbox>@<context> <from_folder>\n"
+		"       to mailbox <mailbox>@<context> <to_folder>\n";
+		return NULL;
+	case CLI_GENERATE:
+		return complete_voicemail_move_message(a, 8);
+	case CLI_HANDLER:
+		break;
+	}
+
+	if (a->argc != 9) {
+		return CLI_SHOWUSAGE;
+	}
+
+	if (forward_message_from_mailbox(a)) {
+		return CLI_FAILURE;
+	}
+
+	return CLI_SUCCESS;
+}
+
+static char *handle_voicemail_move_message(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "voicemail move";
+		e->usage =
+		"Usage: voicemail move <mailbox> <context> <from_folder> <messageid> <to_folder>\n"
+		"       Move message <messageid> in mailbox <mailbox>&<context> from <from_folder> to <to_folder>\n";
+		return NULL;
+	case CLI_GENERATE:
+		return complete_voicemail_move_message(a, 6);
+	case CLI_HANDLER:
+		break;
+	}
+
+	if (a->argc != 7) {
+		return CLI_SHOWUSAGE;
+	}
+
+	if (move_message_from_mailbox(a)) {
+		return CLI_FAILURE;
+	}
+
+	return CLI_SUCCESS;
+}
+
+static char *handle_voicemail_remove_message(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "voicemail remove";
+		e->usage =
+		"Usage: voicemail remove <mailbox> <context> <from_folder> <messageid>\n"
+		"       Remove message <messageid> from <from_folder> in mailbox <mailbox>@<context>\n";
+		return NULL;
+	case CLI_GENERATE:
+		return complete_voicemail_move_message(a, 5);
+	case CLI_HANDLER:
+		break;
+	}
+
+	if (a->argc != 6) {
+		return CLI_SHOWUSAGE;
+	}
+
+	if (remove_message_from_mailbox(a)) {
+		return CLI_FAILURE;
+	}
+
+	return CLI_SUCCESS;
+}
+
 static int vm_execmain(struct ast_channel *chan, const char *data)
 {
 	/* XXX This is, admittedly, some pretty horrendous code.  For some
@@ -12705,19 +13082,25 @@ static char *complete_voicemail_show_users(const char *line, const char *word, i
 	int wordlen;
 	struct ast_vm_user *vmu;
 	const char *context = "";
+	char *ret;
 
 	/* 0 - voicemail; 1 - show; 2 - users; 3 - for; 4 - <context> */
 	if (pos > 4)
 		return NULL;
 	wordlen = strlen(word);
+	AST_LIST_LOCK(&users);
 	AST_LIST_TRAVERSE(&users, vmu, list) {
 		if (!strncasecmp(word, vmu->context, wordlen)) {
-			if (context && strcmp(context, vmu->context) && ++which > state)
-				return ast_strdup(vmu->context);
+			if (context && strcmp(context, vmu->context) && ++which > state) {
+				ret = ast_strdup(vmu->context);
+				AST_LIST_UNLOCK(&users);
+				return ret;
+			}
 			/* ignore repeated contexts ? */
 			context = vmu->context;
 		}
 	}
+	AST_LIST_UNLOCK(&users);
 	return NULL;
 }
 
@@ -12901,6 +13284,10 @@ static struct ast_cli_entry cli_voicemail[] = {
 	AST_CLI_DEFINE(handle_voicemail_show_zones, "List zone message formats"),
 	AST_CLI_DEFINE(handle_voicemail_show_aliases, "List mailbox aliases"),
 	AST_CLI_DEFINE(handle_voicemail_reload, "Reload voicemail configuration"),
+	AST_CLI_DEFINE(handle_voicemail_show_mailbox, "Display a mailbox's content details"),
+	AST_CLI_DEFINE(handle_voicemail_forward_message, "Forward message to another folder"),
+	AST_CLI_DEFINE(handle_voicemail_move_message, "Move message to another folder"),
+	AST_CLI_DEFINE(handle_voicemail_remove_message, "Remove message"),
 };
 
 static int poll_subscribed_mailbox(struct ast_mwi_state *mwi_state, void *data)
