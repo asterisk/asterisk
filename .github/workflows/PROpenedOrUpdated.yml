@@ -60,14 +60,11 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh pr edit --repo ${{github.repository}} \
+            --remove-label ${{vars.RECHECK_LABEL}} \
             --remove-label ${{vars.TEST_CHECKS_PASSED_LABEL}} \
             --remove-label ${{vars.TEST_CHECKS_FAILED_LABEL}} \
             --remove-label ${{vars.TEST_GATES_PASSED_LABEL}} \
             --remove-label ${{vars.TEST_GATES_FAILED_LABEL}} \
-            --remove-label ${{vars.CHERRY_PICK_CHECKS_PASSED_LABEL}} \
-            --remove-label ${{vars.CHERRY_PICK_CHECKS_FAILED_LABEL}} \
-            --remove-label ${{vars.CHERRY_PICK_GATES_PASSED_LABEL}} \
-            --remove-label ${{vars.CHERRY_PICK_GATES_FAILED_LABEL}} \
             --add-label ${{vars.TESTING_IN_PROGRESS}} \
             ${{env.PR_NUMBER}} || :
 
