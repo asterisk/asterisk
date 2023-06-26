@@ -2592,13 +2592,13 @@ static int messagecount(const char *mailbox_id, const char *folder)
 {
 	char *context;
 	char *mailbox;
+	int count;
 
 	if (ast_strlen_zero(mailbox_id)
 		|| separate_mailbox(ast_strdupa(mailbox_id), &mailbox, &context)) {
 		return 0;
 	}
 
-	int count;
 	if (ast_strlen_zero(folder) || !strcmp(folder, "INBOX")) {
 		count = __messagecount(context, mailbox, "INBOX") + __messagecount(context, mailbox, "Urgent");
 	} else {
@@ -6197,7 +6197,6 @@ static int msg_create_from_file(struct ast_vm_recording_data *recdata)
 	#ifdef IMAP_STORAGE
 	struct vm_state *vms = NULL;
 	char ext_context[256] = "";
-	char *fmt = ast_strdupa(recdata->recording_ext);
 	int newmsgs = 0;
 	int oldmsgs = 0;
 	#endif
