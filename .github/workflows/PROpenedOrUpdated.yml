@@ -3,7 +3,7 @@ run-name: "PR ${{github.event.number}} ${{github.event.action}} by ${{ github.ac
 on:
 #  workflow_dispatch:
   pull_request_target:
-    types: [opened, reopened, synchronize]
+    types: [opened, reopened, synchronize, labelled]
 
 env:
   ASTERISK_REPO:     ${{github.repository}}
@@ -16,6 +16,7 @@ env:
 jobs:
 
   PROpenUpdateUnitTests:
+    if: ${{ github.event.action != 'labelled' || github.event.label.name == vars.RECHECK_LABEL }}
     runs-on: ubuntu-latest
     steps:
       - name: Get Token needed to add reviewers
