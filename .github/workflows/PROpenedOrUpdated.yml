@@ -107,6 +107,7 @@ jobs:
             ${{env.PR_NUMBER}} || :
 
   PROpenUpdateGateTestMatrix:
+    if: ${{ github.event.action != 'labeled' || github.event.label.name == vars.RECHECK_LABEL }}
     needs: PROpenUpdateUnitTests
     continue-on-error: false
     strategy:
@@ -131,7 +132,7 @@ jobs:
 
 
   PROpenUpdateGateTests:
-    if: always()
+    if: ${{ ( github.event.action != 'labeled' || github.event.label.name == vars.RECHECK_LABEL ) && contains(['success','skipped','failure'], needs.PROpenUpdateGateTestMatrix.result ) }}
     runs-on: ubuntu-latest
     needs: PROpenUpdateGateTestMatrix
     steps:
