@@ -1,73 +1,75 @@
 {{#api_declaration}}
-h1. {{name_title}}
+# {{name_title}}
 
-|| Method || Path<br>h5. Parameters are case-sensitive || Return Model || Summary ||
-
+| Method | Path (Parameters are case-sensitive) | Return Model | Summary |
+|:------ |:------------------------------------ |:------------ |:------- |
 {{#apis}}
 {{#operations}}
-| {{http_method}} | [{{wiki_path}}|#{{nickname}}] | {{#response_class}}{{#is_primitive}}{{name}}{{/is_primitive}}{{^is_primitive}}[{{wiki_name}}|{{wiki_prefix}} REST Data Models#{{singular_name}}]{{/is_primitive}}{{/response_class}} | {{{summary}}} |
+| {{http_method}} | [{{wiki_path}}](#{{nickname}}) | {{#response_class}}{{#is_primitive}}{{name}}{{/is_primitive}}{{^is_primitive}}[{{wiki_name}}]({{wiki_prefix}}_Asterisk_REST_Data_Models#{{lc_singular_name}}){{/is_primitive}}{{/response_class}} | {{{summary}}} |
 {{/operations}}
 {{/apis}}
 {{#apis}}
 {{#operations}}
 
-{anchor:{{nickname}}}
-h2. {{nickname}}: {{http_method}} {{wiki_path}}
-
+---
+[//]: # (anchor:{{nickname}})
+## {{nickname}}
+### {{http_method}} {{wiki_path}}
 {{{wiki_summary}}}{{#wiki_notes}} {{{wiki_notes}}}{{/wiki_notes}}
 {{#has_path_parameters}}
 
-h3. Path parameters
+### Path parameters
 Parameters are case-sensitive.
 {{#path_parameters}}
 * {{name}}: _{{data_type}}_ - {{{wiki_description}}}
 {{#default_value}}
-** Default: {{default_value}}
+  * Default: {{default_value}}
 {{/default_value}}
 {{#wiki_allowable_values}}
-** {{wiki_allowable_values}}
+  * {{wiki_allowable_values}}
 {{/wiki_allowable_values}}
 {{/path_parameters}}
 {{/has_path_parameters}}
 {{#has_query_parameters}}
 
-h3. Query parameters
+### Query parameters
 {{#query_parameters}}
 * {{name}}: _{{data_type}}_ -{{#required}} *(required)*{{/required}} {{{wiki_description}}}
 {{#default_value}}
-** Default: {{default_value}}
+  * Default: {{default_value}}
 {{/default_value}}
 {{#wiki_allowable_values}}
-** {{wiki_allowable_values}}
+  * {{wiki_allowable_values}}
 {{/wiki_allowable_values}}
 {{#allow_multiple}}
-** Allows comma separated values.
+  * Allows comma separated values.
 {{/allow_multiple}}
 {{/query_parameters}}
 {{/has_query_parameters}}
 {{#has_body_parameter}}
 
-h3. Body parameter
+
+### Body parameter
 {{#body_parameter}}
 * {{name}}: {{data_type}}{{#default_value}} = {{default_value}}{{/default_value}} -{{#required}} *(required)*{{/required}} {{{wiki_description}}}
 {{#allow_multiple}}
-** Allows comma separated values.
+  * Allows comma separated values.
 {{/allow_multiple}}
 {{/body_parameter}}
 {{/has_body_parameter}}
 {{#has_header_parameters}}
 
-h3. Header parameters
+### Header parameters
 {{#header_parameters}}
 * {{name}}: {{data_type}}{{#default_value}} = {{default_value}}{{/default_value}} -{{#required}} *(required)*{{/required}} {{{wiki_description}}}
 {{#allow_multiple}}
-** Allows comma separated values.
+  * Allows comma separated values.
 {{/allow_multiple}}
 {{/header_parameters}}
 {{/has_header_parameters}}
 {{#has_error_responses}}
 
-h3. Error Responses
+### Error Responses
 {{#error_responses}}
 * {{code}} - {{{wiki_reason}}}
 {{/error_responses}}
