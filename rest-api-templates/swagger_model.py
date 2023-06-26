@@ -332,6 +332,7 @@ class SwaggerType(Stringify):
         self.is_discriminator = None
         self.is_list = None
         self.singular_name = None
+        self.lc_singular_name = None
         self.is_primitive = None
         self.is_binary = None
 
@@ -345,8 +346,10 @@ class SwaggerType(Stringify):
         self.is_list = type_param is not None
         if self.is_list:
             self.singular_name = type_param
+            self.lc_singular_name = type_param.lower()
         else:
             self.singular_name = self.name
+            self.lc_singular_name = self.name.lower()
         self.is_primitive = self.singular_name in SWAGGER_PRIMITIVES
         self.is_binary = (self.singular_name == 'binary')
         processor.process_type(self, context)
