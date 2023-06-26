@@ -3,7 +3,7 @@ run-name: "PR ${{github.event.number}} ${{github.event.action}} by ${{ github.ac
 on:
 #  workflow_dispatch:
   pull_request_target:
-    types: [opened, reopened, synchronize, labelled]
+    types: [opened, reopened, synchronize, labeled]
 
 env:
   ASTERISK_REPO:     ${{github.repository}}
@@ -16,7 +16,7 @@ env:
 jobs:
 
   PROpenUpdateUnitTests:
-    if: ${{ github.event.action != 'labelled' || github.event.label.name == vars.RECHECK_LABEL }}
+    if: ${{ github.event.action != 'labeled' || github.event.label.name == vars.RECHECK_LABEL }}
     runs-on: ubuntu-latest
     steps:
       - name: Get Token needed to add reviewers
@@ -55,7 +55,8 @@ jobs:
             echo "CPR comment already present"
           fi
 
-      - name: Set Labels
+      - name: Set Labels on Recheck
+        if: ${{ github.event.action == 'labeled' && github.event.label.name == vars.RECHECK_LABEL }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -65,6 +66,24 @@ jobs:
             --remove-label ${{vars.TEST_CHECKS_FAILED_LABEL}} \
             --remove-label ${{vars.TEST_GATES_PASSED_LABEL}} \
             --remove-label ${{vars.TEST_GATES_FAILED_LABEL}} \
+            --add-label ${{vars.TESTING_IN_PROGRESS}} \
+            ${{env.PR_NUMBER}} || :
+
+      - name: Set Labels On Open,Reopen or Update
+        if: ${{ github.event.action != 'labeled' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr edit --repo ${{github.repository}} \
+            --remove-label ${{vars.RECHECK_LABEL}} \
+            --remove-label ${{vars.TEST_CHECKS_PASSED_LABEL}} \
+            --remove-label ${{vars.TEST_CHECKS_FAILED_LABEL}} \
+            --remove-label ${{vars.TEST_GATES_PASSED_LABEL}} \
+            --remove-label ${{vars.TEST_GATES_FAILED_LABEL}} \
+            --remove-label ${{vars.CHERRY_PICK_CHECKS_PASSED_LABEL}} \
+            --remove-label ${{vars.CHERRY_PICK_CHECKS_FAILED_LABEL}} \
+            --remove-label ${{vars.CHERRY_PICK_GATES_PASSED_LABEL}} \
+            --remove-label ${{vars.CHERRY_PICK_GATES_FAILED_LABEL}} \
             --add-label ${{vars.TESTING_IN_PROGRESS}} \
             ${{env.PR_NUMBER}} || :
 
