@@ -81,7 +81,7 @@ int ast_ari_endpoints_send_message_parse_body(
 void ast_ari_endpoints_send_message(struct ast_variable *headers, struct ast_ari_endpoints_send_message_args *args, struct ast_ari_response *response);
 /*! Argument struct for ast_ari_endpoints_list_by_tech() */
 struct ast_ari_endpoints_list_by_tech_args {
-	/*! Technology of the endpoints (iax2,...) */
+	/*! Technology of the endpoints (pjsip,iax2,...) */
 	const char *tech;
 };
 /*!
@@ -113,7 +113,7 @@ struct ast_ari_endpoints_send_message_to_endpoint_args {
 	const char *tech;
 	/*! ID of the endpoint */
 	const char *resource;
-	/*! The endpoint resource or technology specific identity to send this message from. Valid resources are pjsip, and xmpp. */
+	/*! The endpoint resource or technology specific identity to send this message from. Valid resources are pjsip and xmpp. */
 	const char *from;
 	/*! The body of the message */
 	const char *body;
