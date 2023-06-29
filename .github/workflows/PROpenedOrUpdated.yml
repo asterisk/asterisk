@@ -1,9 +1,9 @@
 name: PROpenedOrUpdated
-run-name: "PR ${{github.event.number}} ${{github.event.action}} ${{github.event.label.name}} by ${{ github.actor }}"
+run-name: "PR ${{github.event.number}} ${{github.event.action}} by ${{ github.actor }}"
 on:
 #  workflow_dispatch:
   pull_request_target:
-    types: [opened, reopened, synchronize, labeled]
+    types: [opened, reopened, synchronize]
 
 env:
   ASTERISK_REPO:     ${{github.repository}}
@@ -16,7 +16,6 @@ env:
 jobs:
 
   PROpenUpdateUnitTests:
-    if: ${{ github.event.action != 'labeled' || github.event.label.name == vars.RECHECK_LABEL }}
     runs-on: ubuntu-latest
     steps:
       - name: Get Token needed to add reviewers
@@ -55,27 +54,11 @@ jobs:
             echo "CPR comment already present"
           fi
 
-      - name: Set Labels on Recheck
-        if: ${{ github.event.action == 'labeled' && github.event.label.name == vars.RECHECK_LABEL }}
+      - name: Set Labels
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh pr edit --repo ${{github.repository}} \
-            --remove-label ${{vars.RECHECK_LABEL}} \
-            --remove-label ${{vars.TEST_CHECKS_PASSED_LABEL}} \
-            --remove-label ${{vars.TEST_CHECKS_FAILED_LABEL}} \
-            --remove-label ${{vars.TEST_GATES_PASSED_LABEL}} \
-            --remove-label ${{vars.TEST_GATES_FAILED_LABEL}} \
-            --add-label ${{vars.TESTING_IN_PROGRESS}} \
-            ${{env.PR_NUMBER}} || :
-
-      - name: Set Labels On Open,Reopen or Update
-        if: ${{ github.event.action != 'labeled' }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh pr edit --repo ${{github.repository}} \
-            --remove-label ${{vars.RECHECK_LABEL}} \
             --remove-label ${{vars.TEST_CHECKS_PASSED_LABEL}} \
             --remove-label ${{vars.TEST_CHECKS_FAILED_LABEL}} \
             --remove-label ${{vars.TEST_GATES_PASSED_LABEL}} \
@@ -107,7 +90,6 @@ jobs:
             ${{env.PR_NUMBER}} || :
 
   PROpenUpdateGateTestMatrix:
-    if: ${{ github.event.action != 'labeled' || github.event.label.name == vars.RECHECK_LABEL }}
     needs: PROpenUpdateUnitTests
     continue-on-error: false
     strategy:
@@ -132,7 +114,7 @@ jobs:
 
 
   PROpenUpdateGateTests:
-    if: ${{ github.event.action != 'labeled' || github.event.label.name == vars.RECHECK_LABEL }}
+    if: always()
     runs-on: ubuntu-latest
     needs: PROpenUpdateGateTestMatrix
     steps:
