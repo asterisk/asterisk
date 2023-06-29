@@ -441,6 +441,107 @@
 			Otherwise, only a single mailbox will be polled for changes.</para>
 		</description>
 	</manager>
+	<manager name="VoicemailBoxSummary" language="en_US">
+		<synopsis>
+			Show the mailbox contents of given voicemail user.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Context" required="true">
+				<para>The context you want to check.</para>
+			</parameter>
+			<parameter name="Mailbox" required="true">
+				<para>The mailbox you want to check.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Retrieves the contents of the given voicemail user's mailbox.</para>
+		</description>
+	</manager>
+	<manager name="VoicemailMove" language="en_US">
+		<synopsis>
+			Move Voicemail between mailbox folders of given user.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Context" required="true">
+				<para>The context of the Voicemail you want to move.</para>
+			</parameter>
+			<parameter name="Mailbox" required="true">
+				<para>The mailbox of the Voicemail you want to move.</para>
+			</parameter>
+			<parameter name="Folder" required="true">
+				<para>The Folder containing the Voicemail you want to move.</para>
+			</parameter>
+			<parameter name="ID" required="true">
+				<para>The ID of the Voicemail you want to move.</para>
+			</parameter>
+			<parameter name="ToFolder" required="true">
+				<para>The Folder you want to move the Voicemail to.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Move a given Voicemail between Folders within a user's Mailbox.</para>
+		</description>
+	</manager>
+	<manager name="VoicemailRemove" language="en_US">
+		<synopsis>
+			Remove Voicemail from mailbox folder.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Context" required="true">
+				<para>The context of the Voicemail you want to remove.</para>
+			</parameter>
+			<parameter name="Mailbox" required="true">
+				<para>The mailbox of the Voicemail you want to remove.</para>
+			</parameter>
+			<parameter name="Folder" required="true">
+				<para>The Folder containing the Voicemail you want to remove.</para>
+			</parameter>
+			<parameter name="ID" required="true">
+				<para>The ID of the Voicemail you want to remove.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Remove a given Voicemail from a user's Mailbox Folder.</para>
+		</description>
+	</manager>
+	<manager name="VoicemailForward" language="en_US">
+		<synopsis>
+			Forward Voicemail from one mailbox folder to another between given users.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Context" required="true">
+				<para>The context of the Voicemail you want to move.</para>
+			</parameter>
+			<parameter name="Mailbox" required="true">
+				<para>The mailbox of the Voicemail you want to move.</para>
+			</parameter>
+			<parameter name="Folder" required="true">
+				<para>The Folder containing the Voicemail you want to move.</para>
+			</parameter>
+			<parameter name="ID" required="true">
+				<para>The ID of the Voicemail you want to move.</para>
+			</parameter>
+			<parameter name="ToContext" required="true">
+				<para>The context you want to move the Voicemail to.</para>
+			</parameter>
+			<parameter name="ToMailbox" required="true">
+				<para>The mailbox you want to move the Voicemail to.</para>
+			</parameter>
+			<parameter name="ToFolder" required="true">
+				<para>The Folder you want to move the Voicemail to.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Forward a given Voicemail from a user's Mailbox Folder to
+			another user's Mailbox Folder. Can be used to copy between
+			Folders within a mailbox by specifying the to context and user
+			as the same as the from.</para>
+		</description>
+	</manager>
  ***/
 
 #ifdef IMAP_STORAGE
@@ -1044,6 +1145,7 @@ static const char *substitute_escapes(const char *value);
 static int message_range_and_existence_check(struct vm_state *vms, const char *msg_ids [], size_t num_msgs, int *msg_nums, struct ast_vm_user *vmu);
 static void notify_new_state(struct ast_vm_user *vmu);
 static int append_vmu_info_astman(struct mansession *s, struct ast_vm_user *vmu, const char* event_name, const char* actionid);
+static int append_vmbox_info_astman(struct mansession *s, const struct message *m, struct ast_vm_user *vmu, const char* event_name, const char* actionid);
 
 
 /*!
@@ -13585,6 +13687,65 @@ static int append_vmu_info_astman(
 
 }
 
+
+/*!
+ * \brief Append vmbox info string into given astman with event_name.
+ * \return 0 if unable to append details, 1 otherwise.
+*/
+static int append_vmbox_info_astman(
+		struct mansession *s,
+		const struct message *m,
+		struct ast_vm_user *vmu,
+		const char* event_name,
+		const char* actionid)
+{
+	struct ast_vm_mailbox_snapshot *mailbox_snapshot;
+	struct ast_vm_msg_snapshot *msg;
+	int nummessages = 0;
+
+	/* Take a snapshot of the mailbox */
+	mailbox_snapshot = ast_vm_mailbox_snapshot_create(vmu->mailbox, vmu->context, NULL, 0, AST_VM_SNAPSHOT_SORT_BY_ID, 0);
+	if (!mailbox_snapshot) {
+		ast_log(LOG_ERROR, "Could not append voicemail box info for box %s@%s.",
+			vmu->mailbox, vmu->context);
+		return 0;
+	}
+
+	astman_send_listack(s, m, "Voicemail box detail will follow", "start");
+	/* walk through each folder's contents and append info for each message */
+	for (int i = 0; i < mailbox_snapshot->folders; i++) {
+		AST_LIST_TRAVERSE(&((mailbox_snapshot)->snapshots[i]), msg, msg) {
+			astman_append(s,
+				"Event: %s\r\n"
+				"%s"
+				"Folder: %s\r\n"
+				"CallerID: %s\r\n"
+				"Date: %s\r\n"
+				"Duration: %s\r\n"
+				"Flag: %s\r\n"
+				"ID: %s\r\n"
+				"\r\n",
+				event_name,
+				actionid,
+				msg->folder_name,
+				msg->callerid,
+				msg->origdate,
+				msg->duration,
+				msg->flag,
+				msg->msg_id
+			);
+			nummessages++;
+		}
+	}
+
+	/* done, destroy. */
+	mailbox_snapshot = ast_vm_mailbox_snapshot_destroy(mailbox_snapshot);
+	astman_send_list_complete_start(s, m, "VoicemailBoxDetailComplete", nummessages);
+	astman_send_list_complete_end(s);
+
+	return 1;
+}
+
 static int manager_match_mailbox(struct ast_mwi_state *mwi_state, void *data)
 {
 	const char *context = astman_get_header(data, "Context");
@@ -13708,6 +13869,163 @@ static int manager_list_voicemail_users(struct mansession *s, const struct messa
 	AST_LIST_UNLOCK(&users);
 
 	return RESULT_SUCCESS;
+}
+
+static int manager_get_mailbox_summary(struct mansession *s, const struct message *m)
+{
+	struct ast_vm_user *vmu = NULL;
+	const char *id = astman_get_header(m, "ActionID");
+	char actionid[128];
+	struct ast_vm_user svm;
+
+	const char *context = astman_get_header(m, "Context");
+	const char *mailbox = astman_get_header(m, "Mailbox");
+
+	if ((ast_strlen_zero(context) || ast_strlen_zero(mailbox))) {
+		astman_send_error(s, m, "Need 'Context' and 'Mailbox' parameters.");
+		return 0;
+	}
+
+	actionid[0] = '\0';
+	if (!ast_strlen_zero(id)) {
+		snprintf(actionid, sizeof(actionid), "ActionID: %s\r\n", id);
+	}
+
+	/* find user */
+	memset(&svm, 0, sizeof(svm));
+	vmu = find_user(&svm, context, mailbox);
+	if (!vmu) {
+		/* could not find it */
+		astman_send_ack(s, m, "There is no voicemail user matching the given user.");
+		return 0;
+	}
+
+	/* Append the mailbox details */
+	if (!append_vmbox_info_astman(s, m, vmu, "VoicemailBoxDetail", actionid)) {
+		astman_send_error(s, m, "Unable to get mailbox info for the given user.");
+	}
+
+	free_user(vmu);
+	return 0;
+}
+
+static int manager_voicemail_move(struct mansession *s, const struct message *m)
+{
+	const char *mailbox = astman_get_header(m, "Mailbox");
+	const char *context = astman_get_header(m, "Context");
+	const char *from_folder = astman_get_header(m, "Folder");
+	const char *id[] = { astman_get_header(m, "ID") };
+	const char *to_folder = astman_get_header(m, "ToFolder");
+
+	if (ast_strlen_zero(mailbox)) {
+		astman_send_error(s, m, "Mailbox not specified, required");
+		return 0;
+	}
+	if (ast_strlen_zero(context)) {
+		astman_send_error(s, m, "Context not specified, required");
+		return 0;
+	}
+	if (ast_strlen_zero(from_folder)) {
+		astman_send_error(s, m, "Folder not specified, required");
+		return 0;
+	}
+	if (ast_strlen_zero(id[0])) {
+		astman_send_error(s, m, "ID not specified, required");
+		return 0;
+	}
+	if (ast_strlen_zero(to_folder)) {
+		astman_send_error(s, m, "ToFolder not specified, required");
+		return 0;
+	}
+
+	if (vm_msg_move(mailbox, context, 1, from_folder, id, to_folder)) {
+		astman_send_ack(s, m, "Message move failed\n");
+	} else {
+		astman_send_ack(s, m, "Message move successful\n");
+	}
+
+	return 0;
+}
+
+static int manager_voicemail_remove(struct mansession *s, const struct message *m)
+{
+	const char *mailbox = astman_get_header(m, "Mailbox");
+	const char *context = astman_get_header(m, "Context");
+	const char *folder = astman_get_header(m, "Folder");
+	const char *id[] = { astman_get_header(m, "ID") };
+
+	if (ast_strlen_zero(mailbox)) {
+		astman_send_error(s, m, "Mailbox not specified, required");
+		return 0;
+	}
+	if (ast_strlen_zero(context)) {
+		astman_send_error(s, m, "Context not specified, required");
+		return 0;
+	}
+	if (ast_strlen_zero(folder)) {
+		astman_send_error(s, m, "Folder not specified, required");
+		return 0;
+	}
+	if (ast_strlen_zero(id[0])) {
+		astman_send_error(s, m, "ID not specified, required");
+		return 0;
+	}
+
+	if (vm_msg_remove(mailbox, context, 1, folder, id)) {
+		astman_send_ack(s, m, "Message remove failed\n");
+	} else {
+		astman_send_ack(s, m, "Message remove successful\n");
+	}
+
+	return 0;
+}
+
+static int manager_voicemail_forward(struct mansession *s, const struct message *m)
+{
+	const char *from_mailbox = astman_get_header(m, "Mailbox");
+	const char *from_context = astman_get_header(m, "Context");
+	const char *from_folder = astman_get_header(m, "Folder");
+	const char *id[] = { astman_get_header(m, "ID") };
+	const char *to_mailbox = astman_get_header(m, "ToMailbox");
+	const char *to_context = astman_get_header(m, "ToContext");
+	const char *to_folder = astman_get_header(m, "ToFolder");
+
+	if (ast_strlen_zero(from_mailbox)) {
+		astman_send_error(s, m, "Mailbox not specified, required");
+		return 0;
+	}
+	if (ast_strlen_zero(from_context)) {
+		astman_send_error(s, m, "Context not specified, required");
+		return 0;
+	}
+	if (ast_strlen_zero(from_folder)) {
+		astman_send_error(s, m, "Folder not specified, required");
+		return 0;
+	}
+	if (ast_strlen_zero(id[0])) {
+		astman_send_error(s, m, "ID not specified, required");
+		return 0;
+	}
+	if (ast_strlen_zero(to_mailbox)) {
+		astman_send_error(s, m, "ToMailbox not specified, required");
+		return 0;
+	}
+	if (ast_strlen_zero(to_context)) {
+		astman_send_error(s, m, "ToContext not specified, required");
+		return 0;
+	}
+	if (ast_strlen_zero(to_folder)) {
+		astman_send_error(s, m, "ToFolder not specified, required");
+		return 0;
+	}
+
+	if (vm_msg_forward(from_mailbox, from_context, from_folder, to_mailbox, to_context, to_folder, 1, id, 0)) {
+		astman_send_ack(s, m, "Message forward failed\n");
+	} else {
+		astman_send_ack(s, m, "Message forward successful\n");
+	}
+
+	return 0;
 }
 
 /*! \brief Free the users structure. */
@@ -15304,6 +15622,10 @@ static int unload_module(void)
 	res |= ast_manager_unregister("VoicemailUsersList");
 	res |= ast_manager_unregister("VoicemailUserStatus");
 	res |= ast_manager_unregister("VoicemailRefresh");
+	res |= ast_manager_unregister("VoicemailBoxSummary");
+	res |= ast_manager_unregister("VoicemailMove");
+	res |= ast_manager_unregister("VoicemailRemove");
+	res |= ast_manager_unregister("VoicemailForward");
 #ifdef TEST_FRAMEWORK
 	res |= AST_TEST_UNREGISTER(test_voicemail_vmsayname);
 	res |= AST_TEST_UNREGISTER(test_voicemail_msgcount);
@@ -15431,6 +15753,10 @@ static int load_module(void)
 	res |= ast_manager_register_xml("VoicemailUsersList", EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, manager_list_voicemail_users);
 	res |= ast_manager_register_xml("VoicemailUserStatus", EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, manager_status_voicemail_user);
 	res |= ast_manager_register_xml("VoicemailRefresh", EVENT_FLAG_USER, manager_voicemail_refresh);
+	res |= ast_manager_register_xml("VoicemailBoxSummary", EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, manager_get_mailbox_summary);
+	res |= ast_manager_register_xml("VoicemailMove", EVENT_FLAG_USER, manager_voicemail_move);
+	res |= ast_manager_register_xml("VoicemailRemove", EVENT_FLAG_USER, manager_voicemail_remove);
+	res |= ast_manager_register_xml("VoicemailForward", EVENT_FLAG_USER, manager_voicemail_forward);
 #ifdef TEST_FRAMEWORK
 	res |= AST_TEST_REGISTER(test_voicemail_vmsayname);
 	res |= AST_TEST_REGISTER(test_voicemail_msgcount);
