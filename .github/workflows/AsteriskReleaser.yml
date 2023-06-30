@@ -25,9 +25,21 @@ on:
           process won't get it right.
         required: false
         type: string
-      push_live:
+      push_release_branches:
         description: |
-          Push live to GitHub and downloads server?
+          Push release branches live?
+        required: true
+        type: boolean
+        default: false
+      create_github_release:
+        description: |
+          Create the GitHub release?
+        required: true
+        type: boolean
+        default: false
+      push_tarballs:
+        description: |
+          Push tarballs to downloads server?
         required: true
         type: boolean
         default: false
@@ -48,7 +60,9 @@ jobs:
           is_security: ${{inputs.is_security}}
           new_version: ${{inputs.new_version}}
           start_version: ${{inputs.start_version}}
-          push_live: ${{inputs.push_live}}
+          push_release_branches: ${{inputs.push_release_branches}}
+          create_github_release: ${{inputs.create_github_release}}
+          push_tarballs: ${{inputs.push_tarballs}}
           send_email: ${{inputs.send_email}}
           repo: ${{github.repository}}
           asterisk_mail_list_ga: ${{vars.ASTERISK_MAIL_LIST_GA}}
@@ -62,3 +76,7 @@ jobs:
           application_private_key: ${{secrets.ASTERISK_ORG_ACCESS_APP_PRIV_KEY}}
           asteriskteamsa_username: ${{secrets.ASTERISKTEAMSA_GMAIL_ACCT}}
           asteriskteamsa_token: ${{secrets.ASTERISKTEAMSA_GMAIL_TOKEN}}
+          deploy_ssh_priv_key: ${{secrets.ASTERISK_DEPLOY_SSH_PRIV_KEY}}
+          deploy_ssh_username: ${{secrets.ASTERISK_DEPLOY_SSH_USERNAME}}
+          deploy_host: ${{vars.ASTERISK_DEPLOY_HOST}}
+          deploy_dir: ${{vars.ASTERISK_DEPLOY_DIR}}
