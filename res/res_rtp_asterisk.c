@@ -4901,9 +4901,7 @@ static int ast_rtcp_write(const void *data)
 	struct ast_sockaddr remote_address = { { 0, } };
 	unsigned char *rtcpheader;
 	unsigned char bdata[AST_UUID_STR_LEN + 128] = ""; /* More than enough */
-	RAII_VAR(struct ast_rtp_rtcp_report *, rtcp_report,
-			ast_rtp_rtcp_report_alloc(rtp->themssrc_valid ? 1 : 0),
-			ao2_cleanup);
+	RAII_VAR(struct ast_rtp_rtcp_report *, rtcp_report, NULL, ao2_cleanup);
 
 	if (!rtp || !rtp->rtcp || rtp->rtcp->schedid == -1) {
 		ao2_ref(instance, -1);
@@ -4912,7 +4910,7 @@ static int ast_rtcp_write(const void *data)
 
 	ao2_lock(instance);
 	rtcpheader = bdata;
-
+	rtcp_report = ast_rtp_rtcp_report_alloc(rtp->themssrc_valid ? 1 : 0);
 	res = ast_rtcp_generate_compound_prefix(instance, rtcpheader, rtcp_report, &sr);
 
 	if (res == 0 || res == 1) {
@@ -5246,9 +5244,7 @@ static void rtp_write_rtcp_fir(struct ast_rtp_instance *instance, struct ast_rtp
 	int ice;
 	int res;
 	int sr;
-	RAII_VAR(struct ast_rtp_rtcp_report *, rtcp_report,
-		ast_rtp_rtcp_report_alloc(rtp->themssrc_valid ? 1 : 0),
-		ao2_cleanup);
+	RAII_VAR(struct ast_rtp_rtcp_report *, rtcp_report, NULL, ao2_cleanup);
 
 	if (!rtp || !rtp->rtcp) {
 		return;
@@ -5275,6 +5271,7 @@ static void rtp_write_rtcp_fir(struct ast_rtp_instance *instance, struct ast_rtp
 	rtcpheader = bdata;
 
 	ao2_lock(instance);
+	rtcp_report = ast_rtp_rtcp_report_alloc(rtp->themssrc_valid ? 1 : 0);
 	res = ast_rtcp_generate_compound_prefix(instance, rtcpheader, rtcp_report, &sr);
 
 	if (res == 0 || res == 1) {
@@ -5309,9 +5306,7 @@ static void rtp_write_rtcp_psfb(struct ast_rtp_instance *instance, struct ast_rt
 	int res;
 	int sr = 0;
 	int packet_len = 0;
-	RAII_VAR(struct ast_rtp_rtcp_report *, rtcp_report,
-		ast_rtp_rtcp_report_alloc(rtp->themssrc_valid ? 1 : 0),
-		ao2_cleanup);
+	RAII_VAR(struct ast_rtp_rtcp_report *, rtcp_report, NULL, ao2_cleanup);
 
 	if (feedback->fmt != AST_RTP_RTCP_FMT_REMB) {
 		ast_debug_rtcp(1, "(%p) RTCP provided feedback frame of format %d to write, but only REMB is supported\n",
@@ -5340,6 +5335,7 @@ static void rtp_write_rtcp_psfb(struct ast_rtp_instance *instance, struct ast_rt
 	rtcpheader = bdata;
 
 	ao2_lock(instance);
+	rtcp_report = ast_rtp_rtcp_report_alloc(rtp->themssrc_valid ? 1 : 0);
 	res = ast_rtcp_generate_compound_prefix(instance, rtcpheader, rtcp_report, &sr);
 
 	if (res == 0 || res == 1) {
