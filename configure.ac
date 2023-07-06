@@ -286,6 +286,7 @@ AC_PATH_PROG([PATCH], [patch], :)
 AC_PATH_PROG([SED], [sed], :)
 AC_PATH_PROG([NM], [nm], :)
 AC_PATH_PROG([REALPATH], [realpath], :)
+AC_PATH_PROG([SORT], [sort], :)
 
 
 DOWNLOAD=":"
