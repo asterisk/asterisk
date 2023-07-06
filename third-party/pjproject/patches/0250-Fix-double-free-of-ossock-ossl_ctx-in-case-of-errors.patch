@@ -1,0 +1,127 @@
+From 863629bc65d68518d85cf94758725da3042c2445 Mon Sep 17 00:00:00 2001
+From: johado <papputten@gmail.com>
+Date: Mon, 18 Apr 2022 06:08:33 +0200
+Subject: [PATCH] Fix double free of ossock->ossl_ctx in case of errors (#3069)
+ (#3070)
+
+---
+ pjlib/src/pj/ssl_sock_ossl.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/pjlib/src/pj/ssl_sock_ossl.c b/pjlib/src/pj/ssl_sock_ossl.c
+index ed441e3e2..180ef0fe6 100644
+--- a/pjlib/src/pj/ssl_sock_ossl.c
++++ b/pjlib/src/pj/ssl_sock_ossl.c
+@@ -1167,20 +1167,21 @@ static pj_status_t init_ossl_ctx(pj_ssl_sock_t *ssock)
+ 		    PJ_PERROR(1,(ssock->pool->obj_name, status,
+ 				 "Error loading CA list file '%s'",
+ 				 cert->CA_file.ptr));
+ 		}
+ 		if (cert->CA_path.slen) {
+ 		    PJ_PERROR(1,(ssock->pool->obj_name, status,
+ 				 "Error loading CA path '%s'",
+ 				 cert->CA_path.ptr));
+ 		}
+ 		SSL_CTX_free(ctx);
++		ossock->ossl_ctx = NULL;
+ 		return status;
+ 	    } else {
+ 		PJ_LOG(4,(ssock->pool->obj_name,
+ 			  "CA certificates loaded from '%s%s%s'",
+ 			  cert->CA_file.ptr,
+ 			  ((cert->CA_file.slen && cert->CA_path.slen)?
+ 				" + ":""),
+ 			  cert->CA_path.ptr));
+ 	    }
+ 	}
+@@ -1197,20 +1198,21 @@ static pj_status_t init_ossl_ctx(pj_ssl_sock_t *ssock)
+ 
+ 	    /* Load certificate chain from file into ctx */
+ 	    rc = SSL_CTX_use_certificate_chain_file(ctx, cert->cert_file.ptr);
+ 
+ 	    if(rc != 1) {
+ 		status = GET_SSL_STATUS(ssock);
+ 		PJ_PERROR(1,(ssock->pool->obj_name, status,
+ 			     "Error loading certificate chain file '%s'",
+ 			     cert->cert_file.ptr));
+ 		SSL_CTX_free(ctx);
++		ossock->ossl_ctx = NULL;
+ 		return status;
+ 	    } else {
+ 		PJ_LOG(4,(ssock->pool->obj_name,
+ 			  "Certificate chain loaded from '%s'",
+ 			  cert->cert_file.ptr));
+ 	    }
+ 	}
+ 
+ 
+ 	/* Load private key if one is specified */
+@@ -1218,20 +1220,21 @@ static pj_status_t init_ossl_ctx(pj_ssl_sock_t *ssock)
+ 	    /* Adds the first private key found in file to ctx */
+ 	    rc = SSL_CTX_use_PrivateKey_file(ctx, cert->privkey_file.ptr, 
+ 					     SSL_FILETYPE_PEM);
+ 
+ 	    if(rc != 1) {
+ 		status = GET_SSL_STATUS(ssock);
+ 		PJ_PERROR(1,(ssock->pool->obj_name, status,
+ 			     "Error adding private key from '%s'",
+ 			     cert->privkey_file.ptr));
+ 		SSL_CTX_free(ctx);
++		ossock->ossl_ctx = NULL;
+ 		return status;
+ 	    } else {
+ 		PJ_LOG(4,(ssock->pool->obj_name,
+ 			  "Private key loaded from '%s'",
+ 			  cert->privkey_file.ptr));
+ 	    }
+ 
+ #if !defined(OPENSSL_NO_DH)
+ 	    if (ssock->is_server) {
+ 		bio = BIO_new_file(cert->privkey_file.ptr, "r");
+@@ -1267,20 +1270,21 @@ static pj_status_t init_ossl_ctx(pj_ssl_sock_t *ssock)
+ 		xcert = PEM_read_bio_X509(cbio, NULL, 0, NULL);
+ 		if (xcert != NULL) {
+ 		    rc = SSL_CTX_use_certificate(ctx, xcert);
+ 		    if (rc != 1) {
+ 			status = GET_SSL_STATUS(ssock);
+ 			PJ_PERROR(1,(ssock->pool->obj_name, status,
+ 			      "Error loading chain certificate from buffer"));
+ 			X509_free(xcert);
+ 			BIO_free(cbio);
+ 			SSL_CTX_free(ctx);
++			ossock->ossl_ctx = NULL;
+ 			return status;
+ 		    } else {
+ 			PJ_LOG(4,(ssock->pool->obj_name,
+ 				  "Certificate chain loaded from buffer"));
+ 		    }
+ 		    X509_free(xcert);
+ 		}
+ 		BIO_free(cbio);
+ 	    }	    
+ 	}
+@@ -1335,20 +1339,21 @@ static pj_status_t init_ossl_ctx(pj_ssl_sock_t *ssock)
+ 					       cert);
+ 		if (pkey) {
+ 		    rc = SSL_CTX_use_PrivateKey(ctx, pkey);
+ 		    if (rc != 1) {
+ 			status = GET_SSL_STATUS(ssock);
+ 			PJ_PERROR(1,(ssock->pool->obj_name, status,
+ 				     "Error adding private key from buffer"));
+ 			EVP_PKEY_free(pkey);
+ 			BIO_free(kbio);
+ 			SSL_CTX_free(ctx);
++			ossock->ossl_ctx = NULL;
+ 			return status;
+ 		    } else {
+ 			PJ_LOG(4,(ssock->pool->obj_name,
+ 				  "Private key loaded from buffer"));
+ 		    }
+ 		    EVP_PKEY_free(pkey);
+ 		} else {
+ 		    PJ_LOG(1,(ssock->pool->obj_name,
+ 			      "Error reading private key from buffer"));
+ 		}
+-- 
+2.41.0
+
