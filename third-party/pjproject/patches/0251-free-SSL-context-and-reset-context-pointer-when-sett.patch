@@ -1,0 +1,44 @@
+From 0fb32cd4c0b2f83c1f98b9dd46da713d9a433a93 Mon Sep 17 00:00:00 2001
+From: Andreas Wehrmann <andreas-wehrmann@users.noreply.github.com>
+Date: Tue, 27 Sep 2022 10:09:03 +0200
+Subject: [PATCH] free SSL context and reset context pointer when setting the
+ cipher list fails; this is a followup of issue #3069 (#3245)
+
+---
+ pjlib/src/pj/ssl_sock_ossl.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/pjlib/src/pj/ssl_sock_ossl.c b/pjlib/src/pj/ssl_sock_ossl.c
+index c24472fec..554324305 100644
+--- a/pjlib/src/pj/ssl_sock_ossl.c
++++ b/pjlib/src/pj/ssl_sock_ossl.c
+@@ -1214,22 +1214,25 @@ static pj_status_t init_ossl_ctx(pj_ssl_sock_t *ssock)
+             PJ_LOG(1, (THIS_FILE, "Warning! Unable to set server session id "
+                  		  "context. Session reuse will not work."));
+ 	}
+     }
+ 
+     if (ssl_opt)
+ 	SSL_CTX_set_options(ctx, ssl_opt);
+ 
+     /* Set cipher list */
+     status = set_cipher_list(ssock);
+-    if (status != PJ_SUCCESS)
++    if (status != PJ_SUCCESS) {
++	SSL_CTX_free(ctx);
++	ossock->ossl_ctx = NULL;
+         return status;
++    }
+ 
+     /* Apply credentials */
+     if (cert) {
+ 	/* Load CA list if one is specified. */
+ 	if (cert->CA_file.slen || cert->CA_path.slen) {
+ 
+ 	    rc = SSL_CTX_load_verify_locations(
+ 			ctx,
+ 			cert->CA_file.slen == 0 ? NULL : cert->CA_file.ptr,
+ 			cert->CA_path.slen == 0 ? NULL : cert->CA_path.ptr);
+-- 
+2.41.0
+
