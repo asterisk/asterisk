@@ -7,6 +7,7 @@ fi
 
 PATCH=${PATCH:-patch}
 FIND=${FIND:-find}
+SORT=${SORT:-sort}
 
 patchdir=${1:?You must supply a patches directory}
 sourcedir=${2?:You must supply a source directory}
@@ -21,7 +22,7 @@ if [ ! -d "$sourcedir" ] ; then
 	exit 1
 fi
 
-patches=$(${FIND} "$patchdir" -name "*.patch")
+patches=$(${FIND} "$patchdir" -name "*.patch" | ${SORT})
 if [ x"$patches" = x"" ] ; then
 	echo "No patches in $patchdir"  >&2
 	exit 0
