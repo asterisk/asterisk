@@ -1044,6 +1044,9 @@
 			<parameter name="Priority" required="true">
 				<para>Priority value for change for caller on queue.</para>
 			</parameter>
+			<parameter name="Immediate">
+				<para>When set to yes will cause the priority change to be reflected immediately, causing the channel to change position within the queue.</para>
+			</parameter>
 		</syntax>
 		<description>
 		</description>
@@ -2091,8 +2094,10 @@ static inline void insert_entry(struct call_queue *q, struct queue_ent *prev, st
 	/* every queue_ent must have a reference to it's parent call_queue, this
 	 * reference does not go away until the end of the queue_ent's life, meaning
 	 * that even when the queue_ent leaves the call_queue this ref must remain. */
-	queue_ref(q);
-	new->parent = q;
+	if (!new->parent) {
+		queue_ref(q);
+		new->parent = q;
+	}
 	new->pos = ++(*pos);
 	new->opos = *pos;
 }
@@ -7622,10 +7627,10 @@ static int add_to_queue(const char *queuename, const char *interface, const char
  * \retval RES_OKAY change priority
  * \retval RES_NOT_CALLER queue exists but no caller
 */
-static int change_priority_caller_on_queue(const char *queuename, const char *caller, int priority)
+static int change_priority_caller_on_queue(const char *queuename, const char *caller, int priority, int immediate)
 {
 	struct call_queue *q;
-	struct queue_ent *qe;
+	struct queue_ent *current, *prev = NULL, *caller_qe = NULL;
 	int res = RES_NOSUCHQUEUE;
 
 	/*! \note Ensure the appropriate realtime queue is loaded.  Note that this
@@ -7636,14 +7641,57 @@ static int change_priority_caller_on_queue(const char *queuename, const char *ca
 
 	ao2_lock(q);
 	res = RES_NOT_CALLER;
-	for (qe = q->head; qe; qe = qe->next) {
-		if (strcmp(ast_channel_name(qe->chan), caller) == 0) {
+	for (current = q->head; current; current = current->next) {
+		if (strcmp(ast_channel_name(current->chan), caller) == 0) {
 			ast_debug(1, "%s Caller new priority %d in queue %s\n",
 			             caller, priority, queuename);
-			qe->prio = priority;
+			current->prio = priority;
+			if (immediate) {
+				/* This caller is being immediately moved in the queue so remove them */
+				if (prev) {
+					prev->next = current->next;
+				} else {
+					q->head = current->next;
+				}
+				caller_qe = current;
+				/* The position for all callers is not recalculated in here as it will
+				 * be updated when the moved caller is inserted back into the queue
+				 */
+			}
 			res = RES_OKAY;
+			break;
+		} else if (immediate) {
+			prev = current;
 		}
 	}
+
+	if (caller_qe) {
+		int inserted = 0, pos = 0;
+
+		/* If a caller queue entry exists, we are applying their priority immediately
+		 * and have to reinsert them at the correct position.
+		 */
+		prev = NULL;
+		current = q->head;
+		while (current) {
+			if (!inserted && (caller_qe->prio > current->prio)) {
+				insert_entry(q, prev, caller_qe, &pos);
+				inserted = 1;
+			}
+
+			/* We always update the position as it may have changed */
+			current->pos = ++pos;
+
+			/* Move to the next caller in the queue */
+			prev = current;
+			current = current->next;
+		}
+
+		if (!inserted) {
+			insert_entry(q, prev, caller_qe, &pos);
+		}
+	}
+
 	ao2_unlock(q);
 	return res;
 }
@@ -10818,12 +10866,13 @@ static int manager_queue_member_penalty(struct mansession *s, const struct messa
 
 static int manager_change_priority_caller_on_queue(struct mansession *s, const struct message *m)
 {
-	const char *queuename, *caller, *priority_s;
-	int priority = 0;
+	const char *queuename, *caller, *priority_s, *immediate_s;
+	int priority = 0, immediate = 0;
 
 	queuename = astman_get_header(m, "Queue");
 	caller = astman_get_header(m, "Caller");
 	priority_s = astman_get_header(m, "Priority");
+	immediate_s = astman_get_header(m, "Immediate");
 
 	if (ast_strlen_zero(queuename)) {
 		astman_send_error(s, m, "'Queue' not specified.");
@@ -10843,7 +10892,11 @@ static int manager_change_priority_caller_on_queue(struct mansession *s, const s
 		return 0;
 	}
 
-	switch (change_priority_caller_on_queue(queuename, caller, priority)) {
+	if (!ast_strlen_zero(immediate_s)) {
+		immediate = ast_true(immediate_s);
+	}
+
+	switch (change_priority_caller_on_queue(queuename, caller, priority, immediate)) {
 	case RES_OKAY:
 		astman_send_ack(s, m, "Priority change for caller on queue");
 		break;
@@ -11087,21 +11140,21 @@ static char *handle_queue_remove_member(struct ast_cli_entry *e, int cmd, struct
 static char *handle_queue_change_priority_caller(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	const char *queuename, *caller;
-	int priority;
+	int priority, immediate = 0;
 	char *res = CLI_FAILURE;
 
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "queue priority caller";
 		e->usage =
-			"Usage: queue priority caller <channel> on <queue> to <priority>\n"
-			"       Change the priority of a channel on a queue.\n";
+			"Usage: queue priority caller <channel> on <queue> to <priority> [immediate]\n"
+			"       Change the priority of a channel on a queue, optionally applying the change in relation to existing callers.\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
 	}
 
-	if (a->argc != 8) {
+	if (a->argc < 8) {
 		return CLI_SHOWUSAGE;
 	} else if (strcmp(a->argv[4], "on")) {
 		return CLI_SHOWUSAGE;
@@ -11110,12 +11163,17 @@ static char *handle_queue_change_priority_caller(struct ast_cli_entry *e, int cm
 	} else if (sscanf(a->argv[7], "%30d", &priority) != 1) {
 		ast_log (LOG_ERROR, "<priority> parameter must be an integer.\n");
 		return CLI_SHOWUSAGE;
+	} else if (a->argc == 9) {
+		if (strcmp(a->argv[8], "immediate")) {
+			return CLI_SHOWUSAGE;
+		}
+		immediate = 1;
 	}
 
 	caller = a->argv[3];
 	queuename = a->argv[5];
 
-	switch (change_priority_caller_on_queue(queuename, caller, priority)) {
+	switch (change_priority_caller_on_queue(queuename, caller, priority, immediate)) {
 	case RES_OKAY:
 		res = CLI_SUCCESS;
 		break;
