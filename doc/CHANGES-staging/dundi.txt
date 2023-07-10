@@ -1,5 +1,0 @@
-Subject: DUNDi
-
-DUNDi now supports chan_pjsip. Outgoing calls using
-PJSIP require the pjsip_outgoing_endpoint option
-to be set in dundi.conf.
