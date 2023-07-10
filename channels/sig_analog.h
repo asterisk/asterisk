@@ -300,6 +300,7 @@ struct analog_pvt {
 	unsigned int permhidecallerid:1;		/*!< Whether to hide our outgoing caller ID or not */
 	unsigned int pulse:1;
 	unsigned int threewaycalling:1;
+	unsigned int threewaysilenthold:1;		/*!< Whether to time out a three-way dial tone to silence */
 	unsigned int transfer:1;
 	unsigned int transfertobusy:1;			/*!< allow flash-transfers to busy channels */
 	unsigned int use_callerid:1;			/*!< Whether or not to use caller id on this channel */
