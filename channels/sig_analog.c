@@ -2166,8 +2166,9 @@ static void *__analog_ss_thread(void *data)
 		/* Read the first digit */
 		timeout = analog_get_firstdigit_timeout(p);
 		/* If starting a threeway call, never timeout on the first digit so someone
-		   can use flash-hook as a "hold" feature */
-		if (p->subs[ANALOG_SUB_THREEWAY].owner) {
+		 * can use flash-hook as a "hold" feature...
+		 * ...Unless three-way dial tone should time out to silence, in which case the default suffices. */
+		if (!p->threewaysilenthold && p->subs[ANALOG_SUB_THREEWAY].owner) {
 			timeout = INT_MAX;
 		}
 		while (len < AST_MAX_EXTENSION-1) {
@@ -2249,7 +2250,11 @@ static void *__analog_ss_thread(void *data)
 				}
 			} else if (res == 0) {
 				ast_debug(1, "not enough digits (and no ambiguous match)...\n");
-				res = analog_play_tone(p, idx, ANALOG_TONE_CONGESTION);
+				if (p->threewaysilenthold) {
+					ast_debug(1, "Nothing dialed at three-way dial tone, timed out to silent hold\n");
+				} else {
+					res = analog_play_tone(p, idx, ANALOG_TONE_CONGESTION);
+				}
 				analog_wait_event(p);
 				ast_hangup(chan);
 				goto quit;

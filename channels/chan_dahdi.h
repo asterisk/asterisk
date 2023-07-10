@@ -352,6 +352,11 @@ struct dahdi_pvt {
 	 */
 	unsigned int threewaycalling:1;
 	/*!
+	 * \brief TRUE if a three way dial tone should time out to silence
+	 * \note Set from the "threewaysilenthold" value read in from chan_dahdi.conf
+	 */
+	unsigned int threewaysilenthold:1;
+	/*!
 	 * \brief TRUE if call transfer is enabled
 	 * \note For FXS ports (either direct analog or over T1/E1):
 	 *   Support flash-hook call transfer

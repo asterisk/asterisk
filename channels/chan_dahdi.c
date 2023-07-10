@@ -12898,6 +12898,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 		tmp->usedistinctiveringdetection = usedistinctiveringdetection;
 		tmp->callwaitingcallerid = conf->chan.callwaitingcallerid;
 		tmp->threewaycalling = conf->chan.threewaycalling;
+		tmp->threewaysilenthold = conf->chan.threewaysilenthold;
 		tmp->adsi = conf->chan.adsi;
 		tmp->use_smdi = conf->chan.use_smdi;
 		tmp->permhidecallerid = conf->chan.hidecallerid;
@@ -18245,6 +18246,8 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 				confp->chan.cid_start = CID_START_RING;
 		} else if (!strcasecmp(v->name, "threewaycalling")) {
 			confp->chan.threewaycalling = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "threewaysilenthold")) {
+			confp->chan.threewaysilenthold = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "cancallforward")) {
 			confp->chan.cancallforward = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "relaxdtmf")) {
