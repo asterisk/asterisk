@@ -759,6 +759,14 @@ callwaitingcallerid=yes
 ;
 threewaycalling=yes
 ;
+; By default, the three-way dial tone never times out, allowing it to be
+; used as a primitive "hold" mechanism. However, if you'd prefer
+; to have the dial tone time out to silence, you can use this option
+; to time out after the normal first digit timeout to silence.
+; Default is 'no'.
+;
+;threewaysilenthold=no
+;
 ; For FXS ports (either direct analog or over T1/E1):
 ;   Support flash-hook call transfer (requires three way calling)
 ;   Also enables call parking (overrides the 'canpark' parameter)
