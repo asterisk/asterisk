@@ -676,6 +676,7 @@ static int add_header(void *obj)
 static int update_header(void *obj)
 {
 	struct header_data *data = obj;
+	pj_pool_t *pool = data->channel->session->inv_session->dlg->pool;
 	pjsip_hdr *hdr = NULL;
 	RAII_VAR(struct ast_datastore *, datastore,
 			 ast_sip_session_get_datastore(data->channel->session, data->header_datastore->type),
@@ -694,7 +695,7 @@ static int update_header(void *obj)
 		return -1;
 	}
 
-	pj_strcpy2(&((pjsip_generic_string_hdr *) hdr)->hvalue, data->header_value);
+	pj_strdup2(pool, &((pjsip_generic_string_hdr *) hdr)->hvalue, data->header_value);
 
 	return 0;
 }
