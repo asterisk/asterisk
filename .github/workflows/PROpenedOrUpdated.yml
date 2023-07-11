@@ -27,19 +27,23 @@ jobs:
           application_private_key: ${{secrets.ASTERISK_ORG_ACCESS_APP_PRIV_KEY}}
           organization: asterisk
 
-      - name: Add cherry-pick reminder and reviewers
-        if: github.event.action == 'opened'
+      - name: Get cherry-pick branches
+        uses: asterisk/asterisk-ci-actions/GetCherryPickBranchesFromPR@main
+        id: getbranches
+        with:
+          repo:                    ${{github.repository}}
+          pr_number:               ${{env.PR_NUMBER}}
+          cherry_pick_regex:       ${{vars.CHERRY_PICK_REGEX}}
+          github_token:            ${{secrets.GITHUB_TOKEN}}
+
+      - name: Add cherry-pick reminder
+        if: ${{ steps.getbranches.outputs.branch_count == 0 || steps.getbranches.outputs.forced_none != 'true' }}
         env:
           GITHUB_TOKEN: ${{steps.get_workflow_token.outputs.token}}
           GH_TOKEN: ${{steps.get_workflow_token.outputs.token}}
           CHERRY_PICK_REMINDER: ${{vars.CHERRY_PICK_REMINDER}}
-          REVIEWERS: ${{vars.PR_REVIEWERS}}
         run: |
           IFS=$'; \n'
-          for r in $REVIEWERS ; do
-            echo "Adding reviewer $r"
-            gh pr edit --repo ${{github.repository}} ${PR_NUMBER} --add-reviewer $r || :
-          done
           # If there's already a reminder comment, don't add another one.
           ADD_COMMENT=true
           # This query will FAIL if it finds the comment.
@@ -53,6 +57,20 @@ jobs:
           else
             echo "CPR comment already present"
           fi
+
+      - name: Add reviewers
+        if: github.event.action == 'opened'
+        env:
+          GITHUB_TOKEN: ${{steps.get_workflow_token.outputs.token}}
+          GH_TOKEN: ${{steps.get_workflow_token.outputs.token}}
+          CHERRY_PICK_REMINDER: ${{vars.CHERRY_PICK_REMINDER}}
+          REVIEWERS: ${{vars.PR_REVIEWERS}}
+        run: |
+          IFS=$'; \n'
+          for r in $REVIEWERS ; do
+            echo "Adding reviewer $r"
+            gh pr edit --repo ${{github.repository}} ${PR_NUMBER} --add-reviewer $r || :
+          done
 
       - name: Set Labels
         env:
