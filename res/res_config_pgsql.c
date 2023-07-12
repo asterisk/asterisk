@@ -82,6 +82,7 @@ static char dbappname[MAX_DB_OPTION_SIZE] = "";
 static char dbsock[MAX_DB_OPTION_SIZE] = "";
 static int dbport = 5432;
 static time_t connect_time = 0;
+static int order_multi_row_results_by_initial_column = 1;
 
 static int parse_config(int reload);
 static int pgsql_reconnect(const char *database);
@@ -624,7 +625,7 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 		ast_str_append(&sql, 0, " AND %s%s '%s'%s", field->name, op, ast_str_buffer(escapebuf), escape);
 	}
 
-	if (initfield) {
+	if (initfield && order_multi_row_results_by_initial_column) {
 		ast_str_append(&sql, 0, " ORDER BY %s", initfield);
 	}
 
@@ -1523,6 +1524,10 @@ static int parse_config(int is_reload)
 	} else if (!strcasecmp(s, "createchar")) {
 		requirements = RQ_CREATECHAR;
 	}
+
+	/* Result set ordering is enabled by default */
+	s = ast_variable_retrieve(config, "general", "order_multi_row_results_by_initial_column");
+	order_multi_row_results_by_initial_column = !s || ast_true(s);
 
 	ast_config_destroy(config);
 
