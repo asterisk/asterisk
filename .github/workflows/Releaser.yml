@@ -4,6 +4,21 @@ run-name: ${{ github.actor }} is creating ${{vars.PRODUCT_NAME}} release ${{inpu
 on:
   workflow_dispatch:
     inputs:
+      new_version:
+        description: |
+          New Version:
+          Examples:
+            20.4.0-rc1, 20.4.0-rc2, 20.4.0, 20.4.1
+            certified-20.4-cert1-rc1, certified-20.4-cert1
+        required: true
+        type: string
+#      start_version:
+#        description: |
+#          Last Version:
+#          Only use when you KNOW that the automated
+#          process won't get it right.
+#        required: false
+#        type: string
       is_security:
         description: |
           Security?
@@ -22,27 +37,6 @@ on:
         description: |
           Hotfix?
           (A patch release but not security.  No prev RCs)
-        required: true
-        type: boolean
-        default: false
-      new_version:
-        description: |
-          New Version:
-          Examples:
-            20.4.0-rc1, 20.4.0-rc2, 20.4.0, 20.4.1
-            certified-20.4-cert1-rc1, certified-20.4-cert1
-        required: true
-        type: string
-#      start_version:
-#        description: |
-#          Last Version:
-#          Only use when you KNOW that the automated
-#          process won't get it right.
-#        required: false
-#        type: string
-      is_security:
-        description: |
-          Security or Hotfix?
         required: true
         type: boolean
         default: false
