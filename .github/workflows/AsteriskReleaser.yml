@@ -4,12 +4,6 @@ run-name: ${{ github.actor }} is creating Asterisk release ${{inputs.new_version
 on:
   workflow_dispatch:
     inputs:
-      is_security:
-        description: |
-          Security or Hotfix?
-        required: true
-        type: boolean
-        default: false
       new_version:
         description: |
           New Version:
@@ -18,13 +12,34 @@ on:
             certified-20.4-cert1-rc1, certified-20.4-cert1
         required: true
         type: string
-      start_version:
+#      start_version:
+#        description: |
+#          Last Version:
+#          Only use when you KNOW that the automated
+#          process won't get it right.
+#        required: false
+#        type: string
+      is_security:
         description: |
-          Last Version:
-          Only use when you KNOW that the automated
-          process won't get it right.
+          Security?
+          (No prev RCs)
+        required: true
+        type: boolean
+        default: false
+      advisories:
+        description: |
+          Comma separated list of advisories.
+          NO SPACES
+          Example: GHSA-4xjp-22g4-9fxm,GHSA-4xjp-22g4-zzzz
         required: false
         type: string
+      is_hotfix:
+        description: |
+          Hotfix?
+          (A patch release but not security.  No prev RCs)
+        required: true
+        type: boolean
+        default: false
       push_release_branches:
         description: |
           Push release branches live?
@@ -58,8 +73,10 @@ jobs:
         uses: asterisk/asterisk-ci-actions/AsteriskReleaserComposite@main
         with:
           is_security: ${{inputs.is_security}}
+          advisories: ${{inputs.advisories}}
+          is_hotfix: ${{inputs.is_hotfix}}
           new_version: ${{inputs.new_version}}
-          start_version: ${{inputs.start_version}}
+#          start_version: ${{inputs.start_version}}
           push_release_branches: ${{inputs.push_release_branches}}
           create_github_release: ${{inputs.create_github_release}}
           push_tarballs: ${{inputs.push_tarballs}}
@@ -69,7 +86,8 @@ jobs:
           asterisk_mail_list_rc: ${{vars.ASTERISK_MAIL_LIST_RC}}
           asterisk_mail_list_cert_ga: ${{vars.ASTERISK_MAIL_LIST_CERT_GA}}
           asterisk_mail_list_cert_rc: ${{vars.ASTERISK_MAIL_LIST_CERT_RC}}
-          asterisk_mail_list_sec: ${{vars.ASTERISK_MAIL_LIST_CERT_SEC}}
+          asterisk_mail_list_sec: ${{vars.ASTERISK_MAIL_LIST_SEC_ADV}}
+          sec_adv_url_base: ${{vars.ASTERISK_SEC_ADV_URL_BASE}}
           gpg_private_key: ${{secrets.ASTDEV_GPG_PRIV_KEY}}
           github_token: ${{secrets.GITHUB_TOKEN}}
           application_id: ${{secrets.ASTERISK_ORG_ACCESS_APP_ID}}
