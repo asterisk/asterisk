@@ -4,9 +4,6 @@ CONSOLE = "Console/dsp" -- Console interface for demo
 --CONSOLE = "DAHDI/1"
 --CONSOLE = "Phone/phone0"
 
-IAXINFO = "guest"       -- IAXtel username/password
---IAXINFO = "myuser:mypass"
-
 TRUNK = "DAHDI/G2"
 TRUNKMSD = 1
 -- TRUNK = "IAX2/user:pass@provider"
