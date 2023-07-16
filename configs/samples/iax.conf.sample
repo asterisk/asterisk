@@ -65,7 +65,7 @@
 ;
 
 ;
-; You may specify a global default AMA flag for iaxtel calls.  These flags are
+; You may specify a global default AMA flag for iax calls.  These flags are
 ; used in the generation of call detail records.
 ;
 ; Accepted values: default, omit, billing, documentation
@@ -308,25 +308,6 @@ encryption=yes
 ;
 ;register => marko:[torkey]@tormenta.linux-support.net
 ;
-; Sample Registration for iaxtel
-;
-; Visit http://www.iaxtel.com to register with iaxtel.  Replace "user"
-; and "pass" with your username and password for iaxtel.  Incoming
-; calls arrive at the "s" extension of "default" context.
-;
-;register => user:pass@iaxtel.com
-;
-; Sample Registration for IAX2 + FWD
-;
-; To register using IAX2 with FWD, it must be enabled by visiting the URL
-; http://www.fwdnet.net/index.php?section_id=112
-;
-; Note that you need an extension in you default context which matches
-; your free world dialup number.  Please replace "FWDNumber" with your
-; FWD number and "passwd" with your password.
-;
-;register => FWDNumber:passwd@iax.fwdnet.net
-;
 ; Through the use of the res_stun_monitor module, Asterisk has the ability to detect when the
 ; perceived external network address has changed.  When the stun_monitor is installed and
 ; configured, chan_iax will renew all outbound registrations when the monitor detects any sort
@@ -497,24 +478,6 @@ autokill=yes
 type=user
 context=public
 callerid="Guest IAX User"
-
-;
-; Trust Caller*ID Coming from iaxtel.com
-;
-[iaxtel]
-type=user
-context=default
-auth=rsa
-inkeys=iaxtel
-
-;
-; Trust Caller*ID Coming from iax.fwdnet.net
-;
-[iaxfwd]
-type=user
-context=default
-auth=rsa
-inkeys=freeworlddialup
 
 ;
 ; Trust Caller*ID delivered over DUNDi/e164
