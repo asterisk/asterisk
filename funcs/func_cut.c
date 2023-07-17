@@ -79,8 +79,7 @@
 		</syntax>
 		<description>
 			<para>Cut out information from a string (<replaceable>varname</replaceable>), based upon a named delimiter.</para>
-		</description>
-				
+		</description>		
 	</function>
  ***/
 
