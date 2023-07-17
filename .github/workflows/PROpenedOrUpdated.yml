@@ -18,6 +18,13 @@ jobs:
   PROpenUpdateUnitTests:
     runs-on: ubuntu-latest
     steps:
+      - name: Job Start Delay
+        env:
+          JOB_START_DELAY_SEC:       ${{vars.PR_JOB_START_DELAY_SEC}}
+        run: |
+          # Give the user a chance to add their "cherry-pick-to" comments
+          sleep ${JOB_START_DELAY_SEC:-60}
+
       - name: Get Token needed to add reviewers
         if: github.event.action == 'opened'
         id: get_workflow_token
@@ -37,12 +44,17 @@ jobs:
           github_token:            ${{secrets.GITHUB_TOKEN}}
 
       - name: Add cherry-pick reminder
-        if: ${{ steps.getbranches.outputs.branch_count == 0 || steps.getbranches.outputs.forced_none != 'true' }}
         env:
           GITHUB_TOKEN: ${{steps.get_workflow_token.outputs.token}}
           GH_TOKEN: ${{steps.get_workflow_token.outputs.token}}
           CHERRY_PICK_REMINDER: ${{vars.CHERRY_PICK_REMINDER}}
+          BRANCHES_OUTPUT: ${{toJSON(steps.getbranches.outputs)}}
+          BRANCH_COUNT: ${{steps.getbranches.outputs.branch_count}}
+          FORCED_NONE:  ${{steps.getbranches.outputs.forced_none}}
         run: |
+          # If the user already added "cherry-pick-to" comments
+          # we don't need to remind them.
+          ( $FORCED_NONE || [ $BRANCH_COUNT -gt 0 ] ) && { echo "No reminder needed." ; exit 0 ; }
           IFS=$'; \n'
           # If there's already a reminder comment, don't add another one.
           ADD_COMMENT=true
