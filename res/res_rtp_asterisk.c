@@ -2730,6 +2730,12 @@ static void ast_rtp_ice_start_media(pj_ice_sess *ice, pj_status_t status)
 		return;
 	}
 
+	if (ast_rtp_instance_get_prop(instance, AST_RTP_PROPERTY_DISABLE_LEARNING)) {
+		ast_verb(4, "%p -- RTP learning disabled after ICE completion\n", rtp);
+		ao2_unlock(instance);
+		return;
+	}
+
 	ast_verb(4, "%p -- Strict RTP learning after ICE completion\n", rtp);
 	rtp_learning_start(rtp);
 	ao2_unlock(instance);
@@ -8585,7 +8591,7 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 			ast_test_suite_event_notify("STRICT_RTP_LEARN", "Source: %s",
 				ast_sockaddr_stringify(&rtp->strict_rtp_address));
 			rtp->strict_rtp_state = STRICT_RTP_CLOSED;
-		} else {
+		} else if (!ast_rtp_instance_get_prop(instance, AST_RTP_PROPERTY_DISABLE_LEARNING)) {
 			struct ast_sockaddr target_address;
 
 			if (!ast_sockaddr_cmp(&rtp->strict_rtp_address, &addr)) {
@@ -8613,6 +8619,9 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 					rtp, ast_sockaddr_stringify(&addr));
 				ast_sockaddr_copy(&rtp->strict_rtp_address, &addr);
 				rtp_learning_seq_init(&rtp->rtp_source_learn, seqno);
+				break;
+			} else {
+				ast_debug(4, "Ignoring RTP learning...\n");
 				break;
 			}
 
@@ -8686,10 +8695,11 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 	}
 
 	/* If symmetric RTP is enabled see if the remote side is not what we expected and change where we are sending audio */
-	if (ast_rtp_instance_get_prop(instance, AST_RTP_PROPERTY_NAT)) {
+	if (ast_rtp_instance_get_prop(instance, AST_RTP_PROPERTY_NAT) && !ast_rtp_instance_get_prop(instance, AST_RTP_PROPERTY_DISABLE_LEARNING)) {
 		if (ast_sockaddr_cmp(&remote_address, &addr)) {
 			/* do not update the originally given address, but only the remote */
 			ast_rtp_instance_set_incoming_source_address(instance, &addr);
+			ast_debug(4, "Remote address not what we expected, updating to match RTP source\n");
 			ast_sockaddr_copy(&remote_address, &addr);
 			if (rtp->rtcp && rtp->rtcp->type == AST_RTP_INSTANCE_RTCP_STANDARD) {
 				ast_sockaddr_copy(&rtp->rtcp->them, &addr);
@@ -8700,6 +8710,10 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 				ast_debug(0, "(%p) RTP NAT: Got audio from other end. Now sending to address %s\n",
 					instance, ast_sockaddr_stringify(&remote_address));
 		}
+	} else if (ast_sockaddr_cmp(&remote_address, &addr)) {
+		ast_debug(4, "Remote address not what we expected (NAT: %d, RTP learning: %d)\n",
+			ast_rtp_instance_get_prop(instance, AST_RTP_PROPERTY_NAT),
+			ast_rtp_instance_get_prop(instance, AST_RTP_PROPERTY_DISABLE_LEARNING) ? 0 : 1);
 	}
 
 	/* Pull out the various other fields we will need */
