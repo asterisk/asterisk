@@ -1,18 +1,20 @@
 
-Change Log for Release 20.4.0-rc1
+Change Log for Release 20.4.0
 ========================================
 
 Links:
 ----------------------------------------
 
- - [Full ChangeLog](https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-20.4.0-rc1.md)  
- - [GitHub Diff](https://github.com/asterisk/asterisk/compare/20.3.1...20.4.0-rc1)  
- - [Tarball](https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-20.4.0-rc1.tar.gz)  
+ - [Full ChangeLog](https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-20.4.0.md)  
+ - [GitHub Diff](https://github.com/asterisk/asterisk/compare/20.3.1...20.4.0)  
+ - [Tarball](https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-20.4.0.tar.gz)  
  - [Downloads](https://downloads.asterisk.org/pub/telephony/asterisk)  
 
 Summary:
 ----------------------------------------
 
+- app.h: Move declaration of ast_getdata_result before its first use
+- doc: Remove obsolete CHANGES-staging and UPGRADE-staging
 - .github: Updates for AsteriskReleaser
 - app_voicemail: fix imap compilation errors
 - res_musiconhold: avoid moh state access on unlocked chan
@@ -101,74 +103,6 @@ User Notes:
   Asterisk restart. This was fixed for non-realtime
   queues in ASTERISK_25732.
 
-- ### res_http_media_cache: Introduce options and customize
-  The res_http_media_cache module now attempts to load
-  configuration from the res_http_media_cache.conf file.
-  The following options were added:
-    * timeout_secs
-    * user_agent
-    * follow_location
-    * max_redirects
-    * protocols
-    * redirect_protocols
-    * dns_cache_timeout_secs
-
-- ### format_sln: add .slin as supported file extension
-  format_sln now recognizes '.slin' as a valid
-  file extension in addition to the existing
-  '.sln' and '.raw'.
-
-- ### bridge_builtin_features: add beep via touch variable
-  Add optional touch variable : TOUCH_MIXMONITOR_BEEP(interval)
-  Setting TOUCH_MIXMONITOR_BEEP/TOUCH_MONITOR_BEEP to a valid
-  interval in seconds will result in a periodic beep being
-  played to the monitored channel upon MixMontior/Monitor
-  feature start.
-  If an interval less than 5 seconds is specified, the interval
-  will default to 5 seconds.  If the value is set to an invalid
-  interval, the default of 15 seconds will be used.
-
-- ### app_senddtmf: Add SendFlash AMI action.
-  The SendFlash AMI action now allows sending
-  a hook flash event on a channel.
-
-- ### res_mixmonitor: MixMonitorMute by MixMonitor ID
-  It is now possible to specify the MixMonitorID when calling
-  the manager action: MixMonitorMute.  This will allow an
-  individual MixMonitor instance to be muted via ID.
-  The MixMonitorID can be stored as a channel variable using
-  the 'i' MixMonitor option and is returned upon creation if
-  this option is used.
-  As part of this change, if no MixMonitorID is specified in
-  the manager action MixMonitorMute, Asterisk will set the mute
-  flag on all MixMonitor audiohooks on the channel.  Previous
-  behavior would set the flag on the first MixMonitor audiohook
-  found.
-
-- ### pbx_dundi: Add PJSIP support.
-  DUNDi now supports chan_pjsip. Outgoing calls using
-  PJSIP require the pjsip_outgoing_endpoint option
-  to be set in dundi.conf.
-
-- ### test.c: Fix counting of tests and add 2 new tests
-  The "tests" attribute of the "testsuite" element in the
-  output XML now reflects only the tests actually requested
-  to be executed instead of all the tests registered.
-  The "failures" attribute was added to the "testsuite"
-  element.
-  Also added two new unit tests that just pass and fail
-  to be used for testing CI itself.
-
-- ### cli: increase channel column width
-  This change increases the display width on 'core show channels'
-  amd 'core show channels verbose'
-  For 'core show channels', the Channel name field is increased to
-  64 characters and the Location name field is increased to 32
-  characters.
-  For 'core show channels verbose', the Channel name field is
-  increased to 80 characters, the Context is increased to 24
-  characters and the Extension is increased to 24 characters.
-
 
 Upgrade Notes:
 ----------------------------------------
@@ -207,15 +141,20 @@ Closed Issues:
   - #155: [bug]: GCC 13 is catching a few new trivial issues
   - #158: [bug]: test_stasis_endpoints.c: Unit test channel_messages is unstable
   - #174: [bug]: app_voicemail imap compile errors
+  - #200: [bug]: Regression: In app.h an enum is used before its declaration.
 
 Commits By Author:
 ----------------------------------------
+
+- ### Asterisk Development Team (2):
+  - Update for 20.4.0-rc1
+  - Update for 20.4.0-rc2
 
 - ### Ben Ford (2):
   - AMI: Add CoreShowChannelMap action.
   - res_pjsip_session: Added new function calls to avoid ABI issues.
 
-- ### George Joseph (21):
+- ### George Joseph (23):
   - .github: Add cherry-pick reminder to new PRs
   - .github: Fix quoting in PROpenedOrUpdated
   - .github: Don't add cherry-pick reminder if it's already present
@@ -237,6 +176,8 @@ Commits By Author:
   - .github: Move publish docs to new file CreateDocs.yml
   - .github: Back out triggering PROpenedOrUpdated by label
   - .github: Updates for AsteriskReleaser
+  - doc: Remove obsolete CHANGES-staging and UPGRADE-staging
+  - app.h: Move declaration of ast_getdata_result before its first use
 
 - ### Gitea (1):
   - .github: Tweak new feature language, and move feature requests elsewhere.
@@ -309,6 +250,26 @@ Commits By Author:
 
 Detail:
 ----------------------------------------
+
+- ### app.h: Move declaration of ast_getdata_result before its first use
+  Author: George Joseph  
+  Date:   2023-07-10  
+
+  The ast_app_getdata() and ast_app_getdata_terminator() declarations
+  in app.h were changed recently to return enum ast_getdata_result
+  (which is how they were defined in app.c).  The existing
+  declaration of ast_getdata_result in app.h was about 1000 lines
+  after those functions however so under certain circumstances,
+  a "use before declaration" error was thrown by the compiler.
+  The declaration of the enum was therefore moved to before those
+  functions.
+
+  Resolves: #200
+
+- ### doc: Remove obsolete CHANGES-staging and UPGRADE-staging
+  Author: George Joseph  
+  Date:   2023-07-10  
+
 
 - ### .github: Updates for AsteriskReleaser
   Author: George Joseph  
