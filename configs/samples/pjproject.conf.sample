@@ -38,6 +38,10 @@
 ;  - 5: trace
 ;  - 6: more detailed trace
 ;
+; Note:  setting the pjproject debug level to 4 (debug) or above may result in
+; raw packets being logged. This should only be enabled during active debugging
+; to avoid a potential security issue due to logging injection.
+;
 ;asterisk_error =    ; A comma separated list of pjproject log levels to map to
                      ; Asterisk errors.
                      ; (default: "0,1")
