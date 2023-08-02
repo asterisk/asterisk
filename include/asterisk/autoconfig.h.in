@@ -644,6 +644,15 @@
 /* Define if your system has the PJSIP_REPLACE_MEDIA_STREAM headers. */
 #undef HAVE_PJSIP_REPLACE_MEDIA_STREAM
 
+/* Define if your system has the PJSIP_TLS_1_1 headers. */
+#undef HAVE_PJSIP_TLS_1_1
+
+/* Define if your system has the PJSIP_TLS_1_2 headers. */
+#undef HAVE_PJSIP_TLS_1_2
+
+/* Define if your system has the PJSIP_TLS_1_3 headers. */
+#undef HAVE_PJSIP_TLS_1_3
+
 /* Define if your system has the PJSIP_TLS_TRANSPORT_PROTO headers. */
 #undef HAVE_PJSIP_TLS_TRANSPORT_PROTO
 

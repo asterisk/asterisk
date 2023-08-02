@@ -1747,6 +1747,8 @@
 				<configOption name="method">
 					<synopsis>Method of SSL transport (TLS ONLY, not WSS)</synopsis>
 					<description>
+						<para>The availability of each of these options is dependent on the
+						version and configuration of the underlying PJSIP library.</para>
 						<enumlist>
 							<enum name="default">
 								<para>The default as defined by PJSIP. This is currently TLSv1, but may change with future releases.</para>
@@ -1757,6 +1759,7 @@
 							<enum name="tlsv1" />
 							<enum name="tlsv1_1" />
 							<enum name="tlsv1_2" />
+							<enum name="tlsv1_3" />
 							<enum name="sslv2" />
 							<enum name="sslv3" />
 							<enum name="sslv23" />
