@@ -948,6 +948,18 @@ PBX_PJSIP_EVSUB_GRP_LOCK
 PJSIP_EVSUB_GRP_LOCK_DIR
 PJSIP_EVSUB_GRP_LOCK_INCLUDE
 PJSIP_EVSUB_GRP_LOCK_LIB
+PBX_PJSIP_TLS_1_3
+PJSIP_TLS_1_3_DIR
+PJSIP_TLS_1_3_INCLUDE
+PJSIP_TLS_1_3_LIB
+PBX_PJSIP_TLS_1_2
+PJSIP_TLS_1_2_DIR
+PJSIP_TLS_1_2_INCLUDE
+PJSIP_TLS_1_2_LIB
+PBX_PJSIP_TLS_1_1
+PJSIP_TLS_1_1_DIR
+PJSIP_TLS_1_1_INCLUDE
+PJSIP_TLS_1_1_LIB
 PBX_PJSIP_TLS_TRANSPORT_PROTO
 PJSIP_TLS_TRANSPORT_PROTO_DIR
 PJSIP_TLS_TRANSPORT_PROTO_INCLUDE
@@ -10248,6 +10260,15 @@ $as_echo "#define HAVE_PJSIP_EXTERNAL_RESOLVER 1" >>confdefs.h
 $as_echo "#define HAVE_PJSIP_TLS_TRANSPORT_PROTO 1" >>confdefs.h
 
 
+$as_echo "#define HAVE_PJSIP_TLS_1_1 1" >>confdefs.h
+
+
+$as_echo "#define HAVE_PJSIP_TLS_1_2 1" >>confdefs.h
+
+
+$as_echo "#define HAVE_PJSIP_TLS_1_3 1" >>confdefs.h
+
+
 $as_echo "#define HAVE_PJSIP_EVSUB_GRP_LOCK 1" >>confdefs.h
 
 
@@ -12123,6 +12144,42 @@ PJSIP_TLS_TRANSPORT_PROTO_OPTION=pjsip
 PJSIP_TLS_TRANSPORT_PROTO_DIR=${PJPROJECT_DIR}
 
 PBX_PJSIP_TLS_TRANSPORT_PROTO=0
+
+
+
+
+
+
+
+PJSIP_TLS_1_1_DESCRIP="PJSIP TLS 1.1 Support"
+PJSIP_TLS_1_1_OPTION=pjsip
+PJSIP_TLS_1_1_DIR=${PJPROJECT_DIR}
+
+PBX_PJSIP_TLS_1_1=0
+
+
+
+
+
+
+
+PJSIP_TLS_1_2_DESCRIP="PJSIP TLS 1.2 Support"
+PJSIP_TLS_1_2_OPTION=pjsip
+PJSIP_TLS_1_2_DIR=${PJPROJECT_DIR}
+
+PBX_PJSIP_TLS_1_2=0
+
+
+
+
+
+
+
+PJSIP_TLS_1_3_DESCRIP="PJSIP TLS 1.3 Support"
+PJSIP_TLS_1_3_OPTION=pjsip
+PJSIP_TLS_1_3_DIR=${PJPROJECT_DIR}
+
+PBX_PJSIP_TLS_1_3=0
 
 
 
@@ -25240,6 +25297,126 @@ $as_echo "yes" >&6; }
 		PBX_PJSIP_TLS_TRANSPORT_PROTO=1
 
 $as_echo "#define HAVE_PJSIP_TLS_TRANSPORT_PROTO 1" >>confdefs.h
+
+
+
+else
+         { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+	CPPFLAGS="${saved_cppflags}"
+    fi
+
+
+    if test "x${PBX_PJSIP_TLS_1_1}" != "x1" -a "${USE_PJSIP_TLS_1_1}" != "no"; then
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if \"enum pjsip_ssl_method method = PJSIP_TLSV1_1_METHOD;\" compiles using pjsip.h" >&5
+$as_echo_n "checking if \"enum pjsip_ssl_method method = PJSIP_TLSV1_1_METHOD;\" compiles using pjsip.h... " >&6; }
+	saved_cppflags="${CPPFLAGS}"
+	if test "x${PJSIP_TLS_1_1_DIR}" != "x"; then
+	    PJSIP_TLS_1_1_INCLUDE="-I${PJSIP_TLS_1_1_DIR}/include"
+	fi
+	CPPFLAGS="${CPPFLAGS} ${PJSIP_TLS_1_1_INCLUDE}"
+
+	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+ #include <pjsip.h>
+int
+main ()
+{
+ enum pjsip_ssl_method method = PJSIP_TLSV1_1_METHOD;;
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+     { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+		PBX_PJSIP_TLS_1_1=1
+
+$as_echo "#define HAVE_PJSIP_TLS_1_1 1" >>confdefs.h
+
+
+
+else
+         { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+	CPPFLAGS="${saved_cppflags}"
+    fi
+
+
+    if test "x${PBX_PJSIP_TLS_1_2}" != "x1" -a "${USE_PJSIP_TLS_1_2}" != "no"; then
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if \"enum pjsip_ssl_method method = PJSIP_TLSV1_2_METHOD;\" compiles using pjsip.h" >&5
+$as_echo_n "checking if \"enum pjsip_ssl_method method = PJSIP_TLSV1_2_METHOD;\" compiles using pjsip.h... " >&6; }
+	saved_cppflags="${CPPFLAGS}"
+	if test "x${PJSIP_TLS_1_2_DIR}" != "x"; then
+	    PJSIP_TLS_1_2_INCLUDE="-I${PJSIP_TLS_1_2_DIR}/include"
+	fi
+	CPPFLAGS="${CPPFLAGS} ${PJSIP_TLS_1_2_INCLUDE}"
+
+	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+ #include <pjsip.h>
+int
+main ()
+{
+ enum pjsip_ssl_method method = PJSIP_TLSV1_2_METHOD;;
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+     { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+		PBX_PJSIP_TLS_1_2=1
+
+$as_echo "#define HAVE_PJSIP_TLS_1_2 1" >>confdefs.h
+
+
+
+else
+         { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+	CPPFLAGS="${saved_cppflags}"
+    fi
+
+
+    if test "x${PBX_PJSIP_TLS_1_3}" != "x1" -a "${USE_PJSIP_TLS_1_3}" != "no"; then
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if \"enum pjsip_ssl_method method = PJSIP_TLSV1_3_METHOD;\" compiles using pjsip.h" >&5
+$as_echo_n "checking if \"enum pjsip_ssl_method method = PJSIP_TLSV1_3_METHOD;\" compiles using pjsip.h... " >&6; }
+	saved_cppflags="${CPPFLAGS}"
+	if test "x${PJSIP_TLS_1_3_DIR}" != "x"; then
+	    PJSIP_TLS_1_3_INCLUDE="-I${PJSIP_TLS_1_3_DIR}/include"
+	fi
+	CPPFLAGS="${CPPFLAGS} ${PJSIP_TLS_1_3_INCLUDE}"
+
+	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+ #include <pjsip.h>
+int
+main ()
+{
+ enum pjsip_ssl_method method = PJSIP_TLSV1_3_METHOD;;
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+     { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+		PBX_PJSIP_TLS_1_3=1
+
+$as_echo "#define HAVE_PJSIP_TLS_1_3 1" >>confdefs.h
 
 
 

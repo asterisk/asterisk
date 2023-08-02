@@ -579,6 +579,9 @@ AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_GET_DEST_INFO], [pjsip_get_dest_info support],
 AST_EXT_LIB_SETUP_OPTIONAL([PJ_SSL_CERT_LOAD_FROM_FILES2], [pj_ssl_cert_load_from_files2 support], [PJPROJECT], [pjsip])
 AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_EXTERNAL_RESOLVER], [PJSIP External Resolver Support], [PJPROJECT], [pjsip])
 AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_TLS_TRANSPORT_PROTO], [PJSIP TLS Transport proto field support], [PJPROJECT], [pjsip])
+AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_TLS_1_1], [PJSIP TLS 1.1 Support], [PJPROJECT], [pjsip])
+AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_TLS_1_2], [PJSIP TLS 1.2 Support], [PJPROJECT], [pjsip])
+AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_TLS_1_3], [PJSIP TLS 1.3 Support], [PJPROJECT], [pjsip])
 AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_EVSUB_GRP_LOCK], [PJSIP EVSUB Group Lock support], [PJPROJECT], [pjsip])
 AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_INV_SESSION_REF], [PJSIP INVITE Session Reference Count support], [PJPROJECT], [pjsip])
 AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_AUTH_CLT_DEINIT], [pjsip_auth_clt_deinit support], [PJPROJECT], [pjsip])
@@ -2474,6 +2477,9 @@ if test "$USE_PJPROJECT" != "no" ; then
          CPPFLAGS="${CPPFLAGS} ${PJPROJECT_CFLAGS}"
          LIBS="${LIBS} ${PJPROJECT_LIB}"
          AST_C_COMPILE_CHECK([PJSIP_TLS_TRANSPORT_PROTO], [struct pjsip_tls_setting setting; int proto; proto = setting.proto;], [pjsip.h])
+         AST_C_COMPILE_CHECK([PJSIP_TLS_1_1], [enum pjsip_ssl_method method = PJSIP_TLSV1_1_METHOD;], [pjsip.h])
+         AST_C_COMPILE_CHECK([PJSIP_TLS_1_2], [enum pjsip_ssl_method method = PJSIP_TLSV1_2_METHOD;], [pjsip.h])
+         AST_C_COMPILE_CHECK([PJSIP_TLS_1_3], [enum pjsip_ssl_method method = PJSIP_TLSV1_3_METHOD;], [pjsip.h])
          AST_C_COMPILE_CHECK([PJSIP_INV_ACCEPT_MULTIPLE_SDP_ANSWERS], [pjsip_cfg()->endpt.accept_multiple_sdp_answers = 0;], [pjsip.h])
          AST_C_COMPILE_CHECK([PJSIP_ENDPOINT_COMPACT_FORM], [pjsip_cfg()->endpt.use_compact_form = PJ_TRUE;], [pjsip.h])
          AST_C_COMPILE_CHECK([PJSIP_TRANSPORT_DISABLE_CONNECTION_REUSE], [struct pjsip_tpselector sel; sel.disable_connection_reuse = PJ_TRUE;], [pjsip.h])
