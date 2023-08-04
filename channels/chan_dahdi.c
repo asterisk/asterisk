@@ -6565,6 +6565,36 @@ hangup_out:
 	ast_free(p->cidspill);
 	p->cidspill = NULL;
 
+	if (p->reoriginate && p->sig == SIG_FXOKS && dahdi_analog_lib_handles(p->sig, p->radio, 0)) {
+		/* Automatic reorigination: if all calls towards a user have hung up,
+		 * give dial tone again, so user doesn't need to cycle the hook state manually. */
+		if (my_is_off_hook(p) && !p->owner) {
+			/* 2 important criteria: channel must be off-hook, with no calls remaining (no owner) */
+			ast_debug(1, "Queuing reorigination for channel %d\n", p->channel);
+			my_play_tone(p, SUB_REAL, -1); /* Stop any congestion tone that may be present. */
+			/* Must wait for the loop disconnect to end.
+			 * Sadly, these definitions are in dahdi/kernel.h, not dahdi/user.h
+			 * Calling usleep on an active DAHDI channel is a no-no, but this is okay.
+			 */
+			usleep(800000); /* DAHDI_KEWLTIME + DAHDI_AFTERKEWLTIME */
+			/* If the line is still off-hook and ownerless, actually queue the reorigination.
+			 * do_monitor will actually go ahead and do it. */
+			if (!p->owner && my_is_off_hook(p)) {
+				p->doreoriginate = 1; /* Tell do_monitor to reoriginate this channel */
+				/* Note, my_off_hook will fail if called before the loop disconnect has finished
+				 * (important for FXOKS signaled channels). This is because DAHDI will reject
+				 * DAHDI_OFFHOOK while the channel is in TXSTATE_KEWL or TXSTATE_AFTERKEWL,
+				 * so we have to wait for that to finish (see comment above).
+				 * do_monitor itself cannot block, so make the blocking usleep call
+				 * here in the channel thread instead.
+				 */
+				my_off_hook(p); /* Now, go ahead and take the channel back off hook (sig_analog put it on hook) */
+			} else {
+				ast_debug(1, "Channel %d is no longer eligible for reorigination (went back on hook or became in use)\n", p->channel);
+			}
+		}
+	}
+
 	ast_mutex_unlock(&p->lock);
 	ast_verb(3, "Hungup '%s'\n", ast_channel_name(ast));
 
@@ -11992,6 +12022,26 @@ static void *do_monitor(void *data)
 						else
 							doomed = handle_init_event(i, res);
 					}
+					if (i->doreoriginate && res == DAHDI_EVENT_HOOKCOMPLETE) {
+						/* Actually automatically reoriginate this FXS line, if directed to.
+						 * We should get a DAHDI_EVENT_HOOKCOMPLETE from the loop disconnect
+						 * doing its thing (one reason why this is for FXOKS only: FXOLS
+						 * hangups don't give us any DAHDI events to piggyback off of)*/
+						i->doreoriginate = 0;
+						/* Double check the channel is still off-hook. There's only about a millisecond
+						 * between when doreoriginate is set high and we see that here, but just to be safe. */
+						if (!my_is_off_hook(i)) {
+							ast_debug(1, "Woah! Went back on hook before reoriginate could happen on channel %d\n", i->channel);
+						} else {
+							ast_verb(3, "Automatic reorigination on channel %d\n", i->channel);
+							res = DAHDI_EVENT_RINGOFFHOOK; /* Pretend that the physical channel just went off hook */
+							if (dahdi_analog_lib_handles(i->sig, i->radio, i->oprmode)) {
+								doomed = (struct dahdi_pvt *) analog_handle_init_event(i->sig_pvt, dahdievent_to_analogevent(res));
+							} else {
+								doomed = handle_init_event(i, res);
+							}
+						}
+					}
 					ast_mutex_lock(&iflock);
 				}
 			}
@@ -13087,6 +13137,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 		tmp->ani_wink_time = conf->chan.ani_wink_time;
 		tmp->ani_timeout = conf->chan.ani_timeout;
 		tmp->hanguponpolarityswitch = conf->chan.hanguponpolarityswitch;
+		tmp->reoriginate = conf->chan.reoriginate;
 		tmp->sendcalleridafter = conf->chan.sendcalleridafter;
 		ast_cc_copy_config_params(tmp->cc_params, conf->chan.cc_params);
 
@@ -18522,6 +18573,8 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 			confp->chan.ani_timeout = atoi(v->value);
 		} else if (!strcasecmp(v->name, "hanguponpolarityswitch")) {
 			confp->chan.hanguponpolarityswitch = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "autoreoriginate")) {
+			confp->chan.reoriginate = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "sendcalleridafter")) {
 			confp->chan.sendcalleridafter = atoi(v->value);
 		} else if (!strcasecmp(v->name, "mwimonitornotify")) {

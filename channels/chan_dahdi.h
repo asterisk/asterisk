@@ -276,6 +276,14 @@ struct dahdi_pvt {
 	 * \note Set from the "hanguponpolarityswitch" value read in from chan_dahdi.conf
 	 */
 	unsigned int hanguponpolarityswitch:1;
+	/*!
+	 * \brief TRUE if FXS (FXO-signalled) channel should reoriginate for user to make a new call.
+	 */
+	unsigned int reoriginate:1;
+	/*!
+	 * \brief Internal flag for if we should actually process a reorigination.
+	 */
+	unsigned int doreoriginate:1;
 	/*! \brief TRUE if DTMF detection needs to be done by hardware. */
 	unsigned int hardwaredtmf:1;
 	/*!
