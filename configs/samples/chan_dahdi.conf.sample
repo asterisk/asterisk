@@ -1097,6 +1097,15 @@ pickupgroup=1
 ;                        polarity switch and hangup polarity switch.
 ;                        (default: 600ms)
 ;
+; For kewlstart FXS (FXO signalled) ports only:
+; When all calls towards a DAHDI channel have cleared, automatically
+; reoriginate and provide dial tone to the user again, so s/he can
+; make another call without having to cycle the hookswitch manually.
+; This only works for kewlstart (fxo_ks) lines!
+; Dial tone will be provided only after the loop disconnect has finished.
+;
+;autoreoriginate=yes
+;
 ; On trunk interfaces (FXS) it can be useful to attempt to follow the progress
 ; of a call through RINGING, BUSY, and ANSWERING.   If turned on, call
 ; progress attempts to determine answer, busy, and ringing on phone lines.
