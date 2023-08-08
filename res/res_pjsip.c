@@ -1141,9 +1141,11 @@ static pjsip_dialog *create_dialog_uas(const struct ast_sip_endpoint *endpoint,
 
 	contact.ptr = pj_pool_alloc(rdata->tp_info.pool, PJSIP_MAX_URL_SIZE);
 	contact.slen = pj_ansi_snprintf(contact.ptr, PJSIP_MAX_URL_SIZE,
-			"<%s:%s%.*s%s:%d%s%s>",
+			"<%s:%s%s%s%.*s%s:%d%s%s>",
 			uas_use_sips_contact(rdata) ? "sips" : "sip",
 			(type & PJSIP_TRANSPORT_IPV6) ? "[" : "",
+			S_OR(endpoint->contact_user, ""),
+                        (!ast_strlen_zero(endpoint->contact_user)) ? "@" : "",
 			(int)transport->local_name.host.slen,
 			transport->local_name.host.ptr,
 			(type & PJSIP_TRANSPORT_IPV6) ? "]" : "",
