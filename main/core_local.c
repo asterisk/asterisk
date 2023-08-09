@@ -315,12 +315,6 @@ static int local_devicestate(const char *data)
 	struct local_pvt *lp;
 	struct ao2_iterator it;
 
-	/* Strip options if they exist */
-	opts = strchr(exten, '/');
-	if (opts) {
-		*opts = '\0';
-	}
-
 	context = strchr(exten, '@');
 	if (!context) {
 		ast_log(LOG_WARNING,
@@ -328,6 +322,16 @@ static int local_devicestate(const char *data)
 		return AST_DEVICE_INVALID;
 	}
 	*context++ = '\0';
+
+	/* Strip options if they exist.
+	 * However, don't strip '/' before an '@' (exten could contain slashes).
+	 * So only start looking for '/' in context, because options would be past
+	 * this point if they exist, but anything before would be a '/' in the exten,
+	 * not options. */
+	opts = strchr(context, '/');
+	if (opts) {
+		*opts = '\0';
+	}
 
 	it = ao2_iterator_init(locals, 0);
 	for (; (lp = ao2_iterator_next(&it)); ao2_ref(lp, -1)) {
@@ -884,8 +888,9 @@ static struct local_pvt *local_alloc(const char *data, struct ast_stream_topolog
 	 */
 	ast_set_flag(&pvt->base, AST_UNREAL_MOH_INTERCEPT);
 
-	/* Look for options */
-	if ((opts = strchr(parse, '/'))) {
+	/* Look for options.
+	 * Slashes can appear in channel names, so options are after the last match. */
+	if ((opts = strrchr(parse, '/'))) {
 		*opts++ = '\0';
 		if (strchr(opts, 'n')) {
 			ast_set_flag(&pvt->base, AST_UNREAL_NO_OPTIMIZATION);
