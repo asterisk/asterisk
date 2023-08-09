@@ -755,6 +755,18 @@ usecallingpres=yes
 ;
 callwaitingcallerid=yes
 ;
+; Whether or not to allow users to go on-hook when receiving an incoming call
+; without disconnecting it. Users can later resume the call from any phone
+; on the same physical phone line (the same DAHDI channel).
+; This setting only has an effect on FXS (FXO-signalled) channels where there
+; is only a single incoming call to the DAHDI channel, using the Dial application.
+; (This is a convenience mechanism to avoid users wishing to resume a conversation
+; at a different phone from leaving a phone off the hook, resuming elsewhere,
+; and forgetting to restore the original phone on hook afterwards.)
+; Default is no.
+;
+;calledsubscriberheld=yes
+;
 ; Support three-way calling
 ;
 threewaycalling=yes
