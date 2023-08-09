@@ -598,6 +598,19 @@ static char *pjsip_set_logger_pcap(int fd, const char *arg)
 	return CLI_SUCCESS;
 }
 
+enum pjsip_logger_mask {
+	AST_PJSIP_LOGGER_UNSET = 0,
+	AST_PJSIP_LOGGER_NONE = (1 << 0),
+	AST_PJSIP_LOGGER_HOST = (1 << 1),
+	AST_PJSIP_LOGGER_METHOD = (1 << 2),
+	AST_PJSIP_LOGGER_VERBOSE = (1 << 3),
+	AST_PJSIP_LOGGER_PCAP = (1 << 4),
+	AST_PJSIP_LOGGER_ALL = (1 << 5),
+};
+
+static enum pjsip_logger_mask logger_cli_settings = AST_PJSIP_LOGGER_UNSET;
+static enum pjsip_logger_mask logger_config_settings = AST_PJSIP_LOGGER_UNSET;
+
 static char *pjsip_set_logger(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	static const char * const method_choices[] = {
@@ -633,22 +646,30 @@ static char *pjsip_set_logger(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 
 	if (a->argc == e->args) {        /* on/off */
 		if (!strcasecmp(what, "on")) {
+			logger_cli_settings |= AST_PJSIP_LOGGER_ALL;
 			return pjsip_enable_logger_all(a->fd);
 		} else if (!strcasecmp(what, "off")) {
+			logger_cli_settings = AST_PJSIP_LOGGER_NONE;
 			return pjsip_disable_logger(a->fd);
 		}
 	} else if (a->argc == e->args + 1) {
 		if (!strcasecmp(what, "host")) {
+			logger_cli_settings |= AST_PJSIP_LOGGER_HOST;
 			return pjsip_enable_logger_host(a->fd, a->argv[e->args], 0);
 		} else if (!strcasecmp(what, "add")) {
+			logger_cli_settings |= AST_PJSIP_LOGGER_HOST;
 			return pjsip_enable_logger_host(a->fd, a->argv[e->args], 1);
 		} else if (!strcasecmp(what, "method")) {
+			logger_cli_settings |= AST_PJSIP_LOGGER_METHOD;
 			return pjsip_enable_logger_method(a->fd, a->argv[e->args], 0);
 		} else if (!strcasecmp(what, "methodadd")) {
+			logger_cli_settings |= AST_PJSIP_LOGGER_METHOD;
 			return pjsip_enable_logger_method(a->fd, a->argv[e->args], 1);
 		} else if (!strcasecmp(what, "verbose")) {
+			logger_cli_settings |= AST_PJSIP_LOGGER_VERBOSE;
 			return pjsip_set_logger_verbose(a->fd, a->argv[e->args]);
 		} else if (!strcasecmp(what, "pcap")) {
+			logger_cli_settings |= AST_PJSIP_LOGGER_PCAP;
 			return pjsip_set_logger_pcap(a->fd, a->argv[e->args]);
 		}
 	}
@@ -664,16 +685,41 @@ static void check_debug(void)
 {
 	RAII_VAR(char *, debug, ast_sip_get_debug(), ast_free);
 
+	/* Got directive to disable debug */
 	if (ast_false(debug)) {
-		pjsip_disable_logger(-1);
+		/* If the logger was enabled via the CLI instead of through the config file,
+		 * then we shouldn't disable it on a reload.
+		 * Only disable logging if logging isn't enabled via the CLI. */
+		if (logger_cli_settings == AST_PJSIP_LOGGER_NONE || logger_cli_settings == AST_PJSIP_LOGGER_UNSET) {
+			/* Logger not enabled via CLI currently so good to go ahead and disable. */
+			pjsip_disable_logger(-1);
+		} else {
+			ast_debug(3, "Leaving logger enabled since logging settings overridden using CLI\n");
+		}
+		logger_config_settings = AST_PJSIP_LOGGER_NONE;
 		return;
 	}
 
+	/* Got directive to enable debug */
 	if (ast_true(debug)) {
-		pjsip_enable_logger_all(-1);
+		if (logger_cli_settings != AST_PJSIP_LOGGER_UNSET) {
+			/* Logging was modified using the CLI command,
+			 * and this overrides the default from the config. */
+			ast_debug(3, "Leaving logger alone since logging has been overridden using CLI\n");
+			return;
+		}
+		/* If logger already enabled via config, then nothing has changed. */
+		if (!(logger_config_settings & AST_PJSIP_LOGGER_ALL)) {
+			/* Logging was not previously enabled via config,
+			 * but has been enabled via CLI. */
+			logger_config_settings |= AST_PJSIP_LOGGER_ALL;
+			pjsip_enable_logger_all(-1);
+		}
 		return;
 	}
 
+	/* Enabling debug, only for specific host */
+	logger_config_settings = AST_PJSIP_LOGGER_HOST;
 	if (pjsip_enable_logger_host(-1, debug, 0) != CLI_SUCCESS) {
 		ast_log(LOG_WARNING, "Could not resolve host %s for debug "
 			"logging\n", debug);
