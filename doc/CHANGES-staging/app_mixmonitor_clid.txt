@@ -1,5 +1,0 @@
-Subject: app_mixmonitor
-
-Adds the c option to use the real Caller ID on
-the channel in voicemail recordings as opposed
-to the Connected Line.

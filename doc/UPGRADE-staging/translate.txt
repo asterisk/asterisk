@@ -1,6 +1,0 @@
-Subject: translate.c
-Master-Only: True
-
-When setting up translation between two codecs the quality was not taken into account,
-resulting in suboptimal translation. The quality is now taken into account,
-which can reduce the number of translation steps required, and improve the resulting quality.
