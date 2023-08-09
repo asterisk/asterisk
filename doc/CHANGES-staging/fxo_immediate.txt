@@ -1,6 +1,0 @@
-Subject: chan_dahdi
-
-FXO channels (FXS signaled) that don't use callerid or
-distinctive ring detection can now be configured
-to enter the dialplan immediately using immediate=yes,
-instead of waiting for at least one ring.

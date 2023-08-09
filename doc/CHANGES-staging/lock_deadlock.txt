@@ -1,5 +1,0 @@
-Subject: locks
-
-A new AMI event, DeadlockStart, is now available
-when Asterisk is compiled with DETECT_DEADLOCKS,
-and can indicate that a deadlock has occured.

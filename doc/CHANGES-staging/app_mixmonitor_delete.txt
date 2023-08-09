@@ -1,6 +1,0 @@
-Subject: app_mixmonitor
-
-The d option for MixMonitor now allows deleting
-the original recording when MixMonitor exits,
-which can be useful when MixMonitor copies it
-somewhere else before exiting.

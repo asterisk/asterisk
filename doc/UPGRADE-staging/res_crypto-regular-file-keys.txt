@@ -1,5 +1,0 @@
-Subject: res_crypto
-
-In addition to only paying attention to files ending with .key or .pub
-in the keys directory, we now also ignore any files which aren't regular
-files.

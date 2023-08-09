@@ -1,4 +1,0 @@
-Subject: res_pjsip_aoc
-
-Added res_pjsip_aoc which gives chan_pjsip the ability to send Advice-of-Charge messages.
-A new endpoint option, send_aoc, controls this.
