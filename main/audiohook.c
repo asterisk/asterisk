@@ -1385,6 +1385,7 @@ int ast_audiohook_set_mute_all(struct ast_channel *chan, const char *source, enu
 	ast_channel_lock(chan);
 
 	if (!ast_channel_audiohooks(chan)) {
+		ast_channel_unlock(chan);
 		return -1;
 	}
 
