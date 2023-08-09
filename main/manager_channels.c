@@ -467,7 +467,7 @@ struct ast_str *ast_manager_build_channel_state_string_prefix(
 	char *connected_name;
 	int res;
 
-	if (snapshot->base->tech_properties & AST_CHAN_TP_INTERNAL) {
+	if (!snapshot || (snapshot->base->tech_properties & AST_CHAN_TP_INTERNAL)) {
 		return NULL;
 	}
 
