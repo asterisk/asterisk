@@ -289,6 +289,7 @@ struct analog_pvt {
 	unsigned int ani_wink_time:16;			/* Safe wait time before we wink to start ANI spill */
 
 	unsigned int answeronpolarityswitch:1;
+	unsigned int calledsubscriberheld:1;	/*!< TRUE if a single incoming call can hold an FXS channel */
 	unsigned int callreturn:1;
 	unsigned int cancallforward:1;
 	unsigned int canpark:1;
@@ -330,6 +331,7 @@ struct analog_pvt {
 
 	/* XXX: All variables after this are internal */
 	unsigned int callwaiting:1;		/*!< TRUE if call waiting is enabled. (Active option) */
+	unsigned int cshactive:1;		/*!< TRUE if FXS channel is currently held by an incoming call */
 	unsigned int dialednone:1;
 	unsigned int dialing:1;			/*!< TRUE if in the process of dialing digits or sending something */
 	unsigned int dnd:1;				/*!< TRUE if Do-Not-Disturb is enabled. */
