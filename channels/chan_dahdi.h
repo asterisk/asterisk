@@ -205,6 +205,13 @@ struct dahdi_pvt {
 	 */
 	unsigned int busydetect:1;
 	/*!
+	 * \brief TRUE if Called Subscriber held is enabled.
+	 * This allows a single incoming call to hold a DAHDI channel up,
+	 * allowing a recipient to hang up an extension and pick up another
+	 * phone on the same line without disconnecting the call.
+	 */
+	unsigned int calledsubscriberheld:1;
+	/*!
 	 * \brief TRUE if call return is enabled.
 	 * (*69, if your dialplan doesn't catch this first)
 	 * \note Set from the "callreturn" value read in from chan_dahdi.conf
