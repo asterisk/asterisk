@@ -805,6 +805,11 @@ int analog_available(struct analog_pvt *p)
 		return 0;
 	}
 
+	/* If line is being held, definitely not (don't allow call waitings to an on-hook phone) */
+	if (p->cshactive) {
+		return 0;
+	}
+
 	/* If no owner definitely available */
 	if (!p->owner) {
 		offhook = analog_is_off_hook(p);
@@ -1300,6 +1305,7 @@ int analog_hangup(struct analog_pvt *p, struct ast_channel *ast)
 		p->channel, idx, p->subs[ANALOG_SUB_REAL].allocd, p->subs[ANALOG_SUB_CALLWAIT].allocd, p->subs[ANALOG_SUB_THREEWAY].allocd);
 	if (idx > -1) {
 		/* Real channel, do some fixup */
+		p->cshactive = 0;
 		p->subs[idx].owner = NULL;
 		p->polarity = POLARITY_IDLE;
 		analog_set_linear_mode(p, idx, 0);
@@ -2933,6 +2939,34 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 		analog_get_and_handle_alarms(p);
 		cause_code->ast_cause = AST_CAUSE_NETWORK_OUT_OF_ORDER;
 	case ANALOG_EVENT_ONHOOK:
+		if (p->calledsubscriberheld && (p->sig == ANALOG_SIG_FXOLS || p->sig == ANALOG_SIG_FXOGS || p->sig == ANALOG_SIG_FXOKS) && idx == ANALOG_SUB_REAL) {
+			ast_debug(4, "Channel state on %s is %d\n", ast_channel_name(ast), ast_channel_state(ast));
+			/* Called Subscriber Held: don't let the called party hang up on an incoming call immediately (if it's the only call). */
+			if (p->subs[ANALOG_SUB_CALLWAIT].owner || p->subs[ANALOG_SUB_THREEWAY].owner) {
+				ast_debug(2, "Letting this call hang up normally, since it's not the only call\n");
+			} else if (!p->owner || !p->subs[ANALOG_SUB_REAL].owner || ast_channel_state(ast) != AST_STATE_UP) {
+				ast_debug(2, "Called Subscriber Held does not apply: channel state is %d\n", ast_channel_state(ast));
+			} else if (!p->owner || !p->subs[ANALOG_SUB_REAL].owner || strcmp(ast_channel_appl(p->subs[ANALOG_SUB_REAL].owner), "AppDial")) {
+				/* Called Subscriber held only applies to incoming calls, not outgoing calls.
+				 * We can't use p->outgoing because that is always true, for both incoming and outgoing calls, so it's not accurate.
+				 * We can check the channel application/data instead.
+				 * For incoming calls to the channel, it will look like: AppDial / (Outgoing Line)
+				 * We only want this behavior for regular calls anyways (and not, say, Queue),
+				 * so this would actually work great. But accessing ast_channel_appl can cause a crash if there are no calls left,
+				 * so this check must occur AFTER we confirm the channel state *is* still UP.
+				 */
+				ast_debug(2, "Called Subscriber Held does not apply: not an incoming call\n");
+			} else if (analog_is_off_hook(p)) {
+				ast_log(LOG_WARNING, "Got ONHOOK but channel %d is off hook?\n", p->channel); /* Shouldn't happen */
+			} else {
+				ast_verb(3, "Holding incoming call %s for channel %d\n", ast_channel_name(ast), p->channel);
+				/* Inhibit dahdi_hangup from getting called, and do nothing else now.
+				 * When the DAHDI channel goes off hook again, it'll just get reconnected with the incoming call,
+				 * to which, as far as its concerned, nothing has happened. */
+				p->cshactive = 1; /* Keep track that this DAHDI channel is currently being held by an incoming call. */
+				break;
+			}
+		}
 		ast_queue_control_data(ast, AST_CONTROL_PVT_CAUSE_CODE, cause_code, data_size);
 		ast_channel_hangupcause_hash_set(ast, cause_code, data_size);
 		switch (p->sig) {
@@ -3809,6 +3843,7 @@ void *analog_handle_init_event(struct analog_pvt *i, int event)
 		case ANALOG_SIG_FXOKS:
 			res = analog_off_hook(i);
 			i->fxsoffhookstate = 1;
+			i->cshactive = 0;
 			if (res && (errno == EBUSY)) {
 				break;
 			}
