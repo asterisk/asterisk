@@ -58,7 +58,6 @@ struct ast_ari_endpoints_send_message_args {
 	const char *from;
 	/*! The body of the message */
 	const char *body;
-	/*! The "variables" key in the body object holds technology specific key/value pairs to append to the message. These can be interpreted and used by the various resource types; for example, pjsip and sip resource types will add the key/value pairs as SIP headers, */
 	struct ast_json *variables;
 };
 /*!
@@ -150,7 +149,6 @@ struct ast_ari_endpoints_send_message_to_endpoint_args {
 	const char *from;
 	/*! The body of the message */
 	const char *body;
-	/*! The "variables" key in the body object holds technology specific key/value pairs to append to the message. These can be interpreted and used by the various resource types; for example, pjsip and sip resource types will add the key/value pairs as SIP headers, */
 	struct ast_json *variables;
 };
 /*!
