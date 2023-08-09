@@ -1,5 +1,0 @@
-Subject: pbx_builtins
-
-It is now possible to not wait for media on
-a channel when answering it using Answer,
-by specifying the i option.

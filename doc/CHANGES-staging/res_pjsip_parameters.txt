@@ -1,5 +1,0 @@
-Subject: res_pjsip_header_funcs
-
-The new PJSIP_HEADER_PARAM function now fully supports both
-URI and header parameters. Both reading and writing
-parameters are supported.

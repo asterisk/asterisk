@@ -1,5 +1,0 @@
-Subject: format_sln
-
-format_sln now recognizes '.slin' as a valid
-file extension in addition to the existing
-'.sln' and '.raw'.

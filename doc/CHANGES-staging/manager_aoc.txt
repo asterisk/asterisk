@@ -1,3 +1,0 @@
-Subject: AMI
-
-The AOCMessage action can now be used to generate AOC-S messages.
