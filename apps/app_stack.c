@@ -375,26 +375,6 @@ static int pop_exec(struct ast_channel *chan, const char *data)
 	return res;
 }
 
-static int frames_left(struct ast_channel *chan)
-{
-	struct ast_datastore *stack_store;
-	struct gosub_stack_list *oldlist;
-	int exists;
-
-	ast_channel_lock(chan);
-	stack_store = ast_channel_datastore_find(chan, &stack_info, NULL);
-	if (!stack_store) {
-		ast_channel_unlock(chan);
-		return -1;
-	}
-	oldlist = stack_store->data;
-	AST_LIST_LOCK(oldlist);
-	exists = oldlist->first ? 1 : 0;
-	AST_LIST_UNLOCK(oldlist);
-	ast_channel_unlock(chan);
-	return exists;
-}
-
 static int return_exec(struct ast_channel *chan, const char *data)
 {
 	struct ast_datastore *stack_store;
@@ -402,7 +382,6 @@ static int return_exec(struct ast_channel *chan, const char *data)
 	struct gosub_stack_list *oldlist;
 	const char *retval = data;
 	int res = 0;
-	int lastframe;
 
 	ast_channel_lock(chan);
 	if (!(stack_store = ast_channel_datastore_find(chan, &stack_info, NULL))) {
@@ -414,7 +393,6 @@ static int return_exec(struct ast_channel *chan, const char *data)
 	oldlist = stack_store->data;
 	AST_LIST_LOCK(oldlist);
 	oldframe = AST_LIST_REMOVE_HEAD(oldlist, entries);
-	lastframe = oldlist->first ? 0 : 1;
 	AST_LIST_UNLOCK(oldlist);
 
 	if (!oldframe) {
@@ -432,19 +410,12 @@ static int return_exec(struct ast_channel *chan, const char *data)
 	 * what was there before.  Channels that do not have a PBX may
 	 * not have the context or exten set.
 	 */
-	if (ast_channel_pbx(chan) || !lastframe) {
-		/* If there's no PBX, the "old location" is simply
-		 * the configured context for the device, such as
-		 * for pre-dial handlers, and restoring this location
-		 * is nonsensical. So if no PBX and there are no further
-		 * frames, leave the location as it is. */
-		ast_channel_context_set(chan, oldframe->context);
-		ast_channel_exten_set(chan, oldframe->extension);
-		if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_IN_AUTOLOOP)) {
-			--oldframe->priority;
-		}
-		ast_channel_priority_set(chan, oldframe->priority);
+	ast_channel_context_set(chan, oldframe->context);
+	ast_channel_exten_set(chan, oldframe->extension);
+	if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_IN_AUTOLOOP)) {
+		--oldframe->priority;
 	}
+	ast_channel_priority_set(chan, oldframe->priority);
 	ast_set2_flag(ast_channel_flags(chan), oldframe->in_subroutine, AST_FLAG_SUBROUTINE_EXEC);
 
 	gosub_release_frame(chan, oldframe);
@@ -1095,13 +1066,10 @@ static int gosub_run(struct ast_channel *chan, const char *sub_args, int ignore_
 				ast_channel_priority(chan), ast_channel_name(chan));
 		}
 
-		/* Did the routine return?
-		 * For things like predial where there's no PBX on the channel yet,
-		 * the last return leaves the location alone so we can print it out correctly here.
-		 * So to ensure we finished properly, make sure there are no frames left in that case. */
-		if ((!ast_channel_pbx(chan) && !frames_left(chan)) || (ast_channel_priority(chan) == saved_priority
+		/* Did the routine return? */
+		if (ast_channel_priority(chan) == saved_priority
 			&& !strcmp(ast_channel_context(chan), saved_context)
-			&& !strcmp(ast_channel_exten(chan), saved_exten))) {
+			&& !strcmp(ast_channel_exten(chan), saved_exten)) {
 			ast_verb(3, "%s Internal %s(%s) complete GOSUB_RETVAL=%s\n",
 				ast_channel_name(chan), app_gosub, sub_args,
 				S_OR(pbx_builtin_getvar_helper(chan, "GOSUB_RETVAL"), ""));
