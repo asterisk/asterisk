@@ -434,7 +434,7 @@ static int return_exec(struct ast_channel *chan, const char *data)
 	 * what was there before.  Channels that do not have a PBX may
 	 * not have the context or exten set.
 	 */
-	if (ast_channel_pbx(chan) || !lastframe) {
+	if (ast_channel_pbx(chan) || !lastframe || ast_channel_macrocontext(chan)) {
 		/* If there's no PBX, the "old location" is simply
 		 * the configured context for the device, such as
 		 * for pre-dial handlers, and restoring this location
