@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
-name: Asterisk Release
-run-name: ${{ github.actor }} is creating Asterisk release ${{inputs.new_version}}
+name: Releaser
+run-name: ${{ github.actor }} is creating ${{vars.PRODUCT_NAME}} release ${{inputs.new_version}}
 on:
   workflow_dispatch:
     inputs:
@@ -70,8 +70,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Run Releaser
-        uses: asterisk/asterisk-ci-actions/AsteriskReleaserComposite@main
+        uses: asterisk/asterisk-ci-actions/ReleaserComposite@main
         with:
+          product: ${{vars.PRODUCT_NAME}}
           is_security: ${{inputs.is_security}}
           advisories: ${{inputs.advisories}}
           is_hotfix: ${{inputs.is_hotfix}}
@@ -82,19 +83,19 @@ jobs:
           push_tarballs: ${{inputs.push_tarballs}}
           send_email: ${{inputs.send_email}}
           repo: ${{github.repository}}
-          asterisk_mail_list_ga: ${{vars.ASTERISK_MAIL_LIST_GA}}
-          asterisk_mail_list_rc: ${{vars.ASTERISK_MAIL_LIST_RC}}
-          asterisk_mail_list_cert_ga: ${{vars.ASTERISK_MAIL_LIST_CERT_GA}}
-          asterisk_mail_list_cert_rc: ${{vars.ASTERISK_MAIL_LIST_CERT_RC}}
-          asterisk_mail_list_sec: ${{vars.ASTERISK_MAIL_LIST_SEC_ADV}}
-          sec_adv_url_base: ${{vars.ASTERISK_SEC_ADV_URL_BASE}}
+          mail_list_ga: ${{vars.MAIL_LIST_GA}}
+          mail_list_rc: ${{vars.MAIL_LIST_RC}}
+          mail_list_cert_ga: ${{vars.MAIL_LIST_CERT_GA}}
+          mail_list_cert_rc: ${{vars.MAIL_LIST_CERT_RC}}
+          mail_list_sec: ${{vars.MAIL_LIST_SEC_ADV}}
+          sec_adv_url_base: ${{vars.SEC_ADV_URL_BASE}}
           gpg_private_key: ${{secrets.ASTDEV_GPG_PRIV_KEY}}
           github_token: ${{secrets.GITHUB_TOKEN}}
           application_id: ${{secrets.ASTERISK_ORG_ACCESS_APP_ID}}
           application_private_key: ${{secrets.ASTERISK_ORG_ACCESS_APP_PRIV_KEY}}
           asteriskteamsa_username: ${{secrets.ASTERISKTEAMSA_GMAIL_ACCT}}
           asteriskteamsa_token: ${{secrets.ASTERISKTEAMSA_GMAIL_TOKEN}}
-          deploy_ssh_priv_key: ${{secrets.ASTERISK_DEPLOY_SSH_PRIV_KEY}}
-          deploy_ssh_username: ${{secrets.ASTERISK_DEPLOY_SSH_USERNAME}}
-          deploy_host: ${{vars.ASTERISK_DEPLOY_HOST}}
-          deploy_dir: ${{vars.ASTERISK_DEPLOY_DIR}}
+          deploy_ssh_priv_key: ${{secrets.DOWNLOADS_DEPLOY_SSH_PRIV_KEY}}
+          deploy_ssh_username: ${{secrets.DOWNLOADS_DEPLOY_SSH_USERNAME}}
+          deploy_host: ${{vars.DEPLOY_HOST}}
+          deploy_dir: ${{vars.DEPLOY_DIR}}
