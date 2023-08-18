@@ -58,7 +58,7 @@ if [[ -z ${cache_dir} ]] ; then
 fi
 
 version=$(${ASTTOPDIR}/build_tools/make_version ${ASTTOPDIR})
-if [[ ! ${version} =~ ^(GIT-)?(certified/)?([^.-]+)[.-].* ]] ; then
+if [[ ! ${version} =~ ^(GIT-)?(certified[/-])?([^.-]+)[.-].* ]] ; then
 	echo "${module_name}: Couldn't parse version ${version}"
 	exit 1
 fi
@@ -172,7 +172,7 @@ if [[ -f ${DESTDIR}${ASTMODDIR}/${module_name}.manifest.xml ]] ; then
 
 				cs=$(${MD5} ${f} | cut -b1-32)
 				if [[ "${cs}" !=  "${sum}" ]] ; then
-					echo Checksum mismatch: ${f}
+					echo "Checksum mismatch: ${f}"
 					need_install=1
 					break
 				fi
@@ -194,8 +194,8 @@ else
 fi
 
 need_download=1
-if [[ -f ${cache_dir}/${full_name}.manifest.xml ]] ; then
-	cpv=$(${XMLSTARLET} sel -t -v "/package/@version" ${cache_dir}/${full_name}.manifest.xml)
+if [[ -f ${cache_dir}/${full_name}-${major_version}.manifest.xml ]] ; then
+	cpv=$(${XMLSTARLET} sel -t -v "/package/@version" ${cache_dir}/${full_name}-${major_version}.manifest.xml)
 	cpvi=$(version_convert ${cpv})
 	echo "${full_name}: Cached package version ${cpv} (${cpvi})"
 	if [[ ${cpvi} == ${rpvi} && ( -f ${cache_dir}/${tarball} ) ]] ; then
@@ -210,7 +210,7 @@ if [[ ${need_download} = 1 ]] ; then
 		echo "${full_name}: Unable to fetch ${remote_url}/${tarball}"
 		exit 1
 	}
-	cp ${tmpdir}/${variant_manifest}  ${cache_dir}/${full_name}.manifest.xml
+	cp ${tmpdir}/${variant_manifest}  ${cache_dir}/${full_name}-${major_version}.manifest.xml
 fi
 
 tar -xzf ${cache_dir}/${tarball} -C ${cache_dir}
