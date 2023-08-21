@@ -109,7 +109,6 @@ static void refer_data_destructor(void *obj)
 {
 	struct refer_data *data = obj;
 	ast_free(data->value);
-	ast_free(data);
 }
 
 static void refer_destructor(void *obj)
@@ -298,6 +297,7 @@ static int refer_set_var_full(struct ast_refer *refer, const char *name, const c
 		if (ast_strlen_zero(value)) {
 			ao2_unlink(refer->vars, data);
 		} else {
+			ast_free(data->value);
 			data->value = ast_strdup(value);
 		}
 	}
