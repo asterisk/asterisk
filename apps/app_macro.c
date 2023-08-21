@@ -262,7 +262,7 @@ static int _macro_exec(struct ast_channel *chan, const char *data, int exclusive
 	char *save_macro_priority;
 	char *save_macro_offset;
 	int save_in_subroutine;
-	struct ast_datastore *macro_store = ast_channel_datastore_find(chan, &macro_ds_info, NULL);
+	struct ast_datastore *macro_store;
 	int had_infinite_include_error = 0;
 	static int deprecation_notice = 0;
 
@@ -276,6 +276,10 @@ static int _macro_exec(struct ast_channel *chan, const char *data, int exclusive
 		ast_log(LOG_WARNING, "Macro() is deprecated and will be removed from a future version of Asterisk.\n");
 		ast_log(LOG_WARNING, "Dialplan should be updated to use Gosub instead.\n");
 	}
+
+	ast_channel_lock(chan);
+
+	macro_store = ast_channel_datastore_find(chan, &macro_ds_info, NULL);
 
 	do {
 		if (macro_store) {
@@ -291,7 +295,6 @@ static int _macro_exec(struct ast_channel *chan, const char *data, int exclusive
 	} while (0);
 
 	/* does the user want a deeper rabbit hole? */
-	ast_channel_lock(chan);
 	if ((s = pbx_builtin_getvar_helper(chan, "MACRO_RECURSION"))) {
 		sscanf(s, "%30d", &maxdepth);
 	}
