@@ -965,7 +965,7 @@ void ast_stream_set_group(struct ast_stream *stream, int group);
  * \return The joint topology.
  */
 struct ast_stream_topology *ast_stream_topology_create_resolved(
-	struct ast_stream_topology *pending_topology, struct ast_stream_topology *validation_topology,
+	const struct ast_stream_topology *pending_topology, struct ast_stream_topology *validation_topology,
 	struct ast_stream_codec_negotiation_prefs *prefs,
 	struct ast_str **error_message);
 
@@ -981,5 +981,19 @@ struct ast_stream_topology *ast_stream_topology_create_resolved(
  *
  */
 #define ast_stream_topology_to_stra(__topology) ast_str_tmp(256, ast_stream_topology_to_str(__topology, &STR_TMP))
+
+/*!
+ * \brief Flip the directions of all streams in the topology
+ *
+ * \param top The topology
+ *
+ * \return 0 on success, non-zero on failure
+ *
+ * \details
+ * sendonly streams are set to recvonly, recvonly streams are set to sendonly. All other streams are left as is.
+ *
+ * \since 20.4.0
+ */
+int ast_stream_topology_flip_directions(struct ast_stream_topology *topology);
 
 #endif /* _AST_STREAM_H */

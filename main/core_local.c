@@ -192,6 +192,7 @@ static struct ast_channel_tech local_tech = {
 	.call = local_call,
 	.hangup = local_hangup,
 	.answer = ast_unreal_answer,
+	.answer_with_stream_topology = ast_unreal_answer_with_stream_topology,
 	.read_stream = ast_unreal_read,
 	.write = ast_unreal_write,
 	.write_stream = ast_unreal_write_stream,
@@ -953,7 +954,6 @@ static struct ast_channel *local_request(const char *type, struct ast_format_cap
 static struct ast_channel *local_request_with_stream_topology(const char *type, struct ast_stream_topology *topology, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *data, int *cause)
 {
 	struct ast_stream_topology *audio_filtered_topology;
-	int i;
 	struct local_pvt *p;
 	struct ast_channel *chan;
 	ast_callid callid;
@@ -964,61 +964,6 @@ static struct ast_channel *local_request_with_stream_topology(const char *type, 
 	audio_filtered_topology = ast_stream_topology_clone(topology);
 	if (!audio_filtered_topology) {
 		return NULL;
-	}
-
-	/* Some users of Local channels request every known format in the
-	 * universe. The core itself automatically pruned this list down to a single
-	 * "best" format for audio in non-multistream. We replicate the logic here to
-	 * do the same thing.
-	 */
-	for (i = 0; i < ast_stream_topology_get_count(audio_filtered_topology); ++i) {
-		struct ast_stream *stream;
-		int res;
-		struct ast_format *tmp_fmt = NULL;
-		struct ast_format *best_audio_fmt = NULL;
-		struct ast_format_cap *caps;
-
-		stream = ast_stream_topology_get_stream(audio_filtered_topology, i);
-
-		if (ast_stream_get_type(stream) != AST_MEDIA_TYPE_AUDIO ||
-			ast_stream_get_state(stream) == AST_STREAM_STATE_REMOVED) {
-			continue;
-		}
-
-		/* Respect the immutable state of formats on the stream and create a new
-		 * format capabilities to replace the existing one.
-		 */
-		caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
-		if (!caps) {
-			ao2_ref(audio_filtered_topology, -1);
-			return NULL;
-		}
-
-		/* The ast_translator_best_choice function treats both caps as const
-		 * but does not declare it in the API.
-		 */
-		res = ast_translator_best_choice((struct ast_format_cap *)ast_stream_get_formats(stream), local_tech.capabilities,
-			&tmp_fmt, &best_audio_fmt);
-		if (res < 0) {
-			struct ast_str *tech_codecs = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
-			struct ast_str *request_codecs = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
-
-			ast_log(LOG_WARNING, "No translator path exists for channel type %s (native %s) to %s\n", type,
-				ast_format_cap_get_names(local_tech.capabilities, &tech_codecs),
-				ast_format_cap_get_names(ast_stream_get_formats(stream), &request_codecs));
-
-			/* If there are no formats then we abort */
-			ao2_ref(caps, -1);
-			ao2_ref(audio_filtered_topology, -1);
-			return NULL;
-		}
-
-		ast_format_cap_append(caps, best_audio_fmt, 0);
-		ast_stream_set_formats(stream, caps);
-
-		ao2_ref(caps, -1);
-		ao2_ref(tmp_fmt, -1);
-		ao2_ref(best_audio_fmt, -1);
 	}
 
 	/* Allocate a new private structure and then Asterisk channels */

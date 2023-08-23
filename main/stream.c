@@ -1031,7 +1031,7 @@ void ast_stream_topology_map(const struct ast_stream_topology *topology,
 }
 
 struct ast_stream_topology *ast_stream_topology_create_resolved(
-	struct ast_stream_topology *pending_topology, struct ast_stream_topology *configured_topology,
+	const struct ast_stream_topology *pending_topology, struct ast_stream_topology *configured_topology,
 	struct ast_stream_codec_negotiation_prefs *prefs, struct ast_str**error_message)
 {
 	struct ast_stream_topology *joint_topology = ast_stream_topology_alloc();
@@ -1089,4 +1089,25 @@ void ast_stream_set_group(struct ast_stream *stream, int group)
 	ast_assert(stream != NULL);
 
 	stream->group = group;
+}
+
+int ast_stream_topology_flip_directions(struct ast_stream_topology *topology)
+{
+	int i;
+
+	if (!topology) {
+		return -1;
+	}
+
+	for (i = 0; i < AST_VECTOR_SIZE(&topology->streams); i++) {
+		struct ast_stream *stream = AST_VECTOR_GET(&topology->streams, i);
+
+		if (ast_stream_get_state(stream) == AST_STREAM_STATE_SENDONLY) {
+			ast_stream_set_state(stream, AST_STREAM_STATE_RECVONLY);
+		} else if (ast_stream_get_state(stream) == AST_STREAM_STATE_RECVONLY) {
+			ast_stream_set_state(stream, AST_STREAM_STATE_SENDONLY);
+		}
+	}
+
+	return 0;
 }

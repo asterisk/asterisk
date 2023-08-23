@@ -1031,10 +1031,6 @@ struct ast_sip_endpoint_media_configuration {
 	unsigned int bundle;
 	/*! Enable webrtc settings and defaults */
 	unsigned int webrtc;
-	/*! Codec preference for an incoming offer */
-	struct ast_flags incoming_call_offer_pref;
-	/*! Codec preference for an outgoing offer */
-	struct ast_flags outgoing_call_offer_pref;
 	/*! Codec negotiation prefs for incoming offers */
 	struct ast_stream_codec_negotiation_prefs codec_prefs_incoming_offer;
 	/*! Codec negotiation prefs for outgoing offers */
