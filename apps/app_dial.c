@@ -1728,6 +1728,15 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 				case AST_CONTROL_PVT_CAUSE_CODE:
 					ast_indicate_data(in, AST_CONTROL_PVT_CAUSE_CODE, f->data.ptr, f->datalen);
 					break;
+				case AST_CONTROL_PLAYBACK_BEGIN:
+					if (!f->data.ptr) {
+						ast_log(LOG_WARNING, "Got playback begin directive without filename on %s\n", ast_channel_name(c));
+					} else {
+						const char *filename = f->data.ptr;
+						ast_verb(3, "Playing audio file %s on %s\n", filename, ast_channel_name(in));
+						ast_streamfile(in, filename, ast_channel_language(in));
+					}
+					break;
 				case -1:
 					if (single && !caller_entertained) {
 						ast_verb(3, "%s stopped sounds\n", ast_channel_name(c));

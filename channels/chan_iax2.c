@@ -1509,6 +1509,7 @@ static int iax2_is_control_frame_allowed(int subtype)
 	case AST_CONTROL_STREAM_RESTART:
 	case AST_CONTROL_STREAM_REVERSE:
 	case AST_CONTROL_STREAM_FORWARD:
+	case AST_CONTROL_PLAYBACK_BEGIN: /* Only supported by app_dial currently */
 		/* None of these playback stream control frames should go across the link. */
 	case AST_CONTROL_RECORD_CANCEL:
 	case AST_CONTROL_RECORD_STOP:
