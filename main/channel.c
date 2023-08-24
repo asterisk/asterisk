@@ -4343,6 +4343,7 @@ static int attribute_const is_visible_indication(enum ast_control_frame_type con
 	case AST_CONTROL_RECORD_STOP:
 	case AST_CONTROL_RECORD_SUSPEND:
 	case AST_CONTROL_RECORD_MUTE:
+	case AST_CONTROL_PLAYBACK_BEGIN:
 		break;
 
 	case AST_CONTROL_INCOMPLETE:
@@ -4644,6 +4645,7 @@ static int indicate_data_internal(struct ast_channel *chan, int _condition, cons
 	case AST_CONTROL_RECORD_STOP:
 	case AST_CONTROL_RECORD_SUSPEND:
 	case AST_CONTROL_RECORD_MUTE:
+	case AST_CONTROL_PLAYBACK_BEGIN:
 		/* Nothing left to do for these. */
 		res = 0;
 		break;
