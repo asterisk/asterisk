@@ -299,6 +299,7 @@ struct analog_pvt {
 	unsigned int immediatering:1;			/*!< TRUE if ringing should be provided for immediate execution */
 	unsigned int lastnumredial:1;			/*!< TRUE if last number redial allowed */
 	unsigned int permcallwaiting:1;			/*!< TRUE if call waiting is enabled. (Configured option) */
+	unsigned int callwaitingdeluxe:1;		/*!< TRUE if Call Waiting Deluxe options are available */
 	unsigned int permhidecallerid:1;		/*!< Whether to hide our outgoing caller ID or not */
 	unsigned int pulse:1;
 	unsigned int threewaycalling:1;
@@ -347,6 +348,12 @@ struct analog_pvt {
 	 * gives a positive reply.
 	 */
 	unsigned int callwaitcas:1;
+
+	/*!
+	 * \brief TRUE if a Call Waiting Deluxe action is currently pending.
+	 */
+	unsigned int callwaitingdeluxepending:1;
+
 	unsigned int call_qualifier:1;	/*!< Call qualifier delivery */
 
 	char callwait_num[AST_MAX_EXTENSION];
@@ -398,6 +405,8 @@ int analog_available(struct analog_pvt *p);
 void *analog_handle_init_event(struct analog_pvt *i, int event);
 
 int analog_config_complete(struct analog_pvt *p);
+
+int analog_callwaiting_deluxe(struct analog_pvt *p, int option);
 
 void analog_handle_dtmf(struct analog_pvt *p, struct ast_channel *ast, enum analog_sub index, struct ast_frame **dest);
 
