@@ -335,6 +335,7 @@ enum ast_control_frame_type {
 	AST_CONTROL_STREAM_RESTART = 1002,	/*!< Indicate to a channel in playback to restart the stream */
 	AST_CONTROL_STREAM_REVERSE = 1003,	/*!< Indicate to a channel in playback to rewind */
 	AST_CONTROL_STREAM_FORWARD = 1004,	/*!< Indicate to a channel in playback to fast forward */
+	AST_CONTROL_PLAYBACK_BEGIN = 1005,	/*!< Indicate to a dialing interface that playback of an audio file should begin on the dialing channel. Currently only supported by app_dial. */
 	/* Control frames to manipulate recording on a channel. */
 	AST_CONTROL_RECORD_CANCEL = 1100,	/*!< Indicated to a channel in record to stop recording and discard the file */
 	AST_CONTROL_RECORD_STOP = 1101,	/*!< Indicated to a channel in record to stop recording */
