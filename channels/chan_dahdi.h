@@ -230,6 +230,10 @@ struct dahdi_pvt {
 	 */
 	unsigned int callwaitingcallerid:1;
 	/*!
+	 * \brief TRUE if Call Waiting Deluxe options should be available
+	 */
+	unsigned int callwaitingdeluxe:1;
+	/*!
 	 * \brief TRUE if support for call forwarding enabled.
 	 * Dial *72 to enable call forwarding.
 	 * Dial *73 to disable call forwarding.

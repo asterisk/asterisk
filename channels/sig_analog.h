@@ -331,6 +331,7 @@ struct analog_pvt {
 
 	/* XXX: All variables after this are internal */
 	unsigned int callwaiting:1;		/*!< TRUE if call waiting is enabled. (Active option) */
+	unsigned int callwaitingdeluxe:1;	/*!< TRUE if Call Waiting Deluxe options are available */
 	unsigned int cshactive:1;		/*!< TRUE if FXS channel is currently held by an incoming call */
 	unsigned int dialednone:1;
 	unsigned int dialing:1;			/*!< TRUE if in the process of dialing digits or sending something */
@@ -346,6 +347,12 @@ struct analog_pvt {
 	 * gives a positive reply.
 	 */
 	unsigned int callwaitcas:1;
+
+	/*!
+	 * \brief TRUE if a Call Waiting Deluxe action is currently pending.
+	 */
+	unsigned int callwaitdeluxepending:1;
+
 	unsigned int call_qualifier:1;	/*!< Call qualifier delivery */
 
 	char callwait_num[AST_MAX_EXTENSION];
@@ -396,6 +403,8 @@ int analog_available(struct analog_pvt *p);
 void *analog_handle_init_event(struct analog_pvt *i, int event);
 
 int analog_config_complete(struct analog_pvt *p);
+
+int analog_callwaiting_deluxe(struct analog_pvt *p, int option);
 
 void analog_handle_dtmf(struct analog_pvt *p, struct ast_channel *ast, enum analog_sub index, struct ast_frame **dest);
 
