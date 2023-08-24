@@ -371,6 +371,9 @@ static void print_frame(struct ast_frame *frame)
 		case AST_CONTROL_STREAM_FORWARD:
 			ast_verbose("SubClass: STREAM_FORWARD\n");
 			break;
+		case AST_CONTROL_PLAYBACK_BEGIN:
+			ast_verbose("SubClass: PLAYBACK_BEGIN\n");
+			break;
 		case AST_CONTROL_RECORD_CANCEL:
 			ast_verbose("SubClass: RECORD_CANCEL\n");
 			break;
