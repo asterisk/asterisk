@@ -4337,6 +4337,7 @@ static int attribute_const is_visible_indication(enum ast_control_frame_type con
 	case AST_CONTROL_STREAM_REVERSE:
 	case AST_CONTROL_STREAM_FORWARD:
 	case AST_CONTROL_STREAM_RESTART:
+	case AST_CONTROL_PLAYBACK_BEGIN:
 	case AST_CONTROL_RECORD_CANCEL:
 	case AST_CONTROL_RECORD_STOP:
 	case AST_CONTROL_RECORD_SUSPEND:
@@ -4638,6 +4639,7 @@ static int indicate_data_internal(struct ast_channel *chan, int _condition, cons
 	case AST_CONTROL_STREAM_REVERSE:
 	case AST_CONTROL_STREAM_FORWARD:
 	case AST_CONTROL_STREAM_RESTART:
+	case AST_CONTROL_PLAYBACK_BEGIN:
 	case AST_CONTROL_RECORD_CANCEL:
 	case AST_CONTROL_RECORD_STOP:
 	case AST_CONTROL_RECORD_SUSPEND:
