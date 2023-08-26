@@ -85,21 +85,21 @@ static void session_instance_destructor(void *obj)
 static int check_tcptls_cert_name(ASN1_STRING *cert_str, const char *hostname, const char *desc)
 {
 	unsigned char *str;
-	int ret;
+	int ret = -1,len
 
-	ret = ASN1_STRING_to_UTF8(&str, cert_str);
-	if (ret < 0 || !str) {
+	len = ASN1_STRING_to_UTF8(&str, cert_str);
+	if (len < 0 || !str) {
+		ast_log(LOG_WARNING, "Mailformed string in certificate\n", desc);
 		return -1;
-	}
+	} 
 
-	if (strlen((char *) str) != ret) {
+	if (strlen((char *) str) != len) {
 		ast_log(LOG_WARNING, "Invalid certificate %s length (contains NULL bytes?)\n", desc);
-
-		ret = -1;
 	} else if (!strcasecmp(hostname, (char *) str)) {
 		ret = 0;
-	} else {
-		ret = -1;
+        } else if (len > 2 && str[0] == '*' && str[1] == '.' && len - 2 <= strlen(hostname) && strcasecmp(hostname+strlen(hostname)-len+2, str+2) == 0) {
+                ast_log(LOG_WARNING,"Warning: allowing match on wildcard (%s =~ %s)\n", hostname, str);
+                ret = 0;
 	}
 
 	ast_debug(3, "SSL %s compare s1='%s' s2='%s'\n", desc, hostname, str);
