@@ -85,7 +85,7 @@ static void session_instance_destructor(void *obj)
 static int check_tcptls_cert_name(ASN1_STRING *cert_str, const char *hostname, const char *desc)
 {
 	unsigned char *str;
-	int ret = -1,len
+	int ret = -1,len;
 
 	len = ASN1_STRING_to_UTF8(&str, cert_str);
 	if (len < 0 || !str) {
