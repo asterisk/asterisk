@@ -2977,7 +2977,7 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 			break;
 		case STATUS_NO_LABEL:
 			if (context && !combined_find_spawn)
-				ast_log(LOG_NOTICE, "No such label '%s' in extension '%s' in context '%s'\n", label, exten, S_OR(context, ""));
+				ast_log(LOG_NOTICE, "No such label '%s' in extension '%s' in context '%s'\n", S_OR(label, ""), exten, S_OR(context, ""));
 			break;
 		default:
 			ast_debug(1, "Shouldn't happen!\n");
