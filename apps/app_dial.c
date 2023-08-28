@@ -1272,6 +1272,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 		}
 		winner = ast_waitfor_n(watchers, pos, to);
 		AST_LIST_TRAVERSE(out_chans, o, node) {
+			int res = 0;
 			struct ast_frame *f;
 			struct ast_channel *c = o->chan;
 
@@ -1548,7 +1549,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 								"Sending MF '%s' to %s as result of "
 								"receiving a PROGRESS message.\n",
 								mf_progress, hearpulsing ? "parties" : "called party");
-							ast_mf_stream(c, (hearpulsing ? NULL : in),
+							res |= ast_mf_stream(c, (hearpulsing ? NULL : in),
 							(hearpulsing ? in : NULL), mf_progress, 50, 55, 120, 65, 0);
 						}
 						if (!ast_strlen_zero(sf_progress)) {
@@ -1556,7 +1557,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 								"Sending SF '%s' to %s as result of "
 								"receiving a PROGRESS message.\n",
 								sf_progress, (hearpulsing ? "parties" : "called party"));
-							ast_sf_stream(c, (hearpulsing ? NULL : in),
+							res |= ast_sf_stream(c, (hearpulsing ? NULL : in),
 							(hearpulsing ? in : NULL), sf_progress, 0, 0);
 						}
 						if (!ast_strlen_zero(dtmf_progress)) {
@@ -1564,7 +1565,11 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 								"Sending DTMF '%s' to the called party as result of "
 								"receiving a PROGRESS message.\n",
 								dtmf_progress);
-							ast_dtmf_stream(c, in, dtmf_progress, 250, 0);
+							res |= ast_dtmf_stream(c, in, dtmf_progress, 250, 0);
+						}
+						if (res) {
+							ast_log(LOG_WARNING, "Called channel %s hung up post-progress before all digits could be sent\n", ast_channel_name(c));
+							goto wait_over;
 						}
 					}
 					ast_channel_publish_dial(in, c, NULL, "PROGRESS");
@@ -1578,7 +1583,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 								"Sending MF '%s' to %s as result of "
 								"receiving a WINK message.\n",
 								mf_wink, (hearpulsing ? "parties" : "called party"));
-							ast_mf_stream(c, (hearpulsing ? NULL : in),
+							res |= ast_mf_stream(c, (hearpulsing ? NULL : in),
 							(hearpulsing ? in : NULL), mf_wink, 50, 55, 120, 65, 0);
 						}
 						if (!ast_strlen_zero(sf_wink)) {
@@ -1586,8 +1591,12 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 								"Sending SF '%s' to %s as result of "
 								"receiving a WINK message.\n",
 								sf_wink, (hearpulsing ? "parties" : "called party"));
-							ast_sf_stream(c, (hearpulsing ? NULL : in),
+							res |= ast_sf_stream(c, (hearpulsing ? NULL : in),
 							(hearpulsing ? in : NULL), sf_wink, 0, 0);
+						}
+						if (res) {
+							ast_log(LOG_WARNING, "Called channel %s hung up post-wink before all digits could be sent\n", ast_channel_name(c));
+							goto wait_over;
 						}
 					}
 					ast_indicate(in, AST_CONTROL_WINK);
@@ -1886,6 +1895,7 @@ skip_frame:;
 		}
 	}
 
+wait_over:
 	if (!*to || ast_check_hangup(in)) {
 		ast_verb(3, "Nobody picked up in %d ms\n", orig);
 		publish_dial_end_event(in, out_chans, NULL, "NOANSWER");
