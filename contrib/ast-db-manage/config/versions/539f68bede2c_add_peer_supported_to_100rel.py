@@ -33,9 +33,9 @@ def upgrade():
         enum = ENUM(*NEW_ENUM, name='pjsip_100rel_values_v2')
         enum.create(op.get_bind(), checkfirst=False)
 
-        op.execute('ALTER TABLE ps_endpoints ALTER COLUMN 100rel TYPE'
+        op.execute('ALTER TABLE ps_endpoints ALTER COLUMN "100rel" TYPE'
                    ' pjsip_100rel_values_v2 USING'
-                   ' 100rel::text::pjsip_100rel_values_v2')
+                   ' "100rel"::text::pjsip_100rel_values_v2')
 
         ENUM(name="pjsip_100rel_values").drop(op.get_bind(), checkfirst=False)
 
@@ -50,8 +50,8 @@ def downgrade():
         enum = ENUM(*OLD_ENUM, name='pjsip_100rel_values')
         enum.create(op.get_bind(), checkfirst=False)
 
-        op.execute('ALTER TABLE ps_endpoints ALTER COLUMN 100rel TYPE'
+        op.execute('ALTER TABLE ps_endpoints ALTER COLUMN "100rel" TYPE'
                    ' pjsip_100rel_values USING'
-                   ' 100rel::text::pjsip_100rel_values')
+                   ' "100rel"::text::pjsip_100rel_values')
 
         ENUM(name="pjsip_100rel_values_v2").drop(op.get_bind(), checkfirst=False)
