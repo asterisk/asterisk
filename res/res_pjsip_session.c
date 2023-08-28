@@ -4053,15 +4053,20 @@ static int new_invite(struct new_invite *invite)
 	 * so let's go ahead and send a 100 Trying out to stop any
 	 * retransmissions.
 	 */
+	if (pjsip_inv_initial_answer(invite->session->inv_session, invite->rdata, 100, NULL, NULL, &tdata) != PJ_SUCCESS) {
+		if (tdata) {
+			pjsip_inv_send_msg(invite->session->inv_session, tdata);
+		} else {
+			pjsip_inv_terminate(invite->session->inv_session, 500, PJ_TRUE);
+		}
+		goto end;
+	}
+
 	ast_trace(-1, "%s: Call (%s:%s) to extension '%s' sending 100 Trying\n",
 		ast_sip_session_get_name(invite->session),
 		invite->rdata->tp_info.transport->type_name,
 		pj_sockaddr_print(&invite->rdata->pkt_info.src_addr, buffer, sizeof(buffer), 3),
 		invite->session->exten);
-	if (pjsip_inv_initial_answer(invite->session->inv_session, invite->rdata, 100, NULL, NULL, &tdata) != PJ_SUCCESS) {
-		pjsip_inv_terminate(invite->session->inv_session, 500, PJ_TRUE);
-		goto end;
-	}
 	ast_sip_session_send_response(invite->session, tdata);
 
 	sdp_info = pjsip_rdata_get_sdp_info(invite->rdata);
