@@ -11550,6 +11550,7 @@ static int show_mailbox_snapshot(struct ast_cli_args *a)
 	const char *context = a->argv[4];
 	struct ast_vm_mailbox_snapshot *mailbox_snapshot;
 	struct ast_vm_msg_snapshot *msg;
+	int i;
 
 	/* Take a snapshot of the mailbox and walk through each folder's contents */
 	mailbox_snapshot = ast_vm_mailbox_snapshot_create(mailbox, context, NULL, 0, AST_VM_SNAPSHOT_SORT_BY_ID, 0);
@@ -11560,7 +11561,7 @@ static int show_mailbox_snapshot(struct ast_cli_args *a)
 
 	ast_cli(a->fd, VM_STRING_HEADER_FORMAT, "Folder", "Caller ID", "Date", "Duration", "Flag", "ID");
 
-	for (int i = 0; i < mailbox_snapshot->folders; i++) {
+	for (i = 0; i < mailbox_snapshot->folders; i++) {
 		AST_LIST_TRAVERSE(&((mailbox_snapshot)->snapshots[i]), msg, msg) {
 			ast_cli(a->fd, VM_STRING_HEADER_FORMAT, msg->folder_name, msg->callerid, msg->origdate, msg->duration,
 					msg->flag, msg->msg_id);
@@ -11777,9 +11778,10 @@ static char *complete_voicemail_move_message(struct ast_cli_args *a, int maxpos)
 		}
 		AST_LIST_UNLOCK(&users);
 	} else if (pos == 4 || pos == 8 || (pos == 6 && maxpos == 6) ) {
+		int i;
 		/* Walk through the standard folders */
 		wordlen = strlen(word);
-		for (int i = 0; i < ARRAY_LEN(mailbox_folders); i++) {
+		for (i = 0; i < ARRAY_LEN(mailbox_folders); i++) {
 			if (folder && !strncasecmp(word, mailbox_folders[i], wordlen) && ++which > state) {
 				return ast_strdup(mailbox_folders[i]);
 			}
@@ -11789,7 +11791,6 @@ static char *complete_voicemail_move_message(struct ast_cli_args *a, int maxpos)
 		/* find messages in the folder */
 		struct ast_vm_mailbox_snapshot *mailbox_snapshot;
 		struct ast_vm_msg_snapshot *msg;
-		int i = 0;
 		mailbox = a->argv[2];
 		context = a->argv[3];
 		folder = a->argv[4];
@@ -11797,6 +11798,7 @@ static char *complete_voicemail_move_message(struct ast_cli_args *a, int maxpos)
 
 		/* Take a snapshot of the mailbox and snag the individual info */
 		if ((mailbox_snapshot = ast_vm_mailbox_snapshot_create(mailbox, context, folder, 0, AST_VM_SNAPSHOT_SORT_BY_ID, 0))) {
+			int i;
 			/* we are only requesting the one folder, but we still need to know it's index */
 			for (i = 0; i < ARRAY_LEN(mailbox_folders); i++) {
 				if (!strcasecmp(mailbox_folders[i], folder)) {
@@ -13773,6 +13775,7 @@ static int append_vmbox_info_astman(
 	struct ast_vm_mailbox_snapshot *mailbox_snapshot;
 	struct ast_vm_msg_snapshot *msg;
 	int nummessages = 0;
+	int i;
 
 	/* Take a snapshot of the mailbox */
 	mailbox_snapshot = ast_vm_mailbox_snapshot_create(vmu->mailbox, vmu->context, NULL, 0, AST_VM_SNAPSHOT_SORT_BY_ID, 0);
@@ -13784,7 +13787,7 @@ static int append_vmbox_info_astman(
 
 	astman_send_listack(s, m, "Voicemail box detail will follow", "start");
 	/* walk through each folder's contents and append info for each message */
-	for (int i = 0; i < mailbox_snapshot->folders; i++) {
+	for (i = 0; i < mailbox_snapshot->folders; i++) {
 		AST_LIST_TRAVERSE(&((mailbox_snapshot)->snapshots[i]), msg, msg) {
 			astman_append(s,
 				"Event: %s\r\n"
