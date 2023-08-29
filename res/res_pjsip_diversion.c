@@ -429,6 +429,11 @@ static int diversion_incoming_request(struct ast_sip_session *session, pjsip_rx_
 	pjsip_fromto_hdr *hdr = get_diversion_header(rdata);
 
 	if (hdr) {
+		pjsip_sip_uri *div_uri = pjsip_uri_get_uri(hdr->uri);
+		ast_debug(3, "%s: Incoming request diversion hdr: " PJ_SIP_URI_SPEC "\n",
+			ast_sip_session_get_name(session),
+			PJ_SIP_URI_VAR(div_uri));
+
 		set_redirecting(session, hdr, (pjsip_name_addr*)
 				PJSIP_MSG_TO_HDR(rdata->msg_info.msg)->uri);
 	} else {
@@ -453,10 +458,16 @@ static void diversion_incoming_response(struct ast_sip_session *session, pjsip_r
 	static const pj_str_t contact_name_s = { "m", 1 };
 
 	pjsip_status_line status = rdata->msg_info.msg->line.status;
-	pjsip_fromto_hdr *div_hdr;
-	pjsip_fromto_hdr *history_info_to;
-	pjsip_fromto_hdr *history_info_from;
-	pjsip_contact_hdr *contact_hdr;
+	pjsip_fromto_hdr *div_hdr = NULL;
+	pjsip_fromto_hdr *history_info_to = NULL;
+	pjsip_fromto_hdr *history_info_from = NULL;
+	pjsip_contact_hdr *contact_hdr = NULL;
+	pjsip_sip_uri *div_uri = NULL;
+	/*
+	 * For debugging purposes, we're assuming the diverter is the
+	 * original To party.
+	 */
+	pjsip_sip_uri *by = pjsip_uri_get_uri(PJSIP_MSG_TO_HDR(rdata->msg_info.msg)->uri);
 
 	if ((status.code != 302) && (status.code != 181)) {
 		return;
@@ -466,6 +477,8 @@ static void diversion_incoming_response(struct ast_sip_session *session, pjsip_r
 	   the history-info, if that doesn't exist, use session caller id info. if
 	   that doesn't exist use info from the To hdr*/
 	if (!(div_hdr = get_diversion_header(rdata))) {
+		ast_debug(3, "%s: Incoming response. Status: %d, No diversion header\n", ast_sip_session_get_name(session),
+			status.code);
 		history_info_to  = get_history_info_header(rdata, 0);
 
 		if (history_info_to) {
@@ -477,18 +490,48 @@ static void diversion_incoming_response(struct ast_sip_session *session, pjsip_r
 		}
 		if (!div_hdr && !session->id.number.valid) {
 			div_hdr = PJSIP_MSG_TO_HDR(rdata->msg_info.msg);
+			div_uri = pjsip_uri_get_uri(div_hdr->uri);
+			ast_debug(3, "%s: Incoming response. Status: %d, Using to header as div header: " \
+				PJ_SIP_URI_SPEC "\n",
+				ast_sip_session_get_name(session), status.code,
+				PJ_SIP_URI_VAR(div_uri));
 		}
+	} else {
+		div_uri = pjsip_uri_get_uri(div_hdr->uri);
+		ast_debug(3, "%s: Incoming response. Status: %d, diversion hdr: " \
+			PJ_SIP_URI_SPEC "\n",
+			ast_sip_session_get_name(session), status.code,
+			PJ_SIP_URI_VAR(div_uri));
 	}
 
-
 	if (status.code == 302) {
+		pjsip_sip_uri *to;
 		/* With 302, Contact indicates the final destination and possibly Diversion indicates the hop before */
 		contact_hdr = pjsip_msg_find_hdr_by_names(rdata->msg_info.msg, &contact_name, &contact_name_s, NULL);
-
+		to = pjsip_uri_get_uri(contact_hdr ? contact_hdr->uri : PJSIP_MSG_FROM_HDR(rdata->msg_info.msg)->uri);
+		ast_debug(3, "%s: Incoming response. Status: %d, redirected by: " \
+			PJ_SIP_URI_SPEC " to: " PJ_SIP_URI_SPEC "\n",
+			ast_sip_session_get_name(session), status.code,
+			PJ_SIP_URI_VAR(by),
+			PJ_SIP_URI_VAR(to));
 		set_redirecting(session, div_hdr, contact_hdr ?	(pjsip_name_addr*)contact_hdr->uri :
 				(pjsip_name_addr*)PJSIP_MSG_FROM_HDR(rdata->msg_info.msg)->uri);
 	} else {
 		/* With 181, Diversion is non-standard, but if present indicates the new final destination, and To indicating the original */
+		if (div_hdr) {
+			div_uri = pjsip_uri_get_uri(div_hdr->uri);
+			ast_debug(3, "%s: Incoming response. Status: %d, redirected by: " \
+				PJ_SIP_URI_SPEC " to: " PJ_SIP_URI_SPEC "\n",
+				ast_sip_session_get_name(session), status.code,
+				PJ_SIP_URI_VAR(by),
+				PJ_SIP_URI_VAR(div_uri));
+		} else {
+			ast_debug(3, "%s: Incoming response. Status: %d, redirected by: " \
+				PJ_SIP_URI_SPEC	".  No Diversion header present\n",
+				ast_sip_session_get_name(session), status.code,
+				PJ_SIP_URI_VAR(by));
+		}
+
 		set_redirecting(session, PJSIP_MSG_TO_HDR(rdata->msg_info.msg),
 				div_hdr ? (pjsip_name_addr*)div_hdr->uri : NULL);
 	}
@@ -501,7 +544,7 @@ static void diversion_incoming_response(struct ast_sip_session *session, pjsip_r
  * \param tdata The outbound message
  * \param data The redirecting data used to fill parts of the diversion header
  */
-static void add_diversion_header(pjsip_tx_data *tdata, struct ast_party_redirecting *data)
+static void add_diversion_header(struct ast_sip_session *session,pjsip_tx_data *tdata, struct ast_party_redirecting *data)
 {
 	static const pj_str_t reason_name = { "reason", 6 };
 
@@ -513,6 +556,7 @@ static void add_diversion_header(pjsip_tx_data *tdata, struct ast_party_redirect
 	const char *quote_str;
 	char *reason_buf;
 	pjsip_uri *base;
+	pjsip_sip_uri *div_uri;
 
 	struct ast_party_id *id = NULL;
 	if (tdata->msg->type == PJSIP_REQUEST_MSG) {
@@ -558,6 +602,11 @@ static void add_diversion_header(pjsip_tx_data *tdata, struct ast_party_redirect
 		pj_list_erase(old_hdr);
 	}
 	pjsip_msg_add_hdr(tdata->msg, (pjsip_hdr *)hdr);
+	div_uri = pjsip_uri_get_uri(hdr->uri);
+	ast_debug(3, "%s: Outgoing %s diversion header: " PJ_SIP_URI_SPEC "\n",
+		ast_sip_session_get_name(session),
+		tdata->msg->type == PJSIP_REQUEST_MSG ? "request" : "response",
+		PJ_SIP_URI_VAR(div_uri));
 }
 
 /*!
@@ -652,13 +701,25 @@ static void get_redirecting_add_diversion(struct ast_sip_session *session, pjsip
 
 	add_supported(tdata);
 
-	if (session->channel && session->endpoint->id.send_diversion &&
-	    (data = ast_channel_redirecting(session->channel))->count) {
-		add_diversion_header(tdata, data);
-	}
-	if (session->channel && session->endpoint->id.send_history_info) {
+	if (session->channel) {
 		data = ast_channel_redirecting(session->channel);
-		add_history_info_header(tdata, data);
+
+		if (session->endpoint->id.send_diversion && data->count) {
+			add_diversion_header(session, tdata, data);
+		} else {
+			ast_debug(3, "%s: endpoint.send_diversion: %s  count: %d\n",
+				ast_sip_session_get_name(session),
+				AST_YESNO(session->endpoint->id.send_diversion),
+				data->count);
+		}
+		if (session->endpoint->id.send_history_info) {
+			add_history_info_header(tdata, data);
+		} else {
+			ast_debug(3, "%s: endpoint.send_history_info: %s  count: %d\n",
+				ast_sip_session_get_name(session),
+				AST_YESNO(session->endpoint->id.send_history_info),
+				data->count);
+		}
 	}
 }
 
@@ -672,6 +733,7 @@ static void get_redirecting_add_diversion(struct ast_sip_session *session, pjsip
  */
 static void diversion_outgoing_request(struct ast_sip_session *session, pjsip_tx_data *tdata)
 {
+	ast_debug(3, "%s: Checking for diversion on outgoing INVITE request\n", ast_sip_session_get_name(session));
 	get_redirecting_add_diversion(session, tdata);
 }
 
@@ -688,6 +750,8 @@ static void diversion_outgoing_response(struct ast_sip_session *session, pjsip_t
 
 	/* add to 302 and 181 */
 	if (PJSIP_IS_STATUS_IN_CLASS(status.code, 300) || (status.code == 181)) {
+		ast_debug(3, "%s: Checking for diversion on outgoing %d response\n",
+			ast_sip_session_get_name(session), status.code);
 		get_redirecting_add_diversion(session, tdata);
 	}
 }

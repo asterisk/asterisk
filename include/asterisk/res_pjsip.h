@@ -70,6 +70,8 @@
 
 #define PJSTR_PRINTF_SPEC "%.*s"
 #define PJSTR_PRINTF_VAR(_v) ((int)(_v).slen), ((_v).ptr)
+#define PJ_SIP_URI_SPEC PJSTR_PRINTF_SPEC "@" PJSTR_PRINTF_SPEC ":%d"
+#define PJ_SIP_URI_VAR(_v) (int)(_v)->user.slen, (_v)->user.ptr, (int)(_v)->host.slen, (_v)->host.ptr, (_v)->port
 
 /* Response codes from RFC8224 */
 #define AST_STIR_SHAKEN_RESPONSE_CODE_STALE_DATE 403
