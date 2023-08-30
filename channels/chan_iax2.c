@@ -398,6 +398,47 @@ static int (*iax2_regfunk)(const char *username, int onoff) = NULL;
 #define DEFAULT_FREQ_OK		60 * 1000	/* How often to check for the host to be up */
 #define DEFAULT_FREQ_NOTOK	10 * 1000	/* How often to check, if the host is down... */
 
+/*! \brief Name of effective auth method */
+static const char *auth_method_labels[] = {
+    [0] = "none",
+    [IAX_AUTH_PLAINTEXT] = "plaintext",
+    [IAX_AUTH_MD5] = "MD5",
+    [IAX_AUTH_RSA] = "RSA",
+};
+
+/* Max length is length of |RSA|MD5|plaintext (18 + 1 for NUL = 19) */
+#define AUTH_METHOD_NAMES_BUFSIZE 19
+
+/*!
+ * \brief Get names of all auth methods
+ * \param Bit field of auth methods
+ * \param[out] buf Buffer into which to write the names. Must be of size AUTH_METHOD_NAMES_BUFSIZE.
+ * \return Auth methods name
+ */
+static char *auth_method_names(int authmethods, char *restrict buf)
+{
+	char *pos = buf;
+
+	*pos = '\0';
+
+	if (authmethods & IAX_AUTH_RSA) {
+		pos += sprintf(pos, "|RSA");
+	}
+	if (authmethods & IAX_AUTH_MD5) {
+		pos += sprintf(pos, "|MD5");
+	}
+	if (authmethods & IAX_AUTH_PLAINTEXT) {
+		pos += sprintf(pos, "|plaintext");
+	}
+
+	if (pos == buf) { /* No auth methods */
+		strcpy(buf, "none");
+		return buf;
+	}
+
+	return buf + 1; /* Skip leading | */
+}
+
 /* if a pvt has encryption setup done and is running on the call */
 #define IAX_CALLENCRYPTED(pvt) \
 	(ast_test_flag64(pvt, IAX_ENCRYPTED) && ast_test_flag64(pvt, IAX_KEYPOPULATED))
@@ -825,6 +866,8 @@ struct chan_iax2_pvt {
 	int authrej;
 	/*! permitted authentication methods */
 	int authmethods;
+	/*! effective authentication method */
+	int eff_auth_method;
 	/*! permitted encryption methods */
 	int encmethods;
 	/*! Encryption AES-128 Key */
@@ -8189,7 +8232,7 @@ static int authenticate_verify(struct chan_iax2_pvt *p, struct iax_ies *ies)
 		user = user_unref(user);
 	}
 	if (ast_test_flag64(p, IAX_FORCE_ENCRYPT) && !p->encmethods) {
-		ast_log(LOG_NOTICE, "Call Terminated, Incoming call is unencrypted while force encrypt is enabled.\n");
+		ast_log(LOG_WARNING, "Call Terminated, incoming call is unencrypted while force encrypt is enabled.\n");
 		return res;
 	}
 	if (!ast_test_flag(&p->state, IAX_STATE_AUTHENTICATED))
@@ -8215,12 +8258,17 @@ static int authenticate_verify(struct chan_iax2_pvt *p, struct iax_ies *ies)
 			key = ast_key_get(keyn, AST_KEY_PUBLIC);
 			if (key && !ast_check_signature(key, p->challenge, rsasecret)) {
 				res = 0;
+				p->eff_auth_method = IAX_AUTH_RSA;
 				break;
-			} else if (!key)
-				ast_log(LOG_WARNING, "requested inkey '%s' for RSA authentication does not exist\n", keyn);
+			} else if (!key) {
+				ast_log(LOG_WARNING, "Requested inkey '%s' for RSA authentication does not exist\n", keyn);
+			}
 			keyn = strsep(&stringp, ":");
 		}
 		ast_free(tmpkey);
+		if (res && authdebug) {
+			ast_log(LOG_WARNING, "No RSA public keys on file matched incoming call\n");
+		}
 	} else if (p->authmethods & IAX_AUTH_MD5) {
 		struct MD5Context md5;
 		unsigned char digest[16];
@@ -8237,12 +8285,19 @@ static int authenticate_verify(struct chan_iax2_pvt *p, struct iax_ies *ies)
 				sprintf(requeststr + (x << 1), "%02hhx", digest[x]); /* safe */
 			if (!strcasecmp(requeststr, md5secret)) {
 				res = 0;
+				p->eff_auth_method = IAX_AUTH_MD5;
 				break;
+			} else if (authdebug) {
+				ast_log(LOG_WARNING, "MD5 secret mismatch\n");
 			}
 		}
 	} else if (p->authmethods & IAX_AUTH_PLAINTEXT) {
-		if (!strcmp(secret, p->secret))
+		if (!strcmp(secret, p->secret)) {
 			res = 0;
+			p->eff_auth_method = IAX_AUTH_PLAINTEXT;
+		} else if (authdebug) {
+			ast_log(LOG_WARNING, "Plaintext secret mismatch\n");
+		}
 	}
 	return res;
 }
@@ -8417,22 +8472,25 @@ static int authenticate(const char *challenge, const char *secret, const char *k
 	if (!ast_strlen_zero(keyn)) {
 		if (!(authmethods & IAX_AUTH_RSA)) {
 			if (ast_strlen_zero(secret)) {
-				ast_log(LOG_NOTICE, "Asked to authenticate to %s with an RSA key, but they don't allow RSA authentication\n", ast_sockaddr_stringify_addr(addr));
+				ast_log(LOG_WARNING, "Asked to authenticate to %s with an RSA key, but they don't allow RSA authentication\n", ast_sockaddr_stringify_addr(addr));
 			}
 		} else if (ast_strlen_zero(challenge)) {
-			ast_log(LOG_NOTICE, "No challenge provided for RSA authentication to %s\n", ast_sockaddr_stringify_addr(addr));
+			ast_log(LOG_WARNING, "No challenge provided for RSA authentication to %s\n", ast_sockaddr_stringify_addr(addr));
 		} else {
 			char sig[256];
 			struct ast_key *key;
 			key = ast_key_get(keyn, AST_KEY_PRIVATE);
 			if (!key) {
-				ast_log(LOG_NOTICE, "Unable to find private key '%s'\n", keyn);
+				ast_log(LOG_WARNING, "Unable to find private key '%s'\n", keyn);
 			} else {
 				if (ast_sign(key, (char*)challenge, sig)) {
-					ast_log(LOG_NOTICE, "Unable to sign challenge with key\n");
+					ast_log(LOG_WARNING, "Unable to sign challenge with key\n");
 					res = -1;
 				} else {
 					iax_ie_append_str(ied, IAX_IE_RSA_RESULT, sig);
+					if (pvt) {
+						pvt->eff_auth_method = IAX_AUTH_RSA;
+					}
 					res = 0;
 				}
 			}
@@ -8465,11 +8523,15 @@ static int authenticate(const char *challenge, const char *secret, const char *k
 				sprintf(digres + (x << 1),  "%02hhx", digest[x]); /* safe */
 			if (pvt) {
 				build_encryption_keys(digest, pvt);
+				pvt->eff_auth_method = IAX_AUTH_MD5;
 			}
 			iax_ie_append_str(ied, IAX_IE_MD5_RESULT, digres);
 			res = 0;
 		} else if (authmethods & IAX_AUTH_PLAINTEXT) {
 			iax_ie_append_str(ied, IAX_IE_PASSWORD, secret);
+			if (pvt) {
+				pvt->eff_auth_method = IAX_AUTH_PLAINTEXT;
+			}
 			res = 0;
 		} else
 			ast_log(LOG_WARNING, "No way to send secret to peer '%s' (their methods: %d)\n", ast_sockaddr_stringify_addr(addr), authmethods);
@@ -11311,7 +11373,7 @@ static int socket_process_helper(struct iax2_thread *thread)
 				}
 				if (authenticate_verify(iaxs[fr->callno], &ies)) {
 					if (authdebug)
-						ast_log(LOG_NOTICE, "Host %s failed to authenticate as %s\n", ast_sockaddr_stringify(&addr),
+						ast_log(LOG_WARNING, "Host %s failed to authenticate as %s\n", ast_sockaddr_stringify(&addr),
 								iaxs[fr->callno]->username);
 					memset(&ied0, 0, sizeof(ied0));
 					auth_fail(fr->callno, IAX_COMMAND_REJECT);
@@ -11324,7 +11386,7 @@ static int socket_process_helper(struct iax2_thread *thread)
 					exists = 0;
 				if (strcmp(iaxs[fr->callno]->exten, "TBD") && !exists) {
 					if (authdebug)
-						ast_log(LOG_NOTICE, "Rejected connect attempt from %s, request '%s@%s' does not exist\n",
+						ast_log(LOG_WARNING, "Rejected connect attempt from %s, request '%s@%s' does not exist\n",
 								ast_sockaddr_stringify(&addr),
 								iaxs[fr->callno]->exten,
 								iaxs[fr->callno]->context);
@@ -11379,12 +11441,12 @@ static int socket_process_helper(struct iax2_thread *thread)
 						if (!format) {
 							if (authdebug) {
 								if (ast_test_flag64(iaxs[fr->callno], IAX_CODEC_NOCAP)) {
-									ast_log(LOG_NOTICE, "Rejected connect attempt from %s, requested '%s' incompatible with our capability '%s'.\n",
+									ast_log(LOG_WARNING, "Rejected connect attempt from %s, requested '%s' incompatible with our capability '%s'.\n",
 											ast_sockaddr_stringify(&addr),
 										iax2_getformatname_multiple(iaxs[fr->callno]->peerformat, &peer_form_buf),
 										iax2_getformatname_multiple(iaxs[fr->callno]->capability, &cap_buf));
 								} else {
-									ast_log(LOG_NOTICE, "Rejected connect attempt from %s, requested/capability '%s'/'%s' incompatible with our capability '%s'.\n",
+									ast_log(LOG_WARNING, "Rejected connect attempt from %s, requested/capability '%s'/'%s' incompatible with our capability '%s'.\n",
 										ast_sockaddr_stringify(&addr),
 										iax2_getformatname_multiple(iaxs[fr->callno]->peerformat, &peer_form_buf),
 										iax2_getformatname_multiple(iaxs[fr->callno]->peercapability, &peer_buf),
@@ -11437,12 +11499,12 @@ static int socket_process_helper(struct iax2_thread *thread)
 									iax2_getformatname_multiple(iaxs[fr->callno]->peercapability & iaxs[fr->callno]->capability, &cap_buf));
 								if (authdebug) {
 									if (ast_test_flag64(iaxs[fr->callno], IAX_CODEC_NOCAP)) {
-										ast_log(LOG_NOTICE, "Rejected connect attempt from %s, requested '%s' incompatible with our capability '%s'.\n",
+										ast_log(LOG_WARNING, "Rejected connect attempt from %s, requested '%s' incompatible with our capability '%s'.\n",
 											ast_sockaddr_stringify(&addr),
 											iax2_getformatname_multiple(iaxs[fr->callno]->peerformat, &peer_form_buf),
 											iax2_getformatname_multiple(iaxs[fr->callno]->capability, &cap_buf));
 									} else {
-										ast_log(LOG_NOTICE, "Rejected connect attempt from %s, requested/capability '%s'/'%s' incompatible with our capability '%s'.\n",
+										ast_log(LOG_WARNING, "Rejected connect attempt from %s, requested/capability '%s'/'%s' incompatible with our capability '%s'.\n",
 											ast_sockaddr_stringify(&addr),
 											iax2_getformatname_multiple(iaxs[fr->callno]->peerformat, &peer_form_buf),
 											iax2_getformatname_multiple(iaxs[fr->callno]->peercapability, &peer_buf),
@@ -11466,14 +11528,24 @@ static int socket_process_helper(struct iax2_thread *thread)
 						iax_ie_append_versioned_uint64(&ied1, IAX_IE_FORMAT2, 0, format);
 						send_command(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_ACCEPT, 0, ied1.buf, ied1.pos, -1);
 						if (strcmp(iaxs[fr->callno]->exten, "TBD")) {
+							char authmethodnames[AUTH_METHOD_NAMES_BUFSIZE];
 							ast_set_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED);
 							ast_verb(3, "Accepting AUTHENTICATED call from %s:\n"
+											"%srequested auth methods = (%s),\n"
+											"%sactual auth method = %s,\n"
+											"%sencrypted = %s,\n"
 											"%srequested format = %s,\n"
 											"%srequested prefs = %s,\n"
 											"%sactual format = %s,\n"
 											"%shost prefs = %s,\n"
 											"%spriority = %s\n",
 											ast_sockaddr_stringify(&addr),
+											VERBOSE_PREFIX_4,
+											auth_method_names(iaxs[fr->callno]->authmethods, authmethodnames),
+											VERBOSE_PREFIX_4,
+											auth_method_labels[iaxs[fr->callno]->eff_auth_method],
+											VERBOSE_PREFIX_4,
+											IAX_CALLENCRYPTED(iaxs[fr->callno]) ? "yes" : "no",
 											VERBOSE_PREFIX_4,
 											iax2_getformatname(iaxs[fr->callno]->peerformat),
 											VERBOSE_PREFIX_4,
@@ -11543,7 +11615,7 @@ immediatedial:
 					ast_string_field_set(iaxs[fr->callno], exten, ies.called_number ? ies.called_number : "s");
 					if (!ast_exists_extension(NULL, iaxs[fr->callno]->context, iaxs[fr->callno]->exten, 1, iaxs[fr->callno]->cid_num)) {
 						if (authdebug)
-							ast_log(LOG_NOTICE, "Rejected dial attempt from %s, request '%s@%s' does not exist\n",
+							ast_log(LOG_WARNING, "Rejected dial attempt from %s, request '%s@%s' does not exist\n",
 									ast_sockaddr_stringify(&addr),
 									iaxs[fr->callno]->exten,
 									iaxs[fr->callno]->context);
