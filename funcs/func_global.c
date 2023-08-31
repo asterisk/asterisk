@@ -53,6 +53,40 @@
 			<para>Set or get the value of a global variable specified in <replaceable>varname</replaceable></para>
 		</description>
 	</function>
+	<function name="GLOBAL_DELETE" language="en_US">
+		<synopsis>
+			Deletes a specified global variable.
+		</synopsis>
+		<syntax>
+			<parameter name="varname" required="true">
+				<para>Global variable name</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Delete the global variable specified in <replaceable>varname</replaceable>.
+			Will succeed if the global variable exists or not.</para>
+		</description>
+		<see-also>
+			<ref type="function">GLOBAL</ref>
+			<ref type="function">DELETE</ref>
+		</see-also>
+	</function>
+	<function name="GLOBAL_EXISTS" language="en_US">
+		<synopsis>
+			Check if a global variable exists or not.
+		</synopsis>
+		<syntax>
+			<parameter name="varname" required="true">
+				<para>Global variable name</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Returns <literal>1</literal> if global variable exists or <literal>0</literal> otherwise.</para>
+		</description>
+		<see-also>
+			<ref type="function">VARIABLE_EXISTS</ref>
+		</see-also>
+	</function>
 	<function name="SHARED" language="en_US">
 		<synopsis>
 			Gets or sets the shared variable specified.
@@ -143,6 +177,33 @@ static struct ast_custom_function global_function = {
 	.name = "GLOBAL",
 	.read = global_read,
 	.write = global_write,
+};
+
+static int global_delete_write(struct ast_channel *chan, const char *cmd, char *data, const char *value)
+{
+	pbx_builtin_setvar_helper(NULL, data, NULL);
+
+	return 0;
+}
+
+static struct ast_custom_function global_delete_function = {
+	.name = "GLOBAL_DELETE",
+	.write = global_delete_write,
+};
+
+static int global_exists_read(struct ast_channel *chan, const char *cmd, char *data,
+		  char *buf, size_t len)
+{
+	const char *var = pbx_builtin_getvar_helper(NULL, data);
+
+	strcpy(buf, var ? "1" : "0");
+
+	return 0;
+}
+
+static struct ast_custom_function global_exists_function = {
+	.name = "GLOBAL_EXISTS",
+	.read = global_exists_read,
 };
 
 static int shared_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
@@ -313,6 +374,8 @@ static int unload_module(void)
 	int res = 0;
 
 	res |= ast_custom_function_unregister(&global_function);
+	res |= ast_custom_function_unregister(&global_delete_function);
+	res |= ast_custom_function_unregister(&global_exists_function);
 	res |= ast_custom_function_unregister(&shared_function);
 
 	return res;
@@ -323,6 +386,8 @@ static int load_module(void)
 	int res = 0;
 
 	res |= ast_custom_function_register(&global_function);
+	res |= ast_custom_function_register(&global_delete_function);
+	res |= ast_custom_function_register(&global_exists_function);
 	res |= ast_custom_function_register(&shared_function);
 
 	return res;
