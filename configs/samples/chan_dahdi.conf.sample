@@ -944,6 +944,10 @@ group=1
 ; you can answer it by picking up and dialing *8#.  For simple offices, just
 ; make these both the same.  Groups range from 0 to 63.
 ;
+; Call groups and pickup groups may only be specified for FXO signalled channels.
+; If you need to pick up an FXS signalled channel directly, you can have it
+; dial a Local channel and pick up the ;1 side of the Local channel instead.
+;
 callgroup=1
 pickupgroup=1
 ;
