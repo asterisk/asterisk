@@ -18434,18 +18434,30 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 		} else if (!strcasecmp(v->name, "group")) {
 			confp->chan.group = ast_get_group(v->value);
 		} else if (!strcasecmp(v->name, "callgroup")) {
+			if (!((confp->chan.sig == SIG_FXOKS) || (confp->chan.sig == SIG_FXOGS) || (confp->chan.sig == SIG_FXOLS))) {
+				ast_log(LOG_WARNING, "Only FXO signalled channels may belong to a call group\n");
+			}
 			if (!strcasecmp(v->value, "none"))
 				confp->chan.callgroup = 0;
 			else
 				confp->chan.callgroup = ast_get_group(v->value);
 		} else if (!strcasecmp(v->name, "pickupgroup")) {
+			if (!((confp->chan.sig == SIG_FXOKS) || (confp->chan.sig == SIG_FXOGS) || (confp->chan.sig == SIG_FXOLS))) {
+				ast_log(LOG_WARNING, "Only FXO signalled channels may belong to a pickup group\n");
+			}
 			if (!strcasecmp(v->value, "none"))
 				confp->chan.pickupgroup = 0;
 			else
 				confp->chan.pickupgroup = ast_get_group(v->value);
 		} else if (!strcasecmp(v->name, "namedcallgroup")) {
+			if (!((confp->chan.sig == SIG_FXOKS) || (confp->chan.sig == SIG_FXOGS) || (confp->chan.sig == SIG_FXOLS))) {
+				ast_log(LOG_WARNING, "Only FXO signalled channels may belong to a named call group\n");
+			}
 			confp->chan.named_callgroups = ast_get_namedgroups(v->value);
 		} else if (!strcasecmp(v->name, "namedpickupgroup")) {
+			if (!((confp->chan.sig == SIG_FXOKS) || (confp->chan.sig == SIG_FXOGS) || (confp->chan.sig == SIG_FXOLS))) {
+				ast_log(LOG_WARNING, "Only FXO signalled channels may belong to a named pickup group\n");
+			}
 			confp->chan.named_pickupgroups = ast_get_namedgroups(v->value);
 		} else if (!strcasecmp(v->name, "setvar")) {
 			if (v->value) {
