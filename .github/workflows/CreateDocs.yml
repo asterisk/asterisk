@@ -5,6 +5,7 @@ on:
       branches:
         description: "JSON array of branches: ['18','20'] (no spaces)"
         required:    true
+        default: ${{ vars.WIKIDOCS_ENABLE }}
         type:        string
   schedule:
 #           Times are UTC
