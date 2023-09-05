@@ -77,7 +77,7 @@ def main(argv):
 
     RESOURCES_TRANSFORMS = [
         Transform(rel('models.wiki.mustache'),
-                  '%s/_Asterisk_REST_Data_Models.md' % args.dest_dir),
+                  '%s/Asterisk_REST_Data_Models.md' % args.dest_dir),
         Transform(rel('ari.make.mustache'), 'res/ari.make'),
         Transform(rel('ari_model_validators.h.mustache'),
                   'res/ari/ari_model_validators.h'),
