@@ -5,14 +5,14 @@
 |:------ |:------------------------------------ |:------------ |:------- |
 {{#apis}}
 {{#operations}}
-| {{http_method}} | [{{wiki_path}}](#{{nickname}}) | {{#response_class}}{{#is_primitive}}{{name}}{{/is_primitive}}{{^is_primitive}}[{{wiki_name}}]({{wiki_prefix}}Asterisk_REST_Data_Models#{{lc_singular_name}}){{/is_primitive}}{{/response_class}} | {{{summary}}} |
+| {{http_method}} | [{{wiki_path}}](#{{nickname_lc}}) | {{#response_class}}{{#is_primitive}}{{name}}{{/is_primitive}}{{^is_primitive}}[{{wiki_name}}]({{wiki_prefix}}Asterisk_REST_Data_Models#{{lc_singular_name}}){{/is_primitive}}{{/response_class}} | {{{summary}}} |
 {{/operations}}
 {{/apis}}
 {{#apis}}
 {{#operations}}
 
 ---
-[//]: # (anchor:{{nickname}})
+[//]: # (anchor:{{nickname_lc}})
 ## {{nickname}}
 ### {{http_method}} {{wiki_path}}
 {{{wiki_summary}}}{{#wiki_notes}} {{{wiki_notes}}}{{/wiki_notes}}
