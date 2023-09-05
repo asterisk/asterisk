@@ -6,8 +6,8 @@ title: Asterisk REST Data Models
 {{#api_declaration}}
 {{#models}}
 ## {{id}}
-{{#extends}}Base type: [{{extends}}](#{{extends}}){{/extends}}
-{{#has_subtypes}}Subtypes:{{#all_subtypes}} [{{id}}](#{{id}}){{/all_subtypes}}{{/has_subtypes}}
+{{#extends}}Base type: [{{extends}}](#{{extends_lc}}){{/extends}}
+{{#has_subtypes}}Subtypes:{{#all_subtypes}} [{{id}}](#{{id_lc}}){{/all_subtypes}}{{/has_subtypes}}
 ### Model
 ``` javascript title="{{id}}" linenums="1"
 {{{model_json}}}
