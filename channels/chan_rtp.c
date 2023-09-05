@@ -249,6 +249,7 @@ failure:
 enum {
 	OPT_RTP_CODEC =  (1 << 0),
 	OPT_RTP_ENGINE = (1 << 1),
+	OPT_RTP_GLUE = (1 << 2),
 };
 
 enum {
@@ -263,7 +264,13 @@ AST_APP_OPTIONS(unicast_rtp_options, BEGIN_OPTIONS
 	AST_APP_OPTION_ARG('c', OPT_RTP_CODEC, OPT_ARG_RTP_CODEC),
 	/*! Set the RTP engine to use for unicast RTP */
 	AST_APP_OPTION_ARG('e', OPT_RTP_ENGINE, OPT_ARG_RTP_ENGINE),
+	/*! Provide RTP glue for the channel */
+	AST_APP_OPTION('g', OPT_RTP_GLUE),
 END_OPTIONS );
+
+static const struct ast_datastore_info chan_rtp_datastore_info = {
+	.type = "CHAN_RTP_GLUE",
+};
 
 /*! \brief Function called when we should prepare to call the unicast destination */
 static struct ast_channel *unicast_rtp_request(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *data, int *cause)
@@ -372,6 +379,13 @@ static struct ast_channel *unicast_rtp_request(const char *type, struct ast_form
 
 	ast_channel_tech_set(chan, &unicast_rtp_tech);
 
+	if (ast_test_flag(&opts, OPT_RTP_GLUE)) {
+		struct ast_datastore *datastore;
+		if ((datastore = ast_datastore_alloc(&chan_rtp_datastore_info, NULL))) {
+			ast_channel_datastore_add(chan, datastore);
+		}
+	}
+
 	ast_format_cap_append(caps, fmt, 0);
 	ast_channel_nativeformats_set(chan, caps);
 	ast_channel_set_writeformat(chan, fmt);
@@ -401,6 +415,61 @@ failure:
 	return NULL;
 }
 
+/*! \brief Function called by RTP engine to get peer capabilities */
+static void chan_rtp_get_codec(struct ast_channel *chan, struct ast_format_cap *result)
+{
+	SCOPE_ENTER(1, "%s Native formats %s\n", ast_channel_name(chan),
+		ast_str_tmp(AST_FORMAT_CAP_NAMES_LEN, ast_format_cap_get_names(ast_channel_nativeformats(chan), &STR_TMP)));
+	ast_format_cap_append_from_cap(result, ast_channel_nativeformats(chan), AST_MEDIA_TYPE_UNKNOWN);
+	SCOPE_EXIT_RTN();
+}
+
+/*! \brief Function called by RTP engine to change where the remote party should send media.
+ *
+ * chan_rtp is not able to actually update the peer, so this function has no effect.
+ * */
+static int chan_rtp_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance *rtp, struct ast_rtp_instance *vrtp, struct ast_rtp_instance *tpeer, const struct ast_format_cap *cap, int nat_active)
+{
+	return -1;
+}
+
+/*! \brief Function called by RTP engine to get local audio RTP peer */
+static enum ast_rtp_glue_result chan_rtp_get_vrtp_peer(struct ast_channel *chan, struct ast_rtp_instance **instance)
+{
+	return AST_RTP_GLUE_RESULT_FORBID;
+}
+
+/*! \brief Function called by RTP engine to get local audio RTP peer */
+static enum ast_rtp_glue_result chan_rtp_get_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance **instance)
+{
+	struct ast_rtp_instance *rtp_instance = ast_channel_tech_pvt(chan);
+	struct ast_datastore *datastore;
+
+	if (!rtp_instance) {
+		return AST_RTP_GLUE_RESULT_FORBID;
+	}
+
+	if ((datastore = ast_channel_datastore_find(chan, &chan_rtp_datastore_info, NULL))) {
+		ao2_ref(datastore, -1);
+
+		*instance = rtp_instance;
+		ao2_ref(*instance, +1);
+
+		return AST_RTP_GLUE_RESULT_LOCAL;
+	}
+
+	return AST_RTP_GLUE_RESULT_FORBID;
+}
+
+/*! \brief Local glue for interacting with the RTP engine core */
+static struct ast_rtp_glue unicast_rtp_glue = {
+	.type = "UnicastRTP",
+	.get_rtp_info = chan_rtp_get_rtp_peer,
+	.get_vrtp_info = chan_rtp_get_vrtp_peer,
+	.get_codec = chan_rtp_get_codec,
+	.update_peer = chan_rtp_set_rtp_peer,
+};
+
 /*! \brief Function called when our module is unloaded */
 static int unload_module(void)
 {
@@ -412,6 +481,8 @@ static int unload_module(void)
 	ao2_cleanup(unicast_rtp_tech.capabilities);
 	unicast_rtp_tech.capabilities = NULL;
 
+	ast_rtp_glue_unregister(&unicast_rtp_glue);
+
 	return 0;
 }
 
@@ -421,6 +492,9 @@ static int load_module(void)
 	if (!(multicast_rtp_tech.capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
+
+	ast_rtp_glue_register(&unicast_rtp_glue);
+
 	ast_format_cap_append_by_type(multicast_rtp_tech.capabilities, AST_MEDIA_TYPE_UNKNOWN);
 	if (ast_channel_register(&multicast_rtp_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel class 'MulticastRTP'\n");
