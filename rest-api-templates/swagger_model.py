@@ -367,6 +367,7 @@ class Operation(Stringify):
     def __init__(self):
         self.http_method = None
         self.nickname = None
+        self.nickname_lc = None
         self.response_class = None
         self.parameters = []
         self.summary = None
@@ -378,6 +379,7 @@ class Operation(Stringify):
         validate_required_fields(op_json, self.required_fields, context)
         self.http_method = op_json.get('httpMethod')
         self.nickname = op_json.get('nickname')
+        self.nickname_lc = self.nickname.lower() 
         response_class = op_json.get('responseClass')
         self.response_class = response_class and SwaggerType().load(
             response_class, processor, context)
