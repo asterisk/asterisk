@@ -1552,7 +1552,7 @@ static void rtp_ioqueue_thread_remove(struct ast_rtp_ioqueue_thread *ioqueue)
 
 	/* If nothing is using this ioqueue thread destroy it */
 	AST_LIST_LOCK(&ioqueues);
-	if ((ioqueue->count - 2) == 0) {
+	if ((ioqueue->count -= 2) == 0) {
 		destroy = 1;
 		AST_LIST_REMOVE(&ioqueues, ioqueue, next);
 	}
