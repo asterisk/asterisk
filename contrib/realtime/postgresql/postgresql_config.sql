@@ -1488,7 +1488,7 @@ UPDATE alembic_version SET version_num='9f3692b1654b' WHERE alembic_version.vers
 
 CREATE TYPE pjsip_100rel_values_v2 AS ENUM ('no', 'required', 'peer_supported', 'yes');
 
-ALTER TABLE ps_endpoints ALTER COLUMN 100rel TYPE pjsip_100rel_values_v2 USING 100rel::text::pjsip_100rel_values_v2;
+ALTER TABLE ps_endpoints ALTER COLUMN "100rel" TYPE pjsip_100rel_values_v2 USING "100rel"::text::pjsip_100rel_values_v2;
 
 DROP TYPE pjsip_100rel_values;
 
