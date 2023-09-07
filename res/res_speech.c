@@ -37,6 +37,7 @@
 #include "asterisk/term.h"
 #include "asterisk/speech.h"
 #include "asterisk/format_cache.h"
+#include "asterisk/translate.h"
 
 static AST_RWLIST_HEAD_STATIC(engines, ast_speech_engine);
 static struct ast_speech_engine *default_engine = NULL;
@@ -183,6 +184,7 @@ struct ast_speech *ast_speech_new(const char *engine_name, const struct ast_form
 	struct ast_speech *new_speech = NULL;
 	struct ast_format_cap *joint;
 	RAII_VAR(struct ast_format *, best, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_format *, best_translated, NULL, ao2_cleanup);
 
 	/* Try to find the speech recognition engine that was requested */
 	if (!(engine = find_engine(engine_name)))
@@ -201,7 +203,16 @@ struct ast_speech *ast_speech_new(const char *engine_name, const struct ast_form
 		if (ast_format_cap_iscompatible_format(engine->formats, ast_format_slin) != AST_FORMAT_CMP_NOT_EQUAL) {
 			best = ao2_bump(ast_format_slin);
 		} else {
-			return NULL;
+			/*
+			 * If there is no overlap and the engine does not support slin, find the best
+			 * format to translate to and set that as the 'best' input format for the engine.
+			 * API consumer is responsible for translating to this format.
+			 * Safe to cast cap as ast_translator_best_choice does not modify the caps
+			 */
+			if (ast_translator_best_choice(engine->formats, (struct ast_format_cap *)cap, &best, &best_translated)) {
+				/* No overlapping formats and no translatable formats */
+				return NULL;
+			}
 		}
 	}
 
