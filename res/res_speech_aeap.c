@@ -279,6 +279,11 @@ static int handle_response_setup(struct ast_aeap *aeap, struct ast_aeap_message 
 	struct ast_json *json = ast_aeap_message_data(message);
 	const char *codec_name;
 
+	if (!format) {
+		log_error(aeap, "no 'format' set");
+		return -1;
+	}
+
 	if (!json) {
 		log_error(aeap, "no 'setup' object returned");
 		return -1;
