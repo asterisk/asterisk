@@ -704,6 +704,12 @@ static const struct ast_channel_tech null_tech = {
 	.description = "Null channel (should not see this)",
 };
 
+/* For multi-value data passed to/from ast_channel_callback() */
+struct ast_channel_callback_data {
+	const char *search;
+	int final_match_result;
+};
+
 static void ast_channel_destructor(void *obj);
 static void ast_dummy_channel_destructor(void *obj);
 static int ast_channel_by_uniqueid_cb(void *obj, void *arg, void *data, int flags);
@@ -712,12 +718,23 @@ static int does_id_conflict(const char *uniqueid)
 {
 	struct ast_channel *conflict;
 	size_t length = 0;
+	struct ast_channel_callback_data callback_data = {.search = uniqueid, .final_match_result = 0};
 
 	if (ast_strlen_zero(uniqueid)) {
 		return 0;
 	}
 
-	conflict = ast_channel_callback(ast_channel_by_uniqueid_cb, (char *) uniqueid, &length, OBJ_NOLOCK);
+  try_again:
+	conflict = ast_channel_callback(ast_channel_by_uniqueid_cb, &callback_data, &length, OBJ_NOLOCK);
+
+	/* ast_channel_callback will lock the (channels) mutex.	 We don't want to hold onto the channels mutex if we cannot lock a channel */
+	if (callback_data.final_match_result == CMP_RETRY_NEEDED) {
+		/* We ran into a possible deadlock, try again */
+		ast_debug(3, "does_id_conflict() Avoid deadlock trying to find channel by uniqueid: %s\n", uniqueid);
+		usleep(100);
+		goto try_again;
+	}
+
 	if (conflict) {
 		ast_log(LOG_ERROR, "Channel Unique ID '%s' already in use by channel %s(%p)\n",
 			uniqueid, ast_channel_name(conflict), conflict);
@@ -1278,7 +1295,8 @@ struct ast_channel *ast_channel_callback(ao2_callback_data_fn *cb_fn, void *arg,
 static int ast_channel_by_name_cb(void *obj, void *arg, void *data, int flags)
 {
 	struct ast_channel *chan = obj;
-	const char *name = arg;
+	struct ast_channel_callback_data *callback_data = arg;
+	const char *name = callback_data->search;
 	size_t name_len = *(size_t *) data;
 	int ret = CMP_MATCH;
 
@@ -1287,12 +1305,19 @@ static int ast_channel_by_name_cb(void *obj, void *arg, void *data, int flags)
 		return CMP_STOP;
 	}
 
-	ast_channel_lock(chan);
+	if (ast_channel_trylock(chan) != 0) {
+		/* Lock failure means the caller will need to retry until we get the lock we need */
+		callback_data->final_match_result = CMP_RETRY_NEEDED;
+		return CMP_STOP;
+	}
+
 	if ((!name_len && strcasecmp(ast_channel_name(chan), name))
 		|| (name_len && strncasecmp(ast_channel_name(chan), name, name_len))) {
 		ret = 0; /* name match failed, keep looking */
 	}
 	ast_channel_unlock(chan);
+
+	callback_data->final_match_result = CMP_MATCH;
 
 	return ret;
 }
@@ -1300,7 +1325,8 @@ static int ast_channel_by_name_cb(void *obj, void *arg, void *data, int flags)
 static int ast_channel_by_exten_cb(void *obj, void *arg, void *data, int flags)
 {
 	struct ast_channel *chan = obj;
-	char *context = arg;
+	struct ast_channel_callback_data *callback_data = arg;
+	char *context = (char *) callback_data->search;
 	char *exten = data;
 	int ret = CMP_MATCH;
 
@@ -1309,7 +1335,12 @@ static int ast_channel_by_exten_cb(void *obj, void *arg, void *data, int flags)
 		return CMP_STOP;
 	}
 
-	ast_channel_lock(chan);
+	if (ast_channel_trylock(chan) != 0) {
+		/* Lock failure means the caller will need to retry until we get the lock we need */
+		callback_data->final_match_result = CMP_RETRY_NEEDED;
+		return CMP_STOP;
+	}
+
 	if (strcasecmp(ast_channel_context(chan), context) && strcasecmp(ast_channel_macrocontext(chan), context)) {
 		ret = 0; /* Context match failed, continue */
 	} else if (strcasecmp(ast_channel_exten(chan), exten) && strcasecmp(ast_channel_macroexten(chan), exten)) {
@@ -1317,13 +1348,16 @@ static int ast_channel_by_exten_cb(void *obj, void *arg, void *data, int flags)
 	}
 	ast_channel_unlock(chan);
 
+	callback_data->final_match_result = ret;
+
 	return ret;
 }
 
 static int ast_channel_by_uniqueid_cb(void *obj, void *arg, void *data, int flags)
 {
 	struct ast_channel *chan = obj;
-	char *uniqueid = arg;
+	struct ast_channel_callback_data *callback_data = arg;
+	char *uniqueid = (char *) callback_data->search;
 	size_t id_len = *(size_t *) data;
 	int ret = CMP_MATCH;
 
@@ -1332,12 +1366,19 @@ static int ast_channel_by_uniqueid_cb(void *obj, void *arg, void *data, int flag
 		return CMP_STOP;
 	}
 
-	ast_channel_lock(chan);
+	if (ast_channel_trylock(chan) != 0) {
+		/* Lock failure means the caller will need to retry until we get the lock we need */
+		callback_data->final_match_result = CMP_RETRY_NEEDED;
+		return CMP_STOP;
+	}
+
 	if ((!id_len && strcasecmp(ast_channel_uniqueid(chan), uniqueid))
 		|| (id_len && strncasecmp(ast_channel_uniqueid(chan), uniqueid, id_len))) {
 		ret = 0; /* uniqueid match failed, keep looking */
 	}
 	ast_channel_unlock(chan);
+
+	callback_data->final_match_result = CMP_MATCH;
 
 	return ret;
 }
@@ -1363,14 +1404,23 @@ struct ast_channel_iterator *ast_channel_iterator_by_exten_new(const char *exten
 {
 	struct ast_channel_iterator *i;
 	char *l_exten = (char *) exten;
-	char *l_context = (char *) context;
+	struct ast_channel_callback_data callback_data = {.search = context, .final_match_result = 0};
 
 	if (!(i = ast_calloc(1, sizeof(*i)))) {
 		return NULL;
 	}
 
+  try_again:
 	i->active_iterator = (void *) ast_channel_callback(ast_channel_by_exten_cb,
-		l_context, l_exten, OBJ_MULTIPLE);
+		&callback_data, l_exten, OBJ_MULTIPLE);
+
+	if (callback_data.final_match_result == CMP_RETRY_NEEDED) {
+		/* We ran into a possible deadlock, try again */
+		ast_debug(3, "ast_channel_iterator_by_exten_new() Avoid deadlock trying to find channel by extension@context: %s@%s\n", exten, context);
+		usleep(100);
+		goto try_again;
+	}
+
 	if (!i->active_iterator) {
 		ast_free(i);
 		return NULL;
@@ -1429,20 +1479,41 @@ struct ast_channel *ast_channel_get_by_name_prefix(const char *name, size_t name
 {
 	struct ast_channel *chan;
 	char *l_name = (char *) name;
+	struct ast_channel_callback_data callback_data = {.search = name, .final_match_result = 0};
 
 	if (ast_strlen_zero(l_name)) {
 		/* We didn't have a name to search for so quit. */
 		return NULL;
 	}
 
-	chan = ast_channel_callback(ast_channel_by_name_cb, l_name, &name_len,
+  try_name_again:
+	chan = ast_channel_callback(ast_channel_by_name_cb, &callback_data, &name_len,
 		(name_len == 0) /* optimize if it is a complete name match */ ? OBJ_KEY : 0);
+
+	if (callback_data.final_match_result == CMP_RETRY_NEEDED) {
+		/* We ran into a possible deadlock, try again */
+		ast_debug(3, "ast_channel_get_by_name_prefix() Avoid deadlock trying to find channel by name: %s\n", name);
+		usleep(100);
+		goto try_name_again;
+	}
+
 	if (chan) {
 		return chan;
 	}
 
+  try_uniqueid_again:
 	/* Now try a search for uniqueid. */
-	return ast_channel_callback(ast_channel_by_uniqueid_cb, l_name, &name_len, 0);
+
+	chan = ast_channel_callback(ast_channel_by_uniqueid_cb, &callback_data, &name_len, 0);
+
+	if (callback_data.final_match_result == CMP_RETRY_NEEDED) {
+		/* We ran into a possible deadlock, try again */
+		ast_debug(3, "ast_channel_get_by_name_prefix() Avoid deadlock trying to find channel by uniqueid: %s\n", name);
+		usleep(100);
+		goto try_uniqueid_again;
+	}
+
+	return chan;
 }
 
 struct ast_channel *ast_channel_get_by_name(const char *name)
