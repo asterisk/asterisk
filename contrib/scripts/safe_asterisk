@@ -97,7 +97,7 @@ else
 
 	if test ! -d "${ASTVARRUNDIR}"; then
 		mkdir -p "${ASTVARRUNDIR}"
-		chmod 770 "${ASTVARRUNDIR}"
+		chmod 755 "${ASTVARRUNDIR}"
 	fi
 
 fi
