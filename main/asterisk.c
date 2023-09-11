@@ -553,6 +553,7 @@ static char *handle_show_settings(struct ast_cli_entry *e, int cmd, struct ast_c
 	ast_cli(a->fd, "  Generic PLC:                 %s\n", ast_test_flag(&ast_options, AST_OPT_FLAG_GENERIC_PLC) ? "Enabled" : "Disabled");
 	ast_cli(a->fd, "  Generic PLC on equal codecs: %s\n", ast_test_flag(&ast_options, AST_OPT_FLAG_GENERIC_PLC_ON_EQUAL_CODECS) ? "Enabled" : "Disabled");
 	ast_cli(a->fd, "  Hide Msg Chan AMI events:    %s\n", ast_opt_hide_messaging_ami_events ? "Enabled" : "Disabled");
+	ast_cli(a->fd, "  Sounds search custom dir:    %s\n", ast_opt_sounds_search_custom ? "Enabled" : "Disabled");
 	ast_cli(a->fd, "  Min DTMF duration::          %u\n", option_dtmfminduration);
 #if !defined(LOW_MEMORY)
 	ast_cli(a->fd, "  Cache media frames:          %s\n", ast_opt_cache_media_frames ? "Enabled" : "Disabled");
