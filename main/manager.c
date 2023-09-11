@@ -6745,6 +6745,7 @@ static int action_coresettings(struct mansession *s, const struct message *m)
 			"CoreRealTimeEnabled: %s\r\n"
 			"CoreCDRenabled: %s\r\n"
 			"CoreHTTPenabled: %s\r\n"
+			"SoundsSearchCustomDir: %s\r\n"
 			"\r\n",
 			idText,
 			AMI_VERSION,
@@ -6757,7 +6758,8 @@ static int action_coresettings(struct mansession *s, const struct message *m)
 			ast_option_maxfiles,
 			AST_CLI_YESNO(ast_realtime_enabled()),
 			AST_CLI_YESNO(ast_cdr_is_enabled()),
-			AST_CLI_YESNO(ast_webmanager_check_enabled())
+			AST_CLI_YESNO(ast_webmanager_check_enabled()),
+			AST_CLI_YESNO(ast_opt_sounds_search_custom)
 			);
 	return 0;
 }
