@@ -126,6 +126,10 @@ documentation_language = en_US	; Set the language you want documentation
                 ; housekeeping AMI and ARI channel events.  This can
                 ; reduce the load on the manager and ARI applications
                 ; when the Digium Phone Module for Asterisk is in use.
+;sounds_search_custom_dir = no;  This option, if enabled, will
+                ; cause Asterisk to search for sounds files in
+                ; AST_DATA_DIR/sounds/custom before searching the
+                ; normal directories like AST_DATA_DIR/sounds/<lang>.
 
 ; Changing the following lines may compromise your security.
 ;[files]
