@@ -1,0 +1,46 @@
+diff --git a/pjsip/src/pjsip/sip_transport.c b/pjsip/src/pjsip/sip_transport.c
+index 4f483fa..13b7c5b 100644
+--- a/pjsip/src/pjsip/sip_transport.c
++++ b/pjsip/src/pjsip/sip_transport.c
+@@ -770,16 +770,28 @@ PJ_DEF(pj_status_t) pjsip_rx_data_clone( const pjsip_rx_data *src,
+     pj_pool_t *pool;
+     pjsip_rx_data *dst;
+     pjsip_hdr *hdr;
++    pj_status_t clone_status;
++    pjsip_transport *src_tp = (pjsip_transport*)src->tp_info.transport;
+ 
+     PJ_ASSERT_RETURN(src && flags==0 && p_rdata, PJ_EINVAL);
+ 
++    pj_lock_acquire(src_tp->lock);
++    if (src_tp->is_shutdown || src_tp->is_destroying) {
++			pj_lock_release(src_tp->lock);
++			PJ_LOG(2,(THIS_FILE, "Warning: transport %s being destroyed or shutdown",
++				     pjsip_rx_data_get_info(src)));
++			return PJ_EIGNORED;
++    }
++
+     pool = pj_pool_create(src->tp_info.pool->factory,
+                           "rtd%p",
+                           PJSIP_POOL_RDATA_LEN,
+                           PJSIP_POOL_RDATA_INC,
+                           NULL);
+-    if (!pool)
+-        return PJ_ENOMEM;
++    if (!pool) {
++	pj_lock_release(src_tp->lock);
++	return PJ_ENOMEM;
++    }
+ 
+     dst = PJ_POOL_ZALLOC_T(pool, pjsip_rx_data);
+ 
+@@ -832,7 +844,9 @@ PJ_DEF(pj_status_t) pjsip_rx_data_clone( const pjsip_rx_data *src,
+     *p_rdata = dst;
+ 
+     /* Finally add transport ref */
+-    return pjsip_transport_add_ref(dst->tp_info.transport);
++    clone_status =  pjsip_transport_add_ref(dst->tp_info.transport);
++    pj_lock_release(src_tp->lock);
++    return clone_status;
+ }
+ 
+ /* Free previously cloned pjsip_rx_data. */
