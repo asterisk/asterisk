@@ -547,27 +547,27 @@ static int recording_unpause(struct stasis_app_recording *recording)
 		AST_CONTROL_RECORD_SUSPEND);
 }
 
-static int recording_mute(struct stasis_app_recording *recording)
+static int toggle_recording_mute(struct stasis_app_recording *recording, int desired_mute_state)
 {
-	if (recording->muted) {
-		/* already muted */
+	if (recording->muted == desired_mute_state) {
+		/* already in desired state */
 		return 0;
 	}
 
-	recording->muted = 1;
+	recording->muted = desired_mute_state;
+
 	return stasis_app_control_queue_control(recording->control,
 		AST_CONTROL_RECORD_MUTE);
 }
 
+static int recording_mute(struct stasis_app_recording *recording)
+{
+	return toggle_recording_mute(recording, 1);
+}
+
 static int recording_unmute(struct stasis_app_recording *recording)
 {
-	if (!recording->muted) {
-		/* already unmuted */
-		return 0;
-	}
-
-	return stasis_app_control_queue_control(recording->control,
-		AST_CONTROL_RECORD_MUTE);
+	return toggle_recording_mute(recording, 0);
 }
 
 recording_operation_cb operations[STASIS_APP_RECORDING_STATE_MAX][STASIS_APP_RECORDING_OPER_MAX] = {
