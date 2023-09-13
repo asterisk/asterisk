@@ -9,7 +9,6 @@
 			<support_level>extended</support_level>
 		</member>
 		<member name="DETECT_DEADLOCKS" displayname="Detect Deadlocks">
-			<depend>DEBUG_THREADS</depend>
 			<support_level>extended</support_level>
 		</member>
 		<member name="DUMP_SCHEDULER" displayname="Dump Scheduler Contents for Debugging">
