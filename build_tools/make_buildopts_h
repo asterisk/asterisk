@@ -18,42 +18,79 @@ then
 	# gets added to BUILDOPTS.
 fi
 
-TMP=`${GREP} -e "^MENUSELECT_CFLAGS" menuselect.makeopts | sed 's/MENUSELECT_CFLAGS\=//g' | sed 's/-D//g'`
-for x in ${TMP}; do
-	if test "${x}" = "AO2_DEBUG" \
-			-o "${x}" = "BETTER_BACKTRACES" \
-			-o "${x}" = "BUILD_NATIVE" \
-			-o "${x}" = "COMPILE_DOUBLE" \
-			-o "${x}" = "DEBUG_CHAOS" \
-			-o "${x}" = "DEBUG_SCHEDULER" \
-			-o "${x}" = "DETECT_DEADLOCKS" \
-			-o "${x}" = "DONT_OPTIMIZE" \
-			-o "${x}" = "DUMP_SCHEDULER" \
-			-o "${x}" = "LOTS_OF_SPANS" \
-			-o "${x}" = "MALLOC_DEBUG" \
-			-o "${x}" = "RADIO_RELAX" \
-			-o "${x}" = "REBUILD_PARSERS" \
-			-o "${x}" = "REF_DEBUG" \
-			-o "${x}" = "USE_HOARD_ALLOCATOR" ; then
-		# These options are only for specific sources and have no effect on public ABI.
-		# Keep them out of buildopts.h so ccache does not invalidate all sources.
-		continue
-	fi
+ADD_CFLAGS_TO_BUILDOPTS=false
+MENUSELECT_CFLAGS=$(${GREP} -e "^MENUSELECT_CFLAGS" menuselect.makeopts)
+echo "$MENUSELECT_CFLAGS" | grep -q -e "ADD_CFLAGS_TO_BUILDOPTS_H" && ADD_CFLAGS_TO_BUILDOPTS=true
 
+# Clean up MENUSELECT_CFLAGS by removing the "MENUSELECT_CFLAGS="
+# at the front, the "ADD_CFLAGS_TO_BUILDOPTS_H" flag, and any "-D"
+# entries.
+MENUSELECT_CFLAGS=$( echo "$MENUSELECT_CFLAGS" | \
+	sed -r -e "s/(MENUSELECT_CFLAGS=|ADD_CFLAGS_TO_BUILDOPTS_H|-D)//g")
+
+# This is a list of flags that don't affect the ABI.
+# "ADD_CFLAGS_TO_BUILDOPTS_H" is NOT set, we'll filter these
+# out of the buildopts.h file.
+#
+# These used to always be filtered out but if they're not in
+# buildopts.h, many IDEs will show them as undefined and mark
+# any code blocks enabled by them as disabled.
+#
+# The original reasoning for removing them was that trivial
+# changes to the buildopts.h file will cause ccache to
+# invalidate any source files that use it and increase the
+# compile time.  It's not such a huge deal these days but
+# to preserve backwards behavior the default is still to
+# remove them.
+# 
+# The ABI-breaking flags are always included in buildopts.h.
+
+# This variable is used by sed so it needs to be a valid
+# regex which will be surrounded by parens.]
+FILTER_OUT="\
+AO2_DEBUG|BETTER_BACKTRACES|BUILD_NATIVE|\
+COMPILE_DOUBLE|DEBUG_CHAOS|DEBUG_SCHEDULER|\
+DETECT_DEADLOCKS|DONT_OPTIMIZE|DUMP_SCHEDULER|\
+LOTS_OF_SPANS|MALLOC_DEBUG|RADIO_RELAX|\
+REBUILD_PARSERS|REF_DEBUG|USE_HOARD_ALLOCATOR"
+
+# Create buildopts.h
+
+INCLUDE_CFLAGS="$MENUSELECT_CFLAGS"
+# Do the filter-out if needed.
+if ! $ADD_CFLAGS_TO_BUILDOPTS ; then
+	INCLUDE_CFLAGS=$( echo "$MENUSELECT_CFLAGS" | \
+		sed -r -e "s/(${FILTER_OUT})//g")
+fi
+
+# Output the defines.
+for x in ${INCLUDE_CFLAGS}; do
 	echo "#define ${x} 1"
-	if test "${x}" = "LOW_MEMORY" ; then
-		# LOW_MEMORY isn't an ABI affecting option but it is used in many sources
-		# so it gets defined globally but is not included in AST_BUILTOPTS.
-		continue
-	fi
-	if test "x${BUILDOPTS}" != "x" ; then
-		BUILDOPTS="${BUILDOPTS}, ${x}"
-	else
-		BUILDOPTS="${x}"
-	fi
 done
 
-BUILDSUM=`echo ${BUILDOPTS} | ${MD5} | cut -c1-32`
+# We NEVER include the non-ABI-breaking flags in the
+# BUILDOPTS or use them to calculate the checksum so
+# we always filter out any that may exist.
+# After the filter-out, we also need to convert the
+# possibly-multi-spaced MENUSELECT_CFLAGS to a nice
+# comma-separated list.
+# I.E.
+#  Remove leading spaces.
+#  Convert consecutive interior spaces to a single space.
+#  Remove trailing spaces.
+#  Convert the now-single-spaces in the interior to ", ".
+BUILDOPTS=$( echo "$MENUSELECT_CFLAGS" | \
+	sed -r -e "s/(${FILTER_OUT}|LOW_MEMORY)//g" -e "s/^\s+//g;s/\s+/ /g;s/\s+$//g;s/\s/, /g" )
+
+# Calculate the checksum on only the ABI-breaking flags.
+BUILDSUM=$(echo "${BUILDOPTS}" | ${MD5} | cut -c1-32)
 
 echo "#define AST_BUILDOPT_SUM \"${BUILDSUM}\""
 echo "#define AST_BUILDOPTS \"${BUILDOPTS}\""
+
+# However, it'd be nice to see the non-ABI-breaking flags
+# when you do a "core show settings" so we create a separate
+# define for them.
+BUILDOPTS_ALL=$( echo "$MENUSELECT_CFLAGS" | \
+	sed -r -e "s/^\s+//g;s/\s+/ /g;s/\s+$//g;s/\s/, /g" )
+echo "#define AST_BUILDOPTS_ALL \"${BUILDOPTS_ALL}\""
