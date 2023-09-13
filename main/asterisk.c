@@ -491,7 +491,8 @@ static char *handle_show_settings(struct ast_cli_entry *e, int cmd, struct ast_c
 	ast_cli(a->fd, "\nPBX Core settings\n");
 	ast_cli(a->fd, "-----------------\n");
 	ast_cli(a->fd, "  Version:                     %s\n", ast_get_version());
-	ast_cli(a->fd, "  Build Options:               %s\n", S_OR(ast_get_build_opts(), "(none)"));
+	ast_cli(a->fd, "  ABI related Build Options:   %s\n", S_OR(ast_get_build_opts(), "(none)"));
+	ast_cli(a->fd, "  All Build Options:           %s\n", S_OR(ast_get_build_opts_all(), "(none)"));
 	if (ast_option_maxcalls)
 		ast_cli(a->fd, "  Maximum calls:               %d (Current %d)\n", ast_option_maxcalls, ast_active_channels());
 	else
