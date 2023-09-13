@@ -85,14 +85,26 @@ static pj_status_t ws_send_msg(pjsip_transport *transport,
 static pj_status_t ws_destroy(pjsip_transport *transport)
 {
 	struct ws_transport *wstransport = (struct ws_transport *)transport;
+
+	ao2_ref(wstransport, -1);
+
+	return PJ_SUCCESS;
+}
+
+/*!
+ * \brief Shut down the pjsip transport.
+ *
+ * Called by pjsip transport manager.
+ */
+static pj_status_t ws_shutdown(pjsip_transport *transport)
+{
+	struct ws_transport *wstransport = (struct ws_transport *)transport;
 	int fd = ast_websocket_fd(wstransport->ws_session);
 
 	if (fd > 0) {
 		ast_websocket_close(wstransport->ws_session, 1000);
 		shutdown(fd, SHUT_RDWR);
 	}
-
-	ao2_ref(wstransport, -1);
 
 	return PJ_SUCCESS;
 }
@@ -232,6 +244,7 @@ static int transport_create(void *data)
 	newtransport->transport.dir = PJSIP_TP_DIR_INCOMING;
 	newtransport->transport.tpmgr = tpmgr;
 	newtransport->transport.send_msg = &ws_send_msg;
+	newtransport->transport.do_shutdown = &ws_shutdown;
 	newtransport->transport.destroy = &ws_destroy;
 
 	status = pjsip_transport_register(newtransport->transport.tpmgr,
@@ -394,6 +407,7 @@ static void websocket_cb(struct ast_websocket *session, struct ast_variable *par
 	transport = create_data.transport;
 	read_data.transport = transport;
 
+	pjsip_transport_add_ref(&transport->transport);
 	while (ast_websocket_wait_for_input(session, -1) > 0) {
 		enum ast_websocket_opcode opcode;
 		int fragmented;
@@ -410,6 +424,7 @@ static void websocket_cb(struct ast_websocket *session, struct ast_variable *par
 			break;
 		}
 	}
+	pjsip_transport_dec_ref(&transport->transport);
 
 	ast_sip_push_task_wait_serializer(serializer, transport_shutdown, transport);
 
