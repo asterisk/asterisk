@@ -196,6 +196,22 @@ void ast_cel_publish_event(struct ast_channel *chan,
 	struct ast_json *blob);
 
 /*!
+ * \brief Publish a CEL user event
+ * \since 18
+ *
+ * \note
+ * This serves as a wrapper function around ast_cel_publish_event() to help pack the
+ * extra details before publishing.
+ *
+ * \param chan This is the primary channel associated with this channel event.
+ * \param event This is the user event being reported.
+ * \param extra This contains any extra parameters that need to be conveyed for this event.
+ */
+void ast_cel_publish_user_event(struct ast_channel *chan,
+	const char *event,
+	const char *extra);
+
+/*!
  * \brief Get the CEL topic
  *
  * \retval The CEL topic
