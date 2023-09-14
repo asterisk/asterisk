@@ -1689,6 +1689,21 @@ static int reload_module(void)
 	return 0;
 }
 
+void ast_cel_publish_user_event(struct ast_channel *chan,
+	const char *event,
+	const char *extra)
+{
+	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+
+	blob = ast_json_pack("{s: s, s: {s: s}}",
+		"event", event,
+		"extra", "extra", S_OR(extra, ""));
+	if (!blob) {
+		return;
+	}
+	ast_cel_publish_event(chan, AST_CEL_USER_DEFINED, blob);
+}
+
 void ast_cel_publish_event(struct ast_channel *chan,
 	enum ast_cel_event_type event_type,
 	struct ast_json *blob)
