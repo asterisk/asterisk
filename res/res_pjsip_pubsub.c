@@ -5171,6 +5171,7 @@ struct ast_sip_notifier test_notifier = {
  */
 struct ast_sip_subscription_handler test_handler = {
 	.event_name = "test",
+	.body_type = "",
 	.notifier = &test_notifier,
 };
 
