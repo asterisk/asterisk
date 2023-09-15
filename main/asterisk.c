@@ -3173,26 +3173,41 @@ static int ast_el_read_history(const char *filename)
 	return history(el_hist, &ev, H_LOAD, filename);
 }
 
+static void process_histfile(int (*readwrite)(const char *filename))
+{
+	struct passwd *pw = getpwuid(geteuid());
+	int ret = 0;
+	char *name = NULL;
+
+	if (!pw || ast_strlen_zero(pw->pw_dir)) {
+		ast_log(LOG_ERROR, "Unable to determine home directory.  History read/write disabled.\n");
+		return;
+	}
+
+	ret = ast_asprintf(&name, "%s/.asterisk_history", pw->pw_dir);
+	if (ret <= 0) {
+		ast_log(LOG_ERROR, "Unable to create history file name.  History read/write disabled.\n");
+		return;
+	}
+
+	ret = readwrite(name);
+	if (ret < 0) {
+		ast_log(LOG_ERROR, "Unable to read or write history file '%s'\n", name);
+	}
+
+	ast_free(name);
+
+	return;
+}
+
 static void ast_el_read_default_histfile(void)
 {
-	char histfile[80] = "";
-	const char *home = getenv("HOME");
-
-	if (!ast_strlen_zero(home)) {
-		snprintf(histfile, sizeof(histfile), "%s/.asterisk_history", home);
-		ast_el_read_history(histfile);
-	}
+	process_histfile(ast_el_read_history);
 }
 
 static void ast_el_write_default_histfile(void)
 {
-	char histfile[80] = "";
-	const char *home = getenv("HOME");
-
-	if (!ast_strlen_zero(home)) {
-		snprintf(histfile, sizeof(histfile), "%s/.asterisk_history", home);
-		ast_el_write_history(histfile);
-	}
+	process_histfile(ast_el_write_history);
 }
 
 static void ast_remotecontrol(char *data)
