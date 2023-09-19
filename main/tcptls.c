@@ -837,6 +837,7 @@ void ast_tcptls_server_start(struct ast_tcptls_session_args *desc)
 
 	if (desc->accept_fd != -1) {
 		close(desc->accept_fd);
+		desc->accept_fd = -1;
 	}
 
 	/* If there's no new server, stop here */

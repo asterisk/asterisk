@@ -1,6 +1,6 @@
 AC_PREREQ(2.60a)
 
-AC_INIT([asterisk], [trunk], [https://issues.asterisk.org])
+AC_INIT([asterisk], [master], [https://github.com/asterisk/asterisk/issues])
 
 # cross-compile macros
 AC_CANONICAL_BUILD
@@ -24,7 +24,7 @@ AC_SUBST(CONFIG_CFLAGS)
 AC_SUBST(CONFIG_LDFLAGS)
 
 # specify output header file
-AC_CONFIG_HEADER(include/asterisk/autoconfig.h)
+AC_CONFIG_HEADERS([include/asterisk/autoconfig.h])
 
 # Note: AC_PROG_CC *must* be specified before AC_USE_SYSTEM_EXTENSIONS or any
 # other macro that uses the C compiler, or the default order will be used.
@@ -296,7 +296,7 @@ if test "x${WGET}" != "x:"; then
   DOWNLOAD_TO_STDOUT="${WGET} -q -O-"
   DOWNLOAD_TIMEOUT='--timeout=$1'
 elif test "x${CURL}" != "x:"; then
-  DOWNLOAD="${CURL} -O --progress-bar -w \"%{url_effective}\n\""
+  DOWNLOAD="${CURL} -L -O --progress-bar -w \"%{url_effective}\n\""
   DOWNLOAD_TO_STDOUT="${CURL} -Ls"
   DOWNLOAD_TIMEOUT='--max-time $(or $2,$1)'
 else
@@ -579,6 +579,9 @@ AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_GET_DEST_INFO], [pjsip_get_dest_info support],
 AST_EXT_LIB_SETUP_OPTIONAL([PJ_SSL_CERT_LOAD_FROM_FILES2], [pj_ssl_cert_load_from_files2 support], [PJPROJECT], [pjsip])
 AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_EXTERNAL_RESOLVER], [PJSIP External Resolver Support], [PJPROJECT], [pjsip])
 AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_TLS_TRANSPORT_PROTO], [PJSIP TLS Transport proto field support], [PJPROJECT], [pjsip])
+AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_TLS_1_1], [PJSIP TLS 1.1 Support], [PJPROJECT], [pjsip])
+AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_TLS_1_2], [PJSIP TLS 1.2 Support], [PJPROJECT], [pjsip])
+AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_TLS_1_3], [PJSIP TLS 1.3 Support], [PJPROJECT], [pjsip])
 AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_EVSUB_GRP_LOCK], [PJSIP EVSUB Group Lock support], [PJPROJECT], [pjsip])
 AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_INV_SESSION_REF], [PJSIP INVITE Session Reference Count support], [PJPROJECT], [pjsip])
 AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_AUTH_CLT_DEINIT], [pjsip_auth_clt_deinit support], [PJPROJECT], [pjsip])
@@ -588,7 +591,6 @@ AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_ENDPOINT_COMPACT_FORM], [PJSIP Compact Form Su
 AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_TRANSPORT_DISABLE_CONNECTION_REUSE], [PJSIP Transport Connection Reuse Disabling], [PJPROJECT], [pjsip])
 AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_OAUTH_AUTHENTICATION], [PJSIP OAuth Authentication Support], [PJPROJECT], [pjsip])
 AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_TLS_TRANSPORT_RESTART], [PJSIP TLS Transport Restart Support], [PJPROJECT], [pjsip])
-AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_EVSUB_PENDING_NOTIFY], [PJSIP NOTIFY Required on SUBSCRIBE], [PJPROJECT], [pjsip])
 fi
 
 AST_EXT_LIB_SETUP([POPT], [popt], [popt])
@@ -808,7 +810,6 @@ AC_CHECK_MEMBERS([struct stat.st_blksize])
 AC_CHECK_MEMBERS([struct ucred.uid, struct ucred.cr_uid, struct sockpeercred.uid], [], [], [#include <sys/types.h>
 #include <sys/socket.h> ])
 AC_CHECK_MEMBERS([struct ifreq.ifr_ifru.ifru_hwaddr], [], [], [#include <net/if.h>])
-AC_HEADER_TIME
 AC_STRUCT_TM
 AC_C_VOLATILE
 AC_CHECK_TYPES([ptrdiff_t])
@@ -962,7 +963,7 @@ if test "x$have_gethostbyname_r_public_declaration" = "xyes"; then
         AC_LINK_IFELSE(
                 [AC_LANG_PROGRAM([#include <stdlib.h>
                                  #include <netdb.h>],
-                                [struct hostent *he = gethostbyname_r((const char *)NULL, (struct hostent *)NULL, (char *)NULL, (int)0, (struct hostent **)NULL, (int *)NULL);])],
+                                [int r = gethostbyname_r((const char *)NULL, (struct hostent *)NULL, (char *)NULL, (int)0, (struct hostent **)NULL, (int *)NULL);])],
                 AC_MSG_RESULT(yes)
                 AC_DEFINE([HAVE_GETHOSTBYNAME_R_6], 1, [Define to 1 if your system has gethostbyname_r with 6 arguments.]),
                 AC_MSG_RESULT(no)
@@ -972,7 +973,7 @@ if test "x$have_gethostbyname_r_public_declaration" = "xyes"; then
         AC_LINK_IFELSE(
                 [AC_LANG_PROGRAM([#include <stdlib.h>
 	                         #include <netdb.h>],
-                                [struct hostent *he = gethostbyname_r((const char *)NULL, (struct hostent *)NULL, (char *)NULL, (int)0, (int *)NULL);])],
+                                [int r = gethostbyname_r((const char *)NULL, (struct hostent *)NULL, (char *)NULL, (int)0, (int *)NULL);])],
                 AC_MSG_RESULT(yes)
                 AC_DEFINE([HAVE_GETHOSTBYNAME_R_5], 1, [Define to 1 if your system has gethostbyname_r with 5 arguments.]),
                 AC_MSG_RESULT(no)
@@ -2476,6 +2477,9 @@ if test "$USE_PJPROJECT" != "no" ; then
          CPPFLAGS="${CPPFLAGS} ${PJPROJECT_CFLAGS}"
          LIBS="${LIBS} ${PJPROJECT_LIB}"
          AST_C_COMPILE_CHECK([PJSIP_TLS_TRANSPORT_PROTO], [struct pjsip_tls_setting setting; int proto; proto = setting.proto;], [pjsip.h])
+         AST_C_COMPILE_CHECK([PJSIP_TLS_1_1], [enum pjsip_ssl_method method = PJSIP_TLSV1_1_METHOD;], [pjsip.h])
+         AST_C_COMPILE_CHECK([PJSIP_TLS_1_2], [enum pjsip_ssl_method method = PJSIP_TLSV1_2_METHOD;], [pjsip.h])
+         AST_C_COMPILE_CHECK([PJSIP_TLS_1_3], [enum pjsip_ssl_method method = PJSIP_TLSV1_3_METHOD;], [pjsip.h])
          AST_C_COMPILE_CHECK([PJSIP_INV_ACCEPT_MULTIPLE_SDP_ANSWERS], [pjsip_cfg()->endpt.accept_multiple_sdp_answers = 0;], [pjsip.h])
          AST_C_COMPILE_CHECK([PJSIP_ENDPOINT_COMPACT_FORM], [pjsip_cfg()->endpt.use_compact_form = PJ_TRUE;], [pjsip.h])
          AST_C_COMPILE_CHECK([PJSIP_TRANSPORT_DISABLE_CONNECTION_REUSE], [struct pjsip_tpselector sel; sel.disable_connection_reuse = PJ_TRUE;], [pjsip.h])
@@ -2508,18 +2512,6 @@ if test "$USE_PJPROJECT" != "no" ; then
          AST_EXT_LIB_CHECK([PJSIP_AUTH_CLT_DEINIT], [pjsip], [pjsip_auth_clt_deinit], [pjsip.h], [$PJPROJECT_LIB], [$PJPROJECT_CFLAGS])
          AST_EXT_LIB_CHECK([PJSIP_TSX_LAYER_FIND_TSX2], [pjsip], [pjsip_tsx_layer_find_tsx2], [pjsip.h], [$PJPROJECT_LIB], [$PJPROJECT_CFLAGS])
          AST_EXT_LIB_CHECK([PJSIP_TLS_TRANSPORT_RESTART], [pjsip], [pjsip_tls_transport_restart], [pjsip.h], [$PJPROJECT_LIB], [$PJPROJECT_CFLAGS])
-
-      	 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for pending_notify in evsub.c" >&5
-		   $as_echo_n "checking for pending_notify in evsub... " >&6; }
-		 pending_notify=$(${SED} -n -r -e '/^struct\s+pjsip_evsub/,/^\s+void\s+*mod_data/!d ; /pending_notify/p' $(find $PJSIP_EVSUB_PENDING_NOTIFY_DIR -name evsub.c))
-		 if test -n "$pending_notify" ; then
-		 	AC_DEFINE(HAVE_PJSIP_EVSUB_PENDING_NOTIFY, 1, [Define to 1 if evsub requires a NOTIFY on SUBSCRIBE.])
-			{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-			  $as_echo "yes" >&6; }
-		 else
-			{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-			  $as_echo "no" >&6; }
-		 fi
       fi
    fi
 

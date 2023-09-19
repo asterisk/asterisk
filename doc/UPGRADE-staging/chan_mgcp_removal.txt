@@ -1,7 +1,0 @@
-Subject: chan_mgcp
-Master-Only: True
-
-This module was deprecated in Asterisk 19
-and is now being removed in accordance with
-the Asterisk Module Deprecation policy.
-

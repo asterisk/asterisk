@@ -1,5 +1,0 @@
-Subject: func_json
-
-Additional parsing capabilities have been added to the
-JSON_DECODE function, including support for arrays
-and recursive indexing.

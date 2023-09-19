@@ -295,7 +295,7 @@ static void bridge_stasis_pull(struct ast_bridge *self, struct ast_bridge_channe
 	ast_bridge_base_v_table.pull(self, bridge_channel);
 }
 
-struct ast_bridge *bridge_stasis_new(uint32_t capabilities, unsigned int flags, const char *name, const char *id, enum ast_bridge_video_mode_type video_mode)
+struct ast_bridge *bridge_stasis_new(uint32_t capabilities, unsigned int flags, const char *name, const char *id, enum ast_bridge_video_mode_type video_mode, unsigned int send_sdp_label)
 {
 	void *bridge;
 
@@ -315,6 +315,10 @@ struct ast_bridge *bridge_stasis_new(uint32_t capabilities, unsigned int flags, 
 		ast_bridge_set_single_src_video_mode(bridge, NULL);
 	} else {
 		ast_bridge_set_talker_src_video_mode(bridge);
+	}
+
+	if (send_sdp_label) {
+		ast_bridge_set_send_sdp_label(bridge, 1);
 	}
 
 	bridge = bridge_register(bridge);

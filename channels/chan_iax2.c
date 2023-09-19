@@ -14323,7 +14323,7 @@ static struct iax2_dpcache *find_cache(struct ast_channel *chan, const char *dat
 			ast_log(LOG_WARNING, "Timeout waiting for %s exten %s\n", data, exten);
 		}
 
-		if (ast_check_hangup(chan)) {
+		if (chan && ast_check_hangup(chan)) {
 			doabort = 1;
 		}
 

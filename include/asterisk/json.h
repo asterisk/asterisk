@@ -777,6 +777,8 @@ enum ast_json_encoding_format
 	AST_JSON_COMPACT,
 	/*! Formatted for human readability */
 	AST_JSON_PRETTY,
+	/*! Keys sorted alphabetically */
+	AST_JSON_SORTED,
 };
 
 /*!
@@ -803,6 +805,17 @@ enum ast_json_encoding_format
  * \retval NULL on error.
  */
 char *ast_json_dump_string_format(struct ast_json *root, enum ast_json_encoding_format format);
+
+/*!
+ * \brief Encode a JSON value to a string, with its keys sorted.
+ *
+ * Returned string must be freed by calling ast_json_free().
+ *
+ * \param root JSON value.
+ * \return String encoding of \a root.
+ * \retval NULL on error.
+ */
+#define ast_json_dump_string_sorted(root) ast_json_dump_string_format(root, AST_JSON_SORTED)
 
 #define ast_json_dump_str(root, dst) ast_json_dump_str_format(root, dst, AST_JSON_COMPACT)
 

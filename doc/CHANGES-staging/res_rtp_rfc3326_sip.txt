@@ -1,5 +1,0 @@
-Subject: res_pjsip_rfc3326
-
-Add ability to set HANGUPCAUSE when SIP causecode received in BYE Reason header (in
-addition to currently supported Q.850). The first header found will be used to set
-the HANGUPCAUSE variable.

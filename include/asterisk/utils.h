@@ -210,7 +210,12 @@ struct ast_hostent {
 	char buf[1024];
 };
 
-/*! \brief Thread-safe gethostbyname function to use in Asterisk */
+/*!
+ * \brief Thread-safe gethostbyname function to use in Asterisk
+ *
+ * \deprecated Replaced by \c ast_sockaddr_resolve() and \c ast_sockaddr_resolve_first_af()
+ * \note To be removed in Asterisk 23.
+ */
 struct hostent *ast_gethostbyname(const char *host, struct ast_hostent *hp);
 
 /*! \brief Produces MD5 hash based on input string */

@@ -1,6 +1,11 @@
 ;
 ; User configuration
 ;
+; WARNING: This configuration file is deprecated and will be removed in
+; a future version of Asterisk. It is recommended that you make configurations
+; in the appropriate module-specific configuration file for more flexibility.
+; Many Asterisk modules already no longer support users.conf.
+;
 ; Creating entries in users.conf is a "shorthand" for creating individual
 ; entries in each configuration file.  Using users.conf is not intended to
 ; provide you with as much flexibility as using the separate configuration

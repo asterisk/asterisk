@@ -3641,6 +3641,28 @@ struct ast_sip_session *ast_sip_dialog_get_session(pjsip_dialog *dlg)
 	return session;
 }
 
+pjsip_dialog *ast_sip_session_get_dialog(const struct ast_sip_session *session)
+{
+	pjsip_inv_session *inv_session = session->inv_session;
+
+	if (!inv_session) {
+		return NULL;
+	}
+
+	return inv_session->dlg;
+}
+
+pjsip_inv_state ast_sip_session_get_pjsip_inv_state(const struct ast_sip_session *session)
+{
+	pjsip_inv_session *inv_session = session->inv_session;
+
+	if (!inv_session) {
+		return PJSIP_INV_STATE_NULL;
+	}
+
+	return inv_session->state;
+}
+
 /*! \brief Fetch just the Caller ID number in order of PAI, RPID, From */
 static int fetch_callerid_num(struct ast_sip_session *session, pjsip_rx_data *rdata, char *buf, size_t len)
 {
@@ -4031,15 +4053,20 @@ static int new_invite(struct new_invite *invite)
 	 * so let's go ahead and send a 100 Trying out to stop any
 	 * retransmissions.
 	 */
+	if (pjsip_inv_initial_answer(invite->session->inv_session, invite->rdata, 100, NULL, NULL, &tdata) != PJ_SUCCESS) {
+		if (tdata) {
+			pjsip_inv_send_msg(invite->session->inv_session, tdata);
+		} else {
+			pjsip_inv_terminate(invite->session->inv_session, 500, PJ_TRUE);
+		}
+		goto end;
+	}
+
 	ast_trace(-1, "%s: Call (%s:%s) to extension '%s' sending 100 Trying\n",
 		ast_sip_session_get_name(invite->session),
 		invite->rdata->tp_info.transport->type_name,
 		pj_sockaddr_print(&invite->rdata->pkt_info.src_addr, buffer, sizeof(buffer), 3),
 		invite->session->exten);
-	if (pjsip_inv_initial_answer(invite->session->inv_session, invite->rdata, 100, NULL, NULL, &tdata) != PJ_SUCCESS) {
-		pjsip_inv_terminate(invite->session->inv_session, 500, PJ_TRUE);
-		goto end;
-	}
 	ast_sip_session_send_response(invite->session, tdata);
 
 	sdp_info = pjsip_rdata_get_sdp_info(invite->rdata);
@@ -5348,14 +5375,16 @@ static void session_inv_on_create_offer(pjsip_inv_session *inv, pjmedia_sdp_sess
 	/* Some devices send a re-INVITE offer with empty SDP. Asterisk by default return
 	 * an answer with the current used codecs, which is not strictly compliant to RFC
 	 * 3261 (SHOULD requirement). So we detect this condition and include all
-	 * configured codecs in the answer if the workaround is activated.
+	 * configured codecs in the answer if the workaround is activated. The actual
+	 * logic is in the create_local_sdp function. We can't detect here that we have
+	 * no SDP body in the INVITE, as we don't have access to the message.
 	 */
 	if (inv->invite_tsx && inv->state == PJSIP_INV_STATE_CONFIRMED
 			&& inv->invite_tsx->method.id == PJSIP_INVITE_METHOD) {
 		ast_trace(-1, "re-INVITE\n");
-		if (inv->invite_tsx->role == PJSIP_ROLE_UAS && !pjmedia_sdp_neg_was_answer_remote(inv->neg)
+		if (inv->invite_tsx->role == PJSIP_ROLE_UAS
 				&& ast_sip_get_all_codecs_on_empty_reinvite()) {
-			ast_trace(-1, "no codecs in re-INIVTE, include all codecs in the answer\n");
+			ast_trace(-1, "UAS role, include all codecs in the answer on empty SDP\n");
 			ignore_active_stream_topology = 1;
 		}
 	}

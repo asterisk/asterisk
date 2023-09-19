@@ -425,6 +425,8 @@ struct sip_outbound_registration_client_state {
 	unsigned int destroy:1;
 	/*! \brief Non-zero if we have attempted sending a REGISTER with authentication */
 	unsigned int auth_attempted:1;
+	/*! \brief Status code of last response if we have tried to register before */
+	int last_status_code;
 	/*! \brief The name of the transport to be used for the registration */
 	char *transport_name;
 	/*! \brief The name of the registration sorcery object */
@@ -642,6 +644,9 @@ out:
 static void add_security_headers(struct sip_outbound_registration_client_state *client_state,
 	pjsip_tx_data *tdata)
 {
+	int add_require_header = 1;
+	int add_proxy_require_header = 1;
+	int add_sec_client_header = 0;
 	struct sip_outbound_registration *reg = NULL;
 	struct ast_sip_endpoint *endpt = NULL;
 	struct ao2_container *contact_container;
@@ -674,20 +679,33 @@ static void add_security_headers(struct sip_outbound_registration_client_state *
 	if (!contact_status && AST_VECTOR_SIZE(&client_state->server_security_mechanisms)) {
 		sec_mechs = &client_state->server_security_mechanisms;
 	}
-	if (client_state->status == SIP_REGISTRATION_REGISTERED || client_state->status == SIP_REGISTRATION_REJECTED_TEMPORARY
-			|| client_state->auth_attempted) {
+	if (client_state->status == SIP_REGISTRATION_REJECTED_TEMPORARY || client_state->auth_attempted) {
 		if (sec_mechs != NULL && pjsip_msg_find_hdr_by_name(tdata->msg, &security_verify, NULL) == NULL) {
 			ast_sip_add_security_headers(sec_mechs, "Security-Verify", 0, tdata);
 		}
-		ast_sip_remove_headers_by_name_and_value(tdata->msg, &security_client, NULL);
-		ast_sip_remove_headers_by_name_and_value(tdata->msg, &proxy_require, "mediasec");
-		ast_sip_remove_headers_by_name_and_value(tdata->msg, &require, "mediasec");
+		if (client_state->last_status_code == 494) {
+			ast_sip_remove_headers_by_name_and_value(tdata->msg, &security_client, NULL);
+		} else {
+			/* necessary if a retry occures */
+			add_sec_client_header = (pjsip_msg_find_hdr_by_name(tdata->msg, &security_client, NULL) == NULL) ? 1 : 0;
+		}
+		add_require_header =
+			(pjsip_msg_find_hdr_by_name(tdata->msg, &require, NULL) == NULL) ? 1 : 0;
+		add_proxy_require_header =
+			(pjsip_msg_find_hdr_by_name(tdata->msg, &proxy_require, NULL) == NULL) ? 1 : 0;
 	} else {
 		ast_sip_add_security_headers(&client_state->security_mechanisms, "Security-Client", 0, tdata);
 	}
 
-	ast_sip_add_header(tdata, "Require", "mediasec");
-	ast_sip_add_header(tdata, "Proxy-Require", "mediasec");
+	if (add_require_header) {
+		ast_sip_add_header(tdata, "Require", "mediasec");
+	}
+	if (add_proxy_require_header) {
+		ast_sip_add_header(tdata, "Proxy-Require", "mediasec");
+	}
+	if (add_sec_client_header) {
+		ast_sip_add_security_headers(&client_state->security_mechanisms, "Security-Client", 0, tdata);
+	}
 
 	/* Cleanup */
 	if (contact_status) {
@@ -1216,6 +1234,7 @@ static int handle_registration_response(void *data)
 	pjsip_regc_get_info(response->client_state->client, &info);
 	ast_copy_pj_str(server_uri, &info.server_uri, sizeof(server_uri));
 	ast_copy_pj_str(client_uri, &info.client_uri, sizeof(client_uri));
+	response->client_state->last_status_code = response->code;
 
 	ast_debug(1, "Processing REGISTER response %d from server '%s' for client '%s'\n",
 			response->code, server_uri, client_uri);
@@ -2018,6 +2037,27 @@ static int sip_outbound_registration_apply(const struct ast_sorcery *sorcery, vo
 	return 0;
 }
 
+static int security_mechanism_to_str(const void *obj, const intptr_t *args, char **buf)
+{
+	const struct sip_outbound_registration *registration = obj;
+
+	return ast_sip_security_mechanisms_to_str(&registration->security_mechanisms, 0, buf);
+}
+
+static const char *security_negotiation_map[] = {
+	[AST_SIP_SECURITY_NEG_NONE] = "no",
+	[AST_SIP_SECURITY_NEG_MEDIASEC] = "mediasec",
+};
+
+static int security_negotiation_to_str(const void *obj, const intptr_t *args, char **buf)
+{
+	const struct sip_outbound_registration *registration = obj;
+	if (ARRAY_IN_BOUNDS(registration->security_negotiation, security_negotiation_map)) {
+		*buf = ast_strdup(security_negotiation_map[registration->security_negotiation]);
+	}
+	return 0;
+}
+
 static int security_mechanisms_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
 {
 	struct sip_outbound_registration *registration = obj;
@@ -2761,8 +2801,8 @@ static int load_module(void)
 	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), "registration", "outbound_auth", "", outbound_auth_handler, outbound_auths_to_str, outbound_auths_to_var_list, 0, 0);
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "registration", "support_path", "no", OPT_BOOL_T, 1, FLDSET(struct sip_outbound_registration, support_path));
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "registration", "support_outbound", "no", OPT_YESNO_T, 1, FLDSET(struct sip_outbound_registration, support_outbound));
-	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), "registration", "security_negotiation", "no", security_negotiation_handler, NULL, NULL, 0, 0);
-	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), "registration", "security_mechanisms", "", security_mechanisms_handler, NULL, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), "registration", "security_negotiation", "no", security_negotiation_handler, security_negotiation_to_str, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), "registration", "security_mechanisms", "", security_mechanisms_handler, security_mechanism_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "registration", "line", "no", OPT_BOOL_T, 1, FLDSET(struct sip_outbound_registration, line));
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "registration", "endpoint", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct sip_outbound_registration, endpoint));
 

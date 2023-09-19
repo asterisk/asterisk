@@ -453,7 +453,7 @@ static pjsip_hdr *find_header(struct hdr_list *list, const char *header_name,
 static int read_headers(void *obj)
 {
 	struct header_data *data = obj;
-	size_t len = strlen(data->header_name);
+	size_t len = !ast_strlen_zero(data->header_name) ? strlen(data->header_name) : 0;
 	pjsip_hdr *hdr = NULL;
 	char *pj_hdr_string;
 	int pj_hdr_string_len;
@@ -475,7 +475,7 @@ static int read_headers(void *obj)
 	list = datastore->data;
 	pj_hdr_string = ast_alloca(data->len);
 	AST_LIST_TRAVERSE(list, le, nextptr) {
-		if (pj_strnicmp2(&le->hdr->name, data->header_name, len) == 0) {
+		if (!len || pj_strnicmp2(&le->hdr->name, data->header_name, len) == 0) {
 			/* Found matched header, append to buf */
 			hdr = le->hdr;
 
@@ -518,8 +518,13 @@ static int read_headers(void *obj)
 	}
 
 	if (wlen == 0) {
-		ast_debug(1, "There was no header named %s.\n", data->header_name);
-		return -1;
+		if (!len) {
+			/* No headers at all on this channel */
+			return 0;
+		} else {
+			ast_debug(1, "There was no header beginning with %s.\n", data->header_name);
+			return -1;
+		}
 	} else {
 		data->buf[wlen-1] = '\0';
 	}
@@ -755,11 +760,6 @@ static int func_read_headers(struct ast_channel *chan, const char *function, cha
 
 	if (!chan || strncmp(ast_channel_name(chan), "PJSIP/", 6)) {
 		ast_log(LOG_ERROR, "This function requires a PJSIP channel.\n");
-		return -1;
-	}
-
-	if (ast_strlen_zero(args.header_pattern)) {
-		ast_log(AST_LOG_ERROR, "This function requires a pattern.\n");
 		return -1;
 	}
 

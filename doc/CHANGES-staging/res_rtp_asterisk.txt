@@ -1,9 +1,0 @@
-Subject: res_rtp_asterisk
-
-This module has been updated to provide additional
-quality statistics in the form of an Asterisk
-Media Experience Score.  The score is available using
-the same mechanisms you'd use to retrieve jitter, loss,
-and rtt statistics.  For more information about the
-score and how to retrieve it, see
-https://wiki.asterisk.org/wiki/display/AST/Media+Experience+Score

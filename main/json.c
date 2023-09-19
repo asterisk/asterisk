@@ -456,8 +456,19 @@ int ast_json_object_iter_set(struct ast_json *object, struct ast_json_iter *iter
  */
 static size_t dump_flags(enum ast_json_encoding_format format)
 {
-	return format == AST_JSON_PRETTY ?
-		JSON_INDENT(2) | JSON_PRESERVE_ORDER : JSON_COMPACT;
+	size_t jansson_dump_flags;
+
+	if (format & AST_JSON_PRETTY) {
+		jansson_dump_flags = JSON_INDENT(2);
+	} else {
+		jansson_dump_flags = JSON_COMPACT;
+	}
+
+	if (format & AST_JSON_SORTED) {
+		jansson_dump_flags |= JSON_SORT_KEYS;
+	}
+
+	return jansson_dump_flags;
 }
 
 char *ast_json_dump_string_format(struct ast_json *root, enum ast_json_encoding_format format)

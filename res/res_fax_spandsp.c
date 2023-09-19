@@ -468,7 +468,7 @@ static void set_logging(logging_state_t *state, struct ast_fax_session_details *
 {
 	int level = SPAN_LOG_WARNING;
 
-        if (details->option.debug) {
+	if (details->option.debug) {
 		level = SPAN_LOG_DEBUG_3;
 	}
 

@@ -196,7 +196,14 @@ static struct ast_key *try_load_key(const char *dir, const char *fname, int ifd,
 	}
 
 	/* Get actual filename */
-	snprintf(ffname, sizeof(ffname), "%s/%s", dir, fname);
+	n = snprintf(ffname, sizeof(ffname), "%s/%s", dir, fname);
+	if (n >= sizeof(ffname)) {
+		ast_log(LOG_WARNING,
+			"Key filenames can be up to %zu bytes long, but the filename for the"
+			" key we are currently trying to load (%s/%s) is %d bytes long.",
+			sizeof(ffname) - 1, dir, fname, n);
+		return NULL;
+	}
 
 	/* Open file */
 	if (!(f = fopen(ffname, "r"))) {
@@ -217,10 +224,15 @@ static struct ast_key *try_load_key(const char *dir, const char *fname, int ifd,
 		return NULL;
 	}
 
+	/* FILE_MODE_BITS is a bitwise OR of all possible file mode bits encoded in
+	 * the `st_mode` member of `struct stat`. For POSIX compatible systems this
+	 * will be 07777. */
+#define FILE_MODE_BITS (S_ISUID|S_ISGID|S_ISVTX|S_IRWXU|S_IRWXG|S_IRWXO)
+
 	/* only user read or read/write modes allowed */
 	if (ktype == AST_KEY_PRIVATE &&
-	    ((st.st_mode & ALLPERMS) & ~(S_IRUSR | S_IWUSR)) != 0) {
-		ast_log(LOG_ERROR, "Private key file has bad permissions: %s: %#4o\n", ffname, st.st_mode & ALLPERMS);
+	    ((st.st_mode & FILE_MODE_BITS) & ~(S_IRUSR | S_IWUSR)) != 0) {
+		ast_log(LOG_ERROR, "Private key file has bad permissions: %s: %#4o\n", ffname, st.st_mode & FILE_MODE_BITS);
 		fclose(f);
 		return NULL;
 	}
