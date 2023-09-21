@@ -101,6 +101,7 @@ static int parse_node(char **key, char *currentkey, char *nestchar, int count, s
 	struct ast_json *jsonval = json;
 
 	/* Prevent a huge JSON string from blowing the stack. */
+	(*depth)++;
 	if (*depth > MAX_JSON_STACK) {
 		ast_log(LOG_WARNING, "Max JSON stack (%d) exceeded\n", MAX_JSON_STACK);
 		return -1;
@@ -115,6 +116,7 @@ static int parse_node(char **key, char *currentkey, char *nestchar, int count, s
 	switch(ast_json_typeof(jsonval)) {
 		unsigned long int size;
 		int r;
+		double d;
 
 		case AST_JSON_STRING:
 			result = ast_json_string_get(jsonval);
@@ -125,6 +127,11 @@ static int parse_node(char **key, char *currentkey, char *nestchar, int count, s
 			r = ast_json_integer_get(jsonval);
 			ast_debug(1, "Got JSON integer: %d\n", r);
 			snprintf(buf, len, "%d", r); /* the snprintf below is mutually exclusive with this one */
+			break;
+		case AST_JSON_REAL:
+			d = ast_json_real_get(jsonval);
+			ast_debug(1, "Got JSON real: %.17g\n", d);
+			snprintf(buf, len, "%.17g", d); /* the snprintf below is mutually exclusive with this one */
 			break;
 		case AST_JSON_ARRAY:
 			ast_debug(1, "Got JSON array\n");
@@ -148,41 +155,39 @@ static int parse_node(char **key, char *currentkey, char *nestchar, int count, s
 			} else if (r >= size) {
 				ast_debug(1, "Requested index '%d' does not exist in parsed array\n", r);
 			} else {
-				struct ast_json *json2 = ast_json_array_get(jsonval, r);
-				if (!json2) {
-					ast_debug(1, "Array index %d contains empty item\n", r);
-					return -1;
-				}
-				previouskey = currentkey;
-				currentkey = strsep(key, nestchar); /* get the next subkey */
-				ast_debug(1, "Recursing on index %d in array (key was '%s' and is now '%s')\n", r, previouskey, currentkey);
-				/* json2 is a borrowed ref. That's fine, since json won't get freed until recursing is over */
-				/* If there are keys remaining, then parse the next object we can get. Otherwise, just dump the child */
-				if (parse_node(key, currentkey, nestchar, count, currentkey ? ast_json_object_get(json2, currentkey) : json2, buf, len, depth)) { /* recurse on this node */
+				ast_debug(1, "Recursing on index %d in array\n", r);
+				if (parse_node(key, currentkey, nestchar, count, ast_json_array_get(jsonval, r), buf, len, depth)) { /* recurse on this node */
 					return -1;
 				}
 			}
 			break;
+		case AST_JSON_TRUE:
+		case AST_JSON_FALSE:
+			r = ast_json_is_true(jsonval);
+			ast_debug(1, "Got JSON %s for key %s\n", r ? "true" : "false", currentkey);
+			snprintf(buf, len, "%d", r); /* the snprintf below is mutually exclusive with this one */
+			break;
+		case AST_JSON_NULL:
+			ast_debug(1, "Got JSON null for key %s\n", currentkey);
+			break;
 		case AST_JSON_OBJECT:
-		default:
 			ast_debug(1, "Got generic JSON object for key %s\n", currentkey);
+			previouskey = currentkey;
+			currentkey = strsep(key, nestchar); /* retrieve the desired index */
 			if (!currentkey) { /* this is the end, so just dump the object */
 				char *result2 = ast_json_dump_string(jsonval);
 				ast_copy_string(buf, result2, len);
 				ast_json_free(result2);
 			} else {
-				previouskey = currentkey;
-				currentkey = strsep(key, nestchar); /* retrieve the desired index */
 				ast_debug(1, "Recursing on object (key was '%s' and is now '%s')\n", previouskey, currentkey);
-				if (!currentkey) { /* this is the end, so just dump the object */
-					char *result2 = ast_json_dump_string(jsonval);
-					ast_copy_string(buf, result2, len);
-					ast_json_free(result2);
-				} else if (parse_node(key, currentkey, nestchar, count, ast_json_object_get(jsonval, currentkey), buf, len, depth)) { /* recurse on this node */
+				if (parse_node(key, currentkey, nestchar, count, ast_json_object_get(jsonval, currentkey), buf, len, depth)) { /* recurse on this node */
 					return -1;
 				}
 			}
 			break;
+		default:
+			ast_log(LOG_WARNING, "Got unsuported type %d\n", ast_json_typeof(jsonval));
+			return -1;
 	}
 	return 0;
 }
@@ -191,9 +196,9 @@ static int json_decode_read(struct ast_channel *chan, const char *cmd, char *dat
 {
 	int count = 0;
 	struct ast_flags flags = {0};
-	struct ast_json *json = NULL;
+	struct ast_json *json = NULL, *start = NULL;
 	char *nestchar = "."; /* default delimeter for nesting key indexing is . */
-	int res, depth = 0;
+	int index, res, depth = 0;
 
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(varname);
@@ -217,10 +222,12 @@ static int json_decode_read(struct ast_channel *chan, const char *cmd, char *dat
 		ast_log(LOG_WARNING, "%s requires a variable name\n", cmd);
 		return -1;
 	}
+
 	if (ast_strlen_zero(args.key)) {
 		ast_log(LOG_WARNING, "%s requires a key\n", cmd);
 		return -1;
 	}
+
 	key = ast_strdupa(args.key);
 	if (!ast_strlen_zero(args.nestchar)) {
 		int seplen = strlen(args.nestchar);
@@ -264,6 +271,7 @@ static int json_decode_read(struct ast_channel *chan, const char *cmd, char *dat
 		ast_debug(1, "JSON node '%s', contains no data, nothing to search!\n", currentkey);
 		return -1; /* empty json string */
 	}
+
 	json = ast_json_load_str(str, NULL);
 	if (!json) {
 		ast_log(LOG_WARNING, "Failed to parse as JSON: %s\n", ast_str_buffer(str));
@@ -272,7 +280,17 @@ static int json_decode_read(struct ast_channel *chan, const char *cmd, char *dat
 
 	/* parse the JSON object, potentially recursively */
 	nextkey = strsep(&key, nestchar);
-	res = parse_node(&key, nextkey, nestchar, count, ast_json_object_get(json, firstkey), buf, len, &depth);
+	if (ast_json_is_object(json)) {
+		start = ast_json_object_get(json, firstkey);
+	} else {
+		if (ast_str_to_int(currentkey, &index)) {
+			ast_debug(1, "Requested index '%s' is not numeric or is invalid\n", currentkey);
+			return -1;
+		}
+		start = ast_json_array_get(json, index);
+	}
+
+	res = parse_node(&key, nextkey, nestchar, count, start, buf, len, &depth);
 	ast_json_unref(json);
 	return res;
 }
@@ -290,6 +308,17 @@ AST_TEST_DEFINE(test_JSON_DECODE)
 	struct ast_str *str; /* fancy string for holding comparing value */
 
 	const char *test_strings[][6] = {
+		{"{\"myboolean\": true, \"state\": \"USA\"}", "", "myboolean", "1"},
+		{"{\"myboolean\": false, \"state\": \"USA\"}", "", "myboolean", "0"},
+		{"{\"myreal\": 1E+2, \"state\": \"USA\"}", "", "myreal", "100"},
+		{"{\"myreal\": 1.23, \"state\": \"USA\"}", "", "myreal", "1.23"},
+		{"{\"myarray\": [[1]], \"state\": \"USA\"}", "", "myarray.0.0", "1"},
+		{"{\"myarray\": [null], \"state\": \"USA\"}", "", "myarray.0", ""},
+		{"{\"myarray\": [0, 1], \"state\": \"USA\"}", "", "myarray", "[0,1]"},
+		{"[0, 1]", "", "", ""},
+		{"[0, 1]", "", "0", "0"},
+		{"[0, 1]", "", "foo", ""},
+		{"{\"mynull\": null, \"state\": \"USA\"}", "", "mynull", ""},
 		{"{\"city\": \"Anytown\", \"state\": \"USA\"}", "", "city", "Anytown"},
 		{"{\"city\": \"Anytown\", \"state\": \"USA\"}", "", "state", "USA"},
 		{"{\"city\": \"Anytown\", \"state\": \"USA\"}", "", "blah", ""},

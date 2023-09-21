@@ -269,6 +269,22 @@ struct ast_json *ast_json_boolean(int value);
 struct ast_json *ast_json_null(void);
 
 /*!
+ * \brief Check if \a value is JSON array.
+ * \since 12.0.0
+ * \retval True (non-zero) if \a value == \ref ast_json_array().
+ * \retval False (zero) otherwise..
+ */
+int ast_json_is_array(const struct ast_json *value);
+
+/*!
+ * \brief Check if \a value is JSON object.
+ * \since 12.0.0
+ * \retval True (non-zero) if \a value == \ref ast_json_object().
+ * \retval False (zero) otherwise..
+ */
+int ast_json_is_object(const struct ast_json *value);
+
+/*!
  * \brief Check if \a value is JSON true.
  * \since 12.0.0
  * \retval True (non-zero) if \a value == \ref ast_json_true().
