@@ -1,0 +1,9 @@
+
+PACKAGE_URL ?= https://raw.githubusercontent.com/asterisk/third-party/master/libjwt/$(LIBJWT_VERSION)
+TARBALL_FILE = libjwt-$(LIBJWT_VERSION).tar.gz
+
+# LIBJWT_CONFIGURE_OPTS could come from the command line or could be
+# set/modified by configure.m4 if the build or host tuples aren't the same
+# as the current build environment (cross-compile).
+
+LIBJWT_CONFIG_OPTS = --disable-doxygen-doc --disable-doxygen-dot --without-examples $(LIBJWT_CONFIGURE_OPTS)
