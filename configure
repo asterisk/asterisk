@@ -705,6 +705,8 @@ DISABLE_XMLDOC
 CONFIG_LIBXML2
 LIBXML2_LIBS
 LIBXML2_CFLAGS
+LIBJWT_LIBS
+LIBJWT_CFLAGS
 JANSSON_LIBS
 JANSSON_CFLAGS
 UUID_LIB
@@ -1049,6 +1051,7 @@ PBX_LIBXML2
 LIBXML2_DIR
 LIBXML2_INCLUDE
 LIBXML2_LIB
+LIBJWT_DIR
 PBX_LIBEDIT_IS_UNICODE
 LIBEDIT_IS_UNICODE_DIR
 LIBEDIT_IS_UNICODE_INCLUDE
@@ -1162,6 +1165,11 @@ PBX_BFD
 BFD_DIR
 BFD_INCLUDE
 BFD_LIB
+LIBJWT_INCLUDE
+LIBJWT_LIB
+PBX_LIBJWT
+LIBJWT_BUNDLED
+LIBJWT_CONFIGURE_OPTS
 PJPROJECT_INCLUDE
 PJPROJECT_LIB
 PBX_PJPROJECT
@@ -1330,7 +1338,6 @@ infodir
 docdir
 oldincludedir
 includedir
-runstatedir
 localstatedir
 sharedstatedir
 sysconfdir
@@ -1362,6 +1369,7 @@ with_externals_cache
 enable_coverage
 with_jansson_bundled
 with_pjproject_bundled
+with_libjwt_bundled
 with_crypto
 with_ssl
 with_bfd
@@ -1391,6 +1399,7 @@ with_kqueue
 with_ldap
 with_libcurl
 with_libedit
+with_libjwt
 with_libxml2
 with_libxslt
 with_lua
@@ -1456,11 +1465,14 @@ OPENSSL_CFLAGS
 OPENSSL_LIBS
 JANSSON_CONFIGURE_OPTS
 PJPROJECT_CONFIGURE_OPTS
+LIBJWT_CONFIGURE_OPTS
 LUA_VERSIONS
 LIBEDIT_CFLAGS
 LIBEDIT_LIBS
 JANSSON_CFLAGS
 JANSSON_LIBS
+LIBJWT_CFLAGS
+LIBJWT_LIBS
 LIBXML2_CFLAGS
 LIBXML2_LIBS
 ILBC_CFLAGS
@@ -1517,7 +1529,6 @@ datadir='${datarootdir}'
 sysconfdir='${prefix}/etc'
 sharedstatedir='${prefix}/com'
 localstatedir='${prefix}/var'
-runstatedir='${localstatedir}/run'
 includedir='${prefix}/include'
 oldincludedir='/usr/include'
 docdir='${datarootdir}/doc/${PACKAGE_TARNAME}'
@@ -1770,15 +1781,6 @@ do
   | -silent | --silent | --silen | --sile | --sil)
     silent=yes ;;
 
-  -runstatedir | --runstatedir | --runstatedi | --runstated \
-  | --runstate | --runstat | --runsta | --runst | --runs \
-  | --run | --ru | --r)
-    ac_prev=runstatedir ;;
-  -runstatedir=* | --runstatedir=* | --runstatedi=* | --runstated=* \
-  | --runstate=* | --runstat=* | --runsta=* | --runst=* | --runs=* \
-  | --run=* | --ru=* | --r=*)
-    runstatedir=$ac_optarg ;;
-
   -sbindir | --sbindir | --sbindi | --sbind | --sbin | --sbi | --sb)
     ac_prev=sbindir ;;
   -sbindir=* | --sbindir=* | --sbindi=* | --sbind=* | --sbin=* \
@@ -1916,7 +1918,7 @@ fi
 for ac_var in	exec_prefix prefix bindir sbindir libexecdir datarootdir \
 		datadir sysconfdir sharedstatedir localstatedir includedir \
 		oldincludedir docdir infodir htmldir dvidir pdfdir psdir \
-		libdir localedir mandir runstatedir
+		libdir localedir mandir
 do
   eval ac_val=\$$ac_var
   # Remove trailing slashes.
@@ -2069,7 +2071,6 @@ Fine tuning of the installation directories:
   --sysconfdir=DIR        read-only single-machine data [PREFIX/etc]
   --sharedstatedir=DIR    modifiable architecture-independent data [PREFIX/com]
   --localstatedir=DIR     modifiable single-machine data [PREFIX/var]
-  --runstatedir=DIR       modifiable per-process data [LOCALSTATEDIR/run]
   --libdir=DIR            object code libraries [EPREFIX/lib]
   --includedir=DIR        C header files [PREFIX/include]
   --oldincludedir=DIR     C header files for non-gcc [/usr/include]
@@ -2130,6 +2131,7 @@ Optional Packages:
   --with-jansson-bundled  Use bundled jansson library
   --with-pjproject-bundled
                           Use bundled pjproject libraries (default)
+  --with-libjwt-bundled   Use bundled libjwt library
   --with-crypto=PATH      use OpenSSL Cryptography files in PATH
   --with-ssl=PATH         use OpenSSL Secure Sockets Layer files in PATH
   --with-bfd=PATH         use Debug symbol decoding files in PATH
@@ -2162,6 +2164,7 @@ Optional Packages:
   --with-libcurl=PREFIX   look for the curl library in PREFIX/lib and headers
                           in PREFIX/include
   --with-libedit=PATH     use NetBSD Editline library files in PATH
+  --with-libjwt=PATH      use LIBJWT files in PATH
   --with-libxml2=PATH     use LibXML2 files in PATH
   --with-libxslt=PATH     use LibXSLT files in PATH
   --with-lua=PATH         use Lua files in PATH
@@ -2227,6 +2230,8 @@ Some influential environment variables:
               Additional configure options to pass to bundled jansson
   PJPROJECT_CONFIGURE_OPTS
               Additional configure options to pass to bundled pjproject
+  LIBJWT_CONFIGURE_OPTS
+              Additional configure options to pass to bundled libjwt
   LUA_VERSIONS
               A space separated list of target lua versions to test.
   LIBEDIT_CFLAGS
@@ -2237,6 +2242,9 @@ Some influential environment variables:
               C compiler flags for JANSSON, overriding pkg-config
   JANSSON_LIBS
               linker flags for JANSSON, overriding pkg-config
+  LIBJWT_CFLAGS
+              C compiler flags for LIBJWT, overriding pkg-config
+  LIBJWT_LIBS linker flags for LIBJWT, overriding pkg-config
   LIBXML2_CFLAGS
               C compiler flags for LIBXML2, overriding pkg-config
   LIBXML2_LIBS
@@ -9316,6 +9324,17 @@ if test "${with_pjproject}" = "no" || test "${with_pjproject}" = "n" ; then
 	PJPROJECT_BUNDLED=no
 fi
 
+LIBJWT_BUNDLED=no
+
+# Check whether --with-libjwt-bundled was given.
+if test "${with_libjwt_bundled+set}" = set; then :
+  withval=$with_libjwt_bundled; case "${withval}" in
+		y|ye|yes) LIBJWT_BUNDLED=yes ;;
+		*) LIBJWT_BUNDLED=no ;;
+	esac
+fi
+
+
 #
 # OpenSSL stuff has to be done here because we want to pass
 # any resulting CFLAGS and LDFLAGS to the bundled pjproject
@@ -10062,9 +10081,9 @@ $as_echo "$as_me: Unable to configure ${JANSSON_DIR}" >&6;}
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for bundled jansson" >&5
 $as_echo_n "checking for bundled jansson... " >&6; }
 
-	JANSSON_INCLUDE=-I${JANSSON_DIR}/dest/include
+	JANSSON_INCLUDE=-I${JANSSON_DIR}/dist/usr/include
 	JANSSON_CFLAGS="$JANSSON_INCLUDE"
-	JANSSON_LIB="-L${JANSSON_DIR}/dest/lib -ljansson"
+	JANSSON_LIB="-L${JANSSON_DIR}/dist/usr/lib -ljansson"
 	PBX_JANSSON=1
 
 	# We haven't run install yet
@@ -10310,6 +10329,99 @@ $as_echo "#define HAVE_PJSIP_TLS_TRANSPORT_RESTART 1" >>confdefs.h
 $as_echo "yes" >&6; }
 
 	fi
+
+	fi
+
+
+	if test "$LIBJWT_BUNDLED" = "yes" ; then
+
+	if test "${ac_mandatory_list#*LIBJWT*}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "--with-libjwt and --with-libjwt-bundled can't both be specified" "$LINENO" 5
+	fi
+
+	ac_mandatory_list="$ac_mandatory_list LIBJWT"
+	LIBJWT_DIR="${ac_pwd}/third-party/libjwt"
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for embedded libjwt (may have to download)" >&5
+$as_echo_n "checking for embedded libjwt (may have to download)... " >&6; }
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: configuring" >&5
+$as_echo "configuring" >&6; }
+
+	if test "x${DOWNLOAD_TO_STDOUT}" = "x" ; then
+		as_fn_error $? "A download utility (wget, curl, or fetch) is required to download bundled libjwt" "$LINENO" 5
+	fi
+	if test "${GZIP}" = ":" ; then
+		as_fn_error $? "gzip is required to extract the libjwt tar file" "$LINENO" 5
+	fi
+	if test "${TAR}" = ":" ; then
+		as_fn_error $? "tar is required to extract the libjwt tar file" "$LINENO" 5
+	fi
+	if test "${PATCH}" = ":" ; then
+		as_fn_error $? "patch is required to configure bundled libjwt" "$LINENO" 5
+	fi
+	if test "${SED}" = ":" ; then
+		as_fn_error $? "sed is required to configure bundled libjwt" "$LINENO" 5
+	fi
+	if test "${NM}" = ":" ; then
+		as_fn_error $? "nm is required to build bundled libjwt" "$LINENO" 5
+	fi
+	if test "${MD5}" = ":" ; then
+		as_fn_error $? "md5sum is required to build bundled libjwt" "$LINENO" 5
+	fi
+	if test "${CAT}" = ":" ; then
+		as_fn_error $? "cat is required to build bundled libjwt" "$LINENO" 5
+	fi
+	if test "${CUT}" = ":" ; then
+		as_fn_error $? "cut is required to build bundled libjwt" "$LINENO" 5
+	fi
+	if test "${GREP}" = ":" ; then
+		as_fn_error $? "grep is required to build bundled libjwt" "$LINENO" 5
+	fi
+
+
+	this_host=$(./config.sub $(./config.guess))
+	if test "$build" != "$this_host" ; then
+		LIBJWT_CONFIGURE_OPTS+=" --build=$build_alias"
+	fi
+	if test "$host" != "$this_host" ; then
+		LIBJWT_CONFIGURE_OPTS+=" --host=$host_alias"
+	fi
+
+	export TAR PATCH SED NM EXTERNALS_CACHE_DIR AST_DOWNLOAD_CACHE DOWNLOAD_TO_STDOUT DOWNLOAD_TIMEOUT DOWNLOAD MD5 CAT CUT GREP
+	export NOISY_BUILD
+	export JANSSON_CFLAGS
+	export JANSSON_LIBS="${JANSSON_LIB}"
+	${GNU_MAKE} --quiet --no-print-directory -C ${LIBJWT_DIR} \
+		LIBJWT_CONFIGURE_OPTS="$LIBJWT_CONFIGURE_OPTS" \
+		EXTERNALS_CACHE_DIR="${EXTERNALS_CACHE_DIR:-${AST_DOWNLOAD_CACHE}}" \
+		configure
+	if test $? -ne 0 ; then
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: failed" >&5
+$as_echo "failed" >&6; }
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: Unable to configure ${LIBJWT_DIR}" >&5
+$as_echo "$as_me: Unable to configure ${LIBJWT_DIR}" >&6;}
+		as_fn_error $? "Re-run the ./configure command with 'NOISY_BUILD=yes' appended to see error details." "$LINENO" 5
+	fi
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for bundled libjwt" >&5
+$as_echo_n "checking for bundled libjwt... " >&6; }
+
+	LIBJWT_INCLUDE=-I${LIBJWT_DIR}/dist/usr/include
+	LIBJWT_CFLAGS="$LIBJWT_INCLUDE"
+	LIBJWT_LIB="-L${LIBJWT_DIR}/dist/usr/lib -ljwt"
+	PBX_LIBJWT=1
+
+	# We haven't run install yet
+
+
+
+
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+$as_echo "#define HAVE_LIBJWT_BUNDLED 1" >>confdefs.h
+
 
 	fi
 
@@ -11565,6 +11677,38 @@ LIBEDIT_IS_UNICODE_OPTION=libedit
 LIBEDIT_IS_UNICODE_DIR=${LIBEDIT_DIR}
 
 PBX_LIBEDIT_IS_UNICODE=0
+
+
+
+
+
+
+
+    LIBJWT_DESCRIP="LIBJWT"
+    LIBJWT_OPTION="libjwt"
+    PBX_LIBJWT=0
+
+# Check whether --with-libjwt was given.
+if test "${with_libjwt+set}" = set; then :
+  withval=$with_libjwt;
+	case ${withval} in
+	n|no)
+	USE_LIBJWT=no
+	# -1 is a magic value used by menuselect to know that the package
+	# was disabled, other than 'not found'
+	PBX_LIBJWT=-1
+	;;
+	y|ye|yes)
+	ac_mandatory_list="${ac_mandatory_list} LIBJWT"
+	;;
+	*)
+	LIBJWT_DIR="${withval}"
+	ac_mandatory_list="${ac_mandatory_list} LIBJWT"
+	;;
+	esac
+
+fi
+
 
 
 
@@ -14560,6 +14704,101 @@ else
 	PBX_JANSSON=1
 fi
 
+source ./third-party/versions.mak
+# Find required JWT support if bundled is not enabled.
+if test "$LIBJWT_BUNDLED" = "no" ; then
+
+      if test "x${PBX_LIBJWT}" != "x1" -a "${USE_LIBJWT}" != "no"; then
+
+pkg_failed=no
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for LIBJWT" >&5
+$as_echo_n "checking for LIBJWT... " >&6; }
+
+if test -n "$LIBJWT_CFLAGS"; then
+    pkg_cv_LIBJWT_CFLAGS="$LIBJWT_CFLAGS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"libjwt >= \$LIBJWT_VERSION\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "libjwt >= $LIBJWT_VERSION") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_LIBJWT_CFLAGS=`$PKG_CONFIG --cflags "libjwt >= $LIBJWT_VERSION" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+if test -n "$LIBJWT_LIBS"; then
+    pkg_cv_LIBJWT_LIBS="$LIBJWT_LIBS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"libjwt >= \$LIBJWT_VERSION\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "libjwt >= $LIBJWT_VERSION") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_LIBJWT_LIBS=`$PKG_CONFIG --libs "libjwt >= $LIBJWT_VERSION" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+
+
+
+if test $pkg_failed = yes; then
+   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
+        _pkg_short_errors_supported=yes
+else
+        _pkg_short_errors_supported=no
+fi
+        if test $_pkg_short_errors_supported = yes; then
+	        LIBJWT_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libjwt >= $LIBJWT_VERSION" 2>&1`
+        else
+	        LIBJWT_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libjwt >= $LIBJWT_VERSION" 2>&1`
+        fi
+	# Put the nasty error message in config.log where it belongs
+	echo "$LIBJWT_PKG_ERRORS" >&5
+
+
+            PBX_LIBJWT=0
+
+
+elif test $pkg_failed = untried; then
+     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+            PBX_LIBJWT=0
+
+
+else
+	LIBJWT_CFLAGS=$pkg_cv_LIBJWT_CFLAGS
+	LIBJWT_LIBS=$pkg_cv_LIBJWT_LIBS
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+            PBX_LIBJWT=1
+            LIBJWT_INCLUDE=$(echo ${LIBJWT_CFLAGS} | $SED -e "s|-std=c99||g")
+            LIBJWT_LIB="$LIBJWT_LIBS"
+
+$as_echo "#define HAVE_LIBJWT 1" >>confdefs.h
+
+
+fi
+   fi
+
+else
+	PBX_LIBJWT=1
+fi
+
 # See if clock_gettime is in librt
 
 if test "x${PBX_RT}" != "x1" -a "${USE_RT}" != "no"; then
@@ -15280,7 +15519,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -15326,7 +15565,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -15350,7 +15589,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -15395,7 +15634,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -15419,7 +15658,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -16684,8 +16923,6 @@ main ()
     if (*(data + i) != *(data3 + i))
       return 14;
   close (fd);
-  free (data);
-  free (data3);
   return 0;
 }
 _ACEOF
