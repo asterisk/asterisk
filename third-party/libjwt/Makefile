@@ -3,7 +3,8 @@
 .NOTPARALLEL:
 
 include ../versions.mak
-export JANSSON_DIR := $(shell pwd -P)
+export LIBJWT_DIR := $(shell pwd -P)
+JANSSON_DIR := $(shell realpath $(LIBJWT_DIR)/../jansson)
 
 SPECIAL_TARGETS :=
 
@@ -32,14 +33,14 @@ ifeq ($(SPECIAL_TARGETS),)
         $(error ASTTOPDIR/configure hasn't been run)
     endif
 
-    ifeq ($(JANSSON_BUNDLED),yes)
+    ifeq ($(LIBJWT_BUNDLED),yes)
         ifneq ($(wildcard ../../menuselect.makeopts),)
             include ../../menuselect.makeopts
         else
             $(warning ASTTOPDIR/menuselect hasn't been run yet.  Can't find debug options.)
         endif
 
-        all: dist/usr/lib/libjansson.a
+        all: dist/usr/lib/libjwt.a
     else
         all:
     endif
@@ -54,13 +55,32 @@ ifeq ($(findstring DONT_OPTIMIZE,$(MENUSELECT_CFLAGS)),)
     OPTIMIZE_CFLAGS += $(OPTIMIZE)
 endif
 
-ECHO_PREFIX := $(ECHO_PREFIX) echo '[jansson] '
-SHELL_ECHO_PREFIX := echo '[jansson] '
+ECHO_PREFIX := $(ECHO_PREFIX) echo '[libjwt] '
+SHELL_ECHO_PREFIX := echo '[libjwt] '
 
-dist/usr/lib/libjansson.a: source/config.status
-	$(ECHO_PREFIX) Building bundled jansson.
+dist/usr/lib/libjwt.a: source/config.status
+	$(ECHO_PREFIX) Building bundled libjwt.
 	$(CMD_PREFIX) (cd source; make $(REALLY_QUIET))
-	$(CMD_PREFIX) (cd source; make install DESTDIR=$(JANSSON_DIR)/dist $(REALLY_QUIET))
+	$(CMD_PREFIX) (cd source; make install DESTDIR=$(LIBJWT_DIR)/dist $(REALLY_QUIET))
+ifeq ($(JANSSON_BUNDLED),yes)
+# Modules that need to use json manipulation functions will do
+# so through the ast_json wrappers which cause the main asterisk
+# executable to link to either the system implementation of jansson
+# or the bundled jansson.  libjwt also needs to call jansson functions
+# directly and if we're not using the bundled version of jansson,
+# this works fine bcause the dynamic linker can get the symbols
+# directly from the system-installed version of jansson when the
+# module using libjwt loads. If we're using bundled jansson however,
+# those symbols exist only in the main asterisk executable and a
+# library can't resolve against them. The result is that a module
+# making jwt_ calls will fail to load at runtime with unresolved
+# json_ symbols.  To address this, we create a combined library
+# containing both bundled libjwt and bundled jansson so a module
+# will have all symbols resolved correctly.
+	$(CMD_PREFIX) mv dist/usr/lib/libjwt.a dist/usr/lib/libjwt_orig.a
+	$(CMD_PREFIX) cd dist/usr/lib ; $(AR) -rcsT libjwt.a libjwt_orig.a \
+		$(JANSSON_DIR)/dist/usr/lib/libjansson.a
+endif
 
 .DELETE_ON_ERROR:
 
@@ -73,9 +93,9 @@ source/.unpacked: $(DOWNLOAD_DIR)/$(TARBALL_FILE)
 	$(CMD_PREFIX) $(TARBALL_VERIFY) || (rm -rf $@ ;\
 	$(SHELL_ECHO_PREFIX) Retrying download ; $(TARBALL_DOWNLOAD))
 	$(ECHO_PREFIX) Unpacking $<
-	-@rm -rf source jansson-*/ >/dev/null 2>&1
-	$(CMD_PREFIX) $(TAR) -xjf $<
-	@mv jansson-$(JANSSON_VERSION) source
+	-@rm -rf source libjwt-*/ >/dev/null 2>&1
+	$(CMD_PREFIX) $(TAR) -xf $<
+	@mv libjwt-$(LIBJWT_VERSION) source
 	$(ECHO_PREFIX) Applying patches "$(realpath patches)" "$(realpath .)/source"
 	$(CMD_PREFIX) ../apply_patches $(QUIET_CONFIGURE) "$(realpath patches)" "$(realpath .)/source"
 	-@touch source/.unpacked
@@ -86,7 +106,7 @@ source/.unpacked: $(DOWNLOAD_DIR)/$(TARBALL_FILE)
 
 source/config.status: source/.unpacked Makefile.rules .rebuild_needed
 	$(ECHO_PREFIX) Configuring
-	$(CMD_PREFIX) (cd source ; ./configure $(QUIET_CONFIGURE) $(JANSSON_CONFIG_OPTS) --disable-shared \
+	$(CMD_PREFIX) (cd source ; ./configure $(QUIET_CONFIGURE) $(LIBJWT_CONFIG_OPTS) --disable-shared \
 		--enable-static --prefix=/usr --libdir=/usr/lib CFLAGS="$(OPTIMIZE_CFLAGS) -fPIC")
 
 configure: source/config.status
@@ -101,4 +121,4 @@ clean:
 
 distclean:
 	$(ECHO_PREFIX) Distcleaning
-	-$(CMD_PREFIX) rm -rf dist source jansson-*.tar.bz2 .rebuild_needed
+	-$(CMD_PREFIX) rm -rf dist source libjwt-*.tar.gz .rebuild_needed
