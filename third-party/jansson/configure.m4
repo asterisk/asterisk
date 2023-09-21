@@ -69,9 +69,9 @@ AC_DEFUN([_JANSSON_CONFIGURE],
 
 	AC_MSG_CHECKING(for bundled jansson)
 
-	JANSSON_INCLUDE=-I${JANSSON_DIR}/dest/include
+	JANSSON_INCLUDE=-I${JANSSON_DIR}/dist/usr/include
 	JANSSON_CFLAGS="$JANSSON_INCLUDE"
-	JANSSON_LIB="-L${JANSSON_DIR}/dest/lib -ljansson"
+	JANSSON_LIB="-L${JANSSON_DIR}/dist/usr/lib -ljansson"
 	PBX_JANSSON=1
 
 	# We haven't run install yet
