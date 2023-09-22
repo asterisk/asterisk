@@ -32,7 +32,7 @@
  ***/
 
 /* From the auth/realm realtime column size */
-#define MAX_REALM_LENGTH 40
+#define MAX_REALM_LENGTH 255
 static char default_realm[MAX_REALM_LENGTH + 1];
 
 AO2_GLOBAL_OBJ_STATIC(entity_id);
