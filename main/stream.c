@@ -1071,6 +1071,25 @@ struct ast_stream_topology *ast_stream_topology_create_resolved(
 		}
 	}
 
+	for (; i < AST_VECTOR_SIZE(&configured_topology->streams); i++) {
+		struct ast_stream *configured_stream = AST_VECTOR_GET(&configured_topology->streams, i);
+		struct ast_stream *joint_stream;
+
+		joint_stream = ast_stream_clone(configured_stream, NULL);
+		if (!joint_stream) {
+			ao2_cleanup(joint_topology);
+			return NULL;
+		}
+		ast_stream_set_state(joint_stream, AST_STREAM_STATE_REMOVED);
+
+		res = ast_stream_topology_append_stream(joint_topology, joint_stream);
+		if (res < 0) {
+			ast_stream_free(joint_stream);
+			ao2_cleanup(joint_topology);
+			return NULL;
+		}
+	}
+
 	return joint_topology;
 }
 
