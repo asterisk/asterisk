@@ -41,9 +41,6 @@ static pjsip_module distributor_mod = {
 
 struct ast_sched_context *prune_context;
 
-/* From the auth/realm realtime column size */
-#define MAX_REALM_LENGTH 40
-
 #define DEFAULT_SUSPECTS_BUCKETS 53
 
 static struct ao2_container *unidentified_requests;
@@ -613,7 +610,7 @@ static AO2_GLOBAL_OBJ_STATIC(artificial_auth);
 
 static int create_artificial_auth(void)
 {
-	char default_realm[MAX_REALM_LENGTH + 1];
+	char default_realm[AST_SIP_AUTH_MAX_REALM_LENGTH + 1];
 	struct ast_sip_auth *fake_auth;
 
 	ast_sip_get_default_realm(default_realm, sizeof(default_realm));
@@ -1164,7 +1161,7 @@ static int clean_task(const void *data)
 
 static void global_loaded(const char *object_type)
 {
-	char default_realm[MAX_REALM_LENGTH + 1];
+	char default_realm[AST_SIP_AUTH_MAX_REALM_LENGTH + 1];
 	struct ast_sip_auth *fake_auth;
 	char *identifier_order;
 

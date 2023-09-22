@@ -32,9 +32,7 @@
 	<support_level>core</support_level>
  ***/
 
-/* From the auth/realm realtime column size */
-#define MAX_REALM_LENGTH 40
-static char default_realm[MAX_REALM_LENGTH + 1];
+static char default_realm[AST_SIP_AUTH_MAX_REALM_LENGTH + 1];
 
 AO2_GLOBAL_OBJ_STATIC(entity_id);
 
