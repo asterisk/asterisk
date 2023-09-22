@@ -59,7 +59,7 @@ struct ast_ari_conf {
 };
 
 /*! Max length for auth_realm field */
-#define ARI_AUTH_REALM_LEN 80
+#define ARI_AUTH_REALM_LEN 256
 
 /*! \brief Global configuration options for ARI. */
 struct ast_ari_conf_general {
