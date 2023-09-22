@@ -164,7 +164,7 @@ static struct ast_sip_endpoint *username_identify(pjsip_rx_data *rdata)
 
 static struct ast_sip_endpoint *auth_username_identify(pjsip_rx_data *rdata)
 {
-	char username[USERNAME_LEN + 1], realm[DOMAIN_NAME_LEN + 1];
+	char username[USERNAME_LEN + 1], realm[AST_SIP_AUTH_MAX_REALM_LENGTH + 1];
 	struct ast_sip_endpoint *endpoint;
 	pjsip_authorization_hdr *auth_header = NULL;
 
