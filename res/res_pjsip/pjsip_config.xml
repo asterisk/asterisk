@@ -1900,7 +1900,8 @@
 					<synopsis>Timeout for qualify</synopsis>
 					<description><para>
 						If the contact doesn't respond to the OPTIONS request before the timeout,
-						the contact is marked unavailable.
+						the contact is marked unavailable. This includes time spent performing
+						any required DNS lookup(s) prior to sending the OPTIONS.
 						If <literal>0</literal> no timeout. Time in fractional seconds.
 					</para></description>
 				</configOption>
@@ -2125,7 +2126,8 @@
 					<synopsis>Timeout for qualify</synopsis>
 					<description><para>
 						If the contact doesn't respond to the OPTIONS request before the timeout,
-						the contact is marked unavailable.
+						the contact is marked unavailable. This includes time spent performing
+						any required DNS lookup(s) prior to sending the OPTIONS.
 						If <literal>0</literal> no timeout. Time in fractional seconds.
 					</para></description>
 				</configOption>
