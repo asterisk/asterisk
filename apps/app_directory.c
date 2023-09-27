@@ -39,6 +39,7 @@
 #include "asterisk/say.h"
 #include "asterisk/app.h"
 #include "asterisk/utils.h"
+#include "asterisk/adsi.h"
 
 /*** DOCUMENTATION
 	<application name="Directory" language="en_US">
@@ -111,12 +112,17 @@
 						<para>Skip calling the extension, instead set it in the <variable>DIRECTORY_EXTEN</variable>
 						channel variable.</para>
 					</option>
+					<option name="d">
+						<para>Enable ADSI support for screen phone searching and retrieval
+						of directory results.</para>
+						<para>Additionally, the channel must be ADSI-enabled and you must
+						have an ADSI-compatible (Type III) CPE for this to work.</para>
+					</option>
 				</optionlist>
 				<note><para>Only one of the <replaceable>f</replaceable>, <replaceable>l</replaceable>, or <replaceable>b</replaceable>
 				options may be specified. <emphasis>If more than one is specified</emphasis>, then Directory will act as
 				if <replaceable>b</replaceable> was specified.  The number
 				of characters for the user to type defaults to <literal>3</literal>.</para></note>
-
 			</parameter>
 		</syntax>
 		<description>
@@ -167,6 +173,7 @@ enum {
 	OPT_ALIAS =           (1 << 7),
 	OPT_CONFIG_FILE =     (1 << 8),
 	OPT_SKIP =            (1 << 9),
+	OPT_ADSI =            (1 << 10),
 };
 
 enum {
@@ -200,7 +207,71 @@ AST_APP_OPTIONS(directory_app_options, {
 	AST_APP_OPTION('a', OPT_ALIAS),
 	AST_APP_OPTION_ARG('c', OPT_CONFIG_FILE, OPT_ARG_FILENAME),
 	AST_APP_OPTION('s', OPT_SKIP),
+	AST_APP_OPTION('d', OPT_ADSI), /* (Would've used 'a', but that was taken already) */
 });
+
+static int adsi_search_input(struct ast_channel *chan)
+{
+	unsigned char buf[256];
+	int bytes = 0;
+	unsigned char keys[6];
+
+	memset(keys, 0, sizeof(keys));
+
+	bytes += ast_adsi_display(buf + bytes, ADSI_COMM_PAGE, 3, ADSI_JUST_CENT, 0, " ", "");
+	bytes += ast_adsi_display(buf + bytes, ADSI_COMM_PAGE, 4, ADSI_JUST_CENT, 0, " ", "");
+	bytes += ast_adsi_set_line(buf + bytes, ADSI_COMM_PAGE, 1);
+	bytes += ast_adsi_input_format(buf + bytes, 1, ADSI_DIR_FROM_LEFT, 0, "Query: ***", "");
+	bytes += ast_adsi_input_control(buf + bytes, ADSI_COMM_PAGE, 4, 1, 1, ADSI_JUST_LEFT);
+	bytes += ast_adsi_load_soft_key(buf + bytes, ADSI_KEY_APPS + 3, "Search", "Search", "#", 1);
+	bytes += ast_adsi_set_keys(buf + bytes, keys);
+	bytes += ast_adsi_voice_mode(buf + bytes, 0);
+
+	ast_debug(3, "Sending ADSI search input screen on %s\n", ast_channel_name(chan));
+
+	return ast_adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
+}
+
+static int adsi_confirm_match(struct ast_channel *chan, int seq, int total, const char *exten, const char *name, int showexten)
+{
+	unsigned char buf[4096];
+	int alignments[5] = {ADSI_JUST_CENT, ADSI_JUST_CENT, ADSI_JUST_CENT, ADSI_JUST_CENT};
+	char *lines[5] = {NULL, NULL, NULL, NULL, NULL};
+	int x, bytes = 0;
+	unsigned char keys[8];
+	char matchbuf[32];
+
+	snprintf(matchbuf, sizeof(matchbuf), "%d of %d", seq + 1, total); /* Make it 1-indexed for user consumption */
+
+	lines[0] = " "; /* Leave the first line empty so the following lines stand out more */
+	lines[1] = matchbuf;
+	lines[2] = (char*) name;
+
+	if (showexten) {
+		/* If say extension option is set, show it for ADSI as well */
+		lines[3] = (char*) exten;
+	}
+
+	/* Don't use ast_adsi_print here, this way we can send it all at once instead of in 2 transmissions */
+	for (x = 0; lines[x]; x++) {
+		bytes += ast_adsi_display(buf + bytes, ADSI_INFO_PAGE, x + 1, alignments[x], 0, lines[x], "");
+	}
+	bytes += ast_adsi_set_line(buf + bytes, ADSI_INFO_PAGE, 1);
+
+	keys[3] = ADSI_KEY_APPS + 3;
+	keys[4] = ADSI_KEY_APPS + 4;
+	keys[5] = ADSI_KEY_APPS + 5;
+	/* You might think we only need to set the keys up the first time, but nope, we've got to do it each time. */
+	bytes += ast_adsi_load_soft_key(buf + bytes, ADSI_KEY_APPS + 3, "Dial", "Dial", "1", 0);
+	bytes += ast_adsi_load_soft_key(buf + bytes, ADSI_KEY_APPS + 4, "Next", "Next", "*", 0);
+	bytes += ast_adsi_load_soft_key(buf + bytes, ADSI_KEY_APPS + 5, "Exit", "Exit", "#", 0);
+	bytes += ast_adsi_set_keys(buf + bytes, keys);
+	bytes += ast_adsi_voice_mode(buf + bytes, 0);
+
+	ast_debug(3, "Sending ADSI confirmation menu for %s\n", name);
+
+	return ast_adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
+}
 
 static int compare(const char *text, const char *template)
 {
@@ -373,6 +444,10 @@ static int select_item_seq(struct ast_channel *chan, struct directory_item **ite
 
 	for (ptr = items, i = 0; i < count; i++, ptr++) {
 		item = *ptr;
+
+		if (ast_test_flag(flags, OPT_ADSI) && adsi_confirm_match(chan, i, count, item->exten, item->name, ast_test_flag(flags, OPT_SAYEXTENSION))) {
+			return -1;
+		}
 
 		for (loop = 3 ; loop > 0; loop--) {
 			if (!res)
@@ -933,6 +1008,18 @@ static int directory_exec(struct ast_channel *chan, const char *data)
 	}
 	digits[7] = digit + '0';
 
+	if (ast_test_flag(&flags, OPT_ADSI)) {
+		if (!ast_adsi_available(chan)) {
+			ast_log(LOG_WARNING, "ADSI not available on %s\n", ast_channel_name(chan));
+			ast_clear_flag(&flags, OPT_ADSI);
+		} else {
+			res = ast_adsi_load_session(chan, NULL, 0, 1);
+			if (res < 0) {
+				return res;
+			}
+		}
+	}
+
 	if (ast_channel_state(chan) != AST_STATE_UP) {
 		if (!ast_test_flag(&flags, OPT_NOANSWER)) {
 			/* Otherwise answer unless we're supposed to read while on-hook */
@@ -940,6 +1027,9 @@ static int directory_exec(struct ast_channel *chan, const char *data)
 		}
 	}
 	for (;;) {
+		if (ast_test_flag(&flags, OPT_ADSI) && adsi_search_input(chan)) {
+			return -1;
+		}
 		if (!ast_strlen_zero(dirintro) && !res) {
 			res = ast_stream_and_wait(chan, dirintro, AST_DIGIT_ANY);
 		} else if (!res) {
