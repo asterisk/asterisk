@@ -7422,8 +7422,11 @@ static void adsi_begin(struct ast_channel *chan, int *useadsi)
 	if (!ast_adsi_available(chan))
 		return;
 	x = ast_adsi_load_session(chan, adsifdn, adsiver, 1);
-	if (x < 0)
+	if (x < 0) {
+		*useadsi = 0;
+		ast_channel_adsicpe_set(chan, AST_ADSI_UNAVAILABLE);
 		return;
+	}
 	if (!x) {
 		if (adsi_load_vmail(chan, useadsi)) {
 			ast_log(AST_LOG_WARNING, "Unable to upload voicemail scripts\n");
