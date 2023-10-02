@@ -425,6 +425,12 @@ static void ari_bridges_play_new(const char **args_media,
 	struct bridge_channel_control_thread_data *thread_data;
 	pthread_t threadid;
 
+	struct ast_frame prog = {
+		.frametype = AST_FRAME_CONTROL,
+		.subclass.integer = AST_CONTROL_PROGRESS,
+	};
+
+
 	if (!(play_channel = prepare_bridge_media_channel("Announcer"))) {
 		ast_ari_response_error(
 			response, 500, "Internal Error", "Could not create playback channel");
@@ -471,6 +477,8 @@ static void ari_bridges_play_new(const char **args_media,
 		ast_ari_response_alloc_failed(response);
 		return;
 	}
+
+	ast_bridge_queue_everyone_else(bridge, NULL, &prog);
 
 	/* Give play_channel and control reference to the thread data */
 	thread_data = ast_malloc(sizeof(*thread_data) + strlen(bridge->uniqueid) + 1);
