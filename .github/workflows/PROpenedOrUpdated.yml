@@ -3,7 +3,8 @@ run-name: "PR ${{github.event.number}} ${{github.event.action}} by ${{ github.ac
 on:
 #  workflow_dispatch:
   pull_request_target:
-    types: [opened, reopened, synchronize]
+#    types: [opened, reopened, synchronize]
+    types: [labeled]
 
 env:
   ASTERISK_REPO:     ${{github.repository}}
@@ -16,6 +17,7 @@ env:
 jobs:
 
   PROpenUpdateUnitTests:
+    if: ${{ github.event.label.name == vars.PR_ACCEPTANCE_TEST_LABEL }}
     runs-on: ubuntu-latest
     steps:
       - name: Job Start Delay
@@ -97,6 +99,7 @@ jobs:
             --remove-label ${{vars.CHERRY_PICK_CHECKS_FAILED_LABEL}} \
             --remove-label ${{vars.CHERRY_PICK_GATES_PASSED_LABEL}} \
             --remove-label ${{vars.CHERRY_PICK_GATES_FAILED_LABEL}} \
+            --remove-label ${{vars.PR_ACCEPTANCE_TEST_LABEL}} \
             --add-label ${{vars.TESTING_IN_PROGRESS}} \
             ${{env.PR_NUMBER}} || :
 
