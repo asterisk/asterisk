@@ -341,16 +341,19 @@ static int acf_curlopt_write(struct ast_channel *chan, const char *cmd, char *na
 	enum optiontype ot;
 
 	if (chan) {
+		ast_channel_lock(chan);
 		if (!(store = ast_channel_datastore_find(chan, &curl_info, NULL))) {
 			/* Create a new datastore */
 			if (!(store = ast_datastore_alloc(&curl_info, NULL))) {
 				ast_log(LOG_ERROR, "Unable to allocate new datastore.  Cannot set any CURL options\n");
+				ast_channel_unlock(chan);
 				return -1;
 			}
 
 			if (!(list = ast_calloc(1, sizeof(*list)))) {
 				ast_log(LOG_ERROR, "Unable to allocate list head.  Cannot set any CURL options\n");
 				ast_datastore_free(store);
+				ast_channel_unlock(chan);
 				return -1;
 			}
 
@@ -360,6 +363,7 @@ static int acf_curlopt_write(struct ast_channel *chan, const char *cmd, char *na
 		} else {
 			list = store->data;
 		}
+		ast_channel_unlock(chan);
 	} else {
 		/* Populate the global structure */
 		list = &global_curl_info;
@@ -472,9 +476,17 @@ static int acf_curlopt_helper(struct ast_channel *chan, const char *cmd, char *d
 		return -1;
 	}
 
-	if (chan && (store = ast_channel_datastore_find(chan, &curl_info, NULL))) {
-		list[0] = store->data;
-		list[1] = &global_curl_info;
+	if (chan) {
+		/* If we have a channel, we want to read the options set there before
+		   falling back to the global settings */
+		ast_channel_lock(chan);
+		store = ast_channel_datastore_find(chan, &curl_info, NULL);
+		ast_channel_unlock(chan);
+
+		if (store) {
+			list[0] = store->data;
+			list[1] = &global_curl_info;
+		}
 	}
 
 	for (i = 0; i < 2; i++) {
