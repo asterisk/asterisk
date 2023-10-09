@@ -16,7 +16,7 @@ env:
 
 jobs:
 
-  PROpenUpdateUnitTests:
+  PRTestSetup:
     if: ${{ github.event.label.name == vars.PR_ACCEPTANCE_TEST_LABEL }}
     runs-on: ubuntu-latest
     steps:
@@ -75,9 +75,7 @@ jobs:
       - name: Add reviewers
         if: github.event.action == 'opened'
         env:
-          GITHUB_TOKEN: ${{steps.get_workflow_token.outputs.token}}
           GH_TOKEN: ${{steps.get_workflow_token.outputs.token}}
-          CHERRY_PICK_REMINDER: ${{vars.CHERRY_PICK_REMINDER}}
           REVIEWERS: ${{vars.PR_REVIEWERS}}
         run: |
           IFS=$'; \n'
@@ -103,7 +101,12 @@ jobs:
             --add-label ${{vars.TESTING_IN_PROGRESS}} \
             ${{env.PR_NUMBER}} || :
 
+  PRUnitTest:
+    needs: PRTestSetup
+    runs-on: ubuntu-latest
+    steps:
       - name: Run Unit Tests
+        id: run_unit_tests
         uses: asterisk/asterisk-ci-actions/AsteriskUnitComposite@main
         with:
           asterisk_repo:     ${{env.ASTERISK_REPO}}
@@ -112,18 +115,28 @@ jobs:
           modules_blacklist: ${{env.MODULES_BLACKLIST}}
           github_token:      ${{secrets.GITHUB_TOKEN}}
           unittest_command:  ${{vars.UNITTEST_COMMAND}}
+        continue-on-error: true
 
-      - name: Add Checks Passed Label
-        if: ${{ success() }}
+      - name: Post Unit Test
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CONCLUSION: ${{ steps.run_unit_tests.conclusion }}
+          OUTCOME:    ${{ steps.run_unit_tests.outcome }}
         run: |
+          if [ "$OUTCOME" == "success" ] ; then
+            gh pr edit --repo ${{github.repository}} \
+              --add-label ${{vars.TEST_CHECKS_PASSED_LABEL}} \
+              ${{env.PR_NUMBER}} || :
+            exit 0
+          fi
           gh pr edit --repo ${{github.repository}} \
-            --add-label ${{vars.TEST_CHECKS_PASSED_LABEL}} \
+            --remove-label ${{vars.TESTING_IN_PROGRESS}} \
+            --add-label ${{vars.TEST_CHECKS_FAILED_LABEL}} \
             ${{env.PR_NUMBER}} || :
+          exit 1
 
-  PROpenUpdateGateTestMatrix:
-    needs: PROpenUpdateUnitTests
+  PRGateTestMatrix:
+    needs: PRUnitTest
     continue-on-error: false
     strategy:
       fail-fast: false
@@ -145,15 +158,14 @@ jobs:
           gatetest_group:    ${{matrix.group}}
           gatetest_commands: ${{vars.GATETEST_COMMANDS}}
 
-
-  PROpenUpdateGateTests:
-    if: always()
+  PRPRGateTests:
+    if: ${{ always() && github.event.label.name == vars.PR_ACCEPTANCE_TEST_LABEL }}
     runs-on: ubuntu-latest
-    needs: PROpenUpdateGateTestMatrix
+    needs: PRGateTestMatrix
     steps:
-      - name: Check test matrix status
+      - name: Check gate test matrix status
         env:
-          RESULT: ${{ needs.PROpenUpdateGateTestMatrix.result }}
+          RESULT: ${{ needs.PRGateTestMatrix.result }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "all results: ${{ toJSON(needs.*.result) }}"
