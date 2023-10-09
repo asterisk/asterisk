@@ -41,6 +41,8 @@
 #include <openssl/evp.h>            /* for EVP_PKEY, EVP_sha1(), ... */
 #include <openssl/md5.h>            /* for MD5_DIGEST_LENGTH */
 #include <openssl/sha.h>            /* for SHA_DIGEST_LENGTH */
+#include <openssl/bio.h>
+#include <openssl/x509v3.h>
 
 #include "asterisk/cli.h"           /* for ast_cli, ast_cli_args, ast_cli_entry */
 #include "asterisk/compat.h"        /* for strcasecmp */
@@ -797,6 +799,388 @@ int AST_OPTIONAL_API_NAME(ast_aes_decrypt)(const unsigned char *in, unsigned cha
 	return res;
 }
 
+/*
+ * OPENSSL Helpers
+ */
+
+struct ast_X509_Extension {
+	AST_DECLARE_STRING_FIELDS(
+		AST_STRING_FIELD(oid);
+		AST_STRING_FIELD(short_name);
+		AST_STRING_FIELD(long_name);
+	);
+	int nid;
+};
+
+static AST_VECTOR_RW(ast_X509_Extensions, struct ast_X509_Extension *) x509_extensions;
+
+static void ast_X509_Extension_free(struct ast_X509_Extension *ext)
+{
+	ast_string_field_free_memory(ext);
+	ast_free((struct ast_X509_Extension *)ext);
+}
+
+static void ast_X509_Extensions_free(void)
+{
+	AST_VECTOR_RESET(&x509_extensions, ast_X509_Extension_free);
+	AST_VECTOR_RW_FREE(&x509_extensions);
+}
+
+void __attribute__((format(printf, 5, 6)))
+ast_log_openssl(int level, char *file, int line, const char *function,
+	const char *fmt, ...)
+
+{
+	FILE *fp;
+	char *buffer;
+	size_t length;
+	va_list ap;
+	char *tmp_fmt;
+
+	fp = open_memstream(&buffer, &length);
+	if (!fp) {
+		return;
+	}
+
+	va_start(ap, fmt);
+	if (!ast_strlen_zero(fmt)) {
+		size_t fmt_len = strlen(fmt);
+		if (fmt[fmt_len - 1] == '\n') {
+			tmp_fmt = ast_strdupa(fmt);
+			tmp_fmt[fmt_len - 1] = '\0';
+			fmt = tmp_fmt;
+		}
+	}
+	vfprintf(fp, fmt, ap);
+	fputs(": ", fp);
+	ERR_print_errors_fp(fp);
+	fclose(fp);
+
+	if (length) {
+		ast_log(level, file, line, function, "%s\n", buffer);
+	}
+
+	ast_std_free(buffer);
+}
+
+static int ext_sn_comparator(struct ast_X509_Extension *ext, const char *short_name)
+{
+	return strcasecmp(ext->short_name, short_name) == 0;
+}
+
+static int ext_nid_comparator(struct ast_X509_Extension *ext, int nid)
+{
+	return ext->nid == nid;
+}
+
+struct ast_X509_Extension *ast_crypto_get_registered_extension(
+	int nid, const char *short_name)
+{
+	struct ast_X509_Extension *ext = NULL;
+
+	AST_VECTOR_RW_RDLOCK(&x509_extensions);
+	if (nid) {
+		ext = AST_VECTOR_GET_CMP(&x509_extensions, nid, ext_nid_comparator);
+	} else if (!ast_strlen_zero(short_name)) {
+		ext = AST_VECTOR_GET_CMP(&x509_extensions, short_name, ext_sn_comparator);
+	}
+	AST_VECTOR_RW_UNLOCK(&x509_extensions);
+
+	return ext;
+}
+
+int ast_crypto_is_extension_registered(int nid, const char *short_name)
+{
+	struct ast_X509_Extension *ext = ast_crypto_get_registered_extension(
+		nid, short_name);
+
+	return (ext != NULL);
+}
+
+int ast_crypto_register_x509_extension(const char *oid, const char *short_name,
+	const char *long_name)
+{
+	struct ast_X509_Extension *ext;
+	int rc = 0;
+
+	if (ast_strlen_zero(oid) || ast_strlen_zero(short_name) ||
+		ast_strlen_zero(long_name)) {
+		ast_log(LOG_ERROR, "One or more of oid, short_name or long_name are NULL or empty\n");
+		return -1;
+	}
+
+	ext = ast_crypto_get_registered_extension(0, short_name);
+	if (ext) {
+		ast_log(LOG_ERROR, "An extension with the namne '%s' is already registered\n", short_name);
+		return -1;
+	}
+
+	ext = ast_malloc(sizeof(*ext));
+	if (!ext) {
+		ast_log(LOG_ERROR, "Unable to allocate memory for extension '%s'\n", short_name);
+		return -1;
+	}
+	if (ast_string_field_init(ext, 256)) {
+		ast_log(LOG_ERROR, "Unable to initialize stringfields for extension '%s'\n", short_name);
+		ast_X509_Extension_free(ext);
+		return -1;
+	}
+
+	ast_string_field_set(ext, oid, oid);
+	if (!ext->oid) {
+		ast_log(LOG_ERROR, "Unable to set oid for extension '%s' OID '%s'\n", short_name, oid);
+		ast_X509_Extension_free(ext);
+		return -1;
+	}
+
+	ast_string_field_set(ext, short_name, short_name);
+	if (!ext->short_name) {
+		ast_log(LOG_ERROR, "Unable to set short name for extension '%s' short_name '%s'\n", short_name, short_name);
+		ast_X509_Extension_free(ext);
+		return -1;
+	}
+
+	ast_string_field_set(ext, long_name, long_name);
+	if (!ext->long_name) {
+		ast_log(LOG_ERROR, "Unable to set long name for extension '%s' short_name '%s'\n", short_name, short_name);
+		ast_X509_Extension_free(ext);
+		return -1;
+	}
+
+	ext->nid = OBJ_create(oid, short_name, long_name);
+	if (ext->nid == NID_undef) {
+		ast_X509_Extension_free(ext);
+		ast_log_openssl(LOG_ERROR, "Couldn't register %s X509 extension\n", short_name);
+		return -1;
+	}
+	ast_log(LOG_NOTICE, "Registering %s NID %d\n", ext->short_name, ext->nid);
+
+	AST_VECTOR_RW_WRLOCK(&x509_extensions);
+	rc = AST_VECTOR_APPEND(&x509_extensions, ext);
+	AST_VECTOR_RW_UNLOCK(&x509_extensions);
+	if (rc != 0) {
+		ast_X509_Extension_free(ext);
+		ast_log(LOG_ERROR, "Unable to register %s X509 extension\n", short_name);
+		return -1;
+	}
+
+	return ext->nid;
+}
+
+ASN1_OCTET_STRING *ast_crypto_get_cert_extension_data(X509 *cert,
+	int nid, const char *short_name)
+{
+	int ex_idx;
+	X509_EXTENSION *ex;
+
+	if (nid <= 0) {
+		struct ast_X509_Extension *ext;
+
+		AST_VECTOR_RW_RDLOCK(&x509_extensions);
+		ext = AST_VECTOR_GET_CMP(&x509_extensions, short_name, ext_sn_comparator);
+		AST_VECTOR_RW_UNLOCK(&x509_extensions);
+
+		if (!ext) {
+			ast_log(LOG_ERROR, "Unable to find registered extension '%s'\n", short_name);
+			return NULL;
+		}
+
+		nid = ext->nid;
+	}
+
+	ex_idx = X509_get_ext_by_NID(cert, nid, -1);
+	if (ex_idx < 0) {
+		ast_log(LOG_ERROR, "Extension index not found in certificate\n");
+		return NULL;
+	}
+	ex = X509_get_ext(cert, ex_idx);
+	if (!ex) {
+		ast_log(LOG_ERROR, "Extension not found in certificate\n");
+		return NULL;
+	}
+
+	return X509_EXTENSION_get_data(ex);
+}
+
+
+X509 *ast_crypto_load_cert_from_file(const char *filename)
+{
+	FILE *fp;
+	X509 *cert = NULL;
+
+	if (ast_strlen_zero(filename)) {
+		ast_log(LOG_ERROR, "filename was null or empty\n");
+		return NULL;
+	}
+
+	fp = fopen(filename, "r");
+	if (!fp) {
+		ast_log(LOG_ERROR, "Failed to open %s: %s\n", filename, strerror(errno));
+		return NULL;
+	}
+
+	cert = PEM_read_X509(fp, &cert, NULL, NULL);
+	fclose(fp);
+	if (!cert) {
+		ast_log_openssl(LOG_ERROR, "Failed to create cert from %s\n", filename);
+	}
+	return cert;
+}
+
+X509 *ast_crypto_load_cert_from_memory(const char *buffer, size_t size)
+{
+	RAII_VAR(BIO *, bio, NULL, BIO_free_all);
+	X509 *cert = NULL;
+
+	if (ast_strlen_zero(buffer) || size <= 0) {
+		ast_log(LOG_ERROR, "buffer was null or empty\n");
+		return NULL;
+	}
+
+	bio = BIO_new_mem_buf(buffer, size);
+	if (!bio) {
+		ast_log_openssl(LOG_ERROR, "Unable to create memory BIO\n");
+		return NULL;
+	}
+
+	cert = PEM_read_bio_X509(bio, NULL, NULL, NULL);
+	if (!cert) {
+		ast_log_openssl(LOG_ERROR, "Failed to create cert from BIO\n");
+	}
+	return cert;
+}
+
+int ast_crypto_get_raw_pubkey_from_cert(X509 *cert,
+	unsigned char **buffer)
+{
+	RAII_VAR(BIO *, bio, NULL, BIO_free_all);
+	char *temp_ptr;
+	EVP_PKEY *public_key;
+	int raw_key_len = 0;
+
+	public_key = X509_get0_pubkey(cert);
+	if (!public_key) {
+		ast_log_openssl(LOG_ERROR, "Unable to retrieve pubkey from cert\n");
+		return -1;
+	}
+
+	bio = BIO_new(BIO_s_mem());
+	if (!bio || (PEM_write_bio_PUBKEY(bio, public_key) <= 0)) {
+		ast_log_openssl(LOG_ERROR, "Unable to write pubkey to BIO\n");
+		return -1;
+	}
+
+	raw_key_len = BIO_get_mem_data(bio, &temp_ptr);
+	if (raw_key_len <= 0) {
+		ast_log_openssl(LOG_ERROR, "Unable to extract raw public key\n");
+		return -1;
+	}
+	*buffer = ast_malloc(raw_key_len);
+	if (!*buffer) {
+		ast_log(LOG_ERROR, "Unable to allocate memory for raw public key\n");
+		return -1;
+	}
+	memcpy(*buffer, temp_ptr, raw_key_len);
+
+	return raw_key_len;
+}
+
+X509_STORE *ast_crypto_create_cert_store(void)
+{
+	X509_STORE *store = X509_STORE_new();
+
+	if (!store) {
+		ast_log_openssl(LOG_ERROR, "Failed to create X509_STORE\n");
+		return NULL;
+	}
+
+	return store;
+}
+
+int ast_crypto_load_cert_store(X509_STORE *store, const char *file,
+	const char *path)
+{
+	if (ast_strlen_zero(file) && ast_strlen_zero(path)) {
+		ast_log(LOG_ERROR, "Both file and path can't be NULL");
+		return -1;
+	}
+
+	if (!store) {
+		ast_log(LOG_ERROR, "store is NULL");
+		return -1;
+	}
+
+	if (!X509_STORE_load_locations(store, file, path)) {
+		ast_log_openssl(LOG_ERROR, "Failed to load store from file '%s' or path '%s'\n",
+			S_OR(file, "N/A"), S_OR(path, "N/A"));
+		return -1;
+	}
+
+	return 0;
+}
+
+int ast_crypto_is_cert_time_valid(X509*cert, time_t reftime)
+{
+	ASN1_STRING *notbefore;
+	ASN1_STRING *notafter;
+
+	if (!reftime) {
+		reftime = time(NULL);
+	}
+	notbefore = X509_get_notBefore(cert);
+	notafter = X509_get_notAfter(cert);
+	if (!notbefore || !notafter) {
+		ast_log(LOG_ERROR, "Either notbefore or notafter were not present in the cert\n");
+		return 0;
+	}
+
+	return (X509_cmp_time(notbefore, &reftime) < 0 &&
+		X509_cmp_time(notafter, &reftime) > 0);
+}
+
+int ast_crypto_is_cert_trusted(X509_STORE *store, X509 *cert)
+{
+	X509_STORE_CTX *verify_ctx = NULL;
+	int rc = 0;
+
+	if (!(verify_ctx = X509_STORE_CTX_new())) {
+		ast_log_openssl(LOG_ERROR, "Unable to create verify_ctx\n");
+		return 0;
+	}
+
+	if (X509_STORE_CTX_init(verify_ctx, store, cert, NULL) != 1) {
+		X509_STORE_CTX_cleanup(verify_ctx);
+		X509_STORE_CTX_free(verify_ctx);
+		ast_log_openssl(LOG_ERROR, "Unable to initialize verify_ctx\n");
+		return 0;
+	}
+
+	rc = X509_verify_cert(verify_ctx);
+	X509_STORE_CTX_cleanup(verify_ctx);
+	X509_STORE_CTX_free(verify_ctx);
+
+	return rc;
+}
+
+#define SECS_PER_DAY 86400
+time_t ast_crypto_asn_time_as_time_t(ASN1_TIME *at)
+{
+	int pday;
+	int psec;
+	time_t rt = time(NULL);
+
+	if (!ASN1_TIME_diff(&pday, &psec, NULL, at)) {
+		ast_log_openssl(LOG_ERROR, "Unable to calculate time diff\n");
+		return 0;
+	}
+
+	rt += ((pday * SECS_PER_DAY) + psec);
+
+	return rt;
+}
+#undef SECS_PER_DAY
+
+
 struct crypto_load_on_file {
 	int ifd;
 	int ofd;
@@ -970,6 +1354,8 @@ static int reload(void)
 
 static int load_module(void)
 {
+	int res = 0;
+
 	crypto_init();
 	if (ast_opt_init_keys) {
 		crypto_load(STDIN_FILENO, STDOUT_FILENO);
@@ -977,11 +1363,15 @@ static int load_module(void)
 		crypto_load(-1, -1);
 	}
 
-	return AST_MODULE_LOAD_SUCCESS;
+	res = AST_VECTOR_RW_INIT(&x509_extensions, 5);
+
+	return res ? AST_MODULE_LOAD_DECLINE : AST_MODULE_LOAD_SUCCESS;
 }
 
 static int unload_module(void)
 {
+	ast_X509_Extensions_free();
+
 	ast_cli_unregister_multiple(cli_crypto, ARRAY_LEN(cli_crypto));
 
 	return 0;
