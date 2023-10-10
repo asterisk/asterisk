@@ -1,0 +1,7 @@
+{
+	global:
+		LINKER_SYMBOL_PREFIX*ast_curl_*;
+		LINKER_SYMBOL_PREFIX*ast_curler;
+	local:
+		*;
+};
