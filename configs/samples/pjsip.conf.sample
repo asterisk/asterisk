@@ -175,7 +175,7 @@
 ;
 ; This is a simple registration that works with some SIP trunking providers.
 ; You'll need to set up the auth example "mytrunk_auth" below to enable outbound
-; authentication. Note that we "outbound_auth=" use for outbound authentication
+; authentication. Note that we use "outbound_auth=" for outbound authentication
 ; instead of "auth=", which is for inbound authentication.
 ;
 ; If you are registering to a server from behind NAT, be sure you assign a transport
