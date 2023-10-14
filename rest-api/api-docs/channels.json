@@ -2187,6 +2187,10 @@
 					"required": false,
 					"type": "object",
 					"description": "Channel variables"
+				},
+				"caller_rdnis": {
+					"type": "string",
+					"description": "The Caller ID RDNIS"
 				}
 			}
 		}
