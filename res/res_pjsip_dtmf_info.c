@@ -163,6 +163,13 @@ static struct ast_sip_session_supplement dtmf_info_supplement = {
 
 static int load_module(void)
 {
+	static const pj_str_t STR_INFO = { "INFO", 4 };
+
+	if (pjsip_endpt_add_capability(ast_sip_get_pjsip_endpoint(),
+			NULL, PJSIP_H_ALLOW, NULL, 1, &STR_INFO) != PJ_SUCCESS) {
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
 	ast_sip_session_register_supplement(&dtmf_info_supplement);
 	return AST_MODULE_LOAD_SUCCESS;
 }
