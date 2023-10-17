@@ -1,0 +1,148 @@
+name: PRSubmitActions
+run-name: "PRSubmitActions: Test ${{github.event.action}}"
+on:
+  workflow_run:
+    workflows: [PRSubmitTests]
+    types:
+      - requested
+      - completed
+env:
+  ACTION:     ${{ github.event.action }}
+  CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+  REPO:       ${{ github.repository }}
+
+jobs:
+  PRSubmitActions:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get PR Number
+        id: getpr
+        uses: actions/github-script@v6
+        with:
+          retries: 5
+          script: |
+            let search = `repo:${context.repo.owner}/${context.repo.repo} ${context.payload.workflow_run.head_sha}`; 
+            let prs = await github.rest.search.issuesAndPullRequests({
+                 q: search,
+              });
+            if (prs.data.total_count == 0) {
+              core.setFailed(`Unable to get PR for ${context.payload.workflow_run.head_sha}`);
+              return;
+            }
+            let pr_number = prs.data.items[0].number;
+            core.setOutput('pr_number', pr_number);
+            return;
+
+      - name: Set Label
+        id: setlabel
+        uses: actions/github-script@v6
+        env:
+          PR_NUMBER:  ${{ steps.getpr.outputs.PR_NUMBER }}
+          LABEL_TIP:  ${{ vars.PR_SUBMIT_TESTING_IN_PROGRESS }}
+          LABEL_PASS: ${{ vars.PR_SUBMIT_TESTS_PASSED }}
+          LABEL_FAIL: ${{ vars.PR_SUBMIT_TESTS_FAILED }}
+        with:
+          retries: 5
+          script: |
+            let label;
+            if (process.env.ACTION === 'requested') {
+              label = process.env.LABEL_TIP;
+            } else {
+              if ( process.env.CONCLUSION === 'success' ) {
+                label = process.env.LABEL_PASS;
+              } else {
+                label = process.env.LABEL_FAIL;
+              }
+            }
+            core.info(`Setting label ${label}`);
+            github.rest.issues.setLabels({
+              issue_number: process.env.PR_NUMBER,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: [ label ]
+            });
+            return;
+
+      - name: Get cherry-pick branches
+        if: github.event.action == 'completed'
+        id: getbranches
+        uses: asterisk/asterisk-ci-actions/GetCherryPickBranchesFromPR@main
+        with:
+          repo:              ${{env.REPO}}
+          pr_number:         ${{steps.getpr.outputs.PR_NUMBER}}
+          cherry_pick_regex: ${{vars.CHERRY_PICK_REGEX}}
+          github_token:      ${{secrets.GITHUB_TOKEN}}
+
+      - name: Add cherry-pick reminder
+        if: github.event.action == 'completed'
+        uses: actions/github-script@v6
+        env:
+          PR_NUMBER:            ${{steps.getpr.outputs.PR_NUMBER}}
+          CHERRY_PICK_REMINDER: ${{vars.CHERRY_PICK_REMINDER}}
+          BRANCHES_OUTPUT:      ${{toJSON(steps.getbranches.outputs)}}
+          BRANCH_COUNT:         ${{steps.getbranches.outputs.branch_count}}
+          FORCED_NONE:          ${{steps.getbranches.outputs.forced_none}}
+        with:
+          retries: 5
+          script: |
+            if (process.env.FORCED_NONE === 'true' ||
+              process.env.BRANCH_COUNT > 0) {
+              core.info("No cherry-pick reminder needed.");
+              return;
+            }
+            let comments = await github.rest.issues.listComments({
+              issue_number: process.env.PR_NUMBER,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+            let found = false;
+            for (const c of comments.data) {
+              if (c.body.startsWith("<!--CPR-->")) {
+                found = true;
+                break;
+              }
+            }
+            if (found) {
+              core.info("Cherry-pick reminder already exists.");
+              return;
+            }
+            core.info("Adding cherry-pick reminder.");
+            await github.rest.issues.createComment({
+              issue_number: process.env.PR_NUMBER,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: process.env.CHERRY_PICK_REMINDER
+            })
+            return;
+
+      - name: Add reviewers
+        if: github.event.action == 'completed'
+        uses: actions/github-script@v6
+        env:
+          PR_NUMBER: ${{steps.getpr.outputs.PR_NUMBER}}
+          REVIEWERS: ${{vars.PR_REVIEWERS}}
+        with:
+          retries: 5
+          script: |
+            let rs = JSON.parse(process.env.REVIEWERS);
+            let users = [];
+            let teams = [];
+            for (const r of rs) {
+              if (r.indexOf("/") > 0) {
+                teams.push(r);
+              } else {
+                users.push(r);
+              }
+            }
+            if (teams.length > 0 || users.length > 0) {
+              core.info(`Adding user reviewers ${users}`);
+              core.info(`Adding team reviewers ${teams}`);
+              await github.pulls.requestReviewers({
+                pr_number: process.env.PR_NUMBER,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                reviewers: users,
+                team_reviewers: teams
+              });
+            }
+            return;
