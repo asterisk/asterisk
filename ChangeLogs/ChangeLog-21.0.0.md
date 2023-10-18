@@ -1,13 +1,13 @@
 
-Change Log for Release asterisk-21.0.0-rc1
+Change Log for Release asterisk-21.0.0
 ========================================
 
 Links:
 ----------------------------------------
 
- - [Full ChangeLog](https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-21.0.0-rc1.md)  
- - [GitHub Diff](https://github.com/asterisk/asterisk/compare/21.0.0-pre1...21.0.0-rc1)  
- - [Tarball](https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-21.0.0-rc1.tar.gz)  
+ - [Full ChangeLog](https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-21.0.0.md)  
+ - [GitHub Diff](https://github.com/asterisk/asterisk/compare/21.0.0-pre1...21.0.0)  
+ - [Tarball](https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-21.0.0.tar.gz)  
  - [Downloads](https://downloads.asterisk.org/pub/telephony/asterisk)  
 
 Summary:
@@ -31,12 +31,12 @@ Summary:
 - utils.h: Deprecate `ast_gethostbyname()`. (#79)
 - res_pjsip_pubsub: Add new pubsub module capabilities. (#82)
 - app_sla: Migrate SLA applications out of app_meetme.
-- Update config.yml
 - rest-api: Ran make ari stubs to fix resource_endpoints inconsistency
 - .github: Update AsteriskReleaser for security releases
 - users.conf: Deprecate users.conf configuration.
 - Update version for Asterisk 21
 - Remove unneeded CHANGES and UPGRADE files
+- res_pjsip_pubsub: Add body_type to test_handler for unit tests
 - ari-stubs: Fix more local anchor references
 - ari-stubs: Fix more local anchor references
 - ari-stubs: Fix broken documentation anchors
@@ -98,11 +98,6 @@ Upgrade Notes:
   The users.conf config is now deprecated
   and will be removed in a future version of Asterisk.
 
-- ### app_osplookup: Remove deprecated module.
-  This module was deprecated in Asterisk 19
-  and is now being removed in accordance with
-  the Asterisk Module Deprecation policy.
-
 - ### res_monitor: Remove deprecated module.
   This module was deprecated in Asterisk 16
   and is now being removed in accordance with
@@ -113,25 +108,15 @@ Upgrade Notes:
   for all settings that previously used either
   Monitor or MixMonitor.
 
-- ### chan_sip: Remove deprecated module.
-  This module was deprecated in Asterisk 17
-  and is now being removed in accordance with
-  the Asterisk Module Deprecation policy.
-
-- ### chan_alsa: Remove deprecated module.
+- ### app_osplookup: Remove deprecated module.
   This module was deprecated in Asterisk 19
   and is now being removed in accordance with
   the Asterisk Module Deprecation policy.
 
-- ### chan_mgcp: Remove deprecated module.
-  This module was deprecated in Asterisk 19
-  and is now being removed in accordance with
-  the Asterisk Module Deprecation policy.
-
-- ### chan_skinny: Remove deprecated module.
-  This module was deprecated in Asterisk 19
-  and is now being removed in accordance with
-  the Asterisk Module Deprecation policy.
+- ### app_cdr: Remove deprecated application and option.
+  The previously deprecated NoCDR application has been removed.
+  Additionally, the previously deprecated 'e' option to the ResetCDR
+  application has been removed.
 
 - ### app_macro: Remove deprecated module.
   This module was deprecated in Asterisk 16
@@ -156,19 +141,34 @@ Upgrade Notes:
   pbx_dundi - no longer look for macro
   snmp - removed macro context, exten, and priority
 
-- ### pbx_builtins: Remove deprecated and defunct functionality.
-  The previously deprecated ImportVar and SetAMAFlags
-  applications have now been removed.
-
 - ### translate.c: Prefer better codecs upon translate ties.
   When setting up translation between two codecs the quality was not taken into account,
   resulting in suboptimal translation. The quality is now taken into account,
   which can reduce the number of translation steps required, and improve the resulting quality.
 
-- ### app_cdr: Remove deprecated application and option.
-  The previously deprecated NoCDR application has been removed.
-  Additionally, the previously deprecated 'e' option to the ResetCDR
-  application has been removed.
+- ### chan_sip: Remove deprecated module.
+  This module was deprecated in Asterisk 17
+  and is now being removed in accordance with
+  the Asterisk Module Deprecation policy.
+
+- ### chan_alsa: Remove deprecated module.
+  This module was deprecated in Asterisk 19
+  and is now being removed in accordance with
+  the Asterisk Module Deprecation policy.
+
+- ### pbx_builtins: Remove deprecated and defunct functionality.
+  The previously deprecated ImportVar and SetAMAFlags
+  applications have now been removed.
+
+- ### chan_mgcp: Remove deprecated module.
+  This module was deprecated in Asterisk 19
+  and is now being removed in accordance with
+  the Asterisk Module Deprecation policy.
+
+- ### chan_skinny: Remove deprecated module.
+  This module was deprecated in Asterisk 19
+  and is now being removed in accordance with
+  the Asterisk Module Deprecation policy.
 
 
 Closed Issues:
@@ -193,9 +193,13 @@ Closed Issues:
   - #275: [bug]:Asterisk make now requires ASTCFLAGS='-std=gnu99 -Wdeclaration-after-statement'
   - #277: [bug]: pbx.c: Compiler error with gcc 12.2
   - #281: [bug]: app_dial: Infinite loop if called channel hangs up while receiving digits
+  - #335: [bug]: res_pjsip_pubsub: The bad_event unit test causes a SEGV in build_resource_tree
 
 Commits By Author:
 ----------------------------------------
+
+- ### Asterisk Development Team (1):
+  - Update for 21.0.0-rc1
 
 - ### Bastian Triller (1):
   - res_pjsip_session: Send Session Interval too small response
@@ -475,11 +479,6 @@ Detail:
   from app_meetme to app_sla. If you are using these applications and have
   autoload=no, you will need to explicitly load this module in modules.conf.
 
-- ### Update config.yml
-  Author: Joshua C. Colp  
-  Date:   2023-06-15  
-
-
 - ### rest-api: Ran make ari stubs to fix resource_endpoints inconsistency
   Author: George Joseph  
   Date:   2023-06-27  
@@ -524,6 +523,16 @@ Detail:
   Author: George Joseph  
   Date:   2023-08-09  
 
+
+- ### res_pjsip_pubsub: Add body_type to test_handler for unit tests
+  Author: George Joseph  
+  Date:   2023-09-15  
+
+  The ast_sip_subscription_handler "test_handler" used for the unit
+  tests didn't set "body_type" so the NULL value was causing
+  a SEGV in build_subscription_tree().  It's now set to "".
+
+  Resolves: #335
 
 - ### ari-stubs: Fix more local anchor references
   Author: George Joseph  
