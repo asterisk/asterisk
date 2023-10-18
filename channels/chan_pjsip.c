@@ -831,6 +831,11 @@ static int is_compatible_format(struct ast_sip_session *session, struct ast_fram
 	return ast_format_cap_iscompatible_format(cap, f->subclass.format) != AST_FORMAT_CMP_NOT_EQUAL;
 }
 
+static long long timeval_to_usec(struct timeval* tv) {
+	long long usec = (tv->tv_sec * (long long ) 1000000) + tv->tv_usec;
+	return usec;
+	}
+
 /*!
  * \brief Function called by core to read any waiting frames
  *
@@ -850,7 +855,68 @@ static struct ast_frame *chan_pjsip_read_stream(struct ast_channel *ast)
 	}
 
 	callback_state = AST_VECTOR_GET_ADDR(&session->active_media_state->read_callbacks, fdno);
-	f = callback_state->read_callback(session, callback_state->session);
+
+	if (ast_avoxi_purge_packets(ast)) {
+		ast_log(LOG_DEBUG, "AVOXI: chan_pjsip_read_stream(): Purge flag is set Ch=%s ChSt: %d",
+				ast_channel_name(ast), ast_channel_state(ast));
+
+		int drop_count = 0;
+		long long last_usec = 0;
+		const int max_packets_to_drop = 150;
+		for(int i = 0; i < max_packets_to_drop; i++) {
+			f = callback_state->read_callback(session, callback_state->session);
+			if (!f) {
+				break;
+			}
+			if (f->frametype != AST_FRAME_VOICE) {
+				continue;
+			}
+			struct timeval now;
+			if (gettimeofday(&now, NULL) != 0) {
+				ast_log(LOG_NOTICE, "AVOXI: chan_pjsip_read_stream(): tod failed, ending purge Ch=%s ChSt: %d",
+						ast_channel_name(ast), ast_channel_state(ast));
+				break;
+			}
+			long long now_usec = timeval_to_usec(&now);
+			ast_log(LOG_DEBUG, "AVOXI: chan_pjsip_read_stream(): Got a frame Ch=%s ChSt: %d. "
+								"rtp=%d:%ld "
+								"type=%d:%d "
+								"dlv=%d.%d "
+								"now=%d.%d "
+								"now=%lld last=%lld diff=%lld",
+					ast_channel_name(ast), ast_channel_state(ast),
+					f->seqno, f->ts,
+					f->frametype, f->subclass.integer,
+					f->delivery.tv_sec, f->delivery.tv_usec,
+					now.tv_sec, now.tv_usec,
+					now_usec, last_usec, now_usec - last_usec
+					);
+			if (i == 0) {
+				last_usec = now_usec;
+			} else {
+				long long diff_us = now_usec - last_usec;
+				// AVOXI: Trying to exhaust the socket buffer, if we waited for ~ptime duration, it means the buffer is purged
+				const long long typical_ptime_us = 20000;
+				if ((diff_us < 0) || (diff_us > typical_ptime_us)) {
+					ast_log(LOG_NOTICE, "AVOXI: chan_pjsip_read_stream(): Waited too long (%lld), ending purge Ch=%s ChSt: %d",
+							diff_us, ast_channel_name(ast), ast_channel_state(ast));
+					break;
+				}
+				last_usec = now_usec;
+			}
+			ast_frfree(f);
+			drop_count++;
+		}
+		// AVOXI: Continue processing the last frame
+		ast_log(LOG_NOTICE, "AVOXI: chan_pjsip_read_stream(): Purged %d packets Ch=%s ChSt: %d (%05d:%ld) time=%ld.%06ld fd=%d",
+				drop_count,
+				ast_channel_name(ast), ast_channel_state(ast), f->seqno, f->ts, f->delivery.tv_sec, f->delivery.tv_usec,
+				callback_state->fd);
+		ast_avoxi_purge_packets_set(ast, 0);
+	} else {
+		// AVOXI: Not purging, business as usual.
+		f = callback_state->read_callback(session, callback_state->session);
+	};
 
 	if (!f) {
 		return f;

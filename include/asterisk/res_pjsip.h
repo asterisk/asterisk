@@ -1318,6 +1318,27 @@ struct ast_sip_contact *ast_sip_location_retrieve_first_aor_contact_filtered(con
 	unsigned int flags);
 
 /*!
+ * \brief Retrieve a random bound contact for an AOR
+ *
+ * \param aor Pointer to the AOR
+ * \retval NULL if no contacts available
+ * \retval non-NULL if contacts available
+ */
+struct ast_sip_contact *ast_sip_location_retrieve_random_aor_contact(const struct ast_sip_aor *aor);
+
+/*!
+ * \brief Retrieve a random bound contact for an AOR and filter based on flags
+ * \since 13.16.0
+ *
+ * \param aor Pointer to the AOR
+ * \param flags Filtering flags
+ * \retval NULL if no contacts available
+ * \retval non-NULL if contacts available
+ */
+struct ast_sip_contact *ast_sip_location_retrieve_random_aor_contact_filtered(const struct ast_sip_aor *aor,
+     unsigned int flags);
+
+/*!
  * \brief Retrieve all contacts currently available for an AOR
  *
  * \param aor Pointer to the AOR

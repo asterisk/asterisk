@@ -557,6 +557,9 @@ static int set_caps(struct ast_sip_session *session,
 
 	if (session->channel && ast_sip_session_is_pending_stream_default(session, asterisk_stream)) {
 		ast_channel_lock(session->channel);
+		ast_log(LOG_DEBUG, "AVOXI: set_caps(): Ch=%s %s Setting purge flag\n",
+				ast_channel_name(session->channel), ast_sip_session_get_name(session));
+		ast_avoxi_purge_packets_set(session->channel, 1);
 		ast_format_cap_remove_by_type(caps, AST_MEDIA_TYPE_UNKNOWN);
 		ast_format_cap_append_from_cap(caps, ast_channel_nativeformats(session->channel),
 			AST_MEDIA_TYPE_UNKNOWN);

@@ -224,7 +224,19 @@ struct ast_channel {
 	struct ast_stream *default_streams[AST_MEDIA_TYPE_END]; /*!< Default streams indexed by media type */
 	struct ast_channel_snapshot *snapshot; /*!< The current up to date snapshot of the channel */
 	struct ast_flags snapshot_segment_flags; /*!< Flags regarding the segments of the snapshot */
+
+	int avoxi_purge_packets; /*!< If set first ast_read will exhaust the socket buffer, initialized to zero at alloc */
 };
+
+int ast_avoxi_purge_packets(const struct ast_channel *chan)
+{
+	return chan->avoxi_purge_packets;
+}
+
+void ast_avoxi_purge_packets_set(struct ast_channel *chan, int value)
+{
+	chan->avoxi_purge_packets = value;
+}
 
 /*! \brief The monotonically increasing integer counter for channel uniqueids */
 static int uniqueint;

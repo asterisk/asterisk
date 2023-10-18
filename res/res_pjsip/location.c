@@ -19,6 +19,7 @@
 #include "asterisk.h"
 #include <pjsip.h>
 #include <pjlib.h>
+#include <stdlib.h>
 
 #include "asterisk/res_pjsip.h"
 #include "asterisk/logger.h"
@@ -211,6 +212,43 @@ struct ast_sip_contact *ast_sip_location_retrieve_first_aor_contact_filtered(con
 	return contact;
 }
 
+struct ast_sip_contact *ast_sip_location_retrieve_random_aor_contact(const struct ast_sip_aor *aor)
+{
+    return ast_sip_location_retrieve_random_aor_contact_filtered(aor, AST_SIP_CONTACT_FILTER_DEFAULT);
+}
+
+struct ast_sip_contact *ast_sip_location_retrieve_random_aor_contact_filtered(const struct ast_sip_aor *aor,
+    unsigned int flags)
+{
+    struct ao2_container *contacts;
+    struct ast_sip_contact *contact = NULL;
+
+    contacts = ast_sip_location_retrieve_aor_contacts_filtered(aor, flags);
+    if (contacts && ao2_container_count(contacts) > 0) {
+        /* Get the number of AOR contacts in the container. */
+        int num_contacts = ao2_container_count(contacts);
+
+        /* Generate a random index between 0 and num_contacts - 1. */
+        int random_index = ast_random() % num_contacts;
+
+        /* Iterate through the container to find the random contact. */
+        int i = 0;
+        struct ao2_iterator iter;
+        iter = ao2_iterator_init(contacts, 0);
+        while ((contact = ao2_iterator_next(&iter))) {
+            if (i == random_index) {
+                ast_log(LOG_DEBUG, "Picked random contact: %s\n", contact->uri);
+                break;  // Found the random contact
+            }
+            i++;
+        }
+        ao2_iterator_destroy(&iter);
+    }
+
+    ao2_cleanup(contacts);
+    return contact;
+}
+
 struct ao2_container *ast_sip_location_retrieve_aor_contacts_nolock(const struct ast_sip_aor *aor)
 {
 	return ast_sip_location_retrieve_aor_contacts_nolock_filtered(aor, AST_SIP_CONTACT_FILTER_DEFAULT);
@@ -290,7 +328,7 @@ void ast_sip_location_retrieve_contact_and_aor_from_list_filtered(const char *ao
 		if (!(*aor)) {
 			continue;
 		}
-		*contact = ast_sip_location_retrieve_first_aor_contact_filtered(*aor, flags);
+		*contact = ast_sip_location_retrieve_random_aor_contact_filtered(*aor, flags);
 		/* If a valid contact is available use its URI for dialing */
 		if (*contact) {
 			break;
