@@ -1,13 +1,13 @@
 
-Change Log for Release asterisk-18.20.0-rc1
+Change Log for Release asterisk-18.20.0
 ========================================
 
 Links:
 ----------------------------------------
 
- - [Full ChangeLog](https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-18.20.0-rc1.md)  
- - [GitHub Diff](https://github.com/asterisk/asterisk/compare/18.19.0...18.20.0-rc1)  
- - [Tarball](https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-18.20.0-rc1.tar.gz)  
+ - [Full ChangeLog](https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-18.20.0.md)  
+ - [GitHub Diff](https://github.com/asterisk/asterisk/compare/18.19.0...18.20.0)  
+ - [Tarball](https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-18.20.0.tar.gz)  
  - [Downloads](https://downloads.asterisk.org/pub/telephony/asterisk)  
 
 Summary:
@@ -155,6 +155,9 @@ Closed Issues:
 
 Commits By Author:
 ----------------------------------------
+
+- ### Asterisk Development Team (1):
+  - Update for 18.20.0-rc1
 
 - ### Bastian Triller (1):
   - res_pjsip_session: Send Session Interval too small response
