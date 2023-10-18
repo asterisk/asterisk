@@ -4243,11 +4243,6 @@ static int ast_rtp_dtmf_continuation(struct ast_rtp_instance *instance)
 	unsigned int *rtpheader = (unsigned int*)data;
 	int ice;
 
-	if (rtp->send_duration > 320) {
-		ast_log(LOG_DEBUG, "AVOXI: ast_rtp_dtmf_continuation: Sent enough dtmf events, muting the rest\n");
-		return 0;
-	}
-
 	ast_rtp_instance_get_remote_address(instance, &remote_address);
 
 	/* Make sure we know where the other side is so we can send them the packet */
