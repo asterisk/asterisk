@@ -973,33 +973,35 @@ static int publisher_stop(struct ast_sip_outbound_publish_client *client)
 
 static int unload_module(void)
 {
-#if 0
-	ast_sip_unregister_event_publisher_handler(&dialog_publisher);
-	ast_sip_unregister_subscription_handler(&dialog_handler);
-	ast_sip_unregister_event_publisher_handler(&presence_publisher);
-	ast_sip_unregister_subscription_handler(&presence_handler);
-
-	ast_extension_state_del(0, exten_state_publisher_state_cb);
-
-	ast_taskprocessor_unreference(publish_exten_state_serializer);
-	publish_exten_state_serializer = NULL;
-
-	ao2_cleanup(publishers);
-	publishers = NULL;
-
-	return 0;
-#else
-	/* If we were allowed to unload, the above is what we would do.
+	/*
 	 * pjsip_evsub_register_pkg is called by ast_sip_register_subscription_handler
 	 * but there is no corresponding unregister function, so unloading
 	 * a module does not remove the event package. If this module is ever
 	 * loaded again, then pjproject will assert and cause a crash.
-	 * For that reason, we must not be allowed to unload, but if
-	 * a pjsip_evsub_unregister_pkg API is added in the future
-	 * then we should go back to unloading the module as intended.
+	 * For that reason, we must only be allowed to unload when
+	 * asterisk is shutting down.  If a pjsip_evsub_unregister_pkg
+	 * API is added in the future then we should go back to unloading
+	 * the module as intended.
 	 */
-	return -1;
-#endif
+
+	if (ast_shutdown_final()) {
+		ast_sip_unregister_event_publisher_handler(&dialog_publisher);
+		ast_sip_unregister_subscription_handler(&dialog_handler);
+		ast_sip_unregister_event_publisher_handler(&presence_publisher);
+		ast_sip_unregister_subscription_handler(&presence_handler);
+
+		ast_extension_state_del(0, exten_state_publisher_state_cb);
+
+		ast_taskprocessor_unreference(publish_exten_state_serializer);
+		publish_exten_state_serializer = NULL;
+
+		ao2_cleanup(publishers);
+		publishers = NULL;
+
+		return 0;
+	} else {
+		return -1;
+	}
 }
 
 static int load_module(void)
