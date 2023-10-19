@@ -129,7 +129,7 @@ jobs:
             let teams = [];
             for (const r of rs) {
               if (r.indexOf("/") > 0) {
-                teams.push(r);
+                teams.push(r.split('/')[1]);
               } else {
                 users.push(r);
               }
@@ -138,7 +138,7 @@ jobs:
               core.info(`Adding user reviewers ${users}`);
               core.info(`Adding team reviewers ${teams}`);
               await github.pulls.requestReviewers({
-                pr_number: process.env.PR_NUMBER,
+                pull_number: process.env.PR_NUMBER,
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 reviewers: users,
