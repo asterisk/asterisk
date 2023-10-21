@@ -307,6 +307,82 @@ AST_TEST_DEFINE(channel_snapshot_json)
 	return AST_TEST_PASS;
 }
 
+AST_TEST_DEFINE(channel_redirect_snapshot_json)
+{
+	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_channel *, chan, NULL, safe_channel_release);
+	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_json *, expected, NULL, ast_json_unref);
+	RAII_VAR(struct ast_json *, actual, NULL, ast_json_unref);
+	struct ast_party_redirecting data;
+
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = __func__;
+		info->category = test_category;
+		info->summary = "Test creation of ast_channel_blob objects with rdnis";
+		info->description = "Test creation of ast_channel_blob objects with rdnis";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	ast_test_validate(test, NULL == ast_channel_snapshot_to_json(NULL, NULL));
+	chan = ast_channel_alloc(0, AST_STATE_DOWN, "cid_num", "cid_name", "acctcode", "exten", "context", NULL, NULL, 0, "TEST/name");
+	ast_channel_unlock(chan);
+	ast_test_validate(test, NULL != chan);
+
+	ast_channel_lock(chan);
+	ast_party_redirecting_init(&data);
+	data.from.number.valid = 1;
+	data.from.number.str = ast_strdup("123456");
+	ast_channel_set_redirecting(chan, &data, NULL);
+	ast_party_redirecting_free(&data);
+	ast_channel_unlock(chan);
+
+	ast_channel_lock(chan);
+	snapshot = ast_channel_snapshot_create(chan);
+	ast_channel_unlock(chan);
+	ast_test_validate(test, NULL != snapshot);
+
+	actual = ast_channel_snapshot_to_json(snapshot, NULL);
+	expected = ast_json_pack("{ s: s, s: s, s: s, s: s, s: s,"
+				 "  s: { s: s, s: s, s: i, s: s, s: s },"
+				 "  s: { s: s, s: s },"
+				 "  s: { s: s, s: s },"
+				 "  s: s"
+				 "  s: s"
+				 "  s: o"
+				 "}",
+				 "name", "TEST/name",
+				 "state", "Down",
+				 "accountcode", "acctcode",
+				 "id", ast_channel_uniqueid(chan),
+				 "protocol_id", "",
+				 "dialplan",
+				 "context", "context",
+				 "exten", "exten",
+				 "priority", 1,
+				 "app_name", "",
+				 "app_data", "",
+				 "caller",
+				 "name", "cid_name",
+				 "number", "cid_num",
+				 "connected",
+				 "name", "",
+				 "number", "",
+				 "language", "en",
+				 "caller_rdnis", "123456",
+				 "creationtime",
+				 ast_json_timeval(
+					 ast_channel_creationtime(chan), NULL));
+
+	ast_test_validate(test, ast_json_equal(expected, actual));
+
+	return AST_TEST_PASS;
+}
+
 static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(channel_blob_create);
@@ -314,6 +390,7 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(multi_channel_blob_create);
 	AST_TEST_UNREGISTER(multi_channel_blob_snapshots);
 	AST_TEST_UNREGISTER(channel_snapshot_json);
+	AST_TEST_UNREGISTER(channel_redirect_snapshot_json);
 
 	return 0;
 }
@@ -325,6 +402,7 @@ static int load_module(void)
 	AST_TEST_REGISTER(multi_channel_blob_create);
 	AST_TEST_REGISTER(multi_channel_blob_snapshots);
 	AST_TEST_REGISTER(channel_snapshot_json);
+	AST_TEST_REGISTER(channel_redirect_snapshot_json);
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
