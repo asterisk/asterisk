@@ -1589,6 +1589,13 @@ static int sip_endpoint_apply_handler(const struct ast_sorcery *sorcery, void *o
 		endpoint->media.rtp.dtls_cfg.default_setup = AST_RTP_DTLS_SETUP_ACTPASS;
 		endpoint->media.rtp.dtls_cfg.verify = AST_RTP_DTLS_VERIFY_FINGERPRINT;
 
+		/* RFC8827 says: Implementations MUST NOT implement DTLS renegotiation
+		 * and MUST reject it with a "no_renegotiation" alert if offered. */
+		if (endpoint->media.rtp.dtls_cfg.rekey) {
+			ast_log(LOG_WARNING, "DTLS renegotiation is not supported with WebRTC. Disabling dtls_rekey.\n");
+			endpoint->media.rtp.dtls_cfg.rekey = 0;
+		}
+
 		if (ast_strlen_zero(endpoint->media.rtp.dtls_cfg.certfile)) {
 			/* If no certificate has been specified, try to automatically create one */
 			endpoint->media.rtp.dtls_cfg.ephemeral_cert = 1;
