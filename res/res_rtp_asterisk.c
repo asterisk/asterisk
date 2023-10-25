@@ -2029,8 +2029,11 @@ static int create_ephemeral_certificate(EVP_PKEY *keypair, X509 **certificate)
 	if (!(serial = BN_new())
 	   || !BN_rand(serial, SERIAL_RAND_BITS, -1, 0)
 	   || !BN_to_ASN1_INTEGER(serial, X509_get_serialNumber(cert))) {
+		BN_free(serial);
 		goto error;
 	}
+
+	BN_free(serial);
 
 	/*
 	 * Validity period - Current Chrome & Firefox make it 31 days starting
@@ -2066,7 +2069,6 @@ static int create_ephemeral_certificate(EVP_PKEY *keypair, X509 **certificate)
 	return 0;
 
 error:
-	BN_free(serial);
 	X509_free(cert);
 
 	return -1;
