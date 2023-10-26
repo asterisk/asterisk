@@ -975,6 +975,8 @@ struct ast_sip_endpoint {
 		AST_STRING_FIELD(accountcode);
 		/*! If set, we'll push incoming MWI NOTIFYs to stasis using this mailbox */
 		AST_STRING_FIELD(incoming_mwi_mailbox);
+		/*! STIR/SHAKEN profile to use */
+		AST_STRING_FIELD(stir_shaken_profile);
 	);
 	/*! Configuration for extensions */
 	struct ast_sip_endpoint_extensions extensions;
@@ -1044,6 +1046,8 @@ struct ast_sip_endpoint {
 	enum ast_sip_security_negotiation security_negotiation;
 	/*! Client security mechanisms (RFC 3329). */
 	struct ast_sip_security_mechanism_vector security_mechanisms;
+	/*! Set which STIR/SHAKEN behaviors we want on this endpoint */
+	unsigned int stir_shaken;
 	/*! Should we authenticate OPTIONS requests per RFC 3261? */
 	unsigned int allow_unauthenticated_options;
 	/*! The name of the geoloc profile to apply when Asterisk receives a call from this endpoint */

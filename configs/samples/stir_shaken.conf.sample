@@ -1,0 +1,347 @@
+;--
+
+There are 4 object types used by the STIR/SHAKEN process...
+
+The "verification" object sets the parameters for verification
+of the Identity header and caller id on incoming INVITE requests.
+
+The "attestation" object sets the parameters for creating an Identity
+header which attests to the ownership of the caller id on outgoing
+INVITE requests.
+
+One or more "tn" objects that are used to create the outgoing Identity
+header.  Each object's "id" is a specific caller-id telephone number
+and the object contains the URL to the certificate that was used to
+attest to the ownership of the caller-id, the level (A,B,C) of the
+attestation you're making, and the private key the asterisk
+attestation service will use to sign the Identity header.  When
+an outgoing INVITE request is placed, the attestation service will
+look up the caller-id in the tn object list and if it's found, use
+the information in the object to create the Identity header.
+
+One or more "profile" objects that can be associated to channel
+driver endpoints (currently only chan_pjsip).  Profiles can set
+whether verification, attestation, both or neither should be
+performed on requests coming in to this endpoint or requests
+going out from this endpoint. They can also set acls on what URLs
+we should be allowed to retrieve certificates from on incoming
+requests.
+
+--;
+
+
+;--
+=======================================================================
+  Verification Object Description
+=======================================================================
+The "verification" object sets the parameters for verification
+of the Identity header on incoming INVITE requests.
+Only one "verification" object may exist.
+
+Parameters:
+
+-- global_disable -----------------------------------------------------
+If set, globally disables the verification service.
+Default: no
+
+-- load_system_certs---------------------------------------------------
+If set, loads the system Certificate Authority certificates
+(usually located in /etc/pki/CA) into the trust store used to
+validate the certificates in incoming requests.  This is not
+normally required as service providers will usually provide their
+CA certififcate to you separately.
+Default: no
+
+-- ca_file -----------------------------------------------------------
+Path to a single file containing a CA certificate or certificate chain
+to be used to validate the certificates in incoming requests.
+Default: none
+
+-- ca_path -----------------------------------------------------------
+Path to a directory containing one or more CA certificates to be used
+to validate the certificates in incoming requests.  The files in that
+directory must contain only one certificate each and the directory
+must be hashed using the OpenSSL 'c_rehash' utility.
+Default: none
+
+NOTE:  Both ca_file and ca_path can be specified but at least one
+MUST be.
+
+-- crl_file -----------------------------------------------------------
+Path to a single file containing a CA certificate revocation list
+to be used to validate the certificates in incoming requests.
+Default: none
+
+-- crl_path -----------------------------------------------------------
+Path to a directory containing one or more CA certificate revocation
+lists to be used to validate the certificates in incoming requests.
+The files in that directory must contain only one certificate each and
+the directory must be hashed using the OpenSSL 'c_rehash' utility.
+Default: none
+
+NOTE:  Neither crl_file nor crl_path are required.
+
+-- cert_cache_dir -----------------------------------------------------
+Incoming Identity headers will have a URL pointing to the certificate
+used to sign the header.  To prevent us from having to retrieve the
+certificate for every request, we maintain a cache of them at the
+'cert_cache_dir' specified.  The directory will be checked for
+existence and writability at startup.
+Default: <astvarlibdir>/keys/stir_shaken/cache
+
+-- max_cache_entry_age ------------------------------------------------
+Maximum number of seconds after retrieval a certificate in the cache
+can be used before re-retrieving it.
+Default: 3600 (1 hour)
+
+-- max_cache_size -----------------------------------------------------
+Maximum number of entries the cache can hold.
+Not presently implemented.
+
+-- curl_timeout -------------------------------------------------------
+The number of seconds we'll wait for a response when trying to retrieve
+the certificate specified in the incoming Identity header.
+Default: 2
+
+-- max_iat_age --------------------------------------------------------
+The "iat" parameter in the Identity header indicates the time the
+sender actually created their attestation. If that is older than the
+number of seconds set here, the request will be considered "failed".
+Default: 15
+
+-- max_date_header_age ------------------------------------------------
+The sender MUST also send a SIP Date header in their request.  If we
+receive one that is older than the number of seconds set here, the
+request will be considered "failed".
+Default: 15
+
+-- failure_action -----------------------------------------------------
+Indicates what will happen to requests that have failed verification.
+Must be one of:
+- continue -
+  Continue processing the request.  You can use the
+  STIR_SHAKEN dialplan function to determine whether
+  the request passed or failed verification and take
+  the action you deem appropriate.
+
+- reject_request -
+  Reject the request immediately using the SIP response codes
+  defined by RFC8224.
+
+- continue_return_reason -
+  Continue processing the request but send a SIP Reason header
+  back to the originator in the next provisional response indicating
+  the issue according to RFC8224.  You can use the STIR_SHAKEN
+  dialplan function to determine whether the request passed or
+  failed verification and take the action you deem appropriate.
+
+Default: continue
+NOTE: This parameter may be overridden in profile objects defined
+below.
+
+-- use_rfc9410_responses ----------------------------------------------
+If set, when sending Reason headers back to originators, the protocol
+header parameter will be set to "STIR" rather than "SIP".  This is a
+new protocol defined in RFC9410 and may not be supported by all
+participants.
+Default: no
+NOTE: This parameter may be overridden in profile objects defined
+below.
+
+Example:
+--;
+
+;[verification]
+;global_disable = yes
+;load_system_certs = no
+;ca_path = /var/lib/asterisk/keys/stir_shaken/verification_ca
+;cert_cache_dir = /var/lib/asterisk/keys/stir_shaken/verification_cache
+;failure_action = reject_request
+;curl_timeout=5
+;max_iat_age=60
+;max_date_header_age=60
+;max_cache_entry_age = 300
+
+;--
+=======================================================================
+  Attestation Object Description
+=======================================================================
+The "attestation" object sets the parameters for creating an Identity
+header which attests to the ownership of the caller id on outgoing
+INVITE requests.
+Only one "attestation" object may exist.
+
+Parameters:
+
+-- global_disable -----------------------------------------------------
+If set, globally disables the attestation service.  No Identity headers
+will be added to any outgoing INVITE requests.
+Default: no
+
+-- check_tn_cert_public_url -------------------------------------------
+Identity headers in outgoing requests must contain a URL that points
+to the certificate used to sign the header.  Setting this parameter
+tells Asterisk to actually try to retrieve the certificates defined
+in the "tn" objects defined below and fail loading that tn if the cert
+can't be retrieved or if its 'Not Valid Before" -> 'Not Valid After"
+date range doesn't include today.  This is a network intensive process
+so use with caution.
+Default: no
+
+-- default_public_cert_url --------------------------------------------
+The URL to the certificate you received from the issueing authority.
+They may give you a URL to use or you may have to host the certificate
+yourself and provide your own URL here.
+Default: none
+WARNING:  Make absolutely sure the file that's made public doesn't
+accidentally include the privite key as well as the certificate.
+If you set "check_tn_cert_public_url" in the "attestation" section
+above, the tn will not be loaded and a "DANGER" message will be output
+on the asterisk console if the file does contain a private key.
+NOTE: This parameter may be overridden in "tn" objects defined below.
+
+-- default_private_key_file -------------------------------------------
+The path to a file containing the private key you received from the
+issuing authority.  The file must NOT be group or world readable or
+writable so make sure the user the asterisk process is running as is
+the owner.
+Default: none
+NOTE: This parameter may be overridden in "tn" objects defined below.
+
+-- default_attest_level -----------------------------------------------
+The level of the attestation you're making.
+One of "A", "B", "C"
+Default: none
+NOTE: This parameter may be overridden in "tn" objects defined below.
+
+-- default_send_mky -----------------------------------------------------------
+If set and an outgoing call uses DTLS, an "mky" Media Key grant will
+be added to the Identity header.  Although RFC8224/8225 require this,
+not many implementations support it so a remote verification service
+may fail to verify the signature.
+Default: no
+
+Example:
+--;
+
+;[attestation]
+;global_disable = no
+;default_private_key_path = /var/lib/asterisk/keys/stir_shaken/tns/multi-tns-key.pem
+;default_public_cert_url = https://example.com/tncerts/multi-tns-cert.pem
+;default_attest_level = C
+
+;--
+=======================================================================
+  TN Object Description
+=======================================================================
+Each "tn" object contains the parameters needed to create the Identity
+header used to attest to the ownership of the caller-id on outgoing
+requests.  When an outgoing INVITE request is placed, the attestation
+service will look up the caller-id in this list and if it's found, use
+the information in the object to create the Identity header.
+The private key and certificate needed to sign the Identity header are
+usually provided to you by the telephone number issuing authority along
+with their certificate authority certificate.  You should give the CA
+certificate to any recipients who expect to receive calls from you
+although this has probably already been done by the issuing authority.
+
+The "id" of this object MUST be a canonicalized telephone nmumber which
+starts with a country code.  The only valid characters are the numbers
+0-9, '#' and '*'.
+
+Parameters:
+
+-- type (required) ----------------------------------------------------
+Must be set to "tn"
+Default: none
+
+-- public_cert_url (required) -----------------------------------------
+The URL to the certificate you received from the issueing authority.
+They may give you a URL to use or you may have to host the certificate
+yourself and provide your own URL here.
+Default: <default_public_cert_url from attestation>
+WARNING:  Make absolutely sure the file that's made public doesn't
+accidentally include the privite key as well as the certificate.
+If you set "check_tn_cert_public_url" in the "attestation" section
+above, the tn will not be loaded and a "DANGER" message will be output
+on the asterisk console if the file does contain a private key.
+
+-- private_key_file (required) ----------------------------------------
+The path to a file containing the private key you received from the
+issuing authority.  The file must NOT be group or world readable or
+writable so make sure the user the asterisk process is running as is
+the owner.
+Default: <default_private_key_file from attestation>
+
+-- attest_level (required) --------------------------------------------
+The level of the attestation you're making.
+One of "A", "B", "C"
+Default: <default_attest_level from attestation>
+
+Example:
+--;
+
+;[18005551515]
+;type = tn
+;private_key_path = /var/lib/asterisk/keys/stir_shaken/tns/18005551515-key.pem
+;public_cert_url = https://example.com/tncerts/18005551515-cert.pem
+;attest_level = C
+
+
+;--
+=======================================================================
+  Profile Object Description
+=======================================================================
+A "profile" object can be associated to channel driver endpoint
+(currently only chan_pjsip) and can set verification and attestation
+parameters specific to endpoints using this profile.  If you have
+multiple upstream providers, this is the place to set parameters
+specific to them.
+
+The "id" of this object is arbitrary and you'd specify it in the
+"stir_shaken_profile" parameter of the endpoint.
+
+Parameters:
+
+-- type (required) ----------------------------------------------------
+Must be set to "profile"
+Default: none
+
+-- permit/deny --------------------------------------------------------
+To help prevent MITM attacks, you can restrict from where you can
+retrieve certificates during the verification process.  This can prevent
+an attacker from sending you a request pretending to be a known
+originator with a mailcious certificate URL.  See acl.conf.sample to
+see examples of how to specify the permit/deny parameters.
+Default: none
+
+-- acllist ------------------------------------------------------------
+Rather than providing individual permit/deny parameters, you can set
+the acllist parameter to an acl list predefined in acl.conf.
+Default: none
+
+All of the "verification" parameters defined above can be set on a profile
+with the exception of 'global_disable' and 'load_system_certs'.
+
+All of the "attestation" parameters defined aboive can be set on a profile
+with the exception of 'global_disable'.
+
+Example:
+--;
+
+;[myprofile]
+;type = profile
+;behavior = verify
+;failure_action = continue_return_reason
+;acllist = myacllist
+
+;In pjsip.conf...
+;[myendpoint]
+;type = endpoint
+;stir_shaken_profile = myprofile
+
+;In acl.conf...
+;[myacllist]
+;permit=0.0.0.0/0.0.0.0
+;deny=10.24.20.171
+

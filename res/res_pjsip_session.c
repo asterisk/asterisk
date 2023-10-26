@@ -52,6 +52,8 @@
 #include "asterisk/stream.h"
 #include "asterisk/vector.h"
 
+#include "res_pjsip_session/pjsip_session.h"
+
 #define SDP_HANDLER_BUCKETS 11
 
 #define MOD_DATA_ON_RESPONSE "on_response"
@@ -124,6 +126,13 @@ const char *ast_sip_session_get_name(const struct ast_sip_session *session)
 	} else {
 		return "unknown";
 	}
+}
+
+int ast_sip_can_present_connected_id(const struct ast_sip_session *session, const struct ast_party_id *id)
+{
+	return id->number.valid
+		&& (session->endpoint->id.trust_outbound
+		   || (ast_party_id_presentation(id) & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED);
 }
 
 static int sdp_handler_list_cmp(void *obj, void *arg, int flags)
@@ -6227,6 +6236,8 @@ static int load_module(void)
 	ast_sip_register_service(&session_reinvite_module);
 	ast_sip_register_service(&outbound_invite_auth_module);
 
+	pjsip_reason_header_load();
+
 	ast_module_shutdown_ref(ast_module_info->self);
 #ifdef TEST_FRAMEWORK
 	AST_TEST_REGISTER(test_resolve_refresh_media_states);
@@ -6236,6 +6247,8 @@ static int load_module(void)
 
 static int unload_module(void)
 {
+	pjsip_reason_header_unload();
+
 #ifdef TEST_FRAMEWORK
 	AST_TEST_UNREGISTER(test_resolve_refresh_media_states);
 #endif

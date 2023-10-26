@@ -37,6 +37,7 @@
 #include "asterisk/stream.h"
 #include "asterisk/stasis.h"
 #include "asterisk/security_events.h"
+#include "asterisk/res_stir_shaken.h"
 
 /*! \brief Number of buckets for persistent endpoint information */
 #define PERSISTENT_BUCKETS 53
@@ -770,6 +771,24 @@ static int media_encryption_to_str(const void *obj, const intptr_t *args, char *
 		*buf = ast_strdup(media_encryption_map[
 					  endpoint->media.rtp.encryption]);
 	}
+	return 0;
+}
+
+static int stir_shaken_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
+{
+	struct ast_sip_endpoint *endpoint = obj;
+
+	ast_log(LOG_WARNING, "Endpoint %s: Option 'stir_shaken' is no longer supported.  Use 'stir_shaken_profile' instead.\n",
+		ast_sorcery_object_get_id(endpoint));
+	endpoint->stir_shaken = 0;
+
+	return 0;
+}
+
+static int stir_shaken_to_str(const void *obj, const intptr_t *args, char **buf)
+{
+	*buf = ast_strdup("no");
+
 	return 0;
 }
 
@@ -2247,6 +2266,9 @@ int ast_res_pjsip_initialize_configuration(void)
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "codec_prefs_outgoing_answer",
 		"prefer: pending, operation: intersect, keep: all",
 		codec_prefs_handler, outgoing_answer_codec_prefs_to_str, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint",
+		"stir_shaken", 0, stir_shaken_handler, stir_shaken_to_str, NULL, 0, 0);
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "stir_shaken_profile", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, stir_shaken_profile));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "allow_unauthenticated_options", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, allow_unauthenticated_options));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "geoloc_incoming_call_profile", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, geoloc_incoming_call_profile));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "geoloc_outgoing_call_profile", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, geoloc_outgoing_call_profile));
