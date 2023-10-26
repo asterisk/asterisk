@@ -117,6 +117,7 @@ static int chanavail_exec(struct ast_channel *chan, const char *data)
 	struct ast_str *tmp_availcause = ast_str_alloca(2048);
 	struct ast_channel *tempchan;
 	struct ast_custom_function *cdr_prop_func = ast_custom_function_find("CDR_PROP");
+	struct ast_format_cap *caps = NULL;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(reqchans);
 		AST_APP_ARG(options);
@@ -125,6 +126,10 @@ static int chanavail_exec(struct ast_channel *chan, const char *data)
 	info = ast_strdupa(data ?: "");
 
 	AST_STANDARD_APP_ARGS(args, info);
+
+	ao2_lock(chan);
+	caps = ao2_bump(ast_channel_nativeformats(chan));
+	ao2_unlock(chan);
 
 	if (args.options) {
 		if (strchr(args.options, 'a')) {
@@ -174,10 +179,11 @@ static int chanavail_exec(struct ast_channel *chan, const char *data)
 			snprintf(trychan, sizeof(trychan), "%s/%s", tech, number);
 			status = inuse = ast_device_state(trychan);
 		}
-		ast_str_append(&tmp_availstat, 0, "%s%d",
-			ast_str_strlen(tmp_availstat) ? "&" : "", status);
+		ast_str_append(&tmp_availstat, 0, "%s%d", ast_str_strlen(tmp_availstat) ? "&" : "", status);
+
 		if ((inuse <= (int) AST_DEVICE_NOT_INUSE)
-			&& (tempchan = ast_request(tech, ast_channel_nativeformats(chan), NULL, chan, number, &status))) {
+			&& (tempchan = ast_request(tech, caps, NULL, chan, number, &status))) {
+
 			ast_str_append(&tmp_availchan, 0, "%s%s",
 				ast_str_strlen(tmp_availchan) ? "&" : "", ast_channel_name(tempchan));
 
@@ -199,7 +205,10 @@ static int chanavail_exec(struct ast_channel *chan, const char *data)
 				break;
 			}
 		}
+
 	}
+
+	ao2_cleanup(caps);
 
 	pbx_builtin_setvar_helper(chan, "AVAILCHAN", ast_str_buffer(tmp_availchan));
 	/* Store the originally used channel too */
