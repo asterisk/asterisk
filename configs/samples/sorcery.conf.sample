@@ -76,3 +76,6 @@ test=memory
 
 ;[res_pjsip_publish_asterisk]
 ;asterisk-publication=realtime,ps_asterisk_publications
+
+;[res_stir_shaken]
+;tn=realtime,stir_tn
