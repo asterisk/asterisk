@@ -1,9 +1,9 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 2020, Sangoma Technologies Corporation
+ * Copyright (C) 2023, Sangoma Technologies Corporation
  *
- * Kevin Harwell <kharwell@sangoma.com>
+ * George Joseph <gjoseph@sangoma.com>
  *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
@@ -15,23 +15,20 @@
  * the GNU General Public License Version 2. See the LICENSE file
  * at the top of the source tree.
  */
-#ifndef _STIR_SHAKEN_STORE_H
-#define _STIR_SHAKEN_STORE_H
 
-struct ast_sorcery;
-
-/*!
- * \brief Load time initialization for the stir/shaken 'store' configuration
- *
- * \retval 0 on success, -1 on error
- */
-int stir_shaken_store_load(void);
+#ifndef PJSIP_SESSION_H_
+#define PJSIP_SESSION_H_
 
 /*!
- * \brief Unload time cleanup for the stir/shaken 'store' configuration
- *
- * \retval 0 on success, -1 on error
+ * \internal
+ * \brief Unregisters the session supplement
  */
-int stir_shaken_store_unload(void);
+void pjsip_reason_header_unload(void);
 
-#endif /* _STIR_SHAKEN_STORE_H */
+/*!
+ * \internal
+ * \brief Registers the session supplement
+ */
+void pjsip_reason_header_load(void);
+
+#endif /* PJSIP_SESSION_H_ */
