@@ -4114,11 +4114,6 @@ static void handle_new_invite_request(pjsip_rx_data *rdata)
 {
 	RAII_VAR(struct ast_sip_endpoint *, endpoint,
 			ast_pjsip_rdata_get_endpoint(rdata), ao2_cleanup);
-	static const pj_str_t identity_str = { "Identity", 8 };
-	const pj_str_t use_identity_header_str = {
-		AST_STIR_SHAKEN_RESPONSE_STR_USE_IDENTITY_HEADER,
-		strlen(AST_STIR_SHAKEN_RESPONSE_STR_USE_IDENTITY_HEADER)
-	};
 	pjsip_inv_session *inv_session = NULL;
 	struct ast_sip_session *session;
 	struct new_invite invite;
@@ -4127,14 +4122,6 @@ static void handle_new_invite_request(pjsip_rx_data *rdata)
 	SCOPE_ENTER(1, "Request: %s\n", res ? req_uri : "");
 
 	ast_assert(endpoint != NULL);
-
-	if ((endpoint->stir_shaken & AST_SIP_STIR_SHAKEN_VERIFY) &&
-		!ast_sip_rdata_get_header_value(rdata, identity_str)) {
-		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata,
-			AST_STIR_SHAKEN_RESPONSE_CODE_USE_IDENTITY_HEADER, &use_identity_header_str, NULL, NULL);
-		ast_debug(3, "No Identity header when we require one\n");
-		return;
-	}
 
 	inv_session = pre_session_setup(rdata, endpoint);
 	if (!inv_session) {
