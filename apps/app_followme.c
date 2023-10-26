@@ -1068,6 +1068,7 @@ static struct ast_channel *findmeexec(struct fm_args *tpargs, struct ast_channel
 		ast_copy_string(num, nm->number, sizeof(num));
 		for (number = num; number; number = rest) {
 			struct ast_channel *outbound;
+			struct ast_format_cap *caps;
 
 			rest = strchr(number, '&');
 			if (rest) {
@@ -1097,8 +1098,15 @@ static struct ast_channel *findmeexec(struct fm_args *tpargs, struct ast_channel
 						? "/n" : "/m");
 			}
 
-			outbound = ast_request("Local", ast_channel_nativeformats(caller), NULL, caller,
-				tmpuser->dialarg, &dg);
+			/* Capture nativeformats reference in case it gets changed */
+			ast_channel_lock(caller);
+			caps = ao2_bump(ast_channel_nativeformats(caller));
+			ast_channel_unlock(caller);
+
+			outbound = ast_request("Local", caps, NULL, caller, tmpuser->dialarg, &dg);
+
+			ao2_cleanup(caps);
+
 			if (!outbound) {
 				ast_log(LOG_WARNING, "Unable to allocate a channel for Local/%s cause: %s\n",
 					tmpuser->dialarg, ast_cause2str(dg));
