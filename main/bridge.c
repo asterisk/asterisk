@@ -4118,10 +4118,18 @@ static enum ast_transfer_result blind_transfer_bridge(int is_external,
 	struct ast_channel *local;
 	char chan_name[AST_MAX_EXTENSION + AST_MAX_CONTEXT + 2];
 	int cause;
+	struct ast_format_cap *caps;
+
+	ast_channel_lock(transferer);
+	caps = ao2_bump(ast_channel_nativeformats(transferer));
+	ast_channel_unlock(transferer);
 
 	snprintf(chan_name, sizeof(chan_name), "%s@%s", exten, context);
-	local = ast_request("Local", ast_channel_nativeformats(transferer), NULL, transferer,
+	local = ast_request("Local", caps, NULL, transferer,
 			chan_name, &cause);
+
+	ao2_cleanup(caps);
+
 	if (!local) {
 		return AST_BRIDGE_TRANSFER_FAIL;
 	}
@@ -4228,9 +4236,16 @@ static enum ast_transfer_result attended_transfer_bridge(struct ast_channel *cha
 	int cause;
 	int res;
 	const char *app = NULL;
+	struct ast_format_cap *caps;
 
-	local_chan = ast_request("Local", ast_channel_nativeformats(chan1), NULL, chan1,
-			dest, &cause);
+	ast_channel_lock(chan1);
+	caps = ao2_bump(ast_channel_nativeformats(chan1));
+	ast_channel_unlock(chan1);
+
+	local_chan = ast_request("Local", caps, NULL, chan1, dest, &cause);
+
+	ao2_cleanup(caps);
+
 	if (!local_chan) {
 		return AST_BRIDGE_TRANSFER_FAIL;
 	}
