@@ -71,22 +71,6 @@
 #define PJSTR_PRINTF_SPEC "%.*s"
 #define PJSTR_PRINTF_VAR(_v) ((int)(_v).slen), ((_v).ptr)
 
-/* Response codes from RFC8224 */
-#define AST_STIR_SHAKEN_RESPONSE_CODE_STALE_DATE 403
-#define AST_STIR_SHAKEN_RESPONSE_CODE_USE_IDENTITY_HEADER 428
-#define AST_STIR_SHAKEN_RESPONSE_CODE_USE_SUPPORTED_PASSPORT_FORMAT 428
-#define AST_STIR_SHAKEN_RESPONSE_CODE_BAD_IDENTITY_INFO 436
-#define AST_STIR_SHAKEN_RESPONSE_CODE_UNSUPPORTED_CREDENTIAL 437
-#define AST_STIR_SHAKEN_RESPONSE_CODE_INVALID_IDENTITY_HEADER 438
-
-/* Response strings from RFC8224 */
-#define AST_STIR_SHAKEN_RESPONSE_STR_STALE_DATE "Stale Date"
-#define AST_STIR_SHAKEN_RESPONSE_STR_USE_IDENTITY_HEADER "Use Identity Header"
-#define AST_STIR_SHAKEN_RESPONSE_STR_USE_SUPPORTED_PASSPORT_FORMAT "Use Supported PASSporT Format"
-#define AST_STIR_SHAKEN_RESPONSE_STR_BAD_IDENTITY_INFO "Bad Identity Info"
-#define AST_STIR_SHAKEN_RESPONSE_STR_UNSUPPORTED_CREDENTIAL "Unsupported Credential"
-#define AST_STIR_SHAKEN_RESPONSE_STR_INVALID_IDENTITY_HEADER "Invalid Identity Header"
-
 #define AST_SIP_AUTH_MAX_REALM_LENGTH 255	/* From the auth/realm realtime column size */
 
 /* ":12345" */
@@ -664,17 +648,6 @@ enum ast_sip_session_redirect {
 	AST_SIP_REDIRECT_URI_CORE,
 	/*! Target URI should be used as the target within chan_pjsip itself */
 	AST_SIP_REDIRECT_URI_PJSIP,
-};
-
-enum ast_sip_stir_shaken_behavior {
-	/*! Don't do any STIR/SHAKEN operations */
-	AST_SIP_STIR_SHAKEN_OFF = 0,
-	/*! Only do STIR/SHAKEN attestation */
-	AST_SIP_STIR_SHAKEN_ATTEST = 1,
-	/*! Only do STIR/SHAKEN verification */
-	AST_SIP_STIR_SHAKEN_VERIFY = 2,
-	/*! Do STIR/SHAKEN attestation and verification */
-	AST_SIP_STIR_SHAKEN_ON = 3,
 };
 
 /*!
