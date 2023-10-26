@@ -131,6 +131,7 @@ static void db_sync(void);
 
 DEFINE_SQL_STATEMENT(put_stmt, "INSERT OR REPLACE INTO astdb (key, value) VALUES (?, ?)")
 DEFINE_SQL_STATEMENT(get_stmt, "SELECT value FROM astdb WHERE key=?")
+DEFINE_SQL_STATEMENT(exists_stmt, "SELECT CAST(COUNT(1) AS INTEGER) AS 'exists' FROM astdb WHERE key=?")
 DEFINE_SQL_STATEMENT(del_stmt, "DELETE FROM astdb WHERE key=?")
 DEFINE_SQL_STATEMENT(deltree_stmt, "DELETE FROM astdb WHERE key || '/' LIKE ? || '/' || '%'")
 DEFINE_SQL_STATEMENT(deltree_all_stmt, "DELETE FROM astdb")
@@ -188,6 +189,7 @@ static int clean_stmt(sqlite3_stmt **stmt, const char *sql)
 static void clean_statements(void)
 {
 	clean_stmt(&get_stmt, get_stmt_sql);
+	clean_stmt(&exists_stmt, exists_stmt_sql);
 	clean_stmt(&del_stmt, del_stmt_sql);
 	clean_stmt(&deltree_stmt, deltree_stmt_sql);
 	clean_stmt(&deltree_all_stmt, deltree_all_stmt_sql);
@@ -204,6 +206,7 @@ static int init_statements(void)
 	/* Don't initialize create_astdb_statement here as the astdb table needs to exist
 	 * brefore these statements can be initialized */
 	return init_stmt(&get_stmt, get_stmt_sql, sizeof(get_stmt_sql))
+	|| init_stmt(&exists_stmt, exists_stmt_sql, sizeof(exists_stmt_sql))
 	|| init_stmt(&del_stmt, del_stmt_sql, sizeof(del_stmt_sql))
 	|| init_stmt(&deltree_stmt, deltree_stmt_sql, sizeof(deltree_stmt_sql))
 	|| init_stmt(&deltree_all_stmt, deltree_all_stmt_sql, sizeof(deltree_all_stmt_sql))
@@ -437,6 +440,38 @@ int ast_db_get_allocated(const char *family, const char *key, char **out)
 
 	return db_get_common(family, key, out, -1);
 }
+
+int ast_db_exists(const char *family, const char *key)
+{
+	int result;
+	char fullkey[MAX_DB_FIELD];
+	size_t fullkey_len;
+	int res = 0;
+
+	fullkey_len = snprintf(fullkey, sizeof(fullkey), "/%s/%s", family, key);
+	if (fullkey_len >= sizeof(fullkey)) {
+		ast_log(LOG_WARNING, "Family and key length must be less than %zu bytes\n", sizeof(fullkey) - 3);
+		return -1;
+	}
+
+	ast_mutex_lock(&dblock);
+	res = sqlite3_bind_text(exists_stmt, 1, fullkey, fullkey_len, SQLITE_STATIC);
+	if (res != SQLITE_OK) {
+		ast_log(LOG_WARNING, "Couldn't bind key to stmt: %d:%s\n", res, sqlite3_errmsg(astdb));
+		res = 0;
+	} else if (sqlite3_step(exists_stmt) != SQLITE_ROW) {
+		res = 0;
+	} else if (!(result = sqlite3_column_int(exists_stmt, 0))) {
+		res = 0;
+	} else {
+		res = result;
+	}
+	sqlite3_reset(exists_stmt);
+	ast_mutex_unlock(&dblock);
+
+	return res;
+}
+
 
 int ast_db_del(const char *family, const char *key)
 {
