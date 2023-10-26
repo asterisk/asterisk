@@ -18,51 +18,59 @@
 #ifndef _STIR_SHAKEN_H
 #define _STIR_SHAKEN_H
 
-#include <openssl/evp.h>
+#include "asterisk/res_stir_shaken.h"
+#include "common_config.h"
+#include "crypto_utils.h"
+#include "curl_utils.h"
+#include "attestation.h"
+#include "verification.h"
+
+#define STIR_SHAKEN_ENCRYPTION_ALGORITHM "ES256"
+#define STIR_SHAKEN_PPT "shaken"
+#define STIR_SHAKEN_TYPE "passport"
 
 /*!
- * \brief Output configuration settings to the Asterisk CLI
+ * \brief Retrieve the stir/shaken sorcery context
  *
- * \param obj A sorcery object containing configuration data
- * \param arg Asterisk CLI argument object
- * \param flags ao2 container flags
- *
- * \retval 0
+ * \retval The stir/shaken sorcery context
  */
-int stir_shaken_cli_show(void *obj, void *arg, int flags);
+struct ast_sorcery *get_sorcery(void);
+
 
 /*!
- * \brief Tab completion for name matching with STIR/SHAKEN CLI commands
+ * \brief Return string version of VS response code
  *
- * \param word The word to tab complete on
- * \param container The sorcery container to iterate through
- *
- * \retval The tab completion options
+ * \param vs_rc
+ * \return Response string
  */
-char *stir_shaken_tab_complete_name(const char *word, struct ao2_container *container);
+const char *vs_response_code_to_str(
+	enum ast_stir_shaken_vs_response_code vs_rc);
 
 /*!
- * \brief Reads the public (or private) key from the specified path
+ * \brief Return string version of AS response code
  *
- * \param path The path to the file containing the private key
- * \param priv Specify 0 for public, 1 for private
- *
- * \retval NULL on failure
- * \retval The public/private key on success
+ * \param as_rc
+ * \return Response string
  */
-EVP_PKEY *stir_shaken_read_key(const char *path, int priv);
+const char *as_response_code_to_str(
+	enum ast_stir_shaken_as_response_code as_rc);
 
 /*!
- * \brief Gets the serial number in hex form from the buffer (for X509)
- *
- * \note The returned string will need to be freed by the caller
- *
- * \param buf The BASE64 encoded buffer
- * \param buf_size The size of the data in buf
- *
- * \retval NULL on failure
- * \retval serial number on success
+ * \brief Retrieves the OpenSSL NID for the TN Auth list extension
+ * \retval The NID
  */
-char *stir_shaken_get_serial_number_x509(const char *buf, size_t buf_size);
+int get_tn_auth_nid(void);
+
+struct trusted_cert_store {
+	X509_STORE *store;
+	ast_rwlock_t store_lock;
+};
+
+/*!
+ * \brief Retrieves the OpenSSL trusted cert store
+ * \retval The store
+ */
+struct trusted_cert_store *get_trusted_cert_store(void);
+
 
 #endif /* _STIR_SHAKEN_H */
