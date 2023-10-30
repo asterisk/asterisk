@@ -546,6 +546,22 @@
 			as the same as the from.</para>
 		</description>
 	</manager>
+	<managerEvent language="en_US" name="VoicemailPasswordChange">
+		<managerEventInstance class="EVENT_FLAG_USER">
+			<synopsis>Raised in response to a mailbox password change.</synopsis>
+			<syntax>
+				<parameter name="Context">
+					<para>Mailbox context.</para>
+				</parameter>
+				<parameter name="Mailbox">
+					<para>Mailbox name.</para>
+				</parameter>
+				<parameter name="NewPassword">
+					<para>New password for mailbox.</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
  ***/
 
 #ifdef IMAP_STORAGE
@@ -1849,6 +1865,16 @@ static int reset_user_pw(const char *context, const char *mailbox, const char *n
 		res = 0;
 	}
 	AST_LIST_UNLOCK(&users);
+	if (!res) {
+		struct ast_json *json_object;
+
+		json_object = ast_json_pack("{s: s, s: s, s: s}",
+			"Context", S_OR(context, "default"),
+			"Mailbox", mailbox,
+			"NewPassword", newpass);
+		ast_manager_publish_event("VoicemailPasswordChange", EVENT_FLAG_SYSTEM | EVENT_FLAG_USER, json_object);
+		ast_json_unref(json_object);
+	}
 	return res;
 }
 
@@ -1892,7 +1918,7 @@ static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 			ast_copy_string(vmu->password, newpassword, sizeof(vmu->password));
 			break;
 		} else {
-			ast_verb(4, "Writing voicemail password to file %s failed, falling back to config file\n", secretfn);
+			ast_log(LOG_WARNING, "Writing voicemail password to file %s failed, falling back to config file\n", secretfn);
 		}
 		/* Fall-through */
 	case OPT_PWLOC_VOICEMAILCONF:
