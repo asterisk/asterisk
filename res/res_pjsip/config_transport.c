@@ -1365,7 +1365,7 @@ static int transport_tls_cipher_handler(const struct aco_option *opt, struct ast
 			continue;
 		}
 		if (ARRAY_LEN(state->ciphers) <= state->tls.ciphers_num) {
-			ast_log(LOG_ERROR, "Too many ciphers specified\n");
+			ast_log(LOG_ERROR, "Too many ciphers specified (maximum allowed is %d)\n", SIP_TLS_MAX_CIPHERS);
 			res = -1;
 			break;
 		}
