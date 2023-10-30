@@ -7887,6 +7887,9 @@ static void set_queue_member_pause(struct call_queue *q, struct member *mem, con
 	if (paused && !ast_strlen_zero(reason)) {
 		ast_copy_string(mem->reason_paused, reason, sizeof(mem->reason_paused));
 	} else {
+		/* We end up filling this in again later (temporarily) but we need it
+		 * empty for now so that the intervening code - specifically
+		 * dump_queue_members() - has the correct view of things. */
 		mem->reason_paused[0] = '\0';
 	}
 
@@ -7905,10 +7908,22 @@ static void set_queue_member_pause(struct call_queue *q, struct member *mem, con
 			"Queue:%s_avail", q->name);
 	}
 
-	ast_queue_log(q->name, "NONE", mem->membername, (paused ? "PAUSE" : "UNPAUSE"),
-		"%s", S_OR(reason, ""));
+	if (!paused && !ast_strlen_zero(reason)) {
+		/* Because we've been unpaused with a 'reason' we need to ensure that
+		 * that reason is emitted when the subsequent PauseQueueMember event
+		 * is raised. So temporarily set it on the member and clear it out
+		 * again right after. */
+		ast_copy_string(mem->reason_paused, reason, sizeof(mem->reason_paused));
+	}
+
+	ast_queue_log(q->name, "NONE", mem->membername, paused ? "PAUSE" : "UNPAUSE",
+		"%s", mem->reason_paused);
 
 	publish_queue_member_pause(q, mem);
+
+	if (!paused) {
+		mem->reason_paused[0] = '\0';
+	}
 }
 
 static int set_member_paused(const char *queuename, const char *interface, const char *reason, int paused)
