@@ -181,7 +181,14 @@ static int simple_bridge_join(struct ast_bridge *bridge, struct ast_bridge_chann
 		return 0;
 	}
 
-	ast_channel_request_stream_topology_change(c1, new_top, &simple_bridge);
+	if (!ast_stream_topology_equal(new_top, existing_top)) {
+		ast_channel_request_stream_topology_change(c1, new_top, &simple_bridge);
+	} else {
+		ast_debug(3, "%s: Topologies already match. Current: %s  Requested: %s\n",
+				ast_channel_name(c1),
+				ast_str_tmp(256, ast_stream_topology_to_str(existing_top, &STR_TMP)),
+				ast_str_tmp(256, ast_stream_topology_to_str(new_top, &STR_TMP)));
+	}
 	ast_stream_topology_free(new_top);
 
 	return 0;
