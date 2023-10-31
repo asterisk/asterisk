@@ -3292,6 +3292,8 @@ static struct ast_custom_function session_refresh_function = {
 	.write = pjsip_acf_session_refresh_write,
 };
 
+static char *app_pjsip_hangup = "PJSIPHangup";
+
 /*!
  * \brief Load the module
  *
@@ -3349,6 +3351,13 @@ static int load_module(void)
 		goto end;
 	}
 
+	if (ast_register_application_xml(app_pjsip_hangup, pjsip_app_hangup)) {
+		ast_log(LOG_WARNING, "Unable to register PJSIPHangup dialplan application\n");
+		goto end;
+	}
+	ast_manager_register_xml(app_pjsip_hangup, EVENT_FLAG_SYSTEM | EVENT_FLAG_CALL, pjsip_action_hangup);
+
+
 	ast_sip_register_service(&refer_callback_module);
 
 	ast_sip_session_register_supplement(&chan_pjsip_supplement);
@@ -3394,6 +3403,9 @@ end:
 	ast_custom_function_unregister(&chan_pjsip_dial_contacts_function);
 	ast_custom_function_unregister(&chan_pjsip_parse_uri_function);
 	ast_custom_function_unregister(&session_refresh_function);
+	ast_unregister_application(app_pjsip_hangup);
+	ast_manager_unregister(app_pjsip_hangup);
+
 	ast_channel_unregister(&chan_pjsip_tech);
 	ast_rtp_glue_unregister(&chan_pjsip_rtp_glue);
 
@@ -3422,6 +3434,8 @@ static int unload_module(void)
 	ast_custom_function_unregister(&chan_pjsip_dial_contacts_function);
 	ast_custom_function_unregister(&chan_pjsip_parse_uri_function);
 	ast_custom_function_unregister(&session_refresh_function);
+	ast_unregister_application(app_pjsip_hangup);
+	ast_manager_unregister(app_pjsip_hangup);
 
 	ast_channel_unregister(&chan_pjsip_tech);
 	ao2_ref(chan_pjsip_tech.capabilities, -1);

@@ -3753,4 +3753,17 @@ void ast_sip_transport_state_register(struct ast_sip_tpmgr_state_callback *eleme
  */
 void ast_sip_transport_state_unregister(struct ast_sip_tpmgr_state_callback *element);
 
+/*!
+ * \brief Convert name to SIP response code
+ *
+ * \param name SIP response code name matching one of the
+ *             enum names defined in "enum pjsip_status_code"
+ *             defined in sip_msg.h.  May be specified with or
+ *             without the PJSIP_SC_ prefix.
+ *
+ * \retval SIP response code
+ * \retval -1 if matching code not found
+ */
+int ast_sip_str2rc(const char *name);
+
 #endif /* _RES_PJSIP_H */
