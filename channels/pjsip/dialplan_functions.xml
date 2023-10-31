@@ -1,0 +1,659 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE docs SYSTEM "appdocsxml.dtd">
+<docs>
+	<application name="PJSIPHangup" language="en_US">
+		<synopsis>
+			Hangup an incoming PJSIP channel with a SIP response code
+		</synopsis>
+		<syntax>
+			<parameter name="Cause" required="true">
+				<para>May be one of...</para>
+				<enumlist>
+				<enum name="Response code"><para>A numeric response code in the range 400 ->699</para></enum>
+				<enum name="Response code name"><para>A response code name from
+				<literal>third-party/pjproject/source/pjsip/include/pjsip/sip_msg.h</literal>
+				such as <literal>USE_IDENTITY_HEADER</literal> or 
+				<literal>PJSIP_SC_USE_IDENTITY_HEADER</literal></para></enum>
+				</enumlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>
+			Hangs up an incoming PJSIP channel and returns the
+			specified SIP response code in the final response to the caller.
+			</para>
+			<para>
+			</para>
+			<warning><para>
+			This function must be called BEFORE anything that
+			might cause any other final (non 1XX) response to be sent.
+			For example calling <literal>Answer()</literal> or
+			<literal>Playback</literal> without the
+			<literal>noanswer</literal> option will cause the call
+			to be answered and a final 200 response to be sent.
+			</para></warning>
+			<para>
+			</para>
+			<para>As with the <literal>Hangup</literal> application, 
+			the dialplan will terminate after calling this function.</para>
+			<para>
+			</para>
+			<para>The cause code set on the channel will be translated to
+			a standard ISDN cause code using the table defined in
+			ast_sip_hangup_sip2cause() in res_pjsip.c</para>
+			<para>
+			</para>
+			<example title="Terminate call with 437 response code">
+			same = n,PJSIPHangup(437)
+			</example>
+			<example title="Terminate call with 437 response code using the response code name">
+			same = n,PJSIPHangup(UNSUPPORTED_CERTIFICATE)
+			</example>
+			<example title="Terminate call with 437 response code based on condition">
+			same = n,ExecIf($[${SOMEVALUE} = ${SOME_BAD_VALUE}]?PJSIPHangup(437))
+			</example>
+		</description>
+	</application>
+
+	<manager name="PJSIPHangup" language="en_US">
+		<synopsis>
+			Hangup an incoming PJSIP channel with a SIP response code
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<xi:include xpointer="xpointer(/docs/manager[@name='Hangup']/syntax/parameter[@name='Channel'])" />
+			<xi:include xpointer="xpointer(/docs/application[@name='PJSIPHangup']/syntax/parameter[@name='Cause'])" />
+		</syntax>
+		<description>
+			<para>
+			Hangs up an incoming PJSIP channel and returns the
+			specified SIP response code in the final response to the caller.
+			</para>
+			<para>
+			</para>
+			<warning><para>
+			This function must be called BEFORE anything that
+			might cause any other final (non 1XX) response to be sent.
+			For example calling <literal>Answer()</literal> or
+			<literal>Playback</literal> without the
+			<literal>noanswer</literal> option will cause the call
+			to be answered and a final 200 response to be sent.
+			</para></warning>
+			<para>
+			</para>
+			<para>The cause code set on the channel will be translated to
+			a standard ISDN cause code using the table defined in
+			ast_sip_hangup_sip2cause() in res_pjsip.c</para>
+			<para>
+			</para>
+			<example title="Terminate call with 437 response code">
+			Action: PJSIPHangup
+			ActionID: 12345678
+			Channel: PJSIP/alice-00000002
+			Cause: 437
+			</example>
+			<example title="Terminate call with 437 response code using the response code name">
+			Action: PJSIPHangup
+			ActionID: 12345678
+			Channel: PJSIP/alice-00000002
+			Cause: UNSUPPORTED_CERTIFICATE
+			</example>
+		</description>
+	</manager>
+
+	<function name="PJSIP_DIAL_CONTACTS" language="en_US">
+		<synopsis>
+			Return a dial string for dialing all contacts on an AOR.
+		</synopsis>
+		<syntax>
+			<parameter name="endpoint" required="true">
+				<para>Name of the endpoint</para>
+			</parameter>
+			<parameter name="aor" required="false">
+				<para>Name of an AOR to use, if not specified the configured AORs on the endpoint are used</para>
+			</parameter>
+			<parameter name="request_user" required="false">
+				<para>Optional request user to use in the request URI</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Returns a properly formatted dial string for dialing all contacts on an AOR.</para>
+		</description>
+	</function>
+	<function name="PJSIP_MEDIA_OFFER" language="en_US">
+		<synopsis>
+			Media and codec offerings to be set on an outbound SIP channel prior to dialing.
+		</synopsis>
+		<syntax>
+			<parameter name="media" required="true">
+				<para>types of media offered</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>When read, returns the codecs offered based upon the media choice.</para>
+			<para>When written, sets the codecs to offer when an outbound dial attempt is made,
+			or when a session refresh is sent using <replaceable>PJSIP_SEND_SESSION_REFRESH</replaceable>.
+			</para>
+		</description>
+		<see-also>
+			<ref type="function">PJSIP_SEND_SESSION_REFRESH</ref>
+		</see-also>
+	</function>
+	<function name="PJSIP_DTMF_MODE" language="en_US">
+		<since>
+			<version>13.18.0</version>
+			<version>14.7.0</version>
+			<version>15.1.0</version>
+			<version>16.0.0</version>
+		</since>
+		<synopsis>
+			Get or change the DTMF mode for a SIP call.
+		</synopsis>
+		<syntax>
+		</syntax>
+		<description>
+			<para>When read, returns the current DTMF mode</para>
+			<para>When written, sets the current DTMF mode</para>
+			<para>This function uses the same DTMF mode naming as the dtmf_mode configuration option</para>
+		</description>
+	</function>
+	<function name="PJSIP_MOH_PASSTHROUGH" language="en_US">
+		<synopsis>
+			Get or change the on-hold behavior for a SIP call.
+		</synopsis>
+		<syntax>
+		</syntax>
+		<description>
+			<para>When read, returns the current moh passthrough mode</para>
+			<para>When written, sets the current moh passthrough mode</para>
+			<para>If <replaceable>yes</replaceable>, on-hold re-INVITEs are sent. If <replaceable>no</replaceable>, music on hold is generated.</para>
+			<para>This function can be used to override the moh_passthrough configuration option</para>
+		</description>
+	</function>
+	<function name="PJSIP_SEND_SESSION_REFRESH" language="en_US">
+		<since>
+			<version>13.12.0</version>
+			<version>14.1.0</version>
+			<version>15.0.0</version>
+		</since>
+		<synopsis>
+			W/O: Initiate a session refresh via an UPDATE or re-INVITE on an established media session
+		</synopsis>
+		<syntax>
+			<parameter name="update_type" required="false">
+				<para>The type of update to send. Default is <literal>invite</literal>.</para>
+				<enumlist>
+					<enum name="invite">
+						<para>Send the session refresh as a re-INVITE.</para>
+					</enum>
+					<enum name="update">
+						<para>Send the session refresh as an UPDATE.</para>
+					</enum>
+				</enumlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This function will cause the PJSIP stack to immediately refresh
+			the media session for the channel. This will be done using either a
+			re-INVITE (default) or an UPDATE request.
+			</para>
+			<para>This is most useful when combined with the <replaceable>PJSIP_MEDIA_OFFER</replaceable>
+			dialplan function, as it allows the formats in use on a channel to be
+			re-negotiated after call setup.</para>
+			<warning>
+				<para>The formats the endpoint supports are <emphasis>not</emphasis>
+				checked or enforced by this function. Using this function to offer
+				formats not supported by the endpoint <emphasis>may</emphasis> result
+				in a loss of media.</para>
+			</warning>
+			<example title="Re-negotiate format to g722">
+			 ; Within some existing extension on an answered channel
+			 same => n,Set(PJSIP_MEDIA_OFFER(audio)=!all,g722)
+			 same => n,Set(PJSIP_SEND_SESSION_REFRESH()=invite)
+			</example>
+		</description>
+		<see-also>
+			<ref type="function">PJSIP_MEDIA_OFFER</ref>
+		</see-also>
+	</function>
+	<function name="PJSIP_PARSE_URI" language="en_US">
+		<since>
+			<version>13.24.0</version>
+			<version>16.1.0</version>
+			<version>17.0.0</version>
+		</since>
+		<synopsis>
+			Parse an uri and return a type part of the URI.
+		</synopsis>
+		<syntax>
+			<parameter name="uri" required="true">
+				<para>URI to parse</para>
+			</parameter>
+			<parameter name="type" required="true">
+				<para>The <literal>type</literal> parameter specifies which URI part to read</para>
+				<enumlist>
+					<enum name="display">
+						<para>Display name.</para>
+					</enum>
+					<enum name="scheme">
+						<para>URI scheme.</para>
+					</enum>
+					<enum name="user">
+						<para>User part.</para>
+					</enum>
+					<enum name="passwd">
+						<para>Password part.</para>
+					</enum>
+					<enum name="host">
+						<para>Host part.</para>
+					</enum>
+					<enum name="port">
+						<para>Port number, or zero.</para>
+					</enum>
+					<enum name="user_param">
+						<para>User parameter.</para>
+					</enum>
+					<enum name="method_param">
+						<para>Method parameter.</para>
+					</enum>
+					<enum name="transport_param">
+						<para>Transport parameter.</para>
+					</enum>
+					<enum name="ttl_param">
+						<para>TTL param, or -1.</para>
+					</enum>
+					<enum name="lr_param">
+						<para>Loose routing param, or zero.</para>
+					</enum>
+					<enum name="maddr_param">
+						<para>Maddr param.</para>
+					</enum>
+				</enumlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Parse an URI and return a specified part of the URI.</para>
+		</description>
+	</function>
+
+	<info name="CHANNEL" language="en_US" tech="PJSIP">
+		<enumlist>
+			<enum name="rtp">
+				<para>R/O Retrieve media related information.</para>
+				<parameter name="type" required="true">
+					<para>When <replaceable>rtp</replaceable> is specified, the
+					<literal>type</literal> parameter must be provided. It specifies
+					which RTP parameter to read.</para>
+					<enumlist>
+						<enum name="src">
+							<para>Retrieve the local address for RTP.</para>
+						</enum>
+						<enum name="dest">
+							<para>Retrieve the remote address for RTP.</para>
+						</enum>
+						<enum name="direct">
+							<para>If direct media is enabled, this address is the remote address
+							used for RTP.</para>
+						</enum>
+						<enum name="secure">
+							<para>Whether or not the media stream is encrypted.</para>
+							<enumlist>
+								<enum name="0">
+									<para>The media stream is not encrypted.</para>
+								</enum>
+								<enum name="1">
+									<para>The media stream is encrypted.</para>
+								</enum>
+							</enumlist>
+						</enum>
+						<enum name="hold">
+							<para>Whether or not the media stream is currently restricted
+							due to a call hold.</para>
+							<enumlist>
+								<enum name="0">
+									<para>The media stream is not held.</para>
+								</enum>
+								<enum name="1">
+									<para>The media stream is held.</para>
+								</enum>
+							</enumlist>
+						</enum>
+					</enumlist>
+				</parameter>
+				<parameter name="media_type" required="false">
+					<para>When <replaceable>rtp</replaceable> is specified, the
+					<literal>media_type</literal> parameter may be provided. It specifies
+					which media stream the chosen RTP parameter should be retrieved
+					from.</para>
+					<enumlist>
+						<enum name="audio">
+							<para>Retrieve information from the audio media stream.</para>
+							<note><para>If not specified, <literal>audio</literal> is used
+							by default.</para></note>
+						</enum>
+						<enum name="video">
+							<para>Retrieve information from the video media stream.</para>
+						</enum>
+					</enumlist>
+				</parameter>
+			</enum>
+			<enum name="rtcp">
+				<para>R/O Retrieve RTCP statistics.</para>
+				<parameter name="statistic" required="true">
+					<para>When <replaceable>rtcp</replaceable> is specified, the
+					<literal>statistic</literal> parameter must be provided. It specifies
+					which RTCP statistic parameter to read.</para>
+					<enumlist>
+						<enum name="all">
+							<para>Retrieve a summary of all RTCP statistics.</para>
+							<para>The following data items are returned in a semi-colon
+							delineated list:</para>
+							<enumlist>
+								<enum name="ssrc">
+									<para>Our Synchronization Source identifier</para>
+								</enum>
+								<enum name="themssrc">
+									<para>Their Synchronization Source identifier</para>
+								</enum>
+								<enum name="lp">
+									<para>Our lost packet count</para>
+								</enum>
+								<enum name="rxjitter">
+									<para>Received packet jitter</para>
+								</enum>
+								<enum name="rxcount">
+									<para>Received packet count</para>
+								</enum>
+								<enum name="txjitter">
+									<para>Transmitted packet jitter</para>
+								</enum>
+								<enum name="txcount">
+									<para>Transmitted packet count</para>
+								</enum>
+								<enum name="rlp">
+									<para>Remote lost packet count</para>
+								</enum>
+								<enum name="rtt">
+									<para>Round trip time</para>
+								</enum>
+								<enum name="txmes">
+									<para>Transmitted Media Experience Score</para>
+								</enum>
+								<enum name="rxmes">
+									<para>Received Media Experience Score</para>
+								</enum>
+							</enumlist>
+						</enum>
+						<enum name="all_jitter">
+							<para>Retrieve a summary of all RTCP Jitter statistics.</para>
+							<para>The following data items are returned in a semi-colon
+							delineated list:</para>
+							<enumlist>
+								<enum name="minrxjitter">
+									<para>Our minimum jitter</para>
+								</enum>
+								<enum name="maxrxjitter">
+									<para>Our max jitter</para>
+								</enum>
+								<enum name="avgrxjitter">
+									<para>Our average jitter</para>
+								</enum>
+								<enum name="stdevrxjitter">
+									<para>Our jitter standard deviation</para>
+								</enum>
+								<enum name="reported_minjitter">
+									<para>Their minimum jitter</para>
+								</enum>
+								<enum name="reported_maxjitter">
+									<para>Their max jitter</para>
+								</enum>
+								<enum name="reported_avgjitter">
+									<para>Their average jitter</para>
+								</enum>
+								<enum name="reported_stdevjitter">
+									<para>Their jitter standard deviation</para>
+								</enum>
+							</enumlist>
+						</enum>
+						<enum name="all_loss">
+							<para>Retrieve a summary of all RTCP packet loss statistics.</para>
+							<para>The following data items are returned in a semi-colon
+							delineated list:</para>
+							<enumlist>
+								<enum name="minrxlost">
+									<para>Our minimum lost packets</para>
+								</enum>
+								<enum name="maxrxlost">
+									<para>Our max lost packets</para>
+								</enum>
+								<enum name="avgrxlost">
+									<para>Our average lost packets</para>
+								</enum>
+								<enum name="stdevrxlost">
+									<para>Our lost packets standard deviation</para>
+								</enum>
+								<enum name="reported_minlost">
+									<para>Their minimum lost packets</para>
+								</enum>
+								<enum name="reported_maxlost">
+									<para>Their max lost packets</para>
+								</enum>
+								<enum name="reported_avglost">
+									<para>Their average lost packets</para>
+								</enum>
+								<enum name="reported_stdevlost">
+									<para>Their lost packets standard deviation</para>
+								</enum>
+							</enumlist>
+						</enum>
+						<enum name="all_rtt">
+							<para>Retrieve a summary of all RTCP round trip time information.</para>
+							<para>The following data items are returned in a semi-colon
+							delineated list:</para>
+							<enumlist>
+								<enum name="minrtt">
+									<para>Minimum round trip time</para>
+								</enum>
+								<enum name="maxrtt">
+									<para>Maximum round trip time</para>
+								</enum>
+								<enum name="avgrtt">
+									<para>Average round trip time</para>
+								</enum>
+								<enum name="stdevrtt">
+									<para>Standard deviation round trip time</para>
+								</enum>
+							</enumlist>
+						</enum>
+						<enum name="all_mes">
+							<para>Retrieve a summary of all RTCP Media Experience Score information.</para>
+							<para>The following data items are returned in a semi-colon
+							delineated list:</para>
+							<enumlist>
+								<enum name="minmes">
+									<para>Minimum MES based on us analysing received packets.</para>
+								</enum>
+								<enum name="maxmes">
+									<para>Maximum MES based on us analysing received packets.</para>
+								</enum>
+								<enum name="avgmes">
+									<para>Average MES based on us analysing received packets.</para>
+								</enum>
+								<enum name="stdevmes">
+									<para>Standard deviation MES based on us analysing received packets.</para>
+								</enum>
+								<enum name="reported_minmes">
+									<para>Minimum MES based on data we get in Sender and Receiver Reports sent by the remote end</para>
+								</enum>
+								<enum name="reported_maxmes">
+									<para>Maximum MES based on data we get in Sender and Receiver Reports sent by the remote end</para>
+								</enum>
+								<enum name="reported_avgmes">
+									<para>Average MES based on data we get in Sender and Receiver Reports sent by the remote end</para>
+								</enum>
+								<enum name="reported_stdevmes">
+									<para>Standard deviation MES based on data we get in Sender and Receiver Reports sent by the remote end</para>
+								</enum>
+							</enumlist>
+						</enum>
+						<enum name="txcount"><para>Transmitted packet count</para></enum>
+						<enum name="rxcount"><para>Received packet count</para></enum>
+						<enum name="txjitter"><para>Transmitted packet jitter</para></enum>
+						<enum name="rxjitter"><para>Received packet jitter</para></enum>
+						<enum name="remote_maxjitter"><para>Their max jitter</para></enum>
+						<enum name="remote_minjitter"><para>Their minimum jitter</para></enum>
+						<enum name="remote_normdevjitter"><para>Their average jitter</para></enum>
+						<enum name="remote_stdevjitter"><para>Their jitter standard deviation</para></enum>
+						<enum name="local_maxjitter"><para>Our max jitter</para></enum>
+						<enum name="local_minjitter"><para>Our minimum jitter</para></enum>
+						<enum name="local_normdevjitter"><para>Our average jitter</para></enum>
+						<enum name="local_stdevjitter"><para>Our jitter standard deviation</para></enum>
+						<enum name="txploss"><para>Transmitted packet loss</para></enum>
+						<enum name="rxploss"><para>Received packet loss</para></enum>
+						<enum name="remote_maxrxploss"><para>Their max lost packets</para></enum>
+						<enum name="remote_minrxploss"><para>Their minimum lost packets</para></enum>
+						<enum name="remote_normdevrxploss"><para>Their average lost packets</para></enum>
+						<enum name="remote_stdevrxploss"><para>Their lost packets standard deviation</para></enum>
+						<enum name="local_maxrxploss"><para>Our max lost packets</para></enum>
+						<enum name="local_minrxploss"><para>Our minimum lost packets</para></enum>
+						<enum name="local_normdevrxploss"><para>Our average lost packets</para></enum>
+						<enum name="local_stdevrxploss"><para>Our lost packets standard deviation</para></enum>
+						<enum name="rtt"><para>Round trip time</para></enum>
+						<enum name="maxrtt"><para>Maximum round trip time</para></enum>
+						<enum name="minrtt"><para>Minimum round trip time</para></enum>
+						<enum name="normdevrtt"><para>Average round trip time</para></enum>
+						<enum name="stdevrtt"><para>Standard deviation round trip time</para></enum>
+						<enum name="local_ssrc"><para>Our Synchronization Source identifier</para></enum>
+						<enum name="remote_ssrc"><para>Their Synchronization Source identifier</para></enum>
+						<enum name="txmes"><para>
+						Current MES based on us analyzing rtt, jitter and loss
+						in the actual received RTP stream received from the remote end.
+						I.E.  This is the MES for the incoming audio stream.
+						</para></enum>
+						<enum name="rxmes"><para>
+						Current MES based on rtt and the jitter and loss values in
+						RTCP sender and receiver reports we receive from the
+						remote end. I.E.  This is the MES for the outgoing audio stream.
+						</para></enum>
+						<enum name="remote_maxmes"><para>Max MES based on data we get in Sender and Receiver Reports sent by the remote end</para></enum>
+						<enum name="remote_minmes"><para>Min MES based on data we get in Sender and Receiver Reports sent by the remote end</para></enum>
+						<enum name="remote_normdevmes"><para>Average MES based on data we get in Sender and Receiver Reports sent by the remote end</para></enum>
+						<enum name="remote_stdevmes"><para>Standard deviation MES based on data we get in Sender and Receiver Reports sent by the remote end</para></enum>
+						<enum name="local_maxmes"><para>Max MES based on us analyzing the received RTP stream</para></enum>
+						<enum name="local_minmes"><para>Min MES based on us analyzing the received RTP stream</para></enum>
+						<enum name="local_normdevmes"><para>Average MES based on us analyzing the received RTP stream</para></enum>
+						<enum name="local_stdevmes"><para>Standard deviation MES based on us analyzing the received RTP stream</para></enum>
+					</enumlist>
+				</parameter>
+				<parameter name="media_type" required="false">
+					<para>When <replaceable>rtcp</replaceable> is specified, the
+					<literal>media_type</literal> parameter may be provided. It specifies
+					which media stream the chosen RTCP parameter should be retrieved
+					from.</para>
+					<enumlist>
+						<enum name="audio">
+							<para>Retrieve information from the audio media stream.</para>
+							<note><para>If not specified, <literal>audio</literal> is used
+							by default.</para></note>
+						</enum>
+						<enum name="video">
+							<para>Retrieve information from the video media stream.</para>
+						</enum>
+					</enumlist>
+				</parameter>
+			</enum>
+			<enum name="endpoint">
+				<para>R/O The name of the endpoint associated with this channel.
+				Use the <replaceable>PJSIP_ENDPOINT</replaceable> function to obtain
+				further endpoint related information.</para>
+			</enum>
+			<enum name="contact">
+				<para>R/O The name of the contact associated with this channel.
+				Use the <replaceable>PJSIP_CONTACT</replaceable> function to obtain
+				further contact related information. Note this may not be present and if so
+				is only available on outgoing legs.</para>
+			</enum>
+			<enum name="aor">
+				<para>R/O The name of the AOR associated with this channel.
+				Use the <replaceable>PJSIP_AOR</replaceable> function to obtain
+				further AOR related information. Note this may not be present and if so
+				is only available on outgoing legs.</para>
+			</enum>
+			<enum name="pjsip">
+				<para>R/O Obtain information about the current PJSIP channel and its
+				session.</para>
+				<parameter name="type" required="true">
+					<para>When <replaceable>pjsip</replaceable> is specified, the
+					<literal>type</literal> parameter must be provided. It specifies
+					which signalling parameter to read.</para>
+					<enumlist>
+						<enum name="call-id">
+							<para>The SIP call-id.</para>
+						</enum>
+						<enum name="secure">
+							<para>Whether or not the signalling uses a secure transport.</para>
+							<enumlist>
+								<enum name="0"><para>The signalling uses a non-secure transport.</para></enum>
+								<enum name="1"><para>The signalling uses a secure transport.</para></enum>
+							</enumlist>
+						</enum>
+						<enum name="target_uri">
+							<para>The contact URI where requests are sent.</para>
+						</enum>
+						<enum name="local_uri">
+							<para>The local URI.</para>
+						</enum>
+						<enum name="local_tag">
+							<para>Tag in From header</para>
+						</enum>
+						<enum name="remote_uri">
+							<para>The remote URI.</para>
+						</enum>
+						<enum name="remote_tag">
+							<para>Tag in To header</para>
+						</enum>
+						<enum name="request_uri">
+							<para>The request URI of the incoming <literal>INVITE</literal>
+							associated with the creation of this channel.</para>
+						</enum>
+						<enum name="t38state">
+							<para>The current state of any T.38 fax on this channel.</para>
+							<enumlist>
+								<enum name="DISABLED"><para>T.38 faxing is disabled on this channel.</para></enum>
+								<enum name="LOCAL_REINVITE"><para>Asterisk has sent a <literal>re-INVITE</literal> to the remote end to initiate a T.38 fax.</para></enum>
+								<enum name="REMOTE_REINVITE"><para>The remote end has sent a <literal>re-INVITE</literal> to Asterisk to initiate a T.38 fax.</para></enum>
+								<enum name="ENABLED"><para>A T.38 fax session has been enabled.</para></enum>
+								<enum name="REJECTED"><para>A T.38 fax session was attempted but was rejected.</para></enum>
+							</enumlist>
+						</enum>
+						<enum name="local_addr">
+							<para>On inbound calls, the full IP address and port number that
+							the <literal>INVITE</literal> request was received on. On outbound
+							calls, the full IP address and port number that the <literal>INVITE</literal>
+							request was transmitted from.</para>
+						</enum>
+						<enum name="remote_addr">
+							<para>On inbound calls, the full IP address and port number that
+							the <literal>INVITE</literal> request was received from. On outbound
+							calls, the full IP address and port number that the <literal>INVITE</literal>
+							request was transmitted to.</para>
+						</enum>
+					</enumlist>
+				</parameter>
+			</enum>
+		</enumlist>
+	</info>
+	<info name="CHANNEL_EXAMPLES" language="en_US" tech="PJSIP">
+		<example title="PJSIP specific CHANNEL examples">
+			; Log the current Call-ID
+			same => n,Log(NOTICE, ${CHANNEL(pjsip,call-id)})
+	
+			; Log the destination address of the audio stream
+			same => n,Log(NOTICE, ${CHANNEL(rtp,dest)})
+	
+			; Store the round-trip time associated with a
+			; video stream in the CDR field video-rtt
+			same => n,Set(CDR(video-rtt)=${CHANNEL(rtcp,rtt,video)})
+		</example>
+	</info>
+</docs>
