@@ -51,7 +51,6 @@ static void rfc3326_use_reason_header(struct ast_sip_session *session, struct pj
 
 		ast_copy_pj_str(buf, &header->hvalue, sizeof(buf));
 		cause = ast_skip_blanks(buf);
-		ast_log(LOG_WARNING,"%s\n", cause);
 		cause_q850 = !strncasecmp(cause, "Q.850", 5);
 		cause_sip = !strncasecmp(cause, "SIP", 3);
 		if ((cause_q850 || cause_sip) && (cause = strstr(cause, "cause="))) {
@@ -73,7 +72,6 @@ static void rfc3326_use_reason_header(struct ast_sip_session *session, struct pj
 			} else if (code_sip) {
 				cause_code->ast_cause = ast_sip_hangup_sip2cause(*code);
 			}
-			ast_log(LOG_WARNING,"%s\n", cause_code->code);
 			ast_queue_control_data(session->channel, AST_CONTROL_PVT_CAUSE_CODE, cause_code, data_size);
 			ast_channel_hangupcause_hash_set(session->channel, cause_code, data_size);
 		}
