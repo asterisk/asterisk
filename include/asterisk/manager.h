@@ -621,4 +621,45 @@ void ast_manager_publish_event(const char *type, int class_type, struct ast_json
  */
 struct stasis_message_router *ast_manager_get_message_router(void);
 
+/*!
+ * \brief Callback used by ast_manager_hangup_helper
+ *        that will actually hangup a channel
+ *
+ * \param chan The channel to hang up
+ * \param causecode Cause code to set on the channel
+ */
+typedef void (*manager_hangup_handler_t)(struct ast_channel *chan, int causecode);
+
+/*!
+ * \brief Callback used by ast_manager_hangup_helper
+ *        that will validate the cause code.
+
+ * \param channel_name Mostly for displaying log messages
+ * \param cause Cause code string
+ *
+ * \returns integer cause code
+ */
+typedef int (*manager_hangup_cause_validator_t)(const char *channel_name,
+	const char *cause);
+
+/*!
+ * \brief A manager helper function that hangs up a channel using a supplied
+ *        channel type specific hangup function and cause code validator
+ *
+ * This function handles the lookup of channel(s) and the AMI interaction
+ * but uses the supplied callbacks to actually perform the hangup.  It can be
+ * used to implement a custom AMI 'Hangup' action without having to duplicate
+ * all the code in the standard Hangup action.
+ *
+ * \param s Session
+ * \param m Message
+ * \param handler Function that actually performs the hangup
+ * \param cause_validator Function that validates the cause code
+ *
+ * \retval 0 on success.
+ * \retval non-zero on error.
+ */
+int ast_manager_hangup_helper(struct mansession *s, const struct message *m,
+	manager_hangup_handler_t handler, manager_hangup_cause_validator_t cause_validator);
+
 #endif /* _ASTERISK_MANAGER_H */
