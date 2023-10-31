@@ -4649,7 +4649,9 @@ static int action_challenge(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-static int action_hangup(struct mansession *s, const struct message *m)
+int ast_manager_hangup_helper(struct mansession *s,
+	const struct message *m, manager_hangup_handler_t hangup_handler,
+	manager_hangup_cause_validator_t cause_validator)
 {
 	struct ast_channel *c = NULL;
 	int causecode = 0; /* all values <= 0 mean 'do not set hangupcause in channel' */
@@ -4673,7 +4675,9 @@ static int action_hangup(struct mansession *s, const struct message *m)
 		idText[0] = '\0';
 	}
 
-	if (!ast_strlen_zero(cause)) {
+	if (cause_validator) {
+		causecode = cause_validator(name_or_regex, cause);
+	} else if (!ast_strlen_zero(cause)) {
 		char *endptr;
 		causecode = strtol(cause, &endptr, 10);
 		if (causecode < 0 || causecode > 127 || *endptr != '\0') {
@@ -4700,7 +4704,7 @@ static int action_hangup(struct mansession *s, const struct message *m)
 			ast_sockaddr_stringify_addr(&s->session->addr),
 			ast_channel_name(c));
 
-		ast_channel_softhangup_withcause_locked(c, causecode);
+		hangup_handler(c, causecode);
 		c = ast_channel_unref(c);
 
 		astman_send_ack(s, m, "Channel Hungup");
@@ -4746,7 +4750,7 @@ static int action_hangup(struct mansession *s, const struct message *m)
 				ast_sockaddr_stringify_addr(&s->session->addr),
 				ast_channel_name(c));
 
-			ast_channel_softhangup_withcause_locked(c, causecode);
+			hangup_handler(c, causecode);
 			channels_matched++;
 
 			astman_append(s,
@@ -4764,6 +4768,12 @@ static int action_hangup(struct mansession *s, const struct message *m)
 	astman_send_list_complete(s, m, "ChannelsHungupListComplete", channels_matched);
 
 	return 0;
+}
+
+static int action_hangup(struct mansession *s, const struct message *m)
+{
+	return ast_manager_hangup_helper(s, m,
+		ast_channel_softhangup_withcause_locked, NULL);
 }
 
 static int action_setvar(struct mansession *s, const struct message *m)
