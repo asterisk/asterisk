@@ -148,4 +148,24 @@ int pjsip_acf_dial_contacts_read(struct ast_channel *chan, const char *cmd, char
  */
 int pjsip_acf_parse_uri_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len);
 
+/*!
+ * \brief Hang up an incoming PJSIP channel with a SIP response code
+ * \param chan The channel the function is called on
+ * \param data SIP response code or name
+ *
+ * \retval 0 on success
+ * \retval -1 on failure
+ */
+int pjsip_app_hangup(struct ast_channel *chan, const char *data);
+
+/*!
+ * \brief Manager action to hang up an incoming PJSIP channel with a SIP response code
+ * \param s session
+ * \param m message
+ *
+ * \retval 0 on success
+ * \retval -1 on failure
+ */
+int pjsip_action_hangup(struct mansession *s, const struct message *m);
+
 #endif /* _PJSIP_DIALPLAN_FUNCTIONS */

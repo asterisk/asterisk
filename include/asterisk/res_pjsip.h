@@ -4212,5 +4212,17 @@ unsigned int ast_sip_get_all_codecs_on_empty_reinvite(void);
  */
 const int ast_sip_hangup_sip2cause(int cause);
 
+/*!
+ * \brief Convert name to SIP response code
+ *
+ * \param name SIP response code name matching one of the
+ *             enum names defined in "enum pjsip_status_code"
+ *             defined in sip_msg.h.  May be specified with or
+ *             without the PJSIP_SC_ prefix.
+ *
+ * \retval SIP response code
+ * \retval -1 if matching code not found
+ */
+int ast_sip_str2rc(const char *name);
 
 #endif /* _RES_PJSIP_H */
