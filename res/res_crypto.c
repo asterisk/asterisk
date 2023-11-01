@@ -34,6 +34,7 @@
 #include "asterisk.h"
 
 #include <dirent.h>                 /* for closedir, opendir, readdir, DIR */
+#include <sys/stat.h>               /* for fstat */
 
 #include <openssl/err.h>            /* for ERR_print_errors_fp */
 #include <openssl/ssl.h>            /* for NID_sha1, RSA */
@@ -51,6 +52,7 @@
 #include "asterisk/options.h"       /* for ast_opt_init_keys */
 #include "asterisk/paths.h"         /* for ast_config_AST_KEY_DIR */
 #include "asterisk/utils.h"         /* for ast_copy_string, ast_base64decode */
+#include "asterisk/file.h"          /* for ast_file_read_dirs */
 
 #define AST_API_MODULE
 #include "asterisk/crypto.h"        /* for AST_KEY_PUBLIC, AST_KEY_PRIVATE */
@@ -172,30 +174,66 @@ struct ast_key * AST_OPTIONAL_API_NAME(ast_key_get)(const char *kname, int ktype
 */
 static struct ast_key *try_load_key(const char *dir, const char *fname, int ifd, int ofd, int *not2)
 {
-	int ktype = 0, found = 0;
-	char *c = NULL, ffname[256];
+	int n, ktype = 0, found = 0;
+	const char *c = NULL;
+	char ffname[256];
 	unsigned char digest[MD5_DIGEST_LENGTH];
 	unsigned digestlen;
 	FILE *f;
 	EVP_MD_CTX *ctx = NULL;
 	struct ast_key *key;
 	static int notice = 0;
+	struct stat st;
+	size_t fnamelen = strlen(fname);
 
 	/* Make sure its name is a public or private key */
-	if ((c = strstr(fname, ".pub")) && !strcmp(c, ".pub")) {
+	if (fnamelen > 4 && !strcmp((c = &fname[fnamelen - 4]), ".pub")) {
 		ktype = AST_KEY_PUBLIC;
-	} else if ((c = strstr(fname, ".key")) && !strcmp(c, ".key")) {
+	} else if (fnamelen > 4 && !strcmp((c = &fname[fnamelen - 4]), ".key")) {
 		ktype = AST_KEY_PRIVATE;
 	} else {
 		return NULL;
 	}
 
 	/* Get actual filename */
-	snprintf(ffname, sizeof(ffname), "%s/%s", dir, fname);
+	n = snprintf(ffname, sizeof(ffname), "%s/%s", dir, fname);
+	if (n >= sizeof(ffname)) {
+		ast_log(LOG_WARNING,
+			"Key filenames can be up to %zu bytes long, but the filename for the"
+			" key we are currently trying to load (%s/%s) is %d bytes long.",
+			sizeof(ffname) - 1, dir, fname, n);
+		return NULL;
+	}
 
 	/* Open file */
 	if (!(f = fopen(ffname, "r"))) {
 		ast_log(LOG_WARNING, "Unable to open key file %s: %s\n", ffname, strerror(errno));
+		return NULL;
+	}
+
+	n = fstat(fileno(f), &st);
+	if (n != 0) {
+		ast_log(LOG_ERROR, "Unable to stat key file: %s: %s\n", ffname, strerror(errno));
+		fclose(f);
+		return NULL;
+	}
+
+	if (!S_ISREG(st.st_mode)) {
+		ast_log(LOG_ERROR, "Key file is not a regular file: %s\n", ffname);
+		fclose(f);
+		return NULL;
+	}
+
+	/* FILE_MODE_BITS is a bitwise OR of all possible file mode bits encoded in
+	 * the `st_mode` member of `struct stat`. For POSIX compatible systems this
+	 * will be 07777. */
+#define FILE_MODE_BITS (S_ISUID|S_ISGID|S_ISVTX|S_IRWXU|S_IRWXG|S_IRWXO)
+
+	/* only user read or read/write modes allowed */
+	if (ktype == AST_KEY_PRIVATE &&
+	    ((st.st_mode & FILE_MODE_BITS) & ~(S_IRUSR | S_IWUSR)) != 0) {
+		ast_log(LOG_ERROR, "Private key file has bad permissions: %s: %#4o\n", ffname, st.st_mode & FILE_MODE_BITS);
+		fclose(f);
 		return NULL;
 	}
 
@@ -243,8 +281,6 @@ static struct ast_key *try_load_key(const char *dir, const char *fname, int ifd,
 		}
 	}
 
-	/* Make fname just be the normal name now */
-	*c = '\0';
 	if (!key) {
 		if (!(key = ast_calloc(1, sizeof(*key)))) {
 			fclose(f);
@@ -253,8 +289,8 @@ static struct ast_key *try_load_key(const char *dir, const char *fname, int ifd,
 	}
 	/* First the filename */
 	ast_copy_string(key->fn, ffname, sizeof(key->fn));
-	/* Then the name */
-	ast_copy_string(key->name, fname, sizeof(key->name));
+	/* Then the name minus the suffix */
+	snprintf(key->name, sizeof(key->name), "%.*s", (int)(c - fname), fname);
 	key->ktype = ktype;
 	/* Yes, assume we're going to be deleted */
 	key->delme = 1;
@@ -761,6 +797,20 @@ int AST_OPTIONAL_API_NAME(ast_aes_decrypt)(const unsigned char *in, unsigned cha
 	return res;
 }
 
+struct crypto_load_on_file {
+	int ifd;
+	int ofd;
+	int note;
+};
+
+static int crypto_load_cb(const char *directory, const char *file, void *obj)
+{
+	struct crypto_load_on_file *on_file = obj;
+
+	try_load_key(directory, file, on_file->ifd, on_file->ofd, &on_file->note);
+	return 0;
+}
+
 /*!
  * \brief refresh RSA keys from file
  * \param ifd file descriptor
@@ -769,9 +819,7 @@ int AST_OPTIONAL_API_NAME(ast_aes_decrypt)(const unsigned char *in, unsigned cha
 static void crypto_load(int ifd, int ofd)
 {
 	struct ast_key *key;
-	DIR *dir = NULL;
-	struct dirent *ent;
-	int note = 0;
+	struct crypto_load_on_file on_file = { ifd, ofd, 0 };
 
 	AST_RWLIST_WRLOCK(&keys);
 
@@ -780,24 +828,11 @@ static void crypto_load(int ifd, int ofd)
 		key->delme = 1;
 	}
 
-	/* Load new keys */
-	if ((dir = opendir(ast_config_AST_KEY_DIR))) {
-		while ((ent = readdir(dir))) {
-			if (!strcmp(ent->d_name, ".") || !strcmp(ent->d_name, "..")) {
-				continue;
-			}
-			if (ent->d_type != DT_REG) {
-				ast_log(LOG_WARNING, "Non-regular file '%s' in keys directory\n", ent->d_name);
-				continue;
-			}
-			try_load_key(ast_config_AST_KEY_DIR, ent->d_name, ifd, ofd, &note);
-		}
-		closedir(dir);
-	} else {
+	if (ast_file_read_dirs(ast_config_AST_KEY_DIR, crypto_load_cb, &on_file, 1) == -1) {
 		ast_log(LOG_WARNING, "Unable to open key directory '%s'\n", ast_config_AST_KEY_DIR);
 	}
 
-	if (note) {
+	if (on_file.note) {
 		ast_log(LOG_NOTICE, "Please run the command 'keys init' to enter the passcodes for the keys\n");
 	}
 

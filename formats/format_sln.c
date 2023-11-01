@@ -127,7 +127,7 @@ static off_t slinear_tell(struct ast_filestream *fs)
 static struct ast_frame *slinear_read(struct ast_filestream *s, int *whennext){return generic_read(s, whennext, 320);}
 static struct ast_format_def slin_f = {
 	.name = "sln",
-	.exts = "sln|raw",
+	.exts = "sln|slin|raw",
 	.write = slinear_write,
 	.seek = slinear_seek,
 	.trunc = slinear_trunc,

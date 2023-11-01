@@ -1744,6 +1744,7 @@ static int waitstream_core(struct ast_channel *c,
 				case AST_CONTROL_UPDATE_RTP_PEER:
 				case AST_CONTROL_PVT_CAUSE_CODE:
 				case AST_CONTROL_FLASH:
+				case AST_CONTROL_WINK:
 				case -1:
 					/* Unimportant */
 					break;
@@ -1861,6 +1862,10 @@ int ast_stream_and_wait(struct ast_channel *chan, const char *file, const char *
 			res = ast_waitstream(chan, digits);
 		}
 	}
+	if (res == -1) {
+		ast_stopstream(chan);
+	}
+
 	return res;
 }
 

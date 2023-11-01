@@ -384,9 +384,9 @@ static pj_status_t set_outbound_authentication_credentials(pjsip_auth_clt_sess *
 	res = pjsip_auth_clt_set_credentials(auth_sess, cred_count, creds_array);
 	ast_free(creds_array);
 	if (res == PJ_SUCCESS) {
-		ast_debug(3, "Set %"PRIu64" credentials in auth session\n", cred_count);
+		ast_debug(3, "Set %zu credentials in auth session\n", cred_count);
 	} else {
-		ast_log(LOG_ERROR, "Failed to set %"PRIu64" credentials in auth session\n", cred_count);
+		ast_log(LOG_ERROR, "Failed to set %zu credentials in auth session\n", cred_count);
 	}
 
 cleanup:

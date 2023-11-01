@@ -125,6 +125,16 @@ enum ast_timelen {
 */
 int ast_ivr_menu_run(struct ast_channel *c, struct ast_ivr_menu *menu, void *cbdata);
 
+enum ast_getdata_result {
+	AST_GETDATA_FAILED = -1,
+	AST_GETDATA_COMPLETE = 0,
+	AST_GETDATA_TIMEOUT = 1,
+	AST_GETDATA_INTERRUPTED = 2,
+	/*! indicates a user terminated empty string rather than an empty string resulting
+	 * from a timeout or other factors */
+	AST_GETDATA_EMPTY_END_TERMINATED = 3,
+};
+
 /*! \brief Plays a stream and gets DTMF data from a channel
  * \param c Which channel one is interacting with
  * \param prompt File to pass to ast_streamfile (the one that you wish to play).
@@ -139,7 +149,7 @@ int ast_ivr_menu_run(struct ast_channel *c, struct ast_ivr_menu *menu, void *cbd
  *  is pressed during playback, it will immediately break out of the message and continue
  *  execution of your code.
  */
-int ast_app_getdata(struct ast_channel *c, const char *prompt, char *s, int maxlen, int timeout);
+enum ast_getdata_result ast_app_getdata(struct ast_channel *c, const char *prompt, char *s, int maxlen, int timeout);
 
 /*! \brief Plays a stream and gets DTMF data from a channel
  * \param c Which channel one is interacting with
@@ -156,7 +166,7 @@ int ast_app_getdata(struct ast_channel *c, const char *prompt, char *s, int maxl
  *  is pressed during playback, it will immediately break out of the message and continue
  *  execution of your code.
  */
-int ast_app_getdata_terminator(struct ast_channel *c, const char *prompt, char *s, int maxlen, int timeout, char *terminator);
+enum ast_getdata_result ast_app_getdata_terminator(struct ast_channel *c, const char *prompt, char *s, int maxlen, int timeout, char *terminator);
 
 /*! \brief Full version with audiofd and controlfd.  NOTE: returns '2' on ctrlfd available, not '1' like other full functions */
 int ast_app_getdata_full(struct ast_channel *c, const char *prompt, char *s, int maxlen, int timeout, int audiofd, int ctrlfd);
@@ -1194,16 +1204,6 @@ int ast_play_and_record(struct ast_channel *chan, const char *playfile, const ch
  * \retval 't' Recording either exceeded maximum duration or the call was ended via DTMF
  */
 int ast_play_and_prepend(struct ast_channel *chan, char *playfile, char *recordfile, int maxtime_sec, char *fmt, int *duration, int *sound_duration, int beep, int silencethreshold, int maxsilence_ms);
-
-enum ast_getdata_result {
-	AST_GETDATA_FAILED = -1,
-	AST_GETDATA_COMPLETE = 0,
-	AST_GETDATA_TIMEOUT = 1,
-	AST_GETDATA_INTERRUPTED = 2,
-	/*! indicates a user terminated empty string rather than an empty string resulting
-	 * from a timeout or other factors */
-	AST_GETDATA_EMPTY_END_TERMINATED = 3,
-};
 
 enum AST_LOCK_RESULT {
 	AST_LOCK_SUCCESS = 0,

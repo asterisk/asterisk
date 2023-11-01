@@ -75,8 +75,8 @@
 						on networking specifics and configuration of the registrar.
 					</para></description>
 				</configOption>
-				<configOption name="contact_user">
-					<synopsis>Contact User to use in request</synopsis>
+				<configOption name="contact_user" default="s">
+					<synopsis>Contact User to use in request. If this value is not set, this defaults to 's'</synopsis>
 				</configOption>
 				<configOption name="contact_header_params">
 					<synopsis>Header parameters to place in the Contact header</synopsis>
@@ -90,6 +90,22 @@
 						This sets the maximum number of registration attempts that are made before
 						stopping any further attempts. If set to 0 then upon failure no further attempts
 						are made.
+					</para></description>
+				</configOption>
+				<configOption name="security_negotiation" default="no">
+					<synopsis>The kind of security agreement negotiation to use. Currently, only mediasec is supported.</synopsis>
+					<description>
+						<enumlist>
+							<enum name="no" />
+							<enum name="mediasec" />
+						</enumlist>
+					</description>
+				</configOption>
+				<configOption name="security_mechanisms">
+					<synopsis>List of security mechanisms supported.</synopsis>
+					<description><para>
+						This is a comma-delimited list of security mechanisms to use. Each security mechanism
+						must be in the form defined by RFC 3329 section 2.2.
 					</para></description>
 				</configOption>
 				<configOption name="outbound_auth" default="">
@@ -342,6 +358,10 @@ struct sip_outbound_registration {
 	unsigned int max_retries;
 	/*! \brief Whether to add a line parameter to the outbound Contact or not */
 	unsigned int line;
+	/*! \brief Type of security negotiation to use (RFC 3329). */
+	enum ast_sip_security_negotiation security_negotiation;
+	/*! \brief Client security mechanisms (RFC 3329). */
+	struct ast_sip_security_mechanism_vector security_mechanisms;
 	/*! \brief Configured authentication credentials */
 	struct ast_sip_auth_vector outbound_auths;
 	/*! \brief Whether Path support is enabled */
@@ -389,6 +409,12 @@ struct sip_outbound_registration_client_state {
 	unsigned int support_path;
 	/*! \brief Determines whether SIP Outbound support should be advertised */
 	unsigned int support_outbound;
+	/*! \brief Type of security negotiation to use (RFC 3329). */
+	enum ast_sip_security_negotiation security_negotiation;
+	/*! \brief Client security mechanisms (RFC 3329). */
+	struct ast_sip_security_mechanism_vector security_mechanisms;
+	/*! \brief Security mechanisms of the peer (RFC 3329). */
+	struct ast_sip_security_mechanism_vector server_security_mechanisms;
 	/*! CSeq number of last sent auth request. */
 	unsigned int auth_cseq;
 	/*! \brief Serializer for stuff and things */
@@ -399,6 +425,8 @@ struct sip_outbound_registration_client_state {
 	unsigned int destroy:1;
 	/*! \brief Non-zero if we have attempted sending a REGISTER with authentication */
 	unsigned int auth_attempted:1;
+	/*! \brief Status code of last response if we have tried to register before */
+	int last_status_code;
 	/*! \brief The name of the transport to be used for the registration */
 	char *transport_name;
 	/*! \brief The name of the registration sorcery object */
@@ -561,6 +589,133 @@ static void cancel_registration(struct sip_outbound_registration_client_state *c
 static pj_str_t PATH_NAME = { "path", 4 };
 static pj_str_t OUTBOUND_NAME = { "outbound", 8 };
 
+AST_VECTOR(pjsip_generic_string_hdr_vector, pjsip_generic_string_hdr *);
+
+/*!
+ * \internal
+ * \brief Callback function which finds a contact whose contact_status has security mechanisms.
+ *
+ * \param obj Pointer to the ast_sip_contact.
+ * \param arg Pointer-pointer to a contact_status that will be set to the contact_status found by this function.
+ * \param flags Flags used by the ao2_callback function.
+ *
+ * \note The refcount of the found contact_status must be decremented by the caller.
+ */
+static int contact_has_security_mechanisms(void *obj, void *arg, int flags)
+{
+	struct ast_sip_contact *contact = obj;
+	struct ast_sip_contact_status **ret = arg;
+	struct ast_sip_contact_status *contact_status = ast_sip_get_contact_status(contact);
+
+	if (!contact_status) {
+		return -1;
+	}
+	if (!AST_VECTOR_SIZE(&contact_status->security_mechanisms)) {
+		ao2_cleanup(contact_status);
+		return -1;
+	}
+	*ret = contact_status;
+	return 0;
+}
+
+static int contact_add_security_headers_to_status(void *obj, void *arg, int flags)
+{
+	struct ast_sip_contact *contact = obj;
+	struct pjsip_generic_string_hdr_vector *header_vector = arg;
+	struct ast_sip_contact_status *contact_status = ast_sip_get_contact_status(contact);
+
+	if (!contact_status) {
+		return -1;
+	}
+	if (AST_VECTOR_SIZE(&contact_status->security_mechanisms)) {
+		goto out;
+	}
+
+	ao2_lock(contact_status);
+	AST_VECTOR_CALLBACK_VOID(header_vector, ast_sip_header_to_security_mechanism, &contact_status->security_mechanisms);
+	ao2_unlock(contact_status);
+
+out:
+	ao2_cleanup(contact_status);
+	return 0;
+}
+
+/*! \brief Adds security negotiation mechanisms of outbound registration client state as Security headers to tdata. */
+static void add_security_headers(struct sip_outbound_registration_client_state *client_state,
+	pjsip_tx_data *tdata)
+{
+	int add_require_header = 1;
+	int add_proxy_require_header = 1;
+	int add_sec_client_header = 0;
+	struct sip_outbound_registration *reg = NULL;
+	struct ast_sip_endpoint *endpt = NULL;
+	struct ao2_container *contact_container;
+	struct ast_sip_contact_status *contact_status = NULL;
+	struct ast_sip_security_mechanism_vector *sec_mechs = NULL;
+	static const pj_str_t security_verify = { "Security-Verify", 15 };
+	static const pj_str_t security_client = { "Security-Client", 15 };
+	static const pj_str_t proxy_require = { "Proxy-Require", 13 };
+	static const pj_str_t require = { "Require", 7 };
+
+	if (client_state->security_negotiation != AST_SIP_SECURITY_NEG_MEDIASEC) {
+		return;
+	}
+
+	/* Get contact status through registration -> endpoint name -> aor -> contact (if set) */
+	if ((reg = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "registration", client_state->registration_name))
+		&& !ast_strlen_zero(reg->endpoint) && (endpt = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint", reg->endpoint))
+		&& (contact_container = ast_sip_location_retrieve_contacts_from_aor_list(endpt->aors))) {
+		/* Retrieve all contacts associated with aors from this endpoint
+		 * and find the first one that has security mechanisms.
+		 */
+		ao2_callback(contact_container, 0, contact_has_security_mechanisms, &contact_status);
+		if (contact_status) {
+			ao2_lock(contact_status);
+			sec_mechs = &contact_status->security_mechanisms;
+		}
+		ao2_cleanup(contact_container);
+	}
+	/* Use client_state->server_security_mechanisms if contact_status does not exist. */
+	if (!contact_status && AST_VECTOR_SIZE(&client_state->server_security_mechanisms)) {
+		sec_mechs = &client_state->server_security_mechanisms;
+	}
+	if (client_state->status == SIP_REGISTRATION_REJECTED_TEMPORARY || client_state->auth_attempted) {
+		if (sec_mechs != NULL && pjsip_msg_find_hdr_by_name(tdata->msg, &security_verify, NULL) == NULL) {
+			ast_sip_add_security_headers(sec_mechs, "Security-Verify", 0, tdata);
+		}
+		if (client_state->last_status_code == 494) {
+			ast_sip_remove_headers_by_name_and_value(tdata->msg, &security_client, NULL);
+		} else {
+			/* necessary if a retry occures */
+			add_sec_client_header = (pjsip_msg_find_hdr_by_name(tdata->msg, &security_client, NULL) == NULL) ? 1 : 0;
+		}
+		add_require_header =
+			(pjsip_msg_find_hdr_by_name(tdata->msg, &require, NULL) == NULL) ? 1 : 0;
+		add_proxy_require_header =
+			(pjsip_msg_find_hdr_by_name(tdata->msg, &proxy_require, NULL) == NULL) ? 1 : 0;
+	} else {
+		ast_sip_add_security_headers(&client_state->security_mechanisms, "Security-Client", 0, tdata);
+	}
+
+	if (add_require_header) {
+		ast_sip_add_header(tdata, "Require", "mediasec");
+	}
+	if (add_proxy_require_header) {
+		ast_sip_add_header(tdata, "Proxy-Require", "mediasec");
+	}
+	if (add_sec_client_header) {
+		ast_sip_add_security_headers(&client_state->security_mechanisms, "Security-Client", 0, tdata);
+	}
+
+	/* Cleanup */
+	if (contact_status) {
+		ao2_unlock(contact_status);
+		ao2_cleanup(contact_status);
+	}
+	ao2_cleanup(endpt);
+	ao2_cleanup(reg);
+}
+
 /*! \brief Helper function which sends a message and cleans up, if needed, on failure */
 static pj_status_t registration_client_send(struct sip_outbound_registration_client_state *client_state,
 	pjsip_tx_data *tdata)
@@ -584,6 +739,9 @@ static pj_status_t registration_client_send(struct sip_outbound_registration_cli
 	 * the ref count on its own.
 	 */
 	pjsip_tx_data_add_ref(tdata);
+
+	/* Add Security-Verify or Security-Client headers */
+	add_security_headers(client_state, tdata);
 
 	/*
 	 * Set the transport in case transports were reloaded.
@@ -839,6 +997,8 @@ static int handle_client_state_destruction(void *data)
 
 	update_client_state_status(client_state, SIP_REGISTRATION_STOPPED);
 	ast_sip_auth_vector_destroy(&client_state->outbound_auths);
+	ast_sip_security_mechanisms_vector_destroy(&client_state->security_mechanisms);
+	ast_sip_security_mechanisms_vector_destroy(&client_state->server_security_mechanisms);
 	ao2_ref(client_state, -1);
 
 	return 0;
@@ -858,6 +1018,8 @@ struct registration_response {
 	pjsip_rx_data *rdata;
 	/*! \brief Request for which the response was received */
 	pjsip_tx_data *old_request;
+	/*! \brief Key for the reliable transport in use */
+	char transport_key[IP6ADDR_COLON_PORT_BUFLEN];
 };
 
 /*! \brief Registration response structure destructor */
@@ -973,13 +1135,10 @@ static int monitor_matcher(void *a, void *b)
 	return strcmp(ma, mb) == 0;
 }
 
-static void registration_transport_monitor_setup(pjsip_transport *transport, const char *registration_name)
+static void registration_transport_monitor_setup(const char *transport_key, const char *registration_name)
 {
 	char *monitor;
 
-	if (!PJSIP_TRANSPORT_IS_RELIABLE(transport)) {
-		return;
-	}
 	monitor = ao2_alloc_options(strlen(registration_name) + 1, NULL,
 		AO2_ALLOC_OPT_LOCK_NOLOCK);
 	if (!monitor) {
@@ -992,8 +1151,8 @@ static void registration_transport_monitor_setup(pjsip_transport *transport, con
 	 * register the monitor.  We might get into a message spamming infinite
 	 * loop of registration, shutdown, reregistration...
 	 */
-	ast_sip_transport_monitor_register(transport, registration_transport_shutdown_cb,
-		monitor);
+	ast_sip_transport_monitor_register_replace_key(transport_key, registration_transport_shutdown_cb,
+		monitor, monitor_matcher);
 	ao2_ref(monitor, -1);
 }
 
@@ -1082,6 +1241,7 @@ static int handle_registration_response(void *data)
 	pjsip_regc_get_info(response->client_state->client, &info);
 	ast_copy_pj_str(server_uri, &info.server_uri, sizeof(server_uri));
 	ast_copy_pj_str(client_uri, &info.client_uri, sizeof(client_uri));
+	response->client_state->last_status_code = response->code;
 
 	ast_debug(1, "Processing REGISTER response %d from server '%s' for client '%s'\n",
 			response->code, server_uri, client_uri);
@@ -1096,19 +1256,60 @@ static int handle_registration_response(void *data)
 				return 0;
 			}
 		}
-	} else if ((response->code == 401 || response->code == 407)
+	} else if ((response->code == 401 || response->code == 407 || response->code == 494)
 		&& (!response->client_state->auth_attempted
 			|| response->rdata->msg_info.cseq->cseq != response->client_state->auth_cseq)) {
 		int res;
 		pjsip_cseq_hdr *cseq_hdr;
 		pjsip_tx_data *tdata;
 
-		if (!ast_sip_create_request_with_auth(&response->client_state->outbound_auths,
+		if (response->client_state->security_negotiation == AST_SIP_SECURITY_NEG_MEDIASEC) {
+			struct sip_outbound_registration *reg = NULL;
+			struct ast_sip_endpoint *endpt = NULL;
+			struct ao2_container *contact_container = NULL;
+			pjsip_generic_string_hdr *header;
+			struct pjsip_generic_string_hdr_vector header_vector;
+			static const pj_str_t security_server = { "Security-Server", 15 };
+
+			if ((reg = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "registration",
+				response->client_state->registration_name)) && reg->endpoint &&
+				(endpt = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint", reg->endpoint))) {
+				/* Retrieve all contacts associated with aors from this endpoint (if set). */
+				contact_container = ast_sip_location_retrieve_contacts_from_aor_list(endpt->aors);
+			}
+			/* Add server list of security mechanism to client_state and contact status if exists. */
+			AST_VECTOR_INIT(&header_vector, 1);
+			header = pjsip_msg_find_hdr_by_name(response->rdata->msg_info.msg, &security_server, NULL);
+			for (; header;
+				header = pjsip_msg_find_hdr_by_name(response->rdata->msg_info.msg, &security_server, header->next)) {
+				AST_VECTOR_APPEND(&header_vector, header);
+				ast_sip_header_to_security_mechanism(header, &response->client_state->server_security_mechanisms);
+			}
+			if (contact_container) {
+				/* Add server security mechanisms to contact status of all associated contacts to be able to send correct
+				 * Security-Verify headers on subsequent non-REGISTER requests through this outbound registration.
+				 */
+				ao2_callback(contact_container, OBJ_NODATA, contact_add_security_headers_to_status, &header_vector);
+				ao2_cleanup(contact_container);
+			}
+			AST_VECTOR_FREE(&header_vector);
+			ao2_cleanup(endpt);
+			ao2_cleanup(reg);
+		}
+
+		if (response->code == 494) {
+			update_client_state_status(response->client_state, SIP_REGISTRATION_REJECTED_TEMPORARY);
+			response->client_state->retries++;
+			schedule_registration(response->client_state, 0);
+			ao2_ref(response, -1);
+			return 0;
+		} else if (!ast_sip_create_request_with_auth(&response->client_state->outbound_auths,
 				response->rdata, response->old_request, &tdata)) {
 			response->client_state->auth_attempted = 1;
 			ast_debug(1, "Sending authenticated REGISTER to server '%s' from client '%s'\n",
 					server_uri, client_uri);
 			pjsip_tx_data_add_ref(tdata);
+
 			res = registration_client_send(response->client_state, tdata);
 
 			/* Save the cseq that actually got sent. */
@@ -1146,14 +1347,18 @@ static int handle_registration_response(void *data)
 			schedule_registration(response->client_state, next_registration_round);
 
 			/* See if we should monitor for transport shutdown */
-			registration_transport_monitor_setup(response->rdata->tp_info.transport,
-				response->client_state->registration_name);
+			if (PJSIP_TRANSPORT_IS_RELIABLE(response->rdata->tp_info.transport)) {
+				registration_transport_monitor_setup(response->transport_key,
+					response->client_state->registration_name);
+			}
 		} else {
 			ast_debug(1, "Outbound unregistration to '%s' with client '%s' successful\n", server_uri, client_uri);
 			update_client_state_status(response->client_state, SIP_REGISTRATION_UNREGISTERED);
-			ast_sip_transport_monitor_unregister(response->rdata->tp_info.transport,
-				registration_transport_shutdown_cb, response->client_state->registration_name,
-				monitor_matcher);
+			if (PJSIP_TRANSPORT_IS_RELIABLE(response->rdata->tp_info.transport)) {
+				ast_sip_transport_monitor_unregister_key(response->transport_key,
+					registration_transport_shutdown_cb, response->client_state->registration_name,
+					monitor_matcher);
+			}
 		}
 
 		save_response_fields_to_transport(response);
@@ -1269,6 +1474,9 @@ static void sip_outbound_registration_response_cb(struct pjsip_regc_cbparam *par
 		response->old_request = tsx->last_tx;
 		pjsip_tx_data_add_ref(response->old_request);
 		pjsip_rx_data_clone(param->rdata, 0, &response->rdata);
+		AST_SIP_MAKE_REMOTE_IPADDR_PORT_STR(param->rdata->tp_info.transport,
+			response->transport_key);
+
 	} else {
 		/* old_request steals the reference */
 		response->old_request = client_state->last_tdata;
@@ -1379,6 +1587,7 @@ static void sip_outbound_registration_destroy(void *obj)
 	struct sip_outbound_registration *registration = obj;
 
 	ast_sip_auth_vector_destroy(&registration->outbound_auths);
+	ast_sip_security_mechanisms_vector_destroy(&registration->security_mechanisms);
 
 	ast_string_field_free_memory(registration);
 }
@@ -1650,19 +1859,7 @@ static int sip_outbound_registration_regc_alloc(void *data)
 		return -1;
 	}
 
-	if (!ast_strlen_zero(registration->outbound_proxy)) {
-		pj_strdup2_with_null(pool, &tmp, registration->outbound_proxy);
-		uri = pjsip_parse_uri(pool, tmp.ptr, tmp.slen, 0);
-		if (!uri) {
-			ast_log(LOG_ERROR, "Invalid outbound proxy URI '%s' specified on outbound registration '%s'\n",
-				registration->outbound_proxy, ast_sorcery_object_get_id(registration));
-			pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
-			return -1;
-		}
-	}
-
 	pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
-
 
 	ast_assert(state->client_state->client == NULL);
 	if (pjsip_regc_create(ast_sip_get_pjsip_endpoint(), state->client_state,
@@ -1733,6 +1930,8 @@ static int sip_outbound_registration_perform(void *data)
 
 	/* Just in case the client state is being reused for this registration, free the auth information */
 	ast_sip_auth_vector_destroy(&state->client_state->outbound_auths);
+	ast_sip_security_mechanisms_vector_destroy(&state->client_state->security_mechanisms);
+	ast_sip_security_mechanisms_vector_destroy(&state->client_state->server_security_mechanisms);
 
 	AST_VECTOR_INIT(&state->client_state->outbound_auths, AST_VECTOR_SIZE(&registration->outbound_auths));
 	for (i = 0; i < AST_VECTOR_SIZE(&registration->outbound_auths); ++i) {
@@ -1742,6 +1941,8 @@ static int sip_outbound_registration_perform(void *data)
 			ast_free(name);
 		}
 	}
+	ast_sip_security_mechanisms_vector_copy(&state->client_state->security_mechanisms,
+											&registration->security_mechanisms);
 	state->client_state->retry_interval = registration->retry_interval;
 	state->client_state->forbidden_retry_interval = registration->forbidden_retry_interval;
 	state->client_state->fatal_retry_interval = registration->fatal_retry_interval;
@@ -1749,6 +1950,7 @@ static int sip_outbound_registration_perform(void *data)
 	state->client_state->retries = 0;
 	state->client_state->support_path = registration->support_path;
 	state->client_state->support_outbound = registration->support_outbound;
+	state->client_state->security_negotiation = registration->security_negotiation;
 	state->client_state->auth_rejection_permanent = registration->auth_rejection_permanent;
 	max_delay = registration->max_random_initial_delay;
 
@@ -1845,6 +2047,41 @@ static int sip_outbound_registration_apply(const struct ast_sorcery *sorcery, vo
 	ao2_unlock(states);
 
 	return 0;
+}
+
+static int security_mechanism_to_str(const void *obj, const intptr_t *args, char **buf)
+{
+	const struct sip_outbound_registration *registration = obj;
+
+	return ast_sip_security_mechanisms_to_str(&registration->security_mechanisms, 0, buf);
+}
+
+static const char *security_negotiation_map[] = {
+	[AST_SIP_SECURITY_NEG_NONE] = "no",
+	[AST_SIP_SECURITY_NEG_MEDIASEC] = "mediasec",
+};
+
+static int security_negotiation_to_str(const void *obj, const intptr_t *args, char **buf)
+{
+	const struct sip_outbound_registration *registration = obj;
+	if (ARRAY_IN_BOUNDS(registration->security_negotiation, security_negotiation_map)) {
+		*buf = ast_strdup(security_negotiation_map[registration->security_negotiation]);
+	}
+	return 0;
+}
+
+static int security_mechanisms_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
+{
+	struct sip_outbound_registration *registration = obj;
+
+	return ast_sip_security_mechanism_vector_init(&registration->security_mechanisms, var->value);
+}
+
+static int security_negotiation_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
+{
+	struct sip_outbound_registration *registration = obj;
+
+	return ast_sip_set_security_negotiation(&registration->security_negotiation, var->value);
 }
 
 static int outbound_auth_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
@@ -2576,6 +2813,8 @@ static int load_module(void)
 	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), "registration", "outbound_auth", "", outbound_auth_handler, outbound_auths_to_str, outbound_auths_to_var_list, 0, 0);
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "registration", "support_path", "no", OPT_BOOL_T, 1, FLDSET(struct sip_outbound_registration, support_path));
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "registration", "support_outbound", "no", OPT_YESNO_T, 1, FLDSET(struct sip_outbound_registration, support_outbound));
+	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), "registration", "security_negotiation", "no", security_negotiation_handler, security_negotiation_to_str, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), "registration", "security_mechanisms", "", security_mechanisms_handler, security_mechanism_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "registration", "line", "no", OPT_BOOL_T, 1, FLDSET(struct sip_outbound_registration, line));
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "registration", "endpoint", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct sip_outbound_registration, endpoint));
 

@@ -572,6 +572,15 @@ context=public
 ;
 usecallerid=yes
 ;
+; NOTE: If the CALL_QUALIFIER variable on the channel is set to 1,
+; the Stentor Call Qualifier parameter will be sent for Caller ID spills
+; using the Multiple Data Message Format (MDMF).
+; This is used by capable Caller ID units to activate the
+; "LDC" (Long Distance Call) indicator.
+; This variable is not automatically set anywhere. You are responsible
+; for setting it in the dialplan if you want to activate the indicator,
+; and you must have compatible CPE.
+;
 ; Type of caller ID signalling in use
 ;     bell     = bell202 as used in US (default)
 ;     v23      = v23 as used in the UK
@@ -746,9 +755,29 @@ usecallingpres=yes
 ;
 callwaitingcallerid=yes
 ;
+; Whether or not to allow users to go on-hook when receiving an incoming call
+; without disconnecting it. Users can later resume the call from any phone
+; on the same physical phone line (the same DAHDI channel).
+; This setting only has an effect on FXS (FXO-signalled) channels where there
+; is only a single incoming call to the DAHDI channel, using the Dial application.
+; (This is a convenience mechanism to avoid users wishing to resume a conversation
+; at a different phone from leaving a phone off the hook, resuming elsewhere,
+; and forgetting to restore the original phone on hook afterwards.)
+; Default is no.
+;
+;calledsubscriberheld=yes
+;
 ; Support three-way calling
 ;
 threewaycalling=yes
+;
+; By default, the three-way dial tone never times out, allowing it to be
+; used as a primitive "hold" mechanism. However, if you'd prefer
+; to have the dial tone time out to silence, you can use this option
+; to time out after the normal first digit timeout to silence.
+; Default is 'no'.
+;
+;threewaysilenthold=no
 ;
 ; For FXS ports (either direct analog or over T1/E1):
 ;   Support flash-hook call transfer (requires three way calling)
@@ -936,12 +965,24 @@ pickupgroup=1
                                                 ; target of the transfer.
 
 ;
-; Specify whether the channel should be answered immediately or if the simple
-; switch should provide dialtone, read digits, etc.
+; On FXS channels (FXO signaled), specifies whether the channel should enter the dialplan
+; immediately or if the simple switch should provide dialtone, read digits, etc.
+; On FXO channels (FXS signaled), specifies whether the call should enter the dialplan
+; immediately or if we should wait for at least one ring. This is required if
+; Caller ID or distinctive ringing is enabled. If you do not need either, you can
+; skip waiting for the first ring to begin call processing sooner.
+;
 ; Note: If immediate=yes the dialplan execution will always start at extension
 ; 's' priority 1 regardless of the dialed number!
 ;
 ;immediate=yes
+;
+; On FXS channels (FXO signaled), specifies whether fake audible ringback should
+; be provided as soon as the channel goes off hook and immediate=yes.
+; If audio should come only from the dialplan, this option should be disabled.
+; Default is 'yes'
+;
+;immediatering=no
 ;
 ; Specify whether flash-hook transfers to 'busy' channels should complete or
 ; return to the caller performing the transfer (default is yes).
@@ -1068,6 +1109,15 @@ pickupgroup=1
 ;                        polarity switch and hangup polarity switch.
 ;                        (default: 600ms)
 ;
+; For kewlstart FXS (FXO signalled) ports only:
+; When all calls towards a DAHDI channel have cleared, automatically
+; reoriginate and provide dial tone to the user again, so s/he can
+; make another call without having to cycle the hookswitch manually.
+; This only works for kewlstart (fxo_ks) lines!
+; Dial tone will be provided only after the loop disconnect has finished.
+;
+;autoreoriginate=yes
+;
 ; On trunk interfaces (FXS) it can be useful to attempt to follow the progress
 ; of a call through RINGING, BUSY, and ANSWERING.   If turned on, call
 ; progress attempts to determine answer, busy, and ringing on phone lines.
@@ -1126,9 +1176,18 @@ pickupgroup=1
 ;
 ; For FXO (FXS signalled) devices, whether to use pulse dial instead of DTMF
 ; Pulse digits from phones (FXS devices, FXO signalling) are always
-; detected.
+; detected, unless the dialmode setting has been changed from the default.
 ;
 ;pulsedial=yes
+;
+; For FXS (FXO signalled) devices, the dialing modes to support for the channel.
+; By default, both pulse and tone (DTMF) dialing are always detected.
+; May be set to "pulse" if you only want to allow pulse dialing on a line.
+; May be set to "dtmf" or "tone" to only allow tone dialing on a line.
+; May be set to "none" to prevent dialing entirely.
+; You can also change this during a call using the CHANNEL function in the dialplan.
+;
+;dialmode=both
 ;
 ; For fax detection, uncomment one of the following lines.  The default is *OFF*
 ;

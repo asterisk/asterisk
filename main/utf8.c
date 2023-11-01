@@ -156,6 +156,154 @@ void ast_utf8_copy_string(char *dst, const char *src, size_t size)
 	*last_good = '\0';
 }
 
+/*!
+ * \warning A UTF-8 sequence could be 1, 2, 3 or 4 bytes long depending
+ * on the first byte in the sequence. Don't try to modify this function
+ * without understanding how UTF-8 works.
+ */
+
+/*
+ * The official unicode replacement character is U+FFFD
+ * which is actually the 3 following bytes:
+ */
+#define REPL_SEQ "\xEF\xBF\xBD"
+#define REPL_SEQ_LEN 3
+
+enum ast_utf8_replace_result
+ast_utf8_replace_invalid_chars(char *dst, size_t *dst_size, const char *src,
+	size_t src_len)
+{
+	enum ast_utf8_replace_result res = AST_UTF8_REPLACE_VALID;
+	size_t src_pos = 0;
+	size_t dst_pos = 0;
+	uint32_t prev_state = UTF8_ACCEPT;
+	uint32_t curr_state = UTF8_ACCEPT;
+	/*
+	* UTF-8 sequences can be 1 - 4 bytes in length so we
+	* have to keep track of where we are.
+	*/
+	int seq_len = 0;
+
+	if (dst) {
+		memset(dst, 0, *dst_size);
+	} else {
+		*dst_size = 0;
+	}
+
+	if (!src || src_len == 0) {
+		return AST_UTF8_REPLACE_VALID;
+	}
+
+	for (prev_state = 0, curr_state = 0; src_pos < src_len; prev_state = curr_state, src_pos++) {
+		uint32_t rc;
+
+		rc = decode(&curr_state, (uint8_t) src[src_pos]);
+
+		if (dst && dst_pos >= *dst_size - 1) {
+			if (prev_state > UTF8_REJECT) {
+				/*
+				 * We ran out of space in the middle of a possible
+				 * multi-byte sequence so we have to back up and
+				 * overwrite the start of the sequence with the
+				 * NULL terminator.
+				 */
+				dst_pos -= (seq_len - (prev_state / 36));
+			}
+			dst[dst_pos] = '\0';
+
+			return AST_UTF8_REPLACE_OVERRUN;
+		}
+
+		if (rc == UTF8_ACCEPT) {
+			if (dst) {
+				dst[dst_pos] = src[src_pos];
+			}
+			dst_pos++;
+			seq_len = 0;
+		}
+
+		if (rc > UTF8_REJECT) {
+			/*
+			 * We're possibly at the start of, or in the middle of,
+			 * a multi-byte sequence. The curr_state will tell us how many
+			 * bytes _should_ be remaining in the sequence.
+			 */
+			if (prev_state == UTF8_ACCEPT) {
+				/* If the previous state was a good character then
+				 * this can only be the start of s sequence
+				 * which is all we care about.
+				 */
+				seq_len = curr_state / 36 + 1;
+			}
+
+			if (dst) {
+				dst[dst_pos] = src[src_pos];
+			}
+			dst_pos++;
+		}
+
+		if (rc == UTF8_REJECT) {
+			/* We got at least 1 rejection so the string is invalid */
+			res = AST_UTF8_REPLACE_INVALID;
+
+			if (prev_state != UTF8_ACCEPT) {
+				/*
+				 * If we were in a multi-byte sequence and this
+				 * byte isn't valid at this time, we'll back
+				 * the destination pointer back to the start
+				 * of the now-invalid sequence and write the
+				 * replacement bytes there.  Then we'll
+				 * process the current byte again in the next
+				 * loop iteration.  It may be quite valid later.
+				 */
+				dst_pos -= (seq_len - (prev_state / 36));
+				src_pos--;
+			}
+			if (dst) {
+				/*
+				 * If we're not just calculating the needed destination
+				 * buffer space, and we don't have enough room to write
+				 * the replacement sequence, terminate the output
+				 * and return.
+				 */
+				if (dst_pos > *dst_size - 4) {
+					dst[dst_pos] = '\0';
+					return AST_UTF8_REPLACE_OVERRUN;
+				}
+				memcpy(&dst[dst_pos], REPL_SEQ, REPL_SEQ_LEN);
+			}
+			dst_pos += REPL_SEQ_LEN;
+			/* Reset the state machine */
+			curr_state = UTF8_ACCEPT;
+		}
+	}
+
+	if (curr_state != UTF8_ACCEPT) {
+		/*
+		 * We were probably in the middle of a
+		 * sequence and ran out of space.
+		 */
+		res = AST_UTF8_INVALID;
+		dst_pos -= (seq_len - (prev_state / 36));
+		if (dst) {
+			if (dst_pos > *dst_size - 4) {
+				dst[dst_pos] = '\0';
+				return AST_UTF8_REPLACE_OVERRUN;
+			}
+			memcpy(&dst[dst_pos], REPL_SEQ, REPL_SEQ_LEN);
+		}
+		dst_pos += REPL_SEQ_LEN;
+	}
+
+	if (dst) {
+		dst[dst_pos] = '\0';
+	} else {
+		*dst_size = dst_pos + 1;
+	}
+
+	return res;
+}
+
 struct ast_utf8_validator {
 	uint32_t state;
 };
@@ -218,6 +366,8 @@ void ast_utf8_validator_destroy(struct ast_utf8_validator *validator)
 }
 
 #ifdef TEST_FRAMEWORK
+
+#include "asterisk/json.h"
 
 AST_TEST_DEFINE(test_utf8_is_valid)
 {
@@ -313,6 +463,398 @@ AST_TEST_DEFINE(test_utf8_copy_string)
 	return AST_TEST_PASS;
 }
 
+/*
+ * Let the replace function determine how much
+ * buffer space is required for the destination.
+ */
+#define SIZE_REQUIRED 0
+/*
+ * Set the destination buffer size to the size
+ * we expect it to be.  0xDead has no meaning
+ * other than it's larger than any test needs
+ * a buffer to be.
+ */
+#define SIZE_EXPECTED 0xDead
+
+static int tracs(int run, const char *src, const char *cmp,
+	size_t dst_size, enum ast_utf8_replace_result exp_result)
+{
+	char *dst = NULL;
+	struct ast_json *blob;
+	enum ast_utf8_replace_result result;
+
+	if (dst_size == SIZE_REQUIRED) {
+		ast_utf8_replace_invalid_chars(dst, &dst_size, src, src ? strlen(src) : 0);
+	} else if (dst_size == SIZE_EXPECTED) {
+		dst_size = strlen(cmp) + 1;
+	}
+
+	dst = (char *)ast_alloca(dst_size);
+	result = ast_utf8_replace_invalid_chars(dst, &dst_size, src, src ? strlen(src) : 0);
+	if (result != exp_result || strcmp(dst, cmp) != 0) {
+		ast_log(LOG_ERROR, "Run: %2d Invalid result. Src: '%s', Dst: '%s', ExpDst: '%s'  Result: %d  ExpResult: %d\n",
+			run, src, dst, cmp, result, exp_result);
+		return 0;
+	}
+
+	/*
+	 * The ultimate test: Does jansson accept the result as valid UTF-8?
+	 */
+	blob = ast_json_pack("{s: s, s: s}",
+		"variable", "doesntmatter",
+		"value", dst);
+	ast_json_unref(blob);
+
+	return blob != NULL;
+}
+
+#define ATV(t, v) ast_test_validate(t, v)
+
+AST_TEST_DEFINE(test_utf8_replace_invalid_chars)
+{
+	const char *src;
+	size_t dst_size;
+	enum ast_utf8_replace_result result;
+	int k = 0;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "replace_invalid";
+		info->category = "/main/utf8/";
+		info->summary = "Test ast_utf8_replace_invalid_chars";
+		info->description =
+			"Tests UTF-8 string copying/replacing code.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+/*
+		Table 3-7. Well-Formed UTF-8 Byte Sequences
+		Code Points			First	Second	Third	Fourth
+							Byte	Byte	Byte	Byte
+		U+0000..U+007F		00..7F
+		U+0080..U+07FF		C2..DF	80..BF
+		U+0800..U+0FFF		E0		A0..BF	80..BF
+		U+1000..U+CFFF		E1..EC	80..BF	80..BF
+		U+D000..U+D7FF		ED		80..9F	80..BF
+		U+E000..U+FFFF		EE..EF	80..BF	80..BF
+		U+10000..U+3FFFF	F0		90..BF	80..BF	80..BF
+		U+40000..U+FFFFF	F1..F3	80..BF	80..BF	80..BF
+		U+100000..U+10FFFF	F4		80..8F	80..BF	80..BF
+
+		Older compilers don't support using the \uXXXX or \UXXXXXXXX
+		universal character notation so we have to manually specify
+		the byte sequences even for valid UTF-8 sequences.
+
+		These are the ones used for the tests below:
+
+		\u00B0 = \xC2\xB0
+		\u0800 = \xE0\xA0\x80
+		\uE000 = \xEE\x80\x80
+		\U00040000 = \xF1\x80\x80\x80
+*/
+
+	/*
+	 * Check that NULL destination with a valid source string gives us a
+	 * valid result code and buffer size = the length of the input string
+	 * plus room for the NULL terminator.
+	 */
+	src = "ABC\xC2\xB0xyz";
+	result = ast_utf8_replace_invalid_chars(NULL, &dst_size, src, src ? strlen(src) : 0);
+	ATV(test, result == AST_UTF8_REPLACE_VALID && dst_size == strlen(src) + 1);
+
+	/*
+	 * Check that NULL destination with an invalid source string gives us an
+	 * invalid result code and buffer size = the length of the input string
+	 * plus room for the NULL terminator plus the 2 extra bytes needed for
+	 * the one replacement character.
+	 */
+	src = "ABC\xFFxyz";
+	result = ast_utf8_replace_invalid_chars(NULL, &dst_size, src, src ? strlen(src) : 0);
+	ATV(test, result == AST_UTF8_REPLACE_INVALID && dst_size == strlen(src) + 3);
+
+	/*
+	 * NULL or empty input
+	 */
+	ATV(test, tracs(__LINE__, NULL, "", 80, AST_UTF8_REPLACE_VALID));
+	ATV(test, tracs(__LINE__, "", "", 80, AST_UTF8_REPLACE_VALID));
+
+
+	/* Let the replace function calculate the space needed for result */
+	k = SIZE_REQUIRED;
+
+	/*
+	 * Basic ASCII string
+	 */
+	ATV(test, tracs(__LINE__, "ABC xyzA", "ABC xyzA", k, AST_UTF8_REPLACE_VALID));
+
+	/*
+	 * Mid string.
+	 */
+	/* good single sequences */
+	ATV(test, tracs(__LINE__, "ABC\xC2\xB0xyz", "ABC\xC2\xB0xyz", k, AST_UTF8_REPLACE_VALID));
+	ATV(test, tracs(__LINE__, "ABC\xE0\xA0\x80xyz", "ABC\xE0\xA0\x80xyz", k, AST_UTF8_REPLACE_VALID));
+	ATV(test, tracs(__LINE__, "ABC\xF1\x80\x80\x80xyz", "ABC\xF1\x80\x80\x80xyz", k, AST_UTF8_REPLACE_VALID));
+	/* good multiple adjacent sequences */
+	ATV(test, tracs(__LINE__, "ABC\xC2\xB0\xC2\xB0xyz", "ABC\xC2\xB0\xC2\xB0xyz", k, AST_UTF8_REPLACE_VALID));
+	ATV(test, tracs(__LINE__, "ABC\xE0\xA0\x80\xC2\xB0xyz", "ABC\xE0\xA0\x80\xC2\xB0xyz", k, AST_UTF8_REPLACE_VALID));
+	ATV(test, tracs(__LINE__, "ABC\xF1\x80\x80\x80\xC2\xB0xyz", "ABC\xF1\x80\x80\x80\xC2\xB0xyz", k, AST_UTF8_REPLACE_VALID));
+	/* Bad sequences */
+	ATV(test, tracs(__LINE__, "ABC\xC2xyz", "ABC\xEF\xBF\xBDxyz", k, AST_UTF8_REPLACE_INVALID));
+	ATV(test, tracs(__LINE__, "ABC\xC2\xC2xyz", "ABC\xEF\xBF\xBD\xEF\xBF\xBDxyz", k, AST_UTF8_REPLACE_INVALID));
+	ATV(test, tracs(__LINE__, "ABC\xB0xyz", "ABC\xEF\xBF\xBDxyz", k, AST_UTF8_REPLACE_INVALID));
+	ATV(test, tracs(__LINE__, "ABC\xE0\xA0\xC2xyz", "ABC\xEF\xBF\xBD\xEF\xBF\xBDxyz", k, AST_UTF8_REPLACE_INVALID));
+	ATV(test, tracs(__LINE__, "ABC\xE0\xA0\xF5xyz", "ABC\xEF\xBF\xBD\xEF\xBF\xBDxyz", k, AST_UTF8_REPLACE_INVALID));
+	ATV(test, tracs(__LINE__, "ABC\xE0\xA0xyz", "ABC\xEF\xBF\xBDxyz", k, AST_UTF8_REPLACE_INVALID));
+
+	/*
+	 * Beginning of string.
+	 */
+	/* good single sequences */
+	ATV(test, tracs(__LINE__, "\xC2\xB0xyz", "\xC2\xB0xyz", k, AST_UTF8_REPLACE_VALID));
+	ATV(test, tracs(__LINE__, "\xE0\xA0\x80xyz", "\xE0\xA0\x80xyz", k, AST_UTF8_REPLACE_VALID));
+	ATV(test, tracs(__LINE__, "\xF1\x80\x80\x80xyz", "\xF1\x80\x80\x80xyz", k, AST_UTF8_REPLACE_VALID));
+	/* good multiple adjacent sequences */
+	ATV(test, tracs(__LINE__, "\xC2\xB0\xC2\xB0xyz", "\xC2\xB0\xC2\xB0xyz", k, AST_UTF8_REPLACE_VALID));
+	ATV(test, tracs(__LINE__, "\xE0\xA0\x80\xC2\xB0xyz", "\xE0\xA0\x80\xC2\xB0xyz", k, AST_UTF8_REPLACE_VALID));
+	ATV(test, tracs(__LINE__, "\xF1\x80\x80\x80\xC2\xB0xyz", "\xF1\x80\x80\x80\xC2\xB0xyz", k, AST_UTF8_REPLACE_VALID));
+	/* Bad sequences */
+	ATV(test, tracs(__LINE__, "\xC2xyz", "\xEF\xBF\xBDxyz", k, AST_UTF8_REPLACE_INVALID));
+	ATV(test, tracs(__LINE__, "\xC2\xC2xyz", "\xEF\xBF\xBD\xEF\xBF\xBDxyz", k, AST_UTF8_REPLACE_INVALID));
+	ATV(test, tracs(__LINE__, "\xB0xyz", "\xEF\xBF\xBDxyz", k, AST_UTF8_REPLACE_INVALID));
+	ATV(test, tracs(__LINE__, "\xE0\xA0\xC2xyz", "\xEF\xBF\xBD\xEF\xBF\xBDxyz", k, AST_UTF8_REPLACE_INVALID));
+	ATV(test, tracs(__LINE__, "\xE0\xA0\xF5xyz", "\xEF\xBF\xBD\xEF\xBF\xBDxyz", k, AST_UTF8_REPLACE_INVALID));
+	ATV(test, tracs(__LINE__, "\xE0\xA0xyz", "\xEF\xBF\xBDxyz", k, AST_UTF8_REPLACE_INVALID));
+
+	/*
+	 * End of string.
+	 */
+	/* good single sequences */
+	ATV(test, tracs(__LINE__, "ABC\xC2\xB0", "ABC\xC2\xB0", k, AST_UTF8_REPLACE_VALID));
+	ATV(test, tracs(__LINE__, "ABC\xE0\xA0\x80", "ABC\xE0\xA0\x80", k, AST_UTF8_REPLACE_VALID));
+	ATV(test, tracs(__LINE__, "ABC\xF1\x80\x80\x80", "ABC\xF1\x80\x80\x80", k, AST_UTF8_REPLACE_VALID));
+	/* good multiple adjacent sequences */
+	ATV(test, tracs(__LINE__, "ABC\xC2\xB0\xC2\xB0", "ABC\xC2\xB0\xC2\xB0", k, AST_UTF8_REPLACE_VALID));
+	ATV(test, tracs(__LINE__, "ABC\xE0\xA0\x80\xC2\xB0", "ABC\xE0\xA0\x80\xC2\xB0", k, AST_UTF8_REPLACE_VALID));
+	ATV(test, tracs(__LINE__, "ABC\xF1\x80\x80\x80\xC2\xB0", "ABC\xF1\x80\x80\x80\xC2\xB0", k, AST_UTF8_REPLACE_VALID));
+	/* Bad sequences */
+	ATV(test, tracs(__LINE__, "ABC\xC2", "ABC\xEF\xBF\xBD", k, AST_UTF8_REPLACE_INVALID));
+	ATV(test, tracs(__LINE__, "ABC\xC2\xC2", "ABC\xEF\xBF\xBD\xEF\xBF\xBD", k, AST_UTF8_REPLACE_INVALID));
+	ATV(test, tracs(__LINE__, "ABC\xB0", "ABC\xEF\xBF\xBD", k, AST_UTF8_REPLACE_INVALID));
+	ATV(test, tracs(__LINE__, "ABC\xE0\xA0\xC2", "ABC\xEF\xBF\xBD\xEF\xBF\xBD", k, AST_UTF8_REPLACE_INVALID));
+	ATV(test, tracs(__LINE__, "ABC\xE0\xA0\xF5", "ABC\xEF\xBF\xBD\xEF\xBF\xBD", k, AST_UTF8_REPLACE_INVALID));
+	ATV(test, tracs(__LINE__, "ABC\xE0\xA0", "ABC\xEF\xBF\xBD", k, AST_UTF8_REPLACE_INVALID));
+
+
+	/* Force destination buffer to be only large enough to hold the expected result */
+	k = SIZE_EXPECTED;
+
+	/*
+	 * Mid string.
+	 */
+	/* good single sequences */
+	ATV(test, tracs(__LINE__, "ABC\xC2\xB0xyz", "ABC\xC2\xB0xyz", k, AST_UTF8_REPLACE_VALID));
+	ATV(test, tracs(__LINE__, "ABC\xE0\xA0\x80xyz", "ABC\xE0\xA0\x80xyz", k, AST_UTF8_REPLACE_VALID));
+	ATV(test, tracs(__LINE__, "ABC\xF1\x80\x80\x80xyz", "ABC\xF1\x80\x80\x80xyz", k, AST_UTF8_REPLACE_VALID));
+	/* good multiple adjacent sequences */
+	ATV(test, tracs(__LINE__, "ABC\xC2\xB0\xC2\xB0xyz", "ABC\xC2\xB0\xC2\xB0xyz", k, AST_UTF8_REPLACE_VALID));
+	ATV(test, tracs(__LINE__, "ABC\xE0\xA0\x80\xC2\xB0xyz", "ABC\xE0\xA0\x80\xC2\xB0xyz", k, AST_UTF8_REPLACE_VALID));
+	ATV(test, tracs(__LINE__, "ABC\xF1\x80\x80\x80\xC2\xB0xyz", "ABC\xF1\x80\x80\x80\xC2\xB0xyz", k, AST_UTF8_REPLACE_VALID));
+	/* Bad sequences */
+	ATV(test, tracs(__LINE__, "ABC\xC2xyz", "ABC\xEF\xBF\xBDxyz", k, AST_UTF8_REPLACE_INVALID));
+	ATV(test, tracs(__LINE__, "ABC\xC2\xC2xyz", "ABC\xEF\xBF\xBD\xEF\xBF\xBDxyz", k, AST_UTF8_REPLACE_INVALID));
+	ATV(test, tracs(__LINE__, "ABC\xB0xyz", "ABC\xEF\xBF\xBDxyz", k, AST_UTF8_REPLACE_INVALID));
+	ATV(test, tracs(__LINE__, "ABC\xE0\xA0\xC2xyz", "ABC\xEF\xBF\xBD\xEF\xBF\xBDxyz", k, AST_UTF8_REPLACE_INVALID));
+	ATV(test, tracs(__LINE__, "ABC\xE0\xA0\xF5xyz", "ABC\xEF\xBF\xBD\xEF\xBF\xBDxyz", k, AST_UTF8_REPLACE_INVALID));
+	ATV(test, tracs(__LINE__, "ABC\xE0\xA0xyz", "ABC\xEF\xBF\xBDxyz", k, AST_UTF8_REPLACE_INVALID));
+
+	/*
+	 * Beginning of string.
+	 */
+	/* good single sequences */
+	ATV(test, tracs(__LINE__, "\xC2\xB0xyz", "\xC2\xB0xyz", k, AST_UTF8_REPLACE_VALID));
+	ATV(test, tracs(__LINE__, "\xE0\xA0\x80xyz", "\xE0\xA0\x80xyz", k, AST_UTF8_REPLACE_VALID));
+	ATV(test, tracs(__LINE__, "\xF1\x80\x80\x80xyz", "\xF1\x80\x80\x80xyz", k, AST_UTF8_REPLACE_VALID));
+	/* good multiple adjacent sequences */
+	ATV(test, tracs(__LINE__, "\xC2\xB0\xC2\xB0xyz", "\xC2\xB0\xC2\xB0xyz", k, AST_UTF8_REPLACE_VALID));
+	ATV(test, tracs(__LINE__, "\xE0\xA0\x80\xC2\xB0xyz", "\xE0\xA0\x80\xC2\xB0xyz", k, AST_UTF8_REPLACE_VALID));
+	ATV(test, tracs(__LINE__, "\xF1\x80\x80\x80\xC2\xB0xyz", "\xF1\x80\x80\x80\xC2\xB0xyz", k, AST_UTF8_REPLACE_VALID));
+	/* Bad sequences */
+	ATV(test, tracs(__LINE__, "\xC2xyz", "\xEF\xBF\xBDxyz", k, AST_UTF8_REPLACE_INVALID));
+	ATV(test, tracs(__LINE__, "\xC2\xC2xyz", "\xEF\xBF\xBD\xEF\xBF\xBDxyz", k, AST_UTF8_REPLACE_INVALID));
+	ATV(test, tracs(__LINE__, "\xB0xyz", "\xEF\xBF\xBDxyz", k, AST_UTF8_REPLACE_INVALID));
+	ATV(test, tracs(__LINE__, "\xE0\xA0\xC2xyz", "\xEF\xBF\xBD\xEF\xBF\xBDxyz", k, AST_UTF8_REPLACE_INVALID));
+	ATV(test, tracs(__LINE__, "\xE0\xA0\xF5xyz", "\xEF\xBF\xBD\xEF\xBF\xBDxyz", k, AST_UTF8_REPLACE_INVALID));
+	ATV(test, tracs(__LINE__, "\xE0\xA0xyz", "\xEF\xBF\xBDxyz", k, AST_UTF8_REPLACE_INVALID));
+
+	/*
+	 * End of string.
+	 */
+	/* good single sequences */
+	ATV(test, tracs(__LINE__, "ABC\xC2\xB0", "ABC\xC2\xB0", k, AST_UTF8_REPLACE_VALID));
+	ATV(test, tracs(__LINE__, "ABC\xE0\xA0\x80", "ABC\xE0\xA0\x80", k, AST_UTF8_REPLACE_VALID));
+	ATV(test, tracs(__LINE__, "ABC\xF1\x80\x80\x80", "ABC\xF1\x80\x80\x80", k, AST_UTF8_REPLACE_VALID));
+	/* good multiple adjacent sequences */
+	ATV(test, tracs(__LINE__, "ABC\xC2\xB0\xC2\xB0", "ABC\xC2\xB0\xC2\xB0", k, AST_UTF8_REPLACE_VALID));
+	ATV(test, tracs(__LINE__, "ABC\xE0\xA0\x80\xC2\xB0", "ABC\xE0\xA0\x80\xC2\xB0", k, AST_UTF8_REPLACE_VALID));
+	ATV(test, tracs(__LINE__, "ABC\xF1\x80\x80\x80\xC2\xB0", "ABC\xF1\x80\x80\x80\xC2\xB0", k, AST_UTF8_REPLACE_VALID));
+	/* Bad sequences */
+	ATV(test, tracs(__LINE__, "ABC\xC2", "ABC\xEF\xBF\xBD", k, AST_UTF8_REPLACE_INVALID));
+	ATV(test, tracs(__LINE__, "ABC\xC2\xC2", "ABC\xEF\xBF\xBD\xEF\xBF\xBD", k, AST_UTF8_REPLACE_INVALID));
+	ATV(test, tracs(__LINE__, "ABC\xB0", "ABC\xEF\xBF\xBD", k, AST_UTF8_REPLACE_INVALID));
+	ATV(test, tracs(__LINE__, "ABC\xE0\xA0\xC2", "ABC\xEF\xBF\xBD\xEF\xBF\xBD", k, AST_UTF8_REPLACE_INVALID));
+	ATV(test, tracs(__LINE__, "ABC\xE0\xA0\xF5", "ABC\xEF\xBF\xBD\xEF\xBF\xBD", k, AST_UTF8_REPLACE_INVALID));
+	ATV(test, tracs(__LINE__, "ABC\xE0\xA0", "ABC\xEF\xBF\xBD", k, AST_UTF8_REPLACE_INVALID));
+
+
+	/*
+	 * Overrun Prevention
+	 */
+
+	/* No frills. */
+	k = 9;
+	ATV(test, tracs(__LINE__, "ABC xyzA", "ABC xyzA", k--, AST_UTF8_REPLACE_VALID));
+	ATV(test, tracs(__LINE__, "ABC xyzA", "ABC xyz", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyzA", "ABC xy", k--, AST_UTF8_REPLACE_OVERRUN));
+
+	/* good single sequences */
+	k = 9;  /* \xC2\xB0 needs 2 bytes */
+	ATV(test, tracs(__LINE__, "ABC\xC2\xB0xyz", "ABC\xC2\xB0xyz", k--, AST_UTF8_REPLACE_VALID));
+	ATV(test, tracs(__LINE__, "ABC\xC2\xB0xyz", "ABC\xC2\xB0xy", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC\xC2\xB0xyz", "ABC\xC2\xB0x", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC\xC2\xB0xyz", "ABC\xC2\xB0", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC\xC2\xB0xyz", "ABC", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC\xC2\xB0xyz", "ABC", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC\xC2\xB0xyz", "AB", k--, AST_UTF8_REPLACE_OVERRUN));
+
+	k = 10; /* \xE0\xA0\x80 needs 3 bytes */
+	ATV(test, tracs(__LINE__, "ABC\xE0\xA0\x80xyz", "ABC\xE0\xA0\x80xyz", k--, AST_UTF8_REPLACE_VALID));
+	ATV(test, tracs(__LINE__, "ABC\xE0\xA0\x80xyz", "ABC\xE0\xA0\x80xy", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC\xE0\xA0\x80xyz", "ABC\xE0\xA0\x80x", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC\xE0\xA0\x80xyz", "ABC\xE0\xA0\x80", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC\xE0\xA0\x80xyz", "ABC", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC\xE0\xA0\x80xyz", "ABC", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC\xE0\xA0\x80xyz", "ABC", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC\xE0\xA0\x80xyz", "AB", k--, AST_UTF8_REPLACE_OVERRUN));
+
+	k = 10; /* \xEF\xBF\xBD  needs 3 bytes */
+	ATV(test, tracs(__LINE__, "ABC\xC2xyz", "ABC\xEF\xBF\xBDxyz", k--, AST_UTF8_REPLACE_INVALID));
+	ATV(test, tracs(__LINE__, "ABC\xC2xyz", "ABC\xEF\xBF\xBDxy", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC\xC2xyz", "ABC\xEF\xBF\xBDx", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC\xC2xyz", "ABC\xEF\xBF\xBD", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC\xC2xyz", "ABC", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC\xC2xyz", "ABC", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC\xC2xyz", "ABC", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC\xC2xyz", "AB", k--, AST_UTF8_REPLACE_OVERRUN));
+
+	k = 14; /* Each \xEF\xBF\xBD needs 3 bytes */
+	ATV(test, tracs(__LINE__, "ABC xyz\xC2\xFF", "ABC xyz\xEF\xBF\xBD\xEF\xBF\xBD", k--, AST_UTF8_REPLACE_INVALID));
+	ATV(test, tracs(__LINE__, "ABC xyz\xC2\xFF", "ABC xyz\xEF\xBF\xBD", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xC2\xFF", "ABC xyz\xEF\xBF\xBD", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xC2\xFF", "ABC xyz\xEF\xBF\xBD", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xC2\xFF", "ABC xyz", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xC2\xFF", "ABC xyz", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xC2\xFF", "ABC xyz", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xC2\xFF", "ABC xy", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xC2\xFF", "ABC x", k--, AST_UTF8_REPLACE_OVERRUN));
+
+	/*
+	 * The following tests are classed as "Everything including the kitchen sink".
+	 * Some tests may be redundant.
+	 */
+	k = 11;
+	ATV(test, tracs(__LINE__, "ABC xyz\xFF", "ABC xyz\xEF\xBF\xBD", k--, AST_UTF8_REPLACE_INVALID));
+	ATV(test, tracs(__LINE__, "ABC xyz\xFF", "ABC xyz", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xFF", "ABC xyz", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xFF", "ABC xyz", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xFF", "ABC xy", k--, AST_UTF8_REPLACE_OVERRUN));
+
+	k = 11;
+	ATV(test, tracs(__LINE__, "ABC xyz\xC2\xB0", "ABC xyz\xC2\xB0", k--, AST_UTF8_REPLACE_VALID));
+	ATV(test, tracs(__LINE__, "ABC xyz\xC2\xB0", "ABC xyz\xC2\xB0", k--, AST_UTF8_REPLACE_VALID));
+	ATV(test, tracs(__LINE__, "ABC xyz\xC2\xB0", "ABC xyz", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xC2\xB0", "ABC xyz", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xC2\xB0", "ABC xy", k--, AST_UTF8_REPLACE_OVERRUN));
+
+	k = 11;
+	ATV(test, tracs(__LINE__, "ABC xyz\xC2", "ABC xyz\xEF\xBF\xBD", k--, AST_UTF8_REPLACE_INVALID));
+	ATV(test, tracs(__LINE__, "ABC xyz\xC2", "ABC xyz", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xC2", "ABC xyz", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xC2", "ABC xyz", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xC2", "ABC xy", k--, AST_UTF8_REPLACE_OVERRUN));
+
+	k = 12;
+	ATV(test, tracs(__LINE__, "ABC xyz\xEE\x80\x80", "ABC xyz\xEE\x80\x80", k--, AST_UTF8_REPLACE_VALID));
+	ATV(test, tracs(__LINE__, "ABC xyz\xEE\x80\x80", "ABC xyz\xEE\x80\x80", k--, AST_UTF8_REPLACE_VALID));
+	ATV(test, tracs(__LINE__, "ABC xyz\xEE\x80\x80", "ABC xyz", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xEE\x80\x80", "ABC xyz", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xEE\x80\x80", "ABC xyz", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xEE\x80\x80", "ABC xy", k--, AST_UTF8_REPLACE_OVERRUN));
+
+	k = 11;
+	ATV(test, tracs(__LINE__, "ABC xyz\xED", "ABC xyz\xEF\xBF\xBD", k--, AST_UTF8_REPLACE_INVALID));
+	ATV(test, tracs(__LINE__, "ABC xyz\xED", "ABC xyz", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xED", "ABC xyz", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xED", "ABC xyz", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xED", "ABC xy", k--, AST_UTF8_REPLACE_OVERRUN));
+
+	k = 14;
+	ATV(test, tracs(__LINE__, "ABC xyz\xED\xBF", "ABC xyz\xEF\xBF\xBD\xEF\xBF\xBD", k--, AST_UTF8_REPLACE_INVALID));
+	ATV(test, tracs(__LINE__, "ABC xyz\xED\xBF", "ABC xyz\xEF\xBF\xBD", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xED\xBF", "ABC xyz\xEF\xBF\xBD", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xED\xBF", "ABC xyz\xEF\xBF\xBD", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xED\xBF", "ABC xyz", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xED\xBF", "ABC xyz", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xED\xBF", "ABC xyz", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xED\xBF", "ABC xy", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xED\xBF", "ABC x", k--, AST_UTF8_REPLACE_OVERRUN));
+
+	k = 14;
+	ATV(test, tracs(__LINE__, "ABC xyz\xED\xFF", "ABC xyz\xEF\xBF\xBD\xEF\xBF\xBD", k--, AST_UTF8_REPLACE_INVALID));
+	ATV(test, tracs(__LINE__, "ABC xyz\xED\xFF", "ABC xyz\xEF\xBF\xBD", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xED\xFF", "ABC xyz\xEF\xBF\xBD", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xED\xFF", "ABC xyz\xEF\xBF\xBD", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xED\xFF", "ABC xyz", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xED\xFF", "ABC xyz", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xED\xFF", "ABC xyz", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xED\xFF", "ABC xy", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xED\xFF", "ABC x", k--, AST_UTF8_REPLACE_OVERRUN));
+
+	k = 14;
+	ATV(test, tracs(__LINE__, "ABC xyz\xED\xC2", "ABC xyz\xEF\xBF\xBD\xEF\xBF\xBD", k--, AST_UTF8_REPLACE_INVALID));
+	ATV(test, tracs(__LINE__, "ABC xyz\xED\xC2", "ABC xyz\xEF\xBF\xBD", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xED\xC2", "ABC xyz\xEF\xBF\xBD", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xED\xC2", "ABC xyz\xEF\xBF\xBD", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xED\xC2", "ABC xyz", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xED\xC2", "ABC xyz", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xED\xC2", "ABC xyz", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xED\xC2", "ABC xy", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xED\xC2", "ABC x", k--, AST_UTF8_REPLACE_OVERRUN));
+
+	k = 14;
+	ATV(test, tracs(__LINE__, "ABC xyz\xED\x80\xC0", "ABC xyz\xEF\xBF\xBD\xEF\xBF\xBD", k--, AST_UTF8_REPLACE_INVALID));
+	ATV(test, tracs(__LINE__, "ABC xyz\xED\x80\xC0", "ABC xyz\xEF\xBF\xBD", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xED\x80\xC0", "ABC xyz\xEF\xBF\xBD", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xED\x80\xC0", "ABC xyz\xEF\xBF\xBD", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xED\x80\xC0", "ABC xyz", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xED\x80\xC0", "ABC xyz", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xED\x80\xC0", "ABC xyz", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xED\x80\xC0", "ABC xy", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xED\x80\xC0", "ABC x", k--, AST_UTF8_REPLACE_OVERRUN));
+
+	k = 13;
+	ATV(test, tracs(__LINE__, "ABC xyz\xED\xC2\xB0", "ABC xyz\xEF\xBF\xBD\xC2\xB0", k--, AST_UTF8_REPLACE_INVALID));
+	ATV(test, tracs(__LINE__, "ABC xyz\xED\xC2\xB0", "ABC xyz\xEF\xBF\xBD", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xED\xC2\xB0", "ABC xyz\xEF\xBF\xBD", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xED\xC2\xB0", "ABC xyz", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xED\xC2\xB0", "ABC xyz", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xED\xC2\xB0", "ABC xyz", k--, AST_UTF8_REPLACE_OVERRUN));
+	ATV(test, tracs(__LINE__, "ABC xyz\xED\xC2\xB0", "ABC xy", k--, AST_UTF8_REPLACE_OVERRUN));
+
+	return AST_TEST_PASS;
+}
+
 AST_TEST_DEFINE(test_utf8_validator)
 {
 	struct ast_utf8_validator *validator;
@@ -357,6 +899,7 @@ static void test_utf8_shutdown(void)
 	AST_TEST_UNREGISTER(test_utf8_is_valid);
 	AST_TEST_UNREGISTER(test_utf8_copy_string);
 	AST_TEST_UNREGISTER(test_utf8_validator);
+	AST_TEST_UNREGISTER(test_utf8_replace_invalid_chars);
 }
 
 int ast_utf8_init(void)
@@ -364,6 +907,7 @@ int ast_utf8_init(void)
 	AST_TEST_REGISTER(test_utf8_is_valid);
 	AST_TEST_REGISTER(test_utf8_copy_string);
 	AST_TEST_REGISTER(test_utf8_validator);
+	AST_TEST_REGISTER(test_utf8_replace_invalid_chars);
 
 	ast_register_cleanup(test_utf8_shutdown);
 

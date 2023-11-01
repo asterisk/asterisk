@@ -153,6 +153,8 @@ struct moh_files_state {
 #define MOH_ANNOUNCEMENT	(1 << 6)	/*!< Do we play announcement files between songs on this channel? */
 #define MOH_PREFERCHANNELCLASS	(1 << 7)	/*!< Should queue moh override channel moh */
 
+#define MOH_LOOPLAST (1 << 8) /*!< Whether to loop the last file in the music class when we reach the end, rather than starting over */
+
 /* Custom astobj2 flag */
 #define MOH_NOTDELETED          (1 << 30)       /*!< Find only records that aren't deleted? */
 #define MOH_REALTIME          (1 << 31)       /*!< Find only records that are realtime */
@@ -366,7 +368,11 @@ static int ast_moh_files_next(struct ast_channel *chan)
 	} else {
 		/* This is easy, just increment our position and make sure we don't exceed the total file count */
 		state->pos++;
-		state->pos %= file_count;
+		if (ast_test_flag(state->class, MOH_LOOPLAST)) {
+			state->pos = MIN(file_count - 1, state->pos);
+		} else {
+			state->pos %= file_count;
+		}
 		state->save_pos = -1;
 		state->samples = 0;
 	}
@@ -458,24 +464,22 @@ static void moh_files_write_format_change(struct ast_channel *chan, void *data)
 
 static int moh_files_generator(struct ast_channel *chan, void *data, int len, int samples)
 {
-	struct moh_files_state *state = ast_channel_music_state(chan);
+	struct moh_files_state *state;
 	struct ast_frame *f = NULL;
-	int res = 0;
+	int res = 0, sample_queue = 0;
 
+	ast_channel_lock(chan);
+	state = ast_channel_music_state(chan);
 	state->sample_queue += samples;
+	/* save the sample queue value for un-locked access */
+	sample_queue = state->sample_queue;
+	ast_channel_unlock(chan);
 
-	while (state->sample_queue > 0) {
+	while (sample_queue > 0) {
 		ast_channel_lock(chan);
 		f = moh_files_readframe(chan);
-
-		/* We need to be sure that we unlock
-		 * the channel prior to calling
-		 * ast_write. Otherwise, the recursive locking
-		 * that occurs can cause deadlocks when using
-		 * indirect channels, like local channels
-		 */
-		ast_channel_unlock(chan);
 		if (!f) {
+			ast_channel_unlock(chan);
 			return -1;
 		}
 
@@ -489,6 +493,19 @@ static int moh_files_generator(struct ast_channel *chan, void *data, int len, in
 		if (ast_format_cmp(f->subclass.format, state->mohwfmt) == AST_FORMAT_CMP_NOT_EQUAL) {
 			ao2_replace(state->mohwfmt, f->subclass.format);
 		}
+
+		/* We need to be sure that we unlock
+		 * the channel prior to calling
+		 * ast_write, but after our references to state
+		 * as it refers to chan->music_state. Update
+		 * sample_queue for our loop
+		 * Otherwise, the recursive locking that occurs
+		 * can cause deadlocks when using indirect
+		 * channels, like local channels
+		 */
+		sample_queue = state->sample_queue;
+		ast_channel_unlock(chan);
+
 		res = ast_write(chan, f);
 		ast_frfree(f);
 		if (res < 0) {
@@ -1171,6 +1188,12 @@ static void moh_parse_options(struct ast_variable *var, struct mohclass *mohclas
 				ast_set_flag(mohclass, MOH_SORTALPHA);
 			} else if (!strcasecmp(var->value, "randstart")) {
 				ast_set_flag(mohclass, MOH_RANDSTART);
+			}
+		} else if (!strcasecmp(var->name, "loop_last")) {
+			if (ast_true(var->value)) {
+				ast_set_flag(mohclass, MOH_LOOPLAST);
+			} else {
+				ast_clear_flag(mohclass, MOH_LOOPLAST);
 			}
 		} else if (!strcasecmp(var->name, "format") && !ast_strlen_zero(var->value)) {
 			ao2_cleanup(mohclass->format);

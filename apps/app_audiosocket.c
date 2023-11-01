@@ -180,7 +180,7 @@ static int audiosocket_run(struct ast_channel *chan, const char *id, int svc)
 	chanName = ast_channel_name(chan);
 
 	while (1) {
-
+		ms = -1;
 		targetChan = ast_waitfor_nandfds(&chan, 1, &svc, 1, NULL, &outfd, &ms);
 		if (targetChan) {
 			f = ast_read(chan);

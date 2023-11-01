@@ -885,17 +885,7 @@ static int printdigest(const unsigned char *d)
 	return 0;
 }
 
-static int key_matches(const unsigned char *key1, const unsigned char *key2)
-{
-	int x;
-
-	for (x = 0; x < 16; x++) {
-		if (key1[x] != key2[x])
-			return 0;
-	}
-
-	return 1;
-}
+#define key_matches(a, b) (memcmp((a), (b), 16) == 0)
 
 static int verify_key(const unsigned char *key)
 {
@@ -1241,8 +1231,17 @@ int ast_unload_resource(const char *resource_name, enum ast_module_unload_mode f
 	}
 
 	if (!mod->flags.running || mod->flags.declined) {
-		ast_log(LOG_WARNING, "Unload failed, '%s' is not loaded.\n", resource_name);
-		error = 1;
+		/* If the user asks to unload a module that didn't load, obey.
+		 * Otherwise, we never dlclose() modules that fail to load,
+		 * which means if the module (shared object) is updated,
+		 * we can't load the updated module since we never dlclose()'d it.
+		 * Accordingly, obey the unload request so we can load the module
+		 * from scratch next time.
+		 */
+		ast_log(LOG_NOTICE, "Unloading module '%s' that previously declined to load\n", resource_name);
+		error = 0;
+		res = 0;
+		goto exit; /* Skip all the intervening !error checks, only the last one is relevant. */
 	}
 
 	if (!error && (mod->usecount > 0)) {
@@ -1284,6 +1283,7 @@ int ast_unload_resource(const char *resource_name, enum ast_module_unload_mode f
 	if (!error)
 		mod->flags.running = mod->flags.declined = 0;
 
+exit:
 	AST_DLLIST_UNLOCK(&module_list);
 
 	if (!error) {
@@ -1821,9 +1821,20 @@ prestart_error:
 	return res;
 }
 
-int ast_load_resource(const char *resource_name)
+enum ast_module_load_result ast_load_resource(const char *resource_name)
 {
-	int res;
+	struct ast_module *mod;
+	enum ast_module_load_result res;
+
+	/* If we're trying to load a module that previously declined to load,
+	 * transparently unload it first so we dlclose, then dlopen it afresh.
+	 * Otherwise, we won't actually load a (potentially) updated module. */
+	mod = find_resource(resource_name, 0);
+	if (mod && mod->flags.declined) {
+		ast_debug(1, "Module %s previously declined to load, unloading it first before loading again\n", resource_name);
+		ast_unload_resource(resource_name, 0);
+	}
+
 	AST_DLLIST_LOCK(&module_list);
 	res = load_resource(resource_name, 0, NULL, 0, 0);
 	if (!res) {

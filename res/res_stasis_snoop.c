@@ -135,9 +135,13 @@ static void publish_chanspy_message(struct stasis_app_snoop *snoop, int start)
 	}
 	ast_multi_channel_blob_add_channel(payload, "spyer_channel", snoop_snapshot);
 
-	spyee_snapshot = ast_channel_snapshot_get_latest(ast_channel_uniqueid(snoop->spyee_chan));
-	if (spyee_snapshot) {
-		ast_multi_channel_blob_add_channel(payload, "spyee_channel", spyee_snapshot);
+	if (snoop->spyee_chan) {
+		ast_channel_lock(snoop->spyee_chan);
+		spyee_snapshot = ast_channel_snapshot_get_latest(ast_channel_uniqueid(snoop->spyee_chan));
+		ast_channel_unlock(snoop->spyee_chan);
+		if (spyee_snapshot) {
+			ast_multi_channel_blob_add_channel(payload, "spyee_channel", spyee_snapshot);
+		}
 	}
 
 	message = stasis_message_create(type, payload);
@@ -188,21 +192,9 @@ static struct ast_frame *snoop_read(struct ast_channel *chan)
 	}
 
 	ast_audiohook_lock(&snoop->spy);
-	if (snoop->spy_direction != AST_AUDIOHOOK_DIRECTION_BOTH) {
-		/*
-		 * When a singular direction is chosen frames are still written to the
-		 * opposing direction's queue. Those frames must be read so the queue
-		 * does not continue to grow, however since they are not needed for the
-		 * selected direction they can be dropped.
-		 */
-		enum ast_audiohook_direction opposing_direction =
-			snoop->spy_direction == AST_AUDIOHOOK_DIRECTION_READ ?
-			AST_AUDIOHOOK_DIRECTION_WRITE : AST_AUDIOHOOK_DIRECTION_READ;
-		ast_frame_dtor(ast_audiohook_read_frame(&snoop->spy, snoop->spy_samples,
-							opposing_direction, snoop->spy_format));
-	}
 
 	frame = ast_audiohook_read_frame(&snoop->spy, snoop->spy_samples, snoop->spy_direction, snoop->spy_format);
+
 	ast_audiohook_unlock(&snoop->spy);
 
 	return frame ? frame : &snoop->silence;
@@ -284,6 +276,14 @@ static int snoop_setup_audiohook(struct ast_channel *chan, enum ast_audiohook_ty
 	} else if (requested_direction == STASIS_SNOOP_DIRECTION_BOTH) {
 		*direction = AST_AUDIOHOOK_DIRECTION_BOTH;
 	} else {
+		return -1;
+	}
+
+	/* Set the audiohook direction so we don't write unnecessary frames */
+	if (ast_audiohook_set_frame_feed_direction(audiohook, *direction)) {
+		/* If we are unable to set direction, the audiohook either failed to init
+		   or someone else started using it already.  If we don't bail here, we risk
+		   feeding frames that will never be read */
 		return -1;
 	}
 

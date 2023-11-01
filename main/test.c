@@ -313,6 +313,12 @@ void ast_test_set_result(struct ast_test *test, enum ast_test_result_state state
 	test->state = state;
 }
 
+void ast_test_capture_init(struct ast_test_capture *capture)
+{
+	capture->outbuf = capture->errbuf = NULL;
+	capture->pid = capture->exitcode = -1;
+}
+
 void ast_test_capture_free(struct ast_test_capture *capture)
 {
 	if (capture) {
@@ -336,8 +342,7 @@ int ast_test_capture_command(struct ast_test_capture *capture, const char *file,
 	int status = 0;
 	FILE *cmd = NULL, *out = NULL, *err = NULL;
 
-	memset(capture, 0, sizeof(*capture));
-	capture->pid = capture->exitcode = -1;
+	ast_test_capture_init(capture);
 
 	if (data != NULL && datalen > 0) {
 		if (pipe(fd0) == -1) {
@@ -358,7 +363,7 @@ int ast_test_capture_command(struct ast_test_capture *capture, const char *file,
 	}
 
 	if (pipe(fd2) == -1) {
-		ast_log(LOG_ERROR, "Couldn't open stdout pipe: %s\n", strerror(errno));
+		ast_log(LOG_ERROR, "Couldn't open stderr pipe: %s\n", strerror(errno));
 		goto cleanup;
 	}
 
@@ -467,7 +472,10 @@ int ast_test_capture_command(struct ast_test_capture *capture, const char *file,
 			 */
 			n = select(nfds, &readfds, &writefds, NULL, NULL);
 
-			if (FD_ISSET(fd0[1], &writefds)) {
+			/* A version of FD_ISSET() that is tolerant of -1 file descriptors */
+#define SAFE_FD_ISSET(fd, setptr) ((fd) != -1 && FD_ISSET((fd), setptr))
+
+			if (SAFE_FD_ISSET(fd0[1], &writefds)) {
 				n = write(fd0[1], data, datalen);
 				if (n > 0) {
 					data += n;
@@ -480,7 +488,7 @@ int ast_test_capture_command(struct ast_test_capture *capture, const char *file,
 				}
 			}
 
-			if (FD_ISSET(fd1[0], &readfds)) {
+			if (SAFE_FD_ISSET(fd1[0], &readfds)) {
 				n = read(fd1[0], buf, sizeof(buf));
 				if (n > 0) {
 					fwrite(buf, sizeof(char), n, out);
@@ -489,7 +497,7 @@ int ast_test_capture_command(struct ast_test_capture *capture, const char *file,
 				}
 			}
 
-			if (FD_ISSET(fd2[0], &readfds)) {
+			if (SAFE_FD_ISSET(fd2[0], &readfds)) {
 				n = read(fd2[0], buf, sizeof(buf));
 				if (n > 0) {
 					fwrite(buf, sizeof(char), n, err);
@@ -497,6 +505,8 @@ int ast_test_capture_command(struct ast_test_capture *capture, const char *file,
 					zclose(fd2[0]);
 				}
 			}
+
+#undef SAFE_FD_ISSET
 		}
 		status = 1;
 
@@ -705,8 +715,8 @@ static int test_execute_multiple(const char *name, const char *category, struct 
 		/* update total counts as well during this iteration
 		 * even if the current test did not execute this time */
 		last_results.total_time += test->time;
-		last_results.total_tests++;
 		if (test->state != AST_TEST_NOT_RUN) {
+			last_results.total_tests++;
 			if (test->state == AST_TEST_PASS) {
 				last_results.total_passed++;
 			} else {
@@ -783,10 +793,10 @@ static int test_generate_results(const char *name, const char *category, const c
 		 */
 		fprintf(f_xml, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
 		fprintf(f_xml, "<testsuites>\n");
-		fprintf(f_xml, "\t<testsuite errors=\"0\" time=\"%u.%u\" tests=\"%u\" "
+		fprintf(f_xml, "\t<testsuite errors=\"0\" time=\"%u.%u\" tests=\"%u\" failures=\"%u\" "
 				"name=\"AsteriskUnitTests\">\n",
 				last_results.total_time / 1000, last_results.total_time % 1000,
-				last_results.total_tests);
+				last_results.total_tests, last_results.total_failed);
 		fprintf(f_xml, "\t\t<properties>\n");
 		fprintf(f_xml, "\t\t\t<property name=\"version\" value=\"%s\"/>\n", ast_get_version());
 		fprintf(f_xml, "\t\t</properties>\n");

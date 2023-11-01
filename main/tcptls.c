@@ -126,7 +126,7 @@ static void write_openssl_error_to_log(void)
 		ast_log(LOG_ERROR, "%.*s\n", (int) length, buffer);
 	}
 
-	ast_free(buffer);
+	ast_std_free(buffer);
 }
 #endif
 
@@ -837,6 +837,7 @@ void ast_tcptls_server_start(struct ast_tcptls_session_args *desc)
 
 	if (desc->accept_fd != -1) {
 		close(desc->accept_fd);
+		desc->accept_fd = -1;
 	}
 
 	/* If there's no new server, stop here */

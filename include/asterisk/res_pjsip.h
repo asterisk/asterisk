@@ -87,6 +87,26 @@
 #define AST_STIR_SHAKEN_RESPONSE_STR_UNSUPPORTED_CREDENTIAL "Unsupported Credential"
 #define AST_STIR_SHAKEN_RESPONSE_STR_INVALID_IDENTITY_HEADER "Invalid Identity Header"
 
+/* ":12345" */
+#define COLON_PORT_STRLEN 6
+/*
+ * "<ipaddr>:<port>"
+ * PJ_INET6_ADDRSTRLEN includes the NULL terminator
+ */
+#define IP6ADDR_COLON_PORT_BUFLEN (PJ_INET6_ADDRSTRLEN + COLON_PORT_STRLEN)
+
+/*!
+ * \brief Fill a buffer with a pjsip transport's remote ip address and port
+ *
+ * \param _transport The pjsip_transport to use
+ * \param _dest The destination buffer of at least IP6ADDR_COLON_PORT_BUFLEN bytes
+ */
+#define AST_SIP_MAKE_REMOTE_IPADDR_PORT_STR(_transport, _dest) \
+	snprintf(_dest, IP6ADDR_COLON_PORT_BUFLEN, \
+		PJSTR_PRINTF_SPEC ":%d", \
+		PJSTR_PRINTF_VAR(_transport->remote_name.host), \
+		_transport->remote_name.port);
+
 /* Forward declarations of PJSIP stuff */
 struct pjsip_rx_data;
 struct pjsip_module;
@@ -321,6 +341,59 @@ struct ast_sip_nat_hook {
 	void (*outgoing_external_message)(struct pjsip_tx_data *tdata, struct ast_sip_transport *transport);
 };
 
+/*! \brief Structure which contains information about a transport */
+struct ast_sip_request_transport_details {
+	/*! \brief Type of transport */
+	enum ast_transport type;
+	/*! \brief Potential pointer to the transport itself, if UDP */
+	pjsip_transport *transport;
+	/*! \brief Potential pointer to the transport factory itself, if TCP/TLS */
+	pjsip_tpfactory *factory;
+	/*! \brief Local address for transport */
+	pj_str_t local_address;
+	/*! \brief Local port for transport */
+	int local_port;
+};
+
+/*!
+ * \brief The kind of security negotiation
+ */
+enum ast_sip_security_negotiation {
+	/*! No security mechanism negotiation */
+	AST_SIP_SECURITY_NEG_NONE = 0,
+	/*! Use mediasec security mechanism negotiation */
+	AST_SIP_SECURITY_NEG_MEDIASEC,
+	/* Add RFC 3329 (sec-agree) mechanism negotiation in the future */
+};
+
+/*!
+ * \brief The security mechanism type
+ */
+enum ast_sip_security_mechanism_type {
+	AST_SIP_SECURITY_MECH_NONE = 0,
+	/* Use msrp-tls as security mechanism */
+	AST_SIP_SECURITY_MECH_MSRP_TLS,
+	/* Use sdes-srtp as security mechanism */
+	AST_SIP_SECURITY_MECH_SDES_SRTP,
+	/* Use dtls-srtp as security mechanism */
+	AST_SIP_SECURITY_MECH_DTLS_SRTP,
+	/* Add RFC 3329 (sec-agree) mechanisms like tle, digest, ipsec-ike in the future */
+};
+
+/*!
+ * \brief Structure representing a security mechanism as defined in RFC 3329
+ */
+struct ast_sip_security_mechanism {
+	/* Used to determine which security mechanism to use. */
+	enum ast_sip_security_mechanism_type type;
+	/* The preference of this security mechanism. The higher the value, the more preferred. */
+	float qvalue;
+	/* Optional mechanism parameters. */
+	struct ast_vector_string mechanism_parameters;
+};
+
+AST_VECTOR(ast_sip_security_mechanism_vector, struct ast_sip_security_mechanism *);
+
 /*!
  * \brief Contact associated with an address of record
  */
@@ -392,6 +465,13 @@ struct ast_sip_contact_status {
 	);
 	/*! The round trip time in microseconds */
 	int64_t rtt;
+	/*!
+	 * The security mechanism list of the contact (RFC 3329).
+	 * Stores the values of Security-Server headers in 401/421/494 responses to an
+	 * in-dialog request or successful outbound registration which will be used to
+	 * set the Security-Verify headers of all subsequent requests to the contact.
+	 */
+	struct ast_sip_security_mechanism_vector security_mechanisms;
 	/*! Current status for a contact (default - unavailable) */
 	enum ast_sip_contact_status_type status;
 	/*! Last status for a contact (default - unavailable) */
@@ -449,6 +529,20 @@ struct ast_sip_contact_wrapper {
 	char *contact_id;
 	/*! Pointer to the actual contact. */
 	struct ast_sip_contact *contact;
+};
+
+/*!
+ * \brief 100rel modes for SIP endpoints
+ */
+enum ast_sip_100rel_mode {
+	/*! Do not support 100rel. (no) */
+	AST_SIP_100REL_UNSUPPORTED = 0,
+	/*! As UAC, indicate 100rel support in Supported header. (yes) */
+	AST_SIP_100REL_SUPPORTED,
+	/*! As UAS, send 1xx responses reliably, if the UAC indicated its support. Otherwise same as AST_SIP_100REL_SUPPORTED. (peer_supported) */
+	AST_SIP_100REL_PEER_SUPPORTED,
+	/*! Require the use of 100rel. (required) */
+	AST_SIP_100REL_REQUIRED,
 };
 
 /*!
@@ -975,6 +1069,10 @@ struct ast_sip_endpoint {
 	unsigned int suppress_q850_reason_headers;
 	/*! Ignore 183 if no SDP is present */
 	unsigned int ignore_183_without_sdp;
+	/*! Type of security negotiation to use (RFC 3329). */
+	enum ast_sip_security_negotiation security_negotiation;
+	/*! Client security mechanisms (RFC 3329). */
+	struct ast_sip_security_mechanism_vector security_mechanisms;
 	/*! Set which STIR/SHAKEN behaviors we want on this endpoint */
 	unsigned int stir_shaken;
 	/*! Should we authenticate OPTIONS requests per RFC 3261? */
@@ -983,6 +1081,12 @@ struct ast_sip_endpoint {
 	AST_STRING_FIELD_EXTENDED(geoloc_incoming_call_profile);
 	/*! The name of the geoloc profile to apply when Asterisk sends a call to this endpoint */
 	AST_STRING_FIELD_EXTENDED(geoloc_outgoing_call_profile);
+	/*! The context to use for overlap dialing, if different from the endpoint's context */
+	AST_STRING_FIELD_EXTENDED(overlap_context);
+	/*! 100rel mode to use with this endpoint */
+	enum ast_sip_100rel_mode rel100;
+	/*! Send Advice-of-Charge messages */
+	unsigned int send_aoc;
 };
 
 /*! URI parameter for symmetric transport */
@@ -1006,8 +1110,8 @@ extern pjsip_media_type pjsip_media_type_text_plain;
 /*!
  * \brief Compare pjsip media types
  *
- * \param pjsip_media_type a
- * \param pjsip_media_type b
+ * \param a the first media type
+ * \param b the second media type
  * \retval 1 Media types are equal
  * \retval 0 Media types are not equal
  */
@@ -1022,6 +1126,100 @@ int ast_sip_are_media_types_equal(pjsip_media_type *a, pjsip_media_type *b);
  * \retval 0 Media types are not equal
  */
 int ast_sip_is_media_type_in(pjsip_media_type *a, ...) attribute_sentinel;
+
+/*!
+ * \brief Add security headers to transmission data
+ *
+ * \param security_mechanisms Vector of security mechanisms.
+ * \param header_name The header name under which to add the security mechanisms.
+ * One of Security-Client, Security-Server, Security-Verify.
+ * \param add_qval If zero, don't add the q-value to the header.
+ * \param tdata The transmission data.
+ * \retval 0 Success
+ * \retval non-zero Failure
+ */
+int ast_sip_add_security_headers(struct ast_sip_security_mechanism_vector *security_mechanisms,
+		const char *header_name, int add_qval, pjsip_tx_data *tdata);
+
+/*!
+ * \brief Append to security mechanism vector from SIP header
+ *
+ * \param hdr The header of the security mechanisms.
+ * \param security_mechanisms Vector of security mechanisms to append to.
+ * Header name must be one of Security-Client, Security-Server, Security-Verify.
+ */
+void ast_sip_header_to_security_mechanism(const pjsip_generic_string_hdr *hdr,
+		struct ast_sip_security_mechanism_vector *security_mechanisms);
+
+/*!
+ * \brief Initialize security mechanism vector from string of security mechanisms.
+ *
+ * \param security_mechanism Pointer to vector of security mechanisms to initialize.
+ * \param value String of security mechanisms as defined in RFC 3329.
+ * \retval 0 Success
+ * \retval non-zero Failure
+ */
+int ast_sip_security_mechanism_vector_init(struct ast_sip_security_mechanism_vector *security_mechanism, const char *value);
+
+/*!
+ * \brief Removes all headers of a specific name and value from a pjsip_msg.
+ *
+ * \param msg PJSIP message from which to remove headers.
+ * \param hdr_name Name of the header to remove.
+ * \param value Optional string value of the header to remove.
+ * If NULL, remove all headers of given hdr_name.
+ */
+void ast_sip_remove_headers_by_name_and_value(pjsip_msg *msg, const pj_str_t *hdr_name, const char* value);
+
+/*!
+ * \brief Duplicate a security mechanism.
+ *
+ * \param dst Security mechanism to duplicate to.
+ * \param src Security mechanism to duplicate.
+ */
+void ast_sip_security_mechanisms_vector_copy(struct ast_sip_security_mechanism_vector *dst,
+	const struct ast_sip_security_mechanism_vector *src);
+
+/*!
+ * \brief Free contents of a security mechanism vector.
+ *
+ * \param security_mechanisms Vector whose contents are to be freed
+ */
+void ast_sip_security_mechanisms_vector_destroy(struct ast_sip_security_mechanism_vector *security_mechanisms);
+
+/*!
+ * \brief Allocate a security mechanism from a string.
+ *
+ * \param security_mechanism Pointer-pointer to the security mechanism to allocate.
+ * \param value The security mechanism string as defined in RFC 3329 (section 2.2)
+ *				in the form <mechanism_name>;q=<q_value>;<mechanism_parameters>
+ * \retval 0 Success
+ * \retval non-zero Failure
+ */
+int ast_sip_str_to_security_mechanism(struct ast_sip_security_mechanism **security_mechanism, const char *value);
+
+/*!
+ * \brief Writes the security mechanisms of an endpoint into a buffer as a string and returns the buffer.
+ *
+ * \note The buffer must be freed by the caller.
+ *
+ * \param endpoint Pointer to endpoint.
+ * \param add_qvalue If non-zero, the q-value is printed as well
+ * \param buf The buffer to write the string into
+ * \retval 0 Success
+ * \retval non-zero Failure
+ */
+int ast_sip_security_mechanisms_to_str(const struct ast_sip_security_mechanism_vector *security_mechanisms, int add_qvalue, char **buf);
+
+/*!
+ * \brief Set the security negotiation based on a given string.
+ *
+ * \param security_negotiation Security negotiation enum to set.
+ * \param val String that represents a security_negotiation value.
+ * \retval 0 Success
+ * \retval non-zero Failure
+ */
+int ast_sip_set_security_negotiation(enum ast_sip_security_negotiation *security_negotiation, const char *val);
 
 /*!
  * \brief Initialize an auth vector with the configured values.
@@ -3324,18 +3522,65 @@ struct ast_threadpool *ast_sip_threadpool(void);
  * \brief Retrieve transport state
  * \since 13.7.1
  *
- * @param transport_id
- * @returns transport_state
+ * \param transport_id
+ * \retval transport_state
  *
  * \note ao2_cleanup(...) or ao2_ref(...,  -1) must be called on the returned object
  */
 struct ast_sip_transport_state *ast_sip_get_transport_state(const char *transport_id);
 
 /*!
+ * \brief Return the SIP URI of the Contact header
+ * 
+ * \param tdata
+ * \retval Pointer to SIP URI of Contact
+ * \retval NULL if Contact header not found or not a SIP(S) URI
+ *
+ * \note Do not free the returned object.
+ */
+pjsip_sip_uri *ast_sip_get_contact_sip_uri(pjsip_tx_data *tdata);
+
+/*!
+ * \brief Returns the transport state currently in use based on request transport details
+ *
+ * \param details
+ * \retval transport_state
+ *
+ * \note ao2_cleanup(...) or ao2_ref(...,  -1) must be called on the returned object
+ */
+struct ast_sip_transport_state *ast_sip_find_transport_state_in_use(struct ast_sip_request_transport_details *details);
+
+/*!
+ * \brief Sets request transport details based on tdata
+ *
+ * \param details pre-allocated request transport details to set
+ * \param tdata
+ * \param use_ipv6 if non-zero, ipv6 transports will be considered
+ * \retval 0 success
+ * \retval -1 failure
+ */
+int ast_sip_set_request_transport_details(struct ast_sip_request_transport_details *details, pjsip_tx_data *tdata, int use_ipv6);
+
+/*!
+ * \brief Replace domain and port of SIP URI to point to (external) signaling address of this Asterisk instance
+ *
+ * \param uri
+ * \param tdata
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ *
+ * \note Uses domain and port in Contact header if it exists, otherwise the local URI of the dialog is used if the
+ *       message is sent within the context of a dialog. Further, NAT settings are considered - i.e. if the target
+ *       is not in the localnet, the external_signaling_address and port are used.
+ */
+int ast_sip_rewrite_uri_to_local(pjsip_sip_uri *uri, pjsip_tx_data *tdata);
+
+/*!
  * \brief Retrieves all transport states
  * \since 13.7.1
  *
- * @returns ao2_container
+ * \retval ao2_container
  *
  * \note ao2_cleanup(...) or ao2_ref(...,  -1) must be called on the returned object
  */
@@ -3437,6 +3682,25 @@ struct ast_sip_service_route_vector *ast_sip_service_route_vector_alloc(void);
 void ast_sip_service_route_vector_destroy(struct ast_sip_service_route_vector *service_routes);
 
 /*!
+ * \brief Set the ID for a connected line update
+ *
+ * \retval -1 on failure, 0 on success
+ */
+int ast_sip_set_id_connected_line(struct pjsip_rx_data *rdata, struct ast_party_id *id);
+
+/*!
+ * \brief Set the ID from an INVITE
+ *
+ * \param rdata
+ * \param id ID structure to fill
+ * \param default_id Default ID structure with data to use (for non-trusted endpoints)
+ * \param trust_inbound Whether or not the endpoint is trusted (controls whether PAI or RPID can be used)
+ *
+ * \retval -1 on failure, 0 on success
+ */
+int ast_sip_set_id_from_invite(struct pjsip_rx_data *rdata, struct ast_party_id *id, struct ast_party_id *default_id, int trust_inbound);
+
+/*!
  * \brief Set name and number information on an identity header.
  *
  * \param pool Memory pool to use for string duplication
@@ -3445,6 +3709,105 @@ void ast_sip_service_route_vector_destroy(struct ast_sip_service_route_vector *s
  */
 void ast_sip_modify_id_header(pj_pool_t *pool, pjsip_fromto_hdr *id_hdr,
 	const struct ast_party_id *id);
+
+/*!
+ * \brief Retrieves an endpoint and URI from the "to" string.
+ *
+ * This URI is used as the Request URI.
+ *
+ * Expects the given 'to' to be in one of the following formats:
+ * Why we allow so many is a mystery.
+ *
+ * Basic:
+ *
+ *      endpoint        : We'll get URI from the default aor/contact
+ *      endpoint/aor    : We'll get the URI from the specific aor/contact
+ *      endpoint@domain : We toss the domain part and just use the endpoint
+ *
+ *   These all use the endpoint and specified URI:
+ * \verbatim
+        endpoint/<sip[s]:host>
+        endpoint/<sip[s]:user@host>
+        endpoint/"Bob" <sip[s]:host>
+        endpoint/"Bob" <sip[s]:user@host>
+        endpoint/sip[s]:host
+        endpoint/sip[s]:user@host
+        endpoint/host
+        endpoint/user@host
+   \endverbatim
+ *
+ *   These all use the default endpoint and specified URI:
+ * \verbatim
+        <sip[s]:host>
+        <sip[s]:user@host>
+        "Bob" <sip[s]:host>
+        "Bob" <sip[s]:user@host>
+        sip[s]:host
+        sip[s]:user@host
+   \endverbatim
+ *
+ *   These use the default endpoint and specified host:
+ * \verbatim
+        host
+        user@host
+   \endverbatim
+ *
+ *   This form is similar to a dialstring:
+ * \verbatim
+        PJSIP/user@endpoint
+   \endverbatim
+ *
+ *   In this case, the user will be added to the endpoint contact's URI.
+ *   If the contact URI already has a user, it will be replaced.
+ *
+ * The ones that have the sip[s] scheme are the easiest to parse.
+ * The rest all have some issue.
+ *
+ *      endpoint vs host              : We have to test for endpoint first
+ *      endpoint/aor vs endpoint/host : We have to test for aor first
+ *                                      What if there's an aor with the same
+ *                                      name as the host?
+ *      endpoint@domain vs user@host  : We have to test for endpoint first.
+ *                                      What if there's an endpoint with the
+ *                                      same name as the user?
+ *
+ * \param to 'To' field with possible endpoint
+ * \param get_default_outbound If nonzero, try to retrieve the default
+ * 			       outbound endpoint if no endpoint was found.
+ * 			       Otherwise, return NULL if no endpoint was found.
+ * \param uri Pointer to a char* which will be set to the URI.
+ *            Always must be ast_free'd by the caller - even if the return value is NULL!
+ *
+ * \note The logic below could probably be condensed but then it wouldn't be
+ * as clear.
+ */
+struct ast_sip_endpoint *ast_sip_get_endpoint(const char *to, int get_default_outbound, char **uri);
+
+/*!
+ * \brief Replace the To URI in the tdata with the supplied one
+ *
+ * \param tdata the outbound message data structure
+ * \param to URI to replace the To URI with. Must be a valid SIP URI.
+ *
+ * \retval 0: success, -1: failure
+ */
+int ast_sip_update_to_uri(pjsip_tx_data *tdata, const char *to);
+
+/*!
+ * \brief Overwrite fields in the outbound 'From' header
+ *
+ * The outbound 'From' header is created/added in ast_sip_create_request with
+ * default data.  If available that data may be info specified in the 'from_user'
+ * and 'from_domain' options found on the endpoint.  That information will be
+ * overwritten with data in the given 'from' parameter.
+ *
+ * \param tdata the outbound message data structure
+ * \param from info to copy into the header.
+ *		  Can be either a SIP URI, or in the format user[@domain]
+ *
+ * \retval 0: success, -1: failure
+ */
+int ast_sip_update_from(pjsip_tx_data *tdata, char *from);
 
 /*!
  * \brief Retrieve the unidentified request security event thresholds
@@ -3600,6 +3963,7 @@ enum ast_transport_monitor_reg {
 
 /*!
  * \brief Register a reliable transport shutdown monitor callback.
+ * \deprecated Replaced with ast_sip_transport_monitor_register_key().
  * \since 13.20.0
  *
  * \param transport Transport to monitor for shutdown.
@@ -3618,7 +3982,28 @@ enum ast_transport_monitor_reg ast_sip_transport_monitor_register(pjsip_transpor
 	ast_transport_monitor_shutdown_cb cb, void *ao2_data);
 
 /*!
+ * \brief Register a reliable transport shutdown monitor callback.
+ *
+ * \param transport_key Key for the transport to monitor for shutdown.
+ *                      Create the key with AST_SIP_MAKE_REMOTE_IPADDR_PORT_STR.
+ * \param cb Who to call when transport is shutdown.
+ * \param ao2_data Data to pass with the callback.
+ *
+ * \note The data object passed will have its reference count automatically
+ * incremented by this call and automatically decremented after the callback
+ * runs or when the callback is unregistered.
+ *
+ * There is no checking for duplicate registrations.
+ *
+ * \return enum ast_transport_monitor_reg
+ */
+enum ast_transport_monitor_reg ast_sip_transport_monitor_register_key(
+	const char *transport_key, ast_transport_monitor_shutdown_cb cb,
+	void *ao2_data);
+
+/*!
  * \brief Register a reliable transport shutdown monitor callback replacing any duplicate.
+ * \deprecated Replaced with ast_sip_transport_monitor_register_replace_key().
  * \since 13.26.0
  * \since 16.3.0
  *
@@ -3641,7 +4026,31 @@ enum ast_transport_monitor_reg ast_sip_transport_monitor_register_replace(pjsip_
 	ast_transport_monitor_shutdown_cb cb, void *ao2_data, ast_transport_monitor_data_matcher matches);
 
 /*!
+ * \brief Register a reliable transport shutdown monitor callback replacing any duplicate.
+ *
+ * \param transport_key Key for the transport to monitor for shutdown.
+ *                      Create the key with AST_SIP_MAKE_REMOTE_IPADDR_PORT_STR.
+ * \param cb Who to call when transport is shutdown.
+ * \param ao2_data Data to pass with the callback.
+ * \param matches Matcher function that returns true if data matches a previously
+ *                registered data object
+ *
+ * \note The data object passed will have its reference count automatically
+ * incremented by this call and automatically decremented after the callback
+ * runs or when the callback is unregistered.
+ *
+ * This function checks for duplicates, and overwrites/replaces the old monitor
+ * with the given one.
+ *
+ * \return enum ast_transport_monitor_reg
+ */
+enum ast_transport_monitor_reg ast_sip_transport_monitor_register_replace_key(
+	const char *transport_key, ast_transport_monitor_shutdown_cb cb,
+	void *ao2_data, ast_transport_monitor_data_matcher matches);
+
+/*!
  * \brief Unregister a reliable transport shutdown monitor
+ * \deprecated Replaced with ast_sip_transport_monitor_unregister_key().
  * \since 13.20.0
  *
  * \param transport Transport to monitor for shutdown.
@@ -3655,6 +4064,23 @@ enum ast_transport_monitor_reg ast_sip_transport_monitor_register_replace(pjsip_
  * automatically decremented.
  */
 void ast_sip_transport_monitor_unregister(pjsip_transport *transport,
+	ast_transport_monitor_shutdown_cb cb, void *data, ast_transport_monitor_data_matcher matches);
+
+/*!
+ * \brief Unregister a reliable transport shutdown monitor
+ *
+ * \param transport_key Key for the transport to monitor for shutdown.
+ *                      Create the key with AST_SIP_MAKE_REMOTE_IPADDR_PORT_STR.
+ * \param cb The callback that was used for the original register.
+ * \param data Data to pass to the matcher. May be NULL and does NOT need to be an ao2 object.
+ *             If NULL, all monitors with the provided callback are unregistered.
+ * \param matches Matcher function that returns true if data matches the previously
+ *                registered data object.  If NULL, a simple pointer comparison is done.
+ *
+ * \note The data object passed into the original register will have its reference count
+ * automatically decremented.
+ */
+void ast_sip_transport_monitor_unregister_key(const char *transport_key,
 	ast_transport_monitor_shutdown_cb cb, void *data, ast_transport_monitor_data_matcher matches);
 
 /*!
@@ -3713,7 +4139,7 @@ int ast_sip_is_uri_sip_sips(pjsip_uri *uri);
  *
  * \param uri The pjsip_uri to check
  *
- * \retva; 1 if allowed
+ * \retval 1 if allowed
  * \retval 0 if not allowed
  */
 int ast_sip_is_allowed_uri(pjsip_uri *uri);
@@ -3745,16 +4171,46 @@ const pj_str_t *ast_sip_pjsip_uri_get_username(pjsip_uri *uri);
 const pj_str_t *ast_sip_pjsip_uri_get_hostname(pjsip_uri *uri);
 
 /*!
- * \brief Get the other_param portion of the pjsip_uri
+ * \brief Find an 'other' SIP/SIPS URI parameter by name
  * \since 16.28.0
  *
- * \param uri The pjsip_uri to get hte other_param from
+ * A convenience function to find a named parameter from a SIP/SIPS URI. This
+ * function will not find the following standard SIP/SIPS URI parameters which
+ * are stored separately by PJSIP:
+ *
+ * \li `user`
+ * \li `method`
+ * \li `transport`
+ * \li `ttl`
+ * \li `lr`
+ * \li `maddr`
+ *
+ * \param uri The pjsip_uri to get the parameter from
+ * \param param_str The name of the parameter to find
  *
  * \note This function will check what kind of URI it receives and return
- * the other_param based off of that
+ * the parameter based off of that
  *
- * \return other_param or NULL if not present
+ * \return Find parameter or NULL if not present
  */
 struct pjsip_param *ast_sip_pjsip_uri_get_other_param(pjsip_uri *uri, const pj_str_t *param_str);
+
+/*!
+ * \brief Retrieve the system setting 'all_codecs_on_empty_reinvite'.
+ *
+ * \retval non zero if we should return all codecs on empty re-INVITE
+ */
+unsigned int ast_sip_get_all_codecs_on_empty_reinvite(void);
+
+
+/*!
+ * \brief Convert SIP hangup causes to Asterisk hangup causes
+ *
+ * \param cause SIP cause
+ *
+ * \retval matched cause code from causes.h
+ */
+const int ast_sip_hangup_sip2cause(int cause);
+
 
 #endif /* _RES_PJSIP_H */

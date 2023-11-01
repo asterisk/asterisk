@@ -616,6 +616,8 @@
 ;aggregate_mwi=yes      ;  (default: "yes")
 ;allow= ; Media Codec s to allow (default: "")
 ;allow_overlap=yes ; Enable RFC3578 overlap dialing support. (default: "yes")
+;overlap_context=default ; Context to used for overlap dialing matches
+                         ; (default: same as context option)
 ;aors=  ; AoR s to be used with the endpoint (default: "")
 ;auth=  ; Authentication Object s associated with the endpoint (default: "")
 ;callerid=      ; CallerID information for the endpoint (default: "")
@@ -964,6 +966,11 @@
                 ; by the channel driver from the dialplan before they're forwarded
                 ; the remote endpoint.
 ;
+; send_aoc =
+                ; This options turns on and off support for sending AOC to endpoints.
+                ; AOC updates can be sent using the AOCMessage AMI action or come
+                ; from PRI channels.
+                ; (default: no)
 
 
 ;==========================AUTH SECTION OPTIONS=========================
@@ -1335,6 +1342,13 @@
                     ; that the User Agent is capable of accepting a REFER request with
                     ; creating an implicit subscription (see RFC 4488).
                     ; (default: "yes")
+
+;all_codecs_on_empty_reinvite=yes
+                    ; On reception of a re-INVITE without SDP Asterisk will send an SDP
+                    ; offer in the 200 OK response containing all configured codecs on the
+                    ; endpoint, instead of simply those that have already been negotiated.
+                    ; RFC 3261 specifies this as a SHOULD requirement.
+                    ; (default: "no")
 
 ;allow_sending_180_after_183=yes	; Allow Asterisk to send 180 Ringing to an endpoint
 					; after 183 Session Progress has been send.

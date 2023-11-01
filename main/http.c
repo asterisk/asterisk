@@ -396,10 +396,12 @@ static int httpstatus_callback(struct ast_tcptls_session_instance *ser,
 
 	ast_str_append(&out, 0, "<tr><td><i>Server</i></td><td><b>%s</b></td></tr>\r\n", http_server_name);
 	ast_str_append(&out, 0, "<tr><td><i>Prefix</i></td><td><b>%s</b></td></tr>\r\n", prefix);
-	ast_str_append(&out, 0, "<tr><td><i>Bind Address</i></td><td><b>%s</b></td></tr>\r\n",
-		       ast_sockaddr_stringify_addr(&global_http_server->args.old_address));
-	ast_str_append(&out, 0, "<tr><td><i>Bind Port</i></td><td><b>%s</b></td></tr>\r\n",
-		       ast_sockaddr_stringify_port(&global_http_server->args.old_address));
+	if (global_http_server) {
+		ast_str_append(&out, 0, "<tr><td><i>Bind Address</i></td><td><b>%s</b></td></tr>\r\n",
+			       ast_sockaddr_stringify_addr(&global_http_server->args.old_address));
+		ast_str_append(&out, 0, "<tr><td><i>Bind Port</i></td><td><b>%s</b></td></tr>\r\n",
+			       ast_sockaddr_stringify_port(&global_http_server->args.old_address));
+	}
 	if (http_tls_cfg.enabled) {
 		ast_str_append(&out, 0, "<tr><td><i>SSL Bind Port</i></td><td><b>%s</b></td></tr>\r\n",
 			       ast_sockaddr_stringify_port(&https_desc.old_address));

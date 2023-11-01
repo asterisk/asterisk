@@ -57,6 +57,15 @@
 			<parameter name="channel" required="false">
 				<para>Channel where digits will be played</para>
 			</parameter>
+			<parameter name="options">
+				<optionlist>
+					<option name="a">
+						<para>Answer the channel specified by the <literal>channel</literal>
+						parameter if it is not already up. If no <literal>channel</literal>
+						parameter is provided, the current channel will be answered.</para>
+					</option>
+				</optionlist>
+			</parameter>
 		</syntax>
 		<description>
 			<para>It will send all digits or terminate if it encounters an error.</para>
@@ -88,7 +97,37 @@
 			<para>Plays a dtmf digit on the specified channel.</para>
 		</description>
 	</manager>
+	<manager name="SendFlash" language="en_US">
+		<synopsis>
+			Send a hook flash on a specific channel.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Channel" required="true">
+				<para>Channel name to send hook flash to.</para>
+			</parameter>
+			<parameter name="Receive" required="false">
+				<para>Emulate receiving a hook flash on this channel instead of sending it out.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Sends a hook flash on the specified channel.</para>
+		</description>
+	</manager>
  ***/
+
+enum read_option_flags {
+	OPT_ANSWER = (1 << 0),
+};
+
+AST_APP_OPTIONS(senddtmf_app_options, {
+	AST_APP_OPTION('a', OPT_ANSWER),
+});
+
+enum {
+	/* note: this entry _MUST_ be the last one in the enum */
+	OPT_ARG_ARRAY_SIZE,
+};
 
 static const char senddtmf_name[] = "SendDTMF";
 
@@ -100,11 +139,14 @@ static int senddtmf_exec(struct ast_channel *chan, const char *vdata)
 	struct ast_channel *chan_found = NULL;
 	struct ast_channel *chan_dest = chan;
 	struct ast_channel *chan_autoservice = NULL;
+	char *opt_args[OPT_ARG_ARRAY_SIZE];
+	struct ast_flags flags = {0};
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(digits);
 		AST_APP_ARG(dinterval);
 		AST_APP_ARG(duration);
 		AST_APP_ARG(channel);
+		AST_APP_ARG(options);
 	);
 
 	if (ast_strlen_zero(vdata)) {
@@ -135,6 +177,12 @@ static int senddtmf_exec(struct ast_channel *chan, const char *vdata)
 		if (chan_found != chan) {
 			chan_autoservice = chan;
 		}
+	}
+	if (!ast_strlen_zero(args.options)) {
+		ast_app_parse_options(senddtmf_app_options, &flags, opt_args, args.options);
+	}
+	if (ast_test_flag(&flags, OPT_ANSWER)) {
+		ast_auto_answer(chan_dest);
 	}
 	res = ast_dtmf_stream(chan_dest, chan_autoservice, args.digits,
 		dinterval <= 0 ? 250 : dinterval, duration);
@@ -187,12 +235,41 @@ static int manager_play_dtmf(struct mansession *s, const struct message *m)
 	return 0;
 }
 
+static int manager_send_flash(struct mansession *s, const struct message *m)
+{
+	const char *channel = astman_get_header(m, "Channel");
+	const char *receive_s = astman_get_header(m, "Receive");
+	struct ast_channel *chan;
+
+	if (!(chan = ast_channel_get_by_name(channel))) {
+		astman_send_error(s, m, "Channel not found");
+		return 0;
+	}
+
+	if (ast_true(receive_s)) {
+		struct ast_frame f = { AST_FRAME_CONTROL, };
+		f.subclass.integer = AST_CONTROL_FLASH;
+		ast_queue_frame(chan, &f);
+	} else {
+		struct ast_frame f = { AST_FRAME_CONTROL, };
+		f.subclass.integer = AST_CONTROL_FLASH;
+		ast_channel_lock(chan);
+		ast_write(chan, &f);
+		ast_channel_unlock(chan);
+	}
+
+	chan = ast_channel_unref(chan);
+	astman_send_ack(s, m, "Flash successfully queued");
+	return 0;
+}
+
 static int unload_module(void)
 {
 	int res;
 
 	res = ast_unregister_application(senddtmf_name);
 	res |= ast_manager_unregister("PlayDTMF");
+	res |= ast_manager_unregister("SendFlash");
 
 	return res;
 }
@@ -202,6 +279,7 @@ static int load_module(void)
 	int res;
 
 	res = ast_manager_register_xml("PlayDTMF", EVENT_FLAG_CALL, manager_play_dtmf);
+	res |= ast_manager_register_xml("SendFlash", EVENT_FLAG_CALL, manager_send_flash);
 	res |= ast_register_application_xml(senddtmf_name, senddtmf_exec);
 
 	return res;

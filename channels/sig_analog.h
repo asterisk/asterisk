@@ -116,6 +116,13 @@ enum analog_dsp_digitmode {
 	ANALOG_DIGITMODE_MF,
 };
 
+enum analog_dialmode {
+	ANALOG_DIALMODE_BOTH = 0,
+	ANALOG_DIALMODE_PULSE,
+	ANALOG_DIALMODE_DTMF,
+	ANALOG_DIALMODE_NONE,
+};
+
 enum analog_cid_start {
 	ANALOG_CID_START_POLARITY = 1,
 	ANALOG_CID_START_POLARITY_IN,
@@ -282,16 +289,19 @@ struct analog_pvt {
 	unsigned int ani_wink_time:16;			/* Safe wait time before we wink to start ANI spill */
 
 	unsigned int answeronpolarityswitch:1;
+	unsigned int calledsubscriberheld:1;	/*!< TRUE if a single incoming call can hold an FXS channel */
 	unsigned int callreturn:1;
 	unsigned int cancallforward:1;
 	unsigned int canpark:1;
 	unsigned int dahditrcallerid:1;			/*!< should we use the callerid from incoming call on dahdi transfer or not */
 	unsigned int hanguponpolarityswitch:1;
 	unsigned int immediate:1;
+	unsigned int immediatering:1;			/*!< TRUE if ringing should be provided for immediate execution */
 	unsigned int permcallwaiting:1;			/*!< TRUE if call waiting is enabled. (Configured option) */
 	unsigned int permhidecallerid:1;		/*!< Whether to hide our outgoing caller ID or not */
 	unsigned int pulse:1;
 	unsigned int threewaycalling:1;
+	unsigned int threewaysilenthold:1;		/*!< Whether to time out a three-way dial tone to silence */
 	unsigned int transfer:1;
 	unsigned int transfertobusy:1;			/*!< allow flash-transfers to busy channels */
 	unsigned int use_callerid:1;			/*!< Whether or not to use caller id on this channel */
@@ -308,6 +318,7 @@ struct analog_pvt {
 	int channel;					/*!< Channel Number */
 
 	enum analog_sigtype outsigmod;
+	enum analog_dialmode dialmode;	/*!< Which of pulse and/or tone dialing to support */
 	int echotraining;
 	int cid_signalling;				/*!< Asterisk callerid type we're using */
 	int polarityonanswerdelay;
@@ -320,6 +331,7 @@ struct analog_pvt {
 
 	/* XXX: All variables after this are internal */
 	unsigned int callwaiting:1;		/*!< TRUE if call waiting is enabled. (Active option) */
+	unsigned int cshactive:1;		/*!< TRUE if FXS channel is currently held by an incoming call */
 	unsigned int dialednone:1;
 	unsigned int dialing:1;			/*!< TRUE if in the process of dialing digits or sending something */
 	unsigned int dnd:1;				/*!< TRUE if Do-Not-Disturb is enabled. */
@@ -334,12 +346,15 @@ struct analog_pvt {
 	 * gives a positive reply.
 	 */
 	unsigned int callwaitcas:1;
+	unsigned int call_qualifier:1;	/*!< Call qualifier delivery */
 
 	char callwait_num[AST_MAX_EXTENSION];
 	char callwait_name[AST_MAX_EXTENSION];
 	char lastcid_num[AST_MAX_EXTENSION];
 	char lastcid_name[AST_MAX_EXTENSION];
 	struct ast_party_caller caller;
+	int redirecting_reason;			/*!< Redirecting reason */
+
 	int cidrings;					/*!< Which ring to deliver CID on */
 	char echorest[20];
 	int polarity;

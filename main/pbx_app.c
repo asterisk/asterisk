@@ -519,6 +519,8 @@ int ast_pbx_exec_application(struct ast_channel *chan, const char *app_name, con
 			}
 			res = pbx_exec(chan, app, app_args);
 		}
+		/* Manually make a snapshot now, since pbx_exec won't necessarily get called again immediately. */
+		ast_channel_publish_snapshot(chan);
 	}
 	return res;
 }

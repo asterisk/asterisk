@@ -189,7 +189,7 @@ static int check_header(FILE *f, int hz)
 		}
 		if(memcmp(buf, "data", 4) == 0 )
 			break;
-		ast_log(LOG_DEBUG, "Skipping unknown block '%.4s'\n", buf);
+		ast_debug(1, "Skipping unknown block '%.4s'\n", buf);
 		if (fseek(f,data,SEEK_CUR) == -1 ) {
 			ast_log(LOG_WARNING, "Failed to skip '%.4s' block: %d\n", buf, data);
 			return -1;

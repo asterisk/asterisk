@@ -33,6 +33,8 @@
 #include <unistd.h>
 #endif
 
+#include <math.h>
+
 #include "asterisk/inline_api.h"
 
 /* A time_t can be represented as an unsigned long long (or uint64_t).
@@ -233,6 +235,41 @@ struct timeval ast_tv(ast_time_t sec, ast_suseconds_t usec),
 )
 
 /*!
+ * \brief Returns a timeval structure corresponding to the
+ * number of seconds in the double _td.
+ *
+ * \param _td The number of seconds.
+ * \returns A timeval structure containing the number of seconds.
+ *
+ * This is the inverse of ast_tv2double().
+ */
+AST_INLINE_API(
+struct timeval ast_double2tv(double _td),
+{
+	struct timeval t;
+	t.tv_sec = (typeof(t.tv_sec))floor(_td);
+	t.tv_usec = (typeof(t.tv_usec)) ((_td - t.tv_sec) * 1000000.0);
+	return t;
+}
+)
+
+/*!
+ * \brief Returns a double corresponding to the number of seconds
+ * in the timeval \c tv.
+ *
+ * \param tv A pointer to a timeval structure.
+ * \returns A double containing the number of seconds.
+ *
+ * This is the inverse of ast_double2tv().
+ */
+AST_INLINE_API(
+double ast_tv2double(const struct timeval *tv),
+{
+	return (((double)tv->tv_sec) + (((double)tv->tv_usec) / 1000000.0));
+}
+)
+
+/*!
  * \brief Returns a timeval corresponding to the duration of n samples at rate r.
  * Useful to convert samples to timevals, or even milliseconds to timevals
  * in the form ast_samp2tv(milliseconds, 1000)
@@ -241,6 +278,57 @@ AST_INLINE_API(
 struct timeval ast_samp2tv(unsigned int _nsamp, unsigned int _rate),
 {
 	return ast_tv(_nsamp / _rate, (_nsamp % _rate) * (1000000 / (float) _rate));
+}
+)
+
+/*!
+ * \brief Returns the number of samples at rate _rate in the
+ * duration specified by _tv.
+ *
+ * \param _tv A pointer to a timeval structure.
+ * \param _rate The sample rate in Hz.
+ * \returns A time_t containing the number of samples.
+ *
+ * This is the inverse of ast_samp2tv().
+ */
+AST_INLINE_API(
+time_t ast_tv2samp(const struct timeval *_tv, int _rate),
+{
+	return (time_t)(ast_tv2double(_tv) * (double)_rate);
+}
+)
+
+/*!
+ * \brief Returns the duration in seconds of _nsamp samples
+ * at rate _rate.
+ *
+ * \param _nsamp The number of samples
+ * \param _rate The sample rate in Hz.
+ * \returns A double containing the number of seconds.
+ *
+ * This is the inverse of ast_sec2samp().
+ */
+AST_INLINE_API(
+double ast_samp2sec(unsigned int _nsamp, unsigned int _rate),
+{
+	return ((double)_nsamp) / ((double)_rate);
+}
+)
+
+/*!
+ * \brief Returns the number of samples at _rate in the duration
+ * in _seconds.
+ *
+ * \param _seconds The time interval in seconds.
+ * \param _rate The sample rate in Hz.
+ * \returns The number of samples.
+ *
+ * This is the inverse of ast_samp2sec().
+ */
+AST_INLINE_API(
+unsigned int ast_sec2samp(double _seconds, int _rate),
+{
+	return (unsigned int)(_seconds * _rate);
 }
 )
 

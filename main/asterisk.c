@@ -3745,6 +3745,7 @@ int main(int argc, char *argv[])
 			case 'r': /* remote */
 			/*! \note Can ONLY be used with remote console */
 			case 's': /* set socket path */
+			case 'T': /* timestamp */
 			case 'V': /* version */
 			case 'v': /* verbose */
 			case 'W': /* white background */
@@ -3762,7 +3763,6 @@ int main(int argc, char *argv[])
 			case 'i': /* init keys */
 			case 'n': /* no color */
 			case 'p': /* high priority */
-			case 'T': /* timestamp */
 			case 't': /* cache record files */
 			case 'U': /* run user */
 				fprintf(stderr, "'%c' option is not compatible with remote console mode and has no effect.\n", c);
@@ -4246,6 +4246,7 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 	check_init(load_pbx_app(), "PBX Application Support");
 	check_init(load_pbx_hangup_handler(), "PBX Hangup Handler Support");
 	check_init(ast_local_init(), "Local Proxy Channel Driver");
+	check_init(ast_refer_init(), "Refer API");
 
 	/* We should avoid most config loads before this point as they can't use realtime. */
 	check_init(load_modules(), "Module");

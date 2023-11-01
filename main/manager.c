@@ -68,6 +68,7 @@
 #include "asterisk/module.h"
 #include "asterisk/config.h"
 #include "asterisk/callerid.h"
+#include "asterisk/core_local.h"
 #include "asterisk/lock.h"
 #include "asterisk/cli.h"
 #include "asterisk/app.h"
@@ -1041,6 +1042,33 @@
 			<xi:include xpointer="xpointer(/docs/managerEvent[@name='CoreShowChannelsComplete'])" />
 		</responses>
 	</manager>
+	<managerEvent language="en_US" name="CoreShowChannelMapComplete">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised at the end of the CoreShowChannelMap list produced by the CoreShowChannelMap command.</synopsis>
+			<syntax>
+				<parameter name="EventList">
+					<para>Conveys the status of the command response list</para>
+				</parameter>
+				<parameter name="ListItems">
+					<para>The total number of list items produced</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<manager name="CoreShowChannelMap" language="en_US">
+		<synopsis>
+			List all channels connected to the specified channel.
+		</synopsis>
+		<syntax>
+			<parameter name="Channel">
+				<para>The channel to get the mapping for. Requires a channel name.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>List all channels currently connected to the specified channel. This can be any channel, including
+			Local channels, and Local channels will be followed through to their other half.</para>
+		</description>
+	</manager>
 	<manager name="LoggerRotate" language="en_US">
 		<synopsis>
 			Reload and rotate the Asterisk logger.
@@ -1109,7 +1137,8 @@
 		</syntax>
 		<description>
 			<para>Checks if Asterisk module is loaded. Will return Success/Failure.
-			For success returns, the module revision number is included.</para>
+			An empty Version header is also returned (which doesn't contain
+			the module revision number).</para>
 		</description>
 		<see-also>
 			<ref type="manager">ModuleLoad</ref>
@@ -1121,8 +1150,9 @@
 		</synopsis>
 		<syntax>
 			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
-			<parameter name="Channel" required="true">
-				<para>Channel name to generate the AOC message on.</para>
+			<parameter name="Channel">
+				<para>Channel name to generate the AOC message on.
+				This value is required unless ChannelPrefix is given.</para>
 			</parameter>
 			<parameter name="ChannelPrefix">
 				<para>Partial channel prefix.  By using this option one can match the beginning part
@@ -1132,14 +1162,15 @@
 				the first matched channel has the message sent on it. </para>
 			</parameter>
 			<parameter name="MsgType" required="true">
-				<para>Defines what type of AOC message to create, AOC-D or AOC-E</para>
+				<para>Defines what type of AOC message to create, AOC-S, AOC-D or AOC-E</para>
 				<enumlist>
+					<enum name="S" />
 					<enum name="D" />
 					<enum name="E" />
 				</enumlist>
 			</parameter>
-			<parameter name="ChargeType" required="true">
-				<para>Defines what kind of charge this message represents.</para>
+			<parameter name="ChargeType">
+				<para>Defines what kind of charge this message represents for AOC-D and AOC-E.</para>
 				<enumlist>
 					<enum name="NA" />
 					<enum name="FREE" />
@@ -1167,11 +1198,13 @@
 				<para>Specifies the currency's name.  Note that this value is truncated after 10 characters.</para>
 			</parameter>
 			<parameter name="CurrencyAmount">
-				<para>Specifies the charge unit amount as a positive integer.  This value is required
-				when ChargeType==Currency.</para>
+				<para>Specifies the charge unit amount as a positive integer.
+				This value is required when ChargeType==Currency (AOC-D or AOC-E) or
+				RateType==Duration/Flat/Volume (AOC-S).</para>
 			</parameter>
 			<parameter name="CurrencyMultiplier">
-				<para>Specifies the currency multiplier.  This value is required when ChargeType==Currency.</para>
+				<para>Specifies the currency multiplier.
+				This value is required when CurrencyAmount is given.</para>
 				<enumlist>
 					<enum name="OneThousandth" />
 					<enum name="OneHundredth" />
@@ -1216,11 +1249,102 @@
 				The value is bits 7 through 1 of the Q.931 octet containing the type-of-number and
 				numbering-plan-identification fields.</para>
 			</parameter>
+			<parameter name="ChargedItem">
+				<para>Defines what part of the call is charged in AOC-S. Usually this is set to
+				BasicCommunication, which refers to the time after the call is answered, but establishment
+				(CallAttempt) or successful establishment (CallSetup) of a call can also be used.
+				Other options are available, but these generally do not carry enough information to actually
+				calculate the price of a call.
+				It is possible to have multiple ChargedItem entries for a single call -- for example to
+				charge for both the establishment of the call and the actual call. In this case, each
+				ChargedItem is described by a ChargedItem: header and all other headers that follow it up to
+				the next ChargedItem: header.</para>
+				<enumlist>
+					<enum name="NA" />
+					<enum name="SpecialArrangement" />
+					<enum name="BasicCommunication" />
+					<enum name="CallAttempt" />
+					<enum name="CallSetup" />
+					<enum name="UserUserInfo" />
+					<enum name="SupplementaryService" />
+				</enumlist>
+			</parameter>
+			<parameter name="RateType">
+				<para>Defines how an AOC-S ChargedItem is charged.
+				The Duration option is only available when ChargedItem==BasicCommunication.</para>
+				<enumlist>
+					<enum name="NA" />
+					<enum name="Free" />
+					<enum name="FreeFromBeginning" />
+					<enum name="Duration" />
+					<enum name="Flat" />
+					<enum name="Volume" />
+					<enum name="SpecialCode" />
+				</enumlist>
+			</parameter>
+			<parameter name="Time">
+				<para>Specifies a positive integer which is the amount of time is paid for by one
+				CurrencyAmount.
+				This value is required when RateType==Duration.</para>
+			</parameter>
+			<parameter name="TimeScale">
+				<para>Specifies the time multiplier.
+				This value is required when Time is given.</para>
+				<enumlist>
+					<enum name="OneHundredthSecond" />
+					<enum name="OneTenthSecond" />
+					<enum name="Second" />
+					<enum name="TenSeconds" />
+					<enum name="Minute" />
+					<enum name="Hour" />
+					<enum name="Day" />
+				</enumlist>
+			</parameter>
+			<parameter name="Granularity">
+				<para>Specifies a positive integer which is the size of the charged time increments.
+				This value is optional when RateType==Duration and ChargingType==StepFunction.</para>
+			</parameter>
+			<parameter name="GranularityTimeScale">
+				<para>Specifies the granularity time multiplier.
+				This value is required when Granularity is given.</para>
+				<enumlist>
+					<enum name="OneHundredthSecond" />
+					<enum name="OneTenthSecond" />
+					<enum name="Second" />
+					<enum name="TenSeconds" />
+					<enum name="Minute" />
+					<enum name="Hour" />
+					<enum name="Day" />
+				</enumlist>
+			</parameter>
+			<parameter name="ChargingType">
+				<para>Specifies whether the charge increases continuously with time or in increments of
+				Time or, if provided, Granularity.
+				This value is required when RateType==Duration.</para>
+				<enumlist>
+					<enum name="ContinuousCharging" />
+					<enum name="StepFunction" />
+				</enumlist>
+			</parameter>
+			<parameter name="VolumeUnit">
+				<para>Specifies the quantity of which one unit is paid for by one CurrencyAmount.
+				This value is required when RateType==Volume.</para>
+				<enumlist>
+					<enum name="Octet" />
+					<enum name="Segment" />
+					<enum name="Message" />
+				</enumlist>
+			</parameter>
+			<parameter name="Code">
+				<para>Specifies the charging code, which can be set to a value between 1 and 10.
+				This value is required when ChargedItem==SpecialArrangement or RateType==SpecialCode.</para>
+			</parameter>
 		</syntax>
 		<description>
-			<para>Generates an AOC-D or AOC-E message on a channel.</para>
+			<para>Generates an AOC-S, AOC-D or AOC-E message on a channel.</para>
 		</description>
 		<see-also>
+			<ref type="managerEvent">AOC-S</ref>
 			<ref type="managerEvent">AOC-D</ref>
 			<ref type="managerEvent">AOC-E</ref>
 		</see-also>
@@ -1489,6 +1613,11 @@ static struct stasis_forward *rtp_topic_forwarder;
 
 /*! \brief The \ref stasis_subscription for forwarding the Security topic to the AMI topic */
 static struct stasis_forward *security_topic_forwarder;
+
+/*!
+ * \brief Set to true (non-zero) to globally allow all dangerous AMI actions to run
+ */
+static int live_dangerously;
 
 #ifdef TEST_FRAMEWORK
 /*! \brief The \ref stasis_subscription for forwarding the Test topic to the AMI topic */
@@ -3609,6 +3738,29 @@ static int action_ping(struct mansession *s, const struct message *m)
 	return 0;
 }
 
+void astman_live_dangerously(int new_live_dangerously)
+{
+	if (new_live_dangerously && !live_dangerously)
+	{
+		ast_log(LOG_WARNING, "Manager Configuration load protection disabled.\n");
+	}
+
+	if (!new_live_dangerously && live_dangerously)
+	{
+		ast_log(LOG_NOTICE, "Manager Configuration load protection enabled.\n");
+	}
+	live_dangerously = new_live_dangerously;
+}
+
+static int restrictedFile(const char *filename)
+{
+	if (!live_dangerously && !strncasecmp(filename, "/", 1) &&
+		 strncasecmp(filename, ast_config_AST_CONFIG_DIR, strlen(ast_config_AST_CONFIG_DIR))) {
+		return 1;
+	}
+	return 0;
+}
+
 static int action_getconfig(struct mansession *s, const struct message *m)
 {
 	struct ast_config *cfg;
@@ -3624,6 +3776,11 @@ static int action_getconfig(struct mansession *s, const struct message *m)
 
 	if (ast_strlen_zero(fn)) {
 		astman_send_error(s, m, "Filename not specified");
+		return 0;
+	}
+
+	if (restrictedFile(fn)) {
+		astman_send_error(s, m, "File requires escalated priveledges");
 		return 0;
 	}
 
@@ -3751,6 +3908,11 @@ static int action_getconfigjson(struct mansession *s, const struct message *m)
 
 	if (ast_strlen_zero(fn)) {
 		astman_send_error(s, m, "Filename not specified");
+		return 0;
+	}
+
+	if (restrictedFile(fn)) {
+		astman_send_error(s, m, "File requires escalated priveledges");
 		return 0;
 	}
 
@@ -4103,6 +4265,10 @@ static int action_updateconfig(struct mansession *s, const struct message *m)
 
 	if (ast_strlen_zero(sfn) || ast_strlen_zero(dfn)) {
 		astman_send_error(s, m, "Filename not specified");
+		return 0;
+	}
+	if (restrictedFile(sfn) || restrictedFile(dfn)) {
+		astman_send_error(s, m, "File requires escalated priveledges");
 		return 0;
 	}
 	if (!(cfg = ast_config_load2(sfn, "manager", config_flags))) {
@@ -5506,10 +5672,8 @@ static int aocmessage_get_unit_entry(const struct message *m, struct ast_aoc_uni
 	return 0;
 }
 
-static int action_aocmessage(struct mansession *s, const struct message *m)
+static struct ast_aoc_decoded *action_aoc_de_message(struct mansession *s, const struct message *m)
 {
-	const char *channel = astman_get_header(m, "Channel");
-	const char *pchannel = astman_get_header(m, "ChannelPrefix");
 	const char *msgtype = astman_get_header(m, "MsgType");
 	const char *chargetype = astman_get_header(m, "ChargeType");
 	const char *currencyname = astman_get_header(m, "CurrencyName");
@@ -5529,30 +5693,8 @@ static int action_aocmessage(struct mansession *s, const struct message *m)
 	unsigned int _currencyamount = 0;
 	int _association_id = 0;
 	unsigned int _association_plan = 0;
-	struct ast_channel *chan = NULL;
 
 	struct ast_aoc_decoded *decoded = NULL;
-	struct ast_aoc_encoded *encoded = NULL;
-	size_t encoded_size = 0;
-
-	if (ast_strlen_zero(channel) && ast_strlen_zero(pchannel)) {
-		astman_send_error(s, m, "Channel and PartialChannel are not specified. Specify at least one of these.");
-		goto aocmessage_cleanup;
-	}
-
-	if (!(chan = ast_channel_get_by_name(channel)) && !ast_strlen_zero(pchannel)) {
-		chan = ast_channel_get_by_name_prefix(pchannel, strlen(pchannel));
-	}
-
-	if (!chan) {
-		astman_send_error(s, m, "No such channel");
-		goto aocmessage_cleanup;
-	}
-
-	if (ast_strlen_zero(msgtype) || (strcasecmp(msgtype, "d") && strcasecmp(msgtype, "e"))) {
-		astman_send_error(s, m, "Invalid MsgType");
-		goto aocmessage_cleanup;
-	}
 
 	if (ast_strlen_zero(chargetype)) {
 		astman_send_error(s, m, "ChargeType not specified");
@@ -5693,8 +5835,324 @@ static int action_aocmessage(struct mansession *s, const struct message *m)
 	ast_aoc_set_billing_id(decoded, _billingid);
 	ast_aoc_set_total_type(decoded, _totaltype);
 
+	return decoded;
 
-	if ((encoded = ast_aoc_encode(decoded, &encoded_size, NULL)) && !ast_indicate_data(chan, AST_CONTROL_AOC, encoded, encoded_size)) {
+aocmessage_cleanup:
+
+	ast_aoc_destroy_decoded(decoded);
+	return NULL;
+}
+
+static int action_aoc_s_submessage(struct mansession *s, const struct message *m,
+		struct ast_aoc_decoded *decoded)
+{
+	const char *chargeditem = __astman_get_header(m, "ChargedItem", GET_HEADER_LAST_MATCH);
+	const char *ratetype = __astman_get_header(m, "RateType", GET_HEADER_LAST_MATCH);
+	const char *currencyname = __astman_get_header(m, "CurrencyName", GET_HEADER_LAST_MATCH);
+	const char *currencyamount = __astman_get_header(m, "CurrencyAmount", GET_HEADER_LAST_MATCH);
+	const char *mult = __astman_get_header(m, "CurrencyMultiplier", GET_HEADER_LAST_MATCH);
+	const char *time = __astman_get_header(m, "Time", GET_HEADER_LAST_MATCH);
+	const char *timescale = __astman_get_header(m, "TimeScale", GET_HEADER_LAST_MATCH);
+	const char *granularity = __astman_get_header(m, "Granularity", GET_HEADER_LAST_MATCH);
+	const char *granularitytimescale = __astman_get_header(m, "GranularityTimeScale", GET_HEADER_LAST_MATCH);
+	const char *chargingtype = __astman_get_header(m, "ChargingType", GET_HEADER_LAST_MATCH);
+	const char *volumeunit = __astman_get_header(m, "VolumeUnit", GET_HEADER_LAST_MATCH);
+	const char *code = __astman_get_header(m, "Code", GET_HEADER_LAST_MATCH);
+
+	enum ast_aoc_s_charged_item _chargeditem;
+	enum ast_aoc_s_rate_type _ratetype;
+	enum ast_aoc_currency_multiplier _mult = AST_AOC_MULT_ONE;
+	unsigned int _currencyamount = 0;
+	unsigned int _code;
+	unsigned int _time = 0;
+	enum ast_aoc_time_scale _scale = 0;
+	unsigned int _granularity = 0;
+	enum ast_aoc_time_scale _granularity_time_scale = AST_AOC_TIME_SCALE_MINUTE;
+	int _step = 0;
+	enum ast_aoc_volume_unit _volumeunit = 0;
+
+	if (ast_strlen_zero(chargeditem)) {
+		astman_send_error(s, m, "ChargedItem not specified");
+		goto aocmessage_cleanup;
+	}
+
+	if (ast_strlen_zero(ratetype)) {
+		astman_send_error(s, m, "RateType not specified");
+		goto aocmessage_cleanup;
+	}
+
+	if (!strcasecmp(chargeditem, "NA")) {
+		_chargeditem = AST_AOC_CHARGED_ITEM_NA;
+	} else if (!strcasecmp(chargeditem, "SpecialArrangement")) {
+		_chargeditem = AST_AOC_CHARGED_ITEM_SPECIAL_ARRANGEMENT;
+	} else if (!strcasecmp(chargeditem, "BasicCommunication")) {
+		_chargeditem = AST_AOC_CHARGED_ITEM_BASIC_COMMUNICATION;
+	} else if (!strcasecmp(chargeditem, "CallAttempt")) {
+		_chargeditem = AST_AOC_CHARGED_ITEM_CALL_ATTEMPT;
+	} else if (!strcasecmp(chargeditem, "CallSetup")) {
+		_chargeditem = AST_AOC_CHARGED_ITEM_CALL_SETUP;
+	} else if (!strcasecmp(chargeditem, "UserUserInfo")) {
+		_chargeditem = AST_AOC_CHARGED_ITEM_USER_USER_INFO;
+	} else if (!strcasecmp(chargeditem, "SupplementaryService")) {
+		_chargeditem = AST_AOC_CHARGED_ITEM_SUPPLEMENTARY_SERVICE;
+	} else {
+		astman_send_error(s, m, "Invalid ChargedItem");
+		goto aocmessage_cleanup;
+	}
+
+	if (!strcasecmp(ratetype, "NA")) {
+		_ratetype = AST_AOC_RATE_TYPE_NA;
+	} else if (!strcasecmp(ratetype, "Free")) {
+		_ratetype = AST_AOC_RATE_TYPE_FREE;
+	} else if (!strcasecmp(ratetype, "FreeFromBeginning")) {
+		_ratetype = AST_AOC_RATE_TYPE_FREE_FROM_BEGINNING;
+	} else if (!strcasecmp(ratetype, "Duration")) {
+		_ratetype = AST_AOC_RATE_TYPE_DURATION;
+	} else if (!strcasecmp(ratetype, "Flat")) {
+		_ratetype = AST_AOC_RATE_TYPE_FLAT;
+	} else if (!strcasecmp(ratetype, "Volume")) {
+		_ratetype = AST_AOC_RATE_TYPE_VOLUME;
+	} else if (!strcasecmp(ratetype, "SpecialCode")) {
+		_ratetype = AST_AOC_RATE_TYPE_SPECIAL_CODE;
+	} else {
+		astman_send_error(s, m, "Invalid RateType");
+		goto aocmessage_cleanup;
+	}
+
+	if (_ratetype > AST_AOC_RATE_TYPE_FREE_FROM_BEGINNING) {
+		if (ast_strlen_zero(currencyamount) || (sscanf(currencyamount, "%30u",
+				&_currencyamount) != 1)) {
+			astman_send_error(s, m, "Invalid CurrencyAmount, CurrencyAmount is a required when RateType is non-free");
+			goto aocmessage_cleanup;
+		}
+
+		if (ast_strlen_zero(mult)) {
+			astman_send_error(s, m, "ChargeMultiplier unspecified, ChargeMultiplier is required when ChargeType is Currency.");
+			goto aocmessage_cleanup;
+		} else if (!strcasecmp(mult, "onethousandth")) {
+			_mult = AST_AOC_MULT_ONETHOUSANDTH;
+		} else if (!strcasecmp(mult, "onehundredth")) {
+			_mult = AST_AOC_MULT_ONEHUNDREDTH;
+		} else if (!strcasecmp(mult, "onetenth")) {
+			_mult = AST_AOC_MULT_ONETENTH;
+		} else if (!strcasecmp(mult, "one")) {
+			_mult = AST_AOC_MULT_ONE;
+		} else if (!strcasecmp(mult, "ten")) {
+			_mult = AST_AOC_MULT_TEN;
+		} else if (!strcasecmp(mult, "hundred")) {
+			_mult = AST_AOC_MULT_HUNDRED;
+		} else if (!strcasecmp(mult, "thousand")) {
+			_mult = AST_AOC_MULT_THOUSAND;
+		} else {
+			astman_send_error(s, m, "Invalid ChargeMultiplier");
+			goto aocmessage_cleanup;
+		}
+	}
+
+	if (_ratetype == AST_AOC_RATE_TYPE_DURATION) {
+		if (ast_strlen_zero(timescale)) {
+			astman_send_error(s, m, "TimeScale unspecified, TimeScale is required when RateType is Duration.");
+			goto aocmessage_cleanup;
+		} else if (!strcasecmp(timescale, "onehundredthsecond")) {
+			_scale = AST_AOC_TIME_SCALE_HUNDREDTH_SECOND;
+		} else if (!strcasecmp(timescale, "onetenthsecond")) {
+			_scale = AST_AOC_TIME_SCALE_TENTH_SECOND;
+		} else if (!strcasecmp(timescale, "second")) {
+			_scale = AST_AOC_TIME_SCALE_SECOND;
+		} else if (!strcasecmp(timescale, "tenseconds")) {
+			_scale = AST_AOC_TIME_SCALE_TEN_SECOND;
+		} else if (!strcasecmp(timescale, "minute")) {
+			_scale = AST_AOC_TIME_SCALE_MINUTE;
+		} else if (!strcasecmp(timescale, "hour")) {
+			_scale = AST_AOC_TIME_SCALE_HOUR;
+		} else if (!strcasecmp(timescale, "day")) {
+			_scale = AST_AOC_TIME_SCALE_DAY;
+		} else {
+			astman_send_error(s, m, "Invalid TimeScale");
+			goto aocmessage_cleanup;
+		}
+
+		if (ast_strlen_zero(time) || (sscanf(time, "%30u", &_time) != 1)) {
+			astman_send_error(s, m, "Invalid Time, Time is a required when RateType is Duration");
+			goto aocmessage_cleanup;
+		}
+
+		if (!ast_strlen_zero(granularity)) {
+			if ((sscanf(time, "%30u", &_granularity) != 1)) {
+				astman_send_error(s, m, "Invalid Granularity");
+				goto aocmessage_cleanup;
+			}
+
+			if (ast_strlen_zero(granularitytimescale)) {
+				astman_send_error(s, m, "Invalid GranularityTimeScale, GranularityTimeScale is a required when Granularity is specified");
+			} else if (!strcasecmp(granularitytimescale, "onehundredthsecond")) {
+				_granularity_time_scale = AST_AOC_TIME_SCALE_HUNDREDTH_SECOND;
+			} else if (!strcasecmp(granularitytimescale, "onetenthsecond")) {
+				_granularity_time_scale = AST_AOC_TIME_SCALE_TENTH_SECOND;
+			} else if (!strcasecmp(granularitytimescale, "second")) {
+				_granularity_time_scale = AST_AOC_TIME_SCALE_SECOND;
+			} else if (!strcasecmp(granularitytimescale, "tenseconds")) {
+				_granularity_time_scale = AST_AOC_TIME_SCALE_TEN_SECOND;
+			} else if (!strcasecmp(granularitytimescale, "minute")) {
+				_granularity_time_scale = AST_AOC_TIME_SCALE_MINUTE;
+			} else if (!strcasecmp(granularitytimescale, "hour")) {
+				_granularity_time_scale = AST_AOC_TIME_SCALE_HOUR;
+			} else if (!strcasecmp(granularitytimescale, "day")) {
+				_granularity_time_scale = AST_AOC_TIME_SCALE_DAY;
+			} else {
+				astman_send_error(s, m, "Invalid GranularityTimeScale");
+				goto aocmessage_cleanup;
+			}
+		}
+
+		if (ast_strlen_zero(chargingtype) || strcasecmp(chargingtype, "continuouscharging") == 0) {
+			_step = 0;
+		} else if (strcasecmp(chargingtype, "stepfunction") == 0 ) {
+			_step = 1;
+		} else {
+			astman_send_error(s, m, "Invalid ChargingType");
+			goto aocmessage_cleanup;
+		}
+	}
+
+	if (_ratetype == AST_AOC_RATE_TYPE_VOLUME) {
+		if (ast_strlen_zero(volumeunit)) {
+			astman_send_error(s, m, "VolumeUnit unspecified, VolumeUnit is required when RateType is Volume.");
+			goto aocmessage_cleanup;
+		} else if (!strcasecmp(timescale, "octet")) {
+			_volumeunit = AST_AOC_VOLUME_UNIT_OCTET;
+		} else if (!strcasecmp(timescale, "segment")) {
+			_volumeunit = AST_AOC_VOLUME_UNIT_SEGMENT;
+		} else if (!strcasecmp(timescale, "message")) {
+			_volumeunit = AST_AOC_VOLUME_UNIT_MESSAGE;
+		}else {
+			astman_send_error(s, m, "Invalid VolumeUnit");
+			goto aocmessage_cleanup;
+		}
+	}
+
+	if (_chargeditem == AST_AOC_CHARGED_ITEM_SPECIAL_ARRANGEMENT
+			|| _ratetype == AST_AOC_RATE_TYPE_SPECIAL_CODE) {
+		if (ast_strlen_zero(code) || (sscanf(code, "%30u", &_code) != 1)) {
+			astman_send_error(s, m, "Invalid Code, Code is a required when ChargedItem is SpecialArrangement and when RateType is SpecialCode");
+			goto aocmessage_cleanup;
+		}
+	}
+
+	if (_chargeditem == AST_AOC_CHARGED_ITEM_SPECIAL_ARRANGEMENT) {
+		ast_aoc_s_add_special_arrangement(decoded, _code);
+	} else if (_ratetype == AST_AOC_RATE_TYPE_DURATION) {
+		ast_aoc_s_add_rate_duration(decoded, _chargeditem, _currencyamount, _mult,
+			currencyname, _time, _scale, _granularity, _granularity_time_scale, _step);
+	} else if (_ratetype == AST_AOC_RATE_TYPE_FLAT) {
+		ast_aoc_s_add_rate_flat(decoded, _chargeditem, _currencyamount, _mult,
+				currencyname);
+	} else if (_ratetype == AST_AOC_RATE_TYPE_VOLUME) {
+		ast_aoc_s_add_rate_volume(decoded, _chargeditem, _volumeunit, _currencyamount,
+			_mult, currencyname);
+	} else if (_ratetype == AST_AOC_RATE_TYPE_SPECIAL_CODE) {
+		ast_aoc_s_add_rate_special_charge_code(decoded, _chargeditem, _code);
+	} else if (_ratetype == AST_AOC_RATE_TYPE_FREE) {
+		ast_aoc_s_add_rate_free(decoded, _chargeditem, 0);
+	} else if (_ratetype == AST_AOC_RATE_TYPE_FREE_FROM_BEGINNING) {
+		ast_aoc_s_add_rate_free(decoded, _chargeditem, 1);
+	} else if (_ratetype == AST_AOC_RATE_TYPE_NA) {
+		ast_aoc_s_add_rate_na(decoded, _chargeditem);
+	}
+
+	return 0;
+
+aocmessage_cleanup:
+
+	return -1;
+}
+
+static struct ast_aoc_decoded *action_aoc_s_message(struct mansession *s,
+		const struct message *m)
+{
+	struct ast_aoc_decoded *decoded = NULL;
+	int hdrlen;
+	int x;
+	static const char hdr[] = "ChargedItem:";
+	struct message sm = { 0 };
+	int rates = 0;
+
+	if (!(decoded = ast_aoc_create(AST_AOC_S, 0, 0))) {
+		astman_send_error(s, m, "Message Creation Failed");
+		goto aocmessage_cleanup;
+	}
+
+	hdrlen = strlen(hdr);
+	for (x = 0; x < m->hdrcount; x++) {
+		if (strncasecmp(hdr, m->headers[x], hdrlen) == 0) {
+			if (rates > ast_aoc_s_get_count(decoded)) {
+				if (action_aoc_s_submessage(s, &sm, decoded) == -1) {
+					goto aocmessage_cleanup;
+				}
+			}
+			++rates;
+		}
+
+		sm.headers[sm.hdrcount] = m->headers[x];
+		++sm.hdrcount;
+	}
+	if (rates > ast_aoc_s_get_count(decoded)) {
+		if (action_aoc_s_submessage(s, &sm, decoded) == -1) {
+			goto aocmessage_cleanup;
+		}
+	}
+
+	return decoded;
+
+aocmessage_cleanup:
+
+	ast_aoc_destroy_decoded(decoded);
+	return NULL;
+}
+
+static int action_aocmessage(struct mansession *s, const struct message *m)
+{
+	const char *msgtype = astman_get_header(m, "MsgType");
+	const char *channel = astman_get_header(m, "Channel");
+	const char *pchannel = astman_get_header(m, "ChannelPrefix");
+
+	struct ast_channel *chan = NULL;
+
+	struct ast_aoc_decoded *decoded = NULL;
+	struct ast_aoc_encoded *encoded = NULL;
+	size_t encoded_size = 0;
+
+	if (ast_strlen_zero(channel) && ast_strlen_zero(pchannel)) {
+		astman_send_error(s, m, "Channel and PartialChannel are not specified. Specify at least one of these.");
+		goto aocmessage_cleanup;
+	}
+
+	if (!(chan = ast_channel_get_by_name(channel)) && !ast_strlen_zero(pchannel)) {
+		chan = ast_channel_get_by_name_prefix(pchannel, strlen(pchannel));
+	}
+
+	if (!chan) {
+		astman_send_error(s, m, "No such channel");
+		goto aocmessage_cleanup;
+	}
+
+	if (strcasecmp(msgtype, "d") == 0 || strcasecmp(msgtype, "e") == 0) {
+		decoded = action_aoc_de_message(s, m);
+	}
+	else if (strcasecmp(msgtype, "s") == 0) {
+		decoded = action_aoc_s_message(s, m);
+	}
+	else {
+		astman_send_error(s, m, "Invalid MsgType");
+		goto aocmessage_cleanup;
+	}
+
+	if (!decoded) {
+		goto aocmessage_cleanup;
+	}
+
+	if ((encoded = ast_aoc_encode(decoded, &encoded_size, chan))
+			&& !ast_indicate_data(chan, AST_CONTROL_AOC, encoded, encoded_size)) {
 		astman_send_ack(s, m, "AOC Message successfully queued on channel");
 	} else {
 		astman_send_error(s, m, "Error encoding AOC message, could not queue onto channel");
@@ -5844,14 +6302,12 @@ static int action_originate(struct mansession *s, const struct message *m)
 		old = vars;
 		vars = NULL;
 
-		/* The variables in the AMI originate action are appended at the end of the list, to override any user variables that apply*/
+		/* The variables in the AMI originate action are appended at the end of the list, to override any user variables that apply */
 
 		vars = ast_variables_dup(s->session->chanvars);
 		if (old) {
 			for (v = vars; v->next; v = v->next );
-			if (v->next) {
-				v->next = old;	/* Append originate variables at end of list */
-			}
+			v->next = old;	/* Append originate variables at end of list */
 		}
 	}
 
@@ -6445,6 +6901,180 @@ static int action_coreshowchannels(struct mansession *s, const struct message *m
 	return 0;
 }
 
+/*! \brief Helper function to add a channel name to the vector */
+static int coreshowchannelmap_add_to_map(struct ao2_container *c, const char *s)
+{
+	char *str;
+
+	str = ast_strdup(s);
+	if (!str) {
+		ast_log(LOG_ERROR, "Unable to append channel to channel map\n");
+		return 1;
+	}
+
+	/* If this is a duplicate, it will be ignored */
+	ast_str_container_add(c, str);
+
+	return 0;
+}
+
+/*! \brief Recursive function to get all channels in a bridge. Follow local channels as well */
+static int coreshowchannelmap_add_connected_channels(struct ao2_container *channel_map,
+	struct ast_channel_snapshot *channel_snapshot, struct ast_bridge_snapshot *bridge_snapshot)
+{
+	int res = 0;
+	struct ao2_iterator iter;
+	char *current_channel_uid;
+
+	iter = ao2_iterator_init(bridge_snapshot->channels, 0);
+	while ((current_channel_uid = ao2_iterator_next(&iter))) {
+		struct ast_channel_snapshot *current_channel_snapshot;
+		int add_channel_res;
+
+		/* Don't add the original channel to the list - it's either already in there,
+		 * or it's the channel we want the map for */
+		if (!strcmp(current_channel_uid, channel_snapshot->base->uniqueid)) {
+			ao2_ref(current_channel_uid, -1);
+			continue;
+		}
+
+		current_channel_snapshot = ast_channel_snapshot_get_latest(current_channel_uid);
+		if (!current_channel_snapshot) {
+			ast_debug(5, "Unable to get channel snapshot\n");
+			ao2_ref(current_channel_uid, -1);
+			continue;
+		}
+
+		add_channel_res = coreshowchannelmap_add_to_map(channel_map, current_channel_snapshot->base->name);
+		if (add_channel_res) {
+			res = 1;
+			ao2_ref(current_channel_snapshot, -1);
+			ao2_ref(current_channel_uid, -1);
+			break;
+		}
+
+		/* If this is a local channel that we haven't seen yet, let's go ahead and find out what else is connected to it */
+		if (ast_begins_with(current_channel_snapshot->base->name, "Local")) {
+			struct ast_channel_snapshot *other_local_snapshot;
+			struct ast_bridge_snapshot *other_bridge_snapshot;
+			int size = strlen(current_channel_snapshot->base->name);
+			char other_local[size + 1];
+
+			/* Don't copy the trailing number - set it to 1 or 2, whichever one it currently is not */
+			ast_copy_string(other_local, current_channel_snapshot->base->name, size);
+			other_local[size - 1] = ast_ends_with(current_channel_snapshot->base->name, "1") ? '2' : '1';
+			other_local[size] = '\0';
+
+			other_local_snapshot = ast_channel_snapshot_get_latest_by_name(other_local);
+			if (!other_local_snapshot) {
+				ast_debug(5, "Unable to get other local channel snapshot\n");
+				ao2_ref(current_channel_snapshot, -1);
+				ao2_ref(current_channel_uid, -1);
+				continue;
+			}
+
+			if (coreshowchannelmap_add_to_map(channel_map, other_local_snapshot->base->name)) {
+				res = 1;
+				ao2_ref(current_channel_snapshot, -1);
+				ao2_ref(current_channel_uid, -1);
+				ao2_ref(other_local_snapshot, -1);
+				break;
+			}
+
+			other_bridge_snapshot = ast_bridge_get_snapshot_by_uniqueid(other_local_snapshot->bridge->id);
+			if (other_bridge_snapshot) {
+				res = coreshowchannelmap_add_connected_channels(channel_map, other_local_snapshot, other_bridge_snapshot);
+			}
+
+			ao2_ref(current_channel_snapshot, -1);
+			ao2_ref(current_channel_uid, -1);
+			ao2_ref(other_local_snapshot, -1);
+			ao2_ref(other_bridge_snapshot, -1);
+
+			if (res) {
+				break;
+			}
+		}
+	}
+	ao2_iterator_destroy(&iter);
+
+	return res;
+}
+
+/*! \brief  Manager command "CoreShowChannelMap" - Lists all channels connected to
+ *          the specified channel. */
+static int action_coreshowchannelmap(struct mansession *s, const struct message *m)
+{
+	const char *actionid = astman_get_header(m, "ActionID");
+	const char *channel_name = astman_get_header(m, "Channel");
+	char *current_channel_name;
+	char id_text[256];
+	int total = 0;
+	struct ao2_container *channel_map;
+	struct ao2_iterator i;
+	RAII_VAR(struct ast_bridge_snapshot *, bridge_snapshot, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_channel_snapshot *, channel_snapshot, NULL, ao2_cleanup);
+
+	if (!ast_strlen_zero(actionid)) {
+		snprintf(id_text, sizeof(id_text), "ActionID: %s\r\n", actionid);
+	} else {
+		id_text[0] = '\0';
+	}
+
+	if (ast_strlen_zero(channel_name)) {
+		astman_send_error(s, m, "CoreShowChannelMap requires a channel.\n");
+		return 0;
+	}
+
+	channel_snapshot = ast_channel_snapshot_get_latest_by_name(channel_name);
+	if (!channel_snapshot) {
+		astman_send_error(s, m, "Could not get channel snapshot\n");
+		return 0;
+	}
+
+	bridge_snapshot = ast_bridge_get_snapshot_by_uniqueid(channel_snapshot->bridge->id);
+	if (!bridge_snapshot) {
+		astman_send_listack(s, m, "Channel map will follow", "start");
+		astman_send_list_complete_start(s, m, "CoreShowChannelMapComplete", 0);
+		astman_send_list_complete_end(s);
+		return 0;
+	}
+
+	channel_map = ast_str_container_alloc_options(AO2_ALLOC_OPT_LOCK_NOLOCK | AO2_CONTAINER_ALLOC_OPT_DUPS_OBJ_REJECT, 1);
+	if (!channel_map) {
+		astman_send_error(s, m, "Could not create channel map\n");
+		return 0;
+	}
+
+	astman_send_listack(s, m, "Channel map will follow", "start");
+
+	if (coreshowchannelmap_add_connected_channels(channel_map, channel_snapshot, bridge_snapshot)) {
+		astman_send_error(s, m, "Could not complete channel map\n");
+		ao2_ref(channel_map, -1);
+		return 0;
+	}
+
+	i = ao2_iterator_init(channel_map, 0);
+	while ((current_channel_name = ao2_iterator_next(&i))) {
+		astman_append(s,
+			"Event: CoreShowChannelMap\r\n"
+			"%s"
+			"Channel: %s\r\n"
+			"ConnectedChannel: %s\r\n\n",
+			id_text,
+			channel_name,
+			current_channel_name);
+		total++;
+	}
+	ao2_iterator_destroy(&i);
+
+	ao2_ref(channel_map, -1);
+	astman_send_list_complete_start(s, m, "CoreShowChannelMapComplete", total);
+	astman_send_list_complete_end(s);
+
+	return 0;
+}
+
 /*! \brief  Manager command "LoggerRotate" - reloads and rotates the logger in
  *          the same manner as the CLI command 'logger rotate'. */
 static int action_loggerrotate(struct mansession *s, const struct message *m)
@@ -7014,16 +7644,17 @@ done:
 }
 
 /*! \brief remove at most n_max stale session from the list. */
-static void purge_sessions(int n_max)
+static int purge_sessions(int n_max)
 {
 	struct ao2_container *sessions;
 	struct mansession_session *session;
 	time_t now = time(NULL);
 	struct ao2_iterator i;
+	int purged = 0;
 
 	sessions = ao2_global_obj_ref(mgr_sessions);
 	if (!sessions) {
-		return;
+		return 0;
 	}
 	i = ao2_iterator_init(sessions, 0);
 	ao2_ref(sessions, -1);
@@ -7039,12 +7670,14 @@ static void purge_sessions(int n_max)
 			ao2_unlock(session);
 			session_destroy(session);
 			n_max--;
+			purged++;
 		} else {
 			ao2_unlock(session);
 			unref_mansession(session);
 		}
 	}
 	ao2_iterator_destroy(&i);
+	return purged;
 }
 
 /*! \brief
@@ -8637,7 +9270,17 @@ static int webregged = 0;
  */
 static void purge_old_stuff(void *data)
 {
-	purge_sessions(1);
+	struct ast_tcptls_session_args *ser = data;
+	/* purge_sessions will return the number of sessions actually purged,
+	 * up to a maximum of it's arguments, purge one at a time, keeping a
+	 * purge interval of 1ms as long as we purged a session, otherwise
+	 * revert to a purge check every 5s
+	 */
+	if (purge_sessions(1) == 1) {
+		ser->poll_timeout = 1;
+	} else {
+		ser->poll_timeout = 5000;
+	}
 	purge_events();
 }
 
@@ -9009,6 +9652,7 @@ static void manager_shutdown(void)
 	ast_manager_unregister("Reload");
 	ast_manager_unregister("LoggerRotate");
 	ast_manager_unregister("CoreShowChannels");
+	ast_manager_unregister("CoreShowChannelMap");
 	ast_manager_unregister("ModuleLoad");
 	ast_manager_unregister("ModuleCheck");
 	ast_manager_unregister("AOCMessage");
@@ -9224,6 +9868,7 @@ static int __init_manager(int reload, int by_external_config)
 		ast_manager_register_xml_core("Reload", EVENT_FLAG_CONFIG | EVENT_FLAG_SYSTEM, action_reload);
 		ast_manager_register_xml_core("LoggerRotate", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, action_loggerrotate);
 		ast_manager_register_xml_core("CoreShowChannels", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, action_coreshowchannels);
+		ast_manager_register_xml_core("CoreShowChannelMap", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, action_coreshowchannelmap);
 		ast_manager_register_xml_core("ModuleLoad", EVENT_FLAG_SYSTEM, manager_moduleload);
 		ast_manager_register_xml_core("ModuleCheck", EVENT_FLAG_SYSTEM, manager_modulecheck);
 		ast_manager_register_xml_core("AOCMessage", EVENT_FLAG_AOC, action_aocmessage);

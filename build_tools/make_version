@@ -1,220 +1,67 @@
 #!/bin/sh
 
-AWK=${AWK:-awk}
 GIT=${GIT:-git}
-GREP=${GREP:-grep}
 SED=${SED:-sed}
-
+AWK=${AWK:-awk}
 
 if [ -f ${1}/.version ]; then
     cat ${1}/.version
-elif [ -d ${1}/.svn ]; then
-    PARTS=`LANG=C svn info ${1} | ${GREP} URL | ${AWK} '{print $2;}' | ${SED} -e 's:^.*/svn/asterisk/::' | ${SED} -e 's:/: :g'`
-    BRANCH=0
-    TEAM=0
-    TAG=0
-    FEATURE=0
-
-    REV=`svnversion -c ${1} | cut -d: -f2`
-
-    INTEGRATED=`LANG=C svn pg automerge-propname ${1}`
-    if [ -z "${INTEGRATED}" ] ; then
-        INTEGRATED=svnmerge-integrated
-    fi
-
-    BASE=`LANG=C svn pg ${INTEGRATED} ${1} | cut -d: -f1`
-
-    if [ "${PARTS}" = "trunk" ] ; then
-        echo SVN-trunk-r${REV}
-        exit 0
-    fi
-
-    for PART in $PARTS ; do
-        if [ ${TAG} != 0 ] ; then
-            if [ "${PART}" = "autotag_for_be" ] ; then
-                continue
-            fi
-            if [ "${PART}" = "autotag_for_sx00i" ] ; then
-                continue
-            fi
-            RESULT="${PART}"
-            break
-        fi
-
-        if [ ${BRANCH} != 0 ] ; then
-            RESULT="${RESULT}-${PART}"
-            if [ ${FEATURE} != 0 ] ; then
-                RESULT="${RESULT}-${FEATURE_NAME}"
-            fi
-            break
-        fi
-
-        if [ ${TEAM} != 0 ] ; then
-            if [ -z "${RESULT}" ] ; then
-                RESULT="${PART}"
-            else
-                RESULT="${RESULT}-${PART}"
-            fi
-            continue
-        fi
-
-        if [ "${PART}" = "certified" ] ; then
-            FEATURE=1
-            FEATURE_NAME="cert"
-            continue
-        fi
-
-        if [ "${PART}" = "branches" ] ; then
-            BRANCH=1
-            RESULT="branch"
-            continue
-        fi
-
-        if [ "${PART}" = "tags" ] ; then
-            TAG=1
-            continue
-        fi
-
-        if [ "${PART}" = "team" ] ; then
-            TEAM=1
-            continue
-        fi
-    done
-
-    if [ ${TAG} != 0 ] ; then
-        echo ${RESULT}
-    else
-        echo SVN-${RESULT}-r${REV}${BASE:+-${BASE}}
-    fi
-elif [ -d ${1}/.git ]; then
-    if [ -z ${GIT} ]; then
-        GIT="git"
-    fi
-
-    if ! command -v ${GIT} >/dev/null 2>&1; then
-        echo "UNKNOWN__and_probably_unsupported"
-        exit 1
-    fi
-
-    GITCHECK=$(${GIT} describe --always 2>/dev/null || echo gitfail 2>/dev/null)
-    if [ "x${GITCHECK}" = "xgitfail" ]; then
-        echo "UNKNOWN__git_check_fail"
-        exit 1
-    fi
-
-    cd ${1}
-
-    # If the first log commit messages indicates that this is checked into
-    # subversion, we'll just use the SVN- form of the revision.
-    MODIFIED=""
-    SVN_REV=`${GIT} log --pretty=full -1 | ${SED} -n '/git-svn-id:/ s/.*\@\([^ ]*\) .*/\1/p'`
-    if [ -z "$SVN_REV" ]; then
-        # If MAINLINE_BRANCH is already set in the environment, use it.
-        if [ -z "${MAINLINE_BRANCH}" ] ; then
-            # Try to retrieve MAINLINE_BRANCH from a local .develvars file first.
-            # .develvars is keyed by the branch name so we need to get that first.
-            BRANCH=$(${GIT} symbolic-ref --short HEAD)
-            if [ -f .develvars ] ; then
-                MAINLINE_BRANCH=$(${GIT} config -f .develvars --get branch.${BRANCH}.mainline-branch)
-            fi
-
-            # If we didn't find it, see if this is a well-known development branch.
-            # development/<mainline_branch>/<branchname> or
-            # devel/<mainline_branch>/<branchname>
-            if [ "x${MAINLINE_BRANCH}" = "x" ] ; then
-                MAINLINE_BRANCH=$(echo "${BRANCH}" | ${SED} -n -r -e "s@devel(opment)?/([0-9]+)/.+@\2@p")
-            fi
-
-            # If we didn't find it, get it from .gitreview defaultbranch.
-            if [ "x${MAINLINE_BRANCH}" = "x" ] ; then
-                MAINLINE_BRANCH=$(${GIT} config -f .gitreview --get gerrit.defaultbranch)
-            fi
-        fi
-
-        VERSION=`${GIT} describe --long --always --tags --dirty=M 2> /dev/null`
-        if [ $? -ne 0 ]; then
-            if [ "`${GIT} ls-files -m | wc -l`" != "0" ]; then
-                MODIFIED="M"
-            fi
-            # Some older versions of git do not support all the above
-            # options.
-            VERSION=`${GIT} rev-parse --short --verify HEAD`${MODIFIED}
-        fi
-        echo GIT-${MAINLINE_BRANCH}-${VERSION}
-    else
-        PARTS=`LANG=C ${GIT} log --pretty=full | ${GREP} -F "git-svn-id:" | head -1 | ${AWK} '{print $2;}' | ${SED} -e s:^.*/svn/$2/:: | ${SED} -e 's:/: :g' | ${SED} -e 's/@.*$//g'`
-        BRANCH=0
-        TEAM=0
-        TAG=0
-        FEATURE=0
-
-        if [ "`${GIT} ls-files -m | wc -l`" != "0" ]; then
-            MODIFIED="M"
-        fi
-
-        for PART in $PARTS ; do
-            if [ ${TAG} != 0 ] ; then
-                if [ "${PART}" = "autotag_for_be" ] ; then
-                    continue
-                fi
-                if [ "${PART}" = "autotag_for_sx00i" ] ; then
-                    continue
-                fi
-                RESULT="${PART}"
-                break
-            fi
-
-            if [ ${BRANCH} != 0 ] ; then
-                RESULT="${RESULT}-${PART}"
-                if [ ${FEATURE} != 0 ] ; then
-                    RESULT="${RESULT}-${FEATURE_NAME}"
-                fi
-                break
-            fi
-
-            if [ ${TEAM} != 0 ] ; then
-                if [ -z "${RESULT}" ] ; then
-                    RESULT="${PART}"
-                else
-                    RESULT="${RESULT}-${PART}"
-                fi
-                continue
-            fi
-
-            if [ "${PART}" = "certified" ] ; then
-                FEATURE=1
-                FEATURE_NAME="cert"
-                continue
-            fi
-
-            if [ "${PART}" = "branches" ] ; then
-                BRANCH=1
-                RESULT="branch"
-                continue
-            fi
-
-            if [ "${PART}" = "tags" ] ; then
-                TAG=1
-                continue
-            fi
-
-            if [ "${PART}" = "team" ] ; then
-                TEAM=1
-                continue
-            fi
-
-            if [ "${PART}" = "trunk" ]; then
-                echo SVN-trunk-r${SVN_REV}${MODIFIED}
-                exit 0
-            fi
-        done
-
-        if [ ${TAG} != 0 ] ; then
-            echo ${RESULT}
-        else
-            echo SVN-${RESULT##-}-r${SVN_REV}${MODIFIED}
-        fi
-    fi
-else
-    echo "UNKNOWN__and_probably_unsupported"
+    exit 0
 fi
+
+if [ ! -d ${1}/.git ]; then
+    echo "UNKNOWN__and_probably_unsupported"
+    exit 0
+fi
+
+if [ -z ${GIT} ]; then
+    GIT="git"
+fi
+
+if ! command -v ${GIT} >/dev/null 2>&1; then
+    echo "UNKNOWN__and_probably_unsupported"
+    exit 1
+fi
+
+GITCHECK=$(${GIT} describe --always 2>/dev/null || echo gitfail 2>/dev/null)
+if [ "x${GITCHECK}" = "xgitfail" ]; then
+    echo "UNKNOWN__git_check_fail"
+    exit 1
+fi
+
+cd ${1} || exit 1
+
+MODIFIED=""
+
+# If MAINLINE_BRANCH is already set in the environment, use it.
+if [ -z "${MAINLINE_BRANCH}" ] ; then
+    # Try to retrieve MAINLINE_BRANCH from a local .develvars file first.
+    # .develvars is keyed by the branch name so we need to get that first.
+    BRANCH=$(${GIT} symbolic-ref --short HEAD 2>/dev/null)
+    if [ -f .develvars ] ; then
+        MAINLINE_BRANCH=$(${GIT} config -f .develvars --get branch.${BRANCH}.mainline-branch)
+    fi
+
+    # If we didn't find it, see if this is a well-known development branch.
+    # development/<mainline_branch>/<branchname> or
+    # devel/<mainline_branch>/<branchname>
+    if [ "x${MAINLINE_BRANCH}" = "x" ] ; then
+        MAINLINE_BRANCH=$(echo "${BRANCH}" | ${SED} -n -r -e "s@devel(opment)?/([0-9]+)/.+@\2@p")
+    fi
+
+    # If we didn't find it, get it from configure.ac.
+    if [ "x${MAINLINE_BRANCH}" = "x" ] ; then
+        MAINLINE_BRANCH=$(${AWK} '/AC_INIT/ { print substr($2, 2, length($2) - 3) }' configure.ac)
+    fi
+fi
+
+VERSION=`${GIT} describe --long --always --tags --dirty=M 2> /dev/null`
+if [ $? -ne 0 ]; then
+    if [ "`${GIT} ls-files -m | wc -l`" != "0" ]; then
+        MODIFIED="M"
+    fi
+    # Some older versions of git do not support all the above
+    # options.
+    VERSION=`${GIT} rev-parse --short --verify HEAD`${MODIFIED}
+fi
+echo GIT-${MAINLINE_BRANCH}-${VERSION}

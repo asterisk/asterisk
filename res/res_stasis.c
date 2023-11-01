@@ -801,6 +801,7 @@ static struct ast_bridge *bridge_create_common(const char *type, const char *nam
 		| AST_BRIDGE_FLAG_SWAP_INHIBIT_FROM | AST_BRIDGE_FLAG_SWAP_INHIBIT_TO
 		| AST_BRIDGE_FLAG_TRANSFER_BRIDGE_ONLY;
 	enum ast_bridge_video_mode_type video_mode = AST_BRIDGE_VIDEO_MODE_TALKER_SRC;
+	int send_sdp_label = 0;
 
 	if (invisible) {
 		flags |= AST_BRIDGE_FLAG_INVISIBLE;
@@ -821,6 +822,8 @@ static struct ast_bridge *bridge_create_common(const char *type, const char *nam
 			video_mode = AST_BRIDGE_VIDEO_MODE_SFU;
 		} else if (!strcmp(requested_type, "video_single")) {
 			video_mode = AST_BRIDGE_VIDEO_MODE_SINGLE_SRC;
+		} else if (!strcmp(requested_type, "sdp_label")) {
+			send_sdp_label = 1;
 		}
 	}
 
@@ -837,7 +840,7 @@ static struct ast_bridge *bridge_create_common(const char *type, const char *nam
 		return NULL;
 	}
 
-	bridge = bridge_stasis_new(capabilities, flags, name, id, video_mode);
+	bridge = bridge_stasis_new(capabilities, flags, name, id, video_mode, send_sdp_label);
 	if (bridge) {
 		if (!ao2_link(app_bridges, bridge)) {
 			ast_bridge_destroy(bridge, 0);

@@ -211,6 +211,15 @@ AST_TEST_DEFINE(test_SAYFILES_function)
 		res = AST_TEST_FAIL;
 	}
 
+	/* + should be ignored and there should not be a leading & */
+	ast_str_set(&expr, 0, "${SAYFILES(+18005551212,digits)}");
+	ast_str_substitute_variables(&result, 0, NULL, ast_str_buffer(expr));
+	if (strcmp(ast_str_buffer(result), "digits/1&digits/8&digits/0&digits/0&digits/5&digits/5&digits/5&digits/1&digits/2&digits/1&digits/2") != 0) {
+		ast_test_status_update(test, "SAYFILES(+18005551212,digits) test failed ('%s')\n",
+				ast_str_buffer(result));
+		res = AST_TEST_FAIL;
+	}
+
 	ast_str_set(&expr, 0, "${SAYFILES(35,number)}");
 	ast_str_substitute_variables(&result, 0, NULL, ast_str_buffer(expr));
 	if (strcmp(ast_str_buffer(result), "digits/30&digits/5") != 0) {

@@ -4,7 +4,7 @@
  * Copyright (C) 2005-2006, Digium, Inc.
  * Portions Copyright (C) 2005, Tilghman Lesher.  All rights reserved.
  * Portions Copyright (C) 2005, Anthony Minessale II
- * Portions Copyright (C) 2021, Naveen Albert
+ * Portions Copyright (C) 2021, 2022, Naveen Albert
  *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
@@ -182,6 +182,51 @@ AST_THREADSTORAGE(tmp_buf);
 				same => n,SendDTMF(${STRBETWEEN(digits,w)) ; this will send 5w5w5w1w2w1w2
 			</example>
 		</description>
+	</function>
+	<function name="TRIM" language="en_US">
+		<synopsis>
+			Trim leading and trailing whitespace in a string
+		</synopsis>
+		<syntax>
+			<parameter name="string" required="true" />
+		</syntax>
+		<description>
+			<para>Replaces all leading and trailing whitespace in the provided string.</para>
+		</description>
+		<see-also>
+			<ref type="function">LTRIM</ref>
+			<ref type="function">RTRIM</ref>
+		</see-also>
+	</function>
+	<function name="LTRIM" language="en_US">
+		<synopsis>
+			Trim leading whitespace in a string
+		</synopsis>
+		<syntax>
+			<parameter name="string" required="true" />
+		</syntax>
+		<description>
+			<para>Replaces all leading whitespace in the provided string.</para>
+		</description>
+		<see-also>
+			<ref type="function">TRIM</ref>
+			<ref type="function">RTRIM</ref>
+		</see-also>
+	</function>
+	<function name="RTRIM" language="en_US">
+		<synopsis>
+			Trim trailing whitespace in a string
+		</synopsis>
+		<syntax>
+			<parameter name="string" required="true" />
+		</syntax>
+		<description>
+			<para>Replaces all trailing whitespace in the provided string.</para>
+		</description>
+		<see-also>
+			<ref type="function">TRIM</ref>
+			<ref type="function">LTRIM</ref>
+		</see-also>
 	</function>
 	<function name="PASSTHRU" language="en_US">
 		<synopsis>
@@ -1043,6 +1088,84 @@ static int strbetween(struct ast_channel *chan, const char *cmd, char *data, str
 static struct ast_custom_function strbetween_function = {
 	.name = "STRBETWEEN",
 	.read2 = strbetween,
+};
+
+#define ltrim(s) while (isspace(*s)) s++;
+#define rtrim(s) { \
+	if (s) { \
+		char *back = s + strlen(s); \
+		while (back != s && isspace(*--back)); \
+		if (*s) { \
+			*(back + 1) = '\0'; \
+		} \
+	} \
+}
+
+static int function_trim(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
+{
+	char *c;
+
+	if (ast_strlen_zero(data)) {
+		return -1;
+	}
+
+	c = ast_strdupa(data);
+	ltrim(c);
+	rtrim(c);
+
+	ast_copy_string(buf, c, len);
+
+	return 0;
+}
+
+static int function_ltrim(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
+{
+	char *c;
+
+	if (ast_strlen_zero(data)) {
+		return -1;
+	}
+
+	c = data;
+	ltrim(c);
+
+	ast_copy_string(buf, c, len);
+
+	return 0;
+}
+
+static int function_rtrim(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
+{
+	char *c;
+
+	if (ast_strlen_zero(data)) {
+		return -1;
+	}
+
+	c = ast_strdupa(data);
+	rtrim(c);
+
+	ast_copy_string(buf, c, len);
+
+	return 0;
+}
+
+#undef ltrim
+#undef rtrim
+
+static struct ast_custom_function trim_function = {
+	.name = "TRIM",
+	.read = function_trim,
+};
+
+static struct ast_custom_function ltrim_function = {
+	.name = "LTRIM",
+	.read = function_ltrim,
+};
+
+static struct ast_custom_function rtrim_function = {
+	.name = "RTRIM",
+	.read = function_rtrim,
 };
 
 static int regex(struct ast_channel *chan, const char *cmd, char *parse, char *buf,
@@ -2126,6 +2249,59 @@ AST_TEST_DEFINE(test_STRBETWEEN)
 
 	return res;
 }
+
+AST_TEST_DEFINE(test_TRIM)
+{
+	int i, res = AST_TEST_PASS;
+	struct ast_channel *chan; /* dummy channel */
+	struct ast_str *str; /* fancy string for holding comparing value */
+
+	const char *test_strings[][5] = {
+		{"TRIM", "  abcd ", "abcd"},
+		{"LTRIM", " abcd ", "abcd "},
+		{"RTRIM", " abcd ", " abcd"},
+		{"TRIM", "abcd", "abcd"},
+		{"TRIM", " a b c d ", "a b c d"},
+	};
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "func_TRIM";
+		info->category = "/funcs/func_strings/";
+		info->summary = "Test TRIM functions";
+		info->description = "Verify TRIM behavior";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	if (!(chan = ast_dummy_channel_alloc())) {
+		ast_test_status_update(test, "Unable to allocate dummy channel\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (!(str = ast_str_create(64))) {
+		ast_test_status_update(test, "Unable to allocate dynamic string buffer\n");
+		ast_channel_release(chan);
+		return AST_TEST_FAIL;
+	}
+
+	for (i = 0; i < ARRAY_LEN(test_strings); i++) {
+		char tmp[512], tmp2[512] = "";
+
+		snprintf(tmp, sizeof(tmp), "${%s(%s)}", test_strings[i][0], test_strings[i][1]);
+		ast_str_substitute_variables(&str, 0, chan, tmp);
+		if (strcmp(test_strings[i][2], ast_str_buffer(str))) {
+			ast_test_status_update(test, "Format string '%s' substituted to '%s'.  Expected '%s'.\n", test_strings[i][0], tmp2, test_strings[i][2]);
+			res = AST_TEST_FAIL;
+		}
+	}
+
+	ast_free(str);
+	ast_channel_release(chan);
+
+	return res;
+}
 #endif
 
 static int unload_module(void)
@@ -2137,6 +2313,7 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(test_FILTER);
 	AST_TEST_UNREGISTER(test_STRREPLACE);
 	AST_TEST_UNREGISTER(test_STRBETWEEN);
+	AST_TEST_UNREGISTER(test_TRIM);
 	res |= ast_custom_function_unregister(&fieldqty_function);
 	res |= ast_custom_function_unregister(&fieldnum_function);
 	res |= ast_custom_function_unregister(&filter_function);
@@ -2163,6 +2340,9 @@ static int unload_module(void)
 	res |= ast_custom_function_unregister(&push_function);
 	res |= ast_custom_function_unregister(&unshift_function);
 	res |= ast_custom_function_unregister(&passthru_function);
+	res |= ast_custom_function_unregister(&trim_function);
+	res |= ast_custom_function_unregister(&ltrim_function);
+	res |= ast_custom_function_unregister(&rtrim_function);
 
 	return res;
 }
@@ -2176,6 +2356,7 @@ static int load_module(void)
 	AST_TEST_REGISTER(test_FILTER);
 	AST_TEST_REGISTER(test_STRREPLACE);
 	AST_TEST_REGISTER(test_STRBETWEEN);
+	AST_TEST_REGISTER(test_TRIM);
 	res |= ast_custom_function_register(&fieldqty_function);
 	res |= ast_custom_function_register(&fieldnum_function);
 	res |= ast_custom_function_register(&filter_function);
@@ -2202,6 +2383,9 @@ static int load_module(void)
 	res |= ast_custom_function_register(&push_function);
 	res |= ast_custom_function_register(&unshift_function);
 	res |= ast_custom_function_register(&passthru_function);
+	res |= ast_custom_function_register(&trim_function);
+	res |= ast_custom_function_register(&ltrim_function);
+	res |= ast_custom_function_register(&rtrim_function);
 
 	return res;
 }

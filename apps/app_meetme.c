@@ -6149,7 +6149,7 @@ struct run_station_args {
 
 static void answer_trunk_chan(struct ast_channel *chan)
 {
-	ast_answer(chan);
+	ast_raw_answer(chan);
 	ast_indicate(chan, -1);
 }
 
@@ -6994,8 +6994,18 @@ static void *dial_trunk(void *data)
 		return NULL;
 	}
 
-	for (;;) {
+	/* Wait for dial to end, while servicing the channel */
+	while (ast_waitfor(trunk_ref->chan, 100)) {
 		unsigned int done = 0;
+		struct ast_frame *fr = ast_read(trunk_ref->chan);
+
+		if (!fr) {
+			ast_debug(1, "Channel %s did not return a frame, must have hung up\n", ast_channel_name(trunk_ref->chan));
+			done = 1;
+			break;
+		}
+		ast_frfree(fr); /* Ignore while dialing */
+
 		switch ((dial_res = ast_dial_state(dial))) {
 		case AST_DIAL_RESULT_ANSWERED:
 			trunk_ref->trunk->chan = ast_dial_answered(dial);
@@ -7032,8 +7042,6 @@ static void *dial_trunk(void *data)
 			last_state = current_state;
 		}
 
-		/* avoid tight loop... sleep for 1/10th second */
-		ast_safe_sleep(trunk_ref->chan, 100);
 	}
 
 	if (!trunk_ref->trunk->chan) {
@@ -7192,8 +7200,10 @@ static int sla_station_exec(struct ast_channel *chan, const char *data)
 		sla_change_trunk_state(trunk_ref->trunk, SLA_TRUNK_STATE_UP, ALL_TRUNK_REFS, NULL);
 		/* Create a thread to dial the trunk and dump it into the conference.
 		 * However, we want to wait until the trunk has been dialed and the
-		 * conference is created before continuing on here. */
-		ast_autoservice_start(chan);
+		 * conference is created before continuing on here.
+		 * Don't autoservice the channel or we'll have multiple threads
+		 * handling it. dial_trunk services the channel.
+		 */
 		ast_mutex_init(&cond_lock);
 		ast_cond_init(&cond, NULL);
 		ast_mutex_lock(&cond_lock);
@@ -7202,7 +7212,7 @@ static int sla_station_exec(struct ast_channel *chan, const char *data)
 		ast_mutex_unlock(&cond_lock);
 		ast_mutex_destroy(&cond_lock);
 		ast_cond_destroy(&cond);
-		ast_autoservice_stop(chan);
+
 		if (!trunk_ref->trunk->chan) {
 			ast_debug(1, "Trunk didn't get created. chan: %lx\n", (unsigned long) trunk_ref->trunk->chan);
 			pbx_builtin_setvar_helper(chan, "SLASTATION_STATUS", "CONGESTION");

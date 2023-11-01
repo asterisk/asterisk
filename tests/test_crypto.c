@@ -40,6 +40,7 @@
 #include "asterisk/file.h"
 
 #include <assert.h>
+#include <sys/stat.h>
 #include <linux/limits.h>
 #include <openssl/evp.h>
 
@@ -105,15 +106,26 @@ AST_TEST_DEFINE(crypto_rsa_encrypt)
 
 	ast_test_status_update(test, "Executing RSA encryption test\n");
 
+	ast_test_capture_init(&cap);
+
 	if (!ast_check_command_in_path(command)) {
 		ast_test_status_update(test, "couldn't find %s\n", command);
+		ast_test_capture_free(&cap);
 		return res;
 	}
 
-	getcwd(wd, sizeof(wd));
+	if (getcwd(wd, sizeof(wd)) == NULL) {
+		ast_test_status_update(test, "Could not determine current working directory\n");
+		ast_test_capture_free(&cap);
+		return res;
+	}
+
 	snprintf(key_dir, sizeof(key_dir), "%s/%s", wd, "tests/keys");
 	push_key_dir((const char *)key_dir);
 	snprintf(priv, sizeof(priv), "%s/%s.key", key_dir, keypair1);
+
+	/* because git doesn't preserve permissions */
+	(void)chmod(priv, 0400);
 
 	if (ast_crypto_reload() != 1) {
 		ast_test_status_update(test, "Couldn't force crypto reload\n");
@@ -190,12 +202,20 @@ AST_TEST_DEFINE(crypto_rsa_decrypt)
 
 	ast_test_status_update(test, "Executing RSA decryption test\n");
 
+	ast_test_capture_init(&cap);
+
 	if (!ast_check_command_in_path(command)) {
 		ast_test_status_update(test, "couldn't find %s\n", command);
+		ast_test_capture_free(&cap);
 		return res;
 	}
 
-	getcwd(wd, sizeof(wd));
+	if (getcwd(wd, sizeof(wd)) == NULL) {
+		ast_test_status_update(test, "Could not determine current working directory\n");
+		ast_test_capture_free(&cap);
+		return res;
+	}
+
 	snprintf(key_dir, sizeof(key_dir), "%s/%s", wd, "tests/keys");
 	push_key_dir((const char *)key_dir);
 	snprintf(pub, sizeof(pub), "%s/%s.pub", key_dir, keypair1);
@@ -285,12 +305,20 @@ AST_TEST_DEFINE(crypto_sign)
 
 	ast_test_status_update(test, "Executing RSA signing test\n");
 
+	ast_test_capture_init(&cap);
+
 	if (!ast_check_command_in_path(command)) {
 		ast_test_status_update(test, "couldn't find %s\n", command);
+		ast_test_capture_free(&cap);
 		return res;
 	}
 
-	getcwd(wd, sizeof(wd));
+	if (getcwd(wd, sizeof(wd)) == NULL) {
+		ast_test_status_update(test, "Could not determine current working directory\n");
+		ast_test_capture_free(&cap);
+		return res;
+	}
+
 	snprintf(key_dir, sizeof(key_dir), "%s/%s", wd, "tests/keys");
 	push_key_dir((const char *)key_dir);
 	snprintf(pub, sizeof(pub), "%s/%s.pub", key_dir, keypair1);
@@ -396,15 +424,26 @@ AST_TEST_DEFINE(crypto_verify)
 
 	ast_test_status_update(test, "Executing RSA signature verification test\n");
 
+	ast_test_capture_init(&cap);
+
 	if (!ast_check_command_in_path(command)) {
 		ast_test_status_update(test, "couldn't find %s\n", command);
+		ast_test_capture_free(&cap);
 		return res;
 	}
 
-	getcwd(wd, sizeof(wd));
+	if (getcwd(wd, sizeof(wd)) == NULL) {
+		ast_test_status_update(test, "Could not determine current working directory\n");
+		ast_test_capture_free(&cap);
+		return res;
+	}
+
 	snprintf(key_dir, sizeof(key_dir), "%s/%s", wd, "tests/keys");
 	push_key_dir((const char *)key_dir);
 	snprintf(priv, sizeof(priv), "%s/%s.key", key_dir, keypair1);
+
+	/* because git doesn't preserve permissions */
+	(void)chmod(priv, 0400);
 
 	if (ast_crypto_reload() != 1) {
 		ast_test_status_update(test, "Couldn't force crypto reload\n");
@@ -491,6 +530,8 @@ AST_TEST_DEFINE(crypto_aes_encrypt)
 
 	ast_test_status_update(test, "Executing AES-ECB encryption test\n");
 
+	ast_test_capture_init(&cap);
+
 	if (!ast_check_command_in_path(command)) {
 		ast_test_status_update(test, "couldn't find %s\n", command);
 		return res;
@@ -564,6 +605,8 @@ AST_TEST_DEFINE(crypto_aes_decrypt)
 	}
 
 	ast_test_status_update(test, "Executing AES-ECB decryption test\n");
+
+	ast_test_capture_init(&cap);
 
 	if (!ast_check_command_in_path(command)) {
 		ast_test_status_update(test, "couldn't find %s\n", command);

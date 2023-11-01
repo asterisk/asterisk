@@ -1,7 +1,7 @@
 """Add pjsip endpoint ACN options
 
 Revision ID: b80485ff4dd0
-Revises: fbb7766f17bc
+Revises: 79290b511e4b
 Create Date: 2020-07-06 08:29:53.974820
 
 """

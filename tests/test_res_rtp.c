@@ -36,11 +36,14 @@
 #include "asterisk/rtp_engine.h"
 #include "asterisk/data_buffer.h"
 #include "asterisk/format_cache.h"
+#include <assert.h>
+#include <sched.h>
 
 enum test_type {
 	TEST_TYPE_NONE = 0,	/* No special setup required */
 	TEST_TYPE_NACK,		/* Enable NACK */
 	TEST_TYPE_REMB,		/* Enable REMB */
+	TEST_TYPE_STD_RTCP, /* Let the stack do RTCP */
 };
 
 static void ast_sched_context_destroy_wrapper(struct ast_sched_context *sched)
@@ -54,18 +57,30 @@ static int test_init_rtp_instances(struct ast_rtp_instance **instance1,
 	struct ast_rtp_instance **instance2, struct ast_sched_context *test_sched,
 	enum test_type type)
 {
-	struct ast_sockaddr addr;
+	struct ast_sockaddr addr1;
+	struct ast_sockaddr addr2;
+	enum ast_rtp_instance_rtcp rtcp_type = AST_RTP_INSTANCE_RTCP_MUX;
 
-	ast_sockaddr_parse(&addr, "127.0.0.1", 0);
+	ast_sockaddr_parse(&addr1, "127.0.0.1", 0);
+	ast_sockaddr_parse(&addr2, "127.0.0.1", 0);
 
-	*instance1 = ast_rtp_instance_new("asterisk", test_sched, &addr, NULL);
-	*instance2 = ast_rtp_instance_new("asterisk", test_sched, &addr, NULL);
+	*instance1 = ast_rtp_instance_new("asterisk", test_sched, &addr1, "instance1");
+	*instance2 = ast_rtp_instance_new("asterisk", test_sched, &addr2, "instance2");
 	if (!instance1 || !instance2) {
 		return -1;
 	}
 
-	ast_rtp_instance_set_prop(*instance1, AST_RTP_PROPERTY_RTCP, AST_RTP_INSTANCE_RTCP_MUX);
-	ast_rtp_instance_set_prop(*instance2, AST_RTP_PROPERTY_RTCP, AST_RTP_INSTANCE_RTCP_MUX);
+	ast_rtp_instance_set_channel_id(*instance1, "instance1");
+	ast_rtp_instance_set_channel_id(*instance2, "instance2");
+
+	if (type == TEST_TYPE_STD_RTCP) {
+		rtcp_type = AST_RTP_INSTANCE_RTCP_STANDARD;
+	}
+
+	ast_rtp_instance_set_prop(*instance1,
+		AST_RTP_PROPERTY_RTCP, rtcp_type);
+	ast_rtp_instance_set_prop(*instance2,
+		AST_RTP_PROPERTY_RTCP, rtcp_type);
 
 	if (type == TEST_TYPE_NACK) {
 		ast_rtp_instance_set_prop(*instance1, AST_RTP_PROPERTY_RETRANS_RECV, 1);
@@ -77,11 +92,11 @@ static int test_init_rtp_instances(struct ast_rtp_instance **instance1,
 		ast_rtp_instance_set_prop(*instance2, AST_RTP_PROPERTY_REMB, 1);
 	}
 
-	ast_rtp_instance_get_local_address(*instance1, &addr);
-	ast_rtp_instance_set_remote_address(*instance2, &addr);
+	ast_rtp_instance_get_local_address(*instance1, &addr1);
+	ast_rtp_instance_set_remote_address(*instance2, &addr1);
 
-	ast_rtp_instance_get_local_address(*instance2, &addr);
-	ast_rtp_instance_set_remote_address(*instance1, &addr);
+	ast_rtp_instance_get_local_address(*instance2, &addr2);
+	ast_rtp_instance_set_remote_address(*instance1, &addr2);
 
 	ast_rtp_instance_reset_test_engine(*instance1);
 
@@ -128,6 +143,120 @@ static void test_write_and_read_frames(struct ast_rtp_instance *instance1,
 {
 	test_write_frames(instance1, seqno, num);
 	test_read_frames(instance2, num);
+}
+
+
+/*
+ * Unfortunately, we can't use usleep() to create
+ * packet spacing because there are signals in use
+ * which cause usleep to immediately return.  Instead
+ * we have to spin.  :(
+ */
+static void SLEEP_SPINNER(int ms)
+{
+	struct timeval a = ast_tvnow();
+
+	while(1) {
+		sched_yield();
+		if (ast_remaining_ms(a, ms) <= 0) {
+			break;
+		}
+	}
+}
+
+/*
+ * This function is NOT really a reliable implementation.
+ * Its purpose is only to aid in code development in res_rtp_asterisk.
+ */
+static void test_write_and_read_interleaved_frames(struct ast_rtp_instance *instance1,
+	struct ast_rtp_instance *instance2, int howlong, int rtcp_interval)
+{
+	char data[320] = "";
+	int pktinterval = 20;
+
+	struct ast_frame frame_out1 = {
+		.frametype = AST_FRAME_VOICE,
+		.subclass.format = ast_format_ulaw,
+		.seqno = 4556,
+		.data.ptr = data,
+		.datalen = 160,
+		.samples = 1,
+		.len = pktinterval,
+		.ts = 4622295,
+	};
+	struct ast_frame frame_out2 = {
+		.frametype = AST_FRAME_VOICE,
+		.subclass.format = ast_format_ulaw,
+		.seqno = 6554,
+		.data.ptr = data,
+		.datalen = 160,
+		.samples = 1,
+		.len = pktinterval,
+		.ts = 8622295,
+	};
+	struct ast_frame *frame_in1;
+	struct ast_frame *frame_in2;
+	int index;
+	int num;
+	int rtcpnum;
+	int reverse = 1;
+	int send_rtcp = 0;
+
+	num = howlong / pktinterval;
+
+	rtcpnum = rtcp_interval / pktinterval;
+
+	ast_set_flag(&frame_out1, AST_FRFLAG_HAS_SEQUENCE_NUMBER);
+	ast_set_flag(&frame_out1, AST_FRFLAG_HAS_TIMING_INFO);
+	ast_set_flag(&frame_out2, AST_FRFLAG_HAS_SEQUENCE_NUMBER);
+	ast_set_flag(&frame_out2, AST_FRFLAG_HAS_TIMING_INFO);
+
+	for (index = 0; index < num; index++) {
+		struct timeval start = ast_tvnow();
+		time_t ms;
+
+		if (index == 1) {
+			ast_clear_flag(&frame_out1, AST_FRFLAG_HAS_SEQUENCE_NUMBER);
+			ast_clear_flag(&frame_out1, AST_FRFLAG_HAS_TIMING_INFO);
+			ast_clear_flag(&frame_out2, AST_FRFLAG_HAS_SEQUENCE_NUMBER);
+			ast_clear_flag(&frame_out2, AST_FRFLAG_HAS_TIMING_INFO);
+		}
+		frame_out1.seqno += index;
+		frame_out1.delivery = start;
+		frame_out1.ts += frame_out1.len;
+		ast_rtp_instance_write(instance1, &frame_out1);
+
+		if (send_rtcp && index && (index % rtcpnum == 0)) {
+			ast_rtp_instance_queue_report(instance1);
+		}
+
+		frame_in2 = ast_rtp_instance_read(instance2, 0);
+		ast_frfree(frame_in2);
+		frame_in2 = ast_rtp_instance_read(instance2, 1);
+		ast_frfree(frame_in2);
+
+		if (reverse) {
+			frame_out2.seqno += index;
+			frame_out2.delivery = ast_tvnow();
+			frame_out2.ts += frame_out2.len;
+			ast_rtp_instance_write(instance2, &frame_out2);
+
+			if (send_rtcp && index && (index % rtcpnum == 0)) {
+				ast_rtp_instance_queue_report(instance2);
+			}
+
+			frame_in1 = ast_rtp_instance_read(instance1, 0);
+			ast_frfree(frame_in1);
+			frame_in1 = ast_rtp_instance_read(instance1, 1);
+			ast_frfree(frame_in1);
+
+		}
+
+		ms = frame_out1.len - ast_tvdiff_ms(ast_tvnow(),start);
+		ms += (index % 2 ? 5 : 12);
+		ms += (index % 3 ? 2 : 30);
+		SLEEP_SPINNER(ms);
+	}
 }
 
 AST_TEST_DEFINE(nack_no_packet_loss)
@@ -523,8 +652,47 @@ AST_TEST_DEFINE(fir_nominal)
 	return AST_TEST_PASS;
 }
 
+/*
+ * This test should not normally be run.  Its only purpose is to
+ * aid in code development.
+ */
+AST_TEST_DEFINE(mes)
+{
+	RAII_VAR(struct ast_rtp_instance *, instance1, NULL, ast_rtp_instance_destroy);
+	RAII_VAR(struct ast_rtp_instance *, instance2, NULL, ast_rtp_instance_destroy);
+	RAII_VAR(struct ast_sched_context *, test_sched, NULL, ast_sched_context_destroy_wrapper);
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "mes";
+		info->category = "/res/res_rtp/";
+		info->summary = "Media Experience Score";
+		info->description =
+			"Tests calculation of Media Experience Score (only run by explicit request)";
+		info->explicit_only = 1;
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	test_sched = ast_sched_context_create();
+	ast_sched_start_thread(test_sched);
+
+	if ((test_init_rtp_instances(&instance1, &instance2,
+		test_sched, TEST_TYPE_NONE)) < 0) {
+		ast_log(LOG_ERROR, "Failed to initialize test!\n");
+		return AST_TEST_FAIL;
+	}
+
+	test_write_and_read_interleaved_frames(
+		instance1, instance2, 1000, 5000);
+
+	return AST_TEST_PASS;
+}
+
 static int unload_module(void)
 {
+	AST_TEST_UNREGISTER(mes);
 	AST_TEST_UNREGISTER(nack_no_packet_loss);
 	AST_TEST_UNREGISTER(nack_nominal);
 	AST_TEST_UNREGISTER(nack_overflow);
@@ -544,6 +712,7 @@ static int load_module(void)
 	AST_TEST_REGISTER(remb_nominal);
 	AST_TEST_REGISTER(sr_rr_nominal);
 	AST_TEST_REGISTER(fir_nominal);
+	AST_TEST_REGISTER(mes);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 

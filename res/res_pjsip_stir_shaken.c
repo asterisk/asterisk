@@ -399,7 +399,22 @@ static int add_identity_header(const struct ast_sip_session *session, pjsip_tx_d
 		return -1;
 	}
 
-	ast_copy_pj_str(dest_tn, &uri->user, uri->user.slen + 1);
+	/* Remove everything except 0-9, *, and # in telephone number according to RFC 8224
+	 * (required by RFC 8225 as part of canonicalization) */
+	{
+		int i;
+		const char *s = uri->user.ptr;
+		char *new_tn = dest_tn;
+		/* We're only removing characters, if anything, so the buffer is guaranteed to be large enough */
+		for (i = 0; i < uri->user.slen; i++) {
+			if (isdigit(*s) || *s == '#' || *s == '*') { /* Only characters allowed */
+				*new_tn++ = *s;
+			}
+			s++;
+		}
+		*new_tn = '\0';
+		ast_debug(4, "Canonicalized telephone number %.*s -> %s\n", (int) uri->user.slen, uri->user.ptr, dest_tn);
+	}
 
 	/* x5u (public key URL), attestation, and origid will be added by ast_stir_shaken_sign */
 	json = ast_json_pack("{s: {s: s, s: s, s: s}, s: {s: {s: [s]}, s: {s: s}}}",
@@ -427,7 +442,9 @@ static int add_identity_header(const struct ast_sip_session *session, pjsip_tx_d
 	}
 
 	payload = ast_json_object_get(json, "payload");
-	dumped_string = ast_json_dump_string(payload);
+	/* Fields must appear in lexiographic order: https://www.rfc-editor.org/rfc/rfc8588.html#section-6
+	 * https://www.rfc-editor.org/rfc/rfc8225.html#section-9 */
+	dumped_string = ast_json_dump_string_sorted(payload);
 	encoded_payload = ast_base64url_encode_string(dumped_string);
 	ast_json_free(dumped_string);
 	if (!encoded_payload) {

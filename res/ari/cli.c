@@ -60,13 +60,10 @@ static char *ari_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 	ast_cli(a->fd, "ARI Status:\n");
 	ast_cli(a->fd, "Enabled: %s\n", AST_CLI_YESNO(conf->general->enabled));
 	ast_cli(a->fd, "Output format: ");
-	switch (conf->general->format) {
-	case AST_JSON_COMPACT:
-		ast_cli(a->fd, "compact");
-		break;
-	case AST_JSON_PRETTY:
+	if (conf->general->format & AST_JSON_PRETTY) {
 		ast_cli(a->fd, "pretty");
-		break;
+	} else {
+		ast_cli(a->fd, "compact");
 	}
 	ast_cli(a->fd, "\n");
 	ast_cli(a->fd, "Auth realm: %s\n", conf->general->auth_realm);

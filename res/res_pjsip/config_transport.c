@@ -1221,11 +1221,17 @@ static int transport_tls_method_handler(const struct aco_option *opt, struct ast
 		state->tls.method = PJSIP_SSL_UNSPECIFIED_METHOD;
 	} else if (!strcasecmp(var->value, "tlsv1")) {
 		state->tls.method = PJSIP_TLSV1_METHOD;
-#ifdef HAVE_PJSIP_TLS_TRANSPORT_PROTO
+#ifdef HAVE_PJSIP_TLS_1_1
 	} else if (!strcasecmp(var->value, "tlsv1_1")) {
 		state->tls.method = PJSIP_TLSV1_1_METHOD;
+#endif
+#ifdef HAVE_PJSIP_TLS_1_2
 	} else if (!strcasecmp(var->value, "tlsv1_2")) {
 		state->tls.method = PJSIP_TLSV1_2_METHOD;
+#endif
+#ifdef HAVE_PJSIP_TLS_1_3
+	} else if (!strcasecmp(var->value, "tlsv1_3")) {
+		state->tls.method = PJSIP_TLSV1_3_METHOD;
 #endif
 	} else if (!strcasecmp(var->value, "sslv2")) {
 		state->tls.method = PJSIP_SSLV2_METHOD;
@@ -1243,9 +1249,14 @@ static int transport_tls_method_handler(const struct aco_option *opt, struct ast
 static const char *tls_method_map[] = {
 	[PJSIP_SSL_UNSPECIFIED_METHOD] = "unspecified",
 	[PJSIP_TLSV1_METHOD] = "tlsv1",
-#ifdef HAVE_PJSIP_TLS_TRANSPORT_PROTO
+#ifdef HAVE_PJSIP_TLS_1_1
 	[PJSIP_TLSV1_1_METHOD] = "tlsv1_1",
+#endif
+#ifdef HAVE_PJSIP_TLS_1_2
 	[PJSIP_TLSV1_2_METHOD] = "tlsv1_2",
+#endif
+#ifdef HAVE_PJSIP_TLS_1_3
+	[PJSIP_TLSV1_3_METHOD] = "tlsv1_3",
 #endif
 	[PJSIP_SSLV2_METHOD] = "sslv2",
 	[PJSIP_SSLV3_METHOD] = "sslv3",

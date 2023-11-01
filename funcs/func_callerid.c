@@ -182,6 +182,21 @@
 					<para>Number Unavailable.</para>
 				</enum>
 			</enumlist>
+			<variablelist>
+				<variable name="CALL_QUALIFIER">
+					<para>This is a special Caller ID-related variable
+					that can be used to enable sending the Call Qualifier
+					parameter in MDMF (Multiple Data Message Format)
+					Caller ID spills.</para>
+					<para>This variable is not automatically set by Asterisk.
+					You are responsible for setting it if/when needed.</para>
+					<para>Supporting Caller ID units will display the LDC
+					(Long Distance Call) indicator when they receive this parameter.</para>
+					<para>This option must be used with a channel driver
+					that allows Asterisk to generate the Caller ID spill,
+					which currently only includes <literal>chan_dahdi</literal>.</para>
+				</variable>
+			</variablelist>
 		</description>
 	</function>
 	<function name="CONNECTEDLINE" language="en_US">
@@ -1611,6 +1626,7 @@ static int redirecting_write(struct ast_channel *chan, const char *cmd, char *da
 			 * reason, so we can just set the reason string to what was given and set the
 			 * code to be unknown
 			 */
+				ast_log(LOG_WARNING, "Unknown redirecting reason '%s', defaulting to unknown\n", val);
 				redirecting.orig_reason.code = AST_REDIRECTING_REASON_UNKNOWN;
 				redirecting.orig_reason.str = val;
 				set_it(chan, &redirecting, NULL);

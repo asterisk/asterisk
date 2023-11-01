@@ -604,6 +604,7 @@ static int stir_shaken_verify_signature(const char *msg, const char *signature, 
  *
  * \param public_cert_url The public cert URL
  * \param path The path to download the file to
+ * \param acl The ACL to use for cURL (if not NULL)
  *
  * \retval NULL on failure
  * \retval full path filename on success
@@ -641,6 +642,7 @@ static char *run_curl(const char *public_cert_url, const char *path, const struc
  * \param public_cert_url The public cert URL
  * \param path The path to download the file to
  * \param curl Flag signaling if we have run CURL or not
+ * \param acl The ACL to use for cURL (if not NULL)
  *
  * \retval NULL on failure
  * \retval full path filename on success
@@ -1226,7 +1228,8 @@ struct ast_stir_shaken_payload *ast_stir_shaken_sign(struct ast_json *json)
 	tmp_json = ast_json_object_get(json, "header");
 	header = ast_json_dump_string(tmp_json);
 	tmp_json = ast_json_object_get(json, "payload");
-	payload = ast_json_dump_string(tmp_json);
+
+	payload = ast_json_dump_string_sorted(tmp_json);
 	msg_len = strlen(header) + strlen(payload) + 2;
 	msg = ast_calloc(1, msg_len);
 	if (!msg) {
@@ -1659,7 +1662,7 @@ AST_TEST_DEFINE(test_stir_shaken_verify)
 	tmp_json = ast_json_object_get(json, "header");
 	header = ast_json_dump_string(tmp_json);
 	tmp_json = ast_json_object_get(json, "payload");
-	payload = ast_json_dump_string(tmp_json);
+	payload = ast_json_dump_string_sorted(tmp_json);
 
 	/* Test empty header parameter */
 	returned_payload = ast_stir_shaken_verify("", payload, (const char *)signed_payload->signature,

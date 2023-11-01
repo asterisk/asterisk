@@ -593,6 +593,15 @@ struct ast_json *ast_json_object_get(struct ast_json *object, const char *key);
 #define ast_json_object_integer_get(object, key) ast_json_integer_get(ast_json_object_get(object, key))
 
 /*!
+ * \brief Get a double field from a JSON object.
+ * \param object JSON object.
+ * \param key Key of double field to look up.
+ * \return Value of a JSON double.
+ * \retval 0 if \a real is not a JSON real number.
+ */
+#define ast_json_object_real_get(object, key) ast_json_real_get(ast_json_object_get(object, key))
+
+/*!
  * \brief Set a field in a JSON object.
  * \since 12.0.0
  *
@@ -768,6 +777,8 @@ enum ast_json_encoding_format
 	AST_JSON_COMPACT,
 	/*! Formatted for human readability */
 	AST_JSON_PRETTY,
+	/*! Keys sorted alphabetically */
+	AST_JSON_SORTED,
 };
 
 /*!
@@ -794,6 +805,17 @@ enum ast_json_encoding_format
  * \retval NULL on error.
  */
 char *ast_json_dump_string_format(struct ast_json *root, enum ast_json_encoding_format format);
+
+/*!
+ * \brief Encode a JSON value to a string, with its keys sorted.
+ *
+ * Returned string must be freed by calling ast_json_free().
+ *
+ * \param root JSON value.
+ * \return String encoding of \a root.
+ * \retval NULL on error.
+ */
+#define ast_json_dump_string_sorted(root) ast_json_dump_string_format(root, AST_JSON_SORTED)
 
 #define ast_json_dump_str(root, dst) ast_json_dump_str_format(root, dst, AST_JSON_COMPACT)
 

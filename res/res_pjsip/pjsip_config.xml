@@ -32,9 +32,33 @@
 					<synopsis>Allow support for RFC3262 provisional ACK tags</synopsis>
 					<description>
 						<enumlist>
-							<enum name="no" />
-							<enum name="required" />
-							<enum name="yes" />
+							<enum name="no">
+							<para>If set to <literal>no</literal>, do not support transmission of
+							reliable provisional responses. As UAS, if an incoming request contains 100rel
+							in the Required header, it is rejected with 420 Bad Extension.</para>
+							</enum>
+							<enum name="required">
+							<para>If set to <literal>required</literal>, require provisional responses to
+							be sent and received reliably. As UAS, incoming requests without 100rel
+							in the Supported header are rejected with 421 Extension Required. As UAC,
+							outgoing requests will have 100rel in the Required header.</para>
+							</enum>
+							<enum name="peer_supported">
+							<para>If set to <literal>peer_supported</literal>, send provisional responses
+							reliably if the request by the peer contained 100rel in the Supported or
+							Require header. As UAS, if an incoming request contains 100rel in the Supported
+							header, send 1xx responses reliably. If the request by the peer does not contain 100rel
+							in the Supported and Require header, send responses normally. As UAC, outgoing requests
+							will contain 100rel in the Supported header.</para>
+							</enum>
+							<enum name="yes">
+							<para>If set to <literal>yes</literal>, indicate the support of reliable provisional
+							responses and PRACK them if required by the peer. As UAS, if the incoming request
+							contains 100rel in the Supported header but not in the Required header, send 1xx
+							responses normally. If the incoming request contains 100rel in the Required header,
+							send 1xx responses reliably. As UAC add 100rel to the Supported header and PRACK 1xx
+							responses if required.</para>
+							</enum>
 						</enumlist>
 					</description>
 				</configOption>
@@ -288,6 +312,16 @@
 				</configOption>
 				<configOption name="allow_overlap" default="yes">
 					<synopsis>Enable RFC3578 overlap dialing support.</synopsis>
+				</configOption>
+				<configOption name="overlap_context">
+					<synopsis>Dialplan context to use for RFC3578 overlap dialing.</synopsis>
+					<description>
+						<para>Dialplan context to use for overlap dialing extension matching.
+						If not specified, the context configured for the endpoint will be used.
+						If specified, the extensions/patterns in the specified context will be used
+						for determining if a full number has been received from the endpoint.
+						</para>
+					</description>
 				</configOption>
 				<configOption name="aors">
 					<synopsis>AoR(s) to be used with the endpoint</synopsis>
@@ -986,7 +1020,7 @@
 					<synopsis>Username to use in From header for unsolicited MWI NOTIFYs to this endpoint.</synopsis>
 				</configOption>
 				<configOption name="from_domain">
-					<synopsis>Domain to user in From header for requests to this endpoint.</synopsis>
+					<synopsis>Domain to use in From header for requests to this endpoint.</synopsis>
 				</configOption>
 				<configOption name="dtls_verify">
 					<synopsis>Verify that the provided peer certificate is valid</synopsis>
@@ -1448,6 +1482,22 @@
 						responses.</para>
 					</description>
 				</configOption>
+				<configOption name="security_negotiation" default="no">
+					<synopsis>The kind of security agreement negotiation to use. Currently, only mediasec is supported.</synopsis>
+					<description>
+						<enumlist>
+							<enum name="no" />
+							<enum name="mediasec" />
+						</enumlist>
+					</description>
+				</configOption>
+				<configOption name="security_mechanisms">
+					<synopsis>List of security mechanisms supported.</synopsis>
+					<description><para>
+						This is a comma-delimited list of security mechanisms to use. Each security mechanism
+						must be in the form defined by RFC 3329 section 2.2.
+					</para></description>
+				</configOption>
 				<configOption name="geoloc_incoming_call_profile" default="">
 					<synopsis>Geolocation profile to apply to incoming calls</synopsis>
 					<description><para>
@@ -1465,6 +1515,9 @@
 						the remote endpoint.
 						</para>
 					</description>
+				</configOption>
+				<configOption name="send_aoc" default="no">
+					<synopsis>Send Advice-of-Charge messages</synopsis>
 				</configOption>
 			</configObject>
 			<configObject name="auth">
@@ -1696,6 +1749,8 @@
 				<configOption name="method">
 					<synopsis>Method of SSL transport (TLS ONLY, not WSS)</synopsis>
 					<description>
+						<para>The availability of each of these options is dependent on the
+						version and configuration of the underlying PJSIP library.</para>
 						<enumlist>
 							<enum name="default">
 								<para>The default as defined by PJSIP. This is currently TLSv1, but may change with future releases.</para>
@@ -1706,6 +1761,7 @@
 							<enum name="tlsv1" />
 							<enum name="tlsv1_1" />
 							<enum name="tlsv1_2" />
+							<enum name="tlsv1_3" />
 							<enum name="sslv2" />
 							<enum name="sslv3" />
 							<enum name="sslv23" />
@@ -2394,6 +2450,15 @@
 						(default: "no")
 						</para>
 					</description>
+				</configOption>
+				<configOption name="all_codecs_on_empty_reinvite" default="no">
+					<synopsis>If we should return all codecs on re-INVITE without SDP</synopsis>
+					<description><para>
+						On reception of a re-INVITE without SDP Asterisk will send an SDP
+						offer in the 200 OK response containing all configured codecs on the
+						endpoint, instead of simply those that have already been negotiated.
+						RFC 3261 specifies this as a SHOULD requirement.
+					</para></description>
 				</configOption>
 			</configObject>
 		</configFile>

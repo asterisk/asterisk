@@ -167,6 +167,14 @@ static struct ast_sip_session_supplement chan_pjsip_ack_supplement = {
 	.incoming_request = chan_pjsip_incoming_ack,
 };
 
+static int chan_pjsip_incoming_prack(struct ast_sip_session *session, struct pjsip_rx_data *rdata);
+
+static struct ast_sip_session_supplement chan_pjsip_prack_supplement = {
+	.method = "PRACK",
+	.priority = AST_SIP_SUPPLEMENT_PRIORITY_CHANNEL,
+	.incoming_request = chan_pjsip_incoming_prack,
+};
+
 /*! \brief Function called by RTP engine to get local audio RTP peer */
 static enum ast_rtp_glue_result chan_pjsip_get_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance **instance)
 {
@@ -1564,13 +1572,22 @@ static int send_topology_change_refresh(void *data)
 {
 	struct topology_change_refresh_data *refresh_data = data;
 	struct ast_sip_session *session = refresh_data->session;
+	enum ast_channel_state state = ast_channel_state(session->channel);
+	enum ast_sip_session_refresh_method method = AST_SIP_SESSION_REFRESH_METHOD_INVITE;
 	int ret;
 	SCOPE_ENTER(3, "%s: %s\n", ast_sip_session_get_name(session),
 		ast_str_tmp(256, ast_stream_topology_to_str(refresh_data->media_state->topology, &STR_TMP)));
 
+	/* See RFC 6337, especially section 3.2: If the early media SDP was sent reliably, we are allowed
+	 * to send UPDATEs. Only relevant for AST_STATE_RINGING and AST_STATE_RING - if the channel is UP,
+	 * re-INVITES can be sent.
+	 */
+	if (session->early_confirmed && (state == AST_STATE_RINGING || state == AST_STATE_RING)) {
+		method = AST_SIP_SESSION_REFRESH_METHOD_UPDATE;
+	}
 
 	ret = ast_sip_session_refresh(session, NULL, NULL, on_topology_change_response,
-		AST_SIP_SESSION_REFRESH_METHOD_INVITE, 1, refresh_data->media_state);
+		method, 1, refresh_data->media_state);
 	refresh_data->media_state = NULL;
 	topology_change_refresh_data_free(refresh_data);
 
@@ -2513,6 +2530,15 @@ static int hangup(void *data)
 		if (session) {
 			int cause = h_data->cause;
 
+			if (channel->session->active_media_state &&
+				channel->session->active_media_state->default_session[AST_MEDIA_TYPE_AUDIO]) {
+				struct ast_sip_session_media *media =
+					channel->session->active_media_state->default_session[AST_MEDIA_TYPE_AUDIO];
+				if (media->rtp) {
+					ast_rtp_instance_set_stats_vars(ast, media->rtp);
+				}
+			}
+
 			/*
 	 		* It's possible that session_terminate might cause the session to be destroyed
 	 		* immediately so we need to keep a reference to it so we can NULL session->channel
@@ -2872,97 +2898,6 @@ static int chan_pjsip_sendtext(struct ast_channel *ast, const char *text)
 	return rc;
 }
 
-/*! \brief Convert SIP hangup causes to Asterisk hangup causes */
-static int hangup_sip2cause(int cause)
-{
-	/* Possible values taken from causes.h */
-
-	switch(cause) {
-	case 401:       /* Unauthorized */
-		return AST_CAUSE_CALL_REJECTED;
-	case 403:       /* Not found */
-		return AST_CAUSE_CALL_REJECTED;
-	case 404:       /* Not found */
-		return AST_CAUSE_UNALLOCATED;
-	case 405:       /* Method not allowed */
-		return AST_CAUSE_INTERWORKING;
-	case 407:       /* Proxy authentication required */
-		return AST_CAUSE_CALL_REJECTED;
-	case 408:       /* No reaction */
-		return AST_CAUSE_NO_USER_RESPONSE;
-	case 409:       /* Conflict */
-		return AST_CAUSE_NORMAL_TEMPORARY_FAILURE;
-	case 410:       /* Gone */
-		return AST_CAUSE_NUMBER_CHANGED;
-	case 411:       /* Length required */
-		return AST_CAUSE_INTERWORKING;
-	case 413:       /* Request entity too large */
-		return AST_CAUSE_INTERWORKING;
-	case 414:       /* Request URI too large */
-		return AST_CAUSE_INTERWORKING;
-	case 415:       /* Unsupported media type */
-		return AST_CAUSE_INTERWORKING;
-	case 420:       /* Bad extension */
-		return AST_CAUSE_NO_ROUTE_DESTINATION;
-	case 480:       /* No answer */
-		return AST_CAUSE_NO_ANSWER;
-	case 481:       /* No answer */
-		return AST_CAUSE_INTERWORKING;
-	case 482:       /* Loop detected */
-		return AST_CAUSE_INTERWORKING;
-	case 483:       /* Too many hops */
-		return AST_CAUSE_NO_ANSWER;
-	case 484:       /* Address incomplete */
-		return AST_CAUSE_INVALID_NUMBER_FORMAT;
-	case 485:       /* Ambiguous */
-		return AST_CAUSE_UNALLOCATED;
-	case 486:       /* Busy everywhere */
-		return AST_CAUSE_BUSY;
-	case 487:       /* Request terminated */
-		return AST_CAUSE_INTERWORKING;
-	case 488:       /* No codecs approved */
-		return AST_CAUSE_BEARERCAPABILITY_NOTAVAIL;
-	case 491:       /* Request pending */
-		return AST_CAUSE_INTERWORKING;
-	case 493:       /* Undecipherable */
-		return AST_CAUSE_INTERWORKING;
-	case 500:       /* Server internal failure */
-		return AST_CAUSE_FAILURE;
-	case 501:       /* Call rejected */
-		return AST_CAUSE_FACILITY_REJECTED;
-	case 502:
-		return AST_CAUSE_DESTINATION_OUT_OF_ORDER;
-	case 503:       /* Service unavailable */
-		return AST_CAUSE_CONGESTION;
-	case 504:       /* Gateway timeout */
-		return AST_CAUSE_RECOVERY_ON_TIMER_EXPIRE;
-	case 505:       /* SIP version not supported */
-		return AST_CAUSE_INTERWORKING;
-	case 600:       /* Busy everywhere */
-		return AST_CAUSE_USER_BUSY;
-	case 603:       /* Decline */
-		return AST_CAUSE_CALL_REJECTED;
-	case 604:       /* Does not exist anywhere */
-		return AST_CAUSE_UNALLOCATED;
-	case 606:       /* Not acceptable */
-		return AST_CAUSE_BEARERCAPABILITY_NOTAVAIL;
-	default:
-		if (cause < 500 && cause >= 400) {
-			/* 4xx class error that is unknown - someting wrong with our request */
-			return AST_CAUSE_INTERWORKING;
-		} else if (cause < 600 && cause >= 500) {
-			/* 5xx class error - problem in the remote end */
-			return AST_CAUSE_CONGESTION;
-		} else if (cause < 700 && cause >= 600) {
-			/* 6xx - global errors in the 4xx class */
-			return AST_CAUSE_INTERWORKING;
-		}
-		return AST_CAUSE_NORMAL;
-	}
-	/* Never reached */
-	return 0;
-}
-
 static void chan_pjsip_session_begin(struct ast_sip_session *session)
 {
 	RAII_VAR(struct ast_datastore *, datastore, NULL, ao2_cleanup);
@@ -2993,11 +2928,21 @@ static void chan_pjsip_session_end(struct ast_sip_session *session)
 		SCOPE_EXIT_RTN("No channel\n");
 	}
 
+
+	if (session->active_media_state &&
+		session->active_media_state->default_session[AST_MEDIA_TYPE_AUDIO]) {
+		struct ast_sip_session_media *media =
+			session->active_media_state->default_session[AST_MEDIA_TYPE_AUDIO];
+		if (media->rtp) {
+			ast_rtp_instance_set_stats_vars(session->channel, media->rtp);
+		}
+	}
+
 	chan_pjsip_remove_hold(ast_channel_uniqueid(session->channel));
 
 	ast_set_hangupsource(session->channel, ast_channel_name(session->channel), 0);
 	if (!ast_channel_hangupcause(session->channel) && session->inv_session) {
-		int cause = hangup_sip2cause(session->inv_session->cause);
+		int cause = ast_sip_hangup_sip2cause(session->inv_session->cause);
 
 		ast_queue_hangup_with_cause(session->channel, cause);
 	} else {
@@ -3191,7 +3136,7 @@ static void chan_pjsip_incoming_response_update_cause(struct ast_sip_session *se
 	snprintf(cause_code->code, data_size - sizeof(*cause_code) + 1, "SIP %d %.*s", status.code,
 	(int) pj_strlen(&status.reason), pj_strbuf(&status.reason));
 
-	cause_code->ast_cause = hangup_sip2cause(status.code);
+	cause_code->ast_cause = ast_sip_hangup_sip2cause(status.code);
 	ast_queue_control_data(session->channel, AST_CONTROL_PVT_CAUSE_CODE, cause_code, data_size);
 	ast_channel_hangupcause_hash_set(session->channel, cause_code, data_size);
 
@@ -3213,6 +3158,7 @@ static void chan_pjsip_incoming_response(struct ast_sip_session *session, struct
 		pjsip_rdata_sdp_info *sdp = pjsip_rdata_get_sdp_info(rdata);
 		if (sdp && sdp->body.ptr) {
 			ast_trace(-1, "%s: Queueing PROGRESS\n", ast_sip_session_get_name(session));
+			session->early_confirmed = pjsip_100rel_is_reliable(rdata) == PJ_TRUE;
 			ast_queue_control(session->channel, AST_CONTROL_PROGRESS);
 		} else {
 			ast_trace(-1, "%s: Queueing RINGING\n", ast_sip_session_get_name(session));
@@ -3233,6 +3179,7 @@ static void chan_pjsip_incoming_response(struct ast_sip_session *session, struct
 				ast_trace(-1, "%s: Queueing PROGRESS\n", ast_sip_session_get_name(session));
 				ast_trace(1, "%s Method: %.*s Status: %d  Queueing PROGRESS with SDP\n", ast_sip_session_get_name(session),
 					(int)rdata->msg_info.cseq->method.name.slen, rdata->msg_info.cseq->method.name.ptr, status.code);
+				session->early_confirmed = pjsip_100rel_is_reliable(rdata) == PJ_TRUE;
 				ast_queue_control(session->channel, AST_CONTROL_PROGRESS);
 			}
 		} else {
@@ -3263,6 +3210,18 @@ static int chan_pjsip_incoming_ack(struct ast_sip_session *session, struct pjsip
 			ast_trace(-1, "%s: Queueing SRCCHANGE\n", ast_sip_session_get_name(session));
 			ast_queue_control(session->channel, AST_CONTROL_SRCCHANGE);
 		}
+	}
+	SCOPE_EXIT_RTN_VALUE(0, "%s\n", ast_sip_session_get_name(session));
+}
+
+static int chan_pjsip_incoming_prack(struct ast_sip_session *session, struct pjsip_rx_data *rdata)
+{
+	SCOPE_ENTER(3, "%s\n", ast_sip_session_get_name(session));
+
+	if (pj_strcmp2(&rdata->msg_info.msg->line.req.method.name, "PRACK") == 0 &&
+		pjmedia_sdp_neg_get_state(session->inv_session->neg) == PJMEDIA_SDP_NEG_STATE_DONE) {
+
+		session->early_confirmed = 1;
 	}
 	SCOPE_EXIT_RTN_VALUE(0, "%s\n", ast_sip_session_get_name(session));
 }
@@ -3379,6 +3338,7 @@ static int load_module(void)
 	ast_sip_session_register_supplement(&call_pickup_supplement);
 	ast_sip_session_register_supplement(&pbx_start_supplement);
 	ast_sip_session_register_supplement(&chan_pjsip_ack_supplement);
+	ast_sip_session_register_supplement(&chan_pjsip_prack_supplement);
 
 	if (pjsip_channel_cli_register()) {
 		ast_log(LOG_ERROR, "Unable to register PJSIP Channel CLI\n");
@@ -3398,6 +3358,7 @@ end:
 	ao2_cleanup(pjsip_uids_onhold);
 	pjsip_uids_onhold = NULL;
 	ast_sip_session_unregister_supplement(&chan_pjsip_ack_supplement);
+	ast_sip_session_unregister_supplement(&chan_pjsip_prack_supplement);
 	ast_sip_session_unregister_supplement(&pbx_start_supplement);
 	ast_sip_session_unregister_supplement(&chan_pjsip_supplement_response);
 	ast_sip_session_unregister_supplement(&chan_pjsip_supplement);
@@ -3427,6 +3388,7 @@ static int unload_module(void)
 	ast_sip_session_unregister_supplement(&chan_pjsip_supplement);
 	ast_sip_session_unregister_supplement(&pbx_start_supplement);
 	ast_sip_session_unregister_supplement(&chan_pjsip_ack_supplement);
+	ast_sip_session_unregister_supplement(&chan_pjsip_prack_supplement);
 	ast_sip_session_unregister_supplement(&call_pickup_supplement);
 
 	ast_sip_unregister_service(&refer_callback_module);

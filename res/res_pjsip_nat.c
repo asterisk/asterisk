@@ -235,52 +235,6 @@ static pj_bool_t nat_on_rx_message(pjsip_rx_data *rdata)
 	return res;
 }
 
-/*! \brief Structure which contains information about a transport */
-struct request_transport_details {
-	/*! \brief Type of transport */
-	enum ast_transport type;
-	/*! \brief Potential pointer to the transport itself, if UDP */
-	pjsip_transport *transport;
-	/*! \brief Potential pointer to the transport factory itself, if TCP/TLS */
-	pjsip_tpfactory *factory;
-	/*! \brief Local address for transport */
-	pj_str_t local_address;
-	/*! \brief Local port for transport */
-	int local_port;
-};
-
-/*! \brief Callback function for finding the transport the request is going out on */
-static int find_transport_state_in_use(void *obj, void *arg, int flags)
-{
-	struct ast_sip_transport_state *transport_state = obj;
-	struct request_transport_details *details = arg;
-
-	/* If an explicit transport or factory matches then this is what is in use, if we are unavailable
-	 * to compare based on that we make sure that the type is the same and the source IP address/port are the same
-	 */
-	if (transport_state && ((details->transport && details->transport == transport_state->transport) ||
-		(details->factory && details->factory == transport_state->factory) ||
-		((details->type == transport_state->type) && (transport_state->factory) &&
-			!pj_strcmp(&transport_state->factory->addr_name.host, &details->local_address) &&
-			transport_state->factory->addr_name.port == details->local_port))) {
-		return CMP_MATCH;
-	}
-
-	return 0;
-}
-
-/*! \brief Helper function which returns the SIP URI of a Contact header */
-static pjsip_sip_uri *nat_get_contact_sip_uri(pjsip_tx_data *tdata)
-{
-	pjsip_contact_hdr *contact = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_CONTACT, NULL);
-
-	if (!contact || (!PJSIP_URI_SCHEME_IS_SIP(contact->uri) && !PJSIP_URI_SCHEME_IS_SIPS(contact->uri))) {
-		return NULL;
-	}
-
-	return pjsip_uri_get_uri(contact->uri);
-}
-
 /*! \brief Structure which contains hook details */
 struct nat_hook_details {
 	/*! \brief Outgoing message itself */
@@ -363,55 +317,22 @@ static void restore_orig_contact_host(pjsip_tx_data *tdata)
 
 static pj_status_t process_nat(pjsip_tx_data *tdata)
 {
-	RAII_VAR(struct ao2_container *, transport_states, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_sip_transport *, transport, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_sip_transport_state *, transport_state, NULL, ao2_cleanup);
-	struct request_transport_details details = { 0, };
 	pjsip_via_hdr *via = NULL;
+	struct ast_sip_request_transport_details details;
 	struct ast_sockaddr addr = { { 0, } };
 	pjsip_sip_uri *uri = NULL;
 	RAII_VAR(struct ao2_container *, hooks, NULL, ao2_cleanup);
 
-	/* If a transport selector is in use we know the transport or factory, so explicitly find it */
-	if (tdata->tp_sel.type == PJSIP_TPSELECTOR_TRANSPORT) {
-		details.transport = tdata->tp_sel.u.transport;
-	} else if (tdata->tp_sel.type == PJSIP_TPSELECTOR_LISTENER) {
-		details.factory = tdata->tp_sel.u.listener;
-	} else if (tdata->tp_info.transport->key.type == PJSIP_TRANSPORT_UDP || tdata->tp_info.transport->key.type == PJSIP_TRANSPORT_UDP6) {
-		/* Connectionless uses the same transport for all requests */
-		details.type = AST_TRANSPORT_UDP;
-		details.transport = tdata->tp_info.transport;
-	} else {
-		if (tdata->tp_info.transport->key.type == PJSIP_TRANSPORT_TCP) {
-			details.type = AST_TRANSPORT_TCP;
-		} else if (tdata->tp_info.transport->key.type == PJSIP_TRANSPORT_TLS) {
-			details.type = AST_TRANSPORT_TLS;
-		} else {
-			/* Unknown transport type, we can't map and thus can't apply NAT changes */
-			return PJ_SUCCESS;
-		}
-
-		if ((uri = nat_get_contact_sip_uri(tdata))) {
-			details.local_address = uri->host;
-			details.local_port = uri->port;
-		} else if ((tdata->msg->type == PJSIP_REQUEST_MSG) &&
-			(via = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_VIA, NULL))) {
-			details.local_address = via->sent_by.host;
-			details.local_port = via->sent_by.port;
-		} else {
-			return PJ_SUCCESS;
-		}
-
-		if (!details.local_port) {
-			details.local_port = (details.type == AST_TRANSPORT_TLS) ? 5061 : 5060;
-		}
-	}
-
-	if (!(transport_states = ast_sip_get_transport_states())) {
+	if (ast_sip_set_request_transport_details(&details, tdata, 0)) {
 		return PJ_SUCCESS;
 	}
 
-	if (!(transport_state = ao2_callback(transport_states, 0, find_transport_state_in_use, &details))) {
+	uri = ast_sip_get_contact_sip_uri(tdata);
+	via = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_VIA, NULL);
+
+	if (!(transport_state = ast_sip_find_transport_state_in_use(&details))) {
 		return PJ_SUCCESS;
 	}
 
@@ -443,7 +364,7 @@ static pj_status_t process_nat(pjsip_tx_data *tdata)
 		if (!cseq || tdata->msg->type == PJSIP_REQUEST_MSG ||
 			pjsip_method_cmp(&cseq->method, &pjsip_register_method)) {
 			/* We can only rewrite the URI when one is present */
-			if (uri || (uri = nat_get_contact_sip_uri(tdata))) {
+			if (uri || (uri = ast_sip_get_contact_sip_uri(tdata))) {
 				pj_strdup2(tdata->pool, &uri->host, ast_sockaddr_stringify_host(&transport_state->external_signaling_address));
 				if (transport->external_signaling_port) {
 					uri->port = transport->external_signaling_port;

@@ -130,9 +130,9 @@ AST_TEST_DEFINE(quoted_escape_test)
 {
 	int res = AST_TEST_PASS;
 	const char *in = "a\"bcdefg\"hijkl\\mnopqrs tuv\twxyz";
-	char out[256] = { 0 };
-	char small[4] = { 0 };
 	int i;
+#define LONG_SIZE 256
+#define SHORT_SIZE 4
 
 	static struct {
 		char *buf;
@@ -140,14 +140,14 @@ AST_TEST_DEFINE(quoted_escape_test)
 
 		const char *output;
 	} tests[] = {
-		{0, sizeof(out),
+		{NULL, LONG_SIZE,
 			"a\\\"bcdefg\\\"hijkl\\\\mnopqrs tuv\twxyz"},
-		{0, sizeof(small),
+		{NULL, SHORT_SIZE,
 			"a\\\""},
 	};
 
-	tests[0].buf = out;
-	tests[1].buf = small;
+	tests[0].buf = ast_alloca(LONG_SIZE);
+	tests[1].buf = ast_alloca(SHORT_SIZE);
 
 	switch (cmd) {
 	case TEST_INIT:
@@ -171,6 +171,8 @@ AST_TEST_DEFINE(quoted_escape_test)
 		}
 	}
 
+#undef LONG_SIZE
+#undef SHORT_SIZE
 	return res;
 }
 

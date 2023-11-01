@@ -1118,7 +1118,8 @@ ifeq ($(PYTHON),:)
 else
 	@$(INSTALL) -d doc/rest-api
 	$(PYTHON) rest-api-templates/make_ari_stubs.py \
-		rest-api/resources.json .
+		--resources rest-api/resources.json --source-dir $(ASTTOPDIR) \
+		--dest-dir $(ASTTOPDIR)/doc/rest-api --docs-prefix ../
 endif
 
 check-alembic: makeopts

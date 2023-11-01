@@ -174,6 +174,8 @@ enum ast_rtp_instance_stat_field {
 	AST_RTP_INSTANCE_STAT_FIELD_QUALITY_LOSS,
 	/*! Retrieve quality information about round trip time */
 	AST_RTP_INSTANCE_STAT_FIELD_QUALITY_RTT,
+	/*! Retrieve quality information about Media Experience Score */
+	AST_RTP_INSTANCE_STAT_FIELD_QUALITY_MES,
 };
 
 /*! Statistics that can be retrieved from an RTP instance */
@@ -250,6 +252,29 @@ enum ast_rtp_instance_stat {
 	AST_RTP_INSTANCE_STAT_TXOCTETCOUNT,
 	/*! Retrieve number of octets received */
 	AST_RTP_INSTANCE_STAT_RXOCTETCOUNT,
+
+	/*! Retrieve ALL statistics relating to Media Experience Score */
+	AST_RTP_INSTANCE_STAT_COMBINED_MES,
+	/*! Retrieve MES on transmitted packets */
+	AST_RTP_INSTANCE_STAT_TXMES,
+	/*! Retrieve MES on received packets */
+	AST_RTP_INSTANCE_STAT_RXMES,
+	/*! Retrieve maximum MES on remote side */
+	AST_RTP_INSTANCE_STAT_REMOTE_MAXMES,
+	/*! Retrieve minimum MES on remote side */
+	AST_RTP_INSTANCE_STAT_REMOTE_MINMES,
+	/*! Retrieve average MES on remote side */
+	AST_RTP_INSTANCE_STAT_REMOTE_NORMDEVMES,
+	/*! Retrieve standard deviation MES on remote side */
+	AST_RTP_INSTANCE_STAT_REMOTE_STDEVMES,
+	/*! Retrieve maximum MES on local side */
+	AST_RTP_INSTANCE_STAT_LOCAL_MAXMES,
+	/*! Retrieve minimum MES on local side */
+	AST_RTP_INSTANCE_STAT_LOCAL_MINMES,
+	/*! Retrieve average MES on local side */
+	AST_RTP_INSTANCE_STAT_LOCAL_NORMDEVMES,
+	/*! Retrieve standard deviation MES on local side */
+	AST_RTP_INSTANCE_STAT_LOCAL_STDEVMES,
 };
 
 enum ast_rtp_instance_rtcp {
@@ -428,6 +453,27 @@ struct ast_rtp_instance_stats {
 	unsigned int txoctetcount;
 	/*! Number of octets received */
 	unsigned int rxoctetcount;
+
+	/*! Media Experience Score on transmitted packets */
+	double txmes;
+	/*! Media Experience Score on received packets */
+	double rxmes;
+	/*! Maximum MES on remote side */
+	double remote_maxmes;
+	/*! Minimum MES on remote side */
+	double remote_minmes;
+	/*! Average MES on remote side */
+	double remote_normdevmes;
+	/*! Standard deviation MES on remote side */
+	double remote_stdevmes;
+	/*! Maximum MES on local side */
+	double local_maxmes;
+	/*! Minimum MES on local side */
+	double local_minmes;
+	/*! Average MES on local side */
+	double local_normdevmes;
+	/*! Standard deviation MES on local side */
+	double local_stdevmes;
 };
 
 #define AST_RTP_STAT_SET(current_stat, combined, placement, value) \
@@ -1719,7 +1765,7 @@ void ast_rtp_codecs_payload_formats(struct ast_rtp_codecs *codecs, struct ast_fo
  * Example usage:
  *
  * \code
- * int payload = ast_rtp_codecs_payload_code(&codecs, 1, ast_format_set(&tmp_fmt, AST_FORMAT_ULAW, 0), 0);
+ * int payload = ast_rtp_codecs_payload_code(&codecs, 1, ast_format_ulaw, 0);
  * \endcode
  *
  * This looks for the numerical payload for ULAW in the codecs structure.
@@ -1788,7 +1834,7 @@ int ast_rtp_codecs_find_payload_code(struct ast_rtp_codecs *codecs, int payload)
  * Example usage:
  *
  * \code
- * const char *subtype = ast_rtp_lookup_mime_subtype2(1, ast_format_set(&tmp_fmt, AST_FORMAT_ULAW, 0), 0, 0);
+ * const char *subtype = ast_rtp_lookup_mime_subtype2(1, ast_format_ulaw, 0, 0);
  * \endcode
  *
  * This looks up the mime subtype for the ULAW format.
@@ -1816,8 +1862,8 @@ const char *ast_rtp_lookup_mime_subtype2(const int asterisk_format,
  * char buf[256] = "";
  * struct ast_format tmp_fmt;
  * struct ast_format_cap *cap = ast_format_cap_alloc_nolock();
- * ast_format_cap_append(cap, ast_format_set(&tmp_fmt, AST_FORMAT_ULAW, 0));
- * ast_format_cap_append(cap, ast_format_set(&tmp_fmt, AST_FORMAT_GSM, 0));
+ * ast_format_cap_append(cap, ast_format_ulaw, 0);
+ * ast_format_cap_append(cap, ast_format_ulaw, 0);
  * char *mime = ast_rtp_lookup_mime_multiple2(&buf, sizeof(buf), cap, 0, 1, 0);
  * ast_format_cap_destroy(cap);
  * \endcode
@@ -2220,7 +2266,7 @@ char *ast_rtp_instance_get_quality(struct ast_rtp_instance *instance, enum ast_r
  *
  * \code
  * struct ast_format tmp_fmt;
- * ast_rtp_instance_set_read_format(instance, ast_format_set(&tmp_fmt, AST_FORMAT_ULAW, 0));
+ * ast_rtp_instance_set_read_format(instance, ast_format_ulaw);
  * \endcode
  *
  * This requests that the RTP engine provide audio frames in the ULAW format.
@@ -2242,7 +2288,7 @@ int ast_rtp_instance_set_read_format(struct ast_rtp_instance *instance, struct a
  *
  * \code
  * struct ast_format tmp_fmt;
- * ast_rtp_instance_set_write_format(instance, ast_format_set(&tmp_fmt, AST_FORMAT_ULAW, 0));
+ * ast_rtp_instance_set_write_format(instance, ast_format_ulaw);
  * \endcode
  *
  * This tells the underlying RTP engine that audio frames will be provided to it in ULAW format.
@@ -2860,6 +2906,10 @@ uintmax_t ast_debug_category_ice_id(void);
 #define ast_debug_rtp(sublevel, ...) \
 	ast_debug_category(sublevel, AST_DEBUG_CATEGORY_RTP,  __VA_ARGS__)
 
+/* Allow logging of RTP? */
+#define ast_debug_rtp_is_allowed \
+	ast_debug_category_is_allowed(AST_LOG_CATEGORY_ENABLED, AST_DEBUG_CATEGORY_RTP)
+
 /* Allow logging of RTP packets? */
 #define ast_debug_rtp_packet_is_allowed \
 	ast_debug_category_is_allowed(AST_LOG_CATEGORY_ENABLED, AST_DEBUG_CATEGORY_RTP_PACKET)
@@ -2872,6 +2922,10 @@ uintmax_t ast_debug_category_ice_id(void);
  */
 #define ast_debug_rtcp(sublevel, ...) \
 	ast_debug_category(sublevel, AST_DEBUG_CATEGORY_RTCP, __VA_ARGS__)
+
+/* Allow logging of RTCP? */
+#define ast_debug_rtcp_is_allowed \
+	ast_debug_category_is_allowed(AST_LOG_CATEGORY_ENABLED, AST_DEBUG_CATEGORY_RTCP)
 
 /* Allow logging of RTCP packets? */
 #define ast_debug_rtcp_packet_is_allowed \

@@ -34,12 +34,12 @@
 #include "asterisk/channel.h"
 #include "asterisk/utils.h"
 #include "asterisk/lock.h"
-#include "asterisk/linkedlists.h"
 #include "asterisk/audiohook.h"
 #include "asterisk/slinfactory.h"
 #include "asterisk/frame.h"
 #include "asterisk/translate.h"
 #include "asterisk/format_cache.h"
+#include "asterisk/test.h"
 
 #define AST_AUDIOHOOK_SYNC_TOLERANCE 100 /*!< Tolerance in milliseconds for audiohooks synchronization */
 #define AST_AUDIOHOOK_SMALL_QUEUE_TOLERANCE 100 /*!< When small queue is enabled, this is the maximum amount of audio that can remain queued at a time. */
@@ -109,6 +109,9 @@ int ast_audiohook_init(struct ast_audiohook *audiohook, enum ast_audiohook_type 
 
 	audiohook->init_flags = init_flags;
 
+	/* Set direction to BOTH so that we feed frames in both directions */
+	audiohook->direction = AST_AUDIOHOOK_DIRECTION_BOTH;
+
 	/* initialize internal rate at 8khz, this will adjust if necessary */
 	audiohook_set_internal_rate(audiohook, DEFAULT_INTERNAL_SAMPLE_RATE, 0);
 
@@ -144,6 +147,18 @@ int ast_audiohook_destroy(struct ast_audiohook *audiohook)
 	return 0;
 }
 
+int ast_audiohook_set_frame_feed_direction(struct ast_audiohook *audiohook, enum ast_audiohook_direction direction)
+{
+	/* Only set the direction on new audiohooks */
+	if (audiohook->status != AST_AUDIOHOOK_STATUS_NEW) {
+		ast_debug(3, "Can not set direction on attached Audiohook %p\n", audiohook);
+		return -1;
+	}
+
+	audiohook->direction = direction;
+	return 0;
+}
+
 #define SHOULD_MUTE(hook, dir) \
 	((ast_test_flag(hook, AST_AUDIOHOOK_MUTE_READ) && (dir == AST_AUDIOHOOK_DIRECTION_READ)) || \
 	(ast_test_flag(hook, AST_AUDIOHOOK_MUTE_WRITE) && (dir == AST_AUDIOHOOK_DIRECTION_WRITE)) || \
@@ -158,6 +173,13 @@ int ast_audiohook_write_frame(struct ast_audiohook *audiohook, enum ast_audiohoo
 	int our_factory_ms;
 	int other_factory_samples;
 	int other_factory_ms;
+
+	/* Don't feed the frame if we are set to read and this is a write frame or if set to
+	   write and this is a read frame as we don't want it. Plus, it can cause mis-resampling
+	   if the READ and WRITE frames have different bitrates */
+	if (audiohook->direction != AST_AUDIOHOOK_DIRECTION_BOTH && audiohook->direction != direction) {
+		return 0;
+	}
 
 	/* Update last feeding time to be current */
 	*rwtime = ast_tvnow();
@@ -1353,4 +1375,35 @@ int ast_audiohook_set_mute(struct ast_channel *chan, const char *source, enum as
 	ast_channel_unlock(chan);
 
 	return (audiohook ? 0 : -1);
+}
+
+int ast_audiohook_set_mute_all(struct ast_channel *chan, const char *source, enum ast_audiohook_flags flag, int clearmute)
+{
+	struct ast_audiohook *audiohook = NULL;
+	int count = 0;
+
+	ast_channel_lock(chan);
+
+	if (!ast_channel_audiohooks(chan)) {
+		ast_channel_unlock(chan);
+		return -1;
+	}
+
+	AST_LIST_TRAVERSE(&ast_channel_audiohooks(chan)->spy_list, audiohook, list) {
+		if (!strcasecmp(audiohook->source, source)) {
+			count++;
+			if (clearmute) {
+				ast_clear_flag(audiohook, flag);
+			} else {
+				ast_set_flag(audiohook, flag);
+			}
+		}
+	}
+
+	ast_test_suite_event_notify("AUDIOHOOK_GROUP_MUTE_TOGGLE", "Channel: %s\r\nSource: %s\r\nCount: %d\r\n",
+									ast_channel_name(chan), source, count);
+
+	ast_channel_unlock(chan);
+
+	return count;
 }

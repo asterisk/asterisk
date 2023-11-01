@@ -74,12 +74,16 @@ AC_DEFUN([_PJPROJECT_CONFIGURE],
 			y|ye|yes)
 			# Not to mention SSL is the default in PJProject and means "autodetect".
 			# In Asterisk, "./configure --with-ssl" means "must be present".
-			PJPROJECT_CONFIGURE_OPTS="${PJPROJECT_CONFIGURE_OPTS}"
+			PJPROJECT_CONFIGURE_OPTS="${PJPROJECT_CONFIGURE_OPTS} --with-ssl"
 			;;
 			*)
 			PJPROJECT_CONFIGURE_OPTS="${PJPROJECT_CONFIGURE_OPTS} --with-ssl=${with_ssl}"
 			;;
 			esac
+		else
+			if test $PBX_OPENSSL -eq 1 ; then
+				PJPROJECT_CONFIGURE_OPTS="${PJPROJECT_CONFIGURE_OPTS} --with-ssl"
+			fi
 		fi
 
 		# Determine if we're doing an out-of-tree build...
@@ -122,6 +126,9 @@ AC_DEFUN([_PJPROJECT_CONFIGURE],
 		AC_DEFINE([HAVE_PJ_SSL_CERT_LOAD_FROM_FILES2], 1, [Define if your system has pj_ssl_cert_load_from_files2 declared.])
 		AC_DEFINE([HAVE_PJSIP_EXTERNAL_RESOLVER], 1, [Define if your system has pjsip_endpt_set_ext_resolver declared.])
 		AC_DEFINE([HAVE_PJSIP_TLS_TRANSPORT_PROTO], 1, [Define if your system has PJSIP_TLS_TRANSPORT_PROTO])
+		AC_DEFINE([HAVE_PJSIP_TLS_1_1], 1, [Define if your system has PJSIP with TLSv1.1 support.])
+		AC_DEFINE([HAVE_PJSIP_TLS_1_2], 1, [Define if your system has PJSIP with TLSv1.2 support.])
+		AC_DEFINE([HAVE_PJSIP_TLS_1_3], 1, [Define if your system has PJSIP with TLSv1.3 support.])
 		AC_DEFINE([HAVE_PJSIP_EVSUB_GRP_LOCK], 1, [Define if your system has PJSIP_EVSUB_GRP_LOCK])
 		AC_DEFINE([HAVE_PJSIP_INV_SESSION_REF], 1, [Define if your system has PJSIP_INV_SESSION_REF])
 		AC_DEFINE([HAVE_PJSIP_AUTH_CLT_DEINIT], 1, [Define if your system has pjsip_auth_clt_deinit declared.])
