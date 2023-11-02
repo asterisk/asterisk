@@ -1902,7 +1902,7 @@ static int dtls_setup_rtcp(struct ast_rtp_instance *instance)
 
 static const SSL_METHOD *get_dtls_method(void)
 {
-#if OPENSSL_VERSION_NUMBER < 0x10002000L || defined(LIBRESSL_VERSION_NUMBER)
+#if OPENSSL_VERSION_NUMBER < 0x10002000L
 	return DTLSv1_method();
 #else
 	return DTLS_method();
