@@ -2024,6 +2024,9 @@ static void my_set_cadence(void *pvt, int *cid_rings, struct ast_channel *ast)
 			ast_log(LOG_WARNING, "Unable to set distinctive ring cadence %d on '%s': %s\n", p->distinctivering, ast_channel_name(ast), strerror(errno));
 		*cid_rings = cidrings[p->distinctivering - 1];
 	} else {
+		if (p->distinctivering > 0) {
+			ast_log(LOG_WARNING, "Cadence %d is not defined, falling back to default ring cadence\n", p->distinctivering);
+		}
 		if (ioctl(p->subs[SUB_REAL].dfd, DAHDI_SETCADENCE, NULL))
 			ast_log(LOG_WARNING, "Unable to reset default ring on '%s': %s\n", ast_channel_name(ast), strerror(errno));
 		*cid_rings = p->sendcalleridafter;
