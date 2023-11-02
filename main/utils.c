@@ -2763,6 +2763,8 @@ int ast_get_tid(void)
 	ret = lwpid;
 #elif defined(__NetBSD__)
 	ret = _lwp_self();
+#elif defined(__OpenBSD__)
+	ret = getthrid();
 #endif
 	return ret;
 }
