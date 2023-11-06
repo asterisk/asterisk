@@ -10403,10 +10403,13 @@ static int socket_process_helper(struct iax2_thread *thread)
 		}
 
 		if (!(fr->callno = find_callno(ntohs(mh->callno) & ~IAX_FLAG_FULL, dcallno, &addr, new, fd, check_dcallno))) {
+			ast_debug(1, "Received frame without existent call number (%d)\n", ntohs(mh->callno) & ~IAX_FLAG_FULL);
 			if (f.frametype == AST_FRAME_IAX && f.subclass.integer == IAX_COMMAND_NEW) {
 				send_apathetic_reply(1, ntohs(fh->scallno), &addr, IAX_COMMAND_REJECT, ntohl(fh->ts), fh->iseqno + 1, fd, NULL);
 			} else if (f.frametype == AST_FRAME_IAX && (f.subclass.integer == IAX_COMMAND_REGREQ || f.subclass.integer == IAX_COMMAND_REGREL)) {
 				send_apathetic_reply(1, ntohs(fh->scallno), &addr, IAX_COMMAND_REGREJ, ntohl(fh->ts), fh->iseqno + 1, fd, NULL);
+			} else {
+				ast_log(LOG_WARNING, "Silently dropping frame without existent call number: %d\n", ntohs(mh->callno) & ~IAX_FLAG_FULL);
 			}
 			ast_variables_destroy(ies.vars);
 			return 1;
