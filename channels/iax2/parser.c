@@ -424,7 +424,7 @@ static void dump_ies(unsigned char *iedata, int len)
 
 	if (len < 2)
 		return;
-	while(len > 2) {
+	while(len >= 2) {
 		ie = iedata[0];
 		ielen = iedata[1];
 		if (ielen + 2> len) {
