@@ -2081,18 +2081,19 @@ void ast_ari_channels_rtpstatistics(struct ast_variable *headers,
 	return;
 }
 
-static void external_media_rtp_udp(struct ast_ari_channels_external_media_args *args,
+static int external_media_rtp_udp(struct ast_ari_channels_external_media_args *args,
 	struct ast_variable *variables,
 	struct ast_ari_response *response)
 {
-	size_t endpoint_len;
 	char *endpoint;
 	struct ast_channel *chan;
 	struct varshead *vars;
 
-	endpoint_len = strlen("UnicastRTP/") + strlen(args->external_host) + 1;
-	endpoint = ast_alloca(endpoint_len);
-	snprintf(endpoint, endpoint_len, "UnicastRTP/%s", args->external_host);
+	if (ast_asprintf(&endpoint, "UnicastRTP/%s/c(%s)",
+			args->external_host,
+			args->format) == -1) {
+		return 1;
+	}
 
 	chan = ari_channels_handle_originate_with_id(
 		endpoint,
@@ -2112,8 +2113,10 @@ static void external_media_rtp_udp(struct ast_ari_channels_external_media_args *
 		response);
 	ast_variables_destroy(variables);
 
+	ast_free(endpoint);
+
 	if (!chan) {
-		return;
+		return 1;
 	}
 
 	ast_channel_lock(chan);
@@ -2123,6 +2126,7 @@ static void external_media_rtp_udp(struct ast_ari_channels_external_media_args *
 	}
 	ast_channel_unlock(chan);
 	ast_channel_unref(chan);
+	return 0;
 }
 
 static void external_media_audiosocket_tcp(struct ast_ari_channels_external_media_args *args,
@@ -2235,7 +2239,11 @@ void ast_ari_channels_external_media(struct ast_variable *headers,
 	}
 
 	if (strcasecmp(args->encapsulation, "rtp") == 0 && strcasecmp(args->transport, "udp") == 0) {
-		external_media_rtp_udp(args, variables, response);
+		if (external_media_rtp_udp(args, variables, response)) {
+			ast_ari_response_error(
+				response, 500, "Internal Server Error",
+				"An internal error prevented this request from being handled");
+		}
 	} else if (strcasecmp(args->encapsulation, "audiosocket") == 0 && strcasecmp(args->transport, "tcp") == 0) {
 		external_media_audiosocket_tcp(args, variables, response);
 	} else {
