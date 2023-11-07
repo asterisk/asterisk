@@ -29,7 +29,7 @@
 ;bindaddr=0.0.0.0
 ;port=4520
 ;
-; See https://wiki.asterisk.org/wiki/display/AST/IP+Quality+of+Service for a description of the tos parameter.
+; See https://docs.asterisk.org/Configuration/Channel-Drivers/IP-Quality-of-Service for a description of the tos parameter.
 ;tos=ef
 ;
 ; Our entity identifier.  (It should generally be the MAC address of the
