@@ -323,7 +323,7 @@ encryption=yes
 ;
 ;authdebug = yes
 ;
-; See https://wiki.asterisk.org/wiki/display/AST/IP+Quality+of+Service for a description of these parameters.
+; See https://docs.asterisk.org/Configuration/Channel-Drivers/IP-Quality-of-Service for a description of these parameters.
 ;tos=ef
 ;cos=5
 ;
