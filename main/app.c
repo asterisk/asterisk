@@ -205,7 +205,7 @@ enum ast_getdata_result ast_app_getdata_terminator(struct ast_channel *c, const 
 		prompt = "";
 
 	filename = ast_strdupa(prompt);
-	while ((front = strsep(&filename, "&"))) {
+	while ((front = ast_strsep(&filename, '&', AST_STRSEP_STRIP | AST_STRSEP_TRIM))) {
 		if (!ast_strlen_zero(front)) {
 			res = ast_streamfile(c, front, ast_channel_language(c));
 			if (res)
