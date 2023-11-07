@@ -230,11 +230,18 @@
 				<para><replaceable>URL</replaceable> will be sent to the called party if the channel supports it.</para>
 			</parameter>
 			<parameter name="announceoverride" argsep="&amp;">
-				<argument name="filename" required="true">
-					<para>Announcement file(s) to play to agent before bridging call, overriding the announcement(s)
-					configured in <filename>queues.conf</filename>, if any.</para>
-				</argument>
-				<argument name="filename2" multiple="true" />
+				<para>Announcement file(s) to play to agent before bridging
+				call, overriding the announcement(s) configured in
+				<filename>queues.conf</filename>, if any.</para>
+				<para>Ampersand separated list of filenames. If the filename
+				is a relative filename (it does not begin with a slash), it
+				will be searched for in the Asterisk sounds directory. If the
+				filename is able to be parsed as a URL, Asterisk will
+				download the file and then begin playback on it. To include a
+				literal <literal>&amp;</literal> in the URL you can enclose
+				the URL in single quotes.</para>
+				<argument name="announceoverride" required="true" />
+				<argument name="announceoverride2" multiple="true" />
 			</parameter>
 			<parameter name="timeout">
 				<para>Will cause the queue to fail out after a specified number of
@@ -7195,7 +7202,7 @@ static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_a
 				if (!res2 && announce) {
 					char *front;
 					char *announcefiles = ast_strdupa(announce);
-					while ((front = strsep(&announcefiles, "&"))) {
+					while ((front = ast_strsep(&announcefiles, '&', AST_STRSEP_STRIP | AST_STRSEP_TRIM))) {
 						if (play_file(peer, front) < 0) {
 							ast_log(LOG_ERROR, "play_file failed for '%s' on %s\n", front, ast_channel_name(peer));
 						}
