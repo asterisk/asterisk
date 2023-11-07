@@ -1732,7 +1732,7 @@ if test "${USE_ILBC}" != "no"; then
       ILBC_INTERNAL="no"
    fi
    if test "${ILBC_SYSTEM}" = "yes"; then
-      AST_PKG_CONFIG_CHECK(ILBC, libilbc)
+      AST_PKG_CONFIG_CHECK(ILBC, libilbc < 3)
       if test "$PBX_ILBC" = "1"; then
 	 ILBC_INTERNAL="no"
       fi
