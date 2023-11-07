@@ -49,9 +49,15 @@
 				name.</para>
 			</parameter>
 			<parameter name="filenames" argsep="&amp;">
-				<argument name="filename" required="true">
-					<para>file(s) to play before reading digits or tone with option i</para>
-				</argument>
+				<para>Ampersand separated list of filenames to play before
+				reading digits or tone with option <literal>i</literal>. If
+				the filename is a relative filename (it does not begin with a
+				slash), it will be searched for in the Asterisk sounds
+				directory. If the filename is able to be parsed as a URL,
+				Asterisk will download the file and then begin playback on
+				it. To include a literal <literal>&amp;</literal> in the URL
+				you can enclose	the URL in single quotes.</para>
+				<argument name="filename" required="true" />
 				<argument name="filename2" multiple="true" />
 			</parameter>
 			<parameter name="maxdigits">

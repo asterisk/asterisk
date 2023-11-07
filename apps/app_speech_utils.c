@@ -85,7 +85,17 @@
 			Play a sound file and wait for speech to be recognized.
 		</synopsis>
 		<syntax>
-			<parameter name="sound_file" required="true" />
+			<parameter name="sound_file" required="true" argsep="&amp;">
+				<para>Ampersand separated list of filenames. If the filename
+				is a relative filename (it does not begin with a slash), it
+				will be searched for in the Asterisk sounds directory. If the
+				filename is able to be parsed as a URL, Asterisk will
+				download the file and then begin playback on it. To include a
+				literal <literal>&amp;</literal> in the URL you can enclose
+				the URL in single quotes.</para>
+				<argument name="sound_file" required="true" />
+				<argument name="sound_file2" multiple="true" />
+			</parameter>
 			<parameter name="timeout">
 				<para>Timeout integer in seconds. Note the timeout will only start
 				once the sound file has stopped playing.</para>
@@ -776,7 +786,10 @@ static int speech_background(struct ast_channel *chan, const char *data)
 	/* Okay it's streaming so go into a loop grabbing frames! */
 	while (done == 0) {
 		/* If the filename is null and stream is not running, start up a new sound file */
-		if (!quieted && (ast_channel_streamid(chan) == -1 && ast_channel_timingfunc(chan) == NULL) && (filename = strsep(&filename_tmp, "&"))) {
+		if (!quieted
+			&& ast_channel_streamid(chan) == -1
+			&& ast_channel_timingfunc(chan) == NULL
+			&& (filename = ast_strsep(&filename_tmp, '&', AST_STRSEP_STRIP | AST_STRSEP_TRIM))) {
 			/* Discard old stream information */
 			ast_stopstream(chan);
 			/* Start new stream */
