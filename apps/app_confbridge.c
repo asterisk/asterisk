@@ -3035,7 +3035,7 @@ static int action_playback(struct ast_bridge_channel *bridge_channel, const char
 	char *file_copy = ast_strdupa(playback_file);
 	char *file = NULL;
 
-	while ((file = strsep(&file_copy, "&"))) {
+	while ((file = ast_strsep(&file_copy, '&', AST_STRSEP_STRIP | AST_STRSEP_TRIM))) {
 		if (ast_stream_and_wait(bridge_channel->chan, file, "")) {
 			ast_log(LOG_WARNING, "Failed to playback file %s to channel\n", file);
 			return -1;
@@ -3059,7 +3059,7 @@ static int action_playback_and_continue(struct confbridge_conference *conference
 	char *file_copy = ast_strdupa(playback_file);
 	char *file = NULL;
 
-	while ((file = strsep(&file_copy, "&"))) {
+	while ((file = ast_strsep(&file_copy, '&', AST_STRSEP_STRIP | AST_STRSEP_TRIM))) {
 		if (ast_streamfile(bridge_channel->chan, file, ast_channel_language(bridge_channel->chan))) {
 			ast_log(LOG_WARNING, "Failed to playback file %s to channel\n", file);
 			return -1;

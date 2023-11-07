@@ -48,6 +48,13 @@
 		</synopsis>
 		<syntax>
 			<parameter name="filenames" required="true" argsep="&amp;">
+				<para>Ampersand separated list of filenames. If the filename
+				is a relative filename (it does not begin with a slash), it
+				will be searched for in the Asterisk sounds directory. If the
+				filename is able to be parsed as a URL, Asterisk will
+				download the file and then begin playback on it. To include a
+				literal <literal>&amp;</literal> in the URL you can enclose
+				the URL in single quotes.</para>
 				<argument name="filename" required="true" />
 				<argument name="filename2" multiple="true" />
 			</parameter>
@@ -492,7 +499,7 @@ static int playback_exec(struct ast_channel *chan, const char *data)
 		char *front;
 
 		ast_stopstream(chan);
-		while (!res && (front = strsep(&back, "&"))) {
+		while (!res && (front = ast_strsep(&back, '&', AST_STRSEP_STRIP | AST_STRSEP_TRIM))) {
 			if (option_say)
 				res = say_full(chan, front, "", ast_channel_language(chan), NULL, -1, -1);
 			else if (option_mix){
