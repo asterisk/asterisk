@@ -984,25 +984,25 @@
 				<configOption name="tos_audio">
 					<synopsis>DSCP TOS bits for audio streams</synopsis>
 					<description><para>
-						See https://wiki.asterisk.org/wiki/display/AST/IP+Quality+of+Service for more information about QoS settings
+						See https://docs.asterisk.org/Configuration/Channel-Drivers/IP-Quality-of-Service for more information about QoS settings
 					</para></description>
 				</configOption>
 				<configOption name="tos_video">
 					<synopsis>DSCP TOS bits for video streams</synopsis>
 					<description><para>
-						See https://wiki.asterisk.org/wiki/display/AST/IP+Quality+of+Service for more information about QoS settings
+						See https://docs.asterisk.org/Configuration/Channel-Drivers/IP-Quality-of-Service for more information about QoS settings
 					</para></description>
 				</configOption>
 				<configOption name="cos_audio">
 					<synopsis>Priority for audio streams</synopsis>
 					<description><para>
-						See https://wiki.asterisk.org/wiki/display/AST/IP+Quality+of+Service for more information about QoS settings
+						See https://docs.asterisk.org/Configuration/Channel-Drivers/IP-Quality-of-Service for more information about QoS settings
 					</para></description>
 				</configOption>
 				<configOption name="cos_video">
 					<synopsis>Priority for video streams</synopsis>
 					<description><para>
-						See https://wiki.asterisk.org/wiki/display/AST/IP+Quality+of+Service for more information about QoS settings
+						See https://docs.asterisk.org/Configuration/Channel-Drivers/IP-Quality-of-Service for more information about QoS settings
 					</para></description>
 				</configOption>
 				<configOption name="allow_subscribe" default="yes">
@@ -1810,7 +1810,7 @@
 				<configOption name="tos" default="false">
 					<synopsis>Enable TOS for the signalling sent over this transport</synopsis>
 					<description>
-					<para>See <literal>https://wiki.asterisk.org/wiki/display/AST/IP+Quality+of+Service</literal>
+					<para>See <literal>https://docs.asterisk.org/Configuration/Channel-Drivers/IP-Quality-of-Service</literal>
 					for more information on this parameter.</para>
 					<note><para>This option does not apply to the <replaceable>ws</replaceable>
 					or the <replaceable>wss</replaceable> protocols.</para></note>
@@ -1819,7 +1819,7 @@
 				<configOption name="cos" default="false">
 					<synopsis>Enable COS for the signalling sent over this transport</synopsis>
 					<description>
-					<para>See <literal>https://wiki.asterisk.org/wiki/display/AST/IP+Quality+of+Service</literal>
+					<para>See <literal>https://docs.asterisk.org/Configuration/Channel-Drivers/IP-Quality-of-Service</literal>
 					for more information on this parameter.</para>
 					<note><para>This option does not apply to the <replaceable>ws</replaceable>
 					or the <replaceable>wss</replaceable> protocols.</para></note>

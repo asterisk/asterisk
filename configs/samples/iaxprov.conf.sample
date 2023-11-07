@@ -53,7 +53,7 @@ codec=ulaw
 ;
 flags=register,heartbeat
 ;
-; See https://wiki.asterisk.org/wiki/display/AST/IP+Quality+of+Service for a description of this parameter.
+; See https://docs.asterisk.org/Configuration/Channel-Drivers/IP-Quality-of-Service for a description of this parameter.
 ;tos=ef
 ;
 ; Example iaxy provisioning
