@@ -95,8 +95,17 @@ static const char app[] = "Authenticate";
 				maxdigits have been entered (without requiring the user to press the <literal>#</literal> key).
 				Defaults to 0 - no limit - wait for the user press the <literal>#</literal> key.</para>
 			</parameter>
-			<parameter name="prompt" required="false">
-				<para>Override the agent-pass prompt file.</para>
+			<parameter name="prompt" required="false" argsep="&amp;">
+				<para>Override the &quot;agent-pass&quot; sound file. Can be
+				an ampersand separated list of filenames. If the filename
+				is a relative filename (it does not begin with a slash), it
+				will be searched for in the Asterisk sounds directory. If the
+				filename is able to be parsed as a URL, Asterisk will
+				download the file and then begin playback on it. To include a
+				literal <literal>&amp;</literal> in the URL you can enclose
+				the URL in single quotes.</para>
+				<argument name="prompt" required="true" />
+				<argument name="prompt2" multiple="true" />
 			</parameter>
 		</syntax>
 		<description>
