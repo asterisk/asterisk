@@ -371,7 +371,8 @@ static void play_files_helper(struct ast_channel *chan, const char *prompts)
 	char *prompt, *rest = ast_strdupa(prompts);
 
 	ast_stopstream(chan);
-	while ((prompt = strsep(&rest, "&")) && !ast_stream_and_wait(chan, prompt, "")) {
+	while ((prompt = ast_strsep(&rest, '&', AST_STRSEP_STRIP | AST_STRSEP_TRIM))
+		&& !ast_stream_and_wait(chan, prompt, "")) {
 		ast_stopstream(chan);
 	}
 }
