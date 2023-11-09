@@ -680,6 +680,10 @@ struct ast_tcptls_session_instance *ast_tcptls_client_create(struct ast_tcptls_s
 	int fd, x = 1;
 	struct ast_tcptls_session_instance *tcptls_session = NULL;
 
+	ast_assert(!desc->tls_cfg
+			|| ast_test_flag(&desc->tls_cfg->flags, AST_SSL_DONT_VERIFY_SERVER)
+			|| !ast_strlen_zero(desc->hostname));
+
 	/* Do nothing if nothing has changed */
 	if (!ast_sockaddr_cmp(&desc->old_address, &desc->remote_address)) {
 		ast_debug(1, "Nothing changed in %s\n", desc->name);
