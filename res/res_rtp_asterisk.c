@@ -3180,6 +3180,61 @@ static int __rtp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t s
 		ast_debug_dtls(3, "(%p) DTLS - __rtp_recvfrom rtp=%p - Got SSL packet '%d'\n", instance, rtp, *in);
 
 		/*
+		 * If ICE is in use, we can prevent a possible DOS attack
+		 * by allowing DTLS protocol messages (client hello, etc)
+		 * only from sources that are in the active remote
+		 * candidates list.
+		 */
+
+		if (rtp->ice) {
+			int pass_src_check = 0;
+			struct ao2_iterator i;
+			struct ast_rtp_engine_ice_candidate *candidate;
+			int cand_cnt = 0;
+
+			/*
+			 * You'd think that this check would cause a "deadlock"
+			 * because ast_rtp_ice_start_media calls dtls_perform_handshake
+			 * before it sets ice_media_started = 1 so how can we do a
+			 * handshake if we're dropping packets before we send them
+			 * to openssl.  Fortunately, dtls_perform_handshake just sets
+			 * up openssl to do the handshake and doesn't actually perform it
+			 * itself and the locking prevents __rtp_recvfrom from
+			 * running before the ice_media_started flag is set.  So only
+			 * unexpected DTLS packets can get dropped here.
+			 */
+			if (!rtp->ice_media_started) {
+				ast_log(LOG_WARNING, "%s: DTLS packet from %s dropped. ICE not completed yet.\n",
+					ast_rtp_instance_get_channel_id(instance),
+					ast_sockaddr_stringify(sa));
+				return 0;
+			}
+
+			/*
+			 * If we got this far, then ice_active_remote_candidates
+			 * can't be NULL.
+			 */
+			i = ao2_iterator_init(rtp->ice_active_remote_candidates, 0);
+			while ((candidate = ao2_iterator_next(&i)) && (cand_cnt < PJ_ICE_MAX_CAND)) {
+				res = ast_sockaddr_cmp_addr(&candidate->address, sa);
+				ao2_ref(candidate, -1);
+				if (res == 0) {
+					pass_src_check = 1;
+					break;
+				}
+				cand_cnt++;
+			}
+			ao2_iterator_destroy(&i);
+
+			if (!pass_src_check) {
+				ast_log(LOG_WARNING, "%s: DTLS packet from %s dropped. Source not in ICE active candidate list.\n",
+					ast_rtp_instance_get_channel_id(instance),
+					ast_sockaddr_stringify(sa));
+				return 0;
+			}
+		}
+
+		/*
 		 * A race condition is prevented between dtls_perform_handshake()
 		 * and this function because both functions have to get the
 		 * instance lock before they can do anything.  The
