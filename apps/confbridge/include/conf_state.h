@@ -25,7 +25,7 @@
  *
  * \author\verbatim Terry Wilson <twilson@digium.com> \endverbatim
  *
- * See https://wiki.asterisk.org/wiki/display/AST/Confbridge+state+changes for
+ * See https://docs.asterisk.org/Development/Reference-Information/Other-Reference-Information/Confbridge-state-changes/ for
  * a more complete description of how conference states work.
  */
 

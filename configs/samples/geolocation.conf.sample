@@ -1,7 +1,7 @@
 ;--
   Geolocation Profile Sample Configuration
 
-  Please see https://wiki.asterisk.org/wiki/display/AST/Geolocation
+  Please see https://docs.asterisk.org/Deployment/Geolocation/
   for the most current information.
 --;
 
@@ -33,7 +33,7 @@ incoming calls (Asterisk is the UAS) and and one for outgoing calls
 
 NOTE:
 
-See https://wiki.asterisk.org/wiki/display/AST/Geolocation for the most
+See https://docs.asterisk.org/Deployment/Geolocation/ for the most
 complete and up-to-date information on valid values for the object
 parameters and a full list of references.
 
@@ -96,7 +96,7 @@ variables like ${EXTEN}, channel variables you may have added in the
 dialplan, or variables you may have specified in the profile that
 references this location object.
 
-NOTE: See https://wiki.asterisk.org/wiki/display/AST/Geolocation for the
+NOTE: See https://docs.asterisk.org/Deployment/Geolocation/ for the
 most complete and up-to-date information on valid values for the object
 parameters and a full list of references.
 

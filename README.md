@@ -20,7 +20,7 @@ more telephony interfaces than just Internet telephony.  Asterisk also has a
 vast amount of support for traditional PSTN telephony, as well.
 
   For more information on the project itself, please visit the Asterisk
-[home page] and the official [wiki].  In addition you'll find lots
+[home page] and the official [documentation].  In addition you'll find lots
 of information compiled by the Asterisk community at [voip-info.org].
 
   There is a book on Asterisk published by O'Reilly under the Creative Commons
@@ -258,7 +258,7 @@ Asterisk is a trademark of Sangoma Technologies Corporation
 
 [home page]: https://www.asterisk.org
 [support]: https://www.asterisk.org/support
-[wiki]: https://wiki.asterisk.org/
+[documentation]: https://docs.asterisk.org/
 [mailing list]: http://lists.digium.com/mailman/listinfo/asterisk-users
 [chan_dahdi.conf]: configs/samples/chan_dahdi.conf.sample
 [voip-info.org]: http://www.voip-info.org/wiki-Asterisk
@@ -269,4 +269,4 @@ Asterisk is a trademark of Sangoma Technologies Corporation
 [CHANGES]: CHANGES
 [configs]: configs
 [doc]: doc
-[Important Security Considerations]: https://wiki.asterisk.org/wiki/display/AST/Important+Security+Considerations
+[Important Security Considerations]: https://docs.asterisk.org/Deployment/Important-Security-Considerations/
