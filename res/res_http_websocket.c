@@ -1163,6 +1163,12 @@ static struct ast_tcptls_session_args *websocket_client_args_create(
 	}
 	ast_sockaddr_copy(&args->remote_address, addr);
 	ast_free(addr);
+
+	/* We need to save off the hostname but it may contain a port spec */
+	snprintf(args->hostname, sizeof(args->hostname),
+		"%.*s",
+		(int) strcspn(host, ":"), host);
+
 	return args;
 }
 
