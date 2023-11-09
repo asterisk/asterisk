@@ -170,7 +170,7 @@ static int dahdi_timer_fd(void *data)
 	return timer->fd;
 }
 
-#define SEE_TIMING "For more information on Asterisk timing modules, including ways to potentially fix this problem, please see https://wiki.asterisk.org/wiki/display/AST/Timing+Interfaces\n"
+#define SEE_TIMING "For more information on Asterisk timing modules, including ways to potentially fix this problem, please see https://docs.asterisk.org/Configuration/Core-Configuration/Timing-Interfaces/\n"
 
 static int dahdi_test_timer(void)
 {
