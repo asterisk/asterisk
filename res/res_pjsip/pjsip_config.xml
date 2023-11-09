@@ -385,8 +385,8 @@
 						setup time.
 						</para>
 						<para>
-						A more detailed description of how this option functions can be found on
-						the Asterisk wiki https://wiki.asterisk.org/wiki/display/AST/SIP+Direct+Media+Reinvite+Glare+Avoidance
+						A more detailed description of how this option functions can be found in
+						the Asterisk documentation https://docs.asterisk.org/Configuration/Channel-Drivers/SIP/Concepts/SIP-Direct-Media-Reinvite-Glare-Avoidance/
 						</para>
 						<enumlist>
 							<enum name="none" />

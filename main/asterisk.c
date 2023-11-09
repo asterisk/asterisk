@@ -70,8 +70,8 @@
 /*!
  * \page asterisk_community_resources Asterisk Community Resources
  * \par Websites
- * \li http://www.asterisk.org Asterisk Homepage
- * \li http://wiki.asterisk.org Asterisk Wiki
+ * \li https://www.asterisk.org Asterisk Homepage
+ * \li https://docs.asterisk.org Asterisk documentation
  *
  * \par Mailing Lists
  * \par
