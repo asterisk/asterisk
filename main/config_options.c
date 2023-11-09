@@ -1306,7 +1306,7 @@ static void cli_show_module_type(struct ast_cli_args *a)
 	tmp = item;
 	while ((tmp = AST_LIST_NEXT(tmp, next))) {
 		if (!strcasecmp(tmp->type, "configOption") && !strcasecmp(tmp->ref, a->argv[4])) {
-			ast_cli(a->fd, "%-25s -- %-65.65s\n", tmp->name,
+			ast_cli(a->fd, "%-25s -- %-120.120s\n", tmp->name,
 					ast_str_buffer(tmp->synopsis));
 		}
 	}
