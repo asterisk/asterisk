@@ -140,9 +140,13 @@
 
 ;
 ; Specify bandwidth of low, medium, or high to control which codecs are used
-; in general.
+; in general. This setting will restrict codecs used to only those that comply
+; with the bandwidth setting. In most cases, you should set this to 'high' so
+; that high-quality codecs may be used; if set to a lower value, this will
+; degrade call quality, so you probably only want to do this if you have
+; actual significant bandwidth constraints.
 ;
-bandwidth=low
+bandwidth=high
 ;
 
 ;
