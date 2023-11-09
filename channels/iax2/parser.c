@@ -120,8 +120,8 @@ static void dump_addr(char *output, int maxlen, void *value, int len)
 	addr.len = len;
 
 	snprintf(output, maxlen, "%s %s",
-				ast_sockaddr_is_ipv4(&addr) || ast_sockaddr_is_ipv4_mapped(&addr) ? "IPV4" : "IPV6",
-				ast_sockaddr_stringify(&addr));
+		ast_sockaddr_is_ipv4(&addr) || ast_sockaddr_is_ipv4_mapped(&addr) ? "IPV4" : "IPV6",
+		ast_sockaddr_stringify(&addr));
 }
 
 static void dump_string_hex(char *output, int maxlen, void *value, int len)
@@ -702,8 +702,8 @@ void iax_showframe(struct iax_frame *f, struct ast_iax2_full_hdr *fhi, int rx, s
 		sprintf(subclass2, "%c", fh->csub);
 		subclass = subclass2;
 	} else if (fh->type == AST_FRAME_IAX) {
-			iax_frame_subclass2str((int)fh->csub, subclass2, sizeof(subclass2));
-			subclass = subclass2;
+		iax_frame_subclass2str((int)fh->csub, subclass2, sizeof(subclass2));
+		subclass = subclass2;
 	} else if (fh->type == AST_FRAME_CONTROL) {
 		if (fh->csub >= ARRAY_LEN(cmds)) {
 			snprintf(subclass2, sizeof(subclass2), "(%d?)", fh->csub);
@@ -1056,34 +1056,34 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 			} else
 				ies->calling_tns = ntohs(get_unaligned_uint16(data + 2));
 			break;
-               case IAX_IE_RR_JITTER:
-                       if (len != (int)sizeof(unsigned int)) {
-                               errorf("Expected jitter rr to be %d bytes long but was %d\n", (int)sizeof(unsigned int), len);
-                       } else {
-                               ies->rr_jitter = ntohl(get_unaligned_uint32(data + 2));
-                       }
-                       break;
-               case IAX_IE_RR_LOSS:
-                       if (len != (int)sizeof(unsigned int)) {
-                               errorf("Expected loss rr to be %d bytes long but was %d\n", (int)sizeof(unsigned int), len);
-                       } else {
-                               ies->rr_loss = ntohl(get_unaligned_uint32(data + 2));
-                       }
-                       break;
-               case IAX_IE_RR_PKTS:
-                       if (len != (int)sizeof(unsigned int)) {
-                               errorf("Expected packets rr to be %d bytes long but was %d\n", (int)sizeof(unsigned int), len);
-                       } else {
-                               ies->rr_pkts = ntohl(get_unaligned_uint32(data + 2));
-                       }
-                       break;
-               case IAX_IE_RR_DELAY:
-                       if (len != (int)sizeof(unsigned short)) {
-                               errorf("Expected loss rr to be %d bytes long but was %d\n", (int)sizeof(unsigned short), len);
-                       } else {
-                               ies->rr_delay = ntohs(get_unaligned_uint16(data + 2));
-                       }
-                       break;
+		case IAX_IE_RR_JITTER:
+			if (len != (int)sizeof(unsigned int)) {
+				errorf("Expected jitter rr to be %d bytes long but was %d\n", (int)sizeof(unsigned int), len);
+			} else {
+				ies->rr_jitter = ntohl(get_unaligned_uint32(data + 2));
+			}
+			break;
+		case IAX_IE_RR_LOSS:
+			if (len != (int)sizeof(unsigned int)) {
+				errorf("Expected loss rr to be %d bytes long but was %d\n", (int)sizeof(unsigned int), len);
+			} else {
+				ies->rr_loss = ntohl(get_unaligned_uint32(data + 2));
+			}
+			break;
+		case IAX_IE_RR_PKTS:
+			if (len != (int)sizeof(unsigned int)) {
+				errorf("Expected packets rr to be %d bytes long but was %d\n", (int)sizeof(unsigned int), len);
+			} else {
+				ies->rr_pkts = ntohl(get_unaligned_uint32(data + 2));
+			}
+			break;
+		case IAX_IE_RR_DELAY:
+			if (len != (int)sizeof(unsigned short)) {
+				errorf("Expected loss rr to be %d bytes long but was %d\n", (int)sizeof(unsigned short), len);
+			} else {
+				ies->rr_delay = ntohs(get_unaligned_uint16(data + 2));
+			}
+			break;
 		case IAX_IE_RR_DROPPED:
 			if (len != (int)sizeof(unsigned int)) {
 				errorf("Expected packets rr to be %d bytes long but was %d\n", (int)sizeof(unsigned int), len);
