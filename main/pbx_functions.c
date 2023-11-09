@@ -467,7 +467,7 @@ void pbx_live_dangerously(int new_live_dangerously)
 {
 	if (new_live_dangerously && !live_dangerously) {
 		ast_log(LOG_WARNING, "Privilege escalation protection disabled!\n"
-			"See https://wiki.asterisk.org/wiki/x/1gKfAQ for more details.\n");
+			"See https://docs.asterisk.org/Configuration/Dialplan/Privilege-Escalations-with-Dialplan-Functions/ for more details.\n");
 	}
 
 	if (!new_live_dangerously && live_dangerously) {

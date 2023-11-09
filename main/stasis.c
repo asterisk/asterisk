@@ -287,8 +287,8 @@
  * \par Subscriber shutdown sequencing
  *
  * Subscribers are sensitive to shutdown sequencing, specifically in how the
- * reference message types. This is fully detailed on the wiki at
- * https://wiki.asterisk.org/wiki/x/K4BqAQ.
+ * reference message types. This is fully detailed in the documentation at
+ * https://docs.asterisk.org/Development/Roadmap/Asterisk-12-Projects/Asterisk-12-API-Improvements/Stasis-Message-Bus/Using-the-Stasis-Message-Bus/Stasis-Subscriber-Shutdown-Problem/.
  *
  * In short, the lifetime of the \a data (and \a callback, if in a module) must
  * be held until the stasis_subscription_final_message() has been received.
