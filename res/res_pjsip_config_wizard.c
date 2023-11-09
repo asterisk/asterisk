@@ -111,7 +111,7 @@
 
 			<para> </para>
 			<para>For more information, visit:</para>
-			<para><literal>https://wiki.asterisk.org/wiki/display/AST/PJSIP+Configuration+Wizard</literal></para>
+			<para><literal>https://docs.asterisk.org/Configuration/Channel-Drivers/SIP/Configuring-res_pjsip/PJSIP-Configuration-Wizard/</literal></para>
 		</description>
 
 		<configFile name="pjsip_wizard.conf">
@@ -119,7 +119,7 @@
 				<synopsis>Provides config wizard.</synopsis>
 				<description>
 				<para>For more information, visit:</para>
-				<para><literal>https://wiki.asterisk.org/wiki/display/AST/PJSIP+Configuration+Wizard</literal></para>
+				<para><literal>https://docs.asterisk.org/Configuration/Channel-Drivers/SIP/Configuring-res_pjsip/PJSIP-Configuration-Wizard/</literal></para>
 				</description>
 				<configOption name="type">
 					<synopsis>Must be 'wizard'.</synopsis>
@@ -214,7 +214,7 @@
 					<para>Normal dialplan precedence rules apply so if there's already a hint for
 					this extension in <literal>hint_context</literal>, this one will be ignored.
 					For more information, visit: </para>
-					<para><literal>https://wiki.asterisk.org/wiki/display/AST/PJSIP+Configuration+Wizard</literal></para>
+					<para><literal>https://docs.asterisk.org/Configuration/Channel-Drivers/SIP/Configuring-res_pjsip/PJSIP-Configuration-Wizard/</literal></para>
 					</description>
 				</configOption>
 				<configOption name="hint_application">
@@ -235,7 +235,7 @@
 					<para>Normal dialplan precedence rules apply so if there's already a priority 1
 					application for this specific extension in <literal>hint_context</literal>,
 					this one will be ignored. For more information, visit: </para>
-					<para><literal>https://wiki.asterisk.org/wiki/display/AST/PJSIP+Configuration+Wizard</literal></para>
+					<para><literal>https://docs.asterisk.org/Configuration/Channel-Drivers/SIP/Configuring-res_pjsip/PJSIP-Configuration-Wizard/</literal></para>
 					</description>
 				</configOption>
 				<configOption name="endpoint&#47;*">
