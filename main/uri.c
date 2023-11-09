@@ -299,25 +299,14 @@ struct ast_uri *ast_uri_parse_websocket(const char *uri)
 
 char *ast_uri_make_host_with_port(const struct ast_uri *uri)
 {
-	int host_size = ast_uri_host(uri) ?
-		strlen(ast_uri_host(uri)) : 0;
-	/* if there is a port +1 for the colon */
-	int port_size = ast_uri_port(uri) ?
-		strlen(ast_uri_port(uri)) + 1 : 0;
-	char *res = ast_malloc(host_size + port_size + 1);
+	char *res;
 
-	if (!res) {
+	if (ast_asprintf(&res, "%s%s%s",
+			ast_uri_host(uri) ?: "",
+			ast_uri_port(uri) ? ":" : "",
+			ast_uri_port(uri) ?: "") == -1) {
 		return NULL;
 	}
 
-	memcpy(res, ast_uri_host(uri), host_size);
-
-	if (ast_uri_port(uri)) {
-		res[host_size] = ':';
-		memcpy(res + host_size + 1,
-		       ast_uri_port(uri), port_size - 1);
-	}
-
-	res[host_size + port_size] = '\0';
 	return res;
 }
