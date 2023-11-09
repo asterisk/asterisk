@@ -377,9 +377,8 @@ is set to no.
 
 In Asterisk 12 and later, live_dangerously defaults to no.
 
-
-[voip-security-webinar]: https://www.asterisk.org/security/webinar/
-[blog-sip-security]: http://blogs.digium.com/2009/03/28/sip-security/
+[voip-security-webinar]: https://docs.asterisk.org/Deployment/Important-Security-Considerations/Asterisk-Security-Webinars/
+[blog-sip-security]: https://web.archive.org/web/20171030134647/http://blogs.digium.com/2009/03/28/sip-security/
 [Strong Password Generator]: https://www.strongpasswordgenerator.com
 [Filtering Data]: #filtering-data
 [Proper Device Naming]: #proper-device-naming
@@ -387,4 +386,4 @@ In Asterisk 12 and later, live_dangerously defaults to no.
 [Reducing Pattern Match Typos]: #reducing-pattern-match-typos
 [Manager Class Authorizations]: #manager-class-authorizations
 [Avoid Privilege Escalations]: #avoid-privilege-escalations
-[Important Security Considerations]: https://wiki.asterisk.org/wiki/display/AST/Important+Security+Considerations
+[Important Security Considerations]: https://docs.asterisk.org/Deployment/Important-Security-Considerations/

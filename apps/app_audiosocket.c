@@ -61,7 +61,7 @@
 		</syntax>
 		<description>
 			<para>Connects to the given TCP service, then transmits channel audio over that socket.  In turn, audio is received from the socket and sent to the channel.  Only audio frames will be transmitted.</para>
-			<para>Protocol is specified at https://wiki.asterisk.org/wiki/display/AST/AudioSocket</para>
+			<para>Protocol is specified at https://docs.asterisk.org/Configuration/Channel-Drivers/AudioSocket/</para>
 			<para>This application does not automatically answer and should generally be preceeded by an application such as Answer() or Progress().</para>
 		</description>
 	</application>

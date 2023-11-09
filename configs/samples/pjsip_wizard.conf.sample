@@ -20,7 +20,7 @@
 
 ; Documentation
 ;
-; The official documentation is at http://wiki.asterisk.org
+; The official documentation is at https://docs.asterisk.org
 ; You can read the XML configuration help via Asterisk command line with
 ; "config show help res_pjsip_config_wizard", then you can drill down through
 ; the various sections and their options.
