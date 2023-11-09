@@ -35,7 +35,7 @@
 	<support_level>core</support_level>
 ***/
 
-/* See https://wiki.asterisk.org/wiki/display/AST/Secure+Calling */
+/* See https://docs.asterisk.org/Deployment/Secure-Calling/ */
 
 #include "asterisk.h"                   /* for NULL, size_t, memcpy, etc */
 
