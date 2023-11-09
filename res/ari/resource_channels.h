@@ -209,7 +209,7 @@ void ast_ari_channels_originate_with_id(struct ast_variable *headers, struct ast
 struct ast_ari_channels_hangup_args {
 	/*! Channel's id */
 	const char *channel_id;
-	/*! The reason code for hanging up the channel for detail use. Mutually exclusive with 'reason'. See detail hangup codes at here. https://wiki.asterisk.org/wiki/display/AST/Hangup+Cause+Mappings */
+	/*! The reason code for hanging up the channel for detail use. Mutually exclusive with 'reason'. See detail hangup codes at here. https://docs.asterisk.org/Configuration/Miscellaneous/Hangup-Cause-Mappings/ */
 	const char *reason_code;
 	/*! Reason for hanging up the channel for simple use. Mutually exclusive with 'reason_code'. */
 	const char *reason;

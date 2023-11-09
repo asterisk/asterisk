@@ -2,7 +2,7 @@
 ; Static and realtime external configuration
 ; engine configuration
 ;
-; See https://wiki.asterisk.org/wiki/display/AST/Realtime+Database+Configuration
+; See https://docs.asterisk.org/Fundamentals/Asterisk-Configuration/Database-Support-Configuration/Realtime-Database-Configuration/
 ; for basic table formatting information.
 ;
 [settings]
