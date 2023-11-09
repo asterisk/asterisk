@@ -1245,15 +1245,26 @@ static void iax_outputframe(struct iax_frame *f, struct ast_iax2_full_hdr *fhi, 
 	}
 }
 
-static void iax_debug_output(const char *data)
+static __attribute__((format(printf, 1, 2)))
+void iax_debug_output(const char *fmt, ...)
 {
-	if (iaxdebug)
-		ast_verbose("%s", data);
+	if (iaxdebug) {
+		va_list ap;
+
+		va_start(ap, fmt);
+		ast_log_ap(LOG_VERBOSE, fmt, ap);
+		va_end(ap);
+	}
 }
 
-static void iax_error_output(const char *data)
+static __attribute__((format(printf, 1, 2)))
+void iax_error_output(const char *fmt, ...)
 {
-	ast_log(LOG_WARNING, "%s", data);
+	va_list ap;
+
+	va_start(ap, fmt);
+	ast_log_ap(LOG_WARNING, fmt, ap);
+	va_end(ap);
 }
 
 static void __attribute__((format(printf, 1, 2))) jb_error_output(const char *fmt, ...)

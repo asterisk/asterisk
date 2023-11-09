@@ -152,9 +152,10 @@ struct iax_ie_data {
 };
 
 /* Choose a different function for output */
-void iax_set_output(void (*output)(const char *data));
+void iax_set_output(void (*output)(const char *fmt, ...) __attribute__((format(printf, 1, 2))));
 /* Choose a different function for errors */
-void iax_set_error(void (*output)(const char *data));
+void iax_set_error(void (*output)(const char *fmt, ...) __attribute__((format(printf, 1, 2))));
+
 void iax_showframe(struct iax_frame *f, struct ast_iax2_full_hdr *fhi, int rx, struct ast_sockaddr *addr, int datalen);
 void iax_frame_subclass2str(enum iax_frame_subclass subclass, char *str, size_t len);
 
