@@ -16,7 +16,7 @@
  * at the top of the source tree.
  *
  * Please follow coding guidelines
- * https://wiki.asterisk.org/wiki/display/AST/Coding+Guidelines
+ * https://docs.asterisk.org/Development/Policies-and-Procedures/Coding-Guidelines/
  */
 
 /*! \file

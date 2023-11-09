@@ -93,7 +93,7 @@
 					</description>
 					<see-also>
 						<ref type="filename">http.conf</ref>
-						<ref type="link">https://wiki.asterisk.org/wiki/display/AST/Asterisk+Builtin+mini-HTTP+Server</ref>
+						<ref type="link">https://docs.asterisk.org/Configuration/Core-Configuration/Asterisk-Builtin-mini-HTTP-Server/</ref>
 					</see-also>
 				</configOption>
 				<configOption name="websocket_write_timeout" default="100">

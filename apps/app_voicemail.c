@@ -27,7 +27,7 @@
  *
  * \par See also
  * \arg \ref voicemail.conf "Config_voicemail"
- * \note For information about voicemail IMAP storage, https://wiki.asterisk.org/wiki/display/AST/IMAP+Voicemail+Storage
+ * \note For information about voicemail IMAP storage, https://docs.asterisk.org/Configuration/Applications/Voicemail/IMAP-Voicemail-Storage/
  * \ingroup applications
  * \todo This module requires res_adsi to load. This needs to be optional
  * during compilation.

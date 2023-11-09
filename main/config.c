@@ -23,7 +23,7 @@
  * \author Mark Spencer <markster@digium.com>
  *
  * Includes the Asterisk Realtime API - ARA
- * See http://wiki.asterisk.org
+ * See https://docs.asterisk.org
  */
 
 /*** MODULEINFO

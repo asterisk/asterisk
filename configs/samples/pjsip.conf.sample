@@ -20,7 +20,7 @@
 
 ; Documentation
 ;
-; The official documentation is at http://wiki.asterisk.org
+; The official documentation is at https://docs.asterisk.org
 ; You can read the XML configuration help via Asterisk command line with
 ; "config show help res_pjsip", then you can drill down through the various
 ; sections and their options.
@@ -31,8 +31,8 @@
 ; At a minimum please read the file "README-SERIOUSLY.bestpractices.txt",
 ; located in the Asterisk source directory before starting Asterisk.
 ; Otherwise you risk allowing the security of the Asterisk system to be
-; compromised. Beyond that please visit and read the security information on
-; the wiki at: https://wiki.asterisk.org/wiki/x/EwFB
+; compromised. Beyond that please visit and read the security information in
+; the documentation at: https://docs.asterisk.org/Deployment/Important-Security-Considerations/
 ;
 ; A few basics to pay attention to:
 ;
@@ -47,7 +47,7 @@
 ;
 ; See the example ACL configuration in this file. Read the configuration help
 ; for the section and all of its options. Look over the samples in acl.conf
-; and documentation at https://wiki.asterisk.org/wiki/x/uA80AQ
+; and documentation at https://docs.asterisk.org/Configuration/Core-Configuration/Named-ACLs/
 ; If possible, restrict access to only networks and addresses you trust.
 ;
 ; Dialplan Contexts
@@ -393,7 +393,7 @@
 ;rewrite_contact=yes  ; necessary if endpoint does not know/register public ip:port
 ;ice_support=yes   ;This is specific to clients that support NAT traversal
                    ;for media via ICE,STUN,TURN. See the wiki at:
-                   ;https://wiki.asterisk.org/wiki/x/D4FHAQ
+                   ;https://docs.asterisk.org/Configuration/Miscellaneous/Interactive-Connectivity-Establishment-ICE-in-Asterisk/
                    ;for a deeper explanation of this topic.
 
 ;[6002]
@@ -1454,7 +1454,7 @@
 
 ; MODULE PROVIDING BELOW SECTION(S): res_pjsip_outbound_publish
 ;======================OUTBOUND_PUBLISH SECTION OPTIONS=====================
-; See https://wiki.asterisk.org/wiki/display/AST/Publishing+Extension+State
+; See https://docs.asterisk.org/Configuration/Channel-Drivers/SIP/Configuring-res_pjsip/Publishing-Extension-State/
 ; for more information.
 ;[outbound-publish]
 ;type=outbound-publish     ; Must be of type 'outbound-publish'.
@@ -1509,9 +1509,9 @@
 
 
 ; MODULE PROVIDING BELOW SECTION(S): res_pjsip_pubsub
-;=============================RESOURCE-LIST===================================
-; See https://wiki.asterisk.org/wiki/pages/viewpage.action?pageId=30278158
+; See https://docs.asterisk.org/Configuration/Channel-Drivers/SIP/Configuring-res_pjsip/Resource-List-Subscriptions-RLS/
 ; for more information.
+;=============================RESOURCE-LIST===================================
 ;[resource_list]
 ;type=resource_list        ; Must be of type 'resource_list'.
 
@@ -1568,7 +1568,7 @@
 
 
 ;==========================INBOUND_PUBLICATION================================
-; See https://wiki.asterisk.org/wiki/display/AST/Exchanging+Device+and+Mailbox+State+Using+PJSIP
+; See https://docs.asterisk.org/Configuration/Channel-Drivers/SIP/Configuring-res_pjsip/Exchanging-Device-and-Mailbox-State-Using-PJSIP/
 ; for more information.
 ;[inbound-publication]
 ;type=                     ; Must be of type 'inbound-publication'.
@@ -1579,7 +1579,7 @@
 
 ; MODULE PROVIDING BELOW SECTION(S): res_pjsip_publish_asterisk
 ;==========================ASTERISK_PUBLICATION===============================
-; See https://wiki.asterisk.org/wiki/display/AST/Exchanging+Device+and+Mailbox+State+Using+PJSIP
+; See https://docs.asterisk.org/Configuration/Channel-Drivers/SIP/Configuring-res_pjsip/Exchanging-Device-and-Mailbox-State-Using-PJSIP/
 ; for more information.
 ;[asterisk-publication]
 ;type=asterisk-publication ; Must be of type 'asterisk-publication'.
