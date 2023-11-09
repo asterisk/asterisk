@@ -221,7 +221,7 @@ samples)
   sed -r -i \
     -e '/^\[directories\]\(!\)/s/\(!\).*//' \
     -e "/^\[directories\]/a; rem-out any of the following to use Asterisk's defaults:" \
-    -e "/^ast(etc|mod|varlib|data|agi|run|spool|log|db|key)dir\>/s| /| $BASE_DIR/|" \
+    -e "/^ast(cache|etc|mod|varlib|data|agi|run|spool|log|db|key)dir\>/s| /| $BASE_DIR/|" \
     "$AST_CONF"
   if [ "$LIVE_AST_FOR_SYSTEM" != '' ]; then
     sed -r -i \
