@@ -103,7 +103,7 @@ void (*outputf)(const char *str, ...) = internaloutput;
 static __attribute__((format(printf, 1, 2)))
 void (*errorf)(const char *str, ...) = internalerror;
 
-static void dump_addr(char *output, int maxlen, void *value, int len)
+static void dump_addr(char *output, size_t maxlen, void *value, int len)
 {
 	struct ast_sockaddr addr;
 
@@ -124,7 +124,7 @@ static void dump_addr(char *output, int maxlen, void *value, int len)
 		ast_sockaddr_stringify(&addr));
 }
 
-static void dump_string_hex(char *output, int maxlen, void *value, int len)
+static void dump_string_hex(char *output, size_t maxlen, void *value, int len)
 {
 	int i = 0;
 
@@ -134,7 +134,7 @@ static void dump_string_hex(char *output, int maxlen, void *value, int len)
 	}
 }
 
-static void dump_string(char *output, int maxlen, void *value, int len)
+static void dump_string(char *output, size_t maxlen, void *value, int len)
 {
 	maxlen--;
 	if (maxlen > len)
@@ -143,7 +143,7 @@ static void dump_string(char *output, int maxlen, void *value, int len)
 	output[maxlen] = '\0';
 }
 
-static void dump_prefs(char *output, int maxlen, void *value, int len)
+static void dump_prefs(char *output, size_t maxlen, void *value, int len)
 {
 	struct iax2_codec_pref pref;
 	int total_len = 0;
@@ -162,7 +162,7 @@ static void dump_prefs(char *output, int maxlen, void *value, int len)
 	iax2_codec_pref_string(&pref, output, total_len);
 }
 
-static void dump_int(char *output, int maxlen, void *value, int len)
+static void dump_int(char *output, size_t maxlen, void *value, int len)
 {
 	if (len == (int)sizeof(unsigned int))
 		snprintf(output, maxlen, "%lu", (unsigned long)ntohl(get_unaligned_uint32(value)));
@@ -170,7 +170,7 @@ static void dump_int(char *output, int maxlen, void *value, int len)
 		ast_copy_string(output, "Invalid INT", maxlen);
 }
 
-static void dump_short(char *output, int maxlen, void *value, int len)
+static void dump_short(char *output, size_t maxlen, void *value, int len)
 {
 	if (len == (int)sizeof(unsigned short))
 		snprintf(output, maxlen, "%d", ntohs(get_unaligned_uint16(value)));
@@ -178,7 +178,7 @@ static void dump_short(char *output, int maxlen, void *value, int len)
 		ast_copy_string(output, "Invalid SHORT", maxlen);
 }
 
-static void dump_byte(char *output, int maxlen, void *value, int len)
+static void dump_byte(char *output, size_t maxlen, void *value, int len)
 {
 	if (len == (int)sizeof(unsigned char))
 		snprintf(output, maxlen, "%d", *((unsigned char *)value));
@@ -186,7 +186,7 @@ static void dump_byte(char *output, int maxlen, void *value, int len)
 		ast_copy_string(output, "Invalid BYTE", maxlen);
 }
 
-static void dump_datetime(char *output, int maxlen, void *value, int len)
+static void dump_datetime(char *output, size_t maxlen, void *value, int len)
 {
 	struct ast_tm tm;
 	unsigned long val = (unsigned long) ntohl(get_unaligned_uint32(value));
@@ -202,7 +202,7 @@ static void dump_datetime(char *output, int maxlen, void *value, int len)
 		ast_copy_string(output, "Invalid DATETIME format!", maxlen);
 }
 
-static void dump_ipaddr(char *output, int maxlen, void *value, int len)
+static void dump_ipaddr(char *output, size_t maxlen, void *value, int len)
 {
 	struct ast_sockaddr addr;
 	char *str_addr;
@@ -224,7 +224,7 @@ static void dump_ipaddr(char *output, int maxlen, void *value, int len)
 }
 
 
-static void dump_prov_flags(char *output, int maxlen, void *value, int len)
+static void dump_prov_flags(char *output, size_t maxlen, void *value, int len)
 {
 	char buf[256] = "";
 	if (len == (int)sizeof(unsigned int))
@@ -234,7 +234,7 @@ static void dump_prov_flags(char *output, int maxlen, void *value, int len)
 		ast_copy_string(output, "Invalid INT", maxlen);
 }
 
-static void dump_samprate(char *output, int maxlen, void *value, int len)
+static void dump_samprate(char *output, size_t maxlen, void *value, int len)
 {
 	char tmp[256]="";
 	int sr;
@@ -261,7 +261,7 @@ static void dump_samprate(char *output, int maxlen, void *value, int len)
 
 }
 
-static void dump_versioned_codec(char *output, int maxlen, void *value, int len)
+static void dump_versioned_codec(char *output, size_t maxlen, void *value, int len)
 {
 	char *version = (char *) value;
 	if (version[0] == 0) {
@@ -276,8 +276,8 @@ static void dump_versioned_codec(char *output, int maxlen, void *value, int len)
 	}
 }
 
-static void dump_prov_ies(char *output, int maxlen, unsigned char *iedata, int len);
-static void dump_prov(char *output, int maxlen, void *value, int len)
+static void dump_prov_ies(char *output, size_t maxlen, unsigned char *iedata, int len);
+static void dump_prov(char *output, size_t maxlen, void *value, int len)
 {
 	dump_prov_ies(output, maxlen, value, len);
 }
@@ -285,7 +285,7 @@ static void dump_prov(char *output, int maxlen, void *value, int len)
 struct iax2_ie {
 	int ie;
 	char *name;
-	void (*dump)(char *output, int maxlen, void *value, int len);
+	void (*dump)(char *output, size_t maxlen, void *value, int len);
 };
 static struct iax2_ie infoelts[] = {
 	{ IAX_IE_CALLED_NUMBER, "CALLED NUMBER", dump_string },
@@ -377,7 +377,7 @@ const char *iax_ie2str(int ie)
 }
 
 
-static void dump_prov_ies(char *output, int maxlen, unsigned char *iedata, int len)
+static void dump_prov_ies(char *output, size_t maxlen, unsigned char *iedata, int len)
 {
 	int ielen;
 	int ie;
@@ -389,30 +389,30 @@ static void dump_prov_ies(char *output, int maxlen, unsigned char *iedata, int l
 		return;
 	strcpy(output, "\n");
 	maxlen -= strlen(output); output += strlen(output);
-	while(len > 2) {
+	while (len > 2) {
 		ie = iedata[0];
 		ielen = iedata[1];
-		if (ielen + 2> len) {
-			snprintf(tmp, (int)sizeof(tmp), "Total Prov IE length of %d bytes exceeds remaining prov frame length of %d bytes\n", ielen + 2, len);
+		if (ielen + 2 > len) {
+			snprintf(tmp, sizeof(tmp), "Total Prov IE length of %d bytes exceeds remaining prov frame length of %d bytes\n", ielen + 2, len);
 			ast_copy_string(output, tmp, maxlen);
 			maxlen -= strlen(output);
 			output += strlen(output);
 			return;
 		}
 		found = 0;
-		for (x=0;x<(int)sizeof(prov_ies) / (int)sizeof(prov_ies[0]); x++) {
+		for (x = 0; x < ARRAY_LEN(prov_ies); x++) {
 			if (prov_ies[x].ie == ie) {
 				if (prov_ies[x].dump) {
-					prov_ies[x].dump(interp, (int)sizeof(interp), iedata + 2, ielen);
-					snprintf(tmp, (int)sizeof(tmp), "       %-15.15s : %s\n", prov_ies[x].name, interp);
+					prov_ies[x].dump(interp, sizeof(interp), iedata + 2, ielen);
+					snprintf(tmp, sizeof(tmp), "       %-15.15s : %s\n", prov_ies[x].name, interp);
 					ast_copy_string(output, tmp, maxlen);
 					maxlen -= strlen(output); output += strlen(output);
 				} else {
 					if (ielen)
-						snprintf(interp, (int)sizeof(interp), "%d bytes", ielen);
+						snprintf(interp, sizeof(interp), "%d bytes", ielen);
 					else
 						strcpy(interp, "Present");
-					snprintf(tmp, (int)sizeof(tmp), "       %-15.15s : %s\n", prov_ies[x].name, interp);
+					snprintf(tmp, sizeof(tmp), "       %-15.15s : %s\n", prov_ies[x].name, interp);
 					ast_copy_string(output, tmp, maxlen);
 					maxlen -= strlen(output); output += strlen(output);
 				}
@@ -420,7 +420,7 @@ static void dump_prov_ies(char *output, int maxlen, unsigned char *iedata, int l
 			}
 		}
 		if (!found) {
-			snprintf(tmp, (int)sizeof(tmp), "       Unknown Prov IE %03d  : Present\n", ie);
+			snprintf(tmp, sizeof(tmp), "       Unknown Prov IE %03d  : Present\n", ie);
 			ast_copy_string(output, tmp, maxlen);
 			maxlen -= strlen(output); output += strlen(output);
 		}
@@ -450,11 +450,11 @@ static void dump_ies(unsigned char *iedata, int len)
 		for (x = 0; x < ARRAY_LEN(infoelts); x++) {
 			if (infoelts[x].ie == ie) {
 				if (infoelts[x].dump) {
-					infoelts[x].dump(interp, (int)sizeof(interp), iedata + 2, ielen);
+					infoelts[x].dump(interp, sizeof(interp), iedata + 2, ielen);
 					outputf("   %-15.15s : %s\n", infoelts[x].name, interp);
 				} else {
 					if (ielen)
-						snprintf(interp, (int)sizeof(interp), "%d bytes", ielen);
+						snprintf(interp, sizeof(interp), "%d bytes", ielen);
 					else
 						strcpy(interp, "Present");
 					outputf("   %-15.15s : %s\n", infoelts[x].name, interp);
@@ -806,7 +806,7 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 	char tmp[256], *tmp2;
 	struct ast_variable *var, *var2, *prev;
 	unsigned int count;
-	memset(ies, 0, (int)sizeof(struct iax_ies));
+	memset(ies, 0, sizeof(struct iax_ies));
 	ies->msgcount = -1;
 	ies->firmwarever = -1;
 	ies->calling_ton = -1;
@@ -848,7 +848,7 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 			break;
 		case IAX_IE_CAPABILITY:
 			if (len != (int)sizeof(unsigned int)) {
-				errorf("Expecting capability to be %d bytes long but was %d\n", (int)sizeof(unsigned int), len);
+				errorf("Expecting capability to be %zu bytes long but was %d\n", sizeof(unsigned int), len);
 			} else if (ies->capability == 0) { /* Don't overwrite capability2, if specified */
 				ies->capability = ntohl(get_unaligned_uint32(data + 2));
 			}
@@ -867,7 +867,7 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 			break;
 		case IAX_IE_FORMAT:
 			if (len != (int)sizeof(unsigned int)) {
-				errorf("Expecting format to be %d bytes long but was %d\n", (int)sizeof(unsigned int), len);
+				errorf("Expecting format to be %zu bytes long but was %d\n", sizeof(unsigned int), len);
 			} else if (ies->format == 0) { /* Don't overwrite format2, if specified */
 				ies->format = ntohl(get_unaligned_uint32(data + 2));
 			}
@@ -889,19 +889,19 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 			break;
 		case IAX_IE_VERSION:
 			if (len != (int)sizeof(unsigned short)) {
-				errorf("Expecting version to be %d bytes long but was %d\n", (int)sizeof(unsigned short), len);
+				errorf("Expecting version to be %zu bytes long but was %d\n", sizeof(unsigned short), len);
 			} else
 				ies->version = ntohs(get_unaligned_uint16(data + 2));
 			break;
 		case IAX_IE_ADSICPE:
 			if (len != (int)sizeof(unsigned short)) {
-				errorf("Expecting adsicpe to be %d bytes long but was %d\n", (int)sizeof(unsigned short), len);
+				errorf("Expecting adsicpe to be %zu bytes long but was %d\n", sizeof(unsigned short), len);
 			} else
 				ies->adsicpe = ntohs(get_unaligned_uint16(data + 2));
 			break;
 		case IAX_IE_SAMPLINGRATE:
 			if (len != (int)sizeof(unsigned short)) {
-				errorf("Expecting samplingrate to be %d bytes long but was %d\n", (int)sizeof(unsigned short), len);
+				errorf("Expecting samplingrate to be %zu bytes long but was %d\n", sizeof(unsigned short), len);
 			} else
 				ies->samprate = ntohs(get_unaligned_uint16(data + 2));
 			break;
@@ -913,13 +913,13 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 			break;
 		case IAX_IE_AUTHMETHODS:
 			if (len != (int)sizeof(unsigned short))  {
-				errorf("Expecting authmethods to be %d bytes long but was %d\n", (int)sizeof(unsigned short), len);
+				errorf("Expecting authmethods to be %zu bytes long but was %d\n", sizeof(unsigned short), len);
 			} else
 				ies->authmethods = ntohs(get_unaligned_uint16(data + 2));
 			break;
 		case IAX_IE_ENCRYPTION:
 			if (len != (int)sizeof(unsigned short))  {
-				errorf("Expecting encryption to be %d bytes long but was %d\n", (int)sizeof(unsigned short), len);
+				errorf("Expecting encryption to be %zu bytes long but was %d\n", sizeof(unsigned short), len);
 			} else
 				ies->encmethods = ntohs(get_unaligned_uint16(data + 2));
 			break;
@@ -938,19 +938,19 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 			break;
 		case IAX_IE_REFRESH:
 			if (len != (int)sizeof(unsigned short)) {
-				errorf("Expecting refresh to be %d bytes long but was %d\n", (int)sizeof(unsigned short), len);
+				errorf("Expecting refresh to be %zu bytes long but was %d\n", sizeof(unsigned short), len);
 			} else
 				ies->refresh = ntohs(get_unaligned_uint16(data + 2));
 			break;
 		case IAX_IE_DPSTATUS:
 			if (len != (int)sizeof(unsigned short)) {
-				errorf("Expecting dpstatus to be %d bytes long but was %d\n", (int)sizeof(unsigned short), len);
+				errorf("Expecting dpstatus to be %zu bytes long but was %d\n", sizeof(unsigned short), len);
 			} else
 				ies->dpstatus = ntohs(get_unaligned_uint16(data + 2));
 			break;
 		case IAX_IE_CALLNO:
 			if (len != (int)sizeof(unsigned short)) {
-				errorf("Expecting callno to be %d bytes long but was %d\n", (int)sizeof(unsigned short), len);
+				errorf("Expecting callno to be %zu bytes long but was %d\n", sizeof(unsigned short), len);
 			} else
 				ies->callno = ntohs(get_unaligned_uint16(data + 2));
 			break;
@@ -973,7 +973,7 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 			break;
 		case IAX_IE_MSGCOUNT:
 			if (len != (int)sizeof(unsigned short)) {
-				errorf("Expecting msgcount to be %d bytes long but was %d\n", (int)sizeof(unsigned short), len);
+				errorf("Expecting msgcount to be %zu bytes long but was %d\n", sizeof(unsigned short), len);
 			} else
 				ies->msgcount = ntohs(get_unaligned_uint16(data + 2));
 			break;
@@ -985,19 +985,19 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 			break;
 		case IAX_IE_TRANSFERID:
 			if (len != (int)sizeof(unsigned int)) {
-				errorf("Expecting transferid to be %d bytes long but was %d\n", (int)sizeof(unsigned int), len);
+				errorf("Expecting transferid to be %zu bytes long but was %d\n", sizeof(unsigned int), len);
 			} else
 				ies->transferid = ntohl(get_unaligned_uint32(data + 2));
 			break;
 		case IAX_IE_DATETIME:
 			if (len != (int)sizeof(unsigned int)) {
-				errorf("Expecting date/time to be %d bytes long but was %d\n", (int)sizeof(unsigned int), len);
+				errorf("Expecting date/time to be %zu bytes long but was %d\n", sizeof(unsigned int), len);
 			} else
 				ies->datetime = ntohl(get_unaligned_uint32(data + 2));
 			break;
 		case IAX_IE_FIRMWAREVER:
 			if (len != (int)sizeof(unsigned short)) {
-				errorf("Expecting firmwarever to be %d bytes long but was %d\n", (int)sizeof(unsigned short), len);
+				errorf("Expecting firmwarever to be %zu bytes long but was %d\n", sizeof(unsigned short), len);
 			} else
 				ies->firmwarever = ntohs(get_unaligned_uint16(data + 2));
 			break;
@@ -1009,7 +1009,7 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 			break;
 		case IAX_IE_FWBLOCKDESC:
 			if (len != (int)sizeof(unsigned int)) {
-				errorf("Expected block desc to be %d bytes long but was %d\n", (int)sizeof(unsigned int), len);
+				errorf("Expected block desc to be %zu bytes long but was %d\n", sizeof(unsigned int), len);
 			} else
 				ies->fwdesc = ntohl(get_unaligned_uint32(data + 2));
 			break;
@@ -1023,7 +1023,7 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 			break;
 		case IAX_IE_PROVVER:
 			if (len != (int)sizeof(unsigned int)) {
-				errorf("Expected provisioning version to be %d bytes long but was %d\n", (int)sizeof(unsigned int), len);
+				errorf("Expected provisioning version to be %zu bytes long but was %d\n", sizeof(unsigned int), len);
 			} else {
 				ies->provverpres = 1;
 				ies->provver = ntohl(get_unaligned_uint32(data + 2));
@@ -1052,48 +1052,48 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 			break;
 		case IAX_IE_CALLINGTNS:
 			if (len != (int)sizeof(unsigned short)) {
-				errorf("Expecting callingtns to be %d bytes long but was %d\n", (int)sizeof(unsigned short), len);
+				errorf("Expecting callingtns to be %zu bytes long but was %d\n", sizeof(unsigned short), len);
 			} else
 				ies->calling_tns = ntohs(get_unaligned_uint16(data + 2));
 			break;
 		case IAX_IE_RR_JITTER:
 			if (len != (int)sizeof(unsigned int)) {
-				errorf("Expected jitter rr to be %d bytes long but was %d\n", (int)sizeof(unsigned int), len);
+				errorf("Expected jitter rr to be %zu bytes long but was %d\n", sizeof(unsigned int), len);
 			} else {
 				ies->rr_jitter = ntohl(get_unaligned_uint32(data + 2));
 			}
 			break;
 		case IAX_IE_RR_LOSS:
 			if (len != (int)sizeof(unsigned int)) {
-				errorf("Expected loss rr to be %d bytes long but was %d\n", (int)sizeof(unsigned int), len);
+				errorf("Expected loss rr to be %zu bytes long but was %d\n", sizeof(unsigned int), len);
 			} else {
 				ies->rr_loss = ntohl(get_unaligned_uint32(data + 2));
 			}
 			break;
 		case IAX_IE_RR_PKTS:
 			if (len != (int)sizeof(unsigned int)) {
-				errorf("Expected packets rr to be %d bytes long but was %d\n", (int)sizeof(unsigned int), len);
+				errorf("Expected packets rr to be %zu bytes long but was %d\n", sizeof(unsigned int), len);
 			} else {
 				ies->rr_pkts = ntohl(get_unaligned_uint32(data + 2));
 			}
 			break;
 		case IAX_IE_RR_DELAY:
 			if (len != (int)sizeof(unsigned short)) {
-				errorf("Expected loss rr to be %d bytes long but was %d\n", (int)sizeof(unsigned short), len);
+				errorf("Expected loss rr to be %zu bytes long but was %d\n", sizeof(unsigned short), len);
 			} else {
 				ies->rr_delay = ntohs(get_unaligned_uint16(data + 2));
 			}
 			break;
 		case IAX_IE_RR_DROPPED:
 			if (len != (int)sizeof(unsigned int)) {
-				errorf("Expected packets rr to be %d bytes long but was %d\n", (int)sizeof(unsigned int), len);
+				errorf("Expected packets rr to be %zu bytes long but was %d\n", sizeof(unsigned int), len);
 			} else {
 				ies->rr_dropped = ntohl(get_unaligned_uint32(data + 2));
 			}
 			break;
 		case IAX_IE_RR_OOO:
 			if (len != (int)sizeof(unsigned int)) {
-				errorf("Expected packets rr to be %d bytes long but was %d\n", (int)sizeof(unsigned int), len);
+				errorf("Expected packets rr to be %zu bytes long but was %d\n", sizeof(unsigned int), len);
 			} else {
 				ies->rr_ooo = ntohl(get_unaligned_uint32(data + 2));
 			}
