@@ -13109,6 +13109,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 		tmp->permhidecallerid = conf->chan.hidecallerid;
 		tmp->hidecalleridname = conf->chan.hidecalleridname;
 		tmp->callreturn = conf->chan.callreturn;
+		tmp->lastnumredial = conf->chan.lastnumredial; /* Not used in DAHDI pvt, only analog pvt */
 		tmp->echocancel = conf->chan.echocancel;
 		tmp->echotraining = conf->chan.echotraining;
 		tmp->pulse = conf->chan.pulse;
@@ -13404,6 +13405,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 				analog_p->permcallwaiting = conf->chan.callwaiting; /* permcallwaiting possibly modified in analog_config_complete */
 				analog_p->calledsubscriberheld = conf->chan.calledsubscriberheld; /* Only actually used in analog pvt, not DAHDI pvt */
 				analog_p->callreturn = conf->chan.callreturn;
+				analog_p->lastnumredial = conf->chan.lastnumredial; /* Only actually used in analog pvt, not DAHDI pvt */
 				analog_p->cancallforward = conf->chan.cancallforward;
 				analog_p->canpark = conf->chan.canpark;
 				analog_p->dahditrcallerid = conf->chan.dahditrcallerid;
@@ -18653,6 +18655,8 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 			parse_busy_pattern(v, &confp->chan.busy_cadence);
 		} else if (!strcasecmp(v->name, "calledsubscriberheld")) {
 			confp->chan.calledsubscriberheld = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "lastnumredial")) {
+			confp->chan.lastnumredial = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "callprogress")) {
 			confp->chan.callprogress &= ~CALLPROGRESS_PROGRESS;
 			if (ast_true(v->value))
