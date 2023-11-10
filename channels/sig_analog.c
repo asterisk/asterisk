@@ -1721,6 +1721,9 @@ static int analog_canmatch_featurecode(const char *pickupexten, const char *exte
 	if (extlen < strlen(pickupexten) && !strncmp(pickupexten, exten, extlen)) {
 		return 1;
 	}
+	if (exten[0] == '#' && extlen < 2) {
+		return 1; /* Could match ## */
+	}
 	/* hardcoded features are *60, *67, *69, *70, *72, *73, *78, *79, *82, *0 */
 	if (exten[0] == '*' && extlen < 3) {
 		if (extlen == 1) {
@@ -2208,6 +2211,19 @@ static void *__analog_ss_thread(void *data)
 			if (ast_parking_provider_registered()) {
 				is_exten_parking = ast_parking_is_exten_park(ast_channel_context(chan), exten);
 			}
+			if (p->lastnumredial && !strcmp(exten, "##") && !ast_exists_extension(chan, ast_channel_context(chan), "##", 1, p->cid_num)) {
+				/* Last Number Redial */
+				if (!ast_strlen_zero(p->lastexten)) {
+					ast_verb(4, "Redialing last number dialed on channel %d\n", p->channel);
+					ast_copy_string(exten, p->lastexten, sizeof(exten));
+				} else {
+					ast_verb(3, "Last Number Redial not possible on channel %d (no saved number)\n", p->channel);
+					res = analog_play_tone(p, idx, ANALOG_TONE_CONGESTION);
+					analog_wait_event(p);
+					ast_hangup(chan);
+					goto quit;
+				}
+			}
 			if (ast_exists_extension(chan, ast_channel_context(chan), exten, 1, p->cid_num) && !is_exten_parking) {
 				if (!res || !ast_matchmore_extension(chan, ast_channel_context(chan), exten, 1, p->cid_num)) {
 					if (getforward) {
@@ -2229,6 +2245,11 @@ static void *__analog_ss_thread(void *data)
 						res = analog_play_tone(p, idx, -1);
 						ast_channel_lock(chan);
 						ast_channel_exten_set(chan, exten);
+
+						/* Save the last number dialed, for Last Number Redial. */
+						if (!p->immediate) {
+							ast_copy_string(p->lastexten, exten, sizeof(p->lastexten));
+						}
 
 						/* Properly set the presentation.
 						 * We need to do this here as well, because p->hidecallerid might be set
