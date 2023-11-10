@@ -5230,6 +5230,18 @@ static int has_voicemail(struct dahdi_pvt *p)
 	int new_msgs;
 	RAII_VAR(struct stasis_message *, mwi_message, NULL, ao2_cleanup);
 
+	/* A manual MWI disposition has been requested, use that instead
+	 * if this is for sending the new MWI indication. */
+	if (p->mwioverride_active) {
+		/* We don't clear p->mwioverride_active automatically,
+		 * because otherwise do_monitor would just change it back to the way it was.
+		 * We need to keep the override active until explicitly disabled by the user,
+		 * so that we can keep returning the correct answer in subsequent calls to do_monitor. */
+		ast_debug(6, "MWI manual override active on channel %d: pretending that it should be %s\n",
+			p->channel, p->mwioverride_disposition ? "active" : "inactive");
+		return p->mwioverride_disposition;
+	}
+
 	mwi_message = stasis_cache_get(ast_mwi_state_cache(), ast_mwi_state_type(), p->mailbox);
 	if (mwi_message) {
 		struct ast_mwi_state *mwi_state = stasis_message_data(mwi_message);
@@ -11889,7 +11901,7 @@ static void *do_monitor(void *data)
 							&& (last->sig & __DAHDI_SIG_FXO)
 							&& !analog_p->fxsoffhookstate
 							&& !last->owner
-							&& !ast_strlen_zero(last->mailbox)
+							&& (!ast_strlen_zero(last->mailbox) || last->mwioverride_active)
 							&& !analog_p->subs[SUB_REAL].owner /* could be a recall ring from a flash hook hold */
 							&& (thispass - analog_p->onhooktime > 3)) {
 							res = has_voicemail(last);
@@ -16541,6 +16553,75 @@ static char *dahdi_set_dnd(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 	return CLI_SUCCESS;
 }
 
+static char *dahdi_set_mwi(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	int channel;
+	int on;
+	int override = 1;
+	struct dahdi_pvt *dahdi_chan = NULL;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "dahdi set mwi";
+		e->usage =
+			"Usage: dahdi set mwi <chan#> <on|off|reset>\n"
+			"	Sets/unsets MWI (Message Waiting Indicator) manually on a channel.\n"
+			"   This may be used regardless of whether the channel is assigned any mailboxes.\n"
+			"   When active, this setting will override the voicemail status to set MWI.\n"
+			"   Once cleared, the voicemail status will resume control of MWI.\n"
+			"	Changes are queued for when the channel is idle and persist until cleared.\n"
+			"	<chan num> is the channel number\n"
+			" 	<on|off|reset> Enable, disable, or reset Message Waiting Indicator override?\n"
+			;
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 5)
+		return CLI_SHOWUSAGE;
+
+	if ((channel = atoi(a->argv[3])) <= 0) {
+		ast_cli(a->fd, "Expected channel number, got '%s'\n", a->argv[3]);
+		return CLI_SHOWUSAGE;
+	}
+
+	if (ast_true(a->argv[4])) {
+		on = 1;
+	} else if (ast_false(a->argv[4])) {
+		on = 0;
+	} else if (!strcmp(a->argv[4], "reset")) {
+		override = 0;
+	} else {
+		ast_cli(a->fd, "Expected 'on' or 'off' or 'reset', got '%s'\n", a->argv[4]);
+		return CLI_SHOWUSAGE;
+	}
+
+	ast_mutex_lock(&iflock);
+	for (dahdi_chan = iflist; dahdi_chan; dahdi_chan = dahdi_chan->next) {
+		if (dahdi_chan->channel != channel)
+			continue;
+
+		/* Found the channel. Actually set it */
+		if (override) {
+			dahdi_chan->mwioverride_disposition = on;
+			ast_cli(a->fd, "MWI '%s' queued for channel %d\n", on ? "enable" : "disable", channel);
+		}
+		dahdi_chan->mwioverride_active = override;
+		/* The do_monitor thread will take care of actually sending the MWI
+		 * at an appropriate time for the channel. */
+		break;
+	}
+	ast_mutex_unlock(&iflock);
+
+	if (!dahdi_chan) {
+		ast_cli(a->fd, "Unable to find given channel %d\n", channel);
+		return CLI_FAILURE;
+	}
+
+	return CLI_SUCCESS;
+}
+
 static struct ast_cli_entry dahdi_cli[] = {
 	AST_CLI_DEFINE(handle_dahdi_show_cadences, "List cadences"),
 	AST_CLI_DEFINE(dahdi_show_channels, "Show active DAHDI channels"),
@@ -16553,6 +16634,7 @@ static struct ast_cli_entry dahdi_cli[] = {
 	AST_CLI_DEFINE(dahdi_set_hwgain, "Set hardware gain on a channel"),
 	AST_CLI_DEFINE(dahdi_set_swgain, "Set software gain on a channel"),
 	AST_CLI_DEFINE(dahdi_set_dnd, "Sets/resets DND (Do Not Disturb) mode on a channel"),
+	AST_CLI_DEFINE(dahdi_set_mwi, "Sets/unsets MWI (Message Waiting Indicator) manually on a channel"),
 };
 
 #define TRANSFER	0

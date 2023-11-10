@@ -431,6 +431,10 @@ struct dahdi_pvt {
 	unsigned int mwimonitoractive:1;
 	/*! \brief TRUE if a MWI message sending thread is active */
 	unsigned int mwisendactive:1;
+	/*! \brief TRUE if a manual MWI override is active for a channel */
+	unsigned int mwioverride_active:1;
+	/*! \brief Manual MWI disposition (on/off) */
+	unsigned int mwioverride_disposition:1;
 	/*!
 	 * \brief TRUE if channel is out of reset and ready
 	 * \note Used by SS7.  Otherwise set but not used.
