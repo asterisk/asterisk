@@ -814,6 +814,11 @@ cancallforward=yes
 ;
 callreturn=yes
 ;
+; Whether or not to allow redialing the last number called using Last Number Redial
+; (##, if your dialplan doesn't catch this first)
+;
+;lastnumredial=yes
+;
 ; Stutter dialtone support: If voicemail is received in the mailbox then
 ; taking the phone off hook will cause a stutter dialtone instead of a
 ; normal one.
