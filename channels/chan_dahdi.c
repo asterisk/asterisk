@@ -263,6 +263,10 @@
 			</enum>
 			<enum name="dialmode">
 				<para>R/W Pulse and tone dialing mode of the channel.</para>
+				<para>Disabling tone dialing using this option will not disable the DSP used for DTMF detection.
+				To do that, also set the <literal>digitdetect</literal> option. If digit detection is disabled,
+				DTMF will not be detected, regardless of the <literal>dialmode</literal> setting.
+				The <literal>digitdetect</literal> setting has no impact on pulse dialing detection.</para>
 				<para>If set, overrides the setting in <literal>chan_dahdi.conf</literal> for that channel.</para>
 				<enumlist>
 					<enum name="both" />
@@ -6722,6 +6726,14 @@ static int dahdi_queryoption(struct ast_channel *chan, int option, void *data, i
 	}
 
 	switch (option) {
+	case AST_OPTION_TDD:
+		cp = (char *) data;
+		if (p->mate) {
+			*cp = 2;
+		} else {
+			*cp = p->tdd ? 1 : 0;
+		}
+		break;
 	case AST_OPTION_DIGIT_DETECT:
 		cp = (char *) data;
 		*cp = p->ignoredtmf ? 0 : 1;
