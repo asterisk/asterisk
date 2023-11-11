@@ -462,7 +462,12 @@ struct ast_control_pvt_cause_code {
  * Option data is a single signed char value 0 or 1
  *
  * \note This option appears to be unused in the code. It is handled, but never
- * set or queried. */
+ * set or queried.
+ * (chan_dahdi does allow setting via CHANNEL(echocan_mode), but this uses
+ * the func_write callback, not the setoption callback.
+ * If another channel driver added echocan support, it might make sense to move
+ * this to the setoption callback and then actually use this option.)
+ */
 #define	AST_OPTION_ECHOCAN		8
 
 /*! \brief Handle channel write data
