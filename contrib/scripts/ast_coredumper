@@ -1,59 +1,60 @@
-#!/usr/bin/env bash
+#!/bin/bash
+
 # Turn on extended globbing
 shopt -s extglob
 shopt -s nullglob
 # Bail on any error
 set -e
 
-prog=$(basename $0)
+prog=$(basename "$0")
 
 # NOTE: <(cmd) is a bash construct that returns a temporary file name
 # from which the command output can be read.  In this case, we're
 # extracting the block of text delimited by '#@@@FUNCSSTART@@@'
 # and '#@@@FUNCSEND@@@' from this file and 'source'ing it to
 # get some functions.
-source <(sed -n -r -e "/^#@@@FUNCSSTART@@@/,\${p;/^#@@@FUNCSEND@@@/q}" $0 | sed '1d;$d')
-
-# The "!(*.txt)" is a bash construct that excludes files ending with .txt
-# from the glob match.
-declare -a COREDUMPS=( /tmp/core!(*.txt) )
+# shellcheck disable=SC1090
+source <(sed -n "/^#@@@FUNCSSTART@@@/,/^#@@@FUNCSEND@@@/ p" "$0" | sed '1d;$d')
 
 # A line starting with ': ' is a POSIX construct that makes the shell
 # perform the operation but ignore the result.  This is an alternative to
 # having to do RUNNING=${RUNNING:=false} to set defaults.
 
-: ${ASTERISK_BIN:=$(which asterisk)}
-: ${DATEOPTS='-u +%FT%H-%M-%SZ'}
-: ${DELETE_COREDUMPS_AFTER:=false}
-: ${DELETE_RESULTS_AFTER:=false}
-: ${DRY_RUN:=false}
-: ${GDB:=$(which gdb)}
-: ${HELP:=false}
-: ${LATEST:=false}
-: ${OUTPUTDIR:=/tmp}
-: ${PROMPT:=true}
-: ${RUNNING:=false}
-: ${RENAME:=true}
-: ${TARBALL_CONFIG:=false}
-: ${TARBALL_COREDUMPS:=false}
-: ${TARBALL_RESULTS:=false}
+: "${DATEOPTS=-u +%FT%H-%M-%SZ}"
+: "${DELETE_COREDUMPS_AFTER:=false}"
+: "${DELETE_RESULTS_AFTER:=false}"
+: "${DRY_RUN:=false}"
+: "${GDB:=$(which gdb)}"
+: "${HELP:=false}"
+: "${LATEST:=false}"
+: "${OUTPUTDIR:=/tmp}"
+: "${PROMPT:=true}"
+: "${RUNNING:=false}"
+: "${RENAME:=true}"
+: "${TARBALL_CONFIG:=false}"
+: "${TARBALL_COREDUMPS:=false}"
+: "${TARBALL_RESULTS:=false}"
+: "${MODDIR:=}"
+: "${LIBDIR:=}"
+: "${ETCDIR:=}"
 
 COMMANDLINE_COREDUMPS=false
 
 # Read config files from most important to least important.
 # Variables set on the command line or environment always take precedence.
+# shellcheck disable=SC1091
 [ -f ./ast_debug_tools.conf ] && source ./ast_debug_tools.conf
+# shellcheck disable=SC1090
 [ -f ~/ast_debug_tools.conf ] && source ~/ast_debug_tools.conf
 [ -f /etc/asterisk/ast_debug_tools.conf ] && source /etc/asterisk/ast_debug_tools.conf
 
 if [ -n "${DATEFORMAT}" ] ; then
 	err <<-EOF
-	The DATEFORMAT variable in your ast_debug_tools.conf file has been
+	FYI... The DATEFORMAT variable in your ast_debug_tools.conf file has been
 	replaced with DATEOPTS which has a different format.  See the latest
 	ast_debug_tools.conf sample file for more information.
 	EOF
 fi
-	
 
 for a in "$@" ; do
 	if [[ $a == "--RUNNING" ]] ; then
@@ -61,13 +62,13 @@ for a in "$@" ; do
 		PROMPT=false
 	elif [[ $a =~ --no-([^=]+)$ ]] ; then
 		var=${BASH_REMATCH[1]//-/_}
-		eval ${var^^}="false"
+		eval "${var^^}"="false"
 	elif [[ $a =~ --([^=]+)$ ]] ; then
 		var=${BASH_REMATCH[1]//-/_}
-		eval ${var^^}="true"
+		eval "${var^^}"="true"
 	elif [[ $a =~ --([^=]+)=(.+)$ ]] ; then
 		var=${BASH_REMATCH[1]//-/_}
-		eval ${var^^}=${BASH_REMATCH[2]}
+		eval "${var^^}"="${BASH_REMATCH[2]}"
 	else
 		if ! $COMMANDLINE_COREDUMPS ; then
 			COMMANDLINE_COREDUMPS=true
@@ -82,21 +83,14 @@ if $HELP ; then
 	exit 0
 fi
 
+# shellcheck disable=SC2218
 check_gdb
-
-if [ -z "${ASTERISK_BIN}" -o ! -x "${ASTERISK_BIN}" ] ; then
-	die -2 <<-EOF
-	The asterisk binary specified (${ASTERISK_BIN})
-	was not found or is not executable.  Use the '--asterisk-bin'
-	option to specify a valid binary.
-	EOF
-fi
 
 if [ $EUID -ne 0 ] ; then
 	die -13 "You must be root to use $prog."
 fi
 
-if [ -z "${OUTPUTDIR}" -o ! -d "${OUTPUTDIR}" ] ; then
+if [ -z "${OUTPUTDIR}" ] || [ ! -d "${OUTPUTDIR}" ] ; then
 	die -20 "OUTPUTDIR ${OUTPUTDIR} doesn't exists or is not a directory"
 fi
 
@@ -110,62 +104,127 @@ if $RUNNING ; then
 	msg "Found a single asterisk instance running as process $MAIN_PID"
 
 	if $PROMPT ; then
-		read -p "WARNING:  Taking a core dump of the running asterisk instance will suspend call processing while the dump is saved.  Do you wish to continue? (y/N) " answer
+		read -r -p "WARNING:  Taking a core dump of the running asterisk instance will suspend call processing while the dump is saved.  Do you wish to continue? (y/N) " answer
 	else
 		answer=Y
 	fi
 
 	if [[ "$answer" =~ ^[Yy] ]] ; then
+		# shellcheck disable=SC2086		
 		df=$(date ${DATEOPTS})
 		cf="${OUTPUTDIR}/core-asterisk-running-$df"
-		echo "$(S_COR ${DRY_RUN} 'Simulating dumping' 'Dumping') running asterisk process to $cf"
+		echo "$(S_COR "${DRY_RUN}" 'Simulating dumping' 'Dumping') running asterisk process to $cf"
 		if ${DRY_RUN} ; then
-			echo "Would run: ${GDB} ${ASTERISK_BIN} -p $MAIN_PID -q --batch --ex gcore $cf"
+			echo "Would run: ${GDB} -p $MAIN_PID -q --batch --ex gcore $cf"
 		else
-			${GDB} ${ASTERISK_BIN} -p $MAIN_PID -q --batch --ex "gcore $cf" >/dev/null 2>&1
+			${GDB} -p "$MAIN_PID" -q --batch --ex "gcore $cf" >/dev/null 2>&1
 		fi
-		echo "$(S_COR ${DRY_RUN} 'Simulated dump' 'Dump') is complete."
-		
+		echo "$(S_COR "${DRY_RUN}" 'Simulated dump' 'Dump') is complete."
+
 		COREDUMPS=( "$cf" )
+
+		exe=$(extract_binary_name "${cf}")
+		if [ -z "${exe}" ] ; then
+			die -125 "Coredump produced has no executable!"
+		fi
+
+		module_dir=$(extract_string_symbol "${exe}" "${cf}" ast_config_AST_MODULE_DIR)
+		if [ ! -d "$module_dir" ] ; then
+			die -125 "Couldn't get module directory from coredump!"
+		fi
 	else
 		die -125 "Aborting dump of running process"
 	fi
-	
+
 	$DRY_RUN && exit 0
 else
+
+	# If no coredumps were supplied on the command line or in
+	# the ast_debug_tools.conf file, we'll use the default search.
+	if [ ${#COREDUMPS[@]} -eq 0 ] ; then
+		# The "!(*.txt)" is a bash construct that excludes files ending
+		# with .txt from the glob match.  Needs extglob set.
+		mapfile -t COREDUMPS < <(readlink -f /tmp/core!(*.txt) | sort -u)
+	fi
 
 	# At this point, all glob entries that match files should be expanded.
 	# Any entries that don't exist are probably globs that didn't match anything
 	# and need to be pruned.  Any non coredumps are also pruned.
 
-	for i in ${!COREDUMPS[@]} ; do
+	for i in "${!COREDUMPS[@]}" ; do
 		if [ ! -f "${COREDUMPS[$i]}" ] ; then
 			unset "COREDUMPS[$i]"
 			continue
 		fi
-		# Some versions of 'file' don't allow only the first n bytes of the
-		# file to be processed so we use dd to grab just the first 32 bytes.
-		mimetype=$(dd if="${COREDUMPS[$i]}" bs=32 count=1 2>/dev/null | file -bi -)
-		if [[ ! "$mimetype" =~ coredump ]] ; then
-			unset "COREDUMPS[$i]"
-			continue
-		fi
+		cf="${COREDUMPS[$i]}"
 
-		# Let's make sure it's an asterisk coredump by dumping the notes
-		# section of the file and grepping for "asterisk".
-		readelf -n "${COREDUMPS[$i]}" | grep -q "asterisk" || {
+		msg "Examining ${cf}"
+
+		dump_note_strings "${cf}" | grep -q -E "app_dial|pbx_config"  || {
+			err "    Doesn't appear to be an asterisk coredump"
 			unset "COREDUMPS[$i]"
 			continue
 		}
+		msg "    Does appear to be an asterisk coredump"
+
+		# Let's get the executable from gdb "info proc".
+		# We could have skipped the previous test and just checked
+		# that the executable was "asterisk" but then, of course,
+		# someone will decide that they need to change the executable
+		# name to something else for some strange reason.
+		exe=$(extract_binary_name "${cf}")
+		if [ -z "${exe}" ] ; then
+			err "    Can't extract executable.  Skipping."
+			unset "COREDUMPS[$i]"
+			continue
+		fi
+		msg "    Coredump indicates executable '${exe}'"
+
+		# There's really only one reason --asterisk-bin might have
+		# been specified and that is because the version of the binary
+		# installed is newer than the one that caused the coredump in
+		# which case, --asterisk-bin might be used to point to a saved
+		# version of the correct binary.
+		if [ -n "${ASTERISK_BIN}" ] ; then
+			msg "    but --asterisk-bin was specified so using '${ASTERISK_BIN}'"
+			exe="${ASTERISK_BIN}"
+		fi
+
+		msg "    Searching for asterisk module directory"
+		# Now let's get the modules directory.
+		module_dir=$(extract_string_symbol "${exe}" "${cf}" \
+				ast_config_AST_MODULE_DIR)
+		# If ast_config_AST_MODULE_DIR couldn't be found, either the
+		# coredump has no symbols or the coredump and exe don't match.
+		# Either way, it's of no use to us.
+		if [ ! -d "$module_dir" ] ; then
+			err <<-EOF
+			    Can't extract asterisk module directory.
+			    Either the executable '${exe}' has no symbols
+			    or it's changed since the coredump was generated.
+			    Either way we can't use it.  If you still have the
+			    binary that created this coredump, or can recreate
+			    the binary from the exact same code base and exact same
+			    options that were used to to create the binary that generated
+			    this coredump, specify its location with the
+			    --asterisk-bin option.
+			EOF
+			unset "COREDUMPS[$i]"
+			continue
+		fi
+		msg "    Found asterisk module directory '${module_dir}'"
+		if [ -n "${MODDIR}" ] ; then
+			msg "    but --moddir was specified so using '${MODDIR}'"
+		fi
 
 	done
 
 	if [ ${#COREDUMPS[@]} -eq 0 ] ; then
-		die -2 "No coredumps found"
+		die -2 "No valid coredumps found"
 	fi
 
-	# Sort and weed out any dups
-	COREDUMPS=( $(ls -t "${COREDUMPS[@]}" 2>/dev/null | uniq ) )
+	# Make sure files actually exist then sort and weed out any dups
+	mapfile -t COREDUMPS < <(readlink -e "${COREDUMPS[@]}" | sort -u)
 
 	if [ ${#COREDUMPS[@]} -eq 0 ] ; then
 		die -2 "No coredumps found"
@@ -176,7 +235,6 @@ else
 	fi
 fi
 
-
 if [ ${#COREDUMPS[@]} -eq 0 ] ; then
 	die -2 "No coredumps found"
 fi
@@ -184,41 +242,60 @@ fi
 # Extract the gdb scripts from the end of this script
 # and save them to /tmp/.gdbinit, then add a trap to
 # clean it up.
+
 gdbinit=${OUTPUTDIR}/.ast_coredumper.gdbinit
-trap "rm $gdbinit" EXIT
-ss=`egrep -n "^#@@@SCRIPTSTART@@@" $0 |cut -f1 -d:`
-tail -n +${ss} $0 >$gdbinit
+trap 'rm $gdbinit' EXIT
+sed '1,/^#@@@SCRIPTSTART@@@/ d' "$0" >"$gdbinit"
 
 # Now iterate over the coredumps and dump the debugging info
 for i in "${!COREDUMPS[@]}" ; do
-	cf=$(realpath -e ${COREDUMPS[$i]} || : )
+	cf=$(realpath -e "${COREDUMPS[$i]}" || : )
 	if [ -z "$cf" ] ; then
 		continue
 	fi
 	echo "Processing $cf"
+	astbin="${ASTERISK_BIN}"
+	[ -z "${astbin}" ] && astbin=$(extract_binary_name "${cf}")
+	moddir="${MODDIR}"
+	[ -z "${moddir}" ] && moddir=$(extract_string_symbol "${exe}" "${cf}" ast_config_AST_MODULE_DIR)
+	etcdir="${ETCDIR}"
+	[ -z "${etcdir}" ] && etcdir=$(extract_string_symbol "${exe}" "${cf}" ast_config_AST_CONFIG_DIR)
+	libdir="${LIBDIR}"
+	[ -z "${libdir}" ] && {
+		libfile=$(dump_note_strings "${cf}" | grep -m 1 -E "libasteriskssl|libasteriskpj")
+		libdir=$(dirname "${libfile}")
+	}
 
+	msg "    ASTBIN: $astbin"
+	msg "    MODDIR: $moddir"
+	msg "    ETCDIR: $etcdir"
+	msg "    LIBDIR: $libdir"
+
+	astbin_base=$(basename "${astbin}")
 	if ! $RUNNING && ! [[ "$cf" =~ "running" ]] && $RENAME ; then
-		df=$(date -r $cf ${DATEOPTS})
+		# shellcheck disable=SC2086		
+		df=$(date -r "$cf" ${DATEOPTS})
 		cfdir=$(dirname "$cf")
-		newcf="${cfdir}/core-asterisk-${df}"
+		newcf="${cfdir}/core-${astbin_base}-${df}"
 		if [ "${newcf}" != "${cf}" ] ; then
-			echo "Renaming $cf to $cfdir/core-asterisk-${df}"
-			mv "$cf" "${cfdir}/core-asterisk-${df}"
-			cf="${cfdir}/core-asterisk-${df}"
+			msg "    Renaming $cf to $cfdir/core-${astbin_base}-${df}"
+			rm "${cfdir}/core-${astbin_base}-${df}" >/dev/null 2>&1 || :
+			ln -s "$cf" "${cfdir}/core-${astbin_base}-${df}"
+			cf="${cfdir}/core-${astbin_base}-${df}"
 		fi
 	fi
 
-	cfname=`basename ${cf}`
+	cfname=$(basename "${cf}")
 
 	# Produce all the output files
-	${GDB} -n --batch -q --ex "source $gdbinit" "${ASTERISK_BIN}" "$cf" 2>/dev/null | (
+	${GDB} -n --batch -q --ex "source $gdbinit" "${astbin}" "$cf" 2>/dev/null | (
 		of=/dev/null
-		while IFS= read line ; do
+		while IFS= read -r line ; do
 			if [[ "$line" =~ !@!@!@!\ ([^\ ]+)\ !@!@!@! ]] ; then
 				of=${OUTPUTDIR}/${cfname}-${BASH_REMATCH[1]}
 				of=${of//:/-}
 				rm -f "$of"
-				echo "Creating $of"
+				msg "    Creating $of"
 			fi
 			echo -e $"$line" >> "$of"
 		done
@@ -227,85 +304,54 @@ for i in "${!COREDUMPS[@]}" ; do
 	if $TARBALL_COREDUMPS ; then
 		# We need to change occurrences of ':' to '-' because
 		# Jira won't let you attach a file with colons in the name.
-		cfname=${cfname//:/-}
-		tf=${OUTPUTDIR}/${cfname}.tar.gz
-		echo "Creating ${tf}"
 
-		dest=${OUTPUTDIR}/${cfname}.output
-		rm -rf ${dest} 2>/dev/null || :
+		cfname="${cfname//:/-}"
+		tf="${OUTPUTDIR}/${cfname}.tar.gz"
+		echo "    Creating ${tf}"
 
-		libdir=""
+		dest="${OUTPUTDIR}/${cfname}.output"
+		rm -rf "${dest}" 2>/dev/null || :
 
-		if [ -n "${LIBDIR}" ] ; then
-			LIBDIR=$(realpath "${LIBDIR}")
-			if [ ! -d "${LIBDIR}/asterisk/modules" ] ; then
-				die -2 <<-EOF
-				${LIBDIR}/asterisk/modules does not exist.
-				The library specified by --libdir or LIBDIR ${LIBDIR})
-				either does not exist or does not contain an "asterisk/modules" directory.
-				EOF
-			fi
-			libdir=${LIBDIR}
-		else
-			abits=$(file -b ${ASTERISK_BIN} | sed -n -r -e "s/.*(32|64)-bit.*/\1/p")
-			declare -a searchorder
-			if [ $abits -eq 32 ] ; then
-				searchorder=( /lib /usr/lib /usr/lib32 /usr/local/lib )
-			else
-				searchorder=( /usr/lib64 /usr/local/lib64 /usr/lib /usr/local/lib /lib )
-			fi
-			for d in ${searchorder[@]} ; do
-				testmod="${d}/asterisk/modules/bridge_simple.so"
-				if [ -e "${testmod}" ] ; then
-					lbits=$(file -b ${ASTERISK_BIN} | sed -n -r -e "s/.*(32|64)-bit.*/\1/p")
-					if [ $lbits -eq $abits ] ; then
-						libdir=$d
-						break;
-					fi
-				fi
-			done
+		astbindir=$(dirname "${astbin}")
+		mkdir -p "${dest}/tmp" "${dest}/${moddir}" "${dest}/etc" \
+		"${dest}/${etcdir}" "${dest}/${libdir}" "${dest}/${astbindir}"
 
-			if [ -z "${libdir}" ] ; then
-				die -2 <<-EOF
-				No standard systemlibrary directory contained asterisk modules.
-				Please specify the correct system library directory
-				with the --libdir option or the LIBDIR variable.
-				${LIBDIR}/asterisk/modules must exist.
-				EOF
-			fi
-		fi
+		ln -s "${cf}" "${dest}/tmp/${cfname}"
+		msg "    Copying results files"
+		cp "${OUTPUTDIR}/${cfname}"*.txt "${dest}/tmp/"
+		[ -f /etc/os-release ] && {
+			msg "    Copying /etc/os-release"
+			cp /etc/os-release "${dest}/etc/"
+		}
 
-		mkdir -p ${dest}/tmp ${dest}/${libdir}/asterisk ${dest}/etc ${dest}/usr/sbin
+		$TARBALL_CONFIG && {
+			msg "    Copying $etcdir"
+			cp -a "${etcdir}"/* "${dest}/${etcdir}/"
+		}
 
-		ln -s ${cf} ${dest}/tmp/${cfname}
-		cp ${OUTPUTDIR}/${cfname}*.txt ${dest}/tmp/
-		[ -f /etc/os-release ] && cp /etc/os-release ${dest}/etc/
-		if $TARBALL_CONFIG ; then
-			cp -a /etc/asterisk ${dest}/etc/
-		fi
-		cp -a /${libdir}/libasterisk* ${dest}/${libdir}/
-		cp -a /${libdir}/asterisk/* ${dest}/${libdir}/asterisk/
-		cp -a /usr/sbin/asterisk ${dest}/usr/sbin
-		rm -rf ${tf}
-		tar -chzf ${tf} --transform="s/^[.]/${cfname}.output/" -C ${dest} .
+		msg "    Copying ${libdir}/libasterisk*"
+		cp -a "${libdir}/libasterisk"* "${dest}/${libdir}/"
+		msg "    Copying ${moddir}"
+		cp -a "${moddir}"/* "${dest}/${moddir}/"
+		msg "    Copying ${astbin}"
+		cp -a "${astbin}" "${dest}/${astbin}"
+		rm -rf "${tf}"
+		msg "    Creating ${tf}"
+		tar -chzf "${tf}" --transform="s/^[.]/${cfname}.output/" -C "${dest}" .
 		sleep 3
-		rm -rf ${dest}
-		echo "Created $tf"
+		rm -rf "${dest}"
+		msg "    Created $tf"
 	elif $TARBALL_RESULTS ; then
-		cfname=${cfname//:/-}
-		tf=${OUTPUTDIR}/${cfname}.tar.gz
-		echo "Creating ${tf}"
+		cfname="${cfname//:/-}"
+		tf="${OUTPUTDIR}/${cfname}.tar.gz"
+		msg "    Creating ${tf}"
 
-		dest=${OUTPUTDIR}/${cfname}.output
-		rm -rf ${dest} 2>/dev/null || :
-		mkdir -p ${dest}
-		cp ${OUTPUTDIR}/${cfname}*.txt ${dest}/
-		if $TARBALL_CONFIG ; then
-			mkdir -p ${dest}/etc
-			cp -a /etc/asterisk ${dest}/etc/
-		fi
-		tar -chzf ${tf} --transform="s/^[.]/${cfname}/" -C ${dest} .
-		rm -rf ${dest}
+		dest="${OUTPUTDIR}/${cfname}.output"
+		rm -rf "${dest}" 2>/dev/null || :
+		mkdir -p "${dest}"
+		cp "${OUTPUTDIR}/${cfname}"*.txt "${dest}/"
+		tar -chzf "${tf}" --transform="s/^[.]/${cfname}/" -C "${dest}" .
+		rm -rf "${dest}"
 		echo "Created $tf"
 	fi
 
@@ -314,7 +360,7 @@ for i in "${!COREDUMPS[@]}" ; do
 	fi
 
 	if $DELETE_RESULTS_AFTER ; then
-		to_delete=$cf
+		to_delete="$cf"
 		if [ -n "$OUTPUTDIR" ] ; then
 			to_delete="$OUTPUTDIR/$cfname"
 		fi
@@ -326,11 +372,7 @@ exit
 # @formatter:off
 
 #@@@FUNCSSTART@@@
-print_help() {
-	sed -n -r -e "/^#@@@HELPSTART@@@/,\${p;/^#@@@HELPEND@@@/q}" $0 | sed '1d;$d'
-	exit 1
-}
-
+# shellcheck disable=SC2317
 err() {
 	if [ -z "$1" ] ; then
 		cat >&2
@@ -340,6 +382,7 @@ err() {
 	return 0
 }
 
+# shellcheck disable=SC2317
 msg() {
 	if [ -z "$1" ] ; then
 		cat
@@ -349,15 +392,17 @@ msg() {
 	return 0
 }
 
+# shellcheck disable=SC2317
 die() {
 	if [[ $1 =~ ^-([0-9]+) ]] ; then
 		RC=${BASH_REMATCH[1]}
 		shift
 	fi
 	err "$1"
-	exit ${RC:-1}
+	exit "${RC:-1}"
 }
 
+# shellcheck disable=SC2317
 S_COR() {
 	if $1 ; then
 		echo -n "$2"
@@ -366,6 +411,7 @@ S_COR() {
 	fi
 }
 
+# shellcheck disable=SC2317
 check_gdb() {
 	if [ -z "${GDB}" -o ! -x "${GDB}" ] ; then
 		die -2 <<-EOF
@@ -384,15 +430,18 @@ check_gdb() {
 	fi
 }
 
+# shellcheck disable=SC2317
 find_pid() {
 	if [ -n "$PID" ] ; then
 		# Make sure it's at least all numeric
 		[[ $PID =~ ^[0-9]+$ ]] || die -22 $"Pid $PID is invalid."
 		# Make sure it exists
-		cmd=$(ps -p $PID -o comm=) || die -22 "Pid $PID is not a valid process."
-		# Make sure the program (without path) is "asterisk"
-		[ "$cmd" == "asterisk" ] || die -22 "Pid $PID is '$cmd' not 'asterisk'."
-		echo $PID
+		cmd=$(ps -p "$PID" -o comm=) || die -22 "Pid $PID is not a valid process."
+		# Make sure the program is "asterisk" by looking for common modules
+		# in /proc/$PID/maps
+		grep -q -E "app_dial|pbx_config" "/proc/$PID/maps" || \
+			die -22 "Pid $PID '$cmd' not 'asterisk'."
+		echo "$PID"
 		return 0
 	fi
 
@@ -400,7 +449,7 @@ find_pid() {
 	# so we'll just get the pids that exactly match a program
 	# name of "asterisk".
 	pids=$( pgrep -d ',' -x "asterisk")
-	if [ -z ${pids} ] ; then
+	if [ -z "${pids}" ] ; then
 		die -3 <<-EOF
 		No running asterisk instances detected.
 		If you know the pid of the process you want to dump,
@@ -411,7 +460,7 @@ find_pid() {
 	# Now that we have the pids, let's get the command and
 	# its args. We'll add them to an array indexed by pid.
 	declare -a candidates
-	while read LINE ; do
+	while read -r LINE ; do
 		[[ $LINE =~ ([0-9]+)[\ ]+([^\ ]+)[\ ]+(.*) ]] || continue
 		pid=${BASH_REMATCH[1]}
 		prog=${BASH_REMATCH[2]}
@@ -422,7 +471,7 @@ find_pid() {
 		# filter to weed out remote consoles.
 		[[ "$prog" == "rasterisk" ]] && continue;
 		candidates[$pid]="${prog}^${args}"
-	done < <(ps -o pid= -o command= -p $pids)
+	done < <(ps -o pid= -o command= -p "$pids")
 
 	if [ ${#candidates[@]} -eq 0 ] ; then
 		die -3 <<-EOF
@@ -436,29 +485,77 @@ find_pid() {
 		die -22 <<-EOF
 		Detected more than one asterisk process running.
 		$(printf "%8s %s\n" "PID" "COMMAND")
-		$(for p in ${!candidates[@]} ; do printf "%8s %s\n" $p "${candidates[$p]//^/ }" ; done )
+		$(for p in "${!candidates[@]}" ; do printf "%8s %s\n" $p "${candidates[$p]//^/ }" ; done )
 		If you know the pid of the process you want to dump,
 		supply it on the command line with --pid=<pid>.
 		EOF
 	fi
 
-	echo ${!candidates[@]}
+	echo "${!candidates[@]}"
 	return 0
 }
-#@@@FUNCSEND@@@
 
-#@@@HELPSTART@@@
+# extract_binary_name <coredump>
+# shellcheck disable=SC2317
+extract_binary_name() {
+	${GDB} -c "$1" -q --batch -ex "info proc exe" 2>/dev/null \
+		| sed -n -r -e "s/exe\s*=\s*'([^ ]+).*'/\1/gp"
+	return 0
+}
+
+# extract_string_symbol <binary> <coredump> <symbol>
+# shellcheck disable=SC2317
+extract_string_symbol() {
+	${GDB} "$1" "$2" -q --batch \
+		-ex "p $3" 2>/dev/null \
+		| sed -n -r -e 's/[$]1\s*=\s*[0-9a-fx]+\s+<[^>]+>\s+"([^"]+)"/\1/gp'
+	return 0
+}
+
+# The note0 section of the coredump has the map of shared
+# libraries to address so we can find that section with
+# objdump, dump it with dd, extract the strings, and
+# search for common asterisk modules.  This is quicker
+# that just running strings against the entire coredump
+# which could be many gigabytes in length.
+
+# dump_note_strings <coredump> [ <min string length> ]
+# shellcheck disable=SC2317
+dump_note_strings() {
+	note0=$(objdump -h "$1" | grep note0)
+
+	# The header we're interested in will look like this...
+	# Idx Name  Size      VMA               LMA               File off  Algn
+	# 0   note0 00033364  0000000000000000  0000000000000000  0000de10  2**0
+	# We want size and offset
+
+	[[ "${note0}" =~ ^[\ \t]*[0-9]+[\ \t]+note0[\ \t]+([0-9a-f]+)[\ \t]+[0-9a-f]+[\ \t]+[0-9a-f]+[\ \t]+([0-9a-f]+) ]] || {
+		return 1
+	}
+	count=$((0x${BASH_REMATCH[1]}))
+	skip=$((0x${BASH_REMATCH[2]}))
+
+	dd if="$1" bs=1 count="$count" skip="$skip" 2>/dev/null | strings -n "${2:-8}"
+	return 0
+}
+
+# shellcheck disable=SC2317
+print_help() {
+cat <<EOF
 NAME
 	$prog - Dump and/or format asterisk coredump files
 
 SYNOPSIS
-	$prog [ --help ] [ --running | --RUNNING ] [ --pid="pid" ]
-		[ --latest ] [ --OUTPUTDIR="path" ]
-		[ --libdir="path" ] [ --asterisk-bin="path" ]
-		[ --gdb="path" ] [ --rename ] [ --dateformat="date options" ]
+	$prog [ --help ] [ --running | --RUNNING ] [ --pid=<pid> ]
+		[ --latest ] [ --outputdir=<path> ]
+		[ --asterisk-bin=<path to asterisk binary that created the coredump> ]
+		[ --moddir=<path to asterisk modules directory that created the coredump> ]
+		[ --libdir=<path to directory containing libasterisk* libraries> ]
+		[ --gdb=<path to gdb> ] [ --rename ] [ --dateformat=<date options> ]
 		[ --tarball-coredumps ] [ --delete-coredumps-after ]
 		[ --tarball-results ] [ --delete-results-after ]
 		[ --tarball-config ]
+		[ --etcdir=<path to directory containing asterisk config files> ]
 		[ <coredump> | <pattern> ... ]
 
 DESCRIPTION
@@ -507,16 +604,25 @@ DESCRIPTION
 		The directory into which output products will be saved.
 		Default: same directory as coredump
 
-	--libdir=<shared libs directory>
-		The directory where the libasterisk* shared libraries and
-		the asterisk/modules directory are located.  The common
-		directories like /usr/lib, /usr/lib64, etc are automatically
-		searches so only use this option when your asterisk install
-		is non-standard.
+	--asterisk-bin=<path to asterisk binary that created the coredump>
+		You should only need to use this if the asterisk binary on
+		the system has changed since the coredump was generated.
+		In this case, the symbols won't be valid and the coredump
+		will be useless.  If you can recreate the binary with
+		the exact same source code and compile options, or you have
+		a saved version, you can use this option to use that binary
+		instead.
+		Default: executable path extracted from coredump
 
-	--asterisk-bin=<asterisk binary>
-		Path to the asterisk binary.
-		Default: look for asterisk in the PATH.
+	--moddir=<path to asterisk modules directory>
+		You should only need to use this for the same reason you'd
+		need to use --asterisk-bin.
+		Default: "astmoddir" directory extracted from coredump
+
+	--libdir=<path to directory containing libasterisk* libraries>
+		You should only need to use this for the same reason you'd
+		need to use --asterisk-bin.
+		Default: libdir extracted from coredump
 
 	--gdb=<path_to_gdb>
 		gdb must have python support built-in.  Most do.
@@ -542,6 +648,19 @@ DESCRIPTION
 		WARNING:  This file could be quite large!
 		Mutually exclusive with --tarball-results
 
+	--tarball-config
+		Adds the contents of /etc/asterisk to the tarball created
+		with --tarball-coredumps.
+		WARNING: This may include confidential information like
+		secrets or keys.
+
+	--etcdir=<path to directory asterisk config files>
+		If you use --tarball-config and the config files that
+		match this coredump are in a location other than that which
+		was specified in "astetcdir" in asterisk.conf, you can use
+		this option to point to their current location.
+		Default: "astetcdir" extracted from coredump.
+
 	--delete-coredumps-after
 		Deletes all processed coredumps regardless of whether
 		a tarball was created.
@@ -558,15 +677,9 @@ DESCRIPTION
 		to use this option unless you have also specified
 		--tarball-results.
 
-	--tarball-config
-		Adds the contents of /etc/asterisk to the tarball created
-		with --tarball-coredumps or --tarball-results.
-
 	<coredump> | <pattern>
 		A list of coredumps or coredump search patterns.  These
-		will override the default and those specified in the config files.
-
-		The default pattern is "/tmp/core!(*.txt)"
+		will override the default of "/tmp/core!(*.txt)"
 
 		The "!(*.txt)" tells bash to ignore any files that match
 		the base pattern and end in ".txt".  It$'s not strictly
@@ -583,7 +696,6 @@ NOTES
 	Examples:
 		TARBALL_RESULTS=true
 		RENAME=false
-		ASTERISK_BIN=/usr/sbin/asterisk
 
 	The script relies on not only bash, but also recent GNU date and
 	gdb with python support.  *BSD operating systems may require
@@ -602,7 +714,10 @@ FILES
 	See the configs/samples/ast_debug_tools.conf file in the asterisk
 	source tree for more info.
 
-#@@@HELPEND@@@
+EOF
+}
+
+#@@@FUNCSEND@@@
 
 # Be careful editing the inline scripts.
 # They're space-indented.
