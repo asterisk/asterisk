@@ -3752,12 +3752,43 @@ void astman_live_dangerously(int new_live_dangerously)
 	live_dangerously = new_live_dangerously;
 }
 
+/**
+ * \brief Check if a file is restricted or not
+ *
+ * \return 0 on success
+ * \return 1 on restricted file
+ * \return -1 on failure
+ */
 static int restrictedFile(const char *filename)
 {
-	if (!live_dangerously && !strncasecmp(filename, "/", 1) &&
-		 strncasecmp(filename, ast_config_AST_CONFIG_DIR, strlen(ast_config_AST_CONFIG_DIR))) {
+	char *stripped_filename;
+	RAII_VAR(char *, path, NULL, ast_free);
+	RAII_VAR(char *, real_path, NULL, ast_free);
+
+	if (live_dangerously) {
+		return 0;
+	}
+
+	stripped_filename = ast_strip(ast_strdupa(filename));
+
+	/* If the file path starts with '/', don't prepend ast_config_AST_CONFIG_DIR */
+	if (stripped_filename[0] == '/') {
+		real_path = realpath(stripped_filename, NULL);
+	} else {
+		if (ast_asprintf(&path, "%s/%s", ast_config_AST_CONFIG_DIR, stripped_filename) == -1) {
+			return -1;
+		}
+		real_path = realpath(path, NULL);
+	}
+
+	if (!real_path) {
+		return -1;
+	}
+
+	if (!ast_begins_with(real_path, ast_config_AST_CONFIG_DIR)) {
 		return 1;
 	}
+
 	return 0;
 }
 
@@ -3770,6 +3801,7 @@ static int action_getconfig(struct mansession *s, const struct message *m)
 	const char *category_name;
 	int catcount = 0;
 	int lineno = 0;
+	int ret = 0;
 	struct ast_category *cur_category = NULL;
 	struct ast_variable *v;
 	struct ast_flags config_flags = { CONFIG_FLAG_WITHCOMMENTS | CONFIG_FLAG_NOCACHE };
@@ -3779,8 +3811,12 @@ static int action_getconfig(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	if (restrictedFile(fn)) {
+	ret = restrictedFile(fn);
+	if (ret == 1) {
 		astman_send_error(s, m, "File requires escalated priveledges");
+		return 0;
+	} else if (ret == -1) {
+		astman_send_error(s, m, "Config file not found");
 		return 0;
 	}
 
