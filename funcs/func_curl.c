@@ -254,82 +254,54 @@ enum hashcompat {
 	HASHCOMPAT_LEGACY,
 };
 
-static int parse_curlopt_key(const char *name, CURLoption *key, enum optiontype *ot)
+/* If we have millisecond support, use it */
+#if CURLVERSION_ATLEAST(7,16,2)
+# define MILLIS(p) (p ## _MS)
+#else
+# define MILLIS(p)
+#endif
+
+static const struct {
+	const char *name;
+	CURLoption key;
+	enum optiontype type;
+} curlopt_key_map[] = {
+	{ "header",         CURLOPT_HEADER,                 OT_BOOLEAN         },
+	{ "httpheader",     CURLOPT_HTTPHEADER,             OT_STRING          },
+	{ "proxy",          CURLOPT_PROXY,                  OT_STRING          },
+	{ "proxyport",      CURLOPT_PROXYPORT,              OT_INTEGER         },
+	{ "proxytype",      CURLOPT_PROXYTYPE,              OT_ENUM            },
+	{ "dnstimeout",     CURLOPT_DNS_CACHE_TIMEOUT,      OT_INTEGER         },
+	{ "userpwd",        CURLOPT_USERPWD,                OT_STRING          },
+	{ "proxyuserpwd",   CURLOPT_PROXYUSERPWD,           OT_STRING          },
+	{ "followlocation", CURLOPT_FOLLOWLOCATION,         OT_BOOLEAN         },
+	{ "maxredirs",      CURLOPT_MAXREDIRS,              OT_INTEGER         },
+	{ "referer",        CURLOPT_REFERER,                OT_STRING          },
+	{ "useragent",      CURLOPT_USERAGENT,              OT_STRING          },
+	{ "cookie",         CURLOPT_COOKIE,                 OT_STRING          },
+	{ "ftptimeout",     CURLOPT_FTP_RESPONSE_TIMEOUT,   OT_INTEGER         },
+	{ "ftptext",        CURLOPT_TRANSFERTEXT,           OT_BOOLEAN         },
+	{ "ssl_verifypeer", CURLOPT_SSL_VERIFYPEER,         OT_BOOLEAN         },
+	{ "hashcompat",     CURLOPT_SPECIAL_HASHCOMPAT,     OT_ENUM            },
+	{ "failurecodes",   CURLOPT_SPECIAL_FAILURE_CODE,   OT_STRING          },
+	{ "httptimeout",    MILLIS(CURLOPT_TIMEOUT),        MILLIS(OT_INTEGER) },
+	{ "conntimeout",    MILLIS(CURLOPT_CONNECTTIMEOUT), MILLIS(OT_INTEGER) },
+	{ NULL, 0, 0 },
+};
+
+static int parse_curlopt_key(const char *name, CURLoption *key, enum optiontype *type)
 {
-	if (!strcasecmp(name, "header")) {
-		*key = CURLOPT_HEADER;
-		*ot = OT_BOOLEAN;
-	} else if (!strcasecmp(name, "httpheader")) {
-		*key = CURLOPT_HTTPHEADER;
-		*ot = OT_STRING;
-	} else if (!strcasecmp(name, "proxy")) {
-		*key = CURLOPT_PROXY;
-		*ot = OT_STRING;
-	} else if (!strcasecmp(name, "proxyport")) {
-		*key = CURLOPT_PROXYPORT;
-		*ot = OT_INTEGER;
-	} else if (!strcasecmp(name, "proxytype")) {
-		*key = CURLOPT_PROXYTYPE;
-		*ot = OT_ENUM;
-	} else if (!strcasecmp(name, "dnstimeout")) {
-		*key = CURLOPT_DNS_CACHE_TIMEOUT;
-		*ot = OT_INTEGER;
-	} else if (!strcasecmp(name, "userpwd")) {
-		*key = CURLOPT_USERPWD;
-		*ot = OT_STRING;
-	} else if (!strcasecmp(name, "proxyuserpwd")) {
-		*key = CURLOPT_PROXYUSERPWD;
-		*ot = OT_STRING;
-	} else if (!strcasecmp(name, "followlocation")) {
-		*key = CURLOPT_FOLLOWLOCATION;
-		*ot = OT_BOOLEAN;
-	} else if (!strcasecmp(name, "maxredirs")) {
-		*key = CURLOPT_MAXREDIRS;
-		*ot = OT_INTEGER;
-	} else if (!strcasecmp(name, "referer")) {
-		*key = CURLOPT_REFERER;
-		*ot = OT_STRING;
-	} else if (!strcasecmp(name, "useragent")) {
-		*key = CURLOPT_USERAGENT;
-		*ot = OT_STRING;
-	} else if (!strcasecmp(name, "cookie")) {
-		*key = CURLOPT_COOKIE;
-		*ot = OT_STRING;
-	} else if (!strcasecmp(name, "ftptimeout")) {
-		*key = CURLOPT_FTP_RESPONSE_TIMEOUT;
-		*ot = OT_INTEGER;
-	} else if (!strcasecmp(name, "httptimeout")) {
-#if CURLVERSION_ATLEAST(7,16,2)
-		*key = CURLOPT_TIMEOUT_MS;
-		*ot = OT_INTEGER_MS;
-#else
-		*key = CURLOPT_TIMEOUT;
-		*ot = OT_INTEGER;
-#endif
-	} else if (!strcasecmp(name, "conntimeout")) {
-#if CURLVERSION_ATLEAST(7,16,2)
-		*key = CURLOPT_CONNECTTIMEOUT_MS;
-		*ot = OT_INTEGER_MS;
-#else
-		*key = CURLOPT_CONNECTTIMEOUT;
-		*ot = OT_INTEGER;
-#endif
-	} else if (!strcasecmp(name, "ftptext")) {
-		*key = CURLOPT_TRANSFERTEXT;
-		*ot = OT_BOOLEAN;
-	} else if (!strcasecmp(name, "ssl_verifypeer")) {
-		*key = CURLOPT_SSL_VERIFYPEER;
-		*ot = OT_BOOLEAN;
-	} else if (!strcasecmp(name, "hashcompat")) {
-		*key = CURLOPT_SPECIAL_HASHCOMPAT;
-		*ot = OT_ENUM;
-	} else if (!strcasecmp(name, "failurecodes")) {
-		*key = CURLOPT_SPECIAL_FAILURE_CODE;
-		*ot = OT_STRING;
-	} else {
-		return -1;
+	int i;
+
+	for (i = 0; curlopt_key_map[i].name; i++) {
+		if (!strcasecmp(name, curlopt_key_map[i].name)) {
+			if (key) *key = curlopt_key_map[i].key;
+			if (type) *type = curlopt_key_map[i].type;
+			return 0;
+		}
 	}
-	return 0;
+
+	return 1;
 }
 
 static int acf_curlopt_write(struct ast_channel *chan, const char *cmd, char *name, const char *value)
@@ -367,6 +339,28 @@ static int acf_curlopt_write(struct ast_channel *chan, const char *cmd, char *na
 	} else {
 		/* Populate the global structure */
 		list = &global_curl_info;
+	}
+
+	if (!strcasecmp(name, "reset")) {
+		key = 0;
+
+		if (ast_strlen_zero(value) ||
+			(strcmp(value, "*") && parse_curlopt_key(value, &key, NULL))) {
+			ast_log(LOG_ERROR, "Missing or unrecognized setting: %s\n", value);
+			return -1;
+		}
+
+		AST_LIST_LOCK(list);
+		AST_LIST_TRAVERSE_SAFE_BEGIN(list, cur, list) {
+			if (!strcmp(value, "*") || cur->key == key) {
+				AST_LIST_REMOVE_CURRENT(list);
+				ast_free(cur);
+			}
+		}
+		AST_LIST_TRAVERSE_SAFE_END;
+		AST_LIST_UNLOCK(list);
+
+		return 0;
 	}
 
 	if (!parse_curlopt_key(name, &key, &ot)) {
@@ -451,7 +445,7 @@ yuck:
 				break;
 			}
 		}
-		AST_LIST_TRAVERSE_SAFE_END
+		AST_LIST_TRAVERSE_SAFE_END;
 	}
 
 	/* Insert new entry */
@@ -597,7 +591,7 @@ struct curl_write_callback_data {
 	FILE *out_file;
 };
 
-static size_t WriteMemoryCallback(void *ptr, size_t size, size_t nmemb, void *data)
+static size_t write_memory_callback(void *ptr, size_t size, size_t nmemb, void *data)
 {
 	register int realsize = 0;
 	struct curl_write_callback_data *cb_data = data;
@@ -612,31 +606,6 @@ static size_t WriteMemoryCallback(void *ptr, size_t size, size_t nmemb, void *da
 	return realsize;
 }
 
-static int curl_instance_init(void *data)
-{
-	CURL **curl = data;
-
-	if (!(*curl = curl_easy_init()))
-		return -1;
-
-	curl_easy_setopt(*curl, CURLOPT_NOSIGNAL, 1);
-	curl_easy_setopt(*curl, CURLOPT_TIMEOUT, 180);
-	curl_easy_setopt(*curl, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
-	curl_easy_setopt(*curl, CURLOPT_USERAGENT, AST_CURL_USER_AGENT);
-
-	return 0;
-}
-
-static void curl_instance_cleanup(void *data)
-{
-	CURL **curl = data;
-
-	curl_easy_cleanup(*curl);
-
-	ast_free(data);
-}
-
-AST_THREADSTORAGE_CUSTOM(curl_instance, curl_instance_init, curl_instance_cleanup);
 AST_THREADSTORAGE(thread_escapebuf);
 
 /*!
@@ -690,15 +659,21 @@ static int acf_curl_helper(struct ast_channel *chan, struct curl_args *args)
 		return -1;
 	}
 
-	if (!(curl = ast_threadstorage_get(&curl_instance, sizeof(*curl)))) {
-		ast_log(LOG_ERROR, "Cannot allocate curl structure\n");
-		return -1;
-	}
-
 	if (url_is_vulnerable(args->url)) {
 		ast_log(LOG_ERROR, "URL '%s' is vulnerable to HTTP injection attacks. Aborting CURL() call.\n", args->url);
 		return -1;
 	}
+
+	curl = curl_easy_init();
+	if (!curl) {
+		ast_log(LOG_ERROR, "Cannot allocate curl structure\n");
+		return -1;
+	}
+
+	curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
+	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 180);
+	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_memory_callback);
+	curl_easy_setopt(curl, CURLOPT_USERAGENT, AST_CURL_USER_AGENT);
 
 	if (chan) {
 		ast_autoservice_start(chan);
@@ -717,7 +692,7 @@ static int acf_curl_helper(struct ast_channel *chan, struct curl_args *args)
 				AST_VECTOR_APPEND(&hasfailurecode, atoi(found));
 			}
 		} else {
-			curl_easy_setopt(*curl, cur->key, cur->value);
+			curl_easy_setopt(curl, cur->key, cur->value);
 		}
 	}
 	AST_LIST_UNLOCK(&global_curl_info);
@@ -740,30 +715,28 @@ static int acf_curl_helper(struct ast_channel *chan, struct curl_args *args)
 						AST_VECTOR_APPEND(&hasfailurecode, atoi(found));
 					}
 				} else {
-					curl_easy_setopt(*curl, cur->key, cur->value);
+					curl_easy_setopt(curl, cur->key, cur->value);
 				}
 			}
 		}
 	}
 
-	curl_easy_setopt(*curl, CURLOPT_URL, args->url);
-	curl_easy_setopt(*curl, CURLOPT_FILE, (void *) &args->cb_data);
+	curl_easy_setopt(curl, CURLOPT_URL, args->url);
+	curl_easy_setopt(curl, CURLOPT_FILE, (void *) &args->cb_data);
 
 	if (args->postdata) {
-		curl_easy_setopt(*curl, CURLOPT_POST, 1);
-		curl_easy_setopt(*curl, CURLOPT_POSTFIELDS, args->postdata);
+		curl_easy_setopt(curl, CURLOPT_POST, 1);
+		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, args->postdata);
 	}
 
-	/* Always assign the headers - even when NULL - in case we had
-	 * custom headers the last time we used this shared cURL
-	 * instance */
-	curl_easy_setopt(*curl, CURLOPT_HTTPHEADER, headers);
+	/* Always assign the headers - even when NULL */
+	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 
 	/* Temporarily assign a buffer for curl to write errors to. */
 	curl_errbuf[0] = curl_errbuf[CURL_ERROR_SIZE] = '\0';
-	curl_easy_setopt(*curl, CURLOPT_ERRORBUFFER, curl_errbuf);
+	curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, curl_errbuf);
 
-	if (curl_easy_perform(*curl) != 0) {
+	if (curl_easy_perform(curl) != 0) {
 		ast_log(LOG_WARNING, "%s ('%s')\n", curl_errbuf, args->url);
 	}
 
@@ -771,8 +744,8 @@ static int acf_curl_helper(struct ast_channel *chan, struct curl_args *args)
 	 * buffer is deallocated. Documentation is vague about allowing NULL
 	 * here, but the source allows it. See: "typecheck: allow NULL to unset
 	 * CURLOPT_ERRORBUFFER" (62bcf005f4678a93158358265ba905bace33b834). */
-	curl_easy_setopt(*curl, CURLOPT_ERRORBUFFER, (char*)NULL);
-	curl_easy_getinfo (*curl, CURLINFO_RESPONSE_CODE, &http_code);
+	curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, (char*)NULL);
+	curl_easy_getinfo (curl, CURLINFO_RESPONSE_CODE, &http_code);
 
 	for (i = 0; i < AST_VECTOR_SIZE(&hasfailurecode); ++i) {
 		if (http_code == AST_VECTOR_GET(&hasfailurecode,i)){
@@ -793,7 +766,7 @@ static int acf_curl_helper(struct ast_channel *chan, struct curl_args *args)
 	curl_slist_free_all(headers);
 
 	if (args->postdata) {
-		curl_easy_setopt(*curl, CURLOPT_POST, 0);
+		curl_easy_setopt(curl, CURLOPT_POST, 0);
 	}
 
 	if (args->cb_data.str && ast_str_strlen(args->cb_data.str)) {
@@ -827,6 +800,8 @@ static int acf_curl_helper(struct ast_channel *chan, struct curl_args *args)
 	if (chan) {
 		ast_autoservice_stop(chan);
 	}
+
+	curl_easy_cleanup(curl);
 
 	return ret;
 }
