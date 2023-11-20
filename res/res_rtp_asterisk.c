@@ -47,7 +47,6 @@
 #include <math.h>
 
 #ifdef HAVE_OPENSSL
-#define OPENSSL_SUPPRESS_DEPRECATED 1
 #include <openssl/opensslconf.h>
 #include <openssl/opensslv.h>
 #if !defined(OPENSSL_NO_SRTP) && (OPENSSL_VERSION_NUMBER >= 0x10001000L)
@@ -1914,6 +1913,32 @@ struct dtls_cert_info {
 	X509 *certificate;
 };
 
+static int apply_dh_params(SSL_CTX *ctx, BIO *bio)
+{
+	int res = 0;
+
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+	EVP_PKEY *dhpkey = PEM_read_bio_Parameters(bio, NULL);
+	if (dhpkey && EVP_PKEY_is_a(dhpkey, "DH")) {
+		res = SSL_CTX_set0_tmp_dh_pkey(ctx, dhpkey);
+	}
+	if (!res) {
+		/* A successful call to SSL_CTX_set0_tmp_dh_pkey() means
+		   that we lost ownership of dhpkey and should not free
+		   it ourselves */
+		EVP_PKEY_free(dhpkey);
+	}
+#else
+	DH *dh = PEM_read_bio_DHparams(bio, NULL, NULL, NULL);
+	if (dh) {
+		res = SSL_CTX_set_tmp_dh(ctx, dh);
+	}
+	DH_free(dh);
+#endif
+
+	return res;
+}
+
 static void configure_dhparams(const struct ast_rtp *rtp, const struct ast_rtp_dtls_cfg *dtls_cfg)
 {
 #if !defined(OPENSSL_NO_ECDH) && (OPENSSL_VERSION_NUMBER >= 0x10000000L) && (OPENSSL_VERSION_NUMBER < 0x10100000L)
@@ -1924,15 +1949,11 @@ static void configure_dhparams(const struct ast_rtp *rtp, const struct ast_rtp_d
 	if (!ast_strlen_zero(dtls_cfg->pvtfile)) {
 		BIO *bio = BIO_new_file(dtls_cfg->pvtfile, "r");
 		if (bio) {
-			DH *dh = PEM_read_bio_DHparams(bio, NULL, NULL, NULL);
-			if (dh) {
-				if (SSL_CTX_set_tmp_dh(rtp->ssl_ctx, dh)) {
-					long options = SSL_OP_CIPHER_SERVER_PREFERENCE |
-						SSL_OP_SINGLE_DH_USE | SSL_OP_SINGLE_ECDH_USE;
-					options = SSL_CTX_set_options(rtp->ssl_ctx, options);
-					ast_verb(2, "DTLS DH initialized, PFS enabled\n");
-				}
-				DH_free(dh);
+			if (apply_dh_params(rtp->ssl_ctx, bio)) {
+				long options = SSL_OP_CIPHER_SERVER_PREFERENCE |
+					SSL_OP_SINGLE_DH_USE | SSL_OP_SINGLE_ECDH_USE;
+				options = SSL_CTX_set_options(rtp->ssl_ctx, options);
+				ast_verb(2, "DTLS DH initialized, PFS enabled\n");
 			}
 			BIO_free(bio);
 		}
@@ -1963,6 +1984,10 @@ static void configure_dhparams(const struct ast_rtp *rtp, const struct ast_rtp_d
 
 static int create_ephemeral_ec_keypair(EVP_PKEY **keypair)
 {
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+	*keypair = EVP_EC_gen(SN_X9_62_prime256v1);
+	return *keypair ? 0 : -1;
+#else
 	EC_KEY *eckey = NULL;
 	EC_GROUP *group = NULL;
 
@@ -2002,6 +2027,7 @@ error:
 	EC_GROUP_free(group);
 
 	return -1;
+#endif
 }
 
 /* From OpenSSL's x509 command */
