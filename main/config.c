@@ -1812,6 +1812,99 @@ static void config_cache_attribute(const char *configfile, enum config_cache_att
 	AST_LIST_UNLOCK(&cfmtime_head);
 }
 
+/*!
+ * \internal
+ * \brief Process an #exec include, reporting errors.
+ *
+ * For backwards compatibility we return success in most cases because we
+ * do not want to prevent the rest of the configuration (or the module
+ * loading that configuration) from loading.
+ *
+ * \param command The command to execute
+ * \param output_file The filename to write to
+ *
+ * \retval 0 on success
+ * \retval -1 on failure
+ */
+static int handle_include_exec(const char *command, const char *output_file)
+{
+	char buf[1024];
+	FILE *fp;
+	int status;
+	struct stat output_file_info;
+
+	/* stderr to stdout, stdout to file */
+	if (snprintf(buf, sizeof(buf), "%s 2>&1 > %s", command, output_file) >= sizeof(buf)) {
+		ast_log(LOG_ERROR, "Failed to construct command string to execute %s.\n", command);
+		return -1;
+	}
+
+	ast_replace_sigchld();
+
+	errno = 0;
+
+	fp = popen(buf, "r");
+	if (!fp) {
+		ast_log(LOG_ERROR, "#exec <%s>: Failed to execute: %s\n",
+			command,
+			strerror(errno));
+		ast_unreplace_sigchld();
+		return 0;
+	}
+
+	while (fgets(buf, sizeof(buf), fp)) {
+		/* Ensure we have a \n at the end */
+		if (strlen(buf) == sizeof(buf) - 1 && buf[sizeof(buf) - 2] != '\n') {
+			ast_log(LOG_ERROR, "#exec <%s>: %s... <truncated>\n",
+				command,
+				buf);
+
+			/* Consume the rest of the line */
+			while (fgets(buf, sizeof(buf), fp)) {
+				if (strlen(buf) != sizeof(buf) - 1 || buf[sizeof(buf) - 2] == '\n') {
+					break;
+				}
+			}
+
+			continue;
+		}
+
+		/* `buf` has the newline, so we don't need to print it ourselves */
+		ast_log(LOG_ERROR, "#exec <%s>: %s",
+			command,
+			buf);
+	}
+
+	status = pclose(fp);
+	if (status == -1) {
+		ast_log(LOG_ERROR, "#exec <%s>: Failed to retrieve exit status: %s\n",
+			command,
+			strerror(errno));
+	} else {
+		status = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+		if (status) {
+			ast_log(LOG_ERROR, "#exec <%s>: Exited with return value %d\n",
+				command,
+				status);
+		}
+	}
+
+	ast_unreplace_sigchld();
+
+	/* Check that the output file contains something */
+	if (stat(output_file, &output_file_info) == -1) {
+		ast_log(LOG_ERROR, "#exec <%s>: Unable to stat() temporary file `%s': %s\n",
+			command,
+			output_file,
+			strerror(errno));
+	} else if (output_file_info.st_size == 0) {
+		ast_log(LOG_WARNING, "#exec <%s>: The program generated no usable output.\n",
+			command);
+	}
+
+	return 0;
+}
+
 /*! \brief parse one line in the configuration.
  * \verbatim
  * We can have a category header	[foo](...)
@@ -2002,17 +2095,13 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 		   We create a tmp file, then we #include it, then we delete it. */
 		if (!do_include) {
 			struct timeval now = ast_tvnow();
-			char cmd[1024];
 
 			if (!ast_test_flag(&flags, CONFIG_FLAG_NOCACHE))
 				config_cache_attribute(configfile, ATTRIBUTE_EXEC, NULL, who_asked);
 			snprintf(exec_file, sizeof(exec_file), "/var/tmp/exec.%d%d.%ld", (int)now.tv_sec, (int)now.tv_usec, (long)pthread_self());
-			if (snprintf(cmd, sizeof(cmd), "%s > %s 2>&1", cur, exec_file) >= sizeof(cmd)) {
-				ast_log(LOG_ERROR, "Failed to construct command string to execute %s.\n", cur);
-
+			if (handle_include_exec(cur, exec_file)) {
 				return -1;
 			}
-			ast_safe_system(cmd);
 			cur = exec_file;
 		} else {
 			if (!ast_test_flag(&flags, CONFIG_FLAG_NOCACHE))
