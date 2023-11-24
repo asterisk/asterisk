@@ -1764,10 +1764,7 @@ static void *__analog_ss_thread(void *data)
 
 	ast_debug(1, "%s %d\n", __FUNCTION__, p->channel);
 
-	if (!chan) {
-		/* What happened to the channel? */
-		goto quit;
-	}
+	ast_assert(chan != NULL);
 
 	if ((callid = ast_channel_callid(chan))) {
 		ast_callid_threadassoc_add(callid);
@@ -2756,6 +2753,7 @@ int analog_ss_thread_start(struct analog_pvt *p, struct ast_channel *chan)
 {
 	pthread_t threadid;
 
+	p->ss_astchan = chan;
 	return ast_pthread_create_detached(&threadid, NULL, __analog_ss_thread, p);
 }
 
