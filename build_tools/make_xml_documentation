@@ -137,10 +137,12 @@ fi
 
 if [ "${command}" = "print_dependencies" ] ; then
 	for subdir in ${mod_subdirs} ; do
-		subpath="${source_tree}/${subdir}"
-		# We WANT word splitting in the following line.
-		# shellcheck disable=SC2046
-		${GREP} -l -E '(language="en_US"|appdocsxml.dtd)' $(${FIND} "${subpath}" -name '*.c' -or -name '*.cc' -or -name '*.xml') || :
+		case "$subdir" in
+			/*) subpath="$subdir" ;;
+			*)  subpath="$source_tree/$subdir" ;;
+		esac
+		${FIND} "${subpath}" \( -name '*.c' -o -name '*.cc' -o -name '*.xml' \) \
+			-exec ${GREP} -l -E '(language="en_US"|appdocsxml.dtd)' '{}' \;
 	done
 	exit
 fi
