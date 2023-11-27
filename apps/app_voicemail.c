@@ -4112,16 +4112,14 @@ bail:
 
 /*!
  * \brief Determines the highest message number in use for a given user and mailbox folder.
- * \param vmu
  * \param dir the folder the mailbox folder to look for messages. Used to construct the SQL where clause.
  *
  * This method is used when mailboxes are stored in an ODBC back end.
  * Typical use to set the msgnum would be to take the value returned from this method and add one to it.
  *
  * \return the value of zero or greater to indicate the last message index in use, -1 to indicate none.
-
  */
-static int last_message_index(struct ast_vm_user *vmu, char *dir)
+static int last_message_index(char *dir)
 {
 	int x = -1;
 	int res;
@@ -4689,7 +4687,6 @@ static void rename_file(char *sfn, char *dfn)
 
 /*!
  * \brief Determines the highest message number in use for a given user and mailbox folder.
- * \param vmu
  * \param dir the folder the mailbox folder to look for messages. Used to construct the SQL where clause.
  *
  * This method is used when mailboxes are stored on the filesystem. (not ODBC and not IMAP).
@@ -4698,7 +4695,7 @@ static void rename_file(char *sfn, char *dfn)
  * \note Should always be called with a lock already set on dir.
  * \return the value of zero or greaterto indicate the last message index in use, -1 to indicate none.
  */
-static int last_message_index(struct ast_vm_user *vmu, char *dir)
+static int last_message_index(char *dir)
 {
 	int x;
 	unsigned char map[MAXMSGLIMIT] = "";
@@ -4725,12 +4722,8 @@ static int last_message_index(struct ast_vm_user *vmu, char *dir)
 	}
 	closedir(msgdir);
 
-	for (x = 0; x < vmu->maxmsg; x++) {
-		if (map[x] == 1) {
-			stopcount--;
-		} else if (map[x] == 0 && !stopcount) {
-			break;
-		}
+	for (x = 0; x < MAXMSGLIMIT && stopcount; x++) {
+		stopcount -= map[x];
 	}
 
 	return x - 1;
@@ -6005,7 +5998,7 @@ static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int i
 	if (vm_lock_path(todir))
 		return ERROR_LOCK_PATH;
 
-	recipmsgnum = last_message_index(recip, todir) + 1;
+	recipmsgnum = last_message_index(todir) + 1;
 	if (recipmsgnum < recip->maxmsg - (imbox ? 0 : inprocess_count(vmu->mailbox, vmu->context, 0))) {
 		make_file(topath, sizeof(topath), todir, recipmsgnum);
 #ifndef ODBC_STORAGE
@@ -6502,7 +6495,7 @@ static int msg_create_from_file(struct ast_vm_recording_data *recdata)
 		return -1;
 	}
 
-	msgnum = last_message_index(recipient, dir) + 1;
+	msgnum = last_message_index(dir) + 1;
 #endif
 
 	/* Lock the directory receiving the voicemail since we want it to still exist when we attempt to copy the voicemail.
@@ -7090,7 +7083,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 					}
 				} else {
 #ifndef IMAP_STORAGE
-					msgnum = last_message_index(vmu, dir) + 1;
+					msgnum = last_message_index(dir) + 1;
 #endif
 					make_file(fn, sizeof(fn), dir, msgnum);
 
@@ -7212,7 +7205,7 @@ static int resequence_mailbox(struct ast_vm_user *vmu, char *dir, int stopcount)
 		return ERROR_LOCK_PATH;
 	}
 
-	for (x = 0, dest = 0; dest != stopcount && x < vmu->maxmsg + 10; x++) {
+	for (x = 0, dest = 0; dest != stopcount && x < MAXMSGLIMIT; x++) {
 		make_file(sfn, sizeof(sfn), dir, x);
 		if (EXISTS(dir, x, sfn, NULL)) {
 
@@ -7301,7 +7294,7 @@ static int save_to_folder(struct ast_vm_user *vmu, struct vm_state *vms, int msg
 	if (vm_lock_path(ddir))
 		return ERROR_LOCK_PATH;
 
-	x = last_message_index(vmu, ddir) + 1;
+	x = last_message_index(ddir) + 1;
 
 	if (box == 10 && x >= vmu->maxdeletedmsg) { /* "Deleted" folder*/
 		x--;
@@ -9163,8 +9156,8 @@ static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu, int box)
 		return ERROR_LOCK_PATH;
 	}
 
-	/* for local storage, checks directory for messages up to maxmsg limit */
-	last_msg = last_message_index(vmu, vms->curdir);
+	/* for local storage, checks directory for messages up to MAXMSGLIMIT */
+	last_msg = last_message_index(vms->curdir);
 	ast_unlock_path(vms->curdir);
 
 	if (last_msg < -1) {
@@ -9200,7 +9193,7 @@ static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 	}
 
 	/* update count as message may have arrived while we've got mailbox open */
-	last_msg_idx = last_message_index(vmu, vms->curdir);
+	last_msg_idx = last_message_index(vms->curdir);
 	if (last_msg_idx != vms->lastmsg) {
 		ast_log(AST_LOG_NOTICE, "%d messages received after mailbox opened.\n", last_msg_idx - vms->lastmsg);
 	}
