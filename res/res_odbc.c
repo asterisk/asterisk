@@ -915,12 +915,16 @@ struct odbc_obj *_ast_odbc_request_obj2(const char *name, struct ast_flags flags
 		return NULL;
 	}
 
-	ast_mutex_lock(&class->lock);
-
 	while (!obj) {
+		ast_mutex_lock(&class->lock);
+
 		obj = AST_LIST_REMOVE_HEAD(&class->connections, list);
 
+		ast_mutex_unlock(&class->lock);
+
 		if (!obj) {
+			ast_mutex_lock(&class->lock);
+
 			if (class->connection_cnt < class->maxconnections) {
 				/* If no connection is immediately available establish a new
 				 * one if allowed. If we try and fail we give up completely as
@@ -928,20 +932,31 @@ struct odbc_obj *_ast_odbc_request_obj2(const char *name, struct ast_flags flags
 				 */
 				obj = ao2_alloc(sizeof(*obj), odbc_obj_destructor);
 				if (!obj) {
+					ast_mutex_unlock(&class->lock);
 					break;
 				}
 
 				obj->parent = ao2_bump(class);
+
+				class->connection_cnt++;
+
+				ast_mutex_unlock(&class->lock);
+
 				if (odbc_obj_connect(obj) == ODBC_FAIL) {
+					ast_mutex_lock(&class->lock);
+					class->connection_cnt--;
+					ast_mutex_unlock(&class->lock);
 					ao2_ref(obj->parent, -1);
 					ao2_ref(obj, -1);
 					obj = NULL;
 					break;
 				}
 
-				class->connection_cnt++;
+				ast_mutex_lock(&class->lock);
+
 				ast_debug(2, "Created ODBC handle %p on class '%s', new count is %zd\n", obj,
 					name, class->connection_cnt);
+
 			} else {
 				/* Otherwise if we're not allowed to create a new one we
 				 * wait for another thread to give up the connection they
@@ -949,15 +964,24 @@ struct odbc_obj *_ast_odbc_request_obj2(const char *name, struct ast_flags flags
 				 */
 				ast_cond_wait(&class->cond, &class->lock);
 			}
+
+			ast_mutex_unlock(&class->lock);
+
 		} else if (connection_dead(obj, class)) {
 			/* If the connection is dead try to grab another functional one from the
 			 * pool instead of trying to resurrect this one.
 			 */
 			ao2_ref(obj, -1);
 			obj = NULL;
+
+			ast_mutex_lock(&class->lock);
+
 			class->connection_cnt--;
 			ast_debug(2, "ODBC handle %p dead - removing from class '%s', new count is %zd\n",
 				obj, name, class->connection_cnt);
+
+			ast_mutex_unlock(&class->lock);
+
 		} else {
 			/* We successfully grabbed a connection from the pool and all is well!
 			 */
@@ -966,7 +990,6 @@ struct odbc_obj *_ast_odbc_request_obj2(const char *name, struct ast_flags flags
 		}
 	}
 
-	ast_mutex_unlock(&class->lock);
 	ao2_ref(class, -1);
 
 	return obj;
