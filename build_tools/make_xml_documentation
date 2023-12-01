@@ -135,12 +135,16 @@ if [ "${for_wiki}" -eq "1" ] || [ "${validate}" -eq "1" ]; then
 	fi
 fi
 
+make_absolute() {
+	case "$1" in
+		/*) echo "$1" ;;
+		*)  echo "$source_tree/$1" ;;
+	esac
+}
+
 if [ "${command}" = "print_dependencies" ] ; then
 	for subdir in ${mod_subdirs} ; do
-		case "$subdir" in
-			/*) subpath="$subdir" ;;
-			*)  subpath="$source_tree/$subdir" ;;
-		esac
+		subpath=$(make_absolute "$subdir")
 		${FIND} "${subpath}" \( -name '*.c' -o -name '*.cc' -o -name '*.xml' \) \
 			-exec ${GREP} -l -E '(language="en_US"|appdocsxml.dtd)' '{}' \;
 	done
@@ -188,7 +192,7 @@ printf "Building Documentation For: "
 
 for subdir in ${mod_subdirs} ; do
 	printf "%s " "${subdir}"
-	subdir_path="${source_tree}/${subdir}"
+	subdir_path=$(make_absolute "$subdir")
 	for i in $(${FIND} "${subdir_path}" -name '*.c' -or -name '*.cc'); do
 		if [ "${with_moduleinfo}" -eq "1" ] ; then
 			MODULEINFO=$(${AWK} -f "${source_tree}/build_tools/get_moduleinfo" "${i}")
