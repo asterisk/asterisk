@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE docs SYSTEM "appdocsxml.dtd">
+<?xml-stylesheet type="text/xsl" href="appdocsxml.xslt"?>
+<docs xmlns:xi="http://www.w3.org/2001/XInclude">
+	<function name="LOG_GROUP" language="en_US">
+		<synopsis>
+			Set the channel group name for log filtering on this channel
+		</synopsis>
+		<syntax>
+			<parameter name="group" required="false">
+				<para>Channel log group name. Leave empty to remove any existing group membership.</para>
+				<para>You can use any arbitrary alphanumeric name that can then be used by the
+				"logger filter changroup" CLI command to filter dialplan output by group name.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Assign a channel to a group for log filtering.</para>
+			<para>Because this application can result in dialplan execution logs
+			being suppressed (or unsuppressed) from the CLI if filtering is active,
+			it is recommended to call this as soon as possible when dialplan execution begins.</para>
+			<para>Calling this multiple times will replace any previous group assignment.</para>
+			<example title="Associate channel with group test">
+			exten => s,1,Set(LOG_GROUP()=test)
+				same => n,NoOp() ; if a logging call ID group filter name is enabled but test is not included, you will not see this
+			</example>
+			<example title="Associate channel with group important">
+			exten => s,1,Set(LOG_GROUP()=important)
+				same => n,Set(foo=bar) ; do some important things to show on the CLI (assuming it is filtered with important enabled)
+				same => n,Set(LOG_GROUP()=) ; remove from group important to stop showing execution on the CLI
+				same => n,Wait(5) ; do some unimportant stuff
+			</example>
+		</description>
+		<see-also>
+			<ref type="application">Log</ref>
+		</see-also>
+	</function>
+</docs>
