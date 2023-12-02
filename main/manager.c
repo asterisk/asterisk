@@ -1142,9 +1142,17 @@
 					<enum name="load" />
 					<enum name="unload" />
 					<enum name="reload" />
+					<enum name="refresh">
+						<para>Completely unload and load again a specified module.</para>
+					</enum>
 				</enumlist>
 				<para>If no module is specified for a <literal>reload</literal> loadtype,
 				all modules are reloaded.</para>
+			</parameter>
+			<parameter name="Recursive" required="false">
+				<para>For <literal>refresh</literal> operations, attempt to recursively
+				unload any other modules that are dependent on this module, if that would
+				allow it to successfully unload, and load them again afterwards.</para>
 			</parameter>
 		</syntax>
 		<description>
@@ -7275,6 +7283,7 @@ static int manager_moduleload(struct mansession *s, const struct message *m)
 	int res;
 	const char *module = astman_get_header(m, "Module");
 	const char *loadtype = astman_get_header(m, "LoadType");
+	const char *recursive = astman_get_header(m, "Recursive");
 
 	if (!loadtype || strlen(loadtype) == 0) {
 		astman_send_error(s, m, "Incomplete ModuleLoad action.");
@@ -7296,6 +7305,13 @@ static int manager_moduleload(struct mansession *s, const struct message *m)
 			astman_send_error(s, m, "Could not unload module.");
 		} else {
 			astman_send_ack(s, m, "Module unloaded.");
+		}
+	} else if (!strcasecmp(loadtype, "refresh")) {
+		res = ast_refresh_resource(module, AST_FORCE_SOFT, !ast_strlen_zero(recursive) && ast_true(recursive));
+		if (res) {
+			astman_send_error(s, m, "Could not refresh module.");
+		} else {
+			astman_send_ack(s, m, "Module unloaded and loaded.");
 		}
 	} else if (!strcasecmp(loadtype, "reload")) {
 		/* TODO: Unify the ack/error messages here with action_reload */
