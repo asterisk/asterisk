@@ -651,6 +651,14 @@ struct dahdi_pvt {
 	 */
 	int waitfordialtone;
 	/*!
+	 * \brief Transient variable. Same as waitfordialtone, but temporarily set for a specific call, rather than permanently for the channel.
+	 */
+	int waitfordialtonetemp;
+	/*!
+	 * \brief Transient variable. Stored off waitfordialtone duration at runtime.
+	 */
+	int waitfordialtoneduration;
+	/*!
 	 * \brief Number of frames to watch for dialtone in incoming calls
 	 * \note Set from the "dialtone_detect" value read in from chan_dahdi.conf
 	 */

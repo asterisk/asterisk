@@ -276,6 +276,21 @@
 					<enum name="none" />
 				</enumlist>
 			</enum>
+			<enum name="waitfordialtone">
+				<para>W/O Duration in ms for which to wait for dial tone on the current call.</para>
+				<para>This setting is will temporarily override the <literal>waitfordialtone</literal>
+				setting in <literal>chan_dahdi.conf</literal> (typically if that setting is disabled).
+				You must call this in a pre-dial handler when making a call on an analog trunk
+				(e.g. FXS-signalled interface).</para>
+				<para>This allows, for example, being able to barge in on an in-use trunk,
+				if dialed specifically, but allows skipping the trunk when routing calls
+				if dial tone is not present on a channel.</para>
+				<para>This setting will only apply to the current (next) call made on the
+				DAHDI channel, and will not persist for future calls.</para>
+				<para>Please keep in mind that due to the way that chan_dahdi implements dial tone detection,
+				DTMF digits on an in-use channel will temporarily relay to any other channels attempting to use the channel for a call.
+				However, voice transmission will not leak.</para>
+			</enum>
 		</enumlist>
 	</info>
 	<info name="Dial_Resource" language="en_US" tech="DAHDI">
@@ -2104,11 +2119,40 @@ static void my_set_waitingfordt(void *pvt, struct ast_channel *ast)
 {
 	struct dahdi_pvt *p = pvt;
 
-	if (p->waitfordialtone && CANPROGRESSDETECT(p) && p->dsp) {
-		ast_debug(1, "Defer dialing for %dms or dialtone\n", p->waitfordialtone);
-		gettimeofday(&p->waitingfordt, NULL);
-		ast_setstate(ast, AST_STATE_OFFHOOK);
+	/* We reset p->waitfordialtonetemp here, to prevent leaking to future calls,
+	 * but we also need to check against this value until we get dialtone
+	 * or the timer expires, since waitingfordt is when the timer started,
+	 * not when it should expire.
+	 *
+	 * Critically, we only set p->waitingfordt here if waitfordialtone or waitfordialtonetemp
+	 * has already been set, as waitingfordt is what is checked at runtime to determine
+	 * if we should be waiting for dial tone. This ensures that if a second call
+	 * is initiated concurrently, the first one "consumes" waitfordialtonetemp and resets it,
+	 * preventing leaking to other calls while remaining available to check on the first one while dialing.
+	 */
+	p->waitfordialtoneduration = p->waitfordialtonetemp ? p->waitfordialtonetemp : p->waitfordialtone;
+	p->waitfordialtonetemp = 0;
+
+	if (!(p->waitfordialtoneduration && CANPROGRESSDETECT(p))) {
+		return;
 	}
+
+	/* Because the DSP is allocated when the channel is created,
+	 * if we requested waitfordialtone later (in a predial handler),
+	 * we need to create it now */
+	if (!p->dsp) {
+		p->dsp = ast_dsp_new();
+		if (!p->dsp) {
+			ast_log(LOG_ERROR, "Unable to allocate DSP\n");
+			return;
+		}
+	}
+	p->dsp_features |= DSP_FEATURE_WAITDIALTONE;
+	ast_dsp_set_features(p->dsp, p->dsp_features);
+
+	ast_debug(1, "Defer dialing for %dms or dialtone\n", p->waitfordialtoneduration);
+	gettimeofday(&p->waitingfordt, NULL);
+	ast_setstate(ast, AST_STATE_OFFHOOK);
 }
 
 static int my_check_waitingfordt(void *pvt)
@@ -7242,6 +7286,21 @@ static int dahdi_func_write(struct ast_channel *chan, const char *function, char
 			res = -1;
 		}
 		ast_mutex_unlock(&p->lock);
+	} else if (!strcasecmp(data, "waitfordialtone")) {
+		if (ast_strlen_zero(value)) {
+			ast_log(LOG_WARNING, "waitfordialtone requires a duration in ms\n");
+			return -1;
+		}
+
+		ast_mutex_lock(&p->lock);
+		if (!CANPROGRESSDETECT(p)) {
+			ast_log(LOG_WARNING, "%s only supported on analog trunks\n", data);
+			ast_mutex_unlock(&p->lock);
+			return -1;
+		}
+		/* Only set the temp waitfordialtone setting, not the permanent one. */
+		p->waitfordialtonetemp = atoi(value);
+		ast_mutex_unlock(&p->lock);
 	} else {
 		res = -1;
 	}
@@ -9081,9 +9140,9 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 				/* DSP clears us of being pulse */
 				p->pulsedial = 0;
 			} else if (p->waitingfordt.tv_sec) {
-				if (ast_tvdiff_ms(ast_tvnow(), p->waitingfordt) >= p->waitfordialtone ) {
+				if (ast_tvdiff_ms(ast_tvnow(), p->waitingfordt) >= p->waitfordialtoneduration) {
 					p->waitingfordt.tv_sec = 0;
-					ast_log(LOG_WARNING, "Never saw dialtone on channel %d\n", p->channel);
+					ast_log(LOG_NOTICE, "Never saw dialtone on channel %d\n", p->channel);
 					ast_frfree(f);
 					f = NULL;
 				} else if (f->frametype == AST_FRAME_VOICE) {
