@@ -1097,8 +1097,10 @@ static int read_param(void *obj)
 
 	ast_debug(2, "Successfully read %s parameter %s (length %zu)\n",
 		data->paramtype == PARAMETER_URI ? "URI" : "header", data->param_name, param_len);
-	ast_copy_string(data->buf, pj_strbuf(&param->value), data->len);
-	data->buf[pj_strlen(&param->value)] = '\0';
+	if (param_len) {
+		ast_copy_string(data->buf, pj_strbuf(&param->value), data->len);
+	}
+	data->buf[param_len] = '\0';
 
 	return 0;
 }
