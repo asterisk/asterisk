@@ -2778,8 +2778,8 @@ static char *handle_showmanconn(struct ast_cli_entry *e, int cmd, struct ast_cli
 	struct ao2_container *sessions;
 	struct mansession_session *session;
 	time_t now = time(NULL);
-#define HSMCONN_FORMAT1 "  %-15.15s  %-55.55s  %-10.10s  %-10.10s  %-8.8s  %-8.8s  %-5.5s  %-5.5s\n"
-#define HSMCONN_FORMAT2 "  %-15.15s  %-55.55s  %-10d  %-10d  %-8d  %-8d  %-5.5d  %-5.5d\n"
+#define HSMCONN_FORMAT1 "  %-15.15s  %-55.55s  %-10.10s  %-10.10s  %-8.8s  %-8.8s  %-10.10s  %-10.10s\n"
+#define HSMCONN_FORMAT2 "  %-15.15s  %-55.55s  %-10d  %-10d  %-8d  %-8d  %-10.10d  %-10.10d\n"
 	int count = 0;
 	struct ao2_iterator i;
 
@@ -2795,7 +2795,7 @@ static char *handle_showmanconn(struct ast_cli_entry *e, int cmd, struct ast_cli
 		return NULL;
 	}
 
-	ast_cli(a->fd, HSMCONN_FORMAT1, "Username", "IP Address", "Start", "Elapsed", "FileDes", "HttpCnt", "Read", "Write");
+	ast_cli(a->fd, HSMCONN_FORMAT1, "Username", "IP Address", "Start", "Elapsed", "FileDes", "HttpCnt", "ReadPerms", "WritePerms");
 
 	sessions = ao2_global_obj_ref(mgr_sessions);
 	if (sessions) {
