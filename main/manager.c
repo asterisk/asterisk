@@ -1728,6 +1728,7 @@ struct mansession_session {
 	time_t noncetime;	/*!< Timer for nonce value expiration */
 	unsigned long oldnonce;	/*!< Stale nonce value */
 	unsigned long nc;	/*!< incremental  nonce counter */
+	unsigned int kicked:1;	/*!< Flag set if session is forcibly kicked */
 	ast_mutex_t notify_lock; /*!< Lock for notifying this session of events */
 	AST_LIST_HEAD_NOLOCK(mansession_datastores, ast_datastore) datastores; /*!< Data stores on the session */
 	AST_LIST_ENTRY(mansession_session) list;
@@ -2769,6 +2770,76 @@ static char *handle_showmancmds(struct ast_cli_entry *e, int cmd, struct ast_cli
 	}
 	AST_RWLIST_UNLOCK(&actions);
 
+	return CLI_SUCCESS;
+}
+
+/*! \brief CLI command manager kick session */
+static char *handle_kickmanconn(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct ao2_container *sessions;
+	struct mansession_session *session;
+	struct ao2_iterator i;
+	int fd = -1;
+	int found = 0;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "manager kick session";
+		e->usage =
+			"Usage: manager kick session <file descriptor>\n"
+			"	Kick an active Asterisk Manager Interface session\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 4) {
+		return CLI_SHOWUSAGE;
+	}
+
+	fd = atoi(a->argv[3]);
+	if (fd <= 0) { /* STDOUT won't be a valid AMI fd either */
+		ast_cli(a->fd, "Invalid AMI file descriptor: %s\n", a->argv[3]);
+		return CLI_FAILURE;
+	}
+
+	sessions = ao2_global_obj_ref(mgr_sessions);
+	if (sessions) {
+		i = ao2_iterator_init(sessions, 0);
+		ao2_ref(sessions, -1);
+		while ((session = ao2_iterator_next(&i))) {
+			ao2_lock(session);
+			if (session->stream) {
+				if (ast_iostream_get_fd(session->stream) == fd) {
+					if (session->kicked) {
+						ast_cli(a->fd, "Manager session using file descriptor %d has already been kicked\n", fd);
+						ao2_unlock(session);
+						unref_mansession(session);
+						break;
+					}
+					fd = ast_iostream_get_fd(session->stream);
+					found = fd;
+					ast_cli(a->fd, "Kicking manager session connected using file descriptor %d\n", fd);
+					ast_mutex_lock(&session->notify_lock);
+					session->kicked = 1;
+					if (session->waiting_thread != AST_PTHREADT_NULL) {
+						pthread_kill(session->waiting_thread, SIGURG);
+					}
+					ast_mutex_unlock(&session->notify_lock);
+					ao2_unlock(session);
+					unref_mansession(session);
+					break;
+				}
+			}
+			ao2_unlock(session);
+			unref_mansession(session);
+		}
+		ao2_iterator_destroy(&i);
+	}
+
+	if (!found) {
+		ast_cli(a->fd, "No manager session found using file descriptor %d\n", fd);
+	}
 	return CLI_SUCCESS;
 }
 
@@ -7428,6 +7499,10 @@ static int get_input(struct mansession *s, char *output)
 		ast_mutex_unlock(&s->session->notify_lock);
 	}
 	if (res < 0) {
+		if (s->session->kicked) {
+			ast_debug(1, "Manager session has been kicked\n");
+			return -1;
+		}
 		/* If we get a signal from some other thread (typically because
 		 * there are new events queued), return 0 to notify the caller.
 		 */
@@ -7627,7 +7702,7 @@ static void *session_do(void *data)
 
 	astman_append(&s, "Asterisk Call Manager/%s\r\n", AMI_VERSION);	/* welcome prompt */
 	for (;;) {
-		if ((res = do_message(&s)) < 0 || s.write_error) {
+		if ((res = do_message(&s)) < 0 || s.write_error || session->kicked) {
 			break;
 		}
 		if (session->authenticated) {
@@ -7637,7 +7712,7 @@ static void *session_do(void *data)
 	/* session is over, explain why and terminate */
 	if (session->authenticated) {
 		if (manager_displayconnects(session)) {
-			ast_verb(2, "Manager '%s' logged off from %s\n", session->username, ast_sockaddr_stringify_addr(&session->addr));
+			ast_verb(2, "Manager '%s' %s from %s\n", session->username, session->kicked ? "kicked" : "logged off", ast_sockaddr_stringify_addr(&session->addr));
 		}
 	} else {
 		ast_atomic_fetchadd_int(&unauth_sessions, -1);
@@ -9554,6 +9629,7 @@ static struct ast_cli_entry cli_manager[] = {
 	AST_CLI_DEFINE(handle_showmancmd, "Show a manager interface command"),
 	AST_CLI_DEFINE(handle_showmancmds, "List manager interface commands"),
 	AST_CLI_DEFINE(handle_showmanconn, "List connected manager interface users"),
+	AST_CLI_DEFINE(handle_kickmanconn, "Kick a connected manager interface connection"),
 	AST_CLI_DEFINE(handle_showmaneventq, "List manager interface queued events"),
 	AST_CLI_DEFINE(handle_showmanagers, "List configured manager users"),
 	AST_CLI_DEFINE(handle_showmanager, "Display information on a specific manager user"),
