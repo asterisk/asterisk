@@ -123,9 +123,6 @@ jobs:
   MergeAndCherryPick:
     needs: [ IdentifyBranches, PreMergeUnitTests ]
     if: success()
-    concurrency:
-      group: MergeAndCherryPick
-      cancel-in-progress: false
     runs-on: ubuntu-latest
     steps:
       - name: Start Merge
