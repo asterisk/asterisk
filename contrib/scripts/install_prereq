@@ -5,7 +5,6 @@
 
 # install_prereq: a script to install distribution-specific
 # prerequirements
-
 set -e
 
 usage() {
@@ -17,6 +16,9 @@ usage() {
 	echo "Usage: $0 install             Really install."
 	echo "Usage: $0 install-unpackaged  Really install unpackaged requirements."
 }
+
+
+## Legacy Debian versions (Assuming stretch and prior)
 
 # Basic build system:
 PACKAGES_DEBIAN="build-essential pkg-config"
@@ -33,6 +35,55 @@ PACKAGES_DEBIAN="$PACKAGES_DEBIAN libcodec2-dev libfftw3-dev libsndfile1-dev lib
 PACKAGES_DEBIAN="$PACKAGES_DEBIAN wget subversion"
 # Asterisk: for ./configure --with-pjproject-bundled:
 PACKAGES_DEBIAN="$PACKAGES_DEBIAN bzip2 patch"
+
+# Basic build system:
+PACKAGES_DEBIAN_BUSTER="build-essential pkg-config"
+# Asterisk: basic requirements:
+PACKAGES_DEBIAN_BUSTER="$PACKAGES_DEBIAN_BUSTER libedit-dev libjansson-dev libsqlite3-dev uuid-dev libxml2-dev"
+# Asterisk: for addons:
+PACKAGES_DEBIAN_BUSTER="$PACKAGES_DEBIAN_BUSTER libspeex-dev libspeexdsp-dev libogg-dev libvorbis-dev libasound2-dev portaudio19-dev libcurl4-openssl-dev xmlstarlet bison flex"
+PACKAGES_DEBIAN_BUSTER="$PACKAGES_DEBIAN_BUSTER libpq-dev unixodbc-dev libneon27-dev libgmime-3.0-dev liblua5.2-dev liburiparser-dev libxslt1-dev libssl-dev"
+PACKAGES_DEBIAN_BUSTER="$PACKAGES_DEBIAN_BUSTER libmariadb-dev-compat libbluetooth-dev libradcli-dev freetds-dev libjack-jackd2-dev bash libcap-dev"
+PACKAGES_DEBIAN_BUSTER="$PACKAGES_DEBIAN_BUSTER libsnmp-dev libiksemel-dev libcorosync-common-dev libcpg-dev libcfg-dev libnewt-dev libpopt-dev libical-dev libspandsp-dev"
+PACKAGES_DEBIAN_BUSTER="$PACKAGES_DEBIAN_BUSTER libresample1-dev libc-client2007e-dev binutils-dev libsrtp2-dev libgsm1-dev doxygen graphviz zlib1g-dev libldap2-dev"
+PACKAGES_DEBIAN_BUSTER="$PACKAGES_DEBIAN_BUSTER libcodec2-dev libfftw3-dev libsndfile1-dev libunbound-dev"
+# Asterisk: for the unpackaged below:
+PACKAGES_DEBIAN_BUSTER="$PACKAGES_DEBIAN_BUSTER wget subversion"
+# Asterisk: for ./configure --with-pjproject-bundled:
+PACKAGES_DEBIAN_BUSTER="$PACKAGES_DEBIAN_BUSTER bzip2 patch"
+
+# Basic build system:
+PACKAGES_DEBIAN_BULLSEYE="build-essential pkg-config"
+# Asterisk: basic requirements:
+PACKAGES_DEBIAN_BULLSEYE="$PACKAGES_DEBIAN_BULLSEYE libedit-dev libjansson-dev libsqlite3-dev uuid-dev libxml2-dev"
+# Asterisk: for addons:
+PACKAGES_DEBIAN_BULLSEYE="$PACKAGES_DEBIAN_BULLSEYE libspeex-dev libspeexdsp-dev libogg-dev libvorbis-dev libasound2-dev portaudio19-dev libcurl4-openssl-dev xmlstarlet bison flex"
+PACKAGES_DEBIAN_BULLSEYE="$PACKAGES_DEBIAN_BULLSEYE libpq-dev unixodbc-dev libneon27-dev libgmime-3.0-dev liblua5.2-dev liburiparser-dev libxslt1-dev libssl-dev"
+PACKAGES_DEBIAN_BULLSEYE="$PACKAGES_DEBIAN_BULLSEYE libmariadb-dev-compat libbluetooth-dev libradcli-dev freetds-dev libjack-jackd2-dev bash libcap-dev"
+PACKAGES_DEBIAN_BULLSEYE="$PACKAGES_DEBIAN_BULLSEYE libsnmp-dev libiksemel-dev libcorosync-common-dev libcpg-dev libcfg-dev libnewt-dev libpopt-dev libical-dev libspandsp-dev"
+PACKAGES_DEBIAN_BULLSEYE="$PACKAGES_DEBIAN_BULLSEYE libresample1-dev libc-client2007e-dev binutils-dev libsrtp2-dev libgsm1-dev doxygen graphviz zlib1g-dev libldap2-dev"
+PACKAGES_DEBIAN_BULLSEYE="$PACKAGES_DEBIAN_BULLSEYE libcodec2-dev libfftw3-dev libsndfile1-dev libunbound-dev"
+# Asterisk: for the unpackaged below:
+PACKAGES_DEBIAN_BULLSEYE="$PACKAGES_DEBIAN_BULLSEYE wget subversion"
+# Asterisk: for ./configure --with-pjproject-bundled:
+PACKAGES_DEBIAN_BULLSEYE="$PACKAGES_DEBIAN_BULLSEYE bzip2 patch"
+
+
+# Basic build system:
+PACKAGES_DEBIAN_BOOKWORM="build-essential pkg-config"
+# Asterisk: basic requirements:
+PACKAGES_DEBIAN_BOOKWORM="$PACKAGES_DEBIAN_BOOKWORM libedit-dev libjansson-dev libsqlite3-dev uuid-dev libxml2-dev"
+# Asterisk: for addons:
+PACKAGES_DEBIAN_BOOKWORM="$PACKAGES_DEBIAN_BOOKWORM libspeex-dev libspeexdsp-dev libogg-dev libvorbis-dev libasound2-dev portaudio19-dev libcurl4-openssl-dev xmlstarlet bison flex"
+PACKAGES_DEBIAN_BOOKWORM="$PACKAGES_DEBIAN_BOOKWORM libpq-dev unixodbc-dev libneon27-dev libgmime-3.0-dev liblua5.2-dev liburiparser-dev libxslt1-dev libssl-dev"
+PACKAGES_DEBIAN_BOOKWORM="$PACKAGES_DEBIAN_BOOKWORM libmariadb-dev libbluetooth-dev libradcli-dev freetds-dev libjack-jackd2-dev bash libcap-dev"
+PACKAGES_DEBIAN_BOOKWORM="$PACKAGES_DEBIAN_BOOKWORM libsnmp-dev libiksemel-dev libcorosync-common-dev libcpg-dev libcfg-dev libnewt-dev libpopt-dev libical-dev libspandsp-dev"
+PACKAGES_DEBIAN_BOOKWORM="$PACKAGES_DEBIAN_BOOKWORM libresample1-dev libc-client2007e-dev binutils-dev libsrtp2-dev libgsm1-dev doxygen graphviz zlib1g-dev libldap2-dev"
+PACKAGES_DEBIAN_BOOKWORM="$PACKAGES_DEBIAN_BOOKWORM libcodec2-dev libfftw3-dev libsndfile1-dev libunbound-dev"
+# Asterisk: for the unpackaged below:
+PACKAGES_DEBIAN_BOOKWORM="$PACKAGES_DEBIAN_BOOKWORM wget subversion"
+# Asterisk: for ./configure --with-pjproject-bundled:
+PACKAGES_DEBIAN_BOOKWORM="$PACKAGES_DEBIAN_BOOKWORM bzip2 patch"
 
 # Basic build system:
 PACKAGES_RH="make gcc gcc-c++ pkgconfig"
@@ -190,9 +241,11 @@ in_test_mode() {
 
 check_installed_debs() {
 	for pack in "$@" ; do
-		tocheck="${tocheck} ^${pack}$ ~P^${pack}$"
+		EXISTS=`dpkg -l | cut -d ' ' -f 3 | grep ^"${pack}"\\$ | wc -l`
+		if [ ${EXISTS} -eq 0 ]; then
+		  echo "${pack}"
+    fi
 	done
-	aptitude -F '%c %p' search $tocheck 2>/dev/null | awk '/^p/{print $2}' | grep -vF :
 }
 
 # parsing the output of yum is close to impossible.
@@ -257,13 +310,25 @@ check_installed_zypper() {
 }
 
 handle_debian() {
-	if ! [ -x "$(command -v aptitude)" ]; then
-		apt-get install -y aptitude
-	fi
-	extra_packs=`check_installed_debs $PACKAGES_DEBIAN`
-	$testcmd aptitude update
+  ## Default for previous debian releases
+  extra_packs=`check_installed_debs $PACKAGES_DEBIAN`
+
+  ## Debian Bookworm
+  if [ $(cat /etc/debian_version | cut -d '.' -f 1) -eq 10 ]; then
+    extra_packs=`check_installed_debs $PACKAGES_DEBIAN_BUSTER`
+  fi
+
+  if [ $(cat /etc/debian_version | cut -d '.' -f 1) -eq 11 ]; then
+      extra_packs=`check_installed_debs $PACKAGES_DEBIAN_BULLSEYE`
+  fi
+
+  if [ $(cat /etc/debian_version | cut -d '.' -f 1) -eq 12 ]; then
+    extra_packs=`check_installed_debs $PACKAGES_DEBIAN_BOOKWORM`
+  fi
+
+	$testcmd apt-get update
 	if [ x"$extra_packs" != "x" ] ; then
-		$testcmd aptitude install -y $extra_packs
+		$testcmd apt install -y $extra_packs
 	fi
 }
 
