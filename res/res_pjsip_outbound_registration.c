@@ -209,6 +209,9 @@
 				<configOption name="support_outbound">
 					<synopsis>Enables advertising SIP Outbound support (RFC5626) for outbound REGISTER requests.</synopsis>
 				</configOption>
+				<configOption name="user_agent">
+					<synopsis>Overrides the User-Agent header that should be used for outbound REGISTER requests.</synopsis>
+				</configOption>
 			</configObject>
 		</configFile>
 	</configInfo>
@@ -341,6 +344,8 @@ struct sip_outbound_registration {
 		AST_STRING_FIELD(outbound_proxy);
 		/*! \brief Endpoint to use for related incoming calls */
 		AST_STRING_FIELD(endpoint);
+		/*! \brief User-Agent to use when sending the REGISTER */
+		AST_STRING_FIELD(user_agent);
 	);
 	/*! \brief Requested expiration time */
 	unsigned int expiration;
@@ -433,6 +438,8 @@ struct sip_outbound_registration_client_state {
 	char *registration_name;
 	/*! \brief Expected time of registration lapse/expiration */
 	unsigned int registration_expires;
+	/*! \brief The value for the User-Agent header sent in requests */
+	char *user_agent;
 };
 
 /*! \brief Outbound registration state information (persists for lifetime that registration should exist) */
@@ -742,6 +749,27 @@ static pj_status_t registration_client_send(struct sip_outbound_registration_cli
 
 	/* Add Security-Verify or Security-Client headers */
 	add_security_headers(client_state, tdata);
+
+	/*
+	 * Replace the User-Agent header if a different one should be used
+	 */
+	if (!ast_strlen_zero(client_state->user_agent)) {
+		static const pj_str_t user_agent_str = { "User-Agent", 10 };
+		pjsip_generic_string_hdr *default_user_agent_hdr;
+		pjsip_generic_string_hdr *user_agent_hdr;
+		pj_str_t user_agent_val;
+		default_user_agent_hdr = pjsip_msg_find_hdr_by_name(tdata->msg, &user_agent_str, NULL);
+		user_agent_val = pj_str(client_state->user_agent);
+		user_agent_hdr = pjsip_generic_string_hdr_create(tdata->pool, &user_agent_str, &user_agent_val);
+		if (!user_agent_hdr) {
+			ast_log(LOG_ERROR, "Could not add custom User-Agent to outbound registration %s, sending REGISTER request with non-custom header\n", client_state->registration_name);
+		} else {
+			if (default_user_agent_hdr) {
+				pj_list_erase(default_user_agent_hdr);
+			}
+			pjsip_msg_add_hdr(tdata->msg, (pjsip_hdr *)user_agent_hdr);
+		}
+	}
 
 	/*
 	 * Set the transport in case transports were reloaded.
@@ -1520,6 +1548,7 @@ static void sip_outbound_registration_client_state_destroy(void *obj)
 	ast_taskprocessor_unreference(client_state->serializer);
 	ast_free(client_state->transport_name);
 	ast_free(client_state->registration_name);
+	ast_free(client_state->user_agent);
 	if (client_state->last_tdata) {
 		pjsip_tx_data_dec_ref(client_state->last_tdata);
 	}
@@ -1548,6 +1577,7 @@ static struct sip_outbound_registration_state *sip_outbound_registration_state_a
 	state->client_state->transport_name = ast_strdup(registration->transport);
 	state->client_state->registration_name =
 		ast_strdup(ast_sorcery_object_get_id(registration));
+	state->client_state->user_agent = ast_strdup(registration->user_agent);
 
 	ast_statsd_log_string("PJSIP.registrations.count", AST_STATSD_GAUGE, "+1", 1.0);
 	ast_statsd_log_string_va("PJSIP.registrations.state.%s", AST_STATSD_GAUGE, "+1", 1.0,
@@ -2805,6 +2835,7 @@ static int load_module(void)
 	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), "registration", "security_mechanisms", "", security_mechanisms_handler, security_mechanism_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "registration", "line", "no", OPT_BOOL_T, 1, FLDSET(struct sip_outbound_registration, line));
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "registration", "endpoint", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct sip_outbound_registration, endpoint));
+	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "registration", "user_agent", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct sip_outbound_registration, user_agent));
 
 	/*
 	 * Register sorcery observers.
