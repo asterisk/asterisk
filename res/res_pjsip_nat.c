@@ -382,7 +382,7 @@ static pj_status_t process_nat(pjsip_tx_data *tdata)
 		}
 	} else {
 		/* set contact port to the bound to port */
-		if (uri || (uri = nat_get_contact_sip_uri(tdata))) {
+		if (uri || (uri = ast_sip_get_contact_sip_uri(tdata))) {
 			if (pj_sockaddr_get_port(&transport_state->host)) {
 				uri->port = pj_sockaddr_get_port(&transport_state->host);
 			}
