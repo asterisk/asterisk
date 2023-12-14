@@ -155,6 +155,10 @@ static icalcomponent *fetch_icalendar(struct icalendar_pvt *pvt)
 
 	if (!ast_strlen_zero(ast_str_buffer(response))) {
 		comp = icalparser_parse_string(ast_str_buffer(response));
+		if (!comp) {
+			ast_debug(3, "iCalendar response data: %s\n", ast_str_buffer(response));
+			ast_log(LOG_WARNING, "Failed to parse iCalendar data: %s\n", icalerror_perror());
+		}
 	}
 	ast_free(response);
 
