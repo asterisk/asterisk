@@ -398,7 +398,9 @@ static char *handle_pjproject_set_log_level(struct ast_cli_entry *e, int cmd, st
 			"\n"
 			"       Set the maximum active pjproject logging level.\n"
 			"       See pjproject.conf.sample for additional information\n"
-			"       about the various levels pjproject uses.\n";
+			"       about the various levels pjproject uses.\n"
+			"       Note: setting this level at 4 or above may result in\n"
+			"       raw packet logging.\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
