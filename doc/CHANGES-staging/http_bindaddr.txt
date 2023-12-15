@@ -1,6 +1,0 @@
-Subject: http
-Master-Only: True
-
-For bound addresses, the HTTP status page now combines the bound
-address and bound port in a single line. Additionally, the SSL bind
-address has been renamed to TLS.
