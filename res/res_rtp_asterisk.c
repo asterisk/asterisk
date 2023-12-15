@@ -3186,11 +3186,10 @@ static int __rtp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t s
 		 * candidates list.
 		 */
 
+#ifdef HAVE_PJPROJECT
 		if (rtp->ice) {
 			int pass_src_check = 0;
-			struct ao2_iterator i;
-			struct ast_rtp_engine_ice_candidate *candidate;
-			int cand_cnt = 0;
+			int ix = 0;
 
 			/*
 			 * You'd think that this check would cause a "deadlock"
@@ -3211,20 +3210,18 @@ static int __rtp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t s
 			}
 
 			/*
-			 * If we got this far, then ice_active_remote_candidates
-			 * can't be NULL.
+			 * If we got this far, then there have to be candidates.
+			 * We have to use pjproject's rcands because they may have
+			 * peer reflexive candidates that our ice_active_remote_candidates
+			 * won't.
 			 */
-			i = ao2_iterator_init(rtp->ice_active_remote_candidates, 0);
-			while ((candidate = ao2_iterator_next(&i)) && (cand_cnt < PJ_ICE_MAX_CAND)) {
-				res = ast_sockaddr_cmp_addr(&candidate->address, sa);
-				ao2_ref(candidate, -1);
-				if (res == 0) {
+			for (ix = 0; ix < rtp->ice->real_ice->rcand_cnt; ix++) {
+				pj_ice_sess_cand *rcand = &rtp->ice->real_ice->rcand[ix];
+				if (ast_sockaddr_pj_sockaddr_cmp(sa, &rcand->addr) == 0) {
 					pass_src_check = 1;
 					break;
 				}
-				cand_cnt++;
 			}
-			ao2_iterator_destroy(&i);
 
 			if (!pass_src_check) {
 				ast_log(LOG_WARNING, "%s: DTLS packet from %s dropped. Source not in ICE active candidate list.\n",
@@ -3233,6 +3230,7 @@ static int __rtp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t s
 				return 0;
 			}
 		}
+#endif
 
 		/*
 		 * A race condition is prevented between dtls_perform_handshake()
