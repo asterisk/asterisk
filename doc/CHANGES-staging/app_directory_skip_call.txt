@@ -1,5 +1,0 @@
-Subject: app_directory
-
-A new option 's' has been added to the Directory() application that
-will skip calling the extension and instead set the extension as
-DIRECTORY_EXTEN channel variable.

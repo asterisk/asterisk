@@ -1,5 +1,0 @@
-Subject: app_senddtmf
-
-A new option has been added to SendDTMF() which will answer the
-specified channel if it is not already up. If no channel is specified,
-the current channel will be answered instead.
