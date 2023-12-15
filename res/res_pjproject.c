@@ -522,6 +522,7 @@ int ast_sockaddr_from_pj_sockaddr(struct ast_sockaddr *addr, const pj_sockaddr *
 		sin->sin_addr.s_addr = pjaddr->ipv4.sin_addr.s_addr;
 #endif
 		sin->sin_port   = pjaddr->ipv4.sin_port;
+		memset(sin->sin_zero, 0, sizeof(sin->sin_zero));
 		addr->len = sizeof(struct sockaddr_in);
 	} else if (pjaddr->addr.sa_family == pj_AF_INET6()) {
 		struct sockaddr_in6 *sin = (struct sockaddr_in6 *) &addr->ss;
@@ -536,6 +537,27 @@ int ast_sockaddr_from_pj_sockaddr(struct ast_sockaddr *addr, const pj_sockaddr *
 		return -1;
 	}
 	return 0;
+}
+
+int ast_sockaddr_pj_sockaddr_cmp(const struct ast_sockaddr *addr,
+	const pj_sockaddr *pjaddr)
+{
+	struct ast_sockaddr temp_pjaddr;
+	int rc = 0;
+
+	rc = ast_sockaddr_from_pj_sockaddr(&temp_pjaddr, pjaddr);
+	if (rc != 0) {
+		return -1;
+	}
+
+	rc = ast_sockaddr_cmp(addr, &temp_pjaddr);
+	if (DEBUG_ATLEAST(4)) {
+		char *a_str = ast_strdupa(ast_sockaddr_stringify(addr));
+		char *pj_str = ast_strdupa(ast_sockaddr_stringify(&temp_pjaddr));
+		ast_debug(4, "Comparing %s -> %s  rc: %d\n", a_str, pj_str, rc);
+	}
+
+	return rc;
 }
 
 #ifdef TEST_FRAMEWORK
