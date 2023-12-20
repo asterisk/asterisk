@@ -1,1 +1,1 @@
-ChangeLogs/ChangeLog-20.5.1.md
+ChangeLogs/ChangeLog-20.5.2.md
