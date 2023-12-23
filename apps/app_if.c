@@ -196,6 +196,7 @@ static int find_matching_endif(struct ast_channel *chan, const char *otherapp)
 		if (!ast_rdlock_context(c)) {
 			if (!strcmp(ast_get_context_name(c), ast_channel_context(chan))) {
 				/* This is the matching context we want */
+
 				int cur_priority = ast_channel_priority(chan) + 1, level = 1;
 
 				for (e = find_matching_priority(c, ast_channel_exten(chan), cur_priority,
@@ -203,6 +204,7 @@ static int find_matching_endif(struct ast_channel *chan, const char *otherapp)
 					e;
 					e = find_matching_priority(c, ast_channel_exten(chan), ++cur_priority,
 						S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))) {
+
 					if (!strcasecmp(ast_get_extension_app(e), "IF")) {
 						level++;
 					} else if (!strcasecmp(ast_get_extension_app(e), "ENDIF")) {
@@ -283,7 +285,10 @@ static int if_helper(struct ast_channel *chan, const char *data, int end)
 		pbx_builtin_setvar_helper(chan, my_name, NULL);
 		snprintf(end_varname,sizeof(end_varname),"END_%s",varname);
 		ast_channel_lock(chan);
-		endifpri = find_matching_endif(chan, NULL);
+		/* For EndIf, simply go to the next priority.
+		 * For ExitIf or false If() condition, we need to find the end of the current
+		 * If branch (at same indentation) and branch there. */
+		endifpri = end == 2 ? ast_channel_priority(chan) + 1 : find_matching_endif(chan, NULL);
 		if ((goto_str = pbx_builtin_getvar_helper(chan, end_varname))) {
 			ast_parseable_goto(chan, goto_str);
 			pbx_builtin_setvar_helper(chan, end_varname, NULL);
