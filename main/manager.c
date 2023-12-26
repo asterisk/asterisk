@@ -3763,7 +3763,7 @@ static int restrictedFile(const char *filename)
 {
 	char *stripped_filename;
 	RAII_VAR(char *, path, NULL, ast_free);
-	RAII_VAR(char *, real_path, NULL, ast_free);
+	RAII_VAR(char *, real_path, NULL, ast_std_free);
 
 	if (live_dangerously) {
 		return 0;
