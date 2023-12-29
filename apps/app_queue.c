@@ -4599,8 +4599,12 @@ static int is_longest_waiting_caller(struct queue_ent *caller, struct member *me
 					 * will be unused until the first caller is picked up.
 					 */
 					if (ch->start < caller->start && !ch->pending) {
-						ast_debug(1, "Queue %s has a call at position %i that's been waiting longer (%li vs %li)\n",
-								  q->name, ch->pos, ch->start, caller->start);
+						char time1[AST_TIME_T_LEN];
+						char time2[AST_TIME_T_LEN];
+						ast_time_t_to_string(ch->start, time1, sizeof(time1));
+						ast_time_t_to_string(caller->start, time2, sizeof(time2));
+						ast_debug(1, "Queue %s has a call at position %i that's been waiting longer (%s vs %s)\n",
+								  q->name, ch->pos, time1, time2);
 						is_longest_waiting = 0;
 						break;
 					}
