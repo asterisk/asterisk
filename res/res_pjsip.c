@@ -605,7 +605,7 @@ struct ast_sip_transport_state *ast_sip_find_transport_state_in_use(struct ast_s
 int ast_sip_rewrite_uri_to_local(pjsip_sip_uri *uri, pjsip_tx_data *tdata) {
 	RAII_VAR(struct ast_sip_transport *, transport, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_sip_transport_state *, transport_state, NULL, ao2_cleanup);
-	struct ast_sip_request_transport_details details;
+	struct ast_sip_request_transport_details details = { 0, };
 	pjsip_sip_uri *tmp_uri;
 	pjsip_dialog *dlg;
 	struct ast_sockaddr addr = { { 0, } };
