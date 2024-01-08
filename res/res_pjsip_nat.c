@@ -319,8 +319,8 @@ static pj_status_t process_nat(pjsip_tx_data *tdata)
 {
 	RAII_VAR(struct ast_sip_transport *, transport, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_sip_transport_state *, transport_state, NULL, ao2_cleanup);
+	struct ast_sip_request_transport_details details = { 0, };
 	pjsip_via_hdr *via = NULL;
-	struct ast_sip_request_transport_details details;
 	struct ast_sockaddr addr = { { 0, } };
 	pjsip_sip_uri *uri = NULL;
 	RAII_VAR(struct ao2_container *, hooks, NULL, ao2_cleanup);
