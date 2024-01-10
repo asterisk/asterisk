@@ -56,6 +56,7 @@
 #include "asterisk/utils.h"
 #include "asterisk/app.h"
 #include "asterisk/test.h"
+#include "asterisk/cli.h" /* use ESS */
 
 /* Forward declaration */
 static int wait_file(struct ast_channel *chan, const char *ints, const char *file, const char *lang);
@@ -353,26 +354,29 @@ static int say_digit_str_full(struct ast_channel *chan, const char *str, const c
 static struct ast_str* ast_get_money_en_dollars_str(const char *str, const char *lang)
 {
 	const char *fnr;
-
-	double dollars = 0;
-	int amt, cents;
+	int amt, dollars = 0, cents = 0;
 	struct ast_str *fnrecurse = NULL;
+	struct ast_str *filenames;
 
-	struct ast_str *filenames = ast_str_create(20);
+	if (ast_strlen_zero(str)) {
+		return NULL;
+	}
+
+	filenames = ast_str_create(20);
 	if (!filenames) {
 		return NULL;
 	}
 	ast_str_reset(filenames);
 
-	if (sscanf(str, "%30lf", &dollars) != 1) {
+	/* Don't use %f because floating point rounding
+	 * could distort the cents units. Just parse as string. */
+	if (sscanf(str, "%d.%02d", &dollars, &cents) < 1) {
 		amt = 0;
-	} else { /* convert everything to cents */
-		amt = dollars * 100;
+	} else {
+		amt = dollars * 100 + cents; /* convert everything to cents */
 	}
 
-	/* Just the cents after the dollar decimal point */
-	cents = amt - (((int) dollars) * 100);
-	ast_debug(1, "Cents is %d, amount is %d\n", cents, amt);
+	ast_debug(1, "Amount is %d (%d dollar%s, %d cent%s)\n", amt, dollars, ESS(dollars), cents, ESS(cents));
 
 	if (amt >= 100) {
 		fnrecurse = ast_get_number_str((amt / 100), lang);
@@ -9762,8 +9766,6 @@ int ast_say_counted_adjective(struct ast_channel *chan, int num, const char adje
 	snprintf(temp, temp_len, "%s%s", adjective, ending);
 	return ast_play_and_wait(chan, temp);
 }
-
-
 
 /*! \brief
  * remap the 'say' functions to use those in this file
