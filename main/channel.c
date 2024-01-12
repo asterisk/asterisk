@@ -10970,6 +10970,15 @@ int ast_channel_request_stream_topology_change(struct ast_channel *chan,
 		return -1;
 	}
 
+	if (ast_stream_topology_equal(ast_channel_get_stream_topology(chan), topology)) {
+		ast_debug(2, "%s: Topologies already match. Current: %s  Requested: %s\n",
+				ast_channel_name(chan),
+				ast_str_tmp(256, ast_stream_topology_to_str(ast_channel_get_stream_topology(chan), &STR_TMP)),
+				ast_str_tmp(256, ast_stream_topology_to_str(topology, &STR_TMP)));
+		ast_channel_unlock(chan);
+		return 0;
+	}
+
 	ast_channel_internal_set_stream_topology_change_source(chan, change_source);
 
 	res = ast_channel_tech(chan)->indicate(chan, AST_CONTROL_STREAM_TOPOLOGY_REQUEST_CHANGE, topology, sizeof(topology));
