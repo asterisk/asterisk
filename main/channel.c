@@ -1080,8 +1080,11 @@ static int __ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin, in
 	}
 
 	if ((queued_frames + new_frames > 128 || queued_voice_frames + new_voice_frames > 96)) {
+		int total_queued = queued_frames + new_frames;
+		int total_voice = queued_voice_frames + new_voice_frames;
 		int count = 0;
-		ast_log(LOG_WARNING, "Exceptionally long %squeue length queuing to %s\n", queued_frames + new_frames > 128 ? "" : "voice ", ast_channel_name(chan));
+		ast_log(LOG_WARNING, "Exceptionally long %squeue length (%d voice / %d total) queuing to %s\n",
+			queued_frames + new_frames > 128 ? "" : "voice ", total_voice, total_queued, ast_channel_name(chan));
 		AST_LIST_TRAVERSE_SAFE_BEGIN(ast_channel_readq(chan), cur, frame_list) {
 			/* Save the most recent frame */
 			if (!AST_LIST_NEXT(cur, frame_list)) {
@@ -1098,6 +1101,9 @@ static int __ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin, in
 			}
 		}
 		AST_LIST_TRAVERSE_SAFE_END;
+		if (count) {
+			ast_debug(4, "Discarded %d frame%s due to queue overload on %s\n", count, ESS(count), ast_channel_name(chan));
+		}
 	}
 
 	if (after) {

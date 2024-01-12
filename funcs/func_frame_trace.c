@@ -35,6 +35,7 @@
 #include "asterisk/channel.h"
 #include "asterisk/pbx.h"
 #include "asterisk/framehook.h"
+#include "asterisk/cli.h"
 
 /*** DOCUMENTATION
 	<function name="FRAME_TRACE" language="en_US">
@@ -438,14 +439,64 @@ static struct ast_custom_function frame_trace_function = {
 	.write = frame_trace_helper,
 };
 
+static char *handle_dump_frames(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct ast_channel *chan;
+	struct ast_frame *f;
+	int c = 1;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "channel dump frames";
+		e->usage =
+			"Usage: channel dump frames <channel>\n"
+			"       List all frames queued to a channel.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return ast_complete_channels(a->line, a->word, a->pos, a->n, 3);
+	}
+
+	if (a->argc != 4) {
+		return CLI_SHOWUSAGE;
+	}
+
+	chan = ast_channel_get_by_name(a->argv[3]);
+	if (!chan) {
+		ast_cli(a->fd, "%s is not a known channel\n", a->argv[3]);
+		return CLI_SUCCESS;
+	}
+
+	ast_channel_lock(chan);
+
+	ast_cli(a->fd, "== Frame list for %s ==\n", ast_channel_name(chan));
+	ast_cli(a->fd, "%5s %6s %6s %-15s (%-20s) - %s\n", "#", "Seqno", "Stream", "Frame Type", "Frame Subclass", "Src");
+	AST_LIST_TRAVERSE(ast_channel_readq(chan), f, frame_list) {
+		char type[64];
+		char subclass[64];
+		ast_frame_type2str(f->frametype, type, sizeof(type));
+		ast_frame_subclass2str(f, subclass, sizeof(subclass), NULL, 0);
+		ast_cli(a->fd, "%5d %6d %6d %-15s (%-20s) - %s\n", c++, f->seqno, f->stream_num, type, subclass, S_OR(f->src, ""));
+	}
+
+	ast_channel_unlock(chan);
+	ast_channel_unref(chan);
+	return CLI_SUCCESS;
+}
+
+static struct ast_cli_entry cli_frames[] = {
+	AST_CLI_DEFINE(handle_dump_frames, "Display frames queued on a specific channel")
+};
+
 static int unload_module(void)
 {
+	ast_cli_unregister_multiple(cli_frames, ARRAY_LEN(cli_frames));
 	return ast_custom_function_unregister(&frame_trace_function);
 }
 
 static int load_module(void)
 {
 	int res = ast_custom_function_register(&frame_trace_function);
+	res |= ast_cli_register_multiple(cli_frames, ARRAY_LEN(cli_frames));
 	return res ? AST_MODULE_LOAD_DECLINE : AST_MODULE_LOAD_SUCCESS;
 }
 
