@@ -1418,3 +1418,59 @@ ALTER TABLE musiconhold ADD COLUMN loop_last ENUM('yes','no');
 
 UPDATE alembic_version SET version_num='f5b0e7427449' WHERE alembic_version.version_num = '4042a0ff4d9f';
 
+-- Running upgrade f5b0e7427449 -> dac2b4c328b8
+
+ALTER TABLE ps_aors MODIFY id VARCHAR(255) NULL;
+
+ALTER TABLE ps_aors MODIFY outbound_proxy VARCHAR(255) NULL;
+
+ALTER TABLE ps_auths MODIFY id VARCHAR(255) NULL;
+
+ALTER TABLE ps_auths MODIFY realm VARCHAR(255) NULL;
+
+ALTER TABLE ps_contacts MODIFY outbound_proxy VARCHAR(255) NULL;
+
+ALTER TABLE ps_contacts MODIFY endpoint VARCHAR(255) NULL;
+
+ALTER TABLE ps_domain_aliases MODIFY id VARCHAR(255) NULL;
+
+ALTER TABLE ps_domain_aliases MODIFY domain VARCHAR(255) NULL;
+
+ALTER TABLE ps_endpoint_id_ips MODIFY id VARCHAR(255) NULL;
+
+ALTER TABLE ps_endpoint_id_ips MODIFY endpoint VARCHAR(255) NULL;
+
+ALTER TABLE ps_endpoints MODIFY id VARCHAR(255) NULL;
+
+ALTER TABLE ps_endpoints MODIFY aors VARCHAR(2048) NULL;
+
+ALTER TABLE ps_endpoints MODIFY auth VARCHAR(255) NULL;
+
+ALTER TABLE ps_endpoints MODIFY outbound_auth VARCHAR(255) NULL;
+
+ALTER TABLE ps_endpoints MODIFY outbound_proxy VARCHAR(255) NULL;
+
+ALTER TABLE ps_inbound_publications MODIFY id VARCHAR(255) NULL;
+
+ALTER TABLE ps_inbound_publications MODIFY endpoint VARCHAR(255) NULL;
+
+ALTER TABLE ps_outbound_publishes MODIFY id VARCHAR(255) NULL;
+
+ALTER TABLE ps_outbound_publishes MODIFY outbound_auth VARCHAR(255) NULL;
+
+ALTER TABLE ps_registrations MODIFY id VARCHAR(255) NULL;
+
+ALTER TABLE ps_registrations MODIFY outbound_auth VARCHAR(255) NULL;
+
+ALTER TABLE ps_registrations MODIFY outbound_proxy VARCHAR(255) NULL;
+
+ALTER TABLE ps_registrations MODIFY endpoint VARCHAR(255) NULL;
+
+UPDATE alembic_version SET version_num='dac2b4c328b8' WHERE alembic_version.version_num = 'f5b0e7427449';
+
+-- Running upgrade dac2b4c328b8 -> 37a5332640e2
+
+ALTER TABLE ps_transports MODIFY method ENUM('default','unspecified','tlsv1','tlsv1_1','tlsv1_2','tlsv1_3','sslv2','sslv23','sslv3') NULL;
+
+UPDATE alembic_version SET version_num='37a5332640e2' WHERE alembic_version.version_num = 'dac2b4c328b8';
+

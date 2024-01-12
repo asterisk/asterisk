@@ -1538,5 +1538,65 @@ ALTER TABLE musiconhold ADD COLUMN loop_last yesno_values;
 
 UPDATE alembic_version SET version_num='f5b0e7427449' WHERE alembic_version.version_num = '4042a0ff4d9f';
 
+-- Running upgrade f5b0e7427449 -> dac2b4c328b8
+
+ALTER TABLE ps_aors ALTER COLUMN id TYPE VARCHAR(255);
+
+ALTER TABLE ps_aors ALTER COLUMN outbound_proxy TYPE VARCHAR(255);
+
+ALTER TABLE ps_auths ALTER COLUMN id TYPE VARCHAR(255);
+
+ALTER TABLE ps_auths ALTER COLUMN realm TYPE VARCHAR(255);
+
+ALTER TABLE ps_contacts ALTER COLUMN outbound_proxy TYPE VARCHAR(255);
+
+ALTER TABLE ps_contacts ALTER COLUMN endpoint TYPE VARCHAR(255);
+
+ALTER TABLE ps_domain_aliases ALTER COLUMN id TYPE VARCHAR(255);
+
+ALTER TABLE ps_domain_aliases ALTER COLUMN domain TYPE VARCHAR(255);
+
+ALTER TABLE ps_endpoint_id_ips ALTER COLUMN id TYPE VARCHAR(255);
+
+ALTER TABLE ps_endpoint_id_ips ALTER COLUMN endpoint TYPE VARCHAR(255);
+
+ALTER TABLE ps_endpoints ALTER COLUMN id TYPE VARCHAR(255);
+
+ALTER TABLE ps_endpoints ALTER COLUMN aors TYPE VARCHAR(2048);
+
+ALTER TABLE ps_endpoints ALTER COLUMN auth TYPE VARCHAR(255);
+
+ALTER TABLE ps_endpoints ALTER COLUMN outbound_auth TYPE VARCHAR(255);
+
+ALTER TABLE ps_endpoints ALTER COLUMN outbound_proxy TYPE VARCHAR(255);
+
+ALTER TABLE ps_inbound_publications ALTER COLUMN id TYPE VARCHAR(255);
+
+ALTER TABLE ps_inbound_publications ALTER COLUMN endpoint TYPE VARCHAR(255);
+
+ALTER TABLE ps_outbound_publishes ALTER COLUMN id TYPE VARCHAR(255);
+
+ALTER TABLE ps_outbound_publishes ALTER COLUMN outbound_auth TYPE VARCHAR(255);
+
+ALTER TABLE ps_registrations ALTER COLUMN id TYPE VARCHAR(255);
+
+ALTER TABLE ps_registrations ALTER COLUMN outbound_auth TYPE VARCHAR(255);
+
+ALTER TABLE ps_registrations ALTER COLUMN outbound_proxy TYPE VARCHAR(255);
+
+ALTER TABLE ps_registrations ALTER COLUMN endpoint TYPE VARCHAR(255);
+
+UPDATE alembic_version SET version_num='dac2b4c328b8' WHERE alembic_version.version_num = 'f5b0e7427449';
+
+-- Running upgrade dac2b4c328b8 -> 37a5332640e2
+
+CREATE TYPE pjsip_transport_method_values_v2 AS ENUM ('default', 'unspecified', 'tlsv1', 'tlsv1_1', 'tlsv1_2', 'tlsv1_3', 'sslv2', 'sslv23', 'sslv3');
+
+ALTER TABLE ps_transports ALTER COLUMN method TYPE pjsip_transport_method_values_v2 USING method::text::pjsip_transport_method_values_v2;
+
+DROP TYPE pjsip_transport_method_values;
+
+UPDATE alembic_version SET version_num='37a5332640e2' WHERE alembic_version.version_num = 'dac2b4c328b8';
+
 COMMIT;
 
