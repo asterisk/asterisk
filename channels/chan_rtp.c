@@ -212,7 +212,7 @@ static struct ast_channel *multicast_rtp_request(const char *type, struct ast_fo
 	}
 
 	chan = ast_channel_alloc(1, AST_STATE_DOWN, "", "", "", "", "", assignedids,
-		requestor, 0, "MulticastRTP/%p", instance);
+		requestor, 0, "MulticastRTP/%s-%p", args.destination, instance);
 	if (!chan) {
 		ast_rtp_instance_destroy(instance);
 		goto failure;
