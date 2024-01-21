@@ -2220,6 +2220,30 @@ static int user_template_handler(const struct aco_option *opt, struct ast_variab
 	return conf_find_user_profile(NULL, var->value, u_profile) ? 0 : -1;
 }
 
+static int sample_rate_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
+{
+	struct bridge_profile *b_profile = obj;
+	unsigned int *slot;
+
+	if (!strcasecmp(var->name, "internal_sample_rate")) {
+		slot = &b_profile->internal_sample_rate;
+		if (!strcasecmp(var->value, "auto")) {
+			*slot = 0;
+			return 0;
+		}
+	} else if (!strcasecmp(var->name, "maximum_sample_rate")) {
+		slot = &b_profile->maximum_sample_rate;
+		if (!strcasecmp(var->value, "none")) {
+			*slot = 0;
+			return 0;
+		}
+	} else {
+		return -1;
+	}
+
+	return ast_parse_arg(var->value, PARSE_UINT32 | PARSE_IN_RANGE, slot, 8000, 192000);
+}
+
 static int bridge_template_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
 {
 	struct bridge_profile *b_profile = obj;
@@ -2437,10 +2461,9 @@ int conf_load_config(void)
 	/* Bridge options */
 	aco_option_register(&cfg_info, "type", ACO_EXACT, bridge_types, NULL, OPT_NOOP_T, 0, 0);
 	aco_option_register(&cfg_info, "jitterbuffer", ACO_EXACT, bridge_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct bridge_profile, flags), USER_OPT_JITTERBUFFER);
-	/* "auto" will fail to parse as a uint, but we use PARSE_DEFAULT to set the value to 0 in that case, which is the value that auto resolves to */
-	aco_option_register(&cfg_info, "internal_sample_rate", ACO_EXACT, bridge_types, "0", OPT_UINT_T, PARSE_DEFAULT, FLDSET(struct bridge_profile, internal_sample_rate), 0);
+	aco_option_register_custom(&cfg_info, "internal_sample_rate", ACO_EXACT, bridge_types, "auto", sample_rate_handler, 0);
 	aco_option_register(&cfg_info, "binaural_active", ACO_EXACT, bridge_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct bridge_profile, flags), BRIDGE_OPT_BINAURAL_ACTIVE);
-	aco_option_register(&cfg_info, "maximum_sample_rate", ACO_EXACT, bridge_types, "0", OPT_UINT_T, PARSE_DEFAULT, FLDSET(struct bridge_profile, maximum_sample_rate), 0);
+	aco_option_register_custom(&cfg_info, "maximum_sample_rate", ACO_EXACT, bridge_types, "none", sample_rate_handler, 0);
 	aco_option_register_custom(&cfg_info, "mixing_interval", ACO_EXACT, bridge_types, "20", mix_interval_handler, 0);
 	aco_option_register(&cfg_info, "record_conference", ACO_EXACT, bridge_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct bridge_profile, flags), BRIDGE_OPT_RECORD_CONFERENCE);
 	aco_option_register_custom(&cfg_info, "video_mode", ACO_EXACT, bridge_types, NULL, video_mode_handler, 0);
