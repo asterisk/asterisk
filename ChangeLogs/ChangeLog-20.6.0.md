@@ -1,18 +1,19 @@
 
-Change Log for Release asterisk-20.6.0-rc1
+Change Log for Release asterisk-20.6.0
 ========================================
 
 Links:
 ----------------------------------------
 
- - [Full ChangeLog](https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-20.6.0-rc1.md)  
- - [GitHub Diff](https://github.com/asterisk/asterisk/compare/20.5.2...20.6.0-rc1)  
- - [Tarball](https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-20.6.0-rc1.tar.gz)  
+ - [Full ChangeLog](https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-20.6.0.md)  
+ - [GitHub Diff](https://github.com/asterisk/asterisk/compare/20.5.2...20.6.0)  
+ - [Tarball](https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-20.6.0.tar.gz)  
  - [Downloads](https://downloads.asterisk.org/pub/telephony/asterisk)  
 
 Summary:
 ----------------------------------------
 
+- logger: Fix linking regression.
 - Revert "core & res_pjsip: Improve topology change handling."
 - menuselect: Use more specific error message.
 - res_pjsip_nat: Fix potential use of uninitialized transport details
@@ -260,9 +261,14 @@ Closed Issues:
   - #513: [bug]: manager.c: Crash due to regression using wrong free function when built with MALLOC_DEBUG
   - #520: [improvement]: menuselect: Use more specific error message.
   - #530: [bug]: bridge_channel.c: Stream topology change amplification with multiple layers of Local channels
+  - #539: [bug]: Existence of logger.xml causes linking failure
 
 Commits By Author:
 ----------------------------------------
+
+- ### Asterisk Development Team (2):
+  - Update for 20.6.0-rc1
+  - Update for 20.6.0-rc2
 
 - ### Bastian Triller (1):
   - func_json: Fix crashes for some types
@@ -332,7 +338,7 @@ Commits By Author:
   - res_stasis: signal when new command is queued
   - res_speech: allow speech to translate input channel
 
-- ### Naveen Albert (20):
+- ### Naveen Albert (21):
   - chan_iax2: Improve authentication debugging.
   - chan_console: Fix deadlock caused by unclean thread exit.
   - app_voicemail: Disable ADSI if unavailable.
@@ -353,6 +359,7 @@ Commits By Author:
   - manager.c: Fix regression due to using wrong free function.
   - app_if: Fix faulty EndIf branching.
   - menuselect: Use more specific error message.
+  - logger: Fix linking regression.
 
 - ### Samuel Olaechea (1):
   - configs: Fix typo in pjsip.conf.sample.
@@ -394,6 +401,28 @@ Commits By Author:
 
 Detail:
 ----------------------------------------
+
+- ### logger: Fix linking regression.
+  Author: Naveen Albert  
+  Date:   2024-01-16  
+
+  Commit 008731b0a4b96c4e6c340fff738cc12364985b64
+  caused a regression by resulting in logger.xml
+  being compiled and linked into the asterisk
+  binary in lieu of logger.c on certain platforms
+  if Asterisk was compiled in dev mode.
+
+  To fix this, we ensure the file has a unique
+  name without the extension. Most existing .xml
+  files have been named differently from any
+  .c files in the same directory or did not
+  pose this issue.
+
+  channels/pjsip/dialplan_functions.xml does not
+  pose this issue but is also being renamed
+  to adhere to this policy.
+
+  Resolves: #539
 
 - ### Revert "core & res_pjsip: Improve topology change handling."
   Author: George Joseph  
