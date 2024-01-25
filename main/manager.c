@@ -4329,9 +4329,10 @@ static int action_updateconfig(struct mansession *s, const struct message *m)
 		astman_send_ack(s, m, NULL);
 		if (!ast_strlen_zero(rld)) {
 			if (ast_true(rld)) {
-				rld = NULL;
+				ast_module_reload(NULL); /* Reload everything */
+			} else if (!ast_false(rld)) {
+				ast_module_reload(rld); /* Reload the specific module */
 			}
-			ast_module_reload(rld);
 		}
 	} else {
 		ast_config_destroy(cfg);
