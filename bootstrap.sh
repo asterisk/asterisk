@@ -9,9 +9,9 @@ check_for_app() {
 	fi
 }
 
-# OpenBSD: pkg_add autoconf%2.63 automake%1.9 metaauto
-test -n "$AUTOCONF_VERSION" || export AUTOCONF_VERSION=2.63
-test -n "$AUTOMAKE_VERSION" || export AUTOMAKE_VERSION=1.9
+# OpenBSD: pkg_add autoconf%2.69 automake%1.16 metaauto
+test -n "$AUTOCONF_VERSION" || export AUTOCONF_VERSION=2.69
+test -n "$AUTOMAKE_VERSION" || export AUTOMAKE_VERSION=1.16
 
 check_for_app autoconf
 check_for_app autoheader
