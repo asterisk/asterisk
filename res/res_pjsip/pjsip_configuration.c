@@ -538,6 +538,29 @@ static int ident_to_str(const void *obj, const intptr_t *args, char **buf)
 	return 0;
 }
 
+static int media_address_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
+{
+	struct ast_sip_endpoint *endpoint = obj;
+	struct ast_sockaddr addr;
+
+	if (ast_sockaddr_parse(&addr, var->value, 0)) {
+		/* If we're able to parse as an IP, ensure it's formatted correctly for later */
+		ast_string_field_set(endpoint, media.address, ast_sockaddr_stringify_addr_remote(&addr));
+	} else {
+		/* If we weren't able to parse it as an IP, just assume it's a hostname */
+		ast_string_field_set(endpoint, media.address, var->value);
+	}
+
+	return 0;
+}
+
+static int media_address_to_str(const void *obj, const intptr_t *args, char **buf)
+{
+	const struct ast_sip_endpoint *endpoint = obj;
+	*buf = ast_strdup(endpoint->media.address);
+	return 0;
+}
+
 static int redirect_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
 {
 	struct ast_sip_endpoint *endpoint = obj;
@@ -2163,7 +2186,7 @@ int ast_res_pjsip_initialize_configuration(void)
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "auth", "", inbound_auth_handler, inbound_auths_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "outbound_auth", "", outbound_auth_handler, outbound_auths_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "aors", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, aors));
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "media_address", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, media.address));
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "media_address", "", media_address_handler, media_address_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "bind_rtp_to_media_address", "no", OPT_BOOL_T, 1, STRFLDSET(struct ast_sip_endpoint, media.bind_rtp_to_media_address));
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "identify_by", "username,ip", ident_handler, ident_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "direct_media", "yes", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, media.direct_media.enabled));
