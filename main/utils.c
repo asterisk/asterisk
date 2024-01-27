@@ -36,10 +36,10 @@
 #include <unistd.h>
 #if defined(__APPLE__)
 #include <mach/mach.h>
+#elif defined(__FreeBSD__)
+#include <sys/thr.h>
 #elif defined(__NetBSD__)
 #include <lwp.h>
-#elif defined(HAVE_SYS_THR_H)
-#include <sys/thr.h>
 #endif
 
 #include "asterisk/network.h"
@@ -2757,9 +2757,9 @@ int ast_get_tid(void)
 #elif defined(__APPLE__)
 	ret = mach_thread_self();
 	mach_port_deallocate(mach_task_self(), ret);
-#elif defined(__FreeBSD__) && defined(HAVE_SYS_THR_H)
+#elif defined(__FreeBSD__)
 	long lwpid;
-	thr_self(&lwpid); /* available since sys/thr.h creation 2003 */
+	thr_self(&lwpid);
 	ret = lwpid;
 #elif defined(__NetBSD__)
 	ret = _lwp_self();
