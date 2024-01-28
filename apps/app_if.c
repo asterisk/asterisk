@@ -286,9 +286,11 @@ static int if_helper(struct ast_channel *chan, const char *data, int end)
 		snprintf(end_varname,sizeof(end_varname),"END_%s",varname);
 		ast_channel_lock(chan);
 		/* For EndIf, simply go to the next priority.
+		 * We do not add 1 to ast_channel_priority because the dialplan will
+		 * auto-increment the priority when we return, so just keep the priority as is.
 		 * For ExitIf or false If() condition, we need to find the end of the current
 		 * If branch (at same indentation) and branch there. */
-		endifpri = end == 2 ? ast_channel_priority(chan) + 1 : find_matching_endif(chan, NULL);
+		endifpri = end == 2 ? ast_channel_priority(chan) : find_matching_endif(chan, NULL);
 		if ((goto_str = pbx_builtin_getvar_helper(chan, end_varname))) {
 			ast_parseable_goto(chan, goto_str);
 			pbx_builtin_setvar_helper(chan, end_varname, NULL);
