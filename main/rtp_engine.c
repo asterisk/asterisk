@@ -3685,7 +3685,7 @@ int ast_rtp_engine_init(void)
 	set_next_mime_type(ast_format_slin12, 0, "audio", "L16", 12000);
 	set_next_mime_type(ast_format_slin24, 0, "audio", "L16", 24000);
 	set_next_mime_type(ast_format_slin32, 0, "audio", "L16", 32000);
-	set_next_mime_type(ast_format_slin44, 0, "audio", "L16", 44000);
+	set_next_mime_type(ast_format_slin44, 0, "audio", "L16", 44100);
 	set_next_mime_type(ast_format_slin48, 0, "audio", "L16", 48000);
 	set_next_mime_type(ast_format_slin96, 0, "audio", "L16", 96000);
 	set_next_mime_type(ast_format_slin192, 0, "audio", "L16", 192000);
