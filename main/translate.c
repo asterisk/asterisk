@@ -1297,7 +1297,7 @@ int __ast_register_translator(struct ast_translator *t, struct ast_module *mod)
 
 	generate_computational_cost(t, 1);
 
-	ast_verb(2, "Registered translator '%s' from codec %s to %s, table cost, %d, computational cost %d\n",
+	ast_verb(5, "Registered translator '%s' from codec %s to %s, table cost, %d, computational cost %d\n",
 		 term_color(tmp, t->name, COLOR_MAGENTA, COLOR_BLACK, sizeof(tmp)),
 		 t->src_codec.name, t->dst_codec.name, t->table_cost, t->comp_cost);
 
@@ -1340,7 +1340,7 @@ int ast_unregister_translator(struct ast_translator *t)
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&translators, u, list) {
 		if (u == t) {
 			AST_RWLIST_REMOVE_CURRENT(list);
-			ast_verb(2, "Unregistered translator '%s' from codec %s to %s\n",
+			ast_verb(5, "Unregistered translator '%s' from codec %s to %s\n",
 				term_color(tmp, t->name, COLOR_MAGENTA, COLOR_BLACK, sizeof(tmp)),
 				t->src_codec.name, t->dst_codec.name);
 			found = 1;

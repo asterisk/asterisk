@@ -463,7 +463,7 @@ int ast_refer_tech_register(const struct ast_refer_tech *tech)
 		ast_rwlock_unlock(&refer_techs_lock);
 		return -1;
 	}
-	ast_verb(3, "Refer technology '%s' registered.\n", tech->name);
+	ast_verb(5, "Refer technology '%s' registered.\n", tech->name);
 
 	ast_rwlock_unlock(&refer_techs_lock);
 
@@ -501,7 +501,7 @@ int ast_refer_tech_unregister(const struct ast_refer_tech *tech)
 		return -1;
 	}
 
-	ast_verb(2, "Refer technology '%s' unregistered.\n", tech->name);
+	ast_verb(5, "Refer technology '%s' unregistered.\n", tech->name);
 
 	return 0;
 }
