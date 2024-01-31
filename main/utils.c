@@ -1841,7 +1841,8 @@ char *ast_strsep(char **iss, const char sep, uint32_t flags)
 	char stack[8];
 
 	if (ast_strlen_zero(st)) {
-		return NULL;
+		*iss = NULL;
+		return st;
 	}
 
 	memset(stack, 0, sizeof(stack));
@@ -1905,7 +1906,8 @@ char *ast_strsep_quoted(char **iss, const char sep, const char quote, uint32_t f
 	const char qstr[] = { quote };
 
 	if (ast_strlen_zero(st)) {
-		return NULL;
+		*iss = NULL;
+		return st;
 	}
 
 	memset(stack, 0, sizeof(stack));
