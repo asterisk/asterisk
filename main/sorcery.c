@@ -459,7 +459,7 @@ int __ast_sorcery_wizard_register(const struct ast_sorcery_wizard *interface, st
 	ao2_link_flags(wizards, wizard, OBJ_NOLOCK);
 	res = 0;
 
-	ast_verb(2, "Sorcery registered wizard '%s'\n", interface->name);
+	ast_verb(5, "Sorcery registered wizard '%s'\n", interface->name);
 
 	NOTIFY_GLOBAL_OBSERVERS(observers, wizard_registered,
 		interface->name, interface);
@@ -480,7 +480,7 @@ int ast_sorcery_wizard_unregister(const struct ast_sorcery_wizard *interface)
 		NOTIFY_GLOBAL_OBSERVERS(observers, wizard_unregistering, wizard->callbacks.name, &wizard->callbacks);
 		ao2_unlink(wizards, wizard);
 		ao2_ref(wizard, -1);
-		ast_verb(2, "Sorcery unregistered wizard '%s'\n", interface->name);
+		ast_verb(5, "Sorcery unregistered wizard '%s'\n", interface->name);
 		return 0;
 	} else {
 		return -1;

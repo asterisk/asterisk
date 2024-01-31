@@ -257,7 +257,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_server_add_protocol2)(struct ast_websock
 	ao2_link_flags(server->protocols, protocol, OBJ_NOLOCK);
 	ao2_unlock(server->protocols);
 
-	ast_verb(2, "WebSocket registered sub-protocol '%s'\n", protocol->name);
+	ast_verb(5, "WebSocket registered sub-protocol '%s'\n", protocol->name);
 	ao2_ref(protocol, -1);
 
 	return 0;
@@ -279,7 +279,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_server_remove_protocol)(struct ast_webso
 	ao2_unlink(server->protocols, protocol);
 	ao2_ref(protocol, -1);
 
-	ast_verb(2, "WebSocket unregistered sub-protocol '%s'\n", name);
+	ast_verb(5, "WebSocket unregistered sub-protocol '%s'\n", name);
 
 	return 0;
 }
