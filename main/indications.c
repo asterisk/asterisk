@@ -539,7 +539,7 @@ static int ast_register_indication_country(struct ast_tone_zone *zone)
 
 	ao2_link(ast_tone_zones, zone);
 
-	ast_verb(3, "Registered indication country '%s'\n", zone->country);
+	ast_verb(5, "Registered indication country '%s'\n", zone->country);
 
 	return 0;
 }

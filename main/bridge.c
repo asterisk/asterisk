@@ -255,7 +255,7 @@ int __ast_bridge_technology_register(struct ast_bridge_technology *technology, s
 
 	AST_RWLIST_UNLOCK(&bridge_technologies);
 
-	ast_verb(2, "Registered bridge technology %s\n", technology->name);
+	ast_verb(5, "Registered bridge technology %s\n", technology->name);
 
 	return 0;
 }
@@ -270,7 +270,7 @@ int ast_bridge_technology_unregister(struct ast_bridge_technology *technology)
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&bridge_technologies, current, entry) {
 		if (current == technology) {
 			AST_RWLIST_REMOVE_CURRENT(entry);
-			ast_verb(2, "Unregistered bridge technology %s\n", technology->name);
+			ast_verb(5, "Unregistered bridge technology %s\n", technology->name);
 			break;
 		}
 	}
