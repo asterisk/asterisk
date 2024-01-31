@@ -271,7 +271,7 @@ enum ast_strsep_flags {
   AST_STRSEP_UNESCAPE unescapes '\' sequences.
   AST_STRSEP_ALL does all of the above processing.
   \return The next token or NULL if done or if there are more than 8 levels of
-  nested quotes.
+  nested quotes. If provided an empty string, will return the empty string.
 
   This function acts like strsep with three exceptions...
   The separator is a single character instead of a string.
@@ -323,7 +323,7 @@ char *ast_strsep(char **s, const char sep, uint32_t flags);
   AST_STRSEP_UNESCAPE unescapes '\' sequences.
   AST_STRSEP_ALL does all of the above processing.
   \return The next token or NULL if done or if there are more than 8 levels of
-  nested quotes.
+  nested quotes. If provided an empty string, will return the empty string.
  */
 char *ast_strsep_quoted(char **s, const char sep, const char quote, uint32_t flags);
 
