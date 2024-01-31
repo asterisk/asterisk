@@ -286,7 +286,7 @@ int ast_custom_function_unregister(struct ast_custom_function *acf)
 			ast_string_field_free_memory(acf);
 		}
 #endif
-		ast_verb(2, "Unregistered custom function %s\n", cur->name);
+		ast_verb(5, "Unregistered custom function %s\n", cur->name);
 	}
 	AST_RWLIST_UNLOCK(&acf_root);
 
@@ -410,7 +410,7 @@ int __ast_custom_function_register(struct ast_custom_function *acf, struct ast_m
 
 	AST_RWLIST_UNLOCK(&acf_root);
 
-	ast_verb(2, "Registered custom function '" COLORIZE_FMT "'\n", COLORIZE(COLOR_BRCYAN, 0, acf->name));
+	ast_verb(5, "Registered custom function '" COLORIZE_FMT "'\n", COLORIZE(COLOR_BRCYAN, 0, acf->name));
 
 	return 0;
 }
