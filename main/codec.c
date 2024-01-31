@@ -315,7 +315,7 @@ int __ast_codec_register_with_format(struct ast_codec *codec, const char *format
 	/* Once registered a codec can not be unregistered, and the module must persist until shutdown */
 	ast_module_shutdown_ref(mod);
 
-	ast_verb(2, "Registered '%s' codec '%s' at sample rate '%u' with id '%u'\n",
+	ast_verb(5, "Registered '%s' codec '%s' at sample rate '%u' with id '%u'\n",
 		ast_codec_media_type2str(codec->type), codec->name, codec->sample_rate, codec_new->external.id);
 
 	ao2_ref(codec_new, -1);

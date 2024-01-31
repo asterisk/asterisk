@@ -3848,7 +3848,7 @@ int AST_OPTIONAL_API_NAME(ast_agi_register)(struct ast_module *mod, agi_command 
 		AST_RWLIST_WRLOCK(&agi_commands);
 		AST_LIST_INSERT_TAIL(&agi_commands, cmd, list);
 		AST_RWLIST_UNLOCK(&agi_commands);
-		ast_verb(2, "AGI Command '%s' registered\n",fullcmd);
+		ast_verb(5, "AGI Command '%s' registered\n",fullcmd);
 		return 1;
 	} else {
 		ast_log(LOG_WARNING, "Command already registered!\n");
@@ -3887,7 +3887,7 @@ int AST_OPTIONAL_API_NAME(ast_agi_unregister)(agi_command *cmd)
 	AST_RWLIST_TRAVERSE_SAFE_END;
 	AST_RWLIST_UNLOCK(&agi_commands);
 	if (unregistered) {
-		ast_verb(2, "AGI Command '%s' unregistered\n",fullcmd);
+		ast_verb(5, "AGI Command '%s' unregistered\n",fullcmd);
 	}
 	return unregistered;
 }
