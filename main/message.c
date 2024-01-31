@@ -1614,7 +1614,7 @@ int ast_msg_tech_register(const struct ast_msg_tech *tech)
 		ast_rwlock_unlock(&msg_techs_lock);
 		return -1;
 	}
-	ast_verb(3, "Message technology '%s' registered.\n", tech->name);
+	ast_verb(5, "Message technology '%s' registered.\n", tech->name);
 
 	ast_rwlock_unlock(&msg_techs_lock);
 
@@ -1649,7 +1649,7 @@ int ast_msg_tech_unregister(const struct ast_msg_tech *tech)
 		return -1;
 	}
 
-	ast_verb(2, "Message technology '%s' unregistered.\n", tech->name);
+	ast_verb(5, "Message technology '%s' unregistered.\n", tech->name);
 
 	return 0;
 }
@@ -1674,7 +1674,7 @@ int ast_msg_handler_register(const struct ast_msg_handler *handler)
 		ast_rwlock_unlock(&msg_handlers_lock);
 		return -1;
 	}
-	ast_verb(2, "Message handler '%s' registered.\n", handler->name);
+	ast_verb(5, "Message handler '%s' registered.\n", handler->name);
 
 	ast_rwlock_unlock(&msg_handlers_lock);
 
@@ -1710,7 +1710,7 @@ int ast_msg_handler_unregister(const struct ast_msg_handler *handler)
 		return -1;
 	}
 
-	ast_verb(3, "Message handler '%s' unregistered.\n", handler->name);
+	ast_verb(5, "Message handler '%s' unregistered.\n", handler->name);
 	return 0;
 }
 

@@ -355,7 +355,7 @@ int ast_rtp_engine_register2(struct ast_rtp_engine *engine, struct ast_module *m
 
 	AST_RWLIST_UNLOCK(&engines);
 
-	ast_verb(2, "Registered RTP engine '%s'\n", engine->name);
+	ast_verb(5, "Registered RTP engine '%s'\n", engine->name);
 
 	return 0;
 }
@@ -367,7 +367,7 @@ int ast_rtp_engine_unregister(struct ast_rtp_engine *engine)
 	AST_RWLIST_WRLOCK(&engines);
 
 	if ((current_engine = AST_RWLIST_REMOVE(&engines, engine, entry))) {
-		ast_verb(2, "Unregistered RTP engine '%s'\n", engine->name);
+		ast_verb(5, "Unregistered RTP engine '%s'\n", engine->name);
 	}
 
 	AST_RWLIST_UNLOCK(&engines);
@@ -399,7 +399,7 @@ int ast_rtp_glue_register2(struct ast_rtp_glue *glue, struct ast_module *module)
 
 	AST_RWLIST_UNLOCK(&glues);
 
-	ast_verb(2, "Registered RTP glue '%s'\n", glue->type);
+	ast_verb(5, "Registered RTP glue '%s'\n", glue->type);
 
 	return 0;
 }
@@ -411,7 +411,7 @@ int ast_rtp_glue_unregister(struct ast_rtp_glue *glue)
 	AST_RWLIST_WRLOCK(&glues);
 
 	if ((current_glue = AST_RWLIST_REMOVE(&glues, glue, entry))) {
-		ast_verb(2, "Unregistered RTP glue '%s'\n", glue->type);
+		ast_verb(5, "Unregistered RTP glue '%s'\n", glue->type);
 	}
 
 	AST_RWLIST_UNLOCK(&glues);

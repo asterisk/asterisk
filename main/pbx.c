@@ -5068,7 +5068,7 @@ int ast_context_remove_extension_callerid2(struct ast_context *con, const char *
 					}
 				}
 			} else {
-				ast_log(LOG_ERROR,"Could not find priority %d of exten %s in context %s!\n",
+				ast_debug(3,"Could not find priority %d of exten %s in context %s!\n",
 						priority, exten->name, con->name);
 			}
 		}
@@ -6685,20 +6685,20 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, struct ast_
 
 	ft = ast_tvdiff_us(writelocktime, begintime);
 	ft /= 1000000.0;
-	ast_verb(3,"Time to scan old dialplan and merge leftovers back into the new: %8.6f sec\n", ft);
+	ast_verb(5,"Time to scan old dialplan and merge leftovers back into the new: %8.6f sec\n", ft);
 
 	ft = ast_tvdiff_us(endlocktime, writelocktime);
 	ft /= 1000000.0;
-	ast_verb(3,"Time to restore hints and swap in new dialplan: %8.6f sec\n", ft);
+	ast_verb(5,"Time to restore hints and swap in new dialplan: %8.6f sec\n", ft);
 
 	ft = ast_tvdiff_us(enddeltime, endlocktime);
 	ft /= 1000000.0;
-	ast_verb(3,"Time to delete the old dialplan: %8.6f sec\n", ft);
+	ast_verb(5,"Time to delete the old dialplan: %8.6f sec\n", ft);
 
 	ft = ast_tvdiff_us(enddeltime, begintime);
 	ft /= 1000000.0;
-	ast_verb(3,"Total time merge_contexts_delete: %8.6f sec\n", ft);
-	ast_verb(3, "%s successfully loaded %d contexts (enable debug for details).\n", registrar, ctx_count);
+	ast_verb(5,"Total time merge_contexts_delete: %8.6f sec\n", ft);
+	ast_verb(5, "%s successfully loaded %d contexts (enable debug for details).\n", registrar, ctx_count);
 }
 
 /*
@@ -8179,7 +8179,7 @@ void __ast_context_destroy(struct ast_context *list, struct ast_hashtab *context
 						if (!prio_item->registrar || strcmp(prio_item->registrar, registrar) != 0) {
 							continue;
 						}
-						ast_verb(3, "Remove %s/%s/%d, registrar=%s; con=%s(%p); con->root=%p\n",
+						ast_verb(5, "Remove %s/%s/%d, registrar=%s; con=%s(%p); con->root=%p\n",
 								 tmp->name, prio_item->name, prio_item->priority, registrar, con? con->name : "<nil>", con, con? con->root_table: NULL);
 						ast_copy_string(extension, prio_item->exten, sizeof(extension));
 						if (prio_item->cidmatch) {
@@ -8473,7 +8473,7 @@ int load_pbx(void)
 	/* Initialize the PBX */
 	ast_verb(1, "Asterisk PBX Core Initializing\n");
 
-	ast_verb(2, "Registering builtin functions:\n");
+	ast_verb(5, "Registering builtin functions:\n");
 	ast_cli_register_multiple(pbx_cli, ARRAY_LEN(pbx_cli));
 	__ast_custom_function_register(&exception_function, NULL);
 	__ast_custom_function_register(&testtime_function, NULL);
