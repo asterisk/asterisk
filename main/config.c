@@ -3068,7 +3068,7 @@ static int ast_realtime_append_mapping(const char *name, const char *driver, con
 	map->next = config_maps;
 	config_maps = map;
 
-	ast_verb(2, "Binding %s to %s/%s/%s\n", map->name, map->driver, map->database, map->table ? map->table : map->name);
+	ast_verb(5, "Binding %s to %s/%s/%s\n", map->name, map->driver, map->database, map->table ? map->table : map->name);
 
 	return 0;
 }

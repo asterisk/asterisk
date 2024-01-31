@@ -326,13 +326,13 @@ struct ast_frame *ast_audiosocket_receive_frame(const int svc)
 
 static int load_module(void)
 {
-	ast_verb(1, "Loading AudioSocket Support module\n");
+	ast_verb(5, "Loading AudioSocket Support module\n");
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int unload_module(void)
 {
-	ast_verb(1, "Unloading AudioSocket Support module\n");
+	ast_verb(5, "Unloading AudioSocket Support module\n");
 	return AST_MODULE_LOAD_SUCCESS;
 }
 

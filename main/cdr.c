@@ -3041,7 +3041,7 @@ static int ast_cdr_generic_unregister(struct be_list *generic_list, const char *
 	AST_RWLIST_REMOVE(generic_list, match, list);
 	AST_RWLIST_UNLOCK(generic_list);
 
-	ast_verb(2, "Unregistered '%s' CDR backend\n", name);
+	ast_verb(5, "Unregistered '%s' CDR backend\n", name);
 	ast_free(match);
 
 	return 0;

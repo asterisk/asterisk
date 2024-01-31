@@ -7955,7 +7955,7 @@ int ast_manager_unregister(const char *action)
 		ao2_unlock(cur);
 
 		ao2_t_ref(cur, -1, "action object removed from list");
-		ast_verb(2, "Manager unregistered action %s\n", action);
+		ast_verb(5, "Manager unregistered action %s\n", action);
 	}
 
 	return 0;
@@ -8030,7 +8030,7 @@ static int ast_manager_register_struct(struct manager_action *act)
 		AST_RWLIST_INSERT_HEAD(&actions, act, list);
 	}
 
-	ast_verb(2, "Manager registered action %s\n", act->action);
+	ast_verb(5, "Manager registered action %s\n", act->action);
 
 	AST_RWLIST_UNLOCK(&actions);
 

@@ -567,7 +567,7 @@ static int load_config(int reload)
 
 	ast_config_destroy(cfg);
 
-	ast_verb(3, "AMD defaults: initialSilence [%d] greeting [%d] afterGreetingSilence [%d] "
+	ast_verb(5, "AMD defaults: initialSilence [%d] greeting [%d] afterGreetingSilence [%d] "
 		"totalAnalysisTime [%d] minimumWordLength [%d] betweenWordsSilence [%d] maximumNumberOfWords [%d] silenceThreshold [%d] maximumWordLength [%d]\n",
 		dfltInitialSilence, dfltGreeting, dfltAfterGreetingSilence, dfltTotalAnalysisTime,
 		dfltMinimumWordLength, dfltBetweenWordsSilence, dfltMaximumNumberOfWords, dfltSilenceThreshold, dfltMaximumWordLength);

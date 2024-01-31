@@ -153,7 +153,7 @@ int __ast_format_def_register(const struct ast_format_def *f, struct ast_module 
 
 	AST_RWLIST_INSERT_HEAD(&formats, tmp, list);
 	AST_RWLIST_UNLOCK(&formats);
-	ast_verb(2, "Registered file format %s, extension(s) %s\n", f->name, f->exts);
+	ast_verb(5, "Registered file format %s, extension(s) %s\n", f->name, f->exts);
 	publish_format_update(f, ast_format_register_type());
 
 	return 0;
@@ -177,7 +177,7 @@ int ast_format_def_unregister(const char *name)
 	AST_RWLIST_UNLOCK(&formats);
 
 	if (!res)
-		ast_verb(2, "Unregistered format %s\n", name);
+		ast_verb(5, "Unregistered format %s\n", name);
 	else
 		ast_log(LOG_WARNING, "Tried to unregister format %s, already unregistered\n", name);
 
