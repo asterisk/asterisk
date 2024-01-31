@@ -245,6 +245,11 @@
 							</enum>
 						</enumlist>
 					</option>
+					<option name="D">
+						<para>Interleave the audio coming from the channel and the audio coming to the channel in
+						the output audio as a dual channel stream, rather than mix it. Does nothing if 'o'
+						is also set.</para>
+					</option>
 					<option name="e">
 						<argument name="ext" required="true" />
 						<para>Enable <emphasis>enforced</emphasis> mode, so the spying channel can
@@ -393,6 +398,7 @@ enum {
 	OPTION_EXITONHANGUP      = (1 << 18),   /* Hang up when the spied-on channel hangs up. */
 	OPTION_UNIQUEID          = (1 << 19),	/* The chanprefix is a channel uniqueid or fully specified channel name. */
 	OPTION_LONG_QUEUE        = (1 << 20),	/* Allow usage of a long queue to store audio frames. */
+	OPTION_INTERLEAVED       = (1 << 21),	/* Interleave the Read and Write frames in the output frame. */
 };
 
 enum {
@@ -411,6 +417,7 @@ AST_APP_OPTIONS(spy_opts, {
 	AST_APP_OPTION('B', OPTION_BARGE),
 	AST_APP_OPTION_ARG('c', OPTION_DTMF_CYCLE, OPT_ARG_CYCLE),
 	AST_APP_OPTION('d', OPTION_DTMF_SWITCH_MODES),
+	AST_APP_OPTION('D', OPTION_INTERLEAVED),
 	AST_APP_OPTION_ARG('e', OPTION_ENFORCED, OPT_ARG_ENFORCED),
 	AST_APP_OPTION('E', OPTION_EXITONHANGUP),
 	AST_APP_OPTION_ARG('g', OPTION_GROUP, OPT_ARG_GROUP),
@@ -471,6 +478,56 @@ static int spy_generate(struct ast_channel *chan, void *data, int len, int sampl
 	if (ast_test_flag(&csth->flags, OPTION_READONLY)) {
 		/* Option 'o' was set, so don't mix channel audio */
 		f = ast_audiohook_read_frame(&csth->spy_audiohook, samples, AST_AUDIOHOOK_DIRECTION_READ, ast_format_slin);
+	} else if (ast_test_flag(&csth->flags, OPTION_INTERLEAVED)) {
+		/* Option 'D' was set, so mix the spy frame as an interleaved dual channel frame. */
+		int i;
+		struct ast_frame *fr_read = NULL;
+		struct ast_frame *fr_write = NULL;
+		short read_buf[samples];
+		short write_buf[samples];
+		short stereo_buf[samples * 2];
+		struct ast_frame stereo_frame = {
+			.frametype = AST_FRAME_VOICE,
+			.datalen = sizeof(stereo_buf),
+			.samples = samples,
+		};
+
+		f = ast_audiohook_read_frame_all(&csth->spy_audiohook, samples, ast_format_slin, &fr_read, &fr_write);
+		if (f) {
+			ast_frame_free(f, 0);
+			f = NULL;
+		}
+
+		if (fr_read) {
+			memcpy(read_buf, fr_read->data.ptr, sizeof(read_buf));
+		} else {
+			/* silent out the output frame if we can't read the input */
+			memset(read_buf, 0, sizeof(read_buf));
+		}
+
+		if (fr_write) {
+			memcpy(write_buf, fr_write->data.ptr, sizeof(write_buf));
+		} else {
+			memset(write_buf, 0, sizeof(write_buf));
+		}
+
+		for (i = 0; i < samples; i++) {
+			stereo_buf[i*2] = read_buf[i];
+			stereo_buf[i*2+1] = write_buf[i];
+		}
+
+		stereo_frame.data.ptr = stereo_buf;
+		stereo_frame.subclass.format = ast_format_cache_get_slin_by_rate(samples);
+
+		f = ast_frdup(&stereo_frame);
+
+		if (fr_read) {
+			ast_frame_free(fr_read, 0);
+		}
+		if (fr_write) {
+			ast_frame_free(fr_write, 0);
+		}
+
 	} else {
 		f = ast_audiohook_read_frame(&csth->spy_audiohook, samples, AST_AUDIOHOOK_DIRECTION_BOTH, ast_format_slin);
 	}
