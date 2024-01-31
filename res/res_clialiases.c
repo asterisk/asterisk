@@ -236,7 +236,7 @@ static void load_config(int reload)
 				continue;
 			}
 			ao2_link(cli_aliases, alias);
-			ast_verb(2, "Aliased CLI command '%s' to '%s'\n", v1->name, v1->value);
+			ast_verb(5, "Aliased CLI command '%s' to '%s'\n", v1->name, v1->value);
 			ao2_ref(alias, -1);
 		}
 	}

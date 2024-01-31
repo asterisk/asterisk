@@ -557,9 +557,9 @@ int ast_channel_register(const struct ast_channel_tech *tech)
 	chan->tech = tech;
 	AST_RWLIST_INSERT_HEAD(&backends, chan, list);
 
-	ast_debug(1, "Registered handler for '%s' (%s)\n", chan->tech->type, chan->tech->description);
+	ast_debug(5, "Registered handler for '%s' (%s)\n", chan->tech->type, chan->tech->description);
 
-	ast_verb(2, "Registered channel type '%s' (%s)\n", chan->tech->type, chan->tech->description);
+	ast_verb(5, "Registered channel type '%s' (%s)\n", chan->tech->type, chan->tech->description);
 
 	AST_RWLIST_UNLOCK(&backends);
 
@@ -571,7 +571,7 @@ void ast_channel_unregister(const struct ast_channel_tech *tech)
 {
 	struct chanlist *chan;
 
-	ast_debug(1, "Unregistering channel type '%s'\n", tech->type);
+	ast_debug(5, "Unregistering channel type '%s'\n", tech->type);
 
 	AST_RWLIST_WRLOCK(&backends);
 
@@ -579,7 +579,7 @@ void ast_channel_unregister(const struct ast_channel_tech *tech)
 		if (chan->tech == tech) {
 			AST_LIST_REMOVE_CURRENT(list);
 			ast_free(chan);
-			ast_verb(2, "Unregistered channel type '%s'\n", tech->type);
+			ast_verb(5, "Unregistered channel type '%s'\n", tech->type);
 			break;
 		}
 	}

@@ -305,7 +305,7 @@ int __ast_bucket_scheme_register(const char *name, struct ast_sorcery_wizard *bu
 
 	ao2_link_flags(schemes, scheme, OBJ_NOLOCK);
 
-	ast_verb(2, "Registered bucket scheme '%s'\n", name);
+	ast_verb(5, "Registered bucket scheme '%s'\n", name);
 
 	ast_module_shutdown_ref(module);
 

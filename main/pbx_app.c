@@ -182,7 +182,7 @@ int ast_register_application2(const char *app, int (*execute)(struct ast_channel
 	if (!cur)
 		AST_RWLIST_INSERT_TAIL(&apps, tmp, list);
 
-	ast_verb(2, "Registered application '" COLORIZE_FMT "'\n", COLORIZE(COLOR_BRCYAN, 0, tmp->name));
+	ast_verb(5, "Registered application '" COLORIZE_FMT "'\n", COLORIZE(COLOR_BRCYAN, 0, tmp->name));
 
 	AST_RWLIST_UNLOCK(&apps);
 
@@ -409,7 +409,7 @@ int ast_unregister_application(const char *app)
 			/* Found it. */
 			unreference_cached_app(cur);
 			AST_RWLIST_REMOVE_CURRENT(list);
-			ast_verb(2, "Unregistered application '%s'\n", cur->name);
+			ast_verb(5, "Unregistered application '%s'\n", cur->name);
 			ast_string_field_free_memory(cur);
 			ast_free(cur);
 			break;

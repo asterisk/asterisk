@@ -1192,7 +1192,7 @@ int modules_shutdown(void)
 			}
 			AST_DLLIST_REMOVE_CURRENT(entry);
 			if (mod->flags.running && !mod->flags.declined && mod->info->unload) {
-				ast_verb(1, "Unloading %s\n", mod->resource);
+				ast_verb(4, "Unloading %s\n", mod->resource);
 				mod->info->unload();
 			}
 			module_destroy(mod);
@@ -1259,7 +1259,7 @@ int ast_unload_resource(const char *resource_name, enum ast_module_unload_mode f
 		/* Request any channels attached to the module to hangup. */
 		__ast_module_user_hangup_all(mod);
 
-		ast_verb(1, "Unloading %s\n", mod->resource);
+		ast_verb(4, "Unloading %s\n", mod->resource);
 		res = mod->info->unload();
 		if (res) {
 			ast_log(LOG_WARNING, "Firm unload failed for %s\n", resource_name);
@@ -1713,16 +1713,16 @@ static enum ast_module_load_result start_resource(struct ast_module *mod)
 	}
 
 	if (!ast_fully_booted) {
-		ast_verb(1, "Loading %s.\n", mod->resource);
+		ast_verb(4, "Loading %s.\n", mod->resource);
 	}
 	res = mod->info->load();
 
 	switch (res) {
 	case AST_MODULE_LOAD_SUCCESS:
 		if (!ast_fully_booted) {
-			ast_verb(2, "%s => (%s)\n", mod->resource, term_color(tmp, mod->info->description, COLOR_BROWN, COLOR_BLACK, sizeof(tmp)));
+			ast_verb(5, "%s => (%s)\n", mod->resource, term_color(tmp, mod->info->description, COLOR_BROWN, COLOR_BLACK, sizeof(tmp)));
 		} else {
-			ast_verb(1, "Loaded %s => (%s)\n", mod->resource, mod->info->description);
+			ast_verb(4, "Loaded %s => (%s)\n", mod->resource, mod->info->description);
 		}
 
 		mod->flags.running = 1;
