@@ -837,8 +837,11 @@ static int speech_background(struct ast_channel *chan, const char *data)
 		switch (speech->state) {
 		case AST_SPEECH_STATE_READY:
 			/* If audio playback has stopped do a check for timeout purposes */
-			if (ast_channel_streamid(chan) == -1 && ast_channel_timingfunc(chan) == NULL)
+			if (ast_channel_streamid(chan) == -1 && ast_channel_timingfunc(chan) == NULL) {
+		        /* Copy to speech structure the results, if available */
+		        speech->results = ast_speech_results_get(speech);
 				ast_stopstream(chan);
+            }
 			if (!quieted && ast_channel_stream(chan) == NULL && timeout && started == 0 && !filename_tmp) {
 				if (timeout == -1) {
 					done = 1;
