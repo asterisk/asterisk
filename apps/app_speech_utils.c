@@ -933,6 +933,11 @@ static int speech_background(struct ast_channel *chan, const char *data)
 		}
 	}
 
+	/* Copy to speech structure the results, even partial ones, if available */
+	if (speech->state == AST_SPEECH_STATE_READY) {
+		speech->results = ast_speech_results_get(speech);
+	}
+
 	if (!ast_strlen_zero(dtmf)) {
 		/* We sort of make a results entry */
 		speech->results = ast_calloc(1, sizeof(*speech->results));
