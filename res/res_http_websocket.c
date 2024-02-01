@@ -1441,6 +1441,10 @@ struct ast_websocket *AST_OPTIONAL_API_NAME(ast_websocket_client_create)
 	(const char *uri, const char *protocols, struct ast_tls_config *tls_cfg,
 	 enum ast_websocket_result *result)
 {
+	if (!uri) {
+		return NULL;
+	}
+
 	struct ast_websocket_client_options options = {
 		.uri = uri,
 		.protocols = protocols,
