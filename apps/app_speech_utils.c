@@ -105,6 +105,9 @@
 					<option name="n">
 						<para>Don't answer the channel if it has not already been answered.</para>
 					</option>
+					<option name="p">
+						<para>Return partial results when backend is terminated by timeout.</para>
+					</option>
 				</optionlist>
 			</parameter>
 		</syntax>
@@ -700,10 +703,12 @@ static int speech_streamfile(struct ast_channel *chan, const char *filename, con
 
 enum {
 	SB_OPT_NOANSWER = (1 << 0),
+	SB_OPT_PARTIALRESULTS = (1 << 1),
 };
 
 AST_APP_OPTIONS(speech_background_options, BEGIN_OPTIONS
 	AST_APP_OPTION('n', SB_OPT_NOANSWER),
+	AST_APP_OPTION('p', SB_OPT_PARTIALRESULTS),
 END_OPTIONS );
 
 /*! \brief SpeechBackground(Sound File,Timeout) Dialplan Application */
@@ -933,7 +938,10 @@ static int speech_background(struct ast_channel *chan, const char *data)
 		}
 	}
 
-	if (!ast_strlen_zero(dtmf)) {
+	if (ast_strlen_zero(dtmf) && speech->state == AST_SPEECH_STATE_READY && ast_test_flag(&options, SB_OPT_PARTIALRESULTS)) {
+		/* Copy to speech structure the results, even partial ones, if desired and available */
+		speech->results = ast_speech_results_get(speech);
+	} else if (!ast_strlen_zero(dtmf)) {
 		/* We sort of make a results entry */
 		speech->results = ast_calloc(1, sizeof(*speech->results));
 		if (speech->results != NULL) {
