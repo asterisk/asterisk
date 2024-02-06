@@ -635,6 +635,7 @@ static void refer_blind_callback(struct ast_channel *chan, struct transfer_chann
 
 	static const pj_str_t str_referred_by = { "Referred-By", 11 };
 	static const pj_str_t str_referred_by_s = { "b", 1 };
+	const char *get_xfrdata;
 
 	pbx_builtin_setvar_helper(chan, "SIPTRANSFER", "yes");
 
@@ -732,6 +733,60 @@ static void refer_blind_callback(struct ast_channel *chan, struct transfer_chann
 	}
 
 	pbx_builtin_setvar_helper(chan, "SIPREFERRINGCONTEXT", S_OR(refer->context, NULL));
+
+	ast_channel_lock(chan);
+	if ((get_xfrdata = pbx_builtin_getvar_helper(chan, "GET_TRANSFERRER_DATA"))) {
+		get_xfrdata = ast_strdupa(get_xfrdata);
+	}
+	ast_channel_unlock(chan);
+	if (!ast_strlen_zero(get_xfrdata)) {
+		const pjsip_msg * msg = refer->rdata->msg_info.msg;
+		const struct pjsip_hdr *end = &msg->hdr;
+		struct pjsip_hdr *hdr = end->next;
+		struct ast_str *pbxvar = ast_str_create(64); /* initial buffer for variable name, extended on demand */
+		char buf[4096]; /* should be enough for one header value */
+		const char *prefix = get_xfrdata;
+
+		/* The '*' alone matches all headers. */
+		if (!strcmp(prefix, "*")) {
+			prefix = "";
+		}
+		if (pbxvar) {
+			for (; hdr != end; hdr = hdr->next) {
+				if (!pj_strnicmp2(&hdr->name, prefix, strlen(prefix))) {
+					const int hdr_name_strlen = pj_strlen(&hdr->name);
+					const int hdr_name_bytes = hdr_name_strlen + 1; /* +1 for string NULL terminator */
+					char hdr_name[hdr_name_bytes];
+					int len;
+					char *value_str;
+
+					ast_copy_pj_str(hdr_name, &hdr->name, hdr_name_bytes);
+					len = pjsip_hdr_print_on(hdr, buf, sizeof(buf) - 1);
+					if (len < 0) {
+						/* ignore too long headers */
+						ast_log(LOG_WARNING, "Could not store header '%s' from transfer on channel '%s' - too long text\n", hdr_name, ast_channel_name(chan));
+						continue;
+					}
+					buf[len] = '\0';
+
+					/* Get value - remove header name (before ':') from buf and trim blanks. */
+					value_str = strchr(buf, ':');
+					if (!value_str) {
+						/* Ignore header without value */
+						continue;
+					}
+					value_str = ast_strip(value_str + 1); /* +1 to get string right after the ':' delimiter (i.e. header value) */
+					
+					ast_str_set(&pbxvar, -1, "~HASH~TRANSFER_DATA~%.*s~", hdr_name_strlen, hdr_name);
+					pbx_builtin_setvar_helper(chan, ast_str_buffer(pbxvar), value_str);
+					ast_debug(5, "On channel '%s' set TRANSFER_DATA variable '%s' to value '%s' \n", ast_channel_name(chan), hdr_name, value_str);
+				}
+			}
+			ast_free(pbxvar);
+		} else {
+			ast_log(LOG_ERROR, "Channel '%s' failed to allocate buffer for TRANSFER_DATA variable\n", ast_channel_name(chan));
+		}
+	}
 
 	referred_by = pjsip_msg_find_hdr_by_names(refer->rdata->msg_info.msg,
 		&str_referred_by, &str_referred_by_s, NULL);
