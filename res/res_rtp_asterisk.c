@@ -6240,7 +6240,7 @@ static double calc_media_experience_score(struct ast_rtp_instance *instance,
 	} else if (r_value > 100) {
 		pseudo_mos = 4.5;
 	} else {
-		pseudo_mos = 1 + (0.035 * r_value) + (r_value * (r_value - 60) * (100 - r_value) * 0.0000007);
+		pseudo_mos = 1 + (0.035 * r_value) + (r_value * (r_value - 60) * (100 - r_value) * 0.000007);
 	}
 
 	/*
