@@ -343,6 +343,7 @@ static int cli_channelstats_print_body(void *obj, void *arg, int flags)
 	struct ast_sip_session *session;
 	struct ast_sip_session_media *media;
 	struct ast_rtp_instance_stats stats;
+	struct ast_stream *stream;
 	char *print_name = NULL;
 	char *print_time = alloca(32);
 	char codec_in_use[7];
@@ -359,16 +360,29 @@ static int cli_channelstats_print_body(void *obj, void *arg, int flags)
 
 	cpvt = ast_channel_tech_pvt(channel);
 	session = cpvt ? cpvt->session : NULL;
-	if (!session) {
+
+	if (!session
+		|| !session->active_media_state
+		|| !session->active_media_state->topology) {
 		ast_str_append(&context->output_buffer, 0, " %s not valid\n", snapshot->base->name);
 		ast_channel_unlock(channel);
 		ao2_cleanup(channel);
 		return 0;
 	}
 
+	stream = ast_stream_topology_get_first_stream_by_type(
+		session->active_media_state->topology, AST_MEDIA_TYPE_AUDIO);
+
+	if (!stream) {
+		ast_str_append(&context->output_buffer, 0, " %s no audio streams\n", snapshot->base->name);
+		ast_channel_unlock(channel);
+		ao2_cleanup(channel);
+		return 0;
+	}
+
 	media = session->active_media_state->default_session[AST_MEDIA_TYPE_AUDIO];
-	if (!media || !media->rtp) {
-		ast_str_append(&context->output_buffer, 0, " %s not valid\n", snapshot->base->name);
+	if (!media || media->type != AST_MEDIA_TYPE_AUDIO || !media->rtp) {
+		ast_str_append(&context->output_buffer, 0, " %s corrupted default audio session\n", snapshot->base->name);
 		ast_channel_unlock(channel);
 		ao2_cleanup(channel);
 		return 0;
