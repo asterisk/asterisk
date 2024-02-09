@@ -183,11 +183,18 @@ struct ast_speech *ast_speech_new(const char *engine_name, const struct ast_form
 	struct ast_speech_engine *engine = NULL;
 	struct ast_speech *new_speech = NULL;
 	struct ast_format_cap *joint;
+	char *engine_name_dyn = NULL;
+	char *engine_name_copy = NULL;
+	char *horse_name = NULL;
 	RAII_VAR(struct ast_format *, best, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_format *, best_translated, NULL, ao2_cleanup);
 
+	engine_name_copy = ast_strdup(engine_name);
+	engine_name_dyn = ast_strdup(ast_strsep(&engine_name_copy, '^', AST_STRSEP_ALL));
+	horse_name = ast_strsep(&engine_name_copy, '^', AST_STRSEP_ALL);
+
 	/* Try to find the speech recognition engine that was requested */
-	if (!(engine = ast_speech_find_engine(engine_name)))
+	if (!(engine = ast_speech_find_engine(engine_name_dyn)))
 		return NULL;
 
 	joint = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
@@ -229,6 +236,9 @@ struct ast_speech *ast_speech_new(const char *engine_name, const struct ast_form
 
 	/* Copy over our engine pointer */
 	new_speech->engine = engine;
+
+	/* Copy over our horse name pointer (could be NULL) */
+	new_speech->horse = horse_name;
 
 	/* Can't forget the format audio is going to be in */
 	new_speech->format = ao2_bump(best);
