@@ -2460,6 +2460,10 @@ int ast_rtp_instance_get_stats(struct ast_rtp_instance *instance, struct ast_rtp
 {
 	int res;
 
+	if (!instance || !instance->engine || !stats) {
+		return -1;
+	}
+
 	if (instance->engine->get_stat) {
 		ao2_lock(instance);
 		res = instance->engine->get_stat(instance, stats, stat);
