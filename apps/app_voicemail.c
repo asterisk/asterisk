@@ -2701,6 +2701,7 @@ static int imap_check_limits(struct ast_channel *chan, struct vm_state *vms, str
 		if (chan) {
 			ast_play_and_wait(chan, "vm-mailboxfull");
 			pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAILED");
+			pbx_builtin_setvar_helper(chan, "VMBXFULL", "TRUE");
 		}
 		return -1;
 	}
@@ -6919,6 +6920,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 				res = ast_waitstream(chan, "");
 			ast_log(AST_LOG_WARNING, "No more messages possible\n");
 			pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAILED");
+			pbx_builtin_setvar_helper(chan, "VMBXFULL", "TRUE");
 			inprocess_count(vmu->mailbox, vmu->context, -1);
 			goto leave_vm_out;
 		}
