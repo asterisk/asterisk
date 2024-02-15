@@ -1115,6 +1115,8 @@ static int handle_negotiated_sdp(struct ast_sip_session *session, const pjmedia_
 		SCOPE_EXIT_RTN_VALUE(-1, "Media stream count mismatch\n");
 	}
 
+	AST_VECTOR_RESET(&session->pending_media_state->read_callbacks, AST_VECTOR_ELEM_CLEANUP_NOOP);
+
 	for (i = 0; i < local->media_count; ++i) {
 		struct ast_sip_session_media *session_media;
 		struct ast_stream *stream;
