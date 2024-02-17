@@ -167,7 +167,7 @@
 				<configOption name="accepts_registrations" default="no">
 					<synopsis>Accept inbound registration from remote hosts.</synopsis>
 					<description><para>An AOR with dynamic contacts will be created.  If
-					the number of contacts nneds to be limited, set aor/max_contacts.</para></description>
+					the number of contacts needs to be limited, set aor/max_contacts.</para></description>
 				</configOption>
 				<configOption name="has_phoneprov" default="no">
 					<synopsis>Create a phoneprov object for this endpoint.</synopsis>
@@ -339,7 +339,7 @@ static void *create_object(const struct ast_sorcery *sorcery,
 	}
 
 	if (ast_sorcery_objectset_apply(sorcery, obj, vars)) {
-		ast_log(LOG_ERROR, "Unable to apply object type '%s' with id '%s'.  Check preceeding errors.\n", type, id);
+		ast_log(LOG_ERROR, "Unable to apply object type '%s' with id '%s'.  Check preceding errors.\n", type, id);
 		ao2_ref(obj, -1);
 		return NULL;
 	}
@@ -1128,7 +1128,7 @@ static void object_type_loaded_observer(const char *name,
 
 		search = ast_variable_new("@pjsip_wizard", id, "");
 		if (!search) {
-			ast_log(LOG_ERROR, "Unable to allocate memory for vaiable '@pjsip_wizard'.\n");
+			ast_log(LOG_ERROR, "Unable to allocate memory for variable '@pjsip_wizard'.\n");
 			break;
 		}
 		otw->wizard->retrieve_multiple(sorcery, otw->wizard_data, object_type, existing, search);
