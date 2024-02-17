@@ -753,7 +753,10 @@ char * attribute_pure ast_str_buffer(const struct ast_str *buf),
 	 * being returned; eventually, it should become truly const
 	 * and only be modified via accessor functions
 	 */
-	return (char *) buf->__AST_STR_STR;
+	if (__builtin_expect(buf->__AST_STR_LEN > 0, 1)) {
+		return (char *) buf->__AST_STR_STR;
+	}
+	return "";
 }
 )
 
