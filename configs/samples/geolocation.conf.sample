@@ -28,7 +28,7 @@ Channel drivers and the dialplan functions are responsible for
 associating Profiles to endpoints/devices and calls.  Normally, two
 profiles would be assigned to an endpoint to control behavior in each
 direction and to optionally specify location information.  One for
-incoming calls (Asterisk is the UAS) and and one for outgoing calls
+incoming calls (Asterisk is the UAS) and one for outgoing calls
 (Asterisk is the UAC).
 
 NOTE:
@@ -76,7 +76,7 @@ GML:          [RFC4119] [RFC5491] [GeoShape]
               outgoing INVITE messages in addition to any SDP.
 
 URI:          [RFC6442]
-              The external URI at which the the location information
+              The external URI at which the location information
               can be found.  For chan_pjsip, this URI will be placed
               in a "Geolocation" header in outgoing INVITE messages.
 
