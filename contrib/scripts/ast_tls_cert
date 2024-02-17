@@ -102,7 +102,7 @@ Example:
 To create a CA and a server (pbx.mycompany.com) cert with output in /tmp:
   ast_tls_cert -C pbx.mycompany.com -O "My Company" -d /tmp
 
-This will create a CA cert and key as well as asterisk.pem and the the two
+This will create a CA cert and key as well as asterisk.pem and the two
 files that it is made from: asterisk.crt and asterisk.key. Copy asterisk.pem
 and ca.crt somewhere (like /etc/asterisk) and set tlscertfile=/etc/asterisk.pem
 and tlscafile=/etc/ca.crt. Since this is a self-signed key, many devices will
