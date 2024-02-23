@@ -48,7 +48,7 @@ ANY special hardware, not even a sound card) to install and run Asterisk.
 
 Supported telephony hardware includes:
 * All Analog and Digital Interface cards from [Sangoma]
-* QuickNet Internet PhoneJack and LineJack (http://www.quicknet.net)
+* QuickNet Internet PhoneJack and LineJack
 * any full duplex sound card supported by ALSA, OSS, or PortAudio
 * any ISDN card supported by mISDN on Linux
 * The Xorcom Astribank channel bank
