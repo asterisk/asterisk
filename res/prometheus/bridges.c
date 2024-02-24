@@ -81,7 +81,8 @@ static void bridges_scrape_cb(struct ast_str **response)
 	struct ao2_container *bridges;
 	struct ao2_iterator it_bridges;
 	struct ast_bridge *bridge;
-	struct prometheus_metric *bridge_metrics;
+	struct prometheus_metric *metrics;
+	struct prometheus_metric **bridge_metrics;
 	char eid_str[32];
 	int i, j, num_bridges, num_outputs = 0;
 	struct prometheus_metric bridge_count = PROMETHEUS_METRIC_STATIC_INITIALIZATION(
@@ -116,8 +117,15 @@ static void bridges_scrape_cb(struct ast_str **response)
 		return;
 	}
 
-	bridge_metrics = ast_calloc(ARRAY_LEN(bridge_metric_defs) * num_bridges, sizeof(*bridge_metrics));
+	metrics = ast_calloc(ARRAY_LEN(bridge_metric_defs) * num_bridges, sizeof(*metrics));
+	if (!metrics) {
+		ao2_ref(bridges, -1);
+		return;
+	}
+
+	bridge_metrics = ast_calloc(ARRAY_LEN(bridge_metric_defs), sizeof(bridge_metrics));
 	if (!bridge_metrics) {
+		ast_free(metrics);
 		ao2_ref(bridges, -1);
 		return;
 	}
@@ -140,30 +148,35 @@ static void bridges_scrape_cb(struct ast_str **response)
 		for (j = 0; j < ARRAY_LEN(bridge_metric_defs); j++) {
 			int index = num_outputs++;
 
-			bridge_metrics[index].type = PROMETHEUS_METRIC_GAUGE;
-			ast_copy_string(bridge_metrics[index].name, bridge_metric_defs[j].name, sizeof(bridge_metrics[index].name));
-			bridge_metrics[index].help = bridge_metric_defs[j].help;
-			PROMETHEUS_METRIC_SET_LABEL(&bridge_metrics[index], 0, "eid", eid_str);
-			PROMETHEUS_METRIC_SET_LABEL(&bridge_metrics[index], 1, "id", (snapshot->uniqueid));
-			PROMETHEUS_METRIC_SET_LABEL(&bridge_metrics[index], 2, "tech", (snapshot->technology));
-			PROMETHEUS_METRIC_SET_LABEL(&bridge_metrics[index], 3, "subclass", (snapshot->subclass));
-			PROMETHEUS_METRIC_SET_LABEL(&bridge_metrics[index], 4, "creator", (snapshot->creator));
-			PROMETHEUS_METRIC_SET_LABEL(&bridge_metrics[index], 5, "name", (snapshot->name));
-			bridge_metric_defs[j].get_value(&bridge_metrics[index], snapshot);
+			metrics[index].type = PROMETHEUS_METRIC_GAUGE;
+			ast_copy_string(metrics[index].name, bridge_metric_defs[j].name, sizeof(metrics[index].name));
+			metrics[index].help = bridge_metric_defs[j].help;
+			PROMETHEUS_METRIC_SET_LABEL(&metrics[index], 0, "eid", eid_str);
+			PROMETHEUS_METRIC_SET_LABEL(&metrics[index], 1, "id", (snapshot->uniqueid));
+			PROMETHEUS_METRIC_SET_LABEL(&metrics[index], 2, "tech", (snapshot->technology));
+			PROMETHEUS_METRIC_SET_LABEL(&metrics[index], 3, "subclass", (snapshot->subclass));
+			PROMETHEUS_METRIC_SET_LABEL(&metrics[index], 4, "creator", (snapshot->creator));
+			PROMETHEUS_METRIC_SET_LABEL(&metrics[index], 5, "name", (snapshot->name));
+			bridge_metric_defs[j].get_value(&metrics[index], snapshot);
 
-			if (i > 0) {
-				AST_LIST_INSERT_TAIL(&bridge_metrics[j].children, &bridge_metrics[index], entry);
+			if (bridge_metrics[j] == NULL) {
+				bridge_metrics[j] = &metrics[index];
+			} else {
+				AST_LIST_INSERT_TAIL(&bridge_metrics[j]->children, &metrics[index], entry);
 			}
 		}
 		ao2_ref(snapshot, -1);
 	}
 	ao2_iterator_destroy(&it_bridges);
 
-	for (j = 0; j < num_outputs; j++) {
-		prometheus_metric_to_string(&bridge_metrics[j], response);
+	for (j = 0; j < ARRAY_LEN(bridge_metric_defs); j++) {
+		if (bridge_metrics[j]) {
+			prometheus_metric_to_string(bridge_metrics[j], response);
+		}
 	}
 
 	ast_free(bridge_metrics);
+	ast_free(metrics);
 	ao2_ref(bridges, -1);
 }
 
