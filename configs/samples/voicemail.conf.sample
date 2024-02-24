@@ -293,7 +293,8 @@ sendvoicemail=yes ; Allow the user to compose and send a voicemail while inside
 			;     if not listed, calling the sender back will not be permitted
 ; exitcontext=fromvm    ; Context to go to on user exit such as * or 0
                         ;     The default is the current context.
-; review=yes 		; Allow sender to review/rerecord their message before saving it [OFF by default
+; review=yes 		; Allow sender to review/rerecord their message before saving it [OFF by default]
+; leaveurgent=yes   ; Allow senders to leave messages that are marked as 'Urgent' [ON by default]
 ; operator=yes      ; Allow sender to hit 0 before/after/during leaving a voicemail to
                     ; reach an operator.  This option REQUIRES an 'o' extension in the
                     ; same context (or in exitcontext, if set), as that is where the
