@@ -710,10 +710,23 @@ static void safe_bridge_destroy(struct ast_bridge *bridge)
 	ast_bridge_destroy(bridge, 0);
 }
 
+static int match_count(const char *str, const char *needle)
+{
+	int count = 0;
+
+	while ((str = strstr(str, needle))) {
+		str += strlen(needle);
+		count++;
+	}
+
+	return count;
+}
+
 AST_TEST_DEFINE(bridge_to_string)
 {
 	RAII_VAR(struct ast_bridge *, bridge1, NULL, safe_bridge_destroy);
 	RAII_VAR(struct ast_bridge *, bridge2, NULL, safe_bridge_destroy);
+	RAII_VAR(struct ast_bridge *, bridge3, NULL, safe_bridge_destroy);
 	struct ast_str *response;
 
 	switch (cmd) {
@@ -736,6 +749,9 @@ AST_TEST_DEFINE(bridge_to_string)
 		AST_BRIDGE_FLAG_INVISIBLE,
 		"test_res_prometheus", "test_bridge_invisible", NULL);
 
+	bridge3 = ast_bridge_basic_new();
+	ast_test_validate(test, bridge3 != NULL);
+
 	response = prometheus_scrape_to_string();
 	if (!response) {
 		return AST_TEST_FAIL;
@@ -744,6 +760,7 @@ AST_TEST_DEFINE(bridge_to_string)
 	ast_test_status_update(test, " -> Retrieved: %s\n", ast_str_buffer(response));
 	ast_test_validate(test, strstr(ast_str_buffer(response), "(null)") == NULL);
 	ast_test_validate(test, strstr(ast_str_buffer(response), "asterisk_bridges_channels_count{") != NULL);
+	ast_test_validate(test, match_count(ast_str_buffer(response), "# HELP asterisk_bridges_channels_count Number of channels in the bridge.") == 1);
 	ast_free(response);
 	return AST_TEST_PASS;
 }
