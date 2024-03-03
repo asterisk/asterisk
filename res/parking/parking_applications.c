@@ -567,7 +567,7 @@ static int park_app_exec(struct ast_channel *chan, const char *data)
 	RAII_VAR(struct ast_bridge *, parking_bridge, NULL, ao2_cleanup);
 
 	struct ast_bridge_features chan_features;
-	int res;
+	int res = 0;
 	int silence_announcements = 0;
 	int blind_transfer;
 
@@ -591,14 +591,15 @@ static int park_app_exec(struct ast_channel *chan, const char *data)
 
 	/* Initialize bridge features for the channel. */
 	res = ast_bridge_features_init(&chan_features);
-	if (res) {
+	/* Now for the fun part... park it! */
+	if (res || ast_bridge_join(parking_bridge, chan, NULL, &chan_features, NULL, 0)) {
+		if (!silence_announcements && !blind_transfer) {
+			ast_stream_and_wait(chan, "pbx-parkingfailed", "");
+		}
 		ast_bridge_features_cleanup(&chan_features);
 		publish_parked_call_failure(chan);
-		return -1;
+		return res;
 	}
-
-	/* Now for the fun part... park it! */
-	ast_bridge_join(parking_bridge, chan, NULL, &chan_features, NULL, 0);
 
 	/*
 	 * If the bridge was broken for a hangup that isn't real, then
