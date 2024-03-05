@@ -50,18 +50,20 @@ jobs:
           unittest_command:  ${{env.UNITTEST_COMMAND}}
 
   PRSGateTestMatrix:
+    runs-on: ubuntu-latest
     needs: PRSGetControlData
-    env:
-      TESTSUITE_REPO:    "${{ fromJSON(needs.PRSGetControlData.outputs.control_data).TESTSUITE_REPO }}"
-      GATETEST_COMMANDS: "${{ fromJSON(needs.PRSGetControlData.outputs.control_data).GATETEST_COMMANDS }}"
     continue-on-error: false
     strategy:
       fail-fast: false
       matrix:
         group: ${{ fromJSON(fromJSON(needs.PRSGetControlData.outputs.control_data).GATETEST_LIST) }}
-    runs-on: ubuntu-latest
+    env:
+      TESTSUITE_REPO:    "${{ fromJSON(needs.PRSGetControlData.outputs.control_data).TESTSUITE_REPO }}"
+      GATETEST_COMMANDS: "${{ fromJSON(needs.PRSGetControlData.outputs.control_data).GATETEST_COMMANDS }}"
+      GATETEST_COMMAND: "${{ toJSON(fromJSON(fromJSON(needs.PRSGetControlData.outputs.control_data).GATETEST_COMMANDS)[matrix.group]) }}"
     steps:
       - id: runtest
+        timeout-minutes: ${{ fromJSON(env.GATETEST_COMMAND).timeout }} 
         name: Run Gate Tests for ${{ matrix.group }}
         uses: asterisk/asterisk-ci-actions/AsteriskGateComposite@main
         with:
@@ -71,7 +73,7 @@ jobs:
           base_branch:       ${{env.BRANCH}}
           testsuite_repo:    ${{env.TESTSUITE_REPO}}
           gatetest_group:    ${{matrix.group}}
-          gatetest_commands: ${{env.GATETEST_COMMANDS}}
+          gatetest_command:  ${{env.GATETEST_COMMAND}}
 
   PRSTestResults:
     if: always()
