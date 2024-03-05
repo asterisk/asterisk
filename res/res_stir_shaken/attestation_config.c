@@ -179,7 +179,7 @@ int as_check_common_config(const char *id, struct attestation_cfg_common *acfg_c
 
 	if (!ast_strlen_zero(acfg_common->private_key_file)) {
 		EVP_PKEY *private_key;
-		RAII_VAR(unsigned char *, raw_key, NULL, ast_std_free);
+		RAII_VAR(unsigned char *, raw_key, NULL, ast_free);
 
 		private_key = crypto_load_privkey_from_file(acfg_common->private_key_file);
 		if (!private_key) {
