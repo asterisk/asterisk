@@ -63,7 +63,6 @@ jobs:
       GATETEST_COMMAND: "${{ toJSON(fromJSON(fromJSON(needs.PRSGetControlData.outputs.control_data).GATETEST_COMMANDS)[matrix.group]) }}"
     steps:
       - id: runtest
-        timeout-minutes: ${{ fromJSON(env.GATETEST_COMMAND).timeout }} 
         name: Run Gate Tests for ${{ matrix.group }}
         uses: asterisk/asterisk-ci-actions/AsteriskGateComposite@main
         with:
