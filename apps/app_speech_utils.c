@@ -39,6 +39,8 @@
 #include "asterisk/lock.h"
 #include "asterisk/app.h"
 #include "asterisk/speech.h"
+#include "asterisk/stasis_channels.h"
+#include "asterisk/stasis_cache_pattern.h"
 
 /*** DOCUMENTATION
 	<application name="SpeechCreate" language="en_US">
@@ -120,6 +122,8 @@
 			and ${SPEECH_SCORE(1)}.</para>
 			<para>The first argument is the sound file and the second is the timeout integer in seconds.</para>
 			<para>Hangs up the channel on failure. If this is not desired, use TryExec.</para>
+			<para>To ensure the audio playback halts immediately upon user speech initiates, please call the
+            TALK_DETECT function, along with its pertinent options, prior to invoking this application within the dialplan.</para>
 
 		</description>
 	</application>
@@ -703,13 +707,26 @@ static int speech_streamfile(struct ast_channel *chan, const char *filename, con
 
 enum {
 	SB_OPT_NOANSWER = (1 << 0),
-	SB_OPT_PARTIALRESULTS = (1 << 1),
+    SB_OPT_PARTIALRESULTS = (1 << 1),
 };
 
 AST_APP_OPTIONS(speech_background_options, BEGIN_OPTIONS
 	AST_APP_OPTION('n', SB_OPT_NOANSWER),
-	AST_APP_OPTION('p', SB_OPT_PARTIALRESULTS),
+    AST_APP_OPTION('p', SB_OPT_PARTIALRESULTS),
 END_OPTIONS );
+
+/* Callback function that will act upon talkdetect events*/
+static void speech_event_cb(void *userdata, struct stasis_subscription *sub, struct stasis_message *msg)
+{
+    struct ast_speech *speech = userdata;
+
+    if (stasis_message_type(msg) == ast_channel_talking_start()) {
+        ast_set_flag(speech, AST_SPEECH_QUIET);
+
+    } else if (stasis_message_type(msg) == ast_channel_talking_stop()) {
+        ast_speech_change_state(speech, AST_SPEECH_STATE_WAIT);
+    }
+}
 
 /*! \brief SpeechBackground(Sound File,Timeout) Dialplan Application */
 static int speech_background(struct ast_channel *chan, const char *data)
@@ -718,7 +735,7 @@ static int speech_background(struct ast_channel *chan, const char *data)
 	int res = 0, done = 0, started = 0, quieted = 0, max_dtmf_len = 0;
 	struct ast_speech *speech = find_speech(chan);
 	struct ast_frame *f = NULL;
-	RAII_VAR(struct ast_format *, oldreadformat, NULL, ao2_cleanup);
+    RAII_VAR(struct ast_format *, oldreadformat, NULL, ao2_cleanup);
 	char dtmf[AST_MAX_EXTENSION] = "";
 	struct timeval start = { 0, 0 }, current;
 	char *parse, *filename_tmp = NULL, *filename = NULL, tmp[2] = "", dtmf_terminator = '#';
@@ -788,9 +805,13 @@ static int speech_background(struct ast_channel *chan, const char *data)
 	/* Ensure no streams are currently running */
 	ast_stopstream(chan);
 
+    /*Subscribe to talkdetect function output*/
+    struct stasis_subscription *sub;
+    sub = stasis_subscribe(ast_channel_topic(chan), speech_event_cb, speech);
+
 	/* Okay it's streaming so go into a loop grabbing frames! */
 	while (done == 0) {
-		/* If the filename is null and stream is not running, start up a new sound file */
+        /* If the filename is null and stream is not running, start up a new sound file */
 		if (!quieted
 			&& ast_channel_streamid(chan) == -1
 			&& ast_channel_timingfunc(chan) == NULL
@@ -890,6 +911,11 @@ static int speech_background(struct ast_channel *chan, const char *data)
 				if (ast_channel_stream(chan) != NULL) {
 					ast_stopstream(chan);
 				}
+                /*Clear subscription*/
+                if (sub != NULL) {
+                    stasis_unsubscribe(sub);
+                    sub = NULL;
+                }
 			}
 			break;
 		default:
@@ -937,11 +963,26 @@ static int speech_background(struct ast_channel *chan, const char *data)
 			f = NULL;
 		}
 	}
-
-	if (ast_strlen_zero(dtmf) && speech->state == AST_SPEECH_STATE_READY && ast_test_flag(&options, SB_OPT_PARTIALRESULTS)) {
-		/* Copy to speech structure the results, even partial ones, if desired and available */
-		speech->results = ast_speech_results_get(speech);
-	} else if (!ast_strlen_zero(dtmf)) {
+    if (ast_strlen_zero(dtmf) && speech->state == AST_SPEECH_STATE_READY && ast_test_flag(&options, SB_OPT_PARTIALRESULTS)) {
+        /* Copy to speech structure the results, even partial ones, if desired and available */
+        speech->results = ast_speech_results_get(speech);
+    } else if (!ast_strlen_zero(dtmf)) {
+        /* We sort of make a results entry */
+        speech->results = ast_calloc(1, sizeof(*speech->results));
+        if (speech->results != NULL) {
+            ast_speech_dtmf(speech, dtmf);
+            speech->results->score = 1000;
+            speech->results->text = ast_strdup(dtmf);
+            speech->results->grammar = ast_strdup("dtmf");
+        }
+        ast_speech_change_state(speech, AST_SPEECH_STATE_NOT_READY);
+    }
+    /*Clear subscription*/
+    if (sub != NULL) {
+        stasis_unsubscribe(sub);
+        sub = NULL;
+    }
+	if (!ast_strlen_zero(dtmf)) {
 		/* We sort of make a results entry */
 		speech->results = ast_calloc(1, sizeof(*speech->results));
 		if (speech->results != NULL) {
