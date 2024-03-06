@@ -123,8 +123,9 @@ jobs:
           REVIEWERS: ${{vars.PR_REVIEWERS}}
         with:
           retries: 5
+          github-token: ${{ secrets.ASTERISKTEAM_PAT }}
           script: |
-            let rs = JSON.parse(process.env.REVIEWERS);
+            let rs = JSON.parse(process.env.REVIEWERS.length ? process.env.REVIEWERS : '[]');
             let users = [];
             let teams = [];
             for (const r of rs) {
