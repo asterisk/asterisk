@@ -35,5 +35,11 @@ ALTER TABLE voicemail_messages ALTER COLUMN recording TYPE BYTEA;
 
 UPDATE alembic_version SET version_num='39428242f7f5' WHERE alembic_version.version_num = 'a2e9769475e';
 
+-- Running upgrade 39428242f7f5 -> 1c55c341360f
+
+ALTER TABLE voicemail_messages DROP COLUMN macrocontext;
+
+UPDATE alembic_version SET version_num='1c55c341360f' WHERE alembic_version.version_num = '39428242f7f5';
+
 COMMIT;
 
