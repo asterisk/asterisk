@@ -1474,3 +1474,204 @@ ALTER TABLE ps_transports MODIFY method ENUM('default','unspecified','tlsv1','tl
 
 UPDATE alembic_version SET version_num='37a5332640e2' WHERE alembic_version.version_num = 'dac2b4c328b8';
 
+-- Running upgrade 37a5332640e2 -> 24c12d8e9014
+
+UPDATE alembic_version SET version_num='24c12d8e9014' WHERE alembic_version.version_num = '37a5332640e2';
+
+-- Running upgrade 24c12d8e9014 -> bd335bae5d33
+
+CREATE TABLE stir_tn (
+    id VARCHAR(80) NOT NULL, 
+    private_key_file VARCHAR(1024), 
+    public_cert_url VARCHAR(1024), 
+    attest_level VARCHAR(1), 
+    send_mky ENUM('0','1','off','on','false','true','no','yes'), 
+    PRIMARY KEY (id)
+);
+
+UPDATE alembic_version SET version_num='bd335bae5d33' WHERE alembic_version.version_num = '24c12d8e9014';
+
+-- Running upgrade bd335bae5d33 -> 74dc751dfe8e
+
+ALTER TABLE ps_aors MODIFY authenticate_qualify ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_aors MODIFY remove_existing ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_aors MODIFY remove_unavailable ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_aors MODIFY support_path ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_asterisk_publications MODIFY device_state ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_asterisk_publications MODIFY mailbox_state ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_contacts MODIFY authenticate_qualify ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_contacts MODIFY prune_on_boot ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoint_id_ips MODIFY srv_lookups ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY `100rel` ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY accept_multiple_sdp_answers ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY aggregate_mwi ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY allow_overlap ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY allow_subscribe ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY allow_transfer ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY allow_unauthenticated_options ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY asymmetric_rtp_codec ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY bind_rtp_to_media_address ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY bundle ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY direct_media ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY disable_direct_media_on_nat ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY dtls_auto_generate_cert ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY fax_detect ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY follow_early_media_fork ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY force_avp ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY force_rport ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY g726_non_standard ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY ice_support ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY ignore_183_without_sdp ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY inband_progress ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY media_encryption_optimistic ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY media_use_received_transport ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY moh_passthrough ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY mwi_subscribe_replaces_unsolicited ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY notify_early_inuse_ringing ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY one_touch_recording ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY preferred_codec_only ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY refer_blind_progress ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY rewrite_contact ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY rpid_immediate ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY rtcp_mux ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY rtp_ipv6 ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY rtp_symmetric ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY send_aoc ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY send_connected_line ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY send_diversion ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY send_history_info ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY send_pai ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY send_rpid ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY srtp_tag_32 ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY stir_shaken ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY suppress_q850_reason_headers ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY t38_bind_udptl_to_media_address ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY t38_udptl ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY t38_udptl_ipv6 ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY t38_udptl_nat ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY timers ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY trust_connected_line ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY trust_id_inbound ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY trust_id_outbound ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY use_avpf ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY use_ptime ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY user_eq_phone ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_endpoints MODIFY webrtc ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_globals MODIFY all_codecs_on_empty_reinvite ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_globals MODIFY allow_sending_180_after_183 ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_globals MODIFY disable_multi_domain ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_globals MODIFY ignore_uri_user_options ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_globals MODIFY mwi_disable_initial_unsolicited ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_globals MODIFY norefersub ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_globals MODIFY send_contact_status_on_update_registration ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_globals MODIFY use_callerid_contact ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_outbound_publishes MODIFY multi_user ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_registrations MODIFY auth_rejection_permanent ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_registrations MODIFY line ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_registrations MODIFY support_path ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_resource_list MODIFY full_state ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_resource_list MODIFY resource_display_name ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_subscription_persistence MODIFY prune_on_boot ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_systems MODIFY accept_multiple_sdp_answers ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_systems MODIFY compact_headers ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_systems MODIFY disable_rport ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_systems MODIFY disable_tcp_switch ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_systems MODIFY follow_early_media_fork ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_transports MODIFY allow_reload ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_transports MODIFY allow_wildcard_certs ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_transports MODIFY require_client_cert ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_transports MODIFY symmetric_transport ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_transports MODIFY verify_client ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+ALTER TABLE ps_transports MODIFY verify_server ENUM('0','1','off','on','false','true','no','yes') NULL;
+
+UPDATE alembic_version SET version_num='74dc751dfe8e' WHERE alembic_version.version_num = 'bd335bae5d33';
+
