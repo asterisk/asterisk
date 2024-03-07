@@ -671,6 +671,19 @@ enum {
 	MON_FLAG_DROP_IN =  (1 << 2),
 	MON_FLAG_DROP_OUT = (1 << 3),
 	MON_FLAG_BEEP =     (1 << 4),
+
+	/*!
+	 * \brief Dummy option to silence WARNINGs.
+	 *
+	 * Application argument processing was updated to emit a WARNING when an
+	 * unrecognized option was encountered. Previously, unrecognized options
+	 * were silently ignored which was taken advantage of by code in this module
+	 * to "stamp out" problematic application arguments and replace them with 'X.'
+	 *
+	 * So to silence the warning we add 'X' as a valid option and just don't do
+	 * anything if it's set.
+	 */
+	MON_FLAG_DUMMY =    (1 << 5),
 };
 
 enum {
@@ -684,6 +697,7 @@ AST_APP_OPTIONS(monitor_opts, {
 	AST_APP_OPTION('i', MON_FLAG_DROP_IN),
 	AST_APP_OPTION('o', MON_FLAG_DROP_OUT),
 	AST_APP_OPTION_ARG('B', MON_FLAG_BEEP, OPT_ARG_BEEP_INTERVAL),
+	AST_APP_OPTION('X', MON_FLAG_DUMMY),
 });
 
 /*!
