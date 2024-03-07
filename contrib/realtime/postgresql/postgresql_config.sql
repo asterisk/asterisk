@@ -1598,5 +1598,206 @@ DROP TYPE pjsip_transport_method_values;
 
 UPDATE alembic_version SET version_num='37a5332640e2' WHERE alembic_version.version_num = 'dac2b4c328b8';
 
+-- Running upgrade 37a5332640e2 -> 24c12d8e9014
+
+UPDATE alembic_version SET version_num='24c12d8e9014' WHERE alembic_version.version_num = '37a5332640e2';
+
+-- Running upgrade 24c12d8e9014 -> bd335bae5d33
+
+CREATE TABLE stir_tn (
+    id VARCHAR(80) NOT NULL, 
+    private_key_file VARCHAR(1024), 
+    public_cert_url VARCHAR(1024), 
+    attest_level VARCHAR(1), 
+    send_mky ast_bool_values, 
+    PRIMARY KEY (id)
+);
+
+UPDATE alembic_version SET version_num='bd335bae5d33' WHERE alembic_version.version_num = '24c12d8e9014';
+
+-- Running upgrade bd335bae5d33 -> 74dc751dfe8e
+
+ALTER TABLE ps_aors ALTER COLUMN authenticate_qualify TYPE ast_bool_values USING "authenticate_qualify"::text::ast_bool_values;
+
+ALTER TABLE ps_aors ALTER COLUMN remove_existing TYPE ast_bool_values USING "remove_existing"::text::ast_bool_values;
+
+ALTER TABLE ps_aors ALTER COLUMN remove_unavailable TYPE ast_bool_values USING "remove_unavailable"::text::ast_bool_values;
+
+ALTER TABLE ps_aors ALTER COLUMN support_path TYPE ast_bool_values USING "support_path"::text::ast_bool_values;
+
+ALTER TABLE ps_asterisk_publications ALTER COLUMN device_state TYPE ast_bool_values USING "device_state"::text::ast_bool_values;
+
+ALTER TABLE ps_asterisk_publications ALTER COLUMN mailbox_state TYPE ast_bool_values USING "mailbox_state"::text::ast_bool_values;
+
+ALTER TABLE ps_contacts ALTER COLUMN authenticate_qualify TYPE ast_bool_values USING "authenticate_qualify"::text::ast_bool_values;
+
+ALTER TABLE ps_contacts ALTER COLUMN prune_on_boot TYPE ast_bool_values USING "prune_on_boot"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoint_id_ips ALTER COLUMN srv_lookups TYPE ast_bool_values USING "srv_lookups"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN "100rel" TYPE ast_bool_values USING "100rel"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN accept_multiple_sdp_answers TYPE ast_bool_values USING "accept_multiple_sdp_answers"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN aggregate_mwi TYPE ast_bool_values USING "aggregate_mwi"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN allow_overlap TYPE ast_bool_values USING "allow_overlap"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN allow_subscribe TYPE ast_bool_values USING "allow_subscribe"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN allow_transfer TYPE ast_bool_values USING "allow_transfer"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN allow_unauthenticated_options TYPE ast_bool_values USING "allow_unauthenticated_options"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN asymmetric_rtp_codec TYPE ast_bool_values USING "asymmetric_rtp_codec"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN bind_rtp_to_media_address TYPE ast_bool_values USING "bind_rtp_to_media_address"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN bundle TYPE ast_bool_values USING "bundle"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN direct_media TYPE ast_bool_values USING "direct_media"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN disable_direct_media_on_nat TYPE ast_bool_values USING "disable_direct_media_on_nat"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN dtls_auto_generate_cert TYPE ast_bool_values USING "dtls_auto_generate_cert"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN fax_detect TYPE ast_bool_values USING "fax_detect"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN follow_early_media_fork TYPE ast_bool_values USING "follow_early_media_fork"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN force_avp TYPE ast_bool_values USING "force_avp"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN force_rport TYPE ast_bool_values USING "force_rport"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN g726_non_standard TYPE ast_bool_values USING "g726_non_standard"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN ice_support TYPE ast_bool_values USING "ice_support"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN ignore_183_without_sdp TYPE ast_bool_values USING "ignore_183_without_sdp"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN inband_progress TYPE ast_bool_values USING "inband_progress"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN media_encryption_optimistic TYPE ast_bool_values USING "media_encryption_optimistic"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN media_use_received_transport TYPE ast_bool_values USING "media_use_received_transport"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN moh_passthrough TYPE ast_bool_values USING "moh_passthrough"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN mwi_subscribe_replaces_unsolicited TYPE ast_bool_values USING "mwi_subscribe_replaces_unsolicited"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN notify_early_inuse_ringing TYPE ast_bool_values USING "notify_early_inuse_ringing"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN one_touch_recording TYPE ast_bool_values USING "one_touch_recording"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN preferred_codec_only TYPE ast_bool_values USING "preferred_codec_only"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN refer_blind_progress TYPE ast_bool_values USING "refer_blind_progress"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN rewrite_contact TYPE ast_bool_values USING "rewrite_contact"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN rpid_immediate TYPE ast_bool_values USING "rpid_immediate"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN rtcp_mux TYPE ast_bool_values USING "rtcp_mux"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN rtp_ipv6 TYPE ast_bool_values USING "rtp_ipv6"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN rtp_symmetric TYPE ast_bool_values USING "rtp_symmetric"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN send_aoc TYPE ast_bool_values USING "send_aoc"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN send_connected_line TYPE ast_bool_values USING "send_connected_line"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN send_diversion TYPE ast_bool_values USING "send_diversion"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN send_history_info TYPE ast_bool_values USING "send_history_info"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN send_pai TYPE ast_bool_values USING "send_pai"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN send_rpid TYPE ast_bool_values USING "send_rpid"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN srtp_tag_32 TYPE ast_bool_values USING "srtp_tag_32"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN stir_shaken TYPE ast_bool_values USING "stir_shaken"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN suppress_q850_reason_headers TYPE ast_bool_values USING "suppress_q850_reason_headers"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN t38_bind_udptl_to_media_address TYPE ast_bool_values USING "t38_bind_udptl_to_media_address"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN t38_udptl TYPE ast_bool_values USING "t38_udptl"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN t38_udptl_ipv6 TYPE ast_bool_values USING "t38_udptl_ipv6"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN t38_udptl_nat TYPE ast_bool_values USING "t38_udptl_nat"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN timers TYPE ast_bool_values USING "timers"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN trust_connected_line TYPE ast_bool_values USING "trust_connected_line"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN trust_id_inbound TYPE ast_bool_values USING "trust_id_inbound"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN trust_id_outbound TYPE ast_bool_values USING "trust_id_outbound"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN use_avpf TYPE ast_bool_values USING "use_avpf"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN use_ptime TYPE ast_bool_values USING "use_ptime"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN user_eq_phone TYPE ast_bool_values USING "user_eq_phone"::text::ast_bool_values;
+
+ALTER TABLE ps_endpoints ALTER COLUMN webrtc TYPE ast_bool_values USING "webrtc"::text::ast_bool_values;
+
+ALTER TABLE ps_globals ALTER COLUMN all_codecs_on_empty_reinvite TYPE ast_bool_values USING "all_codecs_on_empty_reinvite"::text::ast_bool_values;
+
+ALTER TABLE ps_globals ALTER COLUMN allow_sending_180_after_183 TYPE ast_bool_values USING "allow_sending_180_after_183"::text::ast_bool_values;
+
+ALTER TABLE ps_globals ALTER COLUMN disable_multi_domain TYPE ast_bool_values USING "disable_multi_domain"::text::ast_bool_values;
+
+ALTER TABLE ps_globals ALTER COLUMN ignore_uri_user_options TYPE ast_bool_values USING "ignore_uri_user_options"::text::ast_bool_values;
+
+ALTER TABLE ps_globals ALTER COLUMN mwi_disable_initial_unsolicited TYPE ast_bool_values USING "mwi_disable_initial_unsolicited"::text::ast_bool_values;
+
+ALTER TABLE ps_globals ALTER COLUMN norefersub TYPE ast_bool_values USING "norefersub"::text::ast_bool_values;
+
+ALTER TABLE ps_globals ALTER COLUMN send_contact_status_on_update_registration TYPE ast_bool_values USING "send_contact_status_on_update_registration"::text::ast_bool_values;
+
+ALTER TABLE ps_globals ALTER COLUMN use_callerid_contact TYPE ast_bool_values USING "use_callerid_contact"::text::ast_bool_values;
+
+ALTER TABLE ps_outbound_publishes ALTER COLUMN multi_user TYPE ast_bool_values USING "multi_user"::text::ast_bool_values;
+
+ALTER TABLE ps_registrations ALTER COLUMN auth_rejection_permanent TYPE ast_bool_values USING "auth_rejection_permanent"::text::ast_bool_values;
+
+ALTER TABLE ps_registrations ALTER COLUMN line TYPE ast_bool_values USING "line"::text::ast_bool_values;
+
+ALTER TABLE ps_registrations ALTER COLUMN support_path TYPE ast_bool_values USING "support_path"::text::ast_bool_values;
+
+ALTER TABLE ps_resource_list ALTER COLUMN full_state TYPE ast_bool_values USING "full_state"::text::ast_bool_values;
+
+ALTER TABLE ps_resource_list ALTER COLUMN resource_display_name TYPE ast_bool_values USING "resource_display_name"::text::ast_bool_values;
+
+ALTER TABLE ps_subscription_persistence ALTER COLUMN prune_on_boot TYPE ast_bool_values USING "prune_on_boot"::text::ast_bool_values;
+
+ALTER TABLE ps_systems ALTER COLUMN accept_multiple_sdp_answers TYPE ast_bool_values USING "accept_multiple_sdp_answers"::text::ast_bool_values;
+
+ALTER TABLE ps_systems ALTER COLUMN compact_headers TYPE ast_bool_values USING "compact_headers"::text::ast_bool_values;
+
+ALTER TABLE ps_systems ALTER COLUMN disable_rport TYPE ast_bool_values USING "disable_rport"::text::ast_bool_values;
+
+ALTER TABLE ps_systems ALTER COLUMN disable_tcp_switch TYPE ast_bool_values USING "disable_tcp_switch"::text::ast_bool_values;
+
+ALTER TABLE ps_systems ALTER COLUMN follow_early_media_fork TYPE ast_bool_values USING "follow_early_media_fork"::text::ast_bool_values;
+
+ALTER TABLE ps_transports ALTER COLUMN allow_reload TYPE ast_bool_values USING "allow_reload"::text::ast_bool_values;
+
+ALTER TABLE ps_transports ALTER COLUMN allow_wildcard_certs TYPE ast_bool_values USING "allow_wildcard_certs"::text::ast_bool_values;
+
+ALTER TABLE ps_transports ALTER COLUMN require_client_cert TYPE ast_bool_values USING "require_client_cert"::text::ast_bool_values;
+
+ALTER TABLE ps_transports ALTER COLUMN symmetric_transport TYPE ast_bool_values USING "symmetric_transport"::text::ast_bool_values;
+
+ALTER TABLE ps_transports ALTER COLUMN verify_client TYPE ast_bool_values USING "verify_client"::text::ast_bool_values;
+
+ALTER TABLE ps_transports ALTER COLUMN verify_server TYPE ast_bool_values USING "verify_server"::text::ast_bool_values;
+
+UPDATE alembic_version SET version_num='74dc751dfe8e' WHERE alembic_version.version_num = 'bd335bae5d33';
+
 COMMIT;
 

@@ -33,3 +33,7 @@ ALTER TABLE voicemail_messages MODIFY recording BLOB(4294967295) NULL;
 
 UPDATE alembic_version SET version_num='39428242f7f5' WHERE alembic_version.version_num = 'a2e9769475e';
 
+-- Running upgrade 39428242f7f5 -> 1c55c341360f
+
+UPDATE alembic_version SET version_num='1c55c341360f' WHERE alembic_version.version_num = '39428242f7f5';
+
