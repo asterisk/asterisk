@@ -211,6 +211,16 @@ static int stir_shaken_incoming_request(struct ast_sip_session *session, pjsip_r
 	enum process_failure_rc p_rc;
 	SCOPE_ENTER(1, "%s: Enter\n", session_name);
 
+	if (!session) {
+		SCOPE_EXIT_LOG_RTN_VALUE(1, LOG_ERROR, "No session\n");
+	}
+	if (!session->channel) {
+		SCOPE_EXIT_LOG_RTN_VALUE(1, LOG_ERROR, "%s: No channel\n", session_name);
+	}
+	if (!rdata) {
+		SCOPE_EXIT_LOG_RTN_VALUE(1, LOG_ERROR, "%s: No rdata\n", session_name);
+	}
+
 	/* Check if this is a reinvite. If it is, we don't need to do anything */
 	if (rdata->msg_info.to->tag.slen) {
 		SCOPE_EXIT_RTN_VALUE(0, "%s: Reinvite. No action needed\n", session_name);
@@ -400,6 +410,16 @@ static void stir_shaken_outgoing_request(struct ast_sip_session *session,
 	enum ast_stir_shaken_as_response_code as_rc;
 	const char *session_name = ast_sip_session_get_name(session);
 	SCOPE_ENTER(1, "%s: Enter\n", session_name);
+
+	if (!session) {
+		SCOPE_EXIT_LOG_RTN(LOG_ERROR, "No session\n");
+	}
+	if (!session->channel) {
+		SCOPE_EXIT_LOG_RTN(LOG_ERROR, "%s: No channel\n", session_name);
+	}
+	if (!tdata) {
+		SCOPE_EXIT_LOG_RTN(LOG_ERROR, "%s: No tdata\n", session_name);
+	}
 
 	old_identity = pjsip_msg_find_hdr_by_name(tdata->msg, &identity_hdr_str, NULL);
 	if (old_identity) {
