@@ -10410,6 +10410,13 @@ static int socket_process_helper(struct iax2_thread *thread)
 				send_apathetic_reply(1, ntohs(fh->scallno), &addr, IAX_COMMAND_REJECT, ntohl(fh->ts), fh->iseqno + 1, fd, NULL);
 			} else if (f.frametype == AST_FRAME_IAX && (f.subclass.integer == IAX_COMMAND_REGREQ || f.subclass.integer == IAX_COMMAND_REGREL)) {
 				send_apathetic_reply(1, ntohs(fh->scallno), &addr, IAX_COMMAND_REGREJ, ntohl(fh->ts), fh->iseqno + 1, fd, NULL);
+			} else if (ntohs(mh->callno) == 32769) {
+				/* If we initiate a call to a loopback interface on which we're not listening,
+				 * say 127.0.1.1 instead of 127.0.0.1, then we won't properly handshake
+				 * and so it will come back with 32769, rather than an actual call number.
+				 * There isn't really anything we can do about this; it's a network configuration
+				 * the user will need to change, e.g. in /etc/hosts. Make the user aware of that. */
+				ast_log(LOG_WARNING, "Silently rejecting call without destination number, possible network issue?\n");
 			}
 			ast_variables_destroy(ies.vars);
 			return 1;
