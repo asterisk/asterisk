@@ -42,14 +42,14 @@
 #include "include/cli_functions.h"
 
 
-static int cli_channel_iterate(void *endpoint, ao2_callback_fn callback, void *arg)
+static int cli_channel_iterate(void *endpoint, ao2_callback_fn callback, void *arg, int flags)
 {
-	return ast_sip_for_each_channel(endpoint, callback, arg);
+	return ast_sip_for_each_channel(endpoint, callback, arg, flags);
 }
 
-static int cli_channelstats_iterate(void *endpoint, ao2_callback_fn callback, void *arg)
+static int cli_channelstats_iterate(void *endpoint, ao2_callback_fn callback, void *arg, int flags)
 {
-	return ast_sip_for_each_channel(endpoint, callback, arg);
+	return ast_sip_for_each_channel(endpoint, callback, arg, flags);
 }
 
 static int cli_channel_sort(const void *obj, const void *arg, int flags)

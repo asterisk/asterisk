@@ -2777,7 +2777,7 @@ static int format_contact_status_for_aor(void *obj, void *arg, int flags)
 {
 	struct ast_sip_aor *aor = obj;
 
-	return ast_sip_for_each_contact(aor, ast_sip_format_contact_ami, arg);
+	return ast_sip_for_each_contact(aor, ast_sip_format_contact_ami, arg, 0);
 }
 
 static int format_ami_contact_status(const struct ast_sip_endpoint *endpoint,

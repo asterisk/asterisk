@@ -1242,7 +1242,7 @@ static int ami_registrations_aor(void *obj, void *arg, int flags)
 
 	ast_sip_sorcery_object_to_ami(aor, &buf);
 	ast_str_append(&buf, 0, "Contacts: ");
-	ast_sip_for_each_contact(aor, sip_contact_to_str, &buf);
+	ast_sip_for_each_contact(aor, sip_contact_to_str, &buf, flags);
 	ast_str_append(&buf, 0, "\r\n");
 
 	astman_append(ami->s, "%s\r\n", ast_str_buffer(buf));

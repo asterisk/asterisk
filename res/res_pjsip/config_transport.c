@@ -1581,7 +1581,7 @@ static struct ao2_container *cli_get_container(const char *regex)
 	return s_container;
 }
 
-static int cli_iterate(void *container, ao2_callback_fn callback, void *args)
+static int cli_iterate(void *container, ao2_callback_fn callback, void *args, int flags)
 {
 	const struct ast_sip_endpoint *endpoint = container;
 	struct ast_sip_transport *transport = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(),

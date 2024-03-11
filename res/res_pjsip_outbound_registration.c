@@ -2509,7 +2509,7 @@ static struct ao2_container *cli_get_container(const char *regex)
 	return s_container;
 }
 
-static int cli_iterator(void *container, ao2_callback_fn callback, void *args)
+static int cli_iterator(void *container, ao2_callback_fn callback, void *args, int flags)
 {
 	ao2_callback(container, OBJ_NODATA, callback, args);
 

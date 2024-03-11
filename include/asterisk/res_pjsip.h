@@ -2978,7 +2978,7 @@ void *ast_sip_dict_set(pj_pool_t* pool, void *ht,
  * \retval 0 Success, non-zero on failure
  */
 int ast_sip_for_each_contact(const struct ast_sip_aor *aor,
-		ao2_callback_fn on_contact, void *arg);
+		ao2_callback_fn on_contact, void *arg, int flags);
 
 /*!
  * \brief Handler used to convert a contact to a string.
@@ -3149,7 +3149,7 @@ const char *ast_sip_get_device_state(const struct ast_sip_endpoint *endpoint);
  */
 int ast_sip_for_each_channel_snapshot(const struct ast_endpoint_snapshot *endpoint_snapshot,
 		ao2_callback_fn on_channel_snapshot,
-				      void *arg);
+				      void *arg, int flags);
 
 /*!
  * \brief For every channel snapshot on an endpoint all the given
@@ -3162,7 +3162,7 @@ int ast_sip_for_each_channel_snapshot(const struct ast_endpoint_snapshot *endpoi
  */
 int ast_sip_for_each_channel(const struct ast_sip_endpoint *endpoint,
 		ao2_callback_fn on_channel_snapshot,
-				      void *arg);
+				      void *arg, int flags);
 
 enum ast_sip_supplement_priority {
 	/*! Top priority. Supplements with this priority are those that need to run before any others */

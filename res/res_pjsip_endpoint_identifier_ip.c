@@ -672,7 +672,7 @@ struct ast_sip_endpoint_formatter endpoint_identify_formatter = {
 	.format_ami = format_ami_endpoint_identify
 };
 
-static int cli_iterator(void *container, ao2_callback_fn callback, void *args)
+static int cli_iterator(void *container, ao2_callback_fn callback, void *args, int flags)
 {
 	const struct ast_sip_endpoint *endpoint = container;
 	struct ao2_container *identifies;

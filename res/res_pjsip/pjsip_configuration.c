@@ -1657,7 +1657,7 @@ struct ast_endpoint_snapshot *ast_sip_get_endpoint_snapshot(
 
 int ast_sip_for_each_channel_snapshot(
 	const struct ast_endpoint_snapshot *endpoint_snapshot,
-	ao2_callback_fn on_channel_snapshot, void *arg)
+	ao2_callback_fn on_channel_snapshot, void *arg, int flags)
 {
 	int num, num_channels = endpoint_snapshot->num_channels;
 
@@ -1684,10 +1684,10 @@ int ast_sip_for_each_channel_snapshot(
 
 int ast_sip_for_each_channel(
 	const struct ast_sip_endpoint *endpoint,
-	ao2_callback_fn on_channel_snapshot, void *arg)
+	ao2_callback_fn on_channel_snapshot, void *arg, int flags)
 {
 	RAII_VAR(struct ast_endpoint_snapshot *, endpoint_snapshot, ast_sip_get_endpoint_snapshot(endpoint), ao2_cleanup);
-	return ast_sip_for_each_channel_snapshot(endpoint_snapshot, on_channel_snapshot, arg);
+	return ast_sip_for_each_channel_snapshot(endpoint_snapshot, on_channel_snapshot, arg, flags);
 }
 
 static int active_channels_to_str_cb(void *object, void *arg, int flags)
@@ -1710,7 +1710,7 @@ static void active_channels_to_str(const struct ast_sip_endpoint *endpoint,
 	}
 
 	ast_sip_for_each_channel_snapshot(endpoint_snapshot,
-					  active_channels_to_str_cb, str);
+					  active_channels_to_str_cb, str, 0);
 	ast_str_truncate(*str, -1);
 }
 
@@ -1767,7 +1767,7 @@ static int sip_endpoints_aors_ami(void *obj, void *arg, int flags)
 	struct ast_str **buf = arg;
 
 	ast_str_append(buf, 0, "Contacts: ");
-	ast_sip_for_each_contact(aor, ast_sip_contact_to_str, arg);
+	ast_sip_for_each_contact(aor, ast_sip_contact_to_str, arg, flags);
 	ast_str_append(buf, 0, "\r\n");
 
 	return 0;
@@ -1952,7 +1952,7 @@ static struct ao2_container *cli_endpoint_get_container(const char *regex)
 	return s_container;
 }
 
-static int cli_endpoint_iterate(void *obj, ao2_callback_fn callback, void *args)
+static int cli_endpoint_iterate(void *obj, ao2_callback_fn callback, void *args, int flags)
 {
 	ao2_callback(obj, OBJ_NODATA, callback, args);
 
@@ -2002,7 +2002,7 @@ static void cli_endpoint_print_child_body(char *type, const void *obj, struct as
 
 	formatter_entry = ast_sip_lookup_cli_formatter(type);
 	if (formatter_entry) {
-		formatter_entry->iterate((void *)obj, formatter_entry->print_body, context);
+		formatter_entry->iterate((void *)obj, formatter_entry->print_body, context, 2);
 	}
 }
 
