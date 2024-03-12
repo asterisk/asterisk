@@ -1,1 +1,1 @@
-ChangeLogs/ChangeLog-certified-18.9-cert8-rc2.md
+ChangeLogs/ChangeLog-certified-18.9-cert8.md

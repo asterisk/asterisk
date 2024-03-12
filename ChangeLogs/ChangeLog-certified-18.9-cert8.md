@@ -1,22 +1,21 @@
 
-Change Log for Release asterisk-certified-18.9-cert8-rc1
+Change Log for Release asterisk-certified-18.9-cert8
 ========================================
 
 Links:
 ----------------------------------------
 
- - [Full ChangeLog](https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-certified-18.9-cert8-rc1.md)  
- - [GitHub Diff](https://github.com/asterisk/asterisk/compare/certified-18.9-cert7...certified-18.9-cert8-rc1)  
- - [Tarball](https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-certified-18.9-cert8-rc1.tar.gz)  
- - [Downloads](https://downloads.asterisk.org/pub/telephony/asterisk)  
+ - [Full ChangeLog](https://downloads.asterisk.org/pub/telephony/certified-asterisk/releases/ChangeLog-certified-18.9-cert8.md)  
+ - [GitHub Diff](https://github.com/asterisk/asterisk/compare/certified-18.9-cert7...certified-18.9-cert8)  
+ - [Tarball](https://downloads.asterisk.org/pub/telephony/certified-asterisk/asterisk-certified-18.9-cert8.tar.gz)  
+ - [Downloads](https://downloads.asterisk.org/pub/telephony/certified-asterisk)  
 
 Summary:
 ----------------------------------------
 
-- .github: Add force_cherry_pick option to Releaser                               
-- .github: Remove start_version from Releaser                                     
+- Rename dialplan_functions.xml to dialplan_functions_doc.xml                     
+- openssl: Supress deprecation warnings from OpenSSL 3.0                          
 - app_chanspy: Add 'D' option for dual-channel audio                              
-- .github: Update github-script to v7 and fix a rest bug                          
 - manager.c: Fix regression due to using wrong free function.                     
 - doc: Remove obsolete CHANGES-staging directrory                                 
 - MergeApproved.yml:  Remove unneeded concurrency                                 
@@ -24,13 +23,8 @@ Summary:
 - chan_pjsip: Add PJSIPHangup dialplan app and manager action                     
 - Remove files that are no longer updated                                         
 - res_speech: allow speech to translate input channel                             
-- .github: PRSubmitActions: Fix adding reviewers to PR                            
-- .github: New PR Submit workflows                                                
-- .github: New PR Submit workflows                                                
 - res_stasis: signal when new command is queued                                   
 - logger.h: Add ability to change the prefix on SCOPE_TRACE output                
-- .github: Fix job prereqs in PROpenedUpdated                                     
-- .github: Block PR tests until approved                                          
 - Add libjwt to third-party                                                       
 - res_pjsip: update qualify_timeout documentation with DNS note                   
 - lock.c: Separate DETECT_DEADLOCKS from DEBUG_THREADS                            
@@ -45,22 +39,17 @@ Summary:
 - ari-stubs: Fix more local anchor references                                     
 - ari-stubs: Fix broken documentation anchors                                     
 - rest-api: Updates for new documentation site                                    
-- .github: Update workflow-application-token-action to v2                         
 - app_voicemail: Fix for loop declarations                                        
 - download_externals:  Fix a few version related issues                           
 - Remove .lastclean and .version from source control                              
-- .github: Use generic releaser                                                   
 - manager: Tolerate stasis messages with no channel snapshot.                     
 - audiohook: Unlock channel in mute if no audiohooks present.                     
 - app_queue: Add support for applying caller priority change immediately.         
-- .github: Fix cherry-pick reminder issues                                        
 - app.h: Move declaration of ast_getdata_result before its first use              
 - doc: Remove obsolete CHANGES-staging and UPGRADE-staging                        
 - res_geolocation: Ensure required 'location_info' is present.                    
 - Adds manager actions to allow move/remove/forward individual messages in a par..
 - app_voicemail: add CLI commands for message manipulation                        
-- .github: Minor tweak to Asterisk Releaser                                       
-- .github: Suppress cherry-pick reminder for some situations                      
 - Cleanup deleted files                                                           
 
 User Notes:
@@ -174,17 +163,12 @@ Closed Issues:
 Commits By Author:
 ----------------------------------------
 
-- ### George Joseph (33):
+- ### George Joseph (21):
   - Cleanup deleted files
-  - .github: Suppress cherry-pick reminder for some situations
-  - .github: Minor tweak to Asterisk Releaser
   - doc: Remove obsolete CHANGES-staging and UPGRADE-staging
   - app.h: Move declaration of ast_getdata_result before its first use
-  - .github: Fix cherry-pick reminder issues
-  - .github: Use generic releaser
   - Remove .lastclean and .version from source control
   - download_externals:  Fix a few version related issues
-  - .github: Update workflow-application-token-action to v2
   - rest-api: Updates for new documentation site
   - ari-stubs: Fix broken documentation anchors
   - ari-stubs: Fix more local anchor references
@@ -195,19 +179,12 @@ Commits By Author:
   - file.c: Add ability to search custom dir for sounds
   - lock.c: Separate DETECT_DEADLOCKS from DEBUG_THREADS
   - Add libjwt to third-party
-  - .github: Block PR tests until approved
-  - .github: Fix job prereqs in PROpenedUpdated
   - logger.h: Add ability to change the prefix on SCOPE_TRACE output
-  - .github: New PR Submit workflows
-  - .github: New PR Submit workflows
-  - .github: PRSubmitActions: Fix adding reviewers to PR
   - chan_pjsip: Add PJSIPHangup dialplan app and manager action
   - SECURITY.md: Update with correct documentation URL
   - MergeApproved.yml:  Remove unneeded concurrency
   - doc: Remove obsolete CHANGES-staging directrory
-  - .github: Update github-script to v7 and fix a rest bug
-  - .github: Remove start_version from Releaser
-  - .github: Add force_cherry_pick option to Releaser
+  - Rename dialplan_functions.xml to dialplan_functions_doc.xml
 
 - ### Joshua C. Colp (4):
   - app_queue: Add support for applying caller priority change immediately.
@@ -232,21 +209,31 @@ Commits By Author:
 - ### Naveen Albert (1):
   - manager.c: Fix regression due to using wrong free function.
 
-- ### Sean Bright (1):
+- ### Sean Bright (2):
   - res_geolocation: Ensure required 'location_info' is present.
+  - openssl: Supress deprecation warnings from OpenSSL 3.0
 
 
 Detail:
 ----------------------------------------
 
-- ### .github: Add force_cherry_pick option to Releaser                               
+- ### Rename dialplan_functions.xml to dialplan_functions_doc.xml                     
   Author: George Joseph  
-  Date:   2024-02-20  
+  Date:   2024-02-26  
 
+  When using COMPILE_DOUBLE, dialplan_functions.xml is mistaken
+  for the source for an embedded XML document and gets compiled
+  to dialplan_functions.o.  This causes dialplan_functions.c to
+  be ignored making its functions unavailable and causing chan_pjsip
+  to fail to load.
 
-- ### .github: Remove start_version from Releaser                                     
-  Author: George Joseph  
-  Date:   2023-10-17  
+- ### openssl: Supress deprecation warnings from OpenSSL 3.0                          
+  Author: Sean Bright  
+  Date:   2022-03-25  
+
+  There is work going on to update our OpenSSL usage to avoid the
+  deprecated functions but in the meantime make it possible to compile
+  in devmode.
 
 
 - ### app_chanspy: Add 'D' option for dual-channel audio                              
@@ -269,16 +256,6 @@ Detail:
   stream with separate incoming and outgoing audio. Setting both the
   'o' option and the 'D' option and results in the 'D' option being
   ignored.
-
-
-- ### .github: Update github-script to v7 and fix a rest bug                          
-  Author: George Joseph  
-  Date:   2024-02-05  
-
-  Need to update the github-script to v7 to squash deprecation
-  warnings.
-
-  Also fixed the API name for github.rest.pulls.requestReviewers.
 
 
 - ### manager.c: Fix regression due to using wrong free function.                     
@@ -359,29 +336,6 @@ Detail:
   path is available between the source format and provider capabilites.
 
 
-- ### .github: PRSubmitActions: Fix adding reviewers to PR                            
-  Author: George Joseph  
-  Date:   2023-10-19  
-
-
-- ### .github: New PR Submit workflows                                                
-  Author: George Joseph  
-  Date:   2023-10-17  
-
-  The workflows that get triggered when PRs are submitted or updated
-  have been replaced with ones that are more secure and have
-  a higher level of parallelism.
-
-
-- ### .github: New PR Submit workflows                                                
-  Author: George Joseph  
-  Date:   2023-10-17  
-
-  The workflows that get triggered when PRs are submitted or updated
-  have been replaced with ones that are more secure and have
-  a higher level of parallelism.
-
-
 - ### res_stasis: signal when new command is queued                                   
   Author: Mike Bradeen  
   Date:   2023-10-02  
@@ -408,16 +362,6 @@ Detail:
   You can now define the _TRACE_PREFIX_ macro to change the
   default trace line prefix of "file:line function" to
   something else.  Full documentation in logger.h.
-
-
-- ### .github: Fix job prereqs in PROpenedUpdated                                     
-  Author: George Joseph  
-  Date:   2023-10-09  
-
-
-- ### .github: Block PR tests until approved                                          
-  Author: George Joseph  
-  Date:   2023-10-05  
 
 
 - ### Add libjwt to third-party                                                       
@@ -640,11 +584,6 @@ Detail:
   the mustache templates and the python that generates the files.
 
 
-- ### .github: Update workflow-application-token-action to v2                         
-  Author: George Joseph  
-  Date:   2023-08-31  
-
-
 - ### app_voicemail: Fix for loop declarations                                        
   Author: Mike Bradeen  
   Date:   2023-08-29  
@@ -673,11 +612,6 @@ Detail:
   Historically these were checked in for certified releases but
   since the move to github and the unified release process,
   they are no longer needed and cause issues.
-
-
-- ### .github: Use generic releaser                                                   
-  Author: George Joseph  
-  Date:   2023-08-15  
 
 
 - ### manager: Tolerate stasis messages with no channel snapshot.                     
@@ -720,11 +654,6 @@ Detail:
   argument which allows the caller priority change to be reflected
   immediately, causing the position of a caller to move within the
   queue depending on the priorities of the other callers.
-
-
-- ### .github: Fix cherry-pick reminder issues                                        
-  Author: George Joseph  
-  Date:   2023-07-17  
 
 
 - ### app.h: Move declaration of ast_getdata_result before its first use              
@@ -797,20 +726,6 @@ Detail:
   voicemail forward <from_mailbox> <from_context> <from_folder> <messageid> <to_mailbox> <to_context> <to_folder>
   Forward message <messageid> in mailbox <mailbox>@<context> <from_folder> to
   mailbox <mailbox>@<context> <to_folder>
-
-
-- ### .github: Minor tweak to Asterisk Releaser                                       
-  Author: George Joseph  
-  Date:   2023-07-12  
-
-
-- ### .github: Suppress cherry-pick reminder for some situations                      
-  Author: George Joseph  
-  Date:   2023-07-11  
-
-  In PROpenedOrUpdated, the cherry-pick reminder will now be
-  suppressed if there are already valid 'cherry-pick-to' comments
-  in the PR or the PR contained a 'cherry-pick-to: none' comment.
 
 
 - ### Cleanup deleted files                                                           
