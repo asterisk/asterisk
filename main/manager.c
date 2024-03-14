@@ -712,6 +712,9 @@
 			<parameter name="OtherChannelId">
 				<para>Channel UniqueId to be set on the second local channel.</para>
 			</parameter>
+			<parameter name="PreDialGoSub">
+				<para>PreDialGoSub Context,Extension,Priority to set options/headers needed before start the outgoing extension</para>
+			</parameter>
 		</syntax>
 		<description>
 			<para>Generates an outgoing call to a
@@ -6306,6 +6309,8 @@ static int action_originate(struct mansession *s, const struct message *m)
 		.uniqueid = astman_get_header(m, "ChannelId"),
 		.uniqueid2 = astman_get_header(m, "OtherChannelId"),
 	};
+	const char *gosub = astman_get_header(m, "PreDialGoSub");
+
 	struct ast_variable *vars = NULL;
 	char *tech, *data;
 	char *l = NULL, *n = NULL;
@@ -6475,10 +6480,10 @@ static int action_originate(struct mansession *s, const struct message *m)
 		ast_variables_destroy(vars);
 	} else {
 		if (exten && context && pi) {
-			res = ast_pbx_outgoing_exten(tech, cap, data, to,
+			res = ast_pbx_outgoing_exten_predial(tech, cap, data, to,
 					context, exten, pi, &reason, AST_OUTGOING_WAIT,
 					l, n, vars, account, NULL, bridge_early,
-					assignedids.uniqueid ? &assignedids : NULL);
+					assignedids.uniqueid ? &assignedids : NULL , gosub);
 			ast_variables_destroy(vars);
 		} else {
 			astman_send_error(s, m, "Originate with 'Exten' requires 'Context' and 'Priority'");
