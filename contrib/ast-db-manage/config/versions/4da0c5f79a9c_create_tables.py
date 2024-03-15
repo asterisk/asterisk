@@ -30,6 +30,7 @@ down_revision = None
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.sql import quoted_name
 from sqlalchemy.dialects.postgresql import ENUM
 
 YESNO_VALUES = ['yes', 'no']
@@ -123,7 +124,7 @@ def upgrade():
         sa.Column('regexten', sa.String(40)),
         sa.Column('fromdomain', sa.String(40)),
         sa.Column('fromuser', sa.String(40)),
-        sa.Column('qualify', sa.String(40)),
+        sa.Column(quoted_name('qualify', True), sa.String(40)),
         sa.Column('defaultip', sa.String(45)),
         sa.Column('rtptimeout', sa.Integer),
         sa.Column('rtpholdtimeout', sa.Integer),
@@ -220,7 +221,7 @@ def upgrade():
         sa.Column('disallow', sa.String(200)),
         sa.Column('allow', sa.String(200)),
         sa.Column('codecpriority', sa.String(40)),
-        sa.Column('qualify', sa.String(10)),
+        sa.Column(quoted_name('qualify', True), sa.String(10)),
         sa.Column('qualifysmoothing',
                   sa.Enum(*YESNO_VALUES, name='yes_no_values')),
         sa.Column('qualifyfreqok', sa.String(10)),
