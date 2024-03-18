@@ -20,6 +20,7 @@
  */
 
 /*** MODULEINFO
+	<defaultenabled>no</defaultenabled>
 	<support_level>deprecated</support_level>
  ***/
 

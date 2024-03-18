@@ -28,6 +28,7 @@
 	<use>pjproject</use>
 	<use type="module">res_pjsip</use>
 	<use type="module">res_pjsip_outbound_registration</use>
+	<defaultenabled>no</defaultenabled>
 	<support_level>extended</support_level>
  ***/
 
