@@ -34,6 +34,7 @@
 	<depend>zlib</depend>
 	<use type="module">res_crypto</use>
 	<use type="external">crypto</use>
+	<defaultenabled>no</defaultenabled>
 	<support_level>extended</support_level>
  ***/
 
