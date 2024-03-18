@@ -1,18 +1,19 @@
 
-Change Log for Release asterisk-20.7.0-rc1
+Change Log for Release asterisk-20.7.0
 ========================================
 
 Links:
 ----------------------------------------
 
- - [Full ChangeLog](https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-20.7.0-rc1.md)  
- - [GitHub Diff](https://github.com/asterisk/asterisk/compare/20.6.0...20.7.0-rc1)  
- - [Tarball](https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-20.7.0-rc1.tar.gz)  
+ - [Full ChangeLog](https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-20.7.0.md)  
+ - [GitHub Diff](https://github.com/asterisk/asterisk/compare/20.6.0...20.7.0)  
+ - [Tarball](https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-20.7.0.tar.gz)  
  - [Downloads](https://downloads.asterisk.org/pub/telephony/asterisk)  
 
 Summary:
 ----------------------------------------
 
+- res_pjsip_stir_shaken.c:  Add checks for missing parameters                     
 - app_dial: Add dial time for progress/ringing.                                   
 - app_voicemail: Properly reinitialize config after unit tests.                   
 - app_queue.c : fix "queue add member" usage string                               
@@ -134,6 +135,7 @@ Closed Issues:
   - #629: [bug]: app_voicemail: Multiple executions of unit tests cause segfault
   - #634: [bug]: make install doesn't create the stir_shaken cache directory
   - #636: [bug]: Possible SEGV in res_stir_shaken due to wrong free function
+  - #645: [bug]: Occasional SEGV in res_pjsip_stir_shaken.c
 
 Commits By Author:
 ----------------------------------------
@@ -145,12 +147,13 @@ Commits By Author:
   - main/utils: Simplify the FreeBSD ast_get_tid() handling
   - BuildSystem: Bump autotools versions on OpenBSD.
 
-- ### George Joseph (5):
+- ### George Joseph (6):
   - Reduce startup/shutdown verbose logging
   - pjsip show channelstats: Prevent possible segfault when faxing
   - Stir/Shaken Refactor
   - Makefile: Add stir_shaken/cache to directories created on install
   - attestation_config.c: Use ast_free instead of ast_std_free
+  - res_pjsip_stir_shaken.c:  Add checks for missing parameters
 
 - ### Joshua C. Colp (1):
   - utils: Make behavior of ast_strsep* match strsep.
@@ -202,6 +205,18 @@ Commits By Author:
 
 Detail:
 ----------------------------------------
+
+- ### res_pjsip_stir_shaken.c:  Add checks for missing parameters                     
+  Author: George Joseph  
+  Date:   2024-03-11  
+
+  * Added checks for missing session, session->channel and rdata
+    in stir_shaken_incoming_request.
+
+  * Added checks for missing session, session->channel and tdata
+    in stir_shaken_outgoing_request.
+
+  Resolves: #645
 
 - ### app_dial: Add dial time for progress/ringing.                                   
   Author: Naveen Albert  
