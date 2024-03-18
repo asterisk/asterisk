@@ -35,6 +35,15 @@
 #define PJ_IOQUEUE_HAS_SAFE_UNREG 1
 #define PJ_IOQUEUE_MAX_EVENTS_IN_SINGLE_POLL (16)
 
+/*
+ * Increase the number of socket options available. This adjustment is necessary
+ * to accommodate additional TCP keepalive settings required for optimizing SIP
+ * transport stability, especially in environments prone to connection timeouts.
+ * The default limit is insufficient when configuring all desired keepalive
+ * parameters along with standard socket options.
+ */
+#define PJ_MAX_SOCKOPT_PARAMS 5
+
 #define PJ_SCANNER_USE_BITWISE	0
 #define PJ_OS_HAS_CHECK_STACK	0
 
