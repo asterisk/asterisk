@@ -1,1 +1,1 @@
-ChangeLogs/ChangeLog-20.7.0.md
+ChangeLogs/ChangeLog-certified-20.7-cert1-rc1.md
