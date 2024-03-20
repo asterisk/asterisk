@@ -440,6 +440,8 @@ struct dahdi_pvt {
 	 * \note Used by SS7.  Otherwise set but not used.
 	 */
 	unsigned int inservice:1;
+	/*! *\brief TRUE if last number redial enabled */
+	unsigned int lastnumredial:1;
 	/*!
 	 * \brief Bitmask for the channel being locally blocked.
 	 * \note Applies to SS7 and MFCR2 channels.
