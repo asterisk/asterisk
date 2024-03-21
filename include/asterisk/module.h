@@ -150,6 +150,20 @@ enum ast_module_helper_type {
 enum ast_module_load_result ast_load_resource(const char *resource_name);
 
 /*!
+ * \brief Unload and load a module again.
+ * \param resource_name The name of the module to unload.
+ * \param ast_module_unload_mode The force flag. This should be set using one of the AST_FORCE flags.
+ * \param recursive Attempt to recursively unload any dependents of this module
+ *        if that will allow the module to unload, and load them back again afterwards.
+ *
+ *
+ * \retval 0 on success.
+ * \retval 1 on error unloading modules.
+ * \retval -1 on error loading modules back.
+ */
+int ast_refresh_resource(const char *resource_name, enum ast_module_unload_mode force, int recursive);
+
+/*!
  * \brief Unload a module.
  * \param resource_name The name of the module to unload.
  * \param ast_module_unload_mode The force flag. This should be set using one of the AST_FORCE flags.
