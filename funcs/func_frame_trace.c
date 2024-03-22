@@ -380,6 +380,9 @@ static void print_frame(struct ast_frame *frame)
 		case AST_CONTROL_RECORD_MUTE:
 			ast_verbose("SubClass: RECORD_MUTE\n");
 			break;
+		case AST_CONTROL_PLAYBACK_BEGIN:
+			ast_verbose("SubClass: PLAYBACK_BEGIN\n");
+			break;
 		}
 
 		if (frame->subclass.integer == -1) {
