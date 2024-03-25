@@ -114,6 +114,10 @@
 					<value name="HANGUP">The channel was hung up.</value>
 					<value name="ERROR">An unrecoverable error occurred, which resulted in a WARNING to the logs.</value>
 				</variable>
+				<variable name="RECORD_TIME">
+					<para>Will be set to the duration of the recording, in milliseconds.</para>
+					<para>If the recording fails for whatever reason, this will still be set to 0.</para>
+				</variable>
 			</variablelist>
 		</description>
 	</application>
@@ -251,6 +255,9 @@ static int record_exec(struct ast_channel *chan, const char *data)
 	int ms;
 	struct timeval start;
 	const char *status_response = "ERROR";
+	char durationbuf[20];
+
+	pbx_builtin_setvar_helper(chan, "RECORD_TIME", "0"); /* Reset, in case already set */
 
 	/* The next few lines of code parse out the filename and header from the input string */
 	if (ast_strlen_zero(data)) { /* no data implies no filename or anything is present */
@@ -514,6 +521,9 @@ static int record_exec(struct ast_channel *chan, const char *data)
 		ast_channel_stop_silence_generator(chan, silgen);
 
 out:
+	snprintf(durationbuf, sizeof(durationbuf), "%ld", ast_tvdiff_ms(ast_tvnow(), start));
+	pbx_builtin_setvar_helper(chan, "RECORD_TIME", durationbuf);
+
 	if ((silence > 0) && rfmt) {
 		res = ast_set_read_format(chan, rfmt);
 		if (res) {
