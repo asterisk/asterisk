@@ -12543,7 +12543,8 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 				snprintf(fn, sizeof(fn), "%d", channel);
 				/* Open non-blocking */
 				tmp->subs[SUB_REAL].dfd = dahdi_open(fn);
-				while (tmp->subs[SUB_REAL].dfd < 0 && reloading == 2 && count < 1000) { /* the kernel may not call dahdi_release fast enough for the open flagbit to be cleared in time */
+				/* Retry open on restarts, but don't keep retrying if the channel doesn't exist (e.g. not configured) */
+				while (tmp->subs[SUB_REAL].dfd < 0 && reloading == 2 && count < 1000 && errno != ENXIO) { /* the kernel may not call dahdi_release fast enough for the open flagbit to be cleared in time */
 					usleep(1);
 					tmp->subs[SUB_REAL].dfd = dahdi_open(fn);
 					count++;
