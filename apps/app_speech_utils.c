@@ -40,6 +40,8 @@
 #include "asterisk/app.h"
 #include "asterisk/speech.h"
 
+#define MAX_HORSES 10
+
 /*** DOCUMENTATION
 	<application name="SpeechCreate" language="en_US">
 		<synopsis>
@@ -292,7 +294,7 @@ static const struct ast_datastore_info speech_datastore = {
 };
 
 /*! \brief Helper function used to find the speech structure attached to a channel */
-static struct ast_speech *find_speech(struct ast_channel *chan)
+static struct ast_speech *find_speech(struct ast_channel *chan, char *horse_name)
 {
 	struct ast_speech *speech = NULL;
 	struct ast_datastore *datastore = NULL;
@@ -302,7 +304,7 @@ static struct ast_speech *find_speech(struct ast_channel *chan)
 	}
 
 	ast_channel_lock(chan);
-	datastore = ast_channel_datastore_find(chan, &speech_datastore, NULL);
+	datastore = ast_channel_datastore_find(chan, &speech_datastore, horse_name);
 	ast_channel_unlock(chan);
 	if (datastore == NULL) {
 		return NULL;
@@ -321,13 +323,13 @@ static struct ast_speech *find_speech(struct ast_channel *chan)
  * \retval 0 on success.
  * \retval -1 not found.
  */
-static int speech_datastore_destroy(struct ast_channel *chan)
+static int speech_datastore_destroy(struct ast_channel *chan, char *data)
 {
 	struct ast_datastore *datastore;
 	int res;
 
 	ast_channel_lock(chan);
-	datastore = ast_channel_datastore_find(chan, &speech_datastore, NULL);
+	datastore = ast_channel_datastore_find(chan, &speech_datastore, data);
 	if (datastore) {
 		ast_channel_datastore_remove(chan, datastore);
 	}
@@ -376,10 +378,17 @@ static int speech_score(struct ast_channel *chan, const char *cmd, char *data,
 		       char *buf, size_t len)
 {
 	struct ast_speech_result *result = NULL;
-	struct ast_speech *speech = find_speech(chan);
+	struct ast_speech *speech = NULL;
+	char *result_num = NULL;
+	char *horse_name = NULL;
 	char tmp[128] = "";
 
-	if (data == NULL || speech == NULL || !(result = find_result(speech->results, data))) {
+	result_num = ast_strdupa(ast_strsep(&data, '^', AST_STRSEP_ALL));
+	horse_name = ast_strsep(&data, '^', AST_STRSEP_ALL);
+
+	speech = find_speech(chan, horse_name);
+
+	if (data == NULL || speech == NULL || !(result = find_result(speech->results, result_num))) {
 		return -1;
 	}
 
@@ -401,9 +410,16 @@ static int speech_text(struct ast_channel *chan, const char *cmd, char *data,
 			char *buf, size_t len)
 {
 	struct ast_speech_result *result = NULL;
-	struct ast_speech *speech = find_speech(chan);
+	struct ast_speech *speech = NULL;
+	char *result_num = NULL;
+	char *horse_name = NULL;
 
-	if (data == NULL || speech == NULL || !(result = find_result(speech->results, data))) {
+	result_num = ast_strdupa(ast_strsep(&data, '^', AST_STRSEP_ALL));
+	horse_name = ast_strsep(&data, '^', AST_STRSEP_ALL);
+
+	speech = find_speech(chan, horse_name);
+
+	if (result_num == NULL || speech == NULL || !(result = find_result(speech->results, result_num))) {
 		return -1;
 	}
 
@@ -427,9 +443,16 @@ static int speech_grammar(struct ast_channel *chan, const char *cmd, char *data,
 			char *buf, size_t len)
 {
 	struct ast_speech_result *result = NULL;
-	struct ast_speech *speech = find_speech(chan);
+	struct ast_speech *speech = NULL;
+	char *result_num = NULL;
+	char *horse_name = NULL;
 
-	if (data == NULL || speech == NULL || !(result = find_result(speech->results, data))) {
+	result_num = ast_strdupa(ast_strsep(&data, '^', AST_STRSEP_ALL));
+	horse_name = ast_strsep(&data, '^', AST_STRSEP_ALL);
+
+	speech = find_speech(chan, horse_name);
+
+	if (data == NULL || speech == NULL || !(result = find_result(speech->results, result_num))) {
 		return -1;
 	}
 
@@ -451,13 +474,20 @@ static struct ast_custom_function speech_grammar_function = {
 /*! \brief SPEECH_ENGINE() Dialplan Set Function */
 static int speech_engine_write(struct ast_channel *chan, const char *cmd, char *data, const char *value)
 {
-	struct ast_speech *speech = find_speech(chan);
+	struct ast_speech *speech = NULL;
+	char *key_name = NULL;
+	char *horse_name = NULL;
+
+	key_name = ast_strdupa(ast_strsep(&data, '^', AST_STRSEP_ALL));
+	horse_name = ast_strsep(&data, '^', AST_STRSEP_ALL);
+
+	speech = find_speech(chan, horse_name);
 
 	if (data == NULL || speech == NULL) {
 		return -1;
 	}
 
-	ast_speech_change(speech, data, value);
+	ast_speech_change(speech, key_name, value);
 
 	return 0;
 }
@@ -465,13 +495,20 @@ static int speech_engine_write(struct ast_channel *chan, const char *cmd, char *
 /*! \brief SPEECH_ENGINE() Dialplan Get Function */
 static int speech_engine_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
-	struct ast_speech *speech = find_speech(chan);
+	struct ast_speech *speech = NULL;
+	char *setting_name = NULL;
+	char *horse_name = NULL;
+
+	setting_name = ast_strdupa(ast_strsep(&data, '^', AST_STRSEP_ALL));
+	horse_name = ast_strsep(&data, '^', AST_STRSEP_ALL);
+
+	speech = find_speech(chan, horse_name);
 
 	if (!data || !speech) {
 		return -1;
 	}
 
-	return ast_speech_get_setting(speech, data, buf, len);
+	return ast_speech_get_setting(speech, setting_name, buf, len);
 }
 
 static struct ast_custom_function speech_engine_function = {
@@ -483,14 +520,21 @@ static struct ast_custom_function speech_engine_function = {
 /*! \brief SPEECH_RESULTS_TYPE() Dialplan Function */
 static int speech_results_type_write(struct ast_channel *chan, const char *cmd, char *data, const char *value)
 {
-	struct ast_speech *speech = find_speech(chan);
+	struct ast_speech *speech = NULL;
+	char *value_text = NULL;
+	char *horse_name = NULL;
+
+	value_text = ast_strdupa(ast_strsep(&data, '^', AST_STRSEP_ALL));
+	horse_name = ast_strsep(&data, '^', AST_STRSEP_ALL);
+
+	speech = find_speech(chan, horse_name);
 
 	if (data == NULL || speech == NULL)
 		return -1;
 
-	if (!strcasecmp(value, "normal"))
+	if (!strcasecmp(value_text, "normal"))
 		ast_speech_change_results_type(speech, AST_SPEECH_RESULTS_TYPE_NORMAL);
-	else if (!strcasecmp(value, "nbest"))
+	else if (!strcasecmp(value_text, "nbest"))
 		ast_speech_change_results_type(speech, AST_SPEECH_RESULTS_TYPE_NBEST);
 
 	return 0;
@@ -508,11 +552,18 @@ static int speech_read(struct ast_channel *chan, const char *cmd, char *data,
 {
 	int results = 0;
 	struct ast_speech_result *result = NULL;
-	struct ast_speech *speech = find_speech(chan);
+	struct ast_speech *speech = NULL;
+	char *status_text = NULL;
+	char *horse_name = NULL;
 	char tmp[128] = "";
 
+	status_text = ast_strdupa(ast_strsep(&data, '^', AST_STRSEP_ALL));
+	horse_name = ast_strsep(&data, '^', AST_STRSEP_ALL);
+
+	speech = find_speech(chan, horse_name);
+
 	/* Now go for the various options */
-	if (!strcasecmp(data, "status")) {
+	if (!strcasecmp(status_text, "status")) {
 		if (speech != NULL)
 			ast_copy_string(buf, "1", len);
 		else
@@ -557,6 +608,14 @@ static int speech_create(struct ast_channel *chan, const char *data)
 {
 	struct ast_speech *speech = NULL;
 	struct ast_datastore *datastore = NULL;
+	char *horse_name = NULL;
+	char *data_copy = NULL;
+	char *value = NULL;
+
+	data_copy = ast_strdup(data);
+	value = ast_strsep(&data_copy, '^', AST_STRSEP_ALL);
+	value = ast_strsep(&data_copy, '^', AST_STRSEP_ALL);
+	horse_name = ast_strdup(value);
 
 	/* Request a speech object */
 	speech = ast_speech_new(data, ast_channel_nativeformats(chan));
@@ -566,7 +625,7 @@ static int speech_create(struct ast_channel *chan, const char *data)
 		return 0;
 	}
 
-	datastore = ast_datastore_alloc(&speech_datastore, NULL);
+	datastore = ast_datastore_alloc(&speech_datastore, horse_name);
 	if (datastore == NULL) {
 		ast_speech_destroy(speech);
 		pbx_builtin_setvar_helper(chan, "ERROR", "1");
@@ -585,8 +644,9 @@ static int speech_create(struct ast_channel *chan, const char *data)
 static int speech_load(struct ast_channel *chan, const char *vdata)
 {
 	int res = 0;
-	struct ast_speech *speech = find_speech(chan);
+	struct ast_speech *speech = NULL;
 	char *data;
+
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(grammar);
 		AST_APP_ARG(path);
@@ -594,6 +654,8 @@ static int speech_load(struct ast_channel *chan, const char *vdata)
 
 	data = ast_strdupa(vdata);
 	AST_STANDARD_APP_ARGS(args, data);
+
+	speech = find_speech(chan, NULL);
 
 	if (speech == NULL)
 		return -1;
@@ -611,7 +673,7 @@ static int speech_load(struct ast_channel *chan, const char *vdata)
 static int speech_unload(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
-	struct ast_speech *speech = find_speech(chan);
+	struct ast_speech *speech = find_speech(chan, NULL);
 
 	if (speech == NULL)
 		return -1;
@@ -626,7 +688,7 @@ static int speech_unload(struct ast_channel *chan, const char *data)
 static int speech_deactivate(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
-	struct ast_speech *speech = find_speech(chan);
+	struct ast_speech *speech = find_speech(chan, NULL);
 
 	if (speech == NULL)
 		return -1;
@@ -641,7 +703,7 @@ static int speech_deactivate(struct ast_channel *chan, const char *data)
 static int speech_activate(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
-	struct ast_speech *speech = find_speech(chan);
+	struct ast_speech *speech = find_speech(chan, NULL);
 
 	if (speech == NULL)
 		return -1;
@@ -656,7 +718,12 @@ static int speech_activate(struct ast_channel *chan, const char *data)
 static int speech_start(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
-	struct ast_speech *speech = find_speech(chan);
+	struct ast_speech *speech = NULL;
+	char *data_copy = NULL;
+
+	data_copy = ast_strdup(data);
+
+	speech = find_speech(chan, data_copy);
 
 	if (speech == NULL)
 		return -1;
@@ -670,7 +737,9 @@ static int speech_start(struct ast_channel *chan, const char *data)
 static int speech_processing_sound(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
-	struct ast_speech *speech = find_speech(chan);
+	struct ast_speech *speech = NULL;
+
+	find_speech(chan, NULL);
 
 	if (speech == NULL)
 		return -1;
@@ -716,7 +785,9 @@ static int speech_background(struct ast_channel *chan, const char *data)
 {
 	unsigned int timeout = 0;
 	int res = 0, done = 0, started = 0, quieted = 0, max_dtmf_len = 0;
-	struct ast_speech *speech = find_speech(chan);
+	struct ast_speech *speech = NULL;
+	struct ast_speech *speeches[MAX_HORSES];
+	int jockey = 0, herd_size = 0;
 	struct ast_frame *f = NULL;
 	RAII_VAR(struct ast_format *, oldreadformat, NULL, ao2_cleanup);
 	char dtmf[AST_MAX_EXTENSION] = "";
@@ -728,13 +799,42 @@ static int speech_background(struct ast_channel *chan, const char *data)
 		AST_APP_ARG(soundfile);
 		AST_APP_ARG(timeout);
 		AST_APP_ARG(options);
+		AST_APP_ARG(horses);
 	);
 
 	parse = ast_strdupa(data);
 	AST_STANDARD_APP_ARGS(args, parse);
 
-	if (speech == NULL)
-		return -1;
+	if (ast_strlen_zero(args.horses)) {
+		speech = find_speech(chan, NULL);
+		if (speech == NULL) {
+			return -1;
+		} else {
+			speeches[0] = speech;
+			herd_size++;
+		}
+	} else {
+		char *herd = ast_strdup(args.horses);
+		char *nexthorse = NULL;
+		do {
+			nexthorse = ast_strsep(&herd, '^', AST_STRSEP_ALL);
+			if (!ast_strlen_zero(nexthorse)) {
+				speech = find_speech(chan, nexthorse);
+				if (speech == NULL || speech->horse == NULL || ast_strlen_zero(speech->horse) || strcasecmp(speech->horse, nexthorse) != 0) {
+					return -1;
+				} else {
+                    /*
+                    TODO: deduplicate horses
+					for (jockey=0; jockey < herd_size; jockey++) {
+						if (strcasecmp(speech, speeches[jockey]))
+							return -1;
+					}
+                    */
+					speeches[herd_size] = speech;
+				}
+			}
+		} while ((!ast_strlen_zero(nexthorse) && herd_size++ < MAX_HORSES));
+	}
 
 	if (!ast_strlen_zero(args.options)) {
 		char *options_buf = ast_strdupa(args.options);
@@ -751,7 +851,7 @@ static int speech_background(struct ast_channel *chan, const char *data)
 	oldreadformat = ao2_bump(ast_channel_readformat(chan));
 
 	/* Change read format to be signed linear */
-	if (ast_set_read_format(chan, speech->format))
+	if (ast_set_read_format(chan, speeches[0]->format))
 		return -1;
 
 	if (!ast_strlen_zero(args.soundfile)) {
@@ -779,8 +879,9 @@ static int speech_background(struct ast_channel *chan, const char *data)
 	}
 	ast_channel_unlock(chan);
 
-	/* Before we go into waiting for stuff... make sure the structure is ready, if not - start it again */
-	if (speech->state == AST_SPEECH_STATE_NOT_READY || speech->state == AST_SPEECH_STATE_DONE) {
+	/* Before we go into waiting for stuff... make sure the structure is ready by starting it again */
+	for (jockey=0; jockey < herd_size; jockey++) {
+		speech = speeches[jockey];
 		ast_speech_change_state(speech, AST_SPEECH_STATE_NOT_READY);
 		ast_speech_start(speech);
 	}
@@ -831,71 +932,75 @@ static int speech_background(struct ast_channel *chan, const char *data)
 		}
 
 		/* Do checks on speech structure to see if it's changed */
-		ast_mutex_lock(&speech->lock);
-		if (ast_test_flag(speech, AST_SPEECH_QUIET)) {
-			if (ast_channel_stream(chan))
-				ast_stopstream(chan);
-			ast_clear_flag(speech, AST_SPEECH_QUIET);
-			quieted = 1;
-		}
-		/* Check state so we can see what to do */
-		switch (speech->state) {
-		case AST_SPEECH_STATE_READY:
-			/* If audio playback has stopped do a check for timeout purposes */
-			if (ast_channel_streamid(chan) == -1 && ast_channel_timingfunc(chan) == NULL)
-				ast_stopstream(chan);
-			if (!quieted && ast_channel_stream(chan) == NULL && timeout && started == 0 && !filename_tmp) {
-				if (timeout == -1) {
+		for (jockey=0; jockey < herd_size; jockey++) {
+			speech = speeches[jockey];
+			ast_mutex_lock(&speech->lock);
+			if (jockey == 0 && ast_test_flag(speech, AST_SPEECH_QUIET)) {
+				if (ast_channel_stream(chan))
+					ast_stopstream(chan);
+				ast_clear_flag(speech, AST_SPEECH_QUIET);
+				quieted = 1;
+			}
+
+			/* Check state so we can see what to do */
+			switch (speech->state) {
+			case AST_SPEECH_STATE_READY:
+				/* If audio playback has stopped do a check for timeout purposes */
+				if (jockey == 0 && ast_channel_streamid(chan) == -1 && ast_channel_timingfunc(chan) == NULL)
+					ast_stopstream(chan);
+				if (jockey == 0 && !quieted && ast_channel_stream(chan) == NULL && timeout && started == 0 && !filename_tmp) {
+					if (timeout == -1) {
+						done = 1;
+						if (f)
+							ast_frfree(f);
+						break;
+					}
+					start = ast_tvnow();
+					started = 1;
+				}
+				/* Write audio frame out to speech engine if no DTMF has been received */
+				if (!strlen(dtmf) && f != NULL && f->frametype == AST_FRAME_VOICE) {
+					ast_speech_write(speech, f->data.ptr, f->datalen);
+				}
+				break;
+			case AST_SPEECH_STATE_WAIT:
+				/* Cue up waiting sound if not already playing */
+				if (jockey == 0 && !strlen(dtmf)) {
+					if (ast_channel_stream(chan) == NULL) {
+						if (speech->processing_sound != NULL) {
+							if (strlen(speech->processing_sound) > 0 && strcasecmp(speech->processing_sound, "none")) {
+								speech_streamfile(chan, speech->processing_sound, ast_channel_language(chan));
+							}
+						}
+					} else if (ast_channel_streamid(chan) == -1 && ast_channel_timingfunc(chan) == NULL) {
+						ast_stopstream(chan);
+						if (speech->processing_sound != NULL) {
+							if (strlen(speech->processing_sound) > 0 && strcasecmp(speech->processing_sound, "none")) {
+								speech_streamfile(chan, speech->processing_sound, ast_channel_language(chan));
+							}
+						}
+					}
+				}
+				break;
+			case AST_SPEECH_STATE_DONE:
+				/* Now that we are done... let's switch back to not ready state */
+				ast_speech_change_state(speech, AST_SPEECH_STATE_NOT_READY);
+				if (!strlen(dtmf)) {
+					/* Copy to speech structure the results, if available */
+					speech->results = ast_speech_results_get(speech);
+					/* Break out of our background too */
 					done = 1;
-					if (f)
-						ast_frfree(f);
-					break;
-				}
-				start = ast_tvnow();
-				started = 1;
-			}
-			/* Write audio frame out to speech engine if no DTMF has been received */
-			if (!strlen(dtmf) && f != NULL && f->frametype == AST_FRAME_VOICE) {
-				ast_speech_write(speech, f->data.ptr, f->datalen);
-			}
-			break;
-		case AST_SPEECH_STATE_WAIT:
-			/* Cue up waiting sound if not already playing */
-			if (!strlen(dtmf)) {
-				if (ast_channel_stream(chan) == NULL) {
-					if (speech->processing_sound != NULL) {
-						if (strlen(speech->processing_sound) > 0 && strcasecmp(speech->processing_sound, "none")) {
-							speech_streamfile(chan, speech->processing_sound, ast_channel_language(chan));
-						}
-					}
-				} else if (ast_channel_streamid(chan) == -1 && ast_channel_timingfunc(chan) == NULL) {
-					ast_stopstream(chan);
-					if (speech->processing_sound != NULL) {
-						if (strlen(speech->processing_sound) > 0 && strcasecmp(speech->processing_sound, "none")) {
-							speech_streamfile(chan, speech->processing_sound, ast_channel_language(chan));
-						}
+					/* Stop audio playback */
+					if (jockey == 0 && ast_channel_stream(chan) != NULL) {
+						ast_stopstream(chan);
 					}
 				}
+				break;
+			default:
+				break;
 			}
-			break;
-		case AST_SPEECH_STATE_DONE:
-			/* Now that we are done... let's switch back to not ready state */
-			ast_speech_change_state(speech, AST_SPEECH_STATE_NOT_READY);
-			if (!strlen(dtmf)) {
-				/* Copy to speech structure the results, if available */
-				speech->results = ast_speech_results_get(speech);
-				/* Break out of our background too */
-				done = 1;
-				/* Stop audio playback */
-				if (ast_channel_stream(chan) != NULL) {
-					ast_stopstream(chan);
-				}
-			}
-			break;
-		default:
-			break;
+			ast_mutex_unlock(&speech->lock);
 		}
-		ast_mutex_unlock(&speech->lock);
 
 		/* Deal with other frame types */
 		if (f != NULL) {
@@ -938,24 +1043,27 @@ static int speech_background(struct ast_channel *chan, const char *data)
 		}
 	}
 
-	if (ast_strlen_zero(dtmf) && speech->state == AST_SPEECH_STATE_READY && ast_test_flag(&options, SB_OPT_PARTIALRESULTS)) {
-		/* Copy to speech structure the results, even partial ones, if desired and available */
-		speech->results = ast_speech_results_get(speech);
-	} else if (!ast_strlen_zero(dtmf)) {
-		/* We sort of make a results entry */
-		speech->results = ast_calloc(1, sizeof(*speech->results));
-		if (speech->results != NULL) {
-			ast_speech_dtmf(speech, dtmf);
-			speech->results->score = 1000;
-			speech->results->text = ast_strdup(dtmf);
-			speech->results->grammar = ast_strdup("dtmf");
+	for (jockey=0; jockey < herd_size; jockey++) {
+		speech = speeches[jockey];
+		if (ast_strlen_zero(dtmf) && speech->state == AST_SPEECH_STATE_READY && ast_test_flag(&options, SB_OPT_PARTIALRESULTS)) {
+			/* Copy to speech structure the results, even partial ones, if desired and available */
+			speech->results = ast_speech_results_get(speech);
+		} else if (!ast_strlen_zero(dtmf)) {
+			/* We sort of make a results entry */
+			speech->results = ast_calloc(1, sizeof(*speech->results));
+			if (speech->results != NULL) {
+				ast_speech_dtmf(speech, dtmf);
+				speech->results->score = 1000;
+				speech->results->text = ast_strdup(dtmf);
+				speech->results->grammar = ast_strdup("dtmf");
+			}
+			ast_speech_change_state(speech, AST_SPEECH_STATE_NOT_READY);
 		}
-		ast_speech_change_state(speech, AST_SPEECH_STATE_NOT_READY);
 	}
 
 	/* See if it was because they hung up */
 	if (done == 3) {
-		speech_datastore_destroy(chan);
+	    speech_datastore_destroy(chan, NULL);
 	} else {
 		/* Channel is okay so restore read format */
 		ast_set_read_format(chan, oldreadformat);
@@ -968,10 +1076,20 @@ static int speech_background(struct ast_channel *chan, const char *data)
 /*! \brief SpeechDestroy() Dialplan Application */
 static int speech_destroy(struct ast_channel *chan, const char *data)
 {
+	char *horse_name = NULL;
+	char *data_copy = NULL;
+	char *value = NULL;
+
 	if (!chan) {
 		return -1;
 	}
-	return speech_datastore_destroy(chan);
+
+	data_copy = ast_strdup(data);
+	value = ast_strsep(&data_copy, '^', AST_STRSEP_ALL);
+	value = ast_strsep(&data_copy, '^', AST_STRSEP_ALL);
+	horse_name = ast_strdup(value);
+
+	return speech_datastore_destroy(chan, horse_name);
 }
 
 static int unload_module(void)
