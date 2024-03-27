@@ -5,7 +5,6 @@
 
 # install_prereq: a script to install distribution-specific
 # prerequirements
-
 set -e
 
 usage() {
@@ -24,10 +23,10 @@ PACKAGES_DEBIAN="build-essential pkg-config"
 PACKAGES_DEBIAN="$PACKAGES_DEBIAN libedit-dev libjansson-dev libsqlite3-dev uuid-dev libxml2-dev"
 # Asterisk: for addons:
 PACKAGES_DEBIAN="$PACKAGES_DEBIAN libspeex-dev libspeexdsp-dev libogg-dev libvorbis-dev libasound2-dev portaudio19-dev libcurl4-openssl-dev xmlstarlet bison flex"
-PACKAGES_DEBIAN="$PACKAGES_DEBIAN libpq-dev unixodbc-dev libneon27-dev libgmime-2.6-dev libgmime-3.0-dev liblua5.2-dev liburiparser-dev libxslt1-dev libssl-dev"
-PACKAGES_DEBIAN="$PACKAGES_DEBIAN libmysqlclient-dev libbluetooth-dev libradcli-dev freetds-dev libjack-jackd2-dev bash libcap-dev"
+PACKAGES_DEBIAN="$PACKAGES_DEBIAN libpq-dev unixodbc-dev libneon27-dev libgmime-3.0-dev liblua5.2-dev liburiparser-dev libxslt1-dev libssl-dev"
+PACKAGES_DEBIAN="$PACKAGES_DEBIAN libmariadb-dev-compat libbluetooth-dev libradcli-dev freetds-dev libjack-jackd2-dev bash libcap-dev"
 PACKAGES_DEBIAN="$PACKAGES_DEBIAN libsnmp-dev libiksemel-dev libcorosync-common-dev libcpg-dev libcfg-dev libnewt-dev libpopt-dev libical-dev libspandsp-dev"
-PACKAGES_DEBIAN="$PACKAGES_DEBIAN libresample1-dev libc-client2007e-dev binutils-dev libsrtp0-dev libsrtp2-dev libgsm1-dev doxygen graphviz zlib1g-dev libldap2-dev"
+PACKAGES_DEBIAN="$PACKAGES_DEBIAN libresample1-dev libc-client2007e-dev binutils-dev libsrtp2-dev libgsm1-dev doxygen graphviz zlib1g-dev libldap2-dev"
 PACKAGES_DEBIAN="$PACKAGES_DEBIAN libcodec2-dev libfftw3-dev libsndfile1-dev libunbound-dev"
 # Asterisk: for the unpackaged below:
 PACKAGES_DEBIAN="$PACKAGES_DEBIAN wget subversion"
@@ -190,9 +189,11 @@ in_test_mode() {
 
 check_installed_debs() {
 	for pack in "$@" ; do
-		tocheck="${tocheck} ^${pack}$ ~P^${pack}$"
+		EXISTS=`dpkg -l | cut -d ' ' -f 3 | grep ^"${pack}"\\$ | wc -l`
+		if [ ${EXISTS} -eq 0 ]; then
+		  echo "${pack}"
+    fi
 	done
-	aptitude -F '%c %p' search $tocheck 2>/dev/null | awk '/^p/{print $2}' | grep -vF :
 }
 
 # parsing the output of yum is close to impossible.
@@ -257,13 +258,10 @@ check_installed_zypper() {
 }
 
 handle_debian() {
-	if ! [ -x "$(command -v aptitude)" ]; then
-		apt-get install -y aptitude
-	fi
 	extra_packs=`check_installed_debs $PACKAGES_DEBIAN`
-	$testcmd aptitude update
+	$testcmd apt-get update
 	if [ x"$extra_packs" != "x" ] ; then
-		$testcmd aptitude install -y $extra_packs
+		$testcmd apt install -y $extra_packs
 	fi
 }
 
