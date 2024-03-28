@@ -686,6 +686,7 @@
                         ; "auth_username": Identify by the Authorization username and realm
                         ; "ip": Identify by the source IP address
                         ; "header": Identify by a configured SIP header value.
+                        ; "request_uri": Identify by the configured SIP request URI.
                         ; In the username and auth_username cases, if an exact match
                         ; on both username and domain/realm fails, the match is
                         ; retried with just the username.

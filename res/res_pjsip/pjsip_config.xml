@@ -559,6 +559,14 @@
 								endpoint identification.
 								</para>
 							</enum>
+							<enum name="request_uri">
+								<para>Matches the endpoint based on the configured SIP
+								request uri.
+								</para>
+								<para>This method of identification is not configured here
+								but simply allowed by this configuration option.
+								</para>
+							</enum>
 						</enumlist>
 					</description>
 				</configOption>
