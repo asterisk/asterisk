@@ -124,6 +124,16 @@
 						</para></note>
 					</description>
 				</configOption>
+				<configOption name="transport">
+					<synopsis>Match against a transport type.</synopsis>
+					<description>
+						<para>When using the ip or transport identifier, this option
+						can be used to match the transport type <literal>(udp or tcp)
+						</literal> as well.</para>
+						<para>When omitted, or left empty, which is the default, it
+						won't match against the transport type.</para>
+					</description>
+				</configOption>
 				<configOption name="type">
 					<synopsis>Must be of type 'identify'.</synopsis>
 				</configOption>
@@ -151,6 +161,8 @@ struct ip_identify_match {
 		AST_STRING_FIELD(match_header_name);
 		/*! SIP header value of the match_header string */
 		AST_STRING_FIELD(match_header_value);
+		/*! The name of the transport type */
+		AST_STRING_FIELD(transport);
 	);
 	/*! Compiled match_header regular expression when is_header_regex is non-zero */
 	regex_t regex_header_buf;
@@ -166,6 +178,12 @@ struct ip_identify_match {
 	unsigned int is_header_regex:1;
 	/*! Non-zero if match_header or match_request has a regular expression (i.e., regex_request_uri_buf is valid) */
 	unsigned int is_request_uri_regex:1;
+};
+
+/*! \brief Structure for a socket address with transport */
+struct ast_sockaddr_with_tp {
+	struct ast_sockaddr addr;
+	char tp[128];
 };
 
 /*! \brief Destructor function for a matching object */
@@ -303,18 +321,29 @@ static int request_identify_match_check(void *obj, void *arg, int flags)
 static int ip_identify_match_check(void *obj, void *arg, int flags)
 {
 	struct ip_identify_match *identify = obj;
-	struct ast_sockaddr *addr = arg;
+	struct ast_sockaddr_with_tp *addr_with_tp = arg;
+	struct ast_sockaddr address = addr_with_tp->addr;
 	int sense;
 
-	sense = ast_apply_ha(identify->matches, addr);
+	sense = ast_apply_ha(identify->matches, &address);
 	if (sense != AST_SENSE_ALLOW) {
-		ast_debug(3, "Source address %s matches identify '%s'\n",
-				ast_sockaddr_stringify(addr),
+		ast_debug(3, "Address %s matches identify '%s'\n",
+				ast_sockaddr_stringify(&address),
 				ast_sorcery_object_get_id(identify));
-		return CMP_MATCH;
+		if (ast_strlen_zero(identify->transport) || !strcasecmp(identify->transport, addr_with_tp->tp)) {
+			ast_debug(3, "Transport %s matches identify '%s'\n",
+				addr_with_tp->tp,
+				ast_sorcery_object_get_id(identify));
+			return CMP_MATCH;
+		} else {
+			ast_debug(3, "Transport %s match not matched identify '%s'\n",
+				addr_with_tp->tp,
+				ast_sorcery_object_get_id(identify));
+			return 0;
+		}
 	} else {
-		ast_debug(3, "Source address %s does not match identify '%s'\n",
-				ast_sockaddr_stringify(addr),
+		ast_debug(3, "Address %s does not match identify '%s'\n",
+				ast_sockaddr_stringify(&address),
 				ast_sorcery_object_get_id(identify));
 		return 0;
 	}
@@ -355,16 +384,52 @@ static struct ast_sip_endpoint *common_identify(ao2_callback_fn *identify_match_
 
 static struct ast_sip_endpoint *ip_identify(pjsip_rx_data *rdata)
 {
-	struct ast_sockaddr addr = { { 0, } };
+	struct ast_sockaddr_with_tp addr_with_tp = { { { 0, } }, };
+	pj_ansi_strxcpy(addr_with_tp.tp, rdata->tp_info.transport->type_name, sizeof(addr_with_tp.tp));
 
-	ast_sockaddr_parse(&addr, rdata->pkt_info.src_name, PARSE_PORT_FORBID);
-	ast_sockaddr_set_port(&addr, rdata->pkt_info.src_port);
+	ast_sockaddr_parse(&addr_with_tp.addr, rdata->pkt_info.src_name, PARSE_PORT_FORBID);
+	ast_sockaddr_set_port(&addr_with_tp.addr, rdata->pkt_info.src_port);
 
-	return common_identify(ip_identify_match_check, &addr);
+	return common_identify(ip_identify_match_check, &addr_with_tp);
+}
+
+static struct ast_sip_endpoint *transport_identify(pjsip_rx_data *rdata)
+{
+	char buffer[PJ_INET6_ADDRSTRLEN];
+	pj_status_t status;
+	struct ast_sockaddr_with_tp addr_with_tp = { { { 0, } }, };
+	union pj_sockaddr sock = rdata->tp_info.transport->local_addr;
+
+	pj_ansi_strxcpy(addr_with_tp.tp, rdata->tp_info.transport->type_name, sizeof(addr_with_tp.tp));
+
+	if (sock.addr.sa_family == PJ_AF_INET6) {
+		status = pj_inet_ntop(PJ_AF_INET6, &(sock.ipv6.sin6_addr), buffer, PJ_INET6_ADDRSTRLEN);
+		if (status == PJ_SUCCESS && !strcmp(buffer, "::")) {
+			ast_log(LOG_WARNING, "Matching against '::' may be unpredictable.\n");
+		}
+	} else {
+		status = pj_inet_ntop(PJ_AF_INET, &(sock.ipv4.sin_addr), buffer, PJ_INET_ADDRSTRLEN);
+		if (status == PJ_SUCCESS && !strcmp(buffer, "0.0.0.0")) {
+			ast_log(LOG_WARNING, "Matching against '0.0.0.0' may be unpredictable.\n");
+		}
+	}
+
+	if (status == PJ_SUCCESS) {
+		ast_sockaddr_parse(&addr_with_tp.addr, buffer, PARSE_PORT_FORBID);
+		ast_sockaddr_set_port(&addr_with_tp.addr, rdata->tp_info.transport->local_name.port);
+
+		return common_identify(ip_identify_match_check, &addr_with_tp);
+	} else {
+		return NULL;
+	}
 }
 
 static struct ast_sip_endpoint_identifier ip_identifier = {
 	.identify_endpoint = ip_identify,
+};
+
+static struct ast_sip_endpoint_identifier transport_identifier = {
+	.identify_endpoint = transport_identify,
 };
 
 static struct ast_sip_endpoint *header_identify(pjsip_rx_data *rdata)
@@ -528,6 +593,12 @@ static int ip_identify_apply(const struct ast_sorcery *sorcery, void *obj)
 		ast_log(LOG_ERROR, "Identify '%s' is not configured to match anything.\n",
 			ast_sorcery_object_get_id(identify));
 		return -1;
+	}
+
+	if (!ast_strlen_zero(identify->transport)) {
+		if (ast_string_field_set(identify, transport, identify->transport)) {
+			return -1;
+		}
 	}
 
 	if (!ast_strlen_zero(identify->match_header)) {
@@ -879,6 +950,13 @@ static int cli_print_body(void *obj, void *arg, int flags)
 				addr, ast_sockaddr_cidr_bits(&match->netmask));
 		}
 
+		if (!ast_strlen_zero(ident->transport)) {
+			ast_str_append(&context->output_buffer, 0, "%*s: %s\n",
+				indent,
+				"Transport",
+				ident->transport);
+		}
+
 		if (!ast_strlen_zero(ident->match_header)) {
 			ast_str_append(&context->output_buffer, 0, "%*s: %s\n",
 				indent,
@@ -954,11 +1032,13 @@ static int load_module(void)
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "identify", "match_header", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ip_identify_match, match_header));
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "identify", "match_request_uri", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ip_identify_match, match_request_uri));
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "identify", "srv_lookups", "yes", OPT_BOOL_T, 1, FLDSET(struct ip_identify_match, srv_lookups));
+	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "identify", "transport", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ip_identify_match, transport));
 	ast_sorcery_load_object(ast_sip_get_sorcery(), "identify");
 
 	ast_sip_register_endpoint_identifier_with_name(&ip_identifier, "ip");
 	ast_sip_register_endpoint_identifier_with_name(&header_identifier, "header");
 	ast_sip_register_endpoint_identifier_with_name(&request_identifier, "request_uri");
+	ast_sip_register_endpoint_identifier_with_name(&transport_identifier, "transport");
 	ast_sip_register_endpoint_formatter(&endpoint_identify_formatter);
 
 	cli_formatter = ao2_alloc(sizeof(struct ast_sip_cli_formatter_entry), NULL);
@@ -995,6 +1075,7 @@ static int unload_module(void)
 	ast_sip_unregister_endpoint_identifier(&header_identifier);
 	ast_sip_unregister_endpoint_identifier(&request_identifier);
 	ast_sip_unregister_endpoint_identifier(&ip_identifier);
+	ast_sip_unregister_endpoint_identifier(&transport_identifier);
 
 	return 0;
 }

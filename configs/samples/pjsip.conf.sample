@@ -197,6 +197,47 @@
 ;tcp_keepalive_interval_time=10  ; The time in seconds between individual keepalive probes
 ;tcp_keepalive_probe_count=5     ; The maximum number of keepalive probes TCP should send before dropping the connection
 
+;===============ENDPOINT IDENTIFIER TRANSPORT EXAMPLE==========================
+;
+; When Asterisk has multiple bound IP addresses, and endpoints don't use any
+; other means of identification (e.g.: username), the transports' bind addresses
+; can be used to identify them. Can be useful in case you're connecting to the
+; same ITSP multiple times on different IPs / NICs.
+;
+;[transport-eth0]
+;type=transport
+;protocol=tcp
+;bind=192.168.1.1:5060
+;
+;[transport-eth1]
+;type=transport
+;protocol=udp
+;bind=192.168.2.1:5060
+;
+;
+;[myprovider-a]
+;type=endpoint
+;transport=transport-eth0
+;identify_by=transport
+;
+;[myprovider-b]
+;type=endpoint
+;transport=transport-eth1
+;identify_by=transport
+;
+;
+;[identify-a]
+;type=identify
+;endpoint=myprovider-a
+;match=192.168.1.1:5060	; This is the bind address of [transport-eth0]
+;;transport=tcp		; Optionally, this is the transport protocol of [transport-eth0]
+;
+;[identify-b]
+;type=identify
+;endpoint=myprovider-b
+;match=192.168.2.1:5060	; This is the bind address of [transport-eth1]
+;;transport=udp		; Optionally, This is the transport protocol of [transport-eth1]
+
 ;===============OUTBOUND REGISTRATION WITH OUTBOUND AUTHENTICATION============
 ;
 ; This is a simple registration that works with some SIP trunking providers.
@@ -684,9 +725,10 @@
                         ; identified.
                         ; "username": Identify by the From or To username and domain
                         ; "auth_username": Identify by the Authorization username and realm
-                        ; "ip": Identify by the source IP address
+                        ; "ip": Identify by the source (remote) IP address
                         ; "header": Identify by a configured SIP header value.
                         ; "request_uri": Identify by the configured SIP request URI.
+                        ; "transport": Identify by the bound (local) IP address
                         ; In the username and auth_username cases, if an exact match
                         ; on both username and domain/realm fails, the match is
                         ; retried with just the username.
@@ -1271,9 +1313,10 @@
             ; (default: "no")
 ;endpoint_identifier_order=ip,username,anonymous
             ; The order by which endpoint identifiers are given priority.
-            ; Currently, "ip", "header", "username", "auth_username" and "anonymous"
-            ; are valid identifiers as registered by the res_pjsip_endpoint_identifier_*
-            ; modules.  Some modules like res_pjsip_endpoint_identifier_user register
+            ; Currently, "ip", "header", "request_uri", "transport", "username",
+            ; "auth_username" and "anonymous"  are valid identifiers as registered by
+            ; the res_pjsip_endpoint_identifier_* modules.
+            ; Some modules like res_pjsip_endpoint_identifier_user register
             ; more than one identifier.  Use the CLI command "pjsip show identifiers"
             ; to see the identifiers currently available.
             ; (default: ip,username,anonymous)
@@ -1461,6 +1504,8 @@
 ;match= ; Comma separated list of IP addresses, networks, or hostnames to match
         ; against (default: "")
 ;match_header= ; SIP header with specified value to match against (default: "")
+;match_request_uri= ; SIP request URI to match against (default: "")
+;transport= ; Match ageinst the transport protocol (tcp or udp) (default: "")
 ;type=  ; Must be of type identify (default: "")
 
 
