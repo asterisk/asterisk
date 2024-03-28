@@ -1063,7 +1063,7 @@ static struct ao2_container *cli_unid_get_container(const char *regex)
 	return s_container;
 }
 
-static int cli_unid_iterate(void *container, ao2_callback_fn callback, void *args)
+static int cli_unid_iterate(void *container, ao2_callback_fn callback, void *args, int flags)
 {
 	ao2_callback(container, 0, callback, args);
 
