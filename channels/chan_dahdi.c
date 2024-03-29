@@ -437,6 +437,15 @@
 			<para>Similar to the CLI command "dahdi show channels".</para>
 		</description>
 	</manager>
+	<manager name="DAHDIShowStatus" language="en_US">
+		<synopsis>
+			Show status of DAHDI spans.
+		</synopsis>
+		<syntax/>
+		<description>
+			<para>Similar to the CLI command "dahdi show status".</para>
+		</description>
+	</manager>
 	<manager name="DAHDIRestart" language="en_US">
 		<synopsis>
 			Fully Restart DAHDI channels (terminates calls).
@@ -15967,8 +15976,8 @@ static int action_dahdirestart(struct mansession *s, const struct message *m)
 
 static char *dahdi_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-#define FORMAT "%7s %-15.15s %-15.15s %-10.10s %-20.20s %-10.10s %-10.10s %-32.32s\n"
-#define FORMAT2 "%7s %-15.15s %-15.15s %-10.10s %-20.20s %-10.10s %-10.10s %-32.32s\n"
+#define FORMAT "%7s %4d %-20.20s %-10.10s %-15.15s %-8.8s %-20.20s %-10.10s %-10.10s %-12.12s %-32.32s\n"
+#define FORMAT2 "%7s %4s %-20.20s %-10.10s %-15.15s %-8.8s %-20.20s %-10.10s %-10.10s %-12.12s %-32.32s\n"
 	ast_group_t targetnum = 0;
 	int filtertype = 0;
 	struct dahdi_pvt *tmp = NULL;
@@ -16006,9 +16015,10 @@ static char *dahdi_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cl
 		}
 	}
 
-	ast_cli(a->fd, FORMAT2, "Chan", "Extension", "Context", "Language", "MOH Interpret", "Blocked", "In Service", "Description");
+	ast_cli(a->fd, FORMAT2, "Chan", "Span", "Signalling", "Extension", "Context", "Language", "MOH Interpret", "Blocked", "In Service", "Alarms", "Description");
 	ast_mutex_lock(&iflock);
 	for (tmp = iflist; tmp; tmp = tmp->next) {
+		int alm = 0;
 		if (filtertype) {
 			switch(filtertype) {
 			case 1: /* dahdi show channels group <group> */
@@ -16027,6 +16037,7 @@ static char *dahdi_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cl
 		}
 		if (tmp->channel > 0) {
 			snprintf(tmps, sizeof(tmps), "%d", tmp->channel);
+			alm = get_alarms(tmp);
 		} else {
 			ast_copy_string(tmps, "pseudo", sizeof(tmps));
 		}
@@ -16035,7 +16046,8 @@ static char *dahdi_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cl
 		blockstr[1] = tmp->remotelyblocked ? 'R' : ' ';
 		blockstr[2] = '\0';
 
-		ast_cli(a->fd, FORMAT, tmps, tmp->exten, tmp->context, tmp->language, tmp->mohinterpret, blockstr, tmp->inservice ? "Yes" : "No", tmp->description);
+		ast_cli(a->fd, FORMAT, tmps, tmp->span, sig2str(tmp->sig), tmp->exten, tmp->context, tmp->language, tmp->mohinterpret, blockstr, tmp->inservice ? "Yes" : "No",
+			alarm2str(alm), tmp->description);
 	}
 	ast_mutex_unlock(&iflock);
 	return CLI_SUCCESS;
@@ -16282,11 +16294,49 @@ static char *handle_dahdi_show_cadences(struct ast_cli_entry *e, int cmd, struct
 	return CLI_SUCCESS;
 }
 
+static void build_alarm_info(char *restrict alarmstr, struct dahdi_spaninfo *spaninfo)
+{
+	alarmstr[0] = '\0';
+	if (spaninfo->alarms > 0) {
+		if (spaninfo->alarms & DAHDI_ALARM_BLUE) {
+			strcat(alarmstr, "BLU/");
+		}
+		if (spaninfo->alarms & DAHDI_ALARM_YELLOW) {
+			strcat(alarmstr, "YEL/");
+		}
+		if (spaninfo->alarms & DAHDI_ALARM_RED) {
+			strcat(alarmstr, "RED/");
+		}
+		if (spaninfo->alarms & DAHDI_ALARM_LOOPBACK) {
+			strcat(alarmstr, "LB/");
+		}
+		if (spaninfo->alarms & DAHDI_ALARM_RECOVER) {
+			strcat(alarmstr, "REC/");
+		}
+		if (spaninfo->alarms & DAHDI_ALARM_NOTOPEN) {
+			strcat(alarmstr, "NOP/");
+		}
+		if (!strlen(alarmstr)) {
+			strcat(alarmstr, "UUU/");
+		}
+		if (strlen(alarmstr)) {
+			/* Strip trailing / */
+			alarmstr[strlen(alarmstr) - 1] = '\0';
+		}
+	} else {
+		if (spaninfo->numchans) {
+			strcpy(alarmstr, "OK");
+		} else {
+			strcpy(alarmstr, "UNCONFIGURED");
+		}
+	}
+}
+
 /* Based on irqmiss.c */
 static char *dahdi_show_status(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	#define FORMAT "%-40.40s %-7.7s %-6d %-6d %-6d %-3.3s %-4.4s %-8.8s %s\n"
-	#define FORMAT2 "%-40.40s %-7.7s %-6.6s %-6.6s %-6.6s %-3.3s %-4.4s %-8.8s %s\n"
+	#define FORMAT "%4d %-40.40s %-7.7s %-6d %-6d %-6d %-3.3s %-4.4s %-8.8s %s\n"
+	#define FORMAT2 "%4s %-40.40s %-7.7s %-6.6s %-6.6s %-6.6s %-3.3s %-4.4s %-8.8s %s\n"
 	int span;
 	int res;
 	char alarmstr[50];
@@ -16309,7 +16359,7 @@ static char *dahdi_show_status(struct ast_cli_entry *e, int cmd, struct ast_cli_
 		ast_cli(a->fd, "No DAHDI found. Unable to open /dev/dahdi/ctl: %s\n", strerror(errno));
 		return CLI_FAILURE;
 	}
-	ast_cli(a->fd, FORMAT2, "Description", "Alarms", "IRQ", "bpviol", "CRC", "Framing", "Coding", "Options", "LBO");
+	ast_cli(a->fd, FORMAT2, "Span", "Description", "Alarms", "IRQ", "bpviol", "CRC", "Framing", "Coding", "Options", "LBO");
 
 	for (span = 1; span < DAHDI_MAX_SPANS; ++span) {
 		s.spanno = span;
@@ -16317,34 +16367,8 @@ static char *dahdi_show_status(struct ast_cli_entry *e, int cmd, struct ast_cli_
 		if (res) {
 			continue;
 		}
-		alarmstr[0] = '\0';
-		if (s.alarms > 0) {
-			if (s.alarms & DAHDI_ALARM_BLUE)
-				strcat(alarmstr, "BLU/");
-			if (s.alarms & DAHDI_ALARM_YELLOW)
-				strcat(alarmstr, "YEL/");
-			if (s.alarms & DAHDI_ALARM_RED)
-				strcat(alarmstr, "RED/");
-			if (s.alarms & DAHDI_ALARM_LOOPBACK)
-				strcat(alarmstr, "LB/");
-			if (s.alarms & DAHDI_ALARM_RECOVER)
-				strcat(alarmstr, "REC/");
-			if (s.alarms & DAHDI_ALARM_NOTOPEN)
-				strcat(alarmstr, "NOP/");
-			if (!strlen(alarmstr))
-				strcat(alarmstr, "UUU/");
-			if (strlen(alarmstr)) {
-				/* Strip trailing / */
-				alarmstr[strlen(alarmstr) - 1] = '\0';
-			}
-		} else {
-			if (s.numchans)
-				strcpy(alarmstr, "OK");
-			else
-				strcpy(alarmstr, "UNCONFIGURED");
-		}
-
-		ast_cli(a->fd, FORMAT, s.desc, alarmstr, s.irqmisses, s.bpvcount, s.crc4count,
+		build_alarm_info(alarmstr, &s);
+		ast_cli(a->fd, FORMAT, span, s.desc, alarmstr, s.irqmisses, s.bpvcount, s.crc4count,
 			s.lineconfig & DAHDI_CONFIG_D4 ? "D4" :
 			s.lineconfig & DAHDI_CONFIG_ESF ? "ESF" :
 			s.lineconfig & DAHDI_CONFIG_CCS ? "CCS" :
@@ -16352,7 +16376,7 @@ static char *dahdi_show_status(struct ast_cli_entry *e, int cmd, struct ast_cli_
 			s.lineconfig & DAHDI_CONFIG_B8ZS ? "B8ZS" :
 			s.lineconfig & DAHDI_CONFIG_HDB3 ? "HDB3" :
 			s.lineconfig & DAHDI_CONFIG_AMI ? "AMI" :
-			"Unk",
+			"Unknown",
 			s.lineconfig & DAHDI_CONFIG_CRC4 ?
 				s.lineconfig & DAHDI_CONFIG_NOTOPEN ? "CRC4/YEL" : "CRC4" :
 				s.lineconfig & DAHDI_CONFIG_NOTOPEN ? "YEL" : "",
@@ -16951,6 +16975,74 @@ static int action_dahdishowchannels(struct mansession *s, const struct message *
 
 	astman_send_list_complete_start(s, m, "DAHDIShowChannelsComplete", channels);
 	astman_append(s, "Items: %d\r\n", channels);
+	astman_send_list_complete_end(s);
+	return 0;
+}
+
+static int action_dahdishowstatus(struct mansession *s, const struct message *m)
+{
+	const char *id = astman_get_header(m, "ActionID");
+	int span;
+	int res;
+	char alarmstr[50];
+	int ctl;
+	char idText[256];
+	int numspans = 0;
+	struct dahdi_spaninfo spaninfo;
+
+	ctl = open("/dev/dahdi/ctl", O_RDWR);
+	if (ctl < 0) {
+		astman_send_error(s, m, "No DAHDI detected");
+		return 0;
+	}
+
+	idText[0] = '\0';
+	if (!ast_strlen_zero(id)) {
+		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
+	}
+	astman_send_listack(s, m, "DAHDI span statuses will follow", "start");
+
+	for (span = 1; span < DAHDI_MAX_SPANS; ++span) {
+		spaninfo.spanno = span;
+		res = ioctl(ctl, DAHDI_SPANSTAT, &spaninfo);
+		if (res) {
+			continue;
+		}
+		numspans++;
+		build_alarm_info(alarmstr, &spaninfo);
+		astman_append(s,
+			"Event: DAHDIShowStatus\r\n"
+			"Span: %d\r\n"
+			"Description: %s\r\n"
+			"Alarms: %s\r\n"
+			"IRQ: %d\r\n"
+			"bpviol: %d\r\n"
+			"CRC: %d\r\n"
+			"Framing: %s\r\n"
+			"Coding: %s\r\n"
+			"Options: %s\r\n"
+			"LBO: %s\r\n"
+			"%s"
+			"\r\n",
+			span, spaninfo.desc, alarmstr, spaninfo.irqmisses, spaninfo.bpvcount, spaninfo.crc4count,
+			spaninfo.lineconfig & DAHDI_CONFIG_D4 ? "D4" :
+			spaninfo.lineconfig & DAHDI_CONFIG_ESF ? "ESF" :
+			spaninfo.lineconfig & DAHDI_CONFIG_CCS ? "CCS" :
+			"CAS",
+			spaninfo.lineconfig & DAHDI_CONFIG_B8ZS ? "B8ZS" :
+			spaninfo.lineconfig & DAHDI_CONFIG_HDB3 ? "HDB3" :
+			spaninfo.lineconfig & DAHDI_CONFIG_AMI ? "AMI" :
+			"Unk",
+			spaninfo.lineconfig & DAHDI_CONFIG_CRC4 ?
+				spaninfo.lineconfig & DAHDI_CONFIG_NOTOPEN ? "CRC4/YEL" : "CRC4" :
+				spaninfo.lineconfig & DAHDI_CONFIG_NOTOPEN ? "YEL" : "",
+			lbostr[spaninfo.lbo],
+			idText);
+	}
+	close(ctl);
+
+	astman_send_list_complete_start(s, m, "DAHDIShowStatusComplete", numspans);
+	astman_append(s, "Items: %d\r\n", numspans);
 	astman_send_list_complete_end(s);
 	return 0;
 }
@@ -18045,6 +18137,7 @@ static int __unload_module(void)
 	ast_manager_unregister("DAHDIDNDoff");
 	ast_manager_unregister("DAHDIDNDon");
 	ast_manager_unregister("DAHDIShowChannels");
+	ast_manager_unregister("DAHDIShowStatus");
 	ast_manager_unregister("DAHDIRestart");
 #if defined(HAVE_PRI)
 	ast_manager_unregister("PRIShowSpans");
@@ -20266,6 +20359,7 @@ static int load_module(void)
 	ast_manager_register_xml("DAHDIDNDon", 0, action_dahdidndon);
 	ast_manager_register_xml("DAHDIDNDoff", 0, action_dahdidndoff);
 	ast_manager_register_xml("DAHDIShowChannels", 0, action_dahdishowchannels);
+	ast_manager_register_xml("DAHDIShowStatus", 0, action_dahdishowstatus);
 	ast_manager_register_xml("DAHDIRestart", 0, action_dahdirestart);
 #if defined(HAVE_PRI)
 	ast_manager_register_xml("PRIShowSpans", 0, action_prishowspans);
