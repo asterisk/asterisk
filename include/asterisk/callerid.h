@@ -190,14 +190,28 @@ int callerid_feed_jp(struct callerid_state *cid, unsigned char *ubuf, int sample
  * \param cid Callerid state machine to act upon
  * \param number Pass the address of a pointer-to-char (will contain the phone number)
  * \param name Pass the address of a pointer-to-char (will contain the name)
- * \param flags Pass the address of an int variable(will contain the various callerid flags)
+ * \param flags Pass the address of an int variable (will contain the various callerid flags - presentation flags and call qualifier)
  *
  * \details
  * This function extracts a callerid string out of a callerid_state state machine.
  * If no number is found, *number will be set to NULL.  Likewise for the name.
- * Flags can contain any of the following:
+ * Flags can contain any of the following: CID_PRIVATE_NAME, CID_PRIVATE_NUMBER, CID_UNKNOWN_NAME, CID_UNKNOWN_NUMBER, CID_MSGWAITING, CID_NOMSGWAITING, CID_QUALIFIER
  */
 void callerid_get(struct callerid_state *cid, char **number, char **name, int *flags);
+
+/*! \brief Extract info out of callerID state machine.  Flags are listed above
+ * \param cid Callerid state machine to act upon
+ * \param[out] number Pass the address of a pointer-to-char (will contain the phone number)
+ * \param[out] name Pass the address of a pointer-to-char (will contain the name)
+ * \param[out] flags Pass the address of an int variable (will contain the various callerid flags)
+ * \param[out] redirecting Pass the address of an int variable (will contain the redirecting reason, if received - presentation flags and call qualifier)
+ *
+ * \details
+ * This function extracts a callerid string out of a callerid_state state machine.
+ * If no number is found, *number will be set to NULL.  Likewise for the name.
+ * Flags can contain any of the following: CID_PRIVATE_NAME, CID_PRIVATE_NUMBER, CID_UNKNOWN_NAME, CID_UNKNOWN_NUMBER, CID_MSGWAITING, CID_NOMSGWAITING, CID_QUALIFIER
+ */
+void callerid_get_with_redirecting(struct callerid_state *cid, char **name, char **number, int *flags, int *redirecting);
 
 /*!
  * \brief Get and parse DTMF-based callerid
