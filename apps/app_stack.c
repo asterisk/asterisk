@@ -200,7 +200,7 @@
 			returning to the dialplan with execution of a Return().</para>
 		</description>
 		<see-also>
-			<ref type="application">GoSub</ref>
+			<ref type="application">Gosub</ref>
 		</see-also>
 	</agi>
 	<managerEvent language="en_US" name="VarSet">
@@ -218,7 +218,7 @@
 				</parameter>
 			</syntax>
 			<see-also>
-				<ref type="application">GoSub</ref>
+				<ref type="application">Gosub</ref>
 				<ref type="agi">gosub</ref>
 				<ref type="function">LOCAL</ref>
 				<ref type="function">LOCAL_PEEK</ref>
