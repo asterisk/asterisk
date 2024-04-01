@@ -351,7 +351,7 @@ struct verification_cfg_common {
 	enum load_system_certs_enum load_system_certs;
 
 	struct ast_acl_list *acl;
-	X509_STORE *tcs;
+	struct crypto_cert_store *tcs;
 };
 
 #define generate_vcfg_common_sorcery_handlers(object) \
