@@ -134,7 +134,7 @@
 		<see-also>
 			<ref type="application">Congestion</ref>
 			<ref type="application">Progress</ref>
-			<ref type="application">Playtones</ref>
+			<ref type="application">PlayTones</ref>
 			<ref type="application">Hangup</ref>
 		</see-also>
 	</application>
@@ -154,7 +154,7 @@
 		<see-also>
 			<ref type="application">Busy</ref>
 			<ref type="application">Progress</ref>
-			<ref type="application">Playtones</ref>
+			<ref type="application">PlayTones</ref>
 			<ref type="application">Hangup</ref>
 		</see-also>
 	</application>
@@ -395,7 +395,7 @@
 			<ref type="application">Busy</ref>
 			<ref type="application">Congestion</ref>
 			<ref type="application">Ringing</ref>
-			<ref type="application">Playtones</ref>
+			<ref type="application">PlayTones</ref>
 		</see-also>
 	</application>
 	<application name="RaiseException" language="en_US">
@@ -410,7 +410,7 @@
 			dialplan function EXCEPTION(). If the <literal>e</literal> extension does not exist, the call will hangup.</para>
 		</description>
 		<see-also>
-			<ref type="function">Exception</ref>
+			<ref type="function">EXCEPTION</ref>
 		</see-also>
 	</application>
 	<application name="Ringing" language="en_US">
@@ -425,7 +425,7 @@
 			<ref type="application">Busy</ref>
 			<ref type="application">Congestion</ref>
 			<ref type="application">Progress</ref>
-			<ref type="application">Playtones</ref>
+			<ref type="application">PlayTones</ref>
 		</see-also>
 	</application>
 	<application name="SayAlpha" language="en_US">

@@ -117,7 +117,7 @@
 		<description>
  			<para>This application is provided by res_fax, which is a FAX technology agnostic module
  			that utilizes FAX technology resource modules to complete a FAX transmission.</para>
- 			<para>Session arguments can be set by the FAXOPT function and to check results of the ReceiveFax() application.</para>
+ 			<para>Session arguments can be set by the FAXOPT function and to check results of the ReceiveFAX() application.</para>
 		</description>
 		<see-also>
 			<ref type="function">FAXOPT</ref>
@@ -156,7 +156,7 @@
 		<description>
  			<para>This application is provided by res_fax, which is a FAX technology agnostic module
  			that utilizes FAX technology resource modules to complete a FAX transmission.</para>
- 			<para>Session arguments can be set by the FAXOPT function and to check results of the SendFax() application.</para>
+ 			<para>Session arguments can be set by the FAXOPT function and to check results of the SendFAX() application.</para>
 		</description>
 		<see-also>
 			<ref type="function">FAXOPT</ref>
@@ -237,8 +237,8 @@
 		   	it can also be used to retrieve information about a FAX session that has finished eg. pages/status.</para>
 		</description>
 		<see-also>
-			<ref type="application">ReceiveFax</ref>
-			<ref type="application">SendFax</ref>
+			<ref type="application">ReceiveFAX</ref>
+			<ref type="application">SendFAX</ref>
 		</see-also>
 	</function>
 	<manager name="FAXSessions" language="en_US">
@@ -2273,7 +2273,7 @@ static int receivefax_exec(struct ast_channel *chan, const char *data)
 	}
 
 	if (report_receive_fax_status(chan, args.filename)) {
-		ast_log(AST_LOG_ERROR, "Error publishing ReceiveFax status message\n");
+		ast_log(AST_LOG_ERROR, "Error publishing ReceiveFAX status message\n");
 	}
 
 	/* If the channel hungup return -1; otherwise, return 0 to continue in the dialplan */

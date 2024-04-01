@@ -192,9 +192,6 @@
 		<description>
 			<para>Gets information associated with the specified IAX2 peer.</para>
 		</description>
-		<see-also>
-			<ref type="function">SIPPEER</ref>
-		</see-also>
 	</function>
 	<function name="IAXVAR" language="en_US">
 		<synopsis>

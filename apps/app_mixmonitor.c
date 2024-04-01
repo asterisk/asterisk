@@ -177,7 +177,6 @@
 			<ref type="application">StopMixMonitor</ref>
 			<ref type="application">PauseMonitor</ref>
 			<ref type="application">UnpauseMonitor</ref>
-			<ref type="function">AUDIOHOOK_INHERIT</ref>
 		</see-also>
 	</application>
 	<application name="StopMixMonitor" language="en_US">
