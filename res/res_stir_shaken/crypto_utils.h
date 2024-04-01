@@ -165,19 +165,26 @@ int crypto_extract_raw_privkey(EVP_PKEY *key, unsigned char **buffer);
 EVP_PKEY *crypto_load_privkey_from_file(const char *filename);
 
 /*!
+ * \brief ao2 object wrapper for X509_STORE that provides locking and refcounting
+ */
+struct crypto_cert_store {
+	X509_STORE *store;
+};
+
+/*!
  * \brief Free an X509 store
  *
  * \param store X509 Store to free
  *
  */
-void crypto_free_cert_store(X509_STORE *store);
+#define crypto_free_cert_store(store) ao2_cleanup(store)
 
 /*!
  * \brief Create an empty X509 store
  *
- * \returns X509_STORE* or NULL on error
+ * \returns crypto_cert_store * or NULL on error
  */
-X509_STORE *crypto_create_cert_store(void);
+struct crypto_cert_store *crypto_create_cert_store(void);
 
 /*!
  * \brief Dump a cert store to the asterisk CLI
@@ -187,7 +194,7 @@ X509_STORE *crypto_create_cert_store(void);
 
  * \retval Count of objects printed
  */
-int crypto_show_cli_store(X509_STORE *store, int fd);
+int crypto_show_cli_store(struct crypto_cert_store *store, int fd);
 
 /*!
  * \brief Load an X509 Store with either certificates or CRLs
@@ -201,7 +208,7 @@ int crypto_show_cli_store(X509_STORE *store, int fd);
  * \retval <= 0 failure
  * \retval 0 success
  */
-int crypto_load_cert_store(X509_STORE *store, const char *file,
+int crypto_load_cert_store(struct crypto_cert_store *store, const char *file,
 	const char *path);
 
 /*!
@@ -212,7 +219,7 @@ int crypto_load_cert_store(X509_STORE *store, const char *file,
  * \retval <= 0 failure
  * \retval 0 success
  */
-int crypto_lock_cert_store(X509_STORE *store);
+#define crypto_lock_cert_store(store) ao2_lock(store)
 
 /*!
  * \brief Unlocks an X509 Store
@@ -222,7 +229,7 @@ int crypto_lock_cert_store(X509_STORE *store);
  * \retval <= 0 failure
  * \retval 0 success
  */
-int crypto_unlock_cert_store(X509_STORE *store);
+#define crypto_unlock_cert_store(store) ao2_unlock(store)
 
 /*!
  * \brief Check if the reftime is within the cert's valid dates
@@ -245,7 +252,7 @@ int crypto_is_cert_time_valid(X509 *cert, time_t reftime);
  * \retval 1 Cert is trusted
  * \retval 0 Cert is not trusted
  */
-int crypto_is_cert_trusted(X509_STORE *store, X509 *cert, const char **err_msg);
+int crypto_is_cert_trusted(struct crypto_cert_store *store, X509 *cert, const char **err_msg);
 
 /*!
  * \brief Return a time_t for an ASN1_TIME
