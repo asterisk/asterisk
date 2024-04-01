@@ -251,6 +251,12 @@
 /* Define to 1 if you have the `expl' function. */
 #undef HAVE_EXPL
 
+/* Define to 1 if you have the Faac library. */
+#undef HAVE_FAAC
+
+/* Define to 1 if you have the Faad library. */
+#undef HAVE_FAAD
+
 /* Define to 1 if you have the <fcntl.h> header file. */
 #undef HAVE_FCNTL_H
 
