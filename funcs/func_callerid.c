@@ -192,6 +192,8 @@
 					You are responsible for setting it if/when needed.</para>
 					<para>Supporting Caller ID units will display the LDC
 					(Long Distance Call) indicator when they receive this parameter.</para>
+					<para>For incoming calls on FXO ports, if the Call Qualifier parameter is received,
+					this variable will also be set to 1.</para>
 					<para>This option must be used with a channel driver
 					that allows Asterisk to generate the Caller ID spill,
 					which currently only includes <literal>chan_dahdi</literal>.</para>
