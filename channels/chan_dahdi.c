@@ -1427,6 +1427,7 @@ static int my_get_callerid(void *pvt, char *namebuf, char *numbuf, enum analog_e
 	int res;
 	unsigned char buf[256];
 	int flags;
+	int redirecting;
 
 	poller.fd = p->subs[SUB_REAL].dfd;
 	poller.events = POLLPRI | POLLIN;
@@ -1473,7 +1474,8 @@ static int my_get_callerid(void *pvt, char *namebuf, char *numbuf, enum analog_e
 		}
 
 		if (res == 1) {
-			callerid_get(p->cs, &name, &num, &flags);
+			struct ast_channel *chan = analog_p->ss_astchan;
+			callerid_get_with_redirecting(p->cs, &name, &num, &flags, &redirecting);
 			if (name)
 				ast_copy_string(namebuf, name, ANALOG_MAX_CID);
 			if (num)
@@ -1481,7 +1483,6 @@ static int my_get_callerid(void *pvt, char *namebuf, char *numbuf, enum analog_e
 
 			if (flags & (CID_PRIVATE_NUMBER | CID_UNKNOWN_NUMBER)) {
 				/* If we got a presentation, we must set it on the channel */
-				struct ast_channel *chan = analog_p->ss_astchan;
 				struct ast_party_caller caller;
 
 				ast_party_caller_set_init(&caller, ast_channel_caller(chan));
@@ -1490,8 +1491,19 @@ static int my_get_callerid(void *pvt, char *namebuf, char *numbuf, enum analog_e
 				ast_party_caller_set(ast_channel_caller(chan), &caller, NULL);
 				ast_party_caller_free(&caller);
 			}
+			if (redirecting) {
+				/* There is a redirecting reason available in the Caller*ID received.
+				 * No idea what the redirecting number is, since the Caller*ID protocol
+				 * has no parameter for that, but at least we know WHY it was redirected. */
+				ast_channel_redirecting(chan)->reason.code = redirecting;
+			}
 
-			ast_debug(1, "CallerID number: %s, name: %s, flags=%d\n", num, name, flags);
+			if (flags & CID_QUALIFIER) {
+				/* This is the inverse of how the qualifier is set in sig_analog */
+				pbx_builtin_setvar_helper(chan, "CALL_QUALIFIER", "1");
+			}
+
+			ast_debug(1, "CallerID number: %s, name: %s, flags=%d, redirecting=%s\n", num, name, flags, ast_redirecting_reason_name(&ast_channel_redirecting(chan)->reason));
 			return 0;
 		}
 	}
