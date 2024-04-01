@@ -279,10 +279,8 @@ int crypto_extract_raw_pubkey(EVP_PKEY *key, unsigned char **buffer)
 int crypto_get_raw_pubkey_from_cert(X509 *cert,
 	unsigned char **buffer)
 {
-	RAII_VAR(BIO *, bio, NULL, BIO_free_all);
-	EVP_PKEY *public_key;
+	RAII_VAR(EVP_PKEY *, public_key, X509_get_pubkey(cert), EVP_PKEY_free);
 
-	public_key = X509_get0_pubkey(cert);
 	if (!public_key) {
 		crypto_log_openssl(LOG_ERROR, "Unable to retrieve pubkey from cert\n");
 		return -1;
@@ -305,45 +303,34 @@ int crypto_extract_raw_privkey(EVP_PKEY *key, unsigned char **buffer)
 	return dump_mem_bio(bio, buffer);
 }
 
-void crypto_free_cert_store(X509_STORE *store)
+static void crypto_cert_store_destructor(void *obj)
 {
-	if (!store) {
-		return;
+	struct crypto_cert_store *store = obj;
+
+	if (store->store) {
+		X509_STORE_free(store->store);
 	}
-	X509_STORE_free(store);
 }
 
-int crypto_lock_cert_store(X509_STORE *store)
+struct crypto_cert_store *crypto_create_cert_store(void)
 {
+	struct crypto_cert_store *store = ao2_alloc(sizeof(*store), crypto_cert_store_destructor);
 	if (!store) {
-		return -1;
+		ast_log(LOG_ERROR, "Failed to create crypto_cert_store\n");
+		return NULL;
 	}
-	/* lock returns 1 on success */
-	return X509_STORE_lock(store) == 1 ? 0 : -1;
-}
+	store->store = X509_STORE_new();
 
-int crypto_unlock_cert_store(X509_STORE *store)
-{
-	if (!store) {
-		return -1;
-	}
-	/* unlock returns 1 on success */
-	return X509_STORE_unlock(store) == 1 ? 0 : -1;
-}
-
-X509_STORE *crypto_create_cert_store(void)
-{
-	X509_STORE *store = X509_STORE_new();
-
-	if (!store) {
+	if (!store->store) {
 		crypto_log_openssl(LOG_ERROR, "Failed to create X509_STORE\n");
+		ao2_ref(store, -1);
 		return NULL;
 	}
 
 	return store;
 }
 
-int crypto_load_cert_store(X509_STORE *store, const char *file,
+int crypto_load_cert_store(struct crypto_cert_store *store, const char *file,
 	const char *path)
 {
 	if (ast_strlen_zero(file) && ast_strlen_zero(path)) {
@@ -351,7 +338,7 @@ int crypto_load_cert_store(X509_STORE *store, const char *file,
 		return -1;
 	}
 
-	if (!store) {
+	if (!store || !store->store) {
 		ast_log(LOG_ERROR, "store is NULL");
 		return -1;
 	}
@@ -361,7 +348,7 @@ int crypto_load_cert_store(X509_STORE *store, const char *file,
 	 * so openssl ignores it otherwise it'll try to open a file or
 	 * path named ''.
 	 */
-	if (!X509_STORE_load_locations(store, S_OR(file, NULL), S_OR(path, NULL))) {
+	if (!X509_STORE_load_locations(store->store, S_OR(file, NULL), S_OR(path, NULL))) {
 		crypto_log_openssl(LOG_ERROR, "Failed to load store from file '%s' or path '%s'\n",
 			S_OR(file, "N/A"), S_OR(path, "N/A"));
 		return -1;
@@ -370,14 +357,15 @@ int crypto_load_cert_store(X509_STORE *store, const char *file,
 	return 0;
 }
 
-int crypto_show_cli_store(X509_STORE *store, int fd)
+int crypto_show_cli_store(struct crypto_cert_store *store, int fd)
 {
+#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
 	STACK_OF(X509_OBJECT) *certs = NULL;
 	int count = 0;
 	int i = 0;
 	char subj[1024];
 
-	certs = X509_STORE_get0_objects(store);
+	certs = X509_STORE_get0_objects(store->store);
 	count = sk_X509_OBJECT_num(certs);
 	for (i = 0; i < count ; i++) {
 		X509_OBJECT *o = sk_X509_OBJECT_value(certs, i);
@@ -386,7 +374,12 @@ int crypto_show_cli_store(X509_STORE *store, int fd)
 		ast_cli(fd, "%s\n", subj);
 	}
 	return count;
+#else
+	ast_cli(fd, "This command is not supported until OpenSSL 1.1.0\n");
+	return 0;
+#endif
 }
+
 int crypto_is_cert_time_valid(X509*cert, time_t reftime)
 {
 	ASN1_STRING *notbefore;
@@ -406,7 +399,7 @@ int crypto_is_cert_time_valid(X509*cert, time_t reftime)
 		X509_cmp_time(notafter, &reftime) > 0);
 }
 
-int crypto_is_cert_trusted(X509_STORE *store, X509 *cert, const char **err_msg)
+int crypto_is_cert_trusted(struct crypto_cert_store *store, X509 *cert, const char **err_msg)
 {
 	X509_STORE_CTX *verify_ctx = NULL;
 	int rc = 0;
@@ -416,7 +409,7 @@ int crypto_is_cert_trusted(X509_STORE *store, X509 *cert, const char **err_msg)
 		return 0;
 	}
 
-	if (X509_STORE_CTX_init(verify_ctx, store, cert, NULL) != 1) {
+	if (X509_STORE_CTX_init(verify_ctx, store->store, cert, NULL) != 1) {
 		X509_STORE_CTX_cleanup(verify_ctx);
 		X509_STORE_CTX_free(verify_ctx);
 		crypto_log_openssl(LOG_ERROR, "Unable to initialize verify_ctx\n");

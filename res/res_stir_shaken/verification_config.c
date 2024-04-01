@@ -129,7 +129,7 @@ int vs_copy_cfg_common(const char *id, struct verification_cfg_common *cfg_dst,
 		cfg_sf_copy_wrapper(id, cfg_dst, cfg_src, ca_path);
 		cfg_sf_copy_wrapper(id, cfg_dst, cfg_src, crl_file);
 		cfg_sf_copy_wrapper(id, cfg_dst, cfg_src, crl_path);
-		X509_STORE_up_ref(cfg_src->tcs);
+		ao2_bump(cfg_src->tcs);
 		cfg_dst->tcs = cfg_src->tcs;
 	}
 
@@ -230,12 +230,12 @@ int vs_check_common_config(const char *id,
 
 	if (vcfg_common->tcs) {
 		if (ENUM_BOOL(vcfg_common->load_system_certs, load_system_certs)) {
-			X509_STORE_set_default_paths(vcfg_common->tcs);
+			X509_STORE_set_default_paths(vcfg_common->tcs->store);
 		}
 
 		if (!ast_strlen_zero(vcfg_common->crl_file)
 			|| !ast_strlen_zero(vcfg_common->crl_path)) {
-			X509_STORE_set_flags(vcfg_common->tcs, X509_V_FLAG_CRL_CHECK | X509_V_FLAG_CRL_CHECK_ALL);
+			X509_STORE_set_flags(vcfg_common->tcs->store, X509_V_FLAG_CRL_CHECK | X509_V_FLAG_CRL_CHECK_ALL);
 		}
 	}
 
