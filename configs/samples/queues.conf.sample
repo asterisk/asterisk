@@ -107,6 +107,15 @@ monitor-type = MixMonitor
 ;
 ;strategy = ringall
 ;
+; To implement queue strategy logic outside of app_queue, an external
+; queue strategy provider may be used. Specify 'yes' to prefer
+; using such a module for providing strategy logic instead of using
+; the built-in strategies. Default is 'no'.
+; Note: You must have an external queue strategy provider loaded
+; for this option to be effective.
+;
+;externalstrategy = no
+;
 ; Second settings for service level (default 0)
 ; Used for service level statistics (calls answered within service level time frame)
 ; There are 2 Service Level Performance Calculations SL and SL2
