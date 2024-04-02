@@ -3583,6 +3583,11 @@ uintmax_t ast_debug_category_ice_id(void)
 	return debug_category_ice_id;
 }
 
+/*!
+ * \internal
+ * \brief Shutdown the RTP engine
+ * This function will not get called if any module fails to unload.
+ */
 static void rtp_engine_shutdown(void)
 {
 	int x;
@@ -3607,7 +3612,15 @@ static void rtp_engine_shutdown(void)
 	}
 	mime_types_len = 0;
 	ast_rwlock_unlock(&mime_types_lock);
+}
 
+/*!
+ * \internal
+ * \brief Unregister the debug categories
+ * This function will always get called even if any module fails to unload.
+ */
+static void rtp_engine_atexit(void)
+{
 	ast_debug_category_unregister(AST_LOG_CATEGORY_ICE);
 
 	ast_debug_category_unregister(AST_LOG_CATEGORY_DTLS_PACKET);
@@ -3752,6 +3765,16 @@ int ast_rtp_engine_init(void)
 	debug_category_dtls_id = ast_debug_category_register(AST_LOG_CATEGORY_DTLS);
 	debug_category_dtls_packet_id = ast_debug_category_register(AST_LOG_CATEGORY_DTLS_PACKET);
 	debug_category_ice_id = ast_debug_category_register(AST_LOG_CATEGORY_ICE);
+
+	/*
+	 * Normnally a core module should call ast_register_cleanup,
+	 * which doesn't run if any module fails to unload.  This
+	 * prevents resources being pulled out from under a running
+	 * module and possibly causing a segfault.  In this case however,
+	 * the only thing we're cleaning up are the registrations of the
+	 * debug categories.
+	 */
+	ast_register_atexit(rtp_engine_atexit);
 
 	return 0;
 }
