@@ -576,8 +576,17 @@ static void stun_shutdown(void)
 void ast_stun_init(void)
 {
 	ast_cli_register_multiple(cli_stun, sizeof(cli_stun) / sizeof(struct ast_cli_entry));
-	ast_register_cleanup(stun_shutdown);
-
 	debug_category_stun_id = ast_debug_category_register(AST_LOG_CATEGORY_STUN);
 	debug_category_stun_packet_id = ast_debug_category_register(AST_LOG_CATEGORY_STUN_PACKET);
+
+	/*
+	 * Normnally a core module should call ast_register_cleanup
+	 * which doesn't run if any module fails to unload.  This
+	 * prevents resources being pulled out from under a running
+	 * module and ppossibly causing a segfault.  In this case however,
+	 * the only thing we're cleaning up is the cli command and
+	 * the registers of the debug categories.
+	 */
+	ast_register_atexit(stun_shutdown);
+
 }
