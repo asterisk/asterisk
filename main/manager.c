@@ -164,14 +164,41 @@
 			<parameter name="Username" required="true">
 				<para>Username to login with as specified in manager.conf.</para>
 			</parameter>
+			<parameter name="AuthType">
+				<para>Authorization type. Valid values are:</para>
+				<enumlist>
+					<enum name="plain"><para>Plain text secret. (default)</para></enum>
+					<enum name="MD5"><para>MD5 hashed secret.</para></enum>
+				</enumlist>
+			</parameter>
 			<parameter name="Secret">
-				<para>Secret to login with as specified in manager.conf.</para>
+				<para>Plain text secret to login with as specified in manager.conf.</para>
+			</parameter>
+			<parameter name="Key">
+				<para>Key to use with MD5 authentication.  To create the key, you must
+				initialize a new MD5 hash, call the <literal>Challenge</literal> AMI action,
+				update the hash with the response, then update the hash with the secret as specified
+				in manager.conf.  The key value must be the final result of the hash
+				as a 32 character lower-case hex string without any "0x" prepended.
+				See the description for an example of creating a key in Python.</para>
+			</parameter>
+			<parameter name="Events">
+				<xi:include xpointer="xpointer(/docs/manager[@name='Events']/syntax/parameter[@name='EventMask']/enumlist)" />
 			</parameter>
 		</syntax>
 		<description>
 			<para>Login Manager.</para>
+			<example title="Create an MD5 Key in Python">
+				import hashlib
+				m = hashlib.md5()
+				m.update(response_from_challenge)
+				m.update(your_secret)
+				key = m.hexdigest()
+				## '031edd7d41651593c5fe5c006fa5752b'
+			</example>
 		</description>
 		<see-also>
+			<ref type="manager">Challenge</ref>
 			<ref type="manager">Logoff</ref>
 		</see-also>
 	</manager>
