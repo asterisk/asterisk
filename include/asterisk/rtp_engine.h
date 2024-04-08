@@ -311,6 +311,8 @@ struct ast_rtp_payload_type {
 	unsigned int primary_mapping:1;
 	/*! When the payload type became non-primary. */
 	struct timeval when_retired;
+	/*! Sample rate to over-ride mime type defaults */
+	unsigned int sample_rate;
 };
 
 /* Common RTCP report types */
@@ -757,10 +759,12 @@ struct ast_rtp_codecs {
 	AST_VECTOR(, struct ast_rtp_payload_type *) payload_mapping_tx;
 	/*! The framing for this media session */
 	unsigned int framing;
+	/*! The preferred format, as the mappings are numerically sorted */
+	struct ast_format *preferred_format;
 };
 
 #define AST_RTP_CODECS_NULL_INIT \
-    { .codecs_lock = AST_RWLOCK_INIT_VALUE, .payload_mapping_rx = { 0, }, .payload_mapping_tx = { 0, }, .framing = 0, }
+    { .codecs_lock = AST_RWLOCK_INIT_VALUE, .payload_mapping_rx = { 0, }, .payload_mapping_tx = { 0, }, .framing = 0, .preferred_format = NULL }
 
 /*! Structure that represents the glue that binds an RTP instance to a channel */
 struct ast_rtp_glue {
@@ -1660,6 +1664,50 @@ enum ast_media_type ast_rtp_codecs_get_stream_type(struct ast_rtp_codecs *codecs
 struct ast_rtp_payload_type *ast_rtp_codecs_get_payload(struct ast_rtp_codecs *codecs, int payload);
 
 /*!
+ * \brief Retrieve rx preferred format
+ *
+ * \param codecs Codecs structure to look in
+ *
+ * \return format information.
+ * \retval NULL if format does not exist.
+ *
+ * \note The format returned by this function has its reference count increased.
+ *       Callers are responsible for decrementing the reference count.
+ *
+ * Example usage:
+ *
+ * \code
+ * struct ast_format *payload_format;
+ * payload_format = ast_rtp_codecs_get_preferred_format(&codecs);
+ * \endcode
+ *
+ * This looks up the preferred format on the codec
+ */
+struct ast_format *ast_rtp_codecs_get_preferred_format(struct ast_rtp_codecs *codecs);
+
+/*!
+ * \brief Set the preferred format
+ *
+ * \param codecs Codecs structure to set the preferred format in
+ * \param format Preferred format to set.
+ *
+ * \return 0
+ *
+ * \note The format passed this function has its reference count increased. If an existing
+ * 		 format is set, that format is replaced.
+ *
+ * Example usage:
+ *
+ * \code
+ * struct ast_format *preferred_format = ast_format_cap_get_format(joint, 0);
+ * ast_rtp_codecs_set_preferred_format(&codecs, preferred_format));
+ * \endcode
+ *
+ * This sets the first joint format as the preferred format.
+ */
+int ast_rtp_codecs_set_preferred_format(struct ast_rtp_codecs *codecs, struct ast_format *format);
+
+/*!
  * \brief Update the format associated with a tx payload type in a codecs structure
  *
  * \param codecs Codecs structure to operate on
@@ -1774,6 +1822,36 @@ void ast_rtp_codecs_payload_formats(struct ast_rtp_codecs *codecs, struct ast_fo
  */
 int ast_rtp_codecs_payload_code(struct ast_rtp_codecs *codecs, int asterisk_format, struct ast_format *format, int code);
 
+
+/*!
+ * \brief Retrieve a rx mapped payload type based on whether it is an Asterisk format, the code and the sample rate.
+ *
+ * \param codecs Codecs structure to look in
+ * \param asterisk_format Non-zero if the given Asterisk format is present
+ * \param format Asterisk format to look for
+ * \param code The format to look for
+ * \param sample_rate Non-zero if we want to also match on sample rate.
+ *
+ * \details
+ * Find the currently assigned rx mapped payload type based on whether it
+ * is an Asterisk format or non-format code.  If one is currently not
+ * assigned then create a rx payload type mapping.
+ *
+ * \return Numerical payload type
+ * \retval -1 if could not assign.
+ *
+ * Example usage:
+ *
+ * \code
+ * int payload = ast_rtp_codecs_payload_code_sample_rate(&codecs, 0, NULL, AST_RTP_DTMF, 8000);
+ * \endcode
+ *
+ * This looks for the numerical payload for a DTMF type with a sample rate of 8kHz in the codecs structure.
+ *
+ * \since 22.0.0
+ */
+int ast_rtp_codecs_payload_code_sample_rate(struct ast_rtp_codecs *codecs, int asterisk_format, struct ast_format *format, int code, unsigned int sample_rate);
+
 /*!
  * \brief Set a payload code for use with a specific Asterisk format
  *
@@ -1789,6 +1867,21 @@ int ast_rtp_codecs_payload_code(struct ast_rtp_codecs *codecs, int asterisk_form
 int ast_rtp_codecs_payload_set_rx(struct ast_rtp_codecs *codecs, int code, struct ast_format *format);
 
 /*!
+ * \brief Set a payload code with sample rate for use with a specific Asterisk format
+ *
+ * \param codecs Codecs structure to manipulate
+ * \param code The payload code
+ * \param format Asterisk format
+ * \param sample_rate Sample rate of the format, 0 to use the format's default
+ *
+ * \retval 0 Payload was set to the given format
+ * \retval -1 Payload was in use or could not be set
+ *
+ * \since 22.0.0
+ */
+int ast_rtp_codecs_payload_set_rx_sample_rate(struct ast_rtp_codecs *codecs, int code, struct ast_format *format, unsigned int sample_rate);
+
+/*!
  * \brief Retrieve a tx mapped payload type based on whether it is an Asterisk format and the code
  * \since 14.0.0
  *
@@ -1801,6 +1894,21 @@ int ast_rtp_codecs_payload_set_rx(struct ast_rtp_codecs *codecs, int code, struc
  * \retval -1 if not found.
  */
 int ast_rtp_codecs_payload_code_tx(struct ast_rtp_codecs *codecs, int asterisk_format, const struct ast_format *format, int code);
+
+/*!
+ * \brief Retrieve a tx mapped payload type based on whether it is an Asterisk format and the code
+ * \since 22.0.0
+ *
+ * \param codecs Codecs structure to look in
+ * \param asterisk_format Non-zero if the given Asterisk format is present
+ * \param format Asterisk format to look for
+ * \param code The format to look for
+ * \param sample_rate The sample rate to look for, zero if we don't care
+ *
+ * \return Numerical payload type
+ * \retval -1 if not found.
+ */
+int ast_rtp_codecs_payload_code_tx_sample_rate(struct ast_rtp_codecs *codecs, int asterisk_format, const struct ast_format *format, int code, unsigned int sample_rate);
 
 /*!
  * \brief Search for the tx payload type in the ast_rtp_codecs structure
