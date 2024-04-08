@@ -303,7 +303,7 @@ static void rtp_payload_type_dtor(void *obj)
 }
 
 static struct ast_rtp_payload_type *rtp_payload_type_alloc(struct ast_format *format,
-	int payload, int rtp_code, int primary_mapping)
+	int payload, int rtp_code, int primary_mapping, unsigned int sample_rate)
 {
 	struct ast_rtp_payload_type *type = ao2_alloc_options(
 		sizeof(*type), rtp_payload_type_dtor, AO2_ALLOC_OPT_LOCK_NOLOCK);
@@ -317,13 +317,14 @@ static struct ast_rtp_payload_type *rtp_payload_type_alloc(struct ast_format *fo
 	type->payload = payload;
 	type->rtp_code = rtp_code;
 	type->primary_mapping = primary_mapping;
+	type->sample_rate = sample_rate;
 
 	return type;
 }
 
 struct ast_rtp_payload_type *ast_rtp_engine_alloc_payload_type(void)
 {
-	return rtp_payload_type_alloc(NULL, 0, 0, 0);
+	return rtp_payload_type_alloc(NULL, 0, 0, 0, 0);
 }
 
 int ast_rtp_engine_register2(struct ast_rtp_engine *engine, struct ast_module *module)
@@ -1009,6 +1010,8 @@ void ast_rtp_codecs_payloads_destroy(struct ast_rtp_codecs *codecs)
 	}
 	AST_VECTOR_FREE(&codecs->payload_mapping_tx);
 
+	ao2_t_cleanup(codecs->preferred_format, "destroying ast_rtp_codec preferred format");
+
 	ast_rwlock_destroy(&codecs->codecs_lock);
 }
 
@@ -1085,15 +1088,16 @@ static void payload_mapping_rx_clear_primary(struct ast_rtp_codecs *codecs, stru
 /*!
  * \internal
  * \brief Put the new_type into the rx payload type mapping.
- * \since 14.0.0
+ * \since 21.0.0
  *
  * \param codecs Codecs structure to put new_type into
  * \param payload type position to replace.
  * \param new_type RTP payload mapping object to store.
+ * \param replace Clear the primary flag
  *
  * \note It is assumed that codecs is write locked before calling.
  */
-static void rtp_codecs_payload_replace_rx(struct ast_rtp_codecs *codecs, int payload, struct ast_rtp_payload_type *new_type)
+static void rtp_codecs_payload_set_rx(struct ast_rtp_codecs *codecs, int payload, struct ast_rtp_payload_type *new_type, int replace)
 {
 	ao2_ref(new_type, +1);
 	if (payload < AST_VECTOR_SIZE(&codecs->payload_mapping_rx)) {
@@ -1105,8 +1109,26 @@ static void rtp_codecs_payload_replace_rx(struct ast_rtp_codecs *codecs, int pay
 		return;
 	}
 
-	payload_mapping_rx_clear_primary(codecs, new_type);
+	if (replace)	{
+		payload_mapping_rx_clear_primary(codecs, new_type);
+	}
 }
+
+/*!
+ * \internal
+ * \brief Put the new_type into the rx payload type mapping.
+ * \since 14.0.0
+ *
+ * \param codecs Codecs structure to put new_type into
+ * \param payload type position to replace.
+ * \param new_type RTP payload mapping object to store.
+ *
+ * \note It is assumed that codecs is write locked before calling.
+ */
+static void rtp_codecs_payload_replace_rx(struct ast_rtp_codecs *codecs, int payload, struct ast_rtp_payload_type *new_type) {
+	rtp_codecs_payload_set_rx(codecs, payload, new_type, 1);
+}
+
 
 /*!
  * \internal
@@ -1179,6 +1201,9 @@ static int payload_mapping_tx_is_present(const struct ast_rtp_codecs *codecs, co
 			}
 		} else if (!current->asterisk_format && !to_match->asterisk_format) {
 			if (current->rtp_code != to_match->rtp_code) {
+				continue;
+			} else if (to_match->rtp_code == AST_RTP_DTMF && current->sample_rate != to_match->sample_rate) {
+				/* it is possible for multiple DTMF types to exist with different sample rates */
 				continue;
 			}
 		} else {
@@ -1262,6 +1287,7 @@ void ast_rtp_codecs_payloads_copy(struct ast_rtp_codecs *src, struct ast_rtp_cod
 	rtp_codecs_payloads_copy_rx(src, dest, instance);
 	rtp_codecs_payloads_copy_tx(src, dest, instance);
 	dest->framing = src->framing;
+	ao2_replace(dest->preferred_format, src->preferred_format);
 
 	ast_rwlock_unlock(&src->codecs_lock);
 	ast_rwlock_unlock(&dest->codecs_lock);
@@ -1304,6 +1330,7 @@ void ast_rtp_codecs_payloads_xover(struct ast_rtp_codecs *src, struct ast_rtp_co
 	}
 
 	dest->framing = src->framing;
+	ao2_replace(dest->preferred_format, src->preferred_format);
 
 	if (src != dest) {
 		ast_rwlock_unlock(&src->codecs_lock);
@@ -1384,7 +1411,7 @@ int ast_rtp_codecs_payloads_set_rtpmap_type_rate(struct ast_rtp_codecs *codecs, 
 		 * then this not a match; if one has not been supplied, then the
 		 * rates are not compared */
 		if (sample_rate && t->sample_rate &&
-		    (sample_rate != t->sample_rate)) {
+			(sample_rate != t->sample_rate)) {
 			continue;
 		}
 
@@ -1399,6 +1426,7 @@ int ast_rtp_codecs_payloads_set_rtpmap_type_rate(struct ast_rtp_codecs *codecs, 
 		new_type->rtp_code = t->payload_type.rtp_code;
 		new_type->payload = pt;
 		new_type->primary_mapping = 1;
+		new_type->sample_rate = sample_rate;
 		if (t->payload_type.asterisk_format
 			&& ast_format_cmp(t->payload_type.format, ast_format_g726) == AST_FORMAT_CMP_EQUAL
 			&& (options & AST_RTP_OPT_G726_NONSTANDARD)) {
@@ -1457,6 +1485,10 @@ void ast_rtp_codecs_payloads_unset(struct ast_rtp_codecs *codecs, struct ast_rtp
 
 	if (payload < AST_VECTOR_SIZE(&codecs->payload_mapping_tx)) {
 		type = AST_VECTOR_GET(&codecs->payload_mapping_tx, payload);
+		/* remove the preferred format if we are unsetting its container. */
+		if (ast_format_cmp(type->format, codecs->preferred_format) == AST_FORMAT_CMP_EQUAL) {
+			ao2_replace(codecs->preferred_format, NULL);
+		}
 		ao2_cleanup(type);
 		AST_VECTOR_REPLACE(&codecs->payload_mapping_tx, payload, NULL);
 	}
@@ -1511,6 +1543,23 @@ struct ast_rtp_payload_type *ast_rtp_codecs_get_payload(struct ast_rtp_codecs *c
 	}
 
 	return type;
+}
+
+struct ast_format *ast_rtp_codecs_get_preferred_format(struct ast_rtp_codecs *codecs)
+{
+	struct ast_format *format;
+	ast_rwlock_rdlock(&codecs->codecs_lock);
+	format = ao2_bump(codecs->preferred_format);
+	ast_rwlock_unlock(&codecs->codecs_lock);
+	return format;
+}
+
+int ast_rtp_codecs_set_preferred_format(struct ast_rtp_codecs *codecs, struct ast_format *format)
+{
+	ast_rwlock_wrlock(&codecs->codecs_lock);
+	ao2_replace(codecs->preferred_format, format);
+	ast_rwlock_unlock(&codecs->codecs_lock);
+	return 0;
 }
 
 int ast_rtp_codecs_payload_replace_format(struct ast_rtp_codecs *codecs, int payload, struct ast_format *format)
@@ -1825,10 +1874,11 @@ static int rtp_codecs_find_non_primary_dynamic_rx(struct ast_rtp_codecs *codecs)
  * \return Numerical payload type
  * \retval -1 if could not assign.
  */
-static int rtp_codecs_assign_payload_code_rx(struct ast_rtp_codecs *codecs, int asterisk_format, struct ast_format *format, int code, int explicit)
+static int rtp_codecs_assign_payload_code_rx(struct ast_rtp_codecs *codecs, int asterisk_format, struct ast_format *format, int code, int explicit, unsigned int sample_rate)
 {
-	int payload = code;
+	int payload = code, i;
 	struct ast_rtp_payload_type *new_type;
+	static struct ast_rtp_payload_type *ignore[AST_RTP_MAX_PT] = {0};
 
 	if (!explicit) {
 		payload = find_static_payload_type(asterisk_format, format, code);
@@ -1838,22 +1888,54 @@ static int rtp_codecs_assign_payload_code_rx(struct ast_rtp_codecs *codecs, int 
 		}
 	}
 
-	new_type = rtp_payload_type_alloc(format, payload, code, 1);
+	new_type = rtp_payload_type_alloc(format, payload, code, 1, sample_rate);
 	if (!new_type) {
 		return -1;
 	}
 
 	ast_rwlock_wrlock(&codecs->codecs_lock);
+
+	/* Go through the existing mapping to create an ignore list. */
+	for (i = 0; i < AST_VECTOR_SIZE(&codecs->payload_mapping_rx); i++) {
+		if (AST_VECTOR_GET(&codecs->payload_mapping_rx, i)) {
+			ignore[i] = static_RTP_PT[i];
+		}
+	}
+
+
 	if (payload > -1 && (payload < AST_RTP_PT_FIRST_DYNAMIC
 		|| AST_VECTOR_SIZE(&codecs->payload_mapping_rx) <= payload
 		|| !AST_VECTOR_GET(&codecs->payload_mapping_rx, payload))) {
+
 		/*
 		 * The payload type is a static assignment
 		 * or our default dynamic position is available.
 		 */
 		rtp_codecs_payload_replace_rx(codecs, payload, new_type);
+	} else if (payload > -1 && !explicit
+				/* We can either call this with the full list or the current rx list. The former
+				 * (static_RTP_PT) results in payload types skipping statically 'used' slots so you
+				 * get 101, 113...
+				 * With the latter (the built ingore list) you get what's expected 101, 102, 103 under
+				 * most circumstances, but this results in static types being replaced.  Probably fine
+				 * because we preclude the current list.
+				 */
+				&& (-1 < (payload = find_unused_payload_in_range(codecs, payload, AST_RTP_MAX_PT, ignore)))) {
+		/*
+		 * Our dynamic position is currently in use.
+		 * Try for the numerically next free one before trying
+		 * across the full range. This keeps the payload id's
+		 * in the best numerical order we can through the free
+		 * types.
+		 */
+		new_type->payload = payload;
+		/*
+		 * In this case, consider this the primary mapping for
+		 * the payload type so don't clear it. Set not replace.
+		 */
+		rtp_codecs_payload_set_rx(codecs, payload, new_type, 0);
 	} else if (!explicit && (-1 < (payload = find_unused_payload(codecs))
-		|| -1 < (payload = rtp_codecs_find_non_primary_dynamic_rx(codecs)))) {
+			|| -1 < (payload = rtp_codecs_find_non_primary_dynamic_rx(codecs)))) {
 		/*
 		 * We found the first available empty dynamic position
 		 * or we found a mapping that should no longer be
@@ -1885,6 +1967,11 @@ static int rtp_codecs_assign_payload_code_rx(struct ast_rtp_codecs *codecs, int 
 
 int ast_rtp_codecs_payload_code(struct ast_rtp_codecs *codecs, int asterisk_format, struct ast_format *format, int code)
 {
+	return ast_rtp_codecs_payload_code_sample_rate(codecs, asterisk_format, format, code, 0);
+}
+
+int ast_rtp_codecs_payload_code_sample_rate(struct ast_rtp_codecs *codecs, int asterisk_format, struct ast_format *format, int code, unsigned int sample_rate)
+{
 	struct ast_rtp_payload_type *type;
 	int idx;
 	int payload = -1;
@@ -1900,7 +1987,8 @@ int ast_rtp_codecs_payload_code(struct ast_rtp_codecs *codecs, int asterisk_form
 
 			if (!type->asterisk_format
 				&& type->primary_mapping
-				&& type->rtp_code == code) {
+				&& type->rtp_code == code
+				&& (sample_rate == 0 || type->sample_rate == sample_rate)) {
 				payload = idx;
 				break;
 			}
@@ -1926,7 +2014,7 @@ int ast_rtp_codecs_payload_code(struct ast_rtp_codecs *codecs, int asterisk_form
 
 	if (payload < 0) {
 		payload = rtp_codecs_assign_payload_code_rx(codecs, asterisk_format, format,
-			code, 0);
+			code, 0, sample_rate);
 	}
 	ast_rwlock_unlock(&static_RTP_PT_lock);
 
@@ -1935,10 +2023,15 @@ int ast_rtp_codecs_payload_code(struct ast_rtp_codecs *codecs, int asterisk_form
 
 int ast_rtp_codecs_payload_set_rx(struct ast_rtp_codecs *codecs, int code, struct ast_format *format)
 {
-	return rtp_codecs_assign_payload_code_rx(codecs, 1, format, code, 1);
+	return rtp_codecs_assign_payload_code_rx(codecs, 1, format, code, 1, 0);
 }
 
-int ast_rtp_codecs_payload_code_tx(struct ast_rtp_codecs *codecs, int asterisk_format, const struct ast_format *format, int code)
+int ast_rtp_codecs_payload_set_rx_sample_rate(struct ast_rtp_codecs *codecs, int code, struct ast_format *format, unsigned int sample_rate)
+{
+	return rtp_codecs_assign_payload_code_rx(codecs, 1, format, code, 0, sample_rate);
+}
+
+int ast_rtp_codecs_payload_code_tx_sample_rate(struct ast_rtp_codecs *codecs, int asterisk_format, const struct ast_format *format, int code, unsigned int sample_rate)
 {
 	struct ast_rtp_payload_type *type;
 	int idx;
@@ -1953,7 +2046,11 @@ int ast_rtp_codecs_payload_code_tx(struct ast_rtp_codecs *codecs, int asterisk_f
 			}
 
 			if (!type->asterisk_format
-				&& type->rtp_code == code) {
+				&& type->rtp_code == code
+				/* Multiple DTMF types share an rtp code but have different sample rates.  To ensure we have the right
+				   type we therefore need the sample rate as well as the format and code.  Other types have a fixed
+				   sample rate so this is not needed. For those pass in a sample rate of 0 or use ast_rtp_codecs_payload_code_tx. */
+				&& (sample_rate == 0 || type->sample_rate == sample_rate)) {
 				payload = idx;
 				break;
 			}
@@ -1983,6 +2080,11 @@ int ast_rtp_codecs_payload_code_tx(struct ast_rtp_codecs *codecs, int asterisk_f
 	}
 
 	return payload;
+}
+
+int ast_rtp_codecs_payload_code_tx(struct ast_rtp_codecs *codecs, int asterisk_format, const struct ast_format *format, int code)
+{
+	return ast_rtp_codecs_payload_code_tx_sample_rate(codecs, asterisk_format, format, code, 0);
 }
 
 int ast_rtp_codecs_find_payload_code(struct ast_rtp_codecs *codecs, int payload)
@@ -3255,7 +3357,7 @@ static void add_static_payload(int payload, struct ast_format *format, int rtp_c
 		}
 	}
 
-	type = rtp_payload_type_alloc(format, payload, rtp_code, 1);
+	type = rtp_payload_type_alloc(format, payload, rtp_code, 1, 0);
 	if (type) {
 		ao2_cleanup(static_RTP_PT[payload]);
 		static_RTP_PT[payload] = type;
@@ -3717,7 +3819,12 @@ int ast_rtp_engine_init(void)
 	/* this is the sample rate listed in the RTP profile for the G.722 codec, *NOT* the actual sample rate of the media stream */
 	set_next_mime_type(ast_format_g722, 0, "audio", "G722", 8000);
 	set_next_mime_type(ast_format_g726_aal2, 0, "audio", "AAL2-G726-32", 8000);
+	/* we need all possible dtmf/bitrate combinations or ast_rtp_codecs_payloads_set_rtpmap_type_rate will not examine it */
 	set_next_mime_type(NULL, AST_RTP_DTMF, "audio", "telephone-event", 8000);
+	set_next_mime_type(NULL, AST_RTP_DTMF, "audio", "telephone-event", 16000);
+	set_next_mime_type(NULL, AST_RTP_DTMF, "audio", "telephone-event", 24000);
+	set_next_mime_type(NULL, AST_RTP_DTMF, "audio", "telephone-event", 32000);
+	set_next_mime_type(NULL, AST_RTP_DTMF, "audio", "telephone-event", 48000);
 	set_next_mime_type(NULL, AST_RTP_CISCO_DTMF, "audio", "cisco-telephone-event", 8000);
 	set_next_mime_type(NULL, AST_RTP_CN, "audio", "CN", 8000);
 	set_next_mime_type(ast_format_jpeg, 0, "video", "JPEG", 90000);
