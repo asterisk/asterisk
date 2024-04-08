@@ -538,6 +538,8 @@ static int set_caps(struct ast_sip_session *session,
 			ast_codec_media_type2str(session_media->type),
 			ast_format_cap_get_names(caps, &usbuf),
 			ast_format_cap_get_names(peer, &thembuf));
+	} else {
+		ast_rtp_codecs_set_preferred_format(&codecs, ast_format_cap_get_format(joint, 0));
 	}
 
 	if (is_offer) {
@@ -559,7 +561,7 @@ static int set_caps(struct ast_sip_session *session,
 			AST_MEDIA_TYPE_UNKNOWN);
 		ast_format_cap_remove_by_type(caps, media_type);
 
-		if (session->endpoint->preferred_codec_only){
+		if (session->endpoint->preferred_codec_only) {
 			struct ast_format *preferred_fmt = ast_format_cap_get_format(joint, 0);
 			ast_format_cap_append(caps, preferred_fmt, 0);
 			ao2_ref(preferred_fmt, -1);
@@ -638,6 +640,42 @@ static pjmedia_sdp_attr* generate_rtpmap_attr(struct ast_sip_session *session, p
 
 	rtpmap.pt = media->desc.fmt[media->desc.fmt_count - 1];
 	rtpmap.clock_rate = ast_rtp_lookup_sample_rate2(asterisk_format, format, code);
+	pj_strdup2(pool, &rtpmap.enc_name, ast_rtp_lookup_mime_subtype2(asterisk_format, format, code, options));
+	if (!pj_stricmp2(&rtpmap.enc_name, "opus")) {
+		pj_cstr(&rtpmap.param, "2");
+	} else {
+		pj_cstr(&rtpmap.param, NULL);
+	}
+
+	pjmedia_sdp_rtpmap_to_attr(pool, &rtpmap, &attr);
+
+	return attr;
+}
+
+
+static pjmedia_sdp_attr* generate_rtpmap_attr2(struct ast_sip_session *session, pjmedia_sdp_media *media, pj_pool_t *pool,
+					      int rtp_code, int asterisk_format, struct ast_format *format, int code, int sample_rate)
+{
+#ifndef HAVE_PJSIP_ENDPOINT_COMPACT_FORM
+	extern pj_bool_t pjsip_use_compact_form;
+#else
+	pj_bool_t pjsip_use_compact_form = pjsip_cfg()->endpt.use_compact_form;
+#endif
+	pjmedia_sdp_rtpmap rtpmap;
+	pjmedia_sdp_attr *attr = NULL;
+	char tmp[64];
+	enum ast_rtp_options options = session->endpoint->media.g726_non_standard ?
+		AST_RTP_OPT_G726_NONSTANDARD : 0;
+
+	snprintf(tmp, sizeof(tmp), "%d", rtp_code);
+	pj_strdup2(pool, &media->desc.fmt[media->desc.fmt_count++], tmp);
+
+	if (rtp_code <= AST_RTP_PT_LAST_STATIC && pjsip_use_compact_form) {
+		return NULL;
+	}
+
+	rtpmap.pt = media->desc.fmt[media->desc.fmt_count - 1];
+	rtpmap.clock_rate = sample_rate;
 	pj_strdup2(pool, &rtpmap.enc_name, ast_rtp_lookup_mime_subtype2(asterisk_format, format, code, options));
 	if (!pj_stricmp2(&rtpmap.enc_name, "opus")) {
 		pj_cstr(&rtpmap.param, "2");
@@ -1749,6 +1787,13 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	pj_sockaddr ip;
 	int direct_media_enabled = !ast_sockaddr_isnull(&session_media->direct_media_addr) &&
 		ast_format_cap_count(session->direct_media_cap);
+
+	/* Keep track of the sample rates for offered codecs so we can build matching
+	   RFC 2833/4733 payload offers. */
+	AST_VECTOR(, int) sample_rates;
+	/* In case we can't init the sample rates, still try to do the rest. */
+	int build_dtmf_sample_rates = 1;
+
 	SCOPE_ENTER(1, "%s Type: %s %s\n", ast_sip_session_get_name(session),
 		ast_codec_media_type2str(media_type), ast_str_tmp(128, ast_stream_to_str(stream, &STR_TMP)));
 
@@ -1900,6 +1945,12 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 		ast_format_cap_append_from_cap(caps, ast_stream_get_formats(stream), media_type);
 	}
 
+	/* Init the sample rates before we start adding them. Assume we will have at least one. */
+	if (AST_VECTOR_INIT(&sample_rates, 1)) {
+		ast_log(LOG_ERROR, "Unable to add dtmf formats to SDP!\n");
+		build_dtmf_sample_rates = 0;
+	}
+
 	for (index = 0; index < ast_format_cap_count(caps); ++index) {
 		struct ast_format *format = ast_format_cap_get_format(caps, index);
 
@@ -1938,7 +1989,24 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 		}
 
 		if ((attr = generate_rtpmap_attr(session, media, pool, rtp_code, 1, format, 0))) {
+			int newrate = ast_rtp_lookup_sample_rate2(1, format, 0);
+			int i, added = 0;
 			media->attr[media->attr_count++] = attr;
+
+			if (build_dtmf_sample_rates) {
+				for (i = 0; i < AST_VECTOR_SIZE(&sample_rates); i++) {
+					/* Only add if we haven't already processed this sample rate. For instance
+						A-law and u-law 'share' one 8K DTMF payload type. */
+					if (newrate == AST_VECTOR_GET(&sample_rates, i)) {
+						added = 1;
+						break;
+					}
+				}
+
+				if (!added) {
+					AST_VECTOR_APPEND(&sample_rates, newrate);
+				}
+			}
 		}
 
 		if ((attr = generate_fmtp_attr(pool, format, rtp_code))) {
@@ -1963,20 +2031,38 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 			if (!(noncodec & index)) {
 				continue;
 			}
-			rtp_code = ast_rtp_codecs_payload_code(
-				ast_rtp_instance_get_codecs(session_media->rtp), 0, NULL, index);
-			if (rtp_code == -1) {
-				continue;
-			}
 
-			if ((attr = generate_rtpmap_attr(session, media, pool, rtp_code, 0, NULL, index))) {
-				media->attr[media->attr_count++] = attr;
-			}
 
-			if (index == AST_RTP_DTMF) {
-				snprintf(tmp, sizeof(tmp), "%d 0-16", rtp_code);
-				attr = pjmedia_sdp_attr_create(pool, "fmtp", pj_cstr(&stmp, tmp));
-				media->attr[media->attr_count++] = attr;
+			if (index != AST_RTP_DTMF) {
+				rtp_code = ast_rtp_codecs_payload_code(
+								ast_rtp_instance_get_codecs(session_media->rtp), 0, NULL, index);
+				if (rtp_code == -1) {
+					continue;
+				} else if ((attr = generate_rtpmap_attr(session, media, pool, rtp_code, 0, NULL, index))) {
+					media->attr[media->attr_count++] = attr;
+				}
+			} else if (build_dtmf_sample_rates) {
+				/*
+				 * Walk through the possible bitrates for the RFC 2833/4733 digits and generate the rtpmap
+				 * attributes.
+				 */
+				int i;
+				for (i = 0; i < AST_VECTOR_SIZE(&sample_rates); i++) {
+					rtp_code = ast_rtp_codecs_payload_code_sample_rate(
+									ast_rtp_instance_get_codecs(session_media->rtp), 0, NULL, index, AST_VECTOR_GET(&sample_rates, i));
+
+					if (rtp_code == -1) {
+						continue;
+					}
+
+					if ((attr = generate_rtpmap_attr2(session, media, pool, rtp_code, 0, NULL, index, AST_VECTOR_GET(&sample_rates, i)))) {
+						media->attr[media->attr_count++] = attr;
+						snprintf(tmp, sizeof(tmp), "%d 0-16", (rtp_code));
+						attr = pjmedia_sdp_attr_create(pool, "fmtp", pj_cstr(&stmp, tmp));
+						media->attr[media->attr_count++] = attr;
+
+					}
+				}
 			}
 
 			if (media->desc.fmt_count == PJMEDIA_MAX_SDP_FMT) {
@@ -1985,6 +2071,8 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 		}
 	}
 
+	/* we are done with the sample rates */
+	AST_VECTOR_FREE(&sample_rates);
 
 	/* If no formats were actually added to the media stream don't add it to the SDP */
 	if (!media->desc.fmt_count) {
