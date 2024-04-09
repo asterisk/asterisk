@@ -1017,6 +1017,10 @@ PBX_PJSIP_DLG_CREATE_UAS_AND_INC_LOCK
 PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_DIR
 PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_INCLUDE
 PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_LIB
+PBX_LAME
+LAME_DIR
+LAME_INCLUDE
+LAME_LIB
 PBX_BEANSTALK
 BEANSTALK_DIR
 BEANSTALK_INCLUDE
@@ -1442,6 +1446,7 @@ with_opus
 with_opusfile
 with_postgres
 with_beanstalk
+with_mp3lame
 with_pjproject
 with_popt
 with_portaudio
@@ -2216,6 +2221,7 @@ Optional Packages:
   --with-opusfile=PATH    use Opusfile files in PATH
   --with-postgres=PATH    use PostgreSQL files in PATH
   --with-beanstalk=PATH   use Beanstalk Job Queue files in PATH
+  --with-mp3lame=PATH     use LAME MP3 files in PATH
   --with-pjproject=PATH   use PJPROJECT files in PATH
   --with-popt=PATH        use popt files in PATH
   --with-portaudio=PATH   use PortAudio files in PATH
@@ -6056,11 +6062,11 @@ if test x$ac_prog_cxx_stdcxx = xno
 then :
   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for $CXX option to enable C++11 features" >&5
 printf %s "checking for $CXX option to enable C++11 features... " >&6; }
-if test ${ac_cv_prog_cxx_cxx11+y}
+if test ${ac_cv_prog_cxx_11+y}
 then :
   printf %s "(cached) " >&6
 else $as_nop
-  ac_cv_prog_cxx_cxx11=no
+  ac_cv_prog_cxx_11=no
 ac_save_CXX=$CXX
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
@@ -6102,11 +6108,11 @@ if test x$ac_prog_cxx_stdcxx = xno
 then :
   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for $CXX option to enable C++98 features" >&5
 printf %s "checking for $CXX option to enable C++98 features... " >&6; }
-if test ${ac_cv_prog_cxx_cxx98+y}
+if test ${ac_cv_prog_cxx_98+y}
 then :
   printf %s "(cached) " >&6
 else $as_nop
-  ac_cv_prog_cxx_cxx98=no
+  ac_cv_prog_cxx_98=no
 ac_save_CXX=$CXX
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
@@ -10341,8 +10347,8 @@ printf "%s\n" "$as_me: checking whether system openssl > 1.1.0" >&6;}
       if test "x${PBX_OPENSSL}" != "x1" -a "${USE_OPENSSL}" != "no"; then
 
 pkg_failed=no
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for openssl >= 1.1.0" >&5
-printf %s "checking for openssl >= 1.1.0... " >&6; }
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for OPENSSL" >&5
+printf %s "checking for OPENSSL... " >&6; }
 
 if test -n "$OPENSSL_CFLAGS"; then
     pkg_cv_OPENSSL_CFLAGS="$OPENSSL_CFLAGS"
@@ -10382,7 +10388,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+   	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
 printf "%s\n" "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -10391,27 +10397,27 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-                OPENSSL_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "openssl >= 1.1.0" 2>&1`
+	        OPENSSL_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "openssl >= 1.1.0" 2>&1`
         else
-                OPENSSL_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "openssl >= 1.1.0" 2>&1`
+	        OPENSSL_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "openssl >= 1.1.0" 2>&1`
         fi
-        # Put the nasty error message in config.log where it belongs
-        echo "$OPENSSL_PKG_ERRORS" >&5
+	# Put the nasty error message in config.log where it belongs
+	echo "$OPENSSL_PKG_ERRORS" >&5
 
 
             PBX_OPENSSL=0
 
 
 elif test $pkg_failed = untried; then
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+     	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
 printf "%s\n" "no" >&6; }
 
             PBX_OPENSSL=0
 
 
 else
-        OPENSSL_CFLAGS=$pkg_cv_OPENSSL_CFLAGS
-        OPENSSL_LIBS=$pkg_cv_OPENSSL_LIBS
+	OPENSSL_CFLAGS=$pkg_cv_OPENSSL_CFLAGS
+	OPENSSL_LIBS=$pkg_cv_OPENSSL_LIBS
         { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
 
@@ -10432,8 +10438,8 @@ printf "%s\n" "$as_me: checking whether alternate openssl11 is installed" >&6;}
       if test "x${PBX_OPENSSL}" != "x1" -a "${USE_OPENSSL}" != "no"; then
 
 pkg_failed=no
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for openssl11" >&5
-printf %s "checking for openssl11... " >&6; }
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for OPENSSL" >&5
+printf %s "checking for OPENSSL... " >&6; }
 
 if test -n "$OPENSSL_CFLAGS"; then
     pkg_cv_OPENSSL_CFLAGS="$OPENSSL_CFLAGS"
@@ -10473,7 +10479,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+   	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
 printf "%s\n" "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -10482,27 +10488,27 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-                OPENSSL_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "openssl11" 2>&1`
+	        OPENSSL_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "openssl11" 2>&1`
         else
-                OPENSSL_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "openssl11" 2>&1`
+	        OPENSSL_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "openssl11" 2>&1`
         fi
-        # Put the nasty error message in config.log where it belongs
-        echo "$OPENSSL_PKG_ERRORS" >&5
+	# Put the nasty error message in config.log where it belongs
+	echo "$OPENSSL_PKG_ERRORS" >&5
 
 
             PBX_OPENSSL=0
 
 
 elif test $pkg_failed = untried; then
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+     	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
 printf "%s\n" "no" >&6; }
 
             PBX_OPENSSL=0
 
 
 else
-        OPENSSL_CFLAGS=$pkg_cv_OPENSSL_CFLAGS
-        OPENSSL_LIBS=$pkg_cv_OPENSSL_LIBS
+	OPENSSL_CFLAGS=$pkg_cv_OPENSSL_CFLAGS
+	OPENSSL_LIBS=$pkg_cv_OPENSSL_LIBS
         { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
 
@@ -10528,8 +10534,8 @@ printf "%s\n" "$as_me: checking fallback system openssl" >&6;}
       if test "x${PBX_OPENSSL}" != "x1" -a "${USE_OPENSSL}" != "no"; then
 
 pkg_failed=no
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for openssl" >&5
-printf %s "checking for openssl... " >&6; }
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for OPENSSL" >&5
+printf %s "checking for OPENSSL... " >&6; }
 
 if test -n "$OPENSSL_CFLAGS"; then
     pkg_cv_OPENSSL_CFLAGS="$OPENSSL_CFLAGS"
@@ -10569,7 +10575,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+   	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
 printf "%s\n" "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -10578,27 +10584,27 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-                OPENSSL_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "openssl" 2>&1`
+	        OPENSSL_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "openssl" 2>&1`
         else
-                OPENSSL_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "openssl" 2>&1`
+	        OPENSSL_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "openssl" 2>&1`
         fi
-        # Put the nasty error message in config.log where it belongs
-        echo "$OPENSSL_PKG_ERRORS" >&5
+	# Put the nasty error message in config.log where it belongs
+	echo "$OPENSSL_PKG_ERRORS" >&5
 
 
             PBX_OPENSSL=0
 
 
 elif test $pkg_failed = untried; then
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+     	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
 printf "%s\n" "no" >&6; }
 
             PBX_OPENSSL=0
 
 
 else
-        OPENSSL_CFLAGS=$pkg_cv_OPENSSL_CFLAGS
-        OPENSSL_LIBS=$pkg_cv_OPENSSL_LIBS
+	OPENSSL_CFLAGS=$pkg_cv_OPENSSL_CFLAGS
+	OPENSSL_LIBS=$pkg_cv_OPENSSL_LIBS
         { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
 
@@ -13152,6 +13158,39 @@ fi
 
 
 
+    LAME_DESCRIP="LAME MP3"
+    LAME_OPTION="mp3lame"
+    PBX_LAME=0
+
+# Check whether --with-mp3lame was given.
+if test ${with_mp3lame+y}
+then :
+  withval=$with_mp3lame;
+	case ${withval} in
+	n|no)
+	USE_LAME=no
+	# -1 is a magic value used by menuselect to know that the package
+	# was disabled, other than 'not found'
+	PBX_LAME=-1
+	;;
+	y|ye|yes)
+	ac_mandatory_list="${ac_mandatory_list} LAME"
+	;;
+	*)
+	LAME_DIR="${withval}"
+	ac_mandatory_list="${ac_mandatory_list} LAME"
+	;;
+	esac
+
+fi
+
+
+
+
+
+
+
+
 if test "x${PBX_PJPROJECT}" != "x1" ; then
 
     PJPROJECT_DESCRIP="PJPROJECT"
@@ -15087,8 +15126,8 @@ fi
       if test "x${PBX_LIBEDIT}" != "x1" -a "${USE_LIBEDIT}" != "no"; then
 
 pkg_failed=no
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for libedit" >&5
-printf %s "checking for libedit... " >&6; }
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for LIBEDIT" >&5
+printf %s "checking for LIBEDIT... " >&6; }
 
 if test -n "$LIBEDIT_CFLAGS"; then
     pkg_cv_LIBEDIT_CFLAGS="$LIBEDIT_CFLAGS"
@@ -15128,7 +15167,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+   	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
 printf "%s\n" "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -15137,27 +15176,27 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-                LIBEDIT_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libedit" 2>&1`
+	        LIBEDIT_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libedit" 2>&1`
         else
-                LIBEDIT_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libedit" 2>&1`
+	        LIBEDIT_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libedit" 2>&1`
         fi
-        # Put the nasty error message in config.log where it belongs
-        echo "$LIBEDIT_PKG_ERRORS" >&5
+	# Put the nasty error message in config.log where it belongs
+	echo "$LIBEDIT_PKG_ERRORS" >&5
 
 
             PBX_LIBEDIT=0
 
 
 elif test $pkg_failed = untried; then
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+     	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
 printf "%s\n" "no" >&6; }
 
             PBX_LIBEDIT=0
 
 
 else
-        LIBEDIT_CFLAGS=$pkg_cv_LIBEDIT_CFLAGS
-        LIBEDIT_LIBS=$pkg_cv_LIBEDIT_LIBS
+	LIBEDIT_CFLAGS=$pkg_cv_LIBEDIT_CFLAGS
+	LIBEDIT_LIBS=$pkg_cv_LIBEDIT_LIBS
         { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
 
@@ -15548,8 +15587,8 @@ if test "$JANSSON_BUNDLED" = "no" ; then
       if test "x${PBX_JANSSON}" != "x1" -a "${USE_JANSSON}" != "no"; then
 
 pkg_failed=no
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for jansson >= 2.11" >&5
-printf %s "checking for jansson >= 2.11... " >&6; }
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for JANSSON" >&5
+printf %s "checking for JANSSON... " >&6; }
 
 if test -n "$JANSSON_CFLAGS"; then
     pkg_cv_JANSSON_CFLAGS="$JANSSON_CFLAGS"
@@ -15589,7 +15628,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+   	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
 printf "%s\n" "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -15598,27 +15637,27 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-                JANSSON_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "jansson >= 2.11" 2>&1`
+	        JANSSON_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "jansson >= 2.11" 2>&1`
         else
-                JANSSON_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "jansson >= 2.11" 2>&1`
+	        JANSSON_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "jansson >= 2.11" 2>&1`
         fi
-        # Put the nasty error message in config.log where it belongs
-        echo "$JANSSON_PKG_ERRORS" >&5
+	# Put the nasty error message in config.log where it belongs
+	echo "$JANSSON_PKG_ERRORS" >&5
 
 
             PBX_JANSSON=0
 
 
 elif test $pkg_failed = untried; then
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+     	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
 printf "%s\n" "no" >&6; }
 
             PBX_JANSSON=0
 
 
 else
-        JANSSON_CFLAGS=$pkg_cv_JANSSON_CFLAGS
-        JANSSON_LIBS=$pkg_cv_JANSSON_LIBS
+	JANSSON_CFLAGS=$pkg_cv_JANSSON_CFLAGS
+	JANSSON_LIBS=$pkg_cv_JANSSON_LIBS
         { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
 
@@ -15781,8 +15820,8 @@ if test "$LIBJWT_BUNDLED" = "no" ; then
       if test "x${PBX_LIBJWT}" != "x1" -a "${USE_LIBJWT}" != "no"; then
 
 pkg_failed=no
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for libjwt >= $LIBJWT_VERSION" >&5
-printf %s "checking for libjwt >= $LIBJWT_VERSION... " >&6; }
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for LIBJWT" >&5
+printf %s "checking for LIBJWT... " >&6; }
 
 if test -n "$LIBJWT_CFLAGS"; then
     pkg_cv_LIBJWT_CFLAGS="$LIBJWT_CFLAGS"
@@ -15822,7 +15861,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+   	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
 printf "%s\n" "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -15831,27 +15870,27 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-                LIBJWT_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libjwt >= $LIBJWT_VERSION" 2>&1`
+	        LIBJWT_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libjwt >= $LIBJWT_VERSION" 2>&1`
         else
-                LIBJWT_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libjwt >= $LIBJWT_VERSION" 2>&1`
+	        LIBJWT_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libjwt >= $LIBJWT_VERSION" 2>&1`
         fi
-        # Put the nasty error message in config.log where it belongs
-        echo "$LIBJWT_PKG_ERRORS" >&5
+	# Put the nasty error message in config.log where it belongs
+	echo "$LIBJWT_PKG_ERRORS" >&5
 
 
             PBX_LIBJWT=0
 
 
 elif test $pkg_failed = untried; then
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+     	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
 printf "%s\n" "no" >&6; }
 
             PBX_LIBJWT=0
 
 
 else
-        LIBJWT_CFLAGS=$pkg_cv_LIBJWT_CFLAGS
-        LIBJWT_LIBS=$pkg_cv_LIBJWT_LIBS
+	LIBJWT_CFLAGS=$pkg_cv_LIBJWT_CFLAGS
+	LIBJWT_LIBS=$pkg_cv_LIBJWT_LIBS
         { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
 
@@ -15961,8 +16000,8 @@ fi
       if test "x${PBX_LIBXML2}" != "x1" -a "${USE_LIBXML2}" != "no"; then
 
 pkg_failed=no
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for libxml-2.0" >&5
-printf %s "checking for libxml-2.0... " >&6; }
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for LIBXML2" >&5
+printf %s "checking for LIBXML2... " >&6; }
 
 if test -n "$LIBXML2_CFLAGS"; then
     pkg_cv_LIBXML2_CFLAGS="$LIBXML2_CFLAGS"
@@ -16002,7 +16041,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+   	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
 printf "%s\n" "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -16011,27 +16050,27 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-                LIBXML2_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libxml-2.0" 2>&1`
+	        LIBXML2_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libxml-2.0" 2>&1`
         else
-                LIBXML2_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libxml-2.0" 2>&1`
+	        LIBXML2_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libxml-2.0" 2>&1`
         fi
-        # Put the nasty error message in config.log where it belongs
-        echo "$LIBXML2_PKG_ERRORS" >&5
+	# Put the nasty error message in config.log where it belongs
+	echo "$LIBXML2_PKG_ERRORS" >&5
 
 
             PBX_LIBXML2=0
 
 
 elif test $pkg_failed = untried; then
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+     	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
 printf "%s\n" "no" >&6; }
 
             PBX_LIBXML2=0
 
 
 else
-        LIBXML2_CFLAGS=$pkg_cv_LIBXML2_CFLAGS
-        LIBXML2_LIBS=$pkg_cv_LIBXML2_LIBS
+	LIBXML2_CFLAGS=$pkg_cv_LIBXML2_CFLAGS
+	LIBXML2_LIBS=$pkg_cv_LIBXML2_LIBS
         { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
 
@@ -22225,6 +22264,102 @@ fi
 # do the package library checks now
 
 
+if test "x${PBX_LAME}" != "x1" -a "${USE_LAME}" != "no"; then
+   pbxlibdir=""
+   # if --with-LAME=DIR has been specified, use it.
+   if test "x${LAME_DIR}" != "x"; then
+      if test -d ${LAME_DIR}/lib; then
+         pbxlibdir="-L${LAME_DIR}/lib"
+      else
+         pbxlibdir="-L${LAME_DIR}"
+      fi
+   fi
+
+      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
+      CFLAGS="${CFLAGS} "
+      { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for get_lame_version in -lmp3lame" >&5
+printf %s "checking for get_lame_version in -lmp3lame... " >&6; }
+if test ${ac_cv_lib_mp3lame_get_lame_version+y}
+then :
+  printf %s "(cached) " >&6
+else $as_nop
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lmp3lame ${pbxlibdir}  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+char get_lame_version ();
+int
+main (void)
+{
+return get_lame_version ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"
+then :
+  ac_cv_lib_mp3lame_get_lame_version=yes
+else $as_nop
+  ac_cv_lib_mp3lame_get_lame_version=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_mp3lame_get_lame_version" >&5
+printf "%s\n" "$ac_cv_lib_mp3lame_get_lame_version" >&6; }
+if test "x$ac_cv_lib_mp3lame_get_lame_version" = xyes
+then :
+  AST_LAME_FOUND=yes
+else $as_nop
+  AST_LAME_FOUND=no
+fi
+
+      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
+
+
+   # now check for the header.
+   if test "${AST_LAME_FOUND}" = "yes"; then
+      LAME_LIB="${pbxlibdir} -lmp3lame "
+      # if --with-LAME=DIR has been specified, use it.
+      if test "x${LAME_DIR}" != "x"; then
+         LAME_INCLUDE="-I${LAME_DIR}/include"
+      fi
+      LAME_INCLUDE="${LAME_INCLUDE} "
+
+         # check for the header
+         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
+         CPPFLAGS="${CPPFLAGS} ${LAME_INCLUDE}"
+         ac_fn_c_check_header_compile "$LINENO" "lame/lame.h" "ac_cv_header_lame_lame_h" "$ac_includes_default"
+if test "x$ac_cv_header_lame_lame_h" = xyes
+then :
+  LAME_HEADER_FOUND=1
+else $as_nop
+  LAME_HEADER_FOUND=0
+fi
+
+         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
+
+      if test "x${LAME_HEADER_FOUND}" = "x0" ; then
+         LAME_LIB=""
+         LAME_INCLUDE=""
+      else
+
+         PBX_LAME=1
+         cat >>confdefs.h <<_ACEOF
+#define HAVE_LAME 1
+_ACEOF
+
+      fi
+   fi
+fi
+
+
+
 if test "x${PBX_BFD}" != "x1" -a "${USE_BFD}" != "no"; then
    pbxlibdir=""
    # if --with-BFD=DIR has been specified, use it.
@@ -23137,8 +23272,8 @@ if test "${USE_ILBC}" != "no"; then
       if test "x${PBX_ILBC}" != "x1" -a "${USE_ILBC}" != "no"; then
 
 pkg_failed=no
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for libilbc < 3" >&5
-printf %s "checking for libilbc < 3... " >&6; }
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for ILBC" >&5
+printf %s "checking for ILBC... " >&6; }
 
 if test -n "$ILBC_CFLAGS"; then
     pkg_cv_ILBC_CFLAGS="$ILBC_CFLAGS"
@@ -23178,7 +23313,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+   	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
 printf "%s\n" "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -23187,27 +23322,27 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-                ILBC_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libilbc < 3" 2>&1`
+	        ILBC_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libilbc < 3" 2>&1`
         else
-                ILBC_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libilbc < 3" 2>&1`
+	        ILBC_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libilbc < 3" 2>&1`
         fi
-        # Put the nasty error message in config.log where it belongs
-        echo "$ILBC_PKG_ERRORS" >&5
+	# Put the nasty error message in config.log where it belongs
+	echo "$ILBC_PKG_ERRORS" >&5
 
 
             PBX_ILBC=0
 
 
 elif test $pkg_failed = untried; then
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+     	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
 printf "%s\n" "no" >&6; }
 
             PBX_ILBC=0
 
 
 else
-        ILBC_CFLAGS=$pkg_cv_ILBC_CFLAGS
-        ILBC_LIBS=$pkg_cv_ILBC_LIBS
+	ILBC_CFLAGS=$pkg_cv_ILBC_CFLAGS
+	ILBC_LIBS=$pkg_cv_ILBC_LIBS
         { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
 
@@ -25396,8 +25531,8 @@ rm -f core conftest.err conftest.$ac_objext conftest.beam \
       if test "x${PBX_NETSNMP}" != "x1" -a "${USE_NETSNMP}" != "no"; then
 
 pkg_failed=no
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for netsnmp-agent" >&5
-printf %s "checking for netsnmp-agent... " >&6; }
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for NETSNMP" >&5
+printf %s "checking for NETSNMP... " >&6; }
 
 if test -n "$NETSNMP_CFLAGS"; then
     pkg_cv_NETSNMP_CFLAGS="$NETSNMP_CFLAGS"
@@ -25437,7 +25572,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+   	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
 printf "%s\n" "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -25446,27 +25581,27 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-                NETSNMP_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "netsnmp-agent" 2>&1`
+	        NETSNMP_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "netsnmp-agent" 2>&1`
         else
-                NETSNMP_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "netsnmp-agent" 2>&1`
+	        NETSNMP_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "netsnmp-agent" 2>&1`
         fi
-        # Put the nasty error message in config.log where it belongs
-        echo "$NETSNMP_PKG_ERRORS" >&5
+	# Put the nasty error message in config.log where it belongs
+	echo "$NETSNMP_PKG_ERRORS" >&5
 
 
             PBX_NETSNMP=0
 
 
 elif test $pkg_failed = untried; then
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+     	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
 printf "%s\n" "no" >&6; }
 
             PBX_NETSNMP=0
 
 
 else
-        NETSNMP_CFLAGS=$pkg_cv_NETSNMP_CFLAGS
-        NETSNMP_LIBS=$pkg_cv_NETSNMP_LIBS
+	NETSNMP_CFLAGS=$pkg_cv_NETSNMP_CFLAGS
+	NETSNMP_LIBS=$pkg_cv_NETSNMP_LIBS
         { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
 
@@ -26823,8 +26958,8 @@ if test "$USE_PJPROJECT" != "no" ; then
       if test "x${PBX_PJPROJECT}" != "x1" -a "${USE_PJPROJECT}" != "no"; then
 
 pkg_failed=no
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for libpjproject" >&5
-printf %s "checking for libpjproject... " >&6; }
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for PJPROJECT" >&5
+printf %s "checking for PJPROJECT... " >&6; }
 
 if test -n "$PJPROJECT_CFLAGS"; then
     pkg_cv_PJPROJECT_CFLAGS="$PJPROJECT_CFLAGS"
@@ -26864,7 +26999,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+   	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
 printf "%s\n" "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -26873,27 +27008,27 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-                PJPROJECT_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libpjproject" 2>&1`
+	        PJPROJECT_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libpjproject" 2>&1`
         else
-                PJPROJECT_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libpjproject" 2>&1`
+	        PJPROJECT_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libpjproject" 2>&1`
         fi
-        # Put the nasty error message in config.log where it belongs
-        echo "$PJPROJECT_PKG_ERRORS" >&5
+	# Put the nasty error message in config.log where it belongs
+	echo "$PJPROJECT_PKG_ERRORS" >&5
 
 
             PBX_PJPROJECT=0
 
 
 elif test $pkg_failed = untried; then
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+     	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
 printf "%s\n" "no" >&6; }
 
             PBX_PJPROJECT=0
 
 
 else
-        PJPROJECT_CFLAGS=$pkg_cv_PJPROJECT_CFLAGS
-        PJPROJECT_LIBS=$pkg_cv_PJPROJECT_LIBS
+	PJPROJECT_CFLAGS=$pkg_cv_PJPROJECT_CFLAGS
+	PJPROJECT_LIBS=$pkg_cv_PJPROJECT_LIBS
         { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
 
@@ -28302,8 +28437,8 @@ fi
       if test "x${PBX_PYTHONDEV}" != "x1" -a "${USE_PYTHONDEV}" != "no"; then
 
 pkg_failed=no
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for python-2.7" >&5
-printf %s "checking for python-2.7... " >&6; }
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for PYTHONDEV" >&5
+printf %s "checking for PYTHONDEV... " >&6; }
 
 if test -n "$PYTHONDEV_CFLAGS"; then
     pkg_cv_PYTHONDEV_CFLAGS="$PYTHONDEV_CFLAGS"
@@ -28343,7 +28478,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+   	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
 printf "%s\n" "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -28352,27 +28487,27 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-                PYTHONDEV_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "python-2.7" 2>&1`
+	        PYTHONDEV_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "python-2.7" 2>&1`
         else
-                PYTHONDEV_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "python-2.7" 2>&1`
+	        PYTHONDEV_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "python-2.7" 2>&1`
         fi
-        # Put the nasty error message in config.log where it belongs
-        echo "$PYTHONDEV_PKG_ERRORS" >&5
+	# Put the nasty error message in config.log where it belongs
+	echo "$PYTHONDEV_PKG_ERRORS" >&5
 
 
             PBX_PYTHONDEV=0
 
 
 elif test $pkg_failed = untried; then
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+     	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
 printf "%s\n" "no" >&6; }
 
             PBX_PYTHONDEV=0
 
 
 else
-        PYTHONDEV_CFLAGS=$pkg_cv_PYTHONDEV_CFLAGS
-        PYTHONDEV_LIBS=$pkg_cv_PYTHONDEV_LIBS
+	PYTHONDEV_CFLAGS=$pkg_cv_PYTHONDEV_CFLAGS
+	PYTHONDEV_LIBS=$pkg_cv_PYTHONDEV_LIBS
         { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
 
@@ -28390,8 +28525,8 @@ fi
       if test "x${PBX_PYTHONDEV}" != "x1" -a "${USE_PYTHONDEV}" != "no"; then
 
 pkg_failed=no
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for python2" >&5
-printf %s "checking for python2... " >&6; }
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for PYTHONDEV" >&5
+printf %s "checking for PYTHONDEV... " >&6; }
 
 if test -n "$PYTHONDEV_CFLAGS"; then
     pkg_cv_PYTHONDEV_CFLAGS="$PYTHONDEV_CFLAGS"
@@ -28431,7 +28566,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+   	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
 printf "%s\n" "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -28440,27 +28575,27 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-                PYTHONDEV_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "python2" 2>&1`
+	        PYTHONDEV_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "python2" 2>&1`
         else
-                PYTHONDEV_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "python2" 2>&1`
+	        PYTHONDEV_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "python2" 2>&1`
         fi
-        # Put the nasty error message in config.log where it belongs
-        echo "$PYTHONDEV_PKG_ERRORS" >&5
+	# Put the nasty error message in config.log where it belongs
+	echo "$PYTHONDEV_PKG_ERRORS" >&5
 
 
             PBX_PYTHONDEV=0
 
 
 elif test $pkg_failed = untried; then
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+     	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
 printf "%s\n" "no" >&6; }
 
             PBX_PYTHONDEV=0
 
 
 else
-        PYTHONDEV_CFLAGS=$pkg_cv_PYTHONDEV_CFLAGS
-        PYTHONDEV_LIBS=$pkg_cv_PYTHONDEV_LIBS
+	PYTHONDEV_CFLAGS=$pkg_cv_PYTHONDEV_CFLAGS
+	PYTHONDEV_LIBS=$pkg_cv_PYTHONDEV_LIBS
         { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
 
@@ -28478,8 +28613,8 @@ fi
       if test "x${PBX_PYTHONDEV}" != "x1" -a "${USE_PYTHONDEV}" != "no"; then
 
 pkg_failed=no
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for python" >&5
-printf %s "checking for python... " >&6; }
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for PYTHONDEV" >&5
+printf %s "checking for PYTHONDEV... " >&6; }
 
 if test -n "$PYTHONDEV_CFLAGS"; then
     pkg_cv_PYTHONDEV_CFLAGS="$PYTHONDEV_CFLAGS"
@@ -28519,7 +28654,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+   	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
 printf "%s\n" "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -28528,27 +28663,27 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-                PYTHONDEV_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "python" 2>&1`
+	        PYTHONDEV_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "python" 2>&1`
         else
-                PYTHONDEV_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "python" 2>&1`
+	        PYTHONDEV_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "python" 2>&1`
         fi
-        # Put the nasty error message in config.log where it belongs
-        echo "$PYTHONDEV_PKG_ERRORS" >&5
+	# Put the nasty error message in config.log where it belongs
+	echo "$PYTHONDEV_PKG_ERRORS" >&5
 
 
             PBX_PYTHONDEV=0
 
 
 elif test $pkg_failed = untried; then
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+     	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
 printf "%s\n" "no" >&6; }
 
             PBX_PYTHONDEV=0
 
 
 else
-        PYTHONDEV_CFLAGS=$pkg_cv_PYTHONDEV_CFLAGS
-        PYTHONDEV_LIBS=$pkg_cv_PYTHONDEV_LIBS
+	PYTHONDEV_CFLAGS=$pkg_cv_PYTHONDEV_CFLAGS
+	PYTHONDEV_LIBS=$pkg_cv_PYTHONDEV_LIBS
         { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
 
@@ -28674,8 +28809,8 @@ fi
       if test "x${PBX_PORTAUDIO}" != "x1" -a "${USE_PORTAUDIO}" != "no"; then
 
 pkg_failed=no
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for portaudio-2.0" >&5
-printf %s "checking for portaudio-2.0... " >&6; }
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for PORTAUDIO" >&5
+printf %s "checking for PORTAUDIO... " >&6; }
 
 if test -n "$PORTAUDIO_CFLAGS"; then
     pkg_cv_PORTAUDIO_CFLAGS="$PORTAUDIO_CFLAGS"
@@ -28715,7 +28850,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+   	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
 printf "%s\n" "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -28724,27 +28859,27 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-                PORTAUDIO_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "portaudio-2.0" 2>&1`
+	        PORTAUDIO_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "portaudio-2.0" 2>&1`
         else
-                PORTAUDIO_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "portaudio-2.0" 2>&1`
+	        PORTAUDIO_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "portaudio-2.0" 2>&1`
         fi
-        # Put the nasty error message in config.log where it belongs
-        echo "$PORTAUDIO_PKG_ERRORS" >&5
+	# Put the nasty error message in config.log where it belongs
+	echo "$PORTAUDIO_PKG_ERRORS" >&5
 
 
             PBX_PORTAUDIO=0
 
 
 elif test $pkg_failed = untried; then
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+     	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
 printf "%s\n" "no" >&6; }
 
             PBX_PORTAUDIO=0
 
 
 else
-        PORTAUDIO_CFLAGS=$pkg_cv_PORTAUDIO_CFLAGS
-        PORTAUDIO_LIBS=$pkg_cv_PORTAUDIO_LIBS
+	PORTAUDIO_CFLAGS=$pkg_cv_PORTAUDIO_CFLAGS
+	PORTAUDIO_LIBS=$pkg_cv_PORTAUDIO_LIBS
         { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
 
@@ -34461,8 +34596,8 @@ for ver in 3.0 2.6 2.4 2.2 2.0; do
       if test "x${PBX_GMIME}" != "x1" -a "${USE_GMIME}" != "no"; then
 
 pkg_failed=no
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for gmime-$ver" >&5
-printf %s "checking for gmime-$ver... " >&6; }
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for GMIME" >&5
+printf %s "checking for GMIME... " >&6; }
 
 if test -n "$GMIME_CFLAGS"; then
     pkg_cv_GMIME_CFLAGS="$GMIME_CFLAGS"
@@ -34502,7 +34637,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+   	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
 printf "%s\n" "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -34511,27 +34646,27 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-                GMIME_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "gmime-$ver" 2>&1`
+	        GMIME_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "gmime-$ver" 2>&1`
         else
-                GMIME_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "gmime-$ver" 2>&1`
+	        GMIME_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "gmime-$ver" 2>&1`
         fi
-        # Put the nasty error message in config.log where it belongs
-        echo "$GMIME_PKG_ERRORS" >&5
+	# Put the nasty error message in config.log where it belongs
+	echo "$GMIME_PKG_ERRORS" >&5
 
 
             PBX_GMIME=0
 
 
 elif test $pkg_failed = untried; then
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+     	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
 printf "%s\n" "no" >&6; }
 
             PBX_GMIME=0
 
 
 else
-        GMIME_CFLAGS=$pkg_cv_GMIME_CFLAGS
-        GMIME_LIBS=$pkg_cv_GMIME_LIBS
+	GMIME_CFLAGS=$pkg_cv_GMIME_CFLAGS
+	GMIME_LIBS=$pkg_cv_GMIME_LIBS
         { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
 
@@ -35726,8 +35861,8 @@ fi
       if test "x${PBX_GTK2}" != "x1" -a "${USE_GTK2}" != "no"; then
 
 pkg_failed=no
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for gtk+-2.0" >&5
-printf %s "checking for gtk+-2.0... " >&6; }
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for GTK2" >&5
+printf %s "checking for GTK2... " >&6; }
 
 if test -n "$GTK2_CFLAGS"; then
     pkg_cv_GTK2_CFLAGS="$GTK2_CFLAGS"
@@ -35767,7 +35902,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+   	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
 printf "%s\n" "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -35776,27 +35911,27 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-                GTK2_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "gtk+-2.0" 2>&1`
+	        GTK2_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "gtk+-2.0" 2>&1`
         else
-                GTK2_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "gtk+-2.0" 2>&1`
+	        GTK2_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "gtk+-2.0" 2>&1`
         fi
-        # Put the nasty error message in config.log where it belongs
-        echo "$GTK2_PKG_ERRORS" >&5
+	# Put the nasty error message in config.log where it belongs
+	echo "$GTK2_PKG_ERRORS" >&5
 
 
             PBX_GTK2=0
 
 
 elif test $pkg_failed = untried; then
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+     	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
 printf "%s\n" "no" >&6; }
 
             PBX_GTK2=0
 
 
 else
-        GTK2_CFLAGS=$pkg_cv_GTK2_CFLAGS
-        GTK2_LIBS=$pkg_cv_GTK2_LIBS
+	GTK2_CFLAGS=$pkg_cv_GTK2_CFLAGS
+	GTK2_LIBS=$pkg_cv_GTK2_LIBS
         { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
 
@@ -35837,8 +35972,8 @@ fi
       if test "x${PBX_SYSTEMD}" != "x1" -a "${USE_SYSTEMD}" != "no"; then
 
 pkg_failed=no
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for libsystemd" >&5
-printf %s "checking for libsystemd... " >&6; }
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for SYSTEMD" >&5
+printf %s "checking for SYSTEMD... " >&6; }
 
 if test -n "$SYSTEMD_CFLAGS"; then
     pkg_cv_SYSTEMD_CFLAGS="$SYSTEMD_CFLAGS"
@@ -35878,7 +36013,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+   	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
 printf "%s\n" "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -35887,27 +36022,27 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-                SYSTEMD_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libsystemd" 2>&1`
+	        SYSTEMD_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libsystemd" 2>&1`
         else
-                SYSTEMD_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libsystemd" 2>&1`
+	        SYSTEMD_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libsystemd" 2>&1`
         fi
-        # Put the nasty error message in config.log where it belongs
-        echo "$SYSTEMD_PKG_ERRORS" >&5
+	# Put the nasty error message in config.log where it belongs
+	echo "$SYSTEMD_PKG_ERRORS" >&5
 
 
             PBX_SYSTEMD=0
 
 
 elif test $pkg_failed = untried; then
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+     	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
 printf "%s\n" "no" >&6; }
 
             PBX_SYSTEMD=0
 
 
 else
-        SYSTEMD_CFLAGS=$pkg_cv_SYSTEMD_CFLAGS
-        SYSTEMD_LIBS=$pkg_cv_SYSTEMD_LIBS
+	SYSTEMD_CFLAGS=$pkg_cv_SYSTEMD_CFLAGS
+	SYSTEMD_LIBS=$pkg_cv_SYSTEMD_LIBS
         { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
 
