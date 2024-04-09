@@ -1794,7 +1794,11 @@ static int global_maxsilence = 0;
  * \retval 't' Recording ended from the message exceeding the maximum duration, or via DTMF in prepend mode
  * \retval dtmfchar Recording ended via the return value's DTMF character for either cancel or accept.
  */
-static int __ast_play_and_record(struct ast_channel *chan, const char *playfile, const char *recordfile, int maxtime, const char *fmt, int *duration, int *sound_duration, int beep, int silencethreshold, int maxsilence, const char *path, int prepend, const char *acceptdtmf, const char *canceldtmf, int skip_confirmation_sound, enum ast_record_if_exists if_exists)
+static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
+	const char *recordfile, int maxtime, const char *fmt, int *duration,
+	int *sound_duration, int beep, int silencethreshold, int maxsilence,
+	const char *path, int prepend, const char *acceptdtmf, const char *canceldtmf,
+	int skip_confirmation_sound, enum ast_record_if_exists if_exists)
 {
 	int d = 0;
 	char *fmts;
@@ -1812,6 +1816,8 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 	struct ast_silence_generator *silgen = NULL;
 	char prependfile[PATH_MAX];
 	int ioflags;	/* IO flags for writing output file */
+	SCOPE_ENTER(3, "%s: play: '%s'  record: '%s'  path: '%s'  prepend: %d\n",
+		ast_channel_name(chan), playfile, recordfile, path, prepend);
 
 	ioflags = O_CREAT|O_WRONLY;
 
@@ -1849,19 +1855,22 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 
 	if (playfile || beep) {
 		if (!beep) {
+			ast_trace(-1, "Playing '%s' to '%s'\n", playfile, ast_channel_name(chan));
 			d = ast_play_and_wait(chan, playfile);
 		}
 		if (d > -1) {
+			ast_trace(-1, "Playing 'beep' to '%s'\n", ast_channel_name(chan));
 			d = ast_stream_and_wait(chan, "beep", "");
 		}
 		if (d < 0) {
-			return -1;
+			SCOPE_EXIT_RTN_VALUE(-1, "Failed to play. RC: %d\n", d);
 		}
 	}
 
 	if (prepend) {
 		ast_copy_string(prependfile, recordfile, sizeof(prependfile));
 		strncat(prependfile, "-prepend", sizeof(prependfile) - strlen(prependfile) - 1);
+		ast_trace(-1, "Prepending to '%s'\n", prependfile);
 	}
 
 	fmts = ast_strdupa(fmt);
@@ -1887,7 +1896,7 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 	end = start = time(NULL);  /* pre-initialize end to be same as start in case we never get into loop */
 	for (x = 0; x < fmtcnt; x++) {
 		others[x] = ast_writefile(prepend ? prependfile : recordfile, sfmt[x], comment, ioflags, 0, AST_FILE_MODE);
-		ast_verb(3, "x=%d, open writing:  %s format: %s, %p\n", x, prepend ? prependfile : recordfile, sfmt[x], others[x]);
+		ast_trace(-1, "x=%d, open writing:  %s format: %s, %p\n", x, prepend ? prependfile : recordfile, sfmt[x], others[x]);
 
 		if (!others[x]) {
 			break;
@@ -2178,7 +2187,8 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 			ast_closestream(others[x]);
 			ast_closestream(realfiles[x]);
 			ast_filerename(prependfile, recordfile, sfmt[x]);
-			ast_verb(4, "Recording Format: sfmts=%s, prependfile %s, recordfile %s\n", sfmt[x], prependfile, recordfile);
+			ast_trace(-1, "Recording Format: sfmts=%s, prependfile %s, recordfile %s\n", sfmt[x], prependfile, recordfile);
+			ast_trace(-1, "Deleting the prepend file %s.%s\n", recordfile, sfmt[x]);
 			ast_filedelete(prependfile, sfmt[x]);
 		}
 	} else {
@@ -2200,7 +2210,7 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 	if (sildet) {
 		ast_dsp_free(sildet);
 	}
-	return res;
+	SCOPE_EXIT_RTN_VALUE(res, "Done.  RC: %d\n", res);
 }
 
 static const char default_acceptdtmf[] = "#";
