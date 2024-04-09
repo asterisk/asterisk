@@ -134,12 +134,93 @@ maxlogins=3
 ;fromstring=The Asterisk PBX
 ; Permit finding entries for forward/compose from the directory
 ;usedirectory=yes
+
+; -----------------------------------------------------------------------------
+; ODBC storage configuration
+; -----------------------------------------------------------------------------
 ; Voicemail can be stored in a database using the ODBC driver.
-; The value of odbcstorage is the database connection configured
-; in res_odbc.conf.
-;odbcstorage=asterisk
-; The default table for ODBC voicemail storage is voicemessages.
-;odbctable=voicemessages
+;
+: Storage database:
+; The value of odbcstorage is the database connection configured in
+; res_odbc.conf.  This may be different from the name of the ODBC DSN
+; in /etc/odbc.ini which, in turn, may be different from the name of the
+; actual database.  If you used the voicemail.ini.sample alembic script
+; located in contrib/ast-db-manage to create the database, the database
+; name is 'voicemail' and the table name is 'voicemail_messages' so you'd
+; need to ensure that /etc/odbc.ini has a DSN entry that points to that
+; database and res_odbc.conf has an entry that points to that ODBC DSN.
+; For historical compatibility, the default value of odbcstorage is
+; actually 'asterisk' because originally voicemail messages were stored
+; in the same database as the rest of the Asterisk configuration.
+
+;odbcstorage = voicemail
+
+; Storage table:
+; The name of the table in which voicemail messages are stored.
+; If you used the voicemail.ini.sample alembic script located in
+; contrib/ast-db-manage to create the database, the table name
+; is 'voicemail_messages'.  For historical compatibility however,
+; the default value of odbctable is 'voicemessages' because originally
+; voicemail messages were stored in that table in the same database
+; as the rest of the Asterisk configuration.
+
+;odbctable = voicemail_messages
+
+; Audio storage location:
+; By default, voicemail and prompt audio files are stored as BLOBs
+; in the database along with the message metadata. If you would
+; prefer to store the audio files on disk and only store the message
+; metadata in the database, set the following option to 'yes'.
+; This can be advantageous in some scenarios, such as when the
+; database is on a separate server from the Asterisk server and
+; network latency and size is a concern or when the database is
+; not well-suited for storing large binary objects.  It can also
+; be useful when you want to use the same voicemail storage
+; configuration for multiple Asterisk servers.  In this situation
+; you can have all the servers use a single shared network file
+; system to store the audio files and use the same database for fast
+; access to the message metadata.
+
+; If you set this option to "yes", new messages and greetings will
+; have their audio kept on disk but the audio for existing messages
+; and greetings will remain in the database until the next time
+; they are played.  At that time, the audio will be moved to disk
+; and erased from the database.
+
+; If you set this option to "no" after you've already stored messages
+; or greetings with it set to "yes", new messages and greetings will
+; have their audio stored in the database but the audio for existing
+; messages and greetings will remain on disk until the next time they
+; are played.  At that time, the audio will be moved to the database
+; and erased from the disk.
+
+; WARNING: Before changing this option from "yes" to "no" or vice
+; versa make sure you have complete backups of your voicemail
+; database and audio files.
+
+; WARNING: If you set this option to "yes" and then later set it
+; to "no", you must ensure that the audio files are not deleted
+; from the disk until you are certain that they have been moved
+; to the database.  If you delete the audio files before they are
+; moved to the database, the messages will be lost.
+
+; WARNING: YOU MUST NOT DOWNGRADE ASTERISK TO A VERSION THAT DOESN'T
+; UNDERSTAND THIS OPTION if you've set this option to "yes" previously
+; and there are audio files stored on disk.  If those files are
+; accessed by a version of Asterisk that doesn't understand this
+; option, the files will be corrupted and the messages will be lost.
+; If you do need to downgrade in this situation, you'll have to write
+; your own script to move the audio files back into the 'recording'
+; column of the database table.  If you record multiple formats,
+; the file to write to the 'recording' column will be the first format
+; listed in the 'format' option in this config file.  If the first
+; format is 'wav49', the file to add to the database will be the one
+; with the 'WAV' extension. 
+
+; odbc_audio_on_disk = no
+
+; -----------------------------------------------------------------------------
+
 ;
 ; Change the from, body and/or subject, variables:
 ;     VM_NAME, VM_DUR, VM_MSGNUM, VM_MAILBOX, VM_CALLERID, VM_CIDNUM,
