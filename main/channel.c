@@ -3318,6 +3318,7 @@ int ast_waitfordigit_full(struct ast_channel *c, int timeout_ms, const char *bre
 					ast_channel_clear_flag(c, AST_FLAG_END_DTMF_ONLY);
 					return res;
 				case AST_CONTROL_PVT_CAUSE_CODE:
+				case AST_CONTROL_PROGRESS:
 				case AST_CONTROL_RINGING:
 				case AST_CONTROL_ANSWER:
 				case AST_CONTROL_SRCUPDATE:

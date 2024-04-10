@@ -1752,6 +1752,7 @@ static int waitstream_core(struct ast_channel *c,
 					ast_frfree(fr);
 					ast_channel_clear_flag(c, AST_FLAG_END_DTMF_ONLY);
 					return -1;
+				case AST_CONTROL_PROGRESS:
 				case AST_CONTROL_RINGING:
 				case AST_CONTROL_ANSWER:
 				case AST_CONTROL_VIDUPDATE:
