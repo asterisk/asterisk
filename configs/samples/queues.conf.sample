@@ -497,7 +497,8 @@ monitor-type = MixMonitor
 ; in the 'ringinuse' field on a realtime member, via the QUEUE_MEMBER dialplan
 ; function, or with CLI/AMI. By default, the per member value will be the same
 ; as the queue's ringinuse value if it isn't set on the member deliberately.
-; (Note: only the SIP channel driver currently is able to report 'in use'.)
+; (Note: only the SIP and PJSIP channel drivers currently are able to report
+; 'in use'.)
 ; ringinuse = no
 ;
 ; If you wish to have a delay before the member is connected to the caller (or
