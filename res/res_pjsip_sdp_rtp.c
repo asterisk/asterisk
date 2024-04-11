@@ -2101,6 +2101,7 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session,
 	enum ast_media_type media_type = session_media->type;
 	char host[NI_MAXHOST];
 	int res;
+	int rtp_timeout;
 	struct ast_sip_session_media *session_media_transport;
 	SCOPE_ENTER(1, "%s Stream: %s\n", ast_sip_session_get_name(session),
 		ast_str_tmp(128, ast_stream_to_str(asterisk_stream, &STR_TMP)));
@@ -2246,8 +2247,10 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session,
 		ast_rtp_instance_set_timeout(session_media->rtp, session->endpoint->media.rtp.timeout_hold);
 	}
 
-	if (ast_rtp_instance_get_timeout(session_media->rtp)) {
-		session_media->timeout_sched_id = ast_sched_add_variable(sched,	500, rtp_check_timeout,
+	rtp_timeout = ast_rtp_instance_get_timeout(session_media->rtp);
+
+	if (rtp_timeout) {
+		session_media->timeout_sched_id = ast_sched_add_variable(sched,	rtp_timeout*1000, rtp_check_timeout,
 			session_media, 1);
 	}
 
