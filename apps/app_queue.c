@@ -3487,7 +3487,7 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 		if (strategy < 0) {
 			ast_log(LOG_WARNING, "'%s' isn't a valid strategy for queue '%s', using ringall instead\n",
 				val, q->name);
-			q->strategy = QUEUE_STRATEGY_RINGALL;
+			strategy = QUEUE_STRATEGY_RINGALL;
 		}
 		if (strategy == q->strategy) {
 			return;
