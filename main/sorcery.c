@@ -1939,7 +1939,12 @@ void *ast_sorcery_retrieve_by_fields(const struct ast_sorcery *sorcery, const ch
 
 	/* If we are returning a single object and it came from a non-cache source create it in any caches */
 	if (!(flags & AST_RETRIEVE_FLAG_MULTIPLE) && !cached && object) {
-		AST_VECTOR_CALLBACK(&object_type->wizards, sorcery_cache_create, NULL, object, 0);
+		struct sorcery_details sdetails = {
+			.sorcery = sorcery,
+			.obj = object,
+		};
+
+		AST_VECTOR_CALLBACK(&object_type->wizards, sorcery_cache_create, NULL, &sdetails, 0);
 	}
 	AST_VECTOR_RW_UNLOCK(&object_type->wizards);
 
