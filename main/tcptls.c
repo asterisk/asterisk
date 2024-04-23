@@ -741,6 +741,13 @@ struct ast_tcptls_session_instance *ast_tcptls_client_create(struct ast_tcptls_s
 	/* Set current info */
 	ast_sockaddr_copy(&desc->old_address, &desc->remote_address);
 
+	if (!ast_strlen_zero(desc->hostname)) {
+		if (ast_iostream_set_sni_hostname(tcptls_session->stream, desc->hostname) != 0) {
+			ast_log(LOG_WARNING, "Unable to set SNI hostname '%s' on connection '%s'\n",
+				desc->hostname, desc->name);
+		}
+	}
+
 	return tcptls_session;
 
 error:
