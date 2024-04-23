@@ -107,6 +107,17 @@ void ast_iostream_set_timeout_sequence(struct ast_iostream *stream, struct timev
 void ast_iostream_set_exclusive_input(struct ast_iostream *stream, int exclusive_input);
 
 /*!
+ * \brief Set the iostream's SNI hostname for TLS client connections
+ *
+ * \param stream A pointer to an iostream
+ * \param sni_hostname The hostname to use for SNI when in client mode
+ *
+ * \retval 0 if the hostname was set successfully.
+ * \retval -1 if memory could not be allocated for the hostname.
+ */
+int ast_iostream_set_sni_hostname(struct ast_iostream *stream, const char *sni_hostname);
+
+/*!
  * \brief Get an iostream's file descriptor.
  *
  * \param stream A pointer to an iostream
