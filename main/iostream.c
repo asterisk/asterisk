@@ -46,6 +46,7 @@ struct ast_iostream {
 	int rbuflen;
 	char *rbufhead;
 	char rbuf[2048];
+	char *sni_hostname;
 };
 
 #if defined(DO_SSL)
@@ -150,6 +151,16 @@ void ast_iostream_set_exclusive_input(struct ast_iostream *stream, int exclusive
 	ast_assert(stream != NULL);
 
 	stream->exclusive_input = exclusive_input;
+}
+
+int ast_iostream_set_sni_hostname(struct ast_iostream *stream, const char *sni_hostname)
+{
+	ast_assert(stream != NULL);
+
+	ast_free(stream->sni_hostname);
+	stream->sni_hostname = ast_strdup(sni_hostname);
+
+	return stream->sni_hostname ? 0 : -1;
 }
 
 static ssize_t iostream_read(struct ast_iostream *stream, void *buf, size_t size)
@@ -591,13 +602,9 @@ int ast_iostream_close(struct ast_iostream *stream)
 
 static void iostream_dtor(void *cookie)
 {
-#ifdef AST_DEVMODE
-	/* Since the ast_assert below is the only one using stream,
-	 * and ast_assert is only available with AST_DEVMODE, we
-	 * put this in a conditional to avoid compiler warnings. */
 	struct ast_iostream *stream = cookie;
-#endif
 
+	ast_free(stream->sni_hostname);
 	ast_assert(stream->fd == -1);
 }
 
@@ -638,6 +645,15 @@ int ast_iostream_start_tls(struct ast_iostream **pstream, SSL_CTX *ssl_ctx, int 
 	 * ast_iostream.
 	 */
 	SSL_set_fd(stream->ssl, stream->fd);
+
+	if (client && !ast_strlen_zero(stream->sni_hostname)) {
+		if (!SSL_set_tlsext_host_name(stream->ssl, stream->sni_hostname)) {
+			ast_log(LOG_ERROR, "Unable to set SNI hostname '%s'\n",
+				stream->sni_hostname);
+			errno = EIO;
+			return -1;
+		}
+	}
 
 	res = ssl_setup(stream->ssl);
 	if (res <= 0) {
