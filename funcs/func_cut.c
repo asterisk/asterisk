@@ -75,6 +75,10 @@
 		</syntax>
 		<description>
 			<para>Cut out information from a string (<replaceable>varname</replaceable>), based upon a named delimiter.</para>
+					<example title="The 'varname' parameter can only accept a variable name, not a variable expression">
+				exten => s,1,Set(foo=${CUT(bar,,2)}); This is correct syntax
+				exten => s,2,Set(foo=${CUT(${bar},,2)}); This is invalid syntax (unless bar contains the name of another variable)
+ 					</example>
 		</description>
 	</function>
  ***/

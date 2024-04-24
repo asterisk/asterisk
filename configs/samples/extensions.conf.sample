@@ -124,8 +124,6 @@ clearglobalvars=no
 CONSOLE=Console/dsp				; Console interface for demo
 ;CONSOLE=DAHDI/1
 ;CONSOLE=Phone/phone0
-IAXINFO=guest					; IAXtel username/password
-;IAXINFO=myuser:mypass
 TRUNK=DAHDI/G2					; Trunk interface
 ;
 ; Note the 'G2' in the TRUNK variable above. It specifies which group (defined
@@ -365,12 +363,12 @@ include => trunkld
 
 [local]
 ;
-; Master context for local, toll-free, and iaxtel calls only
+; Master context for local and toll-free calls only
 ;
 ignorepat => 9
 include => default
 include => trunklocal
-include => iaxtel700
+include => iax2-trunk
 include => trunktollfree
 include => iaxprovider
 

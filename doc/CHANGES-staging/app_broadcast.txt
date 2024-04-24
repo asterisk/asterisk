@@ -1,4 +1,0 @@
-Subject: app_broadcast
-
-A Broadcast application is now available which allows
-for asynchronous one-to-many and many-to-one channel audio.

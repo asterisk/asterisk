@@ -413,7 +413,7 @@ struct ast_dsp {
 	int totalnoise;
 	int features;
 	int ringtimeout;
-	int busymaybe;
+	int busymaybe; /* Boolean, could be a bitfield */
 	int busycount;
 	struct ast_dsp_busy_pattern busy_cadence;
 	int historicnoise[DSP_HISTORY];
@@ -428,8 +428,8 @@ struct ast_dsp {
 	int digitmode;
 	int faxmode;
 	int freqmode;
-	int dtmf_began;
-	int display_inband_dtmf_warning;
+	int dtmf_began; /* Boolean, could be a bitfield */
+	int display_inband_dtmf_warning; /* Boolean, could be a bitfield */
 	float genergy;
 	int mute_fragments;
 	unsigned int sample_rate;
@@ -1223,7 +1223,8 @@ int ast_dsp_call_progress(struct ast_dsp *dsp, struct ast_frame *inf)
 		return 0;
 	}
 	if (!ast_format_cache_is_slinear(inf->subclass.format)) {
-		ast_log(LOG_WARNING, "Can only check call progress in signed-linear frames\n");
+		ast_log(LOG_WARNING, "Can only check call progress in signed-linear frames, %s not supported\n",
+			ast_format_get_name(inf->subclass.format));
 		return 0;
 	}
 	return __ast_dsp_call_progress(dsp, inf->data.ptr, inf->datalen / 2);
@@ -1466,7 +1467,8 @@ static int ast_dsp_silence_noise_with_energy(struct ast_dsp *dsp, struct ast_fra
 				s[x] = AST_ALAW(odata[x]);
 			}
 		} else {
-			ast_log(LOG_WARNING, "Can only calculate silence on signed-linear, alaw or ulaw frames :(\n");
+			ast_log(LOG_WARNING, "Can only calculate silence on signed-linear, alaw or ulaw frames, %s not supported\n",
+				ast_format_get_name(f->subclass.format));
 			return 0;
 		}
 	}
@@ -1529,9 +1531,17 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 			shortdata[x] = AST_ALAW(odata[x]);
 		}
 	} else {
-		/*Display warning only once. Otherwise you would get hundreds of warnings every second */
+		/* Display warning only once. Otherwise you would get hundreds of warnings every second */
 		if (dsp->display_inband_dtmf_warning) {
-			ast_log(LOG_WARNING, "Inband DTMF is not supported on codec %s. Use RFC2833\n", ast_format_get_name(af->subclass.format));
+			/* If DTMF is enabled for the DSP, try to be helpful and warn about that specifically,
+			 * otherwise emit a more generic message that covers all other cases. */
+			if ((dsp->features & DSP_FEATURE_DIGIT_DETECT) && (dsp->digitmode & DSP_DIGITMODE_DTMF)) {
+				ast_log(LOG_WARNING, "Inband DTMF is not supported on codec %s. Use RFC2833\n",
+					ast_format_get_name(af->subclass.format));
+			} else {
+				ast_log(LOG_WARNING, "Can only do DSP on signed-linear, alaw or ulaw frames (%s not supported)\n",
+					ast_format_get_name(af->subclass.format));
+			}
 		}
 		dsp->display_inband_dtmf_warning = 0;
 		return af;

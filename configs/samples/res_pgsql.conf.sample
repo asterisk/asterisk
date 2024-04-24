@@ -28,3 +28,9 @@ dbpass=password
 ; createchar  - Create char columns only
 ;
 requirements=warn
+
+; When multiple rows are requested by realtime, res_config_pgsql will add an
+; explicit ORDER BY clause to the generated SELECT statement. To prevent
+; that from occuring, set order_multi_row_results_by_initial_column to 'no'.
+;
+;order_multi_row_results_by_initial_column=no

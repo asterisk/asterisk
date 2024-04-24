@@ -1933,14 +1933,15 @@ static int sanity_check(void)
 				fprintf(stderr, "\n"
 					"***********************************************************\n"
 					"  The existing menuselect.makeopts file did not specify    \n"
-					"  that '%s' should not be included.  However, either some  \n"
-					"  dependencies for this module were not found or a         \n"
-					"  conflict exists.                                         \n"
+					"  that '%s' should not be included.  However, %s%s%s.\n"
 					"                                                           \n"
 					"  Either run 'make menuselect' or remove the existing      \n"
 					"  menuselect.makeopts file to resolve this issue.          \n"
 					"***********************************************************\n"
-					"\n", mem->name);
+					"\n", mem->name,
+					mem->depsfailed ? "\ndependencies for this module were not found" : "",
+					mem->depsfailed && mem->conflictsfailed ? " and" : "",
+					mem->conflictsfailed ? "\na conflict exists" : "");
 				insane = 1;
 			}
 		}

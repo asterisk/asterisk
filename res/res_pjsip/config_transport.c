@@ -828,17 +828,55 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 	} else if (transport->type == AST_TRANSPORT_TCP) {
 		pjsip_tcp_transport_cfg cfg;
 		static int option = 1;
+		int sockopt_count = 0;
 
 		pjsip_tcp_transport_cfg_default(&cfg, temp_state->state->host.addr.sa_family);
 		cfg.bind_addr = temp_state->state->host;
 		cfg.async_cnt = transport->async_operations;
 		set_qos(transport, &cfg.qos_params);
+
 		/* sockopt_params.options is copied to each newly connected socket */
-		cfg.sockopt_params.options[0].level = pj_SOL_TCP();
-		cfg.sockopt_params.options[0].optname = pj_TCP_NODELAY();
-		cfg.sockopt_params.options[0].optval = &option;
-		cfg.sockopt_params.options[0].optlen = sizeof(option);
-		cfg.sockopt_params.cnt = 1;
+		cfg.sockopt_params.options[sockopt_count].level = pj_SOL_TCP();
+		cfg.sockopt_params.options[sockopt_count].optname = pj_TCP_NODELAY();
+		cfg.sockopt_params.options[sockopt_count].optval = &option;
+		cfg.sockopt_params.options[sockopt_count].optlen = sizeof(option);
+		sockopt_count++;
+
+		if (transport->tcp_keepalive_enable) {
+#if defined(PJ_MAX_SOCKOPT_PARAMS) && PJ_MAX_SOCKOPT_PARAMS >= 5
+			ast_log(LOG_DEBUG, "TCP Keepalive enabled for transport '%s'. Idle Time: %d, Interval: %d, Count: %d\n",
+				ast_sorcery_object_get_id(obj), transport->tcp_keepalive_idle_time, transport->tcp_keepalive_interval_time, transport->tcp_keepalive_probe_count);
+
+			cfg.sockopt_params.options[sockopt_count].level = pj_SOL_SOCKET();
+			cfg.sockopt_params.options[sockopt_count].optname = SO_KEEPALIVE;
+			cfg.sockopt_params.options[sockopt_count].optval = &option;
+			cfg.sockopt_params.options[sockopt_count].optlen = sizeof(option);
+			sockopt_count++;
+
+			cfg.sockopt_params.options[sockopt_count].level = pj_SOL_TCP();
+			cfg.sockopt_params.options[sockopt_count].optname = TCP_KEEPIDLE;
+			cfg.sockopt_params.options[sockopt_count].optval = &transport->tcp_keepalive_idle_time;
+			cfg.sockopt_params.options[sockopt_count].optlen = sizeof(transport->tcp_keepalive_idle_time);
+			sockopt_count++;
+
+			cfg.sockopt_params.options[sockopt_count].level = pj_SOL_TCP();
+			cfg.sockopt_params.options[sockopt_count].optname = TCP_KEEPINTVL;
+			cfg.sockopt_params.options[sockopt_count].optval = &transport->tcp_keepalive_interval_time;
+			cfg.sockopt_params.options[sockopt_count].optlen = sizeof(transport->tcp_keepalive_interval_time);
+			sockopt_count++;
+
+			cfg.sockopt_params.options[sockopt_count].level = pj_SOL_TCP();
+			cfg.sockopt_params.options[sockopt_count].optname = TCP_KEEPCNT;
+			cfg.sockopt_params.options[sockopt_count].optval = &transport->tcp_keepalive_probe_count;
+			cfg.sockopt_params.options[sockopt_count].optlen = sizeof(transport->tcp_keepalive_probe_count);
+			sockopt_count++;
+#else
+			ast_log(LOG_WARNING, "TCP keepalive settings for '%s' not set due to PJSIP built without support for setting all options. Consider using bundled PJSIP.\n",
+				ast_sorcery_object_get_id(obj));
+#endif
+		}
+
+		cfg.sockopt_params.cnt = sockopt_count;
 
 		for (i = 0; i < BIND_TRIES && res != PJ_SUCCESS; i++) {
 			if (perm_state && perm_state->state && perm_state->state->factory
@@ -853,6 +891,7 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 	} else if (transport->type == AST_TRANSPORT_TLS) {
 #if defined(PJ_HAS_SSL_SOCK) && PJ_HAS_SSL_SOCK != 0
 		static int option = 1;
+		int sockopt_count = 0;
 
 		if (transport->async_operations > 1 && ast_compare_versions(pj_get_version(), "2.5.0") < 0) {
 			ast_log(LOG_ERROR, "Transport: %s: When protocol=tls and pjproject version < 2.5.0, async_operations can't be > 1\n",
@@ -864,11 +903,47 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 		set_qos(transport, &temp_state->state->tls.qos_params);
 
 		/* sockopt_params.options is copied to each newly connected socket */
-		temp_state->state->tls.sockopt_params.options[0].level = pj_SOL_TCP();
-		temp_state->state->tls.sockopt_params.options[0].optname = pj_TCP_NODELAY();
-		temp_state->state->tls.sockopt_params.options[0].optval = &option;
-		temp_state->state->tls.sockopt_params.options[0].optlen = sizeof(option);
-		temp_state->state->tls.sockopt_params.cnt = 1;
+		temp_state->state->tls.sockopt_params.options[sockopt_count].level = pj_SOL_TCP();
+		temp_state->state->tls.sockopt_params.options[sockopt_count].optname = pj_TCP_NODELAY();
+		temp_state->state->tls.sockopt_params.options[sockopt_count].optval = &option;
+		temp_state->state->tls.sockopt_params.options[sockopt_count].optlen = sizeof(option);
+		sockopt_count++;
+
+		if (transport->tcp_keepalive_enable) {
+#if defined(PJ_MAX_SOCKOPT_PARAMS) && PJ_MAX_SOCKOPT_PARAMS >= 5
+			ast_log(LOG_DEBUG, "TCP Keepalive enabled for transport '%s'. Idle Time: %d, Interval: %d, Count: %d\n",
+				ast_sorcery_object_get_id(obj), transport->tcp_keepalive_idle_time, transport->tcp_keepalive_interval_time, transport->tcp_keepalive_probe_count);
+
+			temp_state->state->tls.sockopt_params.options[sockopt_count].level = pj_SOL_SOCKET();
+			temp_state->state->tls.sockopt_params.options[sockopt_count].optname = SO_KEEPALIVE;
+			temp_state->state->tls.sockopt_params.options[sockopt_count].optval = &option;
+			temp_state->state->tls.sockopt_params.options[sockopt_count].optlen = sizeof(option);
+			sockopt_count++;
+
+			temp_state->state->tls.sockopt_params.options[sockopt_count].level = pj_SOL_TCP();
+			temp_state->state->tls.sockopt_params.options[sockopt_count].optname = TCP_KEEPIDLE;
+			temp_state->state->tls.sockopt_params.options[sockopt_count].optval = &transport->tcp_keepalive_idle_time;
+			temp_state->state->tls.sockopt_params.options[sockopt_count].optlen = sizeof(transport->tcp_keepalive_idle_time);
+			sockopt_count++;
+
+			temp_state->state->tls.sockopt_params.options[sockopt_count].level = pj_SOL_TCP();
+			temp_state->state->tls.sockopt_params.options[sockopt_count].optname = TCP_KEEPINTVL;
+			temp_state->state->tls.sockopt_params.options[sockopt_count].optval = &transport->tcp_keepalive_interval_time;
+			temp_state->state->tls.sockopt_params.options[sockopt_count].optlen = sizeof(transport->tcp_keepalive_interval_time);
+			sockopt_count++;
+
+			temp_state->state->tls.sockopt_params.options[sockopt_count].level = pj_SOL_TCP();
+			temp_state->state->tls.sockopt_params.options[sockopt_count].optname = TCP_KEEPCNT;
+			temp_state->state->tls.sockopt_params.options[sockopt_count].optval = &transport->tcp_keepalive_probe_count;
+			temp_state->state->tls.sockopt_params.options[sockopt_count].optlen = sizeof(transport->tcp_keepalive_probe_count);
+			sockopt_count++;
+#else
+			ast_log(LOG_WARNING, "TCP keepalive settings for '%s' not set due to PJSIP built without support for setting all options. Consider using bundled PJSIP.\n",
+				ast_sorcery_object_get_id(obj));
+#endif
+		}
+
+		temp_state->state->tls.sockopt_params.cnt = sockopt_count;
 
 		for (i = 0; i < BIND_TRIES && res != PJ_SUCCESS; i++) {
 			if (perm_state && perm_state->state && perm_state->state->factory
@@ -1221,11 +1296,17 @@ static int transport_tls_method_handler(const struct aco_option *opt, struct ast
 		state->tls.method = PJSIP_SSL_UNSPECIFIED_METHOD;
 	} else if (!strcasecmp(var->value, "tlsv1")) {
 		state->tls.method = PJSIP_TLSV1_METHOD;
-#ifdef HAVE_PJSIP_TLS_TRANSPORT_PROTO
+#ifdef HAVE_PJSIP_TLS_1_1
 	} else if (!strcasecmp(var->value, "tlsv1_1")) {
 		state->tls.method = PJSIP_TLSV1_1_METHOD;
+#endif
+#ifdef HAVE_PJSIP_TLS_1_2
 	} else if (!strcasecmp(var->value, "tlsv1_2")) {
 		state->tls.method = PJSIP_TLSV1_2_METHOD;
+#endif
+#ifdef HAVE_PJSIP_TLS_1_3
+	} else if (!strcasecmp(var->value, "tlsv1_3")) {
+		state->tls.method = PJSIP_TLSV1_3_METHOD;
 #endif
 	} else if (!strcasecmp(var->value, "sslv2")) {
 		state->tls.method = PJSIP_SSLV2_METHOD;
@@ -1243,9 +1324,14 @@ static int transport_tls_method_handler(const struct aco_option *opt, struct ast
 static const char *tls_method_map[] = {
 	[PJSIP_SSL_UNSPECIFIED_METHOD] = "unspecified",
 	[PJSIP_TLSV1_METHOD] = "tlsv1",
-#ifdef HAVE_PJSIP_TLS_TRANSPORT_PROTO
+#ifdef HAVE_PJSIP_TLS_1_1
 	[PJSIP_TLSV1_1_METHOD] = "tlsv1_1",
+#endif
+#ifdef HAVE_PJSIP_TLS_1_2
 	[PJSIP_TLSV1_2_METHOD] = "tlsv1_2",
+#endif
+#ifdef HAVE_PJSIP_TLS_1_3
+	[PJSIP_TLSV1_3_METHOD] = "tlsv1_3",
 #endif
 	[PJSIP_SSLV2_METHOD] = "sslv2",
 	[PJSIP_SSLV3_METHOD] = "sslv3",
@@ -1354,7 +1440,7 @@ static int transport_tls_cipher_handler(const struct aco_option *opt, struct ast
 			continue;
 		}
 		if (ARRAY_LEN(state->ciphers) <= state->tls.ciphers_num) {
-			ast_log(LOG_ERROR, "Too many ciphers specified\n");
+			ast_log(LOG_ERROR, "Too many ciphers specified (maximum allowed is %d)\n", SIP_TLS_MAX_CIPHERS);
 			res = -1;
 			break;
 		}
@@ -1749,6 +1835,10 @@ int ast_sip_initialize_sorcery_transport(void)
 	ast_sorcery_object_field_register_custom(sorcery, "transport", "require_client_cert", "", transport_tls_bool_handler, require_client_cert_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sorcery, "transport", "allow_wildcard_certs", "", transport_tls_bool_handler, allow_wildcard_certs_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sorcery, "transport", "method", "", transport_tls_method_handler, tls_method_to_str, NULL, 0, 0);
+	ast_sorcery_object_field_register(sorcery, "transport", "tcp_keepalive_enable", "no", OPT_BOOL_T, 0, FLDSET(struct ast_sip_transport, tcp_keepalive_enable));
+	ast_sorcery_object_field_register(sorcery, "transport", "tcp_keepalive_idle_time", "30", OPT_INT_T, 0, FLDSET(struct ast_sip_transport, tcp_keepalive_idle_time));
+	ast_sorcery_object_field_register(sorcery, "transport", "tcp_keepalive_interval_time", "1", OPT_INT_T, 0, FLDSET(struct ast_sip_transport, tcp_keepalive_interval_time));
+	ast_sorcery_object_field_register(sorcery, "transport", "tcp_keepalive_probe_count", "5", OPT_INT_T, 0, FLDSET(struct ast_sip_transport, tcp_keepalive_probe_count));
 #if defined(PJ_HAS_SSL_SOCK) && PJ_HAS_SSL_SOCK != 0
 	ast_sorcery_object_field_register_custom(sorcery, "transport", "cipher", "", transport_tls_cipher_handler, transport_tls_cipher_to_str, NULL, 0, 0);
 #endif

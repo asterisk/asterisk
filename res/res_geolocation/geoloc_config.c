@@ -168,6 +168,12 @@ static int geoloc_location_apply_handler(const struct ast_sorcery *sorcery, void
 	enum ast_geoloc_validate_result result;
 	int rc = 0;
 
+	if (!location->location_info) {
+		ast_log(LOG_ERROR, "Location '%s' is missing required element 'location_info'",
+			location_id);
+		return -1;
+	}
+
 	result = validate_location_info(location_id, location->format, location->location_info);
 	if (result != AST_GEOLOC_VALIDATE_SUCCESS) {
 		return -1;

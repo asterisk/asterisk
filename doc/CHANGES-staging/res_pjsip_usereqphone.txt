@@ -1,4 +1,0 @@
-subject: res_pjsip
-
-user_eq_phone=yes flag on a pjsip endpoint will now set user=phone on
-the From and Prviacy headers in addition to the existing To and RURI

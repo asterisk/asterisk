@@ -192,10 +192,7 @@ check_installed_debs() {
 	for pack in "$@" ; do
 		tocheck="${tocheck} ^${pack}$ ~P^${pack}$"
 	done
-	pkgs=$(aptitude -F '%c %p' search ${tocheck} 2>/dev/null | awk '/^p/{print $2}')
-	if [ ${#pkgs} -ne 0 ]; then
-		echo $pkgs | sed -r -e "s/ ?[^ :]+:i386//g"
-	fi
+	aptitude -F '%c %p' search $tocheck 2>/dev/null | awk '/^p/{print $2}' | grep -vF :
 }
 
 # parsing the output of yum is close to impossible.

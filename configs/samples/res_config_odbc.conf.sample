@@ -1,0 +1,14 @@
+;
+; Sample configuration for res_config_odbc
+;
+; Most configuration occurs in the system ODBC configuration files,
+; res_odbc.conf, and extconfig.conf. You only need this file in the
+; event that you want to influence default sorting behavior.
+;
+
+[general]
+; When multiple rows are requested by realtime, res_config_odbc will add an
+; explicit ORDER BY clause to the generated SELECT statement. To prevent
+; that from occuring, set order_multi_row_results_by_initial_column to 'no'.
+;
+;order_multi_row_results_by_initial_column=no

@@ -1,5 +1,0 @@
-Subject: New EXPORT function
-
-A new function, EXPORT, allows writing variables
-and functions on other channels, the complement
-of the IMPORT function.

@@ -526,19 +526,20 @@ void ast_logger_set_queue_limit(int queue_limit);
 int ast_logger_get_queue_limit(void);
 
 
-/*!
- \page Scope_Trace Scope Trace
+/*! \defgroup Scope_Trace Scope Trace
+ * @{
+\page basic Basic Usage
 
 The Scope Trace facility allows you to instrument code and output scope entry
 and exit messages with associated data.
-
+\par
 To start using it:
- * You must have used --enable-dev-mode.
- * In logger.conf, set a logger channel to output the "trace" level.
- * Instrument your code as specified below.
- * Use the cli or cli.conf to enable tracing:
-   \verbatim CLI> core set trace <trace_level> [ module ] \endverbatim
-
+ - You must have used --enable-dev-mode.
+ - In logger.conf, set a logger channel to output the "trace" level.
+ - Instrument your code as specified below.
+ - Use the cli or cli.conf to enable tracing:
+\verbatim CLI> core set trace <trace_level> [ module ] \endverbatim
+\par
 Its simplest usage requires only 1 macro call that...
 	- Registers a destructor for a special variable that gets called when the
 	  variable goes out of scope.  Uses the same principle as RAII_VAR.
@@ -558,29 +559,29 @@ static struct pjmedia_sdp_session *create_local_sdp(pjsip_inv_session *inv,
 }
 \endcode
 would produce...
-\b [2020-05-17 15:16:51 -0600] TRACE[953402] : --> res_pjsip_session.c:4283 create_local_sdp PJSIP/1173-00000001
-\b [2020-05-17 15:16:51 -0600] TRACE[953402] : <-- res_pjsip_session.c:4283 create_local_sdp PJSIP/1173-00000001
+\verbatim
+[2020-05-17 15:16:51 -0600] TRACE[953402] : --> res_pjsip_session.c:4283 create_local_sdp PJSIP/1173-00000001
+[2020-05-17 15:16:51 -0600] TRACE[953402] : <-- res_pjsip_session.c:4283 create_local_sdp PJSIP/1173-00000001
+\endverbatim
 
 There is one odd bit.  There's no way to capture the line number of there the scope exited
 so it's always going to be the line where SCOPE_TRACE is located.
-
+\par
 Similar to RAII_VAR, any block scope can be traced including "if", "for", "while", etc.
 \note "case" statements don't create a scope block by themselves but you can create
 a block for it, or use the generic trace functions mentioned below.
 
-Scope Output and Level:
-
+\par Scope Output and Level:
 Rather than sending trace messages to the debug facility, a new facility "trace" has been
 added to logger.  A corresponding CLI command "core set trace", and a corresponding "trace"
 parameter in asterisk.conf were added.  This allows a separate log channel to be created
 just for storing trace messages.  The levels are the same as those for debug and verbose.
 
-Scope Indenting:
-
+\par Scope Indenting:
 Each time SCOPE_TRACE or SCOPE_TRACE is called, a thread-local indent value is
 incremented on scope enter, and decremented on scope exit.  This allows output
 like the following (timestamp omitted for brevity):
-
+\verbatim
 TRACE[953402] : --> res_pjsip_session.c:3940 session_inv_on_tsx_state_changed PJSIP/1173-00000001 TSX State: Proceeding  Inv State: CALLING
 TRACE[953402] : 	--> res_pjsip_session.c:3680 handle_incoming PJSIP/1173-00000001
 TRACE[953402] : 		--> res_pjsip_session.c:3661 handle_incoming_response PJSIP/1173-00000001 Method: INVITE Status: 100
@@ -594,11 +595,10 @@ TRACE[953402] : 			<-- res_pjsip_session.c:3669 handle_incoming_response PJSIP/1
 TRACE[953402] : 		<-- res_pjsip_session.c:3661 handle_incoming_response PJSIP/1173-00000001 Method: INVITE Status: 100
 TRACE[953402] : 	<-- res_pjsip_session.c:3680 handle_incoming PJSIP/1173-00000001
 TRACE[953402] : <-- res_pjsip_session.c:3940 session_inv_on_tsx_state_changed PJSIP/1173-00000001 TSX State: Proceeding  Inv State: CALLING
-
+\endverbatim
 \note The trace level indicates which messages to print and has no effect on indent.
 
-Generic Trace Messages:
-
+\par Generic Trace Messages:
 Sometimes you may just want to print a message to the trace log with the appropriate indent
 such as when executing a "case" clause in a "switch" statement. For example, the deepest
 message in the sample output above (chan_pjsip.c:3245) is just a single message instead of
@@ -608,9 +608,61 @@ an entry/exit message.  To do so, you can use the ast_trace macros...
 		(int)rdata->msg_info.cseq->method.name.slen, rdata->msg_info.cseq->method.name.ptr, status.code);
 \endcode
 
-/note Final note:  The trace facility, like debug, is only available when AST_DEVMODE is defined.
+\note Final note:  The trace facility, like debug, is only available when AST_DEVMODE is defined.
 
+*/
+
+/*!
+\page TRACE_PREFIX TRACE_PREFIX
+The default prefix to each log and trace line is
+<tt>"filename:line function"</tt> which is defined in the
+macro \c _A_ at the top of this file:
+\code
+#define _A_ __FILE__, __LINE__, __FUNCTION__
+\endcode
+They become 3 arguments to the __ast_trace function
+and most of the ast_log* functions.  For scope tracing,
+that may be unnecessary clutter in the trace output so
+you can now customise that with the \c _TRACE_PREFIX_
+macro.  Like \c _A_, it MUST resolve to 3 arguments:
+\verbatim
+const char *, int, const char *
+\endverbatim
+so the minimum would be:
+\code
+#define _TRACE_PREFIX_ "",0,""
+\endcode
+Normally you should define \c _TRACE_PREFIX_ in your source
+file before including logger.h.
+\code
+#define _TRACE_PREFIX_ "", __LINE__, ""
+#include "asterisk/logger.h"
+\endcode
+You can also define it later in your source file
+but because logger.h sets it to a default value, you'll
+have to undefine it first, then define it your your liking.
+If you want to go back to the default, you'll have to
+undefine it again, then define it to \c _TRACE_PREFIX_DEFAULT_.
+\code
+#undef _TRACE_PREFIX_
+#define _TRACE_PREFIX_ "", __LINE__, ""
+<code>
+#undef _TRACE_PREFIX_
+#define _TRACE_PREFIX_ _TRACE_PREFIX_DEFAULT_
+\endcode
+
+\note Macros have a compilation unit scope so
+defining \c _TRACE_PREFIX_ in one source file does NOT
+make it apply to any others.  So if you define it
+in source file A, then call a function in source
+file B, the trace output from B will display based
+on how \c _TRACE_PREFIX_ is defined in B, not A.
  */
+
+#define _TRACE_PREFIX_DEFAULT_ _A_
+#ifndef _TRACE_PREFIX_
+#define _TRACE_PREFIX_ _TRACE_PREFIX_DEFAULT_
+#endif
 
 /*!
  * \brief Get the trace level for a module
@@ -666,7 +718,7 @@ void __attribute__((format (printf, 6, 7))) __ast_trace(const char *file, int li
 #define ast_trace_raw(level, indent_type, ...) \
 	ast_debug(level < 0 ? __scope_level : level, " " __VA_ARGS__); \
 	if (TRACE_ATLEAST(level < 0 ? __scope_level : level)) { \
-		__ast_trace(_A_, indent_type, 0, " " __VA_ARGS__); \
+		__ast_trace(_TRACE_PREFIX_, indent_type, 0, " " __VA_ARGS__); \
 	}
 
 /*!
@@ -680,7 +732,7 @@ void __attribute__((format (printf, 6, 7))) __ast_trace(const char *file, int li
 #define ast_trace(level, ...) \
 	ast_debug(level < 0 ? __scope_level : level, " " __VA_ARGS__); \
 	if (TRACE_ATLEAST(level < 0 ? __scope_level : level)) { \
-		__ast_trace(_A_, AST_TRACE_INDENT_SAME, 0, " " __VA_ARGS__); \
+		__ast_trace(_TRACE_PREFIX_, AST_TRACE_INDENT_SAME, 0, " " __VA_ARGS__); \
 	}
 
 /*!
@@ -768,7 +820,7 @@ unsigned long _ast_trace_dec_indent(void);
 	int __scope_task = 0; \
 	ast_debug(__scope_level, " " __VA_ARGS__); \
 	if (TRACE_ATLEAST(level)) { \
-		__ast_trace(_A_, AST_TRACE_INDENT_INC_AFTER, 0, " " __VA_ARGS__); \
+		__ast_trace(_TRACE_PREFIX_, AST_TRACE_INDENT_INC_AFTER, 0, " " __VA_ARGS__); \
 	} \
 
 #define SCOPE_ENTER_TASK(level, indent, ...) \
@@ -776,8 +828,78 @@ unsigned long _ast_trace_dec_indent(void);
 	int __scope_task = 1; \
 	ast_debug(__scope_level, " " __VA_ARGS__); \
 	if (TRACE_ATLEAST(level)) { \
-		__ast_trace(_A_, AST_TRACE_INDENT_PROVIDED, indent, " " __VA_ARGS__); \
+		__ast_trace(_TRACE_PREFIX_, AST_TRACE_INDENT_PROVIDED, indent, " " __VA_ARGS__); \
 	} \
+
+/*!
+ * \def SCOPE_CALL
+ * \brief Wrap a function call in "--> Calling:" and "<-- Return from:" trace messages
+ *
+ * \param level The trace level (usually -1 to use the same level as the calling function)
+ * \param __funcname The name of the function to call (return value, if any, is ignored)
+ * \param ... Arguments to pass to the function
+ *
+ * Simple Example:
+ * The following code called from inside the app_voicemail.c leave_voicemail function...
+\code
+	SCOPE_CALL(-1, store_file, dir, vmu->mailbox, vmu->context, msgnum);
+\endcode
+ * would produce...
+\verbatim
+1     app_voicemail_odbc.c:7161 leave_voicemail: --> Calling store_file
+1     --> app_voicemail_odbc.c:4483 store_file: dir: /var/spool/asterisk/voicemail/default/1179/INBOX user: 1179 context: default msgnum: 8
+2         app_voicemail_odbc.c:4502 store_file: Formats: wav49|gsm|wav Using format: 'WAV'
+2         app_voicemail_odbc.c:4510 store_file: Base path: '/var/spool/asterisk/voicemail/default/1179/INBOX/msg0008'
+2         app_voicemail_odbc.c:4513 store_file: Basename: 'msg0008'
+1     <-- app_voicemail_odbc.c:4597 store_file: Success
+1     app_voicemail_odbc.c:7161 leave_voicemail: <-- Return from store_file
+\endverbatim
+ */
+#define SCOPE_CALL(level, __funcname, ...) \
+({ \
+	ast_trace(level, "--> Calling %s\n", #__funcname); \
+	__funcname(__VA_ARGS__); \
+	ast_trace(level, "<-- Return from %s\n", #__funcname); \
+})
+
+/*!
+ * \def SCOPE_CALL_WITH_RESULT
+ * \brief Wrap a function call returning a value in "--> Calling:" and "<-- Return from:" trece messages
+ *
+ * \param level The trace level (usually -1 to use the same level as the calling function)
+ * \param __type The return type of the function
+ * \param __funcname The name of the function to call
+ * \param ... Arguments to pass to the function
+ *
+ * Simple Example:
+ * The following code called from inside the app_voicemail.c leave_voicemail function...
+\code
+	int res = 0;
+	res = SCOPE_CALL_WITH_RESULT(-1, int, store_file, dir, vmu->mailbox, vmu->context, msgnum);
+\endcode
+ * would produce...
+\verbatim
+1     app_voicemail_odbc.c:7161 leave_voicemail: --> Calling store_file
+1     --> app_voicemail_odbc.c:4483 store_file: dir: /var/spool/asterisk/voicemail/default/1179/INBOX user: 1179 context: default msgnum: 8
+2         app_voicemail_odbc.c:4502 store_file: Formats: wav49|gsm|wav Using format: 'WAV'
+2         app_voicemail_odbc.c:4510 store_file: Base path: '/var/spool/asterisk/voicemail/default/1179/INBOX/msg0008'
+2         app_voicemail_odbc.c:4513 store_file: Basename: 'msg0008'
+1     <-- app_voicemail_odbc.c:4597 store_file: Success
+1     app_voicemail_odbc.c:7161 leave_voicemail: <-- Return from store_file
+\endverbatim
+ * ...and the return value of the store_file function would be assigned to the variable res.
+ */
+#define SCOPE_CALL_WITH_RESULT(level, __type, __funcname, ...) \
+({ \
+	__type __var; \
+	ast_trace(level, "--> Calling %s\n", #__funcname); \
+	__var = __funcname(__VA_ARGS__); \
+	ast_trace(level, "<-- Return from %s\n", #__funcname) \
+	__var; \
+})
+
+#define SCOPE_CALL_WITH_INT_RESULT(level, __funcname, ...) \
+	SCOPE_CALL_WITH_RESULT(level, int, __funcname, __VA_ARGS__)
 
 /*!
  * \brief Scope Exit
@@ -790,7 +912,7 @@ unsigned long _ast_trace_dec_indent(void);
 #define SCOPE_EXIT(...) \
 	ast_debug(__scope_level, " " __VA_ARGS__); \
 	if (TRACE_ATLEAST(__scope_level)) { \
-		__ast_trace(_A_, AST_TRACE_INDENT_DEC_BEFORE, 0, " " __VA_ARGS__); \
+		__ast_trace(_TRACE_PREFIX_, AST_TRACE_INDENT_DEC_BEFORE, 0, " " __VA_ARGS__); \
 		if (__scope_task) { \
 			_ast_trace_set_indent(0); \
 		} \
@@ -819,7 +941,7 @@ unsigned long _ast_trace_dec_indent(void);
 #define SCOPE_EXIT_EXPR(__expr, ...) \
 	ast_debug(__scope_level, " " __VA_ARGS__); \
 	if (TRACE_ATLEAST(__scope_level)) { \
-		__ast_trace(_A_, AST_TRACE_INDENT_DEC_BEFORE, 0, " " __VA_ARGS__); \
+		__ast_trace(_TRACE_PREFIX_, AST_TRACE_INDENT_DEC_BEFORE, 0, " " __VA_ARGS__); \
 		if (__scope_task) { \
 			_ast_trace_set_indent(0); \
 		} \
@@ -838,7 +960,7 @@ unsigned long _ast_trace_dec_indent(void);
 #define SCOPE_EXIT_RTN(...) \
 	ast_debug(__scope_level, " " __VA_ARGS__); \
 	if (TRACE_ATLEAST(__scope_level)) { \
-		__ast_trace(_A_, AST_TRACE_INDENT_DEC_BEFORE, 0, " " __VA_ARGS__); \
+		__ast_trace(_TRACE_PREFIX_, AST_TRACE_INDENT_DEC_BEFORE, 0, " " __VA_ARGS__); \
 		if (__scope_task) { \
 			_ast_trace_set_indent(0); \
 		} \
@@ -858,7 +980,7 @@ unsigned long _ast_trace_dec_indent(void);
 #define SCOPE_EXIT_RTN_VALUE(__return_value, ...) \
 	ast_debug(__scope_level, " " __VA_ARGS__); \
 	if (TRACE_ATLEAST(__scope_level)) { \
-		__ast_trace(_A_, AST_TRACE_INDENT_DEC_BEFORE, 0, " " __VA_ARGS__); \
+		__ast_trace(_TRACE_PREFIX_, AST_TRACE_INDENT_DEC_BEFORE, 0, " " __VA_ARGS__); \
 		if (__scope_task) { \
 			_ast_trace_set_indent(0); \
 		} \
@@ -885,6 +1007,12 @@ unsigned long _ast_trace_dec_indent(void);
 #define SCOPE_ENTER_TASK(level, indent, ...) \
 	int __scope_level = level; \
 	ast_debug(level, " " __VA_ARGS__)
+
+#define SCOPE_CALL(level, __funcname, ...) \
+	__funcname(__VA_ARGS__)
+
+#define SCOPE_CALL_WITH_RESULT(level, __var, __funcname, ...) \
+	__var = __funcname(__VA_ARGS__)
 
 #define SCOPE_EXIT(...) \
 	ast_debug(__scope_level, " " __VA_ARGS__)
@@ -942,5 +1070,9 @@ unsigned long _ast_trace_dec_indent(void);
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
+
+/*!
+ *  @}
+ */
 
 #endif /* _ASTERISK_LOGGER_H */

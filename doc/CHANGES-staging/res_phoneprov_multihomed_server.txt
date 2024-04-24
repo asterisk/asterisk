@@ -1,5 +1,0 @@
-Subject: res_phoneprov
-
-On multihomed Asterisk servers with dynamic SERVER template variables,
-reloading this module is no longer required when re-provisioning your
-phone to another interface address (e.g. when moving between VLANs.)

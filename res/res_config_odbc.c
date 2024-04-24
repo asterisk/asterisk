@@ -49,6 +49,9 @@
 /*! Initial SQL query buffer size to allocate. */
 #define SQL_BUF_SIZE	1024
 
+static const char *res_config_odbc_conf = "res_config_odbc.conf";
+static int order_multi_row_results_by_initial_column = 1;
+
 AST_THREADSTORAGE(sql_buf);
 AST_THREADSTORAGE(rowdata_buf);
 
@@ -388,7 +391,10 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 		ast_str_append(&sql, 0, " AND %s%s ?%s", field->name, op,
 			strcasestr(field->name, "LIKE") && !ast_odbc_backslash_is_escape(obj) ? " ESCAPE '\\\\'" : "");
 	}
-	ast_str_append(&sql, 0, " ORDER BY %s", initfield);
+
+	if (order_multi_row_results_by_initial_column) {
+		ast_str_append(&sql, 0, " ORDER BY %s", initfield);
+	}
 
 	cps.sql = ast_str_buffer(sql);
 
@@ -954,7 +960,7 @@ static struct ast_config *config_odbc(const char *database, const char *table, c
 
 	memset(&q, 0, sizeof(q));
 
-	if (!file || !strcmp (file, "res_config_odbc.conf") || !sql) {
+	if (!file || !strcmp (file, res_config_odbc_conf) || !sql) {
 		return NULL;		/* cant configure myself with myself ! */
 	}
 
@@ -1248,22 +1254,46 @@ static struct ast_config_engine odbc_engine = {
 	.unload_func = unload_odbc,
 };
 
-static int unload_module (void)
+static void load_config(const char *filename)
 {
-	ast_config_engine_deregister(&odbc_engine);
+	struct ast_config *config;
+	struct ast_flags config_flags = { 0 };
+	const char *s;
 
-	return 0;
+	config = ast_config_load(filename, config_flags);
+	if (config == CONFIG_STATUS_FILEMISSING || config == CONFIG_STATUS_FILEINVALID) {
+		if (config == CONFIG_STATUS_FILEINVALID) {
+			ast_log(LOG_WARNING, "Unable to load config '%s'. Using defaults.\n", filename);
+		}
+		order_multi_row_results_by_initial_column = 1;
+		return;
+	}
+
+	/* Result set ordering is enabled by default */
+	s = ast_variable_retrieve(config, "general", "order_multi_row_results_by_initial_column");
+	order_multi_row_results_by_initial_column = !s || ast_true(s);
+
+	ast_config_destroy(config);
 }
 
-static int load_module (void)
+static int load_module(void)
 {
+	/* We'll either successfully load the configuration or fail with reasonable
+	 * defaults */
+	load_config(res_config_odbc_conf);
 	ast_config_engine_register(&odbc_engine);
-
 	return 0;
 }
 
 static int reload_module(void)
 {
+	load_config(res_config_odbc_conf);
+	return 0;
+}
+
+static int unload_module(void)
+{
+	ast_config_engine_deregister(&odbc_engine);
 	return 0;
 }
 

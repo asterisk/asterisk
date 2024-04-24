@@ -557,9 +557,9 @@ int ast_channel_register(const struct ast_channel_tech *tech)
 	chan->tech = tech;
 	AST_RWLIST_INSERT_HEAD(&backends, chan, list);
 
-	ast_debug(1, "Registered handler for '%s' (%s)\n", chan->tech->type, chan->tech->description);
+	ast_debug(5, "Registered handler for '%s' (%s)\n", chan->tech->type, chan->tech->description);
 
-	ast_verb(2, "Registered channel type '%s' (%s)\n", chan->tech->type, chan->tech->description);
+	ast_verb(5, "Registered channel type '%s' (%s)\n", chan->tech->type, chan->tech->description);
 
 	AST_RWLIST_UNLOCK(&backends);
 
@@ -571,7 +571,7 @@ void ast_channel_unregister(const struct ast_channel_tech *tech)
 {
 	struct chanlist *chan;
 
-	ast_debug(1, "Unregistering channel type '%s'\n", tech->type);
+	ast_debug(5, "Unregistering channel type '%s'\n", tech->type);
 
 	AST_RWLIST_WRLOCK(&backends);
 
@@ -579,7 +579,7 @@ void ast_channel_unregister(const struct ast_channel_tech *tech)
 		if (chan->tech == tech) {
 			AST_LIST_REMOVE_CURRENT(list);
 			ast_free(chan);
-			ast_verb(2, "Unregistered channel type '%s'\n", tech->type);
+			ast_verb(5, "Unregistered channel type '%s'\n", tech->type);
 			break;
 		}
 	}
@@ -1080,8 +1080,11 @@ static int __ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin, in
 	}
 
 	if ((queued_frames + new_frames > 128 || queued_voice_frames + new_voice_frames > 96)) {
+		int total_queued = queued_frames + new_frames;
+		int total_voice = queued_voice_frames + new_voice_frames;
 		int count = 0;
-		ast_log(LOG_WARNING, "Exceptionally long %squeue length queuing to %s\n", queued_frames + new_frames > 128 ? "" : "voice ", ast_channel_name(chan));
+		ast_log(LOG_WARNING, "Exceptionally long %squeue length (%d voice / %d total) queuing to %s\n",
+			queued_frames + new_frames > 128 ? "" : "voice ", total_voice, total_queued, ast_channel_name(chan));
 		AST_LIST_TRAVERSE_SAFE_BEGIN(ast_channel_readq(chan), cur, frame_list) {
 			/* Save the most recent frame */
 			if (!AST_LIST_NEXT(cur, frame_list)) {
@@ -1098,6 +1101,9 @@ static int __ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin, in
 			}
 		}
 		AST_LIST_TRAVERSE_SAFE_END;
+		if (count) {
+			ast_debug(4, "Discarded %d frame%s due to queue overload on %s\n", count, ESS(count), ast_channel_name(chan));
+		}
 	}
 
 	if (after) {
@@ -3305,6 +3311,7 @@ int ast_waitfordigit_full(struct ast_channel *c, int timeout_ms, const char *bre
 					ast_channel_clear_flag(c, AST_FLAG_END_DTMF_ONLY);
 					return res;
 				case AST_CONTROL_PVT_CAUSE_CODE:
+				case AST_CONTROL_PROGRESS:
 				case AST_CONTROL_RINGING:
 				case AST_CONTROL_ANSWER:
 				case AST_CONTROL_SRCUPDATE:
@@ -9119,6 +9126,7 @@ void ast_channel_set_redirecting(struct ast_channel *chan, const struct ast_part
 	ast_channel_lock(chan);
 	ast_party_redirecting_set(ast_channel_redirecting(chan), redirecting, update);
 	ast_channel_snapshot_invalidate_segment(chan, AST_CHANNEL_SNAPSHOT_INVALIDATE_CALLER);
+	ast_channel_publish_snapshot(chan);
 	ast_channel_unlock(chan);
 }
 
@@ -10967,6 +10975,15 @@ int ast_channel_request_stream_topology_change(struct ast_channel *chan,
 	if (!ast_channel_is_multistream(chan) || !ast_channel_tech(chan)->indicate) {
 		ast_channel_unlock(chan);
 		return -1;
+	}
+
+	if (ast_stream_topology_equal(ast_channel_get_stream_topology(chan), topology)) {
+		ast_debug(2, "%s: Topologies already match. Current: %s  Requested: %s\n",
+				ast_channel_name(chan),
+				ast_str_tmp(256, ast_stream_topology_to_str(ast_channel_get_stream_topology(chan), &STR_TMP)),
+				ast_str_tmp(256, ast_stream_topology_to_str(topology, &STR_TMP)));
+		ast_channel_unlock(chan);
+		return 0;
 	}
 
 	ast_channel_internal_set_stream_topology_change_source(chan, change_source);

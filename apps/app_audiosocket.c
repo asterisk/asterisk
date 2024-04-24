@@ -61,7 +61,7 @@
 		</syntax>
 		<description>
 			<para>Connects to the given TCP service, then transmits channel audio over that socket.  In turn, audio is received from the socket and sent to the channel.  Only audio frames will be transmitted.</para>
-			<para>Protocol is specified at https://wiki.asterisk.org/wiki/display/AST/AudioSocket</para>
+			<para>Protocol is specified at https://docs.asterisk.org/Configuration/Channel-Drivers/AudioSocket/</para>
 			<para>This application does not automatically answer and should generally be preceeded by an application such as Answer() or Progress().</para>
 		</description>
 	</application>
@@ -180,7 +180,7 @@ static int audiosocket_run(struct ast_channel *chan, const char *id, int svc)
 	chanName = ast_channel_name(chan);
 
 	while (1) {
-
+		ms = -1;
 		targetChan = ast_waitfor_nandfds(&chan, 1, &svc, 1, NULL, &outfd, &ms);
 		if (targetChan) {
 			f = ast_read(chan);

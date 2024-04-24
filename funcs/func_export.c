@@ -84,7 +84,7 @@ static int func_export_write(struct ast_channel *chan, const char *function, cha
 		return -1;
 	}
 
-	pbx_builtin_setvar_helper(ochan, data, value);
+	pbx_builtin_setvar_helper(ochan, args.var, value);
 	ast_channel_unref(ochan);
 	return 0;
 }

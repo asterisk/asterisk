@@ -463,6 +463,15 @@ if test "${with_pjproject}" = "no" || test "${with_pjproject}" = "n" ; then
 	PJPROJECT_BUNDLED=no
 fi
 
+LIBJWT_BUNDLED=no
+AC_ARG_WITH([libjwt-bundled],
+	[AS_HELP_STRING([--with-libjwt-bundled],
+		[Use bundled libjwt library])],
+	[case "${withval}" in
+		y|ye|yes) LIBJWT_BUNDLED=yes ;;
+		*) LIBJWT_BUNDLED=no ;;
+	esac])
+
 #
 # OpenSSL stuff has to be done here because we want to pass
 # any resulting CFLAGS and LDFLAGS to the bundled pjproject
@@ -553,6 +562,7 @@ AST_EXT_LIB_SETUP([LDAP], [OpenLDAP], [ldap])
 AST_LIBCURL_CHECK_CONFIG([], [7.10.1])
 AST_EXT_LIB_SETUP([LIBEDIT], [NetBSD Editline library], [libedit])
 AST_EXT_LIB_SETUP_OPTIONAL([LIBEDIT_IS_UNICODE], [Libedit compiled for unicode], [LIBEDIT], [libedit])
+AST_EXT_LIB_SETUP([LIBJWT], [LIBJWT], [libjwt])
 AST_EXT_LIB_SETUP([LIBXML2], [LibXML2], [libxml2])
 AST_EXT_LIB_SETUP([LIBXSLT], [LibXSLT], [libxslt])
 AST_EXT_LIB_SETUP_OPTIONAL([LIBXSLT_CLEANUP], [LibXSLT Library Cleanup Function], [LIBXSLT], [libxslt])
@@ -579,6 +589,9 @@ AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_GET_DEST_INFO], [pjsip_get_dest_info support],
 AST_EXT_LIB_SETUP_OPTIONAL([PJ_SSL_CERT_LOAD_FROM_FILES2], [pj_ssl_cert_load_from_files2 support], [PJPROJECT], [pjsip])
 AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_EXTERNAL_RESOLVER], [PJSIP External Resolver Support], [PJPROJECT], [pjsip])
 AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_TLS_TRANSPORT_PROTO], [PJSIP TLS Transport proto field support], [PJPROJECT], [pjsip])
+AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_TLS_1_1], [PJSIP TLS 1.1 Support], [PJPROJECT], [pjsip])
+AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_TLS_1_2], [PJSIP TLS 1.2 Support], [PJPROJECT], [pjsip])
+AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_TLS_1_3], [PJSIP TLS 1.3 Support], [PJPROJECT], [pjsip])
 AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_EVSUB_GRP_LOCK], [PJSIP EVSUB Group Lock support], [PJPROJECT], [pjsip])
 AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_INV_SESSION_REF], [PJSIP INVITE Session Reference Count support], [PJPROJECT], [pjsip])
 AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_AUTH_CLT_DEINIT], [pjsip_auth_clt_deinit support], [PJPROJECT], [pjsip])
@@ -731,6 +744,14 @@ if test "$JANSSON_BUNDLED" = "no" ; then
 	JANSSON_DEFINE_JSON_INT()
 else
 	PBX_JANSSON=1
+fi
+
+source ./third-party/versions.mak
+# Find required JWT support if bundled is not enabled.
+if test "$LIBJWT_BUNDLED" = "no" ; then
+	AST_PKG_CONFIG_CHECK([LIBJWT], [libjwt >= $LIBJWT_VERSION])
+else
+	PBX_LIBJWT=1
 fi
 
 # See if clock_gettime is in librt
@@ -1150,9 +1171,6 @@ AC_LINK_IFELSE(
 #AC_MSG_RESULT(no)
 #)
 #fi
-
-# for FreeBSD thr_self
-AC_CHECK_HEADERS([sys/thr.h])
 
 AC_MSG_CHECKING(for compiler sync operations)
 AC_LINK_IFELSE(
@@ -1711,7 +1729,7 @@ if test "${USE_ILBC}" != "no"; then
       ILBC_INTERNAL="no"
    fi
    if test "${ILBC_SYSTEM}" = "yes"; then
-      AST_PKG_CONFIG_CHECK(ILBC, libilbc)
+      AST_PKG_CONFIG_CHECK(ILBC, libilbc < 3)
       if test "$PBX_ILBC" = "1"; then
 	 ILBC_INTERNAL="no"
       fi
@@ -2474,6 +2492,9 @@ if test "$USE_PJPROJECT" != "no" ; then
          CPPFLAGS="${CPPFLAGS} ${PJPROJECT_CFLAGS}"
          LIBS="${LIBS} ${PJPROJECT_LIB}"
          AST_C_COMPILE_CHECK([PJSIP_TLS_TRANSPORT_PROTO], [struct pjsip_tls_setting setting; int proto; proto = setting.proto;], [pjsip.h])
+         AST_C_COMPILE_CHECK([PJSIP_TLS_1_1], [enum pjsip_ssl_method method = PJSIP_TLSV1_1_METHOD;], [pjsip.h])
+         AST_C_COMPILE_CHECK([PJSIP_TLS_1_2], [enum pjsip_ssl_method method = PJSIP_TLSV1_2_METHOD;], [pjsip.h])
+         AST_C_COMPILE_CHECK([PJSIP_TLS_1_3], [enum pjsip_ssl_method method = PJSIP_TLSV1_3_METHOD;], [pjsip.h])
          AST_C_COMPILE_CHECK([PJSIP_INV_ACCEPT_MULTIPLE_SDP_ANSWERS], [pjsip_cfg()->endpt.accept_multiple_sdp_answers = 0;], [pjsip.h])
          AST_C_COMPILE_CHECK([PJSIP_ENDPOINT_COMPACT_FORM], [pjsip_cfg()->endpt.use_compact_form = PJ_TRUE;], [pjsip.h])
          AST_C_COMPILE_CHECK([PJSIP_TRANSPORT_DISABLE_CONNECTION_REUSE], [struct pjsip_tpselector sel; sel.disable_connection_reuse = PJ_TRUE;], [pjsip.h])

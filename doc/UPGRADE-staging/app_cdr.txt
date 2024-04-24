@@ -1,6 +1,0 @@
-Subject: app_cdr
-Master-Only: True
-
-The previously deprecated NoCDR application has been removed.
-Additionally, the previously deprecated 'e' option to the ResetCDR
-application has been removed.

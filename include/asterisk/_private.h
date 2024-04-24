@@ -57,6 +57,7 @@ int ast_msg_init(void);             /*!< Provided by message.c */
 void ast_msg_shutdown(void);        /*!< Provided by message.c */
 int aco_init(void);             /*!< Provided by config_options.c */
 int dns_core_init(void);        /*!< Provided by dns_core.c */
+int ast_refer_init(void);             /*!< Provided by refer.c */
 
 /*!
  * \brief Initialize malloc debug phase 1.

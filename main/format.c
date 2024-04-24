@@ -117,7 +117,7 @@ int __ast_format_interface_register(const char *codec, const struct ast_format_i
 	ao2_link_flags(interfaces, format_interface, OBJ_NOLOCK);
 	ao2_ref(format_interface, -1);
 
-	ast_verb(2, "Registered format interface for codec '%s'\n", codec);
+	ast_verb(5, "Registered format interface for codec '%s'\n", codec);
 
 	return 0;
 }

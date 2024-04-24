@@ -424,7 +424,7 @@ static void dump_ies(unsigned char *iedata, int len)
 
 	if (len < 2)
 		return;
-	while(len > 2) {
+	while(len >= 2) {
 		ie = iedata[0];
 		ielen = iedata[1];
 		if (ielen + 2> len) {
@@ -1063,7 +1063,7 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 			if (len == (int)sizeof(unsigned int)) {
 				ies->calling_ani2 = ntohl(get_unaligned_uint32(data + 2));
 			} else {
-				snprintf(tmp, (int)sizeof(tmp), "callingani2 was %d long: %s\n", len, data + 2);
+				snprintf(tmp, sizeof(tmp), "Expected callingani2 to be %zu bytes but was %d\n", sizeof(unsigned int), len);
 				errorf(tmp);
 			}
 			break;

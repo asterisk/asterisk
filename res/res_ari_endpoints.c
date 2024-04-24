@@ -191,6 +191,102 @@ static void ast_ari_endpoints_send_message_cb(
 fin: __attribute__((unused))
 	return;
 }
+int ast_ari_endpoints_refer_parse_body(
+	struct ast_json *body,
+	struct ast_ari_endpoints_refer_args *args)
+{
+	struct ast_json *field;
+	/* Parse query parameters out of it */
+	field = ast_json_object_get(body, "to");
+	if (field) {
+		args->to = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "from");
+	if (field) {
+		args->from = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "refer_to");
+	if (field) {
+		args->refer_to = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "to_self");
+	if (field) {
+		args->to_self = ast_json_is_true(field);
+	}
+	return 0;
+}
+
+/*!
+ * \brief Parameter parsing callback for /endpoints/refer.
+ * \param ser TCP/TLS session object
+ * \param get_params GET parameters in the HTTP request.
+ * \param path_vars Path variables extracted from the request.
+ * \param headers HTTP headers.
+ * \param body
+ * \param[out] response Response to the HTTP request.
+ */
+static void ast_ari_endpoints_refer_cb(
+	struct ast_tcptls_session_instance *ser,
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct ast_json *body, struct ast_ari_response *response)
+{
+	struct ast_ari_endpoints_refer_args args = {};
+	struct ast_variable *i;
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
+	for (i = get_params; i; i = i->next) {
+		if (strcmp(i->name, "to") == 0) {
+			args.to = (i->value);
+		} else
+		if (strcmp(i->name, "from") == 0) {
+			args.from = (i->value);
+		} else
+		if (strcmp(i->name, "refer_to") == 0) {
+			args.refer_to = (i->value);
+		} else
+		if (strcmp(i->name, "to_self") == 0) {
+			args.to_self = ast_true(i->value);
+		} else
+		{}
+	}
+	args.variables = body;
+	ast_ari_endpoints_refer(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
+	case 400: /* Invalid parameters for referring. */
+	case 404: /* Endpoint not found */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ast_ari_validate_void(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /endpoints/refer\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /endpoints/refer\n");
+		ast_ari_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
+
+fin: __attribute__((unused))
+	return;
+}
 /*!
  * \brief Parameter parsing callback for /endpoints/{tech}.
  * \param ser TCP/TLS session object
@@ -406,12 +502,119 @@ static void ast_ari_endpoints_send_message_to_endpoint_cb(
 fin: __attribute__((unused))
 	return;
 }
+int ast_ari_endpoints_refer_to_endpoint_parse_body(
+	struct ast_json *body,
+	struct ast_ari_endpoints_refer_to_endpoint_args *args)
+{
+	struct ast_json *field;
+	/* Parse query parameters out of it */
+	field = ast_json_object_get(body, "from");
+	if (field) {
+		args->from = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "refer_to");
+	if (field) {
+		args->refer_to = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "to_self");
+	if (field) {
+		args->to_self = ast_json_is_true(field);
+	}
+	return 0;
+}
+
+/*!
+ * \brief Parameter parsing callback for /endpoints/{tech}/{resource}/refer.
+ * \param ser TCP/TLS session object
+ * \param get_params GET parameters in the HTTP request.
+ * \param path_vars Path variables extracted from the request.
+ * \param headers HTTP headers.
+ * \param body
+ * \param[out] response Response to the HTTP request.
+ */
+static void ast_ari_endpoints_refer_to_endpoint_cb(
+	struct ast_tcptls_session_instance *ser,
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct ast_json *body, struct ast_ari_response *response)
+{
+	struct ast_ari_endpoints_refer_to_endpoint_args args = {};
+	struct ast_variable *i;
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
+	for (i = get_params; i; i = i->next) {
+		if (strcmp(i->name, "from") == 0) {
+			args.from = (i->value);
+		} else
+		if (strcmp(i->name, "refer_to") == 0) {
+			args.refer_to = (i->value);
+		} else
+		if (strcmp(i->name, "to_self") == 0) {
+			args.to_self = ast_true(i->value);
+		} else
+		{}
+	}
+	for (i = path_vars; i; i = i->next) {
+		if (strcmp(i->name, "tech") == 0) {
+			args.tech = (i->value);
+		} else
+		if (strcmp(i->name, "resource") == 0) {
+			args.resource = (i->value);
+		} else
+		{}
+	}
+	args.variables = body;
+	ast_ari_endpoints_refer_to_endpoint(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
+	case 400: /* Invalid parameters for referring. */
+	case 404: /* Endpoint not found */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ast_ari_validate_void(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /endpoints/{tech}/{resource}/refer\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /endpoints/{tech}/{resource}/refer\n");
+		ast_ari_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
+
+fin: __attribute__((unused))
+	return;
+}
 
 /*! \brief REST handler for /api-docs/endpoints.json */
 static struct stasis_rest_handlers endpoints_sendMessage = {
 	.path_segment = "sendMessage",
 	.callbacks = {
 		[AST_HTTP_PUT] = ast_ari_endpoints_send_message_cb,
+	},
+	.num_children = 0,
+	.children = {  }
+};
+/*! \brief REST handler for /api-docs/endpoints.json */
+static struct stasis_rest_handlers endpoints_refer = {
+	.path_segment = "refer",
+	.callbacks = {
+		[AST_HTTP_POST] = ast_ari_endpoints_refer_cb,
 	},
 	.num_children = 0,
 	.children = {  }
@@ -426,14 +629,23 @@ static struct stasis_rest_handlers endpoints_tech_resource_sendMessage = {
 	.children = {  }
 };
 /*! \brief REST handler for /api-docs/endpoints.json */
+static struct stasis_rest_handlers endpoints_tech_resource_refer = {
+	.path_segment = "refer",
+	.callbacks = {
+		[AST_HTTP_POST] = ast_ari_endpoints_refer_to_endpoint_cb,
+	},
+	.num_children = 0,
+	.children = {  }
+};
+/*! \brief REST handler for /api-docs/endpoints.json */
 static struct stasis_rest_handlers endpoints_tech_resource = {
 	.path_segment = "resource",
 	.is_wildcard = 1,
 	.callbacks = {
 		[AST_HTTP_GET] = ast_ari_endpoints_get_cb,
 	},
-	.num_children = 1,
-	.children = { &endpoints_tech_resource_sendMessage, }
+	.num_children = 2,
+	.children = { &endpoints_tech_resource_sendMessage,&endpoints_tech_resource_refer, }
 };
 /*! \brief REST handler for /api-docs/endpoints.json */
 static struct stasis_rest_handlers endpoints_tech = {
@@ -451,8 +663,8 @@ static struct stasis_rest_handlers endpoints = {
 	.callbacks = {
 		[AST_HTTP_GET] = ast_ari_endpoints_list_cb,
 	},
-	.num_children = 2,
-	.children = { &endpoints_sendMessage,&endpoints_tech, }
+	.num_children = 3,
+	.children = { &endpoints_sendMessage,&endpoints_refer,&endpoints_tech, }
 };
 
 static int unload_module(void)

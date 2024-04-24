@@ -1,0 +1,114 @@
+name: PRSubmitTests
+run-name: "PR ${{github.event.number}} ${{github.event.action}} by ${{ github.actor }}"
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+concurrency:
+  group: ${{github.workflow}}-${{github.event.number}}
+  cancel-in-progress: true
+
+env:
+  ASTERISK_REPO:     ${{github.repository}}
+  PR_NUMBER:         ${{github.event.number}}
+  PR_COMMIT:         ${{github.event.pull_request.head.sha}}
+  BRANCH:            ${{github.event.pull_request.base.ref}}
+
+jobs:
+#
+# Pull requests created from forked respositories don't have access to
+# the "Action Variables" ('vars' context) so we need to retrieve control
+# data from an action.
+#
+  PRSGetControlData:
+    runs-on: ubuntu-latest
+    outputs:
+      control_data:  ${{ steps.setvars.outputs.control_data }}
+    steps:
+      - id: setvars
+        uses: asterisk/asterisk-ci-actions/GetRepoControlData@main
+        with:
+          repo: ${{ github.event.repository.name}}
+      - name: DumpEnvironment
+        uses: asterisk/asterisk-ci-actions/DumpEnvironmentAction@main
+        with:
+          action-inputs: ${{toJSON(inputs)}}
+          action-vars: ${{ toJSON(steps.setvars.outputs) }}
+
+  PRSUnitTests:
+    needs: PRSGetControlData
+    runs-on: ubuntu-latest
+    env:
+      UNITTEST_COMMAND: ${{ fromJSON(needs.PRSGetControlData.outputs.control_data).UNITTEST_COMMAND }}
+    steps:
+      - name: Run Unit Tests
+        uses: asterisk/asterisk-ci-actions/AsteriskUnitComposite@main
+        with:
+          asterisk_repo:     ${{env.ASTERISK_REPO}}
+          pr_number:         ${{env.PR_NUMBER}}
+          base_branch:       ${{env.BRANCH}}
+          unittest_command:  ${{env.UNITTEST_COMMAND}}
+
+  PRSGateTestMatrix:
+    runs-on: ubuntu-latest
+    needs: PRSGetControlData
+    continue-on-error: false
+    strategy:
+      fail-fast: false
+      matrix:
+        group: ${{ fromJSON(fromJSON(needs.PRSGetControlData.outputs.control_data).GATETEST_LIST) }}
+    env:
+      TESTSUITE_REPO:    "${{ fromJSON(needs.PRSGetControlData.outputs.control_data).TESTSUITE_REPO }}"
+      GATETEST_COMMANDS: "${{ fromJSON(needs.PRSGetControlData.outputs.control_data).GATETEST_COMMANDS }}"
+      GATETEST_COMMAND: "${{ toJSON(fromJSON(fromJSON(needs.PRSGetControlData.outputs.control_data).GATETEST_COMMANDS)[matrix.group]) }}"
+    steps:
+      - id: runtest
+        name: Run Gate Tests for ${{ matrix.group }}
+        uses: asterisk/asterisk-ci-actions/AsteriskGateComposite@main
+        with:
+          test_type:         Gate
+          asterisk_repo:     ${{env.ASTERISK_REPO}}
+          pr_number:         ${{env.PR_NUMBER}}
+          base_branch:       ${{env.BRANCH}}
+          testsuite_repo:    ${{env.TESTSUITE_REPO}}
+          gatetest_group:    ${{matrix.group}}
+          gatetest_command:  ${{env.GATETEST_COMMAND}}
+
+  PRSTestResults:
+    if: always()
+    runs-on: ubuntu-latest
+    needs: [PRSUnitTests,PRSGateTestMatrix]
+    steps:
+      - name: Check test matrix status
+        env:
+          RESULT_UNIT: ${{ needs.PRSUnitTests.result }}
+          RESULT_GATE: ${{ needs.PRSGateTestMatrix.result }}
+        run: |
+          declare -i rc=0
+          echo "all results: ${{ toJSON(needs.*.result) }}"
+          case $RESULT_UNIT in
+            success)
+              echo "::notice::Unit tests passed"
+              ;;
+            skipped)
+              echo "::error::Unit tests were skipped because of an earlier failure"
+              rc+=1
+              ;;
+            *)
+              echo "::error::One or more unit tests failed ($RESULT_UNIT)"
+              rc+=1
+          esac
+          case $RESULT_GATE in
+            success)
+              echo "::notice::Gate tests passed"
+              ;;
+            skipped)
+              echo "::error::Gate tests were skipped because of an earlier failure"
+              rc+=1
+              ;;
+            *)
+              echo "::error::One or more gate tests failed ($RESULT_GATE)"
+              rc+=1
+          esac
+          echo "::notice::Final result code: $rc"
+          exit $rc

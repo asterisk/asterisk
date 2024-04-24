@@ -377,7 +377,7 @@ $(MOD_SUBDIRS_MENUSELECT_TREE):
 	+@$(SUBMAKE) -C $(@:-menuselect-tree=) SUBDIR=$(@:-menuselect-tree=) moduleinfo
 	+@$(SUBMAKE) -C $(@:-menuselect-tree=) SUBDIR=$(@:-menuselect-tree=) makeopts
 
-$(SUBDIRS): makeopts .lastclean main/version.c include/asterisk/build.h include/asterisk/buildopts.h defaults.h
+$(SUBDIRS): makeopts .lastclean main/version.c include/asterisk/build.h defaults.h
 
 ifeq ($(findstring $(OSARCH), mingw32 cygwin ),)
 main: third-party
@@ -403,7 +403,7 @@ defaults.h: makeopts .lastclean build_tools/make_defaults_h
 	@cmp -s $@.tmp $@ || mv $@.tmp $@
 	@rm -f $@.tmp
 
-main/version.c: FORCE menuselect.makeopts .lastclean
+main/version.c: FORCE include/asterisk/buildopts.h menuselect.makeopts .lastclean
 	@build_tools/make_version_c > $@.tmp
 	@cmp -s $@.tmp $@ || mv $@.tmp $@
 	@rm -f $@.tmp
@@ -545,7 +545,7 @@ INSTALLDIRS="$(ASTLIBDIR)" "$(ASTMODDIR)" "$(ASTSBINDIR)" "$(ASTCACHEDIR)" "$(AS
 	"$(ASTDATADIR)/firmware/iax" "$(ASTDATADIR)/images" "$(ASTDATADIR)/keys" \
 	"$(ASTDATADIR)/phoneprov" "$(ASTDATADIR)/rest-api" "$(ASTDATADIR)/static-http" \
 	"$(ASTDATADIR)/sounds" "$(ASTDATADIR)/moh" "$(ASTMANDIR)/man8" "$(AGI_DIR)" "$(ASTDBDIR)" \
-	"$(ASTDATADIR)/third-party" "${ASTDATADIR}/keys/stir_shaken"
+	"$(ASTDATADIR)/third-party" "${ASTDATADIR}/keys/stir_shaken" "${ASTDATADIR}/keys/stir_shaken/cache"
 
 installdirs:
 	@for i in $(INSTALLDIRS); do \
@@ -1119,7 +1119,8 @@ ifeq ($(PYTHON),:)
 else
 	@$(INSTALL) -d doc/rest-api
 	$(PYTHON) rest-api-templates/make_ari_stubs.py \
-		rest-api/resources.json .
+		--resources rest-api/resources.json --source-dir $(ASTTOPDIR) \
+		--dest-dir $(ASTTOPDIR)/doc/rest-api --docs-prefix ../
 endif
 
 check-alembic: makeopts

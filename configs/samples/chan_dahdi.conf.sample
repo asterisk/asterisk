@@ -595,7 +595,7 @@ usecallerid=yes
 ;     polarity    = polarity reversal signals the start
 ;     polarity_IN = polarity reversal signals the start, for India,
 ;                   for dtmf dialtone detection; using DTMF.
-;     (see https://wiki.asterisk.org/wiki/display/AST/Caller+ID+in+India)
+; (see https://wiki.asterisk.org/wiki/display/AST/Caller+ID+in+India)
 ;     dtmf        = causes monitor loop to look for dtmf energy on the
 ;                   incoming channel to initate cid acquisition
 ;
@@ -755,9 +755,29 @@ usecallingpres=yes
 ;
 callwaitingcallerid=yes
 ;
+; Whether or not to allow users to go on-hook when receiving an incoming call
+; without disconnecting it. Users can later resume the call from any phone
+; on the same physical phone line (the same DAHDI channel).
+; This setting only has an effect on FXS (FXO-signalled) channels where there
+; is only a single incoming call to the DAHDI channel, using the Dial application.
+; (This is a convenience mechanism to avoid users wishing to resume a conversation
+; at a different phone from leaving a phone off the hook, resuming elsewhere,
+; and forgetting to restore the original phone on hook afterwards.)
+; Default is no.
+;
+;calledsubscriberheld=yes
+;
 ; Support three-way calling
 ;
 threewaycalling=yes
+;
+; By default, the three-way dial tone never times out, allowing it to be
+; used as a primitive "hold" mechanism. However, if you'd prefer
+; to have the dial tone time out to silence, you can use this option
+; to time out after the normal first digit timeout to silence.
+; Default is 'no'.
+;
+;threewaysilenthold=no
 ;
 ; For FXS ports (either direct analog or over T1/E1):
 ;   Support flash-hook call transfer (requires three way calling)
@@ -924,6 +944,10 @@ group=1
 ; you can answer it by picking up and dialing *8#.  For simple offices, just
 ; make these both the same.  Groups range from 0 to 63.
 ;
+; Call groups and pickup groups may only be specified for FXO signalled channels.
+; If you need to pick up an FXS signalled channel directly, you can have it
+; dial a Local channel and pick up the ;1 side of the Local channel instead.
+;
 callgroup=1
 pickupgroup=1
 ;
@@ -956,6 +980,13 @@ pickupgroup=1
 ; 's' priority 1 regardless of the dialed number!
 ;
 ;immediate=yes
+;
+; On FXS channels (FXO signaled), specifies whether fake audible ringback should
+; be provided as soon as the channel goes off hook and immediate=yes.
+; If audio should come only from the dialplan, this option should be disabled.
+; Default is 'yes'
+;
+;immediatering=no
 ;
 ; Specify whether flash-hook transfers to 'busy' channels should complete or
 ; return to the caller performing the transfer (default is yes).
@@ -1081,6 +1112,15 @@ pickupgroup=1
 ; polarityonanswerdelay: minimal time period (ms) between the answer
 ;                        polarity switch and hangup polarity switch.
 ;                        (default: 600ms)
+;
+; For kewlstart FXS (FXO signalled) ports only:
+; When all calls towards a DAHDI channel have cleared, automatically
+; reoriginate and provide dial tone to the user again, so s/he can
+; make another call without having to cycle the hookswitch manually.
+; This only works for kewlstart (fxo_ks) lines!
+; Dial tone will be provided only after the loop disconnect has finished.
+;
+;autoreoriginate=yes
 ;
 ; On trunk interfaces (FXS) it can be useful to attempt to follow the progress
 ; of a call through RINGING, BUSY, and ANSWERING.   If turned on, call
@@ -1539,7 +1579,7 @@ pickupgroup=1
 ;#include ss7.timers
 
 ; For more information on setting up SS7, see the README file in libss7 or
-; https://wiki.asterisk.org/wiki/display/AST/Signaling+System+Number+7
+; https://docs.asterisk.org/Deployment/PSTN-Connectivity/Signaling-System-Number-7/
 ; ----------------- SS7 Options ----------------------------------------
 
 ; ---------------- Options for use with signalling=mfcr2 --------------

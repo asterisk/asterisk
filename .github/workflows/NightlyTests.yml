@@ -33,7 +33,7 @@ jobs:
           github_token:      ${{secrets.GITHUB_TOKEN}}
           testsuite_repo:    ${{vars.TESTSUITE_REPO}}
           gatetest_group:    ${{matrix.group}}
-          gatetest_commands: ${{vars.GATETEST_COMMANDS}}
+          gatetest_command:  ${{ toJSON(fromJSON(vars.GATETEST_COMMANDS)[matrix.group]) }}
 
   AsteriskNightlyTests:
     if: ${{ always() }}

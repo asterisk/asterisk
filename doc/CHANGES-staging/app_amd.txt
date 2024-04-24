@@ -1,5 +1,0 @@
-Subject: app_amd
-
-An audio file to play during AMD processing can
-now be specified to the AMD application or configured
-in the amd.conf configuration file.

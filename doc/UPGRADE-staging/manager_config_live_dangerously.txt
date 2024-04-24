@@ -1,8 +1,0 @@
-Subject: AMI (Asterisk Manager Interface)
-
-Previously, GetConfig and UpdateConfig were able to access files outside of
-the Asterisk configuration directory. Now this access is put behind the
-live_dangerously configuration option in asterisk.conf, which is disabled by
-default. If access to configuration files outside of the Asterisk configuation
-directory is required via AMI, then the live_dangerously configuration option
-must be set to yes.

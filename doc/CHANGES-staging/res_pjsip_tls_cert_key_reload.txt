@@ -1,5 +1,0 @@
-Subject: res_pjsip
-
-TLS transports in res_pjsip can now reload their TLS certificate
-and private key files, provided the filename of them has not
-changed.

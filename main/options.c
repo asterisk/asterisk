@@ -472,6 +472,8 @@ void load_asterisk_conf(void)
 			live_dangerously = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "hide_messaging_ami_events")) {
 			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_HIDE_MESSAGING_AMI_EVENTS);
+		} else if (!strcasecmp(v->name, "sounds_search_custom_dir")) {
+			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_SOUNDS_SEARCH_CUSTOM);
 		}
 	}
 	if (!ast_opt_remote) {

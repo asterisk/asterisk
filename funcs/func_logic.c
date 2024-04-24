@@ -111,6 +111,39 @@
 		<description>
 		</description>
 	</function>
+	<function name="DELETE" language="en_US">
+		<synopsis>
+			Deletes a specified channel variable.
+		</synopsis>
+		<syntax>
+			<parameter name="varname" required="true">
+				<para>Channel variable name</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Delete the channel variable specified in <replaceable>varname</replaceable>.
+			Will succeed if the channel variable exists or not.</para>
+		</description>
+		<see-also>
+			<ref type="function">GLOBAL_DELETE</ref>
+		</see-also>
+	</function>
+	<function name="VARIABLE_EXISTS" language="en_US">
+		<synopsis>
+			Check if a dialplan variable exists or not.
+		</synopsis>
+		<syntax>
+			<parameter name="varname" required="true">
+				<para>Channel variable name</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Returns <literal>1</literal> if channel variable exists or <literal>0</literal> otherwise.</para>
+		</description>
+		<see-also>
+			<ref type="function">GLOBAL_EXISTS</ref>
+		</see-also>
+	</function>
  ***/
 
 static int isnull(struct ast_channel *chan, const char *cmd, char *data,
@@ -273,6 +306,23 @@ static int import_read2(struct ast_channel *chan, const char *cmd, char *data, s
 	return import_helper(chan, cmd, data, NULL, str, len);
 }
 
+static int delete_write(struct ast_channel *chan, const char *cmd, char *data, const char *value)
+{
+	pbx_builtin_setvar_helper(chan, data, NULL);
+
+	return 0;
+}
+
+static int variable_exists_read(struct ast_channel *chan, const char *cmd, char *data,
+		  char *buf, size_t len)
+{
+	const char *var = pbx_builtin_getvar_helper(chan, data);
+
+	strcpy(buf, var ? "1" : "0");
+
+	return 0;
+}
+
 static struct ast_custom_function isnull_function = {
 	.name = "ISNULL",
 	.read = isnull,
@@ -307,6 +357,16 @@ static struct ast_custom_function import_function = {
 	.read2 = import_read2,
 };
 
+static struct ast_custom_function delete_function = {
+	.name = "DELETE",
+	.write = delete_write,
+};
+
+static struct ast_custom_function variable_exists_function = {
+	.name = "VARIABLE_EXISTS",
+	.read = variable_exists_read,
+};
+
 static int unload_module(void)
 {
 	int res = 0;
@@ -317,6 +377,8 @@ static int unload_module(void)
 	res |= ast_custom_function_unregister(&if_function);
 	res |= ast_custom_function_unregister(&if_time_function);
 	res |= ast_custom_function_unregister(&import_function);
+	res |= ast_custom_function_unregister(&delete_function);
+	res |= ast_custom_function_unregister(&variable_exists_function);
 
 	return res;
 }
@@ -331,6 +393,8 @@ static int load_module(void)
 	res |= ast_custom_function_register(&if_function);
 	res |= ast_custom_function_register(&if_time_function);
 	res |= ast_custom_function_register(&import_function);
+	res |= ast_custom_function_register(&delete_function);
+	res |= ast_custom_function_register(&variable_exists_function);
 
 	return res;
 }

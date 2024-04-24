@@ -416,7 +416,7 @@
 						},
 						{
 							"name": "reason_code",
-							"description": "The reason code for hanging up the channel for detail use. Mutually exclusive with 'reason'. See detail hangup codes at here. https://wiki.asterisk.org/wiki/display/AST/Hangup+Cause+Mappings",
+							"description": "The reason code for hanging up the channel for detail use. Mutually exclusive with 'reason'. See detail hangup codes at here. https://docs.asterisk.org/Configuration/Miscellaneous/Hangup-Cause-Mappings/",
 							"paramType": "query",
 							"required": false,
 							"allowMultiple": false,
@@ -2187,6 +2187,10 @@
 					"required": false,
 					"type": "object",
 					"description": "Channel variables"
+				},
+				"caller_rdnis": {
+					"type": "string",
+					"description": "The Caller ID RDNIS"
 				}
 			}
 		}

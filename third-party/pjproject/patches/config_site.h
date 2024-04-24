@@ -35,6 +35,15 @@
 #define PJ_IOQUEUE_HAS_SAFE_UNREG 1
 #define PJ_IOQUEUE_MAX_EVENTS_IN_SINGLE_POLL (16)
 
+/*
+ * Increase the number of socket options available. This adjustment is necessary
+ * to accommodate additional TCP keepalive settings required for optimizing SIP
+ * transport stability, especially in environments prone to connection timeouts.
+ * The default limit is insufficient when configuring all desired keepalive
+ * parameters along with standard socket options.
+ */
+#define PJ_MAX_SOCKOPT_PARAMS 5
+
 #define PJ_SCANNER_USE_BITWISE	0
 #define PJ_OS_HAS_CHECK_STACK	0
 
@@ -91,3 +100,11 @@
 #define PJSIP_TSX_UAS_CONTINUE_ON_TP_ERROR 0
 #define PJ_SSL_SOCK_OSSL_USE_THREAD_CB 0
 #define PJSIP_AUTH_ALLOW_MULTIPLE_AUTH_HEADER 1
+
+/*
+ * The default is 32 with 8 being used by pjproject itself.
+ * Since this value is used in invites, dialogs, transports
+ * and subscriptions as well as the global pjproject endpoint,
+ * we don't want to increase it too much.
+ */
+#define PJSIP_MAX_MODULE 38

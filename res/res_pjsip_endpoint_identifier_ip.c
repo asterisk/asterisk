@@ -110,6 +110,30 @@
 						</para></note>
 					</description>
 				</configOption>
+				<configOption name="match_request_uri">
+					<synopsis>Request URI to match against.</synopsis>
+					<description>
+						<para>The SIP request URI is used to match against.
+						</para>
+						<para>The specified SIP request URI can be a regular
+						expression if the value is of the form
+						/<replaceable>regex</replaceable>/.
+						</para>
+						<note><para>Use of a regex is expensive so be sure you need
+						to use a regex to match your endpoint.
+						</para></note>
+					</description>
+				</configOption>
+				<configOption name="transport">
+					<synopsis>Match against a transport type.</synopsis>
+					<description>
+						<para>When using the ip or transport identifier, this option
+						can be used to match the transport type <literal>(udp or tcp)
+						</literal> as well.</para>
+						<para>When omitted, or left empty, which is the default, it
+						won't match against the transport type.</para>
+					</description>
+				</configOption>
 				<configOption name="type">
 					<synopsis>Must be of type 'identify'.</synopsis>
 				</configOption>
@@ -129,23 +153,37 @@ struct ip_identify_match {
 	AST_DECLARE_STRING_FIELDS(
 		/*! The name of the endpoint */
 		AST_STRING_FIELD(endpoint_name);
+		/*! If matching by request, the value to match against */
+		AST_STRING_FIELD(match_request_uri);
 		/*! If matching by header, the header/value to match against */
 		AST_STRING_FIELD(match_header);
 		/*! SIP header name of the match_header string */
 		AST_STRING_FIELD(match_header_name);
 		/*! SIP header value of the match_header string */
 		AST_STRING_FIELD(match_header_value);
+		/*! The name of the transport type */
+		AST_STRING_FIELD(transport);
 	);
-	/*! Compiled match_header regular expression when is_regex is non-zero */
-	regex_t regex_buf;
+	/*! Compiled match_header regular expression when is_header_regex is non-zero */
+	regex_t regex_header_buf;
+	/*! Compiled match_request_uri regular expression when is_request_uri_regex is non-zero */
+	regex_t regex_request_uri_buf;
 	/*! \brief Networks or addresses that should match this */
 	struct ast_ha *matches;
 	/*! \brief Hosts to be resolved when applying configuration */
 	struct ao2_container *hosts;
 	/*! \brief Perform SRV resolution of hostnames */
 	unsigned int srv_lookups;
-	/*! Non-zero if match_header has a regular expression (i.e., regex_buf is valid) */
-	unsigned int is_regex:1;
+	/*! Non-zero if match_header has a regular expression (i.e., regex_header_buf is valid) */
+	unsigned int is_header_regex:1;
+	/*! Non-zero if match_header or match_request has a regular expression (i.e., regex_request_uri_buf is valid) */
+	unsigned int is_request_uri_regex:1;
+};
+
+/*! \brief Structure for a socket address with transport */
+struct ast_sockaddr_with_tp {
+	struct ast_sockaddr addr;
+	char tp[128];
 };
 
 /*! \brief Destructor function for a matching object */
@@ -156,8 +194,11 @@ static void ip_identify_destroy(void *obj)
 	ast_string_field_free_memory(identify);
 	ast_free_ha(identify->matches);
 	ao2_cleanup(identify->hosts);
-	if (identify->is_regex) {
-		regfree(&identify->regex_buf);
+	if (identify->is_header_regex) {
+		regfree(&identify->regex_header_buf);
+	}
+	if (identify->is_request_uri_regex) {
+		regfree(&identify->regex_request_uri_buf);
 	}
 }
 
@@ -219,8 +260,8 @@ static int header_identify_match_check(void *obj, void *arg, int flags)
 		pos = ast_strip(pos + 1);
 
 		/* Does header value match what we are looking for? */
-		if (identify->is_regex) {
-			if (!regexec(&identify->regex_buf, pos, 0, NULL, 0)) {
+		if (identify->is_header_regex) {
+			if (!regexec(&identify->regex_header_buf, pos, 0, NULL, 0)) {
 				return CMP_MATCH;
 			}
 		} else if (!strcmp(identify->match_header_value, pos)) {
@@ -241,22 +282,68 @@ static int header_identify_match_check(void *obj, void *arg, int flags)
 	return 0;
 }
 
+/*! \brief Comparator function for matching an object by request URI */
+static int request_identify_match_check(void *obj, void *arg, int flags)
+{
+	struct ip_identify_match *identify = obj;
+	struct pjsip_rx_data *rdata = arg;
+	int len;
+	char buf[PJSIP_MAX_URL_SIZE];
+
+	if (ast_strlen_zero(identify->match_request_uri)) {
+		return 0;
+	}
+
+	/* Print request URI to req_buf */
+	len = pjsip_uri_print(PJSIP_URI_IN_REQ_URI, rdata->msg_info.msg->line.req.uri, buf, sizeof(buf) - 1);
+	if (len < 0) {
+		/* Buffer not large enough or no pj uri vptr! */
+		ast_assert(0);
+	} else {
+		/* Terminate the pj_str */
+		buf[len] = '\0';
+		/* Does request URI match what we are looking for? */
+		if (identify->is_request_uri_regex) {
+			if (!regexec(&identify->regex_request_uri_buf, buf, 0, NULL, 0)) {
+				return CMP_MATCH;
+			}
+		} else if (!strcmp(identify->match_request_uri, buf)) {
+			return CMP_MATCH;
+		}
+		ast_debug(3, "Identify '%s': request URI not match '%s' (value='%s').\n",
+			ast_sorcery_object_get_id(identify), identify->match_request_uri, buf);
+	}
+
+	return 0;
+}
+
 /*! \brief Comparator function for matching an object by IP address */
 static int ip_identify_match_check(void *obj, void *arg, int flags)
 {
 	struct ip_identify_match *identify = obj;
-	struct ast_sockaddr *addr = arg;
+	struct ast_sockaddr_with_tp *addr_with_tp = arg;
+	struct ast_sockaddr address = addr_with_tp->addr;
 	int sense;
 
-	sense = ast_apply_ha(identify->matches, addr);
+	sense = ast_apply_ha(identify->matches, &address);
 	if (sense != AST_SENSE_ALLOW) {
-		ast_debug(3, "Source address %s matches identify '%s'\n",
-				ast_sockaddr_stringify(addr),
+		ast_debug(3, "Address %s matches identify '%s'\n",
+				ast_sockaddr_stringify(&address),
 				ast_sorcery_object_get_id(identify));
-		return CMP_MATCH;
+		if (ast_strlen_zero(identify->transport) || !strcasecmp(identify->transport, addr_with_tp->tp)) {
+			ast_debug(3, "Transport %s matches identify '%s'\n",
+				addr_with_tp->tp,
+				ast_sorcery_object_get_id(identify));
+			return CMP_MATCH;
+		} else {
+			ast_debug(3, "Transport %s match not matched identify '%s'\n",
+				addr_with_tp->tp,
+				ast_sorcery_object_get_id(identify));
+			return 0;
+		}
 	} else {
-		ast_debug(3, "Source address %s does not match identify '%s'\n",
-				ast_sockaddr_stringify(addr),
+		ast_debug(3, "Address %s does not match identify '%s'\n",
+				ast_sockaddr_stringify(&address),
 				ast_sorcery_object_get_id(identify));
 		return 0;
 	}
@@ -297,16 +384,52 @@ static struct ast_sip_endpoint *common_identify(ao2_callback_fn *identify_match_
 
 static struct ast_sip_endpoint *ip_identify(pjsip_rx_data *rdata)
 {
-	struct ast_sockaddr addr = { { 0, } };
+	struct ast_sockaddr_with_tp addr_with_tp = { { { 0, } }, };
+	pj_ansi_strxcpy(addr_with_tp.tp, rdata->tp_info.transport->type_name, sizeof(addr_with_tp.tp));
 
-	ast_sockaddr_parse(&addr, rdata->pkt_info.src_name, PARSE_PORT_FORBID);
-	ast_sockaddr_set_port(&addr, rdata->pkt_info.src_port);
+	ast_sockaddr_parse(&addr_with_tp.addr, rdata->pkt_info.src_name, PARSE_PORT_FORBID);
+	ast_sockaddr_set_port(&addr_with_tp.addr, rdata->pkt_info.src_port);
 
-	return common_identify(ip_identify_match_check, &addr);
+	return common_identify(ip_identify_match_check, &addr_with_tp);
+}
+
+static struct ast_sip_endpoint *transport_identify(pjsip_rx_data *rdata)
+{
+	char buffer[PJ_INET6_ADDRSTRLEN];
+	pj_status_t status;
+	struct ast_sockaddr_with_tp addr_with_tp = { { { 0, } }, };
+	union pj_sockaddr sock = rdata->tp_info.transport->local_addr;
+
+	pj_ansi_strxcpy(addr_with_tp.tp, rdata->tp_info.transport->type_name, sizeof(addr_with_tp.tp));
+
+	if (sock.addr.sa_family == PJ_AF_INET6) {
+		status = pj_inet_ntop(PJ_AF_INET6, &(sock.ipv6.sin6_addr), buffer, PJ_INET6_ADDRSTRLEN);
+		if (status == PJ_SUCCESS && !strcmp(buffer, "::")) {
+			ast_log(LOG_WARNING, "Matching against '::' may be unpredictable.\n");
+		}
+	} else {
+		status = pj_inet_ntop(PJ_AF_INET, &(sock.ipv4.sin_addr), buffer, PJ_INET_ADDRSTRLEN);
+		if (status == PJ_SUCCESS && !strcmp(buffer, "0.0.0.0")) {
+			ast_log(LOG_WARNING, "Matching against '0.0.0.0' may be unpredictable.\n");
+		}
+	}
+
+	if (status == PJ_SUCCESS) {
+		ast_sockaddr_parse(&addr_with_tp.addr, buffer, PARSE_PORT_FORBID);
+		ast_sockaddr_set_port(&addr_with_tp.addr, rdata->tp_info.transport->local_name.port);
+
+		return common_identify(ip_identify_match_check, &addr_with_tp);
+	} else {
+		return NULL;
+	}
 }
 
 static struct ast_sip_endpoint_identifier ip_identifier = {
 	.identify_endpoint = ip_identify,
+};
+
+static struct ast_sip_endpoint_identifier transport_identifier = {
+	.identify_endpoint = transport_identify,
 };
 
 static struct ast_sip_endpoint *header_identify(pjsip_rx_data *rdata)
@@ -314,8 +437,17 @@ static struct ast_sip_endpoint *header_identify(pjsip_rx_data *rdata)
 	return common_identify(header_identify_match_check, rdata);
 }
 
+static struct ast_sip_endpoint *request_identify(pjsip_rx_data *rdata)
+{
+	return common_identify(request_identify_match_check, rdata);
+}
+
 static struct ast_sip_endpoint_identifier header_identifier = {
 	.identify_endpoint = header_identify,
+};
+
+static struct ast_sip_endpoint_identifier request_identifier = {
+	.identify_endpoint = request_identify,
 };
 
 /*! \brief Helper function which performs a host lookup and adds result to identify match */
@@ -453,6 +585,7 @@ static int ip_identify_apply(const struct ast_sorcery *sorcery, void *obj)
 		return -1;
 	}
 	if (ast_strlen_zero(identify->match_header) /* No header to match */
+		&& ast_strlen_zero(identify->match_request_uri) /* and no request to match */
 		/* and no static IP addresses with a mask */
 		&& !identify->matches
 		/* and no addresses to resolve */
@@ -460,6 +593,12 @@ static int ip_identify_apply(const struct ast_sorcery *sorcery, void *obj)
 		ast_log(LOG_ERROR, "Identify '%s' is not configured to match anything.\n",
 			ast_sorcery_object_get_id(identify));
 		return -1;
+	}
+
+	if (!ast_strlen_zero(identify->transport)) {
+		if (ast_string_field_set(identify, transport, identify->transport)) {
+			return -1;
+		}
 	}
 
 	if (!ast_strlen_zero(identify->match_header)) {
@@ -501,12 +640,38 @@ static int ip_identify_apply(const struct ast_sorcery *sorcery, void *obj)
 			c_value[len - 1] = '\0';
 			++c_value;
 
-			if (regcomp(&identify->regex_buf, c_value, REG_EXTENDED | REG_NOSUB)) {
-				ast_log(LOG_ERROR, "Identify '%s' failed to compile match_header regex '%s'.\n",
+			if (regcomp(&identify->regex_header_buf, c_value, REG_EXTENDED | REG_NOSUB)) {
+				ast_log(LOG_ERROR, "Identify '%s' failed to compile match_request_uri regex '%s'.\n",
 					ast_sorcery_object_get_id(identify), c_value);
 				return -1;
 			}
-			identify->is_regex = 1;
+			identify->is_header_regex = 1;
+		}
+	}
+
+	if (!ast_strlen_zero(identify->match_request_uri)) {
+		char *c_string;
+		int len;
+
+		len = strlen(identify->match_request_uri);
+		c_string = ast_strdupa(identify->match_request_uri);
+
+		if (!strcmp(c_string, "//")) {
+			/* An empty regex is the same as an empty literal string. */
+			c_string = "";
+		}
+
+		if (2 < len && c_string[0] == '/' && c_string[len - 1] == '/') {
+			/* Make "/regex/" into "regex" */
+			c_string[len - 1] = '\0';
+			++c_string;
+
+			if (regcomp(&identify->regex_request_uri_buf, c_string, REG_EXTENDED | REG_NOSUB)) {
+				ast_log(LOG_ERROR, "Identify '%s' failed to compile match_header regex '%s'.\n",
+					ast_sorcery_object_get_id(identify), c_string);
+				return -1;
+			}
+			identify->is_request_uri_regex = 1;
 		}
 	}
 
@@ -785,11 +950,25 @@ static int cli_print_body(void *obj, void *arg, int flags)
 				addr, ast_sockaddr_cidr_bits(&match->netmask));
 		}
 
+		if (!ast_strlen_zero(ident->transport)) {
+			ast_str_append(&context->output_buffer, 0, "%*s: %s\n",
+				indent,
+				"Transport",
+				ident->transport);
+		}
+
 		if (!ast_strlen_zero(ident->match_header)) {
 			ast_str_append(&context->output_buffer, 0, "%*s: %s\n",
 				indent,
-				"Match",
+				"Header",
 				ident->match_header);
+		}
+
+		if (!ast_strlen_zero(ident->match_request_uri)) {
+			ast_str_append(&context->output_buffer, 0, "%*s: %s\n",
+				indent,
+				"RequestURI",
+				ident->match_request_uri);
 		}
 
 		context->indent_level--;
@@ -851,11 +1030,15 @@ static int load_module(void)
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "identify", "endpoint", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ip_identify_match, endpoint_name));
 	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), "identify", "match", "", ip_identify_match_handler, match_to_str, match_to_var_list, 0, 0);
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "identify", "match_header", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ip_identify_match, match_header));
+	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "identify", "match_request_uri", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ip_identify_match, match_request_uri));
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "identify", "srv_lookups", "yes", OPT_BOOL_T, 1, FLDSET(struct ip_identify_match, srv_lookups));
+	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "identify", "transport", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ip_identify_match, transport));
 	ast_sorcery_load_object(ast_sip_get_sorcery(), "identify");
 
 	ast_sip_register_endpoint_identifier_with_name(&ip_identifier, "ip");
 	ast_sip_register_endpoint_identifier_with_name(&header_identifier, "header");
+	ast_sip_register_endpoint_identifier_with_name(&request_identifier, "request_uri");
+	ast_sip_register_endpoint_identifier_with_name(&transport_identifier, "transport");
 	ast_sip_register_endpoint_formatter(&endpoint_identify_formatter);
 
 	cli_formatter = ao2_alloc(sizeof(struct ast_sip_cli_formatter_entry), NULL);
@@ -890,7 +1073,9 @@ static int unload_module(void)
 	ast_sip_unregister_cli_formatter(cli_formatter);
 	ast_sip_unregister_endpoint_formatter(&endpoint_identify_formatter);
 	ast_sip_unregister_endpoint_identifier(&header_identifier);
+	ast_sip_unregister_endpoint_identifier(&request_identifier);
 	ast_sip_unregister_endpoint_identifier(&ip_identifier);
+	ast_sip_unregister_endpoint_identifier(&transport_identifier);
 
 	return 0;
 }

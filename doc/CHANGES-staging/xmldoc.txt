@@ -1,5 +1,0 @@
-Subject: xmldocs
-
-The XML documentation can now be reloaded without restarting
-Asterisk, which makes it possible to load new modules that
-enforce documentation without restarting Asterisk.

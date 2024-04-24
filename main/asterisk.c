@@ -70,8 +70,8 @@
 /*!
  * \page asterisk_community_resources Asterisk Community Resources
  * \par Websites
- * \li http://www.asterisk.org Asterisk Homepage
- * \li http://wiki.asterisk.org Asterisk Wiki
+ * \li https://www.asterisk.org Asterisk Homepage
+ * \li https://docs.asterisk.org Asterisk documentation
  *
  * \par Mailing Lists
  * \par
@@ -491,7 +491,8 @@ static char *handle_show_settings(struct ast_cli_entry *e, int cmd, struct ast_c
 	ast_cli(a->fd, "\nPBX Core settings\n");
 	ast_cli(a->fd, "-----------------\n");
 	ast_cli(a->fd, "  Version:                     %s\n", ast_get_version());
-	ast_cli(a->fd, "  Build Options:               %s\n", S_OR(ast_get_build_opts(), "(none)"));
+	ast_cli(a->fd, "  ABI related Build Options:   %s\n", S_OR(ast_get_build_opts(), "(none)"));
+	ast_cli(a->fd, "  All Build Options:           %s\n", S_OR(ast_get_build_opts_all(), "(none)"));
 	if (ast_option_maxcalls)
 		ast_cli(a->fd, "  Maximum calls:               %d (Current %d)\n", ast_option_maxcalls, ast_active_channels());
 	else
@@ -552,6 +553,7 @@ static char *handle_show_settings(struct ast_cli_entry *e, int cmd, struct ast_c
 	ast_cli(a->fd, "  Generic PLC:                 %s\n", ast_test_flag(&ast_options, AST_OPT_FLAG_GENERIC_PLC) ? "Enabled" : "Disabled");
 	ast_cli(a->fd, "  Generic PLC on equal codecs: %s\n", ast_test_flag(&ast_options, AST_OPT_FLAG_GENERIC_PLC_ON_EQUAL_CODECS) ? "Enabled" : "Disabled");
 	ast_cli(a->fd, "  Hide Msg Chan AMI events:    %s\n", ast_opt_hide_messaging_ami_events ? "Enabled" : "Disabled");
+	ast_cli(a->fd, "  Sounds search custom dir:    %s\n", ast_opt_sounds_search_custom ? "Enabled" : "Disabled");
 	ast_cli(a->fd, "  Min DTMF duration::          %u\n", option_dtmfminduration);
 #if !defined(LOW_MEMORY)
 	ast_cli(a->fd, "  Cache media frames:          %s\n", ast_opt_cache_media_frames ? "Enabled" : "Disabled");
@@ -3171,26 +3173,41 @@ static int ast_el_read_history(const char *filename)
 	return history(el_hist, &ev, H_LOAD, filename);
 }
 
+static void process_histfile(int (*readwrite)(const char *filename))
+{
+	struct passwd *pw = getpwuid(geteuid());
+	int ret = 0;
+	char *name = NULL;
+
+	if (!pw || ast_strlen_zero(pw->pw_dir)) {
+		ast_log(LOG_ERROR, "Unable to determine home directory.  History read/write disabled.\n");
+		return;
+	}
+
+	ret = ast_asprintf(&name, "%s/.asterisk_history", pw->pw_dir);
+	if (ret <= 0) {
+		ast_log(LOG_ERROR, "Unable to create history file name.  History read/write disabled.\n");
+		return;
+	}
+
+	ret = readwrite(name);
+	if (ret < 0) {
+		ast_log(LOG_ERROR, "Unable to read or write history file '%s'\n", name);
+	}
+
+	ast_free(name);
+
+	return;
+}
+
 static void ast_el_read_default_histfile(void)
 {
-	char histfile[80] = "";
-	const char *home = getenv("HOME");
-
-	if (!ast_strlen_zero(home)) {
-		snprintf(histfile, sizeof(histfile), "%s/.asterisk_history", home);
-		ast_el_read_history(histfile);
-	}
+	process_histfile(ast_el_read_history);
 }
 
 static void ast_el_write_default_histfile(void)
 {
-	char histfile[80] = "";
-	const char *home = getenv("HOME");
-
-	if (!ast_strlen_zero(home)) {
-		snprintf(histfile, sizeof(histfile), "%s/.asterisk_history", home);
-		ast_el_write_history(histfile);
-	}
+	process_histfile(ast_el_write_history);
 }
 
 static void ast_remotecontrol(char *data)
@@ -4256,6 +4273,7 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 	check_init(load_pbx_app(), "PBX Application Support");
 	check_init(load_pbx_hangup_handler(), "PBX Hangup Handler Support");
 	check_init(ast_local_init(), "Local Proxy Channel Driver");
+	check_init(ast_refer_init(), "Refer API");
 
 	/* We should avoid most config loads before this point as they can't use realtime. */
 	check_init(load_modules(), "Module");

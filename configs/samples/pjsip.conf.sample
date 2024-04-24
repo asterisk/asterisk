@@ -20,7 +20,7 @@
 
 ; Documentation
 ;
-; The official documentation is at http://wiki.asterisk.org
+; The official documentation is at https://docs.asterisk.org
 ; You can read the XML configuration help via Asterisk command line with
 ; "config show help res_pjsip", then you can drill down through the various
 ; sections and their options.
@@ -31,8 +31,8 @@
 ; At a minimum please read the file "README-SERIOUSLY.bestpractices.txt",
 ; located in the Asterisk source directory before starting Asterisk.
 ; Otherwise you risk allowing the security of the Asterisk system to be
-; compromised. Beyond that please visit and read the security information on
-; the wiki at: https://wiki.asterisk.org/wiki/x/EwFB
+; compromised. Beyond that please visit and read the security information in
+; the documentation at: https://docs.asterisk.org/Deployment/Important-Security-Considerations/
 ;
 ; A few basics to pay attention to:
 ;
@@ -47,7 +47,7 @@
 ;
 ; See the example ACL configuration in this file. Read the configuration help
 ; for the section and all of its options. Look over the samples in acl.conf
-; and documentation at https://wiki.asterisk.org/wiki/x/uA80AQ
+; and documentation at https://docs.asterisk.org/Configuration/Core-Configuration/Named-ACLs/
 ; If possible, restrict access to only networks and addresses you trust.
 ;
 ; Dialplan Contexts
@@ -171,11 +171,78 @@
 ;type=transport
 ;protocol=flow
 
+; Example IPv4 TCP transport with Keepalive options
+;
+;[transport-tcp]
+;type=transport
+;protocol=tcp
+;bind=0.0.0.0
+;tcp_keepalive_enable=yes        ; Enable TCP keepalive (yes/no)
+;tcp_keepalive_idle_time=30      ; Time in seconds the connection needs to remain idle before TCP starts sending keepalive probes
+;tcp_keepalive_interval_time=10  ; The time in seconds between individual keepalive probes
+;tcp_keepalive_probe_count=5     ; The maximum number of keepalive probes TCP should send before dropping the connection
+
+; Example IPv4 TLS transport with Keepalive options
+;
+;[transport-tls]
+;type=transport
+;protocol=tls
+;bind=0.0.0.0
+;cert_file=/path/to/mycert.crt
+;priv_key_file=/path/to/mykey.key
+;cipher=ADH-AES256-SHA,ADH-AES128-SHA
+;method=tlsv1
+;tcp_keepalive_enable=yes        ; Enable TCP keepalive (yes/no)
+;tcp_keepalive_idle_time=30      ; Time in seconds the connection needs to remain idle before TCP starts sending keepalive probes
+;tcp_keepalive_interval_time=10  ; The time in seconds between individual keepalive probes
+;tcp_keepalive_probe_count=5     ; The maximum number of keepalive probes TCP should send before dropping the connection
+
+;===============ENDPOINT IDENTIFIER TRANSPORT EXAMPLE==========================
+;
+; When Asterisk has multiple bound IP addresses, and endpoints don't use any
+; other means of identification (e.g.: username), the transports' bind addresses
+; can be used to identify them. Can be useful in case you're connecting to the
+; same ITSP multiple times on different IPs / NICs.
+;
+;[transport-eth0]
+;type=transport
+;protocol=tcp
+;bind=192.168.1.1:5060
+;
+;[transport-eth1]
+;type=transport
+;protocol=udp
+;bind=192.168.2.1:5060
+;
+;
+;[myprovider-a]
+;type=endpoint
+;transport=transport-eth0
+;identify_by=transport
+;
+;[myprovider-b]
+;type=endpoint
+;transport=transport-eth1
+;identify_by=transport
+;
+;
+;[identify-a]
+;type=identify
+;endpoint=myprovider-a
+;match=192.168.1.1:5060	; This is the bind address of [transport-eth0]
+;;transport=tcp		; Optionally, this is the transport protocol of [transport-eth0]
+;
+;[identify-b]
+;type=identify
+;endpoint=myprovider-b
+;match=192.168.2.1:5060	; This is the bind address of [transport-eth1]
+;;transport=udp		; Optionally, This is the transport protocol of [transport-eth1]
+
 ;===============OUTBOUND REGISTRATION WITH OUTBOUND AUTHENTICATION============
 ;
 ; This is a simple registration that works with some SIP trunking providers.
 ; You'll need to set up the auth example "mytrunk_auth" below to enable outbound
-; authentication. Note that we "outbound_auth=" use for outbound authentication
+; authentication. Note that we use "outbound_auth=" for outbound authentication
 ; instead of "auth=", which is for inbound authentication.
 ;
 ; If you are registering to a server from behind NAT, be sure you assign a transport
@@ -393,7 +460,7 @@
 ;rewrite_contact=yes  ; necessary if endpoint does not know/register public ip:port
 ;ice_support=yes   ;This is specific to clients that support NAT traversal
                    ;for media via ICE,STUN,TURN. See the wiki at:
-                   ;https://wiki.asterisk.org/wiki/x/D4FHAQ
+                   ;https://docs.asterisk.org/Configuration/Miscellaneous/Interactive-Connectivity-Establishment-ICE-in-Asterisk/
                    ;for a deeper explanation of this topic.
 
 ;[6002]
@@ -658,8 +725,10 @@
                         ; identified.
                         ; "username": Identify by the From or To username and domain
                         ; "auth_username": Identify by the Authorization username and realm
-                        ; "ip": Identify by the source IP address
+                        ; "ip": Identify by the source (remote) IP address
                         ; "header": Identify by a configured SIP header value.
+                        ; "request_uri": Identify by the configured SIP request URI.
+                        ; "transport": Identify by the bound (local) IP address
                         ; In the username and auth_username cases, if an exact match
                         ; on both username and domain/realm fails, the match is
                         ; retried with just the username.
@@ -1244,9 +1313,10 @@
             ; (default: "no")
 ;endpoint_identifier_order=ip,username,anonymous
             ; The order by which endpoint identifiers are given priority.
-            ; Currently, "ip", "header", "username", "auth_username" and "anonymous"
-            ; are valid identifiers as registered by the res_pjsip_endpoint_identifier_*
-            ; modules.  Some modules like res_pjsip_endpoint_identifier_user register
+            ; Currently, "ip", "header", "request_uri", "transport", "username",
+            ; "auth_username" and "anonymous"  are valid identifiers as registered by
+            ; the res_pjsip_endpoint_identifier_* modules.
+            ; Some modules like res_pjsip_endpoint_identifier_user register
             ; more than one identifier.  Use the CLI command "pjsip show identifiers"
             ; to see the identifiers currently available.
             ; (default: ip,username,anonymous)
@@ -1434,6 +1504,8 @@
 ;match= ; Comma separated list of IP addresses, networks, or hostnames to match
         ; against (default: "")
 ;match_header= ; SIP header with specified value to match against (default: "")
+;match_request_uri= ; SIP request URI to match against (default: "")
+;transport= ; Match ageinst the transport protocol (tcp or udp) (default: "")
 ;type=  ; Must be of type identify (default: "")
 
 
@@ -1454,7 +1526,7 @@
 
 ; MODULE PROVIDING BELOW SECTION(S): res_pjsip_outbound_publish
 ;======================OUTBOUND_PUBLISH SECTION OPTIONS=====================
-; See https://wiki.asterisk.org/wiki/display/AST/Publishing+Extension+State
+; See https://docs.asterisk.org/Configuration/Channel-Drivers/SIP/Configuring-res_pjsip/Publishing-Extension-State/
 ; for more information.
 ;[outbound-publish]
 ;type=outbound-publish     ; Must be of type 'outbound-publish'.
@@ -1509,9 +1581,9 @@
 
 
 ; MODULE PROVIDING BELOW SECTION(S): res_pjsip_pubsub
-;=============================RESOURCE-LIST===================================
-; See https://wiki.asterisk.org/wiki/pages/viewpage.action?pageId=30278158
+; See https://docs.asterisk.org/Configuration/Channel-Drivers/SIP/Configuring-res_pjsip/Resource-List-Subscriptions-RLS/
 ; for more information.
+;=============================RESOURCE-LIST===================================
 ;[resource_list]
 ;type=resource_list        ; Must be of type 'resource_list'.
 
@@ -1568,7 +1640,7 @@
 
 
 ;==========================INBOUND_PUBLICATION================================
-; See https://wiki.asterisk.org/wiki/display/AST/Exchanging+Device+and+Mailbox+State+Using+PJSIP
+; See https://docs.asterisk.org/Configuration/Channel-Drivers/SIP/Configuring-res_pjsip/Exchanging-Device-and-Mailbox-State-Using-PJSIP/
 ; for more information.
 ;[inbound-publication]
 ;type=                     ; Must be of type 'inbound-publication'.
@@ -1579,7 +1651,7 @@
 
 ; MODULE PROVIDING BELOW SECTION(S): res_pjsip_publish_asterisk
 ;==========================ASTERISK_PUBLICATION===============================
-; See https://wiki.asterisk.org/wiki/display/AST/Exchanging+Device+and+Mailbox+State+Using+PJSIP
+; See https://docs.asterisk.org/Configuration/Channel-Drivers/SIP/Configuring-res_pjsip/Exchanging-Device-and-Mailbox-State-Using-PJSIP/
 ; for more information.
 ;[asterisk-publication]
 ;type=asterisk-publication ; Must be of type 'asterisk-publication'.

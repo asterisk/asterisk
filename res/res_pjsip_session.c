@@ -52,6 +52,8 @@
 #include "asterisk/stream.h"
 #include "asterisk/vector.h"
 
+#include "res_pjsip_session/pjsip_session.h"
+
 #define SDP_HANDLER_BUCKETS 11
 
 #define MOD_DATA_ON_RESPONSE "on_response"
@@ -124,6 +126,13 @@ const char *ast_sip_session_get_name(const struct ast_sip_session *session)
 	} else {
 		return "unknown";
 	}
+}
+
+int ast_sip_can_present_connected_id(const struct ast_sip_session *session, const struct ast_party_id *id)
+{
+	return id->number.valid
+		&& (session->endpoint->id.trust_outbound
+		   || (ast_party_id_presentation(id) & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED);
 }
 
 static int sdp_handler_list_cmp(void *obj, void *arg, int flags)
@@ -1106,6 +1115,8 @@ static int handle_negotiated_sdp(struct ast_sip_session *session, const pjmedia_
 		SCOPE_EXIT_RTN_VALUE(-1, "Media stream count mismatch\n");
 	}
 
+	AST_VECTOR_RESET(&session->pending_media_state->read_callbacks, AST_VECTOR_ELEM_CLEANUP_NOOP);
+
 	for (i = 0; i < local->media_count; ++i) {
 		struct ast_sip_session_media *session_media;
 		struct ast_stream *stream;
@@ -1935,7 +1946,15 @@ static struct ast_sip_session_media_state *resolve_refresh_media_states(
 				/* All the same state, no need to update. */
 				SCOPE_EXIT_EXPR(continue, "%s: All in the same state so nothing to do\n", session_name);
 			}
-			if (dp_state != ca_state) {
+			if (da_state != ca_state) {
+				/*
+				 * Something set the CA state between the time this request was queued
+				 * and now.  The CA state wins so we don't do anything.
+				 */
+				SCOPE_EXIT_EXPR(continue, "%s: Ignoring request to change state from %s to %s\n",
+					session_name, ast_stream_state2str(ca_state), ast_stream_state2str(dp_state));
+			}
+			if (dp_state != da_state) {
 				/* DP needs to update the state */
 				ast_stream_set_state(np_stream, dp_state);
 				SCOPE_EXIT_EXPR(continue, "%s: Changed NP stream state from %s to %s\n",
@@ -4053,15 +4072,20 @@ static int new_invite(struct new_invite *invite)
 	 * so let's go ahead and send a 100 Trying out to stop any
 	 * retransmissions.
 	 */
+	if (pjsip_inv_initial_answer(invite->session->inv_session, invite->rdata, 100, NULL, NULL, &tdata) != PJ_SUCCESS) {
+		if (tdata) {
+			pjsip_inv_send_msg(invite->session->inv_session, tdata);
+		} else {
+			pjsip_inv_terminate(invite->session->inv_session, 500, PJ_TRUE);
+		}
+		goto end;
+	}
+
 	ast_trace(-1, "%s: Call (%s:%s) to extension '%s' sending 100 Trying\n",
 		ast_sip_session_get_name(invite->session),
 		invite->rdata->tp_info.transport->type_name,
 		pj_sockaddr_print(&invite->rdata->pkt_info.src_addr, buffer, sizeof(buffer), 3),
 		invite->session->exten);
-	if (pjsip_inv_initial_answer(invite->session->inv_session, invite->rdata, 100, NULL, NULL, &tdata) != PJ_SUCCESS) {
-		pjsip_inv_terminate(invite->session->inv_session, 500, PJ_TRUE);
-		goto end;
-	}
 	ast_sip_session_send_response(invite->session, tdata);
 
 	sdp_info = pjsip_rdata_get_sdp_info(invite->rdata);
@@ -4109,11 +4133,6 @@ static void handle_new_invite_request(pjsip_rx_data *rdata)
 {
 	RAII_VAR(struct ast_sip_endpoint *, endpoint,
 			ast_pjsip_rdata_get_endpoint(rdata), ao2_cleanup);
-	static const pj_str_t identity_str = { "Identity", 8 };
-	const pj_str_t use_identity_header_str = {
-		AST_STIR_SHAKEN_RESPONSE_STR_USE_IDENTITY_HEADER,
-		strlen(AST_STIR_SHAKEN_RESPONSE_STR_USE_IDENTITY_HEADER)
-	};
 	pjsip_inv_session *inv_session = NULL;
 	struct ast_sip_session *session;
 	struct new_invite invite;
@@ -4122,14 +4141,6 @@ static void handle_new_invite_request(pjsip_rx_data *rdata)
 	SCOPE_ENTER(1, "Request: %s\n", res ? req_uri : "");
 
 	ast_assert(endpoint != NULL);
-
-	if ((endpoint->stir_shaken & AST_SIP_STIR_SHAKEN_VERIFY) &&
-		!ast_sip_rdata_get_header_value(rdata, identity_str)) {
-		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata,
-			AST_STIR_SHAKEN_RESPONSE_CODE_USE_IDENTITY_HEADER, &use_identity_header_str, NULL, NULL);
-		ast_debug(3, "No Identity header when we require one\n");
-		return;
-	}
 
 	inv_session = pre_session_setup(rdata, endpoint);
 	if (!inv_session) {
@@ -5618,8 +5629,8 @@ static void session_outgoing_nat_hook(pjsip_tx_data *tdata, struct ast_sip_trans
 		 * rewriting. No localnet configured? Always rewrite. */
 		if (ast_sip_transport_is_local(transport_state, &our_sdp_addr) || !transport_state->localnet) {
 			ast_debug(5, "%s: Setting external media address to %s\n", ast_sip_session_get_name(session),
-				ast_sockaddr_stringify_host(&transport_state->external_media_address));
-			pj_strdup2(tdata->pool, &sdp->conn->addr, ast_sockaddr_stringify_host(&transport_state->external_media_address));
+				ast_sockaddr_stringify_addr_remote(&transport_state->external_media_address));
+			pj_strdup2(tdata->pool, &sdp->conn->addr, ast_sockaddr_stringify_addr_remote(&transport_state->external_media_address));
 			pj_strassign(&sdp->origin.addr, &sdp->conn->addr);
 		}
 	}
@@ -5940,7 +5951,6 @@ AST_TEST_DEFINE(test_resolve_refresh_media_states)
 
 	test_media_add(expected_pending_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
 	test_media_add(expected_pending_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
-	test_media_add(expected_pending_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
 	test_media_add(expected_pending_state, "myvideo3", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
 	CHECKER();
 
@@ -5979,9 +5989,8 @@ AST_TEST_DEFINE(test_resolve_refresh_media_states)
 
 	test_media_add(expected_pending_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
 	test_media_add(expected_pending_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
-	test_media_add(expected_pending_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
-	test_media_add(expected_pending_state, "myvideo4", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
 	test_media_add(expected_pending_state, "myvideo3", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "myvideo4", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
 	CHECKER();
 
 	RESET_STATE(7);
@@ -6027,7 +6036,6 @@ AST_TEST_DEFINE(test_resolve_refresh_media_states)
 
 	test_media_add(expected_pending_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
 	test_media_add(expected_pending_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
-	test_media_add(expected_pending_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
 	test_media_add(expected_pending_state, "myvideo3", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
 	test_media_add(expected_pending_state, "myvideo4", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
 	CHECKER();
@@ -6048,8 +6056,6 @@ AST_TEST_DEFINE(test_resolve_refresh_media_states)
 	test_media_add(current_active_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_REMOVED, -1);
 
 	test_media_add(expected_pending_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
-	test_media_add(expected_pending_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
-	test_media_add(expected_pending_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
 	test_media_add(expected_pending_state, "myvideo3", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
 	test_media_add(expected_pending_state, "myvideo4", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
 	CHECKER();
@@ -6235,6 +6241,8 @@ static int load_module(void)
 	ast_sip_register_service(&session_reinvite_module);
 	ast_sip_register_service(&outbound_invite_auth_module);
 
+	pjsip_reason_header_load();
+
 	ast_module_shutdown_ref(ast_module_info->self);
 #ifdef TEST_FRAMEWORK
 	AST_TEST_REGISTER(test_resolve_refresh_media_states);
@@ -6244,6 +6252,8 @@ static int load_module(void)
 
 static int unload_module(void)
 {
+	pjsip_reason_header_unload();
+
 #ifdef TEST_FRAMEWORK
 	AST_TEST_UNREGISTER(test_resolve_refresh_media_states);
 #endif

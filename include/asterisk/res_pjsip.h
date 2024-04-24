@@ -71,21 +71,7 @@
 #define PJSTR_PRINTF_SPEC "%.*s"
 #define PJSTR_PRINTF_VAR(_v) ((int)(_v).slen), ((_v).ptr)
 
-/* Response codes from RFC8224 */
-#define AST_STIR_SHAKEN_RESPONSE_CODE_STALE_DATE 403
-#define AST_STIR_SHAKEN_RESPONSE_CODE_USE_IDENTITY_HEADER 428
-#define AST_STIR_SHAKEN_RESPONSE_CODE_USE_SUPPORTED_PASSPORT_FORMAT 428
-#define AST_STIR_SHAKEN_RESPONSE_CODE_BAD_IDENTITY_INFO 436
-#define AST_STIR_SHAKEN_RESPONSE_CODE_UNSUPPORTED_CREDENTIAL 437
-#define AST_STIR_SHAKEN_RESPONSE_CODE_INVALID_IDENTITY_HEADER 438
-
-/* Response strings from RFC8224 */
-#define AST_STIR_SHAKEN_RESPONSE_STR_STALE_DATE "Stale Date"
-#define AST_STIR_SHAKEN_RESPONSE_STR_USE_IDENTITY_HEADER "Use Identity Header"
-#define AST_STIR_SHAKEN_RESPONSE_STR_USE_SUPPORTED_PASSPORT_FORMAT "Use Supported PASSporT Format"
-#define AST_STIR_SHAKEN_RESPONSE_STR_BAD_IDENTITY_INFO "Bad Identity Info"
-#define AST_STIR_SHAKEN_RESPONSE_STR_UNSUPPORTED_CREDENTIAL "Unsupported Credential"
-#define AST_STIR_SHAKEN_RESPONSE_STR_INVALID_IDENTITY_HEADER "Invalid Identity Header"
+#define AST_SIP_AUTH_MAX_REALM_LENGTH 255	/* From the auth/realm realtime column size */
 
 /* ":12345" */
 #define COLON_PORT_STRLEN 6
@@ -313,6 +299,14 @@ struct ast_sip_transport {
 	int symmetric_transport;
 	/*! This is a flow to another target */
 	int flow;
+	/*! Enable TCP keepalive */
+	int tcp_keepalive_enable;
+	/*! Time in seconds the connection needs to remain idle before TCP starts sending keepalive probes */
+	int tcp_keepalive_idle_time;
+	/*! The time in seconds between individual keepalive probes */
+	int tcp_keepalive_interval_time;
+	/*! The maximum number of keepalive probes TCP should send before dropping the connection */
+	int tcp_keepalive_probe_count;
 };
 
 #define SIP_SORCERY_DOMAIN_ALIAS_TYPE "domain_alias"
@@ -337,6 +331,20 @@ struct ast_sip_nat_hook {
 	SORCERY_OBJECT(details);
 	/*! Callback for when a message is going outside of our local network */
 	void (*outgoing_external_message)(struct pjsip_tx_data *tdata, struct ast_sip_transport *transport);
+};
+
+/*! \brief Structure which contains information about a transport */
+struct ast_sip_request_transport_details {
+	/*! \brief Type of transport */
+	enum ast_transport type;
+	/*! \brief Potential pointer to the transport itself, if UDP */
+	pjsip_transport *transport;
+	/*! \brief Potential pointer to the transport factory itself, if TCP/TLS */
+	pjsip_tpfactory *factory;
+	/*! \brief Local address for transport */
+	pj_str_t local_address;
+	/*! \brief Local port for transport */
+	int local_port;
 };
 
 /*!
@@ -607,6 +615,10 @@ enum ast_sip_endpoint_identifier_type {
 	AST_SIP_ENDPOINT_IDENTIFY_BY_IP = (1 << 2),
 	/*! Identify based on arbitrary headers */
 	AST_SIP_ENDPOINT_IDENTIFY_BY_HEADER = (1 << 3),
+	/*! Identify based on request uri */
+	AST_SIP_ENDPOINT_IDENTIFY_BY_REQUEST_URI = (1 << 4),
+	/*! Identify based on bound (local) IP address */
+	AST_SIP_ENDPOINT_IDENTIFY_BY_TRANSPORT = (1 << 5),
 };
 AST_VECTOR(ast_sip_identify_by_vector, enum ast_sip_endpoint_identifier_type);
 
@@ -648,17 +660,6 @@ enum ast_sip_session_redirect {
 	AST_SIP_REDIRECT_URI_CORE,
 	/*! Target URI should be used as the target within chan_pjsip itself */
 	AST_SIP_REDIRECT_URI_PJSIP,
-};
-
-enum ast_sip_stir_shaken_behavior {
-	/*! Don't do any STIR/SHAKEN operations */
-	AST_SIP_STIR_SHAKEN_OFF = 0,
-	/*! Only do STIR/SHAKEN attestation */
-	AST_SIP_STIR_SHAKEN_ATTEST = 1,
-	/*! Only do STIR/SHAKEN verification */
-	AST_SIP_STIR_SHAKEN_VERIFY = 2,
-	/*! Do STIR/SHAKEN attestation and verification */
-	AST_SIP_STIR_SHAKEN_ON = 3,
 };
 
 /*!
@@ -3506,18 +3507,65 @@ struct ast_threadpool *ast_sip_threadpool(void);
  * \brief Retrieve transport state
  * \since 13.7.1
  *
- * @param transport_id
- * @returns transport_state
+ * \param transport_id
+ * \retval transport_state
  *
  * \note ao2_cleanup(...) or ao2_ref(...,  -1) must be called on the returned object
  */
 struct ast_sip_transport_state *ast_sip_get_transport_state(const char *transport_id);
 
 /*!
+ * \brief Return the SIP URI of the Contact header
+ * 
+ * \param tdata
+ * \retval Pointer to SIP URI of Contact
+ * \retval NULL if Contact header not found or not a SIP(S) URI
+ *
+ * \note Do not free the returned object.
+ */
+pjsip_sip_uri *ast_sip_get_contact_sip_uri(pjsip_tx_data *tdata);
+
+/*!
+ * \brief Returns the transport state currently in use based on request transport details
+ *
+ * \param details
+ * \retval transport_state
+ *
+ * \note ao2_cleanup(...) or ao2_ref(...,  -1) must be called on the returned object
+ */
+struct ast_sip_transport_state *ast_sip_find_transport_state_in_use(struct ast_sip_request_transport_details *details);
+
+/*!
+ * \brief Sets request transport details based on tdata
+ *
+ * \param details pre-allocated request transport details to set
+ * \param tdata
+ * \param use_ipv6 if non-zero, ipv6 transports will be considered
+ * \retval 0 success
+ * \retval -1 failure
+ */
+int ast_sip_set_request_transport_details(struct ast_sip_request_transport_details *details, pjsip_tx_data *tdata, int use_ipv6);
+
+/*!
+ * \brief Replace domain and port of SIP URI to point to (external) signaling address of this Asterisk instance
+ *
+ * \param uri
+ * \param tdata
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ *
+ * \note Uses domain and port in Contact header if it exists, otherwise the local URI of the dialog is used if the
+ *       message is sent within the context of a dialog. Further, NAT settings are considered - i.e. if the target
+ *       is not in the localnet, the external_signaling_address and port are used.
+ */
+int ast_sip_rewrite_uri_to_local(pjsip_sip_uri *uri, pjsip_tx_data *tdata);
+
+/*!
  * \brief Retrieves all transport states
  * \since 13.7.1
  *
- * @returns ao2_container
+ * \retval ao2_container
  *
  * \note ao2_cleanup(...) or ao2_ref(...,  -1) must be called on the returned object
  */
@@ -3646,6 +3694,105 @@ int ast_sip_set_id_from_invite(struct pjsip_rx_data *rdata, struct ast_party_id 
  */
 void ast_sip_modify_id_header(pj_pool_t *pool, pjsip_fromto_hdr *id_hdr,
 	const struct ast_party_id *id);
+
+/*!
+ * \brief Retrieves an endpoint and URI from the "to" string.
+ *
+ * This URI is used as the Request URI.
+ *
+ * Expects the given 'to' to be in one of the following formats:
+ * Why we allow so many is a mystery.
+ *
+ * Basic:
+ *
+ *      endpoint        : We'll get URI from the default aor/contact
+ *      endpoint/aor    : We'll get the URI from the specific aor/contact
+ *      endpoint@domain : We toss the domain part and just use the endpoint
+ *
+ *   These all use the endpoint and specified URI:
+ * \verbatim
+        endpoint/<sip[s]:host>
+        endpoint/<sip[s]:user@host>
+        endpoint/"Bob" <sip[s]:host>
+        endpoint/"Bob" <sip[s]:user@host>
+        endpoint/sip[s]:host
+        endpoint/sip[s]:user@host
+        endpoint/host
+        endpoint/user@host
+   \endverbatim
+ *
+ *   These all use the default endpoint and specified URI:
+ * \verbatim
+        <sip[s]:host>
+        <sip[s]:user@host>
+        "Bob" <sip[s]:host>
+        "Bob" <sip[s]:user@host>
+        sip[s]:host
+        sip[s]:user@host
+   \endverbatim
+ *
+ *   These use the default endpoint and specified host:
+ * \verbatim
+        host
+        user@host
+   \endverbatim
+ *
+ *   This form is similar to a dialstring:
+ * \verbatim
+        PJSIP/user@endpoint
+   \endverbatim
+ *
+ *   In this case, the user will be added to the endpoint contact's URI.
+ *   If the contact URI already has a user, it will be replaced.
+ *
+ * The ones that have the sip[s] scheme are the easiest to parse.
+ * The rest all have some issue.
+ *
+ *      endpoint vs host              : We have to test for endpoint first
+ *      endpoint/aor vs endpoint/host : We have to test for aor first
+ *                                      What if there's an aor with the same
+ *                                      name as the host?
+ *      endpoint@domain vs user@host  : We have to test for endpoint first.
+ *                                      What if there's an endpoint with the
+ *                                      same name as the user?
+ *
+ * \param to 'To' field with possible endpoint
+ * \param get_default_outbound If nonzero, try to retrieve the default
+ * 			       outbound endpoint if no endpoint was found.
+ * 			       Otherwise, return NULL if no endpoint was found.
+ * \param uri Pointer to a char* which will be set to the URI.
+ *            Always must be ast_free'd by the caller - even if the return value is NULL!
+ *
+ * \note The logic below could probably be condensed but then it wouldn't be
+ * as clear.
+ */
+struct ast_sip_endpoint *ast_sip_get_endpoint(const char *to, int get_default_outbound, char **uri);
+
+/*!
+ * \brief Replace the To URI in the tdata with the supplied one
+ *
+ * \param tdata the outbound message data structure
+ * \param to URI to replace the To URI with. Must be a valid SIP URI.
+ *
+ * \retval 0: success, -1: failure
+ */
+int ast_sip_update_to_uri(pjsip_tx_data *tdata, const char *to);
+
+/*!
+ * \brief Overwrite fields in the outbound 'From' header
+ *
+ * The outbound 'From' header is created/added in ast_sip_create_request with
+ * default data.  If available that data may be info specified in the 'from_user'
+ * and 'from_domain' options found on the endpoint.  That information will be
+ * overwritten with data in the given 'from' parameter.
+ *
+ * \param tdata the outbound message data structure
+ * \param from info to copy into the header.
+ *		  Can be either a SIP URI, or in the format user[@domain]
+ *
+ * \retval 0: success, -1: failure
+ */
+int ast_sip_update_from(pjsip_tx_data *tdata, char *from);
 
 /*!
  * \brief Retrieve the unidentified request security event thresholds
@@ -4050,5 +4197,17 @@ unsigned int ast_sip_get_all_codecs_on_empty_reinvite(void);
  */
 const int ast_sip_hangup_sip2cause(int cause);
 
+/*!
+ * \brief Convert name to SIP response code
+ *
+ * \param name SIP response code name matching one of the
+ *             enum names defined in "enum pjsip_status_code"
+ *             defined in sip_msg.h.  May be specified with or
+ *             without the PJSIP_SC_ prefix.
+ *
+ * \retval SIP response code
+ * \retval -1 if matching code not found
+ */
+int ast_sip_str2rc(const char *name);
 
 #endif /* _RES_PJSIP_H */

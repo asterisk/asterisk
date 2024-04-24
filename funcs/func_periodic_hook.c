@@ -466,7 +466,7 @@ static int load_module(void)
 	 * Based on a handy recipe from the Asterisk Cookbook.
 	 */
 	res = ast_add_extension(context_name, 1, exten_name, 1, "", "",
-			"Set", "EncodedChannel=${CUT(HOOK_CHANNEL,-,1-2)}",
+			"Set", "EncodedChannel=${HOOK_CHANNEL}",
 			NULL, AST_MODULE);
 	res |= ast_add_extension(context_name, 1, exten_name, 2, "", "",
 			"Set", "GROUP_NAME=${EncodedChannel}${HOOK_ID}",
@@ -487,6 +487,8 @@ static int load_module(void)
 			"Answer", "", NULL, AST_MODULE);
 	res |= ast_add_extension(context_name, 1, beep_exten, 2, "", "",
 			"Playback", "beep", NULL, AST_MODULE);
+	res |= ast_add_extension(context_name, 1, beep_exten, 3, "", "",
+			"Hangup", "", NULL, AST_MODULE);
 
 	res |= ast_custom_function_register_escalating(&hook_function, AST_CFE_BOTH);
 

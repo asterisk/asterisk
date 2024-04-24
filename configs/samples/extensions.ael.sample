@@ -30,8 +30,6 @@ globals {
 	CONSOLE-AEL="Console/dsp"; 		// Console interface for demo
 	//CONSOLE-AEL=Zap/1;
 	//CONSOLE-AEL=Phone/phone0;
-	IAXINFO-AEL=guest;				// IAXtel username/password
-	//IAXINFO-AEL="myuser:mypass";
 	OUTBOUND-TRUNK="Zap/g2";		// Trunk interface
 	//
 	// Note the 'g2' in the OUTBOUND-TRUNK variable above. It specifies which group (defined
@@ -176,16 +174,6 @@ context ael-dundi-e164-lookup {
 };
 
 //
-// Here are the entries you need to participate in the IAXTEL
-// call routing system.  Most IAXTEL numbers begin with 1-700, but
-// there are exceptions.  For more information, and to sign
-// up, please go to www.gnophone.com or www.iaxtel.com
-//
-context ael-iaxtel700 {
-	_91700XXXXXXX => Dial(IAX2/${IAXINFO-AEL}@iaxtel.com/${EXTEN:1}@iaxtel);
-};
-
-//
 // The SWITCH statement permits a server to share the dialplan with
 // another server. Use with care: Reciprocal switch statements are not
 // allowed (e.g. both A -> B and B -> A), and the switched server needs
@@ -267,13 +255,12 @@ context ael-longdistance {
 
 context ael-local {
 	//
-	// Master context for local, toll-free, and iaxtel calls only
+	// Master context for local and toll-free calls only
 	//
 	ignorepat => 9;
 	includes {
 		ael-default;
 		ael-trunklocal;
-		ael-iaxtel700;
 		ael-trunktollfree;
 		ael-iaxprovider;
 	};

@@ -37,6 +37,7 @@
 #include "asterisk/stream.h"
 #include "asterisk/stasis.h"
 #include "asterisk/security_events.h"
+#include "asterisk/res_stir_shaken.h"
 
 /*! \brief Number of buckets for persistent endpoint information */
 #define PERSISTENT_BUCKETS 53
@@ -422,6 +423,12 @@ static const char *sip_endpoint_identifier_type2str(enum ast_sip_endpoint_identi
 	case AST_SIP_ENDPOINT_IDENTIFY_BY_HEADER:
 		str = "header";
 		break;
+	case AST_SIP_ENDPOINT_IDENTIFY_BY_REQUEST_URI:
+		str = "request_uri";
+		break;
+	case AST_SIP_ENDPOINT_IDENTIFY_BY_TRANSPORT:
+		str = "transport";
+		break;
 	}
 	return str;
 }
@@ -447,6 +454,10 @@ static int sip_endpoint_identifier_str2type(const char *str)
 		method = AST_SIP_ENDPOINT_IDENTIFY_BY_IP;
 	} else if (!strcasecmp(str, "header")) {
 		method = AST_SIP_ENDPOINT_IDENTIFY_BY_HEADER;
+	} else if (!strcasecmp(str, "request_uri")) {
+		method = AST_SIP_ENDPOINT_IDENTIFY_BY_REQUEST_URI;
+	} else if (!strcasecmp(str, "transport")) {
+		method = AST_SIP_ENDPOINT_IDENTIFY_BY_TRANSPORT;
 	} else {
 		method = -1;
 	}
@@ -535,6 +546,29 @@ static int ident_to_str(const void *obj, const intptr_t *args, char **buf)
 		}
 	}
 
+	return 0;
+}
+
+static int media_address_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
+{
+	struct ast_sip_endpoint *endpoint = obj;
+	struct ast_sockaddr addr;
+
+	if (ast_sockaddr_parse(&addr, var->value, 0)) {
+		/* If we're able to parse as an IP, ensure it's formatted correctly for later */
+		ast_string_field_set(endpoint, media.address, ast_sockaddr_stringify_addr_remote(&addr));
+	} else {
+		/* If we weren't able to parse it as an IP, just assume it's a hostname */
+		ast_string_field_set(endpoint, media.address, var->value);
+	}
+
+	return 0;
+}
+
+static int media_address_to_str(const void *obj, const intptr_t *args, char **buf)
+{
+	const struct ast_sip_endpoint *endpoint = obj;
+	*buf = ast_strdup(endpoint->media.address);
 	return 0;
 }
 
@@ -777,37 +811,17 @@ static int stir_shaken_handler(const struct aco_option *opt, struct ast_variable
 {
 	struct ast_sip_endpoint *endpoint = obj;
 
-	if (!strcasecmp("off", var->value)) {
-		endpoint->stir_shaken = AST_SIP_STIR_SHAKEN_OFF;
-	} else if (!strcasecmp("attest", var->value)) {
-		endpoint->stir_shaken = AST_SIP_STIR_SHAKEN_ATTEST;
-	} else if (!strcasecmp("verify", var->value)) {
-		endpoint->stir_shaken = AST_SIP_STIR_SHAKEN_VERIFY;
-	} else if (!strcasecmp("on", var->value)) {
-		endpoint->stir_shaken = AST_SIP_STIR_SHAKEN_ON;
-	} else {
-		ast_log(LOG_WARNING, "'%s' is not a valid value for option "
-			"'stir_shaken' for endpoint %s\n",
-			var->value, ast_sorcery_object_get_id(endpoint));
-		return -1;
-	}
+	ast_log(LOG_WARNING, "Endpoint %s: Option 'stir_shaken' is no longer supported.  Use 'stir_shaken_profile' instead.\n",
+		ast_sorcery_object_get_id(endpoint));
+	endpoint->stir_shaken = 0;
 
 	return 0;
 }
 
-static const char *stir_shaken_map[] = {
-	[AST_SIP_STIR_SHAKEN_OFF] = "off",
-	[AST_SIP_STIR_SHAKEN_ATTEST] = "attest",
-	[AST_SIP_STIR_SHAKEN_VERIFY] = "verify",
-	[AST_SIP_STIR_SHAKEN_ON] = "on",
-};
-
 static int stir_shaken_to_str(const void *obj, const intptr_t *args, char **buf)
 {
-	const struct ast_sip_endpoint *endpoint = obj;
-	if (ARRAY_IN_BOUNDS(endpoint->stir_shaken, stir_shaken_map)) {
-		*buf = ast_strdup(stir_shaken_map[endpoint->stir_shaken]);
-	}
+	*buf = ast_strdup("no");
+
 	return 0;
 }
 
@@ -1589,6 +1603,13 @@ static int sip_endpoint_apply_handler(const struct ast_sorcery *sorcery, void *o
 		endpoint->media.rtp.dtls_cfg.default_setup = AST_RTP_DTLS_SETUP_ACTPASS;
 		endpoint->media.rtp.dtls_cfg.verify = AST_RTP_DTLS_VERIFY_FINGERPRINT;
 
+		/* RFC8827 says: Implementations MUST NOT implement DTLS renegotiation
+		 * and MUST reject it with a "no_renegotiation" alert if offered. */
+		if (endpoint->media.rtp.dtls_cfg.rekey) {
+			ast_log(LOG_WARNING, "DTLS renegotiation is not supported with WebRTC. Disabling dtls_rekey.\n");
+			endpoint->media.rtp.dtls_cfg.rekey = 0;
+		}
+
 		if (ast_strlen_zero(endpoint->media.rtp.dtls_cfg.certfile)) {
 			/* If no certificate has been specified, try to automatically create one */
 			endpoint->media.rtp.dtls_cfg.ephemeral_cert = 1;
@@ -2156,7 +2177,7 @@ int ast_res_pjsip_initialize_configuration(void)
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "auth", "", inbound_auth_handler, inbound_auths_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "outbound_auth", "", outbound_auth_handler, outbound_auths_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "aors", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, aors));
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "media_address", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, media.address));
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "media_address", "", media_address_handler, media_address_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "bind_rtp_to_media_address", "no", OPT_BOOL_T, 1, STRFLDSET(struct ast_sip_endpoint, media.bind_rtp_to_media_address));
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "identify_by", "username,ip", ident_handler, ident_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "direct_media", "yes", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, media.direct_media.enabled));
@@ -2278,7 +2299,8 @@ int ast_res_pjsip_initialize_configuration(void)
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "codec_prefs_outgoing_answer",
 		"prefer: pending, operation: intersect, keep: all",
 		codec_prefs_handler, outgoing_answer_codec_prefs_to_str, NULL, 0, 0);
-	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "stir_shaken", "off", stir_shaken_handler, stir_shaken_to_str, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint",
+		"stir_shaken", 0, stir_shaken_handler, stir_shaken_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "stir_shaken_profile", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, stir_shaken_profile));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "allow_unauthenticated_options", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, allow_unauthenticated_options));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "geoloc_incoming_call_profile", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, geoloc_incoming_call_profile));

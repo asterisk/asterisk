@@ -1323,6 +1323,10 @@ struct ast_json *ast_channel_snapshot_to_json(
 		"creationtime", ast_json_timeval(snapshot->base->creationtime, NULL),
 		"language", snapshot->base->language);
 
+	if (!ast_strlen_zero(snapshot->caller->rdnis)) {
+		ast_json_object_set(json_chan, "caller_rdnis", ast_json_string_create(snapshot->caller->rdnis));
+	}
+
 	if (snapshot->ari_vars && !AST_LIST_EMPTY(snapshot->ari_vars)) {
 		ast_json_object_set(json_chan, "channelvars", ast_json_channel_vars(snapshot->ari_vars));
 	}

@@ -1,4 +1,0 @@
-Subject: app_senddtmf
-
-The SendFlash AMI action now allows sending
-a hook flash event on a channel.

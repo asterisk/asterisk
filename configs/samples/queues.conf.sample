@@ -286,6 +286,13 @@ monitor-type = MixMonitor
 ;
 ;periodic-announce-frequency=60
 ;
+; If given indicates the number of seconds after entering the queue the first
+; periodic announcement should be played.  The default (and historic) behavior
+; is to play the first periodic announcement at periodic-announce-frequency
+; seconds after entering the queue.
+;
+;periodic-announce-startdelay=10
+;
 ; Should the periodic announcements be played in a random order? Default is no.
 ;
 ;random-periodic-announce=no

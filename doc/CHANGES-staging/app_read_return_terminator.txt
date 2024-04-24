@@ -1,5 +1,0 @@
-Subject: app_read
-
-A new option 'e' has been added to allow Read() to return the
-terminator as the dialed digits in the case where only the terminator
-is entered.

@@ -1,6 +1,0 @@
-Subject: cdr
-
-Two new options have been added which allow
-bridging and dial state changes to be ignored
-in CDRs, which can be useful if a single CDR
-is desired for a channel.

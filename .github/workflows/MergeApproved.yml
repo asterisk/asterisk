@@ -123,9 +123,6 @@ jobs:
   MergeAndCherryPick:
     needs: [ IdentifyBranches, PreMergeUnitTests ]
     if: success()
-    concurrency:
-      group: MergeAndCherryPick
-      cancel-in-progress: false
     runs-on: ubuntu-latest
     steps:
       - name: Start Merge
@@ -138,7 +135,7 @@ jobs:
 
       - name: Get Token needed to push cherry-picks
         id: get_workflow_token
-        uses: peter-murray/workflow-application-token-action@v1
+        uses: peter-murray/workflow-application-token-action@v2
         with:
           application_id: ${{secrets.ASTERISK_ORG_ACCESS_APP_ID}}
           application_private_key: ${{secrets.ASTERISK_ORG_ACCESS_APP_PRIV_KEY}}

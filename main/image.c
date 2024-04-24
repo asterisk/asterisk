@@ -50,7 +50,7 @@ int ast_image_register(struct ast_imager *img)
 	AST_RWLIST_WRLOCK(&imagers);
 	AST_RWLIST_INSERT_HEAD(&imagers, img, list);
 	AST_RWLIST_UNLOCK(&imagers);
-	ast_verb(2, "Registered format '%s' (%s)\n", img->name, img->desc);
+	ast_verb(5, "Registered format '%s' (%s)\n", img->name, img->desc);
 	return 0;
 }
 
@@ -61,7 +61,7 @@ void ast_image_unregister(struct ast_imager *img)
 	AST_RWLIST_UNLOCK(&imagers);
 
 	if (img)
-		ast_verb(2, "Unregistered format '%s' (%s)\n", img->name, img->desc);
+		ast_verb(5, "Unregistered format '%s' (%s)\n", img->name, img->desc);
 }
 
 int ast_supports_images(struct ast_channel *chan)

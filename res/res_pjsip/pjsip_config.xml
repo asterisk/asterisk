@@ -385,8 +385,8 @@
 						setup time.
 						</para>
 						<para>
-						A more detailed description of how this option functions can be found on
-						the Asterisk wiki https://wiki.asterisk.org/wiki/display/AST/SIP+Direct+Media+Reinvite+Glare+Avoidance
+						A more detailed description of how this option functions can be found in
+						the Asterisk documentation https://docs.asterisk.org/Configuration/Channel-Drivers/SIP/Concepts/SIP-Direct-Media-Reinvite-Glare-Avoidance/
 						</para>
 						<enumlist>
 							<enum name="none" />
@@ -555,6 +555,22 @@
 								documentation for the <literal>identify</literal>
 								configuration section for more details on this method of
 								endpoint identification.
+								</para>
+							</enum>
+							<enum name="request_uri">
+								<para>Matches the endpoint based on the configured SIP
+								request uri.
+								</para>
+								<para>This method of identification is not configured here
+								but simply allowed by this configuration option.
+								</para>
+							</enum>
+							<enum name="transport">
+								<para>Matches the endpoint based on the destination IP
+								address.
+								</para>
+								<para>This method of identification is not configured here
+								but simply allowed by this configuration option.
 								</para>
 							</enum>
 						</enumlist>
@@ -984,25 +1000,25 @@
 				<configOption name="tos_audio">
 					<synopsis>DSCP TOS bits for audio streams</synopsis>
 					<description><para>
-						See https://wiki.asterisk.org/wiki/display/AST/IP+Quality+of+Service for more information about QoS settings
+						See https://docs.asterisk.org/Configuration/Channel-Drivers/IP-Quality-of-Service for more information about QoS settings
 					</para></description>
 				</configOption>
 				<configOption name="tos_video">
 					<synopsis>DSCP TOS bits for video streams</synopsis>
 					<description><para>
-						See https://wiki.asterisk.org/wiki/display/AST/IP+Quality+of+Service for more information about QoS settings
+						See https://docs.asterisk.org/Configuration/Channel-Drivers/IP-Quality-of-Service for more information about QoS settings
 					</para></description>
 				</configOption>
 				<configOption name="cos_audio">
 					<synopsis>Priority for audio streams</synopsis>
 					<description><para>
-						See https://wiki.asterisk.org/wiki/display/AST/IP+Quality+of+Service for more information about QoS settings
+						See https://docs.asterisk.org/Configuration/Channel-Drivers/IP-Quality-of-Service for more information about QoS settings
 					</para></description>
 				</configOption>
 				<configOption name="cos_video">
 					<synopsis>Priority for video streams</synopsis>
 					<description><para>
-						See https://wiki.asterisk.org/wiki/display/AST/IP+Quality+of+Service for more information about QoS settings
+						See https://docs.asterisk.org/Configuration/Channel-Drivers/IP-Quality-of-Service for more information about QoS settings
 					</para></description>
 				</configOption>
 				<configOption name="allow_subscribe" default="yes">
@@ -1747,6 +1763,8 @@
 				<configOption name="method">
 					<synopsis>Method of SSL transport (TLS ONLY, not WSS)</synopsis>
 					<description>
+						<para>The availability of each of these options is dependent on the
+						version and configuration of the underlying PJSIP library.</para>
 						<enumlist>
 							<enum name="default">
 								<para>The default as defined by PJSIP. This is currently TLSv1, but may change with future releases.</para>
@@ -1757,6 +1775,7 @@
 							<enum name="tlsv1" />
 							<enum name="tlsv1_1" />
 							<enum name="tlsv1_2" />
+							<enum name="tlsv1_3" />
 							<enum name="sslv2" />
 							<enum name="sslv3" />
 							<enum name="sslv23" />
@@ -1795,6 +1814,30 @@
 				<configOption name="require_client_cert" default="false">
 					<synopsis>Require client certificate (TLS ONLY, not WSS)</synopsis>
 				</configOption>
+				<configOption name="tcp_keepalive_enable" default="no">
+					<synopsis>Enable TCP keepalive</synopsis>
+					<description><para>
+						When set to 'yes', TCP keepalive messages are sent to verify that the endpoint is still reachable. This can help detect dead TCP connections in environments where connections may be silently dropped (e.g., NAT timeouts).
+					</para></description>
+				</configOption>
+				<configOption name="tcp_keepalive_idle_time" default="30">
+					<synopsis>Idle time before the first TCP keepalive probe is sent</synopsis>
+					<description><para>
+						Specifies the amount of time in seconds that the connection must be idle before the first TCP keepalive probe is sent. An idle connection is defined as a connection in which no data has been sent or received by the application.
+					</para></description>
+				</configOption>
+				<configOption name="tcp_keepalive_interval_time" default="10">
+					<synopsis>Interval between TCP keepalive probes</synopsis>
+					<description><para>
+						Specifies the interval in seconds between individual TCP keepalive probes, once the first probe is sent. This interval is used for subsequent probes if the peer does not respond to the previous probe.
+					</para></description>
+				</configOption>
+				<configOption name="tcp_keepalive_probe_count" default="5">
+					<synopsis>Maximum number of TCP keepalive probes</synopsis>
+					<description><para>
+						Specifies the maximum number of TCP keepalive probes to send before considering the connection dead and notifying the application. If the peer does not respond after this many probes, the connection is considered broken.
+					</para></description>
+				</configOption>
 				<configOption name="type">
 					<synopsis>Must be of type 'transport'.</synopsis>
 				</configOption>
@@ -1807,7 +1850,7 @@
 				<configOption name="tos" default="false">
 					<synopsis>Enable TOS for the signalling sent over this transport</synopsis>
 					<description>
-					<para>See <literal>https://wiki.asterisk.org/wiki/display/AST/IP+Quality+of+Service</literal>
+					<para>See <literal>https://docs.asterisk.org/Configuration/Channel-Drivers/IP-Quality-of-Service</literal>
 					for more information on this parameter.</para>
 					<note><para>This option does not apply to the <replaceable>ws</replaceable>
 					or the <replaceable>wss</replaceable> protocols.</para></note>
@@ -1816,7 +1859,7 @@
 				<configOption name="cos" default="false">
 					<synopsis>Enable COS for the signalling sent over this transport</synopsis>
 					<description>
-					<para>See <literal>https://wiki.asterisk.org/wiki/display/AST/IP+Quality+of+Service</literal>
+					<para>See <literal>https://docs.asterisk.org/Configuration/Channel-Drivers/IP-Quality-of-Service</literal>
 					for more information on this parameter.</para>
 					<note><para>This option does not apply to the <replaceable>ws</replaceable>
 					or the <replaceable>wss</replaceable> protocols.</para></note>
@@ -1897,7 +1940,8 @@
 					<synopsis>Timeout for qualify</synopsis>
 					<description><para>
 						If the contact doesn't respond to the OPTIONS request before the timeout,
-						the contact is marked unavailable.
+						the contact is marked unavailable. This includes time spent performing
+						any required DNS lookup(s) prior to sending the OPTIONS.
 						If <literal>0</literal> no timeout. Time in fractional seconds.
 					</para></description>
 				</configOption>
@@ -2122,7 +2166,8 @@
 					<synopsis>Timeout for qualify</synopsis>
 					<description><para>
 						If the contact doesn't respond to the OPTIONS request before the timeout,
-						the contact is marked unavailable.
+						the contact is marked unavailable. This includes time spent performing
+						any required DNS lookup(s) prior to sending the OPTIONS.
 						If <literal>0</literal> no timeout. Time in fractional seconds.
 					</para></description>
 				</configOption>

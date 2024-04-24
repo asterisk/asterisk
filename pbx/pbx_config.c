@@ -104,6 +104,8 @@ static int clearglobalvars_config = 0;
 static int extenpatternmatchnew_config = 0;
 static char *overrideswitch_config = NULL;
 
+static struct stasis_subscription *fully_booted_subscription;
+
 AST_MUTEX_DEFINE_STATIC(save_dialplan_lock);
 
 AST_MUTEX_DEFINE_STATIC(reload_lock);
@@ -1633,6 +1635,8 @@ static int unload_module(void)
 	ast_manager_unregister(AMI_EXTENSION_REMOVE);
 	ast_context_destroy(NULL, registrar);
 
+	stasis_unsubscribe_and_join(fully_booted_subscription);
+
 	return 0;
 }
 
@@ -1974,6 +1978,27 @@ static void append_interface(char *iface, int maxlen, char *add)
 	}
 }
 
+static void startup_event_cb(void *data, struct stasis_subscription *sub, struct stasis_message *message)
+{
+	struct ast_json_payload *payload;
+	const char *type;
+
+	if (stasis_message_type(message) != ast_manager_get_generic_type()) {
+		return;
+	}
+
+	payload = stasis_message_data(message);
+	type = ast_json_string_get(ast_json_object_get(payload->json, "type"));
+
+	if (strcmp(type, "FullyBooted")) {
+		return;
+	}
+
+	ast_log(LOG_WARNING, "users.conf is deprecated and will be removed in a future version of Asterisk\n");
+
+	fully_booted_subscription = stasis_unsubscribe(fully_booted_subscription);
+}
+
 static void pbx_load_users(void)
 {
 	struct ast_config *cfg;
@@ -1993,6 +2018,10 @@ static void pbx_load_users(void)
 	cfg = ast_config_load("users.conf", config_flags);
 	if (!cfg)
 		return;
+
+	/*! \todo Remove users.conf support in Asterisk 23 */
+	fully_booted_subscription =
+		stasis_subscribe_pool(ast_manager_get_topic(), startup_event_cb, NULL);
 
 	for (cat = ast_category_browse(cfg, NULL); cat ; cat = ast_category_browse(cfg, cat)) {
 		if (!strcasecmp(cat, "general"))

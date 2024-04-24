@@ -2,7 +2,7 @@
 ; Static and realtime external configuration
 ; engine configuration
 ;
-; See https://wiki.asterisk.org/wiki/display/AST/Realtime+Database+Configuration
+; See https://docs.asterisk.org/Fundamentals/Asterisk-Configuration/Database-Support-Configuration/Realtime-Database-Configuration/
 ; for basic table formatting information.
 ;
 [settings]
@@ -84,6 +84,7 @@
 ;ps_outbound_publishes => odbc,asterisk
 ;ps_inbound_publications = odbc,asterisk
 ;ps_asterisk_publications = odbc,asterisk
+;stir_tn => odbc,asterisk
 ;voicemail => odbc,asterisk
 ;extensions => odbc,asterisk
 ;meetme => mysql,general

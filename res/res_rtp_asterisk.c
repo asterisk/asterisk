@@ -47,7 +47,6 @@
 #include <math.h>
 
 #ifdef HAVE_OPENSSL
-#define OPENSSL_SUPPRESS_DEPRECATED 1
 #include <openssl/opensslconf.h>
 #include <openssl/opensslv.h>
 #if !defined(OPENSSL_NO_SRTP) && (OPENSSL_VERSION_NUMBER >= 0x10001000L)
@@ -1552,7 +1551,7 @@ static void rtp_ioqueue_thread_remove(struct ast_rtp_ioqueue_thread *ioqueue)
 
 	/* If nothing is using this ioqueue thread destroy it */
 	AST_LIST_LOCK(&ioqueues);
-	if ((ioqueue->count - 2) == 0) {
+	if ((ioqueue->count -= 2) == 0) {
 		destroy = 1;
 		AST_LIST_REMOVE(&ioqueues, ioqueue, next);
 	}
@@ -1902,7 +1901,7 @@ static int dtls_setup_rtcp(struct ast_rtp_instance *instance)
 
 static const SSL_METHOD *get_dtls_method(void)
 {
-#if OPENSSL_VERSION_NUMBER < 0x10002000L || defined(LIBRESSL_VERSION_NUMBER)
+#if OPENSSL_VERSION_NUMBER < 0x10002000L
 	return DTLSv1_method();
 #else
 	return DTLS_method();
@@ -1914,6 +1913,32 @@ struct dtls_cert_info {
 	X509 *certificate;
 };
 
+static int apply_dh_params(SSL_CTX *ctx, BIO *bio)
+{
+	int res = 0;
+
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+	EVP_PKEY *dhpkey = PEM_read_bio_Parameters(bio, NULL);
+	if (dhpkey && EVP_PKEY_is_a(dhpkey, "DH")) {
+		res = SSL_CTX_set0_tmp_dh_pkey(ctx, dhpkey);
+	}
+	if (!res) {
+		/* A successful call to SSL_CTX_set0_tmp_dh_pkey() means
+		   that we lost ownership of dhpkey and should not free
+		   it ourselves */
+		EVP_PKEY_free(dhpkey);
+	}
+#else
+	DH *dh = PEM_read_bio_DHparams(bio, NULL, NULL, NULL);
+	if (dh) {
+		res = SSL_CTX_set_tmp_dh(ctx, dh);
+	}
+	DH_free(dh);
+#endif
+
+	return res;
+}
+
 static void configure_dhparams(const struct ast_rtp *rtp, const struct ast_rtp_dtls_cfg *dtls_cfg)
 {
 #if !defined(OPENSSL_NO_ECDH) && (OPENSSL_VERSION_NUMBER >= 0x10000000L) && (OPENSSL_VERSION_NUMBER < 0x10100000L)
@@ -1924,15 +1949,11 @@ static void configure_dhparams(const struct ast_rtp *rtp, const struct ast_rtp_d
 	if (!ast_strlen_zero(dtls_cfg->pvtfile)) {
 		BIO *bio = BIO_new_file(dtls_cfg->pvtfile, "r");
 		if (bio) {
-			DH *dh = PEM_read_bio_DHparams(bio, NULL, NULL, NULL);
-			if (dh) {
-				if (SSL_CTX_set_tmp_dh(rtp->ssl_ctx, dh)) {
-					long options = SSL_OP_CIPHER_SERVER_PREFERENCE |
-						SSL_OP_SINGLE_DH_USE | SSL_OP_SINGLE_ECDH_USE;
-					options = SSL_CTX_set_options(rtp->ssl_ctx, options);
-					ast_verb(2, "DTLS DH initialized, PFS enabled\n");
-				}
-				DH_free(dh);
+			if (apply_dh_params(rtp->ssl_ctx, bio)) {
+				long options = SSL_OP_CIPHER_SERVER_PREFERENCE |
+					SSL_OP_SINGLE_DH_USE | SSL_OP_SINGLE_ECDH_USE;
+				options = SSL_CTX_set_options(rtp->ssl_ctx, options);
+				ast_verb(2, "DTLS DH initialized, PFS enabled\n");
 			}
 			BIO_free(bio);
 		}
@@ -1963,6 +1984,10 @@ static void configure_dhparams(const struct ast_rtp *rtp, const struct ast_rtp_d
 
 static int create_ephemeral_ec_keypair(EVP_PKEY **keypair)
 {
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+	*keypair = EVP_EC_gen(SN_X9_62_prime256v1);
+	return *keypair ? 0 : -1;
+#else
 	EC_KEY *eckey = NULL;
 	EC_GROUP *group = NULL;
 
@@ -2002,6 +2027,7 @@ error:
 	EC_GROUP_free(group);
 
 	return -1;
+#endif
 }
 
 /* From OpenSSL's x509 command */
@@ -2029,8 +2055,11 @@ static int create_ephemeral_certificate(EVP_PKEY *keypair, X509 **certificate)
 	if (!(serial = BN_new())
 	   || !BN_rand(serial, SERIAL_RAND_BITS, -1, 0)
 	   || !BN_to_ASN1_INTEGER(serial, X509_get_serialNumber(cert))) {
+		BN_free(serial);
 		goto error;
 	}
+
+	BN_free(serial);
 
 	/*
 	 * Validity period - Current Chrome & Firefox make it 31 days starting
@@ -2066,7 +2095,6 @@ static int create_ephemeral_certificate(EVP_PKEY *keypair, X509 **certificate)
 	return 0;
 
 error:
-	BN_free(serial);
 	X509_free(cert);
 
 	return -1;
@@ -3178,6 +3206,59 @@ static int __rtp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t s
 		}
 
 		ast_debug_dtls(3, "(%p) DTLS - __rtp_recvfrom rtp=%p - Got SSL packet '%d'\n", instance, rtp, *in);
+
+		/*
+		 * If ICE is in use, we can prevent a possible DOS attack
+		 * by allowing DTLS protocol messages (client hello, etc)
+		 * only from sources that are in the active remote
+		 * candidates list.
+		 */
+
+#ifdef HAVE_PJPROJECT
+		if (rtp->ice) {
+			int pass_src_check = 0;
+			int ix = 0;
+
+			/*
+			 * You'd think that this check would cause a "deadlock"
+			 * because ast_rtp_ice_start_media calls dtls_perform_handshake
+			 * before it sets ice_media_started = 1 so how can we do a
+			 * handshake if we're dropping packets before we send them
+			 * to openssl.  Fortunately, dtls_perform_handshake just sets
+			 * up openssl to do the handshake and doesn't actually perform it
+			 * itself and the locking prevents __rtp_recvfrom from
+			 * running before the ice_media_started flag is set.  So only
+			 * unexpected DTLS packets can get dropped here.
+			 */
+			if (!rtp->ice_media_started) {
+				ast_log(LOG_WARNING, "%s: DTLS packet from %s dropped. ICE not completed yet.\n",
+					ast_rtp_instance_get_channel_id(instance),
+					ast_sockaddr_stringify(sa));
+				return 0;
+			}
+
+			/*
+			 * If we got this far, then there have to be candidates.
+			 * We have to use pjproject's rcands because they may have
+			 * peer reflexive candidates that our ice_active_remote_candidates
+			 * won't.
+			 */
+			for (ix = 0; ix < rtp->ice->real_ice->rcand_cnt; ix++) {
+				pj_ice_sess_cand *rcand = &rtp->ice->real_ice->rcand[ix];
+				if (ast_sockaddr_pj_sockaddr_cmp(sa, &rcand->addr) == 0) {
+					pass_src_check = 1;
+					break;
+				}
+			}
+
+			if (!pass_src_check) {
+				ast_log(LOG_WARNING, "%s: DTLS packet from %s dropped. Source not in ICE active candidate list.\n",
+					ast_rtp_instance_get_channel_id(instance),
+					ast_sockaddr_stringify(sa));
+				return 0;
+			}
+		}
+#endif
 
 		/*
 		 * A race condition is prevented between dtls_perform_handshake()
@@ -4901,9 +4982,7 @@ static int ast_rtcp_write(const void *data)
 	struct ast_sockaddr remote_address = { { 0, } };
 	unsigned char *rtcpheader;
 	unsigned char bdata[AST_UUID_STR_LEN + 128] = ""; /* More than enough */
-	RAII_VAR(struct ast_rtp_rtcp_report *, rtcp_report,
-			ast_rtp_rtcp_report_alloc(rtp->themssrc_valid ? 1 : 0),
-			ao2_cleanup);
+	RAII_VAR(struct ast_rtp_rtcp_report *, rtcp_report, NULL, ao2_cleanup);
 
 	if (!rtp || !rtp->rtcp || rtp->rtcp->schedid == -1) {
 		ao2_ref(instance, -1);
@@ -4912,7 +4991,7 @@ static int ast_rtcp_write(const void *data)
 
 	ao2_lock(instance);
 	rtcpheader = bdata;
-
+	rtcp_report = ast_rtp_rtcp_report_alloc(rtp->themssrc_valid ? 1 : 0);
 	res = ast_rtcp_generate_compound_prefix(instance, rtcpheader, rtcp_report, &sr);
 
 	if (res == 0 || res == 1) {
@@ -5246,9 +5325,7 @@ static void rtp_write_rtcp_fir(struct ast_rtp_instance *instance, struct ast_rtp
 	int ice;
 	int res;
 	int sr;
-	RAII_VAR(struct ast_rtp_rtcp_report *, rtcp_report,
-		ast_rtp_rtcp_report_alloc(rtp->themssrc_valid ? 1 : 0),
-		ao2_cleanup);
+	RAII_VAR(struct ast_rtp_rtcp_report *, rtcp_report, NULL, ao2_cleanup);
 
 	if (!rtp || !rtp->rtcp) {
 		return;
@@ -5275,6 +5352,7 @@ static void rtp_write_rtcp_fir(struct ast_rtp_instance *instance, struct ast_rtp
 	rtcpheader = bdata;
 
 	ao2_lock(instance);
+	rtcp_report = ast_rtp_rtcp_report_alloc(rtp->themssrc_valid ? 1 : 0);
 	res = ast_rtcp_generate_compound_prefix(instance, rtcpheader, rtcp_report, &sr);
 
 	if (res == 0 || res == 1) {
@@ -5309,9 +5387,7 @@ static void rtp_write_rtcp_psfb(struct ast_rtp_instance *instance, struct ast_rt
 	int res;
 	int sr = 0;
 	int packet_len = 0;
-	RAII_VAR(struct ast_rtp_rtcp_report *, rtcp_report,
-		ast_rtp_rtcp_report_alloc(rtp->themssrc_valid ? 1 : 0),
-		ao2_cleanup);
+	RAII_VAR(struct ast_rtp_rtcp_report *, rtcp_report, NULL, ao2_cleanup);
 
 	if (feedback->fmt != AST_RTP_RTCP_FMT_REMB) {
 		ast_debug_rtcp(1, "(%p) RTCP provided feedback frame of format %d to write, but only REMB is supported\n",
@@ -5340,6 +5416,7 @@ static void rtp_write_rtcp_psfb(struct ast_rtp_instance *instance, struct ast_rt
 	rtcpheader = bdata;
 
 	ao2_lock(instance);
+	rtcp_report = ast_rtp_rtcp_report_alloc(rtp->themssrc_valid ? 1 : 0);
 	res = ast_rtcp_generate_compound_prefix(instance, rtcpheader, rtcp_report, &sr);
 
 	if (res == 0 || res == 1) {
@@ -6163,7 +6240,7 @@ static double calc_media_experience_score(struct ast_rtp_instance *instance,
 	} else if (r_value > 100) {
 		pseudo_mos = 4.5;
 	} else {
-		pseudo_mos = 1 + (0.035 * r_value) + (r_value * (r_value - 60) * (100 - r_value) * 0.0000007);
+		pseudo_mos = 1 + (0.035 * r_value) + (r_value * (r_value - 60) * (100 - r_value) * 0.000007);
 	}
 
 	/*

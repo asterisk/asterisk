@@ -53,6 +53,7 @@ struct callerid_state {
 	char name[64];
 	char number[64];
 	int flags;
+	int redirecting;
 	int sawflag;
 	int len;
 
@@ -185,17 +186,26 @@ struct callerid_state *callerid_new(int cid_signalling)
 	return cid;
 }
 
-void callerid_get(struct callerid_state *cid, char **name, char **number, int *flags)
+void callerid_get_with_redirecting(struct callerid_state *cid, char **name, char **number, int *flags, int *redirecting)
 {
 	*flags = cid->flags;
-	if (cid->flags & (CID_UNKNOWN_NAME | CID_PRIVATE_NAME))
+	if (cid->flags & (CID_UNKNOWN_NAME | CID_PRIVATE_NAME)) {
 		*name = NULL;
-	else
+	} else {
 		*name = cid->name;
-	if (cid->flags & (CID_UNKNOWN_NUMBER | CID_PRIVATE_NUMBER))
+	}
+	if (cid->flags & (CID_UNKNOWN_NUMBER | CID_PRIVATE_NUMBER)) {
 		*number = NULL;
-	else
+	} else {
 		*number = cid->number;
+	}
+	*redirecting = cid->redirecting;
+}
+
+void callerid_get(struct callerid_state *cid, char **name, char **number, int *flags)
+{
+	int redirecting;
+	return callerid_get_with_redirecting(cid, name, number, flags, &redirecting);
 }
 
 void callerid_get_dtmf(char *cidstring, char *number, int *flags)
@@ -541,6 +551,21 @@ int callerid_feed_jp(struct callerid_state *cid, unsigned char *ubuf, int len, s
 	return 0;
 }
 
+static const char *mdmf_param_name(int param)
+{
+	switch (param) {
+	case 0x1: return "Date/Time";
+	case 0x2: return "Caller Number";
+	case 0x3: return "DNIS";
+	case 0x4: return "Reason For Absence of Number";
+	case 0x5: return "Reason For Redirection";
+	case 0x6: return "Call Qualifier";
+	case 0x7: return "Name";
+	case 0x8: return "Reason For Absence of Name";
+	case 0xB: return "Message Waiting";
+	default: return "Unknown";
+	}
+}
 
 int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len, struct ast_format *codec)
 {
@@ -631,18 +656,41 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len, stru
 				cid->name[0] = '\0';
 				/* Update flags */
 				cid->flags = 0;
+				cid->redirecting = 0;
 				/* If we get this far we're fine.  */
 				if ((cid->type == 0x80) || (cid->type == 0x82)) {
 					/* MDMF */
+					ast_debug(6, "%s Caller*ID spill received\n", cid->type == 0x80 ? "MDMF" : "MDMF Message Waiting");
 					/* Go through each element and process */
 					for (x = 0; x < cid->pos;) {
-						switch (cid->rawdata[x++]) {
+						int param = cid->rawdata[x++];
+						ast_debug(7, "Caller*ID parameter %d (%s), length %d\n", param, mdmf_param_name(param), cid->rawdata[x]);
+						switch (param) {
 						case 1:
-							/* Date */
+							/* Date/Time... in theory we could synchronize our time according to the Caller*ID,
+							 * but it would be silly for a telephone switch to do that. */
 							break;
+						/* For MDMF spills, we would expect to get an "O" or a "P"
+						 * for paramter 4 (or 8) as opposed to 2 (or 7) to indicate
+						 * a blocked or out of area presentation.
+						 * However, for SDMF, which doesn't have parameters,
+						 * there is no differentiation, which is why the logic below
+						 * just checks the number and name field and here, we use the same
+						 * parsing logic for both parameters. Technically, it would be wrong
+						 * to receive an 'O' or 'P' for parameters 2 or 7 and treat it as
+						 * the reason for absence fields, but that is not likely to happen,
+						 * and if it did, could possibly be buggy Caller ID generation we would
+						 * want to treat the same way, anyways.
+						 *
+						 * The "Dialable Directory Number" is how the number would be called back.
+						 * Asterisk doesn't really have a corresponding thing for this,
+						 * so log it if we get it for debugging, but treat the same otherwise.
+						 */
+						case 3: /* Dialable Directory Number / Number (for Zebble) */
+							ast_debug(3, "Caller*ID Dialable Directory Number: '%.*s'\n", cid->rawdata[x], cid->rawdata + x + 1);
+							/* Fall through */
 						case 2: /* Number */
-						case 3: /* Number (for Zebble) */
-						case 4: /* Number */
+						case 4: /* Reason for Absence of Number. */
 							res = cid->rawdata[x];
 							if (res > 32) {
 								ast_log(LOG_NOTICE, "Truncating long caller ID number from %d bytes to 32\n", cid->rawdata[x]);
@@ -654,10 +702,43 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len, stru
 								cid->number[res] = '\0';
 							}
 							break;
+						case 5: /* Reason for Redirection */
+							res = cid->rawdata[x];
+							if (res != 1) {
+								ast_log(LOG_WARNING, "Redirecting parameter length is %d?\n", res);
+								break;
+							}
+							switch (*(cid->rawdata + x + 1)) {
+							case 0x1:
+								cid->redirecting = AST_REDIRECTING_REASON_USER_BUSY;
+								break;
+							case 0x2:
+								cid->redirecting = AST_REDIRECTING_REASON_NO_ANSWER;
+								break;
+							case 0x3:
+								cid->redirecting = AST_REDIRECTING_REASON_UNCONDITIONAL;
+								break;
+							case 0x4:
+								cid->redirecting = AST_REDIRECTING_REASON_CALL_FWD_DTE;
+								break;
+							case 0x5:
+								cid->redirecting = AST_REDIRECTING_REASON_DEFLECTION;
+								break;
+							default:
+								ast_log(LOG_WARNING, "Redirecting reason is %02x?\n", *(cid->rawdata + x + 1));
+								break;
+							}
+							break;
 						case 6: /* Stentor Call Qualifier (ie. Long Distance call) */
+							res = cid->rawdata[x];
+							if (res == 1 && *(cid->rawdata + x + 1) == 'L') {
+								cid->flags |= CID_QUALIFIER;
+							} else if (res >= 1) {
+								ast_debug(2, "Invalid value (len %d) received for Call Qualifier: '%c'\n", res, *(cid->rawdata + x + 1));
+							}
 							break;
 						case 7: /* Name */
-						case 8: /* Name */
+						case 8: /* Reason for Absence of Name */
 							res = cid->rawdata[x];
 							if (res > 32) {
 								ast_log(LOG_NOTICE, "Truncating long caller ID name from %d bytes to 32\n", cid->rawdata[x]);
@@ -692,6 +773,7 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len, stru
 					}
 				} else if (cid->type == 0x6) {
 					/* VMWI SDMF */
+					ast_debug(6, "VMWI SDMF Caller*ID spill received\n");
 					if (cid->rawdata[2] == 0x42) {
 						cid->flags |= CID_MSGWAITING;
 					} else if (cid->rawdata[2] == 0x6f) {
@@ -699,21 +781,38 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len, stru
 					}
 				} else {
 					/* SDMF */
+					ast_debug(6, "SDMF Caller*ID spill received\n");
 					ast_copy_string(cid->number, cid->rawdata + 8, sizeof(cid->number));
 				}
 				if (!strcmp(cid->number, "P")) {
+					ast_debug(6, "Caller*ID number is private\n");
 					strcpy(cid->number, "");
 					cid->flags |= CID_PRIVATE_NUMBER;
-				} else if (!strcmp(cid->number, "O") || ast_strlen_zero(cid->number)) {
+				} else if (!strcmp(cid->number, "O")) {
+					ast_debug(6, "Caller*ID number is out of area\n");
 					strcpy(cid->number, "");
 					cid->flags |= CID_UNKNOWN_NUMBER;
+				} else if (ast_strlen_zero(cid->number)) {
+					ast_debug(6, "No Caller*ID number provided, and no reason provided for its absence\n");
+					strcpy(cid->number, "");
+					cid->flags |= CID_UNKNOWN_NUMBER;
+				} else {
+					ast_debug(6, "Caller*ID number is '%s'\n", cid->number);
 				}
 				if (!strcmp(cid->name, "P")) {
+					ast_debug(6, "Caller*ID name is private\n");
 					strcpy(cid->name, "");
 					cid->flags |= CID_PRIVATE_NAME;
-				} else if (!strcmp(cid->name, "O") || ast_strlen_zero(cid->name)) {
+				} else if (!strcmp(cid->name, "O")) {
+					ast_debug(6, "Caller*ID name is out of area\n");
 					strcpy(cid->name, "");
 					cid->flags |= CID_UNKNOWN_NAME;
+				} else if (ast_strlen_zero(cid->name)) {
+					ast_debug(6, "No Caller*ID name provided, and no reason provided for its absence\n");
+					strcpy(cid->name, "");
+					cid->flags |= CID_UNKNOWN_NAME;
+				} else {
+					ast_debug(6, "Caller*ID name is '%s'\n", cid->name);
 				}
 				return 1;
 				break;

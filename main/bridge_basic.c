@@ -3288,10 +3288,17 @@ static struct ast_channel *dial_transfer(struct ast_channel *caller, const char 
 {
 	struct ast_channel *chan;
 	int cause;
+	struct ast_format_cap *caps;
+
+	ast_channel_lock(caller);
+	caps = ao2_bump(ast_channel_nativeformats(caller));
+	ast_channel_unlock(caller);
 
 	/* Now we request a local channel to prepare to call the destination */
-	chan = ast_request("Local", ast_channel_nativeformats(caller), NULL, caller, destination,
-		&cause);
+	chan = ast_request("Local", caps, NULL, caller, destination, &cause);
+
+	ao2_cleanup(caps);
+
 	if (!chan) {
 		return NULL;
 	}

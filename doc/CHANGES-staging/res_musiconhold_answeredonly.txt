@@ -1,4 +1,0 @@
-Subject: res_musiconhold_answeredonly
-
-This change adds an option, answeredonly, that will prevent music
-on hold on channels that are not answered.

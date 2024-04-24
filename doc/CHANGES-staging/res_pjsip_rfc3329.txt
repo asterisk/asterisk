@@ -1,6 +1,0 @@
-Subject: res_pjsip
-
-Added options "security_negotiation" and "security_mechanisms" to pjsip
-endpoints and registrations. "security_negotiation" can be set to "no" (default)
-or "mediasec", and "security_mechanisms" can be a list of comma-separated
-security_mechanisms in the form defined by RFC 3329 section 2.2.

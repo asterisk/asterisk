@@ -18,176 +18,241 @@
 #ifndef _RES_STIR_SHAKEN_H
 #define _RES_STIR_SHAKEN_H
 
-#define STIR_SHAKEN_ENCRYPTION_ALGORITHM "ES256"
-#define STIR_SHAKEN_PPT "shaken"
-#define STIR_SHAKEN_TYPE "passport"
+#include "asterisk/sorcery.h"
 
-enum ast_stir_shaken_verification_result {
-	AST_STIR_SHAKEN_VERIFY_NOT_PRESENT, /*! No STIR/SHAKEN information was available */
-	AST_STIR_SHAKEN_VERIFY_SIGNATURE_FAILED, /*! Signature verification failed */
-	AST_STIR_SHAKEN_VERIFY_MISMATCH, /*! Contents of the signaling and the STIR/SHAKEN payload did not match */
-	AST_STIR_SHAKEN_VERIFY_PASSED, /*! Signature verified and contents match signaling */
+enum ast_stir_shaken_vs_response_code {
+	AST_STIR_SHAKEN_VS_SUCCESS = 0,
+	AST_STIR_SHAKEN_VS_DISABLED,
+	AST_STIR_SHAKEN_VS_INVALID_ARGUMENTS,
+	AST_STIR_SHAKEN_VS_INTERNAL_ERROR,
+	AST_STIR_SHAKEN_VS_NO_IDENTITY_HDR,
+	AST_STIR_SHAKEN_VS_NO_DATE_HDR,
+	AST_STIR_SHAKEN_VS_DATE_HDR_PARSE_FAILURE,
+	AST_STIR_SHAKEN_VS_DATE_HDR_EXPIRED,
+	AST_STIR_SHAKEN_VS_NO_JWT_HDR,
+	AST_STIR_SHAKEN_VS_INVALID_OR_NO_X5U,
+	AST_STIR_SHAKEN_VS_CERT_CACHE_MISS,
+	AST_STIR_SHAKEN_VS_CERT_CACHE_INVALID,
+	AST_STIR_SHAKEN_VS_CERT_CACHE_EXPIRED,
+	AST_STIR_SHAKEN_VS_CERT_RETRIEVAL_FAILURE,
+	AST_STIR_SHAKEN_VS_CERT_CONTENTS_INVALID,
+	AST_STIR_SHAKEN_VS_CERT_NOT_TRUSTED,
+	AST_STIR_SHAKEN_VS_CERT_DATE_INVALID,
+	AST_STIR_SHAKEN_VS_CERT_NO_TN_AUTH_EXT,
+	AST_STIR_SHAKEN_VS_CERT_NO_SPC_IN_TN_AUTH_EXT,
+	AST_STIR_SHAKEN_VS_NO_RAW_KEY,
+	AST_STIR_SHAKEN_VS_SIGNATURE_VALIDATION,
+	AST_STIR_SHAKEN_VS_NO_IAT,
+	AST_STIR_SHAKEN_VS_IAT_EXPIRED,
+	AST_STIR_SHAKEN_VS_INVALID_OR_NO_PPT,
+	AST_STIR_SHAKEN_VS_INVALID_OR_NO_ALG,
+	AST_STIR_SHAKEN_VS_INVALID_OR_NO_TYP,
+	AST_STIR_SHAKEN_VS_INVALID_OR_NO_GRANTS,
+	AST_STIR_SHAKEN_VS_INVALID_OR_NO_ATTEST,
+	AST_STIR_SHAKEN_VS_NO_ORIGID,
+	AST_STIR_SHAKEN_VS_NO_ORIG_TN,
+	AST_STIR_SHAKEN_VS_CID_ORIG_TN_MISMATCH,
+	AST_STIR_SHAKEN_VS_NO_DEST_TN,
+	AST_STIR_SHAKEN_VS_INVALID_HEADER,
+	AST_STIR_SHAKEN_VS_INVALID_GRANT,
+	AST_STIR_SHAKEN_VS_RESPONSE_CODE_MAX
 };
 
-/*! Different from ast_stir_shaken_verification_result. Used to determine why ast_stir_shaken_verify returned NULL */
-enum ast_stir_shaken_verify_failure_reason {
-	AST_STIR_SHAKEN_VERIFY_FAILED_MEMORY_ALLOC, /*! Memory allocation failure */
-	AST_STIR_SHAKEN_VERIFY_FAILED_TO_GET_CERT, /*! Failed to get the credentials to verify */
-	AST_STIR_SHAKEN_VERIFY_FAILED_SIGNATURE_VALIDATION, /*! Failed validating the signature */
+enum ast_stir_shaken_as_response_code {
+	AST_STIR_SHAKEN_AS_SUCCESS = 0,
+	AST_STIR_SHAKEN_AS_DISABLED,
+	AST_STIR_SHAKEN_AS_INVALID_ARGUMENTS,
+	AST_STIR_SHAKEN_AS_MISSING_PARAMETERS,
+	AST_STIR_SHAKEN_AS_INTERNAL_ERROR,
+	AST_STIR_SHAKEN_AS_NO_TN_FOR_CALLERID,
+	AST_STIR_SHAKEN_AS_NO_PRIVATE_KEY_AVAIL,
+	AST_STIR_SHAKEN_AS_NO_PUBLIC_CERT_URL_AVAIL,
+	AST_STIR_SHAKEN_AS_NO_ATTEST_LEVEL,
+	AST_STIR_SHAKEN_AS_IDENTITY_HDR_EXISTS,
+	AST_STIR_SHAKEN_AS_NO_TO_HDR,
+	AST_STIR_SHAKEN_AS_TO_HDR_BAD_URI,
+	AST_STIR_SHAKEN_AS_SIGN_ENCODE_FAILURE,
+	AST_STIR_SHAKEN_AS_RESPONSE_CODE_MAX
 };
 
-struct ast_stir_shaken_payload;
+enum stir_shaken_failure_action_enum {
+	/*! Unknown value */
+	stir_shaken_failure_action_UNKNOWN = -1,
+	/*! Continue and let dialplan decide action */
+	stir_shaken_failure_action_CONTINUE = 0,
+	/*! Reject request with respone codes defined in RFC8224 */
+	stir_shaken_failure_action_REJECT_REQUEST,
+	/*! Continue but return a Reason header in next provisional response  */
+	stir_shaken_failure_action_CONTINUE_RETURN_REASON,
+	/*! Not set in config */
+	stir_shaken_failure_action_NOT_SET,
+};
 
-struct ast_acl_list;
-
-struct ast_json;
-
-/*!
- * \brief Retrieve the value for 'signature' from an ast_stir_shaken_payload
- *
- * \param payload The payload
- *
- * \retval The signature
- */
-unsigned char *ast_stir_shaken_payload_get_signature(const struct ast_stir_shaken_payload *payload);
-
-/*!
- * \brief Retrieve the value for 'public_cert_url' from an ast_stir_shaken_payload
- *
- * \param payload The payload
- *
- * \retval The public key URL
- */
-char *ast_stir_shaken_payload_get_public_cert_url(const struct ast_stir_shaken_payload *payload);
+struct ast_stir_shaken_as_ctx;
 
 /*!
- * \brief Retrieve the value for 'signature_timeout' from 'general' config object
+ * \brief Create Attestation Service Context
  *
- * \retval The signature timeout
+ * \param caller_id The caller_id for the outgoing call
+ * \param dest_tn Canonicalized destination tn
+ * \param chan The outgoing channel
+ * \param profile_name The profile name on the endpoint
+ *                     May be NULL.
+ * \param tag Identifying string to output in log and trace messages.
+ * \param ctxout Receives a pointer to the newly created context
+ *               The caller must release with ao2_ref or ao2_cleanup.
+
+ * \retval AST_STIR_SHAKEN_AS_SUCCESS if successful.
+ * \retval AST_STIR_SHAKEN_AS_DISABLED if attestation is disabled
+ *         by the endpoint itself, the profile or globally.
+ * \retval Other AST_STIR_SHAKEN_AS errors.
  */
-unsigned int ast_stir_shaken_get_signature_timeout(void);
+enum ast_stir_shaken_as_response_code
+	ast_stir_shaken_as_ctx_create(const char *caller_id,
+		const char *dest_tn, struct ast_channel *chan,
+		const char *profile_name,
+		const char *tag, struct ast_stir_shaken_as_ctx **ctxout);
 
 /*!
- * \brief Retrieve a stir_shaken_profile by id
+ * \brief Indicates if the AS context needs DTLS fingerprints
  *
- * \note The profile will need to be unref'd when not needed anymore
+ * \param ctx AS Context
  *
- * \param id The id of the stir_shaken_profile to get
- *
- * \retval stir_shaken_profile on success
- * \retval NULL on failure
+ * \retval 0 Not needed
+ * \retval 1 Needed
  */
-struct stir_shaken_profile *ast_stir_shaken_get_profile(const char *id);
+int ast_stir_shaken_as_ctx_wants_fingerprints(struct ast_stir_shaken_as_ctx *ctx);
 
 /*!
- * \brief Check if a stir_shaken_profile supports attestation
+ * \brief Add DTLS fingerprints to AS context
  *
- * \param profile The stir_shaken_profile to test
+ * \param ctx AS context
+ * \param alg Fingerprint algorithm ("sha-1" or "sha-256")
+ * \param fingerprint Fingerprint
  *
- * \retval 0 if not supported
- * \retval 1 if supported
+ * \retval AST_STIR_SHAKEN_AS_SUCCESS if successful
+ * \retval Other AST_STIR_SHAKEN_AS errors.
  */
-unsigned int ast_stir_shaken_profile_supports_attestation(const struct stir_shaken_profile *profile);
+enum ast_stir_shaken_as_response_code ast_stir_shaken_as_ctx_add_fingerprint(
+	struct ast_stir_shaken_as_ctx *ctx, const char *alg, const char *fingerprint);
 
 /*!
- * \brief Check if a stir_shaken_profile supports verification
+ * \brief Attest and return Identity header value
  *
- * \param profile The stir_shaken_profile to test
+ * \param ctx AS Context
+ * \param header Pointer to buffer to receive the header value
+ *               Must be freed with ast_free when done
  *
- * \retval 0 if not supported
- * \retval 1 if supported
+ * \retval AST_STIR_SHAKEN_AS_SUCCESS if successful
+ * \retval Other AST_STIR_SHAKEN_AS errors.
  */
-unsigned int ast_stir_shaken_profile_supports_verification(const struct stir_shaken_profile *profile);
+enum ast_stir_shaken_as_response_code ast_stir_shaken_attest(
+	struct ast_stir_shaken_as_ctx *ctx, char **header);
+
+
+struct ast_stir_shaken_vs_ctx;
+
+/*!
+ * \brief Create Verification Service context
+ *
+ * \param caller_id Incoming caller id
+ * \param chan Incoming channel
+ * \param profile_name The profile name on the endpoint
+ *                     May be NULL.
+ * \param endpoint_behavior Behavior associated to the specific
+ *                          endpoint
+ * \param tag Identifying string to output in log and trace messages.
+ * \param ctxout Receives a pointer to the newly created context
+ *               The caller must release with ao2_ref or ao2_cleanup.
+ *
+ * \retval AST_STIR_SHAKEN_VS_SUCCESS if successful.
+ * \retval AST_STIR_SHAKEN_VS_DISABLED if verification is disabled
+ *         by the endpoint itself, the profile or globally.
+ * \retval Other AST_STIR_SHAKEN_VS errors.
+ */
+enum ast_stir_shaken_vs_response_code
+	ast_stir_shaken_vs_ctx_create(const char *caller_id,
+		struct ast_channel *chan, const char *profile_name,
+		const char *tag, struct ast_stir_shaken_vs_ctx **ctxout);
+
+/*!
+ * \brief Sets response code on VS context
+ *
+ * \param ctx VS context
+ * \param vs_rc ast_stir_shaken_vs_response_code to set
+ */
+void ast_stir_shaken_vs_ctx_set_response_code(
+	struct ast_stir_shaken_vs_ctx *ctx,
+	enum ast_stir_shaken_vs_response_code vs_rc);
+
+/*!
+ * \brief Add the received Identity header value to the VS context
+ *
+ * \param ctx VS context
+ * \param identity_hdr Identity header value
+ *
+ * \retval AST_STIR_SHAKEN_VS_SUCCESS if successful
+ * \retval Other AST_STIR_SHAKEN_VS errors.
+ */
+enum ast_stir_shaken_vs_response_code
+	ast_stir_shaken_vs_ctx_add_identity_hdr(struct ast_stir_shaken_vs_ctx * ctx,
+	const char *identity_hdr);
+
+/*!
+ * \brief Add the received Date header value to the VS context
+ *
+ * \param ctx VS context
+ * \param date_hdr Date header value
+ *
+ * \retval AST_STIR_SHAKEN_VS_SUCCESS if successful
+ * \retval Other AST_STIR_SHAKEN_VS errors.
+ */
+enum ast_stir_shaken_vs_response_code
+	ast_stir_shaken_vs_ctx_add_date_hdr(struct ast_stir_shaken_vs_ctx * ctx,
+	const char *date_hdr);
+
+/*!
+ * \brief Get failure_action from context
+ *
+ * \param ctx VS context
+ *
+ * \retval ast_stir_shaken_failure_action
+ */
+enum stir_shaken_failure_action_enum
+	ast_stir_shaken_vs_get_failure_action(
+		struct ast_stir_shaken_vs_ctx *ctx);
+
+/*!
+ * \brief Get use_rfc9410_responses from context
+ *
+ * \param ctx VS context
+ *
+ * \retval 1 if true
+ * \retval 0 if false
+ */
+int	ast_stir_shaken_vs_get_use_rfc9410_responses(
+		struct ast_stir_shaken_vs_ctx *ctx);
 
 /*!
  * \brief Add a STIR/SHAKEN verification result to a channel
  *
- * \param chan The channel
- * \param identity The identity
- * \param attestation The attestation
- * \param result The verification result
+ * \param ctx VS context
  *
  * \retval -1 on failure
  * \retval 0 on success
  */
-int ast_stir_shaken_add_verification(struct ast_channel *chan, const char *identity, const char *attestation,
-	enum ast_stir_shaken_verification_result result);
+int ast_stir_shaken_add_result_to_channel(
+	struct ast_stir_shaken_vs_ctx *ctx);
 
 /*!
- * \brief Verify a JSON STIR/SHAKEN payload
+ * \brief Perform incoming call verification
  *
- * \param header The payload header
- * \param payload The payload section
- * \param signature The payload signature
- * \param algorithm The signature algorithm
- * \param public_cert_url The public key URL
+ * \param ctx VS context
  *
- * \retval ast_stir_shaken_payload on success
- * \retval NULL on failure
+ * \retval AST_STIR_SHAKEN_AS_SUCCESS if successful
+ * \retval Other AST_STIR_SHAKEN_AS errors.
  */
-struct ast_stir_shaken_payload *ast_stir_shaken_verify(const char *header, const char *payload, const char *signature,
-	const char *algorithm, const char *public_cert_url);
-
-/*!
- * \brief Same as ast_stir_shaken_verify, but will populate a struct with additional information on failure
- *
- * \note failure_code will be written to in this function
- *
- * \param header The payload header
- * \param payload The payload section
- * \param signature The payload signature
- * \param algorithm The signature algorithm
- * \param public_cert_url The public key URL
- * \param failure_code Additional failure information
- *
- * \retval ast_stir_shaken_payload on success
- * \retval NULL on failure
- */
-struct ast_stir_shaken_payload *ast_stir_shaken_verify2(const char *header, const char *payload, const char *signature,
-	const char *algorithm, const char *public_cert_url, int *failure_code);
-
-/*!
- * \brief Same as ast_stir_shaken_verify2, but passes in a stir_shaken_profile with additional configuration
- *
- * \note failure_code will be written to in this function
- *
- * \param header The payload header
- * \param payload The payload section
- * \param signature The payload signature
- * \param algorithm The signature algorithm
- * \param public_cert_url The public key URL
- * \param failure Additional failure information
- * \param profile The stir_shaken_profile
- *
- * \retval ast_stir_shaken_payload on success
- * \retval NULL on failure
- */
-struct ast_stir_shaken_payload *ast_stir_shaken_verify_with_profile(const char *header, const char *payload,
-	const char *signature, const char *algorithm, const char *public_cert_url, int *failure,
-	const struct stir_shaken_profile *profile);
-
-/*!
- * \brief Retrieve the stir/shaken sorcery context
- *
- * \retval The stir/shaken sorcery context
- */
-struct ast_sorcery *ast_stir_shaken_sorcery(void);
-
-/*!
- * \brief Free a STIR/SHAKEN payload
- */
-void ast_stir_shaken_payload_free(struct ast_stir_shaken_payload *payload);
-
-/*!
- * \brief Sign a JSON STIR/SHAKEN payload
- *
- * \note This function will automatically add the "attest", "iat", and "origid" fields.
- *
- * \param json The JWT to sign
- *
- * \retval ast_stir_shaken_payload on success
- * \retval NULL on failure
- */
-struct ast_stir_shaken_payload *ast_stir_shaken_sign(struct ast_json *json);
+enum ast_stir_shaken_vs_response_code
+	ast_stir_shaken_vs_verify(struct ast_stir_shaken_vs_ctx * ctx);
 
 #endif /* _RES_STIR_SHAKEN_H */

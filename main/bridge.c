@@ -255,7 +255,7 @@ int __ast_bridge_technology_register(struct ast_bridge_technology *technology, s
 
 	AST_RWLIST_UNLOCK(&bridge_technologies);
 
-	ast_verb(2, "Registered bridge technology %s\n", technology->name);
+	ast_verb(5, "Registered bridge technology %s\n", technology->name);
 
 	return 0;
 }
@@ -270,7 +270,7 @@ int ast_bridge_technology_unregister(struct ast_bridge_technology *technology)
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&bridge_technologies, current, entry) {
 		if (current == technology) {
 			AST_RWLIST_REMOVE_CURRENT(entry);
-			ast_verb(2, "Unregistered bridge technology %s\n", technology->name);
+			ast_verb(5, "Unregistered bridge technology %s\n", technology->name);
 			break;
 		}
 	}
@@ -4118,10 +4118,18 @@ static enum ast_transfer_result blind_transfer_bridge(int is_external,
 	struct ast_channel *local;
 	char chan_name[AST_MAX_EXTENSION + AST_MAX_CONTEXT + 2];
 	int cause;
+	struct ast_format_cap *caps;
+
+	ast_channel_lock(transferer);
+	caps = ao2_bump(ast_channel_nativeformats(transferer));
+	ast_channel_unlock(transferer);
 
 	snprintf(chan_name, sizeof(chan_name), "%s@%s", exten, context);
-	local = ast_request("Local", ast_channel_nativeformats(transferer), NULL, transferer,
+	local = ast_request("Local", caps, NULL, transferer,
 			chan_name, &cause);
+
+	ao2_cleanup(caps);
+
 	if (!local) {
 		return AST_BRIDGE_TRANSFER_FAIL;
 	}
@@ -4228,9 +4236,16 @@ static enum ast_transfer_result attended_transfer_bridge(struct ast_channel *cha
 	int cause;
 	int res;
 	const char *app = NULL;
+	struct ast_format_cap *caps;
 
-	local_chan = ast_request("Local", ast_channel_nativeformats(chan1), NULL, chan1,
-			dest, &cause);
+	ast_channel_lock(chan1);
+	caps = ao2_bump(ast_channel_nativeformats(chan1));
+	ast_channel_unlock(chan1);
+
+	local_chan = ast_request("Local", caps, NULL, chan1, dest, &cause);
+
+	ao2_cleanup(caps);
+
 	if (!local_chan) {
 		return AST_BRIDGE_TRANSFER_FAIL;
 	}

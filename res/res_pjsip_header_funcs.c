@@ -453,7 +453,7 @@ static pjsip_hdr *find_header(struct hdr_list *list, const char *header_name,
 static int read_headers(void *obj)
 {
 	struct header_data *data = obj;
-	size_t len = strlen(data->header_name);
+	size_t len = !ast_strlen_zero(data->header_name) ? strlen(data->header_name) : 0;
 	pjsip_hdr *hdr = NULL;
 	char *pj_hdr_string;
 	int pj_hdr_string_len;
@@ -475,7 +475,7 @@ static int read_headers(void *obj)
 	list = datastore->data;
 	pj_hdr_string = ast_alloca(data->len);
 	AST_LIST_TRAVERSE(list, le, nextptr) {
-		if (pj_strnicmp2(&le->hdr->name, data->header_name, len) == 0) {
+		if (!len || pj_strnicmp2(&le->hdr->name, data->header_name, len) == 0) {
 			/* Found matched header, append to buf */
 			hdr = le->hdr;
 
@@ -518,8 +518,13 @@ static int read_headers(void *obj)
 	}
 
 	if (wlen == 0) {
-		ast_debug(1, "There was no header named %s.\n", data->header_name);
-		return -1;
+		if (!len) {
+			/* No headers at all on this channel */
+			return 0;
+		} else {
+			ast_debug(1, "There was no header beginning with %s.\n", data->header_name);
+			return -1;
+		}
 	} else {
 		data->buf[wlen-1] = '\0';
 	}
@@ -671,6 +676,7 @@ static int add_header(void *obj)
 static int update_header(void *obj)
 {
 	struct header_data *data = obj;
+	pj_pool_t *pool = data->channel->session->inv_session->dlg->pool;
 	pjsip_hdr *hdr = NULL;
 	RAII_VAR(struct ast_datastore *, datastore,
 			 ast_sip_session_get_datastore(data->channel->session, data->header_datastore->type),
@@ -689,7 +695,7 @@ static int update_header(void *obj)
 		return -1;
 	}
 
-	pj_strcpy2(&((pjsip_generic_string_hdr *) hdr)->hvalue, data->header_value);
+	pj_strdup2(pool, &((pjsip_generic_string_hdr *) hdr)->hvalue, data->header_value);
 
 	return 0;
 }
@@ -755,11 +761,6 @@ static int func_read_headers(struct ast_channel *chan, const char *function, cha
 
 	if (!chan || strncmp(ast_channel_name(chan), "PJSIP/", 6)) {
 		ast_log(LOG_ERROR, "This function requires a PJSIP channel.\n");
-		return -1;
-	}
-
-	if (ast_strlen_zero(args.header_pattern)) {
-		ast_log(AST_LOG_ERROR, "This function requires a pattern.\n");
 		return -1;
 	}
 
@@ -1097,8 +1098,10 @@ static int read_param(void *obj)
 
 	ast_debug(2, "Successfully read %s parameter %s (length %zu)\n",
 		data->paramtype == PARAMETER_URI ? "URI" : "header", data->param_name, param_len);
-	ast_copy_string(data->buf, pj_strbuf(&param->value), data->len);
-	data->buf[pj_strlen(&param->value)] = '\0';
+	if (param_len) {
+		ast_copy_string(data->buf, pj_strbuf(&param->value), data->len);
+	}
+	data->buf[param_len] = '\0';
 
 	return 0;
 }

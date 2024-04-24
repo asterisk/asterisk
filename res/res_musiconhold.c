@@ -464,24 +464,22 @@ static void moh_files_write_format_change(struct ast_channel *chan, void *data)
 
 static int moh_files_generator(struct ast_channel *chan, void *data, int len, int samples)
 {
-	struct moh_files_state *state = ast_channel_music_state(chan);
+	struct moh_files_state *state;
 	struct ast_frame *f = NULL;
-	int res = 0;
+	int res = 0, sample_queue = 0;
 
+	ast_channel_lock(chan);
+	state = ast_channel_music_state(chan);
 	state->sample_queue += samples;
+	/* save the sample queue value for un-locked access */
+	sample_queue = state->sample_queue;
+	ast_channel_unlock(chan);
 
-	while (state->sample_queue > 0) {
+	while (sample_queue > 0) {
 		ast_channel_lock(chan);
 		f = moh_files_readframe(chan);
-
-		/* We need to be sure that we unlock
-		 * the channel prior to calling
-		 * ast_write. Otherwise, the recursive locking
-		 * that occurs can cause deadlocks when using
-		 * indirect channels, like local channels
-		 */
-		ast_channel_unlock(chan);
 		if (!f) {
+			ast_channel_unlock(chan);
 			return -1;
 		}
 
@@ -495,6 +493,19 @@ static int moh_files_generator(struct ast_channel *chan, void *data, int len, in
 		if (ast_format_cmp(f->subclass.format, state->mohwfmt) == AST_FORMAT_CMP_NOT_EQUAL) {
 			ao2_replace(state->mohwfmt, f->subclass.format);
 		}
+
+		/* We need to be sure that we unlock
+		 * the channel prior to calling
+		 * ast_write, but after our references to state
+		 * as it refers to chan->music_state. Update
+		 * sample_queue for our loop
+		 * Otherwise, the recursive locking that occurs
+		 * can cause deadlocks when using indirect
+		 * channels, like local channels
+		 */
+		sample_queue = state->sample_queue;
+		ast_channel_unlock(chan);
+
 		res = ast_write(chan, f);
 		ast_frfree(f);
 		if (res < 0) {

@@ -1,4 +1,0 @@
-Subject: app_bridgewait
-
-Adds the n option to not answer the channel when
-the BridgeWait application is called.

@@ -77,6 +77,13 @@
 		</synopsis>
 		<syntax>
 			<parameter name="filenames" required="true" argsep="&amp;">
+				<para>Ampersand separated list of filenames. If the filename
+				is a relative filename (it does not begin with a slash), it
+				will be searched for in the Asterisk sounds directory. If the
+				filename is able to be parsed as a URL, Asterisk will
+				download the file and then begin playback on it. To include a
+				literal <literal>&amp;</literal> in the URL you can enclose
+				the URL in single quotes.</para>
 				<argument name="filename1" required="true" />
 				<argument name="filename2" multiple="true" />
 			</parameter>
@@ -146,7 +153,7 @@
 		<see-also>
 			<ref type="application">Congestion</ref>
 			<ref type="application">Progress</ref>
-			<ref type="application">Playtones</ref>
+			<ref type="application">PlayTones</ref>
 			<ref type="application">Hangup</ref>
 		</see-also>
 	</application>
@@ -166,7 +173,7 @@
 		<see-also>
 			<ref type="application">Busy</ref>
 			<ref type="application">Progress</ref>
-			<ref type="application">Playtones</ref>
+			<ref type="application">PlayTones</ref>
 			<ref type="application">Hangup</ref>
 		</see-also>
 	</application>
@@ -383,7 +390,7 @@
 			<ref type="application">Busy</ref>
 			<ref type="application">Congestion</ref>
 			<ref type="application">Ringing</ref>
-			<ref type="application">Playtones</ref>
+			<ref type="application">PlayTones</ref>
 		</see-also>
 	</application>
 	<application name="RaiseException" language="en_US">
@@ -398,7 +405,7 @@
 			dialplan function EXCEPTION(). If the <literal>e</literal> extension does not exist, the call will hangup.</para>
 		</description>
 		<see-also>
-			<ref type="function">Exception</ref>
+			<ref type="function">EXCEPTION</ref>
 		</see-also>
 	</application>
 	<application name="Ringing" language="en_US">
@@ -413,7 +420,7 @@
 			<ref type="application">Busy</ref>
 			<ref type="application">Congestion</ref>
 			<ref type="application">Progress</ref>
-			<ref type="application">Playtones</ref>
+			<ref type="application">PlayTones</ref>
 		</see-also>
 	</application>
 	<application name="SayAlpha" language="en_US">
@@ -1172,7 +1179,7 @@ static int pbx_builtin_background(struct ast_channel *chan, const char *data)
 
 		ast_stopstream(chan);		/* Stop anything playing */
 		/* Stream the list of files */
-		while (!res && (front = strsep(&back, "&")) ) {
+		while (!res && (front = ast_strsep(&back, '&', AST_STRSEP_STRIP | AST_STRSEP_TRIM))) {
 			if ( (res = ast_streamfile(chan, front, args.lang)) ) {
 				ast_log(LOG_WARNING, "ast_streamfile failed on %s for %s\n", ast_channel_name(chan), (char*)data);
 				res = 0;

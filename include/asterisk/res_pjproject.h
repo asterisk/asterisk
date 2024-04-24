@@ -115,4 +115,17 @@ int ast_sockaddr_to_pj_sockaddr(const struct ast_sockaddr *addr, pj_sockaddr *pj
  */
 int ast_sockaddr_from_pj_sockaddr(struct ast_sockaddr *addr, const pj_sockaddr *pjaddr);
 
+/*!
+ * \brief Compare an ast_sockaddr to a pj_sockaddr
+ *
+ * \param addr pointer to ast_sockaddr structure
+ * \param pjaddr pointer to pj_sockaddr structure
+ *
+ * \retval -1 \a addr is lexicographically smaller than \a pjaddr
+ * \retval 0 \a addr is equal to \a pjaddr
+ * \retval 1 \a pjaddr is lexicographically smaller than \a addr
+*/
+int ast_sockaddr_pj_sockaddr_cmp(const struct ast_sockaddr *addr,
+	const pj_sockaddr *pjaddr);
+
 #endif /* _RES_PJPROJECT_H */

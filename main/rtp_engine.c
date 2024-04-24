@@ -355,7 +355,7 @@ int ast_rtp_engine_register2(struct ast_rtp_engine *engine, struct ast_module *m
 
 	AST_RWLIST_UNLOCK(&engines);
 
-	ast_verb(2, "Registered RTP engine '%s'\n", engine->name);
+	ast_verb(5, "Registered RTP engine '%s'\n", engine->name);
 
 	return 0;
 }
@@ -367,7 +367,7 @@ int ast_rtp_engine_unregister(struct ast_rtp_engine *engine)
 	AST_RWLIST_WRLOCK(&engines);
 
 	if ((current_engine = AST_RWLIST_REMOVE(&engines, engine, entry))) {
-		ast_verb(2, "Unregistered RTP engine '%s'\n", engine->name);
+		ast_verb(5, "Unregistered RTP engine '%s'\n", engine->name);
 	}
 
 	AST_RWLIST_UNLOCK(&engines);
@@ -399,7 +399,7 @@ int ast_rtp_glue_register2(struct ast_rtp_glue *glue, struct ast_module *module)
 
 	AST_RWLIST_UNLOCK(&glues);
 
-	ast_verb(2, "Registered RTP glue '%s'\n", glue->type);
+	ast_verb(5, "Registered RTP glue '%s'\n", glue->type);
 
 	return 0;
 }
@@ -411,7 +411,7 @@ int ast_rtp_glue_unregister(struct ast_rtp_glue *glue)
 	AST_RWLIST_WRLOCK(&glues);
 
 	if ((current_glue = AST_RWLIST_REMOVE(&glues, glue, entry))) {
-		ast_verb(2, "Unregistered RTP glue '%s'\n", glue->type);
+		ast_verb(5, "Unregistered RTP glue '%s'\n", glue->type);
 	}
 
 	AST_RWLIST_UNLOCK(&glues);
@@ -2460,6 +2460,10 @@ int ast_rtp_instance_get_stats(struct ast_rtp_instance *instance, struct ast_rtp
 {
 	int res;
 
+	if (!instance || !instance->engine || !stats) {
+		return -1;
+	}
+
 	if (instance->engine->get_stat) {
 		ao2_lock(instance);
 		res = instance->engine->get_stat(instance, stats, stat);
@@ -3620,6 +3624,11 @@ uintmax_t ast_debug_category_ice_id(void)
 	return debug_category_ice_id;
 }
 
+/*!
+ * \internal
+ * \brief Shutdown the RTP engine
+ * This function will not get called if any module fails to unload.
+ */
 static void rtp_engine_shutdown(void)
 {
 	int x;
@@ -3644,7 +3653,15 @@ static void rtp_engine_shutdown(void)
 	}
 	mime_types_len = 0;
 	ast_rwlock_unlock(&mime_types_lock);
+}
 
+/*!
+ * \internal
+ * \brief Unregister the debug categories
+ * This function will always get called even if any module fails to unload.
+ */
+static void rtp_engine_atexit(void)
+{
 	ast_debug_category_unregister(AST_LOG_CATEGORY_ICE);
 
 	ast_debug_category_unregister(AST_LOG_CATEGORY_DTLS_PACKET);
@@ -3685,7 +3702,7 @@ int ast_rtp_engine_init(void)
 	set_next_mime_type(ast_format_slin12, 0, "audio", "L16", 12000);
 	set_next_mime_type(ast_format_slin24, 0, "audio", "L16", 24000);
 	set_next_mime_type(ast_format_slin32, 0, "audio", "L16", 32000);
-	set_next_mime_type(ast_format_slin44, 0, "audio", "L16", 44000);
+	set_next_mime_type(ast_format_slin44, 0, "audio", "L16", 44100);
 	set_next_mime_type(ast_format_slin48, 0, "audio", "L16", 48000);
 	set_next_mime_type(ast_format_slin96, 0, "audio", "L16", 96000);
 	set_next_mime_type(ast_format_slin192, 0, "audio", "L16", 192000);
@@ -3789,6 +3806,16 @@ int ast_rtp_engine_init(void)
 	debug_category_dtls_id = ast_debug_category_register(AST_LOG_CATEGORY_DTLS);
 	debug_category_dtls_packet_id = ast_debug_category_register(AST_LOG_CATEGORY_DTLS_PACKET);
 	debug_category_ice_id = ast_debug_category_register(AST_LOG_CATEGORY_ICE);
+
+	/*
+	 * Normnally a core module should call ast_register_cleanup,
+	 * which doesn't run if any module fails to unload.  This
+	 * prevents resources being pulled out from under a running
+	 * module and possibly causing a segfault.  In this case however,
+	 * the only thing we're cleaning up are the registrations of the
+	 * debug categories.
+	 */
+	ast_register_atexit(rtp_engine_atexit);
 
 	return 0;
 }

@@ -176,6 +176,7 @@ struct logmsg {
 	int line;
 	int lwp;
 	ast_callid callid;
+	unsigned int hidecli:1;		/*!< Whether to suppress log message from CLI output (but log normally to other log channels */
 	AST_DECLARE_STRING_FIELDS(
 		AST_STRING_FIELD(date);
 		AST_STRING_FIELD(file);
@@ -1645,6 +1646,236 @@ static char *handle_logger_remove_channel(struct ast_cli_entry *e, int cmd, stru
 	}
 }
 
+/* Call ID filtering */
+
+AST_THREADSTORAGE(callid_group_name);
+
+/*! \brief map call ID to group */
+struct chan_group_lock {
+	AST_RWLIST_ENTRY(chan_group_lock) entry;
+	char name[0];
+};
+
+AST_RWLIST_HEAD_STATIC(chan_group_lock_list, chan_group_lock);
+
+static int callid_filtering = 0;
+
+static const char *get_callid_group(void)
+{
+	char **callid_group;
+	callid_group = ast_threadstorage_get(&callid_group_name, sizeof(*callid_group));
+	return callid_group ? *callid_group : NULL;
+}
+
+static int callid_set_chanloggroup(const char *group)
+{
+	/* Use threadstorage for constant time access, rather than a linked list */
+	ast_callid callid;
+	char **callid_group;
+
+	callid = ast_read_threadstorage_callid();
+	if (!callid) {
+		/* Should never be called on non-PBX threads */
+		ast_assert(0);
+		return -1;
+	}
+
+	callid_group = ast_threadstorage_get(&callid_group_name, sizeof(*callid_group));
+
+	if (!group) {
+		/* Remove from list */
+		if (!*callid_group) {
+			return 0; /* Wasn't in any group to begin with */
+		}
+		ast_free(*callid_group);
+		return 0; /* Set Call ID group for the first time */
+	}
+	/* Existing group */
+	ast_free(*callid_group);
+	*callid_group = ast_strdup(group);
+	if (!*callid_group) {
+		return -1;
+	}
+	return 0; /* Set Call ID group for the first time */
+}
+
+static int callid_group_remove_filters(void)
+{
+	int i = 0;
+	struct chan_group_lock *cgl;
+
+	AST_RWLIST_WRLOCK(&chan_group_lock_list);
+	while ((cgl = AST_RWLIST_REMOVE_HEAD(&chan_group_lock_list, entry))) {
+		ast_free(cgl);
+		i++;
+	}
+	callid_filtering = 0;
+	AST_RWLIST_UNLOCK(&chan_group_lock_list);
+	return i;
+}
+
+static int callid_group_set_filter(const char *group, int enabled)
+{
+	struct chan_group_lock *cgl;
+
+	AST_RWLIST_WRLOCK(&chan_group_lock_list);
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&chan_group_lock_list, cgl, entry) {
+		if (!strcmp(group, cgl->name)) {
+			if (!enabled) {
+				AST_RWLIST_REMOVE_CURRENT(entry);
+				ast_free(cgl);
+			}
+			break;
+		}
+	}
+	AST_RWLIST_TRAVERSE_SAFE_END;
+
+	if (!enabled) {
+		if (AST_LIST_EMPTY(&chan_group_lock_list)) {
+			callid_filtering = 0;
+		}
+		AST_RWLIST_UNLOCK(&chan_group_lock_list);
+		return 0;
+	}
+
+	if (!cgl) {
+		cgl = ast_calloc(1, sizeof(*cgl) + strlen(group) + 1);
+		if (!cgl) {
+			AST_RWLIST_UNLOCK(&chan_group_lock_list);
+			return -1;
+		}
+		strcpy(cgl->name, group); /* Safe */
+		AST_RWLIST_INSERT_HEAD(&chan_group_lock_list, cgl, entry);
+	} /* else, already existed, and was already enabled, no change */
+	callid_filtering = 1;
+	AST_RWLIST_UNLOCK(&chan_group_lock_list);
+	return 0;
+}
+
+static int callid_logging_enabled(void)
+{
+	struct chan_group_lock *cgl;
+	const char *callidgroup;
+
+	if (!callid_filtering) {
+		return 1; /* Everything enabled by default, if no filtering */
+	}
+
+	callidgroup = get_callid_group();
+	if (!callidgroup) {
+		return 0; /* Filtering, but no call group, not enabled */
+	}
+
+	AST_RWLIST_RDLOCK(&chan_group_lock_list);
+	AST_RWLIST_TRAVERSE(&chan_group_lock_list, cgl, entry) {
+		if (!strcmp(callidgroup, cgl->name)) {
+			break;
+		}
+	}
+	AST_RWLIST_UNLOCK(&chan_group_lock_list);
+	return cgl ? 1 : 0; /* If found, enabled, otherwise not */
+}
+
+static int log_group_write(struct ast_channel *chan, const char *cmd, char *data, const char *value)
+{
+	int res = callid_set_chanloggroup(value);
+	if (res) {
+		ast_log(LOG_ERROR, "Failed to set channel log group for %s\n", ast_channel_name(chan));
+		return -1;
+	}
+	return 0;
+}
+
+static struct ast_custom_function log_group_function = {
+	.name = "LOG_GROUP",
+	.write = log_group_write,
+};
+
+static char *handle_logger_chanloggroup_filter(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	int enabled;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "logger filter changroup";
+		e->usage =
+			"Usage: logger filter changroup <group> {on|off}\n"
+			"       Add or remove channel groups from log filtering.\n"
+			"       If filtering is active, only channels assigned\n"
+			"       to a group that has been enabled using this command\n"
+			"       will have execution shown in the CLI.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc < 5) {
+		return CLI_SHOWUSAGE;
+	}
+
+	enabled = ast_true(a->argv[4]) ? 1 : 0;
+	if (callid_group_set_filter(a->argv[3], enabled)) {
+		ast_cli(a->fd, "Failed to set channel group filter for group %s\n", a->argv[3]);
+		return CLI_FAILURE;
+	}
+
+	ast_cli(a->fd, "Logging of channel group '%s' is now %s\n", a->argv[3], enabled ? "enabled" : "disabled");
+	return CLI_SUCCESS;
+}
+
+static char *handle_logger_filter_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	int i = 0;
+	struct chan_group_lock *cgl;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "logger filter show";
+		e->usage =
+			"Usage: logger filter show\n"
+			"       Show current logger filtering settings.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	AST_RWLIST_RDLOCK(&chan_group_lock_list);
+	AST_RWLIST_TRAVERSE(&chan_group_lock_list, cgl, entry) {
+		ast_cli(a->fd, "%3d %-32s\n", ++i, cgl->name);
+	}
+	AST_RWLIST_UNLOCK(&chan_group_lock_list);
+
+	if (i) {
+		ast_cli(a->fd, "%d channel group%s currently enabled\n", i, ESS(i));
+	} else {
+		ast_cli(a->fd, "No filtering currently active\n");
+	}
+	return CLI_SUCCESS;
+}
+
+static char *handle_logger_filter_reset(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	int removed;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "logger filter reset";
+		e->usage =
+			"Usage: logger filter reset\n"
+			"       Reset the logger filter.\n"
+			"       This removes any channel groups from filtering\n"
+			"       (all channel execution will be shown)\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	removed = callid_group_remove_filters();
+
+	ast_cli(a->fd, "Log filtering has been reset (%d filter%s removed)\n", removed, ESS(removed));
+	return CLI_SUCCESS;
+}
+
 static struct ast_cli_entry cli_logger[] = {
 	AST_CLI_DEFINE(handle_logger_show_channels, "List configured log channels"),
 	AST_CLI_DEFINE(handle_logger_show_levels, "List configured log levels"),
@@ -1653,6 +1884,9 @@ static struct ast_cli_entry cli_logger[] = {
 	AST_CLI_DEFINE(handle_logger_set_level, "Enables/Disables a specific logging level for this console"),
 	AST_CLI_DEFINE(handle_logger_add_channel, "Adds a new logging channel"),
 	AST_CLI_DEFINE(handle_logger_remove_channel, "Removes a logging channel"),
+	AST_CLI_DEFINE(handle_logger_chanloggroup_filter, "Filter PBX logs by channel log group"),
+	AST_CLI_DEFINE(handle_logger_filter_show, "Show current PBX channel filtering"),
+	AST_CLI_DEFINE(handle_logger_filter_reset, "Reset PBX channel filtering"),
 };
 
 static void _handle_SIGXFSZ(int sig)
@@ -1709,7 +1943,7 @@ static void logger_print_normal(struct logmsg *logmsg)
 				}
 				break;
 			case LOGTYPE_CONSOLE:
-				if (!chan->formatter.format_log(chan, logmsg, buf, sizeof(buf))) {
+				if (!logmsg->hidecli && !chan->formatter.format_log(chan, logmsg, buf, sizeof(buf))) {
 					ast_console_puts_mutable_full(buf, logmsg->level, logmsg->sublevel);
 				}
 				break;
@@ -1977,6 +2211,7 @@ int init_logger(void)
 
 	/* register the logger cli commands */
 	ast_cli_register_multiple(cli_logger, ARRAY_LEN(cli_logger));
+	ast_custom_function_register(&log_group_function);
 
 	ast_mkdir(ast_config_AST_LOG_DIR, 0777);
 
@@ -2001,6 +2236,7 @@ void close_logger(void)
 
 	ast_logger_category_unload();
 
+	ast_custom_function_unregister(&log_group_function);
 	ast_cli_unregister_multiple(cli_logger, ARRAY_LEN(cli_logger));
 
 	logger_initialized = 0;
@@ -2029,6 +2265,8 @@ void close_logger(void)
 		}
 		ast_free(f);
 	}
+
+	callid_group_remove_filters();
 
 	closelog(); /* syslog */
 
@@ -2140,9 +2378,23 @@ static void __attribute__((format(printf, 7, 0))) ast_log_full(int level, int su
 	const char *file, int line, const char *function, ast_callid callid,
 	const char *fmt, va_list ap)
 {
+	int hidecli = 0;
 	struct logmsg *logmsg = NULL;
 
 	if (level == __LOG_VERBOSE && ast_opt_remote && ast_opt_exec) {
+		return;
+	}
+
+	if (callid_filtering && !callid_logging_enabled()) {
+		switch (level) {
+		case __LOG_VERBOSE:
+		case __LOG_DEBUG:
+		case __LOG_TRACE:
+		case __LOG_DTMF:
+			hidecli = 1; /* Hide the message from the CLI, but still log to any log files */
+		default: /* Always show NOTICE, WARNING, ERROR, etc. */
+			break;
+		}
 		return;
 	}
 
@@ -2165,6 +2417,8 @@ static void __attribute__((format(printf, 7, 0))) ast_log_full(int level, int su
 	if (!logmsg) {
 		return;
 	}
+
+	logmsg->hidecli = hidecli;
 
 	/* If the logger thread is active, append it to the tail end of the list - otherwise skip that step */
 	if (logthread != AST_PTHREADT_NULL) {

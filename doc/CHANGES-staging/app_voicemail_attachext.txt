@@ -1,5 +1,0 @@
-Subject: app_voicemail
-
-The voicemail user option attachextrecs can
-now be set to control whether external recordings
-trigger voicemail email notifications.

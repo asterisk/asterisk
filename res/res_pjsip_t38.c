@@ -883,7 +883,7 @@ static int negotiate_incoming_sdp_stream(struct ast_sip_session *session,
 	ast_copy_pj_str(host, stream->conn ? &stream->conn->addr : &sdp->conn->addr, sizeof(host));
 
 	/* Ensure that the address provided is valid */
-	if (ast_sockaddr_resolve(&addrs, host, PARSE_PORT_FORBID, AST_AF_INET) <= 0) {
+	if (ast_sockaddr_resolve(&addrs, host, PARSE_PORT_FORBID, AST_AF_UNSPEC) <= 0) {
 		/* The provided host was actually invalid so we error out this negotiation */
 		ast_debug(3, "Declining; provided host is invalid\n");
 		return 0;
@@ -1097,8 +1097,8 @@ static void change_outgoing_sdp_stream_media_address(pjsip_tx_data *tdata, struc
 	if (ast_sip_transport_is_nonlocal(transport_state, &our_sdp_addr) && transport_state->localnet) {
 		return;
 	}
-	ast_debug(5, "Setting media address to %s\n", ast_sockaddr_stringify_host(&transport_state->external_media_address));
-	pj_strdup2(tdata->pool, &stream->conn->addr, ast_sockaddr_stringify_host(&transport_state->external_media_address));
+	ast_debug(5, "Setting media address to %s\n", ast_sockaddr_stringify_addr_remote(&transport_state->external_media_address));
+	pj_strdup2(tdata->pool, &stream->conn->addr, ast_sockaddr_stringify_addr_remote(&transport_state->external_media_address));
 }
 
 /*! \brief Function which destroys the UDPTL instance when session ends */

@@ -39,7 +39,7 @@ ifeq ($(SPECIAL_TARGETS),)
             $(warning ASTTOPDIR/menuselect hasn't been run yet.  Can't find debug options.)
         endif
 
-        all: dest/include/jansson.h
+        all: dist/usr/lib/libjansson.a
     else
         all:
     endif
@@ -57,10 +57,10 @@ endif
 ECHO_PREFIX := $(ECHO_PREFIX) echo '[jansson] '
 SHELL_ECHO_PREFIX := echo '[jansson] '
 
-dest/include/jansson.h: source/config.status
+dist/usr/lib/libjansson.a: source/config.status
 	$(ECHO_PREFIX) Building bundled jansson.
 	$(CMD_PREFIX) (cd source; make $(REALLY_QUIET))
-	$(CMD_PREFIX) (cd source; make install DESTDIR= $(REALLY_QUIET))
+	$(CMD_PREFIX) (cd source; make install DESTDIR=$(JANSSON_DIR)/dist $(REALLY_QUIET))
 
 .DELETE_ON_ERROR:
 
@@ -87,7 +87,7 @@ source/.unpacked: $(DOWNLOAD_DIR)/$(TARBALL_FILE)
 source/config.status: source/.unpacked Makefile.rules .rebuild_needed
 	$(ECHO_PREFIX) Configuring
 	$(CMD_PREFIX) (cd source ; ./configure $(QUIET_CONFIGURE) $(JANSSON_CONFIG_OPTS) --disable-shared \
-		--enable-static --prefix=$(JANSSON_DIR)/dest --libdir=$(JANSSON_DIR)/dest/lib CFLAGS="$(OPTIMIZE_CFLAGS)")
+		--enable-static --prefix=/usr --libdir=/usr/lib CFLAGS="$(OPTIMIZE_CFLAGS) -fPIC")
 
 configure: source/config.status
 
@@ -96,8 +96,9 @@ uninstall:
 
 clean:
 	$(ECHO_PREFIX) Cleaning
+	+-$(CMD_PREFIX) rm -rf dist
 	+-$(CMD_PREFIX) test -d source && $(SUBMAKE) -C source clean $(REALLY_QUIET) || :
 
 distclean:
 	$(ECHO_PREFIX) Distcleaning
-	-$(CMD_PREFIX) rm -rf source jansson-*.tar.bz2 .rebuild_needed
+	-$(CMD_PREFIX) rm -rf dist source jansson-*.tar.bz2 .rebuild_needed

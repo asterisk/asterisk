@@ -250,6 +250,16 @@ struct ast_json *ast_json_null(void)
 	return (struct ast_json *)json_null();
 }
 
+int ast_json_is_array(const struct ast_json *json)
+{
+	return json_is_array((const json_t *)json);
+}
+
+int ast_json_is_object(const struct ast_json *json)
+{
+	return json_is_object((const json_t *)json);
+}
+
 int ast_json_is_true(const struct ast_json *json)
 {
 	return json_is_true((const json_t *)json);

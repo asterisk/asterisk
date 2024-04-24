@@ -27,7 +27,7 @@
  *
  * \par See also
  * \arg \ref voicemail.conf "Config_voicemail"
- * \note For information about voicemail IMAP storage, https://wiki.asterisk.org/wiki/display/AST/IMAP+Voicemail+Storage
+ * \note For information about voicemail IMAP storage, https://docs.asterisk.org/Configuration/Applications/Voicemail/IMAP-Voicemail-Storage/
  * \ingroup applications
  * \todo This module requires res_adsi to load. This needs to be optional
  * during compilation.
@@ -445,6 +445,123 @@
 			Otherwise, only a single mailbox will be polled for changes.</para>
 		</description>
 	</manager>
+	<manager name="VoicemailBoxSummary" language="en_US">
+		<synopsis>
+			Show the mailbox contents of given voicemail user.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Context" required="true">
+				<para>The context you want to check.</para>
+			</parameter>
+			<parameter name="Mailbox" required="true">
+				<para>The mailbox you want to check.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Retrieves the contents of the given voicemail user's mailbox.</para>
+		</description>
+	</manager>
+	<manager name="VoicemailMove" language="en_US">
+		<synopsis>
+			Move Voicemail between mailbox folders of given user.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Context" required="true">
+				<para>The context of the Voicemail you want to move.</para>
+			</parameter>
+			<parameter name="Mailbox" required="true">
+				<para>The mailbox of the Voicemail you want to move.</para>
+			</parameter>
+			<parameter name="Folder" required="true">
+				<para>The Folder containing the Voicemail you want to move.</para>
+			</parameter>
+			<parameter name="ID" required="true">
+				<para>The ID of the Voicemail you want to move.</para>
+			</parameter>
+			<parameter name="ToFolder" required="true">
+				<para>The Folder you want to move the Voicemail to.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Move a given Voicemail between Folders within a user's Mailbox.</para>
+		</description>
+	</manager>
+	<manager name="VoicemailRemove" language="en_US">
+		<synopsis>
+			Remove Voicemail from mailbox folder.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Context" required="true">
+				<para>The context of the Voicemail you want to remove.</para>
+			</parameter>
+			<parameter name="Mailbox" required="true">
+				<para>The mailbox of the Voicemail you want to remove.</para>
+			</parameter>
+			<parameter name="Folder" required="true">
+				<para>The Folder containing the Voicemail you want to remove.</para>
+			</parameter>
+			<parameter name="ID" required="true">
+				<para>The ID of the Voicemail you want to remove.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Remove a given Voicemail from a user's Mailbox Folder.</para>
+		</description>
+	</manager>
+	<manager name="VoicemailForward" language="en_US">
+		<synopsis>
+			Forward Voicemail from one mailbox folder to another between given users.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Context" required="true">
+				<para>The context of the Voicemail you want to move.</para>
+			</parameter>
+			<parameter name="Mailbox" required="true">
+				<para>The mailbox of the Voicemail you want to move.</para>
+			</parameter>
+			<parameter name="Folder" required="true">
+				<para>The Folder containing the Voicemail you want to move.</para>
+			</parameter>
+			<parameter name="ID" required="true">
+				<para>The ID of the Voicemail you want to move.</para>
+			</parameter>
+			<parameter name="ToContext" required="true">
+				<para>The context you want to move the Voicemail to.</para>
+			</parameter>
+			<parameter name="ToMailbox" required="true">
+				<para>The mailbox you want to move the Voicemail to.</para>
+			</parameter>
+			<parameter name="ToFolder" required="true">
+				<para>The Folder you want to move the Voicemail to.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Forward a given Voicemail from a user's Mailbox Folder to
+			another user's Mailbox Folder. Can be used to copy between
+			Folders within a mailbox by specifying the to context and user
+			as the same as the from.</para>
+		</description>
+	</manager>
+	<managerEvent language="en_US" name="VoicemailPasswordChange">
+		<managerEventInstance class="EVENT_FLAG_USER">
+			<synopsis>Raised in response to a mailbox password change.</synopsis>
+			<syntax>
+				<parameter name="Context">
+					<para>Mailbox context.</para>
+				</parameter>
+				<parameter name="Mailbox">
+					<para>Mailbox name.</para>
+				</parameter>
+				<parameter name="NewPassword">
+					<para>New password for mailbox.</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
  ***/
 
 #ifdef IMAP_STORAGE
@@ -571,6 +688,7 @@ static AST_LIST_HEAD_STATIC(vmstates, vmstate);
 #define VM_MESSAGEWRAP   (1 << 17)  /*!< Wrap around from the last message to the first, and vice-versa */
 #define VM_FWDURGAUTO    (1 << 18)  /*!< Autoset of Urgent flag on forwarded Urgent messages set globally */
 #define VM_EMAIL_EXT_RECS (1 << 19)  /*!< Send voicemail emails when an external recording is added to a mailbox */
+#define VM_MARK_URGENT   (1 << 20)	/*!< After recording, permit the caller to mark the message as urgent */
 #define ERROR_LOCK_PATH  -100
 #define ERROR_MAX_MSGS   -101
 #define OPERATOR_EXIT     300
@@ -649,6 +767,18 @@ static const char * const mailbox_folders[] = {
 	"Deleted",
 	"Urgent",
 };
+
+/*!
+ * \brief Reload voicemail.conf
+ * \param reload Whether this is a reload as opposed to module load
+ * \param force Forcefully reload the config, even it has not changed
+ * \retval 0 on success, nonzero on failure
+ */
+static int load_config_force(int reload, int force);
+
+/*! \brief Forcibly reload voicemail.conf, even if it has not changed.
+ * This is necessary after running unit tests. */
+#define force_reload_config() load_config_force(1, 1)
 
 static int load_config(int reload);
 #ifdef TEST_FRAMEWORK
@@ -1051,6 +1181,7 @@ static const char *substitute_escapes(const char *value);
 static int message_range_and_existence_check(struct vm_state *vms, const char *msg_ids [], size_t num_msgs, int *msg_nums, struct ast_vm_user *vmu);
 static void notify_new_state(struct ast_vm_user *vmu);
 static int append_vmu_info_astman(struct mansession *s, struct ast_vm_user *vmu, const char* event_name, const char* actionid);
+static int append_vmbox_info_astman(struct mansession *s, const struct message *m, struct ast_vm_user *vmu, const char* event_name, const char* actionid);
 
 
 /*!
@@ -1308,6 +1439,8 @@ static void apply_option(struct ast_vm_user *vmu, const char *var, const char *v
 		ast_set2_flag(vmu, ast_true(value), VM_SVMAIL);
 	} else if (!strcasecmp(var, "review")){
 		ast_set2_flag(vmu, ast_true(value), VM_REVIEW);
+	} else if (!strcasecmp(var, "leaveurgent")){
+		ast_set2_flag(vmu, ast_true(value), VM_MARK_URGENT);
 	} else if (!strcasecmp(var, "tempgreetwarn")){
 		ast_set2_flag(vmu, ast_true(value), VM_TEMPGREETWARN);
 	} else if (!strcasecmp(var, "messagewrap")){
@@ -1747,6 +1880,16 @@ static int reset_user_pw(const char *context, const char *mailbox, const char *n
 		res = 0;
 	}
 	AST_LIST_UNLOCK(&users);
+	if (!res) {
+		struct ast_json *json_object;
+
+		json_object = ast_json_pack("{s: s, s: s, s: s}",
+			"Context", S_OR(context, "default"),
+			"Mailbox", mailbox,
+			"NewPassword", newpass);
+		ast_manager_publish_event("VoicemailPasswordChange", EVENT_FLAG_SYSTEM | EVENT_FLAG_USER, json_object);
+		ast_json_unref(json_object);
+	}
 	return res;
 }
 
@@ -1790,7 +1933,7 @@ static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 			ast_copy_string(vmu->password, newpassword, sizeof(vmu->password));
 			break;
 		} else {
-			ast_verb(4, "Writing voicemail password to file %s failed, falling back to config file\n", secretfn);
+			ast_log(LOG_WARNING, "Writing voicemail password to file %s failed, falling back to config file\n", secretfn);
 		}
 		/* Fall-through */
 	case OPT_PWLOC_VOICEMAILCONF:
@@ -2592,6 +2735,7 @@ static int messagecount(const char *mailbox_id, const char *folder)
 {
 	char *context;
 	char *mailbox;
+	int count;
 
 	if (ast_strlen_zero(mailbox_id)
 		|| separate_mailbox(ast_strdupa(mailbox_id), &mailbox, &context)) {
@@ -2599,10 +2743,11 @@ static int messagecount(const char *mailbox_id, const char *folder)
 	}
 
 	if (ast_strlen_zero(folder) || !strcmp(folder, "INBOX")) {
-		return __messagecount(context, mailbox, "INBOX") + __messagecount(context, mailbox, "Urgent");
+		count = __messagecount(context, mailbox, "INBOX") + __messagecount(context, mailbox, "Urgent");
 	} else {
-		return __messagecount(context, mailbox, folder);
+		count = __messagecount(context, mailbox, folder);
 	}
+	return count < 0 ? 0 : count;
 }
 
 static int imap_store_file(const char *dir, const char *mailboxuser, const char *mailboxcontext, int msgnum, struct ast_channel *chan, struct ast_vm_user *vmu, char *fmt, int duration, struct vm_state *vms, const char *flag, const char *msg_id)
@@ -2764,6 +2909,7 @@ static int inboxcount2(const char *mailbox_context, int *urgentmsgs, int *newmsg
 	char *context;
 	char *mb;
 	char *cur;
+	int count = 0;
 	if (newmsgs)
 		*newmsgs = 0;
 	if (oldmsgs)
@@ -2813,21 +2959,24 @@ static int inboxcount2(const char *mailbox_context, int *urgentmsgs, int *newmsg
 			ast_log(AST_LOG_ERROR, "Couldn't find mailbox %s in context %s\n", mailboxnc, context);
 			return -1;
 		}
-		if ((*newmsgs = __messagecount(context, mailboxnc, vmu->imapfolder)) < 0) {
+		if ((count = __messagecount(context, mailboxnc, vmu->imapfolder)) < 0) {
 			free_user(vmu);
 			return -1;
 		}
+		*newmsgs = count;
 		free_user(vmu);
 	}
 	if (oldmsgs) {
-		if ((*oldmsgs = __messagecount(context, mailboxnc, "Old")) < 0) {
+		if ((count = __messagecount(context, mailboxnc, "Old")) < 0) {
 			return -1;
 		}
+		*oldmsgs = count;
 	}
 	if (urgentmsgs) {
-		if ((*urgentmsgs = __messagecount(context, mailboxnc, "Urgent")) < 0) {
+		if ((count = __messagecount(context, mailboxnc, "Urgent")) < 0) {
 			return -1;
 		}
+		*urgentmsgs = count;
 	}
 	return 0;
 }
@@ -2861,7 +3010,7 @@ static int has_voicemail(const char *mailbox, const char *folder)
 	} else {
 		context = "default";
 	}
-	return __messagecount(context, tmp, folder) ? 1 : 0;
+	return __messagecount(context, tmp, folder) > 0 ? 1 : 0;
 }
 
 /*!
@@ -3978,16 +4127,14 @@ bail:
 
 /*!
  * \brief Determines the highest message number in use for a given user and mailbox folder.
- * \param vmu
  * \param dir the folder the mailbox folder to look for messages. Used to construct the SQL where clause.
  *
  * This method is used when mailboxes are stored in an ODBC back end.
  * Typical use to set the msgnum would be to take the value returned from this method and add one to it.
  *
  * \return the value of zero or greater to indicate the last message index in use, -1 to indicate none.
-
  */
-static int last_message_index(struct ast_vm_user *vmu, char *dir)
+static int last_message_index(char *dir)
 {
 	int x = -1;
 	int res;
@@ -4272,15 +4419,15 @@ static SQLHSTMT insert_data_cb(struct odbc_obj *obj, void *vdata)
 	SQLBindParameter(stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(data->msgnums), 0, (void *) data->msgnums, 0, NULL);
 	SQLBindParameter(stmt, 3, SQL_PARAM_INPUT, SQL_C_BINARY, SQL_LONGVARBINARY, data->datalen, 0, (void *) data->data, data->datalen, &data->indlen);
 	SQLBindParameter(stmt, 4, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(data->context), 0, (void *) data->context, 0, NULL);
-	SQLBindParameter(stmt, 6, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(data->callerid), 0, (void *) data->callerid, 0, NULL);
-	SQLBindParameter(stmt, 7, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(data->origtime), 0, (void *) data->origtime, 0, NULL);
-	SQLBindParameter(stmt, 8, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(data->duration), 0, (void *) data->duration, 0, NULL);
-	SQLBindParameter(stmt, 9, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(data->mailboxuser), 0, (void *) data->mailboxuser, 0, NULL);
-	SQLBindParameter(stmt, 10, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(data->mailboxcontext), 0, (void *) data->mailboxcontext, 0, NULL);
-	SQLBindParameter(stmt, 11, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(data->flag), 0, (void *) data->flag, 0, NULL);
-	SQLBindParameter(stmt, 12, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(data->msg_id), 0, (void *) data->msg_id, 0, NULL);
+	SQLBindParameter(stmt, 5, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(data->callerid), 0, (void *) data->callerid, 0, NULL);
+	SQLBindParameter(stmt, 6, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(data->origtime), 0, (void *) data->origtime, 0, NULL);
+	SQLBindParameter(stmt, 7, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(data->duration), 0, (void *) data->duration, 0, NULL);
+	SQLBindParameter(stmt, 8, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(data->mailboxuser), 0, (void *) data->mailboxuser, 0, NULL);
+	SQLBindParameter(stmt, 9, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(data->mailboxcontext), 0, (void *) data->mailboxcontext, 0, NULL);
+	SQLBindParameter(stmt, 10, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(data->flag), 0, (void *) data->flag, 0, NULL);
+	SQLBindParameter(stmt, 11, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(data->msg_id), 0, (void *) data->msg_id, 0, NULL);
 	if (!ast_strlen_zero(data->category)) {
-		SQLBindParameter(stmt, 13, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(data->category), 0, (void *) data->category, 0, NULL);
+		SQLBindParameter(stmt, 12, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(data->category), 0, (void *) data->category, 0, NULL);
 	}
 	res = ast_odbc_execute_sql(obj, stmt, data->sql);
 	if (!SQL_SUCCEEDED(res)) {
@@ -4550,7 +4697,6 @@ static void rename_file(char *sfn, char *dfn)
 
 /*!
  * \brief Determines the highest message number in use for a given user and mailbox folder.
- * \param vmu
  * \param dir the folder the mailbox folder to look for messages. Used to construct the SQL where clause.
  *
  * This method is used when mailboxes are stored on the filesystem. (not ODBC and not IMAP).
@@ -4559,7 +4705,7 @@ static void rename_file(char *sfn, char *dfn)
  * \note Should always be called with a lock already set on dir.
  * \return the value of zero or greaterto indicate the last message index in use, -1 to indicate none.
  */
-static int last_message_index(struct ast_vm_user *vmu, char *dir)
+static int last_message_index(char *dir)
 {
 	int x;
 	unsigned char map[MAXMSGLIMIT] = "";
@@ -4586,12 +4732,8 @@ static int last_message_index(struct ast_vm_user *vmu, char *dir)
 	}
 	closedir(msgdir);
 
-	for (x = 0; x < vmu->maxmsg; x++) {
-		if (map[x] == 1) {
-			stopcount--;
-		} else if (map[x] == 0 && !stopcount) {
-			break;
-		}
+	for (x = 0; x < MAXMSGLIMIT && stopcount; x++) {
+		stopcount -= map[x];
 	}
 
 	return x - 1;
@@ -5864,7 +6006,7 @@ static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int i
 	if (vm_lock_path(todir))
 		return ERROR_LOCK_PATH;
 
-	recipmsgnum = last_message_index(recip, todir) + 1;
+	recipmsgnum = last_message_index(todir) + 1;
 	if (recipmsgnum < recip->maxmsg - (imbox ? 0 : inprocess_count(vmu->mailbox, vmu->context, 0))) {
 		make_file(topath, sizeof(topath), todir, recipmsgnum);
 #ifndef ODBC_STORAGE
@@ -6184,7 +6326,6 @@ static int msg_create_from_file(struct ast_vm_recording_data *recdata)
 	#ifdef IMAP_STORAGE
 	struct vm_state *vms = NULL;
 	char ext_context[256] = "";
-	char *fmt = ast_strdupa(recdata->recording_ext);
 	int newmsgs = 0;
 	int oldmsgs = 0;
 	#endif
@@ -6360,7 +6501,7 @@ static int msg_create_from_file(struct ast_vm_recording_data *recdata)
 		return -1;
 	}
 
-	msgnum = last_message_index(recipient, dir) + 1;
+	msgnum = last_message_index(dir) + 1;
 #endif
 
 	/* Lock the directory receiving the voicemail since we want it to still exist when we attempt to copy the voicemail.
@@ -6928,7 +7069,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 					}
 				} else {
 #ifndef IMAP_STORAGE
-					msgnum = last_message_index(vmu, dir) + 1;
+					msgnum = last_message_index(dir) + 1;
 #endif
 					make_file(fn, sizeof(fn), dir, msgnum);
 
@@ -7050,7 +7191,7 @@ static int resequence_mailbox(struct ast_vm_user *vmu, char *dir, int stopcount)
 		return ERROR_LOCK_PATH;
 	}
 
-	for (x = 0, dest = 0; dest != stopcount && x < vmu->maxmsg + 10; x++) {
+	for (x = 0, dest = 0; dest != stopcount && x < MAXMSGLIMIT; x++) {
 		make_file(sfn, sizeof(sfn), dir, x);
 		if (EXISTS(dir, x, sfn, NULL)) {
 
@@ -7139,7 +7280,7 @@ static int save_to_folder(struct ast_vm_user *vmu, struct vm_state *vms, int msg
 	if (vm_lock_path(ddir))
 		return ERROR_LOCK_PATH;
 
-	x = last_message_index(vmu, ddir) + 1;
+	x = last_message_index(ddir) + 1;
 
 	if (box == 10 && x >= vmu->maxdeletedmsg) { /* "Deleted" folder*/
 		x--;
@@ -7315,8 +7456,11 @@ static void adsi_begin(struct ast_channel *chan, int *useadsi)
 	if (!ast_adsi_available(chan))
 		return;
 	x = ast_adsi_load_session(chan, adsifdn, adsiver, 1);
-	if (x < 0)
+	if (x < 0) {
+		*useadsi = 0;
+		ast_channel_adsicpe_set(chan, AST_ADSI_UNAVAILABLE);
 		return;
+	}
 	if (!x) {
 		if (adsi_load_vmail(chan, useadsi)) {
 			ast_log(AST_LOG_WARNING, "Unable to upload voicemail scripts\n");
@@ -8996,8 +9140,8 @@ static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu, int box)
 		return ERROR_LOCK_PATH;
 	}
 
-	/* for local storage, checks directory for messages up to maxmsg limit */
-	last_msg = last_message_index(vmu, vms->curdir);
+	/* for local storage, checks directory for messages up to MAXMSGLIMIT */
+	last_msg = last_message_index(vms->curdir);
 	ast_unlock_path(vms->curdir);
 
 	if (last_msg < -1) {
@@ -9033,7 +9177,7 @@ static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 	}
 
 	/* update count as message may have arrived while we've got mailbox open */
-	last_msg_idx = last_message_index(vmu, vms->curdir);
+	last_msg_idx = last_message_index(vms->curdir);
 	if (last_msg_idx != vms->lastmsg) {
 		ast_log(AST_LOG_NOTICE, "%d messages received after mailbox opened.\n", last_msg_idx - vms->lastmsg);
 	}
@@ -11413,6 +11557,385 @@ static int vm_playmsgexec(struct ast_channel *chan, const char *data)
 	return 0;
 }
 
+static int show_mailbox_details(struct ast_cli_args *a)
+{
+#define VMBOX_STRING_HEADER_FORMAT "%-32.32s %-32.32s %-16.16s %-16.16s %-16.16s %-16.16s\n"
+#define VMBOX_STRING_DATA_FORMAT   "%-32.32s %-32.32s %-16.16s %-16.16s %-16.16s %-16.16s\n"
+
+	const char *mailbox = a->argv[3];
+	const char *context = a->argv[4];
+	struct vm_state vms;
+	struct ast_vm_user *vmu = NULL, vmus;
+	memset(&vmus, 0, sizeof(vmus));
+	memset(&vms, 0, sizeof(vms));
+
+	if (!(vmu = find_user(&vmus, context, mailbox))) {
+		ast_cli(a->fd, "Can't find voicemail user %s@%s\n", mailbox, context);
+		return -1;
+	}
+
+	ast_cli(a->fd, VMBOX_STRING_HEADER_FORMAT, "Full Name", "Email", "Pager", "Language", "Locale", "Time Zone");
+	ast_cli(a->fd, VMBOX_STRING_DATA_FORMAT, vmu->fullname, vmu->email, vmu->pager, vmu->language, vmu->locale, vmu->zonetag);
+
+	return 0;
+}
+
+static int show_mailbox_snapshot(struct ast_cli_args *a)
+{
+#define VM_STRING_HEADER_FORMAT "%-8.8s %-32.32s %-32.32s %-9.9s %-6.6s %-30.30s\n"
+	const char *mailbox = a->argv[3];
+	const char *context = a->argv[4];
+	struct ast_vm_mailbox_snapshot *mailbox_snapshot;
+	struct ast_vm_msg_snapshot *msg;
+	int i;
+
+	/* Take a snapshot of the mailbox and walk through each folder's contents */
+	mailbox_snapshot = ast_vm_mailbox_snapshot_create(mailbox, context, NULL, 0, AST_VM_SNAPSHOT_SORT_BY_ID, 0);
+	if (!mailbox_snapshot) {
+		ast_cli(a->fd, "Can't create snapshot for voicemail user %s@%s\n", mailbox, context);
+		return -1;
+	}
+
+	ast_cli(a->fd, VM_STRING_HEADER_FORMAT, "Folder", "Caller ID", "Date", "Duration", "Flag", "ID");
+
+	for (i = 0; i < mailbox_snapshot->folders; i++) {
+		AST_LIST_TRAVERSE(&((mailbox_snapshot)->snapshots[i]), msg, msg) {
+			ast_cli(a->fd, VM_STRING_HEADER_FORMAT, msg->folder_name, msg->callerid, msg->origdate, msg->duration,
+					msg->flag, msg->msg_id);
+		}
+	}
+
+	ast_cli(a->fd, "%d Message%s Total\n", mailbox_snapshot->total_msg_num, ESS(mailbox_snapshot->total_msg_num));
+	/* done, destroy. */
+	mailbox_snapshot = ast_vm_mailbox_snapshot_destroy(mailbox_snapshot);
+
+	return 0;
+}
+
+static int show_messages_for_mailbox(struct ast_cli_args *a)
+{
+	if (show_mailbox_details(a)){
+		return -1;
+	}
+	ast_cli(a->fd, "\n");
+	return show_mailbox_snapshot(a);
+}
+
+static int forward_message_from_mailbox(struct ast_cli_args *a)
+{
+	const char *from_mailbox = a->argv[2];
+	const char *from_context = a->argv[3];
+	const char *from_folder = a->argv[4];
+	const char *id[] = { a->argv[5] };
+	const char *to_mailbox = a->argv[6];
+	const char *to_context = a->argv[7];
+	const char *to_folder = a->argv[8];
+	int ret = vm_msg_forward(from_mailbox, from_context, from_folder, to_mailbox, to_context, to_folder, 1, id, 0);
+	if (ret) {
+		ast_cli(a->fd, "Error forwarding message %s from mailbox %s@%s %s to mailbox %s@%s %s\n",
+					id[0], from_mailbox, from_context, from_folder, to_mailbox, to_context, to_folder);
+	} else {
+		ast_cli(a->fd, "Forwarded message %s from mailbox %s@%s %s to mailbox %s@%s %s\n",
+					id[0], from_mailbox, from_context, from_folder, to_mailbox, to_context, to_folder);
+	}
+	return ret;
+}
+
+static int move_message_from_mailbox(struct ast_cli_args *a)
+{
+	const char *mailbox = a->argv[2];
+	const char *context = a->argv[3];
+	const char *from_folder = a->argv[4];
+	const char *id[] = { a->argv[5] };
+	const char *to_folder = a->argv[6];
+	int ret =  vm_msg_move(mailbox, context, 1, from_folder, id, to_folder);
+	if (ret) {
+		ast_cli(a->fd, "Error moving message %s from mailbox %s@%s %s to %s\n",
+					id[0], mailbox, context, from_folder, to_folder);
+	} else {
+		ast_cli(a->fd, "Moved message %s from mailbox %s@%s %s to %s\n",
+					id[0], mailbox, context, from_folder, to_folder);
+	}
+	return ret;
+}
+
+static int remove_message_from_mailbox(struct ast_cli_args *a)
+{
+	const char *mailbox = a->argv[2];
+	const char *context = a->argv[3];
+	const char *folder = a->argv[4];
+	const char *id[] = { a->argv[5] };
+	int ret = vm_msg_remove(mailbox, context, 1, folder, id);
+	if (ret) {
+		ast_cli(a->fd, "Error removing message %s from mailbox %s@%s %s\n",
+					id[0], mailbox, context, folder);
+	} else {
+		ast_cli(a->fd, "Removed message %s from mailbox %s@%s %s\n",
+					id[0], mailbox, context, folder);
+	}
+	return ret;
+}
+
+static char *complete_voicemail_show_mailbox(struct ast_cli_args *a)
+{
+	const char *word = a->word;
+	int pos = a->pos;
+	int state = a->n;
+	int which = 0;
+	int wordlen;
+	struct ast_vm_user *vmu;
+	const char *context = "", *mailbox = "";
+	char *ret = NULL;
+
+	/* 0 - voicemail; 1 - show; 2 - mailbox; 3 - <mailbox>; 4 - <context> */
+	if (pos == 3) {
+		wordlen = strlen(word);
+		AST_LIST_LOCK(&users);
+		AST_LIST_TRAVERSE(&users, vmu, list) {
+			if (!strncasecmp(word, vmu->mailbox , wordlen)) {
+				if (mailbox && strcmp(mailbox, vmu->mailbox) && ++which > state) {
+					ret = ast_strdup(vmu->mailbox);
+					AST_LIST_UNLOCK(&users);
+					return ret;
+				}
+				mailbox = vmu->mailbox;
+			}
+		}
+		AST_LIST_UNLOCK(&users);
+	} else if (pos == 4) {
+		/* Only display contexts that match the user in pos 3 */
+		const char *box = a->argv[3];
+		wordlen = strlen(word);
+		AST_LIST_LOCK(&users);
+		AST_LIST_TRAVERSE(&users, vmu, list) {
+			if (!strncasecmp(word, vmu->context, wordlen) && !strcasecmp(box, vmu->mailbox)) {
+				if (context && strcmp(context, vmu->context) && ++which > state) {
+					ret = ast_strdup(vmu->context);
+					AST_LIST_UNLOCK(&users);
+					return ret;
+				}
+				context = vmu->context;
+			}
+		}
+		AST_LIST_UNLOCK(&users);
+	}
+
+	return ret;
+}
+
+static char *handle_voicemail_show_mailbox(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "voicemail show mailbox";
+		e->usage =
+		"Usage: voicemail show mailbox <mailbox> <context>\n"
+		"       Show contents of mailbox <mailbox>@<context>\n";
+		return NULL;
+	case CLI_GENERATE:
+		return complete_voicemail_show_mailbox(a);
+	case CLI_HANDLER:
+		break;
+	}
+
+	if (a->argc != 5) {
+		return CLI_SHOWUSAGE;
+	}
+
+	if (show_messages_for_mailbox(a)) {
+		return CLI_FAILURE;
+	}
+
+	return CLI_SUCCESS;
+}
+
+/* Handles filling in data for one of the following three formats (based on maxpos = 5|6|8):
+
+	maxpos = 5
+	0 - voicemail; 1 - forward; 2 - <from_mailbox>; 3 - <from_context>; 4 - <from_folder>; 5 - <messageid>;
+	maxpos = 6
+	0 - voicemail; 1 - forward; 2 - <from_mailbox>; 3 - <from_context>; 4 - <from_folder>; 5 - <messageid>;
+                                                                        6 - <to_folder>;
+	maxpos = 8
+	0 - voicemail; 1 - forward; 2 - <from_mailbox>; 3 - <from_context>; 4 - <from_folder>; 5 - <messageid>;
+                                6 - <to_mailbox>;   7 - <to_context>;   8 - <to_folder>;
+
+	Passing in the maximum expected position 'maxpos' helps us fill in the missing entries in one function
+	instead of three by taking advantage of the overlap in the command sequence between forward, move and
+	remove as each of these use nearly the same syntax up until their maximum number of arguments.
+	The value of pos = 6 changes to be either <messageid> or <folder> based on maxpos being 6 or 8.
+*/
+
+static char *complete_voicemail_move_message(struct ast_cli_args *a, int maxpos)
+{
+	const char *word = a->word;
+	int pos = a->pos;
+	int state = a->n;
+	int which = 0;
+	int wordlen;
+	struct ast_vm_user *vmu;
+	const char *context = "", *mailbox = "", *folder = "", *id = "";
+	char *ret = NULL;
+
+	if (pos > maxpos) {
+		/* If the passed in pos is above the max, return NULL to avoid 'over-filling' the cli */
+		return NULL;
+	}
+
+	/* if we are in pos 2 or pos 6 in 'forward' mode */
+	if (pos == 2 || (pos == 6 && maxpos == 8)) {
+		/* find users */
+		wordlen = strlen(word);
+		AST_LIST_LOCK(&users);
+		AST_LIST_TRAVERSE(&users, vmu, list) {
+			if (!strncasecmp(word, vmu->mailbox , wordlen)) {
+				if (mailbox && strcmp(mailbox, vmu->mailbox) && ++which > state) {
+					ret = ast_strdup(vmu->mailbox);
+					AST_LIST_UNLOCK(&users);
+					return ret;
+				}
+				mailbox = vmu->mailbox;
+			}
+		}
+		AST_LIST_UNLOCK(&users);
+	} else if (pos == 3 || pos == 7) {
+		/* find contexts that match the user */
+		mailbox = (pos == 3) ? a->argv[2] : a->argv[6];
+		wordlen = strlen(word);
+		AST_LIST_LOCK(&users);
+		AST_LIST_TRAVERSE(&users, vmu, list) {
+			if (!strncasecmp(word, vmu->context, wordlen) && !strcasecmp(mailbox, vmu->mailbox)) {
+				if (context && strcmp(context, vmu->context) && ++which > state) {
+					ret = ast_strdup(vmu->context);
+					AST_LIST_UNLOCK(&users);
+					return ret;
+				}
+				context = vmu->context;
+			}
+		}
+		AST_LIST_UNLOCK(&users);
+	} else if (pos == 4 || pos == 8 || (pos == 6 && maxpos == 6) ) {
+		int i;
+		/* Walk through the standard folders */
+		wordlen = strlen(word);
+		for (i = 0; i < ARRAY_LEN(mailbox_folders); i++) {
+			if (folder && !strncasecmp(word, mailbox_folders[i], wordlen) && ++which > state) {
+				return ast_strdup(mailbox_folders[i]);
+			}
+			folder = mailbox_folders[i];
+		}
+	} else if (pos == 5) {
+		/* find messages in the folder */
+		struct ast_vm_mailbox_snapshot *mailbox_snapshot;
+		struct ast_vm_msg_snapshot *msg;
+		mailbox = a->argv[2];
+		context = a->argv[3];
+		folder = a->argv[4];
+		wordlen = strlen(word);
+
+		/* Take a snapshot of the mailbox and snag the individual info */
+		if ((mailbox_snapshot = ast_vm_mailbox_snapshot_create(mailbox, context, folder, 0, AST_VM_SNAPSHOT_SORT_BY_ID, 0))) {
+			int i;
+			/* we are only requesting the one folder, but we still need to know it's index */
+			for (i = 0; i < ARRAY_LEN(mailbox_folders); i++) {
+				if (!strcasecmp(mailbox_folders[i], folder)) {
+					break;
+				}
+			}
+			AST_LIST_TRAVERSE(&((mailbox_snapshot)->snapshots[i]), msg, msg) {
+				if (id && !strncasecmp(word, msg->msg_id, wordlen) && ++which > state) {
+					ret = ast_strdup(msg->msg_id);
+					break;
+				}
+				id = msg->msg_id;
+			}
+			/* done, destroy. */
+			mailbox_snapshot = ast_vm_mailbox_snapshot_destroy(mailbox_snapshot);
+		}
+	}
+
+	return ret;
+}
+
+static char *handle_voicemail_forward_message(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "voicemail forward";
+		e->usage =
+		"Usage: voicemail forward <from_mailbox> <from_context> <from_folder> <messageid> <to_mailbox> <to_context> <to_folder>\n"
+		"       Forward message <messageid> in mailbox <mailbox>@<context> <from_folder>\n"
+		"       to mailbox <mailbox>@<context> <to_folder>\n";
+		return NULL;
+	case CLI_GENERATE:
+		return complete_voicemail_move_message(a, 8);
+	case CLI_HANDLER:
+		break;
+	}
+
+	if (a->argc != 9) {
+		return CLI_SHOWUSAGE;
+	}
+
+	if (forward_message_from_mailbox(a)) {
+		return CLI_FAILURE;
+	}
+
+	return CLI_SUCCESS;
+}
+
+static char *handle_voicemail_move_message(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "voicemail move";
+		e->usage =
+		"Usage: voicemail move <mailbox> <context> <from_folder> <messageid> <to_folder>\n"
+		"       Move message <messageid> in mailbox <mailbox>&<context> from <from_folder> to <to_folder>\n";
+		return NULL;
+	case CLI_GENERATE:
+		return complete_voicemail_move_message(a, 6);
+	case CLI_HANDLER:
+		break;
+	}
+
+	if (a->argc != 7) {
+		return CLI_SHOWUSAGE;
+	}
+
+	if (move_message_from_mailbox(a)) {
+		return CLI_FAILURE;
+	}
+
+	return CLI_SUCCESS;
+}
+
+static char *handle_voicemail_remove_message(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "voicemail remove";
+		e->usage =
+		"Usage: voicemail remove <mailbox> <context> <from_folder> <messageid>\n"
+		"       Remove message <messageid> from <from_folder> in mailbox <mailbox>@<context>\n";
+		return NULL;
+	case CLI_GENERATE:
+		return complete_voicemail_move_message(a, 5);
+	case CLI_HANDLER:
+		break;
+	}
+
+	if (a->argc != 6) {
+		return CLI_SHOWUSAGE;
+	}
+
+	if (remove_message_from_mailbox(a)) {
+		return CLI_FAILURE;
+	}
+
+	return CLI_SUCCESS;
+}
+
 static int vm_execmain(struct ast_channel *chan, const char *data)
 {
 	/* XXX This is, admittedly, some pretty horrendous code.  For some
@@ -12413,7 +12936,7 @@ AST_TEST_DEFINE(test_voicemail_vmuser)
 	/* language parameter seems to only be used for display in manager action */
 	static const char options_string[] = "attach=yes|attachfmt=wav49|"
 		"serveremail=someguy@digium.com|fromstring=Voicemail System|tz=central|delete=yes|saycid=yes|"
-		"sendvoicemail=yes|review=yes|tempgreetwarn=yes|messagewrap=yes|operator=yes|"
+		"sendvoicemail=yes|review=yes|tempgreetwarn=yes|messagewrap=yes|operator=yes|leaveurgent=yes|"
 		"envelope=yes|moveheard=yes|sayduration=yes|saydurationm=5|forcename=yes|"
 		"forcegreetings=yes|callback=somecontext|dialout=somecontext2|"
 		"exitcontext=somecontext3|minsecs=10|maxsecs=100|nextaftercmd=yes|"
@@ -12487,6 +13010,10 @@ AST_TEST_DEFINE(test_voicemail_vmuser)
 	}
 	if (!ast_test_flag(vmu, VM_REVIEW)) {
 		ast_test_status_update(test, "Parse failure for review option\n");
+		res = 1;
+	}
+	if (!ast_test_flag(vmu, VM_MARK_URGENT)) {
+		ast_test_status_update(test, "Parse failure for leaveurgent option\n");
 		res = 1;
 	}
 	if (!ast_test_flag(vmu, VM_TEMPGREETWARN)) {
@@ -12595,6 +13122,7 @@ AST_TEST_DEFINE(test_voicemail_vmuser)
 #endif
 
 	free_user(vmu);
+	force_reload_config(); /* Restore original config */
 	return res ? AST_TEST_FAIL : AST_TEST_PASS;
 }
 #endif
@@ -12771,19 +13299,25 @@ static char *complete_voicemail_show_users(const char *line, const char *word, i
 	int wordlen;
 	struct ast_vm_user *vmu;
 	const char *context = "";
+	char *ret;
 
 	/* 0 - voicemail; 1 - show; 2 - users; 3 - for; 4 - <context> */
 	if (pos > 4)
 		return NULL;
 	wordlen = strlen(word);
+	AST_LIST_LOCK(&users);
 	AST_LIST_TRAVERSE(&users, vmu, list) {
 		if (!strncasecmp(word, vmu->context, wordlen)) {
-			if (context && strcmp(context, vmu->context) && ++which > state)
-				return ast_strdup(vmu->context);
+			if (context && strcmp(context, vmu->context) && ++which > state) {
+				ret = ast_strdup(vmu->context);
+				AST_LIST_UNLOCK(&users);
+				return ret;
+			}
 			/* ignore repeated contexts ? */
 			context = vmu->context;
 		}
 	}
+	AST_LIST_UNLOCK(&users);
 	return NULL;
 }
 
@@ -12967,6 +13501,10 @@ static struct ast_cli_entry cli_voicemail[] = {
 	AST_CLI_DEFINE(handle_voicemail_show_zones, "List zone message formats"),
 	AST_CLI_DEFINE(handle_voicemail_show_aliases, "List mailbox aliases"),
 	AST_CLI_DEFINE(handle_voicemail_reload, "Reload voicemail configuration"),
+	AST_CLI_DEFINE(handle_voicemail_show_mailbox, "Display a mailbox's content details"),
+	AST_CLI_DEFINE(handle_voicemail_forward_message, "Forward message to another folder"),
+	AST_CLI_DEFINE(handle_voicemail_move_message, "Move message to another folder"),
+	AST_CLI_DEFINE(handle_voicemail_remove_message, "Remove message"),
 };
 
 static int poll_subscribed_mailbox(struct ast_mwi_state *mwi_state, void *data)
@@ -13209,6 +13747,7 @@ static int append_vmu_info_astman(
 		"DeleteMessage: %s\r\n"
 		"VolumeGain: %.2f\r\n"
 		"CanReview: %s\r\n"
+		"CanMarkUrgent: %s\r\n"
 		"CallOperator: %s\r\n"
 		"MaxMessageCount: %d\r\n"
 		"MaxMessageLength: %d\r\n"
@@ -13246,6 +13785,7 @@ static int append_vmu_info_astman(
 		ast_test_flag(vmu, VM_DELETE) ? "Yes" : "No",
 		vmu->volgain,
 		ast_test_flag(vmu, VM_REVIEW) ? "Yes" : "No",
+		ast_test_flag(vmu, VM_MARK_URGENT) ? "Yes" : "No",
 		ast_test_flag(vmu, VM_OPERATOR) ? "Yes" : "No",
 		vmu->maxmsg,
 		vmu->maxsecs,
@@ -13262,6 +13802,66 @@ static int append_vmu_info_astman(
 
 	return 1;
 
+}
+
+
+/*!
+ * \brief Append vmbox info string into given astman with event_name.
+ * \return 0 if unable to append details, 1 otherwise.
+*/
+static int append_vmbox_info_astman(
+		struct mansession *s,
+		const struct message *m,
+		struct ast_vm_user *vmu,
+		const char* event_name,
+		const char* actionid)
+{
+	struct ast_vm_mailbox_snapshot *mailbox_snapshot;
+	struct ast_vm_msg_snapshot *msg;
+	int nummessages = 0;
+	int i;
+
+	/* Take a snapshot of the mailbox */
+	mailbox_snapshot = ast_vm_mailbox_snapshot_create(vmu->mailbox, vmu->context, NULL, 0, AST_VM_SNAPSHOT_SORT_BY_ID, 0);
+	if (!mailbox_snapshot) {
+		ast_log(LOG_ERROR, "Could not append voicemail box info for box %s@%s.",
+			vmu->mailbox, vmu->context);
+		return 0;
+	}
+
+	astman_send_listack(s, m, "Voicemail box detail will follow", "start");
+	/* walk through each folder's contents and append info for each message */
+	for (i = 0; i < mailbox_snapshot->folders; i++) {
+		AST_LIST_TRAVERSE(&((mailbox_snapshot)->snapshots[i]), msg, msg) {
+			astman_append(s,
+				"Event: %s\r\n"
+				"%s"
+				"Folder: %s\r\n"
+				"CallerID: %s\r\n"
+				"Date: %s\r\n"
+				"Duration: %s\r\n"
+				"Flag: %s\r\n"
+				"ID: %s\r\n"
+				"\r\n",
+				event_name,
+				actionid,
+				msg->folder_name,
+				msg->callerid,
+				msg->origdate,
+				msg->duration,
+				msg->flag,
+				msg->msg_id
+			);
+			nummessages++;
+		}
+	}
+
+	/* done, destroy. */
+	mailbox_snapshot = ast_vm_mailbox_snapshot_destroy(mailbox_snapshot);
+	astman_send_list_complete_start(s, m, "VoicemailBoxDetailComplete", nummessages);
+	astman_send_list_complete_end(s);
+
+	return 1;
 }
 
 static int manager_match_mailbox(struct ast_mwi_state *mwi_state, void *data)
@@ -13389,6 +13989,163 @@ static int manager_list_voicemail_users(struct mansession *s, const struct messa
 	return RESULT_SUCCESS;
 }
 
+static int manager_get_mailbox_summary(struct mansession *s, const struct message *m)
+{
+	struct ast_vm_user *vmu = NULL;
+	const char *id = astman_get_header(m, "ActionID");
+	char actionid[128];
+	struct ast_vm_user svm;
+
+	const char *context = astman_get_header(m, "Context");
+	const char *mailbox = astman_get_header(m, "Mailbox");
+
+	if ((ast_strlen_zero(context) || ast_strlen_zero(mailbox))) {
+		astman_send_error(s, m, "Need 'Context' and 'Mailbox' parameters.");
+		return 0;
+	}
+
+	actionid[0] = '\0';
+	if (!ast_strlen_zero(id)) {
+		snprintf(actionid, sizeof(actionid), "ActionID: %s\r\n", id);
+	}
+
+	/* find user */
+	memset(&svm, 0, sizeof(svm));
+	vmu = find_user(&svm, context, mailbox);
+	if (!vmu) {
+		/* could not find it */
+		astman_send_ack(s, m, "There is no voicemail user matching the given user.");
+		return 0;
+	}
+
+	/* Append the mailbox details */
+	if (!append_vmbox_info_astman(s, m, vmu, "VoicemailBoxDetail", actionid)) {
+		astman_send_error(s, m, "Unable to get mailbox info for the given user.");
+	}
+
+	free_user(vmu);
+	return 0;
+}
+
+static int manager_voicemail_move(struct mansession *s, const struct message *m)
+{
+	const char *mailbox = astman_get_header(m, "Mailbox");
+	const char *context = astman_get_header(m, "Context");
+	const char *from_folder = astman_get_header(m, "Folder");
+	const char *id[] = { astman_get_header(m, "ID") };
+	const char *to_folder = astman_get_header(m, "ToFolder");
+
+	if (ast_strlen_zero(mailbox)) {
+		astman_send_error(s, m, "Mailbox not specified, required");
+		return 0;
+	}
+	if (ast_strlen_zero(context)) {
+		astman_send_error(s, m, "Context not specified, required");
+		return 0;
+	}
+	if (ast_strlen_zero(from_folder)) {
+		astman_send_error(s, m, "Folder not specified, required");
+		return 0;
+	}
+	if (ast_strlen_zero(id[0])) {
+		astman_send_error(s, m, "ID not specified, required");
+		return 0;
+	}
+	if (ast_strlen_zero(to_folder)) {
+		astman_send_error(s, m, "ToFolder not specified, required");
+		return 0;
+	}
+
+	if (vm_msg_move(mailbox, context, 1, from_folder, id, to_folder)) {
+		astman_send_ack(s, m, "Message move failed\n");
+	} else {
+		astman_send_ack(s, m, "Message move successful\n");
+	}
+
+	return 0;
+}
+
+static int manager_voicemail_remove(struct mansession *s, const struct message *m)
+{
+	const char *mailbox = astman_get_header(m, "Mailbox");
+	const char *context = astman_get_header(m, "Context");
+	const char *folder = astman_get_header(m, "Folder");
+	const char *id[] = { astman_get_header(m, "ID") };
+
+	if (ast_strlen_zero(mailbox)) {
+		astman_send_error(s, m, "Mailbox not specified, required");
+		return 0;
+	}
+	if (ast_strlen_zero(context)) {
+		astman_send_error(s, m, "Context not specified, required");
+		return 0;
+	}
+	if (ast_strlen_zero(folder)) {
+		astman_send_error(s, m, "Folder not specified, required");
+		return 0;
+	}
+	if (ast_strlen_zero(id[0])) {
+		astman_send_error(s, m, "ID not specified, required");
+		return 0;
+	}
+
+	if (vm_msg_remove(mailbox, context, 1, folder, id)) {
+		astman_send_ack(s, m, "Message remove failed\n");
+	} else {
+		astman_send_ack(s, m, "Message remove successful\n");
+	}
+
+	return 0;
+}
+
+static int manager_voicemail_forward(struct mansession *s, const struct message *m)
+{
+	const char *from_mailbox = astman_get_header(m, "Mailbox");
+	const char *from_context = astman_get_header(m, "Context");
+	const char *from_folder = astman_get_header(m, "Folder");
+	const char *id[] = { astman_get_header(m, "ID") };
+	const char *to_mailbox = astman_get_header(m, "ToMailbox");
+	const char *to_context = astman_get_header(m, "ToContext");
+	const char *to_folder = astman_get_header(m, "ToFolder");
+
+	if (ast_strlen_zero(from_mailbox)) {
+		astman_send_error(s, m, "Mailbox not specified, required");
+		return 0;
+	}
+	if (ast_strlen_zero(from_context)) {
+		astman_send_error(s, m, "Context not specified, required");
+		return 0;
+	}
+	if (ast_strlen_zero(from_folder)) {
+		astman_send_error(s, m, "Folder not specified, required");
+		return 0;
+	}
+	if (ast_strlen_zero(id[0])) {
+		astman_send_error(s, m, "ID not specified, required");
+		return 0;
+	}
+	if (ast_strlen_zero(to_mailbox)) {
+		astman_send_error(s, m, "ToMailbox not specified, required");
+		return 0;
+	}
+	if (ast_strlen_zero(to_context)) {
+		astman_send_error(s, m, "ToContext not specified, required");
+		return 0;
+	}
+	if (ast_strlen_zero(to_folder)) {
+		astman_send_error(s, m, "ToFolder not specified, required");
+		return 0;
+	}
+
+	if (vm_msg_forward(from_mailbox, from_context, from_folder, to_mailbox, to_context, to_folder, 1, id, 0)) {
+		astman_send_ack(s, m, "Message forward failed\n");
+	} else {
+		astman_send_ack(s, m, "Message forward successful\n");
+	}
+
+	return 0;
+}
+
 /*! \brief Free the users structure. */
 static void free_vm_users(void)
 {
@@ -13458,10 +14215,10 @@ static const char *substitute_escapes(const char *value)
 	return ast_str_buffer(str);
 }
 
-static int load_config(int reload)
+static int load_config_force(int reload, int force)
 {
 	struct ast_config *cfg, *ucfg;
-	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
+	struct ast_flags config_flags = { reload && !force ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 	int res;
 
 	ast_unload_realtime("voicemail");
@@ -13497,6 +14254,11 @@ static int load_config(int reload)
 	ast_config_destroy(ucfg);
 
 	return res;
+}
+
+static int load_config(int reload)
+{
+	return load_config_force(reload, 0);
 }
 
 #ifdef TEST_FRAMEWORK
@@ -13992,6 +14754,14 @@ static int actual_load_config(int reload, struct ast_config *cfg, struct ast_con
 			val = "no";
 		}
 		ast_set2_flag((&globalflags), ast_true(val), VM_REVIEW);
+
+		if (!(val = ast_variable_retrieve(cfg, "general", "leaveurgent"))){
+			val = "yes";
+		} else if (ast_false(val)) {
+			ast_debug(1, "VM leave urgent messages disabled globally\n");
+			val = "no";
+		}
+		ast_set2_flag((&globalflags), ast_true(val), VM_MARK_URGENT);
 
 		/* Temporary greeting reminder */
 		if (!(val = ast_variable_retrieve(cfg, "general", "tempgreetwarn"))) {
@@ -14665,6 +15435,7 @@ AST_TEST_DEFINE(test_voicemail_msgcount)
 	}
 
 	free_user(vmu);
+	force_reload_config(); /* Restore original config */
 	return res;
 }
 
@@ -14775,6 +15546,7 @@ AST_TEST_DEFINE(test_voicemail_notify_endl)
 	}
 	fclose(file);
 	free_user(vmu);
+	force_reload_config(); /* Restore original config */
 	return res;
 }
 
@@ -14847,8 +15619,8 @@ AST_TEST_DEFINE(test_voicemail_load_config)
 
 #undef CHECK
 
-	/* restore config */
-	load_config(1); /* this might say "Failed to load configuration file." */
+	/* Forcibly restore the original config, to reinitialize after test */
+	force_reload_config(); /* this might say "Failed to load configuration file." */
 
 cleanup:
 	unlink(config_filename);
@@ -14914,6 +15686,11 @@ AST_TEST_DEFINE(test_voicemail_vm_info)
 	populate_defaults(vmu);
 
 	vmu->email = ast_strdup("vm-info-test@example.net");
+	if (!vmu->email) {
+		ast_test_status_update(test, "Cannot create vmu email\n");
+		chan = ast_channel_unref(chan);
+		return AST_TEST_FAIL;
+	}
 	ast_copy_string(vmu->fullname, "Test Framework Mailbox", sizeof(vmu->fullname));
 	ast_copy_string(vmu->pager, "vm-info-pager-test@example.net", sizeof(vmu->pager));
 	ast_copy_string(vmu->language, "en", sizeof(vmu->language));
@@ -14983,6 +15760,10 @@ static int unload_module(void)
 	res |= ast_manager_unregister("VoicemailUsersList");
 	res |= ast_manager_unregister("VoicemailUserStatus");
 	res |= ast_manager_unregister("VoicemailRefresh");
+	res |= ast_manager_unregister("VoicemailBoxSummary");
+	res |= ast_manager_unregister("VoicemailMove");
+	res |= ast_manager_unregister("VoicemailRemove");
+	res |= ast_manager_unregister("VoicemailForward");
 #ifdef TEST_FRAMEWORK
 	res |= AST_TEST_UNREGISTER(test_voicemail_vmsayname);
 	res |= AST_TEST_UNREGISTER(test_voicemail_msgcount);
@@ -15110,6 +15891,10 @@ static int load_module(void)
 	res |= ast_manager_register_xml("VoicemailUsersList", EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, manager_list_voicemail_users);
 	res |= ast_manager_register_xml("VoicemailUserStatus", EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, manager_status_voicemail_user);
 	res |= ast_manager_register_xml("VoicemailRefresh", EVENT_FLAG_USER, manager_voicemail_refresh);
+	res |= ast_manager_register_xml("VoicemailBoxSummary", EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, manager_get_mailbox_summary);
+	res |= ast_manager_register_xml("VoicemailMove", EVENT_FLAG_USER, manager_voicemail_move);
+	res |= ast_manager_register_xml("VoicemailRemove", EVENT_FLAG_USER, manager_voicemail_remove);
+	res |= ast_manager_register_xml("VoicemailForward", EVENT_FLAG_USER, manager_voicemail_forward);
 #ifdef TEST_FRAMEWORK
 	res |= AST_TEST_REGISTER(test_voicemail_vmsayname);
 	res |= AST_TEST_REGISTER(test_voicemail_msgcount);
@@ -15552,7 +16337,7 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 			}
 			break;
 		case '4':
-			if (outsidecaller) {  /* only mark vm messages */
+			if (outsidecaller && ast_test_flag(vmu, VM_MARK_URGENT)) {  /* only mark vm messages */
 				/* Mark Urgent */
 				if ((flag && ast_strlen_zero(flag)) || (!ast_strlen_zero(flag) && strcmp(flag, "Urgent"))) {
 					ast_verb(3, "marking message as Urgent\n");
@@ -15629,7 +16414,7 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 				return cmd;
 			if (msg_exists) {
 				cmd = ast_play_and_wait(chan, "vm-review");
-				if (!cmd && outsidecaller) {
+				if (!cmd && outsidecaller && ast_test_flag(vmu, VM_MARK_URGENT)) {
 					if ((flag && ast_strlen_zero(flag)) || (!ast_strlen_zero(flag) && strcmp(flag, "Urgent"))) {
 						cmd = ast_play_and_wait(chan, "vm-review-urgent");
 					} else if (flag) {

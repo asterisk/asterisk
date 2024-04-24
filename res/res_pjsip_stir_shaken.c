@@ -26,147 +26,165 @@
 
 #include "asterisk.h"
 
+#define _TRACE_PREFIX_ "pjss",__LINE__, ""
+
+#include "asterisk/callerid.h"
 #include "asterisk/res_pjsip.h"
 #include "asterisk/res_pjsip_session.h"
 #include "asterisk/module.h"
+#include "asterisk/rtp_engine.h"
 
 #include "asterisk/res_stir_shaken.h"
 
-/*! The Date header will not be valid after this many milliseconds (60 seconds recommended) */
-#define STIR_SHAKEN_DATE_HEADER_TIMEOUT 60000
+static const pj_str_t identity_hdr_str = { "Identity", 8 };
+static const pj_str_t date_hdr_str = { "Date", 4 };
 
-/*!
- * \brief Get the attestation from the payload
- *
- * \param json_str The JSON string representation of the payload
- *
- * \retval Empty string on failure
- * \retval The attestation on success
- */
-static char *get_attestation_from_payload(const char *json_str)
+/* Response codes from RFC8224 */
+enum sip_response_code {
+	SIP_RESPONSE_CODE_OK = 200,
+	SIP_RESPONSE_CODE_STALE_DATE = 403,
+	SIP_RESPONSE_CODE_USE_IDENTITY_HEADER = 428,
+	SIP_RESPONSE_CODE_BAD_IDENTITY_INFO = 436,
+	SIP_RESPONSE_CODE_UNSUPPORTED_CREDENTIAL = 437,
+	SIP_RESPONSE_CODE_INVALID_IDENTITY_HEADER = 438,
+	SIP_RESPONSE_CODE_USE_SUPPORTED_PASSPORT_FORMAT = 428,
+	SIP_RESPONSE_CODE_INTERNAL_ERROR = 500,
+};
+
+#define SIP_RESPONSE_CODE_OK_STR "OK"
+/* Response strings from RFC8224 */
+#define SIP_RESPONSE_CODE_STALE_DATE_STR "Stale Date"
+#define SIP_RESPONSE_CODE_USE_IDENTITY_HEADER_STR "Use Identity Header"
+#define SIP_RESPONSE_CODE_USE_SUPPORTED_PASSPORT_FORMAT_STR "Use Supported PASSporT Format"
+#define SIP_RESPONSE_CODE_BAD_IDENTITY_INFO_STR "Bad Identity Info"
+#define SIP_RESPONSE_CODE_UNSUPPORTED_CREDENTIAL_STR "Unsupported Credential"
+#define SIP_RESPONSE_CODE_INVALID_IDENTITY_HEADER_STR "Invalid Identity Header"
+#define SIP_RESPONSE_CODE_INTERNAL_ERROR_STR "Internal Error"
+
+#define response_to_str(_code) \
+case _code: \
+	return _code ## _STR;
+
+static const char *sip_response_code_to_str(enum sip_response_code code)
 {
-	RAII_VAR(struct ast_json *, json, NULL, ast_json_free);
-	char *attestation;
-
-	json = ast_json_load_string(json_str, NULL);
-	attestation = (char *)ast_json_string_get(ast_json_object_get(json, "attest"));
-
-	if (!ast_strlen_zero(attestation)) {
-		return attestation;
+	switch (code) {
+	response_to_str(SIP_RESPONSE_CODE_OK)
+	response_to_str(SIP_RESPONSE_CODE_STALE_DATE)
+	response_to_str(SIP_RESPONSE_CODE_USE_IDENTITY_HEADER)
+	response_to_str(SIP_RESPONSE_CODE_BAD_IDENTITY_INFO)
+	response_to_str(SIP_RESPONSE_CODE_UNSUPPORTED_CREDENTIAL)
+	response_to_str(SIP_RESPONSE_CODE_INVALID_IDENTITY_HEADER)
+	default:
+		break;
 	}
-
 	return "";
 }
 
-/*!
- * \brief Compare the caller ID from the INVITE with the one in the payload
- *
- * \param caller_id
- * \param json_str The JSON string representation of the payload
- *
- * \retval -1 on failure
- * \retval 0 on success
- */
-static int compare_caller_id(char *caller_id, const char *json_str)
+#define translate_code(_vs_rc, _sip_rc) \
+case AST_STIR_SHAKEN_VS_ ## _vs_rc: \
+	return SIP_RESPONSE_CODE_ ## _sip_rc;
+
+static enum sip_response_code vs_code_to_sip_code(
+	enum ast_stir_shaken_vs_response_code vs_rc)
 {
-	RAII_VAR(struct ast_json *, json, NULL, ast_json_free);
-	char *caller_id_other;
-
-	json = ast_json_load_string(json_str, NULL);
-	caller_id_other = (char *)ast_json_string_get(ast_json_object_get(
-		ast_json_object_get(json, "orig"), "tn"));
-
-	if (strcmp(caller_id, caller_id_other)) {
-		return -1;
+	/*
+	 * We want to use a switch/case statement here because
+	 * it'll spit out an error if VS codes are added to the
+	 * enum but aren't present here.
+	 */
+	switch (vs_rc) {
+	translate_code(SUCCESS,					OK)
+	translate_code(DISABLED, 				OK)
+	translate_code(INVALID_ARGUMENTS, 		INTERNAL_ERROR)
+	translate_code(INTERNAL_ERROR, 			INTERNAL_ERROR)
+	translate_code(NO_IDENTITY_HDR, 		USE_IDENTITY_HEADER)
+	translate_code(NO_DATE_HDR, 			STALE_DATE)
+	translate_code(DATE_HDR_PARSE_FAILURE, 	STALE_DATE)
+	translate_code(DATE_HDR_EXPIRED, 		STALE_DATE)
+	translate_code(NO_JWT_HDR, 				INVALID_IDENTITY_HEADER)
+	translate_code(INVALID_OR_NO_X5U, 		INVALID_IDENTITY_HEADER)
+	translate_code(CERT_CACHE_MISS, 		INVALID_IDENTITY_HEADER)
+	translate_code(CERT_CACHE_INVALID, 		INVALID_IDENTITY_HEADER)
+	translate_code(CERT_CACHE_EXPIRED, 		INVALID_IDENTITY_HEADER)
+	translate_code(CERT_RETRIEVAL_FAILURE, 	BAD_IDENTITY_INFO)
+	translate_code(CERT_CONTENTS_INVALID, 	UNSUPPORTED_CREDENTIAL)
+	translate_code(CERT_NOT_TRUSTED, 		UNSUPPORTED_CREDENTIAL)
+	translate_code(CERT_DATE_INVALID, 		UNSUPPORTED_CREDENTIAL)
+	translate_code(CERT_NO_TN_AUTH_EXT, 	UNSUPPORTED_CREDENTIAL)
+	translate_code(CERT_NO_SPC_IN_TN_AUTH_EXT, 	UNSUPPORTED_CREDENTIAL)
+	translate_code(NO_RAW_KEY, 				UNSUPPORTED_CREDENTIAL)
+	translate_code(SIGNATURE_VALIDATION, 	INVALID_IDENTITY_HEADER)
+	translate_code(NO_IAT, 					INVALID_IDENTITY_HEADER)
+	translate_code(IAT_EXPIRED, 			STALE_DATE)
+	translate_code(INVALID_OR_NO_PPT, 		INVALID_IDENTITY_HEADER)
+	translate_code(INVALID_OR_NO_ALG, 		INVALID_IDENTITY_HEADER)
+	translate_code(INVALID_OR_NO_TYP, 		INVALID_IDENTITY_HEADER)
+	translate_code(INVALID_OR_NO_ATTEST, 	INVALID_IDENTITY_HEADER)
+	translate_code(NO_ORIGID, 				INVALID_IDENTITY_HEADER)
+	translate_code(NO_ORIG_TN, 				INVALID_IDENTITY_HEADER)
+	translate_code(NO_DEST_TN, 				INVALID_IDENTITY_HEADER)
+	translate_code(INVALID_HEADER, 			INVALID_IDENTITY_HEADER)
+	translate_code(INVALID_GRANT, 			INVALID_IDENTITY_HEADER)
+	translate_code(INVALID_OR_NO_GRANTS, 	INVALID_IDENTITY_HEADER)
+	translate_code(CID_ORIG_TN_MISMATCH, 	INVALID_IDENTITY_HEADER)
+	translate_code(RESPONSE_CODE_MAX, 		INVALID_IDENTITY_HEADER)
 	}
 
-	return 0;
+	return 500;
 }
 
-/*!
- * \brief Compare the current timestamp with the one in the payload. If the difference
- * is greater than the signature timeout, it's not valid anymore
- *
- * \param json_str The JSON string representation of the payload
- *
- * \retval -1 on failure
- * \retval 0 on success
- */
-static int compare_timestamp(const char *json_str)
+enum process_failure_rc {
+	PROCESS_FAILURE_CONTINUE = 0,
+	PROCESS_FAILURE_REJECT,
+	PROCESS_FAILURE_SYSTEM_FAILURE,
+};
+
+static void reject_incoming_call(struct ast_sip_session *session,
+	enum sip_response_code response_code)
 {
-	RAII_VAR(struct ast_json *, json, NULL, ast_json_free);
-	long int timestamp;
-	struct timeval now = ast_tvnow();
-
-#ifdef TEST_FRAMEWORK
-	ast_debug(3, "Ignoring STIR/SHAKEN timestamp\n");
-	return 0;
-#endif
-
-	json = ast_json_load_string(json_str, NULL);
-	timestamp = ast_json_integer_get(ast_json_object_get(json, "iat"));
-
-	if (now.tv_sec - timestamp > ast_stir_shaken_get_signature_timeout()) {
-		return -1;
-	}
-
-	return 0;
-}
-
-static int check_date_header(pjsip_rx_data *rdata)
-{
-	static const pj_str_t date_hdr_str = { "Date", 4 };
-	char *date_hdr_val;
-	struct ast_tm date_hdr_tm;
-	struct timeval date_hdr_timeval;
-	struct timeval current_timeval;
-	char *remainder;
-	char timezone[80] = { 0 };
-	int64_t time_diff;
-
-	date_hdr_val = ast_sip_rdata_get_header_value(rdata, date_hdr_str);
-	if (ast_strlen_zero(date_hdr_val)) {
-		ast_log(LOG_ERROR, "Failed to get Date header from incoming INVITE for STIR/SHAKEN\n");
-		return -1;
-	}
-
-	if (!(remainder = ast_strptime(date_hdr_val, "%a, %d %b %Y %T", &date_hdr_tm))) {
-		ast_log(LOG_ERROR, "Failed to parse Date header\n");
-		return -1;
-	}
-
-	sscanf(remainder, "%79s", timezone);
-
-	if (ast_strlen_zero(timezone)) {
-		ast_log(LOG_ERROR, "A timezone is required for STIR/SHAKEN Date header, but we didn't get one\n");
-		return -1;
-	}
-
-	date_hdr_timeval = ast_mktime(&date_hdr_tm, timezone);
-	current_timeval = ast_tvnow();
-
-	time_diff = ast_tvdiff_ms(current_timeval, date_hdr_timeval);
-	if (time_diff < 0) {
-		/* An INVITE from the future! */
-		ast_log(LOG_ERROR, "STIR/SHAKEN Date header has a future date\n");
-		return -1;
-	} else if (time_diff > STIR_SHAKEN_DATE_HEADER_TIMEOUT) {
-		ast_log(LOG_ERROR, "STIR/SHAKEN Date header was outside of the allowable range (60 seconds)\n");
-		return -1;
-	}
-
-	return 0;
-}
-
-/* Send a response back and end the session */
-static void stir_shaken_inv_end_session(struct ast_sip_session *session, pjsip_rx_data *rdata, int response_code, const pj_str_t response_str)
-{
-	pjsip_tx_data *tdata;
-
-	if (pjsip_inv_end_session(session->inv_session, response_code, &response_str, &tdata) == PJ_SUCCESS) {
-		pjsip_endpt_send_response2(ast_sip_get_pjsip_endpoint(), rdata, tdata, NULL, NULL);
-	}
+	ast_sip_session_terminate(session, response_code);
 	ast_hangup(session->channel);
+}
+
+static enum process_failure_rc process_failure(struct ast_stir_shaken_vs_ctx *ctx,
+	const char *caller_id, struct ast_sip_session *session,
+	pjsip_rx_data *rdata, enum ast_stir_shaken_vs_response_code vs_rc)
+{
+	enum sip_response_code response_code = vs_code_to_sip_code(vs_rc);
+	pj_str_t response_str;
+	const char *response_string =
+		sip_response_code_to_str(response_code);
+	enum stir_shaken_failure_action_enum failure_action =
+		ast_stir_shaken_vs_get_failure_action(ctx);
+	const char *tag = ast_sip_session_get_name(session);
+	SCOPE_ENTER(1, "%s: FA: %d  RC: %d\n", tag,
+		failure_action, response_code);
+
+	pj_cstr(&response_str, response_string);
+
+	if (failure_action == stir_shaken_failure_action_REJECT_REQUEST) {
+		reject_incoming_call(session, response_code);
+		SCOPE_EXIT_RTN_VALUE(PROCESS_FAILURE_REJECT,
+			"%s: Rejecting request and terminating session\n",
+			tag);
+	}
+
+	ast_stir_shaken_vs_ctx_set_response_code(ctx, vs_rc);
+	ast_stir_shaken_add_result_to_channel(ctx);
+
+	if (failure_action == stir_shaken_failure_action_CONTINUE_RETURN_REASON) {
+		int rc = ast_sip_session_add_reason_header(session,
+			ast_stir_shaken_vs_get_use_rfc9410_responses(ctx) ? "STIR" : "SIP",
+			response_code, response_str.ptr);
+		if (rc != 0) {
+			SCOPE_EXIT_RTN_VALUE(PROCESS_FAILURE_SYSTEM_FAILURE,
+				"%s: Failed to add Reason header\n", tag);
+		}
+		SCOPE_EXIT_RTN_VALUE(PROCESS_FAILURE_CONTINUE,
+			"%s: Attaching reason code to session\n", tag);
+	}
+	SCOPE_EXIT_RTN_VALUE(PROCESS_FAILURE_CONTINUE,
+		"%s: Continuing\n", tag);
 }
 
 /*!
@@ -181,222 +199,165 @@ static void stir_shaken_inv_end_session(struct ast_sip_session *session, pjsip_r
  */
 static int stir_shaken_incoming_request(struct ast_sip_session *session, pjsip_rx_data *rdata)
 {
-	static const pj_str_t identity_str = { "Identity", 8 };
-	const pj_str_t bad_identity_info_str = {
-		AST_STIR_SHAKEN_RESPONSE_STR_BAD_IDENTITY_INFO,
-		strlen(AST_STIR_SHAKEN_RESPONSE_STR_BAD_IDENTITY_INFO)
-	};
-	const pj_str_t unsupported_credential_str = {
-		AST_STIR_SHAKEN_RESPONSE_STR_UNSUPPORTED_CREDENTIAL,
-		strlen(AST_STIR_SHAKEN_RESPONSE_STR_UNSUPPORTED_CREDENTIAL)
-	};
-	const pj_str_t stale_date_str = {
-		AST_STIR_SHAKEN_RESPONSE_STR_STALE_DATE,
-		strlen(AST_STIR_SHAKEN_RESPONSE_STR_STALE_DATE)
-	};
-	const pj_str_t use_supported_passport_format_str = {
-		AST_STIR_SHAKEN_RESPONSE_STR_USE_SUPPORTED_PASSPORT_FORMAT,
-		strlen(AST_STIR_SHAKEN_RESPONSE_STR_USE_SUPPORTED_PASSPORT_FORMAT)
-	};
-	const pj_str_t invalid_identity_hdr_str = {
-		AST_STIR_SHAKEN_RESPONSE_STR_INVALID_IDENTITY_HEADER,
-		strlen(AST_STIR_SHAKEN_RESPONSE_STR_INVALID_IDENTITY_HEADER)
-	};
-	const pj_str_t server_internal_error_str = { "Server Internal Error", 21 };
-	char *identity_hdr_val;
-	char *encoded_val;
-	struct ast_channel *chan = session->channel;
-	char *caller_id = session->id.number.str;
+	RAII_VAR(struct ast_stir_shaken_vs_ctx *, ctx, NULL, ao2_cleanup);
 	RAII_VAR(char *, header, NULL, ast_free);
 	RAII_VAR(char *, payload, NULL, ast_free);
-	char *signature;
-	char *algorithm;
-	char *public_cert_url;
-	char *attestation;
-	char *ppt;
-	int mismatch = 0;
-	struct ast_stir_shaken_payload *ss_payload;
-	int failure_code = 0;
-	RAII_VAR(struct stir_shaken_profile *, profile, NULL, ao2_cleanup);
+	char *identity_hdr_val;
+	char *date_hdr_val;
+	char *caller_id = session->id.number.str;
+	const char *session_name = ast_sip_session_get_name(session);
+	struct ast_channel *chan = session->channel;
+	enum ast_stir_shaken_vs_response_code vs_rc;
+	enum process_failure_rc p_rc;
+	SCOPE_ENTER(1, "%s: Enter\n", session_name);
+
+	if (!session) {
+		SCOPE_EXIT_LOG_RTN_VALUE(1, LOG_ERROR, "No session\n");
+	}
+	if (!session->channel) {
+		SCOPE_EXIT_LOG_RTN_VALUE(1, LOG_ERROR, "%s: No channel\n", session_name);
+	}
+	if (!rdata) {
+		SCOPE_EXIT_LOG_RTN_VALUE(1, LOG_ERROR, "%s: No rdata\n", session_name);
+	}
 
 	/* Check if this is a reinvite. If it is, we don't need to do anything */
 	if (rdata->msg_info.to->tag.slen) {
-		return 0;
+		SCOPE_EXIT_RTN_VALUE(0, "%s: Reinvite. No action needed\n", session_name);
 	}
 
-	profile = ast_stir_shaken_get_profile(session->endpoint->stir_shaken_profile);
-	/* Profile should be checked first as it takes priority over anything else.
-	 * If there is a profile and it doesn't have verification enabled, do nothing.
-	 * If there is no profile and the stir_shaken option is either not set or does
-	 * not support verification, do nothing.
+	/*
+	 * Shortcut:  If there's no callerid or profile name,
+	 * just bail now.
 	 */
-	if ((profile && !ast_stir_shaken_profile_supports_verification(profile))
-		|| (!profile && (session->endpoint->stir_shaken & AST_SIP_STIR_SHAKEN_VERIFY) == 0)) {
-		return 0;
+	if (ast_strlen_zero(caller_id)
+		|| ast_strlen_zero(session->endpoint->stir_shaken_profile)) {
+		SCOPE_EXIT_RTN_VALUE(0, "%s: No callerid or profile name. No action needed\n", session_name);
 	}
 
-	identity_hdr_val = ast_sip_rdata_get_header_value(rdata, identity_str);
+	vs_rc = ast_stir_shaken_vs_ctx_create(caller_id, chan,
+		session->endpoint->stir_shaken_profile,
+		session_name, &ctx);
+	if (vs_rc == AST_STIR_SHAKEN_VS_DISABLED) {
+		SCOPE_EXIT_RTN_VALUE(0, "%s: VS Disabled\n", session_name);
+	} else if (vs_rc != AST_STIR_SHAKEN_VS_SUCCESS) {
+		reject_incoming_call(session, 500);
+		SCOPE_EXIT_RTN_VALUE(1, "%s: Unable to create context.  Call terminated\n",
+			session_name);
+	}
+
+	identity_hdr_val = ast_sip_rdata_get_header_value(rdata, identity_hdr_str);
 	if (ast_strlen_zero(identity_hdr_val)) {
-		ast_stir_shaken_add_verification(chan, caller_id, "", AST_STIR_SHAKEN_VERIFY_NOT_PRESENT);
-		return 0;
-	}
-
-	encoded_val = strtok_r(identity_hdr_val, ".", &identity_hdr_val);
-	header = ast_base64url_decode_string(encoded_val);
-	if (ast_strlen_zero(header)) {
-		ast_debug(3, "STIR/SHAKEN INVITE for %s is missing header\n",
-			ast_sorcery_object_get_id(session->endpoint));
-		stir_shaken_inv_end_session(session, rdata, AST_STIR_SHAKEN_RESPONSE_CODE_BAD_IDENTITY_INFO, bad_identity_info_str);
-		return 1;
-	}
-
-	encoded_val = strtok_r(identity_hdr_val, ".", &identity_hdr_val);
-	payload = ast_base64url_decode_string(encoded_val);
-	if (ast_strlen_zero(payload)) {
-		ast_debug(3, "STIR/SHAKEN INVITE for %s is missing payload\n",
-			ast_sorcery_object_get_id(session->endpoint));
-		stir_shaken_inv_end_session(session, rdata, AST_STIR_SHAKEN_RESPONSE_CODE_BAD_IDENTITY_INFO, bad_identity_info_str);
-		return 1;
-	}
-
-	/* It's fine to leave the signature encoded */
-	signature = strtok_r(identity_hdr_val, ";", &identity_hdr_val);
-	if (ast_strlen_zero(signature)) {
-		ast_debug(3, "STIR/SHAKEN INVITE for %s is missing signature\n",
-			ast_sorcery_object_get_id(session->endpoint));
-		stir_shaken_inv_end_session(session, rdata, AST_STIR_SHAKEN_RESPONSE_CODE_BAD_IDENTITY_INFO, bad_identity_info_str);
-		return 1;
-	}
-
-	/* Trim "info=<" to get public cert URL */
-	strtok_r(identity_hdr_val, "<", &identity_hdr_val);
-	public_cert_url = strtok_r(identity_hdr_val, ">", &identity_hdr_val);
-
-	/* Make sure the public URL is actually a URL */
-	if (ast_strlen_zero(public_cert_url) || !ast_begins_with(public_cert_url, "http")) {
-		/* RFC8224 states that if we can't acquire the credentials needed
-		 * by the verification service, we should send a 436 */
-		ast_debug(3, "STIR/SHAKEN INVITE for %s did not  have valid URL (%s)\n",
-			ast_sorcery_object_get_id(session->endpoint), public_cert_url);
-		stir_shaken_inv_end_session(session, rdata, AST_STIR_SHAKEN_RESPONSE_CODE_BAD_IDENTITY_INFO, bad_identity_info_str);
-		return 1;
-	}
-
-	algorithm = strtok_r(identity_hdr_val, ";", &identity_hdr_val);
-	if (ast_strlen_zero(algorithm)) {
-		/* RFC8224 states that if the algorithm is not specified, use ES256 */
-		algorithm = STIR_SHAKEN_ENCRYPTION_ALGORITHM;
-	} else {
-		strtok_r(algorithm, "=", &algorithm);
-		if (strcmp(algorithm, STIR_SHAKEN_ENCRYPTION_ALGORITHM)) {
-			/* RFC8224 states that if we don't support the algorithm, send a 437 */
-			ast_debug(3, "STIR/SHAKEN INVITE for %s uses an unsupported algorithm (%s)\n",
-				ast_sorcery_object_get_id(session->endpoint), algorithm);
-			stir_shaken_inv_end_session(session, rdata, AST_STIR_SHAKEN_RESPONSE_CODE_UNSUPPORTED_CREDENTIAL, unsupported_credential_str);
-			return 1;
+		p_rc = process_failure(ctx, caller_id, session, rdata,
+			AST_STIR_SHAKEN_VS_NO_IDENTITY_HDR);
+		if (p_rc == PROCESS_FAILURE_CONTINUE) {
+			SCOPE_EXIT_RTN_VALUE(0, "%s: No Identity header found.  Call continuing\n",
+				session_name);
 		}
+		SCOPE_EXIT_LOG_RTN_VALUE(1, LOG_ERROR, "%s: No Identity header found.  Call terminated\n",
+			session_name);
 	}
 
-	/* The only thing left should be ppt=shaken (which could have more values later),
-	 * unless using the compact PASSport form */
-	strtok_r(identity_hdr_val, "=", &identity_hdr_val);
-	ppt = ast_strip(identity_hdr_val);
-	if (!ast_strlen_zero(ppt) && strcmp(ppt, STIR_SHAKEN_PPT)) {
-		ast_log(LOG_ERROR, "STIR/SHAKEN INVITE for %s has unsupported ppt (%s)\n",
-			ast_sorcery_object_get_id(session->endpoint), ppt);
-		stir_shaken_inv_end_session(session, rdata, AST_STIR_SHAKEN_RESPONSE_CODE_USE_SUPPORTED_PASSPORT_FORMAT, use_supported_passport_format_str);
-		return 1;
+	vs_rc = ast_stir_shaken_vs_ctx_add_identity_hdr(ctx, identity_hdr_val);
+	if (vs_rc != AST_STIR_SHAKEN_VS_SUCCESS) {
+		reject_incoming_call(session, 500);
+		SCOPE_EXIT_LOG_RTN_VALUE(1, LOG_ERROR, "%s: Unable to add Identity header.  Call terminated.\n",
+			session_name);
 	}
 
-	if (check_date_header(rdata)) {
-		ast_debug(3, "STIR/SHAKEN INVITE for %s has old Date header\n",
-			ast_sorcery_object_get_id(session->endpoint));
-		stir_shaken_inv_end_session(session, rdata, AST_STIR_SHAKEN_RESPONSE_CODE_STALE_DATE, stale_date_str);
-		return 1;
-	}
-
-	attestation = get_attestation_from_payload(payload);
-
-	ss_payload = ast_stir_shaken_verify_with_profile(header, payload, signature, algorithm, public_cert_url, &failure_code, profile);
-
-	if (!ss_payload) {
-
-		if (failure_code == AST_STIR_SHAKEN_VERIFY_FAILED_TO_GET_CERT) {
-			/* RFC8224 states that if we can't get the credentials we need, send a 437 */
-			ast_debug(3, "STIR/SHAKEN INVITE for %s failed to acquire cert during verification process\n",
-				ast_sorcery_object_get_id(session->endpoint));
-			stir_shaken_inv_end_session(session, rdata, AST_STIR_SHAKEN_RESPONSE_CODE_UNSUPPORTED_CREDENTIAL, unsupported_credential_str);
-		} else if (failure_code == AST_STIR_SHAKEN_VERIFY_FAILED_MEMORY_ALLOC) {
-			ast_log(LOG_ERROR, "Failed to allocate memory during STIR/SHAKEN verification"
-				" for %s\n", ast_sorcery_object_get_id(session->endpoint));
-			stir_shaken_inv_end_session(session, rdata, 500, server_internal_error_str);
-		} else if (failure_code == AST_STIR_SHAKEN_VERIFY_FAILED_SIGNATURE_VALIDATION) {
-			/* RFC8224 states that if we can't validate the signature, send a 438 */
-			ast_debug(3, "STIR/SHAKEN INVITE for %s failed signature validation during verification process\n",
-				ast_sorcery_object_get_id(session->endpoint));
-			ast_stir_shaken_add_verification(chan, caller_id, attestation, AST_STIR_SHAKEN_VERIFY_SIGNATURE_FAILED);
-			stir_shaken_inv_end_session(session, rdata, AST_STIR_SHAKEN_RESPONSE_CODE_INVALID_IDENTITY_HEADER, invalid_identity_hdr_str);
+	date_hdr_val = ast_sip_rdata_get_header_value(rdata, date_hdr_str);
+	if (ast_strlen_zero(date_hdr_val)) {
+		p_rc = process_failure(ctx, caller_id, session, rdata,
+			AST_STIR_SHAKEN_VS_NO_DATE_HDR);
+		if (p_rc == PROCESS_FAILURE_CONTINUE) {
+			SCOPE_EXIT_RTN_VALUE(0, "%s: No Date header found.  Call continuing\n",
+				session_name);
 		}
-
-		return 1;
-	}
-	ast_stir_shaken_payload_free(ss_payload);
-
-	mismatch |= compare_caller_id(caller_id, payload);
-	mismatch |= compare_timestamp(payload);
-
-	if (mismatch) {
-		ast_stir_shaken_add_verification(chan, caller_id, attestation, AST_STIR_SHAKEN_VERIFY_MISMATCH);
-		return 0;
+		SCOPE_EXIT_LOG_RTN_VALUE(1, LOG_ERROR, "%s: No Date header found.  Call terminated\n",
+			session_name);
 	}
 
-	ast_stir_shaken_add_verification(chan, caller_id, attestation, AST_STIR_SHAKEN_VERIFY_PASSED);
+	ast_stir_shaken_vs_ctx_add_date_hdr(ctx, date_hdr_val);
+	if (vs_rc != AST_STIR_SHAKEN_VS_SUCCESS) {
+		reject_incoming_call(session, 500);
+		SCOPE_EXIT_LOG_RTN_VALUE(1, LOG_ERROR, "%s: Unable to add Date header.  Call terminated.\n",
+			session_name);
+	}
 
-	return 0;
+	vs_rc = ast_stir_shaken_vs_verify(ctx);
+	if (vs_rc != AST_STIR_SHAKEN_VS_SUCCESS) {
+		p_rc = process_failure(ctx, caller_id, session, rdata, vs_rc);
+		if (p_rc == PROCESS_FAILURE_CONTINUE) {
+			SCOPE_EXIT_RTN_VALUE(0, "%s: Verification failed.  Call continuing\n",
+				session_name);
+		}
+		SCOPE_EXIT_LOG_RTN_VALUE(1, LOG_ERROR, "%s: Verification failed.  Call terminated\n",
+			session_name);
+
+	}
+
+	ast_stir_shaken_add_result_to_channel(ctx);
+
+	SCOPE_EXIT_RTN_VALUE(0, "Passed\n");
 }
 
-static int add_identity_header(const struct ast_sip_session *session, pjsip_tx_data *tdata)
+static void add_fingerprints_if_present(struct ast_sip_session *session,
+	struct ast_stir_shaken_as_ctx *ctx)
 {
-	static const pj_str_t identity_str = { "Identity", 8 };
-	pjsip_generic_string_hdr *identity_hdr;
-	pj_str_t identity_val;
-	pjsip_fromto_hdr *old_identity;
+	struct ast_sip_session_media_state *ms = session->pending_media_state;
+	struct ast_sip_session_media *m = NULL;
+	struct ast_rtp_engine_dtls *d = NULL;
+	enum ast_rtp_dtls_hash h;
+	int i;
+	const char *tag = ast_sip_session_get_name(session);
+	size_t count = AST_VECTOR_SIZE(&ms->sessions);
+	SCOPE_ENTER(4, "%s: Check %zu media sessions for fingerprints\n",
+		tag, count);
+
+	if (!ast_stir_shaken_as_ctx_wants_fingerprints(ctx)) {
+		SCOPE_EXIT_RTN("%s: Fingerprints not needed\n", tag);
+	}
+
+	for (i = 0; i < count; i++) {
+		const char *f;
+
+		m = AST_VECTOR_GET(&ms->sessions, i);
+		if (!m|| !m->rtp) {
+			ast_trace(1, "Session: %d: No session or rtp instance\n", i);
+			continue;
+		}
+		d = ast_rtp_instance_get_dtls(m->rtp);
+		h = d->get_fingerprint_hash(m->rtp);
+		f = d->get_fingerprint(m->rtp);
+
+		ast_stir_shaken_as_ctx_add_fingerprint(ctx,
+			h == AST_RTP_DTLS_HASH_SHA256 ? "sha-256" : "sha-1", f);
+	}
+	SCOPE_EXIT_RTN("%s: Done\n", tag);
+}
+
+static char *get_dest_tn(pjsip_tx_data *tdata, const char *tag)
+{
 	pjsip_fromto_hdr *to;
 	pjsip_sip_uri *uri;
-	char *signature;
-	char *public_cert_url;
-	struct ast_json *header;
-	struct ast_json *payload;
-	char *dumped_string;
-	RAII_VAR(char *, dest_tn, NULL, ast_free);
-	RAII_VAR(struct ast_json *, json, NULL, ast_json_free);
-	RAII_VAR(struct ast_stir_shaken_payload *, ss_payload, NULL, ast_stir_shaken_payload_free);
-	RAII_VAR(char *, encoded_header, NULL, ast_free);
-	RAII_VAR(char *, encoded_payload, NULL, ast_free);
-	RAII_VAR(char *, combined_str, NULL, ast_free);
-	size_t combined_size;
-
-	old_identity = pjsip_msg_find_hdr_by_name(tdata->msg, &identity_str, NULL);
-	if (old_identity) {
-		return 0;
-	}
+	char *dest_tn = NULL;
+	SCOPE_ENTER(4, "%s: Enter\n", tag);
 
 	to = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_TO, NULL);
 	if (!to) {
-		ast_log(LOG_ERROR, "Failed to find To header while adding STIR/SHAKEN Identity header\n");
-		return -1;
+		SCOPE_EXIT_RTN_VALUE(NULL, "%s: Failed to find To header\n", tag);
 	}
 
 	uri = pjsip_uri_get_uri(to->uri);
 	if (!uri) {
-		ast_log(LOG_ERROR, "Failed to retrieve URI from To header while adding STIR/SHAKEN Identity header\n");
-		return -1;
+		SCOPE_EXIT_RTN_VALUE(NULL,
+			"%s: Failed to retrieve URI from To header\n", tag);
 	}
 
 	dest_tn = ast_malloc(uri->user.slen + 1);
 	if (!dest_tn) {
-		ast_log(LOG_ERROR, "Failed to allocate memory for STIR/SHAKEN dest->tn\n");
-		return -1;
+		SCOPE_EXIT_RTN_VALUE(NULL,
+			"%s: Failed to allocate memory for dest_tn\n", tag);
 	}
 
 	/* Remove everything except 0-9, *, and # in telephone number according to RFC 8224
@@ -413,114 +374,115 @@ static int add_identity_header(const struct ast_sip_session *session, pjsip_tx_d
 			s++;
 		}
 		*new_tn = '\0';
-		ast_debug(4, "Canonicalized telephone number %.*s -> %s\n", (int) uri->user.slen, uri->user.ptr, dest_tn);
+		ast_trace(2, "Canonicalized telephone number " PJSTR_PRINTF_SPEC " -> %s\n",
+			PJSTR_PRINTF_VAR(uri->user), dest_tn);
 	}
 
-	/* x5u (public key URL), attestation, and origid will be added by ast_stir_shaken_sign */
-	json = ast_json_pack("{s: {s: s, s: s, s: s}, s: {s: {s: [s]}, s: {s: s}}}",
-		"header", "alg", "ES256", "ppt", "shaken", "typ", "passport",
-		"payload", "dest", "tn", dest_tn, "orig", "tn",
-		session->id.number.str);
-	if (!json) {
-		ast_log(LOG_ERROR, "Failed to allocate memory for STIR/SHAKEN JSON\n");
-		return -1;
-	}
-
-	ss_payload = ast_stir_shaken_sign(json);
-	if (!ss_payload) {
-		ast_log(LOG_ERROR, "Failed to sign STIR/SHAKEN payload\n");
-		return -1;
-	}
-
-	header = ast_json_object_get(json, "header");
-	dumped_string = ast_json_dump_string(header);
-	encoded_header = ast_base64url_encode_string(dumped_string);
-	ast_json_free(dumped_string);
-	if (!encoded_header) {
-		ast_log(LOG_ERROR, "Failed to encode STIR/SHAKEN header\n");
-		return -1;
-	}
-
-	payload = ast_json_object_get(json, "payload");
-	/* Fields must appear in lexiographic order: https://www.rfc-editor.org/rfc/rfc8588.html#section-6
-	 * https://www.rfc-editor.org/rfc/rfc8225.html#section-9 */
-	dumped_string = ast_json_dump_string_sorted(payload);
-	encoded_payload = ast_base64url_encode_string(dumped_string);
-	ast_json_free(dumped_string);
-	if (!encoded_payload) {
-		ast_log(LOG_ERROR, "Failed to encode STIR/SHAKEN payload\n");
-		return -1;
-	}
-
-	signature = (char *)ast_stir_shaken_payload_get_signature(ss_payload);
-	public_cert_url = ast_stir_shaken_payload_get_public_cert_url(ss_payload);
-
-	/* The format for the identity header:
-	 * header.payload.signature;info=<public_cert_url>alg=STIR_SHAKEN_ENCRYPTION_ALGORITHM;ppt=STIR_SHAKEN_PPT
-	 */
-	combined_size = strlen(encoded_header) + 1 + strlen(encoded_payload) + 1
-		+ strlen(signature) + strlen(";info=<>alg=;ppt=") + strlen(public_cert_url)
-		+ strlen(STIR_SHAKEN_ENCRYPTION_ALGORITHM) + strlen(STIR_SHAKEN_PPT) + 1;
-	combined_str = ast_calloc(1, combined_size);
-	if (!combined_str) {
-		ast_log(LOG_ERROR, "Failed to allocate memory for STIR/SHAKEN identity string\n");
-		return -1;
-	}
-	snprintf(combined_str, combined_size, "%s.%s.%s;info=<%s>alg=%s;ppt=%s", encoded_header,
-		encoded_payload, signature, public_cert_url, STIR_SHAKEN_ENCRYPTION_ALGORITHM, STIR_SHAKEN_PPT);
-
-	identity_val = pj_str(combined_str);
-	identity_hdr = pjsip_generic_string_hdr_create(tdata->pool, &identity_str, &identity_val);
-	if (!identity_hdr) {
-		ast_log(LOG_ERROR, "Failed to create STIR/SHAKEN Identity header\n");
-		return -1;
-	}
-
-	pjsip_msg_add_hdr(tdata->msg, (pjsip_hdr *)identity_hdr);
-
-	return 0;
+	SCOPE_EXIT_RTN_VALUE(dest_tn, "%s: Done\n", tag);
 }
 
 static void add_date_header(const struct ast_sip_session *session, pjsip_tx_data *tdata)
 {
-	static const pj_str_t date_str = { "Date", 4 };
 	pjsip_fromto_hdr *old_date;
+	const char *session_name = ast_sip_session_get_name(session);
+	SCOPE_ENTER(1, "%s: Enter\n", session_name);
 
-	old_date = pjsip_msg_find_hdr_by_name(tdata->msg, &date_str, NULL);
+	old_date = pjsip_msg_find_hdr_by_name(tdata->msg, &date_hdr_str, NULL);
 	if (old_date) {
-		ast_debug(3, "Found old STIR/SHAKEN date header, no need to add one\n");
-		return;
+		SCOPE_EXIT_RTN("Found existing Date header, no need to add one\n");
 	}
 
 	ast_sip_add_date_header(tdata);
+	SCOPE_EXIT_RTN("Done\n");
 }
 
-static void stir_shaken_outgoing_request(struct ast_sip_session *session, pjsip_tx_data *tdata)
+static void stir_shaken_outgoing_request(struct ast_sip_session *session,
+	pjsip_tx_data *tdata)
 {
-	RAII_VAR(struct stir_shaken_profile *, profile, NULL, ao2_cleanup);
+	struct ast_party_id effective_id;
+	struct ast_party_id connected_id;
+	pjsip_generic_string_hdr *old_identity;
+	pjsip_generic_string_hdr *identity_hdr;
+	pj_str_t identity_val;
+	char *dest_tn;
+	char *identity_str;
+	struct ast_stir_shaken_as_ctx *ctx = NULL;
+	enum ast_stir_shaken_as_response_code as_rc;
+	const char *session_name = ast_sip_session_get_name(session);
+	SCOPE_ENTER(1, "%s: Enter\n", session_name);
 
-	profile = ast_stir_shaken_get_profile(session->endpoint->stir_shaken_profile);
-	/* Profile should be checked first as it takes priority over anything else.
-	 * If there is a profile and it doesn't have attestation enabled, do nothing.
-	 * If there is no profile and the stir_shaken option is either not set or does
-	 * not support attestation, do nothing.
-	 */
-	if ((profile && !ast_stir_shaken_profile_supports_attestation(profile))
-		|| (!profile && (session->endpoint->stir_shaken & AST_SIP_STIR_SHAKEN_ATTEST) == 0)) {
-		return;
+	if (!session) {
+		SCOPE_EXIT_LOG_RTN(LOG_ERROR, "No session\n");
+	}
+	if (!session->channel) {
+		SCOPE_EXIT_LOG_RTN(LOG_ERROR, "%s: No channel\n", session_name);
+	}
+	if (!tdata) {
+		SCOPE_EXIT_LOG_RTN(LOG_ERROR, "%s: No tdata\n", session_name);
 	}
 
-	if (ast_strlen_zero(session->id.number.str) && session->id.number.valid) {
-		return;
+	old_identity = pjsip_msg_find_hdr_by_name(tdata->msg, &identity_hdr_str, NULL);
+	if (old_identity) {
+		SCOPE_EXIT_RTN("Found an existing Identity header\n");
 	}
 
-	/* If adding the Identity header fails for some reason, there's no point
-	 * adding the Date header.
-	 */
-	if ((add_identity_header(session, tdata)) != 0) {
-		return;
+	dest_tn = get_dest_tn(tdata, session_name);
+	if (!dest_tn) {
+		SCOPE_EXIT_LOG_RTN(LOG_ERROR, "%s: Unable to find destination tn\n",
+			session_name);
 	}
+
+	ast_party_id_init(&connected_id);
+	ast_channel_lock(session->channel);
+	effective_id = ast_channel_connected_effective_id(session->channel);
+	ast_party_id_copy(&connected_id, &effective_id);
+	ast_channel_unlock(session->channel);
+
+	if (!ast_sip_can_present_connected_id(session, &connected_id)) {
+		ast_free(dest_tn);
+		ast_party_id_free(&connected_id);
+		SCOPE_EXIT_RTN("Unable to get caller id\n");
+	}
+
+	as_rc = ast_stir_shaken_as_ctx_create(connected_id.number.str,
+		dest_tn, session->channel,
+		session->endpoint->stir_shaken_profile,
+		session_name, &ctx);
+
+	ast_free(dest_tn);
+	ast_party_id_free(&connected_id);
+
+	if (as_rc == AST_STIR_SHAKEN_AS_DISABLED) {
+		SCOPE_EXIT_RTN("%s: AS Disabled\n", session_name);
+	} else if (as_rc != AST_STIR_SHAKEN_AS_SUCCESS) {
+		SCOPE_EXIT_RTN("%s: Unable to create context\n",
+			session_name);
+	}
+
 	add_date_header(session, tdata);
+	add_fingerprints_if_present(session, ctx);
+
+	as_rc = ast_stir_shaken_attest(ctx, &identity_str);
+	if (as_rc != AST_STIR_SHAKEN_AS_SUCCESS) {
+		ao2_cleanup(ctx);
+		SCOPE_EXIT_LOG(LOG_ERROR,
+			"%s: Failed to create attestation\n", session_name);
+	}
+
+	ast_trace(1, "%s: Identity header: %s\n", session_name, identity_str);
+	identity_val = pj_str(identity_str);
+	identity_hdr = pjsip_generic_string_hdr_create(tdata->pool, &identity_hdr_str, &identity_val);
+	ast_free(identity_str);
+	if (!identity_hdr) {
+		ao2_cleanup(ctx);
+		SCOPE_EXIT_LOG_RTN(LOG_ERROR,
+			"%s: Unable to create Identity header\n", session_name);
+	}
+
+	pjsip_msg_add_hdr(tdata->msg, (pjsip_hdr *)identity_hdr);
+
+	ao2_cleanup(ctx);
+	SCOPE_EXIT_RTN("Done\n");
 }
 
 static struct ast_sip_session_supplement stir_shaken_supplement = {

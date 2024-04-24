@@ -1,5 +1,0 @@
-Subject: app_signal
-
-Adds Signal and WaitForSignal applications
-which can be used for signaling or as a
-simple message queue in the dialplan.

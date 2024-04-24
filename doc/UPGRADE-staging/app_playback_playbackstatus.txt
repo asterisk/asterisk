@@ -1,8 +1,0 @@
-Subject: app_playback
-
-In Asterisk 11, if a channel was redirected away during Playback(),
-the PLAYBACKSTATUS variable would be set to SUCCESS. In Asterisk 12
-(specifically commit 7d9871b3940fa50e85039aef6a8fb9870a7615b9) that
-behavior was inadvertently changed and the same operation would result
-in the PLAYBACKSTATUS variable being set to FAILED. The Asterisk 11
-behavior has been restored.

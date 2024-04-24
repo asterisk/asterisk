@@ -279,6 +279,11 @@ static int handle_response_setup(struct ast_aeap *aeap, struct ast_aeap_message 
 	struct ast_json *json = ast_aeap_message_data(message);
 	const char *codec_name;
 
+	if (!format) {
+		log_error(aeap, "no 'format' set");
+		return -1;
+	}
+
 	if (!json) {
 		log_error(aeap, "no 'setup' object returned");
 		return -1;
@@ -345,11 +350,29 @@ static const struct ast_aeap_message_handler request_handlers[] = {
 	{ "set", handle_request_set },
 };
 
+/*!
+ * \internal
+ * \brief Handle an error from an external application by setting state to done
+ *
+ * \param aeap Pointer to an Asterisk external application object
+ */
+static void ast_aeap_speech_on_error(struct ast_aeap *aeap)
+{
+	struct ast_speech *speech = ast_aeap_user_data_object_by_id(aeap, "speech");
+	if (!speech) {
+		ast_log(LOG_ERROR, "aeap generated error with no associated speech object");
+		return;
+	}
+
+	ast_speech_change_state(speech, AST_SPEECH_STATE_DONE);
+}
+
 static struct ast_aeap_params speech_aeap_params = {
 	.response_handlers = response_handlers,
 	.response_handlers_size = ARRAY_LEN(response_handlers),
 	.request_handlers = request_handlers,
 	.request_handlers_size = ARRAY_LEN(request_handlers),
+	.on_error = ast_aeap_speech_on_error,
 };
 
 /*!
