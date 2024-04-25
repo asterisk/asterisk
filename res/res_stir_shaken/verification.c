@@ -655,6 +655,8 @@ enum ast_stir_shaken_vs_response_code
 	RAII_VAR(struct ast_stir_shaken_vs_ctx *, ctx, NULL, ao2_cleanup);
 	RAII_VAR(struct profile_cfg *, profile, NULL, ao2_cleanup);
 	RAII_VAR(struct verification_cfg *, vs, NULL, ao2_cleanup);
+	RAII_VAR(char *, canon_caller_id , canonicalize_tn_alloc(caller_id), ast_free);
+
 	const char *t = S_OR(tag, S_COR(chan, ast_channel_name(chan), ""));
 	SCOPE_ENTER(3, "%s: Enter\n", t);
 
@@ -663,7 +665,7 @@ enum ast_stir_shaken_vs_response_code
 			LOG_ERROR, "%s: Must provide tag\n", t);
 	}
 
-	if (ast_strlen_zero(caller_id)) {
+	if (ast_strlen_zero(canon_caller_id)) {
 		SCOPE_EXIT_LOG_RTN_VALUE(AST_STIR_SHAKEN_VS_INVALID_ARGUMENTS,
 		LOG_ERROR, "%s: Must provide caller_id\n", t);
 	}
@@ -705,7 +707,7 @@ enum ast_stir_shaken_vs_response_code
 	}
 
 	ctx->chan = chan;
-	if (ast_string_field_set(ctx, caller_id, caller_id) != 0) {
+	if (ast_string_field_set(ctx, caller_id, canon_caller_id) != 0) {
 		SCOPE_EXIT_RTN_VALUE(AST_STIR_SHAKEN_VS_INTERNAL_ERROR);
 	}
 

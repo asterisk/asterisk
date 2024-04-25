@@ -122,6 +122,7 @@ struct tn_cfg *tn_get_etn(const char *id, struct profile_cfg *eprofile)
 	int rc = 0;
 
 	if (!tn || !eprofile || !etn) {
+		ao2_cleanup(etn);
 		return NULL;
 	}
 
