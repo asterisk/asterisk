@@ -413,7 +413,7 @@ Must be set to "profile"
 
 Default: none
 
--- endpoint_behhavior--------------------------------------------------
+-- endpoint_behavior--------------------------------------------------
 Actions to be performed for endpoints referencing this profile.
 Must be one of:
 - off -
