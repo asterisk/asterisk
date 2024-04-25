@@ -351,3 +351,41 @@ int common_config_load(void)
 	SCOPE_EXIT_RTN_VALUE(AST_MODULE_LOAD_SUCCESS, "Stir Shaken Load Done\n");
 }
 
+
+/* Remove everything except 0-9, *, and # in telephone number according to RFC 8224
+ * (required by RFC 8225 as part of canonicalization) */
+char *canonicalize_tn(const char *tn, char *dest_tn)
+{
+	int i;
+	const char *s = tn;
+	size_t len = tn ? strlen(tn) : 0;
+	char *new_tn = dest_tn;
+	SCOPE_ENTER(3, "tn: %s\n", S_OR(tn, "(null)"));
+
+	if (ast_strlen_zero(tn)) {
+		*dest_tn = '\0';
+		SCOPE_EXIT_RTN_VALUE(NULL, "Empty TN\n");
+	}
+
+	if (!dest_tn) {
+		SCOPE_EXIT_RTN_VALUE(NULL, "No destination buffer\n");
+	}
+
+	for (i = 0; i < len; i++) {
+		if (isdigit(*s) || *s == '#' || *s == '*') { /* Only characters allowed */
+			*new_tn++ = *s;
+		}
+		s++;
+	}
+	*new_tn = '\0';
+	SCOPE_EXIT_RTN_VALUE(dest_tn, "Canonicalized '%s' -> '%s'\n", tn, dest_tn);
+}
+
+char *canonicalize_tn_alloc(const char *tn)
+{
+	char *canon_tn = ast_strlen_zero(tn) ? NULL : ast_malloc(strlen(tn) + 1);
+	if (!canon_tn) {
+		return NULL;
+	}
+	return canonicalize_tn(tn, canon_tn);
+}

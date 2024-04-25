@@ -564,5 +564,23 @@ int config_object_cli_show(void *obj, void *arg, void *data, int flags);
  */
 char *config_object_tab_complete_name(const char *word, struct ao2_container *container);
 
+/*!
+ * \brief Canonicalize a TN
+ *
+ * \param tn TN to canonicalize
+ * \param dest_tn Pointer to destination buffer to receive the new TN
+ *
+ * \retval dest_tn or NULL on failure
+ */
+char *canonicalize_tn(const char *tn, char *dest_tn);
+
+/*!
+ * \brief Canonicalize a TN into nre buffer
+ *
+ * \param tn TN to canonicalize
+ *
+ * \retval dest_tn (which must be freed with ast_free) or NULL on failure
+ */
+char *canonicalize_tn_alloc(const char *tn);
 
 #endif /* COMMON_CONFIG_H_ */

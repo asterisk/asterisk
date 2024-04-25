@@ -360,23 +360,7 @@ static char *get_dest_tn(pjsip_tx_data *tdata, const char *tag)
 			"%s: Failed to allocate memory for dest_tn\n", tag);
 	}
 
-	/* Remove everything except 0-9, *, and # in telephone number according to RFC 8224
-	 * (required by RFC 8225 as part of canonicalization) */
-	{
-		int i;
-		const char *s = uri->user.ptr;
-		char *new_tn = dest_tn;
-		/* We're only removing characters, if anything, so the buffer is guaranteed to be large enough */
-		for (i = 0; i < uri->user.slen; i++) {
-			if (isdigit(*s) || *s == '#' || *s == '*') { /* Only characters allowed */
-				*new_tn++ = *s;
-			}
-			s++;
-		}
-		*new_tn = '\0';
-		ast_trace(2, "Canonicalized telephone number " PJSTR_PRINTF_SPEC " -> %s\n",
-			PJSTR_PRINTF_VAR(uri->user), dest_tn);
-	}
+	ast_copy_pj_str(dest_tn, &uri->user, uri->user.slen + 1);
 
 	SCOPE_EXIT_RTN_VALUE(dest_tn, "%s: Done\n", tag);
 }
