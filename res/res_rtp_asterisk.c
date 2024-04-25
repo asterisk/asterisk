@@ -4190,11 +4190,15 @@ static int ast_rtp_dtmf_begin(struct ast_rtp_instance *instance, char digit)
 	/* Grab the payload that they expect the RFC2833 packet to be received in */
 	payload = ast_rtp_codecs_payload_code_tx(ast_rtp_instance_get_codecs(instance), 0, NULL, AST_RTP_DTMF);
 
+	unsigned int old_lastts = rtp->lastts;
+
 	rtp->dtmfmute = ast_tvadd(ast_tvnow(), ast_tv(0, 500000));
 	rtp->send_duration = 160;
-	rtp->lastts += calc_txstamp(rtp, NULL) * DTMF_SAMPLE_RATE_MS;
-	rtp->lastdigitts = rtp->lastts + rtp->send_duration;
-
+	unsigned int the_ms = calc_txstamp(rtp, NULL);
+	// AVOXI: Round-down the wc delta to multiples of 20ms
+	the_ms = (the_ms / 20) * 20;
+	rtp->lastts += the_ms * DTMF_SAMPLE_RATE_MS;
+	rtp->lastdigitts = rtp->lastts;
 	/* Create the actual packet that we will be sending */
 	rtpheader[0] = htonl((2 << 30) | (1 << 23) | (payload << 16) | (rtp->seqno));
 	rtpheader[1] = htonl(rtp->lastdigitts);
@@ -4203,9 +4207,9 @@ static int ast_rtp_dtmf_begin(struct ast_rtp_instance *instance, char digit)
 	/* Actually send the packet */
 	for (i = 0; i < 2; i++) {
 		int ice;
-
+        int retry = 0;
 		rtpheader[3] = htonl((digit << 24) | (0xa << 16) | (rtp->send_duration));
-		ast_log(LOG_DEBUG, "AVOXI: ast_rtp_dtmf_begin: %c dur=%d %s\n", orig_digit, rtp->send_duration, ast_sockaddr_stringify(&remote_address));
+		ast_log(LOG_DTMF, "AVOXI: Begin %c ts=%u dur=%d %s bitmap: %08x\n", orig_digit, ntohl(rtpheader[1]), rtp->send_duration, ast_sockaddr_stringify(&remote_address), ntohl(rtpheader[3]));
 		res = rtp_sendto(instance, (void *) rtpheader, hdrlen + 4, 0, &remote_address, &ice);
 		if (res < 0) {
 			ast_log(LOG_ERROR, "RTP Transmission error to %s: %s\n",
@@ -4217,16 +4221,22 @@ static int ast_rtp_dtmf_begin(struct ast_rtp_instance *instance, char digit)
 				    ast_sockaddr_stringify(&remote_address),
 				    ice ? " (via ICE)" : "",
 				    payload, rtp->seqno, rtp->lastdigitts, res - hdrlen);
+			retry = 1;
 		}
 		rtp->seqno++;
 		rtp->send_duration += 160;
 		rtpheader[0] = htonl((2 << 30) | (payload << 16) | (rtp->seqno));
-		// AVOXI: Don't retry if successfully sent
-		break;
+        if (!retry) {
+            break;
+        }
 	}
 
 	/* Record that we are in the process of sending a digit and information needed to continue doing so */
-	rtp->sending_digit = 1;
+	/* AVOXI: Hack. The first continuation event is sent right after the starting packet, causing an extra event packet
+	 * and shifting the durations one extra ptime*sample_rate (i.e. 160).
+	 * ast_rtp_dtmf_continuation skips the frame if sending_digit is set 2 and resets it to 1, effectively filtering the first
+	 * continuation packet. This will remove a packet if the AST generator behavior changes. */
+	rtp->sending_digit = 2;
 	rtp->send_digit = digit;
 	rtp->send_payload = payload;
 
@@ -4256,6 +4266,13 @@ static int ast_rtp_dtmf_continuation(struct ast_rtp_instance *instance)
 	rtpheader[2] = htonl(rtp->ssrc);
 	rtpheader[3] = htonl((rtp->send_digit << 24) | (0xa << 16) | (rtp->send_duration));
 
+    if (rtp->sending_digit == 2) {
+		ast_log(LOG_DTMF, "AVOXI: Dropping first continuation packet. ts=%u dur=%d %s\n", ntohl(rtpheader[1]), rtp->send_duration, ast_sockaddr_stringify(&remote_address));
+        rtp->sending_digit = 1;
+        return 0;
+    }
+
+	ast_log(LOG_DTMF, "AVOXI: Sending continuation packet. ts=%u dur=%d %s\n", ntohl(rtpheader[1]), rtp->send_duration, ast_sockaddr_stringify(&remote_address));
 	/* Boom, send it on out */
 	res = rtp_sendto(instance, (void *) rtpheader, hdrlen + 4, 0, &remote_address, &ice);
 	if (res < 0) {
@@ -4314,7 +4331,9 @@ static int ast_rtp_dtmf_end_with_duration(struct ast_rtp_instance *instance, cha
 
 	rtp->dtmfmute = ast_tvadd(ast_tvnow(), ast_tv(0, 500000));
 
-	if (duration > 0 && (measured_samples = duration * ast_rtp_get_rate(rtp->f.subclass.format) / 1000) > rtp->send_duration) {
+	measured_samples = duration * ast_rtp_get_rate(rtp->f.subclass.format) / 1000;
+	measured_samples = (measured_samples / 160) * 160;
+	if (duration > 0 && measured_samples > rtp->send_duration) {
 		ast_debug_rtp(2, "(%p) RTP adjusting final end duration from %d to %u\n",
 			instance, rtp->send_duration, measured_samples);
 		rtp->send_duration = measured_samples;
@@ -4332,6 +4351,7 @@ static int ast_rtp_dtmf_end_with_duration(struct ast_rtp_instance *instance, cha
 
 		rtpheader[0] = htonl((2 << 30) | (rtp->send_payload << 16) | (rtp->seqno));
 
+		ast_log(LOG_DTMF, "AVOXI: End ts=%u dur=%d %s\n", ntohl(rtpheader[1]), rtp->send_duration, ast_sockaddr_stringify(&remote_address));
 		res = rtp_sendto(instance, (void *) rtpheader, hdrlen + 4, 0, &remote_address, &ice);
 
 		if (res < 0) {

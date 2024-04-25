@@ -184,7 +184,7 @@ struct rtp_extmap {
 	/*! The current negotiated direction */
 	enum ast_rtp_extension_direction direction;
 };
-
+b
 /*! Structure that represents an RTP session (instance) */
 struct ast_rtp_instance {
 	/*! Engine that is handling this RTP instance */
