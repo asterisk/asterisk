@@ -72,14 +72,17 @@ enum ast_stir_shaken_as_response_code
 	RAII_VAR(struct profile_cfg *, eprofile, NULL, ao2_cleanup);
 	RAII_VAR(struct attestation_cfg *, as_cfg, NULL, ao2_cleanup);
 	RAII_VAR(struct tn_cfg *, etn, NULL, ao2_cleanup);
+	RAII_VAR(char *, canon_dest_tn , canonicalize_tn_alloc(dest_tn), ast_free);
+	RAII_VAR(char *, canon_orig_tn , canonicalize_tn_alloc(orig_tn), ast_free);
+
 	SCOPE_ENTER(3, "%s: Enter\n", tag);
 
-	if (ast_strlen_zero(orig_tn)) {
+	if (!canon_orig_tn) {
 		SCOPE_EXIT_LOG_RTN_VALUE(AST_STIR_SHAKEN_AS_INVALID_ARGUMENTS,
 			LOG_ERROR, "%s: Must provide caller_id/orig_tn\n", tag);
 	}
 
-	if (ast_strlen_zero(dest_tn)) {
+	if (!canon_dest_tn) {
 		SCOPE_EXIT_LOG_RTN_VALUE(AST_STIR_SHAKEN_AS_INVALID_ARGUMENTS,
 			LOG_ERROR, "%s: Must provide dest_tn\n", tag);
 	}
@@ -117,10 +120,10 @@ enum ast_stir_shaken_as_response_code
 			"%s: Disabled by profile\n", tag);
 	}
 
-	etn = tn_get_etn(orig_tn, eprofile);
+	etn = tn_get_etn(canon_orig_tn, eprofile);
 	if (!etn) {
 		SCOPE_EXIT_RTN_VALUE(AST_STIR_SHAKEN_AS_DISABLED,
-			"%s: No tn for orig_tn '%s'\n", tag, orig_tn);
+			"%s: No tn for orig_tn '%s'\n", tag, canon_orig_tn);
 	}
 
 	/* We don't need eprofile or as_cfg anymore so let's clean em up */
@@ -140,13 +143,13 @@ enum ast_stir_shaken_as_response_code
 	if (ast_strlen_zero(etn->acfg_common.public_cert_url)) {
 		SCOPE_EXIT_LOG_RTN_VALUE(AST_STIR_SHAKEN_AS_NO_PUBLIC_CERT_URL_AVAIL,
 			LOG_ERROR, "%s: No public cert url in tn %s, profile or attestation objects\n",
-			tag, orig_tn);
+			tag, canon_orig_tn);
 	}
 
 	if (etn->acfg_common.raw_key_length == 0) {
 		SCOPE_EXIT_LOG_RTN_VALUE(AST_STIR_SHAKEN_AS_NO_PRIVATE_KEY_AVAIL,
 			LOG_ERROR, "%s: No private key in tn %s, profile or attestation objects\n",
-			orig_tn, tag);
+			canon_orig_tn, tag);
 	}
 
 	ctx = ao2_alloc_options(sizeof(*ctx), ctx_destructor,
@@ -166,12 +169,12 @@ enum ast_stir_shaken_as_response_code
 			LOG_ERROR, "%s: Unable to allocate memory for ctx\n", tag);
 	}
 
-	if (ast_string_field_set(ctx, orig_tn, orig_tn) != 0) {
+	if (ast_string_field_set(ctx, orig_tn, canon_orig_tn) != 0) {
 		SCOPE_EXIT_LOG_RTN_VALUE(AST_STIR_SHAKEN_AS_INTERNAL_ERROR,
 			LOG_ERROR, "%s: Unable to allocate memory for ctx\n", tag);
 	}
 
-	if (ast_string_field_set(ctx, dest_tn, dest_tn)) {
+	if (ast_string_field_set(ctx, dest_tn, canon_dest_tn)) {
 		SCOPE_EXIT_LOG_RTN_VALUE(AST_STIR_SHAKEN_AS_INTERNAL_ERROR,
 			LOG_ERROR, "%s: Unable to allocate memory for ctx\n", tag);
 	}
