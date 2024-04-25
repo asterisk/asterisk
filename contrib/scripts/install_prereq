@@ -241,7 +241,7 @@ in_test_mode() {
 
 check_installed_debs() {
 	for pack in "$@" ; do
-		EXISTS=`dpkg -l | cut -d ' ' -f 3 | grep ^"${pack}"\\$ | wc -l`
+		EXISTS=`dpkg -l "${pack}" >/dev/null 2>&1 || echo "${pack}" | wc -l`
 		if [ ${EXISTS} -eq 0 ]; then
 		  echo "${pack}"
     fi
