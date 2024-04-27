@@ -1082,6 +1082,8 @@ static AST_LIST_HEAD_STATIC(dpcache, iax2_dpcache);
 static void reg_source_db(struct iax2_peer *p);
 static struct iax2_peer *realtime_peer(const char *peername, struct ast_sockaddr *addr);
 static struct iax2_user *realtime_user(const char *username, struct ast_sockaddr *addr);
+static void realtime_load_peers(const char *type);
+static void realtime_load_users(const char *type);
 
 static int ast_cli_netstats(struct mansession *s, int fd, int limit_fmt);
 static char *complete_iax2_peers(const char *line, const char *word, int pos, int state, uint64_t flags);
@@ -2080,7 +2082,15 @@ static inline struct iax2_peer *peer_unref(struct iax2_peer *peer)
 
 static struct iax2_user *find_user(const char *name)
 {
-	return ao2_find(users, name, OBJ_KEY);
+	struct iax2_user *user = NULL;
+	user = ao2_find(users, name, OBJ_KEY);
+	if (ast_test_flag64((&globalflags), IAX_RTCACHEFRIENDS)) {
+		if (!user)
+		{
+			user = realtime_user(name, NULL);
+		}
+	}
+	return user;
 }
 
 static inline struct iax2_user *user_unref(struct iax2_user *user)
@@ -4410,6 +4420,42 @@ static int iax2_fixup(struct ast_channel *oldchannel, struct ast_channel *newcha
 	return 0;
 }
 
+static void realtime_load_peers(const char *type)
+{
+	struct ast_config *peers2;
+	if (!(peers2 = ast_load_realtime_multientry("iaxpeers", "type", type, SENTINEL)))
+	{
+		return;
+	}
+
+	char *peerscat2;
+	const char *peername;
+
+	peerscat2 = NULL;
+	while ((peerscat2 = ast_category_browse(peers2, peerscat2)) && (peername = ast_variable_retrieve(peers2, peerscat2, "name")))
+	{
+		realtime_peer(peername,NULL);
+	}
+}
+
+static void realtime_load_users(const char *type)
+{
+	struct ast_config *users2;
+	if (!(users2 = ast_load_realtime_multientry("iaxusers", "type", type, SENTINEL)))
+	{
+		return;
+	}
+
+	char *userscat2;
+	const char *username;
+
+	userscat2 = NULL;
+	while ((userscat2 = ast_category_browse(users2, userscat2)) && (username = ast_variable_retrieve(users2, userscat2, "name")))
+	{
+		realtime_user(username,NULL);
+	}
+}
+
 /*!
  * \note This function calls reg_source_db -> iax2_poke_peer -> find_callno,
  *       so do not call this with a pvt lock held.
@@ -4427,12 +4473,15 @@ static struct iax2_peer *realtime_peer(const char *peername, struct ast_sockaddr
 	str_port = ast_strdupa(ast_sockaddr_stringify_port(addr));
 
 	if (peername) {
-		var = ast_load_realtime("iaxpeers", "name", peername, "host", "dynamic", SENTINEL);
+		var = ast_load_realtime("iaxpeers", "type", "peer", "name", peername, "host", "dynamic", SENTINEL);
+		if (!var) var = ast_load_realtime("iaxpeers", "type", "friend", "name", peername, "host", "dynamic", SENTINEL);
 		if (!var && !ast_sockaddr_isnull(addr)) {
-			var = ast_load_realtime("iaxpeers", "name", peername, "host", str_addr, SENTINEL);
+			var = ast_load_realtime("iaxpeers", "type", "peer", "name", peername, "host", str_addr, SENTINEL);
+			if (!var) var = ast_load_realtime("iaxpeers", "type", "friend", "name", peername, "host", str_addr, SENTINEL);
 		}
 	} else if (!ast_sockaddr_isnull(addr)) {
-		var = ast_load_realtime("iaxpeers", "ipaddr", str_addr, "port", str_port, SENTINEL);
+		var = ast_load_realtime("iaxpeers", "type", "peer", "ipaddr", str_addr, "port", str_port, SENTINEL);
+		if (!var) var = ast_load_realtime("iaxpeers", "type", "friend", "ipaddr", str_addr, "port", str_port, SENTINEL);
 		if (var) {
 			/* We'll need the peer name in order to build the structure! */
 			for (tmp = var; tmp; tmp = tmp->next) {
@@ -4442,7 +4491,8 @@ static struct iax2_peer *realtime_peer(const char *peername, struct ast_sockaddr
 		}
 	}
 	if (!var && peername) { /* Last ditch effort */
-		var = ast_load_realtime("iaxpeers", "name", peername, SENTINEL);
+		var = ast_load_realtime("iaxpeers", "type", "peer", "name", peername, SENTINEL);
+		if (!var) var = ast_load_realtime("iaxpeers", "type", "friend", "name", peername, SENTINEL);
 		/*!\note
 		 * If this one loaded something, then we need to ensure that the host
 		 * field matched.  The only reason why we can't have this as a criteria
@@ -4477,15 +4527,7 @@ static struct iax2_peer *realtime_peer(const char *peername, struct ast_sockaddr
 	}
 
 	for (tmp = var; tmp; tmp = tmp->next) {
-		/* Make sure it's not a user only... */
-		if (!strcasecmp(tmp->name, "type")) {
-			if (strcasecmp(tmp->value, "friend") &&
-			    strcasecmp(tmp->value, "peer")) {
-				/* Whoops, we weren't supposed to exist! */
-				peer = peer_unref(peer);
-				break;
-			}
-		} else if (!strcasecmp(tmp->name, "regseconds")) {
+		if (!strcasecmp(tmp->name, "regseconds")) {
 			ast_get_time_t(tmp->value, &regseconds, 0, NULL);
 		} else if (!strcasecmp(tmp->name, "ipaddr")) {
 			int setport = ast_sockaddr_port(&peer->addr);
@@ -4556,16 +4598,21 @@ static struct iax2_user *realtime_user(const char *username, struct ast_sockaddr
 	str_addr = ast_strdupa(ast_sockaddr_stringify_addr(addr));
 	str_port = ast_strdupa(ast_sockaddr_stringify_port(addr));
 
-	var = ast_load_realtime("iaxusers", "name", username, "host", "dynamic", SENTINEL);
+	var = ast_load_realtime("iaxusers", "type", "user", "name", username, "host", "dynamic", SENTINEL);
+	if (!var) var = ast_load_realtime("iaxusers", "type", "friend", "name", username, "host", "dynamic", SENTINEL);
 	if (!var)
-		var = ast_load_realtime("iaxusers", "name", username, "host", str_addr, SENTINEL);
+		var = ast_load_realtime("iaxusers", "type", "user", "name", username, "host", str_addr, SENTINEL);
+	if (!var) var = ast_load_realtime("iaxusers", "type", "friend", "name", username, "host", str_addr, SENTINEL);
 	if (!var && !ast_sockaddr_isnull(addr)) {
-		var = ast_load_realtime("iaxusers", "name", username, "ipaddr", str_addr, "port", str_port, SENTINEL);
+		var = ast_load_realtime("iaxusers", "type", "user", "name", username, "ipaddr", str_addr, "port", str_port, SENTINEL);
+		if (!var) var = ast_load_realtime("iaxusers", "type", "friend", "name", username, "ipaddr", str_addr, "port", str_port, SENTINEL);
 		if (!var)
-			var = ast_load_realtime("iaxusers", "ipaddr", str_addr, "port", str_port, SENTINEL);
+			var = ast_load_realtime("iaxusers", "type", "user", "ipaddr", str_addr, "port", str_port, SENTINEL);
+		if (!var) var = ast_load_realtime("iaxusers", "type", "friend", "ipaddr", str_addr, "port", str_port, SENTINEL);
 	}
 	if (!var) { /* Last ditch effort */
-		var = ast_load_realtime("iaxusers", "name", username, SENTINEL);
+		var = ast_load_realtime("iaxusers", "type", "user", "name", username, SENTINEL);
+		if (!var) var = ast_load_realtime("iaxusers", "type", "friend", "name", username, SENTINEL);
 		/*!\note
 		 * If this one loaded something, then we need to ensure that the host
 		 * field matched.  The only reason why we can't have this as a criteria
@@ -4591,18 +4638,6 @@ static struct iax2_user *realtime_user(const char *username, struct ast_sockaddr
 	}
 	if (!var)
 		return NULL;
-
-	tmp = var;
-	while(tmp) {
-		/* Make sure it's not a peer only... */
-		if (!strcasecmp(tmp->name, "type")) {
-			if (strcasecmp(tmp->value, "friend") &&
-			    strcasecmp(tmp->value, "user")) {
-				return NULL;
-			}
-		}
-		tmp = tmp->next;
-	}
 
 	user = build_user(username, var, NULL, !ast_test_flag64((&globalflags), IAX_RTCACHEFRIENDS));
 
@@ -14160,6 +14195,12 @@ static int set_config(const char *config_file, int reload, int forced)
 				ast_log(LOG_WARNING, "Section '%s' lacks type\n", cat);
 		}
 		cat = ast_category_browse(cfg, cat);
+	}
+	if (ast_test_flag64((&globalflags), IAX_RTCACHEFRIENDS)) {
+		realtime_load_peers("peer");
+		realtime_load_peers("friend");
+		realtime_load_users("user");
+		realtime_load_users("friend");
 	}
 	ast_config_destroy(cfg);
 	return 1;
