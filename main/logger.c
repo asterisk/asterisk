@@ -342,7 +342,19 @@ static int logger_add_verbose_magic(struct logmsg *logmsg, char *buf, size_t siz
 
 	/* For compatibility with modules still calling ast_verbose() directly instead of using ast_verb() */
 	if (logmsg->sublevel < 0) {
-		if (!strncmp(logmsg->message, VERBOSE_PREFIX_4, strlen(VERBOSE_PREFIX_4))) {
+		if (!strncmp(logmsg->message, VERBOSE_PREFIX_10, strlen(VERBOSE_PREFIX_10))) {
+			magic = -11;
+		} else if (!strncmp(logmsg->message, VERBOSE_PREFIX_9, strlen(VERBOSE_PREFIX_9))) {
+			magic = -10;
+		} else if (!strncmp(logmsg->message, VERBOSE_PREFIX_8, strlen(VERBOSE_PREFIX_8))) {
+			magic = -9;
+		} else if (!strncmp(logmsg->message, VERBOSE_PREFIX_7, strlen(VERBOSE_PREFIX_7))) {
+			magic = -8;
+		} else if (!strncmp(logmsg->message, VERBOSE_PREFIX_6, strlen(VERBOSE_PREFIX_6))) {
+			magic = -7;
+		} else if (!strncmp(logmsg->message, VERBOSE_PREFIX_5, strlen(VERBOSE_PREFIX_5))) {
+			magic = -6;
+		} else if (!strncmp(logmsg->message, VERBOSE_PREFIX_4, strlen(VERBOSE_PREFIX_4))) {
 			magic = -5;
 		} else if (!strncmp(logmsg->message, VERBOSE_PREFIX_3, strlen(VERBOSE_PREFIX_3))) {
 			magic = -4;

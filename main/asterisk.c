@@ -2164,7 +2164,19 @@ static void set_header(char *outbuf, int maxout, char level)
 		break;
 	case 3: cmp = VERBOSE_PREFIX_3;
 		break;
-	default: cmp = VERBOSE_PREFIX_4;
+	case 4: cmp = VERBOSE_PREFIX_4;
+		break;
+	case 5: cmp = VERBOSE_PREFIX_5;
+		break;
+	case 6: cmp = VERBOSE_PREFIX_6;
+		break;
+	case 7: cmp = VERBOSE_PREFIX_7;
+		break;
+	case 8: cmp = VERBOSE_PREFIX_8;
+		break;
+	case 9: cmp = VERBOSE_PREFIX_9;
+		break;
+	default: cmp = VERBOSE_PREFIX_10;
 		break;
 	}
 
