@@ -41,10 +41,16 @@ extern "C" {
 
 #define _A_ __FILE__, __LINE__, __FUNCTION__
 
-#define VERBOSE_PREFIX_1 " "
-#define VERBOSE_PREFIX_2 "  == "
-#define VERBOSE_PREFIX_3 "    -- "
-#define VERBOSE_PREFIX_4 "       > "
+#define VERBOSE_PREFIX_1  " "
+#define VERBOSE_PREFIX_2  "  == "
+#define VERBOSE_PREFIX_3  "    -- "
+#define VERBOSE_PREFIX_4  "       > "
+#define VERBOSE_PREFIX_5  "        > "
+#define VERBOSE_PREFIX_6  "         > "
+#define VERBOSE_PREFIX_7  "          > "
+#define VERBOSE_PREFIX_8  "           > "
+#define VERBOSE_PREFIX_9  "            > "
+#define VERBOSE_PREFIX_10 "             > "
 
 #define AST_CALLID_BUFFER_LENGTH 13
 
@@ -161,7 +167,7 @@ void __attribute__((format(printf, 5, 6))) ast_queue_log(const char *queuename, 
  * This will print the message to the console if the verbose level is set to a level >= 3
  *
  * Note the absence of a comma after the VERBOSE_PREFIX_3.  This is important.
- * VERBOSE_PREFIX_1 through VERBOSE_PREFIX_4 are defined.
+ * VERBOSE_PREFIX_1 through VERBOSE_PREFIX_10 are defined.
  *
  * \version 11 added level parameter
  */
