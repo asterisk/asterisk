@@ -41,6 +41,8 @@
 #include "asterisk/musiconhold.h"
 #include "asterisk/app.h"
 
+#include <signal.h>
+
 AST_LIST_HEAD(app_control_rules, stasis_app_control_rule);
 
 /*!
