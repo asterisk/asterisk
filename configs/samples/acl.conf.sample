@@ -73,7 +73,7 @@
 ;
 ; Named ACLs can use ipv6 addresses just like normal ACLs.
 ;[ipv6_example_1]
-;deny = ::
+;deny = ::/0
 ;permit = ::1/128
 ;
 ;[ipv6_example_2]
