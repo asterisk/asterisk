@@ -2014,7 +2014,7 @@ static void really_quit(int num, shutdown_nice_t niceness, int restart)
 		run_cleanups = 0;
 	}
 
-	if (!restart) {
+	if (!restart && !ast_opt_remote) {
 		ast_sd_notify("STOPPING=1");
 	}
 	if (ast_opt_console || (ast_opt_remote && !ast_opt_exec)) {
