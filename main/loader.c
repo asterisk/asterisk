@@ -1737,7 +1737,7 @@ enum ast_module_reload_result ast_module_reload(const char *name)
 		res = AST_MODULE_RELOAD_IN_PROGRESS;
 		goto module_reload_exit;
 	}
-	ast_sd_notify("RELOAD=1");
+	ast_sd_notify("RELOADING=1");
 	ast_lastreloadtime = ast_tvnow();
 
 	if (ast_opt_lock_confdir) {
