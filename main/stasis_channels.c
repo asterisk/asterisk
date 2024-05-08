@@ -942,8 +942,8 @@ void ast_channel_publish_final_snapshot(struct ast_channel *chan)
 		return;
 	}
 
-	ao2_unlink(channel_cache, update->old_snapshot);
-	ao2_unlink(channel_cache_by_name, update->old_snapshot);
+	ao2_find(channel_cache, ast_channel_uniqueid(chan), OBJ_SEARCH_KEY | OBJ_UNLINK | OBJ_NODATA);
+	ao2_find(channel_cache_by_name, ast_channel_name(chan), OBJ_SEARCH_KEY | OBJ_UNLINK | OBJ_NODATA);
 
 	ast_channel_snapshot_set(chan, NULL);
 
@@ -1096,17 +1096,15 @@ void ast_channel_publish_snapshot(struct ast_channel *chan)
 	 * snapshot is not in the cache.
 	 */
 	ao2_wrlock(channel_cache);
-	if (update->old_snapshot) {
-		ao2_unlink_flags(channel_cache, update->old_snapshot, OBJ_NOLOCK);
-	}
+	ao2_find(channel_cache, ast_channel_uniqueid(chan), OBJ_SEARCH_KEY | OBJ_UNLINK | OBJ_NODATA | OBJ_NOLOCK);
+
 	ao2_link_flags(channel_cache, update->new_snapshot, OBJ_NOLOCK);
 	ao2_unlock(channel_cache);
 
 	/* The same applies here. */
 	ao2_wrlock(channel_cache_by_name);
-	if (update->old_snapshot) {
-		ao2_unlink_flags(channel_cache_by_name, update->old_snapshot, OBJ_NOLOCK);
-	}
+	ao2_find(channel_cache_by_name, ast_channel_name(chan), OBJ_SEARCH_KEY | OBJ_UNLINK | OBJ_NODATA | OBJ_NOLOCK);
+
 	ao2_link_flags(channel_cache_by_name, update->new_snapshot, OBJ_NOLOCK);
 	ao2_unlock(channel_cache_by_name);
 
