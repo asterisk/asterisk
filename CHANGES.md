@@ -1,1 +1,1 @@
-ChangeLogs/ChangeLog-18.22.0.md
+ChangeLogs/ChangeLog-18.23.0-rc1.md
