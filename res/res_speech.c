@@ -189,9 +189,9 @@ struct ast_speech *ast_speech_new(const char *engine_name, const struct ast_form
 	RAII_VAR(struct ast_format *, best, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_format *, best_translated, NULL, ao2_cleanup);
 
-	engine_name_copy = ast_strdup(engine_name);
-	engine_name_dyn = ast_strdup(ast_strsep(&engine_name_copy, '^', AST_STRSEP_ALL));
-	horse_name = ast_strsep(&engine_name_copy, '^', AST_STRSEP_ALL);
+	engine_name_copy = ast_strdupa(engine_name);
+	engine_name_dyn = ast_strsep(&engine_name_copy, '^', AST_STRSEP_ALL);
+	horse_name = ast_strdup(ast_strsep(&engine_name_copy, '^', AST_STRSEP_ALL));
 
 	/* Try to find the speech recognition engine that was requested */
 	if (!(engine = ast_speech_find_engine(engine_name_dyn)))
@@ -275,6 +275,10 @@ int ast_speech_destroy(struct ast_speech *speech)
 	/* If a processing sound is set - free the memory used by it */
 	if (speech->processing_sound)
 		ast_free(speech->processing_sound);
+
+	/* If a horse was ridden - set it free in to the wild */
+	if (speech->horse)
+		ast_free(speech->horse);
 
 	ao2_ref(speech->format, -1);
 

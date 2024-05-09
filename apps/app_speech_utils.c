@@ -112,6 +112,9 @@
 					</option>
 				</optionlist>
 			</parameter>
+			<parameter name="horses">
+				<para>Carrot separated list of horses to race.</para>
+			</parameter>
 		</syntax>
 		<description>
 			<para>This application plays a sound file and waits for the person to speak. Once they start speaking playback
@@ -375,7 +378,7 @@ static struct ast_speech_result *find_result(struct ast_speech_result *results, 
 
 /*! \brief SPEECH_SCORE() Dialplan Function */
 static int speech_score(struct ast_channel *chan, const char *cmd, char *data,
-		       char *buf, size_t len)
+			   char *buf, size_t len)
 {
 	struct ast_speech_result *result = NULL;
 	struct ast_speech *speech = NULL;
@@ -383,12 +386,16 @@ static int speech_score(struct ast_channel *chan, const char *cmd, char *data,
 	char *horse_name = NULL;
 	char tmp[128] = "";
 
-	result_num = ast_strdupa(ast_strsep(&data, '^', AST_STRSEP_ALL));
-	horse_name = ast_strsep(&data, '^', AST_STRSEP_ALL);
+	if (data == NULL) {
+		return -1;
+	}
+
+	horse_name = ast_strdupa(data);
+	result_num = ast_strsep(&horse_name, '^', AST_STRSEP_ALL);
 
 	speech = find_speech(chan, horse_name);
 
-	if (data == NULL || speech == NULL || !(result = find_result(speech->results, result_num))) {
+	if (speech == NULL || !(result = find_result(speech->results, result_num))) {
 		return -1;
 	}
 
@@ -609,13 +616,9 @@ static int speech_create(struct ast_channel *chan, const char *data)
 	struct ast_speech *speech = NULL;
 	struct ast_datastore *datastore = NULL;
 	char *horse_name = NULL;
-	char *data_copy = NULL;
-	char *value = NULL;
 
-	data_copy = ast_strdup(data);
-	value = ast_strsep(&data_copy, '^', AST_STRSEP_ALL);
-	value = ast_strsep(&data_copy, '^', AST_STRSEP_ALL);
-	horse_name = ast_strdup(value);
+	horse_name = ast_strdupa(data);
+	ast_strsep(&horse_name, '^', AST_STRSEP_ALL);
 
 	/* Request a speech object */
 	speech = ast_speech_new(data, ast_channel_nativeformats(chan));
@@ -721,7 +724,7 @@ static int speech_start(struct ast_channel *chan, const char *data)
 	struct ast_speech *speech = NULL;
 	char *data_copy = NULL;
 
-	data_copy = ast_strdup(data);
+	data_copy = ast_strdupa(data);
 
 	speech = find_speech(chan, data_copy);
 
@@ -788,6 +791,7 @@ static int speech_background(struct ast_channel *chan, const char *data)
 	struct ast_speech *speech = NULL;
 	struct ast_speech *speeches[MAX_HORSES];
 	int jockey = 0, herd_size = 0;
+	char *herd = NULL, *nexthorse = NULL;
 	struct ast_frame *f = NULL;
 	RAII_VAR(struct ast_format *, oldreadformat, NULL, ao2_cleanup);
 	char dtmf[AST_MAX_EXTENSION] = "";
@@ -814,8 +818,7 @@ static int speech_background(struct ast_channel *chan, const char *data)
 			herd_size++;
 		}
 	} else {
-		char *herd = ast_strdup(args.horses);
-		char *nexthorse = NULL;
+		herd = ast_strdupa(args.horses);
 		do {
 			nexthorse = ast_strsep(&herd, '^', AST_STRSEP_ALL);
 			if (!ast_strlen_zero(nexthorse)) {
@@ -823,13 +826,13 @@ static int speech_background(struct ast_channel *chan, const char *data)
 				if (speech == NULL || speech->horse == NULL || ast_strlen_zero(speech->horse) || strcasecmp(speech->horse, nexthorse) != 0) {
 					return -1;
 				} else {
-                    /*
-                    TODO: deduplicate horses
+					/*
+					TODO: deduplicate horses
 					for (jockey=0; jockey < herd_size; jockey++) {
 						if (strcasecmp(speech, speeches[jockey]))
 							return -1;
 					}
-                    */
+					*/
 					speeches[herd_size] = speech;
 				}
 			}
@@ -1063,7 +1066,7 @@ static int speech_background(struct ast_channel *chan, const char *data)
 
 	/* See if it was because they hung up */
 	if (done == 3) {
-	    speech_datastore_destroy(chan, NULL);
+		speech_datastore_destroy(chan, NULL);
 	} else {
 		/* Channel is okay so restore read format */
 		ast_set_read_format(chan, oldreadformat);
@@ -1077,17 +1080,13 @@ static int speech_background(struct ast_channel *chan, const char *data)
 static int speech_destroy(struct ast_channel *chan, const char *data)
 {
 	char *horse_name = NULL;
-	char *data_copy = NULL;
-	char *value = NULL;
 
 	if (!chan) {
 		return -1;
 	}
 
-	data_copy = ast_strdup(data);
-	value = ast_strsep(&data_copy, '^', AST_STRSEP_ALL);
-	value = ast_strsep(&data_copy, '^', AST_STRSEP_ALL);
-	horse_name = ast_strdup(value);
+	horse_name = ast_strdupa(data);
+	ast_strsep(&horse_name, '^', AST_STRSEP_ALL);
 
 	return speech_datastore_destroy(chan, horse_name);
 }
