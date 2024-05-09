@@ -459,7 +459,7 @@ int __ast_sorcery_wizard_register(const struct ast_sorcery_wizard *interface, st
 	ao2_link_flags(wizards, wizard, OBJ_NOLOCK);
 	res = 0;
 
-	ast_verb(2, "Sorcery registered wizard '%s'\n", interface->name);
+	ast_verb(5, "Sorcery registered wizard '%s'\n", interface->name);
 
 	NOTIFY_GLOBAL_OBSERVERS(observers, wizard_registered,
 		interface->name, interface);
@@ -480,7 +480,7 @@ int ast_sorcery_wizard_unregister(const struct ast_sorcery_wizard *interface)
 		NOTIFY_GLOBAL_OBSERVERS(observers, wizard_unregistering, wizard->callbacks.name, &wizard->callbacks);
 		ao2_unlink(wizards, wizard);
 		ao2_ref(wizard, -1);
-		ast_verb(2, "Sorcery unregistered wizard '%s'\n", interface->name);
+		ast_verb(5, "Sorcery unregistered wizard '%s'\n", interface->name);
 		return 0;
 	} else {
 		return -1;
@@ -1939,7 +1939,12 @@ void *ast_sorcery_retrieve_by_fields(const struct ast_sorcery *sorcery, const ch
 
 	/* If we are returning a single object and it came from a non-cache source create it in any caches */
 	if (!(flags & AST_RETRIEVE_FLAG_MULTIPLE) && !cached && object) {
-		AST_VECTOR_CALLBACK(&object_type->wizards, sorcery_cache_create, NULL, object, 0);
+		struct sorcery_details sdetails = {
+			.sorcery = sorcery,
+			.obj = object,
+		};
+
+		AST_VECTOR_CALLBACK(&object_type->wizards, sorcery_cache_create, NULL, &sdetails, 0);
 	}
 	AST_VECTOR_RW_UNLOCK(&object_type->wizards);
 

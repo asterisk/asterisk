@@ -3487,7 +3487,7 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 		if (strategy < 0) {
 			ast_log(LOG_WARNING, "'%s' isn't a valid strategy for queue '%s', using ringall instead\n",
 				val, q->name);
-			q->strategy = QUEUE_STRATEGY_RINGALL;
+			strategy = QUEUE_STRATEGY_RINGALL;
 		}
 		if (strategy == q->strategy) {
 			return;
@@ -10988,7 +10988,7 @@ static char *handle_queue_add_member(struct ast_cli_entry *e, int cmd, struct as
 	case CLI_INIT:
 		e->command = "queue add member";
 		e->usage =
-			"Usage: queue add member <dial string> to <queue> [[[penalty <penalty>] as <membername>] state_interface <interface>]\n"
+			"Usage: queue add member <dial string> to <queue> [penalty <penalty> [as <membername> [state_interface <interface>]]]\n"
 			"       Add a dial string (Such as a channel,e.g. SIP/6001) to a queue with optionally:  a penalty, membername and a state_interface\n";
 		return NULL;
 	case CLI_GENERATE:

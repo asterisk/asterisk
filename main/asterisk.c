@@ -2050,7 +2050,7 @@ static void really_quit(int num, shutdown_nice_t niceness, int restart)
 		run_cleanups = 0;
 	}
 
-	if (!restart) {
+	if (!restart && !ast_opt_remote) {
 		ast_sd_notify("STOPPING=1");
 	}
 	if (ast_opt_console || (ast_opt_remote && !ast_opt_exec)) {
@@ -2164,7 +2164,19 @@ static void set_header(char *outbuf, int maxout, char level)
 		break;
 	case 3: cmp = VERBOSE_PREFIX_3;
 		break;
-	default: cmp = VERBOSE_PREFIX_4;
+	case 4: cmp = VERBOSE_PREFIX_4;
+		break;
+	case 5: cmp = VERBOSE_PREFIX_5;
+		break;
+	case 6: cmp = VERBOSE_PREFIX_6;
+		break;
+	case 7: cmp = VERBOSE_PREFIX_7;
+		break;
+	case 8: cmp = VERBOSE_PREFIX_8;
+		break;
+	case 9: cmp = VERBOSE_PREFIX_9;
+		break;
+	default: cmp = VERBOSE_PREFIX_10;
 		break;
 	}
 

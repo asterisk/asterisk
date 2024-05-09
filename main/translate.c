@@ -59,6 +59,7 @@ static AST_RWLIST_HEAD_STATIC(translators, ast_translator);
 struct translator_path {
 	struct ast_translator *step;       /*!< Next step translator */
 	uint32_t table_cost;               /*!< Complete table cost to destination */
+	uint32_t comp_cost;                /*!< Complete table cost to destination */
 	uint8_t multistep;                 /*!< Multiple conversions required for this translation */
 };
 
@@ -858,6 +859,7 @@ static void matrix_rebuild(int samples)
 
 			matrix_get(x, z)->step = t;
 			matrix_get(x, z)->table_cost = t->table_cost;
+			matrix_get(x, z)->comp_cost = t->comp_cost;
 		}
 	}
 
@@ -987,7 +989,7 @@ static void handle_cli_recalc(struct ast_cli_args *a)
 
 static char *handle_show_translation_table(struct ast_cli_args *a)
 {
-	int x, y, i, k;
+	int x, y, i, k, compCost;
 	int longest = 7; /* slin192 */
 	int max_codec_index = 0, curlen = 0;
 	struct ast_str *out = ast_str_create(1024);
@@ -1056,7 +1058,16 @@ static char *handle_show_translation_table(struct ast_cli_args *a)
 
 			if (x >= 0 && y >= 0 && matrix_get(x, y)->step) {
 				/* Actual codec output */
-				ast_str_append(&out, 0, "%*u", curlen + 1, (matrix_get(x, y)->table_cost/100));
+				if (a->argv[3] && !strcasecmp(a->argv[3], "comp")) {
+					compCost = matrix_get(x, y)->comp_cost;
+					if (compCost == 0 || compCost == 999999) {
+						ast_str_append(&out, 0, "%*s", curlen + 1, "-");
+					} else {
+						ast_str_append(&out, 0, "%*u", curlen + 1, compCost);
+					}
+				} else {
+					ast_str_append(&out, 0, "%*u", curlen + 1, (matrix_get(x, y)->table_cost / 100));
+				}
 			} else if (i == 0 && k > 0) {
 				/* Top row - use a dynamic size */
 				if (!strcmp(col->name, "slin") ||
@@ -1163,14 +1174,14 @@ static char *handle_show_translation_path(struct ast_cli_args *a, const char *co
 
 static char *handle_cli_core_show_translation(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	static const char * const option[] = { "recalc", "paths", NULL };
+	static const char * const option[] = { "recalc", "paths", "comp", NULL };
 
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "core show translation";
 		e->usage =
-			"Usage: 'core show translation' can be used in two ways.\n"
-			"       1. 'core show translation [recalc [<recalc seconds>]]\n"
+			"Usage: 'core show translation' can be used in three ways.\n"
+			"       1. 'core show translation [recalc [<recalc seconds>]\n"
 			"          Displays known codec translators and the cost associated\n"
 			"          with each conversion.  If the argument 'recalc' is supplied along\n"
 			"          with optional number of seconds to test a new test will be performed\n"
@@ -1178,7 +1189,13 @@ static char *handle_cli_core_show_translation(struct ast_cli_entry *e, int cmd, 
 			"       2. 'core show translation paths [codec [sample_rate]]'\n"
 			"           This will display all the translation paths associated with a codec.\n"
 			"           If a codec has multiple sample rates, the sample rate must be\n"
-			"           provided as well.\n";
+			"           provided as well.\n"
+			"       3. 'core show translation comp [<recalc seconds>]'\n"
+			"          Displays known codec translators and the cost associated\n"
+			"          with each conversion.  If the argument 'recalc' is supplied along\n"
+			"          with optional number of seconds to test a new test will be performed\n"
+			"          as the chart is being displayed. The resulting numbers in the table\n"
+			"          give the actual computational costs in microseconds.\n";
 		return NULL;
 	case CLI_GENERATE:
 		if (a->pos == 3) {
@@ -1203,7 +1220,7 @@ static char *handle_cli_core_show_translation(struct ast_cli_entry *e, int cmd, 
 			return CLI_FAILURE;
 		}
 		return handle_show_translation_path(a, a->argv[4], sample_rate);
-	} else if (a->argv[3] && !strcasecmp(a->argv[3], option[0])) { /* recalc and then fall through to show table */
+	} else if (a->argv[3] && (!strcasecmp(a->argv[3], option[0]) || !strcasecmp(a->argv[3], option[2]))) { /* recalc and then fall through to show table */
 		handle_cli_recalc(a);
 	} else if (a->argc > 3) { /* wrong input */
 		return CLI_SHOWUSAGE;
@@ -1297,7 +1314,7 @@ int __ast_register_translator(struct ast_translator *t, struct ast_module *mod)
 
 	generate_computational_cost(t, 1);
 
-	ast_verb(2, "Registered translator '%s' from codec %s to %s, table cost, %d, computational cost %d\n",
+	ast_verb(5, "Registered translator '%s' from codec %s to %s, table cost, %d, computational cost %d\n",
 		 term_color(tmp, t->name, COLOR_MAGENTA, COLOR_BLACK, sizeof(tmp)),
 		 t->src_codec.name, t->dst_codec.name, t->table_cost, t->comp_cost);
 
@@ -1340,7 +1357,7 @@ int ast_unregister_translator(struct ast_translator *t)
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&translators, u, list) {
 		if (u == t) {
 			AST_RWLIST_REMOVE_CURRENT(list);
-			ast_verb(2, "Unregistered translator '%s' from codec %s to %s\n",
+			ast_verb(5, "Unregistered translator '%s' from codec %s to %s\n",
 				term_color(tmp, t->name, COLOR_MAGENTA, COLOR_BLACK, sizeof(tmp)),
 				t->src_codec.name, t->dst_codec.name);
 			found = 1;

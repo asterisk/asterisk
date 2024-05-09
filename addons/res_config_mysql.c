@@ -84,7 +84,7 @@ struct mysql_conn {
 	AST_RWLIST_ENTRY(mysql_conn) list;
 	ast_mutex_t	lock;
 	MYSQL       handle;
-	char        host[50];
+	char        host[MAXHOSTNAMELEN];
 	char        name[50];
 	char        user[50];
 	char        pass[50];

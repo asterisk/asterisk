@@ -688,6 +688,7 @@ static AST_LIST_HEAD_STATIC(vmstates, vmstate);
 #define VM_MESSAGEWRAP   (1 << 17)  /*!< Wrap around from the last message to the first, and vice-versa */
 #define VM_FWDURGAUTO    (1 << 18)  /*!< Autoset of Urgent flag on forwarded Urgent messages set globally */
 #define VM_EMAIL_EXT_RECS (1 << 19)  /*!< Send voicemail emails when an external recording is added to a mailbox */
+#define VM_MARK_URGENT   (1 << 20)	/*!< After recording, permit the caller to mark the message as urgent */
 #define ERROR_LOCK_PATH  -100
 #define ERROR_MAX_MSGS   -101
 #define OPERATOR_EXIT     300
@@ -766,6 +767,18 @@ static const char * const mailbox_folders[] = {
 	"Deleted",
 	"Urgent",
 };
+
+/*!
+ * \brief Reload voicemail.conf
+ * \param reload Whether this is a reload as opposed to module load
+ * \param force Forcefully reload the config, even it has not changed
+ * \retval 0 on success, nonzero on failure
+ */
+static int load_config_force(int reload, int force);
+
+/*! \brief Forcibly reload voicemail.conf, even if it has not changed.
+ * This is necessary after running unit tests. */
+#define force_reload_config() load_config_force(1, 1)
 
 static int load_config(int reload);
 #ifdef TEST_FRAMEWORK
@@ -1426,6 +1439,8 @@ static void apply_option(struct ast_vm_user *vmu, const char *var, const char *v
 		ast_set2_flag(vmu, ast_true(value), VM_SVMAIL);
 	} else if (!strcasecmp(var, "review")){
 		ast_set2_flag(vmu, ast_true(value), VM_REVIEW);
+	} else if (!strcasecmp(var, "leaveurgent")){
+		ast_set2_flag(vmu, ast_true(value), VM_MARK_URGENT);
 	} else if (!strcasecmp(var, "tempgreetwarn")){
 		ast_set2_flag(vmu, ast_true(value), VM_TEMPGREETWARN);
 	} else if (!strcasecmp(var, "messagewrap")){
@@ -12921,7 +12936,7 @@ AST_TEST_DEFINE(test_voicemail_vmuser)
 	/* language parameter seems to only be used for display in manager action */
 	static const char options_string[] = "attach=yes|attachfmt=wav49|"
 		"serveremail=someguy@digium.com|fromstring=Voicemail System|tz=central|delete=yes|saycid=yes|"
-		"sendvoicemail=yes|review=yes|tempgreetwarn=yes|messagewrap=yes|operator=yes|"
+		"sendvoicemail=yes|review=yes|tempgreetwarn=yes|messagewrap=yes|operator=yes|leaveurgent=yes|"
 		"envelope=yes|moveheard=yes|sayduration=yes|saydurationm=5|forcename=yes|"
 		"forcegreetings=yes|callback=somecontext|dialout=somecontext2|"
 		"exitcontext=somecontext3|minsecs=10|maxsecs=100|nextaftercmd=yes|"
@@ -12995,6 +13010,10 @@ AST_TEST_DEFINE(test_voicemail_vmuser)
 	}
 	if (!ast_test_flag(vmu, VM_REVIEW)) {
 		ast_test_status_update(test, "Parse failure for review option\n");
+		res = 1;
+	}
+	if (!ast_test_flag(vmu, VM_MARK_URGENT)) {
+		ast_test_status_update(test, "Parse failure for leaveurgent option\n");
 		res = 1;
 	}
 	if (!ast_test_flag(vmu, VM_TEMPGREETWARN)) {
@@ -13103,6 +13122,7 @@ AST_TEST_DEFINE(test_voicemail_vmuser)
 #endif
 
 	free_user(vmu);
+	force_reload_config(); /* Restore original config */
 	return res ? AST_TEST_FAIL : AST_TEST_PASS;
 }
 #endif
@@ -13727,6 +13747,7 @@ static int append_vmu_info_astman(
 		"DeleteMessage: %s\r\n"
 		"VolumeGain: %.2f\r\n"
 		"CanReview: %s\r\n"
+		"CanMarkUrgent: %s\r\n"
 		"CallOperator: %s\r\n"
 		"MaxMessageCount: %d\r\n"
 		"MaxMessageLength: %d\r\n"
@@ -13764,6 +13785,7 @@ static int append_vmu_info_astman(
 		ast_test_flag(vmu, VM_DELETE) ? "Yes" : "No",
 		vmu->volgain,
 		ast_test_flag(vmu, VM_REVIEW) ? "Yes" : "No",
+		ast_test_flag(vmu, VM_MARK_URGENT) ? "Yes" : "No",
 		ast_test_flag(vmu, VM_OPERATOR) ? "Yes" : "No",
 		vmu->maxmsg,
 		vmu->maxsecs,
@@ -14193,10 +14215,10 @@ static const char *substitute_escapes(const char *value)
 	return ast_str_buffer(str);
 }
 
-static int load_config(int reload)
+static int load_config_force(int reload, int force)
 {
 	struct ast_config *cfg, *ucfg;
-	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
+	struct ast_flags config_flags = { reload && !force ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 	int res;
 
 	ast_unload_realtime("voicemail");
@@ -14232,6 +14254,11 @@ static int load_config(int reload)
 	ast_config_destroy(ucfg);
 
 	return res;
+}
+
+static int load_config(int reload)
+{
+	return load_config_force(reload, 0);
 }
 
 #ifdef TEST_FRAMEWORK
@@ -14727,6 +14754,14 @@ static int actual_load_config(int reload, struct ast_config *cfg, struct ast_con
 			val = "no";
 		}
 		ast_set2_flag((&globalflags), ast_true(val), VM_REVIEW);
+
+		if (!(val = ast_variable_retrieve(cfg, "general", "leaveurgent"))){
+			val = "yes";
+		} else if (ast_false(val)) {
+			ast_debug(1, "VM leave urgent messages disabled globally\n");
+			val = "no";
+		}
+		ast_set2_flag((&globalflags), ast_true(val), VM_MARK_URGENT);
 
 		/* Temporary greeting reminder */
 		if (!(val = ast_variable_retrieve(cfg, "general", "tempgreetwarn"))) {
@@ -15400,6 +15435,7 @@ AST_TEST_DEFINE(test_voicemail_msgcount)
 	}
 
 	free_user(vmu);
+	force_reload_config(); /* Restore original config */
 	return res;
 }
 
@@ -15510,6 +15546,7 @@ AST_TEST_DEFINE(test_voicemail_notify_endl)
 	}
 	fclose(file);
 	free_user(vmu);
+	force_reload_config(); /* Restore original config */
 	return res;
 }
 
@@ -15582,8 +15619,8 @@ AST_TEST_DEFINE(test_voicemail_load_config)
 
 #undef CHECK
 
-	/* restore config */
-	load_config(1); /* this might say "Failed to load configuration file." */
+	/* Forcibly restore the original config, to reinitialize after test */
+	force_reload_config(); /* this might say "Failed to load configuration file." */
 
 cleanup:
 	unlink(config_filename);
@@ -15649,6 +15686,11 @@ AST_TEST_DEFINE(test_voicemail_vm_info)
 	populate_defaults(vmu);
 
 	vmu->email = ast_strdup("vm-info-test@example.net");
+	if (!vmu->email) {
+		ast_test_status_update(test, "Cannot create vmu email\n");
+		chan = ast_channel_unref(chan);
+		return AST_TEST_FAIL;
+	}
 	ast_copy_string(vmu->fullname, "Test Framework Mailbox", sizeof(vmu->fullname));
 	ast_copy_string(vmu->pager, "vm-info-pager-test@example.net", sizeof(vmu->pager));
 	ast_copy_string(vmu->language, "en", sizeof(vmu->language));
@@ -16295,7 +16337,7 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 			}
 			break;
 		case '4':
-			if (outsidecaller) {  /* only mark vm messages */
+			if (outsidecaller && ast_test_flag(vmu, VM_MARK_URGENT)) {  /* only mark vm messages */
 				/* Mark Urgent */
 				if ((flag && ast_strlen_zero(flag)) || (!ast_strlen_zero(flag) && strcmp(flag, "Urgent"))) {
 					ast_verb(3, "marking message as Urgent\n");
@@ -16372,7 +16414,7 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 				return cmd;
 			if (msg_exists) {
 				cmd = ast_play_and_wait(chan, "vm-review");
-				if (!cmd && outsidecaller) {
+				if (!cmd && outsidecaller && ast_test_flag(vmu, VM_MARK_URGENT)) {
 					if ((flag && ast_strlen_zero(flag)) || (!ast_strlen_zero(flag) && strcmp(flag, "Urgent"))) {
 						cmd = ast_play_and_wait(chan, "vm-review-urgent");
 					} else if (flag) {

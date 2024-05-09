@@ -339,14 +339,14 @@ int ast_speech_register(struct ast_speech_engine *engine)
 		return -1;
 	}
 
-	ast_verb(2, "Registered speech recognition engine '%s'\n", engine->name);
+	ast_verb(5, "Registered speech recognition engine '%s'\n", engine->name);
 
 	/* Add to the engine linked list and make default if needed */
 	AST_RWLIST_WRLOCK(&engines);
 	AST_RWLIST_INSERT_HEAD(&engines, engine, list);
 	if (!default_engine) {
 		default_engine = engine;
-		ast_verb(2, "Made '%s' the default speech recognition engine\n", engine->name);
+		ast_verb(5, "Made '%s' the default speech recognition engine\n", engine->name);
 	}
 	AST_RWLIST_UNLOCK(&engines);
 
@@ -376,7 +376,7 @@ struct ast_speech_engine *ast_speech_unregister2(const char *engine_name)
 			if (engine == default_engine) {
 				default_engine = AST_RWLIST_FIRST(&engines);
 			}
-			ast_verb(2, "Unregistered speech recognition engine '%s'\n", engine_name);
+			ast_verb(5, "Unregistered speech recognition engine '%s'\n", engine_name);
 			/* All went well */
 			break;
 		}
@@ -406,7 +406,7 @@ void ast_speech_unregister_engines(
 			if (engine == default_engine) {
 				default_engine = AST_RWLIST_FIRST(&engines);
 			}
-			ast_verb(2, "Unregistered speech recognition engine '%s'\n", engine->name);
+			ast_verb(5, "Unregistered speech recognition engine '%s'\n", engine->name);
 			/* All went well */
 			if (on_unregistered) {
 				on_unregistered(engine);

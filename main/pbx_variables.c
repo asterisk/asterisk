@@ -662,6 +662,11 @@ void pbx_substitute_variables_helper_full(struct ast_channel *c, struct varshead
 	pbx_substitute_variables_helper_full_location(c, headp, cp1, cp2, count, used, NULL, NULL, 0);
 }
 
+/*! \brief Thread local keeping track of recursion depth */
+AST_THREADSTORAGE(varsub_recurse_level);
+
+#define MAX_VARIABLE_SUB_RECURSE_DEPTH 15
+
 void pbx_substitute_variables_helper_full_location(struct ast_channel *c, struct varshead *headp, const char *cp1, char *cp2, int count, size_t *used, const char *context, const char *exten, int pri)
 {
 	/* Substitutes variables into cp2, based on string cp1, cp2 NO LONGER NEEDS TO BE ZEROED OUT!!!!  */
@@ -669,8 +674,22 @@ void pbx_substitute_variables_helper_full_location(struct ast_channel *c, struct
 	const char *orig_cp2 = cp2;
 	char ltmp[VAR_BUF_SIZE];
 	char var[VAR_BUF_SIZE];
+	int *recurse_depth;
 
 	*cp2 = 0; /* just in case nothing ends up there */
+
+	/* It is possible to craft dialplan that will recurse indefinitely and cause a stack overflow.
+	 * This is symptomatic of a dialplan bug, so abort substitution rather than crash. */
+	recurse_depth = ast_threadstorage_get(&varsub_recurse_level, sizeof(*recurse_depth));
+	if (!recurse_depth) {
+		return;
+	}
+	if ((*recurse_depth)++ >= MAX_VARIABLE_SUB_RECURSE_DEPTH) {
+		ast_log(LOG_ERROR, "Exceeded maximum variable substitution recursion depth (%d) - possible infinite recursion in dialplan?\n", MAX_VARIABLE_SUB_RECURSE_DEPTH);
+		(*recurse_depth)--;
+		return;
+	}
+
 	whereweare = cp1;
 	while (!ast_strlen_zero(whereweare) && count) {
 		char *nextvar = NULL;
@@ -881,6 +900,7 @@ void pbx_substitute_variables_helper_full_location(struct ast_channel *c, struct
 	if (used) {
 		*used = cp2 - orig_cp2;
 	}
+	(*recurse_depth)--;
 }
 
 void pbx_substitute_variables_helper(struct ast_channel *c, const char *cp1, char *cp2, int count)

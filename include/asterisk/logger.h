@@ -41,10 +41,16 @@ extern "C" {
 
 #define _A_ __FILE__, __LINE__, __FUNCTION__
 
-#define VERBOSE_PREFIX_1 " "
-#define VERBOSE_PREFIX_2 "  == "
-#define VERBOSE_PREFIX_3 "    -- "
-#define VERBOSE_PREFIX_4 "       > "
+#define VERBOSE_PREFIX_1  " "
+#define VERBOSE_PREFIX_2  "  == "
+#define VERBOSE_PREFIX_3  "    -- "
+#define VERBOSE_PREFIX_4  "       > "
+#define VERBOSE_PREFIX_5  "        > "
+#define VERBOSE_PREFIX_6  "         > "
+#define VERBOSE_PREFIX_7  "          > "
+#define VERBOSE_PREFIX_8  "           > "
+#define VERBOSE_PREFIX_9  "            > "
+#define VERBOSE_PREFIX_10 "             > "
 
 #define AST_CALLID_BUFFER_LENGTH 13
 
@@ -161,7 +167,7 @@ void __attribute__((format(printf, 5, 6))) ast_queue_log(const char *queuename, 
  * This will print the message to the console if the verbose level is set to a level >= 3
  *
  * Note the absence of a comma after the VERBOSE_PREFIX_3.  This is important.
- * VERBOSE_PREFIX_1 through VERBOSE_PREFIX_4 are defined.
+ * VERBOSE_PREFIX_1 through VERBOSE_PREFIX_10 are defined.
  *
  * \version 11 added level parameter
  */
@@ -832,6 +838,76 @@ unsigned long _ast_trace_dec_indent(void);
 	} \
 
 /*!
+ * \def SCOPE_CALL
+ * \brief Wrap a function call in "--> Calling:" and "<-- Return from:" trace messages
+ *
+ * \param level The trace level (usually -1 to use the same level as the calling function)
+ * \param __funcname The name of the function to call (return value, if any, is ignored)
+ * \param ... Arguments to pass to the function
+ *
+ * Simple Example:
+ * The following code called from inside the app_voicemail.c leave_voicemail function...
+\code
+	SCOPE_CALL(-1, store_file, dir, vmu->mailbox, vmu->context, msgnum);
+\endcode
+ * would produce...
+\verbatim
+1     app_voicemail_odbc.c:7161 leave_voicemail: --> Calling store_file
+1     --> app_voicemail_odbc.c:4483 store_file: dir: /var/spool/asterisk/voicemail/default/1179/INBOX user: 1179 context: default msgnum: 8
+2         app_voicemail_odbc.c:4502 store_file: Formats: wav49|gsm|wav Using format: 'WAV'
+2         app_voicemail_odbc.c:4510 store_file: Base path: '/var/spool/asterisk/voicemail/default/1179/INBOX/msg0008'
+2         app_voicemail_odbc.c:4513 store_file: Basename: 'msg0008'
+1     <-- app_voicemail_odbc.c:4597 store_file: Success
+1     app_voicemail_odbc.c:7161 leave_voicemail: <-- Return from store_file
+\endverbatim
+ */
+#define SCOPE_CALL(level, __funcname, ...) \
+({ \
+	ast_trace(level, "--> Calling %s\n", #__funcname); \
+	__funcname(__VA_ARGS__); \
+	ast_trace(level, "<-- Return from %s\n", #__funcname); \
+})
+
+/*!
+ * \def SCOPE_CALL_WITH_RESULT
+ * \brief Wrap a function call returning a value in "--> Calling:" and "<-- Return from:" trece messages
+ *
+ * \param level The trace level (usually -1 to use the same level as the calling function)
+ * \param __type The return type of the function
+ * \param __funcname The name of the function to call
+ * \param ... Arguments to pass to the function
+ *
+ * Simple Example:
+ * The following code called from inside the app_voicemail.c leave_voicemail function...
+\code
+	int res = 0;
+	res = SCOPE_CALL_WITH_RESULT(-1, int, store_file, dir, vmu->mailbox, vmu->context, msgnum);
+\endcode
+ * would produce...
+\verbatim
+1     app_voicemail_odbc.c:7161 leave_voicemail: --> Calling store_file
+1     --> app_voicemail_odbc.c:4483 store_file: dir: /var/spool/asterisk/voicemail/default/1179/INBOX user: 1179 context: default msgnum: 8
+2         app_voicemail_odbc.c:4502 store_file: Formats: wav49|gsm|wav Using format: 'WAV'
+2         app_voicemail_odbc.c:4510 store_file: Base path: '/var/spool/asterisk/voicemail/default/1179/INBOX/msg0008'
+2         app_voicemail_odbc.c:4513 store_file: Basename: 'msg0008'
+1     <-- app_voicemail_odbc.c:4597 store_file: Success
+1     app_voicemail_odbc.c:7161 leave_voicemail: <-- Return from store_file
+\endverbatim
+ * ...and the return value of the store_file function would be assigned to the variable res.
+ */
+#define SCOPE_CALL_WITH_RESULT(level, __type, __funcname, ...) \
+({ \
+	__type __var; \
+	ast_trace(level, "--> Calling %s\n", #__funcname); \
+	__var = __funcname(__VA_ARGS__); \
+	ast_trace(level, "<-- Return from %s\n", #__funcname) \
+	__var; \
+})
+
+#define SCOPE_CALL_WITH_INT_RESULT(level, __funcname, ...) \
+	SCOPE_CALL_WITH_RESULT(level, int, __funcname, __VA_ARGS__)
+
+/*!
  * \brief Scope Exit
  *
  * \param ... A printf style format string, optionally with arguments
@@ -937,6 +1013,12 @@ unsigned long _ast_trace_dec_indent(void);
 #define SCOPE_ENTER_TASK(level, indent, ...) \
 	int __scope_level = level; \
 	ast_debug(level, " " __VA_ARGS__)
+
+#define SCOPE_CALL(level, __funcname, ...) \
+	__funcname(__VA_ARGS__)
+
+#define SCOPE_CALL_WITH_RESULT(level, __var, __funcname, ...) \
+	__var = __funcname(__VA_ARGS__)
 
 #define SCOPE_EXIT(...) \
 	ast_debug(__scope_level, " " __VA_ARGS__)

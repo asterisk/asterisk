@@ -557,6 +557,22 @@
 								endpoint identification.
 								</para>
 							</enum>
+							<enum name="request_uri">
+								<para>Matches the endpoint based on the configured SIP
+								request uri.
+								</para>
+								<para>This method of identification is not configured here
+								but simply allowed by this configuration option.
+								</para>
+							</enum>
+							<enum name="transport">
+								<para>Matches the endpoint based on the destination IP
+								address.
+								</para>
+								<para>This method of identification is not configured here
+								but simply allowed by this configuration option.
+								</para>
+							</enum>
 						</enumlist>
 					</description>
 				</configOption>
@@ -1797,6 +1813,30 @@
 				</configOption>
 				<configOption name="require_client_cert" default="false">
 					<synopsis>Require client certificate (TLS ONLY, not WSS)</synopsis>
+				</configOption>
+				<configOption name="tcp_keepalive_enable" default="no">
+					<synopsis>Enable TCP keepalive</synopsis>
+					<description><para>
+						When set to 'yes', TCP keepalive messages are sent to verify that the endpoint is still reachable. This can help detect dead TCP connections in environments where connections may be silently dropped (e.g., NAT timeouts).
+					</para></description>
+				</configOption>
+				<configOption name="tcp_keepalive_idle_time" default="30">
+					<synopsis>Idle time before the first TCP keepalive probe is sent</synopsis>
+					<description><para>
+						Specifies the amount of time in seconds that the connection must be idle before the first TCP keepalive probe is sent. An idle connection is defined as a connection in which no data has been sent or received by the application.
+					</para></description>
+				</configOption>
+				<configOption name="tcp_keepalive_interval_time" default="10">
+					<synopsis>Interval between TCP keepalive probes</synopsis>
+					<description><para>
+						Specifies the interval in seconds between individual TCP keepalive probes, once the first probe is sent. This interval is used for subsequent probes if the peer does not respond to the previous probe.
+					</para></description>
+				</configOption>
+				<configOption name="tcp_keepalive_probe_count" default="5">
+					<synopsis>Maximum number of TCP keepalive probes</synopsis>
+					<description><para>
+						Specifies the maximum number of TCP keepalive probes to send before considering the connection dead and notifying the application. If the peer does not respond after this many probes, the connection is considered broken.
+					</para></description>
 				</configOption>
 				<configOption name="type">
 					<synopsis>Must be of type 'transport'.</synopsis>

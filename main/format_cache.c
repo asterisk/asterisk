@@ -490,7 +490,7 @@ int ast_format_cache_set(struct ast_format *format)
 
 	set_cached_format(ast_format_get_name(format), format);
 
-	ast_verb(2, "%s cached format with name '%s'\n",
+	ast_verb(5, "%s cached format with name '%s'\n",
 		old_format ? "Updated" : "Created",
 		ast_format_get_name(format));
 

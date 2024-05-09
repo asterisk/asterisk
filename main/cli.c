@@ -807,30 +807,35 @@ static char *handle_logger_mute(struct ast_cli_entry *e, int cmd, struct ast_cli
 
 static char *handle_refresh(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
+	static const char * const completions[] = { "recursively", NULL };
+	int res;
 	/* "module refresh <mod>" */
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "module refresh";
 		e->usage =
-			"Usage: module refresh <module name>\n"
-			"       Unloads and loads the specified module into Asterisk.\n";
+			"Usage: module refresh <module name> [recursively]\n"
+			"       Unloads and loads the specified module into Asterisk.\n"
+			"       'recursively' will attempt to unload any modules with\n"
+			"       dependencies on this module for you and load them again\n"
+			"       afterwards.\n";
 		return NULL;
 
 	case CLI_GENERATE:
-		if (a->pos != e->args) {
-			return NULL;
+		if (a->pos == e->args) {
+			return ast_module_helper(a->line, a->word, a->pos, a->n, a->pos, AST_MODULE_HELPER_UNLOAD);
+		} else if (a->pos == e->args + 1) {
+			return ast_cli_complete(a->word, completions, a->n);
 		}
-		return ast_module_helper(a->line, a->word, a->pos, a->n, a->pos, AST_MODULE_HELPER_UNLOAD);
+		return NULL;
 	}
-	if (a->argc != e->args + 1) {
+	if (a->argc < 3 || a->argc > 4) {
 		return CLI_SHOWUSAGE;
 	}
-	if (ast_unload_resource(a->argv[e->args], AST_FORCE_SOFT)) {
-		ast_cli(a->fd, "Unable to unload resource %s\n", a->argv[e->args]);
-		return CLI_FAILURE;
-	}
-	if (ast_load_resource(a->argv[e->args])) {
-		ast_cli(a->fd, "Unable to load module %s\n", a->argv[e->args]);
+
+	res = ast_refresh_resource(a->argv[e->args], AST_FORCE_SOFT, a->argc == 4 && !strcasecmp(a->argv[3], "recursively"));
+	if (res) {
+		ast_cli(a->fd, "Unable to %s resource %s\n", res > 0 ? "unload" : "load", a->argv[e->args]);
 		return CLI_FAILURE;
 	}
 	ast_cli(a->fd, "Unloaded and loaded %s\n", a->argv[e->args]);
@@ -1118,9 +1123,7 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 			"       'concise' is specified, the format is abridged and in a more easily\n"
 			"       machine parsable format. If 'verbose' is specified, the output includes\n"
 			"       more and longer fields. If 'count' is specified only the channel and call\n"
-			"       count is output.\n"
-			"	The 'concise' option is deprecated and will be removed from future versions\n"
-			"	of Asterisk.\n";
+			"       count is output.\n";
 		return NULL;
 
 	case CLI_GENERATE:

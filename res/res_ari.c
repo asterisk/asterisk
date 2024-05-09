@@ -1006,6 +1006,7 @@ static int ast_ari_callback(struct ast_tcptls_session_instance *ser,
 
 		ast_str_append(&buf, 0, "<--- ARI request received from: %s --->\n",
 			ast_sockaddr_stringify(&ser->remote_address));
+		ast_str_append(&buf, 0, "%s %s\n", ast_get_http_method(method), uri);
 		for (var = headers; var; var = var->next) {
 			ast_str_append(&buf, 0, "%s: %s\n", var->name, var->value);
 		}
