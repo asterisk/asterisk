@@ -78,7 +78,7 @@ CREATE TABLE sippeers (
     regexten VARCHAR(40), 
     fromdomain VARCHAR(40), 
     fromuser VARCHAR(40), 
-    qualify VARCHAR(40), 
+    "qualify" VARCHAR(40), 
     defaultip VARCHAR(45), 
     rtptimeout INTEGER, 
     rtpholdtimeout INTEGER, 
@@ -172,7 +172,7 @@ CREATE TABLE iaxfriends (
     disallow VARCHAR(200), 
     allow VARCHAR(200), 
     codecpriority VARCHAR(40), 
-    qualify VARCHAR(10), 
+    "qualify" VARCHAR(10), 
     qualifysmoothing yes_no_values, 
     qualifyfreqok VARCHAR(10), 
     qualifyfreqnotok VARCHAR(10), 
@@ -1623,8 +1623,6 @@ ALTER TABLE ps_aors ALTER COLUMN authenticate_qualify TYPE ast_bool_values USING
 
 ALTER TABLE ps_aors ALTER COLUMN remove_existing TYPE ast_bool_values USING "remove_existing"::text::ast_bool_values;
 
-ALTER TABLE ps_aors ALTER COLUMN remove_unavailable TYPE ast_bool_values USING "remove_unavailable"::text::ast_bool_values;
-
 ALTER TABLE ps_aors ALTER COLUMN support_path TYPE ast_bool_values USING "support_path"::text::ast_bool_values;
 
 ALTER TABLE ps_asterisk_publications ALTER COLUMN device_state TYPE ast_bool_values USING "device_state"::text::ast_bool_values;
@@ -1637,8 +1635,6 @@ ALTER TABLE ps_contacts ALTER COLUMN prune_on_boot TYPE ast_bool_values USING "p
 
 ALTER TABLE ps_endpoint_id_ips ALTER COLUMN srv_lookups TYPE ast_bool_values USING "srv_lookups"::text::ast_bool_values;
 
-ALTER TABLE ps_endpoints ALTER COLUMN "100rel" TYPE ast_bool_values USING "100rel"::text::ast_bool_values;
-
 ALTER TABLE ps_endpoints ALTER COLUMN accept_multiple_sdp_answers TYPE ast_bool_values USING "accept_multiple_sdp_answers"::text::ast_bool_values;
 
 ALTER TABLE ps_endpoints ALTER COLUMN aggregate_mwi TYPE ast_bool_values USING "aggregate_mwi"::text::ast_bool_values;
@@ -1648,8 +1644,6 @@ ALTER TABLE ps_endpoints ALTER COLUMN allow_overlap TYPE ast_bool_values USING "
 ALTER TABLE ps_endpoints ALTER COLUMN allow_subscribe TYPE ast_bool_values USING "allow_subscribe"::text::ast_bool_values;
 
 ALTER TABLE ps_endpoints ALTER COLUMN allow_transfer TYPE ast_bool_values USING "allow_transfer"::text::ast_bool_values;
-
-ALTER TABLE ps_endpoints ALTER COLUMN allow_unauthenticated_options TYPE ast_bool_values USING "allow_unauthenticated_options"::text::ast_bool_values;
 
 ALTER TABLE ps_endpoints ALTER COLUMN asymmetric_rtp_codec TYPE ast_bool_values USING "asymmetric_rtp_codec"::text::ast_bool_values;
 
@@ -1675,8 +1669,6 @@ ALTER TABLE ps_endpoints ALTER COLUMN g726_non_standard TYPE ast_bool_values USI
 
 ALTER TABLE ps_endpoints ALTER COLUMN ice_support TYPE ast_bool_values USING "ice_support"::text::ast_bool_values;
 
-ALTER TABLE ps_endpoints ALTER COLUMN ignore_183_without_sdp TYPE ast_bool_values USING "ignore_183_without_sdp"::text::ast_bool_values;
-
 ALTER TABLE ps_endpoints ALTER COLUMN inband_progress TYPE ast_bool_values USING "inband_progress"::text::ast_bool_values;
 
 ALTER TABLE ps_endpoints ALTER COLUMN media_encryption_optimistic TYPE ast_bool_values USING "media_encryption_optimistic"::text::ast_bool_values;
@@ -1684,8 +1676,6 @@ ALTER TABLE ps_endpoints ALTER COLUMN media_encryption_optimistic TYPE ast_bool_
 ALTER TABLE ps_endpoints ALTER COLUMN media_use_received_transport TYPE ast_bool_values USING "media_use_received_transport"::text::ast_bool_values;
 
 ALTER TABLE ps_endpoints ALTER COLUMN moh_passthrough TYPE ast_bool_values USING "moh_passthrough"::text::ast_bool_values;
-
-ALTER TABLE ps_endpoints ALTER COLUMN mwi_subscribe_replaces_unsolicited TYPE ast_bool_values USING "mwi_subscribe_replaces_unsolicited"::text::ast_bool_values;
 
 ALTER TABLE ps_endpoints ALTER COLUMN notify_early_inuse_ringing TYPE ast_bool_values USING "notify_early_inuse_ringing"::text::ast_bool_values;
 
@@ -1705,13 +1695,7 @@ ALTER TABLE ps_endpoints ALTER COLUMN rtp_ipv6 TYPE ast_bool_values USING "rtp_i
 
 ALTER TABLE ps_endpoints ALTER COLUMN rtp_symmetric TYPE ast_bool_values USING "rtp_symmetric"::text::ast_bool_values;
 
-ALTER TABLE ps_endpoints ALTER COLUMN send_aoc TYPE ast_bool_values USING "send_aoc"::text::ast_bool_values;
-
-ALTER TABLE ps_endpoints ALTER COLUMN send_connected_line TYPE ast_bool_values USING "send_connected_line"::text::ast_bool_values;
-
 ALTER TABLE ps_endpoints ALTER COLUMN send_diversion TYPE ast_bool_values USING "send_diversion"::text::ast_bool_values;
-
-ALTER TABLE ps_endpoints ALTER COLUMN send_history_info TYPE ast_bool_values USING "send_history_info"::text::ast_bool_values;
 
 ALTER TABLE ps_endpoints ALTER COLUMN send_pai TYPE ast_bool_values USING "send_pai"::text::ast_bool_values;
 
@@ -1719,21 +1703,13 @@ ALTER TABLE ps_endpoints ALTER COLUMN send_rpid TYPE ast_bool_values USING "send
 
 ALTER TABLE ps_endpoints ALTER COLUMN srtp_tag_32 TYPE ast_bool_values USING "srtp_tag_32"::text::ast_bool_values;
 
-ALTER TABLE ps_endpoints ALTER COLUMN stir_shaken TYPE ast_bool_values USING "stir_shaken"::text::ast_bool_values;
-
 ALTER TABLE ps_endpoints ALTER COLUMN suppress_q850_reason_headers TYPE ast_bool_values USING "suppress_q850_reason_headers"::text::ast_bool_values;
-
-ALTER TABLE ps_endpoints ALTER COLUMN t38_bind_udptl_to_media_address TYPE ast_bool_values USING "t38_bind_udptl_to_media_address"::text::ast_bool_values;
 
 ALTER TABLE ps_endpoints ALTER COLUMN t38_udptl TYPE ast_bool_values USING "t38_udptl"::text::ast_bool_values;
 
 ALTER TABLE ps_endpoints ALTER COLUMN t38_udptl_ipv6 TYPE ast_bool_values USING "t38_udptl_ipv6"::text::ast_bool_values;
 
 ALTER TABLE ps_endpoints ALTER COLUMN t38_udptl_nat TYPE ast_bool_values USING "t38_udptl_nat"::text::ast_bool_values;
-
-ALTER TABLE ps_endpoints ALTER COLUMN timers TYPE ast_bool_values USING "timers"::text::ast_bool_values;
-
-ALTER TABLE ps_endpoints ALTER COLUMN trust_connected_line TYPE ast_bool_values USING "trust_connected_line"::text::ast_bool_values;
 
 ALTER TABLE ps_endpoints ALTER COLUMN trust_id_inbound TYPE ast_bool_values USING "trust_id_inbound"::text::ast_bool_values;
 
@@ -1747,21 +1723,11 @@ ALTER TABLE ps_endpoints ALTER COLUMN user_eq_phone TYPE ast_bool_values USING "
 
 ALTER TABLE ps_endpoints ALTER COLUMN webrtc TYPE ast_bool_values USING "webrtc"::text::ast_bool_values;
 
-ALTER TABLE ps_globals ALTER COLUMN all_codecs_on_empty_reinvite TYPE ast_bool_values USING "all_codecs_on_empty_reinvite"::text::ast_bool_values;
-
-ALTER TABLE ps_globals ALTER COLUMN allow_sending_180_after_183 TYPE ast_bool_values USING "allow_sending_180_after_183"::text::ast_bool_values;
-
 ALTER TABLE ps_globals ALTER COLUMN disable_multi_domain TYPE ast_bool_values USING "disable_multi_domain"::text::ast_bool_values;
 
 ALTER TABLE ps_globals ALTER COLUMN ignore_uri_user_options TYPE ast_bool_values USING "ignore_uri_user_options"::text::ast_bool_values;
 
 ALTER TABLE ps_globals ALTER COLUMN mwi_disable_initial_unsolicited TYPE ast_bool_values USING "mwi_disable_initial_unsolicited"::text::ast_bool_values;
-
-ALTER TABLE ps_globals ALTER COLUMN norefersub TYPE ast_bool_values USING "norefersub"::text::ast_bool_values;
-
-ALTER TABLE ps_globals ALTER COLUMN send_contact_status_on_update_registration TYPE ast_bool_values USING "send_contact_status_on_update_registration"::text::ast_bool_values;
-
-ALTER TABLE ps_globals ALTER COLUMN use_callerid_contact TYPE ast_bool_values USING "use_callerid_contact"::text::ast_bool_values;
 
 ALTER TABLE ps_outbound_publishes ALTER COLUMN multi_user TYPE ast_bool_values USING "multi_user"::text::ast_bool_values;
 
@@ -1773,15 +1739,11 @@ ALTER TABLE ps_registrations ALTER COLUMN support_path TYPE ast_bool_values USIN
 
 ALTER TABLE ps_resource_list ALTER COLUMN full_state TYPE ast_bool_values USING "full_state"::text::ast_bool_values;
 
-ALTER TABLE ps_resource_list ALTER COLUMN resource_display_name TYPE ast_bool_values USING "resource_display_name"::text::ast_bool_values;
-
 ALTER TABLE ps_subscription_persistence ALTER COLUMN prune_on_boot TYPE ast_bool_values USING "prune_on_boot"::text::ast_bool_values;
 
 ALTER TABLE ps_systems ALTER COLUMN accept_multiple_sdp_answers TYPE ast_bool_values USING "accept_multiple_sdp_answers"::text::ast_bool_values;
 
 ALTER TABLE ps_systems ALTER COLUMN compact_headers TYPE ast_bool_values USING "compact_headers"::text::ast_bool_values;
-
-ALTER TABLE ps_systems ALTER COLUMN disable_rport TYPE ast_bool_values USING "disable_rport"::text::ast_bool_values;
 
 ALTER TABLE ps_systems ALTER COLUMN disable_tcp_switch TYPE ast_bool_values USING "disable_tcp_switch"::text::ast_bool_values;
 
@@ -1800,6 +1762,50 @@ ALTER TABLE ps_transports ALTER COLUMN verify_client TYPE ast_bool_values USING 
 ALTER TABLE ps_transports ALTER COLUMN verify_server TYPE ast_bool_values USING "verify_server"::text::ast_bool_values;
 
 UPDATE alembic_version SET version_num='74dc751dfe8e' WHERE alembic_version.version_num = 'bd335bae5d33';
+
+-- Running upgrade 74dc751dfe8e -> 8fce8496f03e
+
+ALTER TABLE ps_transports ADD COLUMN tcp_keepalive_enable BOOLEAN;
+
+ALTER TABLE ps_transports ADD COLUMN tcp_keepalive_idle_time INTEGER;
+
+ALTER TABLE ps_transports ADD COLUMN tcp_keepalive_interval_time INTEGER;
+
+ALTER TABLE ps_transports ADD COLUMN tcp_keepalive_probe_count INTEGER;
+
+UPDATE alembic_version SET version_num='8fce8496f03e' WHERE alembic_version.version_num = '74dc751dfe8e';
+
+-- Running upgrade 8fce8496f03e -> cf150a175fd3
+
+ALTER TABLE ps_endpoint_id_ips ADD COLUMN match_request_uri VARCHAR(255);
+
+UPDATE alembic_version SET version_num='cf150a175fd3' WHERE alembic_version.version_num = '8fce8496f03e';
+
+-- Running upgrade cf150a175fd3 -> d5122576cca8
+
+ALTER TABLE ps_endpoint_id_ips ADD COLUMN transport VARCHAR(128);
+
+UPDATE alembic_version SET version_num='d5122576cca8' WHERE alembic_version.version_num = 'cf150a175fd3';
+
+-- Running upgrade d5122576cca8 -> 6c475a93f48a
+
+ALTER TABLE ps_aors ALTER COLUMN id SET NOT NULL;
+
+ALTER TABLE ps_auths ALTER COLUMN id SET NOT NULL;
+
+ALTER TABLE ps_domain_aliases ALTER COLUMN id SET NOT NULL;
+
+ALTER TABLE ps_endpoint_id_ips ALTER COLUMN id SET NOT NULL;
+
+ALTER TABLE ps_endpoints ALTER COLUMN id SET NOT NULL;
+
+ALTER TABLE ps_inbound_publications ALTER COLUMN id SET NOT NULL;
+
+ALTER TABLE ps_outbound_publishes ALTER COLUMN id SET NOT NULL;
+
+ALTER TABLE ps_registrations ALTER COLUMN id SET NOT NULL;
+
+UPDATE alembic_version SET version_num='6c475a93f48a' WHERE alembic_version.version_num = 'd5122576cca8';
 
 COMMIT;
 
