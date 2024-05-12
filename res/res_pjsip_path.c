@@ -48,6 +48,109 @@ static struct ast_sip_aor *find_aor(struct ast_sip_contact *contact)
 	return ast_sip_location_retrieve_aor(contact->aor);
 }
 
+static struct ast_sip_aor *find_aor2(struct ast_sip_endpoint *endpoint, pjsip_uri *uri)
+{
+	char *configured_aors, *aor_name;
+	const pj_str_t *uri_username;
+	const pj_str_t *uri_hostname;
+	char *domain_name;
+	char *username;
+	struct ast_str *id = NULL;
+
+	if (ast_strlen_zero(endpoint->aors)) {
+		return NULL;
+	}
+
+	uri_hostname = ast_sip_pjsip_uri_get_hostname(uri);
+	domain_name = ast_alloca(uri_hostname->slen + 1);
+	ast_copy_pj_str(domain_name, uri_hostname, uri_hostname->slen + 1);
+
+	uri_username = ast_sip_pjsip_uri_get_username(uri);
+	username = ast_alloca(uri_username->slen + 1);
+	ast_copy_pj_str(username, uri_username, uri_username->slen + 1);
+
+	/*
+	 * We may want to match without any user options getting
+	 * in the way.
+	 */
+	AST_SIP_USER_OPTIONS_TRUNCATE_CHECK(username);
+
+	configured_aors = ast_strdupa(endpoint->aors);
+
+	/* Iterate the configured AORs to see if the user or the user+domain match */
+	while ((aor_name = ast_strip(strsep(&configured_aors, ",")))) {
+		struct ast_sip_domain_alias *alias = NULL;
+
+		if (ast_strlen_zero(aor_name)) {
+			continue;
+		}
+
+		if (!strcmp(username, aor_name)) {
+			break;
+		}
+
+		if (!id && !(id = ast_str_create(strlen(username) + uri_hostname->slen + 2))) {
+			aor_name = NULL;
+			break;
+		}
+
+		ast_str_set(&id, 0, "%s@", username);
+		if ((alias = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "domain_alias", domain_name))) {
+			ast_str_append(&id, 0, "%s", alias->domain);
+			ao2_cleanup(alias);
+		} else {
+			ast_str_append(&id, 0, "%s", domain_name);
+		}
+
+		if (!strcmp(aor_name, ast_str_buffer(id))) {
+			break;
+		}
+	}
+	ast_free(id);
+
+	if (ast_strlen_zero(aor_name)) {
+		return NULL;
+	}
+
+	return ast_sip_location_retrieve_aor(aor_name);
+}
+
+static struct ast_sip_contact *find_contact(struct ast_sip_aor *aor, pjsip_uri *uri)
+{
+	struct ao2_iterator it_contacts;
+	struct ast_sip_contact *contact;
+	char contact_buf[512];
+	int contact_buf_len;
+	int res = 0;
+
+	RAII_VAR(struct ao2_container *, contacts, NULL, ao2_cleanup);
+
+	if (!(contacts = ast_sip_location_retrieve_aor_contacts(aor))) {
+		/* No contacts are available, skip it as well */
+		return NULL;
+	} else if (!ao2_container_count(contacts)) {
+		/* We were given a container but no contacts are in it... */
+		return NULL;
+	}
+
+	contact_buf_len = pjsip_uri_print(PJSIP_URI_IN_CONTACT_HDR, uri, contact_buf, 512);
+	contact_buf[contact_buf_len] = '\0';
+
+	it_contacts = ao2_iterator_init(contacts, 0);
+	for (; (contact = ao2_iterator_next(&it_contacts)); ao2_ref(contact, -1)) {
+		if (!strcmp(contact_buf, contact->uri)) {
+			res = 1;
+			break;
+		}
+	}
+	ao2_iterator_destroy(&it_contacts);
+	if (!res) {
+		return NULL;
+	}
+	return contact;
+}
+
+
 /*!
  * \brief Get the path string associated with this contact and tdata
  *
@@ -119,6 +222,9 @@ static void path_outgoing_request(struct ast_sip_endpoint *endpoint, struct ast_
 	}
 
 	aor = find_aor(contact);
+	if (!aor) {
+		aor = find_aor2(endpoint, tdata->msg->line.req.uri);
+	}
 	if (!aor || !aor->support_path) {
 		return;
 	}
@@ -127,8 +233,19 @@ static void path_outgoing_request(struct ast_sip_endpoint *endpoint, struct ast_
 		return;
 	}
 
-	if (contact && !ast_strlen_zero(contact->path)) {
-		ast_sip_set_outbound_proxy(tdata, contact->path);
+	if (!contact) {
+		contact = find_contact(aor, tdata->msg->line.req.uri);
+		if (contact) {
+			if (!ast_strlen_zero(contact->path)) {
+				ast_sip_set_outbound_proxy(tdata, contact->path);
+			}
+			ao2_ref(contact, -1);
+			contact = NULL;
+		}
+	} else {
+		if (!ast_strlen_zero(contact->path)) {
+			ast_sip_set_outbound_proxy(tdata, contact->path);
+		}
 	}
 }
 
