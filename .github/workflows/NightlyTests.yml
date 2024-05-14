@@ -1,6 +1,11 @@
 name: NightlyTests
 on:
   workflow_dispatch:
+    inputs:
+      branches:
+        required: false
+        type: string
+        description: "Array of branches to run: ['21','master'].  Defaults to NIGHTLYTEST_BRANCHES"
 
   schedule:
     - cron: '0 2 * * *'
@@ -18,7 +23,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        branch: ${{ fromJSON(vars.NIGHTLYTEST_BRANCHES) }}
+        branch: ${{ fromJSON( ( inputs.branches || vars.NIGHTLYTEST_BRANCHES ) ) }}
         group: ${{ fromJSON(vars.NIGHTLYTEST_LIST) }}
     runs-on: ubuntu-latest
     steps:
