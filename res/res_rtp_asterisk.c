@@ -138,6 +138,7 @@
 #define RTCP_PT_PSFB    AST_RTP_RTCP_PSFB
 
 #define RTP_MTU		1200
+#define DTMF_SAMPLE_RATE_MS    8 /*!< DTMF samples per millisecond */
 
 #define DEFAULT_DTMF_TIMEOUT (150 * (8000 / 1000))	/*!< samples */
 
@@ -433,7 +434,6 @@ struct ast_rtp {
 	unsigned int dtmf_timeout;        /*!< When this timestamp is reached we consider END frame lost and forcibly abort digit */
 	unsigned int dtmfsamples;
 	enum ast_rtp_dtmf_mode dtmfmode;  /*!< The current DTMF mode of the RTP stream */
-	unsigned int dtmf_samplerate_ms;  /*!< The sample rate of the current RTP stream in ms (sample rate / 1000) */
 	/* DTMF Transmission Variables */
 	unsigned int lastdigitts;
 	char sending_digit;	/*!< boolean - are we sending digits */
@@ -4284,10 +4284,8 @@ static int ast_rtp_dtmf_begin(struct ast_rtp_instance *instance, char digit)
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 	struct ast_sockaddr remote_address = { {0,} };
 	int hdrlen = 12, res = 0, i = 0, payload = 101;
-	unsigned int sample_rate = 8000;
 	char data[256];
 	unsigned int *rtpheader = (unsigned int*)data;
-	RAII_VAR(struct ast_format *, payload_format, NULL, ao2_cleanup);
 
 	ast_rtp_instance_get_remote_address(instance, &remote_address);
 
@@ -4312,32 +4310,12 @@ static int ast_rtp_dtmf_begin(struct ast_rtp_instance *instance, char digit)
 		return -1;
 	}
 
-	if (rtp->lasttxformat == ast_format_none) {
-		/* No audio frames have been written yet so we have to lookup both the preferred payload type and bitrate. */
-		payload_format = ast_rtp_codecs_get_preferred_format(ast_rtp_instance_get_codecs(instance));
-		if (payload_format) {
-			/* If we have a preferred type, use that. Otherwise default to 8K. */
-			sample_rate = ast_format_get_sample_rate(payload_format);
-		}
-	} else {
-		sample_rate = ast_format_get_sample_rate(rtp->lasttxformat);
-	}
-
-	/* Grab the matching DTMF type payload */
-	payload = ast_rtp_codecs_payload_code_tx_sample_rate(ast_rtp_instance_get_codecs(instance), 0, NULL, AST_RTP_DTMF, sample_rate);
-
-	/* If this returns -1, we are being asked to send digits for a sample rate that is outside
-	   what was negotiated for. Fall back if possible. */
-	if (payload == -1) {
-		return -1;
-	}
-	ast_test_suite_event_notify("DTMF_BEGIN", "Digit: %d\r\nPayload: %d\r\nRate: %d\r\n", digit, payload, sample_rate);
-	ast_debug(1, "Sending digit '%d' at rate %d with payload %d\n", digit, sample_rate, payload);
+	/* Grab the payload that they expect the RFC2833 packet to be received in */
+	payload = ast_rtp_codecs_payload_code_tx(ast_rtp_instance_get_codecs(instance), 0, NULL, AST_RTP_DTMF);
 
 	rtp->dtmfmute = ast_tvadd(ast_tvnow(), ast_tv(0, 500000));
 	rtp->send_duration = 160;
-	rtp->dtmf_samplerate_ms = (sample_rate / 1000);
-	rtp->lastts += calc_txstamp(rtp, NULL) * rtp->dtmf_samplerate_ms;
+	rtp->lastts += calc_txstamp(rtp, NULL) * DTMF_SAMPLE_RATE_MS;
 	rtp->lastdigitts = rtp->lastts + rtp->send_duration;
 
 	/* Create the actual packet that we will be sending */
@@ -4416,7 +4394,7 @@ static int ast_rtp_dtmf_continuation(struct ast_rtp_instance *instance)
 	/* And now we increment some values for the next time we swing by */
 	rtp->seqno++;
 	rtp->send_duration += 160;
-	rtp->lastts += calc_txstamp(rtp, NULL) * rtp->dtmf_samplerate_ms;
+	rtp->lastts += calc_txstamp(rtp, NULL) * DTMF_SAMPLE_RATE_MS;
 
 	return 0;
 }
@@ -4494,7 +4472,7 @@ static int ast_rtp_dtmf_end_with_duration(struct ast_rtp_instance *instance, cha
 	res = 0;
 
 	/* Oh and we can't forget to turn off the stuff that says we are sending DTMF */
-	rtp->lastts += calc_txstamp(rtp, NULL) * rtp->dtmf_samplerate_ms;
+	rtp->lastts += calc_txstamp(rtp, NULL) * DTMF_SAMPLE_RATE_MS;
 
 	/* Reset the smoother as the delivery time stored in it is now out of date */
 	if (rtp->smoother) {
@@ -7933,9 +7911,11 @@ static struct ast_frame *ast_rtp_interpret(struct ast_rtp_instance *instance, st
 		*data = 0xBD;
 	}
 
-	if (ast_format_cmp(rtp->f.subclass.format, ast_format_t140_red) == AST_FORMAT_CMP_EQUAL) {
-		unsigned char *data = rtp->f.data.ptr;
-		unsigned char *header_end;
+	if (rtp->f.datalen <= 0) {
+		return AST_LIST_FIRST(&frames) ? AST_LIST_FIRST(&frames) : &ast_null_frame;
+	} else if (ast_format_cmp(rtp->f.subclass.format, ast_format_t140_red) == AST_FORMAT_CMP_EQUAL) {
+		unsigned char* data = rtp->f.data.ptr;
+		unsigned char* header_end;
 		int num_generations;
 		int header_length;
 		int len;
@@ -7977,6 +7957,9 @@ static struct ast_frame *ast_rtp_interpret(struct ast_rtp_instance *instance, st
 
 			rtp->f.data.ptr += len;
 			rtp->f.datalen -= len;
+		}
+		if (rtp->f.datalen < 0) {
+			return AST_LIST_FIRST(&frames) ? AST_LIST_FIRST(&frames) : &ast_null_frame;
 		}
 	}
 
@@ -9063,8 +9046,12 @@ static int red_write(const void *data)
 	struct ast_rtp_instance *instance = (struct ast_rtp_instance*) data;
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 
+	if (!rtp || !rtp->red) {
+		return (0);
+	}
+
 	ao2_lock(instance);
-	if (rtp->red->t140.datalen > 0) {
+	if (rtp && rtp->red && rtp->red->t140.datalen > 0) {
 		ast_rtp_write(instance, &rtp->red->t140);
 	}
 	ao2_unlock(instance);
