@@ -1,11 +1,11 @@
 
-## Change Log for Release asterisk-20.8.0-rc1
+## Change Log for Release asterisk-20.8.0
 
 ### Links:
 
- - [Full ChangeLog](https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-20.8.0-rc1.md)  
- - [GitHub Diff](https://github.com/asterisk/asterisk/compare/20.7.0...20.8.0-rc1)  
- - [Tarball](https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-20.8.0-rc1.tar.gz)  
+ - [Full ChangeLog](https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-20.8.0.md)  
+ - [GitHub Diff](https://github.com/asterisk/asterisk/compare/20.7.0...20.8.0)  
+ - [Tarball](https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-20.8.0.tar.gz)  
  - [Downloads](https://downloads.asterisk.org/pub/telephony/asterisk)  
 
 ### Summary:
