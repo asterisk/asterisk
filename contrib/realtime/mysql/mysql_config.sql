@@ -1685,3 +1685,9 @@ ALTER TABLE ps_registrations MODIFY id VARCHAR(255) NOT NULL;
 
 UPDATE alembic_version SET version_num='6c475a93f48a' WHERE alembic_version.version_num = 'd5122576cca8';
 
+-- Running upgrade 6c475a93f48a -> bd9c5159c7ea
+
+ALTER TABLE ps_endpoint_id_ips DROP COLUMN transport;
+
+UPDATE alembic_version SET version_num='bd9c5159c7ea' WHERE alembic_version.version_num = '6c475a93f48a';
+
