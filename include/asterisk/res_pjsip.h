@@ -617,8 +617,6 @@ enum ast_sip_endpoint_identifier_type {
 	AST_SIP_ENDPOINT_IDENTIFY_BY_HEADER = (1 << 3),
 	/*! Identify based on request uri */
 	AST_SIP_ENDPOINT_IDENTIFY_BY_REQUEST_URI = (1 << 4),
-	/*! Identify based on bound (local) IP address */
-	AST_SIP_ENDPOINT_IDENTIFY_BY_TRANSPORT = (1 << 5),
 };
 AST_VECTOR(ast_sip_identify_by_vector, enum ast_sip_endpoint_identifier_type);
 
