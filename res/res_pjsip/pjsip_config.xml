@@ -565,14 +565,6 @@
 								but simply allowed by this configuration option.
 								</para>
 							</enum>
-							<enum name="transport">
-								<para>Matches the endpoint based on the destination IP
-								address.
-								</para>
-								<para>This method of identification is not configured here
-								but simply allowed by this configuration option.
-								</para>
-							</enum>
 						</enumlist>
 					</description>
 				</configOption>
