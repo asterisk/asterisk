@@ -426,9 +426,6 @@ static const char *sip_endpoint_identifier_type2str(enum ast_sip_endpoint_identi
 	case AST_SIP_ENDPOINT_IDENTIFY_BY_REQUEST_URI:
 		str = "request_uri";
 		break;
-	case AST_SIP_ENDPOINT_IDENTIFY_BY_TRANSPORT:
-		str = "transport";
-		break;
 	}
 	return str;
 }
@@ -456,8 +453,6 @@ static int sip_endpoint_identifier_str2type(const char *str)
 		method = AST_SIP_ENDPOINT_IDENTIFY_BY_HEADER;
 	} else if (!strcasecmp(str, "request_uri")) {
 		method = AST_SIP_ENDPOINT_IDENTIFY_BY_REQUEST_URI;
-	} else if (!strcasecmp(str, "transport")) {
-		method = AST_SIP_ENDPOINT_IDENTIFY_BY_TRANSPORT;
 	} else {
 		method = -1;
 	}
