@@ -317,6 +317,10 @@ struct ast_cdr {
 	char uniqueid[AST_MAX_UNIQUEID];
 	/*! Linked group Identifier */
 	char linkedid[AST_MAX_UNIQUEID];
+	/*! Channel tenant Identifier */
+	char tenantid[AST_MAX_TENANT_ID];
+	/*! Channel tenant Identifier of the last person we talked to */
+	char peertenantid[AST_MAX_TENANT_ID];
 	/*! User field */
 	char userfield[AST_MAX_USER_FIELD];
 	/*! Sequence field */

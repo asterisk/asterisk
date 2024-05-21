@@ -998,6 +998,13 @@
                 ; AOC updates can be sent using the AOCMessage AMI action or come
                 ; from PRI channels.
                 ; (default: no)
+;
+; tenantid =
+                ; Sets the tenant ID for this endpoint. It can be read in dialplan
+                ; with the CHANNEL function, and it can be changed later via dialplan
+                ; using the same CHANNEL function if needed. Setting tenant ID here
+                ; will cause it to show up on channel creation and the initial
+                ; channel snapshot.
 
 
 ;==========================AUTH SECTION OPTIONS=========================
