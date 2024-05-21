@@ -109,6 +109,7 @@ struct ast_channel_snapshot_base {
 		AST_STRING_FIELD(userfield);   /*!< Userfield for CEL billing */
 		AST_STRING_FIELD(language);    /*!< The default spoken language for the channel */
 		AST_STRING_FIELD(type);        /*!< Type of channel technology */
+		AST_STRING_FIELD(tenantid);    /*!< Channel tenant identifier */
 	);
 	struct timeval creationtime; /*!< The time of channel creation */
 	int tech_properties;         /*!< Properties of the channel's technology */
