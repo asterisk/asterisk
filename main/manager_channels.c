@@ -517,6 +517,10 @@ struct ast_str *ast_manager_build_channel_state_string_prefix(
 		return NULL;
 	}
 
+	if (!ast_strlen_zero(snapshot->base->tenantid)) {
+		ast_str_append(&out, 0, "%sTenantid: %s\r\n", prefix, snapshot->base->tenantid);
+	}
+
 	if (snapshot->manager_vars) {
 		struct ast_var_t *var;
 		char *val;

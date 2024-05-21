@@ -229,6 +229,7 @@ static void manager_log(struct ast_event *event)
 	struct ast_cel_event_record record = {
 		.version = AST_CEL_EVENT_RECORD_VERSION,
 	};
+	RAII_VAR(char *, tenant_id, NULL, ast_free);
 
 	if (!enablecel) {
 		return;
@@ -252,6 +253,10 @@ static void manager_log(struct ast_event *event)
 		}
 	}
 
+	if (!ast_strlen_zero(record.tenant_id)) {
+		ast_asprintf(&tenant_id, "TenantID: %s\r\n", record.tenant_id);
+	}
+
 	manager_event(EVENT_FLAG_CALL, "CEL",
 		"EventName: %s\r\n"
 		"AccountCode: %s\r\n"
@@ -269,6 +274,7 @@ static void manager_log(struct ast_event *event)
 		"AMAFlags: %s\r\n"
 		"UniqueID: %s\r\n"
 		"LinkedID: %s\r\n"
+		"%s"
 		"Userfield: %s\r\n"
 		"Peer: %s\r\n"
 		"PeerAccount: %s\r\n"
@@ -290,6 +296,7 @@ static void manager_log(struct ast_event *event)
 		ast_channel_amaflags2string(record.amaflag),
 		record.unique_id,
 		record.linked_id,
+		!ast_strlen_zero(tenant_id) ? tenant_id : "",
 		record.user_field,
 		record.peer,
 		record.peer_account,
