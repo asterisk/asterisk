@@ -1356,6 +1356,7 @@ ari_validator ast_ari_validate_application_fn(void);
  * - name: string (required)
  * - protocol_id: string (required)
  * - state: string (required)
+ * - tenantid: string
  * Dialed
  * DialplanCEP
  * - app_data: string (required)
