@@ -57,6 +57,7 @@ struct ast_channel_id {
 	time_t creation_time;				/*!< Creation time */
 	int creation_unique;				/*!< sub-second unique value */
 	char unique_id[AST_MAX_UNIQUEID];	/*!< Unique Identifier */
+	char tenant_id[AST_MAX_TENANT_ID];	/*!< Multi-tenant identifier */
 };
 
 /*!
@@ -310,6 +311,21 @@ const char *ast_channel_linkedid(const struct ast_channel *chan)
 {
 	ast_assert(chan->linkedid.unique_id[0] != '\0');
 	return chan->linkedid.unique_id;
+}
+
+const char *ast_channel_tenantid(const struct ast_channel *chan)
+{
+	/* It's ok for tenantid to be empty, so no need to assert */
+	return chan->linkedid.tenant_id;
+}
+
+void ast_channel_tenantid_set(struct ast_channel *chan, const char *value)
+{
+	if (ast_strlen_zero(value)) {
+		return;
+	}
+	ast_copy_string(chan->linkedid.tenant_id, value, sizeof(chan->linkedid.tenant_id));
+	ast_channel_snapshot_invalidate_segment(chan, AST_CHANNEL_SNAPSHOT_INVALIDATE_BASE);
 }
 
 const char *ast_channel_appl(const struct ast_channel *chan)
@@ -1314,7 +1330,8 @@ static int pvt_cause_cmp_fn(void *obj, void *vstr, int flags)
 
 #define DIALED_CAUSES_BUCKETS 37
 
-struct ast_channel *__ast_channel_internal_alloc(void (*destructor)(void *obj), const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *file, int line, const char *function)
+struct ast_channel *__ast_channel_internal_alloc_with_initializers(void (*destructor)(void *obj), const struct ast_assigned_ids *assignedids,
+	const struct ast_channel *requestor, const struct ast_channel_initializers *initializers, const char *file, int line, const char *function)
 {
 	struct ast_channel *tmp;
 
@@ -1333,6 +1350,20 @@ struct ast_channel *__ast_channel_internal_alloc(void (*destructor)(void *obj), 
 		DIALED_CAUSES_BUCKETS, pvt_cause_hash_fn, NULL, pvt_cause_cmp_fn);
 	if (!tmp->dialed_causes) {
 		return ast_channel_unref(tmp);
+	}
+
+	/* Check initializers validity here for early abort. Unfortunately, we can't do much here because
+	 * tenant ID is part of linked ID, which would overwrite it further down. */
+	if (initializers) {
+		if (initializers->version == 0) {
+			ast_log(LOG_ERROR, "Channel initializers must have a non-zero version.\n");
+			return ast_channel_unref(tmp);
+		} else if (initializers->version != AST_CHANNEL_INITIALIZERS_VERSION) {
+			ast_log(LOG_ERROR, "ABI mismatch for ast_channel_initializers. "
+				"Please ensure all modules were compiled for "
+				"this version of Asterisk.\n");
+			return ast_channel_unref(tmp);
+		}
 	}
 
 	/* set the creation time in the uniqueid */
@@ -1360,6 +1391,12 @@ struct ast_channel *__ast_channel_internal_alloc(void (*destructor)(void *obj), 
 		tmp->linkedid = tmp->uniqueid;
 	}
 
+	/* Things like tenant ID need to be set here, otherwise they would be overwritten by
+	 * things like inheriting linked ID above. */
+	if (initializers) {
+		ast_copy_string(tmp->linkedid.tenant_id, initializers->tenantid, sizeof(tmp->linkedid.tenant_id));
+	}
+
 	AST_VECTOR_INIT(&tmp->fds, AST_MAX_FDS);
 
 	/* Force all channel snapshot segments to be created on first use, so we don't have to check if
@@ -1368,6 +1405,12 @@ struct ast_channel *__ast_channel_internal_alloc(void (*destructor)(void *obj), 
 	ast_set_flag(&tmp->snapshot_segment_flags, AST_FLAGS_ALL);
 
 	return tmp;
+}
+
+struct ast_channel *__ast_channel_internal_alloc(void (*destructor)(void *obj), const struct ast_assigned_ids *assignedids,
+	const struct ast_channel *requestor, const char *file, int line, const char *function)
+{
+	return __ast_channel_internal_alloc_with_initializers(destructor, assignedids, requestor, NULL, file, line, function);
 }
 
 struct ast_channel *ast_channel_internal_oldest_linkedid(struct ast_channel *a, struct ast_channel *b)

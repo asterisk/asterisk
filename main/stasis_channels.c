@@ -285,6 +285,7 @@ static struct ast_channel_snapshot_base *channel_snapshot_base_create(struct ast
 	ast_string_field_set(snapshot, userfield, ast_channel_userfield(chan));
 	ast_string_field_set(snapshot, uniqueid, ast_channel_uniqueid(chan));
 	ast_string_field_set(snapshot, language, ast_channel_language(chan));
+	ast_string_field_set(snapshot, tenantid, ast_channel_tenantid(chan));
 
 	snapshot->creationtime = ast_channel_creationtime(chan);
 	snapshot->tech_properties = ast_channel_tech(chan)->properties;
@@ -1328,6 +1329,10 @@ struct ast_json *ast_channel_snapshot_to_json(
 	if (snapshot->ari_vars && !AST_LIST_EMPTY(snapshot->ari_vars)) {
 		ast_json_object_set(json_chan, "channelvars", ast_json_channel_vars(snapshot->ari_vars));
 	}
+
+        if (!ast_strlen_zero(snapshot->base->tenantid)) {
+                ast_json_object_set(json_chan, "tenantid", ast_json_string_create(snapshot->base->tenantid));
+        }
 
 	return json_chan;
 }
