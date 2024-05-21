@@ -552,19 +552,23 @@ static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int s
 	struct ast_sip_channel_pvt *channel;
 	struct ast_variable *var;
 	struct ast_stream_topology *topology;
+	struct ast_channel_initializers initializers = {
+		.version = AST_CHANNEL_INITIALIZERS_VERSION,
+		.tenantid = session->endpoint->tenantid,
+	};
 	SCOPE_ENTER(1, "%s\n", ast_sip_session_get_name(session));
 
 	if (!(pvt = ao2_alloc_options(sizeof(*pvt), chan_pjsip_pvt_dtor, AO2_ALLOC_OPT_LOCK_NOLOCK))) {
 		SCOPE_EXIT_RTN_VALUE(NULL, "Couldn't create pvt\n");
 	}
 
-	chan = ast_channel_alloc_with_endpoint(1, state,
+	chan = ast_channel_alloc_with_initializers(1, state,
 		S_COR(session->id.number.valid, session->id.number.str, ""),
 		S_COR(session->id.name.valid, session->id.name.str, ""),
 		session->endpoint->accountcode,
 		exten, session->endpoint->context,
 		assignedids, requestor, 0,
-		session->endpoint->persistent, "PJSIP/%s-%08x",
+		session->endpoint->persistent, &initializers, "PJSIP/%s-%08x",
 		ast_sorcery_object_get_id(session->endpoint),
 		(unsigned) ast_atomic_fetchadd_int((int *) &chan_idx, +1));
 	if (!chan) {
@@ -664,7 +668,7 @@ static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int s
 	for (var = session->endpoint->channel_vars; var; var = var->next) {
 		char buf[512];
 		pbx_builtin_setvar_helper(chan, var->name, ast_get_encoded_str(
-						  var->value, buf, sizeof(buf)));
+					var->value, buf, sizeof(buf)));
 	}
 
 	ast_channel_stage_snapshot_done(chan);

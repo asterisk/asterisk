@@ -140,7 +140,7 @@ struct ast_cel_event_record {
 	 * \brief struct ABI version
 	 * \note This \b must be incremented when the struct changes.
 	 */
-	#define AST_CEL_EVENT_RECORD_VERSION 2
+	#define AST_CEL_EVENT_RECORD_VERSION 3
 	/*!
 	 * \brief struct ABI version
 	 * \note This \b must stay as the first member.
@@ -164,6 +164,7 @@ struct ast_cel_event_record {
 	const char *peer_account;
 	const char *unique_id;
 	const char *linked_id;
+	const char *tenant_id;
 	uint amaflag;
 	const char *user_field;
 	const char *peer;
