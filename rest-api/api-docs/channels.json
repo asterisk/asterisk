@@ -2182,6 +2182,11 @@
 					"required": false,
 					"type": "object",
 					"description": "Channel variables"
+				},
+				"tenantid": {
+					"required": false,
+					"type": "string",
+					"description": "The Tenant ID for the channel"
 				}
 			}
 		}

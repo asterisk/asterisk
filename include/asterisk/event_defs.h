@@ -311,8 +311,15 @@ enum ast_event_ie_type {
 	 * Payload type: UINT
 	 */
 	AST_EVENT_IE_NODE_ID             = 0x003e,
+
+	/*!
+	 * \brief Channel Event TenantID
+	 * Used by: AST_EVENT_CEL
+	 * Payload type: STR
+	 */
+	AST_EVENT_IE_CEL_TENANTID	= 0x003f,
 	/*! \brief Must be the last IE value +1 */
-	AST_EVENT_IE_TOTAL               = 0x003f,
+	AST_EVENT_IE_TOTAL               = 0x0040,
 };
 
 /*!
