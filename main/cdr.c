@@ -765,7 +765,8 @@ struct cdr_object {
 	struct ast_flags flags;                 /*!< Flags on the CDR */
 	AST_DECLARE_STRING_FIELDS(
 		AST_STRING_FIELD(linkedid);         /*!< Linked ID. Cached here as it may change out from party A, which must be immutable */
-		AST_STRING_FIELD(uniqueid);			/*!< Unique id of party A. Cached here as it is the master CDR container key */
+		AST_STRING_FIELD(uniqueid);         /*!< Unique id of party A. Cached here as it is the master CDR container key */
+		AST_STRING_FIELD(tenantid);         /*!< Tenant ID. Cached here because the value can be manipulated through dialplan */
 		AST_STRING_FIELD(name);             /*!< Channel name of party A. Cached here as the party A address may change */
 		AST_STRING_FIELD(bridge);           /*!< The bridge the party A happens to be in. */
 		AST_STRING_FIELD(appl);             /*!< The last accepted application party A was in */
@@ -1094,6 +1095,7 @@ static struct cdr_object *cdr_object_alloc(struct ast_channel_snapshot *chan, co
 	ast_string_field_set(cdr, uniqueid, chan->base->uniqueid);
 	ast_string_field_set(cdr, name, chan->base->name);
 	ast_string_field_set(cdr, linkedid, chan->peer->linkedid);
+	ast_string_field_set(cdr, tenantid, chan->base->tenantid);
 	cdr->disposition = AST_CDR_NULL;
 	cdr->sequence = ast_atomic_fetchadd_int(&global_cdr_sequence, +1);
 	cdr->lastevent = *event_time;
@@ -1362,6 +1364,7 @@ static struct ast_cdr *cdr_object_create_public_records(struct cdr_object *cdr)
 		ast_copy_string(cdr_copy->lastdata, it_cdr->data, sizeof(cdr_copy->lastdata));
 		ast_copy_string(cdr_copy->dst, it_cdr->exten, sizeof(cdr_copy->dst));
 		ast_copy_string(cdr_copy->dcontext, it_cdr->context, sizeof(cdr_copy->dcontext));
+		ast_copy_string(cdr_copy->tenantid, it_cdr->tenantid, sizeof(cdr_copy->tenantid));
 
 		/* Party B */
 		if (party_b) {
@@ -1370,6 +1373,7 @@ static struct ast_cdr *cdr_object_create_public_records(struct cdr_object *cdr)
 			if (!ast_strlen_zero(it_cdr->party_b.userfield)) {
 				snprintf(cdr_copy->userfield, sizeof(cdr_copy->userfield), "%s;%s", it_cdr->party_a.userfield, it_cdr->party_b.userfield);
 			}
+			ast_copy_string(cdr_copy->peertenantid, party_b->base->tenantid, sizeof(cdr_copy->peertenantid));
 		}
 		if (ast_strlen_zero(cdr_copy->userfield) && !ast_strlen_zero(it_cdr->party_a.userfield)) {
 			ast_copy_string(cdr_copy->userfield, it_cdr->party_a.userfield, sizeof(cdr_copy->userfield));
@@ -3166,6 +3170,10 @@ void ast_cdr_format_var(struct ast_cdr *cdr, const char *name, char **ret, char 
 		ast_copy_string(workspace, cdr->uniqueid, workspacelen);
 	} else if (!strcasecmp(name, "linkedid")) {
 		ast_copy_string(workspace, cdr->linkedid, workspacelen);
+	} else if (!strcasecmp(name, "tenantid")) {
+		ast_copy_string(workspace, cdr->tenantid, workspacelen);
+	} else if (!strcasecmp(name, "peertenantid")) {
+		ast_copy_string(workspace, cdr->peertenantid, workspacelen);
 	} else if (!strcasecmp(name, "userfield")) {
 		ast_copy_string(workspace, cdr->userfield, workspacelen);
 	} else if (!strcasecmp(name, "sequence")) {
@@ -3232,6 +3240,7 @@ static const char * const cdr_readonly_vars[] = {
 	"accountcode",
 	"uniqueid",
 	"linkedid",
+	"tenantid",
 	"userfield",
 	"sequence",
 	NULL
@@ -3353,6 +3362,14 @@ static int cdr_object_format_property(struct cdr_object *cdr_obj, const char *na
 		ast_copy_string(value, party_a->base->uniqueid, length);
 	} else if (!strcasecmp(name, "linkedid")) {
 		ast_copy_string(value, cdr_obj->linkedid, length);
+	} else if (!strcasecmp(name, "tenantid")) {
+		ast_copy_string(value, party_a->base->tenantid, length);
+	} else if (!strcasecmp(name, "peertenantid")) {
+		if (party_b) {
+			ast_copy_string(value, party_b->base->tenantid, length);
+		} else {
+			ast_copy_string(value, "", length);
+		}
 	} else if (!strcasecmp(name, "userfield")) {
 		ast_copy_string(value, cdr_obj->party_a.userfield, length);
 	} else if (!strcasecmp(name, "sequence")) {
