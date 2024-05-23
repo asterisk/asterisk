@@ -36,8 +36,7 @@
 #include <ne_request.h>
 #include <ne_auth.h>
 #include <ne_redirect.h>
-#include <libxml/xmlmemory.h>
-#include <libxml/parser.h>
+#include <libxml/xmlreader.h>
 
 #include "asterisk/module.h"
 #include "asterisk/channel.h"
@@ -129,7 +128,11 @@ static int auth_credentials(void *userdata, const char *realm, int attempts, cha
 static int debug_response_handler(void *userdata, ne_request *req, const ne_status *st)
 {
 	if (st->code < 200 || st->code > 299) {
-		ast_debug(1, "Unexpected response from server, %d: %s\n", st->code, st->reason_phrase);
+		if (st->code == 401) {
+			ast_debug(1, "Got a 401 from the server but we expect this to happen when authenticating, %d: %s\n", st->code, st->reason_phrase);
+		} else {
+			ast_debug(1, "Unexpected response from server, %d: %s\n", st->code, st->reason_phrase);
+		}
 		return 0;
 	}
 	return 1;
@@ -482,14 +485,12 @@ struct xmlstate {
 static const xmlChar *caldav_node_localname = BAD_CAST "calendar-data";
 static const xmlChar *caldav_node_nsuri     = BAD_CAST "urn:ietf:params:xml:ns:caldav";
 
-static void handle_start_element(void *data,
-								 const xmlChar *localname, const xmlChar *prefix, const xmlChar *uri,
-								 int nb_namespaces, const xmlChar **namespaces,
-								 int nb_attributes, int nb_defaulted, const xmlChar **attributes)
+static void handle_start_element(xmlTextReaderPtr reader, struct xmlstate *state)
 {
-	struct xmlstate *state = data;
+	const xmlChar *localname = xmlTextReaderConstLocalName(reader);
+	const xmlChar *uri = xmlTextReaderConstNamespaceUri(reader);
 
-	if (xmlStrcmp(localname, caldav_node_localname) || xmlStrcmp(uri, caldav_node_nsuri)) {
+	if (!xmlStrEqual(localname, caldav_node_localname) || !xmlStrEqual(uri, caldav_node_nsuri)) {
 		return;
 	}
 
@@ -497,16 +498,16 @@ static void handle_start_element(void *data,
 	ast_str_reset(state->cdata);
 }
 
-static void handle_end_element(void *data,
-							   const xmlChar *localname, const xmlChar *prefix, const xmlChar *uri)
+static void handle_end_element(xmlTextReaderPtr reader, struct xmlstate *state)
 {
-	struct xmlstate *state = data;
 	struct icaltimetype start, end;
 	icaltimezone *utc = icaltimezone_get_utc_timezone();
 	icalcomponent *iter;
 	icalcomponent *comp;
+	const xmlChar *localname = xmlTextReaderConstLocalName(reader);
+	const xmlChar *uri = xmlTextReaderConstNamespaceUri(reader);
 
-	if (xmlStrcmp(localname, caldav_node_localname) || xmlStrcmp(uri, caldav_node_nsuri)) {
+	if (!xmlStrEqual(localname, caldav_node_localname) || !xmlStrEqual(uri, caldav_node_nsuri)) {
 		return;
 	}
 
@@ -530,18 +531,39 @@ static void handle_end_element(void *data,
 	icalcomponent_free(comp);
 }
 
-static void handle_characters(void *data, const xmlChar *ch, int len)
+static void handle_characters(xmlTextReaderPtr reader, struct xmlstate *state)
 {
-	struct xmlstate *state = data;
-	xmlChar *tmp;
+	xmlChar *text;
 
 	if (!state->in_caldata) {
 		return;
 	}
 
-	tmp = xmlStrndup(ch, len);
-	ast_str_append(&state->cdata, 0, "%s", (char *)tmp);
-	xmlFree(tmp);
+	text = xmlTextReaderValue(reader);
+	if (text) {
+		ast_str_append(&state->cdata, 0, "%s", text);
+		xmlFree(text);
+	}
+}
+
+static void parse_error_handler(void *arg, const char *msg,
+	xmlParserSeverities severity, xmlTextReaderLocatorPtr locator)
+{
+	switch (severity) {
+	case XML_PARSER_SEVERITY_VALIDITY_WARNING:
+	case XML_PARSER_SEVERITY_WARNING:
+		ast_log(LOG_WARNING, "While parsing CalDAV response at line %d: %s\n",
+			xmlTextReaderLocatorLineNumber(locator),
+			msg);
+		break;
+	case XML_PARSER_SEVERITY_VALIDITY_ERROR:
+	case XML_PARSER_SEVERITY_ERROR:
+	default:
+		ast_log(LOG_ERROR, "While parsing CalDAV response at line %d: %s\n",
+			xmlTextReaderLocatorLineNumber(locator),
+			msg);
+		break;
+	}
 }
 
 static int update_caldav(struct caldav_pvt *pvt)
@@ -549,7 +571,7 @@ static int update_caldav(struct caldav_pvt *pvt)
 	struct timeval now = ast_tvnow();
 	time_t start, end;
 	struct ast_str *response;
-	xmlSAXHandler saxHandler;
+	xmlTextReaderPtr reader;
 	struct xmlstate state = {
 		.in_caldata = 0,
 		.pvt = pvt
@@ -569,26 +591,39 @@ static int update_caldav(struct caldav_pvt *pvt)
 	state.start = start;
 	state.end = end;
 
-	/*
-	 * We want SAX2, so you assume that we want to call xmlSAXVersion() here, and
-	 * that certainly seems like the right thing to do, but the default SAX
-	 * handling functions assume that the 'data' pointer is going to be a
-	 * xmlParserCtxtPtr, not a user data pointer, so we have to make sure that we
-	 * are only calling the handlers that we control.
-	 *
-	 * So instead we hack things up a bit, clearing the struct and then assigning
-	 * the magic number manually.
-	 *
-	 * There may be a cleaner way to do this, but frankly the libxml2 docs are
-	 * pretty sparse.
-	 */
-	memset(&saxHandler, 0, sizeof(saxHandler));
-	saxHandler.initialized = XML_SAX2_MAGIC;
-	saxHandler.startElementNs = handle_start_element;
-	saxHandler.endElementNs = handle_end_element;
-	saxHandler.characters = handle_characters;
+	reader = xmlReaderForMemory(
+		ast_str_buffer(response),
+		ast_str_strlen(response),
+		NULL,
+		NULL,
+		0);
 
-	xmlSAXUserParseMemory(&saxHandler, &state, ast_str_buffer(response), ast_str_strlen(response));
+	if (reader) {
+		int res;
+
+		xmlTextReaderSetErrorHandler(reader, parse_error_handler, NULL);
+
+		res = xmlTextReaderRead(reader);
+		while (res == 1) {
+			int node_type = xmlTextReaderNodeType(reader);
+			switch (node_type) {
+			case XML_READER_TYPE_ELEMENT:
+				handle_start_element(reader, &state);
+				break;
+			case XML_READER_TYPE_END_ELEMENT:
+				handle_end_element(reader, &state);
+				break;
+			case XML_READER_TYPE_TEXT:
+			case XML_READER_TYPE_CDATA:
+				handle_characters(reader, &state);
+				break;
+			default:
+				break;
+			}
+			res = xmlTextReaderRead(reader);
+		}
+		xmlFreeTextReader(reader);
+	}
 
 	ast_calendar_merge_events(pvt->owner, pvt->events);
 
