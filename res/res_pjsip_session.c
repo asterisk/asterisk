@@ -1657,6 +1657,7 @@ static void set_from_header(struct ast_sip_session *session)
 	pjsip_sip_uri *dlg_contact_uri;
 	int restricted;
 	const char *pjsip_from_domain;
+	const char *pjsip_from_user;
 
 	if (!session->channel || session->saved_from_hdr) {
 		return;
@@ -1690,27 +1691,41 @@ static void set_from_header(struct ast_sip_session *session)
 
 	ast_party_id_free(&connected_id);
 
-	if (!ast_strlen_zero(session->endpoint->fromuser)) {
+	/*
+	 * Channel variable for compatibility with chan_sip SIPFROMDOMAIN (and added SIPFROMUSER)
+	 */
+	ast_channel_lock(session->channel);
+	pjsip_from_domain = pbx_builtin_getvar_helper(session->channel, "SIPFROMDOMAIN");
+	if (!ast_strlen_zero(pjsip_from_domain)) {
+		pjsip_from_domain = ast_strdupa(pjsip_from_domain);
+	} else {
+		pjsip_from_domain = NULL;
+	}
+	pjsip_from_user = pbx_builtin_getvar_helper(session->channel, "SIPFROMUSER");
+	if (!ast_strlen_zero(pjsip_from_user)) {
+		pjsip_from_user = ast_strdupa(pjsip_from_user);
+	} else {
+		pjsip_from_user = NULL;
+	}
+	ast_channel_unlock(session->channel);
+
+	if (pjsip_from_user) {
+		ast_debug(3, "%s: From header user reset by channel variable SIPFROMUSER (%s)\n",
+			ast_sip_session_get_name(session), pjsip_from_domain);
+		pj_strdup2(dlg_pool, &dlg_info_uri->user, pjsip_from_user);
+	} else if (!ast_strlen_zero(session->endpoint->fromuser)) {
 		dlg_info_name_addr->display.ptr = NULL;
 		dlg_info_name_addr->display.slen = 0;
 		pj_strdup2(dlg_pool, &dlg_info_uri->user, session->endpoint->fromuser);
 	}
 
-	if (!ast_strlen_zero(session->endpoint->fromdomain)) {
-		pj_strdup2(dlg_pool, &dlg_info_uri->host, session->endpoint->fromdomain);
-	}
-
-	/*
-	 * Channel variable for compatibility with chan_sip SIPFROMDOMAIN
-	 */
-	ast_channel_lock(session->channel);
-	pjsip_from_domain = pbx_builtin_getvar_helper(session->channel, "SIPFROMDOMAIN");
-	if (!ast_strlen_zero(pjsip_from_domain)) {
+	if (pjsip_from_domain) {
 		ast_debug(3, "%s: From header domain reset by channel variable SIPFROMDOMAIN (%s)\n",
 			ast_sip_session_get_name(session), pjsip_from_domain);
 		pj_strdup2(dlg_pool, &dlg_info_uri->host, pjsip_from_domain);
+	} else if (!ast_strlen_zero(session->endpoint->fromdomain)) {
+		pj_strdup2(dlg_pool, &dlg_info_uri->host, session->endpoint->fromdomain);
 	}
-	ast_channel_unlock(session->channel);
 
 	/* We need to save off the non-anonymized From for RPID/PAI generation (for domain) */
 	session->saved_from_hdr = pjsip_hdr_clone(dlg_pool, dlg_info);
