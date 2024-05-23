@@ -99,9 +99,7 @@ struct ast_xml_doc *ast_xml_open(char *filename)
 		return NULL;
 	}
 
-	xmlSubstituteEntitiesDefault(1);
-
-	doc = xmlReadFile(filename, NULL, XML_PARSE_RECOVER);
+	doc = xmlReadFile(filename, NULL, XML_PARSE_RECOVER | XML_PARSE_NOENT);
 	if (!doc) {
 		return NULL;
 	}
@@ -505,9 +503,7 @@ struct ast_xslt_doc *ast_xslt_open(char *filename)
 	xsltStylesheet *xslt;
 	xmlDoc *xml;
 
-	xmlSubstituteEntitiesDefault(1);
-
-	xml = xmlReadFile(filename, NULL, XML_PARSE_RECOVER);
+	xml = xmlReadFile(filename, NULL, XML_PARSE_RECOVER | XML_PARSE_NOENT);
 	if (!xml) {
 		return NULL;
 	}
@@ -535,9 +531,8 @@ struct ast_xslt_doc *ast_xslt_read_memory(char *buffer, size_t size)
 		return NULL;
 	}
 
-	xmlSubstituteEntitiesDefault(1);
-
-	if (!(doc = xmlParseMemory(buffer, (int) size))) {
+	doc = xmlReadMemory(buffer, (int) size, NULL, NULL, XML_PARSE_RECOVER | XML_PARSE_NOENT);
+	if (!doc) {
 		return NULL;
 	}
 
