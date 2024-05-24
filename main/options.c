@@ -46,7 +46,8 @@
 
 
 /*! Default minimum DTMF digit length - 80ms */
-#define AST_MIN_DTMF_DURATION 80
+/* AVOXI: Set the min dtmf duration to <20ms to prevent unnecessary event duplication. */
+#define AST_MIN_DTMF_DURATION 15
 
 #define DEFAULT_MONITOR_DIR DEFAULT_SPOOL_DIR "/monitor"
 #define DEFAULT_RECORDING_DIR DEFAULT_SPOOL_DIR "/recording"
