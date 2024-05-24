@@ -184,11 +184,11 @@ int ast_format_def_unregister(const char *name)
 	return res;
 }
 
-FILE *ast_file_mkftemp(char *template, mode_t mode)
+FILE *ast_file_mkftemp(char *template_name, mode_t mode)
 {
 	FILE *p = NULL;
-	int pfd = mkstemp(template);
-	chmod(template, mode);
+	int pfd = mkstemp(template_name);
+	chmod(template_name, mode);
 	if (pfd > -1) {
 		p = fdopen(pfd, "w+");
 		if (!p) {
