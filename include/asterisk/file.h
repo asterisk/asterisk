@@ -140,12 +140,13 @@ int ast_filecopy(const char *oldname, const char *newname, const char *fmt);
 
 /*!
  * \brief same as mkstemp, but return a FILE
- * \param template The template for the unique file name to generate. Modified in place to return the file name.
+ * \param template_name The template for the unique file name to generate.
+ *                      Modified in place to return the file name.
  * \param mode The mode for file permissions
  *
  * \return FILE handle to the temporary file on success or NULL if creation failed
  */
-FILE *ast_file_mkftemp(char *template, mode_t mode);
+FILE *ast_file_mkftemp(char *template_name, mode_t mode);
 
 /*!
  * \brief Create a temporary file located at path
