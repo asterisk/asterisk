@@ -109,7 +109,7 @@ AST_THREADSTORAGE(state2str_threadbuf);
 
 /*! Minimum amount of time between the end of the last digit and the beginning
  *  of a new one - 45ms */
-#define AST_MIN_DTMF_GAP 45
+#define AST_MIN_DTMF_GAP 15
 
 /*! \brief List of channel drivers */
 struct chanlist {
@@ -3898,30 +3898,10 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio, int
 					ast_frfree(f);
 					f = &ast_null_frame;
 				} else {
-					/* There was no begin, turn this into a begin and send the end later */
-					struct timeval tv = ast_tvnow();
-					f->frametype = AST_FRAME_DTMF_BEGIN;
-					ast_set_flag(ast_channel_flags(chan), AST_FLAG_EMULATE_DTMF);
-					ast_channel_dtmf_digit_to_emulate_set(chan, f->subclass.integer);
-					ast_channel_dtmf_tv_set(chan, &tv);
-					if (f->len) {
-						if (f->len > option_dtmfminduration)
-							ast_channel_emulate_dtmf_duration_set(chan, f->len);
-						else
-							ast_channel_emulate_dtmf_duration_set(chan, option_dtmfminduration);
-					} else
-						ast_channel_emulate_dtmf_duration_set(chan, AST_DEFAULT_EMULATE_DTMF_DURATION);
-					ast_log(LOG_DTMF, "DTMF begin emulation of '%c' with duration %u queued on %s\n", f->subclass.integer, ast_channel_emulate_dtmf_duration(chan), ast_channel_name(chan));
-
-					/*
-					 * Start generating 50 fps timer events (null frames) for dtmf emulating
-					 * independently from any existing incoming voice frames.
-					 * If channel generator is already activated in regular mode use these
-					 * timer events to generate null frames.
-					 */
-					if (!ast_channel_generator(chan)) {
-						ast_timer_set_rate(ast_channel_timer(chan), 50);
-					}
+					/* AVOXI: We don't want single END packets to create a whole new telephony event */
+					ast_log(LOG_DTMF, "DTMF end '%c' received on %s: Ignoring orphan END.\n", f->subclass.integer, ast_channel_name(chan));
+					ast_frfree(f);
+					f = &ast_null_frame;
 				}
 				if (ast_channel_audiohooks(chan)) {
 					struct ast_frame *old_frame = f;
