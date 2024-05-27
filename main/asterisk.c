@@ -3182,7 +3182,12 @@ static int ast_el_read_history(const char *filename)
 		ast_el_initialize();
 	}
 
-	return history(el_hist, &ev, H_LOAD, filename);
+	if (access(filename, F_OK) == 0) {
+		return history(el_hist, &ev, H_LOAD, filename);
+	}
+
+	/* If the history file doesn't exist, failing to read it is unremarkable. */
+	return 0;
 }
 
 static void process_histfile(int (*readwrite)(const char *filename))
