@@ -36,25 +36,25 @@
 			<para>Write yes or no</para>
 		</enum>
 		<enum name="h323id_url">
-			<para>R/0 Returns caller URL</para>
+			<para>R/O Returns caller URL</para>
 			</enum>
 		<enum name="caller_h323id">
-			<para>R/0 Returns caller h323id</para>
+			<para>R/O Returns caller h323id</para>
 		</enum>
 		<enum name="caller_dialeddigits">
-			<para>R/0 Returns caller dialed digits</para>
+			<para>R/O Returns caller dialed digits</para>
 		</enum>
 		<enum name="caller_email">
-			<para>R/0 Returns caller email</para>
+			<para>R/O Returns caller email</para>
 		</enum>
 		<enum name="callee_email">
-			<para>R/0 Returns callee email</para>
+			<para>R/O Returns callee email</para>
 		</enum>
 		<enum name="callee_dialeddigits">
-			<para>R/0 Returns callee dialed digits</para>
+			<para>R/O Returns callee dialed digits</para>
 		</enum>
 		<enum name="caller_url">
-			<para>R/0 Returns caller URL</para>
+			<para>R/O Returns caller URL</para>
 		</enum>
 		<enum name="max_forwards">
 			<para>R/W Get or set the maximum number of call forwards for this channel.
