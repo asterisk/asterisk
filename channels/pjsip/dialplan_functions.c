@@ -724,6 +724,7 @@ static int parse_uri_cb(void *data)
 int pjsip_acf_parse_uri_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t buflen)
 {
 	struct parse_uri_args func_args = { 0, };
+	int reading_uri_from_var;
 
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(uri_str);
@@ -732,8 +733,29 @@ int pjsip_acf_parse_uri_read(struct ast_channel *chan, const char *cmd, char *da
 
 	AST_STANDARD_APP_ARGS(args, data);
 
+	reading_uri_from_var = !strcasecmp(cmd, "PJSIP_PARSE_URI_FROM");
+
+	if (reading_uri_from_var) {
+		const char *var;
+
+		if (ast_strlen_zero(args.uri_str)) {
+			ast_log(LOG_WARNING, "The name of a variable containing a URI must be specified when using the '%s' dialplan function\n", cmd);
+			return -1;
+		}
+
+		ast_channel_lock(chan);
+		if ((var = pbx_builtin_getvar_helper(chan, args.uri_str))) {
+			args.uri_str = ast_strdupa(var);
+		}
+		ast_channel_unlock(chan);
+	}
+
 	if (ast_strlen_zero(args.uri_str)) {
-		ast_log(LOG_WARNING, "An URI must be specified when using the '%s' dialplan function\n", cmd);
+		if (reading_uri_from_var) {
+			ast_log(LOG_WARNING, "The variable provided to the '%s' dialplan function must contain a URI\n", cmd);
+		} else {
+			ast_log(LOG_WARNING, "A URI must be specified when using the '%s' dialplan function\n", cmd);
+		}
 		return -1;
 	}
 
