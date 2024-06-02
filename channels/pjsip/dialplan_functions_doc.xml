@@ -223,7 +223,7 @@
 			<version>17.0.0</version>
 		</since>
 		<synopsis>
-			Parse an uri and return a type part of the URI.
+			Parse a URI and return a type part of the URI.
 		</synopsis>
 		<syntax>
 			<parameter name="uri" required="true">
@@ -272,7 +272,66 @@
 			</parameter>
 		</syntax>
 		<description>
-			<para>Parse an URI and return a specified part of the URI.</para>
+			<para>Parse a URI and return a specified part of the URI.</para>
+		</description>
+	</function>
+	<function name="PJSIP_PARSE_URI_FROM" language="en_US">
+		<since>
+			<version>18.24.0</version>
+			<version>20.9.0</version>
+			<version>21.4.0</version>
+		</since>
+		<synopsis>
+			Parse the contents of a variable as a URI and return a type part of the URI.
+		</synopsis>
+		<syntax>
+			<parameter name="uri" required="true">
+				<para>Name of a variable that contains a URI to parse</para>
+			</parameter>
+			<parameter name="type" required="true">
+				<para>The <literal>type</literal> parameter specifies which URI part to read</para>
+				<enumlist>
+					<enum name="display">
+						<para>Display name.</para>
+					</enum>
+					<enum name="scheme">
+						<para>URI scheme.</para>
+					</enum>
+					<enum name="user">
+						<para>User part.</para>
+					</enum>
+					<enum name="passwd">
+						<para>Password part.</para>
+					</enum>
+					<enum name="host">
+						<para>Host part.</para>
+					</enum>
+					<enum name="port">
+						<para>Port number, or zero.</para>
+					</enum>
+					<enum name="user_param">
+						<para>User parameter.</para>
+					</enum>
+					<enum name="method_param">
+						<para>Method parameter.</para>
+					</enum>
+					<enum name="transport_param">
+						<para>Transport parameter.</para>
+					</enum>
+					<enum name="ttl_param">
+						<para>TTL param, or -1.</para>
+					</enum>
+					<enum name="lr_param">
+						<para>Loose routing param, or zero.</para>
+					</enum>
+					<enum name="maddr_param">
+						<para>Maddr param.</para>
+					</enum>
+				</enumlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Parse the contents of the provided variable as a URI and return a specified part of the URI.</para>
 		</description>
 	</function>
 
