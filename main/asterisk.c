@@ -596,6 +596,7 @@ static char *handle_show_settings(struct ast_cli_entry *e, int cmd, struct ast_c
 	ast_cli(a->fd, "  ASTDB:                       %s\n", ast_config_AST_DB);
 	ast_cli(a->fd, "  IAX2 Keys directory:         %s\n", ast_config_AST_KEY_DIR);
 	ast_cli(a->fd, "  AGI Scripts directory:       %s\n", ast_config_AST_AGI_DIR);
+	ast_cli(a->fd, "  Cache directory:             %s\n", ast_config_AST_CACHE_DIR);
 	ast_cli(a->fd, "\n\n");
 	return CLI_SUCCESS;
 }
