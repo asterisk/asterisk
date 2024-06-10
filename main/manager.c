@@ -7220,7 +7220,7 @@ static int action_coreshowchannelmap(struct mansession *s, const struct message 
 			"Event: CoreShowChannelMap\r\n"
 			"%s"
 			"Channel: %s\r\n"
-			"ConnectedChannel: %s\r\n\n",
+			"ConnectedChannel: %s\r\n\r\n",
 			id_text,
 			channel_name,
 			current_channel_name);
