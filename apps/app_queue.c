@@ -1882,6 +1882,8 @@ struct call_queue {
 	int memberdelay;                    /*!< Seconds to delay connecting member to caller */
 	int autofill;                       /*!< Ignore the head call status and ring an available agent */
 
+	int log_restricted_caller_id:1;     /*!< Whether log Restricted Caller ID */
+
 	struct ao2_container *members;      /*!< Head of the list of members */
 	struct queue_ent *head;             /*!< Head of the list of callers */
 	AST_LIST_ENTRY(call_queue) list;    /*!< Next call queue */
@@ -2992,6 +2994,7 @@ static void init_queue(struct call_queue *q)
 	q->autopauseunavail = 0;
 	q->timeoutpriority = TIMEOUT_PRIORITY_APP;
 	q->autopausedelay = 0;
+	q->log_restricted_caller_id = 1;
 	if (!q->members) {
 		if (q->strategy == QUEUE_STRATEGY_LINEAR || q->strategy == QUEUE_STRATEGY_RRORDERED) {
 			/* linear strategy depends on order, so we have to place all members in a list */
@@ -3517,6 +3520,8 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 		} else {
 			q->timeoutpriority = TIMEOUT_PRIORITY_APP;
 		}
+	} else if (!strcasecmp(param, "log-restricted-caller-id")) {
+		q->log_restricted_caller_id = ast_true(val);
 	} else if (failunknown) {
 		if (linenum >= 0) {
 			ast_log(LOG_WARNING, "Unknown keyword in queue '%s': %s at line %d of queues.conf\n",
@@ -8538,6 +8543,7 @@ static int queue_exec(struct ast_channel *chan, const char *data)
 	struct ast_flags opts = { 0, };
 	char *opt_args[OPT_ARG_ARRAY_SIZE];
 	int max_forwards;
+	int cid_allow;
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Queue requires an argument: queuename[,options[,URL[,announceoverride[,timeout[,agi[,gosub[,rule[,position]]]]]]]]\n");
@@ -8683,9 +8689,11 @@ static int queue_exec(struct ast_channel *chan, const char *data)
 		qe.last_periodic_announce_time -= qe.parent->periodicannouncefrequency;
 	}
 
+	cid_allow = qe.parent->log_restricted_caller_id || ((ast_party_id_presentation(&ast_channel_caller(chan)->id) & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED);
+	
 	ast_queue_log(args.queuename, ast_channel_uniqueid(chan), "NONE", "ENTERQUEUE", "%s|%s|%d",
 		S_OR(args.url, ""),
-		S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, ""),
+		S_COR(cid_allow && ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, ""),
 		qe.opos);
 
 	/* PREDIAL: Preprocess any callee gosub arguments. */
