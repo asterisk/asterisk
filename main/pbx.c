@@ -5242,7 +5242,7 @@ static char *handle_show_hints(struct ast_cli_entry *e, int cmd, struct ast_cli_
 			ast_get_extension_name(hint->exten),
 			ast_get_context_name(ast_get_extension_context(hint->exten)));
 
-		ast_cli(a->fd, "%-20.20s: %-20.20s  State:%-15.15s Presence:%-15.15s Watchers %2d\n",
+		ast_cli(a->fd, "%-30.30s: %-60.60s  State:%-15.15s Presence:%-15.15s Watchers %2d\n",
 			buf,
 			ast_get_extension_app(hint->exten),
 			ast_extension_state2str(hint->laststate),
@@ -5343,7 +5343,7 @@ static char *handle_show_hint(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 			sprintf(buf, "%s@%s",
 				ast_get_extension_name(hint->exten),
 				ast_get_context_name(ast_get_extension_context(hint->exten)));
-			ast_cli(a->fd, "%-20.20s: %-20.20s  State:%-15.15s Presence:%-15.15s Watchers %2d\n",
+			ast_cli(a->fd, "%-30.30s: %-60.60s  State:%-15.15s Presence:%-15.15s Watchers %2d\n",
 				buf,
 				ast_get_extension_app(hint->exten),
 				ast_extension_state2str(hint->laststate),
