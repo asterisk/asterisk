@@ -1856,7 +1856,9 @@ static void bridge_ringing(struct ast_bridge *bridge)
 		.subclass.integer = AST_CONTROL_RINGING,
 	};
 
+	ast_bridge_lock(bridge);
 	ast_bridge_queue_everyone_else(bridge, NULL, &ringing);
+	ast_bridge_unlock(bridge);
 }
 
 /*!
@@ -1869,7 +1871,9 @@ static void bridge_hold(struct ast_bridge *bridge)
 		.subclass.integer = AST_CONTROL_HOLD,
 	};
 
+	ast_bridge_lock(bridge);
 	ast_bridge_queue_everyone_else(bridge, NULL, &hold);
+	ast_bridge_unlock(bridge);
 }
 
 /*!
@@ -1882,7 +1886,9 @@ static void bridge_unhold(struct ast_bridge *bridge)
 		.subclass.integer = AST_CONTROL_UNHOLD,
 	};
 
+	ast_bridge_lock(bridge);
 	ast_bridge_queue_everyone_else(bridge, NULL, &unhold);
+	ast_bridge_unlock(bridge);
 }
 
 /*!
