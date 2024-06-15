@@ -20,6 +20,7 @@
 #ifndef STASIS_CHANNELS_H_
 #define STASIS_CHANNELS_H_
 
+#include "asterisk/refer.h"
 #include "asterisk/stringfields.h"
 #include "asterisk/stasis.h"
 #include "asterisk/channel.h"
@@ -665,6 +666,14 @@ struct stasis_message_type *ast_channel_talking_stop(void);
  */
 struct stasis_message_type *ast_channel_tone_detect(void);
 
+/*
+ * \since 23
+ * \brief Message type for a attended or blind transfer request
+ *
+ * \return A stasis message type
+ */
+struct stasis_message_type *ast_channel_transfer_request_type(void);
+
 /*!
  * \since 12
  * \brief Publish in the \ref ast_channel_topic or \ref ast_channel_topic_all
@@ -757,6 +766,44 @@ int ast_channel_snapshot_caller_id_equal(
 int ast_channel_snapshot_connected_line_equal(
 	const struct ast_channel_snapshot *old_snapshot,
 	const struct ast_channel_snapshot *new_snapshot);
+
+
+/*!
+ * \since 23
+ * \brief Message published during an "ARI" transfer
+ */
+struct ast_ari_transfer_message {
+	/*! The channel receiving the transfer request */
+	struct ast_channel_snapshot *source;
+	/*! The bridge associated with the source channel */
+	struct ast_bridge_snapshot *source_bridge;
+	/*! The peer channel */
+	struct ast_channel_snapshot *source_peer;
+	/*! Referer identity */
+	char *referred_by;
+
+
+	/*! Destination extension */
+	char destination[AST_MAX_EXTENSION];
+	/*! Information for attended transfers */
+	char *protocol_id;
+	/*! The identified destination channel. */
+	struct ast_channel_snapshot *dest;
+	/*! The bridge associated with the channel. */
+	struct ast_bridge_snapshot *dest_bridge;
+	/*! The peer of the destination channel. */
+	struct ast_channel_snapshot *dest_peer;
+	/*! An array of protocol specific params, e.g. from/to information */
+	struct ast_refer_params *refer_params;
+	/*! The current state of the transfer. */
+	enum ast_control_transfer state;
+};
+
+
+struct ast_ari_transfer_message *ast_ari_transfer_message_create(struct ast_channel *originating_chan,
+								 const char *referred_by, const char *exten,
+								 const char *protocol_id, struct ast_channel *dest,
+								 struct ast_refer_params *params, enum ast_control_transfer);
 
 /*!
  * \brief Initialize the stasis channel topic and message types
