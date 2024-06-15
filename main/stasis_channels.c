@@ -34,12 +34,14 @@
 #include "asterisk/json.h"
 #include "asterisk/pbx.h"
 #include "asterisk/bridge.h"
+#include "asterisk/stasis_bridges.h"
 #include "asterisk/translate.h"
 #include "asterisk/stasis.h"
 #include "asterisk/stasis_channels.h"
 #include "asterisk/dial.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/utf8.h"
+#include "asterisk/vector.h"
 
 /*** DOCUMENTATION
 	<managerEvent language="en_US" name="VarSet">
@@ -1631,6 +1633,175 @@ static struct ast_json *unhold_to_json(struct stasis_message *message,
 		"channel", json_channel);
 }
 
+static const char *state2str(enum ast_control_transfer state) {
+	switch (state) {
+	case AST_TRANSFER_FAILED:
+		return "channel_declined";
+	case AST_TRANSFER_SUCCESS:
+		return "channel_answered";
+	case AST_TRANSFER_PROGRESS:
+		return "channel_progress";
+	case AST_TRANSFER_UNAVAILABLE:
+		return "channel_declined";
+	default:
+		return "invalid";
+	}
+}
+
+static struct ast_json *ari_transfer_to_json(struct stasis_message *msg,
+	const struct stasis_message_sanitizer *sanitize)
+{
+	struct ast_json *json_channel, *res;
+	struct ast_json *refer_json, *referred_json, *dest_json;
+	const struct timeval *tv = stasis_message_timestamp(msg);
+	struct ast_ari_transfer_message *transfer_msg = stasis_message_data(msg);
+
+	dest_json = ast_json_pack("{s: s, s: s}",
+		"protocol_id", transfer_msg->protocol_id,
+		"destination", transfer_msg->destination);
+	if (!dest_json) {
+		return NULL;
+	}
+
+	if (AST_VECTOR_SIZE(transfer_msg->refer_params) > 0) {
+		struct ast_json *params = ast_json_array_create();
+		if (!params) {
+			return NULL;
+		}
+		for (int i = 0; i < AST_VECTOR_SIZE(transfer_msg->refer_params); ++i) {
+			struct ast_refer_param param = AST_VECTOR_GET(transfer_msg->refer_params, i);
+			ast_json_array_append(params, ast_json_pack("{s: s, s: s}",
+								    "parameter_name", param.param_name,
+								    "parameter_value", param.param_value));
+		}
+		ast_json_object_set(dest_json, "additional_protocol_params", params);
+	}
+
+	refer_json = ast_json_pack("{s: o}",
+		"requested_destination", dest_json);
+	if (!refer_json) {
+		return NULL;
+	}
+	if (transfer_msg->dest) {
+		struct ast_json *dest_chan_json;
+
+		dest_chan_json = ast_channel_snapshot_to_json(transfer_msg->dest, sanitize);
+		ast_json_object_set(refer_json, "destination_channel", dest_chan_json);
+	}
+	if (transfer_msg->dest_peer) {
+		struct ast_json *peer_chan_json;
+
+		peer_chan_json = ast_channel_snapshot_to_json(transfer_msg->dest_peer, sanitize);
+		ast_json_object_set(refer_json, "connected_channel", peer_chan_json);
+	}
+	if (transfer_msg->dest_bridge) {
+		struct ast_json *dest_bridge_json;
+
+		dest_bridge_json = ast_bridge_snapshot_to_json(transfer_msg->dest_bridge, sanitize);
+		ast_json_object_set(refer_json, "bridge", dest_bridge_json);
+	}
+
+	json_channel = ast_channel_snapshot_to_json(transfer_msg->source, sanitize);
+	if (!json_channel) {
+		return NULL;
+	}
+
+	referred_json = ast_json_pack("{s: o}",
+		"source_channel", json_channel);
+	if (!referred_json) {
+		return NULL;
+	}
+	if (transfer_msg->source_peer) {
+		struct ast_json *peer_chan_json;
+
+		peer_chan_json = ast_channel_snapshot_to_json(transfer_msg->source_peer, sanitize);
+		ast_json_object_set(referred_json, "connected_channel", peer_chan_json);
+	}
+	if (transfer_msg->source_bridge) {
+		struct ast_json *source_bridge_json;
+
+		source_bridge_json = ast_bridge_snapshot_to_json(transfer_msg->source_bridge, sanitize);
+		ast_json_object_set(referred_json, "bridge", source_bridge_json);
+	}
+
+	res = ast_json_pack("{s: s, s: o, s: o, s: o}",
+		"type", "ChannelTransfer",
+		"timestamp", ast_json_timeval(*tv, NULL),
+		"refer_to", refer_json,
+		"referred_by", referred_json);
+	if (!res) {
+		return NULL;
+	}
+
+	if (transfer_msg->state != AST_TRANSFER_INVALID) {
+		ast_json_object_set(res, "state", ast_json_string_create(state2str(transfer_msg->state)));
+	}
+	return res;
+}
+
+static void ari_transfer_dtor(void *obj)
+{
+	struct ast_ari_transfer_message *msg = obj;
+
+	ao2_cleanup(msg->source);
+	ao2_cleanup(msg->source_bridge);
+	ao2_cleanup(msg->source_peer);
+	ao2_cleanup(msg->dest);
+	ao2_cleanup(msg->dest_bridge);
+	ao2_cleanup(msg->dest_peer);
+	ao2_cleanup(msg->refer_params);
+	ast_free(msg->referred_by);
+	ast_free(msg->protocol_id);
+}
+
+struct ast_ari_transfer_message *ast_ari_transfer_message_create(struct ast_channel *originating_chan, const char *referred_by,
+								 const char *exten, const char *protocol_id, struct ast_channel *dest,
+								 struct ast_refer_params *params, enum ast_control_transfer state)
+{
+	struct ast_ari_transfer_message *msg;
+	msg = ao2_alloc(sizeof(*msg), ari_transfer_dtor);
+	if (!msg) {
+		return NULL;
+	}
+
+	msg->refer_params = params;
+	ao2_ref(msg->refer_params, +1);
+
+	msg->state = state;
+
+	ast_channel_lock(originating_chan);
+	msg->source = ao2_bump(ast_channel_snapshot(originating_chan));
+	ast_channel_unlock(originating_chan);
+	if (!msg->source) {
+		ao2_cleanup(msg);
+		return NULL;
+	}
+
+	if (dest) {
+		ast_channel_lock(dest);
+		msg->dest = ao2_bump(ast_channel_snapshot(dest));
+		ast_channel_unlock(dest);
+		if (!msg->dest) {
+			ao2_cleanup(msg);
+			return NULL;
+		}
+	}
+
+	msg->referred_by = ast_strdup(referred_by);
+	if (!msg->referred_by) {
+		ao2_cleanup(msg);
+		return NULL;
+	}
+	ast_copy_string(msg->destination, exten, sizeof(msg->destination));
+	msg->protocol_id = ast_strdup(protocol_id);
+	if (!msg->protocol_id) {
+		ao2_cleanup(msg);
+		return NULL;
+	}
+
+	return msg;
+}
+
 /*!
  * @{ \brief Define channel message types.
  */
@@ -1683,6 +1854,9 @@ STASIS_MESSAGE_TYPE_DEFN(ast_channel_talking_stop,
 	.to_ami = talking_stop_to_ami,
 	.to_json = talking_stop_to_json,
 	);
+STASIS_MESSAGE_TYPE_DEFN(ast_channel_transfer_request_type,
+	.to_json = ari_transfer_to_json,
+	);
 
 /*! @} */
 
@@ -1721,6 +1895,7 @@ static void stasis_channels_cleanup(void)
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_agent_logoff_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_talking_start);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_talking_stop);
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_transfer_request_type);
 }
 
 int ast_stasis_channels_init(void)
@@ -1774,6 +1949,7 @@ int ast_stasis_channels_init(void)
 	res |= STASIS_MESSAGE_TYPE_INIT(ast_channel_mixmonitor_mute_type);
 	res |= STASIS_MESSAGE_TYPE_INIT(ast_channel_talking_start);
 	res |= STASIS_MESSAGE_TYPE_INIT(ast_channel_talking_stop);
+	res |= STASIS_MESSAGE_TYPE_INIT(ast_channel_transfer_request_type);
 
 	return res;
 }
