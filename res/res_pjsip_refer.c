@@ -44,6 +44,22 @@
 static struct ast_taskprocessor *refer_serializer;
 
 static pj_status_t refer_on_tx_request(pjsip_tx_data *tdata);
+static int defer_termination_cancel_task(void *data);
+
+struct transfer_ari_state {
+	/*! \brief A deferred session used by the ARI only mode */
+	struct ast_sip_session *transferer;
+	struct ast_channel *transferer_chan;
+
+	struct ast_sip_session *other_session;
+
+	char exten[AST_MAX_EXTENSION];
+	char *referred_by;
+
+	char *protocol_id;
+	struct ast_refer_params *params;
+	int last_response;
+};
 
 /*! \brief REFER Progress structure */
 struct refer_progress {
@@ -69,6 +85,8 @@ struct refer_progress {
 	int sent_100;
 	/*! \brief Whether to notifies all the progress details on blind transfer */
 	unsigned int refer_blind_progress;
+	/*! \brief State related to the transfer in ARI only mode */
+	struct transfer_ari_state *ari_state;
 };
 
 /*! \brief REFER Progress notification structure */
@@ -87,12 +105,44 @@ static pjsip_module refer_progress_module = {
 	.id = -1,
 };
 
+/*! \brief Destructor of the state used for the ARI transfer */
+static void transfer_ari_state_destroy(void *obj)
+{
+	struct transfer_ari_state *state = obj;
+
+	ao2_cleanup(state->transferer);
+	ao2_cleanup(state->other_session);
+	ast_channel_cleanup(state->transferer_chan);
+	ast_free(state->referred_by);
+	ast_free(state->protocol_id);
+	ao2_cleanup(state->params);
+}
+
+static void refer_params_destroy(void *obj)
+{
+	struct ast_refer_params *params = obj;
+
+	for (int i = 0; i < AST_VECTOR_SIZE(params); ++i) {
+		struct ast_refer_param param = AST_VECTOR_GET(params, i);
+		ast_free((char *) param.param_name);
+		ast_free((char *) param.param_value);
+	}
+}
+
 /*! \brief Destructor for REFER Progress notification structure */
 static void refer_progress_notification_destroy(void *obj)
 {
 	struct refer_progress_notification *notification = obj;
 
 	ao2_cleanup(notification->progress);
+}
+
+static int ari_notify(struct transfer_ari_state *state)
+{
+	return ast_refer_notify_transfer_request(state->transferer_chan, state->referred_by,
+						 state->exten, state->protocol_id,
+						 state->other_session ? state->other_session->channel : NULL,
+						 state->params, state->last_response);
 }
 
 /*! \brief Allocator for REFER Progress notification structure */
@@ -176,6 +226,18 @@ static int refer_progress_notify(void *data)
 	/* Actually send the notification */
 	if (pjsip_xfer_notify(sub, notification->state, notification->response, NULL, &tdata) == PJ_SUCCESS) {
 		pjsip_xfer_send_request(sub, tdata);
+	}
+
+
+	if (notification->progress->ari_state) {
+		struct transfer_ari_state *ari_state = notification->progress->ari_state;
+		if (ari_state->transferer && notification->state == PJSIP_EVSUB_STATE_TERMINATED) {
+			if (!ast_sip_push_task(ari_state->transferer->serializer, defer_termination_cancel_task, ari_state->transferer)) {
+				/* Gave the ref to the pushed task. */
+				ari_state->transferer = NULL;
+			}
+		}
+		ari_notify(ari_state);
 	}
 
 	pjsip_dlg_dec_lock(notification->progress->dlg);
@@ -298,6 +360,58 @@ static struct ast_frame *refer_progress_framehook(struct ast_channel *chan, stru
 	return f;
 }
 
+/*! \brief Progress monitoring frame hook - examines frames to determine state of transfer. Used for the ari-only mode */
+static struct ast_frame *refer_ari_progress_framehook(struct ast_channel *chan, struct ast_frame *f, enum ast_framehook_event event, void *data)
+{
+	struct refer_progress *progress = data;
+	struct refer_progress_notification *notification = NULL;
+
+	/* We only care about frames *to* the channel */
+	if (!f || (event != AST_FRAMEHOOK_EVENT_WRITE)) {
+		return f;
+	}
+
+	/* Determine the state of the REFER based on the control frames (or voice frames) passing */
+	if (f->frametype == AST_FRAME_CONTROL
+	    && f->subclass.integer == AST_CONTROL_TRANSFER
+	    && f->datalen >= sizeof(enum ast_control_transfer)) {
+		enum ast_control_transfer *message = f->data.ptr;
+		switch (*message) {
+		case AST_TRANSFER_FAILED:
+			notification = refer_progress_notification_alloc(progress, 603, PJSIP_EVSUB_STATE_TERMINATED);
+			break;
+		case AST_TRANSFER_SUCCESS:
+			notification = refer_progress_notification_alloc(progress, 200, PJSIP_EVSUB_STATE_TERMINATED);
+			break;
+		case AST_TRANSFER_PROGRESS:
+			notification = refer_progress_notification_alloc(progress, 100, PJSIP_EVSUB_STATE_ACTIVE);
+			break;
+		case AST_TRANSFER_UNAVAILABLE:
+			notification = refer_progress_notification_alloc(progress, 503, PJSIP_EVSUB_STATE_TERMINATED);
+			break;
+		case AST_TRANSFER_INVALID:
+			break;
+		}
+		progress->ari_state->last_response = *message;
+	}
+
+	/* If a notification is due to be sent push it to the thread pool */
+	if (notification) {
+		/* If the subscription is being terminated we don't need the frame hook any longer */
+		if (notification->state == PJSIP_EVSUB_STATE_TERMINATED) {
+			ast_debug(3, "Detaching REFER progress monitoring hook from '%s' as subscription is being terminated\n",
+				ast_channel_name(chan));
+			ast_framehook_detach(chan, progress->framehook);
+		}
+
+		if (ast_sip_push_task(progress->serializer, refer_progress_notify, notification)) {
+			ao2_cleanup(notification);
+		}
+	}
+
+	return f;
+}
+
 /*! \brief Destroy callback for monitoring framehook */
 static void refer_progress_framehook_destroy(void *data)
 {
@@ -378,6 +492,7 @@ static void refer_progress_destroy(void *obj)
 	}
 
 	ao2_cleanup(progress->transfer_data);
+	ao2_cleanup(progress->ari_state);
 
 	ast_free(progress->transferee);
 	ast_taskprocessor_unreference(progress->serializer);
@@ -1339,6 +1454,169 @@ static const struct ast_refer_tech refer_tech = {
 	.refer_send = sip_refer_send,
 };
 
+static char *copy_string(struct pj_str_t *str)
+{
+	int len = pj_strlen(str) + 1;
+	char *dst = ast_malloc(len);
+	if (!dst) {
+		return NULL;
+	}
+	ast_copy_pj_str(dst, str, len);
+	return dst;
+}
+
+static int add_refer_param(struct ast_refer_params *params, const char *key, struct pj_str_t *str)
+{
+	struct ast_refer_param param;
+
+	param.param_name = ast_strdup(key);
+	if (!param.param_name) {
+		return 0;
+	}
+
+	param.param_value = copy_string(str);
+	if (!param.param_value) {
+		ast_free((char *) param.param_name);
+		return 0;
+	}
+
+	if (AST_VECTOR_APPEND(params, param) != 0) {
+		ast_free((char *) param.param_name);
+		ast_free((char *) param.param_value);
+		return 0;
+	}
+	return 1;
+}
+
+
+static int refer_incoming_ari_request(struct ast_sip_session *session, pjsip_rx_data *rdata, pjsip_sip_uri *target,
+	pjsip_param *replaces_param, struct refer_progress *progress)
+{
+	int parsed_len;
+	pjsip_replaces_hdr *replaces;
+	pjsip_generic_string_hdr *referred_hdr;
+
+
+	RAII_VAR(struct transfer_ari_state *, state, NULL, ao2_cleanup);
+
+	struct ast_framehook_interface hook = {
+		.version = AST_FRAMEHOOK_INTERFACE_VERSION,
+		.event_cb = refer_ari_progress_framehook,
+		.destroy_cb = refer_progress_framehook_destroy,
+		.data = progress,
+		.disable_inheritance = 1,
+	};
+
+	static const pj_str_t str_referred_by = { "Referred-By", 11 };
+	static const pj_str_t str_referred_by_s = { "b", 1 };
+	static const pj_str_t str_replaces = { "Replaces", 8 };
+
+
+	state = ao2_alloc(sizeof(struct transfer_ari_state), transfer_ari_state_destroy);
+	if (!state) {
+		return 500;
+	}
+
+	state->last_response = AST_TRANSFER_INVALID;
+
+	state->params = ao2_alloc(sizeof(struct ast_refer_params), refer_params_destroy);
+	if (!state->params) {
+		return 500;
+	}
+	AST_VECTOR_INIT(state->params, 0);
+
+
+	ast_channel_ref(session->channel);
+	state->transferer_chan = session->channel;
+
+	/* Using the user portion of the target URI see if it exists as a valid extension in their context */
+	ast_copy_pj_str(state->exten, &target->user, sizeof(state->exten));
+
+	/*
+	 * We may want to match in the dialplan without any user
+	 * options getting in the way.
+	 */
+	AST_SIP_USER_OPTIONS_TRUNCATE_CHECK(state->exten);
+
+	referred_hdr = pjsip_msg_find_hdr_by_names(rdata->msg_info.msg,
+		&str_referred_by, &str_referred_by_s, NULL);
+	if (referred_hdr) {
+		state->referred_by = copy_string(&referred_hdr->hvalue);
+		if (!state->referred_by) {
+			return 500;
+		}
+	}
+
+	if (replaces_param) {
+		pjsip_dialog *dlg;
+		pj_str_t replaces_content = { 0, };
+		pj_strdup_with_null(rdata->tp_info.pool, &replaces_content, &replaces_param->value);
+
+		/* Parsing the parameter as a Replaces header easily grabs the needed information */
+		if (!(replaces = pjsip_parse_hdr(rdata->tp_info.pool, &str_replaces, replaces_content.ptr,
+						 pj_strlen(&replaces_content), &parsed_len))) {
+			ast_log(LOG_ERROR, "Received REFER request on channel '%s' from endpoint '%s' with invalid Replaces header, rejecting\n",
+				ast_channel_name(session->channel), ast_sorcery_object_get_id(session->endpoint));
+			return 400;
+		}
+
+		dlg = pjsip_ua_find_dialog(&replaces->call_id, &replaces->to_tag, &replaces->from_tag, PJ_TRUE);
+		if (dlg) {
+			state->other_session = ast_sip_dialog_get_session(dlg);
+			pjsip_dlg_dec_lock(dlg);
+		}
+
+		state->protocol_id = copy_string(&replaces->call_id);
+		if (!state->protocol_id) {
+			return 500;
+		}
+
+		if (!add_refer_param(state->params, "from", &replaces->from_tag)) {
+			return 500;
+		}
+
+		if (!add_refer_param(state->params, "to", &replaces->to_tag)) {
+			return 500;
+		}
+	}
+
+	ao2_ref(session, +1);
+	if (ast_sip_session_defer_termination(session)) {
+		ast_log(LOG_ERROR, "Channel '%s' from endpoint '%s' attempted ari-only transfer but could not defer termination, rejecting\n",
+			ast_channel_name(session->channel),
+			ast_sorcery_object_get_id(session->endpoint));
+		ao2_cleanup(session);
+		return 500;
+	}
+	state->transferer = session;
+
+
+	/* We need to bump the reference count up on the progress structure since it is in the frame hook now */
+	ao2_ref(progress, +1);
+	ast_channel_lock(session->channel);
+	progress->framehook = ast_framehook_attach(session->channel, &hook);
+	ast_channel_unlock(session->channel);
+
+	if (progress->framehook < 0) {
+		ao2_cleanup(progress);
+		return 500;
+	}
+
+	if (ari_notify(state)) {
+		ast_channel_lock(session->channel);
+		ast_framehook_detach(session->channel, progress->framehook);
+		progress->framehook = -1;
+		ao2_cleanup(progress);
+		ast_channel_unlock(session->channel);
+		return 500;
+	}
+
+	/* Transfer ownership to the progress */
+	progress->ari_state = state;
+	state = NULL;
+	return 200;
+}
+
 static int refer_incoming_attended_request(struct ast_sip_session *session, pjsip_rx_data *rdata, pjsip_sip_uri *target_uri,
 	pjsip_param *replaces_param, struct refer_progress *progress)
 {
@@ -1710,9 +1988,15 @@ static int refer_incoming_refer_request(struct ast_sip_session *session, struct 
 		return 0;
 	}
 
-	/* Determine if this is an attended or blind transfer */
-	if ((replaces = pjsip_param_find(&target_uri->header_param, &str_replaces)) ||
-		(replaces = pjsip_param_find(&target_uri->other_param, &str_replaces))) {
+	replaces = pjsip_param_find(&target_uri->header_param, &str_replaces);
+	if (!replaces) {
+		replaces = pjsip_param_find(&target_uri->other_param, &str_replaces);
+	}
+
+	/* Determine if this is handled externally or an attended or blind transfer */
+	if (session->transferhandling_ari) {
+		response = refer_incoming_ari_request(session, rdata, target_uri, replaces, progress);
+	} else if (replaces) {
 		response = refer_incoming_attended_request(session, rdata, target_uri, replaces, progress);
 	} else {
 		response = refer_incoming_blind_request(session, rdata, target_uri, progress);

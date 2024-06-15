@@ -198,7 +198,8 @@
 				"StasisStart",
 				"TextMessageReceived",
 				"ChannelConnectedLine",
-				"PeerStatusChange"
+				"PeerStatusChange",
+				"ChannelTransfer"
 			]
 		},
 		"ContactInfo": {
@@ -920,6 +921,110 @@
 					"required": true,
 					"type": "Channel",
 					"description": "The channel whose connected line has changed."
+				}
+			}
+		},
+		"ChannelTransfer": {
+			"id": "ChannelTransfer",
+			"description": "transfer on a channel.",
+			"properties": {
+				"state": {
+					"required": false,
+					"type": "string",
+					"description": "Transfer State"
+				},
+				"refer_to": {
+					"required": true,
+					"type": "ReferTo",
+					"description": "Refer-To information with optionally both affected channels"
+				},
+				"referred_by": {
+					"required": true,
+					"type": "ReferredBy",
+					"description": "Referred-By SIP Header according rfc3892"
+				}
+			}
+		},
+		"ReferTo": {
+			"id": "ReferTo",
+			"description": "transfer destination requested by transferee",
+			"properties": {
+				"requested_destination": {
+					"required": true,
+					"type": "RequiredDestination"
+				},
+				"destination_channel": {
+					"required": false,
+					"type": "Channel",
+					"description": "The Channel Object, that is to be replaced"
+				},
+				"connected_channel": {
+					"required": false,
+					"type": "Channel",
+					"description": "Channel, connected to the to be replaced channel"
+				},
+				"bridge": {
+					"required": false,
+					"type": "Bridge",
+					"description": "Bridge connecting both destination channels"
+				}
+			}
+		},
+		"ReferredBy": {
+			"id": "ReferredBy",
+			"description": "transfer destination requested by transferee",
+			"properties": {
+				"source_channel": {
+					"required": true,
+					"type": "Channel",
+					"description": "The channel on which the refer was received"
+				},
+				"connected_channel": {
+					"required": false,
+					"type": "Channel",
+					"description": "Channel, Connected to the channel, receiving the transfer request on."
+				},
+				"bridge": {
+					"required": false,
+					"type": "Bridge",
+					"description": "Bridge connecting both Channels"
+				}
+			}
+		},
+		"RequiredDestination": {
+			"id": "RequiredDestination",
+			"description": "Information about the requested destination",
+			"properties": {
+				"protocol_id": {
+					"required": false,
+					"type": "string",
+					"description": "the requested protocol-id by the referee in case of SIP channel, this is a SIP Call ID, Mutually exclusive to destination"
+				},
+				"destination": {
+					"required": false,
+					"type": "string",
+					"description": "Destination User Part. Only for Blind transfer. Mutually exclusive to protocol_id"
+				},
+				"additional_protocol_params": {
+					"required": false,
+					"type": "List[AdditionalParam]",
+					"description": "List of additional protocol specific information"
+				}
+			}
+		},
+		"AdditionalParam": {
+			"id": "AdditionalParam",
+			"description": "Protocol specific additional parameter",
+			"properties": {
+				"parameter_name": {
+					"required": true,
+					"type": "string",
+					"description": "Name of the parameter"
+				},
+				"parameter_value": {
+					"required": true,
+					"type": "string",
+					"description": "Value of the parameter"
 				}
 			}
 		}
