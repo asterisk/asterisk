@@ -217,6 +217,8 @@ struct ast_sip_session {
 	unsigned int defer_terminate:1;
 	/*! Termination requested while termination deferred */
 	unsigned int terminate_while_deferred:1;
+	/*! Transferhandling ari */
+	unsigned int transferhandling_ari:1;
 	/*! Deferred incoming re-invite */
 	pjsip_rx_data *deferred_reinvite;
 	/*! Current T.38 state */

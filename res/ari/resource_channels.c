@@ -2252,3 +2252,44 @@ void ast_ari_channels_external_media(struct ast_variable *headers,
 			"The encapsulation and/or transport is not supported");
 	}
 }
+
+void ast_ari_channels_transfer_progress(struct ast_variable *headers, struct ast_ari_channels_transfer_progress_args *args, struct ast_ari_response *response)
+{
+	enum ast_control_transfer message;
+	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_channel *, chan, NULL, ast_channel_cleanup);
+
+	control = find_control(response, args->channel_id);
+	if (control == NULL) {
+		/* Response filled in by find_control */
+		return;
+	}
+
+	chan = ast_channel_get_by_name(args->channel_id);
+	if (!chan) {
+		ast_ari_response_error(response, 404, "Not Found",
+			"Callee not found");
+		return;
+	}
+
+	if (ast_strlen_zero(args->states)) {
+		ast_ari_response_error(response, 400, "Bad Request", "states must not be empty");
+		return;
+	}
+
+	if (strcasecmp(args->states, "channel_progress") == 0) {
+		message = AST_TRANSFER_PROGRESS;
+	} else if (strcasecmp(args->states, "channel_answered") == 0) {
+		message = AST_TRANSFER_SUCCESS;
+	} else if (strcasecmp(args->states, "channel_unavailable") == 0) {
+		message = AST_TRANSFER_UNAVAILABLE;
+	} else if (strcasecmp(args->states, "channel_declined") == 0) {
+		message = AST_TRANSFER_FAILED;
+	} else {
+		ast_ari_response_error(response, 400, "Bad Request", "Invalid states value");
+		return;
+	}
+
+	ast_indicate_data(chan, AST_CONTROL_TRANSFER, &message, sizeof(message));
+	ast_ari_response_no_content(response);
+}

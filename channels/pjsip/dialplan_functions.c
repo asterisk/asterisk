@@ -1368,3 +1368,36 @@ int pjsip_action_hangup(struct mansession *s, const struct message *m)
 	return ast_manager_hangup_helper(s, m,
 		pjsip_app_hangup_handler, response_code_validator);
 }
+
+int pjsip_transfer_handling_write(struct ast_channel *chan, const char *cmd, char *data, const char *value)
+{
+	struct ast_sip_channel_pvt *channel;
+	int ret = 0;
+
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
+		return -1;
+	}
+
+	ast_channel_lock(chan);
+	if (strcmp(ast_channel_tech(chan)->type, "PJSIP")) {
+		ast_log(LOG_WARNING, "Cannot call %s on a non-PJSIP channel %s\n", cmd, ast_channel_name(chan));
+		ast_channel_unlock(chan);
+		return -1;
+	}
+
+	channel = ast_channel_tech_pvt(chan);
+
+	if (ast_strlen_zero(value) || !strcmp(value, "core")) {
+		channel->session->transferhandling_ari = 0;
+	} else if (!strcmp(value, "ari-only")) {
+		channel->session->transferhandling_ari = 1;
+	} else {
+		ast_log(AST_LOG_WARNING, "Cannot set unknown transfer handling '%s' on channel '%s', transfer handling will remain unchanged.",
+			value, ast_channel_name(chan));
+		ret = -1;
+	}
+
+	ast_channel_unlock(chan);
+	return ret;
+}

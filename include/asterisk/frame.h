@@ -408,6 +408,9 @@ struct ast_control_t38_parameters {
 enum ast_control_transfer {
 	AST_TRANSFER_SUCCESS = 0, /*!< Transfer request on the channel worked */
 	AST_TRANSFER_FAILED,      /*!< Transfer request on the channel failed */
+	AST_TRANSFER_PROGRESS,    /*!< Transfer request on the channel is in progress */
+	AST_TRANSFER_UNAVAILABLE, /*!< Transfer request on the channel is unavailable */
+	AST_TRANSFER_INVALID,     /*!< Invalid state for none of the above. */
 };
 
 struct ast_control_pvt_cause_code {

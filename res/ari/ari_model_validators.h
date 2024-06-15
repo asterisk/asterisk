@@ -572,6 +572,22 @@ int ast_ari_validate_mailbox(struct ast_json *json);
 ari_validator ast_ari_validate_mailbox_fn(void);
 
 /*!
+ * \brief Validator for AdditionalParam.
+ *
+ * Protocol specific additional parameter
+ *
+ * \param json JSON object to validate.
+ * \retval True (non-zero) if valid.
+ * \retval False (zero) if invalid.
+ */
+int ast_ari_validate_additional_param(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_additional_param().
+ */
+ari_validator ast_ari_validate_additional_param_fn(void);
+
+/*!
  * \brief Validator for ApplicationMoveFailed.
  *
  * Notification that trying to move a channel to another Stasis application failed.
@@ -928,6 +944,22 @@ int ast_ari_validate_channel_tone_detected(struct ast_json *json);
 ari_validator ast_ari_validate_channel_tone_detected_fn(void);
 
 /*!
+ * \brief Validator for ChannelTransfer.
+ *
+ * transfer on a channel.
+ *
+ * \param json JSON object to validate.
+ * \retval True (non-zero) if valid.
+ * \retval False (zero) if invalid.
+ */
+int ast_ari_validate_channel_transfer(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_channel_transfer().
+ */
+ari_validator ast_ari_validate_channel_transfer_fn(void);
+
+/*!
  * \brief Validator for ChannelUnhold.
  *
  * A channel initiated a media unhold.
@@ -1232,6 +1264,54 @@ int ast_ari_validate_recording_started(struct ast_json *json);
 ari_validator ast_ari_validate_recording_started_fn(void);
 
 /*!
+ * \brief Validator for ReferTo.
+ *
+ * transfer destination requested by transferee
+ *
+ * \param json JSON object to validate.
+ * \retval True (non-zero) if valid.
+ * \retval False (zero) if invalid.
+ */
+int ast_ari_validate_refer_to(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_refer_to().
+ */
+ari_validator ast_ari_validate_refer_to_fn(void);
+
+/*!
+ * \brief Validator for ReferredBy.
+ *
+ * transfer destination requested by transferee
+ *
+ * \param json JSON object to validate.
+ * \retval True (non-zero) if valid.
+ * \retval False (zero) if invalid.
+ */
+int ast_ari_validate_referred_by(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_referred_by().
+ */
+ari_validator ast_ari_validate_referred_by_fn(void);
+
+/*!
+ * \brief Validator for RequiredDestination.
+ *
+ * Information about the requested destination
+ *
+ * \param json JSON object to validate.
+ * \retval True (non-zero) if valid.
+ * \retval False (zero) if invalid.
+ */
+int ast_ari_validate_required_destination(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_required_destination().
+ */
+ari_validator ast_ari_validate_required_destination_fn(void);
+
+/*!
  * \brief Validator for StasisEnd.
  *
  * Notification that a channel has left a Stasis application.
@@ -1457,6 +1537,9 @@ ari_validator ast_ari_validate_application_fn(void);
  * - name: string (required)
  * - new_messages: int (required)
  * - old_messages: int (required)
+ * AdditionalParam
+ * - parameter_name: string (required)
+ * - parameter_value: string (required)
  * ApplicationMoveFailed
  * - asterisk_id: string
  * - type: string (required)
@@ -1628,6 +1711,14 @@ ari_validator ast_ari_validate_application_fn(void);
  * - application: string (required)
  * - timestamp: Date (required)
  * - channel: Channel (required)
+ * ChannelTransfer
+ * - asterisk_id: string
+ * - type: string (required)
+ * - application: string (required)
+ * - timestamp: Date (required)
+ * - refer_to: ReferTo (required)
+ * - referred_by: ReferredBy (required)
+ * - state: string
  * ChannelUnhold
  * - asterisk_id: string
  * - type: string (required)
@@ -1748,6 +1839,19 @@ ari_validator ast_ari_validate_application_fn(void);
  * - application: string (required)
  * - timestamp: Date (required)
  * - recording: LiveRecording (required)
+ * ReferTo
+ * - bridge: Bridge
+ * - connected_channel: Channel
+ * - destination_channel: Channel
+ * - requested_destination: RequiredDestination (required)
+ * ReferredBy
+ * - bridge: Bridge
+ * - connected_channel: Channel
+ * - source_channel: Channel (required)
+ * RequiredDestination
+ * - additional_protocol_params: List[AdditionalParam]
+ * - destination: string
+ * - protocol_id: string
  * StasisEnd
  * - asterisk_id: string
  * - type: string (required)

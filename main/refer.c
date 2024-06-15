@@ -35,6 +35,8 @@
 #include "asterisk/datastore.h"
 #include "asterisk/pbx.h"
 #include "asterisk/manager.h"
+#include "asterisk/stasis_bridges.h"
+#include "asterisk/stasis_channels.h"
 #include "asterisk/strings.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/vector.h"
@@ -533,5 +535,61 @@ int ast_refer_init(void)
 		return -1;
 	}
 	ast_register_cleanup(refer_shutdown);
+	return 0;
+}
+
+int ast_refer_notify_transfer_request(struct ast_channel *source, const char *referred_by,
+				const char *exten, const char *protocol_id,
+				struct ast_channel *dest, struct ast_refer_params *params,
+				enum ast_control_transfer state)
+{
+	RAII_VAR(struct ast_ari_transfer_message *, transfer_message, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_bridge *, source_bridge, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_bridge *, dest_bridge, NULL, ao2_cleanup);
+
+	transfer_message = ast_ari_transfer_message_create(source, referred_by, exten, protocol_id, dest, params, state);
+	if (!transfer_message) {
+		return -1;
+	}
+	source_bridge = ast_bridge_transfer_acquire_bridge(source);
+	if (source_bridge) {
+		RAII_VAR(struct ast_channel *, peer, NULL, ast_channel_cleanup);
+
+		ast_bridge_lock(source_bridge);
+		transfer_message->source_bridge = ast_bridge_get_snapshot(source_bridge);
+		peer = ast_bridge_peer_nolock(source_bridge, source);
+		if (peer) {
+			ast_channel_lock(peer);
+			transfer_message->source_peer = ao2_bump(ast_channel_snapshot(peer));
+			ast_channel_unlock(peer);
+		}
+		ast_bridge_unlock(source_bridge);
+	}
+
+	if (dest) {
+		dest_bridge = ast_bridge_transfer_acquire_bridge(dest);
+		if (dest_bridge) {
+			RAII_VAR(struct ast_channel *, peer, NULL, ast_channel_cleanup);
+
+			ast_bridge_lock(dest_bridge);
+			transfer_message->dest_bridge = ast_bridge_get_snapshot(dest_bridge);
+			peer = ast_bridge_peer_nolock(dest_bridge, dest);
+			if (peer) {
+				ast_channel_lock(peer);
+				transfer_message->dest_peer = ao2_bump(ast_channel_snapshot(peer));
+				ast_channel_unlock(peer);
+			}
+			ast_bridge_unlock(dest_bridge);
+		}
+	}
+
+	msg = stasis_message_create(ast_channel_transfer_request_type(), transfer_message);
+	if (msg) {
+		ast_channel_lock(source);
+		stasis_publish(ast_channel_topic(source), msg);
+		ast_channel_unlock(source);
+	}
+
 	return 0;
 }
