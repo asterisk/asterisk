@@ -405,6 +405,32 @@
 			<para>Parse the contents of the provided variable as a URI and return a specified part of the URI.</para>
 		</description>
 	</function>
+	<function name="PJSIP_TRANSFER_HANDLING" language="en_US">
+		<since>
+			<version>22.3.0</version>
+			<version>21.8.0</version>
+			<version>20.13.0</version>
+		</since>
+		<synopsis>
+			Set how transfers are handled for a PJSIP channel.
+		</synopsis>
+		<syntax>
+			<parameter name="mode" required="false">
+				<para>How transfers are handled for a PJSIP channel. Default is <literal>core</literal>.</para>
+				<enumlist>
+					<enum name="core">
+						<para>Asterisk will handle attended and blind transfers.</para>
+					</enum>
+					<enum name="ari-only">
+						<para>Asterisk will generate ARI events on incoming SIP REFER.</para>
+					</enum>
+				</enumlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>When written, sets the transferhandling behavior</para>
+		</description>
+	</function>
 
 	<info name="CHANNEL" language="en_US" tech="PJSIP">
 		<enumlist>

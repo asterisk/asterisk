@@ -1851,6 +1851,8 @@ static int chan_pjsip_indicate(struct ast_channel *ast, int condition, const voi
 		break;
 	case AST_CONTROL_STREAM_TOPOLOGY_SOURCE_CHANGED:
 		break;
+	case AST_CONTROL_TRANSFER:
+		break;
 	case -1:
 		res = -1;
 		break;
@@ -3274,6 +3276,11 @@ static struct ast_custom_function session_refresh_function = {
 	.write = pjsip_acf_session_refresh_write,
 };
 
+static struct ast_custom_function transfer_handling_function = {
+	.name = "PJSIP_TRANSFER_HANDLING",
+	.write = pjsip_transfer_handling_write,
+};
+
 static char *app_pjsip_hangup = "PJSIPHangup";
 
 /*!
@@ -3338,6 +3345,11 @@ static int load_module(void)
 		goto end;
 	}
 
+	if (ast_custom_function_register(&transfer_handling_function)) {
+		ast_log(LOG_WARNING, "Unable to register PJSIP_TRANSFER_HANDLING dialplan function\n");
+		goto end;
+	}
+
 	if (ast_register_application_xml(app_pjsip_hangup, pjsip_app_hangup)) {
 		ast_log(LOG_WARNING, "Unable to register PJSIPHangup dialplan application\n");
 		goto end;
@@ -3393,6 +3405,7 @@ end:
 	ast_custom_function_unregister(&chan_pjsip_parse_uri_function);
 	ast_custom_function_unregister(&chan_pjsip_parse_uri_from_function);
 	ast_custom_function_unregister(&session_refresh_function);
+	ast_custom_function_unregister(&transfer_handling_function);
 	ast_unregister_application(app_pjsip_hangup);
 	ast_manager_unregister(app_pjsip_hangup);
 
@@ -3426,6 +3439,7 @@ static int unload_module(void)
 	ast_custom_function_unregister(&chan_pjsip_parse_uri_function);
 	ast_custom_function_unregister(&chan_pjsip_parse_uri_from_function);
 	ast_custom_function_unregister(&session_refresh_function);
+	ast_custom_function_unregister(&transfer_handling_function);
 	ast_unregister_application(app_pjsip_hangup);
 	ast_manager_unregister(app_pjsip_hangup);
 
