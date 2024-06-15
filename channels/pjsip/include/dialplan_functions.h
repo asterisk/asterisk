@@ -168,4 +168,16 @@ int pjsip_app_hangup(struct ast_channel *chan, const char *data);
  */
 int pjsip_action_hangup(struct mansession *s, const struct message *m);
 
+/*!
+ * \brief PJSIP_TRANSFER_HANDLING function write callback
+ * \param chan The channel the function is called on
+ * \param cmd the Name of the function
+ * \param data Arguments passed to the function
+ * \param value Value to be set by the function
+ *
+ * \retval 0 on success
+ * \retval -1 on failure
+ */
+int pjsip_transfer_handling_write(struct ast_channel *chan, const char *cmd, char *data, const char *value);
+
 #endif /* _PJSIP_DIALPLAN_FUNCTIONS */
