@@ -870,5 +870,31 @@ int ast_ari_channels_external_media_parse_body(
  * \param[out] response HTTP response
  */
 void ast_ari_channels_external_media(struct ast_variable *headers, struct ast_ari_channels_external_media_args *args, struct ast_ari_response *response);
+/*! Argument struct for ast_ari_channels_transfer_progress() */
+struct ast_ari_channels_transfer_progress_args {
+	/*! Channel's id */
+	const char *channel_id;
+	/*! The state of the progress */
+	const char *states;
+};
+/*!
+ * \brief Body parsing function for /channels/{channelId}/transfer_progress.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_channels_transfer_progress_parse_body(
+	struct ast_json *body,
+	struct ast_ari_channels_transfer_progress_args *args);
+
+/*!
+ * \brief Inform the channel about the progress of the attended/blind transfer.
+ *
+ * \param headers HTTP headers
+ * \param args Swagger parameters
+ * \param[out] response HTTP response
+ */
+void ast_ari_channels_transfer_progress(struct ast_variable *headers, struct ast_ari_channels_transfer_progress_args *args, struct ast_ari_response *response);
 
 #endif /* _ASTERISK_RESOURCE_CHANNELS_H */
