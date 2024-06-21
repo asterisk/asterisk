@@ -4326,11 +4326,17 @@ static int ast_rtp_dtmf_begin(struct ast_rtp_instance *instance, char digit)
 	/* Grab the matching DTMF type payload */
 	payload = ast_rtp_codecs_payload_code_tx_sample_rate(ast_rtp_instance_get_codecs(instance), 0, NULL, AST_RTP_DTMF, sample_rate);
 
-	/* If this returns -1, we are being asked to send digits for a sample rate that is outside
-	   what was negotiated for. Fall back if possible. */
+	/* If this returns -1, we are using a codec with a sample rate that does not have a matching RFC 2833/4733
+	   offer. The offer may have included a default-rate one that doesn't match the codec rate, so try to use that. */
+	if (payload == -1) {
+		sample_rate = DEFAULT_DTMF_SAMPLE_RATE_MS;
+		payload = ast_rtp_codecs_payload_code_tx(ast_rtp_instance_get_codecs(instance), 0, NULL, AST_RTP_DTMF);
+	}
+	/* No default-rate offer either, trying to send a digit outside of what was negotiated for. */
 	if (payload == -1) {
 		return -1;
 	}
+
 	ast_test_suite_event_notify("DTMF_BEGIN", "Digit: %d\r\nPayload: %d\r\nRate: %d\r\n", digit, payload, sample_rate);
 	ast_debug(1, "Sending digit '%d' at rate %d with payload %d\n", digit, sample_rate, payload);
 
