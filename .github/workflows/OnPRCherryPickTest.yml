@@ -1,0 +1,17 @@
+name: PRCherryPickTest
+run-name: "PR ${{github.event.number}} CherryPickTest"
+on:
+  pull_request_target:
+    types: [ labeled ]
+
+concurrency:
+  group: ${{github.workflow}}-${{github.event.label.name}}-${{github.event.number}}
+  cancel-in-progress: true
+
+jobs:
+  CherryPickTest:
+    name: CherryPickTest
+    if: ${{ github.event.label.name == vars.CHERRY_PICK_TEST_LABEL }}
+    uses: asterisk/asterisk-ci-actions/.github/workflows/AsteriskCherryPickTest.yml@main
+    secrets:
+      TOKEN: ${{ secrets.GITHUB_TOKEN }}
