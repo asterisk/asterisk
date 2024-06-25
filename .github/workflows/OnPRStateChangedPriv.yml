@@ -1,0 +1,27 @@
+#
+# Workflows triggered by PRs submitted from forked repositories
+# (all of ours) are severly limited in what they can do.
+# For instance, they can't add or remove labels or comments even
+# on the PR that triggered them.  Since we need to both of those,
+# GitHub recommends creating a separate workflow (this one) that
+# does those tasks that's triggered when the PR submit workflow
+# starts or finishes.  Since this workflow isn't being run in the
+# context of a forked repo, it has all the privileges needed to
+# add and remove labels and comments. Hence the "Priv" at the end
+# of this workflow name.
+#
+name: PRStateChangedPriv
+run-name: "PRStateChangedPriv ${{github.event.workflow.name}} ${{github.event.action}}"
+on:
+  workflow_run:
+    workflows: [PRStateChanged]
+    types:
+      - requested
+      - completed
+
+jobs:
+  PRStateChangedPriv:
+    name: PRStateChangedPriv
+    uses: asterisk/asterisk-ci-actions/.github/workflows/AsteriskPRStateChangedPriv.yml@main
+    secrets:
+      TOKEN: ${{ secrets.GITHUB_TOKEN }}
