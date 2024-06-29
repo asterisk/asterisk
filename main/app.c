@@ -61,6 +61,7 @@
 #include "asterisk/indications.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/threadstorage.h"
+#include "asterisk/manager.h"
 #include "asterisk/test.h"
 #include "asterisk/module.h"
 #include "asterisk/astobj2.h"
@@ -68,6 +69,95 @@
 #include "asterisk/stasis_channels.h"
 #include "asterisk/json.h"
 #include "asterisk/format_cache.h"
+
+/*** DOCUMENTATION
+	<managerEvent language="en_US" name="GroupCreate">
+		<managerEventInstance class="EVENT_FLAG_REPORTING">
+			<synopsis>Raised when a group has been created. Note: GroupChannelAdd events will show which channels have been assigned this group@category</synopsis>
+			<syntax>
+				<parameter name="Category">
+					<para>The category portion of the group@category that has been created</para>
+				</parameter>
+				<parameter name="Group">
+					<para>The group portion of the group@category that has been created</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="GroupChannelAdd">
+		<managerEventInstance class="EVENT_FLAG_REPORTING">
+			<synopsis>Raised when a channel is now a part of a group@category GROUP() assignment</synopsis>
+			<syntax>
+				<parameter name="Channel">
+					<para>Channel that is now part of this group@category</para>
+				</parameter>
+				<parameter name="Uniqueid">
+					<para>Uniqueid of the channel that is now part of this group@category</para>
+				</parameter>
+				<parameter name="Category">
+					<para>The category portion of the group@category of the GROUP() that the channel is now a part of</para>
+				</parameter>
+				<parameter name="Group">
+					<para>The group portion of the group@category of the GROUP() that the channel is now a part of</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="GroupVarSet">
+		<managerEventInstance class="EVENT_FLAG_REPORTING">
+			<synopsis>Raised in response to when a Group Variable is set using GROUP_VAR() on a group@category GROUP()</synopsis>
+			<syntax>
+				<parameter name="Group">
+					<para>Name of the group that the variable was set on</para>
+				</parameter>
+				<parameter name="Category">
+					<para>Name of the category that the variable was set on</para>
+				</parameter>
+				<parameter name="Channel">
+					<para>Channel (if any) that caused the variable to be set</para>
+				</parameter>
+				<parameter name="Variable">
+					<para>The variable that was set</para>
+				</parameter>
+				<parameter name="Value">
+					<para>The value of the variable</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="GroupChannelRemove">
+		<managerEventInstance class="EVENT_FLAG_REPORTING">
+			<synopsis>Raised when a channel is no longer part of a group@category GROUP() assignment</synopsis>
+			<syntax>
+				<parameter name="Channel">
+					<para>Channel that no longer is part of this group@category</para>
+				</parameter>
+				<parameter name="Uniqueid">
+					<para>Uniqueid of the channel that is no longer is part of this group</para>
+				</parameter>
+				<parameter name="Category">
+					<para>The category portion of the group@category of the GROUP() that the channel was a part of</para>
+				</parameter>
+				<parameter name="Group">
+					<para>The group portion of the group@category of the GROUP() that the channel was a part of</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="GroupDestroy">
+		<managerEventInstance class="EVENT_FLAG_REPORTING">
+			<synopsis>Raised when a group has been completely removed. Note: GroupChannelRemove events will show which channels no longer are assigned to this group@category</synopsis>
+			<syntax>
+				<parameter name="Category">
+					<para>The category portion of the group@category that is no longer present</para>
+				</parameter>
+				<parameter name="Group">
+					<para>The group portion of the group@category that is no longer present</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+ ***/
 
 AST_THREADSTORAGE_PUBLIC(ast_str_thread_global_buf);
 
@@ -118,10 +208,36 @@ static void *shaun_of_the_dead(void *data)
 	return NULL;
 }
 
+struct group_data_store;
+
+/* \brief a single group assignment entry */
+struct group_list_entry {
+	struct ast_str *group;                         /*!< A group assignment is group@category, this is the group part  */
+	struct ast_str *category;                      /*!< This is the category part */
+
+	struct group_data_store *group_store;          /*!< The group_data_store we live on */
+
+	AST_LIST_ENTRY(group_list_entry) entries;    /*!< Next group */
+};
+
+AST_LIST_HEAD_NOLOCK(group_list, group_list_entry);  /*!< All GROUP assignments */
+
+/* Datastore for GROUP() entry storage */
+struct group_data_store {
+	void *datastore;                             /*!< Pointer to the datastore that was allocated in */
+	struct ast_channel *chan;                    /*!< Channel this datastore is on */
+
+	struct group_list group_list_head;           /*!< All the GROUPs that this channel is in */
+
+	AST_LIST_ENTRY(group_data_store) entries;  /*!< Next GROUP datastore  */
+};
+
+AST_RWLIST_HEAD_STATIC(group_stores_list, group_data_store);
 
 #define AST_MAX_FORMATS 10
 
-static AST_RWLIST_HEAD_STATIC(groups, ast_group_info);
+static AST_RWLIST_HEAD_STATIC(groups, ast_group_info);      /*!< List of channels that are in groups */
+static AST_RWLIST_HEAD_STATIC(groups_meta, ast_group_meta); /*!< List of groups and their metadata */
 
 /*!
  * \brief This function presents a dialtone and reads an extension into 'collect'
@@ -2193,7 +2309,7 @@ int ast_app_group_split_group(const char *data, char *group, int group_max, char
 int ast_app_group_set_channel(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
-	char group[80] = "", category[80] = "";
+	char group[MAX_GROUP_LEN] = "", category[MAX_CATEGORY_LEN] = "";
 	struct ast_group_info *gi = NULL;
 	size_t len = 0;
 
@@ -2207,9 +2323,13 @@ int ast_app_group_set_channel(struct ast_channel *chan, const char *data)
 		len += strlen(category) + 1;
 	}
 
+	/* Remove previous group assignment within this category if there is one */
 	AST_RWLIST_WRLOCK(&groups);
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&groups, gi, group_list) {
 		if ((gi->chan == chan) && ((ast_strlen_zero(category) && ast_strlen_zero(gi->category)) || (!ast_strlen_zero(gi->category) && !strcasecmp(gi->category, category)))) {
+			/* Find our group meta data, remove the entire group metadata if we're the last channel */
+			ast_app_group_remove_channel(chan, gi->group, gi->category);
+
 			AST_RWLIST_REMOVE_CURRENT(group_list);
 			ast_free(gi);
 			break;
@@ -2228,6 +2348,8 @@ int ast_app_group_set_channel(struct ast_channel *chan, const char *data)
 			strcpy(gi->category, category);
 		}
 		AST_RWLIST_INSERT_TAIL(&groups, gi, group_list);
+
+		ast_app_group_add_channel(chan, group, category);
 	} else {
 		res = -1;
 	}
@@ -2235,6 +2357,111 @@ int ast_app_group_set_channel(struct ast_channel *chan, const char *data)
 	AST_RWLIST_UNLOCK(&groups);
 
 	return res;
+}
+
+int ast_app_group_set_var(struct ast_channel *chan, const char *group, const char *category, const char *name, const char *value)
+{
+	struct ast_group_meta *gmi = NULL;
+
+	struct varshead *headp;
+	struct ast_var_t *newvariable = NULL;
+
+	if (!group || !name) {
+		ast_log(LOG_WARNING, "<%s> GROUP assignment failed for %s@%s, group/name cannot be NULL, group variable '%s' not set\n", ast_channel_name(chan), group, category, name);
+		return -2;
+	}
+
+	if (!category) {
+		category = "";
+	}
+
+	if (!value) {
+		value = "";
+	}
+
+	/* Find our group meta data */
+	AST_RWLIST_WRLOCK(&groups_meta);
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&groups_meta, gmi, group_meta_list) {
+		if ((strcasecmp(gmi->group, group) != 0) || (strcasecmp(gmi->category, category) != 0)) {
+			continue;
+		}
+
+		headp = &gmi->varshead;
+
+		AST_LIST_TRAVERSE(headp, newvariable, entries) {
+			if (strcasecmp(ast_var_name(newvariable), name) == 0) {
+				/* there is already such a variable, delete it */
+				AST_LIST_REMOVE(headp, newvariable, entries);
+				ast_var_delete(newvariable);
+				break;
+			}
+		}
+
+		newvariable = ast_var_assign(name, value);
+
+		AST_LIST_INSERT_HEAD(headp, newvariable, entries);
+		manager_event(EVENT_FLAG_DIALPLAN, "GroupVarSet",
+			"Channel: %s\r\n"
+			"Category: %s\r\n"
+			"Group: %s\r\n"
+			"Variable: %s\r\n"
+			"Value: %s\r\n"
+			"Uniqueid: %s\r\n",
+			chan ? ast_channel_name(chan) : "none",
+			category, group, name, value,
+			chan ? ast_channel_uniqueid(chan) : "none");
+
+		break; /* We only have one list item per group@category */
+	}
+	AST_RWLIST_TRAVERSE_SAFE_END;
+	AST_RWLIST_UNLOCK(&groups_meta);
+
+	if (!newvariable) {
+		ast_log(LOG_WARNING, "<%s> GROUP assignment %s@%s doesn't exist, group variable '%s' not set\n", ast_channel_name(chan), group, category, name);
+		return -1;
+	}
+
+	return 0;
+}
+
+const char *ast_app_group_get_var(const char *group, const char *category, const char *name)
+{
+	struct ast_group_meta *gmi = NULL;
+
+	struct varshead *headp;
+	const char *variable;
+	struct ast_var_t *ast_var;
+
+	if (!group || !name) {
+		return NULL;
+	}
+
+	if (!category) {
+		category = "";
+	}
+
+	/* Find our group meta data */
+	AST_RWLIST_RDLOCK(&groups_meta);
+	AST_RWLIST_TRAVERSE(&groups_meta, gmi, group_meta_list) {
+		if ((strcasecmp(gmi->group, group) != 0) || (strcasecmp(gmi->category, category) != 0)) {
+			continue;
+		}
+
+		headp = &gmi->varshead;
+
+		AST_LIST_TRAVERSE(headp, ast_var, entries) {
+			variable = ast_var_name(ast_var);
+
+			if (!strcasecmp(variable, name)) {
+				/* found it */
+				AST_RWLIST_UNLOCK(&groups_meta);
+				return ast_var_value(ast_var);
+			}
+		}
+	}
+	AST_RWLIST_UNLOCK(&groups_meta);
+
+	return NULL;
 }
 
 int ast_app_group_get_count(const char *group, const char *category)
@@ -2275,6 +2502,7 @@ int ast_app_group_match_get_count(const char *groupmatch, const char *category)
 		return 0;
 	}
 
+	/* if regex compilation fails, return zero matches */
 	if (!ast_strlen_zero(category) && regcomp(&regexbuf_category, category, REG_EXTENDED | REG_NOSUB)) {
 		ast_log(LOG_ERROR, "Regex compile failed on: %s\n", category);
 		regfree(&regexbuf_group);
@@ -2300,14 +2528,21 @@ int ast_app_group_match_get_count(const char *groupmatch, const char *category)
 int ast_app_group_update(struct ast_channel *old, struct ast_channel *new)
 {
 	struct ast_group_info *gi = NULL;
+	struct ast_group_info *gi_new = NULL;
 
 	AST_RWLIST_WRLOCK(&groups);
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&groups, gi, group_list) {
+		/* keep channel groups on transfer */
 		if (gi->chan == old) {
+			/* only move group if it doesn't already exist on new */
+			AST_RWLIST_TRAVERSE_SAFE_BEGIN(&groups, gi_new, group_list) {
+				if (gi_new->chan == old && !strcasecmp(gi_new->group, gi->group) && !strcasecmp(gi_new->category, gi->category)) {
+					break;
+				}
+			}
+			AST_RWLIST_TRAVERSE_SAFE_END;
+
 			gi->chan = new;
-		} else if (gi->chan == new) {
-			AST_RWLIST_REMOVE_CURRENT(group_list);
-			ast_free(gi);
 		}
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END;
@@ -2316,16 +2551,219 @@ int ast_app_group_update(struct ast_channel *old, struct ast_channel *new)
 	return 0;
 }
 
+/* Remove a channel from a group meta assignment */
+/* Right now this just removes all the group metadata for a group@category if this is the last channel in the group@category */
+/* Ideally we would have direct pointers from the channel group assignments into the metadata struct, so we don't have to search */
+int ast_app_group_remove_channel(struct ast_channel *chan, char *group, char *category)
+{
+	struct ast_group_meta *gmi = NULL; /*!< Group metadatas	  */
+
+	struct varshead *headp;
+	struct ast_var_t *vardata;
+
+	int destroy = 0;
+
+	if (!category) {
+		category = "";
+	}
+
+	AST_RWLIST_WRLOCK(&groups_meta);
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&groups_meta, gmi, group_meta_list) {
+		if (!strcasecmp(gmi->group, group) && !strcasecmp(gmi->category, category) && (--gmi->num_channels <= 0)) {
+			/* Remove all group variables */
+			headp = &gmi->varshead;
+
+			while ((vardata = AST_LIST_REMOVE_HEAD(headp, entries))) {
+				ast_var_delete(vardata);
+			}
+
+			AST_RWLIST_REMOVE_CURRENT(group_meta_list);
+			ast_free(gmi);
+
+			destroy = 1;
+			break; /* We only have one list item per group@category */
+		}
+	}
+	AST_RWLIST_TRAVERSE_SAFE_END;
+	AST_RWLIST_UNLOCK(&groups_meta);
+
+	manager_event(EVENT_FLAG_DIALPLAN, "GroupChannelRemove",
+		"Channel: %s\r\n"
+		"Category: %s\r\n"
+		"Group: %s\r\n"
+		"Uniqueid: %s\r\n",
+		ast_channel_name(chan),
+		category, group,
+		ast_channel_uniqueid(chan));
+
+	if (destroy) {
+		manager_event(EVENT_FLAG_DIALPLAN, "GroupDestroy",
+			"Category: %s\r\n"
+			"Group: %s\r\n",
+			category, group);
+	}
+
+	return 1;
+}
+
+/* Add a channel to a group meta assignment, create a group meta item if it doesn't exist */
+int ast_app_group_add_channel(struct ast_channel *chan, char *group, char *category)
+{
+	struct ast_group_meta *gmi = NULL; /*!< Group metadatas */
+
+	AST_RWLIST_WRLOCK(&groups_meta);
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&groups_meta, gmi, group_meta_list) {
+		if (!strcasecmp(gmi->group, group) && !strcasecmp(gmi->category, category)) {
+			break; /* We only have one list item per group@category */
+		}
+	}
+	AST_RWLIST_TRAVERSE_SAFE_END;
+
+	if (!gmi) {
+		if (!(gmi = ast_calloc(1, sizeof(struct ast_group_meta)))) {
+		    AST_RWLIST_UNLOCK(&groups_meta);
+		    return -1;
+		}
+
+		ast_copy_string(gmi->group, group, MAX_GROUP_LEN);
+
+		if (!ast_strlen_zero(category)) {
+			ast_copy_string(gmi->category, category, MAX_CATEGORY_LEN);
+		}
+
+		AST_RWLIST_INSERT_TAIL(&groups_meta, gmi, group_meta_list);
+
+		manager_event(EVENT_FLAG_DIALPLAN, "GroupCreate",
+			"Category: %s\r\n"
+			"Group: %s\r\n",
+			category, group);
+	}
+
+	gmi->num_channels++;
+
+	AST_RWLIST_UNLOCK(&groups_meta);
+
+	manager_event(EVENT_FLAG_DIALPLAN, "GroupChannelAdd",
+		"Channel: %s\r\n"
+		"Category: %s\r\n"
+		"Group: %s\r\n"
+		"Uniqueid: %s\r\n",
+		ast_channel_name(chan),
+		category, group,
+		ast_channel_uniqueid(chan));
+
+	return 1;
+}
+
+/* Remove all channels from the given group */
+int ast_app_group_remove_all_channels(const char *group, const char *category)
+{
+	struct ast_group_info *gi = NULL;
+
+	int channels_found = 0;
+
+	if (!category) {
+		category = "";
+	}
+
+	/* Traverse group@category channel assignments */
+	AST_RWLIST_WRLOCK(&groups);
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&groups, gi, group_list) {
+		if (strcasecmp(gi->group, group) || strcasecmp(gi->category, category)) {
+			/* Need to match group@category exactly */
+			continue;
+		}
+
+		ast_app_group_remove_channel(gi->chan, gi->group, gi->category);
+		AST_RWLIST_REMOVE_CURRENT(group_list);
+		ast_free(gi);
+
+		channels_found++;
+	}
+	AST_RWLIST_TRAVERSE_SAFE_END;
+	AST_RWLIST_UNLOCK(&groups);
+
+	return !(channels_found > 0);
+}
+
+int ast_app_group_rename(const char *old_group, const char *old_category, const char *new_group, const char *new_category)
+{
+	struct ast_group_info *gi = NULL;
+	struct ast_group_meta *gmi = NULL; /*!< Group metadatas	  */
+
+	int channels_found = 0;
+
+	if (!old_category) {
+		old_category = "";
+	}
+
+	if (!new_category) {
+		new_category = "";
+	}
+
+	/* Traverse group@category channel assignments */
+	AST_RWLIST_WRLOCK(&groups);
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&groups, gi, group_list) {
+		if (strcasecmp(gi->group, old_group) || strcasecmp(gi->category, old_category)) {
+			/* Need to match group@category exactly */
+			continue;
+		}
+
+		ast_copy_string(gi->group,    new_group,    MAX_GROUP_LEN);
+		ast_copy_string(gi->category, new_category, MAX_CATEGORY_LEN);
+		channels_found++;
+	}
+	AST_RWLIST_TRAVERSE_SAFE_END;
+	AST_RWLIST_UNLOCK(&groups);
+
+
+	/* Group Variables */
+	AST_RWLIST_WRLOCK(&groups_meta);
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&groups_meta, gmi, group_meta_list) {
+		if (strcasecmp(gmi->group, old_group) || strcasecmp(gmi->category, old_category)) {
+			/* Need to match group@category exactly */
+			continue;
+		}
+
+		strncpy(gmi->group,    new_group,    MAX_GROUP_LEN    - 1);
+		strncpy(gmi->category, new_category, MAX_CATEGORY_LEN - 1);
+		channels_found++;
+	}
+	AST_RWLIST_TRAVERSE_SAFE_END;
+	AST_RWLIST_UNLOCK(&groups_meta);
+
+	if (channels_found) {
+		manager_event(EVENT_FLAG_DIALPLAN, "GroupRename",
+			"OldGroup: %s\r\n"
+			"OldCategory: %s\r\n"
+			"NewGroup: %s\r\n"
+			"NewCategory: %s\r\n",
+			old_group,
+			old_category,
+			new_group,
+			new_category);
+	}
+
+	return !(channels_found > 0);
+}
+
 int ast_app_group_discard(struct ast_channel *chan)
 {
 	struct ast_group_info *gi = NULL;
 
+        /* Find and remove all groups associated to this channel */
 	AST_RWLIST_WRLOCK(&groups);
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&groups, gi, group_list) {
-		if (gi->chan == chan) {
-			AST_RWLIST_REMOVE_CURRENT(group_list);
-			ast_free(gi);
+		if (gi->chan != chan) {
+			continue;
 		}
+
+		/* Find our group meta data, remove the entire group metadata if we're the last channel */
+		ast_app_group_remove_channel(chan, gi->group, gi->category);
+
+		/* Remove this group assignment for this channel */
+		AST_RWLIST_REMOVE_CURRENT(group_list);
+		ast_free(gi);
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END;
 	AST_RWLIST_UNLOCK(&groups);
@@ -2351,6 +2789,21 @@ struct ast_group_info *ast_app_group_list_head(void)
 int ast_app_group_list_unlock(void)
 {
 	return AST_RWLIST_UNLOCK(&groups);
+}
+
+int ast_app_group_meta_rdlock(void)
+{
+	return AST_RWLIST_RDLOCK(&groups_meta);
+}
+
+struct ast_group_meta *ast_app_group_meta_head(void)
+{
+	return AST_RWLIST_FIRST(&groups_meta);
+}
+
+int ast_app_group_meta_unlock(void)
+{
+	return AST_RWLIST_UNLOCK(&groups_meta);
 }
 
 unsigned int __ast_app_separate_args(char *buf, char delim, int remove_chars, char **array, int arraylen)
