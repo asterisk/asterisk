@@ -1026,6 +1026,9 @@ unsigned long _ast_trace_dec_indent(void);
 #define SCOPE_CALL_WITH_RESULT(level, __var, __funcname, ...) \
 	__var = __funcname(__VA_ARGS__)
 
+#define SCOPE_CALL_WITH_INT_RESULT(level, __funcname, ...) \
+	__funcname(__VA_ARGS__)
+
 #define SCOPE_EXIT(...) \
 	ast_debug(__scope_level, " " __VA_ARGS__)
 
