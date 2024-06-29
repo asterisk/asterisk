@@ -57,6 +57,7 @@ struct ast_channel_id {
 	time_t creation_time;				/*!< Creation time */
 	int creation_unique;				/*!< sub-second unique value */
 	char unique_id[AST_MAX_UNIQUEID];	/*!< Unique Identifier */
+	char tenant_id[AST_MAX_TENANT_ID];	/*!< Multi-tenant identifier */
 };
 
 /*!
@@ -312,6 +313,21 @@ const char *ast_channel_linkedid(const struct ast_channel *chan)
 {
 	ast_assert(chan->linkedid.unique_id[0] != '\0');
 	return chan->linkedid.unique_id;
+}
+
+const char *ast_channel_tenantid(const struct ast_channel *chan)
+{
+	/* It's ok for tenantid to be empty, so no need to assert */
+	return chan->linkedid.tenant_id;
+}
+
+void ast_channel_tenantid_set(struct ast_channel *chan, const char *value)
+{
+	if (ast_strlen_zero(value)) {
+		return;
+	}
+	ast_copy_string(chan->linkedid.tenant_id, value, sizeof(chan->linkedid.tenant_id));
+	ast_channel_snapshot_invalidate_segment(chan, AST_CHANNEL_SNAPSHOT_INVALIDATE_BASE);
 }
 
 const char *ast_channel_appl(const struct ast_channel *chan)
