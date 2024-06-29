@@ -550,7 +550,6 @@ static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int s
 	struct ast_format_cap *caps;
 	RAII_VAR(struct chan_pjsip_pvt *, pvt, NULL, ao2_cleanup);
 	struct ast_sip_channel_pvt *channel;
-	struct ast_variable *var;
 	struct ast_stream_topology *topology;
 	SCOPE_ENTER(1, "%s\n", ast_sip_session_get_name(session));
 
@@ -558,14 +557,14 @@ static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int s
 		SCOPE_EXIT_RTN_VALUE(NULL, "Couldn't create pvt\n");
 	}
 
-	chan = ast_channel_alloc_with_endpoint(1, state,
+	chan = ast_channel_alloc_with_endpoint_and_vars(1, state,
 		S_COR(session->id.number.valid, session->id.number.str, ""),
 		S_COR(session->id.name.valid, session->id.name.str, ""),
 		session->endpoint->accountcode,
 		exten, session->endpoint->context,
 		assignedids, requestor, 0,
-		session->endpoint->persistent, "PJSIP/%s-%08x",
-		ast_sorcery_object_get_id(session->endpoint),
+		session->endpoint->persistent, session->endpoint->channel_vars,
+		"PJSIP/%s-%08x", ast_sorcery_object_get_id(session->endpoint),
 		(unsigned) ast_atomic_fetchadd_int((int *) &chan_idx, +1));
 	if (!chan) {
 		SCOPE_EXIT_RTN_VALUE(NULL, "Couldn't create channel\n");
@@ -659,12 +658,6 @@ static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int s
 			ast_log(LOG_ERROR, "Unknown country code '%s' for tonezone. Check indications.conf for available country codes.\n", session->endpoint->zone);
 		}
 		ast_channel_zone_set(chan, zone);
-	}
-
-	for (var = session->endpoint->channel_vars; var; var = var->next) {
-		char buf[512];
-		pbx_builtin_setvar_helper(chan, var->name, ast_get_encoded_str(
-						  var->value, buf, sizeof(buf)));
 	}
 
 	ast_channel_stage_snapshot_done(chan);
