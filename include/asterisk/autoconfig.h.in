@@ -414,6 +414,9 @@
 /* Define to 1 if you have the kqueue support library. */
 #undef HAVE_KQUEUE
 
+/* Define to 1 if you have the LAME MP3 library. */
+#undef HAVE_LAME
+
 /* Define to 1 if you have the OpenLDAP library. */
 #undef HAVE_LDAP
 
