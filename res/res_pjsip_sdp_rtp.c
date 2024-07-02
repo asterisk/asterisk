@@ -1989,10 +1989,8 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 		}
 
 		if ((attr = generate_rtpmap_attr(session, media, pool, rtp_code, 1, format, 0))) {
-			int newrate = ast_rtp_lookup_sample_rate2(1, format, 0);
 			int i, added = 0;
-			media->attr[media->attr_count++] = attr;
-
+			int newrate = ast_rtp_lookup_sample_rate2(1, format, 0);
 			if (build_dtmf_sample_rates) {
 				for (i = 0; i < AST_VECTOR_SIZE(&sample_rates); i++) {
 					/* Only add if we haven't already processed this sample rate. For instance
@@ -2007,6 +2005,7 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 					AST_VECTOR_APPEND(&sample_rates, newrate);
 				}
 			}
+			media->attr[media->attr_count++] = attr;
 		}
 
 		if ((attr = generate_fmtp_attr(pool, format, rtp_code))) {
@@ -2032,7 +2031,6 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 				continue;
 			}
 
-
 			if (index != AST_RTP_DTMF) {
 				rtp_code = ast_rtp_codecs_payload_code(
 								ast_rtp_instance_get_codecs(session_media->rtp), 0, NULL, index);
@@ -2046,7 +2044,7 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 				 * Walk through the possible bitrates for the RFC 2833/4733 digits and generate the rtpmap
 				 * attributes.
 				 */
-				int i;
+				int i, found_default_offer = 0;
 				for (i = 0; i < AST_VECTOR_SIZE(&sample_rates); i++) {
 					rtp_code = ast_rtp_codecs_payload_code_sample_rate(
 									ast_rtp_instance_get_codecs(session_media->rtp), 0, NULL, index, AST_VECTOR_GET(&sample_rates, i));
@@ -2055,12 +2053,31 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 						continue;
 					}
 
+					if (AST_VECTOR_GET(&sample_rates, i) == DEFAULT_DTMF_SAMPLE_RATE_MS) {
+						/* we found and added a default offer, so no need to include a default one.*/
+						found_default_offer = 1;
+					}
+
 					if ((attr = generate_rtpmap_attr2(session, media, pool, rtp_code, 0, NULL, index, AST_VECTOR_GET(&sample_rates, i)))) {
 						media->attr[media->attr_count++] = attr;
 						snprintf(tmp, sizeof(tmp), "%d 0-16", (rtp_code));
 						attr = pjmedia_sdp_attr_create(pool, "fmtp", pj_cstr(&stmp, tmp));
 						media->attr[media->attr_count++] = attr;
+					}
+				}
 
+				/* If we weren't able to add any matching RFC 2833/4733, assume this endpoint is using a
+				 * mismatched 8K offer and try to add one as a fall-back/default.
+				 */
+				if (!found_default_offer) {
+					rtp_code = ast_rtp_codecs_payload_code_sample_rate(
+									ast_rtp_instance_get_codecs(session_media->rtp), 0, NULL, index, DEFAULT_DTMF_SAMPLE_RATE_MS);
+
+					if (rtp_code != -1 && (attr = generate_rtpmap_attr2(session, media, pool, rtp_code, 0, NULL, index, DEFAULT_DTMF_SAMPLE_RATE_MS))) {
+						media->attr[media->attr_count++] = attr;
+						snprintf(tmp, sizeof(tmp), "%d 0-16", (rtp_code));
+						attr = pjmedia_sdp_attr_create(pool, "fmtp", pj_cstr(&stmp, tmp));
+						media->attr[media->attr_count++] = attr;
 					}
 				}
 			}

@@ -106,6 +106,9 @@ extern "C" {
  */
 #define MAX_CHANNEL_ID 152
 
+/*!< DTMF samples per second */
+#define DEFAULT_DTMF_SAMPLE_RATE_MS    8000
+
 struct ast_rtp_instance;
 struct ast_rtp_glue;
 
