@@ -681,6 +681,14 @@
 						dialplan application such as <emphasis>Ringing</emphasis>.</para>
 					</description>
 				</configOption>
+				<configOption name="tenantid" default="">
+					<synopsis>The tenant ID for this endpoint.</synopsis>
+					<description><para>
+						Sets the tenant ID for this endpoint. When a channel is created,
+						the channel variable tenantid will be set to this value, and it
+						can be changed via dialplan later if needed.
+					</para></description>
+				</configOption>
 				<configOption name="timers_min_se" default="90">
 					<synopsis>Minimum session timers expiration period</synopsis>
 					<description><para>
