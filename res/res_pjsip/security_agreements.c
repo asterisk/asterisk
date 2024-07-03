@@ -290,6 +290,8 @@ int ast_sip_add_security_headers(struct ast_sip_security_mechanism_vector *secur
 	int mech_cnt;
 	int i;
 	int add_qvalue = 1;
+	static const pj_str_t proxy_require = { "Proxy-Require", 13 };
+	static const pj_str_t require = { "Require", 7 };
 
 	if (!security_mechanisms || !tdata) {
 		return EINVAL;
@@ -313,6 +315,13 @@ int ast_sip_add_security_headers(struct ast_sip_security_mechanism_vector *secur
 		}
 		ast_sip_add_header(tdata, header_name, buf);
 		ast_free(buf);
+	}
+
+	if (pjsip_msg_find_hdr_by_name(tdata->msg, &require, NULL) == NULL) {
+		ast_sip_add_header(tdata, "Require", "mediasec");
+	}
+	if (pjsip_msg_find_hdr_by_name(tdata->msg, &proxy_require, NULL) == NULL) {
+		ast_sip_add_header(tdata, "Proxy-Require", "mediasec");
 	}
 	return 0;
 }

@@ -644,8 +644,6 @@ out:
 static void add_security_headers(struct sip_outbound_registration_client_state *client_state,
 	pjsip_tx_data *tdata)
 {
-	int add_require_header = 1;
-	int add_proxy_require_header = 1;
 	int add_sec_client_header = 0;
 	struct sip_outbound_registration *reg = NULL;
 	struct ast_sip_endpoint *endpt = NULL;
@@ -654,8 +652,6 @@ static void add_security_headers(struct sip_outbound_registration_client_state *
 	struct ast_sip_security_mechanism_vector *sec_mechs = NULL;
 	static const pj_str_t security_verify = { "Security-Verify", 15 };
 	static const pj_str_t security_client = { "Security-Client", 15 };
-	static const pj_str_t proxy_require = { "Proxy-Require", 13 };
-	static const pj_str_t require = { "Require", 7 };
 
 	if (client_state->security_negotiation != AST_SIP_SECURITY_NEG_MEDIASEC) {
 		return;
@@ -689,20 +685,10 @@ static void add_security_headers(struct sip_outbound_registration_client_state *
 			/* necessary if a retry occures */
 			add_sec_client_header = (pjsip_msg_find_hdr_by_name(tdata->msg, &security_client, NULL) == NULL) ? 1 : 0;
 		}
-		add_require_header =
-			(pjsip_msg_find_hdr_by_name(tdata->msg, &require, NULL) == NULL) ? 1 : 0;
-		add_proxy_require_header =
-			(pjsip_msg_find_hdr_by_name(tdata->msg, &proxy_require, NULL) == NULL) ? 1 : 0;
 	} else {
 		ast_sip_add_security_headers(&client_state->security_mechanisms, "Security-Client", 0, tdata);
 	}
 
-	if (add_require_header) {
-		ast_sip_add_header(tdata, "Require", "mediasec");
-	}
-	if (add_proxy_require_header) {
-		ast_sip_add_header(tdata, "Proxy-Require", "mediasec");
-	}
 	if (add_sec_client_header) {
 		ast_sip_add_security_headers(&client_state->security_mechanisms, "Security-Client", 0, tdata);
 	}
