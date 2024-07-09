@@ -20,15 +20,11 @@ AST_BOOL_VALUES = [ '0', '1',
                     'false', 'true',
                     'no', 'yes' ]
 
-
 def upgrade():
-    # Create the new enum
+    # ast_bool_values have already been created, so use postgres enum object
+    # type to get around "already created" issue - works okay with mysql
     ast_bool_values = ENUM(*AST_BOOL_VALUES, name=AST_BOOL_NAME, create_type=False)
-    if op.get_context().bind.dialect.name == 'postgresql':
-        ast_bool_values.create(op.get_bind(), checkfirst=False)
-
     op.add_column('queues', sa.Column('log_restricted_caller_id', ast_bool_values))
-
 
 def downgrade():
     op.drop_column('queues', 'log_restricted_caller_id')
