@@ -55,6 +55,46 @@
 		</description>
 	</application>
 
+	<application name="PJSIPNotify" language="en_US">
+		<synopsis>
+			Send a NOTIFY to either an arbitrary URI, or inside a SIP dialog.
+		</synopsis>
+		<syntax>
+			<parameter name="to" required="false">
+				<para>Abritrary URI to which to send the NOTIFY.  If none is specified, send inside
+				the SIP dialog for the current channel.</para>
+			</parameter>
+			<parameter name="content" required="true">
+				<para>Either an option pre-configured in pjsip_notify.conf or a list of headers and body content to send in the NOTIFY.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>
+			Sends a NOTIFY to a specified URI, or if none provided, within the current SIP dialog for the
+			current channel.  The content can either be set to either an entry configured in pjsip_notify.conf
+			or specified as a list of key value pairs.
+			</para>
+			<warning><para>
+			To send a NOTIFY to a specified URI, a default_outbound_endpoint must be configured.  This
+			endpoint determines the message contact.
+			</para></warning>
+			<para>
+			</para>
+			<example title="Send a NOTIFY with Event and X-Data headers in current dialog">
+			same = n,PJSIPNotify(,&amp;Event=Test&amp;X-Data=Fun)
+			</example>
+			<example title="Send a preconfigured NOTIFY force-answer defined in pjsip_notify.conf in current dialog">
+			same = n,PJSIPNotify(,force-answer)
+			</example>
+			<example title="Send a NOTIFY to &lt;sip:bob@127.0.0.1:5260&gt; with Test Event and X-Data headers">
+			same = n,PJSIPNotify(&lt;sip:bob@127.0.0.1:5260&gt;,&amp;Event=Test&amp;X-Data=Fun)
+			</example>
+			<example title="Send a NOTIFY to &lt;sip:bob@127.0.0.1:5260&gt; with Custom Event and message body">
+			same = n,PJSIPNotify(&lt;sip:bob@127.0.0.1:5260&gt;,&amp;Event=Custom&amp;Content-type=application&#47;voicemail&amp;Content=check-messages&amp;Content=)
+			</example>
+		</description>
+	</application>
+
 	<manager name="PJSIPHangup" language="en_US">
 		<synopsis>
 			Hangup an incoming PJSIP channel with a SIP response code
