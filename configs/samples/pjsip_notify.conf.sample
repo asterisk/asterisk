@@ -55,3 +55,17 @@ Event=>check-sync\;reboot=true
 
 [cisco-check-cfg]
 Event=>check-sync
+
+; custom examples to use for PJSIPNotify application
+
+; tell an endpoint to check messages
+[custom-notify-1]
+Event=>custom
+Content-type=>application/voicemail
+Content=>check-messages
+Content=>
+
+; tell an endpoint to force a remote hangup via custom header
+[custom-notify-2]
+Event=>custom
+X-Data=>force-hangup
