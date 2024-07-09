@@ -432,6 +432,16 @@
 ;type=aor
 ;max_contacts=2
 
+;===============DEFAULT ENDPOINT FOR OUTBOUND REQUESTS TO URI===================
+;
+; This is an example default outbound endpoint.  The global setting:
+; default_outbound_endpoint needs to be set to such an endpoint in order to be
+; able to send an outbound request to a URI without a specified endpoint.
+;
+;[default_outbound_endpoint]
+;type=endpoint
+;context=none-invalid
+
 
 ;============EXAMPLE ACL CONFIGURATION==========================================
 ;
