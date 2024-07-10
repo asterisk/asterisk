@@ -49,15 +49,6 @@ struct stasis_app_control *control_create(struct ast_channel *channel, struct st
 void control_flush_queue(struct stasis_app_control *control);
 
 /*!
- * \brief set the control's thread id
- * \since 18
- *
- * \param control Control object on which to set the thread id.
- * \param threadid id to set
- */
-void control_set_thread(struct stasis_app_control *control, pthread_t threadid);
-
-/*!
  * \brief Dispatch all commands enqueued to this control.
  *
  * \param control Control object to dispatch.
