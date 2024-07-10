@@ -93,10 +93,6 @@ struct stasis_app_control {
 	 */
 	char *next_app;
 	/*!
-	 * The thread currently blocking on the channel.
-	 */
-	pthread_t control_thread;
-	/*!
 	 * The list of arguments to pass to StasisStart when moving to another app.
 	 */
 	AST_VECTOR(, char *) next_app_args;
@@ -160,8 +156,6 @@ struct stasis_app_control *control_create(struct ast_channel *channel, struct st
 	control->next_app = NULL;
 	AST_VECTOR_INIT(&control->next_app_args, 0);
 
-	control_set_thread(control, AST_PTHREADT_NULL);
-
 	return control;
 }
 
@@ -188,13 +182,6 @@ static void app_control_unregister_rule(
 		}
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END;
-	ao2_unlock(control->command_queue);
-}
-
-void control_set_thread(struct stasis_app_control *control, pthread_t threadid)
-{
-	ao2_lock(control->command_queue);
-	control->control_thread = threadid;
 	ao2_unlock(control->command_queue);
 }
 
@@ -307,10 +294,10 @@ static struct stasis_app_command *exec_command_on_condition(
 	ao2_link_flags(control->command_queue, command, OBJ_NOLOCK);
 	ast_cond_signal(&control->wait_cond);
 
-	if (control->control_thread != AST_PTHREADT_NULL) {
-		/* if the control thread is waiting on the channel, send the SIGURG
-		   to let it know there is a new command */
-		pthread_kill(control->control_thread, SIGURG);
+	if (control->channel) {
+		/* Queue a null frame so that if and when the channel is waited on,
+		   return immediately to process the new command */
+		ast_queue_frame(control->channel, &ast_null_frame);
 	}
 
 	ao2_unlock(control->command_queue);
