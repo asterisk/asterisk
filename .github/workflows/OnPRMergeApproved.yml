@@ -13,7 +13,5 @@ jobs:
     name: MergePR
     if: contains(fromJSON(vars.MERGE_APPROVED_LABELS), github.event.label.name)
     uses: asterisk/asterisk-ci-actions/.github/workflows/AsteriskMergePR.yml@main
-# Merging requires a specific token or it'll get caught in the rules that
-# prevent merges by mortals.
     secrets:
-      TOKEN: ${{ secrets.ASTERISKTEAM_PAT }}
+      TOKEN: ${{ secrets.GITHUB_TOKEN }}
