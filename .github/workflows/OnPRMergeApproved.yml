@@ -15,3 +15,5 @@ jobs:
     uses: asterisk/asterisk-ci-actions/.github/workflows/AsteriskMergePR.yml@main
     secrets:
       TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      application_id: ${{secrets.ASTERISK_ORG_ACCESS_APP_ID}}
+      application_private_key: ${{secrets.ASTERISK_ORG_ACCESS_APP_PRIV_KEY}}
