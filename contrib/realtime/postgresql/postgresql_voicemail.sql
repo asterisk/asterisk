@@ -27,7 +27,7 @@ ALTER TABLE voicemail_messages ADD CONSTRAINT voicemail_messages_dir_msgnum PRIM
 
 CREATE INDEX voicemail_messages_dir ON voicemail_messages (dir);
 
-INSERT INTO alembic_version (version_num) VALUES ('a2e9769475e');
+INSERT INTO alembic_version (version_num) VALUES ('a2e9769475e') RETURNING alembic_version.version_num;
 
 -- Running upgrade a2e9769475e -> 39428242f7f5
 

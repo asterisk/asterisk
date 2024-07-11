@@ -1643,8 +1643,6 @@ UPDATE alembic_version SET version_num='74dc751dfe8e' WHERE alembic_version.vers
 
 ALTER TABLE ps_transports ADD COLUMN tcp_keepalive_enable BOOL;
 
-ALTER TABLE ps_transports ADD CHECK (tcp_keepalive_enable IN (0, 1));
-
 ALTER TABLE ps_transports ADD COLUMN tcp_keepalive_idle_time INTEGER;
 
 ALTER TABLE ps_transports ADD COLUMN tcp_keepalive_interval_time INTEGER;
@@ -1690,4 +1688,10 @@ UPDATE alembic_version SET version_num='6c475a93f48a' WHERE alembic_version.vers
 ALTER TABLE ps_endpoint_id_ips DROP COLUMN transport;
 
 UPDATE alembic_version SET version_num='bd9c5159c7ea' WHERE alembic_version.version_num = '6c475a93f48a';
+
+-- Running upgrade bd9c5159c7ea -> 2b7c507d7d12
+
+ALTER TABLE queues ADD COLUMN log_restricted_caller_id ENUM('0','1','off','on','false','true','no','yes');
+
+UPDATE alembic_version SET version_num='2b7c507d7d12' WHERE alembic_version.version_num = 'bd9c5159c7ea';
 
