@@ -272,7 +272,7 @@ CREATE TABLE musiconhold (
     PRIMARY KEY (name)
 );
 
-INSERT INTO alembic_version (version_num) VALUES ('4da0c5f79a9c');
+INSERT INTO alembic_version (version_num) VALUES ('4da0c5f79a9c') RETURNING alembic_version.version_num;
 
 -- Running upgrade 4da0c5f79a9c -> 43956d550a44
 
@@ -1810,6 +1810,12 @@ UPDATE alembic_version SET version_num='6c475a93f48a' WHERE alembic_version.vers
 ALTER TABLE ps_endpoint_id_ips DROP COLUMN transport;
 
 UPDATE alembic_version SET version_num='bd9c5159c7ea' WHERE alembic_version.version_num = '6c475a93f48a';
+
+-- Running upgrade bd9c5159c7ea -> 2b7c507d7d12
+
+ALTER TABLE queues ADD COLUMN log_restricted_caller_id ast_bool_values;
+
+UPDATE alembic_version SET version_num='2b7c507d7d12' WHERE alembic_version.version_num = 'bd9c5159c7ea';
 
 COMMIT;
 

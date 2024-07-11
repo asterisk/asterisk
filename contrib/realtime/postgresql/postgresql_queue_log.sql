@@ -23,7 +23,7 @@ CREATE TABLE queue_log (
     UNIQUE (id)
 );
 
-INSERT INTO alembic_version (version_num) VALUES ('4105ee839f58');
+INSERT INTO alembic_version (version_num) VALUES ('4105ee839f58') RETURNING alembic_version.version_num;
 
 COMMIT;
 
