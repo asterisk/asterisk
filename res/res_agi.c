@@ -3650,8 +3650,10 @@ static int handle_speechrecognize(struct ast_channel *chan, AGI *agi, int argc, 
 			time(&current);
 			if ((current - start) >= timeout) {
 				reason = "timeout";
-				if (fr)
+				if (fr) {
 					ast_frfree(fr);
+					fr = NULL;
+				}
 				break;
 			}
 		}
@@ -3708,6 +3710,7 @@ static int handle_speechrecognize(struct ast_channel *chan, AGI *agi, int argc, 
 				reason = "hangup";
 			}
 			ast_frfree(fr);
+			fr = NULL;
 		}
 	}
 
