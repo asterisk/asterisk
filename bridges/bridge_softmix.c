@@ -1243,7 +1243,7 @@ static int softmix_bridge_write_control(struct ast_bridge *bridge, struct ast_br
 	case AST_CONTROL_VIDUPDATE:
 		if (!bridge->softmix.video_mode.video_update_discard ||
 			ast_tvdiff_ms(ast_tvnow(), softmix_data->last_video_update) > bridge->softmix.video_mode.video_update_discard) {
-			ast_bridge_queue_everyone_else(bridge, NULL, frame);
+			ast_bridge_queue_everyone_else(bridge, bridge_channel, frame);
 			softmix_data->last_video_update = ast_tvnow();
 		}
 		break;
