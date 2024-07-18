@@ -31,7 +31,7 @@ CREATE TABLE cdr (
     sequence INTEGER
 );
 
-INSERT INTO alembic_version (version_num) VALUES ('210693f3123d');
+INSERT INTO alembic_version (version_num) VALUES ('210693f3123d') RETURNING alembic_version.version_num;
 
 -- Running upgrade 210693f3123d -> 54cde9847798
 
