@@ -39,6 +39,7 @@
 #include "asterisk/channel.h"
 #include "asterisk/dsp.h"
 #include "asterisk/pbx.h"
+#include "asterisk/stasis_channels.h"
 #include "asterisk/audiohook.h"
 #include "asterisk/app.h"
 #include "asterisk/indications.h"
@@ -355,6 +356,7 @@ static int detect_callback(struct ast_audiohook *audiohook, struct ast_channel *
 {
 	struct ast_datastore *datastore = NULL;
 	struct detect_information *di = NULL;
+	struct stasis_message *message;
 	int match = 0;
 
 	/* If the audiohook is stopping it means the channel is shutting down.... but we let the datastore destroy take care of it */
@@ -394,6 +396,16 @@ static int detect_callback(struct ast_audiohook *audiohook, struct ast_channel *
 			}
 			ast_debug(1, "TONE_DETECT just got a hit (#%d in this direction, waiting for %d total)\n", now, di->hitsrequired);
 			if (now >= di->hitsrequired) {
+				message = ast_channel_blob_create_from_cache(ast_channel_uniqueid(chan), ast_channel_tone_detect(), NULL);
+
+				if (!message) {
+					ast_log(LOG_ERROR, "Unable to publish tone detected event for ARI on channel '%s'", ast_channel_name(chan));
+					return 1;
+				} else {
+					stasis_publish(ast_channel_topic(chan), message);
+					ao2_ref(message, -1);
+				}
+
 				if (direction == AST_AUDIOHOOK_DIRECTION_READ && di->gotorx) {
 					ast_async_parseable_goto(chan, di->gotorx);
 				} else if (di->gototx) {

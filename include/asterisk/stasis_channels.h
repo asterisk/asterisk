@@ -657,6 +657,14 @@ struct stasis_message_type *ast_channel_talking_start(void);
 struct stasis_message_type *ast_channel_talking_stop(void);
 
 /*!
+ * \since 22.0.0
+ * \brief Message type for a channel tone detection
+ *
+ * \return A stasis message type
+ */
+struct stasis_message_type *ast_channel_tone_detect(void);
+
+/*!
  * \since 12
  * \brief Publish in the \ref ast_channel_topic or \ref ast_channel_topic_all
  * topics a stasis message for the channels involved in a dial operation.

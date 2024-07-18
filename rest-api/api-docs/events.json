@@ -178,6 +178,7 @@
 				"ChannelUserevent",
 				"ChannelHangupRequest",
 				"ChannelVarset",
+				"ChannelToneDetected",
 				"ChannelTalkingStarted",
 				"ChannelTalkingFinished",
 				"ChannelHold",
@@ -756,6 +757,17 @@
 					"required": true,
 					"type": "Channel",
 					"description": "The channel that initiated the unhold event."
+				}
+			}
+		},
+		"ChannelToneDetected": {
+			"id": "ChannelToneDetected",
+			"description": "Tone was detected on the channel.",
+			"properties": {
+				"channel": {
+					"required": true,
+					"type": "Channel",
+					"description": "The channel the tone was detected on."
 				}
 			}
 		},
