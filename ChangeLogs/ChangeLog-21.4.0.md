@@ -1,11 +1,11 @@
 
-## Change Log for Release asterisk-21.4.0-rc1
+## Change Log for Release asterisk-21.4.0
 
 ### Links:
 
- - [Full ChangeLog](https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-21.4.0-rc1.md)  
- - [GitHub Diff](https://github.com/asterisk/asterisk/compare/21.3.1...21.4.0-rc1)  
- - [Tarball](https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-21.4.0-rc1.tar.gz)  
+ - [Full ChangeLog](https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-21.4.0.md)  
+ - [GitHub Diff](https://github.com/asterisk/asterisk/compare/21.3.1...21.4.0)  
+ - [Tarball](https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-21.4.0.tar.gz)  
  - [Downloads](https://downloads.asterisk.org/pub/telephony/asterisk)  
 
 ### Summary:
