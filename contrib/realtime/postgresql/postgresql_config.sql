@@ -272,7 +272,7 @@ CREATE TABLE musiconhold (
     PRIMARY KEY (name)
 );
 
-INSERT INTO alembic_version (version_num) VALUES ('4da0c5f79a9c');
+INSERT INTO alembic_version (version_num) VALUES ('4da0c5f79a9c') RETURNING alembic_version.version_num;
 
 -- Running upgrade 4da0c5f79a9c -> 43956d550a44
 
