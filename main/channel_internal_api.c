@@ -1252,7 +1252,9 @@ static int collect_names_cb(void *obj, void *arg, int flags)
 	struct ast_control_pvt_cause_code *cause_code = obj;
 	struct ast_str **str = arg;
 
-	ast_str_append(str, 0, "%s%s", (ast_str_strlen(*str) ? "," : ""), cause_code->chan_name);
+	if (!cause_code->cause_extended) {
+		ast_str_append(str, 0, "%s%s", (ast_str_strlen(*str) ? "," : ""), cause_code->chan_name);
+	}
 
 	return 0;
 }
@@ -1272,7 +1274,24 @@ struct ast_str *ast_channel_dialed_causes_channels(const struct ast_channel *cha
 
 struct ast_control_pvt_cause_code *ast_channel_dialed_causes_find(const struct ast_channel *chan, const char *chan_name)
 {
-	return ao2_find(chan->dialed_causes, chan_name, OBJ_KEY);
+	struct ao2_iterator *causes;
+	struct ast_control_pvt_cause_code *cause_code;
+
+	causes = ao2_find(chan->dialed_causes, chan_name, OBJ_KEY | OBJ_MULTIPLE);
+	while ((cause_code = ao2_iterator_next(causes))) {
+		if (!cause_code->cause_extended) {
+			ao2_iterator_destroy(causes);
+			return cause_code;
+		}
+		ao2_ref(cause_code, -1);
+	}
+	ao2_iterator_destroy(causes);
+	return NULL;
+}
+
+struct ao2_iterator *ast_channel_dialed_causes_find_multiple(const struct ast_channel *chan, const char *chan_name)
+{
+	return ao2_find(chan->dialed_causes, chan_name, OBJ_KEY | OBJ_MULTIPLE);
 }
 
 int ast_channel_dialed_causes_add(const struct ast_channel *chan, const struct ast_control_pvt_cause_code *cause_code, int datalen)
@@ -1281,6 +1300,7 @@ int ast_channel_dialed_causes_add(const struct ast_channel *chan, const struct a
 	ao2_find(chan->dialed_causes, cause_code->chan_name, OBJ_KEY | OBJ_UNLINK | OBJ_NODATA);
 	ao2_cause_code = ao2_alloc(datalen, NULL);
 
+	
 	if (ao2_cause_code) {
 		memcpy(ao2_cause_code, cause_code, datalen);
 		ao2_link(chan->dialed_causes, ao2_cause_code);
