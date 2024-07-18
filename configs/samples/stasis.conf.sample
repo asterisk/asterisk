@@ -69,6 +69,7 @@
 ; decline=ast_channel_agent_logoff_type
 ; decline=ast_channel_talking_start
 ; decline=ast_channel_talking_stop
+; decline=ast_channel_tone_detect
 ; decline=ast_security_event_type
 ; decline=ast_named_acl_change_type
 ; decline=ast_local_bridge_type

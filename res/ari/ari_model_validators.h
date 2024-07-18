@@ -912,6 +912,22 @@ int ast_ari_validate_channel_talking_started(struct ast_json *json);
 ari_validator ast_ari_validate_channel_talking_started_fn(void);
 
 /*!
+ * \brief Validator for ChannelToneDetected.
+ *
+ * Tone was detected on the channel.
+ *
+ * \param json JSON object to validate.
+ * \retval True (non-zero) if valid.
+ * \retval False (zero) if invalid.
+ */
+int ast_ari_validate_channel_tone_detected(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_channel_tone_detected().
+ */
+ari_validator ast_ari_validate_channel_tone_detected_fn(void);
+
+/*!
  * \brief Validator for ChannelUnhold.
  *
  * A channel initiated a media unhold.
@@ -1600,6 +1616,12 @@ ari_validator ast_ari_validate_application_fn(void);
  * - channel: Channel (required)
  * - duration: int (required)
  * ChannelTalkingStarted
+ * - asterisk_id: string
+ * - type: string (required)
+ * - application: string (required)
+ * - timestamp: Date (required)
+ * - channel: Channel (required)
+ * ChannelToneDetected
  * - asterisk_id: string
  * - type: string (required)
  * - application: string (required)
