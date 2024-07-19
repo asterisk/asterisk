@@ -83,6 +83,15 @@ ASN1_OCTET_STRING *crypto_get_cert_extension_data(X509 *cert, int nid,
 X509 *crypto_load_cert_from_file(const char *filename);
 
 /*!
+ * \brief Load an X509 CRL from a PEM file
+ *
+ * \param filename PEM file
+ *
+ * \returns X509_CRL* or NULL on error
+ */
+X509_CRL *crypto_load_crl_from_file(const char *filename);
+
+/*!
  * \brief Load a private key from memory
  *
  * \param buffer private key
@@ -168,7 +177,13 @@ EVP_PKEY *crypto_load_privkey_from_file(const char *filename);
  * \brief ao2 object wrapper for X509_STORE that provides locking and refcounting
  */
 struct crypto_cert_store {
-	X509_STORE *store;
+	X509_STORE *certs;
+	X509_STORE *crls;
+	/*!< The verification context needs a stack of CRLs, not the store */
+	STACK_OF(X509_CRL) *crl_stack;
+	X509_STORE *untrusted;
+	/*!< The verification context needs a stack of untrusted certs, not the store */
+	STACK_OF(X509) *untrusted_stack;
 };
 
 /*!
@@ -209,6 +224,36 @@ int crypto_show_cli_store(struct crypto_cert_store *store, int fd);
  * \retval 0 success
  */
 int crypto_load_cert_store(struct crypto_cert_store *store, const char *file,
+	const char *path);
+
+/*!
+ * \brief Load an X509 Store with certificate revocation lists
+ *
+ * \param store X509 Store to load
+ * \param file CRL file to load or NULL
+ * \param path Path to directory with hashed CRLs to load or NULL
+ *
+ * \note At least 1 file or path must be specified.
+ *
+ * \retval <= 0 failure
+ * \retval 0 success
+ */
+int crypto_load_crl_store(struct crypto_cert_store *store, const char *file,
+	const char *path);
+
+/*!
+ * \brief Load an X509 Store with untrusted certificates
+ *
+ * \param store X509 Store to load
+ * \param file Certificate file to load or NULL
+ * \param path Path to directory with hashed certs to load or NULL
+ *
+ * \note At least 1 file or path must be specified.
+ *
+ * \retval <= 0 failure
+ * \retval 0 success
+ */
+int crypto_load_untrusted_cert_store(struct crypto_cert_store *store, const char *file,
 	const char *path);
 
 /*!
