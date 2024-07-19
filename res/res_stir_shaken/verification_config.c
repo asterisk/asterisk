@@ -29,6 +29,8 @@
 #define DEFAULT_ca_path NULL
 #define DEFAULT_crl_file NULL
 #define DEFAULT_crl_path NULL
+#define DEFAULT_untrusted_cert_file NULL
+#define DEFAULT_untrusted_cert_path NULL
 static char DEFAULT_cert_cache_dir[PATH_MAX];
 
 #define DEFAULT_curl_timeout 2
@@ -129,6 +131,8 @@ int vs_copy_cfg_common(const char *id, struct verification_cfg_common *cfg_dst,
 		cfg_sf_copy_wrapper(id, cfg_dst, cfg_src, ca_path);
 		cfg_sf_copy_wrapper(id, cfg_dst, cfg_src, crl_file);
 		cfg_sf_copy_wrapper(id, cfg_dst, cfg_src, crl_path);
+		cfg_sf_copy_wrapper(id, cfg_dst, cfg_src, untrusted_cert_file);
+		cfg_sf_copy_wrapper(id, cfg_dst, cfg_src, untrusted_cert_path);
 		ao2_bump(cfg_src->tcs);
 		cfg_dst->tcs = cfg_src->tcs;
 	}
@@ -188,6 +192,20 @@ int vs_check_common_config(const char *id,
 			id, vcfg_common->crl_path);
 	}
 
+	if (!ast_strlen_zero(vcfg_common->untrusted_cert_file)
+		&& !ast_file_is_readable(vcfg_common->untrusted_cert_file)) {
+		SCOPE_EXIT_LOG_RTN_VALUE(-1, LOG_ERROR,
+			"%s: untrusted_cert_file '%s' not found, or is unreadable\n",
+			id, vcfg_common->untrusted_cert_file);
+	}
+
+	if (!ast_strlen_zero(vcfg_common->untrusted_cert_path)
+		&& !ast_file_is_readable(vcfg_common->untrusted_cert_path)) {
+		SCOPE_EXIT_LOG_RTN_VALUE(-1, LOG_ERROR,
+			"%s: untrusted_cert_path '%s' not found, or is unreadable\n",
+			id, vcfg_common->untrusted_cert_path);
+	}
+
 	if (!ast_strlen_zero(vcfg_common->ca_file)
 		|| !ast_strlen_zero(vcfg_common->ca_path)) {
 		int rc = 0;
@@ -219,7 +237,7 @@ int vs_check_common_config(const char *id,
 					"%s: Unable to create CA cert store\n", id);
 			}
 		}
-		rc = crypto_load_cert_store(vcfg_common->tcs,
+		rc = crypto_load_crl_store(vcfg_common->tcs,
 			vcfg_common->crl_file, vcfg_common->crl_path);
 		if (rc != 0) {
 			SCOPE_EXIT_LOG_RTN_VALUE(-1, LOG_ERROR,
@@ -228,14 +246,34 @@ int vs_check_common_config(const char *id,
 		}
 	}
 
+	if (!ast_strlen_zero(vcfg_common->untrusted_cert_file)
+		|| !ast_strlen_zero(vcfg_common->untrusted_cert_path)) {
+		int rc = 0;
+
+		if (!vcfg_common->tcs) {
+			vcfg_common->tcs = crypto_create_cert_store();
+			if (!vcfg_common->tcs) {
+				SCOPE_EXIT_LOG_RTN_VALUE(-1, LOG_ERROR,
+					"%s: Unable to create CA cert store\n", id);
+			}
+		}
+		rc = crypto_load_untrusted_cert_store(vcfg_common->tcs,
+			vcfg_common->untrusted_cert_file, vcfg_common->untrusted_cert_path);
+		if (rc != 0) {
+			SCOPE_EXIT_LOG_RTN_VALUE(-1, LOG_ERROR,
+				"%s: Unable to load CA CRL store from '%s' or '%s'\n",
+				id, vcfg_common->untrusted_cert_file, vcfg_common->untrusted_cert_path);
+		}
+	}
+
 	if (vcfg_common->tcs) {
 		if (ENUM_BOOL(vcfg_common->load_system_certs, load_system_certs)) {
-			X509_STORE_set_default_paths(vcfg_common->tcs->store);
+			X509_STORE_set_default_paths(vcfg_common->tcs->certs);
 		}
 
 		if (!ast_strlen_zero(vcfg_common->crl_file)
 			|| !ast_strlen_zero(vcfg_common->crl_path)) {
-			X509_STORE_set_flags(vcfg_common->tcs->store, X509_V_FLAG_CRL_CHECK | X509_V_FLAG_CRL_CHECK_ALL);
+			X509_STORE_set_flags(vcfg_common->tcs->certs, X509_V_FLAG_CRL_CHECK | X509_V_FLAG_EXTENDED_CRL_SUPPORT);
 		}
 	}
 
@@ -353,6 +391,11 @@ static char *cli_verification_show(struct ast_cli_entry *e, int cmd, struct ast_
 
 	if (a->argc != 3) {
 		return CLI_SHOWUSAGE;
+	}
+
+	if (!vs_is_config_loaded()) {
+		ast_log(LOG_WARNING,"Stir/Shaken verification service disabled.  Either there were errors in the 'verification' object in stir_shaken.conf or it was missing altogether.\n");
+		return CLI_FAILURE;
 	}
 
 	cfg = vs_get_cfg();

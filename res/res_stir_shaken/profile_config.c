@@ -34,6 +34,8 @@
 #define DEFAULT_ca_path NULL
 #define DEFAULT_crl_file NULL
 #define DEFAULT_crl_path NULL
+#define DEFAULT_untrusted_cert_file NULL
+#define DEFAULT_untrusted_cert_path NULL
 #define DEFAULT_cert_cache_dir NULL
 
 #define DEFAULT_curl_timeout 0
@@ -100,7 +102,7 @@ static void *profile_alloc(const char *name)
 	return profile;
 }
 
-static struct ao2_container *profile_get_all(void)
+struct ao2_container *profile_get_all(void)
 {
 	return ast_sorcery_retrieve_by_fields(get_sorcery(), CONFIG_TYPE,
 		AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
@@ -114,7 +116,7 @@ struct profile_cfg *profile_get_cfg(const char *id)
 	return ast_sorcery_retrieve_by_id(get_sorcery(), CONFIG_TYPE, id);
 }
 
-static struct ao2_container *eprofile_get_all(void)
+struct ao2_container *eprofile_get_all(void)
 {
 	return ast_sorcery_retrieve_by_fields(get_sorcery(), "eprofile",
 		AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
