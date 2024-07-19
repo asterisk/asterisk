@@ -259,6 +259,112 @@ char *config_object_tab_complete_name(const char *word, struct ao2_container *co
 	return NULL;
 }
 
+
+/* Remove everything except 0-9, *, and # in telephone number according to RFC 8224
+ * (required by RFC 8225 as part of canonicalization) */
+char *canonicalize_tn(const char *tn, char *dest_tn)
+{
+	int i;
+	const char *s = tn;
+	size_t len = tn ? strlen(tn) : 0;
+	char *new_tn = dest_tn;
+	SCOPE_ENTER(3, "tn: %s\n", S_OR(tn, "(null)"));
+
+	if (ast_strlen_zero(tn)) {
+		*dest_tn = '\0';
+		SCOPE_EXIT_RTN_VALUE(NULL, "Empty TN\n");
+	}
+
+	if (!dest_tn) {
+		SCOPE_EXIT_RTN_VALUE(NULL, "No destination buffer\n");
+	}
+
+	for (i = 0; i < len; i++) {
+		if (isdigit(*s) || *s == '#' || *s == '*') { /* Only characters allowed */
+			*new_tn++ = *s;
+		}
+		s++;
+	}
+	*new_tn = '\0';
+	SCOPE_EXIT_RTN_VALUE(dest_tn, "Canonicalized '%s' -> '%s'\n", tn, dest_tn);
+}
+
+char *canonicalize_tn_alloc(const char *tn)
+{
+	char *canon_tn = ast_strlen_zero(tn) ? NULL : ast_malloc(strlen(tn) + 1);
+	if (!canon_tn) {
+		return NULL;
+	}
+	return canonicalize_tn(tn, canon_tn);
+}
+
+static char *cli_verify_cert(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	RAII_VAR(struct profile_cfg *, profile, NULL, ao2_cleanup);
+	RAII_VAR(struct verification_cfg *, vs_cfg, NULL, ao2_cleanup);
+	struct crypto_cert_store *tcs;
+	X509 *cert = NULL;
+	const char *errmsg = NULL;
+
+	switch(cmd) {
+	case CLI_INIT:
+		e->command = "stir_shaken verify certificate_file";
+		e->usage =
+			"Usage: stir_shaken verify certificate_file <certificate_file> [ <profile> ]\n"
+			"       Verify an external certificate file against the global or profile verification store\n";
+		return NULL;
+	case CLI_GENERATE:
+		if (a->pos == 4) {
+			return config_object_tab_complete_name(a->word, profile_get_all());
+		} else {
+			return NULL;
+		}
+	}
+
+	if (a->argc < 4) {
+		return CLI_SHOWUSAGE;
+	}
+
+	if (a->argc == 5) {
+		profile = profile_get_cfg(a->argv[4]);
+		if (!profile) {
+			ast_cli(a->fd, "Profile %s doesn't exist\n", a->argv[4]);
+			return CLI_SUCCESS;
+		}
+		if (!profile->vcfg_common.tcs) {
+			ast_cli(a->fd,"Profile %s doesn't have a certificate store\n", a->argv[4]);
+			return CLI_SUCCESS;
+		}
+		tcs = profile->vcfg_common.tcs;
+	} else {
+		vs_cfg = vs_get_cfg();
+		if (!vs_cfg) {
+			ast_cli(a->fd, "No verification store found\n");
+			return CLI_SUCCESS;
+		}
+		tcs = vs_cfg->vcfg_common.tcs;
+	}
+
+	cert = crypto_load_cert_from_file(a->argv[3]);
+	if (!cert) {
+		ast_cli(a->fd, "Failed to load certificate from %s.  See log for details\n", a->argv[3]);
+		return CLI_SUCCESS;
+	}
+
+	if (crypto_is_cert_trusted(tcs, cert, &errmsg)) {
+		ast_cli(a->fd, "Certificate %s trusted\n", a->argv[3]);
+	} else {
+		ast_cli(a->fd, "Certificate %s NOT trusted: %s\n", a->argv[3], errmsg);
+	}
+	X509_free(cert);
+
+	return CLI_SUCCESS;
+}
+
+static struct ast_cli_entry cli_commands[] = {
+	AST_CLI_DEFINE(cli_verify_cert, "Verify a certificate file against the global or a profile verification store"),
+};
+
 int common_config_reload(void)
 {
 	SCOPE_ENTER(2, "Stir Shaken Reload\n");
@@ -283,6 +389,8 @@ int common_config_reload(void)
 
 int common_config_unload(void)
 {
+	ast_cli_unregister_multiple(cli_commands, ARRAY_LEN(cli_commands));
+
 	profile_unload();
 	tn_config_unload();
 	as_unload();
@@ -348,44 +456,7 @@ int common_config_load(void)
 			named_acl_changed_sub, ast_named_acl_change_type());
 	}
 
+	ast_cli_register_multiple(cli_commands, ARRAY_LEN(cli_commands));
+
 	SCOPE_EXIT_RTN_VALUE(AST_MODULE_LOAD_SUCCESS, "Stir Shaken Load Done\n");
-}
-
-
-/* Remove everything except 0-9, *, and # in telephone number according to RFC 8224
- * (required by RFC 8225 as part of canonicalization) */
-char *canonicalize_tn(const char *tn, char *dest_tn)
-{
-	int i;
-	const char *s = tn;
-	size_t len = tn ? strlen(tn) : 0;
-	char *new_tn = dest_tn;
-	SCOPE_ENTER(3, "tn: %s\n", S_OR(tn, "(null)"));
-
-	if (ast_strlen_zero(tn)) {
-		*dest_tn = '\0';
-		SCOPE_EXIT_RTN_VALUE(NULL, "Empty TN\n");
-	}
-
-	if (!dest_tn) {
-		SCOPE_EXIT_RTN_VALUE(NULL, "No destination buffer\n");
-	}
-
-	for (i = 0; i < len; i++) {
-		if (isdigit(*s) || *s == '#' || *s == '*') { /* Only characters allowed */
-			*new_tn++ = *s;
-		}
-		s++;
-	}
-	*new_tn = '\0';
-	SCOPE_EXIT_RTN_VALUE(dest_tn, "Canonicalized '%s' -> '%s'\n", tn, dest_tn);
-}
-
-char *canonicalize_tn_alloc(const char *tn)
-{
-	char *canon_tn = ast_strlen_zero(tn) ? NULL : ast_malloc(strlen(tn) + 1);
-	if (!canon_tn) {
-		return NULL;
-	}
-	return canonicalize_tn(tn, canon_tn);
 }
