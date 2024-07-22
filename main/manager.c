@@ -5863,6 +5863,145 @@ aocmessage_cleanup:
 	return 0;
 }
 
+struct originate_permissions_entry {
+	const char *search;
+	int permission;
+	int (*searchfn)(const char *app, const char *data, const char *search);
+};
+
+/*!
+ * \internal
+ * \brief Check if the application is allowed for Originate
+ *
+ * \param app The "app" parameter
+ * \param data The "appdata" parameter (ignored)
+ * \param search The search string
+ * \retval 1 Match
+ * \retval 0 No match
+ */
+static int app_match(const char *app, const char *data, const char *search)
+{
+	/*
+	 * We use strcasestr so we don't have to trim any blanks
+	 * from the front or back of the string.
+	 */
+	return !!(strcasestr(app, search));
+}
+
+/*!
+ * \internal
+ * \brief Check if the appdata is allowed for Originate
+ *
+ * \param app The "app" parameter (ignored)
+ * \param data The "appdata" parameter
+ * \param search The search string
+ * \retval 1 Match
+ * \retval 0 No match
+ */
+static int appdata_match(const char *app, const char *data, const char *search)
+{
+	return !!(strstr(data, search));
+}
+
+/*!
+ * \internal
+ * \brief Check if the Queue application is allowed for Originate
+ *
+ * It's only allowed if there's no AGI parameter set
+ *
+ * \param app The "app" parameter
+ * \param data The "appdata" parameter
+ * \param search The search string
+ * \retval 1 Match
+ * \retval 0 No match
+ */
+static int queue_match(const char *app, const char *data, const char *search)
+{
+	char *parse;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(queuename);
+		AST_APP_ARG(options);
+		AST_APP_ARG(url);
+		AST_APP_ARG(announceoverride);
+		AST_APP_ARG(queuetimeoutstr);
+		AST_APP_ARG(agi);
+		AST_APP_ARG(gosub);
+		AST_APP_ARG(rule);
+		AST_APP_ARG(position);
+	);
+
+	if (!strcasestr(app, "queue")) {
+		return 0;
+	}
+
+	parse = ast_strdupa(data);
+	AST_STANDARD_APP_ARGS(args, parse);
+
+	/*
+	 * The Queue application is fine unless the AGI parameter is set.
+	 * If it is, we need to check the user's permissions.
+	 */
+	return !ast_strlen_zero(args.agi);
+}
+
+/*
+ * The Originate application and application data are passed
+ * to each searchfn in the list.  If a searchfn returns true
+ * and the user's permissions don't include the permissions specified
+ * in the list entry, the Originate action will be denied.
+ *
+ * If no searchfn returns true, the Originate action is allowed.
+ */
+static struct originate_permissions_entry originate_app_permissions[] = {
+	/*
+	 * The app_match function checks if the search string is
+	 * anywhere in the app parameter.  The check is case-insensitive.
+	 */
+	{ "agi", EVENT_FLAG_SYSTEM, app_match },
+	{ "dbdeltree", EVENT_FLAG_SYSTEM, app_match },
+	{ "exec", EVENT_FLAG_SYSTEM, app_match },
+	{ "externalivr", EVENT_FLAG_SYSTEM, app_match },
+	{ "mixmonitor", EVENT_FLAG_SYSTEM, app_match },
+	{ "originate", EVENT_FLAG_SYSTEM, app_match },
+	{ "reload", EVENT_FLAG_SYSTEM, app_match },
+	{ "system", EVENT_FLAG_SYSTEM, app_match },
+	/*
+	 * Since the queue_match function specifically checks
+	 * for the presence of the AGI parameter, we'll allow
+	 * the call if the user has either the AGI or SYSTEM
+	 * permission.
+	 */
+	{ "queue", EVENT_FLAG_AGI | EVENT_FLAG_SYSTEM, queue_match },
+	/*
+	 * The appdata_match function checks if the search string is
+	 * anywhere in the appdata parameter.  Unlike app_match,
+	 * the check is case-sensitive.  These are generally
+	 * dialplan functions.
+	 */
+	{ "CURL", EVENT_FLAG_SYSTEM, appdata_match },
+	{ "DB", EVENT_FLAG_SYSTEM, appdata_match },
+	{ "EVAL", EVENT_FLAG_SYSTEM, appdata_match },
+	{ "FILE", EVENT_FLAG_SYSTEM, appdata_match },
+	{ "ODBC", EVENT_FLAG_SYSTEM, appdata_match },
+	{ "REALTIME", EVENT_FLAG_SYSTEM, appdata_match },
+	{ "SHELL", EVENT_FLAG_SYSTEM, appdata_match },
+	{ NULL, 0 },
+};
+
+static int is_originate_app_permitted(const char *app, const char *data,
+	int permission)
+{
+	int i;
+
+	for (i = 0; originate_app_permissions[i].search; i++) {
+		if (originate_app_permissions[i].searchfn(app, data, originate_app_permissions[i].search)) {
+			return !!(permission & originate_app_permissions[i].permission);
+		}
+	}
+
+	return 1;
+}
+
 static int action_originate(struct mansession *s, const struct message *m)
 {
 	const char *name = astman_get_header(m, "Channel");
@@ -5954,26 +6093,8 @@ static int action_originate(struct mansession *s, const struct message *m)
 	}
 
 	if (!ast_strlen_zero(app) && s->session) {
-		int bad_appdata = 0;
-		/* To run the System application (or anything else that goes to
-		 * shell), you must have the additional System privilege */
-		if (!(s->session->writeperm & EVENT_FLAG_SYSTEM)
-			&& (
-				strcasestr(app, "system") ||      /* System(rm -rf /)
-				                                     TrySystem(rm -rf /)       */
-				strcasestr(app, "exec") ||        /* Exec(System(rm -rf /))
-				                                     TryExec(System(rm -rf /)) */
-				strcasestr(app, "agi") ||         /* AGI(/bin/rm,-rf /)
-				                                     EAGI(/bin/rm,-rf /)       */
-				strcasestr(app, "mixmonitor") ||  /* MixMonitor(blah,,rm -rf)  */
-				strcasestr(app, "externalivr") || /* ExternalIVR(rm -rf)       */
-				strcasestr(app, "originate") ||   /* Originate(Local/1234,app,System,rm -rf) */
-				(strstr(appdata, "SHELL") && (bad_appdata = 1)) ||       /* NoOp(${SHELL(rm -rf /)})  */
-				(strstr(appdata, "EVAL") && (bad_appdata = 1))           /* NoOp(${EVAL(${some_var_containing_SHELL})}) */
-				)) {
-			char error_buf[64];
-			snprintf(error_buf, sizeof(error_buf), "Originate Access Forbidden: %s", bad_appdata ? "Data" : "Application");
-			astman_send_error(s, m, error_buf);
+		if (!is_originate_app_permitted(app, appdata, s->session->writeperm)) {
+			astman_send_error(s, m, "Originate Access Forbidden: app or data blacklisted");
 			res = 0;
 			goto fast_orig_cleanup;
 		}
