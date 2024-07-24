@@ -140,7 +140,7 @@ maxlogins=3
 ; -----------------------------------------------------------------------------
 ; Voicemail can be stored in a database using the ODBC driver.
 ;
-: Storage database:
+; Storage database:
 ; The value of odbcstorage is the database connection configured in
 ; res_odbc.conf.  This may be different from the name of the ODBC DSN
 ; in /etc/odbc.ini which, in turn, may be different from the name of the
@@ -215,7 +215,7 @@ maxlogins=3
 ; the file to write to the 'recording' column will be the first format
 ; listed in the 'format' option in this config file.  If the first
 ; format is 'wav49', the file to add to the database will be the one
-; with the 'WAV' extension. 
+; with the 'WAV' extension.
 
 ; odbc_audio_on_disk = no
 
