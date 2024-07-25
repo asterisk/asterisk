@@ -1485,12 +1485,21 @@ void ast_rtp_codecs_payloads_unset(struct ast_rtp_codecs *codecs, struct ast_rtp
 
 	if (payload < AST_VECTOR_SIZE(&codecs->payload_mapping_tx)) {
 		type = AST_VECTOR_GET(&codecs->payload_mapping_tx, payload);
-		/* remove the preferred format if we are unsetting its container. */
-		if (ast_format_cmp(type->format, codecs->preferred_format) == AST_FORMAT_CMP_EQUAL) {
-			ao2_replace(codecs->preferred_format, NULL);
+		/*
+		 * Remove the preferred format if we are unsetting its container.
+		 *
+		 * There can be empty slots in payload_mapping_tx corresponding to
+		 * dynamic payload types that haven't been seen before so we need
+		 * to check for NULL before attempting to use 'type' in the call to
+		 * ast_format_cmp.
+		 */
+		if (type) {
+			if (ast_format_cmp(type->format, codecs->preferred_format) == AST_FORMAT_CMP_EQUAL) {
+				ao2_replace(codecs->preferred_format, NULL);
+			}
+			ao2_ref(type, -1);
+			AST_VECTOR_REPLACE(&codecs->payload_mapping_tx, payload, NULL);
 		}
-		ao2_cleanup(type);
-		AST_VECTOR_REPLACE(&codecs->payload_mapping_tx, payload, NULL);
 	}
 
 	if (instance && instance->engine && instance->engine->payload_set) {
