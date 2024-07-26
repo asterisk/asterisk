@@ -89,6 +89,7 @@ jobs:
           sec_adv_url_base: ${{vars.SEC_ADV_URL_BASE}}
           gpg_private_key: ${{secrets.ASTDEV_GPG_PRIV_KEY}}
           github_token: ${{secrets.GITHUB_TOKEN}}
+          asteriskteam_gh_token: ${{secrets.ASTERISKTEAM_PAT}}
           application_id: ${{secrets.ASTERISK_ORG_ACCESS_APP_ID}}
           application_private_key: ${{secrets.ASTERISK_ORG_ACCESS_APP_PRIV_KEY}}
           asteriskteamsa_username: ${{secrets.ASTERISKTEAMSA_GMAIL_ACCT}}
@@ -97,3 +98,4 @@ jobs:
           deploy_ssh_username: ${{secrets.DOWNLOADS_DEPLOY_SSH_USERNAME}}
           deploy_host: ${{vars.DEPLOY_HOST}}
           deploy_dir: ${{vars.DEPLOY_DIR}}
+          fpbx_issue_repo: ${{vars.FPBX_ISSUE_REPO}}
