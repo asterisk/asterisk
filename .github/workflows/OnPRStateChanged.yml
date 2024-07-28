@@ -10,14 +10,14 @@
 # privileges needed to add and remove labels and comments.  The
 # accompanying OnPRStateChangedPriv workflow does just that.
 
-name: PRStateChanged
-run-name: "PR ${{github.event.number}} ${{github.event.action}} by ${{ github.actor }}"
+name: PRChanged
+run-name: "PR ${{ github.event.number }} ${{ github.event.action }} by ${{ github.actor }}"
 on:
   pull_request:
     types: [opened, reopened, synchronize]
 
 concurrency:
-  group: ${{github.workflow}}-${{github.event.number}}
+  group: check-${{ github.event.number }}
   cancel-in-progress: true
 
 jobs:
@@ -32,42 +32,45 @@ jobs:
       vars:  ${{ steps.setvars.outputs.control_data }}
       testsuite_test_pr:  ${{ steps.testsuitepr.outputs.testsuite_test_pr }}
     steps:
-      - id: wait
-        run: |
-          echo "::notice::Waiting for 2 minutes to give user a chance to add PR comments"
-          sleep 120
-          exit 0
-
       - id: setvars
         uses: asterisk/asterisk-ci-actions/GetRepoControlData@main
         with:
-          repo: ${{ github.event.repository.name}}
+          repo: ${{ github.event.repository.name }}
+
+      - id: wait
+        env:
+          PR_STATE_CHANGE_DELAY_SEC: ${{ fromJSON(steps.setvars.outputs.control_data).PR_STATE_CHANGE_DELAY_SEC || 120 }}
+        run: |
+          echo "Waiting for ${PR_STATE_CHANGE_DELAY_SEC} seconds to give user a chance to add PR comments"
+          sleep ${PR_STATE_CHANGE_DELAY_SEC}
+          exit 0
 
       - name: GetTestsuitePR
         id: testsuitepr
         uses: asterisk/asterisk-ci-actions/GetTestsuitePRFromAsteriskPR@main
         with:
-          repo:     ${{github.repository}}
-          pr_number: ${{github.event.number}}
-          testsuite_test_pr_regex: ${{ fromJSON(steps.setvars.outputs.control_data).TESTSUITE_TEST_PR_REGEX }}
+          repo:                            ${{ github.repository }}
+          pr_number:                       ${{ github.event.number }}
+          testsuite_test_pr_regex:         ${{ fromJSON(steps.setvars.outputs.control_data).TESTSUITE_TEST_PR_REGEX }}
           testsuite_test_auto_merge_regex: ${{ fromJSON(steps.setvars.outputs.control_data).TESTSUITE_TEST_AUTO_MERGE_REGEX }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token:                    ${{ secrets.GITHUB_TOKEN }}
 
       - name: DumpEnvironment
+        if: ${{ fromJSON(steps.setvars.outputs.control_data).RUN_DUMP_ENV }}
         uses: asterisk/asterisk-ci-actions/DumpEnvironmentAction@main
         with:
           action-vars: ${{ toJSON(steps.setvars.outputs) }}
           action-inputs: ${{ toJSON(steps.testsuitepr.outputs) }}
 
-  PRCheck:
-    name: PRCheck
+  Check:
+    name: Check
     needs: Setup
     uses: asterisk/asterisk-ci-actions/.github/workflows/AsteriskUnitGateTest.yml@main
     with:
       test_type:         prstatechange
-      asterisk_repo:     ${{github.repository}}
-      pr_number:         ${{github.event.number}}
-      base_branch:       ${{github.event.pull_request.base.ref}}
+      asterisk_repo:     ${{ github.repository }}
+      pr_number:         ${{ github.event.number }}
+      base_branch:       ${{ github.event.pull_request.base.ref }}
       build_options:     ${{ fromJSON(needs.Setup.outputs.vars).BUILD_OPTIONS }}
       unittest_command:  ${{ fromJSON(needs.Setup.outputs.vars).UNITTEST_COMMAND }}
       testsuite_repo:    ${{ fromJSON(needs.Setup.outputs.vars).TESTSUITE_REPO }}
