@@ -10,18 +10,18 @@
 # add and remove labels and comments. Hence the "Priv" at the end
 # of this workflow name.
 #
-name: PRStateChangedPriv
-run-name: "PRStateChangedPriv ${{github.event.workflow.name}} ${{github.event.action}}"
+name: PRChangedPriv
+run-name: "PRChangedPriv ${{ github.event.workflow.name }} ${{ github.event.action }}"
 on:
   workflow_run:
-    workflows: [PRStateChanged]
+    workflows: [PRChanged]
     types:
       - requested
       - completed
 
 jobs:
-  PRStateChangedPriv:
-    name: PRStateChangedPriv
+  PRChangedPriv:
+    name: PRChangedPriv
     uses: asterisk/asterisk-ci-actions/.github/workflows/AsteriskPRStateChangedPriv.yml@main
     secrets:
       TOKEN: ${{ secrets.GITHUB_TOKEN }}
