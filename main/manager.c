@@ -124,9 +124,10 @@ enum error_type {
 };
 
 enum add_filter_result {
-	FILTER_SUCCESS,
+	FILTER_SUCCESS = 0,
 	FILTER_ALLOC_FAILED,
 	FILTER_COMPILE_FAIL,
+	FILTER_FORMAT_ERROR,
 };
 
 /*!
@@ -153,6 +154,7 @@ struct eventqent {
 	int category;
 	unsigned int seq;	/*!< sequence number */
 	struct timeval tv;  /*!< When event was allocated */
+	int event_name_hash;
 	AST_RWLIST_ENTRY(eventqent) eq_next;
 	char eventdata[1];	/*!< really variable size, allocated by append_event() */
 };
@@ -294,8 +296,8 @@ struct mansession_session {
 	int writeperm;		/*!< Authorization for writing */
 	char inbuf[1025];	/*!< Buffer -  we use the extra byte to add a '\\0' and simplify parsing */
 	int inlen;		/*!< number of buffered bytes */
-	struct ao2_container *whitefilters;	/*!< Manager event filters - white list */
-	struct ao2_container *blackfilters;	/*!< Manager event filters - black list */
+	struct ao2_container *includefilters;	/*!< Manager event filters - include list */
+	struct ao2_container *excludefilters;	/*!< Manager event filters - exclude list */
 	struct ast_variable *chanvars;  /*!< Channel variables to set for originate */
 	int send_events;	/*!<  XXX what ? */
 	struct eventqent *last_ev;	/*!< last event processed. */
@@ -349,8 +351,8 @@ struct ast_manager_user {
 	int displayconnects;		/*!< XXX unused */
 	int allowmultiplelogin; /*!< Per user option*/
 	int keep;			/*!< mark entries created on a reload */
-	struct ao2_container *whitefilters; /*!< Manager event filters - white list */
-	struct ao2_container *blackfilters; /*!< Manager event filters - black list */
+	struct ao2_container *includefilters; /*!< Manager event filters - include list */
+	struct ao2_container *excludefilters; /*!< Manager event filters - exclude list */
 	struct ast_acl_list *acl;       /*!< ACL setting */
 	char *a1_hash;			/*!< precalculated A1 for Digest auth */
 	struct ast_variable *chanvars;  /*!< Channel variables to set for originate */
@@ -382,9 +384,41 @@ static int __attribute__((format(printf, 9, 0))) __manager_event_sessions(
 	const char *func,
 	const char *fmt,
 	...);
-static enum add_filter_result manager_add_filter(const char *filter_pattern, struct ao2_container *whitefilters, struct ao2_container *blackfilters);
 
-static int match_filter(struct mansession *s, char *eventdata);
+enum event_filter_match_type {
+	FILTER_MATCH_REGEX = 0,
+	FILTER_MATCH_EXACT,
+	FILTER_MATCH_STARTS_WITH,
+	FILTER_MATCH_ENDS_WITH,
+	FILTER_MATCH_CONTAINS,
+	FILTER_MATCH_NONE,
+};
+
+static char *match_type_names[] = {
+	[FILTER_MATCH_REGEX] = "regex",
+	[FILTER_MATCH_EXACT] = "exact",
+	[FILTER_MATCH_STARTS_WITH] = "starts_with",
+	[FILTER_MATCH_ENDS_WITH] = "ends_with",
+	[FILTER_MATCH_CONTAINS] = "contains",
+	[FILTER_MATCH_NONE] = "none",
+};
+
+struct event_filter_entry {
+	enum event_filter_match_type match_type;
+	regex_t *regex_filter;
+	char *string_filter;
+	char *event_name;
+	unsigned int event_name_hash;
+	char *header_name;
+	int is_excludefilter;
+};
+
+static enum add_filter_result manager_add_filter(const char *criteria,
+	const char *filter_pattern, struct ao2_container *includefilters,
+	struct ao2_container *excludefilters);
+
+static int should_send_event(struct ao2_container *includefilters,
+	struct ao2_container *excludefilters, struct eventqent *eqe);
 
 /*!
  * @{ \brief Define AMI message types.
@@ -593,6 +627,7 @@ static void manager_generic_msg_cb(void *data, struct stasis_subscription *sub,
 		ao2_cleanup(sessions);
 		return;
 	}
+
 	manager_event_sessions(sessions, class_type, type,
 		"%s", ast_str_buffer(event_buffer));
 	ast_free(event_buffer);
@@ -890,8 +925,14 @@ static struct mansession_session *unref_mansession(struct mansession_session *s)
 
 static void event_filter_destructor(void *obj)
 {
-	regex_t *regex_filter = obj;
-	regfree(regex_filter);
+	struct event_filter_entry *entry = obj;
+	if (entry->regex_filter) {
+		regfree(entry->regex_filter);
+		ast_free(entry->regex_filter);
+	}
+	ast_free(entry->event_name);
+	ast_free(entry->header_name);
+	ast_free(entry->string_filter);
 }
 
 static void session_destructor(void *obj)
@@ -913,12 +954,12 @@ static void session_destructor(void *obj)
 		ast_variables_destroy(session->chanvars);
 	}
 
-	if (session->whitefilters) {
-		ao2_t_ref(session->whitefilters, -1, "decrement ref for white container, should be last one");
+	if (session->includefilters) {
+		ao2_t_ref(session->includefilters, -1, "decrement ref for include container, should be last one");
 	}
 
-	if (session->blackfilters) {
-		ao2_t_ref(session->blackfilters, -1, "decrement ref for black container, should be last one");
+	if (session->excludefilters) {
+		ao2_t_ref(session->excludefilters, -1, "decrement ref for exclude container, should be last one");
 	}
 
 	ast_mutex_destroy(&session->notify_lock);
@@ -935,9 +976,9 @@ static struct mansession_session *build_mansession(const struct ast_sockaddr *ad
 		return NULL;
 	}
 
-	newsession->whitefilters = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX, 0, NULL, NULL);
-	newsession->blackfilters = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX, 0, NULL, NULL);
-	if (!newsession->whitefilters || !newsession->blackfilters) {
+	newsession->includefilters = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX, 0, NULL, NULL);
+	newsession->excludefilters = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX, 0, NULL, NULL);
+	if (!newsession->includefilters || !newsession->excludefilters) {
 		ao2_ref(newsession, -1);
 		return NULL;
 	}
@@ -2344,16 +2385,16 @@ static int authenticate(struct mansession *s, const struct message *m)
 		s->session->chanvars = ast_variables_dup(user->chanvars);
 	}
 
-	filter_iter = ao2_iterator_init(user->whitefilters, 0);
+	filter_iter = ao2_iterator_init(user->includefilters, 0);
 	while ((regex_filter = ao2_iterator_next(&filter_iter))) {
-		ao2_t_link(s->session->whitefilters, regex_filter, "add white user filter to session");
+		ao2_t_link(s->session->includefilters, regex_filter, "add include user filter to session");
 		ao2_t_ref(regex_filter, -1, "remove iterator ref");
 	}
 	ao2_iterator_destroy(&filter_iter);
 
-	filter_iter = ao2_iterator_init(user->blackfilters, 0);
+	filter_iter = ao2_iterator_init(user->excludefilters, 0);
 	while ((regex_filter = ao2_iterator_next(&filter_iter))) {
-		ao2_t_link(s->session->blackfilters, regex_filter, "add black user filter to session");
+		ao2_t_link(s->session->excludefilters, regex_filter, "add exclude user filter to session");
 		ao2_t_ref(regex_filter, -1, "remove iterator ref");
 	}
 	ao2_iterator_destroy(&filter_iter);
@@ -3144,7 +3185,7 @@ static int action_waitevent(struct mansession *s, const struct message *m)
 		while ((eqe = advance_event(eqe))) {
 			if (((s->session->readperm & eqe->category) == eqe->category)
 				&& ((s->session->send_events & eqe->category) == eqe->category)
-				&& match_filter(s, eqe->eventdata)) {
+				&& should_send_event(s->session->includefilters, s->session->excludefilters, eqe)) {
 				astman_append(s, "%s", eqe->eventdata);
 			}
 			s->session->last_ev = eqe;
@@ -5340,33 +5381,118 @@ static int action_timeout(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-static int whitefilter_cmp_fn(void *obj, void *arg, void *data, int flags)
+/*!
+ * \brief Test eventdata against a filter entry
+ *
+ * \param entry The event_filter entry to match with
+ * \param eventdata  The data to match against
+ * \retval 0 if no match
+ * \retval 1 if match
+ */
+static int match_eventdata(struct event_filter_entry *entry, const char *eventdata)
 {
-	regex_t *regex_filter = obj;
-	const char *eventdata = arg;
-	int *result = data;
-
-	if (!regexec(regex_filter, eventdata, 0, NULL, 0)) {
-		*result = 1;
-		return (CMP_MATCH | CMP_STOP);
+	switch(entry->match_type) {
+	case FILTER_MATCH_REGEX:
+		return regexec(entry->regex_filter, eventdata, 0, NULL, 0) == 0;
+	case FILTER_MATCH_STARTS_WITH:
+		return ast_begins_with(eventdata, entry->string_filter);
+	case FILTER_MATCH_ENDS_WITH:
+		return ast_ends_with(eventdata, entry->string_filter);
+	case FILTER_MATCH_CONTAINS:
+		return strstr(eventdata, entry->string_filter) != NULL;
+	case FILTER_MATCH_EXACT:
+		return strcmp(eventdata, entry->string_filter) == 0;
+	case FILTER_MATCH_NONE:
+		return 1;
 	}
 
 	return 0;
 }
 
-static int blackfilter_cmp_fn(void *obj, void *arg, void *data, int flags)
+static int filter_cmp_fn(void *obj, void *arg, void *data, int flags)
 {
-	regex_t *regex_filter = obj;
-	const char *eventdata = arg;
+	struct eventqent *eqe = arg;
+	struct event_filter_entry *filter_entry = obj;
+	char *line_buffer_start = NULL;
+	char *line_buffer = NULL;
+	char *line = NULL;
+	int match = 0;
 	int *result = data;
 
-	if (!regexec(regex_filter, eventdata, 0, NULL, 0)) {
-		*result = 0;
-		return (CMP_MATCH | CMP_STOP);
+	if (filter_entry->event_name_hash) {
+		if (eqe->event_name_hash != filter_entry->event_name_hash) {
+			goto done;
+		}
 	}
 
-	*result = 1;
-	return 0;
+	/* We're looking at the entire event data */
+	if (!filter_entry->header_name) {
+		match = match_eventdata(filter_entry, eqe->eventdata);
+		goto done;
+	}
+
+	/* We're looking at a specific header */
+	line_buffer_start = ast_strdup(eqe->eventdata);
+	line_buffer = line_buffer_start;
+	if (!line_buffer_start) {
+		goto done;
+	}
+
+	while ((line = ast_read_line_from_buffer(&line_buffer))) {
+		if (ast_begins_with(line, filter_entry->header_name)) {
+			line += strlen(filter_entry->header_name);
+			line = ast_skip_blanks(line);
+			if (ast_strlen_zero(line)) {
+				continue;
+			}
+			match = match_eventdata(filter_entry, line);
+			if (match) {
+				ast_free(line_buffer_start);
+				line_buffer_start = NULL;
+				break;
+			}
+		}
+	}
+
+	ast_free(line_buffer_start);
+
+done:
+
+	*result = match;
+	return match ? CMP_MATCH | CMP_STOP : 0;
+}
+
+static int should_send_event(struct ao2_container *includefilters,
+	struct ao2_container *excludefilters, struct eventqent *eqe)
+{
+	int result = 0;
+
+	if (manager_debug) {
+		ast_verbose("<-- Examining AMI event (%u): -->\n%s\n", eqe->event_name_hash, eqe->eventdata);
+	} else {
+		ast_debug(4, "Examining AMI event (%u):\n%s\n", eqe->event_name_hash, eqe->eventdata);
+	}
+	if (!ao2_container_count(includefilters) && !ao2_container_count(excludefilters)) {
+		return 1; /* no filtering means match all */
+	} else if (ao2_container_count(includefilters) && !ao2_container_count(excludefilters)) {
+		/* include filters only: implied exclude all filter processed first, then include filters */
+		ao2_t_callback_data(includefilters, OBJ_NODATA, filter_cmp_fn, eqe, &result, "find filter in includefilters container");
+		return result;
+	} else if (!ao2_container_count(includefilters) && ao2_container_count(excludefilters)) {
+		/* exclude filters only: implied include all filter processed first, then exclude filters */
+		ao2_t_callback_data(excludefilters, OBJ_NODATA, filter_cmp_fn, eqe, &result, "find filter in excludefilters container");
+		return !result;
+	} else {
+		/* include and exclude filters: implied exclude all filter processed first, then include filters, and lastly exclude filters */
+		ao2_t_callback_data(includefilters, OBJ_NODATA, filter_cmp_fn, eqe, &result, "find filter in session filter container");
+		if (result) {
+			result = 0;
+			ao2_t_callback_data(excludefilters, OBJ_NODATA, filter_cmp_fn, eqe, &result, "find filter in session filter container");
+			return !result;
+		}
+	}
+
+	return result;
 }
 
 /*!
@@ -5375,24 +5501,44 @@ static int blackfilter_cmp_fn(void *obj, void *arg, void *data, int flags)
  */
 static int action_filter(struct mansession *s, const struct message *m)
 {
+	const char *match_criteria = astman_get_header(m, "MatchCriteria");
 	const char *filter = astman_get_header(m, "Filter");
 	const char *operation = astman_get_header(m, "Operation");
 	int res;
 
 	if (!strcasecmp(operation, "Add")) {
-		res = manager_add_filter(filter, s->session->whitefilters, s->session->blackfilters);
+		char *criteria;
+		int have_match = !ast_strlen_zero(match_criteria);
 
-	        if (res != FILTER_SUCCESS) {
-		        if (res == FILTER_ALLOC_FAILED) {
+		/* Create an eventfilter expression.
+		 * eventfilter[(match_criteria)]
+		 */
+		res = ast_asprintf(&criteria, "eventfilter%s%s%s",
+			S_COR(have_match, "(", ""), S_OR(match_criteria, ""),
+			S_COR(have_match, ")", ""));
+		if (res <= 0) {
+			astman_send_error(s, m, "Internal Error. Failed to allocate storage for filter type");
+			return 0;
+		}
+
+		res = manager_add_filter(criteria, filter, s->session->includefilters, s->session->excludefilters);
+		ast_std_free(criteria);
+		if (res != FILTER_SUCCESS) {
+			if (res == FILTER_ALLOC_FAILED) {
 				astman_send_error(s, m, "Internal Error. Failed to allocate regex for filter");
-		                return 0;
-		        } else if (res == FILTER_COMPILE_FAIL) {
-				astman_send_error(s, m, "Filter did not compile.  Check the syntax of the filter given.");
-		                return 0;
-		        } else {
+				return 0;
+			} else if (res == FILTER_COMPILE_FAIL) {
+				astman_send_error(s, m,
+					"Filter did not compile.  Check the syntax of the filter given.");
+				return 0;
+			} else if (res == FILTER_FORMAT_ERROR) {
+				astman_send_error(s, m,
+					"Filter was formatted incorrectly.  Check the syntax of the filter given.");
+				return 0;
+			} else {
 				astman_send_error(s, m, "Internal Error. Failed adding filter.");
-		                return 0;
-	                }
+				return 0;
+			}
 		}
 
 		astman_send_ack(s, m, "Success");
@@ -5406,84 +5552,675 @@ static int action_filter(struct mansession *s, const struct message *m)
 /*!
  * \brief Add an event filter to a manager session
  *
- * \param filter_pattern  Filter syntax to add, see below for syntax
- * \param whitefilters, blackfilters
+ * \param criteria See examples in manager.conf.sample
+ * \param filter_pattern  Filter pattern
+ * \param includefilters, excludefilters
  *
  * \return FILTER_ALLOC_FAILED   Memory allocation failure
  * \return FILTER_COMPILE_FAIL   If the filter did not compile
+ * \return FILTER_FORMAT_ERROR   If the criteria weren't formatted correctly
  * \return FILTER_SUCCESS        Success
  *
- * Filter will be used to match against each line of a manager event
- * Filter can be any valid regular expression
- * Filter can be a valid regular expression prefixed with !, which will add the filter as a black filter
  *
  * Examples:
- * \code
- *   filter_pattern = "Event: Newchannel"
- *   filter_pattern = "Event: New.*"
- *   filter_pattern = "!Channel: DAHDI.*"
- * \endcode
+ * See examples in manager.conf.sample
  *
  */
-static enum add_filter_result manager_add_filter(const char *filter_pattern, struct ao2_container *whitefilters, struct ao2_container *blackfilters) {
-	regex_t *new_filter = ao2_t_alloc(sizeof(*new_filter), event_filter_destructor, "event_filter allocation");
-	int is_blackfilter;
-
-	if (!new_filter) {
-		return FILTER_ALLOC_FAILED;
-	}
-
-	if (filter_pattern[0] == '!') {
-		is_blackfilter = 1;
-		filter_pattern++;
-	} else {
-		is_blackfilter = 0;
-	}
-
-	if (regcomp(new_filter, filter_pattern, REG_EXTENDED | REG_NOSUB)) {
-		ao2_t_ref(new_filter, -1, "failed to make regex");
-		return FILTER_COMPILE_FAIL;
-	}
-
-	if (is_blackfilter) {
-		ao2_t_link(blackfilters, new_filter, "link new filter into black user container");
-	} else {
-		ao2_t_link(whitefilters, new_filter, "link new filter into white user container");
-	}
-
-	ao2_ref(new_filter, -1);
-
-	return FILTER_SUCCESS;
-}
-
-static int match_filter(struct mansession *s, char *eventdata)
+static enum add_filter_result manager_add_filter(
+	const char *criteria, const char *filter_pattern,
+	struct ao2_container *includefilters, struct ao2_container *excludefilters)
 {
-	int result = 0;
+	RAII_VAR(struct event_filter_entry *, filter_entry,
+		ao2_t_alloc(sizeof(*filter_entry), event_filter_destructor, "event_filter allocation"),
+		ao2_cleanup);
+	char *options_start = NULL;
+	SCOPE_ENTER(3, "manager_add_filter(%s, %s, %p, %p)", criteria, filter_pattern, includefilters, excludefilters);
 
-	if (manager_debug) {
-		ast_verbose("<-- Examining AMI event: -->\n%s\n", eventdata);
-	} else {
-		ast_debug(4, "Examining AMI event:\n%s\n", eventdata);
+	if (!filter_entry) {
+		SCOPE_EXIT_LOG_RTN_VALUE(FILTER_ALLOC_FAILED, LOG_WARNING, "Unable to allocate filter_entry");
 	}
-	if (!ao2_container_count(s->session->whitefilters) && !ao2_container_count(s->session->blackfilters)) {
-		return 1; /* no filtering means match all */
-	} else if (ao2_container_count(s->session->whitefilters) && !ao2_container_count(s->session->blackfilters)) {
-		/* white filters only: implied black all filter processed first, then white filters */
-		ao2_t_callback_data(s->session->whitefilters, OBJ_NODATA, whitefilter_cmp_fn, eventdata, &result, "find filter in session filter container");
-	} else if (!ao2_container_count(s->session->whitefilters) && ao2_container_count(s->session->blackfilters)) {
-		/* black filters only: implied white all filter processed first, then black filters */
-		ao2_t_callback_data(s->session->blackfilters, OBJ_NODATA, blackfilter_cmp_fn, eventdata, &result, "find filter in session filter container");
-	} else {
-		/* white and black filters: implied black all filter processed first, then white filters, and lastly black filters */
-		ao2_t_callback_data(s->session->whitefilters, OBJ_NODATA, whitefilter_cmp_fn, eventdata, &result, "find filter in session filter container");
-		if (result) {
-			result = 0;
-			ao2_t_callback_data(s->session->blackfilters, OBJ_NODATA, blackfilter_cmp_fn, eventdata, &result, "find filter in session filter container");
+
+	/*
+	 * At a minimum, criteria must be "eventfilter" but may contain additional
+	 * constraints.
+	 */
+	if (ast_strlen_zero(criteria)) {
+		SCOPE_EXIT_LOG_RTN_VALUE(FILTER_FORMAT_ERROR, LOG_WARNING, "Missing criteria");
+	}
+
+	/*
+	 * filter_pattern could be empty but it should never be NULL.
+	 */
+	if (!filter_pattern) {
+		SCOPE_EXIT_LOG_RTN_VALUE(FILTER_FORMAT_ERROR, LOG_WARNING, "Filter pattern was NULL");
+	}
+
+	/*
+	 * For a legacy filter, if the first character of filter_pattern is
+	 * '!' then it's an exclude filter.  It's also accepted as an alternative
+	 * to specifying "action(exclude)" for an advanced filter.  If
+	 * "action" is specified however, it will take precedence.
+	 */
+	if (filter_pattern[0] == '!') {
+		filter_entry->is_excludefilter = 1;
+		filter_pattern++;
+	}
+
+	/*
+	 * This is the default
+	 */
+	filter_entry->match_type = FILTER_MATCH_REGEX;
+
+	/*
+	 * If the criteria has a '(' in it, then it's an advanced filter.
+	 */
+	options_start = strstr(criteria, "(");
+
+	/*
+	 * If it's a legacy filter, there MUST be a filter pattern.
+	 */
+	if (!options_start && ast_strlen_zero(filter_pattern)) {
+		SCOPE_EXIT_LOG_RTN_VALUE(FILTER_FORMAT_ERROR, LOG_WARNING,
+			"'%s = %s': Legacy filter with no filter pattern specified\n",
+			criteria, filter_pattern);
+	}
+
+	if (options_start) {
+		/*
+		 * This is an advanced filter
+		 */
+		char *temp = ast_strdupa(options_start + 1); /* skip over the leading '(' */
+		char *saveptr = NULL;
+		char *option = NULL;
+		enum found_options {
+			action_found = (1 << 0),
+			name_found = (1 << 1),
+			header_found = (1 << 2),
+			method_found = (1 << 3),
+		};
+		enum found_options options_found = 0;
+
+		filter_entry->match_type = FILTER_MATCH_NONE;
+
+		ast_strip(temp);
+		if (ast_strlen_zero(temp) || !ast_ends_with(temp, ")")) {
+			SCOPE_EXIT_LOG_RTN_VALUE(FILTER_FORMAT_ERROR, LOG_WARNING,
+				"'%s = %s': Filter options not formatted correctly\n",
+				criteria, filter_pattern);
+		}
+
+		/*
+		 * These can actually be in any order...
+		 * action(include|exclude),name(<event_name>),header(<header_name>),method(<match_method>)
+		 * At least one of action, name, or header is required.
+		 */
+		while ((option = strtok_r(temp, " ,)", &saveptr))) {
+			if (!strncmp(option, "action", 6)) {
+				char *method = strstr(option, "(");
+				if (ast_strlen_zero(method)) {
+					SCOPE_EXIT_LOG_RTN_VALUE(FILTER_FORMAT_ERROR, LOG_WARNING, "'%s = %s': 'action' parameter not formatted correctly\n",
+						criteria, filter_pattern);
+				}
+				method++;
+				ast_strip(method);
+				if (!strcmp(method, "include")) {
+					filter_entry->is_excludefilter = 0;
+				} else if (!strcmp(method, "exclude")) {
+					filter_entry->is_excludefilter = 1;
+				} else {
+					SCOPE_EXIT_LOG_RTN_VALUE(FILTER_FORMAT_ERROR, LOG_WARNING, "'%s = %s': 'action' option '%s' is unknown\n",
+						criteria, filter_pattern, method);
+				}
+				options_found |= action_found;
+			} else if (!strncmp(option, "name", 4)) {
+				char *event_name = strstr(option, "(");
+				event_name++;
+				ast_strip(event_name);
+				if (ast_strlen_zero(event_name)) {
+					SCOPE_EXIT_LOG_RTN_VALUE(FILTER_FORMAT_ERROR, LOG_WARNING, "'%s = %s': 'name' parameter not formatted correctly\n",
+						criteria, filter_pattern);
+				}
+				filter_entry->event_name = ast_strdup(event_name);
+				filter_entry->event_name_hash = ast_str_hash(event_name);
+				options_found |= name_found;
+			} else if (!strncmp(option, "header", 6)) {
+				char *header_name = strstr(option, "(");
+				header_name++;
+				ast_strip(header_name);
+				if (ast_strlen_zero(header_name)) {
+					SCOPE_EXIT_LOG_RTN_VALUE(FILTER_FORMAT_ERROR, LOG_WARNING, "'%s = %s': 'header' parameter not formatted correctly\n",
+						criteria, filter_pattern);
+				}
+				if (!ast_ends_with(header_name, ":")) {
+					filter_entry->header_name = ast_malloc(strlen(header_name) + 2);
+					if (!filter_entry->header_name) {
+						SCOPE_EXIT_LOG_RTN_VALUE(FILTER_ALLOC_FAILED, LOG_ERROR, "Unable to allocate memory for header_name");
+					}
+					sprintf(filter_entry->header_name, "%s:", header_name); /* Safe */
+				} else {
+					filter_entry->header_name = ast_strdup(header_name);
+				}
+				options_found |= header_found;
+			} else if (!strncmp(option, "method", 6)) {
+				char *method = strstr(option, "(");
+				method++;
+				ast_strip(method);
+				if (ast_strlen_zero(method)) {
+					SCOPE_EXIT_LOG_RTN_VALUE(FILTER_FORMAT_ERROR, LOG_WARNING, "'%s = %s': 'method' parameter not formatted correctly\n",
+						criteria, filter_pattern);
+				}
+				if (!strcmp(method, "regex")) {
+					filter_entry->match_type = FILTER_MATCH_REGEX;
+				} else if (!strcmp(method, "exact")) {
+					filter_entry->match_type = FILTER_MATCH_EXACT;
+				} else if (!strcmp(method, "starts_with")) {
+					filter_entry->match_type = FILTER_MATCH_STARTS_WITH;
+				} else if (!strcmp(method, "ends_with")) {
+					filter_entry->match_type = FILTER_MATCH_ENDS_WITH;
+				} else if (!strcmp(method, "contains")) {
+					filter_entry->match_type = FILTER_MATCH_CONTAINS;
+				} else if (!strcmp(method, "none")) {
+					filter_entry->match_type = FILTER_MATCH_NONE;
+				} else {
+					SCOPE_EXIT_LOG_RTN_VALUE(FILTER_FORMAT_ERROR, LOG_WARNING, "'%s = %s': 'method' option '%s' is unknown\n",
+						criteria, filter_pattern, method);
+				}
+				options_found |= method_found;
+			} else {
+				SCOPE_EXIT_LOG_RTN_VALUE(FILTER_FORMAT_ERROR, LOG_WARNING, "'%s = %s': Filter option '%s' is unknown\n",
+					criteria, filter_pattern, option);
+			}
+			temp = NULL;
+		}
+		if (!options_found) {
+			SCOPE_EXIT_LOG_RTN_VALUE(FILTER_FORMAT_ERROR, LOG_WARNING,
+				"'%s = %s': No action, name, header, or method option found\n",
+				criteria, filter_pattern);
+		}
+		if (ast_strlen_zero(filter_pattern) && filter_entry->match_type != FILTER_MATCH_NONE) {
+			SCOPE_EXIT_LOG_RTN_VALUE(FILTER_FORMAT_ERROR, LOG_WARNING,
+				"'%s = %s': method can't be '%s' with no filter pattern\n",
+				criteria, filter_pattern, match_type_names[filter_entry->match_type]);
+		}
+		if (!ast_strlen_zero(filter_pattern) && filter_entry->match_type == FILTER_MATCH_NONE) {
+			SCOPE_EXIT_LOG_RTN_VALUE(FILTER_FORMAT_ERROR, LOG_WARNING,
+				"'%s = %s': method can't be 'none' with a filter pattern\n",
+				criteria, filter_pattern);
+		}
+		if (!(options_found & name_found) && !(options_found & header_found) &&
+			filter_entry->match_type == FILTER_MATCH_NONE) {
+			SCOPE_EXIT_LOG_RTN_VALUE(FILTER_FORMAT_ERROR, LOG_WARNING,
+				"'%s = %s': No name or header option found and no filter pattern\n",
+				criteria, filter_pattern);
 		}
 	}
 
-	return result;
+	if (!ast_strlen_zero(filter_pattern)) {
+		if (filter_entry->match_type == FILTER_MATCH_REGEX) {
+			filter_entry->regex_filter = ast_calloc(1, sizeof(regex_t));
+			if (!filter_entry->regex_filter) {
+				SCOPE_EXIT_LOG_RTN_VALUE(FILTER_ALLOC_FAILED, LOG_ERROR, "Unable to allocate memory for regex_filter");
+			}
+			if (regcomp(filter_entry->regex_filter, filter_pattern, REG_EXTENDED | REG_NOSUB)) {
+				SCOPE_EXIT_LOG_RTN_VALUE(FILTER_COMPILE_FAIL, LOG_WARNING, "Unable to compile regex filter for '%s'", filter_pattern);
+			}
+		} else {
+			filter_entry->string_filter = ast_strdup(filter_pattern);
+		}
+	}
+
+	ast_debug(2, "Event filter:\n"
+		"conf entry: %s = %s\n"
+		"event_name: %s (hash: %d)\n"
+		"test_header:  %s\n"
+		"match_type: %s\n"
+		"regex_filter: %p\n"
+		"string filter: %s\n"
+		"is excludefilter: %d\n",
+		criteria, filter_pattern,
+		S_OR(filter_entry->event_name, "<not used>"),
+		filter_entry->event_name_hash,
+		S_OR(filter_entry->header_name, "<not used>"),
+		match_type_names[filter_entry->match_type],
+		filter_entry->regex_filter,
+		filter_entry->string_filter,
+		filter_entry->is_excludefilter);
+
+	if (filter_entry->is_excludefilter) {
+		ao2_t_link(excludefilters, filter_entry, "link new filter into exclude user container");
+	} else {
+		ao2_t_link(includefilters, filter_entry, "link new filter into include user container");
+	}
+
+	SCOPE_EXIT_RTN_VALUE(FILTER_SUCCESS, "Filter added successfully");
 }
+
+#ifdef TEST_FRAMEWORK
+
+struct test_filter_data {
+	const char *criteria;
+	const char *filter;
+	enum add_filter_result expected_add_filter_result;
+	struct event_filter_entry expected_filter_entry;
+	const char *test_event_name;
+	const char *test_event_payload;
+	int expected_should_send_event;
+};
+
+static char *add_filter_result_enums[] = {
+	[FILTER_SUCCESS] = "FILTER_SUCCESS",
+	[FILTER_ALLOC_FAILED] = "FILTER_ALLOC_FAILED",
+	[FILTER_COMPILE_FAIL] = "FILTER_COMPILE_FAIL",
+	[FILTER_FORMAT_ERROR] = "FILTER_FORMAT_ERROR",
+};
+
+#define TEST_EVENT_NEWCHANNEL "Newchannel", "Event: Newchannel\r\nChannel: XXX\r\nSomeheader: YYY\r\n"
+#define TEST_EVENT_VARSET "VarSet", "Event: VarSet\r\nChannel: ABC\r\nSomeheader: XXX\r\n"
+#define TEST_EVENT_NONE "", ""
+
+static struct test_filter_data parsing_filter_tests[] = {
+	/* Valid filters */
+	{ "eventfilter", "XXX", FILTER_SUCCESS,
+		{ FILTER_MATCH_REGEX, NULL, NULL, NULL, 0, NULL, 0}, TEST_EVENT_NEWCHANNEL, 1},
+	{ "eventfilter", "!XXX", FILTER_SUCCESS,
+		{ FILTER_MATCH_REGEX, NULL, NULL, NULL, 0, NULL, 1},  TEST_EVENT_VARSET, 0},
+	{ "eventfilter(name(VarSet),method(none))", "", FILTER_SUCCESS,
+		{ FILTER_MATCH_NONE, NULL, NULL, "VarSet", 0, NULL, 0}, TEST_EVENT_VARSET, 1},
+	{ "eventfilter(name(Newchannel),method(regex))", "X[XYZ]X", FILTER_SUCCESS,
+		{ FILTER_MATCH_REGEX, NULL, NULL, "Newchannel", 0, NULL, 0}, TEST_EVENT_NEWCHANNEL, 1},
+	{ "eventfilter(name(Newchannel),method(regex))", "X[abc]X", FILTER_SUCCESS,
+		{ FILTER_MATCH_REGEX, NULL, NULL, "Newchannel", 0, NULL, 0}, TEST_EVENT_NEWCHANNEL, 0},
+	{ "eventfilter(action(exclude),name(Newchannel),method(regex))", "X[XYZ]X", FILTER_SUCCESS,
+		{ FILTER_MATCH_REGEX, NULL, NULL, "Newchannel", 0, NULL, 1}, TEST_EVENT_NEWCHANNEL, 0},
+	{ "eventfilter(action(exclude),name(Newchannel),method(regex))", "X[abc]X", FILTER_SUCCESS,
+		{ FILTER_MATCH_REGEX, NULL, NULL, "Newchannel", 0, NULL, 1}, TEST_EVENT_NEWCHANNEL, 1},
+	{ "eventfilter(action(include),name(VarSet),header(Channel),method(starts_with))", "AB", FILTER_SUCCESS,
+		{ FILTER_MATCH_STARTS_WITH, NULL, NULL, "VarSet", 0, "Channel:", 0}, TEST_EVENT_VARSET, 1},
+	{ "eventfilter(action(include),name(VarSet),header(Channel),method(ends_with))", "BC", FILTER_SUCCESS,
+		{ FILTER_MATCH_ENDS_WITH, NULL, NULL, "VarSet", 0, "Channel:", 0}, TEST_EVENT_VARSET, 1},
+	{ "eventfilter(action(include),name(VarSet),header(Channel),method(exact))", "ABC", FILTER_SUCCESS,
+		{ FILTER_MATCH_EXACT, NULL, NULL, "VarSet", 0, "Channel:", 0}, TEST_EVENT_VARSET, 1},
+	{ "eventfilter(action(include),name(VarSet),header(Channel),method(exact))", "XXX", FILTER_SUCCESS,
+		{ FILTER_MATCH_EXACT, NULL, NULL, "VarSet", 0, "Channel:", 0}, TEST_EVENT_VARSET, 0},
+	{ "eventfilter(name(VarSet),header(Channel),method(exact))", "!ZZZ", FILTER_SUCCESS,
+		{ FILTER_MATCH_EXACT, NULL, NULL, "VarSet", 0, "Channel:", 1}, TEST_EVENT_VARSET, 1},
+	{ "eventfilter(action(exclude),name(VarSet),header(Channel),method(exact))", "ZZZ", FILTER_SUCCESS,
+		{ FILTER_MATCH_EXACT, NULL, NULL, "VarSet", 0, "Channel:", 1}, TEST_EVENT_VARSET, 1},
+	{ "eventfilter(action(include),name(VarSet),header(Someheader),method(exact))", "!XXX", FILTER_SUCCESS,
+		{ FILTER_MATCH_EXACT, NULL, NULL, "VarSet", 0, "Someheader:", 0}, TEST_EVENT_VARSET, 1},
+
+	/* Invalid filters */
+	{ "eventfilter(action(include)", "", FILTER_FORMAT_ERROR, { 0, }, TEST_EVENT_NONE, 0},
+	{ "eventfilter(action(inlude)", "", FILTER_FORMAT_ERROR, { 0, }, TEST_EVENT_NONE, 0},
+	{ "eventfilter(nnnn(yyy)", "XXX", FILTER_FORMAT_ERROR, { 0, }, TEST_EVENT_NONE, 0},
+	{ "eventfilter(eader(VarSet)", "XXX", FILTER_FORMAT_ERROR, { 0, }, TEST_EVENT_NONE, 0},
+	{ "eventfilter(ethod(contains)", "XXX", FILTER_FORMAT_ERROR, { 0, }, TEST_EVENT_NONE, 0},
+	{ "eventfilter(nnnn(yyy),header(VarSet),method(contains)", "XXX", FILTER_FORMAT_ERROR, { 0, }, TEST_EVENT_NONE, 0},
+	{ "eventfilter(name(yyy),heder(VarSet),method(contains)", "XXX", FILTER_FORMAT_ERROR, { 0, }, TEST_EVENT_NONE, 0},
+	{ "eventfilter(name(yyy),header(VarSet),mehod(contains)", "XXX", FILTER_FORMAT_ERROR, { 0, }, TEST_EVENT_NONE, 0},
+	{ "eventfilter(name(yyy),header(VarSet),method(coains)", "XXX", FILTER_FORMAT_ERROR, { 0, }, TEST_EVENT_NONE, 0},
+	{ "eventfilter(method(yyy))", "XXX", FILTER_FORMAT_ERROR, { 0, }, TEST_EVENT_NONE, 0},
+	{ "eventfilter", "", FILTER_FORMAT_ERROR, { 0, }, TEST_EVENT_NONE, 0},
+	{ "eventfilter", "!", FILTER_FORMAT_ERROR, { 0, }, TEST_EVENT_NONE, 0},
+	{ "eventfilter()", "XXX", FILTER_FORMAT_ERROR, { 0, }, TEST_EVENT_NONE, 0},
+	{ "eventfilter", "XX[X", FILTER_COMPILE_FAIL, { 0, }, TEST_EVENT_NONE, 0},
+	{ "eventfilter(method(regex))", "XX[X", FILTER_COMPILE_FAIL, { 0, }, TEST_EVENT_NONE, 0},
+};
+
+/*
+ * This is a bit different than ast_strings_equal in that
+ * it will return 1 if both strings are NULL.
+ */
+static int strings_equal(const char *str1, const char *str2)
+{
+	if ((!str1 && str2) || (str1 && !str2)) {
+		return 0;
+	}
+
+	return str1 == str2 || !strcmp(str1, str2);
+}
+
+AST_TEST_DEFINE(eventfilter_test_creation)
+{
+	enum ast_test_result_state res = AST_TEST_PASS;
+	RAII_VAR(struct ao2_container *, includefilters, NULL, ao2_cleanup);
+	RAII_VAR(struct ao2_container *, excludefilters, NULL, ao2_cleanup);
+	int i = 0;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "eventfilter_test_creation";
+		info->category = "/main/manager/";
+		info->summary = "Test eventfilter creation";
+		info->description =
+			"This creates various eventfilters and tests to make sure they were created successfully.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	includefilters = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX, 0, NULL, NULL);
+	excludefilters = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX, 0, NULL, NULL);
+	if (!includefilters || !excludefilters) {
+		ast_test_status_update(test, "Failed to allocate filter containers.\n");
+		return AST_TEST_FAIL;
+	}
+
+	for (i = 0; i < ARRAY_LEN(parsing_filter_tests); i++) {
+		struct event_filter_entry *filter_entry;
+		enum add_filter_result add_filter_res;
+		int send_event = 0;
+		struct eventqent *eqe = NULL;
+		int include_container_count = 0;
+		int exclude_container_count = 0;
+
+		/* We need to clear the containers before each test */
+		ao2_callback(includefilters, OBJ_UNLINK | OBJ_NODATA, NULL, NULL);
+		ao2_callback(excludefilters, OBJ_UNLINK | OBJ_NODATA, NULL, NULL);
+
+		add_filter_res = manager_add_filter(parsing_filter_tests[i].criteria, parsing_filter_tests[i].filter,
+			includefilters, excludefilters);
+
+		/* If you're adding a new test, enable this to see the full results */
+#if 0
+		ast_test_debug(test, "Add filter result '%s = %s': Expected: %s  Actual: %s  %s\n",
+			parsing_filter_tests[i].criteria, parsing_filter_tests[i].filter,
+			add_filter_result_enums[parsing_filter_tests[i].expected_add_filter_result],
+			add_filter_result_enums[add_filter_res],
+			add_filter_res != parsing_filter_tests[i].expected_add_filter_result ? "FAIL" : "PASS");
+#endif
+
+		if (add_filter_res != parsing_filter_tests[i].expected_add_filter_result) {
+			ast_test_status_update(test,
+				"Unexpected add filter result '%s = %s'. Expected result: %s Actual result: %s\n",
+				parsing_filter_tests[i].criteria, parsing_filter_tests[i].filter,
+				add_filter_result_enums[parsing_filter_tests[i].expected_add_filter_result],
+				add_filter_result_enums[add_filter_res]);
+			res = AST_TEST_FAIL;
+			continue;
+		}
+
+		if (parsing_filter_tests[i].expected_add_filter_result != FILTER_SUCCESS) {
+			/*
+			 * We don't need to test filters that we know aren't going
+			 * to be parsed successfully.
+			 */
+			continue;
+		}
+
+		/* We need to set the event name hash on the test data */
+		if (parsing_filter_tests[i].expected_filter_entry.event_name) {
+			parsing_filter_tests[i].expected_filter_entry.event_name_hash =
+				ast_str_hash(parsing_filter_tests[i].expected_filter_entry.event_name);
+		}
+
+		include_container_count = ao2_container_count(includefilters);
+		exclude_container_count = ao2_container_count(excludefilters);
+
+		if (parsing_filter_tests[i].expected_filter_entry.is_excludefilter) {
+			if (exclude_container_count != 1 || include_container_count != 0) {
+				ast_test_status_update(test,
+					"Invalid container counts for exclude filter '%s = %s'. Exclude: %d Include: %d.  Should be 1 and 0\n",
+					parsing_filter_tests[i].criteria, parsing_filter_tests[i].filter,
+					exclude_container_count, include_container_count);
+				res = AST_TEST_FAIL;
+				continue;
+			}
+			/* There can only be one entry in the container so ao2_find is fine */
+			filter_entry = ao2_find(excludefilters, NULL, OBJ_SEARCH_OBJECT);
+		} else {
+			if (include_container_count != 1 || exclude_container_count != 0) {
+				ast_test_status_update(test,
+					"Invalid container counts for include filter '%s = %s'. Include: %d Exclude: %d.  Should be 1 and 0\n",
+					parsing_filter_tests[i].criteria, parsing_filter_tests[i].filter,
+					include_container_count, exclude_container_count);
+				res = AST_TEST_FAIL;
+				continue;
+			}
+			/* There can only be one entry in the container so ao2_find is fine */
+			filter_entry = ao2_find(includefilters, NULL, OBJ_SEARCH_OBJECT);
+		}
+
+		if (!filter_entry) {
+			ast_test_status_update(test,
+				"Failed to find filter entry for '%s = %s' in %s filter container\n",
+				parsing_filter_tests[i].criteria, parsing_filter_tests[i].filter,
+				parsing_filter_tests[i].expected_filter_entry.is_excludefilter ? "exclude" : "include");
+			res = AST_TEST_FAIL;
+			goto loop_cleanup;
+		}
+
+		if (filter_entry->match_type != parsing_filter_tests[i].expected_filter_entry.match_type) {
+			ast_test_status_update(test,
+				"Failed to match filter type for '%s = %s'. Expected: %s Actual: %s\n",
+				parsing_filter_tests[i].criteria, parsing_filter_tests[i].filter,
+				match_type_names[parsing_filter_tests[i].expected_filter_entry.match_type],
+				match_type_names[filter_entry->match_type]);
+			res = AST_TEST_FAIL;
+			goto loop_cleanup;
+		}
+
+		if (!strings_equal(filter_entry->event_name, parsing_filter_tests[i].expected_filter_entry.event_name)) {
+			ast_test_status_update(test,
+				"Failed to match event name for '%s = %s'. Expected: '%s' Actual: '%s'\n",
+				parsing_filter_tests[i].criteria, parsing_filter_tests[i].filter,
+				parsing_filter_tests[i].expected_filter_entry.event_name, filter_entry->event_name);
+			res = AST_TEST_FAIL;
+			goto loop_cleanup;
+		}
+
+		if (filter_entry->event_name_hash != parsing_filter_tests[i].expected_filter_entry.event_name_hash) {
+			ast_test_status_update(test,
+				"Event name hashes failed to match for '%s = %s'. Expected: %u Actual: %u\n",
+				parsing_filter_tests[i].criteria, parsing_filter_tests[i].filter,
+				parsing_filter_tests[i].expected_filter_entry.event_name_hash, filter_entry->event_name_hash);
+			res = AST_TEST_FAIL;
+			goto loop_cleanup;
+		}
+
+		if (!strings_equal(filter_entry->header_name, parsing_filter_tests[i].expected_filter_entry.header_name)) {
+			ast_test_status_update(test,
+				"Failed to match header name for '%s = %s'. Expected: '%s' Actual: '%s'\n",
+				parsing_filter_tests[i].criteria, parsing_filter_tests[i].filter,
+				parsing_filter_tests[i].expected_filter_entry.header_name, filter_entry->header_name);
+			res = AST_TEST_FAIL;
+			goto loop_cleanup;
+		}
+
+		switch (parsing_filter_tests[i].expected_filter_entry.match_type) {
+		case FILTER_MATCH_REGEX:
+			if (!filter_entry->regex_filter) {
+				ast_test_status_update(test,
+					"Failed to compile regex filter for '%s = %s'\n",
+					parsing_filter_tests[i].criteria, parsing_filter_tests[i].filter);
+				res = AST_TEST_FAIL;
+				goto loop_cleanup;
+			}
+			break;
+		case FILTER_MATCH_NONE:
+			if (filter_entry->regex_filter || !ast_strlen_zero(filter_entry->string_filter)) {
+				ast_test_status_update(test,
+					"Unexpected regex filter or string for '%s = %s' with match_type 'none'\n",
+					parsing_filter_tests[i].criteria, parsing_filter_tests[i].filter);
+				res = AST_TEST_FAIL;
+				goto loop_cleanup;
+			}
+			break;
+		case FILTER_MATCH_STARTS_WITH:
+		case FILTER_MATCH_ENDS_WITH:
+		case FILTER_MATCH_CONTAINS:
+		case FILTER_MATCH_EXACT:
+			if (filter_entry->regex_filter || ast_strlen_zero(filter_entry->string_filter)) {
+				ast_test_status_update(test,
+					"Unexpected regex filter or empty string for '%s = %s' with match_type '%s'\n",
+					parsing_filter_tests[i].criteria, parsing_filter_tests[i].filter,
+					match_type_names[parsing_filter_tests[i].expected_filter_entry.match_type]);
+				res = AST_TEST_FAIL;
+				goto loop_cleanup;
+			}
+			break;
+		default:
+			res = AST_TEST_FAIL;
+			goto loop_cleanup;
+		}
+
+		/*
+		 * This is a basic test of whether a single event matches a single filter.
+		 */
+		eqe = ast_calloc(1, sizeof(*eqe) + strlen(parsing_filter_tests[i].test_event_payload) + 1);
+		if (!eqe) {
+			ast_test_status_update(test, "Failed to allocate eventqent\n");
+			res = AST_TEST_FAIL;
+			ao2_ref(filter_entry, -1);
+			break;
+		}
+		strcpy(eqe->eventdata, parsing_filter_tests[i].test_event_payload); /* Safe */
+		eqe->event_name_hash = ast_str_hash(parsing_filter_tests[i].test_event_name);
+		send_event = should_send_event(includefilters, excludefilters, eqe);
+		if (send_event != parsing_filter_tests[i].expected_should_send_event) {
+			char *escaped = ast_escape_c_alloc(parsing_filter_tests[i].test_event_payload);
+			ast_test_status_update(test,
+				"Should send event failed to match for '%s = %s' payload '%s'. Expected: %s Actual: %s\n",
+				parsing_filter_tests[i].criteria, parsing_filter_tests[i].filter, escaped,
+				AST_YESNO(parsing_filter_tests[i].expected_should_send_event), AST_YESNO(send_event));
+			ast_free(escaped);
+			res = AST_TEST_FAIL;
+		}
+loop_cleanup:
+		ast_free(eqe);
+		ao2_cleanup(filter_entry);
+
+	}
+	ast_test_status_update(test, "Tested %d filters\n", i);
+
+	return res;
+}
+
+struct test_filter_matching {
+	const char *criteria;
+	const char *pattern;
+};
+
+/*
+ * These filters are used to test the precedence of include and exclude
+ * filters.  When there are both include and exclude filters, the include
+ * filters are matched first.  If the event doesn't match an include filter,
+ * it's discarded.  If it does match, the exclude filter list is searched and
+ * if a match is found, the event is discarded.
+ */
+
+/*
+ * The order of the filters in the array doesn't really matter.  The
+ * include and exclude filters are in separate containers and in each
+ * container, traversal stops when a match is found.
+ */
+static struct test_filter_matching filters_for_matching[] = {
+	{ "eventfilter(name(VarSet),method(none))", ""},
+	{ "eventfilter(name(Newchannel),method(regex))", "X[XYZ]X"},
+	{ "eventfilter(name(Newchannel),method(regex))", "X[abc]X"},
+	{ "eventfilter(name(Newchannel),header(Someheader),method(regex))", "ZZZ"},
+	{ "eventfilter(action(exclude),name(Newchannel),method(regex))", "X[a]X"},
+	{ "eventfilter(action(exclude),name(Newchannel),method(regex))", "X[Z]X"},
+	{ "eventfilter(action(exclude),name(VarSet),header(Channel),method(regex))", "YYY"},
+};
+
+struct test_event_matching{
+	const char *event_name;
+	const char *payload;
+	int expected_should_send_event;
+};
+
+static struct test_event_matching events_for_matching[] = {
+	{ "Newchannel", "Event: Newchannel\r\nChannel: XXX\r\nSomeheader: YYY\r\n", 1 },
+	{ "Newchannel", "Event: Newchannel\r\nChannel: XZX\r\nSomeheader: YYY\r\n", 0 },
+	{ "Newchannel", "Event: Newchannel\r\nChannel: XaX\r\nSomeheader: YYY\r\n", 0 },
+	{ "Newchannel", "Event: Newchannel\r\nChannel: XbX\r\nSomeheader: YYY\r\n", 1 },
+	{ "Newchannel", "Event: Newchannel\r\nChannel: XcX\r\nSomeheader: YYY\r\n", 1 },
+	{ "Newchannel", "Event: Newchannel\r\nChannel: YYY\r\nSomeheader: YYY\r\n", 0 },
+	{ "Newchannel", "Event: Newchannel\r\nChannel: YYY\r\nSomeheader: ZZZ\r\n", 1 },
+	{ "VarSet", "Event: VarSet\r\nChannel: XXX\r\nSomeheader: YYY\r\n", 1 },
+	{ "VarSet", "Event: VarSet\r\nChannel: YYY\r\nSomeheader: YYY\r\n", 0 },
+};
+
+AST_TEST_DEFINE(eventfilter_test_matching)
+{
+	enum ast_test_result_state res = AST_TEST_PASS;
+	RAII_VAR(struct ao2_container *, includefilters, NULL, ao2_cleanup);
+	RAII_VAR(struct ao2_container *, excludefilters, NULL, ao2_cleanup);
+	int i = 0;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "eventfilter_test_matching";
+		info->category = "/main/manager/";
+		info->summary = "Test eventfilter matching";
+		info->description =
+			"This creates various eventfilters and tests to make sure they were matched successfully.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	includefilters = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX, 0, NULL, NULL);
+	excludefilters = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX, 0, NULL, NULL);
+	if (!includefilters || !excludefilters) {
+		ast_test_status_update(test, "Failed to allocate filter containers.\n");
+		return AST_TEST_FAIL;
+	}
+
+	/* Load all the expected SUCCESS filters */
+	for (i = 0; i < ARRAY_LEN(filters_for_matching); i++) {
+		enum add_filter_result add_filter_res;
+
+		add_filter_res = manager_add_filter(filters_for_matching[i].criteria,
+			filters_for_matching[i].pattern, includefilters, excludefilters);
+
+		if (add_filter_res != FILTER_SUCCESS) {
+			ast_test_status_update(test,
+				"Unexpected add filter result '%s = %s'. Expected result: %s Actual result: %s\n",
+				parsing_filter_tests[i].criteria, parsing_filter_tests[i].filter,
+				add_filter_result_enums[FILTER_SUCCESS],
+				add_filter_result_enums[add_filter_res]);
+			res = AST_TEST_FAIL;
+			break;
+		}
+	}
+	ast_test_debug(test, "Loaded %d filters\n", i);
+
+	if (res != AST_TEST_PASS) {
+		return res;
+	}
+
+	/* Now test them */
+	for (i = 0; i < ARRAY_LEN(events_for_matching); i++) {
+		int send_event = 0;
+		struct eventqent *eqe = NULL;
+
+		eqe = ast_calloc(1, sizeof(*eqe) + strlen(events_for_matching[i].payload) + 1);
+		if (!eqe) {
+			ast_test_status_update(test, "Failed to allocate eventqent\n");
+			res = AST_TEST_FAIL;
+			break;
+		}
+		strcpy(eqe->eventdata, events_for_matching[i].payload); /* Safe */
+		eqe->event_name_hash = ast_str_hash(events_for_matching[i].event_name);
+		send_event = should_send_event(includefilters, excludefilters, eqe);
+		if (send_event != events_for_matching[i].expected_should_send_event) {
+			char *escaped = ast_escape_c_alloc(events_for_matching[i].payload);
+			ast_test_status_update(test,
+				"Should send event failed to match for '%s'. Expected: %s Actual: %s\n",
+				escaped,
+				AST_YESNO(events_for_matching[i].expected_should_send_event), AST_YESNO(send_event));
+			ast_free(escaped);
+			res = AST_TEST_FAIL;
+		}
+		ast_free(eqe);
+	}
+	ast_test_debug(test, "Tested %d events\n", i);
+
+	return res;
+}
+#endif
 
 /*!
  * Send any applicable events to the client listening on this socket.
@@ -5506,7 +6243,7 @@ static int process_events(struct mansession *s)
 			if (!ret && s->session->authenticated &&
 			    (s->session->readperm & eqe->category) == eqe->category &&
 			    (s->session->send_events & eqe->category) == eqe->category) {
-					if (match_filter(s, eqe->eventdata)) {
+					if (should_send_event(s->session->includefilters, s->session->excludefilters, eqe)) {
 						if (send_string(s, eqe->eventdata) < 0 || s->write_error)
 							ret = -1;	/* don't send more */
 					}
@@ -6523,7 +7260,7 @@ static int purge_sessions(int n_max)
  * events are appended to a queue from where they
  * can be dispatched to clients.
  */
-static int append_event(const char *str, int category)
+static int append_event(const char *str, int event_name_hash, int category)
 {
 	struct eventqent *tmp = ast_malloc(sizeof(*tmp) + strlen(str));
 	static int seq;	/* sequence number */
@@ -6537,6 +7274,7 @@ static int append_event(const char *str, int category)
 	tmp->category = category;
 	tmp->seq = ast_atomic_fetchadd_int(&seq, 1);
 	tmp->tv = ast_tvnow();
+	tmp->event_name_hash = event_name_hash;
 	AST_RWLIST_NEXT(tmp, eq_next) = NULL;
 	strcpy(tmp->eventdata, str);
 
@@ -6584,6 +7322,7 @@ static int __attribute__((format(printf, 9, 0))) __manager_event_sessions_va(
 	struct timeval now;
 	struct ast_str *buf;
 	int i;
+	int event_name_hash;
 
 	if (!ast_strlen_zero(manager_disabledevents)) {
 		if (ast_in_delimited_string(event, manager_disabledevents, ',')) {
@@ -6635,7 +7374,9 @@ static int __attribute__((format(printf, 9, 0))) __manager_event_sessions_va(
 
 	ast_str_append(&buf, 0, "\r\n");
 
-	append_event(ast_str_buffer(buf), category);
+	event_name_hash = ast_str_hash(event);
+
+	append_event(ast_str_buffer(buf), event_name_hash, category);
 
 	/* Wake up any sleeping sessions */
 	if (sessions) {
@@ -6690,8 +7431,8 @@ static int __attribute__((format(printf, 9, 0))) __manager_event_sessions(
 	int res;
 
 	va_start(ap, fmt);
-	res = __manager_event_sessions_va(sessions, category, event, chancount, chans,
-		file, line, func, fmt, ap);
+	res = __manager_event_sessions_va(sessions, category, event,
+		chancount, chans, file, line, func, fmt, ap);
 	va_end(ap);
 	return res;
 }
@@ -8437,11 +9178,11 @@ static void manager_free_user(struct ast_manager_user *user)
 {
 	ast_free(user->a1_hash);
 	ast_free(user->secret);
-	if (user->whitefilters) {
-		ao2_t_ref(user->whitefilters, -1, "decrement ref for white container, should be last one");
+	if (user->includefilters) {
+		ao2_t_ref(user->includefilters, -1, "decrement ref for include container, should be last one");
 	}
-	if (user->blackfilters) {
-		ao2_t_ref(user->blackfilters, -1, "decrement ref for black container, should be last one");
+	if (user->excludefilters) {
+		ao2_t_ref(user->excludefilters, -1, "decrement ref for exclude container, should be last one");
 	}
 	user->acl = ast_free_acl_list(user->acl);
 	ast_variables_destroy(user->chanvars);
@@ -8455,6 +9196,11 @@ static void manager_free_user(struct ast_manager_user *user)
 static void manager_shutdown(void)
 {
 	struct ast_manager_user *user;
+
+#ifdef TEST_FRAMEWORK
+	AST_TEST_UNREGISTER(eventfilter_test_creation);
+	AST_TEST_UNREGISTER(eventfilter_test_matching);
+#endif
 
 	/* This event is not actually transmitted, but causes all TCP sessions to be closed */
 	manager_event(EVENT_FLAG_SHUTDOWN, "CloseSession", "CloseSession: true\r\n");
@@ -8724,7 +9470,8 @@ static int __init_manager(int reload, int by_external_config)
 		ast_extension_state_add(NULL, NULL, manager_state_cb, NULL);
 
 		/* Append placeholder event so master_eventq never runs dry */
-		if (append_event("Event: Placeholder\r\n\r\n", 0)) {
+		if (append_event("Event: Placeholder\r\n\r\n",
+			ast_str_hash("Placeholder"), 0)) {
 			return -1;
 		}
 
@@ -8995,9 +9742,9 @@ static int __init_manager(int reload, int by_external_config)
 			/* Default allowmultiplelogin from [general] */
 			user->allowmultiplelogin = allowmultiplelogin;
 			user->writetimeout = 100;
-			user->whitefilters = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX, 0, NULL, NULL);
-			user->blackfilters = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX, 0, NULL, NULL);
-			if (!user->whitefilters || !user->blackfilters) {
+			user->includefilters = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX, 0, NULL, NULL);
+			user->excludefilters = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX, 0, NULL, NULL);
+			if (!user->includefilters || !user->excludefilters) {
 				manager_free_user(user);
 				break;
 			}
@@ -9005,8 +9752,8 @@ static int __init_manager(int reload, int by_external_config)
 			/* Insert into list */
 			AST_RWLIST_INSERT_TAIL(&users, user, list);
 		} else {
-			ao2_t_callback(user->whitefilters, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL, NULL, "unlink all white filters");
-			ao2_t_callback(user->blackfilters, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL, NULL, "unlink all black filters");
+			ao2_t_callback(user->includefilters, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL, NULL, "unlink all include filters");
+			ao2_t_callback(user->excludefilters, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL, NULL, "unlink all exclude filters");
 		}
 
 		/* Make sure we keep this user and don't destroy it during cleanup */
@@ -9062,9 +9809,9 @@ static int __init_manager(int reload, int by_external_config)
 						user->chanvars = tmpvar;
 					}
 				}
-			} else if (!strcasecmp(var->name, "eventfilter")) {
+			} else if (ast_begins_with(var->name, "eventfilter")) {
 				const char *value = var->value;
-				manager_add_filter(value, user->whitefilters, user->blackfilters);
+				manager_add_filter(var->name, value, user->includefilters, user->excludefilters);
 			} else {
 				ast_debug(1, "%s is an unknown option.\n", var->name);
 			}
@@ -9157,14 +9904,19 @@ static int unload_module(void)
 
 static int load_module(void)
 {
+	int rc = 0;
 	ast_register_cleanup(manager_shutdown);
-
-	return __init_manager(0, 0) ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_SUCCESS;
+	rc = __init_manager(0, 0) ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_SUCCESS;
+#ifdef TEST_FRAMEWORK
+	AST_TEST_REGISTER(eventfilter_test_creation);
+	AST_TEST_REGISTER(eventfilter_test_matching);
+#endif
+	return rc;
 }
 
 static int reload_module(void)
 {
-	return __init_manager(1, 0);
+	return __init_manager(1, 0) ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_SUCCESS;
 }
 
 int astman_datastore_add(struct mansession *s, struct ast_datastore *datastore)
