@@ -1320,64 +1320,124 @@
 					</enum>
 				</enumlist>
 			</parameter>
-			<parameter name="FilterType">
-				<para>FilterType can be one of the following:</para>
+			<parameter name="MatchCriteria">
+				<para>
+				Advanced match criteria.  If not specified, the <literal>Filter</literal>
+				parameter is assumed to be a regular expression and will be matched against
+				the entire event payload.
+				</para>
+				<para>
+				Syntax: [name(&lt;event_name&gt;)][,header(&lt;header_name&gt;)][,&lt;match_method&gt;]
+				</para>
+				<para>
+				One of each of the following may be specified separated by commas.
+				</para>
+				<para>
+				</para>
 				<enumlist>
-					<enum name="regex">
-						<para>The Filter parameter contains a regular expression
-						which will be applied to the contents of the MatchAgainst
-						parameter.</para>
+					<enum name="action(include|exclude)">
+						<para>
+						Instead of prefixing the Filter with <literal>!</literal> to exclude matching events,
+						specify <literal>action(exclude)</literal>.  Although the default is <literal>include</literal>
+						if <literal>action</literal> isn't specified, adding <literal>action(include)</literal>
+						will help with readability.
+						</para>
+						<para>
+						</para>
 					</enum>
-					<enum name="exact">
-						<para>The Filter parameter contains a string
-						which will be exactly matched to the contents of the MatchAgainst
-						parameter.</para>
+					<enum name="name(&lt;event_name&gt;)">
+						<para>
+						Only events with name <replaceable>event_name</replaceable> will be included.
+						</para>
+						<para>
+						</para>
 					</enum>
-					<enum name="partial">
-						<para>The Filter parameter contains a string
-						which will be searched for in the contents of the MatchAgainst
-						parameter.</para>
+					<enum name="header(&lt;header_name&gt;)">
+						<para>
+						Only events containing a header with a name of <replaceable>header_name</replaceable>
+						will be included and the <literal>Filter</literal> parameter (if supplied) will only be
+						matched against the value of the header.
+						</para>
+						<para>
+						</para>
 					</enum>
+					<enum name="&lt;match_method&gt;">
+						<para>Specifies how the <literal>Filter</literal> parameter
+						is to be applied to the results of applying any 
+						<literal>name(&lt;event_name&gt;)</literal> and/or
+						<literal>header(&lt;header_name&gt;)</literal> parameters
+						above.
+						</para>
+						<para>
+						One of the following:
+						</para>
+						<enumlist>
+							<enum name="regex">
+								<para>The <literal>Filter</literal> parameter contains a regular expression
+								which will be matched against the result. (default)
+								</para>
+								<para>
+								</para>
+							</enum>
+							<enum name="exact">
+								<para>The <literal>Filter</literal> parameter contains a string which must
+								exactly match the entire result.
+								</para>
+								<para>
+								</para>
+							</enum>
+							<enum name="startsWith">
+								<para>The <literal>Filter</literal> parameter contains a string which must
+								match the beginning of the result.
+								</para>
+								<para>
+								</para>
+							</enum>
+							<enum name="endsWith">
+								<para>The <literal>Filter</literal> parameter contains a string which must
+								match the end of the result.
+								</para>
+								<para>
+								</para>
+							</enum>
+							<enum name="contains">
+								<para>The <literal>Filter</literal> parameter contains a string
+								which will be searched for in the result.
+								</para>
+								<para>
+								</para>
+							</enum>
+							<enum name="none">
+								<para>The <literal>Filter</literal> parameter is ignored.
+								</para>
+							</enum>
+						</enumlist>
+					</enum>	
 				</enumlist>
-				<para>The default is <literal>regex</literal></para>
-			</parameter>
-			<parameter name="MatchAgainst">
-				<para>MatchAgainst can be one of the following:</para>
-				<enumlist>
-					<enum name="name">
-						<para>Match only against the event name.</para>
-					</enum>
-					<enum name="header(header_name)">
-						<para>Match only against the contents of this event header.</para>
-					</enum>
-					<enum name="all">
-						<para>Match against the entire event payload.</para>
-					</enum>
-				</enumlist>
-				<para>The default is <literal>all</literal></para>
 			</parameter>
 			<parameter name="Filter">
-				<para>Filters can be whitelist or blacklist</para>
-				<para>Example whitelist filter: "Event: Newchannel"</para>
-				<para>Example blacklist filter: "!Channel: DAHDI.*"</para>
-				<para>This filter option is used to whitelist or blacklist events per user to be
-				reported with regular expressions and are allowed if both the regex matches
-				and the user has read access as defined in manager.conf. Filters are assumed to be for whitelisting
-				unless preceeded by an exclamation point, which marks it as being black.
-				Evaluation of the filters is as follows:</para>
-				<para>- If no filters are configured all events are reported as normal.</para>
-				<para>- If there are white filters only: implied black all filter processed first, then white filters.</para>
-				<para>- If there are black filters only: implied white all filter processed first, then black filters.</para>
-				<para>- If there are both white and black filters: implied black all filter processed first, then white
-				filters, and lastly black filters.</para>
+				<para>The match expression to be applied to the event.</para>
+				<para>See the manager.conf.sample file in the configs/samples
+				directory of the Asterisk source tree for more information.</para>
 			</parameter>
 		</syntax>
 		<description>
-			<para>The filters added are only used for the current session.
-			Once the connection is closed the filters are removed.</para>
-			<para>This comand requires the system permission because
+			<para>See the manager.conf.sample file in the configs/samples
+			directory of the Asterisk source tree for a full description
+			and examples.</para>
+			<note>
+			<para>
+			The filters added are only used for the current session.
+			Once the connection is closed the filters are removed.
+			</para>
+			</note>
+			<note>
+			<para>
+			This comand requires the system permission because
 			this command can be used to create filters that may bypass
-			filters defined in manager.conf</para>
+			filters defined in manager.conf
+			</para>
+			</note>
 		</description>
 	</manager>
 	<manager name="BlindTransfer" language="en_US">
