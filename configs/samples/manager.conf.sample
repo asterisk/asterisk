@@ -104,22 +104,184 @@ bindaddr = 0.0.0.0
 ; originates a call. You can define multiple setvar= commands for one manager
 ; user.
 ;
+
+;--
+-- eventfilter --------------------------------------------------------
+Include and/or exclude events for this user.
+
+There are two ways to use this feature... Legacy and Advanced.
+
+Legacy Event Filtering:
+
+This is the original method of filtering events.  It's no longer
+recommended but still supported for backwards compatibility.  The filter
+is a regular expression, optionally prefixed with an exclamation point (!).
+The regular expression is applied to the entire payload of every event.
+If any part of the event payload matches, the event is included.  If the
+first character of the filter is an exclamation point (!), the event is
+excluded. On a busy system, this is a resource intensive process and the
+reason it's no longer recommended.
+
+Another issue with legacy filtering is that regexes are very sensitive to
+whitespace and separators.  "Event:Newchannel" will NOT work because of
+the missing space after the ':'.  Neither will "Event:  Newchannel" or
+"Event Newchannel" because of the extra space in the first expression
+and the missing ':' in the second.
+
+Advanced Event Filtering:
+
+Advanced filtering still allows you to use regular expressions but adds
+the ability to pre-select certain events and constrain the regular
+expression to matching the contents of a specific event header.
+The syntax is:
+
+eventfilter(<match_criteria>) = [ <match_expression> ]
+
+<match_criteria> : [ action(include|exclude) | name(<event_name>) |
+    header(<header_name>) | method(<match_method>) ][, ...]
+
+You can specify at most one of each of the following in any order,
+separated by commas.
+
+    action(include|exclude): Default: 'include'. Instead of using '!' to
+    exclude matching events, specify 'action(exclude)'.  Although the
+    default is "include" if "action" isn't specified, adding
+    "action(include)" will help with readability.
+
+    name(<event_name>): Include only events with a name exactly matching
+    <event_name>.  This is actually implemented using the "hash" of the
+    event names and is therefore much more efficient than using a regular
+    expression.
+
+    header(<header_name>): Include only events that have a header exactly
+    matching <header_name>.  Additionally, the data to be searched will
+    be constrained to the value of this header instead of the entire
+    event payload.
+
+    method(regex | exact | starts_with | ends_with | contains | none ):
+    How should <match_expression> be applied to the event data?  The data may
+    be the entire event payload or, if header(<header_name>) was used, the
+    value of that specific header.  If 'action(exclude)' was specified, a
+    "match" here will cause the event to be excluded instead of included.
+
+        regex:  As a regular expression that, if matched anywhere in the
+        data, constitutes a match.
+
+        exact: As a simple string that must match all of the data.
+        Probably only useful when the data is constrained to a specific header
+        and the data itself is a simple value.
+
+        starts_with: As a simple string that, if found at the beginning of the
+        data, constitutes a match.
+
+        ends_with: As a simple string that, if found at the end of the data,
+        constitutes a match.
+
+        contains: As a simple string that, if found anywhere in the data,
+        constitutes a match.
+
+        none: Ignore <match_expression> altogether.  This is the default
+        because the majority of use cases for event filtering involve
+        including or excluding events by event name without regard to the
+        event payload.  In this case, you can just leave <match_expression>
+        empty.
+
+  TIP:  Although match criteria order doesn't matter to Asterisk, using the
+  order shown can help you read them.  For instance...
+  eventfilter(action(exclude),name(Newchannel),header(Channel),method(starts_with)) = Local/
+  ...means "Exclude Newchannel events with a Channel header that starts with Local/"
+
+Event Filter Processing Ordering:
+
+Both Legacy and Advanced filter entries are processed as follows:
+ - If no filters are configured, all events are reported as normal.
+
+ - If there are 'include' filters only, an event that matches ANY filter
+   will be reported.
+
+ - If there are 'exclude' filters only, an event that matched ANY filter
+   will be excluded.
+
+ - If there are both 'include' and 'exclude' filters, all 'include' filters
+   are matched first, then the 'exclude' filters will be applied to the
+   resulting set.
+--;
+
+; ----- Legacy Filter Examples:
+; Every legacy filter expression results in regular expression matching
+; on the entire payload of every event even if no regular expression
+; meta-characters were used.
+
+; Only include Newchannel events
 ;eventfilter=Event: Newchannel
+
+; Only include events of any type with a "Channel" header that matches
+; the regular expression.
 ;eventfilter=Channel: (PJ)?SIP/(james|jim|john)-
+
+; Only include Newchannel events which contain a "Channel" header
+; for PJSIP channels.
+;eventfilter = Event: Newchannel.*Channel: PJSIP/
+
+; Only include Newchannel or Hangup events whose "Channel" header doesn't start
+; with Local/.  All other events are filtered out.
+;eventfilter = Event: Newchannel
+;eventfilter = Event: Hangup
+;eventfilter = !Channel: Local/
+; This causes three regexes to be searched for on every event!
+
+; Include ALL events EXCEPT Newchannel and Hangup events whose "Channel" header
+; starts with Local/.
+; Other Newchannel and Hangup events ARE reported.
+;eventfilter = !Event: (Newchannel|Hangup).*Channel: Local/
+; This causes one regex to be searched for but it's a fairly expensive
+; one.
+
+; Exclude any event that has a "Channel" header whose value starts with "DADHI/"
 ;eventfilter=!Channel: DAHDI/
-; The eventfilter option is used to whitelist or blacklist events per user.
-; A filter consists of an (unanchored) regular expression that is run on the
-; entire event data. If the first character of the filter is an exclamation
-; mark (!), the filter is appended to the blacklist instead of the whitelist.
-; After first checking the read access below, the regular expression filters
-; are processed as follows:
-; - If no filters are configured all events are reported as normal.
-; - If there are white filters only: implied black all filter processed first,
-; then white filters.
-; - If there are black filters only: implied white all filter processed first,
-; then black filters.
-; - If there are both white and black filters: implied black all filter processed
-; first, then white filters, and lastly black filters.
+
+; ----- Advanced Filter Examples:
+; All of these examples are WAY more efficient than their legacy
+; equivalents.
+
+; Include only "Newchannel" events.
+; eventfilter(name(Newchannel)) =
+; Note that there's nothing to the right of the '=' because you don't care
+; what's in the payload.  You still need the '=' though or the config file
+; parser will complain.  'action(include)' and 'method(none)' are implied.
+
+; Only include events of any type with a "Channel" header that matches
+; the regular expression.
+;eventfilter(action(include),header(Channel),method(regex)) = (PJ)?SIP/(james|jim|john)-
+; We're still testing every event but because we only apply the regex to the
+; value of the Channel header this is still more efficient than using the
+; legacy method.
+
+; Only include Newchannel and Hangup events whose "Channel" header doesn't
+; start with Local/.
+;eventfilter(action(include),name(Newchannel)) =
+;eventfilter(action(include),name(Hangup)) =
+;eventfilter(header(Channel),action(exclude),method(starts_with)) = Local/
+; No regexes at all.  We do the hash match against the event names first and
+; only mathcing events are passed to the next filter.
+; Then, in only those events, we look for a Channel header by exact match, then
+; look for 'Local/' at the beginning of its value.
+
+; Include ALL events EXCEPT Newchannel and Hangup events whose "Channel" header
+; starts with Local/.
+; Other Newchannel and Hangup events ARE reported.
+;eventfilter(action(exclude),name(Newchannel),header(Channel),method(starts_with)) = Local/
+;eventfilter(action(exclude),name(Hangup),header(Channel),method(starts_with)) = Local/
+; Again, no regexes. Very efficient because the filters start by looking for
+; a hash match on the event name.
+
+; Exclude any event that has a "Channel" header whose value starts with "DADHI/"
+;eventfilter(action(exclude),header(Channel),method(starts_with)) = DAHDI/
+; We're still testing every event but there are no regexes involved at all.
+
+;--
+-- eventfilter end ----------------------------------------------------
+--;
 
 ;
 ; If the device connected via this user accepts input slowly,
