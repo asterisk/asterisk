@@ -1,0 +1,1499 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE docs SYSTEM "appdocsxml.dtd">
+<?xml-stylesheet type="text/xsl" href="appdocsxml.xslt"?>
+<docs xmlns:xi="http://www.w3.org/2001/XInclude">
+	<manager name="Ping" language="en_US">
+		<synopsis>
+			Keepalive command.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+		</syntax>
+		<description>
+			<para>A 'Ping' action will elicit a 'Pong' response. Used to keep the
+			manager connection open.</para>
+		</description>
+	</manager>
+	<manager name="Events" language="en_US">
+		<synopsis>
+			Control Event Flow.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="EventMask" required="true">
+				<enumlist>
+					<enum name="on">
+						<para>If all events should be sent.</para>
+					</enum>
+					<enum name="off">
+						<para>If no events should be sent.</para>
+					</enum>
+					<enum name="system,call,log,...">
+						<para>To select which flags events should have to be sent.</para>
+					</enum>
+				</enumlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Enable/Disable sending of events to this manager client.</para>
+		</description>
+	</manager>
+	<manager name="Logoff" language="en_US">
+		<synopsis>
+			Logoff Manager.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+		</syntax>
+		<description>
+			<para>Logoff the current manager session.</para>
+		</description>
+		<see-also>
+			<ref type="manager">Login</ref>
+		</see-also>
+	</manager>
+	<manager name="Login" language="en_US">
+		<synopsis>
+			Login Manager.
+		</synopsis>
+		<syntax>
+			<parameter name="ActionID">
+				<para>ActionID for this transaction. Will be returned.</para>
+			</parameter>
+			<parameter name="Username" required="true">
+				<para>Username to login with as specified in manager.conf.</para>
+			</parameter>
+			<parameter name="AuthType">
+				<para>Authorization type. Valid values are:</para>
+				<enumlist>
+					<enum name="plain"><para>Plain text secret. (default)</para></enum>
+					<enum name="MD5"><para>MD5 hashed secret.</para></enum>
+				</enumlist>
+			</parameter>
+			<parameter name="Secret">
+				<para>Plain text secret to login with as specified in manager.conf.</para>
+			</parameter>
+			<parameter name="Key">
+				<para>Key to use with MD5 authentication.  To create the key, you must
+				initialize a new MD5 hash, call the <literal>Challenge</literal> AMI action,
+				update the hash with the response, then update the hash with the secret as specified
+				in manager.conf.  The key value must be the final result of the hash
+				as a 32 character lower-case hex string without any "0x" prepended.
+				See the description for an example of creating a key in Python.</para>
+			</parameter>
+			<parameter name="Events">
+				<xi:include xpointer="xpointer(/docs/manager[@name='Events']/syntax/parameter[@name='EventMask']/enumlist)" />
+			</parameter>
+		</syntax>
+		<description>
+			<para>Login Manager.</para>
+			<example title="Create an MD5 Key in Python">
+				import hashlib
+				m = hashlib.md5()
+				m.update(response_from_challenge)
+				m.update(your_secret)
+				key = m.hexdigest()
+				## '031edd7d41651593c5fe5c006fa5752b'
+			</example>
+		</description>
+		<see-also>
+			<ref type="manager">Challenge</ref>
+			<ref type="manager">Logoff</ref>
+		</see-also>
+	</manager>
+	<manager name="Challenge" language="en_US">
+		<synopsis>
+			Generate Challenge for MD5 Auth.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="AuthType" required="true">
+				<para>Digest algorithm to use in the challenge. Valid values are:</para>
+				<enumlist>
+					<enum name="MD5" />
+				</enumlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Generate a challenge for MD5 authentication.</para>
+		</description>
+	</manager>
+	<manager name="Hangup" language="en_US">
+		<synopsis>
+			Hangup channel.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Channel" required="true">
+				<para>The exact channel name to be hungup, or to use a regular expression, set this parameter to: /regex/</para>
+				<para>Example exact channel: SIP/provider-0000012a</para>
+				<para>Example regular expression: /^SIP/provider-.*$/</para>
+			</parameter>
+			<parameter name="Cause">
+				<para>Numeric hangup cause.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Hangup a channel.</para>
+		</description>
+	</manager>
+	<manager name="Status" language="en_US">
+		<synopsis>
+			List channel status.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Channel" required="false">
+				<para>The name of the channel to query for status.</para>
+			</parameter>
+			<parameter name="Variables">
+				<para>Comma <literal>,</literal> separated list of variable to include.</para>
+			</parameter>
+			<parameter name="AllVariables">
+				<para>If set to "true", the Status event will include all channel variables for
+				the requested channel(s).</para>
+				<enumlist>
+					<enum name="true"/>
+					<enum name="false"/>
+				</enumlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Will return the status information of each channel along with the
+			value for the specified channel variables.</para>
+		</description>
+		<responses>
+			<list-elements>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Status'])" />
+			</list-elements>
+			<xi:include xpointer="xpointer(/docs/managerEvent[@name='StatusComplete'])" />
+		</responses>
+	</manager>
+	<managerEvent language="en_US" name="Status">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised in response to a Status command.</synopsis>
+			<syntax>
+				<parameter name="ActionID" required="false"/>
+				<channel_snapshot/>
+				<parameter name="Type">
+					<para>Type of channel</para>
+				</parameter>
+				<parameter name="DNID">
+					<para>Dialed number identifier</para>
+				</parameter>
+				<parameter name="EffectiveConnectedLineNum">
+				</parameter>
+				<parameter name="EffectiveConnectedLineName">
+				</parameter>
+				<parameter name="TimeToHangup">
+					<para>Absolute lifetime of the channel</para>
+				</parameter>
+				<parameter name="BridgeID">
+					<para>Identifier of the bridge the channel is in, may be empty if not in one</para>
+				</parameter>
+				<parameter name="Application">
+					<para>Application currently executing on the channel</para>
+				</parameter>
+				<parameter name="Data">
+					<para>Data given to the currently executing channel</para>
+				</parameter>
+				<parameter name="Nativeformats">
+					<para>Media formats the connected party is willing to send or receive</para>
+				</parameter>
+				<parameter name="Readformat">
+					<para>Media formats that frames from the channel are received in</para>
+				</parameter>
+				<parameter name="Readtrans">
+					<para>Translation path for media received in native formats</para>
+				</parameter>
+				<parameter name="Writeformat">
+					<para>Media formats that frames to the channel are accepted in</para>
+				</parameter>
+				<parameter name="Writetrans">
+					<para>Translation path for media sent to the connected party</para>
+				</parameter>
+				<parameter name="Callgroup">
+					<para>Configured call group on the channel</para>
+				</parameter>
+				<parameter name="Pickupgroup">
+					<para>Configured pickup group on the channel</para>
+				</parameter>
+				<parameter name="Seconds">
+					<para>Number of seconds the channel has been active</para>
+				</parameter>
+			</syntax>
+			<see-also>
+				<ref type="manager">Status</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="StatusComplete">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised in response to a Status command.</synopsis>
+			<syntax>
+				<parameter name="Items">
+					<para>Number of Status events returned</para>
+				</parameter>
+			</syntax>
+			<see-also>
+				<ref type="manager">Status</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
+	<manager name="Setvar" language="en_US">
+		<synopsis>
+			Sets a channel variable or function value.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Channel">
+				<para>Channel to set variable for.</para>
+			</parameter>
+			<parameter name="Variable" required="true">
+				<para>Variable name, function or expression.</para>
+			</parameter>
+			<parameter name="Value" required="true">
+				<para>Variable or function value.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This command can be used to set the value of channel variables or dialplan
+			functions.</para>
+			<note>
+				<para>If a channel name is not provided then the variable is considered global.</para>
+			</note>
+		</description>
+		<see-also>
+			<ref type="manager">Getvar</ref>
+		</see-also>
+	</manager>
+	<manager name="Getvar" language="en_US">
+		<synopsis>
+			Gets a channel variable or function value.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Channel">
+				<para>Channel to read variable from.</para>
+			</parameter>
+			<parameter name="Variable" required="true">
+				<para>Variable name, function or expression.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Get the value of a channel variable or function return.</para>
+			<note>
+				<para>If a channel name is not provided then the variable is considered global.</para>
+			</note>
+		</description>
+		<see-also>
+			<ref type="manager">Setvar</ref>
+		</see-also>
+	</manager>
+	<manager name="GetConfig" language="en_US">
+		<synopsis>
+			Retrieve configuration.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Filename" required="true">
+				<para>Configuration filename (e.g. <filename>foo.conf</filename>).</para>
+			</parameter>
+			<parameter name="Category">
+				<para>Category in configuration file.</para>
+			</parameter>
+			<parameter name="Filter">
+				<para>A comma separated list of
+				<replaceable>name_regex</replaceable>=<replaceable>value_regex</replaceable>
+				expressions which will cause only categories whose variables match all expressions
+				to be considered.  The special variable name <literal>TEMPLATES</literal>
+				can be used to control whether templates are included.  Passing
+				<literal>include</literal> as the value will include templates
+				along with normal categories. Passing
+				<literal>restrict</literal> as the value will restrict the operation to
+				ONLY templates.  Not specifying a <literal>TEMPLATES</literal> expression
+				results in the default behavior which is to not include templates.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This action will dump the contents of a configuration
+			file by category and contents or optionally by specified category only.
+			In the case where a category name is non-unique, a filter may be specified
+			to match only categories with matching variable values.</para>
+		</description>
+		<see-also>
+			<ref type="manager">GetConfigJSON</ref>
+			<ref type="manager">UpdateConfig</ref>
+			<ref type="manager">CreateConfig</ref>
+			<ref type="manager">ListCategories</ref>
+		</see-also>
+	</manager>
+	<manager name="GetConfigJSON" language="en_US">
+		<synopsis>
+			Retrieve configuration (JSON format).
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Filename" required="true">
+				<para>Configuration filename (e.g. <filename>foo.conf</filename>).</para>
+			</parameter>
+			<parameter name="Category">
+				<para>Category in configuration file.</para>
+			</parameter>
+			<parameter name="Filter">
+				<xi:include xpointer="xpointer(/docs/manager[@name='GetConfig']/syntax/parameter[@name='Filter']/para[1])" />
+			</parameter>
+		</syntax>
+		<description>
+			<para>This action will dump the contents of a configuration file by category
+			and contents in JSON format or optionally by specified category only.
+			This only makes sense to be used using rawman over the HTTP interface.
+			In the case where a category name is non-unique, a filter may be specified
+			to match only categories with matching variable values.</para>
+		</description>
+		<see-also>
+			<ref type="manager">GetConfig</ref>
+			<ref type="manager">UpdateConfig</ref>
+			<ref type="manager">CreateConfig</ref>
+			<ref type="manager">ListCategories</ref>
+		</see-also>
+	</manager>
+	<manager name="UpdateConfig" language="en_US">
+		<synopsis>
+			Update basic configuration.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="SrcFilename" required="true">
+				<para>Configuration filename to read (e.g. <filename>foo.conf</filename>).</para>
+			</parameter>
+			<parameter name="DstFilename" required="true">
+				<para>Configuration filename to write (e.g. <filename>foo.conf</filename>)</para>
+			</parameter>
+			<parameter name="Reload">
+				<para>Whether or not a reload should take place (or name of specific module).</para>
+			</parameter>
+			<parameter name="PreserveEffectiveContext">
+				<para>Whether the effective category contents should be preserved on template change. Default is true (pre 13.2 behavior).</para>
+			</parameter>
+			<parameter name="Action-000000">
+				<para>Action to take.</para>
+				<para>0's represent 6 digit number beginning with 000000.</para>
+				<enumlist>
+					<enum name="NewCat" />
+					<enum name="RenameCat" />
+					<enum name="DelCat" />
+					<enum name="EmptyCat" />
+					<enum name="Update" />
+					<enum name="Delete" />
+					<enum name="Append" />
+					<enum name="Insert" />
+				</enumlist>
+			</parameter>
+			<parameter name="Cat-000000">
+				<para>Category to operate on.</para>
+				<xi:include xpointer="xpointer(/docs/manager[@name='UpdateConfig']/syntax/parameter[@name='Action-000000']/para[2])" />
+			</parameter>
+			<parameter name="Var-000000">
+				<para>Variable to work on.</para>
+				<xi:include xpointer="xpointer(/docs/manager[@name='UpdateConfig']/syntax/parameter[@name='Action-000000']/para[2])" />
+			</parameter>
+			<parameter name="Value-000000">
+				<para>Value to work on.</para>
+				<xi:include xpointer="xpointer(/docs/manager[@name='UpdateConfig']/syntax/parameter[@name='Action-000000']/para[2])" />
+			</parameter>
+			<parameter name="Match-000000">
+				<para>Extra match required to match line.</para>
+				<xi:include xpointer="xpointer(/docs/manager[@name='UpdateConfig']/syntax/parameter[@name='Action-000000']/para[2])" />
+			</parameter>
+			<parameter name="Line-000000">
+				<para>Line in category to operate on (used with delete and insert actions).</para>
+				<xi:include xpointer="xpointer(/docs/manager[@name='UpdateConfig']/syntax/parameter[@name='Action-000000']/para[2])" />
+			</parameter>
+			<parameter name="Options-000000">
+				<para>A comma separated list of action-specific options.</para>
+					<enumlist>
+						<enum name="NewCat"><para>One or more of the following... </para>
+							<enumlist>
+								<enum name="allowdups"><para>Allow duplicate category names.</para></enum>
+								<enum name="template"><para>This category is a template.</para></enum>
+								<enum name="inherit=&quot;template[,...]&quot;"><para>Templates from which to inherit.</para></enum>
+							</enumlist>
+						</enum>
+					</enumlist>
+					<para> </para>
+						<para>The following actions share the same options...</para>
+					<enumlist>
+						<enum name="RenameCat"/>
+						<enum name="DelCat"/>
+						<enum name="EmptyCat"/>
+						<enum name="Update"/>
+						<enum name="Delete"/>
+						<enum name="Append"/>
+						<enum name="Insert"><para> </para>
+							<enumlist>
+								<enum name="catfilter=&quot;&lt;expression&gt;[,...]&quot;"><para> </para>
+									<xi:include xpointer="xpointer(/docs/manager[@name='GetConfig']/syntax/parameter[@name='Filter']/para[1])" />
+									<para><literal>catfilter</literal> is most useful when a file
+									contains multiple categories with the same name and you wish to
+									operate on specific ones instead of all of them.</para>
+								</enum>
+							</enumlist>
+						</enum>
+					</enumlist>
+				<xi:include xpointer="xpointer(/docs/manager[@name='UpdateConfig']/syntax/parameter[@name='Action-000000']/para[2])" />
+			</parameter>
+		</syntax>
+		<description>
+			<para>This action will modify, create, or delete configuration elements
+			in Asterisk configuration files.</para>
+		</description>
+		<see-also>
+			<ref type="manager">GetConfig</ref>
+			<ref type="manager">GetConfigJSON</ref>
+			<ref type="manager">CreateConfig</ref>
+			<ref type="manager">ListCategories</ref>
+		</see-also>
+	</manager>
+	<manager name="CreateConfig" language="en_US">
+		<synopsis>
+			Creates an empty file in the configuration directory.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Filename" required="true">
+				<para>The configuration filename to create (e.g. <filename>foo.conf</filename>).</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This action will create an empty file in the configuration
+			directory. This action is intended to be used before an UpdateConfig
+			action.</para>
+		</description>
+		<see-also>
+			<ref type="manager">GetConfig</ref>
+			<ref type="manager">GetConfigJSON</ref>
+			<ref type="manager">UpdateConfig</ref>
+			<ref type="manager">ListCategories</ref>
+		</see-also>
+	</manager>
+	<manager name="ListCategories" language="en_US">
+		<synopsis>
+			List categories in configuration file.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Filename" required="true">
+				<para>Configuration filename (e.g. <filename>foo.conf</filename>).</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This action will dump the categories in a given file.</para>
+		</description>
+		<see-also>
+			<ref type="manager">GetConfig</ref>
+			<ref type="manager">GetConfigJSON</ref>
+			<ref type="manager">UpdateConfig</ref>
+			<ref type="manager">CreateConfig</ref>
+		</see-also>
+	</manager>
+	<manager name="Redirect" language="en_US">
+		<synopsis>
+			Redirect (transfer) a call.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Channel" required="true">
+				<para>Channel to redirect.</para>
+			</parameter>
+			<parameter name="ExtraChannel">
+				<para>Second call leg to transfer (optional).</para>
+			</parameter>
+			<parameter name="Exten" required="true">
+				<para>Extension to transfer to.</para>
+			</parameter>
+			<parameter name="ExtraExten">
+				<para>Extension to transfer extrachannel to (optional).</para>
+			</parameter>
+			<parameter name="Context" required="true">
+				<para>Context to transfer to.</para>
+			</parameter>
+			<parameter name="ExtraContext">
+				<para>Context to transfer extrachannel to (optional).</para>
+			</parameter>
+			<parameter name="Priority" required="true">
+				<para>Priority to transfer to.</para>
+			</parameter>
+			<parameter name="ExtraPriority">
+				<para>Priority to transfer extrachannel to (optional).</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Redirect (transfer) a call.</para>
+		</description>
+		<see-also>
+			<ref type="manager">BlindTransfer</ref>
+		</see-also>
+	</manager>
+	<manager name="Atxfer" language="en_US">
+		<synopsis>
+			Attended transfer.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Channel" required="true">
+				<para>Transferer's channel.</para>
+			</parameter>
+			<parameter name="Exten" required="true">
+				<para>Extension to transfer to.</para>
+			</parameter>
+			<parameter name="Context">
+				<para>Context to transfer to.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Attended transfer.</para>
+		</description>
+		<see-also>
+			<ref type="managerEvent">AttendedTransfer</ref>
+		</see-also>
+	</manager>
+	<manager name="CancelAtxfer" language="en_US">
+		<since>
+			<version>13.18.0</version>
+			<version>14.7.0</version>
+			<version>15.1.0</version>
+			<version>16.0.0</version>
+		</since>
+		<synopsis>
+			Cancel an attended transfer.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Channel" required="true">
+				<para>The transferer channel.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Cancel an attended transfer. Note, this uses the configured cancel attended transfer
+			feature option (atxferabort) to cancel the transfer. If not available this action will fail.
+			</para>
+		</description>
+		<see-also>
+			<ref type="managerEvent">AttendedTransfer</ref>
+		</see-also>
+	</manager>
+	<manager name="Originate" language="en_US">
+		<synopsis>
+			Originate a call.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Channel" required="true">
+				<para>Channel name to call.</para>
+			</parameter>
+			<parameter name="Exten">
+				<para>Extension to use (requires <literal>Context</literal> and
+				<literal>Priority</literal>)</para>
+			</parameter>
+			<parameter name="Context">
+				<para>Context to use (requires <literal>Exten</literal> and
+				<literal>Priority</literal>)</para>
+			</parameter>
+			<parameter name="Priority">
+				<para>Priority to use (requires <literal>Exten</literal> and
+				<literal>Context</literal>)</para>
+			</parameter>
+			<parameter name="Application">
+				<para>Application to execute.</para>
+			</parameter>
+			<parameter name="Data">
+				<para>Data to use (requires <literal>Application</literal>).</para>
+			</parameter>
+			<parameter name="Timeout" default="30000">
+				<para>How long to wait for call to be answered (in ms.).</para>
+			</parameter>
+			<parameter name="CallerID">
+				<para>Caller ID to be set on the outgoing channel.</para>
+			</parameter>
+			<parameter name="Variable">
+				<para>Channel variable to set, multiple Variable: headers are allowed.</para>
+			</parameter>
+			<parameter name="Account">
+				<para>Account code.</para>
+			</parameter>
+			<parameter name="EarlyMedia">
+				<para>Set to <literal>true</literal> to force call bridge on early media..</para>
+			</parameter>
+			<parameter name="Async">
+				<para>Set to <literal>true</literal> for fast origination.</para>
+			</parameter>
+			<parameter name="Codecs">
+				<para>Comma-separated list of codecs to use for this call.</para>
+			</parameter>
+			<parameter name="ChannelId">
+				<para>Channel UniqueId to be set on the channel.</para>
+			</parameter>
+			<parameter name="OtherChannelId">
+				<para>Channel UniqueId to be set on the second local channel.</para>
+			</parameter>
+			<parameter name="PreDialGoSub">
+				<para>PreDialGoSub Context,Extension,Priority to set options/headers needed before start the outgoing extension</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Generates an outgoing call to a
+			<replaceable>Extension</replaceable>/<replaceable>Context</replaceable>/<replaceable>Priority</replaceable>
+			or <replaceable>Application</replaceable>/<replaceable>Data</replaceable></para>
+		</description>
+		<see-also>
+			<ref type="managerEvent">OriginateResponse</ref>
+		</see-also>
+	</manager>
+	<managerEvent language="en_US" name="OriginateResponse">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised in response to an Originate command.</synopsis>
+			<syntax>
+				<parameter name="ActionID" required="false"/>
+				<parameter name="Response">
+					<enumlist>
+						<enum name="Failure"/>
+						<enum name="Success"/>
+					</enumlist>
+				</parameter>
+				<parameter name="Channel"/>
+				<parameter name="Context"/>
+				<parameter name="Exten"/>
+				<parameter name="Application"/>
+				<parameter name="Data"/>
+				<parameter name="Reason"/>
+				<parameter name="Uniqueid"/>
+				<parameter name="CallerIDNum"/>
+				<parameter name="CallerIDName"/>
+			</syntax>
+			<see-also>
+				<ref type="manager">Originate</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
+	<manager name="Command" language="en_US">
+		<synopsis>
+			Execute Asterisk CLI Command.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Command" required="true">
+				<para>Asterisk CLI command to run.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Run a CLI command.</para>
+		</description>
+	</manager>
+	<manager name="ExtensionState" language="en_US">
+		<synopsis>
+			Check Extension Status.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Exten" required="true">
+				<para>Extension to check state on.</para>
+			</parameter>
+			<parameter name="Context" required="true">
+				<para>Context for extension.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Report the extension state for given extension. If the extension has a hint,
+			will use devicestate to check the status of the device connected to the extension.</para>
+			<para>Will return an <literal>Extension Status</literal> message. The response will include
+			the hint for the extension and the status.</para>
+		</description>
+		<see-also>
+			<ref type="managerEvent">ExtensionStatus</ref>
+		</see-also>
+	</manager>
+	<manager name="PresenceState" language="en_US">
+		<synopsis>
+			Check Presence State
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Provider" required="true">
+				<para>Presence Provider to check the state of</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Report the presence state for the given presence provider.</para>
+			<para>Will return a <literal>Presence State</literal> message. The response will include the
+			presence state and, if set, a presence subtype and custom message.</para>
+		</description>
+		<see-also>
+			<ref type="managerEvent">PresenceStatus</ref>
+		</see-also>
+	</manager>
+	<manager name="AbsoluteTimeout" language="en_US">
+		<synopsis>
+			Set absolute timeout.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Channel" required="true">
+				<para>Channel name to hangup.</para>
+			</parameter>
+			<parameter name="Timeout" required="true">
+				<para>Maximum duration of the call (sec).</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Hangup a channel after a certain time. Acknowledges set time with
+			<literal>Timeout Set</literal> message.</para>
+		</description>
+	</manager>
+	<manager name="MailboxStatus" language="en_US">
+		<synopsis>
+			Check mailbox.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Mailbox" required="true">
+				<para>Full mailbox ID <replaceable>mailbox</replaceable>@<replaceable>vm-context</replaceable>.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Checks a voicemail account for status.</para>
+			<para>Returns whether there are messages waiting.</para>
+			<para>Message: Mailbox Status.</para>
+			<para>Mailbox: <replaceable>mailboxid</replaceable>.</para>
+			<para>Waiting: <literal>0</literal> if messages waiting, <literal>1</literal>
+			if no messages waiting.</para>
+		</description>
+		<see-also>
+			<ref type="manager">MailboxCount</ref>
+		</see-also>
+	</manager>
+	<manager name="MailboxCount" language="en_US">
+		<synopsis>
+			Check Mailbox Message Count.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Mailbox" required="true">
+				<para>Full mailbox ID <replaceable>mailbox</replaceable>@<replaceable>vm-context</replaceable>.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Checks a voicemail account for new messages.</para>
+			<para>Returns number of urgent, new and old messages.</para>
+			<para>Message: Mailbox Message Count</para>
+			<para>Mailbox: <replaceable>mailboxid</replaceable></para>
+			<para>UrgentMessages: <replaceable>count</replaceable></para>
+			<para>NewMessages: <replaceable>count</replaceable></para>
+			<para>OldMessages: <replaceable>count</replaceable></para>
+		</description>
+		<see-also>
+			<ref type="manager">MailboxStatus</ref>
+		</see-also>
+	</manager>
+	<manager name="ListCommands" language="en_US">
+		<synopsis>
+			List available manager commands.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+		</syntax>
+		<description>
+			<para>Returns the action name and synopsis for every action that
+			is available to the user.</para>
+		</description>
+	</manager>
+	<manager name="SendText" language="en_US">
+		<synopsis>
+			Sends a text message to channel. A content type	can be optionally specified. If not set
+			it is set to an empty string allowing a custom handler to default it as it sees fit.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Channel" required="true">
+				<para>Channel to send message to.</para>
+			</parameter>
+			<parameter name="Message" required="true">
+				<para>Message to send.</para>
+			</parameter>
+			<parameter name="Content-Type" required="false" default="">
+				<para>The type of content in the message</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Sends A Text Message to a channel while in a call.</para>
+		</description>
+		<see-also>
+			<ref type="application">SendText</ref>
+		</see-also>
+	</manager>
+	<manager name="UserEvent" language="en_US">
+		<synopsis>
+			Send an arbitrary event.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="UserEvent" required="true">
+				<para>Event string to send.</para>
+			</parameter>
+			<parameter name="Header1">
+				<para>Content1.</para>
+			</parameter>
+			<parameter name="HeaderN">
+				<para>ContentN.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Send an event to manager sessions.</para>
+		</description>
+		<see-also>
+			<ref type="managerEvent">UserEvent</ref>
+			<ref type="application">UserEvent</ref>
+		</see-also>
+	</manager>
+	<manager name="WaitEvent" language="en_US">
+		<synopsis>
+			Wait for an event to occur.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Timeout" required="true">
+				<para>Maximum time (in seconds) to wait for events, <literal>-1</literal> means forever.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This action will elicit a <literal>Success</literal> response. Whenever
+			a manager event is queued. Once WaitEvent has been called on an HTTP manager
+			session, events will be generated and queued.</para>
+		</description>
+	</manager>
+	<manager name="CoreSettings" language="en_US">
+		<synopsis>
+			Show PBX core settings (version etc).
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+		</syntax>
+		<description>
+			<para>Query for Core PBX settings.</para>
+		</description>
+	</manager>
+	<manager name="CoreStatus" language="en_US">
+		<synopsis>
+			Show PBX core status variables.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+		</syntax>
+		<description>
+			<para>Query for Core PBX status.</para>
+		</description>
+	</manager>
+	<manager name="Reload" language="en_US">
+		<synopsis>
+			Send a reload event.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Module">
+				<para>Name of the module to reload.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Send a reload event.</para>
+		</description>
+		<see-also>
+			<ref type="manager">ModuleLoad</ref>
+		</see-also>
+	</manager>
+	<managerEvent language="en_US" name="CoreShowChannel">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised in response to a CoreShowChannels command.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+				<channel_snapshot/>
+				<parameter name="BridgeId">
+					<para>Identifier of the bridge the channel is in, may be empty if not in one</para>
+				</parameter>
+				<parameter name="Application">
+					<para>Application currently executing on the channel</para>
+				</parameter>
+				<parameter name="ApplicationData">
+					<para>Data given to the currently executing application</para>
+				</parameter>
+				<parameter name="Duration">
+					<para>The amount of time the channel has existed</para>
+				</parameter>
+			</syntax>
+			<see-also>
+				<ref type="manager">CoreShowChannels</ref>
+				<ref type="managerEvent">CoreShowChannelsComplete</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="CoreShowChannelsComplete">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised at the end of the CoreShowChannel list produced by the CoreShowChannels command.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+				<parameter name="EventList">
+					<para>Conveys the status of the command reponse list</para>
+				</parameter>
+				<parameter name="ListItems">
+					<para>The total number of list items produced</para>
+				</parameter>
+			</syntax>
+			<see-also>
+				<ref type="manager">CoreShowChannels</ref>
+				<ref type="managerEvent">CoreShowChannel</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
+	<manager name="CoreShowChannels" language="en_US">
+		<synopsis>
+			List currently active channels.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+		</syntax>
+		<description>
+			<para>List currently defined channels and some information about them.</para>
+		</description>
+		<responses>
+			<list-elements>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='CoreShowChannel'])" />
+			</list-elements>
+			<xi:include xpointer="xpointer(/docs/managerEvent[@name='CoreShowChannelsComplete'])" />
+		</responses>
+	</manager>
+	<managerEvent language="en_US" name="CoreShowChannelMapComplete">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised at the end of the CoreShowChannelMap list produced by the CoreShowChannelMap command.</synopsis>
+			<syntax>
+				<parameter name="EventList">
+					<para>Conveys the status of the command response list</para>
+				</parameter>
+				<parameter name="ListItems">
+					<para>The total number of list items produced</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<manager name="CoreShowChannelMap" language="en_US">
+		<synopsis>
+			List all channels connected to the specified channel.
+		</synopsis>
+		<syntax>
+			<parameter name="Channel">
+				<para>The channel to get the mapping for. Requires a channel name.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>List all channels currently connected to the specified channel. This can be any channel, including
+			Local channels, and Local channels will be followed through to their other half.</para>
+		</description>
+	</manager>
+	<manager name="LoggerRotate" language="en_US">
+		<synopsis>
+			Reload and rotate the Asterisk logger.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+		</syntax>
+		<description>
+			<para>Reload and rotate the logger. Analogous to the CLI command 'logger rotate'.</para>
+		</description>
+	</manager>
+	<manager name="ModuleLoad" language="en_US">
+		<synopsis>
+			Module management.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Module">
+				<para>Asterisk module name (including .so extension) or subsystem identifier:</para>
+				<enumlist>
+					<enum name="cdr" />
+					<enum name="dnsmgr" />
+					<enum name="extconfig" />
+					<enum name="enum" />
+					<enum name="acl" />
+					<enum name="manager" />
+					<enum name="http" />
+					<enum name="logger" />
+					<enum name="features" />
+					<enum name="dsp" />
+					<enum name="udptl" />
+					<enum name="indications" />
+					<enum name="cel" />
+					<enum name="plc" />
+				</enumlist>
+			</parameter>
+			<parameter name="LoadType" required="true">
+				<para>The operation to be done on module. Subsystem identifiers may only
+				be reloaded.</para>
+				<enumlist>
+					<enum name="load" />
+					<enum name="unload" />
+					<enum name="reload" />
+					<enum name="refresh">
+						<para>Completely unload and load again a specified module.</para>
+					</enum>
+				</enumlist>
+				<para>If no module is specified for a <literal>reload</literal> loadtype,
+				all modules are reloaded.</para>
+			</parameter>
+			<parameter name="Recursive" required="false">
+				<para>For <literal>refresh</literal> operations, attempt to recursively
+				unload any other modules that are dependent on this module, if that would
+				allow it to successfully unload, and load them again afterwards.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Loads, unloads or reloads an Asterisk module in a running system.</para>
+		</description>
+		<see-also>
+			<ref type="manager">Reload</ref>
+			<ref type="manager">ModuleCheck</ref>
+		</see-also>
+	</manager>
+	<manager name="ModuleCheck" language="en_US">
+		<synopsis>
+			Check if module is loaded.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Module" required="true">
+				<para>Asterisk module name (not including extension).</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Checks if Asterisk module is loaded. Will return Success/Failure.
+			An empty Version header is also returned (which doesn't contain
+			the module revision number).</para>
+		</description>
+		<see-also>
+			<ref type="manager">ModuleLoad</ref>
+		</see-also>
+	</manager>
+	<manager name="AOCMessage" language="en_US">
+		<synopsis>
+			Generate an Advice of Charge message on a channel.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Channel">
+				<para>Channel name to generate the AOC message on.
+				This value is required unless ChannelPrefix is given.</para>
+			</parameter>
+			<parameter name="ChannelPrefix">
+				<para>Partial channel prefix.  By using this option one can match the beginning part
+				of a channel name without having to put the entire name in.  For example
+				if a channel name is SIP/snom-00000001 and this value is set to SIP/snom, then
+				that channel matches and the message will be sent.  Note however that only
+				the first matched channel has the message sent on it. </para>
+			</parameter>
+			<parameter name="MsgType" required="true">
+				<para>Defines what type of AOC message to create, AOC-S, AOC-D or AOC-E</para>
+				<enumlist>
+					<enum name="S" />
+					<enum name="D" />
+					<enum name="E" />
+				</enumlist>
+			</parameter>
+			<parameter name="ChargeType">
+				<para>Defines what kind of charge this message represents for AOC-D and AOC-E.</para>
+				<enumlist>
+					<enum name="NA" />
+					<enum name="FREE" />
+					<enum name="Currency" />
+					<enum name="Unit" />
+				</enumlist>
+			</parameter>
+			<parameter name="UnitAmount(0)">
+				<para>This represents the amount of units charged. The ETSI AOC standard specifies that
+				this value along with the optional UnitType value are entries in a list.  To accommodate this
+				these values take an index value starting at 0 which can be used to generate this list of
+				unit entries.  For Example, If two unit entires were required this could be achieved by setting the
+				paramter UnitAmount(0)=1234 and UnitAmount(1)=5678.  Note that UnitAmount at index 0 is
+				required when ChargeType=Unit, all other entries in the list are optional.
+				</para>
+			</parameter>
+			<parameter name="UnitType(0)">
+				<para>Defines the type of unit.  ETSI AOC standard specifies this as an integer
+				value between 1 and 16, but this value is left open to accept any positive
+				integer.  Like the UnitAmount parameter, this value represents a list entry
+				and has an index parameter that starts at 0.
+				</para>
+			</parameter>
+			<parameter name="CurrencyName">
+				<para>Specifies the currency's name.  Note that this value is truncated after 10 characters.</para>
+			</parameter>
+			<parameter name="CurrencyAmount">
+				<para>Specifies the charge unit amount as a positive integer.
+				This value is required when ChargeType==Currency (AOC-D or AOC-E) or
+				RateType==Duration/Flat/Volume (AOC-S).</para>
+			</parameter>
+			<parameter name="CurrencyMultiplier">
+				<para>Specifies the currency multiplier.
+				This value is required when CurrencyAmount is given.</para>
+				<enumlist>
+					<enum name="OneThousandth" />
+					<enum name="OneHundredth" />
+					<enum name="OneTenth" />
+					<enum name="One" />
+					<enum name="Ten" />
+					<enum name="Hundred" />
+					<enum name="Thousand" />
+				</enumlist>
+			</parameter>
+			<parameter name="TotalType" default="Total">
+				<para>Defines what kind of AOC-D total is represented.</para>
+				<enumlist>
+					<enum name="Total" />
+					<enum name="SubTotal" />
+				</enumlist>
+			</parameter>
+			<parameter name="AOCBillingId">
+				<para>Represents a billing ID associated with an AOC-D or AOC-E message. Note
+				that only the first 3 items of the enum are valid AOC-D billing IDs</para>
+				<enumlist>
+					<enum name="Normal" />
+					<enum name="ReverseCharge" />
+					<enum name="CreditCard" />
+					<enum name="CallFwdUnconditional" />
+					<enum name="CallFwdBusy" />
+					<enum name="CallFwdNoReply" />
+					<enum name="CallDeflection" />
+					<enum name="CallTransfer" />
+				</enumlist>
+			</parameter>
+			<parameter name="ChargingAssociationId">
+				<para>Charging association identifier.  This is optional for AOC-E and can be
+				set to any value between -32768 and 32767</para>
+			</parameter>
+			<parameter name="ChargingAssociationNumber">
+				<para>Represents the charging association party number.  This value is optional
+				for AOC-E.</para>
+			</parameter>
+			<parameter name="ChargingAssociationPlan">
+				<para>Integer representing the charging plan associated with the ChargingAssociationNumber.
+				The value is bits 7 through 1 of the Q.931 octet containing the type-of-number and
+				numbering-plan-identification fields.</para>
+			</parameter>
+			<parameter name="ChargedItem">
+				<para>Defines what part of the call is charged in AOC-S. Usually this is set to
+				BasicCommunication, which refers to the time after the call is answered, but establishment
+				(CallAttempt) or successful establishment (CallSetup) of a call can also be used.
+				Other options are available, but these generally do not carry enough information to actually
+				calculate the price of a call.
+				It is possible to have multiple ChargedItem entries for a single call -- for example to
+				charge for both the establishment of the call and the actual call. In this case, each
+				ChargedItem is described by a ChargedItem: header and all other headers that follow it up to
+				the next ChargedItem: header.</para>
+				<enumlist>
+					<enum name="NA" />
+					<enum name="SpecialArrangement" />
+					<enum name="BasicCommunication" />
+					<enum name="CallAttempt" />
+					<enum name="CallSetup" />
+					<enum name="UserUserInfo" />
+					<enum name="SupplementaryService" />
+				</enumlist>
+			</parameter>
+			<parameter name="RateType">
+				<para>Defines how an AOC-S ChargedItem is charged.
+				The Duration option is only available when ChargedItem==BasicCommunication.</para>
+				<enumlist>
+					<enum name="NA" />
+					<enum name="Free" />
+					<enum name="FreeFromBeginning" />
+					<enum name="Duration" />
+					<enum name="Flat" />
+					<enum name="Volume" />
+					<enum name="SpecialCode" />
+				</enumlist>
+			</parameter>
+			<parameter name="Time">
+				<para>Specifies a positive integer which is the amount of time is paid for by one
+				CurrencyAmount.
+				This value is required when RateType==Duration.</para>
+			</parameter>
+			<parameter name="TimeScale">
+				<para>Specifies the time multiplier.
+				This value is required when Time is given.</para>
+				<enumlist>
+					<enum name="OneHundredthSecond" />
+					<enum name="OneTenthSecond" />
+					<enum name="Second" />
+					<enum name="TenSeconds" />
+					<enum name="Minute" />
+					<enum name="Hour" />
+					<enum name="Day" />
+				</enumlist>
+			</parameter>
+			<parameter name="Granularity">
+				<para>Specifies a positive integer which is the size of the charged time increments.
+				This value is optional when RateType==Duration and ChargingType==StepFunction.</para>
+			</parameter>
+			<parameter name="GranularityTimeScale">
+				<para>Specifies the granularity time multiplier.
+				This value is required when Granularity is given.</para>
+				<enumlist>
+					<enum name="OneHundredthSecond" />
+					<enum name="OneTenthSecond" />
+					<enum name="Second" />
+					<enum name="TenSeconds" />
+					<enum name="Minute" />
+					<enum name="Hour" />
+					<enum name="Day" />
+				</enumlist>
+			</parameter>
+			<parameter name="ChargingType">
+				<para>Specifies whether the charge increases continuously with time or in increments of
+				Time or, if provided, Granularity.
+				This value is required when RateType==Duration.</para>
+				<enumlist>
+					<enum name="ContinuousCharging" />
+					<enum name="StepFunction" />
+				</enumlist>
+			</parameter>
+			<parameter name="VolumeUnit">
+				<para>Specifies the quantity of which one unit is paid for by one CurrencyAmount.
+				This value is required when RateType==Volume.</para>
+				<enumlist>
+					<enum name="Octet" />
+					<enum name="Segment" />
+					<enum name="Message" />
+				</enumlist>
+			</parameter>
+			<parameter name="Code">
+				<para>Specifies the charging code, which can be set to a value between 1 and 10.
+				This value is required when ChargedItem==SpecialArrangement or RateType==SpecialCode.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Generates an AOC-S, AOC-D or AOC-E message on a channel.</para>
+		</description>
+		<see-also>
+			<ref type="managerEvent">AOC-S</ref>
+			<ref type="managerEvent">AOC-D</ref>
+			<ref type="managerEvent">AOC-E</ref>
+		</see-also>
+	</manager>
+	<function name="AMI_CLIENT" language="en_US">
+		<synopsis>
+			Checks attributes of manager accounts
+		</synopsis>
+		<syntax>
+			<parameter name="loginname" required="true">
+				<para>Login name, specified in manager.conf</para>
+			</parameter>
+			<parameter name="field" required="true">
+				<para>The manager account attribute to return</para>
+				<enumlist>
+					<enum name="sessions"><para>The number of sessions for this AMI account</para></enum>
+				</enumlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>
+				Currently, the only supported  parameter is "sessions" which will return the current number of
+				active sessions for this AMI account.
+			</para>
+		</description>
+	</function>
+	<manager name="Filter" language="en_US">
+		<synopsis>
+			Dynamically add filters for the current manager session.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Operation">
+				<enumlist>
+					<enum name="Add">
+						<para>Add a filter.</para>
+					</enum>
+				</enumlist>
+			</parameter>
+			<parameter name="FilterType">
+				<para>FilterType can be one of the following:</para>
+				<enumlist>
+					<enum name="regex">
+						<para>The Filter parameter contains a regular expression
+						which will be applied to the contents of the MatchAgainst
+						parameter.</para>
+					</enum>
+					<enum name="exact">
+						<para>The Filter parameter contains a string
+						which will be exactly matched to the contents of the MatchAgainst
+						parameter.</para>
+					</enum>
+					<enum name="partial">
+						<para>The Filter parameter contains a string
+						which will be searched for in the contents of the MatchAgainst
+						parameter.</para>
+					</enum>
+				</enumlist>
+				<para>The default is <literal>regex</literal></para>
+			</parameter>
+			<parameter name="MatchAgainst">
+				<para>MatchAgainst can be one of the following:</para>
+				<enumlist>
+					<enum name="name">
+						<para>Match only against the event name.</para>
+					</enum>
+					<enum name="header(header_name)">
+						<para>Match only against the contents of this event header.</para>
+					</enum>
+					<enum name="all">
+						<para>Match against the entire event payload.</para>
+					</enum>
+				</enumlist>
+				<para>The default is <literal>all</literal></para>
+			</parameter>
+			<parameter name="Filter">
+				<para>Filters can be whitelist or blacklist</para>
+				<para>Example whitelist filter: "Event: Newchannel"</para>
+				<para>Example blacklist filter: "!Channel: DAHDI.*"</para>
+				<para>This filter option is used to whitelist or blacklist events per user to be
+				reported with regular expressions and are allowed if both the regex matches
+				and the user has read access as defined in manager.conf. Filters are assumed to be for whitelisting
+				unless preceeded by an exclamation point, which marks it as being black.
+				Evaluation of the filters is as follows:</para>
+				<para>- If no filters are configured all events are reported as normal.</para>
+				<para>- If there are white filters only: implied black all filter processed first, then white filters.</para>
+				<para>- If there are black filters only: implied white all filter processed first, then black filters.</para>
+				<para>- If there are both white and black filters: implied black all filter processed first, then white
+				filters, and lastly black filters.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>The filters added are only used for the current session.
+			Once the connection is closed the filters are removed.</para>
+			<para>This comand requires the system permission because
+			this command can be used to create filters that may bypass
+			filters defined in manager.conf</para>
+		</description>
+	</manager>
+	<manager name="BlindTransfer" language="en_US">
+		<synopsis>
+			Blind transfer channel(s) to the given destination
+		</synopsis>
+		<syntax>
+			<parameter name="Channel" required="true">
+			</parameter>
+			<parameter name="Context">
+			</parameter>
+			<parameter name="Exten">
+			</parameter>
+		</syntax>
+		<description>
+			<para>Redirect all channels currently bridged to the specified channel to the specified destination.</para>
+		</description>
+		<see-also>
+			<ref type="manager">Redirect</ref>
+			<ref type="managerEvent">BlindTransfer</ref>
+		</see-also>
+	</manager>
+	<managerEvent name="ExtensionStatus" language="en_US">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised when a hint changes due to a device state change.</synopsis>
+			<syntax>
+				<parameter name="Exten">
+					<para>Name of the extension.</para>
+				</parameter>
+				<parameter name="Context">
+					<para>Context that owns the extension.</para>
+				</parameter>
+				<parameter name="Hint">
+					<para>Hint set for the extension</para>
+				</parameter>
+				<parameter name="Status">
+					<para>Numerical value of the extension status. Extension
+					status is determined by the combined device state of all items
+					contained in the hint.</para>
+					<enumlist>
+						<enum name="-2">
+							<para>The extension was removed from the dialplan.</para>
+						</enum>
+						<enum name="-1">
+							<para>The extension's hint was removed from the dialplan.</para>
+						</enum>
+						<enum name="0">
+							<para><literal>Idle</literal> - Related device(s) are in an idle
+							state.</para>
+						</enum>
+						<enum name="1">
+							<para><literal>InUse</literal> - Related device(s) are in active
+							calls but may take more calls.</para>
+						</enum>
+						<enum name="2">
+							<para><literal>Busy</literal> - Related device(s) are in active
+							calls and may not take any more calls.</para>
+						</enum>
+						<enum name="4">
+							<para><literal>Unavailable</literal> - Related device(s) are
+							not reachable.</para>
+						</enum>
+						<enum name="8">
+							<para><literal>Ringing</literal> - Related device(s) are
+							currently ringing.</para>
+						</enum>
+						<enum name="9">
+							<para><literal>InUse&amp;Ringing</literal> - Related device(s)
+							are currently ringing and in active calls.</para>
+						</enum>
+						<enum name="16">
+							<para><literal>Hold</literal> - Related device(s) are
+							currently on hold.</para>
+						</enum>
+						<enum name="17">
+							<para><literal>InUse&amp;Hold</literal> - Related device(s)
+							are currently on hold and in active calls.</para>
+						</enum>
+					</enumlist>
+				</parameter>
+				<parameter name="StatusText">
+					<para>Text representation of <literal>Status</literal>.</para>
+					<enumlist>
+						<enum name="Idle" />
+						<enum name="InUse" />
+						<enum name="Busy" />
+						<enum name="Unavailable" />
+						<enum name="Ringing" />
+						<enum name="InUse&amp;Ringing" />
+						<enum name="Hold" />
+						<enum name="InUse&amp;Hold" />
+						<enum name="Unknown">
+							<para>Status does not match any of the above values.</para>
+						</enum>
+					</enumlist>
+				</parameter>
+			</syntax>
+			<see-also>
+				<ref type="manager">ExtensionState</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent name="PresenceStatus" language="en_US">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised when a hint changes due to a presence state change.</synopsis>
+			<syntax>
+				<parameter name="Exten" />
+				<parameter name="Context" />
+				<parameter name="Hint" />
+				<parameter name="Status" />
+				<parameter name="Subtype" />
+				<parameter name="Message" />
+			</syntax>
+			<see-also>
+				<ref type="manager">PresenceState</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
+</docs>
