@@ -297,6 +297,7 @@ struct analog_pvt {
 	unsigned int hanguponpolarityswitch:1;
 	unsigned int immediate:1;
 	unsigned int immediatering:1;			/*!< TRUE if ringing should be provided for immediate execution */
+	unsigned int lastnumredial:1;			/*!< TRUE if last number redial allowed */
 	unsigned int permcallwaiting:1;			/*!< TRUE if call waiting is enabled. (Configured option) */
 	unsigned int permhidecallerid:1;		/*!< Whether to hide our outgoing caller ID or not */
 	unsigned int pulse:1;
@@ -352,6 +353,7 @@ struct analog_pvt {
 	char callwait_name[AST_MAX_EXTENSION];
 	char lastcid_num[AST_MAX_EXTENSION];
 	char lastcid_name[AST_MAX_EXTENSION];
+	char lastexten[AST_MAX_EXTENSION];	/*!< Last number dialed */
 	struct ast_party_caller caller;
 	int redirecting_reason;			/*!< Redirecting reason */
 
