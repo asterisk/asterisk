@@ -80,7 +80,7 @@
 
 #define DEVICE_FRAME_SIZE 48
 #define DEVICE_FRAME_FORMAT ast_format_slin
-#define CHANNEL_FRAME_SIZE 320
+#define CHANNEL_FRAME_SIZE 80
 
 static int discovery_interval = 60;			/* The device discovery interval, default 60 seconds. */
 static pthread_t discovery_thread = AST_PTHREADT_NULL;	/* The discovery thread */
