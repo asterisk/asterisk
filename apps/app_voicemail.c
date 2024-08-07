@@ -4691,10 +4691,10 @@ struct insert_data {
 
 #define STORE_SQL_FMT_CAT "INSERT INTO %s (dir, msgnum, recording, context, callerid, " \
 	"origtime, duration, mailboxuser, mailboxcontext, flag, msg_id, category) " \
-	"VALUES (?,?,?,?,?,?,?,?,?,?,?,?)"
+	"VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)"
 #define STORE_SQL_FMT "INSERT INTO %s (dir, msgnum, recording, context, callerid, "\
 	"origtime, duration, mailboxuser, mailboxcontext, flag, msg_id) "\
-	"VALUES (?,?,?,?,?,?,?,?,?,?,?)"
+	"VALUES (?,?,?,?,?,?,?,?,?,?,?,?)"
 
 static SQLHSTMT odbc_insert_data_cb(struct odbc_obj *obj, void *vdata)
 {
@@ -6261,7 +6261,7 @@ static int messagecount(const char *mailbox_id, const char *folder)
 	}
 
 	if (!strcmp(folder, "INBOX")) {
-		gps.sql = ast_alloca(sizeof(MSGCOUNT_SQL_FMT_INBOX) + odbc_table_len + (strlen(VM_SPOOL_DIR) + strlen(context) + strlen(mailbox) * 2));
+		gps.sql = ast_alloca(sizeof(MSGCOUNT_SQL_FMT_INBOX) + odbc_table_len + (strlen(VM_SPOOL_DIR) + strlen(context) + strlen(mailbox)) * 2);
 		sprintf(gps.sql, MSGCOUNT_SQL_FMT_INBOX, odbc_table, VM_SPOOL_DIR, context, mailbox, VM_SPOOL_DIR, context, mailbox); /* Safe */
 	} else {
 		gps.sql = ast_alloca(sizeof(MSGCOUNT_SQL_FMT) + odbc_table_len + strlen(VM_SPOOL_DIR) + strlen(context) + strlen(mailbox) + strlen(folder));
