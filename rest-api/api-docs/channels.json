@@ -2191,6 +2191,11 @@
 				"caller_rdnis": {
 					"type": "string",
 					"description": "The Caller ID RDNIS"
+				},
+				"tenantid": {
+					"required": false,
+					"type": "string",
+					"description": "The Tenant ID for the channel"
 				}
 			}
 		}
