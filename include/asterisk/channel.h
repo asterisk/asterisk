@@ -146,6 +146,8 @@ extern "C" {
  */
 #define AST_MAX_PUBLIC_UNIQUEID 149
 
+#define AST_MAX_TENANT_ID 64 /*!< Max length of a channel tenant_id */
+
 /*!
  * The number of buckets to store channels or channel information
  */
@@ -604,6 +606,24 @@ typedef struct {
 struct ast_assigned_ids {
 	const char *uniqueid;
 	const char *uniqueid2;
+};
+
+/*!
+ * \brief Helper struct for initializing additional channel information on channel creation.
+ * \since 18.25.0
+ */
+struct ast_channel_initializers {
+	/*!
+	 * \brief struct ABI version
+	 * \note This \b must be incremented when the struct changes.
+	 */
+	#define AST_CHANNEL_INITIALIZERS_VERSION 1
+	/*!
+	 * \brief struct ABI version
+	 * \note This \b must stay as the first member.
+	 */
+	uint32_t version;
+	const char *tenantid;
 };
 
 /*!
@@ -1246,6 +1266,27 @@ struct ast_channel * __attribute__((format(printf, 15, 16)))
 
 /*!
  * \brief Create a channel structure
+ * \since 18.25.0
+ *
+ * \retval NULL failure
+ * \retval non-NULL successfully allocated channel
+ *
+ * \note Absolutely _NO_ channel locks should be held before calling this function.
+ * \note By default, new channels are set to the "s" extension
+ *       and "default" context.
+ * \note Same as __ast_channel_alloc but with ast_channel_initializers struct.
+ */
+struct ast_channel * __attribute__((format(printf, 16, 17)))
+	__ast_channel_alloc_with_initializers(int needqueue, int state, const char *cid_num,
+		const char *cid_name, const char *acctcode,
+		const char *exten, const char *context, const struct ast_assigned_ids *assignedids,
+		const struct ast_channel *requestor, enum ama_flags amaflag,
+		struct ast_endpoint *endpoint, struct ast_channel_initializers *initializers,
+		const char *file, int line, const char *function,
+		const char *name_fmt, ...);
+
+/*!
+ * \brief Create a channel structure
  *
  * \retval NULL failure
  * \retval non-NULL successfully allocated channel
@@ -1262,6 +1303,11 @@ struct ast_channel * __attribute__((format(printf, 15, 16)))
 #define ast_channel_alloc_with_endpoint(needqueue, state, cid_num, cid_name, acctcode, exten, context, assignedids, requestor, amaflag, endpoint, ...) \
 	__ast_channel_alloc((needqueue), (state), (cid_num), (cid_name), (acctcode), (exten), (context), (assignedids), (requestor), (amaflag), (endpoint), \
 		__FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
+
+#define ast_channel_alloc_with_initializers(needqueue, state, cid_num, cid_name, acctcode, exten, context, assignedids, requestor, amaflag, endpoint, initializers, ...) \
+	__ast_channel_alloc_with_initializers((needqueue), (state), (cid_num), (cid_name), (acctcode), (exten), (context), (assignedids), (requestor), (amaflag), (endpoint), \
+		(initializers), __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
+
 
 /*!
  * \brief Create a fake channel structure
@@ -4073,6 +4119,8 @@ const char *ast_channel_userfield(const struct ast_channel *chan);
 const char *ast_channel_call_forward(const struct ast_channel *chan);
 const char *ast_channel_uniqueid(const struct ast_channel *chan);
 const char *ast_channel_linkedid(const struct ast_channel *chan);
+const char *ast_channel_tenantid(const struct ast_channel *chan);
+void ast_channel_tenantid_set(struct ast_channel *chan, const char *value);
 const char *ast_channel_parkinglot(const struct ast_channel *chan);
 const char *ast_channel_hangupsource(const struct ast_channel *chan);
 const char *ast_channel_dialcontext(const struct ast_channel *chan);

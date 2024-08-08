@@ -189,6 +189,7 @@ static const struct ie_map {
 	[AST_EVENT_IE_PRESENCE_STATE]      = { AST_EVENT_IE_PLTYPE_UINT, "PresenceState" },
 	[AST_EVENT_IE_PRESENCE_SUBTYPE]    = { AST_EVENT_IE_PLTYPE_STR,  "PresenceSubtype" },
 	[AST_EVENT_IE_PRESENCE_MESSAGE]    = { AST_EVENT_IE_PLTYPE_STR,  "PresenceMessage" },
+	[AST_EVENT_IE_CEL_TENANTID]        = { AST_EVENT_IE_PLTYPE_STR, "TenantID" },
 };
 
 const char *ast_event_get_type_name(const struct ast_event *event)

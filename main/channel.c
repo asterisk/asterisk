@@ -733,7 +733,7 @@ static struct ast_channel *__attribute__((format(printf, 15, 0)))
 __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char *cid_name,
 		       const char *acctcode, const char *exten, const char *context, const struct ast_assigned_ids *assignedids,
 		       const struct ast_channel *requestor, enum ama_flags amaflag, struct ast_endpoint *endpoint,
-		       const char *file, int line,
+		       struct ast_channel_initializers *initializers, const char *file, int line,
 		       const char *function, const char *name_fmt, va_list ap)
 {
 	struct ast_channel *tmp;
@@ -752,7 +752,7 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 		return NULL;
 	}
 
-	tmp = __ast_channel_internal_alloc(ast_channel_destructor, assignedids, requestor,
+	tmp = __ast_channel_internal_alloc_with_initializers(ast_channel_destructor, assignedids, requestor, initializers,
 		file, line, function);
 	if (!tmp) {
 		/* Channel structure allocation failure. */
@@ -964,7 +964,26 @@ struct ast_channel *__ast_channel_alloc(int needqueue, int state, const char *ci
 
 	va_start(ap, name_fmt);
 	result = __ast_channel_alloc_ap(needqueue, state, cid_num, cid_name, acctcode, exten, context,
-					assignedids, requestor, amaflag, endpoint, file, line, function, name_fmt, ap);
+					assignedids, requestor, amaflag, endpoint, NULL, file, line, function, name_fmt, ap);
+	va_end(ap);
+
+	return result;
+}
+
+struct ast_channel *__ast_channel_alloc_with_initializers(int needqueue, int state, const char *cid_num,
+					const char *cid_name, const char *acctcode,
+					const char *exten, const char *context, const struct ast_assigned_ids *assignedids,
+					const struct ast_channel *requestor, enum ama_flags amaflag,
+					struct ast_endpoint *endpoint, struct ast_channel_initializers *initializers,
+					const char *file, int line, const char *function,
+					const char *name_fmt, ...)
+{
+	va_list ap;
+	struct ast_channel *result;
+
+	va_start(ap, name_fmt);
+	result = __ast_channel_alloc_ap(needqueue, state, cid_num, cid_name, acctcode, exten, context,
+					assignedids, requestor, amaflag, endpoint, initializers, file, line, function, name_fmt, ap);
 	va_end(ap);
 
 	return result;
