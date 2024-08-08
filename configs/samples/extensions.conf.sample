@@ -828,3 +828,53 @@ exten => _X.,40000(ani),NoOp(ANI: ${EXTEN})
 ; "core show functions" will list all dialplan functions
 ; "core show function <COMMAND>" will show you more information about
 ; one function. Remember that function names are UPPER CASE.
+
+; Examples using PJSIPNotify application.
+;[generate-notify]
+;
+; Send a NOTIFY with the following headers inside the SIP dialog for the current channel:
+;
+;	Event: Test
+;	X-Data: Fun
+;
+;exten => 6880,1,noOp()
+;    same => n,Answer()
+;    same => n,PJSIPNotify(,&Event=Test&X-Data=Fun)
+;    same => n,Wait(1)
+;    same => n,Hangup()
+;
+; Send a NOTIFY with the following headers to bob's custom uri. This requries a
+; default outbound endpoint to be configured in pjsip.conf.
+;
+;	Event: Test
+;	X-Data: Over
+;
+;exten => 6881,1,noOp()
+;    same => n,Answer()
+;    same => n,PJSIPNotify(<sip:bob@127.0.0.1:5260>,&Event=Test&X-Data=Over)
+;    same => n,Wait(1)
+;    same => n,Hangup()
+;
+; Send a NOTIFY with the the custom headers defined in pjsip_notify.conf under
+; 'custom-notify-1' inside the SIP dialog for the current channel.
+;
+;exten => 6882,1,noOp()
+;    same => n,Answer()
+;    same => n,PJSIPNotify(,custom-notify-1)
+;    same => n,Wait(1)
+;    same => n,Hangup()
+; Send a NOTIFY with the following headers and body to bob's custom uri. This
+; requries a default outbound endpoint to be configured in pjsip.conf.
+;
+;	Event: Custom
+;
+;	Content-Type: application/voicemail
+;	Content-Length:    14
+;
+;	check-messages
+;
+;exten => 6882,1,noOp()
+;    same => n,Answer()
+;    same => n,PJSIPNotify(,&Event=Custom&Content-type=application/voicemail&Content=check-messages&Content=)
+;    same => n,Wait(1)
+;    same => n,Hangup()
