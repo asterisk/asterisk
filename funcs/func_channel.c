@@ -243,6 +243,9 @@
 					<enum name="linkedid">
 						<para>R/O returns the linkedid if available, otherwise returns the uniqueid.</para>
 					</enum>
+					<enum name="tenantid">
+						<para>R/W The channel tenantid.</para>
+					</enum>
 					<enum name="max_forwards">
 						<para>R/W The maximum number of forwards allowed.</para>
 					</enum>
@@ -473,6 +476,8 @@ static int func_channel_read(struct ast_channel *chan, const char *function,
 			ast_callid_strnprint(buf, len, callid);
 		}
 		ast_channel_unlock(chan);
+	} else if (!strcasecmp(data, "tenantid")) {
+		locked_copy_string(chan, buf, ast_channel_tenantid(chan), len);
 	} else if (!ast_channel_tech(chan) || !ast_channel_tech(chan)->func_channel_read || ast_channel_tech(chan)->func_channel_read(chan, function, data, buf, len)) {
 		ast_log(LOG_WARNING, "Unknown or unavailable item requested: '%s'\n", data);
 		ret = -1;
@@ -628,6 +633,8 @@ static int func_channel_write_real(struct ast_channel *chan, const char *functio
 			ret = ast_max_forwards_set(chan, max_forwards);
 			ast_channel_unlock(chan);
 		}
+	} else if (!strcasecmp(data, "tenantid")) {
+		ast_channel_tenantid_set(chan, value);
 	} else if (!ast_channel_tech(chan)->func_channel_write
 		 || ast_channel_tech(chan)->func_channel_write(chan, function, data, value)) {
 		ast_log(LOG_WARNING, "Unknown or unavailable item requested: '%s'\n",
