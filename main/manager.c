@@ -7313,6 +7313,13 @@ static int action_coreshowchannelmap(struct mansession *s, const struct message 
 		return 0;
 	}
 
+	if (ast_strlen_zero(channel_snapshot->bridge->id)) {
+		astman_send_listack(s, m, "Channel map will follow", "start");
+		astman_send_list_complete_start(s, m, "CoreShowChannelMapComplete", 0);
+		astman_send_list_complete_end(s);
+		return 0;
+	}
+
 	bridge_snapshot = ast_bridge_get_snapshot_by_uniqueid(channel_snapshot->bridge->id);
 	if (!bridge_snapshot) {
 		astman_send_listack(s, m, "Channel map will follow", "start");
