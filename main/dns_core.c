@@ -598,7 +598,9 @@ static void sort_result(int rr_type, struct ast_dns_result *result)
 
 void ast_dns_resolver_completed(struct ast_dns_query *query)
 {
-	sort_result(ast_dns_query_get_rr_type(query), query->result);
+	if (query->result) {
+		sort_result(ast_dns_query_get_rr_type(query), query->result);
+	}
 
 	query->callback(query);
 }
