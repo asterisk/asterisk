@@ -5074,12 +5074,12 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-                LIBXML2_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libxml-2.0" 2>&1`
+	        LIBXML2_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libxml-2.0" 2>&1`
         else
-                LIBXML2_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libxml-2.0" 2>&1`
+	        LIBXML2_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libxml-2.0" 2>&1`
         fi
-        # Put the nasty error message in config.log where it belongs
-        echo "$LIBXML2_PKG_ERRORS" >&5
+	# Put the nasty error message in config.log where it belongs
+	echo "$LIBXML2_PKG_ERRORS" >&5
 
 
             PBX_LIBXML2=0
@@ -5093,8 +5093,8 @@ printf "%s\n" "no" >&6; }
 
 
 else
-        LIBXML2_CFLAGS=$pkg_cv_LIBXML2_CFLAGS
-        LIBXML2_LIBS=$pkg_cv_LIBXML2_LIBS
+	LIBXML2_CFLAGS=$pkg_cv_LIBXML2_CFLAGS
+	LIBXML2_LIBS=$pkg_cv_LIBXML2_LIBS
         { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
 
@@ -5320,12 +5320,12 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-                GTK2_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "gtk+-2.0" 2>&1`
+	        GTK2_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "gtk+-2.0" 2>&1`
         else
-                GTK2_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "gtk+-2.0" 2>&1`
+	        GTK2_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "gtk+-2.0" 2>&1`
         fi
-        # Put the nasty error message in config.log where it belongs
-        echo "$GTK2_PKG_ERRORS" >&5
+	# Put the nasty error message in config.log where it belongs
+	echo "$GTK2_PKG_ERRORS" >&5
 
 
             PBX_GTK2=0
@@ -5339,8 +5339,8 @@ printf "%s\n" "no" >&6; }
 
 
 else
-        GTK2_CFLAGS=$pkg_cv_GTK2_CFLAGS
-        GTK2_LIBS=$pkg_cv_GTK2_LIBS
+	GTK2_CFLAGS=$pkg_cv_GTK2_CFLAGS
+	GTK2_LIBS=$pkg_cv_GTK2_LIBS
         { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
 
