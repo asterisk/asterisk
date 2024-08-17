@@ -2434,6 +2434,7 @@ static void endpoint_destructor(void* obj)
 	ast_free(endpoint->contact_user);
 	ast_free_acl_list(endpoint->contact_acl);
 	ast_free_acl_list(endpoint->acl);
+	ast_sip_security_mechanisms_vector_destroy(&endpoint->security_mechanisms);
 }
 
 static int init_subscription_configuration(struct ast_sip_endpoint_subscription_configuration *subscription)
