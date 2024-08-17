@@ -30,7 +30,7 @@
 
 #include "asterisk/res_pjsip.h"
 
-static struct ast_sip_security_mechanism *ast_sip_security_mechanisms_alloc(size_t n_params)
+static struct ast_sip_security_mechanism *security_mechanisms_alloc(size_t n_params)
 {
 	struct ast_sip_security_mechanism *mech;
 
@@ -47,7 +47,7 @@ static struct ast_sip_security_mechanism *ast_sip_security_mechanisms_alloc(size
 	return mech;
 }
 
-static struct ast_sip_security_mechanism *ast_sip_security_mechanisms_copy(
+static struct ast_sip_security_mechanism *security_mechanisms_copy(
 	const struct ast_sip_security_mechanism *src)
 {
 	struct ast_sip_security_mechanism *dst = NULL;
@@ -56,7 +56,7 @@ static struct ast_sip_security_mechanism *ast_sip_security_mechanisms_copy(
 
 	n_params = AST_VECTOR_SIZE(&src->mechanism_parameters);
 
-	dst = ast_sip_security_mechanisms_alloc(n_params);
+	dst = security_mechanisms_alloc(n_params);
 	if (dst == NULL) {
 		return NULL;
 	}
@@ -71,13 +71,9 @@ static struct ast_sip_security_mechanism *ast_sip_security_mechanisms_copy(
 	return dst;
 }
 
-static void ast_sip_security_mechanisms_destroy(struct ast_sip_security_mechanism *mech)
+static void security_mechanism_destroy(struct ast_sip_security_mechanism *mech)
 {
-	int i;
-
-	for (i = 0; i < AST_VECTOR_SIZE(&mech->mechanism_parameters); i++) {
-		ast_free(AST_VECTOR_GET(&mech->mechanism_parameters, i));
-	}
+	AST_VECTOR_RESET(&mech->mechanism_parameters, ast_free);
 	AST_VECTOR_FREE(&mech->mechanism_parameters);
 	ast_free(mech);
 }
@@ -91,78 +87,75 @@ void ast_sip_security_mechanisms_vector_copy(struct ast_sip_security_mechanism_v
 	ast_sip_security_mechanisms_vector_destroy(dst);
 	for (i = 0; i < AST_VECTOR_SIZE(src); i++) {
 		mech = AST_VECTOR_GET(src, i);
-		AST_VECTOR_APPEND(dst, ast_sip_security_mechanisms_copy(mech));
+		AST_VECTOR_APPEND(dst, security_mechanisms_copy(mech));
 	}
 };
 
 void ast_sip_security_mechanisms_vector_destroy(struct ast_sip_security_mechanism_vector *security_mechanisms)
 {
-	struct ast_sip_security_mechanism *mech;
-	int i;
-
 	if (!security_mechanisms) {
 		return;
 	}
 
-	for (i = 0; i < AST_VECTOR_SIZE(security_mechanisms); i++) {
-		mech = AST_VECTOR_GET(security_mechanisms, i);
-		ast_sip_security_mechanisms_destroy(mech);
-	}
+	AST_VECTOR_RESET(security_mechanisms, security_mechanism_destroy);
 	AST_VECTOR_FREE(security_mechanisms);
 }
 
-static int ast_sip_str_to_security_mechanism_type(const char *security_mechanism) {
-	int result = -1;
+static char *mechanism_str[] = {
+	[AST_SIP_SECURITY_MECH_NONE] = "none",
+	[AST_SIP_SECURITY_MECH_MSRP_TLS] = "msrp-tls",
+	[AST_SIP_SECURITY_MECH_SDES_SRTP] = "sdes-srtp",
+	[AST_SIP_SECURITY_MECH_DTLS_SRTP] = "dtls-srtp",
+};
 
-	if (!strcasecmp(security_mechanism, "msrp-tls")) {
-		result = AST_SIP_SECURITY_MECH_MSRP_TLS;
-	} else if (!strcasecmp(security_mechanism, "sdes-srtp")) {
-		result = AST_SIP_SECURITY_MECH_SDES_SRTP;
-	} else if (!strcasecmp(security_mechanism, "dtls-srtp")) {
-		result = AST_SIP_SECURITY_MECH_DTLS_SRTP;
+
+static int str_to_security_mechanism_type(const char *security_mechanism) {
+	int i = 0;
+
+	for (i = 0; i < ARRAY_LEN(mechanism_str); i++) {
+		if (!strcasecmp(security_mechanism, mechanism_str[i])) {
+			return i;
+		}
 	}
 
-	return result;
-}
-
-static char *ast_sip_security_mechanism_type_to_str(enum ast_sip_security_mechanism_type mech_type) {
-	if (mech_type == AST_SIP_SECURITY_MECH_MSRP_TLS) {
-		return "msrp-tls";
-	} else if (mech_type == AST_SIP_SECURITY_MECH_SDES_SRTP) {
-		return "sdes-srtp";
-	} else if (mech_type == AST_SIP_SECURITY_MECH_DTLS_SRTP) {
-		return "dtls-srtp";
-	} else {
-		return NULL;
-	}
+	return -1;
 }
 
 static int security_mechanism_to_str(const struct ast_sip_security_mechanism *security_mechanism, int add_qvalue, char **buf)
 {
 	size_t size;
-	size_t buf_size = 128;
 	int i;
-	char *ret = ast_calloc(buf_size, sizeof(char));
+	int rc = 0;
+	RAII_VAR(struct ast_str *, str, ast_str_create(MAX_OBJECT_FIELD), ast_free);
 
-	if (ret == NULL) {
+	if (str == NULL) {
 		return ENOMEM;
 	}
+
 	if (security_mechanism == NULL) {
-		ast_free(ret);
 		return EINVAL;
 	}
 
-    snprintf(ret, buf_size - 1, "%s", ast_sip_security_mechanism_type_to_str(security_mechanism->type));
+	rc = ast_str_set(&str, 0, "%s", mechanism_str[security_mechanism->type]);
+	if (rc <= 0) {
+		return ENOMEM;
+	}
 	if (add_qvalue) {
-		snprintf(ret + strlen(ret), buf_size - 1, ";q=%f.4", security_mechanism->qvalue);
+		rc = ast_str_append(&str, 0, ";q=%f.4", security_mechanism->qvalue);
+		if (rc <= 0) {
+			return ENOMEM;
+		}
 	}
 
 	size = AST_VECTOR_SIZE(&security_mechanism->mechanism_parameters);
 	for (i = 0; i < size; ++i) {
-		snprintf(ret + strlen(ret), buf_size - 1, ";%s", AST_VECTOR_GET(&security_mechanism->mechanism_parameters, i));
+		rc = ast_str_append(&str, 0, ";%s", AST_VECTOR_GET(&security_mechanism->mechanism_parameters, i));
+		if (rc <= 0) {
+			return ENOMEM;
+		}
 	}
 
-	*buf = ret;
+	*buf = ast_strdup(ast_str_buffer(str));
 	return 0;
 }
 
@@ -171,27 +164,38 @@ int ast_sip_security_mechanisms_to_str(const struct ast_sip_security_mechanism_v
 	size_t vec_size;
 	struct ast_sip_security_mechanism *mech;
 	char *tmp_buf;
-	char ret[512];
+	RAII_VAR(struct ast_str *, str, ast_str_create(MAX_OBJECT_FIELD), ast_free);
 	size_t i;
+	int rc = 0;
+
+	if (str == NULL) {
+		return ENOMEM;
+	}
 
 	if (!security_mechanisms) {
 		return -1;
 	}
 
 	vec_size = AST_VECTOR_SIZE(security_mechanisms);
-	ret[0] = '\0';
+	if (vec_size == 0) {
+		return -1;
+	}
 
 	for (i = 0; i < vec_size; ++i) {
 		mech = AST_VECTOR_GET(security_mechanisms, i);
-		if (security_mechanism_to_str(mech, add_qvalue, &tmp_buf)) {
-			continue;
+		rc = security_mechanism_to_str(mech, add_qvalue, &tmp_buf);
+		if (rc) {
+			return rc;
 		}
-		snprintf(ret + strlen(ret), sizeof(ret) - 1, "%s%s",
-		   tmp_buf, i == vec_size - 1 ? "" : ", ");
+		rc = ast_str_append(&str, 0, "%s, ", tmp_buf);
 		ast_free(tmp_buf);
+		if (rc <= 0) {
+			return ENOMEM;
+		}
 	}
 
-	*buf = ast_strdup(ret);
+	/* ast_str_truncate removes the trailing ", " on the last mechanism */
+	*buf = ast_strdup(ast_str_truncate(str, -2));
 
 	return 0;
 }
@@ -243,14 +247,14 @@ int ast_sip_str_to_security_mechanism(struct ast_sip_security_mechanism **securi
 	int err = 0;
 	int type = -1;
 
-	mech = ast_sip_security_mechanisms_alloc(1);
+	mech = security_mechanisms_alloc(1);
 	if (!mech) {
 		err = ENOMEM;
 		goto out;
 	}
 
 	tmp = ast_strsep(&mechanism, ';', AST_STRSEP_ALL);
-	type = ast_sip_str_to_security_mechanism_type(tmp);
+	type = str_to_security_mechanism_type(tmp);
 	if (type == -1) {
 		err = EINVAL;
 		goto out;
@@ -278,7 +282,7 @@ int ast_sip_str_to_security_mechanism(struct ast_sip_security_mechanism **securi
 
 out:
 	if (err && (mech != NULL)) {
-		ast_sip_security_mechanisms_destroy(mech);
+		security_mechanism_destroy(mech);
 	}
 	return err;
 }
