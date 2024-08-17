@@ -608,14 +608,14 @@ static int contact_has_security_mechanisms(void *obj, void *arg, int flags)
 	struct ast_sip_contact_status *contact_status = ast_sip_get_contact_status(contact);
 
 	if (!contact_status) {
-		return -1;
+		return 0;
 	}
 	if (!AST_VECTOR_SIZE(&contact_status->security_mechanisms)) {
 		ao2_cleanup(contact_status);
-		return -1;
+		return 0;
 	}
 	*ret = contact_status;
-	return 0;
+	return CMP_MATCH | CMP_STOP;
 }
 
 static int contact_add_security_headers_to_status(void *obj, void *arg, int flags)
@@ -625,7 +625,7 @@ static int contact_add_security_headers_to_status(void *obj, void *arg, int flag
 	struct ast_sip_contact_status *contact_status = ast_sip_get_contact_status(contact);
 
 	if (!contact_status) {
-		return -1;
+		return 0;
 	}
 	if (AST_VECTOR_SIZE(&contact_status->security_mechanisms)) {
 		goto out;
@@ -664,7 +664,7 @@ static void add_security_headers(struct sip_outbound_registration_client_state *
 		/* Retrieve all contacts associated with aors from this endpoint
 		 * and find the first one that has security mechanisms.
 		 */
-		ao2_callback(contact_container, 0, contact_has_security_mechanisms, &contact_status);
+		ao2_callback(contact_container, OBJ_NODATA, contact_has_security_mechanisms, &contact_status);
 		if (contact_status) {
 			ao2_lock(contact_status);
 			sec_mechs = &contact_status->security_mechanisms;
