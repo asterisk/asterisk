@@ -1,7 +1,7 @@
 """add pjsip tenantid
 
 Revision ID: 655054a68ad5
-Revises: bd9c5159c7ea
+Revises: 9f3692b1654b
 Create Date: 2024-06-11 11:18:41.466929
 
 """
