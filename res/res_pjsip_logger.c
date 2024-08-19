@@ -615,7 +615,7 @@ static char *pjsip_set_logger(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 {
 	static const char * const method_choices[] = {
 		"INVITE", "CANCEL", "ACK",
-		"BYE", "REGISTER", "OPTION",
+		"BYE", "REGISTER", "OPTIONS",
 		"SUBSCRIBE", "NOTIFY", "PUBLISH",
 		"INFO", "MESSAGE",
 		NULL
@@ -632,7 +632,7 @@ static char *pjsip_set_logger(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 			"       globally or enables logging for an individual\n"
 			"       host or particular SIP method(s).\n"
 			"       Messages can be filtered by SIP request methods\n"
-			"       INVITE, CANCEL, ACK, BYE, REGISTER, OPTION\n"
+			"       INVITE, CANCEL, ACK, BYE, REGISTER, OPTIONS,\n"
 			"       SUBSCRIBE, NOTIFY, PUBLISH, INFO, and MESSAGE\n";
 		return NULL;
 	} else if (cmd == CLI_GENERATE) {
