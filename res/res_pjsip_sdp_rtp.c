@@ -344,6 +344,14 @@ static void get_codecs(struct ast_sip_session *session, const struct pjmedia_sdp
 
 		ast_copy_pj_str(name, &rtpmap->enc_name, sizeof(name));
 		if (strcmp(name, "telephone-event") == 0) {
+			if (tel_event == 0) {
+				int dtmf_rate = 0, dtmf_code = 0;
+				char dtmf_pt[8];
+				ast_copy_pj_str(dtmf_pt, &rtpmap->pt, sizeof(dtmf_pt));
+				dtmf_code = atoi(dtmf_pt);
+				dtmf_rate = rtpmap->clock_rate;
+				ast_rtp_codecs_set_preferred_dtmf_format(codecs, dtmf_code, dtmf_rate);
+			}
 			tel_event++;
 		}
 

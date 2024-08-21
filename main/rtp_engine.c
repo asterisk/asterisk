@@ -1216,6 +1216,16 @@ static int payload_mapping_tx_is_present(const struct ast_rtp_codecs *codecs, co
 	return 0;
 }
 
+int ast_rtp_payload_mapping_tx_is_present(struct ast_rtp_codecs *codecs, const struct ast_rtp_payload_type *to_match) {
+	int ret = 0;
+	if (codecs && to_match) {
+		ast_rwlock_rdlock(&codecs->codecs_lock);
+		ret = payload_mapping_tx_is_present(codecs, to_match);
+		ast_rwlock_unlock(&codecs->codecs_lock);
+	}
+	return ret;
+}
+
 /*!
  * \internal
  * \brief Copy the tx payload type mapping to the destination.
@@ -1288,6 +1298,8 @@ void ast_rtp_codecs_payloads_copy(struct ast_rtp_codecs *src, struct ast_rtp_cod
 	rtp_codecs_payloads_copy_tx(src, dest, instance);
 	dest->framing = src->framing;
 	ao2_replace(dest->preferred_format, src->preferred_format);
+	dest->preferred_dtmf_rate = src->preferred_dtmf_rate;
+	dest->preferred_dtmf_pt = src->preferred_dtmf_pt;
 
 	ast_rwlock_unlock(&src->codecs_lock);
 	ast_rwlock_unlock(&dest->codecs_lock);
@@ -1331,6 +1343,8 @@ void ast_rtp_codecs_payloads_xover(struct ast_rtp_codecs *src, struct ast_rtp_co
 
 	dest->framing = src->framing;
 	ao2_replace(dest->preferred_format, src->preferred_format);
+	dest->preferred_dtmf_rate = src->preferred_dtmf_rate;
+	dest->preferred_dtmf_pt = src->preferred_dtmf_pt;
 
 	if (src != dest) {
 		ast_rwlock_unlock(&src->codecs_lock);
@@ -1567,6 +1581,33 @@ int ast_rtp_codecs_set_preferred_format(struct ast_rtp_codecs *codecs, struct as
 {
 	ast_rwlock_wrlock(&codecs->codecs_lock);
 	ao2_replace(codecs->preferred_format, format);
+	ast_rwlock_unlock(&codecs->codecs_lock);
+	return 0;
+}
+
+int ast_rtp_codecs_get_preferred_dtmf_format_pt(struct ast_rtp_codecs *codecs)
+{
+	int pt = -1;
+	ast_rwlock_rdlock(&codecs->codecs_lock);
+	pt = codecs->preferred_dtmf_pt;
+	ast_rwlock_unlock(&codecs->codecs_lock);
+	return pt;
+}
+
+int ast_rtp_codecs_get_preferred_dtmf_format_rate(struct ast_rtp_codecs *codecs)
+{
+	int rate = -1;
+	ast_rwlock_rdlock(&codecs->codecs_lock);
+	rate = codecs->preferred_dtmf_rate;
+	ast_rwlock_unlock(&codecs->codecs_lock);
+	return rate;
+}
+
+int ast_rtp_codecs_set_preferred_dtmf_format(struct ast_rtp_codecs *codecs, int pt, int rate)
+{
+	ast_rwlock_wrlock(&codecs->codecs_lock);
+	codecs->preferred_dtmf_pt = pt;
+	codecs->preferred_dtmf_rate = rate;
 	ast_rwlock_unlock(&codecs->codecs_lock);
 	return 0;
 }
@@ -2086,6 +2127,16 @@ int ast_rtp_codecs_payload_code_tx_sample_rate(struct ast_rtp_codecs *codecs, in
 		ast_rwlock_rdlock(&static_RTP_PT_lock);
 		payload = find_static_payload_type(asterisk_format, format, code);
 		ast_rwlock_unlock(&static_RTP_PT_lock);
+
+		ast_rwlock_rdlock(&codecs->codecs_lock);
+		if (payload >= 0 && payload < AST_VECTOR_SIZE(&codecs->payload_mapping_tx)){
+			type = AST_VECTOR_GET(&codecs->payload_mapping_tx, payload);
+			if (!type || (sample_rate != 0 && type->sample_rate != sample_rate)) {
+				/* Don't use the type if we can't find it or it doesn't match the supplied sample_rate */
+				payload = -1;
+			}
+		}
+		ast_rwlock_unlock(&codecs->codecs_lock);
 	}
 
 	return payload;
