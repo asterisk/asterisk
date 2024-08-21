@@ -764,10 +764,15 @@ struct ast_rtp_codecs {
 	unsigned int framing;
 	/*! The preferred format, as the mappings are numerically sorted */
 	struct ast_format *preferred_format;
+	/*! The preferred dtmf sample rate */
+	int preferred_dtmf_rate;
+	/*! The preferred dtmf payload type */
+	int preferred_dtmf_pt;
 };
 
 #define AST_RTP_CODECS_NULL_INIT \
-    { .codecs_lock = AST_RWLOCK_INIT_VALUE, .payload_mapping_rx = { 0, }, .payload_mapping_tx = { 0, }, .framing = 0, .preferred_format = NULL }
+    { .codecs_lock = AST_RWLOCK_INIT_VALUE, .payload_mapping_rx = { 0, }, .payload_mapping_tx = { 0, }, .framing = 0, .preferred_format = NULL, \
+	.preferred_dtmf_rate = -1, .preferred_dtmf_pt = -1}
 
 /*! Structure that represents the glue that binds an RTP instance to a channel */
 struct ast_rtp_glue {
@@ -1709,6 +1714,69 @@ struct ast_format *ast_rtp_codecs_get_preferred_format(struct ast_rtp_codecs *co
  * This sets the first joint format as the preferred format.
  */
 int ast_rtp_codecs_set_preferred_format(struct ast_rtp_codecs *codecs, struct ast_format *format);
+
+/*!
+ * \brief Retrieve rx preferred dtmf format payload type
+ *
+ * \param codecs Codecs structure to look in
+ *
+ * \return Payload type of preferred dtmf format.
+ * \retval -1 if not set.
+ *
+ * Example usage:
+ *
+ * \code
+ * int payload;
+ * payload = ast_rtp_codecs_get_preferred_dtmf_format_pt(codec);
+ * \endcode
+ *
+ * This looks up the preferred dtmf format pt on the codec
+ */
+int ast_rtp_codecs_get_preferred_dtmf_format_pt(struct ast_rtp_codecs *codecs);
+
+/*!
+ * \brief Retrieve rx preferred dtmf format sample rate
+ *
+ * \param codecs Codecs structure to look in
+ *
+ * \return Sample rate of preferred dtmf format.
+ * \retval -1 if not set.
+ *
+ * Example usage:
+ *
+ * \code
+ * int sample_rate;
+ * sample_rate = ast_rtp_codecs_get_preferred_dtmf_format_rate(codec);
+ * \endcode
+ *
+ * This looks up the preferred dtmf format sample rate on the codec
+ */
+int ast_rtp_codecs_get_preferred_dtmf_format_rate(struct ast_rtp_codecs *codecs);
+
+/*!
+ * \brief Set the preferred dtmf format pt and sample rate
+ *
+ * \param codecs Codecs structure to set the preferred format in
+ * \param pt Preferred dtmf payload type to set.
+ * \param rate Preferred dtmf payload rate to set.
+ *
+ * \return 0
+ *
+ * \note The format passed this function has its reference count increased. If an existing
+ * 		 format is set, that format is replaced.
+ *
+ * Example usage:
+ *
+ * \code
+ * int dtmf_code = atoi(dtmf_pt);
+ * int dtmf_rate = clock_rate;
+ * ast_rtp_codecs_set_preferred_dtmf_format(codecs, dtmf_code, dtmf_rate);
+ * \endcode
+ *
+ * This sets the preferred dtmf_code and dtmf_rate on the codec.
+ */
+int ast_rtp_codecs_set_preferred_dtmf_format(struct ast_rtp_codecs *codecs, int pt, int rate);
+
 
 /*!
  * \brief Update the format associated with a tx payload type in a codecs structure
@@ -2976,6 +3044,20 @@ int ast_rtp_get_rate(const struct ast_format *format);
  * \return A \ref stasis topic
  */
 struct stasis_topic *ast_rtp_topic(void);
+
+/*!
+ * \brief Determine if a type of payload is already present in mappings.
+ * \since 18
+ *
+ * \param codecs Codecs to be checked for mappings.
+ * \param to_match Payload type object to compare against.
+ *
+ * \note It is assumed that codecs is not locked before calling.
+ *
+ * \retval 0 not found
+ * \retval 1 found
+ */
+int ast_rtp_payload_mapping_tx_is_present(struct ast_rtp_codecs *codecs, const struct ast_rtp_payload_type *to_match);
 
 /* RTP debug logging category name */
 #define AST_LOG_CATEGORY_RTP "rtp"
