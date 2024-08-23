@@ -1011,6 +1011,7 @@ void ast_rtp_codecs_payloads_destroy(struct ast_rtp_codecs *codecs)
 	AST_VECTOR_FREE(&codecs->payload_mapping_tx);
 
 	ao2_t_cleanup(codecs->preferred_format, "destroying ast_rtp_codec preferred format");
+	codecs->preferred_format = NULL;
 
 	ast_rwlock_destroy(&codecs->codecs_lock);
 }
