@@ -544,7 +544,10 @@ static int set_caps(struct ast_sip_session *session,
 			ast_format_cap_get_names(caps, &usbuf),
 			ast_format_cap_get_names(peer, &thembuf));
 	} else {
-		ast_rtp_codecs_set_preferred_format(&codecs, ast_format_cap_get_format(joint, 0));
+		struct ast_format *preferred_fmt = ast_format_cap_get_format(joint, 0);
+
+		ast_rtp_codecs_set_preferred_format(&codecs, preferred_fmt);
+		ao2_ref(preferred_fmt, -1);
 	}
 
 	if (is_offer) {
