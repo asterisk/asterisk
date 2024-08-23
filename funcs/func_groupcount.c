@@ -698,7 +698,7 @@ static int group_var_function_read(struct ast_channel *chan, const char *cmd,
 {
 	char group[MAX_GROUP_LEN] = "";
 	char category[MAX_CATEGORY_LEN] = "";
-	const char *variable_value;
+	char *variable_value;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(groupcategory);
 		AST_APP_ARG(varname);
@@ -720,6 +720,7 @@ static int group_var_function_read(struct ast_channel *chan, const char *cmd,
 
 	if (variable_value) {
 		ast_copy_string(buf, variable_value, len);
+		ast_free(variable_value);
 	}
 
 	return 0;
@@ -832,7 +833,7 @@ static int manager_group_var_get(struct mansession *s, const struct message *m)
 	const char *group = astman_get_header(m, "Group");
 	const char *category = astman_get_header(m, "Category");
 	const char *variable = astman_get_header(m, "Variable");
-	const char *variable_value;
+	char *variable_value;
 	char idText[256] = "";
 
 	if (ast_strlen_zero(group)) {
@@ -869,6 +870,8 @@ static int manager_group_var_get(struct mansession *s, const struct message *m)
 			"%s"
 			"\r\n",
 			group, category, variable, variable_value, idText);
+
+        ast_free(variable_value);
 
 	return AMI_SUCCESS;
 }
