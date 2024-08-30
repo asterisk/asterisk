@@ -249,7 +249,7 @@ static int start_spying(struct ast_autochan *autochan, const char *spychan_name,
 	ast_debug(1, "Attaching spy channel %s to %s\n", spychan_name, ast_channel_name(autochan->chan));
 
 	if (ast_test_flag(flags, OPTION_READONLY)) {
-		ast_set_flag(audiohook, AST_AUDIOHOOK_MUTE_WRITE);
+		ast_set_flag(audiohook, AST_AUDIOHOOK_MUTE_WRITE | AST_AUDIOHOOK_SKIP_WRITE);
 	} else {
 		ast_set_flag(audiohook, AST_AUDIOHOOK_TRIGGER_SYNC);
 	}

@@ -66,6 +66,8 @@ enum ast_audiohook_flags {
 	AST_AUDIOHOOK_COMPATIBLE    = (1 << 7), /*!< is the audiohook native slin compatible */
 
 	AST_AUDIOHOOK_SUBSTITUTE_SILENCE = (1 << 8), /*!< Substitute silence for missing audio */
+
+	AST_AUDIOHOOK_SKIP_WRITE = (1 << 9), /*!< audiohook should be skip frames write */
 };
 
 enum ast_audiohook_init_flags {

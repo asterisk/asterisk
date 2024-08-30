@@ -166,6 +166,9 @@ int ast_audiohook_set_frame_feed_direction(struct ast_audiohook *audiohook, enum
 
 int ast_audiohook_write_frame(struct ast_audiohook *audiohook, enum ast_audiohook_direction direction, struct ast_frame *frame)
 {
+	if (direction == AST_AUDIOHOOK_DIRECTION_WRITE && ast_test_flag(audiohook, AST_AUDIOHOOK_SKIP_WRITE)) {
+		return 0;
+	}
 	struct ast_slinfactory *factory = (direction == AST_AUDIOHOOK_DIRECTION_READ ? &audiohook->read_factory : &audiohook->write_factory);
 	struct ast_slinfactory *other_factory = (direction == AST_AUDIOHOOK_DIRECTION_READ ? &audiohook->write_factory : &audiohook->read_factory);
 	struct timeval *rwtime = (direction == AST_AUDIOHOOK_DIRECTION_READ ? &audiohook->read_time : &audiohook->write_time), previous_time = *rwtime;
