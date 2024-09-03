@@ -6261,12 +6261,14 @@ static int messagecount(const char *mailbox_id, const char *folder)
 	}
 
 	if (!strcmp(folder, "INBOX")) {
-		gps.sql = ast_alloca(sizeof(MSGCOUNT_SQL_FMT_INBOX) + odbc_table_len + (strlen(VM_SPOOL_DIR) + strlen(context) + strlen(mailbox) * 2));
-		sprintf(gps.sql, MSGCOUNT_SQL_FMT_INBOX, odbc_table, VM_SPOOL_DIR, context, mailbox, VM_SPOOL_DIR, context, mailbox); /* Safe */
+		res = ast_asprintf(&gps.sql, MSGCOUNT_SQL_FMT_INBOX, odbc_table, VM_SPOOL_DIR, context, mailbox, VM_SPOOL_DIR, context, mailbox);
 	} else {
-		gps.sql = ast_alloca(sizeof(MSGCOUNT_SQL_FMT) + odbc_table_len + strlen(VM_SPOOL_DIR) + strlen(context) + strlen(mailbox) + strlen(folder));
-		sprintf(gps.sql, MSGCOUNT_SQL_FMT, odbc_table, VM_SPOOL_DIR, context, mailbox, folder); /* Safe */
+		res = ast_asprintf(&gps.sql, MSGCOUNT_SQL_FMT, odbc_table, VM_SPOOL_DIR, context, mailbox, folder);
 	}
+	if (res <= 0) {
+		SCOPE_EXIT_LOG_RTN_VALUE(0, AST_LOG_WARNING, "Failed to allocate memory for SQL statement for '%s'!\n", odbc_database);
+	}
+	ast_trace(-1, "SQL: %s\n", gps.sql);
 
 	stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, &gps);
 	if (!stmt) {
@@ -6290,6 +6292,7 @@ bail_with_handle:
 
 bail:
 	ast_odbc_release_obj(obj);
+	ast_free(gps.sql);
 	SCOPE_EXIT_RTN_VALUE(nummsgs, "Messages: %d\n", nummsgs);
 }
 #undef MSGCOUNT_SQL_FMT
