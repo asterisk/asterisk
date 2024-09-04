@@ -309,9 +309,16 @@ int ast_autoservice_stop(struct ast_channel *chan)
 		return 0;
 	}
 
-	/* Wait while autoservice thread rebuilds its list. */
-	while (chan_list_state == as_chan_list_state) {
-		usleep(1000);
+	if (asthread != AST_PTHREADT_NULL && pthread_equal(pthread_self(), asthread)) {
+		/* Do not sleep if ast_autoservice_stop is called within the autoservice thread,
+		   otherwise the thread will be stuck in an endless sleep. */
+		ast_debug(1, "ast_autoservice_stop is called within the autoservice thread, channel %s\n",
+			ast_channel_name(chan));
+	} else {
+		/* Wait while autoservice thread rebuilds its list. */
+		while (chan_list_state == as_chan_list_state) {
+			usleep(1000);
+		}
 	}
 
 	/* Now autoservice thread should have no references to our entry
