@@ -1657,3 +1657,9 @@ ALTER TABLE ps_registrations MODIFY id VARCHAR(255) NOT NULL;
 
 UPDATE alembic_version SET version_num='6c475a93f48a' WHERE alembic_version.version_num = '74dc751dfe8e';
 
+-- Running upgrade 6c475a93f48a -> 655054a68ad5
+
+ALTER TABLE ps_endpoints ADD COLUMN tenantid VARCHAR(80);
+
+UPDATE alembic_version SET version_num='655054a68ad5' WHERE alembic_version.version_num = '6c475a93f48a';
+
