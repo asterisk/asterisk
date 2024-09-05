@@ -1466,5 +1466,11 @@ ALTER TABLE ps_endpoints ADD COLUMN stir_shaken_profile VARCHAR(80);
 
 UPDATE alembic_version SET version_num='9f3692b1654b' WHERE alembic_version.version_num = '7197536bb68d';
 
+-- Running upgrade 9f3692b1654b -> 655054a68ad5
+
+ALTER TABLE ps_endpoints ADD COLUMN tenantid VARCHAR(80);
+
+UPDATE alembic_version SET version_num='655054a68ad5' WHERE alembic_version.version_num = '9f3692b1654b';
+
 COMMIT;
 
