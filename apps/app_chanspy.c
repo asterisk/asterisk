@@ -585,6 +585,25 @@ static int start_spying(struct ast_autochan *autochan, const char *spychan_name,
 	return res;
 }
 
+static int start_whispering(struct ast_autochan *autochan, const char *spychan_name, struct ast_audiohook *audiohook, struct ast_flags *flags)
+{
+	int res;
+
+	ast_autochan_channel_lock(autochan);
+	ast_verb(3, "Attaching spy channel %s to %s\n",
+		spychan_name, ast_channel_name(autochan->chan));
+
+	ast_set_flag(audiohook, AST_AUDIOHOOK_TRIGGER_SYNC);
+	if (ast_test_flag(flags, OPTION_LONG_QUEUE)) {
+		ast_debug(9, "Using a long queue to store audio frames in whisper audiohook\n");
+	} else {
+		ast_set_flag(audiohook, AST_AUDIOHOOK_SMALL_QUEUE);
+	}
+	res = ast_audiohook_attach(autochan->chan, audiohook);
+	ast_autochan_channel_unlock(autochan);
+	return res;
+}
+
 static void change_spy_mode(const char digit, struct ast_flags *flags)
 {
 	if (digit == '4') {
@@ -685,7 +704,7 @@ static int attach_barge(struct ast_autochan *spyee_autochan,
 		return -1;
 	}
 
-	if (start_spying(internal_bridge_autochan, spyer_name, bridge_whisper_audiohook, flags)) {
+	if (start_whispering(internal_bridge_autochan, spyer_name, bridge_whisper_audiohook, flags)) {
 		ast_log(LOG_WARNING, "Unable to attach barge audiohook on spyee '%s'. Barge mode disabled.\n", name);
 		retval = -1;
 	}
@@ -747,7 +766,7 @@ static int channel_spy(struct ast_channel *chan, struct ast_autochan *spyee_auto
 		*/
 		ast_audiohook_init(&csth.whisper_audiohook, AST_AUDIOHOOK_TYPE_WHISPER, "ChanSpy", 0);
 
-		if (start_spying(spyee_autochan, spyer_name, &csth.whisper_audiohook, flags)) {
+		if (start_whispering(spyee_autochan, spyer_name, &csth.whisper_audiohook, flags)) {
 			ast_log(LOG_WARNING, "Unable to attach whisper audiohook to spyee %s. Whisper mode disabled!\n", name);
 		}
 	}
