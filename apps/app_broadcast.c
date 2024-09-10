@@ -264,6 +264,25 @@ static int start_spying(struct ast_autochan *autochan, const char *spychan_name,
 	return res;
 }
 
+static int start_whispering(struct ast_autochan *autochan, const char *spychan_name, struct ast_audiohook *audiohook, struct ast_flags *flags)
+{
+	int res;
+
+	ast_autochan_channel_lock(autochan);
+	ast_verb(3, "Attaching spy channel %s to %s\n",
+		spychan_name, ast_channel_name(autochan->chan));
+
+	ast_set_flag(audiohook, AST_AUDIOHOOK_TRIGGER_SYNC);
+	if (ast_test_flag(flags, OPTION_LONG_QUEUE)) {
+		ast_debug(9, "Using a long queue to store audio frames in whisper audiohook\n");
+	} else {
+		ast_set_flag(audiohook, AST_AUDIOHOOK_SMALL_QUEUE);
+	}
+	res = ast_audiohook_attach(autochan->chan, audiohook);
+	ast_autochan_channel_unlock(autochan);
+	return res;
+}
+
 static int attach_barge(struct ast_autochan *spyee_autochan, struct ast_autochan **spyee_bridge_autochan,
 	struct ast_audiohook *bridge_whisper_audiohook, const char *spyer_name, const char *name, struct ast_flags *flags)
 {
@@ -295,7 +314,7 @@ static int attach_barge(struct ast_autochan *spyee_autochan, struct ast_autochan
 		return -1;
 	}
 
-	if (start_spying(internal_bridge_autochan, spyer_name, bridge_whisper_audiohook, flags)) {
+	if (start_whispering(internal_bridge_autochan, spyer_name, bridge_whisper_audiohook, flags)) {
 		ast_log(LOG_WARNING, "Unable to attach barge audiohook on spyee '%s'. Barge mode disabled.\n", name);
 		retval = -1;
 	}
@@ -396,7 +415,7 @@ static int do_broadcast(struct ast_channel *chan, struct ast_flags *flags, const
 			mac->connected = 1;
 			ast_audiohook_init(&mac->whisper_audiohook, AST_AUDIOHOOK_TYPE_WHISPER, "Broadcast", 0);
 			/* Inject audio from our channel to this target. */
-			if (start_spying(mac->autochan, next, &mac->whisper_audiohook, flags)) {
+			if (start_whispering(mac->autochan, next, &mac->whisper_audiohook, flags)) {
 				ast_log(LOG_WARNING, "Unable to attach whisper audiohook to %s\n", next);
 				multi_autochan_free(mac);
 				continue;
