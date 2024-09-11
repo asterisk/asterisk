@@ -660,25 +660,15 @@ enum ast_stir_shaken_vs_response_code
 	const char *t = S_OR(tag, S_COR(chan, ast_channel_name(chan), ""));
 	SCOPE_ENTER(3, "%s: Enter\n", t);
 
-	if (ast_strlen_zero(tag)) {
-		SCOPE_EXIT_LOG_RTN_VALUE(AST_STIR_SHAKEN_VS_INVALID_ARGUMENTS,
-			LOG_ERROR, "%s: Must provide tag\n", t);
-	}
-
-	if (ast_strlen_zero(canon_caller_id)) {
-		SCOPE_EXIT_LOG_RTN_VALUE(AST_STIR_SHAKEN_VS_INVALID_ARGUMENTS,
-		LOG_ERROR, "%s: Must provide caller_id\n", t);
+	vs = vs_get_cfg();
+	if (vs->global_disable) {
+		SCOPE_EXIT_RTN_VALUE(AST_STIR_SHAKEN_VS_DISABLED,
+			"%s: Globally disabled\n", t);
 	}
 
 	if (ast_strlen_zero(profile_name)) {
 		SCOPE_EXIT_RTN_VALUE(AST_STIR_SHAKEN_VS_DISABLED,
 			"%s: Disabled due to missing profile name\n", t);
-	}
-
-	vs = vs_get_cfg();
-	if (vs->global_disable) {
-		SCOPE_EXIT_RTN_VALUE(AST_STIR_SHAKEN_VS_DISABLED,
-			"%s: Globally disabled\n", t);
 	}
 
 	profile = eprofile_get_cfg(profile_name);
@@ -690,7 +680,17 @@ enum ast_stir_shaken_vs_response_code
 
 	if (!PROFILE_ALLOW_VERIFY(profile)) {
 		SCOPE_EXIT_RTN_VALUE(AST_STIR_SHAKEN_VS_DISABLED,
-			"%s: Disabled by profile\n", t);
+			"%s: Disabled by profile '%s'\n", t, profile_name);
+	}
+
+	if (ast_strlen_zero(tag)) {
+		SCOPE_EXIT_LOG_RTN_VALUE(AST_STIR_SHAKEN_VS_INVALID_ARGUMENTS,
+			LOG_ERROR, "%s: Must provide tag\n", t);
+	}
+
+	if (ast_strlen_zero(canon_caller_id)) {
+		SCOPE_EXIT_LOG_RTN_VALUE(AST_STIR_SHAKEN_VS_INVALID_ARGUMENTS,
+		LOG_ERROR, "%s: Must provide caller_id\n", t);
 	}
 
 	ctx = ao2_alloc_options(sizeof(*ctx), ctx_destructor,
