@@ -235,6 +235,7 @@ AST_TEST_DEFINE(put_get_long)
 {
 	int res = AST_TEST_PASS;
 	struct ast_str *s;
+	struct ast_str *key;
 	int i, j;
 
 #define STR_FILL_32 "abcdefghijklmnopqrstuvwxyz123456"
@@ -245,7 +246,7 @@ AST_TEST_DEFINE(put_get_long)
 		info->category = "/main/astdb/";
 		info->summary = "ast_db_(put|get_allocated) unit test";
 		info->description =
-			"Ensures that the ast_db_put and ast_db_get_allocated functions work";
+			"Ensures that the ast_db_put and ast_db_get_allocated functions work with log key and long data";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -255,25 +256,34 @@ AST_TEST_DEFINE(put_get_long)
 		return AST_TEST_FAIL;
 	}
 
+	if (!(key = ast_str_create(512))) {
+		return AST_TEST_FAIL;
+	}
+
+	for (j = 0; j < 512; j += sizeof(STR_FILL_32) - 1) {
+		ast_str_append(&key, 0, "%s", STR_FILL_32);
+	}
+
 	for (i = 1024; i <= 1024 * 1024 * 8; i *= 2) {
 		char *out = NULL;
 
 		ast_str_reset(s);
+		ast_str_reset(key);
 
 		for (j = 0; j < i; j += sizeof(STR_FILL_32) - 1) {
 			ast_str_append(&s, 0, "%s", STR_FILL_32);
 		}
 
-		if (ast_db_put("astdbtest", "long", ast_str_buffer(s))) {
+		if (ast_db_put("astdbtest", ast_str_buffer(key), ast_str_buffer(s))) {
 			ast_test_status_update(test, "Failed to put value of %zu bytes\n", ast_str_strlen(s));
 			res = AST_TEST_FAIL;
-		} else if (ast_db_get_allocated("astdbtest", "long", &out)) {
+		} else if (ast_db_get_allocated("astdbtest", ast_str_buffer(key), &out)) {
 			ast_test_status_update(test, "Failed to get value of %zu bytes\n", ast_str_strlen(s));
 			res = AST_TEST_FAIL;
 		} else if (strcmp(ast_str_buffer(s), out)) {
 			ast_test_status_update(test, "Failed to match value of %zu bytes\n", ast_str_strlen(s));
 			res = AST_TEST_FAIL;
-		} else if (ast_db_del("astdbtest", "long")) {
+		} else if (ast_db_del("astdbtest", ast_str_buffer(key))) {
 			ast_test_status_update(test, "Failed to delete astdbtest/long\n");
 			res = AST_TEST_FAIL;
 		}
@@ -284,6 +294,7 @@ AST_TEST_DEFINE(put_get_long)
 	}
 
 	ast_free(s);
+	ast_free(key);
 
 	return res;
 }
