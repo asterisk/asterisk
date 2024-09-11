@@ -41,8 +41,8 @@
 /*! The unit test category */
 #define CATEGORY "/main/media_cache/"
 
-/*! A 'valid' resource for the test bucket behind the media cache facade */
-#define VALID_RESOURCE "httptest://localhost:8088/test_media_cache/monkeys.wav"
+/*! A 'valid' long resource for the test bucket behind the media cache facade */
+#define VALID_RESOURCE "httptest://localhost:8088/test_media_cache/test_media_cache/test_media_cache/test_media_cache/test_media_cache/test_media_cache/test_media_cache/test_media_cache/test_media_cache/test_media_cache/test_media_cache/test_media_cache/test_media_cache/monkeys.wav"
 
 /*! An 'invalid' resource for the test bucket behind the media cache facade */
 #define INVALID_RESOURCE "httptest://localhost:8088/test_media_cache/bad.wav"
@@ -109,6 +109,7 @@ static void *bucket_http_test_wizard_retrieve_id(const struct ast_sorcery *sorce
 static int bucket_http_test_wizard_delete(const struct ast_sorcery *sorcery, void *data,
 	void *object)
 {
+	ast_media_cache_delete(VALID_RESOURCE);
 	if (!strcmp(ast_sorcery_object_get_id(object), VALID_RESOURCE)) {
 		return 0;
 	}
@@ -249,6 +250,8 @@ AST_TEST_DEFINE(create_update_nominal)
 	ast_test_status_update(test, "Got %s for second file path\n", file_path);
 	ast_test_validate(test, res == 0);
 	ast_test_validate(test, strcmp(file_path, tmp_path_two) == 0);
+
+	ast_media_cache_delete(VALID_RESOURCE);
 
 	unlink(tmp_path_one);
 	unlink(tmp_path_two);
