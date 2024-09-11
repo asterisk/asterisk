@@ -75,37 +75,18 @@ enum ast_stir_shaken_as_response_code
 	RAII_VAR(char *, canon_dest_tn , canonicalize_tn_alloc(dest_tn), ast_free);
 	RAII_VAR(char *, canon_orig_tn , canonicalize_tn_alloc(orig_tn), ast_free);
 
-	SCOPE_ENTER(3, "%s: Enter\n", tag);
-
-	if (!canon_orig_tn) {
-		SCOPE_EXIT_LOG_RTN_VALUE(AST_STIR_SHAKEN_AS_INVALID_ARGUMENTS,
-			LOG_ERROR, "%s: Must provide caller_id/orig_tn\n", tag);
-	}
-
-	if (!canon_dest_tn) {
-		SCOPE_EXIT_LOG_RTN_VALUE(AST_STIR_SHAKEN_AS_INVALID_ARGUMENTS,
-			LOG_ERROR, "%s: Must provide dest_tn\n", tag);
-	}
-
-	if (ast_strlen_zero(tag)) {
-		SCOPE_EXIT_LOG_RTN_VALUE(AST_STIR_SHAKEN_AS_INVALID_ARGUMENTS,
-			LOG_ERROR, "%s: Must provide tag\n", tag);
-	}
-
-	if (!ctxout) {
-		SCOPE_EXIT_LOG_RTN_VALUE(AST_STIR_SHAKEN_AS_INVALID_ARGUMENTS,
-			LOG_ERROR, "%s: Must provide ctxout\n", tag);
-	}
-
-	if (ast_strlen_zero(profile_name)) {
-		SCOPE_EXIT_RTN_VALUE(AST_STIR_SHAKEN_AS_DISABLED,
-			"%s: Disabled due to missing profile name\n", tag);
-	}
+	const char *t = S_OR(tag, S_COR(chan, ast_channel_name(chan), ""));
+	SCOPE_ENTER(3, "%s: Enter\n", t);
 
 	as_cfg = as_get_cfg();
 	if (as_cfg->global_disable) {
 		SCOPE_EXIT_RTN_VALUE(AST_STIR_SHAKEN_AS_DISABLED,
-			"%s: Globally disabled\n", tag);
+			"%s: Globally disabled\n", t);
+	}
+
+	if (ast_strlen_zero(profile_name)) {
+		SCOPE_EXIT_RTN_VALUE(AST_STIR_SHAKEN_AS_DISABLED,
+			"%s: Disabled due to missing profile name\n", t);
 	}
 
 	eprofile = eprofile_get_cfg(profile_name);
@@ -117,7 +98,27 @@ enum ast_stir_shaken_as_response_code
 
 	if (!PROFILE_ALLOW_ATTEST(eprofile)) {
 		SCOPE_EXIT_RTN_VALUE(AST_STIR_SHAKEN_AS_DISABLED,
-			"%s: Disabled by profile\n", tag);
+			"%s: Disabled by profile '%s'\n", t, profile_name);
+	}
+
+	if (ast_strlen_zero(tag)) {
+		SCOPE_EXIT_LOG_RTN_VALUE(AST_STIR_SHAKEN_AS_INVALID_ARGUMENTS,
+			LOG_ERROR, "%s: Must provide tag\n", t);
+	}
+
+	if (!canon_orig_tn) {
+		SCOPE_EXIT_LOG_RTN_VALUE(AST_STIR_SHAKEN_AS_INVALID_ARGUMENTS,
+			LOG_ERROR, "%s: Must provide caller_id/orig_tn\n", tag);
+	}
+
+	if (!canon_dest_tn) {
+		SCOPE_EXIT_LOG_RTN_VALUE(AST_STIR_SHAKEN_AS_INVALID_ARGUMENTS,
+			LOG_ERROR, "%s: Must provide dest_tn\n", tag);
+	}
+
+	if (!ctxout) {
+		SCOPE_EXIT_LOG_RTN_VALUE(AST_STIR_SHAKEN_AS_INVALID_ARGUMENTS,
+			LOG_ERROR, "%s: Must provide ctxout\n", tag);
 	}
 
 	etn = tn_get_etn(canon_orig_tn, eprofile);
