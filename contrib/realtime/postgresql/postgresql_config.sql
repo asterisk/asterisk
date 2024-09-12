@@ -1817,5 +1817,11 @@ ALTER TABLE queues ADD COLUMN log_restricted_caller_id ast_bool_values;
 
 UPDATE alembic_version SET version_num='2b7c507d7d12' WHERE alembic_version.version_num = 'bd9c5159c7ea';
 
+-- Running upgrade 2b7c507d7d12 -> 655054a68ad5
+
+ALTER TABLE ps_endpoints ADD COLUMN tenantid VARCHAR(80);
+
+UPDATE alembic_version SET version_num='655054a68ad5' WHERE alembic_version.version_num = '2b7c507d7d12';
+
 COMMIT;
 
