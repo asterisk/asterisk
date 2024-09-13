@@ -311,13 +311,22 @@ static int check_for_old_config(void)
 	char *cat = NULL;
 
 	cfg = ast_config_load("stir_shaken.conf", config_flags);
-	if (cfg == NULL) {
+	if (cfg == CONFIG_STATUS_FILEMISSING) {
 		/*
 		 * They may be loading from realtime so the fact that there's
 		 * no stir-shaken.conf file isn't an issue for this purpose.
 		 */
+		return AST_MODULE_LOAD_SUCCESS;
+	} else if (cfg == CONFIG_STATUS_FILEINVALID) {
+		cfg = NULL;
+		ast_log(LOG_ERROR, "The stir_shaken.conf file is invalid\n");
 		return AST_MODULE_LOAD_DECLINE;
+	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED) {
+		/* This can never happen but is included for completeness */
+		cfg = NULL;
+		return AST_MODULE_LOAD_SUCCESS;
 	}
+
 	while ((cat = ast_category_browse(cfg, cat))) {
 		const char *val;
 		if (strcasecmp(cat, "general") == 0) {
@@ -339,13 +348,14 @@ static int load_module(void)
 {
 	int res = 0;
 
-	if (check_for_old_config()) {
-		return AST_MODULE_LOAD_DECLINE;
+	res = check_for_old_config();
+	if (res != AST_MODULE_LOAD_SUCCESS) {
+		return res;
 	}
 
-	if (crypto_load()) {
-		unload_module();
-		return AST_MODULE_LOAD_DECLINE;
+	res = crypto_load();
+	if (res != AST_MODULE_LOAD_SUCCESS) {
+		return res;
 	}
 
 	tn_auth_list_nid = crypto_register_x509_extension(TN_AUTH_LIST_OID,
@@ -355,14 +365,19 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	if (common_config_load()) {
+	res = common_config_load();
+	if (res != AST_MODULE_LOAD_SUCCESS) {
+		unload_module();
+		return res;
+	}
+
+	res = ast_custom_function_register(&stir_shaken_function);
+	if (res != 0) {
 		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	res |= ast_custom_function_register(&stir_shaken_function);
-
-	return res;
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "STIR/SHAKEN Module for Asterisk",
