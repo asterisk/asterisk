@@ -245,6 +245,11 @@ static char *attestation_show(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 		return CLI_SHOWUSAGE;
 	}
 
+	if (!as_is_config_loaded()) {
+		ast_log(LOG_WARNING,"Stir/Shaken attestation service disabled.  Either there were errors in the 'attestation' object in stir_shaken.conf or it was missing altogether.\n");
+		return CLI_FAILURE;
+	}
+
 	cfg = as_get_cfg();
 	config_object_cli_show(cfg, a, &data, 0);
 	ao2_cleanup(cfg);

@@ -748,7 +748,7 @@ else
 	PBX_JANSSON=1
 fi
 
-source ./third-party/versions.mak
+. ./third-party/versions.mak
 # Find required JWT support if bundled is not enabled.
 if test "$LIBJWT_BUNDLED" = "no" ; then
 	AST_PKG_CONFIG_CHECK([LIBJWT], [libjwt >= $LIBJWT_VERSION])
