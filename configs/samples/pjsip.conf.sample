@@ -432,6 +432,16 @@
 ;type=aor
 ;max_contacts=2
 
+;===============DEFAULT ENDPOINT FOR OUTBOUND REQUESTS TO URI===================
+;
+; This is an example default outbound endpoint.  The global setting:
+; default_outbound_endpoint needs to be set to such an endpoint in order to be
+; able to send an outbound request to a URI without a specified endpoint.
+;
+;[default_outbound_endpoint]
+;type=endpoint
+;context=none-invalid
+
 
 ;============EXAMPLE ACL CONFIGURATION==========================================
 ;
@@ -998,6 +1008,13 @@
                 ; AOC updates can be sent using the AOCMessage AMI action or come
                 ; from PRI channels.
                 ; (default: no)
+;
+; tenantid =
+                ; Sets the tenant ID for this endpoint. It can be read in dialplan
+                ; with the CHANNEL function, and it can be changed later via dialplan
+                ; using the same CHANNEL function if needed. Setting tenant ID here
+                ; will cause it to show up on channel creation and the initial
+                ; channel snapshot.
 
 
 ;==========================AUTH SECTION OPTIONS=========================

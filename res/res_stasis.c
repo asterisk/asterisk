@@ -1548,11 +1548,7 @@ int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
 			continue;
 		}
 
-		/* Set this thread's id as the control thread id so that any
-		   new commands can signal out of this wait */
-		control_set_thread(control, pthread_self());
 		r = ast_waitfor(chan, MAX_WAIT_MS);
-		control_set_thread(control, AST_PTHREADT_NULL);
 
 		if (r < 0) {
 			ast_debug(3, "%s: Poll error\n",

@@ -4283,8 +4283,7 @@ static int ast_rtp_dtmf_begin(struct ast_rtp_instance *instance, char digit)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 	struct ast_sockaddr remote_address = { {0,} };
-	int hdrlen = 12, res = 0, i = 0, payload = 101;
-	unsigned int sample_rate = 8000;
+	int hdrlen = 12, res = 0, i = 0, payload = -1, sample_rate = -1;
 	char data[256];
 	unsigned int *rtpheader = (unsigned int*)data;
 	RAII_VAR(struct ast_format *, payload_format, NULL, ao2_cleanup);
@@ -4323,16 +4322,26 @@ static int ast_rtp_dtmf_begin(struct ast_rtp_instance *instance, char digit)
 		sample_rate = ast_format_get_sample_rate(rtp->lasttxformat);
 	}
 
-	/* Grab the matching DTMF type payload */
-	payload = ast_rtp_codecs_payload_code_tx_sample_rate(ast_rtp_instance_get_codecs(instance), 0, NULL, AST_RTP_DTMF, sample_rate);
+	if (sample_rate != -1) {
+		payload = ast_rtp_codecs_payload_code_tx_sample_rate(ast_rtp_instance_get_codecs(instance), 0, NULL, AST_RTP_DTMF, sample_rate);
+	}
 
-	/* If this returns -1, we are using a codec with a sample rate that does not have a matching RFC 2833/4733
-	   offer. The offer may have included a default-rate one that doesn't match the codec rate, so try to use that. */
-	if (payload == -1) {
+	if (payload == -1 ||
+		!ast_rtp_payload_mapping_tx_is_present(
+			ast_rtp_instance_get_codecs(instance), ast_rtp_codecs_get_payload(ast_rtp_instance_get_codecs(instance), payload))) {
+		/* Fall back to the preferred DTMF payload type and sample rate as either we couldn't find an audio codec to try and match
+		   sample rates with or we could, but a telephone-event matching that audio codec's sample rate was not included in the
+		   sdp negotiated by the far end. */
+		payload = ast_rtp_codecs_get_preferred_dtmf_format_pt(ast_rtp_instance_get_codecs(instance));
+		sample_rate = ast_rtp_codecs_get_preferred_dtmf_format_rate(ast_rtp_instance_get_codecs(instance));
+	}
+
+	/* The sdp negotiation has not yeilded a usable RFC 2833/4733 format. Try a default-rate one as a last resort. */
+	if (payload == -1 || sample_rate == -1) {
 		sample_rate = DEFAULT_DTMF_SAMPLE_RATE_MS;
 		payload = ast_rtp_codecs_payload_code_tx(ast_rtp_instance_get_codecs(instance), 0, NULL, AST_RTP_DTMF);
 	}
-	/* No default-rate offer either, trying to send a digit outside of what was negotiated for. */
+	/* Even trying a default payload has failed. We are trying to send a digit outside of what was negotiated for. */
 	if (payload == -1) {
 		return -1;
 	}

@@ -1659,6 +1659,7 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 	ast_callid callid;
 	char callid_buf[32];
 	int stream_num;
+	RAII_VAR(char *, tenant_id, NULL, ast_free);
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -1717,12 +1718,17 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		ast_callid_strnprint(callid_buf, sizeof(callid_buf), callid);
 	}
 
+	if (!ast_strlen_zero(ast_channel_tenantid(chan))) {
+		ast_asprintf(&tenant_id, "       TenantID: %s\n", ast_channel_tenantid(chan));
+	}
+
 	ast_str_append(&output, 0,
 		" -- General --\n"
 		"           Name: %s\n"
 		"           Type: %s\n"
 		"       UniqueID: %s\n"
 		"       LinkedID: %s\n"
+		"%s"
 		"      Caller ID: %s\n"
 		" Caller ID Name: %s\n"
 		"Connected Line ID: %s\n"
@@ -1753,6 +1759,7 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		ast_channel_tech(chan)->type,
 		ast_channel_uniqueid(chan),
 		ast_channel_linkedid(chan),
+		!ast_strlen_zero(tenant_id) ? tenant_id : "",
 		S_COR(ast_channel_caller(chan)->id.number.valid,
 		      ast_channel_caller(chan)->id.number.str, "(N/A)"),
 		S_COR(ast_channel_caller(chan)->id.name.valid,
