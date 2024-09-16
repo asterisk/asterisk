@@ -2861,76 +2861,137 @@ static inline int rtcp_debug_test_addr(struct ast_sockaddr *addr)
 }
 
 #if defined(HAVE_OPENSSL) && (OPENSSL_VERSION_NUMBER >= 0x10001000L) && !defined(OPENSSL_NO_SRTP)
-/*! \pre instance is locked */
-static int dtls_srtp_handle_timeout(struct ast_rtp_instance *instance, int rtcp)
+/*!
+ * \brief Handles DTLS timer expiration
+ *
+ * \param instance
+ * \param timeout
+ * \param rtcp
+ *
+ * If DTLSv1_get_timeout() returns 0, it's an error or no timeout was set.
+ * We need to unref instance and stop the timer in this case.  Otherwise,
+ * new timeout may be a number of milliseconds or 0.  If it's 0, OpenSSL
+ * is telling us to call DTLSv1_handle_timeout() immediately so we'll set
+ * timeout to 1ms so we get rescheduled almost immediately.
+ *
+ * \retval  0 - success
+ * \retval -1 - failure
+ */
+static int dtls_srtp_handle_timeout(struct ast_rtp_instance *instance, int *timeout, int rtcp)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 	struct dtls_details *dtls = !rtcp ? &rtp->dtls : &rtp->rtcp->dtls;
 	struct timeval dtls_timeout;
+	int res = 0;
 
-	ast_debug_dtls(3, "(%p) DTLS srtp - handle timeout - rtcp=%d\n", instance, rtcp);
-	DTLSv1_handle_timeout(dtls->ssl);
+	res = DTLSv1_handle_timeout(dtls->ssl);
+	ast_debug_dtls(3, "(%p) DTLS srtp - handle timeout - rtcp=%d result: %d\n", instance, rtcp, res);
 
 	/* If a timeout can't be retrieved then this recurring scheduled item must stop */
-	if (!DTLSv1_get_timeout(dtls->ssl, &dtls_timeout)) {
+	res = DTLSv1_get_timeout(dtls->ssl, &dtls_timeout);
+	if (!res) {
+		/* Make sure we don't try to stop the timer later if it's already been stopped */
 		dtls->timeout_timer = -1;
-		return 0;
+		ao2_ref(instance, -1);
+		*timeout = 0;
+		ast_debug_dtls(3, "(%p) DTLS srtp - handle timeout - rtcp=%d get timeout failure\n", instance, rtcp);
+		return -1;
 	}
+	*timeout = dtls_timeout.tv_sec * 1000 + dtls_timeout.tv_usec / 1000;
+	if (*timeout == 0) {
+		/*
+		 * If DTLSv1_get_timeout() succeeded with a timeout of 0, OpenSSL
+		 * is telling us to call DTLSv1_handle_timeout() again now HOWEVER...
+		 * Do NOT be tempted to call DTLSv1_handle_timeout() and
+		 * DTLSv1_get_timeout() in a loop while the timeout is 0.  There is only
+		 * 1 thread running the scheduler for all PJSIP related RTP instances
+		 * so we don't want to delay here any more than necessary.  It's also
+		 * possible that an OpenSSL bug or change in behavior could cause
+		 * DTLSv1_get_timeout() to return 0 forever.  If that happens, we'll
+		 * be stuck here and no other RTP instances will get serviced.
+		 * This RTP instance is also locked while this callback runs so we
+		 * don't want to delay other threads that may need to lock this
+		 * RTP instance for their own purpose.
+		 *
+		 * Just set the timeout to 1ms and let the scheduler reschedule us
+		 * as quickly as possible.
+		 */
+		*timeout = 1;
+	}
+	ast_debug_dtls(3, "(%p) DTLS srtp - handle timeout - rtcp=%d timeout=%d\n", instance, rtcp, *timeout);
 
-	return dtls_timeout.tv_sec * 1000 + dtls_timeout.tv_usec / 1000;
+	return 0;
 }
 
 /* Scheduler callback */
 static int dtls_srtp_handle_rtp_timeout(const void *data)
 {
 	struct ast_rtp_instance *instance = (struct ast_rtp_instance *)data;
-	int reschedule;
+	int timeout = 0;
+	int res = 0;
 
 	ao2_lock(instance);
-	reschedule = dtls_srtp_handle_timeout(instance, 0);
+	res = dtls_srtp_handle_timeout(instance, &timeout, 0);
 	ao2_unlock(instance);
-	if (!reschedule) {
-		ao2_ref(instance, -1);
+	if (res < 0) {
+		/* Tells the scheduler to stop rescheduling */
+		return 0;
 	}
 
-	return reschedule;
+	/* Reschedule based on the timeout value */
+	return timeout;
 }
 
 /* Scheduler callback */
 static int dtls_srtp_handle_rtcp_timeout(const void *data)
 {
 	struct ast_rtp_instance *instance = (struct ast_rtp_instance *)data;
-	int reschedule;
+	int timeout = 0;
+	int res = 0;
 
 	ao2_lock(instance);
-	reschedule = dtls_srtp_handle_timeout(instance, 1);
+	res = dtls_srtp_handle_timeout(instance, &timeout, 1);
 	ao2_unlock(instance);
-	if (!reschedule) {
-		ao2_ref(instance, -1);
+	if (res < 0) {
+		/* Tells the scheduler to stop rescheduling */
+		return 0;
 	}
 
-	return reschedule;
+	/* Reschedule based on the timeout value */
+	return timeout;
 }
 
 static void dtls_srtp_start_timeout_timer(struct ast_rtp_instance *instance, struct ast_rtp *rtp, int rtcp)
 {
 	struct dtls_details *dtls = !rtcp ? &rtp->dtls : &rtp->rtcp->dtls;
+	ast_sched_cb cb = !rtcp ? dtls_srtp_handle_rtp_timeout : dtls_srtp_handle_rtcp_timeout;
 	struct timeval dtls_timeout;
+	int res = 0;
+	int timeout = 0;
 
-	if (DTLSv1_get_timeout(dtls->ssl, &dtls_timeout)) {
-		int timeout = dtls_timeout.tv_sec * 1000 + dtls_timeout.tv_usec / 1000;
+	ast_assert(dtls->timeout_timer == -1);
 
-		ast_assert(dtls->timeout_timer == -1);
+	res = DTLSv1_get_timeout(dtls->ssl, &dtls_timeout);
+	if (res == 0) {
+		ast_debug_dtls(3, "(%p) DTLS srtp - DTLSv1_get_timeout return an error or there was no timeout set for %s\n",
+			instance, rtcp ? "RTCP" : "RTP");
+		return;
+	}
 
-		ao2_ref(instance, +1);
-		if ((dtls->timeout_timer = ast_sched_add(rtp->sched, timeout,
-			!rtcp ? dtls_srtp_handle_rtp_timeout : dtls_srtp_handle_rtcp_timeout, instance)) < 0) {
-			ao2_ref(instance, -1);
-			ast_log(LOG_WARNING, "Scheduling '%s' DTLS retransmission for RTP instance [%p] failed.\n",
-				!rtcp ? "RTP" : "RTCP", instance);
-		} else {
-			ast_debug_dtls(3, "(%p) DTLS srtp - scheduled timeout timer for '%d'\n", instance, timeout);
-		}
+	timeout = dtls_timeout.tv_sec * 1000 + dtls_timeout.tv_usec / 1000;
+
+	ao2_ref(instance, +1);
+	/*
+	 * We want the timer to fire again based on calling DTLSv1_get_timeout()
+	 * inside the callback, not at a fixed interval.
+	 */
+	if ((dtls->timeout_timer = ast_sched_add_variable(rtp->sched, timeout, cb, instance, 1)) < 0) {
+		ao2_ref(instance, -1);
+		ast_log(LOG_WARNING, "Scheduling '%s' DTLS retransmission for RTP instance [%p] failed.\n",
+			!rtcp ? "RTP" : "RTCP", instance);
+	} else {
+		ast_debug_dtls(3, "(%p) DTLS srtp - scheduled timeout timer for '%d' %s\n",
+			instance, timeout, rtcp ? "RTCP" : "RTP");
 	}
 }
 
