@@ -19,7 +19,6 @@
 #include <sys/stat.h>
 
 #include <jwt.h>
-#include <jansson.h>
 #include <regex.h>
 
 #include "asterisk.h"
