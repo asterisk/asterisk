@@ -1,4 +1,4 @@
-name: NightlyTests
+name: WeeklyTests
 on:
   workflow_dispatch:
     inputs:
@@ -13,15 +13,15 @@ on:
       realtime:
         type: boolean
         required: false
-        default: false
+        default: true
 
   schedule:
-#            Monday-Saturday 2am
-    - cron: '0 2 * * 1-6'
+#           Sunday 2am
+    - cron: '0 2 * * 0'
 
 jobs:
-  NightlyTests:
-    name: NightlyTests
+  WeeklyTests:
+    name: WeeklyTests
     uses: asterisk/asterisk-ci-actions/.github/workflows/AsteriskNightlyTest.yml@main
     with:
       branches:   ${{ inputs.branches || vars.NIGHTLYTEST_BRANCHES }}
