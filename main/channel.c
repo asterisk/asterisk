@@ -7216,6 +7216,9 @@ static void channel_do_masquerade(struct ast_channel *original, struct ast_chann
 	/* copy over accuntcode and set peeraccount across the bridge */
 	ast_channel_accountcode_set(original, S_OR(ast_channel_accountcode(clonechan), ""));
 
+	/* copy over userfield */
+	ast_channel_userfield_set(original, ast_channel_userfield(clonechan));
+
 	ast_debug(1, "Putting channel %s in %s/%s formats\n", ast_channel_name(original),
 		ast_format_get_name(wformat), ast_format_get_name(rformat));
 
