@@ -435,7 +435,7 @@
 			of the given <replaceable>string</replaceable>. If the channel variable
 			<variable>SAY_DTMF_INTERRUPT</variable> is set to 'true' (case insensitive),
 			then this application will react to DTMF in the	same way as
-			<literal>Background</literal>.</para>
+			<literal>BackGround</literal>.</para>
 		</description>
 		<see-also>
 			<ref type="application">SayDigits</ref>
@@ -479,7 +479,7 @@
 			given <replaceable>string</replaceable>.  Optionally, a <replaceable>casetype</replaceable> may be
 			specified.  This will be used for case-insensitive or case-sensitive pronunciations. If the channel
 			variable <variable>SAY_DTMF_INTERRUPT</variable> is set to 'true' (case insensitive), then this
-			application will react to DTMF in the same way as <literal>Background</literal>.</para>
+			application will react to DTMF in the same way as <literal>BackGround</literal>.</para>
 		</description>
 		<see-also>
 			<ref type="application">SayDigits</ref>
@@ -503,7 +503,7 @@
 			the given number. This will use the language that is currently set for the channel.
 			If the channel variable <variable>SAY_DTMF_INTERRUPT</variable> is set to 'true'
 			(case insensitive), then this application will react to DTMF in the same way as
-			<literal>Background</literal>.</para>
+			<literal>BackGround</literal>.</para>
 		</description>
 		<see-also>
 			<ref type="application">SayAlpha</ref>
@@ -527,7 +527,7 @@
 			in the current language. Currently only English and US Dollars is supported.
 			If the channel variable <variable>SAY_DTMF_INTERRUPT</variable> is set to 'true'
 			(case insensitive), then this application will react to DTMF in the same way as
-			<literal>Background</literal>.</para>
+			<literal>BackGround</literal>.</para>
 		</description>
 		<see-also>
 			<ref type="application">SayAlpha</ref>
@@ -552,7 +552,7 @@
 			specified. This will use the language that is currently set for the channel. See the CHANNEL()
 			function for more information on setting the language for the channel. If the channel variable
 			<variable>SAY_DTMF_INTERRUPT</variable> is set to 'true' (case insensitive), then this
-			application will react to DTMF in the same way as <literal>Background</literal>.</para>
+			application will react to DTMF in the same way as <literal>BackGround</literal>.</para>
 		</description>
 		<see-also>
 			<ref type="application">SayAlpha</ref>
@@ -578,7 +578,7 @@
 			specified. This will use the language that is currently set for the channel. See the CHANNEL()
 			function for more information on setting the language for the channel. If the channel variable
 			<variable>SAY_DTMF_INTERRUPT</variable> is set to 'true' (case insensitive), then this
-			application will react to DTMF in the same way as <literal>Background</literal>.</para>
+			application will react to DTMF in the same way as <literal>BackGround</literal>.</para>
 		</description>
 		<see-also>
 			<ref type="application">SayAlpha</ref>
@@ -601,7 +601,7 @@
 			<para>This application will play the sounds from the phonetic alphabet that correspond to the
 			letters in the given <replaceable>string</replaceable>. If the channel variable
 			<variable>SAY_DTMF_INTERRUPT</variable> is set to 'true' (case insensitive), then this
-			application will react to DTMF in the same way as <literal>Background</literal>.</para>
+			application will react to DTMF in the same way as <literal>BackGround</literal>.</para>
 		</description>
 		<see-also>
 			<ref type="application">SayAlpha</ref>
@@ -692,7 +692,7 @@
 			of <replaceable>seconds</replaceable>.</para>
 		</description>
 		<see-also>
-			<ref type="application">Background</ref>
+			<ref type="application">BackGround</ref>
 			<ref type="function">TIMEOUT</ref>
 		</see-also>
 	</application>
