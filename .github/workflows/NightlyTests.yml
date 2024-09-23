@@ -10,10 +10,6 @@ on:
         required: false
         type: string
         description: "Array of test groups to run: ['ari1','channels'].  Defaults to NIGHTLYTEST_LIST"
-      realtime:
-        type: boolean
-        required: false
-        default: false
 
   schedule:
 #            Monday-Saturday 2am
@@ -26,6 +22,6 @@ jobs:
     with:
       branches:   ${{ inputs.branches || vars.NIGHTLYTEST_BRANCHES }}
       group_list: ${{ inputs.group_list || vars.NIGHTLYTEST_LIST }}
-      realtime:   ${{ inputs.realtime }}
+      realtime:   false
     secrets:
       TOKEN: ${{ secrets.GITHUB_TOKEN }}
