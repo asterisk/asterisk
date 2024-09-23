@@ -59,7 +59,7 @@ jobs:
     secrets:
       TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  Cleanup:
+  Summary:
     if: ${{ success() || failure() }}
     runs-on: ubuntu-latest
     needs: [Setup,ReCheck]
