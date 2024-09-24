@@ -110,10 +110,10 @@ generate_enum_string_prototypes(endpoint_behavior,
 
 generate_enum_string_prototypes(attest_level,
 	attest_level_UNKNOWN = -1,
-	attest_level_A = 0,
+	attest_level_NOT_SET = 0,
+	attest_level_A,
 	attest_level_B,
 	attest_level_C,
-	attest_level_NOT_SET,
 );
 
 /*
