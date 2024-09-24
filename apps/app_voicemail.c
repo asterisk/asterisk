@@ -6040,11 +6040,14 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 		}
 	} else {
 		if (ast_strlen_zero(flag)) {
-			fprintf(p, "Subject: New VM\n\n");
+			fprintf(p, "Subject: New VM" ENDL);
 		} else {
-			fprintf(p, "Subject: New %s VM\n\n", flag);
+			fprintf(p, "Subject: New %s VM" ENDL, flag);
 		}
 	}
+
+	/* End of headers */
+	fputs(ENDL, p);
 
 	if (pagerbody) {
 		struct ast_channel *ast;
