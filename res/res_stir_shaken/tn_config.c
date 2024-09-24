@@ -28,11 +28,11 @@
 
 #define CONFIG_TYPE "tn"
 
-#define DEFAULT_check_tn_cert_public_url check_tn_cert_public_url_NO
+#define DEFAULT_check_tn_cert_public_url check_tn_cert_public_url_NOT_SET
 #define DEFAULT_private_key_file NULL
 #define DEFAULT_public_cert_url NULL
 #define DEFAULT_attest_level attest_level_NOT_SET
-#define DEFAULT_send_mky send_mky_NO
+#define DEFAULT_send_mky send_mky_NOT_SET
 
 struct tn_cfg *tn_get_cfg(const char *id)
 {
@@ -45,14 +45,7 @@ static struct ao2_container *get_tn_all(void)
 		AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
 }
 
-generate_sorcery_enum_from_str(tn_cfg, acfg_common., check_tn_cert_public_url, UNKNOWN)
-generate_sorcery_enum_to_str(tn_cfg, acfg_common., check_tn_cert_public_url)
-
-generate_sorcery_enum_from_str(tn_cfg, acfg_common., attest_level, UNKNOWN)
-generate_sorcery_enum_to_str(tn_cfg, acfg_common., attest_level)
-
-generate_sorcery_enum_from_str(tn_cfg, acfg_common., send_mky, UNKNOWN)
-generate_sorcery_enum_to_str(tn_cfg, acfg_common., send_mky)
+generate_acfg_common_sorcery_handlers(tn_cfg);
 
 static void tn_destructor(void *obj)
 {
