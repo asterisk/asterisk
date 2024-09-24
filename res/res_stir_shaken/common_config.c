@@ -100,6 +100,7 @@ const char *param_name ## _to_str( \
 }
 
 generate_enum_string_functions(attest_level, UNKNOWN,
+	{attest_level_NOT_SET, "not_set"},
 	{attest_level_A, "A"},
 	{attest_level_B, "B"},
 	{attest_level_C, "C"},
