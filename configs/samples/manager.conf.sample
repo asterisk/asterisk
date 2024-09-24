@@ -263,7 +263,7 @@ Both Legacy and Advanced filter entries are processed as follows:
 ;eventfilter(action(include),name(Hangup)) =
 ;eventfilter(header(Channel),action(exclude),method(starts_with)) = Local/
 ; No regexes at all.  We do the hash match against the event names first and
-; only mathcing events are passed to the next filter.
+; only matching events are passed to the next filter.
 ; Then, in only those events, we look for a Channel header by exact match, then
 ; look for 'Local/' at the beginning of its value.
 
