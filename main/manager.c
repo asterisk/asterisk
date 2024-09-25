@@ -6682,6 +6682,42 @@ static int manager_modulecheck(struct mansession *s, const struct message *m)
 	return 0;
 }
 
+/**
+ * \brief Check if the given file path is in the modules dir or not
+ *
+ * \note When the module is being loaded / reloaded / unloaded, the modules dir is
+ * automatically prepended
+ *
+ * \return 1 if inside modules dir
+ * \return 0 if outside modules dir
+ * \return -1 on failure
+ */
+static int file_in_modules_dir(const char *filename)
+{
+	char *stripped_filename;
+	RAII_VAR(char *, path, NULL, ast_free);
+	RAII_VAR(char *, real_path, NULL, ast_free);
+
+	/* Don't bother checking */
+	if (live_dangerously) {
+		return 1;
+	}
+
+	stripped_filename = ast_strip(ast_strdupa(filename));
+
+	/* Always prepend the modules dir since that is what the code does for ModuleLoad */
+	if (ast_asprintf(&path, "%s/%s", ast_config_AST_MODULE_DIR, stripped_filename) == -1) {
+		return -1;
+	}
+
+	real_path = realpath(path, NULL);
+	if (!real_path) {
+		return -1;
+	}
+
+	return ast_begins_with(real_path, ast_config_AST_MODULE_DIR);
+}
+
 static int manager_moduleload(struct mansession *s, const struct message *m)
 {
 	int res;
@@ -6694,6 +6730,15 @@ static int manager_moduleload(struct mansession *s, const struct message *m)
 	}
 	if ((!module || strlen(module) == 0) && strcasecmp(loadtype, "reload") != 0) {
 		astman_send_error(s, m, "Need module name");
+	}
+
+	res = file_in_modules_dir(module);
+	if (res == 0) {
+		astman_send_error(s, m, "Module must be in the configured modules directory.");
+		return 0;
+	} else if (res == -1) {
+		astman_send_error(s, m, "Module not found.");
+		return 0;
 	}
 
 	if (!strcasecmp(loadtype, "load")) {
@@ -6748,8 +6793,9 @@ static int manager_moduleload(struct mansession *s, const struct message *m)
 			ast_module_reload(NULL);	/* Reload all modules */
 			astman_send_ack(s, m, "All modules reloaded");
 		}
-	} else
+	} else {
 		astman_send_error(s, m, "Incomplete ModuleLoad action.");
+	}
 	return 0;
 }
 
