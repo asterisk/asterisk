@@ -66,7 +66,7 @@ rtpend=20000
 ; disabled by default. Name resolution will occur at load time, and if DNS is
 ; used, name resolution will occur repeatedly after the TTL expires.
 ;
-; e.g. stundaddr=mystun.server.com:3478
+; e.g. stunaddr=mystun.server.com:3478
 ;
 ; stunaddr=
 ;
