@@ -16,6 +16,11 @@
 ; You can also create more than one template if desired.  All logs will appear
 ; in the cel-custom directory under your Asterisk logs directory.
 ;
+; Alternatively, you can also specify the location of your CSV file using an
+; absolute path, e.g.:
+;
+;     /srv/pbx/cel/Master.csv => ${CSV_QUOTE(${eventtype})},...
+;
 
 ;
 ; Within a mapping, use the CALLERID() and CHANNEL() functions to retrieve
