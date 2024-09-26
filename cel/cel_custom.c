@@ -43,8 +43,7 @@
 #include "asterisk/threadstorage.h"
 #include "asterisk/strings.h"
 
-#define CUSTOM_LOG_DIR "/cel_custom"
-#define CONFIG         "cel_custom.conf"
+#define CONFIG "cel_custom.conf"
 
 AST_THREADSTORAGE(custom_buf);
 
