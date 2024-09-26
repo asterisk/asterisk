@@ -58,8 +58,7 @@
 #include "asterisk/threadstorage.h"
 #include "asterisk/strings.h"
 
-#define CUSTOM_LOG_DIR "/cdr_custom"
-#define CONFIG         "cdr_custom.conf"
+#define CONFIG "cdr_custom.conf"
 
 AST_THREADSTORAGE(custom_buf);
 
@@ -112,7 +111,11 @@ static int load_config(void)
 			}
 
 			ast_string_field_build(sink, format, "%s\n", var->value);
-			ast_string_field_build(sink, filename, "%s/%s/%s", ast_config_AST_LOG_DIR, name, var->name);
+			if (var->name[0] == '/') {
+				ast_string_field_build(sink, filename, "%s", var->name);
+			} else {
+				ast_string_field_build(sink, filename, "%s/%s/%s", ast_config_AST_LOG_DIR, name, var->name);
+			}
 			ast_mutex_init(&sink->lock);
 
 			AST_RWLIST_INSERT_TAIL(&sinks, sink, list);
