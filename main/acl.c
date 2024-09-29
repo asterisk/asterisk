@@ -872,18 +872,29 @@ enum ast_acl_sense ast_apply_ha(const struct ast_ha *ha, const struct ast_sockad
 	return res;
 }
 
-static int resolve_first(struct ast_sockaddr *addr, const char *name, int flag,
-			 int family)
+static int resolve_match_or_first(struct ast_sockaddr *addr, const char *name, int flag,
+								  int family, struct ast_sockaddr *preference)
 {
 	struct ast_sockaddr *addrs;
 	int addrs_cnt;
 
 	addrs_cnt = ast_sockaddr_resolve(&addrs, name, flag, family);
 	if (addrs_cnt > 0) {
-		if (addrs_cnt > 1) {
+		struct ast_sockaddr *resolved = &addrs[0];
+
+		if (preference) {
+			int i;
+
+			for (i = 0; i < addrs_cnt; i++) {
+				if (!ast_sockaddr_cmp_addr(preference, &addrs[i])) {
+					resolved = &addrs[i];
+					break;
+				}
+			}
+		} else if (addrs_cnt > 1) {
 			ast_debug(1, "Multiple addresses. Using the first only\n");
 		}
-		ast_sockaddr_copy(addr, &addrs[0]);
+		ast_sockaddr_copy(addr, resolved);
 		ast_free(addrs);
 	} else {
 		ast_log(LOG_WARNING, "Unable to lookup '%s'\n", name);
@@ -893,7 +904,8 @@ static int resolve_first(struct ast_sockaddr *addr, const char *name, int flag,
 	return 0;
 }
 
-int ast_get_ip_or_srv(struct ast_sockaddr *addr, const char *hostname, const char *service)
+int ast_get_ip_or_srv_with_preference(struct ast_sockaddr *addr, const char *hostname,
+									  const char *service, struct ast_sockaddr *preference)
 {
 	char srv[256];
 	char host[256];
@@ -907,7 +919,7 @@ int ast_get_ip_or_srv(struct ast_sockaddr *addr, const char *hostname, const cha
 		}
 	}
 
-	if (resolve_first(addr, hostname, PARSE_PORT_FORBID, addr->ss.ss_family) != 0) {
+	if (resolve_match_or_first(addr, hostname, PARSE_PORT_FORBID, addr->ss.ss_family, preference) != 0) {
 		return -1;
 	}
 
@@ -916,6 +928,11 @@ int ast_get_ip_or_srv(struct ast_sockaddr *addr, const char *hostname, const cha
 	}
 
 	return 0;
+}
+
+int ast_get_ip_or_srv(struct ast_sockaddr *addr, const char *hostname, const char *service)
+{
+	return ast_get_ip_or_srv_with_preference(addr, hostname, service, NULL);
 }
 
 struct dscp_codepoint {
@@ -1064,17 +1081,17 @@ int ast_find_ourip(struct ast_sockaddr *ourip, const struct ast_sockaddr *bindad
 	if (gethostname(ourhost, sizeof(ourhost) - 1)) {
 		ast_log(LOG_WARNING, "Unable to get hostname\n");
 	} else {
-		if (resolve_first(ourip, ourhost, PARSE_PORT_FORBID, family) == 0) {
-			/* reset port since resolve_first wipes this out */
+		if (resolve_match_or_first(ourip, ourhost, PARSE_PORT_FORBID, family, NULL) == 0) {
+			/* reset port since resolve_match_or_first wipes this out */
 			ast_sockaddr_set_port(ourip, port);
 			return 0;
 		}
 	}
 	ast_debug(3, "Trying to check A.ROOT-SERVERS.NET and get our IP address for that connection\n");
 	/* A.ROOT-SERVERS.NET. */
-	if (!resolve_first(&root, "A.ROOT-SERVERS.NET", PARSE_PORT_FORBID, 0) &&
+	if (!resolve_match_or_first(&root, "A.ROOT-SERVERS.NET", PARSE_PORT_FORBID, 0, NULL) &&
 	    !ast_ouraddrfor(&root, ourip)) {
-		/* reset port since resolve_first wipes this out */
+		/* reset port since resolve_match_or_first wipes this out */
 		ast_sockaddr_set_port(ourip, port);
 		return 0;
 	}
