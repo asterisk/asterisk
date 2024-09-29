@@ -211,7 +211,7 @@ static int dnsmgr_refresh(struct ast_dnsmgr_entry *entry, int verbose)
 	ast_debug(6, "refreshing '%s'\n", entry->name);
 
 	tmp.ss.ss_family = entry->family;
-	if (!ast_get_ip_or_srv(&tmp, entry->name, entry->service)) {
+	if (!ast_get_ip_or_srv_with_preference(&tmp, entry->name, entry->service, entry->result)) {
 		if (!ast_sockaddr_port(&tmp)) {
 			ast_sockaddr_set_port(&tmp, ast_sockaddr_port(entry->result));
 		}
