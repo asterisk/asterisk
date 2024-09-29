@@ -10112,7 +10112,7 @@ static int __init_manager(int reload, int by_external_config)
 	struct ast_manager_user *user = NULL;
 	struct ast_variable *var;
 	struct ast_flags config_flags = { (reload && !by_external_config) ? CONFIG_FLAG_FILEUNCHANGED : 0 };
-	char a1[256];
+	char a1[337];
 	char a1_hash[256];
 	struct ast_sockaddr ami_desc_local_address_tmp;
 	struct ast_sockaddr amis_desc_local_address_tmp;
