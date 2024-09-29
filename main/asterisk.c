@@ -4340,7 +4340,7 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 	if (ast_opt_console) {
 		/* Console stuff now... */
 		/* Register our quit function */
-		char title[256];
+		char title[296];
 		char hostname[MAXHOSTNAMELEN] = "";
 
 		if (gethostname(hostname, sizeof(hostname) - 1)) {
