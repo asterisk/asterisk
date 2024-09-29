@@ -288,6 +288,33 @@ int ast_get_ip(struct ast_sockaddr *addr, const char *hostname);
 int ast_get_ip_or_srv(struct ast_sockaddr *addr, const char *hostname, const char *service);
 
 /*!
+ * \brief Get the IP address given a hostname and optional service with a preferred result
+ *
+ * \details
+ * If the service parameter is non-NULL, then an SRV lookup will be made by
+ * prepending the service to the hostname parameter, separated by a '.'
+ * For example, if hostname is "example.com" and service is "_sip._udp" then
+ * an SRV lookup will be done for "_sip._udp.example.com". If service is NULL,
+ * then this function acts exactly like a call to ast_get_ip.
+ *
+ * \param addr The IP address found.  The address family is used as an input
+ * parameter to filter the returned addresses.  If it is 0, both IPv4 and
+ * IPv6 addresses can be returned.
+ *
+ * \param hostname The hostname to look up
+ * \param service A specific service provided by the host. A NULL service results
+ * in an A-record lookup instead of an SRV lookup
+ * \param preference The preferred IP address to return. If multiple results are
+ * available and this IP address is in the list then it will be returned. If NULL,
+ * or if the none of the returned IP addresses match, then the first IP address
+ * will be returned.
+ * \retval 0 Success
+ * \retval -1 Failure
+ */
+int ast_get_ip_or_srv_with_preference(struct ast_sockaddr *addr, const char *hostname,
+									  const char *service, struct ast_sockaddr *preference);
+
+/*!
  * \brief Get our local IP address when contacting a remote host
  *
  * \details
