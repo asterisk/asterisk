@@ -466,7 +466,7 @@ AST_TEST_DEFINE(test_kqueue_timing)
 
 		}
 		diff = ast_tvdiff_us(ast_tvnow(), start);
-		ast_test_status_update(test, "diff is %llu\n", diff);
+		ast_test_status_update(test, "diff is %" PRIu64 "\n", diff);
 	} while (0);
 	kqueue_timer_close(kt);
 	return res;
