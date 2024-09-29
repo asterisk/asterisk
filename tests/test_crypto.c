@@ -41,7 +41,7 @@
 
 #include <assert.h>
 #include <sys/stat.h>
-#include <linux/limits.h>
+#include <limits.h>
 #include <openssl/evp.h>
 
 static const char *keypair1 = "rsa_key1";
