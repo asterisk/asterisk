@@ -2192,11 +2192,14 @@ static enum agi_result launch_ha_netscript(char *agiurl, char *argv[], int *fds)
 	return AGI_RESULT_FAILURE;
 }
 
-static enum agi_result launch_script(struct ast_channel *chan, char *script, int argc, char *argv[], int *fds, int *efd, int *opid)
+static enum agi_result launch_script(struct ast_channel *chan, char *script, int argc, char *argv[], int *fds, int *efd, int *opid, int *safe_fork_called)
 {
 	char tmp[256];
 	int pid, toast[2], fromast[2], audio[2], res;
 	struct stat st;
+
+	/* We should not call ast_safe_fork_cleanup() if we never call ast_safe_fork(1) */
+	*safe_fork_called = 0;
 
 	if (!strncasecmp(script, "agi://", 6)) {
 		return (efd == NULL) ? launch_netscript(script, argv, fds) : AGI_RESULT_FAILURE;
@@ -2251,6 +2254,8 @@ static enum agi_result launch_script(struct ast_channel *chan, char *script, int
 			return AGI_RESULT_FAILURE;
 		}
 	}
+
+	*safe_fork_called = 1;
 
 	if ((pid = ast_safe_fork(1)) < 0) {
 		ast_log(LOG_WARNING, "Failed to fork(): %s\n", strerror(errno));
@@ -4531,6 +4536,7 @@ static int agi_exec_full(struct ast_channel *chan, const char *data, int enhance
 	enum agi_result res;
 	char *buf;
 	int fds[2], efd = -1, pid = -1;
+	int safe_fork_called = 0;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(arg)[MAX_ARGS];
 	);
@@ -4553,7 +4559,7 @@ static int agi_exec_full(struct ast_channel *chan, const char *data, int enhance
 			return -1;
 	}
 #endif
-	res = launch_script(chan, args.arg[0], args.argc, args.arg, fds, enhanced ? &efd : NULL, &pid);
+	res = launch_script(chan, args.arg[0], args.argc, args.arg, fds, enhanced ? &efd : NULL, &pid, &safe_fork_called);
 	/* Async AGI do not require run_agi(), so just proceed if normal AGI
 	   or Fast AGI are setup with success. */
 	if (res == AGI_RESULT_SUCCESS || res == AGI_RESULT_SUCCESS_FAST) {
@@ -4571,7 +4577,9 @@ static int agi_exec_full(struct ast_channel *chan, const char *data, int enhance
 		if (efd > -1)
 			close(efd);
 	}
-	ast_safe_fork_cleanup();
+	if (safe_fork_called) {
+		ast_safe_fork_cleanup();
+	}
 
 	switch (res) {
 	case AGI_RESULT_SUCCESS:
