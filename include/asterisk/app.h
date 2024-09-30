@@ -1537,6 +1537,10 @@ int ast_safe_fork(int stop_reaper);
 
 /*!
  * \brief Common routine to cleanup after fork'ed process is complete (if reaping was stopped)
+ *
+ * \note This must <b>not</b> be called unless ast_safe_fork(1) has been called
+ * previously.
+ *
  * \since 1.6.1
  */
 void ast_safe_fork_cleanup(void);

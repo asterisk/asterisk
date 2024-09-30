@@ -1117,6 +1117,10 @@ void ast_unreplace_sigchld(void)
 	unsigned int level;
 
 	ast_mutex_lock(&safe_system_lock);
+
+	/* Wrapping around here is an error */
+	ast_assert(safe_system_level > 0);
+
 	level = --safe_system_level;
 
 	/* only restore the handler if we are the last one */
