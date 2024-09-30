@@ -15803,7 +15803,6 @@ AST_TEST_DEFINE(test_voicemail_msgcount)
 	if (!(vmu = find_user(&svm, testcontext, testmailbox)) &&
 		!(vmu = find_or_create(testcontext, testmailbox))) {
 		ast_test_status_update(test, "Cannot create vmu structure\n");
-		ast_unreplace_sigchld();
 #ifdef IMAP_STORAGE
 		chan = ast_channel_unref(chan);
 #endif
@@ -15825,7 +15824,6 @@ AST_TEST_DEFINE(test_voicemail_msgcount)
 			if ((syserr = ast_safe_system(syscmd))) {
 				ast_test_status_update(test, "Unable to create test voicemail: %s\n",
 					syserr > 0 ? strerror(syserr) : "unable to fork()");
-				ast_unreplace_sigchld();
 #ifdef IMAP_STORAGE
 				chan = ast_channel_unref(chan);
 #endif
