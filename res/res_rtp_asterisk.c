@@ -5206,6 +5206,11 @@ static int rtp_raw_write(struct ast_rtp_instance *instance, struct ast_frame *fr
 	}
 
 	if (ast_test_flag(frame, AST_FRFLAG_HAS_TIMING_INFO)) {
+		if (abs(frame->ts * rate - (int)rtp->lastts) > MAX_TIMESTAMP_SKEW) {
+			ast_verbose("(%p) RTP audio difference is %d set mark\n",
+				instance, abs(frame->ts * rate - (int)rtp->lastts));
+			mark = 1;
+		}
 		rtp->lastts = frame->ts * rate;
 	}
 
