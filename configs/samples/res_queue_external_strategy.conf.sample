@@ -1,0 +1,23 @@
+[general]
+;
+; Reserved, but not currently used
+;
+
+; External strategy that facilitates using an HTTP API
+; to make queue logic decisions.
+;[curl]
+; HTTP endpoints to cURL for implementing external queue strategy callbacks
+; Request will be a POST request containing a JSON payload.
+;
+; HTTP endpoint to call when a call enters a queue
+;url_enter_queue=http://example.com/enter
+;
+; HTTP endpoint to call to determine if it's a call's turn.
+; Should return 2 to expire call, 1 if our turn, 0 if not our turn,
+; or -1 to let the default algorithm decide.
+;url_is_our_turn=http://example.com/is_our_turn
+;
+; HTTP endpoint to call to calculate agent metric.
+; Should return positive metric, 0 to ignore agent for now,
+; or -1 to let default algorithm compute.
+;url_calc_metric=http://example.com/calc_metric
