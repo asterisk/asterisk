@@ -11983,7 +11983,11 @@ static void *do_monitor(void *data)
 							&& !last->owner
 							&& (!ast_strlen_zero(last->mailbox) || last->mwioverride_active)
 							&& !analog_p->subs[SUB_REAL].owner /* could be a recall ring from a flash hook hold */
-							&& (thispass - analog_p->onhooktime > 3)) {
+							&& (thispass - analog_p->onhooktime > 3)
+							/* In some cases, all of the above checks will pass even if the line is really off-hook.
+							 * This last check will give the right answer 100% of the time, but is relatively
+							 * "expensive" (it requires an ioctl), so it is last to avoid unnecessary system calls. */
+							&& !my_is_off_hook(last)) {
 							res = has_voicemail(last);
 							if (analog_p->msgstate != res) {
 								/* Set driver resources for signalling VMWI */
@@ -11993,6 +11997,7 @@ static void *do_monitor(void *data)
 									ast_debug(3, "Unable to control message waiting led on channel %d: %s\n", last->channel, strerror(errno));
 								}
 								/* If enabled for FSK spill then initiate it */
+								ast_debug(5, "Initiating MWI FSK spill on channel %d\n", last->channel);
 								if (mwi_send_init(last)) {
 									ast_log(LOG_WARNING, "Unable to initiate mwi send sequence on channel %d\n", last->channel);
 								}
