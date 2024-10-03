@@ -4942,6 +4942,9 @@ static int app_match(const char *app, const char *data, const char *search)
  */
 static int appdata_match(const char *app, const char *data, const char *search)
 {
+	if (ast_strlen_zero(data)) {
+		return 0;
+	}
 	return !!(strstr(data, search));
 }
 
@@ -4972,7 +4975,7 @@ static int queue_match(const char *app, const char *data, const char *search)
 		AST_APP_ARG(position);
 	);
 
-	if (!strcasestr(app, "queue")) {
+	if (!strcasestr(app, "queue") || ast_strlen_zero(data)) {
 		return 0;
 	}
 
@@ -5043,6 +5046,98 @@ static int is_originate_app_permitted(const char *app, const char *data,
 
 	return 1;
 }
+
+#ifdef TEST_FRAMEWORK
+#define ALL_PERMISSIONS (INT_MAX)
+#define NO_PERMISSIONS (0)
+AST_TEST_DEFINE(originate_permissions_test)
+{
+	enum ast_test_result_state res = AST_TEST_PASS;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "originate_permissions_test";
+		info->category = "/main/manager/";
+		info->summary = "Test permissions for originate action";
+		info->description =
+			"Make sure that dialplan apps/functions that need special "
+			"permissions are prohibited if the user doesn't have the permission.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	/*
+	 * Check application matching. We don't need to check every one.
+	 * The code is the same.
+	 */
+
+	ast_test_validate(test, is_originate_app_permitted("exec",
+		NULL, EVENT_FLAG_SYSTEM), "exec permission check failed");
+	ast_test_validate(test, is_originate_app_permitted("exec",
+		NULL, EVENT_FLAG_SYSTEM | EVENT_FLAG_AGI), "exec check permission failed");
+	ast_test_validate(test, is_originate_app_permitted("exec",
+		NULL, ALL_PERMISSIONS), "exec check permission failed");
+	ast_test_validate(test, !is_originate_app_permitted("exec",
+		NULL, EVENT_FLAG_AGI), "exec permission check failed");
+	ast_test_validate(test, !is_originate_app_permitted("exec",
+		NULL, EVENT_FLAG_VERBOSE), "exec permission check failed");
+	ast_test_validate(test, !is_originate_app_permitted("exec",
+		NULL, NO_PERMISSIONS), "exec permission check failed");
+
+	/*
+	 * If queue is used with the AGI parameter but without the SYSTEM or AGI
+	 * permission, it should be denied. Queue param order:
+	 * queuename,options,url,announceoverride,queuetimeoutstr,AGI,gosub,rule,position
+	 * The values of the options aren't checked. They just have to be present.
+	 */
+
+	/* AGI not specified should always be allowed */
+	ast_test_validate(test, is_originate_app_permitted("queue",
+		NULL, NO_PERMISSIONS), "Queue permission check failed");
+	ast_test_validate(test, is_originate_app_permitted("queue",
+		"somequeue,CcdHh,someURL,tt-monkeys,100,,gosub,rule,666",
+		EVENT_FLAG_ORIGINATE | EVENT_FLAG_HOOKRESPONSE ), "Queue permission check failed");
+
+	/* AGI specified with SYSTEM or AGI permission should be allowed */
+	ast_test_validate(test, is_originate_app_permitted("queue",
+		"somequeue,CcdHh,someURL,tt-monkeys,100,SomeAGIScript,gosub,rule,666",
+		EVENT_FLAG_SYSTEM | EVENT_FLAG_HOOKRESPONSE ), "Queue permission check failed");
+	ast_test_validate(test, is_originate_app_permitted("queue",
+		"somequeue,CcdHh,someURL,tt-monkeys,100,SomeAGIScript,gosub,rule,666",
+		EVENT_FLAG_AGI | EVENT_FLAG_HOOKRESPONSE ), "Queue permission check failed");
+	ast_test_validate(test, is_originate_app_permitted("queue",
+		"somequeue,CcdHh,someURL,tt-monkeys,100,SomeAGIScript,gosub,rule,666",
+		ALL_PERMISSIONS), "Queue permission check failed");
+
+	/* AGI specified without SYSTEM or AGI permission should be denied */
+	ast_test_validate(test, !is_originate_app_permitted("queue",
+		"somequeue,CcdHh,someURL,tt-monkeys,100,SomeAGIScript,gosub,rule,666",
+		NO_PERMISSIONS), "Queue permission check failed");
+	ast_test_validate(test, !is_originate_app_permitted("queue",
+		"somequeue,CcdHh,someURL,tt-monkeys,100,SomeAGIScript,gosub,rule,666",
+		EVENT_FLAG_ORIGINATE | EVENT_FLAG_HOOKRESPONSE ), "Queue permission check failed");
+
+	/*
+	 * Check appdata.  The function name can appear anywhere in appdata.
+	 */
+	ast_test_validate(test, is_originate_app_permitted("someapp",
+		"aaaDBbbb", EVENT_FLAG_SYSTEM), "exec permission check failed");
+	ast_test_validate(test, is_originate_app_permitted("someapp",
+		"aaa DB bbb", ALL_PERMISSIONS), "exec permission check failed");
+	ast_test_validate(test, !is_originate_app_permitted("someapp",
+		"aaaDBbbb", NO_PERMISSIONS), "exec permission check failed");
+	ast_test_validate(test, !is_originate_app_permitted("someapp",
+		"aaa DB bbb", NO_PERMISSIONS), "exec permission check failed");
+	/* The check is case-sensitive so although DB is a match, db isn't. */
+	ast_test_validate(test, is_originate_app_permitted("someapp",
+		"aaa db bbb", NO_PERMISSIONS), "exec permission check failed");
+
+	return res;
+}
+#undef ALL_PERMISSIONS
+#undef NO_PERMISSIONS
+#endif
 
 static int action_originate(struct mansession *s, const struct message *m)
 {
@@ -9246,6 +9341,7 @@ static void manager_shutdown(void)
 #ifdef TEST_FRAMEWORK
 	AST_TEST_UNREGISTER(eventfilter_test_creation);
 	AST_TEST_UNREGISTER(eventfilter_test_matching);
+	AST_TEST_UNREGISTER(originate_permissions_test);
 #endif
 
 	/* This event is not actually transmitted, but causes all TCP sessions to be closed */
@@ -9956,6 +10052,7 @@ static int load_module(void)
 #ifdef TEST_FRAMEWORK
 	AST_TEST_REGISTER(eventfilter_test_creation);
 	AST_TEST_REGISTER(eventfilter_test_matching);
+	AST_TEST_REGISTER(originate_permissions_test);
 #endif
 	return rc;
 }
