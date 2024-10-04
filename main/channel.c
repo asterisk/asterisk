@@ -658,6 +658,8 @@ const char *ast_state2str(enum ast_channel_state state)
 		return "Dialing Offhook";
 	case AST_STATE_PRERING:
 		return "Pre-ring";
+	case AST_STATE_REDIRECTING:
+		return "Redirecting";
 	case AST_STATE_MUTE:
 		return "Mute";
 	default:
@@ -9148,7 +9150,7 @@ void ast_channel_set_redirecting(struct ast_channel *chan, const struct ast_part
 	ast_channel_lock(chan);
 	ast_party_redirecting_set(ast_channel_redirecting(chan), redirecting, update);
 	ast_channel_snapshot_invalidate_segment(chan, AST_CHANNEL_SNAPSHOT_INVALIDATE_CALLER);
-	ast_channel_publish_snapshot(chan);
+	ast_setstate(chan, AST_STATE_REDIRECTING);
 	ast_channel_unlock(chan);
 }
 

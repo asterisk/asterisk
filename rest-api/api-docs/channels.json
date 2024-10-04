@@ -398,7 +398,6 @@
 							"reason": "Channel with given unique ID already exists."
 						}
 					]
-
 				},
 				{
 					"httpMethod": "DELETE",
@@ -2152,6 +2151,7 @@
 							"Busy",
 							"Dialing Offhook",
 							"Pre-ring",
+							"Redirecting",
 							"Unknown"
 						]
 					}

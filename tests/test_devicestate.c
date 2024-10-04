@@ -831,6 +831,7 @@ AST_TEST_DEFINE(devstate_conversions)
 	ast_test_validate(test, ast_state_chan2dev(AST_STATE_BUSY) == AST_DEVICE_BUSY);
 	ast_test_validate(test, ast_state_chan2dev(AST_STATE_DIALING_OFFHOOK) == AST_DEVICE_INUSE);
 	ast_test_validate(test, ast_state_chan2dev(AST_STATE_PRERING) == AST_DEVICE_RINGING);
+	ast_test_validate(test, ast_state_chan2dev(AST_STATE_REDIRECTING) == AST_DEVICE_RINGING);
 
 	return AST_TEST_PASS;
 }

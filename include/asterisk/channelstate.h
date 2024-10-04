@@ -43,6 +43,7 @@ enum ast_channel_state {
 	AST_STATE_BUSY,			/*!< Line is busy */
 	AST_STATE_DIALING_OFFHOOK,	/*!< Digits (or equivalent) have been dialed while offhook */
 	AST_STATE_PRERING,		/*!< Channel has detected an incoming call and is waiting for ring */
+	AST_STATE_REDIRECTING,		/*!< Channel is being redirected */
 
 	AST_STATE_MUTE = (1 << 16),	/*!< Do not transmit voice data */
 };

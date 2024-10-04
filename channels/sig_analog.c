@@ -3628,6 +3628,7 @@ winkflashdone:
 				case AST_STATE_BUSY:				/*!< Line is busy */
 				case AST_STATE_DIALING_OFFHOOK:		/*!< Digits (or equivalent) have been dialed while offhook */
 				case AST_STATE_PRERING:				/*!< Channel has detected an incoming call and is waiting for ring */
+				case AST_STATE_REDIRECTING:		/*!< Channel is being redirected */
 				default:
 					if (p->answeronpolarityswitch || p->hanguponpolarityswitch) {
 						ast_debug(1, "Ignoring Polarity switch on channel %d, state %u\n", p->channel, ast_channel_state(ast));
