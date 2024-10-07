@@ -4211,7 +4211,7 @@ static int ast_rtp_new(struct ast_rtp_instance *instance,
 	/* Set default parameters on the newly created RTP structure */
 	rtp->ssrc = ast_random();
 	ast_uuid_generate_str(rtp->cname, sizeof(rtp->cname));
-	rtp->seqno = ast_random() & 0x7fff;
+	rtp->seqno = ast_random() & 0xffff;
 	rtp->expectedrxseqno = -1;
 	rtp->expectedseqno = -1;
 	rtp->rxstart = -1;
