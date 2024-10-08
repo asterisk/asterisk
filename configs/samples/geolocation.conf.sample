@@ -305,7 +305,6 @@ pidf_element = tuple
 profile_action = discard_incoming
 
 =======================================================================
---;
 
 -- NOTE ---------------------------------------------------------------
 There are 4 built-in profiles that can be assigned to endpoints:
@@ -316,3 +315,4 @@ There are 4 built-in profiles that can be assigned to endpoints:
 The profiles are empty except for having their precedence
 set.
 
+--;
