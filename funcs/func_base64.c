@@ -85,7 +85,10 @@ static int base64_helper(struct ast_channel *chan, const char *cmd, char *data,
 			ast_base64encode(buf, (unsigned char *) data, strlen(data), len);
 		} else {
 			if (len >= 0) {
-				ast_str_make_space(str, len ? len : ast_str_strlen(*str) + strlen(data) * 4 / 3 + 2);
+				/* This calculation accounts for padding and the trailing 0 byte. Borrowed
+				   from utils.c */
+				size_t bytes_needed_to_encode_data = ((strlen(data) * 4 / 3 + 3) & ~3) + 1;
+				ast_str_make_space(str, len ? len : ast_str_strlen(*str) + bytes_needed_to_encode_data);
 			}
 			ast_base64encode(ast_str_buffer(*str) + ast_str_strlen(*str), (unsigned char *) data, strlen(data), ast_str_size(*str) - ast_str_strlen(*str));
 			ast_str_update(*str);
