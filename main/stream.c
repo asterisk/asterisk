@@ -641,27 +641,30 @@ struct ast_stream *ast_stream_create_resolved(struct ast_stream *pending_stream,
 static void stream_topology_destroy(void *data)
 {
 	struct ast_stream_topology *topology = data;
+	SCOPE_ENTER(4, "Topology: %p: %s\n", topology, ast_str_tmp(128, ast_stream_topology_to_str(topology, &STR_TMP)));
 
 	AST_VECTOR_CALLBACK_VOID(&topology->streams, ast_stream_free);
 	AST_VECTOR_FREE(&topology->streams);
+	SCOPE_EXIT_RTN("Destroyed: %p\n", topology);
 }
 
 #define TOPOLOGY_INITIAL_STREAM_COUNT 2
 struct ast_stream_topology *ast_stream_topology_alloc(void)
 {
 	struct ast_stream_topology *topology;
+	SCOPE_ENTER(4, "Topology Create\n");
 
 	topology = ao2_alloc_options(sizeof(*topology), stream_topology_destroy, AO2_ALLOC_OPT_LOCK_NOLOCK);
 	if (!topology) {
-		return NULL;
+		SCOPE_EXIT_RTN_VALUE(NULL, "Allocation failed\n");
 	}
 
 	if (AST_VECTOR_INIT(&topology->streams, TOPOLOGY_INITIAL_STREAM_COUNT)) {
 		ao2_ref(topology, -1);
-		topology = NULL;
+		SCOPE_EXIT_RTN_VALUE(NULL, "Vector init failed\n");
 	}
 
-	return topology;
+	SCOPE_EXIT_RTN_VALUE(topology, "Created: %p\n", topology);
 }
 
 struct ast_stream_topology *ast_stream_topology_clone(
