@@ -1169,7 +1169,7 @@ struct ast_channel *ast_unreal_new_channels(struct ast_unreal_pvt *p,
 	struct ast_assigned_ids id2 = {NULL, NULL};
 	int generated_seqno = ast_atomic_fetchadd_int((int *) &name_sequence, +1);
 	int i;
-	struct ast_stream_topology *chan_topology;
+	RAII_VAR(struct ast_stream_topology *, chan_topology, NULL, ast_stream_topology_free);
 	struct ast_stream *stream;
 
 	/* set unique ids for the two channels */
@@ -1221,7 +1221,6 @@ struct ast_channel *ast_unreal_new_channels(struct ast_unreal_pvt *p,
 		"%s/%s-%08x;1", tech->type, p->name, (unsigned)generated_seqno);
 	if (!owner) {
 		ast_log(LOG_WARNING, "Unable to allocate owner channel structure\n");
-		ast_stream_topology_free(chan_topology);
 		return NULL;
 	}
 
@@ -1295,7 +1294,7 @@ struct ast_channel *ast_unreal_new_channels(struct ast_unreal_pvt *p,
 	ast_channel_nativeformats_set(chan, p->reqcap);
 
 	if (ast_channel_is_multistream(chan)) {
-		ast_channel_set_stream_topology(chan, chan_topology);
+		ast_channel_set_stream_topology(chan, ao2_bump(chan_topology));
 	}
 
 	/* Format was already determined when setting up owner */
