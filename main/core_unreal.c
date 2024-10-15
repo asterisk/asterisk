@@ -1168,7 +1168,7 @@ struct ast_channel *ast_unreal_new_channels(struct ast_unreal_pvt *p,
 	struct ast_assigned_ids id1 = {NULL, NULL};
 	struct ast_assigned_ids id2 = {NULL, NULL};
 	int generated_seqno = ast_atomic_fetchadd_int((int *) &name_sequence, +1);
-	struct ast_stream_topology *topology;
+	RAII_VAR(struct ast_stream_topology *, topology, NULL, ast_stream_topology_free);
 
 	/* set unique ids for the two channels */
 	if (assignedids && !ast_strlen_zero(assignedids->uniqueid)) {
@@ -1186,14 +1186,6 @@ struct ast_channel *ast_unreal_new_channels(struct ast_unreal_pvt *p,
 		id2.uniqueid = uniqueid2;
 	}
 
-	/* We need to create a topology to place on the first channel, as we can't
-	 * share a single one between both.
-	 */
-	topology = ast_stream_topology_clone(p->reqtopology);
-	if (!topology) {
-		return NULL;
-	}
-
 	/*
 	 * Allocate two new Asterisk channels
 	 *
@@ -1206,7 +1198,6 @@ struct ast_channel *ast_unreal_new_channels(struct ast_unreal_pvt *p,
 		"%s/%s-%08x;1", tech->type, p->name, (unsigned)generated_seqno);
 	if (!owner) {
 		ast_log(LOG_WARNING, "Unable to allocate owner channel structure\n");
-		ast_stream_topology_free(topology);
 		return NULL;
 	}
 
@@ -1221,7 +1212,15 @@ struct ast_channel *ast_unreal_new_channels(struct ast_unreal_pvt *p,
 	ast_channel_nativeformats_set(owner, p->reqcap);
 
 	if (ast_channel_is_multistream(owner)) {
-		ast_channel_set_stream_topology(owner, topology);
+		/*
+		 * We need to create a topology to place on the first channel, as we can't
+		 * share a single one between both.
+		 */
+		topology = ast_stream_topology_clone(p->reqtopology);
+		if (!topology) {
+			return NULL;
+		}
+		ast_channel_set_stream_topology(owner, ao2_bump(topology));
 	}
 
 	/* Determine our read/write format and set it on each channel */
