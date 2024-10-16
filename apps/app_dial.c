@@ -1292,7 +1292,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 		}
 
 		/* If progress timeout is active, use that if it's the shorter of the 2 timeouts. */
-		winner = ast_waitfor_n(watchers, pos, *to_progress > 0 && *to_progress < *to_answer ? to_progress : to_answer);
+		winner = ast_waitfor_n(watchers, pos, *to_progress > 0 && (*to_answer < 0 || *to_progress < *to_answer) ? to_progress : to_answer);
 
 		AST_LIST_TRAVERSE(out_chans, o, node) {
 			int res = 0;
