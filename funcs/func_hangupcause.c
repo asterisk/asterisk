@@ -52,6 +52,7 @@
 				<para>Parameter describing which type of information is requested. Types are:</para>
 				<enumlist>
 					<enum name="tech"><para>Technology-specific cause information</para></enum>
+					<enum name="tech_extended"><para>Technology-specific extended list of cause information</para></enum>
 					<enum name="ast"><para>Translated Asterisk cause code</para></enum>
 				</enumlist>
 			</parameter>
@@ -110,9 +111,10 @@ static int hangupcause_read(struct ast_channel *chan, const char *cmd, char *dat
 	char *parms;
 	struct ast_control_pvt_cause_code *cause_code;
 	int res = 0;
+	struct ast_str *causelist;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(channel);	/*!< Channel name */
-		AST_APP_ARG(type);	/*!< Type of information requested (ast or tech) */
+		AST_APP_ARG(type);	/*!< Type of information requested (ast, tech or tech_extended) */
 		);
 
 	/* Ensure that the buffer is empty */
@@ -130,7 +132,25 @@ static int hangupcause_read(struct ast_channel *chan, const char *cmd, char *dat
 		return -1;
 	}
 
+	if (!(causelist = ast_str_create(128))) {
+		ast_log(LOG_ERROR, "Unable to allocate dynamic string buffer\n");
+		return -1;
+	}
+
 	ast_channel_lock(chan);
+	if (!strcmp(args.type, "tech_extended") && causelist) {
+		struct ao2_iterator *cause_codes;
+		cause_codes = ast_channel_dialed_causes_find_multiple(chan, args.channel);
+		while ((cause_code = ao2_iterator_next(cause_codes))) {
+			if (!cause_code->cause_extended) {
+				ao2_ref(cause_code, -1);
+				continue;
+			}
+			ast_str_append(&causelist, 0, "%s%s", (ast_str_strlen(causelist) ? "," : ""), cause_code->code);
+			ao2_ref(cause_code, -1);
+		}
+		ao2_iterator_destroy(cause_codes);
+	}
 	cause_code = ast_channel_dialed_causes_find(chan, args.channel);
 	ast_channel_unlock(chan);
 
@@ -143,6 +163,8 @@ static int hangupcause_read(struct ast_channel *chan, const char *cmd, char *dat
 		ast_copy_string(buf, ast_cause2str(cause_code->ast_cause), len);
 	} else if (!strcmp(args.type, "tech")) {
 		ast_copy_string(buf, cause_code->code, len);
+	} else if (!strcmp(args.type, "tech_extended")) {
+		ast_copy_string(buf, ast_str_buffer(causelist), len);
 	} else {
 		ast_log(LOG_WARNING, "Information type not recognized (%s)\n", args.type);
 		res = -1;
