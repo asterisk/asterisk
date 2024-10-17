@@ -1,18 +1,18 @@
 
-## Change Log for Release asterisk-21.5.0-rc1
+## Change Log for Release asterisk-21.5.0
 
 ### Links:
 
- - [Full ChangeLog](https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-21.5.0-rc1.md)  
- - [GitHub Diff](https://github.com/asterisk/asterisk/compare/21.4.3...21.5.0-rc1)  
- - [Tarball](https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-21.5.0-rc1.tar.gz)  
+ - [Full ChangeLog](https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-21.5.0.md)  
+ - [GitHub Diff](https://github.com/asterisk/asterisk/compare/21.4.3...21.5.0)  
+ - [Tarball](https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-21.5.0.tar.gz)  
  - [Downloads](https://downloads.asterisk.org/pub/telephony/asterisk)  
 
 ### Summary:
 
-- Commits: 21
+- Commits: 24
 - Commit Authors: 8
-- Issues Resolved: 14
+- Issues Resolved: 17
 - Security Advisories Resolved: 0
 
 ### User Notes:
@@ -58,7 +58,7 @@
 - Alexei Gradinari: (2)
 - Ben Ford: (1)
 - Cade Parker: (1)
-- George Joseph: (8)
+- George Joseph: (11)
 - Jaco Kroon: (1)
 - Mike Bradeen: (3)
 - Sean Bright: (2)
@@ -82,6 +82,9 @@
   - 861: [bug]: ChanSpy unable to read audiohook read direction frame when no packet lost on both side of the call
   - 876: [bug]: ChanSpy unable to write whisper_audiohook when set flag OPTION_READONLY
   - 879: [bug]: res_stir_shaken/verification.c: Getting verification errors when global_disable=yes
+  - 884: [bug]: A ':' at the top of in stir_shaken.conf make Asterisk producing a core file when starting
+  - 889: [bug]: res_stir_shaken/verification.c has a stale include for jansson.h that can cause compilation to fail
+  - 904: [bug]: stir_shaken: attest_level isn't being propagated correctly from attestation to profile to tn
 
 ### Commits By Author:
 
@@ -95,7 +98,7 @@
 - #### Cade Parker (1):
   - chan_mobile: decrease CHANNEL_FRAME_SIZE to prevent delay
 
-- #### George Joseph (8):
+- #### George Joseph (11):
   - bridge_softmix: Fix queueing VIDUPDATE control frames
   - res_pjsip_config_wizard.c: Refactor load process
   - stir_shaken: CRL fixes and a new CLI command
@@ -104,6 +107,9 @@
   - security_agreements.c: Refactor the to_str functions and fix a few other bugs
   - app_voicemail: Use ast_asprintf to create mailbox SQL query
   - res_stir_shaken: Check for disabled before param validation
+  - res_stir_shaken.c: Fix crash when stir_shaken.conf is invalid
+  - res_stir_shaken: Remove stale include for jansson.h in verification.c
+  - stir_shaken: Fix propagation of attest_level and a few other values
 
 - #### Jaco Kroon (1):
   - configure:  Use . file rather than source file.
@@ -125,6 +131,9 @@
 
 ### Commit List:
 
+-  stir_shaken: Fix propagation of attest_level and a few other values
+-  res_stir_shaken: Remove stale include for jansson.h in verification.c
+-  res_stir_shaken.c: Fix crash when stir_shaken.conf is invalid
 -  res_stir_shaken: Check for disabled before param validation
 -  app_chanspy.c: resolving the issue writing frame to whisper audiohook.
 -  app_voicemail: Use ast_asprintf to create mailbox SQL query
@@ -147,6 +156,60 @@
 -  bridge_softmix: Fix queueing VIDUPDATE control frames
 
 ### Commit Details:
+
+#### stir_shaken: Fix propagation of attest_level and a few other values
+  Author: George Joseph
+  Date:   2024-09-24
+
+  attest_level, send_mky and check_tn_cert_public_url weren't
+  propagating correctly from the attestation object to the profile
+  and tn.
+
+  * In the case of attest_level, the enum needed to be changed
+  so the "0" value (the default) was "NOT_SET" instead of "A".  This
+  now allows the merging of the attestation object, profile and tn
+  to detect when a value isn't set and use the higher level value.
+
+  * For send_mky and check_tn_cert_public_url, the tn default was
+  forced to "NO" which always overrode the profile and attestation
+  objects.  Their defaults are now "NOT_SET" so the propagation
+  happens correctly.
+
+  * Just to remove some redundant code in tn_config.c, a bunch of calls to
+  generate_sorcery_enum_from_str() and generate_sorcery_enum_to_str() were
+  replaced with a single call to generate_acfg_common_sorcery_handlers().
+
+  Resolves: #904
+
+#### res_stir_shaken: Remove stale include for jansson.h in verification.c
+  Author: George Joseph
+  Date:   2024-09-17
+
+  verification.c had an include for jansson.h left over from previous
+  versions of the module.  Since res_stir_shaken no longer has a
+  dependency on jansson, the bundled version wasn't added to GCC's
+  include path so if you didn't also have a jansson development package
+  installed, the compile would fail.  Removing the stale include
+  was the only thing needed.
+
+  Resolves: #889
+
+#### res_stir_shaken.c: Fix crash when stir_shaken.conf is invalid
+  Author: George Joseph
+  Date:   2024-09-13
+
+  * If the call to ast_config_load() returns CONFIG_STATUS_FILEINVALID,
+  check_for_old_config() now returns LOAD_DECLINE instead of continuing
+  on with a bad pointer.
+
+  * If CONFIG_STATUS_FILEMISSING is returned, check_for_old_config()
+  assumes the config is being loaded from realtime and now returns
+  LOAD_SUCCESS.  If it's actually not being loaded from realtime,
+  sorcery will catch that later on.
+
+  * Also refactored the error handling in load_module() a bit.
+
+  Resolves: #884
 
 #### res_stir_shaken: Check for disabled before param validation
   Author: George Joseph
