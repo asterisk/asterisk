@@ -985,8 +985,8 @@ static int smart_bridge_operation(struct ast_bridge *bridge)
 		.uniqueid = bridge->uniqueid,
 	};
 
-    const char *use_native_rtp;
-    bool dont_skip_suspended = false;
+	const char *use_native_rtp;
+	bool dont_skip_suspended = false;
 
 	if (bridge->dissolved) {
 		ast_debug(1, "Bridge %s is dissolved, not performing smart bridge operation.\n",
@@ -994,19 +994,19 @@ static int smart_bridge_operation(struct ast_bridge *bridge)
 		return 0;
 	}
 
-    // Retrieve the USE_NATIVE_RTP variable from the channel
-    bridge_channel = AST_LIST_FIRST(&bridge->channels);
-    if (bridge_channel && bridge_channel->chan) {
-        ast_channel_lock(bridge_channel->chan);
-        use_native_rtp = pbx_builtin_getvar_helper(bridge_channel->chan, "USE_NATIVE_RTP");
-        ast_debug(1, "Bridge %s: USE_NATIVE_RTP variable is %s\n",
-            bridge->uniqueid, use_native_rtp);
-        ast_channel_unlock(bridge_channel->chan);
+	// Retrieve the USE_NATIVE_RTP variable from the channel
+	bridge_channel = AST_LIST_FIRST(&bridge->channels);
+	if (bridge_channel && bridge_channel->chan) {
+		ast_channel_lock(bridge_channel->chan);
+		use_native_rtp = pbx_builtin_getvar_helper(bridge_channel->chan, "USE_NATIVE_RTP");
+		ast_debug(1, "Bridge %s: USE_NATIVE_RTP variable is %s\n",
+			bridge->uniqueid, use_native_rtp);
+		ast_channel_unlock(bridge_channel->chan);
 
-        if (use_native_rtp && ast_true(use_native_rtp)) {
-            dont_skip_suspended = true;
-        }
-    }
+		if (use_native_rtp && ast_true(use_native_rtp)) {
+			dont_skip_suspended = true;
+		}
+	}
 
 	/* Determine new bridge technology capabilities needed. */
 	if (2 < bridge->num_channels) {
