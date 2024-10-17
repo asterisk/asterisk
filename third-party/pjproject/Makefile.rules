@@ -36,6 +36,7 @@ PJPROJECT_CONFIG_OPTS = $(PJPROJECT_CONFIGURE_OPTS) --prefix=/opt/pjproject \
 	--disable-openh264 \
 	--disable-ipp \
 	--disable-libwebrtc \
+	--disable-libsrtp \
 	--disable-upnp \
 	--without-external-pa \
 	--without-external-srtp

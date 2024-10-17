@@ -58,6 +58,7 @@ ifeq ($(SPECIAL_TARGETS),)
         -include source/build.mak
         CF := $(filter-out -W%,$(CC_CFLAGS))
         CF := $(filter-out -I%,$(CF))
+        ifeq ($(PJPROJECT_BUNDLED_OOT),)
         ifeq ($(AST_DEVMODE),yes)
             apps := source/pjsip-apps/bin/pjsua-$(TARGET_NAME) source/pjsip-apps/bin/pjsystest-$(TARGET_NAME)
             TARGETS += $(apps)
@@ -65,6 +66,7 @@ ifeq ($(SPECIAL_TARGETS),)
                 TARGETS += source/pjsip-apps/src/python/_pjsua.so
             endif
             CF += -DPJPROJECT_BUNDLED_ASSERTIONS=yes
+        endif
         endif
         MALLOC_DEBUG_LIBS = source/pjsip-apps/lib/libasterisk_malloc_debug.a
         ifneq ($(findstring darwin,$(OSARCH)),)

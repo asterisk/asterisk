@@ -174,9 +174,8 @@ applied.  Since you're probably working off the pjproject master branch,
 the patches aren't needed.  Also, applying the patches would contaminate
 the pjproject repo and you wouldn't be able to do a clean commit there.
 
-You'll see compile and/or link warnings you wouldn't see with a normal
+You may see compile and/or link warnings you wouldn't see with a normal
 bundled build.
-
 
 ## How it works
 
@@ -190,24 +189,24 @@ When a `make` is done, either from top-level asterisk or from the
 third-party/pjproject directory, it checks `PJPROJECT_BUNDLED_OOT`
 and if set to yes it...
 
-    * Alters the behavior of `clean` and `distclean` to just run
-    pjproject's `clean` or `distclean` targets and to NOT remove the
-    `source` directory or symlink as it would normally do.
+* Alters the behavior of `clean` and `distclean` to just run
+pjproject's `clean` or `distclean` targets and to NOT remove the
+`source` directory or symlink as it would normally do.
 
-    * Generates `astdep` dependency files in the pjproject source tree
-    if they don't already exist.  These are git-ignored by the edit
-    to pjproject's `.git/info/exclude` done above.  You'll
-    see new progress messages during the make as the astdep files are
-    built.
+* Generates `astdep` dependency files in the pjproject source tree
+if they don't already exist.  These are git-ignored by the edit
+to pjproject's `.git/info/exclude` done above.  You'll
+see new progress messages during the make as the astdep files are
+built.
 
-    * Copies asterisk_malloc_debug.c, asterisk_malloc_debug.h and
-    config_site.h from the patches directory into the pjproject source
-    tree.  These are also git-ignored by the edit to pjproject's
-    `.git/info/exclude` file.
+* Copies asterisk_malloc_debug.c, asterisk_malloc_debug.h and
+config_site.h from the patches directory into the pjproject source
+tree.  These are also git-ignored by the edit to pjproject's
+`.git/info/exclude` file.
 
-    * Compiles only the out-of-date source files into their respective
-    libpj libraries.  That in turn triggers the asterisk top-level
-    make to re-link main/libasteriskpj.so.
+* Compiles only the out-of-date source files into their respective
+libpj libraries.  That in turn triggers the asterisk top-level
+make to re-link main/libasteriskpj.so.
 
 
 
