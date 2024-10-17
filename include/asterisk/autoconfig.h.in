@@ -628,6 +628,10 @@
 /* Define to 1 if PJPROJECT has the pjsip_auth_clt_deinit support feature. */
 #undef HAVE_PJSIP_AUTH_CLT_DEINIT
 
+/* Define to 1 if PJPROJECT has the PJSIP Auth new digests like SHA-256 and
+   SHA-512-256 feature. */
+#undef HAVE_PJSIP_AUTH_NEW_DIGESTS
+
 /* Define to 1 if PJPROJECT has the PJSIP Dialog Create UAS with Incremented
    Lock feature. */
 #undef HAVE_PJSIP_DLG_CREATE_UAS_AND_INC_LOCK
