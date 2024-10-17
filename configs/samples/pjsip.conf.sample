@@ -1038,56 +1038,109 @@
 ;  Note: Using the same auth section for inbound and outbound
 ;  authentication is not recommended.  There is a difference in
 ;  meaning for an empty realm setting between inbound and outbound
-;  authentication uses.  Look to the CLI config help
-;  "config show help res_pjsip auth realm" or on https://docs.asterisk.org/
-;  for the difference.
+;  authentication uses.
 ;
-;auth_type=userpass  ; Authentication type.  May be
-                     ; "userpass" for plain text passwords or
-                     ; "md5" for pre-hashed credentials.
-                     ; (default: "userpass")
-;nonce_lifetime=32   ; Lifetime of a nonce associated with this
-                     ; authentication config (default: "32")
-;md5_cred=     ; As an alternative to specifying a plain text password,
-               ; you can hash the username, realm and password
-               ; together one time and place the hash value here.
-               ; The input to the hash function must be in the
-               ; following format:
-               ; <username>:<realm>:<password>
-               ; For incoming authentication (asterisk is the UAS),
-               ; the realm must match either the realm set in this object
-               ; or the default set in in the "global" object.
-               ;
-               ; For outgoing authentication (asterisk is the UAC),
-               ; the realm must match what the server will be sending
-               ; in their WWW-Authenticate header.  It can't be blank
-               ; unless you expect the server to be sending a blank
-               ; realm in the header.
-               ; You can generate the hash with the following shell
-               ; command:
-               ; $ echo -n "myname:myrealm:mypassword" | md5sum
-               ; Note the '-n'.  You don't want a newline to be part
-               ; of the hash.  (default: "")
-;password=     ; PlainText password used for authentication (default: "")
-;realm=        ; For incoming authentication (asterisk is the UAS),
-               ; this is the realm to be sent on WWW-Authenticate
-               ; headers.  If not specified, the global object's
-               ; "default_realm" will be used.
-               ;
-               ; For outgoing authentication (asterisk is the UAC), this
-               ; must either be the realm the server is expected to send,
-               ; or left blank or contain a single '*' to automatically
-               ; use the realm sent by the server. If you have multiple
-               ; auth objects for an endpoint, the realm is also used to
-               ; match the auth object to the realm the server sent.
-               ;
-               ; Using the same auth section for inbound and outbound
-               ; authentication is not recommended.  There is a difference in
-               ; meaning for an empty realm setting between inbound and outbound
-               ; authentication uses.
-               ; (default: "")
-;type=         ; Must be auth (default: "")
-;username=     ; Username to use for account (default: "")
+;  Note on Digest Algorithms: The currently supported digest algorithms are
+;  "MD5", "SHA-256" and "SHA-512-256" but availability may be limited by
+;  the versions of PJProject and OpenSSL installed.  Run the CLI command
+;  `pjproject show buildopts` to see the algorithms currently available and
+;  see the documentation linked below for more info.
+;
+;  Detailed discussion for this object, especially regarding hash algorithms
+;  and realms can be found at
+;  https://docs.asterisk.org/Configuration/Channel-Drivers/SIP/Configuring-res_pjsip/PJSIP-Authentication
+
+;type=       ; Must be auth (default: "")
+
+;auth_type=  ; Authentication mechanism.
+             ; Must be one of:
+             ; "digest"      : The standard HTTP/SIP digest
+             ;    authentication. "password" and/or one or more
+             ;    "password_digest" parameters must also be specified.
+             ; "google_oauth": Google OAuth authentication used by
+             ;    Google Voice.
+             ; "userpass"    : (deprecated).  Automatically converted
+             ;    to "digest".  Used to mean plain-text password but
+             ;    that is now determined automatically.
+             ; "md5"         : (deprecated)   Automatically converted
+             ;    to "digest".  Used to mean pre-hashed password but
+             ;    that is now determined automatically.
+             ; (default: "digest")
+
+;realm=      ; For incoming authentication (asterisk is the UAS),
+             ; this is the realm to be sent on WWW-Authenticate
+             ; headers.  If not specified, the global object's
+             ; "default_realm" will be used.
+             ;
+             ; For outgoing authentication (asterisk is the UAC), this
+             ; must either be the realm the server is expected to send,
+             ; or left blank or contain a single '*' to automatically
+             ; use the realm sent by the server. If you have multiple
+             ; auth objects for an endpoint, the realm is also used to
+             ; match the auth object to the realm the server sent.
+             ;
+             ; Using the same auth section for inbound and outbound
+             ; authentication is not recommended.  There is a difference in
+             ; meaning for an empty realm setting between inbound and outbound
+             ; authentication uses.
+             ;
+             ; If more than one auth object with the same realm or
+             ; more than one wildcard auth object is associated to
+             ; an endpoint, only the first one of each defined on
+             ; the endpoint will be used.
+             ;
+             ; (default: "")
+
+;username=   ; Username to use for account (Required)
+
+;password=   ; PlainText password used for authentication (default: "")
+
+;password_digest= <digest-spec>
+             ; As an alternative to specifying a plain text password, you can
+             ; specify pre-computed digests.
+             ;
+             ; <digest-spec> = <IANA_digest_algorithm>:<hashed-credential>
+             ; <IANA_digest_algorithm>: One of the supported hash algorithms
+             ;    which currently are "MD5", "SHA-256" and "SHA-512-256" but
+             ;    see the note above.
+             ; <hashed-credential>:  The result of passing the following
+             ;    string through the selected hash algorithm:
+             ;    <username>:<realm>:<password>
+             ; Example:
+             ; $ echo -n "fred:asterisk:mypass" | openssl dgst -md5
+             ; MD5(stdin)= 43a8d9be3da524f9a59ca0593d7b1b5d
+             ; would be specified as...
+;password_digest = MD5:43a8d9be3da524f9a59ca0593d7b1b5d
+             ; You can specify this parameter once for each algorithm.
+             ; See the documentation linked above for more info.
+
+;md5_cred=   ; (deprecated)  Will be automatically converted to a
+             ; "password_digest" parameter.
+
+;supported_algorithms_uas= <IANA_digest_algorithm>[,<IANA_digest_algorithm>]...
+             ; Specify the digest algorithms to offer when this auth object
+             ; is used by Asterisk acting as a UAS.  Specify one or more of
+             ; the supported hash algorithms, which currently are "MD5",
+             ; "SHA-256" and "SHA-512-256", but see the note above.
+             ; The default is the value specified in the global object's
+             ; default_auth_algorithms_uas parameter.
+
+;supported_algorithms_uac= <IANA_digest_algorithm>[,<IANA_digest_algorithm>]...
+             ; Specify the digest algorithms to respond with when this auth
+             ; object is used by Asterisk acting as a UAC.  Specify one or more of
+             ; the supported hash algorithms, which currently are "MD5",
+             ; "SHA-256" and "SHA-512-256", but see the note above.
+             ; The default is the value specified in the global object's
+             ; default_auth_algorithms_uac parameter.
+
+;nonce_lifetime=32 ; Lifetime of a nonce associated with this
+             ; authentication config (default: "32")
+
+; For the Google OAuth authentication mechanism, the following parameters are
+; required:
+;refresh_token=  ; OAuth 2.0 refresh token
+;oauth_clientid= ; OAuth 2.0 application's client id
+;oauth_secret=   ; OAuth 2.0 application's secret
 
 
 ;==========================DOMAIN_ALIAS SECTION OPTIONS=========================
@@ -1415,6 +1468,19 @@
 					; If disabled Asterisk will instead send only a
 					; 183 Session Progress to the endpoint.
 					; (default: "no")
+
+;default_auth_algorithms_uas = MD5
+             ; The default list of digest algorithms to support when an
+             ; auth object is used as a UAS. See the "supported_algorithms_uas"
+             ; parameter in the "auth" object above.
+             ; The default is MD5
+
+;default_auth_algorithms_uac = MD5
+             ; The default list of digest algorithms to support when an
+             ; auth object is used as a UAC. See the "supported_algorithms_uac"
+             ; parameter in the "auth" object above.
+             ; The default is MD5
+
 
 ; MODULE PROVIDING BELOW SECTION(S): res_pjsip_acl
 ;==========================ACL SECTION OPTIONS=========================

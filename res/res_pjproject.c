@@ -315,6 +315,26 @@ static char *handle_pjproject_show_buildopts(struct ast_cli_entry *e, int cmd, s
 		ast_cli(a->fd, "%s\n", AST_VECTOR_GET(&buildopts, i));
 	}
 
+#ifdef HAVE_PJSIP_AUTH_NEW_DIGESTS
+	{
+		struct ast_str *buf = ast_str_alloca(256);
+		for (i = PJSIP_AUTH_ALGORITHM_NOT_SET + 1; i < PJSIP_AUTH_ALGORITHM_COUNT; i++) {
+			const pjsip_auth_algorithm *algorithm = pjsip_auth_get_algorithm_by_type(i);
+			if (!ast_strlen_zero(algorithm->openssl_name)) {
+				if (pjsip_auth_is_algorithm_supported(i)) {
+					ast_str_append(&buf, 0, "%.*s/%s, ", (int)algorithm->iana_name.slen,
+						algorithm->iana_name.ptr, algorithm->openssl_name);
+				}
+			}
+		}
+		/* Trim off the trailing ", " */
+		ast_str_truncate(buf, -2);
+		ast_cli(a->fd, "Supported Digest Algorithms (IANA name/OpenmSSL name): %s\n", ast_str_buffer(buf));
+	}
+#else
+	ast_cli(a->fd, "Supported Digest Algorithms (IANA name/OpenmSSL name): MD5/MD5\n");
+#endif
+
 	return CLI_SUCCESS;
 }
 
