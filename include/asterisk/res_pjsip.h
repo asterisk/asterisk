@@ -72,6 +72,7 @@
 #define PJSTR_PRINTF_VAR(_v) ((int)(_v).slen), ((_v).ptr)
 
 #define AST_SIP_AUTH_MAX_REALM_LENGTH 255	/* From the auth/realm realtime column size */
+#define AST_SIP_AUTH_MAX_SUPPORTED_ALGORITHMS_LENGTH (255) /* From the supported algorithms realtime column size */
 
 /* ":12345" */
 #define COLON_PORT_STRLEN 6
@@ -558,24 +559,103 @@ enum ast_sip_dtmf_mode {
 };
 
 /*!
- * \brief Methods of storing SIP digest authentication credentials.
+ * \brief Authentication methods.
  *
- * Note that both methods result in MD5 digest authentication being
- * used. The two methods simply alter how Asterisk determines the
- * credentials for a SIP authentication
+ * The meaning of this type has changed.  It used to indicate how
+ * the credentials were stored, but now it indicates which authentication
+ * method will be used...  Google Oauth, Artificial (fake auth) or Digest.
+ * The USER_PASS and MD5 types are still used for backwards compatibility
+ * but will map to DIGEST.
  */
 enum ast_sip_auth_type {
-	/*! Credentials stored as a username and password combination */
-	AST_SIP_AUTH_TYPE_USER_PASS,
-	/*! Credentials stored as an MD5 sum */
+	AST_SIP_AUTH_TYPE_NONE = -1,
+	/*!
+	 * Credentials stored as a username and password combination
+	 * \deprecated Now automatically determined
+	 */
+	AST_SIP_AUTH_TYPE_USER_PASS = 0,
+	/*!
+	 * Credentials stored as an MD5 sum
+	 * \deprecated Use AST_SIP_AUTH_TYPE_DIGEST instead
+	 */
 	AST_SIP_AUTH_TYPE_MD5,
 	/*! Google Oauth */
 	AST_SIP_AUTH_TYPE_GOOGLE_OAUTH,
 	/*! Credentials not stored this is a fake auth */
-	AST_SIP_AUTH_TYPE_ARTIFICIAL
+	AST_SIP_AUTH_TYPE_ARTIFICIAL,
+	/*! Digest method will be used */
+	AST_SIP_AUTH_TYPE_DIGEST,
+};
+
+enum ast_sip_auth_cred_usage {
+	/*! The credentials used as a UAC */
+	AST_SIP_AUTH_CRED_USAGE_UAC,
+	/*! The credentials used as a UAS */
+	AST_SIP_AUTH_CRED_USAGE_UAS,
 };
 
 #define SIP_SORCERY_AUTH_TYPE "auth"
+
+#ifndef HAVE_PJSIP_AUTH_NEW_DIGESTS
+/*
+ * These are needed if the version of pjproject in use
+ * does not have the new digests.
+ * NOTE: We don't support AKAV1_MD5 but we need to specify
+ * it to be compatible with the pjproject definition.
+ */
+typedef enum pjsip_auth_algorithm_type
+{
+    PJSIP_AUTH_ALGORITHM_NOT_SET = 0,
+    PJSIP_AUTH_ALGORITHM_MD5,
+    PJSIP_AUTH_ALGORITHM_SHA256,
+    PJSIP_AUTH_ALGORITHM_SHA512_256,
+    PJSIP_AUTH_ALGORITHM_AKAV1_MD5,
+    PJSIP_AUTH_ALGORITHM_COUNT,
+} pjsip_auth_algorithm_type;
+
+typedef struct pjsip_auth_algorithm
+{
+	pjsip_auth_algorithm_type algorithm_type;
+	pj_str_t iana_name;
+	const char *openssl_name;
+	unsigned digest_length;
+	unsigned digest_str_length;
+} pjsip_auth_algorithm;
+#endif
+
+/*!
+ * \brief Get algorithm by algorithm type
+ *
+ * \param algorithm_type The algorithm type
+ * \retval The algorithm or NULL if not found
+ */
+const pjsip_auth_algorithm *ast_sip_auth_get_algorithm_by_type(
+	pjsip_auth_algorithm_type algorithm_type);
+
+/*!
+ * \brief Get algorithm by IANA name
+ *
+ * \param iana_name The algorithm IANA name
+ * \retval The algorithm or NULL if not found
+ */
+const pjsip_auth_algorithm *ast_sip_auth_get_algorithm_by_iana_name(
+	const pj_str_t *iana_name);
+
+/*!
+ * \brief Is algorithm supported by OpenSSL and pjproject?
+ *
+ * \param algorithm_type The algorithm IANA name
+ * \retval The algorithm or NULL if not found
+ */
+pj_bool_t ast_sip_auth_is_algorithm_supported(
+	pjsip_auth_algorithm_type algorithm_type);
+
+AST_VECTOR(pjsip_auth_algorithm_type_vector, pjsip_auth_algorithm_type);
+
+struct ast_sip_auth_password_digest {
+	pjsip_auth_algorithm_type algorithm_type;
+	char digest[0];
+};
 
 struct ast_sip_auth {
 	/*! Sorcery ID of the auth is its name */
@@ -587,7 +667,10 @@ struct ast_sip_auth {
 		AST_STRING_FIELD(auth_user);
 		/*! Authentication password */
 		AST_STRING_FIELD(auth_pass);
-		/*! Authentication credentials in MD5 format (hash of user:realm:pass) */
+		/*!
+		 * Authentication credentials in MD5 format (hash of user:realm:pass)
+		 * \deprecated Use password_digests[PJSIP_AUTH_ALGORITHM_MD5] instead.
+		 */
 		AST_STRING_FIELD(md5_creds);
 		/*! Refresh token to use for OAuth authentication */
 		AST_STRING_FIELD(refresh_token);
@@ -600,6 +683,12 @@ struct ast_sip_auth {
 	unsigned int nonce_lifetime;
 	/*! Used to determine what to use when authenticating */
 	enum ast_sip_auth_type type;
+	/*! Digest algorithms to support when UAC */
+	struct pjsip_auth_algorithm_type_vector supported_algorithms_uac;
+	/*! Digest algorithms to send challenges for when UAS */
+	struct pjsip_auth_algorithm_type_vector supported_algorithms_uas;
+	/*! Array of pre-digested passwords indexed by pjsip_auth_algorithm_type */
+	struct ast_sip_auth_password_digest *password_digests[PJSIP_AUTH_ALGORITHM_COUNT];
 };
 
 AST_VECTOR(ast_sip_auth_vector, const char *);
@@ -1239,6 +1328,33 @@ enum ast_sip_check_auth_result {
     /*! Authentication encountered some internal error */
     AST_SIP_AUTHENTICATION_ERROR,
 };
+
+/*!
+ * \brief Populate a vector of algorithm types from a string.
+ *
+ * \param id           The object id to use in error messages
+ * \param algorithms   The vector to populate
+ * \param agent_type   The type of agent to use in error messages ("UAC" or "UAS")
+ * \param value        The comma-separated string to parse for algorithms
+ *
+ * \retval 0 Success
+ * \retval non-zero Failure
+ */
+int ast_sip_auth_digest_algorithms_vector_init(const char *id,
+	struct pjsip_auth_algorithm_type_vector *algorithms, const char *agent_type, const char *value);
+
+/*!
+ * \brief Dump a vector of algorithm types to a string.
+ *
+ * \param algorithms The vector to dump
+ * \param[out] buf   Pointer to the buffer to dump the algorithms to
+ *                   Must be freed by the caller.
+ *
+ * \retval 0 Success
+ * \retval non-zero Failure
+ */
+int ast_sip_auth_digest_algorithms_vector_to_str(
+	const struct pjsip_auth_algorithm_type_vector *algorithms, char **buf);
 
 /*!
  * \brief An interchangeable way of handling digest authentication for SIP.
@@ -3045,6 +3161,40 @@ const char *ast_sip_auth_type_to_str(enum ast_sip_auth_type type);
 int ast_sip_auths_to_str(const struct ast_sip_auth_vector *auths, char **buf);
 
 /*!
+ * \brief Checks an pjsip_auth_algorithm_type_vector to see if it contains an algorithm
+ *
+ * \param auth            The auth object
+ * \param algorithms      The auth object's supported_algorithms_uac or supported_algorithms_uas
+ * \param algorithm_type  The algorithm_type to check
+ *
+ * \retval 1 The algorithm-type is in the vector
+ * \retval 0 The algorithm-type is not in the vector
+ */
+int ast_sip_auth_is_algorithm_available(const struct ast_sip_auth *auth,
+	const struct pjsip_auth_algorithm_type_vector *algorithms,
+	pjsip_auth_algorithm_type algorithm_type);
+
+/*!
+ * \brief Get the plain text or digest password from an auth object
+ *
+ * \param auth            The auth object
+ * \param algorithm_type  The algorithm type to retrieve the password for
+ * \param cred_type       [out]Pointer to an int to receive the credential type
+ *
+ * \note cred_type will contain one of the following values:
+ *      - PJSIP_CRED_DATA_DIGEST
+ *      - PJSIP_CRED_DATA_PLAIN_PASSWD
+
+ * If a password digest is available for the algorithm type it will
+ * be returned, otherwise if a plain text password is available
+ * that will be returned instead.
+ *
+ * \retval The plain text or digest password or NULL if not found for the algorithm type
+ */
+const char *ast_sip_auth_get_creds(const struct ast_sip_auth *auth,
+	const pjsip_auth_algorithm_type algorithm_type, int *cred_type);
+
+/*!
  * \brief AMI variable container
  */
 struct ast_sip_ami {
@@ -3408,6 +3558,22 @@ char *ast_sip_get_default_voicemail_extension(void);
  * \param size The buffer size of realm
  */
 void ast_sip_get_default_realm(char *realm, size_t size);
+
+/*!
+ * \brief Retrieve the global auth algorithms for UAS.
+ *
+ * \param[out] default_auth_algorithms_uas The default algorithms
+ * \param size The buffer size of default_auth_algorithms_uas
+ */
+void ast_sip_get_default_auth_algorithms_uas(char *default_auth_algorithms_uas, size_t size);
+
+/*!
+ * \brief Retrieve the global auth algorithms for UAC.
+ *
+ * \param[out] default_auth_algorithms_uac The default algorithms
+ * \param size The buffer size of default_auth_algorithms_uac
+ */
+void ast_sip_get_default_auth_algorithms_uac(char *default_auth_algorithms_uac, size_t size);
 
 /*!
  * \brief Retrieve the global default from user.

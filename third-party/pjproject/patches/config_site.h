@@ -99,7 +99,7 @@
 
 #define PJSIP_TSX_UAS_CONTINUE_ON_TP_ERROR 0
 #define PJ_SSL_SOCK_OSSL_USE_THREAD_CB 0
-#define PJSIP_AUTH_ALLOW_MULTIPLE_AUTH_HEADER 1
+#define PJSIP_AUTH_ALLOW_MULTIPLE_AUTH_HEADER 0
 
 /*
  * The default is 32 with 8 being used by pjproject itself.

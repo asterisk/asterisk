@@ -55,6 +55,8 @@
 #define DEFAULT_TASKPROCESSOR_OVERLOAD_TRIGGER TASKPROCESSOR_OVERLOAD_TRIGGER_GLOBAL
 #define DEFAULT_NOREFERSUB 1
 #define DEFAULT_ALL_CODECS_ON_EMPTY_REINVITE 0
+#define DEFAULT_AUTH_ALGORITHMS_UAS "MD5"
+#define DEFAULT_AUTH_ALGORITHMS_UAC "MD5"
 
 /*!
  * \brief Cached global config object
@@ -83,6 +85,10 @@ struct global_config {
 		AST_STRING_FIELD(default_voicemail_extension);
 		/*! Realm to use in challenges before an endpoint is identified */
 		AST_STRING_FIELD(default_realm);
+		/*! Default authentication algorithms for UAS */
+		AST_STRING_FIELD(default_auth_algorithms_uas);
+		/*! Default authentication algorithms for UAC */
+		AST_STRING_FIELD(default_auth_algorithms_uac);
 	);
 	/*! Value to put in Max-Forwards header */
 	unsigned int max_forwards;
@@ -188,6 +194,8 @@ static int global_apply(const struct ast_sorcery *sorcery, void *obj)
 {
 	struct global_config *cfg = obj;
 	char max_forwards[10];
+	struct pjsip_auth_algorithm_type_vector algorithms;
+	int res = 0;
 
 	if (ast_strlen_zero(cfg->debug)) {
 		ast_log(LOG_ERROR,
@@ -209,6 +217,25 @@ static int global_apply(const struct ast_sorcery *sorcery, void *obj)
 
 	if (check_regcontext(cfg)) {
 		return -1;
+	}
+
+	AST_VECTOR_INIT(&algorithms, 4);
+	res = ast_sip_auth_digest_algorithms_vector_init("global",
+		&algorithms, "UAS", cfg->default_auth_algorithms_uas);
+	AST_VECTOR_FREE(&algorithms);
+	if (res) {
+		ast_log(LOG_WARNING, "global: Invalid values in default_auth_algorithms_uas. "
+			"Defaulting to %s\n", DEFAULT_AUTH_ALGORITHMS_UAS);
+		ast_string_field_set(cfg, default_auth_algorithms_uas, DEFAULT_AUTH_ALGORITHMS_UAS);
+	}
+	AST_VECTOR_INIT(&algorithms, 4);
+	res = ast_sip_auth_digest_algorithms_vector_init("global",
+		&algorithms, "UAC", cfg->default_auth_algorithms_uac);
+	AST_VECTOR_FREE(&algorithms);
+	if (res) {
+		ast_log(LOG_WARNING, "global: Invalid values in default_auth_algorithms_uac. "
+			"Defaulting to %s\n", DEFAULT_AUTH_ALGORITHMS_UAC);
+		ast_string_field_set(cfg, default_auth_algorithms_uac, DEFAULT_AUTH_ALGORITHMS_UAC);
 	}
 
 	ao2_t_global_obj_replace_unref(global_cfg, cfg, "Applying global settings");
@@ -387,6 +414,32 @@ void ast_sip_get_default_realm(char *realm, size_t size)
 		ast_copy_string(realm, DEFAULT_REALM, size);
 	} else {
 		ast_copy_string(realm, cfg->default_realm, size);
+		ao2_ref(cfg, -1);
+	}
+}
+
+void ast_sip_get_default_auth_algorithms_uas(char *default_auth_algorithms_uas, size_t size)
+{
+	struct global_config *cfg;
+
+	cfg = get_global_cfg();
+	if (!cfg) {
+		ast_copy_string(default_auth_algorithms_uas, DEFAULT_AUTH_ALGORITHMS_UAS, size);
+	} else {
+		ast_copy_string(default_auth_algorithms_uas, cfg->default_auth_algorithms_uas, size);
+		ao2_ref(cfg, -1);
+	}
+}
+
+void ast_sip_get_default_auth_algorithms_uac(char *default_auth_algorithms_uac, size_t size)
+{
+	struct global_config *cfg;
+
+	cfg = get_global_cfg();
+	if (!cfg) {
+		ast_copy_string(default_auth_algorithms_uac, DEFAULT_AUTH_ALGORITHMS_UAC, size);
+	} else {
+		ast_copy_string(default_auth_algorithms_uac, cfg->default_auth_algorithms_uac, size);
 		ao2_ref(cfg, -1);
 	}
 }
@@ -765,10 +818,17 @@ int ast_sip_initialize_sorcery_global(void)
 	ast_sorcery_object_field_register(sorcery, "global", "all_codecs_on_empty_reinvite",
 		DEFAULT_ALL_CODECS_ON_EMPTY_REINVITE ? "yes" : "no",
 		OPT_BOOL_T, 1, FLDSET(struct global_config, all_codecs_on_empty_reinvite));
+	ast_sorcery_object_field_register(sorcery, "global", "default_auth_algorithms_uas",
+		DEFAULT_AUTH_ALGORITHMS_UAS, OPT_STRINGFIELD_T, 0,
+		STRFLDSET(struct global_config, default_auth_algorithms_uas));
+	ast_sorcery_object_field_register(sorcery, "global", "default_auth_algorithms_uac",
+		DEFAULT_AUTH_ALGORITHMS_UAC, OPT_STRINGFIELD_T, 0,
+		STRFLDSET(struct global_config, default_auth_algorithms_uac));
 
 	if (ast_sorcery_instance_observer_add(sorcery, &observer_callbacks_global)) {
 		return -1;
 	}
+	ast_sorcery_load_object(ast_sip_get_sorcery(), "global");
 
 	return 0;
 }
