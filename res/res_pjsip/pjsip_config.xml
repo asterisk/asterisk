@@ -1556,92 +1556,138 @@
 				</configOption>
 			</configObject>
 			<configObject name="auth">
+				<!--
+				Be sure to update the following documentation page when making changes to this object:
+				https://docs.asterisk.org/Configuration/Channel-Drivers/SIP/Configuring-res_pjsip/PJSIP-Authentication
+				 -->
 				<synopsis>Authentication type</synopsis>
 				<description><para>
 					Authentication objects hold the authentication information for use
 					by other objects such as <literal>endpoints</literal> or <literal>registrations</literal>.
 					This also allows for multiple objects to use a single auth object. See
-					the <literal>auth_type</literal> config option for password style choices.
-				</para></description>
-				<configOption name="auth_type" default="userpass">
+					the <literal>auth_type</literal> config option for security mechanism choices.
+				</para>
+				<note><para>
+				See the link below for detailed discussion of this object especially concerning
+				realms and digest hash algorithms.
+				</para>
+				<para>
+				https://docs.asterisk.org/Configuration/Channel-Drivers/SIP/Configuring-res_pjsip/PJSIP-Authentication
+				</para>
+				</note>
+				</description>
+				<see-also>
+					<ref type="link">https://docs.asterisk.org/Configuration/Channel-Drivers/SIP/Configuring-res_pjsip/PJSIP-Authentication</ref>
+				</see-also>
+				<configOption name="auth_type" default="digest">
 					<synopsis>Authentication type</synopsis>
 					<description><para>
-						This option specifies which of the password style config options should be read
-						when trying to authenticate an endpoint inbound request. If set to <literal>userpass</literal>
-						then we'll read from the 'password' option. For <literal>md5</literal> we'll read
-						from 'md5_cred'. If set to <literal>google_oauth</literal> then we'll read from the
-						refresh_token/oauth_clientid/oauth_secret fields. The following values are valid:
+						If set to <literal>google_oauth</literal> then we'll read from the
+						refresh_token/oauth_clientid/oauth_secret parameters.
+						If set to <literal>digest</literal> then we'll read from the
+						<literal>password</literal> and/or <literal>password_digest</literal>
+						parameters.  The older <literal>md5</literal> and <literal>userpass</literal>
+						values are deprecated and converted to <literal>digest</literal>.
 						</para>
 						<enumlist>
-							<enum name="md5"/>
-							<enum name="userpass"/>
-							<enum name="google_oauth"/>
+							<enum name="userpass"><para>Deprecated.  Use <literal>digest</literal>.</para></enum>
+							<enum name="md5"><para>Deprecated.  Use <literal>digest</literal>.</para></enum>
+							<enum name="google_oauth"><para>If selected, the <literal>refresh_token</literal>,
+							<literal>oauth_clientid</literal> and <literal>oauth_secret</literal>
+							parameters must be provided.</para></enum>
+							<enum name="digest"><para>If selected, the <literal>password</literal>
+							and/or one or more <literal>password_digest</literal>
+							parameters must be provided.</para></enum>
 						</enumlist>
 						<para>
 						</para>
-						<note>
-							<para>
-								This setting only describes whether the password is in
-								plain text or has been pre-hashed with MD5.  It doesn't describe
-								the acceptable digest algorithms we'll accept in a received
-								challenge.
-							</para>
-						</note>
 					</description>
 				</configOption>
-				<configOption name="nonce_lifetime" default="32">
-					<synopsis>Lifetime of a nonce associated with this authentication config.</synopsis>
-				</configOption>
-				<configOption name="md5_cred" default="">
-					<synopsis>MD5 Hash used for authentication.</synopsis>
-					<description><para>
-						Only used when auth_type is <literal>md5</literal>.
-						As an alternative to specifying a plain text password,
-						you can hash the username, realm and password
-						together one time and place the hash value here.
-						The input to the hash function must be in the
-						following format:
-						</para>
-						<para>
-						</para>
-						<para>
-						&lt;username&gt;:&lt;realm&gt;:&lt;password&gt;
-						</para>
-						<para>
-						</para>
-						<para>
-						For incoming authentication (asterisk is the server),
-						the realm must match either the realm set in this object
-						or the <variable>default_realm</variable> set in in the
-						<replaceable>global</replaceable> object.
-						</para>
-						<para>
-						</para>
-						<para>
-						For outgoing authentication (asterisk is the UAC),
-						the realm must match what the server will be sending
-						in their WWW-Authenticate header.  It can't be blank
-						unless you expect the server to be sending a blank
-						realm in the header.  You can't use pre-hashed
-						passwords with a wildcard auth object.
-						You can generate the hash with the following shell
-						command:
-						</para>
-						<para>
-						</para>
-						<para>
-						$ echo -n "myname:myrealm:mypassword" | md5sum
-						</para>
-						<para>
-						</para>
-						<para>
-						Note the '-n'.  You don't want a newline to be part
-						of the hash.
-					</para></description>
+				<configOption name="username">
+					<synopsis>Username to use for account</synopsis>
 				</configOption>
 				<configOption name="password">
 					<synopsis>Plain text password used for authentication.</synopsis>
-					<description><para>Only used when auth_type is <literal>userpass</literal>.</para></description>
+					<description><para>Only used when auth_type is <literal>digest</literal>.</para></description>
+				</configOption>
+				<configOption name="password_digest" default="">
+					<synopsis>One or more pre-computed hashes used for authentication.</synopsis>
+					<description><para>Only used when auth_type is <literal>digest</literal>.
+						As an alternative to specifying a plain text password,
+						you can specify one or more pre-computed digests separated by
+						commas.
+						</para>
+						<para>
+						<literal>password_digest= &lt;digest-spec&gt;[,&lt;digest_spec&gt;]...</literal>
+						</para>
+						<enumlist>
+							<enum name="&lt;digest-spec&gt;"><para>&lt;hash-algorithm&gt;:&lt;hashed-credential&gt;</para></enum>
+							<enum name="&lt;hash-algorithm&gt;"><para>One of the supported hash algorithms
+								which currently are</para>
+								<enumlist>
+									<enum name="MD5"><para>Supported by all versions of OpenSSL and pjproject</para></enum>
+									<enum name="SHA-256"><para>Supported by OpenSSL versions &gt;> 1.0.0 and pjproject versions &gt;= 2.15.1</para></enum>
+									<enum name="SHA-512-256"><para>Supported by OpenSSL versions &gt;= 1.1.1 and pjproject versions &gt;= 2.15.1</para></enum>
+								</enumlist>
+								<para>You can see the current list by running the CLI command
+								<literal>pjproject show buildopts</literal>.
+							</para></enum>
+							<enum name="&lt;hashed-credential&gt;">
+								<para>The result of passing the following string through
+								the selected hash algorithm:
+								<literal>&lt;username&gt;:&lt;realm&gt;:&lt;password&gt;</literal>
+								</para>
+							</enum>
+						</enumlist>
+						<para>You can create the hash by piping the string into the appropriate
+						hash/checksum program.  See the description for the <literal>realm</literal>
+						parameter for info on how to set it.</para>
+						<example>
+						$ echo -n "myname:myrealm:mypassword" | openssl dgst -md5
+						MD5(stdin)= dce9ccd0a69e3ef90d8b9bf725053e78
+						</example>
+						<para>You would then set:</para>
+						<example>
+						password_digest = md5:dce9ccd0a69e3ef90d8b9bf725053e78
+						</example>
+					</description>
+				</configOption>
+				<configOption name="md5_cred" default="">
+					<synopsis>MD5 Hash used for authentication. (deprecated)</synopsis>
+					<description><para>Use the <literal>password_digest</literal> parameter instead.
+					If supplied, a <literal>password_digest</literal> parameter will be created
+					for it.
+					</para></description>
+				</configOption>
+				<configOption name="supported_algorithms_uac">
+					<synopsis>Comma separated list of algorithms to support when this auth is used as a UAC</synopsis>
+					<description><para>Valid values:</para>
+						<enumlist>
+							<enum name="md5"><para>Supported by all versions of OpenSSL and pjproject</para></enum>
+							<enum name="sha-256"><para>Supported by all versions of OpenSSL but only pjproject versions &gt; 2.14.1</para></enum>
+							<enum name="sha-512-256"><para>Supported by OpenSSL versions &gt;= 1.1.1 and pjproject versions &gt; 2.14.1</para></enum>
+						</enumlist>
+						<para>
+							The default may be specified by the
+							<literal>default_auth_algorithms_uac</literal> parameter in
+							the global object. If that's not specified, the default is "MD5".
+						</para>
+					</description>
+				</configOption>
+				<configOption name="supported_algorithms_uas">
+					<synopsis>Comma separated list of algorithms to support when this auth is used as a UAS</synopsis>
+					<description><para>Valid values:</para>
+						<enumlist>
+							<enum name="md5"><para>Supported by all versions of OpenSSL and pjproject</para></enum>
+							<enum name="sha-256"><para>Supported by all versions of OpenSSL but only pjproject versions &gt; 2.14.1</para></enum>
+							<enum name="sha-512-256"><para>Supported by OpenSSL versions &gt;= 1.1.1 and pjproject versions &gt; 2.14.1</para></enum>
+						</enumlist>
+						<para>
+							The default may be specified by the
+							<literal>default_auth_algorithms_uas</literal> parameter in
+							the global object. If that's not specified, the default is "MD5".
+						</para>
+					</description>
 				</configOption>
 				<configOption name="refresh_token">
 					<synopsis>OAuth 2.0 refresh token</synopsis>
@@ -1685,18 +1731,18 @@
 						<note>
 							<para>
 								If more than one auth object with the same realm or
-								more than one wildcard auth object associated to
-								an endpoint, we can only use the first one of
-								each defined on the endpoint.
+								more than one wildcard auth object is associated to
+								an endpoint, only the first one of each defined on
+								the endpoint will be used.
 							</para>
 						</note>
 					</description>
 				</configOption>
+				<configOption name="nonce_lifetime" default="32">
+					<synopsis>Lifetime of a nonce associated with this authentication config.</synopsis>
+				</configOption>
 				<configOption name="type">
 					<synopsis>Must be 'auth'</synopsis>
-				</configOption>
-				<configOption name="username">
-					<synopsis>Username to use for account</synopsis>
 				</configOption>
 			</configObject>
 			<configObject name="domain_alias">
@@ -2536,6 +2582,28 @@
 						endpoint, instead of simply those that have already been negotiated.
 						RFC 3261 specifies this as a SHOULD requirement.
 					</para></description>
+				</configOption>
+				<configOption name="default_auth_algorithms_uas" default="no">
+					<synopsis>List of default authentication algorithms to support when Asterisk is UAS</synopsis>
+					<description><para>Valid values:</para>
+						<enumlist>
+							<enum name="md5"><para>Supported by all versions of OpenSSL and pjproject</para></enum>
+							<enum name="sha-256"><para>Supported by all versions of OpenSSL but only pjproject versions > 2.14.1</para></enum>
+							<enum name="sha-512-256"><para>Supported by OpenSSL versions >= 1.1.1 and pjproject versions > 2.14.1</para></enum>
+						</enumlist>
+						<para>If not specified, the default is <literal>MD5</literal> only.</para>
+					</description>
+				</configOption>
+				<configOption name="default_auth_algorithms_uac" default="no">
+					<synopsis>List of default authentication algorithms to support when Asterisk is UAC</synopsis>
+					<description><para>Valid values:</para>
+						<enumlist>
+							<enum name="md5"><para>Supported by all versions of OpenSSL and pjproject</para></enum>
+							<enum name="sha-256"><para>Supported by all versions of OpenSSL but only pjproject versions > 2.14.1</para></enum>
+							<enum name="sha-512-256"><para>Supported by OpenSSL versions >= 1.1.1 and pjproject versions > 2.14.1</para></enum>
+						</enumlist>
+						<para>If not specified, the default is <literal>MD5</literal> only.</para>
+					</description>
 				</configOption>
 			</configObject>
 		</configFile>
