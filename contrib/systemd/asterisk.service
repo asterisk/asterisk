@@ -1,5 +1,6 @@
 [Unit]
 Description=Asterisk PBX and telephony daemon.
+Documentation=man:asterisk(8)
 After=network.target
 #include these if asterisk need to bind to a specific IP (other than 0.0.0.0)
 #Wants=network-online.target
@@ -16,19 +17,51 @@ Group=asterisk
 ExecStart=/usr/sbin/asterisk -mqf -C /etc/asterisk/asterisk.conf
 ExecReload=/usr/sbin/asterisk -rx 'core reload'
 #if /var/run is a tmpfs, this will create /var/run/asterisk on start
-#RuntimeDirectory=asterisk
+RuntimeDirectory=asterisk
 
+# Standard priority for Asterisk process
 #Nice=0
+# Prioritize Asterisk process before other processes on the system. CAREFUL!
+#Nice=-20
+
 #UMask=0002
 LimitCORE=infinity
-#LimitNOFILE=
+
+# More open files means more concurrent calls/connections are allowed.
+# You can view "Maximum open file handles" via the CLI "core show settings".
+# Safest/Default is 1024 since Asterisk can fork() processes that use select()
+# -- and those will bork instead of fork -- but if that is not your situation,
+# then (circa 2024) the limit of 1048576 seems like a reasonable maximum
+# and should allow you to keep making calls until you run out of jiffies.
+#LimitNOFILE=1048576
+
 Restart=always
 RestartSec=4
 
 # Prevent duplication of logs with color codes to /var/log/messages
 StandardOutput=null
 
+#
+# SANDBOXING
+#
+
+# PrivateTmp means Asterisk will use private /tmp and /var/tmp
 PrivateTmp=true
+
+# ProtectHome is recommended in the systemd.exec manual page for
+# "...long-running services (in particular network-facing ones)..."
+# This restricts any Asterisk access to /home, /root and /run/user
+ProtectHome=true
+
+# Mount the entire file system read-only, except for /dev, /proc, /sys
+# and any exceptions (see ReadWritePaths below for some exception ideas)
+ProtectSystem=strict
+
+# Standard operation - PID, CLI socket, AstDB, Record(), Voicemail(), and logs
+ReadWritePaths=/var/run/asterisk /var/lib/asterisk /var/log/asterisk /var/spool/asterisk
+# Voicemail-to-email using third-party Exim mailer on Debian/Ubuntu
+#ReadWritePaths=/var/run/asterisk /var/lib/asterisk /var/log/asterisk /var/spool/asterisk /var/log/exim4 /var/spool/exim4
+
 
 [Install]
 WantedBy=multi-user.target
