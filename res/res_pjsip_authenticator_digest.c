@@ -26,6 +26,14 @@
 #include "asterisk/strings.h"
 #include "asterisk/test.h"
 
+/*!
+ * \file
+ * \brief PJSIP UAS Authentication
+ *
+ * This module handles authentication when Asterisk is the UAS.
+ *
+ */
+
 /*** MODULEINFO
 	<depend>pjproject</depend>
 	<depend>res_pjsip</depend>
@@ -131,58 +139,132 @@ static const struct ast_sip_auth *get_auth(void)
 	return NULL;
 }
 
+static struct pjsip_authorization_hdr *get_authorization_hdr(
+	const char *auth_id, const char *realm, const pjsip_rx_data *rdata)
+{
+	const char *src_name = rdata->pkt_info.src_name;
+	struct pjsip_authorization_hdr *auth_hdr =
+		(pjsip_authorization_hdr *) &rdata->msg_info.msg->hdr;
+	SCOPE_ENTER(3, "%s:%s: realm: %s\n", auth_id, src_name, realm);
+
+	while ((auth_hdr = pjsip_msg_find_hdr(rdata->msg_info.msg,
+		PJSIP_H_AUTHORIZATION, auth_hdr ? auth_hdr->next : NULL))) {
+		if (pj_strcmp2(&auth_hdr->credential.common.realm, realm) == 0) {
+			SCOPE_EXIT_RTN_VALUE(auth_hdr, "%s:%s: realm: %s Found header\n",
+				auth_id, src_name, realm);
+		}
+	}
+	SCOPE_EXIT_RTN_VALUE(NULL, "%s:%s: realm: %s No auth header found\n",
+		auth_id, src_name, realm);
+}
+
 /*!
  * \brief Lookup callback for authentication verification
  *
  * This function is called when we call pjsip_auth_srv_verify(). It
  * expects us to verify that the realm and account name from the
- * Authorization header is correct. We are then supposed to supply
- * a password or MD5 sum of credentials.
+ * Authorization header are correct and that we can support the digest
+ * algorithm specified. We are then supposed to supply a password or
+ * password_digest for the algorithm.
+ *
+ * The auth object must have previously been saved to thread-local storage.
  *
  * \param pool A memory pool we can use for allocations
- * \param realm The realm from the Authorization header
- * \param acc_name the user from the Authorization header
- * \param[out] info The credentials we need to fill in
+ * \param param Contains the realm, username, rdata and auth header
+ * \param cred_info The credentials we need to fill in
  * \retval PJ_SUCCESS Successful authentication
  * \retval other Unsuccessful
  */
-static pj_status_t digest_lookup(pj_pool_t *pool, const pj_str_t *realm,
-		const pj_str_t *acc_name, pjsip_cred_info *info)
+static pj_status_t digest_lookup(pj_pool_t *pool,
+	const pjsip_auth_lookup_cred_param *param,
+	pjsip_cred_info *cred_info)
 {
-	const struct ast_sip_auth *auth;
+	const struct ast_sip_auth *auth = get_auth();
+	const char *realm = S_OR(auth->realm, default_realm);
+	const char *creds;
+	const char *auth_name = (auth ? ast_sorcery_object_get_id(auth) : "none");
+	struct pjsip_authorization_hdr *auth_hdr = get_authorization_hdr(auth_name, realm, param->rdata);
+	const pjsip_auth_algorithm *algorithm =
+		ast_sip_auth_get_algorithm_by_iana_name(&auth_hdr->credential.digest.algorithm);
+	const char *src_name = param->rdata->pkt_info.src_name;
+	SCOPE_ENTER(4, "%s:%s:"
+		" srv realm: " PJSTR_PRINTF_SPEC
+		" auth realm: %s"
+		" hdr realm: " PJSTR_PRINTF_SPEC
+		" auth user: %s"
+		" hdr user: " PJSTR_PRINTF_SPEC
+		" algorithm: " PJSTR_PRINTF_SPEC
+		"\n",
+		auth_name, src_name,
+		PJSTR_PRINTF_VAR(param->realm),
+		realm,
+		PJSTR_PRINTF_VAR(auth_hdr->credential.common.realm),
+		auth->auth_user,
+		PJSTR_PRINTF_VAR(param->acc_name),
+		PJSTR_PRINTF_VAR(algorithm->iana_name));
 
-	auth = get_auth();
 	if (!auth) {
-		return PJSIP_SC_FORBIDDEN;
+		/* This can only happen if the auth object was not saved to thread-local storage */
+		SCOPE_EXIT_RTN_VALUE(PJSIP_SC_FORBIDDEN, "%s:%s: No auth object found\n",
+			auth_name, src_name);
 	}
 
 	if (auth->type == AST_SIP_AUTH_TYPE_ARTIFICIAL) {
-		return PJSIP_SC_FORBIDDEN;
+		/*
+		 * This shouldn't happen because this function can only be invoked
+		 * if there was an Authorization header in the incoming request.
+		 */
+		SCOPE_EXIT_RTN_VALUE(PJSIP_SC_FORBIDDEN, "%s:%s: Artificial auth object\n",
+			auth_name, src_name);
 	}
 
-	if (pj_strcmp2(realm, auth->realm)) {
-		return PJSIP_SC_FORBIDDEN;
-	}
-	if (pj_strcmp2(acc_name, auth->auth_user)) {
-		return PJSIP_SC_FORBIDDEN;
+	if (pj_strcmp2(&param->realm, realm) != 0) {
+		/*
+		 * This shouldn't happen because param->realm was passed in from the auth
+		 * when we called pjsip_auth_srv_init2.
+		 */
+		SCOPE_EXIT_RTN_VALUE(PJSIP_SC_FORBIDDEN, "%s:%s: Realm '%s' mismatch\n",
+			auth_name, src_name, realm);
 	}
 
-	pj_strdup2(pool, &info->realm, auth->realm);
-	pj_strdup2(pool, &info->username, auth->auth_user);
-
-	switch (auth->type) {
-	case AST_SIP_AUTH_TYPE_USER_PASS:
-		pj_strdup2(pool, &info->data, auth->auth_pass);
-		info->data_type = PJSIP_CRED_DATA_PLAIN_PASSWD;
-		break;
-	case AST_SIP_AUTH_TYPE_MD5:
-		pj_strdup2(pool, &info->data, auth->md5_creds);
-		info->data_type = PJSIP_CRED_DATA_DIGEST;
-		break;
-	default:
-		return PJSIP_SC_FORBIDDEN;
+	if (pj_strcmp2(&param->acc_name, auth->auth_user) != 0) {
+		SCOPE_EXIT_RTN_VALUE(PJSIP_SC_FORBIDDEN, "%s:%s: Username '%s' mismatch\n",
+			auth_name, src_name, auth->auth_user);
 	}
-	return PJ_SUCCESS;
+
+	if (!ast_sip_auth_is_algorithm_available(auth, &auth->supported_algorithms_uas,
+		algorithm->algorithm_type)) {
+		/*
+		 * This shouldn't happen because we shouldn't have sent a challenge for
+		 * an unsupported algorithm.
+		 */
+		SCOPE_EXIT_RTN_VALUE(PJSIP_SC_FORBIDDEN, "%s:%s: Algorithm '" PJSTR_PRINTF_SPEC
+			"' not supported or auth doesn't contain appropriate credentials\n",
+			auth_name, src_name, PJSTR_PRINTF_VAR(algorithm->iana_name));
+	}
+
+	pj_strdup2(pool, &cred_info->realm, realm);
+	pj_strdup2(pool, &cred_info->username, auth->auth_user);
+
+	creds = ast_sip_auth_get_creds(auth, algorithm->algorithm_type, &cred_info->data_type);
+	if (!creds) {
+		/*
+		 * This shouldn't happen because we checked the auth object when we
+		 * loaded it to make sure it had the appropriate credentials for each
+		 * algorithm in supported_algorithms_uas.
+		 */
+		SCOPE_EXIT_RTN_VALUE(PJSIP_SC_FORBIDDEN, "%s:%s: No plain text or digest password found for algorithm '" PJSTR_PRINTF_SPEC "'\n",
+			auth_name, src_name, PJSTR_PRINTF_VAR(algorithm->iana_name));
+	}
+	pj_strdup2(pool, &cred_info->data, creds);
+#ifdef HAVE_PJSIP_AUTH_NEW_DIGESTS
+	if (cred_info->data_type == PJSIP_CRED_DATA_DIGEST) {
+		cred_info->algorithm_type = algorithm->algorithm_type;
+	}
+#endif
+
+	SCOPE_EXIT_RTN_VALUE(PJ_SUCCESS, "%s:%s: Success.  Data type: %s  Algorithm '" PJSTR_PRINTF_SPEC "'\n",
+		auth_name, src_name, cred_info->data_type ? "digest" : "plain text", PJSTR_PRINTF_VAR(algorithm->iana_name));
 }
 
 /*!
@@ -202,7 +284,8 @@ static pj_status_t digest_lookup(pj_pool_t *pool, const pj_str_t *realm,
  * \param rdata The incoming request
  * \param realm The realm for which authentication should occur
  */
-static int build_nonce(struct ast_str **nonce, const char *timestamp, const pjsip_rx_data *rdata, const char *realm)
+static int build_nonce(struct ast_str **nonce, const char *timestamp,
+	const pjsip_rx_data *rdata, const char *realm)
 {
 	struct ast_str *str = ast_str_alloca(256);
 	RAII_VAR(char *, eid, ao2_global_obj_ref(entity_id), ao2_cleanup);
@@ -255,40 +338,12 @@ static int check_nonce(const char *candidate, const pjsip_rx_data *rdata, const 
 		return 0;
 	}
 
-	build_nonce(&calculated, timestamp, rdata, auth->realm);
+	build_nonce(&calculated, timestamp, rdata, S_OR(auth->realm, default_realm));
 	ast_debug(3, "Calculated nonce %s. Actual nonce is %s\n", ast_str_buffer(calculated), candidate);
 	if (strcmp(ast_str_buffer(calculated), candidate)) {
 		return 0;
 	}
 	return 1;
-}
-
-static int find_challenge(const pjsip_rx_data *rdata, const struct ast_sip_auth *auth)
-{
-	struct pjsip_authorization_hdr *auth_hdr = (pjsip_authorization_hdr *) &rdata->msg_info.msg->hdr;
-	int challenge_found = 0;
-	char nonce[64];
-
-	while ((auth_hdr = (pjsip_authorization_hdr *) pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_AUTHORIZATION, auth_hdr->next))) {
-		ast_copy_pj_str(nonce, &auth_hdr->credential.digest.nonce, sizeof(nonce));
-		if (check_nonce(nonce, rdata, auth) && !pj_strcmp2(&auth_hdr->credential.digest.realm, auth->realm)) {
-			challenge_found = 1;
-			break;
-		}
-	}
-
-	return challenge_found;
-}
-
-/*!
- * \brief Common code for initializing a pjsip_auth_srv
- */
-static void setup_auth_srv(pj_pool_t *pool, pjsip_auth_srv *auth_server, const char *realm)
-{
-	pj_str_t realm_str;
-	pj_cstr(&realm_str, realm);
-
-	pjsip_auth_srv_init(pool, auth_server, &realm_str, digest_lookup, 0);
 }
 
 /*!
@@ -311,69 +366,147 @@ static char *verify_result_str[] = {
 	"STALE",
 	"NOAUTH"
 };
-/*!
- * \brief astobj2 callback for verifying incoming credentials
- *
- * \param auth The ast_sip_auth to check against
- * \param rdata The incoming request
- * \param pool A pool to use for the auth server
- * \return CMP_MATCH on successful authentication
- * \return 0 on failed authentication
- */
-static int verify(const struct ast_sip_auth *auth, pjsip_rx_data *rdata, pj_pool_t *pool)
+
+static enum digest_verify_result find_authorization(const char *endpoint_id,
+	const struct ast_sip_auth *auth, const pjsip_rx_data *rdata)
 {
+	const char *auth_id = ast_sorcery_object_get_id(auth);
+	const char *src_name = rdata->pkt_info.src_name;
+	const char *realm = S_OR(auth->realm, default_realm);
+	struct pjsip_authorization_hdr *auth_hdr =
+		(pjsip_authorization_hdr *) &rdata->msg_info.msg->hdr;
+	enum digest_verify_result res = AUTH_NOAUTH;
+	int authorization_found = 0;
+	char nonce[64];
+	SCOPE_ENTER(3, "%s:%s:%s: realm: %s\n",
+		endpoint_id, auth_id, src_name, realm);
+
+	while ((auth_hdr = pjsip_msg_find_hdr(rdata->msg_info.msg,
+		PJSIP_H_AUTHORIZATION, auth_hdr ? auth_hdr->next : NULL))) {
+		ast_copy_pj_str(nonce, &auth_hdr->credential.digest.nonce, sizeof(nonce));
+		ast_trace(-1, "%s:%s:%s: Checking nonce %s  hdr-realm: " PJSTR_PRINTF_SPEC "  hdr-algo: " PJSTR_PRINTF_SPEC " \n",
+			endpoint_id, auth_id, src_name, nonce,
+			PJSTR_PRINTF_VAR(auth_hdr->credential.digest.realm),
+			PJSTR_PRINTF_VAR(auth_hdr->credential.digest.algorithm));
+		authorization_found++;
+		if (check_nonce(nonce, rdata, auth)
+			&& pj_strcmp2(&auth_hdr->credential.digest.realm, realm) == 0) {
+			res = AUTH_SUCCESS;
+			break;
+		} else {
+			res = AUTH_STALE;
+		}
+	}
+	if (!authorization_found) {
+		ast_trace(-1, "%s:%s:%s: No Authorization header found\n",
+			endpoint_id, auth_id, src_name);
+		res = AUTH_NOAUTH;
+	}
+
+	SCOPE_EXIT_RTN_VALUE(res, "%s:%s:%s: realm: %s Result %s\n",
+		endpoint_id, auth_id, src_name, realm, verify_result_str[res]);
+}
+
+/*!
+ * \brief Common code for initializing a pjsip_auth_srv
+ */
+static void setup_auth_srv(pj_pool_t *pool, pjsip_auth_srv *auth_server, const char *realm)
+{
+	pjsip_auth_srv_init_param *param = pj_pool_alloc(pool, sizeof(*param));
+	pj_str_t *pj_realm = pj_pool_alloc(pool, sizeof(*pj_realm));
+
+	pj_cstr(pj_realm, realm);
+	param->realm = pj_realm;
+	param->lookup2 = digest_lookup;
+	param->options = 0;
+
+	pjsip_auth_srv_init2(pool, auth_server, param);
+}
+
+/*!
+ * \brief Verify incoming credentials
+ *
+ * \param endpoint_id  For logging
+ * \param auth         The ast_sip_auth to check against
+ * \param rdata        The incoming request
+ * \param pool         A pool to use for the auth server
+ * \return One of digest_verify_result
+ */
+static int verify(const char *endpoint_id, const struct ast_sip_auth *auth,
+	pjsip_rx_data *rdata, pj_pool_t *pool)
+{
+	const char *auth_id = ast_sorcery_object_get_id(auth);
+	const char *realm = S_OR(auth->realm, default_realm);
+	const char *src_name = rdata->pkt_info.src_name;
 	pj_status_t authed;
 	int response_code;
 	pjsip_auth_srv auth_server;
 	int stale = 0;
-	int res = AUTH_FAIL;
+	enum digest_verify_result res = AUTH_FAIL;
+	SCOPE_ENTER(3, "%s:%s:%s: realm: %s\n",
+		endpoint_id, auth_id, src_name, realm);
 
-	if (!find_challenge(rdata, auth)) {
-		/* Couldn't find a challenge with a sane nonce.
+	res = find_authorization(endpoint_id, auth, rdata);
+	if (res == AUTH_NOAUTH)
+	{
+		ast_test_suite_event_notify("INCOMING_AUTH_VERIFY_RESULT",
+			"Realm: %s\r\n"
+			"Username: %s\r\n"
+			"Status: %s",
+			realm, auth->auth_user, verify_result_str[res]);
+		SCOPE_EXIT_RTN_VALUE(res, "%s:%s:%s: No Authorization header found\n",
+			endpoint_id, auth_id, src_name);
+	}
+
+	if (res == AUTH_STALE) {
+		/* Couldn't find an authorization with a sane nonce.
 		 * Nonce mismatch may just be due to staleness.
 		 */
 		stale = 1;
 	}
 
-	setup_auth_srv(pool, &auth_server, auth->realm);
-
+	setup_auth_srv(pool, &auth_server, realm);
 	store_auth(auth);
-	authed = pjsip_auth_srv_verify(&auth_server, rdata, &response_code);
+	/* pjsip_auth_srv_verify will invoke digest_lookup */
+	authed = SCOPE_CALL_WITH_RESULT(-1, pj_status_t, pjsip_auth_srv_verify, &auth_server, rdata, &response_code);
 	remove_auth();
-
 	if (authed == PJ_SUCCESS) {
 		if (stale) {
 			res = AUTH_STALE;
 		} else {
 			res = AUTH_SUCCESS;
 		}
+	} else {
+		char err[256];
+		res = AUTH_FAIL;
+		pj_strerror(authed, err, sizeof(err));
+		ast_trace(-1, "%s:%s:%s: authed: %s\n", endpoint_id, auth_id, src_name, err);
 	}
-
-	if (authed == PJSIP_EAUTHNOAUTH) {
-		res = AUTH_NOAUTH;
-	}
-
-	ast_debug(3, "Realm: %s  Username: %s  Result: %s\n",
-		auth->realm, auth->auth_user, verify_result_str[res]);
 
 	ast_test_suite_event_notify("INCOMING_AUTH_VERIFY_RESULT",
 		"Realm: %s\r\n"
 		"Username: %s\r\n"
 		"Status: %s",
-		auth->realm, auth->auth_user, verify_result_str[res]);
+		realm, auth->auth_user, verify_result_str[res]);
 
-	return res;
+	SCOPE_EXIT_RTN_VALUE(res, "%s:%s:%s: Realm: %s  Username: %s  Result: %s\n",
+		endpoint_id, auth_id, src_name, realm,
+		auth->auth_user, verify_result_str[res]);
 }
 
 /*!
- * \brief astobj2 callback for adding digest challenges to responses
+ * \brief Send a WWW-Authenticate challenge
  *
- * \param realm An auth's realm to build a challenge from
+ * \param endpoint_id  For logging
+ * \param auth The auth object to use for the challenge
  * \param tdata The response to add the challenge to
  * \param rdata The request the challenge is in response to
  * \param is_stale Indicates whether nonce on incoming request was stale
+ * \param algorithm_type The algorithm to use for the challenge
  */
-static void challenge(const char *realm, pjsip_tx_data *tdata, const pjsip_rx_data *rdata, int is_stale)
+static void challenge(const char *endpoint_id, struct ast_sip_auth *auth,
+	pjsip_tx_data *tdata, const pjsip_rx_data *rdata, int is_stale,
+	const pjsip_auth_algorithm *algorithm)
 {
 	pj_str_t qop;
 	pj_str_t pj_nonce;
@@ -381,6 +514,14 @@ static void challenge(const char *realm, pjsip_tx_data *tdata, const pjsip_rx_da
 	struct ast_str *nonce = ast_str_alloca(256);
 	char time_buf[32];
 	time_t timestamp = time(NULL);
+	pj_status_t res;
+	const char *realm = S_OR(auth->realm, default_realm);
+	const char *auth_id = ast_sorcery_object_get_id(auth);
+	const char *src_name = rdata->pkt_info.src_name;
+	SCOPE_ENTER(5, "%s:%s:%s: realm: %s time: %d algorithm: " PJSTR_PRINTF_SPEC " stale? %s\n",
+		endpoint_id, auth_id, src_name, realm, (int)timestamp,
+		PJSTR_PRINTF_VAR(algorithm->iana_name), is_stale ? "yes" : "no");
+
 	snprintf(time_buf, sizeof(time_buf), "%d", (int) timestamp);
 
 	build_nonce(&nonce, time_buf, rdata, realm);
@@ -389,8 +530,26 @@ static void challenge(const char *realm, pjsip_tx_data *tdata, const pjsip_rx_da
 
 	pj_cstr(&pj_nonce, ast_str_buffer(nonce));
 	pj_cstr(&qop, "auth");
-	pjsip_auth_srv_challenge(&auth_server, &qop, &pj_nonce, NULL, is_stale ? PJ_TRUE : PJ_FALSE, tdata);
+#ifdef HAVE_PJSIP_AUTH_NEW_DIGESTS
+	res = pjsip_auth_srv_challenge2(&auth_server, &qop, &pj_nonce,
+		NULL, is_stale ? PJ_TRUE : PJ_FALSE, tdata, algorithm->algorithm_type);
+#else
+	res = pjsip_auth_srv_challenge(&auth_server, &qop, &pj_nonce,
+		NULL, is_stale ? PJ_TRUE : PJ_FALSE, tdata);
+#endif
+	SCOPE_EXIT_RTN("%s:%s:%s: Sending challenge for realm: %s algorithm: " PJSTR_PRINTF_SPEC
+		" %s\n",
+		endpoint_id, auth_id, src_name, realm, PJSTR_PRINTF_VAR(algorithm->iana_name),
+		res == PJ_SUCCESS ? "succeeded" : "failed");
 }
+
+static char *check_auth_result_str[] = {
+    "CHALLENGE",
+    "SUCCESS",
+    "FAILED",
+    "ERROR",
+};
+
 
 /*!
  * \brief Check authentication using Digest scheme
@@ -405,7 +564,6 @@ static enum ast_sip_check_auth_result digest_check_auth(struct ast_sip_endpoint 
 		pjsip_rx_data *rdata, pjsip_tx_data *tdata)
 {
 	struct ast_sip_auth **auths;
-	struct ast_sip_auth **auths_shallow;
 	enum digest_verify_result *verify_res;
 	struct ast_sip_endpoint *artificial_endpoint;
 	enum ast_sip_check_auth_result res;
@@ -413,6 +571,9 @@ static enum ast_sip_check_auth_result digest_check_auth(struct ast_sip_endpoint 
 	int is_artificial;
 	int failures = 0;
 	size_t auth_size;
+	const char *endpoint_id = ast_sorcery_object_get_id(endpoint);
+	char *src_name = rdata->pkt_info.src_name;
+	SCOPE_ENTER(3, "%s:%s\n", endpoint_id, src_name);
 
 	auth_size = AST_VECTOR_SIZE(&endpoint->inbound_auths);
 	ast_assert(0 < auth_size);
@@ -423,81 +584,122 @@ static enum ast_sip_check_auth_result digest_check_auth(struct ast_sip_endpoint 
 	artificial_endpoint = ast_sip_get_artificial_endpoint();
 	if (!artificial_endpoint) {
 		/* Should not happen except possibly if we are shutting down. */
-		return AST_SIP_AUTHENTICATION_ERROR;
+		SCOPE_EXIT_RTN_VALUE(AST_SIP_AUTHENTICATION_ERROR);
 	}
 
 	is_artificial = endpoint == artificial_endpoint;
 	ao2_ref(artificial_endpoint, -1);
 	if (is_artificial) {
+		ast_trace(3, "%s:%s: Using artificial endpoint for authentication\n",
+			endpoint_id, src_name);
 		ast_assert(auth_size == 1);
 		auths[0] = ast_sip_get_artificial_auth();
 		if (!auths[0]) {
 			/* Should not happen except possibly if we are shutting down. */
-			return AST_SIP_AUTHENTICATION_ERROR;
+			SCOPE_EXIT_RTN_VALUE(AST_SIP_AUTHENTICATION_ERROR);
 		}
 	} else {
+		ast_trace(3, "%s:%s: Using endpoint for authentication\n",
+			endpoint_id, src_name);
 		memset(auths, 0, auth_size * sizeof(*auths));
+		/*
+		 * If ast_sip_retrieve_auths returns a failure we still need
+		 * to cleanup the auths array because it may have been partially
+		 * filled in.
+		 */
 		if (ast_sip_retrieve_auths(&endpoint->inbound_auths, auths)) {
-			res = AST_SIP_AUTHENTICATION_ERROR;
-			goto cleanup;
+			ast_sip_cleanup_auths(auths, auth_size);
+			SCOPE_EXIT_RTN_VALUE(AST_SIP_AUTHENTICATION_ERROR,
+				"%s:%s: Failed to retrieve some or all auth objects from endpoint\n",
+				endpoint_id, src_name);
 		}
 	}
 
-	/* Setup shallow copy of auths */
-	if (ast_strlen_zero(default_realm)) {
-		auths_shallow = auths;
-	} else {
+	/*
+	 * NOTE:  The only reason to use multiple auth objects as a UAS might
+	 * be to send challenges for multiple realms however we currently don't
+	 * know of anyone actually doing this.
+	 */
+	for (idx = 0; idx < auth_size; ++idx) {
+		int i = 0;
+		struct ast_sip_auth *auth = auths[idx];
+		const char *realm = S_OR(auth->realm, default_realm);
+		const char *auth_id = ast_sorcery_object_get_id(auth);
+		SCOPE_ENTER(4, "%s:%s:%s: Verifying\n", endpoint_id, auth_id, src_name);
+
 		/*
-		 * Set default realm on a shallow copy of the authentication
-		 * objects that don't have a realm set.
+		 * Artificial auth objects are used for the purpose of
+		 * sending challenges. We don't need to verify them.
 		 */
-		auths_shallow = ast_alloca(auth_size * sizeof(*auths_shallow));
-		for (idx = 0; idx < auth_size; ++idx) {
-			if (ast_strlen_zero(auths[idx]->realm)) {
-				/*
-				 * Make a shallow copy and set the default realm on it.
-				 *
-				 * The stack allocation is OK here.  Normally this will
-				 * loop one time.  If you have multiple auths then you
-				 * shouldn't need more auths than the normal complement
-				 * of fingers and toes.  Otherwise, you should check
-				 * your sanity for setting up your system up that way.
-				 */
-				auths_shallow[idx] = ast_alloca(sizeof(**auths_shallow));
-				memcpy(auths_shallow[idx], auths[idx], sizeof(**auths_shallow));
-				*((char **) (&auths_shallow[idx]->realm)) = default_realm;
-				ast_debug(3, "Using default realm '%s' on incoming auth '%s'.\n",
-					default_realm, ast_sorcery_object_get_id(auths_shallow[idx]));
-			} else {
-				auths_shallow[idx] = auths[idx];
+		if (auth->type == AST_SIP_AUTH_TYPE_ARTIFICIAL) {
+			ast_trace(-1, "%s:%s:%s: Skipping verification on artificial endpoint\n", endpoint_id, auth_id, src_name )
+			verify_res[idx] = AUTH_NOAUTH;
+		} else {
+			verify_res[idx] = SCOPE_CALL_WITH_RESULT(-1, int, verify, endpoint_id, auth, rdata, tdata->pool);
+			if (verify_res[idx] == AUTH_SUCCESS) {
+				res = AST_SIP_AUTHENTICATION_SUCCESS;
+				SCOPE_EXIT_EXPR(break, "%s:%s:%s: success\n", endpoint_id, auth_id, src_name);
+			}
+			if (verify_res[idx] == AUTH_FAIL) {
+				ast_trace(-1, "%s:%s:%s: fail\n", endpoint_id, auth_id, src_name);
+				failures++;
 			}
 		}
+
+		for (i = 0; i < AST_VECTOR_SIZE(&auth->supported_algorithms_uas); i++) {
+			pjsip_auth_algorithm_type algorithm_type = AST_VECTOR_GET(&auth->supported_algorithms_uas, i);
+			const pjsip_auth_algorithm *algorithm = ast_sip_auth_get_algorithm_by_type(algorithm_type);
+			pjsip_www_authenticate_hdr *auth_hdr = NULL;
+			int already_sent_challenge = 0;
+			SCOPE_ENTER(5, "%s:%s:%s: Challenging with " PJSTR_PRINTF_SPEC "\n",
+				endpoint_id, auth_id, src_name, PJSTR_PRINTF_VAR(algorithm->iana_name));
+
+			/*
+			 * Per RFC 7616, if we've already sent a challenge for this realm
+			 * and algorithm, we must not send another.
+			 */
+			while ((auth_hdr = pjsip_msg_find_hdr(tdata->msg,
+				PJSIP_H_WWW_AUTHENTICATE, auth_hdr ? auth_hdr->next : NULL))) {
+				if (pj_strcmp2(&auth_hdr->challenge.common.realm, realm) == 0 &&
+					!pj_stricmp(&auth_hdr->challenge.digest.algorithm, &algorithm->iana_name)) {
+					ast_trace(-1, "%s:%s:%s: Not sending duplicate challenge for realm: %s algorithm: "
+						PJSTR_PRINTF_SPEC "\n",
+						endpoint_id, auth_id, src_name, realm, PJSTR_PRINTF_VAR(algorithm->iana_name));
+					already_sent_challenge = 1;
+				}
+			}
+			if (already_sent_challenge) {
+				SCOPE_EXIT_EXPR(continue);
+			}
+
+			SCOPE_CALL(5, challenge, endpoint_id, auth, tdata, rdata,
+				verify_res[idx] == AUTH_STALE, algorithm);
+
+			SCOPE_EXIT("%s:%s:%s: Challenged with " PJSTR_PRINTF_SPEC "\n",
+				endpoint_id, auth_id, src_name, PJSTR_PRINTF_VAR(algorithm->iana_name));
+		}
+		SCOPE_EXIT("%s:%s:%s: Done with auth challenge\n", endpoint_id, auth_id, src_name);
 	}
 
-	for (idx = 0; idx < auth_size; ++idx) {
-		verify_res[idx] = verify(auths_shallow[idx], rdata, tdata->pool);
-		if (verify_res[idx] == AUTH_SUCCESS) {
-			res = AST_SIP_AUTHENTICATION_SUCCESS;
-			goto cleanup;
-		}
-		if (verify_res[idx] == AUTH_FAIL) {
-			failures++;
-		}
-	}
-
-	for (idx = 0; idx < auth_size; ++idx) {
-		challenge(auths_shallow[idx]->realm, tdata, rdata, verify_res[idx] == AUTH_STALE);
-	}
+	/*
+	 * If we've sent challenges for multiple auth objects, we currently
+	 * return SUCCESS when the first one succeeds. We may want to change
+	 * this in the future to require that all succeed but as stated above,
+	 * currently we don't have a use case for even using more than one
+	 * auth object as a UAS.
+	 */
 
 	if (failures == auth_size) {
 		res = AST_SIP_AUTHENTICATION_FAILED;
-	} else {
+	} else if (res != AST_SIP_AUTHENTICATION_SUCCESS){
 		res = AST_SIP_AUTHENTICATION_CHALLENGE;
 	}
 
-cleanup:
 	ast_sip_cleanup_auths(auths, auth_size);
-	return res;
+	SCOPE_EXIT_RTN_VALUE(res, "%s:%s: Result: %s\n",
+		endpoint_id, src_name,
+		check_auth_result_str[res]);
+
 }
 
 static struct ast_sip_authenticator digest_authenticator = {

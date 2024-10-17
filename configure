@@ -941,6 +941,10 @@ PBX_POPT
 POPT_DIR
 POPT_INCLUDE
 POPT_LIB
+PBX_PJSIP_AUTH_NEW_DIGESTS
+PJSIP_AUTH_NEW_DIGESTS_DIR
+PJSIP_AUTH_NEW_DIGESTS_INCLUDE
+PJSIP_AUTH_NEW_DIGESTS_LIB
 PBX_PJSIP_TLS_TRANSPORT_RESTART
 PJSIP_TLS_TRANSPORT_RESTART_DIR
 PJSIP_TLS_TRANSPORT_RESTART_INCLUDE
@@ -11231,6 +11235,9 @@ printf "%s\n" "#define HAVE_PJPROJECT_ON_VALID_ICE_PAIR_CALLBACK 1" >>confdefs.h
 printf "%s\n" "#define HAVE_PJSIP_TLS_TRANSPORT_RESTART 1" >>confdefs.h
 
 
+printf "%s\n" "#define HAVE_PJSIP_AUTH_NEW_DIGESTS 1" >>confdefs.h
+
+
 
 
 
@@ -13408,6 +13415,18 @@ PJSIP_TLS_TRANSPORT_RESTART_OPTION=pjsip
 PJSIP_TLS_TRANSPORT_RESTART_DIR=${PJPROJECT_DIR}
 
 PBX_PJSIP_TLS_TRANSPORT_RESTART=0
+
+
+
+
+
+
+
+PJSIP_AUTH_NEW_DIGESTS_DESCRIP="PJSIP Auth new digests like SHA-256 and SHA-512-256"
+PJSIP_AUTH_NEW_DIGESTS_OPTION=pjsip
+PJSIP_AUTH_NEW_DIGESTS_DIR=${PJPROJECT_DIR}
+
+PBX_PJSIP_AUTH_NEW_DIGESTS=0
 
 
 
@@ -28284,6 +28303,102 @@ fi
          PBX_PJSIP_TLS_TRANSPORT_RESTART=1
          cat >>confdefs.h <<_ACEOF
 #define HAVE_PJSIP_TLS_TRANSPORT_RESTART 1
+_ACEOF
+
+      fi
+   fi
+fi
+
+
+
+if test "x${PBX_PJSIP_AUTH_NEW_DIGESTS}" != "x1" -a "${USE_PJSIP_AUTH_NEW_DIGESTS}" != "no"; then
+   pbxlibdir=""
+   # if --with-PJSIP_AUTH_NEW_DIGESTS=DIR has been specified, use it.
+   if test "x${PJSIP_AUTH_NEW_DIGESTS_DIR}" != "x"; then
+      if test -d ${PJSIP_AUTH_NEW_DIGESTS_DIR}/lib; then
+         pbxlibdir="-L${PJSIP_AUTH_NEW_DIGESTS_DIR}/lib"
+      else
+         pbxlibdir="-L${PJSIP_AUTH_NEW_DIGESTS_DIR}"
+      fi
+   fi
+
+      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
+      CFLAGS="${CFLAGS} $PJPROJECT_CFLAGS"
+      { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for pjsip_auth_get_algorithm_by_type in -lpjsip" >&5
+printf %s "checking for pjsip_auth_get_algorithm_by_type in -lpjsip... " >&6; }
+if test ${ac_cv_lib_pjsip_pjsip_auth_get_algorithm_by_type+y}
+then :
+  printf %s "(cached) " >&6
+else $as_nop
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lpjsip ${pbxlibdir} $PJPROJECT_LIB $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+char pjsip_auth_get_algorithm_by_type ();
+int
+main (void)
+{
+return pjsip_auth_get_algorithm_by_type ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"
+then :
+  ac_cv_lib_pjsip_pjsip_auth_get_algorithm_by_type=yes
+else $as_nop
+  ac_cv_lib_pjsip_pjsip_auth_get_algorithm_by_type=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_pjsip_pjsip_auth_get_algorithm_by_type" >&5
+printf "%s\n" "$ac_cv_lib_pjsip_pjsip_auth_get_algorithm_by_type" >&6; }
+if test "x$ac_cv_lib_pjsip_pjsip_auth_get_algorithm_by_type" = xyes
+then :
+  AST_PJSIP_AUTH_NEW_DIGESTS_FOUND=yes
+else $as_nop
+  AST_PJSIP_AUTH_NEW_DIGESTS_FOUND=no
+fi
+
+      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
+
+
+   # now check for the header.
+   if test "${AST_PJSIP_AUTH_NEW_DIGESTS_FOUND}" = "yes"; then
+      PJSIP_AUTH_NEW_DIGESTS_LIB="${pbxlibdir} -lpjsip $PJPROJECT_LIB"
+      # if --with-PJSIP_AUTH_NEW_DIGESTS=DIR has been specified, use it.
+      if test "x${PJSIP_AUTH_NEW_DIGESTS_DIR}" != "x"; then
+         PJSIP_AUTH_NEW_DIGESTS_INCLUDE="-I${PJSIP_AUTH_NEW_DIGESTS_DIR}/include"
+      fi
+      PJSIP_AUTH_NEW_DIGESTS_INCLUDE="${PJSIP_AUTH_NEW_DIGESTS_INCLUDE} $PJPROJECT_CFLAGS"
+
+         # check for the header
+         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
+         CPPFLAGS="${CPPFLAGS} ${PJSIP_AUTH_NEW_DIGESTS_INCLUDE}"
+         ac_fn_c_check_header_compile "$LINENO" "pjsip.h" "ac_cv_header_pjsip_h" "$ac_includes_default"
+if test "x$ac_cv_header_pjsip_h" = xyes
+then :
+  PJSIP_AUTH_NEW_DIGESTS_HEADER_FOUND=1
+else $as_nop
+  PJSIP_AUTH_NEW_DIGESTS_HEADER_FOUND=0
+fi
+
+         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
+
+      if test "x${PJSIP_AUTH_NEW_DIGESTS_HEADER_FOUND}" = "x0" ; then
+         PJSIP_AUTH_NEW_DIGESTS_LIB=""
+         PJSIP_AUTH_NEW_DIGESTS_INCLUDE=""
+      else
+
+         PBX_PJSIP_AUTH_NEW_DIGESTS=1
+         cat >>confdefs.h <<_ACEOF
+#define HAVE_PJSIP_AUTH_NEW_DIGESTS 1
 _ACEOF
 
       fi

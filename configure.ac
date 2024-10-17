@@ -601,6 +601,7 @@ AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_ENDPOINT_COMPACT_FORM], [PJSIP Compact Form Su
 AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_TRANSPORT_DISABLE_CONNECTION_REUSE], [PJSIP Transport Connection Reuse Disabling], [PJPROJECT], [pjsip])
 AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_OAUTH_AUTHENTICATION], [PJSIP OAuth Authentication Support], [PJPROJECT], [pjsip])
 AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_TLS_TRANSPORT_RESTART], [PJSIP TLS Transport Restart Support], [PJPROJECT], [pjsip])
+AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_AUTH_NEW_DIGESTS], [PJSIP Auth new digests like SHA-256 and SHA-512-256], [PJPROJECT], [pjsip])
 fi
 
 AST_EXT_LIB_SETUP([POPT], [popt], [popt])
@@ -2527,6 +2528,7 @@ if test "$USE_PJPROJECT" != "no" ; then
          AST_EXT_LIB_CHECK([PJSIP_AUTH_CLT_DEINIT], [pjsip], [pjsip_auth_clt_deinit], [pjsip.h], [$PJPROJECT_LIB], [$PJPROJECT_CFLAGS])
          AST_EXT_LIB_CHECK([PJSIP_TSX_LAYER_FIND_TSX2], [pjsip], [pjsip_tsx_layer_find_tsx2], [pjsip.h], [$PJPROJECT_LIB], [$PJPROJECT_CFLAGS])
          AST_EXT_LIB_CHECK([PJSIP_TLS_TRANSPORT_RESTART], [pjsip], [pjsip_tls_transport_restart], [pjsip.h], [$PJPROJECT_LIB], [$PJPROJECT_CFLAGS])
+         AST_EXT_LIB_CHECK([PJSIP_AUTH_NEW_DIGESTS], [pjsip], [pjsip_auth_get_algorithm_by_type], [pjsip.h], [$PJPROJECT_LIB], [$PJPROJECT_CFLAGS])
       fi
    fi
 
