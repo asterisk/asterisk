@@ -280,14 +280,42 @@ static struct ast_frame *audiohook_read_frame_both(struct ast_audiohook *audioho
 		return NULL;
 	}
 
-	/* If we want to provide only a read factory make sure we aren't waiting for other audio */
-	if (usable_read && !usable_write && (ast_tvdiff_ms(ast_tvnow(), audiohook->write_time) < (samples/8)*2)) {
+	/* usable_read=1: indicates that read factory have the required samples
+	 * usable_write=0: indicates that write factory have not the required samples
+	 * usable_write, follows:
+	 * 1. Due to RTT issues, the direction write frame has not been received,
+	 *    and it may take more than (samples/8)*2ms to receive it.
+	 * 2. Due to packet loss, the direction write frame could not been received.
+	 *
+	 * (ast_tvdiff_ms(ast_tvnow(), audiohook->write_time) < (samples/8)*2)(Expression A): This ensures that
+	 *    packets on both sides can be read correctly even with RTT; however, if the RTT exceeds
+	 *    (samples/8)*2ms, it may result in the number of packets reading on both sides being greater than the
+	 *    actual number of packets. for example, this may cause the recording length of mixmonitor to be greater
+	 *    than the actual duration. Additionally, when RTT = 0 and packet loss is 50%, some packets in the
+	 *    write direction will never arrive. In this case, continuously waiting will only cause the read
+	 *    factory to exceed the safe length limit, resulting in both the read factory and write factory
+	 *    being cleared, thus same packets received in the read direction cannot be read.
+	 *
+	 * (ast_slinfactory_available(&audiohook->read_factory) < 2 * samples)(Expression B): This ensures that
+	 *    packets on both sides can be read correctly, even in the presence of packet loss; regardless of
+	 *    the amount of packet loss.
+	 *
+	 * (Expression A)&&(Expression B): This combination can comprehensively solve both RTT and packet loss
+	 *    issues; however when RTT exceeds (samples/8)*2ms, it may result in the number of packets read
+	 *    on both sides being greater than the actual number of packets, causing the recording length of
+	 *    mixmonitor to be longer than the actual duration. We can adjust (ast_tvdiff_ms(ast_tvnow(),
+	 *    audiohook->write_time)<(samples/8)*2) && (ast_slinfactory_available(&audiohook->read_factory) <
+	 *    2 * samples) according to actual needs, for example, setting it to (ast_tvdiff_ms(ast_tvnow(),
+	 *    audiohook->write_time) < (samples/8)*4) && (ast_slinfactory_available(&audiohook->read_factory)
+	 *    < 4 * samples).
+	 */
+	if (usable_read && !usable_write && (ast_tvdiff_ms(ast_tvnow(), audiohook->write_time) < (samples/8)*2) && (ast_slinfactory_available(&audiohook->read_factory) < 2 * samples)) {
 		ast_debug(3, "Write factory %p was pretty quick last time, waiting for them.\n", &audiohook->write_factory);
 		return NULL;
 	}
 
-	/* If we want to provide only a write factory make sure we aren't waiting for other audio */
-	if (usable_write && !usable_read && (ast_tvdiff_ms(ast_tvnow(), audiohook->read_time) < (samples/8)*2)) {
+	/* As shown in the above comment. */
+	if (usable_write && !usable_read && (ast_tvdiff_ms(ast_tvnow(), audiohook->read_time) < (samples/8)*2) && (ast_slinfactory_available(&audiohook->write_factory) < 2 * samples)) {
 		ast_debug(3, "Read factory %p was pretty quick last time, waiting for them.\n", &audiohook->read_factory);
 		return NULL;
 	}
