@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 2021, Naveen Albert
+ * Copyright (C) 2021, 2024, Naveen Albert
  *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
@@ -81,9 +81,64 @@
 			<para>A limitation of this function is that the application at the specified
 			extension isn't actually executed, and thus unlike a Gosub, you can't pass
 			arguments in the EVAL_EXTEN function.</para>
+			<para>If you need the ability to evaluate more complex logic that cannot be done
+			purely using functions, see <literal>EVAL_SUB</literal>.</para>
 		</description>
 		<see-also>
 			<ref type="function">EVAL</ref>
+			<ref type="function">EVAL_SUB</ref>
+		</see-also>
+	</function>
+	<function name="EVAL_SUB" language="en_US">
+		<synopsis>
+			Executes a Gosub and provides its return value as a string
+		</synopsis>
+		<syntax>
+			<parameter name="context" />
+			<parameter name="extensions" />
+			<parameter name="priority" required="true" />
+		</syntax>
+		<description>
+			<para>The EVAL_SUB function executes up a dialplan location by context,extension,priority, with optional arguments
+			and returns the contents of the Return statement. The arguments to <literal>EVAL_SUB</literal>
+			are exactly like they are with <literal>Gosub</literal>.</para>
+			<para>This function is complementary to <literal>EVAL_EXTEN</literal>. However, it is more powerful,
+			since it allows executing arbitrary dialplan and capturing some outcome as a dialplan function's
+			return value, allowing it to be used in a variety of scenarios that do not allow executing dialplan
+			directly but allow variables and functions to be used, and where using <literal>EVAL_EXTEN</literal>
+			would be difficult or impossible.</para>
+			<para>Consequently, this function also allows you to implement your own arbitrary functions
+			in dialplan, which can then be wrapped using the Asterisk function interface using <literal>EVAL_SUB</literal>.</para>
+			<para>While this function is primarily intended to be used for executing Gosub routines that are quick
+			and do not interact with the channel, it is safe to execute arbitrary, even blocking, dialplan in the
+			called subroutine. That said, this kind of usage is not recommended.</para>
+			<para>This function will always return, even if the channel is hung up.</para>
+			<example title="Record whether a PSTN call is local">
+			[islocal]
+			exten => _X!,1,ExecIf($[${LEN(${EXTEN})}&lt;10]?Return(1))
+			same => n,Set(LOCAL(npanxx)=${EXTEN:-10:6})
+			same => n,ReturnIf(${EXISTS(${DB(localcall/${npanxx})})}?${DB(localcall/${npanxx})})
+			same => n,Set(LOCAL(islocal)=${SHELL(curl "https://example.com/islocal?npanxx=${EXTEN:-10:6}")})
+			same => n,Set(LOCAL(islocal)=${FILTER(A-Z,${islocal})})
+			same => n,Set(DB(localcall/${npanxx})=${islocal})
+			same => n,Return(${islocal})
+
+			[outgoing]
+			exten => _1NXXNXXXXXX,1,Set(CDR(toll)=${IF($["${EVAL_SUB(islocal,${EXTEN},1)}"="Y"]?0:1)})
+			same => n,Dial(DAHDI/1/${EXTEN})
+			same => n,Hangup()
+			</example>
+			<para>This example illustrates an example of logic that would be difficult to capture
+			in a way that a single call to <literal>EVAL_EXTEN</literal> would return the same result. For one, conditionals
+			are involved, and due to the way Asterisk parses dialplan, all functions in an application call are evaluated all the
+			time, which may be undesirable if they cause side effects (e.g. making a cURL request) that should only happen in certain circumstances.</para>
+			<para>The above example, of course, does not require the use of this function, as it could have been invoked
+			using the Gosub application directly. However, if constrained to just using variables or functions,
+			<literal>EVAL_SUB</literal> would be required.</para>
+		</description>
+		<see-also>
+			<ref type="function">EVAL_EXTEN</ref>
+			<ref type="application">Return</ref>
 		</see-also>
 	</function>
  ***/
@@ -129,19 +184,57 @@ static int eval_exten_read(struct ast_channel *chan, const char *cmd, char *data
 	return 0;
 }
 
+static int eval_sub_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
+{
+	int gosub_res;
+	const char *retval;
+
+	if (ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "The EVAL_SUB function requires an extension\n");
+		*buf = '\0';
+		return -1;
+	}
+
+	/* Ignore hangups since we want to retrieve a value, and this function could be called at hangup time */
+	gosub_res = ast_app_exec_sub(NULL, chan, data, 1);
+	if (gosub_res) {
+		ast_log(LOG_WARNING, "Failed to execute Gosub(%s)\n", data);
+		*buf = '\0';
+		return -1;
+	}
+
+	ast_channel_lock(chan);
+	retval = pbx_builtin_getvar_helper(chan, "GOSUB_RETVAL");
+	ast_copy_string(buf, S_OR(retval, ""), len); /* Overwrite, even if empty, to ensure a stale GOSUB_RETVAL isn't returned as our value */
+	ast_channel_unlock(chan);
+
+	return 0;
+}
+
 static struct ast_custom_function eval_exten_function = {
 	.name = "EVAL_EXTEN",
 	.read = eval_exten_read,
 };
 
+static struct ast_custom_function eval_sub_function = {
+	.name = "EVAL_SUB",
+	.read = eval_sub_read,
+};
+
 static int unload_module(void)
 {
-	return ast_custom_function_unregister(&eval_exten_function);
+	int res = 0;
+	res |= ast_custom_function_unregister(&eval_exten_function);
+	res |= ast_custom_function_unregister(&eval_sub_function);
+	return res;
 }
 
 static int load_module(void)
 {
-	return ast_custom_function_register(&eval_exten_function);
+	int res = 0;
+	res |= ast_custom_function_register(&eval_exten_function);
+	res |= ast_custom_function_register(&eval_sub_function);
+	return res;
 }
 
 AST_MODULE_INFO_STANDARD_EXTENDED(ASTERISK_GPL_KEY, "Extension evaluation function");
