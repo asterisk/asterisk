@@ -82,6 +82,7 @@
 ***/
 
 #include "asterisk.h"
+#include <stdbool.h>
 
 #include "asterisk/logger.h"
 #include "asterisk/channel.h"
@@ -496,14 +497,14 @@ static void bridge_complete_join(struct ast_bridge *bridge)
 }
 
 /*! \brief Helper function used to find the "best" bridge technology given specified capabilities */
-static struct ast_bridge_technology *find_best_technology(uint32_t capabilities, struct ast_bridge *bridge)
+static struct ast_bridge_technology *find_best_technology(uint32_t capabilities, struct ast_bridge *bridge, bool dont_skip_suspended)
 {
 	struct ast_bridge_technology *current;
 	struct ast_bridge_technology *best = NULL;
 
 	AST_RWLIST_RDLOCK(&bridge_technologies);
 	AST_RWLIST_TRAVERSE(&bridge_technologies, current, entry) {
-		if (current->suspended) {
+		if (!dont_skip_suspended && current->suspended) {
 			ast_debug(1, "Bridge technology %s is suspended. Skipping.\n",
 				current->name);
 			continue;
@@ -771,7 +772,7 @@ struct ast_bridge *bridge_base_init(struct ast_bridge *self, uint32_t capabiliti
 	}
 
 	/* Use our helper function to find the "best" bridge technology. */
-	self->technology = find_best_technology(capabilities, self);
+	self->technology = find_best_technology(capabilities, self, false);
 	if (!self->technology) {
 		ast_log(LOG_WARNING, "Bridge %s: Could not create class %s.  No technology to support it.\n",
 			self->uniqueid, self->v_table->name);
@@ -984,10 +985,27 @@ static int smart_bridge_operation(struct ast_bridge *bridge)
 		.uniqueid = bridge->uniqueid,
 	};
 
+	const char *use_native_rtp;
+	bool dont_skip_suspended = false;
+
 	if (bridge->dissolved) {
 		ast_debug(1, "Bridge %s is dissolved, not performing smart bridge operation.\n",
 			bridge->uniqueid);
 		return 0;
+	}
+
+	// Retrieve the USE_NATIVE_RTP variable from the channel
+	bridge_channel = AST_LIST_FIRST(&bridge->channels);
+	if (bridge_channel && bridge_channel->chan) {
+		ast_channel_lock(bridge_channel->chan);
+		use_native_rtp = pbx_builtin_getvar_helper(bridge_channel->chan, "USE_NATIVE_RTP");
+		ast_debug(1, "Bridge %s: USE_NATIVE_RTP variable is %s\n",
+			bridge->uniqueid, use_native_rtp);
+		ast_channel_unlock(bridge_channel->chan);
+
+		if (use_native_rtp && ast_true(use_native_rtp)) {
+			dont_skip_suspended = true;
+		}
 	}
 
 	/* Determine new bridge technology capabilities needed. */
@@ -1005,7 +1023,7 @@ static int smart_bridge_operation(struct ast_bridge *bridge)
 	}
 
 	/* Find a bridge technology to satisfy the new capabilities. */
-	new_technology = find_best_technology(new_capabilities, bridge);
+	new_technology = find_best_technology(new_capabilities, bridge, dont_skip_suspended);
 	if (!new_technology) {
 		int is_compatible = 0;
 
