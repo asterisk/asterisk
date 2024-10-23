@@ -1534,13 +1534,19 @@ int ast_variable_delete(struct ast_category *category, const char *variable, con
 int ast_variable_update(struct ast_category *category, const char *variable,
 						const char *value, const char *match, unsigned int object)
 {
-	struct ast_variable *cur, *prev=NULL, *newer=NULL;
+	struct ast_variable *cur, *prev=NULL, *newer=NULL, *matchvar = NULL;
 
 	for (cur = category->root; cur; prev = cur, cur = cur->next) {
 		if (strcasecmp(cur->name, variable) ||
 			(!ast_strlen_zero(match) && strcasecmp(cur->value, match)))
 			continue;
+		matchvar = cur;
+	}
 
+	for (cur = category->root; cur; prev = cur, cur = cur->next) {
+		if (cur != matchvar) {
+			continue;
+		}
 		if (!(newer = ast_variable_new(variable, value, cur->file)))
 			return -1;
 
