@@ -138,27 +138,36 @@ static void transport_monitor_dtor(void *vdoomed)
  */
 static void transport_state_do_reg_callbacks(struct ao2_container *transports, pjsip_transport *transport)
 {
+	struct ao2_iterator *monitor_iter;
 	struct transport_monitor *monitored;
 	char key[IP6ADDR_COLON_PORT_BUFLEN];
+	int idx;
 
 	AST_SIP_MAKE_REMOTE_IPADDR_PORT_STR(transport, key);
 
-	monitored = ao2_find(transports, key, OBJ_SEARCH_KEY | OBJ_UNLINK);
-	if (monitored) {
-		int idx;
+	monitor_iter = ao2_find(transports, key, OBJ_SEARCH_KEY | OBJ_MULTIPLE);
+	while ((monitored = ao2_iterator_next(monitor_iter))) {
+		if (monitored->transport == transport) {
+			ao2_unlink(transports, monitored);
+			for (idx = AST_VECTOR_SIZE(&monitored->monitors); idx--;) {
+				struct transport_monitor_notifier *notifier;
 
-		for (idx = AST_VECTOR_SIZE(&monitored->monitors); idx--;) {
-			struct transport_monitor_notifier *notifier;
-
-			notifier = AST_VECTOR_GET_ADDR(&monitored->monitors, idx);
-			ast_debug(3, "Transport %s(%s,%s) RefCnt: %ld : running callback %p(%p)\n",
-				monitored->key, monitored->transport->obj_name,
-				monitored->transport->type_name,
-				pj_atomic_get(monitored->transport->ref_cnt), notifier->cb, notifier->data);
-			notifier->cb(notifier->data);
+				notifier = AST_VECTOR_GET_ADDR(&monitored->monitors, idx);
+				ast_debug(3, "Transport %s(%s,%s) RefCnt: %ld : running callback %p(%p)\n",
+						monitored->key, monitored->transport->obj_name,
+						monitored->transport->type_name,
+						pj_atomic_get(monitored->transport->ref_cnt), notifier->cb, notifier->data);
+				notifier->cb(notifier->data);
+			}
+		} else {
+			ast_debug(3, "Transport %s(%s,%s) RefCnt: %ld : ignored not matching %s\n",
+					monitored->key, monitored->transport->obj_name,
+					monitored->transport->type_name,
+					pj_atomic_get(monitored->transport->ref_cnt), transport->obj_name);
 		}
 		ao2_ref(monitored, -1);
 	}
+	ao2_iterator_destroy(monitor_iter);
 }
 
 static void verify_log_result(int log_level, const pjsip_transport *transport,

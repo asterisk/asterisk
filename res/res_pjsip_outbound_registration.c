@@ -1145,6 +1145,7 @@ static int monitor_matcher(void *a, void *b)
 static void registration_transport_monitor_setup(const char *transport_key, const char *registration_name)
 {
 	char *monitor;
+	enum ast_transport_monitor_reg monitor_res;
 
 	monitor = ao2_alloc_options(strlen(registration_name) + 1, NULL,
 		AO2_ALLOC_OPT_LOCK_NOLOCK);
@@ -1158,8 +1159,10 @@ static void registration_transport_monitor_setup(const char *transport_key, cons
 	 * register the monitor.  We might get into a message spamming infinite
 	 * loop of registration, shutdown, reregistration...
 	 */
-	ast_sip_transport_monitor_register_replace_key(transport_key, registration_transport_shutdown_cb,
-		monitor, monitor_matcher);
+	if((monitor_res = ast_sip_transport_monitor_register_replace_key(transport_key, registration_transport_shutdown_cb,
+		monitor, monitor_matcher))) {
+		ast_log(LOG_NOTICE, "Failed to register transport monitor for regisration %s: %d\n", registration_name, monitor_res);
+	}
 	ao2_ref(monitor, -1);
 }
 
