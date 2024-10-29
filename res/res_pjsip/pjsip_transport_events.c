@@ -164,6 +164,7 @@ static void transport_state_do_reg_callbacks(struct ao2_container *transports, p
 static void verify_log_result(int log_level, const pjsip_transport *transport,
 	pj_uint32_t verify_status)
 {
+	char transport_remote_ipaddr_port[IP6ADDR_COLON_PORT_BUFLEN];
 	const char *status[32];
 	unsigned int count;
 	unsigned int i;
@@ -175,9 +176,11 @@ static void verify_log_result(int log_level, const pjsip_transport *transport,
 		return;
 	}
 
+	AST_SIP_MAKE_REMOTE_IPADDR_PORT_STR(transport, transport_remote_ipaddr_port);
 	for (i = 0; i < count; ++i) {
-		ast_log(log_level, _A_, "Transport '%s' to remote '%.*s' - %s\n", transport->factory->info,
+		ast_log(log_level, _A_, "Transport '%s' to remote '%.*s' - %s - %s\n", transport->factory->info,
 			(int)pj_strlen(&transport->remote_name.host), pj_strbuf(&transport->remote_name.host),
+			transport_remote_ipaddr_port,
 			status[i]);
 	}
 }
@@ -282,16 +285,16 @@ static void transport_state_callback(pjsip_transport *transport,
 	pjsip_transport_state state, const pjsip_transport_state_info *info)
 {
 	struct ao2_container *transports;
+	char transport_remote_ipaddr_port[IP6ADDR_COLON_PORT_BUFLEN];
 
 	/* We only care about monitoring reliable transports */
 	if (PJSIP_TRANSPORT_IS_RELIABLE(transport)
 		&& (transports = ao2_global_obj_ref(active_transports))) {
 		struct transport_monitor *monitored;
+		AST_SIP_MAKE_REMOTE_IPADDR_PORT_STR(transport, transport_remote_ipaddr_port);
 
-		ast_debug(3, "Transport " PJSTR_PRINTF_SPEC ":%d(%s,%s): RefCnt: %ld state:%s\n",
-			PJSTR_PRINTF_VAR(transport->remote_name.host),
-			transport->remote_name.port, transport->obj_name,
-			transport->type_name,
+		ast_debug(3, "Transport %s(%s,%s): RefCnt: %ld state:%s\n",
+			transport_remote_ipaddr_port, transport->obj_name, transport->type_name,
 			pj_atomic_get(transport->ref_cnt), transport_state2str(state));
 		switch (state) {
 		case PJSIP_TP_STATE_CONNECTED:
@@ -307,7 +310,7 @@ static void transport_state_callback(pjsip_transport *transport,
 				break;
 			}
 			monitored->transport = transport;
-			AST_SIP_MAKE_REMOTE_IPADDR_PORT_STR(transport, monitored->key);
+			ast_copy_string(monitored->key, transport_remote_ipaddr_port, sizeof(monitored->key));
 			monitored->transport_obj_name = ast_strdup(transport->obj_name);
 
 			if (AST_VECTOR_INIT(&monitored->monitors, 5)) {
