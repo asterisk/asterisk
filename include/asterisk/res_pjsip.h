@@ -88,10 +88,7 @@
  * \param _dest The destination buffer of at least IP6ADDR_COLON_PORT_BUFLEN bytes
  */
 #define AST_SIP_MAKE_REMOTE_IPADDR_PORT_STR(_transport, _dest) \
-	snprintf(_dest, IP6ADDR_COLON_PORT_BUFLEN, \
-		PJSTR_PRINTF_SPEC ":%d", \
-		PJSTR_PRINTF_VAR(_transport->remote_name.host), \
-		_transport->remote_name.port);
+	pj_sockaddr_print(&_transport->key.rem_addr, _dest, sizeof(_dest), 1);
 
 /* Forward declarations of PJSIP stuff */
 struct pjsip_rx_data;
