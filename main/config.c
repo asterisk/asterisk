@@ -2469,6 +2469,18 @@ static struct ast_config *config_text_file_load(const char *database, const char
 								if (!comment) {
 									/* If ; is found, and we are not nested in a comment,
 									   we immediately stop all comment processing */
+									while ((comment_p > new_buf) && isspace(*(comment_p - 1))) {
+										/* To preserve comment formatting we want to include any
+										   whitespace before the ";" */
+										comment_p--;
+									}
+									if ((comment_p != new_buf) && (*comment_p == ' ') && (*(comment_p + 1) == ' ')) {
+										/* If the comment (w/whitespace) does not start in column 1
+										   then, when written out, the preceeding variable/value will
+										   be separated from the comment by two spaces. To preserve
+										   comment formatting we should also take this into account. */
+										comment_p += 2;
+									}
 									if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS)) {
 										CB_ADD(&lline_buffer, comment_p);
 									}
