@@ -549,7 +549,7 @@ exten => s,1,ChanIsAvail(${ARG1},s)			; s is for ANY call
 	same => n,GotoIf($["${AVAILSTATUS}" = "1"]?autoanswer:fail)
 	same => n(autoanswer),Set(_ALERT_INFO="RA")			; This is for the PolyComs
 	same => n,SIPAddHeader(Call-Info: Answer-After=0)	; This is for the Grandstream, Snoms, and Others
-	same => n,NoOp()					; Add others here and Post on the Wiki!!!!
+	same => n,NoOp()					; Add others here and Post on the Docs!!!!
 	same => n,Dial(${ARG1})
 	same => n(fail),Hangup()
 
