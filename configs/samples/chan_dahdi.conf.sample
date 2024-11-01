@@ -595,7 +595,6 @@ usecallerid=yes
 ;     polarity    = polarity reversal signals the start
 ;     polarity_IN = polarity reversal signals the start, for India,
 ;                   for dtmf dialtone detection; using DTMF.
-; (see https://wiki.asterisk.org/wiki/display/AST/Caller+ID+in+India)
 ;     dtmf        = causes monitor loop to look for dtmf energy on the
 ;                   incoming channel to initate cid acquisition
 ;

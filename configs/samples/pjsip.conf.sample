@@ -256,8 +256,8 @@
 ; At a basic level configure the endpoint with a transport that is set up
 ; with the appropriate NAT settings. There may be some additional settings you
 ; need here based on your NAT/Firewall scenario. Look to the CLI config help
-; "config show help res_pjsip endpoint" or on the wiki for other NAT related
-; options and configuration. We've included a few below.
+; "config show help res_pjsip endpoint" or on https://docs.asterisk.org/ for
+; other NAT related options and configuration. We've included a few below.
 ;
 ; AOR
 ;
@@ -418,7 +418,7 @@
 ;force_rport=yes
 ;rewrite_contact=yes  ; necessary if endpoint does not know/register public ip:port
 ;ice_support=yes   ;This is specific to clients that support NAT traversal
-                   ;for media via ICE,STUN,TURN. See the wiki at:
+                   ;for media via ICE,STUN,TURN. See the docs at:
                    ;https://docs.asterisk.org/Configuration/Miscellaneous/Interactive-Connectivity-Establishment-ICE-in-Asterisk/
                    ;for a deeper explanation of this topic.
 
@@ -1025,8 +1025,8 @@
 ;  authentication is not recommended.  There is a difference in
 ;  meaning for an empty realm setting between inbound and outbound
 ;  authentication uses.  Look to the CLI config help
-;  "config show help res_pjsip auth realm" or on the wiki for the
-;  difference.
+;  "config show help res_pjsip auth realm" or on https://docs.asterisk.org/
+;  for the difference.
 ;
 ;auth_type=userpass  ; Authentication type.  May be
                      ; "userpass" for plain text passwords or
