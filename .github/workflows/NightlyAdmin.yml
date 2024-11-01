@@ -4,16 +4,8 @@ on:
     - cron: '30 1 * * *'
   workflow_dispatch:
 
-env:
-  ASTERISK_REPO:     ${{ github.repository }}
-  PR_NUMBER:         0
-  PR_COMMIT:         ''
-  GITHUB_TOKEN:      ${{ secrets.GITHUB_TOKEN }}
-  GH_TOKEN:          ${{ secrets.GITHUB_TOKEN }}
-  MODULES_BLACKLIST: ${{ vars.GATETEST_MODULES_BLACKLIST }} ${{ vars.UNITTEST_MODULES_BLACKLIST }}
-
 jobs:
-  CloseStaleIssues:
-    uses: asterisk/asterisk-ci-actions/.github/workflows/CloseStaleIssuesAndPRs.yml@main
+  NightlyAdmin:
+    uses: asterisk/asterisk-ci-actions/.github/workflows/AsteriskNightlyAdmin.yml@main
     secrets:
       ASTERISKTEAM_PAT: ${{ secrets.ASTERISKTEAM_PAT }}
