@@ -1069,6 +1069,8 @@ struct ast_sip_endpoint {
 	unsigned int send_aoc;
 	/*! Tenant ID for the endpoint */
 	AST_STRING_FIELD_EXTENDED(tenantid);
+	/*! Ignore remote hold requests */
+	int suppress_moh_on_sendonly;
 };
 
 /*! URI parameter for symmetric transport */
