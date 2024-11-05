@@ -2179,14 +2179,18 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session,
 	if (session_media->remotely_held_changed) {
 		if (session_media->remotely_held) {
 			/* The remote side has put us on hold */
-			ast_queue_hold(session->channel, session->endpoint->mohsuggest);
-			ast_rtp_instance_stop(session_media->rtp);
-			ast_queue_frame(session->channel, &ast_null_frame);
+			if (!session->endpoint->suppress_moh_on_sendonly) {
+				ast_queue_hold(session->channel, session->endpoint->mohsuggest);
+				ast_rtp_instance_stop(session_media->rtp);
+				ast_queue_frame(session->channel, &ast_null_frame);
+			}
 			session_media->remotely_held_changed = 0;
 		} else {
 			/* The remote side has taken us off hold */
-			ast_queue_unhold(session->channel);
-			ast_queue_frame(session->channel, &ast_null_frame);
+			if (!session->endpoint->suppress_moh_on_sendonly) {
+				ast_queue_unhold(session->channel);
+				ast_queue_frame(session->channel, &ast_null_frame);
+			}
 			session_media->remotely_held_changed = 0;
 		}
 	} else if ((pjmedia_sdp_neg_was_answer_remote(session->inv_session->neg) == PJ_FALSE)

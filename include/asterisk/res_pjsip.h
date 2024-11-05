@@ -986,6 +986,8 @@ struct ast_sip_endpoint {
 	AST_STRING_FIELD_EXTENDED(geoloc_outgoing_call_profile);
 	/*! Tenant ID for the endpoint */
 	AST_STRING_FIELD_EXTENDED(tenantid);
+	/*! Ignore remote hold requests */
+	int suppress_moh_on_sendonly;
 };
 
 /*! URI parameter for symmetric transport */
