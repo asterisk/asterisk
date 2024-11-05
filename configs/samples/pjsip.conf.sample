@@ -1015,7 +1015,21 @@
                 ; using the same CHANNEL function if needed. Setting tenant ID here
                 ; will cause it to show up on channel creation and the initial
                 ; channel snapshot.
-
+;
+; suppress_moh_on_sendonly = no
+                ; Normally, when one party in a call sends Asterisk an SDP with
+                ; a "sendonly" or "inactive" attribute it means "hold" and
+                ; causes Asterisk to start playing MOH back to the other party.
+                ; This can be problematic if it happens at certain times, such
+                ; as in a 183 Progress message, because the MOH will replace
+                ; any early media you may be playing to the calling party. If
+                ; you set this option to "yes" on an endpoint and the endpoint
+                ; receives an SDP with "sendonly" or "inactive", Asterisk will
+                ; NOT play MOH back to the other party.
+                ; NOTE: This doesn't just apply to 183 responses.  MOH will
+                ; be suppressed when the attribute appears in any SDP received
+                ; including INVITEs, re-INVITES, and other responses.
+                ; (default: no)
 
 ;==========================AUTH SECTION OPTIONS=========================
 ;[auth]
