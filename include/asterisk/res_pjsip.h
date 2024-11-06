@@ -911,8 +911,6 @@ struct ast_sip_endpoint {
 		AST_STRING_FIELD(incoming_mwi_mailbox);
 		/*! STIR/SHAKEN profile to use */
 		AST_STRING_FIELD(stir_shaken_profile);
-		/*! Tenant ID for the endpoint */
-		AST_STRING_FIELD(tenantid);
 	);
 	/*! Configuration for extensions */
 	struct ast_sip_endpoint_extensions extensions;
@@ -986,6 +984,8 @@ struct ast_sip_endpoint {
 	AST_STRING_FIELD_EXTENDED(geoloc_incoming_call_profile);
 	/*! The name of the geoloc profile to apply when Asterisk sends a call to this endpoint */
 	AST_STRING_FIELD_EXTENDED(geoloc_outgoing_call_profile);
+	/*! Tenant ID for the endpoint */
+	AST_STRING_FIELD_EXTENDED(tenantid);
 };
 
 /*! URI parameter for symmetric transport */
