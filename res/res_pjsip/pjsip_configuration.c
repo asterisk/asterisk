@@ -2453,7 +2453,7 @@ void *ast_sip_endpoint_alloc(const char *name)
 	if (!endpoint) {
 		return NULL;
 	}
-	if (ast_string_field_init(endpoint, 64)) {
+	if (ast_string_field_init(endpoint, 128)) {
 		ao2_cleanup(endpoint);
 		return NULL;
 	}
@@ -2464,6 +2464,10 @@ void *ast_sip_endpoint_alloc(const char *name)
 		return NULL;
 	}
 	if (ast_string_field_init_extended(endpoint, overlap_context)) {
+		ao2_cleanup(endpoint);
+		return NULL;
+	}
+	if (ast_string_field_init_extended(endpoint, tenantid)) {
 		ao2_cleanup(endpoint);
 		return NULL;
 	}

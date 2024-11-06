@@ -977,8 +977,6 @@ struct ast_sip_endpoint {
 		AST_STRING_FIELD(incoming_mwi_mailbox);
 		/*! STIR/SHAKEN profile to use */
 		AST_STRING_FIELD(stir_shaken_profile);
-		/*! Tenant ID for the endpoint */
-		AST_STRING_FIELD(tenantid);
 	);
 	/*! Configuration for extensions */
 	struct ast_sip_endpoint_extensions extensions;
@@ -1062,6 +1060,8 @@ struct ast_sip_endpoint {
 	enum ast_sip_100rel_mode rel100;
 	/*! Send Advice-of-Charge messages */
 	unsigned int send_aoc;
+	/*! Tenant ID for the endpoint */
+	AST_STRING_FIELD_EXTENDED(tenantid);
 };
 
 /*! URI parameter for symmetric transport */
