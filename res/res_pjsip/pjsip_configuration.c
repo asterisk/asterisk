@@ -2383,13 +2383,17 @@ void *ast_sip_endpoint_alloc(const char *name)
 	if (!endpoint) {
 		return NULL;
 	}
-	if (ast_string_field_init(endpoint, 64)) {
+	if (ast_string_field_init(endpoint, 128)) {
 		ao2_cleanup(endpoint);
 		return NULL;
 	}
 
 	if (ast_string_field_init_extended(endpoint, geoloc_incoming_call_profile) ||
 		ast_string_field_init_extended(endpoint, geoloc_outgoing_call_profile)) {
+		ao2_cleanup(endpoint);
+		return NULL;
+	}
+	if (ast_string_field_init_extended(endpoint, tenantid)) {
 		ao2_cleanup(endpoint);
 		return NULL;
 	}
