@@ -2485,7 +2485,6 @@ int ast_app_group_set_var(struct ast_channel *chan, const char *group, const cha
 char *ast_app_group_get_var(const char *group, const char *category, const char *name)
 {
 	struct ast_group_meta *gmi = NULL;
-
 	struct varshead *headp;
 	const char *variable;
         char *return_value;
@@ -2732,7 +2731,6 @@ int ast_app_group_rename(const char *old_group, const char *old_category, const 
 	if (!new_category) {
 		new_category = "";
 	}
-
 
 	/* Traverse group@category channel assignments */
 	AST_RWLIST_WRLOCK(&groups);

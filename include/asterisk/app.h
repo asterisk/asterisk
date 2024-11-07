@@ -1196,19 +1196,19 @@ struct ast_group_info;
 /*! \brief Split a group string into group and category, returning a default category if none is provided. */
 int ast_app_group_split_group(const char *data, char *group, int group_max, char *category, int category_max);
 
-/* Create group meta if it doesn't exist  */
+/* \brief Create group meta if it doesn't exist  */
 int ast_app_group_add_meta_ifneeded(const char *group, const char *category);
 
-/* This removes the the group metadata for a group@category if there are no more channels in the group@category */
+/* Removes the the group metadata for a group@category if there are no more channels in the group@category */
 int ast_app_group_remove_meta_ifneeded(const char *group, const char *category);
 
 /*! \brief Remove channel assignments for the specified group  */
 int ast_app_group_remove_all_channels(const char *group, const char *category);
 
 /*! \brief Rename a group@category while retaining all the channel memberships
+ * \return Number of rename operations performed
  * \retval -1 on Error
- * \retval 0 On zero rename operations performed (nothing found to rename)
- * \retval >=1 On 1 or more rename operations performed
+ * \retval 0 group@category was not found
  */
 int ast_app_group_rename(const char *old_group, const char *old_category, const char *new_group, const char *new_category);
 
@@ -1237,12 +1237,12 @@ int ast_app_group_set_var(struct ast_channel *chan, const char *group, const cha
  * \param category  category to get the variable from
  * \param name      name of the variable to get
  *
- * \retval NOT NULL On success return  char* of variable contents
+ * \return Allocated string containing variable contents
  * \retval NULL On failure (variable in group@category not found)
-
+ *
  * \post caller must ast_free() the returned value
  */
-char* ast_app_group_get_var(const char *group, const char *category, const char *name);
+char *ast_app_group_get_var(const char *group, const char *category, const char *name);
 
 /*! \brief Get the current channel count of the specified group and category. */
 int ast_app_group_get_count(const char *group, const char *category);
