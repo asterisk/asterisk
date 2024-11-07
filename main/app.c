@@ -2675,7 +2675,6 @@ int ast_app_group_add_meta_ifneeded(const char *group, const char *category)
 int ast_app_group_remove_all_channels(const char *group, const char *category)
 {
 	struct ast_group_info *gi = NULL;
-
 	int group_meta_found = 0;
 
 	if (!group) {
