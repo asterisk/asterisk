@@ -99,6 +99,20 @@ One of "A", "B", "C"
 
 Default: none
 
+-- unknown_tn_attest_level --------------------------------------------
+Attestation level to use for unknown TNs.
+One of "A", "B", "C"
+
+Normally if a callerid TN isn't configured in stir_shaken.conf
+no Identity header will be created. If this option is set,
+however, an Identity header will be sent using this
+attestation level.  Since there's no TN object, you must
+ensure that a private_key_file and public_cert_url are
+configured in the attestation or profile objects for
+this to work.
+
+Default: none
+
 -- send_mky -----------------------------------------------------------
 If set and an outgoing call uses DTLS, an "mky" Media Key grant will
 be added to the Identity header.  Although RFC8224/8225 require this,
@@ -116,6 +130,7 @@ Example "attestation" object:
 ;private_key_file = /var/lib/asterisk/keys/stir_shaken/tns/multi-tns-key.pem
 ;public_cert_url = https://example.com/tncerts/multi-tns-cert.pem
 ;attest_level = C
+;unknown_tn_attest_level = C
 
 ;--
 =======================================================================

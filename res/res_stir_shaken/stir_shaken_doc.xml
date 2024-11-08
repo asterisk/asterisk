@@ -21,6 +21,18 @@
 				<configOption name="attest_level">
 					<synopsis>Attestation level</synopsis>
 				</configOption>
+				<configOption name="unknown_tn_attest_level">
+					<synopsis>Attestation level to use for unknown TNs</synopsis>
+					<description><para>
+					Normally if a callerid TN isn't configured in stir_shaken.conf
+					no Identity header will be created. If this option is set,
+					however, an Identity header will be sent using this
+					attestation level.  Since there's no TN object, you must
+					ensure that a private_key_file and public_cert_url are
+					configured in the attestation or profile objects for
+					this to work.
+					</para></description>
+				</configOption>
 				<configOption name="check_tn_cert_public_url" default="false">
 					<synopsis>On load, Retrieve all TN's certificates and validate their dates</synopsis>
 				</configOption>
@@ -228,6 +240,7 @@
 				<xi:include xpointer="xpointer(/docs/configInfo[@name='res_stir_shaken']/configFile[@name='stir_shaken.conf']/configObject[@name='attestation']/configOption[@name='private_key_file'])" />
 				<xi:include xpointer="xpointer(/docs/configInfo[@name='res_stir_shaken']/configFile[@name='stir_shaken.conf']/configObject[@name='attestation']/configOption[@name='public_cert_url'])" />
 				<xi:include xpointer="xpointer(/docs/configInfo[@name='res_stir_shaken']/configFile[@name='stir_shaken.conf']/configObject[@name='attestation']/configOption[@name='attest_level'])" />
+				<xi:include xpointer="xpointer(/docs/configInfo[@name='res_stir_shaken']/configFile[@name='stir_shaken.conf']/configObject[@name='attestation']/configOption[@name='unknown_tn_attest_level'])" />
 				<xi:include xpointer="xpointer(/docs/configInfo[@name='res_stir_shaken']/configFile[@name='stir_shaken.conf']/configObject[@name='attestation']/configOption[@name='send_mky'])" />
 				<configOption name="endpoint_behavior" default="off">
 					<synopsis>Actions performed when an endpoint references this profile</synopsis>
