@@ -54,6 +54,7 @@
 #define DEFAULT_private_key_file NULL
 #define DEFAULT_public_cert_url NULL
 #define DEFAULT_attest_level attest_level_NOT_SET
+#define DEFAULT_unknown_tn_attest_level attest_level_NOT_SET
 #define DEFAULT_send_mky send_mky_NOT_SET
 
 static void profile_destructor(void *obj)
@@ -167,12 +168,19 @@ static struct profile_cfg *create_effective_profile(
 		return NULL;
 	}
 
+	cfg_enum_copy_ex(eprofile, acfg, unknown_tn_attest_level,
+		attest_level_NOT_SET, attest_level_UNKNOWN);
+
 	rc = as_copy_cfg_common(id, &eprofile->acfg_common,
 		&base_profile->acfg_common);
 	if (rc != 0) {
 		ao2_cleanup(eprofile);
 		return NULL;
 	}
+
+	cfg_enum_copy_ex(eprofile, base_profile, unknown_tn_attest_level,
+		attest_level_NOT_SET, attest_level_UNKNOWN);
+
 
 	eprofile->endpoint_behavior = base_profile->endpoint_behavior;
 
@@ -251,6 +259,9 @@ generate_vcfg_common_sorcery_handlers(profile_cfg);
 
 generate_sorcery_enum_from_str(profile_cfg, , endpoint_behavior, UNKNOWN);
 generate_sorcery_enum_to_str(profile_cfg, , endpoint_behavior);
+
+generate_sorcery_enum_from_str_ex(profile_cfg,,unknown_tn_attest_level, attest_level, UNKNOWN);
+generate_sorcery_enum_to_str_ex(profile_cfg,,unknown_tn_attest_level, attest_level);
 
 static char *cli_profile_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
@@ -445,6 +456,9 @@ int profile_load(void)
 
 	ast_sorcery_object_field_register_nodoc(sorcery, "eprofile", "type", "", OPT_NOOP_T, 0, 0);
 	enum_option_register(sorcery, "eprofile", endpoint_behavior, _nodoc);
+	enum_option_register_ex(sorcery, "eprofile", unknown_tn_attest_level,
+		unknown_tn_attest_level, attest_level,_nodoc);
+
 	register_common_verification_fields(sorcery, profile_cfg, "eprofile", _nodoc);
 	register_common_attestation_fields(sorcery, profile_cfg, "eprofile", _nodoc);
 
@@ -460,6 +474,9 @@ int profile_load(void)
 
 	ast_sorcery_object_field_register(sorcery, CONFIG_TYPE, "type", "", OPT_NOOP_T, 0, 0);
 	enum_option_register(sorcery, CONFIG_TYPE, endpoint_behavior,);
+	enum_option_register_ex(sorcery, CONFIG_TYPE, unknown_tn_attest_level,
+		unknown_tn_attest_level, attest_level,);
+
 	register_common_verification_fields(sorcery, profile_cfg, CONFIG_TYPE,);
 	register_common_attestation_fields(sorcery, profile_cfg, CONFIG_TYPE,);
 
