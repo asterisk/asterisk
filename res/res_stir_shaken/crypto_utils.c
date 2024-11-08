@@ -498,11 +498,13 @@ static int pem_file_cb(const char *dir_name, const char *filename, void *obj)
 	if (lstat(filename_merged, &statbuf)) {
 		printf("Error reading path stats - %s: %s\n",
 					filename_merged, strerror(errno));
+		ast_free(filename_merged);
 		return -1;
 	}
 
 	/* We only want the symlinks from the directory */
 	if (!S_ISLNK(statbuf.st_mode)) {
+		ast_free(filename_merged);
 		return 0;
 	}
 
@@ -512,6 +514,7 @@ static int pem_file_cb(const char *dir_name, const char *filename, void *obj)
 		rc = crypto_load_store_from_cert_file(data->store, filename_merged);
 	}
 
+	ast_free(filename_merged);
 	return rc;
 }
 
