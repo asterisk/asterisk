@@ -16,6 +16,8 @@
  * at the top of the source tree.
  */
 
+#define _TRACE_PREFIX_ "tc",__LINE__, ""
+
 #include "asterisk.h"
 
 #include <sys/stat.h>
@@ -108,31 +110,46 @@ static void *etn_alloc(const char *name)
 
 struct tn_cfg *tn_get_etn(const char *id, struct profile_cfg *eprofile)
 {
+	const char *profile_id = eprofile ? ast_sorcery_object_get_id(eprofile) : "unknown";
 	RAII_VAR(struct tn_cfg *, tn,
 		ast_sorcery_retrieve_by_id(get_sorcery(), CONFIG_TYPE, S_OR(id, "")),
 		ao2_cleanup);
-	struct tn_cfg *etn = etn_alloc(id);
+	RAII_VAR(struct tn_cfg *, etn, etn_alloc(id), ao2_cleanup);
+	enum attest_level_enum effective_al = attest_level_NOT_SET;
 	int rc = 0;
+	SCOPE_ENTER(3, "%s:%s: Getting effective TN\n", profile_id, S_OR(id, ""));
 
-	if (!tn || !eprofile || !etn) {
-		ao2_cleanup(etn);
-		return NULL;
+	if (ast_strlen_zero(id) || !eprofile || !etn) {
+		SCOPE_EXIT_RTN_VALUE(NULL, "Missing params\n");
+	}
+
+	if (!tn) {
+		if (eprofile->unknown_tn_attest_level != attest_level_NOT_SET
+			&& eprofile->unknown_tn_attest_level != attest_level_UNKNOWN) {
+			effective_al = eprofile->unknown_tn_attest_level;
+			ast_trace(-1, "%s:%s: TN not found. Using unknown_tn_attest_level %s\n",
+				profile_id, id, attest_level_to_str(effective_al));
+		} else {
+			SCOPE_EXIT_RTN_VALUE(NULL, "%s:%s: TN not found and unknown_tn_attest_level not set\n", profile_id, id);
+		}
 	}
 
 	/* Initialize with the acfg from the eprofile first */
 	rc = as_copy_cfg_common(id, &etn->acfg_common,
 		&eprofile->acfg_common);
 	if (rc != 0) {
-		ao2_cleanup(etn);
-		return NULL;
+		SCOPE_EXIT_RTN_VALUE(NULL, "%s:%s: Couldn't copy from eprofile\n", profile_id, id);
 	}
 
 	/* Overwrite with anything in the TN itself */
-	rc = as_copy_cfg_common(id, &etn->acfg_common,
-		&tn->acfg_common);
-	if (rc != 0) {
-		ao2_cleanup(etn);
-		return NULL;
+	if (tn) {
+		rc = as_copy_cfg_common(id, &etn->acfg_common,
+			&tn->acfg_common);
+		if (rc != 0) {
+			SCOPE_EXIT_RTN_VALUE(NULL, "%s:%s: Couldn't copy from tn\n", profile_id, id);
+		}
+	} else {
+		etn->acfg_common.attest_level = effective_al;
 	}
 
 	/*
@@ -141,7 +158,7 @@ struct tn_cfg *tn_get_etn(const char *id, struct profile_cfg *eprofile)
 	 * the same TN could be used with multiple profiles.
 	 */
 
-	return etn;
+	SCOPE_EXIT_RTN_VALUE(ao2_bump(etn), "%s:%s: Done\n", profile_id, id);
 }
 
 static int tn_apply(const struct ast_sorcery *sorcery, void *obj)
