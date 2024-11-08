@@ -16,9 +16,12 @@
  * at the top of the source tree.
  */
 
+#define _TRACE_PREFIX_ "vc",__LINE__, ""
+
 #include "asterisk.h"
 
 #include "asterisk/cli.h"
+#include "asterisk/logger.h"
 #include "stir_shaken.h"
 
 #define CONFIG_TYPE "verification"
