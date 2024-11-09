@@ -57,6 +57,22 @@
 				Supported options are those fields on the
 				<replaceable>aor</replaceable> object in
 				<filename>pjsip.conf</filename>.</para>
+				<note><para>
+					When requested with this function, the <literal>contact</literal>
+					parameter will return both permanent and dynamic contacts.
+				</para></note>
+				<note><para>
+					The return value of the <literal>contact</literal> parameter is
+					one or more internal contact IDs separated by commans.
+					To get details about the contact itself, including the URI,
+					call the <literal>PJSIP_CONTACT</literal> dialplan function
+					with the contact ID and the desired contact parameter.
+				</para></note>
+				<para>
+				</para>
+				<para>
+				Available Fields:
+				</para>
 				<enumlist>
 					<configOptionToEnum>
 						<xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='aor']/configOption)"/>
@@ -64,6 +80,9 @@
 				</enumlist>
 			</parameter>
 		</syntax>
+		<see-also>
+			<ref type="function">PJSIP_CONTACT</ref>
+		</see-also>
 	</function>
 ***/
 
