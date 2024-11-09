@@ -173,6 +173,46 @@
 						<para>Whether to verify the server certificate against
 						a list of known root certificate authorities (boolean).</para>
 					</enum>
+					<enum name="ssl_verifyhost">
+						<para>Whether to verify the host in the server's TLS certificate.
+						Set to 2 to verify the host, 0 to ignore the host.</para>
+					</enum>
+					<enum name="ssl_cainfo">
+						<para>Path to a file holding one or more certificates to verify
+						the peer's certificate with. Only used when <literal>ssl_verifypeer</literal>
+						is enabled.</para>
+					</enum>
+					<enum name="ssl_capath">
+						<para>Path to a directory holding multiple CA certificates to
+						verify the peer's certificate with. Only used when <literal>ssl_verifypeer</literal>
+						is enabled.</para>
+					</enum>
+					<enum name="ssl_cert">
+						<para>Path to a file containing a client certificate. Default format
+						is PEM, and can be changed with <literal>ssl_certtype</literal>.</para>
+					</enum>
+					<enum name="ssl_certtype">
+						<para>The format of the <literal>ssl_cert</literal> file.</para>
+						<enumlist>
+							<enum name="PEM" />
+							<enum name="DER" />
+						</enumlist>
+					</enum>
+					<enum name="ssl_key">
+						<para>Path to a file containing a client private key. Default format
+						is PEM, and can be changed with <literal>ssl_keytype</literal></para>
+					</enum>
+					<enum name="ssl_keytype">
+						<para>The format of the <literal>ssl_key</literal> file.</para>
+						<enumlist>
+							<enum name="PEM" />
+							<enum name="DER" />
+							<enum name="ENG" />
+						</enumlist>
+					</enum>
+					<enum name="ssl_keypasswd">
+						<para>The passphrase to use the <literal>ssl_key</literal> file.</para>
+					</enum>
 					<enum name="hashcompat">
 						<para>Assuming the responses will be in <literal>key1=value1&amp;key2=value2</literal>
 						format, reformat the response such that it can be used
@@ -320,6 +360,30 @@ static int parse_curlopt_key(const char *name, CURLoption *key, enum optiontype 
 	} else if (!strcasecmp(name, "ssl_verifypeer")) {
 		*key = CURLOPT_SSL_VERIFYPEER;
 		*ot = OT_BOOLEAN;
+	} else if (!strcasecmp(name, "ssl_verifyhost")) {
+		*key = CURLOPT_SSL_VERIFYHOST;
+		*ot = OT_INTEGER;
+	} else if (!strcasecmp(name, "ssl_cainfo")) {
+		*key = CURLOPT_CAINFO;
+		*ot = OT_STRING;
+	} else if (!strcasecmp(name, "ssl_capath")) {
+		*key = CURLOPT_CAPATH;
+		*ot = OT_STRING;
+	} else if (!strcasecmp(name, "ssl_cert")) {
+		*key = CURLOPT_SSLCERT;
+		*ot = OT_STRING;
+	} else if (!strcasecmp(name, "ssl_certtype")) {
+		*key = CURLOPT_SSLCERTTYPE;
+		*ot = OT_STRING;
+	} else if (!strcasecmp(name, "ssl_key")) {
+		*key = CURLOPT_SSLKEY;
+		*ot = OT_STRING;
+	} else if (!strcasecmp(name, "ssl_keytype")) {
+		*key = CURLOPT_SSLKEYTYPE;
+		*ot = OT_STRING;
+	} else if (!strcasecmp(name, "ssl_keypasswd")) {
+		*key = CURLOPT_KEYPASSWD;
+		*ot = OT_STRING;
 	} else if (!strcasecmp(name, "hashcompat")) {
 		*key = CURLOPT_SPECIAL_HASHCOMPAT;
 		*ot = OT_ENUM;
