@@ -1823,5 +1823,17 @@ ALTER TABLE ps_endpoints ADD COLUMN tenantid VARCHAR(80);
 
 UPDATE alembic_version SET version_num='655054a68ad5' WHERE alembic_version.version_num = '2b7c507d7d12';
 
+-- Running upgrade 655054a68ad5 -> 801b9fced8b7
+
+ALTER TABLE ps_subscription_persistence ADD COLUMN generator_data TEXT;
+
+UPDATE alembic_version SET version_num='801b9fced8b7' WHERE alembic_version.version_num = '655054a68ad5';
+
+-- Running upgrade 801b9fced8b7 -> 4f91fc18c979
+
+ALTER TABLE ps_endpoints ADD COLUMN suppress_moh_on_sendonly yesno_values;
+
+UPDATE alembic_version SET version_num='4f91fc18c979' WHERE alembic_version.version_num = '801b9fced8b7';
+
 COMMIT;
 

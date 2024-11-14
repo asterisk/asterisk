@@ -37,3 +37,9 @@ UPDATE alembic_version SET version_num='39428242f7f5' WHERE alembic_version.vers
 
 UPDATE alembic_version SET version_num='1c55c341360f' WHERE alembic_version.version_num = '39428242f7f5';
 
+-- Running upgrade 1c55c341360f -> 64fae6bbe7fb
+
+DROP INDEX voicemail_messages_dir ON voicemail_messages;
+
+UPDATE alembic_version SET version_num='64fae6bbe7fb' WHERE alembic_version.version_num = '1c55c341360f';
+
