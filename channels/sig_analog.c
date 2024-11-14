@@ -1890,6 +1890,11 @@ static void *__analog_ss_thread(void *data)
 					if (p->sig == ANALOG_SIG_E911) {
 						analog_off_hook(p);
 					}
+					if (p->sig != ANALOG_SIG_FGC_CAMAMF) {
+						/* CAMA signaling (CAMA and CAMAMF) are handled in an if block below.
+						 * Everything else, process here. */
+						res = analog_my_getsigstr(chan, dtmfbuf + strlen(dtmfbuf), "#", 3000);
+					}
 				}
 				if (res < 1) {
 					analog_dsp_reset_and_flush_digits(p);
