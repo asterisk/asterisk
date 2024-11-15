@@ -1,5 +1,4 @@
-Asterisk Database Manager
-=========================
+# Asterisk Database Manager
 
 Asterisk includes optional database integration for a variety of features.
 The purpose of this effort is to assist in managing the database schema
@@ -17,11 +16,8 @@ repositories include:
 Alembic uses SQLAlchemy, which has support for
 [many databases](http://docs.sqlalchemy.org/en/rel_0_8/dialects/index.html).
 
-IMPORTANT NOTE: This is brand new and the initial migrations are still subject
-to change.  Only use this for testing purposes for now.
 
-Example Usage
--------------
+## Example Usage
 
 First, create an ini file that contains database connection details.  For help
 with connection string details, see the
@@ -50,16 +46,47 @@ to upgrade or downgrade to, as well.
 
     $ alembic -c config.ini upgrade 4da0c5f79a9c
 
-Offline Mode
-------------
+## Offline Mode
 
 If you would like to just generate the SQL statements that would have been
 executed, you can use alembic's offline mode.
 
     $ alembic -c config.ini upgrade head --sql
 
-Adding Database Migrations
---------------------------
+## Adding Database Migrations
 
 The best way to learn about how to add additional database migrations is to
 refer to the [Alembic documentation](http://alembic.readthedocs.org).
+
+### Notes
+
+* For boolean columns, always use the AST_BOOL_VALUES type.  
+  Example:
+
+```
+from alembic import op
+import sqlalchemy as sa
+# This works for MySQL/MariaDB and others as well
+from sqlalchemy.dialects.postgresql import ENUM
+
+AST_BOOL_NAME = 'ast_bool_values'
+AST_BOOL_VALUES = [ '0', '1',
+                    'off', 'on',
+                    'false', 'true',
+                    'no', 'yes' ]
+
+def upgrade():
+    # ast_bool_values have already been created, so use postgres enum object type
+    # to get around "already created" issue - works okay with MySQL/MariaDB and others.
+    ast_bool_values = ENUM(*AST_BOOL_VALUES, name=AST_BOOL_NAME, create_type=False)
+    op.add_column('ps_endpoints', sa.Column('suppress_moh_on_sendonly', ast_bool_values))
+
+def downgrade():
+    if op.get_context().bind.dialect.name == 'mssql':
+        op.drop_constraint('ck_ps_endpoints_suppress_moh_on_sendonly_ast_bool_values', 'ps_endpoints')
+    op.drop_column('ps_endpoints', 'suppress_moh_on_sendonly')
+```
+
+
+Older scripts used YESNO_VALUES but that is no longer supported.
+
