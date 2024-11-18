@@ -1185,7 +1185,7 @@ void ast_channel_publish_varset(struct ast_channel *chan, const char *name, cons
 			value, strlen(value));
 
 		ast_log(LOG_WARNING, "%s: The contents of variable '%s' had invalid UTF-8 sequences which were replaced",
-			ast_channel_name(chan), name);
+			chan ? ast_channel_name(chan) : "GLOBAL", name);
 	}
 
 	blob = ast_json_pack("{s: s, s: s}",
