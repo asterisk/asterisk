@@ -67,6 +67,7 @@ static struct ast_sockaddr address_rtp;
 
 static const char STR_AUDIO[] = "audio";
 static const char STR_VIDEO[] = "video";
+static const char STR_TEXT[] = "text";
 
 static int send_keepalive(const void *data)
 {
@@ -290,6 +291,10 @@ static int create_rtp(struct ast_sip_session *session, struct ast_sip_session_me
 			(session->endpoint->media.tos_audio || session->endpoint->media.cos_audio)) {
 		ast_rtp_instance_set_qos(session_media->rtp, session->endpoint->media.tos_audio,
 				session->endpoint->media.cos_audio, "SIP RTP Audio");
+	} else if (session_media->type == AST_MEDIA_TYPE_TEXT &&
+			(session->endpoint->media.tos_text || session->endpoint->media.cos_text)) {
+		ast_rtp_instance_set_qos(session_media->rtp, session->endpoint->media.tos_text,
+				session->endpoint->media.cos_text, "SIP RTP Text");
 	} else if (session_media->type == AST_MEDIA_TYPE_VIDEO) {
 		ast_rtp_instance_set_prop(session_media->rtp, AST_RTP_PROPERTY_RETRANS_RECV, session->endpoint->media.webrtc);
 		ast_rtp_instance_set_prop(session_media->rtp, AST_RTP_PROPERTY_RETRANS_SEND, session->endpoint->media.webrtc);
@@ -373,6 +378,29 @@ static void get_codecs(struct ast_sip_session *session, const struct pjmedia_sdp
 				struct ast_format *format_parsed;
 
 				ast_copy_pj_str(fmt_param, &fmtp.fmt_param, sizeof(fmt_param));
+
+				if (!strncasecmp(name, "RED", 3)) {
+					int red_data_pt[10];		/* For T.140 RED */
+					char red_cp_data[30];
+					char *red_cp = red_cp_data;
+					char *rest = NULL;
+					int red_num_gen = -1;
+
+					strcpy(red_cp, fmt_param);
+					red_cp = strtok_r(red_cp, "/", &rest);
+					while (red_cp && red_num_gen++ < AST_RED_MAX_GENERATION) {
+						sscanf(red_cp, "%30u", (unsigned *) &red_data_pt[red_num_gen]);
+						red_cp = strtok_r(NULL, "/", &rest);
+					}
+					if (red_num_gen > 0) {
+						session->endpoint->media.red_enabled = 1;
+						ast_rtp_red_init(session_media->rtp, 300, red_data_pt, red_num_gen);
+					} else {
+						session->endpoint->media.red_enabled = 0;
+					}
+				} else {
+					session->endpoint->media.red_enabled = 0;
+				}
 
 				format_parsed = ast_format_parse_sdp_fmtp(format, fmt_param);
 				if (format_parsed) {
@@ -2452,6 +2480,17 @@ static struct ast_sip_session_sdp_handler video_sdp_handler = {
 	.stream_destroy = stream_destroy,
 };
 
+/*! \brief SDP handler for 'text' media stream */
+static struct ast_sip_session_sdp_handler text_sdp_handler = {
+	.id = STR_TEXT,
+	.negotiate_incoming_sdp_stream = negotiate_incoming_sdp_stream,
+	.create_outgoing_sdp_stream = create_outgoing_sdp_stream,
+	.apply_negotiated_sdp_stream = apply_negotiated_sdp_stream,
+	.change_outgoing_sdp_stream_media_address = change_outgoing_sdp_stream_media_address,
+	.stream_stop = stream_stop,
+	.stream_destroy = stream_destroy,
+};
+
 static int video_info_incoming_request(struct ast_sip_session *session, struct pjsip_rx_data *rdata)
 {
 	struct pjsip_transaction *tsx;
@@ -2485,6 +2524,7 @@ static int unload_module(void)
 	ast_sip_session_unregister_supplement(&video_info_supplement);
 	ast_sip_session_unregister_sdp_handler(&video_sdp_handler, STR_VIDEO);
 	ast_sip_session_unregister_sdp_handler(&audio_sdp_handler, STR_AUDIO);
+	ast_sip_session_unregister_sdp_handler(&text_sdp_handler, STR_TEXT);
 
 	if (sched) {
 		ast_sched_context_destroy(sched);
@@ -2528,6 +2568,11 @@ static int load_module(void)
 
 	if (ast_sip_session_register_sdp_handler(&video_sdp_handler, STR_VIDEO)) {
 		ast_log(LOG_ERROR, "Unable to register SDP handler for %s stream type\n", STR_VIDEO);
+		goto end;
+	}
+
+	if (ast_sip_session_register_sdp_handler(&text_sdp_handler, STR_TEXT)) {
+		ast_log(LOG_ERROR, "Unable to register SDP handler for %s stream type\n", STR_TEXT);
 		goto end;
 	}
 
