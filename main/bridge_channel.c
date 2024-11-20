@@ -58,6 +58,7 @@
 #include "asterisk/stream.h"
 #include "asterisk/message.h"
 #include "asterisk/core_local.h"
+#include "asterisk/format_cache.h"
 
 /*!
  * \brief Used to queue an action frame onto a bridge channel and write an action frame into a bridge.
@@ -2435,6 +2436,19 @@ static void bridge_channel_handle_write(struct ast_bridge_channel *bridge_channe
 	case AST_FRAME_TEXT:
 		ast_debug(1, "Sending TEXT frame to '%s': %*.s\n",
 			ast_channel_name(bridge_channel->chan), fr->datalen, (char *)fr->data.ptr);
+		/*
+		 * If we are getting T140 or RED based text, we take the default path.
+		 * The below logic was added to support old SIP MESSAGE based text sending.
+		 * This is still used, so we need to keep it.
+		 */
+		if (ast_format_cmp(fr->subclass.format, ast_format_t140) == AST_FORMAT_CMP_EQUAL ||
+				ast_format_cmp(fr->subclass.format, ast_format_t140_red) == AST_FORMAT_CMP_EQUAL) {
+					ast_debug(1, "Sending TEXT frame with default method to '%s': %*.s\n",
+			ast_channel_name(bridge_channel->chan), fr->datalen, (char *)fr->data.ptr);
+			goto T140_RED;
+		}
+		ast_debug(1, "Sending TEXT frame with old (SIP MESSAGE)  method to '%s': %*.s\n",
+			ast_channel_name(bridge_channel->chan), fr->datalen, (char *)fr->data.ptr);
 		sendtext_safe(bridge_channel->chan, fr);
 		break;
 	case AST_FRAME_TEXT_DATA:
@@ -2447,6 +2461,7 @@ static void bridge_channel_handle_write(struct ast_bridge_channel *bridge_channe
 		ast_sendtext_data(bridge_channel->chan, msg);
 		break;
 	default:
+	T140_RED:
 		/* Assume that there is no mapped stream for this */
 		num = -1;
 

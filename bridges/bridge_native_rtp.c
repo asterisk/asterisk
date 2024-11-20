@@ -69,6 +69,7 @@ struct rtp_glue_data {
 	struct ast_rtp_glue *cb;
 	struct rtp_glue_stream audio;
 	struct rtp_glue_stream video;
+	struct rtp_glue_stream text;
 	/*! Combined glue result of both bridge channels. */
 	enum ast_rtp_glue_result result;
 };
@@ -115,6 +116,8 @@ static void rtp_glue_data_init(struct rtp_glue_data *glue)
 	glue->audio.result = AST_RTP_GLUE_RESULT_FORBID;
 	glue->video.instance = NULL;
 	glue->video.result = AST_RTP_GLUE_RESULT_FORBID;
+	glue->text.instance = NULL;
+	glue->text.result = AST_RTP_GLUE_RESULT_FORBID;
 	glue->result = AST_RTP_GLUE_RESULT_FORBID;
 }
 
@@ -125,6 +128,7 @@ static void rtp_glue_data_destroy(struct rtp_glue_data *glue)
 	}
 	ao2_cleanup(glue->audio.instance);
 	ao2_cleanup(glue->video.instance);
+	ao2_cleanup(glue->text.instance);
 }
 
 static void rtp_glue_data_reset(struct rtp_glue_data *glue)
@@ -160,6 +164,28 @@ static struct native_rtp_bridge_channel_data *native_rtp_bridge_channel_data_all
 
 /*!
  * \internal
+ * \brief Helper function for rtp_glue_data_get for common bridging mode decision logic
+ *
+ * \param stream0 The first RTP glue stream
+ * \param stream1 The second RTP glue stream
+ * \return The combined result
+ */
+static enum ast_rtp_glue_result rtp_glue_data_get_helper(struct rtp_glue_stream stream0, struct rtp_glue_stream stream1)
+{
+	if (stream0.result == AST_RTP_GLUE_RESULT_FORBID
+		|| stream1.result == AST_RTP_GLUE_RESULT_FORBID) {
+		/* If any sort of bridge is forbidden just completely bail out and go back to generic bridging */
+		return AST_RTP_GLUE_RESULT_FORBID;
+	} else if (stream0.result == AST_RTP_GLUE_RESULT_LOCAL
+		|| stream1.result == AST_RTP_GLUE_RESULT_LOCAL) {
+		return AST_RTP_GLUE_RESULT_LOCAL;
+	} else {
+		return AST_RTP_GLUE_RESULT_REMOTE;
+	}
+}
+
+/*!
+ * \internal
  * \brief Helper function which gets all RTP information (glue and instances) relating to the given channels
  *
  * \retval 0 on success.
@@ -170,7 +196,7 @@ static int rtp_glue_data_get(struct ast_channel *c0, struct rtp_glue_data *glue0
 {
 	struct ast_rtp_glue *cb0;
 	struct ast_rtp_glue *cb1;
-	enum ast_rtp_glue_result combined_result;
+	enum ast_rtp_glue_result combined_result = AST_RTP_GLUE_RESULT_FORBID;
 
 	cb0 = ast_rtp_instance_get_glue(ast_channel_tech(c0)->type);
 	cb1 = ast_rtp_instance_get_glue(ast_channel_tech(c1)->type);
@@ -185,11 +211,15 @@ static int rtp_glue_data_get(struct ast_channel *c0, struct rtp_glue_data *glue0
 	glue0->audio.result = cb0->get_rtp_info(c0, &glue0->audio.instance);
 	glue0->video.result = cb0->get_vrtp_info
 		? cb0->get_vrtp_info(c0, &glue0->video.instance) : AST_RTP_GLUE_RESULT_FORBID;
+	glue0->text.result = cb0->get_trtp_info
+		? cb0->get_trtp_info(c0, &glue0->text.instance) : AST_RTP_GLUE_RESULT_FORBID;
 
 	glue1->cb = cb1;
 	glue1->audio.result = cb1->get_rtp_info(c1, &glue1->audio.instance);
 	glue1->video.result = cb1->get_vrtp_info
 		? cb1->get_vrtp_info(c1, &glue1->video.instance) : AST_RTP_GLUE_RESULT_FORBID;
+	glue1->text.result = cb1->get_trtp_info
+		? cb1->get_trtp_info(c1, &glue1->text.instance) : AST_RTP_GLUE_RESULT_FORBID;
 
 	/*
 	 * Now determine the combined glue result.
@@ -204,6 +234,8 @@ static int rtp_glue_data_get(struct ast_channel *c0, struct rtp_glue_data *glue0
 			glue0->audio.result = glue1->audio.result = AST_RTP_GLUE_RESULT_LOCAL;
 		}
 	}
+	ast_debug(2, "%p, From media bridging, glue audio result 1: %d, instance %p, 2: %d, instance %p\n",
+			glue0->cb->allow_rtp_remote, glue0->audio.result, &glue0->audio.instance, glue1->audio.result, &glue1->audio.instance);
 	if (glue0->video.result == glue1->video.result && glue1->video.result == AST_RTP_GLUE_RESULT_REMOTE) {
 		if (glue0->cb->allow_vrtp_remote && !glue0->cb->allow_vrtp_remote(c0, glue1->video.instance)) {
 			/* If the allow_vrtp_remote indicates that remote isn't allowed, revert to local bridge */
@@ -212,32 +244,58 @@ static int rtp_glue_data_get(struct ast_channel *c0, struct rtp_glue_data *glue0
 			glue0->video.result = glue1->video.result = AST_RTP_GLUE_RESULT_LOCAL;
 		}
 	}
-
+	ast_debug(2, "%p, From media bridging, glue video result 1: %d, instance %p, 2: %d, instance %p\n",
+			glue0->cb->allow_vrtp_remote, glue0->video.result, &glue0->video.instance, glue1->video.result, &glue1->video.instance);
+	/* there is no allow_trtp_remote function implemented, so this this logic is not needed for real-time text */
 	/* If we are carrying video, and both sides are not going to remotely bridge... fail the native bridge */
-	if (glue0->video.result != AST_RTP_GLUE_RESULT_FORBID
-		&& (glue0->audio.result != AST_RTP_GLUE_RESULT_REMOTE
-			|| glue0->video.result != AST_RTP_GLUE_RESULT_REMOTE)) {
-		glue0->audio.result = AST_RTP_GLUE_RESULT_FORBID;
+	if (glue0->video.instance && glue1->video.instance) {
+		if (glue0->video.result != AST_RTP_GLUE_RESULT_FORBID
+			&& (glue0->audio.result != AST_RTP_GLUE_RESULT_REMOTE
+				|| glue0->video.result != AST_RTP_GLUE_RESULT_REMOTE)) {
+			glue0->audio.result = AST_RTP_GLUE_RESULT_FORBID;
+		}
+		if (glue1->video.result != AST_RTP_GLUE_RESULT_FORBID
+			&& (glue1->audio.result != AST_RTP_GLUE_RESULT_REMOTE
+				|| glue1->video.result != AST_RTP_GLUE_RESULT_REMOTE)) {
+			glue1->audio.result = AST_RTP_GLUE_RESULT_FORBID;
+		}
+		ast_debug(2, "Combining video with audio, glue video result 1: %d, 2: %d, glue audio result 1: %d, 2: %d\n",
+			glue0->video.result, glue1->video.result, glue0->audio.result, glue1->audio.result);
 	}
-	if (glue1->video.result != AST_RTP_GLUE_RESULT_FORBID
-		&& (glue1->audio.result != AST_RTP_GLUE_RESULT_REMOTE
-			|| glue1->video.result != AST_RTP_GLUE_RESULT_REMOTE)) {
-		glue1->audio.result = AST_RTP_GLUE_RESULT_FORBID;
+	/* If we are carrying text, and both sides are not going to remotely bridge... fail the native bridge */
+	if (glue0->text.instance && glue1->text.instance) {
+		if (glue0->text.result != AST_RTP_GLUE_RESULT_FORBID
+			&& (glue0->audio.result != AST_RTP_GLUE_RESULT_REMOTE
+				|| glue0->text.result != AST_RTP_GLUE_RESULT_REMOTE)) {
+			glue0->audio.result = AST_RTP_GLUE_RESULT_FORBID;
+		}
+		if (glue1->text.result != AST_RTP_GLUE_RESULT_FORBID
+			&& (glue1->audio.result != AST_RTP_GLUE_RESULT_REMOTE
+				|| glue1->text.result != AST_RTP_GLUE_RESULT_REMOTE)) {
+			glue1->audio.result = AST_RTP_GLUE_RESULT_FORBID;
+		}
+		ast_debug(2, "Combining text with audio, glue text result 1: %d, 2: %d, glue audio result 1: %d, 2: %d\n",
+			glue0->text.result, glue1->text.result, glue0->audio.result, glue1->audio.result);
+	}
+	/*
+	 * The order of preference for glue is: forbid, local, and remote.
+	 * The order of preferences for media types is: audio, video and text.
+	 */
+	if (glue0->audio.instance && glue1->audio.instance) {
+		combined_result = rtp_glue_data_get_helper(glue0->audio, glue1->audio);
+	} else {
+		if (glue0->video.instance && glue1->video.instance) {
+			combined_result = rtp_glue_data_get_helper(glue0->video, glue1->video);
+		} else {
+			if (glue0->text.instance && glue1->text.instance) {
+				combined_result = rtp_glue_data_get_helper(glue0->text, glue1->text);
+			}
+		}
 	}
 
-	/* The order of preference is: forbid, local, and remote. */
-	if (glue0->audio.result == AST_RTP_GLUE_RESULT_FORBID
-		|| glue1->audio.result == AST_RTP_GLUE_RESULT_FORBID) {
-		/* If any sort of bridge is forbidden just completely bail out and go back to generic bridging */
-		combined_result = AST_RTP_GLUE_RESULT_FORBID;
-	} else if (glue0->audio.result == AST_RTP_GLUE_RESULT_LOCAL
-		|| glue1->audio.result == AST_RTP_GLUE_RESULT_LOCAL) {
-		combined_result = AST_RTP_GLUE_RESULT_LOCAL;
-	} else {
-		combined_result = AST_RTP_GLUE_RESULT_REMOTE;
-	}
 	glue0->result = combined_result;
 	glue1->result = combined_result;
+	ast_debug(2, "Glue combined_result after ordering preferences %d\n", combined_result);
 
 	return 0;
 }
@@ -274,7 +332,27 @@ static enum ast_rtp_glue_result rtp_glue_get_current_combined_result(struct ast_
 	combined_result = glue0->result;
 	rtp_glue_data_destroy(glue0);
 	rtp_glue_data_destroy(glue1);
+	ast_debug(2, "Glue native bridging combined_result %d\n", combined_result);
 	return combined_result;
+}
+
+/*!
+ * \internal
+ * \brief Helper function to start remote bridging of two channels
+ *
+ * \param instance0 The RTP instance for the first channel
+ * \param instance1 The RTP instance for the second channel
+ */
+static void remote_rtp_bridge_start_helper(struct ast_rtp_instance *instance0, struct ast_rtp_instance *instance1)
+{
+	if (ast_rtp_instance_get_engine(instance0)->local_bridge) {
+		ast_rtp_instance_get_engine(instance0)->local_bridge(instance0, instance1);
+	}
+	if (ast_rtp_instance_get_engine(instance1)->local_bridge) {
+		ast_rtp_instance_get_engine(instance1)->local_bridge(instance1, instance0);
+	}
+	ast_rtp_instance_set_bridged(instance0, instance1);
+	ast_rtp_instance_set_bridged(instance1, instance0);
 }
 
 /*!
@@ -338,14 +416,18 @@ static void native_rtp_bridge_start(struct ast_bridge *bridge, struct ast_channe
 
 	switch (native_type) {
 	case AST_RTP_GLUE_RESULT_LOCAL:
-		if (ast_rtp_instance_get_engine(glue0->audio.instance)->local_bridge) {
-			ast_rtp_instance_get_engine(glue0->audio.instance)->local_bridge(glue0->audio.instance, glue1->audio.instance);
+		/* check if we actually have audio, video or text - in this order */
+		if (glue0->audio.instance && glue1->audio.instance) {
+			remote_rtp_bridge_start_helper(glue0->audio.instance, glue1->audio.instance);
+		} else {
+			if (glue0->video.instance && glue1->video.instance) {
+				remote_rtp_bridge_start_helper(glue0->video.instance, glue1->video.instance);
+			} else {
+				if (glue0->text.instance && glue1->text.instance) {
+					remote_rtp_bridge_start_helper(glue0->text.instance, glue1->text.instance);
+				}
+			}
 		}
-		if (ast_rtp_instance_get_engine(glue1->audio.instance)->local_bridge) {
-			ast_rtp_instance_get_engine(glue1->audio.instance)->local_bridge(glue1->audio.instance, glue0->audio.instance);
-		}
-		ast_rtp_instance_set_bridged(glue0->audio.instance, glue1->audio.instance);
-		ast_rtp_instance_set_bridged(glue1->audio.instance, glue0->audio.instance);
 		ast_verb(4, "Locally RTP bridged '%s' and '%s' in stack\n",
 			ast_channel_name(bc0->chan), ast_channel_name(bc1->chan));
 		break;
@@ -425,6 +507,25 @@ done:
 
 /*!
  * \internal
+ * \brief Helper function to stop remote bridging of two channels
+ *
+ * \param instance0 The RTP instance for the first channel
+ * \param instance1 The RTP instance for the second channel
+ */
+static void remote_rtp_bridge_stop_helper(struct ast_rtp_instance *instance0, struct ast_rtp_instance *instance1)
+{
+	if (ast_rtp_instance_get_engine(instance0)->local_bridge) {
+		ast_rtp_instance_get_engine(instance0)->local_bridge(instance0, NULL);
+	}
+	if (ast_rtp_instance_get_engine(instance1)->local_bridge) {
+		ast_rtp_instance_get_engine(instance1)->local_bridge(instance1, NULL);
+	}
+	ast_rtp_instance_set_bridged(instance0, NULL);
+	ast_rtp_instance_set_bridged(instance1, NULL);
+}
+
+/*!
+ * \internal
  * \brief Stop native RTP bridging of two channels
  *
  * \param bridge The bridge that had native RTP bridging happening on it
@@ -491,14 +592,18 @@ static void native_rtp_bridge_stop(struct ast_bridge *bridge, struct ast_channel
 
 	switch (glue0->result) {
 	case AST_RTP_GLUE_RESULT_LOCAL:
-		if (ast_rtp_instance_get_engine(glue0->audio.instance)->local_bridge) {
-			ast_rtp_instance_get_engine(glue0->audio.instance)->local_bridge(glue0->audio.instance, NULL);
+		/* check if we actually have audio, video or text - in this order */
+		if (glue0->audio.instance && glue1->audio.instance) {
+			remote_rtp_bridge_stop_helper(glue0->audio.instance,  glue1->audio.instance);
+		} else {
+			if (glue0->video.instance && glue1->video.instance) {
+				remote_rtp_bridge_stop_helper(glue0->video.instance,  glue1->video.instance);
+			} else {
+				if (glue0->text.instance && glue1->text.instance) {
+					remote_rtp_bridge_stop_helper(glue0->text.instance,  glue1->text.instance);
+				}
+			}
 		}
-		if (ast_rtp_instance_get_engine(glue1->audio.instance)->local_bridge) {
-			ast_rtp_instance_get_engine(glue1->audio.instance)->local_bridge(glue1->audio.instance, NULL);
-		}
-		ast_rtp_instance_set_bridged(glue0->audio.instance, NULL);
-		ast_rtp_instance_set_bridged(glue1->audio.instance, NULL);
 		break;
 	case AST_RTP_GLUE_RESULT_REMOTE:
 		if (target) {
@@ -675,14 +780,17 @@ static int native_rtp_bridge_compatible_check(struct ast_bridge *bridge, struct 
 		return 0;
 	}
 
-	if (ao2_container_count(bc0->features->dtmf_hooks)
+	/* do we actually have audio, for DTMF */
+	if (glue0->audio.instance
+		&& ao2_container_count(bc0->features->dtmf_hooks)
 		&& ast_rtp_instance_dtmf_mode_get(glue0->audio.instance)) {
 		ast_debug(1, "Bridge '%s' can not use native RTP bridge as channel '%s' has DTMF hooks\n",
 			bridge->uniqueid, ast_channel_name(bc0->chan));
 		return 0;
 	}
 
-	if (ao2_container_count(bc1->features->dtmf_hooks)
+	if (glue1->audio.instance
+		&& ao2_container_count(bc1->features->dtmf_hooks)
 		&& ast_rtp_instance_dtmf_mode_get(glue1->audio.instance)) {
 		ast_debug(1, "Bridge '%s' can not use native RTP bridge as channel '%s' has DTMF hooks\n",
 			bridge->uniqueid, ast_channel_name(bc1->chan));
@@ -690,6 +798,7 @@ static int native_rtp_bridge_compatible_check(struct ast_bridge *bridge, struct 
 	}
 
 	if (native_type == AST_RTP_GLUE_RESULT_LOCAL
+		&& glue0->audio.instance && glue1->audio.instance
 		&& (ast_rtp_instance_get_engine(glue0->audio.instance)->local_bridge
 			!= ast_rtp_instance_get_engine(glue1->audio.instance)->local_bridge
 			|| (ast_rtp_instance_get_engine(glue0->audio.instance)->dtmf_compatible
