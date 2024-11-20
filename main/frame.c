@@ -313,7 +313,7 @@ struct ast_frame *__ast_frdup(const struct ast_frame *f, const char *file, int l
 #endif
 
 	/* Start with standard stuff */
-	len = sizeof(*out) + AST_FRIENDLY_OFFSET + f->datalen;
+	len = sizeof(*out) + AST_FRIENDLY_OFFSET + f->datalen + 1;
 	/* If we have a source, add space for it */
 	/*
 	 * XXX Watch out here - if we receive a src which is not terminated
@@ -374,13 +374,16 @@ struct ast_frame *__ast_frdup(const struct ast_frame *f, const char *file, int l
 	if (out->datalen || f->frametype == AST_FRAME_TEXT) {
 		out->data.ptr = buf + sizeof(*out) + AST_FRIENDLY_OFFSET;
 		memcpy(out->data.ptr, f->data.ptr, out->datalen);
+		if (f->frametype == AST_FRAME_TEXT) {
+			((char*)out->data.ptr)[out->datalen] = '\0';
+		}
 	} else {
 		out->data.uint32 = f->data.uint32;
 	}
 	if (srclen > 0) {
 		/* This may seem a little strange, but it's to avoid a gcc (4.2.4) compiler warning */
 		char *src;
-		out->src = buf + sizeof(*out) + AST_FRIENDLY_OFFSET + f->datalen;
+		out->src = buf + sizeof(*out) + AST_FRIENDLY_OFFSET + f->datalen + 1;
 		src = (char *) out->src;
 		/* Must have space since we allocated for it */
 		strcpy(src, f->src);

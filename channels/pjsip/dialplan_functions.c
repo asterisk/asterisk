@@ -91,6 +91,8 @@ static int channel_read_rtp(struct ast_channel *chan, const char *type, const ch
 		media = session->active_media_state->default_session[AST_MEDIA_TYPE_AUDIO];
 	} else if (!strcmp(field, "video")) {
 		media = session->active_media_state->default_session[AST_MEDIA_TYPE_VIDEO];
+	} else if (!strcmp(field, "text")) {
+		media = session->active_media_state->default_session[AST_MEDIA_TYPE_TEXT];
 	} else {
 		ast_log(AST_LOG_WARNING, "Unknown media type field '%s' for 'rtp' information\n", field);
 		return -1;
