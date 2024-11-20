@@ -127,14 +127,43 @@ struct ast_format_cap *ast_sip_create_joint_call_cap(const struct ast_format_cap
 	return joint;
 }
 
+/*
+ * Fix preferences for real time text calls when we are supporting t140 and red codecs
+ * If the remote party only supports t140, we should not offer redundancy
+ */
+static void fix_t140_red_pref(const struct ast_sip_session *session, enum ast_media_type media_type) {
+	int res = 0;
+	struct ast_flags *pref = &session->endpoint->media.outgoing_call_offer_pref;
+
+	if (media_type == AST_MEDIA_TYPE_TEXT && session->call_direction == AST_SIP_SESSION_OUTGOING_CALL) {
+		if (strcmp(ast_sip_call_codec_pref_to_str(*pref), "local_merge") == 0) {
+			ast_debug(3, "text call with local_merge preference, change to local for endpoint %s\n",
+				ast_sorcery_object_get_id(session->endpoint));
+			res = ast_sip_call_codec_str_to_pref(pref, "local", 1);
+		} else {
+			if (strcmp(ast_sip_call_codec_pref_to_str(*pref), "remote_merge") == 0) {
+				ast_debug(3, "text call with remote_merge preference, change to remote for endpoint %s\n",
+					ast_sorcery_object_get_id(session->endpoint));
+				res = ast_sip_call_codec_str_to_pref(pref, "remote", 1);
+			}
+		}
+	}
+	if (res != 0) {
+		ast_log(LOG_ERROR, "Could not fix preferences for real-time text calls for endpoint %s\n",
+			ast_sorcery_object_get_id(session->endpoint));
+	}
+}
+
 struct ast_stream *ast_sip_session_create_joint_call_stream(const struct ast_sip_session *session,
 	struct ast_stream *remote_stream)
 {
 	struct ast_stream *joint_stream = ast_stream_clone(remote_stream, NULL);
 	const struct ast_format_cap *remote = ast_stream_get_formats(remote_stream);
 	enum ast_media_type media_type = ast_stream_get_type(remote_stream);
+	struct ast_format_cap *joint;
 
-	struct ast_format_cap *joint = ast_sip_create_joint_call_cap(remote,
+	fix_t140_red_pref(session, media_type);
+	joint = ast_sip_create_joint_call_cap(remote,
 		session->endpoint->media.codecs, media_type,
 		session->call_direction == AST_SIP_SESSION_OUTGOING_CALL
 				? session->endpoint->media.outgoing_call_offer_pref
@@ -152,7 +181,10 @@ struct ast_format_cap *ast_sip_session_create_joint_call_cap(
 	const struct ast_sip_session *session, enum ast_media_type media_type,
 	const struct ast_format_cap *remote)
 {
-	struct ast_format_cap *joint = ast_sip_create_joint_call_cap(remote,
+	struct ast_format_cap *joint;
+
+	fix_t140_red_pref(session, media_type);
+	joint = ast_sip_create_joint_call_cap(remote,
 		session->endpoint->media.codecs, media_type,
 		session->call_direction == AST_SIP_SESSION_OUTGOING_CALL
 				? session->endpoint->media.outgoing_call_offer_pref
