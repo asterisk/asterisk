@@ -500,11 +500,17 @@
 				<parameter name="TosVideo">
 					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='tos_video']/synopsis/node())"/></para>
 				</parameter>
+				<parameter name="TosText">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='tos_text']/synopsis/node())"/></para>
+				</parameter>
 				<parameter name="CosAudio">
 					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='cos_audio']/synopsis/node())"/></para>
 				</parameter>
 				<parameter name="CosVideo">
 					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='cos_video']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="CosText">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='cos_text']/synopsis/node())"/></para>
 				</parameter>
 				<parameter name="AllowSubscribe">
 					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='allow_subscribe']/synopsis/node())"/></para>
@@ -646,6 +652,9 @@
 				</parameter>
 				<parameter name="MaxAudioStreams">
 					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='max_audio_streams']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="MaxTextStreams">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='max_text_streams']/synopsis/node())"/></para>
 				</parameter>
 				<parameter name="MaxVideoStreams">
 					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='max_video_streams']/synopsis/node())"/></para>
