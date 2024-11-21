@@ -1709,7 +1709,7 @@ UPDATE alembic_version SET version_num='801b9fced8b7' WHERE alembic_version.vers
 
 -- Running upgrade 801b9fced8b7 -> 4f91fc18c979
 
-ALTER TABLE ps_endpoints ADD COLUMN suppress_moh_on_sendonly ENUM('yes','no');
+ALTER TABLE ps_endpoints ADD COLUMN suppress_moh_on_sendonly ENUM('0','1','off','on','false','true','no','yes');
 
 UPDATE alembic_version SET version_num='4f91fc18c979' WHERE alembic_version.version_num = '801b9fced8b7';
 
