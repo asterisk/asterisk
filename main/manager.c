@@ -6453,13 +6453,15 @@ static int action_corestatus(struct mansession *s, const struct message *m)
 			"CoreReloadDate: %s\r\n"
 			"CoreReloadTime: %s\r\n"
 			"CoreCurrentCalls: %d\r\n"
+			"CoreProcessedCalls: %d\r\n"
 			"\r\n",
 			idText,
 			startupdate,
 			startuptime,
 			reloaddate,
 			reloadtime,
-			ast_active_channels()
+			ast_active_channels(),
+			ast_processed_calls()
 			);
 	return 0;
 }
