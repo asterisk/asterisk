@@ -1,11 +1,11 @@
 
-## Change Log for Release asterisk-18.26.0-rc1
+## Change Log for Release asterisk-18.26.0
 
 ### Links:
 
- - [Full ChangeLog](https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-18.26.0-rc1.md)  
- - [GitHub Diff](https://github.com/asterisk/asterisk/compare/18.25.0...18.26.0-rc1)  
- - [Tarball](https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-18.26.0-rc1.tar.gz)  
+ - [Full ChangeLog](https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-18.26.0.md)  
+ - [GitHub Diff](https://github.com/asterisk/asterisk/compare/18.25.0...18.26.0)  
+ - [Tarball](https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-18.26.0.tar.gz)  
  - [Downloads](https://downloads.asterisk.org/pub/telephony/asterisk)  
 
 ### Summary:
