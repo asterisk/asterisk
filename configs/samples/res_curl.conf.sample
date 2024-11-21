@@ -2,8 +2,84 @@
 ; CURLOPT global settings (mostly set for realtime)
 ;
 [globals]
-;proxy=myproxy.example.com
-proxytype=http
-proxyport=8001
-;proxyuserpwd=asterisk:asteriskrocks
-;failurecodes=404,408,503
+;header=no                      ; Include header information in the result. Sets the CURLOPT_HEADER 
+                                ; option. (default: "no")
+;httpheader=                    ; Add additional HTTP headers; multiple calls adds multiple headers.
+                                ; Setting a header will override any existing headers.
+;dnstimeout=60                  ; Number of seconds to wait for DNS to be resolved. Sets the
+                                ; CURLOPT_DNS_CACHE_TIMEOUT option. (default: 60)
+;ftptimeout=0                   ; For FTP URIs, number of seconds to wait for a server response.
+                                ; Sets the CURLOPT_FTP_RESPONSE_TIMEOUT option. (default: 0)
+;httptimeout=0                  ; For HTTP(S) URIs, the number of seconds (for libcurl before 7.16.2)
+                                ; or the number of milliseconds (after 7.16.2) to wait for a server
+                                ; response. Sets the CURLOPT_TIMEOUT option before 7.16.2,
+                                ; CURLOPT_TIMEOUT_MS after 7.16.2. (default: 0)
+;conntimeout=0                  ; Number of seconds (for libcurl before 7.16.2) or the number of
+                                ; milliseconds (after 7.16.2) to wait for a connection to succeed.
+                                ; Sets the CURLOPT_CONNECTTIMEOUT option before 7.16.2,
+                                ; CURLOPT_CONNECTTIMEOUT_MS after 7.16.2. (default: 300 or 300000)
+;userpwd=user:pass              ; A username:password combination to use for authenticating requests.
+                                ; Sets the CURLOPT_USERPWD option. (default: "")
+;followlocation=no              ; Whether or not to follow HTTP 3xx redirects. Sets the
+                                ; CURLOPT_FOLLOWLOCATION option. (default: "no")
+;maxredirs=30                   ; Maximum number of redirects to follow. This only makes sense when
+                                ; 'followlocation' is also set. Sets the CURLOPT_MAXREDIRS option.
+                                ; Set to 0 to make libcurl refuse to redirect. Set to -1 for an
+                                ; infinite number of redirects. (default: 30)
+;referer=                       ; Referer URL to use for the request. Sets the CURLOPT_REFERER option.
+                                ; (default: "")
+;useragent=                     ; UserAgent string to use for the request; Sets the CURLOPT_USERAGENT
+                                ; option. (default: "asterisk-libcurl-agent/1.0")
+;cookie=                        ; A cookie to send with the request. Multiple cookies are supported.
+                                ; Sets the CURLOPT_COOKIE option. (default: "")
+;ftptext=no                     ; For FTP URIs, force a text transfer. Sets the CURLOPT_TRANSFERTEXT
+                                ; option. (default: "no")
+;hashcompat=                    ; Assuming the responses will be in key1=value1&amp;key2=value2
+                                ; format, reformat the response such that it can be used by the HASH
+                                ; function. Can be "yes", "no", or "legacy", which will also translate
+                                ; the + character to the space character, in violation of current RFC
+                                ; standards. (default: "no")
+;failurecodes=404,408,503       ; A comma separated list of HTTP response codes to be treated as
+                                ; errors. (default: "")
+
+;
+; Proxy configuration options
+;
+;proxy=myproxy.example.com      ; Hostname or IP address to use as a proxy server. Sets the
+                                ; CURLOPT_PROXY option. (default: "")
+;proxytype=http                 ; The type of proxy to use. Can be "http", "socks4", "socks4a", "socks5",
+                                ; or "socks5hostname". Sets the CURLOPT_PROXYTYPE option.
+                                ; (default: "http")
+;proxyport=8080                 ; Port number of the proxy; sets the CURLOPT_PROXYPORT option.
+                                ; (default: 0)
+;proxyuserpwd=user:pass         ; A username:password combination to use for authenticating requests
+                                ; through a proxy. Sets the CURLOPT_PROXYUSERPWD option.
+                                ; (default: "")
+
+;
+; TLS configuration options
+;
+;ssl_verifypeer=yes             ; Whether to verify the server certificate against a list of known root
+                                ; certificate authorities. Sets the CURLOPT_SSL_VERIFYPEER option.
+                                ; (default: "yes")
+;ssl_verifyhost=2               ; Whether to verify the host in the server's TLS certificate. Set to 2
+                                ; to verify the host, 0 to ignore the host. Sets the CURLOPT_SSL_VERIFYHOST
+                                ; option. (default: 2)
+;ssl_cainfo=/path/to/ca.pem     ; Path to a file holding one or more certificates to verify the peer's
+                                ; certificate with. Only used when 'ssl_verifypeer' is enabled. Sets
+                                ; the CURLOPT_CAINFO option. (default: "")
+;ssl_capath=/path/to/cas/       ; Path to a directory holding multiple CA certificates to verify the
+                                ; peer's certificate with. Only used when 'ssl_verifypeer' is enabled. Sets
+                                ; the CURLOPT_CAPATH option. (default: "")
+;ssl_cert=/path/to/client.pem   ; Path to a file containing a client certificate. Default format is PEM,
+                                ; and can be changed with 'ssl_certtype'. Sets the CURLOPT_SSLCERT option.
+                                ; (default: "")
+;ssl_certtype=PEM               ; The format of the ssl_cert file. Can be "PEM" or "DER". Sets the
+                                ; CURLOPT_SSLCERTTYPE option. (default: "PEM")         
+;ssl_key=/path/to/client.key    ; Path to a file containing a client private key. Default format is PEM,
+                                ; and can be changed with 'ssl_keytype'. Sets the CURLOPT_SSLKEY option.
+                                ; (default: "")
+;ssl_keytype=PEM                ; The format of the ssl_key file. Can be "PEM", "DER", or "ENG". Sets the
+                                ; CURLOPT_SSLKEYTYPE option. (default: "PEM")   
+;ssl_keypasswd=mysecret         ; The passphrase to use the 'ssl_key' file. Sets the CURLOPT_KEYPASSWD
+                                ; option. (default: "")
