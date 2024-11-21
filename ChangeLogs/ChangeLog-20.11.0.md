@@ -1,18 +1,18 @@
 
-## Change Log for Release asterisk-20.11.0-rc1
+## Change Log for Release asterisk-20.11.0
 
 ### Links:
 
- - [Full ChangeLog](https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-20.11.0-rc1.md)  
- - [GitHub Diff](https://github.com/asterisk/asterisk/compare/20.10.0...20.11.0-rc1)  
- - [Tarball](https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-20.11.0-rc1.tar.gz)  
+ - [Full ChangeLog](https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-20.11.0.md)  
+ - [GitHub Diff](https://github.com/asterisk/asterisk/compare/20.10.0...20.11.0)  
+ - [Tarball](https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-20.11.0.tar.gz)  
  - [Downloads](https://downloads.asterisk.org/pub/telephony/asterisk)  
 
 ### Summary:
 
-- Commits: 39
+- Commits: 40
 - Commit Authors: 9
-- Issues Resolved: 21
+- Issues Resolved: 22
 - Security Advisories Resolved: 0
 
 ### User Notes:
@@ -59,7 +59,7 @@
 - Allan Nathanson: (1)
 - Ben Ford: (3)
 - Chrsmj: (1)
-- George Joseph: (14)
+- George Joseph: (15)
 - Jiangxc: (1)
 - Naveen Albert: (7)
 - Peter Jannesen: (2)
@@ -90,6 +90,7 @@
   - 979: [improvement]: Add ability to suppress MOH when a remote endpoint sends "sendonly" or "inactive"
   - 982: [bug]: The addition of tenantid to the ast_sip_endpoint structure broke ABI compatibility
   - 990: [improvement]: The help for PJSIP_AOR should indicate that you need to call PJSIP_CONTACT to get contact details
+  - 995: [bug]: suppress_moh_on_sendonly should use AST_BOOL_VALUES instead of YESNO_VALUES in alembic script
 
 ### Commits By Author:
 
@@ -101,7 +102,7 @@
   - app_mixmonitor: Add 'D' option for dual-channel audio.
   - Add res_pjsip_config_sangoma external module.
 
-- #### George Joseph (14):
+- #### George Joseph (15):
   - db.c: Remove limit on family/key length
   - manager.c: Split XML documentation to manager_doc.xml
   - manager: Enhance event filtering for performance
@@ -116,6 +117,7 @@
   - res_pjsip: Move tenantid to end of ast_sip_endpoint
   - func_pjsip_aor/contact: Fix documentation for contact ID
   - res_pjsip: Add new endpoint option "suppress_moh_on_sendonly"
+  - res_pjsip: Change suppress_moh_on_sendonly to OPT_BOOL_T
 
 - #### Naveen Albert (7):
   - app_voicemail: Fix ill-formatted pager emails with custom subject.
@@ -153,6 +155,7 @@
 
 ### Commit List:
 
+-  res_pjsip: Change suppress_moh_on_sendonly to OPT_BOOL_T
 -  res_pjsip: Add new endpoint option "suppress_moh_on_sendonly"
 -  res_pjsip.c: Fix Contact header rendering for IPv6 addresses.
 -  samples: remove and/or change some wiki mentions
@@ -193,6 +196,19 @@
 -  db.c: Remove limit on family/key length
 
 ### Commit Details:
+
+#### res_pjsip: Change suppress_moh_on_sendonly to OPT_BOOL_T
+  Author: George Joseph
+  Date:   2024-11-15
+
+  The suppress_moh_on_sendonly endpoint option should have been
+  defined as OPT_BOOL_T in pjsip_configuration.c and AST_BOOL_VALUES
+  in the alembic script instead of OPT_YESNO_T and YESNO_VALUES.
+
+  Also updated contrib/ast-db-manage/README.md to indicate that
+  AST_BOOL_VALUES should always be used and provided an example.
+
+  Resolves: #995
 
 #### res_pjsip: Add new endpoint option "suppress_moh_on_sendonly"
   Author: George Joseph
