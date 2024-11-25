@@ -7240,8 +7240,8 @@ static int bridge_p2p_rtp_write(struct ast_rtp_instance *instance,
 	}
 
 	/* Otherwise adjust bridged payload to match */
-	bridged_payload = ast_rtp_codecs_payload_code_tx(ast_rtp_instance_get_codecs(instance1),
-		payload_type->asterisk_format, payload_type->format, payload_type->rtp_code);
+	bridged_payload = ast_rtp_codecs_payload_code_tx_sample_rate(ast_rtp_instance_get_codecs(instance1),
+		payload_type->asterisk_format, payload_type->format, payload_type->rtp_code, payload_type->sample_rate);
 
 	/* If no codec could be matched between instance and instance1, then somehow things were made incompatible while we were still bridged.  Bail. */
 	if (bridged_payload < 0) {
