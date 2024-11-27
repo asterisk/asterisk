@@ -338,7 +338,17 @@
 			<parameter name="queuename" required="true" />
 			<parameter name="interface" />
 			<parameter name="penalty" />
-			<parameter name="options" />
+			<parameter name="options">
+				<optionlist>
+					<option name="p">
+						<para>Add queue member in paused state.</para>
+					</option>
+					<option name="r">
+						<argument name="reason" required="true" />
+						<para>Specify a reason why the member is in paused state.</para>
+					</option>
+				</optionlist>
+			</parameter>
 			<parameter name="membername" />
 			<parameter name="stateinterface" />
 			<parameter name="wrapuptime" />
@@ -893,6 +903,9 @@
 			<parameter name="Paused">
 				<para>To pause or not the member initially (true/false or 1/0).</para>
 			</parameter>
+			<parameter name="Reason" required="false">
+				<para>Text description why the member is paused.</para>
+			</parameter>
 			<parameter name="MemberName">
 				<para>Text alias for the interface.</para>
 			</parameter>
@@ -929,10 +942,10 @@
 			<parameter name="Paused" required="true">
 				<para>Pause or unpause the interface. Set to 'true' to pause the member or 'false' to unpause.</para>
 			</parameter>
-			<parameter name="Queue">
+			<parameter name="Queue" required="false">
 				<para>The name of the queue in which to pause or unpause this member. If not specified, the member will be paused or unpaused in all the queues it is a member of.</para>
 			</parameter>
-			<parameter name="Reason">
+			<parameter name="Reason" required="false">
 				<para>Text description, returned in the event QueueMemberPaused.</para>
 			</parameter>
 		</syntax>
@@ -1516,6 +1529,22 @@ AST_APP_OPTIONS(queue_exec_options, BEGIN_OPTIONS
 	AST_APP_OPTION('w', OPT_CALLEE_AUTOMON),
 	AST_APP_OPTION('W', OPT_CALLER_AUTOMON),
 END_OPTIONS);
+
+
+enum aqm_flags {
+	AQMFLAG_PAUSED = (1 << 1),
+	AQMFLAG_REASON = (1 << 2),
+};
+
+enum aqm_args {
+	AQM_OPT_ARG_PAUSE_REASON = 0,
+	AQM_OPT_ARG_ARRAY_SIZE,	/* Always last element of the enum */
+};
+
+AST_APP_OPTIONS(aqm_opts, {
+	AST_APP_OPTION('p', AQMFLAG_PAUSED),
+	AST_APP_OPTION_ARG('r', AQMFLAG_REASON, AQM_OPT_ARG_PAUSE_REASON),
+});
 
 enum {
 	QUEUE_STRATEGY_RINGALL = 0,
@@ -8443,7 +8472,7 @@ static int rqm_exec(struct ast_channel *chan, const char *data)
 static int aqm_exec(struct ast_channel *chan, const char *data)
 {
 	int res=-1;
-	char *parse, *tmp, *temppos = NULL;
+	char *parse, *tmp, *temppos = NULL, *reason = NULL;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(queuename);
 		AST_APP_ARG(interface);
@@ -8454,7 +8483,9 @@ static int aqm_exec(struct ast_channel *chan, const char *data)
 		AST_APP_ARG(wrapuptime);
 	);
 	int penalty = 0;
+	int paused = 0;
 	int wrapuptime;
+	struct ast_flags flags = { 0 };
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "AddQueueMember requires an argument (queuename[,interface[,penalty[,options[,membername[,stateinterface][,wrapuptime]]]]])\n");
@@ -8464,6 +8495,17 @@ static int aqm_exec(struct ast_channel *chan, const char *data)
 	parse = ast_strdupa(data);
 
 	AST_STANDARD_APP_ARGS(args, parse);
+
+	if (args.options) {
+		char *opts[AQM_OPT_ARG_ARRAY_SIZE] = { NULL, };
+		ast_app_parse_options(aqm_opts, &flags, opts, args.options);
+		if (ast_test_flag(&flags, AQMFLAG_PAUSED)) {
+			paused = 1;
+			if (ast_test_flag(&flags, AQMFLAG_REASON) && !ast_strlen_zero(opts[AQM_OPT_ARG_PAUSE_REASON])) {
+				reason = ast_strdupa(opts[AQM_OPT_ARG_PAUSE_REASON]);
+			}
+		}
+	}
 
 	if (ast_strlen_zero(args.interface)) {
 		args.interface = ast_strdupa(ast_channel_name(chan));
@@ -8491,7 +8533,7 @@ static int aqm_exec(struct ast_channel *chan, const char *data)
 		wrapuptime = 0;
 	}
 
-	switch (add_to_queue(args.queuename, args.interface, args.membername, penalty, 0, queue_persistent_members, args.state_interface, NULL, wrapuptime)) {
+	switch (add_to_queue(args.queuename, args.interface, args.membername, penalty, paused, queue_persistent_members, args.state_interface, reason, wrapuptime)) {
 	case RES_OKAY:
 		if (ast_strlen_zero(args.membername) || !log_membername_as_agent) {
 			ast_queue_log(args.queuename, ast_channel_uniqueid(chan), args.interface, "ADDMEMBER", "%s", "");
@@ -9714,6 +9756,7 @@ static void reload_single_member(const char *memberdata, struct call_queue *q)
 	int penalty;
 	int ringinuse;
 	int wrapuptime;
+	int paused;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(interface);
 		AST_APP_ARG(penalty);
@@ -9721,6 +9764,7 @@ static void reload_single_member(const char *memberdata, struct call_queue *q)
 		AST_APP_ARG(state_interface);
 		AST_APP_ARG(ringinuse);
 		AST_APP_ARG(wrapuptime);
+		AST_APP_ARG(paused);
 	);
 
 	if (ast_strlen_zero(memberdata)) {
@@ -9786,11 +9830,30 @@ static void reload_single_member(const char *memberdata, struct call_queue *q)
 		wrapuptime = 0;
 	}
 
+	if (!ast_strlen_zero(args.paused)) {
+		tmp = args.paused;
+		ast_strip(tmp);
+		if (ast_true(tmp)) {
+			paused = 1;
+		} else if (ast_false(tmp)) {
+			paused = 0;
+		} else {
+			ast_log(LOG_ERROR, "Member %s has an invalid paused value.\n", membername);
+			paused = 0;
+		}
+	} else {
+		paused = 0;
+	}
+
 	/* Find the old position in the list */
 	ast_copy_string(tmpmem.interface, interface, sizeof(tmpmem.interface));
 	cur = ao2_find(q->members, &tmpmem, OBJ_POINTER);
 
-	if ((newm = create_queue_member(interface, membername, penalty, cur ? cur->paused : 0, state_interface, ringinuse, wrapuptime))) {
+	if (cur) {
+		paused = cur->paused;
+	}
+
+	if ((newm = create_queue_member(interface, membername, penalty, paused, state_interface, ringinuse, wrapuptime))) {
 		newm->wrapuptime = wrapuptime;
 		if (cur) {
 			ao2_lock(q->members);
@@ -10701,13 +10764,14 @@ static int manager_queues_status(struct mansession *s, const struct message *m)
 
 static int manager_add_queue_member(struct mansession *s, const struct message *m)
 {
-	const char *queuename, *interface, *penalty_s, *paused_s, *membername, *state_interface, *wrapuptime_s;
+	const char *queuename, *interface, *penalty_s, *paused_s, *reason, *membername, *state_interface, *wrapuptime_s;
 	int paused, penalty, wrapuptime = 0;
 
 	queuename = astman_get_header(m, "Queue");
 	interface = astman_get_header(m, "Interface");
 	penalty_s = astman_get_header(m, "Penalty");
 	paused_s = astman_get_header(m, "Paused");
+	reason = astman_get_header(m, "Reason");                          /* Optional */
 	membername = astman_get_header(m, "MemberName");
 	state_interface = astman_get_header(m, "StateInterface");
 	wrapuptime_s = astman_get_header(m, "Wrapuptime");
@@ -10740,7 +10804,7 @@ static int manager_add_queue_member(struct mansession *s, const struct message *
 		paused = abs(ast_true(paused_s));
 	}
 
-	switch (add_to_queue(queuename, interface, membername, penalty, paused, queue_persistent_members, state_interface, NULL, wrapuptime)) {
+	switch (add_to_queue(queuename, interface, membername, penalty, paused, queue_persistent_members, state_interface, reason, wrapuptime)) {
 	case RES_OKAY:
 		if (ast_strlen_zero(membername) || !log_membername_as_agent) {
 			ast_queue_log(queuename, "MANAGER", interface, "ADDMEMBER", "%s", paused ? "PAUSED" : "");
@@ -11080,21 +11144,21 @@ static int manager_request_withdraw_caller_from_queue(struct mansession *s, cons
 
 static char *handle_queue_add_member(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	const char *queuename, *interface, *membername = NULL, *state_interface = NULL;
-	int penalty;
+	const char *queuename, *interface, *membername = NULL, *state_interface = NULL, *reason = NULL;
+	int penalty, paused = 0;
 
 	switch ( cmd ) {
 	case CLI_INIT:
 		e->command = "queue add member";
 		e->usage =
-			"Usage: queue add member <dial string> to <queue> [penalty <penalty> [as <membername> [state_interface <interface>]]]\n"
+			"Usage: queue add member <dial string> to <queue> [penalty <penalty> [as <membername> [state_interface <interface> [paused <reason>]]]]\n"
 			"       Add a dial string (Such as a channel,e.g. SIP/6001) to a queue with optionally:  a penalty, membername and a state_interface\n";
 		return NULL;
 	case CLI_GENERATE:
 		return complete_queue_add_member(a->line, a->word, a->pos, a->n);
 	}
 
-	if ((a->argc != 6) && (a->argc != 8) && (a->argc != 10) && (a->argc != 12)) {
+	if ((a->argc != 6) && (a->argc != 8) && (a->argc != 10) && (a->argc != 12) && (a->argc != 14)) {
 		return CLI_SHOWUSAGE;
 	} else if (strcmp(a->argv[4], "to")) {
 		return CLI_SHOWUSAGE;
@@ -11103,6 +11167,8 @@ static char *handle_queue_add_member(struct ast_cli_entry *e, int cmd, struct as
 	} else if ((a->argc >= 10) && strcmp(a->argv[8], "as")) {
 		return CLI_SHOWUSAGE;
 	} else if ((a->argc == 12) && strcmp(a->argv[10], "state_interface")) {
+		return CLI_SHOWUSAGE;
+	} else if ((a->argc == 14) && strcmp(a->argv[12], "paused")) {
 		return CLI_SHOWUSAGE;
 	}
 
@@ -11130,7 +11196,12 @@ static char *handle_queue_add_member(struct ast_cli_entry *e, int cmd, struct as
 		state_interface = a->argv[11];
 	}
 
-	switch (add_to_queue(queuename, interface, membername, penalty, 0, queue_persistent_members, state_interface, NULL, 0)) {
+	if (a->argc >= 14) {
+		paused = 1;
+		reason = a->argv[13];
+	}
+
+	switch (add_to_queue(queuename, interface, membername, penalty, paused, queue_persistent_members, state_interface, reason, 0)) {
 	case RES_OKAY:
 		if (ast_strlen_zero(membername) || !log_membername_as_agent) {
 			ast_queue_log(queuename, "CLI", interface, "ADDMEMBER", "%s", "");
