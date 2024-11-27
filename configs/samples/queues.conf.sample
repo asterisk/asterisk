@@ -548,12 +548,12 @@ monitor-type = MixMonitor
 ; must also preload pbx_config.so and chan_local.so (or pbx_ael.so, pbx_lua.so,
 ; or pbx_realtime.so, depending on how your dialplan is configured).
 ;
-; syntax: member => interface,[,penalty][,membername][,state_interface][,ringinuse][,wrapuptime]
+; syntax: member => interface,[,penalty][,membername][,state_interface][,ringinuse][,wrapuptime][,paused]
 ;
 ;member => DAHDI/1
 ;member => DAHDI/2,10
 ;member => DAHDI/3,10,Bob Johnson
 ;member => Local/1001@agents,0,May Flowers,Agent:1001
 ;member => Local/1002@agents,0,John Doe,Agent:1002
-;member => Local/1000@default,0,John Smith,SIP/1000
-;member => Local/2000@default,0,Lorem Ipsum,SIP/2000,no
+;member => Local/1000@default,0,John Smith,PJSIP/1000
+;member => Local/2000@default,0,Lorem Ipsum,PJSIP/2000,no
