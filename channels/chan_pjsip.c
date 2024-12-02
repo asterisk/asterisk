@@ -1733,8 +1733,7 @@ static int chan_pjsip_indicate(struct ast_channel *ast, int condition, const voi
 				if (ast_format_cap_iscompatible_format(ast_channel_nativeformats(ast), ast_format_vp8) != AST_FORMAT_CMP_NOT_EQUAL ||
 					ast_format_cap_iscompatible_format(ast_channel_nativeformats(ast), ast_format_vp9) != AST_FORMAT_CMP_NOT_EQUAL ||
 					ast_format_cap_iscompatible_format(ast_channel_nativeformats(ast), ast_format_h265) != AST_FORMAT_CMP_NOT_EQUAL ||
-					(channel->session->endpoint->media.webrtc &&
-					 ast_format_cap_iscompatible_format(ast_channel_nativeformats(ast), ast_format_h264) != AST_FORMAT_CMP_NOT_EQUAL)) {
+					ast_format_cap_iscompatible_format(ast_channel_nativeformats(ast), ast_format_h264) != AST_FORMAT_CMP_NOT_EQUAL) {
 					/* FIXME Fake RTP write, this will be sent as an RTCP packet. Ideally the
 					 * RTP engine would provide a way to externally write/schedule RTCP
 					 * packets */
