@@ -174,6 +174,7 @@ static off_t gsm_tell(struct ast_filestream *fs)
 static struct ast_format_def gsm_f = {
 	.name = "gsm",
 	.exts = "gsm",
+	.mime_types = "audio/gsm",
 	.write = gsm_write,
 	.seek =	gsm_seek,
 	.trunc = gsm_trunc,
