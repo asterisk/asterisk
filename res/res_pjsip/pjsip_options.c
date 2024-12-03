@@ -180,6 +180,8 @@ struct sip_options_aor {
 	unsigned int available;
 	/*! \brief Frequency to send OPTIONS requests to AOR contacts. 0 is disabled. */
 	unsigned int qualify_frequency;
+	/*! \brief If true only authenticate if OPTIONS response is 2XX */
+	int qualify_2xx_only;
 	/*! If true authenticate the qualify challenge response if needed */
 	int authenticate_qualify;
 	/*! \brief Qualify timeout. 0 is diabled. */
@@ -800,7 +802,12 @@ static void qualify_contact_cb(void *token, pjsip_event *e)
 		status = UNAVAILABLE;
 		break;
 	case PJSIP_EVENT_RX_MSG:
-		status = AVAILABLE;
+		if (contact_callback_data->aor_options->qualify_2xx_only &&
+			(e->body.tsx_state.tsx->status_code < 200 || e->body.tsx_state.tsx->status_code >= 300)) {
+			status = UNAVAILABLE;
+		} else {
+			status = AVAILABLE;
+		}
 		break;
 	}
 
@@ -1342,6 +1349,7 @@ static void sip_options_apply_aor_configuration(struct sip_options_aor *aor_opti
 	}
 
 	aor_options->authenticate_qualify = aor->authenticate_qualify;
+	aor_options->qualify_2xx_only = aor->qualify_2xx_only;
 	aor_options->qualify_timeout = aor->qualify_timeout;
 
 	/*
@@ -2083,6 +2091,7 @@ static int has_qualify_changed (const struct ast_sip_contact *contact, const str
 		}
 	} else if (contact->qualify_frequency != aor_options->qualify_frequency
 		|| contact->authenticate_qualify != aor_options->authenticate_qualify
+		|| contact->qualify_2xx_only != aor_options->qualify_2xx_only
 		|| ((int)(contact->qualify_timeout * 1000)) != ((int)(aor_options->qualify_timeout * 1000))) {
 		return 1;
 	}
@@ -2531,6 +2540,7 @@ static char *cli_show_qualify_endpoint(struct ast_cli_entry *e, int cmd, struct 
 		ast_cli(a->fd, " * AOR '%s' on endpoint '%s'\n", aor_name, endpoint_name);
 		ast_cli(a->fd, "  Qualify frequency    : %d sec\n", aor_options->qualify_frequency);
 		ast_cli(a->fd, "  Qualify timeout      : %d ms\n", (int)(aor_options->qualify_timeout / 1000));
+		ast_cli(a->fd, "  Qualify 2xx only     : %s\n", aor_options->qualify_2xx_only ? "yes" : "no");
 		ast_cli(a->fd, "  Authenticate qualify : %s\n", aor_options->authenticate_qualify?"yes":"no");
 		ast_cli(a->fd, "\n");
 		ao2_ref(aor_options, -1);
@@ -2570,6 +2580,7 @@ static char *cli_show_qualify_aor(struct ast_cli_entry *e, int cmd, struct ast_c
 	ast_cli(a->fd, " * AOR '%s'\n", aor_name);
 	ast_cli(a->fd, "  Qualify frequency    : %d sec\n", aor_options->qualify_frequency);
 	ast_cli(a->fd, "  Qualify timeout      : %d ms\n", (int)(aor_options->qualify_timeout / 1000));
+	ast_cli(a->fd, "  Qualify 2xx only     : %s\n", aor_options->qualify_2xx_only ? "yes" : "no");
 	ast_cli(a->fd, "  Authenticate qualify : %s\n", aor_options->authenticate_qualify?"yes":"no");
 	ao2_ref(aor_options, -1);
 
@@ -2765,6 +2776,7 @@ int ast_sip_format_contact_ami(void *obj, void *arg, int flags)
 	ast_str_append(&buf, 0, "Path: %s\r\n", contact->path);
 	ast_str_append(&buf, 0, "QualifyFrequency: %u\r\n", contact->qualify_frequency);
 	ast_str_append(&buf, 0, "QualifyTimeout: %.3f\r\n", contact->qualify_timeout);
+	ast_str_append(&buf, 0, "Qualify2xxOnly: %d\r\n", contact->qualify_2xx_only);
 
 	astman_append(ami->s, "%s\r\n", ast_str_buffer(buf));
 	ami->count++;
