@@ -177,7 +177,7 @@ static pj_status_t digest_lookup(pj_pool_t *pool, const pj_str_t *realm,
 		break;
 	case AST_SIP_AUTH_TYPE_MD5:
 		pj_strdup2(pool, &info->data, auth->md5_creds);
-		info->data_type = PJSIP_CRED_DATA_DIGEST;
+		info->algorithm_type = PJSIP_AUTH_ALGORITHM_MD5;
 		break;
 	default:
 		return PJSIP_SC_FORBIDDEN;
