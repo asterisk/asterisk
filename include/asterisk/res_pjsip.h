@@ -423,6 +423,8 @@ struct ast_sip_contact {
 	int via_port;
 	/*! If true delete the contact on Asterisk restart/boot */
 	int prune_on_boot;
+	/*! If true only authenticate if OPTIONS response is 2XX */
+	int qualify_2xx_only;
 };
 
 /*!
@@ -505,6 +507,8 @@ struct ast_sip_aor {
 	char *voicemail_extension;
 	/*! Whether to remove unavailable contacts over max_contacts at all or first if remove_existing is enabled */
 	unsigned int remove_unavailable;
+	/*! If true only authenticate if OPTIONS response is 2XX */
+	int qualify_2xx_only;
 };
 
 /*!

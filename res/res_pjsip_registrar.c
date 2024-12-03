@@ -913,6 +913,7 @@ static void register_aor_core(pjsip_rx_data *rdata,
 			contact_update->expiration_time = ast_tvadd(ast_tvnow(), ast_samp2tv(expiration, 1));
 			contact_update->qualify_frequency = aor->qualify_frequency;
 			contact_update->authenticate_qualify = aor->authenticate_qualify;
+			contact_update->qualify_2xx_only = aor->qualify_2xx_only;
 			if (path_str) {
 				ast_string_field_set(contact_update, path, ast_str_buffer(path_str));
 			}

@@ -1219,6 +1219,8 @@
 ;qualify_frequency=0    ; Interval at which to qualify an AoR via OPTIONS requests.
                         ; (default: "0")
 ;qualify_timeout=3.0      ; Qualify timeout in fractional seconds (default: "3.0")
+;qualify_2xx_only=no    ; If true, only qualify AoR if OPTIONS request returns 2XX
+                        ; (default: "no")
 ;authenticate_qualify=no        ; Authenticates a qualify request if needed
                                 ; (default: "no")
 ;outbound_proxy=        ; Proxy through which to send OPTIONS requests, a full SIP URI
