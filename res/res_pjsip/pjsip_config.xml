@@ -1966,6 +1966,14 @@
 						If <literal>0</literal> no timeout. Time in fractional seconds.
 					</para></description>
 				</configOption>
+				<configOption name="qualify_2xx_only">
+					<synopsis>Only qualify contact if OPTIONS request returns 2XX</synopsis>
+					<description>
+						<para>If true only mark a contact as available if the qualify OPTIONS
+						request receives a 2XX response.
+						</para>
+					</description>
+				</configOption>
 				<configOption name="authenticate_qualify">
 					<synopsis>Authenticates a qualify challenge response if needed</synopsis>
 					<description>
@@ -2191,6 +2199,14 @@
 						any required DNS lookup(s) prior to sending the OPTIONS.
 						If <literal>0</literal> no timeout. Time in fractional seconds.
 					</para></description>
+				</configOption>
+				<configOption name="qualify_2xx_only">
+					<synopsis>Only qualify contact if OPTIONS request returns 2XX</synopsis>
+					<description>
+						<para>If true only mark a contact as available if the qualify OPTIONS
+						request receives a 2XX response.
+						</para>
+					</description>
 				</configOption>
 				<configOption name="authenticate_qualify">
 					<synopsis>Authenticates a qualify challenge response if needed</synopsis>
