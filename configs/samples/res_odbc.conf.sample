@@ -79,6 +79,15 @@ pre-connect => yes
 ; default this is set to 5000 milliseconds (or 5 seconds). If you would like to
 ; disable the WARNING message it can be set to "0".
 ;slow_query_limit => 5000
+;
+; Set the type of connection cache.  Historically res_odbc used a stack, resulting in
+; a single connection being re-used frequently, whilst other connections could end up
+; dying.  Using a queue or round-robin strategy results in all connections being re-used
+; and kept alive.  Each strategy has pro's and con's as debated on
+; https://github.com/asterisk/asterisk/pull/1026.  The default remains a stack to be backwards
+; compatible, setting this value to any of rr, roundrobin or queue will result
+; in a round-robin queue being used.
+;cache_type => roundrobin
 
 [mysql2]
 enabled => no
