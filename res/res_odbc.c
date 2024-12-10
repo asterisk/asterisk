@@ -945,6 +945,7 @@ struct odbc_obj *_ast_odbc_request_obj2(const char *name, struct ast_flags flags
 				if (odbc_obj_connect(obj) == ODBC_FAIL) {
 					ast_mutex_lock(&class->lock);
 					class->connection_cnt--;
+					ast_cond_signal(&class->cond);
 					ast_mutex_unlock(&class->lock);
 					ao2_ref(obj->parent, -1);
 					ao2_ref(obj, -1);
@@ -971,17 +972,18 @@ struct odbc_obj *_ast_odbc_request_obj2(const char *name, struct ast_flags flags
 			/* If the connection is dead try to grab another functional one from the
 			 * pool instead of trying to resurrect this one.
 			 */
-			ao2_ref(obj, -1);
-			obj = NULL;
-
 			ast_mutex_lock(&class->lock);
 
 			class->connection_cnt--;
+			/* this thread will re-acquire, and if that fails will signal,
+			 * thus no need to signal class->cond here */
 			ast_debug(2, "ODBC handle %p dead - removing from class '%s', new count is %zd\n",
 				obj, name, class->connection_cnt);
 
 			ast_mutex_unlock(&class->lock);
 
+			ao2_ref(obj, -1);
+			obj = NULL;
 		} else {
 			/* We successfully grabbed a connection from the pool and all is well!
 			 */
