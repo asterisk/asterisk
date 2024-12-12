@@ -93,6 +93,18 @@ pre-connect => yes
 ; useful to limit the overall number of connections that's kept open.  The default is
 ; to not limit the cache size (thus effectively limit to max_connections).
 ;cache_size => 10
+;
+; When releasing connections, this allows to not cache every nth connection
+; back into the cache.  Consider a case where you sometimes have spikes of
+; queries, and thus spike to say 100 connections, but normally only need 10.  If
+; your query rate is high and your spikes are short-lived then cache_size may not
+; be effective in controlling your cache size.  At the cost of force-dropping
+; some connections you could potentially get the cache under control by not
+; returning every nth connection to the cache.  This is a slower and less harsh
+; limit than cache_size in that we could cache up to max_connections, but over
+; time bring the size back down to match current load.  A value of zero disables
+; this option, and is also the default.
+;cache_drop => 0
 
 [mysql2]
 enabled => no

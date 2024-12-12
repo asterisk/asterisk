@@ -105,6 +105,10 @@ struct odbc_class
 	unsigned int max_cache;
 	/*! Current cached connection count, when this exceeds max_cache returned connections will be dropped rather than cached */
 	unsigned int cur_cache;
+	/*! If non-zero will drop every nth returned connection rather than caching. */
+	unsigned int drop_nth;
+	/*! drop counter */
+	unsigned int drop_cnt;
 };
 
 static struct ao2_container *class_container;
@@ -568,7 +572,7 @@ static int load_odbc_config(void)
 	struct timeval ncache = { 0, 0 };
 	int preconnect = 0, res = 0, cache_is_queue = 0;
 	struct ast_flags config_flags = { 0 };
-	unsigned int max_cache;
+	unsigned int max_cache, drop_nth;
 
 	struct odbc_class *new;
 
@@ -660,6 +664,10 @@ static int load_odbc_config(void)
 					if (sscanf(v->value, "%u", &max_cache) != 1) {
 						ast_log(LOG_WARNING, "cache_size must be a non-negative integer\n");
 					}
+				} else if (!strcasecmp(v->name, "cache_drop")) {
+					if (sscanf(v->value, "%u", &drop_nth) != 1) {
+						ast_log(LOG_WARNING, "cache_drop must be a non-negative integer\n");
+					}
 				}
 			}
 
@@ -691,6 +699,8 @@ static int load_odbc_config(void)
 				new->cache_is_queue = cache_is_queue;
 				new->max_cache = max_cache;
 				new->cur_cache = 0;
+				new->drop_nth = drop_nth;
+				new->drop_cnt = 0;
 
 				if (cat)
 					ast_copy_string(new->name, cat, sizeof(new->name));
@@ -845,15 +855,18 @@ void ast_odbc_release_obj(struct odbc_obj *obj)
 	obj->sql_text = NULL;
 
 	ast_mutex_lock(&class->lock);
-	if (class->cur_cache >= class->max_cache) {
-		/* cache is full */
+	if (class->cur_cache >= class->max_cache || (class->drop_nth && ++class->drop_cnt >= class->drop_nth)) {
+		/* cache is full, or we're dropping nth */
 		ao2_ref(obj, -1);
 
 		ast_mutex_lock(&class->lock);
 
 		class->connection_cnt--;
-		ast_debug(2, "ODBC handle %p would exceed maximum cache size for pool '%s', new connection count is %zd (%u cached)\n",
-			obj, class->name, class->connection_cnt, class->cur_cache);
+		class->drop_cnt = 0;
+
+		ast_debug(2, "ODBC not caching handle %p: %s for pool '%s', new connection count is %zd (%u cached)\n",
+			obj, class->cur_cache >= class->max_cache ? "would exceed maximum cache size" : "dropping every nth connection",
+			class->name, class->connection_cnt, class->cur_cache);
 
 		obj = NULL;
 	} else {
