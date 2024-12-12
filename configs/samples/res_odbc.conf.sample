@@ -97,6 +97,18 @@ pre-connect => yes
 ; The default remains a stack to be backwards compatible, setting this value to
 ; any of rr, roundrobin or queue will result in a round-robin queue being used.
 ;cache_type => roundrobin
+;
+; Limit the number of connections to cache.  This is separate from
+; max_connections which is the total number of connections that open, whereas
+; this value specifies how many idle connections will be stored in the connection
+; cache.  On extremely spiky loads this could be useful to limit the overall
+; number of connections that's kept open when the spike comes down.  The default
+; is to not limit the cache size (thus effectively limit to max_connections).
+; When a returned connection would result in the cache size being exceeded, the
+; longest idle connection in the cache shall be dropped.
+; Setting this to zero will effectively disable the connection cache, setting to -1
+; will set this to "infinite" (default).
+;cache_size => 10
 
 [mysql2]
 enabled => no
