@@ -88,6 +88,11 @@ pre-connect => yes
 ; compatible, setting this value to any of rr, roundrobin or queue will result
 ; in a round-robin queue being used.
 ;cache_type => roundrobin
+;
+; Limit the number of connections to cache.  On extremely spiky loads this could be
+; useful to limit the overall number of connections that's kept open.  The default is
+; to not limit the cache size (thus effectively limit to max_connections).
+;cache_size => 10
 
 [mysql2]
 enabled => no
