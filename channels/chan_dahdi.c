@@ -9395,8 +9395,11 @@ static int dahdi_indicate(struct ast_channel *chan, int condition, const void *d
 				if ((ast_channel_state(chan) != AST_STATE_RING) ||
 					((p->sig != SIG_FXSKS) &&
 				 (p->sig != SIG_FXSLS) &&
-				 (p->sig != SIG_FXSGS)))
-				ast_setstate(chan, AST_STATE_RINGING);
+				 (p->sig != SIG_FXSGS))) {
+					/* We're playing audible ringback tone on the channel,
+					 * so set state to AST_STATE_RING, not AST_STATE_RINGING. */
+					ast_setstate(chan, AST_STATE_RING);
+				}
 			}
 			break;
 		case AST_CONTROL_INCOMPLETE:

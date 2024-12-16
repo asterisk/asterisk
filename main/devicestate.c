@@ -179,8 +179,8 @@ static const struct chan2dev {
 	{ AST_STATE_RESERVED,        AST_DEVICE_INUSE },
 	{ AST_STATE_OFFHOOK,         AST_DEVICE_INUSE },
 	{ AST_STATE_DIALING,         AST_DEVICE_INUSE },
-	{ AST_STATE_RING,            AST_DEVICE_INUSE },
-	{ AST_STATE_RINGING,         AST_DEVICE_RINGING },
+	{ AST_STATE_RING,            AST_DEVICE_INUSE }, /* Audible ringback tone */
+	{ AST_STATE_RINGING,         AST_DEVICE_RINGING }, /* Actual ringing */
 	{ AST_STATE_UP,              AST_DEVICE_INUSE },
 	{ AST_STATE_BUSY,            AST_DEVICE_BUSY },
 	{ AST_STATE_DIALING_OFFHOOK, AST_DEVICE_INUSE },
