@@ -37,8 +37,8 @@ enum ast_channel_state {
 	AST_STATE_RESERVED,		/*!< Channel is down, but reserved */
 	AST_STATE_OFFHOOK,		/*!< Channel is off hook */
 	AST_STATE_DIALING,		/*!< Digits (or equivalent) have been dialed */
-	AST_STATE_RING,			/*!< Line is ringing */
-	AST_STATE_RINGING,		/*!< Remote end is ringing */
+	AST_STATE_RING,			/*!< Remote end is ringing (e.g. listening to audible ringback tone). Also often used for initial state for a new channel. */
+	AST_STATE_RINGING,		/*!< Line is ringing */
 	AST_STATE_UP,			/*!< Line is up */
 	AST_STATE_BUSY,			/*!< Line is busy */
 	AST_STATE_DIALING_OFFHOOK,	/*!< Digits (or equivalent) have been dialed while offhook */
