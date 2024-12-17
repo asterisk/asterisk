@@ -3811,9 +3811,19 @@ static int action_listcategories(struct mansession *s, const struct message *m)
 	struct ast_category *category = NULL;
 	struct ast_flags config_flags = { CONFIG_FLAG_WITHCOMMENTS | CONFIG_FLAG_NOCACHE };
 	int catcount = 0;
+	int ret = 0;
 
 	if (ast_strlen_zero(fn)) {
 		astman_send_error(s, m, "Filename not specified");
+		return 0;
+	}
+
+	ret = restrictedFile(fn);
+	if (ret == 1) {
+		astman_send_error(s, m, "File requires escalated priveledges");
+		return 0;
+	} else if (ret == -1) {
+		astman_send_error(s, m, "Config file not found");
 		return 0;
 	}
 
