@@ -11,6 +11,9 @@
 # accompanying OnPRStateChangedPriv workflow does just that.
 
 name: PRChanged
+# WARNING!  The run name MUST start with "PR <pr_number>".
+# The accompanying privleged workflow parses this to find
+# the PR number.  It's the only reliable way it can get it.
 run-name: "PR ${{ github.event.number }} ${{ github.event.action }} by ${{ github.actor }}"
 on:
   pull_request:

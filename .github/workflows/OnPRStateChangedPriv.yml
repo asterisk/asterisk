@@ -11,7 +11,7 @@
 # of this workflow name.
 #
 name: PRChangedPriv
-run-name: "PRChangedPriv ${{ github.event.workflow.name }} ${{ github.event.action }}"
+run-name: "PRChangedPriv ${{ github.event.workflow_run.name }} ${{ github.event.action }}(${{ github.event.workflow_run.conclusion }})"
 on:
   workflow_run:
     workflows: [PRChanged]
