@@ -1687,7 +1687,7 @@ static struct ast_variable *load_realtime_musiconhold(const char *name)
 static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, const char *interpclass)
 {
 	struct mohclass *mohclass = NULL;
-	struct moh_files_state *state = ast_channel_music_state(chan);
+	struct moh_files_state *state;
 	struct ast_variable *var = NULL;
 	int res = 0;
 	int i;
@@ -1762,10 +1762,13 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 
 			if (ast_test_flag(global_flags, MOH_CACHERTCLASSES)) {
 				/* CACHERTCLASSES enabled, let's add this class to default tree */
+				ast_channel_lock(chan);
+				state = ast_channel_music_state(chan);
 				if (state && state->class) {
 					/* Class already exist for this channel */
 					ast_log(LOG_NOTICE, "This channel already has a MOH class attached (%s)!\n", state->class->name);
 				}
+				ast_channel_unlock(chan);
 				/* We don't want moh_register to unref the mohclass because we do it at the end of this function as well.
 				 * If we allowed moh_register to unref the mohclass,too, then the count would be off by one. The result would
 				 * be that the destructor would be called when the generator on the channel is deactivated. The container then
@@ -1836,6 +1839,8 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 					}
 
 					/* Let's check if this channel already had a moh class before */
+					ast_channel_lock(chan);
+					state = ast_channel_music_state(chan);
 					if (state && state->class) {
 						/* Class already exist for this channel */
 						ast_log(LOG_NOTICE, "This channel already has a MOH class attached (%s)!\n", state->class->name);
@@ -1844,7 +1849,9 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 							mohclass = mohclass_unref(mohclass, "unreffing potential mohclass (channel already has one)");
 							mohclass = mohclass_ref(state->class, "using existing class from state");
 						}
+						ast_channel_unlock(chan);
 					} else {
+						ast_channel_unlock(chan);
 						if (ast_pthread_create_background(&mohclass->thread, NULL, monmp3thread, mohclass)) {
 							ast_log(LOG_WARNING, "Unable to create moh...\n");
 							if (mohclass->timer) {
@@ -1891,6 +1898,8 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 		}
 	}
 
+	ast_channel_lock(chan);
+	state = ast_channel_music_state(chan);
 	if (!state || !state->class || strcmp(mohclass->name, state->class->name)) {
 		size_t file_count;
 
@@ -1904,6 +1913,7 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 			res = ast_activate_generator(chan, &mohgen, mohclass);
 		}
 	}
+	ast_channel_unlock(chan);
 	if (!res) {
 		ast_channel_lock(chan);
 		ast_channel_latest_musicclass_set(chan, mohclass->name);
