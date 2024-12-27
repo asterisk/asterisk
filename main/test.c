@@ -1013,6 +1013,11 @@ static struct ast_test *test_alloc(ast_test_cb_t *cb)
 	return test;
 }
 
+struct ast_cli_args *ast_test_get_cli_args(struct ast_test *test)
+{
+	return test->cli;
+}
+
 static char *complete_test_category(const char *word)
 {
 	int wordlen = strlen(word);
@@ -1115,18 +1120,24 @@ static char *test_cli_show_registered(struct ast_cli_entry *e, int cmd, struct a
 static char *test_cli_execute_registered(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	static const char * const option1[] = { "all", "category", NULL };
-	static const char * const option2[] = { "name", NULL };
+	static const char * const option2[] = { "name", "options", NULL };
+	static const char * const option3[] = { "options", NULL };
 
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "test execute";
 		e->usage =
-			"Usage: test execute can be used in three ways.\n"
+			"Usage: test execute can be used in several ways.\n"
 			"       1. 'test execute all' runs all registered tests\n"
 			"       2. 'test execute category [test category]' runs all tests in the given\n"
 			"          category.\n"
-			"       3. 'test execute category [test category] name [test name]' runs all\n"
-			"           tests in a given category matching a given name\n";
+			"       3. 'test execute category [test category] options [test option]...' runs all\n"
+			"           tests in the given category with options supplied to each test\n"
+			"       4. 'test execute category [test category] name [test name]' runs all\n"
+			"           tests in a given category matching a given name\n"
+			"       5. 'test execute category [test category] name [test name] options [test option]...' runs all\n"
+			"           tests in a given category matching a given name with the specified options\n"
+			;
 		return NULL;
 	case CLI_GENERATE:
 		if (a->pos == 2) {
@@ -1138,13 +1149,19 @@ static char *test_cli_execute_registered(struct ast_cli_entry *e, int cmd, struc
 		if (a->pos == 4) {
 			return ast_cli_complete(a->word, option2, -1);
 		}
-		if (a->pos == 5) {
+		if (a->pos == 5 && !strcasecmp(a->argv[4], "name")) {
 			return complete_test_name(a->word, a->argv[3]);
+		}
+		if (a->pos == 5 && !strcasecmp(a->argv[4], "options")) {
+			return NULL;
+		}
+		if (a->pos == 6 && !strcasecmp(a->argv[4], "name")) {
+			return ast_cli_complete(a->word, option3, -1);
 		}
 		return NULL;
 	case CLI_HANDLER:
 
-		if (a->argc < 3|| a->argc > 6) {
+		if (a->argc < 3) {
 			return CLI_SHOWUSAGE;
 		}
 
@@ -1154,8 +1171,14 @@ static char *test_cli_execute_registered(struct ast_cli_entry *e, int cmd, struc
 		} else if (a->argc == 4) { /* run only tests within a category */
 			ast_cli(a->fd, "Running all available tests matching category %s\n\n", a->argv[3]);
 			test_execute_multiple(NULL, a->argv[3], a);
-		} else if (a->argc == 6) { /* run only a single test matching the category and name */
+		} else if (a->argc >= 6 && !strcasecmp(a->argv[4], "options")) { /* run only tests within a category */
+			ast_cli(a->fd, "Running all available tests matching category %s with options\n\n", a->argv[3]);
+			test_execute_multiple(NULL, a->argv[3], a);
+		} else if (a->argc == 6 && !strcasecmp(a->argv[4], "name")) { /* run only a single test matching the category and name */
 			ast_cli(a->fd, "Running all available tests matching category %s and name %s\n\n", a->argv[3], a->argv[5]);
+			test_execute_multiple(a->argv[5], a->argv[3], a);
+		} else if (a->argc > 7) { /* run only a single test matching the category and name */
+			ast_cli(a->fd, "Running all available tests matching category %s and name %s with options\n\n", a->argv[3], a->argv[5]);
 			test_execute_multiple(a->argv[5], a->argv[3], a);
 		} else {
 			return CLI_SHOWUSAGE;
