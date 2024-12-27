@@ -439,6 +439,30 @@ int __ast_test_status_update(const char *file, const char *func, int line, struc
 })
 
 /*!
+ * \brief Check a test condition and if false, report custom error message and goto cleanup label.
+ *
+ * This macro evaluates \a condition. If the condition evaluates to true (non-zero),
+ * nothing happens. If it evaluates to false (zero), then the message provided
+ * is printed using \ref ast_test_status_update, the variable \a rc_variable is set
+ * to AST_TEST_FAIL, and a goto to \a cleanup_label is executed.
+ *
+ * \param test Currently executing test
+ * \param condition Boolean condition to check.
+ * \param rc_variable Variable to receive AST_TEST_FAIL.
+ * \param cleanup_label The label to go to on failure.
+ * \param fmt printf type format string
+ * \param ... printf arguments
+ */
+#define ast_test_validate_cleanup_custom(test, condition, rc_variable, cleanup_label, fmt, ...) \
+({ \
+	if (!(condition)) { \
+		__ast_test_status_update(__FILE__, __PRETTY_FUNCTION__, __LINE__, (test), fmt, ## __VA_ARGS__); \
+		rc_variable = AST_TEST_FAIL; \
+		goto cleanup_label; \
+	} \
+})
+
+/*!
  * \brief Initialize the capture structure.
  *
  * \since 16.30.0, 18.16.0, 19.8.0, 20.1.0
@@ -482,6 +506,15 @@ void ast_test_capture_free(struct ast_test_capture *capture);
  */
 
 int ast_test_capture_command(struct ast_test_capture *capture, const char *file, char *const argv[], const char *data, unsigned datalen);
+
+/*!
+ * \brief Retrieve the cli arguments from the ast_test structure
+ *
+ * \param test Currently executing test
+ *
+ * \retval A pointer to the ast_cli_args structure used to invoke the test
+ */
+struct ast_cli_args *ast_test_get_cli_args(struct ast_test *test);
 
 #endif /* TEST_FRAMEWORK */
 #endif /* _AST_TEST_H */
