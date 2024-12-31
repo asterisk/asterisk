@@ -190,9 +190,6 @@ void __attribute__((format(printf, 6, 0))) __ast_verbose_ap(const char *file, in
 
 void __attribute__((format(printf, 2, 3))) ast_child_verbose(int level, const char *fmt, ...);
 
-int ast_register_verbose(void (*verboser)(const char *string)) attribute_warn_unused_result;
-int ast_unregister_verbose(void (*verboser)(const char *string)) attribute_warn_unused_result;
-
 /*
  * These gymnastics are due to platforms which designate char as unsigned by
  * default.  Level is the negative character -- offset by 1, because \0 is

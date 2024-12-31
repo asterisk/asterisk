@@ -63,6 +63,10 @@
 #include "asterisk/logger.h"
 #include "asterisk/compiler.h"
 
+#if defined(__cplusplus) || defined(c_plusplus)
+extern "C" {
+#endif
+
 #define AST_PTHREADT_NULL (pthread_t) -1
 #define AST_PTHREADT_STOP (pthread_t) -2
 
@@ -765,6 +769,10 @@ AST_INLINE_API(int ast_atomic_dec_and_test(volatile int *p),
 {
 	return ast_atomic_sub_fetch(p, 1, __ATOMIC_RELAXED) == 0;
 })
+
+#if defined(__cplusplus) || defined(c_plusplus)
+}
+#endif
 
 /*! @} */
 
