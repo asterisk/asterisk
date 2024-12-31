@@ -300,7 +300,7 @@ int __ast_repl_vasprintf(char **strp, const char *format, va_list ap, const char
 	({                                                                \
 		const char *__old = (s);                                  \
 		size_t __len = strlen(__old) + 1;                         \
-		char *__new = __builtin_alloca(__len);                    \
+		char *__new = (char *)__builtin_alloca(__len);                    \
 		memcpy (__new, __old, __len);                             \
 		__new;                                                    \
 	}))
