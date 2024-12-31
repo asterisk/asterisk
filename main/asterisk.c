@@ -245,6 +245,7 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #include "asterisk/utf8.h"
 
 #include "../defaults.h"
+#include "channelstorage.h"
 
 /*** DOCUMENTATION
 	<managerEvent language="en_US" name="FullyBooted">
@@ -578,6 +579,8 @@ static char *handle_show_settings(struct ast_cli_entry *e, int cmd, struct ast_c
 		ast_cli(a->fd, "  RTP dynamic payload types:   %u-%u\n",
 		        AST_RTP_PT_FIRST_DYNAMIC, AST_RTP_MAX_PT - 1);
 	}
+	ast_cli(a->fd, "  Channel storage backend:     %s\n",
+		ast_channel_get_current_storage_driver_name());
 
 	ast_cli(a->fd, "\n* Subsystems\n");
 	ast_cli(a->fd, "  -------------\n");
