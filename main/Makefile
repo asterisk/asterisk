@@ -31,7 +31,10 @@ ifeq ($(PJPROJECT_BUNDLED),yes)
 SRC:=$(filter-out libasteriskpj.c,$(SRC))
 endif
 OBJSFILTER:=$(MOD_OBJS) fskmodem_int.o fskmodem_float.o cygload.o buildinfo.o
-SRC_CC:=$(wildcard *.cc)
+
+SRC_CC:=$(filter-out $(addsuffix .cc,$(MENUSELECT_CHANNELSTORAGE)),$(wildcard *.cc))
+SRC:=$(filter-out $(addsuffix .c,$(MENUSELECT_CHANNELSTORAGE)),$(SRC))
+
 OBJS=$(filter-out $(OBJSFILTER),$(SRC:.c=.o) $(SRC_CC:.cc=.oo))
 
 # we need to link in the objects statically, not as a library, because
