@@ -75,6 +75,8 @@
 #include "asterisk/stream.h"
 #include "asterisk/message.h"
 
+#include "channelstorage.h"
+
 /*** DOCUMENTATION
  ***/
 
@@ -119,9 +121,6 @@ struct chanlist {
 
 /*! \brief the list of registered channel types */
 static AST_RWLIST_HEAD_STATIC(backends, chanlist);
-
-/*! \brief All active channels on the system */
-static struct ao2_container *channels;
 
 /*! \brief map AST_CAUSE's to readable string representations
  *
@@ -481,7 +480,7 @@ void ast_channel_softhangup_withcause_locked(struct ast_channel *chan, int cause
 	ast_channel_unlock(chan);
 }
 
-static int ast_channel_softhangup_cb(void *obj, void *arg, int flags)
+static int ast_channel_softhangup_cb(void *obj, void *arg, void *data, int flags)
 {
 	struct ast_channel *chan = obj;
 
@@ -492,13 +491,13 @@ static int ast_channel_softhangup_cb(void *obj, void *arg, int flags)
 
 void ast_softhangup_all(void)
 {
-	ao2_callback(channels, OBJ_NODATA | OBJ_MULTIPLE, ast_channel_softhangup_cb, NULL);
+	ast_channel_callback(ast_channel_softhangup_cb, NULL, NULL, 0);
 }
 
 /*! \brief returns number of active/allocated channels */
 int ast_active_channels(void)
 {
-	return channels ? ao2_container_count(channels) : 0;
+	return current_channel_storage_instance ? CHANNELSTORAGE_API(current_channel_storage_instance, active_channels) : 0;
 }
 
 int ast_undestroyed_channels(void)
@@ -706,23 +705,35 @@ static const struct ast_channel_tech null_tech = {
 
 static void ast_channel_destructor(void *obj);
 static void ast_dummy_channel_destructor(void *obj);
-static int ast_channel_by_uniqueid_cb(void *obj, void *arg, void *data, int flags);
 
-static int does_id_conflict(const char *uniqueid)
+static int do_ids_conflict(const struct ast_assigned_ids *assignedids)
 {
 	struct ast_channel *conflict;
-	size_t length = 0;
 
-	if (ast_strlen_zero(uniqueid)) {
+	if (!assignedids) {
 		return 0;
 	}
 
-	conflict = ast_channel_callback(ast_channel_by_uniqueid_cb, (char *) uniqueid, &length, OBJ_NOLOCK);
-	if (conflict) {
-		ast_log(LOG_ERROR, "Channel Unique ID '%s' already in use by channel %s(%p)\n",
-			uniqueid, ast_channel_name(conflict), conflict);
-		ast_channel_unref(conflict);
-		return 1;
+	if (!ast_strlen_zero(assignedids->uniqueid)) {
+		conflict = CHANNELSTORAGE_API(current_channel_storage_instance,
+			get_by_uniqueid, assignedids->uniqueid);
+		if (conflict) {
+			ast_log(LOG_ERROR, "Channel Unique ID '%s' already in use by channel %s(%p)\n",
+				assignedids->uniqueid, ast_channel_name(conflict), conflict);
+			ast_channel_unref(conflict);
+			return 1;
+		}
+	}
+
+	if (!ast_strlen_zero(assignedids->uniqueid2)) {
+		conflict = CHANNELSTORAGE_API(current_channel_storage_instance,
+			get_by_uniqueid, assignedids->uniqueid2);
+		if (conflict) {
+			ast_log(LOG_ERROR, "Channel Unique ID2 '%s' already in use by channel %s(%p)\n",
+				assignedids->uniqueid2, ast_channel_name(conflict), conflict);
+			ast_channel_unref(conflict);
+			return 1;
+		}
 	}
 
 	return 0;
@@ -919,12 +930,12 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 	 */
 	ast_channel_lock(tmp);
 
-	ao2_lock(channels);
+	CHANNELSTORAGE_API(current_channel_storage_instance, wrlock);
 
-	if (assignedids && (does_id_conflict(assignedids->uniqueid) || does_id_conflict(assignedids->uniqueid2))) {
+	if (do_ids_conflict(assignedids)) {
 		ast_channel_internal_errno_set(AST_CHANNEL_ERROR_ID_EXISTS);
-		ao2_unlock(channels);
 		ast_channel_unlock(tmp);
+		CHANNELSTORAGE_API(current_channel_storage_instance, unlock);
 		/* See earlier channel creation abort comment above. */
 		return ast_channel_unref(tmp);
 	}
@@ -932,9 +943,9 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 	/* Finalize and link into the channels container. */
 	ast_channel_internal_finalize(tmp);
 	ast_atomic_fetchadd_int(&chancount, +1);
-	ao2_link_flags(channels, tmp, OBJ_NOLOCK);
+	CHANNELSTORAGE_API(current_channel_storage_instance, insert, tmp, OBJ_NOLOCK, 0);
+	CHANNELSTORAGE_API(current_channel_storage_instance, unlock);
 
-	ao2_unlock(channels);
 
 	if (endpoint) {
 		ast_endpoint_add_channel(endpoint, tmp);
@@ -1302,193 +1313,122 @@ void ast_channel_undefer_dtmf(struct ast_channel *chan)
 	}
 }
 
-struct ast_channel *ast_channel_callback(ao2_callback_data_fn *cb_fn, void *arg,
-		void *data, int ao2_flags)
+struct ast_channel *ast_channel_callback(
+	ao2_callback_data_fn *cb_fn, void *arg,	void *data, int ao2_flags)
 {
-	return ao2_callback_data(channels, ao2_flags, cb_fn, arg, data);
+	if (!current_channel_storage_instance) {
+		return NULL;
+	}
+	if (!cb_fn) {
+		ast_log(LOG_ERROR, "callback function must be provided\n");
+		return NULL;
+	}
+	return CHANNELSTORAGE_API(current_channel_storage_instance, callback, cb_fn, arg, data, ao2_flags);
 }
-
-static int ast_channel_by_name_cb(void *obj, void *arg, void *data, int flags)
-{
-	struct ast_channel *chan = obj;
-	const char *name = arg;
-	size_t name_len = *(size_t *) data;
-	int ret = CMP_MATCH;
-
-	if (ast_strlen_zero(name)) {
-		ast_log(LOG_ERROR, "BUG! Must supply a channel name or partial name to match!\n");
-		return CMP_STOP;
-	}
-
-	ast_channel_lock(chan);
-	if ((!name_len && strcasecmp(ast_channel_name(chan), name))
-		|| (name_len && strncasecmp(ast_channel_name(chan), name, name_len))) {
-		ret = 0; /* name match failed, keep looking */
-	}
-	ast_channel_unlock(chan);
-
-	return ret;
-}
-
-static int ast_channel_by_exten_cb(void *obj, void *arg, void *data, int flags)
-{
-	struct ast_channel *chan = obj;
-	char *context = arg;
-	char *exten = data;
-	int ret = CMP_MATCH;
-
-	if (ast_strlen_zero(exten) || ast_strlen_zero(context)) {
-		ast_log(LOG_ERROR, "BUG! Must have a context and extension to match!\n");
-		return CMP_STOP;
-	}
-
-	ast_channel_lock(chan);
-	if (strcasecmp(ast_channel_context(chan), context) && strcasecmp(ast_channel_macrocontext(chan), context)) {
-		ret = 0; /* Context match failed, continue */
-	} else if (strcasecmp(ast_channel_exten(chan), exten) && strcasecmp(ast_channel_macroexten(chan), exten)) {
-		ret = 0; /* Extension match failed, continue */
-	}
-	ast_channel_unlock(chan);
-
-	return ret;
-}
-
-static int ast_channel_by_uniqueid_cb(void *obj, void *arg, void *data, int flags)
-{
-	struct ast_channel *chan = obj;
-	char *uniqueid = arg;
-	size_t id_len = *(size_t *) data;
-	int ret = CMP_MATCH;
-
-	if (ast_strlen_zero(uniqueid)) {
-		ast_log(LOG_ERROR, "BUG! Must supply a uniqueid or partial uniqueid to match!\n");
-		return CMP_STOP;
-	}
-
-	ast_channel_lock(chan);
-	if ((!id_len && strcasecmp(ast_channel_uniqueid(chan), uniqueid))
-		|| (id_len && strncasecmp(ast_channel_uniqueid(chan), uniqueid, id_len))) {
-		ret = 0; /* uniqueid match failed, keep looking */
-	}
-	ast_channel_unlock(chan);
-
-	return ret;
-}
-
-struct ast_channel_iterator {
-	/* storage for non-dynamically allocated iterator */
-	struct ao2_iterator simple_iterator;
-	/* pointer to the actual iterator (simple_iterator or a dynamically
-	 * allocated iterator)
-	 */
-	struct ao2_iterator *active_iterator;
-};
 
 struct ast_channel_iterator *ast_channel_iterator_destroy(struct ast_channel_iterator *i)
 {
-	ao2_iterator_destroy(i->active_iterator);
-	ast_free(i);
-
-	return NULL;
+	if (!current_channel_storage_instance || !i) {
+		return NULL;
+	}
+	return CHANNELSTORAGE_API(current_channel_storage_instance, iterator_destroy, i);
 }
 
 struct ast_channel_iterator *ast_channel_iterator_by_exten_new(const char *exten, const char *context)
 {
-	struct ast_channel_iterator *i;
-	char *l_exten = (char *) exten;
-	char *l_context = (char *) context;
-
-	if (!(i = ast_calloc(1, sizeof(*i)))) {
+	if (!current_channel_storage_instance) {
 		return NULL;
 	}
-
-	i->active_iterator = (void *) ast_channel_callback(ast_channel_by_exten_cb,
-		l_context, l_exten, OBJ_MULTIPLE);
-	if (!i->active_iterator) {
-		ast_free(i);
+	if (ast_strlen_zero(exten) || ast_strlen_zero(context)) {
+		ast_log(LOG_ERROR, "exten and context must be provided\n");
 		return NULL;
 	}
-
-	return i;
+	return CHANNELSTORAGE_API(current_channel_storage_instance, iterator_by_exten_new, exten, context);
 }
-
 struct ast_channel_iterator *ast_channel_iterator_by_name_new(const char *name, size_t name_len)
 {
-	struct ast_channel_iterator *i;
-	char *l_name = (char *) name;
-
-	if (!(i = ast_calloc(1, sizeof(*i)))) {
+	if (!current_channel_storage_instance) {
 		return NULL;
 	}
-
-	i->active_iterator = (void *) ast_channel_callback(ast_channel_by_name_cb,
-		l_name, &name_len,
-		OBJ_MULTIPLE | (name_len == 0 /* match the whole word, so optimize */ ? OBJ_KEY : 0));
-	if (!i->active_iterator) {
-		ast_free(i);
+	if (ast_strlen_zero(name)) {
+		ast_log(LOG_ERROR, "name must be provided\n");
 		return NULL;
 	}
-
-	return i;
+	return CHANNELSTORAGE_API(current_channel_storage_instance, iterator_by_name_new, name, name_len);
 }
 
 struct ast_channel_iterator *ast_channel_iterator_all_new(void)
 {
-	struct ast_channel_iterator *i;
-
-	if (!(i = ast_calloc(1, sizeof(*i)))) {
+	if (!current_channel_storage_instance) {
 		return NULL;
 	}
-
-	i->simple_iterator = ao2_iterator_init(channels, 0);
-	i->active_iterator = &i->simple_iterator;
-
-	return i;
+	return CHANNELSTORAGE_API(current_channel_storage_instance, iterator_all_new);
 }
 
 struct ast_channel *ast_channel_iterator_next(struct ast_channel_iterator *i)
 {
-	return ao2_iterator_next(i->active_iterator);
+	if (!current_channel_storage_instance || !i) {
+		return NULL;
+	}
+	return CHANNELSTORAGE_API(current_channel_storage_instance, iterator_next, i);
 }
 
-/* Legacy function, not currently used for lookups, but we need a cmp_fn */
-static int ast_channel_cmp_cb(void *obj, void *arg, int flags)
-{
-	ast_log(LOG_ERROR, "BUG! Should never be called!\n");
-	return CMP_STOP;
-}
-
+/*
+ * REMINDER: Historically, this function can be provided a channel name
+ * or uniqueid.  This is a bit confusing, but it is what it is.
+ */
 struct ast_channel *ast_channel_get_by_name_prefix(const char *name, size_t name_len)
 {
-	struct ast_channel *chan;
-	char *l_name = (char *) name;
-
-	if (ast_strlen_zero(l_name)) {
-		/* We didn't have a name to search for so quit. */
+	if (!current_channel_storage_instance) {
+		return NULL;
+	}
+	if (ast_strlen_zero(name)) {
+		ast_log(LOG_ERROR, "name must be provided\n");
 		return NULL;
 	}
 
-	chan = ast_channel_callback(ast_channel_by_name_cb, l_name, &name_len,
-		(name_len == 0) /* optimize if it is a complete name match */ ? OBJ_KEY : 0);
-	if (chan) {
-		return chan;
-	}
-
-	/* Now try a search for uniqueid. */
-	return ast_channel_callback(ast_channel_by_uniqueid_cb, l_name, &name_len, 0);
+	return CHANNELSTORAGE_API(current_channel_storage_instance, get_by_name_prefix_or_uniqueid, name, name_len);
 }
 
+/*
+ * REMINDER: Historically, this function can be provided a channel name
+ * or uniqueid.  This is a bit confusing, but it is what it is.
+ */
 struct ast_channel *ast_channel_get_by_name(const char *name)
 {
-	return ast_channel_get_by_name_prefix(name, 0);
+	if (!current_channel_storage_instance) {
+		return NULL;
+	}
+	if (ast_strlen_zero(name)) {
+		ast_log(LOG_ERROR, "name must be provided\n");
+		return NULL;
+	}
+
+	return CHANNELSTORAGE_API(current_channel_storage_instance, get_by_name_prefix_or_uniqueid, name, 0);
 }
 
 struct ast_channel *ast_channel_get_by_exten(const char *exten, const char *context)
 {
-	char *l_exten = (char *) exten;
-	char *l_context = (char *) context;
+	if (!current_channel_storage_instance) {
+		return NULL;
+	}
+	if (ast_strlen_zero(exten) || ast_strlen_zero(context)) {
+		ast_log(LOG_ERROR, "exten and context must be provided\n");
+		return NULL;
+	}
+	return CHANNELSTORAGE_API(current_channel_storage_instance, get_by_exten, exten, context);
+}
 
-	return ast_channel_callback(ast_channel_by_exten_cb, l_context, l_exten, 0);
+struct ast_channel *ast_channel_get_by_uniqueid(const char *uniqueid)
+{
+	if (!current_channel_storage_instance) {
+		return NULL;
+	}
+	if (ast_strlen_zero(uniqueid)) {
+		ast_log(LOG_ERROR, "uniqueid must be provided\n");
+		return NULL;
+	}
+	return CHANNELSTORAGE_API(current_channel_storage_instance, get_by_uniqueid, uniqueid);
 }
 
 int ast_is_deferrable_frame(const struct ast_frame *frame)
@@ -1611,7 +1551,7 @@ int ast_safe_sleep_without_silence(struct ast_channel *chan, int ms)
 struct ast_channel *ast_channel_release(struct ast_channel *chan)
 {
 	/* Safe, even if already unlinked. */
-	ao2_unlink(channels, chan);
+	ast_channel_unlink(chan);
 	return ast_channel_unref(chan);
 }
 
@@ -2605,7 +2545,7 @@ void ast_hangup(struct ast_channel *chan)
 	 * longer be needed.
 	 */
 	ast_pbx_hangup_handler_run(chan);
-	ao2_unlink(channels, chan);
+	ast_channel_unlink(chan);
 	ast_channel_lock(chan);
 
 	destroy_hooks(chan);
@@ -6864,13 +6804,13 @@ static void __ast_change_name_nolink(struct ast_channel *chan, const char *newna
 void ast_change_name(struct ast_channel *chan, const char *newname)
 {
 	/* We must re-link, as the hash value will change here. */
-	ao2_lock(channels);
+	CHANNELSTORAGE_API(current_channel_storage_instance, wrlock);
 	ast_channel_lock(chan);
-	ao2_unlink(channels, chan);
+	CHANNELSTORAGE_API(current_channel_storage_instance, remove, chan, 0);
 	__ast_change_name_nolink(chan, newname);
-	ao2_link(channels, chan);
+	CHANNELSTORAGE_API(current_channel_storage_instance, insert, chan, 0, 0);
 	ast_channel_unlock(chan);
-	ao2_unlock(channels);
+	CHANNELSTORAGE_API(current_channel_storage_instance, unlock);
 }
 
 void ast_channel_inherit_variables(const struct ast_channel *parent, struct ast_channel *child)
@@ -6987,6 +6927,9 @@ static void channel_do_masquerade(struct ast_channel *original, struct ast_chann
 	char clone_sending_dtmf_digit;
 	struct timeval clone_sending_dtmf_tv;
 
+	ast_debug(3, "Masquerading %s(%u) into the structure of %s(%u)\n",
+		ast_channel_name(clonechan), ast_channel_state(clonechan),
+		ast_channel_name(original), ast_channel_state(original));
 	/* XXX This operation is a bit odd.  We're essentially putting the guts of
 	 * the clone channel into the original channel.  Start by killing off the
 	 * original channel's backend.  While the features are nice, which is the
@@ -7009,15 +6952,21 @@ static void channel_do_masquerade(struct ast_channel *original, struct ast_chann
 	 * has restabilized the channels to hold off ast_hangup() and until
 	 * AST_FLAG_ZOMBIE can be set on the clonechan.
 	 */
-	ao2_lock(channels);
+	CHANNELSTORAGE_API(current_channel_storage_instance, wrlock);
 
 	/* Bump the refs to ensure that they won't disappear on us. */
 	ast_channel_ref(original);
 	ast_channel_ref(clonechan);
 
-	/* unlink from channels container as name (which is the hash value) will change */
-	ao2_unlink(channels, original);
-	ao2_unlink(channels, clonechan);
+	/*
+	 * Since channel name and unique id will change, and both could be keys
+	 * in the channel storage backend, we need to remove them from the backend.
+	 * We'll add them back in after the changes are compete.
+	 */
+	CHANNELSTORAGE_API(current_channel_storage_instance, remove, original, 0);
+	CHANNELSTORAGE_API(current_channel_storage_instance, remove, clonechan, 0);
+
+	CHANNELSTORAGE_API(current_channel_storage_instance, unlock);
 
 	moh_is_playing = ast_test_flag(ast_channel_flags(original), AST_FLAG_MOH);
 	if (moh_is_playing) {
@@ -7428,9 +7377,10 @@ static void channel_do_masquerade(struct ast_channel *original, struct ast_chann
 	ast_channel_unlock(original);
 	ast_channel_unlock(clonechan);
 
-	ao2_link(channels, clonechan);
-	ao2_link(channels, original);
-	ao2_unlock(channels);
+	CHANNELSTORAGE_API(current_channel_storage_instance, wrlock);
+	CHANNELSTORAGE_API(current_channel_storage_instance, insert, clonechan, 0, 0);
+	CHANNELSTORAGE_API(current_channel_storage_instance, insert, original, 0, 0);
+	CHANNELSTORAGE_API(current_channel_storage_instance, unlock);
 
 	/* Release our held safety references. */
 	ast_channel_unref(original);
@@ -7894,38 +7844,6 @@ void ast_moh_cleanup(struct ast_channel *chan)
 		ast_moh_cleanup_ptr(chan);
 }
 
-static int ast_channel_hash_cb(const void *obj, const int flags)
-{
-	const char *name = (flags & OBJ_KEY) ? obj : ast_channel_name((struct ast_channel *) obj);
-
-	/* If the name isn't set, return 0 so that the ao2_find() search will
-	 * start in the first bucket. */
-	if (ast_strlen_zero(name)) {
-		return 0;
-	}
-
-	return ast_str_case_hash(name);
-}
-
-/*!
- * \internal
- * \brief Print channel object key (name).
- * \since 12.0.0
- *
- * \param v_obj A pointer to the object we want the key printed.
- * \param where User data needed by prnt to determine where to put output.
- * \param prnt Print output callback function to use.
- */
-static void prnt_channel_key(void *v_obj, void *where, ao2_prnt_fn *prnt)
-{
-	struct ast_channel *chan = v_obj;
-
-	if (!chan) {
-		return;
-	}
-	prnt(where, "%s", ast_channel_name(chan));
-}
-
 /*!
  * \brief List of channel variables to append to all channel-related events.
  */
@@ -8099,28 +8017,87 @@ struct varshead *ast_channel_get_ari_vars(struct ast_channel *chan)
 	return channel_get_external_vars(&ari_vars, chan);
 }
 
+void ast_channel_close_storage(void)
+{
+	ast_channelstorage_close(current_channel_storage_instance);
+}
+
 static void channels_shutdown(void)
 {
 	free_external_channelvars(&ami_vars);
 	free_external_channelvars(&ari_vars);
 
 	ast_cli_unregister_multiple(cli_channel, ARRAY_LEN(cli_channel));
-	if (channels) {
-		ao2_container_unregister("channels");
-		ao2_ref(channels, -1);
-		channels = NULL;
-	}
+
+	ast_channelstorage_close(current_channel_storage_instance);
+	current_channel_storage_instance = NULL;
+
 	ast_channel_unregister(&surrogate_tech);
+}
+
+int ast_channel_open_storage()
+{
+	if (!current_channel_storage_driver) {
+		int rc = internal_channel_set_current_storage_driver(AST_CHANNELSTORAGE_DEFAULT_TYPE);
+		if (rc) {
+			ast_log(LOG_ERROR, "No channel storage backends available\n");
+			return -1;
+		}
+	}
+
+	current_channel_storage_instance =
+		ast_channelstorage_open(current_channel_storage_driver, "channels");
+	if (!current_channel_storage_instance) {
+		ast_log(LOG_ERROR, "Failed to open channel storage driver '%s'\n",
+			current_channel_storage_driver->driver_name);
+		return -1;
+	}
+
+	return 0;
+}
+
+const char *ast_channel_get_current_storage_driver_name(void)
+{
+	return current_channel_storage_driver ?
+		current_channel_storage_driver->driver_name : "NOT SET";
+}
+
+int internal_channel_set_current_storage_driver(const char *driver_name)
+{
+	if (ast_fully_booted) {
+		ast_log(LOG_ERROR, "Cannot change channel storage driver after Asterisk has started\n");
+		return -1;
+	}
+	current_channel_storage_driver = ast_channelstorage_get_driver(driver_name);
+	if (current_channel_storage_driver) {
+		return 0;
+	}
+	ast_log(LOG_WARNING,
+		"Invalid channel storage backend '%s' specified.  Attempting to use default '%s'.\n",
+		driver_name, AST_CHANNELSTORAGE_DEFAULT_TYPE);
+	current_channel_storage_driver = ast_channelstorage_get_driver(AST_CHANNELSTORAGE_DEFAULT_TYPE);
+	if (current_channel_storage_driver) {
+		return 0;
+	}
+	ast_log(LOG_ERROR, "Unable to find default channel storage backend '%s'.\n",
+		AST_CHANNELSTORAGE_DEFAULT_TYPE);
+	return -1;
 }
 
 int ast_channels_init(void)
 {
-	channels = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, AST_NUM_CHANNEL_BUCKETS,
-		ast_channel_hash_cb, NULL, ast_channel_cmp_cb);
-	if (!channels) {
+
+	if (ast_channelstorage_init() != 0) {
 		return -1;
 	}
-	ao2_container_register("channels", channels, prnt_channel_key);
+
+	/*
+	 * channel_storage_type is a global variable set by options.c
+	 * from the "channel_storage_backend" option in asterisk.conf.
+	 */
+	if (ast_channel_open_storage() != 0) {
+		return -1;
+	}
 
 	ast_channel_register(&surrogate_tech);
 
@@ -10741,7 +10718,7 @@ int ast_channel_get_cc_agent_type(struct ast_channel *chan, char *agent_type, si
 
 void ast_channel_unlink(struct ast_channel *chan)
 {
-	ao2_unlink(channels, chan);
+	CHANNELSTORAGE_API(current_channel_storage_instance, remove, chan, 1);
 }
 
 struct ast_bridge *ast_channel_get_bridge(const struct ast_channel *chan)
@@ -11250,3 +11227,4 @@ void ast_channel_clear_flag(struct ast_channel *chan, unsigned int flag)
 	ast_clear_flag(ast_channel_flags(chan), flag);
 	ast_channel_unlock(chan);
 }
+
