@@ -756,7 +756,7 @@ char * attribute_pure ast_str_buffer(const struct ast_str *buf),
 	if (__builtin_expect(buf->__AST_STR_LEN > 0, 1)) {
 		return (char *) buf->__AST_STR_STR;
 	}
-	return "";
+	return (char *)"";
 }
 )
 
