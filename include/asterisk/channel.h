@@ -1455,15 +1455,17 @@ int ast_queue_answer(struct ast_channel *chan, const struct ast_stream_topology 
 /*!
  * \brief Change channel name
  *
- * \pre Absolutely all channels _MUST_ be unlocked before calling this function.
+ * \pre Absolutely all channels and the channel storage backend _MUST_ be
+ * unlocked before calling this function.
  *
  * \param chan the channel to change the name of
  * \param newname the name to change to
  *
- * \note this function must _NEVER_ be used when any channels are locked
- * regardless if it is the channel who's name is being changed or not because
- * it invalidates our channel container locking order... lock container first,
- * then the individual channels, never the other way around.
+ * \note this function must _NEVER_ be used when any channels or the channel
+ * storage backend are locked regardless if it is the channel who's name is
+ * being changed or not because it invalidates our channel container locking
+ * order... lock container first, then the individual channels, never the
+ * other way around.
  */
 void ast_change_name(struct ast_channel *chan, const char *newname);
 
@@ -3117,6 +3119,14 @@ struct ast_channel *ast_channel_iterator_next(struct ast_channel_iterator *i);
 
 /*! @} End channel iterator definitions. */
 
+/*! @{ Channel search functions */
+
+/*!
+* \warning If the legacy ao2_container channel storage backend is in use,
+* absolutely _NO_ channel locks should be held while calling any of
+* these functions.
+*/
+
 /*!
  * \brief Call a function with every active channel
  *
@@ -3124,40 +3134,49 @@ struct ast_channel *ast_channel_iterator_next(struct ast_channel_iterator *i);
  * This function executes a callback one time for each active channel on the
  * system.  The channel is provided as an argument to the function.
  *
- * \note Absolutely _NO_ channel locks should be held before calling this function.
  * \since 1.8
  */
 struct ast_channel *ast_channel_callback(ao2_callback_data_fn *cb_fn, void *arg,
 		void *data, int ao2_flags);
 
-/*! @{ Channel search functions */
-
 /*!
- * \brief Find a channel by name
+ * \brief Find a channel by name or uniqueid
  *
- * \param name the name or uniqueid of the channel to search for
+ * \param search the name or uniqueid of the channel to search for
  *
  * \details
- * Find a channel that has the same name as the provided argument.
+ * First searches for a channel with a matching name.  If not found
+ * a search for a channel with a matching uniqueid is done.
  *
- * \retval a channel with the name specified by the argument
+ * \retval a channel with a matching name or uniqueid
  * \retval NULL if no channel was found
+ *
+ *\note The fallback search by uniqueid is a historical thing.  If you
+ * know the search term is a uniqueid, use \ref ast_channel_get_by_uniqueid
+ * instead.
  *
  * \since 1.8
  */
-struct ast_channel *ast_channel_get_by_name(const char *name);
+struct ast_channel *ast_channel_get_by_name(const char *search);
 
 /*!
  * \brief Find a channel by a name prefix
  *
- * \param name The channel name or uniqueid prefix to search for
- * \param name_len Only search for up to this many characters from the name
+ * \param search The channel name or uniqueid prefix to search for
+ * \param len Only search for up to this many characters from the search term
  *
  * \details
- * Find a channel that has the same name prefix as specified by the arguments.
+ * Search for a channel that has the same name prefix as specified by the
+ * search term.  If not found, search for an exact match on the uniqueid.
+ * Searching by partial uniqueid doesn't make any sense as it's usually
+ * a system-name plus a timestamp and is not supported.
  *
- * \retval a channel with the name prefix specified by the arguments
+ * \retval a channel with a matching name or uniqueid
  * \retval NULL if no channel was found
+ *
+ *\note The fallback search by uniqueid is a historical thing.  If you
+ * know the search term is a uniqueid, use \ref ast_channel_get_by_uniqueid
+ * instead.
  *
  * \since 1.8
  */
@@ -3178,6 +3197,16 @@ struct ast_channel *ast_channel_get_by_name_prefix(const char *name, size_t name
  * \since 1.8
  */
 struct ast_channel *ast_channel_get_by_exten(const char *exten, const char *context);
+
+/*!
+ * \brief Find a channel by a uniqueid
+ *
+ * \param uniqueid The uniqueid to search for
+ *
+ * \retval a channel with the uniqueid specified by the arguments
+ * \retval NULL if no channel was found
+ */
+struct ast_channel *ast_channel_get_by_uniqueid(const char *uniqueid);
 
 /*! @} End channel search functions. */
 
@@ -4996,5 +5025,20 @@ void *ast_channel_get_stream_topology_change_source(struct ast_channel *chan);
 #define ast_channel_has_tech_function(chan, function) \
 	(ast_channel_tech(chan) ? ast_channel_tech(chan)->function != NULL : 0)
 
+/*!
+ * \brief Get the name of the current channel storage driver
+ *
+ * \return The name of the current channel storage driver
+ */
+const char *ast_channel_get_current_storage_driver_name(void);
+
+/*!
+ * \brief Set the current channel storage driver
+ *
+ * \param driver_name The name of the driver to set as the current driver
+ *
+ * \return 0 on success, -1 on failure
+ */
+int ast_channel_set_current_storage_driver(const char *driver_name);
 
 #endif /* _ASTERISK_CHANNEL_H */

@@ -40,6 +40,7 @@
 #include "asterisk/utils.h"
 
 #include "../defaults.h"
+#include "channelstorage.h"
 
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -474,6 +475,8 @@ void load_asterisk_conf(void)
 			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_HIDE_MESSAGING_AMI_EVENTS);
 		} else if (!strcasecmp(v->name, "sounds_search_custom_dir")) {
 			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_SOUNDS_SEARCH_CUSTOM);
+		} else if (!strcasecmp(v->name, "channel_storage_backend")) {
+			ast_channel_set_current_storage_driver(v->value);
 		}
 	}
 	if (!ast_opt_remote) {
