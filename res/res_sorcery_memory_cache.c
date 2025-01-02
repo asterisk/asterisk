@@ -41,6 +41,9 @@
 
 /*** DOCUMENTATION
 	<manager name="SorceryMemoryCacheExpireObject" language="en_US">
+		<since>
+			<version>13.5.0</version>
+		</since>
 		<synopsis>
 			Expire (remove) an object from a sorcery memory cache.
 		</synopsis>
@@ -60,6 +63,9 @@
 		</description>
 	</manager>
 	<manager name="SorceryMemoryCacheExpire" language="en_US">
+		<since>
+			<version>13.5.0</version>
+		</since>
 		<synopsis>
 			Expire (remove) ALL objects from a sorcery memory cache.
 		</synopsis>
@@ -74,6 +80,9 @@
 		</description>
 	</manager>
 	<manager name="SorceryMemoryCacheStaleObject" language="en_US">
+		<since>
+			<version>13.5.0</version>
+		</since>
 		<synopsis>
 			Mark an object in a sorcery memory cache as stale.
 		</synopsis>
@@ -94,6 +103,9 @@
 		</description>
 	</manager>
 	<manager name="SorceryMemoryCacheStale" language="en_US">
+		<since>
+			<version>13.5.0</version>
+		</since>
 		<synopsis>
 			Marks ALL objects in a sorcery memory cache as stale.
 		</synopsis>
@@ -108,6 +120,9 @@
 		</description>
 	</manager>
 	<manager name="SorceryMemoryCachePopulate" language="en_US">
+		<since>
+			<version>13.7.0</version>
+		</since>
 		<synopsis>
 			Expire all objects from a memory cache and populate it with all objects from the backend.
 		</synopsis>
