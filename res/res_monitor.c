@@ -170,6 +170,9 @@
 		</see-also>
 	</application>
 	<manager name="Monitor" language="en_US">
+		<since>
+			<version>0.4.0</version>
+		</since>
 		<synopsis>
 			Monitor a channel.
 		</synopsis>
@@ -196,6 +199,9 @@
 		</description>
 	</manager>
 	<manager name="StopMonitor" language="en_US">
+		<since>
+			<version>0.4.0</version>
+		</since>
 		<synopsis>
 			Stop monitoring a channel.
 		</synopsis>
@@ -210,6 +216,9 @@
 		</description>
 	</manager>
 	<manager name="ChangeMonitor" language="en_US">
+		<since>
+			<version>0.4.0</version>
+		</since>
 		<synopsis>
 			Change monitoring filename of a channel.
 		</synopsis>
@@ -229,6 +238,9 @@
 		</description>
 	</manager>
 	<manager name="PauseMonitor" language="en_US">
+		<since>
+			<version>1.4.0</version>
+		</since>
 		<synopsis>
 			Pause monitoring of a channel.
 		</synopsis>
@@ -244,6 +256,9 @@
 		</description>
 	</manager>
 	<manager name="UnpauseMonitor" language="en_US">
+		<since>
+			<version>1.4.0</version>
+		</since>
 		<synopsis>
 			Unpause monitoring of a channel.
 		</synopsis>

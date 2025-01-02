@@ -41,6 +41,9 @@
 
 /*** DOCUMENTATION
 	<manager name="PJSIPShowRegistrationsInbound" language="en_US">
+		<since>
+			<version>12.0.0</version>
+		</since>
 		<synopsis>
 			Lists PJSIP inbound registrations.
 		</synopsis>
@@ -63,6 +66,10 @@
 		</see-also>
 	</manager>
 	<manager name="PJSIPShowRegistrationInboundContactStatuses" language="en_US">
+		<since>
+			<version>14.3.0</version>
+			<version>13.14.0</version>
+		</since>
 		<synopsis>
 			Lists ContactStatuses for PJSIP inbound registrations.
 		</synopsis>
