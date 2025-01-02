@@ -531,6 +531,9 @@
 		</description>
 	</function>
 	<manager name="SIPpeers" language="en_US">
+		<since>
+			<version>1.2.0</version>
+		</since>
 		<synopsis>
 			List SIP peers (text format).
 		</synopsis>
@@ -544,6 +547,9 @@
 		</description>
 	</manager>
 	<manager name="SIPshowpeer" language="en_US">
+		<since>
+			<version>1.2.0</version>
+		</since>
 		<synopsis>
 			show SIP peer (text format).
 		</synopsis>
@@ -558,6 +564,9 @@
 		</description>
 	</manager>
 	<manager name="SIPqualifypeer" language="en_US">
+		<since>
+			<version>1.6.1.0</version>
+		</since>
 		<synopsis>
 			Qualify SIP peers.
 		</synopsis>
@@ -575,6 +584,9 @@
 		</see-also>
 	</manager>
 	<manager name="SIPshowregistry" language="en_US">
+		<since>
+			<version>1.6.0</version>
+		</since>
 		<synopsis>
 			Show SIP registrations (text format).
 		</synopsis>
@@ -587,6 +599,9 @@
 		</description>
 	</manager>
 	<manager name="SIPnotify" language="en_US">
+		<since>
+			<version>1.6.1.0</version>
+		</since>
 		<synopsis>
 			Send a SIP notify.
 		</synopsis>
@@ -610,6 +625,9 @@
 		</description>
 	</manager>
 	<manager name="SIPpeerstatus" language="en_US">
+		<since>
+			<version>11.0.0</version>
+		</since>
 		<synopsis>
 			Show the status of one or all of the sip peers.
 		</synopsis>

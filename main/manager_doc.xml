@@ -3,6 +3,9 @@
 <?xml-stylesheet type="text/xsl" href="appdocsxml.xslt"?>
 <docs xmlns:xi="http://www.w3.org/2001/XInclude">
 	<manager name="Ping" language="en_US">
+		<since>
+			<version>0.2.0</version>
+		</since>
 		<synopsis>
 			Keepalive command.
 		</synopsis>
@@ -15,6 +18,9 @@
 		</description>
 	</manager>
 	<manager name="Events" language="en_US">
+		<since>
+			<version>0.9.0</version>
+		</since>
 		<synopsis>
 			Control Event Flow.
 		</synopsis>
@@ -39,6 +45,9 @@
 		</description>
 	</manager>
 	<manager name="Logoff" language="en_US">
+		<since>
+			<version>0.2.0</version>
+		</since>
 		<synopsis>
 			Logoff Manager.
 		</synopsis>
@@ -53,6 +62,9 @@
 		</see-also>
 	</manager>
 	<manager name="Login" language="en_US">
+		<since>
+			<version>0.2.0</version>
+		</since>
 		<synopsis>
 			Login Manager.
 		</synopsis>
@@ -102,6 +114,9 @@
 		</see-also>
 	</manager>
 	<manager name="Challenge" language="en_US">
+		<since>
+			<version>0.4.0</version>
+		</since>
 		<synopsis>
 			Generate Challenge for MD5 Auth.
 		</synopsis>
@@ -119,6 +134,9 @@
 		</description>
 	</manager>
 	<manager name="Hangup" language="en_US">
+		<since>
+			<version>0.2.0</version>
+		</since>
 		<synopsis>
 			Hangup channel.
 		</synopsis>
@@ -138,6 +156,9 @@
 		</description>
 	</manager>
 	<manager name="Status" language="en_US">
+		<since>
+			<version>0.2.0</version>
+		</since>
 		<synopsis>
 			List channel status.
 		</synopsis>
@@ -241,6 +262,9 @@
 		</managerEventInstance>
 	</managerEvent>
 	<manager name="Setvar" language="en_US">
+		<since>
+			<version>1.0.0</version>
+		</since>
 		<synopsis>
 			Sets a channel variable or function value.
 		</synopsis>
@@ -268,6 +292,9 @@
 		</see-also>
 	</manager>
 	<manager name="Getvar" language="en_US">
+		<since>
+			<version>1.0.0</version>
+		</since>
 		<synopsis>
 			Gets a channel variable or function value.
 		</synopsis>
@@ -291,6 +318,9 @@
 		</see-also>
 	</manager>
 	<manager name="GetConfig" language="en_US">
+		<since>
+			<version>1.4.0</version>
+		</since>
 		<synopsis>
 			Retrieve configuration.
 		</synopsis>
@@ -329,6 +359,9 @@
 		</see-also>
 	</manager>
 	<manager name="GetConfigJSON" language="en_US">
+		<since>
+			<version>1.6.0</version>
+		</since>
 		<synopsis>
 			Retrieve configuration (JSON format).
 		</synopsis>
@@ -359,6 +392,9 @@
 		</see-also>
 	</manager>
 	<manager name="UpdateConfig" language="en_US">
+		<since>
+			<version>1.4.0</version>
+		</since>
 		<synopsis>
 			Update basic configuration.
 		</synopsis>
@@ -456,6 +492,9 @@
 		</see-also>
 	</manager>
 	<manager name="CreateConfig" language="en_US">
+		<since>
+			<version>1.6.0</version>
+		</since>
 		<synopsis>
 			Creates an empty file in the configuration directory.
 		</synopsis>
@@ -478,6 +517,9 @@
 		</see-also>
 	</manager>
 	<manager name="ListCategories" language="en_US">
+		<since>
+			<version>1.6.0</version>
+		</since>
 		<synopsis>
 			List categories in configuration file.
 		</synopsis>
@@ -498,6 +540,9 @@
 		</see-also>
 	</manager>
 	<manager name="Redirect" language="en_US">
+		<since>
+			<version>0.2.0</version>
+		</since>
 		<synopsis>
 			Redirect (transfer) a call.
 		</synopsis>
@@ -536,6 +581,9 @@
 		</see-also>
 	</manager>
 	<manager name="Atxfer" language="en_US">
+		<since>
+			<version>1.6.1.0</version>
+		</since>
 		<synopsis>
 			Attended transfer.
 		</synopsis>
@@ -560,10 +608,9 @@
 	</manager>
 	<manager name="CancelAtxfer" language="en_US">
 		<since>
-			<version>13.18.0</version>
-			<version>14.7.0</version>
 			<version>15.1.0</version>
-			<version>16.0.0</version>
+			<version>14.7.0</version>
+			<version>13.18.0</version>
 		</since>
 		<synopsis>
 			Cancel an attended transfer.
@@ -584,6 +631,9 @@
 		</see-also>
 	</manager>
 	<manager name="Originate" language="en_US">
+		<since>
+			<version>0.2.0</version>
+		</since>
 		<synopsis>
 			Originate a call.
 		</synopsis>
@@ -674,6 +724,9 @@
 		</managerEventInstance>
 	</managerEvent>
 	<manager name="Command" language="en_US">
+		<since>
+			<version>0.3.0</version>
+		</since>
 		<synopsis>
 			Execute Asterisk CLI Command.
 		</synopsis>
@@ -688,6 +741,9 @@
 		</description>
 	</manager>
 	<manager name="ExtensionState" language="en_US">
+		<since>
+			<version>0.4.0</version>
+		</since>
 		<synopsis>
 			Check Extension Status.
 		</synopsis>
@@ -711,6 +767,9 @@
 		</see-also>
 	</manager>
 	<manager name="PresenceState" language="en_US">
+		<since>
+			<version>11.0.0</version>
+		</since>
 		<synopsis>
 			Check Presence State
 		</synopsis>
@@ -730,6 +789,9 @@
 		</see-also>
 	</manager>
 	<manager name="AbsoluteTimeout" language="en_US">
+		<since>
+			<version>0.5.0</version>
+		</since>
 		<synopsis>
 			Set absolute timeout.
 		</synopsis>
@@ -748,6 +810,9 @@
 		</description>
 	</manager>
 	<manager name="MailboxStatus" language="en_US">
+		<since>
+			<version>0.4.0</version>
+		</since>
 		<synopsis>
 			Check mailbox.
 		</synopsis>
@@ -770,6 +835,9 @@
 		</see-also>
 	</manager>
 	<manager name="MailboxCount" language="en_US">
+		<since>
+			<version>0.5.0</version>
+		</since>
 		<synopsis>
 			Check Mailbox Message Count.
 		</synopsis>
@@ -793,6 +861,9 @@
 		</see-also>
 	</manager>
 	<manager name="ListCommands" language="en_US">
+		<since>
+			<version>1.0.0</version>
+		</since>
 		<synopsis>
 			List available manager commands.
 		</synopsis>
@@ -805,6 +876,9 @@
 		</description>
 	</manager>
 	<manager name="SendText" language="en_US">
+		<since>
+			<version>1.6.0</version>
+		</since>
 		<synopsis>
 			Sends a text message to channel. A content type	can be optionally specified. If not set
 			it is set to an empty string allowing a custom handler to default it as it sees fit.
@@ -829,6 +903,9 @@
 		</see-also>
 	</manager>
 	<manager name="UserEvent" language="en_US">
+		<since>
+			<version>1.4.0</version>
+		</since>
 		<synopsis>
 			Send an arbitrary event.
 		</synopsis>
@@ -853,6 +930,9 @@
 		</see-also>
 	</manager>
 	<manager name="WaitEvent" language="en_US">
+		<since>
+			<version>1.4.0</version>
+		</since>
 		<synopsis>
 			Wait for an event to occur.
 		</synopsis>
@@ -869,6 +949,9 @@
 		</description>
 	</manager>
 	<manager name="CoreSettings" language="en_US">
+		<since>
+			<version>1.6.0</version>
+		</since>
 		<synopsis>
 			Show PBX core settings (version etc).
 		</synopsis>
@@ -880,6 +963,9 @@
 		</description>
 	</manager>
 	<manager name="CoreStatus" language="en_US">
+		<since>
+			<version>1.6.0</version>
+		</since>
 		<synopsis>
 			Show PBX core status variables.
 		</synopsis>
@@ -891,6 +977,9 @@
 		</description>
 	</manager>
 	<manager name="Reload" language="en_US">
+		<since>
+			<version>1.6.0</version>
+		</since>
 		<synopsis>
 			Send a reload event.
 		</synopsis>
@@ -951,6 +1040,9 @@
 		</managerEventInstance>
 	</managerEvent>
 	<manager name="CoreShowChannels" language="en_US">
+		<since>
+			<version>1.6.0</version>
+		</since>
 		<synopsis>
 			List currently active channels.
 		</synopsis>
@@ -981,6 +1073,10 @@
 		</managerEventInstance>
 	</managerEvent>
 	<manager name="CoreShowChannelMap" language="en_US">
+		<since>
+			<version>20.4.0</version>
+			<version>18.19.0</version>
+		</since>
 		<synopsis>
 			List all channels connected to the specified channel.
 		</synopsis>
@@ -995,6 +1091,9 @@
 		</description>
 	</manager>
 	<manager name="LoggerRotate" language="en_US">
+		<since>
+			<version>13.0.0</version>
+		</since>
 		<synopsis>
 			Reload and rotate the Asterisk logger.
 		</synopsis>
@@ -1006,6 +1105,9 @@
 		</description>
 	</manager>
 	<manager name="ModuleLoad" language="en_US">
+		<since>
+			<version>1.6.0</version>
+		</since>
 		<synopsis>
 			Module management.
 		</synopsis>
@@ -1051,6 +1153,9 @@
 		</see-also>
 	</manager>
 	<manager name="ModuleCheck" language="en_US">
+		<since>
+			<version>1.6.0</version>
+		</since>
 		<synopsis>
 			Check if module is loaded.
 		</synopsis>
@@ -1070,6 +1175,9 @@
 		</see-also>
 	</manager>
 	<manager name="AOCMessage" language="en_US">
+		<since>
+			<version>1.8.0</version>
+		</since>
 		<synopsis>
 			Generate an Advice of Charge message on a channel.
 		</synopsis>
@@ -1297,6 +1405,9 @@
 		</description>
 	</function>
 	<manager name="Filter" language="en_US">
+		<since>
+			<version>10.0.0</version>
+		</since>
 		<synopsis>
 			Dynamically add filters for the current manager session.
 		</synopsis>
@@ -1334,6 +1445,9 @@
 		</description>
 	</manager>
 	<manager name="BlindTransfer" language="en_US">
+		<since>
+			<version>12.0.0</version>
+		</since>
 		<synopsis>
 			Blind transfer channel(s) to the given destination
 		</synopsis>

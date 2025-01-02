@@ -75,6 +75,9 @@
 		</see-also>
 	</application>
 	<manager name="PlayDTMF" language="en_US">
+		<since>
+			<version>1.4.0</version>
+		</since>
 		<synopsis>
 			Play DTMF signal on a specific channel.
 		</synopsis>
@@ -98,6 +101,10 @@
 		</description>
 	</manager>
 	<manager name="SendFlash" language="en_US">
+		<since>
+			<version>20.3.0</version>
+			<version>18.18.0</version>
+		</since>
 		<synopsis>
 			Send a hook flash on a specific channel.
 		</synopsis>
