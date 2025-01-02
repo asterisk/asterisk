@@ -302,6 +302,9 @@
 		</see-also>
 	</function>
 	<manager name="ConfbridgeList" language="en_US">
+		<since>
+			<version>10.0.0</version>
+		</since>
 		<synopsis>
 			List participants in a conference.
 		</synopsis>
@@ -381,6 +384,9 @@
 		</managerEventInstance>
 	</managerEvent>
 	<manager name="ConfbridgeListRooms" language="en_US">
+		<since>
+			<version>10.0.0</version>
+		</since>
 		<synopsis>
 			List active conferences.
 		</synopsis>
@@ -425,6 +431,9 @@
 		</managerEventInstance>
 	</managerEvent>
 	<manager name="ConfbridgeMute" language="en_US">
+		<since>
+			<version>10.0.0</version>
+		</since>
 		<synopsis>
 			Mute a Confbridge user.
 		</synopsis>
@@ -441,6 +450,9 @@
 		</description>
 	</manager>
 	<manager name="ConfbridgeUnmute" language="en_US">
+		<since>
+			<version>10.0.0</version>
+		</since>
 		<synopsis>
 			Unmute a Confbridge user.
 		</synopsis>
@@ -457,6 +469,9 @@
 		</description>
 	</manager>
 	<manager name="ConfbridgeKick" language="en_US">
+		<since>
+			<version>10.0.0</version>
+		</since>
 		<synopsis>
 			Kick a Confbridge user.
 		</synopsis>
@@ -472,6 +487,9 @@
 		</description>
 	</manager>
 	<manager name="ConfbridgeLock" language="en_US">
+		<since>
+			<version>10.0.0</version>
+		</since>
 		<synopsis>
 			Lock a Confbridge conference.
 		</synopsis>
@@ -483,6 +501,9 @@
 		</description>
 	</manager>
 	<manager name="ConfbridgeUnlock" language="en_US">
+		<since>
+			<version>10.0.0</version>
+		</since>
 		<synopsis>
 			Unlock a Confbridge conference.
 		</synopsis>
@@ -494,6 +515,9 @@
 		</description>
 	</manager>
 	<manager name="ConfbridgeStartRecord" language="en_US">
+		<since>
+			<version>10.0.0</version>
+		</since>
 		<synopsis>
 			Start recording a Confbridge conference.
 		</synopsis>
@@ -507,6 +531,9 @@
 		</description>
 	</manager>
 	<manager name="ConfbridgeStopRecord" language="en_US">
+		<since>
+			<version>10.0.0</version>
+		</since>
 		<synopsis>
 			Stop recording a Confbridge conference.
 		</synopsis>
@@ -518,6 +545,9 @@
 		</description>
 	</manager>
 	<manager name="ConfbridgeSetSingleVideoSrc" language="en_US">
+		<since>
+			<version>10.0.0</version>
+		</since>
 		<synopsis>
 			Set a conference user as the single video source distributed to all other participants.
 		</synopsis>

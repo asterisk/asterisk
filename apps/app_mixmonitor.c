@@ -213,6 +213,9 @@
 		</see-also>
 	</application>
 	<manager name="MixMonitorMute" language="en_US">
+		<since>
+			<version>1.8.0</version>
+		</since>
 		<synopsis>
 			Mute / unMute a Mixmonitor recording.
 		</synopsis>
@@ -233,6 +236,9 @@
 		</description>
 	</manager>
 	<manager name="MixMonitor" language="en_US">
+		<since>
+			<version>11.0.0</version>
+		</since>
 		<synopsis>
 			Record a call and mix the audio during the recording.  Use of StopMixMonitor is required
 			to guarantee the audio file is available for processing during dialplan execution.
@@ -276,6 +282,9 @@
 		</description>
 	</manager>
 	<manager name="StopMixMonitor" language="en_US">
+		<since>
+			<version>11.0.0</version>
+		</since>
 		<synopsis>
 			Stop recording a call through MixMonitor, and free the recording's file handle.
 		</synopsis>

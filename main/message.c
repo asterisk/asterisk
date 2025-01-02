@@ -185,6 +185,9 @@
 		</description>
 	</application>
 	<manager name="MessageSend" language="en_US">
+		<since>
+			<version>11.0.0</version>
+		</since>
 		<synopsis>
 			Send an out of call message to an endpoint.
 		</synopsis>
