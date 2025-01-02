@@ -216,6 +216,9 @@
 		</configFile>
 	</configInfo>
 	<manager name="PJSIPUnregister" language="en_US">
+		<since>
+			<version>12.0.0</version>
+		</since>
 		<synopsis>
 			Unregister an outbound registration.
 		</synopsis>
@@ -233,6 +236,9 @@
 		</description>
 	</manager>
 	<manager name="PJSIPRegister" language="en_US">
+		<since>
+			<version>13.2.0</version>
+		</since>
 		<synopsis>
 			Register an outbound registration.
 		</synopsis>
@@ -250,6 +256,9 @@
 		</description>
 	</manager>
 	<manager name="PJSIPShowRegistrationsOutbound" language="en_US">
+		<since>
+			<version>12.0.0</version>
+		</since>
 		<synopsis>
 			Lists PJSIP outbound registrations.
 		</synopsis>

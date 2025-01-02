@@ -216,6 +216,9 @@
 		</see-also>
 	</application>
 	<manager name="Bridge" language="en_US">
+		<since>
+			<version>1.6.0</version>
+		</since>
 		<synopsis>
 			Bridge two channels already in the PBX.
 		</synopsis>
