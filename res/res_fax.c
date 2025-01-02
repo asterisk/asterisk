@@ -241,6 +241,9 @@
 		</see-also>
 	</function>
 	<manager name="FAXSessions" language="en_US">
+		<since>
+			<version>13.0.0</version>
+		</since>
 		<synopsis>
 			Lists active FAX sessions
 		</synopsis>
@@ -315,6 +318,9 @@
 		</managerEventInstance>
 	</managerEvent>
 	<manager name="FAXSession" language="en_US">
+		<since>
+			<version>13.0.0</version>
+		</since>
 		<synopsis>
 			Responds with a detailed description of a single FAX session
 		</synopsis>
@@ -384,6 +390,9 @@
 		</managerEventInstance>
 	</managerEvent>
 	<manager name="FAXStats" language="en_US">
+		<since>
+			<version>13.0.0</version>
+		</since>
 		<synopsis>
 			Responds with fax statistics
 		</synopsis>

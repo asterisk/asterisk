@@ -54,6 +54,9 @@
 
 /*** DOCUMENTATION
 	<manager name="DBGet" language="en_US">
+		<since>
+			<version>1.2.0</version>
+		</since>
 		<synopsis>
 			Get DB Entry.
 		</synopsis>
@@ -66,6 +69,11 @@
 		</description>
 	</manager>
 	<manager name="DBGetTree" language="en_US">
+		<since>
+			<version>19.6.0</version>
+			<version>18.14.0</version>
+			<version>16.28.0</version>
+		</since>
 		<synopsis>
 			Get DB entries, optionally at a particular family/key
 		</synopsis>
@@ -78,6 +86,9 @@
 		</description>
 	</manager>
 	<manager name="DBPut" language="en_US">
+		<since>
+			<version>1.2.0</version>
+		</since>
 		<synopsis>
 			Put DB entry.
 		</synopsis>
@@ -91,6 +102,9 @@
 		</description>
 	</manager>
 	<manager name="DBDel" language="en_US">
+		<since>
+			<version>1.6.0</version>
+		</since>
 		<synopsis>
 			Delete DB entry.
 		</synopsis>
@@ -103,6 +117,9 @@
 		</description>
 	</manager>
 	<manager name="DBDelTree" language="en_US">
+		<since>
+			<version>1.6.0</version>
+		</since>
 		<synopsis>
 			Delete DB Tree.
 		</synopsis>
