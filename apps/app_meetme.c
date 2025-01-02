@@ -440,6 +440,9 @@
 		</see-also>
 	</function>
 	<manager name="MeetmeMute" language="en_US">
+		<since>
+			<version>1.4.0</version>
+		</since>
 		<synopsis>
 			Mute a Meetme user.
 		</synopsis>
@@ -452,6 +455,9 @@
 		</description>
 	</manager>
 	<manager name="MeetmeUnmute" language="en_US">
+		<since>
+			<version>1.4.0</version>
+		</since>
 		<synopsis>
 			Unmute a Meetme user.
 		</synopsis>
@@ -464,6 +470,9 @@
 		</description>
 	</manager>
 	<manager name="MeetmeList" language="en_US">
+		<since>
+			<version>1.6.0</version>
+		</since>
 		<synopsis>
 			List participants in a conference.
 		</synopsis>
@@ -480,6 +489,9 @@
 		</description>
 	</manager>
 	<manager name="MeetmeListRooms" language="en_US">
+		<since>
+			<version>10.0.0</version>
+		</since>
 		<synopsis>
 			List active conferences.
 		</synopsis>

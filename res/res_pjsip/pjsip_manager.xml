@@ -3,6 +3,9 @@
 <?xml-stylesheet type="text/xsl" href="appdocsxml.xslt"?>
 <docs xmlns:xi="http://www.w3.org/2001/XInclude">
 	<manager name="PJSIPQualify" language="en_US">
+		<since>
+			<version>12.0.0</version>
+		</since>
 		<synopsis>
 			Qualify a chan_pjsip endpoint.
 		</synopsis>
@@ -754,6 +757,9 @@
 		</managerEventInstance>
 	</managerEvent>
 	<manager name="PJSIPShowEndpoints" language="en_US">
+		<since>
+			<version>12.0.0</version>
+		</since>
 		<synopsis>
 			Lists PJSIP endpoints.
 		</synopsis>
@@ -781,6 +787,9 @@
 		</responses>
 	</manager>
 	<manager name="PJSIPShowEndpoint" language="en_US">
+		<since>
+			<version>12.0.0</version>
+		</since>
 		<synopsis>
 			Detail listing of an endpoint and its objects.
 		</synopsis>
@@ -822,6 +831,9 @@
 		</responses>
 	</manager>
 	<manager name="PJSIPShowAors" language="en_US">
+		<since>
+			<version>16.0.0</version>
+		</since>
 		<synopsis>
 			Lists PJSIP AORs.
 		</synopsis>
@@ -849,6 +861,9 @@
 		</responses>
 	</manager>
 	<manager name="PJSIPShowAuths" language="en_US">
+		<since>
+			<version>16.0.0</version>
+		</since>
 		<synopsis>
 			Lists PJSIP Auths.
 		</synopsis>
@@ -875,6 +890,9 @@
 		</responses>
 	</manager>
 	<manager name="PJSIPShowContacts" language="en_US">
+		<since>
+			<version>16.0.0</version>
+		</since>
 		<synopsis>
 			Lists PJSIP Contacts.
 		</synopsis>

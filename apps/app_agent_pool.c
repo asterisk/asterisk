@@ -162,6 +162,9 @@
 		<description></description>
 	</function>
 	<manager name="Agents" language="en_US">
+		<since>
+			<version>1.2.0</version>
+		</since>
 		<synopsis>
 			Lists agents and their status.
 		</synopsis>
@@ -235,6 +238,9 @@
 		</managerEventInstance>
 	</managerEvent>
 	<manager name="AgentLogoff" language="en_US">
+		<since>
+			<version>1.2.0</version>
+		</since>
 		<synopsis>
 			Sets an agent as no longer logged in.
 		</synopsis>
