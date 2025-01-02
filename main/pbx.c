@@ -152,6 +152,9 @@
 		</see-also>
 	</function>
 	<manager name="ShowDialPlan" language="en_US">
+		<since>
+			<version>1.6.0</version>
+		</since>
 		<synopsis>
 			Show dialplan contexts and extensions
 		</synopsis>
@@ -170,6 +173,9 @@
 		</description>
 	</manager>
 	<manager name="ExtensionStateList" language="en_US">
+		<since>
+			<version>13.0.0</version>
+		</since>
 		<synopsis>
 			List the current known extension states.
 		</synopsis>

@@ -840,6 +840,9 @@
 		</see-also>
 	</function>
 	<manager name="QueueStatus" language="en_US">
+		<since>
+			<version>0.5.0</version>
+		</since>
 		<synopsis>
 			Show queue status.
 		</synopsis>
@@ -857,6 +860,9 @@
 		</description>
 	</manager>
 	<manager name="QueueSummary" language="en_US">
+		<since>
+			<version>1.6.0</version>
+		</since>
 		<synopsis>
 			Show queue summary.
 		</synopsis>
@@ -871,6 +877,9 @@
 		</description>
 	</manager>
 	<manager name="QueueAdd" language="en_US">
+		<since>
+			<version>1.0.0</version>
+		</since>
 		<synopsis>
 			Add interface to queue.
 		</synopsis>
@@ -900,6 +909,9 @@
 		</description>
 	</manager>
 	<manager name="QueueRemove" language="en_US">
+		<since>
+			<version>1.0.0</version>
+		</since>
 		<synopsis>
 			Remove interface from queue.
 		</synopsis>
@@ -916,6 +928,9 @@
 		</description>
 	</manager>
 	<manager name="QueuePause" language="en_US">
+		<since>
+			<version>1.2.0</version>
+		</since>
 		<synopsis>
 			Makes a queue member temporarily unavailable.
 		</synopsis>
@@ -939,6 +954,9 @@
 		</description>
 	</manager>
 	<manager name="QueueLog" language="en_US">
+		<since>
+			<version>1.6.0</version>
+		</since>
 		<synopsis>
 			Adds custom entry in queue_log.
 		</synopsis>
@@ -954,6 +972,9 @@
 		</description>
 	</manager>
 	<manager name="QueuePenalty" language="en_US">
+		<since>
+			<version>1.6.0</version>
+		</since>
 		<synopsis>
 			Set the penalty for a queue member.
 		</synopsis>
@@ -974,6 +995,9 @@
 		</description>
 	</manager>
 	<manager name="QueueMemberRingInUse" language="en_US">
+		<since>
+			<version>11.0.0</version>
+		</since>
 		<synopsis>
 			Set the ringinuse value for a queue member.
 		</synopsis>
@@ -987,6 +1011,9 @@
 		</description>
 	</manager>
 	<manager name="QueueRule" language="en_US">
+		<since>
+			<version>1.6.0</version>
+		</since>
 		<synopsis>
 			Queue Rules.
 		</synopsis>
@@ -1001,6 +1028,9 @@
 		</description>
 	</manager>
 	<manager name="QueueReload" language="en_US">
+		<since>
+			<version>1.6.2.0</version>
+		</since>
 		<synopsis>
 			Reload a queue, queues, or any sub-section of a queue or queues.
 		</synopsis>
@@ -1035,6 +1065,9 @@
 		</description>
 	</manager>
 	<manager name="QueueReset" language="en_US">
+		<since>
+			<version>1.6.2.0</version>
+		</since>
 		<synopsis>
 			Reset queue statistics.
 		</synopsis>
@@ -1049,6 +1082,9 @@
 		</description>
 	</manager>
 	<manager name="QueueChangePriorityCaller" language="en_US">
+		<since>
+			<version>15.0.0</version>
+		</since>
 		<synopsis>
 			Change priority of a caller on queue.
 		</synopsis>
@@ -1072,6 +1108,11 @@
 		</description>
 	</manager>
 	<manager name="QueueWithdrawCaller" language="en_US">
+		<since>
+			<version>19.3.0</version>
+			<version>18.11.0</version>
+			<version>16.25.0</version>
+		</since>
 		<synopsis>
 			Request to withdraw a caller from the queue back to the dialplan.
 		</synopsis>

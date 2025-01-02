@@ -39,6 +39,9 @@
 
 /*** DOCUMENTATION
 	<manager name="Parkinglots" language="en_US">
+		<since>
+			<version>11.0.0</version>
+		</since>
 		<synopsis>
 			Get a list of parking lots
 		</synopsis>
@@ -50,6 +53,9 @@
 		</description>
 	</manager>
 	<manager name="ParkedCalls" language="en_US">
+		<since>
+			<version>0.7.2</version>
+		</since>
 		<synopsis>
 			List parked calls.
 		</synopsis>
@@ -64,6 +70,9 @@
 		</description>
 	</manager>
 	<manager name="Park" language="en_US">
+		<since>
+			<version>1.4.0</version>
+		</since>
 		<synopsis>
 			Park a channel.
 		</synopsis>

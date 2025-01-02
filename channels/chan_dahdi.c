@@ -347,6 +347,9 @@
 		</example>
 	</info>
 	<manager name="DAHDITransfer" language="en_US">
+		<since>
+			<version>1.4.22</version>
+		</since>
 		<synopsis>
 			Transfer DAHDI Channel.
 		</synopsis>
@@ -362,6 +365,9 @@
 		</description>
 	</manager>
 	<manager name="DAHDIHangup" language="en_US">
+		<since>
+			<version>1.4.22</version>
+		</since>
 		<synopsis>
 			Hangup DAHDI Channel.
 		</synopsis>
@@ -377,6 +383,9 @@
 		</description>
 	</manager>
 	<manager name="DAHDIDialOffhook" language="en_US">
+		<since>
+			<version>1.4.22</version>
+		</since>
 		<synopsis>
 			Dial over DAHDI channel while offhook.
 		</synopsis>
@@ -394,6 +403,9 @@
 		</description>
 	</manager>
 	<manager name="DAHDIDNDon" language="en_US">
+		<since>
+			<version>1.4.22</version>
+		</since>
 		<synopsis>
 			Toggle DAHDI channel Do Not Disturb status ON.
 		</synopsis>
@@ -409,6 +421,9 @@
 		</description>
 	</manager>
 	<manager name="DAHDIDNDoff" language="en_US">
+		<since>
+			<version>1.4.22</version>
+		</since>
 		<synopsis>
 			Toggle DAHDI channel Do Not Disturb status OFF.
 		</synopsis>
@@ -424,6 +439,9 @@
 		</description>
 	</manager>
 	<manager name="DAHDIShowChannels" language="en_US">
+		<since>
+			<version>1.4.22</version>
+		</since>
 		<synopsis>
 			Show status of DAHDI channels.
 		</synopsis>
@@ -438,6 +456,11 @@
 		</description>
 	</manager>
 	<manager name="DAHDIShowStatus" language="en_US">
+		<since>
+			<version>21.3.0</version>
+			<version>20.8.0</version>
+			<version>18.23.0</version>
+		</since>
 		<synopsis>
 			Show status of DAHDI spans.
 		</synopsis>
@@ -447,6 +470,9 @@
 		</description>
 	</manager>
 	<manager name="DAHDIRestart" language="en_US">
+		<since>
+			<version>1.4.22</version>
+		</since>
 		<synopsis>
 			Fully Restart DAHDI channels (terminates calls).
 		</synopsis>
@@ -458,6 +484,9 @@
 		</description>
 	</manager>
 	<manager name="PRIShowSpans" language="en_US">
+		<since>
+			<version>10.0.0</version>
+		</since>
 		<synopsis>
 			Show status of PRI spans.
 		</synopsis>
@@ -472,6 +501,9 @@
 		</description>
 	</manager>
 	<manager name="PRIDebugSet" language="en_US">
+		<since>
+			<version>13.0.0</version>
+		</since>
 		<synopsis>
 			Set PRI debug levels for a span
 		</synopsis>
@@ -495,6 +527,9 @@
 		</description>
 	</manager>
 	<manager name="PRIDebugFileSet" language="en_US">
+		<since>
+			<version>13.0.0</version>
+		</since>
 		<synopsis>
 			Set the file used for PRI debug message output
 		</synopsis>
@@ -509,6 +544,9 @@
 		</description>
 	</manager>
 	<manager name="PRIDebugFileUnset" language="en_US">
+		<since>
+			<version>13.0.0</version>
+		</since>
 		<synopsis>
 			Disables file output for PRI debug messages
 		</synopsis>
