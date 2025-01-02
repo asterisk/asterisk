@@ -392,6 +392,9 @@
 		</description>
 	</function>
 	<manager name="VoicemailUsersList" language="en_US">
+		<since>
+			<version>1.6.0</version>
+		</since>
 		<synopsis>
 			List All Voicemail User Information.
 		</synopsis>
@@ -402,6 +405,9 @@
 		</description>
 	</manager>
 	<manager name="VoicemailUserStatus" language="en_US">
+		<since>
+			<version>16.0.0</version>
+		</since>
 		<synopsis>
 			Show the status of given voicemail user's info.
 		</synopsis>
@@ -419,6 +425,9 @@
 		</description>
 	</manager>
 	<manager name="VoicemailRefresh" language="en_US">
+		<since>
+			<version>12.0.0</version>
+		</since>
 		<synopsis>
 			Tell Asterisk to poll mailboxes for a change
 		</synopsis>
@@ -446,6 +455,10 @@
 		</description>
 	</manager>
 	<manager name="VoicemailBoxSummary" language="en_US">
+		<since>
+			<version>20.5.0</version>
+			<version>18.20.0</version>
+		</since>
 		<synopsis>
 			Show the mailbox contents of given voicemail user.
 		</synopsis>
@@ -463,6 +476,10 @@
 		</description>
 	</manager>
 	<manager name="VoicemailMove" language="en_US">
+		<since>
+			<version>20.5.0</version>
+			<version>18.20.0</version>
+		</since>
 		<synopsis>
 			Move Voicemail between mailbox folders of given user.
 		</synopsis>
@@ -489,6 +506,10 @@
 		</description>
 	</manager>
 	<manager name="VoicemailRemove" language="en_US">
+		<since>
+			<version>20.5.0</version>
+			<version>18.20.0</version>
+		</since>
 		<synopsis>
 			Remove Voicemail from mailbox folder.
 		</synopsis>
@@ -512,6 +533,10 @@
 		</description>
 	</manager>
 	<manager name="VoicemailForward" language="en_US">
+		<since>
+			<version>20.5.0</version>
+			<version>18.20.0</version>
+		</since>
 		<synopsis>
 			Forward Voicemail from one mailbox folder to another between given users.
 		</synopsis>

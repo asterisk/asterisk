@@ -29,6 +29,9 @@
 
 /*** DOCUMENTATION
 	<manager name="DialplanExtensionAdd" language="en_US">
+		<since>
+			<version>13.0.0</version>
+		</since>
 		<synopsis>
 			Add an extension to the dialplan
 		</synopsis>
@@ -61,6 +64,9 @@
 		</syntax>
 	</manager>
 	<manager name="DialplanExtensionRemove" language="en_US">
+		<since>
+			<version>13.0.0</version>
+		</since>
 		<synopsis>
 			Remove an extension from the dialplan
 		</synopsis>

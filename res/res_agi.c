@@ -1265,6 +1265,9 @@
 		</see-also>
 	</application>
 	<manager name="AGI" language="en_US">
+		<since>
+			<version>1.6.0</version>
+		</since>
 		<synopsis>
 			Add an AGI command to execute by Async AGI.
 		</synopsis>

@@ -22,6 +22,9 @@
 
 /*** DOCUMENTATION
 	<manager name="DeviceStateList" language="en_US">
+		<since>
+			<version>13.0.0</version>
+		</since>
 		<synopsis>
 			List the current known device states.
 		</synopsis>

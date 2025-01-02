@@ -234,6 +234,9 @@
 		</enumlist>
 	</info>
 	<manager name="IAXpeers" language="en_US">
+		<since>
+			<version>0.3.0</version>
+		</since>
 		<synopsis>
 			List IAX peers.
 		</synopsis>
@@ -244,6 +247,9 @@
 		</description>
 	</manager>
 	<manager name="IAXpeerlist" language="en_US">
+		<since>
+			<version>1.6.0</version>
+		</since>
 		<synopsis>
 			List IAX Peers.
 		</synopsis>
@@ -255,6 +261,9 @@
 		</description>
 	</manager>
 	<manager name="IAXnetstats" language="en_US">
+		<since>
+			<version>1.2.0</version>
+		</since>
 		<synopsis>
 			Show IAX Netstats.
 		</synopsis>
@@ -264,6 +273,9 @@
 		</description>
 	</manager>
 	<manager name="IAXregistry" language="en_US">
+		<since>
+			<version>1.6.2.0</version>
+		</since>
 		<synopsis>
 			Show IAX registrations.
 		</synopsis>

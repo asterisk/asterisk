@@ -79,6 +79,9 @@
 		</description>
 	</function>
 	<manager name="MuteAudio" language="en_US">
+		<since>
+			<version>1.8.0</version>
+		</since>
 		<synopsis>
 			Mute an audio stream.
 		</synopsis>
