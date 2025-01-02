@@ -89,6 +89,9 @@
 
 /*** DOCUMENTATION
 	<manager name="SKINNYdevices" language="en_US">
+		<since>
+			<version>1.6.2.0</version>
+		</since>
 		<synopsis>
 			List SKINNY devices (text format).
 		</synopsis>
@@ -102,6 +105,9 @@
 		</description>
 	</manager>
 	<manager name="SKINNYshowdevice" language="en_US">
+		<since>
+			<version>1.6.2.0</version>
+		</since>
 		<synopsis>
 			Show SKINNY device (text format).
 		</synopsis>
@@ -116,6 +122,9 @@
 		</description>
 	</manager>
 	<manager name="SKINNYlines" language="en_US">
+		<since>
+			<version>1.6.2.0</version>
+		</since>
 		<synopsis>
 			List SKINNY lines (text format).
 		</synopsis>
@@ -129,6 +138,9 @@
 		</description>
 	</manager>
 	<manager name="SKINNYshowline" language="en_US">
+		<since>
+			<version>1.6.2.0</version>
+		</since>
 		<synopsis>
 			Show SKINNY line (text format).
 		</synopsis>

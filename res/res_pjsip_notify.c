@@ -39,6 +39,9 @@
 
 /*** DOCUMENTATION
 	<manager name="PJSIPNotify" language="en_US">
+		<since>
+			<version>12.0.0</version>
+		</since>
 		<synopsis>
 			Send a NOTIFY to either an endpoint, an arbitrary URI, or inside a SIP dialog.
 		</synopsis>

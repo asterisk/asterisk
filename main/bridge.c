@@ -29,6 +29,9 @@
 
 /*** DOCUMENTATION
 	<manager name="BridgeTechnologyList" language="en_US">
+		<since>
+			<version>12.0.0</version>
+		</since>
 		<synopsis>
 			List available bridging technologies and their statuses.
 		</synopsis>
@@ -44,6 +47,9 @@
 		</see-also>
 	</manager>
 	<manager name="BridgeTechnologySuspend" language="en_US">
+		<since>
+			<version>12.0.0</version>
+		</since>
 		<synopsis>
 			Suspend a bridging technology.
 		</synopsis>
@@ -62,6 +68,9 @@
 		</see-also>
 	</manager>
 	<manager name="BridgeTechnologyUnsuspend" language="en_US">
+		<since>
+			<version>12.0.0</version>
+		</since>
 		<synopsis>
 			Unsuspend a bridging technology.
 		</synopsis>
