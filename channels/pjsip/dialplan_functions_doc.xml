@@ -96,6 +96,11 @@
 	</application>
 
 	<manager name="PJSIPHangup" language="en_US">
+		<since>
+			<version>21.1.0</version>
+			<version>20.6.0</version>
+			<version>18.21.0</version>
+		</since>
 		<synopsis>
 			Hangup an incoming PJSIP channel with a SIP response code
 		</synopsis>
