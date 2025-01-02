@@ -238,6 +238,9 @@
 		</description>
 	</application>
 	<manager name="JabberSend" language="en_US" module="res_xmpp">
+		<since>
+			<version>1.4.0</version>
+		</since>
 		<synopsis>
 			Sends a message to a Jabber Client.
 		</synopsis>

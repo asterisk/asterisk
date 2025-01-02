@@ -107,6 +107,9 @@ static struct stasis_message_router *bridge_state_router;
 		</managerEventInstance>
 	</managerEvent>
 	<manager name="BridgeList" language="en_US">
+		<since>
+			<version>12.0.0</version>
+		</since>
 		<synopsis>
 			Get a list of bridges in the system.
 		</synopsis>
@@ -127,6 +130,9 @@ static struct stasis_message_router *bridge_state_router;
 		</see-also>
 	</manager>
 	<manager name="BridgeInfo" language="en_US">
+		<since>
+			<version>12.0.0</version>
+		</since>
 		<synopsis>
 			Get information about a bridge.
 		</synopsis>
@@ -167,6 +173,9 @@ static struct stasis_message_router *bridge_state_router;
 		</responses>
 	</manager>
 	<manager name="BridgeDestroy" language="en_US">
+		<since>
+			<version>12.0.0</version>
+		</since>
 		<synopsis>
 			Destroy a bridge.
 		</synopsis>
@@ -188,6 +197,9 @@ static struct stasis_message_router *bridge_state_router;
 		</see-also>
 	</manager>
 	<manager name="BridgeKick" language="en_US">
+		<since>
+			<version>12.0.0</version>
+		</since>
 		<synopsis>
 			Kick a channel from a bridge.
 		</synopsis>

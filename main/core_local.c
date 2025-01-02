@@ -53,6 +53,9 @@
 
 /*** DOCUMENTATION
 	<manager name="LocalOptimizeAway" language="en_US">
+		<since>
+			<version>1.8.0</version>
+		</since>
 		<synopsis>
 			Optimize away a local channel when possible.
 		</synopsis>

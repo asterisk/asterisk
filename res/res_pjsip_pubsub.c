@@ -50,6 +50,9 @@
 
 /*** DOCUMENTATION
 	<manager name="PJSIPShowSubscriptionsInbound" language="en_US">
+		<since>
+			<version>12.0.0</version>
+		</since>
 		<synopsis>
 			Lists subscriptions.
 		</synopsis>
@@ -63,6 +66,9 @@
 		</description>
 	</manager>
 	<manager name="PJSIPShowSubscriptionsOutbound" language="en_US">
+		<since>
+			<version>12.0.0</version>
+		</since>
 		<synopsis>
 			Lists subscriptions.
 		</synopsis>
@@ -76,6 +82,9 @@
 		</description>
 	</manager>
 	<manager name="PJSIPShowResourceLists" language="en_US">
+		<since>
+			<version>13.0.0</version>
+		</since>
 		<synopsis>
 			Displays settings for configured resource lists.
 		</synopsis>
