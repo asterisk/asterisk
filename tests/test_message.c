@@ -680,10 +680,10 @@ AST_TEST_DEFINE(test_message_has_destination_dialplan)
 	ast_msg_set_exten(msg, "__I_SHOULD_NOT_EXIST_PLZ__");
 	ast_test_validate(test, ast_msg_has_destination(msg) == 0);
 
-	ast_msg_set_exten(msg, NULL);
+	ast_msg_set_exten(msg, "%s", "");
 	ast_test_validate(test, ast_msg_has_destination(msg) == 0);
 
-	ast_msg_set_context(msg, NULL);
+	ast_msg_set_context(msg, "%s", "");
 	ast_msg_set_exten(msg, TEST_EXTENSION);
 	ast_test_validate(test, ast_msg_has_destination(msg) == 0);
 
@@ -716,10 +716,10 @@ AST_TEST_DEFINE(test_message_has_destination_handler)
 
 	ast_msg_set_to(msg, "foo");
 	ast_msg_set_context(msg, TEST_CONTEXT);
-	ast_msg_set_exten(msg, NULL);
+	ast_msg_set_exten(msg, "%s", "");
 	ast_test_validate(test, ast_msg_has_destination(msg) == 1);
 
-	ast_msg_set_context(msg, NULL);
+	ast_msg_set_context(msg, "%s", "");
 	ast_test_validate(test, ast_msg_has_destination(msg) == 1);
 
 	ast_msg_set_to(msg, "__I_SHOULD_NOT_EXIST_PLZ__");
@@ -756,7 +756,7 @@ AST_TEST_DEFINE(test_message_msg_send)
 
 	ast_msg_set_to(msg, "foo");
 	ast_msg_set_context(msg, TEST_CONTEXT);
-	ast_msg_set_exten(msg, NULL);
+	ast_msg_set_exten(msg, "%s", "");
 	ast_test_validate(test, ast_msg_has_destination(msg) == 1);
 
 	if (!ast_msg_send(msg, "testmsg:foo", "blah")) {
