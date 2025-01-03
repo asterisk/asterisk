@@ -19,7 +19,7 @@ usage() {
 }
 
 # Basic build system:
-PACKAGES_DEBIAN="build-essential pkg-config"
+PACKAGES_DEBIAN="build-essential pkg-config autoconf-archive"
 # Asterisk: basic requirements:
 PACKAGES_DEBIAN="$PACKAGES_DEBIAN libedit-dev libjansson-dev libsqlite3-dev uuid-dev libxml2-dev"
 # Asterisk: for addons:
@@ -35,7 +35,7 @@ PACKAGES_DEBIAN="$PACKAGES_DEBIAN wget subversion"
 PACKAGES_DEBIAN="$PACKAGES_DEBIAN bzip2 patch"
 
 # Basic build system:
-PACKAGES_RH="make gcc gcc-c++ pkgconfig"
+PACKAGES_RH="make gcc gcc-c++ pkgconfig autoconf-archive"
 # Asterisk: basic requirements:
 PACKAGES_RH="$PACKAGES_RH libedit-devel jansson-devel libuuid-devel sqlite-devel libxml2-devel"
 # Asterisk: for addons:
@@ -51,7 +51,7 @@ PACKAGES_RH="$PACKAGES_RH wget subversion"
 PACKAGES_RH="$PACKAGES_RH bzip2 patch"
 
 # Basic build system:
-PACKAGES_SUSE="make gcc gcc-c++ pkg-config"
+PACKAGES_SUSE="make gcc gcc-c++ pkg-config autoconf-archive"
 # Asterisk: basic requirements:
 PACKAGES_SUSE="$PACKAGES_SUSE libedit-devel libjansson-devel libuuid-devel sqlite3-devel libxml2-devel"
 # Asterisk: for addons:
@@ -67,7 +67,7 @@ PACKAGES_SUSE="$PACKAGES_SUSE wget subversion"
 PACKAGES_SUSE="$PACKAGES_SUSE bzip2 patch"
 
 # Basic build system:
-PACKAGES_ARCH="make gcc pkg-config"
+PACKAGES_ARCH="make gcc pkg-config autoconf-archive"
 # Asterisk: basic requirements:
 PACKAGES_ARCH="$PACKAGES_ARCH libedit jansson libutil-linux libxml2 sqlite"
 # Asterisk: for addons:
@@ -131,7 +131,7 @@ PACKAGES_OBSD="$PACKAGES_OBSD wget subversion"
 PACKAGES_OBSD="$PACKAGES_OBSD bzip2"
 
 # Basic build system:
-PACKAGES_FBSD="gmake pkgconf"
+PACKAGES_FBSD="gmake pkgconf autoconf-archive"
 # Asterisk: basic requirements:
 PACKAGES_FBSD="$PACKAGES_FBSD libedit jansson e2fsprogs-libuuid sqlite3 libxml2"
 # Asterisk: for addons:
