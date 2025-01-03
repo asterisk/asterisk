@@ -240,6 +240,25 @@ fi
 AC_PROG_CXX
 AC_PROG_CPP
 AC_PROG_CXXCPP
+
+# Do we want to force the C++ compiler to use the latest standard it supports?
+AC_ARG_ENABLE([latest-cxx-std],
+	[AS_HELP_STRING([--enable-latest-cxx-std],
+		[Force C++ compiler to use the latest standard it supports])],
+	[case "${enableval}" in
+		y|ye|yes) ENABLE_LATEST_CXX_STD=yes ;;
+		n|no)  ENABLE_LATEST_CXX_STD=no ;;
+		*) AC_MSG_ERROR(bad value ${enableval} for --enable-latest-cxx-std)  ;;
+	esac], [ENABLE_LATEST_CXX_STD=no])
+
+# Check to see if the C++ compiler supports STDC++11,14,17,20,23
+# These MUST be in ascending order.
+AST_CXX_CHECK_STD([11], [${ENABLE_LATEST_CXX_STD}])
+AST_CXX_CHECK_STD([14], [${ENABLE_LATEST_CXX_STD}])
+AST_CXX_CHECK_STD([17], [${ENABLE_LATEST_CXX_STD}])
+AST_CXX_CHECK_STD([20], [${ENABLE_LATEST_CXX_STD}])
+AST_CXX_CHECK_STD([23], [${ENABLE_LATEST_CXX_STD}])
+
 # This macro is just copied into our local acinclude.m4 from libtool.m4 so that
 # the developers regenerating the configure script don't have to install libtool.
 AST_PROG_LD	# note, does not work on FreeBSD
@@ -844,7 +863,7 @@ AC_FUNC_CLOSEDIR_VOID
 AC_FUNC_ERROR_AT_LINE
 AST_FUNC_FORK
 AC_FUNC_FSEEKO
-AC_PROG_GCC_TRADITIONAL
+# AC_PROG_GCC_TRADITIONAL Obsolete
 # XXX: these are commented out until we determine whether it matters if our malloc()
 # acts exactly like glibc's or not
 # AC_FUNC_MALLOC
