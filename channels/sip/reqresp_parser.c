@@ -279,7 +279,7 @@ AST_TEST_DEFINE(sip_parse_uri_full_test)
 
 	struct testdata *testdataptr;
 
-	static AST_LIST_HEAD_NOLOCK(testdataliststruct, testdata) testdatalist;
+	AST_LIST_HEAD_NOLOCK(testdataliststruct, testdata) testdatalist;
 
 	struct testdata td1 = {
 		.desc = "no headers",
@@ -1326,7 +1326,7 @@ AST_TEST_DEFINE(parse_name_andor_addr_test)
 
 	struct testdata *testdataptr;
 
-	static AST_LIST_HEAD_NOLOCK(testdataliststruct, testdata) testdatalist;
+	AST_LIST_HEAD_NOLOCK(testdataliststruct, testdata) testdatalist;
 
 	struct testdata td1 = {
 		.desc = "quotes and brackets",
@@ -1552,7 +1552,7 @@ AST_TEST_DEFINE(parse_contact_header_test)
 	struct contact *tdcontactptr;
 	struct contact *contactptr;
 
-	static AST_LIST_HEAD_NOLOCK(testdataliststruct, testdata) testdatalist;
+	AST_LIST_HEAD_NOLOCK(testdataliststruct, testdata) testdatalist;
 	struct contactliststruct contactlist1, contactlist2;
 
 	struct testdata td1 = {
@@ -1775,7 +1775,7 @@ AST_TEST_DEFINE(sip_parse_options_test)
 	};
 
 	struct testdata *testdataptr;
-	static AST_LIST_HEAD_NOLOCK(testdataliststruct, testdata) testdatalist;
+	AST_LIST_HEAD_NOLOCK(testdataliststruct, testdata) testdatalist;
 
 	struct testdata test1 = {
 		.name = "test_all_unsupported",
@@ -2475,7 +2475,7 @@ AST_TEST_DEFINE(parse_via_test)
 		AST_LIST_ENTRY(testdata) list;
 	};
 	struct testdata *testdataptr;
-	static AST_LIST_HEAD_NOLOCK(testdataliststruct, testdata) testdatalist;
+	AST_LIST_HEAD_NOLOCK(testdataliststruct, testdata) testdatalist;
 	struct testdata t1 = {
 		.in = "SIP/2.0/UDP host:port;branch=thebranch",
 		.expected_protocol = "SIP/2.0/UDP",
