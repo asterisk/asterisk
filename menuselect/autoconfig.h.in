@@ -13,13 +13,13 @@
 /* Define to 1 if <alloca.h> works. */
 #undef HAVE_ALLOCA_H
 
-/* Define to 1 if you have the `asprintf' function. */
+/* Define to 1 if you have the 'asprintf' function. */
 #undef HAVE_ASPRINTF
 
 /* Define to 1 if you have the curses library. */
 #undef HAVE_CURSES
 
-/* Define to 1 if you have the `getloadavg' function. */
+/* Define to 1 if you have the 'getloadavg' function. */
 #undef HAVE_GETLOADAVG
 
 /* Define if your system has the GTK2 libraries. */
@@ -37,7 +37,7 @@
 /* Define to 1 if you have the newt library. */
 #undef HAVE_NEWT
 
-/* Define to 1 if you have the `setenv' function. */
+/* Define to 1 if you have the 'setenv' function. */
 #undef HAVE_SETENV
 
 /* Define to 1 if you have the <stdint.h> header file. */
@@ -49,7 +49,7 @@
 /* Define to 1 if you have the <stdlib.h> header file. */
 #undef HAVE_STDLIB_H
 
-/* Define to 1 if you have the `strcasestr' function. */
+/* Define to 1 if you have the 'strcasestr' function. */
 #undef HAVE_STRCASESTR
 
 /* Define to 1 if you have the <strings.h> header file. */
@@ -58,13 +58,13 @@
 /* Define to 1 if you have the <string.h> header file. */
 #undef HAVE_STRING_H
 
-/* Define to 1 if you have the `strndup' function. */
+/* Define to 1 if you have the 'strndup' function. */
 #undef HAVE_STRNDUP
 
-/* Define to 1 if you have the `strnlen' function. */
+/* Define to 1 if you have the 'strnlen' function. */
 #undef HAVE_STRNLEN
 
-/* Define to 1 if you have the `strsep' function. */
+/* Define to 1 if you have the 'strsep' function. */
 #undef HAVE_STRSEP
 
 /* Define to 1 if you have the <sys/stat.h> header file. */
@@ -79,10 +79,10 @@
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
 
-/* Define to 1 if you have the `unsetenv' function. */
+/* Define to 1 if you have the 'unsetenv' function. */
 #undef HAVE_UNSETENV
 
-/* Define to 1 if you have the `vasprintf' function. */
+/* Define to 1 if you have the 'vasprintf' function. */
 #undef HAVE_VASPRINTF
 
 /* Define to the address where bug reports for this package should be sent. */
@@ -111,12 +111,12 @@
 	STACK_DIRECTION = 0 => direction of growth unknown */
 #undef STACK_DIRECTION
 
-/* Define to 1 if all of the C90 standard headers exist (not just the ones
+/* Define to 1 if all of the C89 standard headers exist (not just the ones
    required in a freestanding environment). This macro is provided for
    backward compatibility; new code need not use it. */
 #undef STDC_HEADERS
 
-/* Define to `unsigned int' if <sys/types.h> does not define. */
+/* Define as 'unsigned int' if <stddef.h> doesn't define. */
 #undef size_t
 
 #endif
