@@ -678,6 +678,9 @@ AST_EXT_LIB_SETUP([VORBIS], [Vorbis], [vorbis])
 AST_EXT_LIB_SETUP([X11], [X11], [x11])
 AST_EXT_LIB_SETUP([ZLIB], [zlib compression], [z])
 
+AX_BOOST_BASE([1.53],[PBX_BOOST=1], [PBX_BOOST=0])
+AC_SUBST(PBX_BOOST)
+
 # check for basic system features and functionality before
 # checking for package libraries
 
