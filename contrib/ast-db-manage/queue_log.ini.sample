@@ -17,9 +17,8 @@ script_location = queue_log
 
 #sqlalchemy.url = driver://user:pass@localhost/dbname
 
-
-#sqlalchemy.url = mysql://user:pass@localhost/queue_log
-sqlalchemy.url = postgresql://user:pass@localhost/queue_log
+#sqlalchemy.url = postgresql://user:pass@localhost/queue_log
+sqlalchemy.url = mysql://user:pass@localhost/queue_log
 
 
 # Logging configuration
