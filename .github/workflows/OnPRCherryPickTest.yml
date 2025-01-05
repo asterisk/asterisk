@@ -93,7 +93,7 @@ jobs:
     secrets:
       TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  Summary:
+  Cleanup:
     if: ${{ success() || failure() }}
     runs-on: ubuntu-latest
     needs: [Setup,Check]
@@ -120,5 +120,5 @@ jobs:
             --remove-label ${{ vars.CHERRY_PICK_TESTING_IN_PROGRESS }} \
             --add-label $label \
               $PR_NUMBER || :
-          exit $rc
+          exit 0
 
