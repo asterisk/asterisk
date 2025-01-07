@@ -2749,13 +2749,6 @@ int ast_config_text_file_save2(const char *configfile, const struct ast_config *
 	struct ao2_container *fileset;
 	struct inclfile *fi;
 
-	fileset = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, 1023,
-		hash_string, NULL, hashtab_compare_strings);
-	if (!fileset) {
-		/* Container creation failed. */
-		return -1;
-	}
-
 	/* Check all the files for write access before attempting to modify any of them */
 	for (incl = cfg->includes; incl; incl = incl->next) {
 		/* reset all the output flags in case this isn't our first time saving this data */
@@ -2774,6 +2767,13 @@ int ast_config_text_file_save2(const char *configfile, const struct ast_config *
 	/* now make sure we have write access to the main config file or its parent directory */
 	make_fn(fn, sizeof(fn), 0, configfile);
 	if (!is_writable(fn)) {
+		return -1;
+	}
+
+	fileset = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, 1023,
+		hash_string, NULL, hashtab_compare_strings);
+	if (!fileset) {
+		/* Container creation failed. */
 		return -1;
 	}
 
