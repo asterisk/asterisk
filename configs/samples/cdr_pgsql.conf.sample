@@ -5,12 +5,13 @@
 ; on this system (check for pgsessions.conf)
 
 [global]
-;hostname=localhost
-;port=5432
-;dbname=asterisk
-;password=password
-;user=postgres
-;appname=asterisk    ; Postgres application_name support (optional). Whitespace not allowed.
-;table=cdr		;SQL table where CDRs will be inserted
-;encoding=LATIN9	; Encoding of logged characters in Asterisk
-;timezone=UTC		; Uncomment if you want datetime fields in UTC/GMT
+;hostname=localhost          ; Database server hostname
+;port=5432                   ; Port number for the PostgreSQL server
+;dbname=asterisk             ; Database name
+;user=asterisk               ; Username for the database
+;password=password           ; Password for the user
+;appname=asterisk            ; Optional PostgreSQL application_name (no whitespace allowed)
+;table=cdr                   ; SQL table where Call Detail Records (CDRs) will be inserted
+;encoding=LATIN9             ; Character encoding for logged data
+;timezone=UTC                ; Uncomment to log datetime fields in UTC/GMT
+
