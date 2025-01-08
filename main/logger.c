@@ -287,7 +287,7 @@ static int format_log_json(struct logchannel *channel, struct logmsg *msg, char 
 	}
 
 	json = ast_json_pack("{s: s, s: s, "
-		"s: {s: i, s: s} "
+		"s: {s: i, s: s}, "
 		"s: {s: {s: s, s: s, s: i}, "
 		"s: s, s: s} }",
 		"hostname", ast_config_AST_SYSTEM_NAME,
