@@ -1441,7 +1441,7 @@ static int parse_config(int is_reload)
 	config = ast_config_load(RES_CONFIG_PGSQL_CONF, config_flags);
 	if (config == CONFIG_STATUS_FILEUNCHANGED) {
 		if (is_reload && pgsqlConn && PQstatus(pgsqlConn) != CONNECTION_OK) {
-			ast_log(LOG_WARNING,  "PostgreSQL RealTime: Not connected\n");
+			ast_log(LOG_WARNING, "PostgreSQL RealTime: Not connected\n");
 		}
 		return 0;
 	}
@@ -1459,60 +1459,79 @@ static int parse_config(int is_reload)
 		pgsqlConn = NULL;
 	}
 
-	if (!(s = ast_variable_retrieve(config, "general", "dbuser"))) {
-		ast_log(LOG_WARNING,
-				"PostgreSQL RealTime: No database user found, using 'asterisk' as default.\n");
+	/* Check new 'user' option first, then fall back to legacy 'dbuser' */
+	s = ast_variable_retrieve(config, "general", "user");
+	if (!s) {
+		s = ast_variable_retrieve(config, "general", "dbuser");
+	}
+	if (!s) {
+		ast_log(LOG_WARNING, "PostgreSQL RealTime: No database user found, using 'asterisk' as default.\n");
 		strcpy(dbuser, "asterisk");
 	} else {
 		ast_copy_string(dbuser, s, sizeof(dbuser));
 	}
 
-	if (!(s = ast_variable_retrieve(config, "general", "dbpass"))) {
-		ast_log(LOG_WARNING,
-				"PostgreSQL RealTime: No database password found, using 'asterisk' as default.\n");
+	/* Check new 'password' option first, then fall back to legacy 'dbpass' */
+	s = ast_variable_retrieve(config, "general", "password");
+	if (!s) {
+		s = ast_variable_retrieve(config, "general", "dbpass");
+	}
+	if (!s) {
+		ast_log(LOG_WARNING, "PostgreSQL RealTime: No database password found, using 'asterisk' as default.\n");
 		strcpy(dbpass, "asterisk");
 	} else {
 		ast_copy_string(dbpass, s, sizeof(dbpass));
 	}
 
-	if (!(s = ast_variable_retrieve(config, "general", "dbhost"))) {
-		ast_log(LOG_WARNING,
-				"PostgreSQL RealTime: No database host found, using localhost via socket.\n");
+	/* Check new 'hostname' option first, then fall back to legacy 'dbhost' */
+	s = ast_variable_retrieve(config, "general", "hostname");
+	if (!s) {
+		s = ast_variable_retrieve(config, "general", "dbhost");
+	}
+	if (!s) {
+		ast_log(LOG_WARNING, "PostgreSQL RealTime: No database host found, using localhost via socket.\n");
 		dbhost[0] = '\0';
 	} else {
 		ast_copy_string(dbhost, s, sizeof(dbhost));
 	}
 
-	if (!(s = ast_variable_retrieve(config, "general", "dbname"))) {
-		ast_log(LOG_WARNING,
-				"PostgreSQL RealTime: No database name found, using 'asterisk' as default.\n");
-		strcpy(dbname, "asterisk");
-	} else {
-		ast_copy_string(dbname, s, sizeof(dbname));
+	/* Check new 'port' option first, then fall back to legacy 'dbport' */
+	s = ast_variable_retrieve(config, "general", "port");
+	if (!s) {
+		s = ast_variable_retrieve(config, "general", "dbport");
 	}
-
-	if (!(s = ast_variable_retrieve(config, "general", "dbport"))) {
-		ast_log(LOG_WARNING,
-				"PostgreSQL RealTime: No database port found, using 5432 as default.\n");
+	if (!s) {
+		ast_log(LOG_WARNING, "PostgreSQL RealTime: No database port found, using 5432 as default.\n");
 		dbport = 5432;
 	} else {
 		dbport = atoi(s);
 	}
 
-	if (!(s = ast_variable_retrieve(config, "general", "dbappname"))) {
+	/* Check new 'appname' option first, then fall back to legacy 'dbappname' */
+	s = ast_variable_retrieve(config, "general", "appname");
+	if (!s) {
+		s = ast_variable_retrieve(config, "general", "dbappname");
+	}
+	if (!s) {
 		dbappname[0] = '\0';
 	} else {
 		ast_copy_string(dbappname, s, sizeof(dbappname));
 	}
 
+	/* Handle socket configuration if no host is specified */
 	if (!ast_strlen_zero(dbhost)) {
 		/* No socket needed */
-	} else if (!(s = ast_variable_retrieve(config, "general", "dbsock"))) {
-		ast_log(LOG_WARNING,
-				"PostgreSQL RealTime: No database socket found, using '/tmp/.s.PGSQL.%d' as default.\n", dbport);
-		strcpy(dbsock, "/tmp");
 	} else {
-		ast_copy_string(dbsock, s, sizeof(dbsock));
+		s = ast_variable_retrieve(config, "general", "socket");
+		if (!s) {
+			s = ast_variable_retrieve(config, "general", "dbsock");
+		}
+		if (!s) {
+			ast_log(LOG_WARNING, "PostgreSQL RealTime: No database socket found, using '/tmp/.s.PGSQL.%d' as default.\n", dbport);
+			strcpy(dbsock, "/tmp");
+		} else {
+			ast_copy_string(dbsock, s, sizeof(dbsock));
+		}
 	}
 
 	if (!(s = ast_variable_retrieve(config, "general", "requirements"))) {
