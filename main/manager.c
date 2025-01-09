@@ -3786,7 +3786,7 @@ void astman_live_dangerously(int new_live_dangerously)
  * \return 1 on restricted file
  * \return -1 on failure
  */
-static int restrictedFile(const char *filename)
+static int is_restricted_file(const char *filename)
 {
 	char *stripped_filename;
 	RAII_VAR(char *, path, NULL, ast_free);
@@ -3838,9 +3838,9 @@ static int action_getconfig(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	ret = restrictedFile(fn);
+	ret = is_restricted_file(fn);
 	if (ret == 1) {
-		astman_send_error(s, m, "File requires escalated priveledges");
+		astman_send_error(s, m, "File requires escalated privileges");
 		return 0;
 	} else if (ret == -1) {
 		astman_send_error(s, m, "Config file not found");
@@ -3906,9 +3906,9 @@ static int action_listcategories(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	ret = restrictedFile(fn);
+	ret = is_restricted_file(fn);
 	if (ret == 1) {
-		astman_send_error(s, m, "File requires escalated priveledges");
+		astman_send_error(s, m, "File requires escalated priveleges");
 		return 0;
 	} else if (ret == -1) {
 		astman_send_error(s, m, "Config file not found");
@@ -3984,8 +3984,8 @@ static int action_getconfigjson(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	if (restrictedFile(fn)) {
-		astman_send_error(s, m, "File requires escalated priveledges");
+	if (is_restricted_file(fn)) {
+		astman_send_error(s, m, "File requires escalated privileges");
 		return 0;
 	}
 
@@ -4340,8 +4340,8 @@ static int action_updateconfig(struct mansession *s, const struct message *m)
 		astman_send_error(s, m, "Filename not specified");
 		return 0;
 	}
-	if (restrictedFile(sfn) || restrictedFile(dfn)) {
-		astman_send_error(s, m, "File requires escalated priveledges");
+	if (is_restricted_file(sfn) || is_restricted_file(dfn)) {
+		astman_send_error(s, m, "File requires escalated privileges");
 		return 0;
 	}
 	if (!(cfg = ast_config_load2(sfn, "manager", config_flags))) {
