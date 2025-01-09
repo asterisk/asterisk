@@ -373,6 +373,7 @@ class Operation(Stringify):
         self.summary = None
         self.notes = None
         self.error_responses = []
+        self.since = []
 
     def load(self, op_json, processor, context):
         context = context.next_stack(op_json, 'nickname')
@@ -383,6 +384,8 @@ class Operation(Stringify):
         response_class = op_json.get('responseClass')
         self.response_class = response_class and SwaggerType().load(
             response_class, processor, context)
+        since = op_json.get('since') or []
+        self.since = ", ".join(since)
 
         # Specifying WebSocket URL's is our own extension
         self.is_websocket = op_json.get('upgrade') == 'websocket'
@@ -611,6 +614,7 @@ class ApiDeclaration(Stringify):
         self.api_version = None
         self.base_path = None
         self.resource_path = None
+        self.since = []
         self.apis = []
         self.models = []
 
@@ -658,6 +662,8 @@ class ApiDeclaration(Stringify):
         self.base_path = api_decl_json.get('basePath')
         self.resource_path = api_decl_json.get('resourcePath')
         self.requires_modules = api_decl_json.get('requiresModules') or []
+        since = api_decl_json.get('since') or []
+        self.since = ", ".join(since)
         api_json = api_decl_json.get('apis') or []
         self.apis = [
             Api().load(j, processor, context) for j in api_json]
