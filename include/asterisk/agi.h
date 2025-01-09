@@ -60,6 +60,10 @@ typedef struct agi_command {
 	struct ast_module *mod;
 	/*! Linked list pointer */
 	AST_LIST_ENTRY(agi_command) list;
+	/*! Since content */
+	const char * const since;
+	/*! Syntax arguments content */
+	const char * const arguments;
 } agi_command;
 
 /*!
