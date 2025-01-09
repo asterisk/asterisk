@@ -1,11 +1,14 @@
 {{#api_declaration}}
 # {{name_title}}
+{{#since}}
+## Since: {{since}}
+{{/since}}
 
-| Method | Path (Parameters are case-sensitive) | Return Model | Summary |
-|:------ |:------------------------------------ |:------------ |:------- |
+| Method | Path (Parameters are case-sensitive) | Return Model | Summary | Since |
+|:------ |:------------------------------------ |:------------ |:------- |:----- |
 {{#apis}}
 {{#operations}}
-| {{http_method}} | [{{wiki_path}}](#{{nickname_lc}}) | {{#response_class}}{{#is_primitive}}{{name}}{{/is_primitive}}{{^is_primitive}}[{{wiki_name}}]({{wiki_prefix}}Asterisk_REST_Data_Models#{{lc_singular_name}}){{/is_primitive}}{{/response_class}} | {{{summary}}} |
+| {{http_method}} | [{{wiki_path}}](#{{nickname_lc}}) | {{#response_class}}{{#is_primitive}}{{name}}{{/is_primitive}}{{^is_primitive}}[{{wiki_name}}]({{wiki_prefix}}Asterisk_REST_Data_Models#{{lc_singular_name}}){{/is_primitive}}{{/response_class}} | {{{summary}}} | {{since}} |
 {{/operations}}
 {{/apis}}
 {{#apis}}
@@ -14,6 +17,9 @@
 ---
 [//]: # (anchor:{{nickname_lc}})
 ## {{nickname}}
+{{#since}}
+### Since: {{since}}
+{{/since}}
 ### {{http_method}} {{wiki_path}}
 {{{wiki_summary}}}{{#wiki_notes}} {{{wiki_notes}}}{{/wiki_notes}}
 {{#has_path_parameters}}
