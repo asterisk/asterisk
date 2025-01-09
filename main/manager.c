@@ -1084,10 +1084,6 @@ static char *handle_showmancmd(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	int num;
 	int l;
 	const char *auth_str;
-#ifdef AST_XML_DOCS
-	char syntax_title[64], description_title[64], synopsis_title[64], seealso_title[64];
-	char arguments_title[64], privilege_title[64], final_response_title[64], list_responses_title[64];
-#endif
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -1115,18 +1111,6 @@ static char *handle_showmancmd(struct ast_cli_entry *e, int cmd, struct ast_cli_
 
 	authority = ast_str_alloca(MAX_AUTH_PERM_STRING);
 
-#ifdef AST_XML_DOCS
-	/* setup the titles */
-	term_color(synopsis_title, "[Synopsis]\n", COLOR_MAGENTA, 0, 40);
-	term_color(description_title, "[Description]\n", COLOR_MAGENTA, 0, 40);
-	term_color(syntax_title, "[Syntax]\n", COLOR_MAGENTA, 0, 40);
-	term_color(seealso_title, "[See Also]\n", COLOR_MAGENTA, 0, 40);
-	term_color(arguments_title, "[Arguments]\n", COLOR_MAGENTA, 0, 40);
-	term_color(privilege_title, "[Privilege]\n", COLOR_MAGENTA, 0, 40);
-	term_color(final_response_title, "[Final Response]\n", COLOR_MAGENTA, 0, 40);
-	term_color(list_responses_title, "[List Responses]\n", COLOR_MAGENTA, 0, 40);
-#endif
-
 	AST_RWLIST_RDLOCK(&actions);
 	AST_RWLIST_TRAVERSE(&actions, cur, list) {
 		for (num = 3; num < a->argc; num++) {
@@ -1135,22 +1119,24 @@ static char *handle_showmancmd(struct ast_cli_entry *e, int cmd, struct ast_cli_
 
 #ifdef AST_XML_DOCS
 				if (cur->docsrc == AST_XML_DOC) {
-					char *syntax = ast_xmldoc_printable(S_OR(cur->syntax, "Not available"), 1);
 					char *synopsis = ast_xmldoc_printable(S_OR(cur->synopsis, "Not available"), 1);
+					char *since = ast_xmldoc_printable(S_OR(cur->since, "Not available"), 1);
 					char *description = ast_xmldoc_printable(S_OR(cur->description, "Not available"), 1);
+					char *syntax = ast_xmldoc_printable(S_OR(cur->syntax, "Not available"), 1);
 					char *arguments = ast_xmldoc_printable(S_OR(cur->arguments, "Not available"), 1);
-					char *seealso = ast_xmldoc_printable(S_OR(cur->seealso, "Not available"), 1);
 					char *privilege = ast_xmldoc_printable(S_OR(auth_str, "Not available"), 1);
+					char *seealso = ast_xmldoc_printable(S_OR(cur->seealso, "Not available"), 1);
 					char *responses = ast_xmldoc_printable("None", 1);
 
-					if (!syntax || !synopsis || !description || !arguments
-							|| !seealso || !privilege || !responses) {
-						ast_free(syntax);
+					if (!synopsis || !since || !description || !syntax || !arguments
+							|| !privilege || !seealso || !responses) {
 						ast_free(synopsis);
+						ast_free(since);
 						ast_free(description);
+						ast_free(syntax);
 						ast_free(arguments);
-						ast_free(seealso);
 						ast_free(privilege);
+						ast_free(seealso);
 						ast_free(responses);
 						ast_cli(a->fd, "Allocation failure.\n");
 						AST_RWLIST_UNLOCK(&actions);
@@ -1158,14 +1144,33 @@ static char *handle_showmancmd(struct ast_cli_entry *e, int cmd, struct ast_cli_
 						return CLI_FAILURE;
 					}
 
-					ast_cli(a->fd, "%s%s\n\n%s%s\n\n%s%s\n\n%s%s\n\n%s%s\n\n%s%s\n\n%s",
-						syntax_title, syntax,
-						synopsis_title, synopsis,
-						description_title, description,
-						arguments_title, arguments,
-						seealso_title, seealso,
-						privilege_title, privilege,
-						list_responses_title);
+					ast_cli(a->fd, "\n"
+						"%s  -= Info about Manager Command '%s' =- %s\n\n"
+						COLORIZE_FMT "\n"
+						"%s\n\n"
+						COLORIZE_FMT "\n"
+						"%s\n\n"
+						COLORIZE_FMT "\n"
+						"%s\n\n"
+						COLORIZE_FMT "\n"
+						"%s\n\n"
+						COLORIZE_FMT "\n"
+						"%s\n\n"
+						COLORIZE_FMT "\n"
+						"%s\n\n"
+						COLORIZE_FMT "\n"
+						"%s\n\n"
+						COLORIZE_FMT "\n",
+						ast_term_color(COLOR_MAGENTA, 0), cur->action, ast_term_reset(),
+						COLORIZE(COLOR_MAGENTA, 0, "[Synopsis]"), synopsis,
+						COLORIZE(COLOR_MAGENTA, 0, "[Since]"), since,
+						COLORIZE(COLOR_MAGENTA, 0, "[Description]"), description,
+						COLORIZE(COLOR_MAGENTA, 0, "[Syntax]"), syntax,
+						COLORIZE(COLOR_MAGENTA, 0, "[Arguments]"), arguments,
+						COLORIZE(COLOR_MAGENTA, 0, "[Privilege]"), privilege,
+						COLORIZE(COLOR_MAGENTA, 0, "[See Also]"), seealso,
+						COLORIZE(COLOR_MAGENTA, 0, "[List Responses]")
+						);
 
 					if (!cur->list_responses) {
 						ast_cli(a->fd, "%s\n\n", responses);
@@ -1176,22 +1181,33 @@ static char *handle_showmancmd(struct ast_cli_entry *e, int cmd, struct ast_cli_
 							print_event_instance(a, temp);
 						}
 					}
+					ast_cli(a->fd,
+						COLORIZE_FMT "\n",
+						COLORIZE(COLOR_MAGENTA, 0, "[End List Responses]")
+						);
 
-					ast_cli(a->fd, "%s", final_response_title);
-
+					ast_cli(a->fd, "\n"
+						COLORIZE_FMT "\n",
+						COLORIZE(COLOR_MAGENTA, 0, "[Final Response]")
+						);
 					if (!cur->final_response) {
 						ast_cli(a->fd, "%s\n\n", responses);
 					} else {
 						ast_cli(a->fd, "Event: %s\n", cur->final_response->name);
 						print_event_instance(a, cur->final_response);
 					}
+					ast_cli(a->fd,
+						COLORIZE_FMT "\n",
+						COLORIZE(COLOR_MAGENTA, 0, "[End Final Response]")
+						);
 
-					ast_free(syntax);
 					ast_free(synopsis);
+					ast_free(since);
 					ast_free(description);
+					ast_free(syntax);
 					ast_free(arguments);
-					ast_free(seealso);
 					ast_free(privilege);
+					ast_free(seealso);
 					ast_free(responses);
 				} else
 #endif
@@ -7744,6 +7760,11 @@ int ast_manager_register2(const char *action, int auth, int (*func)(struct manse
 		return -1;
 	}
 
+	if (ast_string_field_init_extended(cur, since)) {
+		ao2_t_ref(cur, -1, "action object creation failed");
+		return -1;
+	}
+
 	cur->action = action;
 	cur->authority = auth;
 	cur->func = func;
@@ -7751,6 +7772,10 @@ int ast_manager_register2(const char *action, int auth, int (*func)(struct manse
 #ifdef AST_XML_DOCS
 	if (ast_strlen_zero(synopsis) && ast_strlen_zero(description)) {
 		char *tmpxml;
+
+		tmpxml = ast_xmldoc_build_since("manager", action, NULL);
+		ast_string_field_set(cur, since, tmpxml);
+		ast_free(tmpxml);
 
 		tmpxml = ast_xmldoc_build_synopsis("manager", action, NULL);
 		ast_string_field_set(cur, synopsis, tmpxml);
@@ -9164,39 +9189,50 @@ static char *handle_manager_show_events(struct ast_cli_entry *e, int cmd, struct
 
 static void print_event_instance(struct ast_cli_args *a, struct ast_xml_doc_item *instance)
 {
-	char syntax_title[64], description_title[64], synopsis_title[64], seealso_title[64], arguments_title[64];
+	char *since, *syntax, *description, *synopsis, *seealso, *arguments;
 
-	term_color(synopsis_title, "[Synopsis]\n", COLOR_MAGENTA, 0, 40);
-	term_color(description_title, "[Description]\n", COLOR_MAGENTA, 0, 40);
-	term_color(syntax_title, "[Syntax]\n", COLOR_MAGENTA, 0, 40);
-	term_color(seealso_title, "[See Also]\n", COLOR_MAGENTA, 0, 40);
-	term_color(arguments_title, "[Arguments]\n", COLOR_MAGENTA, 0, 40);
+	synopsis = ast_xmldoc_printable(AS_OR(instance->synopsis, "Not available"), 1);
+	since = ast_xmldoc_printable(AS_OR(instance->since, "Not available"), 1);
+	description = ast_xmldoc_printable(AS_OR(instance->description, "Not available"), 1);
+	syntax = ast_xmldoc_printable(AS_OR(instance->syntax, "Not available"), 1);
+	arguments = ast_xmldoc_printable(AS_OR(instance->arguments, "Not available"), 1);
+	seealso = ast_xmldoc_printable(AS_OR(instance->seealso, "Not available"), 1);
 
-	if (!ast_strlen_zero(ast_str_buffer(instance->synopsis))) {
-		char *synopsis = ast_xmldoc_printable(ast_str_buffer(instance->synopsis), 1);
-		ast_cli(a->fd, "%s%s\n\n", synopsis_title, synopsis);
-		ast_free(synopsis);
+	if (!synopsis || !since || !description || !syntax || !arguments || !seealso) {
+		ast_cli(a->fd, "Error: Memory allocation failed\n");
+		goto free_docs;
 	}
-	if (!ast_strlen_zero(ast_str_buffer(instance->syntax))) {
-		char *syntax = ast_xmldoc_printable(ast_str_buffer(instance->syntax), 1);
-		ast_cli(a->fd, "%s%s\n\n", syntax_title, syntax);
-		ast_free(syntax);
-	}
-	if (!ast_strlen_zero(ast_str_buffer(instance->description))) {
-		char *description = ast_xmldoc_printable(ast_str_buffer(instance->description), 1);
-		ast_cli(a->fd, "%s%s\n\n", description_title, description);
-		ast_free(description);
-	}
-	if (!ast_strlen_zero(ast_str_buffer(instance->arguments))) {
-		char *arguments = ast_xmldoc_printable(ast_str_buffer(instance->arguments), 1);
-		ast_cli(a->fd, "%s%s\n\n", arguments_title, arguments);
-		ast_free(arguments);
-	}
-	if (!ast_strlen_zero(ast_str_buffer(instance->seealso))) {
-		char *seealso = ast_xmldoc_printable(ast_str_buffer(instance->seealso), 1);
-		ast_cli(a->fd, "%s%s\n\n", seealso_title, seealso);
-		ast_free(seealso);
-	}
+
+	ast_cli(a->fd, "\n"
+		"%s  -= Info about Manager Event '%s' =- %s\n\n"
+		COLORIZE_FMT "\n"
+		"%s\n\n"
+		COLORIZE_FMT "\n"
+		"%s\n\n"
+		COLORIZE_FMT "\n"
+		"%s\n\n"
+		COLORIZE_FMT "\n"
+		"%s\n\n"
+		COLORIZE_FMT "\n"
+		"%s\n\n"
+		COLORIZE_FMT "\n"
+		"%s\n\n",
+		ast_term_color(COLOR_MAGENTA, 0), instance->name, ast_term_reset(),
+		COLORIZE(COLOR_MAGENTA, 0, "[Synopsis]"), synopsis,
+		COLORIZE(COLOR_MAGENTA, 0, "[Since]"), since,
+		COLORIZE(COLOR_MAGENTA, 0, "[Description]"), description,
+		COLORIZE(COLOR_MAGENTA, 0, "[Syntax]"), syntax,
+		COLORIZE(COLOR_MAGENTA, 0, "[Arguments]"), arguments,
+		COLORIZE(COLOR_MAGENTA, 0, "[See Also]"), seealso
+		);
+
+free_docs:
+	ast_free(synopsis);
+	ast_free(since);
+	ast_free(description);
+	ast_free(syntax);
+	ast_free(arguments);
+	ast_free(seealso);
 }
 
 static char *handle_manager_show_event(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
