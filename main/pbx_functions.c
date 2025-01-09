@@ -144,10 +144,8 @@ static char *handle_show_function(struct ast_cli_entry *e, int cmd, struct ast_c
 {
 	struct ast_custom_function *acf;
 	/* Maximum number of characters added by terminal coloring is 22 */
-	char infotitle[64 + AST_MAX_APP + 22], syntitle[40], desctitle[40], argtitle[40], seealsotitle[40];
-	char info[64 + AST_MAX_APP], *synopsis = NULL, *description = NULL, *seealso = NULL;
-	char stxtitle[40], *syntax = NULL, *arguments = NULL;
-	int syntax_size, description_size, synopsis_size, arguments_size, seealso_size;
+	char *synopsis = NULL, *since = NULL, *description = NULL, *syntax = NULL, *arguments = NULL, *seealso = NULL;
+	char *rtn = CLI_SUCCESS;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -170,71 +168,62 @@ static char *handle_show_function(struct ast_cli_entry *e, int cmd, struct ast_c
 		return CLI_FAILURE;
 	}
 
-	syntax_size = strlen(S_OR(acf->syntax, "Not Available")) + AST_TERM_MAX_ESCAPE_CHARS;
-	syntax = ast_malloc(syntax_size);
-	if (!syntax) {
-		ast_cli(a->fd, "Memory allocation failure!\n");
-
-		return CLI_FAILURE;
-	}
-
-	snprintf(info, sizeof(info), "\n  -= Info about function '%s' =- \n\n", acf->name);
-	term_color(infotitle, info, COLOR_MAGENTA, 0, sizeof(infotitle));
-	term_color(syntitle, "[Synopsis]\n", COLOR_MAGENTA, 0, 40);
-	term_color(desctitle, "[Description]\n", COLOR_MAGENTA, 0, 40);
-	term_color(stxtitle, "[Syntax]\n", COLOR_MAGENTA, 0, 40);
-	term_color(argtitle, "[Arguments]\n", COLOR_MAGENTA, 0, 40);
-	term_color(seealsotitle, "[See Also]\n", COLOR_MAGENTA, 0, 40);
-	term_color(syntax, S_OR(acf->syntax, "Not available"), COLOR_CYAN, 0, syntax_size);
 #ifdef AST_XML_DOCS
 	if (acf->docsrc == AST_XML_DOC) {
-		arguments = ast_xmldoc_printable(S_OR(acf->arguments, "Not available"), 1);
 		synopsis = ast_xmldoc_printable(S_OR(acf->synopsis, "Not available"), 1);
+		since = ast_xmldoc_printable(S_OR(acf->since, "Not available"), 1);
 		description = ast_xmldoc_printable(S_OR(acf->desc, "Not available"), 1);
+		syntax = ast_xmldoc_printable(S_OR(acf->syntax, "Not available"), 1);
+		arguments = ast_xmldoc_printable(S_OR(acf->arguments, "Not available"), 1);
 		seealso = ast_xmldoc_printable(S_OR(acf->seealso, "Not available"), 1);
 	} else
 #endif
 	{
-		synopsis_size = strlen(S_OR(acf->synopsis, "Not Available")) + AST_TERM_MAX_ESCAPE_CHARS;
-		synopsis = ast_malloc(synopsis_size);
-
-		description_size = strlen(S_OR(acf->desc, "Not Available")) + AST_TERM_MAX_ESCAPE_CHARS;
-		description = ast_malloc(description_size);
-
-		arguments_size = strlen(S_OR(acf->arguments, "Not Available")) + AST_TERM_MAX_ESCAPE_CHARS;
-		arguments = ast_malloc(arguments_size);
-
-		seealso_size = strlen(S_OR(acf->seealso, "Not Available")) + AST_TERM_MAX_ESCAPE_CHARS;
-		seealso = ast_malloc(seealso_size);
-
+		synopsis = ast_strdup(S_OR(acf->synopsis, "Not Available"));
+		since = ast_strdup(S_OR(acf->since, "Not Available"));
+		description = ast_strdup(S_OR(acf->desc, "Not Available"));
+		syntax = ast_strdup(S_OR(acf->syntax, "Not Available"));
+		arguments = ast_strdup(S_OR(acf->arguments, "Not Available"));
+		seealso = ast_strdup(S_OR(acf->seealso, "Not Available"));
+	}
 		/* check allocated memory. */
-		if (!synopsis || !description || !arguments || !seealso) {
-			ast_free(synopsis);
-			ast_free(description);
-			ast_free(arguments);
-			ast_free(seealso);
-			ast_free(syntax);
-
-			return CLI_FAILURE;
-		}
-
-		term_color(arguments, S_OR(acf->arguments, "Not available"), COLOR_CYAN, 0, arguments_size);
-		term_color(synopsis, S_OR(acf->synopsis, "Not available"), COLOR_CYAN, 0, synopsis_size);
-		term_color(description, S_OR(acf->desc, "Not available"), COLOR_CYAN, 0, description_size);
-		term_color(seealso, S_OR(acf->seealso, "Not available"), COLOR_CYAN, 0, seealso_size);
+	if (!synopsis || !since || !description || !syntax || !arguments || !seealso) {
+		rtn = CLI_FAILURE;
+		goto free_docs;
 	}
 
-	ast_cli(a->fd, "%s%s%s\n\n%s%s\n\n%s%s\n\n%s%s\n\n%s%s\n",
-			infotitle, syntitle, synopsis, desctitle, description,
-			stxtitle, syntax, argtitle, arguments, seealsotitle, seealso);
+	ast_cli(a->fd, "\n"
+		"%s  -= Info about Function '%s' =- %s\n\n"
+		COLORIZE_FMT "\n"
+		"%s\n\n"
+		COLORIZE_FMT "\n"
+		"%s\n\n"
+		COLORIZE_FMT "\n"
+		"%s\n\n"
+		COLORIZE_FMT "\n"
+		"%s\n\n"
+		COLORIZE_FMT "\n"
+		"%s\n\n"
+		COLORIZE_FMT "\n"
+		"%s\n\n",
+		ast_term_color(COLOR_MAGENTA, 0), acf->name, ast_term_reset(),
+		COLORIZE(COLOR_MAGENTA, 0, "[Synopsis]"), synopsis,
+		COLORIZE(COLOR_MAGENTA, 0, "[Since]"), since,
+		COLORIZE(COLOR_MAGENTA, 0, "[Description]"), description,
+		COLORIZE(COLOR_MAGENTA, 0, "[Syntax]"), syntax,
+		COLORIZE(COLOR_MAGENTA, 0, "[Arguments]"), arguments,
+		COLORIZE(COLOR_MAGENTA, 0, "[See Also]"), seealso
+		);
 
-	ast_free(arguments);
+free_docs:
 	ast_free(synopsis);
+	ast_free(since);
 	ast_free(description);
-	ast_free(seealso);
 	ast_free(syntax);
+	ast_free(arguments);
+	ast_free(seealso);
 
-	return CLI_SUCCESS;
+	return rtn;
 }
 
 static struct ast_custom_function *ast_custom_function_find_nolock(const char *name)
@@ -339,9 +328,19 @@ static int acf_retrieve_docs(struct ast_custom_function *acf)
 		return -1;
 	}
 
+	if (ast_string_field_init_extended(acf, since)) {
+		ast_string_field_free_memory(acf);
+		return -1;
+	}
+
 	/* load synopsis */
 	tmpxml = ast_xmldoc_build_synopsis("function", acf->name, ast_module_name(acf->mod));
 	ast_string_field_set(acf, synopsis, tmpxml);
+	ast_free(tmpxml);
+
+	/* load since */
+	tmpxml = ast_xmldoc_build_since("function", acf->name, ast_module_name(acf->mod));
+	ast_string_field_set(acf, since, tmpxml);
 	ast_free(tmpxml);
 
 	/* load description */

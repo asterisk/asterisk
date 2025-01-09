@@ -78,6 +78,8 @@ struct ast_xml_doc_item {
 	struct ast_xml_node *node;
 	/*! The next XML documentation item that matches the same name/item type */
 	AST_LIST_ENTRY(ast_xml_doc_item) next;
+	/*! Since tagged information, if it exists */
+	struct ast_str *since;
 };
 
 /*! \brief Execute an XPath query on the loaded XML documentation
@@ -109,6 +111,16 @@ char *ast_xmldoc_build_syntax(const char *type, const char *name, const char *mo
  *  \retval Content of the see-also node.
  */
 char *ast_xmldoc_build_seealso(const char *type, const char *name, const char *module);
+
+/*!
+ *  \brief Parse the <since> node content.
+ *  \param type 'application', 'function' or 'agi'.
+ *  \param name Application or functions name.
+ *  \param module The module the item is in (optional, can be NULL)
+ *  \retval NULL on error.
+ *  \retval Content of the since node.
+ */
+char *ast_xmldoc_build_since(const char *type, const char *name, const char *module);
 
 /*!
  *  \brief Generate the [arguments] tag based on type of node ('application',

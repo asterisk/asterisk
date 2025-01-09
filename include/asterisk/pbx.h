@@ -150,6 +150,7 @@ struct ast_custom_function {
 					 * \since 12 */
 
 	AST_RWLIST_ENTRY(ast_custom_function) acflist;
+	AST_STRING_FIELD_EXTENDED(since); /*!< Since text for 'show functions' */
 };
 
 /*! \brief All switch functions have the same interface, so define a type for them */
