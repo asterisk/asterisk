@@ -72,10 +72,10 @@
   <!ELEMENT configFile (configObject|xi:include)+>
   <!ATTLIST configFile name CDATA #REQUIRED>
 
-  <!ELEMENT configObject (synopsis?|description?|syntax?|see-also?|(configOption|xi:include))*>
+  <!ELEMENT configObject (since?|synopsis?|description?|syntax?|see-also?|(configOption|xi:include))*>
   <!ATTLIST configObject name CDATA #REQUIRED>
 
-  <!ELEMENT configOption (synopsis,description?,syntax?,see-also?)*>
+  <!ELEMENT configOption (since?,synopsis,description?,syntax?,see-also?)*>
   <!ATTLIST configOption name CDATA #REQUIRED>
   <!ATTLIST configOption regex (yes|no|true|false) "false">
   <!ATTLIST configOption default CDATA #IMPLIED>
