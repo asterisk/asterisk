@@ -46,6 +46,7 @@ struct ast_app {
 	int (*execute)(struct ast_channel *chan, const char *data);
 	AST_DECLARE_STRING_FIELDS(
 		AST_STRING_FIELD(synopsis);     /*!< Synopsis text for 'show applications' */
+		AST_STRING_FIELD(since);        /*!< Since text for 'show applications' */
 		AST_STRING_FIELD(description);  /*!< Description (help text) for 'show application &lt;name&gt;' */
 		AST_STRING_FIELD(syntax);       /*!< Syntax text for 'core show applications' */
 		AST_STRING_FIELD(arguments);    /*!< Arguments description */
@@ -142,6 +143,11 @@ int ast_register_application2(const char *app, int (*execute)(struct ast_channel
 		ast_string_field_set(tmp, synopsis, tmpxml);
 		ast_free(tmpxml);
 
+		/* load since */
+		tmpxml = ast_xmldoc_build_since("application", app, ast_module_name(tmp->module));
+		ast_string_field_set(tmp, since, tmpxml);
+		ast_free(tmpxml);
+
 		/* load description */
 		tmpxml = ast_xmldoc_build_description("application", app, ast_module_name(tmp->module));
 		ast_string_field_set(tmp, description, tmpxml);
@@ -191,67 +197,61 @@ int ast_register_application2(const char *app, int (*execute)(struct ast_channel
 
 static void print_app_docs(struct ast_app *aa, int fd)
 {
+	char *synopsis = NULL, *since = NULL, *description = NULL, *syntax = NULL, *arguments = NULL, *seealso = NULL;
+
 #ifdef AST_XML_DOCS
-	char *synopsis = NULL, *description = NULL, *arguments = NULL, *seealso = NULL;
 	if (aa->docsrc == AST_XML_DOC) {
 		synopsis = ast_xmldoc_printable(S_OR(aa->synopsis, "Not available"), 1);
+		since = ast_xmldoc_printable(S_OR(aa->since, "Not available"), 1);
 		description = ast_xmldoc_printable(S_OR(aa->description, "Not available"), 1);
+		syntax = ast_xmldoc_printable(S_OR(aa->syntax, "Not available"), 1);
 		arguments = ast_xmldoc_printable(S_OR(aa->arguments, "Not available"), 1);
 		seealso = ast_xmldoc_printable(S_OR(aa->seealso, "Not available"), 1);
-		if (!synopsis || !description || !arguments || !seealso) {
-			goto free_docs;
-		}
-		ast_cli(fd, "\n"
-			"%s  -= Info about application '%s' =- %s\n\n"
-			COLORIZE_FMT "\n"
-			"%s\n\n"
-			COLORIZE_FMT "\n"
-			"%s\n\n"
-			COLORIZE_FMT "\n"
-			"%s%s%s\n\n"
-			COLORIZE_FMT "\n"
-			"%s\n\n"
-			COLORIZE_FMT "\n"
-			"%s\n",
-			ast_term_color(COLOR_MAGENTA, 0), aa->name, ast_term_reset(),
-			COLORIZE(COLOR_MAGENTA, 0, "[Synopsis]"), synopsis,
-			COLORIZE(COLOR_MAGENTA, 0, "[Description]"), description,
-			COLORIZE(COLOR_MAGENTA, 0, "[Syntax]"),
-				ast_term_color(COLOR_CYAN, 0), S_OR(aa->syntax, "Not available"), ast_term_reset(),
-			COLORIZE(COLOR_MAGENTA, 0, "[Arguments]"), arguments,
-			COLORIZE(COLOR_MAGENTA, 0, "[See Also]"), seealso);
-free_docs:
-		ast_free(synopsis);
-		ast_free(description);
-		ast_free(arguments);
-		ast_free(seealso);
 	} else
 #endif
 	{
-		ast_cli(fd, "\n"
-			"%s  -= Info about application '%s' =- %s\n\n"
-			COLORIZE_FMT "\n"
-			COLORIZE_FMT "\n\n"
-			COLORIZE_FMT "\n"
-			COLORIZE_FMT "\n\n"
-			COLORIZE_FMT "\n"
-			COLORIZE_FMT "\n\n"
-			COLORIZE_FMT "\n"
-			COLORIZE_FMT "\n\n"
-			COLORIZE_FMT "\n"
-			COLORIZE_FMT "\n",
-			ast_term_color(COLOR_MAGENTA, 0), aa->name, ast_term_reset(),
-			COLORIZE(COLOR_MAGENTA, 0, "[Synopsis]"),
-			COLORIZE(COLOR_CYAN, 0, S_OR(aa->synopsis, "Not available")),
-			COLORIZE(COLOR_MAGENTA, 0, "[Description]"),
-			COLORIZE(COLOR_CYAN, 0, S_OR(aa->description, "Not available")),
-			COLORIZE(COLOR_MAGENTA, 0, "[Syntax]"),
-			COLORIZE(COLOR_CYAN, 0, S_OR(aa->syntax, "Not available")),
-			COLORIZE(COLOR_MAGENTA, 0, "[Arguments]"),
-			COLORIZE(COLOR_CYAN, 0, S_OR(aa->arguments, "Not available")),
-			COLORIZE(COLOR_MAGENTA, 0, "[See Also]"),
-			COLORIZE(COLOR_CYAN, 0, S_OR(aa->seealso, "Not available")));
+		synopsis = ast_strdup(S_OR(aa->synopsis, "Not Available"));
+		since = ast_strdup(S_OR(aa->since, "Not Available"));
+		description = ast_strdup(S_OR(aa->description, "Not Available"));
+		syntax = ast_strdup(S_OR(aa->syntax, "Not Available"));
+		arguments = ast_strdup(S_OR(aa->arguments, "Not Available"));
+		seealso = ast_strdup(S_OR(aa->seealso, "Not Available"));
 	}
+		/* check allocated memory. */
+	if (!synopsis || !since || !description || !syntax || !arguments || !seealso) {
+		goto free_docs;
+	}
+
+	ast_cli(fd, "\n"
+		"%s  -= Info about Application '%s' =- %s\n\n"
+		COLORIZE_FMT "\n"
+		"%s\n\n"
+		COLORIZE_FMT "\n"
+		"%s\n\n"
+		COLORIZE_FMT "\n"
+		"%s\n\n"
+		COLORIZE_FMT "\n"
+		"%s\n\n"
+		COLORIZE_FMT "\n"
+		"%s\n\n"
+		COLORIZE_FMT "\n"
+		"%s\n\n",
+		ast_term_color(COLOR_MAGENTA, 0), aa->name, ast_term_reset(),
+		COLORIZE(COLOR_MAGENTA, 0, "[Synopsis]"), synopsis,
+		COLORIZE(COLOR_MAGENTA, 0, "[Since]"), since,
+		COLORIZE(COLOR_MAGENTA, 0, "[Description]"), description,
+		COLORIZE(COLOR_MAGENTA, 0, "[Syntax]"), syntax,
+		COLORIZE(COLOR_MAGENTA, 0, "[Arguments]"), arguments,
+		COLORIZE(COLOR_MAGENTA, 0, "[See Also]"), seealso
+		);
+
+free_docs:
+	ast_free(synopsis);
+	ast_free(since);
+	ast_free(description);
+	ast_free(syntax);
+	ast_free(arguments);
+	ast_free(seealso);
 }
 
 /*!
