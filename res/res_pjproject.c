@@ -329,10 +329,10 @@ static char *handle_pjproject_show_buildopts(struct ast_cli_entry *e, int cmd, s
 		}
 		/* Trim off the trailing ", " */
 		ast_str_truncate(buf, -2);
-		ast_cli(a->fd, "Supported Digest Algorithms (IANA name/OpenmSSL name): %s\n", ast_str_buffer(buf));
+		ast_cli(a->fd, "Supported Digest Algorithms (IANA name/OpenSSL name): %s\n", ast_str_buffer(buf));
 	}
 #else
-	ast_cli(a->fd, "Supported Digest Algorithms (IANA name/OpenmSSL name): MD5/MD5\n");
+	ast_cli(a->fd, "Supported Digest Algorithms (IANA name/OpenSSL name): MD5/MD5\n");
 #endif
 
 	return CLI_SUCCESS;
