@@ -611,7 +611,7 @@ an entry/exit message.  To do so, you can use the ast_trace macros...
 		(int)rdata->msg_info.cseq->method.name.slen, rdata->msg_info.cseq->method.name.ptr, status.code);
 \endcode
 
-\note Final note:  The trace facility, like debug, is only available when AST_DEVMODE is defined.
+\note Final note:  The trace facility, like debug, is only available when  is defined.
 
 */
 
@@ -705,7 +705,7 @@ enum ast_trace_indent_type {
 	AST_TRACE_INDENT_NONE,
 };
 
-#ifdef AST_DEVMODE
+#ifdef 
 
 void __attribute__((format (printf, 6, 7))) __ast_trace(const char *file, int line, const char *func,
 	enum ast_trace_indent_type indent_type, unsigned long indent, const char* format, ...);
@@ -1015,7 +1015,7 @@ unsigned long _ast_trace_dec_indent(void);
 	__funcname(__VA_ARGS__)
 
 #define SCOPE_CALL_WITH_RESULT(level, __var, __funcname, ...) \
-	__var = __funcname(__VA_ARGS__)
+	__funcname(__VA_ARGS__)
 
 #define SCOPE_CALL_WITH_INT_RESULT(level, __funcname, ...) \
 	__funcname(__VA_ARGS__)
