@@ -632,7 +632,7 @@ static enum ast_sip_check_auth_result digest_check_auth(struct ast_sip_endpoint 
 		 * sending challenges. We don't need to verify them.
 		 */
 		if (auth->type == AST_SIP_AUTH_TYPE_ARTIFICIAL) {
-			ast_trace(-1, "%s:%s:%s: Skipping verification on artificial endpoint\n", endpoint_id, auth_id, src_name )
+			ast_trace(-1, "%s:%s:%s: Skipping verification on artificial endpoint\n", endpoint_id, auth_id, src_name);
 			verify_res[idx] = AUTH_NOAUTH;
 		} else {
 			verify_res[idx] = SCOPE_CALL_WITH_RESULT(-1, int, verify, endpoint_id, auth, rdata, tdata->pool);
