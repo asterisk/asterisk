@@ -897,7 +897,7 @@ unsigned long _ast_trace_dec_indent(void);
 	__type __var; \
 	ast_trace(level, "--> Calling %s\n", #__funcname); \
 	__var = __funcname(__VA_ARGS__); \
-	ast_trace(level, "<-- Return from %s\n", #__funcname) \
+	ast_trace(level, "<-- Return from %s\n", #__funcname); \
 	__var; \
 })
 
@@ -1015,7 +1015,7 @@ unsigned long _ast_trace_dec_indent(void);
 	__funcname(__VA_ARGS__)
 
 #define SCOPE_CALL_WITH_RESULT(level, __var, __funcname, ...) \
-	__var = __funcname(__VA_ARGS__)
+	__funcname(__VA_ARGS__)
 
 #define SCOPE_CALL_WITH_INT_RESULT(level, __funcname, ...) \
 	__funcname(__VA_ARGS__)
