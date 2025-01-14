@@ -171,7 +171,15 @@
 		</synopsis>
 		<syntax>
 			<parameter name="media" required="true">
-				<para>types of media offered</para>
+				<para>The type of media offered</para>
+				<enumlist>
+					<enum name="audio">
+						<para>Audio codecs to offer</para>
+					</enum>
+					<enum name="video">
+						<para>Video codecs to offer</para>
+					</enum>
+				</enumlist>
 			</parameter>
 		</syntax>
 		<description>
