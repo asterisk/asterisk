@@ -51,7 +51,7 @@
 
 /*** DOCUMENTATION
 	<configInfo name="named_acl" language="en_US">
-		<configFile name="named_acl.conf">
+		<configFile name="acl.conf">
 			<configObject name="named_acl">
 				<synopsis>Options for configuring a named ACL</synopsis>
 				<configOption name="permit">
