@@ -34,7 +34,7 @@
 /*** DOCUMENTATION
 	<configInfo name="res_http_media_cache" language="en_US">
 		<synopsis>HTTP media cache</synopsis>
-		<configFile name="http_media_cache.conf">
+		<configFile name="res_http_media_cache.conf">
 			<configObject name="general">
 				<synopsis>General configuration</synopsis>
 				<configOption name="timeout_secs" default="180">

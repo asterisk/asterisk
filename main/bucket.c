@@ -28,36 +28,6 @@
 	<support_level>core</support_level>
  ***/
 
-/*** DOCUMENTATION
-        <configInfo name="core" language="en_US">
-                <synopsis>Bucket file API</synopsis>
-                <configFile name="bucket">
-                        <configObject name="bucket">
-                                <configOption name="scheme">
-                                        <synopsis>Scheme in use for bucket</synopsis>
-                                </configOption>
-                                <configOption name="created">
-                                        <synopsis>Time at which the bucket was created</synopsis>
-                                </configOption>
-                                <configOption name="modified">
-                                        <synopsis>Time at which the bucket was last modified</synopsis>
-                                </configOption>
-                        </configObject>
-                        <configObject name="file">
-                                <configOption name="scheme">
-                                        <synopsis>Scheme in use for file</synopsis>
-                                </configOption>
-                                <configOption name="created">
-                                        <synopsis>Time at which the file was created</synopsis>
-                                </configOption>
-                                <configOption name="modified">
-                                        <synopsis>Time at which the file was last modified</synopsis>
-                                </configOption>
-                        </configObject>
-                </configFile>
-        </configInfo>
-***/
-
 #include "asterisk.h"
 
 #ifdef HAVE_URIPARSER
@@ -982,14 +952,14 @@ int ast_bucket_init(void)
 		return -1;
 	}
 
-	if (ast_sorcery_object_register(bucket_sorcery, "bucket", bucket_alloc, NULL, NULL)) {
+	if (ast_sorcery_internal_object_register(bucket_sorcery, "bucket", bucket_alloc, NULL, NULL)) {
 		ast_log(LOG_ERROR, "Failed to register 'bucket' object type in Bucket sorcery\n");
 		return -1;
 	}
 
-	ast_sorcery_object_field_register(bucket_sorcery, "bucket", "scheme", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_bucket, scheme));
-	ast_sorcery_object_field_register_custom(bucket_sorcery, "bucket", "created", "", timeval_str2struct, timeval_struct2str, NULL, 0, FLDSET(struct ast_bucket, created));
-	ast_sorcery_object_field_register_custom(bucket_sorcery, "bucket", "modified", "", timeval_str2struct, timeval_struct2str, NULL, 0, FLDSET(struct ast_bucket, modified));
+	ast_sorcery_object_field_register_nodoc(bucket_sorcery, "bucket", "scheme", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_bucket, scheme));
+	ast_sorcery_object_field_register_custom_nodoc(bucket_sorcery, "bucket", "created", "", timeval_str2struct, timeval_struct2str, NULL, 0, FLDSET(struct ast_bucket, created));
+	ast_sorcery_object_field_register_custom_nodoc(bucket_sorcery, "bucket", "modified", "", timeval_str2struct, timeval_struct2str, NULL, 0, FLDSET(struct ast_bucket, modified));
 	ast_sorcery_object_set_copy_handler(bucket_sorcery, "bucket", bucket_copy_handler);
 
 	if (ast_sorcery_apply_default(bucket_sorcery, "file", "bucket_file", NULL) == AST_SORCERY_APPLY_FAIL) {
@@ -997,14 +967,14 @@ int ast_bucket_init(void)
 		return -1;
 	}
 
-	if (ast_sorcery_object_register(bucket_sorcery, "file", bucket_file_alloc, NULL, NULL)) {
+	if (ast_sorcery_internal_object_register(bucket_sorcery, "file", bucket_file_alloc, NULL, NULL)) {
 		ast_log(LOG_ERROR, "Failed to register 'file' object type in Bucket sorcery\n");
 		return -1;
 	}
 
-	ast_sorcery_object_field_register(bucket_sorcery, "file", "scheme", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_bucket_file, scheme));
-	ast_sorcery_object_field_register_custom(bucket_sorcery, "file", "created", "", timeval_str2struct, timeval_struct2str, NULL, 0, FLDSET(struct ast_bucket_file, created));
-	ast_sorcery_object_field_register_custom(bucket_sorcery, "file", "modified", "", timeval_str2struct, timeval_struct2str, NULL, 0, FLDSET(struct ast_bucket_file, modified));
+	ast_sorcery_object_field_register_nodoc(bucket_sorcery, "file", "scheme", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_bucket_file, scheme));
+	ast_sorcery_object_field_register_custom_nodoc(bucket_sorcery, "file", "created", "", timeval_str2struct, timeval_struct2str, NULL, 0, FLDSET(struct ast_bucket_file, created));
+	ast_sorcery_object_field_register_custom_nodoc(bucket_sorcery, "file", "modified", "", timeval_str2struct, timeval_struct2str, NULL, 0, FLDSET(struct ast_bucket_file, modified));
 	ast_sorcery_object_set_copy_handler(bucket_sorcery, "file", bucket_file_copy_handler);
 
 	return 0;
