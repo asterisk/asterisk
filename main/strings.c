@@ -244,6 +244,19 @@ int ast_strings_equal(const char *str1, const char *str2)
 	return str1 == str2 || !strcmp(str1, str2);
 }
 
+static int parse_double(const char *input, double *result)
+{
+	char *endptr;
+
+	errno = 0;
+	*result = strtod(input, &endptr);
+	if (*endptr || errno == ERANGE) {
+		return 0;
+	}
+
+	return 1;
+}
+
 int ast_strings_match(const char *left, const char *op, const char *right)
 {
 	char *internal_op = (char *)op;
@@ -311,7 +324,8 @@ regex:
 	}
 
 equals:
-	scan_numeric = (sscanf(left, "%lf", &left_num) > 0 && sscanf(internal_right, "%lf", &right_num) > 0);
+	scan_numeric = parse_double(left, &left_num)
+		&& parse_double(internal_right, &right_num);
 
 	if (internal_op[0] == '=') {
 		if (ast_strlen_zero(left) && ast_strlen_zero(internal_right)) {

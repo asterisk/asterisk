@@ -717,6 +717,9 @@ AST_TEST_DEFINE(strings_match)
 	ast_test_validate(test, !ast_strings_match(NULL, NULL, "abc"));
 	ast_test_validate(test, !ast_strings_match(NULL, NULL, NULL));
 
+	/* See https://github.com/asterisk/asterisk/issues/1028 */
+	ast_test_validate(test, !ast_strings_match("123456789c1", NULL, "123456789c2"));
+
 	return AST_TEST_PASS;
 }
 
