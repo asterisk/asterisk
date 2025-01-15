@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE docs SYSTEM "appdocsxml.dtd">
-<docs>
+<docs xmlns:xi="http://www.w3.org/2001/XInclude">
 	<configInfo name="res_geolocation" language="en_US">
 		<synopsis>Core Geolocation Support</synopsis>
 		<configFile name="geolocation.conf">
