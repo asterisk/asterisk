@@ -48,30 +48,38 @@
 		</description>
 		<configFile name="pjsip.conf">
 			<configObject name="asterisk-publication">
+				<since><version>13.0.0</version></since>
 				<synopsis>The configuration for inbound Asterisk event publication</synopsis>
 				<description><para>
 					Publish is <emphasis>COMPLETELY</emphasis> separate from the rest of
 					<literal>pjsip.conf</literal>.
 				</para></description>
 				<configOption name="devicestate_publish">
+					<since><version>13.0.0</version></since>
 					<synopsis>Optional name of a publish item that can be used to publish a request for full device state information.</synopsis>
 				</configOption>
 				<configOption name="mailboxstate_publish">
+					<since><version>13.0.0</version></since>
 					<synopsis>Optional name of a publish item that can be used to publish a request for full mailbox state information.</synopsis>
 				</configOption>
 				<configOption name="device_state" default="no">
+					<since><version>13.0.0</version></since>
 					<synopsis>Whether we should permit incoming device state events.</synopsis>
 				</configOption>
 				<configOption name="device_state_filter">
+					<since><version>13.0.0</version></since>
 					<synopsis>Optional regular expression used to filter what devices we accept events for.</synopsis>
 				</configOption>
 				<configOption name="mailbox_state" default="no">
+					<since><version>13.0.0</version></since>
 					<synopsis>Whether we should permit incoming mailbox state events.</synopsis>
 				</configOption>
 				<configOption name="mailbox_state_filter">
+					<since><version>13.0.0</version></since>
 					<synopsis>Optional regular expression used to filter what mailboxes we accept events for.</synopsis>
 				</configOption>
 				<configOption name="type">
+					<since><version>13.0.0</version></since>
 					<synopsis>Must be of type 'asterisk-publication'.</synopsis>
 				</configOption>
 			</configObject>
