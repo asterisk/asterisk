@@ -5,23 +5,29 @@
 		<synopsis>STIR/SHAKEN module for Asterisk</synopsis>
 		<configFile name="stir_shaken.conf">
 			<configObject name="attestation">
+				<since><version>18.22.0</version><version>20.7.0</version><version>21.2.0</version></since>
 				<synopsis>STIR/SHAKEN attestation options</synopsis>
 				<configOption name="global_disable" default="false">
+					<since><version>18.22.0</version><version>20.7.0</version><version>21.2.0</version></since>
 					<synopsis>Globally disable verification</synopsis>
 				</configOption>
 				<configOption name="private_key_file" default="">
+					<since><version>18.22.0</version><version>20.7.0</version><version>21.2.0</version></since>
 					<synopsis>File path to a certificate</synopsis>
 				</configOption>
 				<configOption name="public_cert_url" default="">
+					<since><version>18.22.0</version><version>20.7.0</version><version>21.2.0</version></since>
 					<synopsis>URL to the public certificate</synopsis>
 					<description><para>
 					 Must be a valid http, or https, URL.
 					</para></description>
 				</configOption>
 				<configOption name="attest_level">
+					<since><version>18.22.0</version><version>20.7.0</version><version>21.2.0</version></since>
 					<synopsis>Attestation level</synopsis>
 				</configOption>
 				<configOption name="unknown_tn_attest_level">
+					<since><version>20.12.0</version><version>21.7.0</version><version>22.2.0</version></since>
 					<synopsis>Attestation level to use for unknown TNs</synopsis>
 					<description><para>
 					Normally if a callerid TN isn't configured in stir_shaken.conf
@@ -34,47 +40,60 @@
 					</para></description>
 				</configOption>
 				<configOption name="check_tn_cert_public_url" default="false">
+					<since><version>18.22.0</version><version>20.7.0</version><version>21.2.0</version></since>
 					<synopsis>On load, Retrieve all TN's certificates and validate their dates</synopsis>
 				</configOption>
 				<configOption name="send_mky" default="no">
+					<since><version>18.22.0</version><version>20.7.0</version><version>21.2.0</version></since>
 					<synopsis>Send a media key (mky) grant in the attestation for DTLS calls.
 					(not common)</synopsis>
 				</configOption>
 			</configObject>
 			<configObject name="tn">
+				<since><version>18.22.0</version><version>20.7.0</version><version>21.2.0</version></since>
 				<synopsis>STIR/SHAKEN TN options</synopsis>
 				<configOption name="type">
+					<since><version>18.22.0</version><version>20.7.0</version><version>21.2.0</version></since>
 					<synopsis>Must be of type 'tn'.</synopsis>
 				</configOption>
 				<configOption name="private_key_file" default="">
+					<since><version>18.22.0</version><version>20.7.0</version><version>21.2.0</version></since>
 					<synopsis>File path to a certificate</synopsis>
 				</configOption>
 				<configOption name="public_cert_url" default="">
+					<since><version>18.22.0</version><version>20.7.0</version><version>21.2.0</version></since>
 					<synopsis>URL to the public certificate</synopsis>
 					<description><para>
 					 Must be a valid http, or https, URL.
 					</para></description>
 				</configOption>
 				<configOption name="attest_level">
+					<since><version>18.22.0</version><version>20.7.0</version><version>21.2.0</version></since>
 					<synopsis>Attestation level</synopsis>
 				</configOption>
 				<configOption name="check_tn_cert_public_url" default="false">
+					<since><version>18.22.0</version><version>20.7.0</version><version>21.2.0</version></since>
 					<synopsis>On load, Retrieve all TN's certificates and validate their dates</synopsis>
 				</configOption>
 				<configOption name="send_mky" default="no">
+					<since><version>18.22.0</version><version>20.7.0</version><version>21.2.0</version></since>
 					<synopsis>Send a media key (mky) grant in the attestation for DTLS calls.
 					(not common)</synopsis>
 				</configOption>
 			</configObject>
 			<configObject name="verification">
+				<since><version>18.22.0</version><version>20.7.0</version><version>21.2.0</version></since>
 				<synopsis>STIR/SHAKEN verification options</synopsis>
 				<configOption name="global_disable" default="false">
+					<since><version>18.22.0</version><version>20.7.0</version><version>21.2.0</version></since>
 					<synopsis>Globally disable verification</synopsis>
 				</configOption>
 				<configOption name="load_system_certs" default="">
+					<since><version>18.22.0</version><version>20.7.0</version><version>21.2.0</version></since>
 					<synopsis>A boolean indicating whether trusted CA certificates should be loaded from the system</synopsis>
 				</configOption>
 				<configOption name="ca_file" default="">
+					<since><version>18.22.0</version><version>20.7.0</version><version>21.2.0</version></since>
 					<synopsis>Path to a file containing one or more CA certs in PEM format</synopsis>
 					<description>
 						<para>These certs are used to verify the chain of trust for the
@@ -88,6 +107,7 @@
 					</description>
 				</configOption>
 				<configOption name="ca_path" default="">
+					<since><version>18.22.0</version><version>20.7.0</version><version>21.2.0</version></since>
 					<synopsis>Path to a directory containing one or more hashed CA certs</synopsis>
 					<description>
 						<xi:include xpointer="xpointer(/docs/configInfo[@name='res_stir_shaken']/configFile[@name='stir_shaken.conf']/configObject[@name='verification']/configOption[@name='ca_file']/description/node())" />
@@ -100,6 +120,7 @@
 					</description>
 				</configOption>
 				<configOption name="crl_file" default="">
+					<since><version>18.22.0</version><version>20.7.0</version><version>21.2.0</version></since>
 					<synopsis>Path to a file containing one or more CRLs in PEM format</synopsis>
 					<description>
 						<para>If you with to check if the certificate in the X5U Identity header
@@ -111,6 +132,7 @@
 					</description>
 				</configOption>
 				<configOption name="crl_path" default="">
+					<since><version>18.22.0</version><version>20.7.0</version><version>21.2.0</version></since>
 					<synopsis>Path to a directory containing one or more hashed CRLs</synopsis>
 					<description>
 						<xi:include xpointer="xpointer(/docs/configInfo[@name='res_stir_shaken']/configFile[@name='stir_shaken.conf']/configObject[@name='verification']/configOption[@name='crl_file']/description/node())" />
@@ -123,6 +145,7 @@
 					</description>
 				</configOption>
 				<configOption name="untrusted_cert_file" default="">
+					<since><version>18.22.0</version><version>20.7.0</version><version>21.2.0</version></since>
 					<synopsis>Path to a file containing one or more untrusted cert in PEM format used to verify CRLs</synopsis>
 					<description>
 					<para>If you with to check if the certificate in the X5U Identity header
@@ -136,6 +159,7 @@
 					</description>
 				</configOption>
 				<configOption name="untrusted_cert_path" default="">
+					<since><version>18.22.0</version><version>20.7.0</version><version>21.2.0</version></since>
 					<synopsis>Path to a directory containing one or more hashed untrusted certs used to verify CRLs</synopsis>
 					<description>
 						<xi:include xpointer="xpointer(/docs/configInfo[@name='res_stir_shaken']/configFile[@name='stir_shaken.conf']/configObject[@name='verification']/configOption[@name='untrusted_cert_file']/description/node())" />
@@ -148,24 +172,31 @@
 					</description>
 				</configOption>
 				<configOption name="cert_cache_dir" default="">
+					<since><version>18.22.0</version><version>20.7.0</version><version>21.2.0</version></since>
 					<synopsis>Directory to cache retrieved verification certs</synopsis>
 				</configOption>
 				<configOption name="curl_timeout" default="2">
+					<since><version>18.22.0</version><version>20.7.0</version><version>21.2.0</version></since>
 					<synopsis>Maximum time to wait to CURL certificates</synopsis>
 				</configOption>
 				<configOption name="max_cache_entry_age" default="60">
+					<since><version>18.22.0</version><version>20.7.0</version><version>21.2.0</version></since>
 					<synopsis>Number of seconds a cache entry may be behind current time</synopsis>
 				</configOption>
 				<configOption name="max_cache_size" default="1000">
+					<since><version>18.22.0</version><version>20.7.0</version><version>21.2.0</version></since>
 					<synopsis>Maximum size to use for caching public keys</synopsis>
 				</configOption>
 				<configOption name="max_iat_age" default="15">
+					<since><version>18.22.0</version><version>20.7.0</version><version>21.2.0</version></since>
 					<synopsis>Number of seconds an iat grant may be behind current time</synopsis>
 				</configOption>
 				<configOption name="max_date_header_age" default="15">
+					<since><version>18.22.0</version><version>20.7.0</version><version>21.2.0</version></since>
 					<synopsis>Number of seconds a SIP Date header may be behind current time</synopsis>
 				</configOption>
 				<configOption name="failure_action" default="continue">
+					<since><version>18.22.0</version><version>20.7.0</version><version>21.2.0</version></since>
 					<synopsis>The default failure action when not set on a profile</synopsis>
 					<description>
 						<enumlist>
@@ -187,33 +218,41 @@
 					</description>
 				</configOption>
 				<configOption name="use_rfc9410_responses" default="no">
+					<since><version>18.22.0</version><version>20.7.0</version><version>21.2.0</version></since>
 					<synopsis>RFC9410 uses the STIR protocol on Reason headers
 					instead of the SIP protocol</synopsis>
 				</configOption>
 				<configOption name="relax_x5u_port_scheme_restrictions" default="no">
+					<since><version>18.22.0</version><version>20.7.0</version><version>21.2.0</version></since>
 					<synopsis>Relaxes check for "https" and port 443 or 8443
 					in incoming Identity header x5u URLs.</synopsis>
 				</configOption>
 				<configOption name="relax_x5u_path_restrictions" default="no">
+					<since><version>18.22.0</version><version>20.7.0</version><version>21.2.0</version></since>
 					<synopsis>Relaxes check for query parameters, user/password, etc.
 					in incoming Identity header x5u URLs.</synopsis>
 				</configOption>
 				<configOption name="x5u_acl" default="">
+					<since><version>18.22.0</version><version>20.7.0</version><version>21.2.0</version></since>
 					<synopsis>An existing ACL from acl.conf to use when checking
 					hostnames in incoming Identity header x5u URLs.</synopsis>
 				</configOption>
 				<configOption name="x5u_permit" default="">
+					<since><version>18.22.0</version><version>20.7.0</version><version>21.2.0</version></since>
 					<synopsis>An IP or subnet to permit when checking
 					hostnames in incoming Identity header x5u URLs.</synopsis>
 				</configOption>
 				<configOption name="x5u_deny" default="">
+					<since><version>18.22.0</version><version>20.7.0</version><version>21.2.0</version></since>
 					<synopsis>An IP or subnet to deny  checking
 					hostnames in incoming Identity header x5u URLs.</synopsis>
 				</configOption>
 			</configObject>
 			<configObject name="profile">
+				<since><version>18.22.0</version><version>20.7.0</version><version>21.2.0</version></since>
 				<synopsis>STIR/SHAKEN profile configuration options</synopsis>
 				<configOption name="type">
+					<since><version>18.22.0</version><version>20.7.0</version><version>21.2.0</version></since>
 					<synopsis>Must be of type 'profile'.</synopsis>
 				</configOption>
 				<xi:include xpointer="xpointer(/docs/configInfo[@name='res_stir_shaken']/configFile[@name='stir_shaken.conf']/configObject[@name='verification']/configOption[@name='load_system_certs'])" />
@@ -243,6 +282,7 @@
 				<xi:include xpointer="xpointer(/docs/configInfo[@name='res_stir_shaken']/configFile[@name='stir_shaken.conf']/configObject[@name='attestation']/configOption[@name='unknown_tn_attest_level'])" />
 				<xi:include xpointer="xpointer(/docs/configInfo[@name='res_stir_shaken']/configFile[@name='stir_shaken.conf']/configObject[@name='attestation']/configOption[@name='send_mky'])" />
 				<configOption name="endpoint_behavior" default="off">
+					<since><version>18.22.0</version><version>20.7.0</version><version>21.2.0</version></since>
 					<synopsis>Actions performed when an endpoint references this profile</synopsis>
 					<description>
 						<enumlist>
