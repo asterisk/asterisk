@@ -53,11 +53,14 @@
 	<configInfo name="named_acl" language="en_US">
 		<configFile name="acl.conf">
 			<configObject name="named_acl">
+				<since><version>12.0.0</version></since>
 				<synopsis>Options for configuring a named ACL</synopsis>
 				<configOption name="permit">
+					<since><version>11.0.0</version></since>
 					<synopsis>An address/subnet from which to allow access</synopsis>
 				</configOption>
 				<configOption name="deny">
+					<since><version>11.0.0</version></since>
 					<synopsis>An address/subnet from which to disallow access</synopsis>
 				</configOption>
 			</configObject>

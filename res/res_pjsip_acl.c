@@ -57,8 +57,10 @@
 		</para></description>
 		<configFile name="pjsip.conf">
 			<configObject name="acl">
+				<since><version>12.0.0</version></since>
 				<synopsis>Access Control List</synopsis>
 				<configOption name="acl">
+					<since><version>12.2.0</version></since>
 					<synopsis>List of IP ACL section names in acl.conf</synopsis>
 					<description><para>
 						This matches sections configured in <literal>acl.conf</literal>. The value is
@@ -66,6 +68,7 @@
 					</para></description>
 				</configOption>
 				<configOption name="contact_acl">
+					<since><version>12.2.0</version></since>
 					<synopsis>List of Contact ACL section names in acl.conf</synopsis>
 					<description><para>
 						This matches sections configured in <literal>acl.conf</literal>. The value is
@@ -73,6 +76,7 @@
 					</para></description>
 				</configOption>
 				<configOption name="contact_deny">
+					<since><version>12.2.0</version></since>
 					<synopsis>List of Contact header addresses to deny</synopsis>
 					<description><para>
 						The value is a comma-delimited list of IP addresses. IP addresses may
@@ -82,6 +86,7 @@
 					</para></description>
 				</configOption>
 				<configOption name="contact_permit">
+					<since><version>12.2.0</version></since>
 					<synopsis>List of Contact header addresses to permit</synopsis>
 					<description><para>
 						The value is a comma-delimited list of IP addresses. IP addresses may
@@ -91,6 +96,7 @@
 					</para></description>
 				</configOption>
 				<configOption name="deny">
+					<since><version>12.2.0</version></since>
 					<synopsis>List of IP addresses to deny access from</synopsis>
 					<description><para>
 						The value is a comma-delimited list of IP addresses. IP addresses may
@@ -100,6 +106,7 @@
 					</para></description>
 				</configOption>
 				<configOption name="permit">
+					<since><version>12.2.0</version></since>
 					<synopsis>List of IP addresses to permit access from</synopsis>
 					<description><para>
 						The value is a comma-delimited list of IP addresses. IP addresses may
@@ -109,6 +116,7 @@
 					</para></description>
 				</configOption>
 				<configOption name="type">
+					<since><version>12.0.0</version></since>
 					<synopsis>Must be of type 'acl'.</synopsis>
 				</configOption>
 			</configObject>
