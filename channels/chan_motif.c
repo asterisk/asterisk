@@ -149,38 +149,50 @@
 		</description>
 		<configFile name="motif.conf">
 			<configObject name="endpoint">
+				<since><version>12.0.0</version></since>
 				<synopsis>The configuration for an endpoint.</synopsis>
 				<configOption name="context">
+					<since><version>11.0.0</version></since>
 					<synopsis>Default dialplan context that incoming sessions will be routed to</synopsis>
 				</configOption>
 				<configOption name="callgroup">
+					<since><version>11.0.0</version></since>
 					<synopsis>A callgroup to assign to this endpoint.</synopsis>
 				</configOption>
 				<configOption name="pickupgroup">
+					<since><version>11.0.0</version></since>
 					<synopsis>A pickup group to assign to this endpoint.</synopsis>
 				</configOption>
 				<configOption name="language">
+					<since><version>11.0.0</version></since>
 					<synopsis>The default language for this endpoint.</synopsis>
 				</configOption>
 				<configOption name="musicclass">
+					<since><version>11.0.0</version></since>
 					<synopsis>Default music on hold class for this endpoint.</synopsis>
 				</configOption>
 				<configOption name="parkinglot">
+					<since><version>11.0.0</version></since>
 					<synopsis>Default parking lot for this endpoint.</synopsis>
 				</configOption>
 				<configOption name="accountcode">
+					<since><version>11.0.0</version></since>
 					<synopsis>Accout code for CDR purposes</synopsis>
 				</configOption>
 				<configOption name="allow">
+					<since><version>13.0.0</version></since>
 					<synopsis>Codecs to allow</synopsis>
 				</configOption>
 				<configOption name="disallow">
+					<since><version>13.0.0</version></since>
 					<synopsis>Codecs to disallow</synopsis>
 				</configOption>
 				<configOption name="connection">
+					<since><version>11.0.0</version></since>
 					<synopsis>Connection to accept traffic on and on which to send traffic out</synopsis>
 				</configOption>
 				<configOption name="transport">
+					<since><version>11.0.0</version></since>
 					<synopsis>The transport to use for the endpoint.</synopsis>
 					<description>
 						<para>The default outbound transport for this endpoint. Inbound
@@ -206,9 +218,11 @@
 					</description>
 				</configOption>
 				<configOption name="maxicecandidates">
+					<since><version>11.0.0</version></since>
 					<synopsis>Maximum number of ICE candidates to offer</synopsis>
 				</configOption>
 				<configOption name="maxpayloads">
+					<since><version>11.0.0</version></since>
 					<synopsis>Maximum number of payloads to offer</synopsis>
 				</configOption>
 			</configObject>
