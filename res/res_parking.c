@@ -32,8 +32,10 @@
 	<configInfo name="res_parking" language="en_US">
 		<configFile name="res_parking.conf">
 			<configObject name="globals">
+				<since><version>12.0.0</version></since>
 				<synopsis>Options that apply to every parking lot</synopsis>
 				<configOption name="parkeddynamic">
+					<since><version>12.0.0</version></since>
 					<synopsis>Enables dynamically created parkinglots.</synopsis>
 					<description>
 						<para>If the option is enabled then the following variables can
@@ -70,12 +72,15 @@
 				</configOption>
 			</configObject>
 			<configObject name="parking_lot">
+				<since><version>12.0.0</version></since>
 				<synopsis>Defined parking lots for res_parking to use to park calls on</synopsis>
 				<configOption name="context" default="parkedcalls">
+					<since><version>12.0.0</version></since>
 					<synopsis>The name of the context where calls are parked and picked up from.</synopsis>
 					<description><para>This option is only used if parkext is set.</para></description>
 				</configOption>
 				<configOption name="parkext">
+					<since><version>12.0.0</version></since>
 					<synopsis>Extension to park calls to this parking lot.</synopsis>
 					<description>
 						<para>If this option is used, this extension will automatically
@@ -96,9 +101,11 @@
 					</description>
 				</configOption>
 				<configOption name="parkext_exclusive" default="no">
+					<since><version>12.0.0</version></since>
 					<synopsis>If yes, the extension registered as parkext will park exclusively to this parking lot.</synopsis>
 				</configOption>
 				<configOption name="parkpos" default="701-750">
+					<since><version>12.0.0</version></since>
 					<synopsis>Numerical range of parking spaces which can be used to retrieve parked calls.</synopsis>
 					<description>
 						<para>If <literal>parkext</literal> is set, these extensions
@@ -108,15 +115,19 @@
 					</description>
 				</configOption>
 				<configOption name="parkinghints" default="no">
+					<since><version>12.0.0</version></since>
 					<synopsis>If yes, this parking lot will add hints automatically for parking spaces.</synopsis>
 				</configOption>
 				<configOption name="parkingtime" default="45">
+					<since><version>12.0.0</version></since>
 					<synopsis>Amount of time a call will remain parked before giving up (in seconds).</synopsis>
 				</configOption>
 				<configOption name="parkedmusicclass">
+					<since><version>12.0.0</version></since>
 					<synopsis>Which music class to use for parked calls. They will use the default if unspecified.</synopsis>
 				</configOption>
 				<configOption name="comebacktoorigin" default="yes">
+					<since><version>12.0.0</version></since>
 					<synopsis>Determines what should be done with the parked channel if no one picks it up before it times out.</synopsis>
 					<description><para>Valid Options:</para>
 						<enumlist>
@@ -162,9 +173,11 @@
 					</description>
 				</configOption>
 				<configOption name="comebackdialtime" default="30">
+					<since><version>12.0.0</version></since>
 					<synopsis>Timeout for the Dial extension created to call back the parker when a parked call times out.</synopsis>
 				</configOption>
 				<configOption name="comebackcontext" default="parkedcallstimeout">
+					<since><version>12.0.0</version></since>
 					<synopsis>Context where parked calls will enter the PBX on timeout when comebacktoorigin=no</synopsis>
 					<description><para>The extension the call enters will prioritize the flattened peer name in this context.
 						If the flattened peer name extension is unavailable, then the 's' extension in this context will be
@@ -172,12 +185,14 @@
 					</description>
 				</configOption>
 				<configOption name="courtesytone">
+					<since><version>12.0.0</version></since>
 					<synopsis>If the name of a sound file is provided, use this as the courtesy tone</synopsis>
 					<description><para>By default, this tone is only played to the caller of a parked call. Who receives the tone
 						can be changed using the <literal>parkedplay</literal> option.</para>
 					</description>
 				</configOption>
 				<configOption name="parkedplay" default="caller">
+					<since><version>12.0.0</version></since>
 					<synopsis>Who we should play the courtesytone to on the pickup of a parked call from this lot</synopsis>
 					<description>
 						<enumlist>
@@ -190,30 +205,35 @@
 					</description>
 				</configOption>
 				<configOption name="parkedcalltransfers" default="no">
+					<since><version>12.0.0</version></since>
 					<synopsis>Who to apply the DTMF transfer features to when parked calls are picked up or timeout.</synopsis>
 					<description>
 						<xi:include xpointer="xpointer(/docs/configInfo[@name='res_parking']/configFile[@name='res_parking.conf']/configObject[@name='parking_lot']/configOption[@name='parkedplay']/description/enumlist)" />
 					</description>
 				</configOption>
 				<configOption name="parkedcallreparking" default="no">
+					<since><version>12.0.0</version></since>
 					<synopsis>Who to apply the DTMF parking feature to when parked calls are picked up or timeout.</synopsis>
 					<description>
 						<xi:include xpointer="xpointer(/docs/configInfo[@name='res_parking']/configFile[@name='res_parking.conf']/configObject[@name='parking_lot']/configOption[@name='parkedplay']/description/enumlist)" />
 					</description>
 				</configOption>
 				<configOption name="parkedcallhangup" default="no">
+					<since><version>12.0.0</version></since>
 					<synopsis>Who to apply the DTMF hangup feature to when parked calls are picked up or timeout.</synopsis>
 					<description>
 						<xi:include xpointer="xpointer(/docs/configInfo[@name='res_parking']/configFile[@name='res_parking.conf']/configObject[@name='parking_lot']/configOption[@name='parkedplay']/description/enumlist)" />
 					</description>
 				</configOption>
 				<configOption name="parkedcallrecording" default="no">
+					<since><version>12.0.0</version></since>
 					<synopsis>Who to apply the DTMF MixMonitor recording feature to when parked calls are picked up or timeout.</synopsis>
 					<description>
 						<xi:include xpointer="xpointer(/docs/configInfo[@name='res_parking']/configFile[@name='res_parking.conf']/configObject[@name='parking_lot']/configOption[@name='parkedplay']/description/enumlist)" />
 					</description>
 				</configOption>
 				<configOption name="findslot" default="first">
+					<since><version>12.0.0</version></since>
 					<synopsis>Rule to use when trying to figure out which parking space a call should be parked with.</synopsis>
 					<description>
 						<enumlist>
