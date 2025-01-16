@@ -67,6 +67,7 @@
 				</configOption>
 			</configObject>
 			<configObject name="log_mappings">
+				<since><version>13.8.0</version></since>
 				<synopsis>PJPROJECT to Asterisk Log Level Mapping</synopsis>
 				<description><para>Warnings and errors in the pjproject libraries are generally handled
 					by Asterisk.  In many cases, Asterisk wouldn't even consider them to
@@ -78,24 +79,31 @@
 					'log_mappings' or it won't be found.</para></note>
 				</description>
 				<configOption name="type">
+					<since><version>13.8.0</version></since>
 					<synopsis>Must be of type 'log_mappings'.</synopsis>
 				</configOption>
 				<configOption name="asterisk_error" default="0,1">
+					<since><version>13.8.0</version></since>
 					<synopsis>A comma separated list of pjproject log levels to map to Asterisk LOG_ERROR.</synopsis>
 				</configOption>
 				<configOption name="asterisk_warning" default="2">
+					<since><version>13.8.0</version></since>
 					<synopsis>A comma separated list of pjproject log levels to map to Asterisk LOG_WARNING.</synopsis>
 				</configOption>
 				<configOption name="asterisk_notice" default="">
+					<since><version>13.8.0</version></since>
 					<synopsis>A comma separated list of pjproject log levels to map to Asterisk LOG_NOTICE.</synopsis>
 				</configOption>
 				<configOption name="asterisk_verbose" default="">
+					<since><version>13.8.0</version></since>
 					<synopsis>A comma separated list of pjproject log levels to map to Asterisk LOG_VERBOSE.</synopsis>
 				</configOption>
 				<configOption name="asterisk_debug" default="3,4">
+					<since><version>13.8.0</version></since>
 					<synopsis>A comma separated list of pjproject log levels to map to Asterisk LOG_DEBUG.</synopsis>
 				</configOption>
 				<configOption name="asterisk_trace" default="5,6">
+					<since><version>16.21.0</version><version>18.7.0</version></since>
 					<synopsis>A comma separated list of pjproject log levels to map to Asterisk LOG_TRACE.</synopsis>
 				</configOption>
 			</configObject>
