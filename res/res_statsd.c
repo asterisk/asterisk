@@ -43,22 +43,28 @@
 		</description>
 		<configFile name="statsd.conf">
 			<configObject name="global">
+				<since><version>12.0.0</version></since>
 				<synopsis>Global configuration settings</synopsis>
 				<configOption name="enabled">
+					<since><version>12.0.0</version></since>
 					<synopsis>Enable/disable the StatsD module</synopsis>
 				</configOption>
 				<configOption name="server">
+					<since><version>12.0.0</version></since>
 					<synopsis>Address of the StatsD server</synopsis>
 				</configOption>
 				<configOption name="prefix">
+					<since><version>12.0.0</version></since>
 					<synopsis>Prefix to prepend to every metric</synopsis>
 				</configOption>
 				<configOption name="add_newline">
+					<since><version>12.0.0</version></since>
 					<synopsis>Append a newline to every event. This is useful if
 					you want to fake out a server using netcat
 					(nc -lu 8125)</synopsis>
 				</configOption>
 				<configOption name="meter_support">
+					<since><version>16.20.0</version><version>18.6.0</version></since>
 					<synopsis>Enable/disable the non-standard StatsD Meter type,
 					if disabled falls back to counter and will append a "_meter" suffix to the metric name</synopsis>
 				</configOption>
