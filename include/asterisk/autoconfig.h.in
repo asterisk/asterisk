@@ -127,6 +127,9 @@
 /* Define to 1 if you have the Bluetooth library. */
 #undef HAVE_BLUETOOTH
 
+/* define if the Boost library is available */
+#undef HAVE_BOOST
+
 /* Define to 1 if you have the file 'bridges/bridge_softmix/include/hrirs.h'.
    */
 #undef HAVE_BRIDGES_BRIDGE_SOFTMIX_INCLUDE_HRIRS_H

@@ -130,6 +130,18 @@ documentation_language = en_US	; Set the language you want documentation
                 ; cause Asterisk to search for sounds files in
                 ; AST_DATA_DIR/sounds/custom before searching the
                 ; normal directories like AST_DATA_DIR/sounds/<lang>.
+;channel_storage_backend = ao2_legacy ; Select the channel storage backend
+                ; to use for live operation.
+                ;   ao2_legacy:  Original implementation (default)
+                ; Depending on compile options, the following may also be
+                ; available:
+                ;   ao2_optimized
+                ;   cpp_map_name
+                ;   cpp_map_name_id
+                ;   boost_map_name
+                ;   boost_multi_index
+                ;   sqlite3
+                ; See (url to be provided) for more information.
 
 ; Changing the following lines may compromise your security.
 ;[files]
