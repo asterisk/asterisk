@@ -57,6 +57,7 @@
 
 /*** DOCUMENTATION
 	<application name="AgentLogin" language="en_US">
+		<since><version>12.0.0</version></since>
 		<synopsis>
 			Login an agent.
 		</synopsis>
@@ -105,6 +106,7 @@
 		</see-also>
 	</application>
 	<application name="AgentRequest" language="en_US">
+		<since><version>12.0.0</version></since>
 		<synopsis>
 			Request an agent to connect with the channel.
 		</synopsis>
@@ -130,6 +132,7 @@
 		</see-also>
 	</application>
 	<function name="AGENT" language="en_US">
+		<since><version>12.0.0</version></since>
 		<synopsis>
 			Gets information about an Agent
 		</synopsis>

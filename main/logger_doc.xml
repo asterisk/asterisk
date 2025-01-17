@@ -3,6 +3,7 @@
 <?xml-stylesheet type="text/xsl" href="appdocsxml.xslt"?>
 <docs xmlns:xi="http://www.w3.org/2001/XInclude">
 	<function name="LOG_GROUP" language="en_US">
+		<since><version>18.21.0</version><version>20.6.0</version><version>21.1.0</version></since>
 		<synopsis>
 			Set the channel group name for log filtering on this channel
 		</synopsis>

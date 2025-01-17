@@ -63,6 +63,7 @@
 
 /*** DOCUMENTATION
 	<application name="SkelGuessNumber" language="en_US">
+		<since><version>11.0.0</version></since>
 		<synopsis>
 			An example number guessing game
 		</synopsis>

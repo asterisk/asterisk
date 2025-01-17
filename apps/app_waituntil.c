@@ -38,6 +38,7 @@
 
 /*** DOCUMENTATION
 	<application name="WaitUntil" language="en_US">
+		<since><version>1.8.0</version></since>
 		<synopsis>
 			Wait (sleep) until the current time is the given epoch.
 		</synopsis>

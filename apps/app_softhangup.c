@@ -40,6 +40,7 @@
 
 /*** DOCUMENTATION
 	<application name="SoftHangup" language="en_US">
+		<since><version>1.8.0</version></since>
 		<synopsis>
 			Hangs up the requested channel.
 		</synopsis>
