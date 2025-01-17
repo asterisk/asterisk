@@ -45,6 +45,7 @@
 		<synopsis>Resource for integration with Homer using HEPv3</synopsis>
 		<configFile name="hep.conf">
 			<configObject name="general">
+				<since><version>12.2.0</version></since>
 				<synopsis>General settings.</synopsis>
 				<description><para>
 					The <emphasis>general</emphasis> settings section contains information
@@ -52,6 +53,7 @@
 					</para>
 				</description>
 				<configOption name="enabled" default="yes">
+					<since><version>12.2.0</version></since>
 					<synopsis>Enable or disable packet capturing.</synopsis>
 					<description>
 						<enumlist>
@@ -61,6 +63,7 @@
 					</description>
 				</configOption>
 				<configOption name="uuid_type" default="call-id">
+					<since><version>12.2.0</version></since>
 					<synopsis>The preferred type of UUID to pass to Homer.</synopsis>
 					<description>
 						<enumlist>
@@ -70,15 +73,19 @@
 					</description>
 				</configOption>
 				<configOption name="capture_address">
+					<since><version>13.16.0</version><version>14.5.0</version></since>
 					<synopsis>The address and port of the Homer server to send packets to.</synopsis>
 				</configOption>
 				<configOption name="capture_password">
+					<since><version>12.2.0</version></since>
 					<synopsis>If set, the authentication password to send to Homer.</synopsis>
 				</configOption>
 				<configOption name="capture_id" default="0">
+					<since><version>12.2.0</version></since>
 					<synopsis>The ID for this capture agent.</synopsis>
 				</configOption>
 				<configOption name="capture_name" default="">
+					<since><version>18.16.0</version><version>20.1.0</version></since>
 					<synopsis>The name for this capture agent.</synopsis>
 				</configOption>
 			</configObject>

@@ -47,6 +47,7 @@
 		</description>
 		<configFile name="pjsip.conf">
 			<configObject name="outbound-publish">
+				<since><version>13.0.0</version></since>
 				<synopsis>The configuration for outbound publish</synopsis>
 				<description><para>
 					Publish is <emphasis>COMPLETELY</emphasis> separate from the rest of
@@ -54,9 +55,11 @@
 					setting a <literal>server_uri</literal> and <literal>event</literal>.
 				</para></description>
 				<configOption name="expiration" default="3600">
+					<since><version>13.0.0</version></since>
 					<synopsis>Expiration time for publications in seconds</synopsis>
 				</configOption>
 				<configOption name="outbound_auth" default="">
+					<since><version>13.0.0</version></since>
 					<synopsis>Authentication object(s) to be used for outbound publishes.</synopsis>
 					<description><para>
 						This is a comma-delimited list of <replaceable>auth</replaceable>
@@ -71,9 +74,11 @@
 					</description>
 				</configOption>
 				<configOption name="outbound_proxy" default="">
+					<since><version>13.0.0</version></since>
 					<synopsis>Full SIP URI of the outbound proxy used to send publishes</synopsis>
 				</configOption>
 				<configOption name="server_uri">
+					<since><version>13.0.0</version></since>
 					<synopsis>SIP URI of the server and entity to publish to</synopsis>
 					<description><para>
 						This is the URI at which to find the entity and server to send the outbound PUBLISH to.
@@ -81,6 +86,7 @@
 					</para></description>
 				</configOption>
 				<configOption name="from_uri">
+					<since><version>13.0.0</version></since>
 					<synopsis>SIP URI to use in the From header</synopsis>
 					<description><para>
 						This is the URI that will be placed into the From header of outgoing PUBLISH
@@ -89,6 +95,7 @@
 					</para></description>
 				</configOption>
 				<configOption name="to_uri">
+					<since><version>13.0.0</version></since>
 					<synopsis>SIP URI to use in the To header</synopsis>
 					<description><para>
 						This is the URI that will be placed into the To header of outgoing PUBLISH
@@ -97,12 +104,15 @@
 					</para></description>
 				</configOption>
 				<configOption name="event" default="">
+					<since><version>13.0.0</version></since>
 					<synopsis>Event type of the PUBLISH.</synopsis>
 				</configOption>
 				<configOption name="max_auth_attempts" default="5">
+					<since><version>13.0.0</version></since>
 					<synopsis>Maximum number of authentication attempts before stopping the publication.</synopsis>
 				</configOption>
 				<configOption name="transport">
+					<since><version>13.9.0</version></since>
 					<synopsis>Transport used for outbound publish</synopsis>
 					<description>
 						<note><para>A <replaceable>transport</replaceable> configured in
@@ -110,10 +120,12 @@
 					</description>
 				</configOption>
 				<configOption name="multi_user" default="no">
+					<since><version>14.0.0</version></since>
 					<synopsis>Enable multi-user support</synopsis>
 					<description><para>When enabled the user portion of the server uri is replaced by a dynamically created user</para></description>
 				</configOption>
 				<configOption name="type">
+					<since><version>13.0.0</version></since>
 					<synopsis>Must be of type 'outbound-publish'.</synopsis>
 				</configOption>
 			</configObject>

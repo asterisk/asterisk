@@ -102,8 +102,10 @@
 
 		<configFile name="pjsip.conf">
 			<configObject name="phoneprov">
+				<since><version>12.7.0</version></since>
 				<synopsis>Provides variables for each user.</synopsis>
 				<configOption name="type">
+					<since><version>13.2.0</version></since>
 					<synopsis>Must be of type 'phoneprov'.</synopsis>
 				</configOption>
 				<configOption name="endpoint">

@@ -51,6 +51,7 @@
 		</description>
 		<configFile name="pjsip.conf">
 			<configObject name="registration">
+				<since><version>12.0.0</version></since>
 				<synopsis>The configuration for outbound registration</synopsis>
 				<description><para>
 					Registration is <emphasis>COMPLETELY</emphasis> separate from the rest of
@@ -58,12 +59,14 @@
 					setting a <literal>server_uri</literal>	and a <literal>client_uri</literal>.
 				</para></description>
 				<configOption name="auth_rejection_permanent" default="yes">
+					<since><version>12.0.0</version></since>
 					<synopsis>Determines whether failed authentication challenges are treated
 					as permanent failures.</synopsis>
 					<description><para>If this option is enabled and an authentication challenge fails,
 					registration will not be attempted again until the configuration is reloaded.</para></description>
 				</configOption>
 				<configOption name="client_uri">
+					<since><version>12.0.0</version></since>
 					<synopsis>Client SIP URI used when attemping outbound registration</synopsis>
 					<description><para>
 						This is the address-of-record for the outbound registration (i.e. the URI in
@@ -76,15 +79,19 @@
 					</para></description>
 				</configOption>
 				<configOption name="contact_user" default="s">
+					<since><version>12.0.0</version></since>
 					<synopsis>Contact User to use in request. If this value is not set, this defaults to 's'</synopsis>
 				</configOption>
 				<configOption name="contact_header_params">
+					<since><version>17.0.0</version></since>
 					<synopsis>Header parameters to place in the Contact header</synopsis>
 				</configOption>
 				<configOption name="expiration" default="3600">
+					<since><version>12.0.0</version></since>
 					<synopsis>Expiration time for registrations in seconds</synopsis>
 				</configOption>
 				<configOption name="max_retries" default="10">
+					<since><version>12.0.0</version></since>
 					<synopsis>Maximum number of registration attempts.</synopsis>
 					<description><para>
 						This sets the maximum number of registration attempts that are made before
@@ -93,6 +100,7 @@
 					</para></description>
 				</configOption>
 				<configOption name="security_negotiation" default="no">
+					<since><version>21.0.0</version></since>
 					<synopsis>The kind of security agreement negotiation to use. Currently, only mediasec is supported.</synopsis>
 					<description>
 						<enumlist>
@@ -102,6 +110,7 @@
 					</description>
 				</configOption>
 				<configOption name="security_mechanisms">
+					<since><version>21.0.0</version></since>
 					<synopsis>List of security mechanisms supported.</synopsis>
 					<description><para>
 						This is a comma-delimited list of security mechanisms to use. Each security mechanism
@@ -109,6 +118,7 @@
 					</para></description>
 				</configOption>
 				<configOption name="outbound_auth" default="">
+					<since><version>12.2.0</version></since>
 					<synopsis>Authentication object(s) to be used for outbound registrations.</synopsis>
 					<description><para>
 						This is a comma-delimited list of <replaceable>auth</replaceable>
@@ -123,9 +133,11 @@
 					</description>
 				</configOption>
 				<configOption name="outbound_proxy" default="">
+					<since><version>12.0.0</version></since>
 					<synopsis>Full SIP URI of the outbound proxy used to send registrations</synopsis>
 				</configOption>
 				<configOption name="max_random_initial_delay" default="10">
+					<since><version>16.27.0</version><version>18.13.0</version><version>19.5.0</version></since>
 					<synopsis>Maximum interval in seconds for which an initial registration may be randomly delayed</synopsis>
 					<description>
 						<para>By default, registrations are randomly delayed by a small amount to prevent
@@ -135,9 +147,11 @@
 					</description>
 				</configOption>
 				<configOption name="retry_interval" default="60">
+					<since><version>12.0.0</version></since>
 					<synopsis>Interval in seconds between retries if outbound registration is unsuccessful</synopsis>
 				</configOption>
 				<configOption name="forbidden_retry_interval" default="0">
+					<since><version>11.7.0</version></since>
 					<synopsis>Interval used when receiving a 403 Forbidden response.</synopsis>
 					<description><para>
 						If a 403 Forbidden is received, chan_pjsip will wait
@@ -149,6 +163,7 @@
 					</para></description>
 				</configOption>
 				<configOption name="fatal_retry_interval" default="0">
+					<since><version>13.7.0</version></since>
 					<synopsis>Interval used when receiving a Fatal response.</synopsis>
 					<description><para>
 						If a fatal response is received, chan_pjsip will wait
@@ -164,6 +179,7 @@
 					</description>
 				</configOption>
 				<configOption name="server_uri">
+					<since><version>12.0.0</version></since>
 					<synopsis>SIP URI of the server to register against</synopsis>
 					<description><para>
 						This is the URI at which to find the registrar to send the outbound REGISTER. This URI
@@ -173,6 +189,7 @@
 					</para></description>
 				</configOption>
 				<configOption name="transport">
+					<since><version>12.0.0</version></since>
 					<synopsis>Transport used for outbound authentication</synopsis>
 					<description>
 						<note><para>A <replaceable>transport</replaceable> configured in
@@ -180,6 +197,7 @@
 					</description>
 				</configOption>
 				<configOption name="line">
+					<since><version>13.4.0</version></since>
 					<synopsis>Whether to add a 'line' parameter to the Contact for inbound call matching</synopsis>
 					<description><para>
 						When enabled this option will cause a 'line' parameter to be added to the Contact
@@ -189,6 +207,7 @@
 					</para></description>
 				</configOption>
 				<configOption name="endpoint">
+					<since><version>13.4.0</version></since>
 					<synopsis>Endpoint to use for incoming related calls</synopsis>
 					<description><para>
 						When line support is enabled this configured endpoint name is used for incoming calls
@@ -196,9 +215,11 @@
 					</para></description>
 				</configOption>
 				<configOption name="type">
+					<since><version>12.0.0</version></since>
 					<synopsis>Must be of type 'registration'.</synopsis>
 				</configOption>
 				<configOption name="support_path">
+					<since><version>12.1.0</version></since>
 					<synopsis>Enables advertising SIP Path support for outbound REGISTER requests.</synopsis>
 					<description><para>
 						When this option is enabled, outbound REGISTER requests will advertise
@@ -207,9 +228,11 @@
 					</para></description>
 				</configOption>
 				<configOption name="support_outbound">
+					<since><version>17.0.0</version></since>
 					<synopsis>Enables advertising SIP Outbound support (RFC5626) for outbound REGISTER requests.</synopsis>
 				</configOption>
 				<configOption name="user_agent">
+					<since><version>21.2.0</version></since>
 					<synopsis>Overrides the User-Agent header that should be used for outbound REGISTER requests.</synopsis>
 				</configOption>
 			</configObject>
