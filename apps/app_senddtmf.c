@@ -39,6 +39,7 @@
 
 /*** DOCUMENTATION
 	<application name="SendDTMF" language="en_US">
+		<since><version>1.8.0</version></since>
 		<synopsis>
 			Sends arbitrary DTMF digits
 		</synopsis>

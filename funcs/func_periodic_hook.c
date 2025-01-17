@@ -46,6 +46,7 @@
 
 /*** DOCUMENTATION
 	<function name="PERIODIC_HOOK" language="en_US">
+		<since><version>13.0.0</version></since>
 		<synopsis>
 			Execute a periodic dialplan hook into the audio of a call.
 		</synopsis>

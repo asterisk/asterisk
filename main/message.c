@@ -44,6 +44,7 @@
 
 /*** DOCUMENTATION
 	<function name="MESSAGE" language="en_US">
+		<since><version>10.0.0</version></since>
 		<synopsis>
 			Create a message or read fields from a message.
 		</synopsis>
@@ -104,6 +105,7 @@
 		</see-also>
 	</function>
 	<function name="MESSAGE_DATA" language="en_US">
+		<since><version>10.0.0</version></since>
 		<synopsis>
 			Read or write custom data attached to a message.
 		</synopsis>
@@ -127,6 +129,7 @@
 		</see-also>
 	</function>
 	<application name="MessageSend" language="en_US">
+		<since><version>10.0.0</version></since>
 		<synopsis>
 			Send a text message.
 		</synopsis>

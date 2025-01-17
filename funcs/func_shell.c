@@ -76,6 +76,7 @@ static int shell_helper(struct ast_channel *chan, const char *cmd, char *data,
 
 /*** DOCUMENTATION
 	<function name="SHELL" language="en_US">
+		<since><version>1.8.0</version></since>
 		<synopsis>
 			Executes a command using the system shell and captures its output.
 		</synopsis>

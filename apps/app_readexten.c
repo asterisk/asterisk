@@ -39,6 +39,7 @@
 
 /*** DOCUMENTATION
 	<application name="ReadExten" language="en_US">
+		<since><version>1.8.0</version></since>
 		<synopsis>
 			Read an extension into a variable.
 		</synopsis>

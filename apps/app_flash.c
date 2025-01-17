@@ -44,6 +44,7 @@
 
 /*** DOCUMENTATION
 	<application name="Flash" language="en_US">
+		<since><version>1.8.0</version></since>
 		<synopsis>
 			Flashes a DAHDI Trunk.
 		</synopsis>

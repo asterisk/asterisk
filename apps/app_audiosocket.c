@@ -48,6 +48,7 @@
 
 /*** DOCUMENTATION
 	<application name="AudioSocket" language="en_US">
+		<since><version>18.0.0</version></since>
 		<synopsis>
 			Transmit and receive audio between channel and TCP socket
 		</synopsis>

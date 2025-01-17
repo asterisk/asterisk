@@ -64,6 +64,7 @@
 
 /*** DOCUMENTATION
 	<application name="JabberSend" language="en_US" module="res_xmpp">
+		<since><version>12.0.0</version></since>
 		<synopsis>
 			Sends an XMPP message to a buddy.
 		</synopsis>
@@ -97,6 +98,7 @@
 		</see-also>
 	</application>
 	<function name="JABBER_RECEIVE" language="en_US" module="res_xmpp">
+		<since><version>12.0.0</version></since>
 		<synopsis>
 			Reads XMPP messages.
 		</synopsis>
@@ -129,6 +131,7 @@
 		</see-also>
 	</function>
 	<function name="JABBER_STATUS" language="en_US" module="res_xmpp">
+		<since><version>12.0.0</version></since>
 		<synopsis>
 			Retrieves a buddy's status.
 		</synopsis>
@@ -176,6 +179,7 @@
 		</see-also>
 	</function>
 	<application name="JabberSendGroup" language="en_US" module="res_xmpp">
+		<since><version>12.0.0</version></since>
 		<synopsis>
 			Send a Jabber Message to a specified chat room
 		</synopsis>
@@ -199,6 +203,7 @@
 		</description>
 	</application>
 	<application name="JabberJoin" language="en_US" module="res_xmpp">
+		<since><version>12.0.0</version></since>
 		<synopsis>
 			Join a chat room
 		</synopsis>
@@ -219,6 +224,7 @@
 		</description>
 	</application>
 	<application name="JabberLeave" language="en_US" module="res_xmpp">
+		<since><version>12.0.0</version></since>
 		<synopsis>
 			Leave a chat room
 		</synopsis>

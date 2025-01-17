@@ -40,6 +40,7 @@
 
 /*** DOCUMENTATION
 	<application name="AttendedTransfer" language="en_US">
+		<since><version>13.28.0</version><version>16.5.0</version></since>
 		<synopsis>
 			Attended transfer to the extension provided and TRANSFER_CONTEXT
 		</synopsis>
