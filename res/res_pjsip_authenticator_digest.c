@@ -566,7 +566,7 @@ static enum ast_sip_check_auth_result digest_check_auth(struct ast_sip_endpoint 
 	struct ast_sip_auth **auths;
 	enum digest_verify_result *verify_res;
 	struct ast_sip_endpoint *artificial_endpoint;
-	enum ast_sip_check_auth_result res;
+	enum ast_sip_check_auth_result res = AST_SIP_AUTHENTICATION_ERROR;
 	int idx;
 	int is_artificial;
 	int failures = 0;
@@ -674,6 +674,7 @@ static enum ast_sip_check_auth_result digest_check_auth(struct ast_sip_endpoint 
 
 			SCOPE_CALL(5, challenge, endpoint_id, auth, tdata, rdata,
 				verify_res[idx] == AUTH_STALE, algorithm);
+			res = AST_SIP_AUTHENTICATION_CHALLENGE;
 
 			SCOPE_EXIT("%s:%s:%s: Challenged with " PJSTR_PRINTF_SPEC "\n",
 				endpoint_id, auth_id, src_name, PJSTR_PRINTF_VAR(algorithm->iana_name));
@@ -689,10 +690,17 @@ static enum ast_sip_check_auth_result digest_check_auth(struct ast_sip_endpoint 
 	 * auth object as a UAS.
 	 */
 
+	/*
+	 * If the authentication failed for any reason, we want to send
+	 * a 401 with a challenge.  If it was because there was no
+	 * Authorization header or there was a stale nonce, fine.  That's not
+	 * unusual so we return AST_SIP_AUTHENTICATION_CHALLENGE.  If it
+	 * failed because of a user/password mismatch then we return
+	 * AST_SIP_AUTHENTICATION_FAILED which causes the distributor to
+	 * print a "Failed to authenticate" message.
+	 */
 	if (failures == auth_size) {
 		res = AST_SIP_AUTHENTICATION_FAILED;
-	} else if (res != AST_SIP_AUTHENTICATION_SUCCESS){
-		res = AST_SIP_AUTHENTICATION_CHALLENGE;
 	}
 
 	ast_sip_cleanup_auths(auths, auth_size);
