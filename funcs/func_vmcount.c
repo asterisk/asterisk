@@ -43,6 +43,7 @@
 
 /*** DOCUMENTATION
 	<function name="VMCOUNT" language="en_US">
+		<since><version>1.8.0</version></since>
 		<synopsis>
 			Count the voicemails in a specified mailbox or mailboxes.
 		</synopsis>

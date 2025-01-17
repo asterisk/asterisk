@@ -40,6 +40,7 @@
 
 /*** DOCUMENTATION
 	<function name="EXTENSION_STATE" language="en_US">
+		<since><version>1.8.0</version></since>
 		<synopsis>
 			Get an extension's state.
 		</synopsis>

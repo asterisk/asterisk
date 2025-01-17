@@ -41,6 +41,7 @@
 
 /*** DOCUMENTATION
 	<application name="IVRDemo" language="en_US">
+		<since><version>1.8.0</version></since>
 		<synopsis>
 			IVR Demo Application.
 		</synopsis>

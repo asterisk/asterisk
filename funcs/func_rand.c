@@ -38,6 +38,7 @@
 
 /*** DOCUMENTATION
 	<function name="RAND" language="en_US">
+		<since><version>1.8.0</version></since>
 		<synopsis>
 			Choose a random number in a range.
 		</synopsis>

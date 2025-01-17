@@ -43,6 +43,7 @@
 
 /*** DOCUMENTATION
 	<application name="DumpChan" language="en_US">
+		<since><version>1.8.0</version></since>
 		<synopsis>
 			Dump Info About The Calling Channel.
 		</synopsis>

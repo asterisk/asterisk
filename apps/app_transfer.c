@@ -40,6 +40,7 @@
 
 /*** DOCUMENTATION
 	<application name="Transfer" language="en_US">
+		<since><version>1.8.0</version></since>
 		<synopsis>
 			Transfer caller to remote extension.
 		</synopsis>

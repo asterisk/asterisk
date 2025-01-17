@@ -39,6 +39,7 @@
 
 /*** DOCUMENTATION
 	<function name="FRAME_TRACE" language="en_US">
+		<since><version>10.0.0</version></since>
 		<synopsis>
 			View internal ast_frames as they are read and written on a channel.
 		</synopsis>
