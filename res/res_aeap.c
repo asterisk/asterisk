@@ -38,17 +38,22 @@
 		<synopsis>Asterisk External Application Protocol (AEAP) module for Asterisk</synopsis>
 		<configFile name="aeap.conf">
 			<configObject name="client">
+				<since><version>18.12.0</version><version>19.4.0</version></since>
 				<synopsis>AEAP client options</synopsis>
 				<configOption name="type">
+					<since><version>18.12.0</version><version>19.4.0</version></since>
 					<synopsis>Must be of type 'client'.</synopsis>
 				</configOption>
 				<configOption name="url">
+					<since><version>18.12.0</version><version>19.4.0</version></since>
 					<synopsis>The URL of the server to connect to.</synopsis>
 				</configOption>
 				<configOption name="protocol">
+					<since><version>18.12.0</version><version>19.4.0</version></since>
 					<synopsis>The application protocol.</synopsis>
 				</configOption>
 				<configOption name="codecs">
+					<since><version>18.12.0</version><version>19.4.0</version></since>
 				        <synopsis>Optional media codec(s)</synopsis>
 					<description><para>
 					If this is specified, Asterisk will use this for codec related negotiations

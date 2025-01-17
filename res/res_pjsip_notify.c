@@ -86,6 +86,7 @@
 				<synopsis>Unused, but reserved.</synopsis>
 			</configObject>
 			<configObject name="notify">
+				<since><version>12.0.0</version></since>
 				<synopsis>Configuration of a NOTIFY request.</synopsis>
 				<description>
 					<para>Each key-value pair in a <literal>notify</literal>

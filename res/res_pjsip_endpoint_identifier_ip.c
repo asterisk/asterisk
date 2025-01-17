@@ -38,6 +38,7 @@
 		<synopsis>Module that identifies endpoints</synopsis>
 		<configFile name="pjsip.conf">
 			<configObject name="identify">
+				<since><version>13.14.0</version><version>14.3.0</version></since>
 				<synopsis>Identifies endpoints via some criteria.</synopsis>
 				<description>
 					<para>This module provides alternatives to matching inbound requests to
@@ -54,9 +55,11 @@
 					<emphasis>any</emphasis> of the criteria.</para></note>
 				</description>
 				<configOption name="endpoint">
+					<since><version>12.0.0</version></since>
 					<synopsis>Name of endpoint identified</synopsis>
 				</configOption>
 				<configOption name="match">
+					<since><version>12.2.0</version></since>
 					<synopsis>IP addresses or networks to match against.</synopsis>
 					<description>
 						<para>The value is a comma-delimited list of IP addresses or
@@ -83,6 +86,7 @@
 					</description>
 				</configOption>
 				<configOption name="srv_lookups" default="yes">
+					<since><version>13.14.0</version><version>14.3.0</version></since>
 					<synopsis>Perform SRV lookups for provided hostnames.</synopsis>
 					<description>
 						<para>When enabled, <replaceable>srv_lookups</replaceable> will
@@ -93,6 +97,7 @@
 					</description>
 				</configOption>
 				<configOption name="match_header">
+					<since><version>13.15.0</version><version>14.4.0</version></since>
 					<synopsis>Header/value pair to match against.</synopsis>
 					<description>
 						<para>A SIP header whose value is used to match against.  SIP
@@ -111,6 +116,7 @@
 					</description>
 				</configOption>
 				<configOption name="match_request_uri">
+					<since><version>18.23.0</version><version>20.8.0</version><version>21.3.0</version></since>
 					<synopsis>Request URI to match against.</synopsis>
 					<description>
 						<para>The SIP request URI is used to match against.
@@ -125,6 +131,7 @@
 					</description>
 				</configOption>
 				<configOption name="type">
+					<since><version>12.0.0</version></since>
 					<synopsis>Must be of type 'identify'.</synopsis>
 				</configOption>
 			</configObject>

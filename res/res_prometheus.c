@@ -36,6 +36,7 @@
 		<synopsis>Resource for integration with Prometheus</synopsis>
 		<configFile name="prometheus.conf">
 			<configObject name="general">
+				<since><version>17.0.0</version></since>
 				<synopsis>General settings.</synopsis>
 				<description>
 					<para>
@@ -49,6 +50,7 @@
 					</note>
 				</description>
 				<configOption name="enabled" default="no">
+					<since><version>17.0.0</version></since>
 					<synopsis>Enable or disable Prometheus statistics.</synopsis>
 					<description>
 						<enumlist>
@@ -58,6 +60,7 @@
 					</description>
 				</configOption>
 				<configOption name="core_metrics_enabled" default="yes">
+					<since><version>17.0.0</version></since>
 					<synopsis>Enable or disable core metrics.</synopsis>
 					<description>
 						<para>
@@ -75,9 +78,11 @@
 					</description>
 				</configOption>
 				<configOption name="uri" default="metrics">
+					<since><version>17.0.0</version></since>
 					<synopsis>The HTTP URI to serve metrics up on.</synopsis>
 				</configOption>
 				<configOption name="auth_username">
+					<since><version>17.0.0</version></since>
 					<synopsis>Username to use for Basic Auth.</synopsis>
 					<description>
 						<para>
@@ -101,6 +106,7 @@
 					</description>
 				</configOption>
 				<configOption name="auth_password">
+					<since><version>17.0.0</version></since>
 					<synopsis>Password to use for Basic Auth.</synopsis>
 					<description>
 						<para>
@@ -112,6 +118,7 @@
 					</description>
 				</configOption>
 				<configOption name="auth_realm" default="Asterisk Prometheus Metrics">
+					<since><version>17.0.0</version></since>
 					<synopsis>Auth realm used in challenge responses</synopsis>
 				</configOption>
 			</configObject>

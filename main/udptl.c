@@ -83,29 +83,38 @@
 	<configInfo name="udptl" language="en_US">
 		<configFile name="udptl.conf">
 			<configObject name="global">
+				<since><version>12.0.0</version></since>
 				<synopsis>Global options for configuring UDPTL</synopsis>
 				<configOption name="udptlstart">
+					<since><version>11.0.0</version></since>
 					<synopsis>The start of the UDPTL port range</synopsis>
 				</configOption>
 				<configOption name="udptlend">
+					<since><version>11.0.0</version></since>
 					<synopsis>The end of the UDPTL port range</synopsis>
 				</configOption>
 				<configOption name="udptlchecksums">
+					<since><version>11.0.0</version></since>
 					<synopsis>Whether to enable or disable UDP checksums on UDPTL traffic</synopsis>
 				</configOption>
 				<configOption name="udptlfecentries">
+					<since><version>11.0.0</version></since>
 					<synopsis>The number of error correction entries in a UDPTL packet</synopsis>
 				</configOption>
 				<configOption name="udptlfecspan">
+					<since><version>11.0.0</version></since>
 					<synopsis>The span over which parity is calculated for FEC in a UDPTL packet</synopsis>
 				</configOption>
 				<configOption name="use_even_ports">
+					<since><version>11.0.0</version></since>
 					<synopsis>Whether to only use even-numbered UDPTL ports</synopsis>
 				</configOption>
 				<configOption name="t38faxudpec">
+					<since><version>11.0.0</version></since>
 					<synopsis>Removed</synopsis>
 				</configOption>
 				<configOption name="t38faxmaxdatagram">
+					<since><version>11.0.0</version></since>
 					<synopsis>Removed</synopsis>
 				</configOption>
 			</configObject>
