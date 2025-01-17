@@ -42,6 +42,7 @@
 
 /*** DOCUMENTATION
 	<function name="JITTERBUFFER" language="en_US">
+		<since><version>10.0.0</version></since>
 		<synopsis>
 			Add a Jitterbuffer to the Read side of the channel. This dejitters the audio stream before it reaches the Asterisk core. This is a write only function.
 		</synopsis>

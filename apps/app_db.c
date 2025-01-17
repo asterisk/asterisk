@@ -43,6 +43,7 @@
 
 /*** DOCUMENTATION
 	<application name="DBdeltree" language="en_US">
+		<since><version>1.8.0</version></since>
 		<synopsis>
 			Delete a family or keytree from the asterisk database.
 		</synopsis>

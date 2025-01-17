@@ -1394,6 +1394,7 @@
 		</see-also>
 	</manager>
 	<function name="AMI_CLIENT" language="en_US">
+		<since><version>11.0.0</version></since>
 		<synopsis>
 			Checks attributes of manager accounts
 		</synopsis>

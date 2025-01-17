@@ -43,6 +43,7 @@
 
 /*** DOCUMENTATION
 	<application name="Directory" language="en_US">
+		<since><version>1.8.0</version></since>
 		<synopsis>
 			Provide directory of voicemail extensions.
 		</synopsis>

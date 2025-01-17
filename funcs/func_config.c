@@ -40,6 +40,7 @@
 
 /*** DOCUMENTATION
 	<function name="AST_CONFIG" language="en_US">
+		<since><version>1.8.0</version></since>
 		<synopsis>
 			Retrieve a variable from a configuration file.
 		</synopsis>

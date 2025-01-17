@@ -38,6 +38,7 @@
 
 /*** DOCUMENTATION
 	<application name="Stasis" language="en_US">
+		<since><version>12.0.0</version></since>
 		<synopsis>Invoke an external Stasis application.</synopsis>
 		<syntax>
 			<parameter name="app_name" required="true">

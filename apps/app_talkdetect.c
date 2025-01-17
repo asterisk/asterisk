@@ -45,6 +45,7 @@
 
 /*** DOCUMENTATION
 	<application name="BackgroundDetect" language="en_US">
+		<since><version>1.8.0</version></since>
 		<synopsis>
 			Background a file with talk detect.
 		</synopsis>

@@ -41,6 +41,7 @@
 
 /*** DOCUMENTATION
 	<function name="HOLD_INTERCEPT" language="en_US">
+		<since><version>13.7.0</version></since>
 		<synopsis>
 			Intercepts hold frames on a channel and raises an event instead of passing the frame on
 		</synopsis>

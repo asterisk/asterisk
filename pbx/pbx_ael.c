@@ -49,6 +49,7 @@
 
 /*** DOCUMENTATION
 	<application name="AELSub" language="en_US">
+		<since><version>10.0.0</version></since>
 		<synopsis>
 			Launch subroutine built with AEL
 		</synopsis>

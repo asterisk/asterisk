@@ -46,6 +46,7 @@
 
 /*** DOCUMENTATION
 	<function name="PJSIP_ENDPOINT" language="en_US">
+		<since><version>12.0.0</version></since>
 		<synopsis>
 			Get information about a PJSIP endpoint
 		</synopsis>

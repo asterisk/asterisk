@@ -45,6 +45,7 @@
 
 /*** DOCUMENTATION
 	<application name="Dictate" language="en_US">
+		<since><version>1.8.0</version></since>
 		<synopsis>
 			Virtual Dictation Machine.
 		</synopsis>
