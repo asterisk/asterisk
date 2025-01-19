@@ -662,7 +662,18 @@ static int parse_uri_cb(void *data)
 		return 0;
 	}
 
-	pj_strdup2_with_null(pool, &tmp, args->uri);
+	/* Let's make sure that the parser only treat that's in between < and > */
+	const char *start = strchr(args->uri, '<');
+	const char *end = strchr(args->uri, '>');
+
+	if (start && end && start < end) {
+		tmp.ptr = (char *)(start + 1);  // Skip '<'
+		tmp.slen = end - start - 1;     // Length between '<' and '>'
+	} else {
+		// If no '<' and '>' are found, fallback to the original URI
+		pj_strdup2_with_null(pool, &tmp, args->uri);
+	}
+
 	uri = (pjsip_name_addr *)pjsip_parse_uri(pool, tmp.ptr, tmp.slen, PJSIP_PARSE_URI_AS_NAMEADDR);
 	if (!uri || (!PJSIP_URI_SCHEME_IS_SIP(uri) && !PJSIP_URI_SCHEME_IS_SIPS(uri))) {
 		ast_log(LOG_WARNING, "Failed to parse URI '%s'\n", args->uri);
@@ -670,6 +681,7 @@ static int parse_uri_cb(void *data)
 		args->ret = -1;
 		return 0;
 	}
+
 
 	if (!strcmp(args->type, "scheme")) {
 		ast_copy_pj_str(args->buf, pjsip_uri_get_scheme(uri), args->buflen);
