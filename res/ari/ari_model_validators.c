@@ -2428,6 +2428,60 @@ ari_validator ast_ari_validate_mailbox_fn(void)
 	return ast_ari_validate_mailbox;
 }
 
+int ast_ari_validate_additional_param(struct ast_json *json)
+{
+	int res = 1;
+	struct ast_json_iter *iter;
+	int has_parameter_name = 0;
+	int has_parameter_value = 0;
+
+	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("parameter_name", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_parameter_name = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI AdditionalParam field parameter_name failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("parameter_value", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_parameter_value = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI AdditionalParam field parameter_value failed validation\n");
+				res = 0;
+			}
+		} else
+		{
+			ast_log(LOG_ERROR,
+				"ARI AdditionalParam has undocumented field %s\n",
+				ast_json_object_iter_key(iter));
+			res = 0;
+		}
+	}
+
+	if (!has_parameter_name) {
+		ast_log(LOG_ERROR, "ARI AdditionalParam missing required field parameter_name\n");
+		res = 0;
+	}
+
+	if (!has_parameter_value) {
+		ast_log(LOG_ERROR, "ARI AdditionalParam missing required field parameter_value\n");
+		res = 0;
+	}
+
+	return res;
+}
+
+ari_validator ast_ari_validate_additional_param_fn(void)
+{
+	return ast_ari_validate_additional_param;
+}
+
 int ast_ari_validate_application_move_failed(struct ast_json *json)
 {
 	int res = 1;
@@ -5010,6 +5064,126 @@ ari_validator ast_ari_validate_channel_tone_detected_fn(void)
 	return ast_ari_validate_channel_tone_detected;
 }
 
+int ast_ari_validate_channel_transfer(struct ast_json *json)
+{
+	int res = 1;
+	struct ast_json_iter *iter;
+	int has_type = 0;
+	int has_application = 0;
+	int has_timestamp = 0;
+	int has_refer_to = 0;
+	int has_referred_by = 0;
+
+	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelTransfer field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_type = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelTransfer field type failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("application", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_application = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelTransfer field application failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_timestamp = 1;
+			prop_is_valid = ast_ari_validate_date(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelTransfer field timestamp failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("refer_to", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_refer_to = 1;
+			prop_is_valid = ast_ari_validate_refer_to(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelTransfer field refer_to failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("referred_by", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_referred_by = 1;
+			prop_is_valid = ast_ari_validate_referred_by(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelTransfer field referred_by failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("state", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelTransfer field state failed validation\n");
+				res = 0;
+			}
+		} else
+		{
+			ast_log(LOG_ERROR,
+				"ARI ChannelTransfer has undocumented field %s\n",
+				ast_json_object_iter_key(iter));
+			res = 0;
+		}
+	}
+
+	if (!has_type) {
+		ast_log(LOG_ERROR, "ARI ChannelTransfer missing required field type\n");
+		res = 0;
+	}
+
+	if (!has_application) {
+		ast_log(LOG_ERROR, "ARI ChannelTransfer missing required field application\n");
+		res = 0;
+	}
+
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI ChannelTransfer missing required field timestamp\n");
+		res = 0;
+	}
+
+	if (!has_refer_to) {
+		ast_log(LOG_ERROR, "ARI ChannelTransfer missing required field refer_to\n");
+		res = 0;
+	}
+
+	if (!has_referred_by) {
+		ast_log(LOG_ERROR, "ARI ChannelTransfer missing required field referred_by\n");
+		res = 0;
+	}
+
+	return res;
+}
+
+ari_validator ast_ari_validate_channel_transfer_fn(void)
+{
+	return ast_ari_validate_channel_transfer;
+}
+
 int ast_ari_validate_channel_unhold(struct ast_json *json)
 {
 	int res = 1;
@@ -5974,6 +6148,9 @@ int ast_ari_validate_event(struct ast_json *json)
 	if (strcmp("ChannelToneDetected", discriminator) == 0) {
 		return ast_ari_validate_channel_tone_detected(json);
 	} else
+	if (strcmp("ChannelTransfer", discriminator) == 0) {
+		return ast_ari_validate_channel_transfer(json);
+	} else
 	if (strcmp("ChannelUnhold", discriminator) == 0) {
 		return ast_ari_validate_channel_unhold(json);
 	} else
@@ -6183,6 +6360,9 @@ int ast_ari_validate_message(struct ast_json *json)
 	} else
 	if (strcmp("ChannelToneDetected", discriminator) == 0) {
 		return ast_ari_validate_channel_tone_detected(json);
+	} else
+	if (strcmp("ChannelTransfer", discriminator) == 0) {
+		return ast_ari_validate_channel_transfer(json);
 	} else
 	if (strcmp("ChannelUnhold", discriminator) == 0) {
 		return ast_ari_validate_channel_unhold(json);
@@ -7105,6 +7285,177 @@ int ast_ari_validate_recording_started(struct ast_json *json)
 ari_validator ast_ari_validate_recording_started_fn(void)
 {
 	return ast_ari_validate_recording_started;
+}
+
+int ast_ari_validate_refer_to(struct ast_json *json)
+{
+	int res = 1;
+	struct ast_json_iter *iter;
+	int has_requested_destination = 0;
+
+	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("bridge", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_bridge(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ReferTo field bridge failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("connected_channel", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_channel(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ReferTo field connected_channel failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("destination_channel", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_channel(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ReferTo field destination_channel failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("requested_destination", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_requested_destination = 1;
+			prop_is_valid = ast_ari_validate_required_destination(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ReferTo field requested_destination failed validation\n");
+				res = 0;
+			}
+		} else
+		{
+			ast_log(LOG_ERROR,
+				"ARI ReferTo has undocumented field %s\n",
+				ast_json_object_iter_key(iter));
+			res = 0;
+		}
+	}
+
+	if (!has_requested_destination) {
+		ast_log(LOG_ERROR, "ARI ReferTo missing required field requested_destination\n");
+		res = 0;
+	}
+
+	return res;
+}
+
+ari_validator ast_ari_validate_refer_to_fn(void)
+{
+	return ast_ari_validate_refer_to;
+}
+
+int ast_ari_validate_referred_by(struct ast_json *json)
+{
+	int res = 1;
+	struct ast_json_iter *iter;
+	int has_source_channel = 0;
+
+	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("bridge", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_bridge(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ReferredBy field bridge failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("connected_channel", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_channel(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ReferredBy field connected_channel failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("source_channel", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_source_channel = 1;
+			prop_is_valid = ast_ari_validate_channel(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ReferredBy field source_channel failed validation\n");
+				res = 0;
+			}
+		} else
+		{
+			ast_log(LOG_ERROR,
+				"ARI ReferredBy has undocumented field %s\n",
+				ast_json_object_iter_key(iter));
+			res = 0;
+		}
+	}
+
+	if (!has_source_channel) {
+		ast_log(LOG_ERROR, "ARI ReferredBy missing required field source_channel\n");
+		res = 0;
+	}
+
+	return res;
+}
+
+ari_validator ast_ari_validate_referred_by_fn(void)
+{
+	return ast_ari_validate_referred_by;
+}
+
+int ast_ari_validate_required_destination(struct ast_json *json)
+{
+	int res = 1;
+	struct ast_json_iter *iter;
+
+	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("additional_protocol_params", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_list(
+				ast_json_object_iter_value(iter),
+				ast_ari_validate_additional_param);
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RequiredDestination field additional_protocol_params failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("destination", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RequiredDestination field destination failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("protocol_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RequiredDestination field protocol_id failed validation\n");
+				res = 0;
+			}
+		} else
+		{
+			ast_log(LOG_ERROR,
+				"ARI RequiredDestination has undocumented field %s\n",
+				ast_json_object_iter_key(iter));
+			res = 0;
+		}
+	}
+
+	return res;
+}
+
+ari_validator ast_ari_validate_required_destination_fn(void)
+{
+	return ast_ari_validate_required_destination;
 }
 
 int ast_ari_validate_stasis_end(struct ast_json *json)

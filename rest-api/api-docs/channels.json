@@ -1898,6 +1898,54 @@
 					]
 				}
 			]
+		},
+		{
+			"path": "/channels/{channelId}/transfer_progress",
+			"description": "Inform the channel that the transfer is in progress.",
+			"operations": [
+				{
+					"httpMethod": "POST",
+					"summary": "Inform the channel about the progress of the attended/blind transfer.",
+					"nickname": "transfer_progress",
+					"responseClass": "void",
+					"parameters": [
+						{
+							"name": "channelId",
+							"description": "Channel's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "states",
+							"description": "The state of the progress",
+							"paramType": "query",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 400,
+							"reason": "Endpoint parameter not provided"
+						},
+						{
+							"code": 404,
+							"reason": "Channel or endpoint not found"
+						},
+						{
+							"code": 409,
+							"reason": "Channel not in a Stasis application"
+						},
+						{
+							"code": 412,
+							"reason": "Channel in invalid state"
+						}
+					]
+				}
+			]
 		}
 	],
 	"models": {
