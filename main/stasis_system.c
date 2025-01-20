@@ -36,6 +36,7 @@
 /*** DOCUMENTATION
 	<managerEvent language="en_US" name="Registry">
 		<managerEventInstance class="EVENT_FLAG_SYSTEM">
+			<since><version>12.0.0</version></since>
 			<synopsis>Raised when an outbound registration completes.</synopsis>
 			<syntax>
 				<parameter name="ChannelType">

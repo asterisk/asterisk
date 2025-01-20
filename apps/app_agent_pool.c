@@ -181,6 +181,7 @@
 	</manager>
 	<managerEvent language="en_US" name="Agents">
 		<managerEventInstance class="EVENT_FLAG_AGENT">
+			<since><version>12.0.0</version></since>
 			<synopsis>
 				Response event in a series to the Agents AMI action containing
 				information about a defined agent.
@@ -226,6 +227,7 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="AgentsComplete">
 		<managerEventInstance class="EVENT_FLAG_AGENT">
+			<since><version>12.0.0</version></since>
 			<synopsis>
 				Final response event in a series of events to the Agents AMI action.
 			</synopsis>
