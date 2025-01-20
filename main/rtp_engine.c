@@ -30,6 +30,7 @@
 /*** DOCUMENTATION
 	<managerEvent language="en_US" name="RTCPSent">
 		<managerEventInstance class="EVENT_FLAG_REPORTING">
+			<since><version>12.0.0</version></since>
 			<synopsis>Raised when an RTCP packet is sent.</synopsis>
 			<syntax>
 				<channel_snapshot/>
@@ -109,6 +110,7 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="RTCPReceived">
 		<managerEventInstance class="EVENT_FLAG_REPORTING">
+			<since><version>12.0.0</version></since>
 			<synopsis>Raised when an RTCP packet is received.</synopsis>
 			<syntax>
 				<channel_snapshot/>

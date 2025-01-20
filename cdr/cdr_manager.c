@@ -41,6 +41,7 @@
 /*** DOCUMENTATION
 	<managerEvent language="en_US" name="Cdr">
 		<managerEventInstance class="EVENT_FLAG_CDR">
+			<since><version>13.2.0</version></since>
 			<synopsis>Raised when a CDR is generated.</synopsis>
 			<syntax>
 				<parameter name="AccountCode">

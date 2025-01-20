@@ -36,6 +36,7 @@
 /*** DOCUMENTATION
 	<managerEvent language="en_US" name="CEL">
 		<managerEventInstance class="EVENT_FLAG_CEL">
+			<since><version>13.2.0</version></since>
 			<synopsis>Raised when a Channel Event Log is generated for a channel.</synopsis>
 			<syntax>
 				<parameter name="EventName">
