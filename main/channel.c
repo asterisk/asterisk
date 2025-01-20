@@ -6848,6 +6848,7 @@ static void __ast_change_name_nolink(struct ast_channel *chan, const char *newna
 	/*** DOCUMENTATION
 		<managerEvent language="en_US" name="Rename">
 			<managerEventInstance class="EVENT_FLAG_CALL">
+				<since><version>16.24.0</version><version>18.10.0</version><version>19.2.0</version></since>
 				<synopsis>Raised when the name of a channel is changed.</synopsis>
 			</managerEventInstance>
 		</managerEvent>

@@ -1295,6 +1295,7 @@
 	</manager>
 	<managerEvent language="en_US" name="AsyncAGIStart">
 		<managerEventInstance class="EVENT_FLAG_AGI">
+			<since><version>12.0.0</version></since>
 			<synopsis>Raised when a channel starts AsyncAGI command processing.</synopsis>
 			<syntax>
 				<channel_snapshot/>
@@ -1312,6 +1313,7 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="AsyncAGIEnd">
 		<managerEventInstance class="EVENT_FLAG_AGI">
+			<since><version>12.0.0</version></since>
 			<synopsis>Raised when a channel stops AsyncAGI command processing.</synopsis>
 			<syntax>
 				<channel_snapshot/>
@@ -1326,6 +1328,7 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="AsyncAGIExec">
 		<managerEventInstance class="EVENT_FLAG_AGI">
+			<since><version>12.0.0</version></since>
 			<synopsis>Raised when AsyncAGI completes an AGI command.</synopsis>
 			<syntax>
 				<channel_snapshot/>
@@ -1346,6 +1349,7 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="AGIExecStart">
 		<managerEventInstance class="EVENT_FLAG_AGI">
+			<since><version>12.0.0</version></since>
 			<synopsis>Raised when a received AGI command starts processing.</synopsis>
 			<syntax>
 				<channel_snapshot/>
@@ -1364,6 +1368,7 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="AGIExecEnd">
 		<managerEventInstance class="EVENT_FLAG_AGI">
+			<since><version>12.0.0</version></since>
 			<synopsis>Raised when a received AGI command completes processing.</synopsis>
 			<syntax>
 				<channel_snapshot/>

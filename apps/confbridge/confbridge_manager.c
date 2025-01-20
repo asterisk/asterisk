@@ -39,6 +39,7 @@
 /*** DOCUMENTATION
 	<managerEvent language="en_US" name="ConfbridgeStart">
 		<managerEventInstance class="EVENT_FLAG_CALL">
+			<since><version>12.0.0</version></since>
 			<synopsis>Raised when a conference starts.</synopsis>
 			<syntax>
 				<parameter name="Conference">
@@ -54,6 +55,7 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="ConfbridgeEnd">
 		<managerEventInstance class="EVENT_FLAG_CALL">
+			<since><version>12.0.0</version></since>
 			<synopsis>Raised when a conference ends.</synopsis>
 			<syntax>
 				<parameter name="Conference">
@@ -69,6 +71,7 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="ConfbridgeJoin">
 		<managerEventInstance class="EVENT_FLAG_CALL">
+			<since><version>12.0.0</version></since>
 			<synopsis>Raised when a channel joins a Confbridge conference.</synopsis>
 			<syntax>
 				<parameter name="Conference">
@@ -99,6 +102,7 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="ConfbridgeLeave">
 		<managerEventInstance class="EVENT_FLAG_CALL">
+			<since><version>12.0.0</version></since>
 			<synopsis>Raised when a channel leaves a Confbridge conference.</synopsis>
 			<syntax>
 				<parameter name="Conference">
@@ -122,6 +126,7 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="ConfbridgeRecord">
 		<managerEventInstance class="EVENT_FLAG_CALL">
+			<since><version>12.0.0</version></since>
 			<synopsis>Raised when a conference starts recording.</synopsis>
 			<syntax>
 				<parameter name="Conference">
@@ -137,6 +142,7 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="ConfbridgeStopRecord">
 		<managerEventInstance class="EVENT_FLAG_CALL">
+			<since><version>12.0.0</version></since>
 			<synopsis>Raised when a conference that was recording stops recording.</synopsis>
 			<syntax>
 				<parameter name="Conference">
@@ -152,6 +158,7 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="ConfbridgeMute">
 		<managerEventInstance class="EVENT_FLAG_CALL">
+			<since><version>12.0.0</version></since>
 			<synopsis>Raised when a Confbridge participant mutes.</synopsis>
 			<syntax>
 				<parameter name="Conference">
@@ -175,6 +182,7 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="ConfbridgeUnmute">
 		<managerEventInstance class="EVENT_FLAG_CALL">
+			<since><version>12.0.0</version></since>
 			<synopsis>Raised when a confbridge participant unmutes.</synopsis>
 			<syntax>
 				<parameter name="Conference">
@@ -198,6 +206,7 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="ConfbridgeTalking">
 		<managerEventInstance class="EVENT_FLAG_CALL">
+			<since><version>12.0.0</version></since>
 			<synopsis>Raised when a confbridge participant begins or ends talking.</synopsis>
 			<syntax>
 				<parameter name="Conference">
