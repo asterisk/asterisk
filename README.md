@@ -1,7 +1,7 @@
 # The Asterisk(R) Open Source PBX
 ```text
         By Mark Spencer <markster@digium.com> and the Asterisk.org developer community.
-        Copyright (C) 2001-2021 Sangoma Technologies Corporation and other copyright holders.
+        Copyright (C) 2001-2025 Sangoma Technologies Corporation and other copyright holders.
 ```
 ## SECURITY
 
