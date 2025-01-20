@@ -21,6 +21,7 @@
 	</manager>
 	<managerEvent language="en_US" name="IdentifyDetail">
 		<managerEventInstance class="EVENT_FLAG_COMMAND">
+			<since><version>13.20.0</version><version>15.3.0</version></since>
 			<synopsis>Provide details about an identify section.</synopsis>
 			<syntax>
 				<parameter name="ObjectType">
@@ -49,6 +50,7 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="AorDetail">
 		<managerEventInstance class="EVENT_FLAG_COMMAND">
+			<since><version>13.12.0</version><version>14.1.0</version></since>
 			<synopsis>Provide details about an Address of Record (AoR) section.</synopsis>
 			<syntax>
 				<parameter name="ObjectType">
@@ -104,6 +106,7 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="AuthDetail">
 		<managerEventInstance class="EVENT_FLAG_COMMAND">
+			<since><version>12.0.0</version></since>
 			<synopsis>Provide details about an authentication section.</synopsis>
 			<syntax>
 				<parameter name="ObjectType">
@@ -138,6 +141,7 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="TransportDetail">
 		<managerEventInstance class="EVENT_FLAG_COMMAND">
+			<since><version>12.6.0</version></since>
 			<synopsis>Provide details about an authentication section.</synopsis>
 			<syntax>
 				<parameter name="ObjectType">
@@ -217,6 +221,7 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="EndpointDetail">
 		<managerEventInstance class="EVENT_FLAG_COMMAND">
+			<since><version>12.0.0</version></since>
 			<synopsis>Provide details about an endpoint section.</synopsis>
 			<syntax>
 				<parameter name="ObjectType">
@@ -518,6 +523,7 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="AorList">
 		<managerEventInstance class="EVENT_FLAG_COMMAND">
+			<since><version>16.0.0</version></since>
 			<synopsis>Provide details about an Address of Record (AoR) section.</synopsis>
 			<syntax>
 				<parameter name="ObjectType">
@@ -564,6 +570,7 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="AuthList">
 		<managerEventInstance class="EVENT_FLAG_COMMAND">
+			<since><version>16.0.0</version></since>
 			<synopsis>Provide details about an Address of Record (Auth) section.</synopsis>
 			<syntax>
 				<parameter name="ObjectType">
@@ -595,6 +602,7 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="ContactList">
 		<managerEventInstance class="EVENT_FLAG_COMMAND">
+			<since><version>16.0.0</version></since>
 			<synopsis>Provide details about a contact section.</synopsis>
 			<syntax>
 				<parameter name="ObjectType">
@@ -666,6 +674,7 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="ContactStatusDetail">
 		<managerEventInstance class="EVENT_FLAG_COMMAND">
+			<since><version>13.0.0</version></since>
 			<synopsis>Provide details about a contact's status.</synopsis>
 			<syntax>
 				<parameter name="AOR">
@@ -727,6 +736,7 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="EndpointList">
 		<managerEventInstance class="EVENT_FLAG_COMMAND">
+			<since><version>12.0.0</version></since>
 			<synopsis>Provide details about a contact's status.</synopsis>
 			<syntax>
 				<parameter name="ObjectType">
@@ -777,6 +787,7 @@
 			</list-elements>
 			<managerEvent language="en_US" name="EndpointListComplete">
 				<managerEventInstance class="EVENT_FLAG_COMMAND">
+					<since><version>12.0.0</version></since>
 					<synopsis>Provide final information about an endpoint list.</synopsis>
 					<syntax>
 						<parameter name="EventList"/>
@@ -821,6 +832,7 @@
 			</list-elements>
 			<managerEvent language="en_US" name="EndpointDetailComplete">
 				<managerEventInstance class="EVENT_FLAG_COMMAND">
+					<since><version>12.0.0</version></since>
 					<synopsis>Provide final information about endpoint details.</synopsis>
 					<syntax>
 						<parameter name="EventList"/>
@@ -851,6 +863,7 @@
 			</list-elements>
 			<managerEvent language="en_US" name="AorListComplete">
 				<managerEventInstance class="EVENT_FLAG_COMMAND">
+					<since><version>16.0.0</version></since>
 					<synopsis>Provide final information about an aor list.</synopsis>
 					<syntax>
 						<parameter name="EventList"/>
@@ -880,6 +893,7 @@
 			</list-elements>
 			<managerEvent language="en_US" name="AuthListComplete">
 				<managerEventInstance class="EVENT_FLAG_COMMAND">
+					<since><version>16.0.0</version></since>
 					<synopsis>Provide final information about an auth list.</synopsis>
 					<syntax>
 						<parameter name="EventList"/>
@@ -910,6 +924,7 @@
 			</list-elements>
 			<managerEvent language="en_US" name="ContactListComplete">
 				<managerEventInstance class="EVENT_FLAG_COMMAND">
+					<since><version>16.0.0</version></since>
 					<synopsis>Provide final information about a contact list.</synopsis>
 					<syntax>
 						<parameter name="EventList"/>

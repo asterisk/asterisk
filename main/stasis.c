@@ -46,6 +46,7 @@
 /*** DOCUMENTATION
 	<managerEvent language="en_US" name="UserEvent">
 		<managerEventInstance class="EVENT_FLAG_USER">
+			<since><version>12.3.0</version></since>
 			<synopsis>A user defined event raised from the dialplan.</synopsis>
 			<syntax>
 				<channel_snapshot/>

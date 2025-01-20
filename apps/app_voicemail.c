@@ -573,6 +573,7 @@
 	</manager>
 	<managerEvent language="en_US" name="VoicemailPasswordChange">
 		<managerEventInstance class="EVENT_FLAG_USER">
+			<since><version>18.21.0</version><version>20.6.0</version><version>21.1.0</version></since>
 			<synopsis>Raised in response to a mailbox password change.</synopsis>
 			<syntax>
 				<parameter name="Context">

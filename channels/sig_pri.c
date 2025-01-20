@@ -29,6 +29,7 @@
 /*** DOCUMENTATION
 	<managerEvent language="en_US" name="MCID">
 		<managerEventInstance class="EVENT_FLAG_CALL">
+			<since><version>12.0.0</version></since>
 			<synopsis>Published when a malicious call ID request arrives.</synopsis>
 			<syntax>
 				<channel_snapshot/>

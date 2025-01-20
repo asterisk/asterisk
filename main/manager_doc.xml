@@ -192,6 +192,7 @@
 	</manager>
 	<managerEvent language="en_US" name="Status">
 		<managerEventInstance class="EVENT_FLAG_CALL">
+			<since><version>18.26.0</version><version>20.11.0</version><version>21.6.0</version><version>22.1.0</version></since>
 			<synopsis>Raised in response to a Status command.</synopsis>
 			<syntax>
 				<parameter name="ActionID" required="false"/>
@@ -250,6 +251,7 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="StatusComplete">
 		<managerEventInstance class="EVENT_FLAG_CALL">
+			<since><version>18.26.0</version><version>20.11.0</version><version>21.6.0</version><version>22.1.0</version></since>
 			<synopsis>Raised in response to a Status command.</synopsis>
 			<syntax>
 				<parameter name="Items">
@@ -702,6 +704,7 @@
 	</manager>
 	<managerEvent language="en_US" name="OriginateResponse">
 		<managerEventInstance class="EVENT_FLAG_CALL">
+			<since><version>18.26.0</version><version>20.11.0</version><version>21.6.0</version><version>22.1.0</version></since>
 			<synopsis>Raised in response to an Originate command.</synopsis>
 			<syntax>
 				<parameter name="ActionID" required="false"/>
@@ -1001,6 +1004,7 @@
 	</manager>
 	<managerEvent language="en_US" name="CoreShowChannel">
 		<managerEventInstance class="EVENT_FLAG_CALL">
+			<since><version>18.26.0</version><version>20.11.0</version><version>21.6.0</version><version>22.1.0</version></since>
 			<synopsis>Raised in response to a CoreShowChannels command.</synopsis>
 			<syntax>
 				<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
@@ -1026,6 +1030,7 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="CoreShowChannelsComplete">
 		<managerEventInstance class="EVENT_FLAG_CALL">
+			<since><version>18.26.0</version><version>20.11.0</version><version>21.6.0</version><version>22.1.0</version></since>
 			<synopsis>Raised at the end of the CoreShowChannel list produced by the CoreShowChannels command.</synopsis>
 			<syntax>
 				<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
@@ -1064,6 +1069,7 @@
 	</manager>
 	<managerEvent language="en_US" name="CoreShowChannelMapComplete">
 		<managerEventInstance class="EVENT_FLAG_CALL">
+			<since><version>18.26.0</version><version>20.11.0</version><version>21.6.0</version><version>22.1.0</version></since>
 			<synopsis>Raised at the end of the CoreShowChannelMap list produced by the CoreShowChannelMap command.</synopsis>
 			<syntax>
 				<parameter name="EventList">
@@ -1576,6 +1582,7 @@
 	</manager>
 	<managerEvent name="ExtensionStatus" language="en_US">
 		<managerEventInstance class="EVENT_FLAG_CALL">
+			<since><version>18.26.0</version><version>20.11.0</version><version>21.6.0</version><version>22.1.0</version></since>
 			<synopsis>Raised when a hint changes due to a device state change.</synopsis>
 			<syntax>
 				<parameter name="Exten">
@@ -1656,6 +1663,7 @@
 	</managerEvent>
 	<managerEvent name="PresenceStatus" language="en_US">
 		<managerEventInstance class="EVENT_FLAG_CALL">
+			<since><version>18.26.0</version><version>20.11.0</version><version>21.6.0</version><version>22.1.0</version></since>
 			<synopsis>Raised when a hint changes due to a presence state change.</synopsis>
 			<syntax>
 				<parameter name="Exten" />
