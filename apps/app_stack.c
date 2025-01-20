@@ -205,6 +205,7 @@
 	</agi>
 	<managerEvent language="en_US" name="VarSet">
 		<managerEventInstance class="EVENT_FLAG_DIALPLAN">
+			<since><version>12.0.0</version></since>
 			<synopsis>Raised when a variable local to the gosub stack frame is set due to a subroutine call.</synopsis>
 			<syntax>
 				<channel_snapshot/>

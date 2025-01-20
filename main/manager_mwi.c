@@ -105,6 +105,7 @@ static void mwi_update_cb(void *data, struct stasis_subscription *sub,
 	/*** DOCUMENTATION
 		<managerEvent language="en_US" name="MessageWaiting">
 			<managerEventInstance class="EVENT_FLAG_CALL">
+				<since><version>16.24.0</version><version>18.10.0</version><version>19.2.0</version></since>
 				<synopsis>Raised when the state of messages in a voicemail mailbox
 				has changed or when a channel has finished interacting with a
 				mailbox.</synopsis>
