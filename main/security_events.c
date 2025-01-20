@@ -31,6 +31,7 @@
 /*** DOCUMENTATION
 	<managerEvent language="en_US" name="FailedACL">
 		<managerEventInstance class="EVENT_FLAG_SECURITY">
+			<since><version>12.1.0</version></since>
 			<synopsis>Raised when a request violates an ACL check.</synopsis>
 			<syntax>
 				<parameter name="EventTV">
@@ -79,6 +80,7 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="InvalidAccountID">
 		<managerEventInstance class="EVENT_FLAG_SECURITY">
+			<since><version>12.1.0</version></since>
 			<synopsis>Raised when a request fails an authentication check due to an invalid account ID.</synopsis>
 			<syntax>
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='EventTV'])" />
@@ -96,6 +98,7 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="SessionLimit">
 		<managerEventInstance class="EVENT_FLAG_SECURITY">
+			<since><version>12.1.0</version></since>
 			<synopsis>Raised when a request fails due to exceeding the number of allowed concurrent sessions for that service.</synopsis>
 			<syntax>
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='EventTV'])" />
@@ -113,6 +116,7 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="MemoryLimit">
 		<managerEventInstance class="EVENT_FLAG_SECURITY">
+			<since><version>12.1.0</version></since>
 			<synopsis>Raised when a request fails due to an internal memory allocation failure.</synopsis>
 			<syntax>
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='EventTV'])" />
@@ -130,6 +134,7 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="LoadAverageLimit">
 		<managerEventInstance class="EVENT_FLAG_SECURITY">
+			<since><version>12.1.0</version></since>
 			<synopsis>Raised when a request fails because a configured load average limit has been reached.</synopsis>
 			<syntax>
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='EventTV'])" />
@@ -147,6 +152,7 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="RequestNotSupported">
 		<managerEventInstance class="EVENT_FLAG_SECURITY">
+			<since><version>12.1.0</version></since>
 			<synopsis>Raised when a request fails due to some aspect of the requested item not being supported by the service.</synopsis>
 			<syntax>
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='EventTV'])" />
@@ -167,6 +173,7 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="RequestNotAllowed">
 		<managerEventInstance class="EVENT_FLAG_SECURITY">
+			<since><version>12.1.0</version></since>
 			<synopsis>Raised when a request is not allowed by the service.</synopsis>
 			<syntax>
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='EventTV'])" />
@@ -188,6 +195,7 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="AuthMethodNotAllowed">
 		<managerEventInstance class="EVENT_FLAG_SECURITY">
+			<since><version>12.1.0</version></since>
 			<synopsis>Raised when a request used an authentication method not allowed by the service.</synopsis>
 			<syntax>
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='EventTV'])" />
@@ -208,6 +216,7 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="RequestBadFormat">
 		<managerEventInstance class="EVENT_FLAG_SECURITY">
+			<since><version>12.1.0</version></since>
 			<synopsis>Raised when a request is received with bad formatting.</synopsis>
 			<syntax>
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='EventTV'])" />
@@ -230,6 +239,7 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="SuccessfulAuth">
 		<managerEventInstance class="EVENT_FLAG_SECURITY">
+			<since><version>12.1.0</version></since>
 			<synopsis>Raised when a request successfully authenticates with a service.</synopsis>
 			<syntax>
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='EventTV'])" />
@@ -250,6 +260,7 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="UnexpectedAddress">
 		<managerEventInstance class="EVENT_FLAG_SECURITY">
+			<since><version>12.1.0</version></since>
 			<synopsis>Raised when a request has a different source address then what is expected for a session already in progress with a service.</synopsis>
 			<syntax>
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='EventTV'])" />
@@ -270,6 +281,7 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="ChallengeResponseFailed">
 		<managerEventInstance class="EVENT_FLAG_SECURITY">
+			<since><version>12.1.0</version></since>
 			<synopsis>Raised when a request's attempt to authenticate has been challenged, and the request failed the authentication challenge.</synopsis>
 			<syntax>
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='EventTV'])" />
@@ -296,6 +308,7 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="InvalidPassword">
 		<managerEventInstance class="EVENT_FLAG_SECURITY">
+			<since><version>12.1.0</version></since>
 			<synopsis>Raised when a request provides an invalid password during an authentication attempt.</synopsis>
 			<syntax>
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='EventTV'])" />
@@ -322,6 +335,7 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="ChallengeSent">
 		<managerEventInstance class="EVENT_FLAG_SECURITY">
+			<since><version>12.1.0</version></since>
 			<synopsis>Raised when an Asterisk service sends an authentication challenge to a request.</synopsis>
 			<syntax>
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='EventTV'])" />
@@ -340,6 +354,7 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="InvalidTransport">
 		<managerEventInstance class="EVENT_FLAG_SECURITY">
+			<since><version>12.1.0</version></since>
 			<synopsis>Raised when a request attempts to use a transport not allowed by the Asterisk service.</synopsis>
 			<syntax>
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='EventTV'])" />

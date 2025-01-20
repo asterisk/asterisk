@@ -322,6 +322,7 @@ int __ast_pthread_mutex_lock(const char *filename, int lineno, const char *func,
 						/*** DOCUMENTATION
 							<managerEvent language="en_US" name="DeadlockStart">
 								<managerEventInstance class="EVENT_FLAG_SYSTEM">
+									<since><version>16.29.0</version><version>18.15.0</version><version>19.7.0</version></since>
 									<synopsis>Raised when a probable deadlock has started.
 									Delivery of this event is attempted but not guaranteed,
                                                                         and could fail for example if the manager itself is deadlocked.

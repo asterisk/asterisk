@@ -36,6 +36,7 @@
 /*** DOCUMENTATION
 	<managerEvent language="en_US" name="PeerStatus">
 		<managerEventInstance class="EVENT_FLAG_SYSTEM">
+			<since><version>12.0.0</version></since>
 			<synopsis>Raised when the state of a peer changes.</synopsis>
 			<syntax>
 				<parameter name="ChannelType">
@@ -71,6 +72,7 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="ContactStatus">
 		<managerEventInstance class="EVENT_FLAG_SYSTEM">
+			<since><version>13.5.0</version></since>
 			<synopsis>Raised when the state of a contact changes.</synopsis>
 			<syntax>
 				<parameter name="URI">
