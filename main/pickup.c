@@ -36,6 +36,7 @@
 /*** DOCUMENTATION
 	<managerEvent language="en_US" name="Pickup">
 		<managerEventInstance class="EVENT_FLAG_CALL">
+			<since><version>12.0.0</version></since>
 			<synopsis>Raised when a call pickup occurs.</synopsis>
 			<syntax>
 				<channel_snapshot/>

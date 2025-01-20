@@ -556,6 +556,7 @@
 	</manager>
 	<managerEvent language="en_US" name="AlarmClear">
 		<managerEventInstance class="EVENT_FLAG_SYSTEM">
+			<since><version>12.0.0</version></since>
 			<synopsis>Raised when an alarm is cleared on a DAHDI channel.</synopsis>
 			<syntax>
 				<parameter name="DAHDIChannel">
@@ -567,6 +568,7 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="SpanAlarmClear">
 		<managerEventInstance class="EVENT_FLAG_SYSTEM">
+			<since><version>12.0.0</version></since>
 			<synopsis>Raised when an alarm is cleared on a DAHDI span.</synopsis>
 			<syntax>
 				<parameter name="Span">
@@ -577,6 +579,7 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="DNDState">
 		<managerEventInstance class="EVENT_FLAG_SYSTEM">
+			<since><version>12.0.0</version></since>
 			<synopsis>Raised when the Do Not Disturb state is changed on a DAHDI channel.</synopsis>
 			<syntax>
 				<parameter name="DAHDIChannel">
@@ -594,6 +597,7 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="Alarm">
 		<managerEventInstance class="EVENT_FLAG_SYSTEM">
+			<since><version>12.0.0</version></since>
 			<synopsis>Raised when an alarm is set on a DAHDI channel.</synopsis>
 			<syntax>
 				<parameter name="DAHDIChannel">
@@ -608,6 +612,7 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="SpanAlarm">
 		<managerEventInstance class="EVENT_FLAG_SYSTEM">
+			<since><version>12.0.0</version></since>
 			<synopsis>Raised when an alarm is set on a DAHDI span.</synopsis>
 			<syntax>
 				<parameter name="Span">
@@ -621,6 +626,7 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="DAHDIChannel">
 		<managerEventInstance class="EVENT_FLAG_CALL">
+			<since><version>12.0.0</version></since>
 			<synopsis>Raised when a DAHDI channel is created or an underlying technology is associated with a DAHDI channel.</synopsis>
 			<syntax>
 				<channel_snapshot/>

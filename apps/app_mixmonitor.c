@@ -322,6 +322,7 @@
 	</function>
 	<managerEvent language="en_US" name="MixMonitorStart">
 		<managerEventInstance class="EVENT_FLAG_CALL">
+			<since><version>16.17.0</version><version>18.3.0</version></since>
 			<synopsis>Raised when monitoring has started on a channel.</synopsis>
 			<syntax>
 				<channel_snapshot/>
@@ -335,6 +336,7 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="MixMonitorStop">
 		<managerEventInstance class="EVENT_FLAG_CALL">
+			<since><version>16.17.0</version><version>18.3.0</version></since>
 		<synopsis>Raised when monitoring has stopped on a channel.</synopsis>
 		<syntax>
 			<channel_snapshot/>
@@ -348,6 +350,7 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="MixMonitorMute">
 		<managerEventInstance class="EVENT_FLAG_CALL">
+			<since><version>16.17.0</version><version>18.3.0</version></since>
 		<synopsis>Raised when monitoring is muted or unmuted on a channel.</synopsis>
 		<syntax>
 			<channel_snapshot/>

@@ -503,6 +503,7 @@
 </function>
 	<managerEvent language="en_US" name="MiniVoiceMail">
 		<managerEventInstance class="EVENT_FLAG_CALL">
+			<since><version>12.0.0</version></since>
 			<synopsis>Raised when a notification is sent out by a MiniVoiceMail application</synopsis>
 			<syntax>
 				<channel_snapshot/>
