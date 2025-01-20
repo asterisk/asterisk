@@ -71,9 +71,6 @@
 #include "asterisk/backtrace.h"
 #include "asterisk/json.h"
 
-/*** DOCUMENTATION
- ***/
-
 static int logger_register_level(const char *name);
 static int logger_unregister_level(const char *name);
 static int logger_get_dynamic_level(const char *name);
@@ -1239,18 +1236,6 @@ static int reload_logger(int rotate, const char *altconf)
 	AST_RWLIST_TRAVERSE(&logchannels, f, list) {
 		if (f->disabled) {
 			f->disabled = 0;	/* Re-enable logging at reload */
-			/*** DOCUMENTATION
-				<managerEvent language="en_US" name="LogChannel">
-					<managerEventInstance class="EVENT_FLAG_SYSTEM">
-						<synopsis>Raised when a logging channel is re-enabled after a reload operation.</synopsis>
-						<syntax>
-							<parameter name="Channel">
-								<para>The name of the logging channel.</para>
-							</parameter>
-						</syntax>
-					</managerEventInstance>
-				</managerEvent>
-			***/
 			manager_event(EVENT_FLAG_SYSTEM, "LogChannel", "Channel: %s\r\nEnabled: Yes\r\n", f->filename);
 		}
 		if (f->fileptr && (f->fileptr != stdout) && (f->fileptr != stderr)) {
@@ -1983,16 +1968,6 @@ static void logger_print_normal(struct logmsg *logmsg)
 							fprintf(stderr, "Logger Warning: Unable to write to log file '%s': %s (disabled)\n", chan->filename, strerror(errno));
 						}
 
-						/*** DOCUMENTATION
-							<managerEventInstance>
-								<synopsis>Raised when a logging channel is disabled.</synopsis>
-								<syntax>
-									<parameter name="Channel">
-										<para>The name of the logging channel.</para>
-									</parameter>
-								</syntax>
-							</managerEventInstance>
-						***/
 						manager_event(EVENT_FLAG_SYSTEM, "LogChannel", "Channel: %s\r\nEnabled: No\r\nReason: %d - %s\r\n", chan->filename, errno, strerror(errno));
 						chan->disabled = 1;
 					}

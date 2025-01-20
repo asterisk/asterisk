@@ -117,6 +117,7 @@
 	</function>
 	<managerEvent language="en_US" name="VarSet">
 		<managerEventInstance class="EVENT_FLAG_DIALPLAN">
+			<since><version>12.0.0</version></since>
 			<synopsis>Raised when a variable is shared between channels.</synopsis>
 			<syntax>
 				<channel_snapshot/>

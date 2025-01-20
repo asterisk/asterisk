@@ -46,6 +46,7 @@
 /*** DOCUMENTATION
 	<managerEvent language="en_US" name="BlindTransfer">
 		<managerEventInstance class="EVENT_FLAG_CALL">
+			<since><version>12.0.0</version></since>
 			<synopsis>Raised when a blind transfer is complete.</synopsis>
 			<syntax>
 				<parameter name="Result">
@@ -84,6 +85,7 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="AttendedTransfer">
 		<managerEventInstance class="EVENT_FLAG_CALL">
+			<since><version>12.0.0</version></since>
 			<synopsis>Raised when an attended transfer is complete.</synopsis>
 			<syntax>
 				<xi:include xpointer="xpointer(docs/managerEvent[@name='BlindTransfer']/managerEventInstance/syntax/parameter[@name='Result'])" />
