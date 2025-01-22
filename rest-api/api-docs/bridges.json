@@ -61,6 +61,12 @@
 							"allowMultiple": false,
 							"dataType": "string"
 						}
+					],
+					"errorResponses": [
+						{
+							"code": 409,
+							"reason": "Bridge with the same bridgeId already exists"
+						}
 					]
 				}
 			]
@@ -74,7 +80,7 @@
 					"since": [
 						"12.2.0"
 					],
-					"summary": "Create a new bridge or updates an existing one.",
+					"summary": "Create a new bridge.",
 					"notes": "This bridge persists until it has been shut down, or Asterisk has been shut down.",
 					"nickname": "createWithId",
 					"responseClass": "Bridge",
@@ -102,6 +108,12 @@
 							"required": false,
 							"allowMultiple": false,
 							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 409,
+							"reason": "Bridge with the same bridgeId already exists"
 						}
 					]
 				},
