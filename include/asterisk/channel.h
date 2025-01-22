@@ -2970,8 +2970,7 @@ struct ast_group_info {
 	AST_LIST_ENTRY(ast_group_info) group_list;
 };
 
-/*! \brief list of groups currently in use, with a pointer to a list of channels within the groups
-  */
+/*! \brief list of groups currently in use, with a pointer to a list of channels within the groups */
 struct ast_group_meta {
 	int num_channels;				/*!< number of channels in this group */
 	struct varshead varshead;			/*!< A linked list for group variables. See \ref AstGroupVar */
@@ -3207,7 +3206,7 @@ struct ast_channel *ast_channel_get_by_exten(const char *exten, const char *cont
  * \retval a channel that matches the regex pattern
  * \retval NULL if no channel was found or pattern is bad
  *
- * \since 18
+ * \since 20
  */
 struct ast_channel *ast_channel_get_by_regex(const char *regex_string);
 
@@ -3221,7 +3220,7 @@ struct ast_channel *ast_channel_get_by_regex(const char *regex_string);
  * \retval a channel that matches the regex pattern
  * \retval NULL if no channel was found
  *
- * \since 18
+ * \since 20
  */
 struct ast_channel *ast_channel_get_by_regex_compiled(regex_t *regex);
 

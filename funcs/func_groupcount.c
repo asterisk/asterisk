@@ -71,8 +71,7 @@
 			<para>If only the category_regex is specified, then return group@category results that only match the category name against the category_regex.</para>
 			<para>If the search regex parameters are entirely empty, all group@category will be returned.</para>
 			<para>Uses standard regular expression matching (see regex(7)).</para>
-			<example>
-				Find groups containing the string 'foo'
+			<example title="Find groups containing the string 'foo'">
 				On Channel 1:
 					Set(GROUP()=groupName)
 				On Channel 2:
@@ -88,9 +87,7 @@
 					This will find the groups 'foobarbaz' and 'foobarbill' since they both match .*foo.* regex against the group name
                                         Variable groups_found will be set to: foobarbaz,foobarbill
 			</example>
-			<example>
-				Find groups containing category name of 'bar'
-
+			<example title="Find groups containing category name of 'bar'">
 				On Channel 1:
 					Set(GROUP()=groupName@categoryName)
 				On Channel 2:
@@ -107,9 +104,7 @@
 					This will find the groups 'foo@barbaz' and 'foo@barbill' since they both match .*bar.* regex against the category name
                                         Variable groups_found will be set to: foo@barbaz,foo@barbill
 			</example>
-			<example>
-				Find groups containing 'foo' and category name of 'bar'
-
+			<example title="Find groups containing 'foo' and category name of 'bar'">
 				On Channel 1:
 					Set(GROUP()=groupName@categoryName)
 				On Channel 2:

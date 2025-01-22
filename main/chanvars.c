@@ -54,10 +54,6 @@ struct ast_var_t *_ast_var_assign(const char *name, const char *value, const cha
 
 int ast_var_set(const struct ast_var_t *var, const char *new_value)
 {
-	if (var->value) {
-		ast_free(var->value);
-	}
-
 	ast_copy_string(var->value, new_value, strlen(new_value));
 
 	return 0;

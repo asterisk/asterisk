@@ -2306,15 +2306,52 @@ int ast_app_group_split_group(const char *data, char *group, int group_max, char
 	return res;
 }
 
+static int ast_app_group_add_meta_ifneeded(const char *group, const char *category)
+{
+	struct ast_group_meta *gmi = NULL; /*!< Group metadatas */
+
+	AST_RWLIST_WRLOCK(&groups_meta);
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&groups_meta, gmi, group_meta_list) {
+		if (!strcasecmp(gmi->group, group) && !strcasecmp(gmi->category, category)) {
+			break; /* We only have one list item per group@category */
+		}
+	}
+	AST_RWLIST_TRAVERSE_SAFE_END;
+
+	if (!gmi) {
+		if (!(gmi = ast_calloc(1, sizeof(struct ast_group_meta)))) {
+		    AST_RWLIST_UNLOCK(&groups_meta);
+		    return -1;
+		}
+
+		ast_copy_string(gmi->group, group, MAX_GROUP_LEN);
+
+		if (!ast_strlen_zero(category)) {
+			ast_copy_string(gmi->category, category, MAX_CATEGORY_LEN);
+		}
+
+		AST_RWLIST_INSERT_TAIL(&groups_meta, gmi, group_meta_list);
+
+		manager_event(EVENT_FLAG_DIALPLAN, "GroupCreate",
+			"Category: %s\r\n"
+			"Group: %s\r\n",
+			category, group);
+	}
+
+	gmi->num_channels++;
+
+	AST_RWLIST_UNLOCK(&groups_meta);
+
+	return 1;
+}
+
 /* NOTE: Ideally we would also be able to use direct pointers to the group meta, so we don't have to search */
-int ast_app_group_remove_meta_ifneeded(const char *group, const char *category)
+static int ast_app_group_remove_meta_ifneeded(const char *group, const char *category)
 {
 	struct ast_group_meta *gmi = NULL; /*!< Group metadatas	  */
 
 	struct varshead *headp;
 	struct ast_var_t *vardata;
-
-	int destroy = 0;
 
 	if (!category) {
 		category = "";
@@ -2333,21 +2370,20 @@ int ast_app_group_remove_meta_ifneeded(const char *group, const char *category)
 			AST_RWLIST_REMOVE_CURRENT(group_meta_list);
 			ast_free(gmi);
 
-			destroy = 1;
 			break; /* We only have one list item per group@category */
 		}
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END;
 	AST_RWLIST_UNLOCK(&groups_meta);
 
-	if (destroy) {
+	if (gmi) {
 		manager_event(EVENT_FLAG_DIALPLAN, "GroupDestroy",
 			"Category: %s\r\n"
 			"Group: %s\r\n",
 			category, group);
 	}
 
-	return destroy;
+	return (gmi != NULL);
 }
 
 int ast_app_group_set_channel(struct ast_channel *chan, const char *data)
@@ -2630,45 +2666,6 @@ int ast_app_group_update(struct ast_channel *old, struct ast_channel *new)
 	AST_RWLIST_UNLOCK(&groups);
 
 	return 0;
-}
-
-int ast_app_group_add_meta_ifneeded(const char *group, const char *category)
-{
-	struct ast_group_meta *gmi = NULL; /*!< Group metadatas */
-
-	AST_RWLIST_WRLOCK(&groups_meta);
-	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&groups_meta, gmi, group_meta_list) {
-		if (!strcasecmp(gmi->group, group) && !strcasecmp(gmi->category, category)) {
-			break; /* We only have one list item per group@category */
-		}
-	}
-	AST_RWLIST_TRAVERSE_SAFE_END;
-
-	if (!gmi) {
-		if (!(gmi = ast_calloc(1, sizeof(struct ast_group_meta)))) {
-		    AST_RWLIST_UNLOCK(&groups_meta);
-		    return -1;
-		}
-
-		ast_copy_string(gmi->group, group, MAX_GROUP_LEN);
-
-		if (!ast_strlen_zero(category)) {
-			ast_copy_string(gmi->category, category, MAX_CATEGORY_LEN);
-		}
-
-		AST_RWLIST_INSERT_TAIL(&groups_meta, gmi, group_meta_list);
-
-		manager_event(EVENT_FLAG_DIALPLAN, "GroupCreate",
-			"Category: %s\r\n"
-			"Group: %s\r\n",
-			category, group);
-	}
-
-	gmi->num_channels++;
-
-	AST_RWLIST_UNLOCK(&groups_meta);
-
-	return 1;
 }
 
 /* Remove all channels from the given group */

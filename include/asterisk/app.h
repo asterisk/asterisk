@@ -1196,12 +1196,6 @@ struct ast_group_info;
 /*! \brief Split a group string into group and category, returning a default category if none is provided. */
 int ast_app_group_split_group(const char *data, char *group, int group_max, char *category, int category_max);
 
-/* \brief Create group meta if it doesn't exist  */
-int ast_app_group_add_meta_ifneeded(const char *group, const char *category);
-
-/* Removes the the group metadata for a group@category if there are no more channels in the group@category */
-int ast_app_group_remove_meta_ifneeded(const char *group, const char *category);
-
 /*! \brief Remove channel assignments for the specified group  */
 int ast_app_group_remove_all_channels(const char *group, const char *category);
 
