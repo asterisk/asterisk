@@ -196,6 +196,26 @@ struct stasis_topic *ast_bridge_topic(struct ast_bridge *bridge)
 	return bridge->topic;
 }
 
+int ast_bridge_topic_exists(const char *uniqueid)
+{
+	char *topic_name;
+	int ret;
+
+	if (ast_strlen_zero(uniqueid)) {
+		return 0;
+	}
+
+	ret = ast_asprintf(&topic_name, "bridge:%s", uniqueid);
+	if (ret < 0) {
+		return 0;
+	}
+	ret = stasis_topic_pool_topic_exists(bridge_topic_pool, topic_name);
+	ast_free(topic_name);
+
+	return ret;
+}
+
+
 /*! \brief Destructor for bridge snapshots */
 static void bridge_snapshot_dtor(void *obj)
 {
@@ -318,6 +338,7 @@ int bridge_topics_init(struct ast_bridge *bridge)
 	if (!bridge->topic) {
 		return -1;
 	}
+	ao2_bump(bridge->topic);
 
 	return 0;
 }
@@ -328,6 +349,14 @@ void bridge_topics_destroy(struct ast_bridge *bridge)
 	struct stasis_message *msg;
 
 	ast_assert(bridge != NULL);
+	ast_debug(1, "Bridge " BRIDGE_PRINTF_SPEC ": destroying topics\n",
+		BRIDGE_PRINTF_VARS(bridge));
+
+	if (!bridge->topic) {
+		ast_log(LOG_WARNING, "Bridge " BRIDGE_PRINTF_SPEC " topic is NULL\n",
+			BRIDGE_PRINTF_VARS(bridge));
+		return;
+	}
 
 	if (!bridge->current_snapshot) {
 		bridge->current_snapshot = ast_bridge_snapshot_create(bridge);
@@ -351,6 +380,8 @@ void bridge_topics_destroy(struct ast_bridge *bridge)
 	ao2_ref(msg, -1);
 
 	stasis_topic_pool_delete_topic(bridge_topic_pool, stasis_topic_name(ast_bridge_topic(bridge)));
+	ao2_cleanup(bridge->topic);
+	bridge->topic = NULL;
 }
 
 void ast_bridge_publish_state(struct ast_bridge *bridge)
