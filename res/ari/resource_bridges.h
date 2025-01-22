@@ -101,7 +101,7 @@ int ast_ari_bridges_create_with_id_parse_body(
 	struct ast_ari_bridges_create_with_id_args *args);
 
 /*!
- * \brief Create a new bridge or updates an existing one.
+ * \brief Create a new bridge.
  *
  * This bridge persists until it has been shut down, or Asterisk has been shut down.
  *

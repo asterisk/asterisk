@@ -79,6 +79,15 @@ struct stasis_topic *ast_bridge_topic(struct ast_bridge *bridge);
 struct stasis_topic *ast_bridge_topic_all(void);
 
 /*!
+ * \brief Check if a stasis topic exists for a bridge uniqueid
+ *
+ * \param uniqueid The uniqueid to test
+ * \retval 1 if the topic exists
+ * \retval 0 if the topic does not exist
+ */
+int ast_bridge_topic_exists(const char *uniqueid);
+
+/*!
  * \since 12
  * \brief Publish the state of a bridge
  *
