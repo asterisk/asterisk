@@ -75,6 +75,10 @@ extern "C" {
 #include "asterisk/dsp.h"
 #include "asterisk/uuid.h"
 
+/* Macros to assist debugging */
+#define BRIDGE_PRINTF_SPEC "%s(%s)(%p)"
+#define BRIDGE_PRINTF_VARS(bridge) S_OR((bridge)->uniqueid, "<unknown>"), S_OR((bridge)->name, "<unknown>"), (bridge)
+
 struct a02_container;
 struct ast_bridge_technology;
 struct ast_bridge;
