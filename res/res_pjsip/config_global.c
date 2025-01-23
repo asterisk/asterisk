@@ -219,7 +219,7 @@ static int global_apply(const struct ast_sorcery *sorcery, void *obj)
 		return -1;
 	}
 
-	AST_VECTOR_INIT(&algorithms, 4);
+	AST_VECTOR_INIT(&algorithms, 0);
 	res = ast_sip_auth_digest_algorithms_vector_init("global",
 		&algorithms, "UAS", cfg->default_auth_algorithms_uas);
 	AST_VECTOR_FREE(&algorithms);
@@ -228,7 +228,7 @@ static int global_apply(const struct ast_sorcery *sorcery, void *obj)
 			"Defaulting to %s\n", DEFAULT_AUTH_ALGORITHMS_UAS);
 		ast_string_field_set(cfg, default_auth_algorithms_uas, DEFAULT_AUTH_ALGORITHMS_UAS);
 	}
-	AST_VECTOR_INIT(&algorithms, 4);
+	AST_VECTOR_INIT(&algorithms, 0);
 	res = ast_sip_auth_digest_algorithms_vector_init("global",
 		&algorithms, "UAC", cfg->default_auth_algorithms_uac);
 	AST_VECTOR_FREE(&algorithms);
