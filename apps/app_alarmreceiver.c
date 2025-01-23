@@ -146,6 +146,7 @@ struct timeval call_start_time;
 static const char app[] = "AlarmReceiver";
 /*** DOCUMENTATION
 	<application name="AlarmReceiver" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Provide support for receiving alarm reports from a burglar or fire alarm panel.
 		</synopsis>

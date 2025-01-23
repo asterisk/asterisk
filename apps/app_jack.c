@@ -76,6 +76,7 @@
 "                name.  Use this option to specify a custom client name.\n"
 /*** DOCUMENTATION
 	<application name="JACK" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Jack Audio Connection Kit
 		</synopsis>

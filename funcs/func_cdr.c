@@ -42,6 +42,7 @@
 
 /*** DOCUMENTATION
 	<function name="CDR" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Gets or sets a CDR variable.
 		</synopsis>
@@ -167,6 +168,7 @@
 		</description>
 	</function>
 	<function name="CDR_PROP" language="en_US">
+		<since><version>12.0.0</version></since>
 		<synopsis>
 			Set a property on a channel's CDR.
 		</synopsis>

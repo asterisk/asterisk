@@ -123,6 +123,7 @@
 
 /*** DOCUMENTATION
 	<application name="Queue" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Queue a call for a call queue.
 		</synopsis>
@@ -316,6 +317,7 @@
 		</see-also>
 	</application>
 	<application name="AddQueueMember" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Dynamically adds queue members.
 		</synopsis>
@@ -369,6 +371,7 @@
 		</see-also>
 	</application>
 	<application name="RemoveQueueMember" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Dynamically removes queue members.
 		</synopsis>
@@ -409,6 +412,7 @@
 		</see-also>
 	</application>
 	<application name="PauseQueueMember" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Pauses a queue member.
 		</synopsis>
@@ -456,6 +460,7 @@
 		</see-also>
 	</application>
 	<application name="UnpauseQueueMember" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Unpauses a queue member.
 		</synopsis>
@@ -500,6 +505,7 @@
 		</see-also>
 	</application>
 	<application name="QueueLog" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Writes to the queue_log file.
 		</synopsis>
@@ -534,6 +540,7 @@
 		</see-also>
 	</application>
 	<application name="QueueUpdate" language="en_US">
+		<since><version>15.0.0</version></since>
 		<synopsis>
 			Writes to the queue_log file for outbound calls and updates Realtime Data.
 			Is used at h extension to be able to have all the parameters.
@@ -554,6 +561,7 @@
 		</description>
 	</application>
 	<function name="QUEUE_VARIABLES" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Return Queue information in variables.
 		</synopsis>
@@ -609,6 +617,7 @@
 		</see-also>
 	</function>
 	<function name="QUEUE_MEMBER" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Provides a count of queue members based on the provided criteria, or updates a
 			queue member's settings.
@@ -674,6 +683,7 @@
 		</see-also>
 	</function>
 	<function name="QUEUE_MEMBER_COUNT" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Count number of members answering a queue.
 		</synopsis>
@@ -702,6 +712,7 @@
 		</see-also>
 	</function>
 	<function name="QUEUE_EXISTS" language="en_US">
+		<since><version>1.8.0</version></since>
 		<synopsis>
 			Check if a named queue exists on this server
 		</synopsis>
@@ -729,6 +740,7 @@
 		</see-also>
 	</function>
 	<function name="QUEUE_GET_CHANNEL" language="en_US">
+		<since><version>14.0.0</version></since>
 		<synopsis>
 			Return caller at the specified position in a queue.
 		</synopsis>
@@ -757,6 +769,7 @@
 		</see-also>
 	</function>
 	<function name="QUEUE_WAITING_COUNT" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Count number of calls currently waiting in a queue.
 		</synopsis>
@@ -784,6 +797,7 @@
 		</see-also>
 	</function>
 	<function name="QUEUE_MEMBER_LIST" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Returns a list of interfaces on a queue.
 		</synopsis>
@@ -811,6 +825,7 @@
 		</see-also>
 	</function>
 	<function name="QUEUE_MEMBER_PENALTY" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Gets or sets queue members penalty.
 		</synopsis>
