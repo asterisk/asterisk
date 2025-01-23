@@ -48,7 +48,9 @@
 
 /*** DOCUMENTATION
 	<function name="DEVICE_STATE" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.6.0</version>
+		</since>
 		<synopsis>
 			Get or Set a device state.
 		</synopsis>
@@ -73,7 +75,9 @@
 		</description>
 	</function>
 	<function name="HINT" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.6.0</version>
+		</since>
 		<synopsis>
 			Get the devices set for a dialplan hint.
 		</synopsis>

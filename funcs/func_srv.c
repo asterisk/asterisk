@@ -38,7 +38,9 @@
 
 /*** DOCUMENTATION
 	<function name="SRVQUERY" language="en_US">
-		<since><version>1.8.0</version></since>
+		<since>
+			<version>1.8.0</version>
+		</since>
 		<synopsis>
 			Initiate an SRV query.
 		</synopsis>
@@ -53,7 +55,9 @@
 		</description>
 	</function>
 	<function name="SRVRESULT" language="en_US">
-		<since><version>1.8.0</version></since>
+		<since>
+			<version>1.8.0</version>
+		</since>
 		<synopsis>
 			Retrieve results from an SRVQUERY.
 		</synopsis>

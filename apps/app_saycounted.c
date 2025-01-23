@@ -31,7 +31,9 @@
 
 /*** DOCUMENTATION
 	<application name="SayCountedNoun" language="en_US">
-		<since><version>1.8.0</version></since>
+		<since>
+			<version>1.8.0</version>
+		</since>
 		<synopsis>
 			Say a noun in declined form in order to count things
 		</synopsis>
@@ -72,7 +74,9 @@
 		</see-also>
 	</application>
 	<application name="SayCountedAdj" language="en_US">
-		<since><version>1.8.0</version></since>
+		<since>
+			<version>1.8.0</version>
+		</since>
 		<synopsis>
 			Say a adjective in declined form in order to count things
 		</synopsis>

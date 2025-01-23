@@ -51,7 +51,9 @@
 
 /*** DOCUMENTATION
 	<application name="WaitForSilence" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.2.0</version>
+		</since>
 		<synopsis>
 			Waits for a specified amount of silence.
 		</synopsis>
@@ -102,7 +104,9 @@
 		</see-also>
 	</application>
 	<application name="WaitForNoise" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.6.1.0</version>
+		</since>
 		<synopsis>
 			Waits for a specified amount of noise.
 		</synopsis>
