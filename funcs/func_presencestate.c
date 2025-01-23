@@ -44,7 +44,9 @@
 
 /*** DOCUMENTATION
 	<function name="PRESENCE_STATE" language="en_US">
-		<since><version>11.0.0</version></since>
+		<since>
+			<version>11.0.0</version>
+		</since>
 		<synopsis>
 			Get or Set a presence state.
 		</synopsis>

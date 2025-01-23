@@ -83,7 +83,9 @@
 
 /*** DOCUMENTATION
 	<application name="MeetMe" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>0.1.12</version>
+		</since>
 		<synopsis>
 			MeetMe conference bridge.
 		</synopsis>
@@ -268,7 +270,9 @@
 		</see-also>
 	</application>
 	<application name="MeetMeCount" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>0.1.12</version>
+		</since>
 		<synopsis>
 			MeetMe participant count.
 		</synopsis>
@@ -290,7 +294,9 @@
 		</see-also>
 	</application>
 	<application name="MeetMeAdmin" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.0.0</version>
+		</since>
 		<synopsis>
 			MeetMe conference administration.
 		</synopsis>
@@ -388,7 +394,9 @@
 		</see-also>
 	</application>
 	<application name="MeetMeChannelAdmin" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.6.0</version>
+		</since>
 		<synopsis>
 			MeetMe conference Administration (channel specific).
 		</synopsis>
@@ -475,7 +483,9 @@
 		</description>
 	</application>
 	<function name="MEETME_INFO" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.6.1.0</version>
+		</since>
 		<synopsis>
 			Query a given conference of various properties.
 		</synopsis>
@@ -576,7 +586,9 @@
 	</manager>
 	<managerEvent language="en_US" name="MeetmeJoin">
 		<managerEventInstance class="EVENT_FLAG_CALL">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when a user joins a MeetMe conference.</synopsis>
 			<syntax>
 				<parameter name="Meetme">
@@ -595,7 +607,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="MeetmeLeave">
 		<managerEventInstance class="EVENT_FLAG_CALL">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when a user leaves a MeetMe conference.</synopsis>
 			<syntax>
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='MeetmeJoin']/managerEventInstance/syntax/parameter)" />
@@ -611,7 +625,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="MeetmeEnd">
 		<managerEventInstance class="EVENT_FLAG_CALL">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when a MeetMe conference ends.</synopsis>
 			<syntax>
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='MeetmeJoin']/managerEventInstance/syntax/parameter[@name='Meetme'])" />
@@ -623,7 +639,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="MeetmeTalkRequest">
 		<managerEventInstance class="EVENT_FLAG_CALL">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when a MeetMe user has started talking.</synopsis>
 			<syntax>
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='MeetmeJoin']/managerEventInstance/syntax/parameter)" />
@@ -642,7 +660,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="MeetmeTalking">
 		<managerEventInstance class="EVENT_FLAG_CALL">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when a MeetMe user begins or ends talking.</synopsis>
 			<syntax>
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='MeetmeJoin']/managerEventInstance/syntax/parameter)" />
@@ -653,7 +673,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="MeetmeMute">
 		<managerEventInstance class="EVENT_FLAG_CALL">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when a MeetMe user is muted or unmuted.</synopsis>
 			<syntax>
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='MeetmeJoin']/managerEventInstance/syntax/parameter)" />
@@ -664,7 +686,11 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="MeetmeList">
 		<managerEventInstance class="EVENT_FLAG_CALL">
-			<since><version>16.29.0</version><version>18.15.0</version><version>19.7.0</version></since>
+			<since>
+				<version>16.29.0</version>
+				<version>18.15.0</version>
+				<version>19.7.0</version>
+			</since>
 			<synopsis>Raised in response to a MeetmeList command.</synopsis>
 			<syntax>
 				<parameter name="Conference">
@@ -712,7 +738,11 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="MeetmeListRooms">
 		<managerEventInstance class="EVENT_FLAG_CALL">
-			<since><version>16.29.0</version><version>18.15.0</version><version>19.7.0</version></since>
+			<since>
+				<version>16.29.0</version>
+				<version>18.15.0</version>
+				<version>19.7.0</version>
+			</since>
 			<synopsis>Raised in response to a MeetmeListRooms command.</synopsis>
 			<syntax>
 				<parameter name="Conference">

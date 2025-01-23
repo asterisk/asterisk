@@ -42,7 +42,9 @@
 
 /*** DOCUMENTATION
 	<application name="Answer" language="en_US">
-		<since><version>13.8.0</version></since>
+		<since>
+			<version>13.8.0</version>
+		</since>
 		<synopsis>
 			Answer a channel if ringing.
 		</synopsis>
@@ -73,7 +75,9 @@
 		</see-also>
 	</application>
 	<application name="BackGround" language="en_US">
-		<since><version>13.8.0</version></since>
+		<since>
+			<version>13.8.0</version>
+		</since>
 		<synopsis>
 			Play an audio file while waiting for digits of an extension to go to.
 		</synopsis>
@@ -140,7 +144,9 @@
 		</see-also>
 	</application>
 	<application name="Busy" language="en_US">
-		<since><version>13.8.0</version></since>
+		<since>
+			<version>13.8.0</version>
+		</since>
 		<synopsis>
 			Indicate the Busy condition.
 		</synopsis>
@@ -161,7 +167,9 @@
 		</see-also>
 	</application>
 	<application name="Congestion" language="en_US">
-		<since><version>13.8.0</version></since>
+		<since>
+			<version>13.8.0</version>
+		</since>
 		<synopsis>
 			Indicate the Congestion condition.
 		</synopsis>
@@ -182,7 +190,9 @@
 		</see-also>
 	</application>
 	<application name="ExecIfTime" language="en_US">
-		<since><version>13.8.0</version></since>
+		<since>
+			<version>13.8.0</version>
+		</since>
 		<synopsis>
 			Conditional application execution based on the current time.
 		</synopsis>
@@ -210,7 +220,9 @@
 		</see-also>
 	</application>
 	<application name="Goto" language="en_US">
-		<since><version>13.8.0</version></since>
+		<since>
+			<version>13.8.0</version>
+		</since>
 		<synopsis>
 			Jump to a particular priority, extension, or context.
 		</synopsis>
@@ -244,7 +256,9 @@
 		</see-also>
 	</application>
 	<application name="GotoIf" language="en_US">
-		<since><version>13.8.0</version></since>
+		<since>
+			<version>13.8.0</version>
+		</since>
 		<synopsis>
 			Conditional goto.
 		</synopsis>
@@ -284,7 +298,9 @@
 		</see-also>
 	</application>
 	<application name="GotoIfTime" language="en_US">
-		<since><version>13.8.0</version></since>
+		<since>
+			<version>13.8.0</version>
+		</since>
 		<synopsis>
 			Conditional Goto based on the current time.
 		</synopsis>
@@ -348,7 +364,9 @@
 		</see-also>
 	</application>
 	<application name="Hangup" language="en_US">
-		<since><version>13.8.0</version></since>
+		<since>
+			<version>13.8.0</version>
+		</since>
 		<synopsis>
 			Hang up the calling channel.
 		</synopsis>
@@ -368,7 +386,9 @@
 		</see-also>
 	</application>
 	<application name="Incomplete" language="en_US">
-		<since><version>13.8.0</version></since>
+		<since>
+			<version>13.8.0</version>
+		</since>
 		<synopsis>
 			Returns AST_PBX_INCOMPLETE value.
 		</synopsis>
@@ -386,7 +406,9 @@
 		</description>
 	</application>
 	<application name="NoOp" language="en_US">
-		<since><version>13.8.0</version></since>
+		<since>
+			<version>13.8.0</version>
+		</since>
 		<synopsis>
 			Do Nothing (No Operation).
 		</synopsis>
@@ -405,7 +427,9 @@
 		</see-also>
 	</application>
 	<application name="Proceeding" language="en_US">
-		<since><version>13.8.0</version></since>
+		<since>
+			<version>13.8.0</version>
+		</since>
 		<synopsis>
 			Indicate proceeding.
 		</synopsis>
@@ -415,7 +439,9 @@
 		</description>
 	</application>
 	<application name="Progress" language="en_US">
-		<since><version>13.8.0</version></since>
+		<since>
+			<version>13.8.0</version>
+		</since>
 		<synopsis>
 			Indicate progress.
 		</synopsis>
@@ -431,7 +457,9 @@
 		</see-also>
 	</application>
 	<application name="RaiseException" language="en_US">
-		<since><version>13.8.0</version></since>
+		<since>
+			<version>13.8.0</version>
+		</since>
 		<synopsis>
 			Handle an exceptional condition.
 		</synopsis>
@@ -447,7 +475,9 @@
 		</see-also>
 	</application>
 	<application name="Ringing" language="en_US">
-		<since><version>13.8.0</version></since>
+		<since>
+			<version>13.8.0</version>
+		</since>
 		<synopsis>
 			Indicate ringing tone.
 		</synopsis>
@@ -463,7 +493,9 @@
 		</see-also>
 	</application>
 	<application name="SayAlpha" language="en_US">
-		<since><version>13.8.0</version></since>
+		<since>
+			<version>13.8.0</version>
+		</since>
 		<synopsis>
 			Say Alpha.
 		</synopsis>
@@ -488,7 +520,9 @@
 		</see-also>
 	</application>
 	<application name="SayAlphaCase" language="en_US">
-		<since><version>13.8.0</version></since>
+		<since>
+			<version>13.8.0</version>
+		</since>
 		<synopsis>
 			Say Alpha.
 		</synopsis>
@@ -533,7 +567,9 @@
 		</see-also>
 	</application>
 	<application name="SayDigits" language="en_US">
-		<since><version>13.8.0</version></since>
+		<since>
+			<version>13.8.0</version>
+		</since>
 		<synopsis>
 			Say Digits.
 		</synopsis>
@@ -558,7 +594,10 @@
 		</see-also>
 	</application>
 	<application name="SayMoney" language="en_US">
-		<since><version>16.21.0</version><version>18.7.0</version></since>
+		<since>
+			<version>16.21.0</version>
+			<version>18.7.0</version>
+		</since>
 		<synopsis>
 			Say Money.
 		</synopsis>
@@ -582,7 +621,9 @@
 		</see-also>
 	</application>
 	<application name="SayNumber" language="en_US">
-		<since><version>13.8.0</version></since>
+		<since>
+			<version>13.8.0</version>
+		</since>
 		<synopsis>
 			Say Number.
 		</synopsis>
@@ -608,7 +649,10 @@
 		</see-also>
 	</application>
 	<application name="SayOrdinal" language="en_US">
-		<since><version>16.21.0</version><version>18.7.0</version></since>
+		<since>
+			<version>16.21.0</version>
+			<version>18.7.0</version>
+		</since>
 		<synopsis>
 			Say Ordinal Number.
 		</synopsis>
@@ -636,7 +680,9 @@
 		</see-also>
 	</application>
 	<application name="SayPhonetic" language="en_US">
-		<since><version>13.8.0</version></since>
+		<since>
+			<version>13.8.0</version>
+		</since>
 		<synopsis>
 			Say Phonetic.
 		</synopsis>
@@ -675,7 +721,9 @@
 		</see-also>
 	</application>
 	<application name="Wait" language="en_US">
-		<since><version>13.8.0</version></since>
+		<since>
+			<version>13.8.0</version>
+		</since>
 		<synopsis>
 			Waits for some time.
 		</synopsis>
@@ -690,7 +738,9 @@
 		</description>
 	</application>
 	<application name="WaitDigit" language="en_US">
-		<since><version>15.0.0</version></since>
+		<since>
+			<version>15.0.0</version>
+		</since>
 		<synopsis>
 			Waits for a digit to be entered.
 		</synopsis>
@@ -727,7 +777,9 @@
 		</see-also>
 	</application>
 	<application name="WaitExten" language="en_US">
-		<since><version>13.8.0</version></since>
+		<since>
+			<version>13.8.0</version>
+		</since>
 		<synopsis>
 			Waits for an extension to be entered.
 		</synopsis>
