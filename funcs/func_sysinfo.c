@@ -40,7 +40,9 @@
 
 /*** DOCUMENTATION
 	<function name="SYSINFO" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.6.0</version>
+		</since>
 		<synopsis>
 			Returns system information specified by parameter.
 		</synopsis>

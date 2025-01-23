@@ -42,7 +42,9 @@
 
 /*** DOCUMENTATION
 	<function name="URIENCODE" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.2.0</version>
+		</since>
 		<synopsis>
 			Encodes a string to URI-safe encoding according to RFC 2396.
 		</synopsis>
@@ -56,7 +58,9 @@
 		</description>
 	</function>
 	<function name="URIDECODE" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.2.0</version>
+		</since>
 		<synopsis>
 			Decodes a URI-encoded string according to RFC 2396.
 		</synopsis>

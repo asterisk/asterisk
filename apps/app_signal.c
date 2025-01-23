@@ -40,7 +40,10 @@
 
 /*** DOCUMENTATION
 	<application name="Signal" language="en_US">
-		<since><version>18.17.0</version><version>20.2.0</version></since>
+		<since>
+			<version>18.17.0</version>
+			<version>20.2.0</version>
+		</since>
 		<synopsis>
 			Sends a signal to any waiting channels.
 		</synopsis>
@@ -77,7 +80,10 @@
 		</see-also>
 	</application>
 	<application name="WaitForSignal" language="en_US">
-		<since><version>18.17.0</version><version>20.2.0</version></since>
+		<since>
+			<version>18.17.0</version>
+			<version>20.2.0</version>
+		</since>
 		<synopsis>
 			Waits for a named signal on a channel.
 		</synopsis>

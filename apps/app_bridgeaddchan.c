@@ -39,7 +39,9 @@
 
 /*** DOCUMENTATION
 	<application name="BridgeAdd" language="en_US">
-		<since><version>14.0.0</version></since>
+		<since>
+			<version>14.0.0</version>
+		</since>
 		<synopsis>
 			Join a bridge that contains the specified channel.
 		</synopsis>

@@ -37,7 +37,9 @@
 
 /*** DOCUMENTATION
 	<application name="Echo" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>0.1.2</version>
+		</since>
 		<synopsis>
 			Echo media, DTMF back to the calling party
 		</synopsis>

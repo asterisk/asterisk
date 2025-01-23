@@ -44,7 +44,9 @@
 /*** DOCUMENTATION
 	<managerEvent language="en_US" name="VarSet">
 		<managerEventInstance class="EVENT_FLAG_DIALPLAN">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when a variable is set to a particular value.</synopsis>
 			<syntax>
 				<channel_snapshot/>
@@ -59,7 +61,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="AgentLogin">
 		<managerEventInstance class="EVENT_FLAG_AGENT">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when an Agent has logged in.</synopsis>
 			<syntax>
 				<channel_snapshot/>
@@ -75,7 +79,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="AgentLogoff">
 		<managerEventInstance class="EVENT_FLAG_AGENT">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when an Agent has logged off.</synopsis>
 			<syntax>
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='AgentLogin']/managerEventInstance/syntax/parameter)" />
@@ -90,7 +96,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="ChannelTalkingStart">
 		<managerEventInstance class="EVENT_FLAG_CLASS">
-			<since><version>12.4.0</version></since>
+			<since>
+				<version>12.4.0</version>
+			</since>
 			<synopsis>Raised when talking is detected on a channel.</synopsis>
 			<syntax>
 				<channel_snapshot/>
@@ -103,7 +111,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="ChannelTalkingStop">
 		<managerEventInstance class="EVENT_FLAG_CLASS">
-			<since><version>12.4.0</version></since>
+			<since>
+				<version>12.4.0</version>
+			</since>
 			<synopsis>Raised when talking is no longer detected on a channel.</synopsis>
 			<syntax>
 				<channel_snapshot/>

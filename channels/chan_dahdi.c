@@ -131,7 +131,9 @@
 
 /*** DOCUMENTATION
 	<application name="DAHDISendKeypadFacility" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.4.22</version>
+		</since>
 		<synopsis>
 			Send digits out of band over a PRI.
 		</synopsis>
@@ -144,7 +146,9 @@
 		</description>
 	</application>
 	<application name="DAHDISendCallreroutingFacility" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.6.2.0</version>
+		</since>
 		<synopsis>
 			Send an ISDN call rerouting/deflection facility message.
 		</synopsis>
@@ -166,7 +170,9 @@
 		</description>
 	</application>
 	<application name="DAHDIAcceptR2Call" language="en_US">
-		<since><version>1.6.1.0</version></since>
+		<since>
+			<version>1.6.1.0</version>
+		</since>
 		<synopsis>
 			Accept an R2 call if its not already accepted (you still need to answer it)
 		</synopsis>
@@ -181,7 +187,11 @@
 		</description>
 	</application>
 	<function name="POLARITY" language="en_US">
-		<since><version>16.28.0</version><version>18.14.0</version><version>19.6.0</version></since>
+		<since>
+			<version>16.28.0</version>
+			<version>18.14.0</version>
+			<version>19.6.0</version>
+		</since>
 		<synopsis>
 			Set or get the polarity of a DAHDI channel.
 		</synopsis>
@@ -560,7 +570,9 @@
 	</manager>
 	<managerEvent language="en_US" name="AlarmClear">
 		<managerEventInstance class="EVENT_FLAG_SYSTEM">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when an alarm is cleared on a DAHDI channel.</synopsis>
 			<syntax>
 				<parameter name="DAHDIChannel">
@@ -572,7 +584,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="SpanAlarmClear">
 		<managerEventInstance class="EVENT_FLAG_SYSTEM">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when an alarm is cleared on a DAHDI span.</synopsis>
 			<syntax>
 				<parameter name="Span">
@@ -583,7 +597,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="DNDState">
 		<managerEventInstance class="EVENT_FLAG_SYSTEM">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when the Do Not Disturb state is changed on a DAHDI channel.</synopsis>
 			<syntax>
 				<parameter name="DAHDIChannel">
@@ -601,7 +617,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="Alarm">
 		<managerEventInstance class="EVENT_FLAG_SYSTEM">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when an alarm is set on a DAHDI channel.</synopsis>
 			<syntax>
 				<parameter name="DAHDIChannel">
@@ -616,7 +634,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="SpanAlarm">
 		<managerEventInstance class="EVENT_FLAG_SYSTEM">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when an alarm is set on a DAHDI span.</synopsis>
 			<syntax>
 				<parameter name="Span">
@@ -630,7 +650,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="DAHDIChannel">
 		<managerEventInstance class="EVENT_FLAG_CALL">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when a DAHDI channel is created or an underlying technology is associated with a DAHDI channel.</synopsis>
 			<syntax>
 				<channel_snapshot/>

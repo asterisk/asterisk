@@ -70,7 +70,9 @@
 
 /*** DOCUMENTATION
 	<application name="Dial" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>0.1.0</version>
+		</since>
 		<synopsis>
 			Attempt to connect to another device or endpoint and bridge the call.
 		</synopsis>
@@ -625,7 +627,9 @@
 		</see-also>
 	</application>
 	<application name="RetryDial" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.2.0</version>
+		</since>
 		<synopsis>
 			Place a call, retrying on failure allowing an optional exit extension.
 		</synopsis>
