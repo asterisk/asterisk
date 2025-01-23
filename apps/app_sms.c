@@ -58,6 +58,7 @@
 
 /*** DOCUMENTATION
 	<application name="SMS" language="en_US">
+		<since><version>1.6.1.0</version></since>
 		<synopsis>
 			Communicates with SMS service centres and SMS capable analogue phones.
 		</synopsis>

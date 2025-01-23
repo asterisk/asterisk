@@ -44,6 +44,7 @@
 
 /*** DOCUMENTATION
 	<application name="Page" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Page series of phones
 		</synopsis>

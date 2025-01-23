@@ -58,6 +58,7 @@ AST_APP_OPTIONS(auth_app_options, {
 static const char app[] = "Authenticate";
 /*** DOCUMENTATION
 	<application name="Authenticate" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Authenticate a user
 		</synopsis>
