@@ -1333,7 +1333,7 @@ enum ast_sip_check_auth_result {
  * \brief Populate a vector of algorithm types from a string.
  *
  * \param id           The object id to use in error messages
- * \param algorithms   The vector to populate
+ * \param algorithms   The initialized but empty vector to populate
  * \param agent_type   The type of agent to use in error messages ("UAC" or "UAS")
  * \param value        The comma-separated string to parse for algorithms
  *
