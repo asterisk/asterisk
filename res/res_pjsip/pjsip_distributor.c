@@ -616,13 +616,12 @@ static struct ast_sip_auth *alloc_artificial_auth(char *default_realm,
 
 static AO2_GLOBAL_OBJ_STATIC(artificial_auth);
 
-static int create_artificial_auth(int reload)
+static int create_artificial_auth(void)
 {
 	char default_realm[AST_SIP_AUTH_MAX_REALM_LENGTH + 1];
 	struct ast_sip_auth *fake_auth;
 	char default_algos_uac[AST_SIP_AUTH_MAX_SUPPORTED_ALGORITHMS_LENGTH + 1];
 	char default_algos_uas[AST_SIP_AUTH_MAX_SUPPORTED_ALGORITHMS_LENGTH + 1];
-	int need_update = 1;
 
 	ast_sip_get_default_realm(default_realm, sizeof(default_realm));
 	ast_sip_get_default_auth_algorithms_uac(default_algos_uac,
@@ -630,34 +629,14 @@ static int create_artificial_auth(int reload)
 	ast_sip_get_default_auth_algorithms_uas(default_algos_uas,
 		sizeof(default_algos_uas));
 
-	fake_auth = ast_sip_get_artificial_auth();
-	if (fake_auth && reload) {
-		char *fake_algorithms_uac = NULL;
-		char *fake_algorithms_uas = NULL;
-
-		ast_sip_auth_digest_algorithms_vector_to_str(
-			&fake_auth->supported_algorithms_uac, &fake_algorithms_uac);
-		ast_sip_auth_digest_algorithms_vector_to_str(
-			&fake_auth->supported_algorithms_uas, &fake_algorithms_uas);
-		if (strcmp(fake_auth->realm, default_realm) == 0
-			&& strcmp(fake_algorithms_uac, default_algos_uac) == 0
-			&& strcmp(fake_algorithms_uas, default_algos_uas) == 0) {
-			need_update = 0;
-		}
-		ast_free(fake_algorithms_uac);
-		ast_free(fake_algorithms_uas);
-	}
-
-	ao2_cleanup(fake_auth);
-	if (!need_update) {
-		return 0;
-	}
-
 	fake_auth = alloc_artificial_auth(default_realm, default_algos_uac,
 			default_algos_uas);
-	if (fake_auth) {
-		ao2_global_obj_replace_unref(artificial_auth, fake_auth);
+	if (!fake_auth) {
+		ast_log(LOG_ERROR, "Unable to create artificial auth\n");
+		return -1;
 	}
+	ao2_global_obj_replace_unref(artificial_auth, fake_auth);
+	ao2_cleanup(fake_auth);
 	return 0;
 }
 
@@ -1216,7 +1195,7 @@ static void global_loaded(const char *object_type)
 		using_auth_username = new_using;
 	}
 
-	create_artificial_auth(1);
+	create_artificial_auth();
 
 	ast_sip_get_unidentified_request_thresholds(&unidentified_count, &unidentified_period, &unidentified_prune_interval);
 
@@ -1310,7 +1289,7 @@ int ast_sip_initialize_distributor(void)
 	ast_sorcery_observer_add(ast_sip_get_sorcery(), "global", &global_observer);
 	ast_sorcery_reload_object(ast_sip_get_sorcery(), "global");
 
-	if (create_artificial_endpoint() || create_artificial_auth(0)) {
+	if (create_artificial_endpoint() || create_artificial_auth()) {
 		ast_sip_destroy_distributor();
 		return -1;
 	}
