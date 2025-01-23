@@ -37,6 +37,7 @@
 
 /*** DOCUMENTATION
 	<function name="EVAL_EXTEN" language="en_US">
+		<since><version>16.26.0</version><version>18.12.0</version><version>19.4.0</version></since>
 		<synopsis>
 			Evaluates the contents of a dialplan extension and returns it as a string.
 		</synopsis>
@@ -90,6 +91,7 @@
 		</see-also>
 	</function>
 	<function name="EVAL_SUB" language="en_US">
+		<since><version>20.11.0</version><version>21.6.0</version><version>22.1.0</version></since>
 		<synopsis>
 			Executes a Gosub and provides its return value as a string
 		</synopsis>

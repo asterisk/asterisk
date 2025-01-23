@@ -70,6 +70,7 @@
  */
 /*** DOCUMENTATION
 	<function name="CALLERID" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Gets or sets Caller*ID data on the channel.
 		</synopsis>
@@ -202,6 +203,7 @@
 		</description>
 	</function>
 	<function name="CONNECTEDLINE" language="en_US">
+		<since><version>1.8.0</version></since>
 		<synopsis>
 			Gets or sets Connected Line data on the channel.
 		</synopsis>
@@ -299,6 +301,7 @@
 		</description>
 	</function>
 	<function name="REDIRECTING" language="en_US">
+		<since><version>1.8.0</version></since>
 		<synopsis>
 			Gets or sets Redirecting data on the channel.
 		</synopsis>

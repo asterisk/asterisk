@@ -183,6 +183,7 @@
 
 /*** DOCUMENTATION
 <application name="MinivmRecord" language="en_US">
+    <since><version>1.6.1.0</version></since>
 	<synopsis>
 		Receive Mini-Voicemail and forward via e-mail.
 	</synopsis>
@@ -233,6 +234,7 @@
 	</description>
 </application>
 <application name="MinivmGreet" language="en_US">
+    <since><version>1.6.1.0</version></since>
 	<synopsis>
 		Play Mini-Voicemail prompts.
 	</synopsis>
@@ -275,6 +277,7 @@
 	</description>
 </application>
 <application name="MinivmNotify" language="en_US">
+    <since><version>1.6.1.0</version></since>
 	<synopsis>
 		Notify voicemail owner about new messages.
 	</synopsis>
@@ -314,6 +317,7 @@
 	</description>
 </application>
 <application name="MinivmDelete" language="en_US">
+    <since><version>1.6.1.0</version></since>
 	<synopsis>
 		Delete Mini-Voicemail voicemail messages.
 	</synopsis>
@@ -336,6 +340,7 @@
 </application>
 
 <application name="MinivmAccMess" language="en_US">
+    <since><version>1.6.1.0</version></since>
 	<synopsis>
 		Record account specific messages.
 	</synopsis>
@@ -381,6 +386,7 @@
 	</description>
 </application>
 <application name="MinivmMWI" language="en_US">
+    <since><version>1.6.1.0</version></since>
 	<synopsis>
 		Send Message Waiting Notification to subscriber(s) of mailbox.
 	</synopsis>
@@ -410,6 +416,7 @@
 	</description>
 </application>
 <function name="MINIVMCOUNTER" language="en_US">
+    <since><version>1.6.2.0</version></since>
 	<synopsis>
 		Reads or sets counters for MiniVoicemail message.
 	</synopsis>
@@ -444,6 +451,7 @@
 	</see-also>
 </function>
 <function name="MINIVMACCOUNT" language="en_US">
+    <since><version>1.6.2.0</version></since>
 	<synopsis>
 		Gets MiniVoicemail account information.
 	</synopsis>

@@ -40,6 +40,7 @@ static char *app_log = "Log";
 
 /*** DOCUMENTATION
 	<application name="Verbose" language="en_US">
+		<since><version>1.6.2.0</version></since>
  		<synopsis>
 			Send arbitrary text to verbose output.
 		</synopsis>
@@ -56,6 +57,7 @@ static char *app_log = "Log";
 		</description>
 	</application>
 	<application name="Log" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Send arbitrary text to a selected log level.
 		</synopsis>

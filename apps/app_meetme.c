@@ -83,6 +83,7 @@
 
 /*** DOCUMENTATION
 	<application name="MeetMe" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			MeetMe conference bridge.
 		</synopsis>
@@ -267,6 +268,7 @@
 		</see-also>
 	</application>
 	<application name="MeetMeCount" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			MeetMe participant count.
 		</synopsis>
@@ -288,6 +290,7 @@
 		</see-also>
 	</application>
 	<application name="MeetMeAdmin" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			MeetMe conference administration.
 		</synopsis>
@@ -385,6 +388,7 @@
 		</see-also>
 	</application>
 	<application name="MeetMeChannelAdmin" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			MeetMe conference Administration (channel specific).
 		</synopsis>
@@ -471,6 +475,7 @@
 		</description>
 	</application>
 	<function name="MEETME_INFO" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Query a given conference of various properties.
 		</synopsis>

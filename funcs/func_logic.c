@@ -38,6 +38,7 @@
 
 /*** DOCUMENTATION
 	<function name="ISNULL" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Check if a value is NULL.
 		</synopsis>
@@ -49,6 +50,7 @@
 		</description>
 	</function>
 	<function name="SET" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			SET assigns a value to a channel variable.
 		</synopsis>
@@ -60,6 +62,7 @@
 		</description>
 	</function>
 	<function name="EXISTS" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Test the existence of a value.
 		</synopsis>
@@ -71,6 +74,7 @@
 		</description>
 	</function>
 	<function name="IF" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Check for an expression.
 		</synopsis>
@@ -86,6 +90,7 @@
 		</description>
 	</function>
 	<function name="IFTIME" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Temporal Conditional.
 		</synopsis>
@@ -101,6 +106,7 @@
 		</description>
 	</function>
 	<function name="IMPORT" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Retrieve the value of a variable from another channel.
 		</synopsis>
@@ -112,6 +118,7 @@
 		</description>
 	</function>
 	<function name="DELETE" language="en_US">
+		<since><version>18.21.0</version><version>20.6.0</version><version>21.1.0</version></since>
 		<synopsis>
 			Deletes a specified channel variable.
 		</synopsis>
@@ -129,6 +136,7 @@
 		</see-also>
 	</function>
 	<function name="VARIABLE_EXISTS" language="en_US">
+		<since><version>18.21.0</version><version>20.6.0</version><version>21.1.0</version></since>
 		<synopsis>
 			Check if a dialplan variable exists or not.
 		</synopsis>

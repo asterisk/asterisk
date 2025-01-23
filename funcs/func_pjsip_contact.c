@@ -45,6 +45,7 @@
 
 /*** DOCUMENTATION
 	<function name="PJSIP_CONTACT" language="en_US">
+		<since><version>13.2.0</version></since>
 		<synopsis>
 			Get information about a PJSIP contact
 		</synopsis>
