@@ -42,6 +42,7 @@
 
 /*** DOCUMENTATION
 	<application name="Record" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Record to a file.
 		</synopsis>
