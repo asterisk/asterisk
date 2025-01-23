@@ -1713,3 +1713,25 @@ ALTER TABLE ps_endpoints ADD COLUMN suppress_moh_on_sendonly ENUM('0','1','off',
 
 UPDATE alembic_version SET version_num='4f91fc18c979' WHERE alembic_version.version_num = '801b9fced8b7';
 
+-- Running upgrade 4f91fc18c979 -> 44bd6dd914fa
+
+ALTER TABLE ps_aors ADD COLUMN qualify_2xx_only ENUM('0','1','off','on','false','true','no','yes');
+
+ALTER TABLE ps_contacts ADD COLUMN qualify_2xx_only ENUM('0','1','off','on','false','true','no','yes');
+
+UPDATE alembic_version SET version_num='44bd6dd914fa' WHERE alembic_version.version_num = '4f91fc18c979';
+
+-- Running upgrade 44bd6dd914fa -> abdc9ede147d
+
+ALTER TABLE ps_auths ADD COLUMN password_digest VARCHAR(1024);
+
+ALTER TABLE ps_auths ADD COLUMN supported_algorithms_uas VARCHAR(1024);
+
+ALTER TABLE ps_auths ADD COLUMN supported_algorithms_uac VARCHAR(1024);
+
+ALTER TABLE ps_globals ADD COLUMN default_auth_algorithms_uas VARCHAR(1024);
+
+ALTER TABLE ps_globals ADD COLUMN default_auth_algorithms_uac VARCHAR(1024);
+
+UPDATE alembic_version SET version_num='abdc9ede147d' WHERE alembic_version.version_num = '44bd6dd914fa';
+
