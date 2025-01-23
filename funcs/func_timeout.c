@@ -38,7 +38,9 @@
 
 /*** DOCUMENTATION
 	<function name="TIMEOUT" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.2.0</version>
+		</since>
 		<synopsis>
 			Gets or sets timeouts on the channel. Timeout values are in seconds.
 		</synopsis>

@@ -33,31 +33,45 @@
 		<synopsis>Features Configuration</synopsis>
 		<configFile name="features.conf">
 			<configObject name="globals">
-				<since><version>12.0.0</version></since>
+				<since>
+					<version>12.0.0</version>
+				</since>
 				<synopsis>
 				</synopsis>
 				<configOption name="featuredigittimeout" default="1000">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Milliseconds allowed between digit presses when entering a feature code.</synopsis>
 				</configOption>
 				<configOption name="courtesytone">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Sound to play when automixmon is activated</synopsis>
 				</configOption>
 				<configOption name="recordingfailsound">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Sound to play when automixmon is attempted but fails to start</synopsis>
 				</configOption>
 				<configOption name="transferdigittimeout" default="3">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Seconds allowed between digit presses when dialing a transfer destination</synopsis>
 				</configOption>
 				<configOption name="atxfernoanswertimeout" default="15">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Seconds to wait for attended transfer destination to answer</synopsis>
 				</configOption>
 				<configOption name="atxferdropcall" default="no">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Hang up the call entirely if the attended transfer fails</synopsis>
 					<description>
 						<para>When this option is set to <literal>no</literal>, then Asterisk will attempt to
@@ -72,17 +86,23 @@
 					</description>
 				</configOption>
 				<configOption name="atxferloopdelay" default="10">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Seconds to wait between attempts to re-dial transfer destination</synopsis>
 					<see-also><ref type="configOption">atxferdropcall</ref></see-also>
 				</configOption>
 				<configOption name="atxfercallbackretries" default="2">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Number of times to re-attempt dialing a transfer destination</synopsis>
 					<see-also><ref type="configOption">atxferdropcall</ref></see-also>
 				</configOption>
 				<configOption name="xfersound" default="beep">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Sound to play to during transfer and transfer-like operations.</synopsis>
 					<description>
 						<para>This sound will play to the transferrer and transfer target channels when
@@ -91,7 +111,9 @@
 					</description>
 				</configOption>
 				<configOption name="xferfailsound" default="beeperr">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Sound to play to a transferee when a transfer fails</synopsis>
 				</configOption>
 				<configOption name="atxferabort" default="*1">
@@ -140,35 +162,53 @@
 					</description>
 				</configOption>
 				<configOption name="pickupsound">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Sound to play to picker when a call is picked up</synopsis>
 				</configOption>
 				<configOption name="pickupfailsound">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Sound to play to picker when a call cannot be picked up</synopsis>
 				</configOption>
 				<configOption name="transferdialattempts" default="3">
-					<since><version>13.1.0</version></since>
+					<since>
+						<version>13.1.0</version>
+					</since>
 					<synopsis>Number of dial attempts allowed when attempting a transfer</synopsis>
 				</configOption>
 				<configOption name="transferretrysound" default="pbx-invalid">
-					<since><version>13.1.0</version></since>
+					<since>
+						<version>13.1.0</version>
+					</since>
 					<synopsis>Sound that is played when an incorrect extension is dialed and the transferer should try again.</synopsis>
 				</configOption>
 				<configOption name="transferinvalidsound" default="privacy-incorrect">
-					<since><version>13.1.0</version></since>
+					<since>
+						<version>13.1.0</version>
+					</since>
 					<synopsis>Sound that is played when an incorrect extension is dialed and the transferer has no attempts remaining.</synopsis>
 				</configOption>
 				<configOption name="transferannouncesound" default="pbx-transfer">
-					<since><version>16.29.0</version><version>18.15.0</version><version>19.7.0</version></since>
+					<since>
+						<version>16.29.0</version>
+						<version>18.15.0</version>
+						<version>19.7.0</version>
+					</since>
 					<synopsis>Sound that is played to the transferer when a transfer is initiated. If empty, no sound will be played.</synopsis>
 				</configOption>
 			</configObject>
 			<configObject name="featuremap">
-				<since><version>12.0.0</version></since>
+				<since>
+					<version>12.0.0</version>
+				</since>
 				<synopsis>DTMF options that can be triggered during bridged calls</synopsis>
 				<configOption name="atxfer">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>DTMF sequence to initiate an attended transfer</synopsis>
 					<description>
 						<para>The transferee parties will be placed on hold and the
@@ -180,7 +220,9 @@
 					</description>
 				</configOption>
 				<configOption name="blindxfer" default="#">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>DTMF sequence to initiate a blind transfer</synopsis>
 					<description>
 						<para>The transferee parties will be placed on hold and the
@@ -197,7 +239,9 @@
 					</description>
 				</configOption>
 				<configOption name="parkcall">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>DTMF sequence to park a call</synopsis>
 					<description>
 						<para>The parking lot used to park the call is determined by using either the
@@ -208,7 +252,9 @@
 					</description>
 				</configOption>
 				<configOption name="automixmon">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>DTMF sequence to start or stop MixMonitor on a call</synopsis>
 					<description>
 						<para>This will cause the channel that pressed the DTMF sequence
@@ -228,7 +274,9 @@
 				</configOption>
 			</configObject>
 			<configObject name="applicationmap">
-				<since><version>12.0.0</version></since>
+				<since>
+					<version>12.0.0</version>
+				</since>
 				<synopsis>Section for defining custom feature invocations during a call</synopsis>
 				<description>
 					<para>The applicationmap is an area where new custom features can be created. Items
@@ -281,7 +329,9 @@
 				</configOption>
 			</configObject>
 			<configObject name="featuregroup">
-				<since><version>12.0.0</version></since>
+				<since>
+					<version>12.0.0</version>
+				</since>
 				<synopsis>Groupings of items from the applicationmap</synopsis>
 				<description>
 					<para>Feature groups allow for multiple applicationmap items to be
@@ -310,7 +360,9 @@
 		</configFile>
 	</configInfo>
 	<function name="FEATURE" language="en_US">
-		<since><version>12.0.0</version></since>
+		<since>
+			<version>12.0.0</version>
+		</since>
 		<synopsis>
 			Get or set a feature option on a channel.
 		</synopsis>
@@ -354,7 +406,9 @@
 		</see-also>
 	</function>
 	<function name="FEATUREMAP" language="en_US">
-		<since><version>12.0.0</version></since>
+		<since>
+			<version>12.0.0</version>
+		</since>
 		<synopsis>
 			Get or set a feature map to a given value on a specific channel.
 		</synopsis>

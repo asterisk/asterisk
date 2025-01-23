@@ -39,7 +39,9 @@
 
 /*** DOCUMENTATION
 	<function name="BLACKLIST" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.6.0</version>
+		</since>
 		<synopsis>
 			Check if the callerid is on the blacklist.
 		</synopsis>

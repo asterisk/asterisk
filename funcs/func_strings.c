@@ -49,7 +49,9 @@ AST_THREADSTORAGE(tmp_buf);
 
 /*** DOCUMENTATION
 	<function name="FIELDQTY" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.2.0</version>
+		</since>
 		<synopsis>
 			Count the fields with an arbitrary delimiter
 		</synopsis>
@@ -70,7 +72,9 @@ AST_THREADSTORAGE(tmp_buf);
 		</description>
 	</function>
 	<function name="FIELDNUM" language="en_US">
-		<since><version>10.0.0</version></since>
+		<since>
+			<version>10.0.0</version>
+		</since>
 		<synopsis>
 			Return the 1-based offset of a field in a list
 		</synopsis>
@@ -95,7 +99,9 @@ AST_THREADSTORAGE(tmp_buf);
 		</description>
 	</function>
 	<function name="LISTFILTER" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.6.2.0</version>
+		</since>
 		<synopsis>Remove an item from a list, by name.</synopsis>
 		<syntax>
 			<parameter name="varname" required="true" />
@@ -109,7 +115,9 @@ AST_THREADSTORAGE(tmp_buf);
 		</description>
 	</function>
 	<function name="FILTER" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.2.40</version>
+		</since>
 		<synopsis>
 			Filter the string to include only the allowed characters
 		</synopsis>
@@ -129,7 +137,9 @@ AST_THREADSTORAGE(tmp_buf);
 		</description>
 	</function>
 	<function name="REPLACE" language="en_US">
-		<since><version>1.8.0</version></since>
+		<since>
+			<version>1.8.0</version>
+		</since>
 		<synopsis>
 			Replace a set of characters in a given string with another character.
 		</synopsis>
@@ -148,7 +158,9 @@ AST_THREADSTORAGE(tmp_buf);
 		</description>
 	</function>
 	<function name="STRREPLACE" language="en_US">
-		<since><version>10.0.0</version></since>
+		<since>
+			<version>10.0.0</version>
+		</since>
 		<synopsis>
 			Replace instances of a substring within a string with another string.
 		</synopsis>
@@ -189,7 +201,12 @@ AST_THREADSTORAGE(tmp_buf);
 		</description>
 	</function>
 	<function name="TRIM" language="en_US">
-		<since><version>16.30.0</version><version>18.16.0</version><version>19.8.0</version><version>20.1.0</version></since>
+		<since>
+			<version>16.30.0</version>
+			<version>18.16.0</version>
+			<version>19.8.0</version>
+			<version>20.1.0</version>
+		</since>
 		<synopsis>
 			Trim leading and trailing whitespace in a string
 		</synopsis>
@@ -205,7 +222,12 @@ AST_THREADSTORAGE(tmp_buf);
 		</see-also>
 	</function>
 	<function name="LTRIM" language="en_US">
-		<since><version>16.30.0</version><version>18.16.0</version><version>19.8.0</version><version>20.1.0</version></since>
+		<since>
+			<version>16.30.0</version>
+			<version>18.16.0</version>
+			<version>19.8.0</version>
+			<version>20.1.0</version>
+		</since>
 		<synopsis>
 			Trim leading whitespace in a string
 		</synopsis>
@@ -221,7 +243,12 @@ AST_THREADSTORAGE(tmp_buf);
 		</see-also>
 	</function>
 	<function name="RTRIM" language="en_US">
-		<since><version>16.30.0</version><version>18.16.0</version><version>19.8.0</version><version>20.1.0</version></since>
+		<since>
+			<version>16.30.0</version>
+			<version>18.16.0</version>
+			<version>19.8.0</version>
+			<version>20.1.0</version>
+		</since>
 		<synopsis>
 			Trim trailing whitespace in a string
 		</synopsis>
@@ -237,7 +264,9 @@ AST_THREADSTORAGE(tmp_buf);
 		</see-also>
 	</function>
 	<function name="PASSTHRU" language="en_US">
-		<since><version>1.8.0</version></since>
+		<since>
+			<version>1.8.0</version>
+		</since>
 		<synopsis>
 			Pass the given argument back as a value.
 		</synopsis>
@@ -257,7 +286,9 @@ AST_THREADSTORAGE(tmp_buf);
 		</description>
 	</function>
 	<function name="REGEX" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.2.0</version>
+		</since>
 		<synopsis>
 			Check string against a regular expression.
 		</synopsis>
@@ -274,7 +305,9 @@ AST_THREADSTORAGE(tmp_buf);
 		</description>
 	</function>
 	<application name="ClearHash" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.6.0</version>
+		</since>
 		<synopsis>
 			Clear the keys from a specified hashname.
 		</synopsis>
@@ -286,7 +319,9 @@ AST_THREADSTORAGE(tmp_buf);
 		</description>
 	</application>
 	<function name="HASH" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.6.0</version>
+		</since>
 		<synopsis>
 			Implementation of a dialplan associative array
 		</synopsis>
@@ -301,7 +336,9 @@ AST_THREADSTORAGE(tmp_buf);
 		</description>
 	</function>
 	<function name="HASHKEYS" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.6.0</version>
+		</since>
 		<synopsis>
 			Retrieve the keys of the HASH() function.
 		</synopsis>
@@ -316,7 +353,9 @@ AST_THREADSTORAGE(tmp_buf);
 		</description>
 	</function>
 	<function name="KEYPADHASH" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.4.0</version>
+		</since>
 		<synopsis>
 			Hash the letters in string into equivalent keypad numbers.
 		</synopsis>
@@ -330,7 +369,9 @@ AST_THREADSTORAGE(tmp_buf);
 		</description>
 	</function>
 	<function name="ARRAY" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.4.0</version>
+		</since>
 		<synopsis>
 			Allows setting multiple variables at once.
 		</synopsis>
@@ -349,7 +390,9 @@ AST_THREADSTORAGE(tmp_buf);
 		</description>
 	</function>
 	<function name="STRPTIME" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.4.0</version>
+		</since>
 		<synopsis>
 			Returns the epoch of the arbitrary date/time string structured as described by the format.
 		</synopsis>
@@ -368,7 +411,9 @@ AST_THREADSTORAGE(tmp_buf);
 		</description>
 	</function>
 	<function name="STRFTIME" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.2.0</version>
+		</since>
 		<synopsis>
 			Returns the current date/time in the specified format.
 		</synopsis>
@@ -391,7 +436,9 @@ AST_THREADSTORAGE(tmp_buf);
 		</see-also>
 	</function>
 	<function name="EVAL" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.2.0</version>
+		</since>
 		<synopsis>
 			Evaluate stored variables
 		</synopsis>
@@ -413,7 +460,9 @@ AST_THREADSTORAGE(tmp_buf);
 		</description>
 	</function>
 	<function name="TOUPPER" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.6.0</version>
+		</since>
 		<synopsis>
 			Convert string to all uppercase letters.
 		</synopsis>
@@ -427,7 +476,9 @@ AST_THREADSTORAGE(tmp_buf);
 		</description>
 	</function>
 	<function name="TOLOWER" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.6.0</version>
+		</since>
 		<synopsis>
 			Convert string to all lowercase letters.
 		</synopsis>
@@ -441,7 +492,9 @@ AST_THREADSTORAGE(tmp_buf);
 		</description>
 	</function>
 	<function name="LEN" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.2.0</version>
+		</since>
 		<synopsis>
 			Return the length of the string given.
 		</synopsis>
@@ -455,7 +508,9 @@ AST_THREADSTORAGE(tmp_buf);
 		</description>
 	</function>
 	<function name="QUOTE" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.4.0</version>
+		</since>
 		<synopsis>
 			Quotes a given string, escaping embedded quotes as necessary
 		</synopsis>
@@ -467,7 +522,9 @@ AST_THREADSTORAGE(tmp_buf);
 		</description>
 	</function>
 	<function name="CSV_QUOTE" language="en_US">
-		<since><version>1.8.0</version></since>
+		<since>
+			<version>1.8.0</version>
+		</since>
 		<synopsis>
 			Quotes a given string for use in a CSV file, escaping embedded quotes as necessary
 		</synopsis>
@@ -479,7 +536,9 @@ AST_THREADSTORAGE(tmp_buf);
 		</description>
 	</function>
 	<function name="SHIFT" language="en_US">
-		<since><version>1.8.0</version></since>
+		<since>
+			<version>1.8.0</version>
+		</since>
 		<synopsis>
 			Removes and returns the first item off of a variable containing delimited text
 		</synopsis>
@@ -501,7 +560,9 @@ AST_THREADSTORAGE(tmp_buf);
 		</description>
 	</function>
 	<function name="POP" language="en_US">
-		<since><version>1.8.0</version></since>
+		<since>
+			<version>1.8.0</version>
+		</since>
 		<synopsis>
 			Removes and returns the last item off of a variable containing delimited text
 		</synopsis>
@@ -523,7 +584,9 @@ AST_THREADSTORAGE(tmp_buf);
 		</description>
 	</function>
 	<function name="PUSH" language="en_US">
-		<since><version>1.8.0</version></since>
+		<since>
+			<version>1.8.0</version>
+		</since>
 		<synopsis>
 			Appends one or more values to the end of a variable containing delimited text
 		</synopsis>
@@ -542,7 +605,9 @@ AST_THREADSTORAGE(tmp_buf);
 		</description>
 	</function>
 	<function name="UNSHIFT" language="en_US">
-		<since><version>1.8.0</version></since>
+		<since>
+			<version>1.8.0</version>
+		</since>
 		<synopsis>
 			Inserts one or more values to the beginning of a variable containing delimited text
 		</synopsis>

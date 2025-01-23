@@ -41,7 +41,9 @@
 
 /*** DOCUMENTATION
 	<function name="HANGUPCAUSE" language="en_US">
-		<since><version>11.0.0</version></since>
+		<since>
+			<version>11.0.0</version>
+		</since>
 		<synopsis>
 			Gets per-channel hangupcause information from the channel.
 		</synopsis>
@@ -67,7 +69,9 @@
 		</see-also>
 	</function>
 	<function name="HANGUPCAUSE_KEYS" language="en_US">
-		<since><version>11.0.0</version></since>
+		<since>
+			<version>11.0.0</version>
+		</since>
 		<synopsis>
 			Gets the list of channels for which hangup causes are available.
 		</synopsis>
@@ -80,7 +84,9 @@
 		</see-also>
 	</function>
 	<application name="HangupCauseClear" language="en_US">
-		<since><version>11.0.0</version></since>
+		<since>
+			<version>11.0.0</version>
+		</since>
 		<synopsis>
 			Clears hangup cause information from the channel that is available through HANGUPCAUSE.
 		</synopsis>

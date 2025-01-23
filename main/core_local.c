@@ -73,7 +73,9 @@
 	</manager>
 	<managerEvent language="en_US" name="LocalBridge">
 		<managerEventInstance class="EVENT_FLAG_CALL">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when two halves of a Local Channel form a bridge.</synopsis>
 			<syntax>
 				<channel_snapshot prefix="LocalOne"/>
@@ -95,7 +97,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="LocalOptimizationBegin">
 		<managerEventInstance class="EVENT_FLAG_CALL">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when two halves of a Local Channel begin to optimize
 			themselves out of the media path.</synopsis>
 			<syntax>
@@ -117,7 +121,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="LocalOptimizationEnd">
 		<managerEventInstance class="EVENT_FLAG_CALL">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when two halves of a Local Channel have finished optimizing
 			themselves out of the media path.</synopsis>
 			<syntax>

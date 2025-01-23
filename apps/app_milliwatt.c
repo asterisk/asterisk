@@ -39,7 +39,9 @@
 
 /*** DOCUMENTATION
 	<application name="Milliwatt" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>0.1.12</version>
+		</since>
 		<synopsis>
 			Generates a 1004 Hz test tone at 0dbm (mu-law).
 		</synopsis>

@@ -40,7 +40,9 @@
 
 /*** DOCUMENTATION
 	<application name="Read" language="en_US">
-		<since><version>1.6.1.0</version></since>
+		<since>
+			<version>1.6.1.0</version>
+		</since>
 		<synopsis>
 			Read a variable.
 		</synopsis>

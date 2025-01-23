@@ -49,7 +49,9 @@
 
 /*** DOCUMENTATION
 	<application name="Pickup" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.2.0</version>
+		</since>
 		<synopsis>
 			Directed extension call pickup.
 		</synopsis>
@@ -92,7 +94,9 @@
 		</description>
 	</application>
 	<application name="PickupChan" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.6.0</version>
+		</since>
 		<synopsis>
 			Pickup a ringing channel.
 		</synopsis>
