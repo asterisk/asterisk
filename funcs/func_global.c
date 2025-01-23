@@ -41,6 +41,7 @@
 
 /*** DOCUMENTATION
 	<function name="GLOBAL" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Gets or sets the global variable specified.
 		</synopsis>
@@ -54,6 +55,7 @@
 		</description>
 	</function>
 	<function name="GLOBAL_DELETE" language="en_US">
+		<since><version>18.21.0</version><version>20.6.0</version><version>21.1.0</version></since>
 		<synopsis>
 			Deletes a specified global variable.
 		</synopsis>
@@ -72,6 +74,7 @@
 		</see-also>
 	</function>
 	<function name="GLOBAL_EXISTS" language="en_US">
+		<since><version>18.21.0</version><version>20.6.0</version><version>21.1.0</version></since>
 		<synopsis>
 			Check if a global variable exists or not.
 		</synopsis>
@@ -88,6 +91,7 @@
 		</see-also>
 	</function>
 	<function name="SHARED" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Gets or sets the shared variable specified.
 		</synopsis>

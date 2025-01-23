@@ -44,6 +44,7 @@
 
 /*** DOCUMENTATION
 	<function name="DB" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Read from or write to the Asterisk database.
 		</synopsis>
@@ -66,6 +67,7 @@
 		</see-also>
 	</function>
 	<function name="DB_EXISTS" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Check to see if a key exists in the Asterisk database.
 		</synopsis>
@@ -84,6 +86,7 @@
 		</see-also>
 	</function>
 	<function name="DB_KEYS" language="en_US">
+		<since><version>10.0.0</version></since>
 		<synopsis>
 			Obtain a list of keys within the Asterisk database.
 		</synopsis>
@@ -100,6 +103,7 @@
 		</see-also>
 	</function>
 	<function name="DB_KEYCOUNT" language="en_US">
+		<since><version>16.26.0</version><version>18.12.0</version><version>19.4.0</version></since>
 		<synopsis>
 			Obtain the number of keys at a prefix within the Asterisk database.
 		</synopsis>
@@ -116,6 +120,7 @@
 		</see-also>
 	</function>
 	<function name="DB_DELETE" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Return a value from the database and delete it.
 		</synopsis>

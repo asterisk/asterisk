@@ -42,7 +42,6 @@
 		<since>
 			<version>16.20.0</version>
 			<version>18.6.0</version>
-			<version>19.0.0</version>
 		</since>
 		<synopsis>
 			Reloads an Asterisk module, blocking the channel until the reload has completed.

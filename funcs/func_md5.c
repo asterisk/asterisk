@@ -37,6 +37,7 @@
 
 /*** DOCUMENTATION
 	<function name="MD5" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Computes an MD5 digest.
 		</synopsis>
