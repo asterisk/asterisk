@@ -40,6 +40,7 @@
 
 /*** DOCUMENTATION
 	<application name="ControlPlayback" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Play a file with fast forward and rewind.
 		</synopsis>

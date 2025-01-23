@@ -76,6 +76,7 @@
 
 /*** DOCUMENTATION
 	<application name="ConfBridge" language="en_US">
+		<since><version>12.0.0</version></since>
 		<synopsis>
 			Conference bridge application.
 		</synopsis>
@@ -135,7 +136,6 @@
 		<since>
 			<version>16.19.0</version>
 			<version>18.5.0</version>
-			<version>19.0.0</version>
 		</since>
 		<synopsis>
 			Kicks channel(s) from the requested ConfBridge.
@@ -169,6 +169,7 @@
 		</see-also>
 	</application>
 	<function name="CONFBRIDGE" language="en_US">
+		<since><version>10.0.0</version></since>
 		<synopsis>
 			Set a custom dynamic bridge, user, or menu profile on a channel for the
 			ConfBridge application using the same options available in confbridge.conf.
@@ -224,6 +225,7 @@
 		</description>
 	</function>
 	<function name="CONFBRIDGE_INFO" language="en_US">
+		<since><version>10.0.0</version></since>
 		<synopsis>
 			Get information about a ConfBridge conference.
 		</synopsis>
@@ -262,9 +264,9 @@
 	</function>
 	<function name="CONFBRIDGE_CHANNELS" language="en_US">
 		<since>
-			<version>16.26.0</version>
-			<version>18.12.0</version>
-			<version>19.4.0</version>
+			<version>16.27.0</version>
+			<version>18.13.0</version>
+			<version>19.5.0</version>
 		</since>
 		<synopsis>
 			Get a list of channels in a ConfBridge conference.

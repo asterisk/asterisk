@@ -310,6 +310,7 @@
 		</configFile>
 	</configInfo>
 	<function name="FEATURE" language="en_US">
+		<since><version>12.0.0</version></since>
 		<synopsis>
 			Get or set a feature option on a channel.
 		</synopsis>
@@ -353,6 +354,7 @@
 		</see-also>
 	</function>
 	<function name="FEATUREMAP" language="en_US">
+		<since><version>12.0.0</version></since>
 		<synopsis>
 			Get or set a feature map to a given value on a specific channel.
 		</synopsis>

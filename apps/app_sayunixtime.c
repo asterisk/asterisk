@@ -40,6 +40,7 @@
 
 /*** DOCUMENTATION
 	<application name="SayUnixTime" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Says a specified time in a custom format.
 		</synopsis>
@@ -76,6 +77,7 @@
 		</see-also>
 	</application>
 	<application name="DateTime" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Says a specified time in a custom format.
 		</synopsis>
