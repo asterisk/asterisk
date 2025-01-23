@@ -42,6 +42,7 @@
 
 /*** DOCUMENTATION
 	<application name="Gosub" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Jump to label, saving return address.
 		</synopsis>
@@ -64,6 +65,7 @@
 		</see-also>
 	</application>
 	<application name="GosubIf" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Conditionally jump to label, saving return address.
 		</synopsis>
@@ -98,6 +100,7 @@
 		</see-also>
 	</application>
 	<application name="Return" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Return from gosub routine.
 		</synopsis>
@@ -116,6 +119,7 @@
 		</see-also>
 	</application>
 	<application name="StackPop" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Remove one address from gosub stack.
 		</synopsis>
@@ -129,6 +133,7 @@
 		</see-also>
 	</application>
 	<function name="LOCAL" language="en_US">
+		<since><version>1.6.1.0</version></since>
 		<synopsis>
 			Manage variables local to the gosub stack frame.
 		</synopsis>
@@ -146,6 +151,7 @@
 		</see-also>
 	</function>
 	<function name="LOCAL_PEEK" language="en_US">
+		<since><version>1.6.1.0</version></since>
 		<synopsis>
 			Retrieve variables hidden by the local gosub stack frame.
 		</synopsis>
@@ -168,6 +174,7 @@
 		</see-also>
 	</function>
 	<function name="STACK_PEEK" language="en_US">
+		<since><version>1.8.11.0</version><version>10.3.0</version></since>
 		<synopsis>
 			View info about the location which called Gosub
 		</synopsis>

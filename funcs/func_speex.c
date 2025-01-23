@@ -50,6 +50,7 @@
 
 /*** DOCUMENTATION
 	<function name="AGC" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Apply automatic gain control to audio on a channel.
 		</synopsis>
@@ -73,6 +74,7 @@
 		</description>
 	</function>
 	<function name="DENOISE" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Apply noise reduction to audio on a channel.
 		</synopsis>

@@ -59,6 +59,7 @@
 
 /*** DOCUMENTATION
 	<application name="SLAStation" language="en_US">
+		<since><version>21.0.0</version></since>
 		<synopsis>
 			Shared Line Appearance Station.
 		</synopsis>
@@ -86,6 +87,7 @@
 		</description>
 	</application>
 	<application name="SLATrunk" language="en_US">
+		<since><version>21.0.0</version></since>
 		<synopsis>
 			Shared Line Appearance Trunk.
 		</synopsis>

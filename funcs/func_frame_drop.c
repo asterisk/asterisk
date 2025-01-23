@@ -41,7 +41,6 @@
 		<since>
 			<version>16.21.0</version>
 			<version>18.7.0</version>
-			<version>19.0.0</version>
 		</since>
 		<synopsis>
 			Drops specific frame types in the TX or RX direction on a channel.

@@ -46,6 +46,7 @@ static const char app_originate[] = "Originate";
 
 /*** DOCUMENTATION
 	<application name="Originate" language="en_US">
+		<since><version>1.6.1.0</version></since>
 		<synopsis>
 			Originate a call.
 		</synopsis>

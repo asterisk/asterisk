@@ -125,6 +125,7 @@
 
 /*** DOCUMENTATION
 	<application name="IAX2Provision" language="en_US">
+		<since><version>1.6.1.0</version></since>
 		<synopsis>
 			Provision a calling IAXy with a given template.
 		</synopsis>
@@ -140,6 +141,7 @@
 		</description>
 	</application>
 	<function name="IAXPEER" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Gets IAX peer information.
 		</synopsis>
@@ -194,6 +196,7 @@
 		</description>
 	</function>
 	<function name="IAXVAR" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Sets or retrieves a remote variable.
 		</synopsis>
