@@ -139,6 +139,9 @@ static void *auth_alloc(const char *name)
 		return NULL;
 	}
 
+	AST_VECTOR_INIT(&auth->supported_algorithms_uac, 0);
+	AST_VECTOR_INIT(&auth->supported_algorithms_uas, 0);
+
 	return auth;
 }
 
@@ -195,13 +198,6 @@ int ast_sip_auth_digest_algorithms_vector_init(const char *id,
 	int res = 0;
 
 	ast_assert(algorithms != NULL);
-
-	if (AST_VECTOR_SIZE(algorithms)) {
-		AST_VECTOR_FREE(algorithms);
-	}
-	if (AST_VECTOR_INIT(algorithms, 4)) {
-		return -1;
-	}
 
 	while ((val.ptr = ast_strip(strsep(&iana_names, ",")))) {
 		const pjsip_auth_algorithm *algo;
@@ -719,7 +715,6 @@ static struct ast_cli_entry cli_commands[] = {
 
 static struct ast_sip_cli_formatter_entry *cli_formatter;
 
-#if 1
 static void global_loaded(const char *object_type)
 {
 	ast_sorcery_force_reload_object(ast_sip_get_sorcery(), "auth");
@@ -729,7 +724,6 @@ static void global_loaded(const char *object_type)
 static struct ast_sorcery_observer global_observer = {
 	.loaded = global_loaded,
 };
-#endif
 
 /*! \brief Initialize sorcery with auth support */
 int ast_sip_initialize_sorcery_auth(void)
