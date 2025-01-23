@@ -45,7 +45,9 @@
 
 /*** DOCUMENTATION
 	<function name="PJSIP_AOR" language="en_US">
-		<since><version>13.2.0</version></since>
+		<since>
+			<version>13.2.0</version>
+		</since>
 		<synopsis>
 			Get information about a PJSIP AOR
 		</synopsis>

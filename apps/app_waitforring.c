@@ -39,7 +39,9 @@
 
 /*** DOCUMENTATION
 	<application name="WaitForRing" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>0.4.0</version>
+		</since>
 		<synopsis>
 			Wait for Ring Application.
 		</synopsis>

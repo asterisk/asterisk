@@ -43,7 +43,9 @@
 
 /*** DOCUMENTATION
 	<application name="DumpChan" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.2.0</version>
+		</since>
 		<synopsis>
 			Dump Info About The Calling Channel.
 		</synopsis>

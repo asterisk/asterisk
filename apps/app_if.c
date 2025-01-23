@@ -37,7 +37,10 @@
 
 /*** DOCUMENTATION
 	<application name="If" language="en_US">
-		<since><version>18.16.0</version><version>20.1.0</version></since>
+		<since>
+			<version>18.16.0</version>
+			<version>20.1.0</version>
+		</since>
 		<synopsis>
 			Start an if branch.
 		</synopsis>
@@ -58,7 +61,10 @@
 		</see-also>
 	</application>
 	<application name="ElseIf" language="en_US">
-		<since><version>18.16.0</version><version>20.1.0</version></since>
+		<since>
+			<version>18.16.0</version>
+			<version>20.1.0</version>
+		</since>
 		<synopsis>
 			Start an else if branch.
 		</synopsis>
@@ -80,7 +86,10 @@
 		</see-also>
 	</application>
 	<application name="Else" language="en_US">
-		<since><version>18.16.0</version><version>20.1.0</version></since>
+		<since>
+			<version>18.16.0</version>
+			<version>20.1.0</version>
+		</since>
 		<synopsis>
 			Define an optional else branch.
 		</synopsis>
@@ -99,7 +108,10 @@
 		</see-also>
 	</application>
 	<application name="EndIf" language="en_US">
-		<since><version>18.16.0</version><version>20.1.0</version></since>
+		<since>
+			<version>18.16.0</version>
+			<version>20.1.0</version>
+		</since>
 		<synopsis>
 			End an if branch.
 		</synopsis>
@@ -115,7 +127,10 @@
 		</see-also>
 	</application>
 	<application name="ExitIf" language="en_US">
-		<since><version>18.16.0</version><version>20.1.0</version></since>
+		<since>
+			<version>18.16.0</version>
+			<version>20.1.0</version>
+		</since>
 		<synopsis>
 			End an If branch.
 		</synopsis>

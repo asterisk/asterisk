@@ -35,7 +35,10 @@
 
 /*** DOCUMENTATION
 	<application name="StatsD" language="en_US">
-		<since><version>13.20.0</version><version>15.3.0</version></since>
+		<since>
+			<version>13.20.0</version>
+			<version>15.3.0</version>
+		</since>
 		<synopsis>
 			Allow statistics to be passed to the StatsD server from the dialplan.
 		</synopsis>

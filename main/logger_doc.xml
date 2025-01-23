@@ -3,7 +3,11 @@
 <?xml-stylesheet type="text/xsl" href="appdocsxml.xslt"?>
 <docs xmlns:xi="http://www.w3.org/2001/XInclude">
 	<function name="LOG_GROUP" language="en_US">
-		<since><version>18.21.0</version><version>20.6.0</version><version>21.1.0</version></since>
+		<since>
+			<version>18.21.0</version>
+			<version>20.6.0</version>
+			<version>21.1.0</version>
+		</since>
 		<synopsis>
 			Set the channel group name for log filtering on this channel
 		</synopsis>
@@ -37,7 +41,11 @@
 	</function>
 	<managerEvent language="en_US" name="LogChannel">
 		<managerEventInstance class="EVENT_FLAG_SYSTEM">
-			<since><version>16.24.0</version><version>18.10.0</version><version>19.2.0</version></since>
+			<since>
+				<version>16.24.0</version>
+				<version>18.10.0</version>
+				<version>19.2.0</version>
+			</since>
 			<synopsis>Raised when a logging channel is re-enabled after a reload operation.</synopsis>
 			<syntax>
 				<parameter name="Channel">
@@ -46,7 +54,11 @@
 			</syntax>
 		</managerEventInstance>
 		<managerEventInstance class="EVENT_FLAG_SYSTEM">
-			<since><version>16.24.0</version><version>18.10.0</version><version>19.2.0</version></since>
+			<since>
+				<version>16.24.0</version>
+				<version>18.10.0</version>
+				<version>19.2.0</version>
+			</since>
 			<synopsis>Raised when a logging channel is disabled.</synopsis>
 			<syntax>
 				<parameter name="Channel">

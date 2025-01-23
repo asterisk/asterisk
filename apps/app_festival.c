@@ -69,7 +69,9 @@
 
 /*** DOCUMENTATION
 	<application name="Festival" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>0.2.0</version>
+		</since>
 		<synopsis>
 			Say text to the user.
 		</synopsis>

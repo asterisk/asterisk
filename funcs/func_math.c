@@ -49,7 +49,9 @@
 
 /*** DOCUMENTATION
 	<function name="MATH" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.2.0</version>
+		</since>
 		<synopsis>
 			Performs Mathematical Functions.
 		</synopsis>
@@ -78,7 +80,9 @@
 		</description>
 	</function>
 	<function name="INC" language="en_US">
-		<since><version>1.8.0</version></since>
+		<since>
+			<version>1.8.0</version>
+		</since>
 		<synopsis>
 			Increments the value of a variable, while returning the updated value to the dialplan
 		</synopsis>
@@ -96,7 +100,9 @@
 		</description>
 	</function>
 	<function name="DEC" language="en_US">
-		<since><version>1.8.0</version></since>
+		<since>
+			<version>1.8.0</version>
+		</since>
 		<synopsis>
 			Decrements the value of a variable, while returning the updated value to the dialplan
 		</synopsis>

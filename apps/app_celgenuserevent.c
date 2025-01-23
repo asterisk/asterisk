@@ -36,7 +36,9 @@
 
 /*** DOCUMENTATION
 	<application name="CELGenUserEvent" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.8.0</version>
+		</since>
 		<synopsis>
 			Generates a CEL User Defined Event.
 		</synopsis>

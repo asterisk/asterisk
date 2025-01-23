@@ -28,7 +28,9 @@
 /*** DOCUMENTATION
 	<managerEvent language="en_US" name="PresenceStateChange">
 		<managerEventInstance class="EVENT_FLAG_CALL">
-			<since><version>13.0.0</version></since>
+			<since>
+				<version>13.0.0</version>
+			</since>
 			<synopsis>Raised when a presence state changes</synopsis>
 			<syntax>
 				<parameter name="Presentity">

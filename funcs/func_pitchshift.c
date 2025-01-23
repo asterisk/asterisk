@@ -73,7 +73,9 @@
 
 /*** DOCUMENTATION
 	<function name="PITCH_SHIFT" language="en_US">
-		<since><version>1.8.0</version></since>
+		<since>
+			<version>1.8.0</version>
+		</since>
 		<synopsis>
 			Pitch shift both tx and rx audio streams on a channel.
 		</synopsis>
