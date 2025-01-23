@@ -43,6 +43,7 @@
 
 /*** DOCUMENTATION
 	<application name="ForkCDR" language="en_US">
+		<since><version>1.6.1.0</version></since>
 		<synopsis>
 			Forks the current Call Data Record for this channel.
 		</synopsis>

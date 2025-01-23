@@ -45,6 +45,7 @@
 
 /*** DOCUMENTATION
 	<application name="Set" language="en_US">
+		<since><version>13.8.0</version></since>
 		<synopsis>
 			Set channel variable or function value.
 		</synopsis>
@@ -75,6 +76,7 @@
 		</see-also>
 	</application>
 	<application name="MSet" language="en_US">
+		<since><version>13.8.0</version></since>
 		<synopsis>
 			Set channel variable(s) or function value(s).
 		</synopsis>

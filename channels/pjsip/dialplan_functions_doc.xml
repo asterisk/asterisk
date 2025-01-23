@@ -2,6 +2,7 @@
 <!DOCTYPE docs SYSTEM "appdocsxml.dtd">
 <docs xmlns:xi="http://www.w3.org/2001/XInclude">
 	<application name="PJSIPHangup" language="en_US">
+		<since><version>18.21.0</version><version>20.6.0</version><version>21.1.0</version></since>
 		<synopsis>
 			Hangup an incoming PJSIP channel with a SIP response code
 		</synopsis>
@@ -56,6 +57,7 @@
 	</application>
 
 	<application name="PJSIPNotify" language="en_US">
+		<since><version>18.25.0</version><version>20.10.0</version><version>21.5.0</version></since>
 		<synopsis>
 			Send a NOTIFY to either an arbitrary URI, or inside a SIP dialog.
 		</synopsis>
@@ -147,6 +149,7 @@
 	</manager>
 
 	<function name="PJSIP_DIAL_CONTACTS" language="en_US">
+		<since><version>12.0.0</version></since>
 		<synopsis>
 			Return a dial string for dialing all contacts on an AOR.
 		</synopsis>
@@ -166,6 +169,7 @@
 		</description>
 	</function>
 	<function name="PJSIP_MEDIA_OFFER" language="en_US">
+		<since><version>12.0.0</version></since>
 		<synopsis>
 			Media and codec offerings to be set on an outbound SIP channel prior to dialing.
 		</synopsis>
@@ -197,7 +201,6 @@
 			<version>13.18.0</version>
 			<version>14.7.0</version>
 			<version>15.1.0</version>
-			<version>16.0.0</version>
 		</since>
 		<synopsis>
 			Get or change the DTMF mode for a SIP call.
@@ -211,6 +214,7 @@
 		</description>
 	</function>
 	<function name="PJSIP_MOH_PASSTHROUGH" language="en_US">
+		<since><version>13.30.0</version><version>16.7.0</version><version>17.1.0</version></since>
 		<synopsis>
 			Get or change the on-hold behavior for a SIP call.
 		</synopsis>
@@ -227,7 +231,6 @@
 		<since>
 			<version>13.12.0</version>
 			<version>14.1.0</version>
-			<version>15.0.0</version>
 		</since>
 		<synopsis>
 			W/O: Initiate a session refresh via an UPDATE or re-INVITE on an established media session
@@ -273,7 +276,6 @@
 		<since>
 			<version>13.24.0</version>
 			<version>16.1.0</version>
-			<version>17.0.0</version>
 		</since>
 		<synopsis>
 			Parse a URI and return a type part of the URI.

@@ -43,6 +43,7 @@
 
 /*** DOCUMENTATION
 	<application name="SendText" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Send a Text Message on a channel.
 		</synopsis>

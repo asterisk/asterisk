@@ -49,7 +49,6 @@
 		<since>
 			<version>16.21.0</version>
 			<version>18.7.0</version>
-			<version>19.0.0</version>
 		</since>
 		<synopsis>
 			Wait for tone
@@ -182,7 +181,6 @@
 		<since>
 			<version>16.21.0</version>
 			<version>18.7.0</version>
-			<version>19.0.0</version>
 		</since>
 		<synopsis>
 			Asynchronously detects a tone

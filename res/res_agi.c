@@ -1117,6 +1117,7 @@
 		</see-also>
 	</agi>
 	<application name="AGI" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Executes an AGI compliant application.
 		</synopsis>
@@ -1218,6 +1219,7 @@
 		</see-also>
 	</application>
 	<application name="EAGI" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Executes an EAGI compliant application.
 		</synopsis>
@@ -1239,6 +1241,7 @@
 		</see-also>
 	</application>
 	<application name="DeadAGI" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Executes AGI on a hungup channel.
 		</synopsis>

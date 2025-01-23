@@ -96,6 +96,7 @@
 
 /*** DOCUMENTATION
 	<function name="EXCEPTION" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Retrieve the details of the current dialplan exception.
 		</synopsis>
@@ -127,6 +128,7 @@
 		</see-also>
 	</function>
 	<function name="TESTTIME" language="en_US">
+		<since><version>1.8.0</version></since>
 		<synopsis>
 			Sets a time to be used with the channel to test logical conditions.
 		</synopsis>

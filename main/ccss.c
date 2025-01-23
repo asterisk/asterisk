@@ -54,6 +54,7 @@
 
 /*** DOCUMENTATION
 	<application name="CallCompletionRequest" language="en_US">
+		<since><version>1.8.0</version></since>
 		<synopsis>
 			Request call completion service for previous call
 		</synopsis>
@@ -79,6 +80,7 @@
 		</description>
 	</application>
 	<application name="CallCompletionCancel" language="en_US">
+		<since><version>1.8.0</version></since>
 		<synopsis>
 			Cancel call completion service
 		</synopsis>

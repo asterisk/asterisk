@@ -46,6 +46,7 @@
 
 /*** DOCUMENTATION
 	<function name="LOCK" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Attempt to obtain a named mutex.
 		</synopsis>
@@ -70,6 +71,7 @@
 		</see-also>
 	</function>
 	<function name="TRYLOCK" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Attempt to obtain a named mutex.
 		</synopsis>
@@ -92,6 +94,7 @@
 		</see-also>
 	</function>
 	<function name="UNLOCK" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Unlocks a named mutex.
 		</synopsis>

@@ -43,6 +43,7 @@ AST_THREADSTORAGE(result_buf);
 
 /*** DOCUMENTATION
 	<function name="SPRINTF" language="en_US">
+		<since><version>1.6.1.0</version></since>
 		<synopsis>
 			Format a variable according to a format string.
 		</synopsis>

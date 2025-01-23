@@ -63,6 +63,7 @@
 
 /*** DOCUMENTATION
 	<application name="MixMonitor" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Record a call and mix the audio during the recording.  Use of StopMixMonitor is required
 			to guarantee the audio file is available for processing during dialplan execution.
@@ -195,6 +196,7 @@
 		</see-also>
 	</application>
 	<application name="StopMixMonitor" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Stop recording a call through MixMonitor, and free the recording's file handle.
 		</synopsis>
@@ -304,6 +306,7 @@
 		</description>
 	</manager>
 	<function name="MIXMONITOR" language="en_US">
+		<since><version>13.0.0</version></since>
 		<synopsis>
 			Retrieve data pertaining to specific instances of MixMonitor on a channel.
 		</synopsis>

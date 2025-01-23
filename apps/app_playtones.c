@@ -41,6 +41,7 @@ static const char stopplaytones_app[] = "StopPlayTones";
 
 /*** DOCUMENTATION
 	<application name="PlayTones" language="en_US">
+		<since><version>1.6.1.0</version></since>
 		<synopsis>
 			Play a tone list.
 		</synopsis>
@@ -61,6 +62,7 @@ static const char stopplaytones_app[] = "StopPlayTones";
 		</see-also>
 	</application>
 	<application name="StopPlayTones" language="en_US">
+		<since><version>1.6.1.0</version></since>
 		<synopsis>
 			Stop playing a tone list.
 		</synopsis>

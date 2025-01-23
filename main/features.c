@@ -80,6 +80,7 @@
 
 /*** DOCUMENTATION
 	<application name="Bridge" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Bridge two channels.
 		</synopsis>
