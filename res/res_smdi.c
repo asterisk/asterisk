@@ -71,7 +71,9 @@
 /*** DOCUMENTATION
 
 	<function name="SMDI_MSG_RETRIEVE" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.4.19</version>
+		</since>
 		<synopsis>
 			Retrieve an SMDI message.
 		</synopsis>
@@ -109,7 +111,9 @@
 		</see-also>
 	</function>
 	<function name="SMDI_MSG" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.4.19</version>
+		</since>
 		<synopsis>
 			Retrieve details about an SMDI message.
 		</synopsis>

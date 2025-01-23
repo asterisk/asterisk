@@ -39,7 +39,9 @@
 
 /*** DOCUMENTATION
 	<function name="AST_SORCERY" language="en_US">
-		<since><version>12.2.0</version></since>
+		<since>
+			<version>12.2.0</version>
+		</since>
 		<synopsis>
 			Get a field from a sorcery object
 		</synopsis>

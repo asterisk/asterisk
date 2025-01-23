@@ -62,7 +62,9 @@
 
 /*** DOCUMENTATION
 	<application name="ChanSpy" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.2.0</version>
+		</since>
 		<synopsis>
 			Listen to a channel, and optionally whisper into it.
 		</synopsis>
@@ -205,7 +207,9 @@
 		</see-also>
 	</application>
 	<application name="ExtenSpy" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.4.0</version>
+		</since>
 		<synopsis>
 			Listen to a channel, and optionally whisper into it.
 		</synopsis>
@@ -353,7 +357,9 @@
 		</see-also>
 	</application>
 	<application name="DAHDIScan" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.4.22</version>
+		</since>
 		<synopsis>
 			Scan DAHDI channels to monitor calls.
 		</synopsis>

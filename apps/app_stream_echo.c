@@ -38,7 +38,9 @@
 
 /*** DOCUMENTATION
 	<application name="StreamEcho" language="en_US">
-		<since><version>15.0.0</version></since>
+		<since>
+			<version>15.0.0</version>
+		</since>
 		<synopsis>
 			Echo media, up to 'N' streams of a type, and DTMF back to the calling party
 		</synopsis>

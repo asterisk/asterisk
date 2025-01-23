@@ -63,7 +63,9 @@
 
 /*** DOCUMENTATION
 	<application name="MixMonitor" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.2.0</version>
+		</since>
 		<synopsis>
 			Record a call and mix the audio during the recording.  Use of StopMixMonitor is required
 			to guarantee the audio file is available for processing during dialplan execution.
@@ -193,7 +195,9 @@
 		</see-also>
 	</application>
 	<application name="StopMixMonitor" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.4.0</version>
+		</since>
 		<synopsis>
 			Stop recording a call through MixMonitor, and free the recording's file handle.
 		</synopsis>
@@ -303,7 +307,9 @@
 		</description>
 	</manager>
 	<function name="MIXMONITOR" language="en_US">
-		<since><version>13.0.0</version></since>
+		<since>
+			<version>13.0.0</version>
+		</since>
 		<synopsis>
 			Retrieve data pertaining to specific instances of MixMonitor on a channel.
 		</synopsis>
@@ -322,7 +328,10 @@
 	</function>
 	<managerEvent language="en_US" name="MixMonitorStart">
 		<managerEventInstance class="EVENT_FLAG_CALL">
-			<since><version>16.17.0</version><version>18.3.0</version></since>
+			<since>
+				<version>16.17.0</version>
+				<version>18.3.0</version>
+			</since>
 			<synopsis>Raised when monitoring has started on a channel.</synopsis>
 			<syntax>
 				<channel_snapshot/>
@@ -336,7 +345,10 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="MixMonitorStop">
 		<managerEventInstance class="EVENT_FLAG_CALL">
-			<since><version>16.17.0</version><version>18.3.0</version></since>
+			<since>
+				<version>16.17.0</version>
+				<version>18.3.0</version>
+			</since>
 		<synopsis>Raised when monitoring has stopped on a channel.</synopsis>
 		<syntax>
 			<channel_snapshot/>
@@ -350,7 +362,10 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="MixMonitorMute">
 		<managerEventInstance class="EVENT_FLAG_CALL">
-			<since><version>16.17.0</version><version>18.3.0</version></since>
+			<since>
+				<version>16.17.0</version>
+				<version>18.3.0</version>
+			</since>
 		<synopsis>Raised when monitoring is muted or unmuted on a channel.</synopsis>
 		<syntax>
 			<channel_snapshot/>

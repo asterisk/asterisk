@@ -249,7 +249,9 @@ int daemon(int, int);  /* defined in libresolv of all places */
 /*** DOCUMENTATION
 	<managerEvent language="en_US" name="FullyBooted">
 		<managerEventInstance class="EVENT_FLAG_SYSTEM">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when all Asterisk initialization procedures have finished.</synopsis>
 			<syntax>
 				<parameter name="Status">
@@ -266,7 +268,9 @@ int daemon(int, int);  /* defined in libresolv of all places */
 	</managerEvent>
 	<managerEvent language="en_US" name="Shutdown">
 		<managerEventInstance class="EVENT_FLAG_SYSTEM">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when Asterisk is shutdown or restarted.</synopsis>
 			<syntax>
 				<parameter name="Shutdown">

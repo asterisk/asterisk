@@ -1117,7 +1117,9 @@
 		</see-also>
 	</agi>
 	<application name="AGI" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>0.1.9</version>
+		</since>
 		<synopsis>
 			Executes an AGI compliant application.
 		</synopsis>
@@ -1219,7 +1221,9 @@
 		</see-also>
 	</application>
 	<application name="EAGI" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>0.4.0</version>
+		</since>
 		<synopsis>
 			Executes an EAGI compliant application.
 		</synopsis>
@@ -1241,7 +1245,9 @@
 		</see-also>
 	</application>
 	<application name="DeadAGI" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.0.0</version>
+		</since>
 		<synopsis>
 			Executes AGI on a hungup channel.
 		</synopsis>
@@ -1298,7 +1304,9 @@
 	</manager>
 	<managerEvent language="en_US" name="AsyncAGIStart">
 		<managerEventInstance class="EVENT_FLAG_AGI">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when a channel starts AsyncAGI command processing.</synopsis>
 			<syntax>
 				<channel_snapshot/>
@@ -1316,7 +1324,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="AsyncAGIEnd">
 		<managerEventInstance class="EVENT_FLAG_AGI">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when a channel stops AsyncAGI command processing.</synopsis>
 			<syntax>
 				<channel_snapshot/>
@@ -1331,7 +1341,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="AsyncAGIExec">
 		<managerEventInstance class="EVENT_FLAG_AGI">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when AsyncAGI completes an AGI command.</synopsis>
 			<syntax>
 				<channel_snapshot/>
@@ -1352,7 +1364,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="AGIExecStart">
 		<managerEventInstance class="EVENT_FLAG_AGI">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when a received AGI command starts processing.</synopsis>
 			<syntax>
 				<channel_snapshot/>
@@ -1371,7 +1385,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="AGIExecEnd">
 		<managerEventInstance class="EVENT_FLAG_AGI">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when a received AGI command completes processing.</synopsis>
 			<syntax>
 				<channel_snapshot/>

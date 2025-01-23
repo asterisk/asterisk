@@ -39,7 +39,9 @@
 
 /*** DOCUMENTATION
 	<application name="Exec" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.0.0</version>
+		</since>
 		<synopsis>
 			Executes dialplan application.
 		</synopsis>
@@ -59,7 +61,9 @@
 		</description>
 	</application>
 	<application name="TryExec" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.4.0</version>
+		</since>
 		<synopsis>
 			Executes dialplan application, always returning.
 		</synopsis>
@@ -90,7 +94,9 @@
 		</description>
 	</application>
 	<application name="ExecIf" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.2.0</version>
+		</since>
 		<synopsis>
 			Executes dialplan application, conditionally.
 		</synopsis>

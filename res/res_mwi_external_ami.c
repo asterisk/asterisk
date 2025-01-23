@@ -54,7 +54,9 @@
 	</manager>
 	<managerEvent language="en_US" name="MWIGet">
 		<managerEventInstance class="EVENT_FLAG_REPORTING">
-			<since><version>12.1.0</version></since>
+			<since>
+				<version>12.1.0</version>
+			</since>
 			<synopsis>
 				Raised in response to a MWIGet command.
 			</synopsis>
@@ -77,7 +79,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="MWIGetComplete">
 		<managerEventInstance class="EVENT_FLAG_REPORTING">
-			<since><version>12.1.0</version></since>
+			<since>
+				<version>12.1.0</version>
+			</since>
 			<synopsis>
 				Raised in response to a MWIGet command.
 			</synopsis>
