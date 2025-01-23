@@ -44,6 +44,7 @@
 
 /*** DOCUMENTATION
 	<application name="PrivacyManager" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Require phone number to be entered, if no CallerID sent
 		</synopsis>

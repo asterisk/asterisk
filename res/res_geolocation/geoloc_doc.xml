@@ -249,6 +249,7 @@
 		</configFile>
 	</configInfo>
 	<function name="GEOLOC_PROFILE" language="en_US">
+		<since><version>16.28.0</version><version>18.14.0</version><version>19.6.0</version></since>
 		<synopsis>
 			Get or Set a field in a geolocation profile
 		</synopsis>

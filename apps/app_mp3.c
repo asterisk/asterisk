@@ -53,6 +53,7 @@
 
 /*** DOCUMENTATION
 	<application name="MP3Player" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Play an MP3 file or M3U playlist file or stream.
 		</synopsis>

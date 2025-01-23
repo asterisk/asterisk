@@ -305,6 +305,7 @@
 		</configFile>
 	</configInfo>
 	<function name="STIR_SHAKEN" language="en_US">
+		<since><version>16.15.0</version></since>
 		<synopsis>
 			Gets the number of STIR/SHAKEN results or a specific STIR/SHAKEN value from a result on the channel.
 		</synopsis>

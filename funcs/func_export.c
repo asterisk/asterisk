@@ -38,6 +38,7 @@
 
 /*** DOCUMENTATION
 	<function name="EXPORT" language="en_US">
+		<since><version>16.30.0</version><version>18.16.0</version><version>19.8.0</version><version>20.1.0</version></since>
 		<synopsis>
 			Set variables or dialplan functions on any arbitrary channel that exists.
 		</synopsis>

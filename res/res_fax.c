@@ -91,6 +91,7 @@
 
 /*** DOCUMENTATION
 	<application name="ReceiveFAX" language="en_US" module="res_fax">
+		<since><version>11.0.0</version></since>
 		<synopsis>
 			Receive a FAX and save as a TIFF/F file.
 		</synopsis>
@@ -123,6 +124,7 @@
 		</see-also>
 	</application>
 	<application name="SendFAX" language="en_US" module="res_fax">
+		<since><version>11.0.0</version></since>
 		<synopsis>
 			Sends a specified TIFF/F file as a FAX.
 		</synopsis>
@@ -162,6 +164,7 @@
 		</see-also>
 	</application>
 	<function name="FAXOPT" language="en_US" module="res_fax">
+		<since><version>11.0.0</version></since>
 		<synopsis>
 			Gets/sets various pieces of information about a fax session.
 		</synopsis>

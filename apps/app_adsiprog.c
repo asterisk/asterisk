@@ -57,6 +57,7 @@ static const char app[] = "ADSIProg";
 
 /*** DOCUMENTATION
 	<application name="ADSIProg" language="en_US">
+		<since><version>1.6.2.0</version></since>
 		<synopsis>
 			Load Asterisk ADSI Scripts into phone
 		</synopsis>
