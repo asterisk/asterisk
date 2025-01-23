@@ -46,7 +46,9 @@
 
 /*** DOCUMENTATION
 	<application name="TestServer" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.0.0</version>
+		</since>
 		<synopsis>
 			Execute Interface Test Server.
 		</synopsis>
@@ -60,7 +62,9 @@
 		</see-also>
 	</application>
 	<application name="TestClient" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.0.0</version>
+		</since>
 		<synopsis>
 			Execute Interface Test Client.
 		</synopsis>

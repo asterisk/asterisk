@@ -79,7 +79,9 @@
 
 /*** DOCUMENTATION
 	<application name="MusicOnHold" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>0.1.12</version>
+		</since>
 		<synopsis>
 			Play Music On Hold indefinitely.
 		</synopsis>
@@ -98,7 +100,9 @@
 		</description>
 	</application>
 	<application name="StartMusicOnHold" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.2.0</version>
+		</since>
 		<synopsis>
 			Play Music On Hold.
 		</synopsis>
@@ -112,7 +116,9 @@
 		</description>
 	</application>
 	<application name="StopMusicOnHold" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.2.0</version>
+		</since>
 		<synopsis>
 			Stop playing Music On Hold.
 		</synopsis>

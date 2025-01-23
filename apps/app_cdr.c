@@ -39,7 +39,9 @@
 
 /*** DOCUMENTATION
 	<application name="ResetCDR" language="en_US">
-		<since><version>12.0.0</version></since>
+		<since>
+			<version>12.0.0</version>
+		</since>
 		<synopsis>
 			Resets the Call Data Record.
 		</synopsis>

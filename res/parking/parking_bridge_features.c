@@ -46,7 +46,9 @@
 
 /*** DOCUMENTATION
 	<function name="PARK_GET_CHANNEL" language="en_US">
-		<since><version>16.0.0</version></since>
+		<since>
+			<version>16.0.0</version>
+		</since>
 		<synopsis>
 			Get the channel name of an occupied parking space in a parking lot.
 		</synopsis>

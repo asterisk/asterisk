@@ -35,7 +35,9 @@
 
 /*** DOCUMENTATION
 	<function name="BASE64_ENCODE" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.4.0</version>
+		</since>
 		<synopsis>
 			Encode a string in base64.
 		</synopsis>
@@ -54,7 +56,9 @@
 		</see-also>
 	</function>
 	<function name="BASE64_DECODE" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.4.0</version>
+		</since>
 		<synopsis>
 			Decode a base64 string.
 		</synopsis>

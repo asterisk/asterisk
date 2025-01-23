@@ -36,38 +36,65 @@
 		<synopsis>HTTP media cache</synopsis>
 		<configFile name="res_http_media_cache.conf">
 			<configObject name="general">
-				<since><version>18.18.0</version><version>20.3.0</version></since>
+				<since>
+					<version>18.18.0</version>
+					<version>20.3.0</version>
+				</since>
 				<synopsis>General configuration</synopsis>
 				<configOption name="timeout_secs" default="180">
-					<since><version>18.18.0</version><version>20.3.0</version></since>
+					<since>
+						<version>18.18.0</version>
+						<version>20.3.0</version>
+					</since>
 					<synopsis>The maximum time the transfer is allowed to complete in seconds. See https://curl.se/libcurl/c/CURLOPT_TIMEOUT.html for details.</synopsis>
 				</configOption>
 				<configOption name="user_agent">
-					<since><version>18.18.0</version><version>20.3.0</version></since>
+					<since>
+						<version>18.18.0</version>
+						<version>20.3.0</version>
+					</since>
 					<synopsis>The HTTP User-Agent to use for requests. See https://curl.se/libcurl/c/CURLOPT_USERAGENT.html for details.</synopsis>
 				</configOption>
 				<configOption name="follow_location" default="1">
-					<since><version>18.18.0</version><version>20.3.0</version></since>
+					<since>
+						<version>18.18.0</version>
+						<version>20.3.0</version>
+					</since>
 					<synopsis>Follow HTTP 3xx redirects on requests. See https://curl.se/libcurl/c/CURLOPT_FOLLOWLOCATION.html for details.</synopsis>
 				</configOption>
 				<configOption name="max_redirects" default="8">
-					<since><version>18.18.0</version><version>20.3.0</version></since>
+					<since>
+						<version>18.18.0</version>
+						<version>20.3.0</version>
+					</since>
 					<synopsis>The maximum number of redirects to follow. See https://curl.se/libcurl/c/CURLOPT_MAXREDIRS.html for details.</synopsis>
 				</configOption>
 				<configOption name="proxy">
-					<since><version>18.18.0</version><version>20.3.0</version></since>
+					<since>
+						<version>18.18.0</version>
+						<version>20.3.0</version>
+					</since>
 					<synopsis>The proxy to use for requests. See https://curl.se/libcurl/c/CURLOPT_PROXY.html for details.</synopsis>
 				</configOption>
 				<configOption name="protocols">
-					<since><version>18.18.0</version><version>20.3.0</version></since>
+					<since>
+						<version>18.18.0</version>
+						<version>20.3.0</version>
+					</since>
 					<synopsis>The comma separated list of allowed protocols for the request. Available with cURL 7.85.0 or later. See https://curl.se/libcurl/c/CURLOPT_PROTOCOLS_STR.html for details.</synopsis>
 				</configOption>
 				<configOption name="redirect_protocols">
-					<since><version>18.18.0</version><version>20.3.0</version></since>
+					<since>
+						<version>18.18.0</version>
+						<version>20.3.0</version>
+					</since>
 					<synopsis>The comma separated list of allowed protocols for redirects. Available with cURL 7.85.0 or later. See https://curl.se/libcurl/c/CURLOPT_REDIR_PROTOCOLS_STR.html for details.</synopsis>
 				</configOption>
 				<configOption name="dns_cache_timeout_secs" default="60">
-					<since><version>18.18.0</version><version>20.3.0</version></since>
+					<since>
+						<version>18.18.0</version>
+						<version>20.3.0</version>
+					</since>
 					<synopsis>The life-time for DNS cache entries. See https://curl.se/libcurl/c/CURLOPT_DNS_CACHE_TIMEOUT.html for details.</synopsis>
 				</configOption>
 			</configObject>

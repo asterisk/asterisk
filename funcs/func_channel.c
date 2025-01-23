@@ -49,7 +49,9 @@
 
 /*** DOCUMENTATION
 	<function name="CHANNELS" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.6.1.0</version>
+		</since>
 		<synopsis>
 			Gets the list of channels, optionally filtering by a regular expression.
 		</synopsis>
@@ -82,7 +84,9 @@
 		</description>
 	</function>
 	<function name="MASTER_CHANNEL" language="en_US">
-		<since><version>1.8.0</version></since>
+		<since>
+			<version>1.8.0</version>
+		</since>
 		<synopsis>
 			Gets or sets variables on the master channel
 		</synopsis>
@@ -95,7 +99,9 @@
 		</description>
 	</function>
 	<function name="CHANNEL" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.2.0</version>
+		</since>
 		<synopsis>
 			Gets/sets various pieces of information about the channel.
 		</synopsis>

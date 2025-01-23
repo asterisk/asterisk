@@ -41,7 +41,9 @@
 /*** DOCUMENTATION
 	<managerEvent language="en_US" name="AOC-S">
 		<managerEventInstance class="EVENT_FLAG_AOC">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when an Advice of Charge message is sent at the beginning of a call.</synopsis>
 			<syntax>
 				<channel_snapshot/>
@@ -93,7 +95,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="AOC-D">
 		<managerEventInstance class="EVENT_FLAG_AOC">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when an Advice of Charge message is sent during a call.</synopsis>
 			<syntax>
 				<channel_snapshot/>
@@ -152,7 +156,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="AOC-E">
 		<managerEventInstance class="EVENT_FLAG_AOC">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when an Advice of Charge message is sent at the end of a call.</synopsis>
 			<syntax>
 				<channel_snapshot/>

@@ -46,7 +46,9 @@
 /*** DOCUMENTATION
 	<managerEvent language="en_US" name="UserEvent">
 		<managerEventInstance class="EVENT_FLAG_USER">
-			<since><version>12.3.0</version></since>
+			<since>
+				<version>12.3.0</version>
+			</since>
 			<synopsis>A user defined event raised from the dialplan.</synopsis>
 			<syntax>
 				<channel_snapshot/>
@@ -66,26 +68,43 @@
 	<configInfo name="stasis" language="en_US">
 		<configFile name="stasis.conf">
 			<configObject name="threadpool">
-				<since><version>12.8.0</version><version>13.1.0</version></since>
+				<since>
+					<version>12.8.0</version>
+					<version>13.1.0</version>
+				</since>
 				<synopsis>Settings that configure the threadpool Stasis uses to deliver some messages.</synopsis>
 				<configOption name="initial_size" default="5">
-					<since><version>12.8.0</version><version>13.1.0</version></since>
+					<since>
+						<version>12.8.0</version>
+						<version>13.1.0</version>
+					</since>
 					<synopsis>Initial number of threads in the message bus threadpool.</synopsis>
 				</configOption>
 				<configOption name="idle_timeout_sec" default="20">
-					<since><version>12.8.0</version><version>13.1.0</version></since>
+					<since>
+						<version>12.8.0</version>
+						<version>13.1.0</version>
+					</since>
 					<synopsis>Number of seconds before an idle thread is disposed of.</synopsis>
 				</configOption>
 				<configOption name="max_size" default="50">
-					<since><version>12.8.0</version><version>13.1.0</version></since>
+					<since>
+						<version>12.8.0</version>
+						<version>13.1.0</version>
+					</since>
 					<synopsis>Maximum number of threads in the threadpool.</synopsis>
 				</configOption>
 			</configObject>
 			<configObject name="declined_message_types">
-				<since><version>13.0.0</version></since>
+				<since>
+					<version>13.0.0</version>
+				</since>
 				<synopsis>Stasis message types for which to decline creation.</synopsis>
 				<configOption name="decline">
-					<since><version>12.8.0</version><version>13.1.0</version></since>
+					<since>
+						<version>12.8.0</version>
+						<version>13.1.0</version>
+					</since>
 					<synopsis>The message type to decline.</synopsis>
 					<description>
 						<para>This configuration option defines the name of the Stasis

@@ -36,7 +36,9 @@ static struct stasis_message_router *bridge_state_router;
 /*** DOCUMENTATION
 	<managerEvent language="en_US" name="BridgeCreate">
 		<managerEventInstance class="EVENT_FLAG_CALL">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when a bridge is created.</synopsis>
 			<syntax>
 				<bridge_snapshot/>
@@ -50,7 +52,9 @@ static struct stasis_message_router *bridge_state_router;
 	</managerEvent>
 	<managerEvent language="en_US" name="BridgeDestroy">
 		<managerEventInstance class="EVENT_FLAG_CALL">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when a bridge is destroyed.</synopsis>
 			<syntax>
 				<bridge_snapshot/>
@@ -64,7 +68,9 @@ static struct stasis_message_router *bridge_state_router;
 	</managerEvent>
 	<managerEvent language="en_US" name="BridgeEnter">
 		<managerEventInstance class="EVENT_FLAG_CALL">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when a channel enters a bridge.</synopsis>
 			<syntax>
 				<bridge_snapshot/>
@@ -82,7 +88,9 @@ static struct stasis_message_router *bridge_state_router;
 	</managerEvent>
 	<managerEvent language="en_US" name="BridgeLeave">
 		<managerEventInstance class="EVENT_FLAG_CALL">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when a channel leaves a bridge.</synopsis>
 			<syntax>
 				<bridge_snapshot/>
@@ -97,7 +105,10 @@ static struct stasis_message_router *bridge_state_router;
 	</managerEvent>
 	<managerEvent language="en_US" name="BridgeVideoSourceUpdate">
 		<managerEventInstance class="EVENT_FLAG_CALL">
-			<since><version>13.13.0</version><version>14.2.0</version></since>
+			<since>
+				<version>13.13.0</version>
+				<version>14.2.0</version>
+			</since>
 			<synopsis>Raised when the channel that is the source of video in a bridge changes.</synopsis>
 			<syntax>
 				<bridge_snapshot/>
@@ -160,7 +171,9 @@ static struct stasis_message_router *bridge_state_router;
 			<list-elements>
 				<managerEvent language="en_US" name="BridgeInfoChannel">
 					<managerEventInstance class="EVENT_FLAG_COMMAND">
-						<since><version>13.0.0</version></since>
+						<since>
+							<version>13.0.0</version>
+						</since>
 						<synopsis>Information about a channel in a bridge.</synopsis>
 						<syntax>
 							<channel_snapshot/>
@@ -170,7 +183,9 @@ static struct stasis_message_router *bridge_state_router;
 			</list-elements>
 			<managerEvent language="en_US" name="BridgeInfoComplete">
 				<managerEventInstance class="EVENT_FLAG_COMMAND">
-					<since><version>13.0.0</version></since>
+					<since>
+						<version>13.0.0</version>
+					</since>
 					<synopsis>Information about a bridge.</synopsis>
 					<syntax>
 						<bridge_snapshot/>
@@ -397,7 +412,11 @@ static void bridge_merge_cb(void *data, struct stasis_subscription *sub,
 	/*** DOCUMENTATION
 		<managerEvent language="en_US" name="BridgeMerge">
 			<managerEventInstance class="EVENT_FLAG_CALL">
-				<since><version>16.24.0</version><version>18.10.0</version><version>19.2.0</version></since>
+				<since>
+					<version>16.24.0</version>
+					<version>18.10.0</version>
+					<version>19.2.0</version>
+				</since>
 				<synopsis>Raised when two bridges are merged.</synopsis>
 				<syntax>
 					<bridge_snapshot prefix="To"/>
