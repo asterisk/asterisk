@@ -46,7 +46,10 @@
 
 /*** DOCUMENTATION
 	<application name="Broadcast" language="en_US">
-		<since><version>18.17.0</version><version>20.2.0</version></since>
+		<since>
+			<version>18.17.0</version>
+			<version>20.2.0</version>
+		</since>
 		<synopsis>
 			Transmit or receive audio to or from multiple channels simultaneously
 		</synopsis>

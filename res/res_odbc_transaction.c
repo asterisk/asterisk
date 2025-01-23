@@ -32,7 +32,9 @@
 
 /*** DOCUMENTATION
 	<function name="ODBC" language="en_US">
-		<since><version>13.8.0</version></since>
+		<since>
+			<version>13.8.0</version>
+		</since>
 		<synopsis>
 			Controls ODBC transaction properties.
 		</synopsis>
@@ -67,7 +69,9 @@
 		</description>
 	</function>
 	<application name="ODBC_Commit" language="en_US">
-		<since><version>13.8.0</version></since>
+		<since>
+			<version>13.8.0</version>
+		</since>
 		<synopsis>
 			Commits a currently open database transaction.
 		</synopsis>
@@ -80,7 +84,9 @@
 		</description>
 	</application>
 	<application name="ODBC_Rollback" language="en_US">
-		<since><version>13.8.0</version></since>
+		<since>
+			<version>13.8.0</version>
+		</since>
 		<synopsis>
 			Rollback a currently open database transaction.
 		</synopsis>

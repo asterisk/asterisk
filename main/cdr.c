@@ -82,10 +82,14 @@
 		</description>
 		<configFile name="cdr.conf">
 			<configObject name="general">
-				<since><version>12.0.0</version></since>
+				<since>
+					<version>12.0.0</version>
+				</since>
 				<synopsis>Global settings applied to the CDR engine.</synopsis>
 				<configOption name="debug">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Enable/disable verbose CDR debugging.</synopsis>
 					<description><para>When set to <literal>True</literal>, verbose updates
 					of changes in CDR information will be logged. Note that this is only
@@ -93,14 +97,20 @@
 					</description>
 				</configOption>
 				<configOption name="enable" default="yes">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Enable/disable CDR logging.</synopsis>
 					<description><para>Define whether or not to use CDR logging. Setting this to "no" will override
 					any loading of backend CDR modules.</para>
 					</description>
 				</configOption>
 				<configOption name="channeldefaultenabled" default="yes">
-					<since><version>16.24.0</version><version>18.10.0</version><version>19.2.0</version></since>
+					<since>
+						<version>16.24.0</version>
+						<version>18.10.0</version>
+						<version>19.2.0</version>
+					</since>
 					<synopsis>Whether CDR is enabled on a channel by default</synopsis>
 					<description><para>Define whether or not CDR should be enabled on a channel by default.
 					Setting this to "yes" will enable CDR on every channel unless it is explicitly disabled.
@@ -116,7 +126,12 @@
 					</description>
 				</configOption>
 				<configOption name="ignorestatechanges" default="no">
-					<since><version>16.30.0</version><version>18.16.0</version><version>19.8.0</version><version>20.1.0</version></since>
+					<since>
+						<version>16.30.0</version>
+						<version>18.16.0</version>
+						<version>19.8.0</version>
+						<version>20.1.0</version>
+					</since>
 					<synopsis>Whether CDR is updated or forked by bridging changes.</synopsis>
 					<description><para>Define whether or not CDR should be updated by bridging changes.
 					This includes entering and leaving bridges and call parking.</para>
@@ -127,7 +142,12 @@
 					</description>
 				</configOption>
 				<configOption name="ignoredialchanges" default="no">
-					<since><version>16.30.0</version><version>18.16.0</version><version>19.8.0</version><version>20.1.0</version></since>
+					<since>
+						<version>16.30.0</version>
+						<version>18.16.0</version>
+						<version>19.8.0</version>
+						<version>20.1.0</version>
+					</since>
 					<synopsis>Whether CDR is updated or forked by dial updates.</synopsis>
 					<description><para>Define whether or not CDR should be updated by dial updates.</para>
 					<para>If this is set to "no", a single CDR will be used for the channel, even if
@@ -141,7 +161,9 @@
 					</description>
 				</configOption>
 				<configOption name="unanswered">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Log calls that are never answered and don't set an outgoing party.</synopsis>
 					<description><para>
 					Define whether or not to log unanswered calls that don't involve an outgoing party. Setting
@@ -154,14 +176,18 @@
 					</description>
 				</configOption>
 				<configOption name="congestion">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Log congested calls.</synopsis>
 					<description><para>Define whether or not to log congested calls. Setting this to "yes" will
 					report each call that fails to complete due to congestion conditions.</para>
 					</description>
 				</configOption>
 				<configOption name="endbeforehexten">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Don't produce CDRs while executing hangup logic</synopsis>
 					<description>
 						<para>As each CDR for a channel is finished, its end time is updated
@@ -176,7 +202,9 @@
 					</description>
 				</configOption>
 				<configOption name="initiatedseconds">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Count microseconds for billsec purposes</synopsis>
 					<description><para>Normally, the <literal>billsec</literal> field logged to the CDR backends
 					is simply the end time (hangup time) minus the answer time in seconds. Internally,
@@ -188,7 +216,9 @@
 					</description>
 				</configOption>
 				<configOption name="batch">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Submit CDRs to the backends for processing in batches</synopsis>
 					<description><para>Define the CDR batch mode, where instead of posting the CDR at the end of
 					every call, the data will be stored in a buffer to help alleviate load on the
@@ -199,14 +229,19 @@
 					</description>
 				</configOption>
 				<configOption name="size">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>The maximum number of CDRs to accumulate before triggering a batch</synopsis>
 					<description><para>Define the maximum number of CDRs to accumulate in the buffer before posting
 					them to the backend engines. batch must be set to <literal>yes</literal>.</para>
 					</description>
 				</configOption>
 				<configOption name="time">
-					<since><version>13.22.0</version><version>15.5.0</version></since>
+					<since>
+						<version>13.22.0</version>
+						<version>15.5.0</version>
+					</since>
 					<synopsis>The maximum time to accumulate CDRs before triggering a batch</synopsis>
 					<description><para>Define the maximum time to accumulate CDRs before posting them in a batch to the
 					backend engines. If this time limit is reached, then it will post the records, regardless of the value
@@ -215,7 +250,9 @@
 					</description>
 				</configOption>
 				<configOption name="scheduleronly">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Post batched CDRs on their own thread instead of the scheduler</synopsis>
 					<description><para>The CDR engine uses the internal asterisk scheduler to determine when to post
 					records.  Posting can either occur inside the scheduler thread, or a new
@@ -226,7 +263,9 @@
 					</description>
 				</configOption>
 				<configOption name="safeshutdown">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Block shutdown of Asterisk until CDRs are submitted</synopsis>
 					<description><para>When shutting down asterisk, you can block until the CDRs are submitted.  If
 					you don't, then data will likely be lost.  You can always check the size of

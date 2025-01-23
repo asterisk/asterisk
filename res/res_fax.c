@@ -91,7 +91,9 @@
 
 /*** DOCUMENTATION
 	<application name="ReceiveFAX" language="en_US" module="res_fax">
-		<since><version>11.0.0</version></since>
+		<since>
+			<version>11.0.0</version>
+		</since>
 		<synopsis>
 			Receive a FAX and save as a TIFF/F file.
 		</synopsis>
@@ -124,7 +126,9 @@
 		</see-also>
 	</application>
 	<application name="SendFAX" language="en_US" module="res_fax">
-		<since><version>11.0.0</version></since>
+		<since>
+			<version>11.0.0</version>
+		</since>
 		<synopsis>
 			Sends a specified TIFF/F file as a FAX.
 		</synopsis>
@@ -164,7 +168,9 @@
 		</see-also>
 	</application>
 	<function name="FAXOPT" language="en_US" module="res_fax">
-		<since><version>11.0.0</version></since>
+		<since>
+			<version>11.0.0</version>
+		</since>
 		<synopsis>
 			Gets/sets various pieces of information about a fax session.
 		</synopsis>
@@ -261,7 +267,9 @@
 	</manager>
 	<managerEvent language="en_US" name="FAXSessionsEntry">
 		<managerEventInstance class="EVENT_FLAG_REPORTING">
-			<since><version>13.0.0</version></since>
+			<since>
+				<version>13.0.0</version>
+			</since>
 			<synopsis>A single list item for the FAXSessions AMI command</synopsis>
 			<syntax>
 				<parameter name="ActionID" required="false"/>
@@ -312,7 +320,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="FAXSessionsComplete">
 		<managerEventInstance class="EVENT_FLAG_CALL">
-			<since><version>13.0.0</version></since>
+			<since>
+				<version>13.0.0</version>
+			</since>
 			<synopsis>Raised when all FAXSession events are completed for a FAXSessions command</synopsis>
 			<syntax>
 				<parameter name="ActionID" required="false"/>
@@ -344,7 +354,9 @@
 	</manager>
 	<managerEvent language="en_US" name="FAXSession">
 		<managerEventInstance class="EVENT_FLAG_REPORTING">
-			<since><version>13.0.0</version></since>
+			<since>
+				<version>13.0.0</version>
+			</since>
 			<synopsis>Raised in response to FAXSession manager command</synopsis>
 			<syntax>
 				<parameter name="ActionID" required="false"/>
@@ -413,7 +425,9 @@
 	</manager>
 	<managerEvent language="en_US" name="FAXStats">
 		<managerEventInstance class="EVENT_FLAG_REPORTING">
-			<since><version>13.0.0</version></since>
+			<since>
+				<version>13.0.0</version>
+			</since>
 			<synopsis>Raised in response to FAXStats manager command</synopsis>
 			<syntax>
 				<parameter name="ActionID" required="false"/>

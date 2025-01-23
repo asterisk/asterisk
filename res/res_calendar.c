@@ -57,7 +57,9 @@
 
 /*** DOCUMENTATION
 	<function name="CALENDAR_BUSY" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.8.0</version>
+		</since>
 		<synopsis>
 			Determine if the calendar is marked busy at this time.
 		</synopsis>
@@ -75,7 +77,9 @@
 		</see-also>
 	</function>
 	<function name="CALENDAR_EVENT" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.8.0</version>
+		</since>
 		<synopsis>
 			Get calendar event notification data from a notification call.
 		</synopsis>
@@ -108,7 +112,9 @@
 		</see-also>
 	</function>
 	<function name="CALENDAR_QUERY" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.8.0</version>
+		</since>
 		<synopsis>Query a calendar server and store the data on a channel
 		</synopsis>
 		<syntax>
@@ -134,7 +140,9 @@
 		</see-also>
 	</function>
 	<function name="CALENDAR_QUERY_RESULT" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.8.0</version>
+		</since>
 		<synopsis>
 			Retrieve data from a previously run CALENDAR_QUERY() call
 		</synopsis>
@@ -176,7 +184,9 @@
 		</see-also>
 	</function>
 	<function name="CALENDAR_WRITE" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.8.0</version>
+		</since>
 		<synopsis>Write an event to a calendar</synopsis>
 		<syntax>
 			<parameter name="calendar" required="true">

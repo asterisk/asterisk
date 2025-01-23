@@ -126,7 +126,9 @@
 
 /*** DOCUMENTATION
 	<application name="Queue" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>0.2.0</version>
+		</since>
 		<synopsis>
 			Queue a call for a call queue.
 		</synopsis>
@@ -332,7 +334,9 @@
 		</see-also>
 	</application>
 	<application name="AddQueueMember" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>0.5.0</version>
+		</since>
 		<synopsis>
 			Dynamically adds queue members.
 		</synopsis>
@@ -386,7 +390,9 @@
 		</see-also>
 	</application>
 	<application name="RemoveQueueMember" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>0.5.0</version>
+		</since>
 		<synopsis>
 			Dynamically removes queue members.
 		</synopsis>
@@ -427,7 +433,9 @@
 		</see-also>
 	</application>
 	<application name="PauseQueueMember" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.2.0</version>
+		</since>
 		<synopsis>
 			Pauses a queue member.
 		</synopsis>
@@ -475,7 +483,9 @@
 		</see-also>
 	</application>
 	<application name="UnpauseQueueMember" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.2.0</version>
+		</since>
 		<synopsis>
 			Unpauses a queue member.
 		</synopsis>
@@ -520,7 +530,9 @@
 		</see-also>
 	</application>
 	<application name="QueueLog" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.4.0</version>
+		</since>
 		<synopsis>
 			Writes to the queue_log file.
 		</synopsis>
@@ -555,7 +567,9 @@
 		</see-also>
 	</application>
 	<application name="QueueUpdate" language="en_US">
-		<since><version>15.0.0</version></since>
+		<since>
+			<version>15.0.0</version>
+		</since>
 		<synopsis>
 			Writes to the queue_log file for outbound calls and updates Realtime Data.
 			Is used at h extension to be able to have all the parameters.
@@ -576,7 +590,9 @@
 		</description>
 	</application>
 	<function name="QUEUE_VARIABLES" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.6.0</version>
+		</since>
 		<synopsis>
 			Return Queue information in variables.
 		</synopsis>
@@ -632,7 +648,9 @@
 		</see-also>
 	</function>
 	<function name="QUEUE_MEMBER" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.6.0</version>
+		</since>
 		<synopsis>
 			Provides a count of queue members based on the provided criteria, or updates a
 			queue member's settings.
@@ -698,7 +716,9 @@
 		</see-also>
 	</function>
 	<function name="QUEUE_MEMBER_COUNT" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.4.0</version>
+		</since>
 		<synopsis>
 			Count number of members answering a queue.
 		</synopsis>
@@ -727,7 +747,9 @@
 		</see-also>
 	</function>
 	<function name="QUEUE_EXISTS" language="en_US">
-		<since><version>1.8.0</version></since>
+		<since>
+			<version>1.8.0</version>
+		</since>
 		<synopsis>
 			Check if a named queue exists on this server
 		</synopsis>
@@ -755,7 +777,9 @@
 		</see-also>
 	</function>
 	<function name="QUEUE_GET_CHANNEL" language="en_US">
-		<since><version>14.0.0</version></since>
+		<since>
+			<version>14.0.0</version>
+		</since>
 		<synopsis>
 			Return caller at the specified position in a queue.
 		</synopsis>
@@ -784,7 +808,9 @@
 		</see-also>
 	</function>
 	<function name="QUEUE_WAITING_COUNT" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.4.0</version>
+		</since>
 		<synopsis>
 			Count number of calls currently waiting in a queue.
 		</synopsis>
@@ -812,7 +838,9 @@
 		</see-also>
 	</function>
 	<function name="QUEUE_MEMBER_LIST" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.4.0</version>
+		</since>
 		<synopsis>
 			Returns a list of interfaces on a queue.
 		</synopsis>
@@ -840,7 +868,9 @@
 		</see-also>
 	</function>
 	<function name="QUEUE_MEMBER_PENALTY" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.6.0</version>
+		</since>
 		<synopsis>
 			Gets or sets queue members penalty.
 		</synopsis>
@@ -1164,7 +1194,11 @@
 
 	<managerEvent language="en_US" name="QueueParams">
 		<managerEventInstance class="EVENT_FLAG_AGENT">
-			<since><version>16.24.0</version><version>18.10.0</version><version>19.2.0</version></since>
+			<since>
+				<version>16.24.0</version>
+				<version>18.10.0</version>
+				<version>19.2.0</version>
+			</since>
 			<synopsis>Raised in response to the QueueStatus action.</synopsis>
 			<syntax>
 				<parameter name="Max">
@@ -1203,7 +1237,11 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="QueueEntry">
 		<managerEventInstance class="EVENT_FLAG_AGENT">
-			<since><version>16.24.0</version><version>18.10.0</version><version>19.2.0</version></since>
+			<since>
+				<version>16.24.0</version>
+				<version>18.10.0</version>
+				<version>19.2.0</version>
+			</since>
 			<synopsis>Raised in response to the QueueStatus action.</synopsis>
 			<syntax>
 				<parameter name="Queue">
@@ -1245,7 +1283,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="QueueMemberStatus">
 		<managerEventInstance class="EVENT_FLAG_AGENT">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when a Queue member's status has changed.</synopsis>
 			<syntax>
 				<parameter name="Queue">
@@ -1326,7 +1366,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="QueueMemberAdded">
 		<managerEventInstance class="EVENT_FLAG_AGENT">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when a member is added to the queue.</synopsis>
 			<syntax>
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter)" />
@@ -1339,7 +1381,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="QueueMemberRemoved">
 		<managerEventInstance class="EVENT_FLAG_AGENT">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when a member is removed from the queue.</synopsis>
 			<syntax>
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter)" />
@@ -1352,7 +1396,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="QueueMemberPause">
 		<managerEventInstance class="EVENT_FLAG_AGENT">
-			<since><version>12.2.0</version></since>
+			<since>
+				<version>12.2.0</version>
+			</since>
 			<synopsis>Raised when a member is paused/unpaused in the queue.</synopsis>
 			<syntax>
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter)" />
@@ -1365,7 +1411,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="QueueMemberPenalty">
 		<managerEventInstance class="EVENT_FLAG_AGENT">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when a member's penalty is changed.</synopsis>
 			<syntax>
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter)" />
@@ -1377,7 +1425,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="QueueMemberRinginuse">
 		<managerEventInstance class="EVENT_FLAG_AGENT">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when a member's ringinuse setting is changed.</synopsis>
 			<syntax>
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter)" />
@@ -1389,7 +1439,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="QueueCallerJoin">
 		<managerEventInstance class="EVENT_FLAG_AGENT">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when a caller joins a Queue.</synopsis>
 			<syntax>
 				<channel_snapshot/>
@@ -1409,7 +1461,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="QueueCallerLeave">
 		<managerEventInstance class="EVENT_FLAG_AGENT">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when a caller leaves a Queue.</synopsis>
 			<syntax>
 				<channel_snapshot/>
@@ -1424,7 +1478,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="QueueCallerAbandon">
 		<managerEventInstance class="EVENT_FLAG_AGENT">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when a caller abandons the queue.</synopsis>
 			<syntax>
 				<channel_snapshot/>
@@ -1441,7 +1497,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="AgentCalled">
 		<managerEventInstance class="EVENT_FLAG_AGENT">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when an queue member is notified of a caller in the queue.</synopsis>
 			<syntax>
 				<channel_snapshot/>
@@ -1459,7 +1517,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="AgentRingNoAnswer">
 		<managerEventInstance class="EVENT_FLAG_AGENT">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when a queue member is notified of a caller in the queue and fails to answer.</synopsis>
 			<syntax>
 				<channel_snapshot/>
@@ -1478,7 +1538,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="AgentComplete">
 		<managerEventInstance class="EVENT_FLAG_AGENT">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when a queue member has finished servicing a caller in the queue.</synopsis>
 			<syntax>
 				<channel_snapshot/>
@@ -1506,7 +1568,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="AgentDump">
 		<managerEventInstance class="EVENT_FLAG_AGENT">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when a queue member hangs up on a caller in the queue.</synopsis>
 			<syntax>
 				<channel_snapshot/>
@@ -1523,7 +1587,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="AgentConnect">
 		<managerEventInstance class="EVENT_FLAG_AGENT">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when a queue member answers and is bridged to a caller in the queue.</synopsis>
 			<syntax>
 				<channel_snapshot/>

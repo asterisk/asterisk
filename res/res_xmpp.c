@@ -64,7 +64,9 @@
 
 /*** DOCUMENTATION
 	<application name="JabberSend" language="en_US" module="res_xmpp">
-		<since><version>12.0.0</version></since>
+		<since>
+			<version>12.0.0</version>
+		</since>
 		<synopsis>
 			Sends an XMPP message to a buddy.
 		</synopsis>
@@ -98,7 +100,9 @@
 		</see-also>
 	</application>
 	<function name="JABBER_RECEIVE" language="en_US" module="res_xmpp">
-		<since><version>12.0.0</version></since>
+		<since>
+			<version>12.0.0</version>
+		</since>
 		<synopsis>
 			Reads XMPP messages.
 		</synopsis>
@@ -131,7 +135,9 @@
 		</see-also>
 	</function>
 	<function name="JABBER_STATUS" language="en_US" module="res_xmpp">
-		<since><version>12.0.0</version></since>
+		<since>
+			<version>12.0.0</version>
+		</since>
 		<synopsis>
 			Retrieves a buddy's status.
 		</synopsis>
@@ -179,7 +185,9 @@
 		</see-also>
 	</function>
 	<application name="JabberSendGroup" language="en_US" module="res_xmpp">
-		<since><version>12.0.0</version></since>
+		<since>
+			<version>12.0.0</version>
+		</since>
 		<synopsis>
 			Send a Jabber Message to a specified chat room
 		</synopsis>
@@ -203,7 +211,9 @@
 		</description>
 	</application>
 	<application name="JabberJoin" language="en_US" module="res_xmpp">
-		<since><version>12.0.0</version></since>
+		<since>
+			<version>12.0.0</version>
+		</since>
 		<synopsis>
 			Join a chat room
 		</synopsis>
@@ -224,7 +234,9 @@
 		</description>
 	</application>
 	<application name="JabberLeave" language="en_US" module="res_xmpp">
-		<since><version>12.0.0</version></since>
+		<since>
+			<version>12.0.0</version>
+		</since>
 		<synopsis>
 			Leave a chat room
 		</synopsis>
@@ -282,14 +294,20 @@
 		<synopsis>XMPP Messaging</synopsis>
 		<configFile name="xmpp.conf">
 			<configObject name="global">
-				<since><version>12.0.0</version></since>
+				<since>
+					<version>12.0.0</version>
+				</since>
 				<synopsis>Global configuration settings</synopsis>
 				<configOption name="debug">
-					<since><version>11.0.0</version></since>
+					<since>
+						<version>11.0.0</version>
+					</since>
 					<synopsis>Enable/disable XMPP message debugging</synopsis>
 				</configOption>
 				<configOption name="autoprune">
-					<since><version>11.0.0</version></since>
+					<since>
+						<version>11.0.0</version>
+					</since>
 					<synopsis>Auto-remove users from buddy list.</synopsis>
 					<description><para>Auto-remove users from buddy list. Depending on the setup
 					(e.g., using your personal Gtalk account for a test) this could cause loss of
@@ -297,71 +315,111 @@
 					</para></description>
 				</configOption>
 				<configOption name="autoregister">
-					<since><version>11.0.0</version></since>
+					<since>
+						<version>11.0.0</version>
+					</since>
 					<synopsis>Auto-register users from buddy list</synopsis>
 				</configOption>
 				<configOption name="collection_nodes">
-					<since><version>11.0.0</version></since>
+					<since>
+						<version>11.0.0</version>
+					</since>
 					<synopsis>Enable support for XEP-0248 for use with distributed device state</synopsis>
 				</configOption>
 				<configOption name="pubsub_autocreate">
-					<since><version>11.0.0</version></since>
+					<since>
+						<version>11.0.0</version>
+					</since>
 					<synopsis>Whether or not the PubSub server supports/is using auto-create for nodes</synopsis>
 				</configOption>
 				<configOption name="auth_policy">
-					<since><version>11.0.0</version></since>
+					<since>
+						<version>11.0.0</version>
+					</since>
 					<synopsis>Whether to automatically accept or deny users' subscription requests</synopsis>
 				</configOption>
 			</configObject>
 			<configObject name="client">
-				<since><version>12.0.0</version></since>
+				<since>
+					<version>12.0.0</version>
+				</since>
 				<synopsis>Configuration options for an XMPP client</synopsis>
 				<configOption name="username">
-					<since><version>11.0.0</version></since>
+					<since>
+						<version>11.0.0</version>
+					</since>
 					<synopsis>XMPP username with optional resource</synopsis>
 				</configOption>
 				<configOption name="secret">
-					<since><version>11.0.0</version></since>
+					<since>
+						<version>11.0.0</version>
+					</since>
 					<synopsis>XMPP password</synopsis>
 				</configOption>
 				<configOption name="refresh_token">
-					<since><version>13.18.0</version><version>14.7.0</version><version>15.1.0</version></since>
+					<since>
+						<version>13.18.0</version>
+						<version>14.7.0</version>
+						<version>15.1.0</version>
+					</since>
 					<synopsis>Google OAuth 2.0 refresh token</synopsis>
 				</configOption>
 				<configOption name="oauth_clientid">
-					<since><version>13.18.0</version><version>14.7.0</version><version>15.1.0</version></since>
+					<since>
+						<version>13.18.0</version>
+						<version>14.7.0</version>
+						<version>15.1.0</version>
+					</since>
 					<synopsis>Google OAuth 2.0 application's client id</synopsis>
 				</configOption>
 				<configOption name="oauth_secret">
-					<since><version>13.18.0</version><version>14.7.0</version><version>15.1.0</version></since>
+					<since>
+						<version>13.18.0</version>
+						<version>14.7.0</version>
+						<version>15.1.0</version>
+					</since>
 					<synopsis>Google OAuth 2.0 application's secret</synopsis>
 				</configOption>
 				<configOption name="serverhost">
-					<since><version>11.0.0</version></since>
+					<since>
+						<version>11.0.0</version>
+					</since>
 					<synopsis>Route to server, e.g. talk.google.com</synopsis>
 				</configOption>
 				<configOption name="statusmessage">
-					<since><version>11.0.0</version></since>
+					<since>
+						<version>11.0.0</version>
+					</since>
 					<synopsis>Custom status message</synopsis>
 				</configOption>
 				<configOption name="pubsub_node">
-					<since><version>11.0.0</version></since>
+					<since>
+						<version>11.0.0</version>
+					</since>
 					<synopsis>Node for publishing events via PubSub</synopsis>
 				</configOption>
 				<configOption name="context">
-					<since><version>11.0.0</version></since>
+					<since>
+						<version>11.0.0</version>
+					</since>
 					<synopsis>Dialplan context to send incoming messages to</synopsis>
 				</configOption>
 				<configOption name="priority">
-					<since><version>11.0.0</version></since>
+					<since>
+						<version>11.0.0</version>
+					</since>
 					<synopsis>XMPP resource priority</synopsis>
 				</configOption>
 				<configOption name="port">
-					<since><version>11.0.0</version></since>
+					<since>
+						<version>11.0.0</version>
+					</since>
 					<synopsis>XMPP server port</synopsis>
 				</configOption>
 				<configOption name="timeout">
-					<since><version>11.0.0</version></since>
+					<since>
+						<version>11.0.0</version>
+					</since>
 					<synopsis>Timeout in seconds to hold incoming messages</synopsis>
 					<description><para>Timeout (in seconds) on the message stack. Messages stored longer
 					than this value will be deleted by Asterisk. This option applies to incoming messages only
@@ -369,35 +427,52 @@
 					</para></description>
 				</configOption>
 				<configOption name="debug">
-					<since><version>11.0.0</version></since>
+					<since>
+						<version>11.0.0</version>
+					</since>
 					<synopsis>Enable debugging</synopsis>
 				</configOption>
 				<configOption name="type">
-					<since><version>11.0.0</version></since>
+					<since>
+						<version>11.0.0</version>
+					</since>
 					<synopsis>Connection is either a client or a component</synopsis>
 				</configOption>
 				<configOption name="distribute_events">
-					<since><version>11.0.0</version></since>
+					<since>
+						<version>11.0.0</version>
+					</since>
 					<synopsis>Whether or not to distribute events using this connection</synopsis>
 				</configOption>
 				<configOption name="usetls">
-					<since><version>11.0.0</version></since>
+					<since>
+						<version>11.0.0</version>
+					</since>
 					<synopsis>Whether to use TLS for the connection or not</synopsis>
 				</configOption>
 				<configOption name="usesasl">
-					<since><version>11.0.0</version></since>
+					<since>
+						<version>11.0.0</version>
+					</since>
 					<synopsis>Whether to use SASL for the connection or not</synopsis>
 				</configOption>
 				<configOption name="forceoldssl">
-					<since><version>11.0.0</version></since>
+					<since>
+						<version>11.0.0</version>
+					</since>
 					<synopsis>Force the use of old-style SSL for the connection</synopsis>
 				</configOption>
 				<configOption name="keepalive">
-					<since><version>11.0.0</version></since>
+					<since>
+						<version>11.0.0</version>
+					</since>
 					<synopsis>If enabled, periodically send an XMPP message from this client with an empty message</synopsis>
 				</configOption>
 				<configOption name="autoprune">
-					<since><version>11.18.0</version><version>13.4.0</version></since>
+					<since>
+						<version>11.18.0</version>
+						<version>13.4.0</version>
+					</since>
 					<synopsis>Auto-remove users from buddy list.</synopsis>
 					<description><para>Auto-remove users from buddy list. Depending on the setup
 					(e.g., using your personal Gtalk account for a test) this could cause loss of
@@ -405,19 +480,29 @@
 					</para></description>
 				</configOption>
 				<configOption name="autoregister">
-					<since><version>11.18.0</version><version>13.4.0</version></since>
+					<since>
+						<version>11.18.0</version>
+						<version>13.4.0</version>
+					</since>
 					<synopsis>Auto-register users bfrom buddy list</synopsis>
 				</configOption>
 				<configOption name="auth_policy">
-					<since><version>11.18.0</version><version>13.4.0</version></since>
+					<since>
+						<version>11.18.0</version>
+						<version>13.4.0</version>
+					</since>
 					<synopsis>Whether to automatically accept or deny users' subscription requests</synopsis>
 				</configOption>
 				<configOption name="sendtodialplan">
-					<since><version>11.0.0</version></since>
+					<since>
+						<version>11.0.0</version>
+					</since>
 					<synopsis>Send incoming messages into the dialplan</synopsis>
 				</configOption>
 				<configOption name="status">
-					<since><version>11.0.0</version></since>
+					<since>
+						<version>11.0.0</version>
+					</since>
 					<synopsis>Default XMPP status for the client</synopsis>
 					<description><para>Can be one of the following XMPP statuses:</para>
 						<enumlist>
@@ -430,7 +515,9 @@
 					</description>
 				</configOption>
 				<configOption name="buddy">
-					<since><version>11.0.0</version></since>
+					<since>
+						<version>11.0.0</version>
+					</since>
 					<synopsis>Manual addition of buddy to list</synopsis>
 					<description><para>
 					Manual addition of buddy to the buddy list. For distributed events, these buddies are

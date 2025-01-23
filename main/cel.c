@@ -63,25 +63,35 @@
 	<configInfo name="cel" language="en_US">
 		<configFile name="cel.conf">
 			<configObject name="general">
-				<since><version>12.0.0</version></since>
+				<since>
+					<version>12.0.0</version>
+				</since>
 				<synopsis>Options that apply globally to Channel Event Logging (CEL)</synopsis>
 				<configOption name="enable">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Determines whether CEL is enabled</synopsis>
 				</configOption>
 				<configOption name="dateformat">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>The format to be used for dates when logging</synopsis>
 				</configOption>
 				<configOption name="apps">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>List of apps for CEL to track</synopsis>
 					<description><para>A case-insensitive, comma-separated list of applications
 					to track when one or both of APP_START and APP_END events are flagged for
 					tracking</para></description>
 				</configOption>
 				<configOption name="events">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>List of events for CEL to track</synopsis>
 					<description><para>A case-sensitive, comma-separated list of event names
 					to track. These event names do not include the leading <literal>AST_CEL</literal>.

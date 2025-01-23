@@ -41,7 +41,9 @@
 
 /*** DOCUMENTATION
 	<application name="GetCPEID" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>0.1.12</version>
+		</since>
 		<synopsis>
 			Get ADSI CPE ID.
 		</synopsis>
