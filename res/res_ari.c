@@ -82,10 +82,14 @@
 		<synopsis>HTTP binding for the Stasis API</synopsis>
 		<configFile name="ari.conf">
 			<configObject name="general">
-				<since><version>12.0.0</version></since>
+				<since>
+					<version>12.0.0</version>
+				</since>
 				<synopsis>General configuration settings</synopsis>
 				<configOption name="enabled">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Enable/disable the ARI module</synopsis>
 					<description>
 						<para>This option enables or disables the ARI module.</para>
@@ -99,7 +103,10 @@
 					</see-also>
 				</configOption>
 				<configOption name="websocket_write_timeout" default="100">
-					<since><version>11.11.0</version><version>12.4.0</version></since>
+					<since>
+						<version>11.11.0</version>
+						<version>12.4.0</version>
+					</since>
 					<synopsis>The timeout (in milliseconds) to set on WebSocket connections.</synopsis>
 					<description>
 						<para>If a websocket connection accepts input slowly, the timeout
@@ -108,28 +115,42 @@
 					</description>
 				</configOption>
 				<configOption name="pretty">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Responses from ARI are formatted to be human readable</synopsis>
 				</configOption>
 				<configOption name="auth_realm">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Realm to use for authentication. Defaults to Asterisk REST Interface.</synopsis>
 				</configOption>
 				<configOption name="allowed_origins">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Comma separated list of allowed origins, for Cross-Origin Resource Sharing. May be set to * to allow all origins.</synopsis>
 				</configOption>
 				<configOption name="channelvars">
-					<since><version>14.2.0</version></since>
+					<since>
+						<version>14.2.0</version>
+					</since>
 					<synopsis>Comma separated list of channel variables to display in channel json.</synopsis>
 				</configOption>
 			</configObject>
 
 			<configObject name="user">
-				<since><version>12.0.0</version></since>
+				<since>
+					<version>12.0.0</version>
+				</since>
 				<synopsis>Per-user configuration settings</synopsis>
 				<configOption name="type">
-					<since><version>13.30.0</version><version>16.7.0</version><version>17.1.0</version></since>
+					<since>
+						<version>13.30.0</version>
+						<version>16.7.0</version>
+						<version>17.1.0</version>
+					</since>
 					<synopsis>Define this configuration section as a user.</synopsis>
 					<description>
 						<enumlist>
@@ -138,15 +159,25 @@
 					</description>
 				</configOption>
 				<configOption name="read_only">
-					<since><version>13.30.0</version><version>16.7.0</version><version>17.1.0</version></since>
+					<since>
+						<version>13.30.0</version>
+						<version>16.7.0</version>
+						<version>17.1.0</version>
+					</since>
 					<synopsis>When set to yes, user is only authorized for read-only requests</synopsis>
 				</configOption>
 				<configOption name="password">
-					<since><version>13.30.0</version><version>16.7.0</version><version>17.1.0</version></since>
+					<since>
+						<version>13.30.0</version>
+						<version>16.7.0</version>
+						<version>17.1.0</version>
+					</since>
 					<synopsis>Crypted or plaintext password (see password_format)</synopsis>
 				</configOption>
 				<configOption name="password_format">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>password_format may be set to plain (the default) or crypt. When set to crypt, crypt(3) is used to validate the password. A crypted password can be generated using mkpasswd -m sha-512. When set to plain, the password is in plaintext</synopsis>
 				</configOption>
 			</configObject>

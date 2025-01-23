@@ -40,7 +40,9 @@
 
 /*** DOCUMENTATION
 	<application name="System" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>0.1.2</version>
+		</since>
 		<synopsis>
 			Execute a system command.
 		</synopsis>
@@ -71,7 +73,9 @@
 		</description>
 	</application>
 	<application name="TrySystem" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.0.0</version>
+		</since>
 		<synopsis>
 			Try executing a system command.
 		</synopsis>

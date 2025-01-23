@@ -49,7 +49,9 @@
 
 /*** DOCUMENTATION
 	<function name="MUTEAUDIO" language="en_US">
-		<since><version>1.8.0</version></since>
+		<since>
+			<version>1.8.0</version>
+		</since>
 		<synopsis>
 			Muting audio streams in the channel
 		</synopsis>

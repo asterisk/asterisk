@@ -5,19 +5,31 @@
 		<synopsis>Core Geolocation Support</synopsis>
 		<configFile name="geolocation.conf">
 			<configObject name="location">
-				<since><version>16.29.0</version><version>18.15.0</version><version>19.7.0</version></since>
+				<since>
+					<version>16.29.0</version>
+					<version>18.15.0</version>
+					<version>19.7.0</version>
+				</since>
 				<synopsis>Location</synopsis>
 				<description>
 					<para>Parameters for defining a Location object</para>
 				</description>
 
 				<configOption name="type">
-					<since><version>16.28.0</version><version>18.14.0</version><version>19.6.0</version></since>
+					<since>
+						<version>16.28.0</version>
+						<version>18.14.0</version>
+						<version>19.6.0</version>
+					</since>
 					<synopsis>Must be of type 'location'.</synopsis>
 				</configOption>
 
 				<configOption name="format" default="none">
-					<since><version>16.28.0</version><version>18.14.0</version><version>19.6.0</version></since>
+					<since>
+						<version>16.28.0</version>
+						<version>18.14.0</version>
+						<version>19.6.0</version>
+					</since>
 					<synopsis>Location specification type</synopsis>
 					<description>
 						<enumlist>
@@ -49,7 +61,11 @@
 				</configOption>
 
 				<configOption name="location_info" default="none">
-					<since><version>16.28.0</version><version>18.14.0</version><version>19.6.0</version></since>
+					<since>
+						<version>16.28.0</version>
+						<version>18.14.0</version>
+						<version>19.6.0</version>
+					</since>
 					<synopsis>Location information</synopsis>
 					<description>
 						<para>The contents of this parameter are specific to the
@@ -77,7 +93,11 @@
 				</configOption>
 
 				<configOption name="location_source" default="none">
-					<since><version>16.28.0</version><version>18.14.0</version><version>19.6.0</version></since>
+					<since>
+						<version>16.28.0</version>
+						<version>18.14.0</version>
+						<version>19.6.0</version>
+					</since>
 					<synopsis>Fully qualified host name</synopsis>
 					<description>
 						<para>This parameter isn't required but if provided, RFC8787 says it MUST be a fully
@@ -88,7 +108,11 @@
 				</configOption>
 
 				<configOption name="method" default="none">
-					<since><version>16.28.0</version><version>18.14.0</version><version>19.6.0</version></since>
+					<since>
+						<version>16.28.0</version>
+						<version>18.14.0</version>
+						<version>19.6.0</version>
+					</since>
 					<synopsis>Location determination method</synopsis>
 					<description>
 						<para>This is a rarely used field in the specification that would
@@ -107,7 +131,11 @@
 				</configOption>
 
 				<configOption name="confidence" default="none">
-					<since><version>16.28.0</version><version>18.14.0</version><version>19.6.0</version></since>
+					<since>
+						<version>16.28.0</version>
+						<version>18.14.0</version>
+						<version>19.6.0</version>
+					</since>
 					<synopsis>Level of confidence</synopsis>
 					<description>
 						<para>This is a rarely used field in the specification that would
@@ -138,18 +166,30 @@
 			</configObject>
 
 			<configObject name="profile">
-				<since><version>16.29.0</version><version>18.15.0</version><version>19.7.0</version></since>
+				<since>
+					<version>16.29.0</version>
+					<version>18.15.0</version>
+					<version>19.7.0</version>
+				</since>
 				<synopsis>Profile</synopsis>
 				<description>
 					<para>Parameters for defining a Profile object</para>
 				</description>
 				<configOption name="type">
-					<since><version>16.28.0</version><version>18.14.0</version><version>19.6.0</version></since>
+					<since>
+						<version>16.28.0</version>
+						<version>18.14.0</version>
+						<version>19.6.0</version>
+					</since>
 					<synopsis>Must be of type 'profile'.</synopsis>
 				</configOption>
 
 				<configOption name="pidf_element" default="device">
-					<since><version>16.28.0</version><version>18.14.0</version><version>19.6.0</version></since>
+					<since>
+						<version>16.28.0</version>
+						<version>18.14.0</version>
+						<version>19.6.0</version>
+					</since>
 					<synopsis>PIDF-LO element to place this profile in</synopsis>
 					<description>
 						<enumlist>
@@ -168,21 +208,37 @@
 				</configOption>
 
 				<configOption name="location_reference" default="none">
-					<since><version>16.28.0</version><version>18.14.0</version><version>19.6.0</version></since>
+					<since>
+						<version>16.28.0</version>
+						<version>18.14.0</version>
+						<version>19.6.0</version>
+					</since>
 					<synopsis>Reference to a location object</synopsis>
 				</configOption>
 
 				<configOption name="location_info_refinement" default="none">
-					<since><version>16.28.0</version><version>18.14.0</version><version>19.6.0</version></since>
+					<since>
+						<version>16.28.0</version>
+						<version>18.14.0</version>
+						<version>19.6.0</version>
+					</since>
 					<synopsis>Reference to a location object</synopsis>
 				</configOption>
 				<configOption name="location_variables" default="none">
-					<since><version>16.28.0</version><version>18.14.0</version><version>19.6.0</version></since>
+					<since>
+						<version>16.28.0</version>
+						<version>18.14.0</version>
+						<version>19.6.0</version>
+					</since>
 					<synopsis>Reference to a location object</synopsis>
 				</configOption>
 
 				<configOption name="usage_rules" default="empty &lt;usage_rules&gt; element">
-					<since><version>16.28.0</version><version>18.14.0</version><version>19.6.0</version></since>
+					<since>
+						<version>16.28.0</version>
+						<version>18.14.0</version>
+						<version>19.6.0</version>
+					</since>
 					<synopsis>location specification type</synopsis>
 					<description>
 						<para>xxxx</para>
@@ -190,7 +246,11 @@
 				</configOption>
 
 				<configOption name="notes" default="">
-					<since><version>16.28.0</version><version>18.14.0</version><version>19.6.0</version></since>
+					<since>
+						<version>16.28.0</version>
+						<version>18.14.0</version>
+						<version>19.6.0</version>
+					</since>
 					<synopsis>Notes to be added to the outgoing PIDF-LO document</synopsis>
 					<description>
 						<para>The specification of this parameter will cause a
@@ -201,18 +261,30 @@
 
 				</configOption>
 				<configOption name="allow_routing_use" default="no">
-					<since><version>16.28.0</version><version>18.14.0</version><version>19.6.0</version></since>
+					<since>
+						<version>16.28.0</version>
+						<version>18.14.0</version>
+						<version>19.6.0</version>
+					</since>
 					<synopsis>Sets the value of the Geolocation-Routing header.</synopsis>
 				</configOption>
 
 				<configOption name="suppress_empty_ca_elements" default="no">
-					<since><version>16.29.0</version><version>18.15.0</version><version>19.7.0</version></since>
+					<since>
+						<version>16.29.0</version>
+						<version>18.15.0</version>
+						<version>19.7.0</version>
+					</since>
 					<synopsis>Sets if empty Civic Address elements should be suppressed
 					from the PIDF-LO document.</synopsis>
 				</configOption>
 
 				<configOption name="profile_precedence" default="discard_incoming">
-					<since><version>16.28.0</version><version>18.14.0</version><version>19.6.0</version></since>
+					<since>
+						<version>16.28.0</version>
+						<version>18.14.0</version>
+						<version>19.6.0</version>
+					</since>
 					<synopsis>Determine which profile on a channel should be used</synopsis>
 					<description>
 						<enumlist>
@@ -249,7 +321,11 @@
 		</configFile>
 	</configInfo>
 	<function name="GEOLOC_PROFILE" language="en_US">
-		<since><version>16.28.0</version><version>18.14.0</version><version>19.6.0</version></since>
+		<since>
+			<version>16.28.0</version>
+			<version>18.14.0</version>
+			<version>19.6.0</version>
+		</since>
 		<synopsis>
 			Get or Set a field in a geolocation profile
 		</synopsis>

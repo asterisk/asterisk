@@ -39,7 +39,9 @@
 
 /*** DOCUMENTATION
 	<application name="Park" language="en_US">
-		<since><version>12.0.0</version></since>
+		<since>
+			<version>12.0.0</version>
+		</since>
 		<synopsis>
 			Park yourself.
 		</synopsis>
@@ -137,7 +139,9 @@
 	</application>
 
 	<application name="ParkedCall" language="en_US">
-		<since><version>12.0.0</version></since>
+		<since>
+			<version>12.0.0</version>
+		</since>
 		<synopsis>
 			Retrieve a parked call.
 		</synopsis>
@@ -173,7 +177,9 @@
 	</application>
 
 	<application name="ParkAndAnnounce" language="en_US">
-		<since><version>12.0.0</version></since>
+		<since>
+			<version>12.0.0</version>
+		</since>
 		<synopsis>
 			Park and Announce.
 		</synopsis>

@@ -48,7 +48,9 @@
 
 /*** DOCUMENTATION
 	<function name="ODBC_FETCH" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.6.0</version>
+		</since>
 		<synopsis>
 			Fetch a row from a multirow query.
 		</synopsis>
@@ -73,7 +75,9 @@
 		</description>
 	</function>
 	<application name="ODBCFinish" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.6.0</version>
+		</since>
 		<synopsis>
 			Clear the resultset of a sucessful multirow query.
 		</synopsis>
@@ -86,7 +90,9 @@
 		</description>
 	</application>
 	<function name="SQL_ESC" language="en_US">
-		<since><version>1.6.2.0</version></since>
+		<since>
+			<version>1.4.0</version>
+		</since>
 		<synopsis>
 			Escapes single ticks for use in SQL statements.
 		</synopsis>
@@ -102,7 +108,11 @@
 		</description>
 	</function>
 	<function name="SQL_ESC_BACKSLASHES" language="en_US">
-		<since><version>16.26.0</version><version>18.12.0</version><version>19.4.0</version></since>
+		<since>
+			<version>16.26.0</version>
+			<version>18.12.0</version>
+			<version>19.4.0</version>
+		</since>
 		<synopsis>
 			Escapes backslashes for use in SQL statements.
 		</synopsis>

@@ -39,7 +39,10 @@
 
 /*** DOCUMENTATION
 	<application name="BlindTransfer" language="en_US">
-		<since><version>13.28.0</version><version>16.5.0</version></since>
+		<since>
+			<version>13.28.0</version>
+			<version>16.5.0</version>
+		</since>
 		<synopsis>
 			Blind transfer channel(s) to the extension and context provided
 		</synopsis>

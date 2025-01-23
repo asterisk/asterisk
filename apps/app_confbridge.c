@@ -76,7 +76,9 @@
 
 /*** DOCUMENTATION
 	<application name="ConfBridge" language="en_US">
-		<since><version>12.0.0</version></since>
+		<since>
+			<version>12.0.0</version>
+		</since>
 		<synopsis>
 			Conference bridge application.
 		</synopsis>
@@ -169,7 +171,9 @@
 		</see-also>
 	</application>
 	<function name="CONFBRIDGE" language="en_US">
-		<since><version>10.0.0</version></since>
+		<since>
+			<version>10.0.0</version>
+		</since>
 		<synopsis>
 			Set a custom dynamic bridge, user, or menu profile on a channel for the
 			ConfBridge application using the same options available in confbridge.conf.
@@ -225,7 +229,9 @@
 		</description>
 	</function>
 	<function name="CONFBRIDGE_INFO" language="en_US">
-		<since><version>10.0.0</version></since>
+		<since>
+			<version>10.0.0</version>
+		</since>
 		<synopsis>
 			Get information about a ConfBridge conference.
 		</synopsis>
@@ -324,7 +330,10 @@
 	</manager>
 	<managerEvent language="en_US" name="ConfbridgeList">
 		<managerEventInstance class="EVENT_FLAG_REPORTING">
-			<since><version>13.20.0</version><version>15.3.0</version></since>
+			<since>
+				<version>13.20.0</version>
+				<version>15.3.0</version>
+			</since>
 			<synopsis>Raised as part of the ConfbridgeList action response list.</synopsis>
 			<syntax>
 				<parameter name="Conference">
@@ -404,7 +413,11 @@
 	</manager>
 	<managerEvent language="en_US" name="ConfbridgeListRooms">
 		<managerEventInstance class="EVENT_FLAG_REPORTING">
-			<since><version>16.29.0</version><version>18.15.0</version><version>19.7.0</version></since>
+			<since>
+				<version>16.29.0</version>
+				<version>18.15.0</version>
+				<version>19.7.0</version>
+			</since>
 			<synopsis>Raised as part of the ConfbridgeListRooms action response list.</synopsis>
 			<syntax>
 				<parameter name="Conference">

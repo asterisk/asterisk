@@ -6,7 +6,9 @@
 		<synopsis>SIP Resource using PJProject</synopsis>
 		<configFile name="pjsip.conf">
 			<configObject name="endpoint">
-				<since><version>12.0.0</version></since>
+				<since>
+					<version>12.0.0</version>
+				</since>
 				<synopsis>Endpoint</synopsis>
 				<description><para>
 					The <emphasis>Endpoint</emphasis> is the primary configuration object.
@@ -30,7 +32,9 @@
 					</para>
 				</description>
 				<configOption name="100rel" default="yes">
-					<since><version>12.2.0</version></since>
+					<since>
+						<version>12.2.0</version>
+					</since>
 					<synopsis>Allow support for RFC3262 provisional ACK tags</synopsis>
 					<description>
 						<enumlist>
@@ -65,18 +69,24 @@
 					</description>
 				</configOption>
 				<configOption name="aggregate_mwi" default="yes">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Condense MWI notifications into a single NOTIFY.</synopsis>
 					<description><para>When enabled, <replaceable>aggregate_mwi</replaceable> condenses message
 					waiting notifications from multiple mailboxes into a single NOTIFY. If it is disabled,
 					individual NOTIFYs are sent for each mailbox.</para></description>
 				</configOption>
 				<configOption name="allow">
-					<since><version>13.0.0</version></since>
+					<since>
+						<version>13.0.0</version>
+					</since>
 					<synopsis>Media Codec(s) to allow</synopsis>
 				</configOption>
 				<configOption name="codec_prefs_incoming_offer">
-					<since><version>18.0.0</version></since>
+					<since>
+						<version>18.0.0</version>
+					</since>
 					<synopsis>Codec negotiation prefs for incoming offers.</synopsis>
 					<description>
 						<para>
@@ -138,7 +148,9 @@
 					</description>
 				</configOption>
 				<configOption name="codec_prefs_outgoing_offer">
-					<since><version>18.0.0</version></since>
+					<since>
+						<version>18.0.0</version>
+					</since>
 					<synopsis>Codec negotiation prefs for outgoing offers.</synopsis>
 					<description>
 						<para>
@@ -201,7 +213,9 @@
 					</description>
 				</configOption>
 				<configOption name="codec_prefs_incoming_answer">
-					<since><version>18.0.0</version></since>
+					<since>
+						<version>18.0.0</version>
+					</since>
 					<synopsis>Codec negotiation prefs for incoming answers.</synopsis>
 					<description>
 						<para>
@@ -260,7 +274,9 @@
 					</description>
 				</configOption>
 				<configOption name="codec_prefs_outgoing_answer">
-					<since><version>18.0.0</version></since>
+					<since>
+						<version>18.0.0</version>
+					</since>
 					<synopsis>Codec negotiation prefs for outgoing answers.</synopsis>
 					<description>
 						<para>
@@ -319,11 +335,17 @@
 					</description>
 				</configOption>
 				<configOption name="allow_overlap" default="yes">
-					<since><version>13.15.0</version><version>14.4.0</version></since>
+					<since>
+						<version>13.15.0</version>
+						<version>14.4.0</version>
+					</since>
 					<synopsis>Enable RFC3578 overlap dialing support.</synopsis>
 				</configOption>
 				<configOption name="overlap_context">
-					<since><version>18.17.0</version><version>20.2.0</version></since>
+					<since>
+						<version>18.17.0</version>
+						<version>20.2.0</version>
+					</since>
 					<synopsis>Dialplan context to use for RFC3578 overlap dialing.</synopsis>
 					<description>
 						<para>Dialplan context to use for overlap dialing extension matching.
@@ -334,14 +356,18 @@
 					</description>
 				</configOption>
 				<configOption name="aors">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>AoR(s) to be used with the endpoint</synopsis>
 					<description><para>
 						List of comma separated AoRs that the endpoint should be associated with.
 					</para></description>
 				</configOption>
 				<configOption name="auth">
-					<since><version>12.2.0</version></since>
+					<since>
+						<version>12.2.0</version>
+					</since>
 					<synopsis>Authentication Object(s) associated with the endpoint</synopsis>
 					<description><para>
 						This is a comma-delimited list of <replaceable>auth</replaceable> sections defined
@@ -358,7 +384,9 @@
 					</description>
 				</configOption>
 				<configOption name="callerid">
-					<since><version>12.2.0</version></since>
+					<since>
+						<version>12.2.0</version>
+					</since>
 					<synopsis>CallerID information for the endpoint</synopsis>
 					<description><para>
 						Must be in the format <literal>Name &lt;Number&gt;</literal>,
@@ -366,7 +394,9 @@
 					</para></description>
 				</configOption>
 				<configOption name="callerid_privacy">
-					<since><version>12.7.0</version></since>
+					<since>
+						<version>12.7.0</version>
+					</since>
 					<synopsis>Default privacy level</synopsis>
 					<description>
 						<enumlist>
@@ -383,15 +413,21 @@
 					</description>
 				</configOption>
 				<configOption name="callerid_tag">
-					<since><version>12.2.0</version></since>
+					<since>
+						<version>12.2.0</version>
+					</since>
 					<synopsis>Internal id_tag for the endpoint</synopsis>
 				</configOption>
 				<configOption name="context">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Dialplan context for inbound sessions</synopsis>
 				</configOption>
 				<configOption name="direct_media_glare_mitigation" default="none">
-					<since><version>12.2.0</version></since>
+					<since>
+						<version>12.2.0</version>
+					</since>
 					<synopsis>Mitigation of direct media (re)INVITE glare</synopsis>
 					<description>
 						<para>
@@ -413,7 +449,9 @@
 					</description>
 				</configOption>
 				<configOption name="direct_media_method" default="invite">
-					<since><version>12.2.0</version></since>
+					<since>
+						<version>12.2.0</version>
+					</since>
 					<synopsis>Direct Media method type</synopsis>
 					<description>
 						<para>Method for setting up Direct Media between endpoints.</para>
@@ -427,15 +465,23 @@
 					</description>
 				</configOption>
 				<configOption name="trust_connected_line">
-					<since><version>13.24.0</version><version>16.1.0</version></since>
+					<since>
+						<version>13.24.0</version>
+						<version>16.1.0</version>
+					</since>
 					<synopsis>Accept Connected Line updates from this endpoint</synopsis>
 				</configOption>
 				<configOption name="send_connected_line">
-					<since><version>13.24.0</version><version>16.1.0</version></since>
+					<since>
+						<version>13.24.0</version>
+						<version>16.1.0</version>
+					</since>
 					<synopsis>Send Connected Line updates to this endpoint</synopsis>
 				</configOption>
 				<configOption name="connected_line_method" default="invite">
-					<since><version>12.2.0</version></since>
+					<since>
+						<version>12.2.0</version>
+					</since>
 					<synopsis>Connected line method type</synopsis>
 					<description>
 						<para>Method used when updating connected line information.</para>
@@ -456,19 +502,27 @@
 					</description>
 				</configOption>
 				<configOption name="direct_media" default="yes">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Determines whether media may flow directly between endpoints.</synopsis>
 				</configOption>
 				<configOption name="disable_direct_media_on_nat" default="no">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Disable direct media session refreshes when NAT obstructs the media session</synopsis>
 				</configOption>
 				<configOption name="disallow">
-					<since><version>13.0.0</version></since>
+					<since>
+						<version>13.0.0</version>
+					</since>
 					<synopsis>Media Codec(s) to disallow</synopsis>
 				</configOption>
 				<configOption name="dtmf_mode" default="rfc4733">
-					<since><version>12.2.0</version></since>
+					<since>
+						<version>12.2.0</version>
+					</since>
 					<synopsis>DTMF mode</synopsis>
 					<description>
 						<para>This setting allows to choose the DTMF mode for endpoint communication.</para>
@@ -494,7 +548,11 @@
 					</description>
 				</configOption>
 				<configOption name="media_address">
-					<since><version>18.22.0</version><version>20.7.0</version><version>21.2.0</version></since>
+					<since>
+						<version>18.22.0</version>
+						<version>20.7.0</version>
+						<version>21.2.0</version>
+					</since>
 					<synopsis>IP address used in SDP for media handling</synopsis>
 					<description><para>
 						At the time of SDP creation, the IP address defined here will be used as
@@ -507,7 +565,9 @@
 					</description>
 				</configOption>
 				<configOption name="bind_rtp_to_media_address">
-					<since><version>13.8.0</version></since>
+					<since>
+						<version>13.8.0</version>
+					</since>
 					<synopsis>Bind the RTP instance to the media_address</synopsis>
 					<description><para>
 						If media_address is specified, this option causes the RTP instance to be bound to the
@@ -516,15 +576,22 @@
 					</description>
 				</configOption>
 				<configOption name="force_rport" default="yes">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Force use of return port</synopsis>
 				</configOption>
 				<configOption name="ice_support" default="no">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Enable the ICE mechanism to help traverse NAT</synopsis>
 				</configOption>
 				<configOption name="identify_by">
-					<since><version>13.19.0</version><version>15.2.0</version></since>
+					<since>
+						<version>13.19.0</version>
+						<version>15.2.0</version>
+					</since>
 					<synopsis>Way(s) for the endpoint to be identified</synopsis>
 					<description>
 						<para>Endpoints and AORs can be identified in multiple ways.  This
@@ -601,7 +668,9 @@
 					</description>
 				</configOption>
 				<configOption name="redirect_method">
-					<since><version>12.2.0</version></since>
+					<since>
+						<version>12.2.0</version>
+					</since>
 					<synopsis>How redirects received from an endpoint are handled</synopsis>
 					<description><para>
 						When a redirect is received from an endpoint there are multiple ways it can be handled.
@@ -623,7 +692,9 @@
 					</description>
 				</configOption>
 				<configOption name="mailboxes">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>NOTIFY the endpoint when state changes for any of the specified mailboxes</synopsis>
 					<description><para>
 						Asterisk will send unsolicited MWI NOTIFY messages to the endpoint when state
@@ -638,19 +709,28 @@
 					</para></description>
 				</configOption>
 				<configOption name="mwi_subscribe_replaces_unsolicited">
-					<since><version>13.24.0</version><version>15.7.0</version></since>
+					<since>
+						<version>13.24.0</version>
+						<version>15.7.0</version>
+					</since>
 					<synopsis>An MWI subscribe will replace sending unsolicited NOTIFYs</synopsis>
 				</configOption>
 				<configOption name="voicemail_extension">
-					<since><version>13.9.0</version></since>
+					<since>
+						<version>13.9.0</version>
+					</since>
 					<synopsis>The voicemail extension to send in the NOTIFY Message-Account header</synopsis>
 				</configOption>
 				<configOption name="moh_suggest" default="default">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Default Music On Hold class</synopsis>
 				</configOption>
 				<configOption name="outbound_auth">
-					<since><version>12.2.0</version></since>
+					<since>
+						<version>12.2.0</version>
+					</since>
 					<synopsis>Authentication object(s) used for outbound requests</synopsis>
 					<description><para>
 						This is a comma-delimited list of <replaceable>auth</replaceable>
@@ -665,11 +745,15 @@
 					</description>
 				</configOption>
 				<configOption name="outbound_proxy">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Full SIP URI of the outbound proxy used to send requests</synopsis>
 				</configOption>
 				<configOption name="rewrite_contact">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Allow Contact header to be rewritten with the source IP address-port</synopsis>
 					<description><para>
 						On inbound SIP messages from this endpoint, the Contact header or an
@@ -681,33 +765,50 @@
 					</para></description>
 				</configOption>
 				<configOption name="rtp_ipv6" default="no">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Allow use of IPv6 for RTP traffic</synopsis>
 				</configOption>
 				<configOption name="rtp_symmetric" default="no">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Enforce that RTP must be symmetric</synopsis>
 				</configOption>
 				<configOption name="send_diversion" default="yes">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Send the Diversion header, conveying the diversion
 					information to the called user agent</synopsis>
 				</configOption>
 				<configOption name="send_history_info" default="no">
-					<since><version>13.38.0</version><version>16.15.0</version><version>17.9.0</version><version>18.1.0</version></since>
+					<since>
+						<version>13.38.0</version>
+						<version>16.15.0</version>
+						<version>17.9.0</version>
+						<version>18.1.0</version>
+					</since>
 					<synopsis>Send the History-Info header, conveying the diversion
 					information to the called and calling user agents</synopsis>
 				</configOption>
 				<configOption name="send_pai" default="no">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Send the P-Asserted-Identity header</synopsis>
 				</configOption>
 				<configOption name="send_rpid" default="no">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Send the Remote-Party-ID header</synopsis>
 				</configOption>
 				<configOption name="rpid_immediate" default="no">
-					<since><version>13.4.0</version></since>
+					<since>
+						<version>13.4.0</version>
+					</since>
 					<synopsis>Immediately send connected line updates on unanswered incoming calls.</synopsis>
 					<description>
 						<para>When enabled, immediately send <emphasis>180 Ringing</emphasis>
@@ -729,7 +830,11 @@
 					</description>
 				</configOption>
 				<configOption name="tenantid" default="">
-					<since><version>18.25.0</version><version>20.10.0</version><version>21.5.0</version></since>
+					<since>
+						<version>18.25.0</version>
+						<version>20.10.0</version>
+						<version>21.5.0</version>
+					</since>
 					<synopsis>The tenant ID for this endpoint.</synopsis>
 					<description><para>
 						Sets the tenant ID for this endpoint. When a channel is created,
@@ -738,14 +843,18 @@
 					</para></description>
 				</configOption>
 				<configOption name="timers_min_se" default="90">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Minimum session timers expiration period</synopsis>
 					<description><para>
 						Minimum session timer expiration period. Time in seconds.
 					</para></description>
 				</configOption>
 				<configOption name="timers" default="yes">
-					<since><version>12.2.0</version></since>
+					<since>
+						<version>12.2.0</version>
+					</since>
 					<synopsis>Session timers for SIP packets</synopsis>
 					<description>
 						<enumlist>
@@ -758,14 +867,18 @@
 					</description>
 				</configOption>
 				<configOption name="timers_sess_expires" default="1800">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Maximum session timer expiration period</synopsis>
 					<description><para>
 						Maximum session timer expiration period. Time in seconds.
 					</para></description>
 				</configOption>
 				<configOption name="transport">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Explicit transport configuration to use</synopsis>
 					<description>
 						<para>This will <emphasis>force</emphasis> the endpoint to use the
@@ -782,7 +895,9 @@
 					</description>
 				</configOption>
 				<configOption name="trust_id_inbound" default="no">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Accept identification information received from this endpoint</synopsis>
 					<description><para>This option determines whether Asterisk will accept
 					identification from the endpoint from headers such as P-Asserted-Identity
@@ -792,7 +907,9 @@
 					the endpoint.</para></description>
 				</configOption>
 				<configOption name="trust_id_outbound" default="no">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Send private identification details to the endpoint.</synopsis>
 					<description><para>This option determines whether res_pjsip will send private
 					identification information to the endpoint. If <literal>no</literal>,
@@ -806,15 +923,21 @@
 					provided in the request is private.</para></description>
 				</configOption>
 				<configOption name="type">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Must be of type 'endpoint'.</synopsis>
 				</configOption>
 				<configOption name="use_ptime" default="no">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Use Endpoint's requested packetization interval</synopsis>
 				</configOption>
 				<configOption name="use_avpf" default="no">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Determines whether res_pjsip will use and enforce usage of AVPF for this
 					endpoint.</synopsis>
 					<description><para>
@@ -828,7 +951,9 @@
 					</para></description>
 				</configOption>
 				<configOption name="force_avp" default="no">
-					<since><version>12.4.0</version></since>
+					<since>
+						<version>12.4.0</version>
+					</since>
 					<synopsis>Determines whether res_pjsip will use and enforce usage of AVP,
 					regardless of the RTP profile in use for this endpoint.</synopsis>
 					<description><para>
@@ -841,7 +966,9 @@
 					</para></description>
 				</configOption>
 				<configOption name="media_use_received_transport" default="no">
-					<since><version>12.4.0</version></since>
+					<since>
+						<version>12.4.0</version>
+					</since>
 					<synopsis>Determines whether res_pjsip will use the media transport received in the
 					offer SDP in the corresponding answer SDP.</synopsis>
 					<description><para>
@@ -852,7 +979,9 @@
 					</para></description>
 				</configOption>
 				<configOption name="media_encryption" default="no">
-					<since><version>12.2.0</version></since>
+					<since>
+						<version>12.2.0</version>
+					</since>
 					<synopsis>Determines whether res_pjsip will use and enforce usage of media encryption
 					for this endpoint.</synopsis>
 					<description>
@@ -872,7 +1001,9 @@
 					</description>
 				</configOption>
 				<configOption name="media_encryption_optimistic" default="no">
-					<since><version>13.1.0</version></since>
+					<since>
+						<version>13.1.0</version>
+					</since>
 					<synopsis>Determines whether encryption should be used if possible but does not terminate the
 					session if not achieved.</synopsis>
 					<description><para>
@@ -881,7 +1012,9 @@
 					</para></description>
 				</configOption>
 				<configOption name="g726_non_standard" default="no">
-					<since><version>13.5.0</version></since>
+					<since>
+						<version>13.5.0</version>
+					</since>
 					<synopsis>Force g.726 to use AAL2 packing order when negotiating g.726 audio</synopsis>
 					<description><para>
 						When set to "yes" and an endpoint negotiates g.726 audio then use g.726 for AAL2
@@ -891,7 +1024,9 @@
 					</para></description>
 				</configOption>
 				<configOption name="inband_progress" default="no">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Determines whether chan_pjsip will indicate ringing using inband
 						progress.</synopsis>
 					<description><para>
@@ -904,7 +1039,9 @@
 					</para></description>
 				</configOption>
 				<configOption name="call_group">
-					<since><version>12.2.0</version></since>
+					<since>
+						<version>12.2.0</version>
+					</since>
 					<synopsis>The numeric pickup groups for a channel.</synopsis>
 					<description><para>
 						Can be set to a comma separated list of numbers or ranges between the values
@@ -912,7 +1049,9 @@
 					</para></description>
 				</configOption>
 				<configOption name="pickup_group">
-					<since><version>12.2.0</version></since>
+					<since>
+						<version>12.2.0</version>
+					</since>
 					<synopsis>The numeric pickup groups that a channel can pickup.</synopsis>
 					<description><para>
 						Can be set to a comma separated list of numbers or ranges between the values
@@ -920,7 +1059,9 @@
 					</para></description>
 				</configOption>
 				<configOption name="named_call_group">
-					<since><version>12.2.0</version></since>
+					<since>
+						<version>12.2.0</version>
+					</since>
 					<synopsis>The named pickup groups for a channel.</synopsis>
 					<description><para>
 						Can be set to a comma separated list of case sensitive strings limited by
@@ -928,7 +1069,9 @@
 					</para></description>
 				</configOption>
 				<configOption name="named_pickup_group">
-					<since><version>12.2.0</version></since>
+					<since>
+						<version>12.2.0</version>
+					</since>
 					<synopsis>The named pickup groups that a channel can pickup.</synopsis>
 					<description><para>
 						Can be set to a comma separated list of case sensitive strings limited by
@@ -936,7 +1079,9 @@
 					</para></description>
 				</configOption>
 				<configOption name="device_state_busy_at" default="0">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>The number of in-use channels which will cause busy to be returned as device state</synopsis>
 					<description><para>
 						When the number of in-use channels for the endpoint matches the devicestate_busy_at setting the
@@ -944,7 +1089,9 @@
 					</para></description>
 				</configOption>
 				<configOption name="t38_udptl" default="no">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Whether T.38 UDPTL support is enabled or not</synopsis>
 					<description><para>
 						If set to yes T.38 UDPTL support will be enabled, and T.38 negotiation requests will be accepted
@@ -952,7 +1099,9 @@
 					</para></description>
 				</configOption>
 				<configOption name="t38_udptl_ec" default="none">
-					<since><version>12.2.0</version></since>
+					<since>
+						<version>12.2.0</version>
+					</since>
 					<synopsis>T.38 UDPTL error correction method</synopsis>
 					<description>
 						<enumlist>
@@ -969,7 +1118,9 @@
 					</description>
 				</configOption>
 				<configOption name="t38_udptl_maxdatagram" default="0">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>T.38 UDPTL maximum datagram size</synopsis>
 					<description><para>
 						This option can be set to override the maximum datagram of a remote endpoint for broken
@@ -977,7 +1128,9 @@
 					</para></description>
 				</configOption>
 				<configOption name="fax_detect" default="no">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Whether CNG tone detection is enabled</synopsis>
 					<description><para>
 						This option can be set to send the session to the fax extension when a CNG tone is
@@ -985,7 +1138,9 @@
 					</para></description>
 				</configOption>
 				<configOption name="fax_detect_timeout">
-					<since><version>13.11.0</version></since>
+					<since>
+						<version>13.11.0</version>
+					</since>
 					<synopsis>How long into a call before fax_detect is disabled for the call</synopsis>
 					<description><para>
 						The option determines how many seconds into a call before the
@@ -994,7 +1149,9 @@
 					</para></description>
 				</configOption>
 				<configOption name="t38_udptl_nat" default="no">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Whether NAT support is enabled on UDPTL sessions</synopsis>
 					<description><para>
 						When enabled the UDPTL stack will send UDPTL packets to the source address of
@@ -1002,14 +1159,19 @@
 					</para></description>
 				</configOption>
 				<configOption name="t38_udptl_ipv6" default="no">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Whether IPv6 is used for UDPTL Sessions</synopsis>
 					<description><para>
 						When enabled the UDPTL stack will use IPv6.
 					</para></description>
 				</configOption>
 				<configOption name="t38_bind_udptl_to_media_address" default="no">
-					<since><version>16.22.0</version><version>18.8.0</version></since>
+					<since>
+						<version>16.22.0</version>
+						<version>18.8.0</version>
+					</since>
 					<synopsis>Bind the UDPTL instance to the media_adress</synopsis>
 					<description><para>
 						If media_address is specified, this option causes the UDPTL instance to be bound to
@@ -1017,15 +1179,21 @@
 					</para></description>
 				</configOption>
 				<configOption name="tone_zone">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Set which country's indications to use for channels created for this endpoint.</synopsis>
 				</configOption>
 				<configOption name="language">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Set the default language to use for channels created for this endpoint.</synopsis>
 				</configOption>
 				<configOption name="one_touch_recording" default="no">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Determines whether one-touch recording is allowed for this endpoint.</synopsis>
 					<see-also>
 						<ref type="configOption">record_on_feature</ref>
@@ -1033,7 +1201,9 @@
 					</see-also>
 				</configOption>
 				<configOption name="record_on_feature" default="automixmon">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>The feature to enact when one-touch recording is turned on.</synopsis>
 					<description>
 						<para>When an INFO request for one-touch recording arrives with a Record header set to "on", this
@@ -1047,7 +1217,9 @@
 					</see-also>
 				</configOption>
 				<configOption name="record_off_feature" default="automixmon">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>The feature to enact when one-touch recording is turned off.</synopsis>
 					<description>
 						<para>When an INFO request for one-touch recording arrives with a Record header set to "off", this
@@ -1061,79 +1233,112 @@
 					</see-also>
 				</configOption>
 				<configOption name="rtp_engine" default="asterisk">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Name of the RTP engine to use for channels created for this endpoint</synopsis>
 				</configOption>
 				<configOption name="allow_transfer" default="yes">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Determines whether SIP REFER transfers are allowed for this endpoint</synopsis>
 				</configOption>
 				<configOption name="user_eq_phone" default="no">
-					<since><version>13.2.0</version></since>
+					<since>
+						<version>13.2.0</version>
+					</since>
 					<synopsis>Determines whether a user=phone parameter is placed into the request URI if the user is determined to be a phone number</synopsis>
 				</configOption>
 				<configOption name="moh_passthrough" default="no">
-					<since><version>13.30.0</version></since>
+					<since>
+						<version>13.30.0</version>
+					</since>
 					<synopsis>Determines whether hold and unhold will be passed through using re-INVITEs with recvonly and sendrecv to the remote side</synopsis>
 				</configOption>
 				<configOption name="sdp_owner" default="-">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>String placed as the username portion of an SDP origin (o=) line.</synopsis>
 				</configOption>
 				<configOption name="sdp_session" default="Asterisk">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>String used for the SDP session (s=) line.</synopsis>
 				</configOption>
 				<configOption name="tos_audio">
-					<since><version>12.2.0</version></since>
+					<since>
+						<version>12.2.0</version>
+					</since>
 					<synopsis>DSCP TOS bits for audio streams</synopsis>
 					<description><para>
 						See https://docs.asterisk.org/Configuration/Channel-Drivers/IP-Quality-of-Service for more information about QoS settings
 					</para></description>
 				</configOption>
 				<configOption name="tos_video">
-					<since><version>12.2.0</version></since>
+					<since>
+						<version>12.2.0</version>
+					</since>
 					<synopsis>DSCP TOS bits for video streams</synopsis>
 					<description><para>
 						See https://docs.asterisk.org/Configuration/Channel-Drivers/IP-Quality-of-Service for more information about QoS settings
 					</para></description>
 				</configOption>
 				<configOption name="cos_audio">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Priority for audio streams</synopsis>
 					<description><para>
 						See https://docs.asterisk.org/Configuration/Channel-Drivers/IP-Quality-of-Service for more information about QoS settings
 					</para></description>
 				</configOption>
 				<configOption name="cos_video">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Priority for video streams</synopsis>
 					<description><para>
 						See https://docs.asterisk.org/Configuration/Channel-Drivers/IP-Quality-of-Service for more information about QoS settings
 					</para></description>
 				</configOption>
 				<configOption name="allow_subscribe" default="yes">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Determines if endpoint is allowed to initiate subscriptions with Asterisk.</synopsis>
 				</configOption>
 				<configOption name="sub_min_expiry" default="60">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>The minimum allowed expiry time for subscriptions initiated by the endpoint.</synopsis>
 				</configOption>
 				<configOption name="from_user">
-					<since><version>13.18.0</version><version>14.7.0</version></since>
+					<since>
+						<version>13.18.0</version>
+						<version>14.7.0</version>
+					</since>
 					<synopsis>Username to use in From header for requests to this endpoint.</synopsis>
 				</configOption>
 				<configOption name="mwi_from_user">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Username to use in From header for unsolicited MWI NOTIFYs to this endpoint.</synopsis>
 				</configOption>
 				<configOption name="from_domain">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Domain to use in From header for requests to this endpoint.</synopsis>
 				</configOption>
 				<configOption name="dtls_verify">
-					<since><version>12.7.0</version></since>
+					<since>
+						<version>12.7.0</version>
+					</since>
 					<synopsis>Verify that the provided peer certificate is valid</synopsis>
 					<description><para>
 						This option only applies if <replaceable>media_encryption</replaceable> is
@@ -1157,7 +1362,9 @@
 					</description>
 				</configOption>
 				<configOption name="dtls_rekey">
-					<since><version>12.7.0</version></since>
+					<since>
+						<version>12.7.0</version>
+					</since>
 					<synopsis>Interval at which to renegotiate the TLS session and rekey the SRTP session</synopsis>
 					<description><para>
 						This option only applies if <replaceable>media_encryption</replaceable> is
@@ -1167,7 +1374,9 @@
 					</para></description>
 				</configOption>
 				<configOption name="dtls_auto_generate_cert" default="no">
-					<since><version>15.2.0</version></since>
+					<since>
+						<version>15.2.0</version>
+					</since>
 					<synopsis>Whether or not to automatically generate an ephemeral X.509 certificate</synopsis>
 					<description>
 						<para>
@@ -1180,7 +1389,9 @@
 					</description>
 				</configOption>
 				<configOption name="dtls_cert_file">
-					<since><version>12.2.0</version></since>
+					<since>
+						<version>12.2.0</version>
+					</since>
 					<synopsis>Path to certificate file to present to peer</synopsis>
 					<description><para>
 						This option only applies if <replaceable>media_encryption</replaceable> is
@@ -1188,7 +1399,9 @@
 					</para></description>
 				</configOption>
 				<configOption name="dtls_private_key">
-					<since><version>12.2.0</version></since>
+					<since>
+						<version>12.2.0</version>
+					</since>
 					<synopsis>Path to private key for certificate file</synopsis>
 					<description><para>
 						This option only applies if <replaceable>media_encryption</replaceable> is
@@ -1196,7 +1409,9 @@
 					</para></description>
 				</configOption>
 				<configOption name="dtls_cipher">
-					<since><version>12.2.0</version></since>
+					<since>
+						<version>12.2.0</version>
+					</since>
 					<synopsis>Cipher to use for DTLS negotiation</synopsis>
 					<description><para>
 						This option only applies if <replaceable>media_encryption</replaceable> is
@@ -1207,7 +1422,9 @@
 					</para></description>
 				</configOption>
 				<configOption name="dtls_ca_file">
-					<since><version>12.2.0</version></since>
+					<since>
+						<version>12.2.0</version>
+					</since>
 					<synopsis>Path to certificate authority certificate</synopsis>
 					<description><para>
 						This option only applies if <replaceable>media_encryption</replaceable> is
@@ -1215,7 +1432,9 @@
 					</para></description>
 				</configOption>
 				<configOption name="dtls_ca_path">
-					<since><version>12.2.0</version></since>
+					<since>
+						<version>12.2.0</version>
+					</since>
 					<synopsis>Path to a directory containing certificate authority certificates</synopsis>
 					<description><para>
 						This option only applies if <replaceable>media_encryption</replaceable> is
@@ -1223,7 +1442,9 @@
 					</para></description>
 				</configOption>
 				<configOption name="dtls_setup">
-					<since><version>12.2.0</version></since>
+					<since>
+						<version>12.2.0</version>
+					</since>
 					<synopsis>Whether we are willing to accept connections, connect to the other party, or both.</synopsis>
 					<description>
 						<para>
@@ -1244,7 +1465,9 @@
 					</description>
 				</configOption>
 				<configOption name="dtls_fingerprint">
-					<since><version>12.7.0</version></since>
+					<since>
+						<version>12.7.0</version>
+					</since>
 					<synopsis>Type of hash to use for the DTLS fingerprint in the SDP.</synopsis>
 					<description>
 						<para>
@@ -1258,7 +1481,9 @@
 					</description>
 				</configOption>
 				<configOption name="srtp_tag_32">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Determines whether 32 byte tags should be used instead of 80 byte tags.</synopsis>
 					<description><para>
 						This option only applies if <replaceable>media_encryption</replaceable> is
@@ -1266,7 +1491,9 @@
 					</para></description>
 				</configOption>
 				<configOption name="set_var">
-					<since><version>12.2.0</version></since>
+					<since>
+						<version>12.2.0</version>
+					</since>
 					<synopsis>Variable set on a channel involving the endpoint.</synopsis>
 					<description><para>
 						When a new channel is created using the endpoint set the specified
@@ -1275,7 +1502,9 @@
 					</para></description>
 				</configOption>
 				<configOption name="message_context">
-					<since><version>13.5.0</version></since>
+					<since>
+						<version>13.5.0</version>
+					</since>
 					<synopsis>Context to route incoming MESSAGE requests to.</synopsis>
 					<description><para>
 						If specified, incoming MESSAGE requests will be routed to the indicated
@@ -1284,7 +1513,9 @@
 					</para></description>
 				</configOption>
 				<configOption name="accountcode">
-					<since><version>13.5.0</version></since>
+					<since>
+						<version>13.5.0</version>
+					</since>
 					<synopsis>An accountcode to set automatically on any channels created for this endpoint.</synopsis>
 					<description><para>
 						If specified, any channel created for this endpoint will automatically
@@ -1292,7 +1523,9 @@
 					</para></description>
 				</configOption>
 				<configOption name="preferred_codec_only" default="no">
-					<since><version>15.0.0</version></since>
+					<since>
+						<version>15.0.0</version>
+					</since>
 					<synopsis>Respond to a SIP invite with the single most preferred codec (DEPRECATED)</synopsis>
 					<description><para>Respond to a SIP invite with the single most preferred codec
 					rather than advertising all joint codec capabilities. This limits the other side's codec
@@ -1306,7 +1539,9 @@
 					</see-also>
 				</configOption>
 				<configOption name="incoming_call_offer_pref" default="local">
-					<since><version>18.0.0</version></since>
+					<since>
+						<version>18.0.0</version>
+					</since>
 					<synopsis>Preferences for selecting codecs for an incoming call.</synopsis>
 					<description>
 						<para>Based on this setting, a joint list of preferred codecs between those
@@ -1333,7 +1568,9 @@
 					</description>
 				</configOption>
 				<configOption name="outgoing_call_offer_pref" default="remote_merge">
-					<since><version>18.0.0</version></since>
+					<since>
+						<version>18.0.0</version>
+					</since>
 					<synopsis>Preferences for selecting codecs for an outgoing call.</synopsis>
 					<description>
 						<para>Based on this setting, a joint list of preferred codecs between
@@ -1365,7 +1602,9 @@
 					</description>
 				</configOption>
 				<configOption name="rtp_keepalive">
-					<since><version>13.5.0</version></since>
+					<since>
+						<version>13.5.0</version>
+					</since>
 					<synopsis>Number of seconds between RTP comfort noise keepalive packets.</synopsis>
 					<description><para>
 						At the specified interval, Asterisk will send an RTP comfort noise frame. This may
@@ -1374,7 +1613,9 @@
 					</para></description>
 				</configOption>
 				<configOption name="rtp_timeout" default="0">
-					<since><version>13.5.0</version></since>
+					<since>
+						<version>13.5.0</version>
+					</since>
 					<synopsis>Maximum number of seconds without receiving RTP (while off hold) before terminating call.</synopsis>
 					<description><para>
 						This option configures the number of seconds without RTP (while off hold) before
@@ -1383,7 +1624,9 @@
 					</para></description>
 				</configOption>
 				<configOption name="rtp_timeout_hold" default="0">
-					<since><version>13.5.0</version></since>
+					<since>
+						<version>13.5.0</version>
+					</since>
 					<synopsis>Maximum number of seconds without receiving RTP (while on hold) before terminating call.</synopsis>
 					<description><para>
 						This option configures the number of seconds without RTP (while on hold) before
@@ -1392,7 +1635,9 @@
 					</para></description>
 				</configOption>
 				<configOption name="acl">
-					<since><version>13.10.0</version></since>
+					<since>
+						<version>13.10.0</version>
+					</since>
 					<synopsis>List of IP ACL section names in acl.conf</synopsis>
 					<description><para>
 						This matches sections configured in <literal>acl.conf</literal>. The value is
@@ -1400,7 +1645,9 @@
 					</para></description>
 				</configOption>
 				<configOption name="deny">
-					<since><version>13.10.0</version></since>
+					<since>
+						<version>13.10.0</version>
+					</since>
 					<synopsis>List of IP addresses to deny access from</synopsis>
 					<description><para>
 						The value is a comma-delimited list of IP addresses. IP addresses may
@@ -1410,7 +1657,9 @@
 					</para></description>
 				</configOption>
 				<configOption name="permit">
-					<since><version>13.10.0</version></since>
+					<since>
+						<version>13.10.0</version>
+					</since>
 					<synopsis>List of IP addresses to permit access from</synopsis>
 					<description><para>
 						The value is a comma-delimited list of IP addresses. IP addresses may
@@ -1420,7 +1669,9 @@
 					</para></description>
 				</configOption>
 				<configOption name="contact_acl">
-					<since><version>13.10.0</version></since>
+					<since>
+						<version>13.10.0</version>
+					</since>
 					<synopsis>List of Contact ACL section names in acl.conf</synopsis>
 					<description><para>
 						This matches sections configured in <literal>acl.conf</literal>. The value is
@@ -1428,7 +1679,9 @@
 					</para></description>
 				</configOption>
 				<configOption name="contact_deny">
-					<since><version>13.10.0</version></since>
+					<since>
+						<version>13.10.0</version>
+					</since>
 					<synopsis>List of Contact header addresses to deny</synopsis>
 					<description><para>
 						The value is a comma-delimited list of IP addresses. IP addresses may
@@ -1438,7 +1691,9 @@
 					</para></description>
 				</configOption>
 				<configOption name="contact_permit">
-					<since><version>13.10.0</version></since>
+					<since>
+						<version>13.10.0</version>
+					</since>
 					<synopsis>List of Contact header addresses to permit</synopsis>
 					<description><para>
 						The value is a comma-delimited list of IP addresses. IP addresses may
@@ -1448,7 +1703,9 @@
 					</para></description>
 				</configOption>
 				<configOption name="subscribe_context">
-					<since><version>13.11.0</version></since>
+					<since>
+						<version>13.11.0</version>
+					</since>
 					<synopsis>Context for incoming MESSAGE requests.</synopsis>
 					<description><para>
 						If specified, incoming SUBSCRIBE requests will be searched for the matching
@@ -1458,14 +1715,20 @@
 					</para></description>
 				</configOption>
 				<configOption name="contact_user" default="">
-					<since><version>13.12.0</version><version>14.1.0</version></since>
+					<since>
+						<version>13.12.0</version>
+						<version>14.1.0</version>
+					</since>
 					<synopsis>Force the user on the outgoing Contact header to this value.</synopsis>
 					<description><para>
 						On outbound requests, force the user portion of the Contact header to this value.
 					</para></description>
 				</configOption>
 				<configOption name="asymmetric_rtp_codec" default="no">
-					<since><version>13.13.0</version><version>14.2.0</version></since>
+					<since>
+						<version>13.13.0</version>
+						<version>14.2.0</version>
+					</since>
 					<synopsis>Allow the sending and receiving RTP codec to differ</synopsis>
 					<description><para>
 						When set to "yes" the codec in use for sending will be allowed to differ from
@@ -1474,7 +1737,10 @@
 					</para></description>
 				</configOption>
 				<configOption name="rtcp_mux" default="no">
-					<since><version>13.15.0</version><version>14.4.0</version></since>
+					<since>
+						<version>13.15.0</version>
+						<version>14.4.0</version>
+					</since>
 					<synopsis>Enable RFC 5761 RTCP multiplexing on the RTP port</synopsis>
 					<description><para>
 						With this option enabled, Asterisk will attempt to negotiate the use of the "rtcp-mux"
@@ -1485,7 +1751,10 @@
 					</para></description>
 				</configOption>
 				<configOption name="refer_blind_progress" default="yes">
-					<since><version>13.17.0</version><version>14.6.0</version></since>
+					<since>
+						<version>13.17.0</version>
+						<version>14.6.0</version>
+					</since>
 					<synopsis>Whether to notifies all the progress details on blind transfer</synopsis>
 					<description><para>
 						Some SIP phones (Mitel/Aastra, Snom) expect a sip/frag "200 OK"
@@ -1494,7 +1763,10 @@
 					</para></description>
 				</configOption>
 				<configOption name="notify_early_inuse_ringing" default="no">
-					<since><version>13.17.0</version><version>14.6.0</version></since>
+					<since>
+						<version>13.17.0</version>
+						<version>14.6.0</version>
+					</since>
 					<synopsis>Whether to notifies dialog-info 'early' on InUse&amp;Ringing state</synopsis>
 					<description><para>
 						Control whether dialog-info subscriptions get 'early' state
@@ -1502,7 +1774,9 @@
 					</para></description>
 				</configOption>
 				<configOption name="max_audio_streams" default="1">
-					<since><version>15.0.0</version></since>
+					<since>
+						<version>15.0.0</version>
+					</since>
 					<synopsis>The maximum number of allowed audio streams for the endpoint</synopsis>
 					<description><para>
 						This option enforces a limit on the maximum simultaneous negotiated audio
@@ -1510,7 +1784,9 @@
 					</para></description>
 				</configOption>
 				<configOption name="max_video_streams" default="1">
-					<since><version>15.0.0</version></since>
+					<since>
+						<version>15.0.0</version>
+					</since>
 					<synopsis>The maximum number of allowed video streams for the endpoint</synopsis>
 					<description><para>
 						This option enforces a limit on the maximum simultaneous negotiated video
@@ -1518,7 +1794,9 @@
 					</para></description>
 				</configOption>
 				<configOption name="bundle" default="no">
-					<since><version>15.0.0</version></since>
+					<since>
+						<version>15.0.0</version>
+					</since>
 					<synopsis>Enable RTP bundling</synopsis>
 					<description><para>
 						With this option enabled, Asterisk will attempt to negotiate the use of bundle.
@@ -1527,7 +1805,9 @@
 					</para></description>
 				</configOption>
 				<configOption name="webrtc" default="no">
-					<since><version>15.0.0</version></since>
+					<since>
+						<version>15.0.0</version>
+					</since>
 					<synopsis>Defaults and enables some options that are relevant to WebRTC</synopsis>
 					<description><para>
 						When set to "yes" this also enables the following values that are needed in
@@ -1541,7 +1821,11 @@
 					</description>
 				</configOption>
 				<configOption name="incoming_mwi_mailbox">
-					<since><version>13.18.0</version><version>14.7.0</version><version>15.1.0</version></since>
+					<since>
+						<version>13.18.0</version>
+						<version>14.7.0</version>
+						<version>15.1.0</version>
+					</since>
 					<synopsis>Mailbox name to use when incoming MWI NOTIFYs are received</synopsis>
 					<description><para>
 						If an MWI NOTIFY is received <emphasis>from</emphasis> this endpoint,
@@ -1550,7 +1834,10 @@
 					</para></description>
 				</configOption>
 				<configOption name="follow_early_media_fork">
-					<since><version>13.22.0</version><version>15.5.0</version></since>
+					<since>
+						<version>13.22.0</version>
+						<version>15.5.0</version>
+					</since>
 					<synopsis>Follow SDP forked media when To tag is different</synopsis>
 					<description><para>
 						On outgoing calls, if the UAS responds with different SDP attributes
@@ -1566,7 +1853,10 @@
 					</description>
 				</configOption>
 				<configOption name="accept_multiple_sdp_answers" default="no">
-					<since><version>13.22.0</version><version>15.5.0</version></since>
+					<since>
+						<version>13.22.0</version>
+						<version>15.5.0</version>
+					</since>
 					<synopsis>Accept multiple SDP answers on non-100rel responses</synopsis>
 					<description><para>
 						On outgoing calls, if the UAS responds with different SDP attributes
@@ -1582,7 +1872,10 @@
 					</description>
 				</configOption>
 				<configOption name="suppress_q850_reason_headers" default="no">
-					<since><version>13.23.0</version><version>15.6.0</version></since>
+					<since>
+						<version>13.23.0</version>
+						<version>15.6.0</version>
+					</since>
 					<synopsis>Suppress Q.850 Reason headers for this endpoint</synopsis>
 					<description><para>
 						Some devices can't accept multiple Reason headers and get confused
@@ -1591,7 +1884,10 @@
 					</description>
 				</configOption>
 				<configOption name="ignore_183_without_sdp" default="no">
-					<since><version>13.26.0</version><version>16.3.0</version></since>
+					<since>
+						<version>13.26.0</version>
+						<version>16.3.0</version>
+					</since>
 					<synopsis>Do not forward 183 when it doesn't contain SDP</synopsis>
 					<description><para>
 						Certain SS7 internetworking scenarios can result in a 183
@@ -1602,7 +1898,11 @@
 					</description>
 				</configOption>
 				<configOption name="stir_shaken" default="no">
-					<since><version>18.22.0</version><version>20.7.0</version><version>21.2.0</version></since>
+					<since>
+						<version>18.22.0</version>
+						<version>20.7.0</version>
+						<version>21.2.0</version>
+					</since>
 					<synopsis>Enable STIR/SHAKEN support on this endpoint</synopsis>
 					<description><para>
 						Enable STIR/SHAKEN support on this endpoint. On incoming INVITEs,
@@ -1611,7 +1911,11 @@
 					</description>
 				</configOption>
 				<configOption name="stir_shaken_profile" default="">
-					<since><version>16.26.0</version><version>18.12.0</version><version>19.4.0</version></since>
+					<since>
+						<version>16.26.0</version>
+						<version>18.12.0</version>
+						<version>19.4.0</version>
+					</since>
 					<synopsis>STIR/SHAKEN profile containing additional configuration options</synopsis>
 					<description><para>
 						A STIR/SHAKEN profile that is defined in stir_shaken.conf. Contains
@@ -1619,7 +1923,10 @@
 					</description>
 				</configOption>
 				<configOption name="allow_unauthenticated_options" default="no">
-					<since><version>16.18.0</version><version>18.4.0</version></since>
+					<since>
+						<version>16.18.0</version>
+						<version>18.4.0</version>
+					</since>
 					<synopsis>Skip authentication when receiving OPTIONS requests</synopsis>
 					<description><para>
 						RFC 3261 says that the response to an OPTIONS request MUST be the
@@ -1637,7 +1944,9 @@
 					</description>
 				</configOption>
 				<configOption name="security_negotiation" default="no">
-					<since><version>21.0.0</version></since>
+					<since>
+						<version>21.0.0</version>
+					</since>
 					<synopsis>The kind of security agreement negotiation to use. Currently, only mediasec is supported.</synopsis>
 					<description>
 						<enumlist>
@@ -1647,7 +1956,9 @@
 					</description>
 				</configOption>
 				<configOption name="security_mechanisms">
-					<since><version>21.0.0</version></since>
+					<since>
+						<version>21.0.0</version>
+					</since>
 					<synopsis>List of security mechanisms supported.</synopsis>
 					<description><para>
 						This is a comma-delimited list of security mechanisms to use. Each security mechanism
@@ -1655,7 +1966,11 @@
 					</para></description>
 				</configOption>
 				<configOption name="geoloc_incoming_call_profile" default="">
-					<since><version>16.28.0</version><version>18.14.0</version><version>19.6.0</version></since>
+					<since>
+						<version>16.28.0</version>
+						<version>18.14.0</version>
+						<version>19.6.0</version>
+					</since>
 					<synopsis>Geolocation profile to apply to incoming calls</synopsis>
 					<description><para>
 						This geolocation profile will be applied to all calls received
@@ -1665,7 +1980,11 @@
 					</description>
 				</configOption>
 				<configOption name="geoloc_outgoing_call_profile" default="">
-					<since><version>16.28.0</version><version>18.14.0</version><version>19.6.0</version></since>
+					<since>
+						<version>16.28.0</version>
+						<version>18.14.0</version>
+						<version>19.6.0</version>
+					</since>
 					<synopsis>Geolocation profile to apply to outgoing calls</synopsis>
 					<description><para>
 						This geolocation profile will be applied to all calls received
@@ -1675,11 +1994,18 @@
 					</description>
 				</configOption>
 				<configOption name="send_aoc" default="no">
-					<since><version>18.16.0</version><version>20.1.0</version></since>
+					<since>
+						<version>18.16.0</version>
+						<version>20.1.0</version>
+					</since>
 					<synopsis>Send Advice-of-Charge messages</synopsis>
 				</configOption>
 				<configOption name="suppress_moh_on_sendonly" default="no">
-					<since><version>20.11.0</version><version>21.6.0</version><version>22.1.0</version></since>
+					<since>
+						<version>20.11.0</version>
+						<version>21.6.0</version>
+						<version>22.1.0</version>
+					</since>
 					<synopsis>Suppress playing MOH to party A if party B sends
 					"sendonly" or "inactive" in an SDP</synopsis>
 					<description><para>
@@ -1702,7 +2028,9 @@
 				</configOption>
 			</configObject>
 			<configObject name="auth">
-				<since><version>12.0.0</version></since>
+				<since>
+					<version>12.0.0</version>
+				</since>
 				<!--
 				Be sure to update the following documentation page when making changes to this object:
 				https://docs.asterisk.org/Configuration/Channel-Drivers/SIP/Configuring-res_pjsip/PJSIP-Authentication
@@ -1727,7 +2055,9 @@
 					<ref type="link">https://docs.asterisk.org/Configuration/Channel-Drivers/SIP/Configuring-res_pjsip/PJSIP-Authentication</ref>
 				</see-also>
 				<configOption name="auth_type" default="digest">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Authentication type</synopsis>
 					<description><para>
 						If set to <literal>google_oauth</literal> then we'll read from the
@@ -1752,16 +2082,24 @@
 					</description>
 				</configOption>
 				<configOption name="username">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Username to use for account</synopsis>
 				</configOption>
 				<configOption name="password">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Plain text password used for authentication.</synopsis>
 					<description><para>Only used when auth_type is <literal>digest</literal>.</para></description>
 				</configOption>
 				<configOption name="password_digest" default="">
-					<since><version>20.12.0</version><version>21.7.0</version><version>22.2.0</version></since>
+					<since>
+						<version>20.12.0</version>
+						<version>21.7.0</version>
+						<version>22.2.0</version>
+					</since>
 					<synopsis>One or more pre-computed hashes used for authentication.</synopsis>
 					<description><para>Only used when auth_type is <literal>digest</literal>.
 						As an alternative to specifying a plain text password,
@@ -1804,7 +2142,9 @@
 					</description>
 				</configOption>
 				<configOption name="md5_cred" default="">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>MD5 Hash used for authentication. (deprecated)</synopsis>
 					<description><para>Use the <literal>password_digest</literal> parameter instead.
 					If supplied, a <literal>password_digest</literal> parameter will be created
@@ -1812,7 +2152,11 @@
 					</para></description>
 				</configOption>
 				<configOption name="supported_algorithms_uac">
-					<since><version>20.12.0</version><version>21.7.0</version><version>22.2.0</version></since>
+					<since>
+						<version>20.12.0</version>
+						<version>21.7.0</version>
+						<version>22.2.0</version>
+					</since>
 					<synopsis>Comma separated list of algorithms to support when this auth is used as a UAC</synopsis>
 					<description><para>Valid values:</para>
 						<enumlist>
@@ -1828,7 +2172,11 @@
 					</description>
 				</configOption>
 				<configOption name="supported_algorithms_uas">
-					<since><version>20.12.0</version><version>21.7.0</version><version>22.2.0</version></since>
+					<since>
+						<version>20.12.0</version>
+						<version>21.7.0</version>
+						<version>22.2.0</version>
+					</since>
 					<synopsis>Comma separated list of algorithms to support when this auth is used as a UAS</synopsis>
 					<description><para>Valid values:</para>
 						<enumlist>
@@ -1844,19 +2192,27 @@
 					</description>
 				</configOption>
 				<configOption name="refresh_token">
-					<since><version>17.0.0</version></since>
+					<since>
+						<version>17.0.0</version>
+					</since>
 					<synopsis>OAuth 2.0 refresh token</synopsis>
 				</configOption>
 				<configOption name="oauth_clientid">
-					<since><version>17.0.0</version></since>
+					<since>
+						<version>17.0.0</version>
+					</since>
 					<synopsis>OAuth 2.0 application's client id</synopsis>
 				</configOption>
 				<configOption name="oauth_secret">
-					<since><version>17.0.0</version></since>
+					<since>
+						<version>17.0.0</version>
+					</since>
 					<synopsis>OAuth 2.0 application's secret</synopsis>
 				</configOption>
 				<configOption name="realm" default="">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>SIP realm for endpoint</synopsis>
 					<description><para>
 						For incoming authentication (asterisk is the UAS),
@@ -1897,16 +2253,23 @@
 					</description>
 				</configOption>
 				<configOption name="nonce_lifetime" default="32">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Lifetime of a nonce associated with this authentication config.</synopsis>
 				</configOption>
 				<configOption name="type">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Must be 'auth'</synopsis>
 				</configOption>
 			</configObject>
 			<configObject name="domain_alias">
-				<since><version>13.20.0</version><version>15.3.0</version></since>
+				<since>
+					<version>13.20.0</version>
+					<version>15.3.0</version>
+				</since>
 				<synopsis>Domain Alias</synopsis>
 				<description><para>
 					Signifies that a domain is an alias. If the domain on a session is
@@ -1916,16 +2279,22 @@
 					config option is provided to specify the domain to be aliased.
 				</para></description>
 				<configOption name="type">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Must be of type 'domain_alias'.</synopsis>
 				</configOption>
 				<configOption name="domain">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Domain to be aliased</synopsis>
 				</configOption>
 			</configObject>
 			<configObject name="transport">
-				<since><version>13.8.0</version></since>
+				<since>
+					<version>13.8.0</version>
+				</since>
 				<synopsis>SIP Transport</synopsis>
 				<description><para>
 					<emphasis>Transports</emphasis>
@@ -1938,23 +2307,33 @@
 						will not suffice.</para></note>
 				</description>
 				<configOption name="async_operations" default="1">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Number of simultaneous Asynchronous Operations, can no longer be set, always set to 1</synopsis>
 				</configOption>
 				<configOption name="bind">
-					<since><version>12.2.0</version></since>
+					<since>
+						<version>12.2.0</version>
+					</since>
 					<synopsis>IP Address and optional port to bind to for this transport</synopsis>
 				</configOption>
 				<configOption name="ca_list_file">
-					<since><version>13.8.0</version></since>
+					<since>
+						<version>13.8.0</version>
+					</since>
 					<synopsis>File containing a list of certificates to read (TLS ONLY, not WSS)</synopsis>
 				</configOption>
 				<configOption name="ca_list_path">
-					<since><version>13.8.0</version></since>
+					<since>
+						<version>13.8.0</version>
+					</since>
 					<synopsis>Path to directory containing a list of certificates to read (TLS ONLY, not WSS)</synopsis>
 				</configOption>
 				<configOption name="cert_file">
-					<since><version>13.8.0</version></since>
+					<since>
+						<version>13.8.0</version>
+					</since>
 					<synopsis>Certificate file for endpoint (TLS ONLY, not WSS)</synopsis>
 					<description><para>
 						A path to a .crt or .pem file can be provided.  However, only
@@ -1965,7 +2344,9 @@
 					</para></description>
 				</configOption>
 				<configOption name="cipher">
-					<since><version>12.2.0</version></since>
+					<since>
+						<version>12.2.0</version>
+					</since>
 					<synopsis>Preferred cryptography cipher names (TLS ONLY, not WSS)</synopsis>
 					<description>
 					<para>Comma separated list of cipher names or numeric equivalents.
@@ -1979,11 +2360,15 @@
 					</description>
 				</configOption>
 				<configOption name="domain">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Domain the transport comes from</synopsis>
 				</configOption>
 				<configOption name="external_media_address">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>External IP address to use in RTP handling</synopsis>
 					<description><para>
 						When a request or response is sent out, if the destination of the
@@ -1994,15 +2379,21 @@
 					</para></description>
 				</configOption>
 				<configOption name="external_signaling_address">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>External address for SIP signalling</synopsis>
 				</configOption>
 				<configOption name="external_signaling_port" default="0">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>External port for SIP signalling</synopsis>
 				</configOption>
 				<configOption name="method">
-					<since><version>12.2.0</version></since>
+					<since>
+						<version>12.2.0</version>
+					</since>
 					<synopsis>Method of SSL transport (TLS ONLY, not WSS)</synopsis>
 					<description>
 						<para>The availability of each of these options is dependent on the
@@ -2025,17 +2416,23 @@
 					</description>
 				</configOption>
 				<configOption name="local_net">
-					<since><version>12.2.0</version></since>
+					<since>
+						<version>12.2.0</version>
+					</since>
 					<synopsis>Network to consider local (used for NAT purposes).</synopsis>
 					<description><para>This must be in CIDR or dotted decimal format with the IP
 					and mask separated with a slash ('/').</para></description>
 				</configOption>
 				<configOption name="password">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Password required for transport</synopsis>
 				</configOption>
 				<configOption name="priv_key_file">
-					<since><version>13.8.0</version></since>
+					<since>
+						<version>13.8.0</version>
+					</since>
 					<synopsis>Private key file (TLS ONLY, not WSS)</synopsis>
 					<description><para>
 						A path to a key file can be provided. The private key file
@@ -2044,7 +2441,9 @@
 					</para></description>
 				</configOption>
 				<configOption name="protocol" default="udp">
-					<since><version>12.2.0</version></since>
+					<since>
+						<version>12.2.0</version>
+					</since>
 					<synopsis>Protocol to use for SIP traffic</synopsis>
 					<description>
 						<enumlist>
@@ -2058,51 +2457,77 @@
 					</description>
 				</configOption>
 				<configOption name="require_client_cert" default="false">
-					<since><version>12.2.0</version></since>
+					<since>
+						<version>12.2.0</version>
+					</since>
 					<synopsis>Require client certificate (TLS ONLY, not WSS)</synopsis>
 				</configOption>
 				<configOption name="tcp_keepalive_enable" default="no">
-					<since><version>18.23.0</version><version>20.8.0</version><version>21.3.0</version></since>
+					<since>
+						<version>18.23.0</version>
+						<version>20.8.0</version>
+						<version>21.3.0</version>
+					</since>
 					<synopsis>Enable TCP keepalive</synopsis>
 					<description><para>
 						When set to 'yes', TCP keepalive messages are sent to verify that the endpoint is still reachable. This can help detect dead TCP connections in environments where connections may be silently dropped (e.g., NAT timeouts).
 					</para></description>
 				</configOption>
 				<configOption name="tcp_keepalive_idle_time" default="30">
-					<since><version>18.23.0</version><version>20.8.0</version><version>21.3.0</version></since>
+					<since>
+						<version>18.23.0</version>
+						<version>20.8.0</version>
+						<version>21.3.0</version>
+					</since>
 					<synopsis>Idle time before the first TCP keepalive probe is sent</synopsis>
 					<description><para>
 						Specifies the amount of time in seconds that the connection must be idle before the first TCP keepalive probe is sent. An idle connection is defined as a connection in which no data has been sent or received by the application.
 					</para></description>
 				</configOption>
 				<configOption name="tcp_keepalive_interval_time" default="10">
-					<since><version>18.23.0</version><version>20.8.0</version><version>21.3.0</version></since>
+					<since>
+						<version>18.23.0</version>
+						<version>20.8.0</version>
+						<version>21.3.0</version>
+					</since>
 					<synopsis>Interval between TCP keepalive probes</synopsis>
 					<description><para>
 						Specifies the interval in seconds between individual TCP keepalive probes, once the first probe is sent. This interval is used for subsequent probes if the peer does not respond to the previous probe.
 					</para></description>
 				</configOption>
 				<configOption name="tcp_keepalive_probe_count" default="5">
-					<since><version>18.23.0</version><version>20.8.0</version><version>21.3.0</version></since>
+					<since>
+						<version>18.23.0</version>
+						<version>20.8.0</version>
+						<version>21.3.0</version>
+					</since>
 					<synopsis>Maximum number of TCP keepalive probes</synopsis>
 					<description><para>
 						Specifies the maximum number of TCP keepalive probes to send before considering the connection dead and notifying the application. If the peer does not respond after this many probes, the connection is considered broken.
 					</para></description>
 				</configOption>
 				<configOption name="type">
-					<since><version>13.8.0</version></since>
+					<since>
+						<version>13.8.0</version>
+					</since>
 					<synopsis>Must be of type 'transport'.</synopsis>
 				</configOption>
 				<configOption name="verify_client" default="false">
-					<since><version>12.2.0</version></since>
+					<since>
+						<version>12.2.0</version>
+					</since>
 					<synopsis>Require verification of client certificate (TLS ONLY, not WSS)</synopsis>
 				</configOption>
 				<configOption name="verify_server" default="false">
-					<since><version>12.2.0</version></since>
+					<since>
+						<version>12.2.0</version>
+					</since>
 					<synopsis>Require verification of server certificate (TLS ONLY, not WSS)</synopsis>
 				</configOption>
 				<configOption name="tos" default="false">
-					<since><version>12.2.0</version></since>
+					<since>
+						<version>12.2.0</version>
+					</since>
 					<synopsis>Enable TOS for the signalling sent over this transport</synopsis>
 					<description>
 					<para>See <literal>https://docs.asterisk.org/Configuration/Channel-Drivers/IP-Quality-of-Service</literal>
@@ -2112,7 +2537,9 @@
 					</description>
 				</configOption>
 				<configOption name="cos" default="false">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Enable COS for the signalling sent over this transport</synopsis>
 					<description>
 					<para>See <literal>https://docs.asterisk.org/Configuration/Channel-Drivers/IP-Quality-of-Service</literal>
@@ -2122,7 +2549,10 @@
 					</description>
 				</configOption>
 				<configOption name="websocket_write_timeout" default="100">
-					<since><version>11.11.0</version><version>12.4.0</version></since>
+					<since>
+						<version>11.11.0</version>
+						<version>12.4.0</version>
+					</since>
 					<synopsis>The timeout (in milliseconds) to set on WebSocket connections.</synopsis>
 					<description>
 						<para>If a websocket connection accepts input slowly, the timeout
@@ -2131,7 +2561,9 @@
 					</description>
 				</configOption>
 				<configOption name="allow_reload" default="no">
-					<since><version>13.8.0</version></since>
+					<since>
+						<version>13.8.0</version>
+					</since>
 					<synopsis>Allow this transport to be reloaded.</synopsis>
 					<description>
 						<para>Allow this transport to be reloaded when res_pjsip is reloaded.
@@ -2140,7 +2572,11 @@
 					</description>
 				</configOption>
 				<configOption name="allow_wildcard_certs" default="false">
-					<since><version>16.28.0</version><version>18.14.0</version><version>19.6.0</version></since>
+					<since>
+						<version>16.28.0</version>
+						<version>18.14.0</version>
+						<version>19.6.0</version>
+					</since>
 					<synopsis>Allow use of wildcards in certificates (TLS ONLY)</synopsis>
 					<description>
 					  <para>In combination with verify_server, when enabled allow use of wildcards,
@@ -2153,7 +2589,10 @@
 					</description>
 				</configOption>
 				<configOption name="symmetric_transport" default="no">
-					<since><version>13.15.0</version><version>14.4.0</version></since>
+					<since>
+						<version>13.15.0</version>
+						<version>14.4.0</version>
+					</since>
 					<synopsis>Use the same transport for outgoing requests as incoming ones.</synopsis>
 					<description>
 						<para>When a request from a dynamic contact
@@ -2285,7 +2724,11 @@
 				</configOption>
 			</configObject>
 			<configObject name="aor">
-				<since><version>13.35.0</version><version>16.12.0</version><version>17.6.0</version></since>
+				<since>
+					<version>13.35.0</version>
+					<version>16.12.0</version>
+					<version>17.6.0</version>
+				</since>
 				<synopsis>The configuration for a location of an endpoint</synopsis>
 				<description><para>
 					An AoR is what allows Asterisk to contact an endpoint via res_pjsip. If no
@@ -2307,7 +2750,9 @@
 					to the "user name" set in your hard or soft phones configuration.
 				</para></description>
 				<configOption name="contact">
-					<since><version>12.2.0</version></since>
+					<since>
+						<version>12.2.0</version>
+					</since>
 					<synopsis>Permanent contacts assigned to AoR</synopsis>
 					<description><para>
 						Contacts specified will be called whenever referenced
@@ -2318,11 +2763,15 @@
 					</para></description>
 				</configOption>
 				<configOption name="default_expiration" default="3600">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Default expiration time in seconds for contacts that are dynamically bound to an AoR.</synopsis>
 				</configOption>
 				<configOption name="mailboxes">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Allow subscriptions for the specified mailbox(es)</synopsis>
 					<description><para>This option applies when an external entity subscribes to an AoR
 						for Message Waiting Indications. The mailboxes specified will be subscribed to.
@@ -2337,18 +2786,24 @@
 					</para></description>
 				</configOption>
 				<configOption name="voicemail_extension">
-					<since><version>13.9.0</version></since>
+					<since>
+						<version>13.9.0</version>
+					</since>
 					<synopsis>The voicemail extension to send in the NOTIFY Message-Account header</synopsis>
 				</configOption>
 				<configOption name="maximum_expiration" default="7200">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Maximum time to keep an AoR</synopsis>
 					<description><para>
 						Maximum time to keep a peer with explicit expiration. Time in seconds.
 					</para></description>
 				</configOption>
 				<configOption name="max_contacts" default="0">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Maximum number of contacts that can bind to an AoR</synopsis>
 					<description><para>
 						Maximum number of contacts that can associate with this AoR. This value does
@@ -2376,14 +2831,18 @@
 					</description>
 				</configOption>
 				<configOption name="minimum_expiration" default="60">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Minimum keep alive time for an AoR</synopsis>
 					<description><para>
 						Minimum time to keep a peer with an explicit expiration. Time in seconds.
 					</para></description>
 				</configOption>
 				<configOption name="remove_existing" default="no">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Determines whether new contacts replace existing ones.</synopsis>
 					<description><para>
 						On receiving a new registration to the AoR should it remove enough
@@ -2410,7 +2869,10 @@
 					</description>
 				</configOption>
 				<configOption name="remove_unavailable" default="no">
-					<since><version>16.22.0</version><version>18.8.0</version></since>
+					<since>
+						<version>16.22.0</version>
+						<version>18.8.0</version>
+					</since>
 					<synopsis>Determines whether new contacts should replace unavailable ones.</synopsis>
 					<description><para>
 						The effect of this setting depends on the setting of
@@ -2431,11 +2893,15 @@
 					</description>
 				</configOption>
 				<configOption name="type">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Must be of type 'aor'.</synopsis>
 				</configOption>
 				<configOption name="qualify_frequency" default="0">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Interval at which to qualify an AoR</synopsis>
 					<description><para>
 						Interval between attempts to qualify the AoR for reachability.
@@ -2443,7 +2909,9 @@
 					</para></description>
 				</configOption>
 				<configOption name="qualify_timeout" default="3.0">
-					<since><version>13.4.0</version></since>
+					<since>
+						<version>13.4.0</version>
+					</since>
 					<synopsis>Timeout for qualify</synopsis>
 					<description><para>
 						If the contact doesn't respond to the OPTIONS request before the timeout,
@@ -2453,7 +2921,11 @@
 					</para></description>
 				</configOption>
 				<configOption name="qualify_2xx_only">
-                    <since><version>20.12.0</version><version>21.7.0</version><version>22.2.0</version></since>
+                    <since>
+                    	<version>20.12.0</version>
+                    	<version>21.7.0</version>
+                    	<version>22.2.0</version>
+                    </since>
 					<synopsis>Only qualify contact if OPTIONS request returns 2XX</synopsis>
 					<description>
 						<para>If true only mark a contact as available if the qualify OPTIONS
@@ -2462,7 +2934,9 @@
 					</description>
 				</configOption>
 				<configOption name="authenticate_qualify">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Authenticates a qualify challenge response if needed</synopsis>
 					<description>
 						<para>If true and a qualify request receives a challenge response then
@@ -2475,7 +2949,9 @@
 					</description>
 				</configOption>
 				<configOption name="outbound_proxy">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Outbound proxy used when sending OPTIONS request</synopsis>
 					<description><para>
 						If set the provided URI will be used as the outbound proxy when an
@@ -2483,7 +2959,9 @@
 					</para></description>
 				</configOption>
 				<configOption name="support_path">
-					<since><version>12.1.0</version></since>
+					<since>
+						<version>12.1.0</version>
+					</since>
 					<synopsis>Enables Path support for REGISTER requests and Route support for other requests.</synopsis>
 					<description><para>
 						When this option is enabled, the Path headers in register requests will be saved
@@ -2494,7 +2972,9 @@
 				</configOption>
 			</configObject>
 			<configObject name="system">
-				<since><version>12.2.0</version></since>
+				<since>
+					<version>12.2.0</version>
+				</since>
 				<synopsis>Options that apply to the SIP stack as well as other system-wide settings</synopsis>
 				<description><para>
 					The settings in this section are global. In addition to being global, the values will
@@ -2503,7 +2983,9 @@
 					restart Asterisk, or unload res_pjsip.so and then load it again.
 				</para></description>
 				<configOption name="timer_t1" default="500">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Set transaction timer T1 value (milliseconds).</synopsis>
 					<description><para>
 						Timer T1 is the base for determining how long to wait before retransmitting
@@ -2512,7 +2994,9 @@
 					</para></description>
 				</configOption>
 				<configOption name="timer_b" default="32000">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Set transaction timer B value (milliseconds).</synopsis>
 					<description><para>
 						Timer B determines the maximum amount of time to wait after sending an INVITE
@@ -2522,28 +3006,40 @@
 					</para></description>
 				</configOption>
 				<configOption name="compact_headers" default="no">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Use the short forms of common SIP header names.</synopsis>
 				</configOption>
 				<configOption name="threadpool_initial_size" default="0">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Initial number of threads in the res_pjsip threadpool.</synopsis>
 				</configOption>
 				<configOption name="threadpool_auto_increment" default="5">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>The amount by which the number of threads is incremented when necessary.</synopsis>
 				</configOption>
 				<configOption name="threadpool_idle_timeout" default="60">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Number of seconds before an idle thread should be disposed of.</synopsis>
 				</configOption>
 				<configOption name="threadpool_max_size" default="0">
-					<since><version>13.7.0</version></since>
+					<since>
+						<version>13.7.0</version>
+					</since>
 					<synopsis>Maximum number of threads in the res_pjsip threadpool.
 					A value of 0 indicates no maximum.</synopsis>
 				</configOption>
 				<configOption name="disable_tcp_switch" default="yes">
-					<since><version>13.1.0</version></since>
+					<since>
+						<version>13.1.0</version>
+					</since>
 					<synopsis>Disable automatic switching from UDP to TCP transports.</synopsis>
 					<description><para>
 						Disable automatic switching from UDP to TCP transports if outgoing
@@ -2551,7 +3047,10 @@
 					</para></description>
 				</configOption>
 				<configOption name="follow_early_media_fork">
-					<since><version>13.22.0</version><version>15.5.0</version></since>
+					<since>
+						<version>13.22.0</version>
+						<version>15.5.0</version>
+					</since>
 					<synopsis>Follow SDP forked media when To tag is different</synopsis>
 					<description><para>
 						On outgoing calls, if the UAS responds with different SDP attributes
@@ -2566,7 +3065,10 @@
 					</description>
 				</configOption>
 				<configOption name="accept_multiple_sdp_answers">
-					<since><version>13.22.0</version><version>15.5.0</version></since>
+					<since>
+						<version>13.22.0</version>
+						<version>15.5.0</version>
+					</since>
 					<synopsis>Follow SDP forked media when To tag is the same</synopsis>
 					<description><para>
 						On outgoing calls, if the UAS responds with different SDP attributes
@@ -2581,50 +3083,71 @@
 					</description>
 				</configOption>
 				<configOption name="disable_rport" default="no">
-					<since><version>13.35.0</version><version>16.12.0</version><version>17.6.0</version></since>
+					<since>
+						<version>13.35.0</version>
+						<version>16.12.0</version>
+						<version>17.6.0</version>
+					</since>
 					<synopsis>Disable the use of rport in outgoing requests.</synopsis>
 					<description><para>
 						Remove "rport" parameter from the outgoing requests.
 					</para></description>
 				</configOption>
 				<configOption name="type">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Must be of type 'system' UNLESS the object name is 'system'.</synopsis>
 				</configOption>
 			</configObject>
 			<configObject name="global">
-				<since><version>12.0.0</version></since>
+				<since>
+					<version>12.0.0</version>
+				</since>
 				<synopsis>Options that apply globally to all SIP communications</synopsis>
 				<description><para>
 					The settings in this section are global. Unlike options in the <literal>system</literal>
 					section, these options can be refreshed by performing a reload.
 				</para></description>
 				<configOption name="max_forwards" default="70">
-					<since><version>13.3.0</version></since>
+					<since>
+						<version>13.3.0</version>
+					</since>
 					<synopsis>Value used in Max-Forwards header for SIP requests.</synopsis>
 				</configOption>
 				<configOption name="keep_alive_interval" default="90">
-					<since><version>13.3.0</version></since>
+					<since>
+						<version>13.3.0</version>
+					</since>
 					<synopsis>The interval (in seconds) to send keepalives to active connection-oriented transports.</synopsis>
 				</configOption>
 				<configOption name="contact_expiration_check_interval" default="30">
-					<since><version>13.9.0</version></since>
+					<since>
+						<version>13.9.0</version>
+					</since>
 					<synopsis>The interval (in seconds) to check for expired contacts.</synopsis>
 				</configOption>
 				<configOption name="disable_multi_domain" default="no">
-					<since><version>13.12.0</version><version>14.1.0</version></since>
+					<since>
+						<version>13.12.0</version>
+						<version>14.1.0</version>
+					</since>
 					<synopsis>Disable Multi Domain support</synopsis>
 					<description><para>
 						If disabled it can improve realtime performance by reducing the number of database requests.
 					</para></description>
 				</configOption>
 				<configOption name="max_initial_qualify_time" default="0">
-					<since><version>13.4.0</version></since>
+					<since>
+						<version>13.4.0</version>
+					</since>
 					<synopsis>The maximum amount of time from startup that qualifies should be attempted on all contacts.
 					If greater than the qualify_frequency for an aor, qualify_frequency will be used instead.</synopsis>
 				</configOption>
 				<configOption name="unidentified_request_period" default="5">
-					<since><version>13.10.0</version></since>
+					<since>
+						<version>13.10.0</version>
+					</since>
 					<synopsis>The number of seconds over which to accumulate unidentified requests.</synopsis>
 					<description><para>
 					If <literal>unidentified_request_count</literal> unidentified requests are received
@@ -2632,7 +3155,9 @@
 					</para></description>
 				</configOption>
 				<configOption name="unidentified_request_count" default="5">
-					<since><version>13.10.0</version></since>
+					<since>
+						<version>13.10.0</version>
+					</since>
 					<synopsis>The number of unidentified requests from a single IP to allow.</synopsis>
 					<description><para>
 					If <literal>unidentified_request_count</literal> unidentified requests are received
@@ -2640,38 +3165,54 @@
 					</para></description>
 				</configOption>
 				<configOption name="unidentified_request_prune_interval" default="30">
-					<since><version>13.10.0</version></since>
+					<since>
+						<version>13.10.0</version>
+					</since>
 					<synopsis>The interval at which unidentified requests are older than
 					twice the unidentified_request_period are pruned.</synopsis>
 				</configOption>
 				<configOption name="type">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Must be of type 'global' UNLESS the object name is 'global'.</synopsis>
 				</configOption>
 				<configOption name="user_agent" default="Asterisk &lt;Asterisk Version&gt;">
-					<since><version>12.0.0</version></since>
+					<since>
+						<version>12.0.0</version>
+					</since>
 					<synopsis>Value used in User-Agent header for SIP requests and Server header for SIP responses.</synopsis>
 				</configOption>
 				<configOption name="regcontext" default="">
-					<since><version>13.8.0</version></since>
+					<since>
+						<version>13.8.0</version>
+					</since>
 					<synopsis>When set, Asterisk will dynamically create and destroy a NoOp priority 1 extension for a given
 						peer who registers or unregisters with us.</synopsis>
 				</configOption>
 				<configOption name="default_outbound_endpoint" default="default_outbound_endpoint">
-					<since><version>13.3.0</version></since>
+					<since>
+						<version>13.3.0</version>
+					</since>
 					<synopsis>Endpoint to use when sending an outbound request to a URI without a specified endpoint.</synopsis>
 				</configOption>
 				<configOption name="default_voicemail_extension">
-					<since><version>13.9.0</version></since>
+					<since>
+						<version>13.9.0</version>
+					</since>
 					<synopsis>The voicemail extension to send in the NOTIFY Message-Account header if not specified on endpoint or aor</synopsis>
 				</configOption>
 				<configOption name="debug" default="no">
-					<since><version>13.3.0</version></since>
+					<since>
+						<version>13.3.0</version>
+					</since>
 					<synopsis>Enable/Disable SIP debug logging.  Valid options include yes, no, or
 						a host address</synopsis>
 				</configOption>
 				<configOption name="endpoint_identifier_order">
-					<since><version>13.3.0</version></since>
+					<since>
+						<version>13.3.0</version>
+					</since>
 					<synopsis>The order by which endpoint identifiers are processed and checked.
 						Identifier names are usually derived from and can be found in the endpoint
 						identifier module itself (res_pjsip_endpoint_identifier_*).
@@ -2694,19 +3235,26 @@
 					</description>
 				</configOption>
 				<configOption name="default_from_user" default="asterisk">
-					<since><version>13.6.0</version></since>
+					<since>
+						<version>13.6.0</version>
+					</since>
 					<synopsis>When Asterisk generates an outgoing SIP request, the From header username will be
 						set to this value if there is no better option (such as CallerID) to be
 						used.</synopsis>
 				</configOption>
 				<configOption name="default_realm" default="asterisk">
-					<since><version>13.10.0</version></since>
+					<since>
+						<version>13.10.0</version>
+					</since>
 					<synopsis>When Asterisk generates a challenge, the digest realm will be
 						set to this value if there is no better option (such as auth/realm) to be
 						used.</synopsis>
 				</configOption>
 				<configOption name="mwi_tps_queue_high" default="500">
-					<since><version>13.12.0</version><version>14.1.0</version></since>
+					<since>
+						<version>13.12.0</version>
+						<version>14.1.0</version>
+					</since>
 					<synopsis>MWI taskprocessor high water alert trigger level.</synopsis>
 					<description>
 						<para>On a heavily loaded system you may need to adjust the
@@ -2719,7 +3267,10 @@
 					</description>
 				</configOption>
 				<configOption name="mwi_tps_queue_low" default="-1">
-					<since><version>13.12.0</version><version>14.1.0</version></since>
+					<since>
+						<version>13.12.0</version>
+						<version>14.1.0</version>
+					</since>
 					<synopsis>MWI taskprocessor low water clear alert level.</synopsis>
 					<description>
 						<para>On a heavily loaded system you may need to adjust the
@@ -2734,7 +3285,10 @@
 					</description>
 				</configOption>
 				<configOption name="mwi_disable_initial_unsolicited" default="no">
-					<since><version>13.12.0</version><version>14.1.0</version></since>
+					<since>
+						<version>13.12.0</version>
+						<version>14.1.0</version>
+					</since>
 					<synopsis>Enable/Disable sending unsolicited MWI to all endpoints on startup.</synopsis>
 					<description>
 						<para>When the initial unsolicited MWI notification are
@@ -2751,7 +3305,10 @@
 					</description>
 				</configOption>
 				<configOption name="ignore_uri_user_options">
-					<since><version>13.12.0</version><version>14.1.0</version></since>
+					<since>
+						<version>13.12.0</version>
+						<version>14.1.0</version>
+					</since>
 					<synopsis>Enable/Disable ignoring SIP URI user field options.</synopsis>
 					<description>
 						<para>If you have this option enabled and there are semicolons
@@ -2776,7 +3333,10 @@
 					</description>
 				</configOption>
 				<configOption name="use_callerid_contact" default="no">
-					<since><version>13.24.0</version><version>16.1.0</version></since>
+					<since>
+						<version>13.24.0</version>
+						<version>16.1.0</version>
+					</since>
 					<synopsis>Place caller-id information into Contact header</synopsis>
 					<description><para>
 						This option will cause Asterisk to place caller-id information into
@@ -2784,11 +3344,16 @@
 					</description>
 				</configOption>
 				<configOption name="send_contact_status_on_update_registration" default="no">
-					<since><version>16.2.0</version></since>
+					<since>
+						<version>16.2.0</version>
+					</since>
 					<synopsis>Enable sending AMI ContactStatus event when a device refreshes its registration.</synopsis>
 				</configOption>
 				<configOption name="taskprocessor_overload_trigger">
-					<since><version>13.26.0</version><version>16.3.0</version></since>
+					<since>
+						<version>13.26.0</version>
+						<version>16.3.0</version>
+					</since>
 					<synopsis>Trigger scope for taskprocessor overloads</synopsis>
 					<description><para>
 						This option specifies the trigger the distributor will use for
@@ -2809,11 +3374,18 @@
 					</description>
 				</configOption>
 				<configOption name="norefersub" default="yes">
-					<since><version>13.27.0</version><version>16.4.0</version></since>
+					<since>
+						<version>13.27.0</version>
+						<version>16.4.0</version>
+					</since>
 					<synopsis>Advertise support for RFC4488 REFER subscription suppression</synopsis>
 				</configOption>
 				<configOption name="allow_sending_180_after_183" default="no">
-					<since><version>16.26.0</version><version>18.12.0</version><version>19.4.0</version></since>
+					<since>
+						<version>16.26.0</version>
+						<version>18.12.0</version>
+						<version>19.4.0</version>
+					</since>
 					<synopsis>Allow 180 after 183</synopsis>
 					<description><para>
 						Allow Asterisk to send 180 Ringing to an endpoint
@@ -2825,7 +3397,12 @@
 					</description>
 				</configOption>
 				<configOption name="all_codecs_on_empty_reinvite" default="no">
-					<since><version>16.30.0</version><version>18.16.0</version><version>19.8.0</version><version>20.1.0</version></since>
+					<since>
+						<version>16.30.0</version>
+						<version>18.16.0</version>
+						<version>19.8.0</version>
+						<version>20.1.0</version>
+					</since>
 					<synopsis>If we should return all codecs on re-INVITE without SDP</synopsis>
 					<description><para>
 						On reception of a re-INVITE without SDP Asterisk will send an SDP
@@ -2835,7 +3412,11 @@
 					</para></description>
 				</configOption>
 				<configOption name="default_auth_algorithms_uas" default="no">
-					<since><version>20.12.0</version><version>21.7.0</version><version>22.2.0</version></since>
+					<since>
+						<version>20.12.0</version>
+						<version>21.7.0</version>
+						<version>22.2.0</version>
+					</since>
 					<synopsis>List of default authentication algorithms to support when Asterisk is UAS</synopsis>
 					<description><para>Valid values:</para>
 						<enumlist>
@@ -2847,7 +3428,11 @@
 					</description>
 				</configOption>
 				<configOption name="default_auth_algorithms_uac" default="no">
-					<since><version>20.12.0</version><version>21.7.0</version><version>22.2.0</version></since>
+					<since>
+						<version>20.12.0</version>
+						<version>21.7.0</version>
+						<version>22.2.0</version>
+					</since>
 					<synopsis>List of default authentication algorithms to support when Asterisk is UAC</synopsis>
 					<description><para>Valid values:</para>
 						<enumlist>

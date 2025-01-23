@@ -42,7 +42,9 @@
 
 /*** DOCUMENTATION
 	<application name="SpeechCreate" language="en_US">
-		<since><version>1.6.1.0</version></since>
+		<since>
+			<version>1.6.1.0</version>
+		</since>
 		<synopsis>
 			Create a Speech Structure.
 		</synopsis>
@@ -57,7 +59,9 @@
 		</description>
 	</application>
 	<application name="SpeechActivateGrammar" language="en_US">
-		<since><version>1.6.1.0</version></since>
+		<since>
+			<version>1.6.1.0</version>
+		</since>
 		<synopsis>
 			Activate a grammar.
 		</synopsis>
@@ -72,7 +76,9 @@
 		</description>
 	</application>
 	<application name="SpeechStart" language="en_US">
-		<since><version>1.6.1.0</version></since>
+		<since>
+			<version>1.6.1.0</version>
+		</since>
 		<synopsis>
 			Start recognizing voice in the audio stream.
 		</synopsis>
@@ -84,7 +90,9 @@
 		</description>
 	</application>
 	<application name="SpeechBackground" language="en_US">
-		<since><version>1.6.1.0</version></since>
+		<since>
+			<version>1.6.1.0</version>
+		</since>
 		<synopsis>
 			Play a sound file and wait for speech to be recognized.
 		</synopsis>
@@ -128,7 +136,9 @@
 		</description>
 	</application>
 	<application name="SpeechDeactivateGrammar" language="en_US">
-		<since><version>1.6.1.0</version></since>
+		<since>
+			<version>1.6.1.0</version>
+		</since>
 		<synopsis>
 			Deactivate a grammar.
 		</synopsis>
@@ -143,7 +153,9 @@
 		</description>
 	</application>
 	<application name="SpeechProcessingSound" language="en_US">
-		<since><version>1.6.1.0</version></since>
+		<since>
+			<version>1.6.1.0</version>
+		</since>
 		<synopsis>
 			Change background processing sound.
 		</synopsis>
@@ -157,7 +169,9 @@
 		</description>
 	</application>
 	<application name="SpeechDestroy" language="en_US">
-		<since><version>1.6.1.0</version></since>
+		<since>
+			<version>1.6.1.0</version>
+		</since>
 		<synopsis>
 			End speech recognition.
 		</synopsis>
@@ -170,7 +184,9 @@
 		</description>
 	</application>
 	<application name="SpeechLoadGrammar" language="en_US">
-		<since><version>1.6.1.0</version></since>
+		<since>
+			<version>1.6.1.0</version>
+		</since>
 		<synopsis>
 			Load a grammar.
 		</synopsis>
@@ -184,7 +200,9 @@
 		</description>
 	</application>
 	<application name="SpeechUnloadGrammar" language="en_US">
-		<since><version>1.6.1.0</version></since>
+		<since>
+			<version>1.6.1.0</version>
+		</since>
 		<synopsis>
 			Unload a grammar.
 		</synopsis>
@@ -197,7 +215,9 @@
 		</description>
 	</application>
 	<function name="SPEECH_SCORE" language="en_US">
-		<since><version>1.6.1.0</version></since>
+		<since>
+			<version>1.6.1.0</version>
+		</since>
 		<synopsis>
 			Gets the confidence score of a result.
 		</synopsis>
@@ -210,7 +230,9 @@
 		</description>
 	</function>
 	<function name="SPEECH_TEXT" language="en_US">
-		<since><version>1.6.1.0</version></since>
+		<since>
+			<version>1.6.1.0</version>
+		</since>
 		<synopsis>
 			Gets the recognized text of a result.
 		</synopsis>
@@ -223,7 +245,9 @@
 		</description>
 	</function>
 	<function name="SPEECH_GRAMMAR" language="en_US">
-		<since><version>1.6.1.0</version></since>
+		<since>
+			<version>1.6.1.0</version>
+		</since>
 		<synopsis>
 			Gets the matched grammar of a result if available.
 		</synopsis>
@@ -236,7 +260,9 @@
 		</description>
 	</function>
 	<function name="SPEECH_ENGINE" language="en_US">
-		<since><version>1.6.1.0</version></since>
+		<since>
+			<version>1.6.1.0</version>
+		</since>
 		<synopsis>
 			Get or change a speech engine specific attribute.
 		</synopsis>
@@ -248,7 +274,9 @@
 		</description>
 	</function>
 	<function name="SPEECH_RESULTS_TYPE" language="en_US">
-		<since><version>1.6.1.0</version></since>
+		<since>
+			<version>1.6.1.0</version>
+		</since>
 		<synopsis>
 			Sets the type of results that will be returned.
 		</synopsis>
@@ -258,7 +286,9 @@
 		</description>
 	</function>
 	<function name="SPEECH" language="en_US">
-		<since><version>1.6.1.0</version></since>
+		<since>
+			<version>1.6.1.0</version>
+		</since>
 		<synopsis>
 			Gets information about speech recognition results.
 		</synopsis>

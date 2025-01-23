@@ -34,7 +34,9 @@
 
 /*** DOCUMENTATION
 	<function name="CALLCOMPLETION" language="en_US">
-		<since><version>1.8.0</version></since>
+		<since>
+			<version>1.8.0</version>
+		</since>
 		<synopsis>
 			Get or set a call completion configuration parameter for a channel.
 		</synopsis>

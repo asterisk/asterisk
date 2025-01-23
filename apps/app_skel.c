@@ -63,7 +63,9 @@
 
 /*** DOCUMENTATION
 	<application name="SkelGuessNumber" language="en_US">
-		<since><version>11.0.0</version></since>
+		<since>
+			<version>11.0.0</version>
+		</since>
 		<synopsis>
 			An example number guessing game
 		</synopsis>
@@ -89,55 +91,82 @@
 	<configInfo name="app_skel" language="en_US">
 		<configFile name="app_skel.conf">
 			<configObject name="globals">
-				<since><version>12.0.0</version></since>
+				<since>
+					<version>12.0.0</version>
+				</since>
 				<synopsis>Options that apply globally to app_skel</synopsis>
 				<configOption name="games">
-					<since><version>11.0.0</version></since>
+					<since>
+						<version>11.0.0</version>
+					</since>
 					<synopsis>The number of games a single execution of SkelGuessNumber will play</synopsis>
 				</configOption>
 				<configOption name="cheat">
-					<since><version>11.0.0</version></since>
+					<since>
+						<version>11.0.0</version>
+					</since>
 					<synopsis>Should the computer cheat?</synopsis>
 					<description><para>If enabled, the computer will ignore winning guesses.</para></description>
 				</configOption>
 			</configObject>
 			<configObject name="sounds">
-				<since><version>12.0.0</version></since>
+				<since>
+					<version>12.0.0</version>
+				</since>
 				<synopsis>Prompts for SkelGuessNumber to play</synopsis>
 				<configOption name="prompt" default="please-enter-your&amp;number&amp;queue-less-than">
-					<since><version>11.0.0</version></since>
+					<since>
+						<version>11.0.0</version>
+					</since>
 					<synopsis>A prompt directing the user to enter a number less than the max number</synopsis>
 				</configOption>
 				<configOption name="wrong_guess" default="vm-pls-try-again">
-					<since><version>11.0.0</version></since>
+					<since>
+						<version>11.0.0</version>
+					</since>
 					<synopsis>The sound file to play when a wrong guess is made</synopsis>
 				</configOption>
 				<configOption name="right_guess" default="auth-thankyou">
-					<since><version>11.0.0</version></since>
+					<since>
+						<version>11.0.0</version>
+					</since>
 					<synopsis>The sound file to play when a correct guess is made</synopsis>
 				</configOption>
 				<configOption name="too_low">
-					<since><version>11.0.0</version></since>
+					<since>
+						<version>11.0.0</version>
+					</since>
 					<synopsis>The sound file to play when a guess is too low</synopsis>
 				</configOption>
 				<configOption name="too_high">
-					<since><version>11.0.0</version></since>
+					<since>
+						<version>11.0.0</version>
+					</since>
 					<synopsis>The sound file to play when a guess is too high</synopsis>
 				</configOption>
 				<configOption name="lose" default="vm-goodbye">
-					<since><version>11.0.0</version></since>
+					<since>
+						<version>11.0.0</version>
+					</since>
 					<synopsis>The sound file to play when a player loses</synopsis>
 				</configOption>
 			</configObject>
 			<configObject name="level">
-				<since><version>12.0.0</version></since>
+				<since>
+					<version>12.0.0</version>
+				</since>
 				<synopsis>Defined levels for the SkelGuessNumber game</synopsis>
 				<configOption name="max_number">
-					<since><version>11.0.0</version></since>
+					<since>
+						<version>11.0.0</version>
+					</since>
 					<synopsis>The maximum in the range of numbers to guess (1 is the implied minimum)</synopsis>
 				</configOption>
 				<configOption name="max_guesses">
-					<since><version>11.22.0</version><version>13.9.0</version></since>
+					<since>
+						<version>11.22.0</version>
+						<version>13.9.0</version>
+					</since>
 					<synopsis>The maximum number of guesses before a game is considered lost</synopsis>
 				</configOption>
 			</configObject>

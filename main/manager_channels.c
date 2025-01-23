@@ -38,7 +38,9 @@
 /*** DOCUMENTATION
 	<managerEvent language="en_US" name="Newchannel">
 		<managerEventInstance class="EVENT_FLAG_CALL">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when a new channel is created.</synopsis>
 			<syntax>
 				<channel_snapshot/>
@@ -51,7 +53,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="Newstate">
 		<managerEventInstance class="EVENT_FLAG_CALL">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when a channel's state changes.</synopsis>
 			<syntax>
 				<channel_snapshot/>
@@ -64,7 +68,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="Hangup">
 		<managerEventInstance class="EVENT_FLAG_CALL">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when a channel is hung up.</synopsis>
 			<syntax>
 				<channel_snapshot/>
@@ -85,7 +91,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="HangupRequest">
 		<managerEventInstance class="EVENT_FLAG_CALL">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when a hangup is requested.</synopsis>
 			<syntax>
 				<channel_snapshot/>
@@ -99,7 +107,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="SoftHangupRequest">
 		<managerEventInstance class="EVENT_FLAG_CALL">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when a soft hangup is requested with a specific cause code.</synopsis>
 			<syntax>
 				<channel_snapshot/>
@@ -113,7 +123,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="NewExten">
 		<managerEventInstance class="EVENT_FLAG_DIALPLAN">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when a channel enters a new context, extension, priority.</synopsis>
 			<syntax>
 				<channel_snapshot/>
@@ -133,7 +145,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="NewCallerid">
 		<managerEventInstance class="EVENT_FLAG_CALL">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when a channel receives new Caller ID information.</synopsis>
 			<syntax>
 				<channel_snapshot/>
@@ -148,7 +162,10 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="NewConnectedLine">
 		<managerEventInstance class="EVENT_FLAG_CALL">
-			<since><version>13.13.0</version><version>14.2.0</version></since>
+			<since>
+				<version>13.13.0</version>
+				<version>14.2.0</version>
+			</since>
 			<synopsis>Raised when a channel's connected line information is changed.</synopsis>
 			<syntax>
 				<channel_snapshot/>
@@ -160,7 +177,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="NewAccountCode">
 		<managerEventInstance class="EVENT_FLAG_CALL">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when a Channel's AccountCode is changed.</synopsis>
 			<syntax>
 				<channel_snapshot/>
@@ -175,7 +194,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="DialBegin">
 		<managerEventInstance class="EVENT_FLAG_CALL">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when a dial action has started.</synopsis>
 			<syntax>
 				<channel_snapshot/>
@@ -194,7 +215,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="DialState">
 		<managerEventInstance class="EVENT_FLAG_CALL">
-			<since><version>14.0.0</version></since>
+			<since>
+				<version>14.0.0</version>
+			</since>
 			<synopsis>Raised when dial status has changed.</synopsis>
 			<syntax>
 				<channel_snapshot/>
@@ -222,7 +245,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="DialEnd">
 		<managerEventInstance class="EVENT_FLAG_CALL">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when a dial action has completed.</synopsis>
 			<syntax>
 				<channel_snapshot/>
@@ -279,7 +304,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="Hold">
 		<managerEventInstance class="EVENT_FLAG_CALL">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when a channel goes on hold.</synopsis>
 			<syntax>
 				<channel_snapshot/>
@@ -294,7 +321,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="Unhold">
 		<managerEventInstance class="EVENT_FLAG_CALL">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when a channel goes off hold.</synopsis>
 			<syntax>
 				<channel_snapshot/>
@@ -306,7 +335,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="ChanSpyStart">
 		<managerEventInstance class="EVENT_FLAG_CALL">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when one channel begins spying on another channel.</synopsis>
 			<syntax>
 				<channel_snapshot prefix="Spyer"/>
@@ -320,7 +351,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="ChanSpyStop">
 		<managerEventInstance class="EVENT_FLAG_CALL">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when a channel has stopped spying.</synopsis>
 			<syntax>
 				<channel_snapshot prefix="Spyer"/>
@@ -334,7 +367,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="HangupHandlerRun">
 		<managerEventInstance class="EVENT_FLAG_DIALPLAN">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when a hangup handler is about to be called.</synopsis>
 			<syntax>
 				<channel_snapshot/>
@@ -349,7 +384,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="HangupHandlerPop">
 		<managerEventInstance class="EVENT_FLAG_DIALPLAN">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>
 				Raised when a hangup handler is removed from the handler stack
 				by the CHANNEL() function.
@@ -366,7 +403,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="HangupHandlerPush">
 		<managerEventInstance class="EVENT_FLAG_DIALPLAN">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>
 				Raised when a hangup handler is added to the handler stack by
 				the CHANNEL() function.
@@ -383,7 +422,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="FAXStatus">
 		<managerEventInstance class="EVENT_FLAG_CALL">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>
 				Raised periodically during a fax transmission.
 			</synopsis>
@@ -406,7 +447,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="ReceiveFAX">
 		<managerEventInstance class="EVENT_FLAG_CALL">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>
 				Raised when a receive fax operation has completed.
 			</synopsis>
@@ -435,7 +478,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="SendFAX">
 		<managerEventInstance class="EVENT_FLAG_CALL">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>
 				Raised when a send fax operation has completed.
 			</synopsis>
@@ -447,7 +492,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="MusicOnHoldStart">
 		<managerEventInstance class="EVENT_FLAG_CALL">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when music on hold has started on a channel.</synopsis>
 			<syntax>
 				<channel_snapshot/>
@@ -464,7 +511,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="MusicOnHoldStop">
 		<managerEventInstance class="EVENT_FLAG_CALL">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when music on hold has stopped on a channel.</synopsis>
 			<syntax>
 				<channel_snapshot/>
@@ -921,7 +970,11 @@ static void channel_dtmf_begin_cb(void *data, struct stasis_subscription *sub,
 	/*** DOCUMENTATION
 		<managerEvent language="en_US" name="DTMFBegin">
 			<managerEventInstance class="EVENT_FLAG_DTMF">
-				<since><version>16.24.0</version><version>18.10.0</version><version>19.2.0</version></since>
+				<since>
+					<version>16.24.0</version>
+					<version>18.10.0</version>
+					<version>19.2.0</version>
+				</since>
 				<synopsis>Raised when a DTMF digit has started on a channel.</synopsis>
 					<syntax>
 						<channel_snapshot/>
@@ -970,7 +1023,11 @@ static void channel_dtmf_end_cb(void *data, struct stasis_subscription *sub,
 	/*** DOCUMENTATION
 		<managerEvent language="en_US" name="DTMFEnd">
 			<managerEventInstance class="EVENT_FLAG_DTMF">
-				<since><version>16.24.0</version><version>18.10.0</version><version>19.2.0</version></since>
+				<since>
+					<version>16.24.0</version>
+					<version>18.10.0</version>
+					<version>19.2.0</version>
+				</since>
 				<synopsis>Raised when a DTMF digit has ended on a channel.</synopsis>
 					<syntax>
 						<channel_snapshot/>
@@ -1016,7 +1073,11 @@ static void channel_flash_cb(void *data, struct stasis_subscription *sub,
 	/*** DOCUMENTATION
 		<managerEvent language="en_US" name="Flash">
 			<managerEventInstance class="EVENT_FLAG_CALL">
-				<since><version>16.24.0</version><version>18.10.0</version><version>19.2.0</version></since>
+				<since>
+					<version>16.24.0</version>
+					<version>18.10.0</version>
+					<version>19.2.0</version>
+				</since>
 				<synopsis>Raised when a hook flash occurs on a channel.</synopsis>
 					<syntax>
 						<channel_snapshot/>
@@ -1045,7 +1106,11 @@ static void channel_wink_cb(void *data, struct stasis_subscription *sub,
 	/*** DOCUMENTATION
 		<managerEvent language="en_US" name="Wink">
 			<managerEventInstance class="EVENT_FLAG_CALL">
-				<since><version>16.24.0</version><version>18.10.0</version><version>19.2.0</version></since>
+				<since>
+					<version>16.24.0</version>
+					<version>18.10.0</version>
+					<version>19.2.0</version>
+				</since>
 				<synopsis>Raised when a wink occurs on a channel.</synopsis>
 					<syntax>
 						<channel_snapshot/>

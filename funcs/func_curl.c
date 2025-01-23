@@ -53,7 +53,9 @@
 
 /*** DOCUMENTATION
 	<function name="CURL" language="en_US">
-		<since><version>10.0.0</version></since>
+		<since>
+			<version>10.0.0</version>
+		</since>
 		<synopsis>
 			Retrieve content from a remote web or ftp server
 		</synopsis>
@@ -96,7 +98,9 @@
 		</see-also>
 	</function>
 	<function name="CURLOPT" language="en_US">
-		<since><version>10.0.0</version></since>
+		<since>
+			<version>10.0.0</version>
+		</since>
 		<synopsis>
 			Sets various options for future invocations of CURL.
 		</synopsis>

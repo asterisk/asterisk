@@ -58,7 +58,9 @@
 /*** DOCUMENTATION
 	<managerEvent language="en_US" name="Reload">
 		<managerEventInstance class="EVENT_FLAG_SYSTEM">
-			<since><version>12.0.0</version></since>
+			<since>
+				<version>12.0.0</version>
+			</since>
 			<synopsis>Raised when a module has been reloaded in Asterisk.</synopsis>
 			<syntax>
 				<parameter name="Module">
@@ -83,7 +85,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="Load">
 		<managerEventInstance class="EVENT_FLAG_SYSTEM">
-			<since><version>16.0.0</version></since>
+			<since>
+				<version>16.0.0</version>
+			</since>
 			<synopsis>Raised when a module has been loaded in Asterisk.</synopsis>
 			<syntax>
 				<parameter name="Module">
@@ -102,7 +106,9 @@
 	</managerEvent>
 	<managerEvent language="en_US" name="Unload">
 		<managerEventInstance class="EVENT_FLAG_SYSTEM">
-			<since><version>16.0.0</version></since>
+			<since>
+				<version>16.0.0</version>
+			</since>
 			<synopsis>Raised when a module has been unloaded in Asterisk.</synopsis>
 			<syntax>
 				<parameter name="Module">
