@@ -52,6 +52,8 @@ $(call MOD_ADD_C,app_confbridge,$(wildcard confbridge/*.c))
 app_confbridge.o: _ASTCFLAGS+=$(AST_NO_FORMAT_TRUNCATION)
 app_meetme.o: _ASTCFLAGS+=$(AST_NO_FORMAT_TRUNCATION)
 app_minivm.o: _ASTCFLAGS+=$(AST_NO_FORMAT_TRUNCATION)
+# Needed to work around gcc 15 bug: https://github.com/asterisk/asterisk/issues/1088
+app_sms.o: _ASTCFLAGS+=-fno-tree-vectorize
 app_voicemail.o: _ASTCFLAGS+=$(AST_NO_FORMAT_TRUNCATION) -DFILE_STORAGE
 app_voicemail_odbc.o: _ASTCFLAGS+=$(AST_NO_FORMAT_TRUNCATION) -DODBC_STORAGE
 app_voicemail_imap.o: _ASTCFLAGS+=$(AST_NO_FORMAT_TRUNCATION) -DIMAP_STORAGE
