@@ -73,6 +73,9 @@
 
 /*** DOCUMENTATION
 	<agi name="answer" language="en_US">
+		<since>
+			<version>0.4.0</version>
+		</since>
 		<synopsis>
 			Answer channel
 		</synopsis>
@@ -87,6 +90,9 @@
 		</see-also>
 	</agi>
 	<agi name="asyncagi break" language="en_US">
+		<since>
+			<version>1.8.0</version>
+		</since>
 		<synopsis>
 			Interrupts Async AGI
 		</synopsis>
@@ -101,6 +107,9 @@
 		</see-also>
 	</agi>
 	<agi name="channel status" language="en_US">
+		<since>
+			<version>0.4.0</version>
+		</since>
 		<synopsis>
 			Returns status of the connected channel.
 		</synopsis>
@@ -143,6 +152,9 @@
 		</see-also>
 	</agi>
 	<agi name="control stream file" language="en_US">
+		<since>
+			<version>1.2.0</version>
+		</since>
 		<synopsis>
 			Sends audio file on channel and allows the listener to control the stream.
 		</synopsis>
@@ -198,6 +210,9 @@
 		</see-also>
 	</agi>
 	<agi name="database del" language="en_US">
+		<since>
+			<version>0.4.0</version>
+		</since>
 		<synopsis>
 			Removes database key/value
 		</synopsis>
@@ -219,6 +234,9 @@
 		</see-also>
 	</agi>
 	<agi name="database deltree" language="en_US">
+		<since>
+			<version>0.4.0</version>
+		</since>
 		<synopsis>
 			Removes database keytree/value
 		</synopsis>
@@ -239,6 +257,9 @@
 		</see-also>
 	</agi>
 	<agi name="database get" language="en_US">
+		<since>
+			<version>0.4.0</version>
+		</since>
 		<synopsis>
 			Gets database value
 		</synopsis>
@@ -262,6 +283,9 @@
 		</see-also>
 	</agi>
 	<agi name="database put" language="en_US">
+		<since>
+			<version>0.4.0</version>
+		</since>
 		<synopsis>
 			Adds/updates database value
 		</synopsis>
@@ -284,6 +308,9 @@
 		</see-also>
 	</agi>
 	<agi name="exec" language="en_US">
+		<since>
+			<version>0.4.0</version>
+		</since>
 		<synopsis>
 			Executes a given Application
 		</synopsis>
@@ -305,6 +332,9 @@
 		</see-also>
 	</agi>
 	<agi name="get data" language="en_US">
+		<since>
+			<version>0.4.0</version>
+		</since>
 		<synopsis>
 			Prompts for DTMF on a channel
 		</synopsis>
@@ -322,6 +352,9 @@
 		</see-also>
 	</agi>
 	<agi name="get full variable" language="en_US">
+		<since>
+			<version>1.2.0</version>
+		</since>
 		<synopsis>
 			Evaluates a channel expression
 		</synopsis>
@@ -349,6 +382,9 @@
 		</see-also>
 	</agi>
 	<agi name="get option" language="en_US">
+		<since>
+			<version>1.2.0</version>
+		</since>
 		<synopsis>
 			Stream file, prompt for DTMF, with timeout.
 		</synopsis>
@@ -367,6 +403,9 @@
 		</see-also>
 	</agi>
 	<agi name="get variable" language="en_US">
+		<since>
+			<version>0.4.0</version>
+		</since>
 		<synopsis>
 			Gets a channel variable.
 		</synopsis>
@@ -386,6 +425,9 @@
 		</see-also>
 	</agi>
 	<agi name="hangup" language="en_US">
+		<since>
+			<version>0.4.0</version>
+		</since>
 		<synopsis>
 			Hangup a channel.
 		</synopsis>
@@ -401,6 +443,9 @@
 		</see-also>
 	</agi>
 	<agi name="noop" language="en_US">
+		<since>
+			<version>0.4.0</version>
+		</since>
 		<synopsis>
 			Does nothing.
 		</synopsis>
@@ -413,6 +458,9 @@
 		</see-also>
 	</agi>
 	<agi name="receive char" language="en_US">
+		<since>
+			<version>0.4.0</version>
+		</since>
 		<synopsis>
 			Receives one character from channels supporting it.
 		</synopsis>
@@ -434,6 +482,9 @@
 		</see-also>
 	</agi>
 	<agi name="receive text" language="en_US">
+		<since>
+			<version>1.2.0</version>
+		</since>
 		<synopsis>
 			Receives text from channels supporting it.
 		</synopsis>
@@ -455,6 +506,9 @@
 		</see-also>
 	</agi>
 	<agi name="record file" language="en_US">
+		<since>
+			<version>0.4.0</version>
+		</since>
 		<synopsis>
 			Records to a given file.
 		</synopsis>
@@ -506,6 +560,9 @@
 		</see-also>
 	</agi>
 	<agi name="say alpha" language="en_US">
+		<since>
+			<version>1.2.0</version>
+		</since>
 		<synopsis>
 			Says a given character string.
 		</synopsis>
@@ -530,6 +587,9 @@
 		</see-also>
 	</agi>
 	<agi name="say digits" language="en_US">
+		<since>
+			<version>0.4.0</version>
+		</since>
 		<synopsis>
 			Says a given digit string.
 		</synopsis>
@@ -554,6 +614,9 @@
 		</see-also>
 	</agi>
 	<agi name="say number" language="en_US">
+		<since>
+			<version>0.4.0</version>
+		</since>
 		<synopsis>
 			Says a given number.
 		</synopsis>
@@ -579,6 +642,9 @@
 		</see-also>
 	</agi>
 	<agi name="say phonetic" language="en_US">
+		<since>
+			<version>1.0.0</version>
+		</since>
 		<synopsis>
 			Says a given character string with phonetics.
 		</synopsis>
@@ -603,6 +669,9 @@
 		</see-also>
 	</agi>
 	<agi name="say date" language="en_US">
+		<since>
+			<version>1.2.0</version>
+		</since>
 		<synopsis>
 			Says a given date.
 		</synopsis>
@@ -630,6 +699,9 @@
 		</see-also>
 	</agi>
 	<agi name="say time" language="en_US">
+		<since>
+			<version>1.0.0</version>
+		</since>
 		<synopsis>
 			Says a given time.
 		</synopsis>
@@ -657,6 +729,9 @@
 		</see-also>
 	</agi>
 	<agi name="say datetime" language="en_US">
+		<since>
+			<version>1.2.0</version>
+		</since>
 		<synopsis>
 			Says a given time as specified by the format given.
 		</synopsis>
@@ -693,6 +768,9 @@
 		</see-also>
 	</agi>
 	<agi name="send image" language="en_US">
+		<since>
+			<version>0.4.0</version>
+		</since>
 		<synopsis>
 			Sends images to channels supporting it.
 		</synopsis>
@@ -710,6 +788,9 @@
 		</see-also>
 	</agi>
 	<agi name="send text" language="en_US">
+		<since>
+			<version>0.4.0</version>
+		</since>
 		<synopsis>
 			Sends text to channels supporting it.
 		</synopsis>
@@ -731,6 +812,9 @@
 		</see-also>
 	</agi>
 	<agi name="set autohangup" language="en_US">
+		<since>
+			<version>0.4.0</version>
+		</since>
 		<synopsis>
 			Autohangup channel in some time.
 		</synopsis>
@@ -747,6 +831,9 @@
 		</see-also>
 	</agi>
 	<agi name="set callerid" language="en_US">
+		<since>
+			<version>0.4.0</version>
+		</since>
 		<synopsis>
 			Sets callerid for the current channel.
 		</synopsis>
@@ -761,6 +848,9 @@
 		</see-also>
 	</agi>
 	<agi name="set context" language="en_US">
+		<since>
+			<version>0.4.0</version>
+		</since>
 		<synopsis>
 			Sets channel context.
 		</synopsis>
@@ -777,6 +867,9 @@
 		</see-also>
 	</agi>
 	<agi name="set extension" language="en_US">
+		<since>
+			<version>0.4.0</version>
+		</since>
 		<synopsis>
 			Changes channel extension.
 		</synopsis>
@@ -793,6 +886,9 @@
 		</see-also>
 	</agi>
 	<agi name="set music" language="en_US">
+		<since>
+			<version>0.5.0</version>
+		</since>
 		<synopsis>
 			Enable/Disable Music on hold generator
 		</synopsis>
@@ -816,6 +912,9 @@
 		</see-also>
 	</agi>
 	<agi name="set priority" language="en_US">
+		<since>
+			<version>0.4.0</version>
+		</since>
 		<synopsis>
 			Set channel dialplan priority.
 		</synopsis>
@@ -833,6 +932,9 @@
 		</see-also>
 	</agi>
 	<agi name="set variable" language="en_US">
+		<since>
+			<version>0.4.0</version>
+		</since>
 		<synopsis>
 			Sets a channel variable.
 		</synopsis>
@@ -850,6 +952,9 @@
 		</see-also>
 	</agi>
 	<agi name="stream file" language="en_US">
+		<since>
+			<version>0.4.0</version>
+		</since>
 		<synopsis>
 			Sends audio file on channel.
 		</synopsis>
@@ -890,6 +995,9 @@
 		</see-also>
 	</agi>
 	<agi name="tdd mode" language="en_US">
+		<since>
+			<version>0.4.0</version>
+		</since>
 		<synopsis>
 			Toggles TDD mode (for the deaf).
 		</synopsis>
@@ -910,6 +1018,9 @@
 		</see-also>
 	</agi>
 	<agi name="verbose" language="en_US">
+		<since>
+			<version>0.4.0</version>
+		</since>
 		<synopsis>
 			Logs a message to the asterisk verbose log.
 		</synopsis>
@@ -927,6 +1038,9 @@
 		</see-also>
 	</agi>
 	<agi name="wait for digit" language="en_US">
+		<since>
+			<version>0.4.0</version>
+		</since>
 		<synopsis>
 			Waits for a digit to be pressed.
 		</synopsis>
@@ -945,6 +1059,9 @@
 		</see-also>
 	</agi>
 	<agi name="speech create" language="en_US">
+		<since>
+			<version>1.6.0</version>
+		</since>
 		<synopsis>
 			Creates a speech object.
 		</synopsis>
@@ -966,6 +1083,9 @@
 		</see-also>
 	</agi>
 	<agi name="speech set" language="en_US">
+		<since>
+			<version>1.6.0</version>
+		</since>
 		<synopsis>
 			Sets a speech engine setting.
 		</synopsis>
@@ -988,6 +1108,9 @@
 		</see-also>
 	</agi>
 	<agi name="speech destroy" language="en_US">
+		<since>
+			<version>1.6.0</version>
+		</since>
 		<synopsis>
 			Destroys a speech object.
 		</synopsis>
@@ -1008,6 +1131,9 @@
 		</see-also>
 	</agi>
 	<agi name="speech load grammar" language="en_US">
+		<since>
+			<version>1.6.0</version>
+		</since>
 		<synopsis>
 			Loads a grammar.
 		</synopsis>
@@ -1030,6 +1156,9 @@
 		</see-also>
 	</agi>
 	<agi name="speech unload grammar" language="en_US">
+		<since>
+			<version>1.6.0</version>
+		</since>
 		<synopsis>
 			Unloads a grammar.
 		</synopsis>
@@ -1051,6 +1180,9 @@
 		</see-also>
 	</agi>
 	<agi name="speech activate grammar" language="en_US">
+		<since>
+			<version>1.6.0</version>
+		</since>
 		<synopsis>
 			Activates a grammar.
 		</synopsis>
@@ -1072,6 +1204,9 @@
 		</see-also>
 	</agi>
 	<agi name="speech deactivate grammar" language="en_US">
+		<since>
+			<version>1.6.0</version>
+		</since>
 		<synopsis>
 			Deactivates a grammar.
 		</synopsis>
@@ -1093,6 +1228,9 @@
 		</see-also>
 	</agi>
 	<agi name="speech recognize" language="en_US">
+		<since>
+			<version>1.6.0</version>
+		</since>
 		<synopsis>
 			Recognizes speech.
 		</synopsis>
