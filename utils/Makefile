@@ -182,7 +182,7 @@ streamplayer: streamplayer.o
 
 CHECK_SUBDIR:	# do nothing, just make sure that we recurse in the subdir/
 db1-ast/libdb1.a: CHECK_SUBDIR
-	_ASTCFLAGS="$(_ASTCFLAGS) -Wno-strict-aliasing" ASTCFLAGS="$(ASTCFLAGS)" $(MAKE) -C db1-ast libdb1.a
+	_ASTCFLAGS="$(_ASTCFLAGS) -Wno-strict-aliasing -Wno-old-style-definition" ASTCFLAGS="$(ASTCFLAGS)" $(MAKE) -C db1-ast libdb1.a
 
 astdb2sqlite3: LIBS+=$(SQLITE3_LIB)
 astdb2sqlite3: _ASTCFLAGS+=$(SQLITE3_INCLUDE)
