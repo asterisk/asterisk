@@ -8805,10 +8805,11 @@ static int queue_exec(struct ast_channel *chan, const char *data)
 
 	cid_allow = qe.parent->log_restricted_caller_id || ((ast_party_id_presentation(&ast_channel_caller(chan)->id) & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED);
 	
-	ast_queue_log(args.queuename, ast_channel_uniqueid(chan), "NONE", "ENTERQUEUE", "%s|%s|%d",
+	ast_queue_log(args.queuename, ast_channel_uniqueid(chan), "NONE", "ENTERQUEUE", "%s|%s|%d|%s",
 		S_OR(args.url, ""),
 		S_COR(cid_allow && ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, ""),
-		qe.opos);
+		qe.opos,
+		S_COR(ast_channel_caller(chan)->id.name.valid, ast_channel_caller(chan)->id.name.str, ""));
 
 	/* PREDIAL: Preprocess any callee gosub arguments. */
 	if (ast_test_flag(&opts, OPT_PREDIAL_CALLEE)
