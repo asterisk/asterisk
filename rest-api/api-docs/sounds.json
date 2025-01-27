@@ -6,6 +6,9 @@
 	"swaggerVersion": "1.1",
 	"basePath": "http://localhost:8088/ari",
 	"resourcePath": "/api-docs/sounds.{format}",
+	"since": [
+		"12.0.0"
+	],
 	"apis": [
 		{
 			"path": "/sounds",
@@ -13,6 +16,9 @@
 			"operations": [
 				{
 					"httpMethod": "GET",
+					"since": [
+						"12.0.0"
+					],
 					"summary": "List all sounds.",
 					"nickname": "list",
 					"responseClass": "List[Sound]",
@@ -42,6 +48,9 @@
 			"operations": [
 				{
 					"httpMethod": "GET",
+					"since": [
+						"12.0.0"
+					],
 					"summary": "Get a sound's details.",
 					"nickname": "get",
 					"responseClass": "Sound",
