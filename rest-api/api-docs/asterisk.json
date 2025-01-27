@@ -6,6 +6,9 @@
 	"swaggerVersion": "1.1",
 	"basePath": "http://localhost:8088/ari",
 	"resourcePath": "/api-docs/asterisk.{format}",
+	"since": [
+		"12.0.0"
+	],
 	"apis": [
 		{
 			"path": "/asterisk/config/dynamic/{configClass}/{objectType}/{id}",
@@ -13,6 +16,9 @@
 			"operations": [
 				{
 					"httpMethod": "GET",
+					"since": [
+						"13.5.0"
+					],
 					"summary": "Retrieve a dynamic configuration object.",
 					"nickname": "getObject",
 					"responseClass": "List[ConfigTuple]",
@@ -51,6 +57,9 @@
 				},
 				{
 					"httpMethod": "PUT",
+					"since": [
+						"13.5.0"
+					],
 					"summary": "Create or update a dynamic configuration object.",
 					"nickname": "updateObject",
 					"responseClass": "List[ConfigTuple]",
@@ -105,6 +114,9 @@
 				},
 				{
 					"httpMethod": "DELETE",
+					"since": [
+						"13.5.0"
+					],
 					"summary": "Delete a dynamic configuration object.",
 					"nickname": "deleteObject",
 					"responseClass": "void",
@@ -153,6 +165,9 @@
 			"operations": [
 				{
 					"httpMethod": "GET",
+					"since": [
+						"12.0.0"
+					],
 					"summary": "Gets Asterisk system information.",
 					"nickname": "getInfo",
 					"responseClass": "AsteriskInfo",
@@ -184,6 +199,10 @@
 			"operations": [
 				{
 					"httpMethod": "GET",
+					"since": [
+						"13.25.0",
+						"16.2.0"
+					],
 					"summary": "Response pong message.",
 					"nickname": "ping",
 					"responseClass": "AsteriskPing"
@@ -196,6 +215,9 @@
 			"operations": [
 				{
 					"httpMethod": "GET",
+					"since": [
+						"13.5.0"
+					],
 					"summary": "List Asterisk modules.",
 					"nickname": "listModules",
 					"responseClass": "List[Module]"
@@ -208,6 +230,9 @@
 			"operations": [
 				{
 					"httpMethod": "GET",
+					"since": [
+						"13.5.0"
+					],
 					"summary": "Get Asterisk module information.",
 					"nickname": "getModule",
 					"responseClass": "Module",
@@ -234,6 +259,9 @@
 				},
 				{
 					"httpMethod": "POST",
+					"since": [
+						"13.5.0"
+					],
 					"summary": "Load an Asterisk module.",
 					"nickname": "loadModule",
 					"responseClass": "void",
@@ -256,6 +284,9 @@
 				},
 				{
 					"httpMethod": "DELETE",
+					"since": [
+						"13.5.0"
+					],
 					"summary": "Unload an Asterisk module.",
 					"nickname": "unloadModule",
 					"responseClass": "void",
@@ -282,6 +313,9 @@
 				},
 				{
 					"httpMethod": "PUT",
+					"since": [
+						"13.5.0"
+					],
 					"summary": "Reload an Asterisk module.",
 					"nickname": "reloadModule",
 					"responseClass": "void",
@@ -314,6 +348,9 @@
 			"operations": [
 				{
 					"httpMethod": "GET",
+					"since": [
+						"13.6.0"
+					],
 					"summary": "Gets Asterisk log channel information.",
 					"nickname": "listLogChannels",
 					"responseClass": "List[LogChannel]"
@@ -326,6 +363,9 @@
 			"operations": [
 				{
 					"httpMethod": "POST",
+					"since": [
+						"13.6.0"
+					],
 					"summary": "Adds a log channel.",
 					"nickname": "addLog",
 					"responseClass": "void",
@@ -360,6 +400,9 @@
 				},
 				{
 					"httpMethod": "DELETE",
+					"since": [
+						"13.6.0"
+					],
 					"summary": "Deletes a log channel.",
 					"nickname": "deleteLog",
 					"responseClass": "void",
@@ -388,6 +431,9 @@
 			"operations": [
 				{
 					"httpMethod": "PUT",
+					"since": [
+						"13.6.0"
+					],
 					"summary": "Rotates a log channel.",
 					"nickname": "rotateLog",
 					"responseClass": "void",
@@ -416,6 +462,9 @@
 			"operations": [
 				{
 					"httpMethod": "GET",
+					"since": [
+						"12.0.0"
+					],
 					"summary": "Get the value of a global variable.",
 					"nickname": "getGlobalVar",
 					"responseClass": "Variable",
@@ -438,6 +487,9 @@
 				},
 				{
 					"httpMethod": "POST",
+					"since": [
+						"12.0.0"
+					],
 					"summary": "Set the value of a global variable.",
 					"nickname": "setGlobalVar",
 					"responseClass": "void",
