@@ -6,6 +6,9 @@
 	"swaggerVersion": "1.1",
 	"basePath": "http://localhost:8088/ari",
 	"resourcePath": "/api-docs/endpoints.{format}",
+	"since": [
+		"12.0.0"
+	],
 	"apis": [
 		{
 			"path": "/endpoints",
@@ -13,6 +16,9 @@
 			"operations": [
 				{
 					"httpMethod": "GET",
+					"since": [
+						"12.0.0"
+					],
 					"summary": "List all endpoints.",
 					"nickname": "list",
 					"responseClass": "List[Endpoint]"
@@ -25,6 +31,9 @@
 			"operations": [
 				{
 					"httpMethod": "PUT",
+					"since": [
+						"13.0.0"
+					],
 					"summary": "Send a message to some technology URI or endpoint.",
 					"nickname": "sendMessage",
 					"responseClass": "void",
@@ -81,6 +90,10 @@
 			"operations": [
 				{
 					"httpMethod": "POST",
+					"since": [
+						"18.20.0",
+						"20.5.0"
+					],
 					"summary": "Refer an endpoint or technology URI to some technology URI or endpoint.",
 					"nickname": "refer",
 					"responseClass": "void",
@@ -146,6 +159,9 @@
 			"operations": [
 				{
 					"httpMethod": "GET",
+					"since": [
+						"12.0.0"
+					],
 					"summary": "List available endoints for a given endpoint technology.",
 					"nickname": "listByTech",
 					"responseClass": "List[Endpoint]",
@@ -172,6 +188,9 @@
 			"operations": [
 				{
 					"httpMethod": "GET",
+					"since": [
+						"12.0.0"
+					],
 					"summary": "Details for an endpoint.",
 					"nickname": "get",
 					"responseClass": "Endpoint",
@@ -208,6 +227,9 @@
 			"operations": [
 				{
 					"httpMethod": "PUT",
+					"since": [
+						"13.0.0"
+					],
 					"summary": "Send a message to some endpoint in a technology.",
 					"nickname": "sendMessageToEndpoint",
 					"responseClass": "void",
@@ -268,6 +290,10 @@
 			"operations": [
 				{
 					"httpMethod": "POST",
+					"since": [
+						"18.20.0",
+						"20.5.0"
+					],
 					"summary": "Refer an endpoint or technology URI to some technology URI or endpoint.",
 					"nickname": "referToEndpoint",
 					"responseClass": "void",
