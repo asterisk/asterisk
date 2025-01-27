@@ -6,6 +6,9 @@
 	"swaggerVersion": "1.1",
 	"basePath": "http://localhost:8088/ari",
 	"resourcePath": "/api-docs/channels.{format}",
+	"since": [
+		"12.0.0"
+	],
 	"requiresModules": [
 		"res_stasis_answer",
 		"res_stasis_playback",
@@ -19,12 +22,18 @@
 			"operations": [
 				{
 					"httpMethod": "GET",
+					"since": [
+						"12.0.0"
+					],
 					"summary": "List all active channels in Asterisk.",
 					"nickname": "list",
 					"responseClass": "List[Channel]"
 				},
 				{
 					"httpMethod": "POST",
+					"since": [
+						"12.0.0"
+					],
 					"summary": "Create a new channel (originate).",
 					"notes": "The new channel is created immediately and a snapshot of it returned. If a Stasis application is provided it will be automatically subscribed to the originated channel for further events and updates.",
 					"nickname": "originate",
@@ -163,6 +172,9 @@
 			"operations": [
 				{
 					"httpMethod": "POST",
+					"since": [
+						"14.0.0"
+					],
 					"summary": "Create channel.",
 					"nickname": "create",
 					"responseClass": "Channel",
@@ -247,6 +259,9 @@
 			"operations": [
 				{
 					"httpMethod": "GET",
+					"since": [
+						"12.0.0"
+					],
 					"summary": "Channel details.",
 					"nickname": "get",
 					"responseClass": "Channel",
@@ -269,6 +284,9 @@
 				},
 				{
 					"httpMethod": "POST",
+					"since": [
+						"12.2.0"
+					],
 					"summary": "Create a new channel (originate with id).",
 					"notes": "The new channel is created immediately and a snapshot of it returned. If a Stasis application is provided it will be automatically subscribed to the originated channel for further events and updates.",
 					"nickname": "originateWithId",
@@ -402,6 +420,9 @@
 				},
 				{
 					"httpMethod": "DELETE",
+					"since": [
+						"12.0.0"
+					],
 					"summary": "Delete (i.e. hangup) a channel.",
 					"nickname": "hangup",
 					"responseClass": "void",
@@ -468,6 +489,9 @@
 			"operations": [
 				{
 					"httpMethod": "POST",
+					"since": [
+						"12.0.0"
+					],
 					"summary": "Exit application; continue execution in the dialplan.",
 					"nickname": "continueInDialplan",
 					"responseClass": "void",
@@ -536,6 +560,10 @@
 			"operations": [
 				{
 					"httpMethod": "POST",
+					"since": [
+						"13.26.0",
+						"16.3.0"
+					],
 					"summary": "Move the channel from one Stasis application to another.",
 					"nickname": "move",
 					"responseClass": "void",
@@ -584,6 +612,9 @@
 			"operations": [
 				{
 					"httpMethod": "POST",
+					"since": [
+						"13.3.0"
+					],
 					"summary": "Redirect the channel to a different location.",
 					"nickname": "redirect",
 					"responseClass": "void",
@@ -636,6 +667,9 @@
 			"operations": [
 				{
 					"httpMethod": "POST",
+					"since": [
+						"12.0.0"
+					],
 					"summary": "Answer a channel.",
 					"nickname": "answer",
 					"responseClass": "void",
@@ -672,6 +706,9 @@
 			"operations": [
 				{
 					"httpMethod": "POST",
+					"since": [
+						"12.0.0"
+					],
 					"summary": "Indicate ringing to a channel.",
 					"nickname": "ring",
 					"responseClass": "void",
@@ -702,6 +739,9 @@
 				},
 				{
 					"httpMethod": "DELETE",
+					"since": [
+						"12.0.0"
+					],
 					"summary": "Stop ringing indication on a channel if locally generated.",
 					"nickname": "ringStop",
 					"responseClass": "void",
@@ -738,6 +778,9 @@
 			"operations": [
 				{
 					"httpMethod": "POST",
+					"since": [
+						"12.0.0"
+					],
 					"summary": "Send provided DTMF to a given channel.",
 					"nickname": "sendDTMF",
 					"responseClass": "void",
@@ -822,6 +865,9 @@
 			"operations": [
 				{
 					"httpMethod": "POST",
+					"since": [
+						"12.0.0"
+					],
 					"summary": "Mute a channel.",
 					"nickname": "mute",
 					"responseClass": "void",
@@ -869,6 +915,9 @@
 				},
 				{
 					"httpMethod": "DELETE",
+					"since": [
+						"12.0.0"
+					],
 					"summary": "Unmute a channel.",
 					"nickname": "unmute",
 					"responseClass": "void",
@@ -922,6 +971,9 @@
 			"operations": [
 				{
 					"httpMethod": "POST",
+					"since": [
+						"12.0.0"
+					],
 					"summary": "Hold a channel.",
 					"nickname": "hold",
 					"responseClass": "void",
@@ -952,6 +1004,9 @@
 				},
 				{
 					"httpMethod": "DELETE",
+					"since": [
+						"12.0.0"
+					],
 					"summary": "Remove a channel from hold.",
 					"nickname": "unhold",
 					"responseClass": "void",
@@ -988,6 +1043,9 @@
 			"operations": [
 				{
 					"httpMethod": "POST",
+					"since": [
+						"12.0.0"
+					],
 					"summary": "Play music on hold to a channel.",
 					"notes": "Using media operations such as /play on a channel playing MOH in this manner will suspend MOH without resuming automatically. If continuing music on hold is desired, the stasis application must reinitiate music on hold.",
 					"nickname": "startMoh",
@@ -1027,6 +1085,9 @@
 				},
 				{
 					"httpMethod": "DELETE",
+					"since": [
+						"12.0.0"
+					],
 					"summary": "Stop playing music on hold to a channel.",
 					"nickname": "stopMoh",
 					"responseClass": "void",
@@ -1063,6 +1124,9 @@
 			"operations": [
 				{
 					"httpMethod": "POST",
+					"since": [
+						"12.0.0"
+					],
 					"summary": "Play silence to a channel.",
 					"notes": "Using media operations such as /play on a channel playing silence in this manner will suspend silence without resuming automatically.",
 					"nickname": "startSilence",
@@ -1094,6 +1158,9 @@
 				},
 				{
 					"httpMethod": "DELETE",
+					"since": [
+						"12.0.0"
+					],
 					"summary": "Stop playing silence to a channel.",
 					"nickname": "stopSilence",
 					"responseClass": "void",
@@ -1130,6 +1197,9 @@
 			"operations": [
 				{
 					"httpMethod": "POST",
+					"since": [
+						"12.0.0"
+					],
 					"summary": "Start playback of media.",
 					"notes": "The media URI may be any of a number of URI's. Currently sound:, recording:, number:, digits:, characters:, and tone: URI's are supported. This operation creates a playback resource that can be used to control the playback of media (pause, rewind, fast forward, etc.)",
 					"nickname": "play",
@@ -1208,6 +1278,9 @@
 			"operations": [
 				{
 					"httpMethod": "POST",
+					"since": [
+						"12.2.0"
+					],
 					"summary": "Start playback of media and specify the playbackId.",
 					"notes": "The media URI may be any of a number of URI's. Currently sound:, recording:, number:, digits:, characters:, and tone: URI's are supported. This operation creates a playback resource that can be used to control the playback of media (pause, rewind, fast forward, etc.)",
 					"nickname": "playWithId",
@@ -1286,6 +1359,9 @@
 			"operations": [
 				{
 					"httpMethod": "POST",
+					"since": [
+						"12.0.0"
+					],
 					"summary": "Start a recording.",
 					"notes": "Record audio from a channel. Note that this will not capture audio sent to the channel. The bridge itself has a record feature if that's what you want.",
 					"nickname": "record",
@@ -1413,6 +1489,9 @@
 			"operations": [
 				{
 					"httpMethod": "GET",
+					"since": [
+						"12.0.0"
+					],
 					"summary": "Get the value of a channel variable or function.",
 					"nickname": "getChannelVar",
 					"responseClass": "Variable",
@@ -1451,6 +1530,9 @@
 				},
 				{
 					"httpMethod": "POST",
+					"since": [
+						"12.0.0"
+					],
 					"summary": "Set the value of a channel variable or function.",
 					"nickname": "setChannelVar",
 					"responseClass": "void",
@@ -1503,6 +1585,9 @@
 			"operations": [
 				{
 					"httpMethod": "POST",
+					"since": [
+						"12.0.0"
+					],
 					"summary": "Start snooping.",
 					"notes": "Snoop (spy/whisper) on a specific channel.",
 					"nickname": "snoopChannel",
@@ -1596,6 +1681,9 @@
 			"operations": [
 				{
 					"httpMethod": "POST",
+					"since": [
+						"12.2.0"
+					],
 					"summary": "Start snooping.",
 					"notes": "Snoop (spy/whisper) on a specific channel.",
 					"nickname": "snoopChannelWithId",
@@ -1689,6 +1777,9 @@
 			"operations": [
 				{
 					"httpMethod": "POST",
+					"since": [
+						"14.0.0"
+					],
 					"summary": "Dial a created channel.",
 					"nickname": "dial",
 					"responseClass": "void",
@@ -1742,6 +1833,10 @@
 			"operations": [
 				{
 					"httpMethod": "GET",
+					"since": [
+						"13.27.0",
+						"16.4.0"
+					],
 					"summary": "RTP stats on a channel.",
 					"nickname": "rtpstatistics",
 					"responseClass": "RTPstat",
@@ -1770,6 +1865,10 @@
 			"operations": [
 				{
 					"httpMethod": "POST",
+					"since": [
+						"16.6.0",
+						"17.1.0"
+					],
 					"summary": "Start an External Media session.",
 					"notes": "Create a channel to an External Media source/sink.",
 					"nickname": "externalMedia",
