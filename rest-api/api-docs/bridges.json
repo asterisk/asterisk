@@ -6,6 +6,9 @@
 	"swaggerVersion": "1.1",
 	"basePath": "http://localhost:8088/ari",
 	"resourcePath": "/api-docs/bridges.{format}",
+	"since": [
+		"12.0.0"
+	],
 	"requiresModules": [
 		"res_stasis_recording",
 		"res_stasis_playback"
@@ -17,12 +20,18 @@
 			"operations": [
 				{
 					"httpMethod": "GET",
+					"since": [
+						"12.0.0"
+					],
 					"summary": "List all active bridges in Asterisk.",
 					"nickname": "list",
 					"responseClass": "List[Bridge]"
 				},
 				{
 					"httpMethod": "POST",
+					"since": [
+						"12.0.0"
+					],
 					"summary": "Create a new bridge.",
 					"notes": "This bridge persists until it has been shut down, or Asterisk has been shut down.",
 					"nickname": "create",
@@ -62,6 +71,9 @@
 			"operations": [
 				{
 					"httpMethod": "POST",
+					"since": [
+						"12.2.0"
+					],
 					"summary": "Create a new bridge or updates an existing one.",
 					"notes": "This bridge persists until it has been shut down, or Asterisk has been shut down.",
 					"nickname": "createWithId",
@@ -95,6 +107,9 @@
 				},
 				{
 					"httpMethod": "GET",
+					"since": [
+						"12.0.0"
+					],
 					"summary": "Get bridge details.",
 					"nickname": "get",
 					"responseClass": "Bridge",
@@ -117,6 +132,9 @@
 				},
 				{
 					"httpMethod": "DELETE",
+					"since": [
+						"12.0.0"
+					],
 					"summary": "Shut down a bridge.",
 					"notes": "If any channels are in this bridge, they will be removed and resume whatever they were doing beforehand.",
 					"nickname": "destroy",
@@ -146,6 +164,9 @@
 			"operations": [
 				{
 					"httpMethod": "POST",
+					"since": [
+						"12.0.0"
+					],
 					"summary": "Add a channel to a bridge.",
 					"nickname": "addChannel",
 					"responseClass": "void",
@@ -229,6 +250,9 @@
 			"operations": [
 				{
 					"httpMethod": "POST",
+					"since": [
+						"12.0.0"
+					],
 					"summary": "Remove a channel from a bridge.",
 					"nickname": "removeChannel",
 					"responseClass": "void",
@@ -277,6 +301,10 @@
 			"operations": [
 				{
 					"httpMethod": "POST",
+					"since": [
+						"13.13.0",
+						"14.2.0"
+					],
 					"summary": "Set a channel as the video source in a multi-party mixing bridge. This operation has no effect on bridges with two or fewer participants.",
 					"nickname": "setVideoSource",
 					"responseClass": "void",
@@ -321,6 +349,10 @@
 			"operations": [
 				{
 					"httpMethod": "DELETE",
+					"since": [
+						"13.13.0",
+						"14.2.0"
+					],
 					"summary": "Removes any explicit video source in a multi-party mixing bridge. This operation has no effect on bridges with two or fewer participants. When no explicit video source is set, talk detection will be used to determine the active video stream.",
 					"nickname": "clearVideoSource",
 					"responseClass": "void",
@@ -349,6 +381,9 @@
 			"operations": [
 				{
 					"httpMethod": "POST",
+					"since": [
+						"12.0.0"
+					],
 					"summary": "Play music on hold to a bridge or change the MOH class that is playing.",
 					"nickname": "startMoh",
 					"responseClass": "void",
@@ -383,6 +418,9 @@
 				},
 				{
 					"httpMethod": "DELETE",
+					"since": [
+						"12.0.0"
+					],
 					"summary": "Stop playing music on hold to a bridge.",
 					"notes": "This will only stop music on hold being played via POST bridges/{bridgeId}/moh.",
 					"nickname": "stopMoh",
@@ -416,6 +454,9 @@
 			"operations": [
 				{
 					"httpMethod": "POST",
+					"since": [
+						"12.0.0"
+					],
 					"summary": "Start playback of media on a bridge.",
 					"notes": "The media URI may be any of a number of URI's. Currently sound:, recording:, number:, digits:, characters:, and tone: URI's are supported. This operation creates a playback resource that can be used to control the playback of media (pause, rewind, fast forward, etc.)",
 					"nickname": "play",
@@ -500,6 +541,9 @@
 			"operations": [
 				{
 					"httpMethod": "POST",
+					"since": [
+						"12.3.0"
+					],
 					"summary": "Start playback of media on a bridge.",
 					"notes": "The media URI may be any of a number of URI's. Currently sound:, recording:, number:, digits:, characters:, and tone: URI's are supported. This operation creates a playback resource that can be used to control the playback of media (pause, rewind, fast forward, etc.)",
 					"nickname": "playWithId",
@@ -584,6 +628,9 @@
 			"operations": [
 				{
 					"httpMethod": "POST",
+					"since": [
+						"12.0.0"
+					],
 					"summary": "Start a recording.",
 					"notes": "This records the mixed audio from all channels participating in this bridge.",
 					"nickname": "record",
