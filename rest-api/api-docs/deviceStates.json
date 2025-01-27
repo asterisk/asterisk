@@ -6,6 +6,9 @@
 	"swaggerVersion": "1.1",
 	"basePath": "http://localhost:8088/ari",
 	"resourcePath": "/api-docs/deviceStates.{format}",
+	"since": [
+		"12.0.0"
+	],
 	"requiresModules": [
 		"res_stasis_device_state"
 	],
@@ -16,6 +19,9 @@
 			"operations": [
 				{
 					"httpMethod": "GET",
+					"since": [
+						"12.0.0"
+					],
 					"summary": "List all ARI controlled device states.",
 					"nickname": "list",
 					"responseClass": "List[DeviceState]"
@@ -28,6 +34,9 @@
 			"operations": [
 				{
 					"httpMethod": "GET",
+					"since": [
+						"12.0.0"
+					],
 					"summary": "Retrieve the current state of a device.",
 					"nickname": "get",
 					"responseClass": "DeviceState",
@@ -44,6 +53,9 @@
 				},
 				{
 					"httpMethod": "PUT",
+					"since": [
+						"12.0.0"
+					],
 					"summary": "Change the state of a device controlled by ARI. (Note - implicitly creates the device state).",
 					"nickname": "update",
 					"responseClass": "void",
@@ -92,6 +104,9 @@
 				},
 				{
 					"httpMethod": "DELETE",
+					"since": [
+						"12.0.0"
+					],
 					"summary": "Destroy a device-state controlled by ARI.",
 					"nickname": "delete",
 					"responseClass": "void",
