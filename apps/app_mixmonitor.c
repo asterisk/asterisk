@@ -259,7 +259,7 @@
 				neither MIXMONITOR_FILENAME or this parameter is set, the mixed stream won't
 				be recorded.</para>
 			</parameter>
-			<parameter name="options">
+			<parameter name="Options">
 				<para>Options that apply to the MixMonitor in the same way as they
 				would apply if invoked from the MixMonitor application. For a list of
 				available options, see the documentation for the mixmonitor application. </para>
