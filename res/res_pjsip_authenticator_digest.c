@@ -558,6 +558,26 @@ static char *check_auth_result_str[] = {
  * options. If \b any of the incoming Authorization headers result in successful
  * authentication, then authentication is considered successful.
  *
+ * \warning The return code from the function is used by the distributor to
+ * determine which log messages (if any) are emitted.  Many admins will be
+ * using log parsers like fail2ban to block IPs that are repeatedly failing
+ * to authenticate so changing the return code could have unintended
+ * consequences.
+ *
+ * \retval AST_SIP_AUTHENTICATION_SUCCESS There was an Authorization header
+ * in the request and it verified successfully with at least one auth object
+ * on the endpoint.  No further challenges sent.
+ *
+ * \retval AST_SIP_AUTHENTICATION_CHALLENGE There was NO Authorization header
+ * in the incoming request.  We sent a 401 with one or more challenges.
+ *
+ * \retval AST_SIP_AUTHENTICATION_FAILED There were one or more Authorization
+ * headers in the request but they all failed to verify with any auth object
+ * on the endpoint. We sent a 401 with one or more challenges.
+ *
+ * \retval AST_SIP_AUTHENTICATION_ERROR An internal error occurred. No challenges
+ * were sent.
+ *
  * \see ast_sip_check_authentication
  */
 static enum ast_sip_check_auth_result digest_check_auth(struct ast_sip_endpoint *endpoint,
@@ -616,43 +636,77 @@ static enum ast_sip_check_auth_result digest_check_auth(struct ast_sip_endpoint 
 	}
 
 	/*
+	 * Verify any Authorization headers in the incoming request against the
+	 * auth objects on the endpoint.  If there aren't any Authorization headers
+	 * verify() will return AUTH_NOAUTH.
+	 *
 	 * NOTE:  The only reason to use multiple auth objects as a UAS might
 	 * be to send challenges for multiple realms however we currently don't
 	 * know of anyone actually doing this.
+	 */
+	for (idx = 0; idx < auth_size; ++idx) {
+		struct ast_sip_auth *auth = auths[idx];
+		const char *auth_id = ast_sorcery_object_get_id(auth);
+		SCOPE_ENTER(4, "%s:%s:%s: Auth %d of %d: Verifying\n",
+			endpoint_id, auth_id, src_name, idx + 1, (int)auth_size);
+
+		verify_res[idx] = SCOPE_CALL_WITH_RESULT(-1, int, verify, endpoint_id, auth, rdata, tdata->pool);
+		switch((int)verify_res[idx]) {
+		case AUTH_SUCCESS:
+			res = AST_SIP_AUTHENTICATION_SUCCESS;
+			break;
+		case AUTH_FAIL:
+			failures++;
+			break;
+		case AUTH_NOAUTH:
+		case AUTH_STALE:
+			break;
+		}
+
+		SCOPE_EXIT("%s:%s:%s: Auth %d of %d: Result: %s  Failure count: %d\n",
+			endpoint_id, auth_id, src_name, idx + 1, (int)auth_size,
+			verify_result_str[verify_res[idx]], failures);
+
+		/*
+		 * If there was a success or there was no Authorization header in the
+		 * incoming request, we can stop verifying the rest of the auth objects.
+		 */
+		if (verify_res[idx] == AUTH_SUCCESS || verify_res[idx] == AUTH_NOAUTH) {
+			break;
+		}
+	}
+
+	if (res == AST_SIP_AUTHENTICATION_SUCCESS) {
+		ast_sip_cleanup_auths(auths, auth_size);
+		SCOPE_EXIT_RTN_VALUE(res, "%s:%s: Result: %s\n",
+			endpoint_id, src_name,
+			check_auth_result_str[res]);
+	}
+	ast_trace(-1, "%s:%s: Done with verification. Failures: %d of %d\n",
+		endpoint_id, src_name, failures, (int)auth_size);
+
+	/*
+	 * If none of the Authorization headers in the incoming request were
+	 * successfully verified, or there were no Authorization headers in the
+	 * request, we need to send challenges for each auth object
+	 * on the endpoint.
 	 */
 	for (idx = 0; idx < auth_size; ++idx) {
 		int i = 0;
 		struct ast_sip_auth *auth = auths[idx];
 		const char *realm = S_OR(auth->realm, default_realm);
 		const char *auth_id = ast_sorcery_object_get_id(auth);
-		SCOPE_ENTER(4, "%s:%s:%s: Verifying\n", endpoint_id, auth_id, src_name);
-
-		/*
-		 * Artificial auth objects are used for the purpose of
-		 * sending challenges. We don't need to verify them.
-		 */
-		if (auth->type == AST_SIP_AUTH_TYPE_ARTIFICIAL) {
-			ast_trace(-1, "%s:%s:%s: Skipping verification on artificial endpoint\n", endpoint_id, auth_id, src_name);
-			verify_res[idx] = AUTH_NOAUTH;
-		} else {
-			verify_res[idx] = SCOPE_CALL_WITH_RESULT(-1, int, verify, endpoint_id, auth, rdata, tdata->pool);
-			if (verify_res[idx] == AUTH_SUCCESS) {
-				res = AST_SIP_AUTHENTICATION_SUCCESS;
-				SCOPE_EXIT_EXPR(break, "%s:%s:%s: success\n", endpoint_id, auth_id, src_name);
-			}
-			if (verify_res[idx] == AUTH_FAIL) {
-				ast_trace(-1, "%s:%s:%s: fail\n", endpoint_id, auth_id, src_name);
-				failures++;
-			}
-		}
+		SCOPE_ENTER(4, "%s:%s:%s: Auth %d of %d: Sending challenges\n",
+			endpoint_id, auth_id, src_name, idx + 1, (int)auth_size);
 
 		for (i = 0; i < AST_VECTOR_SIZE(&auth->supported_algorithms_uas); i++) {
 			pjsip_auth_algorithm_type algorithm_type = AST_VECTOR_GET(&auth->supported_algorithms_uas, i);
 			const pjsip_auth_algorithm *algorithm = ast_sip_auth_get_algorithm_by_type(algorithm_type);
 			pjsip_www_authenticate_hdr *auth_hdr = NULL;
 			int already_sent_challenge = 0;
-			SCOPE_ENTER(5, "%s:%s:%s: Challenging with " PJSTR_PRINTF_SPEC "\n",
-				endpoint_id, auth_id, src_name, PJSTR_PRINTF_VAR(algorithm->iana_name));
+			SCOPE_ENTER(5, "%s:%s:%s: Auth %d of %d: Challenging with " PJSTR_PRINTF_SPEC "\n",
+				endpoint_id, auth_id, src_name, idx + 1, (int)auth_size,
+				PJSTR_PRINTF_VAR(algorithm->iana_name));
 
 			/*
 			 * Per RFC 7616, if we've already sent a challenge for this realm
@@ -662,9 +716,10 @@ static enum ast_sip_check_auth_result digest_check_auth(struct ast_sip_endpoint 
 				PJSIP_H_WWW_AUTHENTICATE, auth_hdr ? auth_hdr->next : NULL))) {
 				if (pj_strcmp2(&auth_hdr->challenge.common.realm, realm) == 0 &&
 					!pj_stricmp(&auth_hdr->challenge.digest.algorithm, &algorithm->iana_name)) {
-					ast_trace(-1, "%s:%s:%s: Not sending duplicate challenge for realm: %s algorithm: "
+					ast_trace(-1, "%s:%s:%s: Auth %d of %d: Not sending duplicate challenge for realm: %s algorithm: "
 						PJSTR_PRINTF_SPEC "\n",
-						endpoint_id, auth_id, src_name, realm, PJSTR_PRINTF_VAR(algorithm->iana_name));
+						endpoint_id, auth_id, src_name, idx + 1, (int)auth_size,
+						realm, PJSTR_PRINTF_VAR(algorithm->iana_name));
 					already_sent_challenge = 1;
 				}
 			}
@@ -676,10 +731,12 @@ static enum ast_sip_check_auth_result digest_check_auth(struct ast_sip_endpoint 
 				verify_res[idx] == AUTH_STALE, algorithm);
 			res = AST_SIP_AUTHENTICATION_CHALLENGE;
 
-			SCOPE_EXIT("%s:%s:%s: Challenged with " PJSTR_PRINTF_SPEC "\n",
-				endpoint_id, auth_id, src_name, PJSTR_PRINTF_VAR(algorithm->iana_name));
+			SCOPE_EXIT("%s:%s:%s: Auth %d of %d: Challenged with " PJSTR_PRINTF_SPEC "\n",
+				endpoint_id, auth_id, src_name, idx + 1, (int)auth_size,
+				PJSTR_PRINTF_VAR(algorithm->iana_name));
 		}
-		SCOPE_EXIT("%s:%s:%s: Done with auth challenge\n", endpoint_id, auth_id, src_name);
+		SCOPE_EXIT("%s:%s:%s: Auth %d of %d: Done with challenges\n",
+			endpoint_id, auth_id, src_name, idx + 1, (int)auth_size);
 	}
 
 	/*
