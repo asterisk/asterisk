@@ -80,8 +80,6 @@ clean:
 	rm -f aelparse.c aelbison.c
 	rm -f threadstorage.c
 	rm -f utils.c strings.c poll.c version.c sha1.c astobj2.c refcounter
-	rm -f db1-ast/.*.d
-	@$(MAKE) -C db1-ast clean
 
 
 md5.c: $(ASTTOPDIR)/main/md5.c
@@ -179,18 +177,6 @@ smsq: smsq.o strcompat.o
 smsq: LIBS+=$(POPT_LIB)
 
 streamplayer: streamplayer.o
-
-CHECK_SUBDIR:	# do nothing, just make sure that we recurse in the subdir/
-db1-ast/libdb1.a: CHECK_SUBDIR
-	_ASTCFLAGS="$(_ASTCFLAGS) -Wno-strict-aliasing -Wno-old-style-definition" ASTCFLAGS="$(ASTCFLAGS)" $(MAKE) -C db1-ast libdb1.a
-
-astdb2sqlite3: LIBS+=$(SQLITE3_LIB)
-astdb2sqlite3: _ASTCFLAGS+=$(SQLITE3_INCLUDE)
-astdb2sqlite3: db1-ast/libdb1.a
-
-astdb2bdb: LIBS+=$(SQLITE3_LIB)
-astdb2bdb: _ASTCFLAGS+=$(SQLITE3_INCLUDE)
-astdb2bdb: db1-ast/libdb1.a
 
 conf_bridge_binaural_hrir_importer: LIBS+=$(SNDFILE_LIB)
 conf_bridge_binaural_hrir_importer.o: _ASTCFLAGS+=$(SNDFILE_INCLUDE)

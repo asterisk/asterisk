@@ -233,20 +233,6 @@ static int init_statements(void)
 	|| init_stmt(&put_stmt, put_stmt_sql, sizeof(put_stmt_sql));
 }
 
-static int convert_bdb_to_sqlite3(void)
-{
-	char *cmd;
-	int res;
-
-	res = ast_asprintf(&cmd, "%s/astdb2sqlite3 '%s'\n", ast_config_AST_SBIN_DIR, ast_config_AST_DB);
-	if (0 <= res) {
-		res = ast_safe_system(cmd);
-		ast_free(cmd);
-	}
-
-	return res;
-}
-
 static int db_create_astdb(void)
 {
 	int res = 0;
@@ -269,32 +255,23 @@ static int db_create_astdb(void)
 
 static int db_open(void)
 {
-	char *dbname;
 	struct stat dont_care;
+	char dbname[strlen(ast_config_AST_DB) + sizeof(".sqlite3")];
 
-	if (!(dbname = ast_alloca(strlen(ast_config_AST_DB) + sizeof(".sqlite3")))) {
-		return -1;
-	}
 	strcpy(dbname, ast_config_AST_DB);
 	strcat(dbname, ".sqlite3");
 
 	if (stat(dbname, &dont_care) && !stat(ast_config_AST_DB, &dont_care)) {
-		if (convert_bdb_to_sqlite3()) {
-			ast_log(LOG_ERROR, "*** Database conversion failed!\n");
-			ast_log(LOG_ERROR, "*** Asterisk now uses SQLite3 for its internal\n");
-			ast_log(LOG_ERROR, "*** database. Conversion from the old astdb\n");
-			ast_log(LOG_ERROR, "*** failed. Most likely the astdb2sqlite3 utility\n");
-			ast_log(LOG_ERROR, "*** was not selected for build. To convert the\n");
-			ast_log(LOG_ERROR, "*** old astdb, please delete '%s'\n", dbname);
-			ast_log(LOG_ERROR, "*** and re-run 'make menuselect' and select astdb2sqlite3\n");
-			ast_log(LOG_ERROR, "*** in the Utilities section, then 'make && make install'.\n");
-			ast_log(LOG_ERROR, "*** It is also imperative that the user under which\n");
-			ast_log(LOG_ERROR, "*** Asterisk runs have write permission to the directory\n");
-			ast_log(LOG_ERROR, "*** where the database resides.\n");
-			sleep(5);
-		} else {
-			ast_log(LOG_NOTICE, "Database conversion succeeded!\n");
-		}
+		ast_log(LOG_ERROR, "When Asterisk 10.0.0 was released, the format of Asterisk's internal\n");
+		ast_log(LOG_ERROR, "database was changed from Berkeley DB to SQLite3. Part of that change\n");
+		ast_log(LOG_ERROR, "involved the creation of a conversion utility - astdb2sqlite3 - that\n");
+		ast_log(LOG_ERROR, "was shipped with Asterisk. This conversion utility performed a\n");
+		ast_log(LOG_ERROR, "one-time migration from the old format to the new one.\n");
+		ast_log(LOG_ERROR, "\n");
+		ast_log(LOG_ERROR, "Starting with Asterisk 23.0.0, astdb2sqlite3 no longer ships as part\n");
+		ast_log(LOG_ERROR, "of the Asterisk distribution. If you are upgrading from a version of\n");
+		ast_log(LOG_ERROR, "Asterisk that still uses the Berkeley DB implementation, you will need\n");
+		ast_log(LOG_ERROR, "to acquire astdb2sqlite3 from an earlier release of Asterisk.\n");
 	}
 
 	ast_mutex_lock(&dblock);
