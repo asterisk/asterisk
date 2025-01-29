@@ -571,7 +571,6 @@ ifneq ($(DISABLE_XMLDOC),yes)
 	$(INSTALL) -m 644 doc/appdocsxml.dtd "$(DESTDIR)$(ASTDATADIR)/documentation"
 endif
 	$(INSTALL) -m 644 doc/asterisk.8 "$(DESTDIR)$(ASTMANDIR)/man8"
-	$(INSTALL) -m 644 doc/astdb*.8 "$(DESTDIR)$(ASTMANDIR)/man8"
 	$(INSTALL) -m 644 contrib/scripts/astgenkey.8 "$(DESTDIR)$(ASTMANDIR)/man8"
 	$(INSTALL) -m 644 contrib/scripts/autosupport.8 "$(DESTDIR)$(ASTMANDIR)/man8"
 	$(INSTALL) -m 644 contrib/scripts/safe_asterisk.8 "$(DESTDIR)$(ASTMANDIR)/man8"
@@ -985,7 +984,6 @@ sounds:
 
 .lastclean: .cleancount
 	@$(MAKE) clean
-	@[ -f "$(DESTDIR)$(ASTDBDIR)/astdb.sqlite3" ] || [ ! -f "$(DESTDIR)$(ASTDBDIR)/astdb" ] || [ ! -f menuselect.makeopts ] || grep -q MENUSELECT_UTILS=.*astdb2sqlite3 menuselect.makeopts || (sed -i.orig -e's/MENUSELECT_UTILS=\(.*\)/MENUSELECT_UTILS=\1 astdb2sqlite3/' menuselect.makeopts && echo "Updating menuselect.makeopts to include astdb2sqlite3" && echo "Original version backed up to menuselect.makeopts.orig")
 
 
 $(SUBDIRS_UNINSTALL):
