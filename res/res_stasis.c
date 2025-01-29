@@ -414,6 +414,32 @@ static int bridges_compare(void *obj, void *arg, int flags)
 	return CMP_MATCH;
 }
 
+/*! AO2 sort function for bridges container */
+static int bridges_sort (const void *left, const void *right, const int flags)
+{
+	const struct ast_bridge *object_left = left;
+	const struct ast_bridge *object_right = right;
+	const char *right_key = right;
+	int cmp;
+
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_OBJECT:
+		right_key = object_right->uniqueid;
+		/* Fall through */
+	case OBJ_SEARCH_KEY:
+		cmp = strcmp(object_left->uniqueid, right_key);
+		break;
+	case OBJ_SEARCH_PARTIAL_KEY:
+		cmp = strncmp(object_left->uniqueid, right_key, strlen(right_key));
+		break;
+	default:
+		ast_assert(0);
+		cmp = 0;
+		break;
+	}
+	return cmp;
+}
+
 /*!
  *  Used with app_bridges_moh and app_bridge_control, they provide links
  *  between bridges and channels used for ARI application purposes
@@ -803,8 +829,19 @@ static struct ast_bridge *bridge_create_common(const char *type, const char *nam
 	enum ast_bridge_video_mode_type video_mode = AST_BRIDGE_VIDEO_MODE_TALKER_SRC;
 	int send_sdp_label = 0;
 
+	ast_debug(1, "Creating bridge of type '%s' with name '%s' and id '%s'\n",
+		type, S_OR(name, "<unknown>"), S_OR(id, "<unknown>"));
 	if (invisible) {
 		flags |= AST_BRIDGE_FLAG_INVISIBLE;
+	}
+
+	if (!ast_strlen_zero(id)) {
+		bridge = stasis_app_bridge_find_by_id(id);
+		if (bridge) {
+			ast_log(LOG_WARNING, "Bridge with id '%s' already exists\n", id);
+			ao2_ref(bridge, -1);
+			return NULL;
+		}
 	}
 
 	while ((requested_type = strsep(&requested_types, ","))) {
@@ -867,7 +904,12 @@ void stasis_app_bridge_destroy(const char *bridge_id)
 	if (!bridge) {
 		return;
 	}
+	ast_debug(1, "Bridge " BRIDGE_PRINTF_SPEC ": destroying bridge\n",
+		BRIDGE_PRINTF_VARS(bridge));
+
 	ao2_unlink(app_bridges, bridge);
+	ast_debug(1, "Bridge " BRIDGE_PRINTF_SPEC ": unlinked from app_bridges.  current refcount: %d\n",
+		BRIDGE_PRINTF_VARS(bridge), ao2_ref(bridge, 0));
 	ast_bridge_destroy(bridge, 0);
 }
 
@@ -2349,8 +2391,9 @@ static int load_module(void)
 		APPS_NUM_BUCKETS, app_hash, NULL, app_compare);
 	app_controls = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
 		CONTROLS_NUM_BUCKETS, control_hash, NULL, control_compare);
-	app_bridges = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
-		BRIDGES_NUM_BUCKETS, bridges_hash, NULL, bridges_compare);
+	app_bridges = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX,
+		AO2_CONTAINER_ALLOC_OPT_DUPS_REJECT,
+		BRIDGES_NUM_BUCKETS, bridges_hash, bridges_sort, bridges_compare);
 	app_bridges_moh = ao2_container_alloc_hash(
 		AO2_ALLOC_OPT_LOCK_MUTEX, 0,
 		37, bridges_channel_hash_fn, NULL, bridges_channel_compare);

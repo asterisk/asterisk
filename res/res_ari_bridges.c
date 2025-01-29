@@ -172,6 +172,7 @@ static void ast_ari_bridges_create_cb(
 		break;
 	case 500: /* Internal Server Error */
 	case 501: /* Not Implemented */
+	case 409: /* Bridge with the same bridgeId already exists */
 		is_valid = 1;
 		break;
 	default:
@@ -261,6 +262,7 @@ static void ast_ari_bridges_create_with_id_cb(
 		break;
 	case 500: /* Internal Server Error */
 	case 501: /* Not Implemented */
+	case 409: /* Bridge with the same bridgeId already exists */
 		is_valid = 1;
 		break;
 	default:
