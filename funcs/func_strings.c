@@ -1554,6 +1554,16 @@ static int hash_read(struct ast_channel *chan, const char *cmd, char *data, char
 		for (i = 0; i < arg2.argc; i++) {
 			snprintf(varname, sizeof(varname), HASH_FORMAT, arg.hashname, arg2.col[i]);
 			varvalue = pbx_builtin_getvar_helper(chan, varname);
+			/*
+			 * If the value is NULL, there was probably a malformation in the
+			 * column name (unbalanced quote, etc.)  This makes everything
+			 * suspect so we should return nothing at all.
+			 */
+			if (!varvalue) {
+				ast_log(LOG_WARNING, "No value found for '%s'\n", varname);
+				*buf = '\0';
+				return -1;
+			}
 			strncat(buf, varvalue, len - strlen(buf) - 1);
 			strncat(buf, ",", len - strlen(buf) - 1);
 		}
