@@ -6773,7 +6773,7 @@ static void *pri_dchannel(void *vpri)
 					sig_pri_open_media(pri->pvts[chanpos]);
 				} else if (pri->inband_on_proceeding) {
 					/*
-					 * XXX This is to accomodate a broken switch that sends a
+					 * XXX This is to accommodate a broken switch that sends a
 					 * PROCEEDING without any progress indication ie for
 					 * inband audio.  This should be part of the conditional
 					 * test above to bring the voice path up.
@@ -7703,7 +7703,7 @@ void sig_pri_extract_called_num_subaddr(struct sig_pri_chan *p, const char *rdes
 		AST_APP_ARG(group);	/* channel/group token */
 		AST_APP_ARG(ext);	/* extension token */
 		//AST_APP_ARG(opts);	/* options token */
-		AST_APP_ARG(other);	/* Any remining unused arguments */
+		AST_APP_ARG(other);	/* Any remaining unused arguments */
 	);
 
 	/* Get private copy of dial string and break it up. */
@@ -7802,7 +7802,7 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, const char *rd
 		AST_APP_ARG(group);	/* channel/group token */
 		AST_APP_ARG(ext);	/* extension token */
 		AST_APP_ARG(opts);	/* options token */
-		AST_APP_ARG(other);	/* Any remining unused arguments */
+		AST_APP_ARG(other);	/* Any remaining unused arguments */
 	);
 	struct ast_flags opts;
 	char *opt_args[OPT_ARG_ARRAY_SIZE];
@@ -9510,7 +9510,7 @@ int sig_pri_cc_agent_stop_offer_timer(struct ast_cc_agent *agent)
  * if there is some error when attempting to process
  * the incoming CC request.
  *
- * The duty of this is to issue a propper response to a
+ * The duty of this is to issue a proper response to a
  * CC request from the caller by acknowledging receipt
  * of that request or rejecting it.
  */
