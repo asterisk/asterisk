@@ -3449,7 +3449,7 @@ chk_times (FP___TYPE a, FP___TYPE b, FP___TYPE r)
 	/* special case: first operand is 0, no overflow possible */
 	if (a == 0)
 		return 0;
-	/* cerify that result of division matches second operand */
+	/* verify that result of division matches second operand */
 	if (r / a != b)
 		return 1;
 	return 0;
