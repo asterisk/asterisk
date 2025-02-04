@@ -360,7 +360,7 @@ struct sig_pri_chan {
 	/*! \brief Channel reset/restart state. */
 	enum sig_pri_reset_state resetting;
 #if defined(HAVE_PRI_TRANSFER)
-	/*! If non-NULL, send transfer disconnect successfull response to first call disconnecting. */
+	/*! If non-NULL, send transfer disconnect successful response to first call disconnecting. */
 	struct xfer_rsp_data *xfer_data;
 #endif	/* defined(HAVE_PRI_TRANSFER) */
 	int prioffset;					/*!< channel number in span */
