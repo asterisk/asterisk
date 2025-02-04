@@ -2111,7 +2111,6 @@ static int external_media_rtp_udp(struct ast_ari_channels_external_media_args *a
 		NULL,
 		args->format,
 		response);
-	ast_variables_destroy(variables);
 
 	ast_free(endpoint);
 
@@ -2129,24 +2128,23 @@ static int external_media_rtp_udp(struct ast_ari_channels_external_media_args *a
 	return 0;
 }
 
-static void external_media_audiosocket_tcp(struct ast_ari_channels_external_media_args *args,
+static int external_media_audiosocket_tcp(struct ast_ari_channels_external_media_args *args,
 	struct ast_variable *variables,
 	struct ast_ari_response *response)
 {
-	size_t endpoint_len;
 	char *endpoint;
 	struct ast_channel *chan;
 	struct varshead *vars;
 
 	if (ast_strlen_zero(args->data)) {
 		ast_ari_response_error(response, 400, "Bad Request", "data can not be empty");
-		return;
+		return 1;
 	}
 
-	endpoint_len = strlen("AudioSocket/") + strlen(args->external_host) + 1 + strlen(args->data) + 1;
-	endpoint = ast_alloca(endpoint_len);
-	/* The UUID is stored in the arbitrary data field */
-	snprintf(endpoint, endpoint_len, "AudioSocket/%s/%s", args->external_host, args->data);
+	if (ast_asprintf(&endpoint, "AudioSocket/%s/%s",
+		args->external_host, args->data) == -1) {
+		return 1;
+	}
 
 	chan = ari_channels_handle_originate_with_id(
 		endpoint,
@@ -2164,10 +2162,11 @@ static void external_media_audiosocket_tcp(struct ast_ari_channels_external_medi
 		NULL,
 		args->format,
 		response);
-	ast_variables_destroy(variables);
+
+	ast_free(endpoint);
 
 	if (!chan) {
-		return;
+		return 1;
 	}
 
 	ast_channel_lock(chan);
@@ -2177,6 +2176,7 @@ static void external_media_audiosocket_tcp(struct ast_ari_channels_external_medi
 	}
 	ast_channel_unlock(chan);
 	ast_channel_unref(chan);
+	return 0;
 }
 
 #include "asterisk/config.h"
@@ -2185,7 +2185,7 @@ static void external_media_audiosocket_tcp(struct ast_ari_channels_external_medi
 void ast_ari_channels_external_media(struct ast_variable *headers,
 	struct ast_ari_channels_external_media_args *args, struct ast_ari_response *response)
 {
-	struct ast_variable *variables = NULL;
+	RAII_VAR(struct ast_variable *, variables, NULL, ast_variables_destroy);
 	char *external_host;
 	char *host = NULL;
 	char *port = NULL;
@@ -2245,7 +2245,11 @@ void ast_ari_channels_external_media(struct ast_variable *headers,
 				"An internal error prevented this request from being handled");
 		}
 	} else if (strcasecmp(args->encapsulation, "audiosocket") == 0 && strcasecmp(args->transport, "tcp") == 0) {
-		external_media_audiosocket_tcp(args, variables, response);
+		if (external_media_audiosocket_tcp(args, variables, response)) {
+			ast_ari_response_error(
+				response, 500, "Internal Server Error",
+				"An internal error prevented this request from being handled");
+		}
 	} else {
 		ast_ari_response_error(
 			response, 501, "Not Implemented",
