@@ -942,7 +942,7 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 
 	/*
 	 * And now, since the channel structure is built, and has its name, let
-	 * the world know of its existance
+	 * the world know of its existence
 	 */
 	ast_channel_stage_snapshot_done(tmp);
 
@@ -3712,7 +3712,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio, int
 				ast_channel_alert_write(chan);
 			} else {
 				/*
-				 * Safely disable continous timer events if only buffered dtmf begin or end
+				 * Safely disable continuous timer events if only buffered dtmf begin or end
 				 * frames are left in the readq.
 				 */
 				ast_timer_disable_continuous(ast_channel_timer(chan));
@@ -5097,7 +5097,7 @@ static void adjust_frame_for_plc(struct ast_channel *chan, struct ast_frame *fra
 		return;
 	}
 
-	/* First, we need to be sure that our buffer is large enough to accomodate
+	/* First, we need to be sure that our buffer is large enough to accommodate
 	 * the samples we need to fill in. This will likely only occur on the first
 	 * frame we write.
 	 */
@@ -6931,7 +6931,7 @@ static void channel_do_masquerade(struct ast_channel *original, struct ast_chann
 	 */
 	ao2_lock(channels);
 
-	/* Bump the refs to ensure that they won't dissapear on us. */
+	/* Bump the refs to ensure that they won't disappear on us. */
 	ast_channel_ref(original);
 	ast_channel_ref(clonechan);
 
@@ -7144,7 +7144,7 @@ static void channel_do_masquerade(struct ast_channel *original, struct ast_chann
 	ast_autochan_new_channel(clonechan, original);
 
 	clone_variables(original, clonechan);
-	/* Presense of ADSI capable CPE follows clone */
+	/* Presence of ADSI capable CPE follows clone */
 	ast_channel_adsicpe_set(original, ast_channel_adsicpe(clonechan));
 	/* Bridge remains the same */
 	/* CDR fields remain the same */

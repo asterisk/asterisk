@@ -913,7 +913,7 @@ static void calculate_far_max_ifp(struct ast_udptl *udptl)
 	 * datagram buffer. this is complicated by the fact that some
 	 * far endpoints send us bogus (small) max datagram values,
 	 * which would result in either buffer overrun or no error
-	 * correction. we try to accomodate those, but if the supplied
+	 * correction. we try to accommodate those, but if the supplied
 	 * value is too small to do so, we'll emit warning messages and
 	 * the user will have to use configuration options to override
 	 * the max datagram value supplied by the far endpoint.
