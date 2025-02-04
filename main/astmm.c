@@ -129,7 +129,7 @@ struct ast_region {
 	 * \brief Location of the requested malloc block to return.
 	 *
 	 * \note Must have the same alignment that malloc returns.
-	 * i.e., It is suitably aligned for any kind of varible.
+	 * i.e., It is suitably aligned for any kind of variable.
 	 */
 	unsigned char data[0] __attribute__((aligned));
 };
@@ -1132,7 +1132,7 @@ static void mm_atexit_hash_restore(struct region_list *list)
 
 /*!
  * \internal
- * \brief Sort regions comparision.
+ * \brief Sort regions comparison.
  *
  * \param left Region to compare.
  * \param right Region to compare.

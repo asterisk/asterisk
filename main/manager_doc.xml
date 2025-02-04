@@ -1060,7 +1060,7 @@
 			<syntax>
 				<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
 				<parameter name="EventList">
-					<para>Conveys the status of the command reponse list</para>
+					<para>Conveys the status of the command response list</para>
 				</parameter>
 				<parameter name="ListItems">
 					<para>The total number of list items produced</para>
@@ -1262,8 +1262,8 @@
 				<para>This represents the amount of units charged. The ETSI AOC standard specifies that
 				this value along with the optional UnitType value are entries in a list.  To accommodate this
 				these values take an index value starting at 0 which can be used to generate this list of
-				unit entries.  For Example, If two unit entires were required this could be achieved by setting the
-				paramter UnitAmount(0)=1234 and UnitAmount(1)=5678.  Note that UnitAmount at index 0 is
+				unit entries.  For example, If two unit entries were required this could be achieved by setting the
+				parameter UnitAmount(0)=1234 and UnitAmount(1)=5678.  Note that UnitAmount at index 0 is
 				required when ChargeType=Unit, all other entries in the list are optional.
 				</para>
 			</parameter>
@@ -1583,7 +1583,7 @@
 			</note>
 			<note>
 			<para>
-			This comand requires the system permission because
+			This command requires the system permission because
 			this command can be used to create filters that may bypass
 			filters defined in manager.conf
 			</para>

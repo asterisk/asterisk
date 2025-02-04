@@ -5168,7 +5168,7 @@ int ast_say_date_with_format_is(struct ast_channel *chan, time_t t, const char *
 				}
 				break;
 			case 'H':
-				/* 24-Hour, single digit hours preceeded by "oh" (0) */
+				/* 24-Hour, single digit hours preceded by "oh" (0) */
 				if (tm.tm_hour < 10 && tm.tm_hour > 0) {
 					res = wait_file(chan, ints, "digits/0", lang);
 				}

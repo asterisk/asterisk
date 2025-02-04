@@ -271,7 +271,7 @@ static void *internal_ao2_traverse(struct ao2_container *self, enum search_flags
 			return NULL;
 		}
 		if (!(multi_iterator = ast_calloc(1, sizeof(*multi_iterator)))) {
-			ao2_t_ref(multi_container, -1, "OBJ_MULTIPLE interator creation failed.");
+			ao2_t_ref(multi_container, -1, "OBJ_MULTIPLE iterator creation failed.");
 			return NULL;
 		}
 	}
