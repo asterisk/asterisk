@@ -268,7 +268,7 @@
  * subscriptions need the topics to unsubscribe and check subscription status.
  *
  * The cycle is broken by stasis_unsubscribe(). The unsubscribe will remove the
- * topic's reference to a subscription. When the subcription is destroyed, it
+ * topic's reference to a subscription. When the subscription is destroyed, it
  * will remove its reference to the topic.
  *
  * This means that until a subscription has be explicitly unsubscribed, it will
@@ -2656,7 +2656,7 @@ static char *statistics_show_subscription(struct ast_cli_entry *e, int cmd, stru
 
 	subscription_stats = ao2_global_obj_ref(subscription_statistics);
 	if (!subscription_stats) {
-		ast_cli(a->fd, "Could not fetch subcription_statistics container\n");
+		ast_cli(a->fd, "Could not fetch subscription_statistics container\n");
 		return CLI_FAILURE;
 	}
 

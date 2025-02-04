@@ -729,7 +729,7 @@ static int fileexists_test(const char *filename, const char *fmt, const char *la
  *
  * \param filename Name of the file.
  * \param fmt Format to look for the file in. OPTIONAL
- * \param preflang The perfered language
+ * \param preflang The preferred language
  * \param buf Returns the matching filename
  * \param buflen Size of the buf
  * \param result_cap OPTIONAL format capabilities result structure

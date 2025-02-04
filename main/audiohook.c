@@ -496,7 +496,7 @@ static void audiohook_list_set_samplerate_compatibility(struct ast_audiohook_lis
 	 * at that level when it should be lower, and with no way to lower it since any
 	 * rate compared against it would be lower.
 	 *
-	 * By setting it back to the lowest rate it can recalulate the new highest rate.
+	 * By setting it back to the lowest rate it can recalculate the new highest rate.
 	 */
 	audiohook_list->list_internal_samp_rate = DEFAULT_INTERNAL_SAMPLE_RATE;
 
@@ -1255,7 +1255,7 @@ static int audiohook_volume_callback(struct ast_audiohook *audiohook, struct ast
 		return 0;
 	}
 
-	/* Try to find the datastore containg adjustment information, if we can't just bail out */
+	/* Try to find the datastore containing adjustment information, if we can't just bail out */
 	if (!(datastore = ast_channel_datastore_find(chan, &audiohook_volume_datastore, NULL))) {
 		return 0;
 	}
