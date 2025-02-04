@@ -80,7 +80,7 @@
 				<parameter name="Scale" />
 				<parameter name="Unit">
 					<enumlist>
-						<enum name="Octect" />
+						<enum name="Octet" />
 						<enum name="Segment" />
 						<enum name="Message" />
 					</enumlist>

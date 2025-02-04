@@ -671,7 +671,7 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len, stru
 							 * but it would be silly for a telephone switch to do that. */
 							break;
 						/* For MDMF spills, we would expect to get an "O" or a "P"
-						 * for paramter 4 (or 8) as opposed to 2 (or 7) to indicate
+						 * for parameter 4 (or 8) as opposed to 2 (or 7) to indicate
 						 * a blocked or out of area presentation.
 						 * However, for SDMF, which doesn't have parameters,
 						 * there is no differentiation, which is why the logic below
