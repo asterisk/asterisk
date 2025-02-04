@@ -312,7 +312,7 @@ static int write_escalates(const struct ast_custom_function *acf)
  *  \param acf ast_custom_function structure with empty 'desc' and 'synopsis'
  *             but with a function 'name'.
  *  \retval -1 On error.
- *  \retval 0 On succes.
+ *  \retval 0 On success.
  */
 static int acf_retrieve_docs(struct ast_custom_function *acf)
 {

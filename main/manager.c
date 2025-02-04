@@ -2586,7 +2586,7 @@ static int action_listcategories(struct mansession *s, const struct message *m)
 
 	ret = is_restricted_file(fn);
 	if (ret == 1) {
-		astman_send_error(s, m, "File requires escalated priveleges");
+		astman_send_error(s, m, "File requires escalated privileges");
 		return 0;
 	} else if (ret == -1) {
 		astman_send_error(s, m, "Config file not found");
@@ -5319,7 +5319,7 @@ static int action_originate(struct mansession *s, const struct message *m)
 			ast_string_field_set(fast, otherchannelid, assignedids.uniqueid2);
 			fast->vars = vars;
 			fast->cap = cap;
-			cap = NULL; /* transfered originate helper the capabilities structure.  It is now responsible for freeing it. */
+			cap = NULL; /* transferred originate helper the capabilities structure.  It is now responsible for freeing it. */
 			fast->timeout = to;
 			fast->early_media = bridge_early;
 			fast->priority = pi;

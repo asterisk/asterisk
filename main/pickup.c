@@ -69,7 +69,7 @@ STASIS_MESSAGE_TYPE_DEFN(
 
 /*!
  * The presence of this datastore on the channel indicates that
- * someone is attemting to pickup or has picked up the channel.
+ * someone is attempting to pickup or has picked up the channel.
  * The purpose is to prevent a race between two channels
  * attempting to pickup the same channel.
  */

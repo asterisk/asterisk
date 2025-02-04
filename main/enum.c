@@ -40,7 +40,7 @@
  *   http://tools.ietf.org/wg/enum/draft-ietf-enum-branch-location-record/
  *
  * \par Possible improvement
- * \todo Implement a caching mechanism for multile enum lookups
+ * \todo Implement a caching mechanism for multiple enum lookups
  * - See https://issues.asterisk.org/view.php?id=6739
  * \todo The service type selection needs to be redone.
  */
@@ -513,7 +513,7 @@ static int parse_naptr(unsigned char *dst, int dstsize, char *tech, int techsize
 		re_flags |= REG_ICASE;
 	}
 
-	pattern = regexp + 1;   /* pattern is the regex without the begining and ending delimiter */
+	pattern = regexp + 1;   /* pattern is the regex without the beginning and ending delimiter */
 	*delim2 = 0;    /* zero out the middle delimiter */
 	subst   = delim2 + 1; /* dst substring is everything after the second delimiter. */
 	regexp[regexp_len - 1] = 0; /* zero out the last delimiter */
@@ -603,7 +603,7 @@ static int parse_naptr(unsigned char *dst, int dstsize, char *tech, int techsize
 	return 0;
 }
 
-/* do not return requested value, just count RRs and return thei number in dst */
+/* do not return requested value, just count RRs and return their number in dst */
 #define ENUMLOOKUP_OPTIONS_COUNT       1
 /* do an ISN style lookup */
 #define ENUMLOOKUP_OPTIONS_ISN		2
@@ -675,7 +675,7 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 
 /*
   We don't need that any more, that "n" preceding the number has been replaced by a flag
-  in the options paramter.
+  in the options parameter.
 	ast_copy_string(naptrinput, number, sizeof(naptrinput));
 */
 /*
@@ -740,7 +740,7 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 	 * This code does more than simple RFC3261 ENUM. All these rewriting
 	 * schemes have in common that they build the FQDN for the NAPTR lookup
 	 * by concatenating
-	 *    - a number which needs be flipped and "."-seperated 	(left)
+	 *    - a number which needs be flipped and "."-separated 	(left)
 	 *    - some fixed string					(middle)
 	 *    - an Apex.						(apex)
 	 *
