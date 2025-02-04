@@ -213,7 +213,7 @@ extern "C" {
  * \param object A pointer the object to operate on.
  * \param destructor The destructor to call if the object is no longer referenced.  It will be passed the pointer as an argument.
  *
- * This macro unreferences an object and calls the specfied destructor if the
+ * This macro unreferences an object and calls the specified destructor if the
  * object is no longer referenced.  The destructor should free the object if it
  * was dynamically allocated.
  */
@@ -358,7 +358,7 @@ extern "C" {
  * \param eval A statement to evaluate in the iteration loop.
  *
  * This is macro is a little complicated, but it may help to think of it as a
- * loop.  Basically it iterates through the specfied containter as long as the
+ * loop.  Basically it iterates through the specified container as long as the
  * condition is met.  Two variables, iterator and next, are provided for use in
  * your \p eval statement.  See the sample code for an example.
  *
@@ -393,7 +393,7 @@ extern "C" {
  * \param container A pointer to the container to search.
  * \param namestr The name to search for.
  *
- * Use this function to find an object with the specfied name in a container.
+ * Use this function to find an object with the specified name in a container.
  *
  * \note When the returned object is no longer in use, #ASTOBJ_UNREF() should
  * be used to free the additional reference created by this macro.
@@ -468,7 +468,7 @@ extern "C" {
  * \param container A pointer to the container to operate on.
  * \param obj A pointer to the object to remove.
  *
- * This macro iterates through a container and removes the specfied object if
+ * This macro iterates through a container and removes the specified object if
  * it exists in the container.
  *
  * \note This macro does not destroy any objects, it simply unlinks
@@ -503,7 +503,7 @@ extern "C" {
  * \param namestr The name of the object to remove.
  *
  * This macro iterates through a container and removes the first object with
- * the specfied name from the container.
+ * the specified name from the container.
  *
  * \note This macro does not destroy any objects, it simply unlinks
  * them.  No destructors are called.
@@ -647,8 +647,8 @@ extern "C" {
  * \param container A pointer to the container to prune.
  * \param destructor A destructor function to call on each marked object.
  *
- * This macro iterates through the specfied container and prunes any marked
- * objects executing the specfied destructor if necessary.
+ * This macro iterates through the specified container and prunes any marked
+ * objects executing the specified destructor if necessary.
  */
 #define ASTOBJ_CONTAINER_PRUNE_MARKED(container,destructor) \
 	do { \
@@ -756,7 +756,7 @@ extern "C" {
 
 /*! \brief Destroy a container.
  *
- * \param container A pointer to the container to destory.
+ * \param container A pointer to the container to destroy.
  *
  * This macro frees up resources used by a container.  It does not operate on
  * the objects in the container.  To unlink the objects from the container use
@@ -797,7 +797,7 @@ extern "C" {
  * \param obj A pointer to the object to dump.
  *
  * This macro dumps a text representation of the name, objectflags, and
- * refcount fields of an object to the specfied string buffer.
+ * refcount fields of an object to the specified string buffer.
  */
 #define ASTOBJ_DUMP(s,slen,obj) \
 	snprintf((s),(slen),"name: %s\nobjflags: %u\nrefcount: %u\n\n", (obj)->name, (obj)->objflags, (obj)->refcount);
