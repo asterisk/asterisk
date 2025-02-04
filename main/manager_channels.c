@@ -131,7 +131,7 @@
 				<channel_snapshot/>
 				<parameter name="Extension">
 					<para>Deprecated in 12, but kept for
-					backward compatability. Please use
+					backward compatibility. Please use
 					'Exten' instead.</para>
 				</parameter>
 				<parameter name="Application">

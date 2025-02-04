@@ -59,8 +59,8 @@
 						<enum name="Not Permitted"><para>Bridge does not permit transfers</para></enum>
 						<enum name="Success"><para>Transfer completed successfully</para></enum>
 					</enumlist>
-					<note><para>A result of <literal>Success</literal> does not necessarily mean that a target was succesfully
-					contacted. It means that a party was succesfully placed into the dialplan at the expected location.</para></note>
+					<note><para>A result of <literal>Success</literal> does not necessarily mean that a target was successfully
+					contacted. It means that a party was successfully placed into the dialplan at the expected location.</para></note>
 				</parameter>
 				<channel_snapshot prefix="Transferer"/>
 				<channel_snapshot prefix="Transferee"/>
