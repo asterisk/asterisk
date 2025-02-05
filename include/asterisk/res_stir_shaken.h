@@ -55,6 +55,7 @@ enum ast_stir_shaken_vs_response_code {
 	AST_STIR_SHAKEN_VS_NO_DEST_TN,
 	AST_STIR_SHAKEN_VS_INVALID_HEADER,
 	AST_STIR_SHAKEN_VS_INVALID_GRANT,
+	AST_STIR_SHAKEN_VS_INVALID_OR_NO_CID,
 	AST_STIR_SHAKEN_VS_RESPONSE_CODE_MAX
 };
 
@@ -231,6 +232,16 @@ enum stir_shaken_failure_action_enum
  * \retval 0 if false
  */
 int	ast_stir_shaken_vs_get_use_rfc9410_responses(
+		struct ast_stir_shaken_vs_ctx *ctx);
+
+/*!
+ * \brief Get caller_id from context
+ *
+ * \param ctx VS context
+ *
+ * \retval Caller ID or NULL
+ */
+const char *ast_stir_shaken_vs_get_caller_id(
 		struct ast_stir_shaken_vs_ctx *ctx);
 
 /*!
