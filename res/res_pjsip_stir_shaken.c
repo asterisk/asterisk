@@ -44,10 +44,10 @@ enum sip_response_code {
 	SIP_RESPONSE_CODE_OK = 200,
 	SIP_RESPONSE_CODE_STALE_DATE = 403,
 	SIP_RESPONSE_CODE_USE_IDENTITY_HEADER = 428,
+	SIP_RESPONSE_CODE_ANONYMITY_DISALLOWED = 433,
 	SIP_RESPONSE_CODE_BAD_IDENTITY_INFO = 436,
 	SIP_RESPONSE_CODE_UNSUPPORTED_CREDENTIAL = 437,
 	SIP_RESPONSE_CODE_INVALID_IDENTITY_HEADER = 438,
-	SIP_RESPONSE_CODE_USE_SUPPORTED_PASSPORT_FORMAT = 428,
 	SIP_RESPONSE_CODE_INTERNAL_ERROR = 500,
 };
 
@@ -55,7 +55,7 @@ enum sip_response_code {
 /* Response strings from RFC8224 */
 #define SIP_RESPONSE_CODE_STALE_DATE_STR "Stale Date"
 #define SIP_RESPONSE_CODE_USE_IDENTITY_HEADER_STR "Use Identity Header"
-#define SIP_RESPONSE_CODE_USE_SUPPORTED_PASSPORT_FORMAT_STR "Use Supported PASSporT Format"
+#define SIP_RESPONSE_CODE_ANONYMITY_DISALLOWED_STR "Anonymity Disallowed"
 #define SIP_RESPONSE_CODE_BAD_IDENTITY_INFO_STR "Bad Identity Info"
 #define SIP_RESPONSE_CODE_UNSUPPORTED_CREDENTIAL_STR "Unsupported Credential"
 #define SIP_RESPONSE_CODE_INVALID_IDENTITY_HEADER_STR "Invalid Identity Header"
@@ -71,6 +71,7 @@ static const char *sip_response_code_to_str(enum sip_response_code code)
 	response_to_str(SIP_RESPONSE_CODE_OK)
 	response_to_str(SIP_RESPONSE_CODE_STALE_DATE)
 	response_to_str(SIP_RESPONSE_CODE_USE_IDENTITY_HEADER)
+	response_to_str(SIP_RESPONSE_CODE_ANONYMITY_DISALLOWED)
 	response_to_str(SIP_RESPONSE_CODE_BAD_IDENTITY_INFO)
 	response_to_str(SIP_RESPONSE_CODE_UNSUPPORTED_CREDENTIAL)
 	response_to_str(SIP_RESPONSE_CODE_INVALID_IDENTITY_HEADER)
@@ -127,6 +128,7 @@ static enum sip_response_code vs_code_to_sip_code(
 	translate_code(INVALID_GRANT, 			INVALID_IDENTITY_HEADER)
 	translate_code(INVALID_OR_NO_GRANTS, 	INVALID_IDENTITY_HEADER)
 	translate_code(CID_ORIG_TN_MISMATCH, 	INVALID_IDENTITY_HEADER)
+	translate_code(INVALID_OR_NO_CID, 		ANONYMITY_DISALLOWED)
 	translate_code(RESPONSE_CODE_MAX, 		INVALID_IDENTITY_HEADER)
 	}
 
@@ -227,12 +229,10 @@ static int stir_shaken_incoming_request(struct ast_sip_session *session, pjsip_r
 	}
 
 	/*
-	 * Shortcut:  If there's no callerid or profile name,
-	 * just bail now.
+	 * Shortcut:  If there's no profile name just bail now.
 	 */
-	if (ast_strlen_zero(caller_id)
-		|| ast_strlen_zero(session->endpoint->stir_shaken_profile)) {
-		SCOPE_EXIT_RTN_VALUE(0, "%s: No callerid or profile name. No action needed\n", session_name);
+	if (ast_strlen_zero(session->endpoint->stir_shaken_profile)) {
+		SCOPE_EXIT_RTN_VALUE(0, "%s: No profile name on endpoint. No action needed\n", session_name);
 	}
 
 	vs_rc = ast_stir_shaken_vs_ctx_create(caller_id, chan,
@@ -243,6 +243,17 @@ static int stir_shaken_incoming_request(struct ast_sip_session *session, pjsip_r
 	} else if (vs_rc != AST_STIR_SHAKEN_VS_SUCCESS) {
 		reject_incoming_call(session, 500);
 		SCOPE_EXIT_RTN_VALUE(1, "%s: Unable to create context.  Call terminated\n",
+			session_name);
+	}
+
+	if (ast_strlen_zero(ast_stir_shaken_vs_get_caller_id(ctx))) {
+		p_rc = process_failure(ctx, caller_id, session, rdata,
+			AST_STIR_SHAKEN_VS_INVALID_OR_NO_CID);
+		if (p_rc == PROCESS_FAILURE_CONTINUE) {
+			SCOPE_EXIT_RTN_VALUE(0, "%s: Invalid or no callerid found.  Call continuing\n",
+				session_name);
+		}
+		SCOPE_EXIT_LOG_RTN_VALUE(1, LOG_ERROR, "%s: Invalid or no callerid found.  Call terminated\n",
 			session_name);
 	}
 
