@@ -84,6 +84,7 @@ static const char *vs_rc_map[] = {
 	[AST_STIR_SHAKEN_VS_NO_DEST_TN] = "missing_dest_tn",
 	[AST_STIR_SHAKEN_VS_INVALID_HEADER] = "invalid_header",
 	[AST_STIR_SHAKEN_VS_INVALID_GRANT] = "invalid_grant",
+	[AST_STIR_SHAKEN_VS_INVALID_OR_NO_CID] = "invalid_or_no_callerid",
 };
 
 const char *vs_response_code_to_str(
@@ -629,6 +630,12 @@ int ast_stir_shaken_vs_get_use_rfc9410_responses(
 	return ctx->eprofile->vcfg_common.use_rfc9410_responses;
 }
 
+const char *ast_stir_shaken_vs_get_caller_id(
+		struct ast_stir_shaken_vs_ctx *ctx)
+{
+	return ctx->caller_id;
+}
+
 void ast_stir_shaken_vs_ctx_set_response_code(
 	struct ast_stir_shaken_vs_ctx *ctx,
 	enum ast_stir_shaken_vs_response_code vs_rc)
@@ -685,11 +692,6 @@ enum ast_stir_shaken_vs_response_code
 	if (ast_strlen_zero(tag)) {
 		SCOPE_EXIT_LOG_RTN_VALUE(AST_STIR_SHAKEN_VS_INVALID_ARGUMENTS,
 			LOG_ERROR, "%s: Must provide tag\n", t);
-	}
-
-	if (ast_strlen_zero(canon_caller_id)) {
-		SCOPE_EXIT_LOG_RTN_VALUE(AST_STIR_SHAKEN_VS_INVALID_ARGUMENTS,
-		LOG_ERROR, "%s: Must provide caller_id\n", t);
 	}
 
 	ctx = ao2_alloc_options(sizeof(*ctx), ctx_destructor,
