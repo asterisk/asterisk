@@ -201,8 +201,8 @@ extern "C" {
  */
 #define AST_ALERT_FD	(AST_MAX_FDS-1)		/*!< used for alertpipe */
 #define AST_TIMING_FD	(AST_MAX_FDS-2)		/*!< used for timingfd */
-#define AST_AGENT_FD	(AST_MAX_FDS-3)		/*!< used by agents for pass through */
-#define AST_GENERATOR_FD	(AST_MAX_FDS-4)	/*!< used by generator */
+#define AST_AGENT_FD	(AST_MAX_FDS-3)		/*!< unused - formerly used by agents for pass through */
+#define AST_GENERATOR_FD	(AST_MAX_FDS-4)	/*!< unused - formerly used by generator */
 #define AST_JITTERBUFFER_FD	(AST_MAX_FDS-5)	/*!< used by generator */
 
 enum ast_bridge_result {
