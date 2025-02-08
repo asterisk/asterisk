@@ -23,6 +23,21 @@ concurrency:
   group: check-${{ github.event.number }}
   cancel-in-progress: true
 
+env:
+  REPO:            ${{ github.repository }}
+  REPO_DIR:        ${{ github.workspace }}/${{ github.event.repository.name }}
+  REPO_ORG:        ${{ github.event.repository.owner.login }}
+  PR_NUMBER:       ${{ github.event.number }}
+  BASE_BRANCH:     ${{ github.event.pull_request.base.ref }}
+  WORKFLOW_NAME:   ${{ github.workflow }}
+  WORKFLOW_RUN_ID: ${{ github.run_id }}
+  SCRIPT_DIR:      ${{ github.workspace }}/asterisk-ci-actions/scripts
+  GH_TOKEN:        ${{ secrets.GITHUB_TOKEN }}
+  LOG_DIR:         ${{ github.workspace }}/logs
+  ACTIONS_OWNER:   asterisk
+  ACTIONS_REPO:    asterisk-ci-actions
+  ACTIONS_BRANCH:  main
+
 jobs:
 #
 # Pull requests created from forked respositories don't have access
@@ -33,37 +48,37 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       vars:  ${{ steps.setvars.outputs.control_data }}
-      testsuite_test_pr:  ${{ steps.testsuitepr.outputs.testsuite_test_pr }}
+      testsuite_test_pr: ${{ steps.setup.outputs.TESTSUITE_TEST_PR }}
+      normalized_branch: ${{ steps.setup.outputs.NORMALIZED_BRANCH }}
     steps:
       - id: setvars
         uses: asterisk/asterisk-ci-actions/GetRepoControlData@main
         with:
           repo: ${{ github.event.repository.name }}
 
-      - id: wait
+      - id: setup
         env:
           PR_STATE_CHANGE_DELAY_SEC: ${{ fromJSON(steps.setvars.outputs.control_data).PR_STATE_CHANGE_DELAY_SEC || 120 }}
+          TESTSUITE_TEST_PR_REGEX: ${{ fromJSON(steps.setvars.outputs.control_data).TESTSUITE_TEST_PR_REGEX }}
         run: |
+          # Wait then get testsuite PR
           echo "Waiting for ${PR_STATE_CHANGE_DELAY_SEC} seconds to give user a chance to add PR comments"
           sleep ${PR_STATE_CHANGE_DELAY_SEC}
-          exit 0
 
-      - name: GetTestsuitePR
-        id: testsuitepr
-        uses: asterisk/asterisk-ci-actions/GetTestsuitePRFromAsteriskPR@main
-        with:
-          repo:                            ${{ github.repository }}
-          pr_number:                       ${{ github.event.number }}
-          testsuite_test_pr_regex:         ${{ fromJSON(steps.setvars.outputs.control_data).TESTSUITE_TEST_PR_REGEX }}
-          testsuite_test_auto_merge_regex: ${{ fromJSON(steps.setvars.outputs.control_data).TESTSUITE_TEST_AUTO_MERGE_REGEX }}
-          github_token:                    ${{ secrets.GITHUB_TOKEN }}
+          NORMALIZED_BRANCH="${BASE_BRANCH/\//-}"
+          echo "NORMALIZED_BRANCH=${NORMALIZED_BRANCH}" >> ${GITHUB_ENV}
+          echo "NORMALIZED_BRANCH=${NORMALIZED_BRANCH}" >> ${GITHUB_OUTPUT}
 
-      - name: DumpEnvironment
-        if: ${{ fromJSON(steps.setvars.outputs.control_data).RUN_DUMP_ENV }}
-        uses: asterisk/asterisk-ci-actions/DumpEnvironmentAction@main
-        with:
-          action-vars: ${{ toJSON(steps.setvars.outputs) }}
-          action-inputs: ${{ toJSON(steps.testsuitepr.outputs) }}
+          wget -qO asterisk-ci-actions.tar.gz \
+            https://github.com/${ACTIONS_OWNER}/${ACTIONS_REPO}/archive/refs/heads/${ACTIONS_BRANCH}.tar.gz
+          tar -xf asterisk-ci-actions.tar.gz --transform="s/^${ACTIONS_REPO}-${ACTIONS_BRANCH}/asterisk-ci-actions/g"
+
+          # Testsuite PR will be placed in TESTSUITE_TEST_PR in both
+          # GITHUB_ENV and GITHUB_OUTPUT by the script.
+          ${SCRIPT_DIR}/getTestsuitePRfromAsteriskPR.sh \
+            --repo=${REPO} \
+            --pr-number=${PR_NUMBER} \
+            --testsuite-pr-regex="${TESTSUITE_TEST_PR_REGEX}"
 
   Check:
     name: Check
@@ -83,3 +98,26 @@ jobs:
     secrets:
       TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  PostWorkflow:
+    if: ${{ success() || failure() }}
+    runs-on: ubuntu-latest
+    needs: [Setup,Check]
+    env:
+      RESULT:  ${{ needs.Check.result }}
+    steps:
+      - name: Create Job Summary
+        run: |
+          wget -qO asterisk-ci-actions.tar.gz \
+            https://github.com/${ACTIONS_OWNER}/${ACTIONS_REPO}/archive/refs/heads/${ACTIONS_BRANCH}.tar.gz
+          tar -xf asterisk-ci-actions.tar.gz --transform="s/^${ACTIONS_REPO}-${ACTIONS_BRANCH}/asterisk-ci-actions/g"
+
+          ${SCRIPT_DIR}/createJobSummary.sh \
+            --result=${RESULT} \
+            --repo=${REPO} \
+            --workflow-name="${WORKFLOW_NAME}" \
+            --workflow-run=${WORKFLOW_RUN_ID} \
+            --tmp-dir=./run-${WORKFLOW_RUN_ID} \
+            --job-summary-output=job_summary.txt \
+            --write-step-summary \
+            --verbose || :
+          exit 0
