@@ -1,48 +1,70 @@
 name: PRReCheck
-run-name: "PR ${{ github.event.number }} Recheck"
+run-name: "PR ${{ github.event.number }} Recheck by ${{ github.actor }}"
 on:
   pull_request_target:
     types: [ labeled ]
 
 concurrency:
-  group: check-${{ github.event.number }}
+  group: recheck-${{ github.event.number }}
   cancel-in-progress: true
 
 env:
-  PR_NUMBER: ${{ github.event.number }}
+  REPO:            ${{ github.repository }}
+  REPO_DIR:        ${{ github.workspace }}/${{ github.event.repository.name }}
+  REPO_ORG:        ${{ github.event.repository.owner.login }}
+  PR_NUMBER:       ${{ github.event.number }}
+  BASE_BRANCH:     ${{ github.event.pull_request.base.ref }}
+  WORKFLOW_NAME:   ${{ github.workflow }}
+  WORKFLOW_RUN_ID: ${{ github.run_id }}
+  SCRIPT_DIR:      ${{ github.workspace }}/asterisk-ci-actions/scripts
+  GH_TOKEN:        ${{ secrets.GITHUB_TOKEN }}
+  LOG_DIR:         ${{ github.workspace }}/logs
+  ACTIONS_OWNER:   asterisk
+  ACTIONS_REPO:    asterisk-ci-actions
+  ACTIONS_BRANCH:  main
+  TESTING_IN_PROGRESS: ${{ vars.PR_SUBMIT_TESTING_IN_PROGRESS }}
+  TESTS_PASSED:        ${{ vars.PR_SUBMIT_TESTS_PASSED }}
+  TESTS_FAILED:        ${{ vars.PR_SUBMIT_TESTS_FAILED }}
 
 jobs:
   Setup:
     if: ${{ github.event.label.name == vars.RECHECKPR_LABEL }}
     runs-on: ubuntu-latest
     outputs:
-      testsuite_test_pr:  ${{ steps.testsuitepr.outputs.testsuite_test_pr }}
+      testsuite_test_pr: ${{ steps.setup.outputs.TESTSUITE_TEST_PR }}
+      normalized_branch: ${{ steps.setup.outputs.NORMALIZED_BRANCH }}
     steps:
-      - name: Set Label
-        id: setlabel
+      - id: setup
         env:
-          GH_TOKEN:  ${{ secrets.GITHUB_TOKEN }}
+          RECHECKPR_LABEL:    ${{ vars.RECHECKPR_LABEL }}
+          TESTSUITE_TEST_PR_REGEX: ${{ vars.TESTSUITE_TEST_PR_REGEX }}
         run: |
-          gh pr edit --repo ${{ github.repository }} \
-            --remove-label ${{ vars.RECHECKPR_LABEL }} \
-            --remove-label ${{ vars.PR_SUBMIT_TESTS_PASSED }} \
-            --remove-label  ${{ vars.PR_SUBMIT_TESTS_FAILED }} \
-            --add-label ${{ vars.PR_SUBMIT_TESTING_IN_PROGRESS }} \
-            $PR_NUMBER || :
+          # GetScripts
+          NORMALIZED_BRANCH="${BASE_BRANCH/\//-}"
+          echo "NORMALIZED_BRANCH=${NORMALIZED_BRANCH}" >> ${GITHUB_ENV}
+          echo "NORMALIZED_BRANCH=${NORMALIZED_BRANCH}" >> ${GITHUB_OUTPUT}
 
-      - name: GetTestsuitePR
-        id: testsuitepr
-        uses: asterisk/asterisk-ci-actions/GetTestsuitePRFromAsteriskPR@main
-        with:
-          repo:                            ${{ github.repository }}
-          pr_number:                       ${{ github.event.number }}
-          testsuite_test_pr_regex:         ${{ vars.TESTSUITE_TEST_PR_REGEX }}
-          testsuite_test_auto_merge_regex: ${{ vars.TESTSUITE_TEST_AUTO_MERGE_REGEX }}
-          github_token:                    ${{ secrets.GITHUB_TOKEN }}
+          wget -qO asterisk-ci-actions.tar.gz \
+            https://github.com/${ACTIONS_OWNER}/${ACTIONS_REPO}/archive/refs/heads/${ACTIONS_BRANCH}.tar.gz
+          tar -xf asterisk-ci-actions.tar.gz --transform="s/^${ACTIONS_REPO}-${ACTIONS_BRANCH}/asterisk-ci-actions/g"
 
-  ReCheck:
-    name: ReCheck
-    needs: Setup
+          gh pr edit --repo ${REPO} \
+            --remove-label ${RECHECKPR_LABEL} \
+            --remove-label ${TESTS_PASSED} \
+            --remove-label ${TESTS_FAILED} \
+            --add-label ${TESTING_IN_PROGRESS} \
+            ${PR_NUMBER} || :
+
+          # Testsuite PR will be placed in TESTSUITE_TEST_PR in both
+          # GITHUB_ENV and GITHUB_OUTPUT by the script.
+          ${SCRIPT_DIR}/getTestsuitePRfromAsteriskPR.sh \
+            --repo=${REPO} \
+            --pr-number=${PR_NUMBER} \
+            --testsuite-pr-regex="${TESTSUITE_TEST_PR_REGEX}"
+
+  Check:
+    name: Check
+    needs: [ Setup ]
     uses: asterisk/asterisk-ci-actions/.github/workflows/AsteriskUnitGateTest.yml@main
     with:
       test_type:         prrecheck
@@ -59,31 +81,55 @@ jobs:
     secrets:
       TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  Cleanup:
-    if: ${{ success() || failure() }}
+  PostWorkflow:
+    if: ${{ success() || failure() || cancelled() }}
     runs-on: ubuntu-latest
-    needs: [Setup,ReCheck]
+    needs: [Setup,Check]
+    env:
+      RESULT:              ${{ needs.Check.result }}
+      BUILD_CACHE_KEY:     ${{ github.workflow }}-${{ github.run_number }}-${{ github.event.number }}-${{ github.event.pull_request.base.ref }}
     steps:
       - name: Check status
-        env:
-          GH_TOKEN:  ${{ secrets.GITHUB_TOKEN }}
-          RESULT_UNIT: ${{ needs.ReCheck.result }}
-          TESTS_PASSED: ${{ vars.PR_SUBMIT_TESTS_PASSED }}
-          TESTS_FAILED: ${{ vars.PR_SUBMIT_TESTS_FAILED }}
         run: |
-          declare -i rc=0
-          case $RESULT_UNIT in
+          label=""
+          case $RESULT in
             success)
+              label=$TESTS_PASSED
+              gh cache delete -R ${REPO} ${BUILD_CACHE_KEY} || :
+              ;;
+            failure)
+              label=$TESTS_FAILED
+              ;;
+            cancelled)
+              gh cache delete -R ${REPO} ${BUILD_CACHE_KEY} || :
               ;;
             skipped)
-              rc+=1
               ;;
             *)
-              rc+=1
+              ;;
           esac
-          [ $rc -gt 0 ] && label=$TESTS_FAILED || label=$TESTS_PASSED
-          gh pr edit --repo ${{ github.repository }} \
-            --remove-label ${{ vars.PR_SUBMIT_TESTING_IN_PROGRESS }} \
-            --add-label $label \
+          gh pr edit --repo ${REPO} \
+            --remove-label ${TESTING_IN_PROGRESS} \
+            ${label:+--add-label $label} \
               $PR_NUMBER || :
+          exit 0
+
+      - name: Create Job Summary
+        if: ${{ success() || failure() }}
+        run: |
+          wget -qO asterisk-ci-actions.tar.gz \
+            https://github.com/${ACTIONS_OWNER}/${ACTIONS_REPO}/archive/refs/heads/${ACTIONS_BRANCH}.tar.gz
+          tar -xf asterisk-ci-actions.tar.gz --transform="s/^${ACTIONS_REPO}-${ACTIONS_BRANCH}/asterisk-ci-actions/g"
+
+          ${SCRIPT_DIR}/createJobSummary.sh \
+            --result=${RESULT} \
+            --repo=${REPO} \
+            --workflow-name="${WORKFLOW_NAME}" \
+            --pr-number=${PR_NUMBER} \
+            --workflow-run=${WORKFLOW_RUN_ID} \
+            --tmp-dir=./run-${WORKFLOW_RUN_ID} \
+            --job-summary-output=job_summary.txt \
+            --write-step-summary \
+            --add-pr-comment \
+            --verbose || :
           exit 0
