@@ -3,121 +3,24 @@ on:
   workflow_dispatch:
     inputs:
       branches:
-        description: "JSON array of branches: ['18','20'] (no spaces)"
+        description: "JSON array of branches: ['18','20'] (no spaces) or leave blank for all current branches."
         required:    false
         type:        string
   schedule:
 #           Times are UTC
     - cron: '0 04 * * *'
 
-env:
-  ASTERISK_REPO:     ${{ github.repository }}
-  GITHUB_TOKEN:      ${{ secrets.GITHUB_TOKEN }}
-  GH_TOKEN:          ${{ secrets.GITHUB_TOKEN }}
-  DEFAULT_BRANCHES:  ${{ vars.WIKIDOC_BRANCHES }}
-  INPUT_BRANCHES:    ${{ inputs.branches }}
-
 jobs:
-  
-  CreateDocsDebug:
-    runs-on: ubuntu-latest
-    outputs:
-      manual_branches:     ${{ steps.setup.outputs.manual_branches }}
-    steps:
-      - name: setup
-        run: |
-          MANUAL_BRANCHES="$INPUT_BRANCHES"
-          [ -z "$MANUAL_BRANCHES" ] && MANUAL_BRANCHES="$DEFAULT_BRANCHES" || :
-          echo "manual_branches=${MANUAL_BRANCHES}"
-          echo "manual_branches=${MANUAL_BRANCHES}" >>${GITHUB_OUTPUT}
-          exit 0
-        
-      - name: DumpEnvironment
-        uses: asterisk/asterisk-ci-actions/DumpEnvironmentAction@main
-        with:
-          action-inputs: ${{toJSON(inputs)}}
-          action-vars: ${{ toJSON(steps.setup.outputs) }}
-
-  CreateDocsScheduledMatrix:
-    needs: [ CreateDocsDebug ]
-    if: ${{github.event_name == 'schedule' && fromJSON(vars.WIKIDOCS_ENABLE) == true }}
-    continue-on-error: false
+  CreateDocs:
+    if: ${{ ( github.event_name == 'schedule' && fromJSON(vars.WIKIDOCS_ENABLE) ) || github.event_name == 'workflow_dispatch' }}
     strategy:
       fail-fast: false
       matrix:
-        branch: ${{ fromJSON(vars.WIKIDOC_BRANCHES) }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: CreateDocs for ${{matrix.branch}}
-        uses: asterisk/asterisk-ci-actions/CreateAsteriskDocsComposite@main
-        with:
-          asterisk_repo:     ${{env.ASTERISK_REPO}}
-          base_branch:       ${{matrix.branch}}
-          docs_dir:          docs_dir/${{matrix.branch}}
-          github_token:      ${{secrets.GITHUB_TOKEN}}
+        branch: ${{ fromJSON(inputs.branches || vars.WIKIDOC_BRANCHES) }}
+    uses: asterisk/asterisk-ci-actions/.github/workflows/AsteriskCreateDocs.yml@main
+    with:
+      asterisk_repo:     ${{ github.repository }}
+      base_branch:       ${{ matrix.branch }}
+    secrets:
+      TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  CreateDocsScheduled:
-    needs: [ CreateDocsScheduledMatrix ]
-    if: ${{  success() || failure() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check CreateDocsScheduledMatrix status
-        env:
-          RESULT:    ${{needs.CreateDocsScheduledMatrix.result}}
-          GH_TOKEN:  ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          case $RESULT in
-            success)
-              echo "::notice::Docs created"
-              exit 0
-              ;;
-            skipped)
-              echo "::notice::Skipped"
-              exit 1
-              ;;
-            *)
-              echo "::error::One or CreateDocs failed ($RESULT)"
-              exit 1
-          esac
-
-  CreateDocsManualMatrix:
-    needs: [ CreateDocsDebug ]
-    if: ${{github.event_name == 'workflow_dispatch'}}
-    continue-on-error: false
-    strategy:
-      fail-fast: false
-      matrix:
-        branch: ${{ fromJSON(vars.WIKIDOC_MANUAL_BRANCHES) }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: CreateDocs for ${{matrix.branch}}
-        uses: asterisk/asterisk-ci-actions/CreateAsteriskDocsComposite@main
-        with:
-          asterisk_repo:     ${{env.ASTERISK_REPO}}
-          base_branch:       ${{matrix.branch}}
-          docs_dir:          docs_dir/${{matrix.branch}}
-          github_token:      ${{secrets.GITHUB_TOKEN}}
-
-  CreateDocsManual:
-    needs: [ CreateDocsManualMatrix ]
-    if: ${{  success() || failure() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check CreateDocsManualMatrix status
-        env:
-          RESULT:    ${{needs.CreateDocsManualMatrix.result}}
-          GH_TOKEN:  ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          case $RESULT in
-            success)
-              echo "::notice::Docs created"
-              exit 0
-              ;;
-            skipped)
-              echo "::notice::Skipped"
-              exit 1
-              ;;
-            *)
-              echo "::error::One or CreateDocs failed ($RESULT)"
-              exit 1
-          esac
