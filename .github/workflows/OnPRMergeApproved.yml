@@ -7,9 +7,9 @@ on:
 jobs:
   PRMerge:
     if: contains(fromJSON(vars.MERGE_APPROVED_LABELS), github.event.label.name)
-    concurrency:
-      group: merge-${{ github.event.number }}
-      cancel-in-progress: true
+#    concurrency:
+#      group: merge-${{ github.event.number }}
+#      cancel-in-progress: true
     name: "run-merge"
     uses: asterisk/asterisk-ci-actions/.github/workflows/AsteriskPRMerge.yml@main
     secrets:
