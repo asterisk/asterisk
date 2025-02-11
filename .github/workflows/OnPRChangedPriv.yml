@@ -21,7 +21,7 @@ on:
 
 jobs:
   PRChangedPriv:
-    name: PRChangedPriv
-    uses: asterisk/asterisk-ci-actions/.github/workflows/AsteriskPRStateChangedPriv.yml@main
+    name: "run-checkpriv"
+    uses: asterisk/asterisk-ci-actions/.github/workflows/AsteriskPRChangedPriv.yml@main
     secrets:
       TOKEN: ${{ secrets.GITHUB_TOKEN }}
