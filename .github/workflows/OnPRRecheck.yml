@@ -7,9 +7,9 @@ on:
 jobs:
   PRReCheck:
     if: ${{ github.event.label.name == vars.RECHECKPR_LABEL }}
-    concurrency:
-      group: recheck-${{ github.event.number }}
-      cancel-in-progress: true
+#    concurrency:
+#      group: recheck-${{ github.event.number }}
+#      cancel-in-progress: true
     name: "run-recheck"
     uses: asterisk/asterisk-ci-actions/.github/workflows/AsteriskPRReCheck.yml@main
     secrets:
