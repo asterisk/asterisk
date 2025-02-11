@@ -1495,6 +1495,14 @@ static int parse_config(int is_reload)
 		ast_copy_string(dbhost, s, sizeof(dbhost));
 	}
 
+	if (!(s = ast_variable_retrieve(config, "general", "dbname"))) {
+		ast_log(LOG_WARNING,
+			"PostgreSQL RealTime: No database name found, using 'asterisk' as default.\n");
+		strcpy(dbname, "asterisk");
+	} else {
+		ast_copy_string(dbname, s, sizeof(dbname));
+	}
+
 	/* Check new 'port' option first, then fall back to legacy 'dbport' */
 	s = ast_variable_retrieve(config, "general", "port");
 	if (!s) {
