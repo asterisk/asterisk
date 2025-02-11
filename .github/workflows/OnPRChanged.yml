@@ -1,0 +1,31 @@
+#
+# Workflows, like this one, that are triggered by PRs submitted
+# from forked repositories are severly limited in what they can do
+# for security reasons. For instance, they can't add or remove
+# labels or comments even on the PR that triggered them.  Since
+# we need to both of those things, GitHub recommends creating a
+# separate workflow that does those tasks that's triggered when
+# this PR workflow starts or finishes. Since that workflow isn't
+# being run in the context of a forked repo, it has all the
+# privileges needed to add and remove labels and comments.  The
+# accompanying OnPRStateChangedPriv workflow does just that.
+
+name: PRChanged
+# WARNING!  The run name MUST start with "PR <pr_number>".
+# The accompanying privleged workflow parses this to find
+# the PR number.  It's the only reliable way it can get it.
+run-name: "PR ${{ github.event.number }} Changed by ${{ github.actor }}"
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+concurrency:
+  group: check-${{ github.event.number }}
+  cancel-in-progress: true
+
+jobs:
+  PRChanged:
+    name: "run-check"
+    uses: asterisk/asterisk-ci-actions/.github/workflows/AsteriskPRChanged.yml@main
+    secrets:
+      TOKEN: ${{ secrets.GITHUB_TOKEN }}
