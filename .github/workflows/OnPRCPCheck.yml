@@ -1,0 +1,16 @@
+name: PRCPCheck
+run-name: "PR ${{ github.event.number }} ${{ github.workflow }} by ${{ github.actor }}"
+on:
+  pull_request_target:
+    types: [ labeled ]
+
+jobs:
+  PRCPCheck:
+    if: ${{ github.event.label.name == vars.CHERRY_PICK_TEST_LABEL }}
+    concurrency:
+      group: cpcheck-${{ github.event.number }}
+      cancel-in-progress: true
+    name: "run-cpcheck"
+    uses: asterisk/asterisk-ci-actions/.github/workflows/AsteriskPRCPCheck.yml@main
+    secrets:
+      TOKEN: ${{ secrets.GITHUB_TOKEN }}
