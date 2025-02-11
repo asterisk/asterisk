@@ -79,6 +79,32 @@ pre-connect => yes
 ; default this is set to 5000 milliseconds (or 5 seconds). If you would like to
 ; disable the WARNING message it can be set to "0".
 ;slow_query_limit => 5000
+;
+; Set the type of connection cache.  Historically res_odbc used a stack, resulting in
+; a single connection being re-used frequently, whilst other connections could end up
+; dying.  Using a queue or round-robin strategy results in all connections being re-used
+; and kept alive.  Each strategy has pro's and con's as debated on
+; https://github.com/asterisk/asterisk/pull/1026.  The default remains a stack to be backwards
+; compatible, setting this value to any of rr, roundrobin or queue will result
+; in a round-robin queue being used.
+;cache_type => roundrobin
+;
+; Limit the number of connections to cache.  On extremely spiky loads this could be
+; useful to limit the overall number of connections that's kept open.  The default is
+; to not limit the cache size (thus effectively limit to max_connections).
+;cache_size => 10
+;
+; When releasing connections, this allows to not cache every nth connection
+; back into the cache.  Consider a case where you sometimes have spikes of
+; queries, and thus spike to say 100 connections, but normally only need 10.  If
+; your query rate is high and your spikes are short-lived then cache_size may not
+; be effective in controlling your cache size.  At the cost of force-dropping
+; some connections you could potentially get the cache under control by not
+; returning every nth connection to the cache.  This is a slower and less harsh
+; limit than cache_size in that we could cache up to max_connections, but over
+; time bring the size back down to match current load.  A value of zero disables
+; this option, and is also the default.
+;cache_drop => 0
 
 [mysql2]
 enabled => no
