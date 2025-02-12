@@ -128,7 +128,7 @@ struct iax_frame {
 	int iseqno;
 	/*! Retransmission ID */
 	int retrans;
-	/*! is this packet encrypted or not. if set this varible holds encryption methods*/
+	/*! is this packet encrypted or not. if set this variable holds encryption methods*/
 	int encmethods;
 	/*! store encrypt key */
 	ast_aes_encrypt_key ecx;

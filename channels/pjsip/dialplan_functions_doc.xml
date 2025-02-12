@@ -71,7 +71,7 @@
 		</synopsis>
 		<syntax>
 			<parameter name="to" required="false">
-				<para>Abritrary URI to which to send the NOTIFY.  If none is specified, send inside
+				<para>Arbitrary URI to which to send the NOTIFY.  If none is specified, send inside
 				the SIP dialog for the current channel.</para>
 			</parameter>
 			<parameter name="content" required="true">

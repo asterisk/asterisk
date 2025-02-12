@@ -240,7 +240,7 @@ struct video_out_desc {
  * The overall descriptor, with room for config info, video source and
  * received data descriptors, SDL info, etc.
  * This should be globally visible to all modules (grabber, vcodecs, gui)
- * and contain all configurtion info.
+ * and contain all configuration info.
  */
 struct video_desc {
 	char codec_name[64];        /* the codec we use */
@@ -319,7 +319,7 @@ used_mem(const char *msg)
 
 /*! \brief Try to open video sources, return 0 on success, 1 on error
  * opens all video sources found in the oss.conf configuration files.
- * Saves the grabber and the datas in the device table (in the devices field
+ * Saves the grabber and the data in the device table (in the devices field
  * of the descriptor referenced by v).
  * Initializes the device_primary and device_secondary
  * fields of v with the first devices that was
@@ -342,7 +342,7 @@ static int grabber_open(struct video_out_desc *v)
 			continue;
 		/* for each type of grabber supported... */
 		for (j = 0; (g = console_grabbers[j]); j++) {
-			/* the grabber is opened and the informations saved in the device table */
+			/* the grabber is opened and the information saved in the device table */
 			g_data = g->open(v->devices[i].name, &v->loc_src_geometry, v->fps);
 			if (!g_data)
 				continue;
@@ -370,7 +370,7 @@ static int grabber_open(struct video_out_desc *v)
  * \param fps = frame per seconds, for every device
  *
  * returns:
- * - NULL on falure
+ * - NULL on failure
  * - reference to the device buffer on success
  */
 static struct fbuf_t *grabber_read(struct video_device *dev, int fps)
@@ -779,13 +779,13 @@ int console_write_video(struct ast_channel *chan, struct ast_frame *f)
  * grabber_read on each device in the device table.
  * it encodes the primary source buffer, if the picture in picture mode is
  * enabled it encodes (in the buffer to split) the secondary source buffer too.
- * The encoded buffer is splitted to build the local and the remote view.
+ * The encoded buffer is split to build the local and the remote view.
  * Return a list of ast_frame representing the video fragments.
  * The head pointer is returned by the function, the tail pointer
  * is returned as an argument.
  *
  * \param env = video environment descriptor
- * \param tail = tail ponter (practically a return value)
+ * \param tail = tail pointer (practically a return value)
  */
 static struct ast_frame *get_video_frames(struct video_desc *env, struct ast_frame **tail)
 {
@@ -902,7 +902,7 @@ static void *video_thread(void *arg)
 	 */
 	video_out_init(env);
 
-	/* Writes intial status of the sources. */
+	/* Writes initial status of the sources. */
 	if (env->gui) {
 		for (i = 0; i < env->out.device_num; i++) {
 			print_message(env->gui->thumb_bd_array[i].board,

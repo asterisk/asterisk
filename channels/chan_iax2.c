@@ -1013,7 +1013,7 @@ static time_t max_calltoken_delay = 10;
  * However, to maintain old behavior for Asterisk 1.4, these are set to
  * 1 by default.  When using multiple buckets, search order through these
  * containers is considered random, so you will not be able to depend on
- * the order the entires are specified in iax.conf for matching order. */
+ * the order the entries are specified in iax.conf for matching order. */
 #ifdef LOW_MEMORY
 #define MAX_PEER_BUCKETS 17
 #else
@@ -1235,7 +1235,7 @@ static ast_mutex_t iaxsl[ARRAY_LEN(iaxs)];
 /*!
  * \brief Another container of iax2_pvt structures
  *
- * Active IAX2 pvt structs used during transfering a call are stored here.
+ * Active IAX2 pvt structs used during transferring a call are stored here.
  */
 static struct ao2_container *iax_transfercallno_pvts;
 
@@ -2072,7 +2072,7 @@ static int user_cmp_cb(void *obj, void *arg, int flags)
 }
 
 /*!
- * \note This funtion calls realtime_peer -> reg_source_db -> iax2_poke_peer -> find_callno,
+ * \note This function calls realtime_peer -> reg_source_db -> iax2_poke_peer -> find_callno,
  *       so do not call it with a pvt lock held.
  */
 static struct iax2_peer *find_peer(const char *name, int realtime)
@@ -3195,7 +3195,7 @@ static int __find_callno(unsigned short callno, unsigned short dcallno, struct a
 			};
 
 			ast_sockaddr_copy(&tmp_pvt.addr, addr);
-			/* this works for finding normal call numbers not involving transfering */
+			/* this works for finding normal call numbers not involving transferring */
 			if ((pvt = ao2_find(iax_peercallno_pvts, &tmp_pvt, OBJ_POINTER))) {
 				if (return_locked) {
 					ast_mutex_lock(&iaxsl[pvt->callno]);
@@ -6297,7 +6297,7 @@ static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, str
 			if ( (unsigned int)ms < p->lastsent )
 				ms = p->lastsent;
 		} else {
-			/* On a dataframe, use last value + 3 (to accomodate jitter buffer shrinking) if appropriate unless
+			/* On a dataframe, use last value + 3 (to accommodate jitter buffer shrinking) if appropriate unless
 			   it's a genuine frame */
 			adjust = (ms - p->lastsent);
 			if (genuine) {
@@ -8857,7 +8857,7 @@ static int complete_transfer(int callno, struct iax_ies *ies)
 		remove_by_peercallno(pvt);
 	}
 	pvt->peercallno = peercallno;
-	/*this is where the transfering call switches hash tables */
+	/*this is where the transferring call switches hash tables */
 	store_by_peercallno(pvt);
 	pvt->transferring = TRANSFER_NONE;
 	pvt->svoiceformat = -1;
@@ -10409,7 +10409,7 @@ static int socket_process_helper(struct iax2_thread *thread)
 			if (ies.calltoken && ies.calltokendata) {
 				/* if we've gotten this far, and the calltoken ie data exists,
 				 * then calltoken validation _MUST_ have taken place.  If calltoken
-				 * data is provided, it is always validated reguardless of any
+				 * data is provided, it is always validated regardless of any
 				 * calltokenoptional or requirecalltoken options */
 				new = NEW_ALLOW_CALLTOKEN_VALIDATED;
 			} else {

@@ -18,7 +18,7 @@
 
 #include "parser.h"
 
-#define PROV_IE_USEDHCP 	1	/* Presense only */
+#define PROV_IE_USEDHCP 	1	/* Presence only */
 #define PROV_IE_IPADDR		2	/* 32-bit */
 #define PROV_IE_SUBNET		3	/* 32-bit */
 #define PROV_IE_GATEWAY		4	/* 32-bit */

@@ -86,7 +86,7 @@ int iax_firmware_append(struct iax_ie_data *ie_data,
  *                  \c callback function each time it is invoked.
  *
  * This function visits each of the elements in the IAX firmware list, calling
- * the specfied \c callback for each element. Iteration continues until the end
+ * the specified \c callback for each element. Iteration continues until the end
  * of the list is reached, or the \c callback returns non-zero.
  *
  * The \c callback function receives a pointer to the firmware header and the

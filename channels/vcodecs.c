@@ -41,11 +41,11 @@ typedef int (*encoder_init_f)(AVCodecContext *v);
 /*! \brief actually call the encoder */
 typedef int (*encoder_encode_f)(struct video_out_desc *v);
 
-/*! \brief encapsulate the bistream in RTP frames */
+/*! \brief encapsulate the bitstream in RTP frames */
 typedef struct ast_frame *(*encoder_encap_f)(struct fbuf_t *, int mtu,
 		struct ast_frame **tail);
 
-/*! \brief inizialize the decoder */
+/*! \brief initialize the decoder */
 typedef int (*decoder_init_f)(AVCodecContext *enc_ctx);
 
 /*! \brief extract the bitstream from RTP frames and store in the fbuf.
@@ -547,7 +547,7 @@ static int h263_enc_init(AVCodecContext *enc_ctx)
  * FP = 0- mode A, (only one word of header)
  * FP = 10 mode B, and also means this is an I or P frame
  * FP = 11 mode C, and also means this is a PB frame.
- * SBIT, EBIT nuber of bits to ignore at beginning (msbits) and end (lsbits)
+ * SBIT, EBIT number of bits to ignore at beginning (msbits) and end (lsbits)
  * SRC  bits 6,7,8 from the h263 PTYPE field
  * I = 0 intra-coded, 1 = inter-coded (bit 9 from PTYPE)
  * U = 1 for Unrestricted Motion Vector (bit 10 from PTYPE)
