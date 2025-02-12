@@ -88,7 +88,7 @@ enum ast_json_type ast_json_typeof(const struct ast_json *json)
 	case JSON_FALSE: return AST_JSON_FALSE;
 	case JSON_NULL: return AST_JSON_NULL;
 	}
-	ast_assert(0); /* Unexpect return from json_typeof */
+	ast_assert(0); /* Unexpected return from json_typeof */
 	return r;
 }
 

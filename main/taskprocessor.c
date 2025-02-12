@@ -336,7 +336,7 @@ static void tps_shutdown(void)
  	 * a taskprocessor was not cleaned up somewhere */
 	if (objcount > 0) {
   		ast_log(LOG_ERROR,
-    		"Asertion may occur, the following taskprocessors are still runing:\n");
+    		"Assertion may occur, the following taskprocessors are still running:\n");
 
 		sorted_tps = ao2_container_alloc_rbtree(AO2_ALLOC_OPT_LOCK_NOLOCK, 0, tps_sort_cb,
 			NULL);

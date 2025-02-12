@@ -281,7 +281,7 @@
 				<description>
 					<para>The applicationmap is an area where new custom features can be created. Items
 					defined in the applicationmap are not automatically accessible to bridged parties. Access
-					to the individual items is controled using the <replaceable>DYNAMIC_FEATURES</replaceable> channel variable.
+					to the individual items is controlled using the <replaceable>DYNAMIC_FEATURES</replaceable> channel variable.
 					The <replaceable>DYNAMIC_FEATURES</replaceable> is a <literal>#</literal> separated list of
 					either applicationmap item names or featuregroup names.</para>
 				</description>

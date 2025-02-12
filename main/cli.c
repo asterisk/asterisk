@@ -1754,7 +1754,7 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		"   Pickup Group: %llu\n"
 		"    Application: %s\n"
 		"           Data: %s\n"
-		" Call Identifer: %s\n",
+		" Call Identifier: %s\n",
 		ast_channel_name(chan),
 		ast_channel_tech(chan)->type,
 		ast_channel_uniqueid(chan),

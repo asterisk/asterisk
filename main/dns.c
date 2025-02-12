@@ -485,7 +485,7 @@ static int dns_parse_answer_ex(void *context, int rr_class, int rr_type, unsigne
 /*!
  * \brief Lookup record in DNS
  *
- * \note Asterisk DNS is synchronus at this time. This means that if your DNS does not
+ * \note Asterisk DNS is synchronous at this time. This means that if your DNS does not
  *       work properly, Asterisk might not start properly or a channel may lock.
 */
 int ast_search_dns(void *context,

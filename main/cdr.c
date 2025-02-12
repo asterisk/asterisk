@@ -1629,7 +1629,7 @@ static void cdr_object_swap_snapshot(struct cdr_object_snapshot *old_snapshot,
 		struct ast_channel_snapshot *new_snapshot)
 {
 	cdr_object_update_cid(old_snapshot, new_snapshot);
-	ao2_t_replace(old_snapshot->snapshot, new_snapshot, "Swap CDR shapshot");
+	ao2_t_replace(old_snapshot->snapshot, new_snapshot, "Swap CDR snapshot");
 }
 
 /* BASE METHOD IMPLEMENTATIONS */
@@ -2914,7 +2914,7 @@ static void handle_parked_call_message(void *data, struct stasis_subscription *s
 	}
 
 	if (unhandled) {
-		/* Nothing handled the messgae - we need a new one! */
+		/* Nothing handled the message - we need a new one! */
 		struct cdr_object *new_cdr;
 
 		new_cdr = cdr_object_create_and_append(cdr, stasis_message_timestamp(message));
@@ -4445,7 +4445,7 @@ static void destroy_subscriptions(void)
 }
 
 /*!
- * \brief Create the Stasis subcriptions for CDRs
+ * \brief Create the Stasis subscriptions for CDRs
  */
 static int create_subscriptions(void)
 {

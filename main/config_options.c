@@ -391,7 +391,7 @@ static struct aco_option *aco_option_find(struct aco_type *type, const char *nam
 	struct aco_option *opt;
 
 	if (!type || !type->internal || !type->internal->opts) {
-		ast_log(LOG_NOTICE, "Attempting to use NULL or unitialized config type\n");
+		ast_log(LOG_NOTICE, "Attempting to use NULL or uninitialized config type\n");
 		return NULL;
 	}
 

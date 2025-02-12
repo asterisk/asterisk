@@ -268,7 +268,7 @@ int fixed_jb_put(struct fixed_jb *jb, void *data, long ms, long ts, long now)
 
 		return FIXED_JB_OK;
 	} else if (!jb->frames) {
-		/* the frame list is empty or thats just the first frame ever */
+		/* the frame list is empty or that's just the first frame ever */
 		/* tail should also be NULL is that case */
 		ASSERT(jb->tail == NULL);
 		jb->frames = jb->tail = newframe;

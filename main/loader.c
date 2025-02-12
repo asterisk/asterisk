@@ -2376,7 +2376,7 @@ static int loader_builtin_init(struct load_order *load_order)
 			continue;
 		}
 
-		/* Parse dependendencies from mod->info. */
+		/* Parse dependencies from mod->info. */
 		if (module_post_register(mod)) {
 			return -1;
 		}

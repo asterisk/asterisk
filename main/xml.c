@@ -304,7 +304,7 @@ struct ast_xml_node *ast_xml_find_element(struct ast_xml_node *root_node, const 
 	}
 
 	for (cur = root_node; cur; cur = ast_xml_node_get_next(cur)) {
-		/* Check if the name matchs */
+		/* Check if the name matches */
 		if (strcmp(ast_xml_node_get_name(cur), name)) {
 			continue;
 		}

@@ -271,9 +271,9 @@ static char *handle_show_application(struct ast_cli_entry *e, int cmd, struct as
 		return NULL;
 	case CLI_GENERATE:
 		/*
-		 * There is a possibility to show informations about more than one
+		 * There is a possibility to show information about more than one
 		 * application at one time. You can type 'show application Dial Echo' and
-		 * you will see informations about these two applications ...
+		 * you will see information about these two applications ...
 		 */
 		return ast_complete_applications(a->line, a->word, -1);
 	}

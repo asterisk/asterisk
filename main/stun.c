@@ -508,7 +508,7 @@ try_again:
 			/* Bad STUN packet, not right type, or transaction ID did not match. */
 			memset(answer, 0, sizeof(struct sockaddr_in));
 
-			/* Was not a resonse to our request. */
+			/* Was not a response to our request. */
 			goto try_again;
 		}
 		/* Success.  answer contains the external address if available. */

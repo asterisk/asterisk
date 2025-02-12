@@ -1744,7 +1744,7 @@ struct ast_tm *ast_localtime(const struct timeval *timep, struct ast_tm *tmp, co
 }
 
 /*
-** This function provides informaton about daylight savings time
+** This function provides information about daylight savings time
 ** for the given timezone.  This includes whether it can determine
 ** if daylight savings is used for this timezone, the UTC times for
 ** when daylight savings transitions, and the offset in seconds from

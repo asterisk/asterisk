@@ -104,7 +104,7 @@ static void score_address(const struct sockaddr_in *sin, struct in_addr *best_ad
 	/* RFC 3330 Test network */
 	} else if (strncmp(address, "192.0.2.", 8) == 0) {
 		score = -15;
-	/* Every other address should be publically routable */
+	/* Every other address should be publicly routable */
 	} else {
 		score = 0;
 	}
