@@ -142,7 +142,7 @@ static int custom_log(struct ast_cdr *cdr)
 
 	dummy = ast_dummy_channel_alloc();
 	if (!dummy) {
-		ast_log(LOG_ERROR, "Unable to allocate channel for variable subsitution.\n");
+		ast_log(LOG_ERROR, "Unable to allocate channel for variable substitution.\n");
 		return -1;
 	}
 

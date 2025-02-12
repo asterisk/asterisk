@@ -20,7 +20,7 @@
  * \file
  * \brief Asterisk Beanstalkd CDR records.
  *
- * This module requires the beanstalk-client library, avaialble from
+ * This module requires the beanstalk-client library, available from
  * https://github.com/deepfryed/beanstalk-client
  *
  * See also
