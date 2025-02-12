@@ -253,7 +253,7 @@ static int write_cdr(struct ast_cdr *cdr)
 
 		dummy = ast_dummy_channel_alloc();
 		if (!dummy) {
-			ast_log(LOG_ERROR, "Unable to allocate channel for variable subsitution.\n");
+			ast_log(LOG_ERROR, "Unable to allocate channel for variable substitution.\n");
 			ast_free(value_string);
 			ast_mutex_unlock(&lock);
 			return 0;
