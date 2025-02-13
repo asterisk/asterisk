@@ -21,6 +21,4 @@ jobs:
     with:
       asterisk_repo:     ${{ github.repository }}
       base_branch:       ${{ matrix.branch }}
-    secrets:
-      TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
