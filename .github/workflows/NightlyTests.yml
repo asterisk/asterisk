@@ -23,5 +23,3 @@ jobs:
       branches:   ${{ inputs.branches || vars.NIGHTLYTEST_BRANCHES }}
       group_list: ${{ inputs.group_list || vars.NIGHTLYTEST_LIST }}
       realtime:   false
-    secrets:
-      TOKEN: ${{ secrets.GITHUB_TOKEN }}
