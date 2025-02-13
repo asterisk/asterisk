@@ -1,0 +1,14 @@
+name: PRCheck
+run-name: "PR ${{ github.event.number }} Check(${{github.event.action}}) by ${{ github.actor }}"
+on:
+  pull_request_target:
+    types: [ opened, reopened, synchronize, labeled ]
+
+jobs:
+  PRCheck:
+    name: "run-check"
+    if: ${{ (github.event.action != 'labeled') || (github.event.action == 'labeled' && github.event.label.name == vars.RECHECKPR_LABEL) }}
+    concurrency:
+      group: check-${{ github.base_ref }}-${{ github.ref_name }}
+      cancel-in-progress: true
+    uses: asterisk/asterisk-ci-actions/.github/workflows/AsteriskPRCheck.yml@main-pr-target
