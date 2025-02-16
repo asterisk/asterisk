@@ -64,38 +64,22 @@ on:
         default: false
 
 jobs:
-  ReleaseAsterisk:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Run Releaser
-        uses: asterisk/asterisk-ci-actions/ReleaserComposite@main
-        with:
-          product: ${{vars.PRODUCT_NAME}}
-          is_security: ${{inputs.is_security}}
-          advisories: ${{inputs.advisories}}
-          is_hotfix: ${{inputs.is_hotfix}}
-          new_version: ${{inputs.new_version}}
-          force_cherry_pick: ${{inputs.force_cherry_pick}}
-          push_release_branches: ${{inputs.push_release_branches}}
-          create_github_release: ${{inputs.create_github_release}}
-          push_tarballs: ${{inputs.push_tarballs}}
-          send_email: ${{inputs.send_email}}
-          repo: ${{github.repository}}
-          mail_list_ga: ${{vars.MAIL_LIST_GA}}
-          mail_list_rc: ${{vars.MAIL_LIST_RC}}
-          mail_list_cert_ga: ${{vars.MAIL_LIST_CERT_GA}}
-          mail_list_cert_rc: ${{vars.MAIL_LIST_CERT_RC}}
-          mail_list_sec: ${{vars.MAIL_LIST_SEC_ADV}}
-          sec_adv_url_base: ${{vars.SEC_ADV_URL_BASE}}
-          gpg_private_key: ${{secrets.ASTDEV_GPG_PRIV_KEY}}
-          github_token: ${{secrets.GITHUB_TOKEN}}
-          asteriskteam_gh_token: ${{secrets.ASTERISKTEAM_PAT}}
-          application_id: ${{secrets.ASTERISK_ORG_ACCESS_APP_ID}}
-          application_private_key: ${{secrets.ASTERISK_ORG_ACCESS_APP_PRIV_KEY}}
-          asteriskteamsa_username: ${{secrets.ASTERISKTEAMSA_GMAIL_ACCT}}
-          asteriskteamsa_token: ${{secrets.ASTERISKTEAMSA_GMAIL_TOKEN}}
-          deploy_ssh_priv_key: ${{secrets.DOWNLOADS_DEPLOY_SSH_PRIV_KEY}}
-          deploy_ssh_username: ${{secrets.DOWNLOADS_DEPLOY_SSH_USERNAME}}
-          deploy_host: ${{vars.DEPLOY_HOST}}
-          deploy_dir: ${{vars.DEPLOY_DIR}}
-          fpbx_issue_repo: ${{vars.FPBX_ISSUE_REPO}}
+  Releaser:
+    uses: asterisk/asterisk-ci-actions/.github/workflows/AsteriskRelease.yml@main
+    with:
+      new_version: ${{inputs.new_version}}
+      is_security: ${{inputs.is_security}}
+      advisories: ${{inputs.advisories}}
+      is_hotfix: ${{inputs.is_hotfix}}
+      force_cherry_pick: ${{inputs.force_cherry_pick}}
+      push_release_branches: ${{inputs.push_release_branches}}
+      create_github_release: ${{inputs.create_github_release}}
+      push_tarballs: ${{inputs.push_tarballs}}
+      send_email: ${{inputs.send_email}}
+    secrets:
+      gpg_private_key: ${{secrets.ASTDEV_GPG_PRIV_KEY}}
+      asteriskteam_gh_token: ${{secrets.ASTERISKTEAM_PAT}}
+      asteriskteamsa_username: ${{secrets.ASTERISKTEAMSA_GMAIL_ACCT}}
+      asteriskteamsa_token: ${{secrets.ASTERISKTEAMSA_GMAIL_TOKEN}}
+      deploy_ssh_priv_key: ${{secrets.DOWNLOADS_DEPLOY_SSH_PRIV_KEY}}
+      deploy_ssh_username: ${{secrets.DOWNLOADS_DEPLOY_SSH_USERNAME}}
