@@ -11,4 +11,4 @@ jobs:
     concurrency:
       group: check-${{ github.base_ref }}-${{ github.ref_name }}
       cancel-in-progress: true
-    uses: asterisk/asterisk-ci-actions/.github/workflows/AsteriskPRCheck.yml@main-pr-target
+    uses: asterisk/asterisk-ci-actions/.github/workflows/AsteriskPRCheck.yml@main
