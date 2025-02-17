@@ -64,6 +64,8 @@ struct ast_speech {
 	struct ast_format *format;
 	/*! Data for speech engine */
 	void *data;
+	/*! Horse inside the engine */
+	char *horse;
 	/*! Cached results */
 	struct ast_speech_result *results;
 	/*! Type of results we want */
