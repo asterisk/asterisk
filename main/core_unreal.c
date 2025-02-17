@@ -251,9 +251,12 @@ static int unreal_queue_frame(struct ast_unreal_pvt *p, int isoutbound, struct a
 	return 0;
 }
 
-int ast_unreal_answer(struct ast_channel *ast)
+int ast_unreal_answer_with_stream_topology(struct ast_channel *ast, struct ast_stream_topology *topology)
 {
+	struct ast_stream_topology *top;
+	struct ast_stream_topology *other_top;
 	struct ast_unreal_pvt *p = ast_channel_tech_pvt(ast);
+	struct ast_channel *other;
 	int isoutbound;
 	int res = -1;
 
@@ -261,13 +264,30 @@ int ast_unreal_answer(struct ast_channel *ast)
 		return -1;
 	}
 
+	isoutbound = AST_UNREAL_IS_OUTBOUND(ast, p);
+
+	/* Recalculate outbound channel */
+	other = isoutbound ? p->owner : p->chan;
+	if (!other) {
+		return 0;
+	}
+
 	ao2_ref(p, 1);
 	ao2_lock(p);
-	isoutbound = AST_UNREAL_IS_OUTBOUND(ast, p);
 	if (isoutbound) {
 		/* Pass along answer since somebody answered us */
 		struct ast_frame answer = { AST_FRAME_CONTROL, { AST_CONTROL_ANSWER } };
+		if (topology) {
+			top = ast_stream_topology_clone(topology);
+			other_top = ast_stream_topology_clone(topology);
 
+			ast_stream_topology_flip_directions(other_top);
+
+			ast_channel_set_stream_topology(ast, top);
+			ast_channel_set_stream_topology(other, other_top);
+
+			answer.subclass.topology = (struct ast_stream_topology *)other_top;
+		}
 		res = unreal_queue_frame(p, isoutbound, &answer, ast, 1);
 	} else {
 		ast_log(LOG_WARNING, "Huh?  %s is being asked to answer?\n",
@@ -276,6 +296,11 @@ int ast_unreal_answer(struct ast_channel *ast)
 	ao2_unlock(p);
 	ao2_ref(p, -1);
 	return res;
+}
+
+int ast_unreal_answer(struct ast_channel *ast)
+{
+	return ast_unreal_answer_with_stream_topology(ast, NULL);
 }
 
 /*!
@@ -669,6 +694,36 @@ int ast_unreal_indicate(struct ast_channel *ast, int condition, const void *data
 		} else {
 			res = -1;
 		}
+		break;
+	case AST_CONTROL_PROGRESS:
+		if (data && AST_UNREAL_IS_OUTBOUND(ast, p)) {
+			struct ast_stream_topology *chan_topology = ast_stream_topology_clone(data);
+
+			ast_channel_unlock(ast);
+			ast_unreal_lock_all(p, &chan, &owner);
+
+			if (chan) {
+				ast_channel_set_stream_topology(chan, chan_topology);
+			}
+			if (owner) {
+				struct ast_stream_topology *owner_topology = ast_stream_topology_clone(chan_topology);
+				ast_stream_topology_flip_directions(owner_topology);
+				ast_channel_set_stream_topology(owner, owner_topology);
+			}
+
+			ao2_unlock(p);
+			ast_channel_lock(ast);
+
+			if (owner) {
+				ast_channel_unlock(owner);
+				ast_channel_unref(owner);
+			}
+			if (chan) {
+				ast_channel_unlock(chan);
+				ast_channel_unref(chan);
+			}
+		}
+		res = unreal_queue_indicate(p, ast, condition, data, datalen);
 		break;
 	case AST_CONTROL_PVT_CAUSE_CODE:
 		/* Return -1 so that asterisk core will correctly set up hangupcauses. */
