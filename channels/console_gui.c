@@ -563,7 +563,7 @@ static int switch_video_out(struct video_desc *env, int index, Uint8 button)
  * \param env = pointer to the video environment descriptor
  *
  * returns:
- * - 0 on falure switching from off to on
+ * - 0 on failure switching from off to on
  * - 1 on success in switching from off to on
  * - 2 on success in switching from on to off
 */
@@ -593,7 +593,7 @@ static int turn_on_off(int index, struct video_desc *env)
 			p->status_index |= IS_ON;
 			/* print the new message in the message board */
 			update_device_info(env, index);
-			return 1; /* open succeded */
+			return 1; /* open succeeded */
 		}
 		return 0; /* failure */
 	} else {
@@ -1226,7 +1226,7 @@ static void sdl_setup(struct video_desc *env)
 
 	/* Some helper variables used for filling the SDL window */
 	int x0; /* the x coordinate of the center of the keypad */
-	int x1; /* userful for calculating of the size of the parent window */
+	int x1; /* useful for calculating of the size of the parent window */
 	int y0; /* y coordinate of the keypad, the remote window and the local window */
 	int src_wins_tot_w; /* total width of the source windows */
 	int i;
@@ -1414,7 +1414,7 @@ static void sdl_setup(struct video_desc *env)
 
 	SDL_WM_SetCaption("Asterisk console Video Output", NULL);
 
-	/* intialize the windows for local and remote video */
+	/* initialize the windows for local and remote video */
 	if (set_win(gui->screen, &gui->win[WIN_REMOTE], dpy_fmt,
 			env->rem_dpy.w, env->rem_dpy.h, x0-kp_w/2-BORDER-env->rem_dpy.w, y0))
 		goto no_sdl;

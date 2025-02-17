@@ -193,7 +193,7 @@
 					<since>
 						<version>11.0.0</version>
 					</since>
-					<synopsis>Accout code for CDR purposes</synopsis>
+					<synopsis>Account code for CDR purposes</synopsis>
 				</configOption>
 				<configOption name="allow">
 					<since>
@@ -706,7 +706,7 @@ static void jingle_set_owner(struct jingle_session *session, struct ast_channel 
 	}
 }
 
-/*! \brief Internal helper function which enables video support on a sesson if possible */
+/*! \brief Internal helper function which enables video support on a session if possible */
 static void jingle_enable_video(struct jingle_session *session)
 {
 	struct ast_sockaddr tmp;
@@ -1222,7 +1222,7 @@ static struct ast_channel *jingle_session_lock_full(struct jingle_session *pvt)
 		}
 
 		/* If the owner changed while everything was unlocked, no problem,
-		 * just start over and everthing will work.  This is rare, do not be
+		 * just start over and everything will work.  This is rare, do not be
 		 * confused by this loop and think this it is an expensive operation.
 		 * The majority of the calls to this function will never involve multiple
 		 * executions of this loop. */
@@ -1550,7 +1550,7 @@ static void jingle_send_session_action(struct jingle_session *session, const cha
 	iks_delete(iq);
 }
 
-/*! \brief Internal function which sends a session-inititate message */
+/*! \brief Internal function which sends a session-initiate message */
 static void jingle_send_session_initiate(struct jingle_session *session)
 {
 	jingle_send_session_action(session, session->transport == JINGLE_TRANSPORT_GOOGLE_V1 ? "initiate" : "session-initiate");
@@ -2773,7 +2773,7 @@ static int load_module(void)
 	}
 
 	if (aco_info_init(&cfg_info)) {
-		ast_log(LOG_ERROR, "Unable to intialize configuration for chan_motif.\n");
+		ast_log(LOG_ERROR, "Unable to initialize configuration for chan_motif.\n");
 		goto end;
 	}
 
