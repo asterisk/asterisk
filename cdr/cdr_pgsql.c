@@ -375,7 +375,7 @@ static int pgsql_log(struct ast_cdr *cdr)
 
 						/* If our argument size exceeds our buffer, grow it,
 						 * as PQescapeStringConn() expects the buffer to be
-						 * adequitely sized and does *NOT* do size checking.
+						 * adequately sized and does *NOT* do size checking.
 						 */
 						if (required_size > bufsize) {
 							char *tmpbuf = ast_realloc(escapebuf, required_size);
