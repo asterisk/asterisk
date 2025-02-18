@@ -122,6 +122,7 @@
 					<note><para>This header is only present when <replaceable>DestType</replaceable> is <literal>Threeway</literal></para></note>
 				</parameter>
 				<channel_snapshot prefix="Transferee" />
+				<channel_snapshot prefix="TransferTarget" />
 			</syntax>
 			<description>
 				<para>The headers in this event attempt to describe all the major details of the attended transfer. The two transferer channels
