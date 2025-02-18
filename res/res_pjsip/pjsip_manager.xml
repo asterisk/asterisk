@@ -141,8 +141,23 @@
 				<parameter name="AuthType">
 					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='auth']/configOption[@name='auth_type']/synopsis/node())"/></para>
 				</parameter>
-				<parameter name="EndpointName">
-					<para>The name of the endpoint associated with this information.</para>
+				<parameter name="OauthClientid">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='auth']/configOption[@name='oauth_clientid']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="OauthSecret">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='auth']/configOption[@name='oauth_secret']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="PasswordDigest">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='auth']/configOption[@name='password_digest']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="RefreshToken">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='auth']/configOption[@name='refresh_token']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="SupportedAlgorithmsUac">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='auth']/configOption[@name='supported_algorithms_uac']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="SupportedAlgorithmsUas">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='auth']/configOption[@name='supported_algorithms_uas']/synopsis/node())"/></para>
 				</parameter>
 			</syntax>
 		</managerEventInstance>
