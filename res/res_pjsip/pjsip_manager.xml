@@ -558,6 +558,12 @@
 				<parameter name="QualifyFrequency">
 					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='aor']/configOption[@name='qualify_frequency']/synopsis/node())"/></para>
 				</parameter>
+				<parameter name="QualifyTimeout">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='aor']/configOption[@name='qualify_timeout']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="Qualify2xxOnly">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='aor']/configOption[@name='qualify_2xx_only']/synopsis/node())"/></para>
+				</parameter>
 				<parameter name="AuthenticateQualify">
 					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='aor']/configOption[@name='authenticate_qualify']/synopsis/node())"/></para>
 				</parameter>
@@ -573,11 +579,17 @@
 				<parameter name="Mailboxes">
 					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='aor']/configOption[@name='mailboxes']/synopsis/node())"/></para>
 				</parameter>
+				<parameter name="VoicemailExtension">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='aor']/configOption[@name='voicemail_extension']/synopsis/node())"/></para>
+				</parameter>
 				<parameter name="OutboundProxy">
 					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='aor']/configOption[@name='outbound_proxy']/synopsis/node())"/></para>
 				</parameter>
 				<parameter name="SupportPath">
 					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='aor']/configOption[@name='support_path']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="Contacts">
+					<para>A comma-separated list of contacts associated with this AoR.</para>
 				</parameter>
 			</syntax>
 		</managerEventInstance>
