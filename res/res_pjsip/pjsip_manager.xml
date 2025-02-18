@@ -763,6 +763,10 @@
 					<para>The elapsed time in decimal seconds after which an OPTIONS
 					message is sent before the contact is considered unavailable.</para>
 				</parameter>
+				<parameter name="Qualify2xxOnly">
+					<para>Only consider a contact available if the OPTIONS response
+					has a 2xx status code.</para>
+				</parameter>
 			</syntax>
 		</managerEventInstance>
 	</managerEvent>
