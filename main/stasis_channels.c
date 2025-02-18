@@ -86,7 +86,10 @@
 			</since>
 			<synopsis>Raised when an Agent has logged off.</synopsis>
 			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='AgentLogin']/managerEventInstance/syntax/parameter)" />
+				<channel_snapshot/>
+				<parameter name="Agent">
+					<para>Agent ID of the agent.</para>
+				</parameter>
 				<parameter name="Logintime">
 					<para>The number of seconds the agent was logged in.</para>
 				</parameter>

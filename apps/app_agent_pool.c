@@ -218,11 +218,11 @@
 					<para>Present if Status value is <literal>AGENT_ONCALL</literal>.</para>
 				</parameter>
 				<parameter name="CallStarted">
-					<para>Epoche time when the agent started talking with the caller.</para>
+					<para>Epoch time when the agent started talking with the caller.</para>
 					<para>Present if Status value is <literal>AGENT_ONCALL</literal>.</para>
 				</parameter>
 				<parameter name="LoggedInTime">
-					<para>Epoche time when the agent logged in.</para>
+					<para>Epoch time when the agent logged in.</para>
 					<para>Present if Status value is <literal>AGENT_IDLE</literal> or <literal>AGENT_ONCALL</literal>.</para>
 				</parameter>
 				<channel_snapshot/>
