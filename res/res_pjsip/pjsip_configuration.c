@@ -567,7 +567,7 @@ static int media_address_to_str(const void *obj, const intptr_t *args, char **bu
 	return 0;
 }
 
-static int redirect_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
+static int redirect_method_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
 {
 	struct ast_sip_endpoint *endpoint = obj;
 
@@ -583,6 +583,21 @@ static int redirect_handler(const struct aco_option *opt, struct ast_variable *v
 		return -1;
 	}
 
+	return 0;
+}
+
+static const char *redirect_method_map[] = {
+	[AST_SIP_REDIRECT_USER] = "user",
+	[AST_SIP_REDIRECT_URI_CORE] = "uri_core",
+	[AST_SIP_REDIRECT_URI_PJSIP] = "uri_pjsip",
+};
+
+static int redirect_method_to_str(const void *obj, const intptr_t *args, char **buf)
+{
+	const struct ast_sip_endpoint *endpoint = obj;
+	if (ARRAY_IN_BOUNDS(endpoint->redirect_method, redirect_method_map)) {
+		*buf = ast_strdup(redirect_method_map[endpoint->redirect_method]);
+	}
 	return 0;
 }
 
@@ -2250,7 +2265,7 @@ int ast_res_pjsip_initialize_configuration(void)
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "srtp_tag_32", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, media.rtp.srtp_tag_32));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "media_encryption_optimistic", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, media.rtp.encryption_optimistic));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "g726_non_standard", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, media.g726_non_standard));
-	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "redirect_method", "user", redirect_handler, NULL, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "redirect_method", "user", redirect_method_handler, redirect_method_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "set_var", "", set_var_handler, set_var_to_str, set_var_to_vl, 0, 0);
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "message_context", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, message_context));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "accountcode", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, accountcode));
