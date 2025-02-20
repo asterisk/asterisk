@@ -469,7 +469,10 @@ static int packsms8(unsigned char *o, int udhl, unsigned char *udh, int udl, uns
 		if (u < 0 || u > 0xFF) {
 			return -1;                      /* not valid */
 		}
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
 		o[p++] = u;
+#pragma GCC diagnostic pop
 		if (p >= SMSLEN_8) {
 			return p;
 		}
