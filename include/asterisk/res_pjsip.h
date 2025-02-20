@@ -1017,12 +1017,6 @@ struct ast_sip_endpoint_media_configuration {
 	unsigned int tos_video;
 	/*! Priority for video streams */
 	unsigned int cos_video;
-	/*! DSCP TOS bits for text streams */
-	unsigned int tos_text;
-	/*! Priority for text streams */
-	unsigned int cos_text;
-	/*! DSCP indicate if text stream supports RED */
-	unsigned int red_enabled;
 	/*! Is g.726 packed in a non standard way */
 	unsigned int g726_non_standard;
 	/*! Bind the RTP instance to the media_address */
@@ -1033,8 +1027,6 @@ struct ast_sip_endpoint_media_configuration {
 	unsigned int max_audio_streams;
 	/*! Maximum number of video streams to offer/accept */
 	unsigned int max_video_streams;
-	/*! Maximum number of text streams to offer/accept */
-	unsigned int max_text_streams;
 	/*! Use BUNDLE */
 	unsigned int bundle;
 	/*! Enable webrtc settings and defaults */
@@ -1051,6 +1043,15 @@ struct ast_sip_endpoint_media_configuration {
 	struct ast_stream_codec_negotiation_prefs codec_prefs_incoming_answer;
 	/*! Codec negotiation prefs for outgoing answers */
 	struct ast_stream_codec_negotiation_prefs codec_prefs_outgoing_answer;
+	/* Added here to maintain ABI compatibility */	
+	/*! DSCP TOS bits for text streams */
+	unsigned int tos_text;
+	/*! Priority for text streams */
+	unsigned int cos_text;
+	/*! Indicate if text stream supports RED */
+	unsigned int red_enabled;
+	/*! Maximum number of text streams to offer/accept */
+	unsigned int max_text_streams;
 };
 
 /*!
