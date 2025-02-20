@@ -385,6 +385,7 @@ static void get_codecs(struct ast_sip_session *session, const struct pjmedia_sdp
 					char *red_cp = red_cp_data;
 					char *rest = NULL;
 					int red_num_gen = -1;
+					int check;
 
 					strcpy(red_cp, fmt_param);
 					red_cp = strtok_r(red_cp, "/", &rest);
@@ -394,7 +395,12 @@ static void get_codecs(struct ast_sip_session *session, const struct pjmedia_sdp
 					}
 					if (red_num_gen > 0) {
 						session->endpoint->media.red_enabled = 1;
-						ast_rtp_red_init(session_media->rtp, 300, red_data_pt, red_num_gen);
+						check = ast_rtp_red_init(session_media->rtp, 300, red_data_pt, red_num_gen);
+						if (check) {
+							ast_log(LOG_ERROR, "Failed to initialize RED support for RTP.\n");}
+						else{
+							ast_log(LOG_DEBUG, "RED initialized\n");
+						}
 					} else {
 						session->endpoint->media.red_enabled = 0;
 					}
