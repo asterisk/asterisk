@@ -9,6 +9,6 @@ jobs:
     name: "run-cpcheck"
     if: ${{ github.event.label.name == vars.CHERRY_PICK_TEST_LABEL }}
     concurrency:
-      group: cpcheck-${{ github.base_ref }}-${{ github.ref_name }}
+      group: cpcheck-${{ github.triggering_actor }}-${{ github.head_ref }}
       cancel-in-progress: true
     uses: asterisk/asterisk-ci-actions/.github/workflows/AsteriskPRCPCheck.yml@main
