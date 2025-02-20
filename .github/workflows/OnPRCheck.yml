@@ -9,6 +9,6 @@ jobs:
     name: "run-check"
     if: ${{ (github.event.action != 'labeled') || (github.event.action == 'labeled' && github.event.label.name == vars.RECHECKPR_LABEL) }}
     concurrency:
-      group: check-${{ github.base_ref }}-${{ github.ref_name }}
+      group: check-${{ github.triggering_actor }}-${{ github.head_ref }}
       cancel-in-progress: true
     uses: asterisk/asterisk-ci-actions/.github/workflows/AsteriskPRCheck.yml@main
