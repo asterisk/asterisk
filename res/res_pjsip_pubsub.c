@@ -54,7 +54,7 @@
 			<version>12.0.0</version>
 		</since>
 		<synopsis>
-			Lists subscriptions.
+			Lists inbound subscriptions.
 		</synopsis>
 		<syntax />
 		<description>
@@ -65,12 +65,80 @@
                         </para>
 		</description>
 	</manager>
+	<managerEvent language="en_US" name="InboundSubscriptionDetail">
+		<managerEventInstance class="EVENT_FLAG_COMMAND">
+			<since>
+				<version>12.0.0</version>
+			</since>
+			<synopsis>
+				Provides details about an inbound subscription - one in which Asterisk
+				handles SUBSCRIBE requests and periodically sends NOTIFYs to its
+				subscribers.
+			</synopsis>
+			<syntax>
+				<parameter name="Role">
+					<para>Asterisk's role for this subscription. This will always be
+					<literal>Notifier</literal>.</para>
+				</parameter>
+				<parameter name="Endpoint">
+					<para>The name of the endpoint associated with this
+					subscription.</para>
+				</parameter>
+				<parameter name="Callid">
+					<para>The CallID of the dialog associated with this
+					subscription.</para>
+				</parameter>
+				<parameter name="State">
+					<para>The current state of the subscription.</para>
+				</parameter>
+				<parameter name="Callerid">
+					<para>The Caller ID of the endpoint associated with this
+					subscription.</para>
+				</parameter>
+				<parameter name="SubscriptionType">
+					<para>Asterisk currently supports the following subscription types, but
+					this could also be extended by third-party modules so this list may not
+					be exhaustive:</para>
+					<enumlist>
+						<enum name="mwi"/>
+						<enum name="extension_state"/>
+					</enumlist>
+				</parameter>
+				<parameter name="Extension">
+					<para>If the <literal>SubscriptionType</literal> is
+					<literal>extension_state</literal> this will be the monitored
+					extension.</para>
+				</parameter>
+				<parameter name="ExtensionStates">
+					<para>If the <literal>SubscriptionType</literal> is
+					<literal>extension_state</literal> this will be the monitored
+					extension's state.</para>
+					<enumlist>
+						<enum name="Idle"/>
+						<enum name="InUse"/>
+						<enum name="Busy"/>
+						<enum name="Unavailable"/>
+						<enum name="Ringing"/>
+						<enum name="InUse&amp;Ringing"/>
+						<enum name="Hold"/>
+						<enum name="InUse&amp;Hold"/>
+						<enum name="Unknown"/>
+					</enumlist>
+				</parameter>
+				<parameter name="Mailboxes">
+					<para>If the <literal>SubscriptionType</literal> is
+					<literal>mwi</literal> this will be a comma-separated list of
+					mailboxes.</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
 	<manager name="PJSIPShowSubscriptionsOutbound" language="en_US">
 		<since>
 			<version>12.0.0</version>
 		</since>
 		<synopsis>
-			Lists subscriptions.
+			Lists outbound subscriptions.
 		</synopsis>
 		<syntax />
 		<description>
@@ -81,6 +149,73 @@
                         </para>
 		</description>
 	</manager>
+	<managerEvent language="en_US" name="OutboundSubscriptionDetail">
+		<managerEventInstance class="EVENT_FLAG_COMMAND">
+			<since>
+				<version>12.0.0</version>
+			</since>
+			<synopsis>
+				Provides details about an outbound subscription - one in which Asterisk
+				sends SUBSCRIBE requests and periodically receives NOTIFYs.
+			</synopsis>
+			<syntax>
+				<parameter name="Role">
+					<para>Asterisk's role for this subscription. This will always be
+					<literal>Subscriber</literal>.</para>
+				</parameter>
+				<parameter name="Endpoint">
+					<para>The name of the endpoint associated with this
+					subscription.</para>
+				</parameter>
+				<parameter name="Callid">
+					<para>The CallID of the dialog associated with this
+					subscription.</para>
+				</parameter>
+				<parameter name="State">
+					<para>The current state of the subscription.</para>
+				</parameter>
+				<parameter name="Callerid">
+					<para>The Caller ID of the endpoint associated with this
+					subscription.</para>
+				</parameter>
+				<parameter name="SubscriptionType">
+					<para>Asterisk currently supports the following subscription types, but
+					this could also be extended by third-party modules so this list may not
+					be exhaustive:</para>
+					<enumlist>
+						<enum name="mwi"/>
+						<enum name="extension_state"/>
+					</enumlist>
+				</parameter>
+				<parameter name="Extension">
+					<para>If the <literal>SubscriptionType</literal> is
+					<literal>extension_state</literal> this will be the monitored
+					extension.</para>
+				</parameter>
+				<parameter name="ExtensionStates">
+					<para>If the <literal>SubscriptionType</literal> is
+					<literal>extension_state</literal> this will be the monitored
+					extension's state.</para>
+					<enumlist>
+						<enum name="Idle"/>
+						<enum name="InUse"/>
+						<enum name="Busy"/>
+						<enum name="Unavailable"/>
+						<enum name="Ringing"/>
+						<enum name="InUse&amp;Ringing"/>
+						<enum name="Hold"/>
+						<enum name="InUse&amp;Hold"/>
+						<enum name="Unknown"/>
+					</enumlist>
+				</parameter>
+				<parameter name="Mailboxes">
+					<para>If the <literal>SubscriptionType</literal> is
+					<literal>mwi</literal> this will be a comma-separated list of
+					mailboxes.</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
 	<manager name="PJSIPShowResourceLists" language="en_US">
 		<since>
 			<version>13.0.0</version>
@@ -97,6 +232,37 @@
                         </para>
 		</description>
 	</manager>
+	<managerEvent language="en_US" name="ResourceListDetail">
+		<managerEventInstance class="EVENT_FLAG_COMMAND">
+			<since>
+				<version>13.0.0</version>
+			</since>
+			<synopsis>Provides details about a resource list.</synopsis>
+			<syntax>
+				<parameter name="ObjectType">
+					<para>The object's type. This will always be 'resource_list'.</para>
+				</parameter>
+				<parameter name="ObjectName">
+					<para>The name of this object.</para>
+				</parameter>
+				<parameter name="Event">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip_pubsub']/configFile[@name='pjsip.conf']/configObject[@name='resource_list']/configOption[@name='event']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="FullState">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip_pubsub']/configFile[@name='pjsip.conf']/configObject[@name='resource_list']/configOption[@name='full_state']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="ListItem">
+					<para>A comma-separated list of resources that belong to this resource list.</para>
+				</parameter>
+				<parameter name="NotificationBatchInterval">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip_pubsub']/configFile[@name='pjsip.conf']/configObject[@name='resource_list']/configOption[@name='notification_batch_interval']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="ResourceDisplayName">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip_pubsub']/configFile[@name='pjsip.conf']/configObject[@name='resource_list']/configOption[@name='resource_display_name']/synopsis/node())"/></para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
 
 	<configInfo name="res_pjsip_pubsub" language="en_US">
 		<synopsis>Module that implements publish and subscribe support.</synopsis>

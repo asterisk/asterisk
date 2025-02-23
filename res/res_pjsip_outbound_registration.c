@@ -343,6 +343,96 @@
                         </para>
 		</description>
 	</manager>
+	<managerEvent language="en_US" name="OutboundRegistrationDetail">
+		<managerEventInstance class="EVENT_FLAG_COMMAND">
+			<since>
+				<version>12.0.0</version>
+			</since>
+			<synopsis>
+				Provides configuration details and status information about an
+				outbound registration.
+			</synopsis>
+			<syntax>
+				<parameter name="ObjectType">
+					<para>The object's type. This will always be 'registration'.</para>
+				</parameter>
+				<parameter name="ObjectName">
+					<para>The name of this object.</para>
+				</parameter>
+				<parameter name="MaxRetries">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip_outbound_registration']/configFile[@name='pjsip.conf']/configObject[@name='registration']/configOption[@name='max_retries']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="ClientUri">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip_outbound_registration']/configFile[@name='pjsip.conf']/configObject[@name='registration']/configOption[@name='client_uri']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="SecurityNegotiation">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip_outbound_registration']/configFile[@name='pjsip.conf']/configObject[@name='registration']/configOption[@name='security_negotiation']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="AuthRejectionPermanent">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip_outbound_registration']/configFile[@name='pjsip.conf']/configObject[@name='registration']/configOption[@name='auth_rejection_permanent']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="ServerUri">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip_outbound_registration']/configFile[@name='pjsip.conf']/configObject[@name='registration']/configOption[@name='server_uri']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="MaxRandomInitialDelay">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip_outbound_registration']/configFile[@name='pjsip.conf']/configObject[@name='registration']/configOption[@name='max_random_initial_delay']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="SupportPath">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip_outbound_registration']/configFile[@name='pjsip.conf']/configObject[@name='registration']/configOption[@name='support_path']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="RetryInterval">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip_outbound_registration']/configFile[@name='pjsip.conf']/configObject[@name='registration']/configOption[@name='retry_interval']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="ContactHeaderParams">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip_outbound_registration']/configFile[@name='pjsip.conf']/configObject[@name='registration']/configOption[@name='contact_header_params']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="Expiration">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip_outbound_registration']/configFile[@name='pjsip.conf']/configObject[@name='registration']/configOption[@name='expiration']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="Transport">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip_outbound_registration']/configFile[@name='pjsip.conf']/configObject[@name='registration']/configOption[@name='transport']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="Line">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip_outbound_registration']/configFile[@name='pjsip.conf']/configObject[@name='registration']/configOption[@name='line']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="ContactUser">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip_outbound_registration']/configFile[@name='pjsip.conf']/configObject[@name='registration']/configOption[@name='contact_user']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="Endpoint">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip_outbound_registration']/configFile[@name='pjsip.conf']/configObject[@name='registration']/configOption[@name='endpoint']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="UserAgent">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip_outbound_registration']/configFile[@name='pjsip.conf']/configObject[@name='registration']/configOption[@name='user_agent']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="ForbiddenRetryInterval">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip_outbound_registration']/configFile[@name='pjsip.conf']/configObject[@name='registration']/configOption[@name='forbidden_retry_interval']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="OutboundAuth">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip_outbound_registration']/configFile[@name='pjsip.conf']/configObject[@name='registration']/configOption[@name='outbound_auth']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="OutboundProxy">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip_outbound_registration']/configFile[@name='pjsip.conf']/configObject[@name='registration']/configOption[@name='outbound_proxy']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="FatalRetryInterval">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip_outbound_registration']/configFile[@name='pjsip.conf']/configObject[@name='registration']/configOption[@name='fatal_retry_interval']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="SupportOutbound">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip_outbound_registration']/configFile[@name='pjsip.conf']/configObject[@name='registration']/configOption[@name='support_outbound']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="Status">
+					<para>The current status of this registration. Will be one of:</para>
+					<enumlist>
+						<enum name="Registered"/>
+						<enum name="Unregistered"/>
+						<enum name="Rejected"/>
+					</enumlist>
+				</parameter>
+				<parameter name="NextReg">
+					<para>The number of seconds until the next registration.</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
  ***/
 
 /* forward declarations */
