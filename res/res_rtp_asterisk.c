@@ -623,7 +623,6 @@ struct rtp_red {
 	unsigned char len[AST_RED_MAX_GENERATION]; /*!< length of each generation */
 	int num_gen; /*!< Number of generations */
 	int schedid; /*!< Timer id */
-	int ti; /*!< How long to buffer data before send */
 	unsigned char t140red_data[64000];
 	unsigned char buf_data[64000]; /*!< buffered primary data */
 	int hdrlen;
@@ -9171,7 +9170,6 @@ static int rtp_red_init(struct ast_rtp_instance *instance, int buffer_time, int 
 	rtp->red->t140red = rtp->red->t140;
 	rtp->red->t140red.data.ptr = &rtp->red->t140red_data;
 
-	rtp->red->ti = buffer_time;
 	rtp->red->num_gen = generations;
 	rtp->red->hdrlen = generations * 4 + 1;
 
@@ -9181,7 +9179,7 @@ static int rtp_red_init(struct ast_rtp_instance *instance, int buffer_time, int 
 		rtp->red->t140red_data[x*4] = rtp->red->pt[x];
 	}
 	rtp->red->t140red_data[x*4] = rtp->red->pt[x] = payloads[x]; /* primary pt */
-	rtp->red->schedid = ast_sched_add(rtp->sched, generations, red_write, instance);
+	rtp->red->schedid = ast_sched_add(rtp->sched, buffer_time, red_write, instance);
 
 	return 0;
 }
