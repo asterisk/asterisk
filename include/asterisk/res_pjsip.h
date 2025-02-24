@@ -1043,6 +1043,15 @@ struct ast_sip_endpoint_media_configuration {
 	struct ast_stream_codec_negotiation_prefs codec_prefs_incoming_answer;
 	/*! Codec negotiation prefs for outgoing answers */
 	struct ast_stream_codec_negotiation_prefs codec_prefs_outgoing_answer;
+	/* Added here to maintain ABI compatibility */	
+	/*! DSCP TOS bits for text streams */
+	unsigned int tos_text;
+	/*! Priority for text streams */
+	unsigned int cos_text;
+	/*! Indicate if text stream supports RED */
+	unsigned int red_enabled;
+	/*! Maximum number of text streams to offer/accept */
+	unsigned int max_text_streams;
 };
 
 /*!
