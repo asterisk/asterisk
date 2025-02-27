@@ -8014,9 +8014,11 @@ static struct ast_frame *ast_rtp_interpret(struct ast_rtp_instance *instance, st
 		*data = 0xBD;
 	}
 
-	if (ast_format_cmp(rtp->f.subclass.format, ast_format_t140_red) == AST_FORMAT_CMP_EQUAL) {
-		unsigned char *data = rtp->f.data.ptr;
-		unsigned char *header_end;
+	if (rtp->f.datalen <= 0) {
+		return AST_LIST_FIRST(&frames) ? AST_LIST_FIRST(&frames) : &ast_null_frame;
+	} else if (ast_format_cmp(rtp->f.subclass.format, ast_format_t140_red) == AST_FORMAT_CMP_EQUAL) {
+		unsigned char* data = rtp->f.data.ptr;
+		unsigned char* header_end;
 		int num_generations;
 		int header_length;
 		int len;
@@ -8058,6 +8060,9 @@ static struct ast_frame *ast_rtp_interpret(struct ast_rtp_instance *instance, st
 
 			rtp->f.data.ptr += len;
 			rtp->f.datalen -= len;
+		}
+		if (rtp->f.datalen < 0) {
+			return AST_LIST_FIRST(&frames) ? AST_LIST_FIRST(&frames) : &ast_null_frame;
 		}
 	}
 
@@ -9141,10 +9146,16 @@ static void ast_rtp_remote_address_set(struct ast_rtp_instance *instance, struct
  */
 static int red_write(const void *data)
 {
-	struct ast_rtp_instance *instance = (struct ast_rtp_instance*) data;
-	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+	struct ast_rtp_instance *instance = (struct ast_rtp_instance *) data;
+	struct ast_rtp *rtp;
 
 	ao2_lock(instance);
+	rtp = ast_rtp_instance_get_data(instance);
+	if (!rtp || !rtp->red) {
+		ao2_unlock(instance);
+		return 0;
+	}
+
 	if (rtp->red->t140.datalen > 0) {
 		ast_rtp_write(instance, &rtp->red->t140);
 	}
@@ -9181,8 +9192,12 @@ static int rtp_red_init(struct ast_rtp_instance *instance, int buffer_time, int 
 		rtp->red->t140red_data[x*4] = rtp->red->pt[x];
 	}
 	rtp->red->t140red_data[x*4] = rtp->red->pt[x] = payloads[x]; /* primary pt */
+	ao2_ref(instance, +1);
 	rtp->red->schedid = ast_sched_add(rtp->sched, generations, red_write, instance);
-
+	if (rtp->red->schedid < 0) {
+		ao2_ref(instance, -1);
+		ast_log(LOG_WARNING, "scheduling red_write failed.\n");
+	}
 	return 0;
 }
 
