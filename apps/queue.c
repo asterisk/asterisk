@@ -1717,6 +1717,23 @@ static int log_membername_as_agent;
 /*! \brief queues.conf [general] option */
 static int force_longest_waiting_caller;
 
+/*!< Default: Do NOT log CID Name */
+static int enable_cidname_logging = 0; 
+
+static int queue_apply_config(struct ast_config *cfg) {
+    const char *val;
+
+    val = ast_variable_retrieve(cfg, "general", "enable_cidname_logging");
+    if (!ast_false(val)) {
+        enable_cidname_logging = 1;  // Enable CID Name logging
+    } else {
+        enable_cidname_logging = 0;  // Disable CID Name logging (Default)
+    }
+
+    return 0;
+}
+
+
 /*! \brief name of the ringinuse field in the realtime database */
 static char *realtime_ringinuse_field;
 
@@ -8802,14 +8819,27 @@ static int queue_exec(struct ast_channel *chan, const char *data)
 		qe.last_periodic_announce_time += qe.parent->periodicannouncestartdelay;
 		qe.last_periodic_announce_time -= qe.parent->periodicannouncefrequency;
 	}
-
-	cid_allow = qe.parent->log_restricted_caller_id || ((ast_party_id_presentation(&ast_channel_caller(chan)->id) & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED);
 	
-	ast_queue_log(args.queuename, ast_channel_uniqueid(chan), "NONE", "ENTERQUEUE", "%s|%s|%d|%s",
-		S_OR(args.url, ""),
-		S_COR(cid_allow && ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, ""),
-		qe.opos,
-		S_COR(ast_channel_caller(chan)->id.name.valid, ast_channel_caller(chan)->id.name.str, ""));
+	cid_allow = qe.parent->log_restricted_caller_id || ((ast_party_id_presentation(&ast_channel_caller(chan)->id) & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED);
+
+cid_allow = qe.parent->log_restricted_caller_id || 
+    ((ast_party_id_presentation(&ast_channel_caller(chan)->id) & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED);
+
+cid_allow = qe.parent->log_restricted_caller_id || 
+    ((ast_party_id_presentation(&ast_channel_caller(chan)->id) & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED);
+
+if (enable_cidname_logging) {
+    ast_queue_log(args.queuename, ast_channel_uniqueid(chan), "NONE", "ENTERQUEUE", "%s|%s|%d|%s",
+        S_OR(args.url, ""),
+        S_COR(cid_allow && ast_channel_caller(chan)->id.number.valid,  ast_channel_caller(chan)->id.number.str, ""),
+        qe.opos,
+        S_COR(cid_allow && ast_channel_caller(chan)->id.name.valid, ast_channel_caller(chan)->id.name.str, ""));
+} else {
+    ast_queue_log(args.queuename, ast_channel_uniqueid(chan), "NONE", "ENTERQUEUE", "%s|%s|%d",
+        S_OR(args.url, ""),
+        S_COR(cid_allow && ast_channel_caller(chan)->id.number.valid,  ast_channel_caller(chan)->id.number.str, ""),
+        qe.opos);
+}
 
 	/* PREDIAL: Preprocess any callee gosub arguments. */
 	if (ast_test_flag(&opts, OPT_PREDIAL_CALLEE)
