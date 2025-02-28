@@ -44,6 +44,9 @@ enum ast_audiosocket_msg_kind {
 	/*! \brief Message contains the connection's UUID, direction: Received only. */
 	AST_AUDIOSOCKET_KIND_UUID   = 0x01,
 
+	/*! \brief Message contains a DTMF digit, direction: Received only. */
+	AST_AUDIOSOCKET_KIND_DTMF   = 0x03,
+
 	/*! \brief Messages contains audio data, direction: Sent and received. */
 	AST_AUDIOSOCKET_KIND_AUDIO  = 0x10,
 
