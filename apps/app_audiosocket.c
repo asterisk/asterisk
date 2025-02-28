@@ -64,7 +64,7 @@
 			</parameter>
 		</syntax>
 		<description>
-			<para>Connects to the given TCP server, then transmits channel audio as 16-bit, 8KHz mono PCM over that socket (other codecs available via the channel driver interface). In turn, PCM audio is received from the socket and sent to the channel.  Only audio frames will be transmitted.</para>
+			<para>Connects to the given TCP server, then transmits channel audio as 16-bit, 8KHz mono PCM over that socket (other codecs available via the channel driver interface). In turn, PCM audio is received from the socket and sent to the channel.  Only audio frames and DTMF frames will be transmitted.</para>
 			<para>Protocol is specified at https://docs.asterisk.org/Configuration/Channel-Drivers/AudioSocket/</para>
 			<para>This application does not automatically answer and should generally be preceeded by an application such as Answer() or Progress().</para>
 		</description>
@@ -184,8 +184,8 @@ static int audiosocket_run(struct ast_channel *chan, const char *id, int svc, co
 				return -1;
 			}
 
-			if (f->frametype == AST_FRAME_VOICE) {
-				/* Send audio frame to audiosocket */
+			if (f->frametype == AST_FRAME_VOICE || f->frametype == AST_FRAME_DTMF) {
+				/* Send audio frame or DTMF frame to audiosocket */
 				if (ast_audiosocket_send_frame(svc, f)) {
 					ast_log(LOG_WARNING, "Failed to forward frame from channel '%s' to AudioSocket server '%s'\n",
 						chanName, server);
