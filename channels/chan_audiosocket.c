@@ -59,6 +59,7 @@ static int audiosocket_call(struct ast_channel *ast, const char *dest, int timeo
 static int audiosocket_hangup(struct ast_channel *ast);
 static struct ast_frame *audiosocket_read(struct ast_channel *ast);
 static int audiosocket_write(struct ast_channel *ast, struct ast_frame *f);
+static int audiosocket_send_dtmf(struct ast_channel *ast, char digit, unsigned int duration);
 
 /* AudioSocket channel driver declaration */
 static struct ast_channel_tech audiosocket_channel_tech = {
@@ -69,6 +70,7 @@ static struct ast_channel_tech audiosocket_channel_tech = {
 	.hangup = audiosocket_hangup,
 	.read = audiosocket_read,
 	.write = audiosocket_write,
+	.send_digit_end = audiosocket_send_dtmf,
 };
 
 /*! \brief Function called when we should read a frame from the channel */
@@ -106,6 +108,30 @@ static int audiosocket_write(struct ast_channel *ast, struct ast_frame *f)
 
 	if (ast_audiosocket_send_frame(instance->svc, f)) {
 		ast_log(LOG_ERROR, "Failed to forward frame from channel '%s' to AudioSocket server '%s'\n",
+				ast_channel_name(ast), instance->server);
+		return -1;
+	}
+	return 0;
+}
+
+/*! \brief Function called when we should write a DTMF frame to the channel */
+static int audiosocket_send_dtmf(struct ast_channel *ast, char digit, unsigned int duration)
+{
+	struct audiosocket_instance *instance;
+	struct ast_frame f;
+
+	/* The channel should always be present from the API */
+	instance = ast_channel_tech_pvt(ast);
+	if (instance == NULL || instance->svc < 1) {
+		return -1;
+	}
+
+	f.frametype = AST_FRAME_DTMF;
+	f.subclass.integer = digit;
+	f.len = duration;
+
+	if (ast_audiosocket_send_frame(instance->svc, &f)) {
+		ast_log(LOG_ERROR, "Failed to forward DTMF frame from channel '%s' to AudioSocket server '%s'\n",
 				ast_channel_name(ast), instance->server);
 		return -1;
 	}
