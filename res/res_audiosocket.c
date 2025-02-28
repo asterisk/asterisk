@@ -209,18 +209,37 @@ const int ast_audiosocket_init(const int svc, const char *id)
 
 const int ast_audiosocket_send_frame(const int svc, const struct ast_frame *f)
 {
-	uint8_t buf[3 + f->datalen];
-	uint16_t *length = (uint16_t *) &buf[1];
+	int datalen = f->datalen;
+	if (f->frametype == AST_FRAME_DTMF) {
+		datalen = 1;
+	}
 
-	/* Audio format is 16-bit, 8kHz signed linear mono for dialplan app,
-           depends on agreed upon audio codec for channel driver interface. */
-	buf[0] = AST_AUDIOSOCKET_KIND_AUDIO;
-	*length = htons(f->datalen);
-	memcpy(&buf[3], f->data.ptr, f->datalen);
+	{
+		uint8_t buf[3 + datalen];
+		uint16_t *length = (uint16_t *) &buf[1];
 
-	if (write(svc, buf, 3 + f->datalen) != 3 + f->datalen) {
-		ast_log(LOG_WARNING, "Failed to write data to AudioSocket because: %s\n", strerror(errno));
-		return -1;
+		/* Audio format is 16-bit, 8kHz signed linear mono for dialplan app,
+			depends on agreed upon audio codec for channel driver interface. */
+		switch (f->frametype) {
+			case AST_FRAME_VOICE:
+				buf[0] = AST_AUDIOSOCKET_KIND_AUDIO;
+				*length = htons(datalen);
+				memcpy(&buf[3], f->data.ptr, datalen);
+				break;
+			case AST_FRAME_DTMF:
+				buf[0] = AST_AUDIOSOCKET_KIND_DTMF;
+				buf[3] = (uint8_t) f->subclass.integer;
+				*length = htons(1);
+				break;
+			default:
+				ast_log(LOG_ERROR, "Unsupported frame type %d for AudioSocket\n", f->frametype);
+				return -1;
+		}
+
+		if (write(svc, buf, 3 + datalen) != 3 + datalen) {
+			ast_log(LOG_WARNING, "Failed to write data to AudioSocket because: %s\n", strerror(errno));
+			return -1;
+		}
 	}
 
 	return 0;
