@@ -1783,6 +1783,24 @@ static int log_membername_as_agent;
 /*! \brief queues.conf [general] option */
 static int force_longest_waiting_caller;
 
+/*! \brief queues.conf [general] option */
+/*!< A switch to log Caller ID Name to param 4 when entering queue */
+/*!< Default: Do NOT log CID Name */
+static int enable_cidname_logging = 0; 
+
+static int queue_apply_config(struct ast_config *cfg) {
+    const char *val;
+
+    val = ast_variable_retrieve(cfg, "general", "enable_cidname_logging");
+    if (!ast_false(val)) {
+        enable_cidname_logging = 1;  // Enable CID Name logging
+    } else {
+        enable_cidname_logging = 0;  // Disable CID Name logging (Default)
+    }
+
+    return 0;
+}
+
 /*! \brief name of the ringinuse field in the realtime database */
 static char *realtime_ringinuse_field;
 
@@ -8871,11 +8889,32 @@ static int queue_exec(struct ast_channel *chan, const char *data)
 
 	cid_allow = qe.parent->log_restricted_caller_id || ((ast_party_id_presentation(&ast_channel_caller(chan)->id) & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED);
 	
-	ast_queue_log(args.queuename, ast_channel_uniqueid(chan), "NONE", "ENTERQUEUE", "%s|%s|%d",
-		S_OR(args.url, ""),
-		S_COR(cid_allow && ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, ""),
-		qe.opos);
+if (enable_cidname_logging) {
+    char *escaped_cidname = NULL;
 
+    if (cid_allow && ast_channel_caller(chan)->id.name.valid) {
+        escaped_cidname = ast_strdupa(ast_channel_caller(chan)->id.name.str);
+        
+        // Replace '|' with '_' to avoid parsing issues in logs
+        for (char *p = escaped_cidname; *p; p++) {
+            if (*p == '|') {
+                *p = '_';
+            }
+        }
+    }
+
+    ast_queue_log(args.queuename, ast_channel_uniqueid(chan), "NONE", "ENTERQUEUE", "%s|%s|%d|%s",
+        S_OR(args.url, ""),
+        S_COR(cid_allow && ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, ""),
+        qe.opos,
+        S_OR(escaped_cidname, ""));
+} else {
+    ast_queue_log(args.queuename, ast_channel_uniqueid(chan), "NONE", "ENTERQUEUE", "%s|%s|%d",
+        S_OR(args.url, ""),
+        S_COR(cid_allow && ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, ""),
+        qe.opos);
+}
+	
 	/* PREDIAL: Preprocess any callee gosub arguments. */
 	if (ast_test_flag(&opts, OPT_PREDIAL_CALLEE)
 		&& !ast_strlen_zero(opt_args[OPT_ARG_PREDIAL_CALLEE])) {
@@ -11972,6 +12011,16 @@ static int load_module(void)
 	struct ast_config *member_config;
 	struct stasis_topic *queue_topic;
 	struct stasis_topic *manager_topic;
+	struct ast_flags config_flags = { CONFIG_FLAG_FILEUNCHANGED, };  // Move to top
+	struct ast_config *cfg;
+
+
+		/*  Load queues.conf and apply settings (including enable_cidname_logging) */
+    cfg = ast_config_load("queues.conf", config_flags);
+    if (cfg) {
+        queue_apply_config(cfg);  // Apply config settings from queues.conf
+        ast_config_destroy(cfg);
+    }
 
 	queues = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, MAX_QUEUE_BUCKETS,
 		queue_hash_cb, NULL, queue_cmp_cb);
@@ -11992,6 +12041,7 @@ static int load_module(void)
 		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
+
 
 	ast_realtime_require_field("queue_members", "paused", RQ_INTEGER1, 1, "uniqueid", RQ_UINTEGER2, 5, "reason_paused", RQ_CHAR, 80, SENTINEL);
 
