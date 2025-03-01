@@ -49,13 +49,13 @@
 #define BITS 2
 
 struct mp3lame_private {
-	lame_global_flags * lgfp;
-	hip_global_flags * hgfp;
+	lame_global_flags *lgfp;
+	hip_global_flags *hgfp;
 
 	int sample_rate;
 
 	/* decoder buffer */
-	short int doutput[DECORDER_OUTLEN *  1024];
+	short int doutput[DECORDER_OUTLEN * 1024];
 	long doffset;
 	int dsamples;
 
@@ -74,16 +74,17 @@ static int mp3lame_encoder_init(struct mp3lame_private *p)
 	if (!p->lgfp) {
 		return -1;
 	}
+
 	/* Mono */
 	lame_set_num_channels(p->lgfp, 1);
 	/* Sample rate */
 	lame_set_in_samplerate(p->lgfp, p->sample_rate);
 	/* Bit rate, e.g.:
-	* 16kbps for 8000Hz
-	* 32kbps for 16000Hz
-	* 64kbps for 32000Hz
-	* 96kbps for 48000Hz
-	*/
+	 * 16kbps for 8000Hz
+	 * 32kbps for 16000Hz
+	 * 64kbps for 32000Hz
+	 * 96kbps for 48000Hz
+	 */
 	lame_set_brate(p->lgfp, p->sample_rate / 500);
 	/* Mono */
 	lame_set_mode(p->lgfp, 3);
@@ -421,10 +422,12 @@ static int mp3lame_write8(struct ast_filestream *fs, struct ast_frame *f)
 {
 	return mp3lame_write(fs, f, 8000);
 }
+
 static struct ast_frame *mp3lame_read8(struct ast_filestream *s, int *whennext)
 {
 	return mp3lame_read(s, whennext, SLIN_BUFLEN, 8000);
 }
+
 static struct ast_format_def lame8_f = {
 	.name = "lame8",
 	.exts = "8mp3|mp3",
