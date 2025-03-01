@@ -411,12 +411,6 @@ static int mp3lame_trunc(struct ast_filestream *s)
 	}
 }
 
-static char *mp3lame_getcomment(struct ast_filestream *s)
-{
-	char *comment = "Asterisk MP3 lame";
-	return comment;
-}
-
 /* Sampling rate: 8khz */
 static int mp3lame_write8(struct ast_filestream *fs, struct ast_frame *f)
 {
@@ -439,7 +433,6 @@ static struct ast_format_def lame8_f = {
 	.tell =	mp3lame_tell,
 	.read =	mp3lame_read8,
 	.close = mp3lame_close,
-	.getcomment = mp3lame_getcomment,
 	.buf_size = SLIN_BUFLEN + AST_FRIENDLY_OFFSET,
 	.desc_size = sizeof(struct mp3lame_private),
 };
@@ -466,7 +459,6 @@ static struct ast_format_def lame16_f = {
 	.tell =	mp3lame_tell,
 	.read =	mp3lame_read16,
 	.close = mp3lame_close,
-	.getcomment = mp3lame_getcomment,
 	.buf_size = (SLIN_BUFLEN * 2) + AST_FRIENDLY_OFFSET,
 	.desc_size = sizeof(struct mp3lame_private),
 };
@@ -493,7 +485,6 @@ static struct ast_format_def lame32_f = {
 	.tell =	mp3lame_tell,
 	.read =	mp3lame_read32,
 	.close = mp3lame_close,
-	.getcomment = mp3lame_getcomment,
 	.buf_size = (SLIN_BUFLEN * 4) + AST_FRIENDLY_OFFSET,
 	.desc_size = sizeof(struct mp3lame_private),
 };
@@ -520,7 +511,6 @@ static struct ast_format_def lame48_f = {
 	.tell =	mp3lame_tell,
 	.read =	mp3lame_read48,
 	.close = mp3lame_close,
-	.getcomment = mp3lame_getcomment,
 	.buf_size = (SLIN_BUFLEN * 6) + AST_FRIENDLY_OFFSET,
 	.desc_size = sizeof(struct mp3lame_private),
 };
