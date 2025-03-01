@@ -290,22 +290,6 @@ static int mp3lame_write(struct ast_filestream *fs, struct ast_frame *f, int sam
 	}
 	p->encoder_counter++;
 
-	/*
-	 * Reinitialize lame encoder before every five minutes of audio data.
-	 * Unfortunatly lame stops encoding after this time.
-	 * Probably an internal timer in lame.
-	 * 14999 calculated as 300 seconds multipled by 50 frames (1000ms as 1 second / 20ms packetization time) - 1 to be sure
-	 */
-	if (p->encoder_counter % 14999 == 0) {
-		ast_debug(3, "Reinitializing LAME encoder after 5 mins");
-		mp3lame_encoder_deinit(fs);
-		ret = mp3lame_encoder_init(p);
-		if (ret < 0) {
-			ast_log(LOG_ERROR, "LAME encoder initialization failed: %d", ret);
-			return -1;
-		}
-	}
-
 	res = lame_encode_buffer(p->lgfp, f->data.ptr, f->data.ptr, f->samples, encoder_buffer, sizeof(encoder_buffer));
 	if (res < 0) {
 		ast_log(LOG_WARNING, "LAME encoder returned error: %d", res);
