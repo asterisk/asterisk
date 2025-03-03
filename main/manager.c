@@ -3097,11 +3097,67 @@ static int action_createconfig(struct mansession *s, const struct message *m)
 {
 	int fd;
 	const char *fn = astman_get_header(m, "Filename");
-	struct ast_str *filepath = ast_str_alloca(PATH_MAX);
-	ast_str_set(&filepath, 0, "%s/", ast_config_AST_CONFIG_DIR);
-	ast_str_append(&filepath, 0, "%s", fn);
+	char *stripped_filename;
+	RAII_VAR(char *, filepath, NULL, ast_free);
+	RAII_VAR(char *, real_dir, NULL, ast_std_free);
+	RAII_VAR(char *, real_path, NULL, ast_free);
+	char *filename;
 
-	if ((fd = open(ast_str_buffer(filepath), O_CREAT | O_EXCL, AST_FILE_MODE)) != -1) {
+	if (ast_strlen_zero(fn)) {
+		astman_send_error(s, m, "Filename not specified");
+		return 0;
+	}
+
+	stripped_filename = ast_strip(ast_strdupa(fn));
+
+	/* If the file name is relative, prepend ast_config_AST_CONFIG_DIR */
+	if (stripped_filename[0] != '/') {
+		if (ast_asprintf(&filepath, "%s/%s", ast_config_AST_CONFIG_DIR, stripped_filename) == -1) {
+			return -1;
+		}
+	} else {
+		filepath = ast_strdup(stripped_filename);
+	}
+
+	/*
+	 * We can't call is_restricted_file() here because it uses realpath() and...
+	 *
+	 * realpath() and other functions that canonicalize paths won't work with
+	 * a filename that doesn't exist, so we need to separate the directory
+	 * from the filename and canonicalize the directory first.  We have to do
+	 * the separation manually because dirname() and basename() aren't all
+	 * that friendly to multi-threaded programs and there are different
+	 * versions of basename for glibc and POSIX.
+	 */
+
+	filename = strrchr(filepath, '/');
+	if (!filename) {
+		astman_send_error(s, m, "Filename is invalid");
+		return 0;
+	}
+	*filename = '\0';
+	filename++;
+
+	/* filepath just has the directory now so canonicalize it. */
+	real_dir = realpath(filepath, NULL);
+	if (ast_strlen_zero(real_dir)) {
+		astman_send_error(s, m, strerror(errno));
+		return 0;
+	}
+
+	/* Check if the directory is restricted. */
+	if (!live_dangerously && !ast_begins_with(real_dir, ast_config_AST_CONFIG_DIR)) {
+		astman_send_error(s, m, "File requires escalated privileges");
+		return 0;
+	}
+
+	/* Create the final file path. */
+	if (ast_asprintf(&real_path, "%s/%s", real_dir, filename) == -1) {
+		astman_send_error(s, m, strerror(errno));
+		return -1;
+	}
+
+	if ((fd = open(real_path, O_CREAT | O_EXCL, AST_FILE_MODE)) != -1) {
 		close(fd);
 		astman_send_ack(s, m, "New configuration file created successfully");
 	} else {
