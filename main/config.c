@@ -2246,7 +2246,6 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 		}
 		if (!result && (include_type != CONFIG_STATEMENT_TRYINCLUDE)) {
 			ast_log(LOG_ERROR, "The file '%s' was listed as a #include but it does not exist.\n", cur);
-			ast_include_destroy(newinclude);
 			return -1;
 		}
 
