@@ -869,19 +869,11 @@ const char *ast_config_option(struct ast_config *cfg, const char *cat, const cha
 const char *ast_variable_retrieve(struct ast_config *config, const char *category, const char *variable)
 {
 	struct ast_variable *v;
-	const char *match = NULL;
-
-	/* We can't return as soon as we find a match, because if a config section overrides
-	 * something specified in a template, then the actual effective value is the last
-	 * one encountered, not the first one.
-	 * (This is like using the -1 index for the AST_CONFIG function.)
-	 * Also see ast_variable_find_last_in_list
-	 */
 
 	if (category) {
 		for (v = ast_variable_browse(config, category); v; v = v->next) {
 			if (!strcasecmp(variable, v->name)) {
-				match = v->value;
+				return v->value;
 			}
 		}
 	} else {
@@ -890,13 +882,13 @@ const char *ast_variable_retrieve(struct ast_config *config, const char *categor
 		for (cat = config->root; cat; cat = cat->next) {
 			for (v = cat->root; v; v = v->next) {
 				if (!strcasecmp(variable, v->name)) {
-					match = v->value;
+					return v->value;
 				}
 			}
 		}
 	}
 
-	return match;
+	return NULL;
 }
 
 const char *ast_variable_retrieve_filtered(struct ast_config *config,
