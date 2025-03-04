@@ -96,6 +96,7 @@
 #include "asterisk/test.h"
 #include "asterisk/json.h"
 #include "asterisk/bridge.h"
+#include "asterisk/bridge_after.h"
 #include "asterisk/features_config.h"
 #include "asterisk/rtp_engine.h"
 #include "asterisk/format_cache.h"
@@ -3890,6 +3891,12 @@ static int action_sendtext(struct mansession *s, const struct message *m)
 	return 0;
 }
 
+static int _action_redirect_async_goto(struct ast_channel *chan, const char *context, const char *exten, int priority)
+{
+	ast_bridge_discard_after_goto(chan);
+	return ast_async_goto(chan, context, exten, priority);
+}
+
 /*! \brief  action_redirect: The redirect manager command */
 static int action_redirect(struct mansession *s, const struct message *m)
 {
@@ -3968,7 +3975,7 @@ static int action_redirect(struct mansession *s, const struct message *m)
 
 	if (ast_strlen_zero(name2)) {
 		/* Single channel redirect in progress. */
-		res = ast_async_goto(chan, context, exten, pi);
+		res = _action_redirect_async_goto(chan, context, exten, pi);
 		if (!res) {
 			astman_send_ack(s, m, "Redirect successful");
 		} else {
@@ -4007,12 +4014,12 @@ static int action_redirect(struct mansession *s, const struct message *m)
 	}
 	ast_channel_unlock(chan2);
 
-	res = ast_async_goto(chan, context, exten, pi);
+	res = _action_redirect_async_goto(chan, context, exten, pi);
 	if (!res) {
 		if (!ast_strlen_zero(context2)) {
-			res = ast_async_goto(chan2, context2, exten2, pi2);
+			res = _action_redirect_async_goto(chan2, context2, exten2, pi2);
 		} else {
-			res = ast_async_goto(chan2, context, exten, pi);
+			res = _action_redirect_async_goto(chan2, context, exten, pi);
 		}
 		if (!res) {
 			astman_send_ack(s, m, "Dual Redirect successful");
