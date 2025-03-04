@@ -9185,8 +9185,12 @@ static int rtp_red_init(struct ast_rtp_instance *instance, int buffer_time, int 
 		rtp->red->t140red_data[x*4] = rtp->red->pt[x];
 	}
 	rtp->red->t140red_data[x*4] = rtp->red->pt[x] = payloads[x]; /* primary pt */
+	ao2_ref(instance, +1);
 	rtp->red->schedid = ast_sched_add(rtp->sched, buffer_time, red_write, instance);
-
+	if (rtp->red->schedid < 0) {
+		ao2_ref(instance, -1);
+		ast_log(LOG_WARNING, "scheduling red_write failed.\n");
+	}
 	return 0;
 }
 
