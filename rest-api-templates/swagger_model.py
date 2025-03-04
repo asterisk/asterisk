@@ -464,7 +464,7 @@ def get_list_parameter_type(type_string):
     @param type_string: Type string to parse
     @returns Type parameter of the list, or None if not a List.
     """
-    list_match = re.match('^List\[(.*)\]$', type_string)
+    list_match = re.match(r'^List\[(.*)\]$', type_string)
     return list_match and list_match.group(1)
 
 
