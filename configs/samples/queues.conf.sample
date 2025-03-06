@@ -9,6 +9,14 @@
 ;
 persistentmembers = yes
 ;
+; Cidname_logging
+;A switch To enable Caller ID Name to be  logged in Parameter 4 when
+; entering the queue.
+;enable_cidname_logging = no(default) → Caller ID Name is NOT logged in the queue log.
+;enable_cidname_logging = yes → Caller ID Name is logged (if not restricted).
+;This setting is global,meaning it applies to all queues.
+enable_cidname_logging = no ; Change to 'yes' to enable logging Caller ID Name
+;
 ; AutoFill Behavior
 ;    The old behavior of the queue (autofill=no) is to have a serial type behavior
 ;    in that the queue will make all waiting callers wait in the queue
