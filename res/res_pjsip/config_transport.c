@@ -1835,7 +1835,7 @@ int ast_sip_initialize_sorcery_transport(void)
 	ast_sorcery_object_field_register_custom(sorcery, "transport", "require_client_cert", "", transport_tls_bool_handler, require_client_cert_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sorcery, "transport", "allow_wildcard_certs", "", transport_tls_bool_handler, allow_wildcard_certs_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sorcery, "transport", "method", "", transport_tls_method_handler, tls_method_to_str, NULL, 0, 0);
-	ast_sorcery_object_field_register(sorcery, "transport", "tcp_keepalive_enable", "no", OPT_BOOL_T, 0, FLDSET(struct ast_sip_transport, tcp_keepalive_enable));
+	ast_sorcery_object_field_register(sorcery, "transport", "tcp_keepalive_enable", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_transport, tcp_keepalive_enable));
 	ast_sorcery_object_field_register(sorcery, "transport", "tcp_keepalive_idle_time", "30", OPT_INT_T, 0, FLDSET(struct ast_sip_transport, tcp_keepalive_idle_time));
 	ast_sorcery_object_field_register(sorcery, "transport", "tcp_keepalive_interval_time", "1", OPT_INT_T, 0, FLDSET(struct ast_sip_transport, tcp_keepalive_interval_time));
 	ast_sorcery_object_field_register(sorcery, "transport", "tcp_keepalive_probe_count", "5", OPT_INT_T, 0, FLDSET(struct ast_sip_transport, tcp_keepalive_probe_count));
