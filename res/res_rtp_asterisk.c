@@ -495,11 +495,11 @@ struct ast_rtp {
 
 	struct ast_rtp_ioqueue_thread *ioqueue; /*!< The ioqueue thread handling us */
 
-	char remote_ufrag[256];  /*!< The remote ICE username */
-	char remote_passwd[256]; /*!< The remote ICE password */
+	char remote_ufrag[257];  /*!< The remote ICE username */
+	char remote_passwd[257]; /*!< The remote ICE password */
 
-	char local_ufrag[256];  /*!< The local ICE username */
-	char local_passwd[256]; /*!< The local ICE password */
+	char local_ufrag[257];  /*!< The local ICE username */
+	char local_passwd[257]; /*!< The local ICE password */
 
 	struct ao2_container *ice_local_candidates;           /*!< The local ICE candidates */
 	struct ao2_container *ice_active_remote_candidates;   /*!< The remote ICE candidates */
