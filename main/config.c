@@ -1645,41 +1645,51 @@ int ast_variable_delete(struct ast_category *category, const char *variable, con
 int ast_variable_update(struct ast_category *category, const char *variable,
 						const char *value, const char *match, unsigned int object)
 {
-	struct ast_variable *cur, *prev=NULL, *newer=NULL, *matchvar = NULL;
+	struct ast_variable *cur, *prev = NULL, *newer = NULL;
+	struct ast_variable *matchcur = NULL, *matchprev = NULL;
 
+	/* Find the last match. See comments in ast_variable_retrieve,
+	 * but this ensures updating config sections that inherit from
+	 * templates works properly. */
 	for (cur = category->root; cur; prev = cur, cur = cur->next) {
-		if (strcasecmp(cur->name, variable) ||
-			(!ast_strlen_zero(match) && strcasecmp(cur->value, match)))
-			continue;
-		matchvar = cur;
-	}
-
-	for (cur = category->root; cur; prev = cur, cur = cur->next) {
-		if (cur != matchvar) {
+		if (strcasecmp(cur->name, variable) || (!ast_strlen_zero(match) && strcasecmp(cur->value, match))) {
+			/* Not the same variable,
+			 * or its value doesn't match. */
 			continue;
 		}
-		if (!(newer = ast_variable_new(variable, value, cur->file)))
-			return -1;
-
-		ast_variable_move(newer, cur);
-		newer->object = newer->object || object;
-
-		/* Replace the old node in the list with the new node. */
-		newer->next = cur->next;
-		if (prev)
-			prev->next = newer;
-		else
-			category->root = newer;
-		if (category->last == cur)
-			category->last = newer;
-
-		ast_variable_destroy(cur);
-
-		return 0;
+		matchprev = prev;
+		matchcur = cur;
 	}
 
-	/* Could not find variable to update */
-	return -1;
+	if (!matchcur) {
+		/* Could not find variable to update */
+		return -1;
+	}
+
+	/* Restore pointers from the matching var */
+	prev = matchprev;
+	cur = matchcur;
+
+	if (!(newer = ast_variable_new(variable, value, cur->file))) {
+		return -1;
+	}
+
+	ast_variable_move(newer, cur);
+	newer->object = newer->object || object;
+
+	/* Replace the old node in the list with the new node. */
+	newer->next = cur->next;
+	if (prev) {
+		prev->next = newer;
+	} else {
+		category->root = newer;
+	}
+	if (category->last == cur) {
+		category->last = newer;
+	}
+
+	ast_variable_destroy(cur);
+	return 0;
 }
 
 struct ast_category *ast_category_delete(struct ast_config *config,
