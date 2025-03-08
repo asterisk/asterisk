@@ -4338,6 +4338,8 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 		return AST_PBX_FAILED;
 	}
 
+	pbx->pbx_args = args; /* Keep a reference to our arguments, so that we can modify the arguments from the PBX later if desired */
+
 	callid = ast_read_threadstorage_callid();
 	/* If the thread isn't already associated with a callid, we should create that association. */
 	if (!callid) {
@@ -4700,6 +4702,21 @@ static void destroy_exten(struct ast_exten *e)
 	ast_free(e);
 }
 
+/*! \brief Wrapper for __ast_pbx_run. Provides an ast_pbx_args for the PBX if one wasn't passed by the caller. */
+static enum ast_pbx_result _ast_pbx_run(struct ast_channel *c, struct ast_pbx_args *args)
+{
+	struct ast_pbx_args stack_args;
+
+	if (!args) {
+		/* So that any PBX can be updated to add flags while the channel is running,
+		 * give every PBX an arguments structure if it doesn't already one. */
+		memset(&stack_args, 0, sizeof(stack_args));
+		args = &stack_args;
+	}
+
+	return __ast_pbx_run(c, args);
+}
+
 static void *pbx_thread(void *data)
 {
 	/* Oh joyous kernel, we're a new thread, with nothing to do but
@@ -4712,7 +4729,7 @@ static void *pbx_thread(void *data)
 	 */
 	struct ast_channel *c = data;
 
-	__ast_pbx_run(c, NULL);
+	_ast_pbx_run(c, NULL);
 	decrease_call_count();
 
 	pthread_exit(NULL);
@@ -4747,6 +4764,28 @@ enum ast_pbx_result ast_pbx_start(struct ast_channel *c)
 	return AST_PBX_SUCCESS;
 }
 
+int ast_pbx_set_args(struct ast_channel *c, struct ast_pbx_args *args)
+{
+	struct ast_pbx *pbx;
+
+	ast_channel_lock(c);
+	pbx = ast_channel_pbx(c);
+	if (!pbx) {
+		ast_log(LOG_ERROR, "Channel %s doesn't have a PBX\n", ast_channel_name(c));
+		ast_channel_unlock(c);
+		return -1;
+	}
+	if (!pbx->pbx_args) {
+		ast_log(LOG_ERROR, "PBX on %s doesn't have any mutable arguments\n", ast_channel_name(c));
+		ast_channel_unlock(c);
+		return -1;
+	}
+	/* Replace the old arguments with the new */
+	memcpy(pbx->pbx_args, args, sizeof(struct ast_pbx_args));
+	ast_channel_unlock(c);
+	return 0;
+}
+
 enum ast_pbx_result ast_pbx_run_args(struct ast_channel *c, struct ast_pbx_args *args)
 {
 	enum ast_pbx_result res = AST_PBX_SUCCESS;
@@ -4760,7 +4799,7 @@ enum ast_pbx_result ast_pbx_run_args(struct ast_channel *c, struct ast_pbx_args 
 		return AST_PBX_CALL_LIMIT;
 	}
 
-	res = __ast_pbx_run(c, args);
+	res = _ast_pbx_run(c, args);
 
 	decrease_call_count();
 

@@ -215,8 +215,8 @@ int ast_destroy_timing(struct ast_timing *i);
 struct ast_pbx {
 	int dtimeoutms;				/*!< Timeout between digits (milliseconds) */
 	int rtimeoutms;				/*!< Timeout for response (milliseconds) */
+	struct ast_pbx_args *pbx_args;	/*!< PBX args */
 };
-
 
 /*!
  * \brief Register an alternative dialplan switch
@@ -416,6 +416,26 @@ struct ast_pbx_args {
 		};
 	};
 };
+
+/*!
+ * \brief Update a channel's existing PBX with new arguments
+ *
+ * \param c channel on which the PBX is running
+ * \param args Options for the PBX
+ *
+ * This updates the PBX arguments on an existing PBX with new arguments
+ * that replace any existing arguments. This is useful if PBX arguments
+ * need to be set or modified after the PBX has already been started.
+ * Arguments can be provided even if none were provided to start the PBX initially.
+ *
+ * If possible, avoid this function and use ast_pbx_run_args instead.
+ *
+ * No channel locks need to be held when calling this function.
+ *
+ * \retval 0 on success
+ * \retval -1 on failure (no PBX on channel, or PBX doesn't have an arguments structure)
+ */
+int ast_pbx_set_args(struct ast_channel *c, struct ast_pbx_args *args);
 
 /*!
  * \brief Execute the PBX in the current thread
