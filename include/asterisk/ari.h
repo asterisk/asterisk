@@ -50,7 +50,7 @@ struct ast_ari_response;
 
 /*!
  * \brief Callback type for RESTful method handlers.
- * \param ser TCP/TLS session object
+ * \param ser TCP/TLS session object (Maybe NULL if not available).
  * \param get_params GET parameters from the HTTP request.
  * \param path_vars Path variables from any wildcard path segments.
  * \param headers HTTP headers from the HTTP requiest.
@@ -78,8 +78,17 @@ struct stasis_rest_handlers {
 	int is_wildcard;
 	/*! Callbacks for all handled HTTP methods. */
 	stasis_rest_callback callbacks[AST_HTTP_MAX_METHOD];
-	/*! WebSocket server for handling WebSocket upgrades. */
-	struct ast_websocket_server *ws_server;
+	/*!
+	 * ws_server is no longer needed to indicate if a path should cause
+	 * an Upgrade to websocket but is kept for backwards compatability.
+	 * Instead, simply set is_websocket to true.
+	 */
+	union {
+		/*! \deprecated WebSocket server for handling WebSocket upgrades. */
+		struct ast_websocket_server *ws_server;
+		/*! The path segment is handled by the websocket */
+		int is_websocket;
+	};
 	/*! Number of children in the children array */
 	size_t num_children;
 	/*! Handlers for sub-paths */
@@ -123,6 +132,26 @@ int ast_ari_remove_handler(struct stasis_rest_handlers *handler);
 
 /*!
  * \internal
+ * \brief Stasis RESTful invocation handler response codes.
+ */
+enum ast_ari_invoke_result {
+	ARI_INVOKE_RESULT_SUCCESS = 0,
+	ARI_INVOKE_RESULT_ERROR_CONTINUE = -1,
+	ARI_INVOKE_RESULT_ERROR_CLOSE = -2,
+};
+
+/*!
+ * \internal
+ * \brief How was Stasis RESTful invocation handler invoked?
+ */
+enum ast_ari_invoke_source {
+	ARI_INVOKE_SOURCE_REST = 0,
+	ARI_INVOKE_SOURCE_WEBSOCKET,
+	ARI_INVOKE_SOURCE_TEST,
+};
+
+/*!
+ * \internal
  * \brief Stasis RESTful invocation handler.
  *
  * Only call from res_ari and test_ari. Only public to allow
@@ -135,8 +164,10 @@ int ast_ari_remove_handler(struct stasis_rest_handlers *handler);
  * \param headers HTTP headers.
  * \param body
  * \param[out] response RESTful HTTP response.
+ * \param is_websocket Flag to indicate if this is a WebSocket request.
  */
-void ast_ari_invoke(struct ast_tcptls_session_instance *ser,
+enum ast_ari_invoke_result ast_ari_invoke(struct ast_tcptls_session_instance *ser,
+	enum ast_ari_invoke_source source, const struct ast_http_uri *urih,
 	const char *uri, enum ast_http_method method,
 	struct ast_variable *get_params, struct ast_variable *headers,
 	struct ast_json *body, struct ast_ari_response *response);
@@ -154,63 +185,6 @@ void ast_ari_invoke(struct ast_tcptls_session_instance *ser,
  * \param[out] response RESTful HTTP response.
  */
 void ast_ari_get_docs(const char *uri, const char *prefix, struct ast_variable *headers, struct ast_ari_response *response);
-
-/*! \brief Abstraction for reading/writing JSON to a WebSocket */
-struct ast_ari_websocket_session;
-
-/*!
- * \brief Create an ARI WebSocket session.
- *
- * If \c NULL is given for the validator function, no validation will be
- * performed.
- *
- * \param ws_session Underlying WebSocket session.
- * \param validator Function to validate outgoing messages.
- * \return New ARI WebSocket session.
- * \retval NULL on error.
- */
-struct ast_ari_websocket_session *ast_ari_websocket_session_create(
-	struct ast_websocket *ws_session, int (*validator)(struct ast_json *));
-
-/*!
- * \brief Read a message from an ARI WebSocket.
- *
- * \param session Session to read from.
- * \return Message received.
- * \retval NULL if WebSocket could not be read.
- */
-struct ast_json *ast_ari_websocket_session_read(
-	struct ast_ari_websocket_session *session);
-
-/*!
- * \brief Send a message to an ARI WebSocket.
- *
- * \param session Session to write to.
- * \param message Message to send.
- * \retval 0 on success.
- * \retval Non-zero on error.
- */
-int ast_ari_websocket_session_write(struct ast_ari_websocket_session *session,
-	struct ast_json *message);
-
-/*!
- * \brief Get the Session ID for an ARI WebSocket.
- *
- * \param session Session to query.
- * \return Session ID.
- * \retval NULL on error.
- */
-const char *ast_ari_websocket_session_id(
-	const struct ast_ari_websocket_session *session);
-
-/*!
- * \brief Get the remote address from an ARI WebSocket.
- *
- * \param session Session to write to.
- * \return ast_sockaddr (does not have to be freed)
- */
-struct ast_sockaddr *ast_ari_websocket_session_get_remote_addr(
-	struct ast_ari_websocket_session *session);
 
 /*!
  * \brief The stock message to return when out of memory.

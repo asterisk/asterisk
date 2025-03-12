@@ -345,7 +345,7 @@ AST_TEST_DEFINE(invoke_get)
 				 "head2", "head-two",
 				 "path_vars");
 
-	ast_ari_invoke(NULL, "foo", AST_HTTP_GET, get_params, headers,
+	ast_ari_invoke(NULL, ARI_INVOKE_SOURCE_TEST, NULL, "foo", AST_HTTP_GET, get_params, headers,
 		ast_json_null(), response);
 
 	ast_test_validate(test, 1 == invocation_count);
@@ -383,7 +383,7 @@ AST_TEST_DEFINE(invoke_wildcard)
 				 "path_vars",
 				 "bam", "foshizzle");
 
-	ast_ari_invoke(NULL, "foo/foshizzle", AST_HTTP_GET, get_params, headers,
+	ast_ari_invoke(NULL, ARI_INVOKE_SOURCE_TEST, NULL, "foo/foshizzle", AST_HTTP_GET, get_params, headers,
 		ast_json_null(), response);
 
 	ast_test_validate(test, 1 == invocation_count);
@@ -421,7 +421,7 @@ AST_TEST_DEFINE(invoke_delete)
 				 "path_vars",
 				 "bam", "foshizzle");
 
-	ast_ari_invoke(NULL, "foo/foshizzle/bang", AST_HTTP_DELETE, get_params, headers,
+	ast_ari_invoke(NULL, ARI_INVOKE_SOURCE_TEST, NULL, "foo/foshizzle/bang", AST_HTTP_DELETE, get_params, headers,
 		ast_json_null(), response);
 
 	ast_test_validate(test, 1 == invocation_count);
@@ -472,7 +472,7 @@ AST_TEST_DEFINE(invoke_post)
 				 "head2", "head-two",
 				 "path_vars");
 
-	ast_ari_invoke(NULL, "foo/bar", AST_HTTP_POST, get_params, headers,
+	ast_ari_invoke(NULL, ARI_INVOKE_SOURCE_TEST, NULL, "foo/bar", AST_HTTP_POST, get_params, headers,
 		ast_json_null(), response);
 
 	ast_test_validate(test, 1 == invocation_count);
@@ -502,7 +502,7 @@ AST_TEST_DEFINE(invoke_bad_post)
 
 	fixture = setup_invocation_test();
 	response = response_alloc();
-	ast_ari_invoke(NULL, "foo", AST_HTTP_POST, get_params, headers,
+	ast_ari_invoke(NULL, ARI_INVOKE_SOURCE_TEST, NULL, "foo", AST_HTTP_POST, get_params, headers,
 		ast_json_null(), response);
 
 	ast_test_validate(test, 0 == invocation_count);
@@ -531,7 +531,7 @@ AST_TEST_DEFINE(invoke_not_found)
 
 	fixture = setup_invocation_test();
 	response = response_alloc();
-	ast_ari_invoke(NULL, "foo/fizzle/i-am-not-a-resource", AST_HTTP_GET, get_params, headers,
+	ast_ari_invoke(NULL, ARI_INVOKE_SOURCE_TEST, NULL, "foo/fizzle/i-am-not-a-resource", AST_HTTP_GET, get_params, headers,
 		ast_json_null(), response);
 
 	ast_test_validate(test, 0 == invocation_count);
