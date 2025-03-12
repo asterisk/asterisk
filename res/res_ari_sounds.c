@@ -215,6 +215,7 @@ static struct stasis_rest_handlers sounds = {
 
 static int unload_module(void)
 {
+
 	ast_ari_remove_handler(&sounds);
 	return 0;
 }

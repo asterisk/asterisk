@@ -200,7 +200,9 @@
 				"TextMessageReceived",
 				"ChannelConnectedLine",
 				"PeerStatusChange",
-				"ChannelTransfer"
+				"ChannelTransfer",
+				"RESTStatusResponse",
+				"RESTResponseMsg"
 			]
 		},
 		"ContactInfo": {
@@ -1037,6 +1039,111 @@
 					"required": true,
 					"type": "string",
 					"description": "Value of the parameter"
+				}
+			}
+		},
+		"RESTStatus": {
+			"id": "RESTStatus",
+			"description": "REST over Websocket Status",
+			"properties": {
+				"status_code": {
+					"required": true,
+					"type": "int",
+					"description": "HTTP status code"
+				},
+				"reason_phrase": {
+					"required": true,
+					"type": "string",
+					"description": "HTTP reason phrase"
+				}
+			}
+		},
+		"RESTStatusResponse": {
+			"id": "RESTStatusResponse",
+			"description": "REST over Websocket Status response",
+			"properties": {
+				"identity": {
+					"type": "string",
+					"description": "Opaque identity",
+					"required": true
+				},
+				"status": {
+					"type": "RESTStatus",
+					"description": "Response Status",
+					"required": true
+				},
+				"application": {
+					"type": "string",
+					"description": "Requesting application",
+					"required": false
+				}
+			}
+		},
+		"RESTHeader": {
+			"id": "RESTHeader",
+			"description": "REST over Websocket header",
+			"properties": {
+				"name": {
+					"type": "string",
+					"description": "Header name",
+					"required": true
+				},
+				"value": {
+					"required": true,
+					"type": "string",
+					"description": "Header value"
+				}
+			}
+		},
+		"RESTResponse": {
+			"id": "RESTResponse",
+			"description": "REST over Websocket responses.",
+			"properties": {
+				"uuid": {
+					"type": "string",
+					"description": "Opaque identity",
+					"required": true
+				},
+				"status_code": {
+					"required": true,
+					"type": "int",
+					"description": "HTTP status code"
+				},
+				"reason_phrase": {
+					"required": true,
+					"type": "string",
+					"description": "HTTP reason phrase"
+				},
+				"path": {
+					"required": true,
+					"type": "string",
+					"description": "Request path"
+				},
+				"headers": {
+					"required": false,
+					"type": "List[RESTHeader]",
+					"description": "Headers"
+				},
+				"message_body": {
+					"required": false,
+					"type": "string",
+					"description": "Message body"
+				}
+			}
+		},
+		"RESTResponseMsg": {
+			"id": "RESTResponseMsg",
+			"description": "REST over Websocket response.",
+			"properties": {
+				"identity": {
+					"type": "string",
+					"description": "Opaque identity",
+					"required": true
+				},
+				"responses": {
+					"type": "List[RESTResponse]",
+					"description": "Response Array",
+					"required": true
 				}
 			}
 		}

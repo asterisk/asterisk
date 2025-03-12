@@ -3311,6 +3311,7 @@ static struct stasis_rest_handlers channels = {
 
 static int unload_module(void)
 {
+
 	ast_ari_remove_handler(&channels);
 	return 0;
 }

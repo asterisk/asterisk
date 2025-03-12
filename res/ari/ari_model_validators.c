@@ -6184,6 +6184,12 @@ int ast_ari_validate_event(struct ast_json *json)
 	if (strcmp("PlaybackStarted", discriminator) == 0) {
 		return ast_ari_validate_playback_started(json);
 	} else
+	if (strcmp("RESTResponseMsg", discriminator) == 0) {
+		return ast_ari_validate_restresponse_msg(json);
+	} else
+	if (strcmp("RESTStatusResponse", discriminator) == 0) {
+		return ast_ari_validate_reststatus_response(json);
+	} else
 	if (strcmp("RecordingFailed", discriminator) == 0) {
 		return ast_ari_validate_recording_failed(json);
 	} else
@@ -6402,6 +6408,12 @@ int ast_ari_validate_message(struct ast_json *json)
 	} else
 	if (strcmp("PlaybackStarted", discriminator) == 0) {
 		return ast_ari_validate_playback_started(json);
+	} else
+	if (strcmp("RESTResponseMsg", discriminator) == 0) {
+		return ast_ari_validate_restresponse_msg(json);
+	} else
+	if (strcmp("RESTStatusResponse", discriminator) == 0) {
+		return ast_ari_validate_reststatus_response(json);
 	} else
 	if (strcmp("RecordingFailed", discriminator) == 0) {
 		return ast_ari_validate_recording_failed(json);
@@ -7000,6 +7012,451 @@ int ast_ari_validate_playback_started(struct ast_json *json)
 ari_validator ast_ari_validate_playback_started_fn(void)
 {
 	return ast_ari_validate_playback_started;
+}
+
+int ast_ari_validate_restheader(struct ast_json *json)
+{
+	int res = 1;
+	struct ast_json_iter *iter;
+	int has_name = 0;
+	int has_value = 0;
+
+	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("name", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_name = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RESTHeader field name failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("value", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_value = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RESTHeader field value failed validation\n");
+				res = 0;
+			}
+		} else
+		{
+			ast_log(LOG_ERROR,
+				"ARI RESTHeader has undocumented field %s\n",
+				ast_json_object_iter_key(iter));
+			res = 0;
+		}
+	}
+
+	if (!has_name) {
+		ast_log(LOG_ERROR, "ARI RESTHeader missing required field name\n");
+		res = 0;
+	}
+
+	if (!has_value) {
+		ast_log(LOG_ERROR, "ARI RESTHeader missing required field value\n");
+		res = 0;
+	}
+
+	return res;
+}
+
+ari_validator ast_ari_validate_restheader_fn(void)
+{
+	return ast_ari_validate_restheader;
+}
+
+int ast_ari_validate_restresponse(struct ast_json *json)
+{
+	int res = 1;
+	struct ast_json_iter *iter;
+	int has_path = 0;
+	int has_reason_phrase = 0;
+	int has_status_code = 0;
+	int has_uuid = 0;
+
+	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("headers", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_list(
+				ast_json_object_iter_value(iter),
+				ast_ari_validate_restheader);
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RESTResponse field headers failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("message_body", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RESTResponse field message_body failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("path", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_path = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RESTResponse field path failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("reason_phrase", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_reason_phrase = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RESTResponse field reason_phrase failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("status_code", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_status_code = 1;
+			prop_is_valid = ast_ari_validate_int(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RESTResponse field status_code failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("uuid", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_uuid = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RESTResponse field uuid failed validation\n");
+				res = 0;
+			}
+		} else
+		{
+			ast_log(LOG_ERROR,
+				"ARI RESTResponse has undocumented field %s\n",
+				ast_json_object_iter_key(iter));
+			res = 0;
+		}
+	}
+
+	if (!has_path) {
+		ast_log(LOG_ERROR, "ARI RESTResponse missing required field path\n");
+		res = 0;
+	}
+
+	if (!has_reason_phrase) {
+		ast_log(LOG_ERROR, "ARI RESTResponse missing required field reason_phrase\n");
+		res = 0;
+	}
+
+	if (!has_status_code) {
+		ast_log(LOG_ERROR, "ARI RESTResponse missing required field status_code\n");
+		res = 0;
+	}
+
+	if (!has_uuid) {
+		ast_log(LOG_ERROR, "ARI RESTResponse missing required field uuid\n");
+		res = 0;
+	}
+
+	return res;
+}
+
+ari_validator ast_ari_validate_restresponse_fn(void)
+{
+	return ast_ari_validate_restresponse;
+}
+
+int ast_ari_validate_restresponse_msg(struct ast_json *json)
+{
+	int res = 1;
+	struct ast_json_iter *iter;
+	int has_type = 0;
+	int has_application = 0;
+	int has_timestamp = 0;
+	int has_identity = 0;
+	int has_responses = 0;
+
+	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RESTResponseMsg field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_type = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RESTResponseMsg field type failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("application", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_application = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RESTResponseMsg field application failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_timestamp = 1;
+			prop_is_valid = ast_ari_validate_date(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RESTResponseMsg field timestamp failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("identity", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_identity = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RESTResponseMsg field identity failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("responses", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_responses = 1;
+			prop_is_valid = ast_ari_validate_list(
+				ast_json_object_iter_value(iter),
+				ast_ari_validate_restresponse);
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RESTResponseMsg field responses failed validation\n");
+				res = 0;
+			}
+		} else
+		{
+			ast_log(LOG_ERROR,
+				"ARI RESTResponseMsg has undocumented field %s\n",
+				ast_json_object_iter_key(iter));
+			res = 0;
+		}
+	}
+
+	if (!has_type) {
+		ast_log(LOG_ERROR, "ARI RESTResponseMsg missing required field type\n");
+		res = 0;
+	}
+
+	if (!has_application) {
+		ast_log(LOG_ERROR, "ARI RESTResponseMsg missing required field application\n");
+		res = 0;
+	}
+
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI RESTResponseMsg missing required field timestamp\n");
+		res = 0;
+	}
+
+	if (!has_identity) {
+		ast_log(LOG_ERROR, "ARI RESTResponseMsg missing required field identity\n");
+		res = 0;
+	}
+
+	if (!has_responses) {
+		ast_log(LOG_ERROR, "ARI RESTResponseMsg missing required field responses\n");
+		res = 0;
+	}
+
+	return res;
+}
+
+ari_validator ast_ari_validate_restresponse_msg_fn(void)
+{
+	return ast_ari_validate_restresponse_msg;
+}
+
+int ast_ari_validate_reststatus(struct ast_json *json)
+{
+	int res = 1;
+	struct ast_json_iter *iter;
+	int has_reason_phrase = 0;
+	int has_status_code = 0;
+
+	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("reason_phrase", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_reason_phrase = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RESTStatus field reason_phrase failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("status_code", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_status_code = 1;
+			prop_is_valid = ast_ari_validate_int(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RESTStatus field status_code failed validation\n");
+				res = 0;
+			}
+		} else
+		{
+			ast_log(LOG_ERROR,
+				"ARI RESTStatus has undocumented field %s\n",
+				ast_json_object_iter_key(iter));
+			res = 0;
+		}
+	}
+
+	if (!has_reason_phrase) {
+		ast_log(LOG_ERROR, "ARI RESTStatus missing required field reason_phrase\n");
+		res = 0;
+	}
+
+	if (!has_status_code) {
+		ast_log(LOG_ERROR, "ARI RESTStatus missing required field status_code\n");
+		res = 0;
+	}
+
+	return res;
+}
+
+ari_validator ast_ari_validate_reststatus_fn(void)
+{
+	return ast_ari_validate_reststatus;
+}
+
+int ast_ari_validate_reststatus_response(struct ast_json *json)
+{
+	int res = 1;
+	struct ast_json_iter *iter;
+	int has_type = 0;
+	int has_application = 0;
+	int has_timestamp = 0;
+	int has_identity = 0;
+	int has_status = 0;
+
+	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RESTStatusResponse field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_type = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RESTStatusResponse field type failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("application", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_application = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RESTStatusResponse field application failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_timestamp = 1;
+			prop_is_valid = ast_ari_validate_date(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RESTStatusResponse field timestamp failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("application", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RESTStatusResponse field application failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("identity", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_identity = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RESTStatusResponse field identity failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("status", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_status = 1;
+			prop_is_valid = ast_ari_validate_reststatus(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RESTStatusResponse field status failed validation\n");
+				res = 0;
+			}
+		} else
+		{
+			ast_log(LOG_ERROR,
+				"ARI RESTStatusResponse has undocumented field %s\n",
+				ast_json_object_iter_key(iter));
+			res = 0;
+		}
+	}
+
+	if (!has_type) {
+		ast_log(LOG_ERROR, "ARI RESTStatusResponse missing required field type\n");
+		res = 0;
+	}
+
+	if (!has_application) {
+		ast_log(LOG_ERROR, "ARI RESTStatusResponse missing required field application\n");
+		res = 0;
+	}
+
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI RESTStatusResponse missing required field timestamp\n");
+		res = 0;
+	}
+
+	if (!has_identity) {
+		ast_log(LOG_ERROR, "ARI RESTStatusResponse missing required field identity\n");
+		res = 0;
+	}
+
+	if (!has_status) {
+		ast_log(LOG_ERROR, "ARI RESTStatusResponse missing required field status\n");
+		res = 0;
+	}
+
+	return res;
+}
+
+ari_validator ast_ari_validate_reststatus_response_fn(void)
+{
+	return ast_ari_validate_reststatus_response;
 }
 
 int ast_ari_validate_recording_failed(struct ast_json *json)

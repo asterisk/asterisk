@@ -1216,6 +1216,86 @@ int ast_ari_validate_playback_started(struct ast_json *json);
 ari_validator ast_ari_validate_playback_started_fn(void);
 
 /*!
+ * \brief Validator for RESTHeader.
+ *
+ * REST over Websocket header
+ *
+ * \param json JSON object to validate.
+ * \retval True (non-zero) if valid.
+ * \retval False (zero) if invalid.
+ */
+int ast_ari_validate_restheader(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_restheader().
+ */
+ari_validator ast_ari_validate_restheader_fn(void);
+
+/*!
+ * \brief Validator for RESTResponse.
+ *
+ * REST over Websocket responses.
+ *
+ * \param json JSON object to validate.
+ * \retval True (non-zero) if valid.
+ * \retval False (zero) if invalid.
+ */
+int ast_ari_validate_restresponse(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_restresponse().
+ */
+ari_validator ast_ari_validate_restresponse_fn(void);
+
+/*!
+ * \brief Validator for RESTResponseMsg.
+ *
+ * REST over Websocket response.
+ *
+ * \param json JSON object to validate.
+ * \retval True (non-zero) if valid.
+ * \retval False (zero) if invalid.
+ */
+int ast_ari_validate_restresponse_msg(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_restresponse_msg().
+ */
+ari_validator ast_ari_validate_restresponse_msg_fn(void);
+
+/*!
+ * \brief Validator for RESTStatus.
+ *
+ * REST over Websocket Status
+ *
+ * \param json JSON object to validate.
+ * \retval True (non-zero) if valid.
+ * \retval False (zero) if invalid.
+ */
+int ast_ari_validate_reststatus(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_reststatus().
+ */
+ari_validator ast_ari_validate_reststatus_fn(void);
+
+/*!
+ * \brief Validator for RESTStatusResponse.
+ *
+ * REST over Websocket Status response
+ *
+ * \param json JSON object to validate.
+ * \retval True (non-zero) if valid.
+ * \retval False (zero) if invalid.
+ */
+int ast_ari_validate_reststatus_response(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_reststatus_response().
+ */
+ari_validator ast_ari_validate_reststatus_response_fn(void);
+
+/*!
  * \brief Validator for RecordingFailed.
  *
  * Event showing failure of a recording operation.
@@ -1821,6 +1901,34 @@ ari_validator ast_ari_validate_application_fn(void);
  * - application: string (required)
  * - timestamp: Date (required)
  * - playback: Playback (required)
+ * RESTHeader
+ * - name: string (required)
+ * - value: string (required)
+ * RESTResponse
+ * - headers: List[RESTHeader]
+ * - message_body: string
+ * - path: string (required)
+ * - reason_phrase: string (required)
+ * - status_code: int (required)
+ * - uuid: string (required)
+ * RESTResponseMsg
+ * - asterisk_id: string
+ * - type: string (required)
+ * - application: string (required)
+ * - timestamp: Date (required)
+ * - identity: string (required)
+ * - responses: List[RESTResponse] (required)
+ * RESTStatus
+ * - reason_phrase: string (required)
+ * - status_code: int (required)
+ * RESTStatusResponse
+ * - asterisk_id: string
+ * - type: string (required)
+ * - application: string (required)
+ * - timestamp: Date (required)
+ * - application: string
+ * - identity: string (required)
+ * - status: RESTStatus (required)
  * RecordingFailed
  * - asterisk_id: string
  * - type: string (required)

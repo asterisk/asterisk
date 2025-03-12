@@ -890,6 +890,7 @@ static struct stasis_rest_handlers recordings = {
 
 static int unload_module(void)
 {
+
 	ast_ari_remove_handler(&recordings);
 	return 0;
 }
