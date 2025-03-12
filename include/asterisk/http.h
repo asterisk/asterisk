@@ -157,6 +157,11 @@ void ast_http_uri_unlink_all_with_key(const char *key);
 const char *ast_get_http_method(enum ast_http_method method) attribute_pure;
 
 /*!
+ * \brief Return http method from string
+ */
+enum ast_http_method ast_get_http_method_from_string(const char *method);
+
+/*!
  * \brief Return mime type based on extension
  * \param ftype filename extension
  * \return String containing associated MIME type
@@ -278,6 +283,20 @@ int ast_http_body_discard(struct ast_tcptls_session_instance *ser);
  * \since 1.8
  */
 struct ast_variable *ast_http_get_post_vars(struct ast_tcptls_session_instance *ser, struct ast_variable *headers);
+
+/*!
+ * \brief Get post variables from an application/x-www-form-urlencoded buffer
+ * \param buf input buffer
+ * \param content_len Buffer length
+ * \param content_type Content type (must be "application/x-www-form-urlencoded")
+ *
+ * \warning The input buffer will be modified by strsep() so pass in a copy
+ *          if you need to keep the original.
+ *
+ * \return List of ast_variables from the buffer. Must be freed with ast_variables_destroy().
+ */
+struct ast_variable *ast_http_parse_post_form(char *buf, int content_length,
+	const char *content_type);
 
 struct ast_json;
 
