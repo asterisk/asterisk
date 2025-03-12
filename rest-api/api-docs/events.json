@@ -199,7 +199,8 @@
 				"TextMessageReceived",
 				"ChannelConnectedLine",
 				"PeerStatusChange",
-				"ChannelTransfer"
+				"ChannelTransfer",
+				"RESTResponse"
 			]
 		},
 		"ContactInfo": {
@@ -1025,6 +1026,125 @@
 					"required": true,
 					"type": "string",
 					"description": "Value of the parameter"
+				}
+			}
+		},
+		"RESTHeader": {
+			"id": "RESTHeader",
+			"description": "REST over Websocket header",
+			"properties": {
+				"name": {
+					"type": "string",
+					"description": "Header name",
+					"required": true
+				},
+				"value": {
+					"required": true,
+					"type": "string",
+					"description": "Header value"
+				}
+			}
+		},
+		"RESTQueryStringParameter": {
+			"id": "RESTQueryStringParameter",
+			"description": "REST over Websocket Query String Parameter",
+			"properties": {
+				"name": {
+					"type": "string",
+					"description": "Parameter name",
+					"required": true
+				},
+				"value": {
+					"required": true,
+					"type": "string",
+					"description": "Parameter value"
+				}
+			}
+		},
+		"RESTRequest": {
+			"id": "RESTRequest",
+			"description": "REST over Websocket Request.",
+			"properties": {
+				"type": {
+					"type": "string",
+					"description": "Message type.  Must be 'RESTRequest'",
+					"required": true
+				},
+				"transaction_id": {
+					"type": "string",
+					"description": "Opaque transaction id.  Can be any valid string.  Will be returned in any response to this request.",
+					"required": true
+				},
+				"request_id": {
+					"type": "string",
+					"description": "Opaque request id.  Can be any valid string.  Will be returned in any response to this request.",
+					"required": true
+				},
+				"method": {
+					"required": true,
+					"type": "string",
+					"description": "HTTP method (GET, PUT, POST, DELETE, etc.)"
+				},
+				"uri": {
+					"required": true,
+					"type": "string",
+					"description": "Resource URI with optional query string parameters."
+				},
+				"content_type": {
+					"required": false,
+					"type": "string",
+					"description": "The Content-Type of the message body."
+				},
+				"query_strings": {
+					"required": false,
+					"type": "List[RESTQueryStringParameter]",
+					"description": "Request query string parameters."
+				},
+				"message_body": {
+					"required": false,
+					"type": "string",
+					"description": "Request message body. Only content types application/json and application/x-www-form-urlencoded are supported."
+				}
+			}
+		},
+		"RESTResponse": {
+			"id": "RESTResponse",
+			"description": "REST over Websocket Response.",
+			"properties": {
+				"transaction_id": {
+					"type": "string",
+					"description": "Opaque transaction id.  Will be whatever was specified on the original request.",
+					"required": true
+				},
+				"request_id": {
+					"type": "string",
+					"description": "Opaque request id.  Will be whatever was specified on the original request.",
+					"required": true
+				},
+				"status_code": {
+					"required": true,
+					"type": "int",
+					"description": "HTTP status code"
+				},
+				"reason_phrase": {
+					"required": true,
+					"type": "string",
+					"description": "HTTP reason phrase"
+				},
+				"uri": {
+					"required": true,
+					"type": "string",
+					"description": "Original request resource URI"
+				},
+				"content_type": {
+					"required": false,
+					"type": "string",
+					"description": "The Content-Type of the message body."
+				},
+				"message_body": {
+					"required": false,
+					"type": "string",
+					"description": "Response message body"
 				}
 			}
 		}
