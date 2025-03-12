@@ -1216,6 +1216,70 @@ int ast_ari_validate_playback_started(struct ast_json *json);
 ari_validator ast_ari_validate_playback_started_fn(void);
 
 /*!
+ * \brief Validator for RESTHeader.
+ *
+ * REST over Websocket header
+ *
+ * \param json JSON object to validate.
+ * \retval True (non-zero) if valid.
+ * \retval False (zero) if invalid.
+ */
+int ast_ari_validate_restheader(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_restheader().
+ */
+ari_validator ast_ari_validate_restheader_fn(void);
+
+/*!
+ * \brief Validator for RESTQueryStringParameter.
+ *
+ * REST over Websocket Query String Parameter
+ *
+ * \param json JSON object to validate.
+ * \retval True (non-zero) if valid.
+ * \retval False (zero) if invalid.
+ */
+int ast_ari_validate_restquery_string_parameter(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_restquery_string_parameter().
+ */
+ari_validator ast_ari_validate_restquery_string_parameter_fn(void);
+
+/*!
+ * \brief Validator for RESTRequest.
+ *
+ * REST over Websocket Request.
+ *
+ * \param json JSON object to validate.
+ * \retval True (non-zero) if valid.
+ * \retval False (zero) if invalid.
+ */
+int ast_ari_validate_restrequest(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_restrequest().
+ */
+ari_validator ast_ari_validate_restrequest_fn(void);
+
+/*!
+ * \brief Validator for RESTResponse.
+ *
+ * REST over Websocket Response.
+ *
+ * \param json JSON object to validate.
+ * \retval True (non-zero) if valid.
+ * \retval False (zero) if invalid.
+ */
+int ast_ari_validate_restresponse(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_restresponse().
+ */
+ari_validator ast_ari_validate_restresponse_fn(void);
+
+/*!
  * \brief Validator for RecordingFailed.
  *
  * Event showing failure of a recording operation.
@@ -1821,6 +1885,33 @@ ari_validator ast_ari_validate_application_fn(void);
  * - application: string (required)
  * - timestamp: Date (required)
  * - playback: Playback (required)
+ * RESTHeader
+ * - name: string (required)
+ * - value: string (required)
+ * RESTQueryStringParameter
+ * - name: string (required)
+ * - value: string (required)
+ * RESTRequest
+ * - content_type: string
+ * - message_body: string
+ * - method: string (required)
+ * - query_strings: List[RESTQueryStringParameter]
+ * - request_id: string (required)
+ * - transaction_id: string (required)
+ * - type: string (required)
+ * - uri: string (required)
+ * RESTResponse
+ * - asterisk_id: string
+ * - type: string (required)
+ * - application: string (required)
+ * - timestamp: Date (required)
+ * - content_type: string
+ * - message_body: string
+ * - reason_phrase: string (required)
+ * - request_id: string (required)
+ * - status_code: int (required)
+ * - transaction_id: string (required)
+ * - uri: string (required)
  * RecordingFailed
  * - asterisk_id: string
  * - type: string (required)

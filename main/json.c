@@ -861,6 +861,83 @@ enum ast_json_to_ast_vars_code ast_json_to_ast_variables(struct ast_json *json_v
 	return AST_JSON_TO_AST_VARS_CODE_SUCCESS;
 }
 
+enum ast_json_nvp_ast_vars_code ast_json_nvp_array_to_ast_variables(
+	struct ast_json *json_variables, struct ast_variable **variables)
+{
+	struct ast_variable *tail = NULL;
+	int i = 0;
+	size_t len = json_variables ? ast_json_array_size(json_variables) : 0;
+
+	if (len == 0) {
+		return AST_JSON_NVP_AST_VARS_CODE_NO_INPUT;
+	}
+
+	for (i = 0; i < len; i++) {
+		struct ast_variable *new_var;
+		struct ast_json *json_value;
+		struct ast_json *json_key;
+		const char *key;
+		const char *value;
+
+		json_value = ast_json_array_get(json_variables, i);
+		if (!json_value || ast_json_is_null(json_value) || ast_json_typeof(json_value) != AST_JSON_OBJECT) {
+			/* Error: Only objects allowed */
+			return AST_JSON_NVP_AST_VARS_CODE_INVALID_TYPE;
+		}
+
+		json_key = ast_json_object_get(json_value, "name");
+		if (!json_key || ast_json_is_null(json_key) || ast_json_typeof(json_key) != AST_JSON_STRING) {
+			/* Error: Only strings allowed */
+			return AST_JSON_NVP_AST_VARS_CODE_INVALID_TYPE;
+		}
+		key = ast_json_string_get(json_key);
+
+		json_key = ast_json_object_get(json_value, "value");
+		if (!json_key || ast_json_is_null(json_key) || ast_json_typeof(json_key) != AST_JSON_STRING) {
+			/* Error: Only strings allowed */
+			return AST_JSON_NVP_AST_VARS_CODE_INVALID_TYPE;
+		}
+		value = ast_json_string_get(json_key);
+
+		new_var = ast_variable_new(key, value, "");
+		if (!new_var) {
+			/* Error: OOM */
+			return AST_JSON_NVP_AST_VARS_CODE_OOM;
+		}
+
+		tail = ast_variable_list_append_hint(variables, tail, new_var);
+	}
+
+	return AST_JSON_NVP_AST_VARS_CODE_SUCCESS;
+}
+
+struct ast_json *ast_variables_to_json_nvp_array(struct ast_variable *variables)
+{
+	struct ast_variable *v = NULL;
+	struct ast_json *json_variables = ast_json_array_create();
+
+	if (!variables || !json_variables) {
+		return NULL;
+	}
+
+	for (v = variables; v; v = v->next) {
+		struct ast_json *obj = ast_json_pack("{s: s, s: s}",
+			"name", v->name,
+			"value", v->value);
+		if (!obj) {
+			ast_json_unref(json_variables);
+			return NULL;
+		}
+		if (ast_json_array_append(json_variables, obj)) {
+			ast_json_unref(json_variables);
+			ast_json_unref(obj);
+			return NULL;
+		}
+	}
+
+	return json_variables;
+}
+
 struct ast_json *ast_json_channel_vars(struct varshead *channelvars)
 {
 	struct ast_json *ret;
