@@ -395,9 +395,6 @@
 				<parameter name="Endpoint">
 					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip_outbound_registration']/configFile[@name='pjsip.conf']/configObject[@name='registration']/configOption[@name='endpoint']/synopsis/node())"/></para>
 				</parameter>
-				<parameter name="UserAgent">
-					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip_outbound_registration']/configFile[@name='pjsip.conf']/configObject[@name='registration']/configOption[@name='user_agent']/synopsis/node())"/></para>
-				</parameter>
 				<parameter name="ForbiddenRetryInterval">
 					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip_outbound_registration']/configFile[@name='pjsip.conf']/configObject[@name='registration']/configOption[@name='forbidden_retry_interval']/synopsis/node())"/></para>
 				</parameter>
