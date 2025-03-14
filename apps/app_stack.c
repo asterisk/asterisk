@@ -46,9 +46,9 @@
 			Jump to label, saving return address.
 		</synopsis>
 		<syntax>
-			<parameter name="context" />
-			<parameter name="exten" />
-			<parameter name="priority" required="true" hasparams="optional">
+			<parameter name="context" documentationtype="dialplan_context" />
+			<parameter name="extension" documentationtype="dialplan_extension" />
+			<parameter name="priority" documentationtype="dialplan_priority" required="true" hasparams="optional">
 				<argument name="arg1" multiple="true" required="true" />
 				<argument name="argN" />
 			</parameter>
