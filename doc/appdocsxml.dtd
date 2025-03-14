@@ -122,7 +122,7 @@
 
   <!ELEMENT description (para|note|warning|variablelist|enumlist|info|example|xi:include)*>
 
-  <!ELEMENT parameter (optionlist|enumlist|argument|para|note|warning|parameter|info|xi:include)*>
+  <!ELEMENT parameter (optionlist|enumlist|argument|para|note|warning|parameter|info|documentationtype|xi:include)*>
   <!ATTLIST parameter name CDATA "">
   <!ATTLIST parameter required (yes|no|true|false) "false">
   <!ATTLIST parameter multiple (yes|no|true|false) "false">
@@ -130,6 +130,7 @@
   <!ATTLIST parameter literal (yes|no|true|false) "false">
   <!ATTLIST parameter default CDATA "">
   <!ATTLIST parameter argsep CDATA ",">
+  <!ATTLIST parameter documentationtype CDATA "">
 
   <!ELEMENT optionlist (option+)>
   <!ELEMENT option (argument|para|note|warning|variablelist|enumlist|info|xi:include)*>
