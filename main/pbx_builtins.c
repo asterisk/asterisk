@@ -209,9 +209,9 @@
 			Jump to a particular priority, extension, or context.
 		</synopsis>
 		<syntax>
-			<parameter name="context" />
-			<parameter name="extensions" />
-			<parameter name="priority" required="true" />
+			<parameter name="context" documentationtype="dialplan_context" />
+			<parameter name="extension" documentationtype="dialplan_extension" />
+			<parameter name="priority" documentationtype="dialplan_priority" required="true" />
 		</syntax>
 		<description>
 			<para>This application will set the current context, extension, and priority in the channel structure.
