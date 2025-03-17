@@ -607,15 +607,12 @@ static int reload_module(void)
 	struct ast_config *cfg;
 	struct ast_variable *var;
 
-	if (!(cfg = ast_config_load("res_curl.conf", flags))) {
-		return 0;
-	} else if (cfg == CONFIG_STATUS_FILEINVALID) {
-		ast_log(LOG_WARNING, "res_curl.conf could not be parsed!\n");
+	cfg = ast_config_load("res_curl.conf", flags);
+	if (!cfg || cfg == CONFIG_STATUS_FILEINVALID) {
 		return 0;
 	}
 
 	if (!(var = ast_variable_browse(cfg, "globals")) && !(var = ast_variable_browse(cfg, "global")) && !(var = ast_variable_browse(cfg, "general"))) {
-		ast_log(LOG_WARNING, "[globals] not found in res_curl.conf\n");
 		ast_config_destroy(cfg);
 		return 0;
 	}
