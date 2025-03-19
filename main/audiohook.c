@@ -1210,8 +1210,8 @@ int ast_channel_audiohook_count_by_source_running(struct ast_channel *chan, cons
 /*! \brief Audiohook volume adjustment structure */
 struct audiohook_volume {
 	struct ast_audiohook audiohook; /*!< Audiohook attached to the channel */
-	int read_adjustment;            /*!< Value to adjust frames read from the channel by */
-	int write_adjustment;           /*!< Value to adjust frames written to the channel by */
+	float read_adjustment;            /*!< Value to adjust frames read from the channel by */
+	float write_adjustment;           /*!< Value to adjust frames written to the channel by */
 };
 
 /*! \brief Callback used to destroy the audiohook volume datastore
@@ -1248,7 +1248,7 @@ static int audiohook_volume_callback(struct ast_audiohook *audiohook, struct ast
 {
 	struct ast_datastore *datastore = NULL;
 	struct audiohook_volume *audiohook_volume = NULL;
-	int *gain = NULL;
+	float *gain = NULL;
 
 	/* If the audiohook is shutting down don't even bother */
 	if (audiohook->status == AST_AUDIOHOOK_STATUS_DONE) {
@@ -1271,7 +1271,7 @@ static int audiohook_volume_callback(struct ast_audiohook *audiohook, struct ast
 
 	/* If an adjustment value is present modify the frame */
 	if (gain && *gain) {
-		ast_frame_adjust_volume(frame, *gain);
+		ast_frame_adjust_volume_float(frame, *gain);
 	}
 
 	return 0;
@@ -1320,6 +1320,11 @@ static struct audiohook_volume *audiohook_volume_get(struct ast_channel *chan, i
 
 int ast_audiohook_volume_set(struct ast_channel *chan, enum ast_audiohook_direction direction, int volume)
 {
+	return ast_audiohook_volume_adjust_float(chan, direction, (float) volume);
+}
+
+int ast_audiohook_volume_set_float(struct ast_channel *chan, enum ast_audiohook_direction direction, float volume)
+{
 	struct audiohook_volume *audiohook_volume = NULL;
 
 	/* Attempt to find the audiohook volume information, but only create it if we are not setting the adjustment value to zero */
@@ -1340,8 +1345,13 @@ int ast_audiohook_volume_set(struct ast_channel *chan, enum ast_audiohook_direct
 
 int ast_audiohook_volume_get(struct ast_channel *chan, enum ast_audiohook_direction direction)
 {
+	return (int) ast_audiohook_volume_get_float(chan, direction);
+}
+
+float ast_audiohook_volume_get_float(struct ast_channel *chan, enum ast_audiohook_direction direction)
+{
 	struct audiohook_volume *audiohook_volume = NULL;
-	int adjustment = 0;
+	float adjustment = 0;
 
 	/* Attempt to find the audiohook volume information, but do not create it as we only want to look at the values */
 	if (!(audiohook_volume = audiohook_volume_get(chan, 0))) {
@@ -1359,6 +1369,11 @@ int ast_audiohook_volume_get(struct ast_channel *chan, enum ast_audiohook_direct
 }
 
 int ast_audiohook_volume_adjust(struct ast_channel *chan, enum ast_audiohook_direction direction, int volume)
+{
+	return ast_audiohook_volume_adjust_float(chan, direction, (float) volume);
+}
+
+int ast_audiohook_volume_adjust_float(struct ast_channel *chan, enum ast_audiohook_direction direction, float volume)
 {
 	struct audiohook_volume *audiohook_volume = NULL;
 
