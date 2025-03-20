@@ -1,0 +1,51 @@
+<category name="MENUSELECT_CHANNELSTORAGE" displayname="Alternate Channel Storage Backends">
+	<member name="channelstorage_ao2_optimized"
+		displayname="Include the AO2 Optimized channelstorage backend."
+		remove_on_change="main/channelstorage_ao2_optimized.oo main/channelstorage_ao2_optimized.ii"
+		>
+		<support_level>extended</support_level>
+		<defaultenabled>no</defaultenabled>
+	</member>
+	<member name="channelstorage_cpp_map_name" 
+		displayname="Include the C++ Map Name channelstorage backend. Requires a C++11 compiler."
+		remove_on_change="main/channelstorage_cpp_map_name.oo main/channelstorage_cpp_map_name.ii">
+		>
+		<support_level>extended</support_level>
+		<depend>CXX11</depend>
+		<defaultenabled>no</defaultenabled>
+	</member>
+	<member name="channelstorage_cpp_map_name_id"
+		displayname="Include the C++ Map Name/ID channelstorage backend. Requires a C++11 compiler."
+		remove_on_change="main/channelstorage_cpp_map_name_id.oo main/channelstorage_cpp_map_name_id.ii">
+		>
+		<support_level>extended</support_level>
+		<depend>CXX11</depend>
+		<defaultenabled>no</defaultenabled>
+	</member>
+	<member name="channelstorage_boost_multi_index"
+		displayname="Include the C++ Boost Map Name/ID channelstorage backend. Requires a C++11 compiler and the Boost development package."
+		remove_on_change="main/channelstorage_boost_multi_index.oo main/channelstorage_boost_multi_index.ii">
+		>
+		<support_level>extended</support_level>
+		<depend>CXX11</depend>
+		<depend>BOOST</depend>
+		<defaultenabled>no</defaultenabled>
+	</member>
+	<member name="channelstorage_boost_map_name"
+		displayname="Include the C++ Boost Map Name channelstorage backend. Requires a C++11 compiler and the Boost development package."
+		remove_on_change="main/channelstorage_boost_map_name.oo main/channelstorage_boost_map_name.ii">
+		>
+		<support_level>extended</support_level>
+		<depend>CXX11</depend>
+		<depend>BOOST</depend>
+		<defaultenabled>no</defaultenabled>
+	</member>
+	<member name="channelstorage_sqlite3"
+		displayname="Include the SQLite3 channelstorage backend."
+		remove_on_change="main/channelstorage_sqlite3.oo main/channelstorage_sqlite3.ii">
+		>
+		<support_level>extended</support_level>
+		<depend>SQLITE3</depend>
+		<defaultenabled>no</defaultenabled>
+	</member>
+</category>
