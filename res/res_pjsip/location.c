@@ -1114,8 +1114,10 @@ static int cli_contact_print_body(void *obj, void *arg, int flags)
 	struct ast_sip_cli_context *context = arg;
 	int indent;
 	int flexwidth;
+	int key_width;
 	const char *contact_id = ast_sorcery_object_get_id(contact);
 	const char *hash_start = contact_id + strlen(contact->aor) + 2;
+	char secs[AST_TIME_T_LEN];
 	struct ast_sip_contact_status *status;
 
 	ast_assert(contact->uri != NULL);
@@ -1124,8 +1126,8 @@ static int cli_contact_print_body(void *obj, void *arg, int flags)
 	status = ast_sip_get_contact_status(contact);
 
 	indent = CLI_INDENT_TO_SPACES(context->indent_level);
-	flexwidth = CLI_LAST_TABSTOP - indent - 9 - strlen(contact->aor) + 1;
 
+	flexwidth = CLI_LAST_TABSTOP - indent - strlen(contact->aor) + 1;
 	ast_str_append(&context->output_buffer, 0, "%*s:  %s/%-*.*s %-10.10s %-7.7s %11.3f\n",
 		indent,
 		"Contact",
@@ -1135,6 +1137,97 @@ static int cli_contact_print_body(void *obj, void *arg, int flags)
 		hash_start,
 		ast_sip_get_contact_short_status_label(status ? status->status : UNKNOWN),
 		(status && (status->status == AVAILABLE)) ? ((long long) status->rtt) / 1000.0 : NAN);
+
+	if (flags & AST_RETRIEVE_FLAG_ALL) { /*  If we are showing list, no need do detailed */
+		ao2_cleanup(status);
+		return 0;
+	}
+	/* Detailed view  or one entity start here */
+
+	indent = indent - 4;
+	/* The key_width variable is set to define the minimum width for the first column in the output format. */
+	key_width = 20; /* required to */
+
+	ast_str_append(&context->output_buffer, 0, "%*s%-*s %s\r\n",
+		indent, " ", key_width,
+		"AuthenticateQualify:",
+		contact->authenticate_qualify ? "yes" : "no");
+
+	if (!ast_strlen_zero(contact->call_id)) {
+		ast_str_append(&context->output_buffer, 0, "%*s%-*s %-41s\r\n",
+		indent, " ", key_width,
+		"CallID:", contact->call_id);
+	}
+
+	ast_str_append(&context->output_buffer, 0, "%*s%-*s %s\r\n",
+		indent, " ", key_width,
+		"Endpoint:", S_OR(contact->endpoint_name, ""));
+
+	ast_time_t_to_string(contact->expiration_time.tv_sec,
+		secs, sizeof(secs));
+
+	ast_str_append(&context->output_buffer, 0, "%*s%-*s %s\r\n",
+		indent, " ", key_width,
+		"ExpirationTime:", secs);
+
+	ast_str_append(&context->output_buffer, 0, "%*s%-*s %s\r\n",
+		indent, " ", key_width,
+		"OutboundProxy:", contact->outbound_proxy);
+
+	ast_str_append(&context->output_buffer, 0, "%*s%-*s %s\r\n",
+		indent, " ", key_width,
+		"Path:", contact->path);
+
+	ast_str_append(&context->output_buffer, 0, "%*s%-*s %s\r\n",
+		indent, " ", key_width,
+		"PruneOnBoot:", contact->prune_on_boot ? "yes" : "no");
+
+	ast_str_append(&context->output_buffer, 0, "%*s%-*s %u\r\n",
+		indent, " ", key_width,
+		"QualifyFrequency:", contact->qualify_frequency);
+
+	ast_str_append(&context->output_buffer, 0, "%*s%-*s %.6f\r\n",
+		indent, " ", key_width,
+		"QualifyTimeout:", contact->qualify_timeout);
+
+	ast_str_append(&context->output_buffer, 0, "%*s%-*s %s\r\n",
+		indent, " ", key_width,
+		"RegServer:", contact->reg_server);
+
+	if (!status || status->status != AVAILABLE) {
+		ast_str_append(&context->output_buffer, 0, "%*s%-*s N/A\r\n",
+			indent, " ", key_width,
+			"RoundtripUsec:");
+	} else {
+		ast_str_append(&context->output_buffer, 0, "%*s%-*s %" PRId64 "\r\n",
+			indent, " ", key_width,
+			"RoundtripUsec:", status->rtt);
+	}
+
+	ast_str_append(&context->output_buffer, 0, "%*s%-*s %s\r\n",
+		indent, " ", key_width,
+		"Status:",
+		ast_sip_get_contact_status_label(status ? status->status : UNKNOWN));
+
+	ast_str_append(&context->output_buffer, 0, "%*s%-*s %s\r\n",
+		indent, " ", key_width,
+		"URI:", contact->uri);
+
+	ast_str_append(&context->output_buffer, 0, "%*s%-*s %s\r\n",
+		indent, " ", key_width,
+		"UserAgent:", contact->user_agent);
+
+	if (!ast_strlen_zero(contact->via_addr)) {
+		ast_str_append(&context->output_buffer, 0, "%*s%-*s %s\r\n",
+			indent, " ", key_width,
+			"ViaAddr:", contact->via_addr);
+
+		if (contact->via_port) {
+			ast_str_append(&context->output_buffer, 0, "%*s%-*s %d\r\n",
+				indent, " ", key_width,
+				"ViaPort:", contact->via_port);
+		}
+	}
 
 	ao2_cleanup(status);
 	return 0;
