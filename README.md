@@ -55,7 +55,7 @@ If you are updating from a previous version of Asterisk, make sure you
 read the Change Logs.
 
 <!-- CHANGELOGS (the URL will change based on the location of this README) -->
-[Change Logs](https://downloads.asterisk.org/pub/telephony/asterisk)
+[Change Logs](ChangeLogs/ChangeLog-20.13.0-rc1.html)
 <!-- END-CHANGELOGS -->
 
 ### NEW INSTALLATIONS
