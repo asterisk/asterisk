@@ -1,0 +1,562 @@
+<html><head><title>ChangeLog for asterisk-21.8.0-rc1</title></head><body>
+<h2>Change Log for Release asterisk-21.8.0-rc1</h2>
+<h3>Links:</h3>
+<ul>
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-21.8.0-rc1.html">Full ChangeLog</a>  </li>
+<li><a href="https://github.com/asterisk/asterisk/compare/21.7.0...21.8.0-rc1">GitHub Diff</a>  </li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-21.8.0-rc1.tar.gz">Tarball</a>  </li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk">Downloads</a>  </li>
+</ul>
+<h3>Summary:</h3>
+<ul>
+<li>Commits: 28</li>
+<li>Commit Authors: 12</li>
+<li>Issues Resolved: 12</li>
+<li>Security Advisories Resolved: 0</li>
+</ul>
+<h3>User Notes:</h3>
+<ul>
+<li>
+<h4>ari/pjsip: Make it possible to control transfers through ARI</h4>
+  Call transfers on the PJSIP channel can now be controlled by
+  ARI. This can be enabled by using the PJSIP_TRANSFER_HANDLING(ari-only)
+  dialplan function.</li>
+</ul>
+<h3>Upgrade Notes:</h3>
+<h3>Commit Authors:</h3>
+<ul>
+<li>Allan Nathanson: (1)</li>
+<li>Ben Ford: (1)</li>
+<li>Fabriziopicconi: (1)</li>
+<li>George Joseph: (10)</li>
+<li>Holger Hans Peter Freyther: (1)</li>
+<li>Jeremy Lainé: (1)</li>
+<li>Joshua Elson: (1)</li>
+<li>Luz Paz: (3)</li>
+<li>Maximilian Fridrich: (1)</li>
+<li>Mike Bradeen: (1)</li>
+<li>Naveen Albert: (1)</li>
+<li>Sean Bright: (6)</li>
+</ul>
+<h2>Issue and Commit Detail:</h2>
+<h3>Closed Issues:</h3>
+<ul>
+<li>211: [bug]: stasis: Off-nominal channel leave causes bridge to be destroyed</li>
+<li>1085: [bug]: utils: Compilation failure with DEVMODE due to old-style definitions</li>
+<li>1101: [bug]: when setting a  var with a double quotes and using Set(HASH)</li>
+<li>1109: [bug]: Off nominal memory leak in res/ari/resource_channels.c</li>
+<li>1112: [bug]: STIR/SHAKEN verification doesn't allow anonymous callerid to be passed to the dialplan.</li>
+<li>1119: [bug]: Realtime database not working after upgrade from 22.0.0 to 22.2.0</li>
+<li>1122: Need status on CVE-2024-57520 claim.</li>
+<li>1124: [bug]: Race condition between bridge and channel delete can over-write cause code set in hangup.</li>
+<li>1131: [bug]: CHANGES link broken in README.md</li>
+<li>1135: [bug]: Problems with video decoding due to RTP marker bit set</li>
+<li>1149: [bug]: res_pjsip: Mismatch in tcp_keepalive_enable causes not to enable</li>
+<li>1164: [bug]: WARNING Message in messages.log for res_curl.conf [globals]</li>
+</ul>
+<h3>Commits By Author:</h3>
+<ul>
+<li>
+<h4>Allan Nathanson (1):</h4>
+</li>
+<li>
+<p>config.c: #include of non-existent file should not crash</p>
+</li>
+<li>
+<h4>Ben Ford (1):</h4>
+</li>
+<li>
+<p>documentation: Update Gosub, Goto, and add new documentationtype.</p>
+</li>
+<li>
+<h4>George Joseph (10):</h4>
+</li>
+<li>docs: Add version information to ARI resources and methods.</li>
+<li>docs: Add version information to AGI command XML elements.</li>
+<li>func_strings.c: Prevent SEGV in HASH single-argument mode.</li>
+<li>resource_channels.c: Fix memory leak in ast_ari_channels_external_media.</li>
+<li>res_stir_shaken: Allow missing or anonymous CID to continue to the dialplan.</li>
+<li>res_config_pgsql: Fix regression that removed dbname config.</li>
+<li>bridging: Fix multiple bridging issues causing SEGVs and FRACKs.</li>
+<li>swagger_model.py: Fix invalid escape sequence in get_list_parameter_type().</li>
+<li>manager.c: Check for restricted file in action_createconfig.</li>
+<li>
+<p>README.md: Updates and Fixes</p>
+</li>
+<li>
+<h4>Holger Hans Peter Freyther (1):</h4>
+</li>
+<li>
+<p>ari/pjsip: Make it possible to control transfers through ARI</p>
+</li>
+<li>
+<h4>Jeremy Lainé (1):</h4>
+</li>
+<li>
+<p>docs: Fix minor typo in MixMonitor AMI action</p>
+</li>
+<li>
+<h4>Joshua Elson (1):</h4>
+</li>
+<li>
+<p>fix: Correct default flag for tcp_keepalive_enable option</p>
+</li>
+<li>
+<h4>Luz Paz (3):</h4>
+</li>
+<li>docs: Fix various typos in main/ Found via `codespell -q 3 -S "./CREDITS" -L a..</li>
+<li>docs: Fix various typos in channels/ Found via `codespell -q 3 -S "./CREDITS,*..</li>
+<li>
+<p>docs: Fix typos in cdr/ Found via codespell</p>
+</li>
+<li>
+<h4>Maximilian Fridrich (1):</h4>
+</li>
+<li>
+<p>Revert "res_rtp_asterisk.c: Set Mark on rtp when timestamp skew is too big"</p>
+</li>
+<li>
+<h4>Mike Bradeen (1):</h4>
+</li>
+<li>
+<p>bridge_channel: don't set cause code on channel during bridge delete if alread..</p>
+</li>
+<li>
+<h4>Naveen Albert (1):</h4>
+</li>
+<li>
+<p>utils: Disable old style definition warnings for libdb.</p>
+</li>
+<li>
+<h4>Sean Bright (6):</h4>
+</li>
+<li>docs: Indent <since> tags.</li>
+<li>channel.c: Remove dead AST_GENERATOR_FD code.</li>
+<li>res_rtp_asterisk.c: Use correct timeout value for T.140 RED timer.</li>
+<li>docs: AMI documentation fixes.</li>
+<li>res_rtp_asterisk.c: Don't truncate spec-compliant <code>ice-ufrag</code> or <code>ice-pwd</code>.</li>
+<li>
+<p>res_config_curl.c: Remove unnecessary warnings.</p>
+</li>
+<li>
+<h4>fabriziopicconi (1):</h4>
+</li>
+<li>rtp.conf.sample: Correct stunaddr example.</li>
+</ul>
+<h3>Commit List:</h3>
+<ul>
+<li>documentation: Update Gosub, Goto, and add new documentationtype.</li>
+<li>res_config_curl.c: Remove unnecessary warnings.</li>
+<li>README.md: Updates and Fixes</li>
+<li>res_rtp_asterisk.c: Don't truncate spec-compliant <code>ice-ufrag</code> or <code>ice-pwd</code>.</li>
+<li>fix: Correct default flag for tcp_keepalive_enable option</li>
+<li>docs: AMI documentation fixes.</li>
+<li>config.c: #include of non-existent file should not crash</li>
+<li>manager.c: Check for restricted file in action_createconfig.</li>
+<li>swagger_model.py: Fix invalid escape sequence in get_list_parameter_type().</li>
+<li>Revert "res_rtp_asterisk.c: Set Mark on rtp when timestamp skew is too big"</li>
+<li>res_rtp_asterisk.c: Use correct timeout value for T.140 RED timer.</li>
+<li>docs: Fix typos in cdr/ Found via codespell</li>
+<li>bridging: Fix multiple bridging issues causing SEGVs and FRACKs.</li>
+<li>res_config_pgsql: Fix regression that removed dbname config.</li>
+<li>res_stir_shaken: Allow missing or anonymous CID to continue to the dialplan.</li>
+<li>resource_channels.c: Fix memory leak in ast_ari_channels_external_media.</li>
+<li>ari/pjsip: Make it possible to control transfers through ARI</li>
+<li>channel.c: Remove dead AST_GENERATOR_FD code.</li>
+<li>func_strings.c: Prevent SEGV in HASH single-argument mode.</li>
+<li>docs: Add version information to AGI command XML elements.</li>
+<li>docs: Fix minor typo in MixMonitor AMI action</li>
+<li>utils: Disable old style definition warnings for libdb.</li>
+<li>rtp.conf.sample: Correct stunaddr example.</li>
+<li>docs: Add version information to ARI resources and methods.</li>
+<li>docs: Indent <since> tags.</li>
+</ul>
+<h3>Commit Details:</h3>
+<h4>documentation: Update Gosub, Goto, and add new documentationtype.</h4>
+<p>Author: Ben Ford
+  Date:   2025-03-14</p>
+<p>Gosub and Goto were not displaying their syntax correctly on the docs
+  site. This change adds a new way to specify an optional context, an
+  optional extension, and a required priority that the xml stylesheet can
+  parse without having to know which optional parameters come in which
+  order. In Asterisk, it looks like this:</p>
+<pre><code>parameter name="context" documentationtype="dialplan_context"
+parameter name="extension" documentationtype="dialplan_extension"
+parameter name="priority" documentationtype="dialplan_priority" required="true"
+</code></pre>
+<p>The stylesheet will ignore the context and extension parameters, but for
+  priority, it will automatically inject the following:</p>
+<pre><code>[[context,]extension,]priority
+</code></pre>
+<p>This is the correct oder for applications such as Gosub and Goto.</p>
+<h4>res_config_curl.c: Remove unnecessary warnings.</h4>
+<p>Author: Sean Bright
+  Date:   2025-03-17</p>
+<p>Resolves: #1164</p>
+<h4>README.md: Updates and Fixes</h4>
+<p>Author: George Joseph
+  Date:   2025-03-05</p>
+<ul>
+<li>Outdated information has been removed.</li>
+<li>New links added.</li>
+<li>Placeholder added for link to change logs.</li>
+</ul>
+<p>Going forward, the release process will create HTML versions of the README
+  and change log and will update the link in the README to the current
+  change log for the branch...</p>
+<ul>
+<li>In the development branches, the link will always point to the current
+    release on GitHub.</li>
+<li>In the "releases/*" branches and the tarballs, the link will point to the
+    ChangeLogs/ChangeLog-<version>.html file in the source directory.</li>
+<li>On the downloads website, the link will point to the
+    ChangeLog-<version>.html file in the same directory.</li>
+</ul>
+<p>Resolves: #1131</p>
+<h4>res_rtp_asterisk.c: Don't truncate spec-compliant <code>ice-ufrag</code> or <code>ice-pwd</code>.</h4>
+<p>Author: Sean Bright
+  Date:   2025-03-07</p>
+<p>RFC 8839[1] indicates that the <code>ice-ufrag</code> and <code>ice-pwd</code> attributes
+  can be up to 256 bytes long. While we don't generate values of that
+  size, we should be able to accomodate them without truncating.</p>
+<ol>
+<li>https://www.rfc-editor.org/rfc/rfc8839#name-ice-ufrag-and-ice-pwd-attri</li>
+</ol>
+<h4>fix: Correct default flag for tcp_keepalive_enable option</h4>
+<p>Author: Joshua Elson
+  Date:   2025-03-06</p>
+<p>Resolves an issue where the tcp_keepalive_enable option was not properly enabled in the sample configuration due to an incorrect default flag setting.</p>
+<p>Fixes: #1149</p>
+<h4>docs: AMI documentation fixes.</h4>
+<p>Author: Sean Bright
+  Date:   2025-02-18</p>
+<p>Most of this patch is adding missing PJSIP-related event
+  documentation, but the one functional change was adding a sorcery
+  to-string handler for endpoint's <code>redirect_method</code> which was not
+  showing up in the AMI event details or <code>pjsip show endpoint
+  &lt;endpoint&gt;</code> output.</p>
+<p>The rest of the changes are summarized below:</p>
+<ul>
+<li>app_agent_pool.c: Typo fix Epoche -&gt; Epoch.</li>
+<li>stasis_bridges.c: Add missing AttendedTransfer properties.</li>
+<li>stasis_channels.c: Add missing AgentLogoff properties.</li>
+<li>pjsip_manager.xml:<ul>
+<li>Add missing AorList properties.</li>
+<li>Add missing AorDetail properties.</li>
+<li>Add missing ContactList properties.</li>
+<li>Add missing ContactStatusDetail properties.</li>
+<li>Add missing EventDetail properties.</li>
+<li>Add missing AuthList properties.</li>
+<li>Add missing AuthDetail properties.</li>
+<li>Add missing TransportDetail properties.</li>
+<li>Add missing EndpointList properties.</li>
+<li>Add missing IdentifyDetail properties.</li>
+</ul>
+</li>
+<li>res_pjsip_registrar.c: Add missing InboundRegistrationDetail documentation.</li>
+<li>res_pjsip_pubsub.c:<ul>
+<li>Add missing ResourceListDetail documentation.</li>
+<li>Add missing InboundSubscriptionDetail documentation.</li>
+<li>Add missing OutboundSubscriptionDetail documentation.</li>
+</ul>
+</li>
+<li>res_pjsip_outbound_registration.c: Add missing OutboundRegistrationDetail documentation.</li>
+</ul>
+<h4>config.c: #include of non-existent file should not crash</h4>
+<p>Author: Allan Nathanson
+  Date:   2025-03-03</p>
+<p>Corrects a segmentation fault when a configuration file has a #include
+  statement that referenced a file that does not exist.</p>
+<p>Resolves: https://github.com/asterisk/asterisk/issues/1139</p>
+<h4>manager.c: Check for restricted file in action_createconfig.</h4>
+<p>Author: George Joseph
+  Date:   2025-03-03</p>
+<p>The <code>CreateConfig</code> manager action now ensures that a config file can
+  only be created in the AST_CONFIG_DIR unless <code>live_dangerously</code> is set.</p>
+<p>Resolves: #1122</p>
+<h4>swagger_model.py: Fix invalid escape sequence in get_list_parameter_type().</h4>
+<p>Author: George Joseph
+  Date:   2025-03-04</p>
+<p>Recent python versions complain when backslashes in strings create invalid
+  escape sequences.  This causes issues for strings used as regex patterns like
+  <code>'^List\[(.*)\]$'</code> where you want the regex parser to treat <code>[</code> and <code>]</code>
+  as literals.  Double-backslashing is one way to fix it but simply converting
+  the string to a raw string <code>re.match(r'^List\[(.*)\]$', text)</code> is easier
+  and less error prone.</p>
+<h4>Revert "res_rtp_asterisk.c: Set Mark on rtp when timestamp skew is too big"</h4>
+<p>Author: Maximilian Fridrich
+  Date:   2025-02-28</p>
+<p>This reverts commit f30ad96b3f467739c38ff415e80bffc4afff1da7.</p>
+<p>The original change was not RFC compliant and caused issues because it
+  set the RTP marker bit in cases when it shouldn't be set. See the
+  linked issue #1135 for a detailed explanation.</p>
+<p>Fixes: #1135.</p>
+<h4>res_rtp_asterisk.c: Use correct timeout value for T.140 RED timer.</h4>
+<p>Author: Sean Bright
+  Date:   2025-02-24</p>
+<p>Found while reviewing #1128</p>
+<h4>docs: Fix typos in cdr/ Found via codespell</h4>
+<p>Author: Luz Paz
+  Date:   2025-02-12</p>
+<h4>docs: Fix various typos in channels/ Found via `codespell -q 3 -S "./CREDITS,*..</h4>
+<p>Author: Luz Paz
+  Date:   2025-02-04</p>
+<h4>docs: Fix various typos in main/ Found via `codespell -q 3 -S "./CREDITS" -L a..</h4>
+<p>Author: Luz Paz
+  Date:   2025-02-04</p>
+<h4>bridging: Fix multiple bridging issues causing SEGVs and FRACKs.</h4>
+<p>Author: George Joseph
+  Date:   2025-01-22</p>
+<p>Issues:</p>
+<ul>
+<li>
+<p>The bridging core allowed multiple bridges to be created with the same
+    unique bridgeId at the same time.  Only the last bridge created with the
+    duplicate name was actually saved to the core bridges container.</p>
+</li>
+<li>
+<p>The bridging core was creating a stasis topic for the bridge and saving it
+    in the bridge-&gt;topic field but not increasing its reference count.  In the
+    case where two bridges were created with the same uniqueid (which is also
+    the topic name), the second bridge would get the <em>existing</em> topic the first
+    bridge created.  When the first bridge was destroyed, it would take the
+    topic with it so when the second bridge attempted to publish a message to
+    it it either FRACKed or SEGVd.</p>
+</li>
+<li>
+<p>The bridge destructor, which also destroys the bridge topic, is run from the
+    bridge manager thread not the caller's thread.  This makes it possible for
+    an ARI developer to create a new one with the same uniqueid believing the
+    old one was destroyed when, in fact, the old one's destructor hadn't
+    completed. This could cause the new bridge to get the old one's topic just
+    before the topic was destroyed.  When the new bridge attempted to publish
+    a message on that topic, asterisk could either FRACK or SEGV.</p>
+</li>
+<li>
+<p>The ARI bridges resource also allowed multiple bridges to be created with
+    the same uniqueid but it kept the duplicate bridges in its app_bridges
+    container.  This created a situation where if you added two bridges with
+    the same "bridge1" uniqueid, all operations on "bridge1" were performed on
+    the first bridge created and the second was basically orphaned.  If you
+    attempted to delete what you thought was the second bridge, you actually
+    deleted the first one created.</p>
+</li>
+</ul>
+<p>Changes:</p>
+<ul>
+<li>
+<p>A new API <code>ast_bridge_topic_exists(uniqueid)</code> was created to determine if
+    a topic already exists for a bridge.</p>
+</li>
+<li>
+<p><code>bridge_base_init()</code> in bridge.c and <code>ast_ari_bridges_create()</code> in
+    resource_bridges.c now call <code>ast_bridge_topic_exists(uniqueid)</code> to check
+    if a bridge with the requested uniqueid already exists and will fail if it
+    does.</p>
+</li>
+<li>
+<p><code>bridge_register()</code> in bridges.c now checks the core bridges container to
+    make sure a bridge doesn't already exist with the requested uniqueid.
+    Although most callers of <code>bridge_register()</code> will have already called
+    <code>bridge_base_init()</code>, which will now fail on duplicate bridges, there
+    is no guarantee of this so we must check again.</p>
+</li>
+<li>
+<p>The core bridges container allocation was changed to reject duplicate
+    uniqueids instead of silently replacing an existing one. This is a "belt
+    and suspenders" check.</p>
+</li>
+<li>
+<p>A global mutex was added to bridge.c to prevent concurrent calls to
+    <code>bridge_base_init()</code> and <code>bridge_register()</code>.</p>
+</li>
+<li>
+<p>Even though you can no longer create multiple bridges with the same uniqueid
+    at the same time, it's still possible that the bridge topic might be
+    destroyed while a second bridge with the same uniqueid was trying to use
+    it. To address this, the bridging core now increments the reference count
+    on bridge-&gt;topic when a bridge is created and decrements it when the
+    bridge is destroyed.</p>
+</li>
+<li>
+<p><code>bridge_create_common()</code> in res_stasis.c now checks the stasis app_bridges
+    container to make sure a bridge with the requested uniqueid doesn't already
+    exist.  This may seem like overkill but there are so many entrypoints to
+    bridge creation that we need to be safe and catch issues as soon in the
+    process as possible.</p>
+</li>
+<li>
+<p>The stasis app_bridges container allocation was changed to reject duplicate
+    uniqueids instead of adding them. This is a "belt and suspenders" check.</p>
+</li>
+<li>
+<p>The <code>bridge show all</code> CLI command now shows the bridge name as well as the
+    bridge id.</p>
+</li>
+<li>
+<p>Response code 409 "Conflict" was added as a possible response from the ARI
+    bridge create resources to signal that a bridge with the requested uniqueid
+    already exists.</p>
+</li>
+<li>
+<p>Additional debugging was added to multiple bridging and stasis files.</p>
+</li>
+</ul>
+<p>Resolves: #211</p>
+<h4>bridge_channel: don't set cause code on channel during bridge delete if alread..</h4>
+<p>Author: Mike Bradeen
+  Date:   2025-02-18</p>
+<p>Due to a potential race condition via ARI when hanging up a channel hangup with cause
+  while also deleting a bridge containing that channel, the bridge delete can over-write
+  the hangup cause code resulting in Normal Call Clearing instead of the set value.</p>
+<p>With this change, bridge deletion will only set the hangup code if it hasn't been
+  previously set.</p>
+<p>Resolves: #1124</p>
+<h4>res_config_pgsql: Fix regression that removed dbname config.</h4>
+<p>Author: George Joseph
+  Date:   2025-02-11</p>
+<p>A recent commit accidentally removed the code that sets dbname.
+  This commit adds it back in.</p>
+<p>Resolves: #1119</p>
+<h4>res_stir_shaken: Allow missing or anonymous CID to continue to the dialplan.</h4>
+<p>Author: George Joseph
+  Date:   2025-02-05</p>
+<p>The verification check for missing or anonymous callerid was happening before
+  the endpoint's profile was retrieved which meant that the failure_action
+  parameter wasn't available.  Therefore, if verification was enabled and there
+  was no callerid or it was "anonymous", the call was immediately terminated
+  instead of giving the dialplan the ability to decide what to do with the call.</p>
+<ul>
+<li>
+<p>The callerid check now happens after the verification context is created and
+    the endpoint's stir_shaken_profile is available.</p>
+</li>
+<li>
+<p>The check now processes the callerid failure just as it does for other
+    verification failures and respects the failure_action parameter.  If set
+    to "continue" or "continue_return_reason", <code>STIR_SHAKEN(0,verify_result)</code>
+    in the dialplan will return "invalid_or_no_callerid".</p>
+</li>
+<li>
+<p>If the endpoint's failure_action is "reject_request", the call will be
+    rejected with <code>433 "Anonymity Disallowed"</code>.</p>
+</li>
+<li>
+<p>If the endpoint's failure_action is "continue_return_reason", the call will
+    continue but a <code>Reason: STIR; cause=433; text="Anonymity Disallowed"</code>
+    header will be added to the next provisional or final response.</p>
+</li>
+</ul>
+<p>Resolves: #1112</p>
+<h4>resource_channels.c: Fix memory leak in ast_ari_channels_external_media.</h4>
+<p>Author: George Joseph
+  Date:   2025-02-04</p>
+<p>Between ast_ari_channels_external_media(), external_media_rtp_udp(),
+  and external_media_audiosocket_tcp(), the <code>variables</code> structure being passed
+  around wasn't being cleaned up properly when there was a failure.</p>
+<ul>
+<li>
+<p>In ast_ari_channels_external_media(), the <code>variables</code> structure is now
+    defined with RAII_VAR to ensure it always gets cleaned up.</p>
+</li>
+<li>
+<p>The ast_variables_destroy() call was removed from external_media_rtp_udp().</p>
+</li>
+<li>
+<p>The ast_variables_destroy() call was removed from
+    external_media_audiosocket_tcp(), its <code>endpoint</code> allocation was changed to
+    to use ast_asprintf() as external_media_rtp_udp() does, and it now
+    returns an error on failure.</p>
+</li>
+<li>
+<p>ast_ari_channels_external_media() now checks the new return code from
+    external_media_audiosocket_tcp() and sets the appropriate error response.</p>
+</li>
+</ul>
+<p>Resolves: #1109</p>
+<h4>ari/pjsip: Make it possible to control transfers through ARI</h4>
+<p>Author: Holger Hans Peter Freyther
+  Date:   2024-06-15</p>
+<p>Introduce a ChannelTransfer event and the ability to notify progress to
+  ARI. Implement emitting this event from the PJSIP channel instead of
+  handling the transfer in Asterisk when configured.</p>
+<p>Introduce a dialplan function to the PJSIP channel to switch between the
+  "core" and "ari-only" behavior.</p>
+<p>UserNote: Call transfers on the PJSIP channel can now be controlled by
+  ARI. This can be enabled by using the PJSIP_TRANSFER_HANDLING(ari-only)
+  dialplan function.</p>
+<h4>channel.c: Remove dead AST_GENERATOR_FD code.</h4>
+<p>Author: Sean Bright
+  Date:   2025-02-06</p>
+<p>Nothing ever sets the <code>AST_GENERATOR_FD</code>, so this block of code will
+  never execute. It also is the only place where the <code>generate</code> callback
+  is called with the channel lock held which made it difficult to reason
+  about the thread safety of <code>ast_generator</code>s.</p>
+<p>In passing, also note that <code>AST_AGENT_FD</code> isn't used either.</p>
+<h4>func_strings.c: Prevent SEGV in HASH single-argument mode.</h4>
+<p>Author: George Joseph
+  Date:   2025-01-30</p>
+<p>When in single-argument mode (very rarely used), a malformation of a column
+  name (also very rare) could cause a NULL to be returned when retrieving the
+  channel variable for that column.  Passing that to strncat causes a SEGV.  We
+  now check for the NULL and print a warning message.</p>
+<p>Resolves: #1101</p>
+<h4>docs: Add version information to AGI command XML elements.</h4>
+<p>Author: George Joseph
+  Date:   2025-01-24</p>
+<p>This process was a bit different than the others because everything
+  is in the same file, there's an array that contains the command
+  names and their handler functions, and the last command was created
+  over 15 years ago.</p>
+<ul>
+<li>Dump a <code>git blame</code> of res/res_agi.c from BEFORE the handle_* prototypes
+    were changed.</li>
+<li>Create a command &lt;&gt; handler function xref by parsing the the agi_command
+    array.</li>
+<li>For each entry, grep the function definition line "static int handle_*"
+    from the git blame output and capture the commit.  This will be the
+    commit the command was created in.</li>
+<li>Do a <code>git tag --contains &lt;commit&gt; | sort -V | head -1</code> to get the
+    tag the function was created in.</li>
+<li>Add a single since/version element to the command XML.  Multiple versions
+    aren't supported here because the branching and tagging scheme changed
+    several times in the 2000's.</li>
+</ul>
+<h4>docs: Fix minor typo in MixMonitor AMI action</h4>
+<p>Author: Jeremy Lainé
+  Date:   2025-01-28</p>
+<p>The <code>Options</code> argument was erroneously documented as lowercase
+  <code>options</code>.</p>
+<h4>utils: Disable old style definition warnings for libdb.</h4>
+<p>Author: Naveen Albert
+  Date:   2025-01-23</p>
+<p>Newer versions of gcc now warn about old style definitions, such
+  as those in libdb, which causes compilation failure with DEVMODE
+  enabled. Ignore these warnings for libdb.</p>
+<p>Resolves: #1085</p>
+<h4>rtp.conf.sample: Correct stunaddr example.</h4>
+<p>Author: fabriziopicconi
+  Date:   2024-09-25</p>
+<h4>docs: Add version information to ARI resources and methods.</h4>
+<p>Author: George Joseph
+  Date:   2025-01-27</p>
+<ul>
+<li>
+<p>Dump a git blame of each file in rest-api/api-docs.</p>
+</li>
+<li>
+<p>Get the commit for each "resourcePath" and "httpMethod" entry.</p>
+</li>
+<li>
+<p>Find the tags for each commit (same as other processes).</p>
+</li>
+<li>
+<p>Insert a "since" array after each "resourcePath" and "httpMethod" entry.</p>
+</li>
+</ul>
+<h4>docs: Indent <since> tags.</h4>
+<p>Author: Sean Bright
+  Date:   2025-01-23</p>
+<p>Also updates the 'since' of applications/functions that existed before
+  XML documentation was introduced (1.6.2.0).</p>
+</body></html>
