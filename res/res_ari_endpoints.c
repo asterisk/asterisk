@@ -669,6 +669,7 @@ static struct stasis_rest_handlers endpoints = {
 
 static int unload_module(void)
 {
+
 	ast_ari_remove_handler(&endpoints);
 	return 0;
 }

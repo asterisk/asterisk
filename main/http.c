@@ -203,6 +203,19 @@ const char *ast_get_http_method(enum ast_http_method method)
 	return NULL;
 }
 
+enum ast_http_method ast_get_http_method_from_string(const char *method)
+{
+	int x;
+
+	for (x = 0; x < ARRAY_LEN(ast_http_methods_text); x++) {
+		if (ast_strings_equal(method, ast_http_methods_text[x].text)) {
+			return ast_http_methods_text[x].method;
+		}
+	}
+
+	return AST_HTTP_UNKNOWN;
+}
+
 const char *ast_http_ftype2mtype(const char *ftype)
 {
 	int x;
@@ -1353,30 +1366,18 @@ struct ast_json *ast_http_get_json(
  * get post variables from client Request Entity-Body, if content type is
  * application/x-www-form-urlencoded
  */
-struct ast_variable *ast_http_get_post_vars(
-	struct ast_tcptls_session_instance *ser, struct ast_variable *headers)
+struct ast_variable *ast_http_parse_post_form(char *buf, int content_length,
+	const char *content_type)
 {
-	int content_length = 0;
 	struct ast_variable *v, *post_vars=NULL, *prev = NULL;
 	char *var, *val;
-	RAII_VAR(char *, buf, NULL, ast_free);
-	RAII_VAR(char *, type, get_content_type(headers), ast_free);
 
 	/* Use errno to distinguish errors from no params */
 	errno = 0;
 
-	if (ast_strlen_zero(type) ||
-	    strcasecmp(type, "application/x-www-form-urlencoded")) {
+	if (ast_strlen_zero(content_type) ||
+		strcasecmp(content_type, "application/x-www-form-urlencoded") != 0) {
 		/* Content type is not form data.  Don't read the body. */
-		return NULL;
-	}
-
-	buf = ast_http_get_contents(&content_length, ser, headers);
-	if (!buf || !content_length) {
-		/*
-		 * errno already set
-		 * or it is not an error to have zero content
-		 */
 		return NULL;
 	}
 
@@ -1399,6 +1400,34 @@ struct ast_variable *ast_http_get_post_vars(
 	}
 
 	return post_vars;
+}
+
+struct ast_variable *ast_http_get_post_vars(
+	struct ast_tcptls_session_instance *ser, struct ast_variable *headers)
+{
+	int content_length = 0;
+	RAII_VAR(char *, buf, NULL, ast_free);
+	RAII_VAR(char *, type, get_content_type(headers), ast_free);
+
+	/* Use errno to distinguish errors from no params */
+	errno = 0;
+
+	if (ast_strlen_zero(type) ||
+	    strcasecmp(type, "application/x-www-form-urlencoded")) {
+		/* Content type is not form data.  Don't read the body. */
+		return NULL;
+	}
+
+	buf = ast_http_get_contents(&content_length, ser, headers);
+	if (!buf || !content_length) {
+		/*
+		 * errno already set
+		 * or it is not an error to have zero content
+		 */
+		return NULL;
+	}
+
+	return ast_http_parse_post_form(buf, content_length, type);
 }
 
 static int handle_uri(struct ast_tcptls_session_instance *ser, char *uri,

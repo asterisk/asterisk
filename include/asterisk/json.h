@@ -1137,6 +1137,58 @@ enum ast_json_to_ast_vars_code {
  */
 enum ast_json_to_ast_vars_code ast_json_to_ast_variables(struct ast_json *json_variables, struct ast_variable **variables);
 
+enum ast_json_nvp_ast_vars_code {
+	/*! \brief Conversion successful */
+	AST_JSON_NVP_AST_VARS_CODE_SUCCESS,
+	/*!
+	 * \brief Conversion failed because invalid value type supplied.
+	 * \note Only string values allowed.
+	 */
+	AST_JSON_NVP_AST_VARS_CODE_INVALID_TYPE,
+	/*! \brief Conversion failed because of allocation failure. (Out Of Memory) */
+	AST_JSON_NVP_AST_VARS_CODE_OOM,
+	/*! \brief Input was NULL or empty */
+	AST_JSON_NVP_AST_VARS_CODE_NO_INPUT,
+};
+
+
+/*!
+ * \brief Convert a \c ast_json array of name/value pairs into an \c ast_variable list
+ *
+ * This is the inverse of \ref ast_variables_to_json_nvp_array().
+ *
+ * \param json_variables The JSON array containing the name/value pairs
+ * \param[out] ast_variables The ast_variable list containing the name/value pairs
+ *
+ * \note The JSON array must be in the following format:
+ * \code
+ * [
+ *   {
+ *     "name": "foo",
+ *     "value": "bar"
+ *   },
+ *   {
+ *     "name": "foo2",
+ *     "value": "bar2"
+ *   }
+ * ]
+ * \endcode
+ *
+ * \return enum ast_json_to_ast_vars_code indicating status.
+ */
+enum ast_json_nvp_ast_vars_code ast_json_nvp_array_to_ast_variables(
+	struct ast_json *json_variables, struct ast_variable **ast_variables);
+
+/*!
+ * \brief Convert a \c ast_variable list into a \c ast_json array of name/value pairs
+ *
+ * This is the inverse of \ref ast_json_nvp_array_to_ast_variables().
+ *
+ * \param variables The ast_variable list to convert
+ * \return JSON array of name/value pairs.  Must be freed with \ref ast_json_unref().
+ */
+struct ast_json *ast_variables_to_json_nvp_array(struct ast_variable *variables);
+
 struct varshead;
 
 /*!

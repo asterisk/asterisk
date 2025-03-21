@@ -332,6 +332,7 @@ static struct stasis_rest_handlers deviceStates = {
 
 static int unload_module(void)
 {
+
 	ast_ari_remove_handler(&deviceStates);
 	return 0;
 }

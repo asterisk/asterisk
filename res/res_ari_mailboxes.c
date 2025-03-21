@@ -338,6 +338,7 @@ static struct stasis_rest_handlers mailboxes = {
 
 static int unload_module(void)
 {
+
 	ast_ari_remove_handler(&mailboxes);
 	return 0;
 }

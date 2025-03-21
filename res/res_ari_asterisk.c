@@ -1304,6 +1304,7 @@ static struct stasis_rest_handlers asterisk = {
 
 static int unload_module(void)
 {
+
 	ast_ari_remove_handler(&asterisk);
 	return 0;
 }
