@@ -420,6 +420,8 @@ static enum pjsip_status_code rx_data_to_ast_msg(pjsip_rx_data *rdata, struct as
 	RAII_VAR(struct ast_sip_endpoint *, endpt, NULL, ao2_cleanup);
 	pjsip_uri *ruri = rdata->msg_info.msg->line.req.uri;
 	pjsip_name_addr *name_addr;
+	pjsip_sip_uri *suri;
+	char *display_name;
 	char buf[MAX_BODY_SIZE];
 	const char *field;
 	const char *context;
@@ -455,14 +457,51 @@ static enum pjsip_status_code rx_data_to_ast_msg(pjsip_rx_data *rdata, struct as
 	buf[size] = '\0';
 	res |= ast_msg_set_to(msg, "%s", sip_to_pjsip(buf, ++size, sizeof(buf) - 1));
 
-	/* from header */
+	/*
+	 * We need to sanitize the from header's display name
+	 * by replacing any control characters, including NULLs,
+	 * with spaces.  Since the display name is a pj_str_t, we
+	 * can't modify it in place, so we need to copy it to a
+	 * temporary buffer first. The good news is that we can't
+	 * accidentally run over the end of the buffer, even if
+	 * there's a NULL in the middle, because the display name
+	 * is a pj_str_t and we know its length.
+	 */
 	name_addr = (pjsip_name_addr *)rdata->msg_info.from->uri;
-	size = pjsip_uri_print(PJSIP_URI_IN_FROMTO_HDR, name_addr, buf, sizeof(buf) - 1);
-	if (size <= 0) {
-		return PJSIP_SC_INTERNAL_SERVER_ERROR;
+	suri = pjsip_uri_get_uri((pjsip_uri *)name_addr);
+	if (name_addr->display.slen > 0) {
+		int i = 0;
+		char *temp_name = ast_alloca(name_addr->display.slen + 1);
+		for (i = 0; i < name_addr->display.slen; i++) {
+			if (name_addr->display.ptr[i] < 32) {
+				temp_name[i] = ' ';
+			} else {
+				temp_name[i] = name_addr->display.ptr[i];
+			}
+		}
+		temp_name[name_addr->display.slen] = '\0';
+		/*
+		 * We need space for each double quote, the display name,
+		 * the trailing space and the NULL terminator.
+		 */
+		display_name = ast_alloca(name_addr->display.slen + 5);
+		size = sprintf(display_name, "\"%s\" ", temp_name); /* Safe */
+	} else {
+		display_name = "";
 	}
-	buf[size] = '\0';
-	res |= ast_msg_set_from(msg, "%s", buf);
+
+	/*
+	 * In the end, the string should look like...
+	 * "display name" <scheme:user@host>
+	 * If there's no display name, it and its double quotes
+	 * will be suppressed.
+	 * Note that the port is not included.
+	 */
+	res |= ast_msg_set_from(msg, "%s<" PJSTR_PRINTF_SPEC ":" PJSTR_PRINTF_SPEC "@" PJSTR_PRINTF_SPEC ">",
+			display_name,
+			PJSTR_PRINTF_VAR(*pjsip_uri_get_scheme(suri)),
+			PJSTR_PRINTF_VAR(*ast_sip_pjsip_uri_get_username((pjsip_uri *)name_addr)),
+			PJSTR_PRINTF_VAR(*ast_sip_pjsip_uri_get_hostname((pjsip_uri *)name_addr)));
 
 	field = pj_sockaddr_print(&rdata->pkt_info.src_addr, buf, sizeof(buf) - 1, 3);
 	res |= ast_msg_set_var(msg, "PJSIP_RECVADDR", field);
@@ -519,7 +558,6 @@ static void msg_data_destroy(void *obj)
 
 static struct msg_data *msg_data_create(const struct ast_msg *msg, const char *destination, const char *from)
 {
-	char *uri_params;
 	struct msg_data *mdata = ao2_alloc(sizeof(*mdata), msg_data_destroy);
 
 	if (!mdata) {
@@ -539,15 +577,6 @@ static struct msg_data *msg_data_create(const struct ast_msg *msg, const char *d
 	mdata->destination = ast_strdup(destination);
 	mdata->from = ast_strdup(from);
 
-	/*
-	 * Sometimes from URI can contain URI parameters, so remove them.
-	 *
-	 * sip:user;user-options@domain;uri-parameters
-	 */
-	uri_params = strchr(mdata->from, '@');
-	if (uri_params && (uri_params = strchr(mdata->from, ';'))) {
-		*uri_params = '\0';
-	}
 	return mdata;
 }
 
