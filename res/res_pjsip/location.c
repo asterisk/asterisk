@@ -1136,6 +1136,11 @@ static int cli_contact_print_body(void *obj, void *arg, int flags)
 		ast_sip_get_contact_short_status_label(status ? status->status : UNKNOWN),
 		(status && (status->status == AVAILABLE)) ? ((long long) status->rtt) / 1000.0 : NAN);
 
+	if (context->show_details || (context->show_details_only_level_0 && context->indent_level == 0)) {
+		ast_str_append(&context->output_buffer, 0, "\n");
+		ast_sip_cli_print_sorcery_objectset(contact, context, 0);
+	}
+
 	ao2_cleanup(status);
 	return 0;
 }
