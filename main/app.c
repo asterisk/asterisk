@@ -2463,9 +2463,8 @@ int ast_app_group_set_var(struct ast_channel *chan, const char *group, const cha
 	struct ast_group_meta *gmi = NULL;
 
 	struct varshead *headp;
-	struct ast_var_t *newvariable = NULL;
-	int existing_var_found = 0;
-
+	struct ast_var_t *variable = NULL;
+	
 	if (!group || !name) {
 		ast_log(LOG_WARNING, "<%s> GROUP variable assignment failed for %s@%s, group/name cannot be NULL, group variable '%s' not set\n", ast_channel_name(chan), group, category, name);
 		return -2;
@@ -2488,22 +2487,17 @@ int ast_app_group_set_var(struct ast_channel *chan, const char *group, const cha
 
 		headp = &gmi->varshead;
 
-		AST_LIST_TRAVERSE(headp, newvariable, entries) {
-			if (strcasecmp(ast_var_name(newvariable), name) == 0) {
-				/* there is already such a variable, replace it */
-				existing_var_found = 1;
-				ast_var_set(newvariable, value);
+		AST_LIST_TRAVERSE(headp, variable, entries) {
+			if (strcasecmp(ast_var_name(variable), name) == 0) {
+				/* there is already such a variable, nuke it so we can replace it */
+				ast_var_delete(variable);
 				break;
 			}
 		}
 
-		if (existing_var_found) {
-			break;
-		}
+		variable = ast_var_assign(name, value);
 
-		newvariable = ast_var_assign(name, value);
-
-		AST_LIST_INSERT_HEAD(headp, newvariable, entries);
+		AST_LIST_INSERT_HEAD(headp, variable, entries);
 		manager_event(EVENT_FLAG_DIALPLAN, "GroupVarSet",
 			"Channel: %s\r\n"
 			"Category: %s\r\n"
@@ -2520,7 +2514,7 @@ int ast_app_group_set_var(struct ast_channel *chan, const char *group, const cha
 	AST_RWLIST_TRAVERSE_SAFE_END;
 	AST_RWLIST_UNLOCK(&groups_meta);
 
-	if (!newvariable) {
+	if (!variable) {
 		ast_log(LOG_WARNING, "<%s> GROUP assignment %s@%s doesn't exist, group variable '%s' not set\n", ast_channel_name(chan), group, category, name);
 		return -1;
 	}

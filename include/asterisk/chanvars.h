@@ -64,21 +64,6 @@ struct ast_var_t *_ast_var_assign(const char *name, const char *value, const cha
 #define ast_var_assign(name, value) _ast_var_assign(name, value, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 /*!
- * \brief Replace the value of an existing variable
- * \pre Caller assumes all responsibility for handling locking
- *
- * \see ast_var_find
- * \see ast_var_assign
- *
- * \param var           must be a struct ast_var_t * that's been set up with ast_var_assign
- * \param new_value     value of the variable to set
- *
- * \retval 1
- * \retval 0 on success
- */
-int ast_var_set(const struct ast_var_t *var, const char *new_value);
-
-/*!
  * \brief Free a variable.  This does not remove the variable from the list that it might be a part of
  * \see linkedlists.h
  *
