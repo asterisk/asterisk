@@ -10,7 +10,7 @@ AC_INIT(menuselect, MENUSELECT_VERSION, www.asterisk.org)
 AC_CONFIG_SRCDIR([menuselect.c])
 
 # specify output header file
-AC_CONFIG_HEADER(autoconfig.h)
+AC_CONFIG_HEADERS([autoconfig.h])
 
 AC_COPYRIGHT("Menuselect")
 
@@ -45,6 +45,7 @@ AH_BOTTOM([#endif])
 AC_PROG_CC
 AST_CHECK_GNU_MAKE
 
+PKG_PROG_PKG_CONFIG
 
 AC_LANG(C)
 AC_ARG_ENABLE([debug],
@@ -90,6 +91,7 @@ else
   AST_EXT_LIB_CHECK([TINFO], [tinfo], [keypad], [curses.h])
 fi
 
+AST_PKG_CONFIG_CHECK([LIBXML2], [libxml-2.0])
 AST_EXT_TOOL_CHECK([LIBXML2], [xml2-config], , ,
         [#include <libxml/tree.h>
         #include <libxml/parser.h>],
