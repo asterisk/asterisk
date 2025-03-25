@@ -1084,8 +1084,8 @@
 					</since>
 					<synopsis>The number of in-use channels which will cause busy to be returned as device state</synopsis>
 					<description><para>
-						When the number of in-use channels for the endpoint matches the devicestate_busy_at setting the
-						PJSIP channel driver will return busy as the device state instead of in use.
+						When the number of in-use channels for the endpoint equal to or greater than the devicestate_busy_at setting
+						the PJSIP channel driver will return busy as the device state instead of in use.
 					</para></description>
 				</configOption>
 				<configOption name="t38_udptl" default="no">

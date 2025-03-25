@@ -1221,15 +1221,14 @@ static int chan_pjsip_devicestate(const char *data)
 			ast_devstate_aggregate_add(&aggregate, ast_state_chan2dev(snapshot->state));
 		}
 
-		if ((snapshot->state == AST_STATE_UP) || (snapshot->state == AST_STATE_RING) ||
-			(snapshot->state == AST_STATE_BUSY)) {
+		if (snapshot->state != AST_STATE_DOWN && snapshot->state != AST_STATE_RESERVED) {
 			inuse++;
 		}
 
 		ao2_ref(snapshot, -1);
 	}
 
-	if (endpoint->devicestate_busy_at && (inuse == endpoint->devicestate_busy_at)) {
+	if (endpoint->devicestate_busy_at && (inuse >= endpoint->devicestate_busy_at)) {
 		state = AST_DEVICE_BUSY;
 	} else if (ast_devstate_aggregate_result(&aggregate) != AST_DEVICE_INVALID) {
 		state = ast_devstate_aggregate_result(&aggregate);
@@ -1791,7 +1790,7 @@ static int chan_pjsip_indicate(struct ast_channel *ast, int condition, const voi
 		device_buf_size = strlen(ast_channel_name(ast)) + 1;
 		device_buf = alloca(device_buf_size);
 		ast_channel_get_device_name(ast, device_buf, device_buf_size);
-		ast_devstate_changed_literal(AST_DEVICE_ONHOLD, 1, device_buf);
+		ast_devstate_changed_literal(AST_DEVICE_UNKNOWN, AST_DEVSTATE_CACHABLE, device_buf);
 		if (!channel->session->moh_passthrough) {
 			ast_moh_start(ast, data, NULL);
 		} else {
@@ -1807,7 +1806,7 @@ static int chan_pjsip_indicate(struct ast_channel *ast, int condition, const voi
 		device_buf_size = strlen(ast_channel_name(ast)) + 1;
 		device_buf = alloca(device_buf_size);
 		ast_channel_get_device_name(ast, device_buf, device_buf_size);
-		ast_devstate_changed_literal(AST_DEVICE_UNKNOWN, 1, device_buf);
+		ast_devstate_changed_literal(AST_DEVICE_UNKNOWN, AST_DEVSTATE_CACHABLE, device_buf);
 		if (!channel->session->moh_passthrough) {
 			ast_moh_stop(ast);
 		} else {
