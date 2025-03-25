@@ -2504,6 +2504,54 @@ struct ast_threadpool *ast_sip_threadpool(void)
 	return sip_threadpool;
 }
 
+int ast_sip_is_uri_sip_sips(pjsip_uri *uri)
+{
+	return (PJSIP_URI_SCHEME_IS_SIP(uri) || PJSIP_URI_SCHEME_IS_SIPS(uri));
+}
+
+int ast_sip_is_allowed_uri(pjsip_uri *uri)
+{
+	return (ast_sip_is_uri_sip_sips(uri));
+}
+
+const pj_str_t *ast_sip_pjsip_uri_get_username(pjsip_uri *uri)
+{
+	if (ast_sip_is_uri_sip_sips(uri)) {
+		pjsip_sip_uri *sip_uri = pjsip_uri_get_uri(uri);
+		if (!sip_uri) {
+			return &AST_PJ_STR_EMPTY;
+		}
+		return &sip_uri->user;
+	}
+
+	return &AST_PJ_STR_EMPTY;
+}
+
+const pj_str_t *ast_sip_pjsip_uri_get_hostname(pjsip_uri *uri)
+{
+	if (ast_sip_is_uri_sip_sips(uri)) {
+		pjsip_sip_uri *sip_uri = pjsip_uri_get_uri(uri);
+		if (!sip_uri) {
+			return &AST_PJ_STR_EMPTY;
+		}
+		return &sip_uri->host;
+	}
+
+	return &AST_PJ_STR_EMPTY;
+}
+
+struct pjsip_param *ast_sip_pjsip_uri_get_other_param(pjsip_uri *uri, const pj_str_t *param_str)
+{
+	if (ast_sip_is_uri_sip_sips(uri)) {
+		pjsip_sip_uri *sip_uri = pjsip_uri_get_uri(uri);
+		if (!sip_uri) {
+			return NULL;
+		}
+		return pjsip_param_find(&sip_uri->other_param, param_str);
+	}
+
+	return NULL;
+}
 
 struct response_code_map {
 	int code;
