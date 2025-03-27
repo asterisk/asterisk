@@ -1,11 +1,11 @@
 
-## Change Log for Release asterisk-22.3.0-rc1
+## Change Log for Release asterisk-22.3.0
 
 ### Links:
 
- - [Full ChangeLog](https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-22.3.0-rc1.html)  
- - [GitHub Diff](https://github.com/asterisk/asterisk/compare/22.2.0...22.3.0-rc1)  
- - [Tarball](https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-22.3.0-rc1.tar.gz)  
+ - [Full ChangeLog](https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-22.3.0.html)  
+ - [GitHub Diff](https://github.com/asterisk/asterisk/compare/22.2.0...22.3.0)  
+ - [Tarball](https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-22.3.0.tar.gz)  
  - [Downloads](https://downloads.asterisk.org/pub/telephony/asterisk)  
 
 ### Summary:
