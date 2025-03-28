@@ -74,116 +74,9 @@
 /*** MODULEINFO
 	<depend type="module">res_http_websocket</depend>
 	<depend type="module">res_stasis</depend>
+	<depend type="module">res_websocket_client</depend>
 	<support_level>core</support_level>
  ***/
-
-/*** DOCUMENTATION
-	<configInfo name="res_ari" language="en_US">
-		<synopsis>HTTP binding for the Stasis API</synopsis>
-		<configFile name="ari.conf">
-			<configObject name="general">
-				<since>
-					<version>12.0.0</version>
-				</since>
-				<synopsis>General configuration settings</synopsis>
-				<configOption name="enabled">
-					<since>
-						<version>12.0.0</version>
-					</since>
-					<synopsis>Enable/disable the ARI module</synopsis>
-					<description>
-						<para>This option enables or disables the ARI module.</para>
-						<note>
-							<para>ARI uses Asterisk's HTTP server, which must also be enabled in <filename>http.conf</filename>.</para>
-						</note>
-					</description>
-					<see-also>
-						<ref type="filename">http.conf</ref>
-						<ref type="link">https://docs.asterisk.org/Configuration/Core-Configuration/Asterisk-Builtin-mini-HTTP-Server/</ref>
-					</see-also>
-				</configOption>
-				<configOption name="websocket_write_timeout" default="100">
-					<since>
-						<version>11.11.0</version>
-						<version>12.4.0</version>
-					</since>
-					<synopsis>The timeout (in milliseconds) to set on WebSocket connections.</synopsis>
-					<description>
-						<para>If a websocket connection accepts input slowly, the timeout
-						for writes to it can be increased to keep it from being disconnected.
-						Value is in milliseconds.</para>
-					</description>
-				</configOption>
-				<configOption name="pretty">
-					<since>
-						<version>12.0.0</version>
-					</since>
-					<synopsis>Responses from ARI are formatted to be human readable</synopsis>
-				</configOption>
-				<configOption name="auth_realm">
-					<since>
-						<version>12.0.0</version>
-					</since>
-					<synopsis>Realm to use for authentication. Defaults to Asterisk REST Interface.</synopsis>
-				</configOption>
-				<configOption name="allowed_origins">
-					<since>
-						<version>12.0.0</version>
-					</since>
-					<synopsis>Comma separated list of allowed origins, for Cross-Origin Resource Sharing. May be set to * to allow all origins.</synopsis>
-				</configOption>
-				<configOption name="channelvars">
-					<since>
-						<version>14.2.0</version>
-					</since>
-					<synopsis>Comma separated list of channel variables to display in channel json.</synopsis>
-				</configOption>
-			</configObject>
-
-			<configObject name="user">
-				<since>
-					<version>12.0.0</version>
-				</since>
-				<synopsis>Per-user configuration settings</synopsis>
-				<configOption name="type">
-					<since>
-						<version>13.30.0</version>
-						<version>16.7.0</version>
-						<version>17.1.0</version>
-					</since>
-					<synopsis>Define this configuration section as a user.</synopsis>
-					<description>
-						<enumlist>
-							<enum name="user"><para>Configure this section as a <replaceable>user</replaceable></para></enum>
-						</enumlist>
-					</description>
-				</configOption>
-				<configOption name="read_only">
-					<since>
-						<version>13.30.0</version>
-						<version>16.7.0</version>
-						<version>17.1.0</version>
-					</since>
-					<synopsis>When set to yes, user is only authorized for read-only requests</synopsis>
-				</configOption>
-				<configOption name="password">
-					<since>
-						<version>13.30.0</version>
-						<version>16.7.0</version>
-						<version>17.1.0</version>
-					</since>
-					<synopsis>Crypted or plaintext password (see password_format)</synopsis>
-				</configOption>
-				<configOption name="password_format">
-					<since>
-						<version>12.0.0</version>
-					</since>
-					<synopsis>password_format may be set to plain (the default) or crypt. When set to crypt, crypt(3) is used to validate the password. A crypted password can be generated using mkpasswd -m sha-512. When set to plain, the password is in plaintext</synopsis>
-				</configOption>
-			</configObject>
-		</configFile>
-	</configInfo>
-***/
 
 #include "asterisk.h"
 
@@ -202,8 +95,8 @@
 /*! \brief Helper function to check if module is enabled. */
 static int is_enabled(void)
 {
-	RAII_VAR(struct ast_ari_conf *, cfg, ast_ari_config_get(), ao2_cleanup);
-	return cfg && cfg->general && cfg->general->enabled;
+	RAII_VAR(struct ari_conf_general *, general, ari_conf_get_general(), ao2_cleanup);
+	return general && general->enabled;
 }
 
 /*! Lock for \ref root_handler */
@@ -389,9 +282,9 @@ static void add_allow_header(struct stasis_rest_handlers *handler,
 
 static int origin_allowed(const char *origin)
 {
-	RAII_VAR(struct ast_ari_conf *, cfg, ast_ari_config_get(), ao2_cleanup);
+	RAII_VAR(struct ari_conf_general *, general, ari_conf_get_general(), ao2_cleanup);
 
-	char *allowed = ast_strdupa(cfg->general->allowed_origins);
+	char *allowed = ast_strdupa(general ? general->allowed_origins : "");
 	char *current;
 
 	while ((current = strsep(&allowed, ","))) {
@@ -555,7 +448,7 @@ static void handle_options(struct stasis_rest_handlers *handler,
  * \return User object for the authenticated user.
  * \retval NULL if authentication failed.
  */
-static struct ast_ari_conf_user *authenticate_api_key(const char *api_key)
+static struct ari_conf_user *authenticate_api_key(const char *api_key)
 {
 	RAII_VAR(char *, copy, NULL, ast_free);
 	char *username;
@@ -572,7 +465,7 @@ static struct ast_ari_conf_user *authenticate_api_key(const char *api_key)
 		return NULL;
 	}
 
-	return ast_ari_config_validate_user(username, password);
+	return ari_conf_validate_user(username, password);
 }
 
 /*!
@@ -583,7 +476,7 @@ static struct ast_ari_conf_user *authenticate_api_key(const char *api_key)
  * \return User object for the authenticated user.
  * \retval NULL if authentication failed.
  */
-static struct ast_ari_conf_user *authenticate_user(struct ast_variable *get_params,
+static struct ari_conf_user *authenticate_user(struct ast_variable *get_params,
 	struct ast_variable *headers)
 {
 	RAII_VAR(struct ast_http_auth *, http_auth, NULL, ao2_cleanup);
@@ -592,7 +485,7 @@ static struct ast_ari_conf_user *authenticate_user(struct ast_variable *get_para
 	/* HTTP Basic authentication */
 	http_auth = ast_http_get_auth(headers);
 	if (http_auth) {
-		return ast_ari_config_validate_user(http_auth->userid,
+		return ari_conf_validate_user(http_auth->userid,
 			http_auth->password);
 	}
 
@@ -642,8 +535,8 @@ enum ast_ari_invoke_result ast_ari_invoke(struct ast_tcptls_session_instance *se
 	struct stasis_rest_handlers *handler = NULL;
 	struct stasis_rest_handlers *wildcard_handler = NULL;
 	RAII_VAR(struct ast_variable *, path_vars, NULL, ast_variables_destroy);
-	RAII_VAR(struct ast_ari_conf_user *, user, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_ari_conf *, conf, ast_ari_config_get(), ao2_cleanup);
+	RAII_VAR(struct ari_conf_user *, user, NULL, ao2_cleanup);
+	RAII_VAR(struct ari_conf_general *, general, ari_conf_get_general(), ao2_cleanup);
 
 	char *path = ast_strdupa(uri);
 	char *path_segment = NULL;
@@ -651,7 +544,7 @@ enum ast_ari_invoke_result ast_ari_invoke(struct ast_tcptls_session_instance *se
 	SCOPE_ENTER(3, "Request: %s %s, path:%s\n", ast_get_http_method(method), uri, path);
 
 
-	if (!conf || !conf->general) {
+	if (!general) {
 		if (ser && source == ARI_INVOKE_SOURCE_REST) {
 			ast_http_request_close_on_completion(ser);
 		}
@@ -679,7 +572,7 @@ enum ast_ari_invoke_result ast_ari_invoke(struct ast_tcptls_session_instance *se
 		 */
 		ast_str_append(&response->headers, 0,
 			"WWW-Authenticate: Basic realm=\"%s\"\r\n",
-			conf->general->auth_realm);
+			general->auth_realm);
 		SCOPE_EXIT_RTN_VALUE(ARI_INVOKE_RESULT_ERROR_CONTINUE, "Response: %d : %s\n",
 			response->response_code, response->response_text);
 	} else if (!ast_fully_booted) {
@@ -1014,9 +907,8 @@ static void process_cors_request(struct ast_variable *headers,
 
 enum ast_json_encoding_format ast_ari_json_format(void)
 {
-	RAII_VAR(struct ast_ari_conf *, cfg, NULL, ao2_cleanup);
-	cfg = ast_ari_config_get();
-	return cfg->general->format;
+	RAII_VAR(struct ari_conf_general *, general, ari_conf_get_general(), ao2_cleanup);
+	return general ? general->format : AST_JSON_COMPACT;
 }
 
 /*!
@@ -1230,14 +1122,14 @@ static int unload_module(void)
 {
 	ari_websocket_unload_module();
 
-	ast_ari_cli_unregister();
+	ari_cli_unregister();
 
 	if (is_enabled()) {
 		ast_debug(3, "Disabling ARI\n");
 		ast_http_uri_unlink(&http_uri);
 	}
 
-	ast_ari_config_destroy();
+	ari_conf_destroy();
 
 	ao2_cleanup(root_handler);
 	root_handler = NULL;
@@ -1272,12 +1164,33 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	if (ast_ari_config_init() != 0) {
+	/*
+	 * ari_websocket_load_module() needs to know if ARI is enabled
+	 * globally so it needs the "general" config to be loaded but it
+	 * also needs to register a sorcery object observer for
+	 * "outbound_websocket" BEFORE the outbound_websocket configs are loaded.
+	 * outbound_websocket in turn needs the users to be loaded so we'll
+	 * initialize sorcery and load "general" and "user" configs first, then
+	 * load the websocket module, then load the "outbound_websocket" configs
+	 * which will fire the observers.
+	 */
+	if (ari_conf_load(ARI_CONF_INIT | ARI_CONF_LOAD_GENERAL | ARI_CONF_LOAD_USER) != 0) {
 		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	if (ari_websocket_load_module() != AST_MODULE_LOAD_SUCCESS) {
+	if (ari_websocket_load_module(is_enabled()) != AST_MODULE_LOAD_SUCCESS) {
+		unload_module();
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	/*
+	 * Now we can load the outbound_websocket configs which will
+	 * fire the observers.
+	 */
+	ari_conf_load(ARI_CONF_LOAD_OWC);
+
+	if (ari_cli_register() != 0) {
 		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
@@ -1289,26 +1202,22 @@ static int load_module(void)
 		ast_debug(3, "ARI disabled\n");
 	}
 
-	if (ast_ari_cli_register() != 0) {
-		unload_module();
-		return AST_MODULE_LOAD_DECLINE;
-	}
-
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int reload_module(void)
 {
 	char was_enabled = is_enabled();
+	int is_now_enabled = 0;
 
-	if (ast_ari_config_reload() != 0) {
-		return AST_MODULE_LOAD_DECLINE;
-	}
+	ari_conf_load(ARI_CONF_RELOAD | ARI_CONF_LOAD_ALL);
 
-	if (was_enabled && !is_enabled()) {
+	is_now_enabled = is_enabled();
+
+	if (was_enabled && !is_now_enabled) {
 		ast_debug(3, "Disabling ARI\n");
 		ast_http_uri_unlink(&http_uri);
-	} else if (!was_enabled && is_enabled()) {
+	} else if (!was_enabled && is_now_enabled) {
 		ast_debug(3, "Enabling ARI\n");
 		ast_http_uri_link(&http_uri);
 	}
@@ -1321,6 +1230,6 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_
 	.load = load_module,
 	.unload = unload_module,
 	.reload = reload_module,
-	.requires = "http,res_stasis,res_http_websocket",
+	.requires = "http,res_stasis,res_http_websocket,res_websocket_client",
 	.load_pri = AST_MODPRI_APP_DEPEND,
 );
