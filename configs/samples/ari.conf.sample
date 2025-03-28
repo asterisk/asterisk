@@ -35,3 +35,24 @@ enabled = yes       ; When set to no, ARI support is disabled.
 ; When set to plain, the password is in plaintext.
 ;
 ;password_format = plain
+
+; Outbound Websocket Connections
+;
+;[connection1]                 ; The connection name
+;type = outbound_websocket     ; Must be "outbound_websocket"
+;websocket_client_id = myid    ; The id of a websocket client defined in
+                               ; websocket_client.conf.
+                               ; Default: none
+;apps = app1, app2             ; A comma-separated list of Stasis applications
+                               ; that will be served by this connection.
+                               ; No other connection may serve these apps.
+                               ; Default: none
+;subscribe_all = no            ; If set to "yes", the server will receive all
+                               ; events just as though "subscribeAll=true" was
+                               ; specified on an incoming websocket connection.
+                               ; Default: no
+;local_ari_user = local_user   ; The name of a local ARI user defined above.
+                               ; This controls whether this connection can make
+                               ; read/write requests or is read-only.
+                               ; Default: none
+
