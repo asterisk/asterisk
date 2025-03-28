@@ -169,6 +169,8 @@
 				"RecordingFinished",
 				"RecordingFailed",
 				"ApplicationMoveFailed",
+				"ApplicationRegistered",
+				"ApplicationUnregistered",
 				"ApplicationReplaced",
 				"BridgeCreated",
 				"BridgeDestroyed",
@@ -366,6 +368,16 @@
 					"description": "Arguments to the application"
 				}
 			}
+		},
+		"ApplicationRegistered": {
+			"id": "ApplicationRegistered",
+			"description": "Notification that a Stasis app has been registered.",
+			"properties": {}
+		},
+		"ApplicationUnregistered": {
+			"id": "ApplicationUnregistered",
+			"description": "Notification that a Stasis app has been unregistered.",
+			"properties": {}
 		},
 		"ApplicationReplaced": {
 			"id": "ApplicationReplaced",
