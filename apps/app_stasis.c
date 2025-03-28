@@ -25,12 +25,14 @@
 
 /*** MODULEINFO
 	<depend>res_stasis</depend>
+	<depend>res_ari</depend>
 	<support_level>core</support_level>
  ***/
 
 #include "asterisk.h"
 
 #include "asterisk/app.h"
+#include "asterisk/ari.h"
 #include "asterisk/module.h"
 #include "asterisk/pbx.h"
 #include "asterisk/stasis.h"
@@ -86,6 +88,7 @@ static const char *stasis = "Stasis";
 static int app_exec(struct ast_channel *chan, const char *data)
 {
 	char *parse = NULL;
+	char *connection_id;
 	int ret = -1;
 
 	AST_DECLARE_APP_ARGS(args,
@@ -104,13 +107,35 @@ static int app_exec(struct ast_channel *chan, const char *data)
 
 	if (args.argc < 1) {
 		ast_log(LOG_WARNING, "Stasis app_name argument missing\n");
-	} else {
-		ret = stasis_app_exec(chan,
-		                      args.app_name,
-		                      args.argc - 1,
-		                      args.app_argv);
+		goto done;
 	}
 
+	if (stasis_app_is_registered(args.app_name)) {
+		ast_debug(3, "%s: App '%s' is already registered\n",
+			ast_channel_name(chan), args.app_name);
+		ret = stasis_app_exec(chan, args.app_name, args.argc - 1, args.app_argv);
+		goto done;
+	}
+	ast_debug(3, "%s: App '%s' is NOT already registered\n",
+		ast_channel_name(chan), args.app_name);
+
+	/*
+	 * The app isn't registered so we need to see if we have a
+	 * per-call outbound websocket config we can use.
+	 * connection_id will be freed by ast_ari_close_per_call_websocket().
+	 */
+	connection_id = ast_ari_create_per_call_websocket(args.app_name, chan);
+	if (ast_strlen_zero(connection_id)) {
+		ast_log(LOG_WARNING,
+			"%s: Stasis app '%s' doesn't exist\n",
+			ast_channel_name(chan), args.app_name);
+		goto done;
+	}
+
+	ret = stasis_app_exec(chan, connection_id, args.argc - 1, args.app_argv);
+	ast_ari_close_per_call_websocket(connection_id);
+
+done:
 	if (ret) {
 		/* set ret to 0 so pbx_core doesnt hangup the channel */
 		if (!ast_check_hangup(chan)) {
@@ -140,5 +165,5 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Stasis dialplan applicat
 	.support_level = AST_MODULE_SUPPORT_CORE,
 	.load = load_module,
 	.unload = unload_module,
-	.requires = "res_stasis",
+	.requires = "res_stasis,res_ari",
 );
