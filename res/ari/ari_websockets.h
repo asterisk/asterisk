@@ -35,18 +35,53 @@ struct ast_ari_events_event_websocket_args;
  * which causes optional_api stuff to happen, which makes optional_api more
  * difficult to debug. */
 
-//struct ast_websocket_server;
 struct ast_websocket;
 
+/*
+ * Since we create a "stasis-<appname>" dialplan context for each
+ * stasis app, we need to make sure that the total length will be
+ * <= AST_MAX_CONTEXT
+ */
+#define STASIS_CONTEXT_PREFIX "stasis-"
+#define STASIS_CONTEXT_PREFIX_LEN (sizeof(STASIS_CONTEXT_PREFIX) - 1)
+#define ARI_MAX_APP_NAME_LEN (AST_MAX_CONTEXT - STASIS_CONTEXT_PREFIX_LEN)
+
+
+enum ari_websocket_type {
+	ARI_WS_TYPE_OUTBOUND_PERSISTENT = (1 << 0),
+	ARI_WS_TYPE_OUTBOUND_PER_CALL_CONFIG = (1 << 1),
+	ARI_WS_TYPE_OUTBOUND_PER_CALL = (1 << 2),
+	ARI_WS_TYPE_INBOUND = (1 << 3),
+	ARI_WS_TYPE_ANY = (0xFFFFFFFF),
+};
+
 struct ari_ws_session {
+	enum ari_websocket_type type;                   /*!< The type of websocket session. */
 	struct ast_websocket *ast_ws_session;           /*!< The parent websocket session. */
 	int (*validator)(struct ast_json *);            /*!< The message validator. */
-	struct ao2_container *websocket_apps;           /*!< List of Stasis apps registered to
+	struct ast_vector_string websocket_apps;        /*!< List of Stasis apps registered to
 	                                                     the websocket session. */
+	int subscribe_all;                              /*!< Flag indicating if all events are subscribed to. */
 	AST_VECTOR(, struct ast_json *) message_queue;  /*!< Container for holding delayed messages. */
 	char *app_name;                                 /*!< The name of the Stasis application. */
+	char *remote_addr;                              /*!< The remote address. */
+	struct ari_conf_outbound_websocket *owc;           /*!< The outbound websocket configuration. */
+	pthread_t thread;                               /*!< The thread that handles the websocket. */
+	char *channel_id;                               /*!< The channel id for per-call websocket. */
+	char *channel_name;                             /*!< The channel name for per-call websocket. */
+	int stasis_end_sent;                            /*!< Flag indicating if the StasisEnd message was sent. */
+	int connected;                                  /*!< Flag indicating if the websocket is connected. */
+	int closing;                                    /*!< Flag indicating if the session is closing. */
 	char session_id[];                              /*!< The id for the websocket session. */
 };
+
+struct ao2_container* ari_websocket_get_sessions(void);
+struct ari_ws_session *ari_websocket_get_session(const char *session_id);
+struct ari_ws_session *ari_websocket_get_session_by_app(const char *app_name);
+const char *ari_websocket_type_to_str(enum ari_websocket_type type);
+void ari_websocket_shutdown(struct ari_ws_session *session);
+void ari_websocket_shutdown_all(void);
+int ari_outbound_websocket_start(struct ari_conf_outbound_websocket *owc);
 
 /*!
  * \internal
@@ -91,6 +126,6 @@ void ari_handle_websocket(struct ast_tcptls_session_instance *ser,
 	struct ast_variable *headers);
 
 int ari_websocket_unload_module(void);
-int ari_websocket_load_module(void);
+int ari_websocket_load_module(int is_enabled);
 
 #endif /* ARI_WEBSOCKETS_H_ */
