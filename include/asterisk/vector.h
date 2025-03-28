@@ -85,6 +85,17 @@ int ast_vector_string_split(struct ast_vector_string *dest,
 	int (*excludes_cmp)(const char *s1, const char *s2));
 
 /*!
+ * \brief Join the elements of a string vector into a single string.
+ *
+ * \param vec Pointer to the vector.
+ * \param delim String to separate elements with.
+ *
+ * \retval Resulting string.  Must be freed with ast_free.
+ *
+ */
+char *ast_vector_string_join(struct ast_vector_string *vec, const char *delim);
+
+/*!
  * \brief Define a vector structure with a read/write lock
  *
  * \param name Optional vector struct name.
