@@ -403,6 +403,25 @@ char *ast_read_line_from_buffer(char **buffer)
 	return start;
 }
 
+char *ast_vector_string_join(struct ast_vector_string *vec, const char *delim)
+{
+	struct ast_str *buf = ast_str_create(256);
+	char *rtn;
+	int i;
+
+	if (!buf) {
+		return NULL;
+	}
+
+	for (i = 0; i < AST_VECTOR_SIZE(vec); i++) {
+		ast_str_append(&buf, 0, "%s%s", AST_VECTOR_GET(vec, i), delim);
+	}
+	ast_str_truncate(buf, -strlen(delim));
+	rtn = ast_strdup(ast_str_buffer(buf));
+	ast_free(buf);
+	return rtn;
+}
+
 int ast_vector_string_split(struct ast_vector_string *dest,
 	const char *input, const char *delim, int flags,
 	int (*excludes_cmp)(const char *s1, const char *s2))

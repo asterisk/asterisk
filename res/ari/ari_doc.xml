@@ -1,0 +1,157 @@
+<!DOCTYPE docs SYSTEM "appdocsxml.dtd">
+<?xml-stylesheet type="text/xsl" href="appdocsxml.xslt"?>
+<docs xmlns:xi="http://www.w3.org/2001/XInclude">
+	<configInfo name="res_ari" language="en_US">
+		<synopsis>HTTP binding for the Stasis API</synopsis>
+		<configFile name="ari.conf">
+			<configObject name="general">
+				<since>
+					<version>12.0.0</version>
+				</since>
+				<synopsis>General configuration settings</synopsis>
+				<configOption name="enabled">
+					<since>
+						<version>12.0.0</version>
+					</since>
+					<synopsis>Enable/disable the ARI module</synopsis>
+					<description>
+						<para>This option enables or disables the ARI module.</para>
+						<note>
+							<para>ARI uses Asterisk's HTTP server, which must also be enabled in <filename>http.conf</filename>.</para>
+						</note>
+					</description>
+					<see-also>
+						<ref type="filename">http.conf</ref>
+						<ref type="link">https://docs.asterisk.org/Configuration/Core-Configuration/Asterisk-Builtin-mini-HTTP-Server/</ref>
+					</see-also>
+				</configOption>
+				<configOption name="websocket_write_timeout" default="100">
+					<since>
+						<version>11.11.0</version>
+						<version>12.4.0</version>
+					</since>
+					<synopsis>The timeout (in milliseconds) to set on WebSocket connections.</synopsis>
+					<description>
+						<para>If a websocket connection accepts input slowly, the timeout
+						for writes to it can be increased to keep it from being disconnected.
+						Value is in milliseconds.</para>
+					</description>
+				</configOption>
+				<configOption name="pretty">
+					<since>
+						<version>12.0.0</version>
+					</since>
+					<synopsis>Responses from ARI are formatted to be human readable</synopsis>
+				</configOption>
+				<configOption name="auth_realm">
+					<since>
+						<version>12.0.0</version>
+					</since>
+					<synopsis>Realm to use for authentication. Defaults to Asterisk REST Interface.</synopsis>
+				</configOption>
+				<configOption name="allowed_origins">
+					<since>
+						<version>12.0.0</version>
+					</since>
+					<synopsis>Comma separated list of allowed origins, for Cross-Origin Resource Sharing. May be set to * to allow all origins.</synopsis>
+				</configOption>
+				<configOption name="channelvars">
+					<since>
+						<version>14.2.0</version>
+					</since>
+					<synopsis>Comma separated list of channel variables to display in channel json.</synopsis>
+				</configOption>
+			</configObject>
+
+			<configObject name="user">
+				<since>
+					<version>12.0.0</version>
+				</since>
+				<synopsis>Per-user configuration settings</synopsis>
+				<configOption name="type">
+					<since>
+						<version>13.30.0</version>
+						<version>16.7.0</version>
+						<version>17.1.0</version>
+					</since>
+					<synopsis>Define this configuration section as a user.</synopsis>
+					<description>
+						<enumlist>
+							<enum name="user"><para>Configure this section as a <replaceable>user</replaceable></para></enum>
+						</enumlist>
+					</description>
+				</configOption>
+				<configOption name="read_only">
+					<since>
+						<version>13.30.0</version>
+						<version>16.7.0</version>
+						<version>17.1.0</version>
+					</since>
+					<synopsis>When set to yes, user is only authorized for read-only requests</synopsis>
+				</configOption>
+				<configOption name="password">
+					<since>
+						<version>13.30.0</version>
+						<version>16.7.0</version>
+						<version>17.1.0</version>
+					</since>
+					<synopsis>Crypted or plaintext password (see password_format)</synopsis>
+				</configOption>
+				<configOption name="password_format">
+					<since>
+						<version>12.0.0</version>
+					</since>
+					<synopsis>password_format may be set to plain (the default) or crypt. When set to crypt, crypt(3) is used to validate the password. A crypted password can be generated using mkpasswd -m sha-512. When set to plain, the password is in plaintext</synopsis>
+				</configOption>
+			</configObject>
+			<configObject name="outbound_websocket">
+				<since>
+					<version>20.15.0</version>
+					<version>21.10.0</version>
+					<version>22.5.0</version>
+				</since>
+				<synopsis>Outbound websocket configuration</synopsis>
+				<configOption name="type">
+					<since>
+						<version>20.15.0</version>
+						<version>21.10.0</version>
+						<version>22.5.0</version>
+					</since>
+					<synopsis>Must be "outbound_websocket".</synopsis>
+				</configOption>
+				<configOption name="websocket_client_id">
+					<since>
+						<version>20.15.0</version>
+						<version>21.10.0</version>
+						<version>22.5.0</version>
+					</since>
+					<synopsis>The ID of a connection defined in websocket_client.conf.</synopsis>
+				</configOption>
+				<configOption name="apps">
+					<since>
+						<version>20.15.0</version>
+						<version>21.10.0</version>
+						<version>22.5.0</version>
+					</since>
+					<synopsis>Comma separated list of stasis applications that will use this websocket.</synopsis>
+				</configOption>
+				<configOption name="local_ari_user">
+					<since>
+						<version>20.15.0</version>
+						<version>21.10.0</version>
+						<version>22.5.0</version>
+					</since>
+					<synopsis>The local ARI user to act as.</synopsis>
+				</configOption>
+				<configOption name="subscribe_all" default="no">
+					<since>
+						<version>20.15.0</version>
+						<version>21.10.0</version>
+						<version>22.5.0</version>
+					</since>
+					<synopsis>Subscribe applications to all event</synopsis>
+				</configOption>
+			</configObject>
+		</configFile>
+	</configInfo>
+</docs>
