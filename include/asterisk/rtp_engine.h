@@ -1029,7 +1029,7 @@ void ast_rtp_instance_set_data(struct ast_rtp_instance *instance, void *data);
  *
  * \code
  * struct *blob = ast_rtp_instance_get_data(instance);
- ( \endcode
+ * \endcode
  *
  * This gets the data pointer on the RTP instance pointed to by 'instance'.
  *
