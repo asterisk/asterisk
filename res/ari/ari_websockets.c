@@ -697,6 +697,10 @@ static int ari_ws_session_shutdown_cb(void *ari_ws_session, void *arg, int flags
 
 static void ari_ws_session_registry_dtor(void)
 {
+	if (!ari_ws_session_registry) {
+		return;
+	}
+
 	ao2_callback(ari_ws_session_registry, OBJ_MULTIPLE | OBJ_NODATA,
 		ari_ws_session_shutdown_cb, NULL);
 
