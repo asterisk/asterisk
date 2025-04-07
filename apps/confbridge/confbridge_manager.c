@@ -353,16 +353,28 @@ static struct ast_json *bridge_to_json(struct ast_bridge_snapshot *bridge_snapsh
 	return json_bridge;
 }
 
-static struct ast_json *pack_bridge_and_channels(
-	struct ast_json *json_bridge, struct ast_json *json_channels,
-	struct stasis_message * msg)
+static struct ast_json *pack_bridge_and_channel(
+	struct ast_json *json_bridge, struct ast_json *json_channel,
+	struct stasis_message *msg)
 {
 	const struct timeval *tv = stasis_message_timestamp(msg);
 	const char *msg_name = confbridge_event_type_to_string(stasis_message_type(msg));
-	const char *fmt = ast_json_typeof(json_channels) == AST_JSON_ARRAY ?
-		"{s: s, s: o, s: o, s: o }" : "{s: s, s: o, s: o, s: [ o ] }";
 
-	return ast_json_pack(fmt,
+	return ast_json_pack("{s: s, s: o, s: o, s: [o*]}",
+		"type", msg_name,
+		"timestamp", ast_json_timeval(*tv, NULL),
+		"bridge", json_bridge,
+		"channels", json_channel);
+}
+
+static struct ast_json *pack_bridge_and_channels(
+	struct ast_json *json_bridge, struct ast_json *json_channels,
+	struct stasis_message *msg)
+{
+	const struct timeval *tv = stasis_message_timestamp(msg);
+	const char *msg_name = confbridge_event_type_to_string(stasis_message_type(msg));
+
+	return ast_json_pack("{s: s, s: o, s: o, s: o}",
 		"type", msg_name,
 		"timestamp", ast_json_timeval(*tv, NULL),
 		"bridge", json_bridge,
@@ -379,7 +391,7 @@ static struct ast_json *pack_snapshots(	struct ast_bridge_snapshot *bridge_snaps
 	json_bridge = bridge_to_json(bridge_snapshot);
 	json_channel = channel_to_json(channel_snapshot, conf_blob, labels_blob);
 
-	return pack_bridge_and_channels(json_bridge, json_channel, msg);
+	return pack_bridge_and_channel(json_bridge, json_channel, msg);
 }
 
 static void send_message(const char *msg_name, char *conf_name, struct ast_json *json_object,
