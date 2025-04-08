@@ -2207,6 +2207,8 @@ void ast_party_redirecting_free(struct ast_party_redirecting *doomed)
 	ast_party_redirecting_reason_free(&doomed->orig_reason);
 }
 
+static void moh_cleanup(struct ast_channel *chan);
+
 /*! \brief Free a channel structure */
 static void ast_channel_destructor(void *obj)
 {
@@ -2222,7 +2224,7 @@ static void ast_channel_destructor(void *obj)
 
 	/* If there is native format music-on-hold state, free it */
 	if (ast_channel_music_state(chan)) {
-		ast_moh_cleanup(chan);
+		moh_cleanup(chan);
 	}
 
 	ast_pbx_hangup_handler_destroy(chan);
@@ -7791,6 +7793,11 @@ void ast_moh_stop(struct ast_channel *chan)
 }
 
 void ast_moh_cleanup(struct ast_channel *chan)
+{
+	/* A nop but needed for API compat */
+}
+
+static void moh_cleanup(struct ast_channel *chan)
 {
 	if (ast_moh_cleanup_ptr)
 		ast_moh_cleanup_ptr(chan);
