@@ -291,6 +291,9 @@ static void moh_post_stop(struct ast_channel *chan)
 	ao2_cleanup(message);
 }
 
+/*
+ * Called with `chan` locked.
+ */
 static void moh_files_release(struct ast_channel *chan, void *data)
 {
 	struct moh_files_state *state;
@@ -323,7 +326,10 @@ static void moh_files_release(struct ast_channel *chan, void *data)
 	state->class = mohclass_unref(state->class, "Unreffing channel's music class upon deactivation of generator");
 }
 
-static int ast_moh_files_next(struct ast_channel *chan)
+/*
+ * Called with `chan` locked.
+ */
+static int moh_files_next(struct ast_channel *chan)
 {
 	struct moh_files_state *state = ast_channel_music_state(chan);
 	struct ast_vector_string *files;
@@ -423,6 +429,9 @@ static int ast_moh_files_next(struct ast_channel *chan)
 	return 0;
 }
 
+/*
+ * Called with `chan` locked.
+ */
 static struct ast_frame *moh_files_readframe(struct ast_channel *chan)
 {
 	struct ast_frame *f;
@@ -430,7 +439,7 @@ static struct ast_frame *moh_files_readframe(struct ast_channel *chan)
 	f = ast_readframe(ast_channel_stream(chan));
 	if (!f) {
 		/* Either there was no file stream setup or we reached EOF. */
-		if (!ast_moh_files_next(chan)) {
+		if (!moh_files_next(chan)) {
 			/*
 			 * Either we resetup the previously saved file stream position
 			 * or we started a new file stream.
@@ -442,7 +451,7 @@ static struct ast_frame *moh_files_readframe(struct ast_channel *chan)
 				 * resetup file stream was saved at EOF when MOH was
 				 * previously stopped.
 				 */
-				if (!ast_moh_files_next(chan)) {
+				if (!moh_files_next(chan)) {
 					f = ast_readframe(ast_channel_stream(chan));
 				}
 			}
@@ -452,6 +461,9 @@ static struct ast_frame *moh_files_readframe(struct ast_channel *chan)
 	return f;
 }
 
+/*
+ * Called with `chan` locked.
+ */
 static void moh_files_write_format_change(struct ast_channel *chan, void *data)
 {
 	struct moh_files_state *state = ast_channel_music_state(chan);
@@ -525,6 +537,9 @@ static int moh_files_generator(struct ast_channel *chan, void *data, int len, in
 	return res;
 }
 
+/*
+ * Called with `chan` locked.
+ */
 static void *moh_files_alloc(struct ast_channel *chan, void *params)
 {
 	struct moh_files_state *state;
@@ -1006,6 +1021,9 @@ static struct mohdata *mohalloc(struct mohclass *cl)
 	return moh;
 }
 
+/*
+ * Called with `chan` locked.
+ */
 static void moh_release(struct ast_channel *chan, void *data)
 {
 	struct mohdata *moh = data;
@@ -1043,6 +1061,9 @@ static void moh_release(struct ast_channel *chan, void *data)
 	ao2_cleanup(oldwfmt);
 }
 
+/*
+ * Called with `chan` locked.
+ */
 static void *moh_alloc(struct ast_channel *chan, void *params)
 {
 	struct mohdata *res;
@@ -1518,6 +1539,9 @@ static int _moh_unregister(struct mohclass *moh, const char *file, int line, con
 	return 0;
 }
 
+/*
+ * Called with `chan` UNLOCKED.
+ */
 static void local_ast_moh_cleanup(struct ast_channel *chan)
 {
 	struct moh_files_state *state = ast_channel_music_state(chan);
@@ -1684,6 +1708,9 @@ static struct ast_variable *load_realtime_musiconhold(const char *name)
 	return var;
 }
 
+/*
+ * Called with `chan` UNLOCKED.
+ */
 static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, const char *interpclass)
 {
 	struct mohclass *mohclass = NULL;
@@ -1926,6 +1953,9 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 	return res;
 }
 
+/*
+ * Called with `chan` UNLOCKED.
+ */
 static void local_ast_moh_stop(struct ast_channel *chan)
 {
 	ast_deactivate_generator(chan);
