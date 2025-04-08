@@ -51,7 +51,15 @@ void ast_install_music_functions(int (*start_ptr)(struct ast_channel *, const ch
 
 void ast_uninstall_music_functions(void);
 
-void ast_moh_cleanup(struct ast_channel *chan);
+/*!
+ * \brief Clean up music on hold state on a given channel
+ *
+ * \param chan The channel where music on hold was configured.
+ *
+ * \deprecated This function no longer does anything but is kept for
+ *             backwards compatibility.
+ */
+void ast_moh_cleanup(struct ast_channel *chan) attribute_deprecated;
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
