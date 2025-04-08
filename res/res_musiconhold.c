@@ -1544,8 +1544,10 @@ static int _moh_unregister(struct mohclass *moh, const char *file, int line, con
  */
 static void local_ast_moh_cleanup(struct ast_channel *chan)
 {
-	struct moh_files_state *state = ast_channel_music_state(chan);
+	struct moh_files_state *state;
 
+	ast_channel_lock(chan);
+	state = ast_channel_music_state(chan);
 	if (state) {
 		ast_channel_music_state_set(chan, NULL);
 		if (state->class) {
@@ -1560,6 +1562,7 @@ static void local_ast_moh_cleanup(struct ast_channel *chan)
 		/* Only held a module reference if we had a music state */
 		ast_module_unref(ast_module_info->self);
 	}
+	ast_channel_unlock(chan);
 }
 
 /*! \brief Support routing for 'moh unregister class' CLI
