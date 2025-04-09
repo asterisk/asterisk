@@ -758,7 +758,7 @@
 					<para>Total duration of conference in HH:MM:SS format.</para>
 				</parameter>
 				<parameter name="Creation">
-					<para>How the conference was created: "Dyanmic" or "Static".</para>
+					<para>How the conference was created: "Dynamic" or "Static".</para>
 				</parameter>
 				<parameter name="Locked">
 					<para>Whether or not the conference is locked.</para>
