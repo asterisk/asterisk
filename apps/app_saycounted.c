@@ -66,7 +66,7 @@
 			implement complicated spelling rules.  We simply record the word
 			"men" in the sound file named "mans".</para>
 			<para>This application does not automatically answer and should be
-			preceeded by an application such as Answer() or Progress.</para>
+			preceded by an application such as Answer() or Progress.</para>
 		</description>
 		<see-also>
 			<ref type="application">SayCountedAdj</ref>
@@ -108,7 +108,7 @@
 			SayCountedAdj(5,new,f) will play sound file "newx" (containing the
 			word "novikh").</para>
 			<para>This application does not automatically answer and should be
-			preceeded by an application such as Answer(), Progress(), or
+			preceded by an application such as Answer(), Progress(), or
 			Proceeding().</para>
 		</description>
 		<see-also>

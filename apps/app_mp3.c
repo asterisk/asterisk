@@ -74,7 +74,7 @@
 			<example title="Play an MP3 playlist">
 			exten => 1234,1,MP3Player(/var/lib/asterisk/playlist.m3u)
 			</example>
-			<para>This application does not automatically answer and should be preceeded by an
+			<para>This application does not automatically answer and should be preceded by an
 			application such as Answer() or Progress().</para>
 		</description>
 	</application>
