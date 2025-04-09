@@ -1798,7 +1798,7 @@ static int check_password(struct ast_vm_user *vmu, char *password)
 }
 
 /*!
- * \brief Performs a change of the voicemail passowrd in the realtime engine.
+ * \brief Performs a change of the voicemail password in the realtime engine.
  * \param vmu The voicemail user to change the password for.
  * \param password The new value to be set to the password for this user.
  *
@@ -4670,7 +4670,7 @@ static void odbc_delete_message(const char *sdir, int smsg)
  * \param smsg the index of the message to be copied.
  * \param ddir the destination folder to copy the message into.
  * \param dmsg the index to be used for the copied message.
- * \param dmailboxuser The user who owns the mailbox tha contains the destination folder.
+ * \param dmailboxuser The user who owns the mailbox that contains the destination folder.
  * \param dmailboxcontext The context for the destination user.
  *
  * This method is used for the COPY macro when mailboxes are stored in an ODBC back end.
@@ -4970,7 +4970,7 @@ static int odbc_store_message(const char *dir, const char *mailboxuser, const ch
  * \param dmsg The destination message for the message to be renamed.
  *
  * This method is used by the RENAME macro when mailboxes are stored in an ODBC back end.
- * The is usually used to resequence the messages in the mailbox, such as to delete messag index 0, it would be called successively to slide all the other messages down one index.
+ * The is usually used to resequence the messages in the mailbox, such as to delete message index 0, it would be called successively to slide all the other messages down one index.
  * But in theory, because the SQL query performs an update on (dir, msgnum, mailboxuser, mailboxcontext) in the database, it should be possible to have the message relocated to another mailbox or context as well.
  */
 static void odbc_rename_message(char *sdir, int smsg, char *mailboxuser, char *mailboxcontext, char *ddir, int dmsg)
@@ -5351,7 +5351,7 @@ static void prep_email_sub_vars(struct ast_channel *ast, struct ast_vm_user *vmu
 }
 
 /*!
- * \brief Wraps a character sequence in double quotes, escaping occurences of quotes within the string.
+ * \brief Wraps a character sequence in double quotes, escaping occurrences of quotes within the string.
  * \param from The string to work with.
  * \param buf The buffer into which to write the modified quoted string.
  * \param maxlen Always zero, but see \see ast_str
@@ -6706,7 +6706,7 @@ static void run_externnotify(const char *context, const char *extension, const c
 /*!
  * \brief Variables used for saving a voicemail.
  *
- * This includes the record gain, mode flags, and the exit context of the chanel that was used for leaving the voicemail.
+ * This includes the record gain, mode flags, and the exit context of the channel that was used for leaving the voicemail.
  */
 struct leave_vm_options {
 	unsigned int flags;
@@ -15174,7 +15174,7 @@ static int actual_load_config(int reload, struct ast_config *cfg, struct ast_con
 				smdi_iface = ast_smdi_interface_find("/dev/ttyS0");
 			}
 			if (!smdi_iface) {
-				ast_log(AST_LOG_ERROR, "No valid SMDI interface specfied, disabling SMDI voicemail notification\n");
+				ast_log(AST_LOG_ERROR, "No valid SMDI interface specified, disabling SMDI voicemail notification\n");
 			}
 		}
 
@@ -16257,7 +16257,7 @@ AST_TEST_DEFINE(test_voicemail_vm_info)
 		ast_copy_string(vminfo_args, test_items[test_counter].vminfo_test_args, sizeof(vminfo_args));
 		test_ret = acf_vm_info(chan, vminfo_cmd, vminfo_args, vminfo_buf, sizeof(vminfo_buf));
 		if (strcmp(vminfo_buf, test_items[test_counter].vminfo_expected)) {
-			ast_test_status_update(test, "VM_INFO respose was: '%s', but expected: '%s'\n", vminfo_buf, test_items[test_counter].vminfo_expected);
+			ast_test_status_update(test, "VM_INFO response was: '%s', but expected: '%s'\n", vminfo_buf, test_items[test_counter].vminfo_expected);
 			res = AST_TEST_FAIL;
 		}
 		if (!(test_ret == test_items[test_counter].vminfo_ret)) {

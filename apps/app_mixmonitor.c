@@ -171,7 +171,7 @@
 		</syntax>
 		<description>
 			<para>Records the audio on the current channel to the specified file.</para>
-			<para>This application does not automatically answer and should be preceeded by
+			<para>This application does not automatically answer and should be preceded by
 			an application such as Answer or Progress().</para>
 			<note><para>MixMonitor runs as an audiohook.</para></note>
 			<note><para>If a filename passed to MixMonitor ends with
