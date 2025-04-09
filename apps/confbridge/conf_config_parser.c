@@ -599,7 +599,7 @@
 						conference to a specific number.  By default conferences
 						have no participant limit. After the limit is reached, the
 						conference will be locked until someone leaves.  Note however
-						that an Admin user will always be alowed to join the conference
+						that an Admin user will always be allowed to join the conference
 						regardless if this limit is reached or not.
 					</para></description>
 				</configOption>
@@ -809,7 +809,7 @@
 						<enum name="playback(filename&amp;filename2&amp;...)"><para>
 							<literal>playback</literal> will play back an audio file to a channel
 							and then immediately return to the conference.
-							This file can not be interupted by DTMF.
+							This file can not be interrupted by DTMF.
 							Multiple files can be chained together using the
 							<literal>&amp;</literal> character.</para></enum>
 						<enum name="playback_and_continue(filename&amp;filename2&amp;...)"><para>

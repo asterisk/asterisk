@@ -1116,7 +1116,7 @@ static int sound_file_exists(const char *filename)
  * \param user Optional Caller
  * \param bridge_channel The bridged channel involved
  *
- * \note if caller is NULL, the announcment will be sent to all participants in the conference.
+ * \note if caller is NULL, the announcement will be sent to all participants in the conference.
  * \retval 0 on success.
  * \retval -1 if the user hung up.
  */
