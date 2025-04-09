@@ -91,7 +91,7 @@ struct app_cdr_message_payload {
 	const char *channel_name;
 	/*! Reset the CDR */
 	unsigned int reset:1;
-	/*! If reseting the CDR, keep the variables */
+	/*! If resetting the CDR, keep the variables */
 	unsigned int keep_variables:1;
 };
 
