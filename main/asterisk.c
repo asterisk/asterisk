@@ -3528,8 +3528,20 @@ static void canary_exit(void)
 	}
 }
 
+enum startup_commands_phase {
+	STARTUP_COMMANDS_PRE_INIT = 0,
+	STARTUP_COMMANDS_PRE_MODULE,
+	STARTUP_COMMANDS_FULLY_BOOTED
+};
+
+static const char *startup_commands_phase_str[] = {
+	"pre-init",
+	"pre-module",
+	"fully-booted,yes,true,y,t,1,on"
+};
+
 /* Execute CLI commands on startup.  Run by main() thread. */
-static void run_startup_commands(void)
+static void run_startup_commands(enum startup_commands_phase phase)
 {
 	int fd;
 	struct ast_config *cfg;
@@ -3549,8 +3561,10 @@ static void run_startup_commands(void)
 	}
 
 	for (v = ast_variable_browse(cfg, "startup_commands"); v; v = v->next) {
-		if (ast_true(v->value))
+		char *value = ast_str_to_lower(ast_strdupa(v->value));
+		if (ast_in_delimited_string(value, startup_commands_phase_str[phase], ',')) {
 			ast_cli_command(fd, v->name);
+		}
 	}
 
 	close(fd);
@@ -4269,6 +4283,8 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 	threadstorage_init();
 
 	check_init(init_logger(), "Logger");
+	run_startup_commands(STARTUP_COMMANDS_PRE_INIT);
+
 	check_init(ast_rtp_engine_init(), "RTP Engine");
 
 	ast_autoservice_init();
@@ -4302,6 +4318,8 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 	check_init(load_pbx_hangup_handler(), "PBX Hangup Handler Support");
 	check_init(ast_local_init(), "Local Proxy Channel Driver");
 	check_init(ast_refer_init(), "Refer API");
+
+	run_startup_commands(STARTUP_COMMANDS_PRE_MODULE);
 
 	/* We should avoid most config loads before this point as they can't use realtime. */
 	check_init(load_modules(), "Module");
@@ -4340,7 +4358,7 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 	ast_cli_register_multiple(cli_asterisk, ARRAY_LEN(cli_asterisk));
 	ast_register_cleanup(main_atexit);
 
-	run_startup_commands();
+	run_startup_commands(STARTUP_COMMANDS_FULLY_BOOTED);
 	ast_sd_notify("READY=1");
 
 	ast_verb(0, COLORIZE_FMT "\n", COLORIZE(COLOR_BRGREEN, 0, "Asterisk Ready."));
