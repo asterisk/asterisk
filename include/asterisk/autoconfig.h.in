@@ -1067,6 +1067,12 @@
 /* Define to 1 if 'ifr_ifru.ifru_hwaddr' is a member of 'struct ifreq'. */
 #undef HAVE_STRUCT_IFREQ_IFR_IFRU_IFRU_HWADDR
 
+/* Define to 1 if 'sin6_len' is a member of 'struct sockaddr_in6'. */
+#undef HAVE_STRUCT_SOCKADDR_IN6_SIN6_LEN
+
+/* Define to 1 if 'sin_len' is a member of 'struct sockaddr_in'. */
+#undef HAVE_STRUCT_SOCKADDR_IN_SIN_LEN
+
 /* Define to 1 if 'uid' is a member of 'struct sockpeercred'. */
 #undef HAVE_STRUCT_SOCKPEERCRED_UID
 
