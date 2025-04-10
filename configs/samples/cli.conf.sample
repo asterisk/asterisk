@@ -7,6 +7,22 @@
 ; Any commands listed in this section will get automatically executed
 ; when Asterisk starts as a daemon or foreground process (-c).
 ;
-;sip set debug on = yes
+; Commands with a value of "pre-init" will run just after the logger
+; is initialized but before all other core and module initialization.
+;
+; Commands with a value of "pre-module" will run just after core
+; initialization is done but before module initialization.
+;
+; These two values can be used for things like enabling debugging on
+; specific modules before they're loaded so you can see debug messages
+; generated during their initialization. Of course you can't run
+; commands from modules that haven't loaded yet.
+;
+; Commands with a value of "yes" or "fully-booted" will run after all
+; core and module initialization is completed and just before
+; "Asterisk Ready" is printed on the console.
+;
+;core set debug 3 channels.c = pre-init
+;core set debug 3 res_pjsip.so = pre-module
 ;core set verbose 3 = yes
-;core set debug 1 = yes
+;sip set debug on = yes
