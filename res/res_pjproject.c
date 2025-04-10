@@ -560,6 +560,9 @@ int ast_sockaddr_from_pj_sockaddr(struct ast_sockaddr *addr, const pj_sockaddr *
 {
 	if (pjaddr->addr.sa_family == pj_AF_INET()) {
 		struct sockaddr_in *sin = (struct sockaddr_in *) &addr->ss;
+#if defined(HAVE_STRUCT_SOCKADDR_IN_SIN_LEN)
+		sin->sin_len = sizeof(struct sockaddr_in);
+#endif
 		sin->sin_family = AF_INET;
 #if defined(HAVE_PJPROJECT_BUNDLED) && !defined(HAVE_PJPROJECT_BUNDLED_OOT)
 		sin->sin_addr = pjaddr->ipv4.sin_addr;
@@ -571,6 +574,9 @@ int ast_sockaddr_from_pj_sockaddr(struct ast_sockaddr *addr, const pj_sockaddr *
 		addr->len = sizeof(struct sockaddr_in);
 	} else if (pjaddr->addr.sa_family == pj_AF_INET6()) {
 		struct sockaddr_in6 *sin = (struct sockaddr_in6 *) &addr->ss;
+#if defined(HAVE_STRUCT_SOCKADDR_IN6_SIN6_LEN)
+		sin->sin6_len = sizeof(struct sockaddr_in6);
+#endif
 		sin->sin6_family   = AF_INET6;
 		sin->sin6_port     = pjaddr->ipv6.sin6_port;
 		sin->sin6_flowinfo = pjaddr->ipv6.sin6_flowinfo;
