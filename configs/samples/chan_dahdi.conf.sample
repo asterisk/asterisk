@@ -684,6 +684,31 @@ usecallerid=yes
 ;
 callwaiting=yes
 ;
+; Whether or not to allow for Call Waiting Deluxe options to be used.
+; The Call Waiting Deluxe options are:
+;  3: Conference - conference the call waiting call with the existing call
+;  7: Drop - drop current call and switch to new (same as hanging up and answering)
+;  6/8: Announcement - play announcement to call waiting caller telling them to hold
+;  9: Forward - forward the call waiting call to a preconfigured extension
+; Doing nothing after 1 second triggers default behavior of holding the current call
+;  and switching to the new one.
+;
+; Some CPE (Caller ID units, screenphones, etc.) have dedicated buttons for utilizing
+; the Call Waiting Deluxe features, but these can also be used from any phone manually
+; by simply hook flashing as usual and then quickly dialing the appropriate DTMF digit.
+; If no digit is received within 1 second, the default action is assumed,
+; as if Call Waiting Deluxe was not used.
+;
+; The following extensions are also available in the dialplan to utilize this functionality:
+; - The CALLWAITDELUXEANNOUNCEMENT variable can be set on the incoming channel to control the
+;   announcement prompt played to the call waiting caller. Default is "one-moment-please".
+; - If the forward option is used, the call waiting channel will be forwarded to the 'f' extension
+;   in the channel's configured context. You can then use any dialplan mechanism to route the call.
+;
+; Default is 'no'.
+;
+;callwaitingdeluxe=yes
+;
 ; Configure the number of outstanding call waiting calls for internal ISDN
 ; endpoints before bouncing the calls as busy.  This option is equivalent to
 ; the callwaiting option for analog ports.

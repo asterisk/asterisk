@@ -9368,6 +9368,26 @@ static int dahdi_write(struct ast_channel *ast, struct ast_frame *frame)
 		return -1;
 	}
 
+	if (p->sig == SIG_FXOLS || p->sig == SIG_FXOKS || p->sig == SIG_FXOGS) {
+		struct analog_pvt *analog_p = p->sig_pvt;
+		if (analog_p->callwaitingdeluxepending) {
+			unsigned int mssinceflash = ast_tvdiff_ms(ast_tvnow(), analog_p->flashtime);
+			if (mssinceflash >= 1000) {
+				/* Timer expired: the user hasn't yet selected an option. Take the default action and get on with it. */
+				/* Note: If in the future Advanced Call Waiting Deluxe (*76) is supported, then as part of the
+				 * dialing code, we'll need to automatically invoke the preselected behavior about 2-3 seconds after
+				 * the call waiting begins (this allows for the SAS, CAS, and CWCID spill to be sent first).
+				 */
+				analog_p->callwaitingdeluxepending = 0;
+				analog_callwaiting_deluxe(analog_p, 0);
+			}
+			ast_mutex_unlock(&p->lock);
+			/* The user shouldn't hear anything after hook flashing, until a decision is made, by the user or when the timer expires. */
+			ast_debug(5, "Dropping frame since Call Waiting Deluxe pending on %s\n", ast_channel_name(ast));
+			return 0;
+		}
+	}
+
 	if (p->dialing) {
 		ast_mutex_unlock(&p->lock);
 		ast_debug(5, "Dropping frame since I'm still dialing on %s...\n",
@@ -13133,6 +13153,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 
 		tmp->usedistinctiveringdetection = usedistinctiveringdetection;
 		tmp->callwaitingcallerid = conf->chan.callwaitingcallerid;
+		tmp->callwaitingdeluxe = conf->chan.callwaitingdeluxe; /* Not used in DAHDI pvt, only analog pvt */
 		tmp->threewaycalling = conf->chan.threewaycalling;
 		tmp->threewaysilenthold = conf->chan.threewaysilenthold;
 		tmp->calledsubscriberheld = conf->chan.calledsubscriberheld; /* Not used in chan_dahdi.c, just analog pvt, but must exist on the DAHDI pvt anyways */
@@ -13473,6 +13494,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 					break;
 				}
 				analog_p->callwaitingcallerid = conf->chan.callwaitingcallerid;
+				analog_p->callwaitingdeluxe = conf->chan.callwaitingdeluxe;
 				analog_p->ringt = conf->chan.ringt;
 				analog_p->ringt_base = ringt_base;
 				analog_p->onhooktime = time(NULL);
@@ -18757,6 +18779,8 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 			confp->chan.callwaiting = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "callwaitingcallerid")) {
 			confp->chan.callwaitingcallerid = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "callwaitingdeluxe")) {
+			confp->chan.callwaitingdeluxe = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "context")) {
 			ast_copy_string(confp->chan.context, v->value, sizeof(confp->chan.context));
 		} else if (!strcasecmp(v->name, "language")) {
