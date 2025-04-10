@@ -28313,6 +28313,25 @@ printf "%s\n" "#define HAVE_STRUCT_STAT_ST_MTIMESPEC 1" >>confdefs.h
 stat_nsec_found=yes
 fi
 
+ac_fn_c_check_member "$LINENO" "struct sockaddr_in6" "sin6_len" "ac_cv_member_struct_sockaddr_in6_sin6_len" "#include <netinet/in.h>
+"
+if test "x$ac_cv_member_struct_sockaddr_in6_sin6_len" = xyes
+then :
+
+printf "%s\n" "#define HAVE_STRUCT_SOCKADDR_IN6_SIN6_LEN 1" >>confdefs.h
+
+
+fi
+ac_fn_c_check_member "$LINENO" "struct sockaddr_in" "sin_len" "ac_cv_member_struct_sockaddr_in_sin_len" "#include <netinet/in.h>
+"
+if test "x$ac_cv_member_struct_sockaddr_in_sin_len" = xyes
+then :
+
+printf "%s\n" "#define HAVE_STRUCT_SOCKADDR_IN_SIN_LEN 1" >>confdefs.h
+
+
+fi
+
 
 if test "${stat_nsec_found}" != yes; then
 	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: WARNING: Cannot determine nanosecond field of struct stat" >&5
