@@ -587,7 +587,7 @@
 						nonexistent location, e.g. nonexistent DNS hostname.
 					</value>
 					<value name="CONGESTION">
-						Channel or switching congestion occured when routing the call.
+						Channel or switching congestion occurred when routing the call.
 						This can occur if there is a slow or no response from the remote end.
 					</value>
 					<value name="NOANSWER">
