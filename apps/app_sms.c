@@ -108,9 +108,8 @@
 			generate message queues and send messages.</para>
 			<note><para>The protocol has tight delay bounds. Please use short frames and disable/keep short the
 			jitter buffer on the ATA to make sure that respones (ACK etc.) are received in time.</para>
-			<para>It is also important to adjust the gain dB of the ATA. In one of my Telefónica DOMO Mensajes phones,
-   			I had to set the dB level to +3dB, and in another phone of the same model, I had to set the gain to +6dB
-      			to get it to work.</para></note>
+			<para>It is also important to adjust the gain dB of the ATA. Some Telefónica DOMO Mensajes phones may require
+			the gain to be set to +3dB, and others even up to +6dB, in order to work.</para></note>
 		</description>
 	</application>
  ***/
