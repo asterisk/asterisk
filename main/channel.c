@@ -1168,13 +1168,21 @@ int ast_queue_frame_head(struct ast_channel *chan, struct ast_frame *fin)
 /*! \brief Queue a hangup frame for channel */
 int ast_queue_hangup(struct ast_channel *chan)
 {
+	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
 	struct ast_frame f = { AST_FRAME_CONTROL, .subclass.integer = AST_CONTROL_HANGUP };
-	int res;
+	int res, cause;
 
 	/* Yeah, let's not change a lock-critical value without locking */
 	ast_channel_lock(chan);
 	ast_channel_softhangup_internal_flag_add(chan, AST_SOFTHANGUP_DEV);
-	ast_channel_publish_blob(chan, ast_channel_hangup_request_type(), NULL);
+
+	cause = ast_channel_hangupcause(chan);
+	if (cause) {
+		blob = ast_json_pack("{s: i}",
+			"cause", cause);
+	}
+
+	ast_channel_publish_blob(chan, ast_channel_hangup_request_type(), blob);
 
 	res = ast_queue_frame(chan, &f);
 	ast_channel_unlock(chan);
