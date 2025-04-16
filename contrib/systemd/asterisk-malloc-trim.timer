@@ -1,0 +1,29 @@
+# Systemd.timer file to periodically run the
+# `malloc trim` CLI command to return unused memory
+# to the OS.
+#
+# Don't modify this file to customize the start time.  Instead create file 
+# /etc/systemd/system/asterisk-malloc-trim.timer.d/10-oncalendar.conf
+# with the following contents:
+#
+# [Timer]
+# OnCalendar=<new time spec>
+#
+# Run `systemctl daemon-reload` after creating this file.
+#
+# OnCalendar isn't the only way to set when the unit runs.
+# See systemd.timer(5) and systemd.time(7) for more info.
+#
+
+[Unit]
+Description=Asterisk malloc-trim timer
+After=asterisk.service
+Requisite=asterisk.service
+
+[Timer]
+OnCalendar=00:15:00
+RandomizedDelaySec=3600
+Persistent=yes
+
+[Install]
+WantedBy=timers.target
