@@ -1,0 +1,9 @@
+# Run the `malloc trim` CLI command to return unused memory
+# to the OS.  Triggered automatically by asterisk-malloc-trim.timer.
+
+[Unit]
+Description=Runs Asterisk "malloc trim" CLI command
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/asterisk -rx "malloc trim"
