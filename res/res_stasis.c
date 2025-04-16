@@ -1667,6 +1667,9 @@ int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
 	 */
 	cleanup();
 
+	 if (stasis_app_control_is_failed(control)) {
+		 res = -1;
+	 }
 	/* The control needs to be removed from the controls container in
 	 * case a new PBX is started and ends up coming back into Stasis.
 	 */
@@ -1739,6 +1742,19 @@ static struct stasis_app *find_app_by_name(const char *app_name)
 struct stasis_app *stasis_app_get_by_name(const char *name)
 {
 	return find_app_by_name(name);
+}
+
+int stasis_app_is_registered(const char *name)
+{
+	struct stasis_app *app = find_app_by_name(name);
+
+	/*
+	 * It's safe to unref app here because we're not actually
+	 * using it or returning it.
+	 */
+	ao2_cleanup(app);
+
+	return app != NULL;
 }
 
 static int append_name(void *obj, void *arg, int flags)
@@ -1832,6 +1848,8 @@ int stasis_app_register_all(const char *app_name, stasis_app_cb handler, void *d
 void stasis_app_unregister(const char *app_name)
 {
 	struct stasis_app *app;
+	struct stasis_app_event_source *source;
+	int res;
 
 	if (!app_name) {
 		return;
@@ -1847,6 +1865,22 @@ void stasis_app_unregister(const char *app_name)
 			"Stasis app '%s' not registered\n", app_name);
 		return;
 	}
+
+	/* Unsubscribe from all event sources. */
+	AST_RWLIST_RDLOCK(&event_sources);
+	AST_LIST_TRAVERSE(&event_sources, source, next) {
+		if (!source->unsubscribe || !source->is_subscribed
+			|| !source->is_subscribed(app, NULL)) {
+			continue;
+		}
+
+		res = source->unsubscribe(app, NULL);
+		if (res) {
+			ast_log(LOG_WARNING, "%s: Error unsubscribing from event source '%s'\n",
+				app_name, source->scheme);
+		}
+	}
+	AST_RWLIST_UNLOCK(&event_sources);
 
 	app_deactivate(app);
 
