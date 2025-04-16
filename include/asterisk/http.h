@@ -141,6 +141,20 @@ struct ast_http_auth {
  */
 struct ast_http_auth *ast_http_get_auth(struct ast_variable *headers);
 
+/*!
+ * \brief Create an HTTP authorization header.
+ *
+ * The returned ast_variable must be freed with ast_variables_destroy()
+ *
+ * \param userid User ID or "<userid>:<password>".
+ * \param password Password if not in userid.
+ *
+ * \return ast_variable with name="Authorization" and value="Basic <base64enc>"
+ * \retval NULL if memory allocation failed.
+ */
+struct ast_variable *ast_http_create_basic_auth_header(const char *userid,
+	const char *password);
+
 /*! \brief Register a URI handler */
 int ast_http_uri_link(struct ast_http_uri *urihandler);
 
