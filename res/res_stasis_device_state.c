@@ -351,7 +351,7 @@ static int is_subscribed_device_state_lock(struct stasis_app *app, const char *n
 	int is_subscribed;
 
 	ao2_lock(device_state_subscriptions);
-	is_subscribed = is_subscribed_device_state(app, name);
+	is_subscribed = is_subscribed_device_state(app, S_OR(name, DEVICE_STATE_ALL));
 	ao2_unlock(device_state_subscriptions);
 
 	return is_subscribed;
@@ -409,7 +409,7 @@ static int unsubscribe_device_state(struct stasis_app *app, const char *name)
 	struct device_state_subscription *sub;
 
 	ao2_lock(device_state_subscriptions);
-	sub = find_device_state_subscription(app, name);
+	sub = find_device_state_subscription(app, S_OR(name, DEVICE_STATE_ALL));
 	if (sub) {
 		remove_device_state_subscription(sub);
 	}
