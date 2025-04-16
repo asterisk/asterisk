@@ -102,6 +102,11 @@ struct stasis_app_control {
 	 * When set, /c app_stasis should exit and continue in the dialplan.
 	 */
 	unsigned int is_done:1;
+	/*!
+	 * When set, /c app_stasis should exit indicating failure and continue
+	 * in the dialplan.
+	 */
+	unsigned int failed:1;
 };
 
 static void control_dtor(void *obj)
@@ -367,6 +372,17 @@ void control_mark_done(struct stasis_app_control *control)
 	control->is_done = 1;
 	ao2_unlock(control->command_queue);
 }
+
+void stasis_app_control_mark_failed(struct stasis_app_control *control)
+{
+	control->failed = 1;
+}
+
+int stasis_app_control_is_failed(const struct stasis_app_control *control)
+{
+	return control->failed;
+}
+
 
 struct stasis_app_control_continue_data {
 	char context[AST_MAX_CONTEXT];
