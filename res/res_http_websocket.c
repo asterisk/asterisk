@@ -1091,7 +1091,8 @@ int AST_OPTIONAL_API_NAME(ast_websocket_remove_protocol)(const char *name, ast_w
  * The returned host will contain the address and optional port while
  * path will contain everything after the address/port if included.
  */
-static int websocket_client_parse_uri(const char *uri, char **host, struct ast_str **path)
+static int websocket_client_parse_uri(const char *uri, char **host,
+	struct ast_str **path, char **userinfo)
 {
 	struct ast_uri *parsed_uri = ast_uri_parse_websocket(uri);
 
@@ -1100,6 +1101,7 @@ static int websocket_client_parse_uri(const char *uri, char **host, struct ast_s
 	}
 
 	*host = ast_uri_make_host_with_port(parsed_uri);
+	*userinfo = ast_strdup(ast_uri_user_info(parsed_uri));
 
 	if (ast_uri_path(parsed_uri) || ast_uri_query(parsed_uri)) {
 		*path = ast_str_create(64);
@@ -1212,6 +1214,10 @@ struct websocket_client {
 	struct ast_tcptls_session_args *args;
 	/*! tcptls connection instance */
 	struct ast_tcptls_session_instance *ser;
+	/*! Authentication userid:password */
+	char *userinfo;
+	/*! Suppress connection log messages */
+	int suppress_connection_msgs;
 };
 
 static void websocket_client_destroy(void *obj)
@@ -1226,6 +1232,7 @@ static void websocket_client_destroy(void *obj)
 	ast_free(client->key);
 	ast_free(client->resource_name);
 	ast_free(client->host);
+	ast_free(client->userinfo);
 }
 
 static struct ast_websocket * websocket_client_create(
@@ -1239,9 +1246,17 @@ static struct ast_websocket * websocket_client_create(
 		return NULL;
 	}
 
+	if (!ast_uuid_generate_str(ws->session_id, sizeof(ws->session_id))) {
+		ast_log(LOG_ERROR, "Unable to allocate websocket session_id\n");
+		ao2_ref(ws, -1);
+		*result = WS_ALLOCATE_ERROR;
+		return NULL;
+	}
+
 	if (!(ws->client = ao2_alloc(
 		      sizeof(*ws->client), websocket_client_destroy))) {
 		ast_log(LOG_ERROR, "Unable to allocate websocket client\n");
+		ao2_ref(ws, -1);
 		*result = WS_ALLOCATE_ERROR;
 		return NULL;
 	}
@@ -1253,10 +1268,18 @@ static struct ast_websocket * websocket_client_create(
 	}
 
 	if (websocket_client_parse_uri(
-		    options->uri, &ws->client->host, &ws->client->resource_name)) {
+			options->uri, &ws->client->host, &ws->client->resource_name,
+			&ws->client->userinfo)) {
 		ao2_ref(ws, -1);
 		*result = WS_URI_PARSE_ERROR;
 		return NULL;
+	}
+
+	if (ast_strlen_zero(ws->client->userinfo)
+		&& !ast_strlen_zero(options->username)
+		&& !ast_strlen_zero(options->password)) {
+		ast_asprintf(&ws->client->userinfo, "%s:%s", options->username,
+			options->password);
 	}
 
 	if (!(ws->client->args = websocket_client_args_create(
@@ -1264,11 +1287,15 @@ static struct ast_websocket * websocket_client_create(
 		ao2_ref(ws, -1);
 		return NULL;
 	}
-	ws->client->protocols = ast_strdup(options->protocols);
 
+	ws->client->suppress_connection_msgs = options->suppress_connection_msgs;
+	ws->client->args->suppress_connection_msgs = options->suppress_connection_msgs;
+	ws->client->protocols = ast_strdup(options->protocols);
 	ws->client->version = 13;
 	ws->opcode = -1;
 	ws->reconstruct = DEFAULT_RECONSTRUCTION_CEILING;
+	ws->timeout = options->timeout;
+
 	return ws;
 }
 
@@ -1289,17 +1316,29 @@ static enum ast_websocket_result websocket_client_handle_response_code(
 	case 101:
 		return 0;
 	case 400:
-		ast_log(LOG_ERROR, "Received response 400 - Bad Request "
-			"- from %s\n", client->host);
+		if (!client->suppress_connection_msgs) {
+			ast_log(LOG_ERROR, "Received response 400 - Bad Request "
+				"- from %s\n", client->host);
+		}
 		return WS_BAD_REQUEST;
+	case 401:
+		if (!client->suppress_connection_msgs) {
+			ast_log(LOG_ERROR, "Received response 401 - Unauthorized "
+				"- from %s\n", client->host);
+		}
+		return WS_UNAUTHORIZED;
 	case 404:
-		ast_log(LOG_ERROR, "Received response 404 - Request URL not "
-			"found - from %s\n", client->host);
+		if (!client->suppress_connection_msgs) {
+			ast_log(LOG_ERROR, "Received response 404 - Request URL not "
+				"found - from %s\n", client->host);
+		}
 		return WS_URL_NOT_FOUND;
 	}
 
-	ast_log(LOG_ERROR, "Invalid HTTP response code %d from %s\n",
-		response_code, client->host);
+	if (!client->suppress_connection_msgs) {
+		ast_log(LOG_ERROR, "Invalid HTTP response code %d from %s\n",
+			response_code, client->host);
+	}
 	return WS_INVALID_RESPONSE;
 }
 
@@ -1384,29 +1423,49 @@ static enum ast_websocket_result websocket_client_handshake_get_response(
 		WS_OK : WS_HEADER_MISSING;
 }
 
+#define optional_header_spec "%s%s%s"
+#define print_optional_header(test, name, value) \
+	test ? name : "", \
+	test ? value : "", \
+	test ? "\r\n" : ""
+
 static enum ast_websocket_result websocket_client_handshake(
 	struct websocket_client *client)
 {
-	char protocols[100] = "";
+	size_t protocols_len = 0;
+	struct ast_variable *auth_header = NULL;
+	size_t res;
 
-	if (!ast_strlen_zero(client->protocols)) {
-		sprintf(protocols, "Sec-WebSocket-Protocol: %s\r\n",
-			client->protocols);
+	if (!ast_strlen_zero(client->userinfo)) {
+		auth_header = ast_http_create_basic_auth_header(client->userinfo, NULL);
+		if (!auth_header) {
+			ast_log(LOG_ERROR, "Unable to allocate client websocket userinfo\n");
+			return WS_ALLOCATE_ERROR;
+		}
 	}
 
-	if (ast_iostream_printf(client->ser->stream,
-			"GET /%s HTTP/1.1\r\n"
-			"Sec-WebSocket-Version: %d\r\n"
-			"Upgrade: websocket\r\n"
-			"Connection: Upgrade\r\n"
-			"Host: %s\r\n"
-			"Sec-WebSocket-Key: %s\r\n"
-			"%s\r\n",
-			client->resource_name ? ast_str_buffer(client->resource_name) : "",
-			client->version,
-			client->host,
-			client->key,
-			protocols) < 0) {
+	protocols_len = client->protocols ? strlen(client->protocols) : 0;
+
+	res = ast_iostream_printf(client->ser->stream,
+		"GET /%s HTTP/1.1\r\n"
+		"Sec-WebSocket-Version: %d\r\n"
+		"Upgrade: websocket\r\n"
+		"Connection: Upgrade\r\n"
+		"Host: %s\r\n"
+		optional_header_spec
+		optional_header_spec
+		"Sec-WebSocket-Key: %s\r\n"
+		"\r\n",
+		client->resource_name ? ast_str_buffer(client->resource_name) : "",
+		client->version,
+		client->host,
+		print_optional_header(auth_header, "Authorization: ", auth_header->value),
+		print_optional_header(protocols_len, "Sec-WebSocket-Protocol: ", client->protocols),
+		client->key
+	);
+
+	ast_variables_destroy(auth_header);
+	if (res < 0) {
 		ast_log(LOG_ERROR, "Failed to send handshake.\n");
 		return WS_WRITE_ERROR;
 	}
@@ -1528,6 +1587,33 @@ int AST_OPTIONAL_API_NAME(ast_websocket_write_string)
 	 */
 	return ast_websocket_write(ws, AST_WEBSOCKET_OPCODE_TEXT,
 				   (char *)buf, len);
+}
+
+const char *websocket_result_string_map[] = {
+	[WS_OK] = "OK",
+	[WS_ALLOCATE_ERROR] = "Allocation error",
+	[WS_KEY_ERROR] = "Key error",
+	[WS_URI_PARSE_ERROR] = "URI parse error",
+	[WS_URI_RESOLVE_ERROR] = "URI resolve error",
+	[WS_BAD_STATUS] = "Bad status line",
+	[WS_INVALID_RESPONSE] = "Invalid response code",
+	[WS_BAD_REQUEST] = "Bad request",
+	[WS_URL_NOT_FOUND] = "URL not found",
+	[WS_HEADER_MISMATCH] = "Header mismatch",
+	[WS_HEADER_MISSING] = "Header missing",
+	[WS_NOT_SUPPORTED] = "Not supported",
+	[WS_WRITE_ERROR] = "Write error",
+	[WS_CLIENT_START_ERROR] = "Client start error",
+	[WS_UNAUTHORIZED] = "Unauthorized"
+};
+
+const char *AST_OPTIONAL_API_NAME(ast_websocket_result_to_str)
+	(enum ast_websocket_result result)
+{
+	if (!ARRAY_IN_BOUNDS(result, websocket_result_string_map)) {
+		return "unknown";
+	}
+	return websocket_result_string_map[result];
 }
 
 static int load_module(void)

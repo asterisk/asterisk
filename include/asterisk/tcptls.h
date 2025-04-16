@@ -142,6 +142,7 @@ struct ast_tcptls_session_args {
 	void *(*worker_fn)(void *); /*!< the function in charge of doing the actual work */
 	const char *name;
 	struct ast_tls_config *old_tls_cfg; /*!< copy of the SSL configuration to determine whether changes have been made */
+	int suppress_connection_msgs; /*!< suppress connection messages to allow caller to manage logging */
 };
 
 /*! \brief
