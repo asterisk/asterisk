@@ -27,6 +27,7 @@
 
 #include "asterisk/stasis_channels.h"
 #include "asterisk/stasis_app.h"
+#include "asterisk/causes.h"
 
 #include "command.h"
 #include "control.h"
@@ -1230,6 +1231,8 @@ static int bridge_timeout(struct ast_bridge_channel *bridge_channel, void *ignor
 
 	ast_channel_lock(bridge_channel->chan);
 	if (ast_channel_state(bridge_channel->chan) != AST_STATE_UP) {
+		/* Set cause code to No Answer to be consistent with other dial timeout operations */
+		ast_channel_hangupcause_set(bridge_channel->chan, AST_CAUSE_NO_ANSWER);
 		/* Don't bother removing the datastore because it will happen when the channel is hung up */
 		ast_channel_unlock(bridge_channel->chan);
 		stasis_app_send_command_async(control, hangup_channel, NULL, NULL);
