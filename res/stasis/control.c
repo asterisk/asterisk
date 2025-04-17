@@ -27,6 +27,7 @@
 
 #include "asterisk/stasis_channels.h"
 #include "asterisk/stasis_app.h"
+#include "asterisk/causes.h"
 
 #include "command.h"
 #include "control.h"
@@ -1205,6 +1206,10 @@ struct ast_datastore_info timeout_datastore = {
 static int hangup_channel(struct stasis_app_control *control,
 	struct ast_channel *chan, void *data)
 {
+	/* Set cause code to No Answer to be consistent with other dial timeout operations */
+	ast_channel_lock(chan);
+	ast_channel_hangupcause_set(chan, AST_CAUSE_NO_ANSWER);
+	ast_channel_unlock(chan);
 	ast_softhangup(chan, AST_SOFTHANGUP_EXPLICIT);
 	return 0;
 }
