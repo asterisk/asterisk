@@ -274,11 +274,21 @@ static int unload_module(void)
 
 static int load_module(void)
 {
+	int pbx_load_res = AST_MODULE_LOAD_SUCCESS;
+
 	ast_cli_register_multiple(cli_ael, ARRAY_LEN(cli_ael));
 #ifndef STANDALONE
 	ast_register_application_xml(aelsub, aelsub_exec);
 #endif
-	return (pbx_load_module());
+	pbx_load_res = pbx_load_module();
+	if (AST_MODULE_LOAD_SUCCESS != pbx_load_res) {
+#ifndef STANDALONE
+		ast_unregister_application(aelsub);
+#endif
+		ast_cli_unregister_multiple(cli_ael, ARRAY_LEN(cli_ael));
+	}
+
+	return pbx_load_res;
 }
 
 static int reload(void)
