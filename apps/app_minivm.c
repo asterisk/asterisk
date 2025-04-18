@@ -268,7 +268,7 @@
 	<description>
 		<para>This application is part of the Mini-Voicemail system, configured in minivm.conf.</para>
 		<para>MinivmGreet() plays default prompts or user specific prompts for an account.</para>
-		<para>Busy and unavailable messages can be choosen, but will be overridden if a temporary
+		<para>Busy and unavailable messages can be chosen, but will be overridden if a temporary
 		message exists for the account.</para>
 		<variablelist>
 			<variable name="MVM_GREET_STATUS">
@@ -1098,7 +1098,7 @@ static const char *ast_str_encode_mime(struct ast_str **end, ssize_t maxlen, con
 }
 
 /*!\internal
- * \brief Wraps a character sequence in double quotes, escaping occurences of quotes within the string.
+ * \brief Wraps a character sequence in double quotes, escaping occurrences of quotes within the string.
  * \param from The string to work with.
  * \param buf The destination buffer to write the modified quoted string.
  * \param maxlen Always zero.  \see ast_str
@@ -1988,7 +1988,7 @@ static void queue_mwi_event(const char *channel_id, const char *mbx, const char 
 }
 
 /*!\internal
- * \brief Send MWI using interal Asterisk event subsystem */
+ * \brief Send MWI using internal Asterisk event subsystem */
 static int minivm_mwi_exec(struct ast_channel *chan, const char *data)
 {
 	int argc;
@@ -3425,7 +3425,7 @@ static int reload(void)
 	return(load_config(1));
 }
 
-/*! \brief Reload cofiguration */
+/*! \brief Reload configuration */
 static char *handle_minivm_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 

@@ -27,7 +27,7 @@
  * \author David C. Troy <dave@popvox.com>
  *
  * \brief Wait For Noise
- * The same as Wait For Silence but listenes noise on the chennel that is above \n
+ * The same as Wait For Silence but listens for noise on the channel that is above \n
  * the pre-configured silence threshold from dsp.conf
  *
  * \author Philipp Skadorov <skadorov@yahoo.com>

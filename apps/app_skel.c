@@ -271,7 +271,7 @@ static void *skel_level_alloc(const char *cat);
 /*! \brief Find a skel level in the specified container
  * \note This function *does not* look for a skel_level in the active container. It is used
  * internally by the Config Options code to check if an level has already been added to the
- * container that will be swapped for the live container on a successul reload.
+ * container that will be swapped for the live container on a successful reload.
  *
  * \param tmp_container A non-active container to search for a level
  * \param category The category associated with the level to check for
@@ -392,7 +392,7 @@ static int skel_level_cmp(void *obj, void *arg, int flags)
  * bitfields in the config struct will have to use a custom handler
  * \param opt The opaque config option
  * \param var The ast_variable containing the option name and value
- * \param obj The object registerd for this option type
+ * \param obj The object registered for this option type
  * \retval 0 Success
  * \retval non-zero Failure
  */
@@ -435,7 +435,7 @@ static int app_exec(struct ast_channel *chan, const char *data)
 	);
 
 	if (!cfg) {
-		ast_log(LOG_ERROR, "Couldn't access configuratino data!\n");
+		ast_log(LOG_ERROR, "Couldn't access configuration data!\n");
 		return -1;
 	}
 
