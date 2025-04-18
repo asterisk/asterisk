@@ -397,7 +397,7 @@ AST_OPTIONAL_API(const char *, ast_websocket_session_id, (struct ast_websocket *
  * \brief Result code for a websocket client.
  */
 enum ast_websocket_result {
-	WS_OK,
+	WS_OK = 0,
 	WS_ALLOCATE_ERROR,
 	WS_KEY_ERROR,
 	WS_URI_PARSE_ERROR,
@@ -411,6 +411,7 @@ enum ast_websocket_result {
 	WS_NOT_SUPPORTED,
 	WS_WRITE_ERROR,
 	WS_CLIENT_START_ERROR,
+	WS_UNAUTHORIZED,
 };
 
 /*!
@@ -468,6 +469,9 @@ struct ast_websocket_client_options {
 	 * Secure websocket credentials
 	 */
 	struct ast_tls_config *tls_cfg;
+	const char *username;          /*!< Auth username */
+	const char *password;          /*!< Auth password */
+	int suppress_connection_msgs;  /*!< Suppress connection log messages */
 };
 
 /*!
@@ -509,5 +513,14 @@ AST_OPTIONAL_API(const char *, ast_websocket_client_accept_protocol,
  * \retval -1 on failure
  */
 AST_OPTIONAL_API(int, ast_websocket_set_timeout, (struct ast_websocket *session, int timeout), {return -1;});
+
+/*!
+ * \brief Convert a websocket result code to a string.
+ *
+ * \param result The result code to convert
+ *
+ * \return A string representation of the result code
+ */
+AST_OPTIONAL_API(const char *, ast_websocket_result_to_str, (enum ast_websocket_result result), {return "";});
 
 #endif

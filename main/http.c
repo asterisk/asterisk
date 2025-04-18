@@ -1665,6 +1665,50 @@ struct ast_http_auth *ast_http_get_auth(struct ast_variable *headers)
 	return NULL;
 }
 
+struct ast_variable *ast_http_create_basic_auth_header(const char *userid,
+	const char *password)
+{
+	int encoded_size = 0;
+	int userinfo_len = 0;
+	RAII_VAR(char *, userinfo, NULL, ast_free);
+	char *encoded_userinfo = NULL;
+	struct ast_variable *auth_header = NULL;
+
+	if (ast_strlen_zero(userid)) {
+		return NULL;
+	}
+
+	if (strchr(userid, ':')) {
+		userinfo = ast_strdup(userid);
+		userinfo_len = strlen(userinfo);
+	} else {
+		if (ast_strlen_zero(password)) {
+			return NULL;
+		}
+		userinfo_len = ast_asprintf(&userinfo, "%s:%s", userid, password);
+	}
+	if (!userinfo) {
+		return NULL;
+	}
+
+	/*
+	 * The header value is "Basic " + base64(userinfo).
+	 * Doubling the userinfo length then adding the length
+	 * of the "Basic " prefix is a conservative estimate of the
+	 * final encoded size.
+	 */
+	encoded_size = userinfo_len * 2 * sizeof(char) + 1 + BASIC_LEN;
+	encoded_userinfo = ast_alloca(encoded_size);
+	strcpy(encoded_userinfo, BASIC_PREFIX); /* Safe */
+	ast_base64encode(encoded_userinfo + BASIC_LEN, (unsigned char *)userinfo,
+		userinfo_len, encoded_size - BASIC_LEN);
+
+	auth_header = ast_variable_new("Authorization",
+		encoded_userinfo, "");
+
+	return auth_header;
+}
+
 int ast_http_response_status_line(const char *buf, const char *version, int code)
 {
 	int status_code;
