@@ -234,7 +234,10 @@
 	</info>
 	<info name="Dial_Resource" language="en_US" tech="IAX2">
 		<para>The general syntax is:</para>
-		<para><literal>Dial(IAX2/[username[:password]@]peer[:port][/exten[@context]][/options]</literal></para>
+		<para><literal>Dial(IAX2/[username[:password[:pubkey]]@]peer[:port][/exten[@context]][/options]</literal></para>
+		<para>The IAX username is optionally followed by either the secret or name of the keypair to use for RSA
+		authentication (within square brakcets). If both need to be provided (such as for encrypted calls that
+		are RSA authenticated), both may be specified in either order.</para>
 		<para>IAX2 optionally allows modifiers to be specified after the extension.</para>
 		<enumlist>
 			<enum name="a">
@@ -10381,7 +10384,9 @@ static int socket_process_helper(struct iax2_thread *thread)
 		if (f.datalen) {
 			if (f.frametype == AST_FRAME_IAX) {
 				if (iax_parse_ies(&ies, thread->buf + sizeof(struct ast_iax2_full_hdr), f.datalen)) {
-					ast_log(LOG_WARNING, "Undecodable frame received from '%s'\n", ast_sockaddr_stringify(&addr));
+					char subclass[40];
+					iax_frame_subclass2str(f.subclass.integer, subclass, sizeof(subclass));
+					ast_log(LOG_WARNING, "Undecodable %s frame received from '%s'\n", subclass, ast_sockaddr_stringify(&addr));
 					ast_variables_destroy(ies.vars);
 					return 1;
 				}
