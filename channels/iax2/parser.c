@@ -812,7 +812,8 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 		ie = data[0];
 		len = data[1];
 		if (len > datalen - 2) {
-			errorf("Information element length exceeds message size\n");
+			snprintf(tmp, sizeof(tmp), "Information element length %d exceeds message size %d\n", len, datalen - 2);
+			errorf(tmp);
 			return -1;
 		}
 		switch(ie) {
