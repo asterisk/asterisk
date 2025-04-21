@@ -90,7 +90,7 @@
 #include "asterisk/format_cache.h"
 
 /*** DOCUMENTATION
-	<application name="ReceiveFAX" language="en_US" module="res_fax">
+	<application name="ReceiveFAX" language="en_US">
 		<since>
 			<version>11.0.0</version>
 		</since>
@@ -125,7 +125,7 @@
 			<ref type="function">FAXOPT</ref>
 		</see-also>
 	</application>
-	<application name="SendFAX" language="en_US" module="res_fax">
+	<application name="SendFAX" language="en_US">
 		<since>
 			<version>11.0.0</version>
 		</since>
@@ -167,7 +167,7 @@
 			<ref type="function">FAXOPT</ref>
 		</see-also>
 	</application>
-	<function name="FAXOPT" language="en_US" module="res_fax">
+	<function name="FAXOPT" language="en_US">
 		<since>
 			<version>11.0.0</version>
 		</since>

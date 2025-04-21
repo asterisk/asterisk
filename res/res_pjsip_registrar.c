@@ -62,7 +62,7 @@
 			</warning>
 		</description>
 		<see-also>
-			<ref type="manager" module="res_pjsip_registrar">PJSIPShowRegistrationInboundContactStatuses</ref>
+			<ref type="manager">PJSIPShowRegistrationInboundContactStatuses</ref>
 		</see-also>
 	</manager>
 	<manager name="PJSIPShowRegistrationInboundContactStatuses" language="en_US">

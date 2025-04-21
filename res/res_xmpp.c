@@ -63,7 +63,7 @@
 #include "asterisk/json.h"
 
 /*** DOCUMENTATION
-	<application name="JabberSend" language="en_US" module="res_xmpp">
+	<application name="JabberSend" language="en_US">
 		<since>
 			<version>12.0.0</version>
 		</since>
@@ -95,11 +95,11 @@
 			</example>
 		</description>
 		<see-also>
-			<ref type="function" module="res_xmpp">JABBER_STATUS</ref>
-			<ref type="function" module="res_xmpp">JABBER_RECEIVE</ref>
+			<ref type="function">JABBER_STATUS</ref>
+			<ref type="function">JABBER_RECEIVE</ref>
 		</see-also>
 	</application>
-	<function name="JABBER_RECEIVE" language="en_US" module="res_xmpp">
+	<function name="JABBER_RECEIVE" language="en_US">
 		<since>
 			<version>12.0.0</version>
 		</since>
@@ -130,11 +130,11 @@
 			</example>
 		</description>
 		<see-also>
-			<ref type="function" module="res_xmpp">JABBER_STATUS</ref>
-			<ref type="application" module="res_xmpp">JabberSend</ref>
+			<ref type="function">JABBER_STATUS</ref>
+			<ref type="application">JabberSend</ref>
 		</see-also>
 	</function>
-	<function name="JABBER_STATUS" language="en_US" module="res_xmpp">
+	<function name="JABBER_STATUS" language="en_US">
 		<since>
 			<version>12.0.0</version>
 		</since>
@@ -180,11 +180,11 @@
 			</enumlist>
 		</description>
 		<see-also>
-			<ref type="function" module="res_xmpp">JABBER_RECEIVE</ref>
-			<ref type="application" module="res_xmpp">JabberSend</ref>
+			<ref type="function">JABBER_RECEIVE</ref>
+			<ref type="application">JabberSend</ref>
 		</see-also>
 	</function>
-	<application name="JabberSendGroup" language="en_US" module="res_xmpp">
+	<application name="JabberSendGroup" language="en_US">
 		<since>
 			<version>12.0.0</version>
 		</since>
@@ -210,7 +210,7 @@
 			<note><para>To be able to send messages to a chat room, a user must have previously joined it. Use the <replaceable>JabberJoin</replaceable> function to do so.</para></note>
 		</description>
 	</application>
-	<application name="JabberJoin" language="en_US" module="res_xmpp">
+	<application name="JabberJoin" language="en_US">
 		<since>
 			<version>12.0.0</version>
 		</since>
@@ -233,7 +233,7 @@
 			<para>Allows Asterisk to join a chat room.</para>
 		</description>
 	</application>
-	<application name="JabberLeave" language="en_US" module="res_xmpp">
+	<application name="JabberLeave" language="en_US">
 		<since>
 			<version>12.0.0</version>
 		</since>
@@ -255,7 +255,7 @@
 			<para>Allows Asterisk to leave a chat room.</para>
 		</description>
 	</application>
-	<manager name="JabberSend" language="en_US" module="res_xmpp">
+	<manager name="JabberSend" language="en_US">
 		<since>
 			<version>1.4.0</version>
 		</since>
