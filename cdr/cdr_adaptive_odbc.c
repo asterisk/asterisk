@@ -324,39 +324,6 @@ static int free_config(void)
 	return 0;
 }
 
-static SQLHSTMT generic_prepare(struct odbc_obj *obj, void *data)
-{
-	int res, i;
-	SQLHSTMT stmt;
-	SQLINTEGER nativeerror = 0, numfields = 0;
-	SQLSMALLINT diagbytes = 0;
-	unsigned char state[10], diagnostic[256];
-
-	res = SQLAllocHandle (SQL_HANDLE_STMT, obj->con, &stmt);
-	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-		ast_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
-		return NULL;
-	}
-
-	res = ast_odbc_prepare(obj, stmt, data);
-	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-		ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", (char *) data);
-		SQLGetDiagField(SQL_HANDLE_STMT, stmt, 1, SQL_DIAG_NUMBER, &numfields, SQL_IS_INTEGER, &diagbytes);
-		for (i = 0; i < numfields; i++) {
-			SQLGetDiagRec(SQL_HANDLE_STMT, stmt, i + 1, state, &nativeerror, diagnostic, sizeof(diagnostic), &diagbytes);
-			ast_log(LOG_WARNING, "SQL Execute returned an error %d: %s: %s (%d)\n", res, state, diagnostic, diagbytes);
-			if (i > 10) {
-				ast_log(LOG_WARNING, "Oh, that was good.  There are really %d diagnostics?\n", (int)numfields);
-				break;
-			}
-		}
-		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-		return NULL;
-	}
-
-	return stmt;
-}
-
 #define LENGTHEN_BUF(size, var_sql)														\
 			do {																\
 				/* Lengthen buffer, if necessary */								\
@@ -385,10 +352,9 @@ static int odbc_log(struct ast_cdr *cdr)
 	char *tmp;
 	char colbuf[1024], *colptr;
 	SQLHSTMT stmt = NULL;
-	SQLLEN rows = 0;
 	char *separator;
 	int quoted = 0;
-	int res;
+	int res = 0;
 	
 	if (!sql || !sql2) {
 		if (sql)
