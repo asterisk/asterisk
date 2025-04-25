@@ -757,14 +757,22 @@ static int odbc_log(struct ast_cdr *cdr)
 
 		ast_debug(3, "Executing [%s]\n", ast_str_buffer(sql));
 
-		stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, ast_str_buffer(sql));
-		if (stmt) {
-			SQLRowCount(stmt, &rows);
-			SQLFreeHandle(SQL_HANDLE_STMT, stmt);
-		}
-		if (rows == 0) {
-			ast_log(LOG_WARNING, "cdr_adaptive_odbc: Insert failed on '%s:%s'.  CDR failed: %s\n", tableptr->connection, tableptr->table, ast_str_buffer(sql));
-		}
+		res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
+	    	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+		ast_log(LOG_WARNING, "cdr_adaptive_odbc: SQL Alloc Handle failed!\n");
+		goto early_release;
+	        }
+
+    		res = ast_odbc_execute_sql(obj, stmt, ast_str_buffer(sql));
+        	if (!SQL_SUCCEEDED(res)) {
+                	ast_log(LOG_WARNING, "cdr_adaptive_odbc: Insert failed on '%s:%s'.  CDR failed: %s\n", tableptr->connection, tableptr->table, ast_str_buffer(sql));
+        		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+        		stmt = NULL;
+        	}
+       		if (stmt) {
+            		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+            		stmt = NULL;
+        	}
 early_release:
 		ast_odbc_release_obj(obj);
 	}
