@@ -388,7 +388,8 @@ static int odbc_log(struct ast_cdr *cdr)
 	SQLLEN rows = 0;
 	char *separator;
 	int quoted = 0;
-
+	int res;
+	
 	if (!sql || !sql2) {
 		if (sql)
 			ast_free(sql);
