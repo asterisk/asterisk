@@ -32,6 +32,14 @@ SRC:=$(filter-out libasteriskpj.c,$(SRC))
 endif
 OBJSFILTER:=$(MOD_OBJS) fskmodem_int.o fskmodem_float.o cygload.o buildinfo.o
 SRC_CC:=$(wildcard *.cc)
+
+SRC_MAKEOPTS:=$(sort $(basename $(SRC) $(SRC_CC)))
+.main-makeopts: $(addsuffix .makeopts,$(addprefix .,$(SRC_MAKEOPTS)))
+	@cat $^ > $@
+
+main-makeopts: .main-makeopts
+	@cat $<
+
 OBJS=$(filter-out $(OBJSFILTER),$(SRC:.c=.o) $(SRC_CC:.cc=.oo))
 
 # we need to link in the objects statically, not as a library, because
@@ -368,3 +376,7 @@ endif
 	@$(MAKE) -C stdtime clean
 	rm -f libresample/src/*.o
 	rm -f *.tmp
+
+dist-clean::
+	rm -f .main-makeopts
+	

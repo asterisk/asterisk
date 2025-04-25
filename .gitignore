@@ -17,6 +17,7 @@
 *.exports
 *.moduleinfo
 *.makeopts
+*.main-makeopts
 *.makedeps
 .lastclean
 /.pc
