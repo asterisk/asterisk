@@ -308,40 +308,6 @@ static int free_config(void)
 	return 0;
 }
 
-static SQLHSTMT generic_prepare(struct odbc_obj *obj, void *data)
-{
-	int res, i;
-	char *sql = data;
-	SQLHSTMT stmt;
-	SQLINTEGER nativeerror = 0, numfields = 0;
-	SQLSMALLINT diagbytes = 0;
-	unsigned char state[10], diagnostic[256];
-
-	res = SQLAllocHandle (SQL_HANDLE_STMT, obj->con, &stmt);
-	if (!SQL_SUCCEEDED(res)) {
-		ast_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
-		return NULL;
-	}
-
-	res = ast_odbc_prepare(obj, stmt, sql);
-	if (!SQL_SUCCEEDED(res)) {
-		ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
-		SQLGetDiagField(SQL_HANDLE_STMT, stmt, 1, SQL_DIAG_NUMBER, &numfields, SQL_IS_INTEGER, &diagbytes);
-		for (i = 0; i < numfields; i++) {
-			SQLGetDiagRec(SQL_HANDLE_STMT, stmt, i + 1, state, &nativeerror, diagnostic, sizeof(diagnostic), &diagbytes);
-			ast_log(LOG_WARNING, "SQL Execute returned an error %d: %s: %s (%d)\n", res, state, diagnostic, diagbytes);
-			if (i > 10) {
-				ast_log(LOG_WARNING, "Oh, that was good.  There are really %d diagnostics?\n", (int)numfields);
-				break;
-			}
-		}
-		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-		return NULL;
-	}
-
-	return stmt;
-}
-
 #define LENGTHEN_BUF(size, var_sql)														\
 			do {																\
 				/* Lengthen buffer, if necessary */								\
@@ -371,7 +337,7 @@ static void odbc_log(struct ast_event *event)
 	char *tmp;
 	char colbuf[1024], *colptr;
 	SQLHSTMT stmt = NULL;
-	SQLLEN rows = 0;
+	int res;
 	struct ast_cel_event_record record = {
 		.version = AST_CEL_EVENT_RECORD_VERSION,
 	};
@@ -780,14 +746,23 @@ static void odbc_log(struct ast_event *event)
 		ast_str_append(&sql, 0, "%s", ast_str_buffer(sql2));
 
 		ast_debug(3, "Executing SQL statement: [%s]\n", ast_str_buffer(sql));
-		stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, ast_str_buffer(sql));
-		if (stmt) {
-			SQLRowCount(stmt, &rows);
-			SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+
+		/* There is no benefit to prepared statements here as each generated
+		   INSERT statement is unique. Just execute our query directly. */
+		res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
+		if (!SQL_SUCCEEDED(res)) {
+			ast_log(LOG_WARNING, "SQL Alloc Handle failed on connection '%s'!\n",
+				tableptr->connection);
+			goto early_release;
 		}
-		if (rows == 0) {
+
+		res = ast_odbc_execute_sql(obj, stmt, ast_str_buffer(sql));
+		if (!SQL_SUCCEEDED(res)) {
 			ast_log(LOG_WARNING, "Insert failed on '%s:%s'.  CEL failed: %s\n", tableptr->connection, tableptr->table, ast_str_buffer(sql));
 		}
+
+		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+
 early_release:
 		ast_odbc_release_obj(obj);
 	}
