@@ -35,6 +35,22 @@
 #include "asterisk/callerid.h"
 #include "asterisk/conversions.h"
 
+static int extract_oli(const pjsip_param *param_list, char *buf, size_t len)
+{
+	static const pj_str_t oli_str1 = { "isup-oli", 8 };
+	static const pj_str_t oli_str2 = { "ss7-oli", 7 };
+	static const pj_str_t oli_str3 = { "oli", 3 };
+	pjsip_param *oli;
+
+	if ((oli = pjsip_param_find(param_list, &oli_str1))
+		|| (oli = pjsip_param_find(param_list, &oli_str2))
+		|| (oli = pjsip_param_find(param_list, &oli_str3))) {
+		ast_copy_pj_str(buf, &oli->value, len);
+		return 0;
+	}
+	return -1;
+}
+
 /*!
  * \internal
  * \brief Set an ANI2 integer based on OLI data in a From header
@@ -50,12 +66,6 @@ static int set_id_from_oli(pjsip_rx_data *rdata, int *ani2)
 {
 	char oli[AST_CHANNEL_NAME];
 
-	pjsip_param *oli1, *oli2, *oli3;
-
-	static const pj_str_t oli_str1 = { "isup-oli", 8 };
-	static const pj_str_t oli_str2 = { "ss7-oli", 7 };
-	static const pj_str_t oli_str3 = { "oli", 3 };
-
 	pjsip_fromto_hdr *from = pjsip_msg_find_hdr(rdata->msg_info.msg,
 			PJSIP_H_FROM, rdata->msg_info.msg->hdr.next);
 
@@ -63,14 +73,18 @@ static int set_id_from_oli(pjsip_rx_data *rdata, int *ani2)
 		return -1; /* This had better not happen */
 	}
 
-	if ((oli1 = pjsip_param_find(&from->other_param, &oli_str1))) {
-		ast_copy_pj_str(oli, &oli1->value, sizeof(oli));
-	} else if ((oli2 = pjsip_param_find(&from->other_param, &oli_str2))) {
-		ast_copy_pj_str(oli, &oli2->value, sizeof(oli));
-	} else if ((oli3 = pjsip_param_find(&from->other_param, &oli_str3))) {
-		ast_copy_pj_str(oli, &oli3->value, sizeof(oli));
-	} else {
-		return -1;
+	/* First, check if it was provided as a header paramter */
+	if (extract_oli(&from->other_param, oli, sizeof(oli))) {
+		/* If not found, check if it was provided as a URI parameter */
+		pjsip_sip_uri *uri;
+		pjsip_name_addr *name_addr = (pjsip_name_addr *) from->uri;
+		if (!ast_sip_is_uri_sip_sips(name_addr->uri)) {
+			return -1;
+		}
+		uri = pjsip_uri_get_uri(name_addr->uri);
+		if (extract_oli(&uri->other_param, oli, sizeof(oli))) {
+			return -1; /* Not found as either type of parameter */
+		}
 	}
 
 	return ast_str_to_int(oli, ani2);
