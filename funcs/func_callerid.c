@@ -1048,7 +1048,9 @@ static int callerid_read(struct ast_channel *chan, const char *cmd, char *data, 
 				ast_log(LOG_ERROR, "Unknown callerid data type '%s'.\n", data);
 			}
 		} else if (member.argc == 1 && !strcasecmp("ani2", member.subnames[0])) {
-			snprintf(buf, len, "%d", ast_channel_caller(chan)->ani2);
+			/* ANI2 is always formatted as two digits:
+			 * https://nanpa.com/numbering/ani-ii-digits */
+			snprintf(buf, len, "%02d", ast_channel_caller(chan)->ani2);
 		} else if (!strcasecmp("ani", member.subnames[0])) {
 			if (member.argc == 1) {
 				/* Setup as if user had given ani-num instead. */
