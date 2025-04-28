@@ -3527,16 +3527,12 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio, int
 		 * The ast_waitfor() code records which of the channel's file
 		 * descriptors reported that data is available.  In theory,
 		 * ast_read() should only be called after ast_waitfor() reports
-		 * that a channel has data available for reading.  However,
-		 * there still may be some edge cases throughout the code where
-		 * ast_read() is called improperly.  This can potentially cause
-		 * problems, so if this is a developer build, make a lot of
-		 * noise if this happens so that it can be addressed.
-		 *
-		 * One of the potential problems is blocking on a dead channel.
+		 * that a channel has data available for reading but certain
+		 * situations with stasis and ARI could give a false indication.
+		 * For this reason, we don't stop any processing.
 		 */
 		if (ast_channel_fdno(chan) == -1) {
-			ast_log(LOG_ERROR,
+			ast_debug(3,
 				"ast_read() on chan '%s' called with no recorded file descriptor.\n",
 				ast_channel_name(chan));
 		}
