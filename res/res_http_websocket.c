@@ -51,27 +51,21 @@
 #define MAX_PROTOCOL_BUCKETS 7
 
 #ifdef LOW_MEMORY
-/*! \brief Size of the pre-determined buffer for WebSocket frames */
-#define MAXIMUM_FRAME_SIZE 8192
-
 /*! \brief Default reconstruction size for multi-frame payload reconstruction. If exceeded the next frame will start a
  *         payload.
  */
-#define DEFAULT_RECONSTRUCTION_CEILING 8192
+#define DEFAULT_RECONSTRUCTION_CEILING AST_WEBSOCKET_MAX_RX_PAYLOAD_SIZE
 
 /*! \brief Maximum reconstruction size for multi-frame payload reconstruction. */
-#define MAXIMUM_RECONSTRUCTION_CEILING 8192
+#define MAXIMUM_RECONSTRUCTION_CEILING AST_WEBSOCKET_MAX_RX_PAYLOAD_SIZE
 #else
-/*! \brief Size of the pre-determined buffer for WebSocket frames */
-#define MAXIMUM_FRAME_SIZE 65535
-
 /*! \brief Default reconstruction size for multi-frame payload reconstruction. If exceeded the next frame will start a
  *         payload.
  */
-#define DEFAULT_RECONSTRUCTION_CEILING MAXIMUM_FRAME_SIZE
+#define DEFAULT_RECONSTRUCTION_CEILING AST_WEBSOCKET_MAX_RX_PAYLOAD_SIZE
 
 /*! \brief Maximum reconstruction size for multi-frame payload reconstruction. */
-#define MAXIMUM_RECONSTRUCTION_CEILING MAXIMUM_FRAME_SIZE
+#define MAXIMUM_RECONSTRUCTION_CEILING AST_WEBSOCKET_MAX_RX_PAYLOAD_SIZE
 #endif
 
 /*! \brief Maximum size of a websocket frame header
@@ -100,7 +94,7 @@ struct ast_websocket {
 	struct websocket_client *client;    /*!< Client object when connected as a client websocket */
 	char session_id[AST_UUID_STR_LEN];  /*!< The identifier for the websocket session */
 	uint16_t close_status_code;         /*!< Status code sent in a CLOSE frame upon shutdown */
-	char buf[MAXIMUM_FRAME_SIZE];	    /*!< Fixed buffer for reading data into */
+	char buf[AST_WEBSOCKET_MAX_RX_PAYLOAD_SIZE];	    /*!< Fixed buffer for reading data into */
 };
 
 const char *ast_websocket_type_to_str(enum ast_websocket_type type)
@@ -201,7 +195,7 @@ static void session_destroy_fn(void *obj)
 		if (session->stream) {
 			ast_iostream_close(session->stream);
 			session->stream = NULL;
-			ast_verb(2, "WebSocket connection %s '%s' closed\n", session->client ? "to" : "from",
+			ast_debug(3, "WebSocket connection %s '%s' closed\n", session->client ? "to" : "from",
 				ast_sockaddr_stringify(&session->remote_address));
 		}
 	}
@@ -279,7 +273,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_server_add_protocol2)(struct ast_websock
 	ao2_link_flags(server->protocols, protocol, OBJ_NOLOCK);
 	ao2_unlock(server->protocols);
 
-	ast_verb(5, "WebSocket registered sub-protocol '%s'\n", protocol->name);
+	ast_debug(1, "WebSocket registered sub-protocol '%s'\n", protocol->name);
 	ao2_ref(protocol, -1);
 
 	return 0;
@@ -301,7 +295,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_server_remove_protocol)(struct ast_webso
 	ao2_unlink(server->protocols, protocol);
 	ao2_ref(protocol, -1);
 
-	ast_verb(5, "WebSocket unregistered sub-protocol '%s'\n", name);
+	ast_debug(1, "WebSocket unregistered sub-protocol '%s'\n", name);
 
 	return 0;
 }
@@ -672,7 +666,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_read)(struct ast_websocket *session, cha
 		/* Now read the rest of the payload */
 		*payload = &session->buf[frame_size]; /* payload will start here, at the end of the options, if any */
 		frame_size = frame_size + (*payload_len); /* final frame size is header + optional headers + payload data */
-		if (frame_size > MAXIMUM_FRAME_SIZE) {
+		if (frame_size > AST_WEBSOCKET_MAX_RX_PAYLOAD_SIZE) {
 			ast_log(LOG_WARNING, "Cannot fit huge websocket frame of %zu bytes\n", frame_size);
 			/* The frame won't fit :-( */
 			ast_websocket_close(session, 1009);
@@ -992,7 +986,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_uri_cb)(struct ast_tcptls_session_instan
 		return 0;
 	}
 
-	ast_verb(2, "WebSocket connection from '%s' for protocol '%s' accepted using version '%d'\n", ast_sockaddr_stringify(&ser->remote_address), protocol ? : "", version);
+	ast_debug(3, "WebSocket connection from '%s' for protocol '%s' accepted using version '%d'\n", ast_sockaddr_stringify(&ser->remote_address), protocol ? : "", version);
 
 	/* Populate the session with all the needed details */
 	session->stream = ser->stream;
