@@ -77,6 +77,14 @@ enum ast_websocket_opcode {
 	AST_WEBSOCKET_OPCODE_CONTINUATION = 0x0, /*!< Continuation of a previous frame */
 };
 
+#ifdef LOW_MEMORY
+/*! \brief Size of the pre-determined buffer for WebSocket frames */
+#define AST_WEBSOCKET_MAX_RX_PAYLOAD_SIZE 8192
+#else
+/*! \brief Size of the pre-determined buffer for WebSocket frames */
+#define AST_WEBSOCKET_MAX_RX_PAYLOAD_SIZE 65535
+#endif
+
 /*!
  * \brief Opaque structure for WebSocket server.
  * \since 12
