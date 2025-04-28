@@ -1473,7 +1473,7 @@
 						},
 						{
 							"code": 409,
-							"reason": "Channel is not in a Stasis application; the channel is currently bridged with other hcannels; A recording with the same name already exists on the system and can not be overwritten because it is in progress or ifExists=fail"
+							"reason": "Channel is not in a Stasis application; the channel is currently bridged with other channels; A recording with the same name already exists on the system and can not be overwritten because it is in progress or ifExists=fail"
 						},
 						{
 							"code": 422,
@@ -1870,7 +1870,7 @@
 						"17.1.0"
 					],
 					"summary": "Start an External Media session.",
-					"notes": "Create a channel to an External Media source/sink.",
+					"notes": "Create a channel to an External Media source/sink.  The combination of transport and encapsulation will select one of chan_rtp(udp/rtp), chan_audiosocket(tcp/audiosocket) or chan_websocket(websocket/none) channel drivers.",
 					"nickname": "externalMedia",
 					"responseClass": "Channel",
 					"parameters": [
@@ -1900,15 +1900,15 @@
 						},
 						{
 							"name": "external_host",
-							"description": "Hostname/ip:port of external host",
+							"description": "Hostname/ip:port or websocket_client connection ID of external host.  May be empty for a websocket server connection.",
 							"paramType": "query",
-							"required": true,
+							"required": false,
 							"allowMultiple": false,
 							"dataType": "string"
 						},
 						{
 							"name": "encapsulation",
-							"description": "Payload encapsulation protocol",
+							"description": "Payload encapsulation protocol.  Must be 'none' for the websocket transport.",
 							"paramType": "query",
 							"required": false,
 							"allowMultiple": false,
@@ -1918,7 +1918,8 @@
 								"valueType": "LIST",
 								"values": [
 									"rtp",
-									"audiosocket"
+									"audiosocket",
+									"none"
 								]
 							}
 						},
@@ -1934,13 +1935,14 @@
 								"valueType": "LIST",
 								"values": [
 									"udp",
-									"tcp"
+									"tcp",
+									"websocket"
 								]
 							}
 						},
 						{
 							"name": "connection_type",
-							"description": "Connection type (client/server)",
+							"description": "Connection type (client/server). 'server' is only valid for the websocket transport.",
 							"paramType": "query",
 							"required": false,
 							"allowMultiple": false,
@@ -1949,7 +1951,8 @@
 							"allowableValues": {
 								"valueType": "LIST",
 								"values": [
-									"client"
+									"client",
+									"server"
 								]
 							}
 						},
