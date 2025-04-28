@@ -44,6 +44,7 @@
 #include "asterisk/dial.h"
 #include "asterisk/max_forwards.h"
 #include "asterisk/rtp_engine.h"
+#include "asterisk/websocket_client.h"
 #include "resource_channels.h"
 
 #include <limits.h>
@@ -2179,6 +2180,53 @@ static int external_media_audiosocket_tcp(struct ast_ari_channels_external_media
 	return 0;
 }
 
+static int external_media_websocket(struct ast_ari_channels_external_media_args *args,
+	struct ast_variable *variables,
+	struct ast_ari_response *response)
+{
+	char *endpoint;
+	struct ast_channel *chan;
+	struct varshead *vars;
+
+	if (ast_asprintf(&endpoint, "WebSocket/%s/c(%s)",
+			args->external_host,
+			args->format) == -1) {
+		return 1;
+	}
+
+	chan = ari_channels_handle_originate_with_id(
+		endpoint,
+		NULL,
+		NULL,
+		0,
+		NULL,
+		args->app,
+		args->data,
+		NULL,
+		0,
+		variables,
+		args->channel_id,
+		NULL,
+		NULL,
+		args->format,
+		response);
+
+	ast_free(endpoint);
+
+	if (!chan) {
+		return 1;
+	}
+
+	ast_channel_lock(chan);
+	vars = ast_channel_varshead(chan);
+	if (vars && !AST_LIST_EMPTY(vars)) {
+		ast_json_object_set(response->message, "channelvars", ast_json_channel_vars(vars));
+	}
+	ast_channel_unlock(chan);
+	ast_channel_unref(chan);
+	return 0;
+}
+
 #include "asterisk/config.h"
 #include "asterisk/netsock2.h"
 
@@ -2209,15 +2257,70 @@ void ast_ari_channels_external_media(struct ast_variable *headers,
 		return;
 	}
 
-	if (ast_strlen_zero(args->external_host)) {
-		ast_ari_response_error(response, 400, "Bad Request", "external_host cannot be empty");
-		return;
+	if (ast_strlen_zero(args->transport)) {
+		args->transport = "udp";
 	}
 
-	external_host = ast_strdupa(args->external_host);
-	if (!ast_sockaddr_split_hostport(external_host, &host, &port, PARSE_PORT_REQUIRE)) {
-		ast_ari_response_error(response, 400, "Bad Request", "external_host must be <host>:<port>");
-		return;
+	if (ast_strlen_zero(args->encapsulation)) {
+		args->encapsulation = "rtp";
+	}
+	if (ast_strings_equal(args->transport, "websocket")) {
+		if (!ast_strings_equal(args->encapsulation, "none")) {
+			ast_ari_response_error(response, 400, "Bad Request", "encapsulation must be 'none' for websocket transport");
+			return;
+		}
+	}
+
+	if (ast_strings_equal(args->encapsulation, "rtp")) {
+		if (!ast_strings_equal(args->transport, "udp")) {
+			ast_ari_response_error(response, 400, "Bad Request", "transport must be 'udp' for rtp encapsulation");
+			return;
+		}
+	}
+
+	if (ast_strings_equal(args->encapsulation, "audiosocket")) {
+		if (!ast_strings_equal(args->transport, "tcp")) {
+			ast_ari_response_error(response, 400, "Bad Request", "transport must be 'tcp' for audiosocket encapsulation");
+			return;
+		}
+	}
+
+	if (ast_strlen_zero(args->connection_type)) {
+		args->connection_type = "client";
+	}
+	if (!ast_strings_equal(args->transport, "websocket")) {
+		if (ast_strings_equal(args->connection_type, "server")) {
+			ast_ari_response_error(response, 400, "Bad Request", "'server' connection_type can only be used with the websocket transport");
+			return;
+		}
+	}
+
+	if (ast_strlen_zero(args->external_host)) {
+		if (ast_strings_equal(args->connection_type, "client")) {
+			ast_ari_response_error(response, 400, "Bad Request", "external_host is required for all but websocket server connections");
+			return;
+		} else {
+			/* server is only valid for websocket, enforced above */
+			args->external_host = "INCOMING";
+		}
+	}
+
+	if (ast_strings_equal(args->transport, "websocket")) {
+		if (ast_strings_equal(args->connection_type, "client")) {
+			struct ast_websocket_client *ws_client =
+				ast_websocket_client_retrieve_by_id(args->external_host);
+			ao2_cleanup(ws_client);
+			if (!ws_client) {
+				ast_ari_response_error(response, 400, "Bad Request", "external_host must be a valid websocket_client connection id.");
+				return;
+			}
+		}
+	} else {
+		external_host = ast_strdupa(args->external_host);
+		if (!ast_sockaddr_split_hostport(external_host, &host, &port, PARSE_PORT_REQUIRE)) {
+			ast_ari_response_error(response, 400, "Bad Request", "external_host must be <host>:<port> for all transports other than websocket");
+			return;
+		}
 	}
 
 	if (ast_strlen_zero(args->format)) {
@@ -2225,15 +2328,6 @@ void ast_ari_channels_external_media(struct ast_variable *headers,
 		return;
 	}
 
-	if (ast_strlen_zero(args->encapsulation)) {
-		args->encapsulation = "rtp";
-	}
-	if (ast_strlen_zero(args->transport)) {
-		args->transport = "udp";
-	}
-	if (ast_strlen_zero(args->connection_type)) {
-		args->connection_type = "client";
-	}
 	if (ast_strlen_zero(args->direction)) {
 		args->direction = "both";
 	}
@@ -2246,6 +2340,12 @@ void ast_ari_channels_external_media(struct ast_variable *headers,
 		}
 	} else if (strcasecmp(args->encapsulation, "audiosocket") == 0 && strcasecmp(args->transport, "tcp") == 0) {
 		if (external_media_audiosocket_tcp(args, variables, response)) {
+			ast_ari_response_error(
+				response, 500, "Internal Server Error",
+				"An internal error prevented this request from being handled");
+		}
+	} else if (strcasecmp(args->encapsulation, "none") == 0 && strcasecmp(args->transport, "websocket") == 0) {
+		if (external_media_websocket(args, variables, response)) {
 			ast_ari_response_error(
 				response, 500, "Internal Server Error",
 				"An internal error prevented this request from being handled");
