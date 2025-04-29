@@ -120,14 +120,20 @@ endif
 .PHONY: CHECK_SUBDIR
 CHECK_SUBDIR:	# do nothing, just make sure that we recurse in the subdir/
 
-ifneq ($(findstring REBUILD_PARSERS,$(MENUSELECT_CFLAGS)),)
-ast_expr2.c ast_expr2.h: ast_expr2.y
-else
-ast_expr2.c ast_expr2.h:
-endif
-	$(ECHO_PREFIX) echo "   [BISON] $< -> $@"
-	$(CMD_PREFIX) $(BISON) -o $@ -d --name-prefix=ast_yy ast_expr2.y
-
+#
+# Rebuilding ast_expr2.c and ast_expr2.h is disabled pending further
+# investigation as they fail to rebuild in any current distro.  Those
+# files are checked into the source tree anyway and haven't been changed,
+# other than for typos, in a long time.
+#
+#ifneq ($(findstring REBUILD_PARSERS,$(MENUSELECT_CFLAGS)),)
+#ast_expr2.c ast_expr2.h: ast_expr2.y
+#else
+#ast_expr2.c ast_expr2.h:
+#endif
+#	$(ECHO_PREFIX) echo "   [BISON] $< -> $@"
+#	$(CMD_PREFIX) $(BISON) -o $@ -d --name-prefix=ast_yy ast_expr2.y
+#
 ifneq ($(findstring REBUILD_PARSERS,$(MENUSELECT_CFLAGS)),)
 ast_expr2f.c: ast_expr2.fl
 else

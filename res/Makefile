@@ -45,13 +45,20 @@ endif
 	$(CMD_PREFIX) echo >> $@
 	$(CMD_PREFIX) $(FLEX) -t ael/ael.flex >> $@
 
-ifneq ($(findstring REBUILD_PARSERS,$(MENUSELECT_CFLAGS)),)
-ael/ael.tab.c ael/ael.tab.h: ael/ael.y
-else
-ael/ael.tab.c ael/ael.tab.h:
-endif
-	$(ECHO_PREFIX) echo "   [BISON] $< -> $@"
-	$(CMD_PREFIX) (cd ael; $(BISON) -v -d ael.y)
+#
+# Rebuilding ael/ael.tab.c and ael/ael.tab.h is
+# disabled pending further investigation because they fail to
+# rebuild in any current distro.  Those files are checked into
+# the source tree anyway and haven't been changed, other than
+# for typos, in a long time.
+#
+#ifneq ($(findstring REBUILD_PARSERS,$(MENUSELECT_CFLAGS)),)
+#ael/ael.tab.c ael/ael.tab.h: ael/ael.y
+#else
+#ael/ael.tab.c ael/ael.tab.h:
+#endif
+#	$(ECHO_PREFIX) echo "   [BISON] $< -> $@"
+#	$(CMD_PREFIX) (cd ael; $(BISON) -v -d ael.y)
 
 ael/pval.o: ael/pval.c
 
