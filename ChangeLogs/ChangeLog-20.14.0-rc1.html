@@ -1,0 +1,537 @@
+<html><head><title>ChangeLog for asterisk-20.14.0-rc1</title></head><body>
+<h2>Change Log for Release asterisk-20.14.0-rc1</h2>
+<h3>Links:</h3>
+<ul>
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-20.14.0-rc1.html">Full ChangeLog</a>  </li>
+<li><a href="https://github.com/asterisk/asterisk/compare/20.13.0...20.14.0-rc1">GitHub Diff</a>  </li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-20.14.0-rc1.tar.gz">Tarball</a>  </li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk">Downloads</a>  </li>
+</ul>
+<h3>Summary:</h3>
+<ul>
+<li>Commits: 24</li>
+<li>Commit Authors: 18</li>
+<li>Issues Resolved: 12</li>
+<li>Security Advisories Resolved: 0</li>
+</ul>
+<h3>User Notes:</h3>
+<ul>
+<li>
+<h4>stasis/control.c: Set Hangup Cause to No Answer on Dial timeout</h4>
+<p>A Dial timeout on POST /channels/{channelId}/dial will now result in a
+  CANCEL and ChannelDestroyed with cause 19 / User alerting, no answer.  Previously
+  no explicit cause was set, resulting in a cause of 16 / Normal Call Clearing.</p>
+</li>
+<li>
+<h4>contrib: Add systemd service and timer files for malloc trim.</h4>
+<p>Service and timer files for systemd have been added to the
+  contrib/systemd/ directory. If you are experiencing memory issues,
+  install these files to have "malloc trim" periodically run on the
+  system.</p>
+</li>
+<li>
+<h4>Add log-caller-id-name option to log Caller ID Name in queue log</h4>
+<p>This patch adds a global configuration option, log-caller-id-name, to queues.conf
+  to control whether the Caller ID name is logged as parameter 4 when a call enters a queue.
+  When log-caller-id-name=yes, the Caller ID name is included in the queue log,
+  Any '|' characters in the caller ID name will be replaced with '_'.
+  (provided it’s allowed by the existing log_restricted_caller_id rules).
+  When log-caller-id-name=no (the default), the Caller ID name is omitted.</p>
+</li>
+<li>
+<h4>asterisk.c: Add "pre-init" and "pre-module" capability to cli.conf.</h4>
+<p>In cli.conf, you can now define startup commands that run before
+  core initialization and before module initialization.</p>
+</li>
+<li>
+<h4>audiosocket: added support for DTMF frames</h4>
+<p>The AudioSocket protocol now forwards DTMF frames with
+  payload type 0x03. The payload is a 1-byte ascii representing the DTMF
+  digit (0-9,*,#...).</p>
+</li>
+</ul>
+<h3>Upgrade Notes:</h3>
+<ul>
+<li>
+<h4>ARI: REST over Websocket</h4>
+  This commit adds the ability to make ARI REST requests over the same
+  websocket used to receive events.
+  See https://docs.asterisk.org/Configuration/Interfaces/Asterisk-REST-Interface-ARI/ARI-REST-over-WebSocket/</li>
+</ul>
+<h3>Commit Authors:</h3>
+<ul>
+<li>Albrecht Oster: (1)</li>
+<li>Alexei Gradinari: (1)</li>
+<li>Allan Nathanson: (1)</li>
+<li>Andreas Wehrmann: (1)</li>
+<li>Ben Ford: (1)</li>
+<li>Florent CHAUVEAU: (1)</li>
+<li>George Joseph: (4)</li>
+<li>Joshua C. Colp: (1)</li>
+<li>Luz Paz: (1)</li>
+<li>Mark Murawski: (1)</li>
+<li>Mike Bradeen: (1)</li>
+<li>Mkmer: (1)</li>
+<li>Naveen Albert: (3)</li>
+<li>Norm Harrison: (2)</li>
+<li>Peter Jannesen: (1)</li>
+<li>Phoneben: (1)</li>
+<li>Sean Bright: (1)</li>
+<li>Zhai Liangliang: (1)</li>
+</ul>
+<h2>Issue and Commit Detail:</h2>
+<h3>Closed Issues:</h3>
+<ul>
+<li>505: [bug]: res_pjproject: ast_sockaddr_cmp() always fails on sockaddrs created by ast_sockaddr_from_pj_sockaddr()</li>
+<li>643: [new-feature]: pjsip show contact -- show all details same as AMI PJSIPShowContacts</li>
+<li>963: [bug]: missing hangup cause for ARI ChannelDestroyed when Dial times out</li>
+<li>1091: [improvement]: app queue :add to  queue log callerid name</li>
+<li>1144: [bug]: action_redirect don't remove bridge_after_goto data</li>
+<li>1171: [improvement]: Need the capability in audiohook.c for fractional (float) type volume adjustments.</li>
+<li>1181: [bug]: Incorrect PJSIP Endpoint Device States on Multiple Channels</li>
+<li>1190: [bug]: Crash when starting ConfBridge recording over CLI and AMI</li>
+<li>1197: [bug]: ChannelHangupRequest does not show cause code in all cases</li>
+<li>1206: [improvement]: chan_iax2: Minor improvements to documentation and warning messages.</li>
+<li>1220: [bug]: res_pjsip_caller_id: OLI is not parsed if contained in a URI parameter</li>
+<li>1224: [improvement]: app_meetme: Removal version is incorrect</li>
+</ul>
+<h3>Commits By Author:</h3>
+<ul>
+<li>
+<h4>Albrecht Oster (1):</h4>
+</li>
+<li>
+<p>res_pjproject: Fix DTLS client check failing on some platforms</p>
+</li>
+<li>
+<h4>Alexei Gradinari (1):</h4>
+</li>
+<li>
+<p>chan_pjsip: set correct Endpoint Device State on multiple channels</p>
+</li>
+<li>
+<h4>Allan Nathanson (1):</h4>
+</li>
+<li>
+<p>file.c: missing "custom" sound files should not generate warning logs</p>
+</li>
+<li>
+<h4>Andreas Wehrmann (1):</h4>
+</li>
+<li>
+<p>pbx_ael: unregister AELSub application and CLI commands on module load failure</p>
+</li>
+<li>
+<h4>Ben Ford (1):</h4>
+</li>
+<li>
+<p>contrib: Add systemd service and timer files for malloc trim.</p>
+</li>
+<li>
+<h4>Florent CHAUVEAU (1):</h4>
+</li>
+<li>
+<p>audiosocket: added support for DTMF frames</p>
+</li>
+<li>
+<h4>George Joseph (4):</h4>
+</li>
+<li>ARI: REST over Websocket</li>
+<li>ari_websockets: Fix frack if ARI config fails to load.</li>
+<li>asterisk.c: Add "pre-init" and "pre-module" capability to cli.conf.</li>
+<li>
+<p>Prequisites for ARI Outbound Websockets</p>
+</li>
+<li>
+<h4>Joshua C. Colp (1):</h4>
+</li>
+<li>
+<p>channel: Always provide cause code in ChannelHangupRequest.</p>
+</li>
+<li>
+<h4>Luz Paz (1):</h4>
+</li>
+<li>
+<p>docs: Fix typos in apps/</p>
+</li>
+<li>
+<h4>Mark Murawski (1):</h4>
+</li>
+<li>
+<p>chan_pjsip:  Add the same details as PJSIPShowContacts to the CLI via 'pjsip s..</p>
+</li>
+<li>
+<h4>Mike Bradeen (1):</h4>
+</li>
+<li>
+<p>stasis/control.c: Set Hangup Cause to No Answer on Dial timeout</p>
+</li>
+<li>
+<h4>Naveen Albert (3):</h4>
+</li>
+<li>chan_iax2: Minor improvements to documentation and warning messages.</li>
+<li>app_meetme: Remove inaccurate removal version from xmldocs.</li>
+<li>
+<p>res_pjsip_caller_id: Also parse URI parameters for ANI2.</p>
+</li>
+<li>
+<h4>Norm Harrison (2):</h4>
+</li>
+<li>audiosocket: fix timeout, fix dialplan app exit, server address in logs</li>
+<li>
+<p>asterisk/channel.h: fix documentation for 'ast_waitfor_nandfds()'</p>
+</li>
+<li>
+<h4>Peter Jannesen (1):</h4>
+</li>
+<li>
+<p>action_redirect: remove after_bridge_goto_info</p>
+</li>
+<li>
+<h4>Sean Bright (1):</h4>
+</li>
+<li>
+<p>app_confbridge: Prevent crash when publishing channel-less event.</p>
+</li>
+<li>
+<h4>Zhai Liangliang (1):</h4>
+</li>
+<li>
+<p>Update config.guess and config.sub</p>
+</li>
+<li>
+<h4>mkmer (1):</h4>
+</li>
+<li>
+<p>audiohook.c: Add ability to adjust volume with float</p>
+</li>
+<li>
+<h4>phoneben (1):</h4>
+</li>
+<li>Add log-caller-id-name option to log Caller ID Name in queue log</li>
+</ul>
+<h3>Commit List:</h3>
+<ul>
+<li>res_pjsip_caller_id: Also parse URI parameters for ANI2.</li>
+<li>app_meetme: Remove inaccurate removal version from xmldocs.</li>
+<li>docs: Fix typos in apps/</li>
+<li>stasis/control.c: Set Hangup Cause to No Answer on Dial timeout</li>
+<li>chan_iax2: Minor improvements to documentation and warning messages.</li>
+<li>pbx_ael: unregister AELSub application and CLI commands on module load failure</li>
+<li>res_pjproject: Fix DTLS client check failing on some platforms</li>
+<li>Prequisites for ARI Outbound Websockets</li>
+<li>contrib: Add systemd service and timer files for malloc trim.</li>
+<li>action_redirect: remove after_bridge_goto_info</li>
+<li>channel: Always provide cause code in ChannelHangupRequest.</li>
+<li>Add log-caller-id-name option to log Caller ID Name in queue log</li>
+<li>asterisk.c: Add "pre-init" and "pre-module" capability to cli.conf.</li>
+<li>app_confbridge: Prevent crash when publishing channel-less event.</li>
+<li>ari_websockets: Fix frack if ARI config fails to load.</li>
+<li>ARI: REST over Websocket</li>
+<li>audiohook.c: Add ability to adjust volume with float</li>
+<li>audiosocket: added support for DTMF frames</li>
+<li>asterisk/channel.h: fix documentation for 'ast_waitfor_nandfds()'</li>
+<li>audiosocket: fix timeout, fix dialplan app exit, server address in logs</li>
+<li>Update config.guess and config.sub</li>
+<li>chan_pjsip: set correct Endpoint Device State on multiple channels</li>
+<li>file.c: missing "custom" sound files should not generate warning logs</li>
+</ul>
+<h3>Commit Details:</h3>
+<h4>res_pjsip_caller_id: Also parse URI parameters for ANI2.</h4>
+<p>Author: Naveen Albert
+  Date:   2025-04-26</p>
+<p>If the isup-oli was sent as a URI parameter, rather than a header
+  parameter, it was not being parsed. Make sure we parse both if
+  needed so the ANI2 is set regardless of which type of parameter
+  the isup-oli is sent as.</p>
+<p>Resolves: #1220</p>
+<h4>app_meetme: Remove inaccurate removal version from xmldocs.</h4>
+<p>Author: Naveen Albert
+  Date:   2025-04-26</p>
+<p>app_meetme is deprecated but wasn't removed as planned in 21,
+  so remove the inaccurate removal version.</p>
+<p>Resolves: #1224</p>
+<h4>docs: Fix typos in apps/</h4>
+<p>Author: Luz Paz
+  Date:   2025-04-09</p>
+<p>Found via codespell</p>
+<h4>stasis/control.c: Set Hangup Cause to No Answer on Dial timeout</h4>
+<p>Author: Mike Bradeen
+  Date:   2025-04-17</p>
+<p>Other Dial operations (dial, app_dial) use Q.850 cause 19 when a dial timeout occurs,
+  but the Dial command via ARI did not set an explicit reason. This resulted in a
+  CANCEL with Normal Call Clearing and corresponding ChannelDestroyed.</p>
+<p>This change sets the hangup cause to AST_CAUSE_NO_ANSWER to be consistent with the
+  other operations.</p>
+<p>Fixes: #963</p>
+<p>UserNote:  A Dial timeout on POST /channels/{channelId}/dial will now result in a
+  CANCEL and ChannelDestroyed with cause 19 / User alerting, no answer.  Previously
+  no explicit cause was set, resulting in a cause of 16 / Normal Call Clearing.</p>
+<h4>chan_iax2: Minor improvements to documentation and warning messages.</h4>
+<p>Author: Naveen Albert
+  Date:   2025-04-18</p>
+<ul>
+<li>Update Dial() documentation for IAX2 to include syntax for RSA
+    public key names.</li>
+<li>Add additional details to a couple warnings to provide more context
+    when an undecodable frame is received.</li>
+</ul>
+<p>Resolves: #1206</p>
+<h4>pbx_ael: unregister AELSub application and CLI commands on module load failure</h4>
+<p>Author: Andreas Wehrmann
+  Date:   2025-04-18</p>
+<p>This fixes crashes/hangs I noticed with Asterisk 20.3.0 and 20.13.0 and quickly found out,
+  that the AEL module doesn't do proper cleanup when it fails to load.
+  This happens for example when there are syntax errors and AEL fails to compile in which case pbx_load_module()
+  returns an error but load_module() doesn't then unregister CLI cmds and the application.</p>
+<h4>res_pjproject: Fix DTLS client check failing on some platforms</h4>
+<p>Author: Albrecht Oster
+  Date:   2025-04-10</p>
+<p>Certain platforms (mainly BSD derivatives) have an additional length
+  field in <code>sockaddr_in6</code> and <code>sockaddr_in</code>.
+  <code>ast_sockaddr_from_pj_sockaddr()</code> does not take this field into account
+  when copying over values from the <code>pj_sockaddr</code> into the <code>ast_sockaddr</code>.
+  The resulting <code>ast_sockaddr</code> will have an uninitialized value for
+  <code>sin6_len</code>/<code>sin_len</code> while the other <code>ast_sockaddr</code> (not converted from
+  a <code>pj_sockaddr</code>) to check against in <code>ast_sockaddr_pj_sockaddr_cmp()</code>
+  has the correct length value set.</p>
+<p>This has the effect that <code>ast_sockaddr_cmp()</code> will always indicate
+  an address mismatch, because it does a bitwise comparison, and all DTLS
+  packets are dropped even if addresses and ports match.</p>
+<p><code>ast_sockaddr_from_pj_sockaddr()</code> now checks whether the length fields
+  are available on the current platform and sets the values accordingly.</p>
+<p>Resolves: #505</p>
+<h4>Prequisites for ARI Outbound Websockets</h4>
+<p>Author: George Joseph
+  Date:   2025-04-16</p>
+<p>stasis:
+  * Added stasis_app_is_registered().
+  * Added stasis_app_control_mark_failed().
+  * Added stasis_app_control_is_failed().
+  * Fixed res_stasis_device_state so unsubscribe all works properly.
+  * Modified stasis_app_unregister() to unsubscribe from all event sources.
+  * Modified stasis_app_exec to return -1 if stasis_app_control_is_failed()
+    returns true.</p>
+<p>http:
+  * Added ast_http_create_basic_auth_header().</p>
+<p>md5:
+  * Added define for MD5_DIGEST_LENGTH.</p>
+<p>tcptls:
+  * Added flag to ast_tcptls_session_args to suppress connection log messages
+    to give callers more control over logging.</p>
+<p>http_websocket:
+  * Add flag to ast_websocket_client_options to suppress connection log messages
+    to give callers more control over logging.
+  * Added username and password to ast_websocket_client_options to support
+    outbound basic authentication.
+  * Added ast_websocket_result_to_str().</p>
+<h4>contrib: Add systemd service and timer files for malloc trim.</h4>
+<p>Author: Ben Ford
+  Date:   2025-04-16</p>
+<p>Adds two files to the contrib/systemd/ directory that can be installed
+  to periodically run "malloc trim" on Asterisk. These files do nothing
+  unless they are explicitly moved to the correct location on the system.
+  Users who are experiencing Asterisk memory issues can use this service
+  to potentially help combat the problem. These files can also be
+  configured to change the start time and interval. See systemd.timer(5)
+  and systemd.time(7) for more information.</p>
+<p>UserNote: Service and timer files for systemd have been added to the
+  contrib/systemd/ directory. If you are experiencing memory issues,
+  install these files to have "malloc trim" periodically run on the
+  system.</p>
+<h4>action_redirect: remove after_bridge_goto_info</h4>
+<p>Author: Peter Jannesen
+  Date:   2025-03-13</p>
+<p>Under certain circumstances the context/extens/prio are stored in the
+  after_bridge_goto_info. This info is used when the bridge is broken by
+  for hangup of the other party. In the situation that the bridge is
+  broken by an AMI Redirect this info is not used but also not removed.
+  With the result that when the channel is put back in a bridge and the
+  bridge is broken the execution continues at the wrong
+  context/extens/prio.</p>
+<p>Resolves: #1144</p>
+<h4>channel: Always provide cause code in ChannelHangupRequest.</h4>
+<p>Author: Joshua C. Colp
+  Date:   2025-04-16</p>
+<p>When queueing a channel to be hung up a cause code can be
+  specified in one of two ways:</p>
+<ol>
+<li>
+<p>ast_queue_hangup_with_cause
+  This function takes in a cause code and queues it as part
+  of the hangup request, which ultimately results in it being
+  set on the channel.</p>
+</li>
+<li>
+<p>ast_channel_hangupcause_set + ast_queue_hangup
+  This combination sets the hangup cause on the channel before
+  queueing the hangup instead of as part of that process.</p>
+</li>
+</ol>
+<p>In the #2 case the ChannelHangupRequest event would not contain
+  the cause code. For consistency if a cause code has been set
+  on the channel it will now be added to the event.</p>
+<p>Resolves: #1197</p>
+<h4>Add log-caller-id-name option to log Caller ID Name in queue log</h4>
+<p>Author: phoneben
+  Date:   2025-02-28</p>
+<p>Add log-caller-id-name option to log Caller ID Name in queue log</p>
+<p>This patch introduces a new global configuration option, log-caller-id-name,
+  to queues.conf to control whether the Caller ID name is logged when a call enters a queue.</p>
+<p>When log-caller-id-name=yes, the Caller ID name is logged
+  as parameter 4 in the queue log, provided it’s allowed by the
+  existing log_restricted_caller_id rules. If log-caller-id-name=no (the default),
+  the Caller ID name is omitted from the logs.</p>
+<p>Fixes: #1091</p>
+<p>UserNote: This patch adds a global configuration option, log-caller-id-name, to queues.conf
+  to control whether the Caller ID name is logged as parameter 4 when a call enters a queue.
+  When log-caller-id-name=yes, the Caller ID name is included in the queue log,
+  Any '|' characters in the caller ID name will be replaced with '_'.
+  (provided it’s allowed by the existing log_restricted_caller_id rules).
+  When log-caller-id-name=no (the default), the Caller ID name is omitted.</p>
+<h4>asterisk.c: Add "pre-init" and "pre-module" capability to cli.conf.</h4>
+<p>Author: George Joseph
+  Date:   2025-04-10</p>
+<p>Commands in the "[startup_commands]" section of cli.conf have historically run
+  after all core and module initialization has been completed and just before
+  "Asterisk Ready" is printed on the console. This meant that if you
+  wanted to debug initialization of a specific module, your only option
+  was to turn on debug for everything by setting "debug" in asterisk.conf.</p>
+<p>This commit introduces options to allow you to run CLI commands earlier in
+  the asterisk startup process.</p>
+<p>A command with a value of "pre-init" will run just after logger initialization
+  but before most core, and all module, initialization.</p>
+<p>A command with a value of "pre-module" will run just after all core
+  initialization but before all module initialization.</p>
+<p>A command with a value of "fully-booted" (or "yes" for backwards
+  compatibility) will run as they always have been...after all
+  initialization and just before "Asterisk Ready" is printed on the console.</p>
+<p>This means you could do this...</p>
+<p><code>[startup_commands]
+  core set debug 3 res_pjsip.so = pre-module
+  core set debug 0 res_pjsip.so = fully-booted</code></p>
+<p>This would turn debugging on for res_pjsip.so to catch any module
+  initialization debug messages then turn it off again after the module is
+  loaded.</p>
+<p>UserNote: In cli.conf, you can now define startup commands that run before
+  core initialization and before module initialization.</p>
+<h4>app_confbridge: Prevent crash when publishing channel-less event.</h4>
+<p>Author: Sean Bright
+  Date:   2025-04-07</p>
+<p>Resolves: #1190</p>
+<h4>ari_websockets: Fix frack if ARI config fails to load.</h4>
+<p>Author: George Joseph
+  Date:   2025-04-02</p>
+<p>ari_ws_session_registry_dtor() wasn't checking that the container was valid
+  before running ao2_callback on it to shutdown registered sessions.</p>
+<h4>ARI: REST over Websocket</h4>
+<p>Author: George Joseph
+  Date:   2025-03-12</p>
+<p>This commit adds the ability to make ARI REST requests over the same
+  websocket used to receive events.</p>
+<p>For full details on how to use the new capability, visit...</p>
+<p>https://docs.asterisk.org/Configuration/Interfaces/Asterisk-REST-Interface-ARI/ARI-REST-over-WebSocket/</p>
+<p>Changes:</p>
+<ul>
+<li>Added utilities to http.c:<ul>
+<li>ast_get_http_method_from_string().</li>
+<li>ast_http_parse_post_form().</li>
+</ul>
+</li>
+<li>Added utilities to json.c:<ul>
+<li>ast_json_nvp_array_to_ast_variables().</li>
+<li>ast_variables_to_json_nvp_array().</li>
+</ul>
+</li>
+<li>Added definitions for new events to carry REST responses.</li>
+<li>Created res/ari/ari_websocket_requests.c to house the new request handlers.</li>
+<li>Moved non-event specific code out of res/ari/resource_events.c into
+    res/ari/ari_websockets.c</li>
+<li>Refactored res/res_ari.c to move non-http code out of ast_ari_callback()
+    (which is http specific) and into ast_ari_invoke() so it can be shared
+    between both the http and websocket transports.</li>
+</ul>
+<p>UpgradeNote: This commit adds the ability to make ARI REST requests over the same
+  websocket used to receive events.
+  See https://docs.asterisk.org/Configuration/Interfaces/Asterisk-REST-Interface-ARI/ARI-REST-over-WebSocket/</p>
+<h4>audiohook.c: Add ability to adjust volume with float</h4>
+<p>Author: mkmer
+  Date:   2025-03-18</p>
+<p>Add the capability to audiohook for float type volume adjustments.  This allows for adjustments to volume smaller than 6dB.  With INT adjustments, the first step is 2 which converts to ~6dB (or 1/2 volume / double volume depending on adjustment sign). 3dB is a typical adjustment level which can now be accommodated with an adjustment value of 1.41.</p>
+<p>This is accomplished by the following:
+    Convert internal variables to type float.
+    Always use ast_frame_adjust_volume_float() for adjustments.
+    Cast int to float in original functions ast_audiohook_volume_set(), and ast_volume_adjust().
+    Cast float to int in ast_audiohook_volume_get()
+    Add functions ast_audiohook_volume_get_float, ast_audiohook_volume_set_float, and ast_audiohook_volume_adjust_float.</p>
+<p>This update maintains 100% backward compatibility.</p>
+<p>Resolves: #1171</p>
+<h4>audiosocket: added support for DTMF frames</h4>
+<p>Author: Florent CHAUVEAU
+  Date:   2025-02-28</p>
+<p>Updated the AudioSocket protocol to allow sending DTMF frames.
+  AST_FRAME_DTMF frames are now forwarded to the server, in addition to
+  AST_FRAME_AUDIO frames. A new payload type AST_AUDIOSOCKET_KIND_DTMF
+  with value 0x03 was added to the protocol. The payload is a 1-byte
+  ascii representing the DTMF digit (0-9,*,#...).</p>
+<p>UserNote: The AudioSocket protocol now forwards DTMF frames with
+  payload type 0x03. The payload is a 1-byte ascii representing the DTMF
+  digit (0-9,*,#...).</p>
+<h4>asterisk/channel.h: fix documentation for 'ast_waitfor_nandfds()'</h4>
+<p>Author: Norm Harrison
+  Date:   2023-04-03</p>
+<p>Co-authored-by: Florent CHAUVEAU <a href="&#109;&#97;&#105;&#108;&#116;&#111;&#58;&#102;&#108;&#111;&#114;&#101;&#110;&#116;&#99;&#104;&#64;&#112;&#109;&#46;&#109;&#101;">&#102;&#108;&#111;&#114;&#101;&#110;&#116;&#99;&#104;&#64;&#112;&#109;&#46;&#109;&#101;</a></p>
+<h4>audiosocket: fix timeout, fix dialplan app exit, server address in logs</h4>
+<p>Author: Norm Harrison
+  Date:   2023-04-03</p>
+<ul>
+<li>Correct wait timeout logic in the dialplan application.</li>
+<li>Include server address in log messages for better traceability.</li>
+<li>Allow dialplan app to exit gracefully on hangup messages and socket closure.</li>
+<li>Optimize I/O by reducing redundant read()/write() operations.</li>
+</ul>
+<p>Co-authored-by: Florent CHAUVEAU <a href="&#109;&#97;&#105;&#108;&#116;&#111;&#58;&#102;&#108;&#111;&#114;&#101;&#110;&#116;&#99;&#104;&#64;&#112;&#109;&#46;&#109;&#101;">&#102;&#108;&#111;&#114;&#101;&#110;&#116;&#99;&#104;&#64;&#112;&#109;&#46;&#109;&#101;</a></p>
+<h4>chan_pjsip:  Add the same details as PJSIPShowContacts to the CLI via 'pjsip s..</h4>
+<p>Author: Mark Murawski
+  Date:   2025-03-23</p>
+<p>CLI 'pjsip show contact' does not show enough information.
+  One must telnet to AMI or write a script to ask Asterisk for example what the User-Agent is on a Contact
+  This feature adds the same details as PJSIPShowContacts to the CLI</p>
+<p>Resolves: #643</p>
+<h4>Update config.guess and config.sub</h4>
+<p>Author: Zhai Liangliang
+  Date:   2025-03-26</p>
+<h4>chan_pjsip: set correct Endpoint Device State on multiple channels</h4>
+<p>Author: Alexei Gradinari
+  Date:   2025-03-25</p>
+<ol>
+<li>
+<p>When one channel is placed on hold, the device state is set to ONHOLD
+  without checking other channels states.
+  In case of AST_CONTROL_HOLD set the device state as AST_DEVICE_UNKNOWN
+  to calculate aggregate device state of all active channels.</p>
+</li>
+<li>
+<p>The current implementation incorrectly classifies channels in use.
+  The only channels that has the states: UP, RING and BUSY are considered as "in use".
+  A channel should be considered "in use" if its state is anything other than
+  DOWN or RESERVED.</p>
+</li>
+<li>
+<p>Currently, if the number of channels "in use" is greater than device_state_busy_at,
+  the system does not set the state to BUSY. Instead, it incorrectly assigns an aggregate
+  device state.
+  The endpoint device state should be BUSY if the number of channels "in use" is greater
+  than or equal to device_state_busy_at.</p>
+</li>
+</ol>
+<p>Fixes: #1181</p>
+<h4>file.c: missing "custom" sound files should not generate warning logs</h4>
+<p>Author: Allan Nathanson
+  Date:   2025-03-18</p>
+<p>With <code>sounds_search_custom_dir = yes</code> we first look to see if a sound file
+  is present in the "custom" sound directory before looking in the standard
+  sound directories.  We should not be issuing a WARNING log message if a
+  sound cannot be found in the "custom" directory.</p>
+<p>Resolves: https://github.com/asterisk/asterisk/issues/1170</p>
+</body></html>
