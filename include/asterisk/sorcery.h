@@ -1623,6 +1623,135 @@ int ast_sorcery_is_object_field_registered(const struct ast_sorcery_object_type 
  */
 const char *ast_sorcery_get_module(const struct ast_sorcery *sorcery);
 
+/*!
+ * \section AstSorceryConvenienceMacros Simple Sorcery Convenience Macros
+ *
+ * For simple scenarios, the following macros can be used to register
+ * common object fields.  The only requirement is that your source code's
+ * definition of it's sorcery handle be named "sorcery".
+ *
+ * Example structure:
+ * \code
+ * struct my_sorcery_object {
+ *   SORCERY_OBJECT(details);
+ *   AST_DECLARE_STRING_FIELDS(
+ *     AST_STRING_FIELD(mystring);
+ *   );
+ *  enum some_enum_type myenum;
+ *  int myint;
+ *  unsigned int myuint;
+ *  int mybool;
+ * };
+ * \endcode
+ *
+ * Example object type registration:
+ * \code
+ * ast_sorcery_object_register(sorcery, "myobject", ...);
+ * \endcode
+ */
+
+/*!
+ * \brief Register a boolean field as type OPT_YESNO_T within an object.
+ * \param object The unquoted object type.
+ * \param structure The unquoted name of the structure that contains the field
+ *                  without the "struct" prefix.
+ * \param option The unquoted name of the option as it appears in the config file.
+ * \param field The unquoted name of the field in the structure.
+ * \param def_value The quoted default value of the field. Should be "yes" or "no"
+ *
+ * \code
+ * ast_sorcery_register_bool(myobject, my_sorcery_object, mybool, mybool, "yes");
+ * \endcode
+ */
+#define ast_sorcery_register_bool(object, structure, option, field, def_value) \
+	ast_sorcery_object_field_register(sorcery, #object, #option, \
+		def_value, OPT_YESNO_T, 1, \
+		FLDSET(struct structure, field))
+
+/*!
+ * \internal
+ * \brief Stringify a value.
+ *
+ * Needed because the preprocessor doesn't evaluate macros before it stringifies them.
+ */
+#define _sorcery_stringify(val) #val
+
+/*!
+ * \brief Register an int field as type OPT_INT_T within an object.
+ * \param object The unquoted object type.
+ * \param structure The unquoted name of the structure that contains the field
+ *                  without the "struct" prefix.
+ * \param option The unquoted name of the option as it appears in the config file.
+ * \param field The unquoted name of the field in the structure.
+ * \param def_value The unquoted default value of the field.
+ *
+ * \code
+ * ast_sorcery_register_int(myobject, my_sorcery_object, myint, myint, -32);
+ * \endcode
+ */
+#define ast_sorcery_register_int(object, structure, option, field, def_value) \
+	ast_sorcery_object_field_register(sorcery, #object, #option, \
+		_sorcery_stringify(def_value), OPT_INT_T, PARSE_IN_RANGE, \
+		FLDSET(struct structure, field), INT_MIN, INT_MAX)
+
+/*!
+ * \brief Register an unsigned int field as type OPT_UINT_T within an object.
+ * \param object The unquoted object type.
+ * \param structure The unquoted name of the structure that contains the field
+ *                  without the "struct" prefix.
+ * \param option The unquoted name of the option as it appears in the config file.
+ * \param field The unquoted name of the field in the structure.
+ * \param def_value The unquoted default value of the field.
+ *
+ * \code
+ * ast_sorcery_register_uint(myobject, my_sorcery_object, myint, myint, 32);
+ * \endcode
+ */
+#define ast_sorcery_register_uint(object, structure, option, field, def_value) \
+	ast_sorcery_object_field_register(sorcery, #object, #option, \
+		_stringify(def_value), OPT_UINT_T, PARSE_IN_RANGE, \
+		FLDSET(struct structure, field), 0, UINT_MAX)
+
+/*!
+ * \brief Register a stringfield field as type OPT_STRINGFIELD_T within an object.
+ * \param object The unquoted object type.
+ * \param structure The unquoted name of the structure that contains the field
+ *                  without the "struct" prefix.
+ * \param option The unquoted name of the option as it appears in the config file.
+ * \param field The unquoted name of the field in the structure.
+ * \param def_value The quoted default value of the field.
+ *
+ * \code
+ * ast_sorcery_register_sf(myobject, my_sorcery_object, mystring, mystring, "");
+ * \endcode
+ */
+#define ast_sorcery_register_sf(object, structure, option, field, def_value) \
+	ast_sorcery_object_field_register(sorcery, #object, #option, \
+		def_value, OPT_STRINGFIELD_T, 0, \
+		STRFLDSET(struct structure, field))
+
+/*!
+ * \brief Register a custom field within an object.
+ * \param object The unquoted object type.
+ * \param structure The unquoted name of the structure that contains the field
+ *                  without the "struct" prefix.
+ * \param option The unquoted name of the option as it appears in the config file.
+ *
+ * \code
+ * ast_sorcery_register_cust(myobject, my_sorcery_object, mystring);
+ * \endcode
+ *
+ * \note
+ * You must have defined the following standard sorcery custom handler functions:
+ * \li myobject_mystring_from_str(const struct aco_option *opt,	struct ast_variable *var, void *obj)
+ * \li myobject_mystring_to_str(const void *obj, const intptr_t *args, char **buf)
+ */
+#define ast_sorcery_register_cust(object, option, def_value) \
+	ast_sorcery_object_field_register_custom(sorcery, #object, #option, \
+		def_value, object ## _ ## option ## _from_str, \
+		object ## _ ## option ## _to_str, NULL, 0, 0)
+
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
