@@ -54,6 +54,9 @@
 #ifdef HAVE_BKTR
 #include <execinfo.h>
 #endif
+#ifdef DEBUG_THREADS
+#include <string.h>
+#endif
 
 #ifndef HAVE_PTHREAD_RWLOCK_TIMEDWRLOCK
 #include "asterisk/time.h"
