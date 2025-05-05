@@ -7466,7 +7466,9 @@ static int purge_sessions(int n_max)
 	}
 	i = ao2_iterator_init(sessions, 0);
 	ao2_ref(sessions, -1);
-	while ((session = ao2_iterator_next(&i)) && n_max > 0) {
+
+	/* The order of operations is significant */
+	while (n_max > 0 && (session = ao2_iterator_next(&i))) {
 		ao2_lock(session);
 		if (session->sessiontimeout && (now > session->sessiontimeout) && !session->inuse) {
 			if (session->authenticated
