@@ -2394,13 +2394,12 @@ static void update_initial_connected_line(struct ast_sip_session *session)
 
 static int call(void *data)
 {
-	struct ast_sip_channel_pvt *channel = data;
-	struct ast_sip_session *session = channel->session;
+	struct ast_sip_session *session = data;
 	pjsip_tx_data *tdata;
 	int res = 0;
 	SCOPE_ENTER(1, "%s Topology: %s\n",
 		ast_sip_session_get_name(session),
-		ast_str_tmp(256, ast_stream_topology_to_str(channel->session->pending_media_state->topology, &STR_TMP))
+		ast_str_tmp(256, ast_stream_topology_to_str(session->pending_media_state->topology, &STR_TMP))
 		);
 
 
@@ -2414,7 +2413,6 @@ static int call(void *data)
 		update_initial_connected_line(session);
 		ast_sip_session_send_request(session, tdata);
 	}
-	ao2_ref(channel, -1);
 	SCOPE_EXIT_RTN_VALUE(res, "RC: %d\n", res);
 }
 
@@ -2422,16 +2420,24 @@ static int call(void *data)
 static int chan_pjsip_call(struct ast_channel *ast, const char *dest, int timeout)
 {
 	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(ast);
-	SCOPE_ENTER(1, "%s Topology: %s\n", ast_sip_session_get_name(channel->session),
-		ast_str_tmp(256, ast_stream_topology_to_str(channel->session->pending_media_state->topology, &STR_TMP)));
+	struct ast_sip_session *session = ao2_bump(channel->session);
 
-	ao2_ref(channel, +1);
-	if (ast_sip_push_task(channel->session->serializer, call, channel)) {
+	SCOPE_ENTER(1, "%s Topology: %s\n", ast_sip_session_get_name(session),
+		ast_str_tmp(256, ast_stream_topology_to_str(session->pending_media_state->topology, &STR_TMP)));
+
+	ast_channel_unlock(ast);
+
+	/* The creation of the INVITE needs to be pushed synchronously to prevent a race condition
+	   with bridging on attended transfers that can result in a loss of set Caller ID. */
+	if (ast_sip_push_task_wait_serializer(session->serializer, call, session)) {
 		ast_log(LOG_WARNING, "Error attempting to place outbound call to '%s'\n", dest);
-		ao2_cleanup(channel);
+		ao2_ref(session, -1);
+		ast_channel_lock(ast);
 		SCOPE_EXIT_RTN_VALUE(-1, "Couldn't push task\n");
 	}
 
+	ao2_ref(session, -1);
+	ast_channel_lock(ast);
 	SCOPE_EXIT_RTN_VALUE(0, "'call' task pushed\n");
 }
 
