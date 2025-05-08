@@ -359,10 +359,13 @@ static pj_status_t process_nat(pjsip_tx_data *tdata)
 		 * if a request is being sent, or if a response is sent that is not a response
 		 * to a REGISTER. We specifically don't do this for a response to a REGISTER
 		 * as the Contact headers would contain the registered Contacts, and not our
-		 * own Contact.
+		 * own Contact. Nor do we do it for a 302 response to an INVITE request.
 		 */
-		if (!cseq || tdata->msg->type == PJSIP_REQUEST_MSG ||
-			pjsip_method_cmp(&cseq->method, &pjsip_register_method)) {
+		if ((!cseq || tdata->msg->type == PJSIP_REQUEST_MSG ||
+			pjsip_method_cmp(&cseq->method, &pjsip_register_method)) &&
+			(tdata->msg->type != PJSIP_RESPONSE_MSG ||
+			pjsip_method_cmp(&cseq->method, &pjsip_invite_method) ||
+			tdata->msg->line.status.code != PJSIP_SC_MOVED_TEMPORARILY )) {
 			/* We can only rewrite the URI when one is present */
 			if (uri || (uri = ast_sip_get_contact_sip_uri(tdata))) {
 				pj_strdup2(tdata->pool, &uri->host, ast_sockaddr_stringify_host(&transport_state->external_signaling_address));
