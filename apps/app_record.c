@@ -119,8 +119,32 @@
 				</variable>
 			</variablelist>
 		</description>
+		<see-also>
+			<ref type="function">RECORDING_INFO</ref>
+		</see-also>
 	</application>
-
+	<function name="RECORDING_INFO" language="en_US">
+		<synopsis>
+			Retrieve information about a recording previously created using the Record application
+		</synopsis>
+		<syntax>
+			<parameter name="property" required="true">
+				<para>The property about the recording to retrieve.</para>
+				<enumlist>
+					<enum name="duration">
+						<para>The duration, in milliseconds, of the recording.</para>
+					</enum>
+				</enumlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Returns information about the previous recording created by <literal>Record</literal>.
+			This function cannot be used if no recordings have yet been completed.</para>
+		</description>
+		<see-also>
+			<ref type="application">Record</ref>
+		</see-also>
+	</function>
  ***/
 
 #define OPERATOR_KEY '0'
@@ -221,13 +245,65 @@ static int create_destination_directory(const char *path)
 	return ast_mkdir(directory, 0777);
 }
 
+struct recording_data {
+	unsigned long duration; /* Duration, in ms */
+};
+
+static void recording_data_free(void *data)
+{
+	ast_free(data);
+}
+
+static const struct ast_datastore_info recording_data_info = {
+	.type = "RECORDING_INFO",
+	.destroy = recording_data_free,
+};
+
+static int recording_info_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
+{
+	struct ast_datastore *ds;
+	struct recording_data *recdata;
+
+	*buf = '\0';
+
+	if (!chan) {
+		ast_log(LOG_ERROR, "%s() can only be executed on a channel\n", cmd);
+		return -1;
+	} else if (ast_strlen_zero(data)) {
+		ast_log(LOG_ERROR, "%s() requires an argument\n", cmd);
+		return -1;
+	}
+
+	ast_channel_lock(chan);
+	ds = ast_channel_datastore_find(chan, &recording_data_info, NULL);
+	ast_channel_unlock(chan);
+
+	if (!ds) {
+		ast_log(LOG_ERROR, "No recordings have completed on channel %s\n", ast_channel_name(chan));
+		return -1;
+	}
+
+	recdata = ds->data;
+
+	if (!strcasecmp(data, "duration")) {
+		snprintf(buf, len, "%ld", recdata->duration);
+	} else {
+		ast_log(LOG_ERROR, "Invalid property type: %s\n", data);
+		return -1;
+	}
+
+	return 0;
+}
+
 static int record_exec(struct ast_channel *chan, const char *data)
 {
+	struct ast_datastore *ds;
 	int res = 0;
 	char *ext = NULL, *opts[0];
 	char *parse;
 	int i = 0;
 	char tmp[PATH_MAX];
+	struct recording_data *recdata;
 
 	struct ast_filestream *s = NULL;
 	struct ast_frame *f = NULL;
@@ -254,6 +330,31 @@ static int record_exec(struct ast_channel *chan, const char *data)
 	int ms;
 	struct timeval start;
 	const char *status_response = "ERROR";
+
+	/* Retrieve or create the datastore */
+	ast_channel_lock(chan);
+	if (!(ds = ast_channel_datastore_find(chan, &recording_data_info, NULL))) {
+		if (!(ds = ast_datastore_alloc(&recording_data_info, NULL))) {
+			ast_log(LOG_ERROR, "Unable to allocate new datastore.\n");
+			ast_channel_unlock(chan);
+			return -1;
+		}
+
+		if (!(recdata = ast_calloc(1, sizeof(*recdata)))) {
+			ast_datastore_free(ds);
+			ast_channel_unlock(chan);
+			return -1;
+		}
+
+		ds->data = recdata;
+		ast_channel_datastore_add(chan, ds);
+	} else {
+		recdata = ds->data;
+	}
+	ast_channel_unlock(chan);
+
+	/* Reset, in case already set */
+	recdata->duration = 0;
 
 	/* The next few lines of code parse out the filename and header from the input string */
 	if (ast_strlen_zero(data)) { /* no data implies no filename or anything is present */
@@ -517,6 +618,8 @@ static int record_exec(struct ast_channel *chan, const char *data)
 		ast_channel_stop_silence_generator(chan, silgen);
 
 out:
+	recdata->duration = ast_tvdiff_ms(ast_tvnow(), start);
+
 	if ((silence > 0) && rfmt) {
 		res = ast_set_read_format(chan, rfmt);
 		if (res) {
@@ -533,14 +636,25 @@ out:
 	return res;
 }
 
+static struct ast_custom_function acf_recording_info = {
+	.name = "RECORDING_INFO",
+	.read = recording_info_read,
+};
+
 static int unload_module(void)
 {
-	return ast_unregister_application(app);
+	int res;
+	res = ast_custom_function_unregister(&acf_recording_info);
+	res |= ast_unregister_application(app);
+	return res;
 }
 
 static int load_module(void)
 {
-	return ast_register_application_xml(app, record_exec);
+	int res;
+	res = ast_register_application_xml(app, record_exec);
+	res |= ast_custom_function_register(&acf_recording_info);
+	return res;
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Trivial Record Application");
