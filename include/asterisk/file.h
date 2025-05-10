@@ -356,7 +356,7 @@ struct ast_filestream *ast_openstream_full(struct ast_channel *chan, const char 
 struct ast_filestream *ast_openvstream(struct ast_channel *chan, const char *filename, const char *preflang);
 
 /*!
- * \brief Applies a open stream to a channel.
+ * \brief Applies a open stream to a channel. And bumps the reference count of the channel.
  * \param chan channel to work
  * \param s ast_filestream to apply
  * \retval 0 on success.
