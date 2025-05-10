@@ -25,7 +25,7 @@ PACKAGES_DEBIAN="$PACKAGES_DEBIAN libedit-dev libjansson-dev libsqlite3-dev uuid
 # Asterisk: for addons:
 PACKAGES_DEBIAN="$PACKAGES_DEBIAN libspeex-dev libspeexdsp-dev libogg-dev libvorbis-dev libasound2-dev portaudio19-dev libcurl4-openssl-dev xmlstarlet bison flex"
 PACKAGES_DEBIAN="$PACKAGES_DEBIAN libpq-dev unixodbc-dev libneon27-dev libgmime-2.6-dev libgmime-3.0-dev liblua5.2-dev liburiparser-dev libxslt1-dev libssl-dev"
-PACKAGES_DEBIAN="$PACKAGES_DEBIAN libmysqlclient-dev libbluetooth-dev libradcli-dev freetds-dev libjack-jackd2-dev bash libcap-dev"
+PACKAGES_DEBIAN="$PACKAGES_DEBIAN libmysqlclient-dev libbluetooth-dev libradcli-dev freetds-dev libjack-jackd2-dev bash libcap-dev libmp3lame-dev"
 PACKAGES_DEBIAN="$PACKAGES_DEBIAN libsnmp-dev libiksemel-dev libcorosync-common-dev libcpg-dev libcfg-dev libnewt-dev libpopt-dev libical-dev libspandsp-dev"
 PACKAGES_DEBIAN="$PACKAGES_DEBIAN libresample1-dev libc-client2007e-dev binutils-dev libsrtp0-dev libsrtp2-dev libgsm1-dev doxygen graphviz zlib1g-dev libldap2-dev"
 PACKAGES_DEBIAN="$PACKAGES_DEBIAN libcodec2-dev libfftw3-dev libsndfile1-dev libunbound-dev"
