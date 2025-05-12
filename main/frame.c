@@ -817,9 +817,7 @@ int ast_frame_adjust_volume_float(struct ast_frame *f, float adjustment)
 
 	if ((f->frametype != AST_FRAME_VOICE) || !(ast_format_cache_is_slinear(f->subclass.format))) {
 		return -1;
-	}
-
-	if (!adjustment) {
+	} else if (!adjustment || (f->samples > f->datalen)) {
 		return 0;
 	}
 
