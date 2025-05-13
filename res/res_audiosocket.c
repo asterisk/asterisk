@@ -315,6 +315,18 @@ struct ast_frame *ast_audiosocket_receive_frame_with_hangup(const int svc,
 	while (i < *length) {
 		n = read(svc, data + i, *length - i);
 		if (n == -1) {
+			if (errno == EAGAIN || errno == EWOULDBLOCK) {
+				int poll_result = ast_wait_for_input(svc, 5);
+
+				if (poll_result == 1) {
+					continue;
+				} else if (poll_result == 0) {
+					ast_log(LOG_WARNING, "Poll timed out while waiting for data\n");
+				} else {
+					ast_log(LOG_WARNING, "Poll error: %s\n", strerror(errno));
+				}
+			}
+
 			ast_log(LOG_ERROR, "Failed to read payload from AudioSocket: %s\n", strerror(errno));
 			ret = -1;
 			break;
