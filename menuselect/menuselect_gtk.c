@@ -48,9 +48,9 @@ enum {
 	NUM_COLUMNS,
 };
 
-static void handle_save(GtkWidget *w, gpointer data);
-static void handle_about(GtkWidget *w, gpointer data);
-static void handle_quit(GtkWidget *w, gpointer data);
+static void handle_save(void);
+static void handle_about(void);
+static void handle_quit(void);
 
 static GtkItemFactoryEntry menu_items[] = {
   { "/_File",               NULL,         NULL,           0, "<Branch>" },
@@ -70,13 +70,13 @@ static GtkWidget *window;
 static int main_res = 1;
 static int change_made = 0;
 
-static void handle_save(GtkWidget *w, gpointer data)
+static void handle_save()
 {
 	main_res = 0;
 	gtk_main_quit();
 }
 
-static void handle_about(GtkWidget *w, gpointer data)
+static void handle_about()
 {
 	GtkWidget *dialog;
 
@@ -95,7 +95,7 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer data)
 	return FALSE;
 }
 
-static void handle_quit(GtkWidget *widget, gpointer data)
+static void handle_quit()
 {
 	gtk_main_quit();
 }
