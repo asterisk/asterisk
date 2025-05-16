@@ -103,6 +103,28 @@ struct ast_websocket {
 	char buf[MAXIMUM_FRAME_SIZE];	    /*!< Fixed buffer for reading data into */
 };
 
+const char *ast_websocket_type_to_str(enum ast_websocket_type type)
+{
+	switch (type) {
+	case AST_WS_TYPE_CLIENT_PERSISTENT:
+		return "persistent";
+	case AST_WS_TYPE_CLIENT_PER_CALL:
+		return "per_call";
+	case AST_WS_TYPE_CLIENT_PER_CALL_CONFIG:
+		return "per_call_config";
+	case AST_WS_TYPE_CLIENT:
+		return "client";
+	case AST_WS_TYPE_INBOUND:
+		return "inbound";
+	case AST_WS_TYPE_SERVER:
+		return "server";
+	case AST_WS_TYPE_ANY:
+		return "any";
+	default:
+		return "unknown";
+	}
+}
+
 /*! \brief Hashing function for protocols */
 static int protocol_hash_fn(const void *obj, const int flags)
 {

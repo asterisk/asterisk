@@ -1,0 +1,51 @@
+; Common WebSocket Client Configuration for res_websocket_client
+;
+;[connection1]                 ; The connection name
+;type = websocket_client       ; Must be "websocket_client"
+;connection_type = persistent  : "persistent" or "per_call_config"
+                               ; Default: none
+;uri = ws://localhost:8765     ; The URI needed to contact the remote server.
+                               ; If you've enabled tls, use "wss" for the scheme.
+                               ; Default: none
+;protocols = ari               ; The websocket protocol expected by the server.
+                               ; Default: none
+;username = username           ; An authentication username if required by the server.
+                               ; Default: none
+;password = password           ; The authentication password for the username.
+                               ; Default: none
+;connection_timeout = 500      ; Connection timeout in milliseconds.
+                               ; Default: 500
+;reconnect_interval = 1000     ; Number of milliseconds between (re)connection
+                               ; attempts.
+                               ; Default: 500
+;reconnect_attempts = 4        ; For per_call connections, this is the number of
+                               ; (re)connection attempts to make before returning an
+                               ; and terminating the call.  Persistent connections
+                               ; always retry forever but this setting will control
+                               ; how often failure messages are logged.
+                               ; Default: 4 for both connection types.
+;tls_enabled = no              ; Set to "yes" to enable TLS connections.
+                               ; Default: no
+;ca_list_file = /etc/pki/tls/cert.pem
+                               ; A file containing all CA certificates needed
+                               ; for the connection.  Not needed if your server
+                               ; has a certificate from a recognized CA.
+                               ; Default: none
+;ca_list_path = /etc/pki/ca-trust/extracted/pem/directory-hash
+                               ; A directory containing individual CA certificates
+                               ; as an alternative to ca_list_file.  Rarely needed.
+                               ; Default: none
+;cert_file = /etc/asterisk/cert.pem
+                               ; If the server requires you to have a client
+                               ; certificate, specify it here and if it wasn't
+                               ; issued by a recognized CA, make sure the matching
+                               ; CA certificate is available in ca_list_file or
+                               ; ca_list_path.
+                               ; Default: none
+;priv_key_file = /etc/asterisk/privkey.pem
+                               ; The private key for the client certificate.
+;verify_server_cert = no       ; Verify that the server certificate is valid.
+                               ; Default: yes
+;verify_server_hostname = no   ; Verify that the hostname in the server's certificate
+                               ; matches the hostname in the URI configured above.
+                               ; Default: yes
