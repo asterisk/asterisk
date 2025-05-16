@@ -140,6 +140,14 @@ const int ast_audiosocket_connect(const char *server, struct ast_channel *chan)
 			continue;
 		}
 
+		/*
+		 * Disable Nagle's algorithm by setting the TCP_NODELAY socket option.
+		 * This reduces latency by preventing delays caused by packet buffering.
+		 */
+		if (setsockopt(s, IPPROTO_TCP, TCP_NODELAY, &(int){1}, sizeof(int)) < 0) {
+			ast_log(LOG_ERROR, "Failed to set TCP_NODELAY on AudioSocket: %s\n", strerror(errno));
+		}
+
 		if (ast_connect(s, &addrs[i]) && errno == EINPROGRESS) {
 
 			if (handle_audiosocket_connection(server, addrs[i], s)) {
