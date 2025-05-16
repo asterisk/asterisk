@@ -1,0 +1,6 @@
+{
+	global:
+		LINKER_SYMBOL_PREFIX*ast_websocket_client_*;
+	local:
+		*;
+};
