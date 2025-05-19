@@ -19,6 +19,11 @@
 ; deny = <command name> | all		; disallow the user to run 'command' |
 ;					; disallow the user to run 'all' commands.
 ;
+; NOTE: This file can't be used to restict the use of the '!' prefix
+; for running shell commands from the CLI. You can however disable the
+; use of the shell commands in remote consoles altogether by setting
+; the 'disable_remote_console_shell' parameter in asterisk.conf to 'yes'.
+;
 
 [general]
 

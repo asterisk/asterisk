@@ -132,6 +132,9 @@ documentation_language = en_US	; Set the language you want documentation
                 ; cause Asterisk to search for sounds files in
                 ; AST_DATA_DIR/sounds/custom before searching the
                 ; normal directories like AST_DATA_DIR/sounds/<lang>.
+;disable_remote_console_shell = no; Prevent remote console CLI sessions
+                ; from executing shell commands with the '!' prefix.
+                ; Default: no
 
 ; Changing the following lines may compromise your security.
 ;[files]
