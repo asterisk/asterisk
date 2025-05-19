@@ -581,6 +581,8 @@ static char *handle_show_settings(struct ast_cli_entry *e, int cmd, struct ast_c
 	}
 	ast_cli(a->fd, "  Channel storage backend:     %s\n",
 		ast_channel_get_current_storage_driver_name());
+	ast_cli(a->fd, "  Shell on remote consoles:    %s\n",
+		ast_option_disable_remote_console_shell ? "Disabled" : "Enabled");
 
 	ast_cli(a->fd, "\n* Subsystems\n");
 	ast_cli(a->fd, "  -------------\n");
@@ -2337,6 +2339,10 @@ static int remoteconsolehandler(const char *s)
 
 	/* The real handler for bang */
 	if (s[0] == '!') {
+		if (ast_option_disable_remote_console_shell) {
+			printf("Shell access is disabled on remote consoles\n");
+			return 1;
+		}
 		if (s[1])
 			ast_safe_system(s+1);
 		else
