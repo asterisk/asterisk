@@ -138,6 +138,9 @@ documentation_language = en_US	; Set the language you want documentation
                 ;   cpp_map_name_id: Use C++ Maps to index both
                 ;                    channel name and channel uniqueid.
                 ; See http://s.asterisk.net/dc679ec3 for more information.
+;disable_remote_console_shell = no; Prevent remote console CLI sessions
+                ; from executing shell commands with the '!' prefix.
+                ; Default: no
 
 ; Changing the following lines may compromise your security.
 ;[files]
