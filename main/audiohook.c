@@ -308,14 +308,23 @@ static struct ast_frame *audiohook_read_frame_both(struct ast_audiohook *audioho
 	 *    2 * samples) according to actual needs, for example, setting it to (ast_tvdiff_ms(ast_tvnow(),
 	 *    audiohook->write_time) < (samples/8)*4) && (ast_slinfactory_available(&audiohook->read_factory)
 	 *    < 4 * samples).
+	 *
+	 *    Update:
+	 *       Increased time and sample thresholds allow for better handling of asymmetric streams
+	 *       (e.g., mixed codecs like alaw and G.722) and high RTT conditions.
+	 *       This avoids premature frame reads when one direction is delayed, which can cause
+	 *       audio tearing or broken recordings.
+	 *       Specifically addresses issues with MixMonitor when recording directly on a channel
+	 *       that is part of a bridge with different sample rates or codecs.
+	 *       A slight overrun in recording duration is acceptable in exchange for audio stability.
 	 */
-	if (usable_read && !usable_write && (ast_tvdiff_ms(ast_tvnow(), audiohook->write_time) < (samples/8)*2) && (ast_slinfactory_available(&audiohook->read_factory) < 2 * samples)) {
+	if (usable_read && !usable_write && (ast_tvdiff_ms(ast_tvnow(), audiohook->write_time) < (samples/8)*4) && (ast_slinfactory_available(&audiohook->read_factory) < 4 * samples)) {
 		ast_debug(3, "Write factory %p was pretty quick last time, waiting for them.\n", &audiohook->write_factory);
 		return NULL;
 	}
 
 	/* As shown in the above comment. */
-	if (usable_write && !usable_read && (ast_tvdiff_ms(ast_tvnow(), audiohook->read_time) < (samples/8)*2) && (ast_slinfactory_available(&audiohook->write_factory) < 2 * samples)) {
+	if (usable_write && !usable_read && (ast_tvdiff_ms(ast_tvnow(), audiohook->read_time) < (samples/8)*4) && (ast_slinfactory_available(&audiohook->write_factory) < 4 * samples)) {
 		ast_debug(3, "Read factory %p was pretty quick last time, waiting for them.\n", &audiohook->read_factory);
 		return NULL;
 	}
