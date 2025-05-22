@@ -73,6 +73,7 @@ struct odbc_class
 	unsigned int delme:1;                /*!< Purge the class */
 	unsigned int backslash_is_escape:1;  /*!< On this database, the backslash is a native escape sequence */
 	unsigned int forcecommit:1;          /*!< Should uncommitted transactions be auto-committed on handle release? */
+	unsigned int cache_is_queue:1;       /*!< Connection cache should be a queue (round-robin use) rather than a stack (last release, first re-use) */
 	unsigned int isolation;              /*!< Flags for how the DB should deal with data in other, uncommitted transactions */
 	unsigned int conntimeout;            /*!< Maximum time the connection process should take */
 	unsigned int maxconnections;         /*!< Maximum number of allowed connections */
@@ -100,6 +101,10 @@ struct odbc_class
 	char *sql_text;
 	/*! Slow query limit (in milliseconds) */
 	unsigned int slowquerylimit;
+	/*! Maximum number of cached connections, default is maxconnections */
+	unsigned int max_cache_size;
+	/*! Current cached connection count, when cache_size will exceed max_cache_size, longest-idle connection will be dropped from the cache */
+	unsigned int cur_cache;
 };
 
 static struct ao2_container *class_container;
@@ -561,8 +566,9 @@ static int load_odbc_config(void)
 	const char *dsn, *username, *password, *sanitysql;
 	int enabled, bse, conntimeout, forcecommit, isolation, maxconnections, logging, slowquerylimit;
 	struct timeval ncache = { 0, 0 };
-	int preconnect = 0, res = 0;
+	int preconnect = 0, res = 0, cache_is_queue = 0;
 	struct ast_flags config_flags = { 0 };
+	unsigned int max_cache_size;
 
 	struct odbc_class *new;
 
@@ -589,6 +595,8 @@ static int load_odbc_config(void)
 			maxconnections = 1;
 			logging = 0;
 			slowquerylimit = 5000;
+			cache_is_queue = 0;
+			max_cache_size = UINT_MAX;
 			for (v = ast_variable_browse(config, cat); v; v = v->next) {
 				if (!strcasecmp(v->name, "pooling") ||
 						!strncasecmp(v->name, "share", 5) ||
@@ -644,6 +652,16 @@ static int load_odbc_config(void)
 						ast_log(LOG_WARNING, "slow_query_limit must be a positive integer\n");
 						slowquerylimit = 5000;
 					}
+				} else if (!strcasecmp(v->name, "cache_type")) {
+					cache_is_queue = !strcasecmp(v->value, "rr") ||
+						!strcasecmp(v->value, "roundrobin") ||
+						!strcasecmp(v->value, "queue");
+				} else if (!strcasecmp(v->name, "cache_size")) {
+					if (!strcasecmp(v->value, "-1")) {
+						max_cache_size = UINT_MAX;
+					} else if (sscanf(v->value, "%u", &max_cache_size) != 1) {
+						ast_log(LOG_WARNING, "cache_size must be a non-negative integer or -1 (infinite)\n");
+					}
 				}
 			}
 
@@ -672,6 +690,9 @@ static int load_odbc_config(void)
 				new->maxconnections = maxconnections;
 				new->logging = logging;
 				new->slowquerylimit = slowquerylimit;
+				new->cache_is_queue = cache_is_queue;
+				new->max_cache_size = max_cache_size;
+				new->cur_cache = 0;
 
 				if (cat)
 					ast_copy_string(new->name, cat, sizeof(new->name));
@@ -758,6 +779,9 @@ static char *handle_cli_odbc_show(struct ast_cli_entry *e, int cmd, struct ast_c
 			}
 
 			ast_cli(a->fd, "    Number of active connections: %zd (out of %d)\n", class->connection_cnt, class->maxconnections);
+			ast_cli(a->fd, "    Cache Type: %s\n", class->cache_is_queue ? "round-robin queue" : "stack (last release, first re-use)");
+			ast_cli(a->fd, "    Cache Usage: %u cached out of %u\n", class->cur_cache,
+					class->max_cache_size < class->maxconnections ? class->max_cache_size : class->maxconnections);
 			ast_cli(a->fd, "    Logging: %s\n", class->logging ? "Enabled" : "Disabled");
 			if (class->logging) {
 				ast_cli(a->fd, "    Number of prepares executed: %d\n", class->prepares_executed);
@@ -823,7 +847,34 @@ void ast_odbc_release_obj(struct odbc_obj *obj)
 	obj->sql_text = NULL;
 
 	ast_mutex_lock(&class->lock);
-	AST_LIST_INSERT_HEAD(&class->connections, obj, list);
+	if (class->cache_is_queue) {
+		AST_LIST_INSERT_TAIL(&class->connections, obj, list);
+	} else {
+		AST_LIST_INSERT_HEAD(&class->connections, obj, list);
+	}
+
+	if (class->cur_cache >= class->max_cache_size) {
+		/* cache is full */
+		if (class->cache_is_queue) {
+			/* HEAD will be oldest */
+			obj = AST_LIST_REMOVE_HEAD(&class->connections, list);
+		} else {
+			/* TAIL will be oldest */
+			obj = AST_LIST_LAST(&class->connections);
+			AST_LIST_REMOVE(&class->connections, obj, list);
+		}
+		--class->connection_cnt;
+		ast_mutex_unlock(&class->lock);
+
+		ast_debug(2, "ODBC Pool '%s' exceeded cache size, dropping '%p', connection count is %zd (%u cached)\n",
+			class->name, obj, class->connection_cnt, class->cur_cache);
+
+		ao2_ref(obj, -1);
+
+		ast_mutex_lock(&class->lock);
+	} else {
+		++class->cur_cache;
+	}
 	ast_cond_signal(&class->cond);
 	ast_mutex_unlock(&class->lock);
 
@@ -919,6 +970,9 @@ struct odbc_obj *_ast_odbc_request_obj2(const char *name, struct ast_flags flags
 		ast_mutex_lock(&class->lock);
 
 		obj = AST_LIST_REMOVE_HEAD(&class->connections, list);
+		if (obj) {
+			--class->cur_cache;
+		}
 
 		ast_mutex_unlock(&class->lock);
 
