@@ -1,0 +1,66 @@
+<html><head><title>ChangeLog for asterisk-22.4.1</title></head><body>
+<h2>Change Log for Release asterisk-22.4.1</h2>
+<h3>Links:</h3>
+<ul>
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-22.4.1.html">Full ChangeLog</a>  </li>
+<li><a href="https://github.com/asterisk/asterisk/compare/22.4.0...22.4.1">GitHub Diff</a>  </li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-22.4.1.tar.gz">Tarball</a>  </li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk">Downloads</a>  </li>
+</ul>
+<h3>Summary:</h3>
+<ul>
+<li>Commits: 2</li>
+<li>Commit Authors: 1</li>
+<li>Issues Resolved: 0</li>
+<li>Security Advisories Resolved: 2</li>
+<li><a href="https://github.com/asterisk/asterisk/security/advisories/GHSA-2grh-7mhv-fcfw">GHSA-2grh-7mhv-fcfw</a>: Using malformed From header can forge identity with ";" or NULL in name portion</li>
+<li><a href="https://github.com/asterisk/asterisk/security/advisories/GHSA-c7p6-7mvq-8jq2">GHSA-c7p6-7mvq-8jq2</a>: cli_permissions.conf: deny option does not work for disallowing shell commands</li>
+</ul>
+<h3>User Notes:</h3>
+<ul>
+<li>
+<h4>asterisk.c: Add option to restrict shell access from remote consoles.</h4>
+  A new asterisk.conf option 'disable_remote_console_shell' has
+  been added that, when set, will prevent remote consoles from executing
+  shell commands using the '!' prefix.
+  Resolves: #GHSA-c7p6-7mvq-8jq2</li>
+</ul>
+<h3>Upgrade Notes:</h3>
+<h3>Commit Authors:</h3>
+<ul>
+<li>George Joseph: (2)</li>
+</ul>
+<h2>Issue and Commit Detail:</h2>
+<h3>Closed Issues:</h3>
+<ul>
+<li>!GHSA-2grh-7mhv-fcfw: Using malformed From header can forge identity with ";" or NULL in name portion</li>
+<li>!GHSA-c7p6-7mvq-8jq2: cli_permissions.conf: deny option does not work for disallowing shell commands</li>
+</ul>
+<h3>Commits By Author:</h3>
+<ul>
+<li>
+<h4>George Joseph (2):</h4>
+</li>
+<li>res_pjsip_messaging.c: Mask control characters in received From display name</li>
+<li>asterisk.c: Add option to restrict shell access from remote consoles.</li>
+</ul>
+<h3>Commit List:</h3>
+<ul>
+<li>asterisk.c: Add option to restrict shell access from remote consoles.</li>
+<li>res_pjsip_messaging.c: Mask control characters in received From display name</li>
+</ul>
+<h3>Commit Details:</h3>
+<h4>asterisk.c: Add option to restrict shell access from remote consoles.</h4>
+<p>Author: George Joseph
+  Date:   2025-05-19</p>
+<p>UserNote: A new asterisk.conf option 'disable_remote_console_shell' has
+  been added that, when set, will prevent remote consoles from executing
+  shell commands using the '!' prefix.</p>
+<p>Resolves: #GHSA-c7p6-7mvq-8jq2</p>
+<h4>res_pjsip_messaging.c: Mask control characters in received From display name</h4>
+<p>Author: George Joseph
+  Date:   2025-03-24</p>
+<p>Incoming SIP MESSAGEs will now have their From header's display name
+  sanitized by replacing any characters &lt; 32 (space) with a space.</p>
+<p>Resolves: #GHSA-2grh-7mhv-fcfw</p>
+</body></html>
