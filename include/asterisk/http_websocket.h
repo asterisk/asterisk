@@ -47,6 +47,26 @@
  *
  */
 
+/*! \brief WebSocket connection/configuration types.
+ *
+ * These may look like they overlap or are redundant, but
+ * they're shared by other modules like ari and chan_websocket
+ * and it didn't make sense to force them to define their
+ * own types.
+ */
+enum ast_websocket_type {
+	AST_WS_TYPE_CLIENT_PERSISTENT = (1 << 0),
+	AST_WS_TYPE_CLIENT_PER_CALL_CONFIG = (1 << 1),
+	AST_WS_TYPE_CLIENT_PER_CALL = (1 << 2),
+	AST_WS_TYPE_CLIENT = (1 << 3),
+	AST_WS_TYPE_INBOUND = (1 << 4),
+	AST_WS_TYPE_SERVER = (1 << 5),
+	AST_WS_TYPE_ANY = (0xFFFFFFFF),
+};
+
+const char *ast_websocket_type_to_str(enum ast_websocket_type type);
+
+
 /*! \brief WebSocket operation codes */
 enum ast_websocket_opcode {
 	AST_WEBSOCKET_OPCODE_TEXT = 0x1,         /*!< Text frame */

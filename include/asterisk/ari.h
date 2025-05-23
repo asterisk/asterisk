@@ -244,4 +244,51 @@ void ast_ari_response_created(struct ast_ari_response *response,
  */
 void ast_ari_response_alloc_failed(struct ast_ari_response *response);
 
+/*!
+ * \brief Create a per-call outbound websocket connection.
+ *
+ * \param app_name The app name.
+ * \param channel The channel to create the websocket for.
+ *
+ * This function should really only be called by app_stasis.
+ *
+ * A "per_call" websocket configuration must already exist in
+ * ari.conf that has 'app_name' in its 'apps' parameter.
+ *
+ * The channel uniqueid is used to create a unique app_id
+ * composed of "<app_name>-<channel_uniqueid>" which will be
+ * returned from this call.  This ID will be used to register
+ * an ephemeral Stasis application and should be used as the
+ * app_name for the call to stasis_app_exec().  When
+ * stasis_app_exec() returns, ast_ari_close_per_call_websocket()
+ * must be called with the app_id to close the websocket.
+ *
+ * The channel unique id is also used to detect when the
+ * StasisEnd event is sent for the channel.  It's how
+ * ast_ari_close_per_call_websocket() knows that all
+ * messages for the channel have been sent and it's safe
+ * to close the websocket.
+ *
+ * \retval The ephemeral application id or NULL if one could
+ *         not be created. This pointer will be freed by
+ *         ast_ari_close_per_call_websocket().  Do not free
+ *         it yourself.
+ */
+char *ast_ari_create_per_call_websocket(const char *app_name,
+	struct ast_channel *channel);
+
+/*!
+ * \brief Close a per-call outbound websocket connection.
+ *
+ * \param app_id The ephemeral application id returned by
+ *               ast_ari_create_per_call_websocket().
+ *
+ * This function should really only be called by app_stasis.
+ *
+ * \note This call will block until all messages for the
+ *       channel have been sent or 5 seconds has elapsed.
+ *       After that, the websocket will be closed.
+ */
+void ast_ari_close_per_call_websocket(char *app_id);
+
 #endif /* _ASTERISK_ARI_H */
