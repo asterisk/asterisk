@@ -1710,14 +1710,6 @@ int ast_sip_for_each_channel(
 	return ast_sip_for_each_channel_snapshot(endpoint_snapshot, on_channel_snapshot, arg);
 }
 
-static int active_channels_to_str_cb(void *object, void *arg, int flags)
-{
-	const struct ast_channel_snapshot *snapshot = object;
-	struct ast_str **buf = arg;
-	ast_str_append(buf, 0, "%s,", snapshot->base->name);
-	return 0;
-}
-
 static void active_channels_to_str(const struct ast_sip_endpoint *endpoint,
 				   struct ast_str **str)
 {
@@ -1725,13 +1717,8 @@ static void active_channels_to_str(const struct ast_sip_endpoint *endpoint,
 	RAII_VAR(struct ast_endpoint_snapshot *, endpoint_snapshot,
 		 ast_sip_get_endpoint_snapshot(endpoint), ao2_cleanup);
 
-	if (endpoint_snapshot) {
-		return;
-	}
-
-	ast_sip_for_each_channel_snapshot(endpoint_snapshot,
-					  active_channels_to_str_cb, str);
-	ast_str_truncate(*str, -1);
+	ast_str_append(str, 0, "%d",
+		endpoint_snapshot ? endpoint_snapshot->num_channels : 0);
 }
 
 #define AMI_DEFAULT_STR_SIZE 512
