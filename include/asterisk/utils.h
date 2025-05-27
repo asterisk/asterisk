@@ -495,8 +495,11 @@ static force_inline void ast_slinear_saturated_multiply_float(short *input, floa
 		*input = 32767;
 	else if (res < -32768)
 		*input = -32768;
+	else if (res > 0)
+		*input = (short) (res + 0.5);
 	else
-		*input = (short) res;
+		*input = (short) (res - 0.5);
+
 }
 
 static force_inline void ast_slinear_saturated_divide(short *input, short *value)
@@ -511,8 +514,11 @@ static force_inline void ast_slinear_saturated_divide_float(short *input, float 
 		*input = 32767;
 	else if (res < -32768)
 		*input = -32768;
+	else if (res > 0)
+		*input = (short) (res + 0.5);
 	else
-		*input = (short) res;
+		*input = (short) (res - 0.5);
+
 }
 
 #ifdef localtime_r
