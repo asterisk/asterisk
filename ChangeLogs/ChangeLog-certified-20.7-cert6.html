@@ -1,0 +1,553 @@
+<html><head><title>ChangeLog for asterisk-certified-20.7-cert6</title></head><body>
+<h2>Change Log for Release asterisk-certified-20.7-cert6</h2>
+<h3>Links:</h3>
+<ul>
+<li><a href="https://downloads.asterisk.org/pub/telephony/certified-asterisk/releases/ChangeLog-certified-20.7-cert6.html">Full ChangeLog</a>  </li>
+<li><a href="https://github.com/asterisk/asterisk/compare/certified-20.7-cert5...certified-20.7-cert6">GitHub Diff</a>  </li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/certified-asterisk/asterisk-certified-20.7-cert6.tar.gz">Tarball</a>  </li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/certified-asterisk">Downloads</a>  </li>
+</ul>
+<h3>Summary:</h3>
+<ul>
+<li>Commits: 31</li>
+<li>Commit Authors: 5</li>
+<li>Issues Resolved: 16</li>
+<li>Security Advisories Resolved: 0</li>
+</ul>
+<h3>User Notes:</h3>
+<ul>
+<li>
+<h4>res_stir_shaken: Allow sending Identity headers for unknown TNs</h4>
+<p>You can now set the "unknown_tn_attest_level" option
+  in the attestation and/or profile objects in stir_shaken.conf to
+  enable sending Identity headers for callerid TNs not explicitly
+  configured.</p>
+</li>
+<li>
+<h4>res_pjsip: Add new endpoint option "suppress_moh_on_sendonly"</h4>
+<p>The new "suppress_moh_on_sendonly" endpoint option
+  can be used to prevent playing MOH back to a caller if the remote
+  end sends "sendonly" or "inactive" (hold) to Asterisk in an SDP.</p>
+</li>
+<li>
+<h4>app_mixmonitor: Add 'D' option for dual-channel audio.</h4>
+<p>The MixMonitor application now has a new 'D' option which
+  interleaves the recorded audio in the output frames. This allows for
+  stereo recording output with one channel being the transmitted audio and
+  the other being the received audio. The 't' and 't' options are
+  compatible with this.</p>
+</li>
+<li>
+<h4>db.c: Remove limit on family/key length</h4>
+<p>The <code>ast_db_*()</code> APIs have had the 253 byte limit on
+  "/family/key" removed and will now accept families and keys with a
+  total length of up to SQLITE_MAX_LENGTH (currently 1e9!).  This
+  affects the <code>DB*</code> dialplan applications, dialplan functions,
+  manager actions and <code>databse</code> CLI commands.  Since the
+  media_cache also uses the <code>ast_db_*()</code> APIs, you can now store
+  resources with URIs longer than 253 bytes.</p>
+</li>
+</ul>
+<h3>Upgrade Notes:</h3>
+<h3>Commit Authors:</h3>
+<ul>
+<li>Ben Ford: (3)</li>
+<li>Chrsmj: (1)</li>
+<li>George Joseph: (22)</li>
+<li>Joshua C. Colp: (1)</li>
+<li>Sean Bright: (4)</li>
+</ul>
+<h2>Issue and Commit Detail:</h2>
+<h3>Closed Issues:</h3>
+<ul>
+<li>879: [bug]: res_stir_shaken/verification.c: Getting verification errors when global_disable=yes</li>
+<li>881: [bug]: Long URLs are being rejected by the media cache because of an astdb key length limit</li>
+<li>884: [bug]: A ':' at the top of in stir_shaken.conf make Asterisk producing a core file when starting</li>
+<li>889: [bug]: res_stir_shaken/verification.c has a stale include for jansson.h that can cause compilation to fail</li>
+<li>904: [bug]: stir_shaken: attest_level isn't being propagated correctly from attestation to profile to tn</li>
+<li>921: [bug]: Stir-Shaken doesn’t allow B or C attestation for unknown callerid which is allowed by ATIS-1000074.v003, §5.2.4</li>
+<li>937: [bug]: Wrong format for sample config file 'geolocation.conf.sample'</li>
+<li>938: [bug]: memory leak - CBAnn leaks a small amount format_cap related memory for every confbridge</li>
+<li>945: [improvement]: Add stereo recording support for app_mixmonitor</li>
+<li>974: [improvement]: change and/or remove some wiki mentions to docs mentions in the sample configs</li>
+<li>979: [improvement]: Add ability to suppress MOH when a remote endpoint sends "sendonly" or "inactive"</li>
+<li>982: [bug]: The addition of tenantid to the ast_sip_endpoint structure broke ABI compatibility</li>
+<li>995: [bug]: suppress_moh_on_sendonly should use AST_BOOL_VALUES instead of YESNO_VALUES in alembic script</li>
+<li>1112: [bug]: STIR/SHAKEN verification doesn't allow anonymous callerid to be passed to the dialplan.</li>
+<li>1122: Need status on CVE-2024-57520 claim.</li>
+<li>1131: [bug]: CHANGES link broken in README.md</li>
+</ul>
+<h3>Commits By Author:</h3>
+<ul>
+<li>
+<h4>Ben Ford (3):</h4>
+</li>
+<li>app_mixmonitor: Add 'D' option for dual-channel audio.</li>
+<li>Add res_pjsip_config_sangoma external module.</li>
+<li>
+<p>documentation: Update Gosub, Goto, and add new documentationtype.</p>
+</li>
+<li>
+<h4>George Joseph (22):</h4>
+</li>
+<li>res_stir_shaken: Check for disabled before param validation</li>
+<li>res_stir_shaken.c: Fix crash when stir_shaken.conf is invalid</li>
+<li>res_stir_shaken: Remove stale include for jansson.h in verification.c</li>
+<li>db.c: Remove limit on family/key length</li>
+<li>Fix application references to Background</li>
+<li>stir_shaken: Fix propagation of attest_level and a few other values</li>
+<li>manager.c: Add unit test for Originate app and appdata permissions</li>
+<li>geolocation.sample.conf: Fix comment marker at end of file</li>
+<li>core_unreal.c: Fix memory leak in ast_unreal_new_channels()</li>
+<li>res_pjsip: Move tenantid to end of ast_sip_endpoint</li>
+<li>res_pjsip: Add new endpoint option "suppress_moh_on_sendonly"</li>
+<li>res_pjsip: Change suppress_moh_on_sendonly to OPT_BOOL_T</li>
+<li>res_stir_shaken: Allow sending Identity headers for unknown TNs</li>
+<li>Allow C++ source files (as extension .cc) in the main directory</li>
+<li>gcc14: Fix issues caught by gcc 14</li>
+<li>manager.c: Split XML docs into separate file</li>
+<li>docs: Enable since/version handling for XML, CLI and ARI documentation</li>
+<li>README.md, asterisk.c: Update Copyright Dates</li>
+<li>res_stir_shaken: Allow missing or anonymous CID to continue to the dialplan.</li>
+<li>swagger_model.py: Fix invalid escape sequence in get_list_parameter_type().</li>
+<li>manager.c: Check for restricted file in action_createconfig.</li>
+<li>
+<p>README.md: Updates and Fixes</p>
+</li>
+<li>
+<h4>Joshua C. Colp (1):</h4>
+</li>
+<li>
+<p>LICENSE: Update company name, email, and address.</p>
+</li>
+<li>
+<h4>Sean Bright (4):</h4>
+</li>
+<li>res_pjsip_pubsub: Persist subscription 'generator_data' in sorcery</li>
+<li>alembic: Drop redundant voicemail_messages index.</li>
+<li>manager.c: Rename restrictedFile to is_restricted_file.</li>
+<li>
+<p>manager: Add <code>&lt;since&gt;</code> tags for all AMI actions.</p>
+</li>
+<li>
+<h4>chrsmj (1):</h4>
+</li>
+<li>samples: remove and/or change some wiki mentions</li>
+</ul>
+<h3>Commit List:</h3>
+<ul>
+<li>documentation: Update Gosub, Goto, and add new documentationtype.</li>
+<li>README.md: Updates and Fixes</li>
+<li>manager.c: Check for restricted file in action_createconfig.</li>
+<li>swagger_model.py: Fix invalid escape sequence in get_list_parameter_type().</li>
+<li>res_stir_shaken: Allow missing or anonymous CID to continue to the dialplan.</li>
+<li>LICENSE: Update company name, email, and address.</li>
+<li>README.md, asterisk.c: Update Copyright Dates</li>
+<li>docs: Enable since/version handling for XML, CLI and ARI documentation</li>
+<li>manager: Add <code>&lt;since&gt;</code> tags for all AMI actions.</li>
+<li>manager.c: Split XML docs into separate file</li>
+<li>manager.c: Rename restrictedFile to is_restricted_file.</li>
+<li>gcc14: Fix issues caught by gcc 14</li>
+<li>Allow C++ source files (as extension .cc) in the main directory</li>
+<li>res_stir_shaken: Allow sending Identity headers for unknown TNs</li>
+<li>res_pjsip: Change suppress_moh_on_sendonly to OPT_BOOL_T</li>
+<li>res_pjsip: Add new endpoint option "suppress_moh_on_sendonly"</li>
+<li>samples: remove and/or change some wiki mentions</li>
+<li>res_pjsip: Move tenantid to end of ast_sip_endpoint</li>
+<li>Add res_pjsip_config_sangoma external module.</li>
+<li>app_mixmonitor: Add 'D' option for dual-channel audio.</li>
+<li>core_unreal.c: Fix memory leak in ast_unreal_new_channels()</li>
+<li>geolocation.sample.conf: Fix comment marker at end of file</li>
+<li>manager.c: Add unit test for Originate app and appdata permissions</li>
+<li>alembic: Drop redundant voicemail_messages index.</li>
+<li>res_pjsip_pubsub: Persist subscription 'generator_data' in sorcery</li>
+<li>stir_shaken: Fix propagation of attest_level and a few other values</li>
+<li>Fix application references to Background</li>
+<li>db.c: Remove limit on family/key length</li>
+<li>res_stir_shaken: Remove stale include for jansson.h in verification.c</li>
+<li>res_stir_shaken.c: Fix crash when stir_shaken.conf is invalid</li>
+<li>res_stir_shaken: Check for disabled before param validation</li>
+</ul>
+<h3>Commit Details:</h3>
+<h4>documentation: Update Gosub, Goto, and add new documentationtype.</h4>
+<p>Author: Ben Ford
+  Date:   2025-03-14</p>
+<p>Gosub and Goto were not displaying their syntax correctly on the docs
+  site. This change adds a new way to specify an optional context, an
+  optional extension, and a required priority that the xml stylesheet can
+  parse without having to know which optional parameters come in which
+  order. In Asterisk, it looks like this:</p>
+<pre><code>parameter name="context" documentationtype="dialplan_context"
+parameter name="extension" documentationtype="dialplan_extension"
+parameter name="priority" documentationtype="dialplan_priority" required="true"
+</code></pre>
+<p>The stylesheet will ignore the context and extension parameters, but for
+  priority, it will automatically inject the following:</p>
+<pre><code>[[context,]extension,]priority
+</code></pre>
+<p>This is the correct oder for applications such as Gosub and Goto.</p>
+<h4>README.md: Updates and Fixes</h4>
+<p>Author: George Joseph
+  Date:   2025-03-05</p>
+<ul>
+<li>Outdated information has been removed.</li>
+<li>New links added.</li>
+<li>Placeholder added for link to change logs.</li>
+</ul>
+<p>Going forward, the release process will create HTML versions of the README
+  and change log and will update the link in the README to the current
+  change log for the branch...</p>
+<ul>
+<li>In the development branches, the link will always point to the current
+    release on GitHub.</li>
+<li>In the "releases/*" branches and the tarballs, the link will point to the
+    ChangeLogs/ChangeLog-<version>.html file in the source directory.</li>
+<li>On the downloads website, the link will point to the
+    ChangeLog-<version>.html file in the same directory.</li>
+</ul>
+<p>Resolves: #1131</p>
+<h4>manager.c: Check for restricted file in action_createconfig.</h4>
+<p>Author: George Joseph
+  Date:   2025-03-03</p>
+<p>The <code>CreateConfig</code> manager action now ensures that a config file can
+  only be created in the AST_CONFIG_DIR unless <code>live_dangerously</code> is set.</p>
+<p>Resolves: #1122</p>
+<h4>swagger_model.py: Fix invalid escape sequence in get_list_parameter_type().</h4>
+<p>Author: George Joseph
+  Date:   2025-03-04</p>
+<p>Recent python versions complain when backslashes in strings create invalid
+  escape sequences.  This causes issues for strings used as regex patterns like
+  <code>'^List\[(.*)\]$'</code> where you want the regex parser to treat <code>[</code> and <code>]</code>
+  as literals.  Double-backslashing is one way to fix it but simply converting
+  the string to a raw string <code>re.match(r'^List\[(.*)\]$', text)</code> is easier
+  and less error prone.</p>
+<h4>res_stir_shaken: Allow missing or anonymous CID to continue to the dialplan.</h4>
+<p>Author: George Joseph
+  Date:   2025-02-05</p>
+<p>The verification check for missing or anonymous callerid was happening before
+  the endpoint's profile was retrieved which meant that the failure_action
+  parameter wasn't available.  Therefore, if verification was enabled and there
+  was no callerid or it was "anonymous", the call was immediately terminated
+  instead of giving the dialplan the ability to decide what to do with the call.</p>
+<ul>
+<li>
+<p>The callerid check now happens after the verification context is created and
+    the endpoint's stir_shaken_profile is available.</p>
+</li>
+<li>
+<p>The check now processes the callerid failure just as it does for other
+    verification failures and respects the failure_action parameter.  If set
+    to "continue" or "continue_return_reason", <code>STIR_SHAKEN(0,verify_result)</code>
+    in the dialplan will return "invalid_or_no_callerid".</p>
+</li>
+<li>
+<p>If the endpoint's failure_action is "reject_request", the call will be
+    rejected with <code>433 "Anonymity Disallowed"</code>.</p>
+</li>
+<li>
+<p>If the endpoint's failure_action is "continue_return_reason", the call will
+    continue but a <code>Reason: STIR; cause=433; text="Anonymity Disallowed"</code>
+    header will be added to the next provisional or final response.</p>
+</li>
+</ul>
+<p>Resolves: #1112</p>
+<h4>LICENSE: Update company name, email, and address.</h4>
+<p>Author: Joshua C. Colp
+  Date:   2025-01-21</p>
+<h4>README.md, asterisk.c: Update Copyright Dates</h4>
+<p>Author: George Joseph
+  Date:   2025-01-20</p>
+<h4>docs: Enable since/version handling for XML, CLI and ARI documentation</h4>
+<p>Author: George Joseph
+  Date:   2025-01-09</p>
+<ul>
+<li>
+<p>Added the "since" element to the XML configObject and configOption elements
+    in appdocsxml.dtd.</p>
+</li>
+<li>
+<p>Added the "Since" section to the following CLI output:
+    <code>config show help &lt;module&gt; &lt;object&gt;
+    config show help &lt;module&gt; &lt;object&gt; &lt;option&gt;
+    core show application &lt;app&gt;
+    core show function &lt;func&gt;
+    manager show command &lt;command&gt;
+    manager show event &lt;event&gt;
+    agi show commands topic &lt;topic&gt;</code></p>
+</li>
+<li>
+<p>Refactored the commands above to output their sections in the same order:
+    Synopsis, Since, Description, Syntax, Arguments, SeeAlso</p>
+</li>
+<li>
+<p>Refactored the commands above so they all use the same pattern for writing
+    the output to the CLI.</p>
+</li>
+<li>
+<p>Fixed several memory leaks caused by failure to free temporary output
+    buffers.</p>
+</li>
+<li>
+<p>Added a "since" array to the mustache template for the top-level resources
+    (Channel, Endpoint, etc.) and to the paths/methods underneath them. These
+    will be added to the generated markdown if present.
+    Example:
+    ```
+      "resourcePath": "/api-docs/channels.{format}",
+      "requiresModules": [
+          "res_stasis_answer",
+          "res_stasis_playback",
+          "res_stasis_recording",
+          "res_stasis_snoop"
+      ],
+      "since": [
+          "18.0.0",
+          "21.0.0"
+      ],
+      "apis": [
+          {
+              "path": "/channels",
+              "description": "Active channels",
+              "operations": [
+                  {
+                      "httpMethod": "GET",
+                      "since": [
+                          "18.6.0",
+                          "21.8.0"
+                      ],
+                      "summary": "List all active channels in Asterisk.",
+                      "nickname": "list",
+                      "responseClass": "List[Channel]"
+                  },</p>
+<p>```</p>
+</li>
+</ul>
+<p>NOTE:  No versioning information is actually added in this commit.
+  Those will be added separately and instructions for adding and maintaining
+  them will be published on the documentation site at a later date.</p>
+<h4>manager: Add <code>&lt;since&gt;</code> tags for all AMI actions.</h4>
+<p>Author: Sean Bright
+  Date:   2025-01-02</p>
+<h4>manager.c: Split XML docs into separate file</h4>
+<p>Author: George Joseph
+  Date:   2025-01-13</p>
+<p>To keep the source tree somewhat compatible with the base 20 branch
+  the XML documentation from manager.c has been extracted into manager_doc.xml.
+  This will give future cherry-picks a better channce of succeeding without
+  manual intervention.</p>
+<h4>manager.c: Rename restrictedFile to is_restricted_file.</h4>
+<p>Author: Sean Bright
+  Date:   2025-01-09</p>
+<p>Also correct the spelling of 'privileges.'</p>
+<h4>gcc14: Fix issues caught by gcc 14</h4>
+<p>Author: George Joseph
+  Date:   2025-01-03</p>
+<ul>
+<li>reqresp_parser.c: Fix misuse of "static" with linked list definitions</li>
+<li>test_message.c: Fix segfaults caused by passing NULL as an sprintf fmt</li>
+</ul>
+<h4>Allow C++ source files (as extension .cc) in the main directory</h4>
+<p>Author: George Joseph
+  Date:   2024-12-09</p>
+<p>Although C++ files (as extension .cc) have been handled in the module
+  directories for many years, the main directory was missing one line in its
+  Makefile that prevented C++ files from being recognised there.</p>
+<h4>res_stir_shaken: Allow sending Identity headers for unknown TNs</h4>
+<p>Author: George Joseph
+  Date:   2024-11-08</p>
+<p>Added a new option "unknown_tn_attest_level" to allow Identity
+  headers to be sent when a callerid TN isn't explicitly configured
+  in stir_shaken.conf.  Since there's no TN object, a private_key_file
+  and public_cert_url must be configured in the attestation or profile
+  objects.</p>
+<p>Since "unknown_tn_attest_level" uses the same enum as attest_level,
+  some of the sorcery macros had to be refactored to allow sharing
+  the enum and to/from string conversion functions.</p>
+<p>Also fixed a memory leak in crypto_utils:pem_file_cb().</p>
+<p>Resolves: #921</p>
+<p>UserNote: You can now set the "unknown_tn_attest_level" option
+  in the attestation and/or profile objects in stir_shaken.conf to
+  enable sending Identity headers for callerid TNs not explicitly
+  configured.</p>
+<h4>res_pjsip: Change suppress_moh_on_sendonly to OPT_BOOL_T</h4>
+<p>Author: George Joseph
+  Date:   2024-11-15</p>
+<p>The suppress_moh_on_sendonly endpoint option should have been
+  defined as OPT_BOOL_T in pjsip_configuration.c and AST_BOOL_VALUES
+  in the alembic script instead of OPT_YESNO_T and YESNO_VALUES.</p>
+<p>Also updated contrib/ast-db-manage/README.md to indicate that
+  AST_BOOL_VALUES should always be used and provided an example.</p>
+<p>Resolves: #995</p>
+<h4>res_pjsip: Add new endpoint option "suppress_moh_on_sendonly"</h4>
+<p>Author: George Joseph
+  Date:   2024-11-05</p>
+<p>Normally, when one party in a call sends Asterisk an SDP with
+  a "sendonly" or "inactive" attribute it means "hold" and causes
+  Asterisk to start playing MOH back to the other party. This can be
+  problematic if it happens at certain times, such as in a 183
+  Progress message, because the MOH will replace any early media you
+  may be playing to the calling party. If you set this option
+  to "yes" on an endpoint and the endpoint receives an SDP
+  with "sendonly" or "inactive", Asterisk will NOT play MOH back to
+  the other party.</p>
+<p>Resolves: #979</p>
+<p>UserNote: The new "suppress_moh_on_sendonly" endpoint option
+  can be used to prevent playing MOH back to a caller if the remote
+  end sends "sendonly" or "inactive" (hold) to Asterisk in an SDP.</p>
+<h4>samples: remove and/or change some wiki mentions</h4>
+<p>Author: chrsmj
+  Date:   2024-11-01</p>
+<p>Cleaned some dead links. Replaced word wiki with
+  either docs or link to https://docs.asterisk.org/</p>
+<p>Resolves: #974</p>
+<h4>res_pjsip: Move tenantid to end of ast_sip_endpoint</h4>
+<p>Author: George Joseph
+  Date:   2024-11-06</p>
+<p>The tenantid field was originally added to the ast_sip_endpoint
+  structure at the end of the AST_DECLARE_STRING_FIELDS block.  This
+  caused everything after it in the structure to move down in memory
+  and break ABI compatibility.  It's now at the end of the structure
+  as an AST_STRING_FIELD_EXTENDED.  Given the number of string fields
+  in the structure now, the initial string field allocation was
+  also increased from 64 to 128 bytes.</p>
+<p>Resolves: #982</p>
+<h4>Add res_pjsip_config_sangoma external module.</h4>
+<p>Author: Ben Ford
+  Date:   2024-11-01</p>
+<p>Adds res_pjsip_config_sangoma as an external module that can be
+  downloaded via menuselect. It lives under the Resource Modules section.</p>
+<h4>app_mixmonitor: Add 'D' option for dual-channel audio.</h4>
+<p>Author: Ben Ford
+  Date:   2024-10-28</p>
+<p>Adds the 'D' option to app_mixmonitor that interleaves the input and
+  output frames of the channel being recorded in the monitor output frame.
+  This allows for two streams in the recording: the transmitted audio and
+  the received audio. The 't' and 'r' options are compatible with this.</p>
+<p>Fixes: #945</p>
+<p>UserNote: The MixMonitor application now has a new 'D' option which
+  interleaves the recorded audio in the output frames. This allows for
+  stereo recording output with one channel being the transmitted audio and
+  the other being the received audio. The 't' and 't' options are
+  compatible with this.</p>
+<h4>core_unreal.c: Fix memory leak in ast_unreal_new_channels()</h4>
+<p>Author: George Joseph
+  Date:   2024-10-15</p>
+<p>When the channel tech is multistream capable, the reference to
+  chan_topology was passed to the new channel.  When the channel tech
+  isn't multistream capable, the reference to chan_topology was never
+  released.  "Local" channels are multistream capable so it didn't
+  affect them but the confbridge "CBAnn" and the bridge_media
+  "Recorder" channels are not so they caused a leak every time one
+  of them was created.</p>
+<p>Also added tracing to ast_stream_topology_alloc() and
+  stream_topology_destroy() to assist with debugging.</p>
+<p>Resolves: #938</p>
+<h4>geolocation.sample.conf: Fix comment marker at end of file</h4>
+<p>Author: George Joseph
+  Date:   2024-10-08</p>
+<p>Resolves: #937</p>
+<h4>manager.c: Add unit test for Originate app and appdata permissions</h4>
+<p>Author: George Joseph
+  Date:   2024-10-03</p>
+<p>This unit test checks that dialplan apps and app data specified
+  as parameters for the Originate action are allowed with the
+  permissions the user has.</p>
+<h4>alembic: Drop redundant voicemail_messages index.</h4>
+<p>Author: Sean Bright
+  Date:   2024-09-26</p>
+<p>The <code>voicemail_messages_dir</code> index is a left prefix of the table's
+  primary key and therefore unnecessary.</p>
+<h4>res_pjsip_pubsub: Persist subscription 'generator_data' in sorcery</h4>
+<p>Author: Sean Bright
+  Date:   2024-09-23</p>
+<p>Fixes #895</p>
+<h4>stir_shaken: Fix propagation of attest_level and a few other values</h4>
+<p>Author: George Joseph
+  Date:   2024-09-24</p>
+<p>attest_level, send_mky and check_tn_cert_public_url weren't
+  propagating correctly from the attestation object to the profile
+  and tn.</p>
+<ul>
+<li>
+<p>In the case of attest_level, the enum needed to be changed
+  so the "0" value (the default) was "NOT_SET" instead of "A".  This
+  now allows the merging of the attestation object, profile and tn
+  to detect when a value isn't set and use the higher level value.</p>
+</li>
+<li>
+<p>For send_mky and check_tn_cert_public_url, the tn default was
+  forced to "NO" which always overrode the profile and attestation
+  objects.  Their defaults are now "NOT_SET" so the propagation
+  happens correctly.</p>
+</li>
+<li>
+<p>Just to remove some redundant code in tn_config.c, a bunch of calls to
+  generate_sorcery_enum_from_str() and generate_sorcery_enum_to_str() were
+  replaced with a single call to generate_acfg_common_sorcery_handlers().</p>
+</li>
+</ul>
+<p>Resolves: #904</p>
+<h4>Fix application references to Background</h4>
+<p>Author: George Joseph
+  Date:   2024-09-20</p>
+<p>The app is actually named "BackGround" but several references
+  in XML documentation were spelled "Background" with the lower
+  case "g".  This was causing documentation links to return
+  "not found" messages.</p>
+<h4>db.c: Remove limit on family/key length</h4>
+<p>Author: George Joseph
+  Date:   2024-09-11</p>
+<p>Consumers like media_cache have been running into issues with
+  the previous astdb "/family/key" limit of 253 bytes when needing
+  to store things like long URIs.  An Amazon S3 URI is a good example
+  of this.  Now, instead of using a static 256 byte buffer for
+  "/family/key", we use ast_asprintf() to dynamically create it.</p>
+<p>Both test_db.c and test_media_cache.c were also updated to use
+  keys/URIs over the old 253 character limit.</p>
+<p>Resolves: #881</p>
+<p>UserNote: The <code>ast_db_*()</code> APIs have had the 253 byte limit on
+  "/family/key" removed and will now accept families and keys with a
+  total length of up to SQLITE_MAX_LENGTH (currently 1e9!).  This
+  affects the <code>DB*</code> dialplan applications, dialplan functions,
+  manager actions and <code>databse</code> CLI commands.  Since the
+  media_cache also uses the <code>ast_db_*()</code> APIs, you can now store
+  resources with URIs longer than 253 bytes.</p>
+<h4>res_stir_shaken: Remove stale include for jansson.h in verification.c</h4>
+<p>Author: George Joseph
+  Date:   2024-09-17</p>
+<p>verification.c had an include for jansson.h left over from previous
+  versions of the module.  Since res_stir_shaken no longer has a
+  dependency on jansson, the bundled version wasn't added to GCC's
+  include path so if you didn't also have a jansson development package
+  installed, the compile would fail.  Removing the stale include
+  was the only thing needed.</p>
+<p>Resolves: #889</p>
+<h4>res_stir_shaken.c: Fix crash when stir_shaken.conf is invalid</h4>
+<p>Author: George Joseph
+  Date:   2024-09-13</p>
+<ul>
+<li>
+<p>If the call to ast_config_load() returns CONFIG_STATUS_FILEINVALID,
+  check_for_old_config() now returns LOAD_DECLINE instead of continuing
+  on with a bad pointer.</p>
+</li>
+<li>
+<p>If CONFIG_STATUS_FILEMISSING is returned, check_for_old_config()
+  assumes the config is being loaded from realtime and now returns
+  LOAD_SUCCESS.  If it's actually not being loaded from realtime,
+  sorcery will catch that later on.</p>
+</li>
+<li>
+<p>Also refactored the error handling in load_module() a bit.</p>
+</li>
+</ul>
+<p>Resolves: #884</p>
+<h4>res_stir_shaken: Check for disabled before param validation</h4>
+<p>Author: George Joseph
+  Date:   2024-09-11</p>
+<p>For both attestation and verification, we now check whether they've
+  been disabled either globally or by the profile before validating
+  things like callerid, orig_tn, dest_tn, etc.  This prevents useless
+  error messages.</p>
+<p>Resolves: #879</p>
+</body></html>
