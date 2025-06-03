@@ -32,6 +32,7 @@
  * \author Adrian Kennard (for the original protocol 1 code)
  * \author Filippo Grassilli (Hyppo) - protocol 2 support
  *		   Not fully tested, under development
+ * \author Itzan Huerta - Testing and debugging for Telefónica DOMO Mensajes (Spain) phones using protocol 2.
  */
 
 /*** MODULEINFO
@@ -100,13 +101,15 @@
 		<description>
 			<para>SMS handles exchange of SMS data with a call to/from SMS capable phone or SMS PSTN service center.
 			Can send and/or receive SMS messages. Works to ETSI ES 201 912; compatible with BT SMS PSTN service in
-			UK and Telecom Italia in Italy.</para>
+			UK and Telecom Italia in Italy. It has also been tested to work with DOMO phones from Telefónica Spain.</para>
 			<para>Typical usage is to use to handle calls from the SMS service centre CLI, or to set up a call using
 			<literal>outgoing</literal> or manager interface to connect service centre to SMS().</para>
 			<para>"Messages are processed as per text file message queues. smsq (a separate software) is a command to
 			generate message queues and send messages.</para>
 			<note><para>The protocol has tight delay bounds. Please use short frames and disable/keep short the
-			jitter buffer on the ATA to make sure that responses (ACK etc.) are received in time.</para></note>
+			jitter buffer on the ATA to make sure that responses (ACK etc.) are received in time.</para>
+			<para>It is also important to adjust the gain dB of the ATA. Some Telefónica DOMO Mensajes phones may require
+			the gain to be set to +3dB, and others even up to +6dB, in order to work.</para></note>
 		</description>
 	</application>
  ***/
@@ -866,6 +869,7 @@ static void sms_readfile(sms_t * h, char *fn)
 					memcpy(h->udtxt, p, SMSLEN); /* for protocol 2 */
 					while (*p && o < SMSLEN) {
 						h->ud[o++] = utf8decode(pp);
+						p++;
 					}
 					h->udl = o;
 					if (*p) {
@@ -1474,6 +1478,7 @@ static void sms_nextoutgoing (sms_t * h)
 		if (h->protocol == 2) {
 			h->omsg[0] = 0x17;              /* SMS_REL */
 			h->omsg[1] = 0;
+			h->sent_rel = 1;
 		} else {
 			h->omsg[0] = 0x94;              /* SMS_REL */
 			h->omsg[1] = 0;
@@ -1800,7 +1805,7 @@ static void sms_process(sms_t * h, int samples, signed short *data)
 		}
 		if (bit && h->ibitc == 200) {       /* sync, restart message */
 			/* Protocol 2: empty connection ready (I am master) */
-			if (h->framenumber < 0 && h->ibytec >= 160 && !memcmp(h->imsg, "UUUUUUUUUUUUUUUUUUUU", 20)) {
+			if (h->framenumber <= 0 && h->ibytec >= 160 && !memcmp(h->imsg, "UUUUUUUUUUUUUUUUUUUU", 20)) {
 				h->framenumber = 1;
 				ast_verb(3, "SMS protocol 2 detected\n");
 				h->protocol = 2;
