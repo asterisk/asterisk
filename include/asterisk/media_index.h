@@ -65,7 +65,7 @@ const char *ast_media_get_description(struct ast_media_index *index, const char 
  * \param variant Media variant for which to get the description
  *
  * \retval NULL if not found
- * \return a copy of the format capabilities (must be destroyed with ast_format_cap_destroy)
+ * \return a copy of the format capabilities (must be destroyed with ao2_cleanup)
  */
 struct ast_format_cap *ast_media_get_format_cap(struct ast_media_index *index, const char *filename, const char *variant);
 

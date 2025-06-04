@@ -2044,7 +2044,7 @@ const char *ast_rtp_lookup_mime_subtype2(const int asterisk_format,
  * ast_format_cap_append(cap, ast_format_ulaw, 0);
  * ast_format_cap_append(cap, ast_format_ulaw, 0);
  * char *mime = ast_rtp_lookup_mime_multiple2(&buf, sizeof(buf), cap, 0, 1, 0);
- * ast_format_cap_destroy(cap);
+ * ao2_cleanup(cap);
  * \endcode
  *
  * This returns the mime values for ULAW and ALAW in the buffer pointed to by buf.
