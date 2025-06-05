@@ -31,6 +31,53 @@
 					<version>22.5.0</version>
 				</since>
 				<synopsis>Websocket Client Configuration</synopsis>
+				<see-also>
+					<ref type="link">/Configuration/Channel-Drivers/WebSocket/</ref>
+					<ref type="link">/Configuration/Interfaces/Asterisk-REST-Interface-ARI/ARI-Outbound-Websockets/</ref>
+				</see-also>
+				<description>
+					<para>
+					These config objects are currently shared by the following Asterisk capabilities:
+					</para>
+					<enumlist>
+							<enum name="chan_websocket"><para>The WebSocket channel driver.</para></enum>
+							<enum name="res_ari"><para>ARI Outbound WebSockets.</para></enum>
+					</enumlist>
+					<para>
+					They may have more specific information or restrictions on the parameters below.
+					</para>
+					<example title="websocket_client.conf">
+;
+; A connection for use by chan_websocket
+[media_connection1]
+type = websocket_client
+uri = ws://localhost:8787
+protocols = media
+username = media_username
+password = media_password
+connection_type = per_call_config
+connection_timeout = 500
+reconnect_interval = 500
+reconnect_attempts = 5
+tls_enabled = no
+;
+; A TLS connection for use by ARI Outbound Websocket
+[ari_connection1]
+type = websocket_client
+uri = wss://localhost:8765
+protocols = ari
+username = some_username
+password = some_password
+connection_type = persistent
+connection_timeout = 500
+reconnect_interval = 500
+reconnect_attempts = 5
+tls_enabled = yes
+ca_list_file = /etc/pki/tls/cert.pem
+verify_server_cert = no
+verify_server_hostname = no
+					</example>
+				</description>
 				<configOption name="type">
 					<since>
 						<version>20.15.0</version>
