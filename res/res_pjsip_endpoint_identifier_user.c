@@ -68,26 +68,44 @@ static int find_transport_state_in_use(void *obj, void *arg, int flags)
 	if (transport_state->transport == rdata->tp_info.transport
 		|| (transport_state->factory
 			&& !pj_strcmp(&transport_state->factory->addr_name.host, &rdata->tp_info.transport->local_name.host)
-			&& transport_state->factory->addr_name.port == rdata->tp_info.transport->local_name.port)) {
+			&& transport_state->factory->addr_name.port == rdata->tp_info.transport->local_name.port)
+		|| !strcmp(rdata->tp_info.transport->type_name, transport_state->id)) {
 		return CMP_MATCH;
 	}
 
 	return 0;
 }
 
+static struct ast_sip_transport* find_transport(pjsip_rx_data *rdata)
+{
+	struct ao2_container *transport_states;
+	struct ast_sip_transport_state *transport_state = NULL;
+	struct ast_sip_transport *transport = NULL;
+
+	transport_states = ast_sip_get_transport_states();
+	if (transport_states) {
+		transport_state = ao2_callback(transport_states, 0, find_transport_state_in_use, rdata);
+	}
+	if (transport_state) {
+		transport = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "transport", transport_state->id);
+	}
+
+	ao2_cleanup(transport_state);
+	ao2_cleanup(transport_states);
+
+	return transport;
+}
+
 #define DOMAIN_NAME_LEN 255
 #define USERNAME_LEN    255
 
-static struct ast_sip_endpoint *find_endpoint(pjsip_rx_data *rdata, char *endpoint_name,
-	char *domain_name)
+static struct ast_sip_endpoint *find_endpoint2(pjsip_rx_data *rdata, char *endpoint_name,
+	char *domain_name, struct ast_sip_transport *transport)
 {
 	struct ast_sip_endpoint *endpoint;
 
 	if (!ast_sip_get_disable_multi_domain()) {
 		struct ast_sip_domain_alias *alias;
-		struct ao2_container *transport_states;
-		struct ast_sip_transport_state *transport_state = NULL;
-		struct ast_sip_transport *transport = NULL;
 		char id[DOMAIN_NAME_LEN + USERNAME_LEN + sizeof("@")];
 
 		/* Attempt to find the endpoint given the name and domain provided */
@@ -110,16 +128,11 @@ static struct ast_sip_endpoint *find_endpoint(pjsip_rx_data *rdata, char *endpoi
 		}
 
 		/* See if the transport this came in on has a provided domain */
-		if ((transport_states = ast_sip_get_transport_states())
-			&& (transport_state = ao2_callback(transport_states, 0, find_transport_state_in_use, rdata))
-			&& (transport = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "transport", transport_state->id))
-			&& !ast_strlen_zero(transport->domain)) {
+		if (transport && !ast_strlen_zero(transport->domain)) {
 			snprintf(id, sizeof(id), "%s@%s", endpoint_name, transport->domain);
 			endpoint = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint", id);
 		}
-		ao2_cleanup(transport);
-		ao2_cleanup(transport_state);
-		ao2_cleanup(transport_states);
+
 		if (endpoint) {
 			return endpoint;
 		}
@@ -127,6 +140,26 @@ static struct ast_sip_endpoint *find_endpoint(pjsip_rx_data *rdata, char *endpoi
 
 	/* Fall back to no domain */
 	return ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint", endpoint_name);
+}
+
+static struct ast_sip_endpoint *find_endpoint(pjsip_rx_data *rdata, char *endpoint_base,
+	char *domain_name)
+{
+	struct ast_sip_endpoint *endpoint = NULL;
+	struct ast_sip_transport *transport = find_transport(rdata);
+
+	if (transport && !ast_strlen_zero(transport->endpoint_suffix)) {
+		char endpoint_full[USERNAME_LEN + 1];
+		snprintf(endpoint_full, sizeof(endpoint_full), "%s%s", endpoint_base, transport->endpoint_suffix);
+		endpoint = find_endpoint2(rdata, endpoint_full, domain_name, transport);
+	}
+
+	if (!endpoint) {
+		endpoint = find_endpoint2(rdata, endpoint_base, domain_name, transport);
+	}
+	ao2_cleanup(transport);
+
+	return endpoint;
 }
 
 static struct ast_sip_endpoint *username_identify(pjsip_rx_data *rdata)
