@@ -2610,6 +2610,85 @@ ari_validator ast_ari_validate_application_move_failed_fn(void)
 	return ast_ari_validate_application_move_failed;
 }
 
+int ast_ari_validate_application_registered(struct ast_json *json)
+{
+	int res = 1;
+	struct ast_json_iter *iter;
+	int has_type = 0;
+	int has_application = 0;
+	int has_timestamp = 0;
+
+	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ApplicationRegistered field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_type = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ApplicationRegistered field type failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("application", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_application = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ApplicationRegistered field application failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_timestamp = 1;
+			prop_is_valid = ast_ari_validate_date(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ApplicationRegistered field timestamp failed validation\n");
+				res = 0;
+			}
+		} else
+		{
+			ast_log(LOG_ERROR,
+				"ARI ApplicationRegistered has undocumented field %s\n",
+				ast_json_object_iter_key(iter));
+			res = 0;
+		}
+	}
+
+	if (!has_type) {
+		ast_log(LOG_ERROR, "ARI ApplicationRegistered missing required field type\n");
+		res = 0;
+	}
+
+	if (!has_application) {
+		ast_log(LOG_ERROR, "ARI ApplicationRegistered missing required field application\n");
+		res = 0;
+	}
+
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI ApplicationRegistered missing required field timestamp\n");
+		res = 0;
+	}
+
+	return res;
+}
+
+ari_validator ast_ari_validate_application_registered_fn(void)
+{
+	return ast_ari_validate_application_registered;
+}
+
 int ast_ari_validate_application_replaced(struct ast_json *json)
 {
 	int res = 1;
@@ -2687,6 +2766,85 @@ int ast_ari_validate_application_replaced(struct ast_json *json)
 ari_validator ast_ari_validate_application_replaced_fn(void)
 {
 	return ast_ari_validate_application_replaced;
+}
+
+int ast_ari_validate_application_unregistered(struct ast_json *json)
+{
+	int res = 1;
+	struct ast_json_iter *iter;
+	int has_type = 0;
+	int has_application = 0;
+	int has_timestamp = 0;
+
+	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ApplicationUnregistered field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_type = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ApplicationUnregistered field type failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("application", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_application = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ApplicationUnregistered field application failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_timestamp = 1;
+			prop_is_valid = ast_ari_validate_date(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ApplicationUnregistered field timestamp failed validation\n");
+				res = 0;
+			}
+		} else
+		{
+			ast_log(LOG_ERROR,
+				"ARI ApplicationUnregistered has undocumented field %s\n",
+				ast_json_object_iter_key(iter));
+			res = 0;
+		}
+	}
+
+	if (!has_type) {
+		ast_log(LOG_ERROR, "ARI ApplicationUnregistered missing required field type\n");
+		res = 0;
+	}
+
+	if (!has_application) {
+		ast_log(LOG_ERROR, "ARI ApplicationUnregistered missing required field application\n");
+		res = 0;
+	}
+
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI ApplicationUnregistered missing required field timestamp\n");
+		res = 0;
+	}
+
+	return res;
+}
+
+ari_validator ast_ari_validate_application_unregistered_fn(void)
+{
+	return ast_ari_validate_application_unregistered;
 }
 
 int ast_ari_validate_bridge_attended_transfer(struct ast_json *json)
@@ -6085,8 +6243,14 @@ int ast_ari_validate_event(struct ast_json *json)
 	if (strcmp("ApplicationMoveFailed", discriminator) == 0) {
 		return ast_ari_validate_application_move_failed(json);
 	} else
+	if (strcmp("ApplicationRegistered", discriminator) == 0) {
+		return ast_ari_validate_application_registered(json);
+	} else
 	if (strcmp("ApplicationReplaced", discriminator) == 0) {
 		return ast_ari_validate_application_replaced(json);
+	} else
+	if (strcmp("ApplicationUnregistered", discriminator) == 0) {
+		return ast_ari_validate_application_unregistered(json);
 	} else
 	if (strcmp("BridgeAttendedTransfer", discriminator) == 0) {
 		return ast_ari_validate_bridge_attended_transfer(json);
@@ -6301,8 +6465,14 @@ int ast_ari_validate_message(struct ast_json *json)
 	if (strcmp("ApplicationMoveFailed", discriminator) == 0) {
 		return ast_ari_validate_application_move_failed(json);
 	} else
+	if (strcmp("ApplicationRegistered", discriminator) == 0) {
+		return ast_ari_validate_application_registered(json);
+	} else
 	if (strcmp("ApplicationReplaced", discriminator) == 0) {
 		return ast_ari_validate_application_replaced(json);
+	} else
+	if (strcmp("ApplicationUnregistered", discriminator) == 0) {
+		return ast_ari_validate_application_unregistered(json);
 	} else
 	if (strcmp("BridgeAttendedTransfer", discriminator) == 0) {
 		return ast_ari_validate_bridge_attended_transfer(json);

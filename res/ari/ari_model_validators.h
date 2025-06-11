@@ -604,6 +604,22 @@ int ast_ari_validate_application_move_failed(struct ast_json *json);
 ari_validator ast_ari_validate_application_move_failed_fn(void);
 
 /*!
+ * \brief Validator for ApplicationRegistered.
+ *
+ * Notification that a Stasis app has been registered.
+ *
+ * \param json JSON object to validate.
+ * \retval True (non-zero) if valid.
+ * \retval False (zero) if invalid.
+ */
+int ast_ari_validate_application_registered(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_application_registered().
+ */
+ari_validator ast_ari_validate_application_registered_fn(void);
+
+/*!
  * \brief Validator for ApplicationReplaced.
  *
  * Notification that another WebSocket has taken over for an application.
@@ -620,6 +636,22 @@ int ast_ari_validate_application_replaced(struct ast_json *json);
  * \brief Function pointer to ast_ari_validate_application_replaced().
  */
 ari_validator ast_ari_validate_application_replaced_fn(void);
+
+/*!
+ * \brief Validator for ApplicationUnregistered.
+ *
+ * Notification that a Stasis app has been unregistered.
+ *
+ * \param json JSON object to validate.
+ * \retval True (non-zero) if valid.
+ * \retval False (zero) if invalid.
+ */
+int ast_ari_validate_application_unregistered(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_application_unregistered().
+ */
+ari_validator ast_ari_validate_application_unregistered_fn(void);
 
 /*!
  * \brief Validator for BridgeAttendedTransfer.
@@ -1612,7 +1644,17 @@ ari_validator ast_ari_validate_application_fn(void);
  * - args: List[string] (required)
  * - channel: Channel (required)
  * - destination: string (required)
+ * ApplicationRegistered
+ * - asterisk_id: string
+ * - type: string (required)
+ * - application: string (required)
+ * - timestamp: Date (required)
  * ApplicationReplaced
+ * - asterisk_id: string
+ * - type: string (required)
+ * - application: string (required)
+ * - timestamp: Date (required)
+ * ApplicationUnregistered
  * - asterisk_id: string
  * - type: string (required)
  * - application: string (required)
