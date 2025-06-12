@@ -449,6 +449,11 @@ static void filestream_destructor(void *arg)
 		}
 	}
 
+	/* Remove a reference to the owner channel if there is one from in ast_applystream */
+	if (f->owner)  {
+		f->owner = ast_channel_unref(f->owner);
+	}
+
 	ast_free(f->filename);
 	ast_free(f->realfilename);
 	if (f->vfs)
@@ -1064,7 +1069,19 @@ static int ast_fsread_video(const void *data)
 
 int ast_applystream(struct ast_channel *chan, struct ast_filestream *s)
 {
-	s->owner = chan;
+	/* If no changes don't do anything */
+	if (s->owner == chan) {
+		return 0;
+	}
+
+	/* Remove reference to any existing channel */
+	if (s->owner) {
+		ast_channel_unref(s->owner);
+	}
+
+	/* Bump the ref count so the channel doesn't go away */
+	s->owner = ast_channel_ref(chan);
+
 	return 0;
 }
 
