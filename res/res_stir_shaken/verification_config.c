@@ -46,6 +46,7 @@ static char DEFAULT_cert_cache_dir[PATH_MAX];
 #define DEFAULT_relax_x5u_port_scheme_restrictions relax_x5u_port_scheme_restrictions_NO
 #define DEFAULT_relax_x5u_path_restrictions relax_x5u_path_restrictions_NO
 #define DEFAULT_load_system_certs load_system_certs_NO
+#define DEFAULT_ignore_sip_date_header ignore_sip_date_header_NO
 
 static struct verification_cfg *empty_cfg = NULL;
 
@@ -153,6 +154,7 @@ int vs_copy_cfg_common(const char *id, struct verification_cfg_common *cfg_dst,
 	cfg_enum_copy(cfg_dst, cfg_src, relax_x5u_port_scheme_restrictions);
 	cfg_enum_copy(cfg_dst, cfg_src, relax_x5u_path_restrictions);
 	cfg_enum_copy(cfg_dst, cfg_src, load_system_certs);
+	cfg_enum_copy(cfg_dst, cfg_src, ignore_sip_date_header);
 
 	if (cfg_src->acl) {
 		ast_free_acl_list(cfg_dst->acl);

@@ -277,22 +277,13 @@ static int stir_shaken_incoming_request(struct ast_sip_session *session, pjsip_r
 	}
 
 	date_hdr_val = ast_sip_rdata_get_header_value(rdata, date_hdr_str);
-	if (ast_strlen_zero(date_hdr_val)) {
-		p_rc = process_failure(ctx, caller_id, session, rdata,
-			AST_STIR_SHAKEN_VS_NO_DATE_HDR);
-		if (p_rc == PROCESS_FAILURE_CONTINUE) {
-			SCOPE_EXIT_RTN_VALUE(0, "%s: No Date header found.  Call continuing\n",
+	if (!ast_strlen_zero(date_hdr_val)) {
+		vs_rc = ast_stir_shaken_vs_ctx_add_date_hdr(ctx, date_hdr_val);
+		if (vs_rc != AST_STIR_SHAKEN_VS_SUCCESS) {
+			reject_incoming_call(session, 500);
+			SCOPE_EXIT_LOG_RTN_VALUE(1, LOG_ERROR, "%s: Unable to add Date header.  Call terminated.\n",
 				session_name);
 		}
-		SCOPE_EXIT_LOG_RTN_VALUE(1, LOG_ERROR, "%s: No Date header found.  Call terminated\n",
-			session_name);
-	}
-
-	ast_stir_shaken_vs_ctx_add_date_hdr(ctx, date_hdr_val);
-	if (vs_rc != AST_STIR_SHAKEN_VS_SUCCESS) {
-		reject_incoming_call(session, 500);
-		SCOPE_EXIT_LOG_RTN_VALUE(1, LOG_ERROR, "%s: Unable to add Date header.  Call terminated.\n",
-			session_name);
 	}
 
 	vs_rc = ast_stir_shaken_vs_verify(ctx);
