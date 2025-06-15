@@ -350,6 +350,16 @@
 					<synopsis>RFC9410 uses the STIR protocol on Reason headers
 					instead of the SIP protocol</synopsis>
 				</configOption>
+				<configOption name="ignore_sip_date_header" default="no">
+					<since>
+						<version>20.15.0</version>
+						<version>21.10.0</version>
+						<version>22.5.0</version>
+					</since>
+					<synopsis>When set to true, will cause the verification process to not consider a
+						missing or invalid SIP "Date" header to be a failure.  This will make the
+						IAT the sole "truth" for Date in the verification process.</synopsis>
+				</configOption>
 				<configOption name="relax_x5u_port_scheme_restrictions" default="no">
 					<since>
 						<version>18.22.0</version>
@@ -422,6 +432,7 @@
 				<xi:include xpointer="xpointer(/docs/configInfo[@name='res_stir_shaken']/configFile[@name='stir_shaken.conf']/configObject[@name='verification']/configOption[@name='curl_timeout'])" />
 				<xi:include xpointer="xpointer(/docs/configInfo[@name='res_stir_shaken']/configFile[@name='stir_shaken.conf']/configObject[@name='verification']/configOption[@name='max_iat_age'])" />
 				<xi:include xpointer="xpointer(/docs/configInfo[@name='res_stir_shaken']/configFile[@name='stir_shaken.conf']/configObject[@name='verification']/configOption[@name='max_date_header_age'])" />
+				<xi:include xpointer="xpointer(/docs/configInfo[@name='res_stir_shaken']/configFile[@name='stir_shaken.conf']/configObject[@name='verification']/configOption[@name='ignore_sip_date_header'])" />
 				<xi:include xpointer="xpointer(/docs/configInfo[@name='res_stir_shaken']/configFile[@name='stir_shaken.conf']/configObject[@name='verification']/configOption[@name='max_cache_entry_age'])" />
 				<xi:include xpointer="xpointer(/docs/configInfo[@name='res_stir_shaken']/configFile[@name='stir_shaken.conf']/configObject[@name='verification']/configOption[@name='max_cache_size'])" />
 				<xi:include xpointer="xpointer(/docs/configInfo[@name='res_stir_shaken']/configFile[@name='stir_shaken.conf']/configObject[@name='verification']/configOption[@name='failure_action'])" />
