@@ -330,6 +330,13 @@ considered "failed".
 
 Default: 15
 
+-- ignore_sip_date_header ---------------------------------------------
+When set to true, will cause the verification process to not consider a
+missing or invalid SIP "Date" header to be a failure.  This will make
+the IAT the sole "truth" for Date in the verification process.
+
+Default: no
+
 -- max_date_header_age ------------------------------------------------
 The sender MUST also send a SIP Date header in their request.  If we
 receive one that is older than the current time by the number of seconds
