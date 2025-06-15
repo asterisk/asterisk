@@ -62,6 +62,7 @@ const char *param_name ## _to_str(enum param_name ## _enum value) \
 }
 
 generate_bool_handler_functions(use_rfc9410_responses);
+generate_bool_handler_functions(ignore_sip_date_header);
 generate_bool_handler_functions(send_mky);
 generate_bool_handler_functions(check_tn_cert_public_url);
 generate_bool_handler_functions(relax_x5u_port_scheme_restrictions);

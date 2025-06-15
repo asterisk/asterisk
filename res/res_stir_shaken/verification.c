@@ -733,6 +733,15 @@ static enum ast_stir_shaken_vs_response_code check_date_header(
 	SCOPE_ENTER(3, "%s: Checking date header: '%s'\n",
 		ctx->tag, ctx->date_hdr);
 
+	if (ast_strlen_zero(ctx->date_hdr)) {
+		if (ctx->eprofile->vcfg_common.ignore_sip_date_header) {
+			SCOPE_EXIT_RTN_VALUE(AST_STIR_SHAKEN_VS_SUCCESS,
+				"%s: ignore_sip_date_header set\n", ctx->tag);
+		}
+		SCOPE_EXIT_LOG_RTN_VALUE(AST_STIR_SHAKEN_VS_NO_DATE_HDR,
+			LOG_ERROR, "%s: No date header provided\n", ctx->tag);
+	}
+
 	if (!(remainder = ast_strptime(ctx->date_hdr, "%a, %d %b %Y %T", &date_hdr_tm))) {
 		SCOPE_EXIT_LOG_RTN_VALUE(AST_STIR_SHAKEN_VS_DATE_HDR_PARSE_FAILURE,
 			LOG_ERROR, "%s: Failed to parse: '%s'\n",
@@ -853,7 +862,7 @@ static int check_x5u_url(struct ast_stir_shaken_vs_ctx * ctx,
 		}
 		if (!ast_strlen_zero(port)) {
 			if (!ast_strings_equal(port, "443")
-				|| !ast_strings_equal(port, "8443")) {
+				&& !ast_strings_equal(port, "8443")) {
 				DUMP_X5U_MATCH();
 				SCOPE_EXIT_LOG_RTN_VALUE(AST_STIR_SHAKEN_VS_INVALID_OR_NO_X5U, LOG_ERROR,
 					"%s: x5u '%s': port '%s' not port 443 or 8443\n",
@@ -940,8 +949,8 @@ enum ast_stir_shaken_vs_response_code
 			"%s: No x5u in Identity header\n", ctx->tag);
 	}
 
-	rc = check_x5u_url(ctx, x5u);
-	if (rc != AST_STIR_SHAKEN_VS_SUCCESS) {
+	vs_rc = check_x5u_url(ctx, x5u);
+	if (vs_rc != AST_STIR_SHAKEN_VS_SUCCESS) {
 		SCOPE_EXIT_RTN_VALUE(vs_rc,
 			"%s: x5u URL verification failed\n", ctx->tag);
 	}
@@ -957,8 +966,9 @@ enum ast_stir_shaken_vs_response_code
 		SCOPE_EXIT_LOG_RTN_VALUE(AST_STIR_SHAKEN_VS_NO_IAT, LOG_ERROR,
 			"%s: No 'iat' in Identity header\n", ctx->tag);
 	}
-	ast_trace(1, "date_hdr: %zu  iat: %zu  diff: %zu\n",
-		ctx->date_hdr_time, iat, ctx->date_hdr_time - iat);
+	ast_trace(1, "date_hdr: %zu  iat: %zu\n",
+		ctx->date_hdr_time, iat);
+
 	if (iat + ctx->eprofile->vcfg_common.max_iat_age < now_s) {
 		SCOPE_EXIT_RTN_VALUE(AST_STIR_SHAKEN_VS_IAT_EXPIRED,
 			"%s: iat %ld older than %u seconds\n", ctx->tag,
