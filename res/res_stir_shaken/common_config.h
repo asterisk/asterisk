@@ -79,6 +79,8 @@ generate_bool_string_prototypes(relax_x5u_path_restrictions);
 
 generate_bool_string_prototypes(load_system_certs);
 
+generate_bool_string_prototypes(ignore_sip_date_header);
+
 generate_bool_string_prototypes(check_tn_cert_public_url);
 
 generate_bool_string_prototypes(send_mky);
@@ -365,7 +367,7 @@ struct verification_cfg_common {
 	enum relax_x5u_path_restrictions_enum
 		relax_x5u_path_restrictions;
 	enum load_system_certs_enum load_system_certs;
-
+	enum ignore_sip_date_header_enum ignore_sip_date_header;
 	struct ast_acl_list *acl;
 	struct crypto_cert_store *tcs;
 };
@@ -381,6 +383,8 @@ struct verification_cfg_common {
 	generate_sorcery_enum_to_str(object, vcfg_common.,relax_x5u_path_restrictions); \
 	generate_sorcery_enum_from_str(object, vcfg_common.,load_system_certs, UNKNOWN); \
 	generate_sorcery_enum_to_str(object, vcfg_common.,load_system_certs); \
+	generate_sorcery_enum_from_str(object, vcfg_common.,ignore_sip_date_header, UNKNOWN); \
+	generate_sorcery_enum_to_str(object, vcfg_common.,ignore_sip_date_header); \
 	generate_sorcery_acl_from_str(object, acl, NULL); \
 	generate_sorcery_acl_to_str(object, acl);
 
@@ -533,6 +537,7 @@ int tn_config_unload(void);
 		relax_x5u_path_restrictions, nodoc); \
 		enum_option_register(sorcery, CONFIG_TYPE, \
 			load_system_certs, nodoc); \
+	enum_option_register(sorcery, CONFIG_TYPE, ignore_sip_date_header, nodoc); \
 \
 	ast_sorcery_object_field_register_custom ## nodoc(sorcery, CONFIG_TYPE, "x5u_deny", "", sorcery_acl_from_str, NULL, NULL, 0, 0); \
 	ast_sorcery_object_field_register_custom ## nodoc(sorcery, CONFIG_TYPE, "x5u_permit", "", sorcery_acl_from_str, NULL, NULL, 0, 0); \
