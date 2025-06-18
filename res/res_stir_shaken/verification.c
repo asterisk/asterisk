@@ -345,7 +345,8 @@ static enum ast_stir_shaken_vs_response_code check_cert(
 	}
 
 	ast_trace(3,"%s: Checking ctx against CA ctx\n", ctx->tag);
-	res = crypto_is_cert_trusted(ctx->eprofile->vcfg_common.tcs, ctx->xcert, &err_msg);
+	res = crypto_is_cert_trusted(ctx->eprofile->vcfg_common.tcs, ctx->xcert,
+		ctx->cert_chain, &err_msg);
 	if (!res) {
 		SCOPE_EXIT_LOG_RTN_VALUE(AST_STIR_SHAKEN_VS_CERT_NOT_TRUSTED,
 			LOG_ERROR, "%s: Cert '%s' not trusted: %s\n",
@@ -429,8 +430,8 @@ static enum ast_stir_shaken_vs_response_code retrieve_cert_from_url(
 			ctx->tag, ctx->public_url);
 	}
 
-	ctx->xcert = crypto_load_cert_from_memory(write_data->stream_buffer,
-		write_data->stream_bytes_downloaded);
+	ctx->xcert = crypto_load_cert_chain_from_memory(write_data->stream_buffer,
+		write_data->stream_bytes_downloaded, &ctx->cert_chain);
 	if (!ctx->xcert) {
 		SCOPE_EXIT_LOG_RTN_VALUE(AST_STIR_SHAKEN_VS_CERT_CONTENTS_INVALID,
 			LOG_ERROR, "%s: Cert '%s' was not parseable as an X509 certificate\n",
@@ -524,7 +525,7 @@ static enum ast_stir_shaken_vs_response_code
 			ctx->tag, ctx->filename, ctx->public_url);
 	}
 
-	ctx->xcert = crypto_load_cert_from_file(ctx->filename);
+	ctx->xcert = crypto_load_cert_chain_from_file(ctx->filename, &ctx->cert_chain);
 	if (!ctx->xcert) {
 		cleanup_cert_from_astdb_and_fs(ctx);
 		SCOPE_EXIT_RTN_VALUE(AST_STIR_SHAKEN_VS_CERT_CONTENTS_INVALID,
@@ -651,6 +652,7 @@ static void ctx_destructor(void *obj)
 	ast_free(ctx->raw_key);
 	ast_string_field_free_memory(ctx);
 	X509_free(ctx->xcert);
+	sk_X509_free(ctx->cert_chain);
 }
 
 enum ast_stir_shaken_vs_response_code
