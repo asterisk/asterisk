@@ -74,13 +74,19 @@ ASN1_OCTET_STRING *crypto_get_cert_extension_data(X509 *cert, int nid,
 	const char *short_name);
 
 /*!
- * \brief Load an X509 Cert from a file
+ * \brief Load an X509 Cert and any chained certs from a file
  *
  * \param filename PEM file
+ * \param chain_stack The address of a STACK_OF(X509) pointer to receive the
+ * chain of certificates if any.
+ *
+ * \note The caller is responsible for freeing the cert_chain stack and
+ * any certs in it.
  *
  * \returns X509* or NULL on error
  */
-X509 *crypto_load_cert_from_file(const char *filename);
+X509 *crypto_load_cert_chain_from_file(const char *filename,
+	STACK_OF(X509) **chain_stack);
 
 /*!
  * \brief Load an X509 CRL from a PEM file
@@ -116,15 +122,21 @@ EVP_PKEY *crypto_load_private_key_from_memory(const char *buffer, size_t size);
 int crypto_has_private_key_from_memory(const char *buffer, size_t size);
 
 /*!
- * \brief Load an X509 Cert from a NULL terminated buffer
+ * \brief Load an X509 Cert and any chained certs from a NULL terminated buffer
  *
  * \param buffer containing the cert
  * \param size size of the buffer.
  *             May be -1 if the buffer is NULL terminated.
+ * \param chain_stack The address of a STACK_OF(X509) pointer to receive the
+ * chain of certificates if any.
+ *
+ * \note The caller is responsible for freeing the cert_chain stack and
+ * any certs in it.
  *
  * \returns X509* or NULL on error
  */
-X509 *crypto_load_cert_from_memory(const char *buffer, size_t size);
+X509 *crypto_load_cert_chain_from_memory(const char *buffer, size_t size,
+	STACK_OF(X509) **cert_chain);
 
 /*!
  * \brief Retrieve RAW public key from cert
@@ -292,12 +304,14 @@ int crypto_is_cert_time_valid(X509 *cert, time_t reftime);
  *
  * \param store The CA store to check against
  * \param cert The cert to check
+ * \param cert_chain An untrusted certificate chain that may have accompanied the cert.
  * \param err_msg Optional pointer to a const char *
  *
  * \retval 1 Cert is trusted
  * \retval 0 Cert is not trusted
  */
-int crypto_is_cert_trusted(struct crypto_cert_store *store, X509 *cert, const char **err_msg);
+int crypto_is_cert_trusted(struct crypto_cert_store *store, X509 *cert,
+	STACK_OF(X509) *cert_chain, const char **err_msg);
 
 /*!
  * \brief Return a time_t for an ASN1_TIME
