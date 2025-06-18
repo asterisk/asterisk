@@ -186,10 +186,24 @@ X509_CRL *crypto_load_crl_from_file(const char *filename)
 	return crl;
 }
 
-X509 *crypto_load_cert_from_file(const char *filename)
+#define debug_cert_chain(level, cert_chain) \
+({ \
+	int i; \
+	char subj[1024]; \
+	if (cert_chain && sk_X509_num(cert_chain) > 0) { \
+		for (i = 0; i < sk_X509_num(cert_chain); i++) { \
+			X509 *cert = sk_X509_value(cert_chain, i); \
+			subj[0] = '\0'; \
+			X509_NAME_oneline(X509_get_subject_name(cert), subj, 1024); \
+			ast_debug(level, "Chain cert %d: '%s'\n", i, subj); \
+		} \
+	} \
+})
+
+X509 *crypto_load_cert_chain_from_file(const char *filename, STACK_OF(X509) **cert_chain)
 {
 	FILE *fp;
-	X509 *cert = NULL;
+	X509 *end_cert = NULL;
 
 	if (ast_strlen_zero(filename)) {
 		ast_log(LOG_ERROR, "filename was null or empty\n");
@@ -202,18 +216,58 @@ X509 *crypto_load_cert_from_file(const char *filename)
 		return NULL;
 	}
 
-	cert = PEM_read_X509(fp, &cert, NULL, NULL);
-	fclose(fp);
-	if (!cert) {
-		crypto_log_openssl(LOG_ERROR, "Failed to create cert from %s\n", filename);
+	end_cert = PEM_read_X509(fp, &end_cert, NULL, NULL);
+	if (!end_cert) {
+		crypto_log_openssl(LOG_ERROR, "Failed to create end_cert from %s\n", filename);
+		fclose(fp);
+		return NULL;
 	}
-	return cert;
+
+	/*
+	 * If the caller provided a stack, we will read the chain certs
+	 * (if any) into it.
+	 */
+	if (cert_chain) {
+		X509 *chain_cert = NULL;
+
+		*cert_chain = sk_X509_new_null();
+		while ((chain_cert = PEM_read_X509(fp, &chain_cert, NULL, NULL)) != NULL) {
+			if (sk_X509_push(*cert_chain, chain_cert) <= 0) {
+				crypto_log_openssl(LOG_ERROR, "Failed to add chain cert from %s to list\n",
+					filename);
+				fclose(fp);
+				X509_free(end_cert);
+				sk_X509_pop_free(*cert_chain, X509_free);
+				return NULL;
+			}
+			/* chain_cert needs to be reset to NULL after every call to PEM_read_X509 */
+			chain_cert = NULL;
+		}
+	}
+
+	if (DEBUG_ATLEAST(4)) {
+		char subj[1024];
+
+		X509_NAME_oneline(X509_get_subject_name(end_cert), subj, 1024);
+		ast_debug(4, "Opened end cert '%s' from '%s'\n", subj, filename);
+
+		if (cert_chain && *cert_chain) {
+			debug_cert_chain(4, *cert_chain);
+		} else {
+			ast_debug(4, "No chain certs found in '%s'\n", filename);
+		}
+	}
+
+	fclose(fp);
+
+	return end_cert;
 }
 
-X509 *crypto_load_cert_from_memory(const char *buffer, size_t size)
+X509 *crypto_load_cert_chain_from_memory(const char *buffer, size_t size,
+	STACK_OF(X509) **cert_chain)
 {
 	RAII_VAR(BIO *, bio, NULL, BIO_free_all);
-	X509 *cert = NULL;
+	X509 *end_cert = NULL;
 
 	if (ast_strlen_zero(buffer) || size <= 0) {
 		ast_log(LOG_ERROR, "buffer was null or empty\n");
@@ -226,11 +280,46 @@ X509 *crypto_load_cert_from_memory(const char *buffer, size_t size)
 		return NULL;
 	}
 
-	cert = PEM_read_bio_X509(bio, NULL, NULL, NULL);
-	if (!cert) {
-		crypto_log_openssl(LOG_ERROR, "Failed to create cert from BIO\n");
+	end_cert = PEM_read_bio_X509(bio, NULL, NULL, NULL);
+	if (!end_cert) {
+		crypto_log_openssl(LOG_ERROR, "Failed to create end_cert from BIO\n");
+		return NULL;
 	}
-	return cert;
+
+	/*
+	 * If the caller provided a stack, we will read the chain certs
+	 * (if any) into it.
+	 */
+	if (cert_chain) {
+		X509 *chain_cert = NULL;
+
+		*cert_chain = sk_X509_new_null();
+		while ((chain_cert = PEM_read_bio_X509(bio, &chain_cert, NULL, NULL)) != NULL) {
+			if (sk_X509_push(*cert_chain, chain_cert) <= 0) {
+				crypto_log_openssl(LOG_ERROR, "Failed to add chain cert from BIO to list\n");
+				X509_free(end_cert);
+				sk_X509_pop_free(*cert_chain, X509_free);
+				return NULL;
+			}
+			/* chain_cert needs to be reset to NULL after every call to PEM_read_X509 */
+			chain_cert = NULL;
+		}
+	}
+
+	if (DEBUG_ATLEAST(4)) {
+		char subj[1024];
+
+		X509_NAME_oneline(X509_get_subject_name(end_cert), subj, 1024);
+		ast_debug(4, "Opened end cert '%s' from BIO\n", subj);
+
+		if (cert_chain && *cert_chain) {
+			debug_cert_chain(4, *cert_chain);
+		} else {
+			ast_debug(4, "No chain certs found in BIO\n");
+		}
+	}
+
+	return end_cert;
 }
 
 static EVP_PKEY *load_private_key_from_memory(const char *buffer, size_t size)
@@ -441,7 +530,7 @@ static int crypto_load_store_from_cert_file(X509_STORE *store, const char *file)
 		return -1;
 	}
 
-	cert = crypto_load_cert_from_file(file);
+	cert = crypto_load_cert_chain_from_file(file, NULL);
 	if (!cert) {
 		return -1;
 	}
@@ -737,9 +826,11 @@ int crypto_is_cert_time_valid(X509*cert, time_t reftime)
 		X509_cmp_time(notafter, &reftime) > 0);
 }
 
-int crypto_is_cert_trusted(struct crypto_cert_store *store, X509 *cert, const char **err_msg)
+int crypto_is_cert_trusted(struct crypto_cert_store *store, X509 *cert,
+	STACK_OF(X509) *cert_chain, const char **err_msg)
 {
 	X509_STORE_CTX *verify_ctx = NULL;
+	RAII_VAR(STACK_OF(X509) *, untrusted_stack, NULL, sk_X509_free);
 	int rc = 0;
 
 	if (!(verify_ctx = X509_STORE_CTX_new())) {
@@ -747,7 +838,45 @@ int crypto_is_cert_trusted(struct crypto_cert_store *store, X509 *cert, const ch
 		return 0;
 	}
 
-	if (X509_STORE_CTX_init(verify_ctx, store->certs, cert, store->untrusted_stack) != 1) {
+	if (cert_chain && sk_X509_num(cert_chain) > 0) {
+		int untrusted_count = store->untrusted_stack ? sk_X509_num(store->untrusted_stack) : 0;
+		int i = 0;
+
+		untrusted_stack = sk_X509_dup(cert_chain);
+		if (!untrusted_stack) {
+			crypto_log_openssl(LOG_ERROR, "Unable to duplicate untrusted stack\n");
+			X509_STORE_CTX_free(verify_ctx);
+			return 0;
+		}
+		/*
+		 * If store->untrusted_stack was NULL for some reason then
+		 * untrusted_count will be 0 so the loop will never run.
+		 */
+		for (i = 0; i < untrusted_count; i++) {
+			X509 *c = sk_X509_value(store->untrusted_stack, i);
+			if (sk_X509_push(untrusted_stack, c) <= 0) {
+				crypto_log_openssl(LOG_ERROR, "Unable to push untrusted cert onto stack\n");
+				sk_X509_free(untrusted_stack);
+				X509_STORE_CTX_free(verify_ctx);
+				return 0;
+			}
+		}
+	/*
+	 * store->untrusted_stack should always be allocated even if empty
+	 * but we'll make sure.
+	 */
+	} else if (store->untrusted_stack){
+		/* This is a dead simple shallow clone */
+		ast_debug(4, "cert_chain had no certs\n");
+		untrusted_stack = sk_X509_dup(store->untrusted_stack);
+		if (!untrusted_stack) {
+			crypto_log_openssl(LOG_ERROR, "Unable to duplicate untrusted stack\n");
+			X509_STORE_CTX_free(verify_ctx);
+			return 0;
+		}
+	}
+
+	if (X509_STORE_CTX_init(verify_ctx, store->certs, cert, untrusted_stack) != 1) {
 		X509_STORE_CTX_cleanup(verify_ctx);
 		X509_STORE_CTX_free(verify_ctx);
 		crypto_log_openssl(LOG_ERROR, "Unable to initialize verify_ctx\n");
@@ -760,6 +889,7 @@ int crypto_is_cert_trusted(struct crypto_cert_store *store, X509 *cert, const ch
 		int err = X509_STORE_CTX_get_error(verify_ctx);
 		*err_msg = X509_verify_cert_error_string(err);
 	}
+
 	X509_STORE_CTX_cleanup(verify_ctx);
 	X509_STORE_CTX_free(verify_ctx);
 

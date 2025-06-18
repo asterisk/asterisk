@@ -45,6 +45,7 @@ struct ast_stir_shaken_vs_ctx {
 	unsigned char *raw_key;
 	char expiration[32];
 	X509 *xcert;
+	STACK_OF(X509) *cert_chain;
 	enum ast_stir_shaken_vs_response_code failure_reason;
 };
 

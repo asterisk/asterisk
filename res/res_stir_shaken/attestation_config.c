@@ -164,8 +164,8 @@ int as_check_common_config(const char *id, struct attestation_cfg_common *acfg_c
 				acfg_common->public_cert_url);
 		}
 
-		public_cert = crypto_load_cert_from_memory(public_cert_data,
-			public_cert_len);
+		public_cert = crypto_load_cert_chain_from_memory(public_cert_data,
+			public_cert_len, NULL);
 		if (!public_cert) {
 			SCOPE_EXIT_LOG_RTN_VALUE(-1, LOG_ERROR, "%s: public_cert '%s' could not be parsed as a certificate\n", id,
 				acfg_common->public_cert_url);
