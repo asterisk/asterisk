@@ -7009,6 +7009,10 @@ int ast_explicit_goto(struct ast_channel *chan, const char *context, const char 
 
 	ast_channel_lock(chan);
 
+	if (ast_channel_softhangup_internal_flag(chan) & AST_SOFTHANGUP_ASYNCGOTO) {
+		ast_channel_unlock(chan);
+		return -1;
+	}
 	if (!ast_strlen_zero(context))
 		ast_channel_context_set(chan, context);
 	if (!ast_strlen_zero(exten))
