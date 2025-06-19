@@ -2725,7 +2725,7 @@ static int set_id_from_pai(pjsip_rx_data *rdata, struct ast_party_id *id)
 	}
 
 	privacy = pjsip_msg_find_hdr_by_name(rdata->msg_info.msg, &privacy_str, NULL);
-	if (!privacy || !pj_stricmp2(&privacy->hvalue, "none")) {
+	if (!privacy || !pj_stricmp2(&privacy->hvalue, "none") || !pj_stricmp2(&privacy->hvalue, "off")) {
 		id->number.presentation = AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED;
 		id->name.presentation = AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED;
 	} else {
