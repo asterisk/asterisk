@@ -1128,6 +1128,8 @@ int ast_unlock_context(struct ast_context *con);
  * \brief Set the channel to next execute the specified dialplan location.
  * \see ast_async_parseable_goto, ast_async_goto_if_exists
  *
+ * \note If the AST_SOFTHANGUP_ASYNCGOTO flag is set,
+ * it can prevent the dialplan location from being overwritten by ast_explicit_goto.
  * \note Do _NOT_ hold any channel locks when calling this function.
  */
 int ast_async_goto(struct ast_channel *chan, const char *context, const char *exten, int priority);
@@ -1509,6 +1511,7 @@ int ast_async_parseable_goto(struct ast_channel *chan, const char *goto_string);
 
 /*!
  * \note This function will handle locking the channel as needed.
+ * \note If the AST_SOFTHANGUP_ASYNCGOTO flag is set on the channel, this function will fail and return -1.
  */
 int ast_explicit_goto(struct ast_channel *chan, const char *context, const char *exten, int priority);
 
