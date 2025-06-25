@@ -1818,8 +1818,20 @@ static int chan_pjsip_indicate(struct ast_channel *ast, int condition, const voi
 		}
 		break;
 	case AST_CONTROL_SRCUPDATE:
+		for (i = 0; i < AST_VECTOR_SIZE(&channel->session->active_media_state->sessions); ++i) {
+				media = AST_VECTOR_GET(&channel->session->active_media_state->sessions, i);
+				if (media && media->rtp) {
+					ast_rtp_instance_update_source(media->rtp);
+				}
+		}
 		break;
 	case AST_CONTROL_SRCCHANGE:
+		for (i = 0; i < AST_VECTOR_SIZE(&channel->session->active_media_state->sessions); ++i) {
+				media = AST_VECTOR_GET(&channel->session->active_media_state->sessions, i);
+				if (media && media->rtp) {
+					ast_rtp_instance_change_source(media->rtp);
+				}
+		}
 		break;
 	case AST_CONTROL_REDIRECTING:
 		if (ast_channel_state(ast) != AST_STATE_UP) {
