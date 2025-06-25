@@ -1820,6 +1820,14 @@ static int chan_pjsip_indicate(struct ast_channel *ast, int condition, const voi
 	case AST_CONTROL_SRCUPDATE:
 		break;
 	case AST_CONTROL_SRCCHANGE:
+		/* Generate a new SSRC due to media source change and RTP timestamp reset.
+		   Ensures RFC 3550 compliance and avoids SBC interoperability issues (Sonus/Ribbon)*/
+		for (i = 0; i < AST_VECTOR_SIZE(&channel->session->active_media_state->sessions); ++i) {
+			media = AST_VECTOR_GET(&channel->session->active_media_state->sessions, i);
+			if (media && media->rtp) {
+				ast_rtp_instance_change_source(media->rtp);
+			}
+		}
 		break;
 	case AST_CONTROL_REDIRECTING:
 		if (ast_channel_state(ast) != AST_STATE_UP) {
