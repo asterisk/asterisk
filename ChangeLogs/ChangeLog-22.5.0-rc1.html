@@ -1,0 +1,560 @@
+<html><head><title>ChangeLog for asterisk-22.5.0-rc1</title></head><body>
+<h2>Change Log for Release asterisk-22.5.0-rc1</h2>
+<h3>Links:</h3>
+<ul>
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-22.5.0-rc1.html">Full ChangeLog</a>  </li>
+<li><a href="https://github.com/asterisk/asterisk/compare/22.4.1...22.5.0-rc1">GitHub Diff</a>  </li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-22.5.0-rc1.tar.gz">Tarball</a>  </li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk">Downloads</a>  </li>
+</ul>
+<h3>Summary:</h3>
+<ul>
+<li>Commits: 25</li>
+<li>Commit Authors: 13</li>
+<li>Issues Resolved: 14</li>
+<li>Security Advisories Resolved: 1</li>
+<li><a href="https://github.com/asterisk/asterisk/security/advisories/GHSA-c7p6-7mvq-8jq2">GHSA-c7p6-7mvq-8jq2</a>: cli_permissions.conf: deny option does not work for disallowing shell commands</li>
+</ul>
+<h3>User Notes:</h3>
+<ul>
+<li>
+<h4>res_stir_shaken.so: Handle X5U certificate chains.</h4>
+<p>The STIR/SHAKEN verification process will now load a full
+  certificate chain retrieved via the X5U URL instead of loading only
+  the end user cert.</p>
+</li>
+<li>
+<h4>res_stir_shaken: Add "ignore_sip_date_header" config option.</h4>
+<p>A new STIR/SHAKEN verification option "ignore_sip_date_header" has
+  been added that when set to true, will cause the verification process to
+  not consider a missing or invalid SIP "Date" header to be a failure.  This
+  will make the IAT the sole "truth" for Date in the verification process.
+  The option can be set in the "verification" and "profile" sections of
+  stir_shaken.conf.
+  Also fixed a bug in the port match logic.
+  Resolves: #1251
+  Resolves: #1271</p>
+</li>
+<li>
+<h4>app_record: Add RECORDING_INFO function.</h4>
+<p>The RECORDING_INFO function can now be used
+  to retrieve the duration of a recording.</p>
+</li>
+<li>
+<h4>app_queue: queue rules – Add support for QUEUE_RAISE_PENALTY=rN to raise penal..</h4>
+<p>This change introduces QUEUE_RAISE_PENALTY=rN, allowing selective penalty raises
+  only for members whose current penalty is within the [min_penalty, max_penalty] range.
+  Members with lower or higher penalties are unaffected.
+  This behavior is backward-compatible with existing queue rule configurations.</p>
+</li>
+<li>
+<h4>res_odbc: cache_size option to limit the cached connections.</h4>
+<p>New cache_size option for res_odbc to on a per class basis limit the
+  number of cached connections. Please reference the sample configuration
+  for details.</p>
+</li>
+<li>
+<h4>res_odbc: cache_type option for res_odbc.</h4>
+<p>When using res_odbc it should be noted that back-end
+  connections to the underlying database can now be configured to re-use
+  the cached connections in a round-robin manner rather than repeatedly
+  re-using the same connection.  This helps to keep connections alive, and
+  to purge dead connections from the system, thus more dynamically
+  adjusting to actual load.  The downside is that one could keep too many
+  connections active for a longer time resulting in resource also begin
+  consumed on the database side.</p>
+</li>
+<li>
+<h4>ARI Outbound Websockets</h4>
+<p>Asterisk can now establish websocket sessions <em>to</em> your ARI applications
+  as well as accepting websocket sessions <em>from</em> them.
+  Full details: http://s.asterisk.net/ari-outbound-ws</p>
+</li>
+<li>
+<h4>res_websocket_client: Create common utilities for websocket clients.</h4>
+<p>A new module "res_websocket_client" and config file
+  "websocket_client.conf" have been added to support several upcoming new
+  capabilities that need common websocket client configuration.</p>
+</li>
+<li>
+<h4>asterisk.c: Add option to restrict shell access from remote consoles.</h4>
+<p>A new asterisk.conf option 'disable_remote_console_shell' has
+  been added that, when set, will prevent remote consoles from executing
+  shell commands using the '!' prefix.
+  Resolves: #GHSA-c7p6-7mvq-8jq2</p>
+</li>
+<li>
+<h4>sig_analog: Add Call Waiting Deluxe support.</h4>
+<p>Call Waiting Deluxe can now be enabled for FXS channels
+  by enabling its corresponding option.</p>
+</li>
+</ul>
+<h3>Upgrade Notes:</h3>
+<ul>
+<li>
+<h4>jansson: Upgrade version to jansson 2.14.1</h4>
+<p>jansson has been upgraded to 2.14.1. For more
+  information visit jansson Github page: https://github.com/akheron/jansson/releases/tag/v2.14.1
+  Resolves: #1178</p>
+</li>
+<li>
+<h4>Alternate Channel Storage Backends</h4>
+<p>With this release, you can now select an alternate channel
+  storage backend based on C++ Maps.  Using the new backend may increase
+  performance and reduce the chances of deadlocks on heavily loaded systems.
+  For more information, see http://s.asterisk.net/dc679ec3</p>
+</li>
+</ul>
+<h3>Commit Authors:</h3>
+<ul>
+<li>George Joseph: (8)</li>
+<li>Itzanh: (1)</li>
+<li>Jaco Kroon: (2)</li>
+<li>Joe Searle: (1)</li>
+<li>Mike Bradeen: (2)</li>
+<li>Mkmer: (1)</li>
+<li>Nathan Monfils: (1)</li>
+<li>Naveen Albert: (3)</li>
+<li>Phoneben: (1)</li>
+<li>Sean Bright: (1)</li>
+<li>Stanislav Abramenkov: (1)</li>
+<li>Sven Kube: (2)</li>
+<li>Thomas B. Clark: (1)</li>
+</ul>
+<h2>Issue and Commit Detail:</h2>
+<h3>Closed Issues:</h3>
+<ul>
+<li>!GHSA-c7p6-7mvq-8jq2: cli_permissions.conf: deny option does not work for disallowing shell commands</li>
+<li>271: [new-feature]: sig_analog: Add Call Waiting Deluxe support.</li>
+<li>548: [improvement]: Get Record() audio duration/length</li>
+<li>1088: [bug]: app_sms: Compilation failure in DEVMODE due to stringop-overflow error in GCC 15 pre-release</li>
+<li>1141: [bug]: res_pjsip: Contact header set incorrectly for call redirect (302 Moved temp.) when external_* set</li>
+<li>1178: [improvement]: jansson: Upgrade version to jansson 2.14.1</li>
+<li>1230: [bug]: ast_frame_adjust_volume and ast_frame_adjust_volume_float crash on interpolated frames</li>
+<li>1234: [bug]: Set CalllerID lost on DTMF attended transfer</li>
+<li>1240: [bug]: WebRTC invites failing on Chrome 136</li>
+<li>1243: [bug]: make menuconfig fails due to changes in GTK callbacks</li>
+<li>1251: [improvement]: PJSIP shouldn't require SIP Date header to process full shaken passport which includes iat</li>
+<li>1254: [bug]: ActiveChannels not reported when using AMI command PJSIPShowEndpoint</li>
+<li>1271: [bug]: STIR/SHAKEN not accepting port 8443 in certificate URLs</li>
+<li>1272: [improvement]: STIR/SHAKEN handle X5U certificate chains</li>
+<li>ASTERISK-30373: sig_analog: Add Call Waiting Deluxe options</li>
+</ul>
+<h3>Commits By Author:</h3>
+<ul>
+<li>
+<h4>George Joseph (8):</h4>
+</li>
+<li>Alternate Channel Storage Backends</li>
+<li>lock.h: Add include for string.h when DEBUG_THREADS is defined.</li>
+<li>asterisk.c: Add option to restrict shell access from remote consoles.</li>
+<li>res_websocket_client: Create common utilities for websocket clients.</li>
+<li>ARI Outbound Websockets</li>
+<li>res_websocket_client:  Add more info to the XML documentation.</li>
+<li>res_stir_shaken: Add "ignore_sip_date_header" config option.</li>
+<li>
+<p>res_stir_shaken.so: Handle X5U certificate chains.</p>
+</li>
+<li>
+<h4>Itzanh (1):</h4>
+</li>
+<li>
+<p>app_sms.c: Fix sending and receiving SMS messages in protocol 2</p>
+</li>
+<li>
+<h4>Jaco Kroon (2):</h4>
+</li>
+<li>res_odbc: cache_type option for res_odbc.</li>
+<li>
+<p>res_odbc: cache_size option to limit the cached connections.</p>
+</li>
+<li>
+<h4>Joe Searle (1):</h4>
+</li>
+<li>
+<p>pjproject: Increase maximum SDP formats and attribute limits</p>
+</li>
+<li>
+<h4>Mike Bradeen (2):</h4>
+</li>
+<li>chan_pjsip: Serialize INVITE creation on DTMF attended transfer</li>
+<li>
+<p>res_pjsip_nat.c: Do not overwrite transfer host</p>
+</li>
+<li>
+<h4>Nathan Monfils (1):</h4>
+</li>
+<li>
+<p>manager.c: Invalid ref-counting when purging events</p>
+</li>
+<li>
+<h4>Naveen Albert (3):</h4>
+</li>
+<li>app_sms: Ignore false positive vectorization warning.</li>
+<li>sig_analog: Add Call Waiting Deluxe support.</li>
+<li>
+<p>app_record: Add RECORDING_INFO function.</p>
+</li>
+<li>
+<h4>Sean Bright (1):</h4>
+</li>
+<li>
+<p>res_pjsip: Fix empty <code>ActiveChannels</code> property in AMI responses.</p>
+</li>
+<li>
+<h4>Stanislav Abramenkov (1):</h4>
+</li>
+<li>
+<p>jansson: Upgrade version to jansson 2.14.1</p>
+</li>
+<li>
+<h4>Sven Kube (2):</h4>
+</li>
+<li>res_audiosocket.c: Set the TCP_NODELAY socket option</li>
+<li>
+<p>res_audiosocket.c: Add retry mechanism for reading data from AudioSocket</p>
+</li>
+<li>
+<h4>Thomas B. Clark (1):</h4>
+</li>
+<li>
+<p>menuselect: Fix GTK menu callbacks for Fedora 42 compatibility</p>
+</li>
+<li>
+<h4>mkmer (1):</h4>
+</li>
+<li>
+<p>frame.c: validate frame data length is less than samples when adjusting volume</p>
+</li>
+<li>
+<h4>phoneben (1):</h4>
+</li>
+<li>app_queue: queue rules – Add support for QUEUE_RAISE_PENALTY=rN to raise penal..</li>
+</ul>
+<h3>Commit List:</h3>
+<ul>
+<li>res_stir_shaken.so: Handle X5U certificate chains.</li>
+<li>res_stir_shaken: Add "ignore_sip_date_header" config option.</li>
+<li>app_record: Add RECORDING_INFO function.</li>
+<li>app_sms.c: Fix sending and receiving SMS messages in protocol 2</li>
+<li>res_websocket_client:  Add more info to the XML documentation.</li>
+<li>res_odbc: cache_size option to limit the cached connections.</li>
+<li>res_odbc: cache_type option for res_odbc.</li>
+<li>res_pjsip: Fix empty <code>ActiveChannels</code> property in AMI responses.</li>
+<li>ARI Outbound Websockets</li>
+<li>res_websocket_client: Create common utilities for websocket clients.</li>
+<li>asterisk.c: Add option to restrict shell access from remote consoles.</li>
+<li>frame.c: validate frame data length is less than samples when adjusting volume</li>
+<li>res_audiosocket.c: Add retry mechanism for reading data from AudioSocket</li>
+<li>res_audiosocket.c: Set the TCP_NODELAY socket option</li>
+<li>menuselect: Fix GTK menu callbacks for Fedora 42 compatibility</li>
+<li>jansson: Upgrade version to jansson 2.14.1</li>
+<li>pjproject: Increase maximum SDP formats and attribute limits</li>
+<li>manager.c: Invalid ref-counting when purging events</li>
+<li>res_pjsip_nat.c: Do not overwrite transfer host</li>
+<li>chan_pjsip: Serialize INVITE creation on DTMF attended transfer</li>
+<li>sig_analog: Add Call Waiting Deluxe support.</li>
+<li>app_sms: Ignore false positive vectorization warning.</li>
+<li>lock.h: Add include for string.h when DEBUG_THREADS is defined.</li>
+<li>Alternate Channel Storage Backends</li>
+</ul>
+<h3>Commit Details:</h3>
+<h4>res_stir_shaken.so: Handle X5U certificate chains.</h4>
+<p>Author: George Joseph
+  Date:   2025-06-18</p>
+<p>The verification process will now load a full certificate chain retrieved
+  via the X5U URL instead of loading only the end user cert.</p>
+<ul>
+<li>
+<p>Renamed crypto_load_cert_from_file() and crypto_load_cert_from_memory()
+  to crypto_load_cert_chain_from_file() and crypto_load_cert_chain_from_memory()
+  respectively.</p>
+</li>
+<li>
+<p>The two load functions now continue to load certs from the file or memory
+  PEMs and store them in a separate stack of untrusted certs specific to the
+  current verification context.</p>
+</li>
+<li>
+<p>crypto_is_cert_trusted() now uses the stack of untrusted certs that were
+  extracted from the PEM in addition to any untrusted certs that were passed
+  in from the configuration (and any CA certs passed in from the config of
+  course).</p>
+</li>
+</ul>
+<p>Resolves: #1272</p>
+<p>UserNote: The STIR/SHAKEN verification process will now load a full
+  certificate chain retrieved via the X5U URL instead of loading only
+  the end user cert.</p>
+<h4>res_stir_shaken: Add "ignore_sip_date_header" config option.</h4>
+<p>Author: George Joseph
+  Date:   2025-06-15</p>
+<p>UserNote: A new STIR/SHAKEN verification option "ignore_sip_date_header" has
+  been added that when set to true, will cause the verification process to
+  not consider a missing or invalid SIP "Date" header to be a failure.  This
+  will make the IAT the sole "truth" for Date in the verification process.
+  The option can be set in the "verification" and "profile" sections of
+  stir_shaken.conf.</p>
+<p>Also fixed a bug in the port match logic.</p>
+<p>Resolves: #1251
+  Resolves: #1271</p>
+<h4>app_record: Add RECORDING_INFO function.</h4>
+<p>Author: Naveen Albert
+  Date:   2024-01-22</p>
+<p>Add a function that can be used to retrieve info
+  about a previous recording, such as its duration.</p>
+<p>This is being added as a function to avoid possibly
+  trampling on dialplan variables, and could be extended
+  to provide other information in the future.</p>
+<p>Resolves: #548</p>
+<p>UserNote: The RECORDING_INFO function can now be used
+  to retrieve the duration of a recording.</p>
+<h4>app_sms.c: Fix sending and receiving SMS messages in protocol 2</h4>
+<p>Author: Itzanh
+  Date:   2025-04-06</p>
+<p>This fixes bugs in SMS messaging to SMS-capable analog phones that prevented app_sms.c from talking to phones using SMS protocol 2.</p>
+<ul>
+<li>Fix MORX message reception (from phone to Asterisk) in SMS protocol 2</li>
+<li>Fix MTTX message transmission (from Asterisk to phone) in SMS protocol 2</li>
+</ul>
+<p>One of the bugs caused messages to have random characters and junk appended at the end up to the character limit. Another bug prevented Asterisk from sending messages from Asterisk to the phone at all. A final bug caused the transmission from Asterisk to the phone to take a long time because app_sms.c did not hang up after correctly sending the message, causing the phone to have to time out and hang up in order to complete the message transmission.</p>
+<p>This was tested with a Linksys PAP2T and with a GrandStream HT814, sending and receiving messages with Telefónica DOMO Mensajes phones from Telefónica Spain. I had to play with both the network jitter buffer and the dB gain to get it to work. One of my phones required the gain to be set to +3dB for it to work, while another required it to be set to +6dB.</p>
+<p>Only MORX and MTTX were tested, I did not test sending and receiving messages to a TelCo SMSC.</p>
+<h4>app_queue: queue rules – Add support for QUEUE_RAISE_PENALTY=rN to raise penal..</h4>
+<p>Author: phoneben
+  Date:   2025-05-26</p>
+<p>This update adds support for a new QUEUE_RAISE_PENALTY format: rN</p>
+<p>When QUEUE_RAISE_PENALTY is set to rN (e.g., r4), only members whose current penalty
+  is greater than or equal to the defined min_penalty and less than or equal to max_penalty
+  will have their penalty raised to N.</p>
+<p>Members with penalties outside the min/max range remain unchanged.</p>
+<p>Example behaviors:</p>
+<p>QUEUE_RAISE_PENALTY=4     → Raise all members with penalty &lt; 4 (existing behavior)
+  QUEUE_RAISE_PENALTY=r4    → Raise only members with penalty in [min_penalty, max_penalty] to 4</p>
+<p>Implementation details:</p>
+<p>Adds parsing logic to detect the r prefix and sets the raise_respect_min flag</p>
+<p>Modifies the raise logic to skip members outside the defined penalty range when the flag is active</p>
+<p>UserNote: This change introduces QUEUE_RAISE_PENALTY=rN, allowing selective penalty raises
+  only for members whose current penalty is within the [min_penalty, max_penalty] range.
+  Members with lower or higher penalties are unaffected.
+  This behavior is backward-compatible with existing queue rule configurations.</p>
+<h4>res_websocket_client:  Add more info to the XML documentation.</h4>
+<p>Author: George Joseph
+  Date:   2025-06-05</p>
+<p>Added "see-also" links to chan_websocket and ARI Outbound WebSocket and
+  added an example configuration for each.</p>
+<h4>res_odbc: cache_size option to limit the cached connections.</h4>
+<p>Author: Jaco Kroon
+  Date:   2024-12-13</p>
+<p>Signed-off-by: Jaco Kroon <a href="&#109;&#97;&#105;&#108;&#116;&#111;&#58;&#106;&#97;&#99;&#111;&#64;&#117;&#108;&#115;&#46;&#99;&#111;&#46;&#122;&#97;">&#106;&#97;&#99;&#111;&#64;&#117;&#108;&#115;&#46;&#99;&#111;&#46;&#122;&#97;</a></p>
+<p>UserNote: New cache_size option for res_odbc to on a per class basis limit the
+  number of cached connections. Please reference the sample configuration
+  for details.</p>
+<h4>res_odbc: cache_type option for res_odbc.</h4>
+<p>Author: Jaco Kroon
+  Date:   2024-12-10</p>
+<p>This enables setting cache_type classes to a round-robin queueing system
+  rather than the historic stack mechanism.</p>
+<p>This should result in lower risk of connection drops due to shorter idle
+  times (the first connection to go onto the stack could in theory never
+  be used again, ever, but sit there consuming resources, there could be
+  multiple of these).</p>
+<p>And with a queue rather than a stack, dead connections are guaranteed to
+  be detected and purged eventually.</p>
+<p>This should end up better balancing connection_cnt with actual load
+  over time, assuming the database doesn't keep connections open
+  excessively long from it's side.</p>
+<p>Signed-off-by: Jaco Kroon <a href="&#109;&#97;&#105;&#108;&#116;&#111;&#58;&#106;&#97;&#99;&#111;&#64;&#117;&#108;&#115;&#46;&#99;&#111;&#46;&#122;&#97;">&#106;&#97;&#99;&#111;&#64;&#117;&#108;&#115;&#46;&#99;&#111;&#46;&#122;&#97;</a></p>
+<p>UserNote: When using res_odbc it should be noted that back-end
+  connections to the underlying database can now be configured to re-use
+  the cached connections in a round-robin manner rather than repeatedly
+  re-using the same connection.  This helps to keep connections alive, and
+  to purge dead connections from the system, thus more dynamically
+  adjusting to actual load.  The downside is that one could keep too many
+  connections active for a longer time resulting in resource also begin
+  consumed on the database side.</p>
+<h4>res_pjsip: Fix empty <code>ActiveChannels</code> property in AMI responses.</h4>
+<p>Author: Sean Bright
+  Date:   2025-05-27</p>
+<p>The logic appears to have been reversed since it was introduced in
+  05cbf8df.</p>
+<p>Resolves: #1254</p>
+<h4>ARI Outbound Websockets</h4>
+<p>Author: George Joseph
+  Date:   2025-03-28</p>
+<p>Asterisk can now establish websocket sessions <em>to</em> your ARI applications
+  as well as accepting websocket sessions <em>from</em> them.
+  Full details: http://s.asterisk.net/ari-outbound-ws</p>
+<p>Code change summary:
+  * Added an ast_vector_string_join() function,
+  * Added ApplicationRegistered and ApplicationUnregistered ARI events.
+  * Converted res/ari/config.c to use sorcery to process ari.conf.
+  * Added the "outbound-websocket" ARI config object.
+  * Refactored res/ari/ari_websockets.c to handle outbound websockets.
+  * Refactored res/ari/cli.c for the sorcery changeover.
+  * Updated res/res_stasis.c for the sorcery changeover.
+  * Updated apps/app_stasis.c to allow initiating per-call outbound websockets.
+  * Added CLI commands to manage ARI websockets.
+  * Added the new "outbound-websocket" object to ari.conf.sample.
+  * Moved the ARI XML documentation out of res_ari.c into res/ari/ari_doc.xml</p>
+<p>UserNote: Asterisk can now establish websocket sessions <em>to</em> your ARI applications
+  as well as accepting websocket sessions <em>from</em> them.
+  Full details: http://s.asterisk.net/ari-outbound-ws</p>
+<h4>res_websocket_client: Create common utilities for websocket clients.</h4>
+<p>Author: George Joseph
+  Date:   2025-05-02</p>
+<p>Since multiple Asterisk capabilities now need to create websocket clients
+  it makes sense to create a common set of utilities rather than making
+  each of those capabilities implement their own.</p>
+<ul>
+<li>A new configuration file "websocket_client.conf" is used to store common
+  client parameters in named configuration sections.</li>
+<li>APIs are provided to list and retrieve ast_websocket_client objects created
+  from the named configurations.</li>
+<li>An API is provided that accepts an ast_websocket_client object, connects
+  to the remote server with retries and returns an ast_websocket object. TLS is
+  supported as is basic authentication.</li>
+<li>An observer can be registered to receive notification of loaded or reloaded
+  client objects.</li>
+<li>An API is provided to compare an existing client object to one just
+  reloaded and return the fields that were changed. The caller can then decide
+  what action to take based on which fields changed.</li>
+</ul>
+<p>Also as part of thie commit, several sorcery convenience macros were created
+  to make registering common object fields easier.</p>
+<p>UserNote: A new module "res_websocket_client" and config file
+  "websocket_client.conf" have been added to support several upcoming new
+  capabilities that need common websocket client configuration.</p>
+<h4>asterisk.c: Add option to restrict shell access from remote consoles.</h4>
+<p>Author: George Joseph
+  Date:   2025-05-19</p>
+<p>UserNote: A new asterisk.conf option 'disable_remote_console_shell' has
+  been added that, when set, will prevent remote consoles from executing
+  shell commands using the '!' prefix.</p>
+<p>Resolves: #GHSA-c7p6-7mvq-8jq2</p>
+<h4>frame.c: validate frame data length is less than samples when adjusting volume</h4>
+<p>Author: mkmer
+  Date:   2025-05-12</p>
+<p>Resolves: #1230</p>
+<h4>res_audiosocket.c: Add retry mechanism for reading data from AudioSocket</h4>
+<p>Author: Sven Kube
+  Date:   2025-05-13</p>
+<p>The added retry mechanism addresses an issue that arises when fragmented TCP
+  packets are received, each containing only a portion of an AudioSocket packet.
+  This situation can occur if the external service sending the AudioSocket data
+  has Nagle's algorithm enabled.</p>
+<h4>res_audiosocket.c: Set the TCP_NODELAY socket option</h4>
+<p>Author: Sven Kube
+  Date:   2025-05-13</p>
+<p>Disable Nagle's algorithm by setting the TCP_NODELAY socket option.
+  This reduces latency by preventing delays caused by packet buffering.</p>
+<h4>menuselect: Fix GTK menu callbacks for Fedora 42 compatibility</h4>
+<p>Author: Thomas B. Clark
+  Date:   2025-05-12</p>
+<p>This patch resolves a build failure in <code>menuselect_gtk.c</code> when running
+  <code>make menuconfig</code> on Fedora 42. The new version of GTK introduced stricter
+  type checking for callback signatures.</p>
+<p>Changes include:
+  - Add wrapper functions to match the expected <code>void (*)(void)</code> signature.
+  - Update <code>menu_items</code> array to use these wrappers.</p>
+<p>Fixes: #1243</p>
+<h4>jansson: Upgrade version to jansson 2.14.1</h4>
+<p>Author: Stanislav Abramenkov
+  Date:   2025-03-24</p>
+<p>UpgradeNote: jansson has been upgraded to 2.14.1. For more
+  information visit jansson Github page: https://github.com/akheron/jansson/releases/tag/v2.14.1</p>
+<p>Resolves: #1178</p>
+<h4>pjproject: Increase maximum SDP formats and attribute limits</h4>
+<p>Author: Joe Searle
+  Date:   2025-05-15</p>
+<p>Since Chrome 136, using Windows, when initiating a video call the INVITE SDP exceeds the maximum number of allowed attributes, resulting in the INVITE being rejected. This increases the attribute limit and the number of formats allowed when using bundled pjproject.</p>
+<p>Fixes: #1240</p>
+<h4>manager.c: Invalid ref-counting when purging events</h4>
+<p>Author: Nathan Monfils
+  Date:   2025-05-05</p>
+<p>We have a use-case where we generate a <em>lot</em> of events on the AMI, and
+  then when doing <code>manager show eventq</code> we would see some events which
+  would linger for hours or days in there. Obviously something was leaking.
+  Testing allowed us to track down this logic bug in the ref-counting on
+  the event purge.</p>
+<p>Reproducing the bug was not super trivial, we managed to do it in a
+  production-like load testing environment with multiple AMI consumers.</p>
+<p>The race condition itself:</p>
+<ol>
+<li>something allocates and links <code>session</code></li>
+<li><code>purge_sessions</code> iterates over that <code>session</code> (takes ref)</li>
+<li><code>purge_session</code> correctly de-referencess that session</li>
+<li><code>purge_session</code> re-evaluates the while() loop, taking a reference</li>
+<li><code>purge_session</code> exits (<code>n_max &gt; 0</code> is false)</li>
+<li>whatever allocated the <code>session</code> deallocates it, but a reference is
+     now lost since we exited the <code>while</code> loop before de-referencing.</li>
+<li>since the destructor is never called, the session-&gt;last_ev-&gt;usecount
+     is never decremented, leading to events lingering in the queue</li>
+</ol>
+<p>The impact of this bug does not seem major. The events are small and do
+  not seem, from our testing, to be causing meaningful additional CPU
+  usage. Mainly we wanted to fix this issue because we are internally
+  adding prometheus metrics to the eventq and those leaked events were
+  causing the metrics to show garbage data.</p>
+<h4>res_pjsip_nat.c: Do not overwrite transfer host</h4>
+<p>Author: Mike Bradeen
+  Date:   2025-05-08</p>
+<p>When a call is transfered via dialplan behind a NAT, the
+  host portion of the Contact header in the 302 will no longer
+  be over-written with the external NAT IP and will retain the
+  hostname.</p>
+<p>Fixes: #1141</p>
+<h4>chan_pjsip: Serialize INVITE creation on DTMF attended transfer</h4>
+<p>Author: Mike Bradeen
+  Date:   2025-05-05</p>
+<p>When a call is transfered via DTMF feature code, the Transfer Target and
+  Transferer are bridged immediately.  This opens the possibilty of a race
+  condition between the creation of an INVITE and the bridge induced colp
+  update that can result in the set caller ID being over-written with the
+  transferer's default info.</p>
+<p>Fixes: #1234</p>
+<h4>sig_analog: Add Call Waiting Deluxe support.</h4>
+<p>Author: Naveen Albert
+  Date:   2023-08-24</p>
+<p>Adds support for Call Waiting Deluxe options to enhance
+  the current call waiting feature.</p>
+<p>As part of this change, a mechanism is also added that
+  allows a channel driver to queue an audio file for Dial()
+  to play, which is necessary for the announcement function.</p>
+<p>ASTERISK-30373 #close</p>
+<p>Resolves: #271</p>
+<p>UserNote: Call Waiting Deluxe can now be enabled for FXS channels
+  by enabling its corresponding option.</p>
+<h4>app_sms: Ignore false positive vectorization warning.</h4>
+<p>Author: Naveen Albert
+  Date:   2025-01-24</p>
+<p>Ignore gcc warning about writing 32 bytes into a region of size 6,
+  since we check that we don't go out of bounds for each byte.
+  This is due to a vectorization bug in gcc 15, stemming from
+  gcc commit 68326d5d1a593dc0bf098c03aac25916168bc5a9.</p>
+<p>Resolves: #1088</p>
+<h4>lock.h: Add include for string.h when DEBUG_THREADS is defined.</h4>
+<p>Author: George Joseph
+  Date:   2025-05-02</p>
+<p>When DEBUG_THREADS is defined, lock.h uses strerror(), which is defined
+  in the libc string.h file, to print warning messages. If the including
+  source file doesn't include string.h then strerror() won't be found and
+  and compile errors will be thrown. Since lock.h depends on this, string.h
+  is now included from there if DEBUG_THREADS is defined.  This way, including
+  source files don't have to worry about it.</p>
+<h4>Alternate Channel Storage Backends</h4>
+<p>Author: George Joseph
+  Date:   2024-12-31</p>
+<p>Full details: http://s.asterisk.net/dc679ec3</p>
+<p>The previous proof-of-concept showed that the cpp_map_name_id alternate
+  storage backed performed better than all the others so this final PR
+  adds only that option.  You still need to enable it in menuselect under
+  the "Alternate Channel Storage Backends" category.</p>
+<p>To select which one is used at runtime, set the "channel_storage_backend"
+  option in asterisk.conf to one of the values described in
+  asterisk.conf.sample.  The default remains "ao2_legacy".</p>
+<p>UpgradeNote: With this release, you can now select an alternate channel
+  storage backend based on C++ Maps.  Using the new backend may increase
+  performance and reduce the chances of deadlocks on heavily loaded systems.
+  For more information, see http://s.asterisk.net/dc679ec3</p>
+</body></html>
