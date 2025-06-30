@@ -2,7 +2,6 @@
 	<member name="channelstorage_cpp_map_name_id"
 		displayname="Include the C++ Map Name/ID channelstorage backend. Requires a C++11 compiler."
 		remove_on_change="main/channelstorage_cpp_map_name_id.oo main/channelstorage_cpp_map_name_id.ii">
-		>
 		<support_level>core</support_level>
 		<depend>CXX11</depend>
 		<defaultenabled>no</defaultenabled>
