@@ -59,6 +59,12 @@ apps=dial,park
 ;  USER_DEFINED     -- Triggered from the dialplan, and has a name given by the
 ;                      user
 ;  LOCAL_OPTIMIZE   -- A local channel pair is optimizing away.
+;  STREAM_BEGIN     -- A stream started playing: it can be a standalone sound file
+;                      playing back, or a music-on-hold class started
+;  STREAM_END       -- A playing stream ended
+;  DTMF             -- A DTMF digit was processed: these events are dispatched at the
+;                      end, when the button is released and the duration is present in
+;                      the extra field
 ;
 ; Default value: none
 ;                (Track no events)
