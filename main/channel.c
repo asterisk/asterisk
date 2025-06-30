@@ -42,6 +42,7 @@
 #include "asterisk/mod_format.h"
 #include "asterisk/sched.h"
 #include "asterisk/channel.h"
+#include "asterisk/cel.h"
 #include "asterisk/musiconhold.h"
 #include "asterisk/say.h"
 #include "asterisk/file.h"
@@ -3336,34 +3337,45 @@ static const char *dtmf_direction_to_string(enum DtmfDirection direction)
 static void send_dtmf_begin_event(struct ast_channel *chan,
 	enum DtmfDirection direction, const char digit)
 {
-	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+	RAII_VAR(struct ast_json *, channel_blob, NULL, ast_json_unref);
 	char digit_str[] = { digit, '\0' };
 
-	blob = ast_json_pack("{ s: s, s: s }",
+	channel_blob = ast_json_pack("{ s: s, s: s }",
 		"digit", digit_str,
 		"direction", dtmf_direction_to_string(direction));
-	if (!blob) {
-		return;
-	}
 
-	ast_channel_publish_blob(chan, ast_channel_dtmf_begin_type(), blob);
+	if (channel_blob) {
+		ast_channel_publish_blob(chan, ast_channel_dtmf_begin_type(), channel_blob);
+	}
 }
 
 static void send_dtmf_end_event(struct ast_channel *chan,
 	enum DtmfDirection direction, const char digit, long duration_ms)
 {
-	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+	RAII_VAR(struct ast_json *, channel_blob, NULL, ast_json_unref);
+	RAII_VAR(struct ast_json *, cel_blob, NULL, ast_json_unref);
 	char digit_str[] = { digit, '\0' };
 
-	blob = ast_json_pack("{ s: s, s: s, s: I }",
+	channel_blob = ast_json_pack("{ s: s, s: s, s: I }",
 		"digit", digit_str,
 		"direction", dtmf_direction_to_string(direction),
 		"duration_ms", (ast_json_int_t)duration_ms);
-	if (!blob) {
-		return;
+
+	if (channel_blob) {
+		ast_channel_publish_blob(chan, ast_channel_dtmf_end_type(), channel_blob);
 	}
 
-	ast_channel_publish_blob(chan, ast_channel_dtmf_end_type(), blob);
+	cel_blob = ast_json_pack("{ s: s, s: { s: s, s: I }}",
+		"event", dtmf_direction_to_string(direction),
+		"extra",
+			"digit", digit_str,
+			"duration_ms", (ast_json_int_t)duration_ms);
+
+	if (cel_blob) {
+		ast_cel_publish_event(chan, AST_CEL_DTMF, cel_blob);
+	} else {
+		ast_log(LOG_WARNING, "Unable to build extradata for DTMF CEL event on channel %s", ast_channel_name(chan));
+	}
 }
 
 static void send_flash_event(struct ast_channel *chan)
