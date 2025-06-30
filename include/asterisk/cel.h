@@ -77,6 +77,12 @@ enum ast_cel_event_type {
 	AST_CEL_LOCAL_OPTIMIZE = 17,
 	/*! \brief A local channel optimization has begun */
 	AST_CEL_LOCAL_OPTIMIZE_BEGIN = 18,
+	/*! \brief A stream started */
+	AST_CEL_STREAM_BEGIN = 19,
+	/*! \brief A stream ended */
+	AST_CEL_STREAM_END = 20,
+	/*! \brief A DTMF digit was processed */
+	AST_CEL_DTMF = 21,
 };
 
 /*!
