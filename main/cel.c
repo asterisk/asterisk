@@ -118,6 +118,9 @@
 						<enum name="LINKEDID_END"/>
 						<enum name="LOCAL_OPTIMIZE"/>
 						<enum name="LOCAL_OPTIMIZE_BEGIN"/>
+						<enum name="STREAM_BEGIN"/>
+						<enum name="STREAM_END"/>
+						<enum name="DTMF"/>
 					</enumlist>
 					</description>
 				</configOption>
@@ -338,6 +341,9 @@ static const char * const cel_event_types[CEL_MAX_EVENT_IDS] = {
 	[AST_CEL_LINKEDID_END]     = "LINKEDID_END",
 	[AST_CEL_LOCAL_OPTIMIZE]   = "LOCAL_OPTIMIZE",
 	[AST_CEL_LOCAL_OPTIMIZE_BEGIN]   = "LOCAL_OPTIMIZE_BEGIN",
+	[AST_CEL_STREAM_BEGIN]     = "STREAM_BEGIN",
+	[AST_CEL_STREAM_END]       = "STREAM_END",
+	[AST_CEL_DTMF]             = "DTMF",
 };
 
 struct cel_backend {
@@ -849,12 +855,8 @@ int ast_cel_fill_record(const struct ast_event *e, struct ast_cel_event_record *
 	r->event_time.tv_usec = ast_event_get_ie_uint(e, AST_EVENT_IE_CEL_EVENT_TIME_USEC);
 
 	r->event_name = ast_cel_get_type_name(r->event_type);
-	if (r->event_type == AST_CEL_USER_DEFINED) {
-		r->user_defined_name = ast_event_get_ie_str(e, AST_EVENT_IE_CEL_USEREVENT_NAME);
-	} else {
-		r->user_defined_name = "";
-	}
 
+	r->user_defined_name= S_OR(ast_event_get_ie_str(e, AST_EVENT_IE_CEL_USEREVENT_NAME), "");
 	r->caller_id_name   = S_OR(ast_event_get_ie_str(e, AST_EVENT_IE_CEL_CIDNAME), "");
 	r->caller_id_num    = S_OR(ast_event_get_ie_str(e, AST_EVENT_IE_CEL_CIDNUM), "");
 	r->caller_id_ani    = S_OR(ast_event_get_ie_str(e, AST_EVENT_IE_CEL_CIDANI), "");
@@ -1282,11 +1284,20 @@ static void cel_generic_cb(
 
 	switch (event_type) {
 	case AST_CEL_USER_DEFINED:
+	case AST_CEL_DTMF:
+	case AST_CEL_STREAM_BEGIN:
 		{
 			const char *event = ast_json_string_get(ast_json_object_get(event_details, "event"));
 			struct ast_json *extra = ast_json_object_get(event_details, "extra");
 			cel_report_event(obj->snapshot, event_type, stasis_message_timestamp(message),
 				event, extra, NULL);
+			break;
+		}
+	case AST_CEL_STREAM_END:
+		{
+			const char *event = ast_json_string_get(ast_json_object_get(event_details, "event"));
+			cel_report_event(obj->snapshot, event_type, stasis_message_timestamp(message),
+				event, NULL, NULL);
 			break;
 		}
 	default:
