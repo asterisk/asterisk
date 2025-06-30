@@ -54,6 +54,7 @@
 #include "asterisk/lock.h"
 #include "asterisk/file.h"
 #include "asterisk/channel.h"
+#include "asterisk/cel.h"
 #include "asterisk/pbx.h"
 #include "asterisk/app.h"
 #include "asterisk/module.h"
@@ -253,9 +254,22 @@ static void moh_post_start(struct ast_channel *chan, const char *moh_class_name)
 {
 	struct stasis_message *message;
 	struct ast_json *json_object;
+	struct ast_json *cel_event;
 
 	ast_verb(3, "Started music on hold, class '%s', on channel '%s'\n",
 		moh_class_name, ast_channel_name(chan));
+
+	cel_event = ast_json_pack("{ s: s, s: {s: s }}",
+		"event", "MOH_STREAM_BEGIN",
+		"extra",
+			"class", moh_class_name
+	);
+	if (cel_event) {
+		ast_cel_publish_event(chan, AST_CEL_STREAM_BEGIN, cel_event);
+	} else {
+		ast_log(LOG_WARNING, "Unable to build extradata for music on hold STREAM_BEGIN event on channel %s", ast_channel_name(chan));
+	}
+	ast_json_unref(cel_event);
 
 	json_object = ast_json_pack("{s: s}", "class", moh_class_name);
 	if (!json_object) {
@@ -277,8 +291,15 @@ static void moh_post_start(struct ast_channel *chan, const char *moh_class_name)
 static void moh_post_stop(struct ast_channel *chan)
 {
 	struct stasis_message *message;
+	struct ast_json *cel_event;
 
 	ast_verb(3, "Stopped music on hold on %s\n", ast_channel_name(chan));
+
+	cel_event = ast_json_pack("{ s: s }", "event", "MOH_STREAM_END");
+	if (cel_event) {
+		ast_cel_publish_event(chan, AST_CEL_STREAM_END, cel_event);
+	}
+	ast_json_unref(cel_event);
 
 	message = ast_channel_blob_create_from_cache(ast_channel_uniqueid(chan),
 		ast_channel_moh_stop_type(), NULL);
