@@ -476,6 +476,7 @@ static int process_text_message(struct websocket_pvt *instance,
 		while ((frame = AST_LIST_REMOVE_HEAD(&instance->frame_queue, frame_list))) {
 			ast_frfree(frame);
 		}
+		instance->frame_queue_length = 0;
 		instance->bulk_media_in_progress = 0;
 		instance->leftover_len = 0;
 		AST_LIST_UNLOCK(&instance->frame_queue);
