@@ -1239,51 +1239,6 @@ static int contact_user_to_str(const void *obj, const intptr_t *args, char **buf
 	return 0;
 }
 
-static int call_offer_pref_handler(const struct aco_option *opt,
-	struct ast_variable *var, void *obj)
-{
-	struct ast_sip_endpoint *endpoint = obj;
-	struct ast_flags pref = { 0, };
-	int outgoing = strcmp(var->name, "outgoing_call_offer_pref") == 0;
-
-	int res = ast_sip_call_codec_str_to_pref(&pref, var->value, outgoing);
-	if (res != 0) {
-		return -1;
-	}
-
-	if (outgoing) {
-		endpoint->media.outgoing_call_offer_pref = pref;
-	} else {
-		endpoint->media.incoming_call_offer_pref = pref;
-	}
-
-	return 0;
-}
-
-static int incoming_call_offer_pref_to_str(const void *obj, const intptr_t *args, char **buf)
-{
-	const struct ast_sip_endpoint *endpoint = obj;
-
-	*buf = ast_strdup(ast_sip_call_codec_pref_to_str(endpoint->media.incoming_call_offer_pref));
-	if (!(*buf)) {
-		return -1;
-	}
-
-	return 0;
-}
-
-static int outgoing_call_offer_pref_to_str(const void *obj, const intptr_t *args, char **buf)
-{
-	const struct ast_sip_endpoint *endpoint = obj;
-
-	*buf = ast_strdup(ast_sip_call_codec_pref_to_str(endpoint->media.outgoing_call_offer_pref));
-	if (!(*buf)) {
-		return -1;
-	}
-
-	return 0;
-}
-
 static int codec_prefs_handler(const struct aco_option *opt,
 	struct ast_variable *var, void *obj)
 {
@@ -1578,16 +1533,6 @@ static int sip_endpoint_apply_handler(const struct ast_sorcery *sorcery, void *o
 
 	if (ast_rtp_dtls_cfg_validate(&endpoint->media.rtp.dtls_cfg)) {
 		return -1;
-	}
-
-	if (endpoint->preferred_codec_only) {
-		if (endpoint->media.incoming_call_offer_pref.flags != (AST_SIP_CALL_CODEC_PREF_LOCAL | AST_SIP_CALL_CODEC_PREF_INTERSECT | AST_SIP_CALL_CODEC_PREF_ALL)) {
-			ast_log(LOG_ERROR, "Setting both preferred_codec_only and incoming_call_offer_pref is not supported on endpoint '%s'\n",
-				ast_sorcery_object_get_id(endpoint));
-			return -1;
-		}
-		ast_clear_flag(&endpoint->media.incoming_call_offer_pref, AST_SIP_CALL_CODEC_PREF_ALL);
-		ast_set_flag(&endpoint->media.incoming_call_offer_pref, AST_SIP_CALL_CODEC_PREF_FIRST);
 	}
 
 	endpoint->media.topology = ast_stream_topology_create_from_format_cap(endpoint->media.codecs);
@@ -2280,10 +2225,6 @@ int ast_res_pjsip_initialize_configuration(void)
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "accept_multiple_sdp_answers", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, media.rtp.accept_multiple_sdp_answers));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "suppress_q850_reason_headers", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, suppress_q850_reason_headers));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "ignore_183_without_sdp", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, ignore_183_without_sdp));
-	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "incoming_call_offer_pref", "local",
-		call_offer_pref_handler, incoming_call_offer_pref_to_str, NULL, 0, 0);
-	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "outgoing_call_offer_pref", "remote_merge",
-		call_offer_pref_handler, outgoing_call_offer_pref_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "codec_prefs_incoming_offer",
 		"prefer: pending, operation: intersect, keep: all, transcode: allow",
 		codec_prefs_handler, incoming_offer_codec_prefs_to_str, NULL, 0, 0);
