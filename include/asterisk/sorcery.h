@@ -1623,6 +1623,24 @@ int ast_sorcery_is_object_field_registered(const struct ast_sorcery_object_type 
  */
 const char *ast_sorcery_get_module(const struct ast_sorcery *sorcery);
 
+/**
+ * \brief Global control for optional update->create fallback in backends.
+ *
+ * When non-zero, writable Sorcery backends may attempt to call create()
+ * if update() indicates the object is missing (e.g., 0 rows affected or
+ * NOT_FOUND). This helps re-populate backends that temporarily missed an
+ * insert.
+ *
+ * Default is 0 (off) to maintain legacy behavior.
+ *
+ * Configured via sorcery.conf:
+ *   [general]
+ *   update_or_create_on_update_miss = yes|no
+ *
+ * NOTE: Backends MUST gate their fallback logic on this variable.
+ */
+extern int ast_sorcery_update_or_create_on_update_miss;
+
 /*!
  * \section AstSorceryConvenienceMacros Simple Sorcery Convenience Macros
  *
