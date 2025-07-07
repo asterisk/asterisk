@@ -1,5 +1,16 @@
 ; Sample configuration file for Sorcery Data Access Layer
 
+[general]
+
+; When true, writable Sorcery backends may attempt to insert the object
+; if the object is missing.
+; This helps re-populate missing backends when using multiple writable mappings
+; (e.g., AstDB + Realtime) if a backend was temporarily unavailable.
+; NOTE: This is best-effort and does not guarantee atomicity across backends.
+; Default: no (preserves legacy behavior).
+;
+;update_or_create_on_update_miss = no
+
 ;
 ; Wizards
 ;
