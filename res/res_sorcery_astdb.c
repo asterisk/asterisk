@@ -373,7 +373,7 @@ static int sorcery_astdb_update(const struct ast_sorcery *sorcery, void *data, v
 	snprintf(family, sizeof(family), "%s/%s", prefix, ast_sorcery_object_get_type(object));
 
 	/* It is okay for the value to be truncated, we are only checking that it exists */
-	if (ast_db_get(family, ast_sorcery_object_get_id(object), value, sizeof(value))) {
+	if (ast_db_get(family, ast_sorcery_object_get_id(object), value, sizeof(value)) && !ast_sorcery_update_or_create_on_update_miss) {
 		return -1;
 	}
 

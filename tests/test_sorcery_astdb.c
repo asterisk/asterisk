@@ -511,8 +511,15 @@ AST_TEST_DEFINE(object_update_uncreated)
 		return AST_TEST_FAIL;
 	}
 
+	ast_sorcery_update_or_create_on_update_miss = 0;
 	if (!ast_sorcery_update(sorcery, obj)) {
 		ast_test_status_update(test, "Successfully updated an object which has not been created yet\n");
+		return AST_TEST_FAIL;
+	}
+
+	ast_sorcery_update_or_create_on_update_miss = 1;
+	if (ast_sorcery_update(sorcery, obj)) {
+		ast_test_status_update(test, "Failed to create object when update() finds no object in a backend\n");
 		return AST_TEST_FAIL;
 	}
 
