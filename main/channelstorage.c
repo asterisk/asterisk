@@ -52,7 +52,7 @@ struct ast_channelstorage_instance *ast_channelstorage_open(
 {
 	struct ast_channelstorage_instance *storage_instance = NULL;
 
-	storage_instance = storage_driver->open(instance_name);
+	storage_instance = storage_driver->open_instance(instance_name);
 	if (!storage_instance) {
 		ast_log(LOG_ERROR, "Failed to open channel storage driver '%s'\n",
 			storage_driver->driver_name);
@@ -64,7 +64,7 @@ struct ast_channelstorage_instance *ast_channelstorage_open(
 
 void ast_channelstorage_close(struct ast_channelstorage_instance *storage_instance)
 {
-	CHANNELSTORAGE_API(storage_instance, close);
+	CHANNELSTORAGE_API(storage_instance, close_instance);
 };
 
 int channelstorage_exten_cb(void *obj, void *arg, void *data, int flags)
