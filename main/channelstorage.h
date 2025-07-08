@@ -31,7 +31,7 @@ extern "C" {
 
 struct ast_channelstorage_driver {
 	const char *driver_name;
-	struct ast_channelstorage_instance* (*open)(const char *instance_name);
+	struct ast_channelstorage_instance* (*open_instance)(const char *instance_name);
 };
 
 int ast_channelstorage_register_driver(
@@ -45,7 +45,7 @@ struct ast_channelstorage_driver_pvt;
 struct ast_channelstorage_instance {
 	struct ast_channelstorage_driver_pvt *handle;
 	void *lock_handle;
-	void (*close)(struct ast_channelstorage_instance *driver);
+	void (*close_instance)(struct ast_channelstorage_instance *driver);
 	int (*insert)(struct ast_channelstorage_instance *driver, struct ast_channel *chan, int flags, int lock);
 	int (*remove)(struct ast_channelstorage_instance *driver, struct ast_channel *chan, int lock);
 	void (*rdlock)(struct ast_channelstorage_instance *driver);
