@@ -1316,8 +1316,7 @@
 			signals a desire to stop (either by exiting or, in the case of a net script, by
 			closing the connection).</para>
 			<para>A locally executed AGI script will receive <literal>SIGHUP</literal> on
-			hangup from the channel except when using <literal>DeadAGI</literal>
-			(or when the channel is already hungup). A fast AGI server will
+			hangup from the channel, except when it is already hung up. A fast AGI server will
 			correspondingly receive a <literal>HANGUP</literal> inline with the command dialog.
 			Both of these signals may be disabled by setting the <variable>AGISIGHUP</variable>
 			channel variable to <literal>no</literal> before executing the AGI application.
@@ -1354,7 +1353,6 @@
 			<ref type="managerEvent">AsyncAGIStart</ref>
 			<ref type="managerEvent">AsyncAGIEnd</ref>
 			<ref type="application">EAGI</ref>
-			<ref type="application">DeadAGI</ref>
 			<ref type="filename">asterisk.conf</ref>
 		</see-also>
 	</application>
@@ -1379,36 +1377,6 @@
 		</description>
 		<see-also>
 			<ref type="application">AGI</ref>
-			<ref type="application">DeadAGI</ref>
-		</see-also>
-	</application>
-	<application name="DeadAGI" language="en_US">
-		<since>
-			<version>1.0.0</version>
-		</since>
-		<synopsis>
-			Executes AGI on a hungup channel.
-		</synopsis>
-		<syntax>
-			<xi:include xpointer="xpointer(/docs/application[@name='AGI']/syntax/parameter[@name='command'])" />
-			<xi:include xpointer="xpointer(/docs/application[@name='AGI']/syntax/parameter[@name='args'])" />
-		</syntax>
-		<description>
-			<warning>
-				<para>This application is deprecated and may be removed in a future version
-				of Asterisk. Use the replacement application <literal>AGI</literal> instead
-				of <literal>DeadAGI</literal>.
-				</para>
-			</warning>
-			<para>Execute AGI on a 'dead' or hungup channel. See the documentation for the
-			<literal>AGI</literal> dialplan application for more information on invoking
-			AGI on a channel.</para>
-			<para>This application sets the following channel variable upon completion:</para>
-			<xi:include xpointer="xpointer(/docs/application[@name='AGI']/description/variablelist)" />
-		</description>
-		<see-also>
-			<ref type="application">AGI</ref>
-			<ref type="application">EAGI</ref>
 		</see-also>
 	</application>
 	<manager name="AGI" language="en_US">
@@ -1554,8 +1522,6 @@
 static char *app = "AGI";
 
 static char *eapp = "EAGI";
-
-static char *deadapp = "DeadAGI";
 
 static int agidebug = 0;
 
@@ -4338,7 +4304,7 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 	const char *sighup_str;
 	const char *exit_on_hangup_str;
 	int exit_on_hangup;
-	/*! Running in an interception routine is like DeadAGI mode.  No touchy the channel frames. */
+	/*! Running in an interception routine is like when channel is hung up.  No touchy the channel frames. */
 	int in_intercept = ast_channel_get_intercept_mode();
 
 	ast_channel_lock(chan);
@@ -4816,12 +4782,6 @@ static int eagi_exec(struct ast_channel *chan, const char *data)
 	return res;
 }
 
-static int deadagi_exec(struct ast_channel *chan, const char *data)
-{
-	ast_log(LOG_WARNING, "DeadAGI has been deprecated, please use AGI in all cases!\n");
-	return agi_exec(chan, data);
-}
-
 static struct ast_cli_entry cli_agi[] = {
 	AST_CLI_DEFINE(handle_cli_agi_add_cmd,   "Add AGI command to a channel in Async AGI"),
 	AST_CLI_DEFINE(handle_cli_agi_debug,     "Enable/Disable AGI debugging"),
@@ -4880,7 +4840,6 @@ static int unload_module(void)
 	ast_cli_unregister_multiple(cli_agi, ARRAY_LEN(cli_agi));
 	ast_agi_unregister_multiple(commands, ARRAY_LEN(commands));
 	ast_unregister_application(eapp);
-	ast_unregister_application(deadapp);
 	ast_manager_unregister("AGI");
 	ast_unregister_application(app);
 	AST_TEST_UNREGISTER(test_agi_null_docs);
@@ -4899,7 +4858,6 @@ static int load_module(void)
 
 	err |= ast_cli_register_multiple(cli_agi, ARRAY_LEN(cli_agi));
 	err |= ast_agi_register_multiple(ast_module_info->self, commands, ARRAY_LEN(commands));
-	err |= ast_register_application_xml(deadapp, deadagi_exec);
 	err |= ast_register_application_xml(eapp, eagi_exec);
 	err |= ast_manager_register_xml("AGI", EVENT_FLAG_AGI, action_add_agi_cmd);
 	err |= ast_register_application_xml(app, agi_exec);
