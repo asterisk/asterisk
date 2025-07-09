@@ -36,16 +36,12 @@
  * \ref amiconf
  */
 
-/*! \li \ref manager.c uses the configuration file \ref manager.conf and \ref users.conf
+/*! \li \ref manager.c uses the configuration file \ref manager.conf
  * \addtogroup configuration_file
  */
 
 /*! \page manager.conf manager.conf
  * \verbinclude manager.conf.sample
- */
-
-/*! \page users.conf users.conf
- * \verbinclude users.conf.sample
  */
 
 /*** MODULEINFO
@@ -9645,7 +9641,7 @@ static void manager_set_defaults(void)
 
 static int __init_manager(int reload, int by_external_config)
 {
-	struct ast_config *ucfg = NULL, *cfg = NULL;
+	struct ast_config *cfg = NULL;
 	const char *val;
 	char *cat = NULL;
 	int newhttptimeout = 60;
@@ -9879,100 +9875,6 @@ static int __init_manager(int reload, int by_external_config)
 	}
 
 	AST_RWLIST_WRLOCK(&users);
-
-	/* First, get users from users.conf */
-	ucfg = ast_config_load2("users.conf", "manager", config_flags);
-	if (ucfg && (ucfg != CONFIG_STATUS_FILEUNCHANGED) && ucfg != CONFIG_STATUS_FILEINVALID) {
-		const char *hasmanager;
-		int genhasmanager = ast_true(ast_variable_retrieve(ucfg, "general", "hasmanager"));
-
-		while ((cat = ast_category_browse(ucfg, cat))) {
-			if (!strcasecmp(cat, "general")) {
-				continue;
-			}
-
-			hasmanager = ast_variable_retrieve(ucfg, cat, "hasmanager");
-			if ((!hasmanager && genhasmanager) || ast_true(hasmanager)) {
-				const char *user_secret = ast_variable_retrieve(ucfg, cat, "secret");
-				const char *user_read = ast_variable_retrieve(ucfg, cat, "read");
-				const char *user_write = ast_variable_retrieve(ucfg, cat, "write");
-				const char *user_displayconnects = ast_variable_retrieve(ucfg, cat, "displayconnects");
-				const char *user_allowmultiplelogin = ast_variable_retrieve(ucfg, cat, "allowmultiplelogin");
-				const char *user_writetimeout = ast_variable_retrieve(ucfg, cat, "writetimeout");
-
-				/* Look for an existing entry,
-				 * if none found - create one and add it to the list
-				 */
-				if (!(user = get_manager_by_name_locked(cat))) {
-					if (!(user = ast_calloc(1, sizeof(*user)))) {
-						break;
-					}
-
-					/* Copy name over */
-					ast_copy_string(user->username, cat, sizeof(user->username));
-					/* Insert into list */
-					AST_LIST_INSERT_TAIL(&users, user, list);
-					user->acl = NULL;
-					user->keep = 1;
-					user->readperm = -1;
-					user->writeperm = -1;
-					/* Default displayconnect from [general] */
-					user->displayconnects = displayconnects;
-					/* Default allowmultiplelogin from [general] */
-					user->allowmultiplelogin = allowmultiplelogin;
-					user->writetimeout = 100;
-				}
-
-				if (!user_secret) {
-					user_secret = ast_variable_retrieve(ucfg, "general", "secret");
-				}
-				if (!user_read) {
-					user_read = ast_variable_retrieve(ucfg, "general", "read");
-				}
-				if (!user_write) {
-					user_write = ast_variable_retrieve(ucfg, "general", "write");
-				}
-				if (!user_displayconnects) {
-					user_displayconnects = ast_variable_retrieve(ucfg, "general", "displayconnects");
-				}
-				if (!user_allowmultiplelogin) {
-					user_allowmultiplelogin = ast_variable_retrieve(ucfg, "general", "allowmultiplelogin");
-				}
-				if (!user_writetimeout) {
-					user_writetimeout = ast_variable_retrieve(ucfg, "general", "writetimeout");
-				}
-
-				if (!ast_strlen_zero(user_secret)) {
-					ast_free(user->secret);
-					user->secret = ast_strdup(user_secret);
-				}
-
-				if (user_read) {
-					user->readperm = get_perm(user_read);
-				}
-				if (user_write) {
-					user->writeperm = get_perm(user_write);
-				}
-				if (user_displayconnects) {
-					user->displayconnects = ast_true(user_displayconnects);
-				}
-				if (user_allowmultiplelogin) {
-					user->allowmultiplelogin = ast_true(user_allowmultiplelogin);
-				}
-				if (user_writetimeout) {
-					int value = atoi(user_writetimeout);
-					if (value < 100) {
-						ast_log(LOG_WARNING, "Invalid writetimeout value '%d' in users.conf\n", value);
-					} else {
-						user->writetimeout = value;
-					}
-				}
-			}
-		}
-		ast_config_destroy(ucfg);
-	}
-
-	/* cat is NULL here in any case */
 
 	while ((cat = ast_category_browse(cfg, cat))) {
 		struct ast_acl_list *oldacl;

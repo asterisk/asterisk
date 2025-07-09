@@ -110,8 +110,6 @@ static int clearglobalvars_config = 0;
 static int extenpatternmatchnew_config = 0;
 static char *overrideswitch_config = NULL;
 
-static struct stasis_subscription *fully_booted_subscription;
-
 AST_MUTEX_DEFINE_STATIC(save_dialplan_lock);
 
 AST_MUTEX_DEFINE_STATIC(reload_lock);
@@ -1641,8 +1639,6 @@ static int unload_module(void)
 	ast_manager_unregister(AMI_EXTENSION_REMOVE);
 	ast_context_destroy(NULL, registrar);
 
-	stasis_unsubscribe_and_join(fully_booted_subscription);
-
 	return 0;
 }
 
@@ -1972,143 +1968,6 @@ process_extension:
 	return 1;
 }
 
-static void append_interface(char *iface, int maxlen, char *add)
-{
-	int len = strlen(iface);
-	if (strlen(add) + len < maxlen - 2) {
-		if (strlen(iface)) {
-			iface[len] = '&';
-			strcpy(iface + len + 1, add);
-		} else
-			strcpy(iface, add);
-	}
-}
-
-static void startup_event_cb(void *data, struct stasis_subscription *sub, struct stasis_message *message)
-{
-	struct ast_json_payload *payload;
-	const char *type;
-
-	if (stasis_message_type(message) != ast_manager_get_generic_type()) {
-		return;
-	}
-
-	payload = stasis_message_data(message);
-	type = ast_json_string_get(ast_json_object_get(payload->json, "type"));
-
-	if (strcmp(type, "FullyBooted")) {
-		return;
-	}
-
-	ast_log(LOG_WARNING, "users.conf is deprecated and will be removed in a future version of Asterisk\n");
-
-	fully_booted_subscription = stasis_unsubscribe(fully_booted_subscription);
-}
-
-static void pbx_load_users(void)
-{
-	struct ast_config *cfg;
-	char *cat, *chan;
-	const char *dahdichan;
-	const char *hasexten, *altexts;
-	char tmp[256];
-	char iface[256];
-	char dahdicopy[256];
-	char *ext, altcopy[256];
-	char *c;
-	int hasvoicemail;
-	int start, finish, x;
-	struct ast_context *con = NULL;
-	struct ast_flags config_flags = { 0 };
-
-	cfg = ast_config_load("users.conf", config_flags);
-	if (!cfg)
-		return;
-
-	/*! \todo Remove users.conf support in Asterisk 23 */
-	fully_booted_subscription =
-		stasis_subscribe_pool(ast_manager_get_topic(), startup_event_cb, NULL);
-
-	for (cat = ast_category_browse(cfg, NULL); cat ; cat = ast_category_browse(cfg, cat)) {
-		if (!strcasecmp(cat, "general"))
-			continue;
-		iface[0] = '\0';
-		if (ast_true(ast_config_option(cfg, cat, "hasiax"))) {
-			snprintf(tmp, sizeof(tmp), "IAX2/%s", cat);
-			append_interface(iface, sizeof(iface), tmp);
-		}
-		if (ast_true(ast_config_option(cfg, cat, "hash323"))) {
-			snprintf(tmp, sizeof(tmp), "H323/%s", cat);
-			append_interface(iface, sizeof(iface), tmp);
-		}
-		hasexten = ast_config_option(cfg, cat, "hasexten");
-		if (hasexten && !ast_true(hasexten))
-			continue;
-		hasvoicemail = ast_true(ast_config_option(cfg, cat, "hasvoicemail"));
-		dahdichan = ast_variable_retrieve(cfg, cat, "dahdichan");
-		if (!dahdichan)
-			dahdichan = ast_variable_retrieve(cfg, "general", "dahdichan");
-		if (!ast_strlen_zero(dahdichan)) {
-			ast_copy_string(dahdicopy, dahdichan, sizeof(dahdicopy));
-			c = dahdicopy;
-			chan = strsep(&c, ",");
-			while (chan) {
-				if (sscanf(chan, "%30d-%30d", &start, &finish) == 2) {
-					/* Range */
-				} else if (sscanf(chan, "%30d", &start)) {
-					/* Just one */
-					finish = start;
-				} else {
-					start = 0; finish = 0;
-				}
-				if (finish < start) {
-					x = finish;
-					finish = start;
-					start = x;
-				}
-				for (x = start; x <= finish; x++) {
-					snprintf(tmp, sizeof(tmp), "DAHDI/%d", x);
-					append_interface(iface, sizeof(iface), tmp);
-				}
-				chan = strsep(&c, ",");
-			}
-		}
-		if (!ast_strlen_zero(iface)) {
-			/* Only create a context here when it is really needed. Otherwise default empty context
-			created by pbx_config may conflict with the one explicitly created by pbx_ael */
-			if (!con)
-				con = ast_context_find_or_create(&local_contexts, local_table, userscontext, registrar);
-
-			if (!con) {
-				ast_log(LOG_ERROR, "Can't find/create user context '%s'\n", userscontext);
-				return;
-			}
-
-			/* Add hint */
-			ast_add_extension2(con, 0, cat, -1, NULL, NULL, iface, NULL, NULL, registrar, NULL, 0);
-			/* If voicemail, use "stdexten" else use plain old dial */
-			if (hasvoicemail) {
-				snprintf(tmp, sizeof(tmp), "%s,stdexten(${HINT})", cat);
-				ast_add_extension2(con, 0, cat, 1, NULL, NULL, "Gosub", ast_strdup(tmp), ast_free_ptr, registrar, NULL, 0);
-			} else {
-				ast_add_extension2(con, 0, cat, 1, NULL, NULL, "Dial", ast_strdup("${HINT}"), ast_free_ptr, registrar, NULL, 0);
-			}
-			altexts = ast_variable_retrieve(cfg, cat, "alternateexts");
-			if (!ast_strlen_zero(altexts)) {
-				snprintf(tmp, sizeof(tmp), "%s,1", cat);
-				ast_copy_string(altcopy, altexts, sizeof(altcopy));
-				c = altcopy;
-				ext = strsep(&c, ",");
-				while (ext) {
-					ast_add_extension2(con, 0, ext, 1, NULL, NULL, "Goto", ast_strdup(tmp), ast_free_ptr, registrar, NULL, 0);
-					ext = strsep(&c, ",");
-				}
-			}
-		}
-	}
-	ast_config_destroy(cfg);
-}
-
 static int pbx_load_module(void)
 {
 	struct ast_context *con;
@@ -2129,8 +1988,6 @@ static int pbx_load_module(void)
 		ast_mutex_unlock(&reload_lock);
 		return AST_MODULE_LOAD_DECLINE;
 	}
-
-	pbx_load_users();
 
 	ast_merge_contexts_and_delete(&local_contexts, local_table, registrar);
 	local_table = NULL; /* the local table has been moved into the global one. */

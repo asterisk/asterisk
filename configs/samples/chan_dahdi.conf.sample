@@ -1777,7 +1777,7 @@ pickupgroup=1
 ; ~~~~~~~~~~~~~~~~~~~~~~
 ; You can also configure channels in a separate chan_dahdi.conf section. In
 ; this case the keyword 'channel' is not used. Instead the keyword
-; 'dahdichan' is used (as in users.conf) - configuration is only processed
+; 'dahdichan' is used - configuration is only processed
 ; in a section where the keyword dahdichan is used. It will only be
 ; processed in the end of the section. Thus the following section:
 ;
@@ -1795,8 +1795,7 @@ pickupgroup=1
 ;
 ; When starting a new section almost all of the configuration values are
 ; copied from their values at the end of the section [channels] in
-; chan_dahdi.conf and [general] in users.conf - one section's configuration
-; does not affect another one's.
+; chan_dahdi.conf - one section's configuration does not affect another one's.
 ;
 ; Instead of letting common configuration values "slide through" you can
 ; use configuration templates to easily keep the common part in one

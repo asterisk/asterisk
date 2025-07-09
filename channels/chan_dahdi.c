@@ -18676,19 +18676,6 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 			ast_copy_string(confp->chan.mailbox, v->value, sizeof(confp->chan.mailbox));
 		} else if (!strcasecmp(v->name, "description")) {
 			ast_copy_string(confp->chan.description, v->value, sizeof(confp->chan.description));
-		} else if (!strcasecmp(v->name, "hasvoicemail")) {
-			if (ast_true(v->value) && ast_strlen_zero(confp->chan.mailbox)) {
-				/*
-				 * hasvoicemail is a users.conf legacy voicemail enable method.
-				 * hasvoicemail is only going to work for app_voicemail mailboxes.
-				 */
-				if (strchr(cat, '@')) {
-					ast_copy_string(confp->chan.mailbox, cat, sizeof(confp->chan.mailbox));
-				} else {
-					snprintf(confp->chan.mailbox, sizeof(confp->chan.mailbox),
-						"%s@default", cat);
-				}
-			}
 		} else if (!strcasecmp(v->name, "adsi")) {
 			confp->chan.adsi = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "usesmdi")) {
@@ -20062,7 +20049,7 @@ static void deep_copy_dahdi_chan_conf(struct dahdi_chan_conf *dest, const struct
 static int setup_dahdi_int(int reload, struct dahdi_chan_conf *default_conf, struct dahdi_chan_conf *base_conf, struct dahdi_chan_conf *conf)
 {
 	struct ast_config *cfg;
-	struct ast_config *ucfg;
+	struct ast_config;
 	struct ast_variable *v;
 	struct ast_flags config_flags = { reload == 1 ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 	const char *chans;
@@ -20092,25 +20079,7 @@ static int setup_dahdi_int(int reload, struct dahdi_chan_conf *default_conf, str
 		if (!cfg) {
 			return 0;
 		}
-		ucfg = ast_config_load("users.conf", config_flags);
-		if (ucfg == CONFIG_STATUS_FILEUNCHANGED) {
-			ast_config_destroy(cfg);
-			return 0;
-		}
-		if (ucfg == CONFIG_STATUS_FILEINVALID) {
-			ast_log(LOG_ERROR, "File users.conf cannot be parsed.  Aborting.\n");
-			ast_config_destroy(cfg);
-			return 0;
-		}
 	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED) {
-		ucfg = ast_config_load("users.conf", config_flags);
-		if (ucfg == CONFIG_STATUS_FILEUNCHANGED) {
-			return 0;
-		}
-		if (ucfg == CONFIG_STATUS_FILEINVALID) {
-			ast_log(LOG_ERROR, "File users.conf cannot be parsed.  Aborting.\n");
-			return 0;
-		}
 		ast_clear_flag(&config_flags, CONFIG_FLAG_FILEUNCHANGED);
 		cfg = ast_config_load(config, config_flags);
 		have_cfg_now = !!cfg;
@@ -20118,17 +20087,14 @@ static int setup_dahdi_int(int reload, struct dahdi_chan_conf *default_conf, str
 			if (had_cfg_before) {
 				/* We should have been able to load the config. */
 				ast_log(LOG_ERROR, "Bad. Unable to load config %s\n", config);
-				ast_config_destroy(ucfg);
 				return 0;
 			}
 			cfg = ast_config_new();/* Dummy config */
 			if (!cfg) {
-				ast_config_destroy(ucfg);
 				return 0;
 			}
 		} else if (cfg == CONFIG_STATUS_FILEINVALID) {
 			ast_log(LOG_ERROR, "File %s cannot be parsed.  Aborting.\n", config);
-			ast_config_destroy(ucfg);
 			return 0;
 		}
 	} else if (cfg == CONFIG_STATUS_FILEINVALID) {
@@ -20136,12 +20102,6 @@ static int setup_dahdi_int(int reload, struct dahdi_chan_conf *default_conf, str
 		return 0;
 	} else {
 		ast_clear_flag(&config_flags, CONFIG_FLAG_FILEUNCHANGED);
-		ucfg = ast_config_load("users.conf", config_flags);
-		if (ucfg == CONFIG_STATUS_FILEINVALID) {
-			ast_log(LOG_ERROR, "File users.conf cannot be parsed.  Aborting.\n");
-			ast_config_destroy(cfg);
-			return 0;
-		}
 	}
 	had_cfg_before = have_cfg_now;
 
@@ -20219,9 +20179,6 @@ static int setup_dahdi_int(int reload, struct dahdi_chan_conf *default_conf, str
 		v, reload, 0))) {
 		ast_mutex_unlock(&iflock);
 		ast_config_destroy(cfg);
-		if (ucfg) {
-			ast_config_destroy(ucfg);
-		}
 		return res;
 	}
 
@@ -20249,44 +20206,11 @@ static int setup_dahdi_int(int reload, struct dahdi_chan_conf *default_conf, str
 		if ((res = process_dahdi(conf, cat, ast_variable_browse(cfg, cat), reload, PROC_DAHDI_OPT_NOCHAN))) {
 			ast_mutex_unlock(&iflock);
 			ast_config_destroy(cfg);
-			if (ucfg) {
-				ast_config_destroy(ucfg);
-			}
 			return res;
 		}
 	}
 
 	ast_config_destroy(cfg);
-
-	if (ucfg) {
-		/* Reset base_conf, so things don't leak from chan_dahdi.conf */
-		deep_copy_dahdi_chan_conf(base_conf, default_conf);
-		process_dahdi(base_conf,
-			"" /* Must be empty for the general category.  Silly voicemail mailbox. */,
-			ast_variable_browse(ucfg, "general"), 1, 0);
-
-		for (cat = ast_category_browse(ucfg, NULL); cat ; cat = ast_category_browse(ucfg, cat)) {
-			if (!strcasecmp(cat, "general")) {
-				continue;
-			}
-
-			chans = ast_variable_retrieve(ucfg, cat, "dahdichan");
-			if (ast_strlen_zero(chans)) {
-				/* Section is useless without a dahdichan value present. */
-				continue;
-			}
-
-			/* Copy base_conf to conf. */
-			deep_copy_dahdi_chan_conf(conf, base_conf);
-
-			if ((res = process_dahdi(conf, cat, ast_variable_browse(ucfg, cat), reload, PROC_DAHDI_OPT_NOCHAN | PROC_DAHDI_OPT_NOWARN))) {
-				ast_config_destroy(ucfg);
-				ast_mutex_unlock(&iflock);
-				return res;
-			}
-		}
-		ast_config_destroy(ucfg);
-	}
 	ast_mutex_unlock(&iflock);
 
 #ifdef HAVE_PRI

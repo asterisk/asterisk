@@ -13083,18 +13083,6 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 				ast_string_field_set(peer, secret, v->value);
 			} else if (!strcasecmp(v->name, "mailbox")) {
 				ast_string_field_set(peer, mailbox, v->value);
-			} else if (!strcasecmp(v->name, "hasvoicemail")) {
-				if (ast_true(v->value) && ast_strlen_zero(peer->mailbox)) {
-					/*
-					 * hasvoicemail is a users.conf legacy voicemail enable method.
-					 * hasvoicemail is only going to work for app_voicemail mailboxes.
-					 */
-					if (strchr(name, '@')) {
-						ast_string_field_set(peer, mailbox, name);
-					} else {
-						ast_string_field_build(peer, mailbox, "%s@default", name);
-					}
-				}
 			} else if (!strcasecmp(v->name, "mohinterpret")) {
 				ast_string_field_set(peer, mohinterpret, v->value);
 			} else if (!strcasecmp(v->name, "mohsuggest")) {
@@ -13695,7 +13683,7 @@ static void set_config_destroy(void)
 /*! \brief Load configuration */
 static int set_config(const char *config_file, int reload, int forced)
 {
-	struct ast_config *cfg, *ucfg;
+	struct ast_config *cfg;
 	iax2_format capability;
 	struct ast_variable *v;
 	char *cat;
@@ -13719,14 +13707,9 @@ static int set_config(const char *config_file, int reload, int forced)
 		ast_log(LOG_ERROR, "Unable to load config %s\n", config_file);
 		return -1;
 	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED) {
-		ucfg = ast_config_load("users.conf", config_flags);
-		if (ucfg == CONFIG_STATUS_FILEUNCHANGED)
-			return 0;
-		/* Otherwise we need to reread both files */
 		ast_clear_flag(&config_flags, CONFIG_FLAG_FILEUNCHANGED);
 		if ((cfg = ast_config_load(config_file, config_flags)) == CONFIG_STATUS_FILEINVALID) {
 			ast_log(LOG_ERROR, "Config file %s is in an invalid format.  Aborting.\n", config_file);
-			ast_config_destroy(ucfg);
 			return 0;
 		}
 		if (!cfg) {
@@ -13737,13 +13720,8 @@ static int set_config(const char *config_file, int reload, int forced)
 	} else if (cfg == CONFIG_STATUS_FILEINVALID) {
 		ast_log(LOG_ERROR, "Config file %s is in an invalid format.  Aborting.\n", config_file);
 		return 0;
-	} else { /* iax.conf changed, gotta reread users.conf, too */
+	} else { /* iax.conf changed */
 		ast_clear_flag(&config_flags, CONFIG_FLAG_FILEUNCHANGED);
-		if ((ucfg = ast_config_load("users.conf", config_flags)) == CONFIG_STATUS_FILEINVALID) {
-			ast_log(LOG_ERROR, "Config file users.conf is in an invalid format.  Aborting.\n");
-			ast_config_destroy(cfg);
-			return 0;
-		}
 	}
 
 	if (reload) {
@@ -14125,61 +14103,6 @@ static int set_config(const char *config_file, int reload, int forced)
 	}
 	prefs_global = prefs_new;
 	iax2_capability = capability;
-
-	if (ucfg) {
-		struct ast_variable *gen;
-		int genhasiax;
-		int genregisteriax;
-		const char *hasiax, *registeriax;
-
-		genhasiax = ast_true(ast_variable_retrieve(ucfg, "general", "hasiax"));
-		genregisteriax = ast_true(ast_variable_retrieve(ucfg, "general", "registeriax"));
-		gen = ast_variable_browse(ucfg, "general");
-		cat = ast_category_browse(ucfg, NULL);
-		while (cat) {
-			if (strcasecmp(cat, "general")) {
-				hasiax = ast_variable_retrieve(ucfg, cat, "hasiax");
-				registeriax = ast_variable_retrieve(ucfg, cat, "registeriax");
-				if (ast_true(hasiax) || (!hasiax && genhasiax)) {
-					/* Start with general parameters, then specific parameters, user and peer */
-					user = build_user(cat, gen, ast_variable_browse(ucfg, cat), 0);
-					if (user) {
-						ao2_link(users, user);
-						user = user_unref(user);
-					}
-					peer = build_peer(cat, gen, ast_variable_browse(ucfg, cat), 0);
-					if (peer) {
-						if (ast_test_flag64(peer, IAX_DYNAMIC)) {
-							reg_source_db(peer);
-						}
-						ao2_link(peers, peer);
-						peer = peer_unref(peer);
-					}
-				}
-				if (ast_true(registeriax) || (!registeriax && genregisteriax)) {
-					char tmp[256];
-					const char *host = ast_variable_retrieve(ucfg, cat, "host");
-					const char *username = ast_variable_retrieve(ucfg, cat, "username");
-					const char *secret = ast_variable_retrieve(ucfg, cat, "secret");
-					if (!host)
-						host = ast_variable_retrieve(ucfg, "general", "host");
-					if (!username)
-						username = ast_variable_retrieve(ucfg, "general", "username");
-					if (!secret)
-						secret = ast_variable_retrieve(ucfg, "general", "secret");
-					if (!ast_strlen_zero(username) && !ast_strlen_zero(host)) {
-						if (!ast_strlen_zero(secret))
-							snprintf(tmp, sizeof(tmp), "%s:%s@%s", username, secret, host);
-						else
-							snprintf(tmp, sizeof(tmp), "%s@%s", username, host);
-						iax2_register(tmp, 0);
-					}
-				}
-			}
-			cat = ast_category_browse(ucfg, cat);
-		}
-		ast_config_destroy(ucfg);
-	}
 
 	cat = ast_category_browse(cfg, NULL);
 	while(cat) {

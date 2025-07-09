@@ -699,14 +699,13 @@ static int check_match(struct directory_item **result, const char *item_context,
 
 typedef AST_LIST_HEAD_NOLOCK(, directory_item) itemlist;
 
-static int search_directory_sub(const char *context, struct ast_config *vmcfg, struct ast_config *ucfg, const char *ext, struct ast_flags flags, itemlist *alist)
+static int search_directory_sub(const char *context, struct ast_config *vmcfg, const char *ext, struct ast_flags flags, itemlist *alist)
 {
 	struct ast_variable *v;
 	struct ast_str *buf = ast_str_thread_get(&commonbuf, 100);
 	char *name;
 	char *options;
 	char *alias;
-	char *cat;
 	struct directory_item *item;
 	int res;
 
@@ -765,52 +764,10 @@ static int search_directory_sub(const char *context, struct ast_config *vmcfg, s
 
 		AST_LIST_INSERT_TAIL(alist, item, entry);
 	}
-
-	if (ucfg) {
-		for (cat = ast_category_browse(ucfg, NULL); cat ; cat = ast_category_browse(ucfg, cat)) {
-			const char *position;
-
-			if (!strcasecmp(cat, "general")) {
-				continue;
-			}
-			if (!ast_true(ast_config_option(ucfg, cat, "hasdirectory"))) {
-				continue;
-			}
-
-			/* Find all candidate extensions */
-			if (!(position = ast_variable_retrieve(ucfg, cat, "fullname"))) {
-				continue;
-			}
-
-			res = 0;
-			if (ast_test_flag(&flags, OPT_LISTBYLASTNAME)) {
-				res = check_match(&item, context, position, cat, ext, 0 /* use_first_name */);
-			}
-			if (!res && ast_test_flag(&flags, OPT_LISTBYFIRSTNAME)) {
-				res = check_match(&item, context, position, cat, ext, 1 /* use_first_name */);
-			}
-			if (!res && ast_test_flag(&flags, OPT_ALIAS)) {
-				for (v = ast_variable_browse(ucfg, cat); v; v = v->next) {
-					if (!strcasecmp(v->name, "alias")
-						&& (res = check_match(&item, context, v->value, cat, ext, 1))) {
-						break;
-					}
-				}
-			}
-
-			if (!res) {
-				continue;
-			} else if (res < 0) {
-				return -1;
-			}
-
-			AST_LIST_INSERT_TAIL(alist, item, entry);
-		}
-	}
 	return 0;
 }
 
-static int search_directory(const char *context, struct ast_config *vmcfg, struct ast_config *ucfg, const char *ext, struct ast_flags flags, itemlist *alist)
+static int search_directory(const char *context, struct ast_config *vmcfg, const char *ext, struct ast_flags flags, itemlist *alist)
 {
 	const char *searchcontexts = ast_variable_retrieve(vmcfg, "general", "searchcontexts");
 	if (ast_strlen_zero(context)) {
@@ -823,19 +780,19 @@ static int search_directory(const char *context, struct ast_config *vmcfg, struc
 					continue;
 				}
 
-				if ((res = search_directory_sub(catg, vmcfg, ucfg, ext, flags, alist))) {
+				if ((res = search_directory_sub(catg, vmcfg, ext, flags, alist))) {
 					return res;
 				}
 			}
 			return 0;
 		} else {
 			ast_debug(1, "Searching by category default\n");
-			return search_directory_sub("default", vmcfg, ucfg, ext, flags, alist);
+			return search_directory_sub("default", vmcfg, ext, flags, alist);
 		}
 	} else {
 		/* Browse only the listed context for a match */
 		ast_debug(1, "Searching by category %s\n", context);
-		return search_directory_sub(context, vmcfg, ucfg, ext, flags, alist);
+		return search_directory_sub(context, vmcfg, ext, flags, alist);
 	}
 }
 
@@ -861,7 +818,7 @@ static void sort_items(struct directory_item **sorted, int count)
 	} while (reordered);
 }
 
-static int do_directory(struct ast_channel *chan, struct ast_config *vmcfg, struct ast_config *ucfg, char *context, char *dialcontext, char digit, int digits, struct ast_flags *flags, char *opts[])
+static int do_directory(struct ast_channel *chan, struct ast_config *vmcfg, char *context, char *dialcontext, char digit, int digits, struct ast_flags *flags, char *opts[])
 {
 	/* Read in the first three digits..  "digit" is the first digit, already read */
 	int res = 0;
@@ -884,7 +841,7 @@ static int do_directory(struct ast_channel *chan, struct ast_config *vmcfg, stru
 	if (ast_readstring(chan, ext + 1, digits - 1, 3000, 3000, "#") < 0)
 		return -1;
 
-	res = search_directory(context, vmcfg, ucfg, ext, *flags, &alist);
+	res = search_directory(context, vmcfg, ext, *flags, &alist);
 	if (res)
 		goto exit;
 
@@ -943,11 +900,10 @@ exit:
 static int directory_exec(struct ast_channel *chan, const char *data)
 {
 	int res = 0, digit = 3;
-	struct ast_config *cfg, *ucfg;
+	struct ast_config *cfg;
 	const char *dirintro;
 	char *parse, *opts[OPT_ARG_ARRAY_SIZE] = { 0, };
 	struct ast_flags flags = { 0 };
-	struct ast_flags config_flags = { 0 };
 	enum { FIRST, LAST, BOTH } which = LAST;
 	char digits[9] = "digits/3";
 	AST_DECLARE_APP_ARGS(args,
@@ -968,11 +924,6 @@ static int directory_exec(struct ast_channel *chan, const char *data)
 	if (!cfg) {
 		ast_log(LOG_ERROR, "Unable to read the configuration data!\n");
 		return -1;
-	}
-
-	if ((ucfg = ast_config_load("users.conf", config_flags)) == CONFIG_STATUS_FILEINVALID) {
-		ast_log(LOG_ERROR, "Config file users.conf is in an invalid format.  Aborting.\n");
-		ucfg = NULL;
 	}
 
 	dirintro = ast_variable_retrieve(cfg, args.vmcontext, "directoryintro");
@@ -1065,7 +1016,7 @@ static int directory_exec(struct ast_channel *chan, const char *data)
 			break;
 		}
 
-		res = do_directory(chan, cfg, ucfg, args.vmcontext, args.dialcontext, res, digit, &flags, opts);
+		res = do_directory(chan, cfg, args.vmcontext, args.dialcontext, res, digit, &flags, opts);
 		if (res)
 			break;
 
@@ -1076,8 +1027,6 @@ static int directory_exec(struct ast_channel *chan, const char *data)
 		}
 	}
 
-	if (ucfg)
-		ast_config_destroy(ucfg);
 	ast_config_destroy(cfg);
 
 	if (ast_check_hangup(chan)) {
