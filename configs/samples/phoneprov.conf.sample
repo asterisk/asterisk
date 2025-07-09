@@ -1,5 +1,5 @@
 [general]
-; This section applies only to the default users.conf config provider
+; This section applies only to the default phoneprov_users.conf config provider
 ; embedded in res_phoneprov.  Other providers may provide their own default settings.
 
 ; The default behavior of res_phoneprov will be to set the SERVER template variable to
@@ -11,7 +11,7 @@
                         ; Useful for when the interface uses DHCP and the asterisk http
                         ; server listens on a different IP than sip.
 ;serverport=5060        ; Override port to send to the phone to use as server port.
-default_profile=polycom ; The default profile to use if none specified in users.conf
+default_profile=polycom ; The default profile to use if none specified in phoneprov_users.conf
 
 ; You can define profiles for different phones specifying what files to register
 ; with the provisioning server.  You can define either static files, or dynamically
@@ -29,10 +29,10 @@ default_profile=polycom ; The default profile to use if none specified in users.
 
 ; Dynamically generated files have a filename registered with variable substitution
 ; with variables obtained from various config providers.  The default provider
-; embedded in res_phoneprov reads users.conf.  Other providers will have their own
+; embedded in res_phoneprov reads phoneprov_users.conf.  Other providers will have their own
 ; sources for the variables and may provide additional variables not listed here.
 
-; Built in variables and the options in users.conf that they come from
+; Built in variables and the options in phoneprov_users.conf that they come from
 ;   MAC (macaddress)
 ;   USERNAME (username)
 ;   DISPLAY_NAME (fullname)

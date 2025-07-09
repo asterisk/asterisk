@@ -782,7 +782,6 @@ enum vm_option_args {
 enum vm_passwordlocation {
 	OPT_PWLOC_VOICEMAILCONF = 0,
 	OPT_PWLOC_SPOOLDIR      = 1,
-	OPT_PWLOC_USERSCONF     = 2,
 };
 
 AST_APP_OPTIONS(vm_app_options, {
@@ -834,9 +833,9 @@ static int load_config_force(int reload, int force);
 
 static int load_config(int reload);
 #ifdef TEST_FRAMEWORK
-static int load_config_from_memory(int reload, struct ast_config *cfg, struct ast_config *ucfg);
+static int load_config_from_memory(int reload, struct ast_config *cfg);
 #endif
-static int actual_load_config(int reload, struct ast_config *cfg, struct ast_config *ucfg);
+static int actual_load_config(int reload, struct ast_config *cfg);
 
 /*! \page vmlang Voicemail Language Syntaxes Supported
 
@@ -1085,8 +1084,6 @@ static int pwdchange = PWDCHANGE_INTERNAL;
 # define tdesc "Comedian Mail (Voicemail System)"
 # endif
 #endif
-
-static char userscontext[AST_MAX_EXTENSION] = "default";
 
 static char *addesc = "Comedian Mail";
 
@@ -2098,7 +2095,6 @@ static inline int valid_config(const struct ast_config *cfg)
 static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 {
 	struct ast_config   *cfg = NULL;
-	struct ast_variable *var = NULL;
 	struct ast_category *cat = NULL;
 	char *category = NULL;
 	const char *tmp = NULL;
@@ -2163,48 +2159,7 @@ static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 
 			ast_config_destroy(cfg);
 		}
-		/* Fall-through */
-	case OPT_PWLOC_USERSCONF:
-		/* check users.conf and update the password stored for the mailbox */
-		/* if no vmsecret entry exists create one. */
-		if ((cfg = ast_config_load("users.conf", config_flags)) && valid_config(cfg)) {
-			ast_debug(4, "we are looking for %s\n", vmu->mailbox);
-			for (category = ast_category_browse(cfg, NULL); category; category = ast_category_browse(cfg, category)) {
-				ast_debug(4, "users.conf: %s\n", category);
-				if (!strcasecmp(category, vmu->mailbox)) {
-					char new[strlen(newpassword) + 1];
-					if (!ast_variable_retrieve(cfg, category, "vmsecret")) {
-						ast_debug(3, "looks like we need to make vmsecret!\n");
-						var = ast_variable_new("vmsecret", newpassword, "");
-					} else {
-						var = NULL;
-					}
-
-					sprintf(new, "%s", newpassword);
-					if (!(cat = ast_category_get(cfg, category, NULL))) {
-						ast_debug(4, "failed to get category!\n");
-						ast_free(var);
-						break;
-					}
-					if (!var) {
-						ast_variable_update(cat, "vmsecret", new, NULL, 0);
-					} else {
-						ast_variable_append(cat, var);
-					}
-					found = 1;
-					break;
-				}
-			}
-			/* save the results and clean things up */
-			if (found) {
-				ast_test_suite_event_notify("PASSWORDCHANGED", "Message: users.conf updated with new password\r\nPasswordSource: users.conf");
-				reset_user_pw(vmu->context, vmu->mailbox, newpassword);
-				ast_copy_string(vmu->password, newpassword, sizeof(vmu->password));
-				ast_config_text_file_save("users.conf", cfg, "app_voicemail");
-			}
-
-			ast_config_destroy(cfg);
-		}
+		break;
 	}
 }
 
@@ -14736,7 +14691,7 @@ static const char *substitute_escapes(const char *value)
 
 static int load_config_force(int reload, int force)
 {
-	struct ast_config *cfg, *ucfg;
+	struct ast_config *cfg;
 	struct ast_flags config_flags = { reload && !force ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 	int res;
 
@@ -14744,15 +14699,8 @@ static int load_config_force(int reload, int force)
 	ast_unload_realtime("voicemail_data");
 
 	if ((cfg = ast_config_load(VOICEMAIL_CONFIG, config_flags)) == CONFIG_STATUS_FILEUNCHANGED) {
-		if ((ucfg = ast_config_load("users.conf", config_flags)) == CONFIG_STATUS_FILEUNCHANGED) {
-			return 0;
-		} else if (ucfg == CONFIG_STATUS_FILEINVALID) {
-			ast_log(LOG_ERROR, "Config file users.conf is in an invalid format.  Avoiding.\n");
-			ucfg = NULL;
-		}
 		ast_clear_flag(&config_flags, CONFIG_FLAG_FILEUNCHANGED);
 		if ((cfg = ast_config_load(VOICEMAIL_CONFIG, config_flags)) == CONFIG_STATUS_FILEINVALID) {
-			ast_config_destroy(ucfg);
 			ast_log(LOG_ERROR, "Config file " VOICEMAIL_CONFIG " is in an invalid format.  Aborting.\n");
 			return 0;
 		}
@@ -14761,16 +14709,11 @@ static int load_config_force(int reload, int force)
 		return 0;
 	} else {
 		ast_clear_flag(&config_flags, CONFIG_FLAG_FILEUNCHANGED);
-		if ((ucfg = ast_config_load("users.conf", config_flags)) == CONFIG_STATUS_FILEINVALID) {
-			ast_log(LOG_ERROR, "Config file users.conf is in an invalid format.  Avoiding.\n");
-			ucfg = NULL;
-		}
 	}
 
-	res = actual_load_config(reload, cfg, ucfg);
+	res = actual_load_config(reload, cfg);
 
 	ast_config_destroy(cfg);
-	ast_config_destroy(ucfg);
 
 	return res;
 }
@@ -14781,11 +14724,11 @@ static int load_config(int reload)
 }
 
 #ifdef TEST_FRAMEWORK
-static int load_config_from_memory(int reload, struct ast_config *cfg, struct ast_config *ucfg)
+static int load_config_from_memory(int reload, struct ast_config *cfg)
 {
 	ast_unload_realtime("voicemail");
 	ast_unload_realtime("voicemail_data");
-	return actual_load_config(reload, cfg, ucfg);
+	return actual_load_config(reload, cfg);
 }
 #endif
 
@@ -14881,15 +14824,12 @@ static void load_users(struct ast_config *cfg)
 	}
 }
 
-static int actual_load_config(int reload, struct ast_config *cfg, struct ast_config *ucfg)
+static int actual_load_config(int reload, struct ast_config *cfg)
 {
-	struct ast_vm_user *current;
-	char *cat;
 	const char *val;
 	char *q, *stringp, *tmp;
 	int x;
 	unsigned int tmpadsi[4];
-	char secretfn[PATH_MAX] = "";
 	long tps_queue_low;
 	long tps_queue_high;
 
@@ -14897,6 +14837,7 @@ static int actual_load_config(int reload, struct ast_config *cfg, struct ast_con
 	ast_copy_string(imapparentfolder, "\0", sizeof(imapparentfolder));
 #endif
 	/* set audio control prompts */
+	strcpy(listen_control_forward_key, DEFAULT_LISTEN_CONTROL_FORWARD_KEY);
 	strcpy(listen_control_forward_key, DEFAULT_LISTEN_CONTROL_FORWARD_KEY);
 	strcpy(listen_control_reverse_key, DEFAULT_LISTEN_CONTROL_REVERSE_KEY);
 	strcpy(listen_control_pause_key, DEFAULT_LISTEN_CONTROL_PAUSE_KEY);
@@ -14924,11 +14865,6 @@ static int actual_load_config(int reload, struct ast_config *cfg, struct ast_con
 
 	if (cfg) {
 		/* General settings */
-
-		if (!(val = ast_variable_retrieve(cfg, "general", "userscontext")))
-			val = "default";
-		ast_copy_string(userscontext, val, sizeof(userscontext));
-
 		aliasescontext[0] = '\0';
 		val = ast_variable_retrieve(cfg, "general", "aliasescontext");
 		ast_copy_string(aliasescontext, S_OR(val, ""), sizeof(aliasescontext));
@@ -15524,31 +15460,6 @@ static int actual_load_config(int reload, struct ast_config *cfg, struct ast_con
 			ast_log(AST_LOG_WARNING, "Failed to set alert levels for voicemail taskprocessor.\n");
 		}
 
-		/* load mailboxes from users.conf */
-		if (ucfg) {
-			for (cat = ast_category_browse(ucfg, NULL); cat ; cat = ast_category_browse(ucfg, cat)) {
-				if (!strcasecmp(cat, "general")) {
-					continue;
-				}
-				if (!ast_true(ast_config_option(ucfg, cat, "hasvoicemail")))
-					continue;
-				if ((current = find_or_create(userscontext, cat))) {
-					populate_defaults(current);
-					apply_options_full(current, ast_variable_browse(ucfg, cat));
-					ast_copy_string(current->context, userscontext, sizeof(current->context));
-					if (!ast_strlen_zero(current->password) && current->passwordlocation == OPT_PWLOC_VOICEMAILCONF) {
-						current->passwordlocation = OPT_PWLOC_USERSCONF;
-					}
-
-					switch (current->passwordlocation) {
-					case OPT_PWLOC_SPOOLDIR:
-						snprintf(secretfn, sizeof(secretfn), "%s%s/%s/secret.conf", VM_SPOOL_DIR, current->context, current->mailbox);
-						read_password_from_file(secretfn, current->password, sizeof(current->password));
-					}
-				}
-			}
-		}
-
 		/* load mailboxes from voicemail.conf */
 
 		/*
@@ -16119,7 +16030,7 @@ AST_TEST_DEFINE(test_voicemail_load_config)
 		goto cleanup;
 	}
 
-	load_config_from_memory(1, cfg, NULL);
+	load_config_from_memory(1, cfg);
 	ast_config_destroy(cfg);
 
 #define CHECK(u, attr, value) else if (strcmp(u->attr, value)) { \

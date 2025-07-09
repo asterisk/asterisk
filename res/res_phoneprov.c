@@ -29,7 +29,7 @@
  * \author George Joseph <george.joseph@fairview5.com>
   */
 
-/*! \li \ref res_phoneprov.c uses the configuration file \ref phoneprov.conf and \ref users.conf
+/*! \li \ref res_phoneprov.c uses the configuration file \ref phoneprov.conf and \ref phoneprov_users.conf
  * \addtogroup configuration_file Configuration Files
  */
 
@@ -211,7 +211,7 @@ static const char *variable_lookup[] = {
 	[AST_PHONEPROV_STD_DST_END_HOUR] = "DST_END_HOUR",
 };
 
-/* Translate the standard variables to their users.conf equivalents. */
+/* Translate the standard variables to their phoneprov_users.conf equivalents. */
 static const char *pp_user_lookup[] = {
 	[AST_PHONEPROV_STD_MAC] = "macaddress",
 	[AST_PHONEPROV_STD_PROFILE] = "profile",
@@ -314,7 +314,7 @@ struct ao2_container *profiles;
 SIMPLE_HASH_FN(phone_profile_hash_fn, phone_profile, name)
 SIMPLE_CMP_FN(phone_profile_cmp_fn, phone_profile, name)
 
-/*! \brief structure to hold users read from users.conf */
+/*! \brief structure to hold users read from phoneprov_users.conf */
 struct user {
 	AST_DECLARE_STRING_FIELDS(
 		AST_STRING_FIELD(macaddress);	/*!< Mac address of user's phone */
@@ -1273,13 +1273,13 @@ static struct varshead *get_defaults(void)
 	AST_VAR_LIST_INSERT_TAIL(defaults, var);
 	ast_config_destroy(phoneprov_cfg);
 
-	if (!(cfg = ast_config_load("users.conf", config_flags)) || cfg == CONFIG_STATUS_FILEINVALID) {
-		ast_log(LOG_ERROR, "Unable to load users.conf\n");
+	if (!(cfg = ast_config_load("phoneprov_users.conf", config_flags)) || cfg == CONFIG_STATUS_FILEINVALID) {
+		ast_log(LOG_ERROR, "Unable to load phoneprov_users.conf\n");
 		ast_var_list_destroy(defaults);
 		return NULL;
 	}
 
-	/* Go ahead and load global variables from users.conf so we can append to profiles */
+	/* Go ahead and load global variables from phoneprov_users.conf so we can append to profiles */
 	for (v = ast_variable_browse(cfg, "general"); v; v = v->next) {
 		if (!strcasecmp(v->name, pp_user_lookup[AST_PHONEPROV_STD_VOICEMAIL_EXTEN])) {
 			var = ast_var_assign(variable_lookup[AST_PHONEPROV_STD_VOICEMAIL_EXTEN], v->value);
@@ -1308,9 +1308,9 @@ static int load_users(void)
 		return -1;
 	}
 
-	if (!(cfg = ast_config_load("users.conf", config_flags))
+	if (!(cfg = ast_config_load("phoneprov_users.conf", config_flags))
 		|| cfg == CONFIG_STATUS_FILEINVALID) {
-		ast_log(LOG_WARNING, "Unable to load users.conf\n");
+		ast_log(LOG_WARNING, "Unable to load phoneprov_users.conf\n");
 		ast_var_list_destroy(defaults);
 		return -1;
 	}
@@ -1401,7 +1401,7 @@ static int unload_module(void)
 	ast_custom_function_unregister(&pp_each_extension_function);
 	ast_cli_unregister_multiple(pp_cli, ARRAY_LEN(pp_cli));
 
-	/* This cleans up the users.conf provider (called specifically for clarity) */
+	/* This cleans up the phoneprov_users.conf provider (called specifically for clarity) */
 	ast_phoneprov_provider_unregister(SIPUSERS_PROVIDER_NAME);
 
 	/* This cleans up the framework which also cleans up the providers. */
@@ -1466,7 +1466,7 @@ static int load_module(void)
 		goto error;
 	}
 
-	/* Register ourselves as the provider for users.conf */
+	/* Register ourselves as the provider for phoneprov_users.conf */
 	if (ast_phoneprov_provider_register(SIPUSERS_PROVIDER_NAME, load_users)) {
 		ast_log(LOG_WARNING, "Unable register users config provider.  Others may succeed.\n");
 	}
