@@ -151,12 +151,13 @@ static struct ast_channel *callback(struct ast_channelstorage_instance *driver,
 		chan = it->second;
 		if (cb_fn(chan, arg, data, ao2_flags) == (CMP_MATCH | CMP_STOP)) {
 			ao2_bump(chan);
-			break;
+			unlock(driver);
+			return chan;
 		}
 	}
 	unlock(driver);
 
-	return chan;
+	return NULL;
 }
 
 enum cpp_map_iterator_type {
