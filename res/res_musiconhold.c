@@ -1204,13 +1204,6 @@ static void moh_parse_options(struct ast_variable *var, struct mohclass *mohclas
 			ast_set_flag(mohclass, MOH_ANNOUNCEMENT);
 		} else if (!strcasecmp(var->name, "digit") && (isdigit(*var->value) || strchr("*#", *var->value))) {
 			mohclass->digit = *var->value;
-		} else if (!strcasecmp(var->name, "random")) {
-			static int deprecation_warning = 0;
-			if (!deprecation_warning) {
-				ast_log(LOG_WARNING, "Music on hold 'random' setting is deprecated in 14.  Please use 'sort=random' instead.\n");
-				deprecation_warning = 1;
-			}
-			ast_set2_flag(mohclass, ast_true(var->value), MOH_RANDOMIZE);
 		} else if (!strcasecmp(var->name, "sort")) {
 			if (!strcasecmp(var->value, "random")) {
 				ast_set_flag(mohclass, MOH_RANDOMIZE);
@@ -1827,14 +1820,6 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 					if (!moh_scan_files(mohclass)) {
 						mohclass = mohclass_unref(mohclass, "unreffing potential mohclass (moh_scan_files failed)");
 						return -1;
-					}
-					if (strchr(mohclass->args, 'r')) {
-						static int deprecation_warning = 0;
-						if (!deprecation_warning) {
-							ast_log(LOG_WARNING, "Music on hold 'application=r' setting is deprecated in 14.  Please use 'sort=random' instead.\n");
-							deprecation_warning = 1;
-						}
-						ast_set_flag(mohclass, MOH_RANDOMIZE);
 					}
 				} else if (!strcasecmp(mohclass->mode, "playlist")) {
 					size_t file_count;
