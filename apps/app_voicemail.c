@@ -1663,7 +1663,7 @@ static void apply_option(struct ast_vm_user *vmu, const char *var, const char *v
 			ast_log(LOG_WARNING, "Invalid min message length of %s. Using global value %d\n", value, vmminsecs);
 			vmu->minsecs = vmminsecs;
 		}
-	} else if (!strcasecmp(var, "maxmessage") || !strcasecmp(var, "maxsecs")) {
+	} else if (!strcasecmp(var, "maxsecs")) {
 		vmu->maxsecs = atoi(value);
 		if (vmu->maxsecs <= 0) {
 			ast_log(AST_LOG_WARNING, "Invalid max message length of %s. Using global value %d\n", value, vmmaxsecs);
@@ -1671,8 +1671,6 @@ static void apply_option(struct ast_vm_user *vmu, const char *var, const char *v
 		} else {
 			vmu->maxsecs = atoi(value);
 		}
-		if (!strcasecmp(var, "maxmessage"))
-			ast_log(AST_LOG_WARNING, "Option 'maxmessage' has been deprecated in favor of 'maxsecs'.  Please make that change in your voicemail config.\n");
 	} else if (!strcasecmp(var, "maxmsg")) {
 		vmu->maxmsg = atoi(value);
 		/* Accept maxmsg=0 (Greetings only voicemail) */
@@ -10897,12 +10895,6 @@ static int vm_intro(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm
 		return 0;
 	} else if (!strncasecmp(ast_channel_language(chan), "cs", 2)) {  /* CZECH syntax */
 		return vm_intro_cs(chan, vms);
-	} else if (!strncasecmp(ast_channel_language(chan), "cz", 2)) {  /* deprecated CZECH syntax */
-		static int deprecation_warning = 0;
-		if (deprecation_warning++ % 10 == 0) {
-			ast_log(LOG_WARNING, "cz is not a standard language code.  Please switch to using cs instead.\n");
-		}
-		return vm_intro_cs(chan, vms);
 	} else if (!strncasecmp(ast_channel_language(chan), "de", 2)) {  /* GERMAN syntax */
 		return vm_intro_de(chan, vms);
 	} else if (!strncasecmp(ast_channel_language(chan), "es", 2)) {  /* SPANISH syntax */
@@ -15164,17 +15156,6 @@ static int actual_load_config(int reload, struct ast_config *cfg, struct ast_con
 			} else {
 				ast_log(AST_LOG_WARNING, "Invalid max message time length\n");
 			}
-		} else if ((val = ast_variable_retrieve(cfg, "general", "maxmessage"))) {
-			static int maxmessage_deprecate = 0;
-			if (maxmessage_deprecate == 0) {
-				maxmessage_deprecate = 1;
-				ast_log(AST_LOG_WARNING, "Setting 'maxmessage' has been deprecated in favor of 'maxsecs'.\n");
-			}
-			if (sscanf(val, "%30d", &x) == 1) {
-				vmmaxsecs = x;
-			} else {
-				ast_log(AST_LOG_WARNING, "Invalid max message time length\n");
-			}
 		}
 
 		vmminsecs = 0;
@@ -15183,20 +15164,6 @@ static int actual_load_config(int reload, struct ast_config *cfg, struct ast_con
 				vmminsecs = x;
 				if (maxsilence / 1000 >= vmminsecs) {
 					ast_log(AST_LOG_WARNING, "maxsilence should be less than minsecs or you may get empty messages\n");
-				}
-			} else {
-				ast_log(AST_LOG_WARNING, "Invalid min message time length\n");
-			}
-		} else if ((val = ast_variable_retrieve(cfg, "general", "minmessage"))) {
-			static int maxmessage_deprecate = 0;
-			if (maxmessage_deprecate == 0) {
-				maxmessage_deprecate = 1;
-				ast_log(AST_LOG_WARNING, "Setting 'minmessage' has been deprecated in favor of 'minsecs'.\n");
-			}
-			if (sscanf(val, "%30d", &x) == 1) {
-				vmminsecs = x;
-				if (maxsilence / 1000 >= vmminsecs) {
-					ast_log(AST_LOG_WARNING, "maxsilence should be less than minmessage or you may get empty messages\n");
 				}
 			} else {
 				ast_log(AST_LOG_WARNING, "Invalid min message time length\n");
