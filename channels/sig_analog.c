@@ -2071,8 +2071,8 @@ static void *__analog_ss_thread(void *data)
 			case ANALOG_SIG_E911:
 			case ANALOG_SIG_FGC_CAMAMF:
 			case ANALOG_SIG_SF_FEATDMF:
-				res = analog_my_getsigstr(chan, dtmfbuf + 1, "#", 3000);
-				/* if international caca, do it again to get real ANO */
+				res = analog_my_getsigstr(chan, dtmfbuf + 1, "#ABC", 3000);
+				/* if international CAC, do it again to get real ANI */
 				if ((p->sig == ANALOG_SIG_FEATDMF) && (dtmfbuf[1] != '0')
 					&& (strlen(dtmfbuf) != 14)) {
 					if (analog_wink(p, idx)) {
@@ -2177,7 +2177,6 @@ static void *__analog_ss_thread(void *data)
 			* KP (*) and ST (#) are considered to be digits */
 
 			int cnoffset = p->ani_info_digits + 1;
-			ast_debug(1, "cnoffset: %d\n", cnoffset);
 
 			/* This is how long to wait before the wink to start ANI spill
 			 * Pulled from chan_dahdi.conf, default is 1000ms */
@@ -2186,7 +2185,7 @@ static void *__analog_ss_thread(void *data)
 				goto quit;
 			}
 			analog_off_hook(p);
-			ast_debug(1, "Sent wink to signal ANI start\n");
+			ast_debug(1, "Went off-hook to signal ANI start\n");
 			analog_dsp_set_digitmode(p, ANALOG_DIGITMODE_MF);
 
 			/* ani_timeout is configured in chan_dahdi.conf. default is 10000ms.
@@ -2285,8 +2284,8 @@ static void *__analog_ss_thread(void *data)
 				ast_copy_string(exten2, exten, sizeof(exten2));
 				/* Parse out extension and callerid */
 				stringp=exten2 +1;
-				s1 = strsep(&stringp, "#");
-				s2 = strsep(&stringp, "#");
+				s1 = strsep(&stringp, "#ABC");
+				s2 = strsep(&stringp, "#ABC");
 				if (s2 && (*(s2 + 1) == '0')) {
 					if (*(s2 + 2)) {
 						ast_set_callerid(chan, s2 + 2, NULL, s2 + 2);
