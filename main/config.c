@@ -3639,8 +3639,20 @@ struct ast_variable *ast_load_realtime_all_fields(const char *family, const stru
 
 	for (i = 1; ; i++) {
 		if ((eng = find_engine(family, i, db, sizeof(db), table, sizeof(table)))) {
-			if (eng->realtime_func && (res = eng->realtime_func(db, table, fields))) {
-				return res;
+			if (eng->realtime_func) {
+				res = eng->realtime_func(db, table, fields);
+
+				/* If a backend returns CONFIG_RT_NOT_FOUND, stop iteration and return NULL,
+				 * indicating that the requested record does not exist and no failover should occur.
+				 * Only continue iteration if the result is NULL and not CONFIG_RT_NOT_FOUND,
+				 * which signals a backend failure.
+				 */
+				if (res == CONFIG_RT_NOT_FOUND) {
+					return NULL;
+				}
+				if (res) {
+					return res;
+				}
 			}
 		} else {
 			return NULL;
