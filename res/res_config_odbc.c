@@ -167,7 +167,8 @@ static SQLHSTMT custom_prepare(struct odbc_obj *obj, void *data)
  * Sub-in the values to the prepared statement and execute it. Return results
  * as a ast_variable list.
  *
- * \return var on success
+ * \return var on success (data found)
+ * \return CONFIG_RT_NOT_FOUND on success but no record
  * \retval NULL on failure
  */
 static struct ast_variable *realtime_odbc(const char *database, const char *table, const struct ast_variable *fields)
@@ -237,9 +238,13 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
 
 	res = SQLFetch(stmt);
 	if (res == SQL_NO_DATA) {
+		/* SQL_NO_DATA indicates that the query was valid but no record was found.
+		 * Instead of returning NULL (which signals a backend error to the core),
+		 * return CONFIG_RT_NOT_FOUND to prevent incorrect failover.
+		 */
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 		ast_odbc_release_obj(obj);
-		return NULL;
+		return CONFIG_RT_NOT_FOUND;
 	}
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 		ast_log(LOG_WARNING, "SQL Fetch error! [%s]\n", ast_str_buffer(sql));
