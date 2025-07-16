@@ -4,6 +4,7 @@ DEFAULT_CA_CN="Asterisk Private CA"
 DEFAULT_CLIENT_CN="asterisk"
 DEFAULT_SERVER_CN=`hostname -f`
 CA_ENCRYPTION_OPT="-des3"
+VALIDITY_DAYS=365
 
 # arguments
 # $1 "ca" if we are to generate a CA cert
@@ -39,7 +40,7 @@ create_ca () {
 		exit 1
 	fi
 	echo "Creating CA certificate ${CACERT}"
-	openssl req -new -config ${CACFG} -x509 -days 365 -key ${CAKEY} -out ${CACERT} > /dev/null
+	openssl req -new -config ${CACFG} -x509 -days ${VALIDITY_DAYS} -key ${CAKEY} -out ${CACERT} > /dev/null
 	if [ $? -ne 0 ];
 	then
 		echo "Failed"
@@ -64,7 +65,7 @@ create_cert () {
 		exit 1
 	fi
 	echo "Creating certificate ${base}.crt"
-	openssl x509 -req -days 365 -in ${base}.csr -CA ${CACERT} -CAkey ${CAKEY} -set_serial 01 -out ${base}.crt > /dev/null
+	openssl x509 -req -days ${VALIDITY_DAYS} -in ${base}.csr -CA ${CACERT} -CAkey ${CAKEY} -set_serial 01 -out ${base}.crt > /dev/null
 	if [ $? -ne 0 ];
 	then
 		echo "Failed"
@@ -98,6 +99,7 @@ OPTIONS:
         An informational string (company name)
   -o  Output filename base (defaults to asterisk)
   -d  Output directory (defaults to the current directory)
+  -v  CA/certificate validity in days (defaults to 365)
 
 Example:
 
@@ -131,7 +133,7 @@ OUTPUT_BASE=asterisk # Our default cert basename
 CERT_MODE=server
 ORG_NAME=${DEFAULT_ORG}
 
-while getopts "hf:c:ek:o:d:m:C:O:b:" OPTION
+while getopts "hf:c:ek:o:d:m:C:O:b:v:" OPTION
 do
 	case ${OPTION} in
 		h)
@@ -152,6 +154,9 @@ do
 			;;
 		b)
 			KEYBITS=${OPTARG}
+			;;
+		v)
+			VALIDITY_DAYS=${OPTARG}
 			;;
 		o)
 			OUTPUT_BASE=${OPTARG}
