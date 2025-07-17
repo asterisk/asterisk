@@ -1,18 +1,18 @@
 
-## Change Log for Release asterisk-21.10.0-rc1
+## Change Log for Release asterisk-21.10.0
 
 ### Links:
 
- - [Full ChangeLog](https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-21.10.0-rc1.html)  
- - [GitHub Diff](https://github.com/asterisk/asterisk/compare/21.9.1...21.10.0-rc1)  
- - [Tarball](https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-21.10.0-rc1.tar.gz)  
+ - [Full ChangeLog](https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-21.10.0.html)  
+ - [GitHub Diff](https://github.com/asterisk/asterisk/compare/21.9.1...21.10.0)  
+ - [Tarball](https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-21.10.0.tar.gz)  
  - [Downloads](https://downloads.asterisk.org/pub/telephony/asterisk)  
 
 ### Summary:
 
-- Commits: 25
-- Commit Authors: 13
-- Issues Resolved: 14
+- Commits: 29
+- Commit Authors: 14
+- Issues Resolved: 19
 - Security Advisories Resolved: 1
   - [GHSA-c7p6-7mvq-8jq2](https://github.com/asterisk/asterisk/security/advisories/GHSA-c7p6-7mvq-8jq2): cli_permissions.conf: deny option does not work for disallowing shell commands
 
@@ -96,16 +96,17 @@
 
 ### Commit Authors:
 
-- George Joseph: (8)
+- George Joseph: (10)
 - Itzanh: (1)
 - Jaco Kroon: (2)
 - Joe Searle: (1)
+- Michal Hajek: (1)
 - Mike Bradeen: (2)
 - Mkmer: (1)
 - Nathan Monfils: (1)
 - Naveen Albert: (3)
 - Phoneben: (1)
-- Sean Bright: (1)
+- Sean Bright: (2)
 - Stanislav Abramenkov: (1)
 - Sven Kube: (2)
 - Thomas B. Clark: (1)
@@ -128,11 +129,16 @@
   - 1254: [bug]: ActiveChannels not reported when using AMI command PJSIPShowEndpoint
   - 1271: [bug]: STIR/SHAKEN not accepting port 8443 in certificate URLs
   - 1272: [improvement]: STIR/SHAKEN handle X5U certificate chains
+  - 1276: MixMonitor produces broken recordings in bridged calls with asymmetric codecs (e.g., alaw vs G.722)
+  - 1279: [bug]: regression: 20.12.0 downgrades quality of wav16 recordings
+  - 1282: [bug]: Alternate Channel Storage Backends menuselect not enabling it
+  - 1287: [bug]: channelstorage.c: Compilation failure with DEBUG_FD_LEAKS
+  - 1288: [bug]: Crash when destroying channel with C++ alternative storage backend enabled
   - ASTERISK-30373: sig_analog: Add Call Waiting Deluxe options
 
 ### Commits By Author:
 
-- #### George Joseph (8):
+- #### George Joseph (10):
   - Alternate Channel Storage Backends
   - lock.h: Add include for string.h when DEBUG_THREADS is defined.
   - asterisk.c: Add option to restrict shell access from remote consoles.
@@ -141,6 +147,8 @@
   - res_websocket_client:  Add more info to the XML documentation.
   - res_stir_shaken: Add "ignore_sip_date_header" config option.
   - res_stir_shaken.so: Handle X5U certificate chains.
+  - channelstorage_cpp_map_name_id: Fix callback returning non-matching channels.
+  - channelstorage: Rename callbacks that conflict with DEBUG_FD_LEAKS.
 
 - #### Itzanh (1):
   - app_sms.c: Fix sending and receiving SMS messages in protocol 2
@@ -151,6 +159,9 @@
 
 - #### Joe Searle (1):
   - pjproject: Increase maximum SDP formats and attribute limits
+
+- #### Michal Hajek (1):
+  - audiohook.c: Improve frame pairing logic to avoid MixMonitor breakage with mix..
 
 - #### Mike Bradeen (2):
   - chan_pjsip: Serialize INVITE creation on DTMF attended transfer
@@ -164,8 +175,9 @@
   - sig_analog: Add Call Waiting Deluxe support.
   - app_record: Add RECORDING_INFO function.
 
-- #### Sean Bright (1):
+- #### Sean Bright (2):
   - res_pjsip: Fix empty `ActiveChannels` property in AMI responses.
+  - channelstorage_makeopts.xml: Remove errant XML character.
 
 - #### Stanislav Abramenkov (1):
   - jansson: Upgrade version to jansson 2.14.1
@@ -186,6 +198,9 @@
 
 ### Commit List:
 
+-  channelstorage: Rename callbacks that conflict with DEBUG_FD_LEAKS.
+-  channelstorage_cpp_map_name_id: Fix callback returning non-matching channels.
+-  channelstorage_makeopts.xml: Remove errant XML character.
 -  res_stir_shaken.so: Handle X5U certificate chains.
 -  res_stir_shaken: Add "ignore_sip_date_header" config option.
 -  app_record: Add RECORDING_INFO function.
@@ -212,6 +227,52 @@
 -  Alternate Channel Storage Backends
 
 ### Commit Details:
+
+#### channelstorage: Rename callbacks that conflict with DEBUG_FD_LEAKS.
+  Author: George Joseph
+  Date:   2025-07-08
+
+  DEBUG_FD_LEAKS replaces calls to "open" and "close" with functions that keep
+  track of file descriptors, even when those calls are actually callbacks
+  defined in structures like ast_channelstorage_instance->open and don't touch
+  file descriptors.  This causes compilation failures.  Those callbacks
+  have been renamed to "open_instance" and "close_instance" respectively.
+
+  Resolves: #1287
+
+#### channelstorage_cpp_map_name_id: Fix callback returning non-matching channels.
+  Author: George Joseph
+  Date:   2025-07-09
+
+  When the callback() API was invoked but no channel passed the test, callback
+  would return the last channel tested instead of NULL.  It now correctly
+  returns NULL when no channel matches.
+
+  Resolves: #1288
+
+#### audiohook.c: Improve frame pairing logic to avoid MixMonitor breakage with mix..
+  Author: Michal Hajek
+  Date:   2025-05-21
+
+  This patch adjusts the read/write synchronization logic in audiohook_read_frame_both()
+  to better handle calls where participants use different codecs or sample sizes
+  (e.g., alaw vs G.722). The previous hard threshold of 2 * samples caused MixMonitor
+  recordings to break or stutter when frames were not aligned between both directions.
+
+  The new logic uses a more tolerant limit (1.5 * samples), which prevents audio tearing
+  without causing excessive buffer overruns. This fix specifically addresses issues
+  with MixMonitor when recording directly on a channel in a bridge using mixed codecs.
+
+  Reported-by: Michal Hajek <michal.hajek@daktela.com>
+
+  Resolves: #1276
+  Resolves: #1279
+
+#### channelstorage_makeopts.xml: Remove errant XML character.
+  Author: Sean Bright
+  Date:   2025-06-30
+
+  Resolves: #1282
 
 #### res_stir_shaken.so: Handle X5U certificate chains.
   Author: George Joseph
