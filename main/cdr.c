@@ -1149,7 +1149,6 @@ static struct cdr_object *cdr_object_alloc(struct ast_channel_snapshot *chan, co
 	ast_string_field_set(cdr, uniqueid, chan->base->uniqueid);
 	ast_string_field_set(cdr, name, chan->base->name);
 	ast_string_field_set(cdr, linkedid, chan->peer->linkedid);
-	ast_string_field_set(cdr, tenantid, chan->base->tenantid);
 	cdr->disposition = AST_CDR_NULL;
 	cdr->sequence = ast_atomic_fetchadd_int(&global_cdr_sequence, +1);
 	cdr->lastevent = *event_time;
@@ -1418,7 +1417,7 @@ static struct ast_cdr *cdr_object_create_public_records(struct cdr_object *cdr)
 		ast_copy_string(cdr_copy->lastdata, it_cdr->data, sizeof(cdr_copy->lastdata));
 		ast_copy_string(cdr_copy->dst, it_cdr->exten, sizeof(cdr_copy->dst));
 		ast_copy_string(cdr_copy->dcontext, it_cdr->context, sizeof(cdr_copy->dcontext));
-		ast_copy_string(cdr_copy->tenantid, it_cdr->tenantid, sizeof(cdr_copy->tenantid));
+		ast_copy_string(cdr_copy->tenantid, party_a->base->tenantid, sizeof(cdr_copy->tenantid));
 
 		/* Party B */
 		if (party_b) {
