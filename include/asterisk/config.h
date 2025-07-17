@@ -126,6 +126,12 @@ typedef int realtime_require(const char *database, const char *table, va_list ap
  */
 typedef int realtime_unload(const char *database, const char *table);
 
+/*! Special return value indicating a successful query that returned no data.
+ * Used by realtime backends to signal "not found" vs an actual backend failure.
+ * This allows the core engine to differentiate and avoid unnecessary failover.
+ */
+#define CONFIG_RT_NOT_FOUND	(void *)-1
+
 /*! \brief Configuration engine structure, used to define realtime drivers */
 struct ast_config_engine {
 	char *name;
