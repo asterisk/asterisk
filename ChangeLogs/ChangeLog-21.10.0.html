@@ -1,17 +1,17 @@
-<html><head><title>ChangeLog for asterisk-21.10.0-rc1</title></head><body>
-<h2>Change Log for Release asterisk-21.10.0-rc1</h2>
+<html><head><title>ChangeLog for asterisk-21.10.0</title></head><body>
+<h2>Change Log for Release asterisk-21.10.0</h2>
 <h3>Links:</h3>
 <ul>
-<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-21.10.0-rc1.html">Full ChangeLog</a>  </li>
-<li><a href="https://github.com/asterisk/asterisk/compare/21.9.1...21.10.0-rc1">GitHub Diff</a>  </li>
-<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-21.10.0-rc1.tar.gz">Tarball</a>  </li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-21.10.0.html">Full ChangeLog</a>  </li>
+<li><a href="https://github.com/asterisk/asterisk/compare/21.9.1...21.10.0">GitHub Diff</a>  </li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-21.10.0.tar.gz">Tarball</a>  </li>
 <li><a href="https://downloads.asterisk.org/pub/telephony/asterisk">Downloads</a>  </li>
 </ul>
 <h3>Summary:</h3>
 <ul>
-<li>Commits: 25</li>
-<li>Commit Authors: 13</li>
-<li>Issues Resolved: 14</li>
+<li>Commits: 29</li>
+<li>Commit Authors: 14</li>
+<li>Issues Resolved: 19</li>
 <li>Security Advisories Resolved: 1</li>
 <li><a href="https://github.com/asterisk/asterisk/security/advisories/GHSA-c7p6-7mvq-8jq2">GHSA-c7p6-7mvq-8jq2</a>: cli_permissions.conf: deny option does not work for disallowing shell commands</li>
 </ul>
@@ -107,16 +107,17 @@
 </ul>
 <h3>Commit Authors:</h3>
 <ul>
-<li>George Joseph: (8)</li>
+<li>George Joseph: (10)</li>
 <li>Itzanh: (1)</li>
 <li>Jaco Kroon: (2)</li>
 <li>Joe Searle: (1)</li>
+<li>Michal Hajek: (1)</li>
 <li>Mike Bradeen: (2)</li>
 <li>Mkmer: (1)</li>
 <li>Nathan Monfils: (1)</li>
 <li>Naveen Albert: (3)</li>
 <li>Phoneben: (1)</li>
-<li>Sean Bright: (1)</li>
+<li>Sean Bright: (2)</li>
 <li>Stanislav Abramenkov: (1)</li>
 <li>Sven Kube: (2)</li>
 <li>Thomas B. Clark: (1)</li>
@@ -138,12 +139,17 @@
 <li>1254: [bug]: ActiveChannels not reported when using AMI command PJSIPShowEndpoint</li>
 <li>1271: [bug]: STIR/SHAKEN not accepting port 8443 in certificate URLs</li>
 <li>1272: [improvement]: STIR/SHAKEN handle X5U certificate chains</li>
+<li>1276: MixMonitor produces broken recordings in bridged calls with asymmetric codecs (e.g., alaw vs G.722)</li>
+<li>1279: [bug]: regression: 20.12.0 downgrades quality of wav16 recordings</li>
+<li>1282: [bug]: Alternate Channel Storage Backends menuselect not enabling it</li>
+<li>1287: [bug]: channelstorage.c: Compilation failure with DEBUG_FD_LEAKS</li>
+<li>1288: [bug]: Crash when destroying channel with C++ alternative storage backend enabled</li>
 <li>ASTERISK-30373: sig_analog: Add Call Waiting Deluxe options</li>
 </ul>
 <h3>Commits By Author:</h3>
 <ul>
 <li>
-<h4>George Joseph (8):</h4>
+<h4>George Joseph (10):</h4>
 </li>
 <li>Alternate Channel Storage Backends</li>
 <li>lock.h: Add include for string.h when DEBUG_THREADS is defined.</li>
@@ -152,8 +158,10 @@
 <li>ARI Outbound Websockets</li>
 <li>res_websocket_client:  Add more info to the XML documentation.</li>
 <li>res_stir_shaken: Add "ignore_sip_date_header" config option.</li>
+<li>res_stir_shaken.so: Handle X5U certificate chains.</li>
+<li>channelstorage_cpp_map_name_id: Fix callback returning non-matching channels.</li>
 <li>
-<p>res_stir_shaken.so: Handle X5U certificate chains.</p>
+<p>channelstorage: Rename callbacks that conflict with DEBUG_FD_LEAKS.</p>
 </li>
 <li>
 <h4>Itzanh (1):</h4>
@@ -173,6 +181,12 @@
 </li>
 <li>
 <p>pjproject: Increase maximum SDP formats and attribute limits</p>
+</li>
+<li>
+<h4>Michal Hajek (1):</h4>
+</li>
+<li>
+<p>audiohook.c: Improve frame pairing logic to avoid MixMonitor breakage with mix..</p>
 </li>
 <li>
 <h4>Mike Bradeen (2):</h4>
@@ -196,10 +210,11 @@
 <p>app_record: Add RECORDING_INFO function.</p>
 </li>
 <li>
-<h4>Sean Bright (1):</h4>
+<h4>Sean Bright (2):</h4>
 </li>
+<li>res_pjsip: Fix empty <code>ActiveChannels</code> property in AMI responses.</li>
 <li>
-<p>res_pjsip: Fix empty <code>ActiveChannels</code> property in AMI responses.</p>
+<p>channelstorage_makeopts.xml: Remove errant XML character.</p>
 </li>
 <li>
 <h4>Stanislav Abramenkov (1):</h4>
@@ -233,6 +248,9 @@
 </ul>
 <h3>Commit List:</h3>
 <ul>
+<li>channelstorage: Rename callbacks that conflict with DEBUG_FD_LEAKS.</li>
+<li>channelstorage_cpp_map_name_id: Fix callback returning non-matching channels.</li>
+<li>channelstorage_makeopts.xml: Remove errant XML character.</li>
 <li>res_stir_shaken.so: Handle X5U certificate chains.</li>
 <li>res_stir_shaken: Add "ignore_sip_date_header" config option.</li>
 <li>app_record: Add RECORDING_INFO function.</li>
@@ -259,6 +277,39 @@
 <li>Alternate Channel Storage Backends</li>
 </ul>
 <h3>Commit Details:</h3>
+<h4>channelstorage: Rename callbacks that conflict with DEBUG_FD_LEAKS.</h4>
+<p>Author: George Joseph
+  Date:   2025-07-08</p>
+<p>DEBUG_FD_LEAKS replaces calls to "open" and "close" with functions that keep
+  track of file descriptors, even when those calls are actually callbacks
+  defined in structures like ast_channelstorage_instance-&gt;open and don't touch
+  file descriptors.  This causes compilation failures.  Those callbacks
+  have been renamed to "open_instance" and "close_instance" respectively.</p>
+<p>Resolves: #1287</p>
+<h4>channelstorage_cpp_map_name_id: Fix callback returning non-matching channels.</h4>
+<p>Author: George Joseph
+  Date:   2025-07-09</p>
+<p>When the callback() API was invoked but no channel passed the test, callback
+  would return the last channel tested instead of NULL.  It now correctly
+  returns NULL when no channel matches.</p>
+<p>Resolves: #1288</p>
+<h4>audiohook.c: Improve frame pairing logic to avoid MixMonitor breakage with mix..</h4>
+<p>Author: Michal Hajek
+  Date:   2025-05-21</p>
+<p>This patch adjusts the read/write synchronization logic in audiohook_read_frame_both()
+  to better handle calls where participants use different codecs or sample sizes
+  (e.g., alaw vs G.722). The previous hard threshold of 2 * samples caused MixMonitor
+  recordings to break or stutter when frames were not aligned between both directions.</p>
+<p>The new logic uses a more tolerant limit (1.5 * samples), which prevents audio tearing
+  without causing excessive buffer overruns. This fix specifically addresses issues
+  with MixMonitor when recording directly on a channel in a bridge using mixed codecs.</p>
+<p>Reported-by: Michal Hajek <a href="&#109;&#97;&#105;&#108;&#116;&#111;&#58;&#109;&#105;&#99;&#104;&#97;&#108;&#46;&#104;&#97;&#106;&#101;&#107;&#64;&#100;&#97;&#107;&#116;&#101;&#108;&#97;&#46;&#99;&#111;&#109;">&#109;&#105;&#99;&#104;&#97;&#108;&#46;&#104;&#97;&#106;&#101;&#107;&#64;&#100;&#97;&#107;&#116;&#101;&#108;&#97;&#46;&#99;&#111;&#109;</a></p>
+<p>Resolves: #1276
+  Resolves: #1279</p>
+<h4>channelstorage_makeopts.xml: Remove errant XML character.</h4>
+<p>Author: Sean Bright
+  Date:   2025-06-30</p>
+<p>Resolves: #1282</p>
 <h4>res_stir_shaken.so: Handle X5U certificate chains.</h4>
 <p>Author: George Joseph
   Date:   2025-06-18</p>
