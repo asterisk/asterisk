@@ -32,9 +32,21 @@ on:
         required: true
         type: boolean
         default: false
+      skip_cherry_pick:
+        description: |
+          Skip automatic cherry-pick for regular RC1 releases? USE WITH CAUTION!
+        required: true
+        type: boolean
+        default: false
       force_cherry_pick:
         description: |
           Force cherry-pick for non-RC1 releases? USE WITH CAUTION!
+        required: true
+        type: boolean
+        default: false
+      skip_test_builds:
+        description: |
+          Skip test builds?  USE WITH CAUTION!
         required: true
         type: boolean
         default: false
@@ -71,7 +83,9 @@ jobs:
       is_security: ${{inputs.is_security}}
       advisories: ${{inputs.advisories}}
       is_hotfix: ${{inputs.is_hotfix}}
+      skip_cherry_pick: ${{inputs.skip_cherry_pick}}
       force_cherry_pick: ${{inputs.force_cherry_pick}}
+      skip_test_builds: ${{inputs.skip_test_builds}}
       push_release_branches: ${{inputs.push_release_branches}}
       create_github_release: ${{inputs.create_github_release}}
       push_tarballs: ${{inputs.push_tarballs}}
