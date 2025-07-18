@@ -3,6 +3,16 @@ run-name: ${{ github.actor }} is creating ${{vars.PRODUCT_NAME}} release ${{inpu
 on:
   workflow_dispatch:
     inputs:
+      release_type:
+        description: |
+          Release Type:
+        required: true
+        type: choice
+        options:
+          - STANDARD
+          - SECURITY
+          - HOTFIX
+        default: STANDARD
       new_version:
         description: |
           New Version:
@@ -11,27 +21,13 @@ on:
             certified-20.4-cert1-rc1, certified-20.4-cert1
         required: true
         type: string
-      is_security:
-        description: |
-          Security?
-          (No prev RCs)
-        required: true
-        type: boolean
-        default: false
       advisories:
         description: |
-          Comma separated list of advisories.
+          Comma separated list of advisories for SECURITY releases.
           NO SPACES
           Example: GHSA-4xjp-22g4-9fxm,GHSA-4xjp-22g4-zzzz
         required: false
         type: string
-      is_hotfix:
-        description: |
-          Hotfix?
-          (A patch release but not security.  No prev RCs)
-        required: true
-        type: boolean
-        default: false
       skip_cherry_pick:
         description: |
           Skip automatic cherry-pick for regular RC1 releases? USE WITH CAUTION!
@@ -79,10 +75,9 @@ jobs:
   Releaser:
     uses: asterisk/asterisk-ci-actions/.github/workflows/AsteriskRelease.yml@main
     with:
+      release_type: ${{inputs.release_type}}
       new_version: ${{inputs.new_version}}
-      is_security: ${{inputs.is_security}}
       advisories: ${{inputs.advisories}}
-      is_hotfix: ${{inputs.is_hotfix}}
       skip_cherry_pick: ${{inputs.skip_cherry_pick}}
       force_cherry_pick: ${{inputs.force_cherry_pick}}
       skip_test_builds: ${{inputs.skip_test_builds}}
