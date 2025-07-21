@@ -4735,7 +4735,7 @@ enum ast_pbx_result ast_pbx_start(struct ast_channel *c)
 		return AST_PBX_FAILED;
 	}
 
-	if (!ast_test_flag(&ast_options, AST_OPT_FLAG_FULLY_BOOTED)) {
+	if (!ast_fully_booted) {
 		ast_log(LOG_WARNING, "PBX requires Asterisk to be fully booted\n");
 		return AST_PBX_FAILED;
 	}
@@ -4757,7 +4757,7 @@ enum ast_pbx_result ast_pbx_run_args(struct ast_channel *c, struct ast_pbx_args 
 {
 	enum ast_pbx_result res = AST_PBX_SUCCESS;
 
-	if (!ast_test_flag(&ast_options, AST_OPT_FLAG_FULLY_BOOTED)) {
+	if (!ast_fully_booted) {
 		ast_log(LOG_WARNING, "PBX requires Asterisk to be fully booted\n");
 		return AST_PBX_FAILED;
 	}

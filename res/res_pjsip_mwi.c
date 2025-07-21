@@ -1603,7 +1603,7 @@ static int load_module(void)
 
 	if (!ast_sip_get_mwi_disable_initial_unsolicited()) {
 		create_mwi_subscriptions();
-		if (ast_test_flag(&ast_options, AST_OPT_FLAG_FULLY_BOOTED)) {
+		if (ast_fully_booted) {
 			ast_sip_push_task(ast_serializer_pool_get(mwi_serializer_pool),
 				send_initial_notify_all, NULL);
 		} else {
