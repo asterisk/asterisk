@@ -554,11 +554,11 @@ static char *handle_show_settings(struct ast_cli_entry *e, int cmd, struct ast_c
 		ast_cli(a->fd, "  Running directory:           %s\n", dir);
 	}
 #endif /* defined(HAVE_EACCESS) || defined(HAVE_EUIDACCESS) */
-	ast_cli(a->fd, "  Executable includes:         %s\n", ast_test_flag(&ast_options, AST_OPT_FLAG_EXEC_INCLUDES) ? "Enabled" : "Disabled");
-	ast_cli(a->fd, "  Transcode via SLIN:          %s\n", ast_test_flag(&ast_options, AST_OPT_FLAG_TRANSCODE_VIA_SLIN) ? "Enabled" : "Disabled");
-	ast_cli(a->fd, "  Transmit silence during rec: %s\n", ast_test_flag(&ast_options, AST_OPT_FLAG_TRANSMIT_SILENCE) ? "Enabled" : "Disabled");
-	ast_cli(a->fd, "  Generic PLC:                 %s\n", ast_test_flag(&ast_options, AST_OPT_FLAG_GENERIC_PLC) ? "Enabled" : "Disabled");
-	ast_cli(a->fd, "  Generic PLC on equal codecs: %s\n", ast_test_flag(&ast_options, AST_OPT_FLAG_GENERIC_PLC_ON_EQUAL_CODECS) ? "Enabled" : "Disabled");
+	ast_cli(a->fd, "  Executable includes:         %s\n", ast_opt_exec_includes ? "Enabled" : "Disabled");
+	ast_cli(a->fd, "  Transcode via SLIN:          %s\n", ast_opt_transcode_via_slin ? "Enabled" : "Disabled");
+	ast_cli(a->fd, "  Transmit silence during rec: %s\n", ast_opt_transmit_silence ? "Enabled" : "Disabled");
+	ast_cli(a->fd, "  Generic PLC:                 %s\n", ast_opt_generic_plc ? "Enabled" : "Disabled");
+	ast_cli(a->fd, "  Generic PLC on equal codecs: %s\n", ast_opt_generic_plc_on_equal_codecs ? "Enabled" : "Disabled");
 	ast_cli(a->fd, "  Hide Msg Chan AMI events:    %s\n", ast_opt_hide_messaging_ami_events ? "Enabled" : "Disabled");
 	ast_cli(a->fd, "  Sounds search custom dir:    %s\n", ast_opt_sounds_search_custom ? "Enabled" : "Disabled");
 	ast_cli(a->fd, "  Min DTMF duration::          %u\n", option_dtmfminduration);
@@ -3635,7 +3635,7 @@ int main(int argc, char *argv[])
 
 	/* if the progname is rasterisk consider it a remote console */
 	if (argv[0] && (strstr(argv[0], "rasterisk")) != NULL) {
-		ast_set_flag(&ast_options, AST_OPT_FLAG_NO_FORK | AST_OPT_FLAG_REMOTE);
+		ast_set_flag64(&ast_options, AST_OPT_FLAG_NO_FORK | AST_OPT_FLAG_REMOTE);
 	}
 	ast_mainpid = getpid();
 
@@ -3643,7 +3643,7 @@ int main(int argc, char *argv[])
 	while ((c = getopt(argc, argv, getopt_settings)) != -1) {
 		switch (c) {
 		case 'X':
-			ast_set_flag(&ast_options, AST_OPT_FLAG_EXEC_INCLUDES);
+			ast_set_flag64(&ast_options, AST_OPT_FLAG_EXEC_INCLUDES);
 			break;
 		case 'C':
 			set_asterisk_conf_path(optarg);
@@ -3659,7 +3659,7 @@ int main(int argc, char *argv[])
 		case 'x':
 			/* ast_opt_remote is checked during config load.  This is only part of what
 			 * these options do, see the second loop for the rest of the actions. */
-			ast_set_flag(&ast_options, AST_OPT_FLAG_REMOTE);
+			ast_set_flag64(&ast_options, AST_OPT_FLAG_REMOTE);
 			break;
 		case 'V':
 			show_version();
@@ -3691,8 +3691,8 @@ int main(int argc, char *argv[])
 		 * option flags for new features. */
 		switch (c) {
 		case 'B': /* Force black background */
-			ast_set_flag(&ast_options, AST_OPT_FLAG_FORCE_BLACK_BACKGROUND);
-			ast_clear_flag(&ast_options, AST_OPT_FLAG_LIGHT_BACKGROUND);
+			ast_set_flag64(&ast_options, AST_OPT_FLAG_FORCE_BLACK_BACKGROUND);
+			ast_clear_flag64(&ast_options, AST_OPT_FLAG_LIGHT_BACKGROUND);
 			break;
 		case 'X':
 			/* The command-line -X option enables #exec for asterisk.conf only. */
@@ -3701,7 +3701,7 @@ int main(int argc, char *argv[])
 			/* already processed. */
 			break;
 		case 'c':
-			ast_set_flag(&ast_options, AST_OPT_FLAG_NO_FORK | AST_OPT_FLAG_CONSOLE);
+			ast_set_flag64(&ast_options, AST_OPT_FLAG_NO_FORK | AST_OPT_FLAG_CONSOLE);
 			break;
 		case 'd':
 			/* already processed. */
@@ -3715,17 +3715,17 @@ int main(int argc, char *argv[])
 #endif
 #if HAVE_WORKING_FORK
 		case 'F':
-			ast_set_flag(&ast_options, AST_OPT_FLAG_ALWAYS_FORK);
+			ast_set_flag64(&ast_options, AST_OPT_FLAG_ALWAYS_FORK);
 			break;
 		case 'f':
-			ast_set_flag(&ast_options, AST_OPT_FLAG_NO_FORK);
+			ast_set_flag64(&ast_options, AST_OPT_FLAG_NO_FORK);
 			break;
 #endif
 		case 'G':
 			rungroup = ast_strdup(optarg);
 			break;
 		case 'g':
-			ast_set_flag(&ast_options, AST_OPT_FLAG_DUMP_CORE);
+			ast_set_flag64(&ast_options, AST_OPT_FLAG_DUMP_CORE);
 			break;
 		case 'h':
 			/* already processed. */
@@ -3736,7 +3736,7 @@ int main(int argc, char *argv[])
 				"  It will always be enabled if you have a timing module loaded.\n");
 			break;
 		case 'i':
-			ast_set_flag(&ast_options, AST_OPT_FLAG_INIT_KEYS);
+			ast_set_flag64(&ast_options, AST_OPT_FLAG_INIT_KEYS);
 			break;
 		case 'L':
 			if ((sscanf(optarg, "%30lf", &ast_option_maxload) != 1) || (ast_option_maxload < 0.0)) {
@@ -3749,22 +3749,22 @@ int main(int argc, char *argv[])
 			}
 			break;
 		case 'm':
-			ast_set_flag(&ast_options, AST_OPT_FLAG_MUTE);
+			ast_set_flag64(&ast_options, AST_OPT_FLAG_MUTE);
 			break;
 		case 'n':
-			ast_set_flag(&ast_options, AST_OPT_FLAG_NO_COLOR);
+			ast_set_flag64(&ast_options, AST_OPT_FLAG_NO_COLOR);
 			break;
 		case 'p':
-			ast_set_flag(&ast_options, AST_OPT_FLAG_HIGH_PRIORITY);
+			ast_set_flag64(&ast_options, AST_OPT_FLAG_HIGH_PRIORITY);
 			break;
 		case 'q':
-			ast_set_flag(&ast_options, AST_OPT_FLAG_QUIET);
+			ast_set_flag64(&ast_options, AST_OPT_FLAG_QUIET);
 			break;
 		case 'R':
-			ast_set_flag(&ast_options, AST_OPT_FLAG_NO_FORK | AST_OPT_FLAG_REMOTE | AST_OPT_FLAG_RECONNECT);
+			ast_set_flag64(&ast_options, AST_OPT_FLAG_NO_FORK | AST_OPT_FLAG_REMOTE | AST_OPT_FLAG_RECONNECT);
 			break;
 		case 'r':
-			ast_set_flag(&ast_options, AST_OPT_FLAG_NO_FORK | AST_OPT_FLAG_REMOTE);
+			ast_set_flag64(&ast_options, AST_OPT_FLAG_NO_FORK | AST_OPT_FLAG_REMOTE);
 			break;
 		case 's':
 			if (ast_opt_remote) {
@@ -3772,10 +3772,10 @@ int main(int argc, char *argv[])
 			}
 			break;
 		case 'T':
-			ast_set_flag(&ast_options, AST_OPT_FLAG_TIMESTAMP);
+			ast_set_flag64(&ast_options, AST_OPT_FLAG_TIMESTAMP);
 			break;
 		case 't':
-			ast_set_flag(&ast_options, AST_OPT_FLAG_CACHE_RECORD_FILES);
+			ast_set_flag64(&ast_options, AST_OPT_FLAG_CACHE_RECORD_FILES);
 			break;
 		case 'U':
 			runuser = ast_strdup(optarg);
@@ -3785,14 +3785,14 @@ int main(int argc, char *argv[])
 			/* already processed. */
 			break;
 		case 'W': /* White background */
-			ast_set_flag(&ast_options, AST_OPT_FLAG_LIGHT_BACKGROUND);
-			ast_clear_flag(&ast_options, AST_OPT_FLAG_FORCE_BLACK_BACKGROUND);
+			ast_set_flag64(&ast_options, AST_OPT_FLAG_LIGHT_BACKGROUND);
+			ast_clear_flag64(&ast_options, AST_OPT_FLAG_FORCE_BLACK_BACKGROUND);
 			break;
 		case 'x':
 			/* -r is implied by -x so set the flags -r sets as well. */
-			ast_set_flag(&ast_options, AST_OPT_FLAG_NO_FORK | AST_OPT_FLAG_REMOTE);
+			ast_set_flag64(&ast_options, AST_OPT_FLAG_NO_FORK | AST_OPT_FLAG_REMOTE);
 
-			ast_set_flag(&ast_options, AST_OPT_FLAG_EXEC | AST_OPT_FLAG_NO_COLOR);
+			ast_set_flag64(&ast_options, AST_OPT_FLAG_EXEC | AST_OPT_FLAG_NO_COLOR);
 			xarg = ast_strdup(optarg);
 			break;
 		case '?':
@@ -3868,7 +3868,7 @@ int main(int argc, char *argv[])
 
 	if (ast_opt_always_fork && (ast_opt_remote || ast_opt_console)) {
 		fprintf(stderr, "'alwaysfork' is not compatible with console or remote console mode; ignored\n");
-		ast_clear_flag(&ast_options, AST_OPT_FLAG_ALWAYS_FORK);
+		ast_clear_flag64(&ast_options, AST_OPT_FLAG_ALWAYS_FORK);
 	}
 
 	if (ast_opt_dump_core) {
@@ -3968,7 +3968,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if (runuser && !ast_test_flag(&ast_options, AST_OPT_FLAG_REMOTE)) {
+	if (runuser && !ast_opt_remote) {
 #ifdef HAVE_CAP
 		int has_cap = 1;
 #endif /* HAVE_CAP */
@@ -4153,9 +4153,9 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 	/* Check whether high prio was successfully set by us or some
 	 * other incantation. */
 	if (has_priority()) {
-		ast_set_flag(&ast_options, AST_OPT_FLAG_HIGH_PRIORITY);
+		ast_set_flag64(&ast_options, AST_OPT_FLAG_HIGH_PRIORITY);
 	} else {
-		ast_clear_flag(&ast_options, AST_OPT_FLAG_HIGH_PRIORITY);
+		ast_clear_flag64(&ast_options, AST_OPT_FLAG_HIGH_PRIORITY);
 	}
 
 	/* Spawning of astcanary must happen AFTER the call to daemon(3) */
@@ -4356,7 +4356,7 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 
 	ast_process_pending_reloads();
 
-	ast_set_flag(&ast_options, AST_OPT_FLAG_FULLY_BOOTED);
+	ast_set_flag64(&ast_options, AST_OPT_FLAG_FULLY_BOOTED);
 	publish_fully_booted();
 
 	pthread_sigmask(SIG_UNBLOCK, &sigs, NULL);
