@@ -101,44 +101,53 @@ enum ast_option_flags {
 	AST_OPT_FLAG_GENERIC_PLC = (1 << 30),
 	/*! Generic PLC onm equal codecs */
 	AST_OPT_FLAG_GENERIC_PLC_ON_EQUAL_CODECS = (1 << 31),
+	/*!
+	 * ast_options is now an ast_flags64 structure so if you add more
+	 * options, make sure to use (1ULL << <bits>) to ensure that the
+	 * enum itself is allocated as a uint64_t instead of the default
+	 * uint32_t.  Attmpting to simply shift a 1 by more than 31 bits
+	 * will result in a "shift-count-overflow" compile failure.
+	 * Example:
+	 * AST_OPT_FLAG_NEW_OPTION = (1ULL << 32),
+	 */
 };
 
 /*! These are the options that set by default when Asterisk starts */
 #define AST_DEFAULT_OPTIONS (AST_OPT_FLAG_TRANSCODE_VIA_SLIN | AST_OPT_FLAG_CACHE_MEDIA_FRAMES)
 
-#define ast_opt_exec_includes		ast_test_flag(&ast_options, AST_OPT_FLAG_EXEC_INCLUDES)
-#define ast_opt_no_fork			ast_test_flag(&ast_options, AST_OPT_FLAG_NO_FORK)
-#define ast_opt_quiet			ast_test_flag(&ast_options, AST_OPT_FLAG_QUIET)
-#define ast_opt_console			ast_test_flag(&ast_options, AST_OPT_FLAG_CONSOLE)
-#define ast_opt_high_priority		ast_test_flag(&ast_options, AST_OPT_FLAG_HIGH_PRIORITY)
-#define ast_opt_init_keys		ast_test_flag(&ast_options, AST_OPT_FLAG_INIT_KEYS)
-#define ast_opt_remote			ast_test_flag(&ast_options, AST_OPT_FLAG_REMOTE)
-#define ast_opt_exec			ast_test_flag(&ast_options, AST_OPT_FLAG_EXEC)
-#define ast_opt_no_color		ast_test_flag(&ast_options, AST_OPT_FLAG_NO_COLOR)
-#define ast_fully_booted		ast_test_flag(&ast_options, AST_OPT_FLAG_FULLY_BOOTED)
-#define ast_opt_transcode_via_slin	ast_test_flag(&ast_options, AST_OPT_FLAG_TRANSCODE_VIA_SLIN)
+#define ast_opt_exec_includes		ast_test_flag64(&ast_options, AST_OPT_FLAG_EXEC_INCLUDES)
+#define ast_opt_no_fork			ast_test_flag64(&ast_options, AST_OPT_FLAG_NO_FORK)
+#define ast_opt_quiet			ast_test_flag64(&ast_options, AST_OPT_FLAG_QUIET)
+#define ast_opt_console			ast_test_flag64(&ast_options, AST_OPT_FLAG_CONSOLE)
+#define ast_opt_high_priority		ast_test_flag64(&ast_options, AST_OPT_FLAG_HIGH_PRIORITY)
+#define ast_opt_init_keys		ast_test_flag64(&ast_options, AST_OPT_FLAG_INIT_KEYS)
+#define ast_opt_remote			ast_test_flag64(&ast_options, AST_OPT_FLAG_REMOTE)
+#define ast_opt_exec			ast_test_flag64(&ast_options, AST_OPT_FLAG_EXEC)
+#define ast_opt_no_color		ast_test_flag64(&ast_options, AST_OPT_FLAG_NO_COLOR)
+#define ast_fully_booted		ast_test_flag64(&ast_options, AST_OPT_FLAG_FULLY_BOOTED)
+#define ast_opt_transcode_via_slin	ast_test_flag64(&ast_options, AST_OPT_FLAG_TRANSCODE_VIA_SLIN)
 /*! Invoke the stdexten using the legacy macro method. */
-#define ast_opt_stdexten_macro		ast_test_flag(&ast_options, AST_OPT_FLAG_STDEXTEN_MACRO)
-#define ast_opt_dump_core		ast_test_flag(&ast_options, AST_OPT_FLAG_DUMP_CORE)
-#define ast_opt_cache_record_files	ast_test_flag(&ast_options, AST_OPT_FLAG_CACHE_RECORD_FILES)
-#define ast_opt_cache_media_frames	ast_test_flag(&ast_options, AST_OPT_FLAG_CACHE_MEDIA_FRAMES)
-#define ast_opt_timestamp		ast_test_flag(&ast_options, AST_OPT_FLAG_TIMESTAMP)
-#define ast_opt_reconnect		ast_test_flag(&ast_options, AST_OPT_FLAG_RECONNECT)
-#define ast_opt_transmit_silence	ast_test_flag(&ast_options, AST_OPT_FLAG_TRANSMIT_SILENCE)
-#define ast_opt_dont_warn		ast_test_flag(&ast_options, AST_OPT_FLAG_DONT_WARN)
-#define ast_opt_always_fork		ast_test_flag(&ast_options, AST_OPT_FLAG_ALWAYS_FORK)
-#define ast_opt_mute			ast_test_flag(&ast_options, AST_OPT_FLAG_MUTE)
-#define ast_opt_dbg_module		ast_test_flag(&ast_options, AST_OPT_FLAG_DEBUG_MODULE)
-#define ast_opt_trace_module		ast_test_flag(&ast_options, AST_OPT_FLAG_TRACE_MODULE)
-#define ast_opt_light_background	ast_test_flag(&ast_options, AST_OPT_FLAG_LIGHT_BACKGROUND)
-#define ast_opt_force_black_background	ast_test_flag(&ast_options, AST_OPT_FLAG_FORCE_BLACK_BACKGROUND)
-#define ast_opt_hide_connect		ast_test_flag(&ast_options, AST_OPT_FLAG_HIDE_CONSOLE_CONNECT)
-#define ast_opt_lock_confdir		ast_test_flag(&ast_options, AST_OPT_FLAG_LOCK_CONFIG_DIR)
-#define ast_opt_generic_plc         ast_test_flag(&ast_options, AST_OPT_FLAG_GENERIC_PLC)
-#define ast_opt_ref_debug           ast_test_flag(&ast_options, AST_OPT_FLAG_REF_DEBUG)
-#define ast_opt_generic_plc_on_equal_codecs  ast_test_flag(&ast_options, AST_OPT_FLAG_GENERIC_PLC_ON_EQUAL_CODECS)
-#define ast_opt_hide_messaging_ami_events  ast_test_flag(&ast_options, AST_OPT_FLAG_HIDE_MESSAGING_AMI_EVENTS)
-#define ast_opt_sounds_search_custom ast_test_flag(&ast_options, AST_OPT_FLAG_SOUNDS_SEARCH_CUSTOM)
+#define ast_opt_stdexten_macro		ast_test_flag64(&ast_options, AST_OPT_FLAG_STDEXTEN_MACRO)
+#define ast_opt_dump_core		ast_test_flag64(&ast_options, AST_OPT_FLAG_DUMP_CORE)
+#define ast_opt_cache_record_files	ast_test_flag64(&ast_options, AST_OPT_FLAG_CACHE_RECORD_FILES)
+#define ast_opt_cache_media_frames	ast_test_flag64(&ast_options, AST_OPT_FLAG_CACHE_MEDIA_FRAMES)
+#define ast_opt_timestamp		ast_test_flag64(&ast_options, AST_OPT_FLAG_TIMESTAMP)
+#define ast_opt_reconnect		ast_test_flag64(&ast_options, AST_OPT_FLAG_RECONNECT)
+#define ast_opt_transmit_silence	ast_test_flag64(&ast_options, AST_OPT_FLAG_TRANSMIT_SILENCE)
+#define ast_opt_dont_warn		ast_test_flag64(&ast_options, AST_OPT_FLAG_DONT_WARN)
+#define ast_opt_always_fork		ast_test_flag64(&ast_options, AST_OPT_FLAG_ALWAYS_FORK)
+#define ast_opt_mute			ast_test_flag64(&ast_options, AST_OPT_FLAG_MUTE)
+#define ast_opt_dbg_module		ast_test_flag64(&ast_options, AST_OPT_FLAG_DEBUG_MODULE)
+#define ast_opt_trace_module		ast_test_flag64(&ast_options, AST_OPT_FLAG_TRACE_MODULE)
+#define ast_opt_light_background	ast_test_flag64(&ast_options, AST_OPT_FLAG_LIGHT_BACKGROUND)
+#define ast_opt_force_black_background	ast_test_flag64(&ast_options, AST_OPT_FLAG_FORCE_BLACK_BACKGROUND)
+#define ast_opt_hide_connect		ast_test_flag64(&ast_options, AST_OPT_FLAG_HIDE_CONSOLE_CONNECT)
+#define ast_opt_lock_confdir		ast_test_flag64(&ast_options, AST_OPT_FLAG_LOCK_CONFIG_DIR)
+#define ast_opt_generic_plc         ast_test_flag64(&ast_options, AST_OPT_FLAG_GENERIC_PLC)
+#define ast_opt_ref_debug           ast_test_flag64(&ast_options, AST_OPT_FLAG_REF_DEBUG)
+#define ast_opt_generic_plc_on_equal_codecs  ast_test_flag64(&ast_options, AST_OPT_FLAG_GENERIC_PLC_ON_EQUAL_CODECS)
+#define ast_opt_hide_messaging_ami_events  ast_test_flag64(&ast_options, AST_OPT_FLAG_HIDE_MESSAGING_AMI_EVENTS)
+#define ast_opt_sounds_search_custom ast_test_flag64(&ast_options, AST_OPT_FLAG_SOUNDS_SEARCH_CUSTOM)
 
 /*! Maximum log level defined by PJPROJECT. */
 #define MAX_PJ_LOG_MAX_LEVEL		6
@@ -186,7 +195,7 @@ extern int ast_option_pjproject_cache_pools;
 /*! Current pjproject logging level */
 extern int ast_option_pjproject_log_level;
 
-extern struct ast_flags ast_options;
+extern struct ast_flags64 ast_options;
 
 extern int option_verbose;
 extern int ast_option_maxfiles;		/*!< Max number of open file handles (files, sockets) */
