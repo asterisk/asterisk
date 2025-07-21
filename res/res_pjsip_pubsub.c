@@ -6102,7 +6102,7 @@ static int load_module(void)
 
 	pjsip_endpt_add_capability(ast_sip_get_pjsip_endpoint(), NULL, PJSIP_H_ALLOW, NULL, 1, &str_PUBLISH);
 
-	if (ast_test_flag(&ast_options, AST_OPT_FLAG_FULLY_BOOTED)) {
+	if (ast_fully_booted) {
 		ast_sip_push_task(NULL, subscription_persistence_load, NULL);
 	} else {
 		struct stasis_subscription *sub;
