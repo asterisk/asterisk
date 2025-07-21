@@ -110,10 +110,27 @@ extern unsigned int __unsigned_int_flags_dummy;
 					} while (0)
 
 
-/* The following 64-bit flag code can most likely be erased after app_dial
-   is reorganized to either reduce the large number of options, or handle
-   them in some other way. At the time of this writing, app_dial would be
-   the only user of 64-bit option flags */
+/*!
+ * \brief Swap the upper and lower 32 bits of a big-endian 64-bit integer
+ *
+ * This macro is needed to preserve ABI compatability on big-endian systems
+ * after changing from a 32 bit flags to a 64 bit flags.  It ensures that a
+ * new 64-bit flag field will still work with a function that expects a
+ * 32-bit flag field.  On a little-endian system, nothing is needed, since
+ * the 64-bit flags are already in the correct order.
+ *
+ * \note This macro is different than a standard byte swap, as it
+ * doesn't reverse the byte order, it just swaps the upper 4 bytes with
+ * the lower 4 bytes.
+ *
+ * \param flags The 64-bit flags to swap
+ * \retval The flags with the upper and lower 32 bits swapped if the system is big-endian,
+ */
+#if __BYTE_ORDER == __BIG_ENDIAN
+#define SWAP64_32(flags) (((uint64_t)flags << 32) | ((uint64_t)flags >> 32))
+#else
+#define SWAP64_32(flags) (flags)
+#endif
 
 extern uint64_t __unsigned_int_flags_dummy64;
 
@@ -121,21 +138,21 @@ extern uint64_t __unsigned_int_flags_dummy64;
 					typeof ((p)->flags) __p = (p)->flags; \
 					typeof (__unsigned_int_flags_dummy64) __x = 0; \
 					(void) (&__p == &__x); \
-					((p)->flags & (flag)); \
+					((p)->flags & SWAP64_32(flag)); \
 					})
 
 #define ast_set_flag64(p,flag) 		do { \
 					typeof ((p)->flags) __p = (p)->flags; \
 					typeof (__unsigned_int_flags_dummy64) __x = 0; \
 					(void) (&__p == &__x); \
-					((p)->flags |= (flag)); \
+					((p)->flags |= SWAP64_32(flag)); \
 					} while(0)
 
 #define ast_clear_flag64(p,flag) 		do { \
 					typeof ((p)->flags) __p = (p)->flags; \
 					typeof (__unsigned_int_flags_dummy64) __x = 0; \
 					(void) (&__p == &__x); \
-					((p)->flags &= ~(flag)); \
+					((p)->flags &= ~SWAP64_32(flag)); \
 					} while(0)
 
 #define ast_copy_flags64(dest,src,flagz)	do { \
@@ -144,8 +161,8 @@ extern uint64_t __unsigned_int_flags_dummy64;
 					typeof (__unsigned_int_flags_dummy64) __x = 0; \
 					(void) (&__d == &__x); \
 					(void) (&__s == &__x); \
-					(dest)->flags &= ~(flagz); \
-					(dest)->flags |= ((src)->flags & (flagz)); \
+					(dest)->flags &= ~SWAP64_32(flagz); \
+					(dest)->flags |= ((src)->flags & SWAP64_32(flagz)); \
 					} while (0)
 
 #define ast_set2_flag64(p,value,flag)	do { \
@@ -153,19 +170,20 @@ extern uint64_t __unsigned_int_flags_dummy64;
 					typeof (__unsigned_int_flags_dummy64) __x = 0; \
 					(void) (&__p == &__x); \
 					if (value) \
-						(p)->flags |= (flag); \
+						(p)->flags |= SWAP64_32(flag); \
 					else \
-						(p)->flags &= ~(flag); \
+						(p)->flags &= ~SWAP64_32(flag); \
 					} while (0)
 
 #define ast_set_flags_to64(p,flag,value)	do { \
 					typeof ((p)->flags) __p = (p)->flags; \
 					typeof (__unsigned_int_flags_dummy64) __x = 0; \
 					(void) (&__p == &__x); \
-					(p)->flags &= ~(flag); \
-					(p)->flags |= (value); \
+					(p)->flags &= ~SWAP64_32(flag); \
+					(p)->flags |= SWAP64_32(value); \
 					} while (0)
 
+#define AST_FLAGS64_ALL ULONG_MAX
 
 /* Non-type checking variations for non-unsigned int flags.  You
    should only use non-unsigned int flags where required by

@@ -1546,7 +1546,7 @@ char *ast_module_helper(const char *line, const char *word, int pos, int state, 
 	}
 
 	/* Tab completion can't be used during startup, or CLI and loader will deadlock. */
-	if (!ast_test_flag(&ast_options, AST_OPT_FLAG_FULLY_BOOTED)) {
+	if (!ast_fully_booted) {
 		return NULL;
 	}
 
