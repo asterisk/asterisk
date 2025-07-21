@@ -509,7 +509,7 @@ static char *handle_debug_or_trace(int handler, struct ast_cli_entry *e, int cmd
 				}
 				AST_RWLIST_REMOVE(modules, ml, entry);
 				if (AST_RWLIST_EMPTY(modules)) {
-					ast_clear_flag(&ast_options, module_option);
+					ast_clear_flag64(&ast_options, module_option);
 				}
 				AST_RWLIST_UNLOCK(modules);
 				ast_cli(a->fd, "Core %s was %u and has been set to 0 for '%s'.\n", handler_name,
@@ -537,7 +537,7 @@ static char *handle_debug_or_trace(int handler, struct ast_cli_entry *e, int cmd
 				strcpy(ml->module, mod);
 				AST_RWLIST_INSERT_TAIL(modules, ml, entry);
 			}
-			ast_set_flag(&ast_options, module_option);
+			ast_set_flag64(&ast_options, module_option);
 
 			ast_cli(a->fd, "Core %s was %d and has been set to %u for '%s'.\n", handler_name,
 				oldval, ml->level, ml->module);
@@ -555,7 +555,7 @@ static char *handle_debug_or_trace(int handler, struct ast_cli_entry *e, int cmd
 		while ((ml = AST_RWLIST_REMOVE_HEAD(modules, entry))) {
 			ast_free(ml);
 		}
-		ast_clear_flag(&ast_options, AST_OPT_FLAG_DEBUG_MODULE);
+		ast_clear_flag64(&ast_options, AST_OPT_FLAG_DEBUG_MODULE);
 		AST_RWLIST_UNLOCK(modules);
 	}
 	oldval = *core_option;
@@ -1971,7 +1971,7 @@ static char *handle_cli_wait_fullybooted(struct ast_cli_entry *e, int cmd, struc
 		return NULL;
 	}
 
-	while (!ast_test_flag(&ast_options, AST_OPT_FLAG_FULLY_BOOTED)) {
+	while (!ast_fully_booted) {
 		usleep(100);
 	}
 
