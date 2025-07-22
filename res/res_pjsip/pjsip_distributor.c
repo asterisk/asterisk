@@ -486,7 +486,7 @@ static pj_bool_t distributor(pjsip_rx_data *rdata)
 	struct ast_taskprocessor *serializer = NULL;
 	pjsip_rx_data *clone;
 
-	if (!ast_test_flag(&ast_options, AST_OPT_FLAG_FULLY_BOOTED)) {
+	if (!ast_fully_booted) {
 		/*
 		 * Ignore everything until we are fully booted.  Let the
 		 * peer retransmit messages until we are ready.

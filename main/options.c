@@ -59,7 +59,7 @@
  */
 /*! @{ */
 
-struct ast_flags ast_options = { AST_DEFAULT_OPTIONS };
+struct ast_flags64 ast_options = { AST_DEFAULT_OPTIONS };
 
 /*! Maximum active system verbosity level. */
 int ast_verb_sys_level;
@@ -229,7 +229,7 @@ void load_asterisk_conf(void)
 #ifdef REF_DEBUG
 	/* The REF_DEBUG compiler flag is now only used to enable refdebug by default.
 	 * Support for debugging reference counts is always compiled in. */
-	ast_set2_flag(&ast_options, 1, AST_OPT_FLAG_REF_DEBUG);
+	ast_set2_flag64(&ast_options, 1, AST_OPT_FLAG_REF_DEBUG);
 #endif
 
 	ast_set_default_eid(&ast_eid_default);
@@ -238,7 +238,7 @@ void load_asterisk_conf(void)
 
 	/* If AST_OPT_FLAG_EXEC_INCLUDES was previously enabled with -X turn it off now.
 	 * Using #exec from other configs requires that it be enabled from asterisk.conf. */
-	ast_clear_flag(&ast_options, AST_OPT_FLAG_EXEC_INCLUDES);
+	ast_clear_flag64(&ast_options, AST_OPT_FLAG_EXEC_INCLUDES);
 
 	/* no asterisk.conf? no problem, use buildtime config! */
 	if (cfg == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEUNCHANGED || cfg == CONFIG_STATUS_FILEINVALID) {
@@ -307,10 +307,10 @@ void load_asterisk_conf(void)
 			option_verbose_new = atoi(v->value);
 		/* whether or not to force timestamping in CLI verbose output. (-T at startup) */
 		} else if (!strcasecmp(v->name, "timestamp")) {
-			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_TIMESTAMP);
+			ast_set2_flag64(&ast_options, ast_true(v->value), AST_OPT_FLAG_TIMESTAMP);
 		/* whether or not to support #exec in config files */
 		} else if (!strcasecmp(v->name, "execincludes")) {
-			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_EXEC_INCLUDES);
+			ast_set2_flag64(&ast_options, ast_true(v->value), AST_OPT_FLAG_EXEC_INCLUDES);
 		/* debug level (-d at startup) */
 		} else if (!strcasecmp(v->name, "debug")) {
 			option_debug_new = 0;
@@ -323,55 +323,55 @@ void load_asterisk_conf(void)
 				option_trace_new = ast_true(v->value) ? 1 : 0;
 			}
 		} else if (!strcasecmp(v->name, "refdebug")) {
-			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_REF_DEBUG);
+			ast_set2_flag64(&ast_options, ast_true(v->value), AST_OPT_FLAG_REF_DEBUG);
 #if HAVE_WORKING_FORK
 		/* Disable forking (-f at startup) */
 		} else if (!strcasecmp(v->name, "nofork")) {
-			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_NO_FORK);
+			ast_set2_flag64(&ast_options, ast_true(v->value), AST_OPT_FLAG_NO_FORK);
 		/* Always fork, even if verbose or debug are enabled (-F at startup) */
 		} else if (!strcasecmp(v->name, "alwaysfork")) {
-			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_ALWAYS_FORK);
+			ast_set2_flag64(&ast_options, ast_true(v->value), AST_OPT_FLAG_ALWAYS_FORK);
 #endif
 		/* Run quietly (-q at startup ) */
 		} else if (!strcasecmp(v->name, "quiet")) {
-			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_QUIET);
+			ast_set2_flag64(&ast_options, ast_true(v->value), AST_OPT_FLAG_QUIET);
 		/* Run as console (-c at startup, implies nofork) */
 		} else if (!strcasecmp(v->name, "console")) {
 			if (!ast_opt_remote) {
-				ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_NO_FORK | AST_OPT_FLAG_CONSOLE);
+				ast_set2_flag64(&ast_options, ast_true(v->value), AST_OPT_FLAG_NO_FORK | AST_OPT_FLAG_CONSOLE);
 			}
 		/* Run with high priority if the O/S permits (-p at startup) */
 		} else if (!strcasecmp(v->name, "highpriority")) {
-			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_HIGH_PRIORITY);
+			ast_set2_flag64(&ast_options, ast_true(v->value), AST_OPT_FLAG_HIGH_PRIORITY);
 		/* Initialize RSA auth keys (IAX2) (-i at startup) */
 		} else if (!strcasecmp(v->name, "initcrypto")) {
-			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_INIT_KEYS);
+			ast_set2_flag64(&ast_options, ast_true(v->value), AST_OPT_FLAG_INIT_KEYS);
 		/* Disable ANSI colors for console (-c at startup) */
 		} else if (!strcasecmp(v->name, "nocolor")) {
-			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_NO_COLOR);
+			ast_set2_flag64(&ast_options, ast_true(v->value), AST_OPT_FLAG_NO_COLOR);
 		/* Disable some usage warnings for picky people :p */
 		} else if (!strcasecmp(v->name, "dontwarn")) {
-			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_DONT_WARN);
+			ast_set2_flag64(&ast_options, ast_true(v->value), AST_OPT_FLAG_DONT_WARN);
 		/* Dump core in case of crash (-g) */
 		} else if (!strcasecmp(v->name, "dumpcore")) {
-			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_DUMP_CORE);
+			ast_set2_flag64(&ast_options, ast_true(v->value), AST_OPT_FLAG_DUMP_CORE);
 		/* Cache recorded sound files to another directory during recording */
 		} else if (!strcasecmp(v->name, "cache_record_files")) {
-			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_CACHE_RECORD_FILES);
+			ast_set2_flag64(&ast_options, ast_true(v->value), AST_OPT_FLAG_CACHE_RECORD_FILES);
 #if !defined(LOW_MEMORY)
 		/* Cache media frames for performance */
 		} else if (!strcasecmp(v->name, "cache_media_frames")) {
-			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_CACHE_MEDIA_FRAMES);
+			ast_set2_flag64(&ast_options, ast_true(v->value), AST_OPT_FLAG_CACHE_MEDIA_FRAMES);
 #endif
 		/* Specify cache directory */
 		} else if (!strcasecmp(v->name, "record_cache_dir")) {
 			ast_copy_string(record_cache_dir, v->value, AST_CACHE_DIR_LEN);
 		/* Build transcode paths via SLINEAR, instead of directly */
 		} else if (!strcasecmp(v->name, "transcode_via_sln")) {
-			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_TRANSCODE_VIA_SLIN);
+			ast_set2_flag64(&ast_options, ast_true(v->value), AST_OPT_FLAG_TRANSCODE_VIA_SLIN);
 		/* Transmit SLINEAR silence while a channel is being recorded or DTMF is being generated on a channel */
 		} else if (!strcasecmp(v->name, "transmit_silence_during_record") || !strcasecmp(v->name, "transmit_silence")) {
-			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_TRANSMIT_SILENCE);
+			ast_set2_flag64(&ast_options, ast_true(v->value), AST_OPT_FLAG_TRANSMIT_SILENCE);
 		} else if (!strcasecmp(v->name, "mindtmfduration")) {
 			if (sscanf(v->value, "%30u", &option_dtmfminduration) != 1) {
 				option_dtmfminduration = AST_MIN_DTMF_DURATION;
@@ -451,31 +451,31 @@ void load_asterisk_conf(void)
 				ast_log(LOG_WARNING, "Invalid Entity ID '%s' provided\n", v->value);
 			}
 		} else if (!strcasecmp(v->name, "lightbackground")) {
-			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_LIGHT_BACKGROUND);
+			ast_set2_flag64(&ast_options, ast_true(v->value), AST_OPT_FLAG_LIGHT_BACKGROUND);
 		} else if (!strcasecmp(v->name, "forceblackbackground")) {
-			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_FORCE_BLACK_BACKGROUND);
+			ast_set2_flag64(&ast_options, ast_true(v->value), AST_OPT_FLAG_FORCE_BLACK_BACKGROUND);
 		} else if (!strcasecmp(v->name, "hideconnect")) {
-			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_HIDE_CONSOLE_CONNECT);
+			ast_set2_flag64(&ast_options, ast_true(v->value), AST_OPT_FLAG_HIDE_CONSOLE_CONNECT);
 		} else if (!strcasecmp(v->name, "lockconfdir")) {
-			ast_set2_flag(&ast_options, ast_true(v->value),	AST_OPT_FLAG_LOCK_CONFIG_DIR);
+			ast_set2_flag64(&ast_options, ast_true(v->value),	AST_OPT_FLAG_LOCK_CONFIG_DIR);
 		} else if (!strcasecmp(v->name, "stdexten")) {
 			/* Choose how to invoke the extensions.conf stdexten */
 			if (!strcasecmp(v->value, "gosub")) {
-				ast_clear_flag(&ast_options, AST_OPT_FLAG_STDEXTEN_MACRO);
+				ast_clear_flag64(&ast_options, AST_OPT_FLAG_STDEXTEN_MACRO);
 			} else if (!strcasecmp(v->value, "macro")) {
-				ast_set_flag(&ast_options, AST_OPT_FLAG_STDEXTEN_MACRO);
+				ast_set_flag64(&ast_options, AST_OPT_FLAG_STDEXTEN_MACRO);
 			} else {
 				ast_log(LOG_WARNING,
 					"'%s' is not a valid setting for the stdexten option, defaulting to 'gosub'\n",
 					v->value);
-				ast_clear_flag(&ast_options, AST_OPT_FLAG_STDEXTEN_MACRO);
+				ast_clear_flag64(&ast_options, AST_OPT_FLAG_STDEXTEN_MACRO);
 			}
 		} else if (!strcasecmp(v->name, "live_dangerously")) {
 			live_dangerously = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "hide_messaging_ami_events")) {
-			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_HIDE_MESSAGING_AMI_EVENTS);
+			ast_set2_flag64(&ast_options, ast_true(v->value), AST_OPT_FLAG_HIDE_MESSAGING_AMI_EVENTS);
 		} else if (!strcasecmp(v->name, "sounds_search_custom_dir")) {
-			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_SOUNDS_SEARCH_CUSTOM);
+			ast_set2_flag64(&ast_options, ast_true(v->value), AST_OPT_FLAG_SOUNDS_SEARCH_CUSTOM);
 		} else if (!strcasecmp(v->name, "channel_storage_backend")) {
 			internal_channel_set_current_storage_driver(v->value);
 		} else if (!strcasecmp(v->name, "disable_remote_console_shell")) {
