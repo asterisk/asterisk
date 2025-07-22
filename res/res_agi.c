@@ -1548,7 +1548,7 @@
 #define MAX_ARGS 128
 #define MAX_CMD_LEN 80
 #define AGI_NANDFS_RETRY 3
-#define AGI_BUF_LEN 2048
+#define AGI_BUF_LEN 8192
 #define SRV_PREFIX "_agi._tcp."
 
 static char *app = "AGI";
