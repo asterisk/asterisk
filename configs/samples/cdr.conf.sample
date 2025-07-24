@@ -96,6 +96,12 @@
 ; is "yes".
 ;safeshutdown=yes
 
+; Define if the CANCEL disposition state should be used.
+; When enabled, The NO ANSWER disposition will be split into two distinct 
+; dispositions: CANCEL and NO ANSWER.
+; The default value is "no".
+;canceldispositionenabled = no
+
 ;
 ;
 ; CHOOSING A CDR "BACKEND"  (what kind of output to generate)
