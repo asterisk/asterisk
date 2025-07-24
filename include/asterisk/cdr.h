@@ -227,6 +227,7 @@ enum ast_cdr_settings {
 	CDR_CHANNEL_DEFAULT_ENABLED = 1 << 7, /*!< Whether CDR is enabled for each channel by default */
 	CDR_IGNORE_STATE_CHANGES = 1 << 8,	/*!< Whether to ignore bridge and other call state change events */
 	CDR_IGNORE_DIAL_CHANGES = 1 << 9,	/*!< Whether to ignore dial state changes */
+	CDR_CANCEL_DISPOSITION_ENABLED = 1 << 10, /*!< Whether to enable CANCEL disposition in CDR */
 };
 
 /*! \brief CDR Batch Mode settings */
@@ -260,6 +261,7 @@ enum ast_cdr_disposition {
 	AST_CDR_BUSY       = (1 << 2),
 	AST_CDR_ANSWERED   = (1 << 3),
 	AST_CDR_CONGESTION = (1 << 4),
+	AST_CDR_CANCEL     = (1 << 5),
 };
 
 
