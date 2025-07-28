@@ -150,9 +150,6 @@
 					<enum name="status">
 						<para>(default) The status of the agent (LOGGEDIN | LOGGEDOUT)</para>
 					</enum>
-					<enum name="password">
-						<para>Deprecated.  The dialplan handles any agent authentication.</para>
-					</enum>
 					<enum name="name">
 						<para>The name of the agent</para>
 					</enum>
