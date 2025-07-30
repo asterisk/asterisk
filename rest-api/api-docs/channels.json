@@ -773,6 +773,47 @@
 			]
 		},
 		{
+			"path": "/channels/{channelId}/progress",
+			"description": "Indicate progress on a channel",
+			"operations": [
+				{
+					"httpMethod": "POST",
+					"since": [
+						"22.6.0",
+						"21.11.0",
+						"20.16.0"
+					],
+					"summary": "Indicate progress on a channel.",
+					"nickname": "progress",
+					"responseClass": "void",
+					"parameters": [
+						{
+							"name": "channelId",
+							"description": "Channel's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Channel not found"
+						},
+						{
+							"code": 409,
+							"reason": "Channel not in a Stasis application"
+						},
+						{
+							"code": 412,
+							"reason": "Channel in invalid state"
+						}
+					]
+				}
+			]
+		},
+		{
 			"path": "/channels/{channelId}/dtmf",
 			"description": "Send DTMF to a channel",
 			"operations": [
