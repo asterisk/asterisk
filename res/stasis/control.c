@@ -637,6 +637,21 @@ int stasis_app_control_ring_stop(struct stasis_app_control *control)
 	return 0;
 }
 
+static int app_control_progress(struct stasis_app_control *control,
+	struct ast_channel *chan, void *data)
+{
+	ast_indicate(control->channel, AST_CONTROL_PROGRESS);
+
+	return 0;
+}
+
+int stasis_app_control_progress(struct stasis_app_control *control)
+{
+	stasis_app_send_command_async(control, app_control_progress, NULL, NULL);
+
+	return 0;
+}
+
 struct stasis_app_control_mute_data {
 	enum ast_frame_type frametype;
 	unsigned int direction;
