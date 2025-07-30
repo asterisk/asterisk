@@ -569,6 +569,16 @@ int stasis_app_control_ring(struct stasis_app_control *control);
 int stasis_app_control_ring_stop(struct stasis_app_control *control);
 
 /*!
+ * \brief Indicate progress to the channel associated with this control.
+ *
+ * \param control Control for \c res_stasis.
+ *
+ * \return 0 for success.
+ * \return -1 for error.
+ */
+int stasis_app_control_progress(struct stasis_app_control *control);
+
+/*!
  * \brief Send DTMF to the channel associated with this control.
  *
  * \param control Control for \c res_stasis.
