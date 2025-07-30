@@ -283,7 +283,7 @@ static void populate_cache(void)
 		if (!ast_strlen_zero(name)) {
 			ast_devstate_changed(
 				ast_devstate_val(entry->data),
-				AST_DEVSTATE_CACHABLE, "%s%s\n",
+				AST_DEVSTATE_CACHABLE, "%s%s",
 				DEVICE_STATE_SCHEME_STASIS, name + 1);
 		}
 	}
