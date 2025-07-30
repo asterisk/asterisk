@@ -1790,7 +1790,7 @@ void ast_ari_channels_create(struct ast_variable *headers,
 	char *stuff;
 	int cause;
 	struct ast_format_cap *request_cap;
-	struct ast_channel *originator;
+	struct ast_channel *originator = NULL;
 
 	/* Parse any query parameters out of the body parameter */
 	if (args->variables) {
@@ -1850,7 +1850,10 @@ void ast_ari_channels_create(struct ast_variable *headers,
 		return;
 	}
 
-	originator = ast_channel_get_by_name(args->originator);
+	if (!ast_strlen_zero(args->originator)) {
+		originator = ast_channel_get_by_name(args->originator);
+	}
+
 	if (originator) {
 		request_cap = ao2_bump(ast_channel_nativeformats(originator));
 		if (!ast_strlen_zero(args->app)) {
@@ -1952,7 +1955,9 @@ void ast_ari_channels_dial(struct ast_variable *headers,
 		return;
 	}
 
-	caller = ast_channel_get_by_name(args->caller);
+	if (!ast_strlen_zero(args->caller)) {
+		caller = ast_channel_get_by_name(args->caller);
+	}
 
 	callee = ast_channel_get_by_name(args->channel_id);
 	if (!callee) {
