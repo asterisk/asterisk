@@ -921,6 +921,11 @@ enum ast_stir_shaken_vs_response_code
 	}
 
 	p = strchr(ctx->identity_hdr, ';');
+	if (ast_strlen_zero(p)) {
+		SCOPE_EXIT_LOG_RTN_VALUE(AST_STIR_SHAKEN_VS_INVALID_HEADER,
+			LOG_ERROR, "%s: Malformed identity header\n", ctx->tag);
+	}
+
 	len = p - ctx->identity_hdr + 1;
 	jwt_encoded = ast_malloc(len);
 	if (!jwt_encoded) {
@@ -931,7 +936,11 @@ enum ast_stir_shaken_vs_response_code
 	memcpy(jwt_encoded, ctx->identity_hdr, len);
 	jwt_encoded[len - 1] = '\0';
 
-	jwt_decode(&jwt, jwt_encoded, NULL, 0);
+	rc = jwt_decode(&jwt, jwt_encoded, NULL, 0);
+	if (rc != 0) {
+		SCOPE_EXIT_RTN_VALUE(AST_STIR_SHAKEN_VS_INVALID_HEADER, "%s: %s\n",
+			ctx->tag, vs_response_code_to_str(AST_STIR_SHAKEN_VS_INVALID_HEADER));
+	}
 
 	ppt_header = jwt_get_header(jwt, "ppt");
 	if (!ppt_header || strcmp(ppt_header, STIR_SHAKEN_PPT)) {
