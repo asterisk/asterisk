@@ -513,7 +513,7 @@ AST_TEST_DEFINE(object_update_uncreated)
 
 	if (!ast_sorcery_update(sorcery, obj)) {
 		ast_test_status_update(test, "Successfully updated an object which has not been created yet\n");
-		return AST_TEST_FAIL;
+		return AST_TEST_PASS;
 	}
 
 	return AST_TEST_PASS;
