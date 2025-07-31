@@ -1,0 +1,62 @@
+<html><head><title>ChangeLog for asterisk-certified-18.9-cert16</title></head><body>
+<h2>Change Log for Release asterisk-certified-18.9-cert16</h2>
+<h3>Links:</h3>
+<ul>
+<li><a href="https://downloads.asterisk.org/pub/telephony/certified-asterisk/releases/ChangeLog-certified-18.9-cert16.html">Full ChangeLog</a>  </li>
+<li><a href="https://github.com/asterisk/asterisk/compare/certified-18.9-cert15...certified-18.9-cert16">GitHub Diff</a>  </li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/certified-asterisk/asterisk-certified-18.9-cert16.tar.gz">Tarball</a>  </li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/certified-asterisk">Downloads</a>  </li>
+</ul>
+<h3>Summary:</h3>
+<ul>
+<li>Commits: 1</li>
+<li>Commit Authors: 1</li>
+<li>Issues Resolved: 0</li>
+<li>Security Advisories Resolved: 1</li>
+<li><a href="https://github.com/asterisk/asterisk/security/advisories/GHSA-v9q8-9j8m-5xwp">GHSA-v9q8-9j8m-5xwp</a>: Uncontrolled Search-Path Element in safe_asterisk script may allow local privilege escalation.</li>
+</ul>
+<h3>User Notes:</h3>
+<h3>Upgrade Notes:</h3>
+<ul>
+<li>
+<h4>safe_asterisk: Add ownership checks for /etc/asterisk/startup.d and its files.</h4>
+  The safe_asterisk script now checks that, if it was run by the
+  root user, the /etc/asterisk/startup.d directory and all the files it contains
+  are owned by root.  If the checks fail, safe_asterisk will exit with an error
+  and Asterisk will not be started.  Additionally, the default logging
+  destination is now stderr instead of tty "9" which probably won't exist
+  in modern systems.</li>
+</ul>
+<h3>Developer Notes:</h3>
+<h3>Commit Authors:</h3>
+<ul>
+<li>ThatTotallyRealMyth: (1)</li>
+</ul>
+<h2>Issue and Commit Detail:</h2>
+<h3>Closed Issues:</h3>
+<ul>
+<li>!GHSA-v9q8-9j8m-5xwp: Uncontrolled Search-Path Element in safe_asterisk script may allow local privilege escalation.</li>
+</ul>
+<h3>Commits By Author:</h3>
+<ul>
+<li>
+<h4>ThatTotallyRealMyth (1):</h4>
+</li>
+<li>safe_asterisk: Add ownership checks for /etc/asterisk/startup.d and its files.</li>
+</ul>
+<h3>Commit List:</h3>
+<ul>
+<li>safe_asterisk: Add ownership checks for /etc/asterisk/startup.d and its files.</li>
+</ul>
+<h3>Commit Details:</h3>
+<h4>safe_asterisk: Add ownership checks for /etc/asterisk/startup.d and its files.</h4>
+<p>Author: ThatTotallyRealMyth
+  Date:   2025-06-10</p>
+<p>UpgradeNote: The safe_asterisk script now checks that, if it was run by the
+  root user, the /etc/asterisk/startup.d directory and all the files it contains
+  are owned by root.  If the checks fail, safe_asterisk will exit with an error
+  and Asterisk will not be started.  Additionally, the default logging
+  destination is now stderr instead of tty "9" which probably won't exist
+  in modern systems.</p>
+<p>Resolves: #GHSA-v9q8-9j8m-5xwp</p>
+</body></html>
