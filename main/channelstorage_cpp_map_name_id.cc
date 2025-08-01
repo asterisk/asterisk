@@ -19,7 +19,6 @@
 #include <memory>
 #include <string>
 #include <map>
-#include <unordered_map>
 #include <cassert>
 #include <utility>
 
@@ -40,16 +39,25 @@ struct mni_channelstorage_driver_pvt {
 
 static void rdlock(struct ast_channelstorage_instance *driver)
 {
+	if (!driver || !driver->lock_handle) {
+		return;
+	}
 	ast_rwlock_rdlock((ast_rwlock_t*)driver->lock_handle);
 }
 
 static void wrlock(struct ast_channelstorage_instance *driver)
 {
+	if (!driver || !driver->lock_handle) {
+		return;
+	}
 	ast_rwlock_wrlock((ast_rwlock_t*)driver->lock_handle);
 }
 
 static void unlock(struct ast_channelstorage_instance *driver)
 {
+	if (!driver || !driver->lock_handle) {
+		return;
+	}
 	ast_rwlock_unlock((ast_rwlock_t*)driver->lock_handle);
 }
 
@@ -167,39 +175,44 @@ enum cpp_map_iterator_type {
 };
 
 struct mni_channel_iterator {
-	ChannelMap::const_iterator it;
-	ChannelMap::const_iterator it_end;
 	enum cpp_map_iterator_type it_type;
-	char *channel_name;
-	size_t channel_name_len;
+	std::string l_name;
+	size_t l_name_len;
 	char *context;
 	char *exten;
+	std::string last_channel;
+	int counter;
 
-	mni_channel_iterator(ChannelMap::const_iterator it,
-		ChannelMap::const_iterator it_end, char *name, size_t name_len)
-		: it(it), it_end(it_end), it_type(ITERATOR_BY_NAME), channel_name(name), channel_name_len(name_len),
-		context(NULL), exten(NULL)
+	mni_channel_iterator() :
+		it_type(ITERATOR_ALL), l_name(""), l_name_len(0),
+		context(NULL), exten(NULL),
+		last_channel(""), counter(0)
 	{
 	}
 
-	mni_channel_iterator(ChannelMap::const_iterator it,
-		ChannelMap::const_iterator it_end, char *context, char *exten)
-		: it(it), it_end(it_end), it_type(ITERATOR_BY_EXTEN), channel_name(NULL), channel_name_len(0),
-		context(context), exten(exten)
+	mni_channel_iterator(const char *l_name) :
+		it_type(ITERATOR_BY_NAME), l_name(l_name), l_name_len(strlen(l_name)),
+		context(NULL), exten(NULL),
+		last_channel(""), counter(0)
 	{
 	}
 
-	mni_channel_iterator(ChannelMap::const_iterator it, ChannelMap::const_iterator it_end)
-		: it(it), it_end(it_end), it_type(ITERATOR_ALL), channel_name(NULL), channel_name_len(0),
-		context(NULL), exten(NULL)
+	mni_channel_iterator(const char *context, const char *exten) :
+		it_type(ITERATOR_BY_EXTEN), l_name(""), l_name_len(0),
+		context(ast_strdup(context)), exten(ast_strdup(exten)),
+		last_channel(""), counter(0)
 	{
 	}
 
 	~mni_channel_iterator()
 	{
-		ast_free(channel_name);
 		ast_free(context);
 		ast_free(exten);
+		context = NULL;
+		exten = NULL;
+		l_name.clear();
+		last_channel.clear();
+		counter = 0;
 	}
 };
 
@@ -207,69 +220,192 @@ static struct ast_channel_iterator *iterator_destroy(struct ast_channelstorage_i
 	struct ast_channel_iterator *ai)
 {
 	struct mni_channel_iterator *i = (struct mni_channel_iterator *)ai;
+	if (!driver || !i) {
+		return NULL;
+	}
 	delete i;
 	return NULL;
 }
 
+/*!
+ * \internal
+ * \brief Create a new iterator for all channels
+ *
+ * No I/O is done at this time.  It's simply allocating the iterator
+ * structure and initializing it.
+ *
+ * \return struct mni_channel_iterator *
+ */
 static struct ast_channel_iterator *iterator_all_new(struct ast_channelstorage_instance *driver)
 {
-	struct mni_channel_iterator *i = new mni_channel_iterator(
-		getdb(driver).begin(), getdb(driver).end());
+	struct mni_channel_iterator *i = new mni_channel_iterator();
 	if (!i) {
-		return NULL;
-	}
-
-	if (i->it == getdb(driver).end()) {
-		delete i;
 		return NULL;
 	}
 
 	return (struct ast_channel_iterator *)i;
 }
 
+/*!
+ * \internal
+ * \brief Retrieve the next channel in the iterator.
+ *
+ * This function retrieves the next channel in the iterator, based on the
+ * type of iterator it is. If there are no more channels, it returns NULL.
+ *
+ * In a single-threaded environment, we'd simply use the std::map
+ * begin(), end(), lower_bound() and upper_bound() functions and use
+ * standard iterator operations to move through the map.  This doesn't
+ * work well in a multi-threaded environment where deletes can happen
+ * in another thread because if you delete the object an iterator points
+ * to, it becomes invalid and there's no way to test that.  If you try
+ * to access or operate on that iterator (like incrementing it), the
+ * result will be a SEGV or other undefined behavior.
+ *
+ * app_chanspy is particularly prone to triggering this issue because
+ * it opens an iterator and keeps it open for a long period of time
+ * looking for channels to spy on.
+ *
+ * The solution is to use a C++ iterator to find the next (or first)
+ * channel then save that channel's key in our iterator structure to
+ * use as the starting point the next time iterator_next() is called.
+ * We also put a read lock on the driver to prevent a driver from
+ * deleting a channel in the short time we use it.  We NEVER keep
+ * C++ iterators across multiple calls to iterator_next().
+ *
+ * This sounds inefficient but in practice, it works very well
+ * because the C++ map is implemented as a red-black tree.  This
+ * makes calling lower_bound() very efficient.  Besides, even with
+ * this approach, the iterators are still at least an order of
+ * magnitude, and sometimes two orders, faster than the ao2_legacy
+ * driver. To check the results for yourself, build in development
+ * mode and run "test execute category /main/channelstorage/"
+ * from the CLI.
+ *
+ * \return struct ast_channel * or NULL
+ */
+
 static struct ast_channel *iterator_next(struct ast_channelstorage_instance *driver,
 	struct ast_channel_iterator *ai)
 {
 	struct mni_channel_iterator *i = (struct mni_channel_iterator *)ai;
 	struct ast_channel *chan = NULL;
+	ChannelMap::const_iterator it;
 
-	if (i->it == i->it_end) {
+	if (!driver || !i) {
+		return NULL;
+	}
+
+	i->counter++;
+	rdlock(driver);
+
+	if (i->counter == 1) {
+		/*
+		 * When this is the first call to iterator_next(),
+		 * lower_bound(i->l_name) will return the first
+		 * channel in the map if i->l_name is empty
+		 * (ITERATOR_ALL and ITERATOR_BY_EXTEN) or the
+		 * first channel whose name starts with i->l_name
+		 * (ITERATOR_BY_NAME).  This is exactly what we want.
+		 */
+		it = getdb(driver).lower_bound(i->l_name);
+	} else {
+		/*
+		 * When this is not the first call to iterator_next(),
+		 * we want to return the next channel after the last
+		 * channel returned.  We can do this by using the
+		 * last_channel key stored in the iterator to get
+		 * an iterator to directly to it, then advancing it.
+		 * It's possible that last_channel was actually the
+		 * last channel in the map and was deleted between the
+		 * last call to iterator_next() and now so we need to
+		 * check that it's still around before we try to advance it.
+		 */
+		it = getdb(driver).lower_bound(i->last_channel);
+		if (it == getdb(driver).end()) {
+			unlock(driver);
+			return NULL;
+		}
+		std::advance(it, 1);
+	}
+
+	/*
+	 * Whether this is the first call to iterator_next() or
+	 * a subsequent call, if we reached the end of the map,
+	 * return NULL.
+	 */
+	if (it == getdb(driver).end()) {
+		unlock(driver);
 		return NULL;
 	}
 
 	if (i->it_type == ITERATOR_ALL) {
-		chan = ao2_bump(i->it->second);
-		++i->it;
-		return chan;
-	}
+		/*
+		 * The simplest case. Save the channel key to last_channel
+		 * and bump and return the channel.
+		 */
+		i->last_channel = it->first;
+		chan = ao2_bump(it->second);
 
-	if (i->it_type == ITERATOR_BY_NAME) {
-		chan = ao2_bump(i->it->second);
-		++i->it;
-		return chan;
-	}
-
-	/* ITERATOR_BY_EXTEN */
-	while (i->it != i->it_end) {
-		int ret = channelstorage_exten_cb(i->it->second, i->context, i->exten, 0);
-		if (ret & CMP_MATCH) {
-			chan = ao2_bump(i->it->second);
-			++i->it;
-			return chan;
+	} else if (i->it_type == ITERATOR_BY_NAME) {
+		/*
+		 * If this was a search by name, we need to check that
+		 * the channel key still matches the name being searched for.
+		 * If it does, save the channel key to last_channel and bump
+		 * and return the channel.
+		 * If it doesn't match, we're done because the map is sorted
+		 * by channel name so any further channels in the map won't
+		 * match either.
+		 */
+		if (it->first.substr(0, i->l_name_len) == i->l_name) {
+			i->last_channel = it->first;
+			chan = ao2_bump(it->second);
 		}
-		++i->it;
-	}
 
-	return NULL;
+	} else if (i->it_type == ITERATOR_BY_EXTEN) {
+		/*
+		 * Searching by context and extension is a bit more complex.
+		 * Every time iterator_next() is called, we need to search for
+		 * matching context and extension from the last_channel forward
+		 * to the end of the map.  It's f'ugly and we have to hold
+		 * the read lock while we traverse but it works, it's safe,
+		 * and it's STILL better than the ao2_legacy driver albeit not
+		 * by much.
+		 */
+		while (it != getdb(driver).end()) {
+			int ret = channelstorage_exten_cb(it->second, i->context, i->exten, 0);
+			if (ret & CMP_MATCH) {
+				i->last_channel = it->first;
+				chan = ao2_bump(it->second);
+				break;
+			}
+			std::advance(it, 1);
+		}
+	} else {
+		ast_log(LOG_ERROR, "Unknown iterator type %d\n", i->it_type);
+	}
+	unlock(driver);
+
+	return chan;
 }
 
-static struct ast_channel_iterator *iterator_by_name_new(struct ast_channelstorage_instance *driver,
+/*!
+ * \internal
+ * \brief Create a new iterator for retrieving all channels matching
+ * a specific name prefix. A full channel name can be supplied but calling
+ * get_by_name_exact() is more efficient for that.
+ *
+ * No I/O is done at this time.  It's simply allocating the iterator
+ * structure and initializing it.
+ *
+ * \return struct mni_channel_iterator *
+ */
+static struct ast_channel_iterator *iterator_by_name_new(
+	struct ast_channelstorage_instance *driver,
 	const char *name, size_t name_len)
 {
 	char *l_name = NULL;
-	char *u_name = NULL;
 	struct mni_channel_iterator *i;
-	size_t new_name_len = 0;
 
 	if (ast_strlen_zero(name)) {
 		return NULL;
@@ -280,37 +416,33 @@ static struct ast_channel_iterator *iterator_by_name_new(struct ast_channelstora
 		name_len = strlen(name);
 	}
 	l_name[name_len] = '\0';
-	new_name_len = strlen(l_name);
-	u_name = (char *)ast_alloca(new_name_len + 2);
-	sprintf(u_name, "%s%c", l_name, '\xFF');
 
-	i = new mni_channel_iterator(getdb(driver).lower_bound(l_name),
-		getdb(driver).upper_bound(u_name));
+	i = new mni_channel_iterator(l_name);
 	if (!i) {
-		return NULL;
-	}
-
-	if (i->it == getdb(driver).end()) {
-		delete i;
 		return NULL;
 	}
 
 	return (struct ast_channel_iterator *)i;
 }
 
+/*!
+ * \internal
+ * \brief Create a new iterator for retrieving all channels
+ * matching a specific context and optionally exten.
+ *
+ * No I/O is done at this time.  It's simply allocating the iterator
+ * structure and initializing it.
+ *
+ * \return struct mni_channel_iterator *
+ */
 static struct ast_channel_iterator *iterator_by_exten_new(struct ast_channelstorage_instance *driver,
 	const char *exten, const char *context)
 {
-	struct mni_channel_iterator *i =
-		new mni_channel_iterator(getdb(driver).begin(),
-			getdb(driver).end(),
-			ast_str_to_lower(ast_strdup(context)), ast_str_to_lower(ast_strdup(exten)));
-	if (!i) {
-		return NULL;
-	}
+	struct mni_channel_iterator *i = new mni_channel_iterator(
+		ast_str_to_lower(ast_strdupa(context)),
+		ast_str_to_lower(ast_strdupa(exten)));
 
-	if (i->it == getdb(driver).end()) {
-		delete i;
+	if (!i) {
 		return NULL;
 	}
 
