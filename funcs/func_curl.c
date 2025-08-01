@@ -131,6 +131,15 @@
 						<para>Include header information in the result
 						(boolean)</para>
 					</enum>
+					<enum name="httpauth">
+						<para>Type of authentication method to use. The default is Basic Authentication.</para>
+						<para>Multiple values can be specified to enable multiple authentication methods.
+						To do so, invoke CURLOPT once using comma-separated values.</para>
+						<enumlist>
+							<enum name="basic" />
+							<enum name="digest" />
+						</enumlist>
+					</enum>
 					<enum name="httpheader">
 						<para>Add HTTP header. Multiple calls add multiple headers.
 						Setting of any header will remove the default
@@ -308,6 +317,9 @@ static int parse_curlopt_key(const char *name, CURLoption *key, enum optiontype 
 	} else if (!strcasecmp(name, "httpheader")) {
 		*key = CURLOPT_HTTPHEADER;
 		*ot = OT_STRING;
+	} else if (!strcasecmp(name, "httpauth")) {
+		*key = CURLOPT_HTTPAUTH;
+		*ot = OT_ENUM;
 	} else if (!strcasecmp(name, "proxy")) {
 		*key = CURLOPT_PROXY;
 		*ot = OT_STRING;
@@ -488,6 +500,25 @@ static int acf_curlopt_write(struct ast_channel *chan, const char *cmd, char *na
 
 				if ((new = ast_calloc(1, sizeof(*new)))) {
 					new->value = (void *)ptype;
+				}
+			} else if (key == CURLOPT_HTTPAUTH) {
+				long authtype = 0;
+				char *authmethod, *authstr = ast_strdupa(value);
+				while ((authmethod = strsep(&authstr, ","))) {
+					if (!strcasecmp(authmethod, "basic")) {
+						authtype |= CURLAUTH_BASIC;
+					} else if (!strcasecmp(authmethod, "digest")) {
+						authtype |= CURLAUTH_DIGEST;
+					} else {
+						ast_log(LOG_WARNING, "Auth method '%s' invalid or not supported\n", authmethod);
+						return -1;
+					}
+				}
+				if (!authmethod) {
+					ast_log(LOG_WARNING, "Auth method '%s' invalid or not supported\n", value);
+				}
+				if ((new = ast_calloc(1, sizeof(*new)))) {
+					new->value = (void *)authtype;
 				}
 			} else if (key == CURLOPT_SPECIAL_HASHCOMPAT) {
 				if ((new = ast_calloc(1, sizeof(*new)))) {
