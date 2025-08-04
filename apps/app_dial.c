@@ -1808,7 +1808,10 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 				if (ast_test_flag64(peerflags, OPT_DTMF_EXIT)) {
 					const char *context;
 					ast_channel_lock(in);
-					context = pbx_builtin_getvar_helper(in, "EXITCONTEXT");
+					if ((context = pbx_builtin_getvar_helper(in, "EXITCONTEXT"))) {
+						context = ast_strdupa(context);
+					}
+					ast_channel_unlock(in);
 					if (onedigit_goto(in, context, (char) f->subclass.integer, 1)) {
 						ast_verb(3, "User hit %c to disconnect call.\n", f->subclass.integer);
 						*to_answer = 0;
@@ -1817,14 +1820,12 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 						pa->canceled = 1;
 						publish_dial_end_event(in, out_chans, NULL, pa->status);
 						ast_frfree(f);
-						ast_channel_unlock(in);
 						if (is_cc_recall) {
 							ast_cc_completed(in, "CC completed, but the caller used DTMF to exit");
 						}
 						SCOPE_EXIT_RTN_VALUE(NULL, "%s: Caller pressed %c to end call\n",
 							ast_channel_name(in), f->subclass.integer);
 					}
-					ast_channel_unlock(in);
 				}
 
 				if (ast_test_flag64(peerflags, OPT_CALLER_HANGUP) &&
