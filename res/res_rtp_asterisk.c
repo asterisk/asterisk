@@ -3451,6 +3451,14 @@ static int __rtp_sendto(struct ast_rtp_instance *instance, void *buf, size_t siz
 	struct ast_rtp *transport_rtp = ast_rtp_instance_get_data(transport);
 	struct ast_srtp *srtp = ast_rtp_instance_get_srtp(transport, rtcp);
 	int res;
+#if defined(HAVE_OPENSSL) && (OPENSSL_VERSION_NUMBER >= 0x10001000L) && !defined(OPENSSL_NO_SRTP)
+	struct dtls_details *dtls = !rtcp ? &rtp->dtls : &rtp->rtcp->dtls;
+
+	/* Handshake not complete yet */
+	if (dtls->ssl && dtls->connection == AST_RTP_DTLS_CONNECTION_NEW) {
+		return 0;
+	}
+#endif
 
 	*via_ice = 0;
 
@@ -4458,7 +4466,7 @@ static int ast_rtp_dtmf_continuation(struct ast_rtp_instance *instance)
 	int hdrlen = 12, res = 0;
 	char data[256];
 	unsigned int *rtpheader = (unsigned int*)data;
-	int ice;
+	int ice = 0;
 
 	ast_rtp_instance_get_remote_address(instance, &remote_address);
 
