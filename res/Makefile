@@ -76,6 +76,21 @@ res_parking.o: _ASTCFLAGS+=$(AST_NO_FORMAT_TRUNCATION)
 snmp/agent.o: _ASTCFLAGS+=-fPIC
 res_snmp.o: _ASTCFLAGS+=-fPIC
 
+MODULE_EXCLUDE=ENABLE_SRTP_AES_192 ENABLE_SRTP_AES_256 ENABLE_SRTP_AES_GCM
+
+ifeq ($(findstring ENABLE_SRTP_AES_192,$(MENUSELECT_RES)),)
+res_srtp.o: _ASTCFLAGS+=-DENABLE_SRTP_AES_192
+endif
+
+ifeq ($(findstring ENABLE_SRTP_AES_256,$(MENUSELECT_RES)),)
+res_srtp.o: _ASTCFLAGS+=-DENABLE_SRTP_AES_256
+endif
+
+ifeq ($(findstring ENABLE_SRTP_AES_GCM,$(MENUSELECT_RES)),)
+res_srtp.o: _ASTCFLAGS+=-DENABLE_SRTP_AES_GCM
+endif
+
+
 # Dependencies for res_ari_*.so are generated, so they're in this file
 include ari.make
 

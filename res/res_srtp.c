@@ -35,6 +35,32 @@
 	<support_level>core</support_level>
 ***/
 
+/*** MAKEOPTS
+<category name="MENUSELECT_RES" displayname="Resource Modules">
+	<member name="ENABLE_SRTP_AES_192" displayname="Enable AES 192 cipher suite in res_srtp" touch_on_change="res/res_srtp.c">
+		<defaultenabled>no</defaultenabled>
+		<support_level>option</support_level>
+		<depend>srtp</depend>
+		<depend>res_srtp</depend>
+		<depend>HAVE_SRTP_192</depend>
+	</member>
+	<member name="ENABLE_SRTP_AES_256" displayname="Enable AES 256 cipher suite in res_srtp" touch_on_change="res/res_srtp.c">
+		<defaultenabled>no</defaultenabled>
+		<support_level>option</support_level>
+		<depend>srtp</depend>
+		<depend>res_srtp</depend>
+		<depend>HAVE_SRTP_256</depend>
+	</member>
+	<member name="ENABLE_SRTP_AES_GCM" displayname="Enable AES GCM cipher suite in res_srtp" touch_on_change="res/res_srtp.c">
+		<defaultenabled>no</defaultenabled>
+		<support_level>option</support_level>
+		<depend>srtp</depend>
+		<depend>res_srtp</depend>
+		<depend>HAVE_SRTP_GCM</depend>
+	</member>
+</category>
+***/
+
 /* See https://docs.asterisk.org/Deployment/Secure-Calling/ */
 
 #include "asterisk.h"                   /* for NULL, size_t, memcpy, etc */
