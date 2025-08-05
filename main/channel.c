@@ -858,6 +858,7 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 
 	ast_channel_streamid_set(tmp, -1);
 	ast_channel_vstreamid_set(tmp, -1);
+	ast_channel_tstreamid_set(tmp, -1);
 
 	ast_channel_fin_set(tmp, global_fin);
 	ast_channel_fout_set(tmp, global_fout);
@@ -2556,6 +2557,12 @@ void ast_hangup(struct ast_channel *chan)
 		ast_closestream(ast_channel_vstream(chan));
 		ast_channel_vstream_set(chan, NULL);
 	}
+	/* Close text stream */
+	if (ast_channel_tstream(chan)) {
+		ast_closestream(ast_channel_tstream(chan));
+		ast_channel_tstream_set(chan, NULL);
+	}
+
 	if (ast_channel_sched(chan)) {
 		ast_sched_context_destroy(ast_channel_sched(chan));
 		ast_channel_sched_set(chan, NULL);
@@ -4731,6 +4738,7 @@ int ast_sendtext_data(struct ast_channel *chan, struct ast_msg_data *msg)
 		f.frametype = AST_FRAME_TEXT;
 		f.datalen = body_len;
 		f.mallocd = AST_MALLOCD_DATA;
+		f.stream_num = ast_stream_get_position(ast_channel_get_default_stream(chan, AST_MEDIA_TYPE_TEXT));
 		f.data.ptr = ast_strdup(body);
 		if (f.data.ptr) {
 			res = ast_channel_tech(chan)->write_text(chan, &f);
@@ -4969,10 +4977,23 @@ int ast_prod(struct ast_channel *chan)
 	return 0;
 }
 
+/* currently unused */
 int ast_write_video(struct ast_channel *chan, struct ast_frame *fr)
 {
 	int res;
 	if (!ast_channel_tech(chan)->write_video)
+		return 0;
+	res = ast_write(chan, fr);
+	if (!res)
+		res = 1;
+	return res;
+}
+
+/* currently unused */
+int ast_write_text(struct ast_channel *chan, struct ast_frame *fr)
+{
+	int res;
+	if (!ast_channel_tech(chan)->write_text)
 		return 0;
 	res = ast_write(chan, fr);
 	if (!res)
