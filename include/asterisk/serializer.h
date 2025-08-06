@@ -20,6 +20,7 @@
 #define _AST_SERIALIZER_H
 
 struct ast_threadpool;
+struct ast_taskpool;
 
 /*!
  * Maintains a named pool of thread pooled taskprocessors. Also if configured
@@ -55,6 +56,26 @@ int ast_serializer_pool_destroy(struct ast_serializer_pool *pool);
  */
 struct ast_serializer_pool *ast_serializer_pool_create(const char *name,
 	unsigned int size, struct ast_threadpool *threadpool, int timeout);
+
+/*!
+ * \brief Create a serializer pool on taskpool.
+ * \since 23.1.0
+ * \since 22.7.0
+ * \since 20.17.0
+ *
+ * Create a serializer pool with an optional shutdown group. If a timeout greater
+ * than -1 is specified then a shutdown group is enabled on the pool.
+ *
+ * \param name The base name for the pool, and used when building taskprocessor(s)
+ * \param size The size of the pool
+ * \param taskpool The backing taskpool to use
+ * \param timeout The timeout used if using a shutdown group (-1 = disabled)
+ *
+ * \return A newly allocated serializer pool object
+ * \retval NULL on error
+ */
+ struct ast_serializer_pool *ast_serializer_taskpool_create(const char *name,
+	unsigned int size, struct ast_taskpool *taskpool, int timeout);
 
 /*!
  * \brief Retrieve the base name of the serializer pool.

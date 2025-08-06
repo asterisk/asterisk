@@ -24,6 +24,8 @@ struct ast_threadpool;
 struct ast_taskprocessor;
 struct ast_threadpool_listener;
 
+#include "asterisk/serializer_shutdown_group.h"
+
 struct ast_threadpool_listener_callbacks {
 	/*!
 	 * \brief Indicates that the state of threads in the pool has changed
@@ -195,28 +197,6 @@ int ast_threadpool_push(struct ast_threadpool *pool, int (*task)(void *data), vo
  * \param pool The pool to shut down
  */
 void ast_threadpool_shutdown(struct ast_threadpool *pool);
-
-struct ast_serializer_shutdown_group;
-
-/*!
- * \brief Create a serializer group shutdown control object.
- * \since 13.5.0
- *
- * \return ao2 object to control shutdown of a serializer group.
- */
-struct ast_serializer_shutdown_group *ast_serializer_shutdown_group_alloc(void);
-
-/*!
- * \brief Wait for the serializers in the group to shutdown with timeout.
- * \since 13.5.0
- *
- * \param shutdown_group Group shutdown controller. (Returns 0 immediately if NULL)
- * \param timeout Number of seconds to wait for the serializers in the group to shutdown.
- *     Zero if the timeout is disabled.
- *
- * \return Number of serializers that did not get shutdown within the timeout.
- */
-int ast_serializer_shutdown_group_join(struct ast_serializer_shutdown_group *shutdown_group, int timeout);
 
 /*!
  * \brief Get the threadpool serializer currently associated with this thread.
