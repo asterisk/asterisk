@@ -1573,8 +1573,8 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	mwi_serializer_pool = ast_serializer_pool_create("pjsip/mwi",
-		MWI_SERIALIZER_POOL_SIZE, ast_sip_threadpool(), MAX_UNLOAD_TIMEOUT_TIME);
+	mwi_serializer_pool = ast_serializer_taskpool_create("pjsip/mwi",
+		MWI_SERIALIZER_POOL_SIZE, ast_sip_taskpool(), MAX_UNLOAD_TIMEOUT_TIME);
 	if (!mwi_serializer_pool) {
 		ast_log(AST_LOG_WARNING, "Failed to create MWI serializer pool. The default SIP pool will be used for MWI\n");
 	}
