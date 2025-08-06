@@ -341,6 +341,11 @@ const char *ast_taskprocessor_name(struct ast_taskprocessor *tps);
 long ast_taskprocessor_size(struct ast_taskprocessor *tps);
 
 /*!
+ * \brief Return the listener associated with the taskprocessor
+ */
+struct ast_taskprocessor_listener *ast_taskprocessor_listener(struct ast_taskprocessor *tps);
+
+/*!
  * \brief Get the current taskprocessor high water alert count.
  * \since 13.10.0
  *
