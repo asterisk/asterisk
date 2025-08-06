@@ -229,12 +229,13 @@ static int sorcery_memory_update(const struct ast_sorcery *sorcery, void *data, 
 
 	ao2_lock(data);
 
-	if (!(existing = ao2_find(data, ast_sorcery_object_get_id(object), OBJ_KEY | OBJ_UNLINK))) {
-		ao2_unlock(data);
-		return -1;
+	/* If the object already exists, it will be replaced, otherwise it will be created. */
+	existing = ao2_find(data, ast_sorcery_object_get_id(object), OBJ_KEY | OBJ_UNLINK);
+	if (existing) {
+		ao2_link(data, object);
+	} else {
+		ao2_link_flags(data, object, OBJ_NOLOCK);
 	}
-
-	ao2_link(data, object);
 
 	ao2_unlock(data);
 

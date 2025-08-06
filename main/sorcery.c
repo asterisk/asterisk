@@ -1907,7 +1907,7 @@ void *ast_sorcery_retrieve_by_fields(const struct ast_sorcery *sorcery, const ch
 
 	/* If returning multiple objects create a container to store them in */
 	if ((flags & AST_RETRIEVE_FLAG_MULTIPLE)) {
-		object = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK, 0, NULL, NULL);
+		object = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK, AO2_CONTAINER_ALLOC_OPT_DUPS_REJECT, ast_sorcery_object_id_sort, ast_sorcery_object_id_compare);
 		if (!object) {
 			return NULL;
 		}
@@ -1961,7 +1961,7 @@ struct ao2_container *ast_sorcery_retrieve_by_regex(const struct ast_sorcery *so
 		return NULL;
 	}
 
-	objects = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK, 0, NULL, NULL);
+	objects = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK, AO2_CONTAINER_ALLOC_OPT_DUPS_REJECT, ast_sorcery_object_id_sort, ast_sorcery_object_id_compare);
 	if (!objects) {
 		return NULL;
 	}
@@ -1996,7 +1996,7 @@ struct ao2_container *ast_sorcery_retrieve_by_prefix(const struct ast_sorcery *s
 		return NULL;
 	}
 
-	objects = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK, 0, NULL, NULL);
+	objects = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK, AO2_CONTAINER_ALLOC_OPT_DUPS_REJECT, ast_sorcery_object_id_sort, ast_sorcery_object_id_compare);
 	if (!objects) {
 		return NULL;
 	}
