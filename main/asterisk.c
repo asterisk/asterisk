@@ -4247,6 +4247,7 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 
 	check_init(ast_utils_init(), "Utilities");
 	check_init(ast_tps_init(), "Task Processor Core");
+	check_init(ast_taskpool_init(), "Taskpool Support");
 	check_init(ast_fd_init(), "File Descriptor Debugging");
 	check_init(ast_pbx_init(), "ast_pbx_init");
 	check_init(aco_init(), "Configuration Option Framework");
