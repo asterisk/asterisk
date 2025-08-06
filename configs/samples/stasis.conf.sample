@@ -1,12 +1,13 @@
-[threadpool]
-;initial_size = 5          ; Initial size of the threadpool.
-;                          ; 0 means the threadpool has no threads initially
-;                          ; until a task needs a thread.
-;idle_timeout_sec = 20     ; Number of seconds a thread should be idle before
-;                          ; dying. 0 means threads never time out.
-;max_size = 50             ; Maximum number of threads in the Stasis threadpool.
-;                          ; 0 means no limit to the number of threads in the
-;                          ; threadpool.
+[taskpool]
+;minimum_size = 5          ; Minimum number of taskprocessors in taskpool.
+;initial_size = 5          ; Initial size of the taskpool.
+;                          ; 0 means the taskpool has no taskprocessors initially
+;                          ; until a task needs a taskprocessor.
+;idle_timeout_sec = 20     ; Number of seconds a taskprocessor should be idle before
+;                          ; dying. 0 means taskprocessors never time out.
+;max_size = 50             ; Maximum number of taskprocessors in the Stasis taskpool.
+;                          ; 0 means no limit to the number of taskprocessors in the
+;                          ; taskpool.
 
 [declined_message_types]
 ; This config section contains the names of message types that should be prevented

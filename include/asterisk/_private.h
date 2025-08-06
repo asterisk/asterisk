@@ -48,6 +48,7 @@ int ast_named_locks_init(void);		/*!< Provided by named_locks.c */
 int ast_file_init(void);		/*!< Provided by file.c */
 void ast_autoservice_init(void);	/*!< Provided by autoservice.c */
 int ast_tps_init(void); 		/*!< Provided by taskprocessor.c */
+int ast_taskpool_init(void);    /*!< Provided by taskpool.c */
 int ast_timing_init(void);		/*!< Provided by timing.c */
 void ast_stun_init(void);               /*!< Provided by stun.c */
 int ast_ssl_init(void);                 /*!< Provided by ssl.c */

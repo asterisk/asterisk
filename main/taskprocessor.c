@@ -967,6 +967,11 @@ long ast_taskprocessor_size(struct ast_taskprocessor *tps)
 	return (tps) ? tps->tps_queue_size : -1;
 }
 
+struct ast_taskprocessor_listener *ast_taskprocessor_listener(struct ast_taskprocessor *tps)
+{
+	return tps ? tps->listener : NULL;
+}
+
 /* taskprocessor name accessor */
 const char *ast_taskprocessor_name(struct ast_taskprocessor *tps)
 {
