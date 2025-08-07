@@ -840,11 +840,6 @@ static int init_logger_chain(const char *altconf)
 		} else {
 			fprintf(stderr, "Unknown rotatestrategy: %s\n", s);
 		}
-	} else {
-		if ((s = ast_variable_retrieve(cfg, "general", "rotatetimestamp"))) {
-			rotatestrategy = ast_true(s) ? TIMESTAMP : SEQUENTIAL;
-			fprintf(stderr, "rotatetimestamp option has been deprecated.  Please use rotatestrategy instead.\n");
-		}
 	}
 	if ((s = ast_variable_retrieve(cfg, "general", "logger_queue_limit"))) {
 		if (sscanf(s, "%30d", &logger_queue_limit) != 1) {
