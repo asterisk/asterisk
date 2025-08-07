@@ -1538,10 +1538,7 @@ static char *handle_core_set_debug_channel(struct ast_cli_entry *e, int cmd, str
 		return NULL;
 	}
 
-	if (cmd == (CLI_HANDLER + 1000)) {
-		/* called from handle_nodebugchan_deprecated */
-		args.is_off = 1;
-	} else if (a->argc == e->args + 2) {
+	if (a->argc == e->args + 2) {
 		/* 'core set debug channel {all|chan_id}' */
 		if (!strcasecmp(a->argv[e->args + 1], "off"))
 			args.is_off = 1;
@@ -1613,33 +1610,6 @@ static char *handle_debug_category(struct ast_cli_entry *e, int cmd, struct ast_
 		offset ? AST_LOG_CATEGORY_DISABLED : AST_LOG_CATEGORY_ENABLED);
 
 	return CLI_SUCCESS;
-}
-
-static char *handle_nodebugchan_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	char *res;
-
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "no debug channel";
-		return NULL;
-	case CLI_HANDLER:
-		/* exit out of switch statement */
-		break;
-	default:
-		return NULL;
-	}
-
-	if (a->argc != e->args + 1)
-		return CLI_SHOWUSAGE;
-
-	/* add a 'magic' value to the CLI_HANDLER command so that
-	 * handle_core_set_debug_channel() will act as if 'off'
-	 * had been specified as part of the command
-	 */
-	res = handle_core_set_debug_channel(e, CLI_HANDLER + 1000, a);
-
-	return res;
 }
 
 static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
@@ -2056,7 +2026,6 @@ static struct ast_cli_entry cli_cli[] = {
 };
 
 static struct ast_cli_entry cli_channels_cli[] = {
-	AST_CLI_DEFINE(handle_nodebugchan_deprecated, "Disable debugging on channel(s)"),
 	AST_CLI_DEFINE(handle_chanlist, "Display information on channels"),
 	AST_CLI_DEFINE(handle_showcalls, "Display information on calls"),
 	AST_CLI_DEFINE(handle_showchan, "Display information on a specific channel"),
