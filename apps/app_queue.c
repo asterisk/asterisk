@@ -310,7 +310,6 @@
 			<ref type="application">UnpauseQueueMember</ref>
 			<ref type="function">QUEUE_VARIABLES</ref>
 			<ref type="function">QUEUE_MEMBER</ref>
-			<ref type="function">QUEUE_MEMBER_COUNT</ref>
 			<ref type="function">QUEUE_EXISTS</ref>
 			<ref type="function">QUEUE_GET_CHANNEL</ref>
 			<ref type="function">QUEUE_WAITING_COUNT</ref>
@@ -366,7 +365,6 @@
 			<ref type="application">UnpauseQueueMember</ref>
 			<ref type="function">QUEUE_VARIABLES</ref>
 			<ref type="function">QUEUE_MEMBER</ref>
-			<ref type="function">QUEUE_MEMBER_COUNT</ref>
 			<ref type="function">QUEUE_EXISTS</ref>
 			<ref type="function">QUEUE_GET_CHANNEL</ref>
 			<ref type="function">QUEUE_WAITING_COUNT</ref>
@@ -409,7 +407,6 @@
 			<ref type="application">UnpauseQueueMember</ref>
 			<ref type="function">QUEUE_VARIABLES</ref>
 			<ref type="function">QUEUE_MEMBER</ref>
-			<ref type="function">QUEUE_MEMBER_COUNT</ref>
 			<ref type="function">QUEUE_EXISTS</ref>
 			<ref type="function">QUEUE_GET_CHANNEL</ref>
 			<ref type="function">QUEUE_WAITING_COUNT</ref>
@@ -459,7 +456,6 @@
 			<ref type="application">UnpauseQueueMember</ref>
 			<ref type="function">QUEUE_VARIABLES</ref>
 			<ref type="function">QUEUE_MEMBER</ref>
-			<ref type="function">QUEUE_MEMBER_COUNT</ref>
 			<ref type="function">QUEUE_EXISTS</ref>
 			<ref type="function">QUEUE_GET_CHANNEL</ref>
 			<ref type="function">QUEUE_WAITING_COUNT</ref>
@@ -506,7 +502,6 @@
 			<ref type="application">UnpauseQueueMember</ref>
 			<ref type="function">QUEUE_VARIABLES</ref>
 			<ref type="function">QUEUE_MEMBER</ref>
-			<ref type="function">QUEUE_MEMBER_COUNT</ref>
 			<ref type="function">QUEUE_EXISTS</ref>
 			<ref type="function">QUEUE_GET_CHANNEL</ref>
 			<ref type="function">QUEUE_WAITING_COUNT</ref>
@@ -543,7 +538,6 @@
 			<ref type="application">UnpauseQueueMember</ref>
 			<ref type="function">QUEUE_VARIABLES</ref>
 			<ref type="function">QUEUE_MEMBER</ref>
-			<ref type="function">QUEUE_MEMBER_COUNT</ref>
 			<ref type="function">QUEUE_EXISTS</ref>
 			<ref type="function">QUEUE_GET_CHANNEL</ref>
 			<ref type="function">QUEUE_WAITING_COUNT</ref>
@@ -624,7 +618,6 @@
 			<ref type="application">UnpauseQueueMember</ref>
 			<ref type="function">QUEUE_VARIABLES</ref>
 			<ref type="function">QUEUE_MEMBER</ref>
-			<ref type="function">QUEUE_MEMBER_COUNT</ref>
 			<ref type="function">QUEUE_EXISTS</ref>
 			<ref type="function">QUEUE_GET_CHANNEL</ref>
 			<ref type="function">QUEUE_WAITING_COUNT</ref>
@@ -692,38 +685,6 @@
 			<ref type="application">UnpauseQueueMember</ref>
 			<ref type="function">QUEUE_VARIABLES</ref>
 			<ref type="function">QUEUE_MEMBER</ref>
-			<ref type="function">QUEUE_MEMBER_COUNT</ref>
-			<ref type="function">QUEUE_EXISTS</ref>
-			<ref type="function">QUEUE_GET_CHANNEL</ref>
-			<ref type="function">QUEUE_WAITING_COUNT</ref>
-			<ref type="function">QUEUE_MEMBER_LIST</ref>
-			<ref type="function">QUEUE_MEMBER_PENALTY</ref>
-		</see-also>
-	</function>
-	<function name="QUEUE_MEMBER_COUNT" language="en_US">
-		<since>
-			<version>1.4.0</version>
-		</since>
-		<synopsis>
-			Count number of members answering a queue.
-		</synopsis>
-		<syntax>
-			<parameter name="queuename" required="true" />
-		</syntax>
-		<description>
-			<para>Returns the number of members currently associated with the specified <replaceable>queuename</replaceable>.</para>
-			<warning><para>This function has been deprecated in favor of the <literal>QUEUE_MEMBER()</literal> function</para></warning>
-		</description>
-		<see-also>
-			<ref type="application">Queue</ref>
-			<ref type="application">QueueLog</ref>
-			<ref type="application">AddQueueMember</ref>
-			<ref type="application">RemoveQueueMember</ref>
-			<ref type="application">PauseQueueMember</ref>
-			<ref type="application">UnpauseQueueMember</ref>
-			<ref type="function">QUEUE_VARIABLES</ref>
-			<ref type="function">QUEUE_MEMBER</ref>
-			<ref type="function">QUEUE_MEMBER_COUNT</ref>
 			<ref type="function">QUEUE_EXISTS</ref>
 			<ref type="function">QUEUE_GET_CHANNEL</ref>
 			<ref type="function">QUEUE_WAITING_COUNT</ref>
@@ -753,7 +714,6 @@
 			<ref type="application">UnpauseQueueMember</ref>
 			<ref type="function">QUEUE_VARIABLES</ref>
 			<ref type="function">QUEUE_MEMBER</ref>
-			<ref type="function">QUEUE_MEMBER_COUNT</ref>
 			<ref type="function">QUEUE_EXISTS</ref>
 			<ref type="function">QUEUE_GET_CHANNEL</ref>
 			<ref type="function">QUEUE_WAITING_COUNT</ref>
@@ -785,7 +745,6 @@
 			<ref type="application">UnpauseQueueMember</ref>
 			<ref type="function">QUEUE_VARIABLES</ref>
 			<ref type="function">QUEUE_MEMBER</ref>
-			<ref type="function">QUEUE_MEMBER_COUNT</ref>
 			<ref type="function">QUEUE_EXISTS</ref>
 			<ref type="function">QUEUE_WAITING_COUNT</ref>
 			<ref type="function">QUEUE_MEMBER_LIST</ref>
@@ -814,7 +773,6 @@
 			<ref type="application">UnpauseQueueMember</ref>
 			<ref type="function">QUEUE_VARIABLES</ref>
 			<ref type="function">QUEUE_MEMBER</ref>
-			<ref type="function">QUEUE_MEMBER_COUNT</ref>
 			<ref type="function">QUEUE_EXISTS</ref>
 			<ref type="function">QUEUE_GET_CHANNEL</ref>
 			<ref type="function">QUEUE_WAITING_COUNT</ref>
@@ -844,7 +802,6 @@
 			<ref type="application">UnpauseQueueMember</ref>
 			<ref type="function">QUEUE_VARIABLES</ref>
 			<ref type="function">QUEUE_MEMBER</ref>
-			<ref type="function">QUEUE_MEMBER_COUNT</ref>
 			<ref type="function">QUEUE_EXISTS</ref>
 			<ref type="function">QUEUE_GET_CHANNEL</ref>
 			<ref type="function">QUEUE_WAITING_COUNT</ref>
@@ -876,7 +833,6 @@
 			<ref type="application">UnpauseQueueMember</ref>
 			<ref type="function">QUEUE_VARIABLES</ref>
 			<ref type="function">QUEUE_MEMBER</ref>
-			<ref type="function">QUEUE_MEMBER_COUNT</ref>
 			<ref type="function">QUEUE_EXISTS</ref>
 			<ref type="function">QUEUE_GET_CHANNEL</ref>
 			<ref type="function">QUEUE_WAITING_COUNT</ref>
@@ -9400,51 +9356,6 @@ static int queue_function_mem_write(struct ast_channel *chan, const char *cmd, c
 	return 0;
 }
 
-/*!
- * \brief Get the total number of members in a specific queue (Deprecated)
- * \retval number of members
- * \retval -1 on error
-*/
-static int queue_function_qac_dep(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
-{
-	int count = 0;
-	struct member *m;
-	struct call_queue *q;
-	struct ao2_iterator mem_iter;
-	static int depflag = 1;
-
-	if (depflag) {
-		depflag = 0;
-		ast_log(LOG_NOTICE, "The function QUEUE_MEMBER_COUNT has been deprecated in favor of the QUEUE_MEMBER function and will not be in further releases.\n");
-	}
-
-	if (ast_strlen_zero(data)) {
-		ast_log(LOG_ERROR, "%s requires an argument: queuename\n", cmd);
-		return -1;
-	}
-
-	if ((q = find_load_queue_rt_friendly(data))) {
-		ao2_lock(q);
-		mem_iter = ao2_iterator_init(q->members, 0);
-		while ((m = ao2_iterator_next(&mem_iter))) {
-			/* Count the agents who are logged in and presently answering calls */
-			if ((m->status != AST_DEVICE_UNAVAILABLE) && (m->status != AST_DEVICE_INVALID)) {
-				count++;
-			}
-			ao2_ref(m, -1);
-		}
-		ao2_iterator_destroy(&mem_iter);
-		ao2_unlock(q);
-		queue_t_unref(q, "Done with temporary reference in QUEUE_MEMBER_COUNT");
-	} else {
-		ast_log(LOG_WARNING, "queue %s was not found\n", data);
-	}
-
-	snprintf(buf, len, "%d", count);
-
-	return 0;
-}
-
 /*! \brief Dialplan function QUEUE_GET_CHANNEL() Get caller channel waiting at specified position in the queue */
 static int queue_function_queuegetchannel(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
@@ -9692,11 +9603,6 @@ static struct ast_custom_function queuemembercount_function = {
 	.name = "QUEUE_MEMBER",
 	.read = queue_function_mem_read,
 	.write = queue_function_mem_write,
-};
-
-static struct ast_custom_function queuemembercount_dep = {
-	.name = "QUEUE_MEMBER_COUNT",
-	.read = queue_function_qac_dep,
 };
 
 static struct ast_custom_function queuegetchannel_function = {
@@ -11996,7 +11902,6 @@ static int unload_module(void)
 	ast_custom_function_unregister(&queueexists_function);
 	ast_custom_function_unregister(&queuevar_function);
 	ast_custom_function_unregister(&queuemembercount_function);
-	ast_custom_function_unregister(&queuemembercount_dep);
 	ast_custom_function_unregister(&queuememberlist_function);
 	ast_custom_function_unregister(&queuegetchannel_function);
 	ast_custom_function_unregister(&queuewaitingcount_function);
@@ -12109,7 +12014,6 @@ static int load_module(void)
 	err |= ast_custom_function_register(&queuevar_function);
 	err |= ast_custom_function_register(&queueexists_function);
 	err |= ast_custom_function_register(&queuemembercount_function);
-	err |= ast_custom_function_register(&queuemembercount_dep);
 	err |= ast_custom_function_register(&queuememberlist_function);
 	err |= ast_custom_function_register(&queuegetchannel_function);
 	err |= ast_custom_function_register(&queuewaitingcount_function);
