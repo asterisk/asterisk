@@ -39,6 +39,14 @@ static const pj_str_t diversion_name = { "Diversion", 9 };
 static const pj_str_t history_info_name = { "History-Info", 12 };
 static pj_str_t HISTINFO_SUPPORTED_NAME = { "histinfo", 8 };
 
+/*
+ * Should we queue a frame with the updated redirecting information.
+ */
+typedef enum  {
+	PJSIP_DIVERSION_NOSEND_UPDATE = 0,
+	PJSIP_DIVERSION_SEND_UPDATE = 1,
+} pjsip_diversion_send_update;
+
 /*!
  * \internal
  * \brief Determine if the given string is a SIP token.
@@ -385,7 +393,8 @@ static void set_redirecting_reason(pjsip_fromto_hdr *from_info, pjsip_name_addr 
 
 static void set_redirecting(struct ast_sip_session *session,
 			    pjsip_fromto_hdr *from_info,
-			    pjsip_name_addr *to_info)
+			    pjsip_name_addr *to_info,
+			    pjsip_diversion_send_update send_update)
 {
 	struct ast_party_redirecting data;
 	struct ast_set_party_redirecting update;
@@ -417,8 +426,8 @@ static void set_redirecting(struct ast_sip_session *session,
 	++data.count;
 
 	ast_channel_set_redirecting(session->channel, &data, &update);
-	/* Only queue an indication if it was due to a response */
-	if (session->inv_session->role == PJSIP_ROLE_UAC) {
+	/* Only queue an indication if it was due to a response received pre media*/
+	if (session->inv_session->role == PJSIP_ROLE_UAC && send_update) {
 		ast_channel_queue_redirecting_update(session->channel, &data, &update);
 	}
 	ast_party_redirecting_free(&data);
@@ -430,7 +439,7 @@ static int diversion_incoming_request(struct ast_sip_session *session, pjsip_rx_
 
 	if (hdr) {
 		set_redirecting(session, hdr, (pjsip_name_addr*)
-				PJSIP_MSG_TO_HDR(rdata->msg_info.msg)->uri);
+				PJSIP_MSG_TO_HDR(rdata->msg_info.msg)->uri, PJSIP_DIVERSION_SEND_UPDATE);
 	} else {
 		pjsip_fromto_hdr *history_info_to;
 		pjsip_fromto_hdr *history_info_from;
@@ -440,14 +449,14 @@ static int diversion_incoming_request(struct ast_sip_session *session, pjsip_rx_
 			/* If History-Info is present, then it will also include the original
 			   redirected-from in addition to the redirected-to */
 			history_info_from = get_history_info_header(rdata, 1);
-			set_redirecting(session, history_info_from, (pjsip_name_addr*)history_info_to->uri);
+			set_redirecting(session, history_info_from, (pjsip_name_addr*)history_info_to->uri, PJSIP_DIVERSION_SEND_UPDATE);
 		}
 	}
 
 	return 0;
 }
 
-static void diversion_incoming_response(struct ast_sip_session *session, pjsip_rx_data *rdata)
+static void diversion_incoming_response(struct ast_sip_session *session, pjsip_rx_data *rdata, pjsip_diversion_send_update send_update)
 {
 	static const pj_str_t contact_name = { "Contact", 7 };
 	static const pj_str_t contact_name_s = { "m", 1 };
@@ -472,7 +481,7 @@ static void diversion_incoming_response(struct ast_sip_session *session, pjsip_r
 			/* If History-Info is present, then it will also include the original
 			   redirected-from in addition to the redirected-to */
 			history_info_from = get_history_info_header(rdata, 1);
-			set_redirecting(session, history_info_from, (pjsip_name_addr*)history_info_to->uri);
+			set_redirecting(session, history_info_from, (pjsip_name_addr*)history_info_to->uri, send_update);
 			return;
 		}
 		if (!div_hdr && !session->id.number.valid) {
@@ -484,14 +493,28 @@ static void diversion_incoming_response(struct ast_sip_session *session, pjsip_r
 	if (status.code == 302) {
 		/* With 302, Contact indicates the final destination and possibly Diversion indicates the hop before */
 		contact_hdr = pjsip_msg_find_hdr_by_names(rdata->msg_info.msg, &contact_name, &contact_name_s, NULL);
-
 		set_redirecting(session, div_hdr, contact_hdr ?	(pjsip_name_addr*)contact_hdr->uri :
-				(pjsip_name_addr*)PJSIP_MSG_FROM_HDR(rdata->msg_info.msg)->uri);
+				(pjsip_name_addr*)PJSIP_MSG_FROM_HDR(rdata->msg_info.msg)->uri, send_update);
 	} else {
 		/* With 181, Diversion is non-standard, but if present indicates the new final destination, and To indicating the original */
 		set_redirecting(session, PJSIP_MSG_TO_HDR(rdata->msg_info.msg),
-				div_hdr ? (pjsip_name_addr*)div_hdr->uri : NULL);
+				div_hdr ? (pjsip_name_addr*)div_hdr->uri : NULL, send_update);
 	}
+}
+
+static void diversion_incoming_response_media(struct ast_sip_session *session, pjsip_rx_data *rdata)
+{
+	/* Trigger an update if the event is triggered by the PJSIP AST_SIP_SESSION_BEFORE_MEDIA callback */
+	diversion_incoming_response(session, rdata, PJSIP_DIVERSION_SEND_UPDATE);
+	return;
+}
+
+static void diversion_incoming_response_redirecting(struct ast_sip_session *session, pjsip_rx_data *rdata)
+{
+	/* Don't trigger an update if the event is triggered by the PJSIP AST_SIP_SESSION_REDIRECTING callback
+	   otherwise, we will send a duplicate 181 to the UAC */
+	diversion_incoming_response(session, rdata, PJSIP_DIVERSION_NOSEND_UPDATE);
+	return;
 }
 
 /*!
@@ -688,20 +711,29 @@ static void diversion_outgoing_response(struct ast_sip_session *session, pjsip_t
 
 	/* add to 302 and 181 */
 	if (PJSIP_IS_STATUS_IN_CLASS(status.code, 300) || (status.code == 181)) {
-		get_redirecting_add_diversion(session, tdata);
-	}
+        get_redirecting_add_diversion(session, tdata);
+    }
 }
 
-static struct ast_sip_session_supplement diversion_supplement = {
+static struct ast_sip_session_supplement diversion_supplement_media = {
+	.method = "INVITE",
+	/* this supplement needs to be called after caller id
+           and after the channel has been created */
+	.priority = AST_SIP_SUPPLEMENT_PRIORITY_CHANNEL + 100,
+	.incoming_response = diversion_incoming_response_media,
+	.response_priority = AST_SIP_SESSION_BEFORE_MEDIA,
+};
+
+static struct ast_sip_session_supplement diversion_supplement_redirecting = {
 	.method = "INVITE",
 	/* this supplement needs to be called after caller id
            and after the channel has been created */
 	.priority = AST_SIP_SUPPLEMENT_PRIORITY_CHANNEL + 100,
 	.incoming_request = diversion_incoming_request,
-	.incoming_response = diversion_incoming_response,
+	.incoming_response = diversion_incoming_response_redirecting,
 	.outgoing_request = diversion_outgoing_request,
 	.outgoing_response = diversion_outgoing_response,
-	.response_priority = AST_SIP_SESSION_BEFORE_MEDIA,
+	.response_priority = AST_SIP_SESSION_BEFORE_REDIRECTING,
 };
 
 static int load_module(void)
@@ -709,13 +741,15 @@ static int load_module(void)
 	/* Because we are passing static memory to pjsip, we need to make sure it
 	 * stays valid while we potentially have active sessions */
 	ast_module_shutdown_ref(ast_module_info->self);
-	ast_sip_session_register_supplement(&diversion_supplement);
+	ast_sip_session_register_supplement(&diversion_supplement_media);
+	ast_sip_session_register_supplement(&diversion_supplement_redirecting);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int unload_module(void)
 {
-	ast_sip_session_unregister_supplement(&diversion_supplement);
+	ast_sip_session_unregister_supplement(&diversion_supplement_media);
+	ast_sip_session_unregister_supplement(&diversion_supplement_redirecting);
 	return 0;
 }
 
