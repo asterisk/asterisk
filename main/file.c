@@ -1315,7 +1315,7 @@ int ast_streamfile(struct ast_channel *chan, const char *filename,
 	if (ast_opt_sounds_search_custom && !is_absolute_path(filename)) {
 		memset(custom_filename, 0, sizeof(custom_filename));
 		snprintf(custom_filename, sizeof(custom_filename), "custom/%s", filename);
-		fs = openstream_internal(chan, filename, preflang, 0, 1); /* open stream, do not warn for missing files */
+		fs = openstream_internal(chan, custom_filename, preflang, 0, 1); /* open stream, do not warn for missing files */
 		if (fs) {
 			tmp_filename = custom_filename;
 			ast_debug(3, "Found file %s in custom directory\n", filename);
