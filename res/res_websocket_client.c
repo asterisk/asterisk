@@ -237,19 +237,40 @@ verify_server_hostname = no
 
 static struct ast_sorcery *sorcery = NULL;
 
+void ast_websocket_client_add_uri_params(struct ast_websocket_client *wc,
+	const char *uri_params)
+{
+	ast_string_field_set(wc, uri_params, uri_params);
+}
+
 struct ast_websocket *ast_websocket_client_connect(struct ast_websocket_client *wc,
 	void *lock_obj, const char *display_name, enum ast_websocket_result *result)
 {
 	int reconnect_counter = wc->reconnect_attempts;
+	char *uri = NULL;
 
 	if (ast_strlen_zero(display_name)) {
 		display_name = ast_sorcery_object_get_id(wc);
 	}
 
+	if (!ast_strlen_zero(wc->uri_params)) {
+		/*
+		 * If the configured URI doesn't already contain parameters, we append the
+		 * new ones to the URI path component with '?'.  If it does, we append the
+		 * new ones to the existing ones with a '&'.
+		 */
+		char sep = '?';
+		uri = ast_alloca(strlen(wc->uri) + strlen(wc->uri_params) + 2);
+		if (strchr(wc->uri, '?')) {
+			sep = '&';
+		}
+		sprintf(uri, "%s%c%s", wc->uri, sep, wc->uri_params); /*Safe */
+	}
+
 	while (1) {
 		struct ast_websocket *astws = NULL;
 		struct ast_websocket_client_options options = {
-			.uri = wc->uri,
+			.uri = S_OR(uri, wc->uri),
 			.protocols = wc->protocols,
 			.username = wc->username,
 			.password = wc->password,
@@ -353,6 +374,11 @@ static void *wc_alloc(const char *id)
 	}
 
 	if (ast_string_field_init(wc, 1024) != 0) {
+		ao2_cleanup(wc);
+		return NULL;
+	}
+
+	if (ast_string_field_init_extended(wc, uri_params) != 0) {
 		ao2_cleanup(wc);
 		return NULL;
 	}
