@@ -132,6 +132,9 @@
 						<argument name="mailbox" />
 						<argument name="context" />
 					</option>
+					<option name="N">
+						<para>Do not answer the channel automatically.</para>
+					</option>
 					<option name="o">
 						<para>Only listen to audio coming from this channel.</para>
 					</option>
@@ -289,6 +292,9 @@
 						<argument name="mailbox" />
 						<argument name="context" />
 					</option>
+					<option name="N">
+						<para>Do not answer the channel automatically.</para>
+					</option>
 					<option name="o">
 						<para>Only listen to audio coming from this channel.</para>
 					</option>
@@ -408,6 +414,7 @@ enum {
 	OPTION_UNIQUEID          = (1 << 19),	/* The chanprefix is a channel uniqueid or fully specified channel name. */
 	OPTION_LONG_QUEUE        = (1 << 20),	/* Allow usage of a long queue to store audio frames. */
 	OPTION_INTERLEAVED       = (1 << 21),	/* Interleave the Read and Write frames in the output frame. */
+	OPTION_NOANSWER          = (1 << 22),	/* Do not automatically answer the channel */
 };
 
 enum {
@@ -432,6 +439,7 @@ AST_APP_OPTIONS(spy_opts, {
 	AST_APP_OPTION_ARG('g', OPTION_GROUP, OPT_ARG_GROUP),
 	AST_APP_OPTION('l', OPTION_LONG_QUEUE),
 	AST_APP_OPTION_ARG('n', OPTION_NAME, OPT_ARG_NAME),
+	AST_APP_OPTION('N', OPTION_NOANSWER),
 	AST_APP_OPTION('o', OPTION_READONLY),
 	AST_APP_OPTION('q', OPTION_QUIET),
 	AST_APP_OPTION_ARG('r', OPTION_RECORD, OPT_ARG_RECORD),
@@ -999,8 +1007,9 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 		ast_channel_unlock(chan);
 	}
 
-	if (ast_channel_state(chan) != AST_STATE_UP)
+	if (!ast_test_flag(flags, OPTION_NOANSWER) && ast_channel_state(chan) != AST_STATE_UP) {
 		ast_answer(chan);
+	}
 
 	ast_channel_set_flag(chan, AST_FLAG_SPYING);
 
