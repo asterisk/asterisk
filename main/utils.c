@@ -778,6 +778,42 @@ void ast_uri_decode(char *s, struct ast_flags spec)
 	*o = '\0';
 }
 
+int ast_uri_verify_encoded(const char *string)
+{
+	const char *ptr = string;
+	size_t length;
+	char *endl;
+
+	if (!string) {
+		return 0;
+	}
+
+	length = strlen(string);
+	endl = (char *)string + length;
+
+	while (*ptr) {
+		if (*ptr == '%') {
+			unsigned int tmp;
+			/* Make sure there are at least 2 characters left to decode */
+			if (ptr + 2 >= endl) {
+				return 0;
+			}
+			/* Try to parse the next two characters as hex */
+			if (sscanf(ptr + 1, "%2x", &tmp) != 1) {
+				return 0;
+			}
+			/* All good, move past the '%' and the two hex digits */
+			ptr += 3;
+		} else if (!isalnum((unsigned char ) *ptr) && !strchr("-_.+", *ptr)) {
+			return 0;
+		} else {
+			ptr++;
+		}
+	}
+
+	return 1; /* all characters are valid */
+}
+
 char *ast_escape_quoted(const char *string, char *outbuf, int buflen)
 {
 	const char *ptr  = string;
