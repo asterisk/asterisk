@@ -2578,6 +2578,8 @@ int ast_bridge_add_channel(struct ast_bridge *bridge, struct ast_channel *chan,
 		ast_bridge_unlock(chan_bridge);
 		ast_bridge_unlock(bridge);
 	} else {
+		int noanswer;
+		const char *value;
 		/* Slightly less easy case. We need to yank channel A from
 		 * where he currently is and impart him into our bridge.
 		 */
@@ -2587,9 +2589,17 @@ int ast_bridge_add_channel(struct ast_bridge *bridge, struct ast_channel *chan,
 			ast_bridge_features_destroy(features);
 			return -1;
 		}
-		if (ast_channel_state(yanked_chan) != AST_STATE_UP) {
+
+		ast_channel_lock(chan);
+		value = pbx_builtin_getvar_helper(chan, "BRIDGE_NOANSWER");
+		noanswer = !ast_strlen_zero(value) ? 1 : 0;
+		ast_channel_unlock(chan);
+		if (noanswer) {
+			ast_debug(3, "Skipping answer on bridge target channel %s\n", ast_channel_name(chan));
+		} else if (ast_channel_state(yanked_chan) != AST_STATE_UP) {
 			ast_answer(yanked_chan);
 		}
+
 		ast_channel_ref(yanked_chan);
 		if (ast_bridge_impart(bridge, yanked_chan, NULL, features,
 			AST_BRIDGE_IMPART_CHAN_INDEPENDENT)) {
