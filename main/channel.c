@@ -2645,8 +2645,9 @@ int ast_raw_answer_with_stream_topology(struct ast_channel *chan, struct ast_str
 		ast_channel_unlock(chan);
 		break;
 	case AST_STATE_UP:
-		break;
+		/* Fall through */
 	default:
+		ast_debug(2, "Skipping answer, since channel state on %s is %s\n", ast_channel_name(chan), ast_state2str(ast_channel_state(chan)));
 		break;
 	}
 
