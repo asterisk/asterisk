@@ -222,7 +222,7 @@ static int lua_pbx_exec(lua_State *L)
 			exten, context, priority,
 			term_color(tmp, app_name, COLOR_BRCYAN, 0, sizeof(tmp)),
 			term_color(tmp2, ast_channel_name(chan), COLOR_BRMAGENTA, 0, sizeof(tmp2)),
-			term_color(tmp3, data, COLOR_BRMAGENTA, 0, sizeof(tmp3)));
+			term_color(tmp3, data ? data : "", COLOR_BRMAGENTA, 0, sizeof(tmp3)));
 
 	lua_getfield(L, LUA_REGISTRYINDEX, "autoservice");
 	autoservice = lua_toboolean(L, -1);
