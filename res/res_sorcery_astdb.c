@@ -367,17 +367,7 @@ static void sorcery_astdb_retrieve_prefix(const struct ast_sorcery *sorcery, voi
 
 static int sorcery_astdb_update(const struct ast_sorcery *sorcery, void *data, void *object)
 {
-	const char *prefix = data;
-	char family[strlen(prefix) + strlen(ast_sorcery_object_get_type(object)) + 2], value[2];
-
-	snprintf(family, sizeof(family), "%s/%s", prefix, ast_sorcery_object_get_type(object));
-
-	/* It is okay for the value to be truncated, we are only checking that it exists */
-	if (ast_db_get(family, ast_sorcery_object_get_id(object), value, sizeof(value))) {
-		return -1;
-	}
-
-	/* The only difference between update and create is that for update the object must already exist */
+	/* If the object already exists, it will be updated, otherwise it will be created. */
 	return sorcery_astdb_create(sorcery, data, object);
 }
 
