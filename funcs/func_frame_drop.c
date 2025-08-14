@@ -173,6 +173,7 @@ static struct ast_frame *hook_event_cb(struct ast_channel *chan, struct ast_fram
 {
 	int i;
 	int drop_frame = 0;
+	char buf[64];
 	struct frame_drop_data *framedata = data;
 	if (!frame) {
 		return frame;
@@ -188,6 +189,7 @@ static struct ast_frame *hook_event_cb(struct ast_channel *chan, struct ast_fram
 			if (frame->subclass.integer == controlframetype2str[i].type) {
 				if (framedata->controlvalues[i]) {
 					drop_frame = 1;
+					ast_frame_subclass2str(frame, buf, sizeof(buf), NULL, 0);
 				}
 				break;
 			}
@@ -197,6 +199,7 @@ static struct ast_frame *hook_event_cb(struct ast_channel *chan, struct ast_fram
 			if (frame->frametype == frametype2str[i].type) {
 				if (framedata->values[i]) {
 					drop_frame = 1;
+					ast_frame_type2str(frame->frametype, buf, sizeof(buf));
 				}
 				break;
 			}
@@ -206,6 +209,7 @@ static struct ast_frame *hook_event_cb(struct ast_channel *chan, struct ast_fram
 	if (drop_frame) {
 		ast_frfree(frame);
 		frame = &ast_null_frame;
+		ast_debug(2, "Dropping %s frame\n", buf);
 	}
 	return frame;
 }
