@@ -234,8 +234,10 @@ static int frame_drop_helper(struct ast_channel *chan, const char *cmd, char *da
 		framedata->list_type = TX;
 	}
 
-	buffer = ast_malloc(sizeof(value) + 3); /* leading and trailing comma and null terminator */
-	snprintf(buffer, sizeof(value) + 2, ",%s,", value);
+	if (ast_asprintf(&buffer, ",%s,", value) < 0) {
+		ast_free(framedata);
+		return -1;
+	}
 	for (i = 0; i < ARRAY_LEN(frametype2str); i++) {
 		if (strcasestr(buffer, frametype2str[i].str)) {
 			framedata->values[i] = 1;
