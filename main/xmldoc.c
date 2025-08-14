@@ -94,7 +94,7 @@ static const struct strcolorized_tags {
 	{ "", "", COLOR_YELLOW, "<note>",   "</note>" },
 	{ "", "", COLOR_RED,   "<warning>", "</warning>" },
 	{ "", "", COLOR_WHITE, "<example>", "</example>" },
-	{ "", "", COLOR_GRAY, "<exampletext>", "</exampletext>"},
+	{ "", "", COLOR_WHITE, "<exampletext>", "</exampletext>"},
 };
 
 static const struct strspecial_tags {
@@ -1359,7 +1359,8 @@ static int xmldoc_parse_para(struct ast_xml_node *node, const char *tabs, const 
  * \retval 0 if no example node is parsed.
  * \retval 1 if an example node is parsed.
  */
-static int xmldoc_parse_example(struct ast_xml_node *fixnode, struct ast_str **buffer)
+static int xmldoc_parse_example(struct ast_xml_node *fixnode, const char *tabs,
+	struct ast_str **buffer)
 {
 	struct ast_xml_node *node = fixnode;
 	const char *tmptext;
@@ -1387,9 +1388,11 @@ static int xmldoc_parse_example(struct ast_xml_node *fixnode, struct ast_str **b
 	for (node = ast_xml_node_get_children(node); node; node = ast_xml_node_get_next(node)) {
 		tmptext = ast_xml_get_text(node);
 		if (tmptext) {
-			xmldoc_string_cleanup(tmptext, &stripped_text, 0, 1);
+			const char *skipped = ast_skip_blanks(tmptext);
+			xmldoc_string_cleanup(skipped, &stripped_text, 0, 1);
 			if (stripped_text) {
-				ast_str_append(buffer, 0, "<exampletext>%s</exampletext>\n", ast_str_buffer(stripped_text));
+				ast_str_append(buffer, 0, "\n %s<exampletext>%s</exampletext>\n",
+					tabs, ast_str_buffer(stripped_text));
 				ast_xml_free_text(tmptext);
 				ast_free(stripped_text);
 			}
@@ -1434,7 +1437,7 @@ static int xmldoc_parse_specialtags(struct ast_xml_node *fixnode, const char *ta
 			ast_str_append(buffer, 0, "%s%s", tabs, special_tags[i].init);
 		}
 
-		if (xmldoc_parse_example(node, buffer)) {
+		if (xmldoc_parse_example(node, tabs, buffer)) {
 			ret = 1;
 			break;
 		}
@@ -1495,7 +1498,9 @@ static int xmldoc_parse_argument(struct ast_xml_node *fixnode, int insideparamet
 	}
 
 	for (node = ast_xml_node_get_children(node); node; node = ast_xml_node_get_next(node)) {
-		if (xmldoc_parse_common_elements(node, (insideparameter ? paramtabs : (!count ? " - " : tabs)), "\n", buffer) == 2) {
+		int rc = 0;
+		rc = xmldoc_parse_common_elements(node, (insideparameter ? paramtabs : (!count ? " - " : tabs)), "\n", buffer);
+		if (rc >= 1) {
 			count++;
 			ret = 1;
 		}
@@ -1902,19 +1907,19 @@ static int xmldoc_parse_option(struct ast_xml_node *fixnode, const char *tabs, s
 		return ret;
 	}
 	for (node = ast_xml_node_get_children(fixnode); node; node = ast_xml_node_get_next(node)) {
+		/* if this is the first data appended to buffer, print a \n */
+		if (!ret && ast_xml_node_get_children(node)) {
+			/* print \n */
+			ast_str_append(buffer, 0, "\n");
+		}
 		if (!strcasecmp(ast_xml_node_get_name(node), "argument")) {
-			/* if this is the first data appended to buffer, print a \n*/
-			if (!ret && ast_xml_node_get_children(node)) {
-				/* print \n */
-				ast_str_append(buffer, 0, "\n");
-			}
 			if (xmldoc_parse_argument(node, 0, NULL, optiontabs, buffer)) {
 				ret = 1;
 			}
 			continue;
 		}
 
-		if (xmldoc_parse_common_elements(node, (ret ? tabs :  ""), "\n", buffer)) {
+		if (xmldoc_parse_common_elements(node, optiontabs, "\n", buffer)) {
 			ret = 1;
 		}
 
@@ -2012,7 +2017,7 @@ static void xmldoc_parse_parameter(struct ast_xml_node *fixnode, const char *tab
 	}
 
 	if (!hasarguments && xmldoc_has_nodes(node)) {
-		ast_str_append(buffer, 0, "%s\n", paramname);
+		ast_str_append(buffer, 0, "\n%s\n", paramname);
 		ast_xml_free_attr(paramname);
 		printed = 1;
 	}
