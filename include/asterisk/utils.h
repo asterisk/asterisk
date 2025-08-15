@@ -419,6 +419,19 @@ char *ast_uri_encode(const char *string, char *outbuf, int buflen, struct ast_fl
  */
 void ast_uri_decode(char *s, struct ast_flags spec);
 
+/*!
+ * \brief Verify if a string is valid as a URI component
+ *
+ * This function checks if the string either doesn't need encoding
+ * or is already properly URI encoded.
+ * Valid characters are 'a-zA-Z0-9.+_-' and '%xx' escape sequences.
+ *
+ * \param string String to be checked
+ * \retval 1 if the string is valid
+ * \retval 0 if the string is not valid
+ */
+int ast_uri_verify_encoded(const char *string);
+
 /*! ast_xml_escape
 	\brief Escape reserved characters for use in XML.
 

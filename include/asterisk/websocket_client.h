@@ -74,6 +74,7 @@ struct ast_websocket_client {
 	int tls_enabled;                     /*!< TLS enabled */
 	int verify_server_cert;              /*!< Verify server certificate */
 	int verify_server_hostname;          /*!< Verify server hostname */
+	AST_STRING_FIELD_EXTENDED(uri_params); /*!< Additional URI parameters */
 };
 
 /*!
@@ -136,6 +137,15 @@ void ast_websocket_client_observer_remove(
  */
 struct ast_websocket *ast_websocket_client_connect(struct ast_websocket_client *wc,
 	void *lock_obj, const char *display_name, enum ast_websocket_result *result);
+
+/*!
+ * \brief Add additional parameters to the URI.
+ *
+ * \param wc A pointer to the ast_websocket_structure
+ * \param uri_params A string containing URLENCODED parameters to append to the URI.
+ */
+void ast_websocket_client_add_uri_params(struct ast_websocket_client *wc,
+	const char *uri_params);
 
 /*!
  * \brief Force res_websocket_client to reload its configuration.
