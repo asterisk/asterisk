@@ -618,12 +618,14 @@ static int tone_detect(struct ast_dsp *dsp, tone_detect_state_t *s, int16_t *amp
 		tone_energy *= 2.0;
 		s->energy *= s->block_size;
 
-		ast_debug(10, "%d Hz tone %2d Ew=%.4E, Et=%.4E, s/n=%10.2f\n", s->freq, s->hit_count, tone_energy, s->energy, tone_energy / (s->energy - tone_energy));
-		hit = 0;
+		/* Add 1 to hit_count when logging, since it doesn't get incremented until later in the loop. */
 		if (TONE_THRESHOLD <= tone_energy
 			&& tone_energy > s->energy * s->threshold) {
-			ast_debug(10, "%d Hz tone Hit! %2d Ew=%.4E, Et=%.4E, s/n=%10.2f\n", s->freq, s->hit_count, tone_energy, s->energy, tone_energy / (s->energy - tone_energy));
+			ast_debug(9, "%d Hz tone Hit! [%d/%d] Ew=%.4E, Et=%.4E, s/n=%10.2f\n", s->freq, s->hit_count + 1, s->hits_required, tone_energy, s->energy, tone_energy / (s->energy - tone_energy));
 			hit = 1;
+		} else {
+			ast_debug(10, "%d Hz tone [%d/%d] Ew=%.4E, Et=%.4E, s/n=%10.2f\n", s->freq, s->hit_count + 1, s->hits_required, tone_energy, s->energy, tone_energy / (s->energy - tone_energy));
+			hit = 0;
 		}
 
 		if (s->hit_count) {
@@ -633,11 +635,11 @@ static int tone_detect(struct ast_dsp *dsp, tone_detect_state_t *s, int16_t *amp
 		if (hit == s->last_hit) {
 			if (!hit) {
 				/* Two successive misses. Tone ended */
+				ast_debug(9, "Partial detect expired after %d/%d hits\n", s->hit_count, s->hits_required);
 				s->hit_count = 0;
 			} else if (!s->hit_count) {
 				s->hit_count++;
 			}
-
 		}
 
 		if (s->hit_count == s->hits_required) {
