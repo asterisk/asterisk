@@ -3344,6 +3344,8 @@ static int feature_attended_transfer(struct ast_bridge_channel *bridge_channel, 
 	struct ast_bridge *bridge;
 	char destination[AST_MAX_EXTENSION + AST_MAX_CONTEXT + 1];
 	char exten[AST_MAX_EXTENSION] = "";
+	const char *musicclass = NULL;
+	struct ast_bridge_channel *other_bridge_channel;
 	pthread_t thread;
 
 	/* Inhibit the bridge before we do anything else. */
@@ -3392,7 +3394,27 @@ static int feature_attended_transfer(struct ast_bridge_channel *bridge_channel, 
 		return 0;
 	}
 
-	ast_bridge_channel_write_hold(bridge_channel, NULL);
+	/* Check for ATTENDED_TRANSFER_MUSIC_CLASS variable */
+	ast_channel_lock(bridge_channel->chan);
+	musicclass = pbx_builtin_getvar_helper(bridge_channel->chan, "ATTENDED_TRANSFER_MUSIC_CLASS");
+	ast_channel_unlock(bridge_channel->chan);
+	if (musicclass != NULL) {
+		ast_bridge_lock(bridge_channel->bridge);
+		AST_LIST_TRAVERSE(&bridge_channel->bridge->channels, other_bridge_channel, entry) {
+			if (other_bridge_channel->chan != bridge_channel->chan) {
+				ast_channel_lock(other_bridge_channel->chan);
+				ast_verb(3, "DTMF attended transfer by '%s' of channel '%s' suggests moh class '%s' by variable, replacing '%s'.\n",
+					ast_channel_name(bridge_channel->chan), ast_channel_name(other_bridge_channel->chan), musicclass, ast_channel_musicclass(other_bridge_channel->chan));
+				ast_channel_musicclass_set(other_bridge_channel->chan, musicclass);
+				ast_channel_unlock(other_bridge_channel->chan);
+			}
+		}
+		ast_bridge_unlock(bridge_channel->bridge);
+
+		ast_bridge_channel_write_hold(bridge_channel, musicclass);
+	} else {
+		ast_bridge_channel_write_hold(bridge_channel, NULL);
+	}
 
 	/* Grab the extension to transfer to */
 	if (grab_transfer(bridge_channel->chan, exten, sizeof(exten), props->context)) {
@@ -3519,11 +3541,33 @@ static int feature_blind_transfer(struct ast_bridge_channel *bridge_channel, voi
 	struct ast_bridge_features_blind_transfer *blind_transfer = hook_pvt;
 	const char *xfer_context;
 	char *goto_on_blindxfer;
+	const char *musicclass = NULL;
+	struct ast_bridge_channel *other_bridge_channel;
 
 	ast_verb(3, "Channel %s: Started DTMF blind transfer.\n",
 		ast_channel_name(bridge_channel->chan));
 
-	ast_bridge_channel_write_hold(bridge_channel, NULL);
+	/* Check for BLIND_TRANSFER_MUSIC_CLASS variable */
+	ast_channel_lock(bridge_channel->chan);
+	musicclass = pbx_builtin_getvar_helper(bridge_channel->chan, "BLIND_TRANSFER_MUSIC_CLASS");
+	ast_channel_unlock(bridge_channel->chan);
+	if (musicclass != NULL) {
+		ast_bridge_lock(bridge_channel->bridge);
+		AST_LIST_TRAVERSE(&bridge_channel->bridge->channels, other_bridge_channel, entry) {
+			if (other_bridge_channel->chan != bridge_channel->chan) {
+				ast_channel_lock(other_bridge_channel->chan);
+				ast_verb(3, "DTMF blind transfer by '%s' of channel '%s' suggests moh class '%s' by variable, replacing '%s'.\n",
+					ast_channel_name(bridge_channel->chan), ast_channel_name(other_bridge_channel->chan), musicclass, ast_channel_musicclass(other_bridge_channel->chan));
+				ast_channel_musicclass_set(other_bridge_channel->chan, musicclass);
+				ast_channel_unlock(other_bridge_channel->chan);
+			}
+		}
+		ast_bridge_unlock(bridge_channel->bridge);
+
+		ast_bridge_channel_write_hold(bridge_channel, musicclass);
+	} else {
+		ast_bridge_channel_write_hold(bridge_channel, NULL);
+	}
 
 	ast_channel_lock(bridge_channel->chan);
 	xfer_context = ast_strdupa(get_transfer_context(bridge_channel->chan,
