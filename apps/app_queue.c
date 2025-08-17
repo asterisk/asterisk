@@ -106,6 +106,7 @@
 #include "asterisk/mixmonitor.h"
 #include "asterisk/bridge_basic.h"
 #include "asterisk/max_forwards.h"
+#include "asterisk/sched.h"
 
 /*!
  * \par Please read before modifying this file.
@@ -1876,6 +1877,8 @@ struct member {
 	unsigned int delme:1;                /*!< Flag to delete entry on reload */
 	char rt_uniqueid[80];                /*!< Unique id of realtime member entry */
 	unsigned int ringinuse:1;            /*!< Flag to ring queue members even if their status is 'inuse' */
+	char *wrapup_qname;                  /*!< strdup'd name of the queue that scheduled wrapup */
+	int wrapup_sched_id;                 /*!< -1 if no wrapup job scheduled */
 };
 
 enum empty_conditions {
@@ -1915,6 +1918,10 @@ struct penalty_rule {
 #define ANNOUNCEPOSITION_NO 2 /*!< We don't announce position */
 #define ANNOUNCEPOSITION_MORE_THAN 3 /*!< We say "Currently there are more than <limit>" */
 #define ANNOUNCEPOSITION_LIMIT 4 /*!< We not announce position more than \<limit\> */
+
+/* Wrapup-as-pause globals */
+static struct ast_sched_context *wrapup_sched = NULL;
+static int wrapup_as_pause_default = 0;
 
 struct call_queue {
 	AST_DECLARE_STRING_FIELDS(
@@ -2016,6 +2023,7 @@ struct call_queue {
 	struct queue_ent *head;             /*!< Head of the list of callers */
 	AST_LIST_ENTRY(call_queue) list;    /*!< Next call queue */
 	AST_LIST_HEAD_NOLOCK(, penalty_rule) rules; /*!< The list of penalty rules to invoke */
+	unsigned int wrapup_as_pause:1;     /*!< Expose wrapup as PAUSED to external apps */
 };
 
 struct rule_list {
@@ -2034,6 +2042,49 @@ static int set_member_paused(const char *queuename, const char *interface, const
 static int update_queue(struct call_queue *q, struct member *member, int callcompletedinsl, time_t starttime);
 
 static struct member *find_member_by_queuename_and_interface(const char *queuename, const char *interface);
+
+/* Wrapup-as-pause forward declarations (must be visible before update_queue) */
+static int	validate_wrapup_as_pause_config(struct call_queue *q)
+{
+	return q && q->wrapup_as_pause && q->wrapuptime > 0;
+}
+
+/* Auto-unpause a member after wrapup. */
+static int wrapup_unpause_cb(const void *data)
+{
+	struct member *mem = (struct member *) data; /* scheduler passes const void * */
+	char *qname = NULL;
+	int should_unpause = 0;
+
+	if (!mem) {
+		return 0;
+	}
+
+	ao2_lock(mem);
+	if (mem->paused &&
+	    mem->reason_paused[0] != '\0' &&
+	    !strcasecmp(mem->reason_paused, "WRAPUP")) {
+		should_unpause = 1;
+	}
+	if (mem->wrapup_qname) {
+		qname = mem->wrapup_qname; /* take ownership */
+		mem->wrapup_qname = NULL;
+	}
+	mem->wrapup_sched_id = -1;
+	ao2_unlock(mem);
+
+	if (should_unpause && qname) {
+		set_member_paused(qname, mem->interface, "WRAPUP", 0);
+	}
+	if (qname) {
+		ast_free(qname);
+	}
+
+	/* release the reference taken at schedule time */
+	ao2_ref(mem, -1);
+	return 0;
+}
+
 /*! \brief sets the QUEUESTATUS channel variable */
 static void set_queue_result(struct ast_channel *chan, enum queue_result res)
 {
@@ -2739,7 +2790,66 @@ static void update_status(struct call_queue *q, struct member *m, const int stat
 static int is_member_available(struct call_queue *q, struct member *mem)
 {
 	int available = 0;
-	int wrapuptime;
+	int wrapuptime = 0;
+	time_t now = 0;
+
+	/* Heal stale WRAPUP pause (crash/restart or missed timer) */
+	if (q && mem) {
+		int paused_hint = mem->paused;
+
+		if (paused_hint) {
+			int paused_wrap = 0;
+			time_t last_snapshot = 0;
+			int sched_id_snapshot = -1;
+			int wrap = 0;
+			time_t now_ts = 0;
+			int rc2 = -1;
+
+			/* snapshot only if it looked paused */
+			ao2_lock(mem);
+			if (mem->paused &&
+			    mem->reason_paused[0] != '\0' &&
+			    !strcasecmp(mem->reason_paused, "WRAPUP")) {
+				paused_wrap = 1;
+				last_snapshot = mem->lastcall;
+				sched_id_snapshot = mem->wrapup_sched_id;
+			}
+			ao2_unlock(mem);
+
+			if (paused_wrap && last_snapshot != 0) {
+				wrap = get_wrapuptime(q, mem);
+				now_ts = time(NULL);
+
+				if (wrap > 0 && (now_ts - last_snapshot) >= wrap) {
+					/* cancel pending job if the snapshot had one */
+					if (wrapup_sched && sched_id_snapshot != -1) {
+						rc2 = ast_sched_del(wrapup_sched, sched_id_snapshot);
+						if (rc2 == 0) {
+							/* release the reference taken at schedule time */
+							ao2_ref(mem, -1);
+						}
+					}
+
+					/* re-verify before acting; avoid clobbering a new timer */
+					ao2_lock(mem);
+					if (mem->paused &&
+					    mem->reason_paused[0] != '\0' &&
+					    !strcasecmp(mem->reason_paused, "WRAPUP") &&
+					    mem->lastcall == last_snapshot &&
+					    (mem->wrapup_sched_id == -1 ||
+					     mem->wrapup_sched_id == sched_id_snapshot)) {
+						if (mem->wrapup_sched_id == sched_id_snapshot) {
+							mem->wrapup_sched_id = -1;
+						}
+						ao2_unlock(mem);
+						set_member_paused(q->name, mem->interface, "WRAPUP", 0);
+					} else {
+						ao2_unlock(mem);
+					}
+				}
+			}
+		}
+	}
 
 	switch (mem->status) {
 		case AST_DEVICE_INVALID:
@@ -2764,7 +2874,8 @@ static int is_member_available(struct call_queue *q, struct member *mem)
 
 	/* Let wrapuptimes override device state availability */
 	wrapuptime = get_wrapuptime(q, mem);
-	if (mem->lastcall && wrapuptime && (time(NULL) - wrapuptime < mem->lastcall)) {
+	now = time(NULL);
+	if (mem->lastcall && wrapuptime > 0 && (now - mem->lastcall) < wrapuptime) {
 		available = 0;
 	}
 	return available;
@@ -2992,6 +3103,21 @@ static void destroy_queue_member_cb(void *obj)
 	if (mem->state_id != -1) {
 		ast_extension_state_del(mem->state_id, extension_state_cb);
 	}
+
+	/* Cancel pending wrapup timer; if delete succeeds, release the reference taken at schedule time. */
+	if (wrapup_sched && mem->wrapup_sched_id != -1) {
+		int rc = ast_sched_del(wrapup_sched, mem->wrapup_sched_id);
+		mem->wrapup_sched_id = -1;
+		if (rc == 0) {
+			ao2_ref(mem, -1);
+		}
+	}
+
+	/* Free stored queue name, if any */
+	if (mem->wrapup_qname) {
+		ast_free(mem->wrapup_qname);
+		mem->wrapup_qname = NULL;
+	}
 }
 
 /*! \brief allocate space for new queue member and set fields based on parameters passed */
@@ -3004,6 +3130,8 @@ static struct member *create_queue_member(const char *interface, const char *mem
 		cur->penalty = penalty;
 		cur->paused = paused;
 		cur->wrapuptime = wrapuptime;
+		cur->wrapup_qname = NULL;
+		cur->wrapup_sched_id = -1;
 		if (paused) {
 			time(&cur->lastpause); /* Update time of last pause */
 		}
@@ -3604,8 +3732,23 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 		if (q->retry <= 0) {
 			q->retry = DEFAULT_RETRY;
 		}
+	} else if (!strcasecmp(param, "wrapup-as-pause")) {
+		q->wrapup_as_pause = ast_true(val);
+		/* Auto-disable if ineffective */
+		if (q->wrapup_as_pause && q->wrapuptime <= 0) {
+			ast_log(LOG_WARNING, "Queue '%s': wrapup-as-pause requested but wrapuptime is %d. Auto-disabling.\n",
+				q->name, q->wrapuptime);
+			q->wrapup_as_pause = 0;
+		}
 	} else if (!strcasecmp(param, "wrapuptime")) {
 		q->wrapuptime = atoi(val);
+
+		/* Re-validate wrapup-as-pause */
+		if (q->wrapup_as_pause && q->wrapuptime <= 0) {
+			ast_log(LOG_WARNING, "Queue '%s': wrapuptime set to %d, auto-disabling wrapup-as-pause.\n",
+				q->name, q->wrapuptime);
+			q->wrapup_as_pause = 0;
+		}
 	} else if (!strcasecmp(param, "penaltymemberslimit")) {
 		if ((sscanf(val, "%10d", &q->penaltymemberslimit) != 1)) {
 			q->penaltymemberslimit = 0;
@@ -3882,6 +4025,7 @@ static struct call_queue *alloc_queue(const char *queuename)
 			return NULL;
 		}
 		ast_string_field_set(q, name, queuename);
+		q->wrapup_as_pause = wrapup_as_pause_default;
 	}
 	return q;
 }
@@ -6150,13 +6294,75 @@ static int update_queue(struct call_queue *q, struct member *member, int callcom
 		}
 		ao2_iterator_destroy(&queue_iter);
 	} else {
+		int do_wrap = 0;
+		int wrapup_duration = 0;
+
 		ao2_lock(q);
 		time(&member->lastcall);
 		member->callcompletedinsl = 0;
 		member->calls++;
 		member->starttime = 0;
 		member->lastqueue = q;
+
+		if (validate_wrapup_as_pause_config(q)) {
+			wrapup_duration = get_wrapuptime(q, member);
+			if (wrapup_duration > 0 &&
+			    (!member->paused ||
+			     (member->reason_paused[0] != '\0' &&
+			      !strcasecmp(member->reason_paused, "WRAPUP")))) {
+				do_wrap = 1;
+			}
+		}
 		ao2_unlock(q);
+
+		if (do_wrap && wrapup_sched) {
+			int rc = -1;
+			int id = -1;
+			int old_id = -1;
+			struct member *mref = NULL;
+			char *new_qname = NULL;
+
+			ao2_lock(member);
+			if (member->wrapup_sched_id != -1) {
+				old_id = member->wrapup_sched_id;
+				member->wrapup_sched_id = -1;
+			}
+			ao2_unlock(member);
+			if (old_id != -1) {
+				rc = ast_sched_del(wrapup_sched, old_id);
+				if (rc == 0) {
+					ao2_ref(member, -1); /* release the reference taken at schedule time */
+				}
+			}
+
+			new_qname = ast_strdup(q->name);
+			if (!new_qname) {
+				ast_log(LOG_WARNING, "wrapup: strdup(%s) failed; skipping auto-unpause\n", q->name);
+			} else {
+				set_member_paused(q->name, member->interface, "WRAPUP", 1);
+
+				mref = ao2_bump(member); /* take a reference for the scheduled job */
+				id = ast_sched_add(wrapup_sched,
+				                   wrapup_duration * 1000,
+				                   wrapup_unpause_cb,
+				                   mref);
+				if (id == -1) {
+					ao2_ref(mref, -1); /* release the reference taken at schedule time */
+					ast_free(new_qname);
+					ast_log(LOG_WARNING, "Failed to schedule wrapup auto-unpause for %s@%s\n",
+					        member->interface, q->name);
+					set_member_paused(q->name, member->interface, "WRAPUP", 0);
+				} else {
+					ao2_lock(member);
+					if (member->wrapup_qname) {
+						ast_free(member->wrapup_qname);
+					}
+					member->wrapup_qname = new_qname;
+					member->wrapup_sched_id = id;
+					ao2_unlock(member);
+				}
+			}
+		}
 	}
 	/* Member might never experience any direct status change (local
 	 * channel with forwarding in particular). If that's the case,
@@ -9747,6 +9953,12 @@ static void queue_set_global_params(struct ast_config *cfg)
 	if ((general_val = ast_variable_retrieve(cfg, "general", "log-caller-id-name"))) {
 		log_caller_id_name = ast_true(general_val);
 	}
+	if ((general_val = ast_variable_retrieve(cfg, "general", "wrapup-as-pause"))) {
+		wrapup_as_pause_default = ast_true(general_val);
+		if (wrapup_as_pause_default) {
+			ast_log(LOG_NOTICE, "Global wrapup-as-pause enabled. Queues need wrapuptime > 0.\n");
+		}
+	}
 }
 
 /*! \brief reload information pertaining to a single member
@@ -11914,6 +12126,12 @@ static int unload_module(void)
 	ao2_cleanup(pending_members);
 
 	queues = NULL;
+	/* Destroy scheduler */
+	if (wrapup_sched) {
+		ast_debug(2, "Destroying wrapup scheduler\n");
+		ast_sched_context_destroy(wrapup_sched); /* cancels any pending jobs and stops thread */
+		wrapup_sched = NULL;
+	}
 	return 0;
 }
 
@@ -11934,10 +12152,30 @@ static int load_module(void)
 	struct ast_config *member_config;
 	struct stasis_topic *queue_topic;
 	struct stasis_topic *manager_topic;
+	int rc;
+
+	/* create + start dedicated scheduler thread */
+	wrapup_sched = ast_sched_context_create();
+	if (wrapup_sched) {
+		rc = ast_sched_start_thread(wrapup_sched); /* 0 = success */
+		if (rc != 0) {
+			ast_log(LOG_ERROR, "Failed to start wrapup scheduler thread (%d)\n", rc);
+			ast_sched_context_destroy(wrapup_sched);
+			wrapup_sched = NULL;
+			return AST_MODULE_LOAD_DECLINE;
+		}
+		ast_debug(2, "Wrapup scheduler initialized\n");
+	} else {
+		ast_log(LOG_ERROR, "Failed to create wrapup scheduler\n");
+		return AST_MODULE_LOAD_DECLINE;
+	}
 
 	queues = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, MAX_QUEUE_BUCKETS,
 		queue_hash_cb, NULL, queue_cmp_cb);
 	if (!queues) {
+		/* avoid leaking the scheduler thread/context on early failure */
+		ast_sched_context_destroy(wrapup_sched);
+		wrapup_sched = NULL;
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
