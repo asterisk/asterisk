@@ -3168,6 +3168,10 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 				ast_debug(2, "Letting this call hang up normally, since it's not the only call\n");
 			} else if (!p->owner || !p->subs[ANALOG_SUB_REAL].owner || ast_channel_state(ast) != AST_STATE_UP) {
 				ast_debug(2, "Called Subscriber Held does not apply: channel state is %d\n", ast_channel_state(ast));
+			} else if (p->owner && p->subs[ANALOG_SUB_REAL].owner && ast_strlen_zero(ast_channel_appl(p->subs[ANALOG_SUB_REAL].owner))) {
+				/* If the channel application is empty, it is likely a masquerade has occured, in which case don't hold any calls.
+				 * This conditional matches only executions that would have reached the strcmp below. */
+				ast_debug(1, "Skipping Called Subscriber Held; channel has no application\n");
 			} else if (!p->owner || !p->subs[ANALOG_SUB_REAL].owner || strcmp(ast_channel_appl(p->subs[ANALOG_SUB_REAL].owner), "AppDial")) {
 				/* Called Subscriber held only applies to incoming calls, not outgoing calls.
 				 * We can't use p->outgoing because that is always true, for both incoming and outgoing calls, so it's not accurate.
