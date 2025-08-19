@@ -421,12 +421,14 @@ static int process_text_message(struct websocket_pvt *instance,
 	}
 
 	/*
-	 * This is safe because the payload buffer is always >= 8K
-	 * even with LOW_MEMORY defined and we've already made sure the
-	 * command is less than 128 bytes.
+	 * Unfortunately, payload is not NULL terminated even when it's
+	 * a TEXT frame so we need to allocate a new buffer, copy
+	 * the data into it, and NULL terminate it.
 	 */
-	payload[payload_len] = '\0';
-	command = ast_strip(ast_strdupa(payload));
+	command = ast_alloca(payload_len + 1);
+	memcpy(command, payload, payload_len); /* Safe */
+	command[payload_len] = '\0';
+	command = ast_strip(command);
 
 	ast_debug(4, "%s: WebSocket %s command received\n",
 		ast_channel_name(instance->channel), command);
