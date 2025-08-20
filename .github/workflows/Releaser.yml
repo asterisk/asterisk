@@ -88,7 +88,7 @@ jobs:
     secrets:
       gpg_private_key: ${{secrets.ASTDEV_GPG_PRIV_KEY}}
       asteriskteam_gh_token: ${{secrets.ASTERISKTEAM_PAT}}
-      asteriskteamsa_username: ${{secrets.ASTERISKTEAMSA_GMAIL_ACCT}}
-      asteriskteamsa_token: ${{secrets.ASTERISKTEAMSA_GMAIL_TOKEN}}
+      asteriskteam_email_username: ${{secrets.ASTERISKTEAM_SES_KEY_ID}}
+      asteriskteam_email_secret: ${{secrets.ASTERISKTEAM_SES_KEY_SECRET}}
       deploy_ssh_priv_key: ${{secrets.DOWNLOADS_DEPLOY_SSH_PRIV_KEY}}
       deploy_ssh_username: ${{secrets.DOWNLOADS_DEPLOY_SSH_USERNAME}}
