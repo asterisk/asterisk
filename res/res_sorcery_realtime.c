@@ -286,12 +286,37 @@ static int sorcery_realtime_update(const struct ast_sorcery *sorcery, void *data
 {
 	struct sorcery_config *config = data;
 	RAII_VAR(struct ast_variable *, fields, ast_sorcery_objectset_create(sorcery, object), ast_variables_destroy);
+	int ret;
+	struct ast_variable *id;
 
 	if (!fields) {
 		return -1;
 	}
 
-	return (ast_update_realtime_fields(config->family, UUID_FIELD, ast_sorcery_object_get_id(object), fields) < 0) ? -1 : 0;
+	ret = ast_update_realtime_fields(config->family, UUID_FIELD, ast_sorcery_object_get_id(object), fields);
+	if (ret < 0) {
+		/* An error occurred */
+		return -1;
+	} else if (ret > 0) {
+		/* The object was updated */
+		return 0;
+	}
+
+	if (!ast_sorcery_update_or_create_on_update_miss) {
+		/* The object does not exist (nothing was updated) and fallback disabled */
+		return -1;
+	}
+
+	id = ast_variable_new(UUID_FIELD, ast_sorcery_object_get_id(object), "");
+	if (!id) {
+		return -1;
+	}
+
+	/* Place the identifier at the front for sanity sake */
+	id->next = fields;
+	fields = id;
+
+	return (ast_store_realtime_fields(config->family, fields) <= 0) ? -1 : 0;
 }
 
 static int sorcery_realtime_delete(const struct ast_sorcery *sorcery, void *data, void *object)
