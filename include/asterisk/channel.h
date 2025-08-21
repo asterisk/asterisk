@@ -4188,7 +4188,7 @@ enum ama_flags ast_channel_amaflags(const struct ast_channel *chan);
  */
 
 void ast_avoxi_purge_packets_set(struct ast_channel *chan, int value);
-int ast_avoxi_purge_packets(const struct ast_channel *chan)
+int ast_avoxi_purge_packets(const struct ast_channel *chan);
 
 void ast_channel_amaflags_set(struct ast_channel *chan, enum ama_flags value);
 int ast_channel_epfd(const struct ast_channel *chan);
