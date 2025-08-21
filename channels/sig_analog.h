@@ -301,6 +301,7 @@ struct analog_pvt {
 	unsigned int permcallwaiting:1;			/*!< TRUE if call waiting is enabled. (Configured option) */
 	unsigned int callwaitingdeluxe:1;		/*!< TRUE if Call Waiting Deluxe options are available */
 	unsigned int permhidecallerid:1;		/*!< Whether to hide our outgoing caller ID or not */
+	enum analog_dialmode permdialmode;		/*!< Which of pulse and/or tone dialing to support */
 	unsigned int pulse:1;
 	unsigned int threewaycalling:1;
 	unsigned int threewaysilenthold:1;		/*!< Whether to time out a three-way dial tone to silence */

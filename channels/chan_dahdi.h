@@ -146,7 +146,7 @@ struct dahdi_pvt {
 	 * \note Set to a couple of nonzero values but it is only tested like a boolean.
 	 */
 	int radio;
-	int dialmode;					/*!< Dialing Modes Allowed (Pulse/Tone) */
+	enum analog_dialmode permdialmode;	/*!< Dialing Modes Allowed (Pulse/Tone). Used for reading in chan_dahdi.conf only, the perm setting pair is in sig_analog */
 	int outsigmod;					/*!< Outbound Signalling style (modifier) */
 	int oprmode;					/*!< "Operator Services" mode */
 	struct dahdi_pvt *oprpeer;				/*!< "Operator Services" peer tech_pvt ptr */

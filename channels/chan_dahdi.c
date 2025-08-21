@@ -277,11 +277,16 @@
 			</enum>
 			<enum name="dialmode">
 				<para>R/W Pulse and tone dialing mode of the channel.</para>
-				<para>Disabling tone dialing using this option will not disable the DSP used for DTMF detection.
+				<para>Disabling tone dialing using this option will not automatically disable the DSP used for DTMF detection.
 				To do that, also set the <literal>digitdetect</literal> option. If digit detection is disabled,
 				DTMF will not be detected, regardless of the <literal>dialmode</literal> setting.
 				The <literal>digitdetect</literal> setting has no impact on pulse dialing detection.</para>
 				<para>If set, overrides the setting in <literal>chan_dahdi.conf</literal> for that channel.</para>
+				<para>The <literal>dialmode</literal> setting applies to the DAHDI channel as a whole, but is reset for each call,
+				so modifications made using the <literal>CHANNEL</literal> function apply temporarily per-call.
+				The <literal>digitdetect</literal> setting applies to the entire DAHDI channel,
+				so any changes made to this setting will affect all calls concurrently on the same DAHDI channel.
+				<literal>digitdetect</literal> is reset once all calls on the line have cleared.</para>
 				<enumlist>
 					<enum name="both" />
 					<enum name="pulse" />
@@ -1144,7 +1149,7 @@ static struct dahdi_chan_conf dahdi_chan_conf_default(void)
 			.mohsuggest = "",
 			.parkinglot = "",
 			.transfertobusy = 1,
-			.dialmode = 0,
+			.permdialmode = ANALOG_DIALMODE_BOTH,
 
 			.ani_info_digits = 2,
 			.ani_wink_time = 1000,
@@ -6691,6 +6696,16 @@ static int dahdi_hangup(struct ast_channel *ast)
 		p->callwaitcas = 0;
 		p->callwaiting = p->permcallwaiting;
 		p->hidecallerid = p->permhidecallerid;
+		if (dahdi_analog_lib_handles(p->sig, p->radio, 0) && !p->owner) {
+			/* The code in sig_analog handles resetting to permdialmode on originations;
+			 * this addresses the edge case of multiple calls that do not involve
+			 * origination inbetween, i.e. multiple incoming calls. */
+			struct analog_pvt *analog_p = p->sig_pvt;
+			/* If no calls remain, reset dialmode.
+			 * This way, if the next call is an incoming call,
+			 * it's already been reset. */
+			analog_p->dialmode = analog_p->permdialmode;
+		}
 		p->waitingfordt.tv_sec = 0;
 		p->dialing = 0;
 		p->rdnis[0] = '\0';
@@ -7377,13 +7392,13 @@ static int dahdi_func_write(struct ast_channel *chan, const char *function, char
 		}
 		/* analog pvt is used for pulse dialing, so update both */
 		if (!strcasecmp(value, "pulse")) {
-			p->dialmode = analog_p->dialmode = ANALOG_DIALMODE_PULSE;
+			analog_p->dialmode = ANALOG_DIALMODE_PULSE;
 		} else if (!strcasecmp(value, "dtmf") || !strcasecmp(value, "tone")) {
-			p->dialmode = analog_p->dialmode = ANALOG_DIALMODE_DTMF;
+			analog_p->dialmode = ANALOG_DIALMODE_DTMF;
 		} else if (!strcasecmp(value, "none")) {
-			p->dialmode = analog_p->dialmode = ANALOG_DIALMODE_NONE;
+			analog_p->dialmode = ANALOG_DIALMODE_NONE;
 		} else if (!strcasecmp(value, "both")) {
-			p->dialmode = analog_p->dialmode = ANALOG_DIALMODE_BOTH;
+			analog_p->dialmode = ANALOG_DIALMODE_BOTH;
 		} else {
 			ast_log(LOG_WARNING, "'%s' is an invalid setting for %s\n", value, data);
 			res = -1;
@@ -9279,6 +9294,7 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 		f = &p->subs[idx].f;
 
 	if (f) {
+		struct analog_pvt *analog_p = p->sig_pvt;
 		switch (f->frametype) {
 		case AST_FRAME_DTMF_BEGIN:
 		case AST_FRAME_DTMF_END:
@@ -9287,7 +9303,7 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 			} else {
 				dahdi_handle_dtmf(ast, idx, &f);
 			}
-			if (!(p->dialmode == ANALOG_DIALMODE_BOTH || p->dialmode == ANALOG_DIALMODE_DTMF)) {
+			if (!(analog_p->dialmode == ANALOG_DIALMODE_BOTH || analog_p->dialmode == ANALOG_DIALMODE_DTMF)) {
 				if (f->frametype == AST_FRAME_DTMF_END) { /* only show this message when the key is let go of */
 					ast_debug(1, "Dropping DTMF digit '%c' because tone dialing is disabled\n", f->subclass.integer);
 				}
@@ -13127,7 +13143,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 		tmp->immediate = conf->chan.immediate;
 		tmp->immediatering = conf->chan.immediatering;
 		tmp->transfertobusy = conf->chan.transfertobusy;
-		tmp->dialmode = conf->chan.dialmode;
+		tmp->permdialmode = conf->chan.permdialmode;
 		if (chan_sig & __DAHDI_SIG_FXS) {
 			tmp->mwimonitor_fsk = conf->chan.mwimonitor_fsk;
 			tmp->mwimonitor_neon = conf->chan.mwimonitor_neon;
@@ -13470,7 +13486,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 				analog_p->threewaycalling = conf->chan.threewaycalling;
 				analog_p->transfer = conf->chan.transfer;
 				analog_p->transfertobusy = conf->chan.transfertobusy;
-				analog_p->dialmode = conf->chan.dialmode;
+				analog_p->permdialmode = conf->chan.permdialmode;
 				analog_p->use_callerid = tmp->use_callerid;
 				analog_p->usedistinctiveringdetection = tmp->usedistinctiveringdetection;
 				analog_p->use_smdi = tmp->use_smdi;
@@ -18838,13 +18854,13 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 			confp->chan.transfertobusy = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "dialmode")) {
 			if (!strcasecmp(v->value, "pulse")) {
-				confp->chan.dialmode = ANALOG_DIALMODE_PULSE;
+				confp->chan.permdialmode = ANALOG_DIALMODE_PULSE;
 			} else if (!strcasecmp(v->value, "dtmf") || !strcasecmp(v->value, "tone")) {
-				confp->chan.dialmode = ANALOG_DIALMODE_DTMF;
+				confp->chan.permdialmode = ANALOG_DIALMODE_DTMF;
 			} else if (!strcasecmp(v->value, "none")) {
-				confp->chan.dialmode = ANALOG_DIALMODE_NONE;
+				confp->chan.permdialmode = ANALOG_DIALMODE_NONE;
 			} else {
-				confp->chan.dialmode = ANALOG_DIALMODE_BOTH;
+				confp->chan.permdialmode = ANALOG_DIALMODE_BOTH;
 			}
 		} else if (!strcasecmp(v->name, "mwimonitor")) {
 			confp->chan.mwimonitor_neon = 0;
