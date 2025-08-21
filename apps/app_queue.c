@@ -4414,7 +4414,7 @@ static int say_position(struct queue_ent *qe, int ringing)
 	}
 
 	/* Only announce if the caller's queue position has improved since last time */
-	if (qe->parent->announceposition_only_up && qe->last_pos_said <= qe->pos) {
+	if (qe->parent->announceposition_only_up && qe->last_pos_said > 0 && qe->last_pos_said <= qe->pos) {
 		return 0;
 	}
 
