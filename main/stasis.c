@@ -33,7 +33,7 @@
 #include "asterisk/stasis_internal.h"
 #include "asterisk/stasis.h"
 #include "asterisk/taskprocessor.h"
-#include "asterisk/threadpool.h"
+#include "asterisk/taskpool.h"
 #include "asterisk/utils.h"
 #include "asterisk/uuid.h"
 #include "asterisk/vector.h"
@@ -330,8 +330,8 @@
 /*! The number of buckets to use for topic pools */
 #define TOPIC_POOL_BUCKETS 57
 
-/*! Thread pool for topics that don't want a dedicated taskprocessor */
-static struct ast_threadpool *threadpool;
+/*! Taskpool for topics that don't want a dedicated taskprocessor */
+static struct ast_taskpool *taskpool;
 
 STASIS_MESSAGE_TYPE_DEFN(stasis_subscription_change_type);
 
@@ -692,8 +692,8 @@ struct stasis_subscription_statistics {
 	int messages_passed;
 	/*! \brief Using a mailbox to queue messages */
 	int uses_mailbox;
-	/*! \brief Using stasis threadpool for handling messages */
-	int uses_threadpool;
+	/*! \brief Using stasis taskpool for handling messages */
+	int uses_taskpool;
 	/*! \brief The line number where the subscription originates */
 	int lineno;
 	/*! \brief Pointer to the subscription (NOT refcounted, and must NOT be accessed) */
@@ -846,7 +846,7 @@ static void subscription_statistics_destroy(void *obj)
 }
 
 static struct stasis_subscription_statistics *stasis_subscription_statistics_create(struct stasis_subscription *sub,
-	int needs_mailbox, int use_thread_pool, const char *file, int lineno,
+	int needs_mailbox, int use_taskpool, const char *file, int lineno,
 	const char *func)
 {
 	struct stasis_subscription_statistics *statistics;
@@ -871,7 +871,7 @@ static struct stasis_subscription_statistics *stasis_subscription_statistics_cre
 	statistics->lineno = lineno;
 	statistics->func = func;
 	statistics->uses_mailbox = needs_mailbox;
-	statistics->uses_threadpool = use_thread_pool;
+	statistics->uses_taskpool = use_taskpool;
 	strcpy(statistics->uniqueid, sub->uniqueid); /* SAFE */
 	statistics->sub = sub;
 	ao2_link(subscription_stats, statistics);
@@ -885,7 +885,7 @@ struct stasis_subscription *internal_stasis_subscribe(
 	stasis_subscription_cb callback,
 	void *data,
 	int needs_mailbox,
-	int use_thread_pool,
+	int use_taskpool,
 	const char *file,
 	int lineno,
 	const char *func)
@@ -905,7 +905,7 @@ struct stasis_subscription *internal_stasis_subscribe(
 
 #ifdef AST_DEVMODE
 	ret = ast_asprintf(&sub->uniqueid, "%s:%s-%d", file, stasis_topic_name(topic), ast_atomic_fetchadd_int(&topic->subscriber_id, +1));
-	sub->statistics = stasis_subscription_statistics_create(sub, needs_mailbox, use_thread_pool, file, lineno, func);
+	sub->statistics = stasis_subscription_statistics_create(sub, needs_mailbox, use_taskpool, file, lineno, func);
 	if (ret < 0 || !sub->statistics) {
 		ao2_ref(sub, -1);
 		return NULL;
@@ -923,7 +923,7 @@ struct stasis_subscription *internal_stasis_subscribe(
 
 		/* Create name with seq number appended. */
 		ast_taskprocessor_build_name(tps_name, sizeof(tps_name), "stasis/%c:%s",
-			use_thread_pool ? 'p' : 'm',
+			use_taskpool ? 'p' : 'm',
 			stasis_topic_name(topic));
 
 		/*
@@ -931,8 +931,8 @@ struct stasis_subscription *internal_stasis_subscribe(
 		 * acceptable. For a large number of subscribers, a thread
 		 * pool should be used.
 		 */
-		if (use_thread_pool) {
-			sub->mailbox = ast_threadpool_serializer(tps_name, threadpool);
+		if (use_taskpool) {
+			sub->mailbox = ast_taskpool_serializer(tps_name, taskpool);
 		} else {
 			sub->mailbox = ast_taskprocessor_get(tps_name, TPS_REF_DEFAULT);
 		}
@@ -2677,7 +2677,7 @@ static char *statistics_show_subscription(struct ast_cli_entry *e, int cmd, stru
 	ast_cli(a->fd, "Number of messages dropped due to filtering: %d\n", statistics->messages_dropped);
 	ast_cli(a->fd, "Number of messages passed to subscriber callback: %d\n", statistics->messages_passed);
 	ast_cli(a->fd, "Using mailbox to queue messages: %s\n", statistics->uses_mailbox ? "Yes" : "No");
-	ast_cli(a->fd, "Using stasis threadpool for handling messages: %s\n", statistics->uses_threadpool ? "Yes" : "No");
+	ast_cli(a->fd, "Using stasis taskpool for handling messages: %s\n", statistics->uses_taskpool ? "Yes" : "No");
 	ast_cli(a->fd, "Lowest amount of time (in milliseconds) spent invoking message: %ld\n", statistics->lowest_time_invoked);
 	ast_cli(a->fd, "Highest amount of time (in milliseconds) spent invoking message: %ld\n", statistics->highest_time_invoked);
 
@@ -3077,8 +3077,8 @@ static void stasis_cleanup(void)
 	ast_cli_unregister_multiple(cli_stasis, ARRAY_LEN(cli_stasis));
 	ao2_cleanup(topic_all);
 	topic_all = NULL;
-	ast_threadpool_shutdown(threadpool);
-	threadpool = NULL;
+	ast_taskpool_shutdown(taskpool);
+	taskpool = NULL;
 	STASIS_MESSAGE_TYPE_CLEANUP(stasis_subscription_change_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_multi_user_event_type);
 	aco_info_destroy(&cfg_info);
@@ -3089,7 +3089,7 @@ int stasis_init(void)
 {
 	struct stasis_config *cfg;
 	int cache_init;
-	struct ast_threadpool_options threadpool_opts = { 0, };
+	struct ast_taskpool_options taskpool_opts = { 0, };
 #ifdef AST_DEVMODE
 	struct ao2_container *subscription_stats;
 	struct ao2_container *topic_stats;
@@ -3150,15 +3150,15 @@ int stasis_init(void)
 		}
 	}
 
-	threadpool_opts.version = AST_THREADPOOL_OPTIONS_VERSION;
-	threadpool_opts.initial_size = cfg->threadpool_options->initial_size;
-	threadpool_opts.auto_increment = 1;
-	threadpool_opts.max_size = cfg->threadpool_options->max_size;
-	threadpool_opts.idle_timeout = cfg->threadpool_options->idle_timeout_sec;
-	threadpool = ast_threadpool_create("stasis", NULL, &threadpool_opts);
+	taskpool_opts.version = AST_TASKPOOL_OPTIONS_VERSION;
+	taskpool_opts.initial_size = cfg->threadpool_options->initial_size;
+	taskpool_opts.auto_increment = 1;
+	taskpool_opts.max_size = cfg->threadpool_options->max_size;
+	taskpool_opts.idle_timeout = cfg->threadpool_options->idle_timeout_sec;
+	taskpool = ast_taskpool_create("stasis", &taskpool_opts);
 	ao2_ref(cfg, -1);
-	if (!threadpool) {
-		ast_log(LOG_ERROR, "Failed to create 'stasis-core' threadpool\n");
+	if (!taskpool) {
+		ast_log(LOG_ERROR, "Failed to create 'stasis-core' taskpool\n");
 
 		return -1;
 	}
