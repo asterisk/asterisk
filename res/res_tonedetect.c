@@ -214,13 +214,16 @@
 					<option name="d">
 						<para>Custom decibel threshold to use. Default is 16.</para>
 					</option>
+					<option name="e">
+						<para>Automatically end detection after desired number of hits (as specified in the <literal>n</literal> option.</para>
+					</option>
 					<option name="g">
 						<para>Go to the specified context,exten,priority if tone is received on this channel.
-						Detection will not end automatically.</para>
+						Detection will not end automatically, unless the <literal>e</literal> option is also specified.</para>
 					</option>
 					<option name="h">
 						<para>Go to the specified context,exten,priority if tone is transmitted on this channel.
-						Detection will not end automatically.</para>
+						Detection will not end automatically, unless the <literal>e</literal> option is also specified.</para>
 					</option>
 					<option name="n">
 						<para>Number of times the tone should be detected (subject to the
@@ -279,9 +282,11 @@ struct detect_information {
 	int db;
 	char *gototx;
 	char *gotorx;
-	unsigned short int squelch;
-	unsigned short int tx;
-	unsigned short int rx;
+	unsigned int squelch:1;
+	unsigned int tx:1;
+	unsigned int rx:1;
+	unsigned int autoend:1;
+	unsigned int matchmet:1;
 	int txcount;
 	int rxcount;
 	int hitsrequired;
@@ -301,6 +306,7 @@ enum td_opts {
 	OPT_BUSY = (1 << 10),
 	OPT_DIALTONE = (1 << 11),
 	OPT_RINGING = (1 << 12),
+	OPT_AUTOEND = (1 << 13),
 };
 
 enum {
@@ -317,6 +323,7 @@ AST_APP_OPTIONS(td_opts, {
 	AST_APP_OPTION('b', OPT_BUSY),
 	AST_APP_OPTION('c', OPT_DIALTONE),
 	AST_APP_OPTION_ARG('d', OPT_DECIBEL, OPT_ARG_DECIBEL),
+	AST_APP_OPTION('e', OPT_AUTOEND),
 	AST_APP_OPTION_ARG('g', OPT_GOTO_RX, OPT_ARG_GOTO_RX),
 	AST_APP_OPTION_ARG('h', OPT_GOTO_TX, OPT_ARG_GOTO_TX),
 	AST_APP_OPTION_ARG('n', OPT_HITS_REQ, OPT_ARG_HITS_REQ),
@@ -373,6 +380,14 @@ static int detect_callback(struct ast_audiohook *audiohook, struct ast_channel *
 		return 0;
 	}
 
+	/* If we've detected a match, it is very likely that we could detect additional matches,
+	 * which is a problem if the 'g' or 'h' options were used to trigger a redirect,
+	 * since if we detect again before disabling TONE_DETECT, we could redirect multiple times.
+	 * If we don't need to detect anything further, just exit early until the user disables it. */
+	if (di->matchmet && di->autoend) {
+		return 0;
+	}
+
 	if (!(direction == AST_AUDIOHOOK_DIRECTION_READ ? di->rx : di->tx)) {
 		return 0;
 	}
@@ -398,12 +413,12 @@ static int detect_callback(struct ast_audiohook *audiohook, struct ast_channel *
 
 				if (!message) {
 					ast_log(LOG_ERROR, "Unable to publish tone detected event for ARI on channel '%s'", ast_channel_name(chan));
-					return 1;
 				} else {
 					stasis_publish(ast_channel_topic(chan), message);
 					ao2_ref(message, -1);
 				}
 
+				di->matchmet = 1;
 				if (direction == AST_AUDIOHOOK_DIRECTION_READ && di->gotorx) {
 					ast_async_parseable_goto(chan, di->gotorx);
 				} else if (di->gototx) {
@@ -725,7 +740,8 @@ static int detect_write(struct ast_channel *chan, const char *cmd, char *data, c
 	}
 	di->db = db;
 	di->hitsrequired = hitsrequired;
-	di->squelch = ast_test_flag(&flags, OPT_SQUELCH);
+	di->squelch = ast_test_flag(&flags, OPT_SQUELCH) ? 1 : 0;
+	di->autoend = ast_test_flag(&flags, OPT_AUTOEND) ? 1 : 0;
 	di->tx = 1;
 	di->rx = 1;
 	if (ast_strlen_zero(args.options) || ast_test_flag(&flags, OPT_TX)) {
@@ -1034,7 +1050,7 @@ static int scan_exec(struct ast_channel *chan, const char *data)
 	ast_dsp_free(dsp);
 	if (dsp2) {
 		ast_dsp_free(dsp2);
-        }
+	}
 
 	return 0;
 }
