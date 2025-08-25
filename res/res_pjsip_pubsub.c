@@ -3796,35 +3796,20 @@ static void set_state_terminated(struct ast_sip_subscription *sub)
  *
  */
 
-/*!
- * \brief PJSIP callback when underlying SIP subscription changes state
- *
- * Although this function is called for every state change, we only care
- * about the TERMINATED state, and only when we're actually processing the final
- * notify (SIP_SUB_TREE_TERMINATE_IN_PROGRESS) OR when a transmission failure
- * occurs (PJSIP_EVENT_TSX_STATE).  In this case, we do all the subscription tree
- * cleanup tasks and decrement the evsub reference.
+
+/* The code in this function was previously in pubsub_on_evsub_state. As of
+ * pjsip 2.13 pubsub_on_evsub_state is called before pubsub_on_rx_refresh, so
+ * if we clean the sub tree in pubsub_on_evsub_state it won't be available in
+ * pubsub_on_rx_refresh. This means we won't be able to build or send the
+ * corresponding NOTIFY (which also causes pjsip to assert.)
+ * If HAVE_PJSIP_EVSUB_PENDING_NOTIFY is set based on configuration, this will
+ * be called from pubsub_on_rx_refresh. If not set, the result is the legacy
+ * behavior of calling this from pubsub_on_evsub_state.
  */
-static void pubsub_on_evsub_state(pjsip_evsub *evsub, pjsip_event *event)
-{
-	struct sip_subscription_tree *sub_tree =
-		pjsip_evsub_get_mod_data(evsub, pubsub_module.id);
+static void clean_sub_tree(pjsip_evsub *evsub){
 
-	ast_debug(3, "evsub %p state %s event %s sub_tree %p sub_tree state %s\n", evsub,
-		pjsip_evsub_get_state_name(evsub), pjsip_event_str(event->type), sub_tree,
-		(sub_tree ? sub_tree_state_description[sub_tree->state] : "UNKNOWN"));
-
-	if (!sub_tree || pjsip_evsub_get_state(evsub) != PJSIP_EVSUB_STATE_TERMINATED) {
-		return;
-	}
-
-	/* It's easier to write this as what we WANT to process, then negate it. */
-	if (!(sub_tree->state == SIP_SUB_TREE_TERMINATE_IN_PROGRESS
-		|| (event->type == PJSIP_EVENT_TSX_STATE && sub_tree->state == SIP_SUB_TREE_NORMAL)
-		)) {
-		ast_debug(3, "Do nothing.\n");
-		return;
-	}
+	struct sip_subscription_tree *sub_tree;
+	sub_tree = pjsip_evsub_get_mod_data(evsub, pubsub_module.id);
 
 	if (sub_tree->expiration_task) {
 		char task_name[256];
@@ -3855,6 +3840,45 @@ static void pubsub_on_evsub_state(pjsip_evsub *evsub, pjsip_event *event)
 	sub_tree->state = SIP_SUB_TREE_TERMINATED;
 	/* Remove evsub's reference to the sub_tree */
 	ao2_ref(sub_tree, -1);
+}
+
+/*!
+ * \brief PJSIP callback when underlying SIP subscription changes state
+ *
+ * Although this function is called for every state change, we only care
+ * about the TERMINATED state, and only when we're actually processing the final
+ * notify (SIP_SUB_TREE_TERMINATE_IN_PROGRESS) OR when a transmission failure
+ * occurs (PJSIP_EVENT_TSX_STATE).  In this case, we do all the subscription tree
+ * cleanup tasks and decrement the evsub reference.
+ */
+static void pubsub_on_evsub_state(pjsip_evsub *evsub, pjsip_event *event)
+{
+	struct sip_subscription_tree *sub_tree =
+		pjsip_evsub_get_mod_data(evsub, pubsub_module.id);
+
+	ast_debug(3, "evsub %p state %s event %s sub_tree %p sub_tree state %s\n", evsub,
+		pjsip_evsub_get_state_name(evsub), pjsip_event_str(event->type), sub_tree,
+		(sub_tree ? sub_tree_state_description[sub_tree->state] : "UNKNOWN"));
+
+	if (!sub_tree || pjsip_evsub_get_state(evsub) != PJSIP_EVSUB_STATE_TERMINATED) {
+		return;
+	}
+
+
+	/* It's easier to write this as what we WANT to process, then negate it. */
+	if (!(sub_tree->state == SIP_SUB_TREE_TERMINATE_IN_PROGRESS
+		|| (event->type == PJSIP_EVENT_TSX_STATE && sub_tree->state == SIP_SUB_TREE_NORMAL)
+		)) {
+		ast_debug(3, "Do nothing.\n");
+		return;
+	}
+
+#ifndef HAVE_PJSIP_EVSUB_PENDING_NOTIFY
+	/* for pjproject <2.13, this cleanup occurs here.  For >=2.13, pubsub_on_evsub_state
+	   is called before pubsub_on_rx_refresh and so must be cleaned there.*/
+	clean_sub_tree(evsub);
+#endif
+
 }
 
 static int pubsub_on_refresh_timeout(void *userdata)
@@ -3942,16 +3966,37 @@ static void pubsub_on_rx_refresh(pjsip_evsub *evsub, pjsip_rx_data *rdata,
 
 	subscription_persistence_update(sub_tree, rdata, SUBSCRIPTION_PERSISTENCE_REFRESHED);
 
+#ifdef HAVE_PJSIP_EVSUB_PENDING_NOTIFY
+	/* As of pjsip 2.13, the NOTIFY has to be sent within this function as pjproject now
+	   requires it.  Previously this would have caused an early NOTIFY to go out before the
+	   SUBSCRIBE's 200 OK. The previous solution was to push the NOTIFY, but now pjproject
+	   looks for the NOTIFY on send and delays it until after it auto-replies.
+	   If the NOTIFY is not there when it looks to send, pjproject will assert. */
+	serialized_pubsub_on_refresh_timeout(sub_tree);
+#else
 	if (ast_sip_push_task(sub_tree->serializer, serialized_pubsub_on_refresh_timeout, ao2_bump(sub_tree))) {
 		/* If we can't push the NOTIFY refreshing task...we'll just go with it. */
 		ast_log(LOG_ERROR, "Failed to push task to send NOTIFY.\n");
 		sub_tree->state = SIP_SUB_TREE_NORMAL;
 		ao2_ref(sub_tree, -1);
 	}
+#endif
 
 	if (sub_tree->is_list) {
 		pj_list_insert_before(res_hdr, create_require_eventlist(rdata->tp_info.pool));
 	}
+
+#ifdef HAVE_PJSIP_EVSUB_PENDING_NOTIFY
+	/* for pjproject <2.13, this cleanup occurs in pubsub_on_evsub_state.  For >=2.13,
+	   pubsub_on_rx_refresh is called after pubsub_on_evsub_state and so the tree must be
+	   cleaned here. */
+	if( pjsip_evsub_get_state(evsub) == PJSIP_EVSUB_STATE_TERMINATED &&
+		sub_tree->state == SIP_SUB_TREE_TERMINATE_PENDING ) {
+			clean_sub_tree(evsub);
+	}
+#endif
+
+
 }
 
 static void pubsub_on_rx_notify(pjsip_evsub *evsub, pjsip_rx_data *rdata, int *p_st_code,
