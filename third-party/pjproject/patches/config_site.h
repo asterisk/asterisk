@@ -84,9 +84,9 @@
 #define PJ_ICE_MAX_CHECKS (PJ_ICE_MAX_CAND * PJ_ICE_MAX_CAND)
 
 /* Increase limits to allow more formats */
-#define	PJMEDIA_MAX_SDP_FMT   64
+#define	PJMEDIA_MAX_SDP_FMT   72
 #define	PJMEDIA_MAX_SDP_BANDW   4
-#define	PJMEDIA_MAX_SDP_ATTR   (PJMEDIA_MAX_SDP_FMT*3 + 4)
+#define	PJMEDIA_MAX_SDP_ATTR   (PJMEDIA_MAX_SDP_FMT*6 + 4)
 #define	PJMEDIA_MAX_SDP_MEDIA   16
 
 /*
