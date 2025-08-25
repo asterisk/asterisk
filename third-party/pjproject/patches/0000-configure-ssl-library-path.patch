@@ -2,33 +2,33 @@ diff --git a/aconfigure b/aconfigure
 index d6f0e8809..9dcd46398 100755
 --- a/aconfigure
 +++ b/aconfigure
-@@ -8986,7 +8986,11 @@ else $as_nop
- 	        if test "x$with_ssl" != "xno" -a "x$with_ssl" != "x"; then
-                     CFLAGS="$CFLAGS -I$with_ssl/include"
-                     CPPFLAGS="$CPPFLAGS -I$with_ssl/include"
--                    LDFLAGS="$LDFLAGS -L$with_ssl/lib"
-+                    if test -d $with_ssl/lib; then
-+                        LDFLAGS="$LDFLAGS -L$with_ssl/lib"
-+                    else
-+                        LDFLAGS="$LDFLAGS -L$with_ssl"
-+                    fi
-                     { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: Using SSL prefix... $with_ssl" >&5
+@@ -9768,7 +9768,11 @@
+         if test "x$with_ssl" != "xno" -a "x$with_ssl" != "x"; then
+             CFLAGS="$CFLAGS -I$with_ssl/include"
+             CPPFLAGS="$CPPFLAGS -I$with_ssl/include"
+-            LDFLAGS="$LDFLAGS -L$with_ssl/lib"
++            if test -d $with_ssl/lib; then
++                LDFLAGS="$LDFLAGS -L$with_ssl/lib"
++            else
++                LDFLAGS="$LDFLAGS -L$with_ssl"
++            fi
+             { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: Using SSL prefix... $with_ssl" >&5
  printf "%s\n" "Using SSL prefix... $with_ssl" >&6; }
-                 fi
+         fi
 diff --git a/aconfigure.ac b/aconfigure.ac
 index 16b311045..849da81ab 100644
 --- a/aconfigure.ac
 +++ b/aconfigure.ac
-@@ -1838,7 +1838,11 @@ AC_ARG_ENABLE(ssl,
- 	        if test "x$with_ssl" != "xno" -a "x$with_ssl" != "x"; then
-                     CFLAGS="$CFLAGS -I$with_ssl/include"
-                     CPPFLAGS="$CPPFLAGS -I$with_ssl/include"
--                    LDFLAGS="$LDFLAGS -L$with_ssl/lib"
-+                    if test -d $with_ssl/lib; then
-+                        LDFLAGS="$LDFLAGS -L$with_ssl/lib"
-+                    else
-+                        LDFLAGS="$LDFLAGS -L$with_ssl"
-+                    fi
-                     AC_MSG_RESULT([Using SSL prefix... $with_ssl])
-                 fi
+@@ -2172,7 +2172,11 @@
+         if test "x$with_ssl" != "xno" -a "x$with_ssl" != "x"; then
+             CFLAGS="$CFLAGS -I$with_ssl/include"
+             CPPFLAGS="$CPPFLAGS -I$with_ssl/include"
+-            LDFLAGS="$LDFLAGS -L$with_ssl/lib"
++            if test -d $with_ssl/lib; then
++                LDFLAGS="$LDFLAGS -L$with_ssl/lib"
++            else
++                LDFLAGS="$LDFLAGS -L$with_ssl"
++            fi
+             AC_MSG_RESULT([Using SSL prefix... $with_ssl])
+         fi
  
