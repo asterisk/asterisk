@@ -390,6 +390,12 @@ static int analog_unalloc_sub(struct analog_pvt *p, enum analog_sub x)
 
 static int analog_send_callerid(struct analog_pvt *p, int cwcid, struct ast_party_caller *caller)
 {
+	/* If Caller ID is disabled for the line, that means we do not send ANY spill whatsoever. */
+	if (!p->use_callerid) {
+		ast_debug(1, "Caller ID is disabled for channel %d, skipping spill\n", p->channel);
+		return 0;
+	}
+
 	ast_debug(1, "Sending callerid.  CID_NAME: '%s' CID_NUM: '%s'\n",
 		caller->id.name.str,
 		caller->id.number.str);
