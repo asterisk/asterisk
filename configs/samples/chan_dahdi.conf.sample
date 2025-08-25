@@ -570,6 +570,9 @@ context=public
 ;
 ; Whether or not to use caller ID:
 ;
+; On FXO ports, this enables detecting Caller ID on the incoming phone call.
+; On FXS ports, this enables sending a Caller ID spill to CPE.
+;
 usecallerid=yes
 ;
 ; NOTE: If the CALL_QUALIFIER variable on the channel is set to 1,
