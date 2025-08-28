@@ -144,6 +144,9 @@ int ast_unreal_digit_end(struct ast_channel *ast, char digit, unsigned int durat
 /*! Unreal channel framework struct ast_channel_tech.answer callback */
 int ast_unreal_answer(struct ast_channel *ast);
 
+/*! Unreal channel framework struct ast_channel_tech.answer_with_stream_topology callback */
+int ast_unreal_answer_with_stream_topology(struct ast_channel *ast, struct ast_stream_topology *topology);
+
 /*! Unreal channel framework struct ast_channel_tech.read and struct ast_channel_tech.exception callback */
 struct ast_frame *ast_unreal_read(struct ast_channel *ast);
 
