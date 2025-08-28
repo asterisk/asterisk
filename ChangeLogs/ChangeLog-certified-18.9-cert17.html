@@ -1,0 +1,48 @@
+<html><head><title>ChangeLog for asterisk-certified-18.9-cert17</title></head><body>
+<h2>Change Log for Release asterisk-certified-18.9-cert17</h2>
+<h3>Links:</h3>
+<ul>
+<li><a href="https://downloads.asterisk.org/pub/telephony/certified-asterisk/releases/ChangeLog-certified-18.9-cert17.html">Full ChangeLog</a>  </li>
+<li><a href="https://github.com/asterisk/asterisk/compare/certified-18.9-cert16...certified-18.9-cert17">GitHub Diff</a>  </li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/certified-asterisk/asterisk-certified-18.9-cert17.tar.gz">Tarball</a>  </li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/certified-asterisk">Downloads</a>  </li>
+</ul>
+<h3>Summary:</h3>
+<ul>
+<li>Commits: 1</li>
+<li>Commit Authors: 1</li>
+<li>Issues Resolved: 0</li>
+<li>Security Advisories Resolved: 1</li>
+<li><a href="https://github.com/asterisk/asterisk/security/advisories/GHSA-557q-795j-wfx2">GHSA-557q-795j-wfx2</a>: Resource exhaustion (DoS) vulnerability: remotely exploitable leak of RTP UDP ports and internal resources</li>
+</ul>
+<h3>User Notes:</h3>
+<h3>Upgrade Notes:</h3>
+<h3>Developer Notes:</h3>
+<h3>Commit Authors:</h3>
+<ul>
+<li>George Joseph: (1)</li>
+</ul>
+<h2>Issue and Commit Detail:</h2>
+<h3>Closed Issues:</h3>
+<ul>
+<li>!GHSA-557q-795j-wfx2: Resource exhaustion (DoS) vulnerability: remotely exploitable leak of RTP UDP ports and internal resources</li>
+</ul>
+<h3>Commits By Author:</h3>
+<ul>
+<li>
+<h4>George Joseph (1):</h4>
+</li>
+<li>pjproject: Update bundled to 2.15.1.</li>
+</ul>
+<h3>Commit List:</h3>
+<ul>
+<li>pjproject: Update bundled to 2.15.1.</li>
+</ul>
+<h3>Commit Details:</h3>
+<h4>pjproject: Update bundled to 2.15.1.</h4>
+<p>Author: George Joseph
+  Date:   2025-08-25</p>
+<p>This resolves a security issue where RTP ports weren't being released
+  causing possible resource exhaustion issues.</p>
+<p>Resolves: #GHSA-557q-795j-wfx2</p>
+</body></html>
