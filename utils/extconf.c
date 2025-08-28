@@ -674,22 +674,20 @@ int ast_channel_trylock(struct ast_channel *chan);
 struct ast_flags {  /* stolen from utils.h */
 	unsigned int flags;
 };
-#define ast_test_flag(p,flag) 		({ \
-					typeof ((p)->flags) __p = (p)->flags; \
-					unsigned int __x = 0; \
-					(void) (&__p == &__x); \
-					((p)->flags & (flag)); \
-					})
+#if __BYTE_ORDER == __BIG_ENDIAN
+#define SWAP64_32(flags) (((uint64_t)flags << 32) | ((uint64_t)flags >> 32))
+#else
+#define SWAP64_32(flags) (flags)
+#endif
 
-#define ast_set2_flag(p,value,flag)	do { \
+extern uint64_t __unsigned_int_flags_dummy64;
+
+#define ast_test_flag64(p,flag) 		({ \
 					typeof ((p)->flags) __p = (p)->flags; \
-					unsigned int __x = 0; \
+					typeof (__unsigned_int_flags_dummy64) __x = 0; \
 					(void) (&__p == &__x); \
-					if (value) \
-						(p)->flags |= (flag); \
-					else \
-						(p)->flags &= ~(flag); \
-					} while (0)
+					((p)->flags & SWAP64_32(flag)); \
+					})
 
 /* from config.c */
 
