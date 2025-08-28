@@ -184,29 +184,54 @@ static pj_status_t digest_lookup(pj_pool_t *pool,
 	const char *creds;
 	const char *auth_name = (auth ? ast_sorcery_object_get_id(auth) : "none");
 	struct pjsip_authorization_hdr *auth_hdr = get_authorization_hdr(auth_name, realm, param->rdata);
-	const pjsip_auth_algorithm *algorithm =
-		ast_sip_auth_get_algorithm_by_iana_name(&auth_hdr->credential.digest.algorithm);
+	const pjsip_auth_algorithm *algorithm = auth_hdr ?
+		ast_sip_auth_get_algorithm_by_iana_name(&auth_hdr->credential.digest.algorithm) : NULL;
 	const char *src_name = param->rdata->pkt_info.src_name;
 	SCOPE_ENTER(4, "%s:%s:"
 		" srv realm: " PJSTR_PRINTF_SPEC
 		" auth realm: %s"
-		" hdr realm: " PJSTR_PRINTF_SPEC
 		" auth user: %s"
 		" hdr user: " PJSTR_PRINTF_SPEC
-		" algorithm: " PJSTR_PRINTF_SPEC
 		"\n",
 		auth_name, src_name,
 		PJSTR_PRINTF_VAR(param->realm),
 		realm,
-		PJSTR_PRINTF_VAR(auth_hdr->credential.common.realm),
 		auth->auth_user,
-		PJSTR_PRINTF_VAR(param->acc_name),
-		PJSTR_PRINTF_VAR(algorithm->iana_name));
+		PJSTR_PRINTF_VAR(param->acc_name));
+
+	/*
+	 * If a client is responding correctly, most of the error conditions below
+	 * can't happen because we sent them the correct info in the 401 response.
+	 * However, if a client is trying to authenticate with us without
+	 * having received a challenge or if they are trying to
+	 * authenticate with a different realm or algorithm than we sent them,
+	 * we need to catch that.
+	 */
 
 	if (!auth) {
 		/* This can only happen if the auth object was not saved to thread-local storage */
 		SCOPE_EXIT_RTN_VALUE(PJSIP_SC_FORBIDDEN, "%s:%s: No auth object found\n",
 			auth_name, src_name);
+	}
+
+	if (auth_hdr == NULL) {
+		/*
+		 * This can only happen if the incoming request did not have an
+		 * Authorization header or the realm in the header was missing or incorrect.
+		 */
+		SCOPE_EXIT_RTN_VALUE(PJSIP_SC_FORBIDDEN,
+			"%s:%s: No Authorization header found for realm '%s'\n",
+			auth_name, src_name, realm);
+	}
+
+	if (algorithm == NULL) {
+		/*
+		 * This can only happen if the incoming request had an algorithm
+		 * we don't support.
+		 */
+		SCOPE_EXIT_RTN_VALUE(PJSIP_SC_FORBIDDEN,
+			"%s:%s: Unsupported algorithm '" PJSTR_PRINTF_SPEC "'\n",
+			auth_name, src_name, PJSTR_PRINTF_VAR(auth_hdr->credential.digest.algorithm));
 	}
 
 	if (auth->type == AST_SIP_AUTH_TYPE_ARTIFICIAL) {
