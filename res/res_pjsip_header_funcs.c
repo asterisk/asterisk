@@ -263,6 +263,95 @@
 			<ref type="function">PJSIP_HEADERS</ref>
 		</see-also>
 	</function>
+	<function name="PJSIP_HANGUP_HEADER" language="en_US">
+		<synopsis>
+			Gets headers from an inbound PJSIP channel. Adds, updates or removes the
+			specified SIP header from an outbound PJSIP channel.
+		</synopsis>
+		<syntax>
+			<parameter name="action" required="true">
+				<enumlist>
+					<enum name="read"><para>Returns instance <replaceable>number</replaceable>
+					of header <replaceable>name</replaceable>. A <literal>*</literal>
+					may be appended to <replaceable>name</replaceable> to iterate over all 
+					headers <emphasis>beginning with</emphasis> <replaceable>name</replaceable>.
+					</para></enum>
+
+					<enum name="add"><para>Adds a new header <replaceable>name</replaceable>
+					to this session.</para></enum>
+
+					<enum name="update"><para>Updates instance <replaceable>number</replaceable>
+					of header <replaceable>name</replaceable> to a new value.
+					The header must already exist.</para></enum>
+
+					<enum name="remove"><para>Removes all instances of previously added headers
+					whose names match <replaceable>name</replaceable>. A <literal>*</literal>
+					may be appended to <replaceable>name</replaceable> to remove all headers
+					<emphasis>beginning with</emphasis> <replaceable>name</replaceable>.
+					<replaceable>name</replaceable> may be set to a single <literal>*</literal>
+					to clear <emphasis>all</emphasis> previously added headers. In all cases,
+					the number of headers actually removed is returned.</para></enum>
+				</enumlist>
+			</parameter>
+
+			<parameter name="name" required="true"><para>The name of the header.</para></parameter>
+
+			<parameter name="number" required="false">
+				<para>If there's more than 1 header with the same name, this specifies which header
+				to read or update.  If not specified, defaults to <literal>1</literal> meaning
+				the first matching header.  Not valid for <literal>add</literal> or
+				<literal>remove</literal>.</para>
+			</parameter>
+
+		</syntax>
+		<description>
+			<para>PJSIP_HEADER allows you to read specific SIP headers from the inbound
+			PJSIP channel as well as write(add, update, remove) headers on the outbound
+			channel. One exception is that you can read headers that you have already
+			added on the outbound channel.</para>
+			<para>Examples:</para>
+			<example title="Just remove them ignoring any count">
+			exten => 1,1,Set(=${PJSIP_HEADER(remove,X-MyHeader)})
+			exten => 1,1,Set(PJSIP_HEADER(remove,X-MyHeader)=)
+			</example>
+
+			<note><para>If you call PJSIP_HEADER in a normal dialplan context you'll be
+			operating on the <emphasis>caller's (incoming)</emphasis> channel which
+			may not be what you want. To operate on the <emphasis>callee's (outgoing)</emphasis>
+			channel call PJSIP_HEADER in a pre-dial handler. </para></note>
+			<example title="Set headers on callee channel">
+			[handler]
+			exten => addheader,1,Set(PJSIP_HEADER(add,X-MyHeader)=myvalue)
+			exten => addheader,2,Set(PJSIP_HEADER(add,X-MyHeader2)=myvalue2)
+
+			[somecontext]
+			exten => 1,1,Dial(PJSIP/${EXTEN},,b(handler^addheader^1))
+			</example>
+		</description>
+	</function>
+	<function name="PJSIP_HANGUP_HEADERS" language="en_US">
+		<synopsis>
+			Gets the list of SIP header names from the BYE response to INVITE message.
+		</synopsis>
+		<syntax>
+			<parameter name="prefix">
+				<para>If specified, only the headers matching the given prefix are returned.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Returns a comma-separated list of header names (without values) from the 200
+			response of INVITE message. Multiple headers with the same name are included in the
+			list only once.</para>
+			<para>For example, <literal>${PJSIP_RESPONSE_HEADERS(Co)}</literal> might return
+			<literal>Contact,Content-Length,Content-Type</literal>. As a practical example,
+			you may use <literal>${PJSIP_RESPONSE_HEADERS(X-)}</literal> to enumerate optional
+			extended headers.</para>
+		</description>
+		<see-also>
+			<ref type="function">PJSIP_HANGUP_HEADER</ref>
+			<ref type="function">PJSIP_HEADERS</ref>
+		</see-also>
+	</function>
 	<function name="PJSIP_HEADER_PARAM" language="en_US">
 		<since>
 			<version>18.16.0</version>
@@ -331,6 +420,10 @@ static const struct ast_datastore_info header_datastore = {
 static const struct ast_datastore_info response_header_datastore = {
 	.type = "response_header_datastore",
 };
+/*! \brief Datastore for saving bye headers */
+static const struct ast_datastore_info hangup_header_datastore = {
+	.type = "hangup_header_datastore",
+};
 
 /*! \brief Data structure used for ast_sip_push_task_wait_serializer  */
 struct header_data {
@@ -390,6 +483,7 @@ static int incoming_request(struct ast_sip_session *session, pjsip_rx_data * rda
 		}
 		AST_LIST_HEAD_INIT_NOLOCK((struct hdr_list *) datastore->data);
 	}
+
 	insert_headers(pool, (struct hdr_list *) datastore->data, rdata->msg_info.msg);
 
 	return 0;
@@ -429,6 +523,36 @@ static void incoming_response(struct ast_sip_session *session, pjsip_rx_data * r
 	insert_headers(pool, (struct hdr_list *) datastore->data, rdata->msg_info.msg);
 
 	return;
+}
+
+/*!
+ * \internal
+ * \brief Session supplement callback on an incoming BYE request
+ *
+ * Retrieve the hangup_header_datastore from the session or create one if it doesn't exist.
+ * Create and initialize the list if needed.
+ * Insert the headers.
+ */
+static int bye_incoming_request(struct ast_sip_session *session, pjsip_rx_data * rdata)
+{
+	pj_pool_t *pool = session->inv_session->dlg->pool;
+	RAII_VAR(struct ast_datastore *, datastore,
+			 ast_sip_session_get_datastore(session, hangup_header_datastore.type), ao2_cleanup);
+
+	if (!datastore) {
+		if (!(datastore =
+			  ast_sip_session_alloc_datastore(&hangup_header_datastore, hangup_header_datastore.type))
+			||
+			!(datastore->data = pj_pool_alloc(pool, sizeof(struct hdr_list))) ||
+			ast_sip_session_add_datastore(session, datastore)) {
+			ast_log(AST_LOG_ERROR, "Unable to create datastore for header functions.\n");
+			return 0;
+		}
+		AST_LIST_HEAD_INIT_NOLOCK((struct hdr_list *) datastore->data);
+	}
+	insert_headers(pool, (struct hdr_list *) datastore->data, rdata->msg_info.msg);
+
+	return 0;
 }
 
 /*!
@@ -549,7 +673,7 @@ static int read_headers(void *obj)
 
 /*!
  * \internal
- * \brief Implements PJSIP_HEADER/PJSIP_RESPONSE_HEADER 'read' by searching the for the requested header.
+ * \brief Implements PJSIP_HEADER/PJSIP_RESPONSE_HEADER/PJSIP_HANGUP_HEADER 'read' by searching the for the requested header.
  *
  * Retrieve the header_datastore.
  * Search for the nth matching header.
@@ -825,6 +949,39 @@ static int func_response_read_headers(struct ast_channel *chan, const char *func
 }
 
 /*!
+ * \brief Read list of unique SIP bye headers
+ */
+static int func_hangup_read_headers(struct ast_channel *chan, const char *function, char *data, char *buf, size_t len)
+{
+	struct ast_sip_channel_pvt *channel = chan ? ast_channel_tech_pvt(chan) : NULL;
+	struct header_data header_data;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(header_pattern);
+	);
+	AST_STANDARD_APP_ARGS(args, data);
+
+	if (!chan || strncmp(ast_channel_name(chan), "PJSIP/", 6)) {
+		ast_log(LOG_ERROR, "This function requires a PJSIP channel.\n");
+		return -1;
+	}
+
+	if (ast_strlen_zero(args.header_pattern)) {
+		ast_log(AST_LOG_ERROR, "This function requires a pattern.\n");
+		return -1;
+	}
+
+	header_data.channel = channel;
+	header_data.header_name = args.header_pattern;
+	header_data.header_value = NULL;
+	header_data.buf = buf;
+	header_data.len = len;
+	header_data.header_datastore = &hangup_header_datastore;
+
+	return ast_sip_push_task_wait_serializer(channel->session->serializer, read_headers, &header_data);
+
+}
+
+/*!
  * \brief Implements PJSIP_HEADER function 'read' callback.
  *
  * Valid actions are 'read' and 'remove'.
@@ -938,6 +1095,64 @@ static int func_response_read_header(struct ast_channel *chan, const char *funct
 }
 
 /*!
+ * \brief Implements PJSIP_HANGUP_HEADER function 'read' callback.
+ *
+ * Valid actions are 'read' and 'remove'.
+ */
+static int func_hangup_read_header(struct ast_channel *chan, const char *function, char *data, char *buf, size_t len)
+{
+	struct ast_sip_channel_pvt *channel = chan ? ast_channel_tech_pvt(chan) : NULL;
+	struct header_data header_data;
+	int number;
+	AST_DECLARE_APP_ARGS(args,
+						 AST_APP_ARG(action);
+						 AST_APP_ARG(header_name); AST_APP_ARG(header_number););
+	AST_STANDARD_APP_ARGS(args, data);
+
+	if (!channel || strncmp(ast_channel_name(chan), "PJSIP/", 6)) {
+		ast_log(LOG_ERROR, "This function requires a PJSIP channel.\n");
+		return -1;
+	}
+
+	if (ast_strlen_zero(args.action)) {
+		ast_log(AST_LOG_ERROR, "This function requires an action.\n");
+		return -1;
+	}
+	if (ast_strlen_zero(args.header_name)) {
+		ast_log(AST_LOG_ERROR, "This function requires a header name.\n");
+		return -1;
+	}
+	if (!args.header_number) {
+		number = 1;
+	} else {
+		sscanf(args.header_number, "%30d", &number);
+		if (number < 1) {
+			number = 1;
+		}
+	}
+
+	header_data.channel = channel;
+	header_data.header_name = args.header_name;
+	header_data.header_number = number;
+	header_data.header_value = NULL;
+	header_data.buf = buf;
+	header_data.len = len;
+	header_data.header_datastore = &hangup_header_datastore;
+
+	if (!strcasecmp(args.action, "read")) {
+		return ast_sip_push_task_wait_serializer(channel->session->serializer, read_header, &header_data);
+	} else if (!strcasecmp(args.action, "remove")) {
+		return ast_sip_push_task_wait_serializer(channel->session->serializer,
+			remove_header, &header_data);
+	} else {
+		ast_log(AST_LOG_ERROR,
+				"Unknown action '%s' is not valid, must be 'read' or 'remove'.\n",
+				args.action);
+		return -1;
+	}
+}
+
+/*!
  * \brief Implements PJSIP_HEADER function 'write' callback.
  *
  * Valid actions are 'add', 'update' and 'remove'.
@@ -1000,6 +1215,70 @@ static int func_write_header(struct ast_channel *chan, const char *cmd, char *da
 	}
 }
 
+/*!
+ * \brief Implements PJSIP_HANGUP_HEADER function 'write' callback.
+ *
+ * Valid actions are 'add', 'update' and 'remove'.
+ */
+static int func_hangup_write_header(struct ast_channel *chan, const char *cmd, char *data,
+							 const char *value)
+{
+	struct ast_sip_channel_pvt *channel = chan ? ast_channel_tech_pvt(chan) : NULL;
+	struct header_data header_data;
+	int header_number;
+	AST_DECLARE_APP_ARGS(args,
+						 AST_APP_ARG(action);
+						 AST_APP_ARG(header_name); AST_APP_ARG(header_number););
+	AST_STANDARD_APP_ARGS(args, data);
+
+	if (!channel || strncmp(ast_channel_name(chan), "PJSIP/", 6)) {
+		ast_log(LOG_ERROR, "This function requires a PJSIP channel.\n");
+		return -1;
+	}
+
+	if (ast_strlen_zero(args.action)) {
+		ast_log(AST_LOG_ERROR, "This function requires an action.\n");
+		return -1;
+	}
+	if (ast_strlen_zero(args.header_name)) {
+		ast_log(AST_LOG_ERROR, "This function requires a header name.\n");
+		return -1;
+	}
+	if (!args.header_number) {
+		header_number = 1;
+	} else {
+		sscanf(args.header_number, "%30d", &header_number);
+		if (header_number < 1) {
+			header_number = 1;
+		}
+	}
+
+	header_data.channel = channel;
+	header_data.header_name = args.header_name;
+	header_data.header_number = header_number;
+	header_data.header_value = value;
+	header_data.buf = NULL;
+	header_data.len = 0;
+	header_data.header_datastore = &hangup_header_datastore;
+
+	if (!strcasecmp(args.action, "add")) {
+		return ast_sip_push_task_wait_serializer(channel->session->serializer,
+			add_header, &header_data);
+	} else if (!strcasecmp(args.action, "update")) {
+		return ast_sip_push_task_wait_serializer(channel->session->serializer,
+			update_header, &header_data);
+	} else if (!strcasecmp(args.action, "remove")) {
+		return ast_sip_push_task_wait_serializer(channel->session->serializer,
+			remove_header, &header_data);
+	} else {
+		ast_log(AST_LOG_ERROR,
+				"Unknown action '%s' is not valid, must be 'add', 'update', or 'remove'.\n",
+				args.action);
+		return -1;
+	}
+}
+
+
 static struct ast_custom_function pjsip_header_function = {
 	.name = "PJSIP_HEADER",
 	.read = func_read_header,
@@ -1019,6 +1298,17 @@ static struct ast_custom_function pjsip_response_header_function = {
 static struct ast_custom_function pjsip_response_headers_function = {
 	.name = "PJSIP_RESPONSE_HEADERS",
 	.read = func_response_read_headers
+};
+
+static struct ast_custom_function pjsip_hangup_header_function = {
+	.name = "PJSIP_HANGUP_HEADER",
+	.read = func_hangup_read_header,
+	.write = func_hangup_write_header,
+};
+
+static struct ast_custom_function pjsip_hangup_headers_function = {
+	.name = "PJSIP_HANGUP_HEADERS",
+	.read = func_hangup_read_headers
 };
 
 /*!
@@ -1052,6 +1342,31 @@ static void outgoing_request(struct ast_sip_session *session, pjsip_tx_data * td
 	ast_sip_session_remove_datastore(session, datastore->uid);
 }
 
+/*!
+ * \internal
+ * \brief Session supplement callback for outgoing BYE requests
+ *
+ * Retrieve the hangup_header_datastore from the session.
+ * Add each header in the list to the outgoing message.
+ */
+static void bye_outgoing_request(struct ast_sip_session *session, pjsip_tx_data * tdata)
+{
+	struct hdr_list *list;
+	struct hdr_list_entry *le;
+	RAII_VAR(struct ast_datastore *, datastore,
+			 ast_sip_session_get_datastore(session, hangup_header_datastore.type), ao2_cleanup);
+
+	if (!datastore || !datastore->data ) {
+		return;
+	}
+
+	list = datastore->data;
+	AST_LIST_TRAVERSE(list, le, nextptr) {
+		pjsip_msg_add_hdr(tdata->msg, (pjsip_hdr *) pjsip_hdr_clone(tdata->pool, le->hdr));
+	}
+	ast_sip_session_remove_datastore(session, datastore->uid);
+}
+
 static struct ast_sip_session_supplement header_funcs_supplement = {
 	.method = "INVITE",
 	.priority = AST_SIP_SUPPLEMENT_PRIORITY_CHANNEL - 1000,
@@ -1059,6 +1374,14 @@ static struct ast_sip_session_supplement header_funcs_supplement = {
 	.outgoing_request = outgoing_request,
 	.incoming_response = incoming_response,
 };
+
+static struct ast_sip_session_supplement header_funcs_bye_supplement = {
+	.method = "BYE",
+	.priority = AST_SIP_SUPPLEMENT_PRIORITY_CHANNEL - 1000,
+	.incoming_request = bye_incoming_request,
+	.outgoing_request = bye_outgoing_request,
+};
+
 
 enum param_type {
 	PARAMETER_HEADER,
@@ -1282,10 +1605,13 @@ static struct ast_custom_function pjsip_header_param_function = {
 static int load_module(void)
 {
 	ast_sip_session_register_supplement(&header_funcs_supplement);
+	ast_sip_session_register_supplement(&header_funcs_bye_supplement);
 	ast_custom_function_register(&pjsip_header_function);
 	ast_custom_function_register(&pjsip_headers_function);
 	ast_custom_function_register(&pjsip_response_header_function);
 	ast_custom_function_register(&pjsip_response_headers_function);
+	ast_custom_function_register(&pjsip_hangup_header_function);
+	ast_custom_function_register(&pjsip_hangup_headers_function);
 	ast_custom_function_register(&pjsip_header_param_function);
 
 	return AST_MODULE_LOAD_SUCCESS;
@@ -1297,8 +1623,11 @@ static int unload_module(void)
 	ast_custom_function_unregister(&pjsip_headers_function);
 	ast_custom_function_unregister(&pjsip_response_header_function);
 	ast_custom_function_unregister(&pjsip_response_headers_function);
+	ast_custom_function_unregister(&pjsip_hangup_header_function);
+	ast_custom_function_unregister(&pjsip_hangup_headers_function);
 	ast_custom_function_unregister(&pjsip_header_param_function);
 	ast_sip_session_unregister_supplement(&header_funcs_supplement);
+	ast_sip_session_unregister_supplement(&header_funcs_bye_supplement);
 	return 0;
 }
 
