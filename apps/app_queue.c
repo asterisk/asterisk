@@ -1742,6 +1742,9 @@ static int force_longest_waiting_caller;
 /*! \brief queues.conf [general] option */
 static int log_caller_id_name; 
 
+/*! \brief queues.conf [general] option */
+static int log_unpause_on_reason_change;
+
 /*! \brief name of the ringinuse field in the realtime database */
 static char *realtime_ringinuse_field;
 
@@ -7935,6 +7938,11 @@ static void set_queue_member_pause(struct call_queue *q, struct member *mem, con
 	if (mem->paused == paused) {
 		ast_debug(1, "%spausing already-%spaused queue member %s:%s\n",
 			(paused ? "" : "un"), (paused ? "" : "un"), q->name, mem->interface);
+		if (log_unpause_on_reason_change && paused) {
+			if (!ast_strings_equal(mem->reason_paused, reason)) {
+				ast_queue_log(q->name, "NONE", mem->membername, "UNPAUSE", "%s", "Auto-Unpause");
+			}
+		}
 	}
 
 	if (mem->realtime && !ast_strlen_zero(mem->rt_uniqueid)) {
@@ -9715,6 +9723,7 @@ static void queue_reset_global_params(void)
 	negative_penalty_invalid = 0;
 	log_membername_as_agent = 0;
 	force_longest_waiting_caller = 0;
+	log_unpause_on_reason_change = 0;
 }
 
 /*! Set the global queue parameters as defined in the "general" section of queues.conf */
@@ -9742,6 +9751,9 @@ static void queue_set_global_params(struct ast_config *cfg)
 	}
 	if ((general_val = ast_variable_retrieve(cfg, "general", "force_longest_waiting_caller"))) {
 		force_longest_waiting_caller = ast_true(general_val);
+	}
+	if ((general_val = ast_variable_retrieve(cfg, "general", "log_unpause_on_reason_change"))) {
+		log_unpause_on_reason_change = ast_true(general_val);
 	}
 	/* Apply log-caller-id-name in the same place as other global settings */
 	if ((general_val = ast_variable_retrieve(cfg, "general", "log-caller-id-name"))) {
