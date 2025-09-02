@@ -75,6 +75,11 @@ monitor-type = MixMonitor
 ;
 ;force_longest_waiting_caller = no
 ;
+; Add unpause event to queue log in case of pause send twice with different reason code.
+;
+;log_unpause_on_reason_change = no
+;
+;
 ;[markq]
 ;
 ; A sample call queue
