@@ -156,6 +156,7 @@ struct websocket_pvt {
 #define QUEUE_DRAINED "QUEUE_DRAINED"
 #define DRIVER_STATUS "STATUS"
 #define MEDIA_BUFFERING_COMPLETED "MEDIA_BUFFERING_COMPLETED"
+#define DTMF_PRESSED "DTMF_PRESSED"
 
 #define QUEUE_LENGTH_MAX 1000
 #define QUEUE_LENGTH_XOFF_LEVEL 900
@@ -168,6 +169,7 @@ static int webchan_call(struct ast_channel *ast, const char *dest, int timeout);
 static struct ast_frame *webchan_read(struct ast_channel *ast);
 static int webchan_write(struct ast_channel *ast, struct ast_frame *f);
 static int webchan_hangup(struct ast_channel *ast);
+static int webchan_send_dtmf_text(struct ast_channel *ast, char digit, unsigned int duration);
 
 static struct ast_channel_tech websocket_tech = {
 	.type = "WebSocket",
@@ -177,6 +179,7 @@ static struct ast_channel_tech websocket_tech = {
 	.read = webchan_read,
 	.write = webchan_write,
 	.hangup = webchan_hangup,
+	.send_digit_end = webchan_send_dtmf_text,
 };
 
 static void set_channel_format(struct websocket_pvt * instance,
@@ -1408,6 +1411,30 @@ static int webchan_hangup(struct ast_channel *ast)
 	ao2_cleanup(instance);
 
 	return 0;
+}
+
+static int webchan_send_dtmf_text(struct ast_channel *ast, char digit, unsigned int duration)
+{
+    	struct websocket_pvt *instance = ast_channel_tech_pvt(ast);
+    	if (!instance) {
+	    	return -1;
+    	}
+
+		char *command;
+    	int res;
+
+    	res = ast_asprintf(&command, "%s digit:%c", DTMF_PRESSED, digit);
+		if (res <= 0 || !command) {
+			ast_log(LOG_ERROR, "%s: Failed to create DTMF_PRESSED\n", ast_channel_name(instance->channel));
+			return 0;
+		}
+		res = ast_websocket_write_string(instance->websocket, command);
+		if (res != 0) {
+			ast_log(LOG_ERROR, "%s: Failed to send DTMF_PRESSED\n", ast_channel_name(instance->channel));
+			return 0;
+		}
+		ast_debug(3, "%s: Sent %s\n", ast_channel_name(instance->channel), command);
+		return 0;
 }
 
 /*!
