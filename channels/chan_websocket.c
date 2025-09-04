@@ -1416,12 +1416,12 @@ static int webchan_hangup(struct ast_channel *ast)
 static int webchan_send_dtmf_text(struct ast_channel *ast, char digit, unsigned int duration)
 {
     	struct websocket_pvt *instance = ast_channel_tech_pvt(ast);
+    	char *command;
+    	int res = 0;
+    	
     	if (!instance) {
 	    	return -1;
     	}
-
-		char *command;
-    	int res;
 
     	res = ast_asprintf(&command, "%s digit:%c", DTMF_PRESSED, digit);
 		if (res <= 0 || !command) {
