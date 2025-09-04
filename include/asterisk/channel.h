@@ -4533,6 +4533,24 @@ struct ast_str *ast_channel_dialed_causes_channels(const struct ast_channel *cha
 struct ast_control_pvt_cause_code *ast_channel_dialed_causes_find(const struct ast_channel *chan, const char *chan_name);
 
 /*!
+ * \since 20.17.0, 22.8.0, 23.1.0
+ * \brief Retrieve a ref-counted cause code information structure iterator
+ *
+ * \details
+ * This function makes use of datastore operations on the channel, so
+ * it is important to lock the channel before calling this function.
+ * This function increases the ref count of the returned object, so the
+ * calling function must decrease the reference count when it is finished
+ * with the object.
+ *
+ * \param chan The channel from which to retrieve information
+ * \param chan_name The name of the channel about which to retrieve information
+ * \retval NULL on search failure
+ * \retval Pointer to a ao2_iterator object containing the desired information
+ */
+struct ao2_iterator *ast_channel_dialed_causes_find_multiple(const struct ast_channel *chan, const char *chan_name);
+
+/*!
  * \since 11
  * \brief Add cause code information to the channel
  *
