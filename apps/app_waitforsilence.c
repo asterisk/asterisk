@@ -158,7 +158,7 @@ static const struct wait_type wait_for_noise = {
 	.func = ast_dsp_noise,
 };
 
-static int do_waiting(struct ast_channel *chan, int timereqd, time_t waitstart, int timeout, const struct wait_type *wait_for)
+static int do_waiting(struct ast_channel *chan, int timereqd, struct timeval waitstart, int timeout, const struct wait_type *wait_for)
 {
 	RAII_VAR(struct ast_format *, rfmt, NULL, ao2_cleanup);
 	int res;
@@ -216,7 +216,7 @@ static int do_waiting(struct ast_channel *chan, int timereqd, time_t waitstart, 
 			break;
 		}
 
-		if (timeout && difftime(time(NULL), waitstart) >= timeout) {
+		if (timeout && ast_tvdiff_ms(ast_tvnow(), waitstart) >= timeout * 1000) {
 			pbx_builtin_setvar_helper(chan, "WAITSTATUS", "TIMEOUT");
 			ast_debug(1, "WAITSTATUS was set to TIMEOUT\n");
 			res = 0;
@@ -238,7 +238,7 @@ static int waitfor_exec(struct ast_channel *chan, const char *data, const struct
 	int timereqd = 1000;
 	int timeout = 0;
 	int iterations = 1, i;
-	time_t waitstart;
+	struct timeval waitstart;
 	char *parse;
 	struct ast_silence_generator *silgen = NULL;
 
@@ -284,7 +284,7 @@ static int waitfor_exec(struct ast_channel *chan, const char *data, const struct
 		silgen = ast_channel_start_silence_generator(chan);
 	}
 
-	time(&waitstart);
+	waitstart = ast_tvnow();
 	for (i = 0; i < iterations && res == 1; i++) {
 		res = do_waiting(chan, timereqd, waitstart, timeout, wait_for);
 	}
