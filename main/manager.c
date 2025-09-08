@@ -5528,6 +5528,9 @@ static int action_presencestate(struct mansession *s, const struct message *m)
 	}
 	astman_append(s, "\r\n");
 
+	ast_free(subtype);
+	ast_free(message);
+
 	return 0;
 }
 
