@@ -49,7 +49,7 @@ static char *handle_exec(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 {
 	struct ast_channel *c = NULL;
 	RAII_VAR(struct ast_format_cap *, caps, NULL, ao2_cleanup);
-	char *app_name, *app_args;
+	const char *app_name, *app_args;
 	int ret = 0;
 	struct ast_app *app;
 
@@ -73,8 +73,8 @@ static char *handle_exec(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 		return CLI_SHOWUSAGE;
 	}
 
-	app_name = (char *) a->argv[3];
-	app_args = a->argc == e->args + 2 ? (char *) a->argv[4] : NULL;
+	app_name = a->argv[3];
+	app_args = a->argc == e->args + 2 ? a->argv[4] : NULL;
 
 	if (!app_name) {
 		return CLI_FAILURE;
