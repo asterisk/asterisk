@@ -2135,6 +2135,16 @@ int ast_rtp_codecs_payload_code_tx_sample_rate(struct ast_rtp_codecs *codecs, in
 		payload = find_static_payload_type(asterisk_format, format, code);
 		ast_rwlock_unlock(&static_RTP_PT_lock);
 
+		/*
+		 * Comfort noise is NOT used as an SDP negotiated format within Asterisk;
+		 * instead, it is used when it is not negotiated. This special case allows
+		 * its payload to be returned when not negotiated, allowing keep alive to
+		 * function as expected.
+		 */
+		if (payload == 13 && code == AST_RTP_CN) {
+			return payload;
+		}
+
 		ast_rwlock_rdlock(&codecs->codecs_lock);
 		if (payload >= 0 && payload < AST_VECTOR_SIZE(&codecs->payload_mapping_tx)){
 			type = AST_VECTOR_GET(&codecs->payload_mapping_tx, payload);
