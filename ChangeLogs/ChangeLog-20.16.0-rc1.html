@@ -1,0 +1,1000 @@
+<html><head><title>ChangeLog for asterisk-20.16.0-rc1</title></head><body>
+<h2>Change Log for Release asterisk-20.16.0-rc1</h2>
+<h3>Links:</h3>
+<ul>
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-20.16.0-rc1.html">Full ChangeLog</a>  </li>
+<li><a href="https://github.com/asterisk/asterisk/compare/20.15.2...20.16.0-rc1">GitHub Diff</a>  </li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-20.16.0-rc1.tar.gz">Tarball</a>  </li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk">Downloads</a>  </li>
+</ul>
+<h3>Summary:</h3>
+<ul>
+<li>Commits: 51</li>
+<li>Commit Authors: 22</li>
+<li>Issues Resolved: 37</li>
+<li>Security Advisories Resolved: 0</li>
+</ul>
+<h3>User Notes:</h3>
+<ul>
+<li>
+<h4>app_queue.c: Add new global 'log_unpause_on_reason_change'</h4>
+<p>Add new global option 'log_unpause_on_reason_change' that
+  is default disabled. When enabled cause addition of UNPAUSE event on
+  every re-PAUSE with reason changed.</p>
+</li>
+<li>
+<h4>pbx_builtins: Allow custom tone for WaitExten.</h4>
+<p>The tone used while waiting for digits in WaitExten
+  can now be overridden by specifying an argument for the 'd'
+  option.</p>
+</li>
+<li>
+<h4>res_tonedetect: Add option for TONE_DETECT detection to auto stop.</h4>
+<p>The 'e' option for TONE_DETECT now allows detection to
+  be disabled automatically once the desired number of matches have
+  been fulfilled, which can help prevent race conditions in the
+  dialplan, since TONE_DETECT does not need to be disabled after
+  a hit.</p>
+</li>
+<li>
+<h4>sorcery: Prevent duplicate objects and ensure missing objects are created on u..</h4>
+<p>Users relying on Sorcery multiple writable backends configurations
+  (e.g., astdb + realtime) may now enable update_or_create_on_update_miss = yes
+  in sorcery.conf to ensure missing objects are recreated after temporary backend
+  failures. Default behavior remains unchanged unless explicitly enabled.</p>
+</li>
+<li>
+<h4>chan_websocket: Allow additional URI parameters to be added to the outgoing URI.</h4>
+<p>A new WebSocket channel driver option <code>v</code> has been added to the
+  Dial application that allows you to specify additional URI parameters on
+  outgoing connections. Run <code>core show application Dial</code> from the Asterisk CLI
+  to see how to use it.</p>
+</li>
+<li>
+<h4>app_chanspy: Add option to not automatically answer channel.</h4>
+<p>ChanSpy and ExtenSpy can now be configured to not
+  automatically answer the channel by using the 'N' option.</p>
+</li>
+<li>
+<h4>cel: Add STREAM_BEGIN, STREAM_END and DTMF event types.</h4>
+<p>Enabling the tracking of the
+  STREAM_BEGIN and the STREAM_END event
+  types in cel.conf will log media files and
+  music on hold played to each channel.
+  The STREAM_BEGIN event's extra field will
+  contain a JSON with the file details (path,
+  format and language), or the class name, in
+  case of music on hold is played. The DTMF
+  event's extra field will contain a JSON with
+  the digit and the duration in milliseconds.</p>
+</li>
+<li>
+<h4>res_srtp: Add menuselect options to enable AES_192, AES_256 and AES_GCM</h4>
+<p>Options are now available in the menuselect "Resource Modules"
+  category that allow you to enable the AES_192, AES_256 and AES_GCM
+  cipher suites in res_srtp. Of course, libsrtp and OpenSSL must support
+  them but modern versions do.  Previously, the only way to enable them was
+  to set the CFLAGS environment variable when running ./configure.
+  The default setting is to disable them preserving existing behavior.</p>
+</li>
+<li>
+<h4>cdr: add CANCEL dispostion in CDR</h4>
+<p>A new CDR option "canceldispositionenabled" has been added
+  that when set to true, the NO ANSWER disposition will be split into
+  two dispositions: CANCEL and NO ANSWER. The default value is 'no'</p>
+</li>
+<li>
+<h4>func_curl: Allow auth methods to be set.</h4>
+<p>The httpauth field in CURLOPT now allows the authentication
+  methods to be set.</p>
+</li>
+<li>
+<h4>Media over Websocket Channel Driver</h4>
+<p>A new channel driver "chan_websocket" is now available. It can
+  exchange media over both inbound and outbound websockets and will both frame
+  and re-time the media it receives.
+  See http://s.asterisk.net/mow for more information.
+  The ARI channels/externalMedia API now includes support for the</p>
+</li>
+</ul>
+<h3>Upgrade Notes:</h3>
+<h3>Developer Notes:</h3>
+<ul>
+<li>
+<h4>ARI: Add command to indicate progress to a channel</h4>
+<p>A new ARI endpoint is available at <code>/channels/{channelId}/progress</code> to indicate progress to a channel.</p>
+</li>
+<li>
+<h4>options:  Change ast_options from ast_flags to ast_flags64.</h4>
+<p>The 32-bit ast_options has no room left to accomodate new
+  options and so has been converted to an ast_flags64 structure. All internal
+  references to ast_options have been updated to use the 64-bit flag
+  manipulation macros.  External module references to the 32-bit ast_options
+  should continue to work on little-endian systems because the
+  least-significant bytes of a 64 bit integer will be in the same location as a
+  32-bit integer.  Because that's not the case on big-endian systems, we've
+  swapped the bytes in the flags manupulation macros on big-endian systems
+  so external modules should still work however you are encouraged to test.</p>
+</li>
+</ul>
+<h3>Commit Authors:</h3>
+<ul>
+<li>Alexei Gradinari: (2)</li>
+<li>Alexey Khabulyak: (2)</li>
+<li>Allan Nathanson: (1)</li>
+<li>Artem Umerov: (1)</li>
+<li>Ben Ford: (1)</li>
+<li>George Joseph: (9)</li>
+<li>Igor Goncharovsky: (2)</li>
+<li>Jaco Kroon: (1)</li>
+<li>Joe Garlick: (1)</li>
+<li>Jose Lopes: (1)</li>
+<li>Kodokaii: (1)</li>
+<li>Martin Tomec: (1)</li>
+<li>Mike Bradeen: (1)</li>
+<li>Mkmer: (1)</li>
+<li>Naveen Albert: (15)</li>
+<li>Sean Bright: (2)</li>
+<li>Sperl Viktor: (2)</li>
+<li>Stanislav Abramenkov: (1)</li>
+<li>Stuart Henderson: (1)</li>
+<li>Sven Kube: (2)</li>
+<li>Tinet-Mucw: (2)</li>
+<li>Zhou_jiajian: (1)</li>
+</ul>
+<h2>Issue and Commit Detail:</h2>
+<h3>Closed Issues:</h3>
+<ul>
+<li>401: [bug]: app_dial: Answer Gosub option passthrough regression</li>
+<li>927: [bug]: no audio when media source changed during the call</li>
+<li>1176: [bug]: ast_slinear_saturated_multiply_float produces potentially audible distortion artifacts</li>
+<li>1259: [bug]: New TenantID feature doesn't seem to set CDR for incoming calls</li>
+<li>1260: [bug]: Asterisk sends RTP audio stream before ICE/DTLS completes</li>
+<li>1269: [bug]: MixMonitor with D option produces corrupt file</li>
+<li>1273: [bug]: When executed with GotoIf, the action Redirect does not take effect and causes confusion in dialplan execution.</li>
+<li>1280: [improvement]: logging playback of audio per channel</li>
+<li>1289: [bug]: sorcery - duplicate objects from multiple backends and backend divergence on update</li>
+<li>1301: [bug]: sig_analog: fgccamamf doesn't handle STP, STP2, or STP3</li>
+<li>1304: [bug]: FLUSH_MEDIA does not reset frame_queue_length in WebSocket channel</li>
+<li>1305: [bug]: Realtime incorrectly falls back to next backend on record-not-found (SQL_NO_DATA), causing incorrect behavior and delay</li>
+<li>1307: [improvement]: ast_tls_cert: Allow certificate validity to be configurable</li>
+<li>1309: [bug]: Crash with C++ alternative storage backend enabled</li>
+<li>1315:  [bug]: When executed with dialplan, the action Redirect does not take effect.</li>
+<li>1317: [bug]: AGI command buffer overflow with long variables</li>
+<li>1321: [improvement]: app_agent_pool: Remove obsolete documentation</li>
+<li>1323: [new-feature]: add CANCEL dispostion in CDR</li>
+<li>1327: [bug]: res_stasis_device_state: can't delete ARI Devicestate after asterisk restart</li>
+<li>1332: [new-feature]: func_curl: Allow auth methods to be set</li>
+<li>1349: [bug]: Race condition on redirect can cause missing Diversion header</li>
+<li>1352: [improvement]: Websocket channel with custom URI</li>
+<li>1353: [bug]: AST_DATA_DIR/sounds/custom directory not searched</li>
+<li>1358: [new-feature]: app_chanspy: Add option to not automatically answer channel</li>
+<li>1364: [bug]: bridge.c: BRIDGE_NOANSWER not always obeyed</li>
+<li>1366: [improvement]: func_frame_drop: Handle allocation failure properly</li>
+<li>1369: [bug]: test_res_prometheus: Compilation failure in devmode due to curlopts not using long type</li>
+<li>1371: [improvement]: func_frame_drop: Add debug messages for frames that can be dropped</li>
+<li>1375: [improvement]: dsp.c: Improve logging in tone_detect().</li>
+<li>1378: [bug]: chan_dahdi: dialmode feature is not properly reset between calls</li>
+<li>1380: [bug]: sig_analog: Segfault due to calling strcmp on NULL</li>
+<li>1384: [bug]: chan_websocket: asterisk crashes on hangup after STOP_MEDIA_BUFFERING command with id</li>
+<li>1386: [bug]: enabling announceposition_only_up prevents any queue position announcements</li>
+<li>1390: [improvement]: res_tonedetect: Add option to automatically end detection in TONE_DETECT</li>
+<li>1394: [improvement]: sig_analog: Skip Caller ID spill if Caller ID is disabled</li>
+<li>1396: [new-feature]: pbx_builtins: Make tone option for WaitExten configurable</li>
+<li>1401: [bug]: app_waitfornoise timeout is always less then configured because of time() usage</li>
+</ul>
+<h3>Commits By Author:</h3>
+<ul>
+<li>
+<h4>Alexei Gradinari (2):</h4>
+</li>
+<li>res_config_odbc: Prevent Realtime fallback on record-not-found (SQL_NO_DATA)</li>
+<li>
+<p>sorcery: Prevent duplicate objects and ensure missing objects are created on u..</p>
+</li>
+<li>
+<h4>Alexey Khabulyak (2):</h4>
+</li>
+<li>app_dial.c: Moved channel lock to prevent deadlock</li>
+<li>
+<p>pbx_lua.c: segfault when pass null data to term_color function</p>
+</li>
+<li>
+<h4>Allan Nathanson (1):</h4>
+</li>
+<li>
+<p>file.c: with "sounds_search_custom_dir = yes", search "custom" directory</p>
+</li>
+<li>
+<h4>Artem Umerov (1):</h4>
+</li>
+<li>
+<p>Fix missing ast_test_flag64 in extconf.c</p>
+</li>
+<li>
+<h4>Ben Ford (1):</h4>
+</li>
+<li>
+<p>res_rtp_asterisk: Don't send RTP before DTLS has negotiated.</p>
+</li>
+<li>
+<h4>George Joseph (9):</h4>
+</li>
+<li>Media over Websocket Channel Driver</li>
+<li>app_mixmonitor:  Update the documentation concerning the "D" option.</li>
+<li>cdr.c: Set tenantid from party_a-&gt;base instead of chan-&gt;base.</li>
+<li>options:  Change ast_options from ast_flags to ast_flags64.</li>
+<li>res_srtp: Add menuselect options to enable AES_192, AES_256 and AES_GCM</li>
+<li>channelstorage_cpp_map_name_id.cc: Refactor iterators for thread-safety.</li>
+<li>xmldoc.c: Fix rendering of CLI output.</li>
+<li>chan_websocket: Fix buffer overrun when processing TEXT websocket frames.</li>
+<li>
+<p>chan_websocket: Allow additional URI parameters to be added to the outgoing URI.</p>
+</li>
+<li>
+<h4>Igor Goncharovsky (2):</h4>
+</li>
+<li>app_waitforsilence.c: Use milliseconds to calculate timeout time</li>
+<li>
+<p>app_queue.c: Add new global 'log_unpause_on_reason_change'</p>
+</li>
+<li>
+<h4>Jaco Kroon (1):</h4>
+</li>
+<li>
+<p>res_musiconhold: Appropriately lock channel during start.</p>
+</li>
+<li>
+<h4>Joe Garlick (1):</h4>
+</li>
+<li>
+<p>chan_websocket.c: Add DTMF messages</p>
+</li>
+<li>
+<h4>Jose Lopes (1):</h4>
+</li>
+<li>
+<p>res_stasis_device_state: Fix delete ARI Devicestates after asterisk restart.</p>
+</li>
+<li>
+<h4>Martin Tomec (1):</h4>
+</li>
+<li>
+<p>chan_pjsip.c: Change SSRC after media source change</p>
+</li>
+<li>
+<h4>Mike Bradeen (1):</h4>
+</li>
+<li>
+<p>res_pjsip_diversion: resolve race condition between Diversion header processin..</p>
+</li>
+<li>
+<h4>Naveen Albert (15):</h4>
+</li>
+<li>sig_analog: Properly handle STP, ST2P, and ST3P for fgccamamf.</li>
+<li>ast_tls_cert: Make certificate validity configurable.</li>
+<li>app_agent_pool: Remove documentation for removed option.</li>
+<li>func_curl: Allow auth methods to be set.</li>
+<li>bridge.c: Obey BRIDGE_NOANSWER variable to skip answering channel.</li>
+<li>func_frame_drop: Handle allocation failure properly.</li>
+<li>test_res_prometheus: Fix compilation failure on Debian 13.</li>
+<li>func_frame_drop: Add debug messages for dropped frames.</li>
+<li>app_chanspy: Add option to not automatically answer channel.</li>
+<li>dsp.c: Improve debug logging in tone_detect().</li>
+<li>sig_analog: Fix SEGV due to calling strcmp on NULL.</li>
+<li>chan_dahdi: Fix erroneously persistent dialmode.</li>
+<li>sig_analog: Skip Caller ID spill if usecallerid=no.</li>
+<li>res_tonedetect: Add option for TONE_DETECT detection to auto stop.</li>
+<li>
+<p>pbx_builtins: Allow custom tone for WaitExten.</p>
+</li>
+<li>
+<h4>Sean Bright (2):</h4>
+</li>
+<li>res_musiconhold.c: Annotate when the channel is locked.</li>
+<li>
+<p>res_musiconhold.c: Ensure we're always locked around music state access.</p>
+</li>
+<li>
+<h4>Sperl Viktor (2):</h4>
+</li>
+<li>res_agi: Increase AGI command buffer size from 2K to 8K</li>
+<li>
+<p>cel: Add STREAM_BEGIN, STREAM_END and DTMF event types.</p>
+</li>
+<li>
+<h4>Stanislav Abramenkov (1):</h4>
+</li>
+<li>
+<p>bundled_pjproject: Avoid deadlock between transport and transaction</p>
+</li>
+<li>
+<h4>Stuart Henderson (1):</h4>
+</li>
+<li>
+<p>app_queue: fix comparison for announce-position-only-up</p>
+</li>
+<li>
+<h4>Sven Kube (2):</h4>
+</li>
+<li>resource_channels.c: Don't call ast_channel_get_by_name on empty optional argu..</li>
+<li>
+<p>ARI: Add command to indicate progress to a channel</p>
+</li>
+<li>
+<h4>Tinet-mucw (2):</h4>
+</li>
+<li>pbx.c: when set flag AST_SOFTHANGUP_ASYNCGOTO, ast_explicit_goto should return..</li>
+<li>
+<p>pbx.c: When the AST_SOFTHANGUP_ASYNCGOTO flag is set, pbx_extension_helper sho..</p>
+</li>
+<li>
+<h4>kodokaii (1):</h4>
+</li>
+<li>
+<p>chan_websocket: Reset frame_queue_length to 0 after FLUSH_MEDIA</p>
+</li>
+<li>
+<h4>mkmer (1):</h4>
+</li>
+<li>
+<p>utils.h: Add rounding to float conversion to int.</p>
+</li>
+<li>
+<h4>zhou_jiajian (1):</h4>
+</li>
+<li>cdr: add CANCEL dispostion in CDR</li>
+</ul>
+<h3>Commit List:</h3>
+<ul>
+<li>chan_websocket.c: Add DTMF messages</li>
+<li>app_queue.c: Add new global 'log_unpause_on_reason_change'</li>
+<li>app_waitforsilence.c: Use milliseconds to calculate timeout time</li>
+<li>Fix missing ast_test_flag64 in extconf.c</li>
+<li>pbx_builtins: Allow custom tone for WaitExten.</li>
+<li>res_tonedetect: Add option for TONE_DETECT detection to auto stop.</li>
+<li>app_queue: fix comparison for announce-position-only-up</li>
+<li>sig_analog: Skip Caller ID spill if usecallerid=no.</li>
+<li>chan_dahdi: Fix erroneously persistent dialmode.</li>
+<li>chan_websocket: Fix buffer overrun when processing TEXT websocket frames.</li>
+<li>sig_analog: Fix SEGV due to calling strcmp on NULL.</li>
+<li>ARI: Add command to indicate progress to a channel</li>
+<li>dsp.c: Improve debug logging in tone_detect().</li>
+<li>res_stasis_device_state: Fix delete ARI Devicestates after asterisk restart.</li>
+<li>app_chanspy: Add option to not automatically answer channel.</li>
+<li>xmldoc.c: Fix rendering of CLI output.</li>
+<li>func_frame_drop: Add debug messages for dropped frames.</li>
+<li>test_res_prometheus: Fix compilation failure on Debian 13.</li>
+<li>func_frame_drop: Handle allocation failure properly.</li>
+<li>pbx_lua.c: segfault when pass null data to term_color function</li>
+<li>bridge.c: Obey BRIDGE_NOANSWER variable to skip answering channel.</li>
+<li>res_rtp_asterisk: Don't send RTP before DTLS has negotiated.</li>
+<li>app_dial.c: Moved channel lock to prevent deadlock</li>
+<li>file.c: with "sounds_search_custom_dir = yes", search "custom" directory</li>
+<li>cel: Add STREAM_BEGIN, STREAM_END and DTMF event types.</li>
+<li>channelstorage_cpp_map_name_id.cc: Refactor iterators for thread-safety.</li>
+<li>res_srtp: Add menuselect options to enable AES_192, AES_256 and AES_GCM</li>
+<li>cdr: add CANCEL dispostion in CDR</li>
+<li>func_curl: Allow auth methods to be set.</li>
+<li>options:  Change ast_options from ast_flags to ast_flags64.</li>
+<li>res_config_odbc: Prevent Realtime fallback on record-not-found (SQL_NO_DATA)</li>
+<li>app_agent_pool: Remove documentation for removed option.</li>
+<li>res_agi: Increase AGI command buffer size from 2K to 8K</li>
+<li>ast_tls_cert: Make certificate validity configurable.</li>
+<li>cdr.c: Set tenantid from party_a-&gt;base instead of chan-&gt;base.</li>
+<li>app_mixmonitor:  Update the documentation concerning the "D" option.</li>
+<li>sig_analog: Properly handle STP, ST2P, and ST3P for fgccamamf.</li>
+<li>chan_websocket: Reset frame_queue_length to 0 after FLUSH_MEDIA</li>
+<li>chan_pjsip.c: Change SSRC after media source change</li>
+<li>Media over Websocket Channel Driver</li>
+<li>bundled_pjproject: Avoid deadlock between transport and transaction</li>
+<li>utils.h: Add rounding to float conversion to int.</li>
+<li>res_musiconhold.c: Ensure we're always locked around music state access.</li>
+<li>res_musiconhold.c: Annotate when the channel is locked.</li>
+<li>res_musiconhold: Appropriately lock channel during start.</li>
+</ul>
+<h3>Commit Details:</h3>
+<h4>chan_websocket.c: Add DTMF messages</h4>
+<p>Author: Joe Garlick
+  Date:   2025-09-04</p>
+<p>Added DTMF messages to the chan_websocket feature.</p>
+<p>When a user presses DTMF during a call over chan_websocket it will send a message like:
+  "DTMF_END digit:1"</p>
+<p>Resolves: https://github.com/asterisk/asterisk-feature-requests/issues/70</p>
+<h4>app_queue.c: Add new global 'log_unpause_on_reason_change'</h4>
+<p>Author: Igor Goncharovsky
+  Date:   2025-09-02</p>
+<p>In many asterisk-based systems, the pause reason is used to separate
+  pauses by type,and logically, changing the reason defines two intervals
+  that should be accounted for separately. The introduction of a new
+  option allows me to separate the intervals of operator inactivity in
+  the log by the event of unpausing.</p>
+<p>UserNote: Add new global option 'log_unpause_on_reason_change' that
+  is default disabled. When enabled cause addition of UNPAUSE event on
+  every re-PAUSE with reason changed.</p>
+<h4>app_waitforsilence.c: Use milliseconds to calculate timeout time</h4>
+<p>Author: Igor Goncharovsky
+  Date:   2025-09-04</p>
+<p>The functions WaitForNoise() and WaitForSilence() use the time()
+  functions to calculate elapsed time, which causes the timer to fire on
+  a whole second boundary, and the actual function execution time to fire
+  the timer may be 1 second less than expected. This fix replaces time()
+  with ast_tvnow().</p>
+<p>Fixes: #1401</p>
+<h4>Fix missing ast_test_flag64 in extconf.c</h4>
+<p>Author: Artem Umerov
+  Date:   2025-08-29</p>
+<p>Fix missing ast_test_flag64 after https://github.com/asterisk/asterisk/commit/43bf8a4ded7a65203b766b91eaf8331a600e9d8d</p>
+<h4>pbx_builtins: Allow custom tone for WaitExten.</h4>
+<p>Author: Naveen Albert
+  Date:   2025-08-25</p>
+<p>Currently, the 'd' option will play dial tone while waiting
+  for digits. Allow it to accept an argument for any tone from
+  indications.conf.</p>
+<p>Resolves: #1396</p>
+<p>UserNote: The tone used while waiting for digits in WaitExten
+  can now be overridden by specifying an argument for the 'd'
+  option.</p>
+<h4>res_tonedetect: Add option for TONE_DETECT detection to auto stop.</h4>
+<p>Author: Naveen Albert
+  Date:   2025-08-28</p>
+<p>One of the problems with TONE_DETECT as it was originally written
+  is that if a tone is detected multiple times, it can trigger
+  the redirect logic multiple times as well. For example, if we
+  do an async goto in the dialplan after detecting a tone, because
+  the detector is still active until explicitly disabled, if we
+  detect the tone again, we will branch again and start executing
+  that dialplan a second time. This is rarely ever desired behavior,
+  and can happen if the detector is not removed quickly enough.</p>
+<p>Add a new option, 'e', which automatically disables the detector
+  once the desired number of matches have been heard. This eliminates
+  the potential race condition where previously the detector would
+  need to be disabled immediately, but doing so quickly enough
+  was not guaranteed. This also allows match criteria to be retained
+  longer if needed, so the detector does not need to be destroyed
+  prematurely.</p>
+<p>Resolves: #1390</p>
+<p>UserNote: The 'e' option for TONE_DETECT now allows detection to
+  be disabled automatically once the desired number of matches have
+  been fulfilled, which can help prevent race conditions in the
+  dialplan, since TONE_DETECT does not need to be disabled after
+  a hit.</p>
+<h4>app_queue: fix comparison for announce-position-only-up</h4>
+<p>Author: Stuart Henderson
+  Date:   2025-08-21</p>
+<p>Numerically comparing that the current queue position is less than
+  last_pos_said can only be done after at least one announcement has been
+  made, otherwise last_pos_said is at the default (0).</p>
+<p>Fixes: #1386</p>
+<h4>sorcery: Prevent duplicate objects and ensure missing objects are created on u..</h4>
+<p>Author: Alexei Gradinari
+  Date:   2025-07-07</p>
+<p>This patch resolves two issues in Sorcery objectset handling with multiple
+  backends:</p>
+<ol>
+<li>
+<p>Prevent duplicate objects:
+     When an object exists in more than one backend (e.g., a contact in both
+     'astdb' and 'realtime'), the objectset previously returned multiple instances
+     of the same logical object. This caused logic failures in components like the
+     PJSIP registrar, where duplicate contact entries led to overcounting and
+     incorrect deletions, when max_contacts=1 and remove_existing=yes.</p>
+<p>This patch ensures only one instance of an object with a given key is added
+ to the objectset, avoiding these duplicate-related side effects.</p>
+</li>
+<li>
+<p>Ensure missing objects are created:
+     When using multiple writable backends, a temporary backend failure can lead
+     to objects missing permanently from that backend.
+     Currently, .update() silently fails if the object is not present,
+     and no .create() is attempted.
+     This results in inconsistent state across backends (e.g. astdb vs. realtime).</p>
+<p>This patch introduces a new global option in sorcery.conf:
+   [general]
+   update_or_create_on_update_miss = yes|no</p>
+<p>Default: no (preserves existing behavior).</p>
+<p>When enabled: if .update() fails with no data found, .create() is attempted
+ in that backend. This ensures that objects missing due to temporary backend
+ outages are re-synchronized once the backend is available again.</p>
+<p>Added a new CLI command:
+   sorcery show settings
+ Displays global Sorcery settings, including the current value of
+ update_or_create_on_update_miss.</p>
+<p>Updated tests to validate both flag enabled/disabled behavior.</p>
+</li>
+</ol>
+<p>Fixes: #1289</p>
+<p>UserNote: Users relying on Sorcery multiple writable backends configurations
+  (e.g., astdb + realtime) may now enable update_or_create_on_update_miss = yes
+  in sorcery.conf to ensure missing objects are recreated after temporary backend
+  failures. Default behavior remains unchanged unless explicitly enabled.</p>
+<h4>sig_analog: Skip Caller ID spill if usecallerid=no.</h4>
+<p>Author: Naveen Albert
+  Date:   2025-08-25</p>
+<p>If Caller ID is disabled for an FXS port, then we should not send any
+  Caller ID spill on the line, as we have no Caller ID information that
+  we can/should be sending.</p>
+<p>Resolves: #1394</p>
+<h4>chan_dahdi: Fix erroneously persistent dialmode.</h4>
+<p>Author: Naveen Albert
+  Date:   2025-08-18</p>
+<p>It is possible to modify the dialmode setting in the chan_dahdi/sig_analog
+  private using the CHANNEL function, to modify it during calls. However,
+  it was not being reset between calls, meaning that if, for example, tone
+  dialing was disabled, it would never work again unless explicitly enabled.</p>
+<p>This fixes the setting by pairing it with a "perm" version of the setting,
+  as a few other features have, so that it can be reset to the permanent
+  setting between calls. The documentation is also clarified to explain
+  the interaction of this setting and the digitdetect setting more clearly.</p>
+<p>Resolves: #1378</p>
+<h4>chan_websocket: Allow additional URI parameters to be added to the outgoing URI.</h4>
+<p>Author: George Joseph
+  Date:   2025-08-13</p>
+<ul>
+<li>Added a new option to the WebSocket dial string to capture the additional
+    URI parameters.</li>
+<li>Added a new API ast_uri_verify_encoded() that verifies that a string
+    either doesn't need URI encoding or that it has already been encoded.</li>
+<li>Added a new API ast_websocket_client_add_uri_params() to add the params
+    to the client websocket session.</li>
+<li>Added XML documentation that will show up with <code>core show application Dial</code>
+    that shows how to use it.</li>
+</ul>
+<p>Resolves: #1352</p>
+<p>UserNote: A new WebSocket channel driver option <code>v</code> has been added to the
+  Dial application that allows you to specify additional URI parameters on
+  outgoing connections. Run <code>core show application Dial</code> from the Asterisk CLI
+  to see how to use it.</p>
+<h4>chan_websocket: Fix buffer overrun when processing TEXT websocket frames.</h4>
+<p>Author: George Joseph
+  Date:   2025-08-19</p>
+<p>ast_websocket_read() receives data into a fixed 64K buffer then continually
+  reallocates a final buffer that, after all continuation frames have been
+  received, is the exact length of the data received and returns that to the
+  caller.  process_text_message() in chan_websocket was attempting to set a
+  NULL terminator on the received payload assuming the payload buffer it
+  received was the large 64K buffer.  The assumption was incorrect so when it
+  tried to set a NULL terminator on the payload, it could, depending on the
+  state of the heap at the time, cause heap corruption.</p>
+<p>process_text_message() now allocates its own payload_len + 1 sized buffer,
+  copies the payload received from ast_websocket_read() into it then NULL
+  terminates it prevent the possibility of the overrun and corruption.</p>
+<p>Resolves: #1384</p>
+<h4>sig_analog: Fix SEGV due to calling strcmp on NULL.</h4>
+<p>Author: Naveen Albert
+  Date:   2025-08-18</p>
+<p>Add an additional check to guard against the channel application being
+  NULL.</p>
+<p>Resolves: #1380</p>
+<h4>ARI: Add command to indicate progress to a channel</h4>
+<p>Author: Sven Kube
+  Date:   2025-07-30</p>
+<p>Adds an ARI command to send a progress indication to a channel.</p>
+<p>DeveloperNote: A new ARI endpoint is available at <code>/channels/{channelId}/progress</code> to indicate progress to a channel.</p>
+<h4>dsp.c: Improve debug logging in tone_detect().</h4>
+<p>Author: Naveen Albert
+  Date:   2025-08-15</p>
+<p>The debug logging during DSP processing has always been kind
+  of overwhelming and annoying to troubleshoot. Simplify and
+  improve the logging in a few ways to aid DSP debugging:</p>
+<ul>
+<li>If we had a DSP hit, don't also emit the previous debug message that
+    was always logged. It is duplicated by the hit message, so this can
+    reduce the number of debug messages during detection by 50%.</li>
+<li>Include the hit count and required number of hits in the message so
+    on partial detections can be more easily troubleshot.</li>
+<li>Use debug level 9 for hits instead of 10, so we can focus on hits
+    without all the noise from the per-frame debug message.</li>
+<li>1-index the hit count in the debug messages. On the first hit, it
+    currently logs '0', just as when we are not detecting anything,
+    which can be confusing.</li>
+</ul>
+<p>Resolves: #1375</p>
+<h4>res_stasis_device_state: Fix delete ARI Devicestates after asterisk restart.</h4>
+<p>Author: Jose Lopes
+  Date:   2025-07-30</p>
+<p>After an asterisk restart, the deletion of ARI Devicestates didn't
+  return error, but the devicestate was not deleted.
+  Found a typo on populate_cache function that created wrong cache for
+  device states.
+  This bug caused wrong assumption that devicestate didn't exist,
+  since it was not in cache, so deletion didn't returned error.</p>
+<p>Fixes: #1327</p>
+<h4>app_chanspy: Add option to not automatically answer channel.</h4>
+<p>Author: Naveen Albert
+  Date:   2025-08-13</p>
+<p>Add an option for ChanSpy and ExtenSpy to not answer the channel
+  automatically. Most applications that auto-answer by default
+  already have an option to disable this behavior if unwanted.</p>
+<p>Resolves: #1358</p>
+<p>UserNote: ChanSpy and ExtenSpy can now be configured to not
+  automatically answer the channel by using the 'N' option.</p>
+<h4>xmldoc.c: Fix rendering of CLI output.</h4>
+<p>Author: George Joseph
+  Date:   2025-08-14</p>
+<p>If you do a <code>core show application Dial</code>, you'll see it's kind of a mess.
+  Indents are wrong is some places, examples are printed in black which makes
+  them invisible on most terminals, and the lack of line breaks in some cases
+  makes it hard to follow.</p>
+<ul>
+<li>Fixed the rendering of examples so they are indented properly and changed
+  the color so they can be seen.</li>
+<li>There is now a line break before each option.</li>
+<li>Options are now printed on their own line with all option content indented
+  below them.</li>
+</ul>
+<p>Example from Dial before fixes:
+  ```
+      Example: Dial 555-1212 on first available channel in group 1, searching
+      from highest to lowest</p>
+<pre><code>  Example: Ringing FXS channel 4 with ring cadence 2
+
+  Example: Dial 555-1212 on channel 3 and require answer confirmation
+</code></pre>
+<p>...</p>
+<pre><code>  O([mode]):
+      mode - With &lt;mode&gt; either not specified or set to '1', the originator
+      hanging up will cause the phone to ring back immediately.
+</code></pre>
+<ul>
+<li>
+<p>With <mode> set to '2', when the operator flashes the trunk, it will ring
+   their phone back.
+  Enables <em>operator services</em> mode.  This option only works when bridging a DAHDI
+  channel to another DAHDI channel only. If specified on non-DAHDI interfaces, it
+  will be ignored. When the destination answers (presumably an operator services
+  station), the originator no longer has control of their line. They may hang up,
+  but the switch will not release their line until the destination party (the
+  operator) hangs up.</p>
+<p>p: This option enables screening mode. This is basically Privacy mode
+  without memory.
+  ```</p>
+</li>
+</ul>
+<p>After:
+  ```
+      Example: Dial 555-1212 on first available channel in group 1, searching
+      from highest to lowest</p>
+<pre><code>   same =&gt; n,Dial(DAHDI/g1/5551212)
+
+  Example: Ringing FXS channel 4 with ring cadence 2
+
+   same =&gt; n,Dial(DAHDI/4r2)
+
+  Example: Dial 555-1212 on channel 3 and require answer confirmation
+
+   same =&gt; n,Dial(DAHDI/3c/5551212)
+</code></pre>
+<p>...</p>
+<pre><code>  O([mode]):
+      mode - With &lt;mode&gt; either not specified or set to '1', the originator
+      hanging up will cause the phone to ring back immediately.
+      With &lt;mode&gt; set to '2', when the operator flashes the trunk, it will
+      ring their phone back.
+      Enables *operator services* mode.  This option only works when bridging
+      a DAHDI channel to another DAHDI channel only. If specified on
+      non-DAHDI interfaces, it will be ignored. When the destination answers
+      (presumably an operator services station), the originator no longer has
+      control of their line. They may hang up, but the switch will not
+      release their line until the destination party (the operator) hangs up.
+
+  p:
+      This option enables screening mode. This is basically Privacy mode
+      without memory.
+</code></pre>
+<p>```</p>
+<p>There are still things we can do to make this more readable but this is a
+  start.</p>
+<h4>func_frame_drop: Add debug messages for dropped frames.</h4>
+<p>Author: Naveen Albert
+  Date:   2025-08-14</p>
+<p>Add debug messages in scenarios where frames that are usually processed
+  are dropped or skipped.</p>
+<p>Resolves: #1371</p>
+<h4>test_res_prometheus: Fix compilation failure on Debian 13.</h4>
+<p>Author: Naveen Albert
+  Date:   2025-08-14</p>
+<p>curl_easy_setopt expects long types, so be explicit.</p>
+<p>Resolves: #1369</p>
+<h4>func_frame_drop: Handle allocation failure properly.</h4>
+<p>Author: Naveen Albert
+  Date:   2025-08-14</p>
+<p>Handle allocation failure and simplify the allocation using asprintf.</p>
+<p>Resolves: #1366</p>
+<h4>pbx_lua.c: segfault when pass null data to term_color function</h4>
+<p>Author: Alexey Khabulyak
+  Date:   2025-08-14</p>
+<p>This can be reproduced under certain curcomstences.
+  For example: call app.playback from lua with invalid data: app.playback({}).
+  pbx_lua.c will try to get data for this playback using lua_tostring function.
+  This function returs NULL for everything but strings and numbers.
+  Then, it calls term_color with NULL data.
+  term_color function can call(if we don't use vt100 compat term)
+  ast_copy_string with NULL inbuf which cause segfault. bt example:
+  ast_copy_string (size=8192, src=0x0, dst=0x7fe44b4be8b0)
+  at /usr/src/asterisk/asterisk-20.11.0/include/asterisk/strings.h:412</p>
+<p>Resolves: https://github.com/asterisk/asterisk/issues/1363</p>
+<h4>bridge.c: Obey BRIDGE_NOANSWER variable to skip answering channel.</h4>
+<p>Author: Naveen Albert
+  Date:   2025-08-14</p>
+<p>If the BRIDGE_NOANSWER variable is set on a channel, it is not supposed
+  to answer when another channel bridges to it using Bridge(), and this is
+  checked when ast_bridge_call* is called. However, another path exists
+  (bridge_exec -&gt; ast_bridge_add_channel) where this variable was not
+  checked and channels would be answered. We now check the variable there.</p>
+<p>Resolves: #401
+  Resolves: #1364</p>
+<h4>res_rtp_asterisk: Don't send RTP before DTLS has negotiated.</h4>
+<p>Author: Ben Ford
+  Date:   2025-08-04</p>
+<p>There was no check in __rtp_sendto that prevented Asterisk from sending
+  RTP before DTLS had finished negotiating. This patch adds logic to do
+  so.</p>
+<p>Fixes: #1260</p>
+<h4>app_dial.c: Moved channel lock to prevent deadlock</h4>
+<p>Author: Alexey Khabulyak
+  Date:   2025-08-04</p>
+<p>It's reproducible with pbx_lua, not regular dialplan.</p>
+<p>deadlock description:
+  1. asterisk locks a channel
+  2. calls function onedigit_goto
+  3. calls ast_goto_if_exists funciton
+  4. checks ast_exists_extension -&gt; pbx_extension_helper
+  5. pbx_extension_helper calls pbx_find_extension
+  6. Then asterisk starts autoservice in a new thread
+  7. autoservice run tries to lock the channel again</p>
+<p>Because our channel is locked already, autoservice can't lock.
+  Autoservice can't lock -&gt; autoservice stop is waiting forever.
+  onedigit_goto waits for autoservice stop.</p>
+<p>Resolves: https://github.com/asterisk/asterisk/issues/1335</p>
+<h4>res_pjsip_diversion: resolve race condition between Diversion header processin..</h4>
+<p>Author: Mike Bradeen
+  Date:   2025-08-07</p>
+<p>Based on the firing order of the PJSIP call-backs on a redirect, it was possible for
+  the Diversion header to not be included in the outgoing 181 response to the UAC and
+  the INVITE to the UAS.</p>
+<p>This change moves the Diversion header processing to an earlier PJSIP callback while also
+  preventing the corresponding update that can cause a duplicate 181 response when processing
+  the header at that time.</p>
+<p>Resolves: #1349</p>
+<h4>file.c: with "sounds_search_custom_dir = yes", search "custom" directory</h4>
+<p>Author: Allan Nathanson
+  Date:   2025-08-10</p>
+<p>With <code>sounds_search_custom_dir = yes</code>, we are supposed to search for sounds
+  in the <code>AST_DATA_DIR/sounds/custom</code> directory before searching the normal
+  directories.  Unfortunately, a recent change
+  (https://github.com/asterisk/asterisk/pull/1172) had a typo resulting in
+  the "custom" directory not being searched.  This change restores this
+  expected behavior.</p>
+<p>Resolves: #1353</p>
+<h4>cel: Add STREAM_BEGIN, STREAM_END and DTMF event types.</h4>
+<p>Author: Sperl Viktor
+  Date:   2025-06-30</p>
+<p>Fixes: #1280</p>
+<p>UserNote: Enabling the tracking of the
+  STREAM_BEGIN and the STREAM_END event
+  types in cel.conf will log media files and
+  music on hold played to each channel.
+  The STREAM_BEGIN event's extra field will
+  contain a JSON with the file details (path,
+  format and language), or the class name, in
+  case of music on hold is played. The DTMF
+  event's extra field will contain a JSON with
+  the digit and the duration in milliseconds.</p>
+<h4>channelstorage_cpp_map_name_id.cc: Refactor iterators for thread-safety.</h4>
+<p>Author: George Joseph
+  Date:   2025-07-30</p>
+<p>The fact that deleting an object from a map invalidates any iterator
+  that happens to currently point to that object was overlooked in the initial
+  implementation.  Unfortunately, there's no way to detect that an iterator
+  has been invalidated so the result was an occasional SEGV triggered by modules
+  like app_chanspy that opens an iterator and can keep it open for a long period
+  of time.  The new implementation doesn't keep the underlying C++ iterator
+  open across calls to ast_channel_iterator_next() and uses a read lock
+  on the map to ensure that, even for the few microseconds we use the
+  iterator, another thread can't delete a channel from under it.  Even with
+  this change, the iterators are still WAY faster than the ao2_legacy
+  storage driver.</p>
+<p>Full details about the new implementation are located in the comments for
+  iterator_next() in channelstorage_cpp_map_name_id.cc.</p>
+<p>Resolves: #1309</p>
+<h4>res_srtp: Add menuselect options to enable AES_192, AES_256 and AES_GCM</h4>
+<p>Author: George Joseph
+  Date:   2025-08-05</p>
+<p>UserNote: Options are now available in the menuselect "Resource Modules"
+  category that allow you to enable the AES_192, AES_256 and AES_GCM
+  cipher suites in res_srtp. Of course, libsrtp and OpenSSL must support
+  them but modern versions do.  Previously, the only way to enable them was
+  to set the CFLAGS environment variable when running ./configure.
+  The default setting is to disable them preserving existing behavior.</p>
+<h4>cdr: add CANCEL dispostion in CDR</h4>
+<p>Author: zhou_jiajian
+  Date:   2025-07-24</p>
+<p>In the original implementation, both CANCEL and NO ANSWER states were
+  consolidated under the NO ANSWER disposition. This patch introduces a
+  separate CANCEL disposition, with an optional configuration switch to
+  enable this new disposition.</p>
+<p>Resolves: #1323</p>
+<p>UserNote: A new CDR option "canceldispositionenabled" has been added
+  that when set to true, the NO ANSWER disposition will be split into
+  two dispositions: CANCEL and NO ANSWER. The default value is 'no'</p>
+<h4>func_curl: Allow auth methods to be set.</h4>
+<p>Author: Naveen Albert
+  Date:   2025-08-01</p>
+<p>Currently the CURL function only supports Basic Authentication,
+  the default auth method in libcurl. Add an option that also
+  allows enabling digest authentication.</p>
+<p>Resolves: #1332</p>
+<p>UserNote: The httpauth field in CURLOPT now allows the authentication
+  methods to be set.</p>
+<h4>options:  Change ast_options from ast_flags to ast_flags64.</h4>
+<p>Author: George Joseph
+  Date:   2025-07-21</p>
+<p>DeveloperNote: The 32-bit ast_options has no room left to accomodate new
+  options and so has been converted to an ast_flags64 structure. All internal
+  references to ast_options have been updated to use the 64-bit flag
+  manipulation macros.  External module references to the 32-bit ast_options
+  should continue to work on little-endian systems because the
+  least-significant bytes of a 64 bit integer will be in the same location as a
+  32-bit integer.  Because that's not the case on big-endian systems, we've
+  swapped the bytes in the flags manupulation macros on big-endian systems
+  so external modules should still work however you are encouraged to test.</p>
+<h4>res_config_odbc: Prevent Realtime fallback on record-not-found (SQL_NO_DATA)</h4>
+<p>Author: Alexei Gradinari
+  Date:   2025-07-15</p>
+<p>This patch fixes an issue in the ODBC Realtime engine where Asterisk incorrectly
+  falls back to the next configured backend when the current one returns
+  SQL_NO_DATA (i.e., no record found).
+  This is a logical error and performance risk in multi-backend configurations.</p>
+<p>Solution:
+  Introduced CONFIG_RT_NOT_FOUND ((void *)-1) as a special return marker.
+  ODBC Realtime backend now return CONFIG_RT_NOT_FOUND when no data is found.
+  Core engine stops iterating on this marker, avoiding unnecessary fallback.</p>
+<p>Notes:
+  Other Realtime backends (PostgreSQL, LDAP, etc.) can be updated similarly.
+  This patch only covers ODBC.</p>
+<p>Fixes: #1305</p>
+<h4>resource_channels.c: Don't call ast_channel_get_by_name on empty optional argu..</h4>
+<p>Author: Sven Kube
+  Date:   2025-07-30</p>
+<p><code>ast_ari_channels_create</code> and <code>ast_ari_channels_dial</code> called the
+  <code>ast_channel_get_by_name</code> function with optional arguments. Since
+  8f1982c4d6, this function logs an error for empty channel names.
+  This commit adds checks for empty optional arguments that are used
+  to call <code>ast_channel_get_by_name</code> to prevent these error logs.</p>
+<h4>app_agent_pool: Remove documentation for removed option.</h4>
+<p>Author: Naveen Albert
+  Date:   2025-07-28</p>
+<p>The already-deprecated "password" option for the AGENT function was
+  removed in commit d43b17a872e8227aa8a9905a21f90bd48f9d5348 for
+  Asterisk 12, but the documentation for it wasn't removed then.</p>
+<p>Resolves: #1321</p>
+<h4>pbx.c: When the AST_SOFTHANGUP_ASYNCGOTO flag is set, pbx_extension_helper sho..</h4>
+<p>Author: Tinet-mucw
+  Date:   2025-07-22</p>
+<p>Under certain circumstances the context/extens/prio are set in the ast_async_goto, for example action Redirect.
+  In the situation that action Redirect is broken by pbx_extension_helper this info is changed.
+  This will cause the current dialplan location to be executed twice.
+  In other words, the Redirect action does not take effect.</p>
+<p>Resolves: #1315</p>
+<h4>res_agi: Increase AGI command buffer size from 2K to 8K</h4>
+<p>Author: Sperl Viktor
+  Date:   2025-07-22</p>
+<p>Fixes: #1317</p>
+<h4>ast_tls_cert: Make certificate validity configurable.</h4>
+<p>Author: Naveen Albert
+  Date:   2025-07-16</p>
+<p>Currently, the ast_tls_cert script is hardcoded to produce certificates
+  with a validity of 365 days, which is not generally desirable for self-
+  signed certificates. Make this parameter configurable.</p>
+<p>Resolves: #1307</p>
+<h4>cdr.c: Set tenantid from party_a-&gt;base instead of chan-&gt;base.</h4>
+<p>Author: George Joseph
+  Date:   2025-07-17</p>
+<p>The CDR tenantid was being set in cdr_object_alloc from the channel-&gt;base
+  snapshot.  Since this happens at channel creation before the dialplan is even
+  reached, calls to <code>CHANNEL(tenantid)=&lt;something&gt;</code> in the dialplan were being
+  ignored.  Instead we now take tenantid from party_a when
+  cdr_object_create_public_records() is called which is after the call has
+  ended and all channel snapshots rebuilt.  This is exactly how accountcode
+  and amaflags, which can also be set in tha dialplpan, are handled.</p>
+<p>Resolves: #1259</p>
+<h4>app_mixmonitor:  Update the documentation concerning the "D" option.</h4>
+<p>Author: George Joseph
+  Date:   2025-07-16</p>
+<p>When using the "D" option to output interleaved audio, the file extension
+  must be ".raw".  That info wasn't being properly rendered in the markdown
+  and HTML on the documentation site.  The XML was updated to move the
+  note in the option section to a warning in the description.</p>
+<p>Resolves: #1269</p>
+<h4>sig_analog: Properly handle STP, ST2P, and ST3P for fgccamamf.</h4>
+<p>Author: Naveen Albert
+  Date:   2025-07-14</p>
+<p>Previously, we were only using # (ST) as a terminator, and not handling
+  A (STP), B (ST2P), or C (ST3P), which erroneously led to it being
+  treated as part of the dialed number. Parse any of these as the start
+  digit.</p>
+<p>Resolves: #1301</p>
+<h4>chan_websocket: Reset frame_queue_length to 0 after FLUSH_MEDIA</h4>
+<p>Author: kodokaii
+  Date:   2025-07-03</p>
+<p>In the WebSocket channel driver, the FLUSH_MEDIA command clears all frames from
+  the queue but does not reset the frame_queue_length counter.</p>
+<p>As a result, the driver incorrectly thinks the queue is full after flushing,
+  which prevents new multimedia frames from being sent, especially after multiple
+  flush commands.</p>
+<p>This fix sets frame_queue_length to 0 after flushing, ensuring the queue state
+  is consistent with its actual content.</p>
+<p>Fixes: #1304</p>
+<h4>chan_pjsip.c: Change SSRC after media source change</h4>
+<p>Author: Martin Tomec
+  Date:   2025-06-25</p>
+<p>When the RTP media source changes, such as after a blind transfer, the new source introduces a discontinuous timestamp. According to RFC 3550, Section 5.1, an RTP stream's timestamp for a given SSRC must increment monotonically and linearly.
+  To comply with the standard and avoid a large timestamp jump on the existing SSRC, a new SSRC is generated for the new media stream.
+  This change resolves known interoperability issues with certain SBCs (like Sonus/Ribbon) that stop forwarding media when they detect such a timestamp violation. This code uses the existing implementation from chan_sip.</p>
+<p>Resolves: #927</p>
+<h4>Media over Websocket Channel Driver</h4>
+<p>Author: George Joseph
+  Date:   2025-04-28</p>
+<ul>
+<li>
+<p>Created chan_websocket which can exchange media over both inbound and
+  outbound websockets which the driver will frame and time.
+  See http://s.asterisk.net/mow for more information.</p>
+</li>
+<li>
+<p>res_http_websocket: Made defines for max message size public and converted
+  a few nuisance verbose messages to debugs.</p>
+</li>
+<li>
+<p>main/channel.c: Changed an obsolete nuisance error to a debug.</p>
+</li>
+<li>
+<p>ARI channels: Updated externalMedia to include chan_websocket as a supported
+  transport.</p>
+</li>
+</ul>
+<p>UserNote: A new channel driver "chan_websocket" is now available. It can
+  exchange media over both inbound and outbound websockets and will both frame
+  and re-time the media it receives.
+  See http://s.asterisk.net/mow for more information.</p>
+<p>UserNote: The ARI channels/externalMedia API now includes support for the
+  WebSocket transport provided by chan_websocket.</p>
+<h4>bundled_pjproject: Avoid deadlock between transport and transaction</h4>
+<p>Author: Stanislav Abramenkov
+  Date:   2025-07-01</p>
+<p>Backport patch from upstream
+  * Avoid deadlock between transport and transaction
+  https://github.com/pjsip/pjproject/commit/edde06f261ac</p>
+<p>Issue described in
+  https://github.com/pjsip/pjproject/issues/4442</p>
+<h4>utils.h: Add rounding to float conversion to int.</h4>
+<p>Author: mkmer
+  Date:   2025-03-23</p>
+<p>Quote from an audio engineer NR9V:
+  There is a minor issue of a small amount of crossover distortion though as a result of <code>ast_slinear_saturated_multiply_float()</code> not rounding the float. This could result in some quiet but potentially audible distortion artifacts in lower volume parts of the signal. If you have for example a sign wave function with a max amplitude of just a few samples, all samples between -1 and 1 will be truncated to zero, resulting in the waveform no longer being a sine wave and in harmonic distortion.</p>
+<p>Resolves: #1176</p>
+<h4>pbx.c: when set flag AST_SOFTHANGUP_ASYNCGOTO, ast_explicit_goto should return..</h4>
+<p>Author: Tinet-mucw
+  Date:   2025-06-18</p>
+<p>Under certain circumstances the context/extens/prio are set in the ast_async_goto, for example action Redirect.
+  In the situation that action Redirect is broken by GotoIf this info is changed.
+  that will causes confusion in dialplan execution.</p>
+<p>Resolves: #1273</p>
+<h4>res_musiconhold.c: Ensure we're always locked around music state access.</h4>
+<p>Author: Sean Bright
+  Date:   2025-04-08</p>
+<h4>res_musiconhold.c: Annotate when the channel is locked.</h4>
+<p>Author: Sean Bright
+  Date:   2025-04-08</p>
+<h4>res_musiconhold: Appropriately lock channel during start.</h4>
+<p>Author: Jaco Kroon
+  Date:   2024-12-19</p>
+<p>This relates to #829</p>
+<p>This doesn't sully solve the Ops issue, but it solves the specific crash
+  there.  Further PRs to follow.</p>
+<p>In the specific crash the generator was still under construction when
+  moh was being stopped, which then proceeded to close the stream whilst
+  it was still in use.</p>
+<p>Signed-off-by: Jaco Kroon <a href="&#109;&#97;&#105;&#108;&#116;&#111;&#58;&#106;&#97;&#99;&#111;&#64;&#117;&#108;&#115;&#46;&#99;&#111;&#46;&#122;&#97;">&#106;&#97;&#99;&#111;&#64;&#117;&#108;&#115;&#46;&#99;&#111;&#46;&#122;&#97;</a></p>
+</body></html>
