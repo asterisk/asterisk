@@ -632,7 +632,7 @@ void ast_audiohook_detach_list(struct ast_audiohook_list *audiohook_list)
 		}
 		if (audiohook_list->out_translate[i].trans_pvt) {
 			ast_translator_free_path(audiohook_list->out_translate[i].trans_pvt);
-			ao2_cleanup(audiohook_list->in_translate[i].format);
+			ao2_cleanup(audiohook_list->out_translate[i].format);
 		}
 	}
 
