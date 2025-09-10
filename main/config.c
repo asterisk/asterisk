@@ -225,7 +225,8 @@ struct ast_category_template_instance {
 
 struct ast_category {
 	char name[80];
-	int ignored;			/*!< do not let user of the config see this category -- set by (!) after the category decl; a template */
+	int ignored:1;	/*!< do not let user of the config see this category -- set by (!) after the category decl; a template */
+	int loaded:1;	/*!< 0 = created in memory, 1 = loaded from disk */
 	int include_level;
 	/*!
 	 * \brief The file name from whence this declaration was read
@@ -2084,6 +2085,7 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 		if (!newcat) {
 			return -1;
 		}
+		(*cat)->loaded = 1;
 		(*cat)->lineno = lineno;
 
 		/* add comments */
@@ -3095,37 +3097,70 @@ int ast_config_text_file_save2(const char *configfile, const struct ast_config *
 			var = cat->root;
 			while (var) {
 				struct ast_category_template_instance *x;
-				int found = 0;
+				struct ast_variable *parent = NULL; /* last occurrence matching variable name */
 
-				AST_LIST_TRAVERSE(&cat->template_instances, x, next) {
-					struct ast_variable *v;
-					for (v = x->inst->root; v; v = v->next) {
+				/*
+				 * When saving the configuration we have the option to preserve
+				 * the effective category contents.  If enabled, the template
+				 * variables are materialized into the leaf categories.  Here,
+				 * we check to see if a variable is also present in the leaf
+				 * and, if so, we do not keep just the leaf value (no point in
+				 * duplicate "var = value" lines in the .conf.
+				 */
+				if ((flags & CONFIG_SAVE_FLAG_PRESERVE_EFFECTIVE_CONTEXT) && cat->loaded) {
+					if (var->inherited) {
+						struct ast_variable *v;
+						int skip = 0;
 
-						if (flags & CONFIG_SAVE_FLAG_PRESERVE_EFFECTIVE_CONTEXT) {
-							if (!strcasecmp(var->name, v->name) && !strcmp(var->value, v->value)) {
-								found = 1;
+						for (v = var->next; v; v = v->next) {
+							if (!strcasecmp(var->name, v->name)) {
+								/* skip earlier inherited duplicate */
+								skip = 1;
 								break;
-							}
-						} else {
-							if (var->inherited) {
-								found = 1;
-								break;
-							} else {
-								if (!strcasecmp(var->name, v->name) && !strcmp(var->value, v->value)) {
-									found = 1;
-									break;
-								}
 							}
 						}
-					}
-					if (found) {
-						break;
+						if (skip) {
+							var = var->next;
+							continue;
+						}
 					}
 				}
-				if (found) {
-					var = var->next;
-					continue;
+
+				/*
+				 * Walk every template instance in the order Asterisk applies
+				 * them, letting later templates override earlier ones.
+				 */
+				AST_LIST_TRAVERSE(&cat->template_instances, x, next) {
+					struct ast_variable *v;
+					struct ast_variable *last = NULL;
+
+					/* Within a template, capture the last occurrence of the key. */
+					for (v = x->inst->root; v; v = v->next) {
+						if (!strcasecmp(var->name, v->name)) {
+							last = v;
+						}
+					}
+
+					if (last) {
+						parent = last;
+					}
 				}
+
+				/* decide whether to write the variable */
+				if ((flags & CONFIG_SAVE_FLAG_PRESERVE_EFFECTIVE_CONTEXT) && cat->loaded) {
+					/* materialize inherited vars; suppress only explicit exact dups */
+					if (!var->inherited && parent && !strcmp(var->value, parent->value)) {
+						var = var->next;
+						continue;
+					}
+				} else {
+					/* skip inherited, explicit exact dups */
+					if (var->inherited || (parent && !strcmp(var->value, parent->value))) {
+						var = var->next;
+						continue;
+					}
+				}
+
 				fi = set_fn(fn, sizeof(fn), var->file, configfile, fileset);
 				f = fopen(fn, "a");
 				if (!f) {
