@@ -2446,8 +2446,12 @@ void ast_rtp_instance_early_bridge_make_compatible(struct ast_channel *c_dst, st
 		*vinstance_dst = NULL, *vinstance_src = NULL,
 		*tinstance_dst = NULL, *tinstance_src = NULL;
 	struct ast_rtp_glue *glue_dst, *glue_src;
-	enum ast_rtp_glue_result audio_glue_dst_res = AST_RTP_GLUE_RESULT_FORBID, video_glue_dst_res = AST_RTP_GLUE_RESULT_FORBID;
-	enum ast_rtp_glue_result audio_glue_src_res = AST_RTP_GLUE_RESULT_FORBID, video_glue_src_res = AST_RTP_GLUE_RESULT_FORBID;
+	enum ast_rtp_glue_result audio_glue_dst_res = AST_RTP_GLUE_RESULT_FORBID,
+		video_glue_dst_res = AST_RTP_GLUE_RESULT_FORBID,
+		text_glue_dst_res = AST_RTP_GLUE_RESULT_FORBID;
+	enum ast_rtp_glue_result audio_glue_src_res = AST_RTP_GLUE_RESULT_FORBID,
+		video_glue_src_res = AST_RTP_GLUE_RESULT_FORBID,
+		text_glue_src_res = AST_RTP_GLUE_RESULT_FORBID;
 	struct ast_format_cap *cap_dst = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 	struct ast_format_cap *cap_src = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 
@@ -2466,9 +2470,11 @@ void ast_rtp_instance_early_bridge_make_compatible(struct ast_channel *c_dst, st
 
 	audio_glue_dst_res = glue_dst->get_rtp_info(c_dst, &instance_dst);
 	video_glue_dst_res = glue_dst->get_vrtp_info ? glue_dst->get_vrtp_info(c_dst, &vinstance_dst) : AST_RTP_GLUE_RESULT_FORBID;
+	text_glue_dst_res = glue_dst->get_trtp_info ? glue_dst->get_trtp_info(c_dst, &tinstance_dst) : AST_RTP_GLUE_RESULT_FORBID;
 
 	audio_glue_src_res = glue_src->get_rtp_info(c_src, &instance_src);
 	video_glue_src_res = glue_src->get_vrtp_info ? glue_src->get_vrtp_info(c_src, &vinstance_src) : AST_RTP_GLUE_RESULT_FORBID;
+	text_glue_src_res = glue_src->get_trtp_info ? glue_src->get_trtp_info(c_src, &tinstance_src) : AST_RTP_GLUE_RESULT_FORBID;
 
 	/* If we are carrying video, and both sides are not going to remotely bridge... fail the native bridge */
 	if (video_glue_dst_res != AST_RTP_GLUE_RESULT_FORBID && (audio_glue_dst_res != AST_RTP_GLUE_RESULT_REMOTE || video_glue_dst_res != AST_RTP_GLUE_RESULT_REMOTE)) {
@@ -2481,6 +2487,20 @@ void ast_rtp_instance_early_bridge_make_compatible(struct ast_channel *c_dst, st
 		glue_dst->get_codec(c_dst, cap_dst);
 	}
 	if (audio_glue_src_res == AST_RTP_GLUE_RESULT_REMOTE && (video_glue_src_res == AST_RTP_GLUE_RESULT_FORBID || video_glue_src_res == AST_RTP_GLUE_RESULT_REMOTE) && glue_src->get_codec) {
+		glue_src->get_codec(c_src, cap_src);
+	}
+
+	/* If we are carrying text, and both sides are not going to remotely bridge... fail the native bridge */
+	if (text_glue_dst_res != AST_RTP_GLUE_RESULT_FORBID && (audio_glue_dst_res != AST_RTP_GLUE_RESULT_REMOTE || text_glue_dst_res != AST_RTP_GLUE_RESULT_REMOTE)) {
+		audio_glue_dst_res = AST_RTP_GLUE_RESULT_FORBID;
+	}
+	if (text_glue_src_res != AST_RTP_GLUE_RESULT_FORBID && (audio_glue_src_res != AST_RTP_GLUE_RESULT_REMOTE || text_glue_src_res != AST_RTP_GLUE_RESULT_REMOTE)) {
+		audio_glue_src_res = AST_RTP_GLUE_RESULT_FORBID;
+	}
+	if (audio_glue_dst_res == AST_RTP_GLUE_RESULT_REMOTE && (text_glue_dst_res == AST_RTP_GLUE_RESULT_FORBID || text_glue_dst_res == AST_RTP_GLUE_RESULT_REMOTE) && glue_dst->get_codec) {
+		glue_dst->get_codec(c_dst, cap_dst);
+	}
+	if (audio_glue_src_res == AST_RTP_GLUE_RESULT_REMOTE && (text_glue_src_res == AST_RTP_GLUE_RESULT_FORBID || text_glue_src_res == AST_RTP_GLUE_RESULT_REMOTE) && glue_src->get_codec) {
 		glue_src->get_codec(c_src, cap_src);
 	}
 
