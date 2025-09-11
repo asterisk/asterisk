@@ -22,8 +22,10 @@
 #include "asterisk/serializer.h"
 #include "asterisk/taskprocessor.h"
 #include "asterisk/threadpool.h"
+#include "asterisk/taskpool.h"
 #include "asterisk/utils.h"
 #include "asterisk/vector.h"
+#include "asterisk/serializer_shutdown_group.h"
 
 struct ast_serializer_pool {
 	/*! Shutdown group to monitor serializers. */
@@ -101,6 +103,52 @@ struct ast_serializer_pool *ast_serializer_pool_create(const char *name,
 		ast_taskprocessor_name_append(tps_name, sizeof(tps_name), name);
 
 		tps = ast_threadpool_serializer_group(tps_name, threadpool, pool->shutdown_group);
+		if (!tps) {
+			ast_serializer_pool_destroy(pool);
+			ast_log(LOG_ERROR, "Pool create: unable to create named serializer '%s'\n",
+					tps_name);
+			return NULL;
+		}
+
+		if (AST_VECTOR_APPEND(&pool->serializers, tps)) {
+			ast_serializer_pool_destroy(pool);
+			ast_log(LOG_ERROR, "Pool create: unable to append named serializer '%s'\n",
+					tps_name);
+			return NULL;
+		}
+	}
+
+	return pool;
+}
+
+struct ast_serializer_pool *ast_serializer_taskpool_create(const char *name,
+	unsigned int size, struct ast_taskpool *taskpool, int timeout)
+{
+	struct ast_serializer_pool *pool;
+	char tps_name[AST_TASKPROCESSOR_MAX_NAME + 1];
+	size_t idx;
+
+	ast_assert(size > 0);
+
+	pool = ast_malloc(sizeof(*pool) + strlen(name) + 1);
+	if (!pool) {
+		return NULL;
+	}
+
+	strcpy(pool->name, name); /* safe */
+
+	pool->shutdown_group_timeout = timeout;
+	pool->shutdown_group = timeout > -1 ? ast_serializer_shutdown_group_alloc() : NULL;
+
+	AST_VECTOR_RW_INIT(&pool->serializers, size);
+
+	for (idx = 0; idx < size; ++idx) {
+		struct ast_taskprocessor *tps;
+
+		/* Create name with seq number appended. */
+		ast_taskprocessor_name_append(tps_name, sizeof(tps_name), name);
+
+		tps = ast_taskpool_serializer_group(tps_name, taskpool, pool->shutdown_group);
 		if (!tps) {
 			ast_serializer_pool_destroy(pool);
 			ast_log(LOG_ERROR, "Pool create: unable to create named serializer '%s'\n",

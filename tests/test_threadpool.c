@@ -231,7 +231,9 @@ static enum ast_test_result_state wait_for_empty_notice(struct ast_test *test, s
 	}
 
 	if (!tld->empty_notice) {
-		ast_test_status_update(test, "Test listener not notified that threadpool is empty\n");
+		if (test) {
+			ast_test_status_update(test, "Test listener not notified that threadpool is empty\n");
+		}
 		res = AST_TEST_FAIL;
 	}
 
@@ -345,6 +347,113 @@ end:
 	simple_task_data_free(std);
 	ast_free(tld);
 	return res;
+}
+
+struct efficiency_task_data {
+	struct ast_threadpool *pool;
+	int num_tasks_executed;
+	int shutdown;
+};
+
+static int efficiency_task(void *data)
+{
+	struct efficiency_task_data *etd = data;
+
+	if (etd->shutdown) {
+		return 0;
+	}
+
+	ast_atomic_fetchadd_int(&etd->num_tasks_executed, +1);
+
+	if (ast_threadpool_push(etd->pool, efficiency_task, etd)) {
+		return -1;
+	}
+
+	return 0;
+}
+
+static char *handle_cli_threadpool_push_efficiency(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct ast_threadpool *pool = NULL;
+	struct ast_threadpool_listener *listener = NULL;
+	struct test_listener_data *tld = NULL;
+	enum ast_test_result_state res = AST_TEST_FAIL;
+	struct ast_threadpool_options options = {
+		.version = AST_THREADPOOL_OPTIONS_VERSION,
+		.idle_timeout = 0,
+		.auto_increment = 0,
+		.initial_size = 5,
+		.max_size = 5,
+	};
+	struct efficiency_task_data etd = {
+		.pool = NULL,
+		.num_tasks_executed = 0,
+		.shutdown = 0,
+	};
+	struct timeval start;
+	struct timespec end;
+	int i;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "threadpool push efficiency";
+		e->usage =
+			"Usage: threadpool push efficiency\n"
+			"       Pushes 200 tasks to a threadpool and measures\n"
+			"       the number of tasks executed within 30 seconds.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	tld = test_alloc();
+	if (!tld) {
+		return CLI_SUCCESS;
+	}
+
+	listener = ast_threadpool_listener_alloc(&test_callbacks, tld);
+	if (!listener) {
+		goto end;
+	}
+
+	pool = ast_threadpool_create("threadpool_push_efficiency", listener, &options);
+	if (!pool) {
+		goto end;
+	}
+
+	etd.pool = pool;
+
+	/* Push in 200 tasks, cause why not */
+	for (i = 0; i < 200; i++) {
+		if (ast_threadpool_push(pool, efficiency_task, &etd)) {
+			goto end;
+		}
+	}
+
+	/* Wait for 30 seconds */
+	start = ast_tvnow();
+	end.tv_sec = start.tv_sec + 30;
+	end.tv_nsec = start.tv_usec * 1000;
+
+	ast_mutex_lock(&tld->lock);
+	while (ast_cond_timedwait(&tld->cond, &tld->lock, &end) != ETIMEDOUT) {
+	}
+	ast_mutex_unlock(&tld->lock);
+
+	/* Give the total tasks executed, and tell each task to not requeue */
+	ast_cli(a->fd, "Total tasks executed in 30 seconds: %d\n", etd.num_tasks_executed);
+	etd.shutdown = 1;
+
+	res = wait_for_empty_notice(NULL, tld);
+	if (res == AST_TEST_FAIL) {
+		goto end;
+	}
+
+end:
+	ast_threadpool_shutdown(pool);
+	ao2_cleanup(listener);
+	ast_free(tld);
+	return CLI_SUCCESS;
 }
 
 AST_TEST_DEFINE(threadpool_initial_threads)
@@ -1744,6 +1853,147 @@ end:
 	return res;
 }
 
+struct serializer_efficiency_task_data {
+	struct ast_taskprocessor *serializer[2];
+	int *num_tasks_executed;
+	int *shutdown;
+};
+
+static int serializer_efficiency_task(void *data)
+{
+	struct serializer_efficiency_task_data *etd = data;
+	struct ast_taskprocessor *taskprocessor = etd->serializer[0];
+
+	if (*etd->shutdown) {
+		return 0;
+	}
+
+	ast_atomic_fetchadd_int(etd->num_tasks_executed, +1);
+
+	/* We ping pong a task between a pair of taskprocessors to ensure that
+	 * a single taskprocessor does not receive a thread from the threadpool
+	 * exclusively.
+	 */
+	if (taskprocessor == ast_threadpool_serializer_get_current()) {
+		taskprocessor = etd->serializer[1];
+	}
+
+	if (ast_taskprocessor_push(taskprocessor,
+		serializer_efficiency_task, etd)) {
+		return -1;
+	}
+
+	return 0;
+}
+
+static char *handle_cli_threadpool_push_serializer_efficiency(struct ast_cli_entry *e, int cmd,
+	struct ast_cli_args *a)
+{
+	struct ast_threadpool *pool = NULL;
+	struct ast_threadpool_listener *listener = NULL;
+	struct test_listener_data *tld = NULL;
+	enum ast_test_result_state res = AST_TEST_FAIL;
+	struct ast_threadpool_options options = {
+		.version = AST_THREADPOOL_OPTIONS_VERSION,
+		.idle_timeout = 0,
+		.auto_increment = 0,
+		.initial_size = 5,
+		.max_size = 5,
+	};
+	struct serializer_efficiency_task_data etd[200];
+	struct timeval start;
+	struct timespec end;
+	int i;
+	int num_tasks_executed = 0;
+	int shutdown = 0;
+
+	switch (cmd) {
+		case CLI_INIT:
+			e->command = "threadpool push serializer efficiency";
+			e->usage =
+				"Usage: threadpool push serializer efficiency\n"
+				"       Pushes 200 tasks to a threadpool in serializers and measures\n"
+				"       the number of tasks executed within 30 seconds.\n";
+			return NULL;
+		case CLI_GENERATE:
+			return NULL;
+		}
+
+	tld = test_alloc();
+	if (!tld) {
+		return CLI_SUCCESS;
+	}
+
+	memset(&etd, 0, sizeof(etd));
+
+	listener = ast_threadpool_listener_alloc(&test_callbacks, tld);
+	if (!listener) {
+		goto end;
+	}
+
+	pool = ast_threadpool_create("threadpool_push_serializer_efficiency", listener, &options);
+	if (!pool) {
+		goto end;
+	}
+
+	/* We create 400 (200 pairs) of serializers */
+	for (i = 0; i < 200; i++) {
+		char serializer_name[AST_TASKPROCESSOR_MAX_NAME + 1];
+
+		ast_taskprocessor_build_name(serializer_name, sizeof(serializer_name), "serializer%d", i);
+		etd[i].serializer[0] = ast_threadpool_serializer(serializer_name, pool);
+		if (!etd[i].serializer[0]) {
+			goto end;
+		}
+
+		ast_taskprocessor_build_name(serializer_name, sizeof(serializer_name), "serializer%d", i);
+		etd[i].serializer[1] = ast_threadpool_serializer(serializer_name, pool);
+		if (!etd[i].serializer[1]) {
+			goto end;
+		}
+
+		etd[i].num_tasks_executed = &num_tasks_executed;
+		etd[i].shutdown = &shutdown;
+	}
+
+	/* And once created we push in 200 tasks */
+	for (i = 0; i < 200; i++) {
+		if (ast_taskprocessor_push(etd[i].serializer[0], serializer_efficiency_task, &etd[i])) {
+			goto end;
+		}
+	}
+
+	/* Wait for 30 seconds */
+	start = ast_tvnow();
+	end.tv_sec = start.tv_sec + 30;
+	end.tv_nsec = start.tv_usec * 1000;
+
+	ast_mutex_lock(&tld->lock);
+	while (ast_cond_timedwait(&tld->cond, &tld->lock, &end) != ETIMEDOUT) {
+	}
+	ast_mutex_unlock(&tld->lock);
+
+	/* Give the total tasks executed, and tell each task to not requeue */
+	ast_cli(a->fd, "Total tasks executed in 30 seconds: %d\n", num_tasks_executed);
+	shutdown = 1;
+
+	res = wait_for_empty_notice(NULL, tld);
+	if (res == AST_TEST_FAIL) {
+		goto end;
+	}
+
+end:
+	/* We need to unreference each serializer */
+	for (i = 0; i < 200; i++) {
+		ast_taskprocessor_unreference(etd[i].serializer[0]);
+		ast_taskprocessor_unreference(etd[i].serializer[1]);
+	}
+	ast_threadpool_shutdown(pool);
+	ao2_cleanup(listener);
+	ast_free(tld);
+	return CLI_SUCCESS;
+}
+
 AST_TEST_DEFINE(threadpool_serializer_dupe)
 {
 	enum ast_test_result_state res = AST_TEST_FAIL;
@@ -1798,6 +2048,11 @@ end:
 	return res;
 }
 
+static struct ast_cli_entry cli[] = {
+	AST_CLI_DEFINE(handle_cli_threadpool_push_efficiency, "Push tasks to a threadpool and measure efficiency"),
+	AST_CLI_DEFINE(handle_cli_threadpool_push_serializer_efficiency, "Push tasks to a threadpool in serializers and measure efficiency"),
+};
+
 static int unload_module(void)
 {
 	ast_test_unregister(threadpool_push);
@@ -1816,11 +2071,13 @@ static int unload_module(void)
 	ast_test_unregister(threadpool_more_destruction);
 	ast_test_unregister(threadpool_serializer);
 	ast_test_unregister(threadpool_serializer_dupe);
+	ast_cli_unregister_multiple(cli, ARRAY_LEN(cli));
 	return 0;
 }
 
 static int load_module(void)
 {
+	ast_cli_register_multiple(cli, ARRAY_LEN(cli));
 	ast_test_register(threadpool_push);
 	ast_test_register(threadpool_initial_threads);
 	ast_test_register(threadpool_thread_creation);
