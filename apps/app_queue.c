@@ -6789,7 +6789,15 @@ static void handle_local_optimization_begin(void *userdata, struct stasis_subscr
 	struct local_optimization *optimization;
 	unsigned int id;
 	SCOPED_AO2LOCK(lock, queue_data);
-
+	
+	if (!local_one || !local_two || !source) {
+		ast_debug(1, "Local optimization begin missing channel snapshots:%s%s%s\n",
+		!local_one ? " local_one," : "",
+		!local_two ? " local_two," : "", 
+		!source ? " source," : "");
+		return;
+	}
+	
 	if (queue_data->dying) {
 		return;
 	}
@@ -10685,7 +10693,7 @@ static char *complete_queue(const char *line, const char *word, int pos, int sta
 	queue_iter = ao2_iterator_init(queues, 0);
 	while ((q = ao2_t_iterator_next(&queue_iter, "Iterate through queues"))) {
 		if (!strncasecmp(word, q->name, wordlen) && ++which > state
-			&& (!word_list_offset || !word_in_list(word_list, q->name))) {
+			&& (!word_list_offset || !word_list || !word_in_list(word_list, q->name))) {
 			ret = ast_strdup(q->name);
 			queue_t_unref(q, "Done with iterator");
 			break;
