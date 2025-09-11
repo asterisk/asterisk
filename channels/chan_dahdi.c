@@ -220,6 +220,61 @@
 			</example>
 		</description>
 	</function>
+	<function name="DAHDI_CHANNEL" language="en_US">
+		<synopsis>
+			Set or get a property of a DAHDI channel.
+		</synopsis>
+		<syntax>
+			<parameter name="property" required="true">
+				<para>The property to set or get.</para>
+				<enumlist>
+					<enum name="owner">
+						<para>R/O The name of the active channel on this DAHDI device.</para>
+					</enum>
+					<enum name="callwait">
+						<para>R/O The name of the call waiting channel on this DAHDI device.</para>
+					</enum>
+					<enum name="threeway">
+						<para>R/O The name of the three-way channel on this DAHDI device.</para>
+					</enum>
+					<enum name="polarity">
+						<para>R/W The polarity of the channel (0 or 1, idle or reverse can also be used for setting).</para>
+						<para>Only valid on FXO-signalled channels.</para>
+					</enum>
+					<enum name="dnd">
+						<para>R/W Whether Do Not Disturb is active.</para>
+						<para>Only valid on FXO-signalled channels.</para>
+					</enum>
+					<enum name="callforward">
+						<para>R/W The call forwarding target number.</para>
+						<para>Only valid on FXO-signalled channels.</para>
+					</enum>
+					<enum name="lastexten">
+						<para>R/W The last number dialed.</para>
+						<para>Only valid on FXO-signalled channels.</para>
+					</enum>
+				</enumlist>
+			</parameter>
+			<parameter name="channel" required="false">
+				<para>The DAHDI channel number.</para>
+				<para>If not specified, the DAHDI channel number of the current channel
+				will be used (in which case it must be a DAHDI channel).</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>The DAHDI_CHANNEL function can be used to set or get properties of DAHDI channels
+			that are not specific to Asterisk channels.</para>
+			<para>This function may also be called from non-DAHDI channels.</para>
+			<example title="Set reverse polarity on current DAHDI channel">
+			same => n,Set(DAHDI_CHANNEL(polarity)=1)
+			same => n,NoOp(${DAHDI_CHANNEL(polarity)})
+			</example>
+			<example title="Set call forwarding target for channel 1">
+			same => n,Set(DAHDI_CHANNEL(callforwardnumber,1)=5552368)
+			same => n,NoOp(Calls now forwarding to ${DAHDI_CHANNEL(callforwardnumber,1)})
+			</example>
+		</description>
+	</function>
 	<info name="CHANNEL" language="en_US" tech="DAHDI">
 		<enumlist>
 			<enum name="dahdi_channel">
@@ -2912,86 +2967,6 @@ static void my_hangup_polarityswitch(void *pvt)
 		my_set_polarity(pvt, 1);
 	}
 }
-
-/*! \brief Return DAHDI pivot if channel is FXO signalled */
-static struct dahdi_pvt *fxo_pvt(struct ast_channel *chan)
-{
-	int res;
-	struct dahdi_params dahdip;
-	struct dahdi_pvt *pvt = NULL;
-
-	if (strcasecmp(ast_channel_tech(chan)->type, "DAHDI")) {
-		ast_log(LOG_WARNING, "%s is not a DAHDI channel\n", ast_channel_name(chan));
-		return NULL;
-	}
-
-	memset(&dahdip, 0, sizeof(dahdip));
-	res = ioctl(ast_channel_fd(chan, 0), DAHDI_GET_PARAMS, &dahdip);
-
-	if (res) {
-		ast_log(LOG_WARNING, "Unable to get parameters of %s: %s\n", ast_channel_name(chan), strerror(errno));
-		return NULL;
-	}
-	if (!(dahdip.sigtype & __DAHDI_SIG_FXO)) {
-		ast_log(LOG_WARNING, "%s is not FXO signalled\n", ast_channel_name(chan));
-		return NULL;
-	}
-
-	pvt = ast_channel_tech_pvt(chan);
-	if (!dahdi_analog_lib_handles(pvt->sig, 0, 0)) {
-		ast_log(LOG_WARNING, "Channel signalling is not analog");
-		return NULL;
-	}
-
-	return pvt;
-}
-
-static int polarity_read(struct ast_channel *chan, const char *cmd, char *data, char *buffer, size_t buflen)
-{
-	struct dahdi_pvt *pvt;
-
-	pvt = fxo_pvt(chan);
-	if (!pvt) {
-		return -1;
-	}
-
-	snprintf(buffer, buflen, "%d", pvt->polarity);
-
-	return 0;
-}
-
-static int polarity_write(struct ast_channel *chan, const char *cmd, char *data, const char *value)
-{
-	struct dahdi_pvt *pvt;
-	int polarity;
-
-	pvt = fxo_pvt(chan);
-	if (!pvt) {
-		return -1;
-	}
-
-	if (!strcasecmp(value, "idle")) {
-		polarity = POLARITY_IDLE;
-	} else if (!strcasecmp(value, "reverse")) {
-		polarity = POLARITY_REV;
-	} else {
-		polarity = atoi(value);
-	}
-
-	if (polarity != POLARITY_IDLE && polarity != POLARITY_REV) {
-		ast_log(LOG_WARNING, "Invalid polarity: '%s'\n", value);
-		return -1;
-	}
-
-	my_set_polarity(pvt, polarity);
-	return 0;
-}
-
-static struct ast_custom_function polarity_function = {
-	.name = "POLARITY",
-	.write = polarity_write,
-	.read = polarity_read,
-};
 
 static int my_start(void *pvt)
 {
@@ -16905,6 +16880,206 @@ static struct dahdi_pvt *find_channel_from_str(const char *channel)
 	return find_channel(chan_num);
 }
 
+static int print_subchannel(struct dahdi_pvt *p, int subchan, char *buffer, size_t len)
+{
+	if (!p->subs[subchan].owner) {
+		return -1;
+	}
+	ast_channel_lock(p->subs[subchan].owner);
+	snprintf(buffer, len, "%s", ast_channel_name(p->subs[subchan].owner));
+	ast_channel_unlock(p->subs[subchan].owner);
+	return 0;
+}
+
+#define REQUIRE_FXO_SIG() \
+	if (!(dahdip->sigtype & __DAHDI_SIG_FXO)) { \
+		ast_log(LOG_WARNING, "DAHDI channel %d is not FXO signalled\n", p->channel); \
+		return -1; \
+	}
+
+static int dahdichan_read_property(struct dahdi_pvt *p, struct dahdi_params *dahdip, const char *property, char *buffer, size_t len)
+{
+	struct analog_pvt *analog_p = p->sig_pvt;
+
+	/* R/O properties */
+	if (!strcasecmp(property, "owner")) {
+		return print_subchannel(p, SUB_REAL, buffer, len);
+	} else if (!strcasecmp(property, "callwait")) {
+		return print_subchannel(p, SUB_CALLWAIT, buffer, len);
+	} else if (!strcasecmp(property, "threeway")) {
+		return print_subchannel(p, SUB_THREEWAY, buffer, len);
+	/* R/W properties */
+	} else if (!strcasecmp(property, "polarity")) {
+		REQUIRE_FXO_SIG();
+		snprintf(buffer, len, "%d", p->polarity);
+	} else if (!strcasecmp(property, "dnd")) {
+		REQUIRE_FXO_SIG();
+		snprintf(buffer, len, "%d", analog_p->dnd);
+	} else if (!strcasecmp(property, "callforward")) {
+		REQUIRE_FXO_SIG();
+		snprintf(buffer, len, "%s", analog_p->call_forward);
+	} else if (!strcasecmp(property, "lastexten")) {
+		REQUIRE_FXO_SIG();
+		snprintf(buffer, len, "%s", analog_p->lastexten);
+	} else {
+		ast_log(LOG_ERROR, "Unknown DAHDI_CHANNEL property '%s'\n", property);
+		return -1;
+	}
+	return 0;
+}
+
+static int dahdichan_write_property(struct dahdi_pvt *p, struct dahdi_params *dahdip, const char *property, const char *value)
+{
+	struct analog_pvt *analog_p = p->sig_pvt;
+
+	/* We don't need to check ast_strlen_zero(value) because it's obviously not NULL.
+	 * It may even be okay for it to be an empty string, but that's a per-setting thing. */
+
+	/* R/O properties */
+	if (!strcasecmp(property, "owner") || !strcasecmp(property, "callwait") || !strcasecmp(property, "threeway")) {
+		ast_log(LOG_ERROR, "DAHDI subchannel names are R/O\n");
+		return -1;
+	/* R/W properties */
+	} else if (!strcasecmp(property, "polarity")) {
+		int polarity = atoi(value);
+		REQUIRE_FXO_SIG();
+		if (polarity != POLARITY_IDLE && polarity != POLARITY_REV) {
+			ast_log(LOG_ERROR, "Invalid polarity: '%s'\n", value);
+			return -1;
+		}
+		my_set_polarity(p, polarity);
+	} else if (!strcasecmp(property, "dnd")) {
+		int dnd = atoi(value);
+		REQUIRE_FXO_SIG();
+		analog_dnd(analog_p, dnd ? 1 : 0);
+	} else if (!strcasecmp(property, "callforward")) {
+		REQUIRE_FXO_SIG();
+		if (strlen(value) >= sizeof(analog_p->call_forward) - 1) {
+			ast_log(LOG_ERROR, "Provided call forwarding target '%s' is too long\n", value);
+		}
+		ast_copy_string(analog_p->call_forward, value, sizeof(analog_p->call_forward)); /* Could be empty to clear value */
+	} else if (!strcasecmp(property, "lastexten")) {
+		REQUIRE_FXO_SIG();
+		if (strlen(value) >= sizeof(analog_p->lastexten) - 1) {
+			ast_log(LOG_ERROR, "Provided lastexten target '%s' is too long\n", value);
+		}
+		ast_copy_string(analog_p->lastexten, value, sizeof(analog_p->lastexten)); /* Could be empty to clear value */
+	} else {
+		ast_log(LOG_ERROR, "Unknown DAHDI_CHANNEL property '%s'\n", property);
+		return -1;
+	}
+	return 0;
+}
+#undef REQUIRE_FXO_SIG
+
+static int dahdichan_helper(struct ast_channel *chan, char *data, const char *value, char *buffer, size_t buflen)
+{
+	char *parse;
+	struct dahdi_pvt *pvt;
+	struct dahdi_params dahdip;
+	int res;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(property);
+		AST_APP_ARG(dahdichan);
+	);
+
+	parse = ast_strdupa(data);
+	AST_STANDARD_APP_ARGS(args, parse);
+
+	if (buflen > 0) {
+		*buffer = '\0';
+	}
+
+	if (!ast_strlen_zero(args.dahdichan)) {
+		/* DAHDI channel number explicitly provided, find it. */
+		int channo = atoi(args.dahdichan);
+		pvt = find_channel(channo);
+		if (!pvt) {
+			ast_log(LOG_ERROR, "DAHDI channel %d does not exist\n", channo);
+			return -1;
+		}
+	} else {
+		/* No channel specified explicitly, so implicitly use the current channel, in which case it must be a DAHDI channel. */
+		if (!chan || !ast_channel_tech(chan) || strcasecmp(ast_channel_tech(chan)->type, "DAHDI")) {
+			ast_log(LOG_WARNING, "%s is not a DAHDI channel, and no DAHDI channel specified\n", ast_channel_name(chan));
+			return -1;
+		}
+		pvt = ast_channel_tech_pvt(chan);
+	}
+
+	memset(&dahdip, 0, sizeof(dahdip));
+	if (ioctl(pvt->subs[SUB_REAL].dfd, DAHDI_GET_PARAMS, &dahdip)) {
+		ast_log(LOG_WARNING, "Unable to get parameters of DAHDI channel %d: %s\n", pvt->channel, strerror(errno));
+		return -1;
+	}
+
+	/* We have the channel private to use. */
+	ast_mutex_lock(&pvt->lock);
+	if (value) {
+		res = dahdichan_write_property(pvt, &dahdip, args.property, value);
+	} else {
+		res = dahdichan_read_property(pvt, &dahdip, args.property, buffer, buflen);
+	}
+	ast_mutex_unlock(&pvt->lock);
+	return res;
+}
+
+static int dahdichan_read(struct ast_channel *chan, const char *cmd, char *data, char *buffer, size_t buflen)
+{
+	return dahdichan_helper(chan, data, NULL, buffer, buflen);
+}
+
+static int dahdichan_write(struct ast_channel *chan, const char *cmd, char *data, const char *value)
+{
+	return dahdichan_helper(chan, data, value, NULL, 0);
+}
+
+static struct ast_custom_function dahdichan_function = {
+	.name = "DAHDI_CHANNEL",
+	.write = dahdichan_write,
+	.read = dahdichan_read,
+};
+
+/*! \todo The standalone POLARITY function can and should be deprecated/removed, since its functionality is now part of DAHDI_CHANNEL. */
+
+static int polarity_read(struct ast_channel *chan, const char *cmd, char *data, char *buffer, size_t buflen)
+{
+	struct dahdi_params dahdip;
+	struct dahdi_pvt *pvt = ast_channel_tech_pvt(chan);
+	if (strcasecmp(ast_channel_tech(chan)->type, "DAHDI")) {
+		ast_log(LOG_WARNING, "%s is not a DAHDI channel\n", ast_channel_name(chan));
+		return -1;
+	}
+	memset(&dahdip, 0, sizeof(dahdip));
+	if (ioctl(pvt->subs[SUB_REAL].dfd, DAHDI_GET_PARAMS, &dahdip)) {
+		ast_log(LOG_WARNING, "Unable to get parameters of DAHDI channel %d: %s\n", pvt->subs[SUB_REAL].dfd, strerror(errno));
+		return -1;
+	}
+	return dahdichan_read_property(ast_channel_tech_pvt(chan), &dahdip, "polarity", buffer, buflen);
+}
+
+static int polarity_write(struct ast_channel *chan, const char *cmd, char *data, const char *value)
+{
+	struct dahdi_params dahdip;
+	struct dahdi_pvt *pvt = ast_channel_tech_pvt(chan);
+	if (strcasecmp(ast_channel_tech(chan)->type, "DAHDI")) {
+		ast_log(LOG_WARNING, "%s is not a DAHDI channel\n", ast_channel_name(chan));
+		return -1;
+	}
+	memset(&dahdip, 0, sizeof(dahdip));
+	if (ioctl(pvt->subs[SUB_REAL].dfd, DAHDI_GET_PARAMS, &dahdip)) {
+		ast_log(LOG_WARNING, "Unable to get parameters of DAHDI channel %d: %s\n", pvt->subs[SUB_REAL].dfd, strerror(errno));
+		return -1;
+	}
+	return dahdichan_write_property(ast_channel_tech_pvt(chan), &dahdip, "polarity", value);
+}
+
+static struct ast_custom_function polarity_function = {
+	.name = "POLARITY",
+	.write = polarity_write,
+	.read = polarity_read,
+};
+
 static int action_dahdidndon(struct mansession *s, const struct message *m)
 {
 	struct dahdi_pvt *p;
@@ -18258,6 +18433,7 @@ static int __unload_module(void)
 	ast_unregister_application(dahdi_accept_r2_call_app);
 #endif
 
+	ast_custom_function_unregister(&dahdichan_function);
 	ast_custom_function_unregister(&polarity_function);
 
 	ast_cli_unregister_multiple(dahdi_cli, ARRAY_LEN(dahdi_cli));
@@ -20407,6 +20583,7 @@ static int load_module(void)
 	ast_register_application_xml(dahdi_accept_r2_call_app, dahdi_accept_r2_call_exec);
 #endif
 
+	ast_custom_function_register(&dahdichan_function);
 	ast_custom_function_register(&polarity_function);
 
 	ast_cli_register_multiple(dahdi_cli, ARRAY_LEN(dahdi_cli));

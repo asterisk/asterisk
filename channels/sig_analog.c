@@ -2452,7 +2452,9 @@ static void *__analog_ss_thread(void *data)
 				/* Last Number Redial */
 				if (!ast_strlen_zero(p->lastexten)) {
 					ast_verb(4, "Redialing last number dialed on channel %d\n", p->channel);
+					analog_lock_private(p);
 					ast_copy_string(exten, p->lastexten, sizeof(exten));
+					analog_unlock_private(p);
 				} else {
 					ast_verb(3, "Last Number Redial not possible on channel %d (no saved number)\n", p->channel);
 					res = analog_play_tone(p, idx, ANALOG_TONE_CONGESTION);
@@ -2465,8 +2467,10 @@ static void *__analog_ss_thread(void *data)
 				if (!res || !ast_matchmore_extension(chan, ast_channel_context(chan), exten, 1, p->cid_num)) {
 					if (getforward) {
 						/* Record this as the forwarding extension */
+						analog_lock_private(p);
 						ast_copy_string(p->call_forward, exten, sizeof(p->call_forward));
-						ast_verb(3, "Setting call forward to '%s' on channel %d\n", p->call_forward, p->channel);
+						analog_unlock_private(p);
+						ast_verb(3, "Setting call forward to '%s' on channel %d\n", exten, p->channel);
 						res = analog_play_tone(p, idx, ANALOG_TONE_DIALRECALL);
 						if (res) {
 							break;
