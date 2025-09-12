@@ -1101,6 +1101,70 @@ int ast_bridge_queue_everyone_else(struct ast_bridge *bridge, struct ast_bridge_
 	return not_written;
 }
 
+/*!
+ * \brief Purge all buffered packets from a bridge channel's write queue
+ * \since 18.0.0
+ *
+ * \param bridge_channel The bridge channel to purge packets from
+ * \param frame_type_filter Optional frame type to filter by (0 for all types)
+ *
+ * \retval Number of frames purged
+ */
+int ast_avoxi_bridge_channel_purge_queue(struct ast_bridge_channel *bridge_channel, enum ast_frame_type frame_type_filter)
+{
+	struct ast_frame *fr;
+	int purged_count = 0;
+
+	if (!bridge_channel) {
+		return 0;
+	}
+
+	ast_bridge_channel_lock(bridge_channel);
+
+	/* Purge frames from the write queue */
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&bridge_channel->wr_queue, fr, frame_list) {
+		/* If no filter specified or frame type matches filter */
+		if (frame_type_filter == 0 || fr->frametype == frame_type_filter) {
+			AST_LIST_REMOVE_CURRENT(frame_list);
+			bridge_frame_free(fr);
+			purged_count++;
+		}
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
+
+	/* Also flush the alert pipe to clear any pending alerts */
+	ast_alertpipe_flush(bridge_channel->alert_pipe);
+
+	ast_bridge_channel_unlock(bridge_channel);
+
+	return purged_count;
+}
+
+/*!
+ * \brief Purge all buffered packets from all channels in a bridge
+ * \since 18.0.0
+ *
+ * \param bridge The bridge to purge packets from
+ * \param frame_type_filter Optional frame type to filter by (0 for all types)
+ *
+ * \retval Total number of frames purged across all channels
+ */
+int ast_avoxi_bridge_purge_all_queues(struct ast_bridge *bridge, enum ast_frame_type frame_type_filter)
+{
+	struct ast_bridge_channel *bridge_channel;
+	int total_purged = 0;
+
+	if (!bridge) {
+		return 0;
+	}
+
+	AST_LIST_TRAVERSE(&bridge->channels, bridge_channel, entry) {
+		total_purged += ast_avoxi_bridge_channel_purge_queue(bridge_channel, frame_type_filter);
+	}
+
+	return total_purged;
+}
+
 int ast_bridge_channel_queue_control_data(struct ast_bridge_channel *bridge_channel, enum ast_control_frame_type control, const void *data, size_t datalen)
 {
 	struct ast_frame frame = {

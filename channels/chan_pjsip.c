@@ -686,6 +686,8 @@ static int answer(void *data)
 	pj_status_t status = PJ_SUCCESS;
 	pjsip_tx_data *packet = NULL;
 	struct ast_sip_session *session = ans_data->session;
+	struct ast_bridge *bridge;
+	int purged_count = 0;
 	SCOPE_ENTER_TASK(1, ans_data->indent, "%s\n", ast_sip_session_get_name(session));
 
 	if (session->inv_session->state == PJSIP_INV_STATE_DISCONNECTED) {
@@ -693,6 +695,16 @@ static int answer(void *data)
 			session->inv_session->cause,
 			pjsip_get_status_text(session->inv_session->cause)->ptr);
 		SCOPE_EXIT_RTN_VALUE(0, "Disconnected\n");
+	}
+
+	/* Purge any buffered packets from the bridge before answering */
+	if (session->channel && (bridge = ast_channel_get_bridge(session->channel))) {
+		purged_count = ast_avoxi_bridge_purge_all_queues(bridge, 0); /* 0 = all frame types */
+		if (purged_count > 0) {
+			ast_log(LOG_DEBUG, "Purged %d buffered packets from bridge %s before answering channel %s\n",
+				purged_count, bridge->uniqueid, ast_channel_name(session->channel));
+		}
+		ao2_ref(bridge, -1);
 	}
 
 	pjsip_dlg_inc_lock(session->inv_session->dlg);
