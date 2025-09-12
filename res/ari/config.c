@@ -119,6 +119,11 @@ static int outbound_websocket_apply(const struct ast_sorcery *sorcery, void *obj
 
 	ast_debug(3, "%s: Initializing outbound websocket\n", id);
 
+	if (!owc->websocket_client) {
+		ast_log(LOG_WARNING, "%s: Outbound websocket missing websocket_client_id\n", id);
+		res = -1;
+	}
+
 	if (ast_strlen_zero(owc->apps)) {
 		ast_log(LOG_WARNING, "%s: Outbound websocket missing apps\n", id);
 		res = -1;
