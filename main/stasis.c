@@ -97,30 +97,40 @@
 			</configObject>
 			<configObject name="taskpool">
 				<since>
-					<version>24.0.0</version>
+					<version>23.1.0</version>
+					<version>22.7.0</version>
+					<version>20.17.0</version>
 				</since>
 				<synopsis>Settings that configure the taskpool Stasis uses to deliver some messages.</synopsis>
 				<configOption name="minimum_size" default="5">
 					<since>
-					<version>24.0.0</version>
+					<version>23.1.0</version>
+					<version>22.7.0</version>
+					<version>20.17.0</version>
 					</since>
 					<synopsis>Minimum number of taskprocessors in the message bus taskpool.</synopsis>
 				</configOption>
 				<configOption name="initial_size" default="5">
 					<since>
-					<version>24.0.0</version>
+					<version>23.1.0</version>
+					<version>22.7.0</version>
+					<version>20.17.0</version>
 					</since>
 					<synopsis>Initial number of taskprocessors in the message bus taskpool.</synopsis>
 				</configOption>
 				<configOption name="idle_timeout_sec" default="20">
 					<since>
-					<version>24.0.0</version>
+					<version>23.1.0</version>
+					<version>22.7.0</version>
+					<version>20.17.0</version>
 					</since>
 					<synopsis>Number of seconds before an idle taskprocessor is disposed of.</synopsis>
 				</configOption>
 				<configOption name="max_size" default="50">
 					<since>
-					<version>24.0.0</version>
+					<version>23.1.0</version>
+					<version>22.7.0</version>
+					<version>20.17.0</version>
 					</since>
 					<synopsis>Maximum number of taskprocessors in the taskpool.</synopsis>
 				</configOption>
