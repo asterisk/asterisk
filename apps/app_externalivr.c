@@ -424,8 +424,11 @@ static int app_exec(struct ast_channel *chan, const char *data)
 		AST_APP_ARG(application);
 		AST_APP_ARG(options);
 	);
+
+#define MAX_EIVR_APPLICATION_ARGS 32
+
 	AST_DECLARE_APP_ARGS(application_args,
-		AST_APP_ARG(cmd)[32];
+		AST_APP_ARG(cmd)[MAX_EIVR_APPLICATION_ARGS];
 	);
 
 	u->abort_current_sound = 0;
@@ -458,7 +461,7 @@ static int app_exec(struct ast_channel *chan, const char *data)
 
 	/* Put the application + the arguments in a , delimited list */
 	ast_str_reset(comma_delim_args);
-	for (j = 0; application_args.cmd[j] != NULL; j++) {
+	for (j = 0; j < MAX_EIVR_APPLICATION_ARGS && application_args.cmd[j]; j++) {
 		ast_str_append(&comma_delim_args, 0, "%s%s", j == 0 ? "" : ",", application_args.cmd[j]);
 	}
 
