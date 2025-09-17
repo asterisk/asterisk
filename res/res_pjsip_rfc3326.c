@@ -38,7 +38,7 @@ static void rfc3326_use_reason_header(struct ast_sip_session *session, struct pj
 {
 	static const pj_str_t str_reason = { "Reason", 6 };
 	pjsip_generic_string_hdr *header;
-	char buf[20];
+	char buf[128];
 	char *cause;
 	int code_q850 = 0, code_sip = 0;
 
@@ -46,9 +46,11 @@ static void rfc3326_use_reason_header(struct ast_sip_session *session, struct pj
 	for (; header;
 		header = pjsip_msg_find_hdr_by_name(rdata->msg_info.msg, &str_reason, header->next)) {
 		int cause_q850, cause_sip;
+		struct ast_control_pvt_cause_code *cause_code;
+		int data_size = sizeof(*cause_code);
+
 		ast_copy_pj_str(buf, &header->hvalue, sizeof(buf));
 		cause = ast_skip_blanks(buf);
-
 		cause_q850 = !strncasecmp(cause, "Q.850", 5);
 		cause_sip = !strncasecmp(cause, "SIP", 3);
 		if ((cause_q850 || cause_sip) && (cause = strstr(cause, "cause="))) {
@@ -56,6 +58,24 @@ static void rfc3326_use_reason_header(struct ast_sip_session *session, struct pj
 			if (sscanf(cause, "cause=%30d", code) != 1) {
 				*code = 0;
 			}
+
+			/* Safe */
+			/* Build and send the tech-specific cause information */
+			/* size of the string making up the cause code is "SIP " + reason length */
+			data_size += 4 + strlen(cause) + 1;
+			cause_code = ast_alloca(data_size);
+			memset(cause_code, 0, data_size);
+			ast_copy_string(cause_code->chan_name, ast_channel_name(session->channel), AST_CHANNEL_NAME);
+			snprintf(cause_code->code, data_size, "SIP %s", cause);
+
+			cause_code->cause_extended = 1;
+			if (code_q850) {
+				cause_code->ast_cause = *code & 0x7;
+			} else if (code_sip) {
+				cause_code->ast_cause = ast_sip_hangup_sip2cause(*code);
+			}
+			ast_queue_control_data(session->channel, AST_CONTROL_PVT_CAUSE_CODE, cause_code, data_size);
+			ast_channel_hangupcause_hash_set(session->channel, cause_code, data_size);
 		}
 	}
 
