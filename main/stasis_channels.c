@@ -1790,11 +1790,14 @@ struct ast_ari_transfer_message *ast_ari_transfer_message_create(struct ast_chan
 		}
 	}
 
-	msg->referred_by = ast_strdup(referred_by);
-	if (!msg->referred_by) {
-		ao2_cleanup(msg);
-		return NULL;
+	if (referred_by) {
+		msg->referred_by = ast_strdup(referred_by);
+		if (!msg->referred_by) {
+			ao2_cleanup(msg);
+			return NULL;
+		}
 	}
+
 	ast_copy_string(msg->destination, exten, sizeof(msg->destination));
 	msg->protocol_id = ast_strdup(protocol_id);
 	if (!msg->protocol_id) {
