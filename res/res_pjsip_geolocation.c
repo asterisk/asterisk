@@ -601,10 +601,19 @@ static void handle_outgoing_request(struct ast_sip_session *session, struct pjsi
 
 	uri = ast_strdupa(ast_str_buffer(buf));
 	ast_str_reset(buf);
-	ast_str_set(&buf, 0, "<%s>", uri);
+	if(ast_strlen_zero(final_eprofile->location_source)) {
+		ast_str_set(&buf, 0, "<%s>", uri);
+		ast_trace(4, "%s: Using URI '%s'\n", session_name, uri);
+	}
+	else {
+		ast_str_set(&buf, 0, "<%s>;loc-src=%s", uri, final_eprofile->location_source);
+		ast_trace(4, "%s: Using URI '%s' with loc-src parameter '%s'\n",
+			session_name,
+			uri,
+			final_eprofile->location_source);
+	}
 	uri = ast_strdupa(ast_str_buffer(buf));
 
-	ast_trace(4, "%s: Using URI '%s'\n", session_name, uri);
 
 	/* It's almost impossible for add header to fail but you never know */
 	geoloc_hdr = ast_sip_add_header2(tdata, "Geolocation", uri);
