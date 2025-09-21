@@ -12,7 +12,7 @@
  * This code is released into public domain
  * without any warranty of any kind.
  *
- *	\ingroup agi
+ * \ingroup agi
  */
 
 #include <stdio.h>
