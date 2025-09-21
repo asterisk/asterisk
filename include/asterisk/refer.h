@@ -340,10 +340,6 @@ int ast_refer_notify_transfer_request(struct ast_channel *originating_chan, cons
 				      const char *protocol_id, struct ast_channel *dest, struct ast_refer_params *params,
 				      enum ast_control_transfer state);
 
-/*!
- *  @}
- */
-
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
