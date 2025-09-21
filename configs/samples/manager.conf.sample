@@ -90,7 +90,7 @@ bindaddr = 0.0.0.0
 ; events from being received in a stream (as opposed to this option which
 ; would prevent specified events from being generated at all).
 
-;disabledevents = Newexten,Varset
+;disabledevents = Newexten,VarSet
 
 ;[mark]
 ;secret = mysecret
