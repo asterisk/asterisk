@@ -119,7 +119,7 @@
 		<description>
  			<para>This application is provided by res_fax, which is a FAX technology agnostic module
  			that utilizes FAX technology resource modules to complete a FAX transmission.</para>
- 			<para>Session arguments can be set by the FAXOPT function and to check results of the ReceiveFAX() application.</para>
+			<para>Session arguments can be set by the FAXOPT function and to check results of the ReceiveFAX() application.</para>
 		</description>
 		<see-also>
 			<ref type="function">FAXOPT</ref>
@@ -161,7 +161,7 @@
 		<description>
  			<para>This application is provided by res_fax, which is a FAX technology agnostic module
  			that utilizes FAX technology resource modules to complete a FAX transmission.</para>
- 			<para>Session arguments can be set by the FAXOPT function and to check results of the SendFAX() application.</para>
+			<para>Session arguments can be set by the FAXOPT function and to check results of the SendFAX() application.</para>
 		</description>
 		<see-also>
 			<ref type="function">FAXOPT</ref>

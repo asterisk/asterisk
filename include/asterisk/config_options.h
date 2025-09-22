@@ -167,12 +167,12 @@ struct aco_file {
 };
 
 struct aco_info {
-	const char *module; /*!< The name of the module whose config is being processed */
-	unsigned int hidden:1;                /*!< If enabled, this config item is hidden from users */
-	aco_pre_apply_config pre_apply_config; /*!< A callback called after processing, but before changes are applied */
+	const char *module;			/*!< The name of the module whose config is being processed */
+	unsigned int hidden:1;			/*!< If enabled, this config item is hidden from users */
+	aco_pre_apply_config pre_apply_config;	/*!< A callback called after processing, but before changes are applied */
 	aco_post_apply_config post_apply_config;/*!< A callback called after changes are applied */
-	aco_snapshot_alloc snapshot_alloc;     /*!< Allocate an object to hold all global configs and item containers */
-	struct ao2_global_obj *global_obj;     /*!< The global object array that holds the user-defined config object */
+	aco_snapshot_alloc snapshot_alloc;	/*!< Allocate an object to hold all global configs and item containers */
+	struct ao2_global_obj *global_obj;	/*!< The global object array that holds the user-defined config object */
 	struct aco_info_internal *internal;
 	struct aco_file *files[];    /*!< An array of aco_files to process */
 };
