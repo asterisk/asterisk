@@ -1659,11 +1659,14 @@ static struct ast_json *ari_transfer_to_json(struct stasis_message *msg,
 	const struct timeval *tv = stasis_message_timestamp(msg);
 	struct ast_ari_transfer_message *transfer_msg = stasis_message_data(msg);
 
-	dest_json = ast_json_pack("{s: s, s: s}",
-		"protocol_id", transfer_msg->protocol_id,
-		"destination", transfer_msg->destination);
+	dest_json = ast_json_pack("{s: s}", "destination", transfer_msg->destination);
 	if (!dest_json) {
 		return NULL;
+	}
+
+	if (transfer_msg->protocol_id) {
+		ast_json_object_set(dest_json, "protocol_id",
+			ast_json_string_create(transfer_msg->protocol_id));
 	}
 
 	if (AST_VECTOR_SIZE(transfer_msg->refer_params) > 0) {
@@ -1799,10 +1802,13 @@ struct ast_ari_transfer_message *ast_ari_transfer_message_create(struct ast_chan
 	}
 
 	ast_copy_string(msg->destination, exten, sizeof(msg->destination));
-	msg->protocol_id = ast_strdup(protocol_id);
-	if (!msg->protocol_id) {
-		ao2_cleanup(msg);
-		return NULL;
+
+	if (protocol_id) {
+		msg->protocol_id = ast_strdup(protocol_id);
+		if (!msg->protocol_id) {
+			ao2_cleanup(msg);
+			return NULL;
+		}
 	}
 
 	return msg;
