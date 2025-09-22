@@ -2463,7 +2463,7 @@ static int hangup_cause2sip(int cause)
 	case AST_CAUSE_NO_USER_RESPONSE:        /* 18 */
 		return 408;
 	case AST_CAUSE_NO_ANSWER:               /* 19 */
-	case AST_CAUSE_UNREGISTERED:        /* 20 */
+	case AST_CAUSE_UNREGISTERED:            /* 20 */
 		return 480;
 	case AST_CAUSE_CALL_REJECTED:           /* 21 */
 		return 403;

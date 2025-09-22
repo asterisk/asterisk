@@ -120,7 +120,7 @@
 							prefixed with one or two underbars ('_').</para>
 						</note>
 						<note>
-							<para>Using this option from a Macro() or GoSub() might not make sense as there would be no return points.</para>
+							<para>Using this option from a Macro() or Gosub() might not make sense as there would be no return points.</para>
 						</note>
 						<note>
 							<para>This option will override the 'x' option</para>

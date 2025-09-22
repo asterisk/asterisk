@@ -214,7 +214,7 @@
 					and <emphasis>start</emphasis> execution at that location.</para>
 					<para>NOTE: Any channel variables you want the called channel to inherit from the caller channel must be
 					prefixed with one or two underbars ('_').</para>
-					<para>NOTE: Using this option from a Macro() or GoSub() might not make sense as there would be no return points.</para>
+					<para>NOTE: Using this option from a Macro() or Gosub() might not make sense as there would be no return points.</para>
 				</option>
 				<option name="g">
 					<para>Proceed with dialplan execution at the next priority in the current extension if the
