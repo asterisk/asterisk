@@ -1836,8 +1836,8 @@ end:
  * \brief Merge media states for a delayed session refresh
  *
  * \param session_name For log messages
- * \param delayed_pending_state The pending media state at the time the resuest was queued
- * \param delayed_active_state The active media state  at the time the resuest was queued
+ * \param delayed_pending_state The pending media state at the time the request was queued
+ * \param delayed_active_state The active media state at the time the request was queued
  * \param current_active_state The current active media state
  * \param run_post_validation Whether to run validation on the resulting media state or not
  *

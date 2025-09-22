@@ -83,19 +83,19 @@ static struct ao2_container *xmldocs;
 
 /*! \brief Value of the aco_option_type enum as strings */
 static char *aco_option_type_string[] = {
-	"ACL",				/* OPT_ACL_T, */
-	"Boolean",			/* OPT_BOOL_T, */
-	"Boolean",			/* OPT_BOOLFLAG_T, */
-	"String",			/* OPT_CHAR_ARRAY_T, */
-	"Codec",			/* OPT_CODEC_T, */
-	"Custom",			/* OPT_CUSTOM_T, */
-	"Double",			/* OPT_DOUBLE_T, */
-	"Integer",			/* OPT_INT_T, */
-	"None",				/* OPT_NOOP_T, */
+	"ACL",			/* OPT_ACL_T, */
+	"Boolean",		/* OPT_BOOL_T, */
+	"Boolean",		/* OPT_BOOLFLAG_T, */
+	"String",		/* OPT_CHAR_ARRAY_T, */
+	"Codec",		/* OPT_CODEC_T, */
+	"Custom",		/* OPT_CUSTOM_T, */
+	"Double",		/* OPT_DOUBLE_T, */
+	"Integer",		/* OPT_INT_T, */
+	"None",			/* OPT_NOOP_T, */
 	"IP Address",		/* OPT_SOCKADDR_T, */
-	"String",			/* OPT_STRINGFIELD_T, */
+	"String",		/* OPT_STRINGFIELD_T, */
 	"Unsigned Integer",	/* OPT_UINT_T, */
-	"Boolean",			/* OPT_YESNO_T, */
+	"Boolean",		/* OPT_YESNO_T, */
 	"Time Length",		/* OPT_TIMELEN_T, */
 };
 #endif /* AST_XML_DOCS */
