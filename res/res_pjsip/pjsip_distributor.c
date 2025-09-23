@@ -24,7 +24,7 @@
 #include "asterisk/acl.h"
 #include "include/res_pjsip_private.h"
 #include "asterisk/taskprocessor.h"
-#include "asterisk/threadpool.h"
+#include "asterisk/taskpool.h"
 #include "asterisk/res_pjsip_cli.h"
 
 static int distribute(void *data);
@@ -75,7 +75,7 @@ static pj_status_t record_serializer(pjsip_tx_data *tdata)
 {
 	struct ast_taskprocessor *serializer;
 
-	serializer = ast_threadpool_serializer_get_current();
+	serializer = ast_taskpool_serializer_get_current();
 	if (serializer) {
 		const char *name;
 
