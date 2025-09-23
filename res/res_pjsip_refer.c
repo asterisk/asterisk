@@ -343,7 +343,7 @@ static struct ast_frame *refer_progress_framehook(struct ast_channel *chan, stru
 		}
 	}
 
-	/* If a notification is due to be sent push it to the thread pool */
+	/* If a notification is due to be sent push it to the taskpool */
 	if (notification) {
 		/* If the subscription is being terminated we don't need the frame hook any longer */
 		if (notification->state == PJSIP_EVSUB_STATE_TERMINATED) {
@@ -395,7 +395,7 @@ static struct ast_frame *refer_ari_progress_framehook(struct ast_channel *chan, 
 		progress->ari_state->last_response = *message;
 	}
 
-	/* If a notification is due to be sent push it to the thread pool */
+	/* If a notification is due to be sent push it to the taskpool */
 	if (notification) {
 		/* If the subscription is being terminated we don't need the frame hook any longer */
 		if (notification->state == PJSIP_EVSUB_STATE_TERMINATED) {
