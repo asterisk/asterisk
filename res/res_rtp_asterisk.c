@@ -3453,7 +3453,7 @@ static int __rtp_sendto(struct ast_rtp_instance *instance, void *buf, size_t siz
 	int res;
 #if defined(HAVE_OPENSSL) && (OPENSSL_VERSION_NUMBER >= 0x10001000L) && !defined(OPENSSL_NO_SRTP)
 	char *out = buf;
-	struct dtls_details *dtls = !rtcp ? &rtp->dtls : &rtp->rtcp->dtls;
+	struct dtls_details *dtls = (!rtcp || rtp->rtcp->type == AST_RTP_INSTANCE_RTCP_MUX) ? &rtp->dtls : &rtp->rtcp->dtls;
 
 	/* Don't send RTP if DTLS hasn't finished yet */
 	if (dtls->ssl && ((*out < 20) || (*out > 63)) && dtls->connection == AST_RTP_DTLS_CONNECTION_NEW) {
