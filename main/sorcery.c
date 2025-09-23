@@ -39,7 +39,7 @@
 #include "asterisk/netsock2.h"
 #include "asterisk/module.h"
 #include "asterisk/taskprocessor.h"
-#include "asterisk/threadpool.h"
+#include "asterisk/taskpool.h"
 #include "asterisk/json.h"
 #include "asterisk/vector.h"
 #include "asterisk/cli.h"
@@ -83,8 +83,8 @@
 #define NOTIFY_WIZARD_OBSERVERS(container, callback, ...) \
 	NOTIFY_GENERIC_OBSERVERS(container, sorcery_wizard_observer, callback, __VA_ARGS__)
 
-/*! \brief Thread pool for observers */
-static struct ast_threadpool *threadpool;
+/*! \brief Taskpool for observers */
+static struct ast_taskpool *taskpool;
 
 /*! \brief Structure for an internal wizard instance */
 struct ast_sorcery_internal_wizard {
@@ -402,8 +402,8 @@ static struct ast_cli_entry cli_commands[] = {
 static void sorcery_cleanup(void)
 {
 	ast_cli_unregister_multiple(cli_commands, ARRAY_LEN(cli_commands));
-	ast_threadpool_shutdown(threadpool);
-	threadpool = NULL;
+	ast_taskpool_shutdown(taskpool);
+	taskpool = NULL;
 	ao2_cleanup(wizards);
 	wizards = NULL;
 	ao2_cleanup(observers);
@@ -443,19 +443,20 @@ static void parse_general_options(void)
 
 int ast_sorcery_init(void)
 {
-	struct ast_threadpool_options options = {
-		.version = AST_THREADPOOL_OPTIONS_VERSION,
+	struct ast_taskpool_options options = {
+		.version = AST_TASKPOOL_OPTIONS_VERSION,
 		.auto_increment = 1,
 		.max_size = 0,
 		.idle_timeout = 60,
-		.initial_size = 0,
+		.initial_size = 1,
+		.minimum_size = 1,
 	};
 	ast_assert(wizards == NULL);
 
 	parse_general_options();
 
-	threadpool = ast_threadpool_create("sorcery", NULL, &options);
-	if (!threadpool) {
+	taskpool = ast_taskpool_create("sorcery", &options);
+	if (!taskpool) {
 		return -1;
 	}
 
@@ -807,7 +808,7 @@ static struct ast_sorcery_object_type *sorcery_object_type_alloc(const char *typ
 	/* Create name with seq number appended. */
 	ast_taskprocessor_build_name(tps_name, sizeof(tps_name), "sorcery/%s", type);
 
-	if (!(object_type->serializer = ast_threadpool_serializer(tps_name, threadpool))) {
+	if (!(object_type->serializer = ast_taskpool_serializer(tps_name, taskpool))) {
 		ao2_ref(object_type, -1);
 		return NULL;
 	}
