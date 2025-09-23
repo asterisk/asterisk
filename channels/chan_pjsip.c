@@ -720,7 +720,7 @@ static int answer(void *data)
 			ast_channel_name(session->channel), err);
 		/*
 		 * Return this value so we can distinguish between this
-		 * failure and the threadpool synchronous push failing.
+		 * failure and the taskpool synchronous push failing.
 		 */
 		SCOPE_EXIT_RTN_VALUE(-2, "pjproject failure\n");
 	}
@@ -753,7 +753,7 @@ static int chan_pjsip_answer(struct ast_channel *ast)
 	res = ast_sip_push_task_wait_serializer(session->serializer, answer, &ans_data);
 	if (res) {
 		if (res == -1) {
-			ast_log(LOG_ERROR,"Cannot answer '%s': Unable to push answer task to the threadpool.\n",
+			ast_log(LOG_ERROR,"Cannot answer '%s': Unable to push answer task to the taskpool.\n",
 				ast_channel_name(session->channel));
 		}
 		ao2_ref(session, -1);
@@ -2599,7 +2599,7 @@ static int chan_pjsip_hangup(struct ast_channel *ast)
 	}
 
 	if (ast_sip_push_task(channel->session->serializer, hangup, h_data)) {
-		ast_log(LOG_WARNING, "Unable to push hangup task to the threadpool. Expect bad things\n");
+		ast_log(LOG_WARNING, "Unable to push hangup task to the taskpool. Expect bad things\n");
 		goto failure;
 	}
 
