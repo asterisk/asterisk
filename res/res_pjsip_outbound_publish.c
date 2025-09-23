@@ -33,7 +33,8 @@
 #include "asterisk/res_pjsip_outbound_publish.h"
 #include "asterisk/module.h"
 #include "asterisk/taskprocessor.h"
-#include "asterisk/threadpool.h"
+#include "asterisk/taskpool.h"
+#include "asterisk/serializer_shutdown_group.h"
 #include "asterisk/datastore.h"
 #include "res_pjsip/include/res_pjsip_private.h"
 
