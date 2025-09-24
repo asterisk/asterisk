@@ -32,7 +32,7 @@
 #include "asterisk/res_pjsip_session.h"
 #include "asterisk/module.h"
 #include "asterisk/causes.h"
-#include "asterisk/threadpool.h"
+#include "asterisk/taskpool.h"
 
 static void rfc3326_use_reason_header(struct ast_sip_session *session, struct pjsip_rx_data *rdata)
 {
@@ -119,7 +119,7 @@ static void rfc3326_outgoing_request(struct ast_sip_session *session, struct pjs
 		 * checks so we must also be running under the call's serializer
 		 * thread.
 		 */
-		|| session->serializer != ast_threadpool_serializer_get_current()) {
+		|| session->serializer != ast_taskpool_serializer_get_current()) {
 		return;
 	}
 
@@ -132,7 +132,7 @@ static void rfc3326_outgoing_response(struct ast_sip_session *session, struct pj
 
 	if (status.code < 300
 		|| !session->channel
-		|| session->serializer != ast_threadpool_serializer_get_current()) {
+		|| session->serializer != ast_taskpool_serializer_get_current()) {
 		return;
 	}
 
