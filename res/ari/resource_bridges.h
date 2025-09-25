@@ -285,6 +285,8 @@ struct ast_ari_bridges_play_args {
 	size_t media_count;
 	/*! Parsing context for media. */
 	char *media_parse;
+	/*! Format of the 'Anouncer' channel attached to the bridge. Defaults to the format of the channel in the bridge with the highest sampe rate. */
+	const char *announcer_format;
 	/*! For sounds, selects language for sound. */
 	const char *lang;
 	/*! Number of milliseconds to skip before playing. Only applies to the first URI if multiple media URIs are specified. */
@@ -327,6 +329,8 @@ struct ast_ari_bridges_play_with_id_args {
 	size_t media_count;
 	/*! Parsing context for media. */
 	char *media_parse;
+	/*! Format of the 'Anouncer' channel attached to the bridge. Defaults to the format of the channel in the bridge with the highest sampe rate. */
+	const char *announcer_format;
 	/*! For sounds, selects language for sound. */
 	const char *lang;
 	/*! Number of milliseconds to skip before playing. Only applies to the first URI if multiple media URIs are specified. */
@@ -363,6 +367,8 @@ struct ast_ari_bridges_record_args {
 	const char *name;
 	/*! Format to encode audio in */
 	const char *format;
+	/*! Format of the 'Recorder' channel attached to the bridge. Defaults to the same format as the 'format' parameter. */
+	const char *recorder_format;
 	/*! Maximum duration of the recording, in seconds. 0 for no limit. */
 	int max_duration_seconds;
 	/*! Maximum duration of silence, in seconds. 0 for no limit. */
