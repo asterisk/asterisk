@@ -311,7 +311,8 @@ static void *bridge_channel_control_thread(void *data)
 	return NULL;
 }
 
-static struct ast_channel *prepare_bridge_media_channel(const char *type)
+static struct ast_channel *prepare_bridge_media_channel(const char *type,
+	struct ast_format *channel_format)
 {
 	RAII_VAR(struct ast_format_cap *, cap, NULL, ao2_cleanup);
 	struct ast_channel *chan;
@@ -321,7 +322,8 @@ static struct ast_channel *prepare_bridge_media_channel(const char *type)
 		return NULL;
 	}
 
-	ast_format_cap_append(cap, ast_format_slin, 0);
+	/* This bumps the format's refcount */
+	ast_format_cap_append(cap, channel_format, 0);
 
 	chan = ast_request(type, cap, NULL, NULL, "ARI", NULL);
 	if (!chan) {
@@ -407,6 +409,7 @@ static int ari_bridges_play_helper(const char **args_media,
 
 static void ari_bridges_play_new(const char **args_media,
 	size_t args_media_count,
+	const char *args_format,
 	const char *args_lang,
 	int args_offset_ms,
 	int args_skipms,
@@ -424,14 +427,64 @@ static void ari_bridges_play_new(const char **args_media,
 	struct stasis_topic *bridge_topic;
 	struct bridge_channel_control_thread_data *thread_data;
 	pthread_t threadid;
+	struct ast_format *channel_format = NULL;
 
 	struct ast_frame prog = {
 		.frametype = AST_FRAME_CONTROL,
 		.subclass.integer = AST_CONTROL_PROGRESS,
 	};
 
+	/*
+	 * Determine the format for the playback channel.
+	 * If a format was specified, use that if it's valid.
+	 * Otherwise, if the bridge is empty, use slin.
+	 * If the bridge has one channel, use that channel's raw write format.
+	 * If the bridge has multiple channels, use the slin format that
+	 * will handle the highest sample rate of the raw write format of all the channels.
+	 */
+	if (!ast_strlen_zero(args_format)) {
+		channel_format = ast_format_cache_get(args_format);
+		if (!channel_format) {
+			ast_ari_response_error(
+				response, 422, "Unprocessable Entity",
+				"specified announcer_format is unknown on this system");
+			return;
+		}
+		/*
+		 * ast_format_cache_get() bumps the refcount but the other calls
+		 * to retrieve formats don't so we'll drop this reference.
+		 * It'll be bumped again in the prepare_bridge_media_channel() call below.
+		 */
+		ao2_ref(channel_format, -1);
+	} else {
+		ast_bridge_lock(bridge);
+		if (bridge->num_channels == 0) {
+			channel_format = ast_format_slin;
+		} else if (bridge->num_channels == 1) {
+			struct ast_bridge_channel *bc = NULL;
+			bc = AST_LIST_FIRST(&bridge->channels);
+			if (bc) {
+				channel_format = ast_channel_rawwriteformat(bc->chan);
+			}
+		} else {
+			struct ast_bridge_channel *bc = NULL;
+			unsigned int max_sample_rate = 0;
+			AST_LIST_TRAVERSE(&bridge->channels, bc, entry) {
+				struct ast_format *fmt = ast_channel_rawwriteformat(bc->chan);
+				max_sample_rate = MAX(ast_format_get_sample_rate(fmt), max_sample_rate);
+			}
+			channel_format = ast_format_cache_get_slin_by_rate(max_sample_rate);
+		}
+		ast_bridge_unlock(bridge);
+	}
 
-	if (!(play_channel = prepare_bridge_media_channel("Announcer"))) {
+	if (!channel_format) {
+		channel_format = ast_format_slin;
+	}
+
+	play_channel = prepare_bridge_media_channel("Announcer", channel_format);
+	ao2_cleanup(channel_format);
+	if (!play_channel) {
 		ast_ari_response_error(
 			response, 500, "Internal Error", "Could not create playback channel");
 		return;
@@ -578,6 +631,7 @@ static void ari_bridges_handle_play(
 	const char *args_bridge_id,
 	const char **args_media,
 	size_t args_media_count,
+	const char *args_format,
 	const char *args_lang,
 	int args_offset_ms,
 	int args_skipms,
@@ -608,7 +662,7 @@ static void ari_bridges_handle_play(
 		return;
 	}
 
-	ari_bridges_play_new(args_media, args_media_count, args_lang, args_offset_ms,
+	ari_bridges_play_new(args_media, args_media_count, args_format, args_lang, args_offset_ms,
 		args_skipms, args_playback_id, response, bridge);
 }
 
@@ -620,6 +674,7 @@ void ast_ari_bridges_play(struct ast_variable *headers,
 	ari_bridges_handle_play(args->bridge_id,
 	args->media,
 	args->media_count,
+	args->announcer_format,
 	args->lang,
 	args->offsetms,
 	args->skipms,
@@ -634,6 +689,7 @@ void ast_ari_bridges_play_with_id(struct ast_variable *headers,
 	ari_bridges_handle_play(args->bridge_id,
 	args->media,
 	args->media_count,
+	args->announcer_format,
 	args->lang,
 	args->offsetms,
 	args->skipms,
@@ -660,6 +716,8 @@ void ast_ari_bridges_record(struct ast_variable *headers,
 	size_t uri_name_maxlen;
 	struct bridge_channel_control_thread_data *thread_data;
 	pthread_t threadid;
+	struct ast_format *file_format = NULL;
+	struct ast_format *channel_format = NULL;
 
 	ast_assert(response != NULL);
 
@@ -667,7 +725,34 @@ void ast_ari_bridges_record(struct ast_variable *headers,
 		return;
 	}
 
-	if (!(record_channel = prepare_bridge_media_channel("Recorder"))) {
+	file_format = ast_get_format_for_file_ext(args->format);
+	if (!file_format) {
+		ast_ari_response_error(
+			response, 422, "Unprocessable Entity",
+			"specified format is unknown on this system");
+		return;
+	}
+
+	if (!ast_strlen_zero(args->recorder_format)) {
+		channel_format = ast_format_cache_get(args->recorder_format);
+		if (!channel_format) {
+			ast_ari_response_error(
+				response, 422, "Unprocessable Entity",
+				"specified recorder_format is unknown on this system");
+			return;
+		}
+		/*
+		 * ast_format_cache_get() bumps the refcount but the other calls
+		 * to retrieve formats don't so we'll drop this reference.
+		 * It'll be bumped again in the prepare_bridge_media_channel() call below.
+		 */
+		ao2_ref(channel_format, -1);
+
+	} else {
+		channel_format = file_format;
+	}
+
+	if (!(record_channel = prepare_bridge_media_channel("Recorder", channel_format))) {
 		ast_ari_response_error(
 			response, 500, "Internal Server Error", "Failed to create recording channel");
 		return;
@@ -725,13 +810,6 @@ void ast_ari_bridges_record(struct ast_variable *headers,
 		ast_ari_response_error(
 			response, 400, "Bad Request",
 			"ifExists invalid");
-		return;
-	}
-
-	if (!ast_get_format_for_file_ext(options->format)) {
-		ast_ari_response_error(
-			response, 422, "Unprocessable Entity",
-			"specified format is unknown on this system");
 		return;
 	}
 

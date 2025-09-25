@@ -1044,6 +1044,10 @@ int ast_ari_bridges_play_parse_body(
 			args->media[0] = ast_json_string_get(field);
 		}
 	}
+	field = ast_json_object_get(body, "announcer_format");
+	if (field) {
+		args->announcer_format = ast_json_string_get(field);
+	}
 	field = ast_json_object_get(body, "lang");
 	if (field) {
 		args->lang = ast_json_string_get(field);
@@ -1128,6 +1132,9 @@ static void ast_ari_bridges_play_cb(
 				args.media[j] = (vals[j]);
 			}
 		} else
+		if (strcmp(i->name, "announcer_format") == 0) {
+			args.announcer_format = (i->value);
+		} else
 		if (strcmp(i->name, "lang") == 0) {
 			args.lang = (i->value);
 		} else
@@ -1164,6 +1171,7 @@ static void ast_ari_bridges_play_cb(
 	case 501: /* Not Implemented */
 	case 404: /* Bridge not found */
 	case 409: /* Bridge not in a Stasis application */
+	case 422: /* The format specified is unknown on this system */
 		is_valid = 1;
 		break;
 	default:
@@ -1222,6 +1230,10 @@ int ast_ari_bridges_play_with_id_parse_body(
 			}
 			args->media[0] = ast_json_string_get(field);
 		}
+	}
+	field = ast_json_object_get(body, "announcer_format");
+	if (field) {
+		args->announcer_format = ast_json_string_get(field);
 	}
 	field = ast_json_object_get(body, "lang");
 	if (field) {
@@ -1303,6 +1315,9 @@ static void ast_ari_bridges_play_with_id_cb(
 				args.media[j] = (vals[j]);
 			}
 		} else
+		if (strcmp(i->name, "announcer_format") == 0) {
+			args.announcer_format = (i->value);
+		} else
 		if (strcmp(i->name, "lang") == 0) {
 			args.lang = (i->value);
 		} else
@@ -1339,6 +1354,7 @@ static void ast_ari_bridges_play_with_id_cb(
 	case 501: /* Not Implemented */
 	case 404: /* Bridge not found */
 	case 409: /* Bridge not in a Stasis application */
+	case 422: /* The format specified is unknown on this system */
 		is_valid = 1;
 		break;
 	default:
@@ -1376,6 +1392,10 @@ int ast_ari_bridges_record_parse_body(
 	field = ast_json_object_get(body, "format");
 	if (field) {
 		args->format = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "recorder_format");
+	if (field) {
+		args->recorder_format = ast_json_string_get(field);
 	}
 	field = ast_json_object_get(body, "maxDurationSeconds");
 	if (field) {
@@ -1427,6 +1447,9 @@ static void ast_ari_bridges_record_cb(
 		} else
 		if (strcmp(i->name, "format") == 0) {
 			args.format = (i->value);
+		} else
+		if (strcmp(i->name, "recorder_format") == 0) {
+			args.recorder_format = (i->value);
 		} else
 		if (strcmp(i->name, "maxDurationSeconds") == 0) {
 			args.max_duration_seconds = atoi(i->value);

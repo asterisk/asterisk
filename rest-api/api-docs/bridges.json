@@ -491,6 +491,14 @@
 							"dataType": "string"
 						},
 						{
+							"name": "announcer_format",
+							"description": "Format of the 'Anouncer' channel attached to the bridge. Defaults to the format of the channel in the bridge with the highest sampe rate.",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
 							"name": "lang",
 							"description": "For sounds, selects language for sound.",
 							"paramType": "query",
@@ -510,7 +518,6 @@
 								"valueType": "RANGE",
 								"min": 0
 							}
-
 						},
 						{
 							"name": "skipms",
@@ -542,6 +549,10 @@
 						{
 							"code": 409,
 							"reason": "Bridge not in a Stasis application"
+						},
+						{
+							"code": 422,
+							"reason": "The format specified is unknown on this system"
 						}
 					]
 				}
@@ -586,6 +597,14 @@
 							"dataType": "string"
 						},
 						{
+							"name": "announcer_format",
+							"description": "Format of the 'Anouncer' channel attached to the bridge. Defaults to the format of the channel in the bridge with the highest sampe rate.",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
 							"name": "lang",
 							"description": "For sounds, selects language for sound.",
 							"paramType": "query",
@@ -628,6 +647,10 @@
 						{
 							"code": 409,
 							"reason": "Bridge not in a Stasis application"
+						},
+						{
+							"code": 422,
+							"reason": "The format specified is unknown on this system"
 						}
 					]
 
@@ -669,6 +692,14 @@
 							"description": "Format to encode audio in",
 							"paramType": "query",
 							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "recorder_format",
+							"description": "Format of the 'Recorder' channel attached to the bridge. Defaults to the same format as the 'format' parameter.",
+							"paramType": "query",
+							"required": false,
 							"allowMultiple": false,
 							"dataType": "string"
 						},
