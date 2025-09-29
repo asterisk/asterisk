@@ -2421,6 +2421,7 @@ static void *__analog_ss_thread(void *data)
 		}
 		while (len < AST_MAX_EXTENSION-1) {
 			int is_exten_parking = 0;
+			int is_lastnumredial = 0;
 
 			/* Read digit unless it's supposed to be immediate, in which case the
 			   only answer is 's' */
@@ -2455,6 +2456,9 @@ static void *__analog_ss_thread(void *data)
 					analog_lock_private(p);
 					ast_copy_string(exten, p->lastexten, sizeof(exten));
 					analog_unlock_private(p);
+					/* If Last Number Redial was used, even if the user might normally be able to dial further
+					 * digits for the digits dialed, we should complete the call immediately without delay. */
+					is_lastnumredial = 1;
 				} else {
 					ast_verb(3, "Last Number Redial not possible on channel %d (no saved number)\n", p->channel);
 					res = analog_play_tone(p, idx, ANALOG_TONE_CONGESTION);
@@ -2464,7 +2468,7 @@ static void *__analog_ss_thread(void *data)
 				}
 			}
 			if (ast_exists_extension(chan, ast_channel_context(chan), exten, 1, p->cid_num) && !is_exten_parking) {
-				if (!res || !ast_matchmore_extension(chan, ast_channel_context(chan), exten, 1, p->cid_num)) {
+				if (!res || is_lastnumredial || !ast_matchmore_extension(chan, ast_channel_context(chan), exten, 1, p->cid_num)) {
 					if (getforward) {
 						/* Record this as the forwarding extension */
 						analog_lock_private(p);
