@@ -52,6 +52,9 @@
 			This is not intended to be used for securely scrambling
 			audio. It merely renders obfuscates audio on a channel
 			to render it unintelligible, as a privacy enhancement.</para>
+			<example title="Scramble speech in both directions">
+			same => n,Set(SCRAMBLE()=both)
+			</example>
 		</description>
 		<see-also>
 			<ref type="application">ChanSpy</ref>
