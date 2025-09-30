@@ -1239,7 +1239,7 @@ static void cli_show_module_types(struct ast_cli_args *a)
 	ast_assert(a->argc == 4);
 
 	if (!(item = ao2_find(xmldocs, a->argv[3], OBJ_KEY))) {
-		ast_cli(a->fd, "Module %s not found.\n", a->argv[3]);
+		ast_cli(a->fd, "Module %s not found or has no config XML documentation.\n", a->argv[3]);
 		return;
 	}
 
