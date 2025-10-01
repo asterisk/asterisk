@@ -177,6 +177,28 @@
 			</example>
 		</description>
 	</function>
+	<function name="DIGIT_SUM" language="en_US">
+		<since>
+			<version>23.1.0</version>
+			<version>22.7.0</version>
+			<version>20.17.0</version>
+		</since>
+		<synopsis>
+			Returns the sum of all the digits in a number.
+		</synopsis>
+		<syntax>
+			<parameter name="num" />
+		</syntax>
+		<description>
+			<para>Returns the numeric sum of all the individual digits in a number, summed up.</para>
+			<para>This can be useful for computing checksums based on the number,
+			where errors are typically digits being off by one.</para>
+			<example title="Get the sum of digits in 859">
+			same => n,Set(digitsum=${DIGIT_SUM(859)}) ; assigns digitsum=22
+			same => n,Set(checksum=$[${digitsum} % 10]) ; assigns checksum=2
+			</example>
+		</description>
+	</function>
  ***/
 
 enum TypeOfFunctions {
@@ -634,6 +656,27 @@ static int acf_abs_exec(struct ast_channel *chan, const char *cmd,
 	return 0;
 }
 
+static int acf_digit_sum_exec(struct ast_channel *chan, const char *cmd,
+			 char *parse, char *buffer, size_t buflen)
+{
+	int sum = 0;
+
+	if (ast_strlen_zero(parse)) {
+		ast_log(LOG_WARNING, "Missing argument for number\n");
+		return -1;
+	}
+
+	for (; *parse; parse++) {
+		if (*parse < '0' || *parse > '9') {
+			continue;
+		}
+		sum += (*parse - '0');
+	}
+
+	snprintf(buffer, buflen, "%d", sum);
+	return 0;
+}
+
 static struct ast_custom_function math_function = {
 	.name = "MATH",
 	.read = math
@@ -665,6 +708,11 @@ static struct ast_custom_function acf_abs = {
 	.name = "ABS",
 	.read = acf_abs_exec,
 	.read_max = 12,
+};
+
+static struct ast_custom_function acf_digit_sum = {
+	.name = "DIGIT_SUM",
+	.read = acf_digit_sum_exec,
 };
 
 #ifdef TEST_FRAMEWORK
@@ -728,6 +776,7 @@ static int unload_module(void)
 	res |= ast_custom_function_unregister(&acf_min);
 	res |= ast_custom_function_unregister(&acf_max);
 	res |= ast_custom_function_unregister(&acf_abs);
+	res |= ast_custom_function_unregister(&acf_digit_sum);
 	AST_TEST_UNREGISTER(test_MATH_function);
 
 	return res;
@@ -743,6 +792,7 @@ static int load_module(void)
 	res |= ast_custom_function_register(&acf_min);
 	res |= ast_custom_function_register(&acf_max);
 	res |= ast_custom_function_register(&acf_abs);
+	res |= ast_custom_function_register(&acf_digit_sum);
 	AST_TEST_REGISTER(test_MATH_function);
 
 	return res;
