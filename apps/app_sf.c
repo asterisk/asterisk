@@ -78,6 +78,20 @@
 					<option name="m">
 						<para>Mute conference.</para>
 					</option>
+					<option name="t">
+						<para>Post-digit timeout, in seconds. If more than this amount of time
+						elapses after a digit, the number will be deemed finalized and
+						the application will return This is useful when reading a variable
+						number of digits that is unknown in advance.</para>
+						<para>This can be almost any positive decimal number of seconds, but must
+						be no less than 0.6 seconds, since this is the SF inter-digit timeout.
+						The default is 0.8, which should be compatible with <literal>SendSF</literal>.
+						Values lower than 0.75 will generally produce unreliable results.</para>
+						<para>Note this timer only kicks in after at least one digit has been received,
+						to account for sender/receiver synchronization.</para>
+						<para>Note that <literal>RECEIVESFSTATUS</literal> will still be
+						set to <literal>TIMEOUT</literal> if the post-digit timer expires.</para>
+					</option>
 					<option name="q">
 						<para>Quelch SF from in-band.</para>
 					</option>
@@ -146,18 +160,35 @@
 	</application>
  ***/
 
+/* Default post-digit timer */
+#define DEFAULT_POST_DIGIT_TIMER 0.8
+
+/* Bell System Technical Journal 39 (Nov. 1960) */
+#define SF_MIN_OFF 25
+#define SF_ON 67
+#define SF_BETWEEN 600
+#define SF_MIN_DETECT 50
+
 enum read_option_flags {
 	OPT_DELAY = (1 << 0),
 	OPT_MUTE = (1 << 1),
 	OPT_QUELCH = (1 << 2),
 	OPT_RELAXED = (1 << 3),
 	OPT_EXTRAPULSES = (1 << 4),
+	OPT_DIGIT_TIMEOUT = (1 << 5),
+};
+
+enum {
+	OPT_ARG_DIGIT_TIMEOUT,
+	/* note: this entry _MUST_ be the last one in the enum */
+	OPT_ARG_ARRAY_SIZE,
 };
 
 AST_APP_OPTIONS(read_app_options, {
 	AST_APP_OPTION('d', OPT_DELAY),
 	AST_APP_OPTION('e', OPT_EXTRAPULSES),
 	AST_APP_OPTION('m', OPT_MUTE),
+	AST_APP_OPTION_ARG('t', OPT_DIGIT_TIMEOUT, OPT_ARG_DIGIT_TIMEOUT),
 	AST_APP_OPTION('q', OPT_QUELCH),
 	AST_APP_OPTION('r', OPT_RELAXED),
 });
@@ -172,6 +203,7 @@ static const char sendsf_name[] = "SendSF";
  * \param buf Buffer in which to store digits
  * \param buflen Size of buffer
  * \param timeout ms to wait for all digits before giving up
+ * \param digit_timeout ms to wait for the next digit before giving up
  * \param maxdigits Maximum number of digits
  * \param freq Frequency to use
  * \param features DSP features
@@ -180,13 +212,8 @@ static const char sendsf_name[] = "SendSF";
  * \retval 0 if successful
  * \retval -1 if unsuccessful (including hangup).
  */
-static int read_sf_digits(struct ast_channel *chan, char *buf, int buflen, int timeout, int maxdigits, int freq, int features, int extrapulses) {
-	/* Bell System Technical Journal 39 (Nov. 1960) */
-	#define SF_MIN_OFF 25
-	#define SF_ON 67
-	#define SF_BETWEEN 600
-	#define SF_MIN_DETECT 50
-
+static int read_sf_digits(struct ast_channel *chan, char *buf, int buflen, int timeout, int digit_timeout, int maxdigits, int freq, int features, int extrapulses)
+{
 	struct ast_dsp *dsp = NULL;
 	struct ast_frame *frame = NULL;
 	struct timeval start, pulsetimer, digittimer;
@@ -212,6 +239,23 @@ static int read_sf_digits(struct ast_channel *chan, char *buf, int buflen, int t
 		if (timeout > 0) {
 			remaining_time = ast_remaining_ms(start, timeout);
 			if (remaining_time <= 0) {
+				ast_debug(1, "SF all-digit timer expired\n");
+				pbx_builtin_setvar_helper(chan, "RECEIVESFSTATUS", "TIMEOUT");
+				break;
+			}
+		}
+		/* If we haven't received a digit yet, don't apply the post-digit timer just yet,
+		 * since the sender may not have started sending any digits.
+		 *
+		 * Note that we use the digit timer, which is reset for each SF pulse,
+		 * as opposed to simply an entire digit being received.
+		 * This is done because we only want to expire the timer if there has been no activity
+		 * since the last digit. If we're in the middle of receiving a digit (e.g. 0)
+		 * we may not have a full digit yet but that should not cause an expiration. */
+		if (digits_read > 0 && digit_timeout > 0) {
+			int remaining_time_for_next_digit = ast_remaining_ms(digittimer, digit_timeout);
+			if (remaining_time_for_next_digit <= 0) {
+				ast_debug(1, "SF post-digit timer expired (>= %d ms since last SF pulse)\n", digit_timeout);
 				pbx_builtin_setvar_helper(chan, "RECEIVESFSTATUS", "TIMEOUT");
 				break;
 			}
@@ -261,7 +305,7 @@ static int read_sf_digits(struct ast_channel *chan, char *buf, int buflen, int t
 						}
 					} else if (hits > 0 && ast_remaining_ms(digittimer, SF_BETWEEN) <= 0) {
 						/* has the digit finished? */
-						ast_debug(2, "Received SF digit: %d\n", hits);
+						ast_debug(2, "Received SF digit: %d\n", hits == 10 ? 0 : hits); /* Edge case for 10, since this is the digit '0' */
 						digits_read++;
 						if (hits > 10) {
 							if (extrapulses) {
@@ -321,10 +365,11 @@ static int read_sf_exec(struct ast_channel *chan, const char *data)
 {
 #define BUFFER_SIZE 256
 	char tmp[BUFFER_SIZE] = "";
-	double tosec;
+	double tosec, digitsec;
 	struct ast_flags flags = {0};
+	char *opt_args[OPT_ARG_ARRAY_SIZE];
 	char *argcopy = NULL;
-	int res, features = 0, digits = 0, to = 0, freq = 2600;
+	int res, features = 0, digits = 0, to = 0, digit_timeout = 0, freq = 2600;
 
 	AST_DECLARE_APP_ARGS(arglist,
 		AST_APP_ARG(variable);
@@ -344,7 +389,7 @@ static int read_sf_exec(struct ast_channel *chan, const char *data)
 	AST_STANDARD_APP_ARGS(arglist, argcopy);
 
 	if (!ast_strlen_zero(arglist.options)) {
-		ast_app_parse_options(read_app_options, &flags, NULL, arglist.options);
+		ast_app_parse_options(read_app_options, &flags, opt_args, arglist.options);
 	}
 
 	if (!ast_strlen_zero(arglist.timeout)) {
@@ -353,6 +398,18 @@ static int read_sf_exec(struct ast_channel *chan, const char *data)
 			to = 0;
 		} else {
 			to = tosec * 1000.0;
+		}
+	}
+	if (ast_test_flag(&flags, OPT_DIGIT_TIMEOUT)) {
+		digitsec = (!ast_strlen_zero(opt_args[OPT_ARG_DIGIT_TIMEOUT]) ? atof(opt_args[OPT_ARG_DIGIT_TIMEOUT]) : DEFAULT_POST_DIGIT_TIMER);
+		if (digitsec <= 0) {
+			digit_timeout = 0;
+		} else {
+			digit_timeout = digitsec * 1000.0;
+			if (digit_timeout < SF_BETWEEN) {
+				ast_log(LOG_WARNING, "SF post-digit timer (%d) cannot be less than the SF inter-digit timeout (%d ms)\n", digit_timeout, SF_BETWEEN);
+				digit_timeout = SF_BETWEEN; /* If we have a shorter timeout, it won't work at all */
+			}
 		}
 	}
 
@@ -387,7 +444,7 @@ static int read_sf_exec(struct ast_channel *chan, const char *data)
 		features |= DSP_DIGITMODE_RELAXDTMF;
 	}
 
-	res = read_sf_digits(chan, tmp, BUFFER_SIZE, to, digits, freq, features, ast_test_flag(&flags, OPT_EXTRAPULSES));
+	res = read_sf_digits(chan, tmp, BUFFER_SIZE, to, digit_timeout, digits, freq, features, ast_test_flag(&flags, OPT_EXTRAPULSES));
 	pbx_builtin_setvar_helper(chan, arglist.variable, tmp);
 	if (!ast_strlen_zero(tmp)) {
 		ast_verb(3, "SF digits received: '%s'\n", tmp);
