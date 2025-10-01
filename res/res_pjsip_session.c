@@ -2822,6 +2822,31 @@ static pjsip_module session_module = {
 	.on_tx_response = session_on_tx_response,
 };
 
+static int sdp_contains_t38_media(const pjmedia_sdp_session *sdp)
+{
+	int i, j;
+
+	for (i = 0; i < sdp->media_count; ++i) {
+		pjmedia_sdp_media *media = sdp->media[i];
+
+		if (pj_stricmp2(&media->desc.media, "image") && pj_stricmp2(&media->desc.media, "application")) {
+			continue;
+		}
+
+		if (pj_stricmp2(&media->desc.transport, "udptl") && pj_stricmp2(&media->desc.transport, "udptl/t38")) {
+			continue;
+		}
+
+		for (j = 0; j < media->desc.fmt_count; ++j) {
+			if (!pj_stricmp2(&media->desc.fmt[j], "t38")) {
+				return 1;
+			}
+		}
+	}
+
+	return 0;
+}
+
 /*! \brief Determine whether the SDP provided requires deferral of negotiating or not
  *
  * \retval 1 re-invite should be deferred and resumed later
@@ -2843,7 +2868,6 @@ static int sdp_requires_deferral(struct ast_sip_session *session, const pjmedia_
 		char media[20];
 		struct ast_sip_session_sdp_handler *handler;
 		RAII_VAR(struct sdp_handler_list *, handler_list, NULL, ao2_cleanup);
-		RAII_VAR(struct ast_sip_session_media_state *, media_state, NULL, ast_sip_session_media_state_free);
 		struct ast_stream *existing_stream = NULL;
 		struct ast_stream *stream;
 		enum ast_media_type type;
@@ -2868,11 +2892,7 @@ static int sdp_requires_deferral(struct ast_sip_session *session, const pjmedia_
 		/* As this is only called on an incoming SDP offer before processing it is not possible
 		 * for streams and their media sessions to exist.
 		 */
-		media_state = ast_sip_session_media_state_clone(session->pending_media_state);
-		if (!media_state) {
-			return -1;
-		}
-		if (ast_stream_topology_set_stream(media_state->topology, i, stream)) {
+		if (ast_stream_topology_set_stream(session->pending_media_state->topology, i, stream)) {
 			ast_stream_free(stream);
 			return -1;
 		}
@@ -2885,7 +2905,7 @@ static int sdp_requires_deferral(struct ast_sip_session *session, const pjmedia_
 			}
 		}
 
-		session_media = ast_sip_session_media_state_add(session, media_state, ast_media_type_from_str(media), i);
+		session_media = ast_sip_session_media_state_add(session, session->pending_media_state, ast_media_type_from_str(media), i);
 		if (!session_media) {
 			return -1;
 		}
@@ -2967,10 +2987,11 @@ static int sdp_requires_deferral(struct ast_sip_session *session, const pjmedia_
 
 static pj_bool_t session_reinvite_on_rx_request(pjsip_rx_data *rdata)
 {
-	pjsip_dialog *dlg;
-	RAII_VAR(struct ast_sip_session *, session, NULL, ao2_cleanup);
-	pjsip_rdata_sdp_info *sdp_info;
 	int deferred;
+	pjsip_dialog *dlg;
+	pjsip_rdata_sdp_info *sdp_info;
+	RAII_VAR(struct ast_sip_session *, session, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_sip_session_media_state *, previous_pending_state, NULL, ast_sip_session_media_state_free);
 
 	if (rdata->msg_info.msg->line.req.method.id != PJSIP_INVITE_METHOD ||
 		!(dlg = pjsip_ua_find_dialog(&rdata->msg_info.cid->id, &rdata->msg_info.to->tag, &rdata->msg_info.from->tag, PJ_FALSE)) ||
@@ -2987,6 +3008,11 @@ static pj_bool_t session_reinvite_on_rx_request(pjsip_rx_data *rdata)
 	if (session->deferred_reinvite) {
 		pj_str_t key, deferred_key;
 		pjsip_tx_data *tdata;
+
+		if (rdata == session->deferred_reinvite) {
+			/* This is the deferred re-INVITE being resumed, let it through. */
+			return PJ_FALSE;
+		}
 
 		/* We use memory from the new request on purpose so the deferred reinvite pool does not grow uncontrollably */
 		pjsip_tsx_create_key(rdata->tp_info.pool, &key, PJSIP_ROLE_UAS, &rdata->msg_info.cseq->method, rdata);
@@ -3009,23 +3035,32 @@ static pj_bool_t session_reinvite_on_rx_request(pjsip_rx_data *rdata)
 	}
 
 	if (!(sdp_info = pjsip_rdata_get_sdp_info(rdata)) ||
-		(sdp_info->sdp_err != PJ_SUCCESS)) {
+		(sdp_info->sdp_err != PJ_SUCCESS) || !sdp_info->sdp) {
 		return PJ_FALSE;
 	}
 
-	if (!sdp_info->sdp) {
+	if (!(previous_pending_state = ast_sip_session_media_state_clone(session->pending_media_state))) {
 		return PJ_FALSE;
+	}
+
+	if (!sdp_contains_t38_media(sdp_info->sdp)) {
+		ast_sip_session_media_state_reset(session->pending_media_state);
 	}
 
 	deferred = sdp_requires_deferral(session, sdp_info->sdp);
 	if (deferred == -1) {
-		ast_sip_session_media_state_reset(session->pending_media_state);
+		ast_sip_session_media_state_free(session->pending_media_state);
+		session->pending_media_state = previous_pending_state;
+		previous_pending_state = NULL;
 		return PJ_FALSE;
 	} else if (!deferred) {
+		ast_sip_session_media_state_free(session->pending_media_state);
+		session->pending_media_state = previous_pending_state;
+		previous_pending_state = NULL;
 		return PJ_FALSE;
 	}
 
-	ast_sip_session_media_state_reset(session->pending_media_state);
+	/* Deferral needed, keep newly built pending media state. */
 
 	pjsip_rx_data_clone(rdata, 0, &session->deferred_reinvite);
 
