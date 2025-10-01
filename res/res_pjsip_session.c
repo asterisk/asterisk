@@ -2843,7 +2843,6 @@ static int sdp_requires_deferral(struct ast_sip_session *session, const pjmedia_
 		char media[20];
 		struct ast_sip_session_sdp_handler *handler;
 		RAII_VAR(struct sdp_handler_list *, handler_list, NULL, ao2_cleanup);
-		RAII_VAR(struct ast_sip_session_media_state *, media_state, NULL, ast_sip_session_media_state_free);
 		struct ast_stream *existing_stream = NULL;
 		struct ast_stream *stream;
 		enum ast_media_type type;
@@ -2868,11 +2867,7 @@ static int sdp_requires_deferral(struct ast_sip_session *session, const pjmedia_
 		/* As this is only called on an incoming SDP offer before processing it is not possible
 		 * for streams and their media sessions to exist.
 		 */
-		media_state = ast_sip_session_media_state_clone(session->pending_media_state);
-		if (!media_state) {
-			return -1;
-		}
-		if (ast_stream_topology_set_stream(media_state->topology, i, stream)) {
+		if (ast_stream_topology_set_stream(session->pending_media_state->topology, i, stream)) {
 			ast_stream_free(stream);
 			return -1;
 		}
@@ -2885,7 +2880,7 @@ static int sdp_requires_deferral(struct ast_sip_session *session, const pjmedia_
 			}
 		}
 
-		session_media = ast_sip_session_media_state_add(session, media_state, ast_media_type_from_str(media), i);
+		session_media = ast_sip_session_media_state_add(session, session->pending_media_state, ast_media_type_from_str(media), i);
 		if (!session_media) {
 			return -1;
 		}
@@ -3024,8 +3019,6 @@ static pj_bool_t session_reinvite_on_rx_request(pjsip_rx_data *rdata)
 	} else if (!deferred) {
 		return PJ_FALSE;
 	}
-
-	ast_sip_session_media_state_reset(session->pending_media_state);
 
 	pjsip_rx_data_clone(rdata, 0, &session->deferred_reinvite);
 
