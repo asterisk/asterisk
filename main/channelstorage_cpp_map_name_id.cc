@@ -141,7 +141,17 @@ static int delete_channel(struct ast_channelstorage_instance *driver,
 /*! \brief returns number of active/allocated channels */
 static int active_channels(struct ast_channelstorage_instance *driver)
 {
-	return driver ? getdb(driver).size() : 0;
+	int count = 0;
+
+	if (!driver) {
+		return 0;
+	}
+
+	rdlock(driver);
+	count = getdb(driver).size();
+	unlock(driver);
+
+	return count;
 }
 
 static struct ast_channel *callback(struct ast_channelstorage_instance *driver,
@@ -454,14 +464,17 @@ static struct ast_channel *get_by_uniqueid(struct ast_channelstorage_instance *d
 {
 	struct ast_channel *chan = NULL;
 	char *search = uniqueid ? ast_str_to_lower(ast_strdupa(uniqueid)) : NULL;
+
 	if (ast_strlen_zero(uniqueid)) {
 		return NULL;
 	}
 
+	rdlock(driver);
 	auto rtn = map_by_id(driver).find(search);
 	if (rtn != map_by_id(driver).end()) {
 		chan = ao2_bump((struct ast_channel *)rtn->second);
 	}
+	unlock(driver);
 
 	return chan;
 }
@@ -469,16 +482,21 @@ static struct ast_channel *get_by_uniqueid(struct ast_channelstorage_instance *d
 static struct ast_channel *get_by_name_exact(struct ast_channelstorage_instance *driver,
 	const char *name)
 {
+	struct ast_channel *chan = NULL;
 	char *search = name ? ast_str_to_lower(ast_strdupa(name)) : NULL;
+
 	if (ast_strlen_zero(name)) {
 		return NULL;
 	}
-	auto chan = getdb(driver).find(search);
-	if (chan != getdb(driver).end()) {
-		return ao2_bump((struct ast_channel *)chan->second);
-	}
 
-	return NULL;
+	rdlock(driver);
+	auto rtn = getdb(driver).find(search);
+	if (rtn != getdb(driver).end()) {
+		chan = ao2_bump((struct ast_channel *)rtn->second);
+	}
+	unlock(driver);
+
+	return chan;
 }
 
 static struct ast_channel *get_by_name_prefix(struct ast_channelstorage_instance *driver,
@@ -493,10 +511,14 @@ static struct ast_channel *get_by_name_prefix(struct ast_channelstorage_instance
 	}
 
 	l_name = ast_str_to_lower(ast_strdupa(name));
+
+	rdlock(driver);
 	auto rtn = getdb(driver).lower_bound(l_name);
 	if (rtn != getdb(driver).end()) {
 		chan = ao2_bump((struct ast_channel *)rtn->second);
 	}
+	unlock(driver);
+
 	return chan;
 }
 
