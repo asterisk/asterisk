@@ -624,7 +624,7 @@ static int tone_detect(struct ast_dsp *dsp, tone_detect_state_t *s, int16_t *amp
 			ast_debug(9, "%d Hz tone Hit! [%d/%d] Ew=%.4E, Et=%.4E, s/n=%10.2f\n", s->freq, s->hit_count + 1, s->hits_required, tone_energy, s->energy, tone_energy / (s->energy - tone_energy));
 			hit = 1;
 		} else {
-			ast_debug(10, "%d Hz tone [%d/%d] Ew=%.4E, Et=%.4E, s/n=%10.2f\n", s->freq, s->hit_count + 1, s->hits_required, tone_energy, s->energy, tone_energy / (s->energy - tone_energy));
+			ast_debug(10, "%d Hz tone [%d/%d] Ew=%.4E, Et=%.4E, s/n=%10.2f\n", s->freq, s->hit_count, s->hits_required, tone_energy, s->energy, tone_energy / (s->energy - tone_energy));
 			hit = 0;
 		}
 
@@ -635,7 +635,9 @@ static int tone_detect(struct ast_dsp *dsp, tone_detect_state_t *s, int16_t *amp
 		if (hit == s->last_hit) {
 			if (!hit) {
 				/* Two successive misses. Tone ended */
-				ast_debug(9, "Partial detect expired after %d/%d hits\n", s->hit_count, s->hits_required);
+				if (s->hit_count) {
+					ast_debug(9, "Partial detect expired after %d/%d hits\n", s->hit_count, s->hits_required);
+				}
 				s->hit_count = 0;
 			} else if (!s->hit_count) {
 				s->hit_count++;
