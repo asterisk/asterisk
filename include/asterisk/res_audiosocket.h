@@ -50,6 +50,9 @@ enum ast_audiosocket_msg_kind {
 	/*! \brief Messages contains audio data, direction: Sent and received. */
 	AST_AUDIOSOCKET_KIND_AUDIO  = 0x10,
 
+	/*! \brief Messages contains audio data, format: slin16, direction: Sent and received. */
+	AST_AUDIOSOCKET_KIND_AUDIO_SLIN16  = 0x11,
+
 	/*! \brief An Asterisk-side error occurred, direction: Received only. */
 	AST_AUDIOSOCKET_KIND_ERROR  = 0xFF,
 };
