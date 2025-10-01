@@ -216,10 +216,16 @@ static enum ast_rtp_glue_result chan_pjsip_get_rtp_peer(struct ast_channel *chan
 		return AST_RTP_GLUE_RESULT_FORBID;
 	}
 
+	/*
+	 * Forbid native RTP only when T.38 is actually in use or negotiating.
+	 */
 	datastore = ast_sip_session_get_datastore(channel->session, "t38");
 	if (datastore) {
+		enum ast_sip_session_t38state t38state = channel->session->t38state;
 		ao2_ref(datastore, -1);
-		return AST_RTP_GLUE_RESULT_FORBID;
+		if (t38state != T38_DISABLED) {
+			return AST_RTP_GLUE_RESULT_FORBID;
+		}
 	}
 
 	endpoint = channel->session->endpoint;
