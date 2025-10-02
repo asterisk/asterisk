@@ -151,6 +151,14 @@
 							"required": false,
 							"allowMultiple": false,
 							"dataType": "string"
+						},
+						{
+							"name": "preDialGoSub",
+							"description": "The pre-dial sub context,extension,priority(arg1,arg2,...) is used to set options/headers needed before starting the dial to the endpoint.",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
 						}
 					],
 					"errorResponses": [
@@ -400,6 +408,14 @@
 						{
 							"name": "formats",
 							"description": "The format name capability list to use if originator is not specified. Ex. \"ulaw,slin16\".  Format names can be found with \"core show codecs\".",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "preDialGoSub",
+							"description": "The pre-dial sub context,extension,priority(arg1,arg2,...) is used to set options/headers needed before starting the dial to the endpoint.",
 							"paramType": "query",
 							"required": false,
 							"allowMultiple": false,
@@ -1701,6 +1717,14 @@
 							"required": false,
 							"allowMultiple": false,
 							"dataType": "string"
+						},
+						{
+							"name": "preDialGoSub",
+							"description": "The pre-dial sub context,extension,priority(arg1,arg2,...) is used to set options/headers needed before starting the dial to the snooping channel.",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
 						}
 					],
 					"errorResponses": [
@@ -1797,6 +1821,14 @@
 							"required": false,
 							"allowMultiple": false,
 							"dataType": "string"
+						},
+						{
+							"name": "preDialGoSub",
+							"description": "The pre-dial sub context,extension,priority(arg1,arg2,...) is used to set options/headers needed before starting the dial to the snooping channel.",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
 						}
 					],
 					"errorResponses": [
@@ -1853,6 +1885,14 @@
 								"valueType": "RANGE",
 								"min": 0
 							}
+						},
+						{
+							"name": "preDialGoSub",
+							"description": "The pre-dial sub context,extension,priority(arg1,arg2,...) is used to set options/headers needed before starting the dial to the endpoint.",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
 						}
 					],
 					"errorResponses": [
@@ -2023,6 +2063,14 @@
 						{
 							"name": "data",
 							"description": "An arbitrary data field",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "preDialGoSub",
+							"description": "The pre-dial sub context,extension,priority(arg1,arg2,...) is used to set options/headers needed before starting the dial to the external media channel.",
 							"paramType": "query",
 							"required": false,
 							"allowMultiple": false,

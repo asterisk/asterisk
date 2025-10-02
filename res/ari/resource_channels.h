@@ -80,6 +80,8 @@ struct ast_ari_channels_originate_args {
 	const char *originator;
 	/*! The format name capability list to use if originator is not specified. Ex. "ulaw,slin16".  Format names can be found with "core show codecs". */
 	const char *formats;
+	/*! The pre-dial sub context,extension,priority(arg1,arg2,...) is used to set options/headers needed before starting the dial to the endpoint. */
+	const char *pre_dial_go_sub;
 };
 /*!
  * \brief Body parsing function for /channels.
@@ -183,6 +185,8 @@ struct ast_ari_channels_originate_with_id_args {
 	const char *originator;
 	/*! The format name capability list to use if originator is not specified. Ex. "ulaw,slin16".  Format names can be found with "core show codecs". */
 	const char *formats;
+	/*! The pre-dial sub context,extension,priority(arg1,arg2,...) is used to set options/headers needed before starting the dial to the endpoint. */
+	const char *pre_dial_go_sub;
 };
 /*!
  * \brief Body parsing function for /channels/{channelId}.
@@ -740,6 +744,8 @@ struct ast_ari_channels_snoop_channel_args {
 	const char *app_args;
 	/*! Unique ID to assign to snooping channel */
 	const char *snoop_id;
+	/*! The pre-dial sub context,extension,priority(arg1,arg2,...) is used to set options/headers needed before starting the dial to the snooping channel. */
+	const char *pre_dial_go_sub;
 };
 /*!
  * \brief Body parsing function for /channels/{channelId}/snoop.
@@ -776,6 +782,8 @@ struct ast_ari_channels_snoop_channel_with_id_args {
 	const char *app;
 	/*! The application arguments to pass to the Stasis application */
 	const char *app_args;
+	/*! The pre-dial sub context,extension,priority(arg1,arg2,...) is used to set options/headers needed before starting the dial to the snooping channel. */
+	const char *pre_dial_go_sub;
 };
 /*!
  * \brief Body parsing function for /channels/{channelId}/snoop/{snoopId}.
@@ -806,6 +814,8 @@ struct ast_ari_channels_dial_args {
 	const char *caller;
 	/*! Dial timeout */
 	int timeout;
+	/*! The pre-dial sub context,extension,priority(arg1,arg2,...) is used to set options/headers needed before starting the dial to the endpoint. */
+	const char *pre_dial_go_sub;
 };
 /*!
  * \brief Body parsing function for /channels/{channelId}/dial.
@@ -861,6 +871,8 @@ struct ast_ari_channels_external_media_args {
 	const char *direction;
 	/*! An arbitrary data field */
 	const char *data;
+	/*! The pre-dial sub context,extension,priority(arg1,arg2,...) is used to set options/headers needed before starting the dial to the external media channel. */
+	const char *pre_dial_go_sub;
 };
 /*!
  * \brief Body parsing function for /channels/externalMedia.
