@@ -216,7 +216,7 @@ static struct ast_codec gsm = {
 	.samples_count = gsm_samples,
 	.get_length = gsm_length,
 	.smooth = 1,
-	.quality = 60,
+	.quality = 40,
 };
 
 static int g726_samples(struct ast_frame *frame)
@@ -449,7 +449,7 @@ static struct ast_codec lpc10 = {
 	.minimum_bytes = 7,
 	.samples_count = lpc10_samples,
 	.smooth = 1,
-	.quality = 25,
+	.quality = 8,
 };
 
 static int g729_samples(struct ast_frame *frame)
@@ -475,7 +475,7 @@ static struct ast_codec g729a = {
 	.get_length = g729_length,
 	.smooth = 1,
 	.smoother_flags = AST_SMOOTHER_FLAG_G729,
-	.quality = 20,
+	.quality = 45,
 };
 
 static unsigned char get_n_bits_at(unsigned char *data, int n, int bit)
@@ -662,7 +662,7 @@ static struct ast_codec ilbc = {
 	.minimum_bytes = 38,
 	.samples_count = ilbc_samples,
 	.smooth = 0,
-	.quality = 45,
+	.quality = 35,
 };
 
 static struct ast_codec g722 = {
@@ -777,7 +777,7 @@ static struct ast_codec opus = {
 	.default_ms = 20,
 	.samples_count = opus_samples,
 	.minimum_bytes = 10,
-	.quality = 50,
+	.quality = 75,
 };
 
 static struct ast_codec jpeg = {
