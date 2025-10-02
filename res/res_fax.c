@@ -4631,7 +4631,7 @@ static int acf_faxopt_read(struct ast_channel *chan, const char *cmd, char *data
 	char *filenames;
 
 	if (!details) {
-		ast_log(LOG_ERROR, "channel '%s' can't read FAXOPT(%s) because it has never been written.\n", ast_channel_name(chan), data);
+		ast_debug(3, "channel '%s' can't read FAXOPT(%s) because it has never been written.\n", ast_channel_name(chan), data);
 		return -1;
 	}
 	if (!strcasecmp(data, "ecm")) {
@@ -4645,14 +4645,14 @@ static int acf_faxopt_read(struct ast_channel *chan, const char *cmd, char *data
 		ast_copy_string(buf, details->error, len);
 	} else if (!strcasecmp(data, "filename")) {
 		if (AST_LIST_EMPTY(&details->documents)) {
-			ast_log(LOG_ERROR, "channel '%s' can't read FAXOPT(%s) because it has never been written.\n", ast_channel_name(chan), data);
+			ast_debug(3, "channel '%s' can't read FAXOPT(%s) because it has never been written.\n", ast_channel_name(chan), data);
 			res = -1;
 		} else {
 			ast_copy_string(buf, AST_LIST_FIRST(&details->documents)->filename, len);
 		}
 	} else if (!strcasecmp(data, "filenames")) {
 		if (AST_LIST_EMPTY(&details->documents)) {
-			ast_log(LOG_ERROR, "channel '%s' can't read FAXOPT(%s) because it has never been written.\n", ast_channel_name(chan), data);
+			ast_debug(3, "channel '%s' can't read FAXOPT(%s) because it has never been written.\n", ast_channel_name(chan), data);
 			res = -1;
 		} else if ((filenames = generate_filenames_string(details, "", ","))) {
 			ast_copy_string(buf, filenames, len);
