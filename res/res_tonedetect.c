@@ -85,14 +85,14 @@
 		<description>
 			<para>Waits for a single-frequency tone to be detected before dialplan execution continues.</para>
 			<variablelist>
-			<variable name="WAITFORTONESTATUS">
-				<para>This indicates the result of the wait.</para>
-				<value name="SUCCESS"/>
-				<value name="ERROR"/>
-				<value name="TIMEOUT"/>
-				<value name="HANGUP"/>
-			</variable>
-		</variablelist>
+				<variable name="WAITFORTONESTATUS">
+					<para>This indicates the result of the wait.</para>
+					<value name="SUCCESS"/>
+					<value name="ERROR"/>
+					<value name="TIMEOUT"/>
+					<value name="HANGUP"/>
+				</variable>
+			</variablelist>
 		</description>
 		<see-also>
 			<ref type="application">PlayTones</ref>
@@ -136,43 +136,43 @@
 			Unlike a conventional scanner, this is not currently capable of
 			scanning for modem carriers.</para>
 			<variablelist>
-			<variable name="TONESCANSTATUS">
-				This indicates the result of the scan.
-				<value name="RINGING">
-					Audible ringback tone
-				</value>
-				<value name="BUSY">
-					Busy tone
-				</value>
-				<value name="SIT">
-					Special Information Tones
-				</value>
-				<value name="VOICE">
-					Human voice detected
-				</value>
-				<value name="DTMF">
-					DTMF digit
-				</value>
-				<value name="FAX">
-					Fax (answering)
-				</value>
-				<value name="MODEM">
-					Modem (answering)
-				</value>
-				<value name="DIALTONE">
-					Dial tone
-				</value>
-				<value name="NUT">
-					UK Number Unobtainable tone
-				</value>
-				<value name="TIMEOUT">
-					Timeout reached before any positive detection
-				</value>
-				<value name="HANGUP">
-					Caller hung up before any positive detection
-				</value>
-			</variable>
-		</variablelist>
+				<variable name="TONESCANSTATUS">
+					This indicates the result of the scan.
+					<value name="RINGING">
+						Audible ringback tone
+					</value>
+					<value name="BUSY">
+						Busy tone
+					</value>
+					<value name="SIT">
+						Special Information Tones
+					</value>
+					<value name="VOICE">
+						Human voice detected
+					</value>
+					<value name="DTMF">
+						DTMF digit
+					</value>
+					<value name="FAX">
+						Fax (answering)
+					</value>
+					<value name="MODEM">
+						Modem (answering)
+					</value>
+					<value name="DIALTONE">
+						Dial tone
+					</value>
+					<value name="NUT">
+						UK Number Unobtainable tone
+					</value>
+					<value name="TIMEOUT">
+						Timeout reached before any positive detection
+					</value>
+					<value name="HANGUP">
+						Caller hung up before any positive detection
+					</value>
+				</variable>
+			</variablelist>
 		</description>
 		<see-also>
 			<ref type="application">WaitForTone</ref>
