@@ -120,8 +120,44 @@
  			<para>This application is provided by res_fax, which is a FAX technology agnostic module
  			that utilizes FAX technology resource modules to complete a FAX transmission.</para>
 			<para>Session arguments can be set by the FAXOPT function and to check results of the ReceiveFAX() application.</para>
+			<variablelist>
+				<variable name="FAXSTATUS">
+					<para>Whether the fax transmission was successful</para>
+					<value name="SUCCESS"/>
+					<value name="FAILURE"/>
+				</variable>
+				<variable name="FAXERROR">
+					<para>Description of what caused the fax to fail</para>
+					<value name="MEMORY_ERROR"/>
+					<value name="Channel Problems"/>
+				</variable>
+				<variable name="FAXSTATUSSTRING">
+					<para>Detailed description of the status of the fax transmission</para>
+				</variable>
+				<variable name="LOCALSTATIONID">
+					<para>Local Station ID</para>
+				</variable>
+				<variable name="REMOTESTATIONID">
+					<para>Remote Station ID</para>
+				</variable>
+				<variable name="FAXPAGES">
+					<para>Number of pages in the fax</para>
+				</variable>
+				<variable name="FAXBITRATE">
+					<para>Bit rate of the fax transmission</para>
+				</variable>
+				<variable name="FAXRESOLUTION">
+					<para>Resolution of the fax document</para>
+				</variable>
+				<variable name="FAXMODE">
+					<para>Fax transmission mode</para>
+					<value name="audio"/>
+					<value name="T38"/>
+				</variable>
+			</variablelist>
 		</description>
 		<see-also>
+			<ref type="application">SendFAX</ref>
 			<ref type="function">FAXOPT</ref>
 		</see-also>
 	</application>
@@ -162,8 +198,44 @@
  			<para>This application is provided by res_fax, which is a FAX technology agnostic module
  			that utilizes FAX technology resource modules to complete a FAX transmission.</para>
 			<para>Session arguments can be set by the FAXOPT function and to check results of the SendFAX() application.</para>
+			<variablelist>
+				<variable name="FAXSTATUS">
+					<para>Whether the fax transmission was successful</para>
+					<value name="SUCCESS"/>
+					<value name="FAILURE"/>
+				</variable>
+				<variable name="FAXERROR">
+					<para>Description of what caused the fax to fail</para>
+					<value name="MEMORY_ERROR"/>
+					<value name="Channel Problems"/>
+				</variable>
+				<variable name="FAXSTATUSSTRING">
+					<para>Detailed description of the status of the fax transmission</para>
+				</variable>
+				<variable name="LOCALSTATIONID">
+					<para>Local Station ID</para>
+				</variable>
+				<variable name="REMOTESTATIONID">
+					<para>Remote Station ID</para>
+				</variable>
+				<variable name="FAXPAGES">
+					<para>Number of pages in the fax</para>
+				</variable>
+				<variable name="FAXBITRATE">
+					<para>Bit rate of the fax transmission</para>
+				</variable>
+				<variable name="FAXRESOLUTION">
+					<para>Resolution of the fax document</para>
+				</variable>
+				<variable name="FAXMODE">
+					<para>Fax transmission mode</para>
+					<value name="audio"/>
+					<value name="T38"/>
+				</variable>
+			</variablelist>
 		</description>
 		<see-also>
+			<ref type="application">ReceiveFAX</ref>
 			<ref type="function">FAXOPT</ref>
 		</see-also>
 	</application>
