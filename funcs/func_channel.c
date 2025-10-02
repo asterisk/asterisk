@@ -127,7 +127,11 @@
 						<para>R/O format currently being read.</para>
 					</enum>
 					<enum name="audionativeformat">
-						<para>R/O format used natively for audio.</para>
+						<para>R/W format used natively for audio.</para>
+						<para>You can write a new value to change the audio format during
+						a call and exert more control over where transcoding happens, e.g.
+						if you have Local channels between channels with different formats.</para>
+						<para>Writing is only supported on Local channels.</para>
 					</enum>
 					<enum name="audiowriteformat">
 						<para>R/O format currently being written.</para>
@@ -626,7 +630,57 @@ static int func_channel_write_real(struct ast_channel *chan, const char *functio
 	else if (!strcasecmp(data, "hangupsource"))
 		/* XXX - should we be forcing this here? */
 		ast_set_hangupsource(chan, value, 0);
-	else if (!strcasecmp(data, "tonezone")) {
+	else if (!strcasecmp(data, "audionativeformat")) {
+		struct ast_format *fmt;
+		struct ast_format_cap *cap;
+
+		ast_channel_lock(chan);
+		if (!ast_channel_tech(chan)) {
+			ast_channel_unlock(chan);
+			return -1;
+		}
+
+		/* The ability to arbitrarily change the native format is only acceptable
+		 * for Local channels, since Asterisk has full control of them and
+		 * they are internal.
+		 *
+		 * Practically speaking, there is not much reason to attempt this operation
+		 * on non-Local channels. */
+		if (strcasecmp(ast_channel_tech(chan)->type, "Local")) {
+			ast_log(LOG_WARNING, "%s is not a Local channel\n", ast_channel_name(chan));
+			ast_channel_unlock(chan);
+			return -1;
+		}
+
+		cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+		if (!cap) {
+			ast_channel_unlock(chan);
+			ast_log(LOG_ERROR, "Failed to alloc capabilities\n");
+			return -1;
+		}
+		ast_format_cap_update_by_allow_disallow(cap, value, 1);
+		fmt = ast_format_cap_get_format(cap, 0);
+		if (!fmt) {
+			ast_channel_unlock(chan);
+			ao2_ref(cap, -1);
+			ast_log(LOG_ERROR, "No format for capabilities '%s'\n", value);
+			return -1;
+		}
+
+		/* Setting the native format is key to making it work, but
+		 * also something that should only be done on Local channels. */
+		ast_channel_nativeformats_set(chan, cap);
+		ast_channel_set_readformat(chan, fmt);
+		ast_channel_set_writeformat(chan, fmt);
+		/* We do not set the raw formats as if we do it doesn't work, i.e.
+		 * ast_channel_set_rawreadformat(chan, fmt);
+		 * ast_channel_set_rawwriteformat(chan, fmt);
+		 */
+		ast_channel_unlock(chan);
+
+		ao2_ref(fmt, -1);
+		ao2_ref(cap, -1);
+	} else if (!strcasecmp(data, "tonezone")) {
 		struct ast_tone_zone *new_zone;
 		if (!(new_zone = ast_get_indication_zone(value))) {
 			ast_log(LOG_ERROR, "Unknown country code '%s' for tonezone. Check indications.conf for available country codes.\n", value);
