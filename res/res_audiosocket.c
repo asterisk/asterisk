@@ -230,7 +230,13 @@ const int ast_audiosocket_send_frame(const int svc, const struct ast_frame *f)
 			depends on agreed upon audio codec for channel driver interface. */
 		switch (f->frametype) {
 			case AST_FRAME_VOICE:
-				buf[0] = AST_AUDIOSOCKET_KIND_AUDIO;
+
+				if (ast_format_cmp(f->subclass.format, ast_format_slin16) == AST_FORMAT_CMP_EQUAL) {
+					buf[0] = AST_AUDIOSOCKET_KIND_AUDIO_SLIN16;
+				} else {
+					buf[0] = AST_AUDIOSOCKET_KIND_AUDIO;
+				}
+
 				*length = htons(datalen);
 				memcpy(&buf[3], f->data.ptr, datalen);
 				break;
@@ -264,7 +270,6 @@ struct ast_frame *ast_audiosocket_receive_frame_with_hangup(const int svc,
 	int i = 0, n = 0, ret = 0;
 	struct ast_frame f = {
 		.frametype = AST_FRAME_VOICE,
-		.subclass.format = ast_format_slin,
 		.src = "AudioSocket",
 		.mallocd = AST_MALLOCD_DATA,
 	};
@@ -291,9 +296,16 @@ struct ast_frame *ast_audiosocket_receive_frame_with_hangup(const int svc,
 		return NULL;
 	}
 
-	if (*kind != AST_AUDIOSOCKET_KIND_AUDIO) {
-		ast_log(LOG_ERROR, "Received AudioSocket message other than hangup or audio, refer to protocol specification for valid message types\n");
-		return NULL;
+	switch (*kind) {
+		case AST_AUDIOSOCKET_KIND_AUDIO:
+			f.subclass.format = ast_format_slin;
+			break;
+		case AST_AUDIOSOCKET_KIND_AUDIO_SLIN16:
+			f.subclass.format = ast_format_slin16;
+			break;
+		default:
+			ast_log(LOG_ERROR, "Received AudioSocket message other than hangup or audio, refer to protocol specification for valid message types\n");
+			return NULL;
 	}
 
 	/* Swap endianess of length if needed. */
