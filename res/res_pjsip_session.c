@@ -608,8 +608,9 @@ static int is_stream_limitation_reached(enum ast_media_type type, const struct a
 	case AST_MEDIA_TYPE_IMAGE:
 		/* We don't have an option for image (T.38) streams so cap it to one. */
 		return (type_streams[type] > 0);
-	case AST_MEDIA_TYPE_UNKNOWN:
 	case AST_MEDIA_TYPE_TEXT:
+		return !(type_streams[type] < endpoint->media.max_text_streams);
+	case AST_MEDIA_TYPE_UNKNOWN:
 	default:
 		/* We don't want any unknown or "other" streams on our endpoint,
 		 * so always just say we've reached the limit
