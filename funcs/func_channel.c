@@ -123,6 +123,15 @@
 					<enum name="accountcode">
 						<para>R/W the channel's account code.</para>
 					</enum>
+					<enum name="adsicpe">
+						<para>R/W The channel's support for ADSI (Analog Display Services Interface) CPE.</para>
+						<enumlist>
+							<enum name="available" />
+							<enum name="offhookonly" />
+							<enum name="unavailable" />
+							<enum name="unknown" />
+						</enumlist>
+					</enum>
 					<enum name="audioreadformat">
 						<para>R/O format currently being read.</para>
 					</enum>
@@ -416,6 +425,25 @@ static int func_channel_read(struct ast_channel *chan, const char *function,
 		locked_copy_string(chan, buf, ast_format_get_name(ast_channel_writeformat(chan)), len);
 	} else if (!strcasecmp(data, "tonezone") && ast_channel_zone(chan)) {
 		locked_copy_string(chan, buf, ast_channel_zone(chan)->country, len);
+	} else if (!strcasecmp(data, "adsicpe")) {
+		int adsi;
+		ast_channel_lock(chan);
+		adsi = ast_channel_adsicpe(chan);
+		ast_channel_unlock(chan);
+		switch (adsi) {
+		case AST_ADSI_AVAILABLE:
+			ast_copy_string(buf, "available", len);
+			break;
+		case AST_ADSI_UNAVAILABLE:
+			ast_copy_string(buf, "unavailable", len);
+			break;
+		case AST_ADSI_OFFHOOKONLY:
+			ast_copy_string(buf, "offhookonly", len);
+			break;
+		default:
+			ast_copy_string(buf, "unknown", len);
+			break;
+		}
 	} else if (!strcasecmp(data, "dtmf_features")) {
 		if (ast_bridge_features_ds_get_string(chan, buf, len)) {
 			buf[0] = '\0';
@@ -640,6 +668,23 @@ static int func_channel_write_real(struct ast_channel *chan, const char *functio
 			ast_channel_unlock(chan);
 			new_zone = ast_tone_zone_unref(new_zone);
 		}
+	} else if (!strcasecmp(data, "adsicpe")) {
+		int adsi;
+		if (!strcasecmp(value, "unknown")) {
+			adsi = AST_ADSI_UNKNOWN;
+		} else if (!strcasecmp(value, "available")) {
+			adsi = AST_ADSI_AVAILABLE;
+		} else if (!strcasecmp(value, "unavailable")) {
+			adsi = AST_ADSI_UNAVAILABLE;
+		} else if (!strcasecmp(value, "offhookonly")) {
+			adsi = AST_ADSI_OFFHOOKONLY;
+		} else {
+			ast_log(LOG_ERROR, "Unknown ADSI availability '%s'\n", value);
+			return -1;
+		}
+		ast_channel_lock(chan);
+		ast_channel_adsicpe_set(chan, adsi);
+		ast_channel_unlock(chan);
 	} else if (!strcasecmp(data, "dtmf_features")) {
 		ret = ast_bridge_features_ds_set_string(chan, value);
 	} else if (!strcasecmp(data, "callgroup")) {
