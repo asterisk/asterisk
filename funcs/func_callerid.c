@@ -127,6 +127,9 @@
 					<enum name = "dnid-subaddr-type" />
 					<enum name = "dnid-subaddr-odd" />
 				</enumlist>
+				<para>Note that unlike other Caller ID fields, DNID information is not propagated
+				by the <literal>Dial</literal> application, with the exception of
+				Transmit Network Select (which is not currently used for anything).</para>
 			</parameter>
 			<parameter name="CID">
 				<para>Optional Caller*ID to parse instead of using the Caller*ID from the
