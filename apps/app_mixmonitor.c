@@ -1232,6 +1232,51 @@ static char *filename_parse(char *filename, char *buffer, size_t len)
 	return buffer;
 }
 
+static int is_duplicate_mixmonitor(struct ast_channel *chan, const char *filename, const char *fn_write, const char *fn_read)
+{
+	struct ast_datastore *datastore = NULL;
+	struct mixmonitor_ds *mixmonitor_ds;
+	int duplicate;
+	const char *dup_file;
+
+	ast_channel_lock(chan);
+
+	datastore = ast_channel_datastore_find(chan, &mixmonitor_ds_info, NULL);
+	if (!datastore) {
+		ast_channel_unlock(chan);
+		return 0;
+	}
+	mixmonitor_ds = datastore->data;
+
+	/*
+	 * Nothing prevents a user calling MixMonitor() multiple times.
+	 * It makes sense if the user is recording to multiple files simultaneously,
+	 * but it doesn't make sense to record to the same file twice.
+	 * If we are able to catch that, prevent it. */
+	ast_mutex_lock(&mixmonitor_ds->lock);
+	/* Duplicates mixed file? */
+	dup_file = mixmonitor_ds->filename;
+	duplicate = !strcmp(filename, dup_file);
+	/* Duplicates write file? */
+	if (!duplicate && mixmonitor_ds->fs_write && !ast_strlen_zero(mixmonitor_ds->fs_write->filename) && !ast_strlen_zero(fn_write)) {
+		dup_file = mixmonitor_ds->fs_write->filename;
+		duplicate = !strcmp(fn_write, dup_file);
+	}
+	/* Duplicates read file? */
+	if (!duplicate && mixmonitor_ds->fs_read && !ast_strlen_zero(mixmonitor_ds->fs_read->filename) && !ast_strlen_zero(fn_read)) {
+		dup_file = mixmonitor_ds->fs_read->filename;
+		duplicate = !strcmp(fn_read, dup_file);
+	}
+	ast_mutex_unlock(&mixmonitor_ds->lock);
+
+	ast_channel_unlock(chan);
+
+	if (duplicate) {
+		ast_log(LOG_ERROR, "MixMonitor already recording to %s on %s, not recording again!\n", dup_file, ast_channel_name(chan));
+	}
+	return duplicate;
+}
+
 static int mixmonitor_exec(struct ast_channel *chan, const char *data)
 {
 	int x, readvol = 0, writevol = 0;
@@ -1345,6 +1390,9 @@ static int mixmonitor_exec(struct ast_channel *chan, const char *data)
 	/* If filename exists, try to create directories for it */
 	if (!(ast_strlen_zero(args.filename))) {
 		args.filename = ast_strdupa(filename_parse(args.filename, filename_buffer, sizeof(filename_buffer)));
+		if (is_duplicate_mixmonitor(chan, args.filename, filename_write, filename_read)) {
+			return 0;
+		}
 	}
 
 	pbx_builtin_setvar_helper(chan, "MIXMONITOR_FILENAME", args.filename);
