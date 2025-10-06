@@ -396,6 +396,9 @@ static int type_in_list(const char *list, const char *type, int (*cmp)(const cha
 
 #define exts_compare(list, type) (type_in_list((list), (type), strcmp))
 
+/* Forward declaration */
+static void duplicate_recording_cleanup(struct ast_filestream *fs);
+
 /*!
  * \internal
  * \brief Close the file stream by canceling any pending read / write callbacks
@@ -403,6 +406,8 @@ static int type_in_list(const char *list, const char *type, int (*cmp)(const cha
 static void filestream_close(struct ast_filestream *f)
 {
 	enum ast_media_type format_type = ast_format_get_type(f->fmt->format);
+
+	duplicate_recording_cleanup(f); /* Free the list entry used to prevent duplicate recordings */
 
 	if (!f->owner) {
 		return;
@@ -1149,7 +1154,6 @@ int ast_closestream(struct ast_filestream *f)
 	return 0;
 }
 
-
 /*
  * Look the various language-specific places where a file could exist.
  */
@@ -1462,6 +1466,61 @@ struct ast_filestream *ast_readfile(const char *filename, const char *type, cons
 	return fs;
 }
 
+struct ast_hashtab *channel_recordings;
+
+static int duplicate_recording_init(void)
+{
+	/* Use a prime number for the initial number of buckets: */
+	channel_recordings = ast_hashtab_create(47, ast_hashtab_compare_strings, ast_hashtab_resize_java,
+		ast_hashtab_newsize_java, ast_hashtab_hash_string, 1);
+	return channel_recordings ? 0 : -1;
+}
+
+static void ht_delete(void *obj)
+{
+	ast_free(obj);
+}
+
+static void duplicate_recording_shutdown(void)
+{
+	ast_hashtab_destroy(channel_recordings, ht_delete); /* Can't use ast_free here directly */
+}
+
+static void duplicate_recording_cleanup(struct ast_filestream *fs)
+{
+	char *cr, *deleted;
+	const char *filename = S_OR(fs->realfilename, fs->filename); /* This should be the same filename passed to check_duplicate_recording */
+
+	deleted = ast_hashtab_remove_object_via_lookup(channel_recordings, filename);
+	/* Don't emit warning about any unpaired closes here */
+	if (deleted) {
+		ast_free(deleted);
+	}
+}
+
+static int check_duplicate_recording(const char *filename)
+{
+	char *cr;
+
+	/* While the obvious thing to ensure is that we don't try to record to the same file multiple times
+	 * on the same channel (e.g. by making the same MixMonitor call multiple times in succession),
+	 * it's also not valid for different channels to write to the same file simultaneously, either,
+	 * so we check all the recordings currently in progress across all channels.
+	 *
+	 * Keep in mind a channel can record to multiple *different* files at the same time, but not the other way around. */
+	cr = ast_strdup(filename);
+	if (!cr) {
+		return 1;
+	}
+
+	if (!ast_hashtab_insert_safe(channel_recordings, cr)) {
+		ast_log(LOG_WARNING, "Ignoring duplicate recording attempt to %s\n", filename);
+		ast_free(cr); /* We never inserted it */
+		return 1;
+	}
+	return 0;
+}
+
 struct ast_filestream *ast_writefile(const char *filename, const char *type, const char *comment, int flags, int check, mode_t mode)
 {
 	int fd, myflags = 0;
@@ -1472,6 +1531,10 @@ struct ast_filestream *ast_writefile(const char *filename, const char *type, con
 	char *buf = NULL;
 	size_t size = 0;
 	int format_found = 0;
+
+	if (check_duplicate_recording(filename)) {
+		return NULL;
+	}
 
 	AST_RWLIST_RDLOCK(&formats);
 
@@ -2088,10 +2151,14 @@ static void file_shutdown(void)
 	ast_cli_unregister_multiple(cli_file, ARRAY_LEN(cli_file));
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_format_register_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_format_unregister_type);
+	duplicate_recording_shutdown();
 }
 
 int ast_file_init(void)
 {
+	if (duplicate_recording_init()) {
+		return -1;
+	}
 	STASIS_MESSAGE_TYPE_INIT(ast_format_register_type);
 	STASIS_MESSAGE_TYPE_INIT(ast_format_unregister_type);
 	ast_cli_register_multiple(cli_file, ARRAY_LEN(cli_file));
