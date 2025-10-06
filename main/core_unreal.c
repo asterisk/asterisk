@@ -887,6 +887,7 @@ void ast_unreal_call_setup(struct ast_channel *semi1, struct ast_channel *semi2)
 	ast_connected_line_copy_to_caller(ast_channel_caller(semi2), ast_channel_connected(semi1));
 	ast_connected_line_copy_from_caller(ast_channel_connected(semi2), ast_channel_caller(semi1));
 
+	ast_channel_adsicpe_set(semi2, ast_channel_adsicpe(semi1));
 	ast_channel_language_set(semi2, ast_channel_language(semi1));
 	ast_channel_musicclass_set(semi2, ast_channel_musicclass(semi1));
 	ast_channel_parkinglot_set(semi2, ast_channel_parkinglot(semi1));
