@@ -297,10 +297,29 @@ struct ast_frame *ast_audiosocket_receive_frame_with_hangup(const int svc,
 		*hangup = 0;
 	}
 
-	n = read(svc, &header, 3);
-	if (n == -1) {
-		ast_log(LOG_WARNING, "Failed to read header from AudioSocket because: %s\n", strerror(errno));
-		return NULL;
+	while (i < 3) {
+		n = read(svc, header, 3);
+		if (n == -1) {
+			if (errno == EAGAIN || errno == EWOULDBLOCK) {
+				int poll_result = ast_wait_for_input(svc, 5);
+
+				if (poll_result == 1) {
+					continue;
+				} else if (poll_result == 0) {
+					ast_debug(1, "Poll timed out while waiting for header data\n");
+					continue;
+				} else {
+					ast_log(LOG_WARNING, "Poll error: %s\n", strerror(errno));
+				}
+			}
+
+			ast_log(LOG_ERROR, "Failed to read header from AudioSocket because: %s\n", strerror(errno));
+			return NULL;
+		}
+		if (n == 0) {
+			break;
+		}
+		i += n;
 	}
 
 	if (n == 0 || *kind == AST_AUDIOSOCKET_KIND_HANGUP) {
