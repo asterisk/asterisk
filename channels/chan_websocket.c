@@ -577,7 +577,7 @@ static int process_text_message(struct websocket_pvt *instance,
 		instance->leftover_len = 0;
 		AST_LIST_UNLOCK(&instance->frame_queue);
 
-	} else if (ast_strings_equal(payload, REPORT_QUEUE_DRAINED)) {
+	} else if (ast_strings_equal(command, REPORT_QUEUE_DRAINED)) {
 		if (instance->passthrough) {
 			ast_debug(4, "%s: WebSocket in passthrough mode. Ignoring %s command.\n",
 				ast_channel_name(instance->channel), command);
@@ -609,7 +609,7 @@ static int process_text_message(struct websocket_pvt *instance,
 			ast_free(status);
 		}
 
-	} else if (ast_strings_equal(payload, PAUSE_MEDIA)) {
+	} else if (ast_strings_equal(command, PAUSE_MEDIA)) {
 		if (instance->passthrough) {
 			ast_debug(4, "%s: WebSocket in passthrough mode. Ignoring %s command.\n",
 				ast_channel_name(instance->channel), command);
@@ -619,7 +619,7 @@ static int process_text_message(struct websocket_pvt *instance,
 		instance->queue_paused = 1;
 		AST_LIST_UNLOCK(&instance->frame_queue);
 
-	} else if (ast_strings_equal(payload, CONTINUE_MEDIA)) {
+	} else if (ast_strings_equal(command, CONTINUE_MEDIA)) {
 		if (instance->passthrough) {
 			ast_debug(4, "%s: WebSocket in passthrough mode. Ignoring %s command.\n",
 				ast_channel_name(instance->channel), command);
