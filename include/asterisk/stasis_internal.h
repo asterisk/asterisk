@@ -54,7 +54,7 @@
  * \param needs_mailbox Determines whether or not the subscription requires a mailbox.
  *  Subscriptions with mailboxes will be delivered on some non-publisher thread;
  *  subscriptions without mailboxes will be delivered on the publisher thread.
- * \param use_thread_pool Use the thread pool for the subscription. This is only
+ * \param use_task_pool Use the task pool for the subscription. This is only
  *  relevant if \c needs_mailbox is non-zero.
  * \param file, lineno, func
  * \return New \ref stasis_subscription object.
@@ -66,7 +66,7 @@ struct stasis_subscription *internal_stasis_subscribe(
 	stasis_subscription_cb callback,
 	void *data,
 	int needs_mailbox,
-	int use_thread_pool,
+	int use_task_pool,
 	const char *file,
 	int lineno,
 	const char *func);
