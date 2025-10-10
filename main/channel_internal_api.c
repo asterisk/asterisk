@@ -1432,6 +1432,15 @@ void ast_channel_internal_swap_snapshots(struct ast_channel *a, struct ast_chann
 	b->snapshot = snapshot;
 }
 
+void ast_channel_internal_swap_endpoints(struct ast_channel *a, struct ast_channel *b)
+{
+	struct ast_endpoint *endpoint;
+
+	endpoint = a->endpoint;
+	a->endpoint = b->endpoint;
+	b->endpoint = endpoint;
+}
+
 void ast_channel_internal_set_fake_ids(struct ast_channel *chan, const char *uniqueid, const char *linkedid)
 {
 	ast_copy_string(chan->uniqueid.unique_id, uniqueid, sizeof(chan->uniqueid.unique_id));
@@ -1629,4 +1638,23 @@ void ast_channel_snapshot_set(struct ast_channel *chan, struct ast_channel_snaps
 struct ast_flags *ast_channel_snapshot_segment_flags(struct ast_channel *chan)
 {
 	return &chan->snapshot_segment_flags;
+}
+
+struct ast_endpoint *ast_channel_endpoint(const struct ast_channel *chan)
+{
+	return chan->endpoint;
+}
+
+void ast_channel_endpoint_set(struct ast_channel *chan, struct ast_endpoint *endpoint)
+{
+	if (chan->endpoint) {
+		ast_endpoint_remove_channel(chan->endpoint, chan);
+		ao2_ref(chan->endpoint, -1);
+	}
+
+	chan->endpoint = ao2_bump(endpoint);
+
+	if (chan->endpoint) {
+		ast_endpoint_add_channel(chan->endpoint, chan);
+	}
 }

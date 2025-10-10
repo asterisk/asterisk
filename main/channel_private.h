@@ -200,6 +200,7 @@ struct ast_channel {
 	struct ast_channel_snapshot *snapshot; /*!< The current up to date snapshot of the channel */
 	struct ast_flags snapshot_segment_flags; /*!< Flags regarding the segments of the snapshot */
 	int linked_in_container; /*!< Whether this channel is linked in a storage container */
+	struct ast_endpoint *endpoint; /*!< The endpoint associated with this channel */
 };
 
 #if defined(__cplusplus) || defined(c_plusplus)
