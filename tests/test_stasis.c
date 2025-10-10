@@ -382,8 +382,8 @@ AST_TEST_DEFINE(subscription_pool_messages)
 	case TEST_INIT:
 		info->name = __func__;
 		info->category = test_category;
-		info->summary = "Test subscribe/unsubscribe messages using a threadpool subscription";
-		info->description = "Test subscribe/unsubscribe messages using a threadpool subscription";
+		info->summary = "Test subscribe/unsubscribe messages using a taskpool subscription";
+		info->description = "Test subscribe/unsubscribe messages using a taskpool subscription";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -530,10 +530,10 @@ AST_TEST_DEFINE(publish_pool)
 	case TEST_INIT:
 		info->name = __func__;
 		info->category = test_category;
-		info->summary = "Test publishing with a threadpool";
+		info->summary = "Test publishing with a taskpool";
 		info->description = "Test publishing to a subscriber whose\n"
 			"subscription dictates messages are received through a\n"
-			"threadpool.";
+			"taskpool.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -793,7 +793,7 @@ AST_TEST_DEFINE(subscription_interleaving)
 			"and publishes messages alternately between the children.\n"
 			"It verifies that the messages are received in the expected\n"
 			"order, for different subscription types: one with a dedicated\n"
-			"thread, the other on the Stasis threadpool.";
+			"thread, the other on the Stasis taskpool.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -1619,10 +1619,10 @@ AST_TEST_DEFINE(router_pool)
 	case TEST_INIT:
 		info->name = __func__;
 		info->category = test_category;
-		info->summary = "Test message routing via threadpool";
+		info->summary = "Test message routing via taskpool";
 		info->description = "Test simple message routing when\n"
 			"the subscriptions dictate usage of the Stasis\n"
-			"threadpool.";
+			"taskpool.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;

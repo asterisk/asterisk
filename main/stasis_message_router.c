@@ -203,7 +203,7 @@ static void router_dispatch(void *data,
 }
 
 static struct stasis_message_router *stasis_message_router_create_internal(
-	struct stasis_topic *topic, int use_thread_pool, const char *file, int lineno,
+	struct stasis_topic *topic, int use_task_pool, const char *file, int lineno,
 	const char *func)
 {
 	int res;
@@ -223,7 +223,7 @@ static struct stasis_message_router *stasis_message_router_create_internal(
 		return NULL;
 	}
 
-	if (use_thread_pool) {
+	if (use_task_pool) {
 		router->subscription = __stasis_subscribe_pool(topic, router_dispatch, router, file, lineno, func);
 	} else {
 		router->subscription = __stasis_subscribe(topic, router_dispatch, router, file, lineno, func);
