@@ -949,7 +949,7 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 
 
 	if (endpoint) {
-		ast_endpoint_add_channel(endpoint, tmp);
+		ast_channel_endpoint_set(tmp, endpoint);
 	}
 
 	/*
@@ -2191,6 +2191,8 @@ static void ast_channel_destructor(void *obj)
 	}
 
 	ast_channel_lock(chan);
+
+	ast_channel_endpoint_set(chan, NULL);
 
 	/* Get rid of each of the data stores on the channel */
 	while ((datastore = AST_LIST_REMOVE_HEAD(ast_channel_datastores(chan), entry)))
@@ -6954,6 +6956,9 @@ static void channel_do_masquerade(struct ast_channel *original, struct ast_chann
 
 	/* The old snapshots need to follow the channels so the snapshot update is correct */
 	ast_channel_internal_swap_snapshots(clonechan, original);
+
+	/* Now we swap the endpoints if present */
+	ast_channel_internal_swap_endpoints(clonechan, original);
 
 	/* Swap channel names. This uses ast_channel_name_set directly, so we
 	 * don't get any spurious rename events.
