@@ -87,7 +87,7 @@
 		manager eventmask; command line '-t' flag to allow 
 		recording/voicemail on nfs shares; #exec command and multiline 
 		comments in config files; setvar in iax and sip configs.
-		anthmct(AT)yahoo.com http://www.asterlink.com
+		anthm(AT)signalwire.com http://www.signalwire.com
 
 	* James Golovich - Innumerable contributions, including SIP TCP and TLS
 		support. You can find him and asterisk-perl at 
