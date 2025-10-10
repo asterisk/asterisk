@@ -649,7 +649,7 @@ struct stasis_subscription *__stasis_subscribe(struct stasis_topic *topic,
 #define stasis_subscribe(topic, callback, data) __stasis_subscribe(topic, callback, data, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 /*!
- * \brief Create a subscription whose callbacks occur on a thread pool
+ * \brief Create a subscription whose callbacks occur on a task pool
  *
  * In addition to being AO2 managed memory (requiring an ao2_cleanup() to free
  * up this reference), the subscription must be explicitly unsubscribed from its
@@ -659,7 +659,7 @@ struct stasis_subscription *__stasis_subscribe(struct stasis_topic *topic,
  * always happen on the same thread. The invocation order of different subscriptions
  * is unspecified.
  *
- * Unlike \ref stasis_subscribe, this function will explicitly use a threadpool to
+ * Unlike \ref stasis_subscribe, this function will explicitly use a taskpool to
  * dispatch items to its \c callback. This form of subscription should be used
  * when many subscriptions may be made to the specified \c topic.
  *
