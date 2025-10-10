@@ -7038,7 +7038,7 @@ static int setup_stasis_subs(struct queue_ent *qe, struct ast_channel *peer, str
 			handle_blind_transfer, queue_data);
 	stasis_message_router_add(queue_data->bridge_router, ast_attended_transfer_type(),
 			handle_attended_transfer, queue_data);
-	stasis_message_router_set_default(queue_data->bridge_router,
+	stasis_message_router_add(queue_data->bridge_router, stasis_subscription_change_type(),
 			queue_bridge_cb, queue_data);
 
 	queue_data->channel_router = stasis_message_router_create_pool(ast_channel_topic_all());
@@ -7060,7 +7060,7 @@ static int setup_stasis_subs(struct queue_ent *qe, struct ast_channel *peer, str
 			handle_hangup, queue_data);
 	stasis_message_router_add(queue_data->channel_router, ast_channel_masquerade_type(),
 			handle_masquerade, queue_data);
-	stasis_message_router_set_default(queue_data->channel_router,
+	stasis_message_router_add(queue_data->channel_router, stasis_subscription_change_type(),
 			queue_channel_cb, queue_data);
 
 	return 0;
