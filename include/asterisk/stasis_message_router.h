@@ -63,7 +63,7 @@ struct stasis_message_router *__stasis_message_router_create(
  * \brief Create a new message router object.
  *
  * The subscription created for this message router will dispatch
- * callbacks on a thread pool.
+ * callbacks on a task pool.
  *
  * \param topic Topic to subscribe route to.
  *
