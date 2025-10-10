@@ -39,19 +39,43 @@ extern "C" {
 
 enum ast_audiosocket_msg_kind {
 	/*! \brief Message indicates the channel should be hung up, direction: Sent only. */
-	AST_AUDIOSOCKET_KIND_HANGUP = 0x00,
+	AST_AUDIOSOCKET_KIND_HANGUP         = 0x00,
 
 	/*! \brief Message contains the connection's UUID, direction: Received only. */
-	AST_AUDIOSOCKET_KIND_UUID   = 0x01,
+	AST_AUDIOSOCKET_KIND_UUID           = 0x01,
 
 	/*! \brief Message contains a DTMF digit, direction: Received only. */
-	AST_AUDIOSOCKET_KIND_DTMF   = 0x03,
+	AST_AUDIOSOCKET_KIND_DTMF           = 0x03,
 
-	/*! \brief Messages contains audio data, direction: Sent and received. */
-	AST_AUDIOSOCKET_KIND_AUDIO  = 0x10,
+	/*! \brief Messages contains audio data, format: slin, direction: Sent and received. */
+	AST_AUDIOSOCKET_KIND_AUDIO          = 0x10,
+
+	/*! \brief Messages contains audio data, format: slin12, direction: Sent and received. */
+	AST_AUDIOSOCKET_KIND_AUDIO_SLIN12   = 0x11,
+
+	/*! \brief Messages contains audio data, format: slin16, direction: Sent and received. */
+	AST_AUDIOSOCKET_KIND_AUDIO_SLIN16   = 0x12,
+
+	/*! \brief Messages contains audio data, format: slin24, direction: Sent and received. */
+	AST_AUDIOSOCKET_KIND_AUDIO_SLIN24   = 0x13,
+
+	/*! \brief Messages contains audio data, format: slin32, direction: Sent and received. */
+	AST_AUDIOSOCKET_KIND_AUDIO_SLIN32   = 0x14,
+
+	/*! \brief Messages contains audio data, format: slin44, direction: Sent and received. */
+	AST_AUDIOSOCKET_KIND_AUDIO_SLIN44   = 0x15,
+
+	/*! \brief Messages contains audio data, format: slin48, direction: Sent and received. */
+	AST_AUDIOSOCKET_KIND_AUDIO_SLIN48   = 0x16,
+
+	/*! \brief Messages contains audio data, format: slin96, direction: Sent and received. */
+	AST_AUDIOSOCKET_KIND_AUDIO_SLIN96   = 0x17,
+
+	/*! \brief Messages contains audio data, format: slin192, direction: Sent and received. */
+	AST_AUDIOSOCKET_KIND_AUDIO_SLIN192  = 0x18,
 
 	/*! \brief An Asterisk-side error occurred, direction: Received only. */
-	AST_AUDIOSOCKET_KIND_ERROR  = 0xFF,
+	AST_AUDIOSOCKET_KIND_ERROR          = 0xFF,
 };
 
 
