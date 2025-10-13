@@ -5705,7 +5705,7 @@ static int action_filter(struct mansession *s, const struct message *m)
 		}
 
 		res = manager_add_filter(criteria, filter, s->session->includefilters, s->session->excludefilters);
-		ast_std_free(criteria);
+		ast_free(criteria);
 		if (res != FILTER_SUCCESS) {
 			if (res == FILTER_ALLOC_FAILED) {
 				astman_send_error(s, m, "Internal Error. Failed to allocate regex for filter");
