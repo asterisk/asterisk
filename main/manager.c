@@ -5690,7 +5690,7 @@ static int action_filter(struct mansession *s, const struct message *m)
 	int res;
 
 	if (!strcasecmp(operation, "Add")) {
-		char *criteria;
+		RAII_VAR(char *, criteria, NULL, ast_free);
 		int have_match = !ast_strlen_zero(match_criteria);
 
 		/* Create an eventfilter expression.
@@ -5705,7 +5705,6 @@ static int action_filter(struct mansession *s, const struct message *m)
 		}
 
 		res = manager_add_filter(criteria, filter, s->session->includefilters, s->session->excludefilters);
-		ast_std_free(criteria);
 		if (res != FILTER_SUCCESS) {
 			if (res == FILTER_ALLOC_FAILED) {
 				astman_send_error(s, m, "Internal Error. Failed to allocate regex for filter");
