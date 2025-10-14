@@ -402,17 +402,30 @@ static struct ast_json *channel_destroyed_event(
 	const struct timeval *tv)
 {
 	struct ast_json *json_channel = ast_channel_snapshot_to_json(snapshot, stasis_app_get_sanitizer());
+	struct ast_json *blob;
 
 	if (!json_channel) {
 		return NULL;
 	}
 
-	return ast_json_pack("{s: s, s: o, s: i, s: s, s: o}",
+	blob = ast_json_pack("{s: s, s: o, s: i, s: s}",
 		"type", "ChannelDestroyed",
 		"timestamp", ast_json_timeval(*tv, NULL),
 		"cause", snapshot->hangup->cause,
-		"cause_txt", ast_cause2str(snapshot->hangup->cause),
-		"channel", json_channel);
+		"cause_txt", ast_cause2str(snapshot->hangup->cause));
+
+	if (!blob) {
+		return NULL;
+	}
+
+	if (snapshot->hangup->tech_cause) {
+		ast_json_object_set(blob, "tech_cause",
+			ast_json_integer_create(snapshot->hangup->tech_cause));
+	}
+
+	ast_json_object_set(blob, "channel", json_channel);
+
+	return blob;
 }
 
 static struct ast_json *channel_state_change_event(
