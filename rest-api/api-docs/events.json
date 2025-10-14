@@ -578,6 +578,10 @@
 					"description": "Text representation of the cause of the hangup",
 					"type": "string"
 				},
+				"tech_cause": {
+					"type": "int",
+					"description": "Integer representation of the technology-specific off-nominal cause of the hangup."
+				},
 				"channel": {
 					"required": true,
 					"type": "Channel"
@@ -722,6 +726,10 @@
 				"cause": {
 					"type": "int",
 					"description": "Integer representation of the cause of the hangup."
+				},
+				"tech_cause": {
+					"type": "int",
+					"description": "Integer representation of the technology-specific off-nominal cause of the hangup."
 				},
 				"soft": {
 					"type": "boolean",
