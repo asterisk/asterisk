@@ -160,7 +160,10 @@ struct ast_channel {
 							 *   the counter is only in the remaining bits */
 	unsigned int fout;				/*!< Frames out counters. The high bit is a debug mask, so
 							 *   the counter is only in the remaining bits */
-	int hangupcause;				/*!< Why is the channel hanged up. See causes.h */
+	int hangupcause;                /*!< Why is the channel hanged up. See causes.h */
+	int tech_hangupcause;           /*!< Technology-specific off-nominal hangup cause.
+                                     * Leave set to 0 for nominal call termination.
+                                     */
 	unsigned int finalized:1;       /*!< Whether or not the channel has been successfully allocated */
 	struct ast_flags flags;				/*!< channel flags of AST_FLAG_ type */
 	int alertpipe[2];
