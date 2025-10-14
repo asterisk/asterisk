@@ -4197,6 +4197,8 @@ int ast_channel_fdno(const struct ast_channel *chan);
 void ast_channel_fdno_set(struct ast_channel *chan, int value);
 int ast_channel_hangupcause(const struct ast_channel *chan);
 void ast_channel_hangupcause_set(struct ast_channel *chan, int value);
+int ast_channel_tech_hangupcause(const struct ast_channel *chan);
+void ast_channel_tech_hangupcause_set(struct ast_channel *chan, int value);
 int ast_channel_priority(const struct ast_channel *chan);
 void ast_channel_priority_set(struct ast_channel *chan, int value);
 int ast_channel_rings(const struct ast_channel *chan);
