@@ -1,18 +1,18 @@
 
-## Change Log for Release asterisk-21.11.0-rc1
+## Change Log for Release asterisk-21.11.0
 
 ### Links:
 
- - [Full ChangeLog](https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-21.11.0-rc1.html)  
- - [GitHub Diff](https://github.com/asterisk/asterisk/compare/21.10.2...21.11.0-rc1)  
- - [Tarball](https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-21.11.0-rc1.tar.gz)  
+ - [Full ChangeLog](https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-21.11.0.html)  
+ - [GitHub Diff](https://github.com/asterisk/asterisk/compare/21.10.2...21.11.0)  
+ - [Tarball](https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-21.11.0.tar.gz)  
  - [Downloads](https://downloads.asterisk.org/pub/telephony/asterisk)  
 
 ### Summary:
 
-- Commits: 51
+- Commits: 54
 - Commit Authors: 22
-- Issues Resolved: 37
+- Issues Resolved: 40
 - Security Advisories Resolved: 0
 
 ### User Notes:
@@ -113,7 +113,7 @@
 - Allan Nathanson: (1)
 - Artem Umerov: (1)
 - Ben Ford: (1)
-- George Joseph: (9)
+- George Joseph: (12)
 - Igor Goncharovsky: (2)
 - Jaco Kroon: (1)
 - Joe Garlick: (1)
@@ -172,6 +172,9 @@
   - 1394: [improvement]: sig_analog: Skip Caller ID spill if Caller ID is disabled
   - 1396: [new-feature]: pbx_builtins: Make tone option for WaitExten configurable
   - 1401: [bug]: app_waitfornoise timeout is always less then configured because of time() usage
+  - 1457: [bug]: segmentation fault because of a wrong ari config
+  - 1462: [bug]: chan_websocket isn't handling the "opus" codec correctly.
+  - 1474: [bug]: Media doesn't flow for video conference after res_rtp_asterisk change to stop media flow before DTLS completes
 
 ### Commits By Author:
 
@@ -192,7 +195,7 @@
 - #### Ben Ford (1):
   - res_rtp_asterisk: Don't send RTP before DTLS has negotiated.
 
-- #### George Joseph (9):
+- #### George Joseph (12):
   - Media over Websocket Channel Driver
   - app_mixmonitor:  Update the documentation concerning the "D" option.
   - cdr.c: Set tenantid from party_a->base instead of chan->base.
@@ -202,6 +205,9 @@
   - xmldoc.c: Fix rendering of CLI output.
   - chan_websocket: Fix buffer overrun when processing TEXT websocket frames.
   - chan_websocket: Allow additional URI parameters to be added to the outgoing URI.
+  - res_ari: Ensure outbound websocket config has a websocket_client_id.
+  - chan_websocket: Fix codec validation and add passthrough option.
+  - res_rtp_asterisk.c: Use rtp->dtls in __rtp_sendto when rtcp mux is used.
 
 - #### Igor Goncharovsky (2):
   - app_waitforsilence.c: Use milliseconds to calculate timeout time
@@ -273,6 +279,9 @@
 
 ### Commit List:
 
+-  res_rtp_asterisk.c: Use rtp->dtls in __rtp_sendto when rtcp mux is used.
+-  chan_websocket: Fix codec validation and add passthrough option.
+-  res_ari: Ensure outbound websocket config has a websocket_client_id.
 -  chan_websocket.c: Add DTMF messages
 -  app_queue.c: Add new global 'log_unpause_on_reason_change'
 -  app_waitforsilence.c: Use milliseconds to calculate timeout time
@@ -320,6 +329,47 @@
 -  res_musiconhold: Appropriately lock channel during start.
 
 ### Commit Details:
+
+#### res_rtp_asterisk.c: Use rtp->dtls in __rtp_sendto when rtcp mux is used.
+  Author: George Joseph
+  Date:   2025-09-23
+
+  In __rtp_sendto(), the check for DTLS negotiation completion for rtcp packets
+  needs to use the rtp->dtls structure instead of rtp->rtcp->dtls when
+  AST_RTP_INSTANCE_RTCP_MUX is set.
+
+  Resolves: #1474
+
+#### chan_websocket: Fix codec validation and add passthrough option.
+  Author: George Joseph
+  Date:   2025-09-17
+
+  * Fixed an issue in webchan_write() where we weren't detecting equivalent
+    codecs properly.
+  * Added the "p" dialstring option that puts the channel driver in
+    "passthrough" mode where it will not attempt to re-frame or re-time
+    media coming in over the websocket from the remote app.  This can be used
+    for any codec but MUST be used for codecs that use packet headers or whose
+    data stream can't be broken up on arbitrary byte boundaries. In this case,
+    the remote app is fully responsible for correctly framing and timing media
+    sent to Asterisk and the MEDIA text commands that could be sent over the
+    websocket are disabled.  Currently, passthrough mode is automatically set
+    for the opus, speex and g729 codecs.
+  * Now calling ast_set_read_format() after ast_channel_set_rawreadformat() to
+    ensure proper translation paths are set up when switching between native
+    frames and slin silence frames.  This fixes an issue with codec errors
+    when transcode_via_sln=yes.
+
+  Resolves: #1462
+
+#### res_ari: Ensure outbound websocket config has a websocket_client_id.
+  Author: George Joseph
+  Date:   2025-09-12
+
+  Added a check to outbound_websocket_apply() that makes sure an outbound
+  websocket config object in ari.conf has a websocket_client_id parameter.
+
+  Resolves: #1457
 
 #### chan_websocket.c: Add DTMF messages
   Author: Joe Garlick
