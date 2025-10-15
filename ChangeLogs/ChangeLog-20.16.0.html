@@ -1,17 +1,17 @@
-<html><head><title>ChangeLog for asterisk-20.16.0-rc1</title></head><body>
-<h2>Change Log for Release asterisk-20.16.0-rc1</h2>
+<html><head><title>ChangeLog for asterisk-20.16.0</title></head><body>
+<h2>Change Log for Release asterisk-20.16.0</h2>
 <h3>Links:</h3>
 <ul>
-<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-20.16.0-rc1.html">Full ChangeLog</a>  </li>
-<li><a href="https://github.com/asterisk/asterisk/compare/20.15.2...20.16.0-rc1">GitHub Diff</a>  </li>
-<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-20.16.0-rc1.tar.gz">Tarball</a>  </li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-20.16.0.html">Full ChangeLog</a>  </li>
+<li><a href="https://github.com/asterisk/asterisk/compare/20.15.2...20.16.0">GitHub Diff</a>  </li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-20.16.0.tar.gz">Tarball</a>  </li>
 <li><a href="https://downloads.asterisk.org/pub/telephony/asterisk">Downloads</a>  </li>
 </ul>
 <h3>Summary:</h3>
 <ul>
-<li>Commits: 51</li>
+<li>Commits: 54</li>
 <li>Commit Authors: 22</li>
-<li>Issues Resolved: 37</li>
+<li>Issues Resolved: 40</li>
 <li>Security Advisories Resolved: 0</li>
 </ul>
 <h3>User Notes:</h3>
@@ -124,7 +124,7 @@
 <li>Allan Nathanson: (1)</li>
 <li>Artem Umerov: (1)</li>
 <li>Ben Ford: (1)</li>
-<li>George Joseph: (9)</li>
+<li>George Joseph: (12)</li>
 <li>Igor Goncharovsky: (2)</li>
 <li>Jaco Kroon: (1)</li>
 <li>Joe Garlick: (1)</li>
@@ -182,6 +182,9 @@
 <li>1394: [improvement]: sig_analog: Skip Caller ID spill if Caller ID is disabled</li>
 <li>1396: [new-feature]: pbx_builtins: Make tone option for WaitExten configurable</li>
 <li>1401: [bug]: app_waitfornoise timeout is always less then configured because of time() usage</li>
+<li>1457: [bug]: segmentation fault because of a wrong ari config</li>
+<li>1462: [bug]: chan_websocket isn't handling the "opus" codec correctly.</li>
+<li>1474: [bug]: Media doesn't flow for video conference after res_rtp_asterisk change to stop media flow before DTLS completes</li>
 </ul>
 <h3>Commits By Author:</h3>
 <ul>
@@ -218,7 +221,7 @@
 <p>res_rtp_asterisk: Don't send RTP before DTLS has negotiated.</p>
 </li>
 <li>
-<h4>George Joseph (9):</h4>
+<h4>George Joseph (12):</h4>
 </li>
 <li>Media over Websocket Channel Driver</li>
 <li>app_mixmonitor:  Update the documentation concerning the "D" option.</li>
@@ -228,8 +231,11 @@
 <li>channelstorage_cpp_map_name_id.cc: Refactor iterators for thread-safety.</li>
 <li>xmldoc.c: Fix rendering of CLI output.</li>
 <li>chan_websocket: Fix buffer overrun when processing TEXT websocket frames.</li>
+<li>chan_websocket: Allow additional URI parameters to be added to the outgoing URI.</li>
+<li>res_ari: Ensure outbound websocket config has a websocket_client_id.</li>
+<li>chan_websocket: Fix codec validation and add passthrough option.</li>
 <li>
-<p>chan_websocket: Allow additional URI parameters to be added to the outgoing URI.</p>
+<p>res_rtp_asterisk.c: Use rtp-&gt;dtls in __rtp_sendto when rtcp mux is used.</p>
 </li>
 <li>
 <h4>Igor Goncharovsky (2):</h4>
@@ -347,6 +353,9 @@
 </ul>
 <h3>Commit List:</h3>
 <ul>
+<li>res_rtp_asterisk.c: Use rtp-&gt;dtls in __rtp_sendto when rtcp mux is used.</li>
+<li>chan_websocket: Fix codec validation and add passthrough option.</li>
+<li>res_ari: Ensure outbound websocket config has a websocket_client_id.</li>
 <li>chan_websocket.c: Add DTMF messages</li>
 <li>app_queue.c: Add new global 'log_unpause_on_reason_change'</li>
 <li>app_waitforsilence.c: Use milliseconds to calculate timeout time</li>
@@ -394,6 +403,40 @@
 <li>res_musiconhold: Appropriately lock channel during start.</li>
 </ul>
 <h3>Commit Details:</h3>
+<h4>res_rtp_asterisk.c: Use rtp-&gt;dtls in __rtp_sendto when rtcp mux is used.</h4>
+<p>Author: George Joseph
+  Date:   2025-09-23</p>
+<p>In __rtp_sendto(), the check for DTLS negotiation completion for rtcp packets
+  needs to use the rtp-&gt;dtls structure instead of rtp-&gt;rtcp-&gt;dtls when
+  AST_RTP_INSTANCE_RTCP_MUX is set.</p>
+<p>Resolves: #1474</p>
+<h4>chan_websocket: Fix codec validation and add passthrough option.</h4>
+<p>Author: George Joseph
+  Date:   2025-09-17</p>
+<ul>
+<li>Fixed an issue in webchan_write() where we weren't detecting equivalent
+    codecs properly.</li>
+<li>Added the "p" dialstring option that puts the channel driver in
+    "passthrough" mode where it will not attempt to re-frame or re-time
+    media coming in over the websocket from the remote app.  This can be used
+    for any codec but MUST be used for codecs that use packet headers or whose
+    data stream can't be broken up on arbitrary byte boundaries. In this case,
+    the remote app is fully responsible for correctly framing and timing media
+    sent to Asterisk and the MEDIA text commands that could be sent over the
+    websocket are disabled.  Currently, passthrough mode is automatically set
+    for the opus, speex and g729 codecs.</li>
+<li>Now calling ast_set_read_format() after ast_channel_set_rawreadformat() to
+    ensure proper translation paths are set up when switching between native
+    frames and slin silence frames.  This fixes an issue with codec errors
+    when transcode_via_sln=yes.</li>
+</ul>
+<p>Resolves: #1462</p>
+<h4>res_ari: Ensure outbound websocket config has a websocket_client_id.</h4>
+<p>Author: George Joseph
+  Date:   2025-09-12</p>
+<p>Added a check to outbound_websocket_apply() that makes sure an outbound
+  websocket config object in ari.conf has a websocket_client_id parameter.</p>
+<p>Resolves: #1457</p>
 <h4>chan_websocket.c: Add DTMF messages</h4>
 <p>Author: Joe Garlick
   Date:   2025-09-04</p>
