@@ -1,18 +1,18 @@
 
-## Change Log for Release asterisk-23.0.0-rc1
+## Change Log for Release asterisk-23.0.0
 
 ### Links:
 
- - [Full ChangeLog](https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-23.0.0-rc1.html)  
- - [GitHub Diff](https://github.com/asterisk/asterisk/compare/23.0.0-pre1...23.0.0-rc1)  
- - [Tarball](https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-23.0.0-rc1.tar.gz)  
+ - [Full ChangeLog](https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-23.0.0.html)  
+ - [GitHub Diff](https://github.com/asterisk/asterisk/compare/23.0.0-pre1...23.0.0)  
+ - [Tarball](https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-23.0.0.tar.gz)  
  - [Downloads](https://downloads.asterisk.org/pub/telephony/asterisk)  
 
 ### Summary:
 
-- Commits: 41
-- Commit Authors: 13
-- Issues Resolved: 32
+- Commits: 45
+- Commit Authors: 14
+- Issues Resolved: 36
 - Security Advisories Resolved: 1
   - [GHSA-64qc-9x89-rx5j](https://github.com/asterisk/asterisk/security/advisories/GHSA-64qc-9x89-rx5j): A specifically malformed Authorization header in an incoming SIP request can cause Asterisk to crash
 
@@ -115,9 +115,10 @@
 
 - Alexei Gradinari: (1)
 - Alexey Khabulyak: (1)
+- Allan Nathanson: (1)
 - Artem Umerov: (1)
 - Ben Ford: (2)
-- George Joseph: (4)
+- George Joseph: (7)
 - Igor Goncharovsky: (2)
 - Joe Garlick: (1)
 - Jose Lopes: (1)
@@ -163,6 +164,10 @@
   - 1394: [improvement]: sig_analog: Skip Caller ID spill if Caller ID is disabled
   - 1396: [new-feature]: pbx_builtins: Make tone option for WaitExten configurable
   - 1401: [bug]: app_waitfornoise timeout is always less then configured because of time() usage
+  - 1451: [bug]: ast_config_text_file_save2(): incorrect handling of deep/wide template inheritance
+  - 1457: [bug]: segmentation fault because of a wrong ari config
+  - 1462: [bug]: chan_websocket isn't handling the "opus" codec correctly.
+  - 1474: [bug]: Media doesn't flow for video conference after res_rtp_asterisk change to stop media flow before DTLS completes
   - ASTERISK-30370: config: Template inheritance is incorrect for ast_variable_retrieve
 
 ### Commits By Author:
@@ -179,11 +184,14 @@
 - #### Ben Ford (1):
   - res_rtp_asterisk: Don't send RTP before DTLS has negotiated.
 
-- #### George Joseph (4):
+- #### George Joseph (7):
   - xmldoc.c: Fix rendering of CLI output.
   - chan_websocket: Fix buffer overrun when processing TEXT websocket frames.
   - chan_websocket: Allow additional URI parameters to be added to the outgoing URI.
   - res_pjsip_authenticator_digest: Fix SEGV if get_authorization_hdr returns NULL.
+  - res_ari: Ensure outbound websocket config has a websocket_client_id.
+  - chan_websocket: Fix codec validation and add passthrough option.
+  - res_rtp_asterisk.c: Use rtp->dtls in __rtp_sendto when rtcp mux is used.
 
 - #### Igor Goncharovsky (2):
   - app_waitforsilence.c: Use milliseconds to calculate timeout time
@@ -233,6 +241,10 @@
 -  logger.c: Remove deprecated/redundant configuration option.
 -  func_dialplan: Remove deprecated/redundant function.
 -  Update version for Asterisk 23
+-  config.c: fix saving of deep/wide template configurations
+-  res_rtp_asterisk.c: Use rtp->dtls in __rtp_sendto when rtcp mux is used.
+-  chan_websocket: Fix codec validation and add passthrough option.
+-  res_ari: Ensure outbound websocket config has a websocket_client_id.
 -  chan_websocket.c: Add DTMF messages
 -  app_queue.c: Add new global 'log_unpause_on_reason_change'
 -  app_waitforsilence.c: Use milliseconds to calculate timeout time
@@ -480,6 +492,66 @@
   Author: Ben Ford
   Date:   2025-08-13
 
+
+#### config.c: fix saving of deep/wide template configurations
+  Author: Allan Nathanson
+  Date:   2025-09-10
+
+  Follow-on to #244 and #960 regarding how the ast_config_XXX APIs
+  handle template inheritance.
+
+  ast_config_text_file_save2() incorrectly suppressed variables if they
+  matched any ancestor template.  This broke deep chains (dropping values
+  based on distant parents) and wide inheritance (ignoring last-wins order
+  across multiple parents).
+
+  The function now inspects the full template hierarchy to find the nearest
+  effective parent (last occurrence wins).  Earlier inherited duplicates are
+  collapsed, explicit overrides are kept unless they exactly match the parent,
+  and PreserveEffectiveContext avoids writing redundant lines.
+
+  Resolves: #1451
+
+#### res_rtp_asterisk.c: Use rtp->dtls in __rtp_sendto when rtcp mux is used.
+  Author: George Joseph
+  Date:   2025-09-23
+
+  In __rtp_sendto(), the check for DTLS negotiation completion for rtcp packets
+  needs to use the rtp->dtls structure instead of rtp->rtcp->dtls when
+  AST_RTP_INSTANCE_RTCP_MUX is set.
+
+  Resolves: #1474
+
+#### chan_websocket: Fix codec validation and add passthrough option.
+  Author: George Joseph
+  Date:   2025-09-17
+
+  * Fixed an issue in webchan_write() where we weren't detecting equivalent
+    codecs properly.
+  * Added the "p" dialstring option that puts the channel driver in
+    "passthrough" mode where it will not attempt to re-frame or re-time
+    media coming in over the websocket from the remote app.  This can be used
+    for any codec but MUST be used for codecs that use packet headers or whose
+    data stream can't be broken up on arbitrary byte boundaries. In this case,
+    the remote app is fully responsible for correctly framing and timing media
+    sent to Asterisk and the MEDIA text commands that could be sent over the
+    websocket are disabled.  Currently, passthrough mode is automatically set
+    for the opus, speex and g729 codecs.
+  * Now calling ast_set_read_format() after ast_channel_set_rawreadformat() to
+    ensure proper translation paths are set up when switching between native
+    frames and slin silence frames.  This fixes an issue with codec errors
+    when transcode_via_sln=yes.
+
+  Resolves: #1462
+
+#### res_ari: Ensure outbound websocket config has a websocket_client_id.
+  Author: George Joseph
+  Date:   2025-09-12
+
+  Added a check to outbound_websocket_apply() that makes sure an outbound
+  websocket config object in ari.conf has a websocket_client_id parameter.
+
+  Resolves: #1457
 
 #### chan_websocket.c: Add DTMF messages
   Author: Joe Garlick
