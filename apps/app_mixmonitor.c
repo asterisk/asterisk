@@ -158,6 +158,13 @@
 						separated by commas eg. m(1111@default,2222@default,...).  Folders can be optionally specified using
 						the syntax: mailbox@context/folder</para>
 					</option>
+					<option name="s">
+						<argument name="seconds" required="true" />
+						<para>Skip the first <replaceable>seconds</replaceable> (can be fractional) of audio in the recording.
+						No audio recording is written to the file during this period. If the call ends before this time,
+						no audio will be saved. This can be useful to avoid recording announcements,
+						ringback tones, or other non-essential early audio.</para>
+					</option>
 				</optionlist>
 			</parameter>
 			<parameter name="command">
@@ -393,6 +400,8 @@
 
 #define get_volfactor(x) x ? ((x > 0) ? (1 << x) : ((1 << abs(x)) * -1)) : 0
 
+#define MIN_SKIP_SECONDS 1
+
 static const char * const app = "MixMonitor";
 
 static const char * const stop_app = "StopMixMonitor";
@@ -431,6 +440,9 @@ struct mixmonitor {
 	);
 	int call_priority;
 
+	/* Number of seconds (can be fractional) to skip at the start of recording */
+	double skip_seconds;
+
 	/* FUTURE DEVELOPMENT NOTICE
 	 * recipient_list will need locks if we make it editable after the monitor is started */
 	AST_LIST_HEAD_NOLOCK(, vm_recipient) recipient_list;
@@ -455,6 +467,7 @@ enum mixmonitor_flags {
 	MUXFLAG_AUTO_DELETE = (1 << 16),
 	MUXFLAG_REAL_CALLERID = (1 << 17),
 	MUXFLAG_INTERLEAVED = (1 << 18),
+	MUXFLAG_SKIP = (1 << 19),
 };
 
 enum mixmonitor_args {
@@ -468,6 +481,7 @@ enum mixmonitor_args {
 	OPT_ARG_BEEP_INTERVAL,
 	OPT_ARG_DEPRECATED_RWSYNC,
 	OPT_ARG_NO_RWSYNC,
+	OPT_ARG_SKIP,
 	OPT_ARG_ARRAY_SIZE,	/* Always last element of the enum */
 };
 
@@ -489,6 +503,7 @@ AST_APP_OPTIONS(mixmonitor_opts, {
 	AST_APP_OPTION_ARG('m', MUXFLAG_VMRECIPIENTS, OPT_ARG_VMRECIPIENTS),
 	AST_APP_OPTION_ARG('S', MUXFLAG_DEPRECATED_RWSYNC, OPT_ARG_DEPRECATED_RWSYNC),
 	AST_APP_OPTION_ARG('n', MUXFLAG_NO_RWSYNC, OPT_ARG_NO_RWSYNC),
+	AST_APP_OPTION_ARG('s', MUXFLAG_SKIP, OPT_ARG_SKIP),
 });
 
 struct mixmonitor_ds {
@@ -771,6 +786,9 @@ static void *mixmonitor_thread(void *obj)
 	unsigned int oflags;
 	int errflag = 0;
 	struct ast_format *format_slin;
+	int skip_done_logged = 0;
+
+	struct timeval skip_start = ast_tvnow();
 
 	/* Keep callid association before any log messages */
 	if (mixmonitor->callid) {
@@ -791,6 +809,11 @@ static void *mixmonitor_thread(void *obj)
 	format_slin = ast_format_cache_get_slin_by_rate(mixmonitor->mixmonitor_ds->samp_rate);
 
 	ast_mutex_unlock(&mixmonitor->mixmonitor_ds->lock);
+
+	if (mixmonitor->skip_seconds > 0.0) {
+		ast_debug(3, "%s skipping initial %.3f seconds\n",
+			mixmonitor->name, mixmonitor->skip_seconds);
+	}
 
 	/* The audiohook must enter and exit the loop locked */
 	ast_audiohook_lock(&mixmonitor->audiohook);
@@ -817,10 +840,25 @@ static void *mixmonitor_thread(void *obj)
 			|| mixmonitor_autochan_is_bridged(mixmonitor->autochan)) {
 			ast_mutex_lock(&mixmonitor->mixmonitor_ds->lock);
 
+			/* Skip writing audio for the first N seconds */
+			if (mixmonitor->skip_seconds > 0.0) {
+				struct timeval now = ast_tvnow();
+				double elapsed = ast_tvdiff_ms(now, skip_start) / 1000.0;
+
+				if (elapsed < mixmonitor->skip_seconds) {
+					ast_mutex_unlock(&mixmonitor->mixmonitor_ds->lock);
+					/* Skip this frame and continue */
+					goto frame_cleanup;
+				} else if (!skip_done_logged) {
+					ast_debug(3, "%s skip period %.3f seconds elapsed; starting to write audio\n",
+						mixmonitor->name, mixmonitor->skip_seconds);
+					skip_done_logged = 1;
+				}
+			}
+
 			/* Write out the frame(s) */
 			if ((*fs_read) && (fr_read)) {
 				struct ast_frame *cur;
-
 				for (cur = fr_read; cur; cur = AST_LIST_NEXT(cur, frame_list)) {
 					ast_writestream(*fs_read, cur);
 				}
@@ -828,7 +866,6 @@ static void *mixmonitor_thread(void *obj)
 
 			if ((*fs_write) && (fr_write)) {
 				struct ast_frame *cur;
-
 				for (cur = fr_write; cur; cur = AST_LIST_NEXT(cur, frame_list)) {
 					ast_writestream(*fs_write, cur);
 				}
@@ -876,13 +913,14 @@ static void *mixmonitor_thread(void *obj)
 
 			if ((*fs) && (fr)) {
 				struct ast_frame *cur;
-
 				for (cur = fr; cur; cur = AST_LIST_NEXT(cur, frame_list)) {
 					ast_writestream(*fs, cur);
 				}
 			}
 			ast_mutex_unlock(&mixmonitor->mixmonitor_ds->lock);
 		}
+
+frame_cleanup:
 		/* All done! free it. */
 		if (fr) {
 			ast_frame_free(fr, 0);
@@ -1038,7 +1076,7 @@ static int launch_monitor_thread(struct ast_channel *chan, const char *filename,
 				  unsigned int flags, int readvol, int writevol,
 				  const char *post_process, const char *filename_write,
 				  char *filename_read, const char *uid_channel_var,
-				  const char *recipients, const char *beep_id)
+				  const char *recipients, const char *beep_id, double skip_seconds)
 {
 	pthread_t thread;
 	struct mixmonitor *mixmonitor;
@@ -1080,6 +1118,7 @@ static int launch_monitor_thread(struct ast_channel *chan, const char *filename,
 
 	/* Copy over flags and channel name */
 	mixmonitor->flags = flags;
+	mixmonitor->skip_seconds = skip_seconds;
 	if (!(mixmonitor->autochan = ast_autochan_setup(chan))) {
 		mixmonitor_free(mixmonitor);
 		return -1;
@@ -1235,6 +1274,7 @@ static char *filename_parse(char *filename, char *buffer, size_t len)
 static int mixmonitor_exec(struct ast_channel *chan, const char *data)
 {
 	int x, readvol = 0, writevol = 0;
+	double skip_seconds = 0.0;
 	char *filename_read = NULL;
 	char *filename_write = NULL;
 	char filename_buffer[1024] = "";
@@ -1334,6 +1374,22 @@ static int mixmonitor_exec(struct ast_channel *chan, const char *data)
 				return -1;
 			}
 		}
+
+		if (ast_test_flag(&flags, MUXFLAG_SKIP)) {
+			if (ast_strlen_zero(opts[OPT_ARG_SKIP])) {
+				ast_log(LOG_WARNING, "No skip value provided for the 's' (skip) option; skipping will be ignored as no default exists.\n");
+			} else {
+				char *endptr = NULL;
+				double val = strtod(opts[OPT_ARG_SKIP], &endptr);
+				if (endptr == opts[OPT_ARG_SKIP] || *endptr != '\0') {
+					ast_log(LOG_WARNING, "Skip value '%s' is not a valid number; ignoring skip.\n", opts[OPT_ARG_SKIP]);
+				} else if (val < (double) MIN_SKIP_SECONDS) {
+					ast_log(LOG_WARNING, "Skip value %.3f is below minimum %d; ignoring skip.\n", val, MIN_SKIP_SECONDS);
+				} else {
+					skip_seconds = val;
+				}
+			}
+		}
 	}
 	/* If there are no file writing arguments/options for the mix monitor, send a warning message and return -1 */
 
@@ -1361,7 +1417,8 @@ static int mixmonitor_exec(struct ast_channel *chan, const char *data)
 			filename_read,
 			uid_channel_var,
 			recipients,
-			beep_id)) {
+			beep_id,
+			skip_seconds)) {
 		ast_module_unref(ast_module_info->self);
 	}
 
