@@ -6,7 +6,7 @@ ASTVARRUNDIR="__ASTERISK_VARRUN_DIR__"
 ASTVARLOGDIR="__ASTERISK_LOG_DIR__"
 
 CLIARGS="$*"			# Grab any args passed to safe_asterisk
-#TTY=9				# TTY (if you want one) for Asterisk to run on
+TTY=9				# TTY (if you want one) for Asterisk to run on
 CONSOLE=yes			# Whether or not you want a console
 #NOTIFY=root@localhost		# Who to notify about crashes
 #EXEC=/path/to/somescript	# Run this command if Asterisk crashes
@@ -39,8 +39,6 @@ PRIORITY=0
 message() {
 	if test -n "$TTY" && test "$TTY" != "no"; then
 		echo "$1" >/dev/${TTY}
-	else
-		echo "$1" >&2
 	fi
 	if test -n "$SYSLOG"; then
 		logger -p "${SYSLOG}.warn" -t safe_asterisk[$$] "$1"
@@ -183,8 +181,7 @@ if test -d "${ASTETCDIR}/startup.d"; then
 		done
 	fi
 
-	for script in $(find "${ASTETCDIR}/startup.d/" -name '*.sh') ; do
-		echo sourceing
+	for script in $(find "${ASTETCDIR}/startup.d/" -name '*.sh' | sort) ; do
 		. "${script}"
 	done
 fi
