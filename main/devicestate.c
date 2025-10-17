@@ -309,14 +309,14 @@ enum ast_device_state ast_parse_device_state(const char *device)
 	return res;
 }
 
-static enum ast_device_state devstate_cached(const char *device)
+static enum ast_device_state devstate_cached(const char *device, const struct ast_eid *eid)
 {
 	struct stasis_message *cached_msg;
 	struct ast_device_state_message *device_state;
 	enum ast_device_state state;
 
 	cached_msg = stasis_cache_get_by_eid(ast_device_state_cache(),
-		ast_device_state_message_type(), device, NULL);
+		ast_device_state_message_type(), device, eid);
 	if (!cached_msg) {
 		return AST_DEVICE_UNKNOWN;
 	}
@@ -338,7 +338,7 @@ static enum ast_device_state _ast_device_state(const char *device, int check_cac
 
 	/* If the last known state is cached, just return that */
 	if (check_cache) {
-		res = devstate_cached(device);
+		res = devstate_cached(device, NULL);
 		if (res != AST_DEVICE_UNKNOWN) {
 			return res;
 		}
@@ -723,6 +723,16 @@ int ast_publish_device_state_full(
 
 	if (!ast_device_state_message_type()) {
 		return -1;
+	}
+
+	if (cachable) {
+		enum ast_device_state res;
+
+		/* If the state is unchanged, do not publish */
+		res = devstate_cached(device, eid);
+		if (res == state) {
+			return 0;
+		}
 	}
 
 	device_state = device_state_alloc(device, state, cachable, eid);
