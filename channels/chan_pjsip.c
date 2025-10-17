@@ -2577,16 +2577,23 @@ static int chan_pjsip_hangup(struct ast_channel *ast)
 {
 	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(ast);
 	int cause;
+	int tech_cause;
+	int original_tech_cause;
 	struct hangup_data *h_data;
 	SCOPE_ENTER(1, "%s\n", ast_channel_name(ast));
 
 	if (!channel || !channel->session) {
-		SCOPE_EXIT_RTN_VALUE(-1, "No channel or session\n");
+		SCOPE_EXIT_RTN_VALUE(-1, "%s: No channel or session\n", ast_channel_name(ast));
 	}
 
-	cause = hangup_cause2sip(ast_channel_hangupcause(channel->session->channel));
-	h_data = hangup_data_alloc(cause, ast);
+	cause = ast_channel_hangupcause(channel->session->channel);
+	tech_cause = hangup_cause2sip(cause);
+	original_tech_cause = ast_channel_tech_hangupcause(channel->session->channel);
+	if (!original_tech_cause) {
+		ast_channel_tech_hangupcause_set(channel->session->channel, tech_cause);
+	}
 
+	h_data = hangup_data_alloc(tech_cause, ast);
 	if (!h_data) {
 		goto failure;
 	}
@@ -2596,7 +2603,8 @@ static int chan_pjsip_hangup(struct ast_channel *ast)
 		goto failure;
 	}
 
-	SCOPE_EXIT_RTN_VALUE(0, "Cause: %d\n", cause);
+	SCOPE_EXIT_RTN_VALUE(0, "%s: Cause: %d  Tech Cause: %d\n", ast_channel_name(ast),
+		cause, tech_cause);
 
 failure:
 	/* Go ahead and do our cleanup of the session and channel even if we're not going
@@ -2606,7 +2614,7 @@ failure:
 	ao2_cleanup(channel);
 	ao2_cleanup(h_data);
 
-	SCOPE_EXIT_RTN_VALUE(-1, "Cause: %d\n", cause);
+	SCOPE_EXIT_RTN_VALUE(-1, "%s: Cause: %d\n", ast_channel_name(ast), cause);
 }
 
 struct request_data {
@@ -2943,7 +2951,7 @@ static void chan_pjsip_session_end(struct ast_sip_session *session)
 	SCOPE_ENTER(1, "%s\n", ast_sip_session_get_name(session));
 
 	if (!session->channel) {
-		SCOPE_EXIT_RTN("No channel\n");
+		SCOPE_EXIT_RTN("%s: No channel\n", ast_sip_session_get_name(session));
 	}
 
 
@@ -2959,6 +2967,24 @@ static void chan_pjsip_session_end(struct ast_sip_session *session)
 	chan_pjsip_remove_hold(ast_channel_uniqueid(session->channel));
 
 	ast_set_hangupsource(session->channel, ast_channel_name(session->channel), 0);
+
+	ast_trace(-1, "%s: channel cause: %d\n", ast_sip_session_get_name(session),
+		ast_channel_hangupcause(session->channel));
+
+	if (session->inv_session) {
+		/*
+		 * tech_hangupcause should only be set if off-nominal.
+		 */
+		if (session->inv_session->cause / 100 > 2) {
+			ast_trace(-1, "%s: inv_session cause: %d\n", ast_sip_session_get_name(session),
+				session->inv_session->cause);
+			ast_channel_tech_hangupcause_set(session->channel, session->inv_session->cause);
+		} else {
+			ast_trace(-1, "%s: inv_session cause: %d suppressed\n", ast_sip_session_get_name(session),
+				session->inv_session->cause);
+		}
+	}
+
 	if (!ast_channel_hangupcause(session->channel) && session->inv_session) {
 		int cause = ast_sip_hangup_sip2cause(session->inv_session->cause);
 
@@ -2967,7 +2993,7 @@ static void chan_pjsip_session_end(struct ast_sip_session *session)
 		ast_queue_hangup(session->channel);
 	}
 
-	SCOPE_EXIT_RTN();
+	SCOPE_EXIT_RTN("%s\n", ast_sip_session_get_name(session));
 }
 
 static void set_sipdomain_variable(struct ast_sip_session *session)

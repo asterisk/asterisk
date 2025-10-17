@@ -80,6 +80,11 @@
 				<parameter name="Cause-txt">
 					<para>A description of why the channel was hung up.</para>
 				</parameter>
+				<parameter name="TechCause">
+					<para>A technology-specific off-nominal numeric cause code
+					for why the channel was hung up.  Suppressed for nominally
+					terminated calls.</para>
+				</parameter>
 			</syntax>
 			<see-also>
 				<ref type="managerEvent">Newchannel</ref>
@@ -667,12 +672,23 @@ static struct ast_manager_event_blob *channel_state_change(
 	is_hungup = ast_test_flag(&new_snapshot->flags, AST_FLAG_DEAD) ? 1 : 0;
 
 	if (!was_hungup && is_hungup) {
-		return ast_manager_event_blob_create(
-			EVENT_FLAG_CALL, "Hangup",
-			"Cause: %d\r\n"
-			"Cause-txt: %s\r\n",
-			new_snapshot->hangup->cause,
-			ast_cause2str(new_snapshot->hangup->cause));
+		if (new_snapshot->hangup->tech_cause) {
+			return ast_manager_event_blob_create(
+				EVENT_FLAG_CALL, "Hangup",
+				"Cause: %d\r\n"
+				"Cause-txt: %s\r\n"
+				"TechCause: %d\r\n",
+				new_snapshot->hangup->cause,
+				ast_cause2str(new_snapshot->hangup->cause),
+				new_snapshot->hangup->tech_cause);
+		} else {
+			return ast_manager_event_blob_create(
+				EVENT_FLAG_CALL, "Hangup",
+				"Cause: %d\r\n"
+				"Cause-txt: %s\r\n",
+				new_snapshot->hangup->cause,
+				ast_cause2str(new_snapshot->hangup->cause));
+		}
 	}
 
 	if (old_snapshot->state != new_snapshot->state) {
@@ -841,6 +857,7 @@ static void channel_hangup_request_cb(void *data,
 	struct ast_str *extra;
 	struct ast_str *channel_event_string;
 	struct ast_json *cause;
+	struct ast_json *tech_cause;
 	int is_soft;
 	char *manager_event = "HangupRequest";
 
@@ -865,6 +882,13 @@ static void channel_hangup_request_cb(void *data,
 		ast_str_append(&extra, 0,
 			"Cause: %jd\r\n",
 			ast_json_integer_get(cause));
+	}
+
+	tech_cause = ast_json_object_get(obj->blob, "tech_cause");
+	if (tech_cause) {
+		ast_str_append(&extra, 0,
+			"TechCause: %jd\r\n",
+			ast_json_integer_get(tech_cause));
 	}
 
 	is_soft = ast_json_is_true(ast_json_object_get(obj->blob, "soft"));

@@ -1180,9 +1180,13 @@ int ast_queue_frame_head(struct ast_channel *chan, struct ast_frame *fin)
 /*! \brief Queue a hangup frame for channel */
 int ast_queue_hangup(struct ast_channel *chan)
 {
-	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+	RAII_VAR(struct ast_json *, blob, ast_json_object_create(), ast_json_unref);
 	struct ast_frame f = { AST_FRAME_CONTROL, .subclass.integer = AST_CONTROL_HANGUP };
-	int res, cause;
+	int res, cause, tech_cause;
+
+	if (!blob) {
+		return -1;
+	}
 
 	/* Yeah, let's not change a lock-critical value without locking */
 	ast_channel_lock(chan);
@@ -1190,8 +1194,11 @@ int ast_queue_hangup(struct ast_channel *chan)
 
 	cause = ast_channel_hangupcause(chan);
 	if (cause) {
-		blob = ast_json_pack("{s: i}",
-			"cause", cause);
+		ast_json_object_set(blob, "cause", ast_json_integer_create(cause));
+	}
+	tech_cause = ast_channel_tech_hangupcause(chan);
+	if (tech_cause) {
+		ast_json_object_set(blob, "tech_cause", ast_json_integer_create(tech_cause));
 	}
 
 	ast_channel_publish_blob(chan, ast_channel_hangup_request_type(), blob);
@@ -1207,6 +1214,7 @@ int ast_queue_hangup_with_cause(struct ast_channel *chan, int cause)
 	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
 	struct ast_frame f = { AST_FRAME_CONTROL, .subclass.integer = AST_CONTROL_HANGUP };
 	int res;
+	int tech_cause = 0;
 
 	if (cause >= 0) {
 		f.data.uint32 = cause;
@@ -1220,6 +1228,16 @@ int ast_queue_hangup_with_cause(struct ast_channel *chan, int cause)
 	}
 	blob = ast_json_pack("{s: i}",
 			     "cause", cause);
+	if (!blob) {
+		ast_channel_unlock(chan);
+		return -1;
+	}
+
+	tech_cause = ast_channel_tech_hangupcause(chan);
+	if (tech_cause) {
+		ast_json_object_set(blob, "tech_cause", ast_json_integer_create(tech_cause));
+	}
+
 	ast_channel_publish_blob(chan, ast_channel_hangup_request_type(), blob);
 
 	res = ast_queue_frame(chan, &f);
@@ -2447,12 +2465,19 @@ int ast_softhangup(struct ast_channel *chan, int cause)
 {
 	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
 	int res;
+	int tech_cause = 0;
 
 	ast_channel_lock(chan);
 	res = ast_softhangup_nolock(chan, cause);
 	blob = ast_json_pack("{s: i, s: b}",
 			     "cause", cause,
 			     "soft", 1);
+
+	tech_cause = ast_channel_tech_hangupcause(chan);
+	if (tech_cause) {
+		ast_json_object_set(blob, "tech_cause", ast_json_integer_create(tech_cause));
+	}
+
 	ast_channel_publish_blob(chan, ast_channel_hangup_request_type(), blob);
 	ast_channel_unlock(chan);
 

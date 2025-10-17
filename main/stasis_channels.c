@@ -469,6 +469,8 @@ static struct ast_channel_snapshot_hangup *channel_snapshot_hangup_create(struct
 	}
 
 	snapshot->cause = ast_channel_hangupcause(chan);
+	snapshot->tech_cause = ast_channel_tech_hangupcause(chan);
+	snapshot->source = snapshot->buffer;
 	strcpy(snapshot->source, hangupsource); /* Safe */
 
 	return snapshot;
