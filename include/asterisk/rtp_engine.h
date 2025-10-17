@@ -803,7 +803,12 @@ struct ast_rtp_glue {
 	 * \note This function may be NULL for a given channel driver. This should be accounted for and if that is the case, this function is not used.
 	 */
 	int (*allow_vrtp_remote)(struct ast_channel *chan1, struct ast_rtp_instance *instance);
-
+	/*!
+	 * \brief Used to prevent two channels from remotely bridging text rtp if the channel tech has a
+	 *        reason for prohibiting it based on qualities that need to be compared from both channels.
+	 * \note This function may be NULL for a given channel driver. This should be accounted for and if that is the case, this function is not used.
+	 */
+	int (*allow_trtp_remote)(struct ast_channel *chan1, struct ast_rtp_instance *instance);
 	/*!
 	 * \brief Callback for retrieving the RTP instance carrying text
 	 * \note This function increases the reference count on the returned RTP instance.
@@ -1029,7 +1034,7 @@ void ast_rtp_instance_set_data(struct ast_rtp_instance *instance, void *data);
  *
  * \code
  * struct *blob = ast_rtp_instance_get_data(instance);
- ( \endcode
+ * \endcode
  *
  * This gets the data pointer on the RTP instance pointed to by 'instance'.
  *

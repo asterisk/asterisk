@@ -59,6 +59,7 @@ struct ast_channel {
 	struct ast_sched_context *sched;                /*!< Schedule context */
 	struct ast_filestream *stream;			/*!< Stream itself. */
 	struct ast_filestream *vstream;			/*!< Video Stream itself. */
+	struct ast_filestream *tstream;			/*!< Text Stream itself. */
 	ast_timing_func_t timingfunc;
 	void *timingdata;
 	struct ast_pbx *pbx;				/*!< PBX private structure for this channel */
@@ -147,6 +148,7 @@ struct ast_channel {
 	int fdno;					/*!< Which fd had an event detected on */
 	int streamid;					/*!< For streaming playback, the schedule ID */
 	int vstreamid;					/*!< For streaming video playback, the schedule ID */
+	int tstreamid;					/*!< For streaming text playback, the schedule ID */
 	struct ast_format *oldwriteformat;  /*!< Original writer format */
 	int timingfd;					/*!< Timing fd */
 	enum ast_channel_state state;			/*!< State of line -- Don't write directly, use ast_setstate() */
