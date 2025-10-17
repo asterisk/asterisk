@@ -1747,6 +1747,7 @@ ari_validator ast_ari_validate_application_fn(void);
  * - cause: int (required)
  * - cause_txt: string (required)
  * - channel: Channel (required)
+ * - tech_cause: int
  * ChannelDialplan
  * - asterisk_id: string
  * - type: string (required)
@@ -1778,6 +1779,7 @@ ari_validator ast_ari_validate_application_fn(void);
  * - cause: int
  * - channel: Channel (required)
  * - soft: boolean
+ * - tech_cause: int
  * ChannelHold
  * - asterisk_id: string
  * - type: string (required)

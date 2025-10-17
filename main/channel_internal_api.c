@@ -304,6 +304,15 @@ void ast_channel_hangupcause_set(struct ast_channel *chan, int value)
 	chan->hangupcause = value;
 	ast_channel_snapshot_invalidate_segment(chan, AST_CHANNEL_SNAPSHOT_INVALIDATE_HANGUP);
 }
+int ast_channel_tech_hangupcause(const struct ast_channel *chan)
+{
+	return chan->tech_hangupcause;
+}
+void ast_channel_tech_hangupcause_set(struct ast_channel *chan, int value)
+{
+	chan->tech_hangupcause = value;
+	ast_channel_snapshot_invalidate_segment(chan, AST_CHANNEL_SNAPSHOT_INVALIDATE_HANGUP);
+}
 int ast_channel_priority(const struct ast_channel *chan)
 {
 	return chan->priority;

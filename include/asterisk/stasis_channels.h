@@ -132,7 +132,9 @@ struct ast_channel_snapshot_peer {
  */
 struct ast_channel_snapshot_hangup {
 	int cause;      /*!< Why is the channel hanged up. See causes.h */
-	char source[0]; /*!< Who is responsible for hanging up this channel */
+	char *source;   /*!< Who is responsible for hanging up this channel */
+	int tech_cause; /*!< Technology-specific hangup cause */
+	char buffer[0]; /*!< \private Buffer to store source in */
 };
 
 /*!

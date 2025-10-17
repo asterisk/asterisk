@@ -4094,6 +4094,15 @@ int ast_ari_validate_channel_destroyed(struct ast_json *json)
 				res = 0;
 			}
 		} else
+		if (strcmp("tech_cause", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_int(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelDestroyed field tech_cause failed validation\n");
+				res = 0;
+			}
+		} else
 		{
 			ast_log(LOG_ERROR,
 				"ARI ChannelDestroyed has undocumented field %s\n",
@@ -4572,6 +4581,15 @@ int ast_ari_validate_channel_hangup_request(struct ast_json *json)
 				ast_json_object_iter_value(iter));
 			if (!prop_is_valid) {
 				ast_log(LOG_ERROR, "ARI ChannelHangupRequest field soft failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("tech_cause", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_int(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelHangupRequest field tech_cause failed validation\n");
 				res = 0;
 			}
 		} else
