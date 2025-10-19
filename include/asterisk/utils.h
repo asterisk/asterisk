@@ -28,6 +28,7 @@
 #include <time.h>	/* we want to override localtime_r */
 #include <unistd.h>
 #include <string.h>
+#include <endian.h>
 
 #include "asterisk/lock.h"
 #include "asterisk/time.h"
@@ -126,10 +127,12 @@ extern unsigned int __unsigned_int_flags_dummy;
  * \param flags The 64-bit flags to swap
  * \retval The flags with the upper and lower 32 bits swapped if the system is big-endian,
  */
-#if __BYTE_ORDER == __BIG_ENDIAN
+#if defined(BYTE_ORDER) && (BYTE_ORDER == BIG_ENDIAN)
 #define SWAP64_32(flags) (((uint64_t)flags << 32) | ((uint64_t)flags >> 32))
-#else
+#elif defined(BYTE_ORDER) && (BYTE_ORDER == LITTLE_ENDIAN)
 #define SWAP64_32(flags) (flags)
+#else
+#error "Endianness not known - endian.h broken?"
 #endif
 
 extern uint64_t __unsigned_int_flags_dummy64;
