@@ -259,6 +259,10 @@
 				<para>Will run a gosub on the called party's channel (the queue member)
 				once the parties are connected.  The subroutine execution starts in the
 				named context at the s exten and priority 1.</para>
+				<note><para>Macro was removed in Asterisk 21 which resulted in an
+				argument ordering change. The upgrade notice was missed for this,
+				so a note is being made here to provide a record of the change
+				for users who have not upgraded yet.</para></note>
 			</parameter>
 			<parameter name="rule">
 				<para>Will cause the queue's defaultrule to be overridden by the rule specified.</para>
@@ -7131,7 +7135,7 @@ static void setup_mixmonitor(struct queue_ent *qe, const char *filename)
  * \param[in,out] tries the number of times we have tried calling queue members
  * \param[out] noption set if the call to Queue() has the 'n' option set.
  * \param[in] agi the agi passed as the fifth parameter to the Queue() application
- * \param[in] gosub the gosub passed as the seventh parameter to the Queue() application
+ * \param[in] gosub the gosub passed as the sixth parameter to the Queue() application
  * \param[in] ringing 1 if the 'r' option is set, otherwise 0
  */
 static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_args, char *announceoverride, const char *url, int *tries, int *noption, const char *agi, const char *gosub, int ringing)
