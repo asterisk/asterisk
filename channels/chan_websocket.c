@@ -906,7 +906,7 @@ static void *read_thread_handler(void *obj)
 
 	/* Send MEDIA_START_JSON with channel variables */
 	{
-		RAII_VAR(char *, json_data, create_channel_variables_json(instance->channel), ast_free);
+		RAII_VAR(char *, json_data, create_channel_variables_json(instance->channel), ast_free); 
 		if (json_data) {
 			RAII_VAR(char *, json_command, NULL, ast_free);
 			res = ast_asprintf(&json_command, "%s %s", MEDIA_START_JSON, json_data);
