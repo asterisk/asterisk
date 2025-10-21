@@ -221,7 +221,7 @@ static char *create_channel_variables_json(struct ast_channel *channel)
 
 	/* Add channel variables */
 	AST_LIST_TRAVERSE(varshead, var, entries) {
-		if (var->name && var->value) {
+		if (var->value) {
 			ast_json_object_set(variables_obj, var->name, ast_json_string_create(var->value));
 		}
 	}
