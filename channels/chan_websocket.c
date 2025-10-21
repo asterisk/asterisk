@@ -107,6 +107,7 @@
 #include "asterisk/causes.h"
 #include "asterisk/channel.h"
 #include "asterisk/codec.h"
+#include "asterisk/json.h"
 #include "asterisk/http_websocket.h"
 #include "asterisk/format_cache.h"
 #include "asterisk/frame.h"
@@ -167,6 +168,7 @@ struct websocket_pvt {
 #define CONTINUE_MEDIA "CONTINUE_MEDIA"
 
 #define MEDIA_START "MEDIA_START"
+#define MEDIA_START_JSON "MEDIA_START_JSON"
 #define MEDIA_XON "MEDIA_XON"
 #define MEDIA_XOFF "MEDIA_XOFF"
 #define QUEUE_DRAINED "QUEUE_DRAINED"
@@ -197,6 +199,41 @@ static struct ast_channel_tech websocket_tech = {
 	.hangup = webchan_hangup,
 	.send_digit_end = webchan_send_dtmf_text,
 };
+
+/*! \brief Create JSON string from channel variables */
+static char *create_channel_variables_json(struct ast_channel *channel)
+{
+	struct ast_json *json_obj = ast_json_object_create();
+	struct ast_json *variables_obj = ast_json_object_create();
+	struct varshead *varshead = ast_channel_varshead(channel);
+	struct ast_var_t *var;
+	char *json_string = NULL;
+
+	if (!json_obj || !variables_obj) {
+		ast_json_unref(json_obj);
+		ast_json_unref(variables_obj);
+		return NULL;
+	}
+
+	/* Add basic channel information */
+	ast_json_object_set(json_obj, "channel_id", ast_json_string_create(ast_channel_uniqueid(channel)));
+	ast_json_object_set(json_obj, "channel_name", ast_json_string_create(ast_channel_name(channel)));
+
+	/* Add channel variables */
+	AST_LIST_TRAVERSE(varshead, var, entries) {
+		if (var->name && var->value) {
+			ast_json_object_set(variables_obj, var->name, ast_json_string_create(var->value));
+		}
+	}
+
+	ast_json_object_set(json_obj, "variables", variables_obj);
+
+	/* Convert to string */
+	json_string = ast_json_dump_string(json_obj);
+	ast_json_unref(json_obj);
+
+	return json_string;
+}
 
 static void set_channel_format(struct websocket_pvt * instance,
 	struct ast_format *fmt)
@@ -591,8 +628,9 @@ static int process_text_message(struct websocket_pvt *instance,
 	} else if (ast_strings_equal(command, GET_DRIVER_STATUS)) {
 		char *status = NULL;
 
-		res = ast_asprintf(&status, "%s queue_length:%d xon_level:%d xoff_level:%d queue_full:%s bulk_media:%s media_paused:%s",
+		res = ast_asprintf(&status, "%s channel_id:%s queue_length:%d xon_level:%d xoff_level:%d queue_full:%s bulk_media:%s media_paused:%s",
 			DRIVER_STATUS,
+			ast_channel_uniqueid(instance->channel),
 			instance->frame_queue_length, QUEUE_LENGTH_XON_LEVEL,
 			QUEUE_LENGTH_XOFF_LEVEL,
 			S_COR(instance->queue_full, "true", "false"),
@@ -847,8 +885,9 @@ static void *read_thread_handler(void *obj)
 	 * This is especially important for outbound connections otherwise
 	 * the app won't know who the media is for.
 	 */
-	res = ast_asprintf(&command, "%s connection_id:%s channel:%s format:%s optimal_frame_size:%d ptime:%d", MEDIA_START,
+	res = ast_asprintf(&command, "%s connection_id:%s channel:%s channel_id:%s format:%s optimal_frame_size:%d ptime:%d", MEDIA_START,
 		instance->connection_id, ast_channel_name(instance->channel),
+		ast_channel_uniqueid(instance->channel),
 		ast_format_get_name(instance->native_format),
 		instance->optimal_frame_size, instance->native_codec->default_ms);
 	if (res <= 0 || !command) {
@@ -864,6 +903,23 @@ static void *read_thread_handler(void *obj)
 	}
 	ast_debug(3, "%s: Sent %s\n", ast_channel_name(instance->channel),
 		command);
+
+	/* Send MEDIA_START_JSON with channel variables */
+	{
+		RAII_VAR(char *, json_data, create_channel_variables_json(instance->channel), ast_free);
+		if (json_data) {
+			RAII_VAR(char *, json_command, NULL, ast_free);
+			res = ast_asprintf(&json_command, "%s %s", MEDIA_START_JSON, json_data);
+			if (res > 0 && json_command) {
+				res = ast_websocket_write_string(instance->websocket, json_command);
+				if (res == 0) {
+					ast_debug(3, "%s: Sent %s\n", ast_channel_name(instance->channel), json_command);
+				} else {
+					ast_log(LOG_WARNING, "%s: Failed to send MEDIA_START_JSON\n", ast_channel_name(instance->channel));
+				}
+			}
+		}
+	}
 
 	if (!instance->no_auto_answer) {
 		ast_debug(3, "%s: ANSWER by auto_answer\n", ast_channel_name(instance->channel));
@@ -1508,7 +1564,7 @@ static int webchan_send_dtmf_text(struct ast_channel *ast, char digit, unsigned 
 			return -1;
 		}
 
-		res = ast_asprintf(&command, "%s digit:%c", DTMF_END, digit);
+		res = ast_asprintf(&command, "%s digit:%c channel_id:%s", DTMF_END, digit, ast_channel_uniqueid(instance->channel));
 		if (res <= 0 || !command) {
 			ast_log(LOG_ERROR, "%s: Failed to create DTMF_END\n", ast_channel_name(instance->channel));
 			return 0;
