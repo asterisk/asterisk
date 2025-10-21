@@ -591,8 +591,9 @@ static int process_text_message(struct websocket_pvt *instance,
 	} else if (ast_strings_equal(command, GET_DRIVER_STATUS)) {
 		char *status = NULL;
 
-		res = ast_asprintf(&status, "%s queue_length:%d xon_level:%d xoff_level:%d queue_full:%s bulk_media:%s media_paused:%s",
+		res = ast_asprintf(&status, "%s channel_id:%s queue_length:%d xon_level:%d xoff_level:%d queue_full:%s bulk_media:%s media_paused:%s",
 			DRIVER_STATUS,
+			ast_channel_uniqueid(instance->channel),
 			instance->frame_queue_length, QUEUE_LENGTH_XON_LEVEL,
 			QUEUE_LENGTH_XOFF_LEVEL,
 			S_COR(instance->queue_full, "true", "false"),
@@ -847,8 +848,9 @@ static void *read_thread_handler(void *obj)
 	 * This is especially important for outbound connections otherwise
 	 * the app won't know who the media is for.
 	 */
-	res = ast_asprintf(&command, "%s connection_id:%s channel:%s format:%s optimal_frame_size:%d ptime:%d", MEDIA_START,
+	res = ast_asprintf(&command, "%s connection_id:%s channel:%s channel_id:%s format:%s optimal_frame_size:%d ptime:%d", MEDIA_START,
 		instance->connection_id, ast_channel_name(instance->channel),
+		ast_channel_uniqueid(instance->channel),
 		ast_format_get_name(instance->native_format),
 		instance->optimal_frame_size, instance->native_codec->default_ms);
 	if (res <= 0 || !command) {
@@ -1508,7 +1510,7 @@ static int webchan_send_dtmf_text(struct ast_channel *ast, char digit, unsigned 
 			return -1;
 		}
 
-		res = ast_asprintf(&command, "%s digit:%c", DTMF_END, digit);
+		res = ast_asprintf(&command, "%s digit:%c channel_id:%s", DTMF_END, digit, ast_channel_uniqueid(instance->channel));
 		if (res <= 0 || !command) {
 			ast_log(LOG_ERROR, "%s: Failed to create DTMF_END\n", ast_channel_name(instance->channel));
 			return 0;
