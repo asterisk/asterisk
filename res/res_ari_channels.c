@@ -164,6 +164,10 @@ int ast_ari_channels_originate_parse_body(
 	if (field) {
 		args->formats = ast_json_string_get(field);
 	}
+	field = ast_json_object_get(body, "preDialGoSub");
+	if (field) {
+		args->pre_dial_go_sub = ast_json_string_get(field);
+	}
 	return 0;
 }
 
@@ -227,6 +231,9 @@ static void ast_ari_channels_originate_cb(
 		} else
 		if (strcmp(i->name, "formats") == 0) {
 			args.formats = (i->value);
+		} else
+		if (strcmp(i->name, "preDialGoSub") == 0) {
+			args.pre_dial_go_sub = (i->value);
 		} else
 		{}
 	}
@@ -495,6 +502,10 @@ int ast_ari_channels_originate_with_id_parse_body(
 	if (field) {
 		args->formats = ast_json_string_get(field);
 	}
+	field = ast_json_object_get(body, "preDialGoSub");
+	if (field) {
+		args->pre_dial_go_sub = ast_json_string_get(field);
+	}
 	return 0;
 }
 
@@ -555,6 +566,9 @@ static void ast_ari_channels_originate_with_id_cb(
 		} else
 		if (strcmp(i->name, "formats") == 0) {
 			args.formats = (i->value);
+		} else
+		if (strcmp(i->name, "preDialGoSub") == 0) {
+			args.pre_dial_go_sub = (i->value);
 		} else
 		{}
 	}
@@ -2588,6 +2602,10 @@ int ast_ari_channels_snoop_channel_parse_body(
 	if (field) {
 		args->snoop_id = ast_json_string_get(field);
 	}
+	field = ast_json_object_get(body, "preDialGoSub");
+	if (field) {
+		args->pre_dial_go_sub = ast_json_string_get(field);
+	}
 	return 0;
 }
 
@@ -2627,6 +2645,9 @@ static void ast_ari_channels_snoop_channel_cb(
 		} else
 		if (strcmp(i->name, "snoopId") == 0) {
 			args.snoop_id = (i->value);
+		} else
+		if (strcmp(i->name, "preDialGoSub") == 0) {
+			args.pre_dial_go_sub = (i->value);
 		} else
 		{}
 	}
@@ -2696,6 +2717,10 @@ int ast_ari_channels_snoop_channel_with_id_parse_body(
 	if (field) {
 		args->app_args = ast_json_string_get(field);
 	}
+	field = ast_json_object_get(body, "preDialGoSub");
+	if (field) {
+		args->pre_dial_go_sub = ast_json_string_get(field);
+	}
 	return 0;
 }
 
@@ -2732,6 +2757,9 @@ static void ast_ari_channels_snoop_channel_with_id_cb(
 		} else
 		if (strcmp(i->name, "appArgs") == 0) {
 			args.app_args = (i->value);
+		} else
+		if (strcmp(i->name, "preDialGoSub") == 0) {
+			args.pre_dial_go_sub = (i->value);
 		} else
 		{}
 	}
@@ -2796,6 +2824,10 @@ int ast_ari_channels_dial_parse_body(
 	if (field) {
 		args->timeout = ast_json_integer_get(field);
 	}
+	field = ast_json_object_get(body, "preDialGoSub");
+	if (field) {
+		args->pre_dial_go_sub = ast_json_string_get(field);
+	}
 	return 0;
 }
 
@@ -2826,6 +2858,9 @@ static void ast_ari_channels_dial_cb(
 		} else
 		if (strcmp(i->name, "timeout") == 0) {
 			args.timeout = atoi(i->value);
+		} else
+		if (strcmp(i->name, "preDialGoSub") == 0) {
+			args.pre_dial_go_sub = (i->value);
 		} else
 		{}
 	}
@@ -2975,6 +3010,10 @@ int ast_ari_channels_external_media_parse_body(
 	if (field) {
 		args->data = ast_json_string_get(field);
 	}
+	field = ast_json_object_get(body, "preDialGoSub");
+	if (field) {
+		args->pre_dial_go_sub = ast_json_string_get(field);
+	}
 	return 0;
 }
 
@@ -3026,6 +3065,9 @@ static void ast_ari_channels_external_media_cb(
 		} else
 		if (strcmp(i->name, "data") == 0) {
 			args.data = (i->value);
+		} else
+		if (strcmp(i->name, "preDialGoSub") == 0) {
+			args.pre_dial_go_sub = (i->value);
 		} else
 		{}
 	}

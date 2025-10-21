@@ -1095,6 +1095,7 @@ static struct ast_channel *ari_channels_handle_originate_with_id(const char *arg
 	const char *args_other_channel_id,
 	const char *args_originator,
 	const char *args_formats,
+	const char *args_pre_dial_go_sub,
 	struct ast_ari_response *response)
 {
 	char *dialtech;
@@ -1314,6 +1315,11 @@ static struct ast_channel *ari_channels_handle_originate_with_id(const char *arg
 		return NULL;
 	}
 
+	if (!ast_strlen_zero(args_pre_dial_go_sub)) {
+		char *pre_dial_go_sub = ast_strdupa(args_pre_dial_go_sub);
+		ast_pre_call(chan, pre_dial_go_sub);
+	}
+
 	if (!ast_strlen_zero(cid_num) || !ast_strlen_zero(cid_name)) {
 		struct ast_party_connected_line connected;
 
@@ -1446,6 +1452,7 @@ void ast_ari_channels_originate_with_id(struct ast_variable *headers,
 		args->other_channel_id,
 		args->originator,
 		args->formats,
+		args->pre_dial_go_sub,
 		response);
 	ast_channel_cleanup(chan);
 	ast_variables_destroy(variables);
@@ -1485,6 +1492,7 @@ void ast_ari_channels_originate(struct ast_variable *headers,
 		args->other_channel_id,
 		args->originator,
 		args->formats,
+		args->pre_dial_go_sub,
 		response);
 	ast_channel_cleanup(chan);
 	ast_variables_destroy(variables);
@@ -1597,6 +1605,7 @@ static void ari_channels_handle_snoop_channel(
 	const char *args_app,
 	const char *args_app_args,
 	const char *args_snoop_id,
+	const char *args_pre_dial_go_sub,
 	struct ast_ari_response *response)
 {
 	enum stasis_app_snoop_direction spy, whisper;
@@ -1665,6 +1674,11 @@ static void ari_channels_handle_snoop_channel(
 		return;
 	}
 
+	if (!ast_strlen_zero(args_pre_dial_go_sub)) {
+		char *pre_dial_go_sub = ast_strdupa(args_pre_dial_go_sub);
+		ast_app_exec_sub(NULL, snoop, pre_dial_go_sub, 0);
+	}
+
 	snapshot = ast_channel_snapshot_get_latest(ast_channel_uniqueid(snoop));
 	ast_ari_response_ok(response, ast_channel_snapshot_to_json(snapshot, NULL));
 }
@@ -1680,6 +1694,7 @@ void ast_ari_channels_snoop_channel(struct ast_variable *headers,
 		args->app,
 		args->app_args,
 		args->snoop_id,
+		args->pre_dial_go_sub,
 		response);
 }
 
@@ -1694,6 +1709,7 @@ void ast_ari_channels_snoop_channel_with_id(struct ast_variable *headers,
 		args->app,
 		args->app_args,
 		args->snoop_id,
+		args->pre_dial_go_sub,
 		response);
 }
 
@@ -1986,6 +2002,11 @@ void ast_ari_channels_dial(struct ast_variable *headers,
 		return;
 	}
 
+	if (!ast_strlen_zero(args->pre_dial_go_sub)) {
+		char *pre_dial_go_sub = ast_strdupa(args->pre_dial_go_sub);
+		ast_pre_call(callee, pre_dial_go_sub);
+	}
+
 	if (ast_channel_state(callee) != AST_STATE_DOWN
 		&& ast_channel_state(callee) != AST_STATE_RESERVED) {
 		ast_ari_response_error(response, 409, "Conflict",
@@ -2136,6 +2157,7 @@ static int external_media_rtp_udp(struct ast_ari_channels_external_media_args *a
 		NULL,
 		NULL,
 		args->format,
+		args->pre_dial_go_sub,
 		response);
 
 	ast_free(endpoint);
@@ -2187,6 +2209,7 @@ static int external_media_audiosocket_tcp(struct ast_ari_channels_external_media
 		NULL,
 		NULL,
 		args->format,
+		args->pre_dial_go_sub,
 		response);
 
 	ast_free(endpoint);
@@ -2234,6 +2257,7 @@ static int external_media_websocket(struct ast_ari_channels_external_media_args 
 		NULL,
 		NULL,
 		args->format,
+		args->pre_dial_go_sub,
 		response);
 
 	ast_free(endpoint);
