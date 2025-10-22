@@ -1,0 +1,10 @@
+; Configuration for chan_websocket
+;
+;[general]
+;control_message_format = plain-text ; The format for the control messages sent
+                                     ; and received on the websocket.
+                                     ; plain-text: The legacy single-line message
+                                     ; format.
+                                     ; json: All messages are properly formatted
+                                     ; JSON.
+                                     ; Default: plain-text
