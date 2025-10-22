@@ -81,7 +81,7 @@ else
 			fi
 		fi
 		SYSCTL_MAXFILES="fs.file-max"
-	elif `uname -s | grep Darwin /dev/null 2>&1`; then
+	elif `uname -s | grep Darwin >/dev/null 2>&1`; then
 		SYSCTL_MAXFILES="kern.maxfiles"
 	fi
 
@@ -162,7 +162,7 @@ trap '' PIPE
 if test -d "${ASTETCDIR}/startup.d"; then
 	# If this script is run by root, the startup.d directory and all scripts in it
 	# must be owned by root.
-	if test `id -u` == 0; then
+	if test `id -u` = 0; then
 		dir_owner=$(stat -c '%u' "${ASTETCDIR}/startup.d" 2>/dev/null)
 		if test "${dir_owner}" != 0 ; then
 			message "FATAL: ${ASTETCDIR}/startup.d is not owned by root"
@@ -170,7 +170,7 @@ if test -d "${ASTETCDIR}/startup.d"; then
 		fi
 
 		# Check all scripts for proper ownership before sourcing any of them.
-		for script in $(find "${ASTETCDIR}/startup.d/" -name '*.sh') ; do
+		for script in "${ASTETCDIR}/startup.d/"*.sh ; do
 			if test -r "${script}"; then
 				script_owner=$(stat -c '%u' "${script}" 2>/dev/null)
 				if test "$script_owner" != 0 ; then
@@ -181,7 +181,7 @@ if test -d "${ASTETCDIR}/startup.d"; then
 		done
 	fi
 
-	for script in $(find "${ASTETCDIR}/startup.d/" -name '*.sh' | sort) ; do
+	for script in "${ASTETCDIR}/startup.d/"*.sh ; do
 		. "${script}"
 	done
 fi
