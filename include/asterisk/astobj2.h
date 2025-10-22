@@ -973,6 +973,7 @@ Operations on container include:
            0: no match, keep going
            CMP_STOP: stop search, no match
            CMP_MATCH: This object is matched.
+           CMP_RETRY_NEEDED: Stop search, no match, but we ran into a possible deadlock and the search should be tried again
 
     Note that the entire operation is run with the container
     locked, so nobody else can change its content while we work on it.
@@ -1024,8 +1025,9 @@ to define callback and hash functions and their arguments.
  * The latter will terminate the search in a container.
  */
 enum _cb_results {
-	CMP_MATCH	= 0x1,	/*!< the object matches the request */
-	CMP_STOP	= 0x2,	/*!< stop the search now */
+	CMP_MATCH		= 0x1,	/*!< the object matches the request */
+	CMP_STOP		= 0x2,	/*!< stop the search now */
+	CMP_RETRY_NEEDED	= 0x4,	/*!< stop the search now, unlock the container, rollback so we can retry */
 };
 
 /*!

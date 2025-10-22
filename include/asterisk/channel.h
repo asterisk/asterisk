@@ -1201,6 +1201,12 @@ enum ama_flags {
 	AST_AMA_DOCUMENTATION,
 };
 
+/* For multi-value data passed to/from ast_channel_callback() (and then into subsequent cb_fn calls) via ast_channel_callback_safe() */
+struct ast_channel_callback_data {
+	void *data_additional;
+	int final_match_result;
+};
+
 /*!
  * \note None of the datastore API calls lock the ast_channel they are using.
  *       So, the channel should be locked before calling the functions that
@@ -3122,13 +3128,48 @@ struct ast_channel *ast_channel_iterator_next(struct ast_channel_iterator *i);
  *
  * \details
  * This function executes a callback one time for each active channel on the
- * system.  The channel is provided as an argument to the function.
+ * system.  The channel (or thing) to be searched for is provided as an argument (arg)
+ * to the function.
  *
+ * \param arg Must be a char *, Typically either a channel name or a channel uniqueid.
+ *   In some cases exten@context is used.
+ *   Will be passed to cb_fn as its arg param
+ * \param data Arbitrary data to be passed to cb_fn as its data param
+ *
+ * \note This function SHOULD NOT be called unless fully understanding the implications.
  * \note Absolutely _NO_ channel locks should be held before calling this function.
+ * \see ast_channel_callback_safe
  * \since 1.8
  */
 struct ast_channel *ast_channel_callback(ao2_callback_data_fn *cb_fn, void *arg,
 		void *data, int ao2_flags);
+
+/*!
+ * \brief Call a function with every active channel while avoiding deadlocks
+ *
+ * \details
+ * This function executes a callback one time for each active channel on the
+ * system.  The channel (or thing) to be searched for is provided as an argument (arg)
+ * to the function.
+ *
+ * In order to avoid deadlocks:
+ *   cb_fn is required to trylock on any channel(s) it needs and immediately abort
+ *   searching if we cannot get immediately get a lock on said channel.
+ *   If a lock cannot be aquired, CMP_RETRY_NEEDED must be set prior to stopping
+ *
+ * \see ast_channel_by_name_cb for reference implementation details
+ *
+ * \param arg Must be a char *, Typically either a channel name or a channel uniqueid.
+ *   In some cases exten@context is used.
+ *   Will be passed to cb_fn as its arg param
+ * \param data Arbitrary data to be passed to cb_fn as its data_additional member
+ *
+ * \note Absolutely _NO_ channel locks should be held before calling this function.
+ * \since 18.20
+ */
+struct ast_channel *ast_channel_callback_safe(ao2_callback_data_fn *cb_fn,
+		const char *search_type, const char *search_type_data,
+		 const char *search, void *data_additional, int ao2_flags);
 
 /*! @{ Channel search functions */
 
