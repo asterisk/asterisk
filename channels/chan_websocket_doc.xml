@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE docs SYSTEM "appdocsxml.dtd">
+<docs xmlns:xi="http://www.w3.org/2001/XInclude">
+	<configInfo name="chan_websocket" language="en_US">
+		<synopsis>Configuration for chan_websocket</synopsis>
+		<description><para>
+			<emphasis>WebSocket Channel Driver</emphasis>
+			</para>
+		</description>
+		<configFile name="chan_websocket.conf">
+			<configObject name="global">
+				<since>
+					<version>20.18.0</version>
+					<version>22.8.0</version>
+					<version>23.2.0</version>
+				</since>
+				<synopsis>Global settings for chan_websocket</synopsis>
+				<configOption name="control_message_format" default="plain-text">
+					<since>
+						<version>20.18.0</version>
+						<version>22.8.0</version>
+						<version>23.2.0</version>
+					</since>
+					<synopsis>Determines the format used for sending and receiving
+					control mesages on the websocket.
+					</synopsis>
+					<description>
+						<enumlist>
+							<enum name="plain-text">
+							<para>The legacy plain text single-line message format.</para>
+							</enum>
+							<enum name="json">
+							<para>The new JSON format.</para>
+							</enum>
+						</enumlist>
+					</description>
+				</configOption>
+			</configObject>
+		</configFile>
+	</configInfo>
+
+	<info name="Dial_Resource" language="en_US" tech="WebSocket">
+		<para>WebSocket Dial Strings:</para>
+		<para><literal>Dial(WebSocket/connectionid[/websocket_options])</literal></para>
+		<para>WebSocket Parameters:</para>
+		<enumlist>
+			<enum name="connectionid">
+				<para>For outgoing WebSockets, this is the ID of the connection
+				in websocket_client.conf to use for the call.  To accept incoming
+				WebSocket connections use the literal <literal>INCOMING</literal></para>
+			</enum>
+			<enum name="websocket_options">
+				<para>Options to control how the WebSocket channel behaves.</para>
+				<enumlist>
+					<enum name="c(codec) - Specify the codec to use in the channel">
+						<para></para>
+						<para> If not specified, the first codec from the caller's channel will be used.
+						</para>
+					</enum>
+					<enum name="n - Don't auto answer">
+						<para>Normally, the WebSocket channel will be answered when
+						connection is established with the remote app.  If this
+						option is specified however, the channel will not be
+						answered until the <literal>ANSWER</literal> command is
+						received from the remote app or the remote app calls the
+						/channels/answer ARI endpoint.
+						</para>
+					</enum>
+					<enum name="f(format) - Control message format for this call">
+						<para>
+						format:
+						</para>
+						<xi:include xpointer="xpointer(/docs/configInfo[@name='chan_websocket']/configFile[@name='chan_websocket.conf']/configObject[@name='global']/configOption[@name='control_message_format']/description/enumlist)"/>
+					</enum>
+					<enum name="p - Passthrough mode">
+						<para>In passthrough mode, the channel driver won't attempt
+						to re-frame or re-time media coming in over the websocket from
+						the remote app.  This can be used for any codec but MUST be used
+						for codecs that use packet headers or whose data stream can't be
+						broken up on arbitrary byte boundaries. In this case, the remote
+						app is fully responsible for correctly framing and timing media
+						sent to Asterisk and the MEDIA text commands that could be sent
+						over the websocket are disabled.  Currently, passthrough mode is
+						automatically set for the opus, speex and g729 codecs.
+						</para>
+					</enum>
+					<enum name="v(uri_parameters) - Add parameters to the outbound URI">
+						<para>This option allows you to add additional parameters to the
+						outbound URI.  The format is:
+						<literal>v(param1=value1,param2=value2...)</literal>
+						</para>
+						<para>You must ensure that no parameter name or value contains
+						characters not valid in a URL.  The easiest way to do this is to
+						use the URIENCODE() dialplan function to encode them.  Be aware
+						though that each name and value must be encoded separately.  You
+						can't simply encode the whole string.</para>
+					</enum>
+				</enumlist>
+			</enum>
+		</enumlist>
+		<para>Examples:
+		</para>
+		<example title="Make an outbound WebSocket connection using connection 'connection1' and the 'sln16' codec.">
+		same => n,Dial(WebSocket/connection1/c(sln16))
+		</example>
+		<example title="Make an outbound WebSocket connection using connection 'connection1' and the 'opus' codec. Passthrough mode will automatically be set.">
+		same => n,Dial(WebSocket/connection1/c(opus))
+		</example>
+		<example title="Listen for an incoming WebSocket connection and don't auto-answer it.">
+		same => n,Dial(WebSocket/INCOMING/n)
+		</example>
+		<example title="Add URI parameters.">
+		same => n,Dial(WebSocket/connection1/v(${URIENCODE(vari able)}=${URIENCODE(${CHANNEL})},variable2=$(URIENCODE(${EXTEN})}))
+		</example>
+		<example title="Use the JSON control message format for this call.">
+		same => n,Dial(WebSocket/connection1/f(json))
+		</example>
+	</info>
+</docs>

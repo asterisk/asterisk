@@ -2027,6 +2027,14 @@
 							"required": false,
 							"allowMultiple": false,
 							"dataType": "string"
+						},
+						{
+							"name": "transport_data",
+							"description": "Transport-specific data. For websocket this is appended to the dialstring.",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
 						}
 					],
 					"errorResponses": [
