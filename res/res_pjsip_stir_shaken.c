@@ -33,8 +33,9 @@
 #include "asterisk/res_pjsip_session.h"
 #include "asterisk/module.h"
 #include "asterisk/rtp_engine.h"
+#include "asterisk/datastore.h"
 
-#include "asterisk/res_stir_shaken.h"
+#include "res_stir_shaken/stir_shaken.h"
 
 static const pj_str_t identity_hdr_str = { "Identity", 8 };
 static const pj_str_t date_hdr_str = { "Date", 4 };
@@ -395,6 +396,8 @@ static void stir_shaken_outgoing_request(struct ast_sip_session *session,
 	struct ast_stir_shaken_as_ctx *ctx = NULL;
 	enum ast_stir_shaken_as_response_code as_rc;
 	const char *session_name = ast_sip_session_get_name(session);
+	struct ast_datastore *chan_datastore;
+
 	SCOPE_ENTER(1, "%s: Enter\n", session_name);
 
 	if (!session) {
@@ -406,6 +409,26 @@ static void stir_shaken_outgoing_request(struct ast_sip_session *session,
 	if (!tdata) {
 		SCOPE_EXIT_LOG_RTN(LOG_ERROR, "%s: No tdata\n", session_name);
 	}
+
+	/*
+	 * On an outgoing channel, there should be at most one STIR/SHAKEN
+	 * datastore.
+	 */
+	ast_channel_lock(session->channel);
+	AST_LIST_TRAVERSE(ast_channel_datastores(session->channel), chan_datastore, entry) {
+		if (ast_strings_equal(chan_datastore->info->type, STIR_SHAKEN_ATTESTATION_DS)) {
+			break;
+		}
+	}
+	if (chan_datastore) {
+		struct stir_shaken_attestation_ds *ds = chan_datastore->data;
+
+		if (ds->suppress) {
+			ast_channel_unlock(session->channel);
+			SCOPE_EXIT_RTN("Attestation suppressed by dialplan\n");
+		}
+	}
+	ast_channel_unlock(session->channel);
 
 	old_identity = pjsip_msg_find_hdr_by_name(tdata->msg, &identity_hdr_str, NULL);
 	if (old_identity) {

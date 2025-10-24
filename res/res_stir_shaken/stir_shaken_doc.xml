@@ -507,4 +507,38 @@
 			</example>
 		</description>
 	</function>
+	<function name="STIR_SHAKEN_ATTESTATION" language="en_US">
+		<since>
+			<version>20.17.0</version>
+			<version>22.7.0</version>
+			<version>23.1.0</version>
+		</since>
+		<synopsis>
+			Sets STIR/SHAKEN Attestation parameters on an outgoing channel.
+		</synopsis>
+		<syntax>
+			<parameter name="field" required="true">
+				<para>The attestation field to set. Allowable values:</para>
+				<enumlist>
+					<enum name = "suppress">
+					<para>
+					When set to <literal>true</literal>, attestation is suppressed
+					on the channel regardless of the profile on the endpoint.
+					</para>
+					</enum>
+				</enumlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>When used on an outgoing channel, this function can override the
+			profile on an endpoint.  Currently, only the ability to suppress
+			attestation is supported.
+			</para>
+			<para>
+			</para>
+			<example title="Suppress attestation on an outgoing channel">
+			same => n,Set(STIR_SHAKEN_ATTESTATION(suppress)=yes)
+			</example>
+		</description>
+	</function>
 </docs>
