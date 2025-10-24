@@ -2975,6 +2975,10 @@ int ast_ari_channels_external_media_parse_body(
 	if (field) {
 		args->data = ast_json_string_get(field);
 	}
+	field = ast_json_object_get(body, "transport_data");
+	if (field) {
+		args->transport_data = ast_json_string_get(field);
+	}
 	return 0;
 }
 
@@ -3026,6 +3030,9 @@ static void ast_ari_channels_external_media_cb(
 		} else
 		if (strcmp(i->name, "data") == 0) {
 			args.data = (i->value);
+		} else
+		if (strcmp(i->name, "transport_data") == 0) {
+			args.transport_data = (i->value);
 		} else
 		{}
 	}
