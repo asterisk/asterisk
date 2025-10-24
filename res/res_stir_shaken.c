@@ -33,8 +33,11 @@
 #include "asterisk/module.h"
 #include "asterisk/global_datastores.h"
 #include "asterisk/pbx.h"
+#include "asterisk/vector.h"
 
 #include "res_stir_shaken/stir_shaken.h"
+
+AST_VECTOR(verification_vector, struct stir_shaken_verification_ds *);
 
 static int tn_auth_list_nid;
 
@@ -43,22 +46,12 @@ int get_tn_auth_nid(void)
 	return tn_auth_list_nid;
 }
 
-/* The datastore struct holding verification information for the channel */
-struct stir_datastore {
-	/* The identitifier for the STIR/SHAKEN verification */
-	char *identity;
-	/* The attestation value */
-	char *attestation;
-	/* The actual verification result */
-	enum ast_stir_shaken_vs_response_code verify_result;
-};
-
 /*!
  * \brief Frees a stir_shaken_datastore structure
  *
  * \param datastore The datastore to free
  */
-static void stir_datastore_free(struct stir_datastore *datastore)
+static void verification_ds_free(struct stir_shaken_verification_ds *datastore)
 {
 	if (!datastore) {
 		return;
@@ -74,84 +67,108 @@ static void stir_datastore_free(struct stir_datastore *datastore)
  *
  * \param data The stir_shaken_datastore
  */
-static void stir_datastore_destroy_cb(void *data)
+static void verification_ds_destroy_cb(void *data)
 {
-	struct stir_datastore *datastore = data;
-	stir_datastore_free(datastore);
+	struct verification_vector *verifies = data;
+
+	AST_VECTOR_RESET(verifies, verification_ds_free);
+	ast_free(verifies);
 }
 
-/* The stir_shaken_datastore info used to add and compare stir_shaken_datastores on the channel */
-static const struct ast_datastore_info stir_shaken_datastore_info = {
-	.type = "STIR/SHAKEN VERIFICATION",
-	.destroy = stir_datastore_destroy_cb,
+static const struct ast_datastore_info verification_ds_info = {
+	.type = STIR_SHAKEN_VERIFICATION_DS,
+	.destroy = verification_ds_destroy_cb,
 };
 
 int ast_stir_shaken_add_result_to_channel(
 	struct ast_stir_shaken_vs_ctx *ctx)
 {
-	struct stir_datastore *stir_datastore;
+	struct stir_shaken_verification_ds *stir_datastore;
 	struct ast_datastore *chan_datastore;
+	struct verification_vector *verifies;
 	const char *chan_name;
+	int res = 0;
 
 	if (!ctx->chan) {
-		ast_log(LOG_ERROR, "Channel is required to add STIR/SHAKEN verification\n");
+		ast_log(LOG_ERROR, "Channel is required to add verification\n");
 		return -1;
 	}
 
 	chan_name = ast_channel_name(ctx->chan);
 
 	if (!ctx->identity_hdr) {
-		ast_log(LOG_ERROR, "No identity to add STIR/SHAKEN verification to channel "
-			"%s\n", chan_name);
+		ast_log(LOG_ERROR, "%s: No identity to add to datastore\n",
+			chan_name);
 		return -1;
 	}
 
 	if (!ctx->attestation) {
-		ast_log(LOG_ERROR, "Attestation cannot be NULL to add STIR/SHAKEN verification to "
-			"channel %s\n", chan_name);
+		ast_log(LOG_ERROR, "%s: Attestation cannot be NULL\n", chan_name);
 		return -1;
 	}
 
 	stir_datastore = ast_calloc(1, sizeof(*stir_datastore));
 	if (!stir_datastore) {
-		ast_log(LOG_ERROR, "Failed to allocate space for STIR/SHAKEN datastore for "
-			"channel %s\n", chan_name);
 		return -1;
 	}
 
 	stir_datastore->identity = ast_strdup(ctx->identity_hdr);
 	if (!stir_datastore->identity) {
-		ast_log(LOG_ERROR, "Failed to allocate space for STIR/SHAKEN datastore "
-			"identity for channel %s\n", chan_name);
-		stir_datastore_free(stir_datastore);
+		verification_ds_free(stir_datastore);
 		return -1;
 	}
 
 	stir_datastore->attestation = ast_strdup(ctx->attestation);
 	if (!stir_datastore->attestation) {
-		ast_log(LOG_ERROR, "Failed to allocate space for STIR/SHAKEN datastore "
-			"attestation for channel %s\n", chan_name);
-		stir_datastore_free(stir_datastore);
+		verification_ds_free(stir_datastore);
 		return -1;
 	}
 
 	stir_datastore->verify_result = ctx->failure_reason;
 
-	chan_datastore = ast_datastore_alloc(&stir_shaken_datastore_info, NULL);
-	if (!chan_datastore) {
-		ast_log(LOG_ERROR, "Failed to allocate space for datastore for channel "
-			"%s\n", chan_name);
-		stir_datastore_free(stir_datastore);
-		return -1;
+	ast_channel_lock(ctx->chan);
+	chan_datastore = ast_channel_datastore_find(ctx->chan, &verification_ds_info, NULL);
+	if (chan_datastore) {
+		verifies = chan_datastore->data;
+		res = AST_VECTOR_APPEND(verifies, stir_datastore);
+		if (res != 0) {
+			verification_ds_free(stir_datastore);
+		}
+		ast_channel_unlock(ctx->chan);
+		return res;
 	}
 
-	chan_datastore->data = stir_datastore;
+	chan_datastore = ast_datastore_alloc(&verification_ds_info, NULL);
+	if (!chan_datastore) {
+		verification_ds_free(stir_datastore);
+		return -1;
+	}
+	/*
+	 * We don't pass this datastore to other channels at the current time.
+	 * Inheritance is disabled by default but it's called out here for clarity.
+	 */
+	chan_datastore->inheritance = 0;
 
-	ast_channel_lock(ctx->chan);
-	ast_channel_datastore_add(ctx->chan, chan_datastore);
+	verifies = ast_calloc(sizeof(*verifies), 1);
+	if (!verifies) {
+		ast_channel_unlock(ctx->chan);
+		verification_ds_free(stir_datastore);
+		ast_datastore_free(chan_datastore);
+		return -1;
+	}
+	AST_VECTOR_INIT(verifies, 0);
+
+	res = AST_VECTOR_APPEND(verifies, stir_datastore);
+	if (res != 0) {
+		ast_free(verifies);
+		verification_ds_free(stir_datastore);
+	} else {
+		chan_datastore->data = verifies;
+		ast_channel_datastore_add(ctx->chan, chan_datastore);
+	}
 	ast_channel_unlock(ctx->chan);
 
-	return 0;
+	return res;
 }
 
 /*!
@@ -166,15 +183,18 @@ int ast_stir_shaken_add_result_to_channel(
  * \retval -1 on failure
  * \retval 0 on success
  */
-static int func_read(struct ast_channel *chan, const char *function,
+static int func_read_verification(struct ast_channel *chan, const char *function,
 	char *data, char *buf, size_t len)
 {
-	struct stir_datastore *stir_datastore;
+	struct stir_shaken_verification_ds *stir_datastore;
 	struct ast_datastore *chan_datastore;
+	struct verification_vector *verifies;
+	const char *chan_name;
 	char *parse;
 	char *first;
 	char *second;
-	unsigned int target_index, current_index = 0;
+	unsigned int target_index = 0;
+	int res = 0;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(first_param);
 		AST_APP_ARG(second_param);
@@ -189,6 +209,7 @@ static int func_read(struct ast_channel *chan, const char *function,
 		ast_log(LOG_ERROR, "No channel for %s function\n", function);
 		return -1;
 	}
+	chan_name = ast_channel_name(chan);
 
 	parse = ast_strdupa(data);
 
@@ -196,7 +217,8 @@ static int func_read(struct ast_channel *chan, const char *function,
 
 	first = ast_strip(args.first_param);
 	if (ast_strlen_zero(first)) {
-		ast_log(LOG_ERROR, "An argument must be passed to %s\n", function);
+		ast_log(LOG_ERROR, "%s: An argument must be passed to %s\n",
+			chan_name, function);
 		return -1;
 	}
 
@@ -207,16 +229,16 @@ static int func_read(struct ast_channel *chan, const char *function,
 		size_t count = 0;
 
 		if (!ast_strlen_zero(second)) {
-			ast_log(LOG_ERROR, "%s only takes 1 paramater for 'count'\n", function);
+			ast_log(LOG_ERROR, "%s: %s only takes 1 paramater for 'count'\n",
+				chan_name, function);
 			return -1;
 		}
 
 		ast_channel_lock(chan);
-		AST_LIST_TRAVERSE(ast_channel_datastores(chan), chan_datastore, entry) {
-			if (chan_datastore->info != &stir_shaken_datastore_info) {
-				continue;
-			}
-			count++;
+		chan_datastore = ast_channel_datastore_find(chan, &verification_ds_info, NULL);
+		if (chan_datastore && chan_datastore->data) {
+			verifies = chan_datastore->data;
+			count = AST_VECTOR_SIZE(verifies);
 		}
 		ast_channel_unlock(chan);
 
@@ -228,36 +250,33 @@ static int func_read(struct ast_channel *chan, const char *function,
 	 * we are searching for will be the second parameter. The index is the first.
 	 */
 	if (ast_strlen_zero(second)) {
-		ast_log(LOG_ERROR, "Retrieving a value using %s requires two paramaters (index, value) "
-			"- only index was given\n", function);
+		ast_log(LOG_ERROR, "%s: Retrieving a value using %s requires two paramaters (index, value) "
+			"- only index was given\n", chan_name, function);
 		return -1;
 	}
 
 	if (ast_str_to_uint(first, &target_index)) {
-		ast_log(LOG_ERROR, "Failed to convert index %s to integer for function %s\n",
-			first, function);
+		ast_log(LOG_ERROR, "%s: Failed to convert index %s to integer for function %s\n",
+			chan_name, first, function);
 		return -1;
 	}
 
-	/* We don't store by uid for the datastore, so just search for the specified index */
 	ast_channel_lock(chan);
-	AST_LIST_TRAVERSE(ast_channel_datastores(chan), chan_datastore, entry) {
-		if (chan_datastore->info != &stir_shaken_datastore_info) {
-			continue;
-		}
-
-		if (current_index == target_index) {
-			break;
-		}
-
-		current_index++;
-	}
-	ast_channel_unlock(chan);
-	if (current_index != target_index || !chan_datastore) {
-		ast_log(LOG_WARNING, "No STIR/SHAKEN results for index '%s'\n", first);
+	chan_datastore = ast_channel_datastore_find(chan, &verification_ds_info, NULL);
+	if (!chan_datastore || !chan_datastore->data) {
+		ast_channel_unlock(chan);
+		ast_log(LOG_WARNING, "%s: No STIR/SHAKEN results for index '%s'\n",
+			chan_name, first);
 		return -1;
 	}
-	stir_datastore = chan_datastore->data;
+	verifies = chan_datastore->data;
+	if (target_index >= AST_VECTOR_SIZE(verifies)) {
+		ast_channel_unlock(chan);
+		ast_log(LOG_WARNING, "%s: No STIR/SHAKEN results for index '%s'\n",
+			chan_name, first);
+		return -1;
+	}
+	stir_datastore = AST_VECTOR_GET(verifies, target_index);
 
 	if (!strcasecmp(second, "identity")) {
 		ast_copy_string(buf, stir_datastore->identity, len);
@@ -266,16 +285,127 @@ static int func_read(struct ast_channel *chan, const char *function,
 	} else if (!strcasecmp(second, "verify_result")) {
 		ast_copy_string(buf, vs_response_code_to_str(stir_datastore->verify_result), len);
 	} else {
-		ast_log(LOG_ERROR, "No such value '%s' for %s\n", second, function);
+		ast_log(LOG_ERROR, "%s: No such value '%s' for %s\n",
+			chan_name, second, function);
+		res = -1;
+	}
+
+	ast_channel_unlock(chan);
+
+	return res;
+}
+
+/*
+ * Unlike verification, on an outgoing channel there can be at most
+ * one attestation datastore so there's no need for a vector.  One
+ * can be added at a later date if this changes.
+ */
+
+static void attestation_ds_destroy(void *data)
+{
+	ast_free(data);
+}
+
+static const struct ast_datastore_info attestation_ds_info = {
+	.type = STIR_SHAKEN_ATTESTATION_DS,
+	.destroy = attestation_ds_destroy,
+};
+
+struct stir_shaken_attestation_ds *ast_stir_shaken_get_attestation_datastore(
+	struct ast_channel *chan)
+{
+	struct stir_shaken_attestation_ds *attestation_ds;
+	struct ast_datastore *chan_datastore;
+
+	chan_datastore = ast_channel_datastore_find(chan, &attestation_ds_info, NULL);
+	if (!chan_datastore) {
+		return NULL;
+	}
+	attestation_ds = chan_datastore->data;
+	return attestation_ds;
+}
+
+
+static int func_write_attestation(struct ast_channel *chan, const char *function, char *data,
+	const char *value)
+{
+	struct stir_shaken_attestation_ds *attestation_ds;
+	struct ast_datastore *chan_datastore;
+	char *parse;
+	char *field;
+	char *stripped_value;
+	const char *channel_name = chan ? ast_channel_name(chan) : "unknown_channel";
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(field);
+	);
+
+	if (!chan) {
+		ast_log(LOG_ERROR, "No channel for %s function\n", function);
 		return -1;
 	}
+
+	if (ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "%s: %s requires a field to set\n", channel_name, function);
+		return -1;
+	}
+
+	parse = ast_strdupa(data);
+
+	AST_STANDARD_APP_ARGS(args, parse);
+
+	field = ast_strip(args.field);
+	if (ast_strlen_zero(field)) {
+		ast_log(LOG_WARNING, "%s: %s requires a field to set\n", channel_name, function);
+		return -1;
+	}
+
+	if (!ast_strings_equal(field, "suppress")) {
+		ast_log(LOG_ERROR, "%s: %s was passed invalid field '%s'\n",
+			channel_name, function, field);
+		return -1;
+	}
+
+	stripped_value = ast_strip(ast_strdupa(value));
+	if (ast_strlen_zero(stripped_value)) {
+		ast_log(LOG_ERROR, "%s: %s requires a boolean value\n", channel_name, function);
+		return -1;
+	}
+
+	ast_channel_lock(chan);
+	chan_datastore = ast_channel_datastore_find(chan, &attestation_ds_info, NULL);
+
+	if (chan_datastore) {
+		attestation_ds = chan_datastore->data;
+	} else {
+		attestation_ds = ast_calloc(1, sizeof(*attestation_ds));
+		chan_datastore = ast_datastore_alloc(&attestation_ds_info, NULL);
+		if (!attestation_ds || !chan_datastore) {
+			ast_channel_unlock(chan);
+			attestation_ds_destroy(attestation_ds);
+			ast_datastore_free(chan_datastore);
+			return -1;
+		}
+
+		chan_datastore->data = attestation_ds;
+		chan_datastore->inheritance = 0;
+
+		ast_channel_datastore_add(chan, chan_datastore);
+	}
+
+	attestation_ds->suppress = ast_true(stripped_value);
+	ast_channel_unlock(chan);
 
 	return 0;
 }
 
-static struct ast_custom_function stir_shaken_function = {
+static struct ast_custom_function stir_shaken_verification = {
 	.name = "STIR_SHAKEN",
-	.read = func_read,
+	.read = func_read_verification,
+};
+
+static struct ast_custom_function stir_shaken_attestation = {
+	.name = "STIR_SHAKEN_ATTESTATION",
+	.write = func_write_attestation,
 };
 
 static int reload_module(void)
@@ -285,12 +415,11 @@ static int reload_module(void)
 
 static int unload_module(void)
 {
-	int res = 0;
-
 	common_config_unload();
 	crypto_unload();
 
-	res |= ast_custom_function_unregister(&stir_shaken_function);
+	ast_custom_function_unregister(&stir_shaken_verification);
+	ast_custom_function_unregister(&stir_shaken_attestation);
 
 	return 0;
 }
@@ -371,7 +500,13 @@ static int load_module(void)
 		return res;
 	}
 
-	res = ast_custom_function_register(&stir_shaken_function);
+	res = ast_custom_function_register(&stir_shaken_verification);
+	if (res != 0) {
+		unload_module();
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	res = ast_custom_function_register(&stir_shaken_attestation);
 	if (res != 0) {
 		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
