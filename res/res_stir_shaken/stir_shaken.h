@@ -29,6 +29,25 @@
 #define STIR_SHAKEN_PPT "shaken"
 #define STIR_SHAKEN_TYPE "passport"
 
+#define STIR_SHAKEN_VERIFICATION_DS "STIR/SHAKEN/VERIFICATION"
+struct stir_shaken_verification_ds {
+	/*! The identitifier for the STIR/SHAKEN verification */
+	char *identity;
+	/*! The attestation value */
+	char *attestation;
+	/*! The actual verification result */
+	enum ast_stir_shaken_vs_response_code verify_result;
+};
+
+#define STIR_SHAKEN_ATTESTATION_DS "STIR/SHAKEN/ATTESTATION"
+struct stir_shaken_attestation_ds {
+	/*! Whether to suppress attestation on outgoing call */
+	int suppress;
+};
+
+struct stir_shaken_attestation_ds *ast_stir_shaken_get_attestation_datastore(
+	struct ast_channel *chan);
+
 /*!
  * \brief Retrieve the stir/shaken sorcery context
  *
