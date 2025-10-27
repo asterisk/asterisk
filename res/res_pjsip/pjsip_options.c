@@ -33,7 +33,7 @@
 #include "asterisk/statsd.h"
 #include "include/res_pjsip_private.h"
 #include "asterisk/taskprocessor.h"
-#include "asterisk/serializer_shutdown_group.h"
+#include "asterisk/threadpool.h"
 
 /*
  * This implementation for OPTIONS support is based around the idea

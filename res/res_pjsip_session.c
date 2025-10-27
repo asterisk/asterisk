@@ -42,7 +42,6 @@
 #include "asterisk/uuid.h"
 #include "asterisk/pbx.h"
 #include "asterisk/taskprocessor.h"
-#include "asterisk/taskpool.h"
 #include "asterisk/causes.h"
 #include "asterisk/sdp_srtp.h"
 #include "asterisk/dsp.h"
@@ -3128,14 +3127,115 @@ struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
 	return ret_session;
 }
 
+/*! \brief struct controlling the suspension of the session's serializer. */
+struct ast_sip_session_suspender {
+	ast_cond_t cond_suspended;
+	ast_cond_t cond_complete;
+	int suspended;
+	int complete;
+};
+
+static void sip_session_suspender_dtor(void *vdoomed)
+{
+	struct ast_sip_session_suspender *doomed = vdoomed;
+
+	ast_cond_destroy(&doomed->cond_suspended);
+	ast_cond_destroy(&doomed->cond_complete);
+}
+
+/*!
+ * \internal
+ * \brief Block the session serializer thread task.
+ *
+ * \param data Pushed serializer task data for suspension.
+ *
+ * \retval 0
+ */
+static int sip_session_suspend_task(void *data)
+{
+	struct ast_sip_session_suspender *suspender = data;
+
+	ao2_lock(suspender);
+
+	/* Signal that the serializer task is now suspended. */
+	suspender->suspended = 1;
+	ast_cond_signal(&suspender->cond_suspended);
+
+	/* Wait for the serializer suspension to be completed. */
+	while (!suspender->complete) {
+		ast_cond_wait(&suspender->cond_complete, ao2_object_get_lockaddr(suspender));
+	}
+
+	ao2_unlock(suspender);
+	ao2_ref(suspender, -1);
+
+	return 0;
+}
+
 void ast_sip_session_suspend(struct ast_sip_session *session)
 {
-	ast_taskpool_serializer_suspend(session->serializer);
+	struct ast_sip_session_suspender *suspender;
+	int res;
+
+	ast_assert(session->suspended == NULL);
+
+	if (ast_taskprocessor_is_task(session->serializer)) {
+		/* I am the session's serializer thread so I cannot suspend. */
+		return;
+	}
+
+	if (ast_taskprocessor_is_suspended(session->serializer)) {
+		/* The serializer already suspended. */
+		return;
+	}
+
+	suspender = ao2_alloc(sizeof(*suspender), sip_session_suspender_dtor);
+	if (!suspender) {
+		/* We will just have to hope that the system does not deadlock */
+		return;
+	}
+	ast_cond_init(&suspender->cond_suspended, NULL);
+	ast_cond_init(&suspender->cond_complete, NULL);
+
+	ao2_ref(suspender, +1);
+	res = ast_sip_push_task(session->serializer, sip_session_suspend_task, suspender);
+	if (res) {
+		/* We will just have to hope that the system does not deadlock */
+		ao2_ref(suspender, -2);
+		return;
+	}
+
+	session->suspended = suspender;
+
+	/* Wait for the serializer to get suspended. */
+	ao2_lock(suspender);
+	while (!suspender->suspended) {
+		ast_cond_wait(&suspender->cond_suspended, ao2_object_get_lockaddr(suspender));
+	}
+	ao2_unlock(suspender);
+
+	ast_taskprocessor_suspend(session->serializer);
 }
 
 void ast_sip_session_unsuspend(struct ast_sip_session *session)
 {
-	ast_taskpool_serializer_unsuspend(session->serializer);
+	struct ast_sip_session_suspender *suspender = session->suspended;
+
+	if (!suspender) {
+		/* Nothing to do */
+		return;
+	}
+	session->suspended = NULL;
+
+	/* Signal that the serializer task suspension is now complete. */
+	ao2_lock(suspender);
+	suspender->complete = 1;
+	ast_cond_signal(&suspender->cond_complete);
+	ao2_unlock(suspender);
+
+	ao2_ref(suspender, -1);
+
+	ast_taskprocessor_unsuspend(session->serializer);
 }
 
 /*!

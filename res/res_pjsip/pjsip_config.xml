@@ -3009,75 +3009,30 @@
 					</since>
 					<synopsis>Use the short forms of common SIP header names.</synopsis>
 				</configOption>
-				<configOption name="taskpool_minimum_size" default="4">
-					<since>
-						<version>23.1.0</version>
-						<version>22.7.0</version>
-						<version>20.17.0</version>
-					</since>
-					<synopsis>Minimum number of taskprocessors in the res_pjsip taskpool.</synopsis>
-				</configOption>
-				<configOption name="taskpool_initial_size" default="4">
-					<since>
-						<version>23.1.0</version>
-						<version>22.7.0</version>
-						<version>20.17.0</version>
-					</since>
-					<synopsis>Initial number of taskprocessors in the res_pjsip taskpool.</synopsis>
-				</configOption>
-				<configOption name="taskpool_auto_increment" default="1">
-					<since>
-						<version>23.1.0</version>
-						<version>22.7.0</version>
-						<version>20.17.0</version>
-					</since>
-					<synopsis>The amount by which the number of taskprocessors is incremented when necessary.</synopsis>
-				</configOption>
-				<configOption name="taskpool_idle_timeout" default="60">
-					<since>
-						<version>23.1.0</version>
-						<version>22.7.0</version>
-						<version>20.17.0</version>
-					</since>
-					<synopsis>Number of seconds before an idle taskprocessor should be disposed of.</synopsis>
-				</configOption>
-				<configOption name="taskpool_max_size" default="50">
-					<since>
-						<version>23.1.0</version>
-						<version>22.7.0</version>
-						<version>20.17.0</version>
-					</since>
-					<synopsis>Maximum number of taskprocessors in the res_pjsip taskpool.
-					A value of 0 indicates no maximum.</synopsis>
-				</configOption>
-				<configOption name="threadpool_initial_size" default="4">
+				<configOption name="threadpool_initial_size" default="0">
 					<since>
 						<version>12.0.0</version>
 					</since>
-					<synopsis>Initial number of threads in the res_pjsip taskpool.
-						Deprecated in favor of taskpool_initiali_size.</synopsis>
+					<synopsis>Initial number of threads in the res_pjsip threadpool.</synopsis>
 				</configOption>
-				<configOption name="threadpool_auto_increment" default="1">
+				<configOption name="threadpool_auto_increment" default="5">
 					<since>
 						<version>12.0.0</version>
 					</since>
-					<synopsis>The amount by which the number of threads is incremented when necessary.
-						Deprecated in favor of taskpool_auto_increment.</synopsis>
+					<synopsis>The amount by which the number of threads is incremented when necessary.</synopsis>
 				</configOption>
 				<configOption name="threadpool_idle_timeout" default="60">
 					<since>
 						<version>12.0.0</version>
 					</since>
-					<synopsis>Number of seconds before an idle taskprocessor should be disposed of.
-						Deprecated in favor of taskpool_idle_timeout.</synopsis>
+					<synopsis>Number of seconds before an idle thread should be disposed of.</synopsis>
 				</configOption>
-				<configOption name="threadpool_max_size" default="50">
+				<configOption name="threadpool_max_size" default="0">
 					<since>
 						<version>13.7.0</version>
 					</since>
-					<synopsis>Maximum number of taskprocessors in the res_pjsip taskpool.
-					A value of 0 indicates no maximum.
-					Deprecated in favor of taskpool_max_size.</synopsis>
+					<synopsis>Maximum number of threads in the res_pjsip threadpool.
+					A value of 0 indicates no maximum.</synopsis>
 				</configOption>
 				<configOption name="disable_tcp_switch" default="yes">
 					<since>
