@@ -32,6 +32,7 @@
 #include "asterisk/res_pjsip_session.h"
 #include "asterisk/module.h"
 #include "asterisk/causes.h"
+#include "asterisk/threadpool.h"
 
 /*! \brief Private data structure used with the modules's datastore */
 struct rfc3329_store_data {
