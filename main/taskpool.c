@@ -676,8 +676,6 @@ struct serializer {
 	struct ast_taskpool *pool;
 	/*! Which group will wait for this serializer to shutdown. */
 	struct ast_serializer_shutdown_group *shutdown_group;
-	/*! Whether the serializer is suspended or not. */
-	unsigned int suspended:1;
 };
 
 static void serializer_dtor(void *obj)
@@ -729,15 +727,6 @@ static int execute_tasks(void *data)
 	ast_threadstorage_set_ptr(&current_taskpool_serializer, tps);
 	for (remaining = ast_taskprocessor_size(tps); remaining > 0; remaining--) {
 		requeue = ast_taskprocessor_execute(tps);
-
-		/* If the serializer is suspended we will not execute any more tasks and
-		 * we will not requeue the taskpool task. Instead it will be requeued when
-		 * the serializer is unsuspended.
-		 */
-		if (ser->suspended) {
-			requeue = 0;
-			break;
-		}
 	}
 	ast_threadstorage_set_ptr(&current_taskpool_serializer, NULL);
 
@@ -925,72 +914,6 @@ int ast_taskpool_serializer_push_wait(struct ast_taskprocessor *serializer, int 
 	ast_threadstorage_set_ptr(&current_taskpool_serializer, prior_serializer);
 
 	return sync_task.fail;
-}
-
-/*!
- * \internal A task that suspends the serializer after queuing an empty task
- */
-static int taskpool_serializer_suspend_task(void *data)
-{
-	struct ast_taskprocessor *serializer = data;
-	struct ast_taskprocessor_listener *listener = ast_taskprocessor_listener(serializer);
-	struct serializer *ser = ast_taskprocessor_listener_get_user_data(listener);
-
-	/* If already suspended this is a no-op */
-	if (ser->suspended) {
-		return 0;
-	}
-
-	/* First we queue the empty task to ensure the serializer doesn't reach empty, this
-	 * prevents any threads from queueing up a taskpool task that executes the serializer
-	 * while it is suspended, allowing us to queue it ourselves when the serializer is
-	 * unsuspended.
-	 */
-	 if (ast_taskprocessor_push(serializer, taskpool_serializer_empty_task, NULL)) {
-		return 0;
-	}
-
-	/* Next we suspend the serializer so that the execute_tasks currently executing stops
-	 * and doesn't requeue.
-	 */
-	ser->suspended = 1;
-
-	return 0;
- }
-
-void ast_taskpool_serializer_suspend(struct ast_taskprocessor *serializer)
-{
-	if (ast_taskprocessor_is_task(serializer)) {
-		/* I am the session's serializer thread so I cannot suspend. */
-		return;
-	}
-
-	/* Once this returns there is no thread executing the tasks on the serializer, so they
-	 * will accumulate until the serializer is unsuspended.
-	 */
-	ast_taskpool_serializer_push_wait(serializer, taskpool_serializer_suspend_task, serializer);
-}
-
-void ast_taskpool_serializer_unsuspend(struct ast_taskprocessor *serializer)
-{
-	struct ast_taskprocessor_listener *listener = ast_taskprocessor_listener(serializer);
-	struct serializer *ser = ast_taskprocessor_listener_get_user_data(listener);
-
-	ao2_lock(ser);
-
-	if (!ser->suspended) {
-		ao2_unlock(ser);
-		return;
-	}
-
-	ser->suspended = 0;
-
-	ao2_unlock(ser);
-
-	/* And now we kick off handling of the queued tasks once again */
-	if (ast_taskpool_push(ser->pool, execute_tasks, ao2_bump(serializer))) {
-		ast_taskprocessor_unreference(serializer);
-	}
 }
 
 /*!
