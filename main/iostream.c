@@ -630,6 +630,9 @@ int ast_iostream_start_tls(struct ast_iostream **pstream, SSL_CTX *ssl_ctx, int 
 	struct ast_iostream *stream = *pstream;
 	int (*ssl_setup)(SSL *) = client ? SSL_connect : SSL_accept;
 	int res;
+	struct timeval rcv_timeout, snd_timeout;
+	struct timeval timeout;
+	socklen_t len;
 
 	stream->ssl = SSL_new(ssl_ctx);
 	if (!stream->ssl) {
@@ -655,6 +658,18 @@ int ast_iostream_start_tls(struct ast_iostream **pstream, SSL_CTX *ssl_ctx, int 
 		}
 	}
 
+	/* Get current socket timeout values */
+	len = sizeof(rcv_timeout);
+	getsockopt(stream->fd, SOL_SOCKET, SO_RCVTIMEO, &rcv_timeout, &len);
+	len = sizeof(snd_timeout);
+	getsockopt(stream->fd, SOL_SOCKET, SO_SNDTIMEO, &snd_timeout, &len);
+
+	/* Set socket timeout for SSL handshake to prevent hanging connections and allow SSL handshake to timeout */
+	timeout.tv_sec = 30;  /* 30 second timeout for SSL handshake */
+	timeout.tv_usec = 0;
+	setsockopt(stream->fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+	setsockopt(stream->fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
+
 	res = ssl_setup(stream->ssl);
 	if (res <= 0) {
 		int sslerr = SSL_get_error(stream->ssl, res);
@@ -665,6 +680,10 @@ int ast_iostream_start_tls(struct ast_iostream **pstream, SSL_CTX *ssl_ctx, int 
 		errno = EIO;
 		return -1;
 	}
+
+	/* Restore socket timeouts from SSL handshake */
+	setsockopt(stream->fd, SOL_SOCKET, SO_RCVTIMEO, &rcv_timeout, sizeof(rcv_timeout));
+	setsockopt(stream->fd, SOL_SOCKET, SO_SNDTIMEO, &snd_timeout, sizeof(snd_timeout));
 
 	return 0;
 #else
