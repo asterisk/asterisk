@@ -24,7 +24,7 @@
 #include "asterisk/res_pjsip.h"
 #include "asterisk/sorcery.h"
 #include "include/res_pjsip_private.h"
-#include "asterisk/taskpool.h"
+#include "asterisk/threadpool.h"
 #include "asterisk/dns.h"
 #include "asterisk/res_pjsip_cli.h"
 
@@ -41,17 +41,15 @@ struct system_config {
 	/*! Should we use short forms for headers? */
 	unsigned int compactheaders;
 	struct {
-		/*! Minimum number of taskprocessors in the taskpool */
-		int minimum_size;
-		/*! Initial number of taskprocessors in the taskpool */
+		/*! Initial number of threads in the threadpool */
 		int initial_size;
-		/*! The amount by which the number of taskprocessors is incremented when necessary */
+		/*! The amount by which the number of threads is incremented when necessary */
 		int auto_increment;
-		/*! Taskprocessor idle timeout in seconds */
+		/*! Thread idle timeout in seconds */
 		int idle_timeout;
-		/*! Maxumum number of taskprocessors in the taskpool */
+		/*! Maxumum number of threads in the threadpool */
 		int max_size;
-	} taskpool;
+	} threadpool;
 	/*! Nonzero to disable switching from UDP to TCP transport */
 	unsigned int disable_tcp_switch;
 	/*!
@@ -65,13 +63,13 @@ struct system_config {
 	unsigned int disable_rport;
 };
 
-static struct ast_taskpool_options sip_taskpool_options = {
-	.version = AST_TASKPOOL_OPTIONS_VERSION,
+static struct ast_threadpool_options sip_threadpool_options = {
+	.version = AST_THREADPOOL_OPTIONS_VERSION,
 };
 
-void sip_get_taskpool_options(struct ast_taskpool_options *taskpool_options)
+void sip_get_threadpool_options(struct ast_threadpool_options *threadpool_options)
 {
-	*taskpool_options = sip_taskpool_options;
+	*threadpool_options = sip_threadpool_options;
 }
 
 static struct ast_sorcery *system_sorcery;
@@ -127,11 +125,10 @@ static int system_apply(const struct ast_sorcery *sorcery, void *obj)
 #endif
 	}
 
-	sip_taskpool_options.minimum_size = system->taskpool.minimum_size;
-	sip_taskpool_options.initial_size = system->taskpool.initial_size;
-	sip_taskpool_options.auto_increment = system->taskpool.auto_increment;
-	sip_taskpool_options.idle_timeout = system->taskpool.idle_timeout;
-	sip_taskpool_options.max_size = system->taskpool.max_size;
+	sip_threadpool_options.initial_size = system->threadpool.initial_size;
+	sip_threadpool_options.auto_increment = system->threadpool.auto_increment;
+	sip_threadpool_options.idle_timeout = system->threadpool.idle_timeout;
+	sip_threadpool_options.max_size = system->threadpool.max_size;
 
 	pjsip_cfg()->endpt.disable_tcp_switch =
 		system->disable_tcp_switch ? PJ_TRUE : PJ_FALSE;
@@ -202,24 +199,14 @@ int ast_sip_initialize_system(void)
 			OPT_UINT_T, 0, FLDSET(struct system_config, timerb));
 	ast_sorcery_object_field_register(system_sorcery, "system", "compact_headers", "no",
 			OPT_BOOL_T, 1, FLDSET(struct system_config, compactheaders));
-	ast_sorcery_object_field_register(system_sorcery, "system", "taskpool_minimum_size", "4",
-			OPT_UINT_T, 0, FLDSET(struct system_config, taskpool.minimum_size));
-	ast_sorcery_object_field_register(system_sorcery, "system", "taskpool_initial_size", "4",
-			OPT_UINT_T, 0, FLDSET(struct system_config, taskpool.initial_size));
-	ast_sorcery_object_field_register(system_sorcery, "system", "threadpool_initial_size", "4",
-			OPT_UINT_T, 0, FLDSET(struct system_config, taskpool.initial_size));
-	ast_sorcery_object_field_register(system_sorcery, "system", "taskpool_auto_increment", "1",
-			OPT_UINT_T, 0, FLDSET(struct system_config, taskpool.auto_increment));
-	ast_sorcery_object_field_register(system_sorcery, "system", "threadpool_auto_increment", "1",
-			OPT_UINT_T, 0, FLDSET(struct system_config, taskpool.auto_increment));
-	ast_sorcery_object_field_register(system_sorcery, "system", "taskpool_idle_timeout", "60",
-			OPT_UINT_T, 0, FLDSET(struct system_config, taskpool.idle_timeout));
+	ast_sorcery_object_field_register(system_sorcery, "system", "threadpool_initial_size", "0",
+			OPT_UINT_T, 0, FLDSET(struct system_config, threadpool.initial_size));
+	ast_sorcery_object_field_register(system_sorcery, "system", "threadpool_auto_increment", "5",
+			OPT_UINT_T, 0, FLDSET(struct system_config, threadpool.auto_increment));
 	ast_sorcery_object_field_register(system_sorcery, "system", "threadpool_idle_timeout", "60",
-			OPT_UINT_T, 0, FLDSET(struct system_config, taskpool.idle_timeout));
-	ast_sorcery_object_field_register(system_sorcery, "system", "taskpool_max_size", "50",
-			OPT_UINT_T, 0, FLDSET(struct system_config, taskpool.max_size));
+			OPT_UINT_T, 0, FLDSET(struct system_config, threadpool.idle_timeout));
 	ast_sorcery_object_field_register(system_sorcery, "system", "threadpool_max_size", "50",
-			OPT_UINT_T, 0, FLDSET(struct system_config, taskpool.max_size));
+			OPT_UINT_T, 0, FLDSET(struct system_config, threadpool.max_size));
 	ast_sorcery_object_field_register(system_sorcery, "system", "disable_tcp_switch", "yes",
 			OPT_BOOL_T, 1, FLDSET(struct system_config, disable_tcp_switch));
 	ast_sorcery_object_field_register(system_sorcery, "system", "follow_early_media_fork", "yes",

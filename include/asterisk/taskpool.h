@@ -318,24 +318,4 @@ struct ast_taskprocessor *ast_taskpool_serializer_group(const char *name,
  */
 int ast_taskpool_serializer_push_wait(struct ast_taskprocessor *serializer, int (*task)(void *data), void *data);
 
-/*!
- * \brief Suspend a serializer, causing tasks to be queued until unsuspended
- * \since 23.1.0
- * \since 22.7.0
- * \since 20.17.0
- *
- * \param serializer The serializer to suspend
- */
-void ast_taskpool_serializer_suspend(struct ast_taskprocessor *serializer);
-
-/*!
- * \brief Unsuspend a serializer, causing tasks to be executed
- * \since 23.1.0
- * \since 22.7.0
- * \since 20.17.0
- *
- * \param serializer The serializer to unsuspend
- */
-void ast_taskpool_serializer_unsuspend(struct ast_taskprocessor *serializer);
-
 #endif /* ASTERISK_TASKPOOL_H */
