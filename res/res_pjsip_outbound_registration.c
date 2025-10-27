@@ -35,8 +35,7 @@
 #include "asterisk/cli.h"
 #include "asterisk/stasis_system.h"
 #include "asterisk/threadstorage.h"
-#include "asterisk/taskpool.h"
-#include "asterisk/serializer_shutdown_group.h"
+#include "asterisk/threadpool.h"
 #include "asterisk/statsd.h"
 #include "res_pjsip/include/res_pjsip_private.h"
 #include "asterisk/vector.h"
@@ -1636,7 +1635,7 @@ static void sip_outbound_registration_response_cb(struct pjsip_regc_cbparam *par
 	 * pjproject callback thread.
 	 */
 	if (ast_sip_push_task(client_state->serializer, handle_registration_response, response)) {
-		ast_log(LOG_WARNING, "Failed to pass incoming registration response to taskpool\n");
+		ast_log(LOG_WARNING, "Failed to pass incoming registration response to threadpool\n");
 		ao2_cleanup(response);
 	}
 }
@@ -1657,7 +1656,7 @@ static void sip_outbound_registration_state_destroy(void *obj)
 		ao2_ref(state->client_state, -1);
 	} else if (ast_sip_push_task(state->client_state->serializer,
 		handle_client_state_destruction, state->client_state)) {
-		ast_log(LOG_WARNING, "Failed to pass outbound registration client destruction to taskpool\n");
+		ast_log(LOG_WARNING, "Failed to pass outbound registration client destruction to threadpool\n");
 		ao2_ref(state->client_state, -1);
 	}
 }
