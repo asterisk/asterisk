@@ -1287,16 +1287,14 @@
 ;timer_b=32000  ; Set transaction timer B value milliseconds (default: "32000")
 ;compact_headers=no     ; Use the short forms of common SIP header names
                         ; (default: "no")
-;taskpool_minimum_size=4      ; Minimum number of taskprocessors in the res_pjsip
-                              ; taskpool (default: "4")
-;taskpool_initial_size=4      ; Initial number of taskprocessors in the res_pjsip
-                              ; taskpool (default: "4")
-;taskpool_auto_increment=1    ; The amount by which the number of taskprocessors is
-                              ; incremented when necessary (default: "1")
-;taskpool_idle_timeout=60     ; Number of seconds before an idle taskprocessor
-                              ; should be disposed of (default: "60")
-;taskpool_max_size=50 ; Maximum number of taskprocessors in the res_pjsip taskpool
-                      ; A value of 0 indicates no maximum (default: "50")
+;threadpool_initial_size=0      ; Initial number of threads in the res_pjsip
+                                ; threadpool (default: "0")
+;threadpool_auto_increment=5    ; The amount by which the number of threads is
+                                ; incremented when necessary (default: "5")
+;threadpool_idle_timeout=60     ; Number of seconds before an idle thread
+                                ; should be disposed of (default: "60")
+;threadpool_max_size=0  ; Maximum number of threads in the res_pjsip threadpool
+                        ; A value of 0 indicates no maximum (default: "0")
 ;disable_tcp_switch=yes ; Disable automatic switching from UDP to TCP transports
                         ; if outgoing request is too large.
                         ; See RFC 3261 section 18.1.1.
