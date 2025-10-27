@@ -31,7 +31,7 @@
 #include "asterisk/res_pjsip.h"
 #include "include/res_pjsip_private.h"
 #include "asterisk/taskprocessor.h"
-#include "asterisk/taskpool.h"
+#include "asterisk/threadpool.h"
 
 #ifdef HAVE_PJSIP_EXTERNAL_RESOLVER
 
@@ -611,7 +611,7 @@ static void sip_resolve(pjsip_resolver_t *resolver, pj_pool_t *pool, const pjsip
 		return;
 	}
 
-	resolve->serializer = ao2_bump(ast_taskpool_serializer_get_current());
+	resolve->serializer = ao2_bump(ast_threadpool_serializer_get_current());
 
 	ast_debug(2, "[%p] Starting initial resolution using parallel queries for target '%s'\n", resolve, host);
 	ast_dns_query_set_resolve_async(resolve->queries, sip_resolve_callback, resolve);

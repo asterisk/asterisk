@@ -195,7 +195,7 @@ struct ast_sip_session {
 	struct ao2_container *datastores;
 	/*! Serializer for tasks relating to this SIP session */
 	struct ast_taskprocessor *serializer;
-	/*! \deprecated Non-null if the session serializer is suspended or being suspended. */
+	/*! Non-null if the session serializer is suspended or being suspended. */
 	struct ast_sip_session_suspender *suspended;
 	/*! Requests that could not be sent due to current inv_session state */
 	AST_LIST_HEAD_NOLOCK(, ast_sip_session_delayed_request) delayed_requests;
