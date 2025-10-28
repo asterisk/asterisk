@@ -197,8 +197,11 @@ long ast_taskpool_queue_size(struct ast_taskpool *pool);
  * \retval 0 success
  * \retval -1 failure
  */
-int ast_taskpool_push(struct ast_taskpool *pool, int (*task)(void *data), void *data)
+int __ast_taskpool_push(struct ast_taskpool *pool, int (*task)(void *data), void *data,
+	const char *file, int line, const char *function)
 	attribute_warn_unused_result;
+#define ast_taskpool_push(pool, task, data) \
+	__ast_taskpool_push(pool, task, data, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 /*!
  * \brief Push a task to the taskpool, and wait for completion
@@ -214,8 +217,11 @@ int ast_taskpool_push(struct ast_taskpool *pool, int (*task)(void *data), void *
  * \retval 0 success
  * \retval -1 failure
  */
-int ast_taskpool_push_wait(struct ast_taskpool *pool, int (*task)(void *data), void *data)
+int __ast_taskpool_push_wait(struct ast_taskpool *pool, int (*task)(void *data), void *data,
+	const char *file, int line, const char *function)
 	attribute_warn_unused_result;
+#define ast_taskpool_push_wait(pool, task, data) \
+	__ast_taskpool_push_wait(pool, task, data, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 /*!
  * \brief Shut down a taskpool and remove the underlying taskprocessors

@@ -188,8 +188,11 @@ void ast_threadpool_set_size(struct ast_threadpool *threadpool, unsigned int siz
  * \retval 0 success
  * \retval -1 failure
  */
-int ast_threadpool_push(struct ast_threadpool *pool, int (*task)(void *data), void *data)
-	attribute_warn_unused_result;
+int __ast_threadpool_push(struct ast_threadpool *pool, int (*task)(void *data), void *data,
+	const char *file, int line, const char *function) attribute_warn_unused_result;
+
+#define ast_threadpool_push(pool, task, data) \
+	__ast_threadpool_push(pool, task, data, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 /*!
  * \brief Shut down a threadpool and destroy it

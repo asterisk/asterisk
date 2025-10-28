@@ -2096,13 +2096,48 @@ struct ast_taskprocessor *ast_sip_create_serializer(const char *name)
 	return ast_sip_create_serializer_group(name, NULL);
 }
 
-int ast_sip_push_task(struct ast_taskprocessor *serializer, int (*sip_task)(void *), void *task_data)
+#undef ast_sip_push_task
+int ast_sip_push_task(struct ast_taskprocessor *serializer, int (*sip_task)(void *), void *task_data);
+
+int __ast_sip_push_task(struct ast_taskprocessor *serializer, int (*sip_task)(void *), void *task_data,
+	const char *file, int line, const char *function)
 {
 	if (!serializer) {
 		serializer = ast_serializer_pool_get(sip_serializer_pool);
 	}
 
-	return ast_taskprocessor_push(serializer, sip_task, task_data);
+	return __ast_taskprocessor_push(serializer, sip_task, task_data, file, line, function);
+}
+
+/* ABI compatibility: Provide actual function symbol for external modules */
+int ast_sip_push_task(struct ast_taskprocessor *serializer, int (*sip_task)(void *), void *task_data)
+{
+	return __ast_sip_push_task(serializer, sip_task, task_data, NULL, 0, NULL);
+}
+
+/* ABI compatibility: Provide actual function symbols for wait functions */
+#undef ast_sip_push_task_wait_servant
+int ast_sip_push_task_wait_servant(struct ast_taskprocessor *serializer, int (*sip_task)(void *), void *task_data);
+
+int ast_sip_push_task_wait_servant(struct ast_taskprocessor *serializer, int (*sip_task)(void *), void *task_data)
+{
+	return __ast_sip_push_task_wait_servant(serializer, sip_task, task_data, NULL, 0, NULL);
+}
+
+#undef ast_sip_push_task_synchronous
+int ast_sip_push_task_synchronous(struct ast_taskprocessor *serializer, int (*sip_task)(void *), void *task_data);
+
+int ast_sip_push_task_synchronous(struct ast_taskprocessor *serializer, int (*sip_task)(void *), void *task_data)
+{
+	return __ast_sip_push_task_synchronous(serializer, sip_task, task_data, NULL, 0, NULL);
+}
+
+#undef ast_sip_push_task_wait_serializer
+int ast_sip_push_task_wait_serializer(struct ast_taskprocessor *serializer, int (*sip_task)(void *), void *task_data);
+
+int ast_sip_push_task_wait_serializer(struct ast_taskprocessor *serializer, int (*sip_task)(void *), void *task_data)
+{
+	return __ast_sip_push_task_wait_serializer(serializer, sip_task, task_data, NULL, 0, NULL);
 }
 
 struct sync_task_data {
@@ -2134,7 +2169,8 @@ static int sync_task(void *data)
 	return ret;
 }
 
-static int ast_sip_push_task_wait(struct ast_taskprocessor *serializer, int (*sip_task)(void *), void *task_data)
+static int __ast_sip_push_task_wait(struct ast_taskprocessor *serializer, int (*sip_task)(void *), void *task_data,
+	const char *file, int line, const char *function)
 {
 	/* This method is an onion */
 	struct sync_task_data std;
@@ -2145,7 +2181,7 @@ static int ast_sip_push_task_wait(struct ast_taskprocessor *serializer, int (*si
 	std.task = sip_task;
 	std.task_data = task_data;
 
-	if (ast_sip_push_task(serializer, sync_task, &std)) {
+	if (__ast_sip_push_task(serializer, sync_task, &std, file, line, function)) {
 		ast_mutex_destroy(&std.lock);
 		ast_cond_destroy(&std.cond);
 		return -1;
@@ -2162,21 +2198,24 @@ static int ast_sip_push_task_wait(struct ast_taskprocessor *serializer, int (*si
 	return std.fail;
 }
 
-int ast_sip_push_task_wait_servant(struct ast_taskprocessor *serializer, int (*sip_task)(void *), void *task_data)
+int __ast_sip_push_task_wait_servant(struct ast_taskprocessor *serializer, int (*sip_task)(void *), void *task_data,
+	const char *file, int line, const char *function)
 {
 	if (ast_sip_thread_is_servant()) {
 		return sip_task(task_data);
 	}
 
-	return ast_sip_push_task_wait(serializer, sip_task, task_data);
+	return __ast_sip_push_task_wait(serializer, sip_task, task_data, file, line, function);
 }
 
-int ast_sip_push_task_synchronous(struct ast_taskprocessor *serializer, int (*sip_task)(void *), void *task_data)
+int __ast_sip_push_task_synchronous(struct ast_taskprocessor *serializer, int (*sip_task)(void *), void *task_data,
+	const char *file, int line, const char *function)
 {
-	return ast_sip_push_task_wait_servant(serializer, sip_task, task_data);
+	return __ast_sip_push_task_wait_servant(serializer, sip_task, task_data, file, line, function);
 }
 
-int ast_sip_push_task_wait_serializer(struct ast_taskprocessor *serializer, int (*sip_task)(void *), void *task_data)
+int __ast_sip_push_task_wait_serializer(struct ast_taskprocessor *serializer, int (*sip_task)(void *), void *task_data,
+	const char *file, int line, const char *function)
 {
 	if (!serializer) {
 		/* Caller doesn't care which PJSIP serializer the task executes under. */
@@ -2195,7 +2234,7 @@ int ast_sip_push_task_wait_serializer(struct ast_taskprocessor *serializer, int 
 		return sip_task(task_data);
 	}
 
-	return ast_sip_push_task_wait(serializer, sip_task, task_data);
+	return __ast_sip_push_task_wait(serializer, sip_task, task_data, file, line, function);
 }
 
 void ast_copy_pj_str(char *dest, const pj_str_t *src, size_t size)
