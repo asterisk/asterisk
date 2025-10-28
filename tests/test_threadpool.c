@@ -76,7 +76,7 @@ static void test_state_changed(struct ast_threadpool *pool,
 
 static void test_task_pushed(struct ast_threadpool *pool,
 		struct ast_threadpool_listener *listener,
-		int was_empty)
+		int was_empty, const char *file, int line, const char *function)
 {
 	struct test_listener_data *tld = ast_threadpool_listener_get_user_data(listener);
 	SCOPED_MUTEX(lock, &tld->lock);

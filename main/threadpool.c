@@ -454,17 +454,26 @@ struct task_pushed_data {
 	struct ast_threadpool *pool;
 	/*! Indicator of whether the pool had no tasks prior to the new task being added */
 	int was_empty;
+	/*! File where the task was pushed from */
+	const char *file;
+	/*! Line where the task was pushed from */
+	int line;
+	/*! Function where the task was pushed from */
+	const char *function;
 };
 
 /*!
  * \brief Allocate and initialize a task_pushed_data
  * \param pool The threadpool to set in the task_pushed_data
  * \param was_empty The was_empty value to set in the task_pushed_data
+ * \param file The file where the task was pushed from
+ * \param line The line where the task was pushed from
+ * \param function The function where the task was pushed from
  * \retval NULL Unable to allocate task_pushed_data
  * \retval non-NULL The newly-allocated task_pushed_data
  */
 static struct task_pushed_data *task_pushed_data_alloc(struct ast_threadpool *pool,
-		int was_empty)
+		int was_empty, const char *file, int line, const char *function)
 {
 	struct task_pushed_data *tpd = ast_malloc(sizeof(*tpd));
 
@@ -473,6 +482,9 @@ static struct task_pushed_data *task_pushed_data_alloc(struct ast_threadpool *po
 	}
 	tpd->pool = pool;
 	tpd->was_empty = was_empty;
+	tpd->file = file;
+	tpd->line = line;
+	tpd->function = function;
 	return tpd;
 }
 
@@ -567,12 +579,15 @@ static int queued_task_pushed(void *data)
 	struct task_pushed_data *tpd = data;
 	struct ast_threadpool *pool = tpd->pool;
 	int was_empty = tpd->was_empty;
+	const char *file = tpd->file;
+	int line = tpd->line;
+	const char *function = tpd->function;
 	unsigned int existing_active;
 
 	ast_free(tpd);
 
 	if (pool->listener && pool->listener->callbacks->task_pushed) {
-		pool->listener->callbacks->task_pushed(pool, pool->listener, was_empty);
+		pool->listener->callbacks->task_pushed(pool, pool->listener, was_empty, file, line, function);
 	}
 
 	existing_active = ao2_container_count(pool->active_threads);
@@ -607,9 +622,12 @@ static int queued_task_pushed(void *data)
  * task has been pushed.
  * \param listener The taskprocessor listener. The threadpool is the listener's private data
  * \param was_empty True if the taskprocessor was empty prior to the task being pushed
+ * \param file The file where the task was pushed from
+ * \param line The line where the task was pushed from
+ * \param function The function where the task was pushed from
  */
 static void threadpool_tps_task_pushed(struct ast_taskprocessor_listener *listener,
-		int was_empty)
+		int was_empty, const char *file, int line, const char *function)
 {
 	struct ast_threadpool *pool = ast_taskprocessor_listener_get_user_data(listener);
 	struct task_pushed_data *tpd;
@@ -619,12 +637,12 @@ static void threadpool_tps_task_pushed(struct ast_taskprocessor_listener *listen
 		return;
 	}
 
-	tpd = task_pushed_data_alloc(pool, was_empty);
+	tpd = task_pushed_data_alloc(pool, was_empty, file, line, function);
 	if (!tpd) {
 		return;
 	}
 
-	if (ast_taskprocessor_push(pool->control_tps, queued_task_pushed, tpd)) {
+	if (__ast_taskprocessor_push(pool->control_tps, queued_task_pushed, tpd, file, line, function)) {
 		ast_free(tpd);
 	}
 }
@@ -954,13 +972,25 @@ struct ast_threadpool *ast_threadpool_create(const char *name,
 	return pool;
 }
 
-int ast_threadpool_push(struct ast_threadpool *pool, int (*task)(void *data), void *data)
+#undef ast_threadpool_push
+#define ast_threadpool_push_internal(pool, task, data) \
+	__ast_threadpool_push(pool, task, data, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+int ast_threadpool_push(struct ast_threadpool *pool, int (*task)(void *data), void *data);
+
+int __ast_threadpool_push(struct ast_threadpool *pool, int (*task)(void *data), void *data,
+	const char *file, int line, const char *function)
 {
 	SCOPED_AO2LOCK(lock, pool);
 	if (!pool->shutting_down) {
-		return ast_taskprocessor_push(pool->tps, task, data);
+		return __ast_taskprocessor_push(pool->tps, task, data, file, line, function);
 	}
 	return -1;
+}
+
+/* ABI compatibility: Provide actual function symbol for external modules */
+int ast_threadpool_push(struct ast_threadpool *pool, int (*task)(void *data), void *data)
+{
+	return __ast_threadpool_push(pool, task, data, NULL, 0, NULL);
 }
 
 void ast_threadpool_shutdown(struct ast_threadpool *pool)
@@ -1259,13 +1289,14 @@ static int execute_tasks(void *data)
 	return 0;
 }
 
-static void serializer_task_pushed(struct ast_taskprocessor_listener *listener, int was_empty)
+static void serializer_task_pushed(struct ast_taskprocessor_listener *listener, int was_empty,
+	const char *file, int line, const char *function)
 {
 	if (was_empty) {
 		struct serializer *ser = ast_taskprocessor_listener_get_user_data(listener);
 		struct ast_taskprocessor *tps = ast_taskprocessor_listener_get_tps(listener);
 
-		if (ast_threadpool_push(ser->pool, execute_tasks, tps)) {
+		if (__ast_threadpool_push(ser->pool, execute_tasks, tps, file, line, function)) {
 			ast_taskprocessor_unreference(tps);
 		}
 	}
