@@ -519,7 +519,13 @@ static void taskpool_dynamic_pool_grow(struct ast_taskpool *pool, struct taskpoo
 	}
 }
 
-int ast_taskpool_push(struct ast_taskpool *pool, int (*task)(void *data), void *data)
+#undef ast_taskpool_push
+#define ast_taskpool_push_internal(pool, task, data) \
+	__ast_taskpool_push(pool, task, data, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+int ast_taskpool_push(struct ast_taskpool *pool, int (*task)(void *data), void *data);
+
+int __ast_taskpool_push(struct ast_taskpool *pool, int (*task)(void *data), void *data,
+	const char *file, int line, const char *function)
 {
 	RAII_VAR(struct taskpool_taskprocessor *, taskprocessor, NULL, ao2_cleanup);
 
@@ -555,11 +561,17 @@ int ast_taskpool_push(struct ast_taskpool *pool, int (*task)(void *data), void *
 		return -1;
 	}
 
-	if (ast_taskprocessor_push(taskprocessor->taskprocessor, task, data)) {
+	if (__ast_taskprocessor_push(taskprocessor->taskprocessor, task, data, file, line, function)) {
 		return -1;
 	}
 
 	return 0;
+}
+
+/* ABI compatibility: Provide actual function symbol for external modules */
+int ast_taskpool_push(struct ast_taskpool *pool, int (*task)(void *data), void *data)
+{
+	return __ast_taskpool_push(pool, task, data, NULL, 0, NULL);
 }
 
 /*!
@@ -620,7 +632,8 @@ static int taskpool_sync_task(void *data)
 	return ret;
 }
 
-int ast_taskpool_push_wait(struct ast_taskpool *pool, int (*task)(void *data), void *data)
+int __ast_taskpool_push_wait(struct ast_taskpool *pool, int (*task)(void *data), void *data,
+	const char *file, int line, const char *function)
 {
 	struct taskpool_sync_task sync_task;
 
@@ -635,7 +648,7 @@ int ast_taskpool_push_wait(struct ast_taskpool *pool, int (*task)(void *data), v
 		return -1;
 	}
 
-	if (ast_taskpool_push(pool, taskpool_sync_task, &sync_task)) {
+	if (__ast_taskpool_push(pool, taskpool_sync_task, &sync_task, file, line, function)) {
 		taskpool_sync_task_cleanup(&sync_task);
 		return -1;
 	}
@@ -648,6 +661,15 @@ int ast_taskpool_push_wait(struct ast_taskpool *pool, int (*task)(void *data), v
 
 	taskpool_sync_task_cleanup(&sync_task);
 	return sync_task.fail;
+}
+
+/* ABI compatibility: Provide actual function symbol for external modules */
+#undef ast_taskpool_push_wait
+int ast_taskpool_push_wait(struct ast_taskpool *pool, int (*task)(void *data), void *data);
+
+int ast_taskpool_push_wait(struct ast_taskpool *pool, int (*task)(void *data), void *data)
+{
+	return __ast_taskpool_push_wait(pool, task, data, NULL, 0, NULL);
 }
 
 void ast_taskpool_shutdown(struct ast_taskpool *pool)
