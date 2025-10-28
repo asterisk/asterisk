@@ -2076,7 +2076,11 @@ struct ast_sip_endpoint *ast_sip_dialog_get_endpoint(pjsip_dialog *dlg);
  * \retval 0 Success
  * \retval -1 Failure
  */
-int ast_sip_push_task(struct ast_taskprocessor *serializer, int (*sip_task)(void *), void *task_data);
+int __ast_sip_push_task(struct ast_taskprocessor *serializer, int (*sip_task)(void *), void *task_data,
+	const char *file, int line, const char *function);
+
+#define ast_sip_push_task(serializer, sip_task, task_data) \
+	__ast_sip_push_task(serializer, sip_task, task_data, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 /*!
  * \brief Push a task to SIP servants and wait for it to complete.
@@ -2112,13 +2116,19 @@ int ast_sip_push_task(struct ast_taskprocessor *serializer, int (*sip_task)(void
  * \return sip_task() return value on success.
  * \retval -1 Failure to push the task.
  */
-int ast_sip_push_task_wait_servant(struct ast_taskprocessor *serializer, int (*sip_task)(void *), void *task_data);
+int __ast_sip_push_task_wait_servant(struct ast_taskprocessor *serializer, int (*sip_task)(void *), void *task_data,
+	const char *file, int line, const char *function);
+#define ast_sip_push_task_wait_servant(serializer, sip_task, task_data) \
+	__ast_sip_push_task_wait_servant(serializer, sip_task, task_data, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 /*!
  * \brief Push a task to SIP servants and wait for it to complete.
  * \deprecated Replaced with ast_sip_push_task_wait_servant().
  */
-int ast_sip_push_task_synchronous(struct ast_taskprocessor *serializer, int (*sip_task)(void *), void *task_data);
+int __ast_sip_push_task_synchronous(struct ast_taskprocessor *serializer, int (*sip_task)(void *), void *task_data,
+	const char *file, int line, const char *function);
+#define ast_sip_push_task_synchronous(serializer, sip_task, task_data) \
+	__ast_sip_push_task_synchronous(serializer, sip_task, task_data, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 /*!
  * \brief Push a task to the serializer and wait for it to complete.
@@ -2162,7 +2172,10 @@ int ast_sip_push_task_synchronous(struct ast_taskprocessor *serializer, int (*si
  * \return sip_task() return value on success.
  * \retval -1 Failure to push the task.
  */
-int ast_sip_push_task_wait_serializer(struct ast_taskprocessor *serializer, int (*sip_task)(void *), void *task_data);
+int __ast_sip_push_task_wait_serializer(struct ast_taskprocessor *serializer, int (*sip_task)(void *), void *task_data,
+	const char *file, int line, const char *function);
+#define ast_sip_push_task_wait_serializer(serializer, sip_task, task_data) \
+	__ast_sip_push_task_wait_serializer(serializer, sip_task, task_data, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 /*!
  * \brief Determine if the current thread is a SIP servant thread
