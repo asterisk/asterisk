@@ -55,6 +55,10 @@ struct tps_task {
 	/*! \brief AST_LIST_ENTRY overhead */
 	AST_LIST_ENTRY(tps_task) list;
 	unsigned int wants_local:1;
+	/*! \brief Debug information about where the task was pushed from */
+	const char *file;
+	int line;
+	const char *function;
 };
 
 /*! \brief tps_taskprocessor_stats maintain statistics for a taskprocessor. */
@@ -63,6 +67,16 @@ struct tps_taskprocessor_stats {
 	unsigned long max_qsize;
 	/*! \brief This is the current number of tasks processed */
 	unsigned long _tasks_processed_count;
+	/*! \brief Highest time (in microseconds) spent processing a task */
+	long highest_time_processed;
+	/*! \brief Lowest time (in microseconds) spent processing a task */
+	long lowest_time_processed;
+	/*! \brief File where the highest time task was pushed from */
+	const char *highest_time_task_file;
+	/*! \brief Line where the highest time task was pushed from */
+	int highest_time_task_line;
+	/*! \brief Function where the highest time task was pushed from */
+	const char *highest_time_task_function;
 };
 
 /*! \brief A ast_taskprocessor structure is a singleton by name */
@@ -155,6 +169,7 @@ static char *cli_tps_report(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 static char *cli_subsystem_alert_report(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static char *cli_tps_reset_stats(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static char *cli_tps_reset_stats_all(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
+static char *cli_tps_show_taskprocessor(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 
 static int tps_sort_cb(const void *obj_left, const void *obj_right, int flags);
 
@@ -162,6 +177,7 @@ static int tps_sort_cb(const void *obj_left, const void *obj_right, int flags);
 static struct ast_cli_entry taskprocessor_clis[] = {
 	AST_CLI_DEFINE(cli_tps_ping, "Ping a named task processor"),
 	AST_CLI_DEFINE(cli_tps_report, "List instantiated task processors and statistics"),
+	AST_CLI_DEFINE(cli_tps_show_taskprocessor, "Display detailed info about a taskprocessor"),
 	AST_CLI_DEFINE(cli_subsystem_alert_report, "List task processor subsystems in alert"),
 	AST_CLI_DEFINE(cli_tps_reset_stats, "Reset a named task processor's stats"),
 	AST_CLI_DEFINE(cli_tps_reset_stats_all, "Reset all task processors' stats"),
@@ -189,6 +205,17 @@ static void default_listener_pvt_dtor(struct ast_taskprocessor_listener *listene
 	listener->user_data = NULL;
 }
 
+/* Keeping the old symbols for ABI compatibility */
+#undef ast_taskprocessor_push
+#define ast_taskprocessor_push_internal(tps, task_exe, datap) \
+	__ast_taskprocessor_push(tps, task_exe, datap, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+int ast_taskprocessor_push(struct ast_taskprocessor *tps, int (*task_exe)(void *datap), void *datap);
+
+#undef ast_taskprocessor_push_local
+#define ast_taskprocessor_push_local_internal(tps, task_exe, datap) \
+	__ast_taskprocessor_push_local(tps, task_exe, datap, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+int ast_taskprocessor_push_local(struct ast_taskprocessor *tps, int (*task_exe)(struct ast_taskprocessor_local *datap), void *datap);
+
 /*!
  * \brief Function that processes tasks in the taskprocessor
  * \internal
@@ -204,8 +231,8 @@ static void *default_tps_processing_function(void *data)
 	while (!pvt->dead) {
 		res = ast_sem_wait(&pvt->sem);
 		if (res != 0 && errno != EINTR) {
-			ast_log(LOG_ERROR, "ast_sem_wait(): %s\n",
-				strerror(errno));
+			ast_log(LOG_ERROR, "Taskprocessor '%s': Semaphore wait failed: %s\n",
+				tps->name, strerror(errno));
 			/* Just give up */
 			break;
 		}
@@ -238,8 +265,8 @@ static void default_task_pushed(struct ast_taskprocessor_listener *listener, int
 	struct default_taskprocessor_listener_pvt *pvt = listener->user_data;
 
 	if (ast_sem_post(&pvt->sem) != 0) {
-		ast_log(LOG_ERROR, "Failed to notify of enqueued task: %s\n",
-			strerror(errno));
+		ast_log(LOG_ERROR, "Taskprocessor '%s': Failed to signal task enqueue: %s\n",
+			listener->tps->name, strerror(errno));
 	}
 }
 
@@ -258,7 +285,7 @@ static void default_listener_shutdown(struct ast_taskprocessor_listener *listene
 	/* Hold a reference during shutdown */
 	ao2_t_ref(listener->tps, +1, "tps-shutdown");
 
-	if (ast_taskprocessor_push(listener->tps, default_listener_die, pvt)) {
+	if (ast_taskprocessor_push_internal(listener->tps, default_listener_die, pvt)) {
 		/* This will cause the thread to exit early without completing tasks already
 		 * in the queue.  This is probably the least bad option in this situation. */
 		default_listener_die(pvt);
@@ -312,7 +339,7 @@ static void tps_shutdown(void)
 	objcount = ao2_container_count(tps_singletons);
 	if (objcount > 0) {
 		ast_log(LOG_DEBUG,
-    		"waiting for taskprocessor shutdown, %d tps object(s) still allocated.\n",
+			"Taskprocessor shutdown: Waiting for %d taskprocessor(s) to complete.\n",
 			objcount);
 
 		/* give the running taskprocessors a chance to finish, up to
@@ -327,8 +354,8 @@ static void tps_shutdown(void)
 			delay.tv_sec = 1;
 			delay.tv_nsec = 0;
 			ast_log(LOG_DEBUG,
-    			"waiting for taskprocessor shutdown, %d tps object(s) still allocated.\n",
-				objcount);
+				"Taskprocessor shutdown: Still waiting for %d taskprocessor(s) after %d second(s).\n",
+				objcount, tries + 1);
 		}
 	}
 
@@ -336,17 +363,19 @@ static void tps_shutdown(void)
  	 * a taskprocessor was not cleaned up somewhere */
 	if (objcount > 0) {
   		ast_log(LOG_ERROR,
-    		"Assertion may occur, the following taskprocessors are still running:\n");
+			"Taskprocessor shutdown: %d taskprocessor(s) still running after %d seconds. Assertion may occur:\n",
+			objcount, AST_TASKPROCESSOR_SHUTDOWN_MAX_WAIT);
 
 		sorted_tps = ao2_container_alloc_rbtree(AO2_ALLOC_OPT_LOCK_NOLOCK, 0, tps_sort_cb,
 			NULL);
 		if (!sorted_tps || ao2_container_dup(sorted_tps, tps_singletons, 0)) {
-			ast_log(LOG_ERROR, "unable to get sorted list of taskprocessors");
+			ast_log(LOG_ERROR, "Unable to get sorted list of taskprocessors for shutdown report\n");
 		}
 		else {
 			iter = ao2_iterator_init(sorted_tps, AO2_ITERATOR_UNLINK);
 			while ((tps = ao2_iterator_next(&iter))) {
-				ast_log(LOG_ERROR, "taskprocessor '%s'\n", tps->name);
+				ast_log(LOG_ERROR, "  - Taskprocessor '%s' (queue size: %ld)\n",
+					tps->name, tps->tps_queue_size);
 			}
 		}
 
@@ -354,7 +383,7 @@ static void tps_shutdown(void)
 	}
 	else {
 		ast_log(LOG_DEBUG,
-    			"All waiting taskprocessors cleared!\n");
+				"Taskprocessor shutdown: All taskprocessors completed successfully.\n");
 	}
 
 	ast_cli_unregister_multiple(taskprocessor_clis, ARRAY_LEN(taskprocessor_clis));
@@ -370,13 +399,13 @@ int ast_tps_init(void)
 	tps_singletons = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
 		TPS_MAX_BUCKETS, tps_hash_cb, NULL, tps_cmp_cb);
 	if (!tps_singletons) {
-		ast_log(LOG_ERROR, "taskprocessor container failed to initialize!\n");
+		ast_log(LOG_ERROR, "Failed to initialize taskprocessor container!\n");
 		return -1;
 	}
 
 	if (AST_VECTOR_RW_INIT(&overloaded_subsystems, 10)) {
 		ao2_ref(tps_singletons, -1);
-		ast_log(LOG_ERROR, "taskprocessor subsystems vector failed to initialize!\n");
+		ast_log(LOG_ERROR, "Failed to initialize taskprocessor subsystems tracking vector!\n");
 		return -1;
 	}
 
@@ -390,43 +419,51 @@ int ast_tps_init(void)
 }
 
 /* allocate resources for the task */
-static struct tps_task *tps_task_alloc(int (*task_exe)(void *datap), void *datap)
+static struct tps_task *tps_task_alloc(int (*task_exe)(void *datap), void *datap,
+	const char *file, int line, const char *function)
 {
 	struct tps_task *t;
 	if (!task_exe) {
-		ast_log(LOG_ERROR, "task_exe is NULL!\n");
+		ast_log(LOG_ERROR, "Task callback function is NULL!\n");
 		return NULL;
 	}
 
 	t = ast_calloc(1, sizeof(*t));
 	if (!t) {
-		ast_log(LOG_ERROR, "failed to allocate task!\n");
+		ast_log(LOG_ERROR, "Failed to allocate memory for task!\n");
 		return NULL;
 	}
 
 	t->callback.execute = task_exe;
 	t->datap = datap;
+	t->file = file;
+	t->line = line;
+	t->function = function;
 
 	return t;
 }
 
-static struct tps_task *tps_task_alloc_local(int (*task_exe)(struct ast_taskprocessor_local *local), void *datap)
+static struct tps_task *tps_task_alloc_local(int (*task_exe)(struct ast_taskprocessor_local *local), void *datap,
+	const char *file, int line, const char *function)
 {
 	struct tps_task *t;
 	if (!task_exe) {
-		ast_log(LOG_ERROR, "task_exe is NULL!\n");
+		ast_log(LOG_ERROR, "Task callback function is NULL!\n");
 		return NULL;
 	}
 
 	t = ast_calloc(1, sizeof(*t));
 	if (!t) {
-		ast_log(LOG_ERROR, "failed to allocate task!\n");
+		ast_log(LOG_ERROR, "Failed to allocate memory for task!\n");
 		return NULL;
 	}
 
 	t->callback.execute_local = task_exe;
 	t->datap = datap;
 	t->wants_local = 1;
+	t->file = file;
+	t->line = line;
+	t->function = function;
 
 	return t;
 }
@@ -520,7 +557,7 @@ static char *cli_tps_ping(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 	ts.tv_nsec = when.tv_usec * 1000;
 
 	ast_mutex_lock(&cli_ping_cond_lock);
-	if (ast_taskprocessor_push(tps, tps_ping_handler, 0) < 0) {
+	if (ast_taskprocessor_push_internal(tps, tps_ping_handler, 0) < 0) {
 		ast_mutex_unlock(&cli_ping_cond_lock);
 		ast_cli(a->fd, "\nping failed: could not push task to %s\n\n", name);
 		ast_taskprocessor_unreference(tps);
@@ -574,8 +611,8 @@ static int tps_sort_cb(const void *obj_left, const void *obj_right, int flags)
 	return cmp;
 }
 
-#define FMT_HEADERS		"%-70s %10s %10s %10s %10s %10s\n"
-#define FMT_FIELDS		"%-70s %10lu %10lu %10lu %10lu %10lu\n"
+#define FMT_HEADERS		"%-70s %10s %10s %10s %10s %10s %10s %10s\n"
+#define FMT_FIELDS		"%-70s %10lu %10lu %10lu %10lu %10lu %10ld %10ld\n"
 
 /*!
  * \internal
@@ -589,7 +626,8 @@ static void tps_report_taskprocessor_list_helper(int fd, struct ast_taskprocesso
 {
 	ast_cli(fd, FMT_FIELDS, tps->name, tps->stats._tasks_processed_count,
 		tps->tps_queue_size, tps->stats.max_qsize, tps->tps_queue_low,
-		tps->tps_queue_high);
+		tps->tps_queue_high, tps->stats.lowest_time_processed,
+		tps->stats.highest_time_processed);
 }
 
 /*!
@@ -667,9 +705,91 @@ static char *cli_tps_report(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 		return CLI_SHOWUSAGE;
 	}
 
-	ast_cli(a->fd, "\n" FMT_HEADERS, "Processor", "Processed", "In Queue", "Max Depth", "Low water", "High water");
+	ast_cli(a->fd, "\n" FMT_HEADERS, "Processor", "Processed", "In Queue", "Max Depth", "Low water", "High water", "Low time(us)", "High time(us)");
 	ast_cli(a->fd, "\n%d taskprocessors\n\n", tps_report_taskprocessor_list(a->fd, like));
 
+	return CLI_SUCCESS;
+}
+
+static char *cli_tps_show_taskprocessor(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	const char *name;
+	struct ast_taskprocessor *tps;
+	struct tps_task *task;
+	int task_count = 0;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "core show taskprocessor name";
+		e->usage =
+			"Usage: core show taskprocessor name <taskprocessor>\n"
+			"    Displays detailed information about a specific taskprocessor,\n"
+			"    including all queued tasks and their origins (DEVMODE only).\n";
+		return NULL;
+	case CLI_GENERATE:
+		if (a->pos == 4) {
+			return tps_taskprocessor_tab_complete(a);
+		}
+		return NULL;
+	}
+
+	if (a->argc != 5) {
+		return CLI_SHOWUSAGE;
+	}
+
+	name = a->argv[4];
+	tps = ast_taskprocessor_get(name, TPS_REF_IF_EXISTS);
+	if (!tps) {
+		ast_cli(a->fd, "\nTaskprocessor '%s' not found\n\n", name);
+		return CLI_SUCCESS;
+	}
+
+	ao2_lock(tps);
+
+	ast_cli(a->fd, "\nTaskprocessor: %s\n", tps->name);
+	ast_cli(a->fd, "===========================================\n");
+	ast_cli(a->fd, "Subsystem:            %s\n", tps->subsystem[0] ? tps->subsystem : "(none)");
+	ast_cli(a->fd, "Tasks processed:      %lu\n", tps->stats._tasks_processed_count);
+	ast_cli(a->fd, "Current queue size:   %ld\n", tps->tps_queue_size);
+	ast_cli(a->fd, "Max queue depth:      %lu\n", tps->stats.max_qsize);
+	ast_cli(a->fd, "Low water mark:       %ld\n", tps->tps_queue_low);
+	ast_cli(a->fd, "High water mark:      %ld\n", tps->tps_queue_high);
+	ast_cli(a->fd, "High water alert:     %s\n", tps->high_water_alert ? "Yes" : "No");
+	ast_cli(a->fd, "Suspended:            %s\n", tps->suspended ? "Yes" : "No");
+	ast_cli(a->fd, "Currently executing:  %s\n", tps->executing ? "Yes" : "No");
+	ast_cli(a->fd, "Highest time (us):    %ld\n", tps->stats.highest_time_processed);
+	if (tps->stats.highest_time_task_file) {
+		ast_cli(a->fd, "  Highest task origin: %s:%d (%s)\n",
+			tps->stats.highest_time_task_file,
+			tps->stats.highest_time_task_line,
+			tps->stats.highest_time_task_function);
+	}
+	ast_cli(a->fd, "Lowest time (us):     %ld\n", tps->stats.lowest_time_processed);
+
+	if (tps->tps_queue_size > 0) {
+		ast_cli(a->fd, "\nQueued Tasks:\n");
+		ast_cli(a->fd, "-------------------------------------------\n");
+
+		AST_LIST_TRAVERSE(&tps->tps_queue, task, list) {
+			task_count++;
+			if (task->file) {
+				ast_cli(a->fd, "  Task #%d:\n", task_count);
+				ast_cli(a->fd, "    Origin:   %s:%d\n", task->file, task->line);
+				ast_cli(a->fd, "    Function: %s\n", task->function);
+				ast_cli(a->fd, "    Type:     %s\n", task->wants_local ? "Local" : "Standard");
+			} else {
+				ast_cli(a->fd, "  Task #%d: (origin not available)\n", task_count);
+			}
+		}
+		ast_cli(a->fd, "\nTotal queued tasks: %d\n", task_count);
+	} else {
+		ast_cli(a->fd, "\nNo tasks currently queued.\n");
+	}
+
+	ao2_unlock(tps);
+	ast_taskprocessor_unreference(tps);
+
+	ast_cli(a->fd, "\n");
 	return CLI_SUCCESS;
 }
 
@@ -866,8 +986,8 @@ static void tps_alert_add(struct ast_taskprocessor *tps, int delta)
 	if (DEBUG_ATLEAST(3)
 		/* and tps_alert_count becomes zero or non-zero */
 		&& !old != !tps_alert_count) {
-		ast_log(LOG_DEBUG, "Taskprocessor '%s' %s the high water alert.\n",
-			tps->name, tps_alert_count ? "triggered" : "cleared");
+		ast_log(LOG_DEBUG, "Taskprocessor '%s' %s the high water alert (total alerts: %u).\n",
+			tps->name, tps_alert_count ? "triggered" : "cleared", tps_alert_count);
 	}
 
 	if (tps->subsystem[0] != '\0') {
@@ -1028,11 +1148,12 @@ static void *default_listener_pvt_alloc(void)
 
 	pvt = ast_calloc(1, sizeof(*pvt));
 	if (!pvt) {
+		ast_log(LOG_ERROR, "Failed to allocate memory for taskprocessor listener\n");
 		return NULL;
 	}
 	pvt->poll_thread = AST_PTHREADT_NULL;
 	if (ast_sem_init(&pvt->sem, 0, 0) != 0) {
-		ast_log(LOG_ERROR, "ast_sem_init(): %s\n", strerror(errno));
+		ast_log(LOG_ERROR, "Failed to initialize taskprocessor semaphore: %s\n", strerror(errno));
 		ast_free(pvt);
 		return NULL;
 	}
@@ -1098,7 +1219,7 @@ static struct ast_taskprocessor *__allocate_taskprocessor(const char *name, stru
 static struct ast_taskprocessor *__start_taskprocessor(struct ast_taskprocessor *p)
 {
 	if (p && p->listener->callbacks->start(p->listener)) {
-		ast_log(LOG_ERROR, "Unable to start taskprocessor listener for taskprocessor %s\n",
+		ast_log(LOG_ERROR, "Failed to start taskprocessor listener for '%s'\n",
 			p->name);
 		ast_taskprocessor_unreference(p);
 
@@ -1118,7 +1239,7 @@ struct ast_taskprocessor *ast_taskprocessor_get(const char *name, enum ast_tps_o
 	struct default_taskprocessor_listener_pvt *pvt;
 
 	if (ast_strlen_zero(name)) {
-		ast_log(LOG_ERROR, "requesting a nameless taskprocessor!!!\n");
+		ast_log(LOG_ERROR, "Cannot get taskprocessor with empty name!\n");
 		return NULL;
 	}
 	ao2_lock(tps_singletons);
@@ -1212,13 +1333,18 @@ static int taskprocessor_push(struct ast_taskprocessor *tps, struct tps_task *t)
 	int was_empty;
 
 	if (!tps) {
-		ast_log(LOG_ERROR, "tps is NULL!\n");
+		ast_log(LOG_ERROR, "Taskprocessor is NULL!\n");
 		return -1;
 	}
 
 	if (!t) {
-		ast_log(LOG_ERROR, "t is NULL!\n");
+		ast_log(LOG_ERROR, "Task is NULL!\n");
 		return -1;
+	}
+
+	if (t->file) {
+		ast_debug(3, "Taskprocessor '%s': Task pushed from %s:%d (%s)\n",
+			tps->name, t->file, t->line, t->function);
 	}
 
 	ao2_lock(tps);
@@ -1227,8 +1353,8 @@ static int taskprocessor_push(struct ast_taskprocessor *tps, struct tps_task *t)
 
 	if (tps->tps_queue_high <= tps->tps_queue_size) {
 		if (!tps->high_water_alert) {
-			ast_log(LOG_WARNING, "The '%s' task processor queue reached %ld scheduled tasks%s.\n",
-				tps->name, tps->tps_queue_size, tps->high_water_warned ? " again" : "");
+			ast_log(LOG_WARNING, "Taskprocessor '%s' queue reached %ld scheduled tasks (high water mark: %ld)%s.\n",
+				tps->name, tps->tps_queue_size, tps->tps_queue_high, tps->high_water_warned ? " again" : "");
 			tps->high_water_warned = 1;
 			tps->high_water_alert = 1;
 			tps_alert_add(tps, +1);
@@ -1242,14 +1368,26 @@ static int taskprocessor_push(struct ast_taskprocessor *tps, struct tps_task *t)
 	return 0;
 }
 
+int __ast_taskprocessor_push(struct ast_taskprocessor *tps, int (*task_exe)(void *datap), void *datap,
+	const char *file, int line, const char *function)
+{
+	return taskprocessor_push(tps, tps_task_alloc(task_exe, datap, file, line, function));
+}
+
 int ast_taskprocessor_push(struct ast_taskprocessor *tps, int (*task_exe)(void *datap), void *datap)
 {
-	return taskprocessor_push(tps, tps_task_alloc(task_exe, datap));
+	return __ast_taskprocessor_push(tps, task_exe, datap, NULL, 0, NULL);
+}
+
+int __ast_taskprocessor_push_local(struct ast_taskprocessor *tps, int (*task_exe)(struct ast_taskprocessor_local *datap), void *datap,
+	const char *file, int line, const char *function)
+{
+	return taskprocessor_push(tps, tps_task_alloc_local(task_exe, datap, file, line, function));
 }
 
 int ast_taskprocessor_push_local(struct ast_taskprocessor *tps, int (*task_exe)(struct ast_taskprocessor_local *datap), void *datap)
 {
-	return taskprocessor_push(tps, tps_task_alloc_local(task_exe, datap));
+	return __ast_taskprocessor_push_local(tps, task_exe, datap, NULL, 0, NULL);
 }
 
 int ast_taskprocessor_suspend(struct ast_taskprocessor *tps)
@@ -1284,6 +1422,11 @@ int ast_taskprocessor_execute(struct ast_taskprocessor *tps)
 	struct ast_taskprocessor_local local;
 	struct tps_task *t;
 	long size;
+	struct timeval start;
+	long elapsed;
+	const char *task_file = NULL;
+	int task_line = 0;
+	const char *task_function = NULL;
 
 	ao2_lock(tps);
 	t = tps_taskprocessor_pop(tps);
@@ -1299,7 +1442,14 @@ int ast_taskprocessor_execute(struct ast_taskprocessor *tps)
 		local.local_data = tps->local_data;
 		local.data = t->datap;
 	}
+
+	/* Save task origin info before we free the task */
+	task_file = t->file;
+	task_line = t->line;
+	task_function = t->function;
 	ao2_unlock(tps);
+
+	start = ast_tvnow();
 
 	if (t->wants_local) {
 		t->callback.execute_local(&local);
@@ -1324,6 +1474,18 @@ int ast_taskprocessor_execute(struct ast_taskprocessor *tps)
 	if (size >= tps->stats.max_qsize) {
 		tps->stats.max_qsize = size + 1;
 	}
+
+	elapsed = ast_tvdiff_us(ast_tvnow(), start);
+	if (elapsed > tps->stats.highest_time_processed) {
+		tps->stats.highest_time_processed = elapsed;
+		tps->stats.highest_time_task_file = task_file;
+		tps->stats.highest_time_task_line = task_line;
+		tps->stats.highest_time_task_function = task_function;
+	}
+	if (elapsed < tps->stats.lowest_time_processed) {
+		tps->stats.lowest_time_processed = elapsed;
+	}
+
 	ao2_unlock(tps);
 
 	/* If we executed a task, check for the transition to empty */
@@ -1393,6 +1555,11 @@ static void tps_reset_stats(struct ast_taskprocessor *tps)
 	ao2_lock(tps);
 	tps->stats._tasks_processed_count = 0;
 	tps->stats.max_qsize = 0;
+	tps->stats.highest_time_processed = 0;
+	tps->stats.lowest_time_processed = 0;
+	tps->stats.highest_time_task_file = NULL;
+	tps->stats.highest_time_task_line = 0;
+	tps->stats.highest_time_task_function = NULL;
 	ao2_unlock(tps);
 }
 
