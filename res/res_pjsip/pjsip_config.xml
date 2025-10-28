@@ -3164,6 +3164,21 @@
 					</since>
 					<synopsis>The interval (in seconds) to send keepalives to active connection-oriented transports.</synopsis>
 				</configOption>
+				<configOption name="incoming_transport_idle_timeout" default="0">
+					<since>
+						<version>20.16.0</version>
+						<version>22.6.0</version>
+						<version>23.0.0</version>
+					</since>
+					<synopsis>Timeout in seconds for incoming connection-oriented transports with no new SIP requests.</synopsis>
+					<description><para>
+						After this timeout, the transport will be shut down if no new SIP requests are received.
+						This applies to all connection-oriented transports (TCP, TLS, WebSocket, etc.).
+						Note that only SIP requests reset the timeout timer - SIP responses do not reset it.
+						This is useful for cleaning up idle incoming connections and preventing resource exhaustion.
+						A value of zero disables the timeout.
+					</para></description>
+				</configOption>
 				<configOption name="contact_expiration_check_interval" default="30">
 					<since>
 						<version>13.9.0</version>

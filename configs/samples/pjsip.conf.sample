@@ -1350,6 +1350,14 @@
                         ; keep-alives on all active connection-oriented transports;
                         ; for connection-less like UDP see qualify_frequency.
                         ; (default: "90")
+;incoming_transport_idle_timeout=0
+                        ; Timeout in seconds for incoming connection-oriented transports with no new SIP requests.
+                        ; After this timeout, the transport will be shut down if no new
+                        ; SIP requests are received.
+                        ; This applies to all connection-oriented transports (TCP, TLS, WebSocket, etc.).
+                        ; Note that only SIP requests reset the timeout timer - SIP responses do not reset it.
+                        ; Zero disables the timeout.
+                        ; (default: "0")
 ;contact_expiration_check_interval=30
                         ; The interval (in seconds) to check for expired contacts.
 ;disable_multi_domain=no

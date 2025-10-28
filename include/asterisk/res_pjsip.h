@@ -3595,6 +3595,13 @@ void ast_sip_get_default_from_user(char *from_user, size_t size);
 unsigned int ast_sip_get_keep_alive_interval(void);
 
 /*!
+ * \brief Retrieve the incoming transport idle timeout setting.
+ *
+ * \retval the incoming transport idle timeout in seconds.
+ */
+unsigned int ast_sip_get_incoming_transport_idle_timeout(void);
+
+/*!
  * \brief Retrieve the system contact expiration check interval setting.
  *
  * \retval the contact expiration check interval.

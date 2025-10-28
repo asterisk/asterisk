@@ -128,6 +128,8 @@ struct global_config {
 	unsigned int norefersub;
 	/*! Nonzero if we should return all codecs on empty re-INVITE */
 	unsigned int all_codecs_on_empty_reinvite;
+	/*! Timeout in seconds for incoming transports with no new SIP requests */
+	unsigned int incoming_transport_idle_timeout;
 };
 
 static void global_destructor(void *obj)
@@ -608,6 +610,21 @@ unsigned int ast_sip_get_all_codecs_on_empty_reinvite(void)
 	return all_codecs_on_empty_reinvite;
 }
 
+unsigned int ast_sip_get_incoming_transport_idle_timeout(void)
+{
+	unsigned int incoming_transport_idle_timeout;
+	struct global_config *cfg;
+
+	cfg = get_global_cfg();
+	if (!cfg) {
+		return 0;
+	}
+
+	incoming_transport_idle_timeout = cfg->incoming_transport_idle_timeout;
+	ao2_ref(cfg, -1);
+	return incoming_transport_idle_timeout;
+}
+
 static int overload_trigger_handler(const struct aco_option *opt,
 	struct ast_variable *var, void *obj)
 {
@@ -824,6 +841,9 @@ int ast_sip_initialize_sorcery_global(void)
 	ast_sorcery_object_field_register(sorcery, "global", "default_auth_algorithms_uac",
 		DEFAULT_AUTH_ALGORITHMS_UAC, OPT_STRINGFIELD_T, 0,
 		STRFLDSET(struct global_config, default_auth_algorithms_uac));
+	ast_sorcery_object_field_register(sorcery, "global", "incoming_transport_idle_timeout",
+		__stringify(0),
+		OPT_UINT_T, 0, FLDSET(struct global_config, incoming_transport_idle_timeout));
 
 	if (ast_sorcery_instance_observer_add(sorcery, &observer_callbacks_global)) {
 		return -1;
