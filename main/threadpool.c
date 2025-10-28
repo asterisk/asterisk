@@ -608,8 +608,7 @@ static int queued_task_pushed(void *data)
  * \param listener The taskprocessor listener. The threadpool is the listener's private data
  * \param was_empty True if the taskprocessor was empty prior to the task being pushed
  */
-static void threadpool_tps_task_pushed(struct ast_taskprocessor_listener *listener,
-		int was_empty)
+static void threadpool_tps_task_pushed(struct ast_taskprocessor_listener *listener, int was_empty)
 {
 	struct ast_threadpool *pool = ast_taskprocessor_listener_get_user_data(listener);
 	struct task_pushed_data *tpd;
@@ -954,13 +953,25 @@ struct ast_threadpool *ast_threadpool_create(const char *name,
 	return pool;
 }
 
-int ast_threadpool_push(struct ast_threadpool *pool, int (*task)(void *data), void *data)
+#undef ast_threadpool_push
+#define ast_threadpool_push_internal(pool, task, data) \
+	__ast_threadpool_push(pool, task, data, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+int ast_threadpool_push(struct ast_threadpool *pool, int (*task)(void *data), void *data);
+
+int __ast_threadpool_push(struct ast_threadpool *pool, int (*task)(void *data), void *data,
+	const char *file, int line, const char *function)
 {
 	SCOPED_AO2LOCK(lock, pool);
 	if (!pool->shutting_down) {
-		return ast_taskprocessor_push(pool->tps, task, data);
+		return __ast_taskprocessor_push(pool->tps, task, data, file, line, function);
 	}
 	return -1;
+}
+
+/* ABI compatibility: Provide actual function symbol for external modules */
+int ast_threadpool_push(struct ast_threadpool *pool, int (*task)(void *data), void *data)
+{
+	return __ast_threadpool_push(pool, task, data, NULL, 0, NULL);
 }
 
 void ast_threadpool_shutdown(struct ast_threadpool *pool)
