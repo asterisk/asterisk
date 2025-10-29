@@ -861,6 +861,8 @@ struct ast_ari_channels_external_media_args {
 	const char *direction;
 	/*! An arbitrary data field */
 	const char *data;
+	/*! Transport-specific data. For websocket this is appended to the dialstring. */
+	const char *transport_data;
 };
 /*!
  * \brief Body parsing function for /channels/externalMedia.
