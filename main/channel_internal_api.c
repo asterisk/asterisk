@@ -370,6 +370,14 @@ void ast_channel_vstreamid_set(struct ast_channel *chan, int value)
 {
 	chan->vstreamid = value;
 }
+int ast_channel_tstreamid(const struct ast_channel *chan)
+{
+	return chan->tstreamid;
+}
+void ast_channel_tstreamid_set(struct ast_channel *chan, int value)
+{
+	chan->tstreamid = value;
+}
 unsigned short ast_channel_transfercapability(const struct ast_channel *chan)
 {
 	return chan->transfercapability;
@@ -500,6 +508,14 @@ struct ast_filestream *ast_channel_vstream(const struct ast_channel *chan)
 void ast_channel_vstream_set(struct ast_channel *chan, struct ast_filestream *value)
 {
 	chan->vstream = value;
+}
+struct ast_filestream *ast_channel_tstream(const struct ast_channel *chan)
+{
+	return chan->tstream;
+}
+void ast_channel_tstream_set(struct ast_channel *chan, struct ast_filestream *value)
+{
+	chan->tstream = value;
 }
 struct ast_format_cap *ast_channel_nativeformats(const struct ast_channel *chan)
 {
