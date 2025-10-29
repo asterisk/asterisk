@@ -1487,9 +1487,14 @@ struct channel_set_debug_args {
 static int channel_set_debug(void *obj, void *arg, void *data, int flags)
 {
 	struct ast_channel *chan = obj;
-	struct channel_set_debug_args *args = data;
+	struct ast_channel_callback_data *callback_data = data;
+	struct channel_set_debug_args *args = callback_data->data_additional;
 
-	ast_channel_lock(chan);
+	if (ast_channel_trylock(chan) != 0) {
+		/* Lock failure means the caller will need to retry until we get the lock we need */
+		callback_data->final_match_result = CMP_RETRY_NEEDED;
+		return CMP_STOP;
+	}
 
 	if (!(ast_channel_fin(chan) & DEBUGCHAN_FLAG) || !(ast_channel_fout(chan) & DEBUGCHAN_FLAG)) {
 		if (args->is_off) {
@@ -1559,7 +1564,7 @@ static char *handle_core_set_debug_channel(struct ast_cli_entry *e, int cmd, str
 			global_fin |= DEBUGCHAN_FLAG;
 			global_fout |= DEBUGCHAN_FLAG;
 		}
-		ast_channel_callback(channel_set_debug, NULL, &args, OBJ_NODATA | OBJ_MULTIPLE);
+		ast_channel_callback_safe(channel_set_debug, "all channels, where debug is not enabled", "all", NULL, &args, OBJ_NODATA | OBJ_MULTIPLE);
 	} else {
 		if ((c = ast_channel_get_by_name(a->argv[e->args]))) {
 			channel_set_debug(c, NULL, &args, 0);

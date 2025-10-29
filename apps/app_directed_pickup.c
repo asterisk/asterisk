@@ -137,14 +137,20 @@ struct pickup_by_name_args {
 static int find_by_name(void *obj, void *arg, void *data, int flags)
 {
 	struct ast_channel *target = obj;/*!< Potential pickup target */
-	struct pickup_by_name_args *args = data;
+	struct ast_channel_callback_data *callback_data = data;
+	struct pickup_by_name_args *args = callback_data->data_additional;
 
 	if (args->chan == target) {
 		/* The channel attempting to pickup a call cannot pickup itself. */
 		return 0;
 	}
 
-	ast_channel_lock(target);
+	if (ast_channel_trylock(target) != 0) {
+		/* Lock failure means the caller will need to retry until we get the lock we need */
+		callback_data->final_match_result = CMP_RETRY_NEEDED;
+		return CMP_STOP;
+	}
+
 	if (!strncasecmp(ast_channel_name(target), args->name, args->len)
 		&& ast_can_pickup(target)) {
 		/* Return with the channel still locked on purpose */
@@ -158,14 +164,20 @@ static int find_by_name(void *obj, void *arg, void *data, int flags)
 static int find_by_uniqueid(void *obj, void *arg, void *data, int flags)
 {
 	struct ast_channel *target = obj;/*!< Potential pickup target */
-	struct pickup_by_name_args *args = data;
+	struct ast_channel_callback_data *callback_data = data;
+	struct pickup_by_name_args *args = callback_data->data_additional;
 
 	if (args->chan == target) {
 		/* The channel attempting to pickup a call cannot pickup itself. */
 		return 0;
 	}
 
-	ast_channel_lock(target);
+	if (ast_channel_trylock(target) != 0) {
+		/* Lock failure means the caller will need to retry until we get the lock we need */
+		callback_data->final_match_result = CMP_RETRY_NEEDED;
+		return CMP_STOP;
+	}
+
 	if (!strcasecmp(ast_channel_uniqueid(target), args->name)
 		&& ast_can_pickup(target)) {
 		/* Return with the channel still locked on purpose */
@@ -205,7 +217,7 @@ static struct ast_channel *find_by_channel(struct ast_channel *chan, const char 
 		strcat(chkchan, "-");
 		pickup_args.name = chkchan;
 	}
-	target = ast_channel_callback(find_by_name, NULL, &pickup_args, 0);
+	target = ast_channel_callback_safe(find_by_name, "channel name, where pickup is possible", pickup_args.name, NULL, &pickup_args, 0);
 	if (target) {
 		return target;
 	}
@@ -213,7 +225,8 @@ static struct ast_channel *find_by_channel(struct ast_channel *chan, const char 
 	/* Now try a search for uniqueid. */
 	pickup_args.name = channame;
 	pickup_args.len = 0;
-	return ast_channel_callback(find_by_uniqueid, NULL, &pickup_args, 0);
+
+	return ast_channel_callback_safe(find_by_uniqueid, "channel uniqueid, where pickup is possible", pickup_args.name, NULL, &pickup_args, 0);
 }
 
 /*! \brief Attempt to pick up named channel. */
@@ -380,7 +393,9 @@ static struct ast_channel *find_by_part(struct ast_channel *chan, const char *pa
 	/* Try a partial channel name search. */
 	pickup_args.name = part;
 	pickup_args.len = strlen(part);
-	target = ast_channel_callback(find_by_name, NULL, &pickup_args, 0);
+
+	target = ast_channel_callback_safe(find_by_name, "channel prefix, where pickup is possible", pickup_args.name, NULL, &pickup_args, 0);
+
 	if (target) {
 		return target;
 	}
@@ -388,7 +403,8 @@ static struct ast_channel *find_by_part(struct ast_channel *chan, const char *pa
 	/* Now try a search for uniqueid. */
 	pickup_args.name = part;
 	pickup_args.len = 0;
-	return ast_channel_callback(find_by_uniqueid, NULL, &pickup_args, 0);
+
+	return ast_channel_callback_safe(find_by_uniqueid, "channel uniqueid prefix, where pickup is possible", pickup_args.name, NULL, &pickup_args, 0);
 }
 
 /* Attempt to pick up specified by partial channel name */
