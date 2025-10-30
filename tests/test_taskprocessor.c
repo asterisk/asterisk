@@ -31,12 +31,15 @@
 
 #include "asterisk.h"
 
+#include <unistd.h>
+
 #include "asterisk/test.h"
 #include "asterisk/taskprocessor.h"
 #include "asterisk/module.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/serializer.h"
 #include "asterisk/threadpool.h"
+#include "asterisk/cli.h"
 
 /*!
  * \brief userdata associated with baseline taskprocessor test
@@ -963,6 +966,170 @@ AST_TEST_DEFINE(serializer_pool)
 	return AST_TEST_PASS;
 }
 
+/*!
+ * \brief Test for CLI command "core show taskprocessor <name>"
+ *
+ * This test creates a taskprocessor, queues tasks with controlled execution,
+ * and verifies that the CLI command displays the queued tasks correctly.
+ */
+AST_TEST_DEFINE(taskprocessor_cli_show)
+{
+	RAII_VAR(struct ast_taskprocessor *, tps, NULL, ast_taskprocessor_unreference);
+	struct task_data *task_data1 = NULL;
+	struct task_data *task_data2 = NULL;
+	struct task_data *task_data3 = NULL;
+	int task_queued1 = 0, task_queued2 = 0, task_queued3 = 0;
+	char cli_command[128];
+	int cli_output_fd[2];
+	char output_buffer[4096] = {0};
+	ssize_t bytes_read;
+	int res = AST_TEST_FAIL;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "taskprocessor_cli_show";
+		info->category = "/main/taskprocessor/";
+		info->summary = "Test CLI command 'core show taskprocessor'";
+		info->description =
+			"Verifies that the 'core show taskprocessor <name>' CLI command\n"
+			"displays taskprocessor information and queued tasks correctly.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	/* Create a pipe to capture CLI output */
+	if (pipe(cli_output_fd) != 0) {
+		ast_test_status_update(test, "Failed to create pipe for CLI output\n");
+		return AST_TEST_FAIL;
+	}
+
+	/* Create taskprocessor */
+	tps = ast_taskprocessor_get("test_cli_taskprocessor", TPS_REF_DEFAULT);
+	if (!tps) {
+		ast_test_status_update(test, "Unable to create test taskprocessor\n");
+		close(cli_output_fd[0]);
+		close(cli_output_fd[1]);
+		return AST_TEST_FAIL;
+	}
+
+	/* Create tasks that will wait so they stay in the queue */
+	task_data1 = task_data_create();
+	task_data2 = task_data_create();
+	task_data3 = task_data_create();
+
+	if (!task_data1 || !task_data2 || !task_data3) {
+		ast_test_status_update(test, "Unable to create task_data\n");
+		goto cleanup;
+	}
+
+	/* Set a long wait time so tasks stay queued */
+	task_data1->wait_time = 2000; /* 2 seconds */
+	task_data2->wait_time = 2000;
+	task_data3->wait_time = 2000;
+
+	/* Queue the tasks */
+	if (ast_taskprocessor_push(tps, task, task_data1)) {
+		ast_test_status_update(test, "Failed to queue task 1\n");
+		goto cleanup;
+	}
+	task_queued1 = 1;
+
+	if (ast_taskprocessor_push(tps, task, task_data2)) {
+		ast_test_status_update(test, "Failed to queue task 2\n");
+		goto cleanup;
+	}
+	task_queued2 = 1;
+
+	if (ast_taskprocessor_push(tps, task, task_data3)) {
+		ast_test_status_update(test, "Failed to queue task 3\n");
+		goto cleanup;
+	}
+	task_queued3 = 1;
+
+	/* Execute the CLI command */
+	snprintf(cli_command, sizeof(cli_command), "core show taskprocessor name test_cli_taskprocessor");
+
+	if (ast_cli_command(cli_output_fd[1], cli_command) != 0) {
+		ast_test_status_update(test, "CLI command execution failed\n");
+		goto cleanup;
+	}
+
+	/* Close write end and read the output */
+	close(cli_output_fd[1]);
+	cli_output_fd[1] = -1;
+
+	bytes_read = read(cli_output_fd[0], output_buffer, sizeof(output_buffer) - 1);
+	if (bytes_read <= 0) {
+		ast_test_status_update(test, "Failed to read CLI output\n");
+		goto cleanup;
+	}
+	output_buffer[bytes_read] = '\0';
+
+	/* Log the output for inspection */
+	ast_test_status_update(test, "CLI Output:\n%s\n", output_buffer);
+
+	/* Verify the output contains expected information */
+	if (!strstr(output_buffer, "test_cli_taskprocessor")) {
+		ast_test_status_update(test, "Output missing taskprocessor name\n");
+		goto cleanup;
+	}
+
+	if (!strstr(output_buffer, "Current queue size")) {
+		ast_test_status_update(test, "Output missing queue size information\n");
+		goto cleanup;
+	}
+
+	/* Check for queued tasks section (at least one task should be shown) */
+	if (!strstr(output_buffer, "Queued Tasks") && !strstr(output_buffer, "Currently executing")) {
+		ast_test_status_update(test, "Output missing queued tasks or execution status\n");
+		goto cleanup;
+	}
+
+	/* Verify we see task information */
+	if (!strstr(output_buffer, "Task #")) {
+		ast_test_status_update(test, "Output missing task information\n");
+		goto cleanup;
+	}
+
+	ast_test_status_update(test, "CLI command output validated successfully\n");
+	res = AST_TEST_PASS;
+
+cleanup:
+
+	ast_test_status_update(test, "Waiting for tasks to complete\n");
+
+	/* Wait for tasks to complete */
+	if (task_data1) {
+		if (task_queued1) {
+			task_wait(task_data1);
+		}
+		ao2_cleanup(task_data1);
+	}
+	if (task_data2) {
+		if (task_queued2) {
+			task_wait(task_data2);
+		}
+		ao2_cleanup(task_data2);
+	}
+	if (task_data3) {
+		if (task_queued3) {
+			task_wait(task_data3);
+		}
+		ao2_cleanup(task_data3);
+	}
+
+	if (cli_output_fd[0] >= 0) {
+		close(cli_output_fd[0]);
+	}
+	if (cli_output_fd[1] >= 0) {
+		close(cli_output_fd[1]);
+	}
+
+	ast_test_status_update(test, "Tasks complete\n");
+	return res;
+}
+
 static int unload_module(void)
 {
 	ast_test_unregister(default_taskprocessor);
@@ -972,6 +1139,7 @@ static int unload_module(void)
 	ast_test_unregister(taskprocessor_shutdown);
 	ast_test_unregister(taskprocessor_push_local);
 	ast_test_unregister(serializer_pool);
+	ast_test_unregister(taskprocessor_cli_show);
 	return 0;
 }
 
@@ -984,6 +1152,7 @@ static int load_module(void)
 	ast_test_register(taskprocessor_shutdown);
 	ast_test_register(taskprocessor_push_local);
 	ast_test_register(serializer_pool);
+	ast_test_register(taskprocessor_cli_show);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
