@@ -9103,13 +9103,12 @@ check_turns:
 					goto stop;
 				}
 			}
-		}
-		makeannouncement = 1;
 
-		/* Make a periodic announcement, if enabled */
-		if (qe.parent->periodicannouncefrequency) {
-			if ((res = say_periodic_announcement(&qe, ringing))) {
-				goto stop;
+			/* Make a periodic announcement, if enabled */
+			if (qe.parent->periodicannouncefrequency) {
+				if ((res = say_periodic_announcement(&qe, ringing))) {
+					goto stop;
+				}
 			}
 		}
 
