@@ -1,4 +1,7 @@
 	<category name="MENUSELECT_CFLAGS" displayname="Compiler Flags - Development">
+		<member name="CODE_COVERAGE" displayname="Enable gcov code coverage">
+			<support_level>extended</support_level>
+		</member>
 		<member name="MTX_PROFILE" displayname="Enable Code Profiling Using TSC Counters">
 			<support_level>extended</support_level>
 		</member>
