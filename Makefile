@@ -108,9 +108,13 @@ export XMLLINT
 export XMLSTARLET
 
 # makeopts is required unless the goal is just {dist{-}}clean
+# or support-list-{core,extended,deprecated}
 ifeq ($(MAKECMDGOALS),clean)
 else ifeq ($(MAKECMDGOALS),distclean)
 else ifeq ($(MAKECMDGOALS),dist-clean)
+else ifeq ($(MAKECMDGOALS),support-list-core)
+else ifeq ($(MAKECMDGOALS),support-list-extended)
+else ifeq ($(MAKECMDGOALS),support-list-deprecated)
 else
 include makeopts
 endif
@@ -611,6 +615,14 @@ oldmodcheck:
 		echo "" ;\
 		echo " WARNING WARNING WARNING" ;\
 	fi
+
+# The support-list-* independent targets are for evaluation of the source tree
+# by users interested in which files are at which support levels, sans compile.
+support-list-core support-list-extended support-list-deprecated:
+	@s=$(subst support-list-,,$@) ;\
+	echo "Showing all files at support level '$$s':" ;\
+	find . -name *.c  -exec grep -l "<support_level>$$s</support_level>" {} + | sort ;\
+	find . -name *.cc -exec grep -l "<support_level>$$s</support_level>" {} + | sort
 
 ld-cache-update:
 ifeq ($(LDCONFIG),)
