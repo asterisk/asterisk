@@ -51,13 +51,13 @@ struct ast_channelstorage_instance {
 	void (*rdlock)(struct ast_channelstorage_instance *driver);
 	void (*wrlock)(struct ast_channelstorage_instance *driver);
 	void (*unlock)(struct ast_channelstorage_instance *driver);
-	int (*active_channels)(struct ast_channelstorage_instance *driver);
+	int (*active_channels)(struct ast_channelstorage_instance *driver, int rdlock);
 	struct ast_channel *(*callback)(struct ast_channelstorage_instance *driver, ao2_callback_data_fn *cb_fn,
-		void *arg, void *data, int ao2_flags);
-	struct ast_channel *(*get_by_name_prefix)(struct ast_channelstorage_instance *driver, const char *name, size_t len);
-	struct ast_channel *(*get_by_name_prefix_or_uniqueid)(struct ast_channelstorage_instance *driver, const char *name, size_t len);
-	struct ast_channel *(*get_by_exten)(struct ast_channelstorage_instance *driver, const char *exten, const char *context);
-	struct ast_channel *(*get_by_uniqueid)(struct ast_channelstorage_instance *driver, const char *uniqueid);
+		void *arg, void *data, int ao2_flags, int rdlock);
+	struct ast_channel *(*get_by_name_prefix)(struct ast_channelstorage_instance *driver, const char *name, size_t len, int rdlock);
+	struct ast_channel *(*get_by_name_prefix_or_uniqueid)(struct ast_channelstorage_instance *driver, const char *name, size_t len, int rdlock);
+	struct ast_channel *(*get_by_exten)(struct ast_channelstorage_instance *driver, const char *exten, const char *context, int rdlock);
+	struct ast_channel *(*get_by_uniqueid)(struct ast_channelstorage_instance *driver, const char *uniqueid, int rdlock);
 	struct ast_channel_iterator *(*iterator_all_new)(struct ast_channelstorage_instance *driver);
 	struct ast_channel_iterator *(*iterator_by_exten_new)
 		(struct ast_channelstorage_instance *driver, const char *exten, const char *context);
@@ -81,15 +81,15 @@ void ast_channelstorage_close(struct ast_channelstorage_instance *storage_instan
 
 int channelstorage_exten_cb(void *obj, void *arg, void *data, int flags);
 struct ast_channel *channelstorage_by_exten(struct ast_channelstorage_instance *driver,
-	const char *exten, const char *context);
+	const char *exten, const char *context, int rdlock);
 int channelstorage_name_cb(void *obj, void *arg, void *data, int flags);
 struct ast_channel *channelstorage_by_name_or_uniqueid(struct ast_channelstorage_instance *driver,
-	const char *name);
+	const char *name, int rdlock);
 struct ast_channel *channelstorage_by_name_prefix_or_uniqueid(struct ast_channelstorage_instance *driver,
-	const char *name, size_t name_len);
+	const char *name, size_t name_len, int rdlock);
 int channelstorage_uniqueid_cb(void *obj, void *arg, void *data, int flags);
 struct ast_channel *channelstorage_by_uniqueid(struct ast_channelstorage_instance *driver,
-	const char *uniqueid);
+	const char *uniqueid, int rdlock);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
