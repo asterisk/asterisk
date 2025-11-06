@@ -85,12 +85,12 @@ int channelstorage_exten_cb(void *obj, void *arg, void *data, int flags)
 }
 
 struct ast_channel *channelstorage_by_exten(struct ast_channelstorage_instance *driver,
-	const char *exten, const char *context)
+	const char *exten, const char *context, int rdlock)
 {
 	char *l_exten = (char *) exten;
 	char *l_context = (char *) context;
 
-	return CHANNELSTORAGE_API(driver, callback, channelstorage_exten_cb, l_context, l_exten, 0);
+	return CHANNELSTORAGE_API(driver, callback, channelstorage_exten_cb, l_context, l_exten, 0, rdlock);
 }
 
 int channelstorage_name_cb(void *obj, void *arg, void *data, int flags)
@@ -114,23 +114,23 @@ int channelstorage_name_cb(void *obj, void *arg, void *data, int flags)
 }
 
 struct ast_channel *channelstorage_by_name_or_uniqueid(struct ast_channelstorage_instance *driver,
-	const char *name)
+	const char *name, int rdlock)
 {
-	return CHANNELSTORAGE_API(driver, get_by_name_prefix_or_uniqueid, name, 0);
+	return CHANNELSTORAGE_API(driver, get_by_name_prefix_or_uniqueid, name, 0, rdlock);
 }
 
 struct ast_channel *channelstorage_by_name_prefix_or_uniqueid(struct ast_channelstorage_instance *driver,
-	const char *name, size_t name_len)
+	const char *name, size_t name_len, int rdlock)
 {
 	struct ast_channel *chan = NULL;
 
-	chan = CHANNELSTORAGE_API(driver, get_by_name_prefix, name, name_len);
+	chan = CHANNELSTORAGE_API(driver, get_by_name_prefix, name, name_len, rdlock);
 	if (chan) {
 		return chan;
 	}
 
 	if (name_len == 0) {
-		chan = CHANNELSTORAGE_API(driver, get_by_uniqueid, name);
+		chan = CHANNELSTORAGE_API(driver, get_by_uniqueid, name, rdlock);
 	}
 
 	return chan;
@@ -150,9 +150,9 @@ int channelstorage_uniqueid_cb(void *obj, void *arg, void *data, int flags)
 }
 
 struct ast_channel *channelstorage_by_uniqueid(struct ast_channelstorage_instance *driver,
-	const char *uniqueid)
+	const char *uniqueid, int rdlock)
 {
-	return CHANNELSTORAGE_API(driver, callback, channelstorage_uniqueid_cb, (char *)uniqueid, NULL, 0);
+	return CHANNELSTORAGE_API(driver, callback, channelstorage_uniqueid_cb, (char *)uniqueid, NULL, 0, rdlock);
 }
 
 #ifdef TEST_FRAMEWORK
@@ -214,14 +214,14 @@ static void *test_storage_thread(void *data)
 	}
 	end = ast_tvnow();
 	elapsed = ast_tvdiff_us(end, start);
-	i = CHANNELSTORAGE_API(storage_instance, active_channels);
+	i = CHANNELSTORAGE_API(storage_instance, active_channels, 1);
 	ast_test_status_update(test, "%*s: %8ld\n", collen, "create channels", elapsed);
 	ast_test_validate_cleanup(test, i == CHANNEL_COUNT, res, done);
 
 	start = ast_tvnow();
 	for (i = 0; i < CHANNEL_COUNT; i++) {
 		sprintf(search1, "testchannel-%ld-%04d-something", rand, i);
-		mock_channel = CHANNELSTORAGE_API(storage_instance, get_by_name_prefix_or_uniqueid, search1, 0);
+		mock_channel = CHANNELSTORAGE_API(storage_instance, get_by_name_prefix_or_uniqueid, search1, 0, 1);
 		ast_test_validate_cleanup(test, mock_channel, res, done);
 		ast_test_validate_cleanup(test, mock_channel == test_channels[i], res, done);
 		ast_test_validate_cleanup(test,
@@ -235,7 +235,7 @@ static void *test_storage_thread(void *data)
 	start = ast_tvnow();
 	for (i = 0; i < CHANNEL_COUNT; i++) {
 		sprintf(search1, "TestUniqueid-%ld-%04d-something", rand, i);
-		mock_channel = CHANNELSTORAGE_API(storage_instance, get_by_uniqueid, search1);
+		mock_channel = CHANNELSTORAGE_API(storage_instance, get_by_uniqueid, search1, 1);
 		ast_test_validate_cleanup(test, mock_channel, res, done);
 		ast_channel_unref(mock_channel);
 	}
@@ -246,7 +246,7 @@ static void *test_storage_thread(void *data)
 	start = ast_tvnow();
 	for (i = 0; i < CHANNEL_COUNT; i++) {
 		sprintf(search1, "TestUniqueid-%ld-%04d-something", rand, i);
-		mock_channel = CHANNELSTORAGE_API(storage_instance, get_by_name_prefix_or_uniqueid, search1, 0);
+		mock_channel = CHANNELSTORAGE_API(storage_instance, get_by_name_prefix_or_uniqueid, search1, 0, 1);
 		ast_test_validate_cleanup(test, mock_channel, res, done);
 		ast_channel_unref(mock_channel);
 	}
@@ -257,7 +257,7 @@ static void *test_storage_thread(void *data)
 	start = ast_tvnow();
 	for (i = 0; i < CHANNEL_COUNT; i++) {
 		sprintf(search1, "TestChannel-%ld-%04d", rand, i);
-		mock_channel = CHANNELSTORAGE_API(storage_instance, get_by_name_prefix_or_uniqueid, search1, strlen(search1));
+		mock_channel = CHANNELSTORAGE_API(storage_instance, get_by_name_prefix_or_uniqueid, search1, strlen(search1), 1);
 		ast_test_validate_cleanup(test, mock_channel, res, done);
 		ast_channel_unref(mock_channel);
 	}
@@ -269,7 +269,7 @@ static void *test_storage_thread(void *data)
 	for (i = 0; i < CHANNEL_COUNT; i++) {
 		sprintf(search1, "TestContext-%ld-%04d", rand, i % 100);
 		sprintf(search2, "TestExten-%ld-%04d", rand, i % 10);
-		mock_channel = CHANNELSTORAGE_API(storage_instance, get_by_exten, search2, search1);
+		mock_channel = CHANNELSTORAGE_API(storage_instance, get_by_exten, search2, search1, 1);
 		ast_test_validate_cleanup(test, mock_channel, res, done);
 		ast_channel_unref(mock_channel);
 	}
@@ -290,7 +290,7 @@ static void *test_storage_thread(void *data)
 	ast_test_status_update(test, "%*s: %8ld\n", collen, "iter all chan", elapsed);
 	ast_test_validate_cleanup_custom(test, i == CHANNEL_COUNT, res, done,
 		"Expected %d channels, got %d, in container: %d\n", CHANNEL_COUNT, i,
-		CHANNELSTORAGE_API(storage_instance, active_channels));
+		CHANNELSTORAGE_API(storage_instance, active_channels, 1));
 
 	i = 0;
 	start = ast_tvnow();
@@ -310,7 +310,7 @@ static void *test_storage_thread(void *data)
 	ast_test_status_update(test, "%*s: %8ld\n", collen, "iter 10 partial name", elapsed);
 	ast_test_validate_cleanup_custom(test, i == 10, res, done,
 		"Expected %d channels, got %d, in container: %d\n", 10, i,
-		CHANNELSTORAGE_API(storage_instance, active_channels));
+		CHANNELSTORAGE_API(storage_instance, active_channels, 1));
 
 	i = 0;
 	start = ast_tvnow();
@@ -349,7 +349,7 @@ done:
 	elapsed = ast_tvdiff_us(end, start);
 	ast_test_status_update(test, "%*s: %8ld\n", collen, "del all channels", elapsed);
 	ast_test_validate_cleanup(test, i == CHANNEL_COUNT, res, done);
-	rc = CHANNELSTORAGE_API(storage_instance, active_channels);
+	rc = CHANNELSTORAGE_API(storage_instance, active_channels, 1);
 	ast_test_validate_cleanup_custom(test, rc == 0, res, final,
 		"There are still %d channels in the container\n", rc);
 
