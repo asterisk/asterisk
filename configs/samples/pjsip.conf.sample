@@ -703,6 +703,9 @@
                         ; (default: "username,ip")
 ;redirect_method=user   ; How redirects received from an endpoint are handled
                         ; (default: "user")
+;follow_redirect_methods=   ; A comma-separated list of SIP methods for which redirects are followed.
+                            ; Currently, only "message" is supported.
+                            ; (default: "")
 ;mailboxes=     ; NOTIFY the endpoint when state changes for any of the specified mailboxes.
                 ; Asterisk will send unsolicited MWI NOTIFY messages to the endpoint when state
                 ; changes happen for any of the specified mailboxes. (default: "")
