@@ -157,11 +157,13 @@ static int simple_bridge_join(struct ast_bridge *bridge, struct ast_bridge_chann
 	/* The ast_channel_hold_state() and ast_channel_name() accessors need to be
 	 * called with the associated channel lock held.
 	 */
-	if ((unhold_c1 = ast_channel_hold_state(c1) == AST_CONTROL_HOLD)) {
+	unhold_c1 = (ast_channel_hold_state(c1) == AST_CONTROL_HOLD);
+	if (unhold_c1) {
 		ast_debug(1, "Channel %s simulating UNHOLD for bridge simple join.\n", ast_channel_name(c1));
 	}
 
-	if ((unhold_c0 = ast_channel_hold_state(c0) == AST_CONTROL_HOLD)) {
+	unhold_c0 = (ast_channel_hold_state(c0) == AST_CONTROL_HOLD);
+	if (unhold_c0) {
 		ast_debug(1, "Channel %s simulating UNHOLD for bridge simple join.\n", ast_channel_name(c0));
 	}
 
