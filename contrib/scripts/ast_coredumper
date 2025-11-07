@@ -266,6 +266,8 @@ for i in "${!COREDUMPS[@]}" ; do
 		libdir=$(dirname "${libfile}")
 	}
 
+	[ "$(dirname "${astbin}")" == "." ] && astbin="$(which "${astbin}")" || :
+	astbin=$(realpath -e "${astbin}")
 	msg "    ASTBIN: $astbin"
 	msg "    MODDIR: $moddir"
 	msg "    ETCDIR: $etcdir"
@@ -288,7 +290,7 @@ for i in "${!COREDUMPS[@]}" ; do
 	cfname=$(basename "${cf}")
 
 	# Produce all the output files
-	${GDB} -n --batch -q --ex "source $gdbinit" "${astbin}" "$cf" 2>/dev/null | (
+	${GDB} -n --batch -q --iex "source $gdbinit" -ex "dump-asterisk" "${astbin}" "$cf" 2>/dev/null | (
 		of=/dev/null
 		while IFS= read -r line ; do
 			if [[ "$line" =~ !@!@!@!\ ([^\ ]+)\ !@!@!@! ]] ; then
@@ -507,7 +509,7 @@ extract_binary_name() {
 # shellcheck disable=SC2317
 extract_string_symbol() {
 	${GDB} "$1" "$2" -q --batch \
-		-ex "p $3" 2>/dev/null \
+		-ex "p (char *)$3" 2>/dev/null \
 		| sed -n -r -e 's/[$]1\s*=\s*[0-9a-fx]+\s+<[^>]+>\s+"([^"]+)"/\1/gp'
 	return 0
 }
@@ -771,6 +773,12 @@ def s_strip(value):
     except:
         pass
 
+    try:
+        if value.type.code in [ gdb.TYPE_CODE_ARRAY, gdb.TYPE_CODE_PTR ]:
+            return value.string()
+    except:
+        pass
+
     return str(value).strip('" ') or "<None>"
 
 
@@ -898,6 +906,64 @@ def get_container_rbtree_objects(name, type, on_object=None):
 
     return objs
 
+def get_container_count(name):
+    return int(gdb.parse_and_eval(name).dereference()['elements'])
+
+
+def get_container_map_objects(name, type, on_object=None):
+    """Retrieve a list of objects from a C++ map.
+
+    Expected on_object signature:
+
+        res, stop = on_object(GDB Value)
+
+    The given callback, on_object, is called for each object found in the
+    map. The callback is passed a dereferenced GDB Value object and
+    expects an object to be returned, which is then appended to a list of
+    objects to be returned by this function. Iteration can be stopped by
+    returning "True" for the second return value.
+
+    If on_object is not specified then the dereferenced GDB value is instead
+    added directly to the returned list.
+
+    Args:
+        name: The name of the map
+        type: The type of objects stored in the container
+        on_object: Optional function called on each object found
+
+    Return:
+        A list of map objects
+    """
+    objs = []
+    map = gdb.parse_and_eval(name)
+    node = map['_M_t']['_M_impl']['_M_header']['_M_left']
+    tree_size = map['_M_t']['_M_impl']['_M_node_count']
+    for i in range(0, tree_size):
+        obj_node = (node + 2)
+        obj_p = obj_node.cast(gdb.lookup_type(type).pointer().pointer()).dereference()
+        obj = obj_p.dereference()
+        res, stop = on_object(obj) if on_object else (obj, False)
+        if res:
+            objs.append(res)
+        if stop:
+            return objs
+
+        if node['_M_right'] != 0:
+            node = node['_M_right']
+            while node['_M_left'] != 0:
+                node = node['_M_left']
+        else:
+            tmp_node = node['_M_parent']
+            while node == tmp_node['_M_right']:
+                node = tmp_node
+                tmp_node = tmp_node['_M_parent']
+            if node['_M_right'] != tmp_node:
+                node = tmp_node
+    return objs
+
+def get_map_count(name):
+    map = gdb.parse_and_eval(name)
+    return map['_M_t']['_M_impl']['_M_node_count']
 
 def build_info():
 
@@ -969,7 +1035,7 @@ class TaskProcessor(object):
     def __init__(self, name, processed, in_queue, max_depth,
                  low_water, high_water):
 
-        self.name = s_strip(name)
+        self.name = str(name).strip('"')
         self.processed = int(processed)
         self.in_queue = int(in_queue)
         self.max_depth = int(max_depth)
@@ -979,7 +1045,7 @@ class TaskProcessor(object):
 
 class Channel(object):
 
-    template = ("{name:30} {context:>20} {exten:>20} {priority:>10} {state:>25} "
+    template = ("{name:42} {context:>20} {exten:>20} {priority:>10} {state:>25} "
                 "{app:>20} {data:>30} {caller_id:>15} {created:>30} "
                 "{account_code:>15} {peer_account:>15} {bridge_id:>38}")
 
@@ -989,14 +1055,22 @@ class Channel(object):
               'account_code': 'Accountcode', 'peer_account': 'PeerAccount',
               'bridge_id': 'BridgeID'}
 
+    container = 'current_channel_storage_instance->handle->handle'
+    map = '(((struct mni_channelstorage_driver_pvt *)current_channel_storage_instance->handle)->by_name)'
+
     @staticmethod
     def objects():
 
         try:
-            objs = get_container_hash_objects('channels',
-                'struct ast_channel', Channel.from_value)
-
-            objs.sort(key=lambda x: x.name.lower())
+            driver = gdb.parse_and_eval("current_channel_storage_driver")
+            driver_name = driver['driver_name'].string()
+            if driver_name == "cpp_map_name_id":
+                objs = get_container_map_objects(Channel.map,
+                    'struct ast_channel', Channel.from_value)
+            else:
+                objs = get_container_hash_objects(Channel.container,
+                    'struct ast_channel', Channel.from_value)
+                objs.sort(key=lambda x: x.name.lower())
         except:
             return []
 
@@ -1025,13 +1099,19 @@ class Channel(object):
 
     @staticmethod
     def summary():
+        driver = gdb.parse_and_eval("current_channel_storage_driver")
+        driver_name = driver['driver_name'].string()
+        if driver_name == "cpp_map_name_id":
+            count = get_map_count(Channel.map)
+        else:
+            count = get_container_count(Channel.container)
 
         try:
-            return ("{0} active channels\n"
-                    "{1} active calls\n"
-                    "{2} calls processed".format(
-                        int(gdb.parse_and_eval(
-                            'channels').dereference()['elements']),
+            return ("Channel Driver Name: {0}\n"
+                    "{1} active channels\n"
+                    "{2} active calls\n"
+                    "{3} calls processed".format(driver_name,
+                        count,
                         get("countcalls"),
                         get("totalcalls")))
         except:
@@ -1197,76 +1277,81 @@ DumpAsteriskCommand ()
 end
 
 define show_locks
-   set $n = lock_infos.first
+  set $n = lock_infos.first
 
-   if $argc == 0
-      printf "                                                                                                                    where_held count-|\n"
-      printf "                                                                                                                         suspended-| |\n"
-      printf "                                                                                                        type- |     times locked-| | |\n"
-      printf "thread         status   file                   line function                             lock name            | lock addr        | | |\n"
-   else
-      printf "thread,status,file,line,function,lock_name,lock_type,lock_addr,times_locked,suspended,where_held_count,where_held_file,where_held_line,where_held_function,there_held_thread\n"
-   end
+  if $argc == 0
+    printf "%s\n", "                                                                                                                                                                where_held count-|"
+    printf "%s\n", "                                                                                                                                                                   suspended-|   |"
+    printf "%s\n", "                                                                                                                                                 type-|     times locked-|   |   |"
+    printf "%-14s %-36s %6s %-42s %-8s %-36s %3s %-14s %3s %3s %3s\n",\
+      "thread","file","line","function","status","lock name","|","lock addr","|","|","|"
+    printf "%s\n", "----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
 
-   while $n
-      if $n->num_locks > 0
+  else
+    printf "thread,status,file,line,function,lock_name,lock_type,lock_addr,times_locked,suspended,where_held_count,where_held_file,where_held_line,where_held_function,there_held_thread\n"
+  end
+
+  while $n
+    if $n->num_locks > 0
       set $i = 0
       while $i < $n->num_locks
-         if $n->locks[$i]->suspended == 0
-            if ((ast_mutex_t *)$n->locks[$i]->lock_addr)->tracking
-               if $n->locks[$i]->type > 0
-                  set $track = ((ast_rwlock_t *)$n->locks[$i]->lock_addr)->track
-               else
-                  set $track = ((ast_mutex_t *)$n->locks[$i]->lock_addr)->track
-               end
-            end
-            set $reentrancy = $track->reentrancy
-            set $pending = $n->locks[$i]->pending
-            if $argc > 0
-               printf "%p,%d,%s,%d,%s,%s,%d,%p,%d,%d,%d",\
-                  $n->thread_id, $n->locks[$i]->pending, $n->locks[$i]->file, $n->locks[$i]->line_num, $n->locks[$i]->func,\
-                  $n->locks[$i]->lock_name, $n->locks[$i]->type, $n->locks[$i]->lock_addr, $n->locks[$i]->times_locked,\
-                  $n->locks[$i]->suspended, $track->reentrancy
-               if $reentrancy
-                  if $pending
-                     printf ",%s,%d,%s,%p", $track->file[0], $track->lineno[0], $track->func[0], $track->thread[0]
-                  end
-               end
+        if $n->locks[$i]->suspended != 47
+          if $n->locks[$i]->pending > 0
+            set $status = "waiting"
+          end
+          if $n->locks[$i]->pending < 0
+            set $status = "failed"
+          end
+          if $n->locks[$i]->pending == 0
+            set $status = "holding"
+          end
+
+          if $n->locks[$i]->type == 0
+            set $ltype = "M"
+          end
+          if $n->locks[$i]->type == 1
+            set $ltype = "RD"
+          end
+          if $n->locks[$i]->type == 2
+            set $ltype = "WR"
+          end
+
+          if ((ast_mutex_t *)$n->locks[$i]->lock_addr)->track
+            if $n->locks[$i]->type > 0
+              set $track = ((ast_rwlock_t *)$n->locks[$i]->lock_addr)->track
             else
-               if $n->locks[$i]->pending < 0
-                  printf "%p failed   %-20s %6d %-36s %-20s %d %14p %3d %d %d",\
-                     $n->thread_id,\
-                     $n->locks[$i]->file, $n->locks[$i]->line_num, $n->locks[$i]->func,\
-                     $n->locks[$i]->lock_name, $n->locks[$i]->type, $n->locks[$i]->lock_addr, $n->locks[$i]->times_locked,\
-                     $n->locks[$i]->suspended, $track->reentrancy
-               end
-               if $n->locks[$i]->pending == 0
-                  printf "%p holding  %-20s %6d %-36s %-20s %d %14p %3d %d %d",\
-                     $n->thread_id,\
-                     $n->locks[$i]->file, $n->locks[$i]->line_num, $n->locks[$i]->func,\
-                     $n->locks[$i]->lock_name, $n->locks[$i]->type, $n->locks[$i]->lock_addr, $n->locks[$i]->times_locked,\
-                     $n->locks[$i]->suspended, $track->reentrancy
-               end
-               if $n->locks[$i]->pending > 0
-                  printf "%p waiting  %-20s %6d %-36s %-20s %d %14p %3d %d %d",\
-                     $n->thread_id,\
-                     $n->locks[$i]->file, $n->locks[$i]->line_num, $n->locks[$i]->func,\
-                     $n->locks[$i]->lock_name, $n->locks[$i]->type, $n->locks[$i]->lock_addr, $n->locks[$i]->times_locked,\
-                     $n->locks[$i]->suspended, $track->reentrancy
-               end
-               if $reentrancy
-                  if $pending
-                     printf "\n               held at: %-20s %6d %-36s by 0x%08lx", $track->file[0], $track->lineno[0], $track->func[0], $track->thread_id[0]
-                  end
-               end
+              set $track = ((ast_mutex_t *)$n->locks[$i]->lock_addr)->track
             end
-            printf "\n"
-         end
-         set $i = $i + 1
+          end
+          if $track
+            set $reentrancy = $track->reentrancy
+          else
+            set $reentrancy = 0
+          end
+          set $pending = $n->locks[$i]->pending
+          if $argc > 0
+            printf "%p,%d,%s,%d,%s,%s,%d,%p,%d,%d,%d",\
+              $n->thread_id, $n->locks[$i]->pending, $n->locks[$i]->file, $n->locks[$i]->line_num, $n->locks[$i]->func,\
+              $n->locks[$i]->lock_name, $n->locks[$i]->type, $n->locks[$i]->lock_addr, $n->locks[$i]->times_locked,\
+              $n->locks[$i]->suspended, $reentrancy
+            if $reentrancy && $pending
+              printf ",%s,%d,%s,%p", $track->file[0], $track->lineno[0], $track->func[0], $track->thread[0]
+            end
+          else
+            printf "%14p %-36s %6d %-42s %-8s %-36s %3s %-14p %3d %3d %3d", \
+              $n->thread_id, $n->locks[$i]->file, $n->locks[$i]->line_num, $n->locks[$i]->func, $status, \
+              $n->locks[$i]->lock_name, $ltype, $n->locks[$i]->lock_addr, $n->locks[$i]->times_locked,\
+              $n->locks[$i]->suspended, $reentrancy
+            if $reentrancy && $pending
+              printf "\n               held at: %s:%d %s() by 0x%08lx", \
+                $track->file[0], $track->lineno[0], $track->func[0], $track->thread_id[0]
+            end
+          end
+          printf "\n"
+        end
+        set $i = $i + 1
       end
     end
     set $n = $n->entry->next
   end
 end
-
-dump-asterisk
