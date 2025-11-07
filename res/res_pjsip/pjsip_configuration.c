@@ -601,6 +601,80 @@ static int redirect_method_to_str(const void *obj, const intptr_t *args, char **
 	return 0;
 }
 
+/*!
+ * \brief Mapping of SIP method names to their corresponding redirect flags
+ */
+struct redirect_method_map {
+	const char *method_name;
+	enum ast_sip_redirect_method flag;
+};
+
+static const struct redirect_method_map redirect_method_mappings[] = {
+	{ "message", AST_SIP_REDIRECT_METHOD_MESSAGE },
+};
+
+static int follow_redirect_methods_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
+{
+	struct ast_sip_endpoint *endpoint = obj;
+	char *methods;
+	char *method;
+	int i;
+
+	/* Clear any existing flags */
+	ast_clear_flag(&endpoint->follow_redirect_methods, ~0);
+
+	if (ast_strlen_zero(var->value)) {
+		return 0;
+	}
+
+	methods = ast_strdupa(var->value);
+	while ((method = ast_strsep(&methods, ',', AST_STRSEP_TRIM))) {
+		int found = 0;
+
+		/* Look up the method in our mapping table */
+		for (i = 0; i < ARRAY_LEN(redirect_method_mappings); i++) {
+			if (!strcasecmp(method, redirect_method_mappings[i].method_name)) {
+				ast_set_flag(&endpoint->follow_redirect_methods, redirect_method_mappings[i].flag);
+				found = 1;
+				break;
+			}
+		}
+
+		if (!found) {
+			ast_log(LOG_ERROR, "Unrecognized SIP method '%s' for follow_redirect_methods on endpoint %s\n",
+				method, ast_sorcery_object_get_id(endpoint));
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
+static int follow_redirect_methods_to_str(const void *obj, const intptr_t *args, char **buf)
+{
+	const struct ast_sip_endpoint *endpoint = obj;
+	struct ast_str *str = ast_str_create(64);
+	int first = 1;
+	int i;
+
+	if (!str) {
+		return -1;
+	}
+
+	/* Iterate through all supported methods and append if flag is set */
+	for (i = 0; i < ARRAY_LEN(redirect_method_mappings); i++) {
+		if (ast_test_flag(&endpoint->follow_redirect_methods, redirect_method_mappings[i].flag)) {
+			ast_str_append(&str, 0, "%s%s", first ? "" : ",", redirect_method_mappings[i].method_name);
+			first = 0;
+		}
+	}
+
+	*buf = ast_strdup(ast_str_buffer(str));
+	ast_free(str);
+
+	return 0;
+}
+
 static int direct_media_method_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
 {
 	struct ast_sip_endpoint *endpoint = obj;
@@ -2253,6 +2327,7 @@ int ast_res_pjsip_initialize_configuration(void)
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "media_encryption_optimistic", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, media.rtp.encryption_optimistic));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "g726_non_standard", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, media.g726_non_standard));
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "redirect_method", "user", redirect_method_handler, redirect_method_to_str, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "follow_redirect_methods", "", follow_redirect_methods_handler, follow_redirect_methods_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "set_var", "", set_var_handler, set_var_to_str, set_var_to_vl, 0, 0);
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "message_context", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, message_context));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "accountcode", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, accountcode));
