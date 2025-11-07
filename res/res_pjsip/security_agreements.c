@@ -213,32 +213,6 @@ void ast_sip_remove_headers_by_name_and_value(pjsip_msg *msg, const pj_str_t *hd
 	}
 }
 
-/*!
- * \internal
- * \brief Parses a string representing a q_value to a float.
- *
- * Valid q values must be in the range from 0.0 to 1.0 inclusively.
- *
- * \param q_value
- * \retval The parsed qvalue or -1.0 on failure.
- */
-static float parse_qvalue(const char *q_value) {
-	char *end;
-	float ret = strtof(q_value, &end);
-
-	if (end == q_value) {
-		/* Not a number. */
-		return -1.0;
-	} else if ('\0' != *end) {
-		/* Extra character at end of input. */
-		return -1.0;
-	} else if (ret > 1.0 || ret < 0.0) {
-		/* Out of valid range. */
-		return -1.0;
-	}
-	return ret;
-}
-
 int ast_sip_str_to_security_mechanism(struct ast_sip_security_mechanism **security_mechanism, const char *value) {
 	struct ast_sip_security_mechanism *mech;
 	char *param;
@@ -267,7 +241,7 @@ int ast_sip_str_to_security_mechanism(struct ast_sip_security_mechanism **securi
 			goto out;
 		}
 		if (!strncmp(param, "q=", 2)) {
-			mech->qvalue = parse_qvalue(&param[2]);
+			mech->qvalue = ast_sip_parse_qvalue(&param[2]);
 			if (mech->qvalue < 0.0) {
 				err = EINVAL;
 				goto out;
