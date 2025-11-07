@@ -170,7 +170,12 @@ static struct ast_frame *dtmf_store_framehook(struct ast_channel *chan,
 		return f;
 	}
 
-	sprintf(varnamesub, "${%s}", varname);
+	len = snprintf(varnamesub, sizeof(varnamesub), "${%s}", varname);
+	if (len >= sizeof(varnamesub)) {
+		/* Not enough room, bail out */
+		return f;
+	}
+
 	pbx_substitute_variables_helper(chan, varnamesub, currentdata, 511);
 	/* pbx_builtin_getvar_helper works for regular vars but not CDR vars */
 	if (ast_strlen_zero(currentdata)) { /* var doesn't exist yet */
