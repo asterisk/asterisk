@@ -3498,6 +3498,25 @@ struct pjsip_param *ast_sip_pjsip_uri_get_other_param(pjsip_uri *uri, const pj_s
 	return NULL;
 }
 
+float ast_sip_parse_qvalue(const char *q_value) {
+	char *end = NULL;
+	float ret = strtof(q_value, &end);
+
+	if (end == q_value) {
+		return -1.0f; /* Not a number. */
+	}
+	if ('\0' != *end) {
+		return -1.0f; /* Extra characters at end of input. */
+	}
+	if (!isfinite(ret)) {
+		return -1.0f; /* NaN or Infinity. */
+	}
+	if (ret > 1.0f || ret < 0.0f) {
+		return -1.0f; /* Out of valid range. */
+	}
+	return ret;
+}
+
 /*! \brief Convert SIP hangup causes to Asterisk hangup causes */
 const int ast_sip_hangup_sip2cause(int cause)
 {
