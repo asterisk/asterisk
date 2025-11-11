@@ -2434,10 +2434,10 @@ static char *stasis_show_topics(struct ast_cli_entry *e, int cmd, struct ast_cli
 
 	ast_cli(a->fd, "\n" FMT_HEADERS, "Name", "Detail");
 
-	tmp_container = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK, 0,
+	tmp_container = ao2_container_alloc_rbtree(AO2_ALLOC_OPT_LOCK_NOLOCK, 0,
 				topic_proxy_sort_fn, NULL);
 
-	if (!tmp_container || ao2_container_dup(tmp_container, topic_all, OBJ_SEARCH_OBJECT)) {
+	if (!tmp_container || ao2_container_dup(tmp_container, topic_all, 0)) {
 		ao2_cleanup(tmp_container);
 
 		return NULL;
