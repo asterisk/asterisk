@@ -1,0 +1,61 @@
+<html><head><title>ChangeLog for asterisk-23.1.0-rc2</title></head><body>
+<h2>Change Log for Release asterisk-23.1.0-rc2</h2>
+<h3>Links:</h3>
+<ul>
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-23.1.0-rc2.html">Full ChangeLog</a>  </li>
+<li><a href="https://github.com/asterisk/asterisk/compare/23.1.0-rc1...23.1.0-rc2">GitHub Diff</a>  </li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-23.1.0-rc2.tar.gz">Tarball</a>  </li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk">Downloads</a>  </li>
+</ul>
+<h3>Summary:</h3>
+<ul>
+<li>Commits: 1</li>
+<li>Commit Authors: 1</li>
+<li>Issues Resolved: 1</li>
+<li>Security Advisories Resolved: 0</li>
+</ul>
+<h3>User Notes:</h3>
+<h3>Upgrade Notes:</h3>
+<h3>Developer Notes:</h3>
+<h3>Commit Authors:</h3>
+<ul>
+<li>George Joseph: (1)</li>
+</ul>
+<h2>Issue and Commit Detail:</h2>
+<h3>Closed Issues:</h3>
+<ul>
+<li>1578: [bug]: Deadlock with externalMedia custom channel id and cpp map channel backend</li>
+</ul>
+<h3>Commits By Author:</h3>
+<ul>
+<li>
+<h4>George Joseph (1):</h4>
+</li>
+</ul>
+<h3>Commit List:</h3>
+<ul>
+<li>channelstorage:  Allow storage driver read locking to be skipped.</li>
+</ul>
+<h3>Commit Details:</h3>
+<h4>channelstorage:  Allow storage driver read locking to be skipped.</h4>
+<p>Author: George Joseph
+  Date:   2025-11-06</p>
+<p>After PR #1498 added read locking to channelstorage_cpp_map_name_id, if ARI
+  channels/externalMedia was called with a custom channel id AND the
+  cpp_map_name_id channel storage backend is in use, a deadlock can occur when
+  hanging up the channel. It's actually triggered in
+  channel.c:__ast_channel_alloc_ap() when it gets a write lock on the
+  channelstorage driver then subsequently does a lookup for channel uniqueid
+  which now does a read lock. This is an invalid operation and causes the lock
+  state to get "bad". When the channels try to hang up, a write lock is
+  attempted again which hangs and causes the deadlock.</p>
+<p>Now instead of the cpp_map_name_id channelstorage driver "get" APIs
+  automatically performing a read lock, they take a "lock" parameter which
+  allows a caller who already has a write lock to indicate that the "get" API
+  must not attempt its own lock.  This prevents the state from getting mesed up.</p>
+<p>The ao2_legacy driver uses the ao2 container's recursive mutex so doesn't
+  have this issue but since it also implements the common channelstorage API,
+  it needed its "get" implementations updated to take the lock parameter. They
+  just don't use it.</p>
+<p>Resolves: #1578</p>
+</body></html>
