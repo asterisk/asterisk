@@ -1042,7 +1042,7 @@ int ast_unreal_hangup(struct ast_unreal_pvt *p, struct ast_channel *ast)
 		ast_clear_flag(p, AST_UNREAL_CARETAKER_THREAD);
 		p->chan = NULL;
 		if (p->owner) {
-			const char *status = pbx_builtin_getvar_helper(p->chan, "DIALSTATUS");
+			const char *status = pbx_builtin_getvar_helper(chan, "DIALSTATUS");
 
 			if (status) {
 				ast_channel_hangupcause_set(p->owner, cause);
