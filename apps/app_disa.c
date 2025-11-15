@@ -388,8 +388,11 @@ static int disa_exec(struct ast_channel *chan, const char *data)
 				ast_channel_unlock(chan);
 			}
 
-			if (ast_pbx_exec_application(chan, "ResetCDR", special_noanswer ? "" : "e")) {
-				ast_log(AST_LOG_NOTICE, "ResetCDR application not found; CDR will not be reset\n");
+			if (ast_pbx_exec_application(chan, "ResetCDR", "")) {
+				ast_log(LOG_WARNING, "ResetCDR application not found; CDR will not be reset\n");
+			}
+			if (!special_noanswer && ast_func_write(chan, "CDR_PROP(disable)", "0")) {
+				ast_log(LOG_WARNING, "CDR_PROP not found, CDR will not be re-enabled\n");
 			}
 			ast_explicit_goto(chan, args.context, exten, 1);
 			return 0;
