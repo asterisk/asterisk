@@ -498,7 +498,7 @@ void ast_softhangup_all(void)
 /*! \brief returns number of active/allocated channels */
 int ast_active_channels(void)
 {
-	return current_channel_storage_instance ? CHANNELSTORAGE_API(current_channel_storage_instance, active_channels, 1) : 0;
+	return current_channel_storage_instance ? CHANNELSTORAGE_API(current_channel_storage_instance, active_channels) : 0;
 }
 
 int ast_undestroyed_channels(void)
@@ -707,7 +707,7 @@ static const struct ast_channel_tech null_tech = {
 static void ast_channel_destructor(void *obj);
 static void ast_dummy_channel_destructor(void *obj);
 
-static int do_ids_conflict(const struct ast_assigned_ids *assignedids, int rdlock)
+static int do_ids_conflict(const struct ast_assigned_ids *assignedids)
 {
 	struct ast_channel *conflict;
 
@@ -717,7 +717,7 @@ static int do_ids_conflict(const struct ast_assigned_ids *assignedids, int rdloc
 
 	if (!ast_strlen_zero(assignedids->uniqueid)) {
 		conflict = CHANNELSTORAGE_API(current_channel_storage_instance,
-			get_by_uniqueid, assignedids->uniqueid, rdlock);
+			get_by_uniqueid, assignedids->uniqueid);
 		if (conflict) {
 			ast_log(LOG_ERROR, "Channel Unique ID '%s' already in use by channel %s(%p)\n",
 				assignedids->uniqueid, ast_channel_name(conflict), conflict);
@@ -728,7 +728,7 @@ static int do_ids_conflict(const struct ast_assigned_ids *assignedids, int rdloc
 
 	if (!ast_strlen_zero(assignedids->uniqueid2)) {
 		conflict = CHANNELSTORAGE_API(current_channel_storage_instance,
-			get_by_uniqueid, assignedids->uniqueid2, rdlock);
+			get_by_uniqueid, assignedids->uniqueid2);
 		if (conflict) {
 			ast_log(LOG_ERROR, "Channel Unique ID2 '%s' already in use by channel %s(%p)\n",
 				assignedids->uniqueid2, ast_channel_name(conflict), conflict);
@@ -933,7 +933,7 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 
 	CHANNELSTORAGE_API(current_channel_storage_instance, wrlock);
 
-	if (do_ids_conflict(assignedids, 0)) {
+	if (do_ids_conflict(assignedids)) {
 		ast_channel_internal_errno_set(AST_CHANNEL_ERROR_ID_EXISTS);
 		ast_channel_unlock(tmp);
 		CHANNELSTORAGE_API(current_channel_storage_instance, unlock);
@@ -1342,7 +1342,7 @@ struct ast_channel *ast_channel_callback(
 		ast_log(LOG_ERROR, "callback function must be provided\n");
 		return NULL;
 	}
-	return CHANNELSTORAGE_API(current_channel_storage_instance, callback, cb_fn, arg, data, ao2_flags, 1);
+	return CHANNELSTORAGE_API(current_channel_storage_instance, callback, cb_fn, arg, data, ao2_flags);
 }
 
 struct ast_channel_iterator *ast_channel_iterator_destroy(struct ast_channel_iterator *i)
@@ -1406,7 +1406,7 @@ struct ast_channel *ast_channel_get_by_name_prefix(const char *name, size_t name
 		return NULL;
 	}
 
-	return CHANNELSTORAGE_API(current_channel_storage_instance, get_by_name_prefix_or_uniqueid, name, name_len, 1);
+	return CHANNELSTORAGE_API(current_channel_storage_instance, get_by_name_prefix_or_uniqueid, name, name_len);
 }
 
 /*
@@ -1423,7 +1423,7 @@ struct ast_channel *ast_channel_get_by_name(const char *name)
 		return NULL;
 	}
 
-	return CHANNELSTORAGE_API(current_channel_storage_instance, get_by_name_prefix_or_uniqueid, name, 0, 1);
+	return CHANNELSTORAGE_API(current_channel_storage_instance, get_by_name_prefix_or_uniqueid, name, 0);
 }
 
 struct ast_channel *ast_channel_get_by_exten(const char *exten, const char *context)
@@ -1435,7 +1435,7 @@ struct ast_channel *ast_channel_get_by_exten(const char *exten, const char *cont
 		ast_log(LOG_ERROR, "exten and context must be provided\n");
 		return NULL;
 	}
-	return CHANNELSTORAGE_API(current_channel_storage_instance, get_by_exten, exten, context, 1);
+	return CHANNELSTORAGE_API(current_channel_storage_instance, get_by_exten, exten, context);
 }
 
 struct ast_channel *ast_channel_get_by_uniqueid(const char *uniqueid)
@@ -1447,7 +1447,7 @@ struct ast_channel *ast_channel_get_by_uniqueid(const char *uniqueid)
 		ast_log(LOG_ERROR, "uniqueid must be provided\n");
 		return NULL;
 	}
-	return CHANNELSTORAGE_API(current_channel_storage_instance, get_by_uniqueid, uniqueid, 1);
+	return CHANNELSTORAGE_API(current_channel_storage_instance, get_by_uniqueid, uniqueid);
 }
 
 int ast_is_deferrable_frame(const struct ast_frame *frame)

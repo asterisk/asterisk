@@ -82,21 +82,17 @@ ifeq ($(CC),gcc)
 	endif
 endif
 
-ifeq ($(findstring DONT_OPTIMIZE,$(MENUSELECT_CFLAGS))$(findstring CODE_COVERAGE,$(MENUSELECT_CFLAGS))$(findstring CODE_PROFILE,$(MENUSELECT_CFLAGS))$(AST_CODE_COVERAGE),no)
+ifeq ($(findstring DONT_OPTIMIZE,$(MENUSELECT_CFLAGS))$(AST_CODE_COVERAGE),no)
     _ASTCFLAGS+=$(OPTIMIZE)
 else
     _ASTCFLAGS+=-O0
 endif
 
-ifeq ($(findstring CODE_COVERAGE,$(MENUSELECT_CFLAGS))$(AST_CODE_COVERAGE),no)
-    _ASTCFLAGS_COVERAGE=
-else
+ifeq ($(AST_CODE_COVERAGE),yes)
     _ASTCFLAGS_COVERAGE=-ftest-coverage -fprofile-arcs
     _ASTLDFLAGS+=-ftest-coverage -fprofile-arcs
-endif
-
-ifneq ($(findstring KEEP_FRAME_POINTERS,$(MENUSELECT_CFLAGS)),)
-    _ASTCFLAGS+=-fno-omit-frame-pointer
+else
+    _ASTCFLAGS_COVERAGE=
 endif
 
 ifeq ($(findstring $(CONFIG_CFLAGS),$(_ASTCFLAGS)),)

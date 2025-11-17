@@ -2213,10 +2213,9 @@ static int external_media_websocket(struct ast_ari_channels_external_media_args 
 	struct ast_channel *chan;
 	struct varshead *vars;
 
-	if (ast_asprintf(&endpoint, "WebSocket/%s%s%s",
+	if (ast_asprintf(&endpoint, "WebSocket/%s/c(%s)",
 			args->external_host,
-			S_COR(args->transport_data, "/", ""),
-			S_OR(args->transport_data, "")) == -1) {
+			args->format) == -1) {
 		return 1;
 	}
 

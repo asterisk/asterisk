@@ -58,13 +58,13 @@ static int delete_channel(struct ast_channelstorage_instance *driver,
 }
 
 /*! \brief returns number of active/allocated channels */
-static int active_channels(struct ast_channelstorage_instance *driver, int rdlock)
+static int active_channels(struct ast_channelstorage_instance *driver)
 {
 	return getdb(driver) ? ao2_container_count(getdb(driver)) : 0;
 }
 
 static struct ast_channel *callback(struct ast_channelstorage_instance *driver,
-	ao2_callback_data_fn *cb_fn, void *arg, void *data, int ao2_flags, int rdlock)
+	ao2_callback_data_fn *cb_fn, void *arg, void *data, int ao2_flags)
 {
 	return ao2_callback_data(getdb(driver), ao2_flags, cb_fn, arg, data);
 }
@@ -161,7 +161,7 @@ static struct ast_channel_iterator *iterator_by_exten_new(struct ast_channelstor
 	}
 
 	i->active_iterator = (void *) callback(driver, by_exten_cb,
-		l_context, l_exten, OBJ_MULTIPLE, 1);
+		l_context, l_exten, OBJ_MULTIPLE);
 	if (!i->active_iterator) {
 		ast_free(i);
 		return NULL;
@@ -182,7 +182,7 @@ static struct ast_channel_iterator *iterator_by_name_new(struct ast_channelstora
 
 	i->active_iterator = (void *) callback(driver, by_name_cb,
 		l_name, &name_len,
-		OBJ_MULTIPLE | (name_len == 0 /* match the whole word, so optimize */ ? OBJ_KEY : 0), 1);
+		OBJ_MULTIPLE | (name_len == 0 /* match the whole word, so optimize */ ? OBJ_KEY : 0));
 	if (!i->active_iterator) {
 		ast_free(i);
 		return NULL;
@@ -212,17 +212,17 @@ static struct ast_channel *iterator_next(struct ast_channelstorage_instance *dri
 }
 
 static struct ast_channel *get_by_uniqueid(struct ast_channelstorage_instance *driver,
-	const char *uniqueid, int lock)
+	const char *uniqueid)
 {
 	char *l_name = (char *) uniqueid;
 	size_t name_len = strlen(uniqueid);
 
-	struct ast_channel *chan = callback(driver, by_uniqueid_cb, l_name, &name_len, 0, lock);
+	struct ast_channel *chan = callback(driver, by_uniqueid_cb, l_name, &name_len, 0);
 	return chan;
 }
 
 static struct ast_channel *get_by_name_prefix(struct ast_channelstorage_instance *driver,
-	const char *name, size_t name_len, int lock)
+	const char *name, size_t name_len)
 {
 	struct ast_channel *chan;
 	char *l_name = (char *) name;
@@ -233,23 +233,23 @@ static struct ast_channel *get_by_name_prefix(struct ast_channelstorage_instance
 	}
 
 	chan = callback(driver, by_name_cb, l_name, &name_len,
-		(name_len == 0) /* optimize if it is a complete name match */ ? OBJ_KEY : 0, lock);
+		(name_len == 0) /* optimize if it is a complete name match */ ? OBJ_KEY : 0);
 	if (chan) {
 		return chan;
 	}
 
 	/* Now try a search for uniqueid. */
-	chan = callback(driver, by_uniqueid_cb, l_name, &name_len, 0, lock);
+	chan = callback(driver, by_uniqueid_cb, l_name, &name_len, 0);
 	return chan;
 }
 
 static struct ast_channel *get_by_exten(struct ast_channelstorage_instance *driver,
-	const char *exten, const char *context, int rdlock)
+	const char *exten, const char *context)
 {
 	char *l_exten = (char *) exten;
 	char *l_context = (char *) context;
 
-	return callback(driver, by_exten_cb, l_context, l_exten, 0, rdlock);
+	return callback(driver, by_exten_cb, l_context, l_exten, 0);
 }
 
 static int hash_cb(const void *obj, const int flags)

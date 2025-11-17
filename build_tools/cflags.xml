@@ -5,8 +5,6 @@
 		</member>
 		<member name="COMPILE_DOUBLE" displayname="Pre-compile with optimizations to detect errors, then discard and recompile with DONT_OPTIMIZE.  Creates intermediate .i files">
 			<depend>DONT_OPTIMIZE</depend>
-			<conflict>KEEP_FRAME_POINTERS</conflict>
-			<conflict>CODE_COVERAGE</conflict>
 			<support_level>core</support_level>
 		</member>
 		<member name="DEBUG_THREADS" displayname="Enable Thread Debugging">
@@ -134,13 +132,4 @@
 			<support_level>core</support_level>
 			<defaultenabled>no</defaultenabled>
 		</member>
-		<member name="KEEP_FRAME_POINTERS" displayname="Set -fno-omit-frame-pointers to Facilitate Debugging and Tracing with 'perf'">
-			<conflict>COMPILE_DOUBLE</conflict>
-			<support_level>core</support_level>
-		</member>
-		<member name="CODE_COVERAGE" displayname="Set -ftest-coverage -fprofile-arcs to Enable gcov Code Coverage">
-			<support_level>extended</support_level>
-			<depend>DONT_OPTIMIZE</depend>
-		</member>
-
 	</category>

@@ -2270,7 +2270,7 @@ static void softmix_bridge_stream_sources_update(struct ast_bridge *bridge, stru
 
 	added_streams = ast_stream_topology_alloc();
 	if (!added_streams) {
-		SCOPE_EXIT_LOG_RTN(LOG_ERROR, "%s: Couldn't alloc topology\n", ast_channel_name(bridge_channel->chan));
+		SCOPE_EXIT_LOG(LOG_ERROR, "%s: Couldn't alloc topology\n", ast_channel_name(bridge_channel->chan));
 	}
 
 	/* We go through the old topology comparing it to the new topology to determine what streams
