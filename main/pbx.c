@@ -6614,6 +6614,10 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, struct ast_
 	/* Create all applicable autohint contexts */
 	context_table_create_autohints(contexts_table);
 
+	/* ctx_count is still the number of old contexts before the merge,
+	 * use the new count when we tell the user how many contexts exist. */
+	ctx_count = ast_hashtab_size(contexts_table);
+
 	ao2_unlock(hints);
 	ast_unlock_contexts();
 
