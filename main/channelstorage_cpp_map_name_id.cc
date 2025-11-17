@@ -139,7 +139,7 @@ static int delete_channel(struct ast_channelstorage_instance *driver,
 }
 
 /*! \brief returns number of active/allocated channels */
-static int active_channels(struct ast_channelstorage_instance *driver)
+static int active_channels(struct ast_channelstorage_instance *driver, int lock)
 {
 	int count = 0;
 
@@ -147,15 +147,19 @@ static int active_channels(struct ast_channelstorage_instance *driver)
 		return 0;
 	}
 
-	rdlock(driver);
+	if (lock) {
+		rdlock(driver);
+	}
 	count = getdb(driver).size();
-	unlock(driver);
+	if (lock) {
+		unlock(driver);
+	}
 
 	return count;
 }
 
 static struct ast_channel *callback(struct ast_channelstorage_instance *driver,
-	ao2_callback_data_fn *cb_fn, void *arg, void *data, int ao2_flags)
+	ao2_callback_data_fn *cb_fn, void *arg, void *data, int ao2_flags, int lock)
 {
 	struct ast_channel *chan = NULL;
 	ChannelMap::const_iterator it;
@@ -164,18 +168,21 @@ static struct ast_channel *callback(struct ast_channelstorage_instance *driver,
 		return NULL;
 	}
 
-	rdlock(driver);
+	if (lock) {
+		rdlock(driver);
+	}
 	for (it = getdb(driver).begin(); it != getdb(driver).end(); it++) {
 		chan = it->second;
 		if (cb_fn(chan, arg, data, ao2_flags) == (CMP_MATCH | CMP_STOP)) {
 			ao2_bump(chan);
-			unlock(driver);
-			return chan;
+			break;
 		}
 	}
-	unlock(driver);
+	if (lock) {
+		unlock(driver);
+	}
 
-	return NULL;
+	return chan;
 }
 
 enum cpp_map_iterator_type {
@@ -460,7 +467,7 @@ static struct ast_channel_iterator *iterator_by_exten_new(struct ast_channelstor
 }
 
 static struct ast_channel *get_by_uniqueid(struct ast_channelstorage_instance *driver,
-	const char *uniqueid)
+	const char *uniqueid, int lock)
 {
 	struct ast_channel *chan = NULL;
 	char *search = uniqueid ? ast_str_to_lower(ast_strdupa(uniqueid)) : NULL;
@@ -469,18 +476,22 @@ static struct ast_channel *get_by_uniqueid(struct ast_channelstorage_instance *d
 		return NULL;
 	}
 
-	rdlock(driver);
+	if (lock) {
+		rdlock(driver);
+	}
 	auto rtn = map_by_id(driver).find(search);
 	if (rtn != map_by_id(driver).end()) {
 		chan = ao2_bump((struct ast_channel *)rtn->second);
 	}
-	unlock(driver);
+	if (lock) {
+		unlock(driver);
+	}
 
 	return chan;
 }
 
 static struct ast_channel *get_by_name_exact(struct ast_channelstorage_instance *driver,
-	const char *name)
+	const char *name, int lock)
 {
 	struct ast_channel *chan = NULL;
 	char *search = name ? ast_str_to_lower(ast_strdupa(name)) : NULL;
@@ -489,35 +500,43 @@ static struct ast_channel *get_by_name_exact(struct ast_channelstorage_instance 
 		return NULL;
 	}
 
-	rdlock(driver);
+	if (lock) {
+		rdlock(driver);
+	}
 	auto rtn = getdb(driver).find(search);
 	if (rtn != getdb(driver).end()) {
 		chan = ao2_bump((struct ast_channel *)rtn->second);
 	}
-	unlock(driver);
+	if (lock) {
+		unlock(driver);
+	}
 
 	return chan;
 }
 
 static struct ast_channel *get_by_name_prefix(struct ast_channelstorage_instance *driver,
-	const char *name, size_t name_len)
+	const char *name, size_t name_len, int lock)
 {
 	struct ast_channel *chan = NULL;
 	char *l_name = NULL;
 
 	if (name_len == 0) {
-		chan = get_by_name_exact(driver, name);
+		chan = get_by_name_exact(driver, name, lock);
 		return chan;
 	}
 
 	l_name = ast_str_to_lower(ast_strdupa(name));
 
-	rdlock(driver);
+	if (lock) {
+		rdlock(driver);
+	}
 	auto rtn = getdb(driver).lower_bound(l_name);
 	if (rtn != getdb(driver).end()) {
 		chan = ao2_bump((struct ast_channel *)rtn->second);
 	}
-	unlock(driver);
+	if (lock) {
+		unlock(driver);
+	}
 
 	return chan;
 }

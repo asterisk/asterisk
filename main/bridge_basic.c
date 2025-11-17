@@ -2382,6 +2382,7 @@ static enum attended_transfer_state blond_nonfinal_exit(struct attended_transfer
 		 * so we remove it if present as it should not exist.
 		 */
 		remove_attended_transfer_stimulus(props, STIMULUS_RECALL_TARGET_ANSWER);
+		/* fall through */
 	case STIMULUS_RECALL_TARGET_HANGUP:
 		props->recall_target = ast_channel_unref(props->recall_target);
 		return TRANSFER_RECALLING;
@@ -2689,6 +2690,7 @@ static enum attended_transfer_state retransfer_exit(struct attended_transfer_pro
 		return TRANSFER_FAIL;
 	case STIMULUS_TIMEOUT:
 		ast_softhangup(props->recall_target, AST_SOFTHANGUP_EXPLICIT);
+		/* fall through */
 	case STIMULUS_RECALL_TARGET_HANGUP:
 		props->recall_target = ast_channel_unref(props->recall_target);
 		if (props->atxferloopdelay) {
