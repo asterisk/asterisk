@@ -732,7 +732,9 @@ static int local_call(struct ast_channel *ast, const char *dest, int timeout)
 	if ((slash = strrchr(reduced_dest, '/'))) {
 		*slash = '\0';
 	}
-	ast_set_cc_interfaces_chanvar(chan, reduced_dest);
+	if (ast_cc_is_enabled()) {
+		ast_set_cc_interfaces_chanvar(chan, reduced_dest);
+	}
 
 	ao2_unlock(p);
 	pvt_locked = 0;
