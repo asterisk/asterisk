@@ -115,6 +115,16 @@
  * them here at the top is easiest.
  */
 
+static int global_enabled;
+
+#define RETURN_IF_NOT_ENABLED(rc) \
+({ \
+	if (!global_enabled) { \
+		ast_debug(3, "CCSS disabled globally\n"); \
+		return rc; \
+	} \
+})
+
 /*!
  * The ast_sched_context used for all generic CC timeouts
  */
@@ -464,6 +474,9 @@ struct ast_cc_agent *ast_cc_agent_callback(int flags, ao2_callback_fn *function,
 {
 	struct cc_callback_helper helper = {.function = function, .args = args, .type = type};
 	struct cc_core_instance *core_instance;
+
+	RETURN_IF_NOT_ENABLED(NULL);
+
 	if ((core_instance = ao2_t_callback(cc_core_instances, flags, cc_agent_callback_helper, &helper,
 					"Calling provided agent callback function"))) {
 		struct ast_cc_agent *agent = cc_ref(core_instance->agent, "An outside entity needs the agent");
@@ -687,8 +700,11 @@ void ast_cc_default_config_params(struct ast_cc_config_params *params)
 
 struct ast_cc_config_params *__ast_cc_config_params_init(const char *file, int line, const char *function)
 {
-	struct ast_cc_config_params *params = __ast_malloc(sizeof(*params), file, line, function);
+	struct ast_cc_config_params *params;
 
+	RETURN_IF_NOT_ENABLED(NULL);
+
+	params = __ast_malloc(sizeof(*params), file, line, function);
 	if (!params) {
 		return NULL;
 	}
@@ -867,7 +883,9 @@ int ast_cc_is_config_param(const char * const name)
 
 void ast_cc_copy_config_params(struct ast_cc_config_params *dest, const struct ast_cc_config_params *src)
 {
-	*dest = *src;
+	if (dest && src) {
+		*dest = *src;
+	}
 }
 
 enum ast_cc_agent_policies ast_get_cc_agent_policy(struct ast_cc_config_params *config)
@@ -1190,8 +1208,11 @@ AST_RWLIST_HEAD_STATIC(cc_monitor_backends, cc_monitor_backend);
 
 int ast_cc_monitor_register(const struct ast_cc_monitor_callbacks *callbacks)
 {
-	struct cc_monitor_backend *backend = ast_calloc(1, sizeof(*backend));
+	struct cc_monitor_backend *backend;
 
+	RETURN_IF_NOT_ENABLED(0);
+
+	backend = ast_calloc(1, sizeof(*backend));
 	if (!backend) {
 		return -1;
 	}
@@ -1224,6 +1245,9 @@ static const struct ast_cc_monitor_callbacks *find_monitor_callbacks(const char 
 void ast_cc_monitor_unregister(const struct ast_cc_monitor_callbacks *callbacks)
 {
 	struct cc_monitor_backend *backend;
+
+	RETURN_IF_NOT_ENABLED();
+
 	AST_RWLIST_WRLOCK(&cc_monitor_backends);
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&cc_monitor_backends, backend, next) {
 		if (backend->callbacks == callbacks) {
@@ -1245,8 +1269,11 @@ AST_RWLIST_HEAD_STATIC(cc_agent_backends, cc_agent_backend);
 
 int ast_cc_agent_register(const struct ast_cc_agent_callbacks *callbacks)
 {
-	struct cc_agent_backend *backend = ast_calloc(1, sizeof(*backend));
+	struct cc_agent_backend *backend;
 
+	RETURN_IF_NOT_ENABLED(0);
+
+	backend = ast_calloc(1, sizeof(*backend));
 	if (!backend) {
 		return -1;
 	}
@@ -1261,6 +1288,9 @@ int ast_cc_agent_register(const struct ast_cc_agent_callbacks *callbacks)
 void ast_cc_agent_unregister(const struct ast_cc_agent_callbacks *callbacks)
 {
 	struct cc_agent_backend *backend;
+
+	RETURN_IF_NOT_ENABLED();
+
 	AST_RWLIST_WRLOCK(&cc_agent_backends);
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&cc_agent_backends, backend, next) {
 		if (backend->callbacks == callbacks) {
@@ -1517,6 +1547,9 @@ int ast_cc_available_timer_expire(const void *data)
 {
 	struct ast_cc_monitor *monitor = (struct ast_cc_monitor *) data;
 	int res;
+
+	RETURN_IF_NOT_ENABLED(0);
+
 	monitor->available_timer_id = -1;
 	res = ast_cc_monitor_failed(monitor->core_id, monitor->interface->device_name, "Available timer expired for monitor");
 	cc_unref(monitor, "Unref reference from scheduler\n");
@@ -2019,6 +2052,8 @@ void ast_cc_extension_monitor_add_dialstring(struct ast_channel *incoming, const
 	struct cc_monitor_tree *interface_tree;
 	int id;
 
+	RETURN_IF_NOT_ENABLED();
+
 	ast_channel_lock(incoming);
 	if (!(cc_datastore = ast_channel_datastore_find(incoming, &dialed_cc_interfaces_info, NULL))) {
 		ast_channel_unlock(incoming);
@@ -2329,6 +2364,8 @@ void ast_handle_cc_control_frame(struct ast_channel *inbound, struct ast_channel
 	struct cc_control_payload *cc_data = frame_data;
 	struct cc_core_instance *core_instance;
 
+	RETURN_IF_NOT_ENABLED();
+
 	device_name = cc_data->device_name;
 	dialstring = cc_data->dialstring;
 
@@ -2439,6 +2476,12 @@ int ast_cc_call_init(struct ast_channel *chan, int *ignore_cc)
 	struct ast_cc_monitor *monitor;
 	struct ast_cc_config_params *cc_params;
 
+	if (!global_enabled) {
+		ast_debug(3, "CCSS disabled globally\n");
+		*ignore_cc = 1;
+		return 0;
+	}
+
 	ast_channel_lock(chan);
 
 	cc_params = ast_channel_get_cc_config_params(chan);
@@ -2495,6 +2538,8 @@ int ast_cc_get_current_core_id(struct ast_channel *chan)
 	struct ast_datastore *datastore;
 	struct dialed_cc_interfaces *cc_interfaces;
 	int core_id_return;
+
+	RETURN_IF_NOT_ENABLED(-1);
 
 	ast_channel_lock(chan);
 	if (!(datastore = ast_channel_datastore_find(chan, &dialed_cc_interfaces_info, NULL))) {
@@ -3410,10 +3455,13 @@ static const struct ast_datastore_info recall_ds_info = {
 
 int ast_setup_cc_recall_datastore(struct ast_channel *chan, const int core_id)
 {
-	struct ast_datastore *recall_datastore = ast_datastore_alloc(&recall_ds_info, NULL);
+	struct ast_datastore *recall_datastore;
 	struct cc_recall_ds_data *recall_data;
 	struct cc_core_instance *core_instance;
 
+	RETURN_IF_NOT_ENABLED(0);
+
+	recall_datastore = ast_datastore_alloc(&recall_ds_info, NULL);
 	if (!recall_datastore) {
 		return -1;
 	}
@@ -3449,6 +3497,8 @@ int ast_cc_is_recall(struct ast_channel *chan, int *core_id, const char * const 
 	char device_name[AST_CHANNEL_NAME];
 	struct ast_cc_monitor *device_monitor;
 	int core_id_candidate;
+
+	RETURN_IF_NOT_ENABLED(0);
 
 	ast_assert(core_id != NULL);
 
@@ -3526,6 +3576,8 @@ struct ast_cc_monitor *ast_cc_get_monitor_by_recall_core_id(const int core_id, c
 {
 	struct cc_core_instance *core_instance = find_cc_core_instance(core_id);
 	struct ast_cc_monitor *monitor_iter;
+
+	RETURN_IF_NOT_ENABLED(NULL);
 
 	if (!core_instance) {
 		return NULL;
@@ -3641,6 +3693,8 @@ int ast_cc_agent_set_interfaces_chanvar(struct ast_channel *chan)
 	struct ast_str *str = ast_str_create(64);
 	int core_id;
 
+	RETURN_IF_NOT_ENABLED(0);
+
 	if (!str) {
 		return -1;
 	}
@@ -3677,6 +3731,8 @@ int ast_set_cc_interfaces_chanvar(struct ast_channel *chan, const char * const e
 	struct cc_recall_ds_data *recall_data;
 	struct ast_str *str = ast_str_create(64);
 	int core_id;
+
+	RETURN_IF_NOT_ENABLED(0);
 
 	if (!str) {
 		return -1;
@@ -3728,6 +3784,8 @@ void ast_ignore_cc(struct ast_channel *chan)
 	struct dialed_cc_interfaces *cc_interfaces;
 	struct cc_recall_ds_data *recall_cc_data;
 
+	RETURN_IF_NOT_ENABLED();
+
 	ast_channel_lock(chan);
 	if ((cc_datastore = ast_channel_datastore_find(chan, &dialed_cc_interfaces_info, NULL))) {
 		cc_interfaces = cc_datastore->data;
@@ -3760,6 +3818,8 @@ int ast_cc_offer(struct ast_channel *caller_chan)
 	struct dialed_cc_interfaces *cc_interfaces;
 	char cc_is_offerable;
 
+	RETURN_IF_NOT_ENABLED(0);
+
 	ast_channel_lock(caller_chan);
 	if (!(datastore = ast_channel_datastore_find(caller_chan, &dialed_cc_interfaces_info, NULL))) {
 		ast_channel_unlock(caller_chan);
@@ -3782,6 +3842,8 @@ int ast_cc_agent_accept_request(int core_id, const char * const debug, ...)
 	va_list ap;
 	int res;
 
+	RETURN_IF_NOT_ENABLED(0);
+
 	va_start(ap, debug);
 	res = cc_request_state_change(CC_CALLER_REQUESTED, core_id, debug, ap);
 	va_end(ap);
@@ -3792,6 +3854,8 @@ int ast_cc_monitor_request_acked(int core_id, const char * const debug, ...)
 {
 	va_list ap;
 	int res;
+
+	RETURN_IF_NOT_ENABLED(0);
 
 	va_start(ap, debug);
 	res = cc_request_state_change(CC_ACTIVE, core_id, debug, ap);
@@ -3804,6 +3868,8 @@ int ast_cc_monitor_callee_available(const int core_id, const char * const debug,
 	va_list ap;
 	int res;
 
+	RETURN_IF_NOT_ENABLED(0);
+
 	va_start(ap, debug);
 	res = cc_request_state_change(CC_CALLEE_READY, core_id, debug, ap);
 	va_end(ap);
@@ -3814,6 +3880,8 @@ int ast_cc_agent_caller_busy(int core_id, const char * debug, ...)
 {
 	va_list ap;
 	int res;
+
+	RETURN_IF_NOT_ENABLED(0);
 
 	va_start(ap, debug);
 	res = cc_request_state_change(CC_CALLER_BUSY, core_id, debug, ap);
@@ -3826,6 +3894,8 @@ int ast_cc_agent_caller_available(int core_id, const char * const debug, ...)
 	va_list ap;
 	int res;
 
+	RETURN_IF_NOT_ENABLED(0);
+
 	va_start(ap, debug);
 	res = cc_request_state_change(CC_ACTIVE, core_id, debug, ap);
 	va_end(ap);
@@ -3836,6 +3906,8 @@ int ast_cc_agent_recalling(int core_id, const char * const debug, ...)
 {
 	va_list ap;
 	int res;
+
+	RETURN_IF_NOT_ENABLED(0);
 
 	va_start(ap, debug);
 	res = cc_request_state_change(CC_RECALLING, core_id, debug, ap);
@@ -3850,6 +3922,8 @@ int ast_cc_completed(struct ast_channel *chan, const char * const debug, ...)
 	int core_id;
 	va_list ap;
 	int res;
+
+	RETURN_IF_NOT_ENABLED(0);
 
 	ast_channel_lock(chan);
 	if (!(recall_datastore = ast_channel_datastore_find(chan, &recall_ds_info, NULL))) {
@@ -3884,6 +3958,8 @@ int ast_cc_failed(int core_id, const char * const debug, ...)
 {
 	va_list ap;
 	int res;
+
+	RETURN_IF_NOT_ENABLED(0);
 
 	va_start(ap, debug);
 	res = cc_request_state_change(CC_FAILED, core_id, debug, ap);
@@ -3948,6 +4024,8 @@ int ast_cc_monitor_failed(int core_id, const char *const monitor_name, const cha
 	int res;
 	va_list ap;
 
+	RETURN_IF_NOT_ENABLED(0);
+
 	if (!(failure_data = ast_calloc(1, sizeof(*failure_data)))) {
 		return -1;
 	}
@@ -3992,6 +4070,8 @@ int ast_cc_monitor_status_request(int core_id)
 	int res;
 	struct cc_core_instance *core_instance = find_cc_core_instance(core_id);
 
+	RETURN_IF_NOT_ENABLED(0);
+
 	if (!core_instance) {
 		return -1;
 	}
@@ -4029,6 +4109,8 @@ int ast_cc_monitor_stop_ringing(int core_id)
 	int res;
 	struct cc_core_instance *core_instance = find_cc_core_instance(core_id);
 
+	RETURN_IF_NOT_ENABLED(0);
+
 	if (!core_instance) {
 		return -1;
 	}
@@ -4056,6 +4138,8 @@ int ast_cc_monitor_party_b_free(int core_id)
 {
 	int res;
 	struct cc_core_instance *core_instance = find_cc_core_instance(core_id);
+
+	RETURN_IF_NOT_ENABLED(0);
 
 	if (!core_instance) {
 		return -1;
@@ -4099,6 +4183,8 @@ int ast_cc_agent_status_response(int core_id, enum ast_device_state devstate)
 	struct cc_status_response_args *args;
 	struct cc_core_instance *core_instance;
 	int res;
+
+	RETURN_IF_NOT_ENABLED(0);
 
 	args = ast_calloc(1, sizeof(*args));
 	if (!args) {
@@ -4158,6 +4244,8 @@ int ast_queue_cc_frame(struct ast_channel *chan, const char *monitor_type,
 	int retval;
 	struct ast_cc_config_params *cc_params;
 
+	RETURN_IF_NOT_ENABLED(0);
+
 	cc_params = ast_channel_get_cc_config_params(chan);
 	if (!cc_params) {
 		return -1;
@@ -4182,8 +4270,11 @@ int ast_cc_build_frame(struct ast_channel *chan, struct ast_cc_config_params *cc
 	const char * const dialstring, enum ast_cc_service_type service, void *private_data,
 	struct ast_frame *frame)
 {
-	struct cc_control_payload *payload = ast_calloc(1, sizeof(*payload));
+	struct cc_control_payload *payload;
 
+	RETURN_IF_NOT_ENABLED(0);
+
+	payload = ast_calloc(1, sizeof(*payload));
 	if (!payload) {
 		return -1;
 	}
@@ -4205,6 +4296,8 @@ void ast_cc_call_failed(struct ast_channel *incoming, struct ast_channel *outgoi
 	char device_name[AST_CHANNEL_NAME];
 	struct cc_control_payload payload;
 	struct ast_cc_config_params *cc_params;
+
+	RETURN_IF_NOT_ENABLED();
 
 	if (ast_channel_hangupcause(outgoing) != AST_CAUSE_BUSY && ast_channel_hangupcause(outgoing) != AST_CAUSE_CONGESTION) {
 		/* It doesn't make sense to try to offer CCBS to the caller if the reason for ast_call
@@ -4237,6 +4330,9 @@ void ast_cc_busy_interface(struct ast_channel *inbound, struct ast_cc_config_par
 	const char *monitor_type, const char * const device_name, const char * const dialstring, void *private_data)
 {
 	struct cc_control_payload payload;
+
+	RETURN_IF_NOT_ENABLED();
+
 	if (cc_build_payload(inbound, cc_params, monitor_type, device_name, dialstring, AST_CC_CCBS, private_data, &payload)) {
 		/* Something screwed up. Don't try to handle this payload */
 		call_destructor_with_no_monitor(monitor_type, private_data);
@@ -4247,8 +4343,11 @@ void ast_cc_busy_interface(struct ast_channel *inbound, struct ast_cc_config_par
 
 int ast_cc_callback(struct ast_channel *inbound, const char * const tech, const char * const dest, ast_cc_callback_fn callback)
 {
-	const struct ast_channel_tech *chantech = ast_get_channel_tech(tech);
+	const struct ast_channel_tech *chantech;
 
+	RETURN_IF_NOT_ENABLED(0);
+
+	chantech = ast_get_channel_tech(tech);
 	if (chantech && chantech->cc_callback) {
 		chantech->cc_callback(inbound, dest, callback);
 	}
@@ -4373,27 +4472,19 @@ int ast_cc_monitor_count(const char * const name, const char * const type)
 {
 	struct count_monitors_cb_data data = {.device_name = name, .monitor_type = type,};
 
+	RETURN_IF_NOT_ENABLED(0);
+
 	ao2_t_callback(cc_core_instances, OBJ_NODATA, count_monitors_cb, &data, "Counting agents");
 	ast_log_dynamic_level(cc_logger_level, "Counted %d monitors\n", data.count);
 	return data.count;
 }
 
-static void initialize_cc_max_requests(void)
+static void initialize_cc_max_requests(struct ast_config *cc_config)
 {
-	struct ast_config *cc_config;
 	const char *cc_max_requests_str;
-	struct ast_flags config_flags = {0,};
 	char *endptr;
 
-	cc_config = ast_config_load2("ccss.conf", "ccss", config_flags);
-	if (!cc_config || cc_config == CONFIG_STATUS_FILEINVALID) {
-		ast_log(LOG_WARNING, "Could not find valid ccss.conf file. Using cc_max_requests default\n");
-		global_cc_max_requests = GLOBAL_CC_MAX_REQUESTS_DEFAULT;
-		return;
-	}
-
 	if (!(cc_max_requests_str = ast_variable_retrieve(cc_config, "general", "cc_max_requests"))) {
-		ast_config_destroy(cc_config);
 		global_cc_max_requests = GLOBAL_CC_MAX_REQUESTS_DEFAULT;
 		return;
 	}
@@ -4405,7 +4496,6 @@ static void initialize_cc_max_requests(void)
 		global_cc_max_requests = GLOBAL_CC_MAX_REQUESTS_DEFAULT;
 	}
 
-	ast_config_destroy(cc_config);
 	return;
 }
 
@@ -4437,18 +4527,8 @@ static void initialize_cc_devstate_map_helper(struct ast_config *cc_config, enum
  * should use any valid device state form that is recognized by
  * ast_devstate_val() function.
  */
-static void initialize_cc_devstate_map(void)
+static void initialize_cc_devstate_map(struct ast_config *cc_config)
 {
-	struct ast_config *cc_config;
-	struct ast_flags config_flags = { 0, };
-
-	cc_config = ast_config_load2("ccss.conf", "ccss", config_flags);
-	if (!cc_config || cc_config == CONFIG_STATUS_FILEINVALID) {
-		ast_log(LOG_WARNING,
-			"Could not find valid ccss.conf file. Using cc_[state]_devstate defaults\n");
-		return;
-	}
-
 	initialize_cc_devstate_map_helper(cc_config, CC_AVAILABLE, "cc_available_devstate");
 	initialize_cc_devstate_map_helper(cc_config, CC_CALLER_OFFERED, "cc_caller_offered_devstate");
 	initialize_cc_devstate_map_helper(cc_config, CC_CALLER_REQUESTED, "cc_caller_requested_devstate");
@@ -4459,7 +4539,40 @@ static void initialize_cc_devstate_map(void)
 	initialize_cc_devstate_map_helper(cc_config, CC_COMPLETE, "cc_complete_devstate");
 	initialize_cc_devstate_map_helper(cc_config, CC_FAILED, "cc_failed_devstate");
 
+}
+
+static int load_config(void)
+{
+	struct ast_flags config_flags = { 0, };
+	const char *enabled = NULL;
+	struct ast_config *cc_config = ast_config_load2("ccss.conf", "ccss", config_flags);
+
+	global_enabled = 1;
+
+	if (!cc_config || cc_config == CONFIG_STATUS_FILEINVALID) {
+		ast_log(LOG_WARNING, "Could not find valid ccss.conf file. Using cc_max_requests and devstate defaults\n");
+		global_cc_max_requests = GLOBAL_CC_MAX_REQUESTS_DEFAULT;
+		return 0;
+	}
+
+	if ((enabled = ast_variable_retrieve(cc_config, "general", "enabled"))) {
+		global_enabled = ast_true(enabled);
+	}
+
+	if (global_enabled) {
+		initialize_cc_max_requests(cc_config);
+		initialize_cc_devstate_map(cc_config);
+	} else {
+		ast_log(LOG_NOTICE, "CCSS disabled globally\n");
+	}
 	ast_config_destroy(cc_config);
+
+	return !global_enabled;
+}
+
+int ast_cc_is_enabled(void)
+{
+	return global_enabled;
 }
 
 static void cc_cli_print_monitor_stats(struct ast_cc_monitor *monitor, int fd, int parent_id)
@@ -4626,6 +4739,10 @@ static struct ast_cli_entry cc_cli[] = {
 
 static int unload_module(void)
 {
+	if (!global_enabled) {
+		return 0;
+	}
+
 	ast_devstate_prov_del("ccss");
 	ast_cc_agent_unregister(&generic_agent_callbacks);
 	ast_cc_monitor_unregister(&generic_monitor_cbs);
@@ -4657,6 +4774,11 @@ static int unload_module(void)
 static int load_module(void)
 {
 	int res;
+
+	res = load_config();
+	if (res != 0) {
+		return AST_MODULE_LOAD_DECLINE;
+	}
 
 	cc_core_instances = ao2_t_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
 		CC_CORE_INSTANCES_BUCKETS,
@@ -4690,10 +4812,6 @@ static int load_module(void)
 	ast_cli_register_multiple(cc_cli, ARRAY_LEN(cc_cli));
 	cc_logger_level = ast_logger_register_level(CC_LOGGER_LEVEL_NAME);
 	dialed_cc_interface_counter = 1;
-	initialize_cc_max_requests();
-
-	/* Read the map and register the device state callback for generic agents */
-	initialize_cc_devstate_map();
 	res |= ast_devstate_prov_add("ccss", ccss_device_state);
 
 	return res ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_SUCCESS;
