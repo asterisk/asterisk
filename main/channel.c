@@ -10706,6 +10706,10 @@ struct ast_cc_config_params *ast_channel_get_cc_config_params(struct ast_channel
 {
 	struct ast_datastore *cc_datastore;
 
+	if (!ast_cc_is_enabled()) {
+		return NULL;
+	}
+
 	if (!(cc_datastore = ast_channel_datastore_find(chan, &cc_channel_datastore_info, NULL))) {
 		/* If we can't find the datastore, it almost definitely means that the channel type being
 		 * used has not had its driver modified to parse CC config parameters. The best action

@@ -1594,4 +1594,15 @@ typedef void (*ast_cc_callback_fn)(struct ast_channel *chan, struct ast_cc_confi
  */
 int ast_cc_callback(struct ast_channel *inbound, const char * const tech, const char * const dest, ast_cc_callback_fn callback);
 
+/*!
+ * \since 23.2.0
+ * \since 22.8.0
+ * \since 20.18.0
+ *
+ * \brief Determine if CCSS is enabled.
+ * \retval 0 Not enabled.
+ * \retval 1 Enabled
+ */
+int ast_cc_is_enabled(void);
+
 #endif /* _ASTERISK_CCSS_H */
