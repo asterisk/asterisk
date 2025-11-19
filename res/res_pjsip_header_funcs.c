@@ -52,7 +52,7 @@
 				<enumlist>
 					<enum name="read"><para>Returns instance <replaceable>number</replaceable>
 					of header <replaceable>name</replaceable>. A <literal>*</literal>
-					may be appended to <replaceable>name</replaceable> to iterate over all 
+					may be appended to <replaceable>name</replaceable> to iterate over all
 					headers <emphasis>beginning with</emphasis> <replaceable>name</replaceable>.
 					</para></enum>
 
@@ -141,6 +141,94 @@
 
 			[somecontext]
 			exten => 1,1,Dial(PJSIP/${EXTEN},,b(handler^addheader^1))
+			</example>
+		</description>
+	</function>
+	<function name="PJSIP_INHERITABLE_HEADER" language="en_US">
+		<since>
+			<version>20.19.0</version>
+			<version>22.9.0</version>
+			<version>23.3.0</version>
+		</since>
+		<synopsis>
+			Adds, updates or removes the specified SIP header from a PJSIP or non-PJSIP channel
+			to be inherited to an outbound PJSIP channel.
+		</synopsis>
+		<syntax>
+			<parameter name="action" required="true">
+				<enumlist>
+
+					<enum name="add"><para>Adds a new header <replaceable>name</replaceable>
+					to this channel.</para></enum>
+
+					<enum name="update"><para>Updates instance <replaceable>number</replaceable>
+					of header <replaceable>name</replaceable> to a new value.
+					The header must already exist.</para></enum>
+
+					<enum name="remove"><para>Removes all instances of previously added headers
+					whose names match <replaceable>name</replaceable>. A <literal>*</literal>
+					may be appended to <replaceable>name</replaceable> to remove all headers
+					<emphasis>beginning with</emphasis> <replaceable>name</replaceable>.
+					<replaceable>name</replaceable> may be set to a single <literal>*</literal>
+					to clear <emphasis>all</emphasis> previously added headers. In all cases,
+					the number of headers actually removed is returned.</para></enum>
+				</enumlist>
+			</parameter>
+
+			<parameter name="name" required="true"><para>The name of the header.</para></parameter>
+
+			<parameter name="number" required="false">
+				<para>If there's more than 1 header with the same name, this specifies which header
+				to read or update.  If not specified, defaults to <literal>1</literal> meaning
+				the first matching header.  Not valid for <literal>add</literal> or
+				<literal>remove</literal>.</para>
+			</parameter>
+
+		</syntax>
+		<description>
+			<para>PJSIP_INHERITABLE_HEADER allows you to write specific SIP headers on a calling
+			channel to be inherited by an outbound PJSIP channel.</para>
+			<para>Examples:</para>
+			<example title="Add an inheritable X-Myheader header with the value of myvalue">
+			exten => 1,1,Set(PJSIP_INHERITABLE_HEADER(add,X-MyHeader)=myvalue)
+			</example>
+			<example title="Add an inheritable X-Myheader header with an empty value">
+			exten => 1,1,Set(PJSIP_INHERITABLE_HEADER(add,X-MyHeader)=)
+			</example>
+			<example title="Add an inheritable X-MyHeader that will be inherited by child channel">
+			exten => 1,1,Set(PJSIP_INHERITABLE_HEADER(add,X-MyHeader)=myvalue)
+			</example>
+			<example title="Update the value of the inheritable header named X-Myheader to newvalue">
+			; 'X-Myheader' must already exist or the call will fail.
+			exten => 1,1,Set(PJSIP_INHERITABLE_HEADER(update,X-MyHeader)=newvalue)
+			</example>
+			<example title="Remove all inheritable headers whose names exactly match X-MyHeader">
+			exten => 1,1,Set(PJSIP_INHERITABLE_HEADER(remove,X-MyHeader)=)
+			</example>
+			<example title="Remove all inheritable headers that begin with X-My">
+			exten => 1,1,Set(PJSIP_INHERITABLE_HEADER(remove,X-My*)=)
+			</example>
+
+			<note><para>If you call PJSIP_INHERITABLE_HEADER in a normal dialplan context you'll be
+			operating on the <emphasis>caller's</emphasis> channel which
+			will then be inherited to the <emphasis>callee's (outgoing)</emphasis>
+			channel. Inherited headers can be updated or removed via PJSIP_INHERITABLE_HEADER
+			in a pre-dial handler. </para>
+			<para>Headers added via PJSIP_INHERITABLE_HEADER are separate from headers
+			added via PJSIP_HEADER. A header added via PJSIP_INHERITABLE_HEADER can only
+			be or removed modified by PJSIP_INHERITABLE_HEADER. A header added via
+			PJSIP_HEADER can only be modified or removed by PJSIP_HEADER.</para></note>
+			<example title="Set and modify headers on callee channel">
+			[handler]
+			exten => modheader,1,Set(PJSIP_INHERITABLE_HEADER(update,X-MyHeader)=myvalue)
+				same => n,Set(PJSIP_INHERITABLE_HEADER(update,X-MyHeader2)=myvalueX)
+				same => n,Set(PJSIP_INHERITABLE_HEADER(remove,X-MyHeader2)=)
+
+			[somecontext]
+			exten => 1,1,Set(PJSIP_INHERITABLE_HEADER(add,X-MyHeader1)=myvalue1)
+				same => n,Set(PJSIP_INHERITABLE_HEADER(add,X-MyHeader2)=myvalue2)
+				same => n,Set(PJSIP_INHERITABLE_HEADER(add,X-MyHeader3)=myvalue3)
+				same => n,Dial(PJSIP/${EXTEN},,b(handler^modheader^1))
 			</example>
 		</description>
 	</function>
@@ -323,10 +411,39 @@ struct hdr_list_entry {
 };
 AST_LIST_HEAD_NOLOCK(hdr_list, hdr_list_entry);
 
-/*! \brief Datastore for saving headers */
-static const struct ast_datastore_info header_datastore = {
-	.type = "header_datastore",
+/*!
+ * \internal
+ * \brief Duplicate an inheritable headers list for inheritance
+ *
+ * Creates copies of the name-value pairs for inheritance to child channels.
+ */
+static void *inheritable_headers_duplicate(void *data)
+{
+	return ast_variables_dup(data);
+}
+
+/*!
+ * \internal
+ * \brief Destroy callback for inherited header datastore
+ */
+static void inheritable_headers_destroy(void *data)
+{
+	ast_variables_destroy(data);
+}
+
+/*! \brief Datastore for saving headers in session (contains hdr_list, no destroy needed) */
+static const struct ast_datastore_info session_header_datastore = {
+	.type = "session_header_datastore",
+	/* No destroy or duplicate callback - data is pool-allocated hdr_list */
 };
+
+/*! \brief Datastore for saving inheritable headers (contains hdr_list with ast_malloc'd entries) */
+static const struct ast_datastore_info inheritable_header_datastore = {
+	.type = "inheritable_header_datastore",
+	.duplicate = inheritable_headers_duplicate,
+	.destroy = inheritable_headers_destroy,
+};
+
 /*! \brief Datastore for saving response headers */
 static const struct ast_datastore_info response_header_datastore = {
 	.type = "response_header_datastore",
@@ -377,11 +494,11 @@ static int incoming_request(struct ast_sip_session *session, pjsip_rx_data * rda
 {
 	pj_pool_t *pool = session->inv_session->dlg->pool;
 	RAII_VAR(struct ast_datastore *, datastore,
-			 ast_sip_session_get_datastore(session, header_datastore.type), ao2_cleanup);
+			 ast_sip_session_get_datastore(session, session_header_datastore.type), ao2_cleanup);
 
 	if (!datastore) {
 		if (!(datastore =
-			  ast_sip_session_alloc_datastore(&header_datastore, header_datastore.type))
+			  ast_sip_session_alloc_datastore(&session_header_datastore, session_header_datastore.type))
 			||
 			!(datastore->data = pj_pool_alloc(pool, sizeof(struct hdr_list))) ||
 			ast_sip_session_add_datastore(session, datastore)) {
@@ -580,7 +697,7 @@ static int read_header(void *obj)
 
 	list = datastore->data;
 	AST_LIST_TRAVERSE(list, le, nextptr) {
-		if (data->header_name[len - 1] == '*') {
+		if (len >= 1 && data->header_name[len - 1] == '*') {
 			if (pj_strnicmp2(&le->hdr->name, data->header_name, len - 1) == 0 && i++ == data->header_number) {
 				hdr = le->hdr;
 				break;
@@ -651,11 +768,11 @@ static int add_header(void *obj)
 	struct hdr_list *list;
 
 	RAII_VAR(struct ast_datastore *, datastore,
-			 ast_sip_session_get_datastore(session, data->header_datastore->type), ao2_cleanup);
+			 ast_sip_session_get_datastore(session, session_header_datastore.type), ao2_cleanup);
 
 	if (!datastore) {
-		if (!(datastore = ast_sip_session_alloc_datastore(data->header_datastore,
-														data->header_datastore->type))
+		if (!(datastore = ast_sip_session_alloc_datastore(&session_header_datastore,
+														session_header_datastore.type))
 			|| !(datastore->data = pj_pool_alloc(pool, sizeof(struct hdr_list)))
 			|| ast_sip_session_add_datastore(session, datastore)) {
 			ast_log(AST_LOG_ERROR, "Unable to create datastore for header functions.\n");
@@ -679,6 +796,78 @@ static int add_header(void *obj)
 	return 0;
 }
 
+
+/*!
+ * \internal
+ * \brief Implements PJSIP_INHERITABLE_HEADER 'add' by inserting the specified header into the channel datastore.
+ *
+ * Retrieve the inheritable channel header_datastore from the session or create one if it doesn't exist.
+ * Create and initialize the list if needed.
+ * Create the pj_strs for name and value.
+ * Create pjsip_msg and hdr_list_entry.
+ * Add the entry to the list.
+ * Locks the channel to protect the channel datastore.
+ */
+static int add_inheritable_header(struct ast_channel *channel, const char *header_name, const char *header_value)
+{
+	struct ast_variable *headers = NULL;
+
+	/* Add to channel datastore to be inherited by bridged channel(s) */
+	struct ast_datastore *chan_datastore;
+	struct ast_variable *new_var;
+
+	ast_channel_lock(channel);
+	chan_datastore = ast_channel_datastore_find(channel, &inheritable_header_datastore, NULL);
+	ast_debug(3, "Adding inheritable header %s with value %s to channel %s\n", header_name,
+		header_value, ast_channel_name(channel));
+
+	if (!chan_datastore) {
+		/* Create new channel datastore */
+		chan_datastore = ast_datastore_alloc(&inheritable_header_datastore,
+			inheritable_header_datastore.type);
+		if (chan_datastore) {
+			chan_datastore->data = NULL;
+			chan_datastore->inheritance = DATASTORE_INHERIT_FOREVER;
+			ast_channel_datastore_add(channel, chan_datastore);
+			ast_debug(3, "Created new inheritable SIP header channel datastore for channel %s\n",
+				ast_channel_name(channel));
+		} else {
+			ast_log(LOG_ERROR, "Failed to allocate channel datastore for channel %s to store inheritable SIP headers\n",
+				ast_channel_name(channel));
+			ast_channel_unlock(channel);
+			return -1;
+		}
+	} else {
+		/* Ensure it's marked as inheritable */
+		if (!chan_datastore->inheritance) {
+			chan_datastore->inheritance = DATASTORE_INHERIT_FOREVER;
+			ast_debug(3, "Upgraded SIP header channel datastore to inheritable for channel %s\n",
+				ast_channel_name(channel));
+		}
+	}
+
+	/* Add THIS header to the channel datastore */
+	headers = chan_datastore->data;
+	new_var = ast_variable_new(header_name, header_value, "");
+	if (!new_var) {
+		ast_log(LOG_ERROR, "Failed to allocate variable for channel %s to store inheritable SIP headers\n",
+			ast_channel_name(channel));
+		ast_channel_unlock(channel);
+		return -1;
+	}
+
+	/* Prepend to list */
+	new_var->next = headers;
+	chan_datastore->data = new_var;
+
+	ast_debug(1, "Inherited Header %s added with value %s for channel %s\n",
+			header_name, header_value, ast_channel_name(channel));
+
+	ast_channel_unlock(channel);
+
+	return 0;
+}
+
 /*!
  * \internal
  * \brief Implements PJSIP_HEADER 'update' by finding the specified header and updating it.
@@ -695,8 +884,11 @@ static int update_header(void *obj)
 	pj_pool_t *pool = data->channel->session->inv_session->dlg->pool;
 	pjsip_hdr *hdr = NULL;
 	RAII_VAR(struct ast_datastore *, datastore,
-			 ast_sip_session_get_datastore(data->channel->session, data->header_datastore->type),
+			 ast_sip_session_get_datastore(data->channel->session, session_header_datastore.type),
 			 ao2_cleanup);
+
+	ast_debug(3, "Attempting to update header %s for channel %p\n", data->header_name,
+		data->channel->session->channel ? ast_channel_name(data->channel->session->channel) : "(none)");
 
 	if (!datastore || !datastore->data) {
 		ast_log(AST_LOG_ERROR, "No headers had been previously added to this session.\n");
@@ -711,9 +903,105 @@ static int update_header(void *obj)
 		return -1;
 	}
 
+	ast_debug(3, "Found header %s in session datastore, updating value to %s for channel %p\n",
+				data->header_name, data->header_value,
+				data->channel->session->channel ? ast_channel_name(data->channel->session->channel) : "(none)");
 	pj_strdup2(pool, &((pjsip_generic_string_hdr *) hdr)->hvalue, data->header_value);
 
 	return 0;
+}
+
+/*!
+ * \internal
+ * \brief Implements PJSIP_INHERITABLE_HEADER 'update' by finding the specified header and updating it.
+ *
+ * Retrieve the header_datastore from the session or create one if it doesn't exist.
+ * Create and initialize the list if needed.
+ * Create the pj_strs for name and value.
+ * Create pjsip_msg and hdr_list_entry.
+ * Add the entry to the list.
+ * Locks the channel to protect the channel datastore.
+ */
+static int update_inheritable_header(struct ast_channel *channel, const char *header_name, const char *header_value, int header_number)
+{
+	struct ast_datastore *inherited_datastore;
+	struct ast_variable *headers = NULL;
+	struct ast_variable *var, *prev = NULL;
+	int i = 1, num_matching_headers = 0, target_header_index;
+
+	ast_channel_lock(channel);
+	inherited_datastore = ast_channel_datastore_find(channel, &inheritable_header_datastore, NULL);
+	ast_debug(3, "Attempting to update header %s for channel %s\n", header_name,
+		ast_channel_name(channel));
+
+	if (!inherited_datastore || !inherited_datastore->data) {
+		ast_log(AST_LOG_ERROR, "No inheritable headers had been previously added to this channel.\n");
+		ast_channel_unlock(channel);
+		return -1;
+	}
+
+	headers = inherited_datastore->data;
+
+	/* The headers are in reverse order so we need to find out how many there are to know which one to update */
+	for (var = headers; var; var = var->next) {
+		if (strcasecmp(var->name, header_name) == 0) {
+			num_matching_headers++;
+		}
+	}
+
+	/* As we already counted the matching headers, we can skip walking the list again if the count is 0 or
+		is less than the requested header number */
+	if (num_matching_headers == 0) {
+		ast_log(AST_LOG_ERROR, "There was no header named %s on channel %s.\n", header_name,
+			ast_channel_name(channel));
+		ast_channel_unlock(channel);
+		return -1;
+	} else if (num_matching_headers < header_number) {
+		ast_log(AST_LOG_ERROR, "There were only %d headers named %s on channel %s, cannot update header number %d.\n",
+			num_matching_headers, header_name, ast_channel_name(channel), header_number);
+		ast_channel_unlock(channel);
+		return -1;
+	}
+
+	target_header_index = num_matching_headers - header_number + 1;
+	/* Search for the header in the inherited list */
+	for (var = headers; var; var = var->next) {
+		if (strcasecmp(var->name, header_name) == 0 && i++ == target_header_index) {
+			/* Found the header, create a new one with the new value and free the old */
+			struct ast_variable *new_var = ast_variable_new(header_name, header_value, "");
+			if (!new_var) {
+				ast_log(AST_LOG_ERROR, "Failed to allocate variable for updated header for channel %s\n",
+					ast_channel_name(channel));
+				ast_channel_unlock(channel);
+				return -1;
+			}
+
+			new_var->next = var->next;
+
+			if (var == headers) {
+				/* If we're updating the first header in the list, we need to update the head pointer */
+				inherited_datastore->data = new_var;
+			} else if (prev) {
+				/* Otherwise, we need to link the previous header to the new header */
+				prev->next = new_var;
+			}
+
+			var->next = NULL;
+			inheritable_headers_destroy(var);
+
+			ast_debug(3, "Updated header %s with new value %s for channel %s\n",
+				header_name, header_value, ast_channel_name(channel));
+			ast_channel_unlock(channel);
+			return 0;
+		}
+		prev = var;
+	}
+
+	/* We should never get here*/
+	ast_log(AST_LOG_ERROR, "Unable to update header %s on channel %s.\n", header_name,
+		ast_channel_name(channel));
+	ast_channel_unlock(channel);
+	return -1;
 }
 
 /*!
@@ -732,8 +1020,11 @@ static int remove_header(void *obj)
 	struct hdr_list_entry *le;
 	int removed_count = 0;
 	RAII_VAR(struct ast_datastore *, datastore,
-			 ast_sip_session_get_datastore(data->channel->session, data->header_datastore->type),
+			 ast_sip_session_get_datastore(data->channel->session, session_header_datastore.type),
 			 ao2_cleanup);
+
+	ast_debug(3, "Attempting to remove header %s from channel %p\n", data->header_name,
+		data->channel->session->channel ? ast_channel_name(data->channel->session->channel) : "(none)");
 
 	if (!datastore || !datastore->data) {
 		ast_log(AST_LOG_ERROR, "No headers had been previously added to this session.\n");
@@ -742,13 +1033,19 @@ static int remove_header(void *obj)
 
 	list = datastore->data;
 	AST_LIST_TRAVERSE_SAFE_BEGIN(list, le, nextptr) {
-		if (data->header_name[len - 1] == '*') {
+		if (len >= 1 && data->header_name[len - 1] == '*') {
 			if (pj_strnicmp2(&le->hdr->name, data->header_name, len - 1) == 0) {
+				ast_debug(3, "Found wildcard match, removing header %.*s from channel %p\n",
+					(int)le->hdr->name.slen, le->hdr->name.ptr,
+					data->channel->session->channel ? ast_channel_name(data->channel->session->channel) : "(none)");
 				AST_LIST_REMOVE_CURRENT(nextptr);
 				removed_count++;
 			}
 		} else {
 			if (pj_stricmp2(&le->hdr->name, data->header_name) == 0) {
+				ast_debug(3, "Found exact match, removing header %.*s from channel %p\n",
+					(int)le->hdr->name.slen, le->hdr->name.ptr,
+					data->channel->session->channel ? ast_channel_name(data->channel->session->channel) : "(none)");
 				AST_LIST_REMOVE_CURRENT(nextptr);
 				removed_count++;
 			}
@@ -756,10 +1053,118 @@ static int remove_header(void *obj)
 	}
 	AST_LIST_TRAVERSE_SAFE_END;
 
-	if (data->buf && data->len) {
-		snprintf(data->buf, data->len, "%d", removed_count);
+	if (removed_count == 0) {
+		ast_debug(3, "No headers named %s found to remove on channel %s.\n", data->header_name,
+			data->channel->session->channel ? ast_channel_name(data->channel->session->channel) : "(none)");
 	}
 
+	if (data->buf && data->len) {
+		snprintf(data->buf, data->len, "%d", removed_count);
+		ast_debug(3, "Removed %d headers matching %s from channel %s\n", removed_count, data->header_name,
+			data->channel->session->channel ? ast_channel_name(data->channel->session->channel) : "(none)");
+	}
+
+	return 0;
+}
+
+/*!
+ * \internal
+ * \brief Implements PJSIP_INHERITABLE_HEADER 'remove' by finding the specified header and removing it.
+ *
+ * Retrieve the header_datastore from the session.  Fail if it doesn't exist.
+ * If the header_name is exactly '*', the entire list is simply destroyed.
+ * Otherwise search the list for the matching header name which may be a partial name.
+ * Locks the channel to protect the channel datastore.
+ */
+static int remove_inheritable_header(struct ast_channel *channel, const char *header_name)
+{
+	size_t len = strlen(header_name);
+	struct ast_variable *headers = NULL;
+	struct ast_variable *var, *prev = NULL;
+	int removed_count = 0;
+	struct ast_datastore *inherited_datastore;
+
+	ast_channel_lock(channel);
+	inherited_datastore = ast_channel_datastore_find(channel, &inheritable_header_datastore, NULL);
+	ast_debug(3, "Attempting to remove header %s from channel %s\n",
+		header_name, ast_channel_name(channel));
+
+	/* Remove from inherited datastore */
+	if (!inherited_datastore || !inherited_datastore->data) {
+		ast_log(AST_LOG_ERROR, "No inheritable headers had been previously added to channel %s.\n",
+			ast_channel_name(channel));
+		ast_channel_unlock(channel);
+		return -1;
+	}
+
+	headers = inherited_datastore->data;
+
+	/* If removing all headers */
+	if (strcmp(header_name, "*") == 0) {
+		inheritable_headers_destroy(headers);
+		inherited_datastore->data = NULL;
+		ast_debug(3, "Removed all inheritable headers from channel %s\n",
+			ast_channel_name(channel));
+		ast_channel_unlock(channel);
+		return 0;
+	}
+
+	/* Remove specific headers (exact match or wildcard) */
+	var = headers;
+	while (var) {
+		struct ast_variable *next = var->next;
+		int match = 0;
+
+		if (len >= 1 && header_name[len - 1] == '*') {
+			/* Wildcard match */
+			match = (strncasecmp(var->name, header_name, len - 1) == 0);
+			if (match) {
+				ast_debug(3, "Found wildcard match, removing header %s with value %s from channel %s\n",
+					var->name, var->value, ast_channel_name(channel));
+			}
+		} else {
+			/* Exact match */
+			match = (strcasecmp(var->name, header_name) == 0);
+			if (match) {
+				ast_debug(3, "Found exact match, removing header %s with value %s from channel %s\n",
+					var->name, var->value, ast_channel_name(channel));
+			}
+		}
+
+		if (match) {
+			/* Remove this variable */
+			if (var == headers) {
+				/* If we're removing the first header in the list, we need to update the head pointer */
+				headers = next;
+				inherited_datastore->data = headers;
+			} else if (prev) {
+				/* Otherwise, we need to link the previous header to the next header */
+				prev->next = next;
+			}
+
+			/* destroy the variable */
+			var->next = NULL;
+			ast_variables_destroy(var);
+			removed_count++;
+			var = next;
+		} else {
+			prev = var;
+			var = next;
+		}
+	}
+
+	/* Update datastore with new list head */
+	inherited_datastore->data = headers;
+
+	if (removed_count == 0) {
+		ast_debug(3, "No headers matching %s found for channel %s\n",
+			header_name, ast_channel_name(channel));
+	}
+
+	ast_debug(3, "Removed %d headers matching %s from channel %s\n", removed_count, header_name,
+		ast_channel_name(channel));
+
+	ast_channel_unlock(channel);
 	return 0;
 }
 
@@ -785,7 +1190,7 @@ static int func_read_headers(struct ast_channel *chan, const char *function, cha
 	header_data.header_value = NULL;
 	header_data.buf = buf;
 	header_data.len = len;
-	header_data.header_datastore = &header_datastore;
+	header_data.header_datastore = &session_header_datastore;
 
 	return ast_sip_push_task_wait_serializer(channel->session->serializer, read_headers, &header_data);
 
@@ -867,7 +1272,7 @@ static int func_read_header(struct ast_channel *chan, const char *function, char
 	header_data.header_value = NULL;
 	header_data.buf = buf;
 	header_data.len = len;
-	header_data.header_datastore = &header_datastore;
+	header_data.header_datastore = &session_header_datastore;
 
 	if (!strcasecmp(args.action, "read")) {
 		return ast_sip_push_task_wait_serializer(channel->session->serializer, read_header, &header_data);
@@ -950,7 +1355,8 @@ static int func_write_header(struct ast_channel *chan, const char *cmd, char *da
 	int header_number;
 	AST_DECLARE_APP_ARGS(args,
 						 AST_APP_ARG(action);
-						 AST_APP_ARG(header_name); AST_APP_ARG(header_number););
+						 AST_APP_ARG(header_name);
+						 AST_APP_ARG(header_number););
 	AST_STANDARD_APP_ARGS(args, data);
 
 	if (!channel || strncmp(ast_channel_name(chan), "PJSIP/", 6)) {
@@ -981,7 +1387,7 @@ static int func_write_header(struct ast_channel *chan, const char *cmd, char *da
 	header_data.header_value = value;
 	header_data.buf = NULL;
 	header_data.len = 0;
-	header_data.header_datastore = &header_datastore;
+	header_data.header_datastore = &session_header_datastore;
 
 	if (!strcasecmp(args.action, "add")) {
 		return ast_sip_push_task_wait_serializer(channel->session->serializer,
@@ -1000,10 +1406,66 @@ static int func_write_header(struct ast_channel *chan, const char *cmd, char *da
 	}
 }
 
+/*!
+ * \brief Implements PJSIP_INHERITABLE_HEADER function 'write' callback.
+ *
+ * Valid actions are 'add', 'update' and 'remove'.
+ */
+static int func_write_inheritable_header(struct ast_channel *chan, const char *cmd, char *data,
+							 const char *value)
+{
+	int header_number;
+	AST_DECLARE_APP_ARGS(args,
+						 AST_APP_ARG(action);
+						 AST_APP_ARG(header_name);
+						 AST_APP_ARG(header_number););
+	AST_STANDARD_APP_ARGS(args, data);
+
+	if (!chan) {
+		ast_log(LOG_ERROR, "The PJSIP_INHERITABLE_HEADER function requires a channel.\n");
+		return -1;
+	}
+	if (ast_strlen_zero(args.action)) {
+		ast_log(AST_LOG_ERROR, "The PJSIP_INHERITABLE_HEADER function requires an action.\n");
+		return -1;
+	}
+	if (ast_strlen_zero(args.header_name)) {
+		ast_log(AST_LOG_ERROR, "The PJSIP_INHERITABLE_HEADER function requires a header name.\n");
+		return -1;
+	}
+	if (!args.header_number) {
+		header_number = 1;
+	} else {
+		sscanf(args.header_number, "%30d", &header_number);
+		if (header_number < 1) {
+			header_number = 1;
+		}
+	}
+
+	/* TODO: we might want to check channel type and use the serializer if PJSIP */
+	if (!strcasecmp(args.action, "add")) {
+		return add_inheritable_header(chan, args.header_name, value);
+	} else if (!strcasecmp(args.action, "update")) {
+		return update_inheritable_header(chan, args.header_name, value, header_number);
+	} else if (!strcasecmp(args.action, "remove")) {
+		return remove_inheritable_header(chan, args.header_name);
+	} else {
+		ast_log(AST_LOG_ERROR,
+				"Unknown action '%s' is not valid, must be 'add', 'update', or 'remove'.\n",
+				args.action);
+		return -1;
+	}
+}
+
 static struct ast_custom_function pjsip_header_function = {
 	.name = "PJSIP_HEADER",
 	.read = func_read_header,
 	.write = func_write_header,
+};
+
+static struct ast_custom_function pjsip_header_inherit_function = {
+	.name = "PJSIP_INHERITABLE_HEADER",
+	.write = func_write_inheritable_header,
 };
 
 static struct ast_custom_function pjsip_headers_function = {
@@ -1035,21 +1497,93 @@ static struct ast_custom_function pjsip_response_headers_function = {
  */
 static void outgoing_request(struct ast_sip_session *session, pjsip_tx_data * tdata)
 {
-	struct hdr_list *list;
+	struct hdr_list *hdr_list;
 	struct hdr_list_entry *le;
-	RAII_VAR(struct ast_datastore *, datastore,
-			 ast_sip_session_get_datastore(session, header_datastore.type), ao2_cleanup);
+	int header_count = 0;
+	struct ast_datastore *inherited_datastore = NULL;
+	RAII_VAR(struct ast_datastore *, session_datastore,
+			 ast_sip_session_get_datastore(session, session_header_datastore.type), ao2_cleanup);
 
-	if (!datastore || !datastore->data ||
-		(session->inv_session->state >= PJSIP_INV_STATE_CONFIRMED)) {
+	/* Check if we're past the INVITE stage */
+	if (session->inv_session->state >= PJSIP_INV_STATE_CONFIRMED) {
+		ast_debug(3, "Already confirmed (state=%d)\n",
+			session->inv_session->state);
 		return;
 	}
 
-	list = datastore->data;
-	AST_LIST_TRAVERSE(list, le, nextptr) {
-		pjsip_msg_add_hdr(tdata->msg, (pjsip_hdr *) pjsip_hdr_clone(tdata->pool, le->hdr));
+	/* If we're UAC and have a channel, check the channel datastore for an inheritable header datastore */
+	if (session->channel && session->inv_session->role == PJSIP_ROLE_UAC) {
+		struct ast_datastore *chan_datastore = NULL;
+
+		ast_channel_lock(session->channel);
+
+		chan_datastore = ast_channel_datastore_find(session->channel, &inheritable_header_datastore, NULL);
+
+		if (chan_datastore && chan_datastore->inheritance && chan_datastore->data) {
+			inherited_datastore = ast_sip_session_alloc_datastore(&inheritable_header_datastore,
+				inheritable_header_datastore.type);
+
+			if (inherited_datastore) {
+				/* The data is in ast_variable format from the duplicate callback.  We need to make our own copy to
+				 avoid sharing the pointer. Reverse the order so they appear in the INVITE in the order added. */
+				inherited_datastore->data = ast_variables_reverse((struct ast_variable *)
+					inheritable_headers_duplicate((struct ast_variable *) chan_datastore->data));
+				if (inherited_datastore->data) {
+					inherited_datastore->inheritance = chan_datastore->inheritance;
+					ast_sip_session_add_datastore(session, inherited_datastore);
+				} else {
+					ast_log(LOG_ERROR, "Failed to duplicate ast_variable list for channel %s\n",
+						session->channel ? ast_channel_name(session->channel) : "(none)");
+					ao2_ref(inherited_datastore, -1);
+					inherited_datastore = NULL;
+				}
+			} else {
+				ast_log(LOG_ERROR, "Failed to allocate inherited session datastore for channel %s\n",
+					session->channel ? ast_channel_name(session->channel) : "(none)");
+			}
+		}
+		ast_channel_unlock(session->channel);
 	}
-	ast_sip_session_remove_datastore(session, datastore->uid);
+
+	/* If we have no datastores at all, nothing to do */
+	if (!session_datastore && !inherited_datastore) {
+		return;
+	}
+
+	/* Add headers from regular session datastore (non-inheritable headers added on this channel) */
+	if (session_datastore && session_datastore->data) {
+		hdr_list = session_datastore->data;
+		AST_LIST_TRAVERSE(hdr_list, le, nextptr) {
+			pjsip_msg_add_hdr(tdata->msg, (pjsip_hdr *) pjsip_hdr_clone(tdata->pool, le->hdr));
+			header_count++;
+		}
+		ast_debug(3, "Added %d regular header(s) to channel %s\n", header_count,
+			session->channel ? ast_channel_name(session->channel) : "(none)");
+		/* Remove datastores after use */
+		ast_sip_session_remove_datastore(session, session_datastore->uid);
+	}
+
+	/* Add headers from inherited datastore (inheritable headers from parent channel) */
+	if (inherited_datastore && inherited_datastore->data) {
+		int inherited_count = 0;
+		struct ast_variable *headers = inherited_datastore->data;
+		struct ast_variable *var;
+
+		for (var = headers; var; var = var->next) {
+			if (!ast_sip_add_header(tdata, var->name, var->value)) {
+				inherited_count++;
+			}
+		}
+		ast_debug(3, "Added %d inherited header(s) to channel %s\n", inherited_count,
+			session->channel ? ast_channel_name(session->channel) : "(none)");
+		header_count += inherited_count;
+		/* Remove datastores after use */
+		ast_sip_session_remove_datastore(session, inherited_datastore->uid);
+		ao2_ref(inherited_datastore, -1);
+	}
+
+	ast_debug(3, "Added total of %d header(s) to channel %s\n", header_count,
+		session->channel ? ast_channel_name(session->channel) : "(none)");
 }
 
 static struct ast_sip_session_supplement header_funcs_supplement = {
@@ -1283,6 +1817,7 @@ static int load_module(void)
 {
 	ast_sip_session_register_supplement(&header_funcs_supplement);
 	ast_custom_function_register(&pjsip_header_function);
+	ast_custom_function_register(&pjsip_header_inherit_function);
 	ast_custom_function_register(&pjsip_headers_function);
 	ast_custom_function_register(&pjsip_response_header_function);
 	ast_custom_function_register(&pjsip_response_headers_function);
@@ -1294,6 +1829,7 @@ static int load_module(void)
 static int unload_module(void)
 {
 	ast_custom_function_unregister(&pjsip_header_function);
+	ast_custom_function_unregister(&pjsip_header_inherit_function);
 	ast_custom_function_unregister(&pjsip_headers_function);
 	ast_custom_function_unregister(&pjsip_response_header_function);
 	ast_custom_function_unregister(&pjsip_response_headers_function);
