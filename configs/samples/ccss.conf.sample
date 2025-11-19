@@ -6,6 +6,11 @@
 ;
 
 [general]
+;
+;enabled = yes     ; CCSS is rarely used so setting this to "no"
+;                  ; will globally disable it and save some unneeded
+;                  ; channel locking and log messages.
+;
 ; The cc_max_requests option is a global limit on the number of
 ; CC requests that may be in the Asterisk system at any time.
 ;
