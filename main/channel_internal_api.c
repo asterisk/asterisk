@@ -501,6 +501,14 @@ void ast_channel_vstream_set(struct ast_channel *chan, struct ast_filestream *va
 {
 	chan->vstream = value;
 }
+struct ast_filestream *ast_channel_tstream(const struct ast_channel *chan)
+{
+	return chan->tstream;
+}
+void ast_channel_tstream_set(struct ast_channel *chan, struct ast_filestream *value)
+{
+	chan->tstream = value;
+}
 struct ast_format_cap *ast_channel_nativeformats(const struct ast_channel *chan)
 {
 	return chan->nativeformats;
