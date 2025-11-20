@@ -45,10 +45,13 @@ struct ast_threadpool_listener_callbacks {
 	 * \param pool The pool that had a task pushed
 	 * \param listener The threadpool listener
 	 * \param was_empty Indicates whether there were any tasks prior to adding the new one.
+	 * \param file The file where the task was pushed from
+	 * \param line The line number where the task was pushed from
+	 * \param function The function where the task was pushed from
 	 */
 	void (*task_pushed)(struct ast_threadpool *pool,
 			struct ast_threadpool_listener *listener,
-			int was_empty);
+			int was_empty, const char *file, int line, const char *function);
 	/*!
 	 * \brief Indicates the threadpool's taskprocessor has become empty
 	 *
@@ -188,8 +191,11 @@ void ast_threadpool_set_size(struct ast_threadpool *threadpool, unsigned int siz
  * \retval 0 success
  * \retval -1 failure
  */
-int ast_threadpool_push(struct ast_threadpool *pool, int (*task)(void *data), void *data)
-	attribute_warn_unused_result;
+int __ast_threadpool_push(struct ast_threadpool *pool, int (*task)(void *data), void *data,
+	const char *file, int line, const char *function) attribute_warn_unused_result;
+
+#define ast_threadpool_push(pool, task, data) \
+	__ast_threadpool_push(pool, task, data, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 /*!
  * \brief Shut down a threadpool and destroy it

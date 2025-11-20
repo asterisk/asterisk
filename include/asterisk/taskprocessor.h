@@ -95,8 +95,12 @@ struct ast_taskprocessor_listener_callbacks {
 	 *
 	 * \param listener The listener
 	 * \param was_empty If non-zero, the taskprocessor was empty prior to the task being pushed
+	 * \param file The file where the task was pushed from
+	 * \param line The line number where the task was pushed from
+	 * \param function The function where the task was pushed from
 	 */
-	void (*task_pushed)(struct ast_taskprocessor_listener *listener, int was_empty);
+	void (*task_pushed)(struct ast_taskprocessor_listener *listener, int was_empty,
+		const char *file, int line, const char *function);
 	/*!
 	 * \brief Indicates the task processor has become empty
 	 *
@@ -214,8 +218,10 @@ void *ast_taskprocessor_unreference(struct ast_taskprocessor *tps);
  * \retval -1 failure
  * \since 1.6.1
  */
-int ast_taskprocessor_push(struct ast_taskprocessor *tps, int (*task_exe)(void *datap), void *datap)
-	attribute_warn_unused_result;
+int __ast_taskprocessor_push(struct ast_taskprocessor *tps, int (*task_exe)(void *datap), void *datap,
+	const char *file, int line, const char *function) attribute_warn_unused_result;
+#define ast_taskprocessor_push(tps, task_exe, datap) \
+	__ast_taskprocessor_push(tps, task_exe, datap, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 /*! \brief Local data parameter */
 struct ast_taskprocessor_local {
@@ -240,9 +246,11 @@ struct ast_taskprocessor_local {
  * \retval -1 failure
  * \since 12.0.0
  */
-int ast_taskprocessor_push_local(struct ast_taskprocessor *tps,
-	int (*task_exe)(struct ast_taskprocessor_local *local), void *datap)
-	attribute_warn_unused_result;
+int __ast_taskprocessor_push_local(struct ast_taskprocessor *tps,
+	int (*task_exe)(struct ast_taskprocessor_local *local), void *datap,
+	const char *file, int line, const char *function) attribute_warn_unused_result;
+#define ast_taskprocessor_push_local(tps, task_exe, datap) \
+	__ast_taskprocessor_push_local(tps, task_exe, datap, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 /*!
  * \brief Indicate the taskprocessor is suspended.
