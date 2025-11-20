@@ -1,17 +1,17 @@
-<html><head><title>ChangeLog for asterisk-23.1.0-rc1</title></head><body>
-<h2>Change Log for Release asterisk-23.1.0-rc1</h2>
+<html><head><title>ChangeLog for asterisk-23.1.0</title></head><body>
+<h2>Change Log for Release asterisk-23.1.0</h2>
 <h3>Links:</h3>
 <ul>
-<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-23.1.0-rc1.html">Full ChangeLog</a>  </li>
-<li><a href="https://github.com/asterisk/asterisk/compare/23.0.0...23.1.0-rc1">GitHub Diff</a>  </li>
-<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-23.1.0-rc1.tar.gz">Tarball</a>  </li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-23.1.0.html">Full ChangeLog</a>  </li>
+<li><a href="https://github.com/asterisk/asterisk/compare/23.0.0...23.1.0">GitHub Diff</a>  </li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-23.1.0.tar.gz">Tarball</a>  </li>
 <li><a href="https://downloads.asterisk.org/pub/telephony/asterisk">Downloads</a>  </li>
 </ul>
 <h3>Summary:</h3>
 <ul>
-<li>Commits: 54</li>
+<li>Commits: 53</li>
 <li>Commit Authors: 17</li>
-<li>Issues Resolved: 36</li>
+<li>Issues Resolved: 37</li>
 <li>Security Advisories Resolved: 0</li>
 </ul>
 <h3>User Notes:</h3>
@@ -56,15 +56,6 @@
 </ul>
 <h3>Upgrade Notes:</h3>
 <ul>
-<li>
-<h4>pjsip: Move from threadpool to taskpool</h4>
-<p>The threadpool_* options in pjsip.conf have now
-  been deprecated though they continue to be read and used.
-  They have been replaced with taskpool options that give greater
-  control over the underlying taskpool used for PJSIP. An alembic
-  upgrade script has been added to add these options to realtime
-  as well.</p>
-</li>
 <li>
 <h4>app_queue.c: Fix error in Queue parameter documentation.</h4>
 <p>As part of Asterisk 21, macros were removed from Asterisk.
@@ -120,18 +111,18 @@
 <li>Bastian Triller: (1)</li>
 <li>Ben Ford: (2)</li>
 <li>Christoph Moench-Tegeder: (1)</li>
-<li>Gauravs456: (1)</li>
-<li>George Joseph: (8)</li>
+<li>George Joseph: (9)</li>
 <li>Igor Goncharovsky: (1)</li>
-<li>Joshua C. Colp: (8)</li>
+<li>Joshua C. Colp: (6)</li>
 <li>Max Grobecker: (1)</li>
 <li>Nathan Monfils: (1)</li>
 <li>Naveen Albert: (18)</li>
-<li>Phoneben: (2)</li>
 <li>Roman Pertsev: (1)</li>
 <li>Sean Bright: (3)</li>
 <li>Sven Kube: (3)</li>
-<li>Tinet-Mucw: (1)</li>
+<li>Tinet-mucw: (1)</li>
+<li>gauravs456: (1)</li>
+<li>phoneben: (2)</li>
 </ul>
 <h2>Issue and Commit Detail:</h2>
 <h3>Closed Issues:</h3>
@@ -172,6 +163,7 @@
 <li>1544: [improvement]: While Receiving the MediaConnect Message Using External Media Over websocket ChannelID is  Details are missing</li>
 <li>1554: [bug]: safe_asterisk recurses into subdirectories of startup.d after f97361</li>
 <li>1559: [improvement]: Handle TLS handshake attacks in order to resolve the issue of exceeding the maximum number of HTTPS sessions.</li>
+<li>1578: [bug]: Deadlock with externalMedia custom channel id and cpp map channel backend</li>
 </ul>
 <h3>Commits By Author:</h3>
 <ul>
@@ -196,9 +188,9 @@
 <li>
 <h4>Ben Ford (2):</h4>
 </li>
-<li>rtp_engine.c: Add exception for comfort noise payload.</li>
+<li>app_queue.c: Fix error in Queue parameter documentation.</li>
 <li>
-<p>app_queue.c: Fix error in Queue parameter documentation.</p>
+<p>rtp_engine.c: Add exception for comfort noise payload.</p>
 </li>
 <li>
 <h4>Christoph Moench-Tegeder (1):</h4>
@@ -207,17 +199,18 @@
 <p>Fix Endianness detection in utils.h for non-Linux</p>
 </li>
 <li>
-<h4>George Joseph (8):</h4>
+<h4>George Joseph (9):</h4>
 </li>
-<li>ARI: The bridges play and record APIs now handle sample rates &gt; 8K correctly.</li>
-<li>channelstorage_cpp_map_name_id: Add read locking around retrievals.</li>
-<li>chan_websocket.c: Change payload references to command instead.</li>
-<li>taskpool:  Fix some references to threadpool that should be taskpool.</li>
-<li>chan_pjsip: Add technology-specific off-nominal hangup cause to events.</li>
-<li>safe_asterisk:  Fix logging and sorting issue.</li>
+<li>channelstorage:  Allow storage driver read locking to be skipped.</li>
+<li>res_stir_shaken: Add STIR_SHAKEN_ATTESTATION dialplan function.</li>
 <li>chan_pjsip: Disable SSRC change for WebRTC endpoints.</li>
+<li>safe_asterisk:  Fix logging and sorting issue.</li>
+<li>chan_pjsip: Add technology-specific off-nominal hangup cause to events.</li>
+<li>taskpool:  Fix some references to threadpool that should be taskpool.</li>
+<li>chan_websocket.c: Change payload references to command instead.</li>
+<li>channelstorage_cpp_map_name_id: Add read locking around retrievals.</li>
 <li>
-<p>res_stir_shaken: Add STIR_SHAKEN_ATTESTATION dialplan function.</p>
+<p>ARI: The bridges play and record APIs now handle sample rates &gt; 8K correctly.</p>
 </li>
 <li>
 <h4>Igor Goncharovsky (1):</h4>
@@ -226,17 +219,15 @@
 <p>func_hangupcause.c: Add access to Reason headers via HANGUPCAUSE()</p>
 </li>
 <li>
-<h4>Joshua C. Colp (8):</h4>
+<h4>Joshua C. Colp (6):</h4>
 </li>
-<li>taskpool: Add taskpool API, switch Stasis to using it.</li>
-<li>taskpool: Update versions for taskpool stasis options.</li>
-<li>sorcery: Move from threadpool to taskpool.</li>
-<li>app_queue: Allow stasis message filtering to work.</li>
-<li>endpoints: Remove need for stasis subscription.</li>
 <li>devicestate: Don't publish redundant device state messages.</li>
-<li>pjsip: Move from threadpool to taskpool</li>
+<li>endpoints: Remove need for stasis subscription.</li>
+<li>app_queue: Allow stasis message filtering to work.</li>
+<li>sorcery: Move from threadpool to taskpool.</li>
+<li>taskpool: Update versions for taskpool stasis options.</li>
 <li>
-<p>Revert "pjsip: Move from threadpool to taskpool"</p>
+<p>taskpool: Add taskpool API, switch Stasis to using it.</p>
 </li>
 <li>
 <h4>Max Grobecker (1):</h4>
@@ -253,25 +244,25 @@
 <li>
 <h4>Naveen Albert (18):</h4>
 </li>
-<li>pbx_variables.c: Create real channel for "dialplan eval function".</li>
-<li>res_cliexec: Remove unnecessary casts to char*.</li>
-<li>app_adsiprog: Fix possible NULL dereference.</li>
-<li>chan_dahdi: Add DAHDI_CHANNEL function.</li>
-<li>sig_analog: Eliminate potential timeout with Last Number Redial.</li>
-<li>func_scramble: Add example to XML documentation.</li>
-<li>config_options.c: Improve misleading warning.</li>
-<li>dsp.c: Make minor fixes to debug log messages.</li>
-<li>app_dial: Allow fractional seconds for dial timeouts.</li>
-<li>res_fax: Add XML documentation for channel variables.</li>
-<li>res_tonedetect: Fix formatting of XML documentation.</li>
-<li>codec_builtin.c: Adjust some of the quality scores to reflect reality.</li>
-<li>app_sf: Add post-digit timer option to ReceiveSF.</li>
-<li>func_math: Add DIGIT_SUM function.</li>
-<li>sig_analog: Allow '#' to end the inter-digit timeout when dialing.</li>
-<li>core_unreal: Preserve ADSI capability when dialing Local channels.</li>
+<li>func_callerid: Document limitation of DNID fields.</li>
 <li>func_channel: Allow R/W of ADSI CPE capability setting.</li>
+<li>core_unreal: Preserve ADSI capability when dialing Local channels.</li>
+<li>sig_analog: Allow '#' to end the inter-digit timeout when dialing.</li>
+<li>func_math: Add DIGIT_SUM function.</li>
+<li>app_sf: Add post-digit timer option to ReceiveSF.</li>
+<li>codec_builtin.c: Adjust some of the quality scores to reflect reality.</li>
+<li>res_tonedetect: Fix formatting of XML documentation.</li>
+<li>res_fax: Add XML documentation for channel variables.</li>
+<li>app_dial: Allow fractional seconds for dial timeouts.</li>
+<li>dsp.c: Make minor fixes to debug log messages.</li>
+<li>config_options.c: Improve misleading warning.</li>
+<li>func_scramble: Add example to XML documentation.</li>
+<li>sig_analog: Eliminate potential timeout with Last Number Redial.</li>
+<li>chan_dahdi: Add DAHDI_CHANNEL function.</li>
+<li>app_adsiprog: Fix possible NULL dereference.</li>
+<li>res_cliexec: Remove unnecessary casts to char*.</li>
 <li>
-<p>func_callerid: Document limitation of DNID fields.</p>
+<p>pbx_variables.c: Create real channel for "dialplan eval function".</p>
 </li>
 <li>
 <h4>Roman Pertsev (1):</h4>
@@ -282,45 +273,46 @@
 <li>
 <h4>Sean Bright (3):</h4>
 </li>
-<li>audiohook.c: Ensure correct AO2 reference is dereffed.</li>
+<li>safe_asterisk: Resolve a POSIX sh problem and restore globbing behavior.</li>
 <li>app_externalivr: Prevent out-of-bounds read during argument processing.</li>
 <li>
-<p>safe_asterisk: Resolve a POSIX sh problem and restore globbing behavior.</p>
+<p>audiohook.c: Ensure correct AO2 reference is dereffed.</p>
 </li>
 <li>
 <h4>Sven Kube (3):</h4>
 </li>
-<li>stasis_channels.c: Add null check for referred_by in ast_ari_transfer_message_..</li>
+<li>res_audiosocket: add message types for all slin sample rates</li>
 <li>stasis_channels.c: Make protocol_id optional to enable blind transfer via ari</li>
 <li>
-<p>res_audiosocket: add message types for all slin sample rates</p>
+<p>stasis_channels.c: Add null check for referred_by in ast_ari_transfer_message_create</p>
 </li>
 <li>
 <h4>Tinet-mucw (1):</h4>
 </li>
 <li>
-<p>iostream.c: Handle TLS handshake attacks in order to resolve the issue of exce..</p>
+<p>iostream.c: Handle TLS handshake attacks in order to resolve the issue of exceeding the maximum number of HTTPS sessions.</p>
 </li>
 <li>
 <h4>gauravs456 (1):</h4>
 </li>
 <li>
-<p>chan_websocket: Add channel_id to MEDIA_START, DRIVER_STATUS and DTMF_END even..</p>
+<p>chan_websocket: Add channel_id to MEDIA_START, DRIVER_STATUS and DTMF_END events.</p>
 </li>
 <li>
 <h4>phoneben (2):</h4>
 </li>
-<li>app_queue: Add NULL pointer checks in app_queue</li>
 <li>res_fax.c: lower FAXOPT read warning to debug level</li>
+<li>app_queue: Add NULL pointer checks in app_queue</li>
 </ul>
 <h3>Commit List:</h3>
 <ul>
+<li>channelstorage:  Allow storage driver read locking to be skipped.</li>
 <li>res_audiosocket: fix temporarily unavailable</li>
 <li>safe_asterisk: Resolve a POSIX sh problem and restore globbing behavior.</li>
 <li>res_stir_shaken: Add STIR_SHAKEN_ATTESTATION dialplan function.</li>
-<li>Revert "pjsip: Move from threadpool to taskpool"</li>
+<li>iostream.c: Handle TLS handshake attacks in order to resolve the issue of exceeding the maximum number of HTTPS sessions.</li>
 <li>chan_pjsip: Disable SSRC change for WebRTC endpoints.</li>
-<li>pjsip: Move from threadpool to taskpool</li>
+<li>chan_websocket: Add channel_id to MEDIA_START, DRIVER_STATUS and DTMF_END events.</li>
 <li>safe_asterisk:  Fix logging and sorting issue.</li>
 <li>Fix Endianness detection in utils.h for non-Linux</li>
 <li>app_queue.c: Fix error in Queue parameter documentation.</li>
@@ -355,6 +347,7 @@
 <li>stasis_channels.c: Make protocol_id optional to enable blind transfer via ari</li>
 <li>config.c: fix saving of deep/wide template configurations</li>
 <li>Fix some doxygen, typos and whitespace</li>
+<li>stasis_channels.c: Add null check for referred_by in ast_ari_transfer_message_create</li>
 <li>app_queue: Add NULL pointer checks in app_queue</li>
 <li>app_externalivr: Prevent out-of-bounds read during argument processing.</li>
 <li>chan_dahdi: Add DAHDI_CHANNEL function.</li>
@@ -368,6 +361,27 @@
 <li>pbx_variables.c: Create real channel for "dialplan eval function".</li>
 </ul>
 <h3>Commit Details:</h3>
+<h4>channelstorage:  Allow storage driver read locking to be skipped.</h4>
+<p>Author: George Joseph
+  Date:   2025-11-06</p>
+<p>After PR #1498 added read locking to channelstorage_cpp_map_name_id, if ARI
+  channels/externalMedia was called with a custom channel id AND the
+  cpp_map_name_id channel storage backend is in use, a deadlock can occur when
+  hanging up the channel. It's actually triggered in
+  channel.c:__ast_channel_alloc_ap() when it gets a write lock on the
+  channelstorage driver then subsequently does a lookup for channel uniqueid
+  which now does a read lock. This is an invalid operation and causes the lock
+  state to get "bad". When the channels try to hang up, a write lock is
+  attempted again which hangs and causes the deadlock.</p>
+<p>Now instead of the cpp_map_name_id channelstorage driver "get" APIs
+  automatically performing a read lock, they take a "lock" parameter which
+  allows a caller who already has a write lock to indicate that the "get" API
+  must not attempt its own lock.  This prevents the state from getting mesed up.</p>
+<p>The ao2_legacy driver uses the ao2 container's recursive mutex so doesn't
+  have this issue but since it also implements the common channelstorage API,
+  it needed its "get" implementations updated to take the lock parameter. They
+  just don't use it.</p>
+<p>Resolves: #1578</p>
 <h4>res_audiosocket: fix temporarily unavailable</h4>
 <p>Author: Roman Pertsev
   Date:   2025-10-07</p>
@@ -401,11 +415,7 @@
 <p>UserNote: The STIR_SHAKEN_ATTESTATION dialplan function has been added
   which will allow suppressing attestation on a call-by-call basis
   regardless of the profile attached to the outgoing endpoint.</p>
-<h4>Revert "pjsip: Move from threadpool to taskpool"</h4>
-<p>Author: Joshua C. Colp
-  Date:   2025-10-27</p>
-<p>This reverts commit bb6b76c2d8239b2665223dcbf6d507aa9aa4534e.</p>
-<h4>iostream.c: Handle TLS handshake attacks in order to resolve the issue of exce..</h4>
+<h4>iostream.c: Handle TLS handshake attacks in order to resolve the issue of exceeding the maximum number of HTTPS sessions.</h4>
 <p>Author: Tinet-mucw
   Date:   2025-10-26</p>
 <p>The TCP three-way handshake completes, but if the server is under a TLS handshake attack, asterisk will get stuck at SSL_do_handshake().
@@ -419,27 +429,10 @@
   clients that are sensitive to SSRC changes and non-monotonic timestamps so
   the fix is now disabled for endpoints with the "bundle" parameter set to true.</p>
 <p>Resolves: #1535</p>
-<h4>chan_websocket: Add channel_id to MEDIA_START, DRIVER_STATUS and DTMF_END even..</h4>
+<h4>chan_websocket: Add channel_id to MEDIA_START, DRIVER_STATUS and DTMF_END events.</h4>
 <p>Author: gauravs456
   Date:   2025-10-21</p>
 <p>Resolves: #1544</p>
-<h4>pjsip: Move from threadpool to taskpool</h4>
-<p>Author: Joshua C. Colp
-  Date:   2025-09-23</p>
-<p>This change moves the PJSIP module from the threadpool API
-  to the taskpool API. PJSIP-specific implementations for
-  task usage have been removed and replaced with calls to
-  the optimized taskpool implementations instead. The need
-  for a pool of serializers has also been removed as
-  taskpool inherently provides this. The default settings
-  have also been changed to be more realistic for common
-  usage.</p>
-<p>UpgradeNote: The threadpool_* options in pjsip.conf have now
-  been deprecated though they continue to be read and used.
-  They have been replaced with taskpool options that give greater
-  control over the underlying taskpool used for PJSIP. An alembic
-  upgrade script has been added to add these options to realtime
-  as well.</p>
 <h4>safe_asterisk:  Fix logging and sorting issue.</h4>
 <p>Author: George Joseph
   Date:   2025-10-17</p>
@@ -814,7 +807,7 @@
 <h4>Fix some doxygen, typos and whitespace</h4>
 <p>Author: Bastian Triller
   Date:   2025-09-21</p>
-<h4>stasis_channels.c: Add null check for referred_by in ast_ari_transfer_message_..</h4>
+<h4>stasis_channels.c: Add null check for referred_by in ast_ari_transfer_message_create</h4>
 <p>Author: Sven Kube
   Date:   2025-09-18</p>
 <p>When handling SIP transfers via ARI, the <code>referred_by</code> field in
