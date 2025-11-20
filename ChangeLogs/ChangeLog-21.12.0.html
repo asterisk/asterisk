@@ -1,17 +1,17 @@
-<html><head><title>ChangeLog for asterisk-21.12.0-rc1</title></head><body>
-<h2>Change Log for Release asterisk-21.12.0-rc1</h2>
+<html><head><title>ChangeLog for asterisk-21.12.0</title></head><body>
+<h2>Change Log for Release asterisk-21.12.0</h2>
 <h3>Links:</h3>
 <ul>
-<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-21.12.0-rc1.html">Full ChangeLog</a>  </li>
-<li><a href="https://github.com/asterisk/asterisk/compare/21.11.0...21.12.0-rc1">GitHub Diff</a>  </li>
-<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-21.12.0-rc1.tar.gz">Tarball</a>  </li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-21.12.0.html">Full ChangeLog</a>  </li>
+<li><a href="https://github.com/asterisk/asterisk/compare/21.11.0...21.12.0">GitHub Diff</a>  </li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-21.12.0.tar.gz">Tarball</a>  </li>
 <li><a href="https://downloads.asterisk.org/pub/telephony/asterisk">Downloads</a>  </li>
 </ul>
 <h3>Summary:</h3>
 <ul>
-<li>Commits: 19</li>
+<li>Commits: 20</li>
 <li>Commit Authors: 10</li>
-<li>Issues Resolved: 12</li>
+<li>Issues Resolved: 13</li>
 <li>Security Advisories Resolved: 0</li>
 </ul>
 <h3>User Notes:</h3>
@@ -43,14 +43,14 @@
 <ul>
 <li>Bastian Triller: (1)</li>
 <li>Ben Ford: (1)</li>
-<li>George Joseph: (3)</li>
+<li>George Joseph: (4)</li>
 <li>Igor Goncharovsky: (1)</li>
 <li>Max Grobecker: (1)</li>
 <li>Nathan Monfils: (1)</li>
 <li>Naveen Albert: (4)</li>
-<li>Phoneben: (1)</li>
 <li>Sean Bright: (3)</li>
 <li>Sven Kube: (3)</li>
+<li>phoneben: (1)</li>
 </ul>
 <h2>Issue and Commit Detail:</h2>
 <h3>Closed Issues:</h3>
@@ -67,6 +67,7 @@
 <li>1525: [bug]: chan_websocket: fix use of raw payload variable for string comparison in process_text_message</li>
 <li>1539: [bug]: safe_asterisk without TTY doesn't log to file</li>
 <li>1554: [bug]: safe_asterisk recurses into subdirectories of startup.d after f97361</li>
+<li>1578: [bug]: Deadlock with externalMedia custom channel id and cpp map channel backend</li>
 </ul>
 <h3>Commits By Author:</h3>
 <ul>
@@ -74,72 +75,36 @@
 <h4>Bastian Triller (1):</h4>
 </li>
 <li>
-<p>Fix some doxygen, typos and whitespace</p>
-</li>
-<li>
 <h4>Ben Ford (1):</h4>
 </li>
 <li>
-<p>rtp_engine.c: Add exception for comfort noise payload.</p>
-</li>
-<li>
-<h4>George Joseph (3):</h4>
-</li>
-<li>channelstorage_cpp_map_name_id: Add read locking around retrievals.</li>
-<li>chan_websocket.c: Change payload references to command instead.</li>
-<li>
-<p>safe_asterisk:  Fix logging and sorting issue.</p>
+<h4>George Joseph (4):</h4>
 </li>
 <li>
 <h4>Igor Goncharovsky (1):</h4>
 </li>
 <li>
-<p>func_hangupcause.c: Add access to Reason headers via HANGUPCAUSE()</p>
-</li>
-<li>
 <h4>Max Grobecker (1):</h4>
-</li>
-<li>
-<p>res_pjsip_geolocation: Add support for Geolocation loc-src parameter</p>
 </li>
 <li>
 <h4>Nathan Monfils (1):</h4>
 </li>
 <li>
-<p>manager.c: Fix presencestate object leak</p>
-</li>
-<li>
 <h4>Naveen Albert (4):</h4>
-</li>
-<li>pbx_variables.c: Create real channel for "dialplan eval function".</li>
-<li>res_cliexec: Remove unnecessary casts to char*.</li>
-<li>app_adsiprog: Fix possible NULL dereference.</li>
-<li>
-<p>chan_dahdi: Add DAHDI_CHANNEL function.</p>
 </li>
 <li>
 <h4>Sean Bright (3):</h4>
 </li>
-<li>audiohook.c: Ensure correct AO2 reference is dereffed.</li>
-<li>app_externalivr: Prevent out-of-bounds read during argument processing.</li>
-<li>
-<p>safe_asterisk: Resolve a POSIX sh problem and restore globbing behavior.</p>
-</li>
 <li>
 <h4>Sven Kube (3):</h4>
-</li>
-<li>stasis_channels.c: Add null check for referred_by in ast_ari_transfer_message_..</li>
-<li>stasis_channels.c: Make protocol_id optional to enable blind transfer via ari</li>
-<li>
-<p>res_audiosocket: add message types for all slin sample rates</p>
 </li>
 <li>
 <h4>phoneben (1):</h4>
 </li>
-<li>app_queue: Add NULL pointer checks in app_queue</li>
 </ul>
 <h3>Commit List:</h3>
 <ul>
+<li>channelstorage:  Allow storage driver read locking to be skipped.</li>
 <li>safe_asterisk: Resolve a POSIX sh problem and restore globbing behavior.</li>
 <li>safe_asterisk:  Fix logging and sorting issue.</li>
 <li>res_audiosocket: add message types for all slin sample rates</li>
@@ -149,6 +114,7 @@
 <li>res_pjsip_geolocation: Add support for Geolocation loc-src parameter</li>
 <li>stasis_channels.c: Make protocol_id optional to enable blind transfer via ari</li>
 <li>Fix some doxygen, typos and whitespace</li>
+<li>stasis_channels.c: Add null check for referred_by in ast_ari_transfer_message_create</li>
 <li>app_queue: Add NULL pointer checks in app_queue</li>
 <li>app_externalivr: Prevent out-of-bounds read during argument processing.</li>
 <li>chan_dahdi: Add DAHDI_CHANNEL function.</li>
@@ -160,6 +126,27 @@
 <li>pbx_variables.c: Create real channel for "dialplan eval function".</li>
 </ul>
 <h3>Commit Details:</h3>
+<h4>channelstorage:  Allow storage driver read locking to be skipped.</h4>
+<p>Author: George Joseph
+  Date:   2025-11-06</p>
+<p>After PR #1498 added read locking to channelstorage_cpp_map_name_id, if ARI
+  channels/externalMedia was called with a custom channel id AND the
+  cpp_map_name_id channel storage backend is in use, a deadlock can occur when
+  hanging up the channel. It's actually triggered in
+  channel.c:__ast_channel_alloc_ap() when it gets a write lock on the
+  channelstorage driver then subsequently does a lookup for channel uniqueid
+  which now does a read lock. This is an invalid operation and causes the lock
+  state to get "bad". When the channels try to hang up, a write lock is
+  attempted again which hangs and causes the deadlock.</p>
+<p>Now instead of the cpp_map_name_id channelstorage driver "get" APIs
+  automatically performing a read lock, they take a "lock" parameter which
+  allows a caller who already has a write lock to indicate that the "get" API
+  must not attempt its own lock.  This prevents the state from getting mesed up.</p>
+<p>The ao2_legacy driver uses the ao2 container's recursive mutex so doesn't
+  have this issue but since it also implements the common channelstorage API,
+  it needed its "get" implementations updated to take the lock parameter. They
+  just don't use it.</p>
+<p>Resolves: #1578</p>
 <h4>safe_asterisk: Resolve a POSIX sh problem and restore globbing behavior.</h4>
 <p>Author: Sean Bright
   Date:   2025-10-22</p>
@@ -234,7 +221,7 @@
 <h4>Fix some doxygen, typos and whitespace</h4>
 <p>Author: Bastian Triller
   Date:   2025-09-21</p>
-<h4>stasis_channels.c: Add null check for referred_by in ast_ari_transfer_message_..</h4>
+<h4>stasis_channels.c: Add null check for referred_by in ast_ari_transfer_message_create</h4>
 <p>Author: Sven Kube
   Date:   2025-09-18</p>
 <p>When handling SIP transfers via ARI, the <code>referred_by</code> field in
