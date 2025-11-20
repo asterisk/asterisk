@@ -253,7 +253,7 @@ static int pickup_by_exten(struct ast_channel *chan, const char *exten, const ch
 	while ((target = ast_channel_iterator_next(iter))) {
 		ast_channel_lock(target);
 		if ((chan != target) && ast_can_pickup(target)) {
-			ast_log(LOG_NOTICE, "%s pickup by %s\n", ast_channel_name(target), ast_channel_name(chan));
+			ast_verb(3, "%s pickup by %s\n", ast_channel_name(target), ast_channel_name(chan));
 			break;
 		}
 		ast_channel_unlock(target);
@@ -319,7 +319,7 @@ static int pickup_by_group(struct ast_channel *chan)
 	/* The found channel is already locked. */
 	target = ast_pickup_find_by_group(chan);
 	if (target) {
-		ast_log(LOG_NOTICE, "pickup %s attempt by %s\n", ast_channel_name(target), ast_channel_name(chan));
+		ast_verb(3, "pickup %s attempt by %s\n", ast_channel_name(target), ast_channel_name(chan));
 		res = ast_do_pickup(chan, target);
 		ast_channel_unlock(target);
 		target = ast_channel_unref(target);
