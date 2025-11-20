@@ -306,7 +306,7 @@ static char *_create_event_DTMF_END(struct websocket_pvt *instance,
 		struct ast_json *msg = ast_json_pack("{s:s, s:s, s:s#}",
 			"event", "DTMF_END",
 			"channel_id", ast_channel_uniqueid(instance->channel),
-			"digit", digit, 1
+			"digit", &digit, 1
 			);
 		if (!msg) {
 			return NULL;
