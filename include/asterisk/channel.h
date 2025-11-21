@@ -3996,10 +3996,13 @@ int ast_channel_redirecting_sub(struct ast_channel *autoservice_chan, struct ast
  * This function makes use of datastore operations on the channel, so
  * it is important to lock the channel before calling this function.
  *
+ * \warning You should call this function only if \ref ast_cc_is_enabled()
+ * returns true.
+ *
  * \param chan The channel to create the datastore on
  * \param base_params CCSS parameters we wish to copy into the channel
  * \retval 0 Success
- * \retval -1 Failure
+ * \retval -1 Failure or CCSS is globally disabled.
  */
 int ast_channel_cc_params_init(struct ast_channel *chan,
 		const struct ast_cc_config_params *base_params);
@@ -4012,8 +4015,11 @@ int ast_channel_cc_params_init(struct ast_channel *chan,
  * This function makes use of datastore operations on the channel, so
  * it is important to lock the channel before calling this function.
  *
+ * \warning You should call this function only if \ref ast_cc_is_enabled()
+ * returns true.
+ *
  * \param chan Channel to retrieve parameters from
- * \retval NULL Failure
+ * \retval NULL Failure or CCSS is globally disabled.
  * \retval non-NULL The parameters desired
  */
 struct ast_cc_config_params *ast_channel_get_cc_config_params(struct ast_channel *chan);
