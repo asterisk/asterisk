@@ -172,9 +172,8 @@ static struct ast_channel *callback(struct ast_channelstorage_instance *driver,
 		rdlock(driver);
 	}
 	for (it = getdb(driver).begin(); it != getdb(driver).end(); it++) {
-		chan = it->second;
-		if (cb_fn(chan, arg, data, ao2_flags) == (CMP_MATCH | CMP_STOP)) {
-			ao2_bump(chan);
+		if (cb_fn(it->second, arg, data, ao2_flags) == (CMP_MATCH | CMP_STOP)) {
+			chan = ao2_bump(it->second);
 			break;
 		}
 	}
