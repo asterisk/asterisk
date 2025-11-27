@@ -303,7 +303,7 @@ AC_PATH_PROG([BZIP2], [bzip2], :)
 AC_PATH_PROG([TAR], [tar], :)
 AC_PATH_PROG([PATCH], [patch], :)
 AC_PATH_PROG([SED], [sed], :)
-AC_PATH_PROG([NM], [nm], :)
+AC_PATH_TOOL([NM], [nm], :)
 AC_PATH_PROG([REALPATH], [realpath], :)
 
 
