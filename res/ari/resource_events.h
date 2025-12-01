@@ -84,5 +84,33 @@ int ast_ari_events_user_event_parse_body(
  * \param[out] response HTTP response
  */
 void ast_ari_events_user_event(struct ast_variable *headers, struct ast_ari_events_user_event_args *args, struct ast_ari_response *response);
+/*! Argument struct for ast_ari_events_claim_channel() */
+struct ast_ari_events_claim_channel_args {
+	/*! The ID of the channel to claim */
+	const char *channel_id;
+	/*! The name of the application claiming the channel */
+	const char *application;
+};
+/*!
+ * \brief Body parsing function for /events/claim.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_events_claim_channel_parse_body(
+	struct ast_json *body,
+	struct ast_ari_events_claim_channel_args *args);
+
+/*!
+ * \brief Claim a broadcast channel for this application.
+ *
+ * Atomically claims a channel that is in broadcast state. Only the first claim succeeds.
+ *
+ * \param headers HTTP headers
+ * \param args Swagger parameters
+ * \param[out] response HTTP response
+ */
+void ast_ari_events_claim_channel(struct ast_variable *headers, struct ast_ari_events_claim_channel_args *args, struct ast_ari_response *response);
 
 #endif /* _ASTERISK_RESOURCE_EVENTS_H */

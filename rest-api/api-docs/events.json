@@ -110,6 +110,50 @@
 					]
 				}
 			]
+		},
+		{
+			"path": "/events/claim",
+			"description": "Broadcast channel claim operations",
+			"operations": [
+				{
+					"httpMethod": "POST",
+					"since": [
+						"21.0.0"
+					],
+					"summary": "Claim a broadcast channel for this application.",
+					"notes": "Atomically claims a channel that is in broadcast state. Only the first claim succeeds.",
+					"nickname": "claimChannel",
+					"responseClass": "void",
+					"parameters": [
+						{
+							"name": "channelId",
+							"description": "The ID of the channel to claim",
+							"paramType": "query",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "application",
+							"description": "The name of the application claiming the channel",
+							"paramType": "query",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Channel not found or not in broadcast state."
+						},
+						{
+							"code": 409,
+							"reason": "Channel has already been claimed by another application."
+						}
+					]
+				}
+			]
 		}
 	],
 	"models": {
@@ -203,7 +247,9 @@
 				"ChannelConnectedLine",
 				"PeerStatusChange",
 				"ChannelTransfer",
-				"RESTResponse"
+				"RESTResponse",
+				"CallBroadcast",
+				"CallClaimed"
 			]
 		},
 		"ContactInfo": {
@@ -1177,6 +1223,48 @@
 					"required": false,
 					"type": "string",
 					"description": "Response message body"
+				}
+			}
+		},
+		"CallBroadcast": {
+			"id": "CallBroadcast",
+			"description": "Notification that a channel is being broadcast to ARI applications for claiming.",
+			"properties": {
+				"channel": {
+					"required": true,
+					"type": "Channel",
+					"description": "The channel being broadcast."
+				},
+				"caller": {
+					"required": false,
+					"type": "string",
+					"description": "The caller ID number."
+				},
+				"called": {
+					"required": false,
+					"type": "string",
+					"description": "The called number."
+				},
+				"variables": {
+					"required": false,
+					"type": "object",
+					"description": "Channel variables that may be used for routing decisions."
+				}
+			}
+		},
+		"CallClaimed": {
+			"id": "CallClaimed",
+			"description": "Notification that a broadcast channel has been successfully claimed by an ARI application.",
+			"properties": {
+				"channel": {
+					"required": true,
+					"type": "Channel",
+					"description": "The channel that was claimed."
+				},
+				"winner_app": {
+					"required": true,
+					"type": "string",
+					"description": "The name of the ARI application that claimed the channel."
 				}
 			}
 		}
