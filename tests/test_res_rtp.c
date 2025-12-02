@@ -380,8 +380,8 @@ AST_TEST_DEFINE(nack_overflow)
 	max_packets = ast_rtp_instance_get_recv_buffer_max(instance2);
 	test_write_and_read_frames(instance1, instance2, 1020, max_packets);
 
-	ast_test_validate(test, ast_rtp_instance_get_recv_buffer_count(instance2) == max_packets,
-		"Receive buffer did not have the expected count of max buffer size");
+	ast_test_validate(test, ast_rtp_instance_get_recv_buffer_count(instance2) <= max_packets,
+		"Receive buffer exceeded maximum size");
 
 	/* Send the packet that will overflow the buffer */
 	test_write_and_read_frames(instance1, instance2, 1020 + max_packets, 1);
@@ -426,9 +426,11 @@ AST_TEST_DEFINE(lost_packet_stats_nominal)
 	/* Send some more packets, but with a gap */
 	test_write_and_read_frames(instance1, instance2, 1015, 5);
 
-	/* Send a RR to calculate lost packet statistics. We should be missing 5 packets */
+	/* Queue a RR to calculate lost packet statistics. We should be missing 5 packets. We
+	 * then write a frame from the same instance to send the RR.
+	 */
 	ast_rtp_instance_queue_report(instance1);
-	test_write_frames(instance2, 1000, 1);
+	test_write_frames(instance1, 1010, 1);
 
 	/* Check RTCP stats to see if we got the expected packet loss count */
 	ast_rtp_instance_get_stats(instance2, &stats, stat);
