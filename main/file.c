@@ -678,6 +678,11 @@ static int filehelper(const char *filename, const void *arg2, const char *fmt, c
 			}
 			ast_free(fn);
 		}
+
+		/* If we have successfully opened a file, we are done. */
+		if (action == ACTION_OPEN && res == 1) {
+			break;
+		}
 	}
 	AST_RWLIST_UNLOCK(&formats);
 	return res;
