@@ -47,6 +47,13 @@ the act of queueing tasks, the most common operation, is written to be as
 simple and minimal as possible. Threadpools are best used for long
 running tasks and operations.
 
+Serializers created from a taskpool also have the ability to be suspended.
+When suspended no taskpool taskprocessor executes any tasks on the
+serializer resulting in the queue of tasks on the serializer growing. It
+is only when unsuspended that the serializer will once again have its queue
+of tasks processed. As a result it is important to suspend a serializer
+for the minimum amount of time necessary.
+
 */
 
 #ifndef _ASTERISK_TASKPOOL_H
@@ -322,6 +329,38 @@ struct ast_taskprocessor *ast_taskpool_serializer_group(const char *name,
  * \retval 0 success
  * \retval -1 failure
  */
-int ast_taskpool_serializer_push_wait(struct ast_taskprocessor *serializer, int (*task)(void *data), void *data);
+int __ast_taskpool_serializer_push_wait(struct ast_taskprocessor *serializer, int (*task)(void *data), void *data,
+	const char *file, int line, const char *function)
+	attribute_warn_unused_result;
+#define ast_taskpool_serializer_push_wait(pool, task, data) \
+        __ast_taskpool_serializer_push_wait(pool, task, data, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+
+/*!
+ * \brief Suspend a serializer, causing tasks to be queued until unsuspended
+ * \since 23.2.0
+ * \since 22.8.0
+ * \since 20.18.0
+ *
+ * \param serializer The serializer to suspend
+ * \retval 0 success
+ * \retval -1 failure
+ *
+ * \note May only be invoked from outside of the taskpool
+ */
+int ast_taskpool_serializer_suspend(struct ast_taskprocessor *serializer);
+
+/*!
+ * \brief Unsuspend a serializer, causing tasks to be executed
+ * \since 23.2.0
+ * \since 22.8.0
+ * \since 20.18.0
+ *
+ * \param serializer The serializer to unsuspend
+ * \retval 0 success
+ * \retval -1 failure
+ *
+ * \note May only be invoked from outside of the taskpool
+ */
+int ast_taskpool_serializer_unsuspend(struct ast_taskprocessor *serializer);
 
 #endif /* ASTERISK_TASKPOOL_H */

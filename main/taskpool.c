@@ -693,11 +693,21 @@ void ast_taskpool_shutdown(struct ast_taskpool *pool)
 	ao2_ref(pool, -1);
 }
 
+enum serializer_suspension {
+	SERIALIZER_UNSUSPENDED = 0,	/* The serializer is unsuspended */
+	SERIALIZER_SUSPENDING,		/* The serializer is pending suspension */
+	SERIALIZER_SUSPENDED,		/* The serializer is suspended */
+};
+
 struct serializer {
 	/*! Taskpool the serializer will use to process the jobs. */
 	struct ast_taskpool *pool;
 	/*! Which group will wait for this serializer to shutdown. */
 	struct ast_serializer_shutdown_group *shutdown_group;
+	/*! Condition for synchronization during suspension. */
+	ast_cond_t cond;
+	/*! Serializer suspension status. */
+	enum serializer_suspension suspended;
 };
 
 static void serializer_dtor(void *obj)
@@ -705,9 +715,8 @@ static void serializer_dtor(void *obj)
 	struct serializer *ser = obj;
 
 	ao2_cleanup(ser->pool);
-	ser->pool = NULL;
 	ao2_cleanup(ser->shutdown_group);
-	ser->shutdown_group = NULL;
+	ast_cond_destroy(&ser->cond);
 }
 
 static struct serializer *serializer_create(struct ast_taskpool *pool,
@@ -724,6 +733,7 @@ static struct serializer *serializer_create(struct ast_taskpool *pool,
 	}
 	ser->pool = ao2_bump(pool);
 	ser->shutdown_group = ao2_bump(shutdown_group);
+	ast_cond_init(&ser->cond, NULL);
 	return ser;
 }
 
@@ -749,6 +759,15 @@ static int execute_tasks(void *data)
 	ast_threadstorage_set_ptr(&current_taskpool_serializer, tps);
 	for (remaining = ast_taskprocessor_size(tps); remaining > 0; remaining--) {
 		requeue = ast_taskprocessor_execute(tps);
+
+		/* If the serializer is suspended we will not execute any more tasks and
+		 * we will not requeue the taskpool task. Instead it will be requeued when
+		 * the serializer is unsuspended.
+		 */
+		if (ser->suspended == SERIALIZER_SUSPENDED) {
+			requeue = 0;
+			break;
+		}
 	}
 	ast_threadstorage_set_ptr(&current_taskpool_serializer, NULL);
 
@@ -851,7 +870,17 @@ static int taskpool_serializer_empty_task(void *data)
 	return 0;
 }
 
+/* ABI compatibility: Provide actual function symbol for external modules */
+#undef ast_taskpool_serializer_push_wait
+int ast_taskpool_serializer_push_wait(struct ast_taskprocessor *serializer, int (*task)(void *data), void *data);
+
 int ast_taskpool_serializer_push_wait(struct ast_taskprocessor *serializer, int (*task)(void *data), void *data)
+{
+	return __ast_taskpool_serializer_push_wait(serializer, task, data, NULL, 0, NULL);
+}
+
+int __ast_taskpool_serializer_push_wait(struct ast_taskprocessor *serializer, int (*task)(void *data), void *data,
+	const char *file, int line, const char *function)
 {
 	struct ast_taskprocessor_listener *listener = ast_taskprocessor_listener(serializer);
 	struct serializer *ser = ast_taskprocessor_listener_get_user_data(listener);
@@ -865,7 +894,7 @@ int ast_taskpool_serializer_push_wait(struct ast_taskprocessor *serializer, int 
 			return -1;
 		}
 
-		if (ast_taskprocessor_push(serializer, taskpool_sync_task, &sync_task)) {
+		if (__ast_taskprocessor_push(serializer, taskpool_sync_task, &sync_task, file, line, function)) {
 			taskpool_sync_task_cleanup(&sync_task);
 			return -1;
 		}
@@ -907,7 +936,7 @@ int ast_taskpool_serializer_push_wait(struct ast_taskprocessor *serializer, int 
 	}
 
 	/* First we queue the serialized task */
-	if (ast_taskprocessor_push(serializer, taskpool_sync_task, &sync_task)) {
+	if (__ast_taskprocessor_push(serializer, taskpool_sync_task, &sync_task, file, line, function)) {
 		taskpool_sync_task_cleanup(&sync_task);
 		ao2_unlock(ser);
 		return -1;
@@ -925,6 +954,11 @@ int ast_taskpool_serializer_push_wait(struct ast_taskprocessor *serializer, int 
 	/* Now we execute the tasks on the serializer until our sync task is complete */
 	ast_threadstorage_set_ptr(&current_taskpool_serializer, serializer);
 	while (!sync_task.complete) {
+		/* If the serializer is suspended wait until it unsuspends */
+		while (ser->suspended == SERIALIZER_SUSPENDED) {
+			ast_cond_wait(&ser->cond,  ao2_object_get_lockaddr(ser));
+		}
+
 		/* The sync task is guaranteed to be executed, so doing a while loop on the complete
 		 * flag is safe.
 		 */
@@ -936,6 +970,112 @@ int ast_taskpool_serializer_push_wait(struct ast_taskprocessor *serializer, int 
 	ast_threadstorage_set_ptr(&current_taskpool_serializer, prior_serializer);
 
 	return sync_task.fail;
+}
+
+/*!
+ * \internal A task that suspends the serializer after queuing an empty task
+ */
+static int taskpool_serializer_suspend_task(void *data)
+{
+	struct ast_taskprocessor *serializer = data;
+	struct ast_taskprocessor_listener *listener = ast_taskprocessor_listener(serializer);
+	struct serializer *ser = ast_taskprocessor_listener_get_user_data(listener);
+
+	/* First we queue the empty task to ensure the serializer doesn't reach empty, this
+	 * prevents any threads from queueing up a taskpool task that executes the serializer
+	 * while it is suspended, allowing us to queue it ourselves when the serializer is
+	 * unsuspended.
+	 */
+	if (ast_taskprocessor_push(serializer, taskpool_serializer_empty_task, NULL)) {
+		return -1;
+	}
+
+	/* Next we suspend the serializer so that the execute_tasks currently executing stops
+	 * and doesn't requeue.
+	 */
+	ser->suspended = SERIALIZER_SUSPENDED;
+
+	return 0;
+}
+
+int ast_taskpool_serializer_suspend(struct ast_taskprocessor *serializer)
+{
+	struct ast_taskprocessor_listener *listener = ast_taskprocessor_listener(serializer);
+	struct serializer *ser = ast_taskprocessor_listener_get_user_data(listener);
+
+	/* This suspension process works by inserting a checkpoint into the queue of the
+	 * serializer. Once this checkpoint is reached the taskpool taskprocessor handling
+	 * the queue stops prematurely and does not get requeued. For the case where a
+	 * synchronous task wait is in progress it is instead paused temporarily. Once
+	 * the serializer is unsuspended a new execution task is queued into the taskpool
+	 * to resume execution and any paused synchronous task waits are awoken to resume
+	 * their own execution as well. This approach minimizes the number of threads that
+	 * are paused waiting, nominally to 0.
+	 */
+
+	if (ast_taskpool_get_current()) {
+		return -1;
+	}
+
+	ao2_lock(ser);
+
+	/* If the serializer is already suspending or suspended, just return immediately.
+	 * This mirrors the original behavior from PJSIP.
+	 */
+	if (ser->suspended != SERIALIZER_UNSUSPENDED) {
+		ao2_unlock(ser);
+		return 0;
+	}
+
+	ser->suspended = SERIALIZER_SUSPENDING;
+
+	ao2_unlock(ser);
+
+	/* Once this returns successfully there is no thread executing the tasks on the serializer,
+	 * so they will accumulate until the serializer is unsuspended.
+	 */
+	if (ast_taskpool_serializer_push_wait(serializer, taskpool_serializer_suspend_task, serializer)) {
+		/* Suspension failed, so unsuspend as doing otherwise would leave the serializer in a stuck
+		 * state.
+		 */
+		ao2_lock(ser);
+		ser->suspended = SERIALIZER_UNSUSPENDED;
+		ao2_unlock(ser);
+		return -1;
+	}
+
+	return 0;
+}
+
+int ast_taskpool_serializer_unsuspend(struct ast_taskprocessor *serializer)
+{
+	struct ast_taskprocessor_listener *listener = ast_taskprocessor_listener(serializer);
+	struct serializer *ser = ast_taskprocessor_listener_get_user_data(listener);
+
+	if (ast_taskpool_get_current()) {
+		return -1;
+	}
+
+	ao2_lock(ser);
+
+	if (ser->suspended != SERIALIZER_SUSPENDED) {
+		ao2_unlock(ser);
+		return 0;
+	}
+
+	ser->suspended = SERIALIZER_UNSUSPENDED;
+
+	/* Notify any other interested threads that this one has awoken */
+	ast_cond_broadcast(&ser->cond);
+
+	/* And now we kick off handling of the queued tasks once again */
+	if (ast_taskpool_push(ser->pool, execute_tasks, ao2_bump(serializer))) {
+		ast_taskprocessor_unreference(serializer);
+	}
+
+	ao2_unlock(ser);
+
+	return 0;
 }
 
 /*!
