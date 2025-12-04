@@ -18,7 +18,7 @@
 #include "asterisk/compat.h"
 
 struct ao2_container;
-struct ast_threadpool_options;
+struct ast_taskpool_options;
 struct ast_sip_cli_context;
 
 /*!
@@ -116,7 +116,7 @@ int ast_sip_destroy_sorcery_auth(void);
  * \brief Initialize the distributor module
  *
  * The distributor module is responsible for taking an incoming
- * SIP message and placing it into the threadpool. Once in the threadpool,
+ * SIP message and placing it into the taskpool. Once in the taskpool,
  * the distributor will perform endpoint lookups and authentication, and
  * then distribute the message up the stack to any further modules.
  *
@@ -278,9 +278,9 @@ void ast_res_pjsip_cleanup_message_filter(void);
 
 /*!
  * \internal
- * \brief Get threadpool options
+ * \brief Get taskpool options
  */
-void sip_get_threadpool_options(struct ast_threadpool_options *threadpool_options);
+void sip_get_taskpool_options(struct ast_taskpool_options *taskpool_options);
 
 /*!
  * \internal
