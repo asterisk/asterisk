@@ -1006,7 +1006,7 @@
 				<para>The name of the queue in which to pause or unpause this member. If not specified, the member will be paused or unpaused in all the queues it is a member of.</para>
 			</parameter>
 			<parameter name="Reason" required="false">
-				<para>Text description, returned in the event QueueMemberPaused.</para>
+				<para>Text description, returned in the event QueueMemberPause.</para>
 			</parameter>
 		</syntax>
 		<description>
