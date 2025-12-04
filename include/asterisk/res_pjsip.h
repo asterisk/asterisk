@@ -1921,7 +1921,7 @@ struct ast_sip_endpoint *ast_sip_get_artificial_endpoint(void);
  * There are three major types of threads that SIP will have to deal with:
  * \li Asterisk threads
  * \li PJSIP threads
- * \li SIP threadpool threads (a.k.a. "servants")
+ * \li SIP taskpool threads (a.k.a. "servants")
  *
  * \par Asterisk Threads
  *
@@ -1963,7 +1963,7 @@ struct ast_sip_endpoint *ast_sip_get_artificial_endpoint(void);
  * is NULL, then the work will be handed off to whatever servant can currently handle
  * the task. If this pointer is non-NULL, then the task will not be executed until
  * previous tasks pushed with the same serializer have completed. For more information
- * on serializers and the benefits they provide, see \ref ast_threadpool_serializer
+ * on serializers and the benefits they provide, see \ref ast_taskpool_serializer
  *
  * \par Scheduler
  *
@@ -1992,7 +1992,7 @@ typedef int (*ast_sip_task)(void *user_data);
  * \brief Create a new serializer for SIP tasks
  * \since 13.8.0
  *
- * See \ref ast_threadpool_serializer for more information on serializers.
+ * See \ref ast_taskpool_serializer for more information on serializers.
  * SIP creates serializers so that tasks operating on similar data will run
  * in sequence.
  *
@@ -2009,7 +2009,7 @@ struct ast_serializer_shutdown_group;
  * \brief Create a new serializer for SIP tasks
  * \since 13.8.0
  *
- * See \ref ast_threadpool_serializer for more information on serializers.
+ * See \ref ast_taskpool_serializer for more information on serializers.
  * SIP creates serializers so that tasks operating on similar data will run
  * in sequence.
  *
@@ -2264,7 +2264,7 @@ enum ast_sip_scheduler_task_flags {
 struct ast_sip_sched_task;
 
 /*!
- * \brief Schedule a task to run in the res_pjsip thread pool
+ * \brief Schedule a task to run in the res_pjsip taskpool
  * \since 13.9.0
  *
  * \param serializer The serializer to use.  If NULL, don't use a serializer (see note below)
@@ -2279,7 +2279,7 @@ struct ast_sip_sched_task;
  * \par Serialization
  *
  * Specifying a serializer guarantees serialized execution but NOT specifying a serializer
- * may still result in tasks being effectively serialized if the thread pool is busy.
+ * may still result in tasks being effectively serialized if the taskpool is busy.
  * The point of the serializer BTW is not to prevent parallel executions of the SAME task.
  * That happens automatically (see below).  It's to prevent the task from running at the same
  * time as other work using the same serializer, whether or not it's being run by the scheduler.
@@ -3675,15 +3675,15 @@ int ast_sip_get_host_ip(int af, pj_sockaddr *addr);
 const char *ast_sip_get_host_ip_string(int af);
 
 /*!
- * \brief Return the size of the SIP threadpool's task queue
+ * \brief Return the size of the SIP taskpool's task queue
  * \since 13.7.0
  */
-long ast_sip_threadpool_queue_size(void);
+long ast_sip_taskpool_queue_size(void);
 
 /*!
- * \brief Retrieve the SIP threadpool object
+ * \brief Retrieve the SIP taskpool object
  */
-struct ast_threadpool *ast_sip_threadpool(void);
+struct ast_taskpool *ast_sip_taskpool(void);
 
 /*!
  * \brief Retrieve transport state

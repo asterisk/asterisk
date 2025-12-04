@@ -45,6 +45,7 @@ struct test_data {
 	ast_cond_t cond;
 	int executed;
 	struct ast_taskprocessor *taskprocessor;
+	void *test_specific_data;
 };
 
 static struct test_data *test_alloc(void)
@@ -550,6 +551,296 @@ end:
 	return res;
 }
 
+AST_TEST_DEFINE(taskpool_serializer_suspension)
+{
+	struct ast_taskpool *pool = NULL;
+	struct test_data *td = NULL;
+	struct ast_taskprocessor *serializer = NULL;
+	struct ast_taskpool_options options = {
+		.version = AST_TASKPOOL_OPTIONS_VERSION,
+		.idle_timeout = 0,
+		.auto_increment = 0,
+		.minimum_size = 1,
+		.initial_size = 1,
+		.max_size = 1,
+	};
+	enum ast_test_result_state res = AST_TEST_PASS;
+	struct timeval start;
+	struct timespec end;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "serializer_suspension";
+		info->category = "/main/taskpool/";
+		info->summary = "Taskpool serializer suspension test";
+		info->description =
+			"Pushes a single task into a taskpool serializer asynchronously while suspended, and ensures it only executes after unsuspension.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+	td = test_alloc();
+	if (!td) {
+		return AST_TEST_FAIL;
+	}
+
+	pool = ast_taskpool_create(info->name, &options);
+	if (!pool) {
+		goto end;
+	}
+
+	serializer = ast_taskpool_serializer("serializer", pool);
+	if (!serializer) {
+		goto end;
+	}
+
+	ast_taskpool_serializer_suspend(serializer);
+
+	if (ast_taskprocessor_push(serializer, simple_task, td)) {
+		goto end;
+	}
+
+	/* Give 5 seconds to ensure the task isn't executed */
+	start = ast_tvnow();
+	end.tv_sec = start.tv_sec + 5;
+	end.tv_nsec = start.tv_usec * 1000;
+
+	ast_mutex_lock(&td->lock);
+	while (!td->executed && ast_cond_timedwait(&td->cond, &td->lock, &end) != ETIMEDOUT) {
+	}
+	ast_mutex_unlock(&td->lock);
+
+	if (td->executed) {
+		ast_test_status_update(test, "Expected simple task to not be executed but it was\n");
+		res = AST_TEST_FAIL;
+	}
+
+	ast_taskpool_serializer_unsuspend(serializer);
+
+	/* Give 5 seconds to ensure the task is executed */
+	start = ast_tvnow();
+	end.tv_sec = start.tv_sec + 5;
+	end.tv_nsec = start.tv_usec * 1000;
+
+	ast_mutex_lock(&td->lock);
+	while (!td->executed && ast_cond_timedwait(&td->cond, &td->lock, &end) != ETIMEDOUT) {
+	}
+	ast_mutex_unlock(&td->lock);
+
+	if (!td->executed) {
+		ast_test_status_update(test, "Expected simple task to be executed but it was not\n");
+		res = AST_TEST_FAIL;
+	}
+
+end:
+	ast_taskprocessor_unreference(serializer);
+	ast_taskpool_shutdown(pool);
+	test_destroy(td);
+	return res;
+}
+
+AST_TEST_DEFINE(taskpool_serializer_multiple_suspension)
+{
+	struct ast_taskpool *pool = NULL;
+	struct test_data *td = NULL;
+	struct ast_taskprocessor *serializer = NULL;
+	struct ast_taskpool_options options = {
+		.version = AST_TASKPOOL_OPTIONS_VERSION,
+		.idle_timeout = 0,
+		.auto_increment = 0,
+		.minimum_size = 1,
+		.initial_size = 1,
+		.max_size = 1,
+	};
+	enum ast_test_result_state res = AST_TEST_PASS;
+	struct timeval start;
+	struct timespec end;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "serializer_multiple_suspension";
+		info->category = "/main/taskpool/";
+		info->summary = "Taskpool serializer multiple suspension test";
+		info->description =
+			"Pushes a single task into a taskpool serializer asynchronously while suspended multiple times, and ensures it only executes after unsuspension.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+	td = test_alloc();
+	if (!td) {
+		return AST_TEST_FAIL;
+	}
+
+	pool = ast_taskpool_create(info->name, &options);
+	if (!pool) {
+		goto end;
+	}
+
+	serializer = ast_taskpool_serializer("serializer", pool);
+	if (!serializer) {
+		goto end;
+	}
+
+	ast_taskpool_serializer_suspend(serializer);
+	ast_taskpool_serializer_suspend(serializer);
+
+	if (ast_taskprocessor_push(serializer, simple_task, td)) {
+		goto end;
+	}
+
+	/* Give 5 seconds to ensure the task isn't executed */
+	start = ast_tvnow();
+	end.tv_sec = start.tv_sec + 5;
+	end.tv_nsec = start.tv_usec * 1000;
+
+	ast_mutex_lock(&td->lock);
+	while (!td->executed && ast_cond_timedwait(&td->cond, &td->lock, &end) != ETIMEDOUT) {
+	}
+	ast_mutex_unlock(&td->lock);
+
+	if (td->executed) {
+		ast_test_status_update(test, "Expected simple task to not be executed but it was\n");
+		res = AST_TEST_FAIL;
+	}
+
+	ast_taskpool_serializer_unsuspend(serializer);
+	ast_taskpool_serializer_unsuspend(serializer);
+
+	/* Give 5 seconds to ensure the task is executed */
+	start = ast_tvnow();
+	end.tv_sec = start.tv_sec + 5;
+	end.tv_nsec = start.tv_usec * 1000;
+
+	ast_mutex_lock(&td->lock);
+	while (!td->executed && ast_cond_timedwait(&td->cond, &td->lock, &end) != ETIMEDOUT) {
+	}
+	ast_mutex_unlock(&td->lock);
+
+	if (!td->executed) {
+		ast_test_status_update(test, "Expected simple task to be executed but it was not\n");
+		res = AST_TEST_FAIL;
+	}
+
+end:
+	ast_taskprocessor_unreference(serializer);
+	ast_taskpool_shutdown(pool);
+	test_destroy(td);
+	return res;
+}
+
+static int cascade_task(void *data)
+{
+	struct test_data *td = data;
+
+	if (ast_taskpool_serializer_push_wait(td->test_specific_data, simple_task, td)) {
+		return -1;
+	}
+
+	return 0;
+}
+
+AST_TEST_DEFINE(taskpool_serializer_push_wait_while_suspended_from_other_serializer)
+{
+	struct ast_taskpool *pool = NULL;
+	struct test_data *td = NULL;
+	struct ast_taskprocessor *suspended_serializer = NULL;
+	struct ast_taskprocessor *push_serializer = NULL;
+	struct ast_taskpool_options options = {
+		.version = AST_TASKPOOL_OPTIONS_VERSION,
+		.idle_timeout = 0,
+		.auto_increment = 0,
+		.minimum_size = 1,
+		.initial_size = 1,
+		.max_size = 1,
+	};
+	enum ast_test_result_state res = AST_TEST_PASS;
+	struct timeval start;
+	struct timespec end;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "serializer_push_wait_while_suspended_from_other_serializer";
+		info->category = "/main/taskpool/";
+		info->summary = "Taskpool serializer push wait while suspended from other serializer test";
+		info->description =
+			"Pushes a single task into a taskpool serializer synchronously from another serializer while suspended, and ensures it only executes after unsuspension.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+	td = test_alloc();
+	if (!td) {
+		return AST_TEST_FAIL;
+	}
+
+	pool = ast_taskpool_create(info->name, &options);
+	if (!pool) {
+		goto end;
+	}
+
+	suspended_serializer = ast_taskpool_serializer("suspended_serializer", pool);
+	if (!suspended_serializer) {
+		goto end;
+	}
+
+	td->test_specific_data = suspended_serializer;
+
+	push_serializer = ast_taskpool_serializer("push_serializer", pool);
+	if (!push_serializer) {
+		goto end;
+	}
+
+	ast_taskpool_serializer_suspend(suspended_serializer);
+
+	/* We push a task to the unsuspended serializer which will push a task to the suspended serializer
+	 * in a synchronous fashion. That task can not execute until the suspended serializer becomes
+	 * unsuspended.
+	 */
+	if (ast_taskprocessor_push(push_serializer, cascade_task, td)) {
+		goto end;
+	}
+
+	/* Give 5 seconds to ensure the task isn't executed */
+	start = ast_tvnow();
+	end.tv_sec = start.tv_sec + 5;
+	end.tv_nsec = start.tv_usec * 1000;
+
+	ast_mutex_lock(&td->lock);
+	while (!td->executed && ast_cond_timedwait(&td->cond, &td->lock, &end) != ETIMEDOUT) {
+	}
+	ast_mutex_unlock(&td->lock);
+
+	if (td->executed) {
+		ast_test_status_update(test, "Expected simple task to not be executed but it was\n");
+		res = AST_TEST_FAIL;
+	}
+
+	ast_taskpool_serializer_unsuspend(suspended_serializer);
+
+	/* Give 5 seconds to ensure the task is executed */
+	start = ast_tvnow();
+	end.tv_sec = start.tv_sec + 5;
+	end.tv_nsec = start.tv_usec * 1000;
+
+	ast_mutex_lock(&td->lock);
+	while (!td->executed && ast_cond_timedwait(&td->cond, &td->lock, &end) != ETIMEDOUT) {
+	}
+	ast_mutex_unlock(&td->lock);
+
+	if (!td->executed) {
+		ast_test_status_update(test, "Expected simple task to be executed but it was not\n");
+		res = AST_TEST_FAIL;
+	}
+
+end:
+	ast_taskprocessor_unreference(suspended_serializer);
+	ast_taskprocessor_unreference(push_serializer);
+	ast_taskpool_shutdown(pool);
+	test_destroy(td);
+	return res;
+}
+
 struct efficiency_task_data {
 	struct ast_taskpool *pool;
 	int num_tasks_executed;
@@ -640,7 +931,7 @@ static char *handle_cli_taskpool_push_efficiency(struct ast_cli_entry *e, int cm
 	ast_mutex_unlock(&td->lock);
 
 	/* Give the total tasks executed, and tell each task to not requeue */
-	ast_cli(a->fd, "Total tasks executed in 30 seconds: %d\n", etd.num_tasks_executed);
+	ast_cli(a->fd, "Total tasks executed in 30 seconds: %d (%d per second)\n", etd.num_tasks_executed, etd.num_tasks_executed / 30);
 
 end:
 	etd.shutdown = 1;
@@ -762,7 +1053,7 @@ static char *handle_cli_taskpool_push_serializer_efficiency(struct ast_cli_entry
 	ast_mutex_unlock(&td->lock);
 
 	/* Give the total tasks executed, and tell each task to not requeue */
-	ast_cli(a->fd, "Total tasks executed in 30 seconds: %d\n", num_tasks_executed);
+	ast_cli(a->fd, "Total tasks executed in 30 seconds: %d (%d per second)\n", num_tasks_executed, num_tasks_executed / 30);
 	shutdown = 1;
 
 end:
@@ -791,6 +1082,9 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(taskpool_push_serializer_synchronous_requeue);
 	AST_TEST_UNREGISTER(taskpool_push_grow);
 	AST_TEST_UNREGISTER(taskpool_push_shrink);
+	AST_TEST_UNREGISTER(taskpool_serializer_suspension);
+	AST_TEST_UNREGISTER(taskpool_serializer_multiple_suspension);
+	AST_TEST_UNREGISTER(taskpool_serializer_push_wait_while_suspended_from_other_serializer);
 	return 0;
 }
 
@@ -804,6 +1098,9 @@ static int load_module(void)
 	AST_TEST_REGISTER(taskpool_push_serializer_synchronous_requeue);
 	AST_TEST_REGISTER(taskpool_push_grow);
 	AST_TEST_REGISTER(taskpool_push_shrink);
+	AST_TEST_REGISTER(taskpool_serializer_suspension);
+	AST_TEST_REGISTER(taskpool_serializer_multiple_suspension);
+	AST_TEST_REGISTER(taskpool_serializer_push_wait_while_suspended_from_other_serializer);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
