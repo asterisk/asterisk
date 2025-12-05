@@ -35,7 +35,7 @@
 
 /*** DOCUMENTATION
 	<managerEvent language="en_US" name="CEL">
-		<managerEventInstance class="EVENT_FLAG_CEL">
+		<managerEventInstance class="EVENT_FLAG_CALL">
 			<since>
 				<version>13.2.0</version>
 			</since>
