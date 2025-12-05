@@ -426,9 +426,12 @@ AST_TEST_DEFINE(lost_packet_stats_nominal)
 	/* Send some more packets, but with a gap */
 	test_write_and_read_frames(instance1, instance2, 1015, 5);
 
-	/* Send a RR to calculate lost packet statistics. We should be missing 5 packets */
+	/* Queue a RR to calculate lost packet statistics. We should be missing 5 packets. We
+	 * then write a frame from the same instance to send the RR.
+	 */
 	ast_rtp_instance_queue_report(instance1);
-	test_write_frames(instance2, 1000, 1);
+	//test_write_frames(instance2, 1000, 1);
+	test_write_frames(instance1, 1010, 1);
 
 	/* Check RTCP stats to see if we got the expected packet loss count */
 	ast_rtp_instance_get_stats(instance2, &stats, stat);

@@ -1,0 +1,22 @@
+From 359c579c1e4a1c1bcb3f1bb8a55714dbe0e53a21 Mon Sep 17 00:00:00 2001
+From: silentindark <59952498+silentindark@users.noreply.github.com>
+Date: Wed, 3 Dec 2025 06:20:03 +0200
+Subject: [PATCH] Fix pj/os.h header file (#4695)
+
+---
+ pjlib/include/pj/os.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/pjlib/include/pj/os.h b/pjlib/include/pj/os.h
+index b6406e35e2..3ddc6b05f1 100644
+--- a/pjlib/include/pj/os.h
++++ b/pjlib/include/pj/os.h
+@@ -264,7 +264,7 @@ PJ_DECL(pj_status_t) pj_thread_register ( const char *thread_name,
+  *
+  * @return PJ_SUCCESS on success.
+  */
+-PJ_DECL(pj_status_t) pj_thread_unregister();
++PJ_DECL(pj_status_t) pj_thread_unregister(void);
+ 
+ /**
+  * Register a thread that was created by external or native API to PJLIB.
