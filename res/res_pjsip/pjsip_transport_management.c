@@ -26,6 +26,8 @@
 #include "asterisk/res_pjsip.h"
 #include "asterisk/module.h"
 #include "asterisk/astobj2.h"
+#include "asterisk/time.h"
+#include "asterisk/cli.h"
 #include "include/res_pjsip_private.h"
 
 /*! \brief Number of buckets for monitored transports */
@@ -54,6 +56,8 @@ struct monitored_transport {
 	pjsip_transport *transport;
 	/*! \brief Non-zero if a PJSIP request was received */
 	int sip_received;
+	/*! \brief Timestamp of when the last SIP request was received */
+	struct timeval last_sip_received_time;
 };
 
 static void keepalive_transport_send_keepalive(struct monitored_transport *monitored)
@@ -158,6 +162,8 @@ static int idle_sched_cb(const void *data)
 {
 	char *obj_name = (char *) data;
 	struct monitored_transport *monitored;
+	int next_check_delay = 0;
+	unsigned int incoming_transport_idle_timeout = ast_sip_get_incoming_transport_idle_timeout();
 
 	if (idle_sched_init_pj_thread()) {
 		ast_free(obj_name);
@@ -170,12 +176,23 @@ static int idle_sched_cb(const void *data)
 			ast_log(LOG_NOTICE, "Shutting down transport '%s' since no request was received in %d seconds\n",
 				monitored->transport->info, IDLE_TIMEOUT / 1000);
 			pjsip_transport_shutdown(monitored->transport);
+			ast_free(obj_name);
+		} else if (incoming_transport_idle_timeout && monitored->transport->dir == PJSIP_TP_DIR_INCOMING) {
+			if (ast_tvdiff_sec(ast_tvnow(), monitored->last_sip_received_time) > incoming_transport_idle_timeout) {
+				ast_log(LOG_NOTICE, "Shutting down transport '%s' since no new request was received in %d seconds\n",
+					monitored->transport->info, incoming_transport_idle_timeout);
+				pjsip_transport_shutdown(monitored->transport);
+				ast_free(obj_name);
+			} else {
+				next_check_delay = incoming_transport_idle_timeout * 1000 / 10;
+			}
+		} else {
+			ast_free(obj_name);
 		}
 		ao2_ref(monitored, -1);
 	}
 
-	ast_free(obj_name);
-	return 0;
+	return next_check_delay;
 }
 
 static int idle_sched_cleanup(const void *data)
@@ -226,6 +243,8 @@ static void monitored_transport_state_callback(pjsip_transport *transport, pjsip
 				break;
 			}
 			monitored->transport = transport;
+			monitored->sip_received = 0;
+			monitored->last_sip_received_time = ast_tvnow();
 			pjsip_transport_add_ref(monitored->transport);
 
 			ao2_link(transports, monitored);
@@ -314,6 +333,22 @@ static int monitored_transport_cmp_fn(void *obj, void *arg, int flags)
 	return !cmp ? CMP_MATCH : 0;
 }
 
+/*! \brief Sort function for monitored transport */
+static int monitored_transport_sort_fn(const void *obj_left, const void *obj_right, int flags)
+{
+	const struct monitored_transport *object_left = obj_left;
+	const struct monitored_transport *object_right = obj_right;
+	int cmp = strcmp(object_left->transport->obj_name, object_right->transport->obj_name);
+
+	if (cmp < 0) {
+		return -1;
+	}
+	if (cmp > 0) {
+		return 1;
+	}
+	return 0;
+}
+
 static void keepalive_global_loaded(const char *object_type)
 {
 	unsigned int new_interval = ast_sip_get_keep_alive_interval();
@@ -357,6 +392,7 @@ static pj_bool_t idle_monitor_on_rx_request(pjsip_rx_data *rdata)
 	idle_trans = get_monitored_transport_by_name(rdata->tp_info.transport->obj_name);
 	if (idle_trans) {
 		idle_trans->sip_received = 1;
+		idle_trans->last_sip_received_time = ast_tvnow();
 		ao2_ref(idle_trans, -1);
 	}
 
@@ -367,6 +403,109 @@ static pjsip_module idle_monitor_module = {
 	.name = {"idle monitor module", 19},
 	.priority = PJSIP_MOD_PRIORITY_TRANSPORT_LAYER + 3,
 	.on_rx_request = idle_monitor_on_rx_request,
+};
+
+/*! \brief CLI function to show monitored transports */
+static char *cli_show_monitored_transports(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	char *cli_rc = CLI_FAILURE;
+	int rc = 0;
+	int container_count;
+	struct ao2_iterator iter;
+	struct ao2_container *sorted_transports = NULL;
+	struct ao2_container *transports;
+	struct monitored_transport *monitored;
+	struct timeval now = ast_tvnow();
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "pjsip show monitored-transports";
+		e->usage = "Usage: pjsip show monitored-transports\n"
+		            "      Show pjsip monitored transports with SIP activity info\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 3) {
+		return CLI_SHOWUSAGE;
+	}
+
+	/* Get a sorted snapshot of the scheduled tasks */
+	sorted_transports = ao2_container_alloc_rbtree(AO2_ALLOC_OPT_LOCK_NOLOCK, 0,
+		monitored_transport_sort_fn, NULL);
+	if (!sorted_transports) {
+		ast_cli(a->fd, "PJSIP Transport Monitor: Unable to allocate temporary container\n");
+		return CLI_FAILURE;
+	}
+
+	transports = ao2_global_obj_ref(monitored_transports);
+	if (!transports) {
+		ast_cli(a->fd, "PJSIP Monitored Transports: Unable to get transports\n");
+		goto error;
+	}
+
+	ao2_lock(transports);
+	rc = ao2_container_dup(sorted_transports, transports, 0);
+	ao2_unlock(transports);
+	ao2_ref(transports, -1);
+	if (rc != 0) {
+		ast_cli(a->fd, "PJSIP Monitored Transports: Unable to sort temporary container\n");
+		goto error;
+	}
+	container_count = ao2_container_count(sorted_transports);
+
+	ast_cli(a->fd, "PJSIP Monitored Transports:\n\n");
+
+	ast_cli(a->fd,
+		"<Transport Name................> <State.....> <Direction> <RefCnt> <SIP Rx> <Time Since Last SIP>\n");
+
+	iter = ao2_iterator_init(sorted_transports, AO2_ITERATOR_UNLINK);
+	for (; (monitored = ao2_iterator_next(&iter)); ao2_ref(monitored, -1)) {
+		char *state;
+		int64_t time_since_last_sip;
+		char time_str[32];
+
+		if (monitored->transport->is_destroying) {
+			state = "DESTROYING";
+		} else if (monitored->transport->is_shutdown) {
+			state = "SHUTDOWN";
+		} else {
+			state = "ACTIVE";
+		}
+
+		time_since_last_sip = ast_tvdiff_sec(now, monitored->last_sip_received_time);
+		if (time_since_last_sip < 0) {
+			time_since_last_sip = 0;
+		}
+
+		if (time_since_last_sip < 60) {
+			snprintf(time_str, sizeof(time_str), "%lds", (long)time_since_last_sip);
+		} else if (time_since_last_sip < 3600) {
+			snprintf(time_str, sizeof(time_str), "%ldm%lds", 
+				(long)(time_since_last_sip / 60), (long)(time_since_last_sip % 60));
+		} else {
+			snprintf(time_str, sizeof(time_str), "%ldh%ldm", 
+				(long)(time_since_last_sip / 3600), (long)((time_since_last_sip % 3600) / 60));
+		}
+
+		ast_cli(a->fd, " %-32.32s   %-10s   %-9s   %6ld   %6s   %s\n",
+			monitored->transport->obj_name, state,
+			monitored->transport->dir == PJSIP_TP_DIR_OUTGOING ? "Outgoing" : "Incoming",
+			pj_atomic_get(monitored->transport->ref_cnt),
+			monitored->sip_received ? "Yes" : "No",
+			time_str);
+	}
+	ao2_iterator_destroy(&iter);
+	ast_cli(a->fd, "\nTotal Monitored Transports: %d\n\n", container_count);
+	cli_rc = CLI_SUCCESS;
+error:
+	ao2_cleanup(sorted_transports);
+	return cli_rc;
+}
+
+static struct ast_cli_entry cli_commands[] = {
+	AST_CLI_DEFINE(cli_show_monitored_transports, "Show pjsip monitored transports"),
 };
 
 int ast_sip_initialize_transport_management(void)
@@ -403,12 +542,14 @@ int ast_sip_initialize_transport_management(void)
 
 	ast_sorcery_observer_add(ast_sip_get_sorcery(), "global", &keepalive_global_observer);
 	ast_sorcery_reload_object(ast_sip_get_sorcery(), "global");
+	ast_cli_register_multiple(cli_commands, ARRAY_LEN(cli_commands));
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
 void ast_sip_destroy_transport_management(void)
 {
+	ast_cli_unregister_multiple(cli_commands, ARRAY_LEN(cli_commands));
 	if (keepalive_interval) {
 		keepalive_interval = 0;
 		if (keepalive_thread != AST_PTHREADT_NULL) {
