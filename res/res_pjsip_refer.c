@@ -231,12 +231,6 @@ static int refer_progress_notify(void *data)
 
 	if (notification->progress->ari_state) {
 		struct transfer_ari_state *ari_state = notification->progress->ari_state;
-		if (ari_state->transferer && notification->state == PJSIP_EVSUB_STATE_TERMINATED) {
-			if (!ast_sip_push_task(ari_state->transferer->serializer, defer_termination_cancel_task, ari_state->transferer)) {
-				/* Gave the ref to the pushed task. */
-				ari_state->transferer = NULL;
-			}
-		}
 		ari_notify(ari_state);
 	}
 
@@ -1581,13 +1575,6 @@ static int refer_incoming_ari_request(struct ast_sip_session *session, pjsip_rx_
 	}
 
 	ao2_ref(session, +1);
-	if (ast_sip_session_defer_termination(session)) {
-		ast_log(LOG_ERROR, "Channel '%s' from endpoint '%s' attempted ari-only transfer but could not defer termination, rejecting\n",
-			ast_channel_name(session->channel),
-			ast_sorcery_object_get_id(session->endpoint));
-		ao2_cleanup(session);
-		return 500;
-	}
 	state->transferer = session;
 
 
