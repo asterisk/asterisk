@@ -799,8 +799,10 @@
 ;sdp_session=Asterisk   ; String used for the SDP session s line (default:
                         ; "Asterisk")
 ;tos_audio=0    ; DSCP TOS bits for audio streams (default: "0")
+;tos_text=0     ; DSCP TOS bits for text streams (default: "0")
 ;tos_video=0    ; DSCP TOS bits for video streams (default: "0")
 ;cos_audio=0    ; Priority for audio streams (default: "0")
+;cos_text=0     ; Priority for text streams (default: "0")
 ;cos_video=0    ; Priority for video streams (default: "0")
 ;allow_subscribe=yes    ; Determines if endpoint is allowed to initiate
                         ; subscriptions with Asterisk (default: "yes")
@@ -902,6 +904,8 @@
                               ; (Cisco SPA) to be able to indicate and pick up
                               ; ringing devices.
 ;max_audio_streams= ; The maximum number of allowed negotiated audio streams
+                    ; (default: 1)
+;max_text_streams=  ; The maximum number of allowed negotiated text streams
                     ; (default: 1)
 ;max_video_streams= ; The maximum number of allowed negotiated video streams
                     ; (default: 1)
