@@ -1950,15 +1950,36 @@ void stasis_topic_pool_delete_topic(struct stasis_topic_pool *pool, const char *
 
 struct stasis_topic *stasis_topic_pool_get_topic(struct stasis_topic_pool *pool, const char *topic_name)
 {
-	RAII_VAR(struct topic_pool_entry *, topic_pool_entry, NULL, ao2_cleanup);
-	SCOPED_AO2LOCK(topic_container_lock, pool->pool_container);
+	struct topic_pool_entry *topic_pool_entry = NULL;
+	struct topic_pool_entry *existing = NULL;
+	struct stasis_topic *result_topic = NULL;
 	char *new_topic_name;
 	int ret;
 
+	/*
+	 * Fast path lookup.
+	 * Only hold pool->pool_container lock during the lookup itself.
+	 */
+	ao2_lock(pool->pool_container);
 	topic_pool_entry = ao2_find(pool->pool_container, topic_name, OBJ_SEARCH_KEY | OBJ_NOLOCK);
 	if (topic_pool_entry) {
-		return topic_pool_entry->topic;
+		/* Borrowed reference: preserve original API behavior */
+		result_topic = topic_pool_entry->topic;
+		ao2_ref(topic_pool_entry, -1);
+		ao2_unlock(pool->pool_container);
+		return result_topic;
 	}
+	ao2_unlock(pool->pool_container);
+
+	/*
+	 * IMPORTANT:
+	 * Do not hold pool->pool_container lock while calling stasis_topic_create()
+	 * or stasis_forward_all(), because those functions acquire topic locks.
+	 * Holding the pool lock here can cause deadlocks with other threads that
+	 * hold topic locks and need this pool lock.
+	 */
+
+	 /* Create new topic entry */
 
 	topic_pool_entry = topic_pool_entry_alloc(topic_name);
 	if (!topic_pool_entry) {
@@ -1968,27 +1989,60 @@ struct stasis_topic *stasis_topic_pool_get_topic(struct stasis_topic_pool *pool,
 	/* To provide further detail and to ensure that the topic is unique within the scope of the
 	 * system we prefix it with the pooling topic name, which should itself already be unique.
 	 */
+	/* Build fully-qualified topic name */
 	ret = ast_asprintf(&new_topic_name, "%s/%s", stasis_topic_name(pool->pool_topic), topic_name);
 	if (ret < 0) {
+		ao2_ref(topic_pool_entry, -1);
 		return NULL;
 	}
 
 	topic_pool_entry->topic = stasis_topic_create(new_topic_name);
 	ast_free(new_topic_name);
 	if (!topic_pool_entry->topic) {
+		ao2_ref(topic_pool_entry, -1);
 		return NULL;
 	}
 
+	/* Set up forwarding before inserting into the pool */
 	topic_pool_entry->forward = stasis_forward_all(topic_pool_entry->topic, pool->pool_topic);
 	if (!topic_pool_entry->forward) {
+		ao2_ref(topic_pool_entry, -1);
 		return NULL;
 	}
 
+	/*
+	 * Race window:
+	 * Another thread may have created this topic while we were unlocked.
+	 * Re-acquire the pool lock and check for an existing entry.
+	 */
+	ao2_lock(pool->pool_container);
+
+	existing = ao2_find(pool->pool_container, topic_name, OBJ_SEARCH_KEY | OBJ_NOLOCK);
+	if (existing) {
+		/* Another thread won the race: use its topic */
+		result_topic = existing->topic;
+		ao2_ref(existing, -1);
+		ao2_unlock(pool->pool_container);
+
+		/* Discard our newly created topic entry */
+		ao2_ref(topic_pool_entry, -1);
+		return result_topic;
+	}
+
+	/* We won the race: insert our entry into the pool */
 	if (!ao2_link_flags(pool->pool_container, topic_pool_entry, OBJ_NOLOCK)) {
+		ao2_unlock(pool->pool_container);
+		ao2_ref(topic_pool_entry, -1);
 		return NULL;
 	}
 
-	return topic_pool_entry->topic;
+	result_topic = topic_pool_entry->topic;
+	ao2_unlock(pool->pool_container);
+
+	/* Drop temporary reference; container now owns one */
+	ao2_ref(topic_pool_entry, -1);
+
+	return result_topic;  /* Borrowed reference */
 }
 
 int stasis_topic_pool_topic_exists(const struct stasis_topic_pool *pool, const char *topic_name)
