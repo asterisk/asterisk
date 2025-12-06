@@ -441,7 +441,7 @@ static char *handle_cli_threadpool_push_efficiency(struct ast_cli_entry *e, int 
 	ast_mutex_unlock(&tld->lock);
 
 	/* Give the total tasks executed, and tell each task to not requeue */
-	ast_cli(a->fd, "Total tasks executed in 30 seconds: %d\n", etd.num_tasks_executed);
+	ast_cli(a->fd, "Total tasks executed in 30 seconds: %d (%d per second)\n", etd.num_tasks_executed, etd.num_tasks_executed / 30);
 	etd.shutdown = 1;
 
 	res = wait_for_empty_notice(NULL, tld);
@@ -1974,7 +1974,7 @@ static char *handle_cli_threadpool_push_serializer_efficiency(struct ast_cli_ent
 	ast_mutex_unlock(&tld->lock);
 
 	/* Give the total tasks executed, and tell each task to not requeue */
-	ast_cli(a->fd, "Total tasks executed in 30 seconds: %d\n", num_tasks_executed);
+	ast_cli(a->fd, "Total tasks executed in 30 seconds: %d (%d per second)\n", num_tasks_executed, num_tasks_executed / 30);
 	shutdown = 1;
 
 	res = wait_for_empty_notice(NULL, tld);
