@@ -680,7 +680,8 @@
 						to the core at all. The <literal>uri_pjsip</literal> option has the benefit of being more efficient
 						and also supporting multiple potential redirect targets. The con is that since redirection occurs
 						within chan_pjsip redirecting information is not forwarded and redirection can not be
-						prevented.
+						prevented. Further, if <literal>uri_pjsip</literal> is configured, 3xx responses to SIP MESSAGEs
+						are also followed.
 						</para>
 						<enumlist>
 							<enum name="user" />

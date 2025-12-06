@@ -4392,4 +4392,15 @@ const int ast_sip_hangup_sip2cause(int cause);
  */
 int ast_sip_str2rc(const char *name);
 
+/*!
+ * \brief Parses a string representing a q_value to a float.
+ *
+ * Valid q values must be in the range from 0.0 to 1.0 inclusively.
+ *
+ * \param q_value String representing a floating point value
+ *
+ * \retval The parsed qvalue or -1.0 on failure.
+ */
+float ast_sip_parse_qvalue(const char *q_value);
+
 #endif /* _RES_PJSIP_H */
