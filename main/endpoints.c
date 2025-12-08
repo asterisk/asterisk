@@ -327,6 +327,7 @@ void ast_endpoint_shutdown(struct ast_endpoint *endpoint)
 			stasis_publish(ast_endpoint_topic(endpoint), message);
 		}
 	}
+	ao2_ref(endpoint, -1);
 }
 
 const char *ast_endpoint_get_tech(const struct ast_endpoint *endpoint)
