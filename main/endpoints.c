@@ -34,6 +34,7 @@
 #include "asterisk/stasis.h"
 #include "asterisk/stasis_channels.h"
 #include "asterisk/stasis_endpoints.h"
+#include "asterisk/stasis_message_router.h"
 #include "asterisk/stringfields.h"
 #include "asterisk/_private.h"
 
@@ -67,6 +68,8 @@ struct ast_endpoint {
 	int max_channels;
 	/*! Topic for this endpoint's messages */
 	struct stasis_cp_single *topics;
+	/*! Router for handling this endpoint's messages */
+	struct stasis_message_router *router;
 	/*! ast_str_container of channels associated with this endpoint */
 	struct ao2_container *channel_ids;
 	/*! Forwarding subscription from an endpoint to its tech endpoint */
@@ -143,6 +146,11 @@ static void endpoint_dtor(void *obj)
 {
 	struct ast_endpoint *endpoint = obj;
 
+	/* The router should be shut down already */
+	ast_assert(stasis_message_router_is_done(endpoint->router));
+	ao2_cleanup(endpoint->router);
+	endpoint->router = NULL;
+
 	stasis_cp_single_unsubscribe(endpoint->topics);
 	endpoint->topics = NULL;
 
@@ -171,26 +179,43 @@ int ast_endpoint_add_channel(struct ast_endpoint *endpoint,
 	return 0;
 }
 
-int ast_endpoint_remove_channel(struct ast_endpoint *endpoint,
-	struct ast_channel *chan)
+/*! \brief Handler for channel snapshot update */
+static void endpoint_cache_clear(void *data,
+	struct stasis_subscription *sub,
+	struct stasis_message *message)
 {
-	ast_assert(chan != NULL);
+	struct ast_endpoint *endpoint = data;
+	struct ast_channel_snapshot_update *update = stasis_message_data(message);
+
+	/* Only when the channel is dead do we remove it */
+	if (!ast_test_flag(&update->new_snapshot->flags, AST_FLAG_DEAD)) {
+		return;
+	}
+
 	ast_assert(endpoint != NULL);
-	ast_assert(!ast_strlen_zero(endpoint->resource));
 
 	ao2_lock(endpoint);
-	ast_str_container_remove(endpoint->channel_ids, ast_channel_uniqueid(chan));
+	ast_str_container_remove(endpoint->channel_ids, update->new_snapshot->base->uniqueid);
 	ao2_unlock(endpoint);
-
 	endpoint_publish_snapshot(endpoint);
+}
 
-	return 0;
+static void endpoint_subscription_change(void *data,
+	struct stasis_subscription *sub,
+	struct stasis_message *message)
+{
+	struct stasis_endpoint *endpoint = data;
+
+	if (stasis_subscription_final_message(sub, message)) {
+		ao2_cleanup(endpoint);
+	}
 }
 
 static struct ast_endpoint *endpoint_internal_create(const char *tech, const char *resource)
 {
 	RAII_VAR(struct ast_endpoint *, endpoint, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_endpoint *, tech_endpoint, NULL, ao2_cleanup);
+	int r = 0;
 
 	/* Get/create the technology endpoint */
 	if (!ast_strlen_zero(resource)) {
@@ -246,6 +271,20 @@ static struct ast_endpoint *endpoint_internal_create(const char *tech, const cha
 		}
 		stasis_cp_single_accept_message_type(endpoint->topics, ast_endpoint_snapshot_type());
 		stasis_cp_single_set_filter(endpoint->topics, STASIS_SUBSCRIPTION_FILTER_SELECTIVE);
+
+		endpoint->router = stasis_message_router_create_pool(ast_endpoint_topic(endpoint));
+		if (!endpoint->router) {
+			return NULL;
+		}
+		r |= stasis_message_router_add(endpoint->router,
+			ast_channel_snapshot_type(), endpoint_cache_clear,
+			endpoint);
+		r |= stasis_message_router_add(endpoint->router,
+			stasis_subscription_change_type(), endpoint_subscription_change,
+			endpoint);
+		if (r) {
+			return NULL;
+		}
 
 		endpoint->tech_forward = stasis_forward_all(stasis_cp_single_topic(endpoint->topics),
 			stasis_cp_single_topic(tech_endpoint->topics));
@@ -327,6 +366,10 @@ void ast_endpoint_shutdown(struct ast_endpoint *endpoint)
 			stasis_publish(ast_endpoint_topic(endpoint), message);
 		}
 	}
+
+	/* Bump refcount to hold on to the router */
+	ao2_ref(endpoint->router, +1);
+	stasis_message_router_unsubscribe(endpoint->router);
 }
 
 const char *ast_endpoint_get_tech(const struct ast_endpoint *endpoint)

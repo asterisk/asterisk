@@ -2848,16 +2848,6 @@ void ast_channel_internal_swap_endpoint_forward(struct ast_channel *a, struct as
 void ast_channel_internal_swap_snapshots(struct ast_channel *a, struct ast_channel *b);
 
 /*!
- * \brief Swap endpoints between two channels
- * \param a First channel
- * \param b Second channel
- *
- * \note
- * This is used in masquerade to exchange endpoints
- */
-void ast_channel_internal_swap_endpoints(struct ast_channel *a, struct ast_channel *b);
-
-/*!
  * \brief Set uniqueid and linkedid string value only (not time)
  * \param chan The channel to set the uniqueid to
  * \param uniqueid The uniqueid to set
@@ -4280,8 +4270,6 @@ ast_callid ast_channel_callid(const struct ast_channel *chan);
 struct ast_channel_snapshot *ast_channel_snapshot(const struct ast_channel *chan);
 void ast_channel_snapshot_set(struct ast_channel *chan, struct ast_channel_snapshot *snapshot);
 struct ast_flags *ast_channel_snapshot_segment_flags(struct ast_channel *chan);
-struct ast_endpoint *ast_channel_endpoint(const struct ast_channel *chan);
-void ast_channel_endpoint_set(struct ast_channel *chan, struct ast_endpoint *endpoint);
 
 /*!
  * \pre chan is locked

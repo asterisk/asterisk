@@ -256,8 +256,6 @@ AST_TEST_DEFINE(channel_messages)
 	actual_snapshot = stasis_message_data(msg);
 	ast_test_validate(test, 1 == actual_snapshot->num_channels);
 
-	ast_endpoint_remove_channel(uut, chan);
-
 	ast_hangup(chan);
 	chan = NULL;
 
