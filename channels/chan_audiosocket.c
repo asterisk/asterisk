@@ -275,6 +275,8 @@ static struct ast_channel *audiosocket_request(const char *type,
 		goto failure;
 	}
 	ast_channel_set_fd(chan, 0, fd);
+	/* Prevent device state caching as this channel involves ephemeral destinations or sources */
+	ast_set_flag(ast_channel_flags(chan), AST_FLAG_DISABLE_DEVSTATE_CACHE);
 
 	ast_channel_tech_set(chan, &audiosocket_channel_tech);
 
