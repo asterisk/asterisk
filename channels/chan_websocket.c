@@ -1708,6 +1708,8 @@ static struct ast_channel *webchan_request(const char *type,
 		goto failure;
 	}
 
+	/* Prevent device state caching as this channel involves ephemeral destinations or sources */
+	ast_set_flag(ast_channel_flags(chan), AST_FLAG_DISABLE_DEVSTATE_CACHE);
 	ast_debug(3, "%s: WebSocket channel %s allocated for connection %s\n",
 		ast_channel_name(chan), requestor_name,
 		instance->connection_id);
