@@ -3696,6 +3696,239 @@ ari_validator ast_ari_validate_bridge_video_source_changed_fn(void)
 	return ast_ari_validate_bridge_video_source_changed;
 }
 
+int ast_ari_validate_call_broadcast(struct ast_json *json)
+{
+	int res = 1;
+	struct ast_json_iter *iter;
+	int has_type = 0;
+	int has_application = 0;
+	int has_timestamp = 0;
+	int has_channel = 0;
+
+	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI CallBroadcast field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_type = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI CallBroadcast field type failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("application", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_application = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI CallBroadcast field application failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_timestamp = 1;
+			prop_is_valid = ast_ari_validate_date(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI CallBroadcast field timestamp failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("called", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI CallBroadcast field called failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("caller", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI CallBroadcast field caller failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("channel", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_channel = 1;
+			prop_is_valid = ast_ari_validate_channel(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI CallBroadcast field channel failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("variables", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_object(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI CallBroadcast field variables failed validation\n");
+				res = 0;
+			}
+		} else
+		{
+			ast_log(LOG_ERROR,
+				"ARI CallBroadcast has undocumented field %s\n",
+				ast_json_object_iter_key(iter));
+			res = 0;
+		}
+	}
+
+	if (!has_type) {
+		ast_log(LOG_ERROR, "ARI CallBroadcast missing required field type\n");
+		res = 0;
+	}
+
+	if (!has_application) {
+		ast_log(LOG_ERROR, "ARI CallBroadcast missing required field application\n");
+		res = 0;
+	}
+
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI CallBroadcast missing required field timestamp\n");
+		res = 0;
+	}
+
+	if (!has_channel) {
+		ast_log(LOG_ERROR, "ARI CallBroadcast missing required field channel\n");
+		res = 0;
+	}
+
+	return res;
+}
+
+ari_validator ast_ari_validate_call_broadcast_fn(void)
+{
+	return ast_ari_validate_call_broadcast;
+}
+
+int ast_ari_validate_call_claimed(struct ast_json *json)
+{
+	int res = 1;
+	struct ast_json_iter *iter;
+	int has_type = 0;
+	int has_application = 0;
+	int has_timestamp = 0;
+	int has_channel = 0;
+	int has_winner_app = 0;
+
+	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI CallClaimed field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_type = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI CallClaimed field type failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("application", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_application = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI CallClaimed field application failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_timestamp = 1;
+			prop_is_valid = ast_ari_validate_date(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI CallClaimed field timestamp failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("channel", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_channel = 1;
+			prop_is_valid = ast_ari_validate_channel(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI CallClaimed field channel failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("winner_app", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_winner_app = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI CallClaimed field winner_app failed validation\n");
+				res = 0;
+			}
+		} else
+		{
+			ast_log(LOG_ERROR,
+				"ARI CallClaimed has undocumented field %s\n",
+				ast_json_object_iter_key(iter));
+			res = 0;
+		}
+	}
+
+	if (!has_type) {
+		ast_log(LOG_ERROR, "ARI CallClaimed missing required field type\n");
+		res = 0;
+	}
+
+	if (!has_application) {
+		ast_log(LOG_ERROR, "ARI CallClaimed missing required field application\n");
+		res = 0;
+	}
+
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI CallClaimed missing required field timestamp\n");
+		res = 0;
+	}
+
+	if (!has_channel) {
+		ast_log(LOG_ERROR, "ARI CallClaimed missing required field channel\n");
+		res = 0;
+	}
+
+	if (!has_winner_app) {
+		ast_log(LOG_ERROR, "ARI CallClaimed missing required field winner_app\n");
+		res = 0;
+	}
+
+	return res;
+}
+
+ari_validator ast_ari_validate_call_claimed_fn(void)
+{
+	return ast_ari_validate_call_claimed;
+}
+
 int ast_ari_validate_channel_caller_id(struct ast_json *json)
 {
 	int res = 1;
@@ -6288,6 +6521,12 @@ int ast_ari_validate_event(struct ast_json *json)
 	if (strcmp("BridgeVideoSourceChanged", discriminator) == 0) {
 		return ast_ari_validate_bridge_video_source_changed(json);
 	} else
+	if (strcmp("CallBroadcast", discriminator) == 0) {
+		return ast_ari_validate_call_broadcast(json);
+	} else
+	if (strcmp("CallClaimed", discriminator) == 0) {
+		return ast_ari_validate_call_claimed(json);
+	} else
 	if (strcmp("ChannelCallerId", discriminator) == 0) {
 		return ast_ari_validate_channel_caller_id(json);
 	} else
@@ -6509,6 +6748,12 @@ int ast_ari_validate_message(struct ast_json *json)
 	} else
 	if (strcmp("BridgeVideoSourceChanged", discriminator) == 0) {
 		return ast_ari_validate_bridge_video_source_changed(json);
+	} else
+	if (strcmp("CallBroadcast", discriminator) == 0) {
+		return ast_ari_validate_call_broadcast(json);
+	} else
+	if (strcmp("CallClaimed", discriminator) == 0) {
+		return ast_ari_validate_call_claimed(json);
 	} else
 	if (strcmp("ChannelCallerId", discriminator) == 0) {
 		return ast_ari_validate_channel_caller_id(json);
