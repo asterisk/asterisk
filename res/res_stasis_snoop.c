@@ -351,6 +351,8 @@ struct ast_channel *stasis_app_control_snoop(struct ast_channel *chan,
 
 	/* To keep the channel valid on the Snoop structure until it is destroyed we bump the ref up here */
 	ast_channel_ref(snoop->chan);
+	/* Prevent device state caching as this channel involves ephemeral destinations or sources */
+	ast_set_flag(ast_channel_flags(snoop->chan), AST_FLAG_DISABLE_DEVSTATE_CACHE);
 
 	ast_channel_tech_set(snoop->chan, &snoop_tech);
 	ao2_ref(snoop, +1);

@@ -217,6 +217,8 @@ static struct ast_channel *multicast_rtp_request(const char *type, struct ast_fo
 		ast_rtp_instance_destroy(instance);
 		goto failure;
 	}
+	/* Prevent device state caching as this channel involves ephemeral destinations or sources */
+	ast_set_flag(ast_channel_flags(chan), AST_FLAG_DISABLE_DEVSTATE_CACHE);
 	ast_rtp_instance_set_channel_id(instance, ast_channel_uniqueid(chan));
 	ast_rtp_instance_set_remote_address(instance, &destination_address);
 
@@ -374,6 +376,8 @@ static struct ast_channel *unicast_rtp_request(const char *type, struct ast_form
 		ast_rtp_instance_destroy(instance);
 		goto failure;
 	}
+	/*Prevent device state caching as this channel involves ephemeral destinations or sources */
+	ast_set_flag(ast_channel_flags(chan), AST_FLAG_DISABLE_DEVSTATE_CACHE);
 	ast_rtp_instance_set_channel_id(instance, ast_channel_uniqueid(chan));
 	ast_rtp_instance_set_remote_address(instance, &address);
 	ast_channel_set_fd(chan, 0, ast_rtp_instance_fd(instance, 0));
