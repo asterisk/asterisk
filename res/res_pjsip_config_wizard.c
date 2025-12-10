@@ -49,6 +49,9 @@
 #include "asterisk/pbx.h"
 #include "asterisk/sorcery.h"
 #include "asterisk/vector.h"
+#include "asterisk/stasis.h"
+#include "asterisk/acl.h"
+#include "asterisk/security_events.h"
 
 /*** DOCUMENTATION
 	<configInfo name="res_pjsip_config_wizard" language="en_US">
@@ -296,6 +299,22 @@ static AST_VECTOR_RW(object_type_wizards, struct object_type_wizard *) object_ty
 })
 
 const static char *object_types[] = {"phoneprov", "registration", "identify", "endpoint", "aor", "auth", NULL};
+
+static int acl_change_detected = 0;
+static struct stasis_subscription *acl_change_sub;
+
+/*! \brief Callback for Named ACL changed */
+static void acl_change_stasis_cb(void *data, struct stasis_subscription *sub, struct stasis_message *message)
+{
+	if (stasis_message_type(message) != ast_named_acl_change_type()) {
+		return;
+	}
+
+	ast_debug(3, "PJSIP Wizard: Named ACL change detected via Stasis. Triggering reload.\n");
+	acl_change_detected = 1;
+	ast_sorcery_reload(ast_sip_get_sorcery());
+	acl_change_detected = 0;
+}
 
 static int is_one_of(const char *needle, const char *haystack[])
 {
@@ -1064,7 +1083,9 @@ static void object_type_loaded_observer(const char *name,
 		return;
 	}
 
-	if (reloaded && otw->last_config) {
+	/* Only use the FILEUNCHANGED optimization if the ACLs haven't changed.
+	 * If ACLs changed, we force a reload of the config file to re-evaluate rules. */
+	if (reloaded && otw->last_config && !acl_change_detected) {
 		flags.flags = CONFIG_FLAG_FILEUNCHANGED;
 	}
 
@@ -1089,6 +1110,14 @@ static void object_type_loaded_observer(const char *name,
 		if (otw->last_config) {
 			last_cat = ast_category_get(otw->last_config, id, "type=^wizard$");
 			changes = !ast_variable_lists_match(ast_category_first(category), ast_category_first(last_cat), 1);
+
+			/* If the ACL has changed, we assume EVERYTHING might have changed.
+			 * We force an update for all wizard objects. */
+			if (!changes && reloaded && acl_change_detected) {
+				ast_debug(3, "Forcing update of wizard '%s' due to global ACL change.\n", id);
+				changes = 1;
+			}
+
 			if (last_cat) {
 				ast_category_delete(otw->last_config, last_cat);
 			}
@@ -1314,6 +1343,8 @@ static int load_module(void)
 	ast_sorcery_global_observer_add(&global_observer);
 	ast_cli_register_multiple(config_wizard_cli, ARRAY_LEN(config_wizard_cli));
 
+	acl_change_sub = stasis_subscribe(ast_security_topic(), acl_change_stasis_cb, NULL);
+
 	/* If the PJSIP sorcery instance exists it means that we have been explicitly
 	 * loaded and things are potentially already set up. Since we won't receive any
 	 * observer callbacks informing us of this we add ourselves to the instance
@@ -1347,6 +1378,10 @@ static int load_module(void)
 
 static int unload_module(void)
 {
+	if (acl_change_sub) {
+		acl_change_sub = stasis_unsubscribe_and_join(acl_change_sub);
+	}
+
 	ast_cli_unregister_multiple(config_wizard_cli, ARRAY_LEN(config_wizard_cli));
 	ast_sorcery_global_observer_remove(&global_observer);
 	AST_VECTOR_REMOVE_ALL_CMP_UNORDERED(&object_type_wizards, NULL, NOT_EQUALS, OTW_DELETE_CB);
