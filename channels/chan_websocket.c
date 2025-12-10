@@ -416,7 +416,8 @@ static __attribute__ ((format (gnu_printf, 2, 3))) char *_create_event_ERROR(
 ({ \
 	int _res = -1; \
 	char *_payload = _create_event_ ## _event(_instance, ##__VA_ARGS__); \
-	if (_payload) { \
+	ao2_lock(instance); \
+	if (_payload && _instance->websocket) { \
 		_res = ast_websocket_write_string(_instance->websocket, _payload); \
 		if (_res != 0) { \
 			ast_log(LOG_ERROR, "%s: Unable to send event %s\n", \
@@ -427,6 +428,7 @@ static __attribute__ ((format (gnu_printf, 2, 3))) char *_create_event_ERROR(
 		}\
 		ast_free(_payload); \
 	} \
+	ao2_unlock(instance); \
 	(_res); \
 })
 
