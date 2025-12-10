@@ -49,6 +49,9 @@
 #include "asterisk/pbx.h"
 #include "asterisk/sorcery.h"
 #include "asterisk/vector.h"
+#include "asterisk/stasis.h"
+#include "asterisk/acl.h"
+#include "asterisk/security_events.h"
 
 /*** DOCUMENTATION
 	<configInfo name="res_pjsip_config_wizard" language="en_US">
@@ -296,6 +299,9 @@ static AST_VECTOR_RW(object_type_wizards, struct object_type_wizard *) object_ty
 })
 
 const static char *object_types[] = {"phoneprov", "registration", "identify", "endpoint", "aor", "auth", NULL};
+
+static struct stasis_subscription *acl_change_sub;
+static int acl_change_detected = 0;
 
 static int is_one_of(const char *needle, const char *haystack[])
 {
@@ -1043,6 +1049,19 @@ struct ast_sorcery_instance_observer observer = {
 	.object_type_loaded = object_type_loaded_observer,
 };
 
+
+/*! \brief Callback for Named ACL changed */
+static void acl_change_stasis_cb(void *data, struct stasis_subscription *sub, struct stasis_message *message)
+{
+	/* We will verify whether it is an "ACL Change" message. */
+	if (stasis_message_type(message) != ast_named_acl_change_type()) {
+		return;
+	}
+
+	ast_debug(3, "PJSIP Wizard: Named ACL change detected via Stasis.\n");
+	acl_change_detected = 1;
+}
+
 /*! \brief Called after an object type is loaded/reloaded */
 static void object_type_loaded_observer(const char *name,
 	const struct ast_sorcery *sorcery, const char *object_type, int reloaded)
@@ -1052,6 +1071,8 @@ static void object_type_loaded_observer(const char *name,
 	char *filename = "pjsip_wizard.conf";
 	struct ast_flags flags = { 0 };
 	struct ast_config *cfg;
+
+    int force_acl_reload = acl_change_detected;
 
 	if (!strstr("auth aor endpoint identify registration phoneprov", object_type)) {
 		/* Not interested. */
@@ -1074,8 +1095,16 @@ static void object_type_loaded_observer(const char *name,
 		ast_log(LOG_ERROR, "Unable to load config file '%s'\n", filename);
 		return;
 	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED) {
-		ast_debug(2, "Config file '%s' was unchanged for '%s'.\n", filename, object_type);
-		return;
+		if (force_acl_reload) {
+			ast_debug(2, "File unchanged, but ACL changed event received. Forcing config reload for '%s'.\n", object_type);
+			/* Reload without flag FILEUNCHANGED */
+			flags.flags = 0;
+			cfg = ast_config_load2(filename, object_type, flags);
+			if (!cfg) return; 
+		} else {
+			ast_debug(2, "Config file '%s' was unchanged for '%s'.\n", filename, object_type);
+			return;
+		}
 	} else if (cfg == CONFIG_STATUS_FILEINVALID) {
 		ast_log(LOG_ERROR, "Contents of config file '%s' are invalid and cannot be parsed\n", filename);
 		return;
@@ -1094,7 +1123,7 @@ static void object_type_loaded_observer(const char *name,
 			}
 		}
 
-		if (!last_cat || changes) {
+		if (!last_cat || changes || force_acl_reload) {
 			ast_debug(3, "%s: %s(s) for wizard '%s'\n", reloaded ? "Reload" : "Load", object_type, id);
 			if (wizard_apply_handler(sorcery, otw, category)) {
 				ast_log(LOG_ERROR, "Unable to create objects for wizard '%s'\n", id);
@@ -1314,6 +1343,11 @@ static int load_module(void)
 	ast_sorcery_global_observer_add(&global_observer);
 	ast_cli_register_multiple(config_wizard_cli, ARRAY_LEN(config_wizard_cli));
 
+	acl_change_sub = stasis_subscribe(ast_security_topic(), acl_change_stasis_cb, NULL);
+	if (!acl_change_sub) {
+		ast_log(LOG_ERROR, "Failed to subscribe to Named ACL topic. Wizard won't auto-update on ACL changes.\n");
+	}
+
 	/* If the PJSIP sorcery instance exists it means that we have been explicitly
 	 * loaded and things are potentially already set up. Since we won't receive any
 	 * observer callbacks informing us of this we add ourselves to the instance
@@ -1351,6 +1385,8 @@ static int unload_module(void)
 	ast_sorcery_global_observer_remove(&global_observer);
 	AST_VECTOR_REMOVE_ALL_CMP_UNORDERED(&object_type_wizards, NULL, NOT_EQUALS, OTW_DELETE_CB);
 	AST_VECTOR_RW_FREE(&object_type_wizards);
+
+    acl_change_sub = stasis_unsubscribe_and_join(acl_change_sub);
 
 	return 0;
 }
