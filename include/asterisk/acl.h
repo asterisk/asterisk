@@ -487,6 +487,8 @@ void ast_ha_output(int fd, const struct ast_ha *ha, const char *prefix);
  */
 void ast_acl_output(int fd, struct ast_acl_list *acl, const char *prefix);
 
+int ast_named_acl_get_generation(void);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif

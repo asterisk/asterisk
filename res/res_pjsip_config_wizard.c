@@ -49,6 +49,7 @@
 #include "asterisk/pbx.h"
 #include "asterisk/sorcery.h"
 #include "asterisk/vector.h"
+#include "asterisk/acl.h"
 
 /*** DOCUMENTATION
 	<configInfo name="res_pjsip_config_wizard" language="en_US">
@@ -284,6 +285,7 @@ struct object_type_wizard {
 	struct ast_sorcery_wizard *wizard;
 	void *wizard_data;
 	struct ast_config *last_config;
+	int last_known_acl_generation;
 	char object_type[];
 };
 static AST_VECTOR_RW(object_type_wizards, struct object_type_wizard *) object_type_wizards;
@@ -1053,6 +1055,9 @@ static void object_type_loaded_observer(const char *name,
 	struct ast_flags flags = { 0 };
 	struct ast_config *cfg;
 
+	int current_generation = 0;
+	int acl_changed = 0;
+
 	if (!strstr("auth aor endpoint identify registration phoneprov", object_type)) {
 		/* Not interested. */
 		return;
@@ -1068,14 +1073,37 @@ static void object_type_loaded_observer(const char *name,
 		flags.flags = CONFIG_FLAG_FILEUNCHANGED;
 	}
 
+
+	otw = find_wizard(object_type);
+	if (!otw) {
+		return;
+	}
+
+	current_generation = ast_named_acl_get_generation();
+
+	if (otw->last_known_acl_generation != current_generation) {
+		acl_changed = 1;
+		otw->last_known_acl_generation = current_generation;
+		ast_debug(2, "ACL change detected inside Wizard (Gen: %d)\n", current_generation);
+	}
+	/* ------------------------------------------ */
+
 	cfg = ast_config_load2(filename, object_type, flags);
 
 	if (!cfg) {
 		ast_log(LOG_ERROR, "Unable to load config file '%s'\n", filename);
 		return;
 	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED) {
-		ast_debug(2, "Config file '%s' was unchanged for '%s'.\n", filename, object_type);
-		return;
+		if (!acl_changed) {
+			ast_debug(2, "Config file '%s' was unchanged for '%s'.\n", filename, object_type);
+			return;
+		}
+		else {
+			ast_debug(2, "Config file '%s' was unchanged for '%s', but ACL changed. Force reloading config.\n", filename, object_type);
+			flags.flags = 0;
+			cfg = ast_config_load2(filename, object_type, flags);
+			if (!cfg) return; /* Safety */
+		}
 	} else if (cfg == CONFIG_STATUS_FILEINVALID) {
 		ast_log(LOG_ERROR, "Contents of config file '%s' are invalid and cannot be parsed\n", filename);
 		return;
@@ -1094,7 +1122,7 @@ static void object_type_loaded_observer(const char *name,
 			}
 		}
 
-		if (!last_cat || changes) {
+		if (!last_cat || changes || acl_changed) {
 			ast_debug(3, "%s: %s(s) for wizard '%s'\n", reloaded ? "Reload" : "Load", object_type, id);
 			if (wizard_apply_handler(sorcery, otw, category)) {
 				ast_log(LOG_ERROR, "Unable to create objects for wizard '%s'\n", id);

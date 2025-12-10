@@ -90,6 +90,8 @@ static void *named_acl_config_alloc(void);
 static void *named_acl_alloc(const char *cat);
 static void *named_acl_find(struct ao2_container *container, const char *cat);
 
+static int acl_generation = 0;
+
 /* Config type for named ACL profiles (must not be named general) */
 static struct aco_type named_acl_type = {
 	.type = ACO_ITEM,                  /*!< named_acls are items stored in containers, not individual global objects */
@@ -531,6 +533,11 @@ static char *handle_show_named_acl_cmd(struct ast_cli_entry *e, int cmd, struct 
 	return CLI_SHOWUSAGE;
 }
 
+int ast_named_acl_get_generation(void)
+{
+	return acl_generation;
+}
+
 static struct ast_cli_entry cli_named_acl[] = {
 	AST_CLI_DEFINE(handle_show_named_acl_cmd, "Show a named ACL or list all named ACLs"),
 };
@@ -552,6 +559,9 @@ static int reload_module(void)
 		 */
 		return 0;
 	}
+
+	acl_generation++;
+	ast_log(LOG_NOTICE, "Named ACL reloaded. New generation: %d\n", acl_generation);
 
 	/* We need to push an ACL change event with no ACL name so that all subscribers update with all ACLs */
 	publish_acl_change("");
