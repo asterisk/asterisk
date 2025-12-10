@@ -4758,11 +4758,26 @@ static int is_longest_waiting_caller(struct queue_ent *caller, struct member *me
 					 * is already ringing at another agent. Ignore such callers; otherwise, all agents
 					 * will be unused until the first caller is picked up.
 					 */
-					if (ch->start < caller->start && !ch->pending) {
-						ast_debug(1, "Queue %s has a call at position %i that's been waiting longer (%li vs %li)\n",
-								  q->name, ch->pos, ch->start, caller->start);
-						is_longest_waiting = 0;
-						break;
+					if (!ch->pending) {
+						/* This queue has a call with lower priority than caller's. */
+						if (ch->prio < caller->prio) {
+							break;
+						}
+
+						/* The other call has higher priority. Don't consider the caller as waiting the longest. */
+						if (ch->prio > caller->prio) {
+							ast_debug(1, "Queue %s has a call at position %i that's higher priority (%d vs %d)\n",
+									  q->name, ch->pos, ch->prio, caller->prio);
+							is_longest_waiting = 0;
+							break;
+						}
+
+						if (ch->start < caller->start) {
+							ast_debug(1, "Queue %s has a call at position %i that's been waiting longer (%li vs %li)\n",
+									  q->name, ch->pos, ch->start, caller->start);
+							is_longest_waiting = 0;
+							break;
+						}
 					}
 					ch = ch->next;
 				}
