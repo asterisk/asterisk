@@ -689,6 +689,21 @@
 						</enumlist>
 					</description>
 				</configOption>
+				<configOption name="follow_redirect_methods">
+					<since>
+						<version>20.18.0</version>
+						<version>22.8.0</version>
+						<version>23.2.0</version>
+					</since>
+					<synopsis>Follow 3XX redirect responses for the defined SIP methods.</synopsis>
+					<description><para>
+						This is a comma-delimited, case-insensitive list of SIP methods for which redirects are followed.
+						When a redirect response is received for a SIP request, the redirect is only followed if the
+						method is listed in this config option. For example <literal>MESSAGE</literal>. Currently, only
+						<literal>MESSAGE</literal> is supported.
+						</para>
+					</description>
+				</configOption>
 				<configOption name="mailboxes">
 					<since>
 						<version>12.0.0</version>
