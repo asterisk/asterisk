@@ -97,8 +97,23 @@
 						<enum name="LINKEDID_END">
 							<para>The linked ID associated with this channel is being retired.</para>
 						</enum>
+						<enum name="LOCAL_OPTIMIZE_BEGIN">
+							<para>A Local channel optimization has begun.</para>
+						</enum>
 						<enum name="LOCAL_OPTIMIZE">
 							<para>A Local channel optimization has occurred.</para>
+						</enum>
+						<enum name="STREAM_BEGIN">
+							<para>A stream started playing: it can be a standalone sound
+							file playing back, or a music-on-hold class started.</para>
+						</enum>
+						<enum name="STREAM_END">
+							<para>A playing stream ended.</para>
+						</enum>
+						<enum name="DTMF">
+							<para>A DTMF digit was processed: these events are dispatched
+							at the end, when the button is released and the duration is
+							present in the extra field</para>
 						</enum>
 						<enum name="USER_DEFINED">
 							<para>A user defined type.</para>
