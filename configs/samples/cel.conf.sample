@@ -45,8 +45,8 @@ apps=dial,park
 ;  CHAN_END         -- The time a channel was terminated
 ;  ANSWER           -- The time a channel was answered (ie, phone taken off-hook)
 ;  HANGUP           -- The time at which a hangup occurred
-;  BRIDGE_ENTER       -- The time a channel was connected into a conference room
-;  BRIDGE_EXIT        -- The time a channel was removed from a conference room
+;  BRIDGE_ENTER     -- The time a channel was connected into a conference room
+;  BRIDGE_EXIT      -- The time a channel was removed from a conference room
 ;  APP_START        -- The time a tracked application was started
 ;  APP_END          -- the time a tracked application ended
 ;  PARK_START       -- The time a call was parked
@@ -58,7 +58,9 @@ apps=dial,park
 ;  LINKEDID_END     -- The last channel with the given linkedid is retired
 ;  USER_DEFINED     -- Triggered from the dialplan, and has a name given by the
 ;                      user
-;  LOCAL_OPTIMIZE   -- A local channel pair is optimizing away.
+;  LOCAL_OPTIMIZE_BEGIN
+;                   -- A local channel pair optimization has begun.
+;  LOCAL_OPTIMIZE   -- A local channel pair has been optimized away.
 ;  STREAM_BEGIN     -- A stream started playing: it can be a standalone sound file
 ;                      playing back, or a music-on-hold class started
 ;  STREAM_END       -- A playing stream ended
