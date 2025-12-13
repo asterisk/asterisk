@@ -808,6 +808,7 @@ int ast_sorcery_object_unregister(struct ast_sorcery *sorcery, const char *type)
  *
  * \param sorcery Pointer to a sorcery structure
  * \param type Type of object
+ * \param module The module name for XML documentation lookup (typically AST_MODULE)
  * \param hidden All objects of this type are internal and should not be manipulated by users
  * \param reloadable All objects of this type are reloadable
  * \param alloc Required object allocation callback
@@ -817,10 +818,15 @@ int ast_sorcery_object_unregister(struct ast_sorcery *sorcery, const char *type)
  * \note In general, this function should not be used directly. One of the various
  * macro'd versions should be used instead.
  *
+ * \note The module parameter is used for XML documentation lookup. When an object type
+ * is created via sorcery.conf, it may initially have a different module name than the
+ * module that provides the XML documentation. This parameter ensures the correct module
+ * is used for documentation lookup.
+ *
  * \retval 0 success
  * \retval -1 failure
  */
-int __ast_sorcery_object_register(struct ast_sorcery *sorcery, const char *type, unsigned int hidden, unsigned int reloadable, aco_type_item_alloc alloc, sorcery_transform_handler transform, sorcery_apply_handler apply);
+int __ast_sorcery_object_register(struct ast_sorcery *sorcery, const char *type, const char *module, unsigned int hidden, unsigned int reloadable, aco_type_item_alloc alloc, sorcery_transform_handler transform, sorcery_apply_handler apply);
 
 /*!
  * \brief Register an object type
@@ -835,7 +841,7 @@ int __ast_sorcery_object_register(struct ast_sorcery *sorcery, const char *type,
  * \retval -1 failure
  */
 #define ast_sorcery_object_register(sorcery, type, alloc, transform, apply) \
-	__ast_sorcery_object_register((sorcery), (type), 0, 1, (alloc), (transform), (apply))
+	__ast_sorcery_object_register((sorcery), (type), AST_MODULE, 0, 1, (alloc), (transform), (apply))
 
 /*!
  * \brief Register an object type that is not reloadable
@@ -850,7 +856,7 @@ int __ast_sorcery_object_register(struct ast_sorcery *sorcery, const char *type,
  * \retval -1 failure
  */
 #define ast_sorcery_object_register_no_reload(sorcery, type, alloc, transform, apply) \
-	__ast_sorcery_object_register((sorcery), (type), 0, 0, (alloc), (transform), (apply))
+	__ast_sorcery_object_register((sorcery), (type), AST_MODULE, 0, 0, (alloc), (transform), (apply))
 
 /*!
  * \brief Register an internal, hidden object type
@@ -865,7 +871,7 @@ int __ast_sorcery_object_register(struct ast_sorcery *sorcery, const char *type,
  * \retval -1 failure
  */
 #define ast_sorcery_internal_object_register(sorcery, type, alloc, transform, apply) \
-	__ast_sorcery_object_register((sorcery), (type), 1, 1, (alloc), (transform), (apply))
+	__ast_sorcery_object_register((sorcery), (type), AST_MODULE, 1, 1, (alloc), (transform), (apply))
 
 /*!
  * \brief Set the high and low alert water marks of the sorcery object type.
