@@ -44,6 +44,9 @@
 
 #include <pthread.h>
 #include <signal.h>
+#include <dirent.h>
+#include <fcntl.h>
+#include <poll.h>
 
 #include <bluetooth/bluetooth.h>
 #include <bluetooth/hci.h>
@@ -78,7 +81,8 @@
 #define MBL_CONFIG "chan_mobile.conf"
 #define MBL_CONFIG_OLD "mobile.conf"
 
-#define DEVICE_FRAME_SIZE 48
+#define DEVICE_FRAME_SIZE_DEFAULT 48
+#define DEVICE_FRAME_SIZE_MAX 256
 #define DEVICE_FRAME_FORMAT ast_format_slin
 #define CHANNEL_FRAME_SIZE 80
 
@@ -96,11 +100,34 @@ enum mbl_type {
 	MBL_TYPE_HEADSET
 };
 
+/* Device connection states */
+enum mbl_state {
+	MBL_STATE_INIT,         /* Just loaded from config */
+	MBL_STATE_DISCONNECTED, /* Not connected */
+	MBL_STATE_CONNECTING,   /* RFCOMM connection in progress */
+	MBL_STATE_CONNECTED,    /* RFCOMM connected, initializing HFP/HSP */
+	MBL_STATE_READY,        /* Fully initialized, ready for calls */
+	MBL_STATE_RING,         /* Incoming call ringing */
+	MBL_STATE_DIAL,         /* Outgoing call dialing */
+	MBL_STATE_ACTIVE,       /* Call in progress */
+	MBL_STATE_ERROR,        /* Error state */
+};
+
+/* Adapter states */
+enum adapter_state {
+	ADAPTER_STATE_INIT,      /* Just loaded */
+	ADAPTER_STATE_NOT_FOUND, /* Adapter not available/connected */
+	ADAPTER_STATE_READY,     /* Ready to connect devices */
+	ADAPTER_STATE_BUSY,      /* Device connected and in use */
+	ADAPTER_STATE_ERROR,     /* Error state */
+};
+
 struct adapter_pvt {
 	int dev_id;					/* device id */
 	int hci_socket;					/* device descriptor */
 	char id[31];					/* the 'name' from mobile.conf */
 	bdaddr_t addr;					/* adddress of adapter */
+	enum adapter_state state;			/* adapter state */
 	unsigned int inuse:1;				/* are we in use ? */
 	unsigned int alignment_detection:1;		/* do alignment detection on this adapter? */
 	struct io_context *io;				/*!< io context for audio connections */
@@ -122,7 +149,10 @@ struct mbl_pvt {
 	/*! queue for messages we are expecting */
 	AST_LIST_HEAD_NOLOCK(msg_queue, msg_queue_entry) msg_queue;
 	enum mbl_type type;				/* Phone or Headset */
+	enum mbl_state state;				/* Device state */
 	char id[31];					/* The id from mobile.conf */
+	char remote_name[32];				/* Remote device name */
+	char profile_name[8];				/* "HFP" or "HSP" */
 	int group;					/* group number for group dialling */
 	bdaddr_t addr;					/* address of device */
 	struct adapter_pvt *adapter;			/* the adapter we use */
@@ -131,10 +161,13 @@ struct mbl_pvt {
 	int rfcomm_port;				/* rfcomm port number */
 	int rfcomm_socket;				/* rfcomm socket descriptor */
 	char rfcomm_buf[256];
-	char io_buf[CHANNEL_FRAME_SIZE + AST_FRIENDLY_OFFSET];
-	struct ast_smoother *bt_out_smoother;			/* our bt_out_smoother, for making 48 byte frames */
+	char io_buf[DEVICE_FRAME_SIZE_MAX + AST_FRIENDLY_OFFSET];
+	struct ast_smoother *bt_out_smoother;			/* our bt_out_smoother, for making sco_mtu byte frames */
 	struct ast_smoother *bt_in_smoother;			/* our smoother, for making "normal" CHANNEL_FRAME_SIZEed byte frames */
 	int sco_socket;					/* sco socket descriptor */
+	int sco_mtu;					/* negotiated SCO/eSCO packet size */
+	int bt_ver;                     /* Remote Bluetooth Version (LMP) */
+	int mtu_sync_count;             /* for detecting eSCO packet size changes */
 	pthread_t monitor_thread;			/* monitor thread handle */
 	int timeout;					/*!< used to set the timeout for rfcomm data (may be used in the future) */
 	unsigned int no_callsetup:1;
@@ -159,6 +192,12 @@ struct mbl_pvt {
 	unsigned int needring:1;	/*!< we need to send a RING */
 	unsigned int answered:1;	/*!< we sent/received an answer */
 	unsigned int connected:1;	/*!< do we have an rfcomm connection to a device */
+	unsigned int has_utf8:1;    /*!< device supports UTF-8 */
+	unsigned int utf8_candidate:1; /*!< device might support UTF-8 */
+	unsigned int profile_incompatible:1; /*!< device lacks required HS/HF profile */
+	int sdp_fail_count;         /*!< count of consecutive SDP failures for profile detection */
+	int hfp_init_fail_count;    /*!< count of consecutive HFP initialization failures */
+	bdaddr_t last_checked_addr; /*!< last address we tried to connect - for detecting config changes */
 
 	AST_LIST_ENTRY(mbl_pvt) entry;
 };
@@ -186,16 +225,22 @@ static int handle_sms_prompt(struct mbl_pvt *pvt, char *buf);
 
 /* CLI stuff */
 static char *handle_cli_mobile_show_devices(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
+static char *handle_cli_mobile_show_adapters(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
+static char *handle_cli_mobile_show_adapter(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static char *handle_cli_mobile_search(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static char *handle_cli_mobile_rfcomm(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static char *handle_cli_mobile_cusd(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 
 static struct ast_cli_entry mbl_cli[] = {
-	AST_CLI_DEFINE(handle_cli_mobile_show_devices, "Show Bluetooth Cell / Mobile devices"),
-	AST_CLI_DEFINE(handle_cli_mobile_search,       "Search for Bluetooth Cell / Mobile devices"),
-	AST_CLI_DEFINE(handle_cli_mobile_rfcomm,       "Send commands to the rfcomm port for debugging"),
-	AST_CLI_DEFINE(handle_cli_mobile_cusd,         "Send CUSD commands to the mobile"),
+	AST_CLI_DEFINE(handle_cli_mobile_show_devices,  "Show Bluetooth Cell / Mobile devices"),
+	AST_CLI_DEFINE(handle_cli_mobile_show_adapters, "Show Bluetooth adapters"),
+	AST_CLI_DEFINE(handle_cli_mobile_show_adapter,  "Show detailed Bluetooth adapter info"),
+	AST_CLI_DEFINE(handle_cli_mobile_search,        "Search for Bluetooth Cell / Mobile devices"),
+	AST_CLI_DEFINE(handle_cli_mobile_rfcomm,        "Send commands to the rfcomm port for debugging"),
+	AST_CLI_DEFINE(handle_cli_mobile_cusd,          "Send CUSD commands to the mobile"),
 };
+
+
 
 /* App stuff */
 static char *app_mblstatus = "MobileStatus";
@@ -240,7 +285,7 @@ static int rfcomm_write_full(int rsock, char *buf, size_t count);
 static int rfcomm_wait(int rsock, int *ms);
 static ssize_t rfcomm_read(int rsock, char *buf, size_t count);
 
-static int sco_connect(bdaddr_t src, bdaddr_t dst);
+static int sco_connect(bdaddr_t src, bdaddr_t dst, int *mtu);
 static int sco_write(int s, char *buf, int len);
 static int sco_accept(int *id, int fd, short events, void *data);
 static int sco_bind(struct adapter_pvt *adapter);
@@ -271,6 +316,11 @@ static int headset_send_ring(const void *data);
 #define HFP_AG_STATUS	(1 << 6)
 #define HFP_AG_CONTROL	(1 << 7)
 #define HFP_AG_ERRORS	(1 << 8)
+
+/* HFP 1.6+ AG features */
+#define HFP_AG_CODEC	(1 << 9)	/* Codec negotiation (HFP 1.6) */
+#define HFP_AG_HFIND	(1 << 10)	/* HF indicators (HFP 1.7) */
+#define HFP_AG_ESCO_S4	(1 << 11)	/* eSCO S4 settings (HFP 1.7) */
 
 #define HFP_CIND_UNKNOWN	-1
 #define HFP_CIND_NONE		0
@@ -352,6 +402,8 @@ struct hfp_pvt {
 	int rsock;			/*!< our rfcomm socket */
 	int rport;			/*!< our rfcomm port */
 	int sent_alerting;		/*!< have we sent alerting? */
+	int hfp_version;		/*!< detected HFP version: 10=1.0, 15=1.5, 16=1.6, 17=1.7 */
+	int brsf_raw;			/*!< raw BRSF value from phone */
 };
 
 
@@ -378,6 +430,7 @@ static int hfp_parse_brsf(struct hfp_pvt *hfp, const char *buf);
 static int hfp_parse_cind(struct hfp_pvt *hfp, char *buf);
 static int hfp_parse_cind_test(struct hfp_pvt *hfp, char *buf);
 static char *hfp_parse_cusd(struct hfp_pvt *hfp, char *buf);
+static int hfp_parse_cscs(struct hfp_pvt *hfp, char *buf);
 
 static int hfp_brsf2int(struct hfp_hf *hf);
 static struct hfp_ag *hfp_int2brsf(int brsf, struct hfp_ag *ag);
@@ -402,6 +455,7 @@ static int hfp_send_chup(struct hfp_pvt *hfp);
 static int hfp_send_atd(struct hfp_pvt *hfp, const char *number);
 static int hfp_send_ata(struct hfp_pvt *hfp);
 static int hfp_send_cusd(struct hfp_pvt *hfp, const char *code);
+static int hfp_send_cscs(struct hfp_pvt *hfp, const char *charset);
 
 /*
  * bluetooth headset profile helpers
@@ -451,6 +505,9 @@ typedef enum {
 	AT_NO_DIALTONE,
 	AT_NO_CARRIER,
 	AT_ECAM,
+	AT_CSCS,
+	AT_CSCS_SET,
+	AT_CSCS_VERIFY,
 } at_message_t;
 
 static int at_match_prefix(char *buf, char *prefix);
@@ -490,15 +547,82 @@ static struct ast_channel_tech mbl_tech = {
 	.devicestate = mbl_devicestate
 };
 
+/*
+ * State helper functions
+ */
+
+static const char *mbl_state2str(enum mbl_state state)
+{
+	switch (state) {
+	case MBL_STATE_INIT:         return "Init";
+	case MBL_STATE_DISCONNECTED: return "Disconnected";
+	case MBL_STATE_CONNECTING:   return "Connecting";
+	case MBL_STATE_CONNECTED:    return "Connected";
+	case MBL_STATE_READY:        return "Ready";
+	case MBL_STATE_RING:         return "Ring";
+	case MBL_STATE_DIAL:         return "Dial";
+	case MBL_STATE_ACTIVE:       return "Active";
+	case MBL_STATE_ERROR:        return "Error";
+	default:                     return "Unknown";
+	}
+}
+
+static const char *adapter_state2str(enum adapter_state state)
+{
+	switch (state) {
+	case ADAPTER_STATE_INIT:      return "Init";
+	case ADAPTER_STATE_NOT_FOUND: return "NotFound";
+	case ADAPTER_STATE_READY:     return "Ready";
+	case ADAPTER_STATE_BUSY:      return "Busy";
+	case ADAPTER_STATE_ERROR:     return "Error";
+	default:                      return "Unknown";
+	}
+}
+
+
+static void mbl_set_state(struct mbl_pvt *pvt, enum mbl_state new_state)
+{
+	if (pvt->state != new_state) {
+		ast_verb(3, "[%s] State: %s -> %s\n", pvt->id,
+			mbl_state2str(pvt->state), mbl_state2str(new_state));
+		pvt->state = new_state;
+	}
+}
+
+/* Convert LMP version to Bluetooth version string */
+static const char *mbl_lmp_vertostr(int lmp_ver)
+{
+	switch (lmp_ver) {
+	case 0: return "1.0b";
+	case 1: return "1.1";
+	case 2: return "1.2";
+	case 3: return "2.0";
+	case 4: return "2.1";
+	case 5: return "3.0";
+	case 6: return "4.0";
+	case 7: return "4.1";
+	case 8: return "4.2";
+	case 9: return "5.0";
+	case 10: return "5.1";
+	case 11: return "5.2";
+	case 12: return "5.3";
+	case 13: return "5.4";
+	default: return "?";
+	}
+}
+
+
 /* CLI Commands implementation */
 
 static char *handle_cli_mobile_show_devices(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct mbl_pvt *pvt;
 	char bdaddr[18];
-	char group[6];
+	char mtu[6];
+	char bt_ver[8];
+	char profile[12];  /* "HFP 1.6" or "HSP" */
 
-#define FORMAT1 "%-15.15s %-17.17s %-5.5s %-15.15s %-9.9s %-10.10s %-3.3s\n"
+#define FORMAT1 "%-12.12s %-17.17s %-16.16s %-8.8s %4.4s %3.3s %-6s %-12.12s\n"
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -514,20 +638,35 @@ static char *handle_cli_mobile_show_devices(struct ast_cli_entry *e, int cmd, st
 	if (a->argc != 3)
 		return CLI_SHOWUSAGE;
 
-	ast_cli(a->fd, FORMAT1, "ID", "Address", "Group", "Adapter", "Connected", "State", "SMS");
+	ast_cli(a->fd, FORMAT1, "ID", "Address", "Name", "Profile", "Port", "MTU", "BTVer", "State");
 	AST_RWLIST_RDLOCK(&devices);
 	AST_RWLIST_TRAVERSE(&devices, pvt, entry) {
+		char port[8];
 		ast_mutex_lock(&pvt->lock);
 		ba2str(&pvt->addr, bdaddr);
-		snprintf(group, sizeof(group), "%d", pvt->group);
+		snprintf(mtu, sizeof(mtu), "%d", pvt->sco_mtu);
+		snprintf(port, sizeof(port), "%d", pvt->rfcomm_port);
+		ast_copy_string(bt_ver, mbl_lmp_vertostr(pvt->bt_ver), sizeof(bt_ver));
+
+		/* Show HFP version if detected, otherwise profile name */
+		if (pvt->hfp && pvt->hfp->hfp_version > 0) {
+			snprintf(profile, sizeof(profile), "HFP %d.%d",
+				pvt->hfp->hfp_version / 10, pvt->hfp->hfp_version % 10);
+		} else if (pvt->profile_name[0]) {
+			ast_copy_string(profile, pvt->profile_name, sizeof(profile));
+		} else {
+			ast_copy_string(profile, "-", sizeof(profile));
+		}
+
 		ast_cli(a->fd, FORMAT1,
 				pvt->id,
 				bdaddr,
-				group,
-				pvt->adapter->id,
-				pvt->connected ? "Yes" : "No",
-				(!pvt->connected) ? "None" : (pvt->owner) ? "Busy" : (pvt->outgoing_sms || pvt->incoming_sms) ? "SMS" : (mbl_has_service(pvt)) ? "Free" : "No Service",
-				(pvt->has_sms) ? "Yes" : "No"
+				pvt->remote_name[0] ? pvt->remote_name : "-",
+				profile,
+				port,
+				mtu,
+				bt_ver,
+				mbl_state2str(pvt->state)
 		       );
 		ast_mutex_unlock(&pvt->lock);
 	}
@@ -538,7 +677,232 @@ static char *handle_cli_mobile_show_devices(struct ast_cli_entry *e, int cmd, st
 	return CLI_SUCCESS;
 }
 
+
+
+static char *handle_cli_mobile_show_adapters(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct adapter_pvt *adapter;
+	char bdaddr[18];
+	int ctl_sock;
+
+#define FORMAT1 "%-10.10s %-17.17s %-8.8s %-5.5s %-5.5s %-8.8s %-5.5s\n"
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "mobile show adapters";
+		e->usage =
+			"Usage: mobile show adapters\n"
+			"       Shows the state of Bluetooth adapters.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 3)
+		return CLI_SHOWUSAGE;
+
+	ctl_sock = socket(AF_BLUETOOTH, SOCK_RAW, BTPROTO_HCI);
+
+	ast_cli(a->fd, FORMAT1, "ID", "Address", "State", "InUse", "Power", "RFKill", "BTVer");
+	AST_RWLIST_RDLOCK(&adapters);
+	AST_RWLIST_TRAVERSE(&adapters, adapter, entry) {
+		const char *power_status = "-";
+		const char *rfkill_status = "-";
+		const char *bt_version = "-";
+		ba2str(&adapter->addr, bdaddr);
+
+		/* Get power status and BT version if we have a valid device */
+		if (ctl_sock >= 0 && adapter->dev_id >= 0) {
+			struct hci_dev_info di;
+			memset(&di, 0, sizeof(di));
+			di.dev_id = adapter->dev_id;
+			if (ioctl(ctl_sock, HCIGETDEVINFO, &di) == 0) {
+				/* Verify this is still our adapter by checking address */
+				if (bacmp(&di.bdaddr, &adapter->addr) == 0) {
+					power_status = (di.flags & (1 << HCI_UP)) ? "UP" : "DOWN";
+
+					/* Read BT version if adapter is UP */
+					if (adapter->hci_socket >= 0) {
+						struct hci_version ver;
+						if (hci_read_local_version(adapter->hci_socket, &ver, 1000) == 0) {
+							bt_version = mbl_lmp_vertostr(ver.lmp_ver);
+						}
+					}
+				} else {
+					/* Address doesn't match - adapter was replaced or removed */
+					power_status = "Gone";
+				}
+			} else {
+				/* ioctl failed - device not found */
+				power_status = "Gone";
+			}
+		}
+
+
+		/* Check rfkill status from sysfs - only if adapter is present */
+		if (adapter->dev_id >= 0 && strcmp(power_status, "Gone") != 0) {
+			char hci_path[128];
+			DIR *hci_dir;
+
+			snprintf(hci_path, sizeof(hci_path), "/sys/class/bluetooth/hci%d", adapter->dev_id);
+			hci_dir = opendir(hci_path);
+			if (hci_dir) {
+				struct dirent *entry;
+				while ((entry = readdir(hci_dir)) != NULL) {
+					if (strncmp(entry->d_name, "rfkill", 6) == 0) {
+						char soft_path[256], hard_path[256];
+						int soft = 0, hard = 0;
+						FILE *f;
+
+						/* Read soft block */
+						snprintf(soft_path, sizeof(soft_path), "%s/%s/soft", hci_path, entry->d_name);
+						f = fopen(soft_path, "r");
+						if (f) {
+							if (fscanf(f, "%d", &soft) != 1) soft = 0;
+							fclose(f);
+						}
+
+						/* Read hard block */
+						snprintf(hard_path, sizeof(hard_path), "%s/%s/hard", hci_path, entry->d_name);
+						f = fopen(hard_path, "r");
+						if (f) {
+							if (fscanf(f, "%d", &hard) != 1) hard = 0;
+							fclose(f);
+						}
+
+
+						if (hard) {
+							rfkill_status = "Hard";
+						} else if (soft) {
+							rfkill_status = "Soft";
+						} else {
+							rfkill_status = "OK";
+						}
+						break;  /* Found rfkill for this hci device */
+					}
+				}
+				closedir(hci_dir);
+			}
+		}
+
+
+		ast_cli(a->fd, FORMAT1,
+				adapter->id,
+				bdaddr,
+				adapter_state2str(adapter->state),
+				adapter->inuse ? "Yes" : "No",
+				power_status,
+				rfkill_status,
+				bt_version
+		       );
+	}
+	AST_RWLIST_UNLOCK(&adapters);
+
+	if (ctl_sock >= 0)
+		close(ctl_sock);
+
+#undef FORMAT1
+
+	return CLI_SUCCESS;
+}
+
+/* Detailed adapter info command */
+static char *handle_cli_mobile_show_adapter(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct adapter_pvt *adapter;
+	char bdaddr[18];
+	int ctl_sock;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "mobile show adapter";
+		e->usage =
+			"Usage: mobile show adapter <id>\n"
+			"       Shows detailed info for a specific Bluetooth adapter.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 4)
+		return CLI_SHOWUSAGE;
+
+	AST_RWLIST_RDLOCK(&adapters);
+	AST_RWLIST_TRAVERSE(&adapters, adapter, entry) {
+		if (!strcmp(adapter->id, a->argv[3])) {
+			break;
+		}
+	}
+
+	if (!adapter) {
+		AST_RWLIST_UNLOCK(&adapters);
+		ast_cli(a->fd, "Adapter '%s' not found.\n", a->argv[3]);
+		return CLI_SUCCESS;
+	}
+
+	ba2str(&adapter->addr, bdaddr);
+	ast_cli(a->fd, "\nAdapter: %s\n", adapter->id);
+	ast_cli(a->fd, "  Address:      %s\n", bdaddr);
+	ast_cli(a->fd, "  State:        %s\n", adapter_state2str(adapter->state));
+	ast_cli(a->fd, "  InUse:        %s\n", adapter->inuse ? "Yes" : "No");
+
+	/* Get detailed info if adapter is available */
+	ctl_sock = socket(AF_BLUETOOTH, SOCK_RAW, BTPROTO_HCI);
+	if (ctl_sock >= 0 && adapter->dev_id >= 0) {
+		struct hci_dev_info di;
+		memset(&di, 0, sizeof(di));
+		di.dev_id = adapter->dev_id;
+
+		if (ioctl(ctl_sock, HCIGETDEVINFO, &di) == 0 && bacmp(&di.bdaddr, &adapter->addr) == 0) {
+			/* Power and scan status */
+			ast_cli(a->fd, "  Power:        %s\n", (di.flags & (1 << HCI_UP)) ? "UP" : "DOWN");
+			ast_cli(a->fd, "  Inquiry Scan: %s\n", (di.flags & (1 << HCI_ISCAN)) ? "Yes" : "No");
+			ast_cli(a->fd, "  Page Scan:    %s\n", (di.flags & (1 << HCI_PSCAN)) ? "Yes" : "No");
+
+			/* Version info */
+			if (adapter->hci_socket >= 0) {
+				struct hci_version ver;
+				if (hci_read_local_version(adapter->hci_socket, &ver, 1000) == 0) {
+					ast_cli(a->fd, "\n  Hardware:\n");
+					ast_cli(a->fd, "    Manufacturer: 0x%04x\n", ver.manufacturer);
+					ast_cli(a->fd, "    HCI Version:  %d.%d\n", ver.hci_ver, ver.hci_rev);
+					ast_cli(a->fd, "    LMP Version:  %d.%d (BT %s)\n", ver.lmp_ver, ver.lmp_subver, mbl_lmp_vertostr(ver.lmp_ver));
+				}
+
+				/* Features */
+				uint8_t features[8];
+				if (hci_read_local_features(adapter->hci_socket, features, 1000) == 0) {
+					ast_cli(a->fd, "\n  Features:\n    ");
+					int first = 1;
+
+					/* Check common features */
+					if (features[0] & 0x01) { ast_cli(a->fd, "%s3-slot", first ? "" : ", "); first = 0; }
+					if (features[0] & 0x02) { ast_cli(a->fd, "%s5-slot", first ? "" : ", "); first = 0; }
+					if (features[0] & 0x04) { ast_cli(a->fd, "%sEncrypt", first ? "" : ", "); first = 0; }
+					if (features[3] & 0x80) { ast_cli(a->fd, "%seSCO", first ? "" : ", "); first = 0; }
+					if (features[3] & 0x08) { ast_cli(a->fd, "%sEDR-ACL-2M", first ? "" : ", "); first = 0; }
+					if (features[3] & 0x10) { ast_cli(a->fd, "%sEDR-ACL-3M", first ? "" : ", "); first = 0; }
+					if (features[4] & 0x40) { ast_cli(a->fd, "%sLE", first ? "" : ", "); first = 0; }
+					if (features[6] & 0x01) { ast_cli(a->fd, "%sSC", first ? "" : ", "); first = 0; }
+					if (first) { ast_cli(a->fd, "None"); }
+					ast_cli(a->fd, "\n");
+				}
+			}
+		} else {
+			ast_cli(a->fd, "  Power:        Gone\n");
+		}
+		close(ctl_sock);
+	}
+
+	ast_cli(a->fd, "\n");
+	AST_RWLIST_UNLOCK(&adapters);
+
+	return CLI_SUCCESS;
+}
+
+
 static char *handle_cli_mobile_search(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+
 {
 	struct adapter_pvt *adapter;
 	inquiry_info *ii = NULL;
@@ -857,7 +1221,7 @@ static struct ast_channel *mbl_new(int state, struct mbl_pvt *pvt, struct cidinf
 	else
 		pvt->do_alignment_detection = 0;
 
-	ast_smoother_reset(pvt->bt_out_smoother, DEVICE_FRAME_SIZE);
+	ast_smoother_reset(pvt->bt_out_smoother, pvt->sco_mtu);
 	ast_smoother_reset(pvt->bt_in_smoother, CHANNEL_FRAME_SIZE);
 	ast_dsp_digitreset(pvt->dsp);
 
@@ -1134,7 +1498,7 @@ static struct ast_frame *mbl_read(struct ast_channel *ast)
 	pvt->fr.data.ptr = pvt->io_buf + AST_FRIENDLY_OFFSET;
 
 	do {
-		if ((r = read(pvt->sco_socket, pvt->fr.data.ptr, DEVICE_FRAME_SIZE)) == -1) {
+		if ((r = read(pvt->sco_socket, pvt->fr.data.ptr, pvt->sco_mtu)) == -1) {
 			if (errno != EAGAIN && errno != EINTR) {
 				ast_debug(1, "[%s] read error %d, going to wait for new connection\n", pvt->id, errno);
 				close(pvt->sco_socket);
@@ -1146,6 +1510,32 @@ static struct ast_frame *mbl_read(struct ast_channel *ast)
 
 		pvt->fr.datalen = r;
 		pvt->fr.samples = r / 2;
+
+		/* Log first packet and MTU mismatches for debugging */
+		if (pvt->mtu_sync_count == 0 && r > 0) {
+			/* First packet after reset or if sizes match */
+			if (r != pvt->sco_mtu) {
+				ast_log(LOG_NOTICE, "[%s] SCO packet size mismatch: got %d bytes, expected MTU=%d (HV3=48, HV2=30, HV1=10)\n",
+					pvt->id, r, pvt->sco_mtu);
+			}
+		}
+
+		if (r > 0 && r != pvt->sco_mtu) {
+			pvt->mtu_sync_count++;
+			if (pvt->mtu_sync_count == 1) {
+				ast_debug(1, "[%s] SCO MTU mismatch #1: received=%d, expected=%d\n", pvt->id, r, pvt->sco_mtu);
+			}
+			if (pvt->mtu_sync_count > 10) {
+				ast_log(LOG_NOTICE, "[%s] Adjusting SCO MTU from %d to %d based on incoming packets (phone uses fixed packet size)\n",
+					pvt->id, pvt->sco_mtu, r);
+				pvt->sco_mtu = r;
+				ast_smoother_reset(pvt->bt_out_smoother, pvt->sco_mtu);
+				pvt->mtu_sync_count = 0;
+			}
+		} else {
+			pvt->mtu_sync_count = 0;
+		}
+
 
 		if (pvt->do_alignment_detection)
 			do_alignment_detection(pvt, pvt->fr.data.ptr, r);
@@ -1175,6 +1565,7 @@ static int mbl_write(struct ast_channel *ast, struct ast_frame *frame)
 	if (frame->frametype != AST_FRAME_VOICE) {
 		return 0;
 	}
+
 
 	while (ast_mutex_trylock(&pvt->lock)) {
 		CHANNEL_DEADLOCK_AVOIDANCE(ast);
@@ -1389,9 +1780,13 @@ static int mbl_has_service(struct mbl_pvt *pvt)
 
 static int rfcomm_connect(bdaddr_t src, bdaddr_t dst, int remote_channel)
 {
-
 	struct sockaddr_rc addr;
 	int s;
+	int flags;
+	struct pollfd pfd;
+	int res;
+	int error = 0;
+	socklen_t len;
 
 	if ((s = socket(PF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM)) < 0) {
 		ast_debug(1, "socket() failed (%d).\n", errno);
@@ -1408,19 +1803,61 @@ static int rfcomm_connect(bdaddr_t src, bdaddr_t dst, int remote_channel)
 		return -1;
 	}
 
+	/* Set non-blocking */
+	flags = fcntl(s, F_GETFL, 0);
+	fcntl(s, F_SETFL, flags | O_NONBLOCK);
+
 	memset(&addr, 0, sizeof(addr));
 	addr.rc_family = AF_BLUETOOTH;
 	bacpy(&addr.rc_bdaddr, &dst);
 	addr.rc_channel = remote_channel;
+
+	ast_debug(1, "Attempting connection to channel %d\n", remote_channel);
+	
 	if (connect(s, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-		ast_debug(1, "connect() failed (%d).\n", errno);
+		if (errno != EINPROGRESS) {
+			ast_debug(1, "connect() failed (%d).\n", errno);
+			close(s);
+			return -1;
+		}
+	}
+
+	/* Wait for connection with timeout (e.g., 5000ms) */
+	pfd.fd = s;
+	pfd.events = POLLOUT;
+	
+	res = poll(&pfd, 1, 5000); 
+	if (res == 0) {
+		ast_debug(1, "connect() timed out.\n");
+		close(s);
+		return -1;
+	} else if (res < 0) {
+		ast_debug(1, "poll() failed (%d).\n", errno);
 		close(s);
 		return -1;
 	}
 
-	return s;
+	/* Check for socket error */
+	len = sizeof(error);
+	if (getsockopt(s, SOL_SOCKET, SO_ERROR, &error, &len) < 0) {
+		ast_debug(1, "getsockopt() failed (%d).\n", errno);
+		close(s);
+		return -1;
+	}
 
+	if (error != 0) {
+		ast_debug(1, "connect() failed with error %d: %s\n", error, strerror(error));
+		close(s);
+		return -1;
+	}
+
+	/* Restore blocking mode */
+	fcntl(s, F_SETFL, flags);
+
+	return s;
 }
+
+
 
 /*!
  * \brief Write to an rfcomm socket.
@@ -1830,16 +2267,50 @@ static ssize_t rfcomm_read(int rsock, char *buf, size_t count)
 
 */
 
-static int sco_connect(bdaddr_t src, bdaddr_t dst)
+static int sco_connect(bdaddr_t src, bdaddr_t dst, int *mtu)
 {
-
 	struct sockaddr_sco addr;
+	struct sco_options so;
+	socklen_t len;
 	int s;
+	char src_str[18], dst_str[18];
+
+	/* Log the addresses for debugging */
+	ba2str(&src, src_str);
+	ba2str(&dst, dst_str);
+	ast_log(LOG_NOTICE, "SCO connect: src=%s dst=%s\n", src_str, dst_str);
 
 	if ((s = socket(PF_BLUETOOTH, SOCK_SEQPACKET, BTPROTO_SCO)) < 0) {
-		ast_debug(1, "socket() failed (%d).\n", errno);
+		ast_log(LOG_WARNING, "SCO socket() failed: %s (errno=%d)\n", strerror(errno), errno);
 		return -1;
 	}
+
+	/*
+	 * Set voice setting to CVSD 16-bit (0x0060) before connecting.
+	 * This is critical for compatibility with older Bluetooth phones (BT 1.2/2.0).
+	 * Without this, newer adapters may negotiate transparent/mSBC mode causing
+	 * one-way audio or connection failures.
+	 *
+	 * BT_VOICE_CVSD_16BIT = 0x0060
+	 * BT_VOICE_TRANSPARENT = 0x0003
+	 */
+#ifdef BT_VOICE
+	{
+		struct bt_voice voice;
+		memset(&voice, 0, sizeof(voice));
+		voice.setting = 0x0060;  /* BT_VOICE_CVSD_16BIT */
+
+		if (setsockopt(s, SOL_BLUETOOTH, BT_VOICE, &voice, sizeof(voice)) < 0) {
+			ast_log(LOG_WARNING, "SCO setsockopt(BT_VOICE) failed: %s (errno=%d) - proceeding without explicit codec\n",
+				strerror(errno), errno);
+			/* Continue anyway - kernel may still negotiate correctly */
+		} else {
+			ast_log(LOG_NOTICE, "SCO voice setting configured: 0x%04x (CVSD 16-bit)\n", voice.setting);
+		}
+	}
+#else
+	ast_log(LOG_NOTICE, "BT_VOICE not available in this kernel - using default codec negotiation\n");
+#endif
 
 /* XXX this does not work with the do_sco_listen() thread (which also bind()s
  * to this address).  Also I am not sure if it is necessary. */
@@ -1858,14 +2329,31 @@ static int sco_connect(bdaddr_t src, bdaddr_t dst)
 	addr.sco_family = AF_BLUETOOTH;
 	bacpy(&addr.sco_bdaddr, &dst);
 
+	ast_debug(1, "SCO connecting to %s...\n", dst_str);
+
 	if (connect(s, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-		ast_debug(1, "sco connect() failed (%d).\n", errno);
+		ast_log(LOG_WARNING, "SCO connect() failed: %s (errno=%d)\n", strerror(errno), errno);
 		close(s);
 		return -1;
 	}
 
-	return s;
+	ast_log(LOG_NOTICE, "SCO connection established to %s\n", dst_str);
 
+	/* Get negotiated SCO/eSCO options and log details */
+	if (mtu) {
+		len = sizeof(so);
+		memset(&so, 0, sizeof(so));
+		if (getsockopt(s, SOL_SCO, SCO_OPTIONS, &so, &len) < 0) {
+			ast_log(LOG_WARNING, "getsockopt(SCO_OPTIONS) failed: %s (errno=%d), using default MTU=%d\n",
+				strerror(errno), errno, DEVICE_FRAME_SIZE_DEFAULT);
+			*mtu = DEVICE_FRAME_SIZE_DEFAULT;
+		} else {
+			*mtu = so.mtu;
+			ast_log(LOG_NOTICE, "SCO negotiated parameters: MTU=%d\n", so.mtu);
+		}
+	}
+
+	return s;
 }
 
 static int sco_write(int s, char *buf, int len)
@@ -1882,9 +2370,10 @@ static int sco_write(int s, char *buf, int len)
 
 	r = write(s, buf, len);
 	if (r == -1) {
-		ast_debug(3, "sco write error %d\n", errno);
+		ast_log(LOG_WARNING, "sco_write() failed: %s (%d) - len %d\n", strerror(errno), errno, len);
 		return 0;
 	}
+	
 
 	return 1;
 
@@ -1905,6 +2394,7 @@ static int sco_accept(int *id, int fd, short events, void *data)
 	char saddr[18];
 	struct sco_options so;
 	int sock;
+	int mtu;
 
 	addrlen = sizeof(struct sockaddr_sco);
 	if ((sock = accept(fd, (struct sockaddr *)&addr, &addrlen)) == -1) {
@@ -1913,10 +2403,50 @@ static int sco_accept(int *id, int fd, short events, void *data)
 	}
 
 	len = sizeof(so);
-	getsockopt(sock, SOL_SCO, SCO_OPTIONS, &so, &len);
+	memset(&so, 0, sizeof(so));
+	if (getsockopt(sock, SOL_SCO, SCO_OPTIONS, &so, &len) < 0) {
+		ast_log(LOG_WARNING, "getsockopt(SCO_OPTIONS) failed: %s (errno=%d), using default MTU\n", strerror(errno), errno);
+		mtu = DEVICE_FRAME_SIZE_DEFAULT;
+	} else {
+		mtu = so.mtu;
+	}
 
 	ba2str(&addr.sco_bdaddr, saddr);
-	ast_debug(1, "Incoming Audio Connection from device %s MTU is %d\n", saddr, so.mtu);
+	ast_log(LOG_NOTICE, "Incoming SCO connection from %s: negotiated MTU=%d bytes\n", saddr, mtu);
+
+	/* Log expected HV packet types for reference */
+	ast_log(LOG_NOTICE, "  Expected SCO packet sizes: HV3=48 (30 voice), HV2=30 (20 voice), HV1=10 (10 voice), eSCO=%d\n", mtu);
+
+	/* Log voice settings for debugging codec issues */
+	{
+		uint16_t vs;
+		if (hci_read_voice_setting(adapter->hci_socket, &vs, 1000) < 0) {
+			ast_log(LOG_WARNING, "Failed to read adapter voice setting: %s\n", strerror(errno));
+		} else {
+			vs = htobs(vs);
+			ast_log(LOG_NOTICE, "Adapter %s voice setting: 0x%04x (%s)\n", 
+				adapter->id, vs,
+				vs == 0x0060 ? "CVSD 16-bit" : 
+				vs == 0x0063 ? "Transparent 16-bit" : "Unknown");
+		}
+	}
+
+#ifdef BT_VOICE
+	/* Read the negotiated voice setting on the socket */
+	{
+		struct bt_voice voice;
+		socklen_t vlen = sizeof(voice);
+		memset(&voice, 0, sizeof(voice));
+		if (getsockopt(sock, SOL_BLUETOOTH, BT_VOICE, &voice, &vlen) < 0) {
+			ast_debug(1, "getsockopt(BT_VOICE) failed: %s (errno=%d)\n", strerror(errno), errno);
+		} else {
+			ast_log(LOG_NOTICE, "SCO socket voice setting: 0x%04x (%s)\n",
+				voice.setting,
+				voice.setting == 0x0060 ? "CVSD 16-bit" :
+				voice.setting == 0x0063 ? "Transparent 16-bit" : "Unknown");
+		}
+	}
+#endif
 
 	/* figure out which device this sco connection belongs to */
 	pvt = NULL;
@@ -1939,6 +2469,11 @@ static int sco_accept(int *id, int fd, short events, void *data)
 	}
 
 	pvt->sco_socket = sock;
+	pvt->sco_mtu = mtu;
+
+	/* Reset smoother to use negotiated MTU */
+	ast_smoother_reset(pvt->bt_out_smoother, pvt->sco_mtu);
+
 	if (pvt->owner) {
 		ast_channel_set_fd(pvt->owner, 0, sock);
 	} else {
@@ -1949,6 +2484,7 @@ static int sco_accept(int *id, int fd, short events, void *data)
 
 	return 1;
 }
+
 
 /*!
  * \brief Bind an SCO listener socket for the given adapter.
@@ -2063,6 +2599,8 @@ static at_message_t at_read_full(int rsock, char *buf, size_t count)
 		return AT_NO_CARRIER;
 	} else if (at_match_prefix(buf, "*ECAV:")) {
 		return AT_ECAM;
+	} else if (at_match_prefix(buf, "+CSCS:")) {
+		return AT_CSCS;
 	} else {
 		return AT_UNKNOWN;
 	}
@@ -2107,6 +2645,12 @@ static inline const char *at_msg2str(at_message_t msg)
 		return "SMS PROMPT";
 	case AT_CMS_ERROR:
 		return "+CMS ERROR";
+	case AT_CSCS:
+		return "+CSCS";
+	case AT_CSCS_SET:
+		return "+CSCS (Set)";
+	case AT_CSCS_VERIFY:
+		return "+CSCS (Verify)";
 	case AT_BUSY:
 		return "BUSY";
 	case AT_NO_DIALTONE:
@@ -2226,7 +2770,7 @@ static int hfp_parse_ciev(struct hfp_pvt *hfp, char *buf, int *value)
 static struct cidinfo hfp_parse_clip(struct hfp_pvt *hfp, char *buf)
 {
 	int i;
-	int tokens[6];
+	int tokens[7];  /* Need 7 tokens for full CLIP: +CLIP:,num,type,subaddr,satype,alpha,validity */
 	char *cnamtmp;
 	char delim = ' ';	/* First token terminates with space */
 	int invalid = 0;	/* Number of invalid chars in cnam */
@@ -2234,6 +2778,14 @@ static struct cidinfo hfp_parse_clip(struct hfp_pvt *hfp, char *buf)
 
 	/* parse clip info in the following format:
 	 * +CLIP: "123456789",128,...
+	 * 3GPP TS 27.007: +CLIP: <number>,<type>[,<subaddr>,<satype>[,[<alpha>][,<CLI validity>]]]
+	 * token 0 = +CLIP:
+	 * token 1 = <number> (quoted)
+	 * token 2 = <type>
+	 * token 3 = <subaddr> (optional, may be empty)
+	 * token 4 = <satype> (optional, may be empty)
+	 * token 5 = <alpha> (optional, the caller name - quoted)
+	 * token 6 = <CLI validity> (optional)
 	 */
 	ast_debug(3, "[%s] hfp_parse_clip is processing \"%s\"\n", hfp->owner->id, buf);
 	tokens[0] = 0;		/* First token starts in position 0 */
@@ -2241,9 +2793,9 @@ static struct cidinfo hfp_parse_clip(struct hfp_pvt *hfp, char *buf)
 		tokens[i] = parse_next_token(buf, tokens[i - 1], delim);
 		delim = ',';	/* Subsequent tokens terminate with comma */
 	}
-	ast_debug(3, "[%s] hfp_parse_clip found tokens: 0=%s, 1=%s, 2=%s, 3=%s, 4=%s, 5=%s\n",
+	ast_debug(3, "[%s] hfp_parse_clip found tokens: 0=%s, 1=%s, 2=%s, 3=%s, 4=%s, 5=%s, 6=%s\n",
 		hfp->owner->id, &buf[tokens[0]], &buf[tokens[1]], &buf[tokens[2]],
-		&buf[tokens[3]], &buf[tokens[4]], &buf[tokens[5]]);
+		&buf[tokens[3]], &buf[tokens[4]], &buf[tokens[5]], &buf[tokens[6]]);
 
 	/* Clean up cnum, and make sure it is legitimate since it is untrusted. */
 	cidinfo.cnum = ast_strip_quoted(&buf[tokens[1]], "\"", "\"");
@@ -2254,30 +2806,33 @@ static struct cidinfo hfp_parse_clip(struct hfp_pvt *hfp, char *buf)
 	}
 
 	/*
-	 * Some docs say tokens 2 and 3 including the commas are optional.
-	 * If absent, that would move CNAM back to token 3.
+	 * CNAM (alpha) is in token 5 per 3GPP TS 27.007.
+	 * Token 6 is the validity indicator.
+	 * If token 5 is empty, we have no caller name.
 	 */
-	cidinfo.cnam = &buf[tokens[5]];	/* Assume it's in token 5 */
-	if (buf[tokens[5]] == '\0' && buf[tokens[4]] == '\0') {
-		/* Tokens 4 and 5 are empty.  See if token 3 looks like CNAM (starts with ") */
-		i = tokens[3];
-		while (buf[i] == ' ') {		/* Find the first non-blank */
-			i++;
-		}
-		if (buf[i] == '"') {
-			/* Starts with quote.  Use this for CNAM. */
-			cidinfo.cnam = &buf[i];
+	cidinfo.cnam = &buf[tokens[5]];
+
+	/* If token 5 is empty, check token 4 as a fallback */
+	if (buf[tokens[5]] == '\0' && buf[tokens[4]] != '\0') {
+		char *check = &buf[tokens[4]];
+		while (*check == ' ') check++;
+		if (*check == '"') {
+			cidinfo.cnam = check;
 		}
 	}
 
 	/* Clean up CNAM. */
 	cidinfo.cnam = ast_strip_quoted(cidinfo.cnam, "\"", "\"");
-	for (cnamtmp = cidinfo.cnam; *cnamtmp != '\0'; cnamtmp++) {
-		if (!strchr("ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789-,abcdefghijklmnopqrstuvwxyz_", *cnamtmp)) {
-			*cnamtmp = '_';	/* Invalid.  Replace with underscore. */
-			invalid++;
-		}
-	}
+    
+    /* Only filter if we haven't confirmed UTF-8 support */
+    if (!hfp->owner->has_utf8) {
+	    for (cnamtmp = cidinfo.cnam; *cnamtmp != '\0'; cnamtmp++) {
+		    if (!strchr("ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789-,abcdefghijklmnopqrstuvwxyz_", *cnamtmp)) {
+			    *cnamtmp = '_';	/* Invalid.  Replace with underscore. */
+			    invalid++;
+		    }
+	    }
+    }
 	if (invalid) {
 		ast_debug(2, "[%s] hfp_parse_clip replaced %d invalid byte(s) in cnam data\n",
 			hfp->owner->id, invalid);
@@ -2516,7 +3071,9 @@ static struct hfp_ag *hfp_int2brsf(int brsf, struct hfp_ag *ag)
 static int hfp_send_brsf(struct hfp_pvt *hfp, struct hfp_hf *brsf)
 {
 	char cmd[32];
-	snprintf(cmd, sizeof(cmd), "AT+BRSF=%d\r", hfp_brsf2int(brsf));
+	int val = hfp_brsf2int(brsf);
+	ast_log(LOG_NOTICE, "Sending AT+BRSF=%d\n", val);
+	snprintf(cmd, sizeof(cmd), "AT+BRSF=%d\r", val);
 	return rfcomm_write(hfp->rsock, cmd);
 }
 
@@ -2562,7 +3119,6 @@ static int hfp_send_vgs(struct hfp_pvt *hfp, int value)
 	return rfcomm_write(hfp->rsock, cmd);
 }
 
-#if 0
 /*!
  * \brief Send the current microphone gain level.
  * \param hfp an hfp_pvt struct
@@ -2574,10 +3130,26 @@ static int hfp_send_vgm(struct hfp_pvt *hfp, int value)
 	snprintf(cmd, sizeof(cmd), "AT+VGM=%d\r", value);
 	return rfcomm_write(hfp->rsock, cmd);
 }
-#endif
 
 /*!
- * \brief Enable or disable calling line identification.
+ * \brief Send CUSD command.
+ * \param hfp an hfp_pvt struct
+ * \param code the CUSD code to send
+ * \return 0 on success, -1 on error
+ */
+static int hfp_send_cscs(struct hfp_pvt *hfp, const char *charset)
+{
+	char buf[64];
+	if (charset)
+		snprintf(buf, sizeof(buf), "AT+CSCS=\"%s\"\r", charset);
+	else
+		snprintf(buf, sizeof(buf), "AT+CSCS=?\r");
+
+	return rfcomm_write(hfp->rsock, buf);
+}
+
+/*
+ * bluetooth headset profile helpers calling line identification.
  * \param hfp an hfp_pvt struct
  * \param status enable or disable calling line identification (should be 1 or
  * 0)
@@ -2723,6 +3295,22 @@ static int hfp_send_cusd(struct hfp_pvt *hfp, const char *code)
  * \param hfp an hfp_pvt struct
  * \param buf the buffer to parse (null terminated)
  */
+
+/*!
+ * \brief Detect HFP version from BRSF feature bits.
+ * \param brsf the raw BRSF value from +BRSF response
+ * \return HFP version: 10=1.0, 15=1.5, 16=1.6, 17=1.7
+ */
+static int hfp_detect_version(int brsf)
+{
+	if (brsf & HFP_AG_ESCO_S4)  return 17;  /* eSCO S4 → HFP 1.7 */
+	if (brsf & HFP_AG_HFIND)   return 17;  /* HF indicators → HFP 1.7 */
+	if (brsf & HFP_AG_CODEC)   return 16;  /* Codec negotiation → HFP 1.6 */
+	if (brsf & HFP_AG_CONTROL) return 15;  /* Enhanced call control → HFP 1.5 */
+	if (brsf & HFP_AG_STATUS)  return 15;  /* Enhanced call status → HFP 1.5 */
+	return 10;  /* Baseline HFP 1.0 */
+}
+
 static int hfp_parse_brsf(struct hfp_pvt *hfp, const char *buf)
 {
 	int brsf;
@@ -2730,7 +3318,15 @@ static int hfp_parse_brsf(struct hfp_pvt *hfp, const char *buf)
 	if (!sscanf(buf, "+BRSF:%d", &brsf))
 		return -1;
 
+	hfp->brsf_raw = brsf;
+	hfp->hfp_version = hfp_detect_version(brsf);
 	hfp_int2brsf(brsf, &hfp->brsf);
+
+	ast_verb(3, "[%s] Phone HFP %d.%d (BRSF=%d)%s\n",
+		hfp->owner->id,
+		hfp->hfp_version / 10, hfp->hfp_version % 10,
+		brsf,
+		(brsf & HFP_AG_CODEC) ? " [codec-neg]" : " [CVSD-only]");
 
 	return 0;
 }
@@ -3086,8 +3682,9 @@ static int sdp_search(char *addr, int profile)
 	port = 0;
 	session = sdp_connect(BDADDR_ANY, &bdaddr, SDP_RETRY_IF_BUSY);
 	if (!session) {
-		ast_debug(1, "sdp_connect() failed on device %s.\n", addr);
-		return 0;
+		/* Connection failed - this is a transient error, return -1 */
+		ast_debug(1, "sdp_connect() failed on device %s: %s (%d)\n", addr, strerror(errno), errno);
+		return -1;  /* Transient error - device unreachable */
 	}
 
 	sdp_uuid32_create(&svc_uuid, profile);
@@ -3106,7 +3703,7 @@ static int sdp_search(char *addr, int profile)
 			sdp_record_free(sdprec);
 			sdp_list_free(response_list, 0);
 		} else
-			ast_debug(1, "No responses returned for device %s.\n", addr);
+			ast_debug(1, "No responses returned for device %s (profile not supported).\n", addr);
 	} else
 		ast_debug(1, "sdp_service_search_attr_req() failed on device %s.\n", addr);
 
@@ -3114,7 +3711,7 @@ static int sdp_search(char *addr, int profile)
 	sdp_list_free(attrid_list, 0);
 	sdp_close(session);
 
-	return port;
+	return port;  /* 0 = profile not found, >0 = port number */
 
 }
 
@@ -3204,6 +3801,18 @@ static int handle_response_brsf(struct mbl_pvt *pvt, char *buf)
 			goto e_return;
 		}
 
+		/* Log device features */
+		ast_verb(3, "[%s] Device features: %s%s%s%s%s%s%s%s%s\n", pvt->id,
+			pvt->hfp->brsf.cw ? "3-Way " : "",
+			pvt->hfp->brsf.ecnr ? "EC/NR " : "",
+			pvt->hfp->brsf.voice ? "Voice " : "",
+			pvt->hfp->brsf.ring ? "InBandRing " : "",
+			pvt->hfp->brsf.tag ? "VoiceTag " : "",
+			pvt->hfp->brsf.reject ? "Reject " : "",
+			pvt->hfp->brsf.status ? "EnhStatus " : "",
+			pvt->hfp->brsf.control ? "EnhControl " : "",
+			pvt->hfp->brsf.errors ? "ExtErrors" : "");
+
 		if (msg_queue_push(pvt, AT_OK, AT_BRSF)) {
 			ast_debug(1, "[%s] error handling BRSF\n", pvt->id);
 			goto e_return;
@@ -3280,7 +3889,57 @@ static int handle_response_ok(struct mbl_pvt *pvt, char *buf)
 
 		/* initialization stuff */
 		case AT_BRSF:
-			ast_debug(1, "[%s] BSRF sent successfully\n", pvt->id);
+			//ast_debug(1, "[%s] BRSF successful\n", pvt->id);
+			
+			/* Skip CSCS for BT 1.x legacy devices - they may not support it */
+			if (pvt->bt_ver <= 1) {
+				ast_verb(3, "[%s] BT 1.x legacy device - skipping UTF-8 negotiation\n", pvt->id);
+				/* Go directly to CIND */
+				if (pvt->blackberry) {
+					if (hfp_send_cmer(pvt->hfp, 1) || msg_queue_push(pvt, AT_OK, AT_CMER)) {
+						ast_debug(1, "[%s] error sending CMER\n", pvt->id);
+						goto e_return;
+					}
+				} else {
+					if (hfp_send_cind_test(pvt->hfp) || msg_queue_push(pvt, AT_CIND, AT_CIND_TEST)) {
+						ast_debug(1, "[%s] error sending CIND test\n", pvt->id);
+						goto e_return;
+					}
+				}
+				break;
+			}
+			/* Query for CSCS support before proceeding */
+			if (hfp_send_cscs(pvt->hfp, NULL) || msg_queue_push(pvt, AT_CSCS, AT_CSCS)) {
+				ast_debug(1, "[%s] error sending CSCS query\n", pvt->id);
+				goto e_return;
+			}
+			break;
+		case AT_CSCS:
+			if (pvt->utf8_candidate) {
+				ast_debug(1, "[%s] Device supports UTF-8, enabling...\n", pvt->id);
+				if (hfp_send_cscs(pvt->hfp, "UTF-8") || msg_queue_push(pvt, AT_OK, AT_CSCS_SET)) {
+					ast_debug(1, "[%s] error sending CSCS set\n", pvt->id);
+					goto e_return;
+				}
+				pvt->utf8_candidate = 0;
+				break;
+			}
+			/* Fall through if not candidate */
+		case AT_CSCS_VERIFY:
+			if (pvt->has_utf8)
+				ast_verb(3, "[%s] UTF-8 confirmed.\n", pvt->id);
+			else
+				ast_verb(3, "[%s] UTF-8 NOT confirmed.\n", pvt->id);
+			/* Fall through to CIND */
+		case AT_CSCS_SET:
+			if (entry->response_to == AT_CSCS_SET) {
+				/* We just set it, now verify */
+				if (hfp_send_cscs(pvt->hfp, NULL) || msg_queue_push(pvt, AT_CSCS, AT_CSCS_VERIFY)) {
+					ast_debug(1, "[%s] error sending CSCS verify\n", pvt->id);
+					goto e_return;
+				}
+				break;
+			}
 
 			/* If this is a blackberry do CMER now, otherwise
 			 * continue with CIND as normal. */
@@ -3365,6 +4024,7 @@ static int handle_response_ok(struct mbl_pvt *pvt, char *buf)
 
 			pvt->timeout = -1;
 			pvt->hfp->initialized = 1;
+			mbl_set_state(pvt, MBL_STATE_READY);
 			ast_verb(3, "Bluetooth Device %s initialized and ready.\n", pvt->id);
 
 			break;
@@ -3396,6 +4056,33 @@ static int handle_response_ok(struct mbl_pvt *pvt, char *buf)
 		case AT_A:
 			ast_debug(1, "[%s] answer sent successfully\n", pvt->id);
 			pvt->needchup = 1;
+
+			/*
+			 * SCO connection decision based on HFP version:
+			 * - HFP 1.6+: Per spec, Audio Gateway (phone) initiates SCO
+			 * - HFP ≤1.5: Legacy phones may expect host to initiate
+			 *
+			 * Only attempt host-initiated SCO for older phones.
+			 */
+			if (pvt->incoming && pvt->sco_socket == -1) {
+				if (pvt->hfp->hfp_version >= 16) {
+					ast_debug(1, "[%s] HFP %d.%d - waiting for phone to initiate SCO (per spec)\n",
+						pvt->id, pvt->hfp->hfp_version / 10, pvt->hfp->hfp_version % 10);
+					/* Don't try host SCO - phone should initiate */
+				} else {
+					ast_debug(1, "[%s] HFP %d.%d - trying host-initiated CVSD SCO (legacy)\n",
+						pvt->id, pvt->hfp->hfp_version / 10, pvt->hfp->hfp_version % 10);
+					if ((pvt->sco_socket = sco_connect(pvt->adapter->addr, pvt->addr, &pvt->sco_mtu)) == -1) {
+						ast_log(LOG_WARNING, "[%s] host SCO failed - waiting for phone to initiate\n", pvt->id);
+						/* Don't fail - phone may still initiate SCO */
+					} else {
+						ast_smoother_reset(pvt->bt_out_smoother, pvt->sco_mtu);
+						if (pvt->owner) {
+							ast_channel_set_fd(pvt->owner, 0, pvt->sco_socket);
+						}
+					}
+				}
+			}
 			break;
 		case AT_D:
 			ast_debug(1, "[%s] dial sent successfully\n", pvt->id);
@@ -3447,6 +4134,7 @@ static int handle_response_error(struct mbl_pvt *pvt, char *buf)
 	if ((entry = msg_queue_head(pvt))
 			&& (entry->expected == AT_OK
 			|| entry->expected == AT_ERROR
+			|| entry->expected == AT_BRSF
 			|| entry->expected == AT_CMS_ERROR
 			|| entry->expected == AT_CMGR
 			|| entry->expected == AT_SMS_PROMPT)) {
@@ -3454,7 +4142,19 @@ static int handle_response_error(struct mbl_pvt *pvt, char *buf)
 
 		/* initialization stuff */
 		case AT_BRSF:
-			ast_debug(1, "[%s] error reading BSRF\n", pvt->id);
+			/* BT 1.x devices may not support AT+BRSF - treat as HFP 1.0 and continue */
+			if (pvt->bt_ver <= 1) {
+				ast_verb(3, "[%s] BT 1.x device doesn't support BRSF - assuming HFP 1.0\n", pvt->id);
+				pvt->hfp->hfp_version = 10;
+				pvt->hfp->brsf_raw = 0;
+				/* Continue with CIND */
+				if (hfp_send_cind_test(pvt->hfp) || msg_queue_push(pvt, AT_CIND, AT_CIND_TEST)) {
+					ast_debug(1, "[%s] error sending CIND test\n", pvt->id);
+					goto e_return;
+				}
+				break;
+			}
+			ast_debug(1, "[%s] error reading BRSF\n", pvt->id);
 			goto e_return;
 		case AT_CIND_TEST:
 			ast_debug(1, "[%s] error during CIND test\n", pvt->id);
@@ -3501,6 +4201,7 @@ static int handle_response_error(struct mbl_pvt *pvt, char *buf)
 
 			pvt->timeout = -1;
 			pvt->hfp->initialized = 1;
+			mbl_set_state(pvt, MBL_STATE_READY);
 			ast_verb(3, "Bluetooth Device %s initialized and ready.\n", pvt->id);
 
 			break;
@@ -3581,6 +4282,21 @@ static int handle_response_ciev(struct mbl_pvt *pvt, char *buf)
 		case HFP_CIND_CALL_ACTIVE:
 			if (pvt->outgoing) {
 				ast_debug(1, "[%s] remote end answered\n", pvt->id);
+
+				if (pvt->sco_socket == -1) {
+					if ((pvt->sco_socket = sco_connect(pvt->adapter->addr, pvt->addr, &pvt->sco_mtu)) == -1) {
+						ast_log(LOG_ERROR, "[%s] unable to create audio connection\n", pvt->id);
+					} else {
+						ast_smoother_reset(pvt->bt_out_smoother, pvt->sco_mtu);
+						if (pvt->owner) {
+							ast_channel_set_fd(pvt->owner, 0, pvt->sco_socket);
+						}
+					}
+				}
+
+				hfp_send_vgs(pvt->hfp, 13);
+				hfp_send_vgm(pvt->hfp, 13);
+
 				mbl_queue_control(pvt, AST_CONTROL_ANSWER);
 			} else if (pvt->incoming && pvt->answered) {
 				ast_setstate(pvt->owner, AST_STATE_UP);
@@ -3825,6 +4541,23 @@ static int handle_response_cusd(struct mbl_pvt *pvt, char *buf)
 }
 
 /*!
+ * \brief Parse a CSCS response.
+ * \param hfp an hfp_pvt struct
+ * \param buf the buffer to parse (null terminated)
+ * \return 1 if UTF-8 is found/supported, 0 otherwise
+ */
+static int hfp_parse_cscs(struct hfp_pvt *hfp, char *buf)
+{
+	/* Suppress unused parameter warning */
+	(void)hfp;
+
+	if (strstr(buf, "\"UTF-8\"")) {
+		return 1;
+	}
+	return 0;
+}
+
+/*!
  * \brief Handle BUSY messages.
  * \param pvt a mbl_pvt structure
  * \retval 0 success
@@ -3939,6 +4672,23 @@ static void *do_monitor_phone(void *data)
 			if (handle_response_brsf(pvt, buf)) {
 				ast_mutex_unlock(&pvt->lock);
 				goto e_cleanup;
+			}
+			ast_mutex_unlock(&pvt->lock);
+			break;
+		case AT_CSCS:
+			ast_mutex_lock(&pvt->lock);
+			if ((entry = msg_queue_head(pvt))) {
+				if (entry->response_to == AT_CSCS) {
+					/* Capability Query */
+					if (hfp_parse_cscs(hfp, buf))
+						pvt->utf8_candidate = 1;
+				} else if (entry->response_to == AT_CSCS_VERIFY) {
+					/* Verify Query */
+					if (hfp_parse_cscs(hfp, buf))
+						pvt->has_utf8 = 1;
+				}
+				msg_queue_push(pvt, AT_OK, entry->response_to);
+				msg_queue_free_and_pop(pvt);
 			}
 			ast_mutex_unlock(&pvt->lock);
 			break;
@@ -4073,10 +4823,28 @@ static void *do_monitor_phone(void *data)
 
 e_cleanup:
 
-	if (!hfp->initialized)
-		ast_verb(3, "Error initializing Bluetooth device %s.\n", pvt->id);
-
 	ast_mutex_lock(&pvt->lock);
+
+	if (!hfp->initialized) {
+		pvt->hfp_init_fail_count++;
+		if (pvt->hfp_init_fail_count >= 2) {
+			/* Mark device as incompatible after 2 failures */
+			pvt->profile_incompatible = 1;
+			mbl_set_state(pvt, MBL_STATE_ERROR);
+			ast_log(LOG_WARNING, "[%s] HFP initialization failed %d times. "
+				"Device does not support Hands-Free Profile properly. "
+				"This may be a legacy device that only supports HSP (Headset Profile) "
+				"or has incompatible HFP implementation. Will not retry connection.\n",
+				pvt->id, pvt->hfp_init_fail_count);
+		} else {
+			ast_verb(3, "[%s] HFP initialization failed (attempt %d/2), will retry...\n",
+				pvt->id, pvt->hfp_init_fail_count);
+		}
+	} else {
+		/* Successful init resets counter */
+		pvt->hfp_init_fail_count = 0;
+	}
+
 	if (pvt->owner) {
 		ast_debug(1, "[%s] device disconnected, hanging up owner\n", pvt->id);
 		pvt->needchup = 0;
@@ -4091,12 +4859,17 @@ e_cleanup:
 
 	pvt->connected = 0;
 	hfp->initialized = 0;
+	if (!pvt->profile_incompatible)
+		mbl_set_state(pvt, MBL_STATE_DISCONNECTED);
 
 	pvt->adapter->inuse = 0;
+	pvt->adapter->state = ADAPTER_STATE_READY;
 	ast_mutex_unlock(&pvt->lock);
 
-	ast_verb(3, "Bluetooth Device %s has disconnected.\n", pvt->id);
-	manager_event(EVENT_FLAG_SYSTEM, "MobileStatus", "Status: Disconnect\r\nDevice: %s\r\n", pvt->id);
+	if (!pvt->profile_incompatible) {
+		ast_verb(3, "Bluetooth Device %s has disconnected.\n", pvt->id);
+		manager_event(EVENT_FLAG_SYSTEM, "MobileStatus", "Status: Disconnect\r\nDevice: %s\r\n", pvt->id);
+	}
 
 	return NULL;
 }
@@ -4169,12 +4942,15 @@ static void *do_monitor_headset(void *data)
 				} else {
 					/* we have an outgoing call to the HS,
 					 * he wants to answer */
-					if ((pvt->sco_socket = sco_connect(pvt->adapter->addr, pvt->addr)) == -1) {
+					if ((pvt->sco_socket = sco_connect(pvt->adapter->addr, pvt->addr, &pvt->sco_mtu)) == -1) {
 						ast_log(LOG_ERROR, "[%s] unable to create audio connection\n", pvt->id);
 						mbl_queue_hangup(pvt);
 						ast_mutex_unlock(&pvt->lock);
 						goto e_cleanup;
 					}
+
+					/* Reset smoother to use negotiated MTU */
+					ast_smoother_reset(pvt->bt_out_smoother, pvt->sco_mtu);
 
 					ast_channel_set_fd(pvt->owner, 0, pvt->sco_socket);
 
@@ -4196,11 +4972,14 @@ static void *do_monitor_headset(void *data)
 				/* no call is up, HS wants to dial */
 				hsp_send_ok(pvt->rfcomm_socket);
 
-				if ((pvt->sco_socket = sco_connect(pvt->adapter->addr, pvt->addr)) == -1) {
+				if ((pvt->sco_socket = sco_connect(pvt->adapter->addr, pvt->addr, &pvt->sco_mtu)) == -1) {
 					ast_log(LOG_ERROR, "[%s] unable to create audio connection\n", pvt->id);
 					ast_mutex_unlock(&pvt->lock);
 					goto e_cleanup;
 				}
+
+				/* Reset smoother to use negotiated MTU */
+				ast_smoother_reset(pvt->bt_out_smoother, pvt->sco_mtu);
 
 				pvt->incoming = 1;
 
@@ -4281,27 +5060,218 @@ static int start_monitor(struct mbl_pvt *pvt)
 
 }
 
+
+
 static void *do_discovery(void *data)
 {
-
 	struct adapter_pvt *adapter;
 	struct mbl_pvt *pvt;
+	struct mbl_pvt *candidates[32];
+	int cand_count = 0;
+	int i;
 
 	while (!check_unloading()) {
+		cand_count = 0;
+
+		/* Phase 1: Check for adapter removal/init and identify candidates */
 		AST_RWLIST_RDLOCK(&adapters);
 		AST_RWLIST_TRAVERSE(&adapters, adapter, entry) {
-			if (!adapter->inuse) {
+			/* Check if Ready/Busy adapters have gone away or powered down */
+			if (adapter->state == ADAPTER_STATE_READY || adapter->state == ADAPTER_STATE_BUSY) {
+				int ctl_sock = socket(AF_BLUETOOTH, SOCK_RAW, BTPROTO_HCI);
+				if (ctl_sock >= 0) {
+					struct hci_dev_info di;
+					int adapter_gone = 1;
+					int adapter_down = 0;
+
+					memset(&di, 0, sizeof(di));
+					di.dev_id = adapter->dev_id;
+					if (ioctl(ctl_sock, HCIGETDEVINFO, &di) == 0) {
+						/* Verify address still matches */
+						if (bacmp(&di.bdaddr, &adapter->addr) == 0) {
+							adapter_gone = 0;  /* Still there */
+							/* Check if powered down */
+							if (!(di.flags & (1 << HCI_UP))) {
+								adapter_down = 1;
+							}
+						}
+					}
+					close(ctl_sock);
+
+					if (adapter_gone || adapter_down) {
+						struct mbl_pvt *pvt;
+
+						if (adapter_gone) {
+							ast_verb(3, "Adapter %s has been removed\n", adapter->id);
+						} else {
+							ast_verb(3, "Adapter %s has been powered down\n", adapter->id);
+						}
+
+						if (adapter->hci_socket >= 0) {
+							close(adapter->hci_socket);
+							adapter->hci_socket = -1;
+						}
+						adapter->inuse = 0;
+
+						if (adapter_gone) {
+							adapter->dev_id = -1;
+							adapter->state = ADAPTER_STATE_NOT_FOUND;
+						} else {
+							/* Keep dev_id but mark not ready */
+							adapter->state = ADAPTER_STATE_NOT_FOUND;
+						}
+
+						/* Update all devices using this adapter */
+						AST_RWLIST_RDLOCK(&devices);
+						AST_RWLIST_TRAVERSE(&devices, pvt, entry) {
+							if (!strcmp(pvt->adapter->id, adapter->id)) {
+								ast_mutex_lock(&pvt->lock);
+								if (pvt->connected) {
+									if (pvt->rfcomm_socket > -1) {
+										close(pvt->rfcomm_socket);
+										pvt->rfcomm_socket = -1;
+									}
+									pvt->connected = 0;
+									mbl_set_state(pvt, MBL_STATE_DISCONNECTED);
+									ast_verb(3, "Bluetooth Device %s has been disconnected\n", pvt->id);
+								}
+								ast_mutex_unlock(&pvt->lock);
+							}
+						}
+						AST_RWLIST_UNLOCK(&devices);
+					}
+				}
+			}
+
+			/* Try to initialize adapters that weren't found at startup */
+			if (adapter->state == ADAPTER_STATE_NOT_FOUND) {
+				char addr_str[18];
+				int ctl_sock;
+				struct hci_dev_info di;
+				int found_dev_id = -1;
+
+				ba2str(&adapter->addr, addr_str);
+
+				/* Scan all HCI devices to find one with matching address */
+				ctl_sock = socket(AF_BLUETOOTH, SOCK_RAW, BTPROTO_HCI);
+				if (ctl_sock >= 0) {
+					int dev_id;
+					/* Scan device IDs 0-15 */
+					for (dev_id = 0; dev_id < 16 && found_dev_id < 0; dev_id++) {
+						memset(&di, 0, sizeof(di));
+						di.dev_id = dev_id;
+						if (ioctl(ctl_sock, HCIGETDEVINFO, &di) == 0) {
+							if (bacmp(&di.bdaddr, &adapter->addr) == 0) {
+								found_dev_id = dev_id;
+								ast_debug(1, "Adapter %s: found at dev_id=%d\n", adapter->id, dev_id);
+							}
+						}
+					}
+
+					if (found_dev_id >= 0) {
+						adapter->dev_id = found_dev_id;
+
+						/* Re-read device info for the found device */
+						memset(&di, 0, sizeof(di));
+						di.dev_id = adapter->dev_id;
+						if (ioctl(ctl_sock, HCIGETDEVINFO, &di) == 0) {
+							/* Check for RFKill first - do not attempt power on if blocked */
+							char hci_path[128];
+							DIR *hci_dir;
+							int rfkill_blocked = 0;
+
+							snprintf(hci_path, sizeof(hci_path), "/sys/class/bluetooth/hci%d", adapter->dev_id);
+							hci_dir = opendir(hci_path);
+							if (hci_dir) {
+								struct dirent *entry;
+								while ((entry = readdir(hci_dir)) != NULL) {
+									if (strncmp(entry->d_name, "rfkill", 6) == 0) {
+										char soft_path[256], hard_path[256];
+										int soft = 0, hard = 0;
+										FILE *f;
+
+										/* Read soft block */
+										snprintf(soft_path, sizeof(soft_path), "%s/%s/soft", hci_path, entry->d_name);
+										f = fopen(soft_path, "r");
+										if (f) {
+											if (fscanf(f, "%d", &soft) != 1) soft = 0;
+											fclose(f);
+										}
+
+										/* Read hard block */
+										snprintf(hard_path, sizeof(hard_path), "%s/%s/hard", hci_path, entry->d_name);
+										f = fopen(hard_path, "r");
+										if (f) {
+											if (fscanf(f, "%d", &hard) != 1) hard = 0;
+											fclose(f);
+										}
+
+										if (soft || hard) {
+											rfkill_blocked = 1;
+											ast_verb(3, "Adapter %s is %s blocked\n", 
+												adapter->id, hard ? "Hardware" : "Software");
+											break; 
+										}
+									}
+								}
+								closedir(hci_dir);
+							}
+
+							if (rfkill_blocked) {
+								continue; /* Skip this adapter if RF killed */
+							}
+
+							if (!(di.flags & (1 << HCI_UP))) {
+								/* Device is DOWN, try to power it on */
+								ast_verb(3, "Adapter %s is DOWN, powering on...\n", adapter->id);
+								if (ioctl(ctl_sock, HCIDEVUP, adapter->dev_id) < 0 && errno != EALREADY) {
+									ast_log(LOG_WARNING, "Failed to power on adapter %s: %s\n",
+										adapter->id, strerror(errno));
+									continue;
+								} else {
+									ast_verb(3, "Adapter %s powered on successfully\n", adapter->id);
+								}
+							}
+						}
+					} else {
+						ast_debug(1, "Adapter %s: no HCI device found for %s\n", adapter->id, addr_str);
+						adapter->dev_id = -1;
+					}
+					close(ctl_sock);
+				}
+
+				if (adapter->dev_id >= 0) {
+					adapter->hci_socket = hci_open_dev(adapter->dev_id);
+					ast_debug(1, "Adapter %s: hci_open_dev returned socket=%d\n",
+						adapter->id, adapter->hci_socket);
+					if (adapter->hci_socket >= 0) {
+						uint16_t vs;
+						hci_read_voice_setting(adapter->hci_socket, &vs, 1000);
+						vs = htobs(vs);
+						ast_debug(1, "Adapter %s: voice setting=0x%04x\n", adapter->id, vs);
+						if (vs == 0x0060) {
+							adapter->state = ADAPTER_STATE_READY;
+							ast_verb(3, "Adapter %s is now available\n", adapter->id);
+						} else {
+							close(adapter->hci_socket);
+							adapter->hci_socket = -1;
+							ast_log(LOG_WARNING, "Adapter %s voice setting is 0x%04x, must be 0x0060\n",
+								adapter->id, vs);
+						}
+					}
+				}
+			}
+		}
+
+		/* Collect candidates for connection */
+		AST_RWLIST_TRAVERSE(&adapters, adapter, entry) {
+			if (adapter->state == ADAPTER_STATE_READY && !adapter->inuse) {
 				AST_RWLIST_RDLOCK(&devices);
 				AST_RWLIST_TRAVERSE(&devices, pvt, entry) {
 					ast_mutex_lock(&pvt->lock);
-					if (!adapter->inuse && !pvt->connected && !strcmp(adapter->id, pvt->adapter->id)) {
-						if ((pvt->rfcomm_socket = rfcomm_connect(adapter->addr, pvt->addr, pvt->rfcomm_port)) > -1) {
-							if (start_monitor(pvt)) {
-								pvt->connected = 1;
-								adapter->inuse = 1;
-								manager_event(EVENT_FLAG_SYSTEM, "MobileStatus", "Status: Connect\r\nDevice: %s\r\n", pvt->id);
-								ast_verb(3, "Bluetooth Device %s has connected, initializing...\n", pvt->id);
-							}
+					if (!pvt->connected && !strcmp(pvt->adapter->id, adapter->id)) {
+						if (cand_count < 32) {
+							candidates[cand_count++] = pvt;
 						}
 					}
 					ast_mutex_unlock(&pvt->lock);
@@ -4310,6 +5280,126 @@ static void *do_discovery(void *data)
 			}
 		}
 		AST_RWLIST_UNLOCK(&adapters);
+
+		/* Phase 2: Process candidates (unlocked) */
+		for (i = 0; i < cand_count; i++) {
+			if (check_unloading()) break;
+			pvt = candidates[i];
+			ast_mutex_lock(&pvt->lock);
+			
+			/* Check if device address changed (config was modified) - reset failure flags */
+			if (bacmp(&pvt->addr, &pvt->last_checked_addr) != 0) {
+				if (pvt->profile_incompatible || pvt->sdp_fail_count || pvt->hfp_init_fail_count) {
+					char addr_str[18];
+					ba2str(&pvt->addr, addr_str);
+					ast_verb(3, "[%s] Device address changed to %s, resetting failure counters\n", 
+						pvt->id, addr_str);
+					pvt->profile_incompatible = 0;
+					pvt->sdp_fail_count = 0;
+					pvt->hfp_init_fail_count = 0;
+					pvt->rfcomm_port = 0;  /* Re-detect port for new device */
+					mbl_set_state(pvt, MBL_STATE_INIT);
+				}
+				bacpy(&pvt->last_checked_addr, &pvt->addr);
+			}
+
+			/* Verify condition again under lock */
+			if (!pvt->connected && pvt->adapter->state == ADAPTER_STATE_READY && !pvt->adapter->inuse) {
+				struct adapter_pvt *adapter = pvt->adapter;
+				
+				ast_debug(1, "[%s] Discovery: rfcomm_port=%d, profile_incompatible=%d, adapter=%s\n",
+					pvt->id, pvt->rfcomm_port, pvt->profile_incompatible, adapter->id);
+
+				/* Deferred port detection - skip if already marked incompatible */
+				if (pvt->rfcomm_port == 0 && !pvt->profile_incompatible) {
+					char addr_str[18];
+					int detected_port;
+					ba2str(&pvt->addr, addr_str);
+					
+					ast_debug(1, "Detecting port for %s (type=%s)\n", pvt->id,
+						pvt->type == MBL_TYPE_HEADSET ? "headset" : "phone");
+					
+					if (pvt->type == MBL_TYPE_HEADSET) {
+						detected_port = sdp_search(addr_str, HEADSET_PROFILE_ID);
+					} else {
+						detected_port = sdp_search(addr_str, HANDSFREE_AGW_PROFILE_ID);
+					}
+					
+					if (detected_port > 0) {
+						ast_verb(3, "Auto-detected port %d for device %s\n", detected_port, pvt->id);
+						pvt->rfcomm_port = detected_port;
+						pvt->sdp_fail_count = 0;
+						/* Set profile name based on type */
+						if (pvt->type == MBL_TYPE_HEADSET) {
+							ast_copy_string(pvt->profile_name, "HSP", sizeof(pvt->profile_name));
+						} else {
+							ast_copy_string(pvt->profile_name, "HFP", sizeof(pvt->profile_name));
+						}
+					} else if (detected_port == -1) {
+						/* Transient error (device unreachable) - don't count as profile failure */
+						ast_debug(1, "[%s] Device unreachable (transient error), will retry...\n", pvt->id);
+					} else {
+						/* detected_port == 0: SDP connected but profile not found - count as failure */
+						pvt->sdp_fail_count++;
+						if (pvt->sdp_fail_count >= 3) {
+							/* Print helpful message and mark as incompatible */
+							pvt->profile_incompatible = 1;
+							mbl_set_state(pvt, MBL_STATE_ERROR);
+							if (pvt->type == MBL_TYPE_HEADSET) {
+							ast_log(LOG_WARNING, "[%s] Device does not support Headset Profile (HS role, UUID 0x1108). "
+								"This device may only support Audio Gateway (AG) roles. "
+								"A Bluetooth headset must expose the HS or HF profile, not the AG profile. "
+								"Will not retry connection.\n", pvt->id);
+						} else {
+							ast_log(LOG_WARNING, "[%s] Device does not support Hands-Free AG Profile (UUID 0x111f). "
+								"A mobile phone must expose the Audio Gateway (AG) role for HFP. "
+								"If this is a headset, set type=headset in mobile.conf. "
+								"Will not retry connection.\n", pvt->id);
+								}
+						} else {
+							ast_debug(1, "Port detection failed for %s (attempt %d/3)\n", pvt->id, pvt->sdp_fail_count);
+						}
+					}
+				}
+
+				if (pvt->rfcomm_port > 0 && !pvt->profile_incompatible) {
+					if ((pvt->rfcomm_socket = rfcomm_connect(adapter->addr, pvt->addr, pvt->rfcomm_port)) > -1) {
+						mbl_set_state(pvt, MBL_STATE_CONNECTING);
+
+						if (hci_read_remote_name(adapter->hci_socket, &pvt->addr,
+								sizeof(pvt->remote_name) - 1, pvt->remote_name, 1000) < 0) {
+							pvt->remote_name[0] = '\0';
+						}
+
+						if (start_monitor(pvt)) {
+							pvt->connected = 1;
+							adapter->inuse = 1;
+							adapter->state = ADAPTER_STATE_BUSY;
+							mbl_set_state(pvt, MBL_STATE_CONNECTED);
+							manager_event(EVENT_FLAG_SYSTEM, "MobileStatus", "Status: Connect\r\nDevice: %s\r\n", pvt->id);
+								
+								/* Query Remote Version */
+								{
+									struct hci_conn_info_req *cr = alloca(sizeof(*cr) + sizeof(struct hci_conn_info));
+									bacpy(&cr->bdaddr, &pvt->addr);
+									cr->type = ACL_LINK;
+									if (ioctl(adapter->hci_socket, HCIGETCONNINFO, (unsigned long)cr) == 0) {
+										uint16_t handle = htobs(cr->conn_info[0].handle);
+										struct hci_version ver;
+										if (hci_read_remote_version(adapter->hci_socket, handle, &ver, 1000) == 0) {
+											pvt->bt_ver = ver.lmp_ver;
+											ast_verb(4, "Bluetooth Device %s has LMP version %d\n", pvt->id, pvt->bt_ver);
+										}
+									}
+								}
+							ast_verb(3, "Bluetooth Device %s (%s) has connected, initializing...\n",
+								pvt->id, pvt->remote_name[0] ? pvt->remote_name : "unknown");
+						}
+					}
+				}
+			}
+			ast_mutex_unlock(&pvt->lock);
+		}
 
 
 		/* Go to sleep (only if we are not unloading) */
@@ -4388,13 +5478,34 @@ static struct adapter_pvt *mbl_load_adapter(struct ast_config *cfg, const char *
 
 	ast_copy_string(adapter->id, id, sizeof(adapter->id));
 	str2ba(address, &adapter->addr);
+	adapter->hci_socket = -1;
+	adapter->sco_socket = -1;
 
-	/* attempt to connect to the adapter */
-	adapter->dev_id = hci_devid(address);
+	/* attempt to connect to the adapter using address */
+	adapter->dev_id = hci_get_route(&adapter->addr);
+	ast_debug(1, "Adapter %s: address=%s dev_id=%d\n", adapter->id, address, adapter->dev_id);
+
+	if (adapter->dev_id < 0) {
+		ast_log(LOG_WARNING, "Adapter %s (%s) not found. Will retry when available.\n", adapter->id, address);
+		adapter->state = ADAPTER_STATE_NOT_FOUND;
+
+		/* Still add to list so discovery can try later */
+
+		AST_RWLIST_WRLOCK(&adapters);
+		AST_RWLIST_INSERT_HEAD(&adapters, adapter, entry);
+		AST_RWLIST_UNLOCK(&adapters);
+		return adapter;
+	}
+
 	adapter->hci_socket = hci_open_dev(adapter->dev_id);
-	if (adapter->dev_id < 0 || adapter->hci_socket < 0) {
-		ast_log(LOG_ERROR, "Skipping adapter %s. Unable to communicate with adapter.\n", adapter->id);
-		goto e_free_adapter;
+	if (adapter->hci_socket < 0) {
+		ast_log(LOG_WARNING, "Adapter %s: Unable to open HCI device. Will retry when available.\n", adapter->id);
+		adapter->state = ADAPTER_STATE_NOT_FOUND;
+
+		AST_RWLIST_WRLOCK(&adapters);
+		AST_RWLIST_INSERT_HEAD(&adapters, adapter, entry);
+		AST_RWLIST_UNLOCK(&adapters);
+		return adapter;
 	}
 
 	/* check voice setting */
@@ -4404,6 +5515,7 @@ static struct adapter_pvt *mbl_load_adapter(struct ast_config *cfg, const char *
 		ast_log(LOG_ERROR, "Skipping adapter %s. Voice setting must be 0x0060 - see 'man hciconfig' for details.\n", adapter->id);
 		goto e_hci_close_dev;
 	}
+
 
 	for (v = ast_variable_browse(cfg, cat); v; v = v->next) {
 		if (!strcasecmp(v->name, "forcemaster")) {
@@ -4453,6 +5565,7 @@ static struct adapter_pvt *mbl_load_adapter(struct ast_config *cfg, const char *
 	AST_RWLIST_WRLOCK(&adapters);
 	AST_RWLIST_INSERT_HEAD(&adapters, adapter, entry);
 	AST_RWLIST_UNLOCK(&adapters);
+	adapter->state = ADAPTER_STATE_READY;
 	ast_debug(1, "Loaded adapter %s %s.\n", adapter->id, address);
 
 	return adapter;
@@ -4467,11 +5580,11 @@ e_destroy_accept_io:
 	io_context_destroy(adapter->accept_io);
 e_hci_close_dev:
 	hci_close_dev(adapter->hci_socket);
-e_free_adapter:
 	ast_free(adapter);
 e_return:
 	return NULL;
 }
+
 
 /*!
  * \brief Load a device from the configuration file.
@@ -4481,7 +5594,7 @@ e_return:
  */
 static struct mbl_pvt *mbl_load_device(struct ast_config *cfg, const char *cat)
 {
-	struct mbl_pvt *pvt;
+	struct mbl_pvt *pvt, *tmp;
 	struct adapter_pvt *adapter;
 	struct ast_variable *v;
 	const char *address, *adapter_str, *port;
@@ -4505,10 +5618,21 @@ static struct mbl_pvt *mbl_load_device(struct ast_config *cfg, const char *cat)
 		goto e_return;
 	}
 
+	/* check if this adapter is already in use by another device */
+	AST_RWLIST_RDLOCK(&devices);
+	AST_RWLIST_TRAVERSE(&devices, tmp, entry) {
+		if (tmp->adapter == adapter) {
+			ast_log(LOG_ERROR, "Skipping device %s. Adapter '%s' is already in use by device '%s'.\n", cat, adapter_str, tmp->id);
+			AST_RWLIST_UNLOCK(&devices);
+			goto e_return;
+		}
+	}
+	AST_RWLIST_UNLOCK(&devices);
+
 	address = ast_variable_retrieve(cfg, cat, "address");
 	port = ast_variable_retrieve(cfg, cat, "port");
-	if (ast_strlen_zero(port) || ast_strlen_zero(address)) {
-		ast_log(LOG_ERROR, "Skipping device %s. Missing required port or address setting.\n", cat);
+	if (ast_strlen_zero(address)) {
+		ast_log(LOG_ERROR, "Skipping device %s. Missing required address setting.\n", cat);
 		goto e_return;
 	}
 
@@ -4526,20 +5650,88 @@ static struct mbl_pvt *mbl_load_device(struct ast_config *cfg, const char *cat)
 	pvt->type = MBL_TYPE_PHONE;
 	ast_copy_string(pvt->context, "default", sizeof(pvt->context));
 
+	/* Parse type early - needed for SDP profile selection */
+	{
+		const char *type_str = ast_variable_retrieve(cfg, cat, "type");
+		if (type_str && !strcasecmp(type_str, "headset")) {
+			pvt->type = MBL_TYPE_HEADSET;
+		}
+	}
+
 	/* populate the pvt structure */
 	pvt->adapter = adapter;
 	ast_copy_string(pvt->id, cat, sizeof(pvt->id));
 	str2ba(address, &pvt->addr);
 	pvt->timeout = -1;
 	pvt->rfcomm_socket = -1;
-	pvt->rfcomm_port = atoi(port);
+
+	/* Handle port: if not specified or "auto", detect via SDP */
+	if (ast_strlen_zero(port) || !strcasecmp(port, "auto") || atoi(port) == 0) {
+		int detected_port = 0;
+		char addr_str[18];
+
+		ast_copy_string(addr_str, address, sizeof(addr_str));
+
+		/* Only try SDP if adapter is ready */
+		if (adapter->state == ADAPTER_STATE_READY || adapter->state == ADAPTER_STATE_BUSY) {
+			/* Search based on device type - no fallback between profiles */
+			if (pvt->type == MBL_TYPE_HEADSET) {
+				/* Headset: search for HSP */
+				detected_port = sdp_search(addr_str, HEADSET_PROFILE_ID);
+				if (detected_port > 0) {
+					ast_log(LOG_NOTICE, "[%s] Auto-detected HSP port %d\n", cat, detected_port);
+					pvt->rfcomm_port = detected_port;
+					ast_copy_string(pvt->profile_name, "HSP", sizeof(pvt->profile_name));
+				} else if (detected_port == -1) {
+					ast_log(LOG_NOTICE, "[%s] Device not reachable, will retry when available.\n", cat);
+					pvt->rfcomm_port = 0;
+				} else {
+					ast_log(LOG_WARNING, "[%s] Headset does not support HSP. Check device.\n", cat);
+					pvt->rfcomm_port = 0;
+				}
+			} else {
+				/* Phone: search for HFP only (no HSP fallback) */
+				detected_port = sdp_search(addr_str, HANDSFREE_AGW_PROFILE_ID);
+				if (detected_port > 0) {
+					ast_log(LOG_NOTICE, "[%s] Auto-detected HFP port %d\n", cat, detected_port);
+					pvt->rfcomm_port = detected_port;
+					pvt->type = MBL_TYPE_PHONE;
+					ast_copy_string(pvt->profile_name, "HFP", sizeof(pvt->profile_name));
+				} else if (detected_port == -1) {
+					ast_log(LOG_NOTICE, "[%s] Device not reachable, will retry when available.\n", cat);
+					pvt->rfcomm_port = 0;
+				} else {
+					ast_log(LOG_WARNING, "[%s] Phone does not support HFP. "
+							"If this is a headset, set type=headset in mobile.conf.\n", cat);
+					pvt->rfcomm_port = 0;
+				}
+			}
+		} else {
+			/* Adapter not ready, defer port detection */
+			ast_log(LOG_NOTICE, "[%s] Adapter not ready, deferring port detection.\n", cat);
+			pvt->rfcomm_port = 0;
+		}
+	} else {
+		pvt->rfcomm_port = atoi(port);
+		/* Default to HFP when port is manually specified for phones */
+		if (pvt->type == MBL_TYPE_PHONE) {
+			ast_copy_string(pvt->profile_name, "HFP", sizeof(pvt->profile_name));
+		} else {
+			ast_copy_string(pvt->profile_name, "HSP", sizeof(pvt->profile_name));
+		}
+	}
+
+	pvt->state = MBL_STATE_INIT;
+
 	pvt->sco_socket = -1;
+	pvt->sco_mtu = DEVICE_FRAME_SIZE_DEFAULT;
 	pvt->monitor_thread = AST_PTHREADT_NULL;
 	pvt->ring_sched_id = -1;
 	pvt->has_sms = 1;
 
+
 	/* setup the bt_out_smoother */
-	if (!(pvt->bt_out_smoother = ast_smoother_new(DEVICE_FRAME_SIZE))) {
+	if (!(pvt->bt_out_smoother = ast_smoother_new(pvt->sco_mtu))) {
 		ast_log(LOG_ERROR, "Skipping device %s. Error setting up frame bt_out_smoother.\n", cat);
 		goto e_free_pvt;
 	}
@@ -4785,21 +5977,18 @@ static int load_module(void)
 	}
 
 	ast_format_cap_append(mbl_tech.capabilities, DEVICE_FRAME_FORMAT, 0);
-	/* Check if we have Bluetooth, no point loading otherwise... */
-	dev_id = hci_get_route(NULL);
 
+	/* Check if we have Bluetooth - warn if not but still load (adapters may be connected later) */
+	dev_id = hci_get_route(NULL);
 	s = hci_open_dev(dev_id);
 	if (dev_id < 0 || s < 0) {
-		ast_log(LOG_ERROR, "No Bluetooth devices found. Not loading module.\n");
-		ao2_ref(mbl_tech.capabilities, -1);
-		mbl_tech.capabilities = NULL;
+		ast_log(LOG_WARNING, "No Bluetooth devices found. Module will wait for adapters to become available.\n");
+	} else {
 		hci_close_dev(s);
-		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	hci_close_dev(s);
-
 	if (mbl_load_config()) {
+
 		ast_log(LOG_ERROR, "Errors reading config file %s. Not loading module.\n", MBL_CONFIG);
 		ao2_ref(mbl_tech.capabilities, -1);
 		mbl_tech.capabilities = NULL;
