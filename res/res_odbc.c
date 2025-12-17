@@ -265,13 +265,13 @@ struct odbc_cache_tables *ast_odbc_find_table(const char *database, const char *
 	/* Table structure not already cached; build it now. */
 	do {
 		res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
-		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+		if (!SQL_SUCCEEDED(res)) {
 			ast_log(LOG_WARNING, "SQL Alloc Handle failed on connection '%s'!\n", database);
 			break;
 		}
 
 		res = SQLColumns(stmt, NULL, 0, NULL, 0, (unsigned char *)tablename, SQL_NTS, (unsigned char *)"%", SQL_NTS);
-		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+		if (!SQL_SUCCEEDED(res)) {
 			SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 			ast_log(LOG_ERROR, "Unable to query database columns on connection '%s'.\n", database);
 			break;
@@ -421,7 +421,7 @@ SQLHSTMT ast_odbc_prepare_and_execute(struct odbc_obj *obj, SQLHSTMT (*prepare_c
 	}
 
 	res = SQLExecute(stmt);
-	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO) && (res != SQL_NO_DATA)) {
+	if (!SQL_SUCCEEDED(res) && (res != SQL_NO_DATA)) {
 		if (res == SQL_ERROR) {
 			ast_odbc_print_errors(SQL_HANDLE_STMT, stmt, "SQL Execute");
 		}
@@ -487,7 +487,7 @@ int ast_odbc_smart_execute(struct odbc_obj *obj, SQLHSTMT stmt)
 	int res = 0;
 
 	res = SQLExecute(stmt);
-	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO) && (res != SQL_NO_DATA)) {
+	if (!SQL_SUCCEEDED(res) && (res != SQL_NO_DATA)) {
 		if (res == SQL_ERROR) {
 			ast_odbc_print_errors(SQL_HANDLE_STMT, stmt, "SQL Execute");
 		}
@@ -676,7 +676,7 @@ static int load_odbc_config(void)
 				SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &new->env);
 				res = SQLSetEnvAttr(new->env, SQL_ATTR_ODBC_VERSION, (void *) SQL_OV_ODBC3, 0);
 
-				if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+				if (!SQL_SUCCEEDED(res)) {
 					ast_log(LOG_WARNING, "res_odbc: Error SetEnv\n");
 					ao2_ref(new, -1);
 					return res;
@@ -1116,7 +1116,7 @@ static odbc_status odbc_obj_connect(struct odbc_obj *obj)
 
 	res = SQLAllocHandle(SQL_HANDLE_DBC, obj->parent->env, &con);
 
-	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+	if (!SQL_SUCCEEDED(res)) {
 		ast_log(LOG_WARNING, "res_odbc: Error AllocHDB %d\n", res);
 		obj->parent->last_negative_connect = ast_tvnow();
 		return ODBC_FAIL;
@@ -1133,7 +1133,7 @@ static odbc_status odbc_obj_connect(struct odbc_obj *obj)
 		   (SQLCHAR *) obj->parent->username, SQL_NTS,
 		   (SQLCHAR *) obj->parent->password, SQL_NTS);
 
-	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+	if (!SQL_SUCCEEDED(res)) {
 		SQLGetDiagRec(SQL_HANDLE_DBC, con, 1, state, &err, msg, 100, &mlen);
 		obj->parent->last_negative_connect = ast_tvnow();
 		ast_log(LOG_WARNING, "res_odbc: Error SQLConnect=%d errno=%d %s\n", res, (int)err, msg);
