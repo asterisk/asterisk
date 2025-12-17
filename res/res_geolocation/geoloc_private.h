@@ -135,7 +135,7 @@ int geoloc_civicaddr_load(void);
 int geoloc_civicaddr_unload(void);
 int geoloc_civicaddr_reload(void);
 
-struct ast_xml_node *geoloc_gml_list_to_xml(const struct ast_variable *resolved_location,
+struct ast_xml_node *geoloc_gml_list_to_xml(struct ast_variable *resolved_location,
 	const char *ref_string);
 int geoloc_gml_unload(void);
 int geoloc_gml_load(void);
@@ -158,5 +158,7 @@ struct ast_sorcery *geoloc_get_sorcery(void);
 struct ast_variable *geoloc_eprofile_resolve_varlist(struct ast_variable *source,
 	struct ast_variable *variables, struct ast_channel *chan);
 
+char *geoloc_eprofile_resolve_string(const char *source,
+	struct ast_variable *variables, struct ast_channel *chan);
 
 #endif /* GEOLOC_PRIVATE_H_ */
