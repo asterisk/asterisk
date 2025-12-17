@@ -110,7 +110,7 @@ static SQLHSTMT custom_prepare(struct odbc_obj *obj, void *data)
 	SQLHSTMT stmt;
 
 	res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
-	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+	if (!SQL_SUCCEEDED(res)) {
 		ast_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
 		return NULL;
 	}
@@ -118,7 +118,7 @@ static SQLHSTMT custom_prepare(struct odbc_obj *obj, void *data)
 	ast_debug(1, "Skip: %llu; SQL: %s\n", cps->skip, cps->sql);
 
 	res = ast_odbc_prepare(obj, stmt, cps->sql);
-	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+	if (!SQL_SUCCEEDED(res)) {
 		if (res == SQL_ERROR) {
 			ast_odbc_print_errors(SQL_HANDLE_STMT, stmt, "SQL Prepare");
 		}
@@ -229,7 +229,7 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
 	}
 
 	res = SQLNumResultCols(stmt, &colcount);
-	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+	if (!SQL_SUCCEEDED(res)) {
 		ast_log(LOG_WARNING, "SQL Column Count error! [%s]\n", ast_str_buffer(sql));
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 		ast_odbc_release_obj(obj);
@@ -246,7 +246,7 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
 		ast_odbc_release_obj(obj);
 		return CONFIG_RT_NOT_FOUND;
 	}
-	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+	if (!SQL_SUCCEEDED(res)) {
 		ast_log(LOG_WARNING, "SQL Fetch error! [%s]\n", ast_str_buffer(sql));
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 		ast_odbc_release_obj(obj);
@@ -257,7 +257,7 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
 		collen = sizeof(coltitle);
 		res = SQLDescribeCol(stmt, x + 1, (unsigned char *)coltitle, sizeof(coltitle), &collen,
 					&datatype, &colsize, &decimaldigits, &nullable);
-		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+		if (!SQL_SUCCEEDED(res)) {
 			ast_log(LOG_WARNING, "SQL Describe Column error! [%s]\n", ast_str_buffer(sql));
 			if (var)
 				ast_variables_destroy(var);
@@ -276,7 +276,7 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
 			/* Because we encode the empty string for a NULL, we will encode
 			 * actual empty strings as a string containing a single whitespace. */
 			ast_str_set(&rowdata, -1, "%s", " ");
-		} else if ((res == SQL_SUCCESS) || (res == SQL_SUCCESS_WITH_INFO)) {
+		} else if (SQL_SUCCEEDED(res)) {
 			if (indicator != ast_str_strlen(rowdata)) {
 				/* If the available space was not enough to contain the row data enlarge and read in the rest */
 				ast_str_make_space(&rowdata, indicator + 1);
@@ -286,7 +286,7 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
 			}
 		}
 
-		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+		if (!SQL_SUCCEEDED(res)) {
 			ast_log(LOG_WARNING, "SQL Get Data error! [%s]\n", ast_str_buffer(sql));
 			if (var)
 				ast_variables_destroy(var);
@@ -416,7 +416,7 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 	}
 
 	res = SQLNumResultCols(stmt, &colcount);
-	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+	if (!SQL_SUCCEEDED(res)) {
 		ast_log(LOG_WARNING, "SQL Column Count error! [%s]\n", ast_str_buffer(sql));
 		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 		ast_odbc_release_obj(obj);
@@ -433,7 +433,7 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 
 	while ((res=SQLFetch(stmt)) != SQL_NO_DATA) {
 		var = NULL;
-		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+		if (!SQL_SUCCEEDED(res)) {
 			ast_log(LOG_WARNING, "SQL Fetch error! [%s]\n", ast_str_buffer(sql));
 			continue;
 		}
@@ -446,7 +446,7 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 			collen = sizeof(coltitle);
 			res = SQLDescribeCol(stmt, x + 1, (unsigned char *)coltitle, sizeof(coltitle), &collen,
 						&datatype, &colsize, &decimaldigits, &nullable);
-			if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			if (!SQL_SUCCEEDED(res)) {
 				ast_log(LOG_WARNING, "SQL Describe Column error! [%s]\n", ast_str_buffer(sql));
 				ast_category_destroy(cat);
 				goto next_sql_fetch;
@@ -461,7 +461,7 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 				continue;
 			}
 
-			if ((res == SQL_SUCCESS) || (res == SQL_SUCCESS_WITH_INFO)) {
+			if (SQL_SUCCEEDED(res)) {
 				if (indicator != ast_str_strlen(rowdata)) {
 					/* If the available space was not enough to contain the row data enlarge and read in the rest */
 					ast_str_make_space(&rowdata, indicator + 1);
@@ -471,7 +471,7 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 				}
 			}
 
-			if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			if (!SQL_SUCCEEDED(res)) {
 				ast_log(LOG_WARNING, "SQL Get Data error! [%s]\n", ast_str_buffer(sql));
 				ast_category_destroy(cat);
 				goto next_sql_fetch;
@@ -592,7 +592,7 @@ static int update_odbc(const char *database, const char *table, const char *keyf
 	SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 	ast_odbc_release_obj(obj);
 
-	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+	if (!SQL_SUCCEEDED(res)) {
 		ast_log(LOG_WARNING, "SQL Row Count error! [%s]\n", ast_str_buffer(sql));
 		return -1;
 	}
@@ -625,7 +625,7 @@ static SQLHSTMT update2_prepare(struct odbc_obj *obj, void *data)
 	}
 
 	res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
-	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+	if (!SQL_SUCCEEDED(res)) {
 		ast_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
 		return NULL;
 	}
@@ -657,7 +657,7 @@ static SQLHSTMT update2_prepare(struct odbc_obj *obj, void *data)
 	}
 
 	res = ast_odbc_prepare(obj, stmt, ast_str_buffer(sql));
-	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+	if (!SQL_SUCCEEDED(res)) {
 		if (res == SQL_ERROR) {
 			ast_odbc_print_errors(SQL_HANDLE_STMT, stmt, "SQL Prepare");
 		}
@@ -720,7 +720,7 @@ static int update2_odbc(const char *database, const char *table, const struct as
 	SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 	ast_odbc_release_obj(obj);
 
-	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+	if (!SQL_SUCCEEDED(res)) {
 		/* Since only a single thread can access this memory, we can retrieve what would otherwise be lost. */
 		sql = ast_str_thread_get(&sql_buf, SQL_BUF_SIZE);
 		ast_assert(sql != NULL);
@@ -805,7 +805,7 @@ static int store_odbc(const char *database, const char *table, const struct ast_
 	SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 	ast_odbc_release_obj(obj);
 
-	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+	if (!SQL_SUCCEEDED(res)) {
 		ast_log(LOG_WARNING, "SQL Row Count error! [%s]\n", ast_str_buffer(sql));
 		return -1;
 	}
@@ -875,7 +875,7 @@ static int destroy_odbc(const char *database, const char *table, const char *key
 	SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 	ast_odbc_release_obj(obj);
 
-	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+	if (!SQL_SUCCEEDED(res)) {
 		ast_log(LOG_WARNING, "SQL Row Count error! [%s]\n", ast_str_buffer(sql));
 		return -1;
 	}
@@ -904,13 +904,13 @@ static SQLHSTMT length_determination_odbc_prepare(struct odbc_obj *obj, void *da
 	int res;
 
 	res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &sth);
-	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+	if (!SQL_SUCCEEDED(res)) {
 		ast_verb(4, "Failure in AllocStatement %d\n", res);
 		return NULL;
 	}
 
 	res = ast_odbc_prepare(obj, sth, q->sql);
-	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+	if (!SQL_SUCCEEDED(res)) {
 		ast_verb(4, "Error in PREPARE %d\n", res);
 		SQLFreeHandle(SQL_HANDLE_STMT, sth);
 		return NULL;
@@ -928,13 +928,13 @@ static SQLHSTMT config_odbc_prepare(struct odbc_obj *obj, void *data)
 	int res;
 
 	res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &sth);
-	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+	if (!SQL_SUCCEEDED(res)) {
 		ast_verb(4, "Failure in AllocStatement %d\n", res);
 		return NULL;
 	}
 
 	res = ast_odbc_prepare(obj, sth, q->sql);
-	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+	if (!SQL_SUCCEEDED(res)) {
 		ast_verb(4, "Error in PREPARE %d\n", res);
 		SQLFreeHandle(SQL_HANDLE_STMT, sth);
 		return NULL;
@@ -986,7 +986,7 @@ static struct ast_config *config_odbc(const char *database, const char *table, c
 
 	res = SQLNumResultCols(stmt, &rowcount);
 
-	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+	if (!SQL_SUCCEEDED(res)) {
 		ast_log(LOG_WARNING, "SQL NumResultCols error! [%s]\n", ast_str_buffer(sql));
 		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 		ast_odbc_release_obj(obj);
@@ -1033,7 +1033,7 @@ static struct ast_config *config_odbc(const char *database, const char *table, c
 
 	res = SQLNumResultCols(stmt, &rowcount);
 
-	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+	if (!SQL_SUCCEEDED(res)) {
 		ast_log(LOG_WARNING, "SQL NumResultCols error! [%s]\n", ast_str_buffer(sql));
 		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 		ast_odbc_release_obj(obj);
