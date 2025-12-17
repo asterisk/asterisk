@@ -104,7 +104,7 @@ static enum ast_geoloc_validate_result validate_location_info(const char *id,
 	enum ast_geoloc_format format, struct ast_variable *location_info)
 {
 	enum ast_geoloc_validate_result result;
-	const char *failed;
+	char *failed;
 	const char *uri;
 
 	switch (format) {
@@ -117,17 +117,17 @@ static enum ast_geoloc_validate_result validate_location_info(const char *id,
 		if (result != AST_GEOLOC_VALIDATE_SUCCESS) {
 			ast_log(LOG_ERROR, "Location '%s' has invalid item '%s' in the location\n",
 				id, failed);
+			ast_free(failed);
 			return result;
 		}
 		break;
 	case AST_GEOLOC_FORMAT_GML:
 		result = ast_geoloc_gml_validate_varlist(location_info, &failed);
 		if (result != AST_GEOLOC_VALIDATE_SUCCESS) {
-			ast_log(LOG_ERROR, "%s for item '%s' in location '%s'\n",
-				ast_geoloc_validate_result_to_str(result),	failed, id);
+			ast_log(LOG_ERROR, "Location '%s' failed: %s\n", id, failed);
+			ast_free(failed);
 			return result;
 		}
-
 		break;
 	case AST_GEOLOC_FORMAT_URI:
 		uri = ast_variable_find_in_list(location_info, "URI");
@@ -499,6 +499,7 @@ static char *geoloc_config_show_profiles(struct ast_cli_entry *e, int cmd, struc
 			"id:                      %-s\n"
 			"profile_precedence:      %-s\n"
 			"pidf_element:            %-s\n"
+			"pidf_element_id:         %-s\n"
 			"location_reference:      %-s\n"
 			"location_format:         %-s\n"
 			"location_info:           %-s\n"
@@ -511,10 +512,12 @@ static char *geoloc_config_show_profiles(struct ast_cli_entry *e, int cmd, struc
 			"suppress_empty_elements: %-s\n"
 			"effective_location:      %-s\n"
 			"usage_rules:             %-s\n"
-			"notes:                   %-s\n",
+			"notes:                   %-s\n"
+			"device_id:               %-s\n",
 			eprofile->id,
 			precedence_names[eprofile->precedence],
 			pidf_element_names[eprofile->pidf_element],
+			S_OR(eprofile->pidf_element_id, "<none>"),
 			S_OR(eprofile->location_reference, "<none>"),
 			format_names[eprofile->format],
 			S_COR(loc_str, ast_str_buffer(loc_str), "<none>"),
@@ -527,7 +530,8 @@ static char *geoloc_config_show_profiles(struct ast_cli_entry *e, int cmd, struc
 			S_COR(eprofile->suppress_empty_ca_elements, "yes", "no"),
 			S_COR(resolved_str, ast_str_buffer(resolved_str), "<none>"),
 			S_COR(usage_rules_str, ast_str_buffer(usage_rules_str), "<none>"),
-			S_OR(eprofile->notes, "<none>")
+			S_OR(eprofile->notes, "<none>"),
+			S_OR(eprofile->device_id, "<none>")
 			);
 		ao2_ref(eprofile, -1);
 
@@ -717,6 +721,8 @@ int geoloc_config_load(void)
 	ast_sorcery_object_field_register(geoloc_sorcery, "profile", "type", "", OPT_NOOP_T, 0, 0);
 	ast_sorcery_object_field_register_custom(geoloc_sorcery, "profile", "pidf_element",
 		pidf_element_names[AST_PIDF_ELEMENT_DEVICE], profile_pidf_element_handler, profile_pidf_element_to_str, NULL, 0, 0);
+	ast_sorcery_object_field_register(geoloc_sorcery, "profile", "pidf_element_id", "", OPT_STRINGFIELD_T,
+		0, STRFLDSET(struct ast_geoloc_profile, pidf_element_id));
 	ast_sorcery_object_field_register(geoloc_sorcery, "profile", "location_reference", "", OPT_STRINGFIELD_T,
 		0, STRFLDSET(struct ast_geoloc_profile, location_reference));
 	ast_sorcery_object_field_register_custom(geoloc_sorcery, "profile", "profile_precedence", "discard_incoming",
@@ -744,7 +750,8 @@ int geoloc_config_load(void)
 		0, STRFLDSET(struct ast_geoloc_profile, location_source));
 	ast_sorcery_object_field_register(geoloc_sorcery, "profile", "method", "", OPT_STRINGFIELD_T,
 		0, STRFLDSET(struct ast_geoloc_profile, method));
-
+	ast_sorcery_object_field_register(geoloc_sorcery, "profile", "device_id", "", OPT_STRINGFIELD_T,
+		0, STRFLDSET(struct ast_geoloc_profile, device_id));
 
 	ast_sorcery_load(geoloc_sorcery);
 
