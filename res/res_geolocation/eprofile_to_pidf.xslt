@@ -53,6 +53,9 @@
 
 	<xsl:template match="tuple">
 		<xsl:element name="tuple" namespace="urn:ietf:params:xml:ns:pidf">
+			<xsl:if test="@id">
+				<xsl:attribute name="id"><xsl:value-of select="@id"/></xsl:attribute>
+			</xsl:if>
 			<xsl:element name="status" namespace="urn:ietf:params:xml:ns:pidf">
 				<gp:geopriv>
 					<xsl:apply-templates select="./location-info"/>
@@ -65,6 +68,11 @@
 				<xsl:element name="timestamp" namespace="urn:ietf:params:xml:ns:pidf">
 					<xsl:value-of select="./timestamp"/>
 				</xsl:element>
+			</xsl:if>
+			<xsl:if test="./deviceID">
+				<dm:deviceID>
+					<xsl:value-of select="./deviceID"/>
+				</dm:deviceID>
 			</xsl:if>
 		</xsl:element>
 	</xsl:template>
@@ -171,11 +179,11 @@
 	</xsl:template>
 
 	<!-- usage-rules does have children so we add the "gp" namespace and copy in
-		the children, also adding the "gp" namespace -->
+		the children, also adding the "gbp" namespace -->
 	<xsl:template match="usage-rules">
 		<gp:usage-rules>
 			 <xsl:for-each select="*">
-				 <xsl:element name="gp:{local-name()}">
+				 <xsl:element name="gbp:{local-name()}">
 					 <xsl:value-of select="."/>
 				 </xsl:element>
 			 </xsl:for-each>
@@ -201,10 +209,10 @@
 		<xsl:element name="gs:{name()}">
 			<xsl:choose>
 				<xsl:when test="@uom = 'radians'">
-					<xsl:attribute name="uom">urn:ogc:def:uom:EPSG::9102</xsl:attribute>
+					<xsl:attribute name="uom">urn:ogc:def:uom:EPSG::9101</xsl:attribute>
 				</xsl:when>
 				<xsl:otherwise>
-					<xsl:attribute name="uom">urn:ogc:def:uom:EPSG::9101</xsl:attribute>
+					<xsl:attribute name="uom">urn:ogc:def:uom:EPSG::9102</xsl:attribute>
 				</xsl:otherwise>
 			</xsl:choose>
 			<xsl:value-of select="."/>
