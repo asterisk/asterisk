@@ -74,6 +74,11 @@
 			<xsl:attribute name="id"><xsl:value-of select="@id"/></xsl:attribute>
 			<xsl:call-template name="geopriv"/>
 			<xsl:apply-templates select="./def:timestamp"/>
+			<xsl:if test="./dm:deviceID">
+				<deviceID>
+					<xsl:value-of select="./dm:deviceID"/>
+				</deviceID>
+			</xsl:if>
 		</xsl:element>
 	</xsl:template>
 
@@ -82,7 +87,6 @@
 			<xsl:attribute name="id"><xsl:value-of select="@id"/></xsl:attribute>
 			<xsl:call-template name="geopriv"/>
 			<xsl:apply-templates select="./dm:timestamp"/>
-			<!-- deviceID should only apply to devices -->
 			<xsl:if test="./dm:deviceID">
 				<deviceID>
 					<xsl:value-of select="./dm:deviceID"/>
@@ -165,7 +169,7 @@
 	<xsl:template name="angle">
 		<xsl:element name="{local-name(.)}">
 			<xsl:choose>
-				<xsl:when test="@uom = 'urn:ogc:def:uom:EPSG::9102'">
+				<xsl:when test="@uom = 'urn:ogc:def:uom:EPSG::9101'">
 					<xsl:attribute name="uom">radians</xsl:attribute></xsl:when>
 				<xsl:otherwise>
 					<xsl:attribute name="uom">degrees</xsl:attribute></xsl:otherwise>

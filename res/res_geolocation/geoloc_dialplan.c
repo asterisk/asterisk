@@ -53,6 +53,23 @@ static void varlist_to_str(struct ast_variable *list, struct ast_str** buf, size
 	} \
 })
 
+#define RESOLVE_STRINGFIELD_FOR_READ(_param) \
+({ \
+	if (ast_test_flag(&opts, OPT_GEOLOC_RESOLVE)) { \
+		char *resolved = geoloc_eprofile_resolve_string( \
+			eprofile->_param, eprofile->location_variables, chan); \
+		if (!resolved) { \
+			ast_log(LOG_ERROR, "%s: Unable to resolve " #_param "\n", chan_name); \
+			pbx_builtin_setvar_helper(chan, "GEOLOCPROFILESTATUS", "-3"); \
+			return 0; \
+		} \
+		ast_str_append(buf, len, "%s", resolved); \
+		ast_free(resolved); \
+	} else { \
+		ast_str_append(buf, len, "%s", eprofile->_param); \
+	} \
+})
+
 enum my_app_option_flags {
 	OPT_GEOLOC_RESOLVE = (1 << 0),
 	OPT_GEOLOC_APPEND = (1 << 1),
@@ -147,6 +164,8 @@ static int geoloc_profile_read(struct ast_channel *chan,
 		ast_str_append(buf, len, "%s", ast_geoloc_format_to_name(eprofile->format));
 	} else if (ast_strings_equal(args.field, "pidf_element")) {
 		ast_str_append(buf, len, "%s", ast_geoloc_pidf_element_to_name(eprofile->pidf_element));
+	} else if (ast_strings_equal(args.field, "pidf_element_id")) {
+		RESOLVE_STRINGFIELD_FOR_READ(pidf_element_id);
 	} else if (ast_strings_equal(args.field, "location_source")) {
 		ast_str_append(buf, len, "%s", eprofile->location_source);
 	} else if (ast_strings_equal(args.field, "notes")) {
@@ -163,6 +182,8 @@ static int geoloc_profile_read(struct ast_channel *chan,
 		RESOLVE_FOR_READ(usage_rules);
 	} else if (ast_strings_equal(args.field, "confidence")) {
 		varlist_to_str(eprofile->confidence, buf, len);
+	} else if (ast_strings_equal(args.field, "device_id")) {
+		RESOLVE_STRINGFIELD_FOR_READ(device_id);
 	} else {
 		ast_log(LOG_ERROR, "%s: Field '%s' is not valid\n", chan_name, args.field);
 		pbx_builtin_setvar_helper(chan, "GEOLOCPROFILESTATUS", "-3");
@@ -216,6 +237,23 @@ if (ast_test_flag(&opts, OPT_GEOLOC_RESOLVE)) { \
 		return 0; \
 	} \
 	VAR_LIST_REPLACE(eprofile->_param, resolved); \
+} \
+})
+
+#define RESOLVE_STRINGFIELD_FOR_WRITE(_param, _value) \
+({ \
+if (ast_test_flag(&opts, OPT_GEOLOC_RESOLVE)) { \
+	char *resolved = geoloc_eprofile_resolve_string( \
+		_value, eprofile->location_variables, chan); \
+	if (!resolved) { \
+		ast_log(LOG_ERROR, "%s: Unable to resolve " #_param " %p %p\n", chan_name, eprofile->_param, eprofile->location_variables); \
+		pbx_builtin_setvar_helper(chan, "GEOLOCPROFILESTATUS", "-3"); \
+		return 0; \
+	} \
+	ast_string_field_set(eprofile, _param, resolved); \
+	ast_free(resolved); \
+} else { \
+	ast_string_field_set(eprofile, _param, _value); \
 } \
 })
 
@@ -313,6 +351,8 @@ static int geoloc_profile_write(struct ast_channel *chan, const char *cmd, char 
 		TEST_ENUM_VALUE(chan_name, eprofile, format, value);
 	} else if (ast_strings_equal(args.field, "pidf_element")) {
 		TEST_ENUM_VALUE(chan_name, eprofile, pidf_element, value);
+	} else if (ast_strings_equal(args.field, "pidf_element_id")) {
+		RESOLVE_STRINGFIELD_FOR_WRITE(pidf_element_id, value);
 	} else if (ast_strings_equal(args.field, "location_source")) {
 		ast_string_field_set(eprofile, location_source, value);
 	} else if (ast_strings_equal(args.field, "notes")) {
@@ -334,6 +374,8 @@ static int geoloc_profile_write(struct ast_channel *chan, const char *cmd, char 
 		RESOLVE_FOR_WRITE(usage_rules);
 	} else if (ast_strings_equal(args.field, "confidence")) {
 		TEST_VARLIST(chan_name, eprofile, confidence, value);
+	} else if (ast_strings_equal(args.field, "device_id")) {
+		RESOLVE_STRINGFIELD_FOR_WRITE(pidf_element_id, value);
 	} else {
 		ast_log(LOG_ERROR, "%s: Field '%s' is not valid\n", chan_name, args.field);
 		pbx_builtin_setvar_helper(chan, "GEOLOCPROFILESTATUS", "-3");
