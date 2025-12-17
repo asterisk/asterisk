@@ -450,21 +450,18 @@ static void ari_bridges_play_new(const char **args_media,
 				"specified announcer_format is unknown on this system");
 			return;
 		}
-		/*
-		 * ast_format_cache_get() bumps the refcount but the other calls
-		 * to retrieve formats don't so we'll drop this reference.
-		 * It'll be bumped again in the prepare_bridge_media_channel() call below.
-		 */
-		ao2_ref(channel_format, -1);
 	} else {
 		ast_bridge_lock(bridge);
 		if (bridge->num_channels == 0) {
-			channel_format = ast_format_slin;
+			channel_format = ao2_bump(ast_format_slin);
 		} else if (bridge->num_channels == 1) {
 			struct ast_bridge_channel *bc = NULL;
 			bc = AST_LIST_FIRST(&bridge->channels);
 			if (bc) {
 				channel_format = ast_channel_rawwriteformat(bc->chan);
+				if (channel_format) {
+					channel_format = ao2_bump(channel_format);
+				}
 			}
 		} else {
 			struct ast_bridge_channel *bc = NULL;
@@ -473,17 +470,18 @@ static void ari_bridges_play_new(const char **args_media,
 				struct ast_format *fmt = ast_channel_rawwriteformat(bc->chan);
 				max_sample_rate = MAX(ast_format_get_sample_rate(fmt), max_sample_rate);
 			}
-			channel_format = ast_format_cache_get_slin_by_rate(max_sample_rate);
+			channel_format = ao2_bump(ast_format_cache_get_slin_by_rate(max_sample_rate));
 		}
 		ast_bridge_unlock(bridge);
 	}
 
 	if (!channel_format) {
-		channel_format = ast_format_slin;
+		channel_format = ao2_bump(ast_format_slin);
 	}
 
 	play_channel = prepare_bridge_media_channel("Announcer", channel_format);
 	ao2_cleanup(channel_format);
+
 	if (!play_channel) {
 		ast_ari_response_error(
 			response, 500, "Internal Error", "Could not create playback channel");
@@ -741,15 +739,8 @@ void ast_ari_bridges_record(struct ast_variable *headers,
 				"specified recorder_format is unknown on this system");
 			return;
 		}
-		/*
-		 * ast_format_cache_get() bumps the refcount but the other calls
-		 * to retrieve formats don't so we'll drop this reference.
-		 * It'll be bumped again in the prepare_bridge_media_channel() call below.
-		 */
-		ao2_ref(channel_format, -1);
-
 	} else {
-		channel_format = file_format;
+		channel_format = ao2_bump(file_format);
 	}
 
 	if (!(record_channel = prepare_bridge_media_channel("Recorder", channel_format))) {
@@ -757,6 +748,8 @@ void ast_ari_bridges_record(struct ast_variable *headers,
 			response, 500, "Internal Server Error", "Failed to create recording channel");
 		return;
 	}
+
+	ao2_cleanup(channel_format);
 
 	bridge_topic = ast_bridge_topic(bridge);
 	channel_topic = ast_channel_topic(record_channel);
