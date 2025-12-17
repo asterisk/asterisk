@@ -207,6 +207,24 @@
 					</see-also>
 				</configOption>
 
+				<configOption name="pidf_element_id" default="">
+					<since>
+						<version>20.18.0</version>
+						<version>22.8.0</version>
+						<version>23.2.0</version>
+					</since>
+					<synopsis>The id attribute value for the PIDF-LO element</synopsis>
+				</configOption>
+
+				<configOption name="device_id" default="">
+					<since>
+						<version>20.18.0</version>
+						<version>22.8.0</version>
+						<version>23.2.0</version>
+					</since>
+					<synopsis>The content of the deviceID element</synopsis>
+				</configOption>
+
 				<configOption name="location_reference" default="none">
 					<since>
 						<version>16.28.0</version>
@@ -341,6 +359,7 @@
 					<enum name="profile_precedence"/>
 					<enum name="format"/>
 					<enum name="pidf_element"/>
+					<enum name="pidf_element_id"/>
 					<enum name="location_source"/>
 					<enum name="notes"/>
 					<enum name="location_info"/>
@@ -349,6 +368,7 @@
 					<enum name="effective_location"/>
 					<enum name="usage_rules"/>
 					<enum name="confidence"/>
+					<enum name="device_id"/>
 				</enumlist>
 				<para>Additionally, the <literal>inheritable</literal> field may be
 				set to <literal>true</literal> or <literal>false</literal> to control

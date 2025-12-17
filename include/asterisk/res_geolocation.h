@@ -77,6 +77,8 @@ struct ast_geoloc_profile {
 		AST_STRING_FIELD(notes);
 		AST_STRING_FIELD(method);
 		AST_STRING_FIELD(location_source);
+		AST_STRING_FIELD(pidf_element_id);
+		AST_STRING_FIELD(device_id);
 	);
 	enum ast_geoloc_pidf_element pidf_element;
 	enum ast_geoloc_precedence precedence;
@@ -97,6 +99,8 @@ struct ast_geoloc_eprofile {
 		AST_STRING_FIELD(location_source);
 		AST_STRING_FIELD(method);
 		AST_STRING_FIELD(notes);
+		AST_STRING_FIELD(pidf_element_id);
+		AST_STRING_FIELD(device_id);
 	);
 	enum ast_geoloc_pidf_element pidf_element;
 	enum ast_geoloc_precedence precedence;
@@ -150,13 +154,15 @@ AST_OPTIONAL_API(struct ast_geoloc_profile *, ast_geoloc_get_profile,
 int ast_geoloc_civicaddr_is_code_valid(const char *code);
 
 enum ast_geoloc_validate_result {
-	AST_GEOLOC_VALIDATE_INVALID_VALUE = -1,
 	AST_GEOLOC_VALIDATE_SUCCESS = 0,
 	AST_GEOLOC_VALIDATE_MISSING_SHAPE,
 	AST_GEOLOC_VALIDATE_INVALID_SHAPE,
 	AST_GEOLOC_VALIDATE_INVALID_VARNAME,
 	AST_GEOLOC_VALIDATE_NOT_ENOUGH_VARNAMES,
 	AST_GEOLOC_VALIDATE_TOO_MANY_VARNAMES,
+	AST_GEOLOC_VALIDATE_INVALID_CRS,
+	AST_GEOLOC_VALIDATE_INVALID_CRS_FOR_SHAPE,
+	AST_GEOLOC_VALIDATE_INVALID_VALUE,
 };
 
 const char *ast_geoloc_validate_result_to_str(enum ast_geoloc_validate_result result);
@@ -170,7 +176,7 @@ const char *ast_geoloc_validate_result_to_str(enum ast_geoloc_validate_result re
  * \return result code.
  */
 enum ast_geoloc_validate_result ast_geoloc_civicaddr_validate_varlist(
-	const struct ast_variable *varlist, const char **result);
+	const struct ast_variable *varlist, char **result);
 
 /*!
  * \brief Validate that the variables in the list represent a valid GML shape
@@ -180,8 +186,8 @@ enum ast_geoloc_validate_result ast_geoloc_civicaddr_validate_varlist(
  *
  * \return result code.
  */
-enum ast_geoloc_validate_result ast_geoloc_gml_validate_varlist(const struct ast_variable *varlist,
-	const char **result);
+enum ast_geoloc_validate_result ast_geoloc_gml_validate_varlist(struct ast_variable *varlist,
+	char **result);
 
 
 /*!

@@ -21,12 +21,14 @@
 
 static const char *result_names[] = {
 	"Success",
-	"Missing type",
+	"Missing shape type",
 	"Invalid shape type",
 	"Invalid variable name",
 	"Not enough variables",
 	"Too many variables",
-	"Invalid variable value"
+	"Invalid CRS",
+	"Invalid CRS for shape",
+	"Invalid variable value",
 };
 
 const char *ast_geoloc_validate_result_to_str(enum ast_geoloc_validate_result result)
