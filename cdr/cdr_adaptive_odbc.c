@@ -161,14 +161,14 @@ static int load_config(void)
 		}
 
 		res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
-		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+		if (!SQL_SUCCEEDED(res)) {
 			ast_log(LOG_WARNING, "SQL Alloc Handle failed on connection '%s'!\n", connection);
 			ast_odbc_release_obj(obj);
 			continue;
 		}
 
 		res = SQLColumns(stmt, NULL, 0, lenschema == 0 ? NULL : (unsigned char *)schema, SQL_NTS, (unsigned char *)table, SQL_NTS, (unsigned char *)"%", SQL_NTS);
-		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+		if (!SQL_SUCCEEDED(res)) {
 			ast_log(LOG_ERROR, "Unable to query database columns on connection '%s'.  Skipping.\n", connection);
 			SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 			ast_odbc_release_obj(obj);
@@ -333,13 +333,13 @@ static SQLHSTMT generic_prepare(struct odbc_obj *obj, void *data)
 	unsigned char state[10], diagnostic[256];
 
 	res = SQLAllocHandle (SQL_HANDLE_STMT, obj->con, &stmt);
-	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+	if (!SQL_SUCCEEDED(res)) {
 		ast_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
 		return NULL;
 	}
 
 	res = ast_odbc_prepare(obj, stmt, data);
-	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+	if (!SQL_SUCCEEDED(res)) {
 		ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", (char *) data);
 		SQLGetDiagField(SQL_HANDLE_STMT, stmt, 1, SQL_DIAG_NUMBER, &numfields, SQL_IS_INTEGER, &diagbytes);
 		for (i = 0; i < numfields; i++) {
