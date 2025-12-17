@@ -69,7 +69,7 @@ civicAddress: [RFC4119] [RFC5139] [RFC5491]
               For chan_pjsip, this will be placed in the body of
               outgoing INVITE messages in addition to any SDP.
 
-GML:          [RFC4119] [RFC5491] [GeoShape]
+GML:          [RFC4119] [RFC4479] [RFC5491] [GeoShape]
               The location information will be placed in an XML document
               conforming to the PIDF-LO standard.
               For chan_pjsip, this will be placed in the body of
@@ -221,6 +221,28 @@ Per [RFC5491], "device" is preferred and therefore the default.
 
 Example:
 pidf_element = tuple
+
+-- pidf_element id(optional) ------------------------------------------
+Sets the value of the 'id' attribute for the top-level PIDF-LO element.
+You can reference channel variables in this parameter.
+
+pidf_element_id = <any valid attribute string>
+
+Example:
+pidf_element_id = ${CHANNEL(name)}
+
+-- device_id (optional) -----------------------------------------------
+Sets the contents of the <dm:deviceID> element in the top-level
+PIDF-LO element.  RFC4479 defined this only as a 'URN' with the only
+examples being a mac address in the format 'mac:XXXXXXXXXXXX'.
+You can reference channel variables in this parameter.
+
+device_id = <urn>
+
+Example:
+device_id = mac:40000b0c0d12
+device_id = mac:${MAC_ADDRESS}
+
 
 -- allow_routing_use (optional) ---------------------------------------
 Sets whether the "Geolocation-Routing" header is added to outgoing
