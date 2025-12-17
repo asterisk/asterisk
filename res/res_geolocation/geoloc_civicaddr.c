@@ -73,13 +73,13 @@ int ast_geoloc_civicaddr_is_code_valid(const char *code)
 }
 
 enum ast_geoloc_validate_result ast_geoloc_civicaddr_validate_varlist(
-	const struct ast_variable *varlist,	const char **result)
+	const struct ast_variable *varlist,	char **result)
 {
 	const struct ast_variable *var = varlist;
 	for (; var; var = var->next) {
 		int valid = ast_geoloc_civicaddr_is_code_valid(var->name);
 		if (!valid) {
-			*result = var->name;
+			*result = ast_strdup(var->name);
 			return AST_GEOLOC_VALIDATE_INVALID_VARNAME;
 		}
 	}

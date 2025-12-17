@@ -182,6 +182,9 @@ struct ast_geoloc_eprofile *ast_geoloc_eprofile_dup(struct ast_geoloc_eprofile *
 
 	rc = ast_string_field_set(eprofile, location_reference, src->location_reference);
 	if (rc == 0) {
+		rc = ast_string_field_set(eprofile, pidf_element_id, src->pidf_element_id);
+	}
+	if (rc == 0) {
 		ast_string_field_set(eprofile, notes, src->notes);
 	}
 	if (rc == 0) {
@@ -207,6 +210,9 @@ struct ast_geoloc_eprofile *ast_geoloc_eprofile_dup(struct ast_geoloc_eprofile *
 	}
 	if (rc == 0) {
 		rc = DUP_VARS(eprofile->confidence, src->confidence);
+	}
+	if (rc == 0) {
+		rc = ast_string_field_set(eprofile, device_id, src->device_id);
 	}
 	if (rc != 0) {
 		ao2_ref(eprofile, -1);
@@ -240,8 +246,10 @@ struct ast_geoloc_eprofile *ast_geoloc_eprofile_create_from_profile(struct ast_g
 	eprofile->suppress_empty_ca_elements = profile->suppress_empty_ca_elements;
 	eprofile->format = profile->format;
 
-
 	rc = ast_string_field_set(eprofile, location_reference, profile->location_reference);
+	if (rc == 0) {
+		rc = ast_string_field_set(eprofile, pidf_element_id, profile->pidf_element_id);
+	}
 	if (rc == 0) {
 		ast_string_field_set(eprofile, notes, profile->notes);
 	}
@@ -265,6 +273,9 @@ struct ast_geoloc_eprofile *ast_geoloc_eprofile_create_from_profile(struct ast_g
 	}
 	if (rc == 0) {
 		rc = DUP_VARS(eprofile->confidence, profile->confidence);
+	}
+	if (rc == 0) {
+		rc = ast_string_field_set(eprofile, device_id, profile->device_id);
 	}
 	if (rc != 0) {
 		ao2_unlock(profile);
@@ -396,6 +407,39 @@ struct ast_variable *geoloc_eprofile_resolve_varlist(struct ast_variable *source
 	return dest;
 }
 
+char *geoloc_eprofile_resolve_string(const char *source,
+	struct ast_variable *variables, struct ast_channel *chan)
+{
+	struct varshead *vh = NULL;
+	struct ast_str *buf = ast_str_alloca(256);
+
+	if (!source || !chan) {
+		return NULL;
+	}
+
+	/*
+	 * ast_str_substitute_variables does only minimal recursive resolution so we need to
+	 * pre-resolve each variable in the "variables" list, then use that result to
+	 * do the final pass on the "source" variable list.
+	 */
+	if (variables) {
+		struct ast_variable *var = variables;
+		vh = ast_var_list_create();
+		if (!vh) {
+			return NULL;
+		}
+		for ( ; var; var = var->next) {
+			ast_str_substitute_variables_full2(&buf, 0, chan, vh, var->value, NULL, 1);
+			AST_VAR_LIST_INSERT_TAIL(vh, ast_var_assign(var->name, ast_str_buffer(buf)));
+			ast_str_reset(buf);
+		}
+	}
+
+	ast_str_substitute_variables_full2(&buf, 0, chan, vh, source, NULL, 1);
+	ast_var_list_destroy(vh);
+
+	return ast_strdup(ast_str_buffer(buf));
+}
 
 const char *ast_geoloc_eprofile_to_uri(struct ast_geoloc_eprofile *eprofile,
 	struct ast_channel *chan, struct ast_str **buf, const char *ref_str)
@@ -604,6 +648,7 @@ static struct ast_geoloc_eprofile *geoloc_eprofile_create_from_xslt_result(
 	struct ast_xml_node *usage_rules = NULL;
 	struct ast_xml_node *method = NULL;
 	struct ast_xml_node *note_well = NULL;
+	struct ast_xml_node *device_id = NULL;
 	/*
 	 * Like nodes, names of nodes are just
 	 * pointers into result_doc and don't need to be freed.
@@ -614,9 +659,11 @@ static struct ast_geoloc_eprofile *geoloc_eprofile_create_from_xslt_result(
 	 * so they DO need to be freed after use.
 	 */
 	const char *id = NULL;
+	const char *pidf_element_id = NULL;
 	const char *format_str = NULL;
 	const char *method_str = NULL;
 	const char *note_well_str = NULL;
+	const char *device_id_str = NULL;
 
 	SCOPE_ENTER(3, "%s\n", ref_str);
 
@@ -638,6 +685,7 @@ static struct ast_geoloc_eprofile *geoloc_eprofile_create_from_xslt_result(
 		SCOPE_EXIT_LOG_RTN_VALUE(NULL, LOG_ERROR, "%s: Can't find 'presence' root element\n",
 			ref_str);
 	}
+	id = ast_xml_get_attribute(presence, "entity");
 
 	pidf_element = ast_xml_node_get_children(presence);
 	if (!pidf_element) {
@@ -645,21 +693,17 @@ static struct ast_geoloc_eprofile *geoloc_eprofile_create_from_xslt_result(
 			ref_str);
 	}
 
-	id = ast_xml_get_attribute(pidf_element, "id");
-	if (ast_strlen_zero(id)) {
-		ast_xml_free_attr(id);
-		id = ast_xml_get_attribute(presence, "entity");
-	}
-
-	if (ast_strlen_zero(id)) {
-		SCOPE_EXIT_RTN_VALUE(NULL, "%s: Unable to find 'id' attribute\n", ref_str);
-	}
-
-	eprofile = ast_geoloc_eprofile_alloc(id);
+	eprofile = ast_geoloc_eprofile_alloc(S_OR(id, "unknown"));
 	ast_xml_free_attr(id);
 	if (!eprofile) {
 		SCOPE_EXIT_RTN_VALUE(NULL, "%s: Allocation failure\n", ref_str);
 	}
+
+	pidf_element_id = ast_xml_get_attribute(pidf_element, "id");
+	if (!ast_strlen_zero(pidf_element_id)) {
+		ast_string_field_set(eprofile, pidf_element_id, pidf_element_id);
+	}
+	ast_xml_free_attr(pidf_element_id);
 
 	location_info = ast_xml_find_child_element(pidf_element, "location-info", NULL, NULL);
 	if (!location_info) {
@@ -715,6 +759,11 @@ static struct ast_geoloc_eprofile *geoloc_eprofile_create_from_xslt_result(
 	note_well_str = ast_xml_get_text(note_well);
 	ast_string_field_set(eprofile, notes, note_well_str);
 	ast_xml_free_text(note_well_str);
+
+	device_id = ast_xml_find_child_element(pidf_element, "deviceID", NULL, NULL);
+	device_id_str = ast_xml_get_text(device_id);
+	ast_string_field_set(eprofile, device_id, device_id_str);
+	ast_xml_free_text(device_id_str);
 
 	SCOPE_EXIT_RTN_VALUE(eprofile, "%s: Done.\n", ref_str);
 }
@@ -833,6 +882,7 @@ static struct ast_xml_node *geoloc_eprofile_to_intermediate(const char *element_
 	struct ast_xml_node *method_node;
 	struct ast_xml_node *notes_node;
 	struct ast_xml_node *timestamp_node;
+	struct ast_xml_node *device_id_node;
 	struct timeval tv = ast_tvnow();
 	struct tm tm = { 0, };
 	char timestr[32] = { 0, };
@@ -848,6 +898,18 @@ static struct ast_xml_node *geoloc_eprofile_to_intermediate(const char *element_
 	if (!pidf_node) {
 		SCOPE_EXIT_LOG_RTN_VALUE(NULL, LOG_ERROR, "%s: Unable to create '%s' XML node\n",
 			ref_string, element_name);
+	}
+	if (!ast_strlen_zero(eprofile->pidf_element_id)) {
+		char *resolved_pidf_element_id = geoloc_eprofile_resolve_string(eprofile->pidf_element_id,
+			eprofile->location_variables, chan);
+		if (!resolved_pidf_element_id) {
+			SCOPE_EXIT_RTN_VALUE(NULL);
+		}
+		rc = ast_xml_set_attribute(pidf_node, "id", resolved_pidf_element_id);
+		ast_free(resolved_pidf_element_id);
+		if (rc != 0) {
+			SCOPE_EXIT_LOG_RTN_VALUE(NULL, LOG_ERROR, "%s: Unable to create 'id' XML attribute\n", ref_string);
+		}
 	}
 
 	loc_node = ast_xml_new_child(pidf_node, "location-info");
@@ -935,6 +997,23 @@ static struct ast_xml_node *geoloc_eprofile_to_intermediate(const char *element_
 			ref_string);
 	}
 	ast_xml_set_text(timestamp_node, timestr);
+
+	if (!ast_strlen_zero(eprofile->device_id)) {
+		char *resolved_device_id = geoloc_eprofile_resolve_string(eprofile->device_id,
+			eprofile->location_variables, chan);
+		if (!resolved_device_id) {
+			SCOPE_EXIT_RTN_VALUE(NULL);
+		}
+		device_id_node = ast_xml_new_child(pidf_node, "deviceID");
+		if (!device_id_node) {
+			ast_free(resolved_device_id);
+			SCOPE_EXIT_LOG_RTN_VALUE(NULL, LOG_ERROR, "%s: Unable to create 'deviceID' XML node\n",
+				ref_string);
+		}
+		ast_xml_set_text(device_id_node, resolved_device_id);
+		ast_free(resolved_device_id);
+	}
+
 
 	rtn_pidf_node = pidf_node;
 	pidf_node = NULL;
@@ -1058,11 +1137,11 @@ const char *ast_geoloc_eprofiles_to_pidf(struct ast_datastore *ds,
 	SCOPE_EXIT_RTN_VALUE(ast_str_buffer(*buf), "%s: Done\n", ref_string);
 }
 
-const char *ast_geoloc_eprofile_to_pidf(struct ast_geoloc_eprofile *eprofile,
+static struct ast_xml_doc *geoloc_eprofile_to_xmldoc(struct ast_geoloc_eprofile *eprofile,
 	struct ast_channel *chan, struct ast_str **buf, const char * ref_string)
 {
 	RAII_VAR(struct ast_xml_doc *, intermediate, NULL, ast_xml_close);
-	RAII_VAR(struct ast_xml_doc *, pidf_doc, NULL, ast_xml_close);
+	struct ast_xml_doc *pidf_doc = NULL;
 	struct ast_xml_node *root_node;
 	char *doc_str = NULL;
 	int doc_len;
@@ -1130,6 +1209,25 @@ const char *ast_geoloc_eprofile_to_pidf(struct ast_geoloc_eprofile *eprofile,
 			ref_string);
 	}
 
+	SCOPE_EXIT_RTN_VALUE(pidf_doc, "%s: Done\n", ref_string);
+}
+
+const char *ast_geoloc_eprofile_to_pidf(struct ast_geoloc_eprofile *eprofile,
+	struct ast_channel *chan, struct ast_str **buf, const char * ref_string)
+{
+
+	RAII_VAR(struct ast_xml_doc *, pidf_doc, NULL, ast_xml_close);
+	char *doc_str = NULL;
+	int doc_len = 0;
+	int rc = 0;
+	SCOPE_ENTER(3, "%s\n", ref_string);
+
+	pidf_doc = geoloc_eprofile_to_xmldoc(eprofile, chan, buf, ref_string);
+	if (!pidf_doc) {
+		SCOPE_EXIT_LOG_RTN_VALUE(NULL, LOG_ERROR, "%s: Unable to create final PIDF-LO doc from intermediate doc\n",
+			ref_string);
+	}
+
 	ast_xml_doc_dump_memory(pidf_doc, &doc_str, &doc_len);
 	if (doc_len == 0 || !doc_str) {
 		SCOPE_EXIT_LOG_RTN_VALUE(NULL, LOG_ERROR, "%s: Unable to dump final PIDF-LO doc to string\n",
@@ -1146,6 +1244,7 @@ const char *ast_geoloc_eprofile_to_pidf(struct ast_geoloc_eprofile *eprofile,
 	ast_trace(5, "Final doc:\n%s\n", ast_str_buffer(*buf));
 
 	SCOPE_EXIT_RTN_VALUE(ast_str_buffer(*buf), "%s: Done\n", ref_string);
+
 }
 
 #ifdef TEST_FRAMEWORK
@@ -1247,39 +1346,40 @@ AST_TEST_DEFINE(test_create_from_uri)
 }
 
 static enum ast_test_result_state validate_eprofile(struct ast_test *test,
+	struct ast_geoloc_eprofile *eprofile,
 	struct ast_xml_doc * pidf_xmldoc,
-	const char *path,
 	const char *id,
+	const char *pidf_element_id,
 	enum ast_geoloc_pidf_element pidf_element,
 	enum ast_geoloc_format format,
 	const char *method,
 	const char *location,
-	const char *usage
+	const char *usage,
+	const char *device_id
 	)
 {
 	RAII_VAR(struct ast_str *, str, NULL, ast_free);
-	RAII_VAR(struct ast_geoloc_eprofile *, eprofile,  NULL, ao2_cleanup);
 	RAII_VAR(struct ast_xml_doc *, result_doc, NULL, ast_xml_close);
 
-	if (!ast_strlen_zero(path)) {
-		result_doc = ast_xslt_apply(pidf_to_eprofile_xslt, pidf_xmldoc, NULL);
-		ast_test_validate(test, (result_doc && ast_xml_node_get_children((struct ast_xml_node *)result_doc)));
-
-		eprofile = geoloc_eprofile_create_from_xslt_result(result_doc, "test_create_from_xslt");
-	} else {
-		eprofile = ast_geoloc_eprofile_create_from_pidf(pidf_xmldoc, NULL, "test_create_from_pidf");
-	}
-
-	ast_test_validate(test, eprofile != NULL);
-	ast_test_status_update(test, "ID: '%s'  pidf_element: '%s'  format: '%s'  method: '%s'\n", eprofile->id,
+	ast_test_status_update(test, "eprofile: ID: '%s'  pidf_element: '%s' peid: %s format: '%s'  method: '%s'  device_id: '%s'\n",
+		eprofile->id,
 		ast_geoloc_pidf_element_to_name(eprofile->pidf_element),
+		eprofile->pidf_element_id,
 		ast_geoloc_format_to_name(eprofile->format),
-		eprofile->method);
+		eprofile->method, eprofile->device_id);
+	ast_test_status_update(test, "xml: ID: '%s'  pidf_element: '%s' peid: %s format: '%s'  method: '%s'  device_id: '%s'\n",
+		id,
+		ast_geoloc_pidf_element_to_name(pidf_element),
+		pidf_element_id,
+		ast_geoloc_format_to_name(format),
+		method, device_id);
 
 	ast_test_validate(test, ast_strings_equal(eprofile->id, id));
 	ast_test_validate(test, eprofile->pidf_element == pidf_element);
+	ast_test_validate(test, ast_strings_equal(eprofile->pidf_element_id, pidf_element_id));
 	ast_test_validate(test, eprofile->format == format);
 	ast_test_validate(test, ast_strings_equal(eprofile->method, method));
+	ast_test_validate(test, ast_strings_equal(eprofile->device_id, device_id));
 
 	str = ast_variable_list_join(eprofile->location_info, ",", "=", NULL, NULL);
 	ast_test_validate(test, str != NULL);
@@ -1297,10 +1397,125 @@ static enum ast_test_result_state validate_eprofile(struct ast_test *test,
 	return AST_TEST_PASS;
 }
 
+static char *normalize_string(char *in)
+{
+	char *out = ast_strip(in);
+	char *ptr = out;
+
+	while (*ptr != '\0') {
+		if (*ptr == '\n') {
+			char *next = ast_skip_blanks(ptr);
+			*ptr = ' ';
+			ptr++;
+			next = ast_strdup(next);
+			strcpy(ptr, next); /* Safe */
+			ast_free(next);
+		}
+		ptr++;
+	}
+	return out;
+}
+
+struct test_xpath_element {
+	const char *path;
+	int validate_content;
+};
+
+static enum ast_test_result_state validate_xml(struct ast_test *test,
+	struct ast_geoloc_eprofile *eprofile,
+	struct ast_xml_doc * pidf_xmldoc,
+	struct ast_xml_doc * eprofile_xmldoc
+	)
+{
+	enum ast_test_result_state res = AST_TEST_PASS;
+	struct ast_xml_namespace_def_vector ns;
+	struct ast_xml_namespace_def def = {"def", "urn:ietf:params:xml:ns:pidf"};
+	struct ast_xml_namespace_def dm = {"dm", "urn:ietf:params:xml:ns:pidf:data-model"};
+	struct ast_xml_namespace_def ca = {"ca", "urn:ietf:params:xml:ns:pidf:geopriv10:civicAddr"};
+	struct ast_xml_namespace_def gbp = {"gbp", "urn:ietf:params:xml:ns:pidf:geopriv10:basicPolicy"};
+	struct ast_xml_namespace_def gml = {"gml", "http://www.opengis.net/gml"};
+	struct ast_xml_namespace_def gp = {"gp", "urn:ietf:params:xml:ns:pidf:geopriv10"};
+	struct ast_xml_namespace_def con = {"con", "urn:ietf:params:xml:ns:geopriv:conf"};
+	struct ast_xml_namespace_def gs = {"gs", "http://www.opengis.net/pidflo/1.0"};
+
+	struct test_xpath_element elements[] = {
+		{"//def:tuple/@id", 1},
+		{"//gml:Point/@srsName", 1},
+		{"//gml:pos/text()", 1},
+		{"//con:confidence/text()", 1},
+		{"//con:confidence/@pdf", 1},
+		{"//gp:usage-rules", 0},
+		{"//gbp:retransmission-allowed/text()", 1},
+		{"//gbp:retention-expiry/text()", 1},
+		{"//gp:method/text()", 1},
+		{"//gp:note-well/text()", 1},
+		{"//dm:deviceID/text()", 1},
+		{"//def:timestamp", 0},
+	};
+	int i;
+
+	AST_VECTOR_INIT(&ns, 12);
+	AST_VECTOR_APPEND(&ns, def);
+	AST_VECTOR_APPEND(&ns, dm);
+	AST_VECTOR_APPEND(&ns, ca);
+	AST_VECTOR_APPEND(&ns, gbp);
+	AST_VECTOR_APPEND(&ns, gml);
+	AST_VECTOR_APPEND(&ns, gp);
+	AST_VECTOR_APPEND(&ns, con);
+	AST_VECTOR_APPEND(&ns, gs);
+
+
+	for (i = 0; i < ARRAY_LEN(elements); i++) {
+		struct ast_xml_xpath_results *aresults = ast_xml_query_with_namespaces(eprofile_xmldoc, elements[i].path, &ns);
+		struct ast_xml_xpath_results *bresults = ast_xml_query_with_namespaces(pidf_xmldoc, elements[i].path, &ns);
+		if (aresults && bresults) {
+			struct ast_xml_node *anode = ast_xml_xpath_get_first_result(aresults);
+			struct ast_xml_node *bnode = ast_xml_xpath_get_first_result(bresults);
+			if (elements[i].validate_content) {
+				char *atext = normalize_string(ast_strdupa(S_OR(ast_xml_get_text(anode), "")));
+				char *btext = normalize_string(ast_strdupa(S_OR(ast_xml_get_text(bnode), "")));
+				int pass = ast_strings_equal(atext, btext);
+				ast_test_status_update(test, "Element: %s  eprofile: %s pidf: %s Result: %s\n",
+					elements[i].path, atext, btext, pass ? "pass" : "FAIL");
+				if (!pass) {
+					ast_log(LOG_ERROR, "Element: %s  eprofile: %s pidf: %s Result: FAIL\n",
+						elements[i].path, atext, btext);
+					res = AST_TEST_FAIL;
+				}
+			} else {
+				int pass = !!anode && !!bnode;
+				ast_test_status_update(test, "Element: %s  eprofile: %s pidf: %s  Result: %s\n",
+					elements[i].path, anode ? "exists" : "doesn't exist", bnode ? "exists" : "doesn't exist",
+					pass ? "pass" : "FAIL");
+				if (!pass) {
+					ast_log(LOG_ERROR, "Element: %s  eprofile: %s pidf: %s\n",
+						elements[i].path, anode ? "exists" : "doesn't exist", bnode ? "exists" : "doesn't exist");
+				}
+			}
+		} else {
+			if (!aresults) {
+				ast_log(LOG_ERROR, "No xpath eprofile result for %s\n", elements[i].path);
+				res = AST_TEST_FAIL;
+			}
+			if (!bresults) {
+				ast_log(LOG_ERROR, "No xpath pidf result for %s\n", elements[i].path);
+				res = AST_TEST_FAIL;
+			}
+		}
+	}
+
+	return res;
+}
+
 AST_TEST_DEFINE(test_create_from_pidf)
 {
 
 	RAII_VAR(struct ast_xml_doc *, pidf_xmldoc, NULL, ast_xml_close);
+	RAII_VAR(struct ast_xml_doc *, eprofile_xmldoc, NULL, ast_xml_close);
+	RAII_VAR(struct ast_geoloc_eprofile *, eprofile,  NULL, ao2_cleanup);
+	RAII_VAR(struct ast_str *, buf, NULL, ast_free);
+	RAII_VAR(struct ast_channel *, mock_channel, NULL, ast_hangup);
+
 	enum ast_test_result_state res = AST_TEST_PASS;
 
 	switch (cmd) {
@@ -1317,18 +1532,35 @@ AST_TEST_DEFINE(test_create_from_pidf)
 	pidf_xmldoc = ast_xml_read_memory((char *)_binary_res_geolocation_pidf_lo_test_xml_start, pidf_lo_test_xml_size);
 	ast_test_validate(test, pidf_xmldoc != NULL);
 
-	res = validate_eprofile(test, pidf_xmldoc,
-		NULL,
+	eprofile = ast_geoloc_eprofile_create_from_pidf(pidf_xmldoc, NULL, "test_create_from_pidf");
+	ast_test_validate(test, eprofile != NULL);
+
+
+	res = validate_eprofile(test, eprofile, pidf_xmldoc,
+		"pres:alice@asterisk.org",
 		"point-2d",
 		AST_PIDF_ELEMENT_TUPLE,
 		AST_GEOLOC_FORMAT_GML,
 		"Manual",
 		"shape=Point,crs=2d,pos=-34.410649 150.87651",
-		"retransmission-allowed='no',retention-expiry='2010-11-14T20:00:00Z'"
+		"retransmission-allowed='no',retention-expiry='2010-11-14T20:00:00Z'",
+		"mac:112233445566"
 		);
-	ast_test_validate(test, res == AST_TEST_PASS);
+	if (res != AST_TEST_PASS) {
+		return res;
+	}
 
-	return res;
+	buf = ast_str_create(1024);
+	if (!buf) {
+		ast_log(LOG_ERROR, "Unable to allocate buf\n");
+		return AST_TEST_FAIL;
+	}
+
+	mock_channel = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, "TestChannel");
+	eprofile->effective_location = ast_variables_dup(eprofile->location_info);
+	eprofile_xmldoc = geoloc_eprofile_to_xmldoc(eprofile, mock_channel, &buf, "session_name");
+
+	return validate_xml(test, eprofile, pidf_xmldoc, eprofile_xmldoc);
 }
 
 static void load_tests(void) {
