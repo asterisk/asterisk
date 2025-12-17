@@ -489,13 +489,13 @@ static SQLHSTMT execute(struct odbc_obj *obj, void *data, int silent)
 	SQLHSTMT stmt;
 
 	res = SQLAllocHandle (SQL_HANDLE_STMT, obj->con, &stmt);
-	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+	if (!SQL_SUCCEEDED(res)) {
 		ast_log(LOG_WARNING, "SQL Alloc Handle failed (%d)!\n", res);
 		return NULL;
 	}
 
 	res = ast_odbc_execute_sql(obj, stmt, sql);
-	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO) && (res != SQL_NO_DATA)) {
+	if (!SQL_SUCCEEDED(res) && (res != SQL_NO_DATA)) {
 		if (res == SQL_ERROR && !silent) {
 			int i;
 			SQLINTEGER nativeerror=0, numfields=0;
@@ -898,7 +898,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 	}
 
 	res = SQLNumResultCols(stmt, &colcount);
-	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+	if (!SQL_SUCCEEDED(res)) {
 		ast_log(LOG_WARNING, "SQL Column Count error!\n[%s]\n\n", ast_str_buffer(sql));
 		SQLCloseCursor(stmt);
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
@@ -927,7 +927,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 	}
 
 	res = SQLFetch(stmt);
-	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+	if (!SQL_SUCCEEDED(res)) {
 		int res1 = -1;
 		if (res == SQL_NO_DATA) {
 			ast_verb(4, "Found no rows [%s]\n", ast_str_buffer(sql));
@@ -978,7 +978,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 
 				res = SQLDescribeCol(stmt, x + 1, (unsigned char *)colname, sizeof(colname), &collength, NULL, NULL, NULL, NULL);
 				ast_debug(3, "Got collength of %d for column '%s' (offset %d)\n", (int)collength, colname, x);
-				if (((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) || collength == 0) {
+				if (!SQL_SUCCEEDED(res) || collength == 0) {
 					snprintf(colname, sizeof(colname), "field%d", x);
 				}
 
@@ -1019,7 +1019,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 				res = SQL_SUCCESS;
 			}
 
-			if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			if (!SQL_SUCCEEDED(res)) {
 				ast_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", ast_str_buffer(sql));
 				y = -1;
 				buf[0] = '\0';
@@ -1066,7 +1066,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 
 			/* Get next row */
 			res = SQLFetch(stmt);
-			if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			if (!SQL_SUCCEEDED(res)) {
 				if (res != SQL_NO_DATA) {
 					ast_log(LOG_WARNING, "Error %d in FETCH [%s]\n", res, ast_str_buffer(sql));
 				}
@@ -1601,7 +1601,7 @@ static char *cli_odbc_read(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 			executed = 1;
 
 			res = SQLNumResultCols(stmt, &colcount);
-			if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			if (!SQL_SUCCEEDED(res)) {
 				ast_cli(a->fd, "SQL Column Count error!\n[%s]\n\n", ast_str_buffer(sql));
 				SQLCloseCursor(stmt);
 				SQLFreeHandle (SQL_HANDLE_STMT, stmt);
@@ -1620,7 +1620,7 @@ static char *cli_odbc_read(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 			}
 
 			res = SQLFetch(stmt);
-			if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			if (!SQL_SUCCEEDED(res)) {
 				SQLCloseCursor(stmt);
 				SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 				release_obj_or_dsn (&obj, &dsn);
@@ -1636,7 +1636,7 @@ static char *cli_odbc_read(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 			for (;;) {
 				for (x = 0; x < colcount; x++) {
 					res = SQLDescribeCol(stmt, x + 1, (unsigned char *)colname, sizeof(colname), &collength, NULL, NULL, NULL, NULL);
-					if (((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) || collength == 0) {
+					if (!SQL_SUCCEEDED(res) || collength == 0) {
 						snprintf(colname, sizeof(colname), "field%d", x);
 					}
 
@@ -1649,7 +1649,7 @@ static char *cli_odbc_read(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 						res = SQL_SUCCESS;
 					}
 
-					if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+					if (!SQL_SUCCEEDED(res)) {
 						ast_cli(a->fd, "SQL Get Data error %d!\n[%s]\n\n", res, ast_str_buffer(sql));
 						SQLCloseCursor(stmt);
 						SQLFreeHandle(SQL_HANDLE_STMT, stmt);
@@ -1664,7 +1664,7 @@ static char *cli_odbc_read(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 
 				/* Get next row */
 				res = SQLFetch(stmt);
-				if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+				if (!SQL_SUCCEEDED(res)) {
 					break;
 				}
 				ast_cli(a->fd, "%-20.20s  %s\n", "----------", "----------");
