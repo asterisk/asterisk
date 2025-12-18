@@ -733,6 +733,9 @@ static int handle_timeout_trip(struct ast_dial *dial, struct timeval start)
 	/* Go through dropping out channels that have met their timeout */
 	AST_LIST_TRAVERSE(&dial->channels, channel, list) {
 		if (dial->state == AST_DIAL_RESULT_TIMEOUT || diff >= channel->timeout) {
+			ast_channel_lock(channel->owner);
+			ast_channel_hangupcause_set(channel->owner, AST_CAUSE_NO_ANSWER);
+			ast_channel_unlock(channel->owner);
 			ast_hangup(channel->owner);
 			channel->cause = AST_CAUSE_NO_ANSWER;
 			channel->owner = NULL;
