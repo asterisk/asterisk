@@ -1518,7 +1518,8 @@ static int handle_uri(struct ast_tcptls_session_instance *ser, char *uri,
 		}
 		res = urih->callback(ser, urih, uri, method, get_vars, headers);
 	} else {
-		ast_debug(1, "Requested URI [%s] has no handler\n", uri);
+		ast_debug(1, "Request from %s for URI [%s] has no registered handler\n",
+			ast_sockaddr_stringify_addr(&ser->remote_address), uri);
 		ast_http_error(ser, 404, "Not Found", "The requested URL was not found on this server.");
 	}
 
