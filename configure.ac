@@ -1248,6 +1248,19 @@ AC_RUN_IFELSE(
 	AC_MSG_RESULT(cross-compile)
 )
 
+AC_MSG_CHECKING([if setsockopt() accepts the IPV6_V6ONLY socket option])
+AC_COMPILE_IFELSE(
+[AC_LANG_PROGRAM([
+	   #include <sys/socket.h>
+	   #include <netinet/in.h>
+	], [
+	   int opt = IPV6_V6ONLY;
+	])],
+        AC_MSG_RESULT(yes)
+        AC_DEFINE(HAVE_SOCK_IPV6_V6ONLY, 1, [Define to 1 if your socket() implementation has the IPV6_V6ONLY socket option.]),
+	AC_MSG_RESULT(no)
+)
+
 AC_MSG_CHECKING(if we can increase the maximum select-able file descriptor)
 AC_RUN_IFELSE(
 [AC_LANG_PROGRAM([

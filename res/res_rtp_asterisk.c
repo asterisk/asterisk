@@ -3565,9 +3565,13 @@ static void calc_mean_and_standard_deviation(double new_sample, double *mean, do
 	*std_dev = sqrt((last_sum_of_squares + (delta1 * delta2)) / *count);
 }
 
-static int create_new_socket(const char *type, int af)
+static int create_new_socket(const char *type, struct ast_sockaddr *bind_addr)
 {
-	int sock = ast_socket_nonblock(af, SOCK_DGRAM, 0);
+	int af, sock;
+
+	af = ast_sockaddr_is_ipv4(bind_addr) ? AF_INET  :
+	     ast_sockaddr_is_ipv6(bind_addr) ? AF_INET6 : -1;
+	sock = ast_socket_nonblock(af, SOCK_DGRAM, 0);
 
 	if (sock < 0) {
 		ast_log(LOG_WARNING, "Unable to allocate %s socket: %s\n", type, strerror(errno));
@@ -3577,6 +3581,15 @@ static int create_new_socket(const char *type, int af)
 #ifdef SO_NO_CHECK
 	if (nochecksums) {
 		setsockopt(sock, SOL_SOCKET, SO_NO_CHECK, &nochecksums, sizeof(nochecksums));
+	}
+#endif
+
+#ifdef HAVE_SOCK_IPV6_V6ONLY
+	if (AF_INET6 == af && ast_sockaddr_is_any(bind_addr)) {
+		/* ICE relies on dual-stack behavior. Ensure it is enabled. */
+		if (setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY, &(int){0}, sizeof(int)) != 0) {
+			ast_log(LOG_WARNING, "setsockopt IPV6_V6ONLY=0 failed: %s\n", strerror(errno));
+		}
 	}
 #endif
 
@@ -4041,10 +4054,7 @@ static int rtp_allocate_transport(struct ast_rtp_instance *instance, struct ast_
 	rtp->strict_rtp_state = (strictrtp ? STRICT_RTP_CLOSED : STRICT_RTP_OPEN);
 
 	/* Create a new socket for us to listen on and use */
-	if ((rtp->s =
-	     create_new_socket("RTP",
-			       ast_sockaddr_is_ipv4(&rtp->bind_address) ? AF_INET  :
-			       ast_sockaddr_is_ipv6(&rtp->bind_address) ? AF_INET6 : -1)) < 0) {
+	if ((rtp->s = create_new_socket("RTP", &rtp->bind_address)) < 0) {
 		ast_log(LOG_WARNING, "Failed to create a new socket for RTP instance '%p'\n", instance);
 		return -1;
 	}
@@ -8938,12 +8948,7 @@ static void ast_rtp_prop_set(struct ast_rtp_instance *instance, enum ast_rtp_pro
 				 * switching from MUX. Either way, we won't have
 				 * a socket set up, and we need to set it up
 				 */
-				if ((rtp->rtcp->s =
-				     create_new_socket("RTCP",
-						       ast_sockaddr_is_ipv4(&rtp->rtcp->us) ?
-						       AF_INET :
-						       ast_sockaddr_is_ipv6(&rtp->rtcp->us) ?
-						       AF_INET6 : -1)) < 0) {
+				if ((rtp->rtcp->s = create_new_socket("RTCP", &rtp->rtcp->us)) < 0) {
 					ast_debug_rtcp(1, "(%p) RTCP failed to create a new socket\n", instance);
 					ast_free(rtp->rtcp->local_addr_str);
 					ast_free(rtp->rtcp);
