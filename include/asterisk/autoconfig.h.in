@@ -914,6 +914,9 @@
 /* Define to 1 if your socket() implementation can accept SOCK_NONBLOCK. */
 #undef HAVE_SOCK_NONBLOCK
 
+/* Define to 1 if your socket() implementation has the IPV6_V6ONLY socket option. */
+#undef HAVE_SOCK_IPV6_V6ONLY
+
 /* Define to 1 if your system has soxmix application. */
 #undef HAVE_SOXMIX
 
