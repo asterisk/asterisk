@@ -31513,6 +31513,40 @@ esac
 fi
 
 
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking if setsockopt() accepts the IPV6_V6ONLY socket option" >&5
+printf %s "checking if setsockopt() accepts the IPV6_V6ONLY socket option... " >&6; }
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+	   #include <sys/socket.h>
+	   #include <netinet/in.h>
+
+int
+main (void)
+{
+
+	   int opt = IPV6_V6ONLY;
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"
+then :
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+
+printf "%s\n" "#define HAVE_SOCK_IPV6_V6ONLY 1" >>confdefs.h
+
+else case e in #(
+  e) { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+ ;;
+esac
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
+
+
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking if we can increase the maximum select-able file descriptor" >&5
 printf %s "checking if we can increase the maximum select-able file descriptor... " >&6; }
 if test "$cross_compiling" = yes
