@@ -1069,12 +1069,10 @@ static void mixmonitor_ds_remove_and_free(struct ast_channel *chan, const char *
 
 	datastore = ast_channel_datastore_find(chan, &mixmonitor_ds_info, datastore_id);
 
-	/*
-	 * Currently the one place this function is called from guarantees a
-	 * datastore is present, thus return checks can be avoided here.
-	 */
-	ast_channel_datastore_remove(chan, datastore);
-	ast_datastore_free(datastore);
+	if (datastore) {
+		ast_channel_datastore_remove(chan, datastore);
+		ast_datastore_free(datastore);
+	}
 
 	ast_channel_unlock(chan);
 }
