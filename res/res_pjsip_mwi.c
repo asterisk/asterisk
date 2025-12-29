@@ -1045,7 +1045,7 @@ static void *mwi_get_notify_data(struct ast_sip_subscription *sub)
 	struct mwi_subscription *mwi_sub;
 	struct ast_datastore *mwi_datastore;
 	struct ast_sip_aor *aor;
-	struct ast_sip_endpoint *endpoint = ast_sip_subscription_get_endpoint(sub);
+	struct ast_sip_endpoint *endpoint = NULL;
 
 	mwi_datastore = ast_sip_subscription_get_datastore(sub, MWI_DATASTORE);
 	if (!mwi_datastore) {
@@ -1059,6 +1059,7 @@ static void *mwi_get_notify_data(struct ast_sip_subscription *sub)
 		return NULL;
 	}
 
+	endpoint = ast_sip_subscription_get_endpoint(sub);
 	if ((aor = find_aor_for_resource(endpoint, ast_sip_subscription_get_resource_name(sub)))) {
 		pjsip_dialog *dlg = ast_sip_subscription_get_dialog(sub);
 		pjsip_sip_uri *sip_uri = ast_sip_subscription_get_sip_uri(sub);
