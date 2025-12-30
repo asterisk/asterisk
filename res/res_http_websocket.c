@@ -1632,6 +1632,43 @@ const char *AST_OPTIONAL_API_NAME(ast_websocket_result_to_str)
 	return websocket_result_string_map[result];
 }
 
+struct status_map {
+	enum ast_websocket_status_code code;
+	const char *desc;
+};
+
+static const struct status_map websocket_status_map[] = {
+	{ AST_WEBSOCKET_STATUS_NORMAL, "Normal" },
+	{ AST_WEBSOCKET_STATUS_GOING_AWAY, "Going away" },
+	{ AST_WEBSOCKET_STATUS_PROTOCOL_ERROR, "Protocol error" },
+	{ AST_WEBSOCKET_STATUS_UNSUPPORTED_DATA, "Unsupported data" },
+	{ AST_WEBSOCKET_STATUS_RESERVED_1004, "reserved 1004" },
+	{ AST_WEBSOCKET_STATUS_RESERVED_1005, "reserved 1005" },
+	{ AST_WEBSOCKET_STATUS_RESERVED_1006, "reserved 1006" },
+	{ AST_WEBSOCKET_STATUS_INVALID_FRAME, "Invalid frame" },
+	{ AST_WEBSOCKET_STATUS_POLICY_VIOLATION, "Policy violation" },
+	{ AST_WEBSOCKET_STATUS_TOO_BIG, "Data too big" },
+	{ AST_WEBSOCKET_STATUS_MANDATORY_EXT, "Mandatory extension" },
+	{ AST_WEBSOCKET_STATUS_INTERNAL_ERROR, "Internal error" },
+	{ AST_WEBSOCKET_STATUS_RESERVED_1012, "reserved 1012" },
+	{ AST_WEBSOCKET_STATUS_RESERVED_1013, "reserved 1013" },
+	{ AST_WEBSOCKET_STATUS_BAD_GATEWAY, "Bad gateway" },
+	{ AST_WEBSOCKET_STATUS_RESERVED_1015, "reserved 1015" },
+};
+
+const char *AST_OPTIONAL_API_NAME(ast_websocket_status_to_str)
+	(enum ast_websocket_status_code code)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_LEN(websocket_status_map); i++) {
+		if (websocket_status_map[i].code == code)
+			return websocket_status_map[i].desc;
+	}
+
+	return "Unknown";
+}
+
 static int load_module(void)
 {
 	websocketuri.data = websocket_server_internal_create();
