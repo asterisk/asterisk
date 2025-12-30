@@ -115,7 +115,6 @@
 			<example title="Enable and set talk threshold to 128">
 			same => n,Set(TALK_DETECT(set)=,128)
 			</example>
-			<para>This function will set the following variables:</para>
 			<note>
 				<para>The TALK_DETECT function uses an audiohook to inspect the
 				voice media frames on a channel. Other functions, such as JITTERBUFFER,
