@@ -77,6 +77,26 @@ enum ast_websocket_opcode {
 	AST_WEBSOCKET_OPCODE_CONTINUATION = 0x0, /*!< Continuation of a previous frame */
 };
 
+/*! \brief Websocket Status Codes from RFC-6455 */
+enum ast_websocket_status_code {
+	AST_WEBSOCKET_STATUS_NORMAL = 1000,
+	AST_WEBSOCKET_STATUS_GOING_AWAY = 1001,
+	AST_WEBSOCKET_STATUS_PROTOCOL_ERROR = 1002,
+	AST_WEBSOCKET_STATUS_UNSUPPORTED_DATA = 1003,
+	AST_WEBSOCKET_STATUS_RESERVED_1004 = 1004,
+	AST_WEBSOCKET_STATUS_RESERVED_1005 = 1005,
+	AST_WEBSOCKET_STATUS_RESERVED_1006 = 1006,
+	AST_WEBSOCKET_STATUS_INVALID_FRAME = 1007,
+	AST_WEBSOCKET_STATUS_POLICY_VIOLATION = 1008,
+	AST_WEBSOCKET_STATUS_TOO_BIG = 1009,
+	AST_WEBSOCKET_STATUS_MANDATORY_EXT = 1010,
+	AST_WEBSOCKET_STATUS_INTERNAL_ERROR = 1011,
+	AST_WEBSOCKET_STATUS_RESERVED_1012 = 1012,
+	AST_WEBSOCKET_STATUS_RESERVED_1013 = 1013,
+	AST_WEBSOCKET_STATUS_BAD_GATEWAY = 1014,
+	AST_WEBSOCKET_STATUS_RESERVED_1015 = 1015,
+};
+
 #ifdef LOW_MEMORY
 /*! \brief Size of the pre-determined buffer for WebSocket frames */
 #define AST_WEBSOCKET_MAX_RX_PAYLOAD_SIZE 8192
@@ -550,5 +570,14 @@ AST_OPTIONAL_API(int, ast_websocket_set_timeout, (struct ast_websocket *session,
  * \return A string representation of the result code
  */
 AST_OPTIONAL_API(const char *, ast_websocket_result_to_str, (enum ast_websocket_result result), {return "";});
+
+/*!
+ * \brief Convert a websocket status code to a string.
+ *
+ * \param code The code to convert
+ *
+ * \return A string representation of the code
+ */
+AST_OPTIONAL_API(const char *, ast_websocket_status_to_str, (enum ast_websocket_status_code code), {return "";});
 
 #endif
