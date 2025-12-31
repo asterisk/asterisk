@@ -1196,8 +1196,15 @@ static void bridge_after_cb_failed(enum ast_bridge_after_cb_reason reason,
  * to keep the timeout information local to the channel.
  * That is what this datastore is for
  */
+
+static void timeout_datastore_data_destructor(void *data)
+{
+	ast_free(data);
+}
+
 struct ast_datastore_info timeout_datastore = {
 	.type = "ARI dial timeout",
+	.destroy = timeout_datastore_data_destructor,
 };
 
 static int hangup_channel(struct stasis_app_control *control,
