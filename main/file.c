@@ -1027,8 +1027,6 @@ static int ast_fsread_audio(const void *data)
 
 	return 0;
 }
-
-#define FIXED_VIDEO_FRAME_MS 40
 static int ast_fsread_video(const void *data);
 
 static enum fsread_res ast_readvideo_callback(struct ast_filestream *s)
@@ -1051,17 +1049,15 @@ static enum fsread_res ast_readvideo_callback(struct ast_filestream *s)
 			ast_frfree(fr);
 		}
 	}
-        whennext = FIXED_VIDEO_FRAME_MS;
 	if (whennext != s->lasttimeout) {
-                ast_channel_vstreamid_set(
-                       s->owner,
-                       ast_sched_add(
-                       ast_channel_sched(s->owner),
-                       whennext,            
-                       ast_fsread_video,
-                       s
-                      )
-                );
+                int delta = whennext - s->lasttimeout;
+                int delay_ms;
+
+
+                delay_ms = (delta / 90) * 12;
+
+                ast_debug(3, "Video file playback delay=%d ms (delta=%d)\n ", delay_ms,delta);
+                ast_channel_vstreamid_set(s->owner, ast_sched_add(ast_channel_sched(s->owner), delay_ms, ast_fsread_video, s));
       		s->lasttimeout = whennext;
 		return FSREAD_SUCCESS_NOSCHED;
 	}
