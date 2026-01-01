@@ -430,10 +430,6 @@ static char *handle_cli_presencestate_change(struct ast_cli_entry *e, int cmd, s
 		return CLI_SHOWUSAGE;
 	}
 
-	if (state_val == AST_PRESENCE_NOT_SET) {
-		return CLI_SHOWUSAGE;
-	}
-
 	ast_cli(a->fd, "Changing %s to %s\n", dev, args);
 
 	ast_db_put(astdb_family, dev, state);
