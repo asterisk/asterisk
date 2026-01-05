@@ -1055,7 +1055,13 @@ static enum fsread_res ast_readvideo_callback(struct ast_filestream *s)
                 
                 int delta = whennext - s->lasttimeout;
                 int delay_ms;
-
+		
+				/*
+				The value 90 corresponds to the RTP video clock rate (90 kHz), which is standard for video payloads.
+				delta is therefore expressed in RTP timestamp units and must be converted to milliseconds before scheduling the next frame.
+				The additional scaling factor (* 12) is used to correct frame pacing during playback.
+				Without this adjustment, frames are scheduled too frequently, causing the video to play back faster than intended. 
+				*/
 
                 delay_ms = (delta / 90) * 12;
 
