@@ -1,3 +1,7 @@
+; In order for Asterisk to process the [directories](!) stanza below,
+; you will need to remove the (!) suffix, which marks this as a template.
+; The compiled-in defaults are typically sufficient, so most users will 
+; not have to do this.
 [directories](!)
 astcachedir => /var/cache/asterisk
 astetcdir => /etc/asterisk
