@@ -1059,7 +1059,6 @@ static enum fsread_res ast_readvideo_callback(struct ast_filestream *s)
 
                 delay_ms = (delta / 90) * 12;
 
-                ast_debug(3, "Video file playback delay=%d ms (delta=%d)\n ", delay_ms,delta);
                 ast_channel_vstreamid_set(s->owner, ast_sched_add(ast_channel_sched(s->owner), delay_ms, ast_fsread_video, s));
 		s->lasttimeout = whennext;
 		return FSREAD_SUCCESS_NOSCHED;
