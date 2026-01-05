@@ -293,6 +293,9 @@
 /* Define to 1 if you have the 'fmodl' function. */
 #undef HAVE_FMODL
 
+/* Define if your system has the FNM_CASEFOLD headers. */
+#undef HAVE_FNM_CASEFOLD
+
 /* Define to 1 if you have the 'fork' function. */
 #undef HAVE_FORK
 
