@@ -366,6 +366,18 @@ _all: makeopts $(SUBDIRS) $(CORE_XMLDOC) $(ADDL_TARGETS)
 
 _full: makeopts $(SUBDIRS) $(FULL_XMLDOC) $(ADDL_TARGETS)
 
+configure: configure.ac
+	@declared_branch=$$($(SED) -n 's/^AC_INIT(\[asterisk], \[\([^]]*\)].*/\1/p' configure.ac) ;\
+	generated_branch=$$($(SED) -n "s/PACKAGE_VERSION='\([^']*\)'/\1/p" configure) ;\
+	[ "$$declared_branch" = "$$generated_branch" ] || {\
+		echo "****" ;\
+		echo "**** The configure script branch ($${generated_branch}) does not match the" ;\
+		echo "**** configure.ac branch ($${declared_branch})." ;\
+		echo "****               Please run \"./bootstrap.sh\"." ;\
+		echo "****" ;\
+		exit 1 ;\
+	}
+
 makeopts: configure
 	@echo "****"
 	@echo "**** The configure script must be executed before running '$(MAKE)'."
