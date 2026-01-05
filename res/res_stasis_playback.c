@@ -276,6 +276,9 @@ static void playback_final_update(struct stasis_app_playback *playback,
 		if (playback->state == STASIS_PLAYBACK_STATE_STOPPED) {
 			ast_log(LOG_NOTICE, "%s: Playback stopped for %s\n",
 				uniqueid, playback->media);
+		} else if (hangup) {
+			ast_log(LOG_DEBUG, "%s: Playback interrupted by hangup for %s\n",
+				uniqueid, playback->media);
 		} else {
 			ast_log(LOG_WARNING, "%s: Playback failed for %s\n",
 				uniqueid, playback->media);

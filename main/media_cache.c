@@ -154,87 +154,170 @@ static void bucket_file_update_path(struct ast_bucket_file *bucket_file,
 	}
 }
 
+/*!
+ * \internal
+ * \brief Copy the file path into \c dst and strip the trailing extension.
+ * \param dst Destination buffer for the path (no extension).
+ * \param len Size of \c dst.
+ * \param path Source path (may include extension).
+ */
+static void copy_path_strip_extension(char *dst, size_t len, const char *path)
+{
+	char *dot;
+
+	ast_copy_string(dst, path, len);
+	dot = strrchr(dst, '.');
+	if (dot) {
+		*dot = '\0';
+	}
+}
+
+/*!
+ * \internal
+ * \brief Return whether the bucket file exists on disk and is readable.
+ * \param bf Bucket file to check.
+ * \retval 1 if readable
+ * \retval 0 otherwise
+ */
+static int bucket_readable(const struct ast_bucket_file *bf)
+{
+	return bf && ast_file_is_readable(bf->path);
+}
+
+/*!
+ * \internal
+ * \brief Release a bucket file reference and NULL the pointer.
+ * \param bf Bucket file pointer to release.
+ */
+static void release_bucket(struct ast_bucket_file **bf)
+{
+	if (*bf) {
+		ao2_ref(*bf, -1);
+		*bf = NULL;
+	}
+}
+
+/*!
+ * \internal
+ * \brief Return cached media if readable and release the bucket reference.
+ * \param bf Bucket file pointer (released on success).
+ * \param file_path Buffer for the local file path (no extension).
+ * \param len Size of \c file_path.
+ * \retval 1 if returned
+ * \retval 0 otherwise
+ */
+static int try_return_cached(struct ast_bucket_file **bf,
+	char *file_path, size_t len)
+{
+	if (!bucket_readable(*bf)) {
+		return 0;
+	}
+	copy_path_strip_extension(file_path, len, (*bf)->path);
+	release_bucket(bf);
+	return 1;
+}
+
 int ast_media_cache_retrieve(const char *uri, const char *preferred_file_name,
 	char *file_path, size_t len)
 {
-	struct ast_bucket_file *bucket_file;
-	struct ast_bucket_file *tmp_bucket_file;
-	char *ext;
+	struct ast_bucket_file *bucket_file = NULL;
+	struct ast_bucket_file *tmp_bucket_file = NULL;
+	struct ast_bucket_file *stale_bucket_file = NULL;
+	struct ast_bucket_file *old_bucket_file = NULL;
+
 	if (ast_strlen_zero(uri)) {
 		return -1;
 	}
 
 	ao2_lock(media_cache);
-	ast_debug(5, "Looking for media at local cache, file: %s\n", uri);
 
-	/* First, retrieve from the ao2 cache here. If we find a bucket_file
-	 * matching the requested URI, ask the appropriate backend if it is
-	 * stale. If not; return it.
-	 */
+	/* Try existing cache */
 	bucket_file = ao2_find(media_cache, uri, OBJ_SEARCH_KEY | OBJ_NOLOCK);
-	if (bucket_file) {
-		if (!ast_bucket_file_is_stale(bucket_file)
-			&& ast_file_is_readable(bucket_file->path)) {
-			ast_copy_string(file_path, bucket_file->path, len);
-			if ((ext = strrchr(file_path, '.'))) {
-				*ext = '\0';
-			}
-			ao2_ref(bucket_file, -1);
-
-			ast_debug(5, "Returning media at local file: %s\n", file_path);
-			ao2_unlock(media_cache);
-			return 0;
-		}
-
-		/* Stale! Remove the item completely, as we're going to replace it next */
-		ao2_unlink_flags(media_cache, bucket_file, OBJ_NOLOCK);
-		ast_bucket_file_delete(bucket_file);
-		ao2_ref(bucket_file, -1);
-	}
-	/* We unlock to retrieve the file, because it can take a long time;
-	 * and we don't want to lock access to cached files while waiting
-	 */
-	ao2_unlock(media_cache);
-
-	/* Either this is new or the resource is stale; do a full retrieve
-	 * from the appropriate bucket_file backend
-	 */
-	bucket_file = ast_bucket_file_retrieve(uri);
-	if (!bucket_file) {
-		ast_debug(2, "Failed to obtain media at '%s'\n", uri);
-		return -1;
-	}
-
-	/* we lock again, before updating cache */
-	ao2_lock(media_cache);
-
-	/* We can have duplicated buckets here, we check if already exists
-	 * before saving
-	 */
-	tmp_bucket_file = ao2_find(media_cache, uri, OBJ_SEARCH_KEY | OBJ_NOLOCK);
-	if (tmp_bucket_file) {
-		ao2_ref(tmp_bucket_file, -1);
-		ast_bucket_file_delete(bucket_file);
-		ao2_ref(bucket_file, -1);
+	if (bucket_file && !ast_bucket_file_is_stale(bucket_file)
+		&& try_return_cached(&bucket_file, file_path, len)) {
 		ao2_unlock(media_cache);
 		return 0;
 	}
 
-	/* We can manipulate the 'immutable' bucket_file here, as we haven't
-	 * let anyone know of its existence yet
-	 */
-	bucket_file_update_path(bucket_file, preferred_file_name);
-	media_cache_item_sync_to_astdb(bucket_file);
-	ast_copy_string(file_path, bucket_file->path, len);
-	if ((ext = strrchr(file_path, '.'))) {
-		*ext = '\0';
+	/* Preserve readable stale entry */
+	if (bucket_readable(bucket_file)) {
+		stale_bucket_file = ao2_bump(bucket_file);
+	} else if (bucket_file) {
+		ao2_unlink_flags(media_cache, bucket_file, OBJ_NOLOCK);
+		ast_bucket_file_delete(bucket_file);
 	}
-	ao2_link_flags(media_cache, bucket_file, OBJ_NOLOCK);
-	ao2_ref(bucket_file, -1);
+	release_bucket(&bucket_file);
 
-	ast_debug(5, "Returning media at local file: %s\n", file_path);
 	ao2_unlock(media_cache);
 
+	/* Fetch new */
+	bucket_file = ast_bucket_file_retrieve(uri);
+	if (!bucket_file) {
+		if (try_return_cached(&stale_bucket_file, file_path, len)) {
+			return 0;
+		}
+		release_bucket(&stale_bucket_file);
+		return -1;
+	}
+
+	ao2_lock(media_cache);
+
+	/* If another thread refreshed, use it */
+	tmp_bucket_file = ao2_find(media_cache, uri, OBJ_SEARCH_KEY | OBJ_NOLOCK);
+	if (tmp_bucket_file && !ast_bucket_file_is_stale(tmp_bucket_file)
+		&& bucket_readable(tmp_bucket_file)) {
+		copy_path_strip_extension(file_path, len, tmp_bucket_file->path);
+		release_bucket(&tmp_bucket_file);
+		if (strcmp(bucket_file->path, file_path)) {
+			ast_bucket_file_delete(bucket_file);
+		}
+		release_bucket(&bucket_file);
+		release_bucket(&stale_bucket_file);
+		ao2_unlock(media_cache);
+		return 0;
+	}
+	old_bucket_file = tmp_bucket_file;
+
+	/* Prepare new entry */
+	bucket_file_update_path(bucket_file, preferred_file_name);
+
+	/* If new is unreadable, return stale/old */
+	if (!bucket_readable(bucket_file)) {
+		if (try_return_cached(&stale_bucket_file, file_path, len) ||
+			try_return_cached(&old_bucket_file, file_path, len)) {
+			release_bucket(&bucket_file);
+			ao2_unlock(media_cache);
+			return 0;
+		}
+
+		if (!((stale_bucket_file && !strcmp(stale_bucket_file->path, bucket_file->path)) ||
+			(old_bucket_file && !strcmp(old_bucket_file->path, bucket_file->path)))) {
+			ast_bucket_file_delete(bucket_file);
+		}
+		release_bucket(&stale_bucket_file);
+		release_bucket(&old_bucket_file);
+		release_bucket(&bucket_file);
+		ao2_unlock(media_cache);
+		return -1;
+	}
+
+	/* Commit new entry */
+	media_cache_item_sync_to_astdb(bucket_file);
+	copy_path_strip_extension(file_path, len, bucket_file->path);
+	ao2_link_flags(media_cache, bucket_file, OBJ_NOLOCK);
+	release_bucket(&bucket_file);
+
+	/* Unlink old entry */
+	if (old_bucket_file) {
+		ao2_unlink_flags(media_cache, old_bucket_file, OBJ_NOLOCK);
+		if (!bucket_readable(old_bucket_file)) {
+			ast_bucket_file_delete(old_bucket_file);
+		}
+		release_bucket(&old_bucket_file);
+	}
+
+	release_bucket(&stale_bucket_file);
+	ao2_unlock(media_cache);
 	return 0;
 }
 

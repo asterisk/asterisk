@@ -1382,9 +1382,9 @@ int ast_streamfile(struct ast_channel *chan, const char *filename,
 	cel_event = ast_json_pack("{ s: s, s: {s: s, s: s, s: s}}",
 		"event", "FILE_STREAM_BEGIN",
 		"extra",
-			"sound", tmp_filename,
+			"sound", AST_JSON_UTF8_VALIDATE(tmp_filename),
 			"format", ast_format_get_name(ast_channel_writeformat(chan)),
-			"language", preflang ? preflang : "default"
+			"language", AST_JSON_UTF8_VALIDATE(preflang ? preflang : "default")
 	);
 	if (cel_event) {
 		ast_cel_publish_event(chan, AST_CEL_STREAM_BEGIN, cel_event);
