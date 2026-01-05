@@ -293,6 +293,9 @@
 /* Define to 1 if you have the 'fmodl' function. */
 #undef HAVE_FMODL
 
+/* Define if your system has the FNM_CASEFOLD headers. */
+#undef HAVE_FNM_CASEFOLD
+
 /* Define to 1 if you have the 'fork' function. */
 #undef HAVE_FORK
 
@@ -911,11 +914,12 @@
 /* Define to 1 if you have the 'socket' function. */
 #undef HAVE_SOCKET
 
+/* Define to 1 if your socket() implementation has the IPV6_V6ONLY socket
+   option. */
+#undef HAVE_SOCK_IPV6_V6ONLY
+
 /* Define to 1 if your socket() implementation can accept SOCK_NONBLOCK. */
 #undef HAVE_SOCK_NONBLOCK
-
-/* Define to 1 if your socket() implementation has the IPV6_V6ONLY socket option. */
-#undef HAVE_SOCK_IPV6_V6ONLY
 
 /* Define to 1 if your system has soxmix application. */
 #undef HAVE_SOXMIX
