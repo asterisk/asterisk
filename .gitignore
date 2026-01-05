@@ -22,9 +22,13 @@
 /.pc
 aclocal.m4
 autom4te.cache
+config.guess
 config.log
 config.status
+config.sub
+configure
 defaults.h
+install-sh
 makeopts
 makeopts.embed_rules
 menuselect-tree
