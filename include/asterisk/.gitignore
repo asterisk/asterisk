@@ -1,3 +1,4 @@
 autoconfig.h
+autoconfig.h.in
 build.h
 buildopts.h
