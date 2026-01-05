@@ -698,6 +698,7 @@ PBX_DAHDI_HALF_FULL
 PBX_DLADDR
 PBX_IP_MTU_DISCOVER
 PBX_RTLD_NOLOAD
+PBX_FNM_CASEFOLD
 PBX_GLOB_BRACE
 PBX_GLOB_NOMAGIC
 BIND8_CFLAGS
@@ -31604,7 +31605,6 @@ esac
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
 
-
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking if we can increase the maximum select-able file descriptor" >&5
 printf %s "checking if we can increase the maximum select-able file descriptor... " >&6; }
 if test "$cross_compiling" = yes
@@ -32982,6 +32982,55 @@ printf "%s\n" "yes" >&6; }
 		PBX_GLOB_BRACE=1
 
 printf "%s\n" "#define HAVE_GLOB_BRACE 1" >>confdefs.h
+
+
+
+else case e in #(
+  e)    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+	 ;;
+esac
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
+	CPPFLAGS="${saved_cppflags}"
+    fi
+
+
+
+
+    if test "x${PBX_FNM_CASEFOLD}" != "x1"; then
+	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for FNM_CASEFOLD in fnmatch.h" >&5
+printf %s "checking for FNM_CASEFOLD in fnmatch.h... " >&6; }
+	saved_cppflags="${CPPFLAGS}"
+	if test "x${FNM_CASEFOLD_DIR}" != "x"; then
+	    FNM_CASEFOLD_INCLUDE="-I${FNM_CASEFOLD_DIR}/include"
+	fi
+	CPPFLAGS="${CPPFLAGS} ${FNM_CASEFOLD_INCLUDE}"
+
+	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+ #include <fnmatch.h>
+int
+main (void)
+{
+#if defined(FNM_CASEFOLD)
+				int foo = 0;
+			        #else
+			        int foo = bar;
+			        #endif
+				0
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"
+then :
+     { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+		PBX_FNM_CASEFOLD=1
+
+printf "%s\n" "#define HAVE_FNM_CASEFOLD 1" >>confdefs.h
 
 
 

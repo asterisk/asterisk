@@ -45,6 +45,7 @@
 #include <regex.h>
 #include <pwd.h>
 #include <grp.h>
+#include <fnmatch.h>
 
 #include "asterisk/cli.h"
 #include "asterisk/linkedlists.h"
@@ -114,6 +115,8 @@ static AST_VECTOR(, struct ast_cli_entry *) shutdown_commands;
 
 /*! \brief Initial buffer size for resulting strings in ast_cli() */
 #define AST_CLI_INITLEN   256
+
+#define MAX_REGEX_ERROR_LEN 128
 
 void ast_cli(int fd, const char *fmt, ...)
 {
@@ -1227,57 +1230,162 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 #undef VERBOSE_FORMAT_STRING2
 }
 
+static int channel_match_by_regex(const char *channel_name, const void *data)
+{
+	return regexec(data, channel_name, 0, NULL, 0);
+}
+
+static int channel_match_by_glob(const char *channel_name, const void *pattern)
+{
+#if defined(HAVE_FNM_CASEFOLD)
+	return fnmatch(pattern, channel_name, FNM_NOESCAPE | FNM_PATHNAME | FNM_CASEFOLD);
+#else
+	char *lower_channel_name = ast_str_to_lower(ast_strdup(channel_name));
+	if (lower_channel_name) {
+		int res = fnmatch(pattern, lower_channel_name, FNM_NOESCAPE | FNM_PATHNAME);
+		ast_free(lower_channel_name);
+		return res;
+	}
+	return FNM_NOMATCH;
+#endif
+}
+
+static int channel_hangup_matches(
+	struct ast_cli_args *a,
+	int (*matchfn)(const char *, const void *),
+	const void *data)
+{
+	struct ao2_container *cached_channels;
+	struct ao2_iterator iter;
+	struct ast_channel_snapshot *snapshot;
+	struct ast_channel *c;
+	int matched = 0;
+
+	cached_channels = ast_channel_cache_all();
+
+	iter = ao2_iterator_init(cached_channels, 0);
+	for (; (snapshot = ao2_iterator_next(&iter)); ao2_ref(snapshot, -1)) {
+		if ((!matchfn || !matchfn(snapshot->base->name, data))
+		   && (c = ast_channel_get_by_name(snapshot->base->name))) {
+			ast_cli(a->fd, "Requested Hangup on channel '%s'\n", snapshot->base->name);
+			ast_softhangup(c, AST_SOFTHANGUP_EXPLICIT);
+			c = ast_channel_unref(c);
+			matched++;
+		}
+	}
+	ao2_iterator_destroy(&iter);
+	ao2_ref(cached_channels, -1);
+
+	return matched;
+}
+
+#define arg_looks_like_regex(n) \
+	(*n == '/' && n[strlen(n) - 1] == '/')
+
+#define arg_looks_like_glob(n) \
+	(strcspn(n, "?*[") < strlen(n))
+
 static char *handle_softhangup(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct ast_channel *c = NULL;
 	static const char * const completions[] = { "all", NULL };
-	char *complete;
+	char *complete = NULL;
+	int x;
 
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "channel request hangup";
 		e->usage =
-			"Usage: channel request hangup <channel>|<all>\n"
-			"       Request that a channel be hung up. The hangup takes effect\n"
-			"       the next time the driver reads or writes from the channel.\n"
+			"Usage: channel request hangup <all>|<channel> [<channel> ...]\n"
+			"       Request that one or more channels be hung up. The hangup takes\n"
+			"       effect the next time the driver reads or writes from the channel.\n\n"
 			"       If 'all' is specified instead of a channel name, all channels\n"
-			"       will see the hangup request.\n";
+			"       will see the hangup request.\n\n"
+			"       A POSIX Extended Regular Expression can be provided in the place\n"
+			"       of a fixed channel name by wrapping it in forward slashes\n"
+			"       (e.g. /^PJSIP.*/). Note that the expression will match any part\n"
+			"       of the channel name unless anchored explicitly by ^ and/or $.\n\n"
+			"       Finally, wildcards (*) and other glob-like characters can also\n"
+			"       be used to match more than one channel. Similar to how path globs\n"
+			"       behave, a forward slash cannot be matched with a wildcard or\n"
+			"       bracket expression. In other words, if you want to hangup all\n"
+			"       Local channels, you must specify Local/* and not Loc*.\n";
 		return NULL;
 	case CLI_GENERATE:
-		if (a->pos != e->args) {
+		if (a->pos < e->args) {
 			return NULL;
+		} else if (a->pos == e->args) {
+			complete = ast_cli_complete(a->word, completions, a->n);
 		}
-		complete = ast_cli_complete(a->word, completions, a->n);
 		if (!complete) {
-			complete = ast_complete_channels(a->line, a->word, a->pos, a->n - 1, e->args);
+			complete = ast_complete_channels(a->line, a->word, a->pos, a->n - 1, a->pos);
 		}
 		return complete;
 	}
 
-	if (a->argc != 4) {
+	if (a->argc < 4) {
 		return CLI_SHOWUSAGE;
 	}
 
 	if (!strcasecmp(a->argv[3], "all")) {
-		struct ast_channel_iterator *iter = NULL;
-		if (!(iter = ast_channel_iterator_all_new())) {
-			return CLI_FAILURE;
-		}
-		for (; iter && (c = ast_channel_iterator_next(iter)); ast_channel_unref(c)) {
+		channel_hangup_matches(a, NULL, NULL);
+		return CLI_SUCCESS;
+	}
+
+	for (x = e->args; x < a->argc; x++) {
+		/* Try to find a literal channel name first */
+		if ((c = ast_channel_get_by_name(a->argv[x]))) {
 			ast_channel_lock(c);
 			ast_cli(a->fd, "Requested Hangup on channel '%s'\n", ast_channel_name(c));
 			ast_softhangup(c, AST_SOFTHANGUP_EXPLICIT);
 			ast_channel_unlock(c);
+			c = ast_channel_unref(c);
+			continue;
 		}
-		ast_channel_iterator_destroy(iter);
-	} else if ((c = ast_channel_get_by_name(a->argv[3]))) {
-		ast_channel_lock(c);
-		ast_cli(a->fd, "Requested Hangup on channel '%s'\n", ast_channel_name(c));
-		ast_softhangup(c, AST_SOFTHANGUP_EXPLICIT);
-		ast_channel_unlock(c);
-		c = ast_channel_unref(c);
-	} else {
-		ast_cli(a->fd, "%s is not a known channel\n", a->argv[3]);
+
+		if (arg_looks_like_regex(a->argv[x])) {
+			char *pattern = ast_strdup(a->argv[x]);
+			regex_t re;
+			int res;
+
+			if (!pattern) {
+				return CLI_FAILURE;
+			}
+
+			pattern[strlen(pattern) - 1] = 0;
+			res = regcomp(&re, &pattern[1], REG_EXTENDED | REG_ICASE | REG_NOSUB);
+			ast_free(pattern);
+			if (res) {
+				char errbuf[MAX_REGEX_ERROR_LEN];
+				regerror(res, &re, errbuf, sizeof(errbuf));
+				ast_cli(a->fd, "%s is not a valid POSIX Extended Regular Expression: %s\n",
+					a->argv[x], errbuf);
+				continue;
+			}
+
+			if (!channel_hangup_matches(a, channel_match_by_regex, &re)) {
+				ast_cli(a->fd, "%s did not match a known channel\n", a->argv[x]);
+			}
+			regfree(&re);
+		} else if (arg_looks_like_glob(a->argv[x])) {
+#if defined(HAVE_FNM_CASEFOLD)
+			if (!channel_hangup_matches(a, channel_match_by_glob, a->argv[x])) {
+				ast_cli(a->fd, "%s did not match a known channel\n", a->argv[x]);
+			}
+#else
+			char *pattern = ast_str_to_lower(ast_strdup(a->argv[x]));
+			if (pattern) {
+				if (!channel_hangup_matches(a, channel_match_by_glob, pattern)) {
+					ast_cli(a->fd, "%s did not match a known channel\n", a->argv[x]);
+				}
+				ast_free(pattern);
+			} else {
+				return CLI_FAILURE;
+			}
+#endif
+		} else {
+			ast_cli(a->fd, "%s is not a known channel\n", a->argv[x]);
+		}
 	}
 
 	return CLI_SUCCESS;
