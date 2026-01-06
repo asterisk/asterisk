@@ -164,6 +164,8 @@ struct sorcery_memory_cache {
 	const struct ast_sorcery *sorcery;
 	/*! \brief The type of object we are caching */
 	char *object_type;
+	/*! \brief Lock to serialize full cache population operations */
+	ast_mutex_t populate_lock;
 	/*! TRUE if trying to stop the oldest object expiration scheduler item. */
 	unsigned int del_expire:1;
 #ifdef TEST_FRAMEWORK
@@ -444,6 +446,7 @@ static void sorcery_memory_cache_destructor(void *obj)
 	}
 	ao2_cleanup(cache->objects);
 	ast_free(cache->object_type);
+	ast_mutex_destroy(&cache->populate_lock);
 }
 
 /*!
@@ -1038,7 +1041,10 @@ static int stale_item_update(const void *data)
 
 /*!
  * \internal
- * \brief Populate the cache with all objects from the backend
+ * \brief Populate the cache with all objects from the backend (internal version)
+ *
+ * This is the internal version that expects the caller to hold cache->objects write-locked.
+ * It is used for automatic cache population during normal operations.
  *
  * \pre cache->objects is write-locked
  *
@@ -1046,7 +1052,7 @@ static int stale_item_update(const void *data)
  * \param type The type of object
  * \param cache The sorcery memory cache
  */
-static void memory_cache_populate(const struct ast_sorcery *sorcery, const char *type, struct sorcery_memory_cache *cache)
+static void memory_cache_populate_internal(const struct ast_sorcery *sorcery, const char *type, struct sorcery_memory_cache *cache)
 {
 	struct ao2_container *backend_objects;
 
@@ -1062,6 +1068,7 @@ static void memory_cache_populate(const struct ast_sorcery *sorcery, const char 
 	if (cache->maximum_objects && ao2_container_count(backend_objects) >= cache->maximum_objects) {
 		ast_log(LOG_ERROR, "The backend contains %d objects while the sorcery memory cache '%s' is explicitly configured to only allow %d\n",
 			ao2_container_count(backend_objects), cache->name, cache->maximum_objects);
+		ao2_ref(backend_objects, -1);
 		return;
 	}
 
@@ -1083,6 +1090,108 @@ static void memory_cache_populate(const struct ast_sorcery *sorcery, const char 
 
 /*!
  * \internal
+ * \brief Populate the cache with all objects from the backend (CLI/AMI version)
+ *
+ * This version is optimized for CLI and AMI calls. It performs all object allocation
+ * and conversion without holding locks, then quickly swaps everything into the cache.
+ * This minimizes lock contention and reduces blocking other operations.
+ *
+ * \note The caller should NOT hold cache->objects locked
+ * \note The caller should hold cache->populate_lock
+ *
+ * \param sorcery The sorcery instance
+ * \param type The type of object
+ * \param cache The sorcery memory cache
+ * \retval The number of objects successfully cached, or -1 on failure.
+ */
+static int memory_cache_populate_external(const struct ast_sorcery *sorcery, const char *type, struct sorcery_memory_cache *cache)
+{
+	struct ao2_container *backend_objects;
+	struct ao2_iterator it_backend;
+	void *object;
+	AST_VECTOR(, struct sorcery_memory_cached_object *) cached_objects;
+	int i, num_cached;
+
+	/* Retrieve all backend objects without holding the cache lock */
+	start_passthru_update();
+	backend_objects = ast_sorcery_retrieve_by_fields(sorcery, type, AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
+	end_passthru_update();
+
+	if (!backend_objects) {
+		/* This will occur in off-nominal memory allocation failure scenarios */
+		return -1;
+	}
+
+	if (cache->maximum_objects && ao2_container_count(backend_objects) >= cache->maximum_objects) {
+		ast_log(LOG_ERROR, "The backend contains %d objects while the sorcery memory cache '%s' is explicitly configured to only allow %d\n",
+			ao2_container_count(backend_objects), cache->name, cache->maximum_objects);
+		ao2_ref(backend_objects, -1);
+		return -1;
+	}
+
+	/* Allocate vector to hold cached objects - do this before any locking */
+	if (AST_VECTOR_INIT(&cached_objects, ao2_container_count(backend_objects))) {
+		ast_log(LOG_ERROR, "Could not allocate vector for cached objects for sorcery memory cache '%s'\n",
+			cache->name);
+		ao2_ref(backend_objects, -1);
+		return -1;
+	}
+
+	/* Iterate all backend objects, creating cached objects for each */
+	it_backend = ao2_iterator_init(backend_objects, 0);
+
+	while ((object = ao2_iterator_next(&it_backend))) {
+		struct sorcery_memory_cached_object *cached;
+
+		cached = sorcery_memory_cached_object_alloc(sorcery, cache, object);
+		ao2_ref(object, -1);
+
+		if (!cached || AST_VECTOR_APPEND(&cached_objects, cached)) {
+			ao2_cleanup(cached);
+			ao2_iterator_destroy(&it_backend);
+			ao2_ref(backend_objects, -1);
+			/* Clean up any cached objects we already created */
+			for (i = 0; i < AST_VECTOR_SIZE(&cached_objects); i++) {
+				ao2_ref(AST_VECTOR_GET(&cached_objects, i), -1);
+			}
+			AST_VECTOR_FREE(&cached_objects);
+			return -1;
+		}
+	}
+
+	ao2_iterator_destroy(&it_backend);
+
+	/* Now we have all cached objects ready - quickly swap them into the cache */
+	ao2_wrlock(cache->objects);
+
+	/* Remove all existing objects from cache */
+	remove_all_from_cache(cache);
+
+	num_cached = AST_VECTOR_SIZE(&cached_objects);
+
+	/* Add all new objects to cache */
+	for (i = 0; i < num_cached; i++) {
+		struct sorcery_memory_cached_object *cached = AST_VECTOR_GET(&cached_objects, i);
+		add_to_cache(cache, cached);
+	}
+
+	ao2_unlock(cache->objects);
+
+	/* Cleanup - release all our references to cached objects.
+	 * Done in a separate loop to avoid holding the cache lock while destroying objects,
+	 * which reduces lock contention and potential blocking.
+	 */
+	for (i = 0; i < num_cached; i++) {
+		ao2_ref(AST_VECTOR_GET(&cached_objects, i), -1);
+	}
+	AST_VECTOR_FREE(&cached_objects);
+
+	ao2_ref(backend_objects, -1);
+	return num_cached;
+}
+
+/*!
+ * \internal
  * \brief Determine if a full backend cache update is needed and do it
  *
  * \param sorcery The sorcery instance
@@ -1097,7 +1206,7 @@ static void memory_cache_full_update(const struct ast_sorcery *sorcery, const ch
 
 	ao2_wrlock(cache->objects);
 	if (!ao2_container_count(cache->objects)) {
-		memory_cache_populate(sorcery, type, cache);
+		memory_cache_populate_internal(sorcery, type, cache);
 	}
 	ao2_unlock(cache->objects);
 }
@@ -1589,6 +1698,11 @@ static void *sorcery_memory_cache_open(const char *data)
 		return NULL;
 	}
 
+	if (ast_mutex_init(&cache->populate_lock)) {
+		ast_log(LOG_ERROR, "Could not create populate lock for cache\n");
+		return NULL;
+	}
+
 	/* The memory cache is not linked to the caches container until the load callback is invoked.
 	 * Linking occurs there so an intelligent cache name can be constructed using the module of
 	 * the sorcery instance and the specific object type if no cache name was specified as part
@@ -2016,6 +2130,9 @@ static char *sorcery_memory_cache_stale(struct ast_cli_entry *e, int cmd, struct
 static char *sorcery_memory_cache_populate(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct sorcery_memory_cache *cache;
+	struct ast_sorcery *sorcery;
+	const char *object_type;
+	int num_cached;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -2048,23 +2165,37 @@ static char *sorcery_memory_cache_populate(struct ast_cli_entry *e, int cmd, str
 		return CLI_FAILURE;
 	}
 
-	ao2_wrlock(cache->objects);
+	/* Acquire the populate lock to ensure only one population at a time */
+	ast_mutex_lock(&cache->populate_lock);
+
+	/* Quick check with read lock to see if cache is still active */
+	ao2_rdlock(cache->objects);
 	if (!cache->sorcery) {
 		ast_cli(a->fd, "Specified sorcery memory cache '%s' is no longer active\n", a->argv[4]);
 		ao2_unlock(cache->objects);
+		ast_mutex_unlock(&cache->populate_lock);
 		ao2_ref(cache, -1);
 		return CLI_FAILURE;
 	}
 
-	remove_all_from_cache(cache);
-	memory_cache_populate(cache->sorcery, cache->object_type, cache);
+	/* Get sorcery reference while we have the lock, safe to un-const as the ao2 ref change is allowed and safe */
+	sorcery = ao2_bump((struct ast_sorcery *)cache->sorcery);
+	object_type = cache->object_type;
 
-	ast_cli(a->fd, "Specified sorcery memory cache '%s' has been populated with '%d' objects from the backend\n",
-		a->argv[4], ao2_container_count(cache->objects));
-
+	/* Unlock and populate the cache - memory_cache_populate_external will handle locking internally */
 	ao2_unlock(cache->objects);
+	num_cached = memory_cache_populate_external(sorcery, object_type, cache);
 
+	ao2_ref(sorcery, -1);
+	ast_mutex_unlock(&cache->populate_lock);
 	ao2_ref(cache, -1);
+
+	if (num_cached < 0) {
+		ast_cli(a->fd, "An error occurred while populating sorcery memory cache '%s'\n", a->argv[4]);
+	} else {
+		ast_cli(a->fd, "Specified sorcery memory cache '%s' has been populated with '%d' objects from the backend\n",
+		a->argv[4], num_cached);
+	}
 
 	return CLI_SUCCESS;
 }
@@ -2246,6 +2377,9 @@ static int sorcery_memory_cache_ami_populate(struct mansession *s, const struct 
 {
 	const char *cache_name = astman_get_header(m, "Cache");
 	struct sorcery_memory_cache *cache;
+	struct ast_sorcery *sorcery;
+	const char *object_type;
+	int cache_population_result;
 
 	if (ast_strlen_zero(cache_name)) {
 		astman_send_error(s, m, "SorceryMemoryCachePopulate requires that a cache name be provided.\n");
@@ -2264,22 +2398,36 @@ static int sorcery_memory_cache_ami_populate(struct mansession *s, const struct 
 		return 0;
 	}
 
-	ao2_wrlock(cache->objects);
+	/* Acquire the populate lock to ensure only one population at a time */
+	ast_mutex_lock(&cache->populate_lock);
+
+	/* Quick check with read lock to see if cache is still active */
+	ao2_rdlock(cache->objects);
 	if (!cache->sorcery) {
 		astman_send_error(s, m, "The provided cache is no longer active\n");
 		ao2_unlock(cache->objects);
+		ast_mutex_unlock(&cache->populate_lock);
 		ao2_ref(cache, -1);
 		return 0;
 	}
 
-	remove_all_from_cache(cache);
-	memory_cache_populate(cache->sorcery, cache->object_type, cache);
+	/* Get sorcery reference while we have the lock, safe to un-const as the ao2 ref change is allowed and safe */
+	sorcery = ao2_bump((struct ast_sorcery *)cache->sorcery);
+	object_type = cache->object_type;
 
+	/* Unlock and populate the cache - memory_cache_populate_external will handle locking internally */
 	ao2_unlock(cache->objects);
+	cache_population_result = memory_cache_populate_external(sorcery, object_type, cache);
 
+	ao2_ref(sorcery, -1);
+	ast_mutex_unlock(&cache->populate_lock);
 	ao2_ref(cache, -1);
 
-	astman_send_ack(s, m, "Cache has been expired and populated\n");
+	if (cache_population_result < 0) {
+		astman_send_error(s, m, "An error occurred while populating the cache\n");
+	} else {
+		astman_send_ack(s, m, "Cache has been expired and populated\n");
+	}
 
 	return 0;
 }
