@@ -1080,7 +1080,7 @@ static enum fsread_res ast_readvideo_callback(struct ast_filestream *s)
                          s->owner,
                          ast_sched_add(ast_channel_sched(s->owner), delay_ms, ast_fsread_video, s)
                  );
-                s->lasttimeout = frame_ms;
+                s->lasttimeout = whennext;
                 return FSREAD_SUCCESS_NOSCHED;
 	}
 
