@@ -1033,7 +1033,7 @@ static int ast_fsread_video(const void *data);
 static enum fsread_res ast_readvideo_callback(struct ast_filestream *s)
 {
 	int whennext = 0;
-
+        static int scale_factor = 0;
 	while (!whennext) {
 		struct ast_frame *fr = read_frame(s, &whennext);
 
@@ -1050,9 +1050,36 @@ static enum fsread_res ast_readvideo_callback(struct ast_filestream *s)
 			ast_frfree(fr);
 		}
 	}
-
+        
 	if (whennext != s->lasttimeout) {
-		ast_channel_vstreamid_set(s->owner, ast_sched_add(ast_channel_sched(s->owner), whennext / (ast_format_get_sample_rate(s->fmt->format) / 1000), ast_fsread_video, s));
+                int delta = whennext - s->lasttimeout;
+                int delay_ms;
+
+                /* Video RTP clock rate */
+                int rtp_clock = 90000;
+
+                /* Compute raw delta in milliseconds */
+                int delta_ms = (delta * 1000) / rtp_clock;
+
+                /* Initialize scale factor based on first frame */
+                if (scale_factor == 0 && delta_ms > 0) {
+                /* Assuming target frame interval ~60 ms  as standard */
+                         scale_factor = 60.0 / delta_ms;
+                }
+
+                /* Apply scale factor to all subsequent frames */
+                delay_ms = delta_ms * scale_factor;
+
+                /* Safety checks */
+                if (delay_ms < 20) delay_ms = 20;    /* avoid too fast */
+                if (delay_ms > 200) delay_ms = 200;  /* avoid too slow */
+ 
+
+                /* Schedule next frame */
+                ast_channel_vstreamid_set(
+                                  s->owner,
+                                  ast_sched_add(ast_channel_sched(s->owner), delay_ms, ast_fsread_video, s)
+                );
 		s->lasttimeout = whennext;
 		return FSREAD_SUCCESS_NOSCHED;
 	}
