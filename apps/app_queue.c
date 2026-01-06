@@ -6206,7 +6206,7 @@ static int calc_metric(struct call_queue *q, struct member *mem, int pos, struct
 	int penalty = mem->penalty;
 
 	if (usepenalty) {
-		if (qe->raise_penalty != INT_MAX && penalty < qe->raise_penalty) {
+		if (qe->raise_penalty != INT_MAX && penalty < qe->raise_penalty && !(qe->raise_respect_min && qe->min_penalty != INT_MAX && penalty < qe->min_penalty)) {
 			/* Low penalty is raised up to the current minimum */
 			penalty = qe->raise_penalty;
 		}
