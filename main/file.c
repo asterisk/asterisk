@@ -1055,7 +1055,7 @@ static enum fsread_res ast_readvideo_callback(struct ast_filestream *s)
                 int delta = whennext - s->lasttimeout;
                 int delay_ms;
 
-                /* Video RTP clock rate 90000Hz */
+                /* Video RTP clock rate*/
                 int rtp_clock = 90000;
 
                 /* Compute raw delta in milliseconds */
