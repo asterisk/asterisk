@@ -1442,6 +1442,12 @@ static void destroy_subscription(struct ast_sip_subscription *sub)
 	ao2_cleanup(sub->datastores);
 	ast_json_unref(sub->persistence_data);
 	ast_free(sub->display_name);
+	if (sub->tree) {
+		/* Clear tree before cleanup to avoid re-entrant destruction */
+		struct sip_subscription_tree *tree = sub->tree;
+		sub->tree=NULL;
+		ao2_cleanup(tree);
+	}
 	ast_free(sub);
 }
 
@@ -1557,10 +1563,7 @@ static struct ast_sip_subscription *create_virtual_subscriptions(const struct as
 		if (AST_VECTOR_APPEND(&sub->children, child)) {
 			ast_debug(1, "Child subscription to resource %s could not be appended\n",
 					child_node->resource);
-			destroy_subscription(child);
-			/* Have to release tree here too because a ref was added
-			 * to child that destroy_subscription() doesn't release. */
-			ao2_cleanup(tree);
+			destroy_subscriptions(child);
 		}
 	}
 
@@ -1632,7 +1635,12 @@ void ast_sip_subscription_destroy(struct ast_sip_subscription *sub)
 {
 	ast_debug(3, "Removing subscription %p '%s->%s' reference to subscription tree %p\n",
 		sub, ast_sorcery_object_get_id(sub->tree->endpoint), sub->resource, sub->tree);
-	ao2_cleanup(sub->tree);
+	if (sub->tree) {
+		/* Clear tree before cleanup to avoid re-entrant destruction */
+		struct sip_subscription_tree *tree = sub->tree;
+		sub->tree = NULL;
+		ao2_cleanup(tree);
+	}
 }
 
 static void subscription_setup_dialog(struct sip_subscription_tree *sub_tree, pjsip_dialog *dlg)
