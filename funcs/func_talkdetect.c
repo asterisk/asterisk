@@ -205,8 +205,17 @@ static int talk_detect_audiohook_cb(struct ast_audiohook *audiohook, struct ast_
 	is_talking = !ast_dsp_silence(td_params->dsp, frame, &total_silence);
 	if (is_talking) {
 		if (!td_params->talking) {
+			/* If we are dealing with a frame that represents 20ms of audio,
+			   and we have just determined that the audio in that frame
+			   represents 'talking' then we _actually_ started talking 20ms
+			   ago. So we offset our start time by the length of the frame
+			   in milliseconds. */
+			struct timeval talking_start_offset = {
+				.tv_sec = 0,
+				.tv_usec = frame->len * 1000,
+			};
 			update_talking = 1;
-			td_params->talking_start = ast_tvnow();
+			td_params->talking_start = ast_tvsub(ast_tvnow(), talking_start_offset);
 		}
 		td_params->talking = 1;
 	} else if (total_silence >= td_params->dsp_silence_threshold) {
@@ -223,7 +232,7 @@ static int talk_detect_audiohook_cb(struct ast_audiohook *audiohook, struct ast_
 			int64_t diff_ms = ast_tvdiff_ms(ast_tvnow(), td_params->talking_start);
 			diff_ms -= td_params->dsp_silence_threshold;
 
-			blob = ast_json_pack("{s: I}", "duration", (ast_json_int_t)diff_ms);
+			blob = ast_json_pack("{s: I}", "duration", (ast_json_int_t) MAX(0, diff_ms));
 			if (!blob) {
 				return 1;
 			}
