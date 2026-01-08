@@ -10145,7 +10145,7 @@ static int socket_process_meta(int packet_len, struct ast_iax2_meta_hdr *meta, s
 						iaxs[fr->callno]->last = fr->ts;
 				}
 			} else {
-				ast_log(LOG_WARNING, "Datalen < 0?\n");
+				ast_log(LOG_ERROR, "Dropping malformed frame (datalen %d?)\n", f.datalen);
 			}
 		}
 		ast_mutex_unlock(&iaxsl[fr->callno]);
@@ -12017,6 +12017,12 @@ immediatedial:
 			return 1;
 		}
 		f.datalen = res - sizeof(*vh);
+		if (f.datalen < 0) {
+			ast_log(LOG_ERROR, "Dropping malformed frame (datalen %d?)\n", f.datalen);
+			ast_variables_destroy(ies.vars);
+			ast_mutex_unlock(&iaxsl[fr->callno]);
+			return 1;
+		}
 		if (f.datalen)
 			f.data.ptr = thread->buf + sizeof(*vh);
 		else
@@ -12046,7 +12052,7 @@ immediatedial:
 		}
 		f.datalen = res - sizeof(struct ast_iax2_mini_hdr);
 		if (f.datalen < 0) {
-			ast_log(LOG_WARNING, "Datalen < 0?\n");
+			ast_log(LOG_ERROR, "Dropping malformed frame (datalen %d?)\n", f.datalen);
 			ast_variables_destroy(ies.vars);
 			ast_mutex_unlock(&iaxsl[fr->callno]);
 			return 1;
@@ -12150,6 +12156,7 @@ immediatedial:
 			ast_frame_byteswap_be(&f);
 	} else
 		f.samples = 0;
+
 	iax_frame_wrap(fr, &f);
 
 	/* If this is our most recent packet, use it as our basis for timestamping */
