@@ -242,7 +242,8 @@ static const char sendmf_name[] = "SendMF";
  * \retval 0 if successful
  * \retval -1 if unsuccessful (including hangup).
  */
-static int read_mf_digits(struct ast_channel *chan, char *buf, int buflen, int timeout, int features, int laxkp, int override, int no_kp, int no_st, int maxdigits) {
+static int read_mf_digits(struct ast_channel *chan, char *buf, int buflen, int timeout, int features, int laxkp, int override, int no_kp, int no_st, int maxdigits)
+{
 	struct ast_dsp *dsp;
 	struct ast_frame *frame = NULL;
 	struct timeval start;
