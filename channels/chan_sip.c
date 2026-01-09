@@ -29233,6 +29233,7 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct as
 			} else if (req->method != SIP_ACK) {
 				transmit_response(p, "500 Server error", req);	/* We must respond according to RFC 3261 sec 12.2 */
 			}
+			p->method = oldmethod;
 			return -1;
 		}
 	} else if (p->icseq &&
