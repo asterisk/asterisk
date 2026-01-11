@@ -316,6 +316,33 @@
 	</function>
  ***/
 
+/* Gate RFC7329 behavior on the module being loaded. */
+static int rfc7329_module_loaded(void)
+{
+	return ast_sip_get_rfc7329_enable() && ast_module_check("res_pjsip_rfc7329.so");
+}
+
+static int is_session_id_header_name(const char *name)
+{
+	return name && !strcasecmp(name, "Session-ID");
+}
+
+static int is_session_id_header_prefix(const char *name)
+{
+	size_t len;
+
+	if (!name) {
+		return 0;
+	}
+
+	len = strlen(name);
+	if (len < 2 || name[len - 1] != '*') {
+		return 0;
+	}
+
+	return !strncasecmp("Session-ID", name, len - 1);
+}
+
 /*! \brief Linked list for accumulating headers */
 struct hdr_list_entry {
 	pjsip_hdr *hdr;
@@ -653,6 +680,13 @@ static int add_header(void *obj)
 	RAII_VAR(struct ast_datastore *, datastore,
 			 ast_sip_session_get_datastore(session, data->header_datastore->type), ao2_cleanup);
 
+	if (rfc7329_module_loaded() && is_session_id_header_name(data->header_name)) {
+		/* Enforce RFC7329 immutability of Session-ID when module is loaded. */
+		ast_log(LOG_WARNING, "PJSIP_HEADER(add,%s): Session-ID modification blocked (RFC7329 active)\n",
+			data->header_name);
+		return -1;
+	}
+
 	if (!datastore) {
 		if (!(datastore = ast_sip_session_alloc_datastore(data->header_datastore,
 														data->header_datastore->type))
@@ -698,6 +732,13 @@ static int update_header(void *obj)
 			 ast_sip_session_get_datastore(data->channel->session, data->header_datastore->type),
 			 ao2_cleanup);
 
+	if (rfc7329_module_loaded() && is_session_id_header_name(data->header_name)) {
+		/* Enforce RFC7329 immutability of Session-ID when module is loaded. */
+		ast_log(LOG_WARNING, "PJSIP_HEADER(update,%s): Session-ID modification blocked (RFC7329 active)\n",
+			data->header_name);
+		return -1;
+	}
+
 	if (!datastore || !datastore->data) {
 		ast_log(AST_LOG_ERROR, "No headers had been previously added to this session.\n");
 		return -1;
@@ -731,9 +772,23 @@ static int remove_header(void *obj)
 	struct hdr_list *list;
 	struct hdr_list_entry *le;
 	int removed_count = 0;
+	int blocked_session_id = 0;
 	RAII_VAR(struct ast_datastore *, datastore,
 			 ast_sip_session_get_datastore(data->channel->session, data->header_datastore->type),
 			 ao2_cleanup);
+
+	if (rfc7329_module_loaded() && is_session_id_header_name(data->header_name)) {
+		/* Enforce RFC7329 immutability of Session-ID when module is loaded. */
+		ast_log(LOG_WARNING, "PJSIP_HEADER(remove,%s): Session-ID modification blocked (RFC7329 active)\n",
+			data->header_name);
+		return -1;
+	}
+
+	if (rfc7329_module_loaded() && is_session_id_header_prefix(data->header_name)) {
+		ast_log(LOG_WARNING, "PJSIP_HEADER(remove,%s): Session-ID modification blocked (RFC7329 active)\n",
+			data->header_name);
+		return -1;
+	}
 
 	if (!datastore || !datastore->data) {
 		ast_log(AST_LOG_ERROR, "No headers had been previously added to this session.\n");
@@ -744,6 +799,11 @@ static int remove_header(void *obj)
 	AST_LIST_TRAVERSE_SAFE_BEGIN(list, le, nextptr) {
 		if (data->header_name[len - 1] == '*') {
 			if (pj_strnicmp2(&le->hdr->name, data->header_name, len - 1) == 0) {
+				if (rfc7329_module_loaded() && !strcmp(data->header_name, "*")
+					&& !pj_stricmp2(&le->hdr->name, "Session-ID")) {
+					blocked_session_id = 1;
+					continue;
+				}
 				AST_LIST_REMOVE_CURRENT(nextptr);
 				removed_count++;
 			}
@@ -755,6 +815,10 @@ static int remove_header(void *obj)
 		}
 	}
 	AST_LIST_TRAVERSE_SAFE_END;
+
+	if (blocked_session_id) {
+		ast_log(LOG_WARNING, "PJSIP_HEADER(remove,*): Session-ID modification blocked (RFC7329 active)\n");
+	}
 
 	if (data->buf && data->len) {
 		snprintf(data->buf, data->len, "%d", removed_count);
