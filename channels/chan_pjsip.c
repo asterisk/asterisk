@@ -2758,6 +2758,9 @@ static struct ast_channel *chan_pjsip_request_with_stream_topology(const char *t
 		SCOPE_EXIT_RTN_VALUE(NULL, "Couldn't create channel\n");
 	}
 
+	/* Notify supplements that need channel-backed state (e.g., RFC7329 linkedid map). */
+	ast_sip_session_channel_created(session);
+
 	SCOPE_EXIT_RTN_VALUE(session->channel, "Channel: %s\n", ast_channel_name(session->channel));
 }
 
@@ -3061,6 +3064,9 @@ static int chan_pjsip_incoming_request(struct ast_sip_session *session, struct p
 		SCOPE_EXIT_LOG_RTN_VALUE(-1, LOG_ERROR, "%s: Failed to allocate new PJSIP channel on incoming SIP INVITE\n",
 			 ast_sip_session_get_name(session));
 	}
+
+	/* Notify supplements that need channel-backed state (e.g., RFC7329 linkedid map). */
+	ast_sip_session_channel_created(session);
 
 	set_sipdomain_variable(session);
 

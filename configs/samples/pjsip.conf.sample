@@ -1349,6 +1349,8 @@
                                                         ; int")
 ;debug=no ; Enable/Disable SIP debug logging.  Valid options include yes|no
           ; or a host address (default: "no")
+;rfc7329_enable=no ; Enable RFC7329 Session-ID handling (default: "no")
+                   ; When enabled, PJSIP_HEADER cannot add, update, or remove Session-ID.
 ;keep_alive_interval=90 ; The interval (in seconds) at which to send (double CRLF)
                         ; keep-alives on all active connection-oriented transports;
                         ; for connection-less like UDP see qualify_frequency.

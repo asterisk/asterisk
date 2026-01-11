@@ -55,6 +55,7 @@
 #define DEFAULT_TASKPROCESSOR_OVERLOAD_TRIGGER TASKPROCESSOR_OVERLOAD_TRIGGER_GLOBAL
 #define DEFAULT_NOREFERSUB 1
 #define DEFAULT_ALL_CODECS_ON_EMPTY_REINVITE 0
+#define DEFAULT_RFC7329_ENABLE 0
 #define DEFAULT_AUTH_ALGORITHMS_UAS "MD5"
 #define DEFAULT_AUTH_ALGORITHMS_UAC "MD5"
 
@@ -128,6 +129,8 @@ struct global_config {
 	unsigned int norefersub;
 	/*! Nonzero if we should return all codecs on empty re-INVITE */
 	unsigned int all_codecs_on_empty_reinvite;
+	/*! Nonzero if RFC7329 Session-ID handling is enabled */
+	unsigned int rfc7329_enable;
 };
 
 static void global_destructor(void *obj)
@@ -608,6 +611,21 @@ unsigned int ast_sip_get_all_codecs_on_empty_reinvite(void)
 	return all_codecs_on_empty_reinvite;
 }
 
+unsigned int ast_sip_get_rfc7329_enable(void)
+{
+	unsigned int enabled;
+	struct global_config *cfg;
+
+	cfg = get_global_cfg();
+	if (!cfg) {
+		return DEFAULT_RFC7329_ENABLE;
+	}
+
+	enabled = cfg->rfc7329_enable;
+	ao2_ref(cfg, -1);
+	return enabled;
+}
+
 static int overload_trigger_handler(const struct aco_option *opt,
 	struct ast_variable *var, void *obj)
 {
@@ -818,6 +836,9 @@ int ast_sip_initialize_sorcery_global(void)
 	ast_sorcery_object_field_register(sorcery, "global", "all_codecs_on_empty_reinvite",
 		DEFAULT_ALL_CODECS_ON_EMPTY_REINVITE ? "yes" : "no",
 		OPT_BOOL_T, 1, FLDSET(struct global_config, all_codecs_on_empty_reinvite));
+	ast_sorcery_object_field_register(sorcery, "global", "rfc7329_enable",
+		DEFAULT_RFC7329_ENABLE ? "yes" : "no",
+		OPT_BOOL_T, 1, FLDSET(struct global_config, rfc7329_enable));
 	ast_sorcery_object_field_register(sorcery, "global", "default_auth_algorithms_uas",
 		DEFAULT_AUTH_ALGORITHMS_UAS, OPT_STRINGFIELD_T, 0,
 		STRFLDSET(struct global_config, default_auth_algorithms_uas));
