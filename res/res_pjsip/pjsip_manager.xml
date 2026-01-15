@@ -638,9 +638,6 @@
 				<parameter name="Ignore183WithoutSdp">
 					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='ignore_183_without_sdp']/synopsis/node())"/></para>
 				</parameter>
-				<parameter name="IncomingCallOfferPref">
-					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='incoming_call_offer_pref']/synopsis/node())"/></para>
-				</parameter>
 				<parameter name="IncomingMwiMailbox">
 					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='incoming_mwi_mailbox']/synopsis/node())"/></para>
 				</parameter>
@@ -655,9 +652,6 @@
 				</parameter>
 				<parameter name="NotifyEarlyInuseRinging">
 					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='notify_early_inuse_ringing']/synopsis/node())"/></para>
-				</parameter>
-				<parameter name="OutgoingCallOfferPref">
-					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='outgoing_call_offer_pref']/synopsis/node())"/></para>
 				</parameter>
 				<parameter name="ReferBlindProgress">
 					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='refer_blind_progress']/synopsis/node())"/></para>
