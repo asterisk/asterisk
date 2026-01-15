@@ -381,6 +381,34 @@ out403:
 	return 0;
 }
 
+static void str_append_escaped(struct ast_str **str, const char *in)
+{
+	const char *cur = in;
+
+	while(*cur) {
+		switch (*cur) {
+		case '<':
+			ast_str_append(str, 0, "&lt;");
+			break;
+		case '>':
+			ast_str_append(str, 0, "&gt;");
+			break;
+		case '&':
+			ast_str_append(str, 0, "&amp;");
+			break;
+		case '"':
+			ast_str_append(str, 0, "&quot;");
+			break;
+		default:
+			ast_str_append(str, 0, "%c", *cur);
+			break;
+		}
+		cur++;
+	}
+
+	return;
+}
+
 static int httpstatus_callback(struct ast_tcptls_session_instance *ser,
 	const struct ast_http_uri *urih, const char *uri,
 	enum ast_http_method method, struct ast_variable *get_vars,
@@ -421,13 +449,21 @@ static int httpstatus_callback(struct ast_tcptls_session_instance *ser,
 	}
 	ast_str_append(&out, 0, "<tr><td colspan=\"2\"><hr></td></tr>\r\n");
 	for (v = get_vars; v; v = v->next) {
-		ast_str_append(&out, 0, "<tr><td><i>Submitted GET Variable '%s'</i></td><td>%s</td></tr>\r\n", v->name, v->value);
+		ast_str_append(&out, 0, "<tr><td><i>Submitted GET Variable '");
+		str_append_escaped(&out, v->name);
+		ast_str_append(&out, 0, "'</i></td><td>");
+		str_append_escaped(&out, v->value);
+		ast_str_append(&out, 0, "</td></tr>\r\n");
 	}
 	ast_str_append(&out, 0, "<tr><td colspan=\"2\"><hr></td></tr>\r\n");
 
 	cookies = ast_http_get_cookies(headers);
 	for (v = cookies; v; v = v->next) {
-		ast_str_append(&out, 0, "<tr><td><i>Cookie '%s'</i></td><td>%s</td></tr>\r\n", v->name, v->value);
+		ast_str_append(&out, 0, "<tr><td><i>Cookie '");
+		str_append_escaped(&out, v->name);
+		ast_str_append(&out, 0, "'</i></td><td>");
+		str_append_escaped(&out, v->value);
+		ast_str_append(&out, 0, "</td></tr>\r\n");
 	}
 	ast_variables_destroy(cookies);
 
@@ -2446,7 +2482,7 @@ static int __ast_http_load(int reload)
 	struct ast_variable *v;
 	int enabled = 0;
 	int new_static_uri_enabled = 0;
-	int new_status_uri_enabled = 1; /* Default to enabled for BC */
+	int new_status_uri_enabled = 0;
 	char newprefix[MAX_PREFIX] = "";
 	char server_name[MAX_SERVER_NAME_LENGTH];
 	struct http_uri_redirect *redirect;
