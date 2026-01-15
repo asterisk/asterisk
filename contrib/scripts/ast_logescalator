@@ -128,10 +128,51 @@ declare -A DEBUG_COMMANDS=(
 VERBOSE_LEVELS="NOTICE,WARNING,ERROR,VERBOSE"
 DEBUG_LEVELS="DEBUG"
 
+# Function to safely source a config file with security checks
+# This prevents privilege escalation by ensuring config files are
+# owned by root and not writable by group or others when running as root
+safe_source_config() {
+	local config_file="$1"
+
+	# Return if file doesn't exist
+	[ -f "$config_file" ] || return 0
+
+	# Get the absolute path
+	config_file=$(readlink -f "$config_file")
+
+	# Check if running as root (effective UID is 0)
+	if [ $EUID -eq 0 ]; then
+		# Running as root - apply strict security checks
+		# Get file owner UID and permissions
+		local file_stat
+		file_stat=$(stat -c "%u %a" "$config_file" 2>/dev/null) || return 0
+		local owner_uid=${file_stat%% *}
+		local perms=${file_stat##* }
+
+		# File must be owned by root (UID 0)
+		if [ "$owner_uid" -ne 0 ]; then
+			echo "WARNING: Config file $config_file is not owned by root. Skipping for security." >&2
+			return 1
+		fi
+
+		# File must not be writable by group or others (check group-write and other-write bits)
+		# Extract the group and other permission digits
+		local group_perms=$((perms / 10 % 10))
+		local other_perms=$((perms % 10))
+
+		if [ $((group_perms & 2)) -ne 0 ] || [ $((other_perms & 2)) -ne 0 ]; then
+			echo "WARNING: Config file $config_file is writable by group or others. Skipping for security." >&2
+			return 1
+		fi
+	fi
+
+	source "$config_file"
+}
+
 # Read config files from least important to most important
-[ -f /etc/asterisk/ast_debug_tools.conf ] && source /etc/asterisk/ast_debug_tools.conf
-[ -f ~/ast_debug_tools.conf ] && source ~/ast_debug_tools.conf
-[ -f ./ast_debug_tools.conf ] && source ./ast_debug_tools.conf
+safe_source_config /etc/asterisk/ast_debug_tools.conf
+safe_source_config ~/ast_debug_tools.conf
+safe_source_config ./ast_debug_tools.conf
 
 DATEFORMAT=${DATEFORMAT:-'date +%FT%H-%M-%S%z'}
 UNIQUEID=$($DATEFORMAT)
