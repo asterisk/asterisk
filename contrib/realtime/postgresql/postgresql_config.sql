@@ -1859,5 +1859,25 @@ ALTER TABLE ps_globals ADD COLUMN default_auth_algorithms_uac VARCHAR(1024);
 
 UPDATE alembic_version SET version_num='abdc9ede147d' WHERE alembic_version.version_num = '44bd6dd914fa';
 
+-- Running upgrade abdc9ede147d -> dc7c357dc178
+
+ALTER TABLE ps_systems ADD COLUMN taskpool_minimum_size INTEGER;
+
+ALTER TABLE ps_systems ADD COLUMN taskpool_initial_size INTEGER;
+
+ALTER TABLE ps_systems ADD COLUMN taskpool_auto_increment INTEGER;
+
+ALTER TABLE ps_systems ADD COLUMN taskpool_idle_timeout INTEGER;
+
+ALTER TABLE ps_systems ADD COLUMN taskpool_max_size INTEGER;
+
+UPDATE alembic_version SET version_num='dc7c357dc178' WHERE alembic_version.version_num = 'abdc9ede147d';
+
+-- Running upgrade dc7c357dc178 -> bb6d54e22913
+
+ALTER TABLE ps_endpoints ADD COLUMN follow_redirect_methods VARCHAR(95);
+
+UPDATE alembic_version SET version_num='bb6d54e22913' WHERE alembic_version.version_num = 'dc7c357dc178';
+
 COMMIT;
 
