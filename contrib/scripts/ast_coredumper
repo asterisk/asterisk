@@ -42,11 +42,9 @@ COMMANDLINE_COREDUMPS=false
 
 # Read config files from most important to least important.
 # Variables set on the command line or environment always take precedence.
-# shellcheck disable=SC1091
-[ -f ./ast_debug_tools.conf ] && source ./ast_debug_tools.conf
-# shellcheck disable=SC1090
-[ -f ~/ast_debug_tools.conf ] && source ~/ast_debug_tools.conf
-[ -f /etc/asterisk/ast_debug_tools.conf ] && source /etc/asterisk/ast_debug_tools.conf
+safe_source_config ./ast_debug_tools.conf
+safe_source_config ~/ast_debug_tools.conf
+safe_source_config /etc/asterisk/ast_debug_tools.conf
 
 if [ -n "${DATEFORMAT}" ] ; then
 	err <<-EOF
@@ -428,6 +426,43 @@ check_gdb() {
 		Use the '--gdb' option to point to one that does.
 		EOF
 	fi
+}
+
+# Function to safely source a config file with security checks
+# This prevents privilege escalation by ensuring config files are
+# owned by root and not writable by group or others
+safe_source_config() {
+	local config_file="$1"
+
+	# Return if file doesn't exist
+	[ -f "$config_file" ] || return 0
+
+	# Get the absolute path
+	config_file=$(readlink -f "$config_file")
+
+	# Get file owner UID and permissions
+	local file_stat
+	file_stat=$(stat -c "%u %a" "$config_file" 2>/dev/null) || return 0
+	local owner_uid=${file_stat%% *}
+	local perms=${file_stat##* }
+
+	# File must be owned by root (UID 0)
+	if [ "$owner_uid" -ne 0 ]; then
+		err "Config file $config_file is not owned by root. Skipping for security." >&2
+		return 1
+	fi
+
+	# File must not be writable by group or others (check group-write and other-write bits)
+	# Extract the group and other permission digits
+	local group_perms=$((perms / 10 % 10))
+	local other_perms=$((perms % 10))
+
+	if [ $((group_perms & 2)) -ne 0 ] || [ $((other_perms & 2)) -ne 0 ]; then
+		err "Config file $config_file is writable by group or others. Skipping for security." >&2
+		return 1
+	fi
+
+	source "$config_file"
 }
 
 # shellcheck disable=SC2317
