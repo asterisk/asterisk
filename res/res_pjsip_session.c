@@ -4556,6 +4556,10 @@ static int check_request_status(pjsip_inv_session *inv, pjsip_event *e)
 	struct ast_sip_session *session = inv->mod_data[session_module.id];
 	pjsip_transaction *tsx = e->body.tsx_state.tsx;
 
+	if (inv->state == PJSIP_INV_STATE_DISCONNECTED && inv->cancelling) {
+		return 0;
+	}
+
 	if (tsx->status_code != 503 && tsx->status_code != 408) {
 		return 0;
 	}
