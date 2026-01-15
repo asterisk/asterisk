@@ -115,6 +115,7 @@ if $RUNNING ; then
 		if ${DRY_RUN} ; then
 			echo "Would run: ${GDB} -p $MAIN_PID -q --batch --ex gcore $cf"
 		else
+			install -m 0600 /dev/null "$cf"
 			${GDB} -p "$MAIN_PID" -q --batch --ex "gcore $cf" >/dev/null 2>&1
 		fi
 		echo "$(S_COR "${DRY_RUN}" 'Simulated dump' 'Dump') is complete."
@@ -243,7 +244,7 @@ fi
 
 gdbinit=${OUTPUTDIR}/.ast_coredumper.gdbinit
 trap 'rm $gdbinit' EXIT
-sed '1,/^#@@@SCRIPTSTART@@@/ d' "$0" >"$gdbinit"
+install -m 600 /dev/stdin "$gdbinit" < <(sed '1,/^#@@@SCRIPTSTART@@@/ d' "$0")
 
 # Now iterate over the coredumps and dump the debugging info
 for i in "${!COREDUMPS[@]}" ; do
@@ -295,6 +296,7 @@ for i in "${!COREDUMPS[@]}" ; do
 				of=${OUTPUTDIR}/${cfname}-${BASH_REMATCH[1]}
 				of=${of//:/-}
 				rm -f "$of"
+				install -m 0600 /dev/null "$of"
 				msg "    Creating $of"
 			fi
 			echo -e $"$line" >> "$of"
@@ -313,6 +315,7 @@ for i in "${!COREDUMPS[@]}" ; do
 		rm -rf "${dest}" 2>/dev/null || :
 
 		astbindir=$(dirname "${astbin}")
+		install -m 0700 -d "${dest}"
 		mkdir -p "${dest}/tmp" "${dest}/${moddir}" "${dest}/etc" \
 		"${dest}/${etcdir}" "${dest}/${libdir}" "${dest}/${astbindir}"
 
@@ -337,6 +340,7 @@ for i in "${!COREDUMPS[@]}" ; do
 		cp -a "${astbin}" "${dest}/${astbin}"
 		rm -rf "${tf}"
 		msg "    Creating ${tf}"
+		install -m 0600 /dev/null "$tf"
 		tar -chzf "${tf}" --transform="s/^[.]/${cfname}.output/" -C "${dest}" .
 		sleep 3
 		rm -rf "${dest}"
@@ -350,6 +354,7 @@ for i in "${!COREDUMPS[@]}" ; do
 		rm -rf "${dest}" 2>/dev/null || :
 		mkdir -p "${dest}"
 		cp "${OUTPUTDIR}/${cfname}"*.txt "${dest}/"
+		install -m 0600 /dev/null "$tf"
 		tar -chzf "${tf}" --transform="s/^[.]/${cfname}/" -C "${dest}" .
 		rm -rf "${dest}"
 		echo "Created $tf"
