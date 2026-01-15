@@ -1116,6 +1116,10 @@ static int read_from_ws_and_queue(struct websocket_pvt *instance)
 		return process_text_message(instance, payload, payload_len);
 	}
 
+	if (opcode == AST_WEBSOCKET_OPCODE_PING || opcode == AST_WEBSOCKET_OPCODE_PONG) {
+		return 0;
+	}
+
 	if (opcode == AST_WEBSOCKET_OPCODE_CLOSE) {
 		ast_debug(3, "%s: WebSocket closed by remote\n",
 			ast_channel_name(instance->channel));
