@@ -1,0 +1,952 @@
+<html><head><title>ChangeLog for asterisk-20.18.0-rc1</title></head><body>
+<h2>Change Log for Release asterisk-20.18.0-rc1</h2>
+<h3>Links:</h3>
+<ul>
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-20.18.0-rc1.html">Full ChangeLog</a>  </li>
+<li><a href="https://github.com/asterisk/asterisk/compare/20.17.0...20.18.0-rc1">GitHub Diff</a>  </li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-20.18.0-rc1.tar.gz">Tarball</a>  </li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk">Downloads</a>  </li>
+</ul>
+<h3>Summary:</h3>
+<ul>
+<li>Commits: 56</li>
+<li>Commit Authors: 20</li>
+<li>Issues Resolved: 40</li>
+<li>Security Advisories Resolved: 0</li>
+</ul>
+<h3>User Notes:</h3>
+<ul>
+<li>
+<h4>cli.c: Allow 'channel request hangup' to accept patterns.</h4>
+<p>The 'channel request hangup' CLI command now accepts
+  multiple channel names, POSIX Extended Regular Expressions, glob-like
+  patterns, or a combination of all of them. See the CLI command 'core
+  show help channel request hangup' for full details.</p>
+</li>
+<li>
+<h4>res_sorcery_memory_cache: Reduce cache lock time for sorcery memory cache populate command</h4>
+<p>The AMI command sorcery memory cache populate will now
+  return an error if there is an internal error performing the populate.
+  The CLI command will display an error in this case as well.</p>
+</li>
+<li>
+<h4>res_geolocation:  Fix multiple issues with XML generation.</h4>
+<p>Geolocation: Two new optional profile parameters have been added.</p>
+</li>
+<li><code>pidf_element_id</code> which sets the value of the <code>id</code> attribute on the top-level
+    PIDF-LO <code>device</code>, <code>person</code> or <code>tuple</code> elements.</li>
+<li>
+<p><code>device_id</code> which sets the content of the <code>&lt;deviceID&gt;</code> element.
+  Both parameters can include channel variables.</p>
+</li>
+<li>
+<h4>res_pjsip_messaging: Add support for following 3xx redirects</h4>
+<p>A new pjsip endpoint option follow_redirect_methods was added.
+  This option is a comma-delimited, case-insensitive list of SIP methods
+  for which SIP 3XX redirect responses are followed. An alembic upgrade
+  script has been added for adding this new option to the Asterisk
+  database.</p>
+</li>
+<li>
+<h4>taskprocessors: Improve logging and add new cli options</h4>
+<p>New CLI command has been added -
+  core show taskprocessor name <taskprocessor-name></p>
+</li>
+<li>
+<h4>ccss:  Add option to ccss.conf to globally disable it.</h4>
+<p>A new "enabled" parameter has been added to ccss.conf.  It defaults
+  to "yes" to preserve backwards compatibility but CCSS is rarely used so
+  setting "enabled = no" in the "general" section can save some unneeded channel
+  locking operations and log message spam.  Disabling ccss will also prevent
+  the func_callcompletion and chan_dahdi modules from loading.</p>
+</li>
+<li>
+<h4>Makefile: Add module-list-* targets.</h4>
+<p>Try "make module-list-deprecated" to see what modules
+  are on their way out the door.</p>
+</li>
+<li>
+<h4>app_mixmonitor: Add 's' (skip) option to delay recording.</h4>
+<p>This change introduces a new 's(<seconds>)' (skip) option to the MixMonitor
+  application. Example:
+    MixMonitor(${UNIQUEID}.wav,s(3))
+  This skips recording for the first 3 seconds before writing audio to the file.
+  Existing MixMonitor behavior remains unchanged when the 's' option is not used.</p>
+</li>
+<li>
+<h4>app_queue.c: Only announce to head caller if announce_to_first_user</h4>
+<p>When announce_to_first_user is false, no announcements are played to the head caller</p>
+</li>
+</ul>
+<h3>Upgrade Notes:</h3>
+<ul>
+<li>
+<h4>res_geolocation:  Fix multiple issues with XML generation.</h4>
+  Geolocation: In order to correct bugs in both code and
+  documentation, the following changes to the parameters for GML geolocation
+  locations are now in effect:</li>
+<li>The documented but unimplemented <code>crs</code> (coordinate reference system) element
+    has been added to the location_info parameter that indicates whether the <code>2d</code>
+    or <code>3d</code> reference system is to be used. If the crs isn't valid for the shape
+    specified, an error will be generated. The default depends on the shape
+    specified.</li>
+<li>The Circle, Ellipse and ArcBand shapes MUST use a <code>2d</code> crs.  If crs isn't
+    specified, it will default to <code>2d</code> for these shapes.
+    The Sphere, Ellipsoid and Prism shapes MUST use a <code>3d</code> crs. If crs isn't
+    specified, it will default to <code>3d</code> for these shapes.
+    The Point and Polygon shapes may use either crs.  The default crs is <code>2d</code>
+    however so if <code>3d</code> positions are used, the crs must be explicitly set to <code>3d</code>.</li>
+<li>The <code>geoloc show gml_shape_defs</code> CLI command has been updated to show which
+    coordinate reference systems are valid for each shape.</li>
+<li>The <code>pos3d</code> element has been removed in favor of allowing the <code>pos</code> element
+    to include altitude if the crs is <code>3d</code>.  The number of values in the <code>pos</code>
+    element MUST be 2 if the crs is <code>2d</code> and 3 if the crs is <code>3d</code>.  An error
+    will be generated for any other combination.</li>
+<li>
+<p>The angle unit-of-measure for shapes that use angles should now be included
+    in the respective parameter.  The default is <code>degrees</code>. There were some
+    inconsistent references to <code>orientation_uom</code> in some documentation but that
+    parameter never worked and is now removed.  See examples below.
+  Examples...
+  <code>location_info = shape="Sphere", pos="39.0 -105.0 1620", radius="20"
+    location_info = shape="Point", crs="3d", pos="39.0 -105.0 1620"
+    location_info = shape="Point", pos="39.0 -105.0"
+    location_info = shape=Ellipsoid, pos="39.0 -105.0 1620", semiMajorAxis="20"
+                  semiMinorAxis="10", verticalAxis="0", orientation="25 degrees"
+    pidf_element_id = ${CHANNEL(name)}-${EXTEN}
+    device_id = mac:001122334455
+    Set(GEOLOC_PROFILE(pidf_element_id)=${CHANNEL(name)}/${EXTEN})</code></p>
+</li>
+<li>
+<h4>pjsip: Move from threadpool to taskpool</h4>
+<p>The threadpool_* options in pjsip.conf have now
+  been deprecated though they continue to be read and used.
+  They have been replaced with taskpool options that give greater
+  control over the underlying taskpool used for PJSIP. An alembic
+  upgrade script has been added to add these options to realtime
+  as well.</p>
+</li>
+<li>
+<h4>app_directed_pickup.c: Change some log messages from NOTICE to VERBOSE.</h4>
+<p>In an effort to reduce log spam, two normal progress
+  "pickup attempted" log messages from app_directed_pickup have been changed
+  from NOTICE to VERBOSE(3).  This puts them on par with other normal
+  dialplan progress messages.</p>
+</li>
+</ul>
+<h3>Developer Notes:</h3>
+<ul>
+<li>
+<h4>ccss:  Add option to ccss.conf to globally disable it.</h4>
+<p>A new API ast_is_cc_enabled() has been added.  It should be
+  used to ensure that CCSS is enabled before making any other ast_cc_* calls.</p>
+</li>
+<li>
+<h4>chan_websocket: Add ability to place a MARK in the media stream.</h4>
+<p>Apps can now send a <code>MARK_MEDIA</code> command with an optional
+  <code>correlation_id</code> parameter to chan_websocket which will be placed in the
+  media frame queue. When that frame is dequeued after all intervening media
+  has been played to the core, chan_websocket will send a
+  <code>MEDIA_MARK_PROCESSED</code> event to the app with the same correlation_id
+  (if any).</p>
+</li>
+<li>
+<h4>chan_websocket: Add capability for JSON control messages and events.</h4>
+<p>The chan_websocket plain-text control and event messages are now
+  deprecated (but remain the default) in favor of JSON formatted messages.
+  See https://docs.asterisk.org/Configuration/Channel-Drivers/WebSocket for
+  more information.
+  A "transport_data" parameter has been added to the</p>
+</li>
+</ul>
+<h3>Commit Authors:</h3>
+<ul>
+<li>Alexei Gradinari: (1)</li>
+<li>C. Maj: (1)</li>
+<li>Daouda Taha: (1)</li>
+<li>Etienne Lessard: (1)</li>
+<li>George Joseph: (11)</li>
+<li>Joe Garlick: (2)</li>
+<li>Joshua C. Colp: (1)</li>
+<li>Justin T. Gibbs: (1)</li>
+<li>Kristian F. Høgh: (1)</li>
+<li>Maximilian Fridrich: (2)</li>
+<li>Michal Hajek: (1)</li>
+<li>Mike Bradeen: (2)</li>
+<li>Nathaniel Wesley Filardo: (1)</li>
+<li>Naveen Albert: (3)</li>
+<li>Peter Krall: (1)</li>
+<li>Sean Bright: (17)</li>
+<li>Sven Kube: (1)</li>
+<li>Tinet-mucw: (2)</li>
+<li>phoneben: (5)</li>
+<li>sarangr7: (1)</li>
+</ul>
+<h2>Issue and Commit Detail:</h2>
+<h3>Closed Issues:</h3>
+<ul>
+<li>60: [bug]: Can't enter any of UTF-8 character in the CLI prompt</li>
+<li>1417: [bug]: static code analysis issues in abstract_jb</li>
+<li>1421: [bug]: static code analysis issues in apps/app_dtmfstore.c</li>
+<li>1427: [bug]: static code analysis issues in apps/app_stream_echo.c</li>
+<li>1430: [bug]: static code analysis issues in res/stasis/app.c</li>
+<li>1442: [bug]: static code analysis issues in main/bridge_basic.c</li>
+<li>1444: [bug]: static code analysis issues in bridges/bridge_simple.c</li>
+<li>1446: [bug]: static code analysis issues in bridges/bridge_softmix.c</li>
+<li>1531: [bug]: Memory corruption in manager.c due to double free of criteria variable.</li>
+<li>1546: [improvement]: Not able to pass the custom variables over the websockets using external Media with ari client library nodejs</li>
+<li>1552: [improvement]: chan_dahdi.conf.sample: Warnings for callgroup/pickupgroup in stock config</li>
+<li>1563: [bug]:  chan_websocket.c: Wrong variable used in ast_strings_equal() (payload instead of command)</li>
+<li>1566: [improvement]: Improve Taskprocessor logging</li>
+<li>1568: [improvement]: Queue is playing announcements when announce_to_first_user is false</li>
+<li>1572: [improvement]: List modules at various support levels</li>
+<li>1574: [improvement]: Add playback progress acknowledgment for WebSocket media (per-chunk or byte-level acknowledgment)</li>
+<li>1576: [improvement]: res_pjsip_messaging: Follow 3xx redirect messages if redirect_method=uri_pjsip</li>
+<li>1585: [bug]: cli 'stasis show topics' calls a read lock which freezes asterisk till the process is done</li>
+<li>1587: [bug]: chan_websocket terminates websocket on CNG/non-audio</li>
+<li>1590: [bug]: Fix: Use ast instead of p-&gt;chan to get the DIALSTATUS variable</li>
+<li>1597: [bug]: app_reload: Reload() without arguments doesn't work.</li>
+<li>1599: [bug]: pbx.c: Running "dialplan reload" shows wrong number of contexts</li>
+<li>1604: [bug]: asterisk crashes during dtmf input thru websocket -- fixed</li>
+<li>1609: [bug]: Crash: Double free in ast_channel_destructor leading to SIGABRT (Asterisk 20.17.0) with C++ channel storage</li>
+<li>1635: [bug]: Regression: Fix endpoint memory leak</li>
+<li>1638: [bug]: Channel drivers creating ephemeral channels create per-endpoint topics and cache when they shouldn't</li>
+<li>1643: [bug]: chan_websocket crash when channel hung up before read thread is started</li>
+<li>1645: [bug]: chan_websocket stuck channels</li>
+<li>1647: [bug]: "presencestate change" CLI command doesn't accept NOT_SET</li>
+<li>1648: [bug]: ARI announcer channel can cause crash in specific scenario due to unreffing of borrowed format</li>
+<li>1660: [bug]: missing hangup cause for ARI ChannelDestroyed when Originated channel times out</li>
+<li>1662: [improvement]: Include remote IP address in http.c “Requested URI has no handler” log entries</li>
+<li>1667: [bug]: Multiple geolocation issues with rendering XML</li>
+<li>1673: [bug]: A crash occurs during the call to mixmonitor_ds_remove_and_free</li>
+<li>1675: [bug]: res_pjsip_mwi: off-nominal endpoint ao2 reference leak in mwi_get_notify_data()</li>
+<li>1681: [bug]: stasis/control.c: Memory leak of hangup_time in set-timeout</li>
+<li>1683: [improvement]: chan_websocket: Use channel FD polling to read data from websocket instead of dedicated thread.</li>
+<li>1692: [improvement]:  Add comment to asterisk.conf.sample clarifying that template sections are ignored</li>
+<li>1700: [improvement]: Improve sorcery cache populate</li>
+<li>1711: [bug]: Missing Contact: header in 200 OK</li>
+</ul>
+<h3>Commits By Author:</h3>
+<ul>
+<li>
+<h4>Alexei Gradinari (1):</h4>
+</li>
+<li>
+<h4>C. Maj (1):</h4>
+</li>
+<li>
+<h4>Daouda Taha (1):</h4>
+</li>
+<li>
+<h4>Etienne Lessard (1):</h4>
+</li>
+<li>
+<h4>George Joseph (11):</h4>
+</li>
+<li>
+<h4>Joe Garlick (2):</h4>
+</li>
+<li>
+<h4>Joshua C. Colp (1):</h4>
+</li>
+<li>
+<h4>Justin T. Gibbs (1):</h4>
+</li>
+<li>
+<h4>Kristian F. Høgh (1):</h4>
+</li>
+<li>
+<h4>Maximilian Fridrich (2):</h4>
+</li>
+<li>
+<h4>Michal Hajek (1):</h4>
+</li>
+<li>
+<h4>Mike Bradeen (2):</h4>
+</li>
+<li>
+<h4>Nathaniel Wesley Filardo (1):</h4>
+</li>
+<li>
+<h4>Naveen Albert (3):</h4>
+</li>
+<li>
+<h4>Peter Krall (1):</h4>
+</li>
+<li>
+<h4>Sean Bright (17):</h4>
+</li>
+<li>
+<h4>Sven Kube (1):</h4>
+</li>
+<li>
+<h4>Tinet-mucw (2):</h4>
+</li>
+<li>
+<h4>phoneben (5):</h4>
+</li>
+<li>
+<h4>sarangr7 (1):</h4>
+</li>
+</ul>
+<h3>Commit List:</h3>
+<ul>
+<li>chan_websocket: Fixed Ping/Pong messages hanging up the websocket channel</li>
+<li>cli.c: Allow 'channel request hangup' to accept patterns.</li>
+<li>chan_sip.c: Ensure Contact header is set on responses to INVITE.</li>
+<li>res_sorcery_memory_cache: Reduce cache lock time for sorcery memory cache populate command</li>
+<li>Add comment to asterisk.conf.sample clarifying that template sections are ignored</li>
+<li>chan_websocket: Use the channel's ability to poll fds for the websocket read.</li>
+<li>asterisk.c: Allow multi-byte characters on the Asterisk CLI.</li>
+<li>func_presencestate.c: Allow <code>NOT_SET</code> to be set from CLI.</li>
+<li>res/ari/resource_bridges.c: Normalize channel_format ref handling for bridge media</li>
+<li>res_geolocation:  Fix multiple issues with XML generation.</li>
+<li>stasis/control.c: Add destructor to timeout_datastore.</li>
+<li>func_talkdetect.c: Remove reference to non-existent variables.</li>
+<li>configure.ac: use AC_PATH_TOOL for nm</li>
+<li>res_pjsip_mwi: Fix off-nominal endpoint ao2 ref leak in mwi_get_notify_data</li>
+<li>res_pjsip_messaging: Add support for following 3xx redirects</li>
+<li>res_pjsip: Introduce redirect module for handling 3xx responses</li>
+<li>app_mixmonitor.c: Fix crash in mixmonitor_ds_remove_and_free when datastore is NULL</li>
+<li>res_pjsip_refer: don't defer session termination for ari transfer</li>
+<li>chan_dahdi.conf.sample: Avoid warnings with default configs.</li>
+<li>main/dial.c: Set channel hangup cause on timeout in handle_timeout_trip</li>
+<li>cel: Add missing manager documentation.</li>
+<li>res_odbc: Use SQL_SUCCEEDED() macro where applicable.</li>
+<li>rtp/rtcp: Configure dual-stack behavior via IPV6_V6ONLY</li>
+<li>http.c: Include remote address in URI handler message.</li>
+<li>pjsip: Move from threadpool to taskpool</li>
+<li>Disable device state caching for ephemeral channels</li>
+<li>chan_websocket: Add locking in send_event and check for NULL websocket handle.</li>
+<li>Fix false null-deref warning in channel_state</li>
+<li>endpoint.c: Plug a memory leak in ast_endpoint_shutdown().</li>
+<li>Revert "func_hangupcause.c: Add access to Reason headers via HANGUPCAUSE()"</li>
+<li>cel_manager.c: Correct manager event mask for CEL events.</li>
+<li>app_queue.c: Update docs to correct QueueMemberPause event name.</li>
+<li>taskprocessors: Improve logging and add new cli options</li>
+<li>manager: fix double free of criteria variable when adding filter</li>
+<li>app_stream_echo.c: Check that stream is non-NULL before dereferencing.</li>
+<li>abstract_jb.c: Remove redundant timer check per static analysis.</li>
+<li>channelstorage_cpp: Fix fallback return value in channelstorage callback</li>
+<li>ccss:  Add option to ccss.conf to globally disable it.</li>
+<li>app_directed_pickup.c: Change some log messages from NOTICE to VERBOSE.</li>
+<li>chan_websocket: Fix crash on DTMF_END event.</li>
+<li>chan_websocket.c: Tolerate other frame types</li>
+<li>app_reload: Fix Reload() without arguments.</li>
+<li>pbx.c: Print new context count when reloading dialplan.</li>
+<li>Makefile: Add module-list-* targets.</li>
+<li>core_unreal.c: Use ast instead of p-&gt;chan to get the DIALSTATUS variable</li>
+<li>ast_coredumper: Fix multiple issues</li>
+<li>app_mixmonitor: Add 's' (skip) option to delay recording.</li>
+<li>stasis: switch stasis show topics temporary container from list - RBtree</li>
+<li>app_dtmfstore: Avoid a potential buffer overflow.</li>
+<li>main: Explicitly mark case statement fallthrough as such.</li>
+<li>bridge_softmix: Return early on topology allocation failure.</li>
+<li>bridge_simple: Increase code verbosity for clarity.</li>
+<li>app_queue.c: Only announce to head caller if announce_to_first_user</li>
+<li>chan_websocket: Add ability to place a MARK in the media stream.</li>
+<li>chan_websocket: Add capability for JSON control messages and events.</li>
+<li>build: Add menuselect options to facilitate code tracing and coverage</li>
+</ul>
+<h3>Commit Details:</h3>
+<h4>chan_websocket: Fixed Ping/Pong messages hanging up the websocket channel</h4>
+<p>Author: Joe Garlick
+  Date:   2026-01-15</p>
+<p>When chan_websocket received a Ping or a Pong opcode it would cause the channel to hangup. This change allows Ping/Pong opcodes and allows them to silently pass</p>
+<h4>cli.c: Allow 'channel request hangup' to accept patterns.</h4>
+<p>Author: Sean Bright
+  Date:   2026-01-05</p>
+<p>This extends 'channel request hangup' to accept multiple channel
+  names, a POSIX Extended Regular Expression, a glob-like pattern, or a
+  combination of all of them.</p>
+<p>UserNote: The 'channel request hangup' CLI command now accepts
+  multiple channel names, POSIX Extended Regular Expressions, glob-like
+  patterns, or a combination of all of them. See the CLI command 'core
+  show help channel request hangup' for full details.</p>
+<h4>chan_sip.c: Ensure Contact header is set on responses to INVITE.</h4>
+<p>Author: Etienne Lessard
+  Date:   2026-01-09</p>
+<p>From the original report* on ASTERISK-24915:</p>
+<pre><code>&gt; The problem occurs because the handle_incoming function updates
+p-&gt;method to req-&gt;method (p being a struct sip_pvt *) before
+checking if the CSeq makes sense, and if the CSeq is unexpected, it
+does not reset p-&gt;method to its old value before returning. Then,
+when asterisk sends the 200 OK response for the original INVITE,
+since p-&gt;method is now equal to SIP_ACK (instead of SIP_INVITE), the
+resp_need_contact function (called from respprep) says "its a SIP
+ACK, no need to add a Contact header for the response", which is
+wrong, since it's not a SIP ACK but a SIP INVITE dialog.
+</code></pre>
+<p>I have confirmed that the analysis is correct and that the patch fixes
+  the behavior.</p>
+<p>*: https://issues-archive.asterisk.org/ASTERISK-24915</p>
+<p>Resolves: #1711</p>
+<h4>res_sorcery_memory_cache: Reduce cache lock time for sorcery memory cache populate command</h4>
+<p>Author: Mike Bradeen
+  Date:   2026-01-06</p>
+<p>Reduce cache lock time for AMI and CLI sorcery memory cache populate
+  commands by adding a new populate_lock to the sorcery_memory_cache
+  struct which is locked separately from the existing cache lock so that
+  the cache lock can be maintained for a reduced time, locking only when
+  the cache objects are removed and re-populated.</p>
+<p>Resolves: #1700</p>
+<p>UserNote: The AMI command sorcery memory cache populate will now
+  return an error if there is an internal error performing the populate.
+  The CLI command will display an error in this case as well.</p>
+<h4>Add comment to asterisk.conf.sample clarifying that template sections are ignored</h4>
+<p>Author: phoneben
+  Date:   2026-01-05</p>
+<p>Add comment to asterisk.conf.sample clarifying that template sections are ignored.</p>
+<p>Resolves: #1692</p>
+<h4>chan_websocket: Use the channel's ability to poll fds for the websocket read.</h4>
+<p>Author: George Joseph
+  Date:   2025-12-30</p>
+<p>We now add the websocket's file descriptor to the channel's fd array and let
+  it poll for data availability instead if having a dedicated thread that
+  does the polling. This eliminates the thread and allows removal of most
+  explicit locking since the core channel code will lock the channel to prevent
+  simultaneous calls to webchan_read, webchan_hangup, etc.</p>
+<p>While we were here, the hangup code was refactored to use ast_hangup_with_cause
+  instead of directly queueing an AST_CONTROL_HANGUP frame.  This allows us
+  to set hangup causes and generate snapshots.</p>
+<p>For a bit of extra debugging, a table of websocket close codes was added
+  to http_websocket.h with an accompanying "to string" function added to
+  res_http_websocket.c</p>
+<p>Resolves: #1683</p>
+<h4>asterisk.c: Allow multi-byte characters on the Asterisk CLI.</h4>
+<p>Author: Sean Bright
+  Date:   2025-12-13</p>
+<p>Versions of libedit that support Unicode expect that the
+  EL_GETCFN (the function that does character I/O) will fill in a
+  <code>wchar_t</code> with a character, which may be multi-byte. The built-in
+  function that libedit provides, but does not expose with a public API,
+  does properly handle multi-byte sequences.</p>
+<p>Due to the design of Asterisk's console processing loop, Asterisk
+  provides its own implementation which does not handle multi-byte
+  characters. Changing Asterisk to use libedit's built-in function would
+  be ideal, but would also require changing some fundamental things
+  about console processing which could be fairly disruptive.</p>
+<p>Instead, we bring in libedit's <code>read_char</code> implementation and modify
+  it to suit our specific needs.</p>
+<p>Resolves: #60</p>
+<h4>func_presencestate.c: Allow <code>NOT_SET</code> to be set from CLI.</h4>
+<p>Author: Sean Bright
+  Date:   2026-01-01</p>
+<p>Resolves: #1647</p>
+<h4>res/ari/resource_bridges.c: Normalize channel_format ref handling for bridge media</h4>
+<p>Author: Peter Krall
+  Date:   2025-12-17</p>
+<p>Always take an explicit reference on the format used for bridge playback
+  and recording channels, regardless of where it was sourced, and release
+  it after prepare_bridge_media_channel. This aligns the code paths and
+  avoids mixing borrowed and owned references while preserving behavior.</p>
+<p>Fixes: #1648</p>
+<h4>res_geolocation:  Fix multiple issues with XML generation.</h4>
+<p>Author: George Joseph
+  Date:   2025-12-17</p>
+<ul>
+<li>3d positions were being rendered without an enclosing <code>&lt;gml:pos&gt;</code>
+    element resulting in invalid XML.</li>
+<li>There was no way to set the <code>id</code> attribute on the enclosing <code>tuple</code>, <code>device</code>
+    and <code>person</code> elements.</li>
+<li>There was no way to set the value of the <code>deviceID</code> element.</li>
+<li>Parsing of degree and radian UOMs was broken resulting in them appearing
+    outside an XML element.</li>
+<li>The UOM schemas for degrees and radians were reversed.</li>
+<li>The Ellipsoid shape was missing and the Ellipse shape was defined multiple
+    times.</li>
+<li>The <code>crs</code> location_info parameter, although documented, didn't work.</li>
+<li>The <code>pos3d</code> location_info parameter appears in some documentation but
+    wasn't being parsed correctly.</li>
+<li>The retransmission-allowed and retention-expiry sub-elements of usage-rules
+    were using the <code>gp</code> namespace instead of the <code>gbp</code> namespace.</li>
+</ul>
+<p>In addition to fixing the above, several other code refactorings were
+  performed and the unit test enhanced to include a round trip
+  XML -&gt; eprofile -&gt; XML validation.</p>
+<p>Resolves: #1667</p>
+<p>UserNote: Geolocation: Two new optional profile parameters have been added.
+  * <code>pidf_element_id</code> which sets the value of the <code>id</code> attribute on the top-level
+    PIDF-LO <code>device</code>, <code>person</code> or <code>tuple</code> elements.
+  * <code>device_id</code> which sets the content of the <code>&lt;deviceID&gt;</code> element.
+  Both parameters can include channel variables.</p>
+<p>UpgradeNote: Geolocation: In order to correct bugs in both code and
+  documentation, the following changes to the parameters for GML geolocation
+  locations are now in effect:
+  * The documented but unimplemented <code>crs</code> (coordinate reference system) element
+    has been added to the location_info parameter that indicates whether the <code>2d</code>
+    or <code>3d</code> reference system is to be used. If the crs isn't valid for the shape
+    specified, an error will be generated. The default depends on the shape
+    specified.
+  * The Circle, Ellipse and ArcBand shapes MUST use a <code>2d</code> crs.  If crs isn't
+    specified, it will default to <code>2d</code> for these shapes.
+    The Sphere, Ellipsoid and Prism shapes MUST use a <code>3d</code> crs. If crs isn't
+    specified, it will default to <code>3d</code> for these shapes.
+    The Point and Polygon shapes may use either crs.  The default crs is <code>2d</code>
+    however so if <code>3d</code> positions are used, the crs must be explicitly set to <code>3d</code>.
+  * The <code>geoloc show gml_shape_defs</code> CLI command has been updated to show which
+    coordinate reference systems are valid for each shape.
+  * The <code>pos3d</code> element has been removed in favor of allowing the <code>pos</code> element
+    to include altitude if the crs is <code>3d</code>.  The number of values in the <code>pos</code>
+    element MUST be 2 if the crs is <code>2d</code> and 3 if the crs is <code>3d</code>.  An error
+    will be generated for any other combination.
+  * The angle unit-of-measure for shapes that use angles should now be included
+    in the respective parameter.  The default is <code>degrees</code>. There were some
+    inconsistent references to <code>orientation_uom</code> in some documentation but that
+    parameter never worked and is now removed.  See examples below.
+  Examples...
+  <code>location_info = shape="Sphere", pos="39.0 -105.0 1620", radius="20"
+    location_info = shape="Point", crs="3d", pos="39.0 -105.0 1620"
+    location_info = shape="Point", pos="39.0 -105.0"
+    location_info = shape=Ellipsoid, pos="39.0 -105.0 1620", semiMajorAxis="20"
+                  semiMinorAxis="10", verticalAxis="0", orientation="25 degrees"
+    pidf_element_id = ${CHANNEL(name)}-${EXTEN}
+    device_id = mac:001122334455
+    Set(GEOLOC_PROFILE(pidf_element_id)=${CHANNEL(name)}/${EXTEN})</code></p>
+<h4>stasis/control.c: Add destructor to timeout_datastore.</h4>
+<p>Author: George Joseph
+  Date:   2025-12-31</p>
+<p>The timeout_datastore was missing a destructor resulting in a leak
+  of 16 bytes for every outgoing ARI call.</p>
+<p>Resolves: #1681</p>
+<h4>func_talkdetect.c: Remove reference to non-existent variables.</h4>
+<p>Author: Sean Bright
+  Date:   2025-12-30</p>
+<h4>configure.ac: use AC_PATH_TOOL for nm</h4>
+<p>Author: Nathaniel Wesley Filardo
+  Date:   2025-11-27</p>
+<p><code>nm</code> might, especially in cross-compilation scenarios, be available but prefixed with the target triple. So: use <code>AC_PATH_TOOL</code> rather than <code>AC_PATH_PROG</code> to find it. (See https://www.gnu.org/software/autoconf/manual/autoconf-2.68/html_node/Generic-Programs.html .)</p>
+<p>Found and proposed fix tested by cross-compiling Asterisk using Nixpkgs on x86_64 targeting aarch64. :)</p>
+<h4>res_pjsip_mwi: Fix off-nominal endpoint ao2 ref leak in mwi_get_notify_data</h4>
+<p>Author: Alexei Gradinari
+  Date:   2025-12-29</p>
+<p>Delay acquisition of the ast_sip_endpoint reference in mwi_get_notify_data()
+  to avoid an ao2 ref leak on early-return error paths.</p>
+<p>Move ast_sip_subscription_get_endpoint() to just before first use so all
+  acquired references are properly cleaned up.</p>
+<p>Fixes: #1675</p>
+<h4>res_pjsip_messaging: Add support for following 3xx redirects</h4>
+<p>Author: Maximilian Fridrich
+  Date:   2025-11-07</p>
+<p>This commit integrates the redirect module into res_pjsip_messaging
+  to enable following 3xx redirect responses for outgoing SIP MESSAGEs.</p>
+<p>When follow_redirect_methods contains 'message' on an endpoint, Asterisk
+  will now follow 3xx redirect responses for MESSAGEs, similar to how
+  it behaves for INVITE responses.</p>
+<p>Resolves: #1576</p>
+<p>UserNote: A new pjsip endpoint option follow_redirect_methods was added.
+  This option is a comma-delimited, case-insensitive list of SIP methods
+  for which SIP 3XX redirect responses are followed. An alembic upgrade
+  script has been added for adding this new option to the Asterisk
+  database.</p>
+<h4>res_pjsip: Introduce redirect module for handling 3xx responses</h4>
+<p>Author: Maximilian Fridrich
+  Date:   2025-11-07</p>
+<p>This commit introduces a new redirect handling module that provides
+  infrastructure for following SIP 3xx redirect responses. The redirect
+  functionality respects the endpoint's redirect_method setting and only
+  follows redirects when set to 'uri_pjsip'. This infrastructure can be
+  used by any PJSIP module that needs to handle 3xx redirect responses.</p>
+<h4>app_mixmonitor.c: Fix crash in mixmonitor_ds_remove_and_free when datastore is NULL</h4>
+<p>Author: Tinet-mucw
+  Date:   2025-12-25</p>
+<p>The datastore may be NULL, so a null pointer check needs to be added.</p>
+<p>Resolves: #1673</p>
+<h4>res_pjsip_refer: don't defer session termination for ari transfer</h4>
+<p>Author: Sven Kube
+  Date:   2025-10-23</p>
+<p>Allow session termination during an in progress ari handled transfer.</p>
+<h4>chan_dahdi.conf.sample: Avoid warnings with default configs.</h4>
+<p>Author: Naveen Albert
+  Date:   2025-10-23</p>
+<p>callgroup and pickupgroup may only be specified for FXO-signaled channels;
+  however, the chan_dahdi sample config had these options uncommented in
+  the [channels] section, thus applying these settings to all channels,
+  resulting in warnings. Comment these out so there are no warnings with
+  an unmodified sample config.</p>
+<p>Resolves: #1552</p>
+<h4>main/dial.c: Set channel hangup cause on timeout in handle_timeout_trip</h4>
+<p>Author: sarangr7
+  Date:   2025-12-18</p>
+<p>When dial attempts timeout in the core dialing API, the channel's hangup
+  cause was not being set before hanging up. Only the ast_dial_channel
+  structure's internal cause field was updated, but the actual ast_channel
+  hangup cause remained unset.</p>
+<p>This resulted in incorrect or missing hangup cause information being
+  reported through CDRs, AMI events, and other mechanisms that read the
+  channel's hangup cause when dial timeouts occurred via applications
+  using the dialing API (FollowMe, Page, etc.).</p>
+<p>The fix adds proper channel locking and sets AST_CAUSE_NO_ANSWER on
+  the channel before calling ast_hangup(), ensuring consistent hangup
+  cause reporting across all interfaces.</p>
+<p>Resolves: #1660</p>
+<h4>cel: Add missing manager documentation.</h4>
+<p>Author: Sean Bright
+  Date:   2025-12-12</p>
+<p>The LOCAL_OPTIMIZE_BEGIN, STREAM_BEGIN, STREAM_END, and DTMF CEL
+  events were not all documented in the CEL configuration file or the
+  manager documentation for the CEL event.</p>
+<h4>res_odbc: Use SQL_SUCCEEDED() macro where applicable.</h4>
+<p>Author: Sean Bright
+  Date:   2025-12-17</p>
+<p>This is just a cleanup of some repetitive code.</p>
+<h4>rtp/rtcp: Configure dual-stack behavior via IPV6_V6ONLY</h4>
+<p>Author: Justin T. Gibbs
+  Date:   2025-12-21</p>
+<p>Dual-stack behavior (simultaneous listening for IPV4 and IPV6
+  connections on a single socket) is required by Asterisk's ICE
+  implementation.  On systems with the IPV6_V6ONLY sockopt, set
+  the option to 0 (dual-stack enabled) when binding to the IPV6
+  any address. This ensures correct behavior regardless of the
+  system's default dual-stack configuration.</p>
+<h4>http.c: Include remote address in URI handler message.</h4>
+<p>Author: Sean Bright
+  Date:   2025-12-22</p>
+<p>Resolves: #1662</p>
+<h4>pjsip: Move from threadpool to taskpool</h4>
+<p>Author: Joshua C. Colp
+  Date:   2025-12-04</p>
+<p>This change moves the PJSIP module from the threadpool API
+  to the taskpool API. PJSIP-specific implementations for
+  task usage have been removed and replaced with calls to
+  the optimized taskpool implementations instead. The need
+  for a pool of serializers has also been removed as
+  taskpool inherently provides this. The default settings
+  have also been changed to be more realistic for common
+  usage.</p>
+<p>UpgradeNote: The threadpool_* options in pjsip.conf have now
+  been deprecated though they continue to be read and used.
+  They have been replaced with taskpool options that give greater
+  control over the underlying taskpool used for PJSIP. An alembic
+  upgrade script has been added to add these options to realtime
+  as well.</p>
+<h4>Disable device state caching for ephemeral channels</h4>
+<p>Author: phoneben
+  Date:   2025-12-09</p>
+<p>chan_audiosocket/chan_rtp/res_stasis_snoop: Disable device state caching for ephemeral channels</p>
+<p>Resolves: #1638</p>
+<h4>chan_websocket: Add locking in send_event and check for NULL websocket handle.</h4>
+<p>Author: George Joseph
+  Date:   2025-12-10</p>
+<p>On an outbound websocket connection, when the triggering caller hangs up,
+  webchan_hangup() closes the outbound websocket session and sets the websocket
+  session handle to NULL.  If the hangup happened in the tiny window between
+  opening the outbound websocket connection and before read_thread_handler()
+  was able to send the MEDIA_START message, it could segfault because the
+  websocket session handle was NULL.  If it didn't actually segfault, there was
+  also the possibility that the websocket instance wouldn't get cleaned up which
+  could also cause the channel snapshot to not get cleaned up.  That could
+  cause memory leaks and <code>core show channels</code> to list phantom WebSocket
+  channels.</p>
+<p>To prevent the race, the send_event() macro now locks the websocket_pvt
+  instance and checks the websocket session handle before attempting to send
+  the MEDIA_START message.</p>
+<p>Resolves: #1643
+  Resolves: #1645</p>
+<h4>Fix false null-deref warning in channel_state</h4>
+<p>Author: phoneben
+  Date:   2025-12-08</p>
+<p>Resolve analyzer warning in channel_state by checking AST_FLAG_DEAD on snapshot, which is guaranteed non-NULL.</p>
+<p>Resolves: #1430</p>
+<h4>endpoint.c: Plug a memory leak in ast_endpoint_shutdown().</h4>
+<p>Author: George Joseph
+  Date:   2025-12-08</p>
+<p>Commit 26795be introduced a memory leak of ast_endpoint when
+  ast_endpoint_shutdown() was called. The leak occurs only if a configuration
+  change removes an endpoint and isn't related to call volume or the length of
+  time asterisk has been running.  An ao2_ref(-1) has been added to
+  ast_endpoint_shutdown() to plug the leak.</p>
+<p>Resolves: #1635</p>
+<h4>Revert "func_hangupcause.c: Add access to Reason headers via HANGUPCAUSE()"</h4>
+<p>Author: Sean Bright
+  Date:   2025-12-03</p>
+<p>This reverts commit 517766299093d7a9798af68b39951ed8b2469836.</p>
+<p>For rationale, see #1621 and #1606</p>
+<h4>cel_manager.c: Correct manager event mask for CEL events.</h4>
+<p>Author: Sean Bright
+  Date:   2025-12-05</p>
+<p>There is no EVENT_FLAG_CEL and these events are raised with as
+  EVENT_FLAG_CALL.</p>
+<h4>app_queue.c: Update docs to correct QueueMemberPause event name.</h4>
+<p>Author: Sean Bright
+  Date:   2025-12-04</p>
+<h4>taskprocessors: Improve logging and add new cli options</h4>
+<p>Author: Mike Bradeen
+  Date:   2025-10-28</p>
+<p>This change makes some small changes to improve log readability in
+  addition to the following changes:</p>
+<p>Modified 'core show taskprocessors' to now show Low time and High time
+  for task execution.</p>
+<p>New command 'core show taskprocessor name <taskprocessor-name>' to dump
+  taskprocessor info and current queue.</p>
+<p>Addionally, a new test was added to demonstrate the 'show taskprocessor
+  name' functionality:
+  test execute category /main/taskprocessor/ name taskprocessor_cli_show</p>
+<p>Setting 'core set debug 3 taskprocessor.c' will now log pushed tasks.
+  (Warning this is will cause extremely high levels of logging at even
+  low traffic levels.)</p>
+<p>Resolves: #1566</p>
+<p>UserNote: New CLI command has been added -
+  core show taskprocessor name <taskprocessor-name></p>
+<h4>manager: fix double free of criteria variable when adding filter</h4>
+<p>Author: Michal Hajek
+  Date:   2025-10-13</p>
+<p>Signed-off-by: Michal Hajek <a href="&#109;&#97;&#105;&#108;&#116;&#111;&#58;&#109;&#105;&#99;&#104;&#97;&#108;&#46;&#104;&#97;&#106;&#101;&#107;&#64;&#100;&#97;&#107;&#116;&#101;&#108;&#97;&#46;&#99;&#111;&#109;">&#109;&#105;&#99;&#104;&#97;&#108;&#46;&#104;&#97;&#106;&#101;&#107;&#64;&#100;&#97;&#107;&#116;&#101;&#108;&#97;&#46;&#99;&#111;&#109;</a></p>
+<p>Fixes: #1531</p>
+<h4>app_stream_echo.c: Check that stream is non-NULL before dereferencing.</h4>
+<p>Author: Sean Bright
+  Date:   2025-12-01</p>
+<p>Also re-order and rename the arguments of <code>stream_echo_write_error</code> to
+  match those of <code>ast_write_stream</code> for consistency.</p>
+<p>Resolves: #1427</p>
+<h4>abstract_jb.c: Remove redundant timer check per static analysis.</h4>
+<p>Author: Sean Bright
+  Date:   2025-12-01</p>
+<p>While this check is technically unnecessary, it also was not harmful.</p>
+<p>The 2 other items mentioned in the linked issue are false positives
+  and require no action.</p>
+<p>Resolves: #1417</p>
+<h4>channelstorage_cpp: Fix fallback return value in channelstorage callback</h4>
+<p>Author: phoneben
+  Date:   2025-11-26</p>
+<p>callback returned the last iterated channel when no match existed, causing invalid channel references and potential double frees. Updated to correctly return NULL when there is no match.</p>
+<p>Resolves: #1609</p>
+<h4>ccss:  Add option to ccss.conf to globally disable it.</h4>
+<p>Author: George Joseph
+  Date:   2025-11-19</p>
+<p>The Call Completion Supplementary Service feature is rarely used but many of
+  it's functions are called by app_dial and channel.c "just in case".  These
+  functions lock and unlock the channel just to see if CCSS is enabled on it,
+  which it isn't 99.99% of the time.</p>
+<p>UserNote: A new "enabled" parameter has been added to ccss.conf.  It defaults
+  to "yes" to preserve backwards compatibility but CCSS is rarely used so
+  setting "enabled = no" in the "general" section can save some unneeded channel
+  locking operations and log message spam.  Disabling ccss will also prevent
+  the func_callcompletion and chan_dahdi modules from loading.</p>
+<p>DeveloperNote: A new API ast_is_cc_enabled() has been added.  It should be
+  used to ensure that CCSS is enabled before making any other ast_cc_* calls.</p>
+<h4>app_directed_pickup.c: Change some log messages from NOTICE to VERBOSE.</h4>
+<p>Author: George Joseph
+  Date:   2025-11-20</p>
+<p>UpgradeNote: In an effort to reduce log spam, two normal progress
+  "pickup attempted" log messages from app_directed_pickup have been changed
+  from NOTICE to VERBOSE(3).  This puts them on par with other normal
+  dialplan progress messages.</p>
+<h4>chan_websocket: Fix crash on DTMF_END event.</h4>
+<p>Author: Sean Bright
+  Date:   2025-11-20</p>
+<p>Resolves: #1604</p>
+<h4>chan_websocket.c: Tolerate other frame types</h4>
+<p>Author: Joe Garlick
+  Date:   2025-11-12</p>
+<p>Currently, if chan_websocket receives an un supported frame like comfort noise it will exit the websocket. The proposed change is to tolerate the other frames by not sending them down the websocket but instead just ignoring them.</p>
+<p>Resolves: #1587</p>
+<h4>app_reload: Fix Reload() without arguments.</h4>
+<p>Author: Naveen Albert
+  Date:   2025-11-17</p>
+<p>Calling Reload() without any arguments is supposed to reload
+  everything (equivalent to a 'core reload'), but actually does
+  nothing. This is because it was calling ast_module_reload with
+  an empty string, and the argument needs to explicitly be NULL.</p>
+<p>Resolves: #1597</p>
+<h4>pbx.c: Print new context count when reloading dialplan.</h4>
+<p>Author: Naveen Albert
+  Date:   2025-11-17</p>
+<p>When running "dialplan reload", the number of contexts reported
+  is initially wrong, as it is the old context count. Running
+  "dialplan reload" a second time returns the correct number of
+  contexts that are loaded. This can confuse users into thinking
+  that the reload didn't work successfully the first time.</p>
+<p>This counter is currently only incremented when iterating the
+  old contexts prior to the context merge; at the very end, get
+  the current number of elements in the context hash table and
+  report that instead. This way, the count is correct immediately
+  whenever a reload occurs.</p>
+<p>Resolves: #1599</p>
+<h4>Makefile: Add module-list-* targets.</h4>
+<p>Author: C. Maj
+  Date:   2025-11-17</p>
+<p>Convenience wrappers for showing modules at various support levels.</p>
+<ul>
+<li>module-list-core</li>
+<li>module-list-extended</li>
+<li>module-list-deprecated</li>
+</ul>
+<p>Resolves: #1572</p>
+<p>UserNote: Try "make module-list-deprecated" to see what modules
+  are on their way out the door.</p>
+<h4>core_unreal.c: Use ast instead of p-&gt;chan to get the DIALSTATUS variable</h4>
+<p>Author: Tinet-mucw
+  Date:   2025-11-13</p>
+<p>After p-&gt;chan = NULL, ast still points to the valid channel object,
+  using ast safely accesses the channel's DIALSTATUS variable before it's fully destroyed</p>
+<p>Resolves: #1590</p>
+<h4>ast_coredumper: Fix multiple issues</h4>
+<p>Author: George Joseph
+  Date:   2025-11-07</p>
+<ul>
+<li>
+<p>Fixed an issue with tarball-coredumps when asterisk was invoked without an
+  absolute path.</p>
+</li>
+<li>
+<p>Fixed an issue with gdb itself segfaulting when trying to get symbols from
+  separate debuginfo files.  The command line arguments needed to be altered
+  such that the gdbinit files is loaded before anything else but the
+  <code>dump-asterisk</code> command is run after full initialization.</p>
+</li>
+</ul>
+<p>In the embedded gdbinit script:</p>
+<ul>
+<li>
+<p>The extract_string_symbol function needed a <code>char *</code> cast to work properly.</p>
+</li>
+<li>
+<p>The s_strip function needed to be updated to continue to work with the
+  cpp_map_name_id channel storage backend.</p>
+</li>
+<li>
+<p>A new function was added to dump the channels when cpp_map_name_id was
+  used.</p>
+</li>
+<li>
+<p>The Channel object was updated to account for the new channel storage
+  backends</p>
+</li>
+<li>
+<p>The show_locks function was refactored to work correctly.</p>
+</li>
+</ul>
+<h4>app_mixmonitor: Add 's' (skip) option to delay recording.</h4>
+<p>Author: Daouda Taha
+  Date:   2025-10-28</p>
+<p>The 's' (skip) option delays MixMonitor recording until the specified number of seconds
+  (can be fractional) have elapsed since MixMonitor was invoked.</p>
+<p>No audio is written to the recording file during this time. If the call ends before this
+  period, no audio will be saved. This is useful for avoiding early audio such as
+  announcements, ringback tones, or other non-essential sounds.</p>
+<p>UserNote: This change introduces a new 's(<seconds>)' (skip) option to the MixMonitor
+  application. Example:
+    MixMonitor(${UNIQUEID}.wav,s(3))</p>
+<p>This skips recording for the first 3 seconds before writing audio to the file.
+  Existing MixMonitor behavior remains unchanged when the 's' option is not used.</p>
+<h4>stasis: switch stasis show topics temporary container from list - RBtree</h4>
+<p>Author: phoneben
+  Date:   2025-11-11</p>
+<p>switch stasis show topics temporary container from list to RB-tree
+  minimizing lock time</p>
+<p>Resolves: #1585</p>
+<h4>app_dtmfstore: Avoid a potential buffer overflow.</h4>
+<p>Author: Sean Bright
+  Date:   2025-11-07</p>
+<p>Prefer snprintf() so we can readily detect if our output was
+  truncated.</p>
+<p>Resolves: #1421</p>
+<h4>main: Explicitly mark case statement fallthrough as such.</h4>
+<p>Author: Sean Bright
+  Date:   2025-11-07</p>
+<p>Resolves: #1442</p>
+<h4>bridge_softmix: Return early on topology allocation failure.</h4>
+<p>Author: Sean Bright
+  Date:   2025-11-07</p>
+<p>Resolves: #1446</p>
+<h4>bridge_simple: Increase code verbosity for clarity.</h4>
+<p>Author: Sean Bright
+  Date:   2025-11-07</p>
+<p>There's no actual problem here, but I can see how it might by
+  confusing.</p>
+<p>Resolves: #1444</p>
+<h4>app_queue.c: Only announce to head caller if announce_to_first_user</h4>
+<p>Author: Kristian F. Høgh
+  Date:   2025-10-30</p>
+<p>Only make announcements to head caller if announce_to_first_user is true</p>
+<p>Fixes: #1568</p>
+<p>UserNote: When announce_to_first_user is false, no announcements are played to the head caller</p>
+<h4>chan_websocket: Add ability to place a MARK in the media stream.</h4>
+<p>Author: George Joseph
+  Date:   2025-11-05</p>
+<p>Also cleaned up a few unused #if blocks, and started sending a few ERROR
+  events back to the apps.</p>
+<p>Resolves: #1574</p>
+<p>DeveloperNote: Apps can now send a <code>MARK_MEDIA</code> command with an optional
+  <code>correlation_id</code> parameter to chan_websocket which will be placed in the
+  media frame queue. When that frame is dequeued after all intervening media
+  has been played to the core, chan_websocket will send a
+  <code>MEDIA_MARK_PROCESSED</code> event to the app with the same correlation_id
+  (if any).</p>
+<h4>chan_websocket: Add capability for JSON control messages and events.</h4>
+<p>Author: George Joseph
+  Date:   2025-10-22</p>
+<p>With recent enhancements to chan_websocket, the original plain-text
+  implementation of control messages and events is now too limiting.  We
+  probably should have used JSON initially but better late than never.  Going
+  forward, enhancements that require control message or event changes will
+  only be done to the JSON variants and the plain-text variants are now
+  deprecated but not yet removed.</p>
+<ul>
+<li>
+<p>Added the chan_websocket.conf config file that allows setting which control
+  message format to use globally: "json" or "plain-text".  "plain-text" is the
+  default for now to preserve existing behavior.</p>
+</li>
+<li>
+<p>Added a dialstring option <code>f(json|plain-text)</code> to allow the format to be
+  overridden on a call-by-call basis.  Again, 'plain-text' is the default for
+  now to preserve existing behavior.</p>
+</li>
+</ul>
+<p>The JSON for commands sent by the app to Asterisk must be...
+  <code>{ "command": "&lt;command&gt;" ... }</code> where <code>&lt;command&gt;</code> is one of <code>ANSWER</code>, <code>HANGUP</code>,
+  <code>START_MEDIA_BUFFERING</code>, etc.  The <code>STOP_MEDIA_BUFFERING</code> command takes an
+  additional, optional parameter to be returned in the corresponding
+  <code>MEDIA_BUFFERING_COMPLETED</code> event:
+  <code>{ "command": "STOP_MEDIA_BUFFERING", "correlation_id": "&lt;correlation id&gt;" }</code>.</p>
+<p>The JSON for events sent from Asterisk to the app will be...
+  <code>{ "event": "&lt;event&gt;", "channel_id": "&lt;channel_id&gt;" ... }</code>.
+  The <code>MEDIA_START</code> event will now look like...</p>
+<p><code>{
+    "event": "MEDIA_START",
+    "connection_id": "media_connection1",
+    "channel": "WebSocket/media_connection1/0x5140001a0040",
+    "channel_id": "1761245643.1",
+    "format": "ulaw",
+    "optimal_frame_size": 160,
+    "ptime": 20,
+    "channel_variables": {
+      "DIALEDPEERNUMBER": "media_connection1/c(ulaw)",
+      "MEDIA_WEBSOCKET_CONNECTION_ID": "media_connection1",
+      "MEDIA_WEBSOCKET_OPTIMAL_FRAME_SIZE": "160"
+    }
+  }</code></p>
+<p>Note the addition of the channel variables which can't be supported
+  with the plain-text formatting.</p>
+<p>The documentation will be updated with the exact formats for all commands
+  and events.</p>
+<p>Resolves: #1546
+  Resolves: #1563</p>
+<p>DeveloperNote: The chan_websocket plain-text control and event messages are now
+  deprecated (but remain the default) in favor of JSON formatted messages.
+  See https://docs.asterisk.org/Configuration/Channel-Drivers/WebSocket for
+  more information.</p>
+<p>DeveloperNote: A "transport_data" parameter has been added to the
+  channels/externalMedia ARI endpoint which, for websocket, allows the caller
+  to specify parameters to be added to the dialstring for the channel.  For
+  instance, <code>"transport_data": "f(json)"</code>.</p>
+<h4>build: Add menuselect options to facilitate code tracing and coverage</h4>
+<p>Author: George Joseph
+  Date:   2025-10-30</p>
+<p>The following options have been added to the menuselect "Compiler Flags"
+  section...</p>
+<p>CODE_COVERAGE: The ability to enable code coverage via the <code>--enable-coverage</code>
+  configure flag has existed for many years but changing it requires
+  re-running ./configure which is painfully slow.  With this commit, you can
+  now enable and disable it via menuselect. Setting this option adds the
+  <code>-ftest-coverage</code> and <code>-fprofile-arcs</code> flags on the gcc and ld command lines.
+  It also sets DONT_OPTIMIZE. Note: If you use the <code>--enable-coverage</code> configure
+  flag, you can't turn it off via menuselect so choose one method and stick to
+  it.</p>
+<p>KEEP_FRAME_POINTERS: This option sets <code>-fno-omit-frame-pointers</code> on the gcc
+  command line which can facilitate debugging with 'gdb' and tracing with 'perf'.
+  Unlike CODE_COVERAGE, this option doesn't depend on optimization being
+  disabled.  It does however conflict with COMPILE_DOUBLE.</p>
+</body></html>
