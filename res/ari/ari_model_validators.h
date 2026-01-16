@@ -750,6 +750,38 @@ int ast_ari_validate_bridge_video_source_changed(struct ast_json *json);
 ari_validator ast_ari_validate_bridge_video_source_changed_fn(void);
 
 /*!
+ * \brief Validator for CallBroadcast.
+ *
+ * Notification that a channel is being broadcast to ARI applications for claiming.
+ *
+ * \param json JSON object to validate.
+ * \retval True (non-zero) if valid.
+ * \retval False (zero) if invalid.
+ */
+int ast_ari_validate_call_broadcast(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_call_broadcast().
+ */
+ari_validator ast_ari_validate_call_broadcast_fn(void);
+
+/*!
+ * \brief Validator for CallClaimed.
+ *
+ * Notification that a broadcast channel has been successfully claimed by an ARI application.
+ *
+ * \param json JSON object to validate.
+ * \retval True (non-zero) if valid.
+ * \retval False (zero) if invalid.
+ */
+int ast_ari_validate_call_claimed(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_call_claimed().
+ */
+ari_validator ast_ari_validate_call_claimed_fn(void);
+
+/*!
  * \brief Validator for ChannelCallerId.
  *
  * Channel changed Caller ID.
@@ -1719,6 +1751,22 @@ ari_validator ast_ari_validate_application_fn(void);
  * - timestamp: Date (required)
  * - bridge: Bridge (required)
  * - old_video_source_id: string
+ * CallBroadcast
+ * - asterisk_id: string
+ * - type: string (required)
+ * - application: string (required)
+ * - timestamp: Date (required)
+ * - called: string
+ * - caller: string
+ * - channel: Channel (required)
+ * - variables: object
+ * CallClaimed
+ * - asterisk_id: string
+ * - type: string (required)
+ * - application: string (required)
+ * - timestamp: Date (required)
+ * - channel: Channel (required)
+ * - winner_app: string (required)
  * ChannelCallerId
  * - asterisk_id: string
  * - type: string (required)
