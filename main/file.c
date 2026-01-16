@@ -1073,7 +1073,7 @@ static enum fsread_res ast_readvideo_callback(struct ast_filestream *s)
         delta = whennext - s->lasttimeout;
         rtp_clock = 90000;
 
-        int delta_ms = (delta * 1000) / rtp_clock;
+        delta_ms = (delta * 1000) / rtp_clock;
 
         if (delta_ms < 60) {
             delay_ms = 60;
