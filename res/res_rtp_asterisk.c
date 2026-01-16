@@ -618,9 +618,10 @@ struct ast_rtcp {
 struct rtp_red {
 	struct ast_frame t140;  /*!< Primary data  */
 	struct ast_frame t140red;   /*!< Redundant t140*/
-	unsigned char pt[AST_RED_MAX_GENERATION];  /*!< Payload types for redundancy data */
-	unsigned char ts[AST_RED_MAX_GENERATION]; /*!< Time stamps */
-	unsigned char len[AST_RED_MAX_GENERATION]; /*!< length of each generation */
+	/* We are encoding the primary payload type also in this array, so we need one more element */
+	unsigned char pt[AST_RED_MAX_GENERATION+1];  /*!< Payload types for redundancy data */
+	unsigned char ts[AST_RED_MAX_GENERATION+1]; /*!< Time stamps */
+	unsigned char len[AST_RED_MAX_GENERATION+1]; /*!< length of each generation */
 	int num_gen; /*!< Number of generations */
 	int schedid; /*!< Timer id */
 	unsigned char t140red_data[64000];
@@ -5599,7 +5600,7 @@ static int ast_rtp_write(struct ast_rtp_instance *instance, struct ast_frame *fr
 	}
 
 	if (rtp->red) {
-		/* return 0; */
+		ast_rtp_red_buffer(instance, frame);
 		/* no primary data or generations to send */
 		if ((frame = red_t140_to_red(rtp->red)) == NULL)
 			return 0;
@@ -8028,9 +8029,11 @@ static struct ast_frame *ast_rtp_interpret(struct ast_rtp_instance *instance, st
 		*data = 0xBD;
 	}
 
-	if (ast_format_cmp(rtp->f.subclass.format, ast_format_t140_red) == AST_FORMAT_CMP_EQUAL) {
-		unsigned char *data = rtp->f.data.ptr;
-		unsigned char *header_end;
+	if (rtp->f.datalen <= 0) {
+		return AST_LIST_FIRST(&frames) ? AST_LIST_FIRST(&frames) : &ast_null_frame;
+	} else if (ast_format_cmp(rtp->f.subclass.format, ast_format_t140_red) == AST_FORMAT_CMP_EQUAL) {
+		unsigned char* data = rtp->f.data.ptr;
+		unsigned char* header_end;
 		int num_generations;
 		int header_length;
 		int len;
@@ -8072,6 +8075,9 @@ static struct ast_frame *ast_rtp_interpret(struct ast_rtp_instance *instance, st
 
 			rtp->f.data.ptr += len;
 			rtp->f.datalen -= len;
+		}
+		if (rtp->f.datalen < 0) {
+			return AST_LIST_FIRST(&frames) ? AST_LIST_FIRST(&frames) : &ast_null_frame;
 		}
 	}
 
@@ -9150,13 +9156,17 @@ static void ast_rtp_remote_address_set(struct ast_rtp_instance *instance, struct
  */
 static int red_write(const void *data)
 {
-	struct ast_rtp_instance *instance = (struct ast_rtp_instance*) data;
-	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+	struct ast_rtp_instance *instance = (struct ast_rtp_instance *) data;
+	struct ast_rtp *rtp;
 
 	ao2_lock(instance);
-	if (rtp->red->t140.datalen > 0) {
-		ast_rtp_write(instance, &rtp->red->t140);
+	rtp = ast_rtp_instance_get_data(instance);
+	if (!rtp || !rtp->red) {
+		ao2_unlock(instance);
+		ast_log(LOG_ERROR, "Could not get rtp from instance or RED handler for real-time text\n");
+		return 0;
 	}
+
 	ao2_unlock(instance);
 
 	return 1;
@@ -9189,7 +9199,15 @@ static int rtp_red_init(struct ast_rtp_instance *instance, int buffer_time, int 
 		rtp->red->t140red_data[x*4] = rtp->red->pt[x];
 	}
 	rtp->red->t140red_data[x*4] = rtp->red->pt[x] = payloads[x]; /* primary pt */
+	ao2_ref(instance, +1);
 	rtp->red->schedid = ast_sched_add(rtp->sched, buffer_time, red_write, instance);
+	if (rtp->red->schedid < 0) {
+		ao2_ref(instance, -1);
+		ast_log(LOG_WARNING, "scheduling red_write for real-time text failed for stream %s\n",
+			 ast_rtp_instance_get_cname(instance));
+	}
+	ast_debug(3, "Init RED for stream %s, primary payload %d with %d generations\n",
+		ast_rtp_instance_get_cname(instance), payloads[x], generations);
 
 	return 0;
 }
@@ -9206,6 +9224,14 @@ static int rtp_red_buffer(struct ast_rtp_instance *instance, struct ast_frame *f
 
 	if (frame->datalen > 0) {
 		if (red->t140.datalen > 0) {
+			/*
+			* Avoid merging command and regular T.140 text packets by flushing the
+			* previous T.140 packets. When realtime text packets are to be sent, the
+			* text is accumulated in a buffer and sent regularly by a timer.  It can
+			* happen that commands such as a backspace, CR, or LF get merged with
+			* regular text. This breaks some UAs. In recent tests it could not be
+			* reproduced, but its probably better to keep it.
+			*/
 			const unsigned char *primary = red->buf_data;
 
 			/* There is something already in the T.140 buffer */
@@ -9392,9 +9418,11 @@ static void ast_rtp_stop(struct ast_rtp_instance *instance)
 		rtp->transport_wide_cc.schedid = -1;
         }
 
-	if (rtp->red) {
+	if (rtp->red && rtp->red->schedid > -1) {
 		ao2_unlock(instance);
-		AST_SCHED_DEL(rtp->sched, rtp->red->schedid);
+		if (!ast_sched_del(rtp->sched, rtp->red->schedid)) {
+			ao2_ref(instance, -1);
+		}
 		ao2_lock(instance);
 		ast_free(rtp->red);
 		rtp->red = NULL;
