@@ -71,6 +71,7 @@
 #include <signal.h>
 #include <netinet/in.h>
 #include <ctype.h>
+#include <inttypes.h>
 
 #include "asterisk/lock.h"
 #include "asterisk/file.h"
@@ -302,6 +303,24 @@
 				</variable>
 				<variable name="QUEUE_WITHDRAW_INFO">
 					<para>If the call was successfully withdrawn from the queue, and the withdraw request was provided with optional withdraw info, the withdraw info will be stored in this variable.</para>
+				</variable>
+				<variable name="QUEUEWAIT">
+					<para>The total amount of time, in seconds, that the caller spent waiting in the queue before being connected to an agent.</para>
+				</variable>
+				<variable name="QUEUEWAIT_MS">
+					<para>The total amount of time, in milliseconds, that the caller spent waiting in the queue before being connected to an agent.</para>
+				</variable>
+				<variable name="ANSWEREDTIME">
+					<para>The amount of time, in seconds, that the caller spent connected to an agent. If the call was never answered, this will be set to 0.</para>
+				</variable>
+				<variable name="ANSWEREDTIME_MS">
+					<para>The amount of time, in milliseconds, that the caller spent connected to an agent.</para>
+				</variable>
+				<variable name="DIALEDTIME">
+					<para>The total amount of time, in seconds, from the start of the call until it ends. This matches the behavior of Dial().</para>
+				</variable>
+				<variable name="DIALEDTIME_MS">
+					<para>The total amount of time, in milliseconds, from the start of the call until it ends.</para>
 				</variable>
 			</variablelist>
 		</description>
@@ -7031,7 +7050,25 @@ static int setup_stasis_subs(struct queue_ent *qe, struct ast_channel *peer, str
 struct queue_end_bridge {
 	struct call_queue *q;
 	struct ast_channel *chan;
+	struct timeval start_time;
 };
+
+/*!
+ * \internal
+ * \brief Helper to set the standard Dial duration variables
+ */
+static void set_duration_var(struct ast_channel *chan, const char *var_base, int64_t duration)
+{
+	char buf[32];
+	char full_var_name[128];
+
+	snprintf(buf, sizeof(buf), "%" PRId64, duration / 1000);
+	pbx_builtin_setvar_helper(chan, var_base, buf);
+
+	snprintf(full_var_name, sizeof(full_var_name), "%s_MS", var_base);
+	snprintf(buf, sizeof(buf), "%" PRId64, duration);
+	pbx_builtin_setvar_helper(chan, full_var_name, buf);
+}
 
 static void end_bridge_callback_data_fixup(struct ast_bridge_config *bconfig, struct ast_channel *originator, struct ast_channel *terminator)
 {
@@ -7045,9 +7082,20 @@ static void end_bridge_callback(void *data)
 	struct queue_end_bridge *qeb = data;
 	struct call_queue *q = qeb->q;
 	struct ast_channel *chan = qeb->chan;
+	int64_t answered_time_ms;
 
 	if (ao2_ref(qeb, -1) == 1) {
 		set_queue_variables(q, chan);
+
+		/* Match Dial() timing variables */
+		ast_channel_lock(chan);
+		ast_channel_stage_snapshot(chan);
+		answered_time_ms = ast_tvdiff_ms(ast_tvnow(), qeb->start_time);
+		set_duration_var(chan, "ANSWEREDTIME", answered_time_ms);
+		set_duration_var(chan, "DIALEDTIME", ast_channel_get_duration_ms(chan));
+		ast_channel_stage_snapshot_done(chan);
+		ast_channel_unlock(chan);
+
 		/* This unrefs the reference we made in try_calling when we allocated qeb */
 		queue_t_unref(q, "Expire bridge_config reference");
 	}
@@ -7604,6 +7652,8 @@ static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_a
 
 		ast_queue_log(queuename, ast_channel_uniqueid(qe->chan), member->membername, "CONNECT", "%ld|%s|%ld", (long) (time(NULL) - qe->start), ast_channel_uniqueid(peer),
 													(long)(orig - to > 0 ? (orig - to) / 1000 : 0));
+		/* Queue hold time until agent answered */
+		set_duration_var(qe->chan, "QUEUEWAIT", (int64_t)(time(NULL) - qe->start) * 1000);
 
 		blob = ast_json_pack("{s: s, s: s, s: s, s: I, s: I}",
 				     "Queue", queuename,
@@ -7619,6 +7669,7 @@ static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_a
 		if ((queue_end_bridge = ao2_alloc(sizeof(*queue_end_bridge), NULL))) {
 			queue_end_bridge->q = qe->parent;
 			queue_end_bridge->chan = qe->chan;
+			queue_end_bridge->start_time = ast_tvnow();
 			bridge_config.end_bridge_callback = end_bridge_callback;
 			bridge_config.end_bridge_callback_data = queue_end_bridge;
 			bridge_config.end_bridge_callback_data_fixup = end_bridge_callback_data_fixup;
@@ -8771,6 +8822,13 @@ static int queue_exec(struct ast_channel *chan, const char *data)
 	char *opt_args[OPT_ARG_ARRAY_SIZE];
 	int max_forwards;
 	int cid_allow;
+	/* Reset variables to avoid stale data */
+	pbx_builtin_setvar_helper(chan, "ANSWEREDTIME", "");
+	pbx_builtin_setvar_helper(chan, "ANSWEREDTIME_MS", "");
+	pbx_builtin_setvar_helper(chan, "DIALEDTIME", "");
+	pbx_builtin_setvar_helper(chan, "DIALEDTIME_MS", "");
+	pbx_builtin_setvar_helper(chan, "QUEUEWAIT", "");
+	pbx_builtin_setvar_helper(chan, "QUEUEWAIT_MS", "");
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Queue requires an argument: queuename[,options[,URL[,announceoverride[,timeout[,agi[,gosub[,rule[,position]]]]]]]]\n");
@@ -9107,6 +9165,27 @@ check_turns:
 	}
 
 stop:
+	if (qe.chan) {
+		ast_channel_lock(qe.chan);
+		ast_channel_stage_snapshot(qe.chan);
+		/* 1. Handle QUEUEWAIT (Total time spent waiting in queue) */
+		if (ast_strlen_zero(pbx_builtin_getvar_helper(qe.chan, "QUEUEWAIT"))) {
+			set_duration_var(qe.chan, "QUEUEWAIT", (int64_t)(time(NULL) - qe.start) * 1000);
+		}
+
+		/* 2. Handle DIALEDTIME (Total time spent from beginning of the call) */
+		if (ast_strlen_zero(pbx_builtin_getvar_helper(qe.chan, "DIALEDTIME"))) {
+			set_duration_var(qe.chan, "DIALEDTIME", ast_channel_get_duration_ms(qe.chan));
+		}
+
+		/* 3. Handle ANSWEREDTIME (Time spent talking to an agent) */
+		if (ast_strlen_zero(pbx_builtin_getvar_helper(qe.chan, "ANSWEREDTIME"))) {
+			/* If we are here and it's still empty, the call was never answered */
+			set_duration_var(qe.chan, "ANSWEREDTIME", 0);
+		}
+		ast_channel_stage_snapshot_done(qe.chan);
+		ast_channel_unlock(qe.chan);
+	}
 	if (res) {
 		if (reason == QUEUE_WITHDRAW) {
 			record_abandoned(&qe);
