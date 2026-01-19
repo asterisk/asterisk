@@ -905,14 +905,13 @@ static int msg_send(void *data)
 	struct message_response_data *resp_data;
 	const char *from_uri;
 	const char *to_uri;
-
 	struct ast_sip_body body = {
 		.type = "text",
 		.subtype = "plain",
 		.body_text = ast_msg_get_body(mdata->msg)
 	};
-
-	pjsip_tx_data *tdata;
+	pjsip_hdr *contact;
+    pjsip_tx_data *tdata;
 	RAII_VAR(char *, uri, NULL, ast_free);
 	RAII_VAR(struct ast_sip_endpoint *, endpoint, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_str *, content_type_buf , ast_str_create(128), ast_free);
@@ -1023,7 +1022,13 @@ static int msg_send(void *data)
 	 * tdata.
 	 */
 	vars_to_headers(mdata->msg, tdata);
-
+    /*
+	 * Remove Contact header fields as per RFC 3428
+	 */
+    contact = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_CONTACT, NULL);
+    if (contact){
+        pj_list_erase(contact);
+	}
 	ast_debug(1, "Sending message to '%s' (via endpoint %s) from '%s'\n",
 		uri, ast_sorcery_object_get_id(endpoint), mdata->from);
 
