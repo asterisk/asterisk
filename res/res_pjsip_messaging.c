@@ -1023,7 +1023,21 @@ static int msg_send(void *data)
 	 * tdata.
 	 */
 	vars_to_headers(mdata->msg, tdata);
+    /*
+	 * Remove Contact header fields as per RFC 3428
+	 * Check if this is specifically an out-of-dialog MESSAGE request
+	 */
+	if (pjsip_method_cmp(&tdata->msg->line.req.method, &pjsip_message_method) == 0) {
+    	pjsip_hdr *contact;
+    	pjsip_fromto_hdr *to = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_TO, NULL);
 
+		if (to && to->tag.slen == 0) {
+        	ast_debug(1, "RFC 3428: Removing Contact header from out-of-dialog MESSAGE.\n");
+        	while ((contact = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_CONTACT, NULL))) {
+            	pj_list_erase(contact);
+        	}
+    	}
+	}
 	ast_debug(1, "Sending message to '%s' (via endpoint %s) from '%s'\n",
 		uri, ast_sorcery_object_get_id(endpoint), mdata->from);
 
