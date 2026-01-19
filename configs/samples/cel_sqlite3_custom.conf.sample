@@ -5,7 +5,28 @@
 ;
 ; Mappings for sqlite3 config file
 ;
-; Within a mapping, use the CALLERID() and CHANNEL() functions to retrieve
+; Legacy vs Advanced Mappings
+;
+; Legacy mappings are very resource intentsive because you have to use
+; string substitutions and dialplan functions like CALLERID() and CHANNEL()
+; to retrieve the event values.
+;
+; Advanced mappings use a field list of event field names.  They're much more
+; efficient than legacy mappings because the field names map directly
+; to CEL event field names.
+;
+;[master] ; currently, only file "master.db" is supported, with only one table at a time.
+
+; Specify the database table name.
+;table = cel
+
+; Specify the column names for the event data.  In this example, the names
+; happen to match the CEL event names but they don't have to.  They MUST be
+; valid SQL names however.
+;
+;columns = eventtype, eventtime, cidname, cidnum, cidani, cidrdnis, ciddnid, context, exten, channame, appname, appdata, amaflags, accountcode, uniqueid, userfield, peer, userdeftype, eventextra
+
+; Within a legacy mapping, use the CALLERID() and CHANNEL() functions to retrieve
 ; details from the CEL event.  There are also a few variables created by this
 ; module that can be used in a mapping:
 ;
@@ -18,8 +39,46 @@
 ;    BRIDGEPEER  - Bridged peer channel name at the time of the CEL event.
 ;                  CHANNEL(peer) could also be used.
 ;
-;[master] ; currently, only file "master.db" is supported, with only one table at a time.
-;table	=> cel
-;columns	=> eventtype, eventtime, cidname, cidnum, cidani, cidrdnis, ciddnid, context, exten, channame, appname, appdata, amaflags, accountcode, uniqueid, userfield, peer, userdeftype, eventextra
-;values	=> '${eventtype}','${eventtime}','${CALLERID(name)}','${CALLERID(num)}','${CALLERID(ANI)}','${CALLERID(RDNIS)}','${CALLERID(DNID)}','${CHANNEL(context)}','${CHANNEL(exten)}','${CHANNEL(channame)}','${CHANNEL(appname)}','${CHANNEL(appdata)}','${CHANNEL(amaflags)}','${CHANNEL(accountcode)}','${CHANNEL(uniqueid)}','${CHANNEL(userfield)}','${BRIDGEPEER}','${userdeftype}','${eventextra}'
-;busy_timeout	=> 1000
+; Any value that can't be parsed will be treated as a literal.
+;
+; The number of values MUST match the number of columns or the driver will fail to load.
+;
+;values	= '${eventtype}','${eventtime}','${CALLERID(name)}','${CALLERID(num)}','${CALLERID(ANI)}','${CALLERID(RDNIS)}','${CALLERID(DNID)}','${CHANNEL(context)}','${CHANNEL(exten)}','${CHANNEL(channame)}','${CHANNEL(appname)}','${CHANNEL(appdata)}','${CHANNEL(amaflags)}','${CHANNEL(accountcode)}','${CHANNEL(uniqueid)}','${CHANNEL(userfield)}','${BRIDGEPEER}','${userdeftype}','${eventextra}'
+
+; For an advanced mapping, set 'fields' to a list of CEL event field names.
+;
+; CEL Event Field Names:
+;
+; eventtype - Could be a standard event name or a user event name
+; eventenum - Will always be a standard event name or 'USER_DEFINED'
+; eventtime - Uses the dateformat set in cel.conf.
+; usereventname - Will be the user event name if set.
+; cidname
+; cidnum
+; exten
+; context
+; channame
+; appname
+; appdata
+; amaflags
+; acctcode
+; uniqueid
+; userfield
+; cidani
+; cidrdnis
+; ciddnid
+; peer
+; linkedid
+; peeracct
+; extra
+; tenantid
+;
+; Any unrecognized field name will be treated as a literal.
+;
+; The number of values MUST match the number of columns or the driver will fail to load.
+;
+;fields = eventtype, eventtime, cidname, cidnum, cidani, cidrdnis, ciddnid, context, exten, channame, appname, appdata, amaflags, acctcode, uniqueid, userfield, peer, userdeftype, eventextra
+
+; The SQLite busy timeout in milliseconds.
+;busy_timeout = 1000
+

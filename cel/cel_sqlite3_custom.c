@@ -50,9 +50,9 @@
 #include "asterisk/options.h"
 #include "asterisk/stringfields.h"
 
-#define SQLITE_BACKEND_NAME "CEL sqlite3 custom backend"
+#include "custom_common.h"
 
-AST_MUTEX_DEFINE_STATIC(lock);
+#define SQLITE_BACKEND_NAME "CEL sqlite3 custom backend"
 
 static const char config_file[] = "cel_sqlite3_custom.conf";
 
@@ -65,19 +65,17 @@ static char table[80];
 static char *columns;
 static int busy_timeout;
 
-struct values {
-	char *expression;
-	AST_LIST_ENTRY(values) list;
-};
-
-static AST_LIST_HEAD_STATIC(sql_values, values);
+/*
+ * We only support one config for now.
+ */
+static struct cel_config *config = NULL;
 
 static void free_config(void);
 
-static int load_column_config(const char *tmp)
+static int load_column_config(const char *tmp, int *column_count)
 {
 	char *col = NULL;
-	char *cols = NULL, *save = NULL;
+	char *cols = NULL;
 	char *escaped = NULL;
 	struct ast_str *column_string = NULL;
 
@@ -89,63 +87,50 @@ static int load_column_config(const char *tmp)
 		ast_log(LOG_ERROR, "Out of memory creating temporary buffer for column list for table '%s.'\n", table);
 		return -1;
 	}
-	if (!(save = cols = ast_strdup(tmp))) {
-		ast_log(LOG_ERROR, "Out of memory creating temporary buffer for column list for table '%s.'\n", table);
-		ast_free(column_string);
-		return -1;
-	}
-	while ((col = strsep(&cols, ","))) {
-		col = ast_strip(col);
+	cols = ast_strdupa(tmp);
+	*column_count = 0;
+	while((col = ast_strsep_quoted(&cols, ',', '"', AST_STRSEP_ALL))) {
 		escaped = sqlite3_mprintf("%q", col);
 		if (!escaped) {
 			ast_log(LOG_ERROR, "Out of memory creating entry for column '%s' in table '%s.'\n", col, table);
 			ast_free(column_string);
-			ast_free(save);
 			return -1;
 		}
 		ast_str_append(&column_string, 0, "%s%s", ast_str_strlen(column_string) ? "," : "", escaped);
 		sqlite3_free(escaped);
+		(*column_count)++;
 	}
 	if (!(columns = ast_strdup(ast_str_buffer(column_string)))) {
 		ast_log(LOG_ERROR, "Out of memory copying columns string for table '%s.'\n", table);
 		ast_free(column_string);
-		ast_free(save);
 		return -1;
 	}
 	ast_free(column_string);
-	ast_free(save);
 
 	return 0;
 }
 
-static int load_values_config(const char *tmp)
+static int load_values_config(const char *tmp, int *value_count)
 {
-	char *val = NULL;
-	char *vals = NULL, *save = NULL;
-	struct values *value = NULL;
+	char *field = NULL;
+	char *fields = NULL;
+	int res = 0;
 
-	if (ast_strlen_zero(tmp)) {
-		ast_log(LOG_WARNING, "Values not specified. Module not loaded.\n");
-		return -1;
-	}
-	if (!(save = vals = ast_strdup(tmp))) {
-		ast_log(LOG_ERROR, "Out of memory creating temporary buffer for value '%s'\n", tmp);
-		return -1;
-	}
-	while ((val = strsep(&vals, ","))) {
-		/* Strip the single quotes off if they are there */
-		val = ast_strip_quoted(val, "'", "'");
-		value = ast_calloc(sizeof(char), sizeof(*value) + strlen(val) + 1);
-		if (!value) {
-			ast_log(LOG_ERROR, "Out of memory creating entry for value '%s'\n", val);
-			ast_free(save);
+	fields = ast_strdupa(tmp);
+	*value_count = 0;
+
+	while((field = ast_strsep_quoted(&fields, ',', '\'', AST_STRSEP_ALL))) {
+		struct cel_field *cel_field = cel_field_alloc(field, cel_format_sql, "master");
+		if (!cel_field) {
+			continue;
+		}
+
+		res = AST_VECTOR_APPEND(&config->fields, cel_field);
+		if (res != 0) {
 			return -1;
 		}
-		value->expression = (char *) value + sizeof(*value);
-		ast_copy_string(value->expression, val, strlen(val) + 1);
-		AST_LIST_INSERT_TAIL(&sql_values, value, list);
+		(*value_count)++;
 	}
-	ast_free(save);
 
 	return 0;
 }
@@ -155,6 +140,8 @@ static int load_config(int reload)
 	struct ast_config *cfg;
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 	struct ast_variable *mappingvar;
+	int column_count = 0;
+	int value_count = 0;
 	const char *tmp;
 
 	if ((cfg = ast_config_load(config_file, config_flags)) == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEINVALID) {
@@ -193,14 +180,57 @@ static int load_config(int reload)
 	}
 
 	/* Columns */
-	if (load_column_config(ast_variable_retrieve(cfg, "master", "columns"))) {
+	if (load_column_config(ast_variable_retrieve(cfg, "master", "columns"), &column_count)) {
 		ast_config_destroy(cfg);
 		free_config();
 		return -1;
 	}
 
-	/* Values */
-	if (load_values_config(ast_variable_retrieve(cfg, "master", "values"))) {
+	config = ast_calloc_with_stringfields(1, struct cel_config, 1024);
+	if (!config) {
+		ast_config_destroy(cfg);
+		free_config();
+		return -1;
+	}
+	config->sink_type = cel_sink_legacy;
+	config->format_type = cel_format_sql;
+	strcpy(config->separator, ","); /* Safe */
+	strcpy(config->quote, "'"); /* Safe */
+	strcpy(config->quote_escape, config->quote); /* Safe */
+	config->quoting_method = cel_quoting_method_all;
+	ast_mutex_init(&config->lock);
+
+	if (AST_VECTOR_INIT(&config->fields, 20) != 0) {
+		ast_config_destroy(cfg);
+		free_config();
+		return -1;
+	}
+
+	tmp = ast_variable_retrieve(cfg, "master", "values");
+	if (!ast_strlen_zero(tmp)) {
+		config->sink_type = cel_sink_legacy;
+	} else {
+		tmp = ast_variable_retrieve(cfg, "master", "fields");
+		if (!ast_strlen_zero(tmp)) {
+			config->sink_type = cel_sink_advanced;
+		}
+	}
+	if (ast_strlen_zero(tmp)) {
+		ast_log(LOG_WARNING, "Neither 'values' nor 'fields' specified. Module not loaded.\n");
+		ast_config_destroy(cfg);
+		free_config();
+		return -1;
+	}
+
+	if (load_values_config(tmp, &value_count)) {
+		ast_config_destroy(cfg);
+		free_config();
+		return -1;
+	}
+
+	if (value_count != column_count) {
+		ast_log(LOG_WARNING, "There are %d columns but %d values. Module not loaded.\n",
+			column_count, value_count);
 		ast_config_destroy(cfg);
 		free_config();
 		return -1;
@@ -215,21 +245,12 @@ static int load_config(int reload)
 
 static void free_config(void)
 {
-	struct values *value;
-
-	if (db) {
-		sqlite3_close(db);
-		db = NULL;
-	}
-
 	if (columns) {
 		ast_free(columns);
 		columns = NULL;
 	}
 
-	while ((value = AST_LIST_REMOVE_HEAD(&sql_values, list))) {
-		ast_free(value);
-	}
+	cel_free_sink(config);
 }
 
 static void write_cel(struct ast_event *event)
@@ -242,31 +263,41 @@ static void write_cel(struct ast_event *event)
 		return;
 	}
 
-	ast_mutex_lock(&lock);
+	ast_mutex_lock(&config->lock);
 
 	{ /* Make it obvious that only sql should be used outside of this block */
+
+		int ix = 0;
 		char *escaped;
 		char subst_buf[2048];
-		struct values *value;
-		struct ast_channel *dummy;
+		struct ast_channel *dummy = NULL;
 		struct ast_str *value_string = ast_str_create(1024);
 
-		dummy = ast_cel_fabricate_channel_from_event(event);
-		if (!dummy) {
-			ast_log(LOG_ERROR, "Unable to fabricate channel from CEL event.\n");
-			ast_free(value_string);
-			ast_mutex_unlock(&lock);
-			return;
+		if (config->sink_type == cel_sink_legacy) {
+			dummy = ast_cel_fabricate_channel_from_event(event);
+			if (!dummy) {
+				ast_log(LOG_ERROR, "Unable to fabricate channel from CEL event.\n");
+				ast_free(value_string);
+				ast_mutex_unlock(&config->lock);
+				return;
+			}
 		}
-		AST_LIST_TRAVERSE(&sql_values, value, list) {
-			pbx_substitute_variables_helper(dummy, value->expression, subst_buf, sizeof(subst_buf) - 1);
-			escaped = sqlite3_mprintf("%q", subst_buf);
-			ast_str_append(&value_string, 0, "%s'%s'", ast_str_strlen(value_string) ? "," : "", escaped);
-			sqlite3_free(escaped);
+		for (ix = 0; ix < AST_VECTOR_SIZE(&config->fields); ix++) {
+			struct cel_field *cel_field = AST_VECTOR_GET(&config->fields, ix);
+			if (config->sink_type == cel_sink_legacy) {
+				pbx_substitute_variables_helper(dummy, cel_field->literal_data, subst_buf, sizeof(subst_buf) - 1);
+				escaped = sqlite3_mprintf("%q", subst_buf);
+				ast_str_append(&value_string, 0, "%s'%s'", ast_str_strlen(value_string) ? "," : "", escaped);
+				sqlite3_free(escaped);
+			} else {
+				cel_field->csv_field_appender(&value_string, event, config, cel_field, ix == 0);
+			}
 		}
 		sql = sqlite3_mprintf("INSERT INTO %q (%s) VALUES (%s)", table, columns, ast_str_buffer(value_string));
 		ast_debug(1, "About to log: %s\n", sql);
-		dummy = ast_channel_unref(dummy);
+		if (config->sink_type == cel_sink_legacy) {
+			dummy = ast_channel_unref(dummy);
+		}
 		ast_free(value_string);
 	}
 
@@ -278,7 +309,7 @@ static void write_cel(struct ast_event *event)
 	if (sql) {
 		sqlite3_free(sql);
 	}
-	ast_mutex_unlock(&lock);
+	ast_mutex_unlock(&config->lock);
 
 	return;
 }
@@ -286,6 +317,11 @@ static void write_cel(struct ast_event *event)
 static int unload_module(void)
 {
 	ast_cel_backend_unregister(SQLITE_BACKEND_NAME);
+
+	if (db) {
+		sqlite3_close(db);
+		db = NULL;
+	}
 
 	free_config();
 
@@ -324,14 +360,14 @@ static int load_module(void)
 		if (res != SQLITE_OK) {
 			ast_log(LOG_WARNING, "Unable to create table '%s': %s.\n", table, error);
 			sqlite3_free(error);
-			free_config();
+			unload_module();
 			return AST_MODULE_LOAD_DECLINE;
 		}
 	}
 
 	if (ast_cel_backend_register(SQLITE_BACKEND_NAME, write_cel)) {
 		ast_log(LOG_ERROR, "Unable to register custom SQLite3 CEL handling\n");
-		free_config();
+		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -342,9 +378,9 @@ static int reload(void)
 {
 	int res = 0;
 
-	ast_mutex_lock(&lock);
+	ast_mutex_lock(&config->lock);
 	res = load_config(1);
-	ast_mutex_unlock(&lock);
+	ast_mutex_unlock(&config->lock);
 
 	return res;
 }

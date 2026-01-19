@@ -23,7 +23,13 @@
 ;
 
 ;
-; Within a mapping, use the CALLERID() and CHANNEL() functions to retrieve
+; Legacy Mappings
+;
+; Legacy mappings are VERY resource intensive.  In fact, they use
+; more resources to write the log entries than were used to actually
+; process the call.  Use the advanced mappings below going forward.
+;
+; Within a legacy mapping, use the CALLERID() and CHANNEL() functions to retrieve
 ; details from the CEL event.  There are also a few variables created by this
 ; module that can be used in a mapping:
 ;
@@ -37,4 +43,100 @@
 ;                  CHANNEL(peer) could also be used.
 ;
 [mappings]
-;Master.csv => ${CSV_QUOTE(${eventtype})},${CSV_QUOTE(${eventtime})},${CSV_QUOTE(${CALLERID(name)})},${CSV_QUOTE(${CALLERID(num)})},${CSV_QUOTE(${CALLERID(ANI)})},${CSV_QUOTE(${CALLERID(RDNIS)})},${CSV_QUOTE(${CALLERID(DNID)})},${CSV_QUOTE(${CHANNEL(exten)})},${CSV_QUOTE(${CHANNEL(context)})},${CSV_QUOTE(${CHANNEL(channame)})},${CSV_QUOTE(${CHANNEL(appname)})},${CSV_QUOTE(${CHANNEL(appdata)})},${CSV_QUOTE(${CHANNEL(amaflags)})},${CSV_QUOTE(${CHANNEL(accountcode)})},${CSV_QUOTE(${CHANNEL(uniqueid)})},${CSV_QUOTE(${CHANNEL(linkedid)})},${CSV_QUOTE(${BRIDGEPEER})},${CSV_QUOTE(${CHANNEL(userfield)})},${CSV_QUOTE(${userdeftype})},${CSV_QUOTE(${eventextra})}
+;Master.csv => ${CSV_QUOTE(${eventtype})},${CSV_QUOTE(My Literal)},${CSV_QUOTE(${eventtime})},${CSV_QUOTE(${CALLERID(name)})},${CSV_QUOTE(${CALLERID(num)})},${CSV_QUOTE(${CALLERID(ANI)})},${CSV_QUOTE(${CALLERID(RDNIS)})},${CSV_QUOTE(${CALLERID(DNID)})},${CSV_QUOTE(${CHANNEL(exten)})},${CSV_QUOTE(${CHANNEL(context)})},${CSV_QUOTE(${CHANNEL(channame)})},${CSV_QUOTE(${CHANNEL(appname)})},${CSV_QUOTE(${CHANNEL(appdata)})},${CSV_QUOTE(${CHANNEL(amaflags)})},${CSV_QUOTE(${CHANNEL(accountcode)})},${CSV_QUOTE(${CHANNEL(uniqueid)})},${CSV_QUOTE(${CHANNEL(linkedid)})},${CSV_QUOTE(${BRIDGEPEER})},${CSV_QUOTE(${CHANNEL(userfield)})},${CSV_QUOTE(${userdeftype})},${CSV_QUOTE(${eventextra})}
+
+;
+; Advanced Mappings
+;
+; Advanced mappings use SIGNIFICANTLY less resources than legacy mappings
+; because we don't need to use dialplan function replacement.
+;
+;[cel_master_advanced.csv]    ; The destination file name.
+                              ; Can be a name relative to ASTLOGDIR or an
+                              ; absolute path.
+
+;format = csv                 ; Sets the output format.  The default is "csv"
+                              ; but here "csv" really means "character-separated-values"
+                              ; because the separator doesn't have to be a comma.
+                              ; The other alternative is "json" (see example below).
+
+;separator_character = ,      ; Set the character to use between fields.
+                              ; Defaults to a comma but other characters
+                              ; can be used.  For example, if you want
+                              ; tab-separated fields, use \t as the separator.
+
+;quote_character = "          ; Set the quoting character.
+                              ; Defaults to double-quote (") but any character
+                              ; can be used although only the double and single
+                              ; quote (') characters make sense.
+
+;quote_escape_character = "   ; Sets the character used to escape quotes that
+                              ; may be in the field values. The default is the
+                              ; same character as the quote_character so an
+                              ; embedded JSON blob would look like this:
+                              ; "{""extra"":""somextratext""}"
+                              ; You could also use a backslash (\) in which case
+                              ; the blob would look like this:
+                              ; "{\"extra\":\"somextratext\"}"
+
+;quoting_method = all         ; Sets what/when to quote.
+                              ; all - Quote all fields. (the default)
+                              ; minimal - Only quote fields that have the
+                              ;           separator character in them.
+                              ; non_numeric - Quote all non-numeric fields.
+                              ; none - Don't quote anything.
+                              ;        Probably not a good idea but could
+                              ;        be useful in special circumstances.
+
+; The fields to output.  These names correspond to the internal CEL event
+; field names which is how some of the performance gains are realized.
+; Anything not recognized as a field name will be printed as a literal in
+; the output.
+;
+; CEL Event Field Names:
+;
+; eventtype - Could be a standard event name or a user event name
+; eventenum - Will always be a standard event name or 'USER_DEFINED'
+; eventtime - Uses the dateformat set in cel.conf.
+; usereventname - Will be the user event name if set.
+; cidname
+; cidnum
+; exten
+; context
+; channame
+; appname
+; appdata
+; amaflags
+; acctcode
+; uniqueid
+; userfield
+; cidani
+; cidrdnis
+; ciddnid
+; peer
+; linkedid
+; peeracct
+; extra
+; tenantid
+;
+; You MUST use the comma and double-quote here, not the separator or
+; or quote characters specified above.  The names are case-insensitive.
+;
+;fields = EventType,EventEnum,"My Literal",EventTime,UserEventName,CIDName,CIDNum,Exten,Context,ChanName,AppName,AppData,AMAFlags,AcctCode,UniqueID,UserField,CIDani,CIDrdnis,CIDdnid,Peer,LinkedID,PeerAcct,Extra,TenantID
+
+;
+;  A tab-separated-value example:
+;
+;[cel_master.tsv]
+;separator_character = \t
+;fields = EventType,EventEnum,"My Literal",EventTime,UserEventName,CIDName,CIDNum,Exten,Context,ChanName,AppName,AppData,AMAFlags,AcctCode,UniqueID,UserField,CIDani,CIDrdnis,CIDdnid,Peer,LinkedID,PeerAcct,Extra,TenantID
+
+;
+;  A JSON example:
+;
+; The separator and quoting options don't apply to JSON.
+; Literals must be specified as a "name: value" pair or they'll be ignored.
+;
+;[cel_master.json]
+;format = json
+;fields = EventType,eventenum,userdeftype,"My: Literal",EventTime,CIDName,CIDNum,CIDani,CIDrdnis,CIDdnid,Exten,Context,ChanName,AppName,AppData,AMAFlags,AcctCode,UniqueID,LinkedID,Peer,PeerAcct,UserField,Extra,TenantID
