@@ -531,7 +531,10 @@ static struct ast_channel *get_by_name_prefix(struct ast_channelstorage_instance
 	}
 	auto rtn = getdb(driver).lower_bound(l_name);
 	if (rtn != getdb(driver).end()) {
-		chan = ao2_bump((struct ast_channel *)rtn->second);
+		/* Check if the channel name actually starts with the requested prefix */
+		if (rtn->first.compare(0, name_len, l_name, name_len) == 0) {
+			chan = ao2_bump((struct ast_channel *)rtn->second);
+		}
 	}
 	if (lock) {
 		unlock(driver);

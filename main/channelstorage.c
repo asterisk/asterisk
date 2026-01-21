@@ -265,6 +265,25 @@ static void *test_storage_thread(void *data)
 	elapsed = ast_tvdiff_us(end, start);
 	ast_test_status_update(test, "%*s: %8ld\n", collen, "by name prefix", elapsed);
 
+	/* Test negative cases - prefixes that should NOT match */
+	start = ast_tvnow();
+	for (i = 0; i < 10; i++) {
+		/* Search for non-existent prefix between existing channels
+		 * e.g., "TestChannel-{rand}-0000a" falls between 0000 and 0001
+		 */
+		sprintf(search1, "TestChannel-%ld-%04da", rand, i * 50);
+		mock_channel = CHANNELSTORAGE_API(storage_instance, get_by_name_prefix_or_uniqueid, search1, strlen(search1), 1);
+		ast_test_validate_cleanup_custom(test, mock_channel == NULL, res, done,
+			"Expected NULL for non-existent prefix '%s' but got '%s'\n",
+			search1, mock_channel ? ast_channel_name(mock_channel) : "NULL");
+		if (mock_channel) {
+			ast_channel_unref(mock_channel);
+		}
+	}
+	end = ast_tvnow();
+	elapsed = ast_tvdiff_us(end, start);
+	ast_test_status_update(test, "%*s: %8ld\n", collen, "prefix no-match", elapsed);
+
 	start = ast_tvnow();
 	for (i = 0; i < CHANNEL_COUNT; i++) {
 		sprintf(search1, "TestContext-%ld-%04d", rand, i % 100);
