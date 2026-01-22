@@ -6145,13 +6145,10 @@ static int update_queue(struct call_queue *q, struct member *member, int callcom
 	 * Consume the bridged starttime ONLY ONCE per call using the ORIGINAL member object.
 	 * This blocks duplicate triggers (status + hangup) from counting twice.
 	 */
-	{
-		time_t before_gate = member->starttime;
-		if (!__sync_bool_compare_and_swap(&member->starttime, starttime, 0)) {
-			return 0;
-		}
+	if (!__sync_bool_compare_and_swap(&member->starttime, starttime, 0)) {
+		return 0;
 	}
-
+	
 	if (shared_lastcall) {
 		/*
 		 * shared_lastcall behavior
