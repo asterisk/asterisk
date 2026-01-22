@@ -1,21 +1,26 @@
-<html><head><title>ChangeLog for asterisk-22.8.0-rc1</title></head><body>
-<h2>Change Log for Release asterisk-22.8.0-rc1</h2>
+<html><head><title>ChangeLog for asterisk-22.8.0</title></head><body>
+<h2>Change Log for Release asterisk-22.8.0</h2>
 <h3>Links:</h3>
 <ul>
-<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-22.8.0-rc1.html">Full ChangeLog</a>  </li>
-<li><a href="https://github.com/asterisk/asterisk/compare/22.7.0...22.8.0-rc1">GitHub Diff</a>  </li>
-<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-22.8.0-rc1.tar.gz">Tarball</a>  </li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-22.8.0.html">Full ChangeLog</a>  </li>
+<li><a href="https://github.com/asterisk/asterisk/compare/22.7.0...22.8.0">GitHub Diff</a>  </li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-22.8.0.tar.gz">Tarball</a>  </li>
 <li><a href="https://downloads.asterisk.org/pub/telephony/asterisk">Downloads</a>  </li>
 </ul>
 <h3>Summary:</h3>
 <ul>
-<li>Commits: 56</li>
+<li>Commits: 57</li>
 <li>Commit Authors: 19</li>
 <li>Issues Resolved: 40</li>
 <li>Security Advisories Resolved: 0</li>
 </ul>
 <h3>User Notes:</h3>
 <ul>
+<li>
+<h4>chan_websocket.conf.sample: Fix category name.</h4>
+<p>The category name in the chan_websocket.conf.sample file was
+  incorrect.  It should be "global" instead of "general".</p>
+</li>
 <li>
 <h4>cli.c: Allow 'channel request hangup' to accept patterns.</h4>
 <p>The 'channel request hangup' CLI command now accepts
@@ -164,7 +169,7 @@
 <li>Alexei Gradinari: (1)</li>
 <li>C. Maj: (1)</li>
 <li>Daouda Taha: (1)</li>
-<li>George Joseph: (11)</li>
+<li>George Joseph: (12)</li>
 <li>Joe Garlick: (2)</li>
 <li>Joshua C. Colp: (1)</li>
 <li>Justin T. Gibbs: (1)</li>
@@ -237,7 +242,7 @@
 <h4>Daouda Taha (1):</h4>
 </li>
 <li>
-<h4>George Joseph (11):</h4>
+<h4>George Joseph (12):</h4>
 </li>
 <li>
 <h4>Joe Garlick (2):</h4>
@@ -287,6 +292,7 @@
 </ul>
 <h3>Commit List:</h3>
 <ul>
+<li>chan_websocket.conf.sample: Fix category name.</li>
 <li>chan_websocket: Fixed Ping/Pong messages hanging up the websocket channel</li>
 <li>cli.c: Allow 'channel request hangup' to accept patterns.</li>
 <li>res_sorcery_memory_cache: Reduce cache lock time for sorcery memory cache populate command</li>
@@ -345,6 +351,11 @@
 <li>build: Add menuselect options to facilitate code tracing and coverage</li>
 </ul>
 <h3>Commit Details:</h3>
+<h4>chan_websocket.conf.sample: Fix category name.</h4>
+<p>Author: George Joseph
+  Date:   2026-01-21</p>
+<p>UserNote: The category name in the chan_websocket.conf.sample file was
+  incorrect.  It should be "global" instead of "general".</p>
 <h4>chan_websocket: Fixed Ping/Pong messages hanging up the websocket channel</h4>
 <p>Author: Joe Garlick
   Date:   2026-01-15</p>
