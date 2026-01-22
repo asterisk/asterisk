@@ -1,21 +1,25 @@
 
-## Change Log for Release asterisk-20.18.0-rc1
+## Change Log for Release asterisk-20.18.0
 
 ### Links:
 
- - [Full ChangeLog](https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-20.18.0-rc1.html)  
- - [GitHub Diff](https://github.com/asterisk/asterisk/compare/20.17.0...20.18.0-rc1)  
- - [Tarball](https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-20.18.0-rc1.tar.gz)  
+ - [Full ChangeLog](https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-20.18.0.html)  
+ - [GitHub Diff](https://github.com/asterisk/asterisk/compare/20.17.0...20.18.0)  
+ - [Tarball](https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-20.18.0.tar.gz)  
  - [Downloads](https://downloads.asterisk.org/pub/telephony/asterisk)  
 
 ### Summary:
 
-- Commits: 56
+- Commits: 57
 - Commit Authors: 20
 - Issues Resolved: 40
 - Security Advisories Resolved: 0
 
 ### User Notes:
+
+- #### chan_websocket.conf.sample: Fix category name.
+  The category name in the chan_websocket.conf.sample file was
+  incorrect.  It should be "global" instead of "general".
 
 - #### cli.c: Allow 'channel request hangup' to accept patterns.
   The 'channel request hangup' CLI command now accepts
@@ -149,7 +153,7 @@
 - C. Maj: (1)
 - Daouda Taha: (1)
 - Etienne Lessard: (1)
-- George Joseph: (11)
+- George Joseph: (12)
 - Joe Garlick: (2)
 - Joshua C. Colp: (1)
 - Justin T. Gibbs: (1)
@@ -221,7 +225,7 @@
 
 - #### Etienne Lessard (1):
 
-- #### George Joseph (11):
+- #### George Joseph (12):
 
 - #### Joe Garlick (2):
 
@@ -255,6 +259,7 @@
 
 ### Commit List:
 
+-  chan_websocket.conf.sample: Fix category name.
 -  chan_websocket: Fixed Ping/Pong messages hanging up the websocket channel
 -  cli.c: Allow 'channel request hangup' to accept patterns.
 -  chan_sip.c: Ensure Contact header is set on responses to INVITE.
@@ -313,6 +318,13 @@
 -  build: Add menuselect options to facilitate code tracing and coverage
 
 ### Commit Details:
+
+#### chan_websocket.conf.sample: Fix category name.
+  Author: George Joseph
+  Date:   2026-01-21
+
+  UserNote: The category name in the chan_websocket.conf.sample file was
+  incorrect.  It should be "global" instead of "general".
 
 #### chan_websocket: Fixed Ping/Pong messages hanging up the websocket channel
   Author: Joe Garlick
