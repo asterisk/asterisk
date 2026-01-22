@@ -762,6 +762,8 @@ static int ast_say_number_full_en(struct ast_channel *chan, int num, const char 
 static int ast_say_number_full_cs(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd);
 static int ast_say_number_full_da(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd);
 static int ast_say_number_full_de(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd);
+static int ast_say_number_full_ps(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd);
+static int ast_say_number_full_dr(struct ast_channel *chan, int num, const char *ints, const char *language, int audiofd, int ctrlfd);
 static int ast_say_number_full_en_GB(struct ast_channel *chan, int num, const char *ints, const char *language, int audiofd, int ctrlfd);
 static int ast_say_number_full_es(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd);
 static int ast_say_number_full_fr(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd);
@@ -790,6 +792,8 @@ static int ast_say_enumeration_full_de(struct ast_channel *chan, int num, const 
 static int ast_say_enumeration_full_he(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd);
 static int ast_say_enumeration_full_is(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd);
 static int ast_say_enumeration_full_vi(struct ast_channel *chan, int num, const char *ints, const char *language, int audiofd, int ctrlfd);
+static int ast_say_enumeration_full_ps(struct ast_channel *chan, int num, const char *ints, const char *language, int audiofd, int ctrlfd);
+static int ast_say_enumeration_full_dr(struct ast_channel *chan, int num, const char *ints, const char *language, int audiofd, int ctrlfd);
 
 /* Forward declarations of ast_say_date, ast_say_datetime and ast_say_time functions */
 static int ast_say_date_en(struct ast_channel *chan, time_t t, const char *ints, const char *lang);
@@ -922,6 +926,10 @@ static int say_number_full(struct ast_channel *chan, int num, const char *ints, 
 		return ast_say_number_full_ur(chan, num, ints, language, options, audiofd, ctrlfd);
 	} else if (!strncasecmp(language, "vi", 2)) { /* Vietnamese syntax */
 		return ast_say_number_full_vi(chan, num, ints, language, audiofd, ctrlfd);
+	} else if (!strncasecmp(language, "dr", 2)) { /* Dari syntax */
+		return ast_say_number_full_dr(chan, num, ints, language, audiofd, ctrlfd);
+	} else if (!strncasecmp(language, "ps", 2)) { /* Pashto syntax */
+		return ast_say_number_full_ps(chan, num, ints, language, options, audiofd, ctrlfd);
 	}
 
 	/* Default to english */
@@ -1315,6 +1323,151 @@ static int ast_say_number_full_de(struct ast_channel *chan, int num, const char 
 	return res;
 }
 
+/*! \brief  ast_say_number_full_ps: Pashto syntax
+
+ New files:
+ In addition to English, the following sounds are required:
+ - wesht
+ - sawa
+ - zara
+ */
+static int ast_say_number_full_ps(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd)
+{
+	int res = 0, t = 0;
+	char fn[256] = "";
+	char fna[256] = "";
+	int playWesht = 0;
+	if (!num){
+		return ast_say_digits_full(chan, 0, ints, language, audiofd, ctrlfd);
+	}
+
+	while (!res && num) {
+		/* The grammar for Pashto numbers is the same as for English except
+		 * for the following:
+		 * - numbers 20 through 99 are said in reverse order, i.e. 21 is
+		 *   "one-and twenty" and 68 is "eight-and sixty".
+		 * - 20 has unique pronounciation if there is a unit number after it
+		 *   i.e. 21 is one wesht while 20 is just "twenty"
+		 * - 200 is called sawa
+		 * - 2000 is called zara
+		 */
+		if (num < 0) {
+			ast_copy_string(fn, "digits/minus", sizeof(fn));
+			if ( num > INT_MIN ) {
+				num = -num;
+			} else {
+				num = 0;
+			}
+		} else if (num < 20) {
+			snprintf(fn, sizeof(fn), "digits/%d", num);
+			num = 0;
+		} else if (num < 100) {
+			int ones = num % 10;
+			if (ones) {
+				snprintf(fn, sizeof(fn), "digits/%d", ones);
+				num -= ones;
+				if (num == 20){
+					playWesht = 1;
+				}
+			} else {
+				if (num == 20 && playWesht == 1){
+					snprintf(fn, sizeof(fn), "digits/wesht");
+					playWesht = 0;
+				} else{
+					snprintf(fn, sizeof(fn), "digits/%d", num);
+				}
+				num = 0;
+			}
+		} else if (num == 100 && t == 0) {
+			ast_copy_string(fn, "digits/hundred", sizeof(fn));
+			num = 0;
+		} else if (num < 1000) {
+			int hundreds = num / 100;
+			num = num % 100;
+			/* 100: hundreds = 1, num = 0
+			 * 101: hundreds = 1, num = 1
+			 * 200: hundreds = 2, num = 0
+			 * 202: hundreds = 2, num = 2
+			 */
+			if (hundreds == 1){
+				if (num){
+					snprintf(fn, sizeof(fn), "digits/%d", hundreds);
+				}
+				ast_copy_string(fna, "digits/hundred", sizeof(fna));
+			} else{
+				snprintf(fn, sizeof(fn), "digits/%d", hundreds);
+				ast_copy_string(fna, "digits/sawa", sizeof(fna));
+			}                 			
+		} else if (num == 1000 && t == 0) {
+			ast_copy_string(fn, "digits/thousand", sizeof(fn));
+			num = 0;
+		} else if (num < 1000000) {
+			int thousands = num / 1000;
+			num = num % 1000;
+			t = 1;
+			if (thousands == 1) {
+				if (num){
+					snprintf(fn, sizeof(fn), "digits/%d", thousands);
+				}
+				ast_copy_string(fna, "digits/thousand", sizeof(fna));
+			} else {
+				res = ast_say_number_full_ps(chan, thousands, ints, language, options, audiofd, ctrlfd);
+				if (res)
+					return res;
+				ast_copy_string(fn, "digits/zara", sizeof(fn));
+			}
+		} else if (num < 1000000000) {
+			int millions = num / 1000000;
+			num = num % 1000000;
+			t = 1;
+			if (millions == 1) {
+				ast_copy_string(fna, "digits/million", sizeof(fna));
+			} else {
+				res = ast_say_number_full_ps(chan, millions, ints, language, options, audiofd, ctrlfd);
+				if (res)
+					return res;
+				ast_copy_string(fn, "digits/millions", sizeof(fn));
+			}
+		} else if (num <= INT_MAX) {
+			int billions = num / 1000000000;
+			num = num % 1000000000;
+			t = 1;
+			if (billions == 1) {
+				ast_copy_string(fna, "digits/milliard", sizeof(fna));
+			} else {
+				res = ast_say_number_full_ps(chan, billions, ints, language, options, audiofd, ctrlfd);
+				if (res) {
+					return res;
+				}
+				ast_copy_string(fn, "digits/milliards", sizeof(fn));
+			}
+		} else {
+			ast_debug(1, "Number '%d' is too big for me\n", num);
+			res = -1;
+		}
+		if (!res) {
+			if (!ast_streamfile(chan, fn, language)) {
+				if ((audiofd > -1) && (ctrlfd > -1))
+					res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
+				else
+					res = ast_waitstream(chan, ints);
+			}
+			ast_stopstream(chan);
+			if (!res) {
+				if (strlen(fna) != 0 && !ast_streamfile(chan, fna, language)) {
+					if ((audiofd > -1) && (ctrlfd > -1))
+						res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
+					else
+						res = ast_waitstream(chan, ints);
+				}
+				ast_stopstream(chan);
+				strcpy(fna, "");
+			}
+		}
+	}
+	return res;
+}
+
 /*! \brief  ast_say_number_full_en_GB: British syntax
  New files:
   - In addition to American English, the following sounds are required:  "vm-and"
@@ -1376,6 +1529,85 @@ static int ast_say_number_full_en_GB(struct ast_channel *chan, int num, const ch
 		} else {
 				ast_debug(1, "Number '%d' is too big for me\n", num);
 				res = -1;
+		}
+
+		if (!res) {
+			if (!ast_streamfile(chan, fn, language)) {
+				if ((audiofd > -1) && (ctrlfd > -1))
+					res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
+				else
+					res = ast_waitstream(chan, ints);
+			}
+			ast_stopstream(chan);
+		}
+	}
+	return res;
+}
+
+/*! \brief  ast_say_number_full_en_dr: Dari syntax
+ New files:
+  - In addition to American English, the following sounds are required:  "o"
+ */
+static int ast_say_number_full_dr(struct ast_channel *chan, int num, const char *ints, const char *language, int audiofd, int ctrlfd)
+{
+	int res = 0;
+	int playh = 0;
+	int playa = 0;
+	int say_o = 0;
+	char fn[256] = "";
+	if (!num)
+		return ast_say_digits_full(chan, 0, ints, language, audiofd, ctrlfd);
+
+	while (!res && (num || playh || playa )) {
+		if (num < 0) {
+			ast_copy_string(fn, "digits/minus", sizeof(fn));
+			if ( num > INT_MIN ) {
+				num = -num;
+			} else {
+				num = 0;
+			}
+		} else if (playh) {
+			ast_copy_string(fn, "digits/hundred", sizeof(fn));
+			playh = 0;
+		} else if (playa) {
+			ast_copy_string(fn, "digits/o", sizeof(fn));
+			playa = 0;
+		} else if (num < 20) {
+			snprintf(fn, sizeof(fn), "digits/%d", num);
+			num = 0;
+		} else if (num < 100) {
+			snprintf(fn, sizeof(fn), "digits/%d", (num /10) * 10);
+			num %= 10;
+			if (num && say_o)
+				playa++;
+		} else if (num < 1000) {
+			int hundreds = num / 100;
+			snprintf(fn, sizeof(fn), "digits/%d", (num / 100));
+
+			playh++;
+			num -= 100 * hundreds;
+			if (num && say_o)
+				playa++;
+		} else if (num < 1000000) {
+			res = ast_say_number_full_dr(chan, num / 1000, ints, language, audiofd, ctrlfd);
+			if (res)
+				return res;
+			ast_copy_string(fn, "digits/thousand", sizeof(fn));
+			num %= 1000;
+			if (num && say_o)
+				playa++;
+		} else if (num < 1000000000) {
+			int millions = num / 1000000;
+			res = ast_say_number_full_dr(chan, millions, ints, language, audiofd, ctrlfd);
+			if (res)
+				return res;
+			ast_copy_string(fn, "digits/million", sizeof(fn));
+			num %= 1000000;
+			if (num && num < 100 && say_o)
+				playa++;
+		} else {
+			ast_debug(1, "Number '%d' is too big for me\n", num);
+			res = -1;
 		}
 
 		if (!res) {
@@ -3240,6 +3472,10 @@ static int say_enumeration_full(struct ast_channel *chan, int num, const char *i
 		return ast_say_enumeration_full_is(chan, num, ints, language, options, audiofd, ctrlfd);
 	} else if (!strncasecmp(language, "vi", 2)) { /* Vietnamese syntax */
 		return ast_say_enumeration_full_vi(chan, num, ints, language, audiofd, ctrlfd);
+	} else if (!strncasecmp(language, "ps", 2)) { /* Pashto syntax */
+	   return ast_say_enumeration_full_ps(chan, num, ints, language, audiofd, ctrlfd);
+	} else if (!strncasecmp(language, "dr", 2)) { /* Dari syntax */
+	   return ast_say_enumeration_full_dr(chan, num, ints, language, audiofd, ctrlfd);
 	}
 
 	/* Default to english */
@@ -3262,6 +3498,204 @@ static int ast_say_enumeration_full_en(struct ast_channel *chan, int num, const 
 				num = 0;
 			}
 		} else if (num < 20) {
+			snprintf(fn, sizeof(fn), "digits/h-%d", num);
+			num = 0;
+		} else if (num < 100) {
+			int tens = num / 10;
+			num = num % 10;
+			if (num == 0) {
+				snprintf(fn, sizeof(fn), "digits/h-%d", (tens * 10));
+			} else {
+				snprintf(fn, sizeof(fn), "digits/%d", (tens * 10));
+			}
+		} else if (num < 1000) {
+			int hundreds = num / 100;
+			num = num % 100;
+			if (hundreds > 1 || t == 1) {
+				res = ast_say_number_full_en(chan, hundreds, ints, language, audiofd, ctrlfd);
+			}
+			if (res)
+				return res;
+			if (num) {
+				ast_copy_string(fn, "digits/hundred", sizeof(fn));
+			} else {
+				ast_copy_string(fn, "digits/h-hundred", sizeof(fn));
+			}
+		} else if (num < 1000000) {
+			int thousands = num / 1000;
+			num = num % 1000;
+			if (thousands > 1 || t == 1) {
+				res = ast_say_number_full_en(chan, thousands, ints, language, audiofd, ctrlfd);
+			}
+			if (res)
+				return res;
+			if (num) {
+				ast_copy_string(fn, "digits/thousand", sizeof(fn));
+			} else {
+				ast_copy_string(fn, "digits/h-thousand", sizeof(fn));
+			}
+			t = 1;
+		} else if (num < 1000000000) {
+			int millions = num / 1000000;
+			num = num % 1000000;
+			t = 1;
+			res = ast_say_number_full_en(chan, millions, ints, language, audiofd, ctrlfd);
+			if (res)
+				return res;
+			if (num) {
+				ast_copy_string(fn, "digits/million", sizeof(fn));
+			} else {
+				ast_copy_string(fn, "digits/h-million", sizeof(fn));
+			}
+		} else if (num < INT_MAX) {
+			int billions = num / 1000000000;
+			num = num % 1000000000;
+			t = 1;
+			res = ast_say_number_full_en(chan, billions, ints, language, audiofd, ctrlfd);
+			if (res)
+				return res;
+			if (num) {
+				ast_copy_string(fn, "digits/billion", sizeof(fn));
+			} else {
+				ast_copy_string(fn, "digits/h-billion", sizeof(fn));
+			}
+		} else if (num == INT_MAX) {
+			ast_copy_string(fn, "digits/h-last", sizeof(fn));
+			num = 0;
+		} else {
+			ast_debug(1, "Number '%d' is too big for me\n", num);
+			res = -1;
+		}
+
+		if (!res) {
+			if (!ast_streamfile(chan, fn, language)) {
+				if ((audiofd > -1) && (ctrlfd > -1)) {
+					res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
+				} else {
+					res = ast_waitstream(chan, ints);
+				}
+			}
+			ast_stopstream(chan);
+		}
+	}
+	return res;
+}
+
+/*! \brief  ast_say_enumeration_full_ps: Pashto syntax
+ \note This is the default syntax, if no other syntax defined in this file is used */
+static int ast_say_enumeration_full_ps(struct ast_channel *chan, int num, const char *ints, const char *language, int audiofd, int ctrlfd)
+{
+	int res = 0, t = 0;
+	char fn[256] = "";
+
+	while (!res && num) {
+		if (num < 0) {
+			ast_copy_string(fn, "digits/minus", sizeof(fn)); /* kind of senseless for enumerations, but our best effort for error checking */
+			if ( num > INT_MIN ) {
+				num = -num;
+			} else {
+				num = 0;
+			}
+		} else if (num <= 31) {
+			snprintf(fn, sizeof(fn), "digits/h-%d", num);
+			num = 0;
+		} else if (num < 100) {
+			int tens = num / 10;
+			num = num % 10;
+			if (num == 0) {
+				snprintf(fn, sizeof(fn), "digits/h-%d", (tens * 10));
+			} else {
+				snprintf(fn, sizeof(fn), "digits/%d", (tens * 10));
+			}
+		} else if (num < 1000) {
+			int hundreds = num / 100;
+			num = num % 100;
+			if (hundreds > 1 || t == 1) {
+				res = ast_say_number_full_en(chan, hundreds, ints, language, audiofd, ctrlfd);
+			}
+			if (res)
+				return res;
+			if (num) {
+				ast_copy_string(fn, "digits/hundred", sizeof(fn));
+			} else {
+				ast_copy_string(fn, "digits/h-hundred", sizeof(fn));
+			}
+		} else if (num < 1000000) {
+			int thousands = num / 1000;
+			num = num % 1000;
+			if (thousands > 1 || t == 1) {
+				res = ast_say_number_full_en(chan, thousands, ints, language, audiofd, ctrlfd);
+			}
+			if (res)
+				return res;
+			if (num) {
+				ast_copy_string(fn, "digits/thousand", sizeof(fn));
+			} else {
+				ast_copy_string(fn, "digits/h-thousand", sizeof(fn));
+			}
+			t = 1;
+		} else if (num < 1000000000) {
+			int millions = num / 1000000;
+			num = num % 1000000;
+			t = 1;
+			res = ast_say_number_full_en(chan, millions, ints, language, audiofd, ctrlfd);
+			if (res)
+				return res;
+			if (num) {
+				ast_copy_string(fn, "digits/million", sizeof(fn));
+			} else {
+				ast_copy_string(fn, "digits/h-million", sizeof(fn));
+			}
+		} else if (num < INT_MAX) {
+			int billions = num / 1000000000;
+			num = num % 1000000000;
+			t = 1;
+			res = ast_say_number_full_en(chan, billions, ints, language, audiofd, ctrlfd);
+			if (res)
+				return res;
+			if (num) {
+				ast_copy_string(fn, "digits/billion", sizeof(fn));
+			} else {
+				ast_copy_string(fn, "digits/h-billion", sizeof(fn));
+			}
+		} else if (num == INT_MAX) {
+			ast_copy_string(fn, "digits/h-last", sizeof(fn));
+			num = 0;
+		} else {
+			ast_debug(1, "Number '%d' is too big for me\n", num);
+			res = -1;
+		}
+
+		if (!res) {
+			if (!ast_streamfile(chan, fn, language)) {
+				if ((audiofd > -1) && (ctrlfd > -1)) {
+					res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
+				} else {
+					res = ast_waitstream(chan, ints);
+				}
+			}
+			ast_stopstream(chan);
+		}
+	}
+	return res;
+}
+
+/*! \brief  ast_say_enumeration_full_dr: Dari syntax
+ \note This is the default syntax, if no other syntax defined in this file is used */
+static int ast_say_enumeration_full_dr(struct ast_channel *chan, int num, const char *ints, const char *language, int audiofd, int ctrlfd)
+{
+	int res = 0, t = 0;
+	char fn[256] = "";
+
+	while (!res && num) {
+		if (num < 0) {
+			ast_copy_string(fn, "digits/minus", sizeof(fn)); /* kind of senseless for enumerations, but our best effort for error checking */
+			if ( num > INT_MIN ) {
+				num = -num;
+			} else {
+				num = 0;
+			}
+		} else if (num <= 31) {
 			snprintf(fn, sizeof(fn), "digits/h-%d", num);
 			num = 0;
 		} else if (num < 100) {
@@ -3982,6 +4416,10 @@ static int say_date(struct ast_channel *chan, time_t t, const char *ints, const 
 		return ast_say_date_pt(chan, t, ints, lang);
 	} else if (!strncasecmp(lang, "th", 2)) { /* Thai syntax */
 		return ast_say_date_th(chan, t, ints, lang);
+	} else if (!strncasecmp(lang, "ps", 2)) { /* Pashto syntax */
+		return ast_say_date_en(chan, t, ints, lang);
+	} else if (!strncasecmp(lang, "dr", 2)) { /* Dari syntax */
+		return ast_say_date_en(chan, t, ints, lang);
 	}
 
 	/* Default to English */
@@ -7253,6 +7691,10 @@ static int say_time(struct ast_channel *chan, time_t t, const char *ints, const 
 		return(ast_say_time_th(chan, t, ints, lang));
 	} else if (!strncasecmp(lang, "zh", 2)) { /* Taiwanese / Chinese syntax */
 		return ast_say_time_zh(chan, t, ints, lang);
+	} else if (!strncasecmp(lang, "ps", 2)) { /* Pashto syntax */
+		return ast_say_time_en(chan, t, ints, lang);
+	} else if (!strncasecmp(lang, "dr", 2)) { /* Dari syntax */
+		return ast_say_time_en(chan, t, ints, lang);
 	}
 
 	/* Default to English */
