@@ -73,7 +73,7 @@
 				<para>Is the silence after detecting a greeting.</para>
 				<para>If this is exceeded, the result is detection as a HUMAN</para>
 			</parameter>
-			<parameter name="totalAnalysis Time" required="false">
+			<parameter name="totalAnalysisTime" required="false">
 				<para>Is the maximum time allowed for the algorithm</para>
 				<para>to decide on whether the audio represents a HUMAN, or a MACHINE</para>
 			</parameter>
