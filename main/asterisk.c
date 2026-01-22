@@ -246,7 +246,6 @@ int daemon(int, int);  /* defined in libresolv of all places */
 
 #include "../defaults.h"
 #include "channelstorage.h"
-#include "editline_compat.h"
 
 /*** DOCUMENTATION
 	<managerEvent language="en_US" name="FullyBooted">
@@ -2726,12 +2725,6 @@ static int ast_el_read_char(EditLine *editline, CHAR_T_LIBEDIT *cp)
 		}
 
 		if (!ast_opt_exec && fds[1].revents) {
-#if HAVE_LIBEDIT_IS_UNICODE
-			num_read = editline_read_char(editline, cp);
-			if (num_read < 1) {
-				break;
-			}
-#else
 			char c = '\0';
 
 			num_read = read(STDIN_FILENO, &c, 1);
@@ -2741,7 +2734,6 @@ static int ast_el_read_char(EditLine *editline, CHAR_T_LIBEDIT *cp)
 
 			*cp = CHAR_TO_LIBEDIT(c);
 
-#endif
 			return num_read;
 		}
 
@@ -3628,11 +3620,6 @@ int main(int argc, char *argv[])
 	RAII_VAR(char *, xarg, NULL, ast_free);
 	struct rlimit l;
 	static const char *getopt_settings = "BC:cde:FfG:ghIiL:M:mnpqRrs:TtU:VvWXx:";
-
-	/* Bring in locale settings from the environment. This is needed
-	   for libedit, as the LC_CTYPE category of the locale impacts the
-	   the multi-byte character functions provided by libc */
-	setlocale(LC_ALL, "");
 
 	/* Remember original args for restart */
 	if (argc > ARRAY_LEN(_argv) - 1) {
