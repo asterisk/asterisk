@@ -3629,10 +3629,13 @@ int main(int argc, char *argv[])
 	struct rlimit l;
 	static const char *getopt_settings = "BC:cde:FfG:ghIiL:M:mnpqRrs:TtU:VvWXx:";
 
-	/* Bring in locale settings from the environment. This is needed
-	   for libedit, as the LC_CTYPE category of the locale impacts the
-	   the multi-byte character functions provided by libc */
-	setlocale(LC_ALL, "");
+	/* Try to explicitly set a UTF-8 locale. This is needed for
+	   libedit, as the LC_CTYPE category of the locale impacts the the
+	   multi-byte character functions provided by libc. If it fails,
+	   so be it. */
+	if (!setlocale(LC_ALL, "C.UTF-8")) {
+		ast_debug(1, "Tried to set locale to C.UTF-8 but it failed\n");
+	}
 
 	/* Remember original args for restart */
 	if (argc > ARRAY_LEN(_argv) - 1) {
