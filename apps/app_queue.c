@@ -6124,16 +6124,16 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
  * \brief update the queue status
  * \retval 0 always
 */
-static int update_queue(struct call_queue *q, struct member *member, int callcompletedinsl, time_t starttime)
+static int update_queue(struct call_queue *q, struct member *member,
+	int callcompletedinsl, time_t starttime)
 {
 	int oldtalktime;
 	int newtalktime;
 	struct member *mem;
 	struct call_queue *qtmp;
 	struct ao2_iterator queue_iter;
-	int did_increment_any = 0; /* gate passed => we performed increments */
-	
-	/* If we don't have a bridged start time, this is not countable. */
+	int did_increment_any = 0;
+
 	if (!starttime) {
 		return 0;
 	}
@@ -6141,25 +6141,24 @@ static int update_queue(struct call_queue *q, struct member *member, int callcom
 	newtalktime = (int)(time(NULL) - starttime);
 
 	/*
-	 * GLOBAL GATE (minimal, reliable):
-	 * Consume the bridged starttime ONLY ONCE per call using the ORIGINAL member object.
-	 * This blocks duplicate triggers (status + hangup) from counting twice.
+	 * GLOBAL GATE:
+	 * Only allow one update per bridged call.
+	 * Use AO2 locking instead of atomics for portability.
 	 */
-	if (!__sync_bool_compare_and_swap(&member->starttime, starttime, 0)) {
+	ao2_lock(q);
+	if (member->starttime != starttime) {
+		ao2_unlock(q);
 		return 0;
 	}
-	
+	/* consume starttime so duplicates are blocked */
+	member->starttime = 0;
+	ao2_unlock(q);
+
 	if (shared_lastcall) {
-		/*
-		 * shared_lastcall behavior
-		 * If gate is OK, increment calls for this agent in ALL queues they belong to.
-		 * Do NOT use mem->starttime as a per-queue gate; it's often 0 in other queues.
-		 */
 		queue_iter = ao2_iterator_init(queues, 0);
-		while ((qtmp = ao2_t_iterator_next(&queue_iter, "Iterate through queues"))) {
+		while ((qtmp = ao2_t_iterator_next(&queue_iter, "Iterate queues"))) {
 			ao2_lock(qtmp);
-			mem = ao2_find(qtmp->members, member, OBJ_POINTER);
-			if (mem) {
+			if ((mem = ao2_find(qtmp->members, member, OBJ_POINTER))) {
 				time(&mem->lastcall);
 				mem->calls++;
 				mem->callcompletedinsl = 0;
@@ -6167,30 +6166,22 @@ static int update_queue(struct call_queue *q, struct member *member, int callcom
 				did_increment_any = 1;
 				ao2_ref(mem, -1);
 			}
-
 			ao2_unlock(qtmp);
-			queue_t_unref(qtmp, "Done with iterator");
+			queue_t_unref(qtmp, "queue iteration done");
 		}
 		ao2_iterator_destroy(&queue_iter);
-
 	} else {
-		/* Non-shared: only increment this queue's member entry. */
 		ao2_lock(q);
 		time(&member->lastcall);
 		member->callcompletedinsl = 0;
 		member->calls++;
 		member->lastqueue = q;
-		did_increment_any = 1;		
+		did_increment_any = 1;
 		ao2_unlock(q);
 	}
 
-	/* Member might never experience any direct status change... */
 	pending_members_remove(member);
 
-	/*
-	 * Queue-level counters must ALSO be gated.
-	 * Otherwise you'll still get C:2 from multiple triggers.
-	 */
 	if (did_increment_any) {
 		ao2_lock(q);
 		q->callscompleted++;
@@ -6208,7 +6199,6 @@ static int update_queue(struct call_queue *q, struct member *member, int callcom
 
 	return 0;
 }
-
 /*! \brief Calculate the metric of each member in the outgoing callattempts
  *
  * A numeric metric is given to each member depending on the ring strategy used
