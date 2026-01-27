@@ -118,6 +118,18 @@ const char *ast_cel_get_type_name(enum ast_cel_event_type type);
 enum ast_cel_event_type ast_cel_str_to_event_type(const char *name);
 
 /*!
+ * \brief Format an event timeval using dateformat from cel.conf
+ *
+ * \param eventtime The timeval to format
+ * \param timebuf A buffer of at least 30 chracters to place the result in
+ * \param len Length of buffer
+
+ * \retval zero Success
+ * \retval non-zero Failure
+ */
+int ast_cel_format_eventtime(struct timeval eventtime, char *timebuf, size_t len);
+
+/*!
  * \brief Create a fake channel from data in a CEL event
  *
  * \note
