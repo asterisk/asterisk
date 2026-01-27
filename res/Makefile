@@ -68,6 +68,7 @@ $(call MOD_ADD_C,res_stasis_recording,stasis_recording/stored.c)
 $(call MOD_ADD_C,res_stir_shaken,$(wildcard res_stir_shaken/*.c))
 $(call MOD_ADD_C,res_aeap,$(wildcard res_aeap/*.c))
 $(call MOD_ADD_C,res_geolocation,$(wildcard res_geolocation/*.c))
+$(call MOD_ADD_C,res_cdrel_custom,$(wildcard cdrel_custom/*.c))
 
 # These are the xml and xslt files to be embedded
 res_geolocation.so: res_geolocation/pidf_lo_test.o res_geolocation/pidf_to_eprofile.o res_geolocation/eprofile_to_pidf.o

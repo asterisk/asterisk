@@ -1,15 +1,39 @@
 ;
-; Mappings for custom config file
+; Asterisk Call Detail Record Logging (CDR) - Custom DSV Backend
 ;
-; To get your CSV output in a format tailored to your liking, uncomment the
-; following lines and look for the output in the cdr-custom directory (usually
-; in /var/log/asterisk).  Depending on which mapping you uncomment, you may see
-; Master.csv, Simple.csv, or both.
+
+; This is the configuration file for the customizable DSV backend for CDR
+; logging.
 ;
-; Alternatively, you can also specify the location of your CSV file using an
-; absolute path, e.g.:
+; DSV??  Delimiter Separated Values because the field delimiter doesn't have
+; to be a comma.
 ;
-;     /srv/pbx/cdr/Master.csv => ${CSV_QUOTE(${CDR(clid)})},...
+; Legacy vs Advanced Mappings
+;
+; Legacy mappings are those that are defined using dialplan functions like CDR
+; and CSV_QUOTE and require a VERY expensive function replacement process at
+; runtime for every record output.
+;
+; Advanced mappings are those that are defined by a list of field names and
+; parameters that define the field separator and quote character you want to use.
+; This type of mapping is uses significantly less resources at runtime.
+;
+;
+; Legacy Mappings
+;
+; Within a legacy mapping, use the CDR() and CSV_QUOTE() functions to retrieve
+; values from the CDR.
+;
+; NOTE: If your legacy mapping uses commas as field separators and only the CSV_QUOTE
+; and CDR dialplan functions, the module will attempt to strip the functions and
+; and create a much faster advanced mapping for it. However, we urge you to create
+; a real advanced mapping and not rely on this process. If the mapping contains
+; something not recognized it will go the slower legacy route.
+;
+; Each entry in the "mappings" category represents a separate output file.
+; A filename that starts with a forward-slash '/' will be treated as an absolute
+; path name.  If it doesn't, it must be a file name with no directory separators
+; which will be placed in the /var/log/asterisk/cdr-custom directory.
 ;
 ;[mappings]
 ;Master.csv => ${CSV_QUOTE(${CDR(clid)})},${CSV_QUOTE(${CDR(src)})},${CSV_QUOTE(${CDR(dst)})},${CSV_QUOTE(${CDR(dcontext)})},${CSV_QUOTE(${CDR(channel)})},${CSV_QUOTE(${CDR(dstchannel)})},${CSV_QUOTE(${CDR(lastapp)})},${CSV_QUOTE(${CDR(lastdata)})},${CSV_QUOTE(${CDR(start)})},${CSV_QUOTE(${CDR(answer)})},${CSV_QUOTE(${CDR(end)})},${CSV_QUOTE(${CDR(duration)})},${CSV_QUOTE(${CDR(billsec)})},${CSV_QUOTE(${CDR(disposition)})},${CSV_QUOTE(${CDR(amaflags)})},${CSV_QUOTE(${CDR(accountcode)})},${CSV_QUOTE(${CDR(uniqueid)})},${CSV_QUOTE(${CDR(userfield)})},${CDR(sequence)}
@@ -17,3 +41,103 @@
 ; High Resolution Time for billsec and duration fields
 ;Master.csv => ${CSV_QUOTE(${CDR(clid)})},${CSV_QUOTE(${CDR(src)})},${CSV_QUOTE(${CDR(dst)})},${CSV_QUOTE(${CDR(dcontext)})},${CSV_QUOTE(${CDR(channel)})},${CSV_QUOTE(${CDR(dstchannel)})},${CSV_QUOTE(${CDR(lastapp)})},${CSV_QUOTE(${CDR(lastdata)})},${CSV_QUOTE(${CDR(start)})},${CSV_QUOTE(${CDR(answer)})},${CSV_QUOTE(${CDR(end)})},${CSV_QUOTE(${CDR(duration,f)})},${CSV_QUOTE(${CDR(billsec,f)})},${CSV_QUOTE(${CDR(disposition)})},${CSV_QUOTE(${CDR(amaflags)})},${CSV_QUOTE(${CDR(accountcode)})},${CSV_QUOTE(${CDR(uniqueid)})},${CSV_QUOTE(${CDR(userfield)})},${CDR(sequence)}
 ;Simple.csv => ${CSV_QUOTE(${EPOCH})},${CSV_QUOTE(${CDR(src)})},${CSV_QUOTE(${CDR(dst)})}
+
+
+;
+; Advanced Mappings
+;
+; Each category in this file other than "mappings" represents a separate output file.
+; A filename that starts with a forward-slash '/' will be treated as an absolute
+; path name.  If it doesn't, it must be a file name with no directory separators
+; which will be placed in the /var/log/asterisk/cdr-custom directory.
+;
+;[cdr_master.csv]             ; Output file or path name.
+
+;format = dsv                 ; Advanced mappings can actually have two types
+                              ; "dsv" or "json".  This example uses "dsv", which
+                              ; is the default, but see the example below for more
+                              ; info on the json format.
+
+;separator_character = ,      ; The character to use for the field separator,
+                              ; It defaults to a comma but you can use any
+                              ; character you want.  For instance, specify
+                              ; \t to separate the fields with a tab.
+
+;quote_character = "          ; The character to use as the quote character.
+                              ; It defaults to the double quote but again, it
+                              ; can be any character you want although the
+                              ; single-quote is the only other one that makes
+                              ; sense.
+
+;quote_escape_character = "   ; The character to use to escape the quote_character
+                              ; should the quote character actually appear in the
+                              ; field output.  A good example of this is a caller
+                              ; id string like "My Name" <1000>.  For true CSV
+                              ; compatibility, it must be the same as the quote
+                              ; character but a backslash might be acceptable for
+                              ; other formats.
+
+;quoting_method = all         ; Nothing says you _have_ to quote anything. The only
+                              ; time a field MUST be quoted is if it contains the
+                              ; separator character and this is handled automatically.
+                              ; Additionally, the following options are available:
+                              ; "all": Quote all fields. The default.
+                              ; "non_numeric": Quote all non numeric fields.
+                              ; "none": Don't quote any field (unless it contains
+                              ; a separator character).
+
+;fields = clid,"Some Literal",src, dst, dcontext, channel, dstchannel, lastapp, lastdata, start, answer, end, duration, billsec, disposition, amaflags, accountcode, uniqueid(noquote), userfield, sequence,ds_type(uservar)
+    ; This is the list of fields to include in the record. The field names are the
+    ; same as in the legacy mapping but without any enclosing dialplan functions.
+    ; You can specify literals to be placed in the output record by double-quoting
+    ; them. There is also some special notation available in the form of "qualifiers".
+    ; A qualifier is a list of tags, separated by the '^' character and placed
+    ; directly after the field name and enclosed in parentheses.
+    ;
+    ; All fields can accept the "quote" or "noquote" qualifier when you want to exempt
+    ; a field from the "quoting_method" policy.  For example, when quoting_method=all,
+    ; you can force the uniqueid field to not be quoted with `uniqueid(noquote)`. The
+    ; example in fields above shows this.
+    ;
+    ; If you've added user variables to the CDR using the CDR() dialplan function in
+    ; extensions.conf, you'll need to retrieve the field using the "uservar" qualifier.
+    ; For example, if you've added the "ds_type" variable, you'll need to retrieve
+    ; it with `ds_type(uservar)`.
+    ;
+    ; The default output format for the "start", "answer" and "end" timestamp fields
+    ; is the "%Y-%m-%d %T" strftime string format however you can also format those
+    ; fields as an int64 or a float: `start(int64),answer(float),end`.
+    ;
+    ; The "disposition" and "amaflags" are formatted as their string names like
+    ; "ANSWERED" and "DOCUMENTATION" by default but if you just want the numbers and
+    ; not the names...  `amaflags(int64),disposition(int64)`.
+    ;
+    ; If you need to combine flags, use the caret '^' symbol: `start(int64^noquote)`
+    ;
+    ; Final notes about "fields":
+    ;    Field names and qualifiers aren't case sensitive.
+    ;    You MUST use the comma to separate the fields, not the "separator_character".
+    ;    You MUST use the double-quote to indicate literal fields, not the "quote_character".
+    ;    Whitespace in "fields" is ignored except in literals.
+
+;
+; An Advanced JSON example:
+;
+;[cdr_master.json]
+;format = json
+;fields = clid,"My: Literal",src, dst, dcontext, channel, dstchannel, lastapp, lastdata, start, answer, end, duration, billsec, disposition, amaflags, accountcode, uniqueid(noquote), userfield, sequence,ds_type(uservar)
+;
+;  In order to ensure valid JSON, the following settings are forced:
+;    The separator character is always the comma.
+;    The quote character is always the double-quote.
+;    The quote escape character is always the backslash.
+;    The quoting method is always "non_numeric".
+;
+;  Since JSON requires both a name and value, the name is always
+;  the field name.  For literals however you must specify the literal
+;  as a "name: value" pair as demonstrated above.  The output record
+;  would then look something like:
+; {"clid":"\"Alice\" <1000>", "My":"Literal","src":"1000","dst":"18005551212", ...}  
+
+
+
