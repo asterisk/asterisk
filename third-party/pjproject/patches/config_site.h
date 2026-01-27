@@ -108,3 +108,11 @@
  * we don't want to increase it too much.
  */
 #define PJSIP_MAX_MODULE 38
+
+/*
+ * Disable ICE check for source address match. Asterisk handles
+ * this itself and having both enabled causes the rtp stream
+ * to not be established correctly.
+ */
+
+#define PJ_ICE_SESS_CHECK_SRC_ADDR               0

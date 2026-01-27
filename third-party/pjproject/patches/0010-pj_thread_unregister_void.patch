@@ -1,0 +1,31 @@
+From 67eb16ae971be208446598332c29eee7c919af36 Mon Sep 17 00:00:00 2001
+From: Stanislav Abramenkov <stas.abramenkov@gmail.com>
+Date: Tue, 2 Dec 2025 14:16:05 +0200
+Subject: [PATCH] Fix pj/os.h header file
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+These warnings occur when compiling asterisk-20.17.0 together with pjproject 2.16
+
+Example:
+/usr/src/asterisk-20.17.0/third-party/pjproject/source/pjlib/include/pj/os.h:267:1: warning: function declaration isn’t a prototype [-Wstrict-prototypes]
+  267 | PJ_DECL(pj_status_t) pj_thread_unregister();
+      | ^~~~~~~
+---
+ pjlib/include/pj/os.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/pjlib/include/pj/os.h b/pjlib/include/pj/os.h
+index b6406e35e2..3ddc6b05f1 100644
+--- a/pjlib/include/pj/os.h
++++ b/pjlib/include/pj/os.h
+@@ -264,7 +264,7 @@ PJ_DECL(pj_status_t) pj_thread_register ( const char *thread_name,
+  *
+  * @return PJ_SUCCESS on success.
+  */
+-PJ_DECL(pj_status_t) pj_thread_unregister();
++PJ_DECL(pj_status_t) pj_thread_unregister(void);
+ 
+ /**
+  * Register a thread that was created by external or native API to PJLIB.
