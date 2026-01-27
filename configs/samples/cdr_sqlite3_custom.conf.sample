@@ -1,11 +1,105 @@
 ;
-; Mappings for custom config file
+; Asterisk Call Detail Record Logging (CDR) - Custom Sqlite3 Backend
 ;
-[master] ; currently, only file "master.db" is supported, with only one table at a time.
-;table => cdr
-;columns => calldate, clid, dcontext, channel, dstchannel, lastapp, lastdata, duration, billsec, disposition, amaflags, accountcode, uniqueid, userfield, test
-;values => '${CDR(start)}','${CDR(clid)}','${CDR(dcontext)}','${CDR(channel)}','${CDR(dstchannel)}','${CDR(lastapp)}','${CDR(lastdata)}','${CDR(duration)}','${CDR(billsec)}','${CDR(disposition)}','${CDR(amaflags)}','${CDR(accountcode)}','${CDR(uniqueid)}','${CDR(userfield)}','${CDR(test)}'
-;busy_timeout => 1000
 
-;Enable High Resolution Times for billsec and duration fields
-;values => '${CDR(start)}','${CDR(clid)}','${CDR(dcontext)}','${CDR(channel)}','${CDR(dstchannel)}','${CDR(lastapp)}','${CDR(lastdata)}','${CDR(duration,f)}','${CDR(billsec,f)}','${CDR(disposition)}','${CDR(amaflags)}','${CDR(accountcode)}','${CDR(uniqueid)}','${CDR(userfield)}','${CDR(test)}'
+; This is the configuration file for the customizable Sqlite3 backend for CDR
+; logging.
+;
+; Legacy vs Advanced Mappings
+;
+; Legacy mappings are those that are defined using dialplan functions like CDR
+; and CSV_QUOTE and require a VERY expensive function replacement process at
+; runtime for every record output.
+;
+; Advanced mappings are those that are defined by a simple list of field names
+; which uses significantly less resources at runtime.
+;
+;
+; Each category in this file represents a separate Sqlite3 database file.
+; A filename that starts with a forward-slash '/' will be treated as an absolute
+; path name.  If it doesn't, it must be a file name with no directory separators
+; which will be placed in the /var/log/asterisk directory.  If the database
+; file doesn't already exist, it will be created.
+;
+; Previous versions of Asterisk limited the output to a single database file
+; named "master" which was shared with CDR Sqlite3 logging.  That is no longer
+; the case.
+;
+; Legacy Mappings
+;
+; Within a legacy mapping, use the CDR() and CSV_QUOTE() functions to retrieve
+; values from the CDR.
+;
+; NOTE: If your legacy mapping uses only the CDR dialplan function, the module
+; will attempt to strip the functions and create a much faster advanced mapping
+; for it. However, we urge you to create a real advanced mapping and not rely
+; on this process. If the mapping contains something not recognized it will go
+; the slower legacy route.
+;
+;
+;[cdr_master]
+;table = cdr             ; The name of the table in the database into which records
+                         ; are to be written.  If the table doesn't already exist,
+                         ; it will be created.
+
+;columns = calldate, literal, clid, dcontext, channel, dstchannel, lastapp, lastdata, duration, billsec, disposition, amaflags, accountcode, uniqueid, userfield, ds_store
+    ; The column names to receive the fields.  If the table doesn't already exist,
+    ; it will be created with these columns.  If the table does exist, this list
+    ; MUST match the existing columns or the config will fail to load.
+    ; The column names do NOT have to match the field names however.
+
+;values = '${CDR(start)}','some literal','${CDR(clid)}','${CDR(dcontext)}','${CDR(channel)}','${CDR(dstchannel)}','${CDR(lastapp)}','${CDR(lastdata)}','${CDR(duration)}','${CDR(billsec)}','${CDR(disposition)}','${CDR(amaflags)}','${CDR(accountcode)}','${CDR(uniqueid)}','${CDR(userfield)}','${CDR(ds_store)}'
+    ; The list of fields to write into the columns.
+    ; Each field MUST be enclosed in single-quotes and the fields separated
+    ; by commas.  Additionally, the number of fields specified MUST match the
+    ; number of columns or the config will fail to load.
+
+;busy_timeout = 1000    ; The number of milliseconds to wait for a database operation
+                        ; to complete before an error is returned.
+
+;
+; Advanced Mappings
+;
+;[cdr_advanced]
+;table = cdr             ; The name of the table in the database into which records
+                         ; are to be written.  If the table doesn't already exist,
+                         ; it will be created.
+
+;columns = calldate, literal, clid, dcontext, channel, dstchannel, lastapp, lastdata, duration, billsec, disposition, amaflags, accountcode, uniqueid, userfield, ds_storetest    ; The column names to receive the fields.  If the table doesn't already exist,
+    ; it will be created with these columns.  If the table does exist, this list
+    ; MUST match the existing columns or the config will fail to load.
+
+;fields = start,"some literal",clid,dcontext,channel,dstchannel,lastapp,lastdata,duration,billsec,disposition,amaflags,accountcode,uniqueid,userfield,ds_store(uservar)
+    ; The "fields" parameter differentiates this mapping as an Advanced one
+    ; as opposed to "values" used above.
+    ;
+    ; This is the list of fields to include in the record. The field names are the
+    ; same as in the legacy mapping but without any enclosing dialplan functions.
+    ; You can specify literals to be placed in the output record by double-quoting
+    ; them. There is also some special notation available in the form of "qualifiers".
+    ; A qualifier is a list of tags, separated by the '^' character and placed
+    ; directly after the field name and enclosed in parentheses.
+    ;
+    ; If you've added user variables to the CDR using the CDR() dialplan function in
+    ; extensions.conf, you'll need to retrieve the field using the "uservar" qualifier.
+    ; For example, if you've added the "ds_type" variable, you'll need to retrieve
+    ; it with `ds_type(uservar)`.
+    ;
+    ; The default output format for the "start", "answer" and "end" timestamp fields
+    ; is the "%Y-%m-%d %T" strftime string format however you can also format those
+    ; fields as an int64 or a float: `start(int64),answer(float),end`.
+    ;
+    ; The "disposition" and "amaflags" are formatted as their string names like
+    ; "ANSWERED" and "DOCUMENTATION" by default but if you just want the numbers and
+    ; not the names...  `amaflags(int64),disposition(int64)`.
+    ;
+    ; If you need to combine flags, use the caret '^' symbol: `start(int64^noquote)`
+    ;
+    ; Final notes about "fields":
+    ;    Field names and qualifiers aren't case sensitive.
+    ;    You MUST use commas to separate the fields.
+    ;    You MUST use double-quotes to indicate literal fields.
+    ;    Whitespace in "fields" is ignored except in literals.
+
+;busy_timeout = 1000    ; The number of milliseconds to wait for a database operation
+                        ; to complete before an error is returned.
