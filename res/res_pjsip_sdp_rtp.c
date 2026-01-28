@@ -67,6 +67,7 @@ static struct ast_sockaddr address_rtp;
 
 static const char STR_AUDIO[] = "audio";
 static const char STR_VIDEO[] = "video";
+static const char STR_TEXT[] = "text";
 
 static int send_keepalive(const void *data)
 {
@@ -290,6 +291,10 @@ static int create_rtp(struct ast_sip_session *session, struct ast_sip_session_me
 			(session->endpoint->media.tos_audio || session->endpoint->media.cos_audio)) {
 		ast_rtp_instance_set_qos(session_media->rtp, session->endpoint->media.tos_audio,
 				session->endpoint->media.cos_audio, "SIP RTP Audio");
+	} else if (session_media->type == AST_MEDIA_TYPE_TEXT &&
+			(session->endpoint->media.tos_text || session->endpoint->media.cos_text)) {
+		ast_rtp_instance_set_qos(session_media->rtp, session->endpoint->media.tos_text,
+				session->endpoint->media.cos_text, "SIP RTP Text");
 	} else if (session_media->type == AST_MEDIA_TYPE_VIDEO) {
 		ast_rtp_instance_set_prop(session_media->rtp, AST_RTP_PROPERTY_RETRANS_RECV, session->endpoint->media.webrtc);
 		ast_rtp_instance_set_prop(session_media->rtp, AST_RTP_PROPERTY_RETRANS_SEND, session->endpoint->media.webrtc);
@@ -373,7 +378,6 @@ static void get_codecs(struct ast_sip_session *session, const struct pjmedia_sdp
 				struct ast_format *format_parsed;
 
 				ast_copy_pj_str(fmt_param, &fmtp.fmt_param, sizeof(fmt_param));
-
 				format_parsed = ast_format_parse_sdp_fmtp(format, fmt_param);
 				if (format_parsed) {
 					ast_rtp_codecs_payload_replace_format(codecs, num, format_parsed);
@@ -456,6 +460,41 @@ static int apply_cap_to_bundled(struct ast_sip_session_media *session_media,
 	return 0;
 }
 
+static struct ast_format_cap *get_incoming_call_offer_cap(
+	struct ast_sip_session *session, struct ast_sip_session_media *session_media,
+	const struct pjmedia_sdp_media *stream)
+{
+	struct ast_format_cap *incoming_call_offer_cap;
+	struct ast_format_cap *remote;
+	struct ast_rtp_codecs codecs = AST_RTP_CODECS_NULL_INIT;
+	SCOPE_ENTER(1, "%s\n", ast_sip_session_get_name(session));
+
+	remote = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+	if (!remote) {
+		ast_log(LOG_ERROR, "Failed to allocate %s incoming remote capabilities\n",
+				ast_codec_media_type2str(session_media->type));
+		SCOPE_EXIT_RTN_VALUE(NULL, "Couldn't allocate caps\n");
+	}
+
+	/* Get the peer's capabilities*/
+	get_codecs(session, stream, &codecs, session_media, remote);
+
+	incoming_call_offer_cap = ast_sip_session_create_joint_call_cap(
+		session, session_media->type, remote);
+
+	ao2_ref(remote, -1);
+
+	if (!incoming_call_offer_cap || ast_format_cap_empty(incoming_call_offer_cap)) {
+		ao2_cleanup(incoming_call_offer_cap);
+		ast_rtp_codecs_payloads_destroy(&codecs);
+		SCOPE_EXIT_RTN_VALUE(NULL, "No incoming call offer caps\n");
+	}
+
+	ast_rtp_codecs_payloads_destroy(&codecs);
+
+	SCOPE_EXIT_RTN_VALUE(incoming_call_offer_cap);
+}
+
 static struct ast_format_cap *set_incoming_call_offer_cap(
 	struct ast_sip_session *session, struct ast_sip_session_media *session_media,
 	const struct pjmedia_sdp_media *stream)
@@ -473,7 +512,7 @@ static struct ast_format_cap *set_incoming_call_offer_cap(
 		SCOPE_EXIT_RTN_VALUE(NULL, "Couldn't allocate caps\n");
 	}
 
-	/* Get the peer's capabilities*/
+	/* Get the peer's capabilities */
 	get_codecs(session, stream, &codecs, session_media, remote);
 
 	incoming_call_offer_cap = ast_sip_session_create_joint_call_cap(
@@ -1539,6 +1578,46 @@ static void set_session_media_remotely_held(struct ast_sip_session_media *sessio
 	}
 }
 
+
+/*! \brief Function which checks for RED in a session and initialize it if needed */
+static void check_red_support(struct ast_sip_session *session, struct ast_sip_session_media *session_media,
+	struct ast_format *format_parsed)
+{
+	/*
+	 * To keep API compatibility, we are using an array here, even if the red codec
+	 * is using only an integer internally, similar as the other codec attributes.
+	 * The rtp red support from asterisk expect the primary payload also added to
+	 * the array, therefore we need one more element.
+	 */
+	int red_pt_array[AST_RED_MAX_GENERATION+1];
+	memset(red_pt_array, 0, sizeof(red_pt_array));
+
+	if (!session || !session_media || !format_parsed) {
+		ast_log(LOG_ERROR, "Could not initialize RED codec support needed for real-time text on session %s\n",
+			ast_sip_session_get_name(session));
+		return;
+	}
+
+	if (ast_format_cap_has_type(session->endpoint->media.codecs, AST_MEDIA_TYPE_TEXT)) {
+		if (ast_format_attribute_get(format_parsed, "red_payload") != NULL &&
+				strcasecmp(ast_format_get_name(format_parsed), "RED") == 0) {
+			int red_payload = *(int*)ast_format_attribute_get(format_parsed, "red_payload");
+			int red_num_gen = *(int*)ast_format_attribute_get(format_parsed, "red_num_gen");
+			if (red_payload != -1 && red_num_gen != -1) {
+				for (int x = 0; x < red_num_gen+1; x++) {
+					red_pt_array[x] = red_payload;
+				}
+				if (ast_rtp_red_init(session_media->rtp, 300, red_pt_array, red_num_gen) < 0) {
+					ast_log(LOG_ERROR, "Failed to initialize RED on rtp instance for real-time text on session %s\n",
+						ast_sip_session_get_name(session));
+				}
+			}
+			ast_debug(3, "RED init success for session %s with %d payload and %d generations\n",
+				ast_sip_session_get_name(session), red_payload, red_num_gen);
+		}
+	}
+}
+
 /*! \brief Function which negotiates an incoming media stream */
 static int negotiate_incoming_sdp_stream(struct ast_sip_session *session,
 	struct ast_sip_session_media *session_media, const pjmedia_sdp_session *sdp,
@@ -1809,6 +1888,8 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	AST_VECTOR(, int) sample_rates;
 	/* In case we can't init the sample rates, still try to do the rest. */
 	int build_dtmf_sample_rates = 1;
+	/* Temporary store the t140 payload for redundant text payload adaptations */
+	int t140_payload = 0;
 
 	SCOPE_ENTER(1, "%s Type: %s %s\n", ast_sip_session_get_name(session),
 		ast_codec_media_type2str(media_type), ast_str_tmp(128, ast_stream_to_str(stream, &STR_TMP)));
@@ -1967,6 +2048,28 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 		build_dtmf_sample_rates = 0;
 	}
 
+	/* if we are using text with rtp redundancy, we need to match the t140 payload inside the RED sdp */
+	for (index = 0; index < ast_format_cap_count(caps); ++index) {
+		struct ast_format *format = ast_format_cap_get_format(caps, index);
+		if (ast_format_get_type(format) == AST_MEDIA_TYPE_TEXT && strcasecmp(ast_format_get_name(format), "T140") == 0) {
+			if (session_media_transport != session_media) {
+				if ((rtp_code = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(session_media_transport->rtp), 1, format, 0)) == -1) {
+					ast_log(LOG_WARNING, "Unable to get rtp codec payload code for %s\n", ast_format_get_name(format));
+					ao2_ref(format, -1);
+					continue;
+				}
+			} else {
+				if ((rtp_code = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(session_media->rtp), 1, format, 0)) == -1) {
+					ast_log(LOG_WARNING, "Unable to get rtp codec payload code for %s\n", ast_format_get_name(format));
+					ao2_ref(format, -1);
+					continue;
+				}
+			}
+			t140_payload = rtp_code;
+			ast_debug(3, "Got t140 payload %d for session %s\n", t140_payload, ast_sip_session_get_name(session));
+		}
+	}
+
 	for (index = 0; index < ast_format_cap_count(caps); ++index) {
 		struct ast_format *format = ast_format_cap_get_format(caps, index);
 
@@ -2004,6 +2107,16 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 			}
 		}
 
+		/* if we are using text with rtp redundancy, we need to match the t140 payload inside the RED sdp */
+		if (ast_format_get_type(format) == AST_MEDIA_TYPE_TEXT && strncasecmp(ast_format_get_name(format), "RED", 3) == 0) {
+			if (ast_format_attribute_get(format, "red_payload") != NULL &&
+					 (*(int *)ast_format_attribute_get(format, "red_payload") != t140_payload)) {
+				char tmp[10];
+				snprintf(tmp, 10, "%d", t140_payload);
+				format = ast_format_attribute_set(format, "red_payload", tmp);
+				ast_debug(3, "Set RED payload to %s\n", tmp);
+			}
+		}
 		if ((attr = generate_rtpmap_attr(session, media, pool, rtp_code, 1, format, 0))) {
 			int i, added = 0;
 			int newrate = ast_rtp_lookup_sample_rate2(1, format, 0);
@@ -2224,6 +2337,8 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session,
 	int res;
 	int rtp_timeout;
 	struct ast_sip_session_media *session_media_transport;
+	struct ast_format_cap *joint;
+	struct ast_format *format_parsed;
 	SCOPE_ENTER(1, "%s Stream: %s\n", ast_sip_session_get_name(session),
 		ast_str_tmp(128, ast_stream_to_str(asterisk_stream, &STR_TMP)));
 
@@ -2296,6 +2411,17 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session,
 
 	if (set_caps(session, session_media, session_media_transport, remote_stream, 0, asterisk_stream)) {
 		SCOPE_EXIT_RTN_VALUE(-1, "set_caps failed\n");
+	}
+
+	joint = get_incoming_call_offer_cap(session, session_media, remote_stream);
+	if (joint) {
+		/* If RED support is enabled we need to set it up */
+		format_parsed = ast_format_cap_get_compatible_format(joint, ast_format_t140_red);
+		if (format_parsed) {
+			check_red_support(session, session_media, format_parsed);
+			ao2_ref(format_parsed, -1);
+		}
+		ao2_ref(joint, -1);
 	}
 
 	/* Set the channel uniqueid on the RTP instance now that it is becoming active */
@@ -2452,6 +2578,17 @@ static struct ast_sip_session_sdp_handler video_sdp_handler = {
 	.stream_destroy = stream_destroy,
 };
 
+/*! \brief SDP handler for 'text' media stream */
+static struct ast_sip_session_sdp_handler text_sdp_handler = {
+	.id = STR_TEXT,
+	.negotiate_incoming_sdp_stream = negotiate_incoming_sdp_stream,
+	.create_outgoing_sdp_stream = create_outgoing_sdp_stream,
+	.apply_negotiated_sdp_stream = apply_negotiated_sdp_stream,
+	.change_outgoing_sdp_stream_media_address = change_outgoing_sdp_stream_media_address,
+	.stream_stop = stream_stop,
+	.stream_destroy = stream_destroy,
+};
+
 static int video_info_incoming_request(struct ast_sip_session *session, struct pjsip_rx_data *rdata)
 {
 	struct pjsip_transaction *tsx;
@@ -2485,6 +2622,7 @@ static int unload_module(void)
 	ast_sip_session_unregister_supplement(&video_info_supplement);
 	ast_sip_session_unregister_sdp_handler(&video_sdp_handler, STR_VIDEO);
 	ast_sip_session_unregister_sdp_handler(&audio_sdp_handler, STR_AUDIO);
+	ast_sip_session_unregister_sdp_handler(&text_sdp_handler, STR_TEXT);
 
 	if (sched) {
 		ast_sched_context_destroy(sched);
@@ -2528,6 +2666,11 @@ static int load_module(void)
 
 	if (ast_sip_session_register_sdp_handler(&video_sdp_handler, STR_VIDEO)) {
 		ast_log(LOG_ERROR, "Unable to register SDP handler for %s stream type\n", STR_VIDEO);
+		goto end;
+	}
+
+	if (ast_sip_session_register_sdp_handler(&text_sdp_handler, STR_TEXT)) {
+		ast_log(LOG_ERROR, "Unable to register SDP handler for %s stream type\n", STR_TEXT);
 		goto end;
 	}
 
