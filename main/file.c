@@ -1033,7 +1033,6 @@ static int ast_fsread_video(const void *data);
 static enum fsread_res ast_readvideo_callback(struct ast_filestream *s)
 {
 	int whennext = 0;
-
 	while (!whennext) {
 		struct ast_frame *fr = read_frame(s, &whennext);
 
@@ -1052,14 +1051,47 @@ static enum fsread_res ast_readvideo_callback(struct ast_filestream *s)
 	}
 
 	if (whennext != s->lasttimeout) {
-		ast_channel_vstreamid_set(s->owner, ast_sched_add(ast_channel_sched(s->owner), whennext / (ast_format_get_sample_rate(s->fmt->format) / 1000), ast_fsread_video, s));
+		int delta;
+		int rtp_clock;
+		int delta_ms;
+		int delay_ms;
+
+		/*
+ 		 * This block handles scheduling of the next video frame read
+ 		 * during video voicemail playback.
+		 *
+ 		 * It checks whether the next RTP timestamp differs from the
+ 		 * previously scheduled one and calculates the delta using the
+ 		 * RTP video clock rate (90 kHz).
+ 		 *
+ 		 * The calculated delta is not used directly as a delay. Instead,
+ 		 * it is only used to select between two fixed delays (60 ms or
+ 		 * 70 ms) to enforce a minimum, stable scheduling interval for
+ 		 * voicemail video playback.
+ 		 *
+ 		 * This avoids very short or irregular scheduling that can occur
+ 		 * when RTP timestamp deltas fluctuate, while keeping frame
+ 		 * delivery predictable for stored voicemail video.
+ 		 *
+ 		 */
+
+		delta = whennext - s->lasttimeout;
+		rtp_clock = 90000;
+		delta_ms = (delta * 1000) / rtp_clock;
+
+		if (delta_ms < 60) {
+			delay_ms = 60;
+		} else {
+			delay_ms = 70;
+		}
+
+		ast_channel_vstreamid_set(s->owner,ast_sched_add(ast_channel_sched(s->owner),delay_ms,ast_fsread_video,s));
 		s->lasttimeout = whennext;
 		return FSREAD_SUCCESS_NOSCHED;
 	}
 
 	return FSREAD_SUCCESS_SCHED;
 }
-
 static int ast_fsread_video(const void *data)
 {
 	struct ast_filestream *fs = (struct ast_filestream *)data;
