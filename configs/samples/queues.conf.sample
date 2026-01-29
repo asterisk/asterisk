@@ -80,6 +80,8 @@ monitor-type = MixMonitor
 ; is a member of another queue with a call that's been waiting longer. If so, the current
 ; call is not offered to the agent. The default value is 'no'.
 ;
+; Setting this to 'prio' performs the same check but also accounts for call priority.
+;
 ;force_longest_waiting_caller = no
 ;
 ; Add unpause event to queue log in case of pause send twice with different reason code.
