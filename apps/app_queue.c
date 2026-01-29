@@ -1942,6 +1942,10 @@ struct penalty_rule {
 #define ANNOUNCEPOSITION_MORE_THAN 3 /*!< We say "Currently there are more than <limit>" */
 #define ANNOUNCEPOSITION_LIMIT 4 /*!< We not announce position more than \<limit\> */
 
+#define FORCELONGESTWAITINGCALLER_NO 0
+#define FORCELONGESTWAITINGCALLER_YES 1
+#define FORCELONGESTWAITINGCALLER_PRIO 2 /*!< Account for call priorities when forcing longest waiting caller */
+
 struct call_queue {
 	AST_DECLARE_STRING_FIELDS(
 		/*! Queue name */
@@ -4778,7 +4782,13 @@ static int is_longest_waiting_caller(struct queue_ent *caller, struct member *me
 					 * will be unused until the first caller is picked up.
 					 */
 					if (!ch->pending) {
-						if (ch->start < caller->start) {
+						if (ch->prio != caller->prio && force_longest_waiting_caller == FORCELONGESTWAITINGCALLER_PRIO) { 
+							if (ch->prio > caller->prio) { /* This queue has a caller with higher priority. */
+								ast_debug(1, "Queue %s has a call at position %i that's higher priority (%d vs %d)\n",
+									q->name, ch->pos, ch->prio, caller->prio);
+								is_longest_waiting = 0;
+							}
+						} else if (ch->start < caller->start) {
 							ast_debug(1, "Queue %s has a call at position %i that's been waiting longer (%li vs %li)\n",
 									  q->name, ch->pos, ch->start, caller->start);
 							is_longest_waiting = 0;
@@ -4787,6 +4797,8 @@ static int is_longest_waiting_caller(struct queue_ent *caller, struct member *me
 					}
 					ch = ch->next;
 				}
+
+				ao2_ref(mem, -1);
 			}
 		}
 		ao2_unlock(q);
@@ -9842,7 +9854,13 @@ static void queue_set_global_params(struct ast_config *cfg)
 		log_membername_as_agent = ast_true(general_val);
 	}
 	if ((general_val = ast_variable_retrieve(cfg, "general", "force_longest_waiting_caller"))) {
-		force_longest_waiting_caller = ast_true(general_val);
+		if (!strcasecmp(general_val, "prio")) {
+			force_longest_waiting_caller = FORCELONGESTWAITINGCALLER_PRIO;
+		} else if (ast_true(general_val)) {
+			force_longest_waiting_caller = FORCELONGESTWAITINGCALLER_YES;
+		} else {
+			force_longest_waiting_caller = FORCELONGESTWAITINGCALLER_NO;
+		}
 	}
 	if ((general_val = ast_variable_retrieve(cfg, "general", "log_unpause_on_reason_change"))) {
 		log_unpause_on_reason_change = ast_true(general_val);
