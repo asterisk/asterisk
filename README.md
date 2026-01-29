@@ -55,7 +55,7 @@ If you are updating from a previous version of Asterisk, make sure you
 read the Change Logs.
 
 <!-- CHANGELOGS (the URL will change based on the location of this README) -->
-[Change Logs](ChangeLogs/ChangeLog-20.18.0.html)
+[Change Logs](ChangeLogs/ChangeLog-20.18.1.html)
 <!-- END-CHANGELOGS -->
 
 ### NEW INSTALLATIONS
