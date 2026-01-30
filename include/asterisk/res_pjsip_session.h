@@ -364,6 +364,11 @@ struct ast_sip_session_supplement {
 	 * Defaults to AST_SIP_SESSION_BEFORE_MEDIA
 	 */
 	enum ast_sip_session_response_priority response_priority;
+	/*!
+	 * \brief Notification that the session has an associated channel
+	 * This method will always be called from a SIP servant thread.
+	 */
+	void (*session_channel_created)(struct ast_sip_session *session);
 };
 
 enum ast_sip_session_sdp_stream_defer {
@@ -624,6 +629,12 @@ void ast_sip_session_register_supplement_with_module(struct ast_module *module, 
  * \param supplement The supplement to unregister
  */
 void ast_sip_session_unregister_supplement(struct ast_sip_session_supplement *supplement);
+
+/*!
+ * \brief Notify supplements that a session now has an associated channel
+ * \param session The session whose channel has been created
+ */
+void ast_sip_session_channel_created(struct ast_sip_session *session);
 
 /*!
  * \brief Add supplements to a SIP session
