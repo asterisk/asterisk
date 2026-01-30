@@ -1649,7 +1649,17 @@ static int sip_endpoint_apply_handler(const struct ast_sorcery *sorcery, void *o
 			ast_sorcery_object_get_id(endpoint));
 		return -1;
 	}
-
+    /* Ensure the session name is RFC 8866 compliant if set */
+    if (ast_strlen_zero(endpoint->media.sdpsession) ||  ast_strlen_zero(ast_strip(ast_strdupa(endpoint->media.sdpsession)))) {
+        ast_log(LOG_WARNING, "SDP session was set to empty on endpoint '%s'. Not permitted as per RFC8866. SDP session set to '-'. \n",
+        ast_sorcery_object_get_id(endpoint));
+        ast_string_field_set(endpoint, media.sdpsession, "-");
+    }
+    if (ast_strlen_zero(endpoint->media.sdpowner) ||  ast_strlen_zero(ast_strip(ast_strdupa(endpoint->media.sdpowner)))) {
+        ast_log(LOG_WARNING, "SDP origin username was set to empty on endpoint '%s'. Not permitted as per RFC8866. SDP origin username set to '-'. \n",
+        ast_sorcery_object_get_id(endpoint));
+        ast_string_field_set(endpoint, media.sdpowner, "-");
+    }
 	if (ast_rtp_dtls_cfg_validate(&endpoint->media.rtp.dtls_cfg)) {
 		return -1;
 	}
