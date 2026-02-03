@@ -1,9 +1,0 @@
-{
-	global:
-		LINKER_SYMBOL_PREFIX*hepv3_send_packet;
-		LINKER_SYMBOL_PREFIX*hepv3_create_capture_info;
-		LINKER_SYMBOL_PREFIX*hepv3_get_uuid_type;
-		LINKER_SYMBOL_PREFIX*hepv3_is_loaded;
-	local:
-		*;
-};

@@ -1,6 +1,0 @@
-{
-	global:
-		LINKER_SYMBOL_PREFIXast_stir_*;
-	local:
-		*;
-};
