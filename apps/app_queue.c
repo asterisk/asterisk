@@ -6140,17 +6140,15 @@ static int update_queue(struct call_queue *q, struct member *member,
 
 	newtalktime = (int)(time(NULL) - starttime);
 
-	/*
-	 * GLOBAL GATE:
-	 * Only allow one update per bridged call.
-	 * Use AO2 locking instead of atomics for portability.
+	/* It is possible for us to be called when a call has already been considered terminated
+	 * and data updated, so to ensure we only act on the call that the agent is currently in
+	 * we check when the call was bridged.
 	 */
 	ao2_lock(q);
 	if (member->starttime != starttime) {
 		ao2_unlock(q);
 		return 0;
 	}
-	/* consume starttime so duplicates are blocked */
 	member->starttime = 0;
 	ao2_unlock(q);
 
@@ -6179,7 +6177,11 @@ static int update_queue(struct call_queue *q, struct member *member,
 		did_increment_any = 1;
 		ao2_unlock(q);
 	}
-
+	/* Member might never experience any direct status change (local
+	 * channel with forwarding in particular). If that's the case,
+	 * this is the last chance to remove it from pending or subsequent
+	 * calls will not occur.
+	 */
 	pending_members_remove(member);
 
 	if (did_increment_any) {
@@ -6191,6 +6193,7 @@ static int update_queue(struct call_queue *q, struct member *member,
 		if (q->callscompleted == 1) {
 			q->talktime = newtalktime;
 		} else {
+			/* Calculate talktime using the same exponential average as holdtime code */
 			oldtalktime = q->talktime;
 			q->talktime = (((oldtalktime << 2) - oldtalktime) + newtalktime) >> 2;
 		}
