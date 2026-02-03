@@ -1052,11 +1052,38 @@ static enum fsread_res ast_readvideo_callback(struct ast_filestream *s)
 	}
 
 	if (whennext != s->lasttimeout) {
-		ast_channel_vstreamid_set(s->owner, ast_sched_add(ast_channel_sched(s->owner), whennext / (ast_format_get_sample_rate(s->fmt->format) / 1000), ast_fsread_video, s));
+		int delta;
+		int rtp_clock;
+		int delta_ms;
+		int delay_ms;
+
+		/*
+		 * This code calculates the time difference between the next RTP video frame
+		 * and the previously scheduled frame using the RTP clock rate (90 kHz),
+		 * converts that difference into milliseconds, and determines an appropriate
+		 * delay for scheduling the next video frame read. If the calculated delay is
+		 * less than 60 ms, a minimum delay of 60 ms is enforced; otherwise, a delay
+		 * of 70 ms is used. The next video frame read is then scheduled using the
+		 * channel scheduler, the video stream ID is updated for the channel, and
+		 * the last scheduled RTP timestamp is stored for the next iteration. The
+		 * function returns a success status indicating that no additional scheduling
+		 * is required at this point.
+		 */
+
+		delta = whennext - s->lasttimeout;
+		rtp_clock = 90000;
+		delta_ms = (delta * 1000) / rtp_clock;
+
+		if (delta_ms < 60) {
+			delay_ms = 60;
+		} else {
+			delay_ms = 70;
+		}
+
+		ast_channel_vstreamid_set(s->owner,ast_sched_add(ast_channel_sched(s->owner),delay_ms,ast_fsread_video,s));
 		s->lasttimeout = whennext;
 		return FSREAD_SUCCESS_NOSCHED;
 	}
-
 	return FSREAD_SUCCESS_SCHED;
 }
 
