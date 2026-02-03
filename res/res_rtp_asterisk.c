@@ -5192,20 +5192,31 @@ static int rtp_raw_write(struct ast_rtp_instance *instance, struct ast_frame *fr
 #endif
 
 	if (frame->frametype == AST_FRAME_VOICE) {
+		/* Calculate what the next TS should be based strictly on samples */
 		pred = rtp->lastts + frame->samples;
 
-		/* Re-calculate last TS */
-		rtp->lastts = rtp->lastts + ms * rate;
 		if (ast_tvzero(frame->delivery)) {
-			/* If this isn't an absolute delivery time, Check if it is close to our prediction,
-			   and if so, go with our prediction */
-			if (abs((int)rtp->lastts - pred) < MAX_TIMESTAMP_SKEW) {
+			unsigned int time_based_ts = rtp->lastts + (ms * rate);
+			int delta = abs((int)time_based_ts - (int)pred);
+
+			if (delta < MAX_TIMESTAMP_SKEW) {
+				/* The difference is small; likely just jitter.
+				 * Use sample-based TS to prevent clicks. */
 				rtp->lastts = pred;
+			} else if (delta > (rate * 2)) {
+				/* The jump is huge (e.g., > 2 seconds).
+				 * This is likely a transfer or bridge change.
+				 * Reset to time-based TS and set the mark bit to signal a new stream. */
+				rtp->lastts = time_based_ts;
+				mark = 1;
 			} else {
-				ast_debug_rtp(3, "(%p) RTP audio difference is %d, ms is %u\n",
-					instance, abs((int)rtp->lastts - pred), ms);
+				/* Moderate skew; stay with samples but warn/mark. */
+				rtp->lastts = pred;
 				mark = 1;
 			}
+		} else {
+			/* Absolute delivery time provided; keep sample continuity. */
+			rtp->lastts = pred;
 		}
 	} else if (frame->frametype == AST_FRAME_VIDEO) {
 		mark = frame->subclass.frame_ending;
