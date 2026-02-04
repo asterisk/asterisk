@@ -951,7 +951,7 @@ static void do_forward(struct chanlist *o, struct cause_args *num,
 	struct ast_channel *c = o->chan; /* the winner */
 	struct ast_channel *in = num->chan; /* the input channel */
 	char *stuff;
-	char *tech;
+	const char *tech;
 	int cause;
 	struct ast_party_caller caller;
 
