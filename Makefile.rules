@@ -71,7 +71,9 @@ ifneq ($(findstring darwin,$(OSARCH)),)
   endif
 endif
 
+# Only apply -fno-partial-inlining for real GCC, not clang masquerading as gcc
 ifeq ($(CC),gcc)
+  ifeq ($(AST_CLANG_BLOCKS),)
     # gcc version 8.2.1 and above must have partial-inlining disabled in order
     # to avoid a documented bug. Sort to make the lowest version number come
     # first. If it's the specified version then the current gcc version is equal
@@ -79,7 +81,8 @@ ifeq ($(CC),gcc)
     gcc_versions=$(shell printf "%s\n" $$(gcc -dumpversion) 8.2.1 | sort -n)
     ifeq ($(firstword $(gcc_versions)),8.2.1)
         OPTIMIZE+=-fno-partial-inlining
-	endif
+    endif
+  endif
 endif
 
 ifeq ($(findstring DONT_OPTIMIZE,$(MENUSELECT_CFLAGS))$(findstring CODE_COVERAGE,$(MENUSELECT_CFLAGS))$(findstring CODE_PROFILE,$(MENUSELECT_CFLAGS))$(AST_CODE_COVERAGE),no)
