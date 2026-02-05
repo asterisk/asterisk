@@ -37,6 +37,7 @@
 #include <fcntl.h>          /* for fcntl(2) */
 
 #include "asterisk/utils.h"
+#include "asterisk/poll-compat.h"
 
 #define POLL_SIZE 1024
 
@@ -471,7 +472,7 @@ void closefrom(int n)
 			fds[i].fd = fd+i;
 			fds[i].events = 0;
 		}
-		poll(fds, loopmax, 0);
+		ast_poll(fds, loopmax, 0);
 		for (i = 0; i < loopmax; i++) {
 			if (fds[i].revents == POLLNVAL) {
 				continue;
