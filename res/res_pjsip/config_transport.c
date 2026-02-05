@@ -22,6 +22,20 @@
 #include <pjsip.h>
 #include <pjlib.h>
 
+/* macOS compatibility for TCP keepalive options */
+#ifdef __APPLE__
+#include <netinet/tcp.h>
+#ifndef TCP_KEEPIDLE
+#define TCP_KEEPIDLE TCP_KEEPALIVE
+#endif
+#ifndef TCP_KEEPINTVL
+#define TCP_KEEPINTVL 0x101  /* macOS doesn't support this, use dummy value */
+#endif
+#ifndef TCP_KEEPCNT
+#define TCP_KEEPCNT 0x102    /* macOS doesn't support this, use dummy value */
+#endif
+#endif
+
 #include "asterisk/res_pjsip.h"
 #include "asterisk/res_pjsip_cli.h"
 #include "asterisk/logger.h"
