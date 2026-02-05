@@ -31,7 +31,6 @@
 
 #include "asterisk/res_pjsip.h"
 #include "asterisk/res_pjsip_session.h"
-#include "asterisk/res_pjsip_session_caps.h"
 #include "asterisk/callerid.h"
 #include "asterisk/datastore.h"
 #include "asterisk/module.h"
@@ -771,6 +770,86 @@ static void remove_stream_from_bundle(struct ast_sip_session_media *session_medi
 	session_media->bundled = 0;
 }
 
+static void set_caps_from_sdp(struct ast_sip_session *session, const pjmedia_sdp_media *stream, struct ast_format_cap *caps, int remove_existing) {
+	struct ast_rtp_codecs codecs = AST_RTP_CODECS_NULL_INIT;
+	pjmedia_sdp_attr *attr;
+	pjmedia_sdp_rtpmap *rtpmap;
+	pjmedia_sdp_fmtp fmtp;
+	struct ast_format *format;
+	int i, num = 0;
+	char name[256];
+	char media[20];
+	char fmt_param[256];
+
+	ast_rtp_codecs_payloads_initialize(&codecs);
+
+	if (remove_existing) {
+		ast_format_cap_remove_by_type(caps, AST_MEDIA_TYPE_UNKNOWN);
+	}
+
+	/* Iterate through provided formats */
+	for (i = 0; i < stream->desc.fmt_count; ++i) {
+		/* The payload is kept as a string for things like t38 but for video it is always numerical */
+		ast_rtp_codecs_payloads_set_m_type(&codecs, NULL, pj_strtoul(&stream->desc.fmt[i]));
+		/* Look for the optional rtpmap attribute */
+		if (!(attr = pjmedia_sdp_media_find_attr2(stream, "rtpmap", &stream->desc.fmt[i]))) {
+			continue;
+		}
+
+		/* Interpret the attribute as an rtpmap */
+		if ((pjmedia_sdp_attr_to_rtpmap(session->inv_session->pool_prov, attr, &rtpmap)) != PJ_SUCCESS) {
+			continue;
+		}
+
+		ast_copy_pj_str(name, &rtpmap->enc_name, sizeof(name));
+
+		ast_copy_pj_str(media, (pj_str_t*)&stream->desc.media, sizeof(media));
+		ast_rtp_codecs_payloads_set_rtpmap_type_rate(&codecs, NULL,
+			pj_strtoul(&stream->desc.fmt[i]), media, name, 0, rtpmap->clock_rate);
+		/* Look for an optional associated fmtp attribute */
+		if (!(attr = pjmedia_sdp_media_find_attr2(stream, "fmtp", &rtpmap->pt))) {
+			continue;
+		}
+
+		if ((pjmedia_sdp_attr_get_fmtp(attr, &fmtp)) == PJ_SUCCESS) {
+			ast_copy_pj_str(fmt_param, &fmtp.fmt, sizeof(fmt_param));
+			if (sscanf(fmt_param, "%30d", &num) != 1) {
+				continue;
+			}
+
+			if ((format = ast_rtp_codecs_get_payload_format(&codecs, num))) {
+				struct ast_format *format_parsed;
+
+				ast_copy_pj_str(fmt_param, &fmtp.fmt_param, sizeof(fmt_param));
+
+				format_parsed = ast_format_parse_sdp_fmtp(format, fmt_param);
+				if (format_parsed) {
+					ast_rtp_codecs_payload_replace_format(&codecs, num, format_parsed);
+					ao2_ref(format_parsed, -1);
+				}
+				ao2_ref(format, -1);
+			}
+		}
+	}
+	/* Parsing done, now fill the ast_format_cap struct in the correct order */
+	for (i = 0; i < stream->desc.fmt_count; ++i) {
+		if ((format = ast_rtp_codecs_get_payload_format(&codecs, pj_strtoul(&stream->desc.fmt[i])))) {
+			ast_format_cap_append(caps, format, 0);
+			ao2_ref(format, -1);
+		}
+	}
+
+	ast_rtp_codecs_payloads_destroy(&codecs);
+
+	/* Get the packetization, if it exists */
+	if ((attr = pjmedia_sdp_media_find_attr2(stream, "ptime", NULL))) {
+		unsigned long framing = pj_strtoul(pj_strltrim(&attr->value));
+		if (framing && session->endpoint->media.rtp.use_ptime) {
+			ast_format_cap_set_framing(caps, framing);
+		}
+	}
+}
+
 static int handle_incoming_sdp(struct ast_sip_session *session, const pjmedia_sdp_session *sdp)
 {
 	int i;
@@ -815,10 +894,20 @@ static int handle_incoming_sdp(struct ast_sip_session *session, const pjmedia_sd
 				ast_str_tmp(128, ast_stream_to_str(stream, &STR_TMP)));
 		}
 		if (!stream) {
+			RAII_VAR(struct ast_format_cap *, remote_caps, NULL, ao2_cleanup);
+			RAII_VAR(struct ast_stream_topology *, remote_topology, NULL, ao2_cleanup);
+			RAII_VAR(struct ast_stream *, resolved_stream, NULL, ast_stream_free);
+			/* existing_stream is only used to get stream name and label */
 			struct ast_stream *existing_stream = NULL;
+			struct ast_stream *remote_ast_stream;
+			struct ast_stream *configured_stream;
 			char *stream_name = NULL, *stream_name_allocated = NULL;
 			const char *stream_label = NULL;
 
+			if (!(remote_caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
+				handled = 0;
+				SCOPE_EXIT_LOG_EXPR(goto end, LOG_ERROR, "Failed to allocate format capabilities.\n");
+			}
 			if (session->active_media_state->topology &&
 				(i < ast_stream_topology_get_count(session->active_media_state->topology))) {
 				existing_stream = ast_stream_topology_get_stream(session->active_media_state->topology, i);
@@ -843,7 +932,33 @@ static int handle_incoming_sdp(struct ast_sip_session *session, const pjmedia_sd
 					stream_name);
 			}
 
-			stream = ast_stream_alloc(stream_name, type);
+			set_caps_from_sdp(session, remote_stream, remote_caps, 1);
+			remote_topology = ast_stream_topology_create_from_format_cap(remote_caps);
+			if (!remote_topology) {
+				handled = 0;
+				SCOPE_EXIT_LOG_EXPR(goto end, LOG_ERROR, "Failed to create remote topology from remote format capabilities.\n");
+			}
+
+			remote_ast_stream = ast_stream_topology_get_first_stream_by_type(remote_topology, type);
+			if (remote_ast_stream) {
+				/* Here we always have a remote offer, so we create a resolved stream using the remote SDP offer
+				 * and the configured endpoint settings codec_prefs_incoming_offer. */
+				configured_stream = ast_stream_topology_get_first_stream_by_type(session->endpoint->media.topology, type);
+				resolved_stream = ast_stream_create_resolved(remote_ast_stream, configured_stream, &session->endpoint->media.codec_prefs_incoming_offer, NULL);
+				if (!resolved_stream || ast_format_cap_empty(ast_stream_get_formats(resolved_stream))) {
+					ast_stream_free(resolved_stream); /* Can handle NULL */
+					stream = ast_stream_alloc(stream_name, type);
+					handled = 0;
+					SCOPE_EXIT_LOG_EXPR(goto end, LOG_ERROR, "No common codecs between incoming SDP offer and endpoint configuration.\n");
+				} else {
+					stream = ast_stream_clone(resolved_stream, stream_name);
+				}
+			} else {
+				/* This can happen when the stream is marked as removed.
+				 * Create a basic stream, the logic after the loop will take care of the rest. */
+				stream = ast_stream_alloc(stream_name, type);
+			}
+
 			ast_free(stream_name_allocated);
 			if (!stream) {
 				handled = 0;
@@ -1114,6 +1229,75 @@ static int handle_negotiated_sdp(struct ast_sip_session *session, const pjmedia_
 			ast_sip_session_get_name(session),
 			ast_stream_topology_get_count(session->pending_media_state->topology), local->media_count);
 		SCOPE_EXIT_RTN_VALUE(-1, "Media stream count mismatch\n");
+	}
+
+	if (pjmedia_sdp_neg_was_answer_remote(session->inv_session->neg)) {
+		int index;
+		for (index = 0; index < local->media_count; index++) {
+			RAII_VAR(struct ast_format_cap *, remote_caps, NULL, ao2_cleanup);
+			RAII_VAR(struct ast_stream_topology *, remote_top, NULL, ao2_cleanup);
+			struct ast_stream *remote_ast_stream;
+			struct ast_stream *resolved_stream;
+			struct ast_stream *configured_stream = ast_stream_topology_get_stream(session->pending_media_state->topology, index);
+
+			if (!remote->media[index]) {
+				ast_stream_set_state(configured_stream, AST_STREAM_STATE_REMOVED);
+				continue;
+			}
+
+			if (!(remote_caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
+				ast_log(LOG_WARNING, "%s: Couldn't allocate remote capabilities.\n",
+					ast_sip_session_get_name(session));
+				return -1;
+			}
+			set_caps_from_sdp(session, remote->media[index], remote_caps, 1);
+			if (ast_format_cap_empty(remote_caps)) {
+				continue;
+			}
+
+			remote_top = ast_stream_topology_create_from_format_cap(remote_caps);
+			if (!remote_top || ast_stream_topology_get_count(remote_top) < 1) {
+				ast_log(LOG_WARNING, "%s: Couldn't create remote topology\n",
+					ast_sip_session_get_name(session));
+				return -1;
+			}
+
+			remote_ast_stream = ast_stream_topology_get_stream(remote_top, 0);
+			resolved_stream = ast_stream_create_resolved(
+				remote_ast_stream,
+				configured_stream,
+				&session->endpoint->media.codec_prefs_incoming_answer,
+				NULL);
+
+			if (!resolved_stream || ast_format_cap_empty(ast_stream_get_formats(resolved_stream))) {
+				ast_stream_free(resolved_stream); /* Can handle NULL */
+				if (session->endpoint->media.codec_prefs_incoming_answer.transcode == CODEC_NEGOTIATION_TRANSCODE_ALLOW) {
+					ast_log(LOG_DEBUG, "%s: No common codecs between channels and transcoding allowed.\n",
+						ast_sip_session_get_name(session));
+					continue;
+				} else {
+					ast_log(LOG_WARNING, "%s: No common codecs between channels and transcoding not allowed.\n",
+						ast_sip_session_get_name(session));
+					return -1;
+				}
+			}
+
+			if (ast_format_cap_identical(ast_stream_get_formats(resolved_stream), ast_stream_get_formats(configured_stream))) {
+				ast_stream_free(resolved_stream);
+				continue;
+			}
+
+			ast_log(LOG_TRACE, "%s: Replacing pending stream: %s with resolved stream: %s\n", ast_sip_session_get_name(session),
+				ast_str_tmp(256, ast_stream_to_str(configured_stream, &STR_TMP)),
+				ast_str_tmp(256, ast_stream_to_str(resolved_stream, &STR_TMP)));
+
+			if (ast_stream_topology_set_stream(session->pending_media_state->topology, index, resolved_stream)) {
+				ast_stream_free(resolved_stream);
+				ast_log(LOG_WARNING, "%s: Couldn't set stream in topology.\n",
+					ast_sip_session_get_name(session));
+				return -1;
+			}
+		}
 	}
 
 	AST_VECTOR_RESET(&session->pending_media_state->read_callbacks, AST_VECTOR_ELEM_CLEANUP_NOOP);
@@ -2586,6 +2770,32 @@ int ast_sip_session_regenerate_answer(struct ast_sip_session *session,
 	SCOPE_EXIT_RTN_VALUE(0);
 }
 
+int ast_sip_session_regenerate_offer(struct ast_sip_session *session,
+		ast_sip_session_sdp_creation_cb on_sdp_creation)
+{
+	pjmedia_sdp_session *new_offer;
+	SCOPE_ENTER(1, "%s\n", ast_sip_session_get_name(session));
+
+	if (!(new_offer = create_local_sdp(session->inv_session, session, NULL, 0))) {
+		pjsip_inv_terminate(session->inv_session, 500, PJ_FALSE);
+		SCOPE_EXIT_RTN_VALUE(-1, "Couldn't create offer\n");
+	}
+
+	if (pjmedia_sdp_neg_cancel_offer(session->inv_session->neg) != PJ_SUCCESS) {
+		SCOPE_EXIT_RTN_VALUE(-1, "Couldn't cancel current offer\n");
+	}
+
+	if (on_sdp_creation) {
+		if (on_sdp_creation(session, new_offer)) {
+			SCOPE_EXIT_RTN_VALUE(-1, "Callback failed\n");
+		}
+	}
+
+	pjsip_inv_set_local_sdp(session->inv_session, new_offer);
+
+	SCOPE_EXIT_RTN_VALUE(0);
+}
+
 void ast_sip_session_send_response(struct ast_sip_session *session, pjsip_tx_data *tdata)
 {
 	pjsip_dialog *dlg = pjsip_tdata_get_dlg(tdata);
@@ -2612,6 +2822,31 @@ static pjsip_module session_module = {
 	.on_tsx_state = session_on_tsx_state,
 	.on_tx_response = session_on_tx_response,
 };
+
+static int sdp_contains_t38_media(const pjmedia_sdp_session *sdp)
+{
+	int i, j;
+
+	for (i = 0; i < sdp->media_count; ++i) {
+		pjmedia_sdp_media *media = sdp->media[i];
+
+		if (pj_stricmp2(&media->desc.media, "image") && pj_stricmp2(&media->desc.media, "application")) {
+			continue;
+		}
+
+		if (pj_stricmp2(&media->desc.transport, "udptl") && pj_stricmp2(&media->desc.transport, "udptl/t38")) {
+			continue;
+		}
+
+		for (j = 0; j < media->desc.fmt_count; ++j) {
+			if (!pj_stricmp2(&media->desc.fmt[j], "t38")) {
+				return 1;
+			}
+		}
+	}
+
+	return 0;
+}
 
 /*! \brief Determine whether the SDP provided requires deferral of negotiating or not
  *
@@ -2753,10 +2988,11 @@ static int sdp_requires_deferral(struct ast_sip_session *session, const pjmedia_
 
 static pj_bool_t session_reinvite_on_rx_request(pjsip_rx_data *rdata)
 {
-	pjsip_dialog *dlg;
-	RAII_VAR(struct ast_sip_session *, session, NULL, ao2_cleanup);
-	pjsip_rdata_sdp_info *sdp_info;
 	int deferred;
+	pjsip_dialog *dlg;
+	pjsip_rdata_sdp_info *sdp_info;
+	RAII_VAR(struct ast_sip_session *, session, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_sip_session_media_state *, previous_pending_state, NULL, ast_sip_session_media_state_free);
 
 	if (rdata->msg_info.msg->line.req.method.id != PJSIP_INVITE_METHOD ||
 		!(dlg = pjsip_ua_find_dialog(&rdata->msg_info.cid->id, &rdata->msg_info.to->tag, &rdata->msg_info.from->tag, PJ_FALSE)) ||
@@ -2773,6 +3009,11 @@ static pj_bool_t session_reinvite_on_rx_request(pjsip_rx_data *rdata)
 	if (session->deferred_reinvite) {
 		pj_str_t key, deferred_key;
 		pjsip_tx_data *tdata;
+
+		if (rdata == session->deferred_reinvite) {
+			/* This is the deferred re-INVITE being resumed, let it through. */
+			return PJ_FALSE;
+		}
 
 		/* We use memory from the new request on purpose so the deferred reinvite pool does not grow uncontrollably */
 		pjsip_tsx_create_key(rdata->tp_info.pool, &key, PJSIP_ROLE_UAS, &rdata->msg_info.cseq->method, rdata);
@@ -2795,21 +3036,32 @@ static pj_bool_t session_reinvite_on_rx_request(pjsip_rx_data *rdata)
 	}
 
 	if (!(sdp_info = pjsip_rdata_get_sdp_info(rdata)) ||
-		(sdp_info->sdp_err != PJ_SUCCESS)) {
+		(sdp_info->sdp_err != PJ_SUCCESS) || !sdp_info->sdp) {
 		return PJ_FALSE;
 	}
 
-	if (!sdp_info->sdp) {
+	if (!(previous_pending_state = ast_sip_session_media_state_clone(session->pending_media_state))) {
 		return PJ_FALSE;
+	}
+
+	if (!sdp_contains_t38_media(sdp_info->sdp)) {
+		ast_sip_session_media_state_reset(session->pending_media_state);
 	}
 
 	deferred = sdp_requires_deferral(session, sdp_info->sdp);
 	if (deferred == -1) {
-		ast_sip_session_media_state_reset(session->pending_media_state);
+		ast_sip_session_media_state_free(session->pending_media_state);
+		session->pending_media_state = previous_pending_state;
+		previous_pending_state = NULL;
 		return PJ_FALSE;
 	} else if (!deferred) {
+		ast_sip_session_media_state_free(session->pending_media_state);
+		session->pending_media_state = previous_pending_state;
+		previous_pending_state = NULL;
 		return PJ_FALSE;
 	}
+
+	/* Deferral needed, keep newly built pending media state. */
 
 	pjsip_rx_data_clone(rdata, 0, &session->deferred_reinvite);
 
@@ -3318,7 +3570,7 @@ struct ast_sip_session *ast_sip_session_create_outgoing(struct ast_sip_endpoint 
 				continue;
 			}
 
-			clone_stream = ast_sip_session_create_joint_call_stream(session, req_stream);
+			clone_stream = ast_stream_clone(req_stream, NULL);
 			if (!clone_stream || ast_stream_get_format_count(clone_stream) == 0) {
 				ast_stream_free(clone_stream);
 				continue;
@@ -5299,18 +5551,18 @@ static void session_inv_on_create_offer(pjsip_inv_session *inv, pjmedia_sdp_sess
 		}
 	}
 
-	if (inv->neg) {
-		if (pjmedia_sdp_neg_was_answer_remote(inv->neg)) {
-			pjmedia_sdp_neg_get_active_remote(inv->neg, &previous_sdp);
-		} else {
-			pjmedia_sdp_neg_get_active_local(inv->neg, &previous_sdp);
-		}
-	}
-
 	if (ignore_active_stream_topology) {
 		offer = create_local_sdp(inv, session, NULL, 1);
 	} else {
+		if (inv->neg) {
+			if (pjmedia_sdp_neg_was_answer_remote(inv->neg)) {
+				pjmedia_sdp_neg_get_active_remote(inv->neg, &previous_sdp);
+			} else {
+				pjmedia_sdp_neg_get_active_local(inv->neg, &previous_sdp);
+			}
+		}
 		offer = create_local_sdp(inv, session, previous_sdp, 0);
+		ast_sip_session_media_state_reset(session->pending_media_state);
 	}
 	if (!offer) {
 		SCOPE_EXIT_RTN("%s: create offer failed\n", ast_sip_session_get_name(session));

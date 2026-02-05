@@ -64,7 +64,6 @@ enum ast_sip_session_t38state {
 
 struct ast_sip_session_sdp_handler;
 struct ast_sip_session;
-struct ast_sip_session_caps;
 struct ast_sip_session_media;
 
 typedef struct ast_frame *(*ast_sip_session_media_read_cb)(struct ast_sip_session *session, struct ast_sip_session_media *session_media);
@@ -740,6 +739,19 @@ int ast_sip_session_refresh(struct ast_sip_session *session,
  * \retval -1 Failure to updated the SDP answer
  */
 int ast_sip_session_regenerate_answer(struct ast_sip_session *session,
+		ast_sip_session_sdp_creation_cb on_sdp_creation);
+
+/*!
+ * \brief Regenerate SDP Offer
+ *
+ * This method is used to regenerate an SDP offer.
+ *
+ * \param session The session on which the offer will be updated
+ * \param on_sdp_creation Callback called when SDP is created
+ * \retval 0 Successfully updated the SDP offer
+ * \retval -1 Failure to update the SDP offer
+ */
+int ast_sip_session_regenerate_offer(struct ast_sip_session *session,
 		ast_sip_session_sdp_creation_cb on_sdp_creation);
 
 /*!
