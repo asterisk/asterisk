@@ -1,0 +1,103 @@
+<html><head><title>ChangeLog for asterisk-22.8.2</title></head><body>
+<h2>Change Log for Release asterisk-22.8.2</h2>
+<h3>Links:</h3>
+<ul>
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-22.8.2.html">Full ChangeLog</a>  </li>
+<li><a href="https://github.com/asterisk/asterisk/compare/22.8.1...22.8.2">GitHub Diff</a>  </li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-22.8.2.tar.gz">Tarball</a>  </li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk">Downloads</a>  </li>
+</ul>
+<h3>Summary:</h3>
+<ul>
+<li>Commits: 4</li>
+<li>Commit Authors: 2</li>
+<li>Issues Resolved: 0</li>
+<li>Security Advisories Resolved: 4</li>
+<li><a href="https://github.com/asterisk/asterisk/security/advisories/GHSA-85x7-54wr-vh42">GHSA-85x7-54wr-vh42</a>: Asterisk xml.c uses unsafe XML_PARSE_NOENT leading to potential XXE Injection</li>
+<li><a href="https://github.com/asterisk/asterisk/security/advisories/GHSA-rvch-3jmx-3jf3">GHSA-rvch-3jmx-3jf3</a>: ast_coredumper running as root sources ast_debug_tools.conf from /etc/asterisk; potentially leading to privilege escalation</li>
+<li><a href="https://github.com/asterisk/asterisk/security/advisories/GHSA-v6hp-wh3r-cwxh">GHSA-v6hp-wh3r-cwxh</a>: The Asterisk embedded web server's /httpstatus page echos user supplied values(cookie and query string) without sanitization</li>
+<li><a href="https://github.com/asterisk/asterisk/security/advisories/GHSA-xpc6-x892-v83c">GHSA-xpc6-x892-v83c</a>: ast_coredumper runs as root, and writes gdb init file to world writeable folder; leading to potential privilege escalation </li>
+</ul>
+<h3>User Notes:</h3>
+<ul>
+<li>
+<h4>ast_coredumper: check ast_debug_tools.conf permissions</h4>
+  ast_debug_tools.conf must be owned by root and not be
+  writable by other users or groups to be used by ast_coredumper or
+  by ast_logescalator or ast_loggrabber when run as root.</li>
+</ul>
+<h3>Upgrade Notes:</h3>
+<ul>
+<li>
+<h4>http.c: Change httpstatus to default disabled and sanitize output.</h4>
+  To prevent possible security issues, the <code>/httpstatus</code> page
+  served by the internal web server is now disabled by default.  To explicitly
+  enable it, set <code>enable_status=yes</code> in http.conf.</li>
+</ul>
+<h3>Developer Notes:</h3>
+<h3>Commit Authors:</h3>
+<ul>
+<li>George Joseph: (2)</li>
+<li>Mike Bradeen: (2)</li>
+</ul>
+<h2>Issue and Commit Detail:</h2>
+<h3>Closed Issues:</h3>
+<ul>
+<li>!GHSA-85x7-54wr-vh42: Asterisk xml.c uses unsafe XML_PARSE_NOENT leading to potential XXE Injection</li>
+<li>!GHSA-rvch-3jmx-3jf3: ast_coredumper running as root sources ast_debug_tools.conf from /etc/asterisk; potentially leading to privilege escalation</li>
+<li>!GHSA-v6hp-wh3r-cwxh: The Asterisk embedded web server's /httpstatus page echos user supplied values(cookie and query string) without sanitization</li>
+<li>!GHSA-xpc6-x892-v83c: ast_coredumper runs as root, and writes gdb init file to world writeable folder; leading to potential privilege escalation </li>
+</ul>
+<h3>Commits By Author:</h3>
+<ul>
+<li>
+<h4>George Joseph (2):</h4>
+</li>
+<li>
+<h4>Mike Bradeen (2):</h4>
+</li>
+</ul>
+<h3>Commit List:</h3>
+<ul>
+<li>xml.c: Replace XML_PARSE_NOENT with XML_PARSE_NONET for xmlReadFile.</li>
+<li>ast_coredumper: check ast_debug_tools.conf permissions</li>
+<li>http.c: Change httpstatus to default disabled and sanitize output.</li>
+<li>ast_coredumper: create gdbinit file with restrictive permissions</li>
+</ul>
+<h3>Commit Details:</h3>
+<h4>xml.c: Replace XML_PARSE_NOENT with XML_PARSE_NONET for xmlReadFile.</h4>
+<p>Author: George Joseph
+  Date:   2026-01-15</p>
+<p>The xmlReadFile XML_PARSE_NOENT flag, which allows parsing of external
+  entities, could allow a potential XXE injection attack.  Replacing it with
+  XML_PARSE_NONET, which prevents network access, is safer.</p>
+<p>Resolves: #GHSA-85x7-54wr-vh42</p>
+<h4>ast_coredumper: check ast_debug_tools.conf permissions</h4>
+<p>Author: Mike Bradeen
+  Date:   2026-01-15</p>
+<p>Prevent ast_coredumper from using ast_debug_tools.conf files that are
+  not owned by root or are writable by other users or groups.</p>
+<p>Prevent ast_logescalator and ast_loggrabber from doing the same if
+  they are run as root.</p>
+<p>Resolves: #GHSA-rvch-3jmx-3jf3</p>
+<p>UserNote: ast_debug_tools.conf must be owned by root and not be
+  writable by other users or groups to be used by ast_coredumper or
+  by ast_logescalator or ast_loggrabber when run as root.</p>
+<h4>http.c: Change httpstatus to default disabled and sanitize output.</h4>
+<p>Author: George Joseph
+  Date:   2026-01-15</p>
+<p>To address potential security issues, the httpstatus page is now disabled
+  by default and the echoed query string and cookie output is html-escaped.</p>
+<p>Resolves: #GHSA-v6hp-wh3r-cwxh</p>
+<p>UpgradeNote: To prevent possible security issues, the <code>/httpstatus</code> page
+  served by the internal web server is now disabled by default.  To explicitly
+  enable it, set <code>enable_status=yes</code> in http.conf.</p>
+<h4>ast_coredumper: create gdbinit file with restrictive permissions</h4>
+<p>Author: Mike Bradeen
+  Date:   2026-01-15</p>
+<p>Modify gdbinit to use the install command with explicit permissions (-m 600)
+  when creating the .ast_coredumper.gdbinit file. This ensures the file is
+  created with restricted permissions (readable/writable only by the owner)
+  to avoid potential privilege escalation.</p>
+<p>Resolves: #GHSA-xpc6-x892-v83c</p>
+</body></html>
