@@ -73,7 +73,9 @@ endif
 ifneq ($(findstring darwin,$(OSARCH)),)
   AST_LIBS+=-lresolv
   ASTLINK=-mmacosx-version-min=10.6 -Wl,-undefined,dynamic_lookup -force_flat_namespace
-  ASTLINK+=/usr/lib/bundle1.o
+  ifneq ($(wildcard /usr/lib/bundle1.o),)
+    ASTLINK+=/usr/lib/bundle1.o
+  endif
 else
 # These are used for all but Darwin
   ASTLINK+=-Wl,--export-dynamic
@@ -306,11 +308,28 @@ $(ASTPJ_LIB): $(ASTPJ_LIB).$(ASTPJ_SO_VERSION)
 else # Darwin
 ASTPJ_LIB:=libasteriskpj.dylib
 
+# Darwin-specific: use -force_load to include all symbols from static archives
+# This is equivalent to GNU ld's --whole-archive
+PJPROJECT_SRCDIR := $(ASTTOPDIR)/third-party/pjproject/source
+PJ_TARGET := aarch64-apple-darwin25.2.0
+PJPROJECT_DARWIN_LIBS := \
+-force_load $(PJPROJECT_SRCDIR)/pjsip/lib/libpjsua-$(PJ_TARGET).a \
+-force_load $(PJPROJECT_SRCDIR)/pjsip/lib/libpjsip-ua-$(PJ_TARGET).a \
+-force_load $(PJPROJECT_SRCDIR)/pjsip/lib/libpjsip-simple-$(PJ_TARGET).a \
+-force_load $(PJPROJECT_SRCDIR)/pjsip/lib/libpjsip-$(PJ_TARGET).a \
+-force_load $(PJPROJECT_SRCDIR)/pjnath/lib/libpjnath-$(PJ_TARGET).a \
+-force_load $(PJPROJECT_SRCDIR)/pjmedia/lib/libpjmedia-codec-$(PJ_TARGET).a \
+-force_load $(PJPROJECT_SRCDIR)/pjmedia/lib/libpjmedia-videodev-$(PJ_TARGET).a \
+-force_load $(PJPROJECT_SRCDIR)/pjmedia/lib/libpjmedia-audiodev-$(PJ_TARGET).a \
+-force_load $(PJPROJECT_SRCDIR)/pjmedia/lib/libpjmedia-$(PJ_TARGET).a \
+-force_load $(PJPROJECT_SRCDIR)/pjlib-util/lib/libpjlib-util-$(PJ_TARGET).a \
+-force_load $(PJPROJECT_SRCDIR)/pjlib/lib/libpj-$(PJ_TARGET).a
+
 # -install_name allows library to be found if installed somewhere other than
 # /lib or /usr/lib
-$(ASTPJ_LIB): _ASTLDFLAGS+=-dynamiclib -install_name $(ASTLIBDIR)/$(ASTPJ_LIB) $(PJ_LDFLAGS)
+$(ASTPJ_LIB): _ASTLDFLAGS+=-dynamiclib -install_name $(ASTLIBDIR)/$(ASTPJ_LIB)
 $(ASTPJ_LIB): _ASTCFLAGS+=-fPIC -DAST_MODULE=\"asteriskpj\" $(PJ_CFLAGS) -DAST_NOT_MODULE
-$(ASTPJ_LIB): LIBS+=$(PJPROJECT_LIB) $(OPENSSL_LIB) $(UUID_LIB) -lm -lpthread $(RT_LIB)
+$(ASTPJ_LIB): LIBS+=$(PJPROJECT_DARWIN_LIBS) $(OPENSSL_LIB) $(UUID_LIB) -lm -lpthread $(RT_LIB) -framework Foundation -framework AppKit
 $(ASTPJ_LIB): SOLINK=$(DYLINK)
 
 # Special rules for building a shared library (not a dynamically loadable module)
