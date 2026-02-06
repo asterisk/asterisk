@@ -1141,13 +1141,22 @@ int ast_sorcery_object_unregister(struct ast_sorcery *sorcery, const char *type)
 	return res;
 }
 
-int __ast_sorcery_object_register(struct ast_sorcery *sorcery, const char *type, unsigned int hidden, unsigned int reloadable, aco_type_item_alloc alloc, sorcery_transform_handler transform, sorcery_apply_handler apply)
+int __ast_sorcery_object_register(struct ast_sorcery *sorcery, const char *type, const char *module, unsigned int hidden, unsigned int reloadable, aco_type_item_alloc alloc, sorcery_transform_handler transform, sorcery_apply_handler apply)
 {
 	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, type, OBJ_KEY), ao2_cleanup);
 
 	if (!object_type || object_type->type.item_alloc) {
 		return -1;
 	}
+
+	/*
+	 * Update the module name for XML documentation lookup.
+	 * The object type may have been created earlier by sorcery.conf processing
+	 * with a different module name (e.g., "res_pjsip"), but the registering
+	 * module (e.g., "res_pjsip_outbound_registration") provides the actual
+	 * XML documentation. Use the registering module's name for xmldoc lookups.
+	 */
+	object_type->info->module = module;
 
 	object_type->type.name = object_type->name;
 	object_type->type.type = ACO_ITEM;
