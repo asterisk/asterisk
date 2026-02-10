@@ -71,6 +71,8 @@ struct ast_endpoint {
 	struct ao2_container *channel_ids;
 	/*! Forwarding subscription from an endpoint to its tech endpoint */
 	struct stasis_forward *tech_forward;
+	/*! The latest snapshot of the endpoint */
+	struct ast_endpoint_snapshot *snapshot;
 };
 
 AO2_STRING_FIELD_HASH_FN(ast_endpoint, id)
@@ -137,6 +139,10 @@ static void endpoint_publish_snapshot(struct ast_endpoint *endpoint)
 		return;
 	}
 	stasis_publish(ast_endpoint_topic(endpoint), message);
+
+	ao2_lock(endpoint);
+	ao2_replace(endpoint->snapshot, snapshot);
+	ao2_unlock(endpoint);
 }
 
 static void endpoint_dtor(void *obj)
@@ -148,6 +154,9 @@ static void endpoint_dtor(void *obj)
 
 	ao2_cleanup(endpoint->channel_ids);
 	endpoint->channel_ids = NULL;
+
+	ao2_cleanup(endpoint->snapshot);
+	endpoint->snapshot = NULL;
 
 	ast_string_field_free_memory(endpoint);
 }
@@ -360,6 +369,21 @@ enum ast_endpoint_state ast_endpoint_get_state(const struct ast_endpoint *endpoi
 		return AST_ENDPOINT_UNKNOWN;
 	}
 	return endpoint->state;
+}
+
+struct ast_endpoint_snapshot *ast_endpoint_get_snapshot(struct ast_endpoint *endpoint)
+{
+	struct ast_endpoint_snapshot *snapshot;
+
+	if (!endpoint) {
+		return NULL;
+	}
+
+	ao2_lock(endpoint);
+	snapshot = ao2_bump(endpoint->snapshot);
+	ao2_unlock(endpoint);
+
+	return snapshot;
 }
 
 void ast_endpoint_set_state(struct ast_endpoint *endpoint,
