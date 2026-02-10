@@ -3826,8 +3826,12 @@ static void rt_handle_member_record(struct call_queue *q, char *category, struct
 			ast_copy_string(m->rt_uniqueid, rt_uniqueid, sizeof(m->rt_uniqueid));
 			if (paused_str) {
 				m->paused = paused;
-				if (paused && m->lastpause == 0) {
-					time(&m->lastpause); /* XXX: Should this come from realtime? */
+				if (paused) {
+					if (m->lastpause == 0) {
+						time(&m->lastpause); /* XXX: Should this come from realtime? */
+					}
+				} else {
+					m->lastpause = 0; /* reset lastpause if RT return unpause state */
 				}
 				ast_devstate_changed(m->paused ? QUEUE_PAUSED_DEVSTATE : QUEUE_UNPAUSED_DEVSTATE,
 					AST_DEVSTATE_CACHABLE, "Queue:%s_pause_%s", q->name, m->interface);
