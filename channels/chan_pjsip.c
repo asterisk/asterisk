@@ -1188,9 +1188,7 @@ static int chan_pjsip_devicestate(const char *data)
 		return AST_DEVICE_INVALID;
 	}
 
-	endpoint_snapshot = ast_endpoint_latest_snapshot(ast_endpoint_get_tech(endpoint->persistent),
-		ast_endpoint_get_resource(endpoint->persistent));
-
+	endpoint_snapshot = ast_endpoint_get_snapshot(endpoint->persistent);
 	if (!endpoint_snapshot) {
 		return AST_DEVICE_INVALID;
 	}
