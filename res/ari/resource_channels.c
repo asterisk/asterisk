@@ -2212,11 +2212,23 @@ static int external_media_websocket(struct ast_ari_channels_external_media_args 
 	char *endpoint;
 	struct ast_channel *chan;
 	struct varshead *vars;
+	char direction[16];
 
-	if (ast_asprintf(&endpoint, "WebSocket/%s%s%s",
+	/* If direction is set here, it WILL override any m() line in transport data
+	 * since it is appended to the end of the string.
+	 */
+	if (args->direction) {
+		snprintf(direction, sizeof(direction), "d(%s)", args->direction);
+	} else {
+		direction[0] = '\0';
+	}
+
+	if (ast_asprintf(&endpoint, "WebSocket/%s%s%s%s%s",
 			args->external_host,
 			S_COR(args->transport_data, "/", ""),
-			S_OR(args->transport_data, "")) == -1) {
+			S_OR(args->transport_data, ""),
+			S_COR(!args->transport_data && args->direction, "/", ""),
+			S_OR(direction, "")) == -1) {
 		return 1;
 	}
 
@@ -2354,8 +2366,14 @@ void ast_ari_channels_external_media(struct ast_variable *headers,
 		return;
 	}
 
-	if (ast_strlen_zero(args->direction)) {
-		args->direction = "both";
+	if (!ast_strlen_zero(args->direction)) {
+		if (strcmp(args->direction, "both") && strcmp(args->direction, "in")
+			&& strcmp(args->direction, "out")) {
+			ast_ari_response_error(
+				response, 400, "Bad Request",
+				"Invalid direction specified");
+			return;
+		}
 	}
 
 	if (strcasecmp(args->encapsulation, "rtp") == 0 && strcasecmp(args->transport, "udp") == 0) {
