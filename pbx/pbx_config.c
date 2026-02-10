@@ -1699,6 +1699,11 @@ static int pbx_load_config(const char *config_file)
 	const char *newpm, *ovsw;
 	struct ast_flags config_flags = { 0 };
 	char lastextension[256];
+	struct timeval begin_time;
+	double parsing_time;
+
+	begin_time = ast_tvnow();
+
 	cfg = ast_config_load(config_file, config_flags);
 	if (!cfg || cfg == CONFIG_STATUS_FILEINVALID)
 		return 0;
@@ -1969,6 +1974,11 @@ process_extension:
 		}
 	}
 	ast_config_destroy(cfg);
+
+	parsing_time = ast_tvdiff_us(ast_tvnow(), begin_time);
+	parsing_time /= 1000000.0;
+	ast_verb(5, "Time to parse %s dialplan configuration: %8.6f sec\n", config, parsing_time);
+
 	return 1;
 }
 

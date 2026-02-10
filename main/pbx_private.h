@@ -65,6 +65,14 @@ struct ast_switch *pbx_findswitch(const char *sw);
 /*! pbx_app.c functions needed by pbx.c */
 const char *app_name(struct ast_app *app);
 
+/*! extension_state.c functions needed by pbx.c */
+void pbx_extension_state_hint_set(struct ast_exten *exten, struct ast_context *context);
+void pbx_extension_state_hint_remove(struct ast_exten *exten, struct ast_context *context);
+
+/*! extension_state_autohints.c functions needed by pbx.c */
+void pbx_extension_state_autohint_set(struct ast_context *context);
+void pbx_extension_state_autohint_remove(struct ast_context *context, unsigned int forced);
+
 #define VAR_BUF_SIZE 4096
 
 #endif /* _PBX_PRIVATE_H */

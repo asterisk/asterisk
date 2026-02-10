@@ -1028,6 +1028,17 @@ struct stasis_subscription *__stasis_subscribe_pool(
 	return internal_stasis_subscribe(topic, callback, data, 1, 1, file, lineno, func);
 }
 
+struct stasis_subscription *__stasis_subscribe_synchronous(
+	struct stasis_topic *topic,
+	stasis_subscription_cb callback,
+	void *data,
+	const char *file,
+	int lineno,
+	const char *func)
+{
+	return internal_stasis_subscribe(topic, callback, data, 0, 0, file, lineno, func);
+}
+
 static int sub_cleanup(void *data)
 {
 	struct stasis_subscription *sub = data;
