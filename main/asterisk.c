@@ -4342,6 +4342,9 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 	check_init(load_pbx_switch(), "PBX Switch Support");
 	check_init(load_pbx_app(), "PBX Application Support");
 	check_init(load_pbx_hangup_handler(), "PBX Hangup Handler Support");
+	check_init(ast_extension_state_init(), "Extension State Support");
+	check_init(ast_extension_state_legacy_init(), "Extension State Legacy Support");
+	check_init(ast_extension_state_autohints_init(), "Extension State Autohints Support");
 	check_init(ast_local_init(), "Local Proxy Channel Driver");
 	check_init(ast_refer_init(), "Refer API");
 
