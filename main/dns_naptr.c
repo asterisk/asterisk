@@ -142,7 +142,7 @@ static int services_invalid(const char *services, uint8_t services_size)
 	 * 32 characters
 	 */
 	while (1) {
-		char *plus_pos = memchr(current_pos, '+', end_of_services - current_pos);
+		const char *plus_pos = memchr(current_pos, '+', end_of_services - current_pos);
 		uint8_t current_size = plus_pos ? plus_pos - current_pos : end_of_services - current_pos;
 		int i;
 
@@ -235,7 +235,7 @@ static int regexp_repl_invalid(const char *repl, const char *end, char delim)
 	}
 
 	while (1) {
-		char *backslash_pos = memchr(ptr, '\\', end - ptr);
+		const char *backslash_pos = memchr(ptr, '\\', end - ptr);
 		if (!backslash_pos) {
 			break;
 		}

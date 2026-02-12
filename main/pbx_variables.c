@@ -429,7 +429,7 @@ void ast_str_substitute_variables_full2(struct ast_str **buf, ssize_t maxlen,
 		ast_str_reset(substr3);
 
 		/* Determine how much simply needs to be copied to the output buf. */
-		nextthing = strchr(whereweare, '$');
+		nextthing = strchr((char *)whereweare, '$');
 		if (nextthing) {
 			pos = nextthing - whereweare;
 			switch (nextthing[1]) {
@@ -674,7 +674,7 @@ void pbx_substitute_variables_helper_full(struct ast_channel *c, struct varshead
 		int len;
 
 		/* Determine how much simply needs to be copied to the output buf. */
-		nextthing = strchr(whereweare, '$');
+		nextthing = strchr((char *)whereweare, '$');
 		if (nextthing) {
 			pos = nextthing - whereweare;
 			switch (nextthing[1]) {
