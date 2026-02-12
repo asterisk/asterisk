@@ -2104,7 +2104,7 @@ static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 		if ((cfg = ast_config_load(VOICEMAIL_CONFIG, config_flags)) && valid_config(cfg)) {
 			while ((category = ast_category_browse(cfg, category))) {
 				if (!strcasecmp(category, vmu->context)) {
-					char *value = NULL;
+					const char *value = NULL;
 					char *new = NULL;
 					if (!(tmp = ast_variable_retrieve(cfg, category, vmu->mailbox))) {
 						ast_log(AST_LOG_WARNING, "We could not find the mailbox.\n");

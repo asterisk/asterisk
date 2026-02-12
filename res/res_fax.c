@@ -4628,7 +4628,7 @@ static int acf_faxopt_write(struct ast_channel *chan, const char *cmd, char *dat
 		}
 	} else if (!strcasecmp(data, "t38gateway") || !strcasecmp(data, "gateway") ||
 		   !strcasecmp(data, "t38_gateway") || !strcasecmp(data, "faxgateway")) {
-		const char *val = ast_skip_blanks(value);
+		char *val = ast_strdupa(ast_skip_blanks(value));
 		char *timeout = strchr(val, ',');
 
 		if (timeout) {
@@ -4667,7 +4667,7 @@ static int acf_faxopt_write(struct ast_channel *chan, const char *cmd, char *dat
 			ast_log(LOG_WARNING, "Unsupported value '%s' passed to FAXOPT(%s).\n", value, data);
 		}
 	} else if (!strcasecmp(data, "faxdetect")) {
-		const char *val = ast_skip_blanks(value);
+		char *val = ast_strdupa(ast_skip_blanks(value));
 		char *timeout = strchr(val, ',');
 		unsigned int fdtimeout = 0;
 		int flags;

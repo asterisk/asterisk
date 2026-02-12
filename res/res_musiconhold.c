@@ -1245,7 +1245,7 @@ static int on_moh_file(const char *directory, const char *filename, void *obj)
 {
 	struct ast_vector_string *files = obj;
 	char *full_path;
-	char *extension;
+	const char *extension;
 
 	/* Skip files that starts with a dot */
 	if (*filename == '.') {

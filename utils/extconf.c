@@ -5166,7 +5166,7 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, struct v
 		pos = strlen(whereweare);
 		nextvar = NULL;
 		nextexp = NULL;
-		nextthing = strchr(whereweare, '$');
+		nextthing = (char *)strchr(whereweare, '$');
 		if (nextthing) {
 			switch (nextthing[1]) {
 			case '{':

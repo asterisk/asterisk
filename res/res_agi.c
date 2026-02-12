@@ -2908,7 +2908,7 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, const
 	int dspsilence = 0;
 	int silence = 0;                /* amount of silence to allow */
 	int gotsilence = 0;             /* did we timeout for silence? */
-	char *silencestr = NULL;
+	const char *silencestr = NULL;
 	RAII_VAR(struct ast_format *, rfmt, NULL, ao2_cleanup);
 	struct ast_silence_generator *silgen = NULL;
 

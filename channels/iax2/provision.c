@@ -116,7 +116,7 @@ static unsigned int iax_str2flags(const char *buf)
 	int x;
 	int len;
 	unsigned int flags = 0;
-	char *e;
+	const char *e;
 	while(buf && *buf) {
 		e = strchr(buf, ',');
 		if (e)

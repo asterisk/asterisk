@@ -759,7 +759,7 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 	 */
 	ast_copy_string(apex, suffix, sizeof(apex));
 	/* ISN rewrite */
-	if ((context->options & ENUMLOOKUP_OPTIONS_ISN) && (p1 = strchr(number, '*'))) {
+	if ((context->options & ENUMLOOKUP_OPTIONS_ISN) && (p1 = strchr((char *)number, '*'))) {
 		*p1++ = '\0';
 		ast_copy_string(left, number, sizeof(left));
 		ast_copy_string(middle, p1, sizeof(middle) - 1);

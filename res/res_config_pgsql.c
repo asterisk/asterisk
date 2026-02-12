@@ -530,7 +530,7 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 	struct ast_str *sql = ast_str_thread_get(&sql_buf, 100);
 	struct ast_str *escapebuf = ast_str_thread_get(&escapebuf_buf, 100);
 	const struct ast_variable *field = fields;
-	const char *initfield = NULL;
+	char *initfield = NULL;
 	char *stringp;
 	char *chunk;
 	char *op;
