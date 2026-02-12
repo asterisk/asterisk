@@ -1854,7 +1854,7 @@ int ast_carefulwrite(int fd, char *s, int len, int timeoutms)
 char *ast_strip_quoted(char *s, const char *beg_quotes, const char *end_quotes)
 {
 	char *e;
-	char *q;
+	const char *q;
 
 	s = ast_strip(s);
 	if ((q = strchr(beg_quotes, *s)) && *q != '\0') {
