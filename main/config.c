@@ -926,7 +926,7 @@ const struct ast_variable *ast_variable_find_variable_in_list(const struct ast_v
 
 int ast_variables_match(const struct ast_variable *left, const struct ast_variable *right)
 {
-	char *op;
+	const char *op;
 
 	if (left == right) {
 		return 1;
@@ -959,7 +959,7 @@ int ast_variable_lists_match(const struct ast_variable *left, const struct ast_v
 	}
 
 	for (field = right; field; field = field->next) {
-		char *space = strrchr(field->name, ' ');
+		const char *space = strrchr(field->name, ' ');
 		const struct ast_variable *old;
 		char * name = (char *)field->name;
 
@@ -2870,7 +2870,7 @@ static void print_comment(FILE *f, struct ast_comment *comment)
 	struct ast_comment *cmt;
 
 	for (cmt = comment; cmt; cmt = cmt->next) {
-		const char *line = cmt->cmt;
+		char *line = ast_strdupa(cmt->cmt);
 		char *nl;
 
 		while ((nl = strchr(line, '\n')) != NULL) {

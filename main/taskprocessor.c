@@ -1174,7 +1174,7 @@ static void *default_listener_pvt_alloc(void)
 static struct ast_taskprocessor *__allocate_taskprocessor(const char *name, struct ast_taskprocessor_listener *listener)
 {
 	struct ast_taskprocessor *p;
-	char *subsystem_separator;
+	const char *subsystem_separator;
 	size_t subsystem_length = 0;
 	size_t name_length;
 

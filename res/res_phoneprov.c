@@ -636,7 +636,7 @@ static void build_profile(const char *name, struct ast_variable *v)
 			ast_string_field_set(profile, staticdir, v->value);
 		} else {
 			struct phoneprov_file *pp_file;
-			char *file_extension;
+			const char *file_extension;
 			char value_copy[strlen(v->value) + 1];
 
 			AST_DECLARE_APP_ARGS(args,
