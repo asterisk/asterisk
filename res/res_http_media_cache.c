@@ -309,7 +309,7 @@ static void bucket_file_set_expiration(struct ast_bucket_file *bucket_file)
 
 	metadata = ast_bucket_file_metadata_get(bucket_file, "cache-control");
 	if (metadata) {
-		char *str_max_age;
+		const char *str_max_age;
 
 		str_max_age = strstr(metadata->value, "s-maxage");
 		if (!str_max_age) {
@@ -318,7 +318,7 @@ static void bucket_file_set_expiration(struct ast_bucket_file *bucket_file)
 
 		if (str_max_age) {
 			unsigned int max_age;
-			char *equal = strchr(str_max_age, '=');
+			const char *equal = strchr(str_max_age, '=');
 			if (equal && (sscanf(equal + 1, "%30u", &max_age) == 1)) {
 				actual_expires.tv_sec += max_age;
 			}

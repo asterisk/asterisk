@@ -279,7 +279,7 @@ static int handle_scan_file(const char *dir_name, const char *filename, void *ob
 
 	ast_free(filepath);
 
-	dot = strrchr(recording->file, '.');
+	dot = strrchr((char *)recording->file, '.');
 	*dot = '\0';
 	recording->format = dot + 1;
 
