@@ -9436,7 +9436,7 @@ static int ast_say_number_full_ka(struct ast_channel *chan, int num, const char 
 {
 	int res = 0;
 	char fn[512] = "";
-	char* s = 0;
+	const char* s = 0;
 	const char* remaining = fn;
 
 	if (!num) {

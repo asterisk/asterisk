@@ -349,7 +349,7 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 	char coltitle[256];
 	struct ast_str *sql = ast_str_thread_get(&sql_buf, SQL_BUF_SIZE);
 	struct ast_str *rowdata = ast_str_thread_get(&rowdata_buf, 128);
-	const char *initfield;
+	char *initfield;
 	char *op;
 	const struct ast_variable *field = fields;
 	char *stringp;

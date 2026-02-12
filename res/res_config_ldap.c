@@ -742,7 +742,7 @@ static void append_var_and_value_to_filter(struct ast_str **filter,
 {
 	char *new_name = NULL;
 	char *new_value = NULL;
-	char *like_pos = strstr(name, " LIKE");
+	const char *like_pos = strstr(name, " LIKE");
 
 	ast_debug(2, "name='%s' value='%s'\n", name, value);
 
@@ -1042,7 +1042,7 @@ static struct ast_config *realtime_multi_ldap(const char *basedn,
       const char *table_name, const struct ast_variable *fields)
 {
 	char *op;
-	const char *initfield = NULL;
+	char *initfield = NULL;
 	struct ast_variable **vars =
 		realtime_ldap_base_ap(NULL, basedn, table_name, fields);
 	struct ast_config *cfg = NULL;
