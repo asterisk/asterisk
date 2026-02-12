@@ -426,7 +426,7 @@ static struct ast_config *realtime_multi_mysql(const char *database, const char 
 	int numFields, i;
 	struct ast_str *sql = ast_str_thread_get(&sql_buf, 16);
 	struct ast_str *buf = ast_str_thread_get(&scratch_buf, 16);
-	const char *initfield = NULL;
+	char *initfield = NULL;
 	char *stringp;
 	char *chunk;
 	char *op;

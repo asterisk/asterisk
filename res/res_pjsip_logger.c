@@ -393,7 +393,7 @@ static char *pjsip_enable_logger_all(int fd)
 static char *pjsip_enable_logger_host(int fd, const char *arg, unsigned int add_host)
 {
 	const char *host = arg;
-	char *mask;
+	const char *mask;
 	struct ast_sockaddr address;
 	int error = 0;
 

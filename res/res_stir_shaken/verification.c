@@ -127,7 +127,7 @@ static int add_cert_expiration_to_astdb(struct ast_stir_shaken_vs_ctx *cert,
 	config_expires = current_time + cfg->vcfg_common.max_cache_entry_age;
 
 	if (!ast_strlen_zero(cache_control_header)) {
-		char *str_max_age;
+		const char *str_max_age;
 
 		str_max_age = strstr(cache_control_header, "s-maxage");
 		if (!str_max_age) {
@@ -136,7 +136,7 @@ static int add_cert_expiration_to_astdb(struct ast_stir_shaken_vs_ctx *cert,
 
 		if (str_max_age) {
 			unsigned int m;
-			char *equal = strchr(str_max_age, '=');
+			const char *equal = strchr(str_max_age, '=');
 			if (equal && !ast_str_to_uint(equal + 1, &m)) {
 				max_age_hdr = current_time + m;
 			}
@@ -897,7 +897,7 @@ enum ast_stir_shaken_vs_response_code
 	RAII_VAR(char *, jwt_encoded, NULL, ast_free);
 	RAII_VAR(jwt_t *, jwt, NULL, jwt_free);
 	RAII_VAR(struct ast_json *, grants, NULL, ast_json_unref);
-	char *p = NULL;
+	const char *p = NULL;
 	char *grants_str = NULL;
 	const char *x5u;
 	const char *ppt_header = NULL;
