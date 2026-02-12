@@ -2952,6 +2952,12 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
+	/* Because we delegate to unload_module() in our error paths, everything we do here
+	   has to be idempotent. Due to the way we define our CLI handlers (specifically
+	   setting the `command` and `usage` members to statically allocated strings) we
+	   _must_ register them for them to later be safely unregistered. */
+	ast_cli_register_multiple(cli_outbound_registration, ARRAY_LEN(cli_outbound_registration));
+
 	/* Create outbound registration states container. */
 	new_states = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
 		DEFAULT_STATE_BUCKETS, registration_state_hash, NULL, registration_state_cmp);
@@ -3029,7 +3035,6 @@ static int load_module(void)
 	cli_formatter->get_id = ast_sorcery_object_get_id;
 	cli_formatter->retrieve_by_id = cli_retrieve_by_id;
 	ast_sip_register_cli_formatter(cli_formatter);
-	ast_cli_register_multiple(cli_outbound_registration, ARRAY_LEN(cli_outbound_registration));
 
 	/* Register AMI actions. */
 	ast_manager_register_xml("PJSIPUnregister", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, ami_unregister);
