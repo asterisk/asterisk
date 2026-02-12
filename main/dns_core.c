@@ -707,7 +707,7 @@ char *dns_find_record(const char *record, size_t record_size, const char *respon
 	char *record_offset;
 
 	while (1) {
-		record_offset = memchr(search_base, record[0], remaining_size);
+		record_offset = memchr((void *)search_base, record[0], remaining_size);
 
 		ast_assert(record_offset != NULL);
 		ast_assert(search_base + remaining_size - record_offset >= record_size);

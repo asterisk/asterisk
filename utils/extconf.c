@@ -685,7 +685,7 @@ extern uint64_t __unsigned_int_flags_dummy64;
 #define ast_test_flag64(p,flag) 		({ \
 					typeof ((p)->flags) __p = (p)->flags; \
 					typeof (__unsigned_int_flags_dummy64) __x = 0; \
-					(void) (&__p == &__x); \
+					(void) (&__p == (typeof(__p)*)&__x); \
 					((p)->flags & SWAP64_32(flag)); \
 					})
 
@@ -5163,7 +5163,7 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, struct v
 		pos = strlen(whereweare);
 		nextvar = NULL;
 		nextexp = NULL;
-		nextthing = strchr(whereweare, '$');
+		nextthing = (char *)strchr(whereweare, '$');
 		if (nextthing) {
 			switch (nextthing[1]) {
 			case '{':
