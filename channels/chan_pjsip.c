@@ -2815,10 +2815,11 @@ static int sendtext(void *obj)
 	};
 
 	if (!ast_strlen_zero(content_type)) {
-		sep = strchr(content_type, '/');
+		char *content_type_copy = ast_strdupa(content_type);
+		sep = strchr(content_type_copy, '/');
 		if (sep) {
 			*sep = '\0';
-			body.type = content_type;
+			body.type = content_type_copy;
 			body.subtype = ++sep;
 		}
 	}

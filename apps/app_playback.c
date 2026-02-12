@@ -191,6 +191,7 @@ static int do_say(say_args_t *a, const char *s, const char *options, int depth)
 	struct ast_variable *v;
 	char *lang;
 	char *x;
+	const char *y;
 	char *rule = NULL;
 	char *rule_head = NULL;
 	int ret = 0;
@@ -231,10 +232,10 @@ static int do_say(say_args_t *a, const char *s, const char *options, int depth)
 		return 0;
 
 	/* skip up to two prefixes to get the value */
-	if ( (x = strchr(s, ':')) )
-		s = x + 1;
-	if ( (x = strchr(s, ':')) )
-		s = x + 1;
+	if ( (y = strchr(s, ':')) )
+		s = y + 1;
+	if ( (y = strchr(s, ':')) )
+		s = y + 1;
 	ast_debug(2, "value is <%s>\n", s);
 	n = ast_var_assign("SAY", s);
 	if (!n) {

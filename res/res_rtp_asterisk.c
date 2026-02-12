@@ -10203,7 +10203,7 @@ static int rtp_reload(int reload, int by_external_config)
 			continue;
 		}
 
-		sep = strchr(var->value,',');
+		sep = strchr((char *)var->value,',');
 		if (sep) {
 			*sep = '\0';
 			sep++;
