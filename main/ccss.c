@@ -2801,7 +2801,7 @@ static void *generic_recall(void *data)
 {
 	struct ast_cc_agent *agent = data;
 	struct cc_generic_agent_pvt *generic_pvt = agent->private_data;
-	const char *interface = S_OR(ast_get_cc_agent_dialstring(agent->cc_params), ast_strdupa(agent->device_name));
+	char *interface = ast_strdupa(S_OR(ast_get_cc_agent_dialstring(agent->cc_params), agent->device_name));
 	const char *tech;
 	char *target;
 	int reason;

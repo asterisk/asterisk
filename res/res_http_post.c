@@ -372,7 +372,7 @@ static int http_post_callback(struct ast_tcptls_session_instance *ser, const str
 			}
 			ast_debug(1, "Got a Content-Length of %d\n", content_len);
 		} else if (!strcasecmp(var->name, "Content-Type")) {
-			boundary_marker = strstr(var->value, "boundary=");
+			boundary_marker = strstr((char *)var->value, "boundary=");
 			if (boundary_marker) {
 				boundary_marker += strlen("boundary=");
 			}

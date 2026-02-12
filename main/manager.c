@@ -5760,7 +5760,7 @@ static enum add_filter_result manager_add_filter(
 	RAII_VAR(struct event_filter_entry *, filter_entry,
 		ao2_t_alloc(sizeof(*filter_entry), event_filter_destructor, "event_filter allocation"),
 		ao2_cleanup);
-	char *options_start = NULL;
+	const char *options_start = NULL;
 	SCOPE_ENTER(3, "manager_add_filter(%s, %s, %p, %p)", criteria, filter_pattern, includefilters, excludefilters);
 
 	if (!filter_entry) {
