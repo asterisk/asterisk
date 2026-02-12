@@ -1286,6 +1286,7 @@ static int control_streamfile(struct ast_channel *chan,
 	const char *lang,
 	ast_waitstream_fr_cb cb)
 {
+	char *file_copy = ast_strdupa(file);
 	char *breaks = NULL;
 	char *end = NULL;
 	int blen = 2;
@@ -1328,7 +1329,7 @@ static int control_streamfile(struct ast_channel *chan,
 		}
 	}
 
-	if ((end = strchr(file, ':'))) {
+	if ((end = strchr(file_copy, ':'))) {
 		if (!strcasecmp(end, ":end")) {
 			*end = '\0';
 			end++;
@@ -1339,7 +1340,7 @@ static int control_streamfile(struct ast_channel *chan,
 
 	for (;;) {
 		ast_stopstream(chan);
-		res = ast_streamfile(chan, file, lang);
+		res = ast_streamfile(chan, file_copy, lang);
 		if (!res) {
 			if (pause_restart_point) {
 				ast_seekstream(ast_channel_stream(chan), pause_restart_point, SEEK_SET);

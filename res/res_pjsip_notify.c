@@ -581,7 +581,7 @@ static void build_notify_body(pjsip_tx_data *tdata, struct ast_str *content_type
 		}
 
 		body.type = ast_str_buffer(content_type);
-		if ((p = strchr(body.type, '/'))) {
+		if ((p = strchr((char *)body.type, '/'))) {
 			*p++ = '\0';
 			body.subtype = p;
 		}
