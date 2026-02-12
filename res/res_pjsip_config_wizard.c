@@ -425,7 +425,7 @@ static int add_extension(struct ast_context *context, const char *exten,
 	char *data = NULL;
 	char *app = NULL;
 	void *free_ptr = NULL;
-	char *paren;
+	const char *paren;
 	const char *context_name;
 
 	if (!context || ast_strlen_zero(exten) || ast_strlen_zero(application)) {
