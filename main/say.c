@@ -8229,8 +8229,6 @@ static int ast_say_number_full_gr(struct ast_channel *chan, int num, const char 
 {
 	int res = 0;
 	char fn[256] = "";
-	int i=0;
-
 
 	if (!num) {
 		ast_copy_string(fn, "digits/0", sizeof(fn));
@@ -8240,7 +8238,6 @@ static int ast_say_number_full_gr(struct ast_channel *chan, int num, const char 
 	}
 
 	while (!res && num ) {
-		i++;
 		if (num < 13) {
 			snprintf(fn, sizeof(fn), "digits/%d", num);
 			num = 0;

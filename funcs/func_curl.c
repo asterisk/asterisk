@@ -720,8 +720,8 @@ static int curl_instance_init(void *data)
 	if (!(*curl = curl_easy_init()))
 		return -1;
 
-	curl_easy_setopt(*curl, CURLOPT_NOSIGNAL, 1);
-	curl_easy_setopt(*curl, CURLOPT_TIMEOUT, 180);
+	curl_easy_setopt(*curl, CURLOPT_NOSIGNAL, 1L);
+	curl_easy_setopt(*curl, CURLOPT_TIMEOUT, 180L);
 	curl_easy_setopt(*curl, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
 	curl_easy_setopt(*curl, CURLOPT_USERAGENT, AST_CURL_USER_AGENT);
 
