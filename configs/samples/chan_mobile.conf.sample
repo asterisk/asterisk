@@ -3,6 +3,34 @@
 ; configuration file for chan_mobile
 ;
 
+;
+; INITIAL BLUETOOTH PAIRING PROCEDURE
+; ====================================
+; Before configuring devices in this file, you must pair them with your
+; Bluetooth adapter using bluetoothctl. Run the following commands:
+;
+;   1. bluetoothctl
+;   2. list                          ; Show available adapters
+;   3. select <controller-mac>       ; Select your adapter (if multiple)
+;   4. power on                      ; Enable the adapter
+;   5. pairable on                   ; Allow pairing
+;   6. discoverable on               ; Make adapter visible (optional)
+;   7. scan on                       ; Start scanning for devices
+;   8. (wait for device to appear)   ; Watch for your phone/headset
+;   9. pair <device-mac>             ; Initiate pairing (confirm PIN on phone)
+;  10. trust <device-mac>            ; Mark device as trusted (auto-reconnect)
+;  11. exit                          ; Exit bluetoothctl
+;
+; SMS PERMISSIONS (Samsung and other Android phones)
+; ---------------------------------------------------
+; When sending or receiving the first SMS via chan_mobile, the phone will
+; display a "Message Access" permission prompt (phone must be unlocked).
+; This approval is required only once. If not approved:
+;   - SMS functionality will not work
+;   - Commands will timeout waiting for responses
+;   - You should disable SMS with 'sms=no' to avoid these timeouts
+;
+
 [general]
 interval=30		; Number of seconds between trying to connect to devices.
 
@@ -26,24 +54,34 @@ address=00:80:C8:35:52:78
 ; The following is a list of the devices we deal with.
 ; Every device listed below will be available for calls in and out of Asterisk.
 ; Each device needs an adapter=xxxx entry which determines which bluetooth adapter is used.
-; Use the CLI command 'mobile search' to discover devices.
-; Use the CLI command 'mobile show devices' to see device status.
+; Device MAC addresses can be found via 'bluetoothctl devices' after pairing.
+; Use the CLI command 'mobile show devices' to see device status, including:
+;   - Signal strength
+;   - Battery level
+;   - Operator / Provider name
+;   - Roaming status
 ;
 ; To place a call out through a mobile phone use Dial(Mobile/[device]/NNN.....) or Dial(Mobile/gn/NNN......) in your dialplan.
 ; To call a headset use Dial(Mobile/[device]).
 
 [LGTU550]
 address=00:E0:91:7F:46:44	; the address of the phone
-port=4				; the rfcomm port number (from mobile search)
+;port=auto			; RFCOMM port is auto-detected via SDP (recommended).
+                                ; For 'type=phone', it searches for HFP (Handsfree) service.
+                                ; For 'type=headset', it searches for HSP (Headset) service.
+                                ; You can specify a numeric port to override auto-detection.
 context=incoming-mobile		; dialplan context for incoming calls
 adapter=dlink			; adapter to use
 group=1				; this phone is in channel group 1
-;sms=no				; support SMS, defaults to yes
+;sms=yes			; Enable SMS support. Options: yes/auto (enable), no (disable)
+				; Default is OFF to avoid timeouts if phone permission not granted.
+				; See "SMS PERMISSIONS" section above.
+;sms_delete_after_read=yes  ; Delete SMS from the device after reading (default: no)
 ;nocallsetup=yes		; set this only if your phone reports that it supports call progress notification, but does not do it. Motorola L6 for example.
 
 [blackberry]
 address=00:60:57:32:7E:B2
-port=2
+port=auto           ; Auto-detect port (search for HFP since type defaults to phone)
 context=incoming-mobile
 adapter=dlink
 group=1
@@ -51,19 +89,53 @@ group=1
 
 [6310i]
 address=00:60:57:32:7E:B1
-port=13
+;port=13
 context=incoming-mobile
 adapter=dlink
 group=1				; this phone is in channel group 1 also.
 
 [headset]
 address=00:0B:9E:11:AE:C6
-port=1
+;port=auto
 type=headset			; This is a headset, not a Phone !
+                        ; When type=headset, chan_mobile will only look for HSP profile.
 adapter=blue
 
 [headset1]
 address=00:0B:9E:11:74:A5
-port=1
+;port=auto               ; Auto-detect HSP port
 type=headset
 adapter=dlink
+
+;
+; SMS DIALPLAN EXAMPLE (extensions.conf)
+; ======================================
+; To handle incoming SMS messages, you must define the 'sms' extension in the context
+; configured for your device (e.g., [incoming-mobile]).
+;
+; The following variables are available via the MESSAGE_DATA() function:
+;   MESSAGE_DATA(SMSSRC)  - Sender Number
+;   MESSAGE_DATA(SMSNAME) - Sender Name (if available)
+;   MESSAGE_DATA(SMSTXT)  - Message Body (also available as ${MESSAGE(body)})
+;
+; [incoming-mobile]
+; exten => sms,1,NoOp(SMS from ${MESSAGE_DATA(SMSNAME)} <${MESSAGE_DATA(SMSSRC)}> : ${MESSAGE_DATA(SMSTXT)})
+; ; Forward SMS to a PJSIP endpoint (e.g. 611), setting the sender as "Name <Number>"
+; same => n,MessageSend(pjsip:611, "${MESSAGE_DATA(SMSNAME)} <${MESSAGE_DATA(SMSSRC)}>")
+; same => n,Hangup()
+
+;
+; SENDING SMS FROM SIP (extensions.conf)
+; ======================================
+; To send SMS from a SIP softphone to a mobile number via chan_mobile:
+; 1. Ensure your SIP endpoint is configured with 'context=messages' (or similar).
+; 2. Define the context to handle the out-of-call MESSAGE request.
+;
+; [messages]
+; ; Match any number and send via 'mobile0' device
+; exten => _X.,1,NoOp(Sending SMS to ${EXTEN} via mobile0)
+; same => n,MessageSend(mobile:mobile0/${EXTEN})
+; same => n,Hangup()
+
+
+
