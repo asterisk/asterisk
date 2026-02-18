@@ -5099,7 +5099,6 @@ static int unistimsock_read(int *id, int fd, short events, void *ignore)
 	struct sockaddr_in addr_from = { 0, };
 	struct unistimsession *cur = NULL;
 	int found = 0;
-	int tmp = 0;
 	int dw_num_bytes_rcvd;
 	unsigned int size_addr_from;
 #ifdef DUMP_PACKET
@@ -5127,7 +5126,6 @@ static int unistimsock_read(int *id, int fd, short events, void *ignore)
 			found = 1;
 			break;
 		}
-		tmp++;
 		cur = cur->next;
 	}
 	ast_mutex_unlock(&sessionlock);

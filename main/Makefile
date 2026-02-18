@@ -151,6 +151,7 @@ endif
 stdtime/localtime.o: _ASTCFLAGS+=$(AST_NO_STRICT_OVERFLOW) -Wno-format-nonliteral
 
 asterisk.o: _ASTCFLAGS+=$(LIBEDIT_INCLUDE)
+ast_expr2.o: _ASTCFLAGS+=-Wno-unused
 ast_expr2f.o: _ASTCFLAGS+=-Wno-unused
 astmm.o: _ASTCFLAGS+=$(call get_menuselect_cflags,MALLOC_DEBUG DEBUG_CHAOS)
 astobj2.o astobj2_container.o astobj2_hash.o astobj2_rbtree.o: _ASTCFLAGS+=$(call get_menuselect_cflags,AO2_DEBUG)

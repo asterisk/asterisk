@@ -225,7 +225,6 @@ int fsk_serial(fsk_data *fskd, short *buffer, int *len, int *outbyte)
 {
 	int a;
 	int i,j,n1,r;
-	int samples = 0;
 	int olen;
 
 	switch (fskd->state) {
@@ -257,14 +256,12 @@ int fsk_serial(fsk_data *fskd, short *buffer, int *len, int *outbyte)
 		a start bit, perhaps. This whole thing stinks! */
 		if (demodulator(fskd, &fskd->x1, GET_SAMPLE))
 			return -1;
-		samples++;
 		for (;;) {
 search_startbit2:
 			if (*len <= 0) {
 				fskd->state  =  STATE_SEARCH_STARTBIT2;
 				return 0;
 			}
-			samples++;
 			if (demodulator(fskd, &fskd->x2, GET_SAMPLE))
 				return(-1);
 #if 0
@@ -286,7 +283,6 @@ search_startbit3:
 #if 0
 			printf("x1 = %5.5f ", fskd->x1);
 #endif
-			samples++;
 		}
 
 		/* x1 must be negative (start bit confirmation) */
