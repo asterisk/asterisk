@@ -2612,14 +2612,14 @@ static int timezone_add(const char *zonename, const char *config)
 }
 
 /*! \brief Read message template from file */
-static char *message_template_parse_filebody(const char *filename) {
+static char *message_template_parse_filebody(const char *filename)
+{
 	char buf[BUFSIZ * 6];
 	char readbuf[BUFSIZ];
 	char filenamebuf[BUFSIZ];
 	char *writepos;
 	char *messagebody;
 	FILE *fi;
-	int lines = 0;
 
 	if (ast_strlen_zero(filename))
 		return NULL;
@@ -2634,7 +2634,6 @@ static char *message_template_parse_filebody(const char *filename) {
 	}
 	writepos = buf;
 	while (fgets(readbuf, sizeof(readbuf), fi)) {
-		lines ++;
 		if (writepos != buf) {
 			*writepos = '\n';		/* Replace EOL with new line */
 			writepos++;
