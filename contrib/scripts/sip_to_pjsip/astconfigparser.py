@@ -240,7 +240,7 @@ def try_include(line):
     included filename, otherwise None.
     """
 
-    match = re.match('^#include\s*([^;]+).*$', line)
+    match = re.match(r'^#include\s*([^;]+).*$', line)
     if match:
         trimmed = match.group(1).rstrip()
         quoted = re.match('^"([^"]+)"$', trimmed)
