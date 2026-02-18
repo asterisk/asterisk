@@ -311,12 +311,11 @@ static void ast_eivr_getvariable(struct ast_channel *chan, char *data, char *out
 
 	char *inbuf, *variable;
 	const char *value;
-	int j;
 	struct ast_str *newstring = ast_str_alloca(outbuflen);
 
 	outbuf[0] = '\0';
 
-	for (j = 1, inbuf = data; ; j++) {
+	for (inbuf = data; ; ) {
 		variable = strsep(&inbuf, ",");
 		if (variable == NULL) {
 			int outstrlen = strlen(outbuf);
