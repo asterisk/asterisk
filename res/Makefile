@@ -32,7 +32,7 @@ ael/ael_lex.o: ael/ael_lex.c ../include/asterisk/ael_structs.h ael/ael.tab.h
 ael/ael_lex.o: _ASTCFLAGS+=-I. -Iael -Wno-unused $(AST_NO_FORMAT_TRUNCATION)
 
 ael/ael.tab.o: ael/ael.tab.c ael/ael.tab.h ../include/asterisk/ael_structs.h
-ael/ael.tab.o: _ASTCFLAGS+=-I. -Iael -DYYENABLE_NLS=0
+ael/ael.tab.o: _ASTCFLAGS+=-I. -Iael -Wno-unused -DYYENABLE_NLS=0
 
 ifneq ($(findstring REBUILD_PARSERS,$(MENUSELECT_CFLAGS)),)
 ael/ael_lex.c: ael/ael.flex
@@ -54,6 +54,7 @@ endif
 	$(CMD_PREFIX) (cd ael; $(BISON) -v -d ael.y)
 
 ael/pval.o: ael/pval.c
+ael/pval.o: _ASTCFLAGS+=-Wno-unused
 
 $(call MOD_ADD_C,res_ael_share,ael/ael_lex.c ael/ael.tab.c ael/pval.c)
 $(call MOD_ADD_C,res_stasis,$(wildcard stasis/*.c))
