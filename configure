@@ -1016,6 +1016,10 @@ PBX_PJSIP_DLG_CREATE_UAS_AND_INC_LOCK
 PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_DIR
 PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_INCLUDE
 PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_LIB
+PBX_LAME
+LAME_DIR
+LAME_INCLUDE
+LAME_LIB
 PBX_BEANSTALK
 BEANSTALK_DIR
 BEANSTALK_INCLUDE
@@ -1452,6 +1456,7 @@ with_opus
 with_opusfile
 with_postgres
 with_beanstalk
+with_mp3lame
 with_pjproject
 with_popt
 with_portaudio
@@ -2230,6 +2235,7 @@ Optional Packages:
   --with-opusfile=PATH    use Opusfile files in PATH
   --with-postgres=PATH    use PostgreSQL files in PATH
   --with-beanstalk=PATH   use Beanstalk Job Queue files in PATH
+  --with-mp3lame=PATH     use LAME MP3 files in PATH
   --with-pjproject=PATH   use PJPROJECT files in PATH
   --with-popt=PATH        use popt files in PATH
   --with-portaudio=PATH   use PortAudio files in PATH
@@ -24024,6 +24030,39 @@ fi
 
 
 
+    LAME_DESCRIP="LAME MP3"
+    LAME_OPTION="mp3lame"
+    PBX_LAME=0
+
+# Check whether --with-mp3lame was given.
+if test ${with_mp3lame+y}
+then :
+  withval=$with_mp3lame;
+	case ${withval} in
+	n|no)
+	USE_LAME=no
+	# -1 is a magic value used by menuselect to know that the package
+	# was disabled, other than 'not found'
+	PBX_LAME=-1
+	;;
+	y|ye|yes)
+	ac_mandatory_list="${ac_mandatory_list} LAME"
+	;;
+	*)
+	LAME_DIR="${withval}"
+	ac_mandatory_list="${ac_mandatory_list} LAME"
+	;;
+	esac
+
+fi
+
+
+
+
+
+
+
+
 if test "x${PBX_PJPROJECT}" != "x1" ; then
 
     PJPROJECT_DESCRIP="PJPROJECT"
@@ -33411,6 +33450,112 @@ fi
 
 
 # do the package library checks now
+
+
+if test "x${PBX_LAME}" != "x1" -a "${USE_LAME}" != "no"; then
+   pbxlibdir=""
+   # if --with-LAME=DIR has been specified, use it.
+   if test "x${LAME_DIR}" != "x"; then
+      if test -d ${LAME_DIR}/lib; then
+         pbxlibdir="-L${LAME_DIR}/lib"
+      else
+         pbxlibdir="-L${LAME_DIR}"
+      fi
+   fi
+
+      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
+      CFLAGS="${CFLAGS} "
+      { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for get_lame_version in -lmp3lame" >&5
+printf %s "checking for get_lame_version in -lmp3lame... " >&6; }
+if test ${ac_cv_lib_mp3lame_get_lame_version+y}
+then :
+  printf %s "(cached) " >&6
+else case e in #(
+  e) ac_check_lib_save_LIBS=$LIBS
+LIBS="-lmp3lame ${pbxlibdir}  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.
+   The 'extern "C"' is for builds by C++ compilers;
+   although this is not generally supported in C code supporting it here
+   has little cost and some practical benefit (sr 110532).  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char get_lame_version (void);
+int
+main (void)
+{
+return get_lame_version ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"
+then :
+  ac_cv_lib_mp3lame_get_lame_version=yes
+else case e in #(
+  e) ac_cv_lib_mp3lame_get_lame_version=no ;;
+esac
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS ;;
+esac
+fi
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_mp3lame_get_lame_version" >&5
+printf "%s\n" "$ac_cv_lib_mp3lame_get_lame_version" >&6; }
+if test "x$ac_cv_lib_mp3lame_get_lame_version" = xyes
+then :
+  AST_LAME_FOUND=yes
+else case e in #(
+  e) AST_LAME_FOUND=no ;;
+esac
+fi
+
+      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
+
+
+   # now check for the header.
+   if test "${AST_LAME_FOUND}" = "yes"; then
+      LAME_LIB="${pbxlibdir} -lmp3lame "
+      # if --with-LAME=DIR has been specified, use it.
+      if test "x${LAME_DIR}" != "x"; then
+         LAME_INCLUDE="-I${LAME_DIR}/include"
+      fi
+      LAME_INCLUDE="${LAME_INCLUDE} "
+
+         # check for the header
+         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
+         CPPFLAGS="${CPPFLAGS} ${LAME_INCLUDE}"
+         ac_fn_c_check_header_compile "$LINENO" "lame/lame.h" "ac_cv_header_lame_lame_h" "$ac_includes_default"
+if test "x$ac_cv_header_lame_lame_h" = xyes
+then :
+  LAME_HEADER_FOUND=1
+else case e in #(
+  e) LAME_HEADER_FOUND=0 ;;
+esac
+fi
+
+         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
+
+      if test "x${LAME_HEADER_FOUND}" = "x0" ; then
+         LAME_LIB=""
+         LAME_INCLUDE=""
+      else
+
+         PBX_LAME=1
+         cat >>confdefs.h <<_ACEOF
+#define HAVE_LAME 1
+_ACEOF
+
+      fi
+   fi
+fi
+
 
 
 if test "x${PBX_BFD}" != "x1" -a "${USE_BFD}" != "no"; then
