@@ -84,7 +84,7 @@ static void bridges_scrape_cb(struct ast_str **response)
 	struct prometheus_metric *metrics;
 	struct prometheus_metric **bridge_metrics;
 	char eid_str[32];
-	int i, j, num_bridges, num_outputs = 0;
+	int j, num_bridges, num_outputs = 0;
 	struct prometheus_metric bridge_count = PROMETHEUS_METRIC_STATIC_INITIALIZATION(
 		PROMETHEUS_METRIC_GAUGE,
 		"asterisk_bridges_count",
@@ -132,7 +132,7 @@ static void bridges_scrape_cb(struct ast_str **response)
 
 	/* Bridge dependent values */
 	it_bridges = ao2_iterator_init(bridges, 0);
-	for (i = 0; (bridge = ao2_iterator_next(&it_bridges)); ao2_ref(bridge, -1), i++) {
+	for (; (bridge = ao2_iterator_next(&it_bridges)); ao2_ref(bridge, -1)) {
 		struct ast_bridge_snapshot *snapshot;
 
 		/* Invisible bridges don't get shown externally and have no snapshot */
