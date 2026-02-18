@@ -128,7 +128,7 @@ static void process_section(bfd *bfdobj, asection *section, void *obj)
 	bfd_vma vma;
 	bfd_size_type size;
 	bfd_boolean line_found = 0;
-	char *fn;
+	const char *fn;
 	int inlined = 0;
 
 	offset = data->pc - (data->dynamic ? (bfd_vma)(uintptr_t) data->dli.dli_fbase : 0);
