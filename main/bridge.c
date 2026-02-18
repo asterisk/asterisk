@@ -2830,6 +2830,8 @@ static int try_swap_optimize_out(struct ast_bridge *chan_bridge,
 	struct ast_bridge_channel *dst_bridge_channel;
 	struct ast_bridge_channel *src_bridge_channel;
 	struct ast_bridge_channel *other;
+	struct ast_unreal_pvt *pvt_other = NULL;
+	const struct ast_channel_tech *local_channel_tech;
 	int res = 1;
 
 	switch (bridges_allow_swap_optimization(chan_bridge, peer_bridge)) {
@@ -2862,6 +2864,28 @@ static int try_swap_optimize_out(struct ast_bridge *chan_bridge,
 			ast_channel_name(dst_bridge_channel->chan),
 			ast_channel_name(other->chan));
 
+		local_channel_tech = ast_get_channel_tech("Local");
+		if (local_channel_tech && ast_channel_tech(other->chan) == local_channel_tech) {
+			pvt_other = ast_channel_tech_pvt(other->chan);
+			if (pvt_other) {
+				if (!ast_test_flag(pvt_other, AST_UNREAL_OPTIMIZE_BEGUN)) {
+					ao2_lock(pvt_other);
+					if (!ast_test_flag(pvt_other, AST_UNREAL_OPTIMIZE_BEGUN)) {
+						ast_set_flag(pvt_other, AST_UNREAL_OPTIMIZE_BEGUN);
+					} else {
+						ao2_unlock(pvt_other);
+						ast_channel_unlock(other->chan);
+						ast_log(LOG_WARNING, "Can't optimize with lock other_pvt. Channel %s is in optimize process already.\n", ast_channel_name(other->chan));
+						return 1;
+					}
+					ao2_unlock(pvt_other);
+				} else {
+					ast_log(LOG_WARNING, "Can't optimize. Channel %s is in optimize process already.\n", ast_channel_name(other->chan));
+					ast_channel_unlock(other->chan);
+					return 1;
+				}
+			}
+		}
 		if (pvt && !ast_test_flag(pvt, AST_UNREAL_OPTIMIZE_BEGUN) && pvt->callbacks
 				&& pvt->callbacks->optimization_started) {
 			pvt->callbacks->optimization_started(pvt, other->chan,
@@ -2877,6 +2901,9 @@ static int try_swap_optimize_out(struct ast_bridge *chan_bridge,
 		}
 		if (pvt && pvt->callbacks && pvt->callbacks->optimization_finished) {
 			pvt->callbacks->optimization_finished(pvt, res == 1, id);
+		}
+		if (pvt_other) {
+			ast_clear_flag(pvt_other, AST_UNREAL_OPTIMIZE_BEGUN);
 		}
 		ast_channel_unlock(other->chan);
 	}
