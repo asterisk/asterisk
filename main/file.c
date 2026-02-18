@@ -569,6 +569,11 @@ static int filehelper(const char *filename, const void *arg2, const char *fmt, c
 		char storage[strlen(f->exts) + 1];
 		char *stringp;
 
+		/* If we have successfully opened a file, we are done. */
+		if (action == ACTION_OPEN && res == 1) {
+			break;
+		}
+
 		if (fmt && !exts_compare(f->exts, fmt))
 			continue;
 
