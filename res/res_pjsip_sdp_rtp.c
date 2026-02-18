@@ -57,7 +57,6 @@
 
 #include "asterisk/res_pjsip.h"
 #include "asterisk/res_pjsip_session.h"
-#include "asterisk/res_pjsip_session_caps.h"
 
 /*! \brief Scheduler for RTCP purposes */
 static struct ast_sched_context *sched;
@@ -402,7 +401,7 @@ static void get_codecs(struct ast_sip_session *session, const struct pjmedia_sdp
 		}
 	}
 
-	if (session->dtmf == AST_SIP_DTMF_AUTO_INFO) {
+	if (session_media && session->dtmf == AST_SIP_DTMF_AUTO_INFO) {
 		if  (tel_event) {
 			ast_rtp_instance_dtmf_mode_set(session_media->rtp, AST_RTP_DTMF_MODE_RFC2833);
 			ast_rtp_instance_set_prop(session_media->rtp, AST_RTP_PROPERTY_DTMF, 1);
@@ -456,51 +455,6 @@ static int apply_cap_to_bundled(struct ast_sip_session_media *session_media,
 	return 0;
 }
 
-static struct ast_format_cap *set_incoming_call_offer_cap(
-	struct ast_sip_session *session, struct ast_sip_session_media *session_media,
-	const struct pjmedia_sdp_media *stream)
-{
-	struct ast_format_cap *incoming_call_offer_cap;
-	struct ast_format_cap *remote;
-	struct ast_rtp_codecs codecs = AST_RTP_CODECS_NULL_INIT;
-	SCOPE_ENTER(1, "%s\n", ast_sip_session_get_name(session));
-
-
-	remote = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
-	if (!remote) {
-		ast_log(LOG_ERROR, "Failed to allocate %s incoming remote capabilities\n",
-				ast_codec_media_type2str(session_media->type));
-		SCOPE_EXIT_RTN_VALUE(NULL, "Couldn't allocate caps\n");
-	}
-
-	/* Get the peer's capabilities*/
-	get_codecs(session, stream, &codecs, session_media, remote);
-
-	incoming_call_offer_cap = ast_sip_session_create_joint_call_cap(
-		session, session_media->type, remote);
-
-	ao2_ref(remote, -1);
-
-	if (!incoming_call_offer_cap || ast_format_cap_empty(incoming_call_offer_cap)) {
-		ao2_cleanup(incoming_call_offer_cap);
-		ast_rtp_codecs_payloads_destroy(&codecs);
-		SCOPE_EXIT_RTN_VALUE(NULL, "No incoming call offer caps\n");
-	}
-
-	/*
-	 * Setup rx payload type mapping to prefer the mapping
-	 * from the peer that the RFC says we SHOULD use.
-	 */
-	ast_rtp_codecs_payloads_xover(&codecs, &codecs, NULL);
-
-	ast_rtp_codecs_payloads_copy(&codecs,
-		ast_rtp_instance_get_codecs(session_media->rtp), session_media->rtp);
-
-	ast_rtp_codecs_payloads_destroy(&codecs);
-
-	SCOPE_EXIT_RTN_VALUE(incoming_call_offer_cap);
-}
-
 static int set_caps(struct ast_sip_session *session,
 	struct ast_sip_session_media *session_media,
 	struct ast_sip_session_media *session_media_transport,
@@ -530,7 +484,7 @@ static int set_caps(struct ast_sip_session *session,
 	if (direct_media_enabled) {
 		ast_format_cap_get_compatible(session->endpoint->media.codecs, session->direct_media_cap, caps);
 	} else {
-		ast_format_cap_append_from_cap(caps, session->endpoint->media.codecs, media_type);
+		ast_format_cap_append_from_cap(caps, ast_stream_get_formats(asterisk_stream), media_type);
 	}
 
 	/* get the capabilities on the peer */
@@ -1546,11 +1500,13 @@ static int negotiate_incoming_sdp_stream(struct ast_sip_session *session,
 {
 	char host[NI_MAXHOST];
 	RAII_VAR(struct ast_sockaddr *, addrs, NULL, ast_free);
+	RAII_VAR(struct ast_format_cap *, remote_caps, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_format_cap *, format_caps, NULL, ao2_cleanup);
 	pjmedia_sdp_media *stream = sdp->media[index];
 	struct ast_sip_session_media *session_media_transport;
 	enum ast_media_type media_type = session_media->type;
 	enum ast_sip_session_media_encryption encryption = AST_SIP_MEDIA_ENCRYPT_NONE;
-	struct ast_format_cap *joint;
+	struct ast_rtp_codecs codecs = AST_RTP_CODECS_NULL_INIT;
 	int res;
 	SCOPE_ENTER(1, "%s\n", ast_sip_session_get_name(session));
 
@@ -1568,6 +1524,14 @@ static int negotiate_incoming_sdp_stream(struct ast_sip_session *session,
 		if (encryption == AST_SIP_MEDIA_TRANSPORT_INVALID) {
 			SCOPE_EXIT_RTN_VALUE(-1, "Incompatible transport\n");
 		}
+	}
+
+	if (!(format_caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))
+		|| !(remote_caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
+		ast_log(LOG_ERROR, "Failed to allocate %s capabilities\n",
+			ast_codec_media_type2str(session_media->type));
+		SCOPE_EXIT_RTN_VALUE(-1, "Couldn't create %s capabilities\n",
+			ast_codec_media_type2str(session_media->type));
 	}
 
 	ast_copy_pj_str(host, stream->conn ? &stream->conn->addr : &sdp->conn->addr, sizeof(host));
@@ -1635,9 +1599,23 @@ static int negotiate_incoming_sdp_stream(struct ast_sip_session *session,
 	/* Check if incoming SDP is changing the remotely held state */
 	set_session_media_remotely_held(session_media, session, stream, asterisk_stream, addrs);
 
-	joint = set_incoming_call_offer_cap(session, session_media, stream);
-	res = apply_cap_to_bundled(session_media, session_media_transport, asterisk_stream, joint);
-	ao2_cleanup(joint);
+	/*
+	 * Setup rx payload type mapping to prefer the mapping
+	 * from the peer that the RFC says we SHOULD use.
+	 */
+	get_codecs(session, stream, &codecs, session_media, remote_caps);
+	if (ast_format_cap_empty(ast_stream_get_formats(asterisk_stream))) {
+		ast_rtp_codecs_payloads_destroy(&codecs);
+		SCOPE_EXIT_RTN_VALUE(0, "Format capabilities empty.\n");
+	}
+	ast_rtp_codecs_payloads_xover(&codecs, &codecs, NULL);
+	ast_rtp_codecs_payloads_copy(&codecs,
+		ast_rtp_instance_get_codecs(session_media->rtp), session_media->rtp);
+
+	ast_rtp_codecs_payloads_destroy(&codecs);
+
+	ast_format_cap_append_from_cap(format_caps, ast_stream_get_formats(asterisk_stream), media_type);
+	res = apply_cap_to_bundled(session_media, session_media_transport, asterisk_stream, format_caps);
 	if (res != 0) {
 		SCOPE_EXIT_RTN_VALUE(0, "Something failed\n");
 	}

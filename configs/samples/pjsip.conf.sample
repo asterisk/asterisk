@@ -848,51 +848,13 @@
                    ; "0" or not enabled)
 ;contact_user= ; On outgoing requests, force the user portion of the Contact
                ; header to this value (default: "")
-;incoming_call_offer_pref= ; Based on this setting, a joint list of
-                           ; preferred codecs between those received in an
-                           ; incoming SDP offer (remote), and those specified
-                           ; in the endpoint's "allow" parameter (local)
-                           ; is created and is passed to the Asterisk core.
-                           ;
-                           ; local - Include all codecs in the local list that
-                           ; are also in the remote list preserving the local
-                           ; order. (default).
-                           ; local_first - Include only the first codec in the
-                           ; local list that is also in the remote list.
-                           ; remote - Include all codecs in the remote list that
-                           ; are also in the local list preserving remote list
-                           ; order.
-                           ; remote_first - Include only the first codec in
-                           ; the remote list that is also in the local list.
-;outgoing_call_offer_pref= ; Based on this setting, a joint list of
-                           ; preferred codecs between those received from the
-                           ; Asterisk core (remote), and those specified in
-                           ; the endpoint's "allow" parameter (local) is
-                           ; created and is used to create the outgoing SDP
-                           ; offer.
-                           ;
-                           ; local - Include all codecs in the local list that
-                           ; are also in the remote list preserving the local
-                           ; order.
-                           ; local_merge - Include all codecs in the local list
-                           ; preserving the local order.
-                           ; local_first - Include only the first codec in the
-                           ; local list.
-                           ; remote - Include all codecs in the remote list that
-                           ; are also in the local list preserving remote list
-                           ; order.
-                           ; remote_merge - Include all codecs in the local list
-                           ; preserving the remote list order. (default)
-                           ; remote_first - Include only the first codec in the
-                           ; remote list that is also in the local list.
 ;preferred_codec_only=no   ; Respond to a SIP invite with the single most
                            ; preferred codec rather than advertising all joint
                            ; codec capabilities. This limits the other side's
                            ; codec choice to exactly what we prefer.
                            ; default is no.
                            ; NOTE: This option is deprecated in favor
-                           ; of incoming_call_offer_pref.  Setting both
-                           ; options is unsupported.
+                           ; of codec_prefs_incoming_offer.
 ;asymmetric_rtp_codec= ; Allow the sending and receiving codec to differ and
                        ; not be automatically matched (default: "no")
 ;refer_blind_progress= ; Whether to notifies all the progress details on blind

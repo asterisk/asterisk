@@ -1556,7 +1556,11 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 					}
 					if (!ast_test_flag64(outgoing, OPT_RINGBACK)) {
 						if (single || (!single && !pa->sentringing)) {
-							ast_indicate(in, AST_CONTROL_PROGRESS);
+							struct ast_stream_topology *top = ao2_bump(ast_channel_get_stream_topology(c));
+							ast_channel_lock(in);
+							ast_channel_tech(in)->indicate(in, AST_CONTROL_PROGRESS, top, 0);
+							ast_channel_unlock(in);
+							ao2_ref(top, -1);
 						}
 					}
 					*to_progress = -1;
@@ -3406,6 +3410,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 				ast_channel_setoption(chan, AST_OPTION_OPRMODE, &oprmode, sizeof(oprmode), 0);
 			}
 			setup_peer_after_bridge_goto(chan, peer, &opts, opt_args);
+			config.answer_topology = ast_stream_topology_clone(ast_channel_get_stream_topology(peer));
 
 			res = ast_bridge_call(chan, peer, &config);
 		}
@@ -3450,8 +3455,8 @@ out:
 
 done:
 	if (config.answer_topology) {
-		ast_trace(2, "%s Cleaning up topology: %p %s\n",
-			peer ? ast_channel_name(peer) : "<no channel>", &config.answer_topology,
+		ast_log(LOG_DEBUG, "Cleaning up topology: %p %s\n",
+			&config.answer_topology,
 			ast_str_tmp(256, ast_stream_topology_to_str(config.answer_topology, &STR_TMP)));
 
 		/*
