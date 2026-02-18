@@ -1156,6 +1156,8 @@ static int tos_handler(const struct aco_option *opt,
 		endpoint->media.tos_audio = value;
 	} else if (!strcmp(var->name, "tos_video")) {
 		endpoint->media.tos_video = value;
+	} else if (!strcmp(var->name, "tos_text")) {
+		endpoint->media.tos_text = value;
 	} else {
 		/* If we reach this point, someone called the tos_handler when they shouldn't have. */
 		ast_assert(0);
@@ -1179,6 +1181,16 @@ static int tos_video_to_str(const void *obj, const intptr_t *args, char **buf)
 	const struct ast_sip_endpoint *endpoint = obj;
 
 	if (ast_asprintf(buf, "%u", endpoint->media.tos_video) == -1) {
+		return -1;
+	}
+	return 0;
+}
+
+static int tos_text_to_str(const void *obj, const intptr_t *args, char **buf)
+{
+	const struct ast_sip_endpoint *endpoint = obj;
+
+	if (ast_asprintf(buf, "%u", endpoint->media.tos_text) == -1) {
 		return -1;
 	}
 	return 0;
@@ -2305,8 +2317,10 @@ int ast_res_pjsip_initialize_configuration(void)
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "sdp_session", "Asterisk", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, media.sdpsession));
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "tos_audio", "0", tos_handler, tos_audio_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "tos_video", "0", tos_handler, tos_video_to_str, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "tos_text", "0", tos_handler, tos_text_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "cos_audio", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, media.cos_audio));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "cos_video", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, media.cos_video));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "cos_text", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, media.cos_text));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "allow_subscribe", "yes", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, subscription.allow));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "sub_min_expiry", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, subscription.minexpiry));
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "from_user", "", from_user_handler, from_user_to_str, NULL, 0, 0);
@@ -2348,6 +2362,7 @@ int ast_res_pjsip_initialize_configuration(void)
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "notify_early_inuse_ringing", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, notify_early_inuse_ringing));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "max_audio_streams", "1", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, media.max_audio_streams));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "max_video_streams", "1", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, media.max_video_streams));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "max_text_streams", "1", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, media.max_text_streams));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "bundle", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, media.bundle));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "webrtc", "no", OPT_YESNO_T, 1, FLDSET(struct ast_sip_endpoint, media.webrtc));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "incoming_mwi_mailbox", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, incoming_mwi_mailbox));
