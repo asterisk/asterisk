@@ -122,6 +122,8 @@ References:
 #ifndef _ASTERISK_CHANNEL_H
 #define _ASTERISK_CHANNEL_H
 
+#include <regex.h>
+
 #include "asterisk/alertpipe.h"
 #include "asterisk/abstract_jb.h"
 #include "asterisk/astobj2.h"
@@ -174,6 +176,9 @@ extern "C" {
 #define MAX_LANGUAGE            40  /*!< Max length of the language setting */
 #define MAX_MUSICCLASS          80  /*!< Max length of the music class setting */
 #define AST_MAX_USER_FIELD      256 /*!< Max length of the channel user field */
+
+#define MAX_GROUP_LEN		80	/*!< Max length of a channel group */
+#define MAX_CATEGORY_LEN	80	/*!< Max length of a channel group category */
 
 #include "asterisk/frame.h"
 #include "asterisk/chanvars.h"
@@ -2979,6 +2984,18 @@ struct ast_group_info {
 	AST_LIST_ENTRY(ast_group_info) group_list;
 };
 
+/*! \brief list of groups currently in use, with a pointer to a list of channels within the groups */
+struct ast_group_meta {
+	int num_channels;				/*!< number of channels in this group */
+	struct varshead varshead;			/*!< A linked list for group variables. See \ref AstGroupVar */
+
+	AST_LIST_ENTRY(ast_group_info) channels_list;	/*!< List of channels in this group */
+	AST_LIST_ENTRY(ast_group_meta) group_meta_list;	/*!< Next group */
+
+	char category[MAX_CATEGORY_LEN];
+	char group[MAX_GROUP_LEN];
+};
+
 #define ast_channel_lock(chan) ao2_lock(chan)
 #define ast_channel_unlock(chan) ao2_unlock(chan)
 #define ast_channel_trylock(chan) ao2_trylock(chan)
@@ -3210,6 +3227,7 @@ struct ast_channel *ast_channel_get_by_name_prefix(const char *name, size_t name
 struct ast_channel *ast_channel_get_by_exten(const char *exten, const char *context);
 
 /*!
+
  * \brief Find a channel by a uniqueid
  *
  * \param uniqueid The uniqueid to search for
@@ -3218,6 +3236,34 @@ struct ast_channel *ast_channel_get_by_exten(const char *exten, const char *cont
  * \retval NULL if no channel was found
  */
 struct ast_channel *ast_channel_get_by_uniqueid(const char *uniqueid);
+
+/*
+ * \brief Find a channel by a regex string
+ *
+ * \arg regex_string the regex pattern to search for
+ *
+ * Return a channel that where the regex pattern matches the channel name
+ *
+ * \retval a channel that matches the regex pattern
+ * \retval NULL if no channel was found or pattern is bad
+ *
+ * \since 23
+ */
+struct ast_channel *ast_channel_get_by_regex(const char *regex_string);
+
+/*!
+ * \brief Find a channel by a regex pattern
+ *
+ * \arg regex the compiled regex pattern to search for
+ *
+ * Return a channel that where the regex pattern matches the channel name
+ *
+ * \retval a channel that matches the regex pattern
+ * \retval NULL if no channel was found
+ *
+ * \since 23
+ */
+struct ast_channel *ast_channel_get_by_regex_compiled(regex_t *regex);
 
 /*! @} End channel search functions. */
 
