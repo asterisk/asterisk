@@ -25,6 +25,7 @@
 	<support_level>core</support_level>
  ***/
 
+#define ASTMM_LIBC ASTMM_IGNORE
 #include "asterisk.h"
 #include "asterisk/xml.h"
 #include "asterisk/logger.h"
