@@ -4381,6 +4381,13 @@ struct pjsip_param *ast_sip_pjsip_uri_get_other_param(pjsip_uri *uri, const pj_s
  */
 unsigned int ast_sip_get_all_codecs_on_empty_reinvite(void);
 
+/*!
+ * \brief Retrieve the global setting 'rfc7329_enable'.
+ *
+ * \retval non zero if RFC7329 Session-ID handling is enabled
+ */
+unsigned int ast_sip_get_rfc7329_enable(void);
+
 
 /*!
  * \brief Convert SIP hangup causes to Asterisk hangup causes

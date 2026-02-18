@@ -4417,6 +4417,18 @@ static void handle_session_begin(struct ast_sip_session *session)
 	}
 }
 
+/* Invoke supplements that rely on channel-backed state. */
+static void handle_session_channel_created(struct ast_sip_session *session)
+{
+	struct ast_sip_session_supplement *iter;
+
+	AST_LIST_TRAVERSE(&session->supplements, iter, next) {
+		if (iter->session_channel_created) {
+			iter->session_channel_created(session);
+		}
+	}
+}
+
 static void handle_session_destroy(struct ast_sip_session *session)
 {
 	struct ast_sip_session_supplement *iter;
@@ -4438,6 +4450,16 @@ static void handle_session_end(struct ast_sip_session *session)
 			iter->session_end(session);
 		}
 	}
+}
+
+void ast_sip_session_channel_created(struct ast_sip_session *session)
+{
+	if (!session) {
+		return;
+	}
+
+	/* Fan out channel-created notifications to supplements. */
+	handle_session_channel_created(session);
 }
 
 static void handle_incoming_response(struct ast_sip_session *session, pjsip_rx_data *rdata,
