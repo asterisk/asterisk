@@ -18731,7 +18731,7 @@ static void parse_busy_pattern(struct ast_variable *v, struct ast_dsp_busy_patte
 {
 	int count_pattern = 0;
 	int norval = 0;
-	char *temp = NULL;
+	const char *temp = NULL;
 
 	for (; ;) {
 		/* Scans the string for the next value in the pattern. If none, it checks to see if any have been entered so far. */
@@ -19823,7 +19823,8 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 				}
 				if (!link->ss7.ss7) {
 					ast_log(LOG_ERROR, "Please specify isup timers after sigchan!\n");
-				} else if (!ss7_set_isup_timer(link->ss7.ss7, strstr(v->name, ".") + 1, atoi(v->value))) {
+					/*! \todo Remove cast after libss7 API is changed to const char */
+				} else if (!ss7_set_isup_timer(link->ss7.ss7, (char*) strstr(v->name, ".") + 1, atoi(v->value))) {
 					ast_log(LOG_ERROR, "Invalid isup timer %s\n", v->name);
 				}
 			} else if (!strncasecmp(v->name, "mtp3_timer.", 11)) {
@@ -19835,7 +19836,8 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 				}
 				if (!link->ss7.ss7) {
 					ast_log(LOG_ERROR, "Please specify mtp3 timers after sigchan!\n");
-				} else if (!ss7_set_mtp3_timer(link->ss7.ss7, strstr(v->name, ".") + 1, atoi(v->value))) {
+					/*! \todo Remove cast after libss7 API is changed to const char */
+				} else if (!ss7_set_mtp3_timer(link->ss7.ss7, (char*) strstr(v->name, ".") + 1, atoi(v->value))) {
 					ast_log(LOG_ERROR, "Invalid mtp3 timer %s\n", v->name);
 				}
 			} else if (!strcasecmp(v->name, "inr_if_no_calling")) {
@@ -20249,7 +20251,7 @@ static int setup_dahdi_int(int reload, struct dahdi_chan_conf *default_conf, str
 	int res;
 
 #ifdef HAVE_PRI
-	char *c;
+	const char *c;
 	int spanno;
 	int i;
 	int logicalspan;
