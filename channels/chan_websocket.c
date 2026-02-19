@@ -80,12 +80,8 @@ struct websocket_pvt {
 	struct ast_websocket *websocket;
 	struct ast_format *native_format;
 	struct ast_codec *native_codec;
-	struct ast_format *slin_format;
-	struct ast_codec *slin_codec;
 	struct ast_channel *channel;
 	struct ast_timer *timer;
-	struct ast_frame silence;
-	struct ast_trans_pvt *translator;
 	AST_LIST_HEAD(, ast_frame) frame_queue;
 	pthread_t outbound_read_thread;
 	size_t bytes_read;
@@ -444,17 +440,6 @@ static __attribute__ ((format (gnu_printf, 2, 3))) char *_create_event_ERROR(
 	(_res); \
 })
 
-static void set_channel_format(struct websocket_pvt * instance,
-	struct ast_format *fmt)
-{
-	if (ast_format_cmp(ast_channel_rawreadformat(instance->channel), fmt)
-		== AST_FORMAT_CMP_NOT_EQUAL) {
-		ast_channel_set_rawreadformat(instance->channel, fmt);
-		ast_set_read_format(instance->channel, ast_channel_readformat(instance->channel));
-		ast_debug(4, "Switching readformat to %s\n", ast_format_get_name(fmt));
-	}
-}
-
 /*
  * Reminder...  This function gets called by webchan_read which is
  * triggered by the channel timer firing.  It always gets called
@@ -579,7 +564,6 @@ static struct ast_frame *webchan_read(struct ast_channel *ast)
 {
 	struct websocket_pvt *instance = NULL;
 	struct ast_frame *native_frame = NULL;
-	struct ast_frame *slin_frame = NULL;
 	int fdno = ast_channel_fdno(ast);
 
 	instance = ast_channel_tech_pvt(ast);
@@ -602,86 +586,15 @@ static struct ast_frame *webchan_read(struct ast_channel *ast)
 	native_frame = dequeue_frame(instance);
 
 	/*
-	 * No frame when the timer fires means we have to create and
-	 * return a silence frame in its place.
+	 * No frame when the timer fires means we have to return a null frame in its place.
 	 */
 	if (!native_frame) {
-		ast_debug(5, "%s: WebSocket read timer fired with no frame available.  Returning silence.\n", ast_channel_name(ast));
-		set_channel_format(instance, instance->slin_format);
-		slin_frame = ast_frdup(&instance->silence);
-		return slin_frame;
+		ast_debug(4, "%s: WebSocket read timer fired with no frame available.  Returning NULL frame.\n",
+			ast_channel_name(ast));
+		return &ast_null_frame;
 	}
 
-	/*
-	 * If we're in passthrough mode or the frame length is already optimal_frame_size,
-	 * we can just return it.
-	 */
-	if (instance->passthrough || native_frame->datalen == instance->optimal_frame_size) {
-		set_channel_format(instance, instance->native_format);
-		return native_frame;
-	}
-
-	/*
-	 * If we're here, we have a short frame that we need to pad
-	 * with silence.
-	 */
-
-	if (instance->translator) {
-		slin_frame = ast_translate(instance->translator, native_frame, 0);
-		if (!slin_frame) {
-			ast_log(LOG_WARNING, "%s: Failed to translate %d byte frame\n",
-				ast_channel_name(ast), native_frame->datalen);
-			return NULL;
-		}
-		ast_frame_free(native_frame, 0);
-	} else {
-		/*
-		 * If there was no translator then the native format
-		 * was already slin.
-		 */
-		slin_frame = native_frame;
-	}
-
-	set_channel_format(instance, instance->slin_format);
-
-	/*
-	 * So now we have an slin frame but it's probably still short
-	 * so we create a new data buffer with the correct length
-	 * which is filled with zeros courtesy of ast_calloc.
-	 * We then copy the short frame data into the new buffer
-	 * and set the offset to AST_FRIENDLY_OFFSET so that
-	 * the core can read the data without any issues.
-	 * If the original frame data was mallocd, we need to free the old
-	 * data buffer so we don't leak memory and we need to set
-	 * mallocd to AST_MALLOCD_DATA so that the core knows
-	 * it needs to free the new data buffer when it's done.
-	 */
-
-	if (slin_frame->datalen != instance->silence.datalen) {
-		char *old_data = slin_frame->data.ptr;
-		int old_len = slin_frame->datalen;
-		int old_offset = slin_frame->offset;
-		ast_debug(4, "%s: WebSocket read short frame. Expected %d got %d.  Filling with silence\n",
-			ast_channel_name(ast), instance->silence.datalen,
-			slin_frame->datalen);
-
-		slin_frame->data.ptr = ast_calloc(1, instance->silence.datalen + AST_FRIENDLY_OFFSET);
-		if (!slin_frame->data.ptr) {
-			ast_frame_free(slin_frame, 0);
-			return NULL;
-		}
-		slin_frame->data.ptr += AST_FRIENDLY_OFFSET;
-		slin_frame->offset = AST_FRIENDLY_OFFSET;
-		memcpy(slin_frame->data.ptr, old_data, old_len);
-		if (slin_frame->mallocd & AST_MALLOCD_DATA) {
-			ast_free(old_data - old_offset);
-		}
-		slin_frame->mallocd |= AST_MALLOCD_DATA;
-		slin_frame->datalen = instance->silence.datalen;
-		slin_frame->samples = instance->silence.samples;
-	}
-
-	return slin_frame;
+	return native_frame;
 }
 
 static int queue_frame_from_buffer(struct websocket_pvt *instance,
@@ -1313,22 +1226,6 @@ static void websocket_destructor(void *data)
 	ao2_cleanup(instance->native_format);
 	instance->native_format = NULL;
 
-	ao2_cleanup(instance->slin_codec);
-	instance->slin_codec = NULL;
-
-	ao2_cleanup(instance->slin_format);
-	instance->slin_format = NULL;
-
-	if (instance->silence.data.ptr) {
-		ast_free(instance->silence.data.ptr);
-		instance->silence.data.ptr = NULL;
-	}
-
-	if (instance->translator) {
-		ast_translator_free_path(instance->translator);
-		instance->translator = NULL;
-	}
-
 	if (instance->leftover_data) {
 		ast_free(instance->leftover_data);
 		instance->leftover_data = NULL;
@@ -1453,60 +1350,6 @@ static struct websocket_pvt* websocket_new(const char *chan_name,
 	ast_debug(3, "%s: WebSocket instance created and linked\n", proxy->connection_id);
 
 	return ao2_bump(instance);
-}
-
-static int set_instance_translator(struct websocket_pvt *instance)
-{
-	if (ast_format_cache_is_slinear(instance->native_format)) {
-		instance->slin_format = ao2_bump(instance->native_format);
-		instance->slin_codec = ast_format_get_codec(instance->slin_format);
-		return 0;
-	}
-
-	instance->slin_format = ao2_bump(ast_format_cache_get_slin_by_rate(instance->native_codec->sample_rate));
-	if (!instance->slin_format) {
-		ast_log(LOG_ERROR, "%s: Unable to get slin format for rate %d\n",
-			ast_channel_name(instance->channel), instance->native_codec->sample_rate);
-		return -1;
-	}
-	ast_debug(3, "%s: WebSocket channel slin format '%s' Sample rate: %d ptime: %dms\n",
-		ast_channel_name(instance->channel), ast_format_get_name(instance->slin_format),
-		ast_format_get_sample_rate(instance->slin_format),
-		ast_format_get_default_ms(instance->slin_format));
-
-	instance->translator = ast_translator_build_path(instance->slin_format, instance->native_format);
-	if (!instance->translator) {
-		ast_log(LOG_ERROR, "%s: Unable to build translator path from '%s' to '%s'\n",
-			ast_channel_name(instance->channel), ast_format_get_name(instance->native_format),
-			ast_format_get_name(instance->slin_format));
-		return -1;
-	}
-
-	instance->slin_codec = ast_format_get_codec(instance->slin_format);
-	return 0;
-}
-
-static int set_instance_silence_frame(struct websocket_pvt *instance)
-{
-	instance->silence.frametype = AST_FRAME_VOICE;
-	instance->silence.datalen =
-		(instance->slin_codec->default_ms * instance->slin_codec->minimum_bytes) / instance->slin_codec->minimum_ms;
-	instance->silence.samples = instance->silence.datalen / sizeof(uint16_t);
-	/*
-	 * Even though we'll calloc the data pointer, we don't mark it as
-	 * mallocd because this frame will be around for a while and we don't
-	 * want it accidentally freed before we're done with it.
-	 */
-	instance->silence.mallocd = 0;
-	instance->silence.offset = 0;
-	instance->silence.src = __PRETTY_FUNCTION__;
-	instance->silence.subclass.format = instance->slin_format;
-	instance->silence.data.ptr = ast_calloc(1, instance->silence.datalen);
-	if (!instance->silence.data.ptr) {
-		return -1;
-	}
-
-	return 0;
 }
 
 static int set_channel_timer(struct websocket_pvt *instance)
@@ -1742,14 +1585,6 @@ static struct ast_channel *webchan_request(const char *type,
 
 	instance->channel = ao2_bump(chan);
 	ast_channel_tech_set(instance->channel, &websocket_tech);
-
-	if (set_instance_translator(instance) != 0) {
-		goto failure;
-	}
-
-	if (set_instance_silence_frame(instance) != 0) {
-		goto failure;
-	}
 
 	if (set_channel_timer(instance) != 0) {
 		goto failure;
