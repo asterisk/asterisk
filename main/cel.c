@@ -673,6 +673,34 @@ static void check_retire_linkedid(struct ast_channel_snapshot *snapshot, const s
 	ao2_ref(lid, -1);
 }
 
+static int cel_format_eventtime(struct cel_config *cfg, struct timeval eventtime, char *timebuf, size_t len)
+{
+	if (!timebuf || len < 30) {
+		return -1;
+	}
+
+	if (ast_strlen_zero(cfg->general->date_format)) {
+		snprintf(timebuf, len, "%ld.%06ld", (long) eventtime.tv_sec,
+				(long) eventtime.tv_usec);
+	} else {
+		struct ast_tm tm;
+		ast_localtime(&eventtime, &tm, NULL);
+		ast_strftime(timebuf, len, cfg->general->date_format, &tm);
+	}
+
+	return 0;
+}
+
+int ast_cel_format_eventtime(struct timeval eventtime, char *timebuf, size_t len)
+{
+	RAII_VAR(struct cel_config *, cfg, ao2_global_obj_ref(cel_configs), ao2_cleanup);
+
+	if (!cfg) {
+		return -1;
+	}
+	return cel_format_eventtime(cfg, eventtime, timebuf, len);
+}
+
 /* Note that no 'chan_fixup' function is provided for this datastore type,
  * because the channels that will use it will never be involved in masquerades.
  */
@@ -719,14 +747,7 @@ struct ast_channel *ast_cel_fabricate_channel_from_event(const struct ast_event 
 		AST_LIST_INSERT_HEAD(headp, newvariable, entries);
 	}
 
-	if (ast_strlen_zero(cfg->general->date_format)) {
-		snprintf(timebuf, sizeof(timebuf), "%ld.%06ld", (long) record.event_time.tv_sec,
-				(long) record.event_time.tv_usec);
-	} else {
-		struct ast_tm tm;
-		ast_localtime(&record.event_time, &tm, NULL);
-		ast_strftime(timebuf, sizeof(timebuf), cfg->general->date_format, &tm);
-	}
+	cel_format_eventtime(cfg, record.event_time, timebuf, sizeof(timebuf));
 
 	if ((newvariable = ast_var_assign("eventtime", timebuf))) {
 		AST_LIST_INSERT_HEAD(headp, newvariable, entries);
@@ -759,6 +780,7 @@ struct ast_channel *ast_cel_fabricate_channel_from_event(const struct ast_event 
 	ast_channel_accountcode_set(tchan, record.account_code);
 	ast_channel_peeraccount_set(tchan, record.peer_account);
 	ast_channel_userfield_set(tchan, record.user_field);
+	ast_channel_tenantid_set(tchan, record.tenant_id);
 
 	if ((newvariable = ast_var_assign("BRIDGEPEER", record.peer))) {
 		AST_LIST_INSERT_HEAD(headp, newvariable, entries);

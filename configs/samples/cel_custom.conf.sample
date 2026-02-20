@@ -1,31 +1,30 @@
 ;
-; Asterisk Channel Event Logging (CEL) - Custom CSV Backend
+; Asterisk Channel Event Logging (CEL) - Custom DSV Backend
 ;
-
-; This is the configuration file for the customizable CSV backend for CEL
+; This is the configuration file for the customizable DSV backend for CEL
 ; logging.
 ;
-; In order to create custom CSV logs for CEL, uncomment the template below
-; (Master.csv) and start Asterisk.  Once CEL events are generated, a file will
-; appear in the following location:
+; DSV??  Delimiter Separated Values because the field delimiter doesn't have
+; to be a comma.
 ;
-;                 /var/log/asterisk/cel-custom/Master.csv
+; Legacy vs Advanced Mappings
 ;
-; (Note that /var/log/asterisk is the default and may differ on your system)
+; Legacy mappings are those that are defined using dialplan functions like
+; CALLERID and CSV_QUOTE and require a VERY expensive function replacement
+; process at runtime for every record output.  In performance testing, 38%
+; of the CPU instructions executed to handle a call were executed on behalf
+; of legacy CEL logging.  That's more than the instructions actually used
+; to process the call itself. 
 ;
-; You can also create more than one template if desired.  All logs will appear
-; in the cel-custom directory under your Asterisk logs directory.
+; Advanced mappings are those that are defined by a list of field names and
+; parameters that define the field separator and quote character you want to
+; use. This type of mapping is uses significantly less resources at runtime.
+; Performance testing showed advanced CEL logging accounting for less than
+; 10% of the CPU instructions executed which is well below the instructions
+; needed to process the call itself.
 ;
-; Alternatively, you can also specify the location of your CSV file using an
-; absolute path, e.g.:
-;
-;     /srv/pbx/cel/Master.csv => ${CSV_QUOTE(${eventtype})},...
-;
-
-;
-; Within a mapping, use the CALLERID() and CHANNEL() functions to retrieve
-; details from the CEL event.  There are also a few variables created by this
-; module that can be used in a mapping:
+; There are several "special" variables created by this module that can be used
+; in a mapping, both legacy and advanced:
 ;
 ;    eventtype   - The name of the CEL event.
 ;    eventtime   - The timestamp of the CEL event.
@@ -36,5 +35,218 @@
 ;    BRIDGEPEER  - Bridged peer channel name at the time of the CEL event.
 ;                  CHANNEL(peer) could also be used.
 ;
-[mappings]
+; Legacy Mappings
+;
+; Within a legacy mapping, use the CALLERID(), CHANNEL() and CSV_QUOTE()
+; functions to retrieve values from the CEL event (and pay the price).
+;
+; NOTE: If your legacy mapping uses commas as field separators and only the
+; CSV_QUOTE, CALLERID and CHANNEL dialplan functions or one of the special
+; variables, the module will attempt to strip the functions and create a much
+; faster advanced mapping for it. However, we urge you to create a real
+; advanced mapping and not rely on this process. If the mapping contains
+; something not recognized it will go the slower legacy route.
+;
+; Each entry in the "mappings" category represents a separate output file.
+; A filename that starts with a forward-slash '/' will be treated as an absolute
+; path name.  If it doesn't, it must be a file name with no directory separators
+; which will be placed in the /var/log/asterisk/cel-custom directory.
+;
+;[mappings]
 ;Master.csv => ${CSV_QUOTE(${eventtype})},${CSV_QUOTE(${eventtime})},${CSV_QUOTE(${CALLERID(name)})},${CSV_QUOTE(${CALLERID(num)})},${CSV_QUOTE(${CALLERID(ANI)})},${CSV_QUOTE(${CALLERID(RDNIS)})},${CSV_QUOTE(${CALLERID(DNID)})},${CSV_QUOTE(${CHANNEL(exten)})},${CSV_QUOTE(${CHANNEL(context)})},${CSV_QUOTE(${CHANNEL(channame)})},${CSV_QUOTE(${CHANNEL(appname)})},${CSV_QUOTE(${CHANNEL(appdata)})},${CSV_QUOTE(${CHANNEL(amaflags)})},${CSV_QUOTE(${CHANNEL(accountcode)})},${CSV_QUOTE(${CHANNEL(uniqueid)})},${CSV_QUOTE(${CHANNEL(linkedid)})},${CSV_QUOTE(${BRIDGEPEER})},${CSV_QUOTE(${CHANNEL(userfield)})},${CSV_QUOTE(${userdeftype})},${CSV_QUOTE(${eventextra})}
+
+;
+; Advanced Mappings
+;
+; Each category in this file other than "mappings" represents a separate output file.
+; A filename that starts with a forward-slash '/' will be treated as an absolute
+; path name.  If it doesn't, it must be a file name with no directory separators
+; which will be placed in the /var/log/asterisk/cel-custom directory.
+;
+;[cel_master.csv]             ; Output file or path name.
+
+;format = dsv                 ; Advanced mappings can actually have two types
+                              ; "dsv" or "json".  This example uses "dsv", which
+                              ; is the default, but see the example below for more
+                              ; info on the json format.
+
+;separator_character = ,      ; The character to use for the field separator,
+                              ; It defaults to a comma but you can use any
+                              ; character you want.  For instance, specify
+                              ; \t to separate the fields with a tab.
+
+;quote_character = "          ; The character to use as the quote character.
+                              ; It defaults to the double quote but again, it
+                              ; can be any character you want although the
+                              ; single-quote is the only other one that makes
+                              ; sense.
+
+;quote_escape_character = "   ; The character to use to escape the quote_character
+                              ; should the quote character actually appear in the
+                              ; field output.  A good example of this is a caller
+                              ; id string like "My Name" <1000>.  For true CSV
+                              ; compatibility, it must be the same as the quote
+                              ; character but a backslash might be acceptable for
+                              ; other formats.
+
+;quoting_method = all         ; Nothing says you _have_ to quote anything. The only
+                              ; time a field MUST be quoted is if it contains the
+                              ; separator character and this is handled automatically.
+                              ; Additionally, the following options are available:
+                              ; "all": Quote all fields. The default.
+                              ; "non_numeric": Quote all non numeric fields.
+                              ; "none": Don't quote any field (unless it contains
+                              ; a separator character).
+
+;fields = EventType,eventenum,userdeftype,"Some Literal",EventTime,Name,Num,ani,rdnis,dnid,Exten,Context,ChanName,AppName,AppData,AMAFlags(amaflags),AccountCode,UniqueID(noquote),LinkedID(noquote),Peer,PeerAccount,UserField,EventExtra,TenantID
+    ; This is the list of fields to include in the record. The field names are the
+    ; same as in the legacy mapping but without any enclosing dialplan functions.
+    ; You can specify literals to be placed in the output record by double-quoting
+    ; them. There is also some special notation available in the form of "qualifiers".
+    ; A qualifier is a list of tags, separated by the '^' character and placed
+    ; directly after the field name and enclosed in parentheses.
+    ;
+    ; All fields can accept the "quote" or "noquote" qualifier when you want to exempt
+    ; a field from the "quoting_method" policy.  For example, when quoting_method=all,
+    ; you can force the uniqueid field to not be quoted with `uniqueid(noquote)`. The
+    ; example in fields above shows this.
+    ;
+    ; The default output format for the "EventTime" timestamp field is the "%Y-%m-%d %T"
+    ; strftime string format however you can also format the field as an int64 or a
+    ; float: `eventtime(int64)` or `eventtime(float)`.
+    ;
+    ; Unlike CDRs, the "amaflags" field is output as its numerical value by default
+    ; for historical reasons.  You can output it as its friendly string with
+    ; `amaflags(amaflags)`. This will print "DOCUMENTATION" instead of "3" for instance.
+    ;
+    ; If you need to combine flags, use the caret '^' symbol: `eventtime(int64^noquote)`
+    ;
+    ; Final notes about "fields":
+    ;    Field names and qualifiers aren't case sensitive.
+    ;    You MUST use the comma to separate the fields, not the "separator_character".
+    ;    You MUST use the double-quote to indicate literal fields, not the "quote_character".
+    ;    Whitespace in "fields" is ignored except in literals.
+
+;
+; An Advanced JSON example:
+;
+;[cdr_master.json]
+;format = json
+;fields = EventType,eventenum,userdeftype,"My: Literal",EventTime(float),Name,Num,ani,rdnis,dnid,Exten,Context,ChanName,AppName,AppData,AMAFlags(amaflags),AccountCode,UniqueID,LinkedID,Peer,PeerAccount,UserField,EventExtra,TenantID
+;
+;  In order to ensure valid JSON, the following settings are forced:
+;    The separator character is always the comma.
+;    The quote character is always the double-quote.
+;    The quote escape character is always the backslash.
+;    The quoting method is always "non_numeric".
+;
+;  Since JSON requires both a name and value, the name is always
+;  the field name.  For literals however you must specify the literal
+;  as a "name: value" pair as demonstrated above.  The output record
+;  would then look something like:
+; {"eventtype":"HANGUP","eventenum":"HANGUP","userdeftype":"","My":"Literal","eventtime":1771359872.0, ...}
+
+
+
+
+
+
+
+
+
+
+;
+; Advanced Mappings
+;
+; Advanced mappings use SIGNIFICANTLY less resources than legacy mappings
+; because we don't need to use dialplan function replacement.
+;
+;[cel_master_advanced.csv]    ; The destination file name.
+                              ; Can be a name relative to ASTLOGDIR or an
+                              ; absolute path.
+
+;format = csv                 ; Sets the output format.  The default is "csv"
+                              ; but here "csv" really means "character-separated-values"
+                              ; because the separator doesn't have to be a comma.
+                              ; The other alternative is "json" (see example below).
+
+;separator_character = ,      ; Set the character to use between fields.
+                              ; Defaults to a comma but other characters
+                              ; can be used.  For example, if you want
+                              ; tab-separated fields, use \t as the separator.
+
+;quote_character = "          ; Set the quoting character.
+                              ; Defaults to double-quote (") but any character
+                              ; can be used although only the double and single
+                              ; quote (') characters make sense.
+
+;quote_escape_character = "   ; Sets the character used to escape quotes that
+                              ; may be in the field values. The default is the
+                              ; same character as the quote_character so an
+                              ; embedded JSON blob would look like this:
+                              ; "{""extra"":""somextratext""}"
+                              ; You could also use a backslash (\) in which case
+                              ; the blob would look like this:
+                              ; "{\"extra\":\"somextratext\"}"
+
+;quoting_method = all         ; Sets what/when to quote.
+                              ; all - Quote all fields. (the default)
+                              ; minimal - Only quote fields that have the
+                              ;           separator character in them.
+                              ; non_numeric - Quote all non-numeric fields.
+                              ; none - Don't quote anything.
+                              ;        Probably not a good idea but could
+                              ;        be useful in special circumstances.
+
+; The fields to output.  These names correspond to the internal CEL event
+; field names which is how some of the performance gains are realized.
+; Anything not recognized as a field name will be printed as a literal in
+; the output.
+;
+; CEL Event Field Names:
+;
+; eventtype - Could be a standard event name or a user event name
+; eventenum - Will always be a standard event name or 'USER_DEFINED'
+; eventtime - Uses the dateformat set in cel.conf.
+; usereventname - Will be the user event name if set.
+; cidname
+; cidnum
+; exten
+; context
+; channame
+; appname
+; appdata
+; amaflags
+; acctcode
+; uniqueid
+; userfield
+; cidani
+; cidrdnis
+; ciddnid
+; peer
+; linkedid
+; peeracct
+; extra
+; tenantid
+;
+; You MUST use the comma and double-quote here, not the separator or
+; or quote characters specified above.  The names are case-insensitive.
+;
+;fields = EventType,EventEnum,"My Literal",EventTime,UserEventName,CIDName,CIDNum,Exten,Context,ChanName,AppName,AppData,AMAFlags,AcctCode,UniqueID,UserField,CIDani,CIDrdnis,CIDdnid,Peer,LinkedID,PeerAcct,Extra,TenantID
+
+;
+;  A tab-separated-value example:
+;
+;[cel_master.tsv]
+;separator_character = \t
+;fields = EventType,EventEnum,"My Literal",EventTime,UserEventName,CIDName,CIDNum,Exten,Context,ChanName,AppName,AppData,AMAFlags,AcctCode,UniqueID,UserField,CIDani,CIDrdnis,CIDdnid,Peer,LinkedID,PeerAcct,Extra,TenantID
+
+;
+;  A JSON example:
+;
+; The separator and quoting options don't apply to JSON.
+; Literals must be specified as a "name: value" pair or they'll be ignored.
+;
+;[cel_master.json]
+;format = json
+;fields = EventType,eventenum,userdeftype,"My: Literal",EventTime,CIDName,CIDNum,CIDani,CIDrdnis,CIDdnid,Exten,Context,ChanName,AppName,AppData,AMAFlags,AcctCode,UniqueID,LinkedID,Peer,PeerAcct,UserField,Extra,TenantID
