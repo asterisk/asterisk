@@ -1902,6 +1902,7 @@ struct member {
 	unsigned int delme:1;                /*!< Flag to delete entry on reload */
 	char rt_uniqueid[80];                /*!< Unique id of realtime member entry */
 	unsigned int ringinuse:1;            /*!< Flag to ring queue members even if their status is 'inuse' */
+	int rt_order;						 /*!< RT queue position */
 };
 
 enum empty_conditions {
@@ -3034,6 +3035,7 @@ static struct member *create_queue_member(const char *interface, const char *mem
 		cur->penalty = penalty;
 		cur->paused = paused;
 		cur->wrapuptime = wrapuptime;
+		cur->rt_order=0;
 		if (paused) {
 			time(&cur->lastpause); /* Update time of last pause */
 		}
@@ -3762,6 +3764,7 @@ static void rt_handle_member_record(struct call_queue *q, char *category, struct
 	int found = 0;
 	int wrapuptime = 0;
 	int ringinuse = q->ringinuse;
+	int rt_order = 0;
 
 	const char *config_val;
 	const char *interface = ast_variable_retrieve(member_config, category, "interface");
@@ -3772,6 +3775,7 @@ static void rt_handle_member_record(struct call_queue *q, char *category, struct
 	const char *paused_str = ast_variable_retrieve(member_config, category, "paused");
 	const char *wrapuptime_str = ast_variable_retrieve(member_config, category, "wrapuptime");
 	const char *reason_paused = ast_variable_retrieve(member_config, category, "reason_paused");
+	const char *rt_order_str = ast_variable_retrieve(member_config, category, "order");
 
 	if (ast_strlen_zero(rt_uniqueid)) {
 		ast_log(LOG_WARNING, "Realtime field 'uniqueid' is empty for member %s\n",
@@ -3808,6 +3812,13 @@ static void rt_handle_member_record(struct call_queue *q, char *category, struct
 		}
 	}
 
+	if (rt_order_str) {
+		rt_order = atoi(rt_order_str);
+		if (rt_order < 0) {
+			rt_order = 0;
+		}
+	}
+
 	if ((config_val = ast_variable_retrieve(member_config, category, realtime_ringinuse_field))) {
 		if (ast_true(config_val)) {
 			ringinuse = 1;
@@ -3838,6 +3849,7 @@ static void rt_handle_member_record(struct call_queue *q, char *category, struct
 			m->penalty = penalty;
 			m->ringinuse = ringinuse;
 			m->wrapuptime = wrapuptime;
+			m->rt_order = rt_order;
 			if (realtime_reason_paused) {
 				ast_copy_string(m->reason_paused, S_OR(reason_paused, ""), sizeof(m->reason_paused));
 			}
@@ -3854,6 +3866,7 @@ static void rt_handle_member_record(struct call_queue *q, char *category, struct
 		if ((m = create_queue_member(interface, membername, penalty, paused, state_interface, ringinuse, wrapuptime))) {
 			m->dead = 0;
 			m->realtime = 1;
+			m->rt_order = rt_order;
 			ast_copy_string(m->rt_uniqueid, rt_uniqueid, sizeof(m->rt_uniqueid));
 			if (!ast_strlen_zero(reason_paused)) {
 				ast_copy_string(m->reason_paused, reason_paused, sizeof(m->reason_paused));
@@ -6256,6 +6269,9 @@ static int calc_metric(struct call_queue *q, struct member *mem, int pos, struct
 		tmp->metric = penalty * 1000000 * usepenalty;
 		break;
 	case QUEUE_STRATEGY_LINEAR:
+		if(mem->realtime && (mem->rt_order > 0)){
+			pos = mem->rt_order;
+		}
 		if (pos < qe->linpos) {
 			tmp->metric = 1000 + pos;
 		} else {
@@ -6269,7 +6285,7 @@ static int calc_metric(struct call_queue *q, struct member *mem, int pos, struct
 		break;
 	case QUEUE_STRATEGY_RRORDERED:
 	case QUEUE_STRATEGY_RRMEMORY:
-		pos = mem->queuepos;
+		pos=(mem->realtime && (mem->rt_order > 0)) ? mem->rt_order : mem->queuepos;
 		if (pos < q->rrpos) {
 			tmp->metric = 1000 + pos;
 		} else {
@@ -10358,6 +10374,9 @@ static void print_queue(struct mansession *s, int fd, struct call_queue *q)
 			}
 			if (mem->penalty) {
 				ast_str_append(&out, 0, " with penalty %d", mem->penalty);
+			}
+			if(mem->realtime){
+				ast_str_append(&out, 0, ", order: %d ",mem->rt_order);
 			}
 
 			ast_str_append(&out, 0, " (ringinuse %s)", mem->ringinuse ? "enabled" : "disabled");
