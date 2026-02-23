@@ -4391,15 +4391,19 @@ static int ast_rtp_dtmf_begin(struct ast_rtp_instance *instance, char digit)
 		return -1;
 	}
 
+
+	/* g722 is a 16K codec that masquerades as an 8K codec within RTP. ast_rtp_get_rate was written specifically to
+	   handle this. If we use the actual sample rate of g722 in this scenario and there is a 16K telephone-event on
+	   offer, we will end up using that instead of the 8K rate telephone-event that is expected with g722. */
 	if (rtp->lasttxformat == ast_format_none) {
 		/* No audio frames have been written yet so we have to lookup both the preferred payload type and bitrate. */
 		payload_format = ast_rtp_codecs_get_preferred_format(ast_rtp_instance_get_codecs(instance));
 		if (payload_format) {
 			/* If we have a preferred type, use that. Otherwise default to 8K. */
-			sample_rate = ast_format_get_sample_rate(payload_format);
+			sample_rate = ast_rtp_get_rate(payload_format);
 		}
 	} else {
-		sample_rate = ast_format_get_sample_rate(rtp->lasttxformat);
+		sample_rate = ast_rtp_get_rate(rtp->lasttxformat);
 	}
 
 	if (sample_rate != -1) {
