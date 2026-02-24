@@ -46,6 +46,7 @@ struct ast_app {
 	int (*execute)(struct ast_channel *chan, const char *data);
 	AST_DECLARE_STRING_FIELDS(
 		AST_STRING_FIELD(synopsis);     /*!< Synopsis text for 'show applications' */
+		AST_STRING_FIELD(provided_by);  /*!< Provided-by text for 'show applications' */
 		AST_STRING_FIELD(since);        /*!< Since text for 'show applications' */
 		AST_STRING_FIELD(description);  /*!< Description (help text) for 'show application &lt;name&gt;' */
 		AST_STRING_FIELD(syntax);       /*!< Syntax text for 'core show applications' */
@@ -143,6 +144,11 @@ int ast_register_application2(const char *app, int (*execute)(struct ast_channel
 		ast_string_field_set(tmp, synopsis, tmpxml);
 		ast_free(tmpxml);
 
+		/* load provied_by */
+		tmpxml = ast_xmldoc_build_provided_by("application", app, ast_module_name(tmp->module));
+		ast_string_field_set(tmp, provided_by, tmpxml);
+		ast_free(tmpxml);
+
 		/* load since */
 		tmpxml = ast_xmldoc_build_since("application", app, ast_module_name(tmp->module));
 		ast_string_field_set(tmp, since, tmpxml);
@@ -197,11 +203,12 @@ int ast_register_application2(const char *app, int (*execute)(struct ast_channel
 
 static void print_app_docs(struct ast_app *aa, int fd)
 {
-	char *synopsis = NULL, *since = NULL, *description = NULL, *syntax = NULL, *arguments = NULL, *seealso = NULL;
+	char *synopsis = NULL, *provided_by = NULL, *since = NULL, *description = NULL, *syntax = NULL, *arguments = NULL, *seealso = NULL;
 
 #ifdef AST_XML_DOCS
 	if (aa->docsrc == AST_XML_DOC) {
 		synopsis = ast_xmldoc_printable(S_OR(aa->synopsis, "Not available"), 1);
+		provided_by = ast_xmldoc_printable(S_OR(aa->provided_by, "Not available"), 1);
 		since = ast_xmldoc_printable(S_OR(aa->since, "Not available"), 1);
 		description = ast_xmldoc_printable(S_OR(aa->description, "Not available"), 1);
 		syntax = ast_xmldoc_printable(S_OR(aa->syntax, "Not available"), 1);
@@ -211,6 +218,7 @@ static void print_app_docs(struct ast_app *aa, int fd)
 #endif
 	{
 		synopsis = ast_strdup(S_OR(aa->synopsis, "Not Available"));
+		provided_by = ast_strdup(S_OR(aa->provided_by, "Not Available"));
 		since = ast_strdup(S_OR(aa->since, "Not Available"));
 		description = ast_strdup(S_OR(aa->description, "Not Available"));
 		syntax = ast_strdup(S_OR(aa->syntax, "Not Available"));
@@ -218,7 +226,7 @@ static void print_app_docs(struct ast_app *aa, int fd)
 		seealso = ast_strdup(S_OR(aa->seealso, "Not Available"));
 	}
 		/* check allocated memory. */
-	if (!synopsis || !since || !description || !syntax || !arguments || !seealso) {
+	if (!synopsis || !provided_by || !since || !description || !syntax || !arguments || !seealso) {
 		goto free_docs;
 	}
 
@@ -235,9 +243,12 @@ static void print_app_docs(struct ast_app *aa, int fd)
 		COLORIZE_FMT "\n"
 		"%s\n\n"
 		COLORIZE_FMT "\n"
+		"%s\n\n"
+		COLORIZE_FMT "\n"
 		"%s\n\n",
 		ast_term_color(COLOR_MAGENTA, 0), aa->name, ast_term_reset(),
 		COLORIZE(COLOR_MAGENTA, 0, "[Synopsis]"), synopsis,
+		COLORIZE(COLOR_MAGENTA, 0, "[Provided By]"), provided_by,
 		COLORIZE(COLOR_MAGENTA, 0, "[Since]"), since,
 		COLORIZE(COLOR_MAGENTA, 0, "[Description]"), description,
 		COLORIZE(COLOR_MAGENTA, 0, "[Syntax]"), syntax,
@@ -247,6 +258,7 @@ static void print_app_docs(struct ast_app *aa, int fd)
 
 free_docs:
 	ast_free(synopsis);
+	ast_free(provided_by);
 	ast_free(since);
 	ast_free(description);
 	ast_free(syntax);
