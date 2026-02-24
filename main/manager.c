@@ -1117,6 +1117,7 @@ static char *handle_showmancmd(struct ast_cli_entry *e, int cmd, struct ast_cli_
 #ifdef AST_XML_DOCS
 				if (cur->docsrc == AST_XML_DOC) {
 					char *synopsis = ast_xmldoc_printable(S_OR(cur->synopsis, "Not available"), 1);
+					char *provided_by = ast_xmldoc_printable(S_OR(cur->provided_by, "Not available"), 1);
 					char *since = ast_xmldoc_printable(S_OR(cur->since, "Not available"), 1);
 					char *description = ast_xmldoc_printable(S_OR(cur->description, "Not available"), 1);
 					char *syntax = ast_xmldoc_printable(S_OR(cur->syntax, "Not available"), 1);
@@ -1125,9 +1126,10 @@ static char *handle_showmancmd(struct ast_cli_entry *e, int cmd, struct ast_cli_
 					char *seealso = ast_xmldoc_printable(S_OR(cur->seealso, "Not available"), 1);
 					char *responses = ast_xmldoc_printable("None", 1);
 
-					if (!synopsis || !since || !description || !syntax || !arguments
+					if (!synopsis || !provided_by || !since || !description || !syntax || !arguments
 							|| !privilege || !seealso || !responses) {
 						ast_free(synopsis);
+						ast_free(provided_by);
 						ast_free(since);
 						ast_free(description);
 						ast_free(syntax);
@@ -1157,9 +1159,12 @@ static char *handle_showmancmd(struct ast_cli_entry *e, int cmd, struct ast_cli_
 						"%s\n\n"
 						COLORIZE_FMT "\n"
 						"%s\n\n"
+						COLORIZE_FMT "\n"
+						"%s\n\n"
 						COLORIZE_FMT "\n",
 						ast_term_color(COLOR_MAGENTA, 0), cur->action, ast_term_reset(),
 						COLORIZE(COLOR_MAGENTA, 0, "[Synopsis]"), synopsis,
+						COLORIZE(COLOR_MAGENTA, 0, "[Provided By]"), provided_by,
 						COLORIZE(COLOR_MAGENTA, 0, "[Since]"), since,
 						COLORIZE(COLOR_MAGENTA, 0, "[Description]"), description,
 						COLORIZE(COLOR_MAGENTA, 0, "[Syntax]"), syntax,
@@ -1199,6 +1204,7 @@ static char *handle_showmancmd(struct ast_cli_entry *e, int cmd, struct ast_cli_
 						);
 
 					ast_free(synopsis);
+					ast_free(provided_by);
 					ast_free(since);
 					ast_free(description);
 					ast_free(syntax);
@@ -7839,6 +7845,11 @@ int ast_manager_register2(const char *action, int auth, int (*func)(struct manse
 		return -1;
 	}
 
+	if (ast_string_field_init_extended(cur, provided_by)) {
+		ao2_t_ref(cur, -1, "action object creation failed");
+		return -1;
+	}
+
 	cur->action = action;
 	cur->authority = auth;
 	cur->func = func;
@@ -7853,6 +7864,10 @@ int ast_manager_register2(const char *action, int auth, int (*func)(struct manse
 
 		tmpxml = ast_xmldoc_build_synopsis("manager", action, NULL);
 		ast_string_field_set(cur, synopsis, tmpxml);
+		ast_free(tmpxml);
+
+		tmpxml = ast_xmldoc_build_provided_by("manager", action, NULL);
+		ast_string_field_set(cur, provided_by, tmpxml);
 		ast_free(tmpxml);
 
 		tmpxml = ast_xmldoc_build_syntax("manager", action, NULL);
@@ -9263,16 +9278,17 @@ static char *handle_manager_show_events(struct ast_cli_entry *e, int cmd, struct
 
 static void print_event_instance(struct ast_cli_args *a, struct ast_xml_doc_item *instance)
 {
-	char *since, *syntax, *description, *synopsis, *seealso, *arguments;
+	char *since, *syntax, *provided_by, *description, *synopsis, *seealso, *arguments;
 
 	synopsis = ast_xmldoc_printable(AS_OR(instance->synopsis, "Not available"), 1);
+	provided_by = ast_xmldoc_printable(AS_OR(instance->provided_by, "Not available"), 1);
 	since = ast_xmldoc_printable(AS_OR(instance->since, "Not available"), 1);
 	description = ast_xmldoc_printable(AS_OR(instance->description, "Not available"), 1);
 	syntax = ast_xmldoc_printable(AS_OR(instance->syntax, "Not available"), 1);
 	arguments = ast_xmldoc_printable(AS_OR(instance->arguments, "Not available"), 1);
 	seealso = ast_xmldoc_printable(AS_OR(instance->seealso, "Not available"), 1);
 
-	if (!synopsis || !since || !description || !syntax || !arguments || !seealso) {
+	if (!synopsis || !provided_by || !since || !description || !syntax || !arguments || !seealso) {
 		ast_cli(a->fd, "Error: Memory allocation failed\n");
 		goto free_docs;
 	}
@@ -9290,9 +9306,12 @@ static void print_event_instance(struct ast_cli_args *a, struct ast_xml_doc_item
 		COLORIZE_FMT "\n"
 		"%s\n\n"
 		COLORIZE_FMT "\n"
+		"%s\n\n"
+		COLORIZE_FMT "\n"
 		"%s\n\n",
 		ast_term_color(COLOR_MAGENTA, 0), instance->name, ast_term_reset(),
 		COLORIZE(COLOR_MAGENTA, 0, "[Synopsis]"), synopsis,
+		COLORIZE(COLOR_MAGENTA, 0, "[Provided By]"), provided_by,
 		COLORIZE(COLOR_MAGENTA, 0, "[Since]"), since,
 		COLORIZE(COLOR_MAGENTA, 0, "[Description]"), description,
 		COLORIZE(COLOR_MAGENTA, 0, "[Syntax]"), syntax,
