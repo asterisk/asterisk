@@ -181,7 +181,8 @@ struct manager_action {
 	 * function and unregistering the AMI action object.
 	 */
 	unsigned int registered:1;
-	AST_STRING_FIELD_EXTENDED(since);	/*!< Documentation "since" element */
+	AST_STRING_FIELD_EXTENDED(since);	     /*!< Documentation "since" element */
+	AST_STRING_FIELD_EXTENDED(provided_by);	 /*!< Documentation "provided_by" element */
 };
 
 /*! \brief External routines may register/unregister manager callbacks this way

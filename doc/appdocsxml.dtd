@@ -64,6 +64,7 @@
 
   <!ELEMENT managerEventInstance (since?,synopsis?,syntax?,description?,see-also?)*>
   <!ATTLIST managerEventInstance class CDATA #REQUIRED>
+  <!ATTLIST managerEventInstance module CDATA #IMPLIED>
 
   <!ELEMENT configInfo (synopsis?,description?,configFile+)>
   <!ATTLIST configInfo name CDATA #REQUIRED>
@@ -95,6 +96,7 @@
   <!ATTLIST info name CDATA #REQUIRED>
   <!ATTLIST info language CDATA #REQUIRED>
   <!ATTLIST info tech CDATA #REQUIRED>
+  <!ATTLIST info module CDATA #IMPLIED>
 
   <!ELEMENT see-also (ref|xi:include)*>
 
