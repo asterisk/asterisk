@@ -205,10 +205,20 @@ for subdir in ${mod_subdirs} ; do
 			fi
 		fi
 		if [ "${for_wiki}" -eq "1" ] ; then
-			${PYTHON} build_tools/get_documentation.py < "${i}" >> "${output_file}"
+			${PYTHON} build_tools/get_documentation.py < "${i}" > /tmp/xmldoc.tmp.xml
 		else
-			${AWK} -f "${source_tree}/build_tools/get_documentation" "${i}" >> "${output_file}"
+			${AWK} -f "${source_tree}/build_tools/get_documentation" "${i}" > /tmp/xmldoc.tmp.xml
 		fi
+		if [ "${subdir}" = "main" ] ; then
+			# Force the module to be "builtin" if the source is in the main directory.
+			mn="builtin"
+		else
+			# Otherwise, let's just get the basename of the module.
+			bn=${i##*/}
+			mn=${bn%%.*}
+		fi
+		# Set the module name on specific elements
+		${SED} -r -e "s/<(manager|managerEvent|managerEventInstance|function|application|info)\s+([^>]+)>/<\1 \2 module=\"${mn}\">/g" /tmp/xmldoc.tmp.xml >> "${output_file}"
 	done
 	for i in $(${FIND} "${subdir_path}" -name '*.xml') ; do
 		${GREP} -q "appdocsxml.dtd" "${i}" || continue
@@ -220,11 +230,36 @@ for subdir in ${mod_subdirs} ; do
 					${XMLSTARLET} val -e -d "${source_tree}/doc/appdocsxml.dtd" "${i}" || { echo "" ; exit 1 ; }
 			fi
 		fi
-		${SED} -r "/^\s*(<[?]xml|<.DOCTYPE|<.?docs)/d" "${i}" >> "${output_file}"
+		${SED} -r "/^\s*(<[?]xml|<.DOCTYPE|<.?docs)/d" "${i}" > /tmp/xmldoc.tmp.xml
+		dirname=${i%/*}
+		if [ "${dirname}" != "${subdir_path}" ] ; then
+			# If we're in a subdirectory like channels/pjsip, we need to check channels/Makefile
+			# to see which module xml files in this directory belong to.
+			bn=${dirname##*/}
+			mn=$(${SED} -n -r -e "s/^[$]\(call MOD_ADD_C,([^,]+),[$]\(wildcard\s+${bn}\/.*/\1/gp" "${subdir_path}/Makefile")
+		else
+			if [ "${subdir}" = "main" ] ; then
+				# Force the module to be "builtin" if the XML is in the main directory.
+				mn="builtin"
+			else
+				# Otherwise the xml should have be "<module>_doc.xml" suffix so
+				# get the basename then strip the suffix.
+				bn=${i##*/}
+				mn=${bn%%_doc.xml}
+			fi
+		fi
+		# Set the module name on specific elements
+		${SED} -r -e "s/<(manager|managerEvent|managerEventInstance|function|application|info)\s+([^>]+)>/<\1 \2 module=\"${mn}\">/g" /tmp/xmldoc.tmp.xml >> "${output_file}"
 	done
 done
+
 echo "</docs>" >> "${output_file}"
 echo ""
+# Some entries may already have a module attribute so remove the dup.
+# It's easier to do this once on the entire file rather on a source-by-source basis.
+cp "${output_file}" /tmp/xmldoc.tmp.xml
+${SED} -r -e 's/module="([^"]+)"\s+module="([^"]+)">/module="\1">/g' /tmp/xmldoc.tmp.xml > "${output_file}"
+
 
 if [ "${for_wiki}" -eq "1" ] ; then
 	${PYTHON} build_tools/post_process_documentation.py -i "${output_file}" -o "${core_output_file}"

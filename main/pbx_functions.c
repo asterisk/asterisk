@@ -144,7 +144,7 @@ static char *handle_show_function(struct ast_cli_entry *e, int cmd, struct ast_c
 {
 	struct ast_custom_function *acf;
 	/* Maximum number of characters added by terminal coloring is 22 */
-	char *synopsis = NULL, *since = NULL, *description = NULL, *syntax = NULL, *arguments = NULL, *seealso = NULL;
+	char *synopsis = NULL, *provided_by = NULL, *since = NULL, *description = NULL, *syntax = NULL, *arguments = NULL, *seealso = NULL;
 	char *rtn = CLI_SUCCESS;
 
 	switch (cmd) {
@@ -171,6 +171,7 @@ static char *handle_show_function(struct ast_cli_entry *e, int cmd, struct ast_c
 #ifdef AST_XML_DOCS
 	if (acf->docsrc == AST_XML_DOC) {
 		synopsis = ast_xmldoc_printable(S_OR(acf->synopsis, "Not available"), 1);
+		provided_by = ast_xmldoc_printable(S_OR(acf->provided_by, "Not available"), 1);
 		since = ast_xmldoc_printable(S_OR(acf->since, "Not available"), 1);
 		description = ast_xmldoc_printable(S_OR(acf->desc, "Not available"), 1);
 		syntax = ast_xmldoc_printable(S_OR(acf->syntax, "Not available"), 1);
@@ -180,6 +181,7 @@ static char *handle_show_function(struct ast_cli_entry *e, int cmd, struct ast_c
 #endif
 	{
 		synopsis = ast_strdup(S_OR(acf->synopsis, "Not Available"));
+		provided_by = ast_strdup(S_OR(acf->provided_by, "Not available"));
 		since = ast_strdup(S_OR(acf->since, "Not Available"));
 		description = ast_strdup(S_OR(acf->desc, "Not Available"));
 		syntax = ast_strdup(S_OR(acf->syntax, "Not Available"));
@@ -187,7 +189,7 @@ static char *handle_show_function(struct ast_cli_entry *e, int cmd, struct ast_c
 		seealso = ast_strdup(S_OR(acf->seealso, "Not Available"));
 	}
 		/* check allocated memory. */
-	if (!synopsis || !since || !description || !syntax || !arguments || !seealso) {
+	if (!synopsis || !provided_by || !since || !description || !syntax || !arguments || !seealso) {
 		rtn = CLI_FAILURE;
 		goto free_docs;
 	}
@@ -205,9 +207,12 @@ static char *handle_show_function(struct ast_cli_entry *e, int cmd, struct ast_c
 		COLORIZE_FMT "\n"
 		"%s\n\n"
 		COLORIZE_FMT "\n"
+		"%s\n\n"
+		COLORIZE_FMT "\n"
 		"%s\n\n",
 		ast_term_color(COLOR_MAGENTA, 0), acf->name, ast_term_reset(),
 		COLORIZE(COLOR_MAGENTA, 0, "[Synopsis]"), synopsis,
+		COLORIZE(COLOR_MAGENTA, 0, "[Provided By]"), provided_by,
 		COLORIZE(COLOR_MAGENTA, 0, "[Since]"), since,
 		COLORIZE(COLOR_MAGENTA, 0, "[Description]"), description,
 		COLORIZE(COLOR_MAGENTA, 0, "[Syntax]"), syntax,
@@ -217,6 +222,7 @@ static char *handle_show_function(struct ast_cli_entry *e, int cmd, struct ast_c
 
 free_docs:
 	ast_free(synopsis);
+	ast_free(provided_by);
 	ast_free(since);
 	ast_free(description);
 	ast_free(syntax);
@@ -333,9 +339,19 @@ static int acf_retrieve_docs(struct ast_custom_function *acf)
 		return -1;
 	}
 
+	if (ast_string_field_init_extended(acf, provided_by)) {
+		ast_string_field_free_memory(acf);
+		return -1;
+	}
+
 	/* load synopsis */
 	tmpxml = ast_xmldoc_build_synopsis("function", acf->name, ast_module_name(acf->mod));
 	ast_string_field_set(acf, synopsis, tmpxml);
+	ast_free(tmpxml);
+
+	/* load provided_by */
+	tmpxml = ast_xmldoc_build_provided_by("function", acf->name, ast_module_name(acf->mod));
+	ast_string_field_set(acf, provided_by, tmpxml);
 	ast_free(tmpxml);
 
 	/* load since */
