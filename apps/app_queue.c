@@ -3775,7 +3775,7 @@ static void rt_handle_member_record(struct call_queue *q, char *category, struct
 	const char *paused_str = ast_variable_retrieve(member_config, category, "paused");
 	const char *wrapuptime_str = ast_variable_retrieve(member_config, category, "wrapuptime");
 	const char *reason_paused = ast_variable_retrieve(member_config, category, "reason_paused");
-	const char *rt_order_str = ast_variable_retrieve(member_config, category, "order");
+	const char *rt_order_str = ast_variable_retrieve(member_config, category, "rt_order");
 
 	if (ast_strlen_zero(rt_uniqueid)) {
 		ast_log(LOG_WARNING, "Realtime field 'uniqueid' is empty for member %s\n",
