@@ -32,6 +32,7 @@
 #include "resource_events.h"
 #include "internal.h"
 #include "asterisk/stasis_app.h"
+#include "asterisk/stasis_app_broadcast.h"
 
 void ast_ari_events_user_event(struct ast_variable *headers,
 	struct ast_ari_events_user_event_args *args,
@@ -85,5 +86,52 @@ void ast_ari_events_user_event(struct ast_variable *headers,
 	default:
 		ast_ari_response_error(response, 500, "Internal Server Error",
 			"Error processing request");
+	}
+}
+
+void ast_ari_events_claim_channel(struct ast_variable *headers,
+	struct ast_ari_events_claim_channel_args *args,
+	struct ast_ari_response *response)
+{
+	int res;
+
+	if (ast_strlen_zero(args->channel_id)) {
+		ast_ari_response_error(response, 400, "Bad Request",
+			"channelId parameter is required");
+		return;
+	}
+
+	if (ast_strlen_zero(args->application)) {
+		ast_ari_response_error(response, 400, "Bad Request",
+			"application parameter is required");
+		return;
+	}
+
+	res = stasis_app_claim_channel(args->channel_id, args->application);
+
+	switch (res) {
+	case 0:
+		/* Success */
+		ast_ari_response_no_content(response);
+		break;
+	case -1:
+		/* Channel not found */
+		ast_ari_response_error(response, 404, "Not Found",
+			"Channel not found or not in broadcast state");
+		break;
+	case -2:
+		/* Already claimed */
+		ast_ari_response_error(response, 409, "Conflict",
+			"Channel has already been claimed by another application");
+		break;
+	case AST_OPTIONAL_API_UNAVAILABLE:
+		/* Module not loaded */
+		ast_ari_response_error(response, 501, "Not Implemented",
+			"Broadcast functionality not available (res_stasis_broadcast not loaded)");
+		break;
+	default:
+		ast_ari_response_error(response, 500, "Internal Server Error",
+			"Failed to claim channel");
+		break;
 	}
 }
