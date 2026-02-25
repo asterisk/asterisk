@@ -38,3 +38,5 @@ out/
 *.orig
 tests/CI/output
 .develvars
+.devcontainer/
+.claude/
