@@ -2891,7 +2891,12 @@ void ast_deactivate_generator(struct ast_channel *chan)
 	deactivate_generator_nolock(chan);
 	if (should_trigger_dtmf_emulating(chan)) {
 		/* if in the middle of dtmf emulation keep 50 tick per sec timer on rolling */
-		ast_timer_set_rate(ast_channel_timer(chan), 50);
+		struct ast_timer *timer = ast_channel_timer(chan);
+		if (timer) {
+			ast_timer_set_rate(timer, 50);
+		} else {
+			ast_log(LOG_WARNING, "No timing module loaded, DTMF length may be inaccurate\n");
+		}
 	}
 	ast_channel_unlock(chan);
 }
@@ -3181,6 +3186,7 @@ int ast_settimeout_full(struct ast_channel *c, unsigned int rate, int (*func)(co
 {
 	int res;
 	unsigned int real_rate = rate, max_rate;
+	struct ast_timer *timer = ast_channel_timer(c);
 
 	ast_channel_lock(c);
 
@@ -3194,13 +3200,13 @@ int ast_settimeout_full(struct ast_channel *c, unsigned int rate, int (*func)(co
 		data = NULL;
 	}
 
-	if (rate && rate > (max_rate = ast_timer_get_max_rate(ast_channel_timer(c)))) {
+	if (rate && rate > (max_rate = ast_timer_get_max_rate(timer))) {
 		real_rate = max_rate;
 	}
 
 	ast_debug(3, "Scheduling timer at (%u requested / %u actual) timer ticks per second\n", rate, real_rate);
 
-	res = ast_timer_set_rate(ast_channel_timer(c), real_rate);
+	res = ast_timer_set_rate(timer, real_rate);
 
 	if (ast_channel_timingdata(c) && ast_test_flag(ast_channel_flags(c), AST_FLAG_TIMINGDATA_IS_AO2_OBJ)) {
 		ao2_ref(ast_channel_timingdata(c), -1);
@@ -3910,7 +3916,12 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio, int
 					 * timer events to generate null frames.
 					 */
 					if (!ast_channel_generator(chan)) {
-						ast_timer_set_rate(ast_channel_timer(chan), 50);
+						struct ast_timer *timer = ast_channel_timer(chan);
+						if (timer) {
+							ast_timer_set_rate(timer, 50);
+					    } else {
+							ast_log(LOG_WARNING, "No timing module loaded, DTMF length may be inaccurate\n");
+						}
 					}
 				}
 				if (ast_channel_audiohooks(chan)) {
@@ -3960,7 +3971,12 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio, int
 					 * timer events to generate null frames.
 					 */
 					if (!ast_channel_generator(chan)) {
-						ast_timer_set_rate(ast_channel_timer(chan), 50);
+						struct ast_timer *timer = ast_channel_timer(chan);
+						if (timer) {
+							ast_timer_set_rate(timer, 50);
+						} else {
+							ast_log(LOG_WARNING, "No timing module loaded, DTMF length may be inaccurate\n");
+						}
 					}
 				} else {
 					ast_log(LOG_DTMF, "DTMF end passthrough '%c' on %s\n", f->subclass.integer, ast_channel_name(chan));
@@ -3975,7 +3991,12 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio, int
 					 * timer events to generate null frames.
 					 */
 					if (!ast_channel_generator(chan)) {
-						ast_timer_set_rate(ast_channel_timer(chan), 50);
+						struct ast_timer *timer = ast_channel_timer(chan);
+						if (timer) {
+							ast_timer_set_rate(timer, 50);
+						} else {
+							ast_log(LOG_WARNING, "No timing module loaded, DTMF length may be inaccurate\n");
+						}
 					}
 				}
 				if (ast_channel_audiohooks(chan)) {
@@ -4037,7 +4058,12 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio, int
 					 * timer events to generate null frames.
 					 */
 					if (!ast_channel_generator(chan)) {
-						ast_timer_set_rate(ast_channel_timer(chan), 50);
+						struct ast_timer *timer = ast_channel_timer(chan);
+						if (timer) {
+							ast_timer_set_rate(timer, 50);
+						} else {
+							ast_log(LOG_WARNING, "No timing module loaded, DTMF length may be inaccurate\n");
+						}
 					}
 				}
 			}
