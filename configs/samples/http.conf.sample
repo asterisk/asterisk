@@ -130,3 +130,41 @@ bindaddr=127.0.0.1
 ; POST URL: /asterisk/uploads will put files in /var/lib/asterisk/uploads/.
 ;uploads = /var/lib/asterisk/uploads/
 ;
+
+;[uripath]
+;
+;type = restriction ; Specifies acl configuration
+;
+; The following options (permit, deny, acl) allow for an acl to be configured
+; on a per uri prefix basis. The first character should be an '/'
+;
+; The format follows the rules as documented in acl.conf.sample
+;
+; If no restriction is defined for a given prefix, legacy behavior will apply.
+;
+; If multiple restrictions apply, any restriction that denies will supersede
+; any another restrictions that permit.  For example if an /ari restriction
+; results in a deny, but an /ari/channels restriction would permit, the
+; attempt would still be denied.
+;
+;deny =             ; Deny the subnet access for the given user
+;permit =           ; Permit the subnet(s) access for the given user
+;acl =              ; Optional name for the acl.
+;
+;Examples:
+;
+; Only allow ari connections from localhost:
+;
+;[/ari]
+;type = restriction
+;deny = 0.0.0.0/0
+;permit = 127.0.0.1
+;acl = localarionly
+;
+; Only allow metrics to be gathered by 10.0.0.23
+;
+;[/metrics]
+;type = restriction
+;deny = 0.0.0.0/0
+;permit = 10.0.0.23
+;
