@@ -25,6 +25,7 @@
  * \author David M. Lee, II <dlee@digium.com>
  */
 
+#include "asterisk/acl.h"
 #include "asterisk/http.h"
 #include "asterisk/json.h"
 #include "asterisk/md5.h"
@@ -91,6 +92,8 @@ struct ari_conf_user {
 	enum ari_user_password_format password_format;
 	/*! If true, user cannot execute change operations */
 	int read_only;
+	/*! ACL setting */
+	struct ast_acl_list *acl;
 };
 
 enum ari_conf_owc_fields {
