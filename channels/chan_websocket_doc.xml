@@ -57,6 +57,36 @@
 						<para> If not specified, the first codec from the caller's channel will be used.
 						</para>
 					</enum>
+					<enum name="d(media_direction) - Set the media direction for this call">
+						<para>Sets the media direction for the call. It is important to
+						note that this is from the perspective of the application, NOT
+						Asterisk.</para>
+						<enumlist>
+						<enum name="both">
+						<para>
+						The default behavior. Media flows both ways like normal.
+						</para>
+						</enum>
+						<enum name="in">
+						<para>
+						Asterisk will send media to the application but drop any media
+						it receives.
+						</para>
+						</enum>
+						<enum name="out">
+						<para>
+						Asterisk will only receive media from the application, but will
+						not send any media.
+						</para>
+						</enum>
+						</enumlist>
+					</enum>
+					<enum name="f(format) - Control message format for this call">
+						<para>
+						format:
+						</para>
+						<xi:include xpointer="xpointer(/docs/configInfo[@name='chan_websocket']/configFile[@name='chan_websocket.conf']/configObject[@name='global']/configOption[@name='control_message_format']/description/enumlist)"/>
+					</enum>
 					<enum name="n - Don't auto answer">
 						<para>Normally, the WebSocket channel will be answered when
 						connection is established with the remote app.  If this
@@ -65,12 +95,6 @@
 						received from the remote app or the remote app calls the
 						/channels/answer ARI endpoint.
 						</para>
-					</enum>
-					<enum name="f(format) - Control message format for this call">
-						<para>
-						format:
-						</para>
-						<xi:include xpointer="xpointer(/docs/configInfo[@name='chan_websocket']/configFile[@name='chan_websocket.conf']/configObject[@name='global']/configOption[@name='control_message_format']/description/enumlist)"/>
 					</enum>
 					<enum name="p - Passthrough mode">
 						<para>In passthrough mode, the channel driver won't attempt
