@@ -35,6 +35,22 @@ enabled = yes       ; When set to no, ARI support is disabled.
 ; When set to plain, the password is in plaintext.
 ;
 ;password_format = plain
+;
+; The following three options (permit, deny, acl) allow for a per-user acl to be
+; configured.  The format follows the rules as documented in acl.conf.sample
+;
+; If no restriction is defined for a given user, no IPs will be blocked by
+; Asterisk (legacy behavior).
+;
+;deny =             ; Deny acces from the subnet for the given user
+;permit =           ; Permit access from the subnet(s) for the given user
+;acl =              ; Optional name for the acl.
+;
+;Example:
+;deny = 0.0.0.0/0
+;permit = 127.0.0.1,10.0.0.0/24
+;acl = localasteriskuser
+;
 
 ; Outbound Websocket Connections
 ;
