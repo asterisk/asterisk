@@ -78,8 +78,9 @@ static int show_users_cb(void *obj, void *arg, int flags)
 	struct ari_conf_user *user = obj;
 	struct ast_cli_args *a = arg;
 
-	ast_cli(a->fd, "%-4s  %s\n",
+	ast_cli(a->fd, "%-4s  %-4s  %s\n",
 		AST_CLI_YESNO(user->read_only),
+		AST_CLI_YESNO(user->acl && !ast_acl_list_is_empty(user->acl)),
 		ast_sorcery_object_get_id(user));
 	return 0;
 }
@@ -112,8 +113,8 @@ static char *ari_show_users(struct ast_cli_entry *e, int cmd,
 		return CLI_FAILURE;
 	}
 
-	ast_cli(a->fd, "r/o?  Username\n");
-	ast_cli(a->fd, "----  --------\n");
+	ast_cli(a->fd, "r/o?  ACL?  Username\n");
+	ast_cli(a->fd, "----  ----  --------\n");
 
 	ao2_callback(users, OBJ_NODATA, show_users_cb, a);
 
@@ -173,6 +174,10 @@ static char *ari_show_user(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 
 	ast_cli(a->fd, "Username: %s\n", ast_sorcery_object_get_id(user));
 	ast_cli(a->fd, "Read only?: %s\n", AST_CLI_YESNO(user->read_only));
+	ast_cli(a->fd, "ACL?: %s\n", AST_CLI_YESNO(user->acl && !ast_acl_list_is_empty(user->acl)));
+	if (!ast_acl_list_is_empty(user->acl)) {
+		ast_acl_output(a->fd, user->acl, NULL);
+	}
 
 	return CLI_SUCCESS;
 }
