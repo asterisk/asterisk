@@ -575,6 +575,11 @@ enum ast_ari_invoke_result ast_ari_invoke(struct ast_tcptls_session_instance *se
 			general->auth_realm);
 		SCOPE_EXIT_RTN_VALUE(ARI_INVOKE_RESULT_ERROR_CONTINUE, "Response: %d : %s\n",
 			response->response_code, response->response_text);
+	} else if (user && user->acl && !ast_acl_list_is_empty(user->acl) &&
+		   ast_apply_acl(user->acl, &ser->remote_address, "ARI User ACL") == AST_SENSE_DENY) {
+		ast_ari_response_error(response, 403, "Forbidden", "Access denied by ACL");
+		SCOPE_EXIT_RTN_VALUE(ARI_INVOKE_RESULT_ERROR_CONTINUE, "Response: %d : %s\n",
+			response->response_code, response->response_text);
 	} else if (!ast_fully_booted) {
 		ast_ari_response_error(response, 503, "Service Unavailable", "Asterisk not booted");
 		SCOPE_EXIT_RTN_VALUE(ARI_INVOKE_RESULT_ERROR_CLOSE, "Response: %d : %s\n",
