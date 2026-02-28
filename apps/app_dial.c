@@ -1746,7 +1746,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 					}
 					break;
 				default:
-					ast_debug(1, "Dunno what to do with control type %d\n", f->subclass.integer);
+					ast_debug(1, "Dunno what to do with control type %d on %s\n", f->subclass.integer, ast_channel_name(in));
 					break;
 				}
 				break;
@@ -1763,14 +1763,14 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 				/* Fall through */
 			case AST_FRAME_TEXT:
 				if (single && ast_write(in, f)) {
-					ast_log(LOG_WARNING, "Unable to write frametype: %u\n",
-						f->frametype);
+					ast_log(LOG_WARNING, "Unable to write frametype %u on %s\n",
+						f->frametype, ast_channel_name(in));
 				}
 				break;
 			case AST_FRAME_HTML:
 				if (single && !ast_test_flag64(outgoing, DIAL_NOFORWARDHTML)
 					&& ast_channel_sendhtml(in, f->subclass.integer, f->data.ptr, f->datalen) == -1) {
-					ast_log(LOG_WARNING, "Unable to send URL\n");
+					ast_log(LOG_WARNING, "Unable to send URL on %s\n", ast_channel_name(in));
 				}
 				break;
 			default:
@@ -1780,12 +1780,6 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 		} /* end for */
 		if (winner == in) {
 			struct ast_frame *f = ast_read(in);
-#if 0
-			if (f && (f->frametype != AST_FRAME_VOICE))
-				printf("Frame type: %d, %d\n", f->frametype, f->subclass);
-			else if (!f || (f->frametype != AST_FRAME_VOICE))
-				printf("Hangup received on %s\n", in->name);
-#endif
 			if (!f || ((f->frametype == AST_FRAME_CONTROL) && (f->subclass.integer == AST_CONTROL_HANGUP))) {
 				/* Got hung up */
 				*to_answer = -1;
@@ -1856,7 +1850,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 					/* Forward HTML stuff */
 					if (!ast_test_flag64(o, DIAL_NOFORWARDHTML)
 						&& ast_channel_sendhtml(o->chan, f->subclass.integer, f->data.ptr, f->datalen) == -1) {
-						ast_log(LOG_WARNING, "Unable to send URL\n");
+						ast_log(LOG_WARNING, "Unable to send URL on %s\n", ast_channel_name(o->chan));
 					}
 					break;
 				case AST_FRAME_VIDEO:
@@ -1875,8 +1869,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 				case AST_FRAME_DTMF_BEGIN:
 				case AST_FRAME_DTMF_END:
 					if (ast_write(o->chan, f)) {
-						ast_log(LOG_WARNING, "Unable to forward frametype: %u\n",
-							f->frametype);
+						ast_log(LOG_WARNING, "Unable to forward frametype %u on %s\n",
+							f->frametype, ast_channel_name(o->chan));
 					}
 					break;
 				case AST_FRAME_CONTROL:
