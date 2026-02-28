@@ -300,7 +300,7 @@ int ast_writestream(struct ast_filestream *fs, struct ast_frame *f)
 
 				/* the translator may have returned multiple frames, so process them */
 				for (cur = trf; cur; cur = AST_LIST_NEXT(cur, frame_list)) {
-					if ((res = fs->fmt->write(fs, trf))) {
+					if ((res = fs->fmt->write(fs, cur))) {
 						ast_log(LOG_WARNING, "Translated frame write failed\n");
 						break;
 					}
