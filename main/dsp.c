@@ -201,6 +201,10 @@ enum gsamp_thresh {
 #define BELL_MF_TWIST		4.0     /* 6dB */
 #define BELL_MF_RELATIVE_PEAK	12.6    /* 11dB */
 
+#define R2_MF_THRESHOLD             5.0e8f
+#define R2_MF_TWIST                 5.0f    /* 7dB */
+#define R2_MF_RELATIVE_PEAK         12.6f   /* 11dB */
+
 #if defined(BUSYDETECT_TONEONLY) && defined(BUSYDETECT_COMPARE_TONE_AND_SILENCE)
 #error You cant use BUSYDETECT_TONEONLY together with BUSYDETECT_COMPARE_TONE_AND_SILENCE
 #endif
@@ -227,6 +231,9 @@ enum gsamp_thresh {
 
 /* DTMF goertzel size */
 #define DTMF_GSIZE		102
+
+/* R2 goertzel size */
+#define R2_GSIZE 		133
 
 /* How many successive hits needed to consider begin of a digit
  * IE. Override with dtmf_hits_to_begin=4 in dsp.conf
@@ -325,8 +332,15 @@ static const float dtmf_col[] = {
 static const float mf_tones[] = {
 	700.0, 900.0, 1100.0, 1300.0, 1500.0, 1700.0
 };
+static const float r2_forward_tones[] = {
+	1380.0, 1500.0, 1620.0, 1740.0, 1860.0, 1980.0
+};
+static const float r2_backward_tones[] = {
+	1140.0, 1020.0, 900.0, 780.0, 660.0, 540.0
+};
 static const char dtmf_positions[] = "123A" "456B" "789C" "*0#D";
 static const char bell_mf_positions[] = "1247C-358A--69*---0B----#";
+static const char r2_mf_positions[] = "1247B-358C--69D---0E----F"; /* Use codes '1' to 'F' for the R2 signals 1 to 15, except for signal 'A'. Use '0' for this, so the codes match the digits 0-9. */
 static int thresholds[THRESHOLD_MAX];
 static float dtmf_normal_twist;		/* AT&T = 8dB */
 static float dtmf_reverse_twist;	/* AT&T = 4dB */
@@ -558,14 +572,30 @@ static void ast_mf_detect_init(mf_detect_state_t *s, unsigned int sample_rate)
 	s->current_hit = 0;
 }
 
-static void ast_digit_detect_init(digit_detect_state_t *s, int mf, unsigned int sample_rate)
+static void ast_r2_detect_init(mf_detect_state_t *s, unsigned int sample_rate, int backward)
+{
+	int i;
+
+	for (i = 0; i < 6; i++) {
+		goertzel_init(&s->tone_out[i], backward ? r2_backward_tones[i] : r2_forward_tones[i], sample_rate);
+	}
+	s->hits[0] = s->hits[1] = s->hits[2] = s->hits[3] = s->hits[4] = 0;
+	s->current_sample = 0;
+	s->current_hit = 0;
+}
+
+static void ast_digit_detect_init(digit_detect_state_t *s, int digitmode, unsigned int sample_rate)
 {
 	s->current_digits = 0;
 	s->detected_digits = 0;
 	s->lost_digits = 0;
 	s->digits[0] = '\0';
 
-	if (mf) {
+	if (digitmode & DSP_DIGITMODE_R2_FORWARD) {
+		ast_r2_detect_init(&s->td.mf, sample_rate, 0);
+	} else if (digitmode & DSP_DIGITMODE_R2_BACKWARD) {
+		ast_r2_detect_init(&s->td.mf, sample_rate, 1);
+	} else if (digitmode & DSP_DIGITMODE_MF) {
 		ast_mf_detect_init(&s->td.mf, sample_rate);
 	} else {
 		ast_dtmf_detect_init(&s->td.dtmf, sample_rate);
@@ -1053,6 +1083,156 @@ static int mf_detect(struct ast_dsp *dsp, digit_detect_state_t *s, int16_t amp[]
 	}
 
 	return (s->td.mf.current_hit); /* return the debounced hit */
+}
+
+static int r2_detect(struct ast_dsp *dsp, digit_detect_state_t *s, int16_t amp[],
+		int samples, int squelch, int relax, const char *r2_positions)
+{
+	float energy[6];
+	int best;
+	int second_best;
+	int i;
+	int j;
+	int sample;
+	short samp;
+	int hit;
+	int limit;
+	fragment_t mute = {0, 0};
+
+	if (squelch && s->td.mf.mute_samples > 0) {
+		mute.end = (s->td.mf.mute_samples < samples) ? s->td.mf.mute_samples : samples;
+		s->td.mf.mute_samples -= mute.end;
+	}
+
+	hit = 0;
+	for (sample = 0; sample < samples; sample = limit) {
+		if ((samples - sample) >= (R2_GSIZE - s->td.mf.current_sample)) {
+			limit = sample + (R2_GSIZE - s->td.mf.current_sample);
+		} else {
+			limit = samples;
+		}
+		/* The following unrolled loop takes only 35% (rough estimate) of the
+		   time of a rolled loop on the machine on which it was developed */
+		for (j = sample; j < limit; j++) {
+			/* With GCC 2.95, the following unrolled code seems to take about 35%
+			   (rough estimate) as long as a neat little 0-3 loop */
+			samp = amp[j];
+			goertzel_sample(s->td.mf.tone_out, samp);
+			goertzel_sample(s->td.mf.tone_out + 1, samp);
+			goertzel_sample(s->td.mf.tone_out + 2, samp);
+			goertzel_sample(s->td.mf.tone_out + 3, samp);
+			goertzel_sample(s->td.mf.tone_out + 4, samp);
+			goertzel_sample(s->td.mf.tone_out + 5, samp);
+		}
+		s->td.mf.current_sample += (limit - sample);
+		if (s->td.mf.current_sample < R2_GSIZE) {
+			continue;
+		}
+		/* We're at the end of an MF detection block.  */
+		/* Find the two highest energies. The spec says to look for
+		   two tones and two tones only. Taking this literally -ie
+		   only two tones pass the minimum threshold - doesn't work
+		   well. The sinc function mess, due to rectangular windowing
+		   ensure that! Find the two highest energies and ensure they
+		   are considerably stronger than any of the others. */
+		energy[0] = goertzel_result(&s->td.mf.tone_out[0]);
+		energy[1] = goertzel_result(&s->td.mf.tone_out[1]);
+		if (energy[0] > energy[1]) {
+			best = 0;
+			second_best = 1;
+		} else {
+			best = 1;
+			second_best = 0;
+		}
+		/*endif*/
+		for (i = 2; i < 6; i++) {
+			energy[i] = goertzel_result(&s->td.mf.tone_out[i]);
+			if (energy[i] >= energy[best]) {
+				second_best = best;
+				best = i;
+			} else if (energy[i] >= energy[second_best]) {
+				second_best = i;
+			}
+		}
+		/* Basic signal level and twist tests */
+		hit = 0;
+		if (energy[best] >= R2_MF_THRESHOLD && energy[second_best] >= R2_MF_THRESHOLD
+		    && energy[best] < energy[second_best]*R2_MF_TWIST
+		    && energy[best] * R2_MF_TWIST > energy[second_best]) {
+			/* Relative peak test */
+			hit = -1;
+			for (i = 0; i < 6; i++) {
+				if (i != best && i != second_best) {
+					if (energy[i]*R2_MF_RELATIVE_PEAK >= energy[second_best]) {
+						/* The best two are not clearly the best */
+						hit = 0;
+						break;
+					}
+				}
+			}
+		}
+		if (hit) {
+			/* Get the values into ascending order */
+			if (second_best < best) {
+				i = best;
+				best = second_best;
+				second_best = i;
+			}
+			best = best * 5 + second_best - 1;
+			hit = r2_positions[best];
+
+			if (relax) {
+				/* Continuous tone detection.
+				 * The application is responsible for debouncing. */
+				store_digit(s, hit);
+			} else {
+				/* Discrete digit detection.
+				 * Look for two successive similar results, with something different preceding.
+				 * This is a subset of the MF logic and seems to ensure discrete digit detection. */
+				if (hit == s->td.mf.hits[4] && hit == s->td.mf.hits[3] && hit != s->td.mf.hits[2]) {
+					store_digit(s, hit);
+				}
+			}
+		} else {
+			hit = 0;
+		}
+
+		s->td.mf.current_hit = hit;
+
+		if (!relax) {
+			s->td.mf.hits[0] = s->td.mf.hits[1];
+			s->td.mf.hits[1] = s->td.mf.hits[2];
+			s->td.mf.hits[2] = s->td.mf.hits[3];
+			s->td.mf.hits[3] = s->td.mf.hits[4];
+			s->td.mf.hits[4] = hit;
+		}
+
+		/* If we had a hit in this block, include it into mute fragment */
+		if (squelch && hit) {
+			if (mute.end < sample - R2_GSIZE) {
+				/* There is a gap between fragments */
+				mute_fragment(dsp, &mute);
+				mute.start = (sample > R2_GSIZE) ? (sample - R2_GSIZE) : 0;
+			}
+			mute.end = limit + R2_GSIZE;
+		}
+
+		/* Reinitialise the detector for the next block */
+		for (i = 0; i < 6; i++) {
+			goertzel_reset(&s->td.mf.tone_out[i]);
+		}
+		s->td.mf.current_sample = 0;
+	}
+
+	if (squelch && mute.end) {
+		if (mute.end > samples) {
+			s->td.mf.mute_samples = mute.end - samples;
+			mute.end = samples;
+		}
+		mute_fragment(dsp, &mute);
+	}
+
+	return (s->td.mf.current_hit);
 }
 
 static inline int pair_there(float p1, float p2, float i1, float i2, float e)
@@ -1592,7 +1772,9 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 	}
 
 	if (dsp->features & (DSP_FEATURE_DIGIT_DETECT | DSP_FEATURE_BUSY_DETECT)) {
-		if (dsp->digitmode & DSP_DIGITMODE_MF) {
+		if (dsp->digitmode & (DSP_DIGITMODE_R2_FORWARD | DSP_DIGITMODE_R2_BACKWARD)) {
+			digit = r2_detect(dsp, &dsp->digit_state, shortdata, len, (dsp->digitmode & DSP_DIGITMODE_NOQUELCH) == 0, (dsp->digitmode & DSP_DIGITMODE_RELAXDTMF), r2_mf_positions);
+		} else if (dsp->digitmode & DSP_DIGITMODE_MF) {
 			digit = mf_detect(dsp, &dsp->digit_state, shortdata, len, (dsp->digitmode & DSP_DIGITMODE_NOQUELCH) == 0, (dsp->digitmode & DSP_DIGITMODE_RELAXDTMF));
 		} else {
 			digit = dtmf_detect(dsp, &dsp->digit_state, shortdata, len, (dsp->digitmode & DSP_DIGITMODE_NOQUELCH) == 0, (dsp->digitmode & DSP_DIGITMODE_RELAXDTMF));
@@ -1610,7 +1792,6 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 					event_digit = dsp->digit_state.digits[0];
 				}
 				dsp->dtmf_began = 1;
-
 			} else if (dsp->digit_state.current_digits > 1 || digit != dsp->digit_state.digits[0]) {
 				/* Digit changed. This means digit we have reported with DTMF_BEGIN ended */
 				if (dsp->features & DSP_FEATURE_DIGIT_DETECT) {
@@ -1749,7 +1930,7 @@ static struct ast_dsp *__ast_dsp_new(unsigned int sample_rate)
 		dsp->sample_rate = sample_rate;
 		dsp->freqcount = 0;
 		/* Initialize digit detector */
-		ast_digit_detect_init(&dsp->digit_state, dsp->digitmode & DSP_DIGITMODE_MF, dsp->sample_rate);
+		ast_digit_detect_init(&dsp->digit_state, dsp->digitmode, dsp->sample_rate);
 		dsp->display_inband_dtmf_warning = 1;
 		/* Initialize initial DSP progress detect parameters */
 		ast_dsp_prog_reset(dsp);
@@ -1816,7 +1997,7 @@ void ast_dsp_digitreset(struct ast_dsp *dsp)
 	int i;
 
 	dsp->dtmf_began = 0;
-	if (dsp->digitmode & DSP_DIGITMODE_MF) {
+	if (dsp->digitmode & (DSP_DIGITMODE_MF | DSP_DIGITMODE_R2_FORWARD | DSP_DIGITMODE_R2_BACKWARD)) {
 		mf_detect_state_t *s = &dsp->digit_state.td.mf;
 		/* Reinitialise the detector for the next block */
 		for (i = 0; i < 6; i++) {
@@ -1858,16 +2039,18 @@ void ast_dsp_reset(struct ast_dsp *dsp)
 	dsp->ringtimeout = 0;
 }
 
+#define DSP_DIGITMODES (DSP_DIGITMODE_DTMF | DSP_DIGITMODE_MF | DSP_DIGITMODE_R2_FORWARD | DSP_DIGITMODE_R2_BACKWARD)
+
 int ast_dsp_set_digitmode(struct ast_dsp *dsp, int digitmode)
 {
 	int new;
 	int old;
 
-	old = dsp->digitmode & (DSP_DIGITMODE_DTMF | DSP_DIGITMODE_MF | DSP_DIGITMODE_MUTECONF | DSP_DIGITMODE_MUTEMAX);
-	new = digitmode & (DSP_DIGITMODE_DTMF | DSP_DIGITMODE_MF | DSP_DIGITMODE_MUTECONF | DSP_DIGITMODE_MUTEMAX);
+	old = dsp->digitmode & (DSP_DIGITMODES | DSP_DIGITMODE_MUTECONF | DSP_DIGITMODE_MUTEMAX);
+	new = digitmode & (DSP_DIGITMODES | DSP_DIGITMODE_MUTECONF | DSP_DIGITMODE_MUTEMAX);
 	if (old != new) {
 		/* Must initialize structures if switching from MF to DTMF or vice-versa */
-		ast_digit_detect_init(&dsp->digit_state, new & DSP_DIGITMODE_MF, dsp->sample_rate);
+		ast_digit_detect_init(&dsp->digit_state, new, dsp->sample_rate);
 	}
 	dsp->digitmode = digitmode;
 	return 0;
