@@ -2162,11 +2162,6 @@ static int external_media_audiosocket_tcp(struct ast_ari_channels_external_media
 	struct ast_channel *chan;
 	struct varshead *vars;
 
-	if (ast_strlen_zero(args->data)) {
-		ast_ari_response_error(response, 400, "Bad Request", "data can not be empty");
-		return 1;
-	}
-
 	if (ast_asprintf(&endpoint, "AudioSocket/%s/%s",
 		args->external_host, args->data) == -1) {
 		return 1;
@@ -2381,7 +2376,9 @@ void ast_ari_channels_external_media(struct ast_variable *headers,
 				"An internal error prevented this request from being handled");
 		}
 	} else if (strcasecmp(args->encapsulation, "audiosocket") == 0 && strcasecmp(args->transport, "tcp") == 0) {
-		if (external_media_audiosocket_tcp(args, variables, response)) {
+		if (ast_strlen_zero(args->data)) {
+			ast_ari_response_error(response, 400, "Bad Request", "data can not be empty");
+		} else if (external_media_audiosocket_tcp(args, variables, response)) {
 			ast_ari_response_error(
 				response, 500, "Internal Server Error",
 				"An internal error prevented this request from being handled");
