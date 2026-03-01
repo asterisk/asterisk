@@ -30,6 +30,8 @@
 
 #define	DSP_DIGITMODE_DTMF			0				/*!< Detect DTMF digits */
 #define DSP_DIGITMODE_MF			1				/*!< Detect MF digits */
+#define DSP_DIGITMODE_R2_FORWARD	(1 << 2)		/*!< Detect R2 forward signaling */
+#define DSP_DIGITMODE_R2_BACKWARD	(1 << 3)		/*!< Detect R2 backward signaling */
 
 #define DSP_DIGITMODE_NOQUELCH		(1 << 8)		/*!< Do not quelch DTMF from in-band */
 #define DSP_DIGITMODE_MUTECONF		(1 << 9)		/*!< Mute conference */
