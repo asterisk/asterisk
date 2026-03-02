@@ -1,0 +1,10 @@
+name: PR
+run-name: "PR ${{ github.event.number }} ${{github.event.action}}${{ case(github.event.action == 'labeled', format('({0})', github.event.label.name) , '') }} by ${{ github.actor }}"
+on:
+  pull_request_target:
+    types: [ opened, reopened, synchronize, labeled ]
+
+jobs:
+  PRAction:
+    name: "Action"
+    uses: asterisk/asterisk-ci-actions/.github/workflows/AsteriskPRAction.yml@main
