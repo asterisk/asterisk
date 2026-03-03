@@ -3267,6 +3267,18 @@ static int __rtp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t s
 
 		ast_debug_dtls(3, "(%p) DTLS - __rtp_recvfrom rtp=%p - Got SSL packet '%d'\n", instance, rtp, *in);
 
+#ifdef HAVE_PJPROJECT
+		/* If this packet arrived via TURN/ICE loopback re-injection,
+		 * substitute the real remote address before the candidate check
+		 * otherwise the DTLS check will see 127.0.0.1 and drop the packet.
+		 */
+		if (!ast_sockaddr_isnull(&rtp->rtp_loop) && !ast_sockaddr_cmp(&rtp->rtp_loop, sa)) {
+			ast_rtp_instance_get_remote_address(instance, sa);
+		} else if (rtcp && !ast_sockaddr_isnull(&rtp->rtcp_loop) && !ast_sockaddr_cmp(&rtp->rtcp_loop, sa)) {
+			ast_sockaddr_copy(sa, &rtp->rtcp->them);
+		}
+#endif
+
 		/*
 		 * If ICE is in use, we can prevent a possible DOS attack
 		 * by allowing DTLS protocol messages (client hello, etc)
