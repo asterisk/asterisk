@@ -57,7 +57,6 @@ typedef long long sint64;
 #endif
 
 #define BUFFER_SAMPLES   8096	/* size for the translation buffers */
-#define BUF_SHIFT	5
 
 /* Sample frame data */
 #include "asterisk/slin.h"
@@ -129,6 +128,7 @@ static void g726_init_state(struct g726_state *state_ptr)
 	state_ptr->dms = 0;
 	state_ptr->dml = 0;
 	state_ptr->ap = 0;
+	state_ptr->td = 0;
 	for (cnta = 0; cnta < 2; cnta++) {
 		state_ptr->a[cnta] = 0;
 		state_ptr->pk[cnta] = 0;
@@ -146,7 +146,6 @@ static void g726_init_state(struct g726_state *state_ptr)
 		state_ptr->dq[cnta] = 32;
 #endif
 	}
-	state_ptr->td = 0;
 }
 
 /*
