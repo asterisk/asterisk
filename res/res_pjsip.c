@@ -3298,57 +3298,35 @@ int ast_sip_update_to_uri(pjsip_tx_data *tdata, const char *to)
 	pjsip_name_addr *tdata_name_addr;
 	pjsip_sip_uri *tdata_sip_uri;
 	pjsip_to_hdr *to_hdr;
-	char *buf = NULL;
-#define DEBUG_BUF_SIZE 256
 
 	parsed_name_addr = (pjsip_name_addr *) pjsip_parse_uri(tdata->pool, (char*)to, strlen(to),
 		PJSIP_PARSE_URI_AS_NAMEADDR);
 
 	if (!parsed_name_addr || (!PJSIP_URI_SCHEME_IS_SIP(parsed_name_addr->uri)
 			&& !PJSIP_URI_SCHEME_IS_SIPS(parsed_name_addr->uri))) {
-		ast_log(LOG_WARNING, "To address '%s' is not a valid SIP/SIPS URI\n", to);
+		ast_debug(3, "To address '%s' is not a valid SIP/SIPS URI\n", to);
 		return -1;
 	}
 
 	sip_uri = pjsip_uri_get_uri(parsed_name_addr->uri);
-	if (DEBUG_ATLEAST(3)) {
-		buf = ast_alloca(DEBUG_BUF_SIZE);
-		pjsip_uri_print(PJSIP_URI_IN_FROMTO_HDR, sip_uri, buf, DEBUG_BUF_SIZE);
-		ast_debug(3, "Parsed To: %.*s  %s\n", (int)parsed_name_addr->display.slen,
-			parsed_name_addr->display.ptr, buf);
-	}
-
 	to_hdr = PJSIP_MSG_TO_HDR(tdata->msg);
 	tdata_name_addr = to_hdr ? (pjsip_name_addr *) to_hdr->uri : NULL;
+
 	if (!tdata_name_addr || (!PJSIP_URI_SCHEME_IS_SIP(tdata_name_addr->uri)
 			&& !PJSIP_URI_SCHEME_IS_SIPS(tdata_name_addr->uri))) {
 		/* Highly unlikely but we have to check */
-		ast_log(LOG_WARNING, "tdata To address '%s' is not a valid SIP/SIPS URI\n", to);
+		ast_debug(3, "tdata To address '%s' is not a valid SIP/SIPS URI\n", to);
 		return -1;
 	}
 
 	tdata_sip_uri = pjsip_uri_get_uri(tdata_name_addr->uri);
-	if (DEBUG_ATLEAST(3)) {
-		buf[0] = '\0';
-		pjsip_uri_print(PJSIP_URI_IN_FROMTO_HDR, tdata_sip_uri, buf, DEBUG_BUF_SIZE);
-		ast_debug(3, "Original tdata To: %.*s  %s\n", (int)tdata_name_addr->display.slen,
-			tdata_name_addr->display.ptr, buf);
-	}
 
 	/* Replace the uri */
 	pjsip_sip_uri_assign(tdata->pool, tdata_sip_uri, sip_uri);
 	/* The display name isn't part of the URI so we need to replace it separately */
 	pj_strdup(tdata->pool, &tdata_name_addr->display, &parsed_name_addr->display);
 
-	if (DEBUG_ATLEAST(3)) {
-		buf[0] = '\0';
-		pjsip_uri_print(PJSIP_URI_IN_FROMTO_HDR, tdata_sip_uri, buf, 256);
-		ast_debug(3, "New tdata To: %.*s  %s\n", (int)tdata_name_addr->display.slen,
-			tdata_name_addr->display.ptr, buf);
-	}
-
 	return 0;
-#undef DEBUG_BUF_SIZE
 }
 
 int ast_sip_update_from(pjsip_tx_data *tdata, char *from)
@@ -3376,7 +3354,7 @@ int ast_sip_update_from(pjsip_tx_data *tdata, char *from)
 
 		if (!PJSIP_URI_SCHEME_IS_SIP(parsed_name_addr->uri)
 				&& !PJSIP_URI_SCHEME_IS_SIPS(parsed_name_addr->uri)) {
-			ast_log(LOG_WARNING, "From address '%s' is not a valid SIP/SIPS URI\n", from);
+			ast_debug(3, "From address '%s' is not a valid SIP/SIPS URI\n", from);
 			return -1;
 		}
 
