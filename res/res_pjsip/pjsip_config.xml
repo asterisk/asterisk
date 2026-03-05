@@ -3513,6 +3513,14 @@
 						<para>If not specified, the default is <literal>MD5</literal> only.</para>
 					</description>
 				</configOption>
+				<configOption name="rfc7329_enable" default="no">
+					<synopsis>Enable RFC7329 Session-ID handling for PJSIP</synopsis>
+					<description><para>
+						When enabled, Asterisk applies RFC7329 Session-ID handling to PJSIP
+						requests and responses through <literal>res_pjsip_rfc7329</literal>.
+						When disabled, RFC7329 handling is not applied.
+					</para></description>
+				</configOption>
 			</configObject>
 		</configFile>
 	</configInfo>
