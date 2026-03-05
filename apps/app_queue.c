@@ -6157,36 +6157,48 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
  * \brief update the queue status
  * \retval 0 always
 */
-static int update_queue(struct call_queue *q, struct member *member, int callcompletedinsl, time_t starttime)
+static int update_queue(struct call_queue *q, struct member *member,
+	int callcompletedinsl, time_t starttime)
 {
 	int oldtalktime;
-	int newtalktime = time(NULL) - starttime;
+	int newtalktime;
 	struct member *mem;
 	struct call_queue *qtmp;
 	struct ao2_iterator queue_iter;
+	int did_increment_any = 0;
+
+	if (!starttime) {
+		return 0;
+	}
+
+	newtalktime = (int)(time(NULL) - starttime);
 
 	/* It is possible for us to be called when a call has already been considered terminated
 	 * and data updated, so to ensure we only act on the call that the agent is currently in
 	 * we check when the call was bridged.
 	 */
-	if (!starttime || (member->starttime != starttime)) {
+	ao2_lock(q);
+	if (member->starttime != starttime) {
+		ao2_unlock(q);
 		return 0;
 	}
+	member->starttime = 0;
+	ao2_unlock(q);
 
 	if (shared_lastcall) {
 		queue_iter = ao2_iterator_init(queues, 0);
-		while ((qtmp = ao2_t_iterator_next(&queue_iter, "Iterate through queues"))) {
+		while ((qtmp = ao2_t_iterator_next(&queue_iter, "Iterate queues"))) {
 			ao2_lock(qtmp);
 			if ((mem = ao2_find(qtmp->members, member, OBJ_POINTER))) {
 				time(&mem->lastcall);
 				mem->calls++;
 				mem->callcompletedinsl = 0;
-				mem->starttime = 0;
 				mem->lastqueue = q;
+				did_increment_any = 1;
 				ao2_ref(mem, -1);
 			}
 			ao2_unlock(qtmp);
-			queue_t_unref(qtmp, "Done with iterator");
+			queue_t_unref(qtmp, "queue iteration done");
 		}
 		ao2_iterator_destroy(&queue_iter);
 	} else {
@@ -6194,8 +6206,8 @@ static int update_queue(struct call_queue *q, struct member *member, int callcom
 		time(&member->lastcall);
 		member->callcompletedinsl = 0;
 		member->calls++;
-		member->starttime = 0;
 		member->lastqueue = q;
+		did_increment_any = 1;
 		ao2_unlock(q);
 	}
 	/* Member might never experience any direct status change (local
@@ -6205,22 +6217,24 @@ static int update_queue(struct call_queue *q, struct member *member, int callcom
 	 */
 	pending_members_remove(member);
 
-	ao2_lock(q);
-	q->callscompleted++;
-	if (callcompletedinsl) {
-		q->callscompletedinsl++;
+	if (did_increment_any) {
+		ao2_lock(q);
+		q->callscompleted++;
+		if (callcompletedinsl) {
+			q->callscompletedinsl++;
+		}
+		if (q->callscompleted == 1) {
+			q->talktime = newtalktime;
+		} else {
+			/* Calculate talktime using the same exponential average as holdtime code */
+			oldtalktime = q->talktime;
+			q->talktime = (((oldtalktime << 2) - oldtalktime) + newtalktime) >> 2;
+		}
+		ao2_unlock(q);
 	}
-	if (q->callscompleted == 1) {
-		q->talktime = newtalktime;
-	} else {
-		/* Calculate talktime using the same exponential average as holdtime code */
-		oldtalktime = q->talktime;
-		q->talktime = (((oldtalktime << 2) - oldtalktime) + newtalktime) >> 2;
-	}
-	ao2_unlock(q);
+
 	return 0;
 }
-
 /*! \brief Calculate the metric of each member in the outgoing callattempts
  *
  * A numeric metric is given to each member depending on the ring strategy used
