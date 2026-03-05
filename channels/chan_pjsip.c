@@ -68,6 +68,7 @@
 #include "asterisk/res_pjsip_session.h"
 #include "asterisk/stream.h"
 
+#include "pjmedia/sdp_neg.h"
 #include "pjsip/include/chan_pjsip.h"
 #include "pjsip/include/dialplan_functions.h"
 #include "pjsip/include/cli_functions.h"
@@ -95,6 +96,7 @@ static int chan_pjsip_digit_end(struct ast_channel *ast, char digit, unsigned in
 static int chan_pjsip_call(struct ast_channel *ast, const char *dest, int timeout);
 static int chan_pjsip_hangup(struct ast_channel *ast);
 static int chan_pjsip_answer(struct ast_channel *ast);
+static int chan_pjsip_answer_with_stream_topology(struct ast_channel *ast, struct ast_stream_topology *topology);
 static struct ast_frame *chan_pjsip_read_stream(struct ast_channel *ast);
 static int chan_pjsip_write(struct ast_channel *ast, struct ast_frame *f);
 static int chan_pjsip_write_stream(struct ast_channel *ast, int stream_num, struct ast_frame *f);
@@ -111,6 +113,7 @@ struct ast_channel_tech chan_pjsip_tech = {
 	.description = "PJSIP Channel Driver",
 	.requester = chan_pjsip_request,
 	.requester_with_stream_topology = chan_pjsip_request_with_stream_topology,
+	.answer_with_stream_topology = chan_pjsip_answer_with_stream_topology,
 	.send_text = chan_pjsip_sendtext,
 	.send_text_data = chan_pjsip_sendtext_data,
 	.send_digit_begin = chan_pjsip_digit_begin,
@@ -175,6 +178,23 @@ static struct ast_sip_session_supplement chan_pjsip_prack_supplement = {
 	.incoming_request = chan_pjsip_incoming_prack,
 };
 
+/* Forward declarations */
+struct indicate_data;
+static int indicate(void *data);
+static void indicate_data_destroy(void *obj);
+static struct indicate_data *indicate_data_alloc(struct ast_sip_session *session,
+	int condition, int response_code, const void *frame_data, size_t datalen);
+
+struct regen_sdp_data {
+	struct ast_sip_session *session;
+	struct ast_stream_topology *topology;
+	int is_offer;
+};
+
+static int regenerate_sdp(void *data);
+static struct regen_sdp_data *regen_sdp_data_alloc(struct ast_sip_session *session, struct ast_stream_topology *topology,
+												   int is_offer);
+
 /*! \brief Function called by RTP engine to get local audio RTP peer */
 static enum ast_rtp_glue_result chan_pjsip_get_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance **instance)
 {
@@ -196,10 +216,16 @@ static enum ast_rtp_glue_result chan_pjsip_get_rtp_peer(struct ast_channel *chan
 		return AST_RTP_GLUE_RESULT_FORBID;
 	}
 
+	/*
+	 * Forbid native RTP only when T.38 is actually in use or negotiating.
+	 */
 	datastore = ast_sip_session_get_datastore(channel->session, "t38");
 	if (datastore) {
+		enum ast_sip_session_t38state t38state = channel->session->t38state;
 		ao2_ref(datastore, -1);
-		return AST_RTP_GLUE_RESULT_FORBID;
+		if (t38state != T38_DISABLED) {
+			return AST_RTP_GLUE_RESULT_FORBID;
+		}
 	}
 
 	endpoint = channel->session->endpoint;
@@ -301,6 +327,8 @@ static int direct_media_mitigate_glare(struct ast_sip_session *session)
 
 	return 0;
 }
+
+static struct ast_datastore_info received_progress_info = { };
 
 /*! \brief Helper function to find the position for RTCP */
 static int rtp_find_rtcp_fd_position(struct ast_sip_session *session, struct ast_rtp_instance *rtp)
@@ -724,6 +752,97 @@ static int answer(void *data)
 		 */
 		SCOPE_EXIT_RTN_VALUE(-2, "pjproject failure\n");
 	}
+	SCOPE_EXIT_RTN_VALUE(0);
+}
+
+/*! \brief Function called by core when we should answer a PJSIP session */
+static int chan_pjsip_answer_with_stream_topology(struct ast_channel *ast, struct ast_stream_topology *topology)
+{
+	RAII_VAR(struct ast_str *, err_msg, ast_str_create(128), ast_free);
+	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(ast);
+	struct ast_stream_codec_negotiation_prefs *prefs;
+	struct ast_stream_topology *resolved_top;
+	struct regen_sdp_data *regen_data;
+	int is_offer;
+	int index;
+	SCOPE_ENTER(1, "%s\n", ast_channel_name(ast));
+
+	if (ast_channel_state(ast) == AST_STATE_UP) {
+		SCOPE_EXIT_RTN_VALUE(0, "Already up\n");
+		return 0;
+	}
+	if (!topology) {
+		/* No topology provided. Simply call chan_pjsip_answer. */
+		goto end;
+	}
+
+	is_offer = pjmedia_sdp_neg_get_state(channel->session->inv_session->neg) == PJMEDIA_SDP_NEG_STATE_LOCAL_OFFER;
+
+	prefs = is_offer ? &channel->session->endpoint->media.codec_prefs_outgoing_offer
+		: &channel->session->endpoint->media.codec_prefs_outgoing_answer;
+	resolved_top = ast_stream_topology_create_resolved(topology,
+		channel->session->pending_media_state->topology
+			? channel->session->pending_media_state->topology
+			: channel->session->endpoint->media.topology,
+		prefs,
+		&err_msg);
+	if (!resolved_top) {
+		SCOPE_EXIT_LOG_RTN_VALUE(-1, LOG_ERROR, "%s: Couldn't create resolved topology\n", ast_channel_name(ast));
+	}
+
+	/* Check if all of the streams in the topology contain capabilities. */
+	for (index = 0; index < ast_stream_topology_get_count(resolved_top); ++index) {
+		if (!ast_format_cap_empty(ast_stream_get_formats(ast_stream_topology_get_stream(resolved_top, index)))) {
+			/* Resolved stream capabilities exist - continue with next stream. */
+			continue;
+		}
+		/* This stream contains no capabilities. If transcoding is allowed, still answer the call.
+		 * If transcoding is forbidden, respond with 488. */
+		ast_stream_topology_free(resolved_top);
+
+		if (prefs->transcode == CODEC_NEGOTIATION_TRANSCODE_ALLOW) {
+			ast_log(LOG_DEBUG, "%s No common codecs between channels and transcoding allowed. Still answering call.\n",
+				ast_sip_session_get_name(channel->session));
+			goto end;
+		} else {
+			const int response_code = 488;
+			struct indicate_data *ind_data = indicate_data_alloc(channel->session, AST_CONTROL_HANGUP, response_code, NULL, 0);
+			if (!ind_data) {
+				SCOPE_EXIT_LOG_RTN_VALUE(-1, LOG_ERROR, "%s: Couldn't alloc indicate data\n", ast_channel_name(ast));
+			}
+
+			if (ast_sip_push_task(channel->session->serializer, indicate, ind_data)) {
+				ast_log(LOG_ERROR, "%s: Cannot send response code %d to endpoint %s. Could not queue task properly\n",
+						ast_channel_name(ast), response_code, ast_sorcery_object_get_id(channel->session->endpoint));
+				ao2_cleanup(ind_data);
+			}
+			SCOPE_EXIT_LOG_RTN_VALUE(-1, LOG_WARNING, "%s: No common codecs between channels and transcoding not allowed. Sending 488 response.\n",
+				ast_sip_session_get_name(channel->session));
+		}
+	}
+
+	if (!channel->session->pending_media_state->topology) {
+		ast_stream_topology_free(resolved_top); /* Can handle NULL */
+		ast_log(LOG_NOTICE, "No pending_media_state topology. Still answering call.\n");
+		goto end;
+	}
+
+	ast_channel_set_stream_topology(ast, resolved_top);
+	regen_data = regen_sdp_data_alloc(channel->session, resolved_top, is_offer);
+
+	if (!regen_data) {
+		ast_log(LOG_WARNING, "Failed to create resolved topology. Still answering call.\n");
+		goto end;
+	}
+
+	if (ast_sip_push_task(channel->session->serializer, regenerate_sdp, regen_data)) {
+		ast_log(LOG_WARNING, "Error regenerating SDP %s on channel %s\n", regen_data->is_offer ? "offer" : "answer", ast_channel_name(ast));
+		ao2_cleanup(regen_data);
+	}
+
+end:
+	chan_pjsip_answer(ast);
+
 	SCOPE_EXIT_RTN_VALUE(0);
 }
 
@@ -1621,6 +1740,7 @@ static struct info_dtmf_data *info_dtmf_data_alloc(struct ast_sip_session *sessi
 /*! \brief Function called by core to ask the channel to indicate some sort of condition */
 static int chan_pjsip_indicate(struct ast_channel *ast, int condition, const void *data, size_t datalen)
 {
+	RAII_VAR(struct ast_datastore *, datastore, NULL, ao2_cleanup);
 	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(ast);
 	struct ast_sip_session_media *media;
 	int response_code = 0;
@@ -1648,9 +1768,8 @@ static int chan_pjsip_indicate(struct ast_channel *ast, int condition, const voi
 	switch (condition) {
 	case AST_CONTROL_RINGING:
 		if (ast_channel_state(ast) == AST_STATE_RING) {
-			if (channel->session->endpoint->inband_progress ||
-				(channel->session->inv_session && channel->session->inv_session->neg &&
-				pjmedia_sdp_neg_get_state(channel->session->inv_session->neg) == PJMEDIA_SDP_NEG_STATE_DONE)) {
+			datastore = ast_sip_session_get_datastore(channel->session, "received_progress");
+			if (channel->session->endpoint->inband_progress || datastore) {
 				res = -1;
 				if (ast_sip_get_allow_sending_180_after_183()) {
 					response_code = 180;
@@ -1694,8 +1813,74 @@ static int chan_pjsip_indicate(struct ast_channel *ast, int condition, const voi
 		}
 		break;
 	case AST_CONTROL_PROGRESS:
+		datastore = ast_sip_session_get_datastore(channel->session, "received_progress");
+		if (!datastore) {
+			datastore = ast_sip_session_alloc_datastore(&received_progress_info, "received_progress");
+			if (datastore) {
+				ast_sip_session_add_datastore(channel->session, datastore);
+			}
+		}
 		if (ast_channel_state(ast) != AST_STATE_UP) {
 			response_code = 183;
+
+			if (data && pjmedia_sdp_neg_get_state(channel->session->inv_session->neg) != PJMEDIA_SDP_NEG_STATE_NULL
+				&& pjmedia_sdp_neg_get_state(channel->session->inv_session->neg) != PJMEDIA_SDP_NEG_STATE_DONE) {
+				RAII_VAR(struct ast_str *, err_msg, ast_str_create(128), ast_free);
+				struct ast_stream_codec_negotiation_prefs *prefs;
+				struct ast_stream_topology *resolved_top;
+				int index;
+				int common_codecs = 1;
+
+				topology = data;
+				prefs = pjmedia_sdp_neg_get_state(channel->session->inv_session->neg) == PJMEDIA_SDP_NEG_STATE_LOCAL_OFFER
+					? &channel->session->endpoint->media.codec_prefs_outgoing_offer
+					: &channel->session->endpoint->media.codec_prefs_outgoing_answer;
+
+				resolved_top = ast_stream_topology_create_resolved(
+					topology,
+					channel->session->pending_media_state->topology
+						? channel->session->pending_media_state->topology
+						: channel->session->endpoint->media.topology,
+					prefs,
+					&err_msg);
+
+				if (!resolved_top) {
+					break;
+				}
+
+				for (index = 0; index < ast_stream_topology_get_count(resolved_top); ++index) {
+					if (ast_format_cap_empty(ast_stream_get_formats(ast_stream_topology_get_stream(resolved_top, index)))) {
+						if (prefs->transcode != CODEC_NEGOTIATION_TRANSCODE_ALLOW) {
+							response_code = 488;
+							ast_log(LOG_WARNING, "%s: No common codecs between channels and transcoding not allowed. Sending 488 response.\n",
+								ast_sip_session_get_name(channel->session));
+						}
+						common_codecs = 0;
+						break;
+					}
+				}
+
+				if (common_codecs && resolved_top && channel->session->pending_media_state->topology) {
+					struct regen_sdp_data *regen_data;
+					int is_offer;
+					ast_channel_set_stream_topology(ast, resolved_top);
+
+					is_offer = pjmedia_sdp_neg_get_state(channel->session->inv_session->neg) == PJMEDIA_SDP_NEG_STATE_LOCAL_OFFER;
+					regen_data = regen_sdp_data_alloc(channel->session, resolved_top, is_offer);
+					if (!regen_data) {
+						res = -1;
+						break;
+					}
+					if (ast_sip_push_task(channel->session->serializer, regenerate_sdp, regen_data)) {
+						ast_log(LOG_WARNING, "Error regenerating SDP %s on channel %s\n", regen_data->is_offer ? "offer" : "answer", ast_channel_name(ast));
+						ao2_cleanup(regen_data);
+						res = -1;
+					}
+				} else {
+					ast_log(LOG_NOTICE, "Progress: Cannot use resolved topology.\n");
+					ast_stream_topology_free(resolved_top);
+				}
+			}
 		} else {
 			res = -1;
 		}
@@ -1885,6 +2070,46 @@ static int chan_pjsip_indicate(struct ast_channel *ast, int condition, const voi
 	}
 
 	SCOPE_EXIT_RTN_VALUE(res, "%s\n", ast_channel_name(ast));
+}
+
+static void regen_sdp_data_destroy(void *obj)
+{
+	struct regen_sdp_data *regen_data = obj;
+	ao2_ref(regen_data->session, -1);
+	ao2_ref(regen_data->topology, -1);
+}
+
+static struct regen_sdp_data *regen_sdp_data_alloc(struct ast_sip_session *session, struct ast_stream_topology *topology,
+												   int is_offer)
+{
+	struct regen_sdp_data *regen_data = ao2_alloc(sizeof(*regen_data), regen_sdp_data_destroy);
+	if (!regen_data) {
+		return NULL;
+	}
+	ao2_ref(session, +1);
+	regen_data->session = session;
+	regen_data->topology = ast_stream_topology_clone(topology);
+	regen_data->is_offer = is_offer;
+	return regen_data;
+}
+
+static int regenerate_sdp(void *data)
+{
+	RAII_VAR(struct regen_sdp_data *, regen_data, data, ao2_cleanup);
+
+	struct ast_sip_session *session = regen_data->session;
+
+	ast_stream_topology_free(session->pending_media_state->topology);
+	ao2_ref(regen_data->topology, +1);
+	session->pending_media_state->topology = regen_data->topology;
+
+	if (regen_data->is_offer) {
+		ast_sip_session_regenerate_offer(session, NULL);
+	} else {
+		ast_sip_session_regenerate_answer(session, NULL);
+	}
+
+	return 0;
 }
 
 struct transfer_data {
@@ -2626,6 +2851,7 @@ struct request_data {
 
 static int request(void *obj)
 {
+	RAII_VAR(struct ast_stream_topology *, resolved_top, NULL, ao2_cleanup);
 	struct request_data *req_data = obj;
 	struct ast_sip_session *session = NULL;
 	char *tmp = ast_strdupa(req_data->dest), *endpoint_name = NULL, *request_user = NULL;
@@ -2717,8 +2943,20 @@ static int request(void *obj)
 		}
 	}
 
+	resolved_top = ast_stream_topology_create_resolved(
+		req_data->topology,
+		endpoint->media.topology,
+		&endpoint->media.codec_prefs_outgoing_offer,
+		NULL);
+
+	if (!resolved_top) {
+		ast_log(LOG_ERROR, "Failed to create resolved topology '%s'\n", endpoint_name);
+		req_data->cause = AST_CAUSE_FAILURE;
+		SCOPE_EXIT_RTN_VALUE(-1, "Couldn't create resolved topology\n");
+	}
+
 	session = ast_sip_session_create_outgoing(endpoint, NULL, args.aor, request_user,
-		req_data->topology);
+		resolved_top);
 	ao2_ref(endpoint, -1);
 	if (!session) {
 		ast_log(LOG_ERROR, "Failed to create outgoing session to endpoint '%s'\n", endpoint_name);
