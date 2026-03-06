@@ -2704,14 +2704,36 @@ char *ast_rtp_instance_get_quality(struct ast_rtp_instance *instance, enum ast_r
 	return buf;
 }
 
+#define SET_STATS_VAR_HELPER(var_prefix, field) \
+({ \
+	value = ast_rtp_instance_get_quality(instance, field, quality_buf, sizeof(quality_buf)); \
+	if (value) { \
+		if (!chanvars || ast_strlen_zero(ast_var_find(chanvars, var_prefix))) { \
+			pbx_builtin_setvar_helper(chan, var_prefix, value); \
+			chanchanges++; \
+		} \
+		if (bridge) { \
+			if (!bridgevars || ast_strlen_zero(ast_var_find(bridgevars, var_prefix "BRIDGED"))) { \
+				pbx_builtin_setvar_helper(bridge, var_prefix "BRIDGED", value); \
+				bridgechanges++; \
+			} \
+		} \
+	} \
+})
+
 void ast_rtp_instance_set_stats_vars(struct ast_channel *chan, struct ast_rtp_instance *instance)
 {
 	char quality_buf[AST_MAX_USER_FIELD];
-	char *quality;
+	char *value;
 	struct ast_channel *bridge;
+	struct varshead *chanvars = ast_channel_varshead(chan);
+	struct varshead *bridgevars = NULL;
+	int chanchanges = 0;
+	int bridgechanges = 0;
 
 	bridge = ast_channel_bridge_peer(chan);
 	if (bridge) {
+		bridgevars = ast_channel_varshead(bridge);
 		ast_channel_lock_both(chan, bridge);
 		ast_channel_stage_snapshot(bridge);
 	} else {
@@ -2719,55 +2741,28 @@ void ast_rtp_instance_set_stats_vars(struct ast_channel *chan, struct ast_rtp_in
 	}
 	ast_channel_stage_snapshot(chan);
 
-	quality = ast_rtp_instance_get_quality(instance, AST_RTP_INSTANCE_STAT_FIELD_QUALITY,
-		quality_buf, sizeof(quality_buf));
-	if (quality) {
-		pbx_builtin_setvar_helper(chan, "RTPAUDIOQOS", quality);
-		if (bridge) {
-			pbx_builtin_setvar_helper(bridge, "RTPAUDIOQOSBRIDGED", quality);
-		}
-	}
+	SET_STATS_VAR_HELPER("RTPAUDIOQOS", AST_RTP_INSTANCE_STAT_FIELD_QUALITY);
 
-	quality = ast_rtp_instance_get_quality(instance,
-		AST_RTP_INSTANCE_STAT_FIELD_QUALITY_JITTER, quality_buf, sizeof(quality_buf));
-	if (quality) {
-		pbx_builtin_setvar_helper(chan, "RTPAUDIOQOSJITTER", quality);
-		if (bridge) {
-			pbx_builtin_setvar_helper(bridge, "RTPAUDIOQOSJITTERBRIDGED", quality);
-		}
-	}
+	SET_STATS_VAR_HELPER("RTPAUDIOQOSJITTER", AST_RTP_INSTANCE_STAT_FIELD_QUALITY_JITTER);
 
-	quality = ast_rtp_instance_get_quality(instance,
-		AST_RTP_INSTANCE_STAT_FIELD_QUALITY_LOSS, quality_buf, sizeof(quality_buf));
-	if (quality) {
-		pbx_builtin_setvar_helper(chan, "RTPAUDIOQOSLOSS", quality);
-		if (bridge) {
-			pbx_builtin_setvar_helper(bridge, "RTPAUDIOQOSLOSSBRIDGED", quality);
-		}
-	}
+	SET_STATS_VAR_HELPER("RTPAUDIOQOSLOSS", AST_RTP_INSTANCE_STAT_FIELD_QUALITY_LOSS);
 
-	quality = ast_rtp_instance_get_quality(instance,
-		AST_RTP_INSTANCE_STAT_FIELD_QUALITY_RTT, quality_buf, sizeof(quality_buf));
-	if (quality) {
-		pbx_builtin_setvar_helper(chan, "RTPAUDIOQOSRTT", quality);
-		if (bridge) {
-			pbx_builtin_setvar_helper(bridge, "RTPAUDIOQOSRTTBRIDGED", quality);
-		}
-	}
+	SET_STATS_VAR_HELPER("RTPAUDIOQOSRTT", AST_RTP_INSTANCE_STAT_FIELD_QUALITY_RTT);
 
-	quality = ast_rtp_instance_get_quality(instance,
-		AST_RTP_INSTANCE_STAT_FIELD_QUALITY_MES, quality_buf, sizeof(quality_buf));
-	if (quality) {
-		pbx_builtin_setvar_helper(chan, "RTPAUDIOQOSMES", quality);
-		if (bridge) {
-			pbx_builtin_setvar_helper(bridge, "RTPAUDIOQOSMESBRIDGED", quality);
-		}
-	}
+	SET_STATS_VAR_HELPER("RTPAUDIOQOSMES", AST_RTP_INSTANCE_STAT_FIELD_QUALITY_MES);
 
-	ast_channel_stage_snapshot_done(chan);
+	if (chanchanges) {
+		ast_channel_stage_snapshot_done(chan);
+	} else {
+		ast_clear_flag(ast_channel_flags(chan), AST_FLAG_SNAPSHOT_STAGE);
+	}
 	ast_channel_unlock(chan);
 	if (bridge) {
-		ast_channel_stage_snapshot_done(bridge);
+		if (bridgechanges) {
+			ast_channel_stage_snapshot_done(bridge);
+		} else {
+			ast_clear_flag(ast_channel_flags(bridge), AST_FLAG_SNAPSHOT_STAGE);
+		}
 		ast_channel_unlock(bridge);
 		ast_channel_unref(bridge);
 	}
