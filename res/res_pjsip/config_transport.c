@@ -1045,6 +1045,7 @@ static int transport_tls_file_handler(const struct aco_option *opt, struct ast_v
 	if (!ast_file_is_readable(var->value)) {
 		ast_log(LOG_ERROR, "Transport: %s: %s %s is either missing or not readable\n",
 			ast_sorcery_object_get_id(obj), var->name, var->value);
+		remove_temporary_state();
 		return -1;
 	}
 
@@ -1066,6 +1067,7 @@ static int transport_tls_file_handler(const struct aco_option *opt, struct ast_v
 		if (stat(var->value, &state->cert_file_stat)) {
 			ast_log(LOG_ERROR, "Failed to stat certificate file '%s' for transport '%s' due to '%s'\n",
 				var->value, ast_sorcery_object_get_id(obj), strerror(errno));
+			remove_temporary_state();
 			return -1;
 		}
 		ast_sorcery_object_set_has_dynamic_contents(transport);
@@ -1077,6 +1079,7 @@ static int transport_tls_file_handler(const struct aco_option *opt, struct ast_v
 		if (stat(var->value, &state->privkey_file_stat)) {
 			ast_log(LOG_ERROR, "Failed to stat private key file '%s' for transport '%s' due to '%s'\n",
 				var->value, ast_sorcery_object_get_id(obj), strerror(errno));
+			remove_temporary_state();
 			return -1;
 		}
 		ast_sorcery_object_set_has_dynamic_contents(transport);
@@ -1146,6 +1149,7 @@ static int transport_protocol_handler(const struct aco_option *opt, struct ast_v
 		} else if (!strcasecmp(var->value, "wss")) {
 			transport->type = AST_TRANSPORT_WSS;
 		} else {
+			remove_temporary_state();
 			return -1;
 		}
 		transport->flow = 0;
@@ -1190,7 +1194,9 @@ static int transport_bind_handler(const struct aco_option *opt, struct ast_varia
 	}
 
 	rc = pj_sockaddr_parse(pj_AF_UNSPEC(), 0, pj_cstr(&buf, var->value), &state->host);
-
+	if (rc != PJ_SUCCESS) {
+		remove_temporary_state();
+	}
 	return rc != PJ_SUCCESS ? -1 : 0;
 }
 
@@ -1232,6 +1238,7 @@ static int transport_tls_bool_handler(const struct aco_option *opt, struct ast_v
 	} else if (!strcasecmp(var->name, "allow_wildcard_certs")) {
 		state->allow_wildcard_certs = ast_true(var->value);
 	} else {
+		remove_temporary_state();
 		return -1;
 	}
 
@@ -1329,6 +1336,7 @@ static int transport_tls_method_handler(const struct aco_option *opt, struct ast
 	} else if (!strcasecmp(var->value, "sslv23")) {
 		state->tls.method = PJSIP_SSLV23_METHOD;
 	} else {
+		remove_temporary_state();
 		return -1;
 	}
 
@@ -1460,6 +1468,10 @@ static int transport_tls_cipher_handler(const struct aco_option *opt, struct ast
 		}
 		res |= transport_cipher_add(state, name);
 	}
+
+	if (res) {
+		remove_temporary_state();
+	}
 	return res ? -1 : 0;
 }
 #endif
@@ -1556,6 +1568,7 @@ static int transport_localnet_handler(const struct aco_option *opt, struct ast_v
 	/* We use only the ast_apply_ha() which defaults to ALLOW
 	 * ("permit"), so we add DENY rules. */
 	if (!(state->localnet = ast_append_ha("deny", var->value, state->localnet, &error))) {
+		remove_temporary_state();
 		return -1;
 	}
 
@@ -1619,6 +1632,7 @@ static int transport_tos_handler(const struct aco_option *opt, struct ast_variab
 		ast_log(LOG_ERROR, "Error configuring transport '%s' - Could not "
 			"interpret 'tos' value '%s'\n",
 			ast_sorcery_object_get_id(transport), var->value);
+		remove_temporary_state();
 		return -1;
 	}
 
