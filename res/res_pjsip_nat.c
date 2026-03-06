@@ -324,10 +324,20 @@ static pj_status_t process_nat(pjsip_tx_data *tdata)
 	struct ast_sockaddr addr = { { 0, } };
 	pjsip_sip_uri *uri = NULL;
 	RAII_VAR(struct ao2_container *, hooks, NULL, ao2_cleanup);
+	const char *transport_type_name = "unknown";
 
 	if (ast_sip_set_request_transport_details(&details, tdata, 0)) {
+		ast_debug(4, "Unable to process message for transport type '%s'\n", transport_type_name);
 		return PJ_SUCCESS;
 	}
+
+	if (details.transport) {
+		transport_type_name = details.transport->type_name;
+	} else if (details.factory) {
+		transport_type_name = details.factory->type_name;
+	}
+
+	ast_debug(4, "Processing outgoing message for transport type '%s'\n", transport_type_name);
 
 	uri = ast_sip_get_contact_sip_uri(tdata);
 	via = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_VIA, NULL);
@@ -336,9 +346,18 @@ static pj_status_t process_nat(pjsip_tx_data *tdata)
 		return PJ_SUCCESS;
 	}
 
+	ast_debug(4, "Found transport state '%s' for type '%s'\n", transport_state->id,
+		transport_type_name);
+
 	if (!(transport = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "transport", transport_state->id))) {
+		ast_debug(4, "Unable to find transport for transport state '%s' type '%s'\n", transport_state->id,
+			transport_type_name);
 		return PJ_SUCCESS;
 	}
+
+	ast_debug(4, "Found transport '%s' for transport state '%s' type '%s'\n",
+		ast_sorcery_object_get_id(transport),
+		transport_state->id, transport_type_name);
 
 	if (transport_state->localnet) {
 		ast_sockaddr_parse(&addr, tdata->tp_info.dst_name, PARSE_PORT_FORBID);
@@ -346,7 +365,7 @@ static pj_status_t process_nat(pjsip_tx_data *tdata)
 
 		/* See if where we are sending this request is local or not, and if not that we can get a Contact URI to modify */
 		if (ast_sip_transport_is_local(transport_state, &addr)) {
-			ast_debug(5, "Request is being sent to local address, skipping NAT manipulation\n");
+			ast_debug(4, "Request is being sent to local address, skipping NAT manipulation\n");
 			return PJ_SUCCESS;
 		}
 	}
