@@ -75,6 +75,7 @@
 #include "asterisk/max_forwards.h"
 #include "asterisk/stream.h"
 #include "asterisk/message.h"
+#include "asterisk/rtp_engine.h"
 
 #include "channelstorage.h"
 
@@ -2461,8 +2462,21 @@ int ast_softhangup(struct ast_channel *chan, int cause)
 	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
 	int res;
 	int tech_cause = 0;
+	struct ast_rtp_glue *glue;
+	RAII_VAR(struct ast_rtp_instance *, rtp, NULL, ao2_cleanup);
+	const struct ast_channel_tech *tech;
 
 	ast_channel_lock(chan);
+
+	tech = ast_channel_tech(chan);
+	glue = ast_rtp_instance_get_glue(tech->type);
+	if (glue) {
+		glue->get_rtp_info(chan, &rtp);
+		if (rtp) {
+			ast_rtp_instance_set_stats_vars(chan, rtp);
+		}
+	}
+
 	res = ast_softhangup_nolock(chan, cause);
 	blob = ast_json_pack("{s: i, s: b}",
 			     "cause", cause,
