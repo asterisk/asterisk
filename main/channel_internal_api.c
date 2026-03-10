@@ -1139,6 +1139,11 @@ static int collect_names_cb(void *obj, void *arg, int flags)
 	return 0;
 }
 
+struct ao2_iterator ast_channel_dialed_causes_iterator(const struct ast_channel *chan)
+{
+	return ao2_iterator_init(chan->dialed_causes, 0);
+}
+
 struct ast_str *ast_channel_dialed_causes_channels(const struct ast_channel *chan)
 {
 	struct ast_str *chanlist = ast_str_create(128);
