@@ -364,6 +364,31 @@ struct ast_sip_session_supplement {
 	 * Defaults to AST_SIP_SESSION_BEFORE_MEDIA
 	 */
 	enum ast_sip_session_response_priority response_priority;
+	/*!
+	 * \brief Called before an outgoing session is created
+	 *
+	 * This is called before the session dialog is created and can be used to
+	 * block the creation of the session entirely.  A non-zero return value
+	 * prevents the session from being created.  The callback is called from
+	 * the global supplement list, not per-session, so the session does not
+	 * yet exist when this is called.
+	 *
+	 * \since 20.19.0
+	 * \since 22.9.0
+	 * \since 23.3.0
+	 *
+	 * \param endpoint The endpoint the outgoing session would be created for
+	 * \param contact The contact to use for the outgoing session, or NULL
+	 * \param location Name of the location to call, be it named location or explicit URI, or NULL
+	 * \param request_user Optional request user to place in the request URI, or NULL
+	 * \param req_topology The requested stream capabilities
+	 *
+	 * \retval non-zero Block session creation
+	 * \retval 0 Allow session creation
+	 */
+	int (*session_create)(struct ast_sip_endpoint *endpoint,
+		struct ast_sip_contact *contact, const char *location,
+		const char *request_user, struct ast_stream_topology *req_topology);
 };
 
 enum ast_sip_session_sdp_stream_defer {
@@ -624,6 +649,33 @@ void ast_sip_session_register_supplement_with_module(struct ast_module *module, 
  * \param supplement The supplement to unregister
  */
 void ast_sip_session_unregister_supplement(struct ast_sip_session_supplement *supplement);
+
+/*!
+ * \brief Check registered supplements for permission to create an outgoing session
+ *
+ * Iterates the global supplement list and calls any registered \c session_create
+ * callbacks.  The first callback to return a non-zero value stops the iteration
+ * and causes this function to return -1, blocking the session creation.
+ *
+ * This is called at the beginning of ast_sip_session_create_outgoing() before
+ * any dialog or invite session resources are allocated.
+ *
+ * \since 20.19.0
+ * \since 22.9.0
+ * \since 23.3.0
+ *
+ * \param endpoint The endpoint the outgoing session would be created for
+ * \param contact The contact to use for the outgoing session, or NULL
+ * \param location Name of the location to call, be it named location or explicit URI, or NULL
+ * \param request_user Optional request user to place in the request URI, or NULL
+ * \param req_topology The requested stream capabilities
+ *
+ * \retval 0 Session creation is allowed
+ * \retval -1 Session creation is blocked by a supplement
+ */
+int ast_sip_session_check_supplement_create(struct ast_sip_endpoint *endpoint,
+	struct ast_sip_contact *contact, const char *location,
+	const char *request_user, struct ast_stream_topology *req_topology);
 
 /*!
  * \brief Add supplements to a SIP session
