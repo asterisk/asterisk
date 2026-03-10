@@ -3521,8 +3521,9 @@ float ast_sip_parse_qvalue(const char *q_value) {
 const int ast_sip_hangup_sip2cause(int cause)
 {
 	/* Possible values taken from causes.h */
-
 	switch(cause) {
+	case 302:       /* Redirect */
+		return AST_CAUSE_REDIRECTED_TO_NEW_DESTINATION;
 	case 401:       /* Unauthorized */
 		return AST_CAUSE_CALL_REJECTED;
 	case 403:       /* Not found */
