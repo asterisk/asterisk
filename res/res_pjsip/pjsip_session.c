@@ -108,6 +108,23 @@ int ast_sip_session_add_supplements(struct ast_sip_session *session)
 	return 0;
 }
 
+int ast_sip_session_check_supplement_create(struct ast_sip_endpoint *endpoint,
+	struct ast_sip_contact *contact, const char *location,
+	const char *request_user, struct ast_stream_topology *req_topology)
+{
+	struct ast_sip_session_supplement *iter;
+	SCOPED_LOCK(lock, &session_supplements, AST_RWLIST_RDLOCK, AST_RWLIST_UNLOCK);
+
+	AST_RWLIST_TRAVERSE(&session_supplements, iter, next) {
+		if (iter->session_create && iter->session_create(endpoint, contact, location,
+				request_user, req_topology)) {
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
 void ast_sip_session_remove_supplements(struct ast_sip_session *session)
 {
 	struct ast_sip_session_supplement *iter;
