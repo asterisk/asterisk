@@ -2453,6 +2453,8 @@ static int chan_pjsip_call(struct ast_channel *ast, const char *dest, int timeou
 static int hangup_cause2sip(int cause)
 {
 	switch (cause) {
+	case AST_CAUSE_REDIRECTED_TO_NEW_DESTINATION:	/* 23 */
+		return 302;
 	case AST_CAUSE_UNALLOCATED:             /* 1 */
 	case AST_CAUSE_NO_ROUTE_DESTINATION:    /* 3 IAX2: Can't find extension in context */
 	case AST_CAUSE_NO_ROUTE_TRANSIT_NET:    /* 2 */
@@ -2949,12 +2951,20 @@ static void chan_pjsip_session_begin(struct ast_sip_session *session)
 /*! \brief Function called when the session ends */
 static void chan_pjsip_session_end(struct ast_sip_session *session)
 {
+	int existing_cause = 0;
+	int existing_tech_cause = 0;
+	int new_cause = 0;
+	int new_tech_cause = 0;
 	SCOPE_ENTER(1, "%s\n", ast_sip_session_get_name(session));
+
+	if (session->inv_session) {
+		ast_trace(-1, "%s: inv_session->cause: %d\n", ast_sip_session_get_name(session),
+			session->inv_session->cause);
+	}
 
 	if (!session->channel) {
 		SCOPE_EXIT_RTN("%s: No channel\n", ast_sip_session_get_name(session));
 	}
-
 
 	if (session->active_media_state &&
 		session->active_media_state->default_session[AST_MEDIA_TYPE_AUDIO]) {
@@ -2966,35 +2976,113 @@ static void chan_pjsip_session_end(struct ast_sip_session *session)
 	}
 
 	chan_pjsip_remove_hold(ast_channel_uniqueid(session->channel));
-
 	ast_set_hangupsource(session->channel, ast_channel_name(session->channel), 0);
 
-	ast_trace(-1, "%s: channel cause: %d\n", ast_sip_session_get_name(session),
-		ast_channel_hangupcause(session->channel));
+	existing_cause = ast_channel_hangupcause(session->channel);
+	new_cause = existing_cause;
+	existing_tech_cause = ast_channel_tech_hangupcause(session->channel);
+	new_tech_cause = existing_tech_cause;
+
+	ast_trace(-1, "%s: existing ast_cause: %d  tech_cause: %d\n", ast_sip_session_get_name(session),
+		existing_cause, existing_tech_cause);
 
 	if (session->inv_session) {
+		struct ao2_iterator dialed_causes_iterator = ast_channel_dialed_causes_iterator(session->channel);
+		struct ast_control_pvt_cause_code *pvt_cause;
+		int tech_cause = 0;
+
 		/*
-		 * tech_hangupcause should only be set if off-nominal.
+		 * The dialed causes represent the results of each channel dialed but we are only
+		 * interested in the cause codes for _this_ channel. For example, in a redirect
+		 * scenario, if this channel is the redirecting channel (it responded with a 302),
+		 * then chan_pjsip_incoming_response_update_cause() will have been called with the
+		 * 302 and it would have been added to the dialed causes for this channel.  When this
+		 * session ends however, the inv_session->cause will probably be something like
+		 * "487 Request terminated" which is just a generic "the session ended" code and
+		 * not really informative.
+		 *
+		 * We'll iterate over the dialed causes to find the one for this channel and if we
+		 * find one with a non-2xx SIP response code, we'll use that cause code for the
+		 * channel hangup cause instead of the generic 487 cause code that results from
+		 * the session termination.
 		 */
-		if (session->inv_session->cause / 100 > 2) {
-			ast_trace(-1, "%s: inv_session cause: %d\n", ast_sip_session_get_name(session),
-				session->inv_session->cause);
-			ast_channel_tech_hangupcause_set(session->channel, session->inv_session->cause);
-		} else {
-			ast_trace(-1, "%s: inv_session cause: %d suppressed\n", ast_sip_session_get_name(session),
-				session->inv_session->cause);
+		while ((pvt_cause = ao2_iterator_next(&dialed_causes_iterator))) {
+			if (ast_strings_equal(pvt_cause->chan_name, ast_channel_name(session->channel))) {
+				/*
+				 * The "SIP <code> <reason>" format for pvt_cause->code is set in
+				 * chan_pjsip_incoming_response_update_cause but only for PJSIP channels.
+				 * However, since we've just checked that the chan_name matches our channel,
+				 * we can be confident that this format is correct and attempt to parse out the
+				 * tech cause from it. If for some reason it doesn't match this format,
+				 * we'll just log a trace/debug and skip using this cause code.
+				 */
+				int count = sscanf(pvt_cause->code, "SIP %d ", &tech_cause);
+				if (count != 1) {
+					ast_trace(-1, "%s: Unable to parse tech_cause from code '%s'\n",
+						ast_sip_session_get_name(session), pvt_cause->code);
+					continue;
+				}
+				/* We only want to use non-2XX SIP response codes */
+				if (tech_cause / 100 > 2) {
+					new_tech_cause = tech_cause;
+					new_cause = pvt_cause->ast_cause;
+					ast_trace(-1, "%s: %s dialed ast_cause: %d tech_cause: %d used\n", ast_sip_session_get_name(session),
+						pvt_cause->chan_name, new_cause, new_tech_cause);
+				} else {
+					ast_trace(-1, "%s: %s dialed ast_cause: %d tech_cause: %s. Skipped 2XX code.\n",
+						ast_sip_session_get_name(session), pvt_cause->chan_name,
+						pvt_cause->ast_cause, pvt_cause->code);
+				}
+			} else {
+				ast_trace(-1, "%s: %s dialed ast_cause: %d tech_cause: %s. Skipped other channel.\n",
+					ast_sip_session_get_name(session), pvt_cause->chan_name,
+					pvt_cause->ast_cause, pvt_cause->code);
+			}
+			ao2_cleanup(pvt_cause);
+		}
+		ao2_iterator_destroy(&dialed_causes_iterator);
+
+		/*
+		 * We have a chicken and egg thing going here.  We can derive the tech_cause
+		 * from the ast cause but we can also derive the ast cause from the tech cause.
+		 */
+
+		/* We only want to use non 2XX response codes for tech cause. */
+		if (new_tech_cause == 0 && session->inv_session->cause / 100 > 2) {
+			new_tech_cause = session->inv_session->cause;
+			ast_trace(-1, "%s: Using tech_cause %d from invite session\n",
+				ast_sip_session_get_name(session), session->inv_session->cause);
+		}
+
+		if (new_cause == 0 && new_tech_cause > 0) {
+			new_cause = ast_sip_hangup_sip2cause(new_tech_cause);
+			ast_trace(-1, "%s: Using ast_cause %d derived from tech_cause %d\n",
+				ast_sip_session_get_name(session), new_cause, new_tech_cause);
+		}
+
+		if (new_cause != existing_cause) {
+			ast_trace(-1, "%s: Setting ast_cause %d\n",
+				ast_sip_session_get_name(session), new_cause);
+			ast_channel_hangupcause_set(session->channel, new_cause);
+		}
+
+		if (new_tech_cause == 0) {
+			new_tech_cause = hangup_cause2sip(new_cause);
+			ast_trace(-1, "%s: Using tech_cause cause %d derived from ast_cause %d\n",
+				ast_sip_session_get_name(session), new_tech_cause, new_cause);
+		}
+
+		if (new_tech_cause != existing_tech_cause && new_tech_cause / 100 > 2) {
+			ast_trace(-1, "%s: Setting tech_cause %d\n",
+				ast_sip_session_get_name(session), new_tech_cause);
+			ast_channel_tech_hangupcause_set(session->channel, new_tech_cause);
 		}
 	}
 
-	if (!ast_channel_hangupcause(session->channel) && session->inv_session) {
-		int cause = ast_sip_hangup_sip2cause(session->inv_session->cause);
+	ast_queue_hangup(session->channel);
 
-		ast_queue_hangup_with_cause(session->channel, cause);
-	} else {
-		ast_queue_hangup(session->channel);
-	}
-
-	SCOPE_EXIT_RTN("%s\n", ast_sip_session_get_name(session));
+	SCOPE_EXIT_RTN("%s: ast_cause: %d  tech_cause: %d\n", ast_sip_session_get_name(session),
+		new_cause, new_tech_cause);
 }
 
 static void set_sipdomain_variable(struct ast_sip_session *session)
@@ -3178,6 +3266,13 @@ static void chan_pjsip_incoming_response_update_cause(struct ast_sip_session *se
 
 	ast_copy_string(cause_code->chan_name, ast_channel_name(session->channel), AST_CHANNEL_NAME);
 
+	/*
+	 * The cause code string is built in the format "SIP <status code> <reason phrase>".
+	 * Unfortunately, the ast_control_pvt_cause_code structure doesn't have a separate
+	 * field for the numeric code and adding it would break ABI so we'll have to parse
+	 * this string in chan_pjsip_session_end() later.  If the string needs to be
+	 * changed, make sure the parsing in chan_pjsip_session_end() is adjusted as well.
+	 */
 	snprintf(cause_code->code, data_size - sizeof(*cause_code) + 1, "SIP %d %.*s", status.code,
 	(int) pj_strlen(&status.reason), pj_strbuf(&status.reason));
 
@@ -3185,7 +3280,8 @@ static void chan_pjsip_incoming_response_update_cause(struct ast_sip_session *se
 	ast_queue_control_data(session->channel, AST_CONTROL_PVT_CAUSE_CODE, cause_code, data_size);
 	ast_channel_hangupcause_hash_set(session->channel, cause_code, data_size);
 
-	SCOPE_EXIT_RTN("%s\n", ast_sip_session_get_name(session));
+	SCOPE_EXIT_RTN("%s: ast_cause: %d tech_cause: %s\n", ast_sip_session_get_name(session),
+		cause_code->ast_cause, cause_code->code);
 }
 
 /*! \brief Function called when a response is received on the session */
