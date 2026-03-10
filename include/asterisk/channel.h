@@ -4535,6 +4535,26 @@ void ast_channel_internal_bridged_channel_set(struct ast_channel *chan, struct a
 struct ast_str *ast_channel_dialed_causes_channels(const struct ast_channel *chan);
 
 /*!
+ * \since 20.19.0
+ * \since 22.9.0
+ * \since 23.3.0
+ * \brief Retrieve an iterator for dialed cause information
+ *
+ * \details
+ * Each call to ao2_iterator_next() will return a pointer to an ast_control_pvt_cause_code
+ * structure containing the dialed cause information for one channel.  One of the entries
+ * may be for the channel itself if the channel was hung up because of a non-2XX SIP
+ * response code. The rest of the entries will be for channels bridged to the channel for
+ * which dialed cause information is being retrieved.  The caller is responsible for
+ * cleaning up the reference count of each entry returned and destroying the returned
+ * iterator with ao2_iterator_destroy() when it is finished with it.
+ *
+ * \param chan The channel from which to retrieve cause information
+ * \retval ao2_iterator
+ */
+struct ao2_iterator ast_channel_dialed_causes_iterator(const struct ast_channel *chan);
+
+/*!
  * \since 11
  * \brief Retrieve a ref-counted cause code information structure
  *
