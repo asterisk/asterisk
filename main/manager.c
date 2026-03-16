@@ -9192,21 +9192,32 @@ static char *handle_manager_show_settings(struct ast_cli_entry *e, int cmd, stru
 
 #ifdef AST_XML_DOCS
 
-static int ast_xml_doc_item_cmp_fn(const void *a, const void *b)
+/* Sort function for ast_xml_doc_item by name field */
+AO2_STRING_FIELD_SORT_FN(ast_xml_doc_item, name);
+
+static int event_max_name_len_cb(void *obj, void *arg, void *data, int flags)
 {
-	struct ast_xml_doc_item **item_a = (struct ast_xml_doc_item **)a;
-	struct ast_xml_doc_item **item_b = (struct ast_xml_doc_item **)b;
-	return strcmp((*item_a)->name, (*item_b)->name);
+	struct ast_xml_doc_item *item = obj;
+	int *max_len = data;
+	int len = strlen(item->name);
+
+	if (len > *max_len) {
+		*max_len = len;
+	}
+
+	return 0;
 }
 
 static char *handle_manager_show_events(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct ao2_container *events;
-	struct ao2_iterator *it_events;
+	struct ao2_container *sorted_events;
+	struct ao2_iterator it_events;
 	struct ast_xml_doc_item *item;
-	struct ast_xml_doc_item **items;
 	struct ast_str *buffer;
-	int i = 0, totalitems = 0;
+	int col = 0;
+	int maxlen = 0;
+	const char *dashes = "--------------------------------------------------------------------------------";
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -9235,46 +9246,42 @@ static char *handle_manager_show_events(struct ast_cli_entry *e, int cmd, struct
 	}
 
 	ao2_lock(events);
-	if (!(it_events = ao2_callback(events, OBJ_MULTIPLE | OBJ_NOLOCK, NULL, NULL))) {
+	sorted_events = ao2_container_alloc_rbtree(AO2_ALLOC_OPT_LOCK_NOLOCK,
+		AO2_CONTAINER_ALLOC_OPT_DUPS_REPLACE,
+		ast_xml_doc_item_sort_fn, NULL);
+	if (!sorted_events) {
 		ao2_unlock(events);
-		ast_log(AST_LOG_ERROR, "Unable to create iterator for events container\n");
+		ast_log(AST_LOG_ERROR, "Unable to create sorted container for events\n");
 		ast_free(buffer);
 		ao2_ref(events, -1);
 		return CLI_SUCCESS;
 	}
-	if (!(items = ast_calloc(sizeof(struct ast_xml_doc_item *), ao2_container_count(events)))) {
-		ao2_unlock(events);
-		ast_log(AST_LOG_ERROR, "Unable to create temporary sorting array for events\n");
-		ao2_iterator_destroy(it_events);
-		ast_free(buffer);
-		ao2_ref(events, -1);
-		return CLI_SUCCESS;
-	}
+	ao2_container_dup(sorted_events, events, 0);
 	ao2_unlock(events);
+	ao2_ref(events, -1);
 
-	while ((item = ao2_iterator_next(it_events))) {
-		items[totalitems++] = item;
-		ao2_ref(item, -1);
-	}
-
-	qsort(items, totalitems, sizeof(struct ast_xml_doc_item *), ast_xml_doc_item_cmp_fn);
+	ao2_callback_data(sorted_events, OBJ_NODATA, event_max_name_len_cb, NULL, &maxlen);
+	it_events = ao2_iterator_init(sorted_events, AO2_ITERATOR_DONTLOCK);
 
 	ast_cli(a->fd, "Events:\n");
-	ast_cli(a->fd, "  --------------------  --------------------  --------------------  \n");
-	for (i = 0; i < totalitems; i++) {
-		ast_str_append(&buffer, 0, "  %-20.20s", items[i]->name);
-		if ((i + 1) % 3 == 0) {
+	ast_cli(a->fd, "  %.*s  %.*s  %.*s  \n", maxlen, dashes, maxlen, dashes, maxlen, dashes);
+
+	while ((item = ao2_iterator_next(&it_events))) {
+		ast_str_append(&buffer, 0, "  %-*s", maxlen, item->name);
+		if (++col % 3 == 0) {
 			ast_cli(a->fd, "%s\n", ast_str_buffer(buffer));
 			ast_str_set(&buffer, 0, "%s", "");
 		}
-	}
-	if ((i + 1) % 3 != 0) {
+		ao2_ref(item, -1);
+ 	}
+	ao2_iterator_destroy(&it_events);
+
+	if (col % 3 != 0) {
 		ast_cli(a->fd, "%s\n", ast_str_buffer(buffer));
 	}
+	ast_cli(a->fd, "\n%d events registered.\n", col);
 
-	ao2_iterator_destroy(it_events);
-	ast_free(items);
-	ao2_ref(events, -1);
+	ao2_ref(sorted_events, -1);
 	ast_free(buffer);
 
 	return CLI_SUCCESS;
