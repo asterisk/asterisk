@@ -1829,14 +1829,16 @@ char *ast_xmldoc_build_since(const char *type, const char *name, const char *mod
  */
 static char *_ast_xmldoc_build_provided_by(struct ast_xml_node *node)
 {
-	const char *output;
+	const char *attr;
+	char *output;
 
-	output = ast_xml_get_attribute(node, "module");
-	if (ast_strlen_zero(output)) {
+	attr = ast_xml_get_attribute(node, "module");
+	if (ast_strlen_zero(attr)) {
 		return NULL;
 	}
-
-	return ast_strdup(output);
+	output = ast_strdup(attr);
+	ast_xml_free_attr(attr);
+	return output;
 }
 
 char *ast_xmldoc_build_provided_by(const char *type, const char *name, const char *module)
@@ -2147,10 +2149,11 @@ static int xmldoc_parse_info(struct ast_xml_node *node, const char *tabs, const 
 	tech = ast_xml_get_attribute(node, "tech");
 	provided_by = ast_xml_get_attribute(node, "module");
 
-	if (tech) {
-		ast_str_append(buffer, 0, "%s<note>Technology: %s  Provided by: %s</note>\n", internaltabs, tech,
-			S_OR(provided_by, "unknown"));
+	if (tech || provided_by) {
+		ast_str_append(buffer, 0, "%s<note>Technology: %s  Provided by: %s</note>\n", internaltabs,
+			S_OR(tech, "unknown"), S_OR(provided_by, "unknown"));
 		ast_xml_free_attr(tech);
+		ast_xml_free_attr(provided_by);
 	}
 
 	ret = 1;
