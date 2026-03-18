@@ -216,17 +216,18 @@ fi
 # Timestamp to use for output files
 df=${tarball_uniqueid:-$(${DATEFORMAT})}
 
-# Extract the Python timestamp conver script from the end of this
-# script and save it to /tmp/.ast_tsconvert.py
-
-install -m 0600 /dev/stdin /tmp/.ast_tsconvert.py < <(sed '1,/^#@@@SCRIPTSTART@@@/ d' "$0")
-
 tmpdir=$(mktemp -d)
 if [ -z "$tmpdir" ] ; then
 	echo "${prog}: Unable to create temporary directory."
 	exit 1
 fi
-trap "rm -rf $tmpdir /tmp/.ast_tsconvert.py" EXIT
+
+# Extract the Python timestamp conver script from the end of this
+# script and save it to the temporary directory
+
+install -m 0600 /dev/stdin "$tmpdir/.ast_tsconvert.py" < <(sed '1,/^#@@@SCRIPTSTART@@@/ d' "$0")
+
+trap "rm -rf $tmpdir" EXIT
 tardir=asterisk-${df}.logfiles
 
 # Now iterate over the logfiles
@@ -237,7 +238,7 @@ for i in ${!LOGFILES[@]} ; do
 	mkdir -p "$destdir" 2>/dev/null || :
 	if [ -n "$LOG_DATEFORMAT" ] ; then
 		echo "Converting $lf"
-		cat "$lf" | python /tmp/.ast_tsconvert.py --format="$LOG_DATEFORMAT" --timezone="$LOG_TIMEZONE" > "${destfile}"
+		cat "$lf" | python "$tmpdir/.ast_tsconvert.py" --format="$LOG_DATEFORMAT" --timezone="$LOG_TIMEZONE" > "${destfile}"
 	else
 		echo "Copying $lf"
 		cp "$lf" "${destfile}"
