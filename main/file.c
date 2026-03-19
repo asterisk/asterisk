@@ -1052,7 +1052,44 @@ static enum fsread_res ast_readvideo_callback(struct ast_filestream *s)
 	}
 
 	if (whennext != s->lasttimeout) {
-		ast_channel_vstreamid_set(s->owner, ast_sched_add(ast_channel_sched(s->owner), whennext / (ast_format_get_sample_rate(s->fmt->format) / 1000), ast_fsread_video, s));
+		int delta;
+		int rtp_clock;
+		int delta_ms;
+		int delay_ms;
+
+		/*
+ 		 * Reason for this change:
+ 		 * After recording a video voicemail message, the playback was observed
+ 		 * to be very slow. This modification adjusts the frame scheduling logic
+		 * to correct the playback speed.
+ 		 *
+ 		 * Logic:
+ 		 * The code calculates the time difference between the next RTP video frame
+ 		 * timestamp and the previously scheduled timestamp using the RTP clock rate
+ 		 * (90 kHz). This difference is converted into milliseconds to determine the
+ 		 * appropriate delay before reading the next video frame.
+ 		 *
+ 		 * If the calculated delay is less than 60 ms, a minimum delay of 60 ms is
+ 		 * enforced. Otherwise, a delay of 70 ms is applied. The next video frame
+ 		 * read is then scheduled using the channel scheduler. The video stream ID
+ 		 * for the channel is updated, and the last scheduled RTP timestamp is stored
+ 		 * for use in the next iteration.
+ 		 *
+ 		 * The function returns success, indicating that no additional scheduling
+ 		 * action is required at this stage.
+ 		 */
+
+		delta = whennext - s->lasttimeout;
+		rtp_clock = 90000;
+		delta_ms = (delta * 1000) / rtp_clock;
+
+		if (delta_ms < 60) {
+			delay_ms = 60;
+		} else {
+			delay_ms = 70;
+		}
+
+		ast_channel_vstreamid_set(s->owner, ast_sched_add(ast_channel_sched(s->owner), delay_ms, ast_fsread_video, s));
 		s->lasttimeout = whennext;
 		return FSREAD_SUCCESS_NOSCHED;
 	}
