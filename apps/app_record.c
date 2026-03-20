@@ -511,6 +511,12 @@ static int record_exec(struct ast_channel *chan, const char *data)
 	if (maxduration <= 0)
 		maxduration = -1;
 
+	if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_ZOMBIE) || ast_check_hangup(chan)) {
+		ast_debug(1, "Channel hangup detected before ast_waitfor().\n");
+		status_response = "HANGUP";
+		res = -1;
+		goto out;
+	}
 	start = ast_tvnow();
 	while ((ms = ast_remaining_ms(start, maxduration))) {
 		ms = ast_waitfor(chan, ms);
