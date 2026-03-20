@@ -2820,15 +2820,20 @@ static const struct ast_datastore_info exception_store_info = {
  */
 int raise_exception(struct ast_channel *chan, const char *reason, int priority)
 {
-	struct ast_datastore *ds = ast_channel_datastore_find(chan, &exception_store_info, NULL);
-	struct pbx_exception *exception = NULL;
+	struct ast_datastore *ds;
+	struct pbx_exception *exception;
 
+	ast_channel_lock(chan);
+	ds = ast_channel_datastore_find(chan, &exception_store_info, NULL);
 	if (!ds) {
 		ds = ast_datastore_alloc(&exception_store_info, NULL);
-		if (!ds)
+		if (!ds) {
+			ast_channel_unlock(chan);
 			return -1;
+		}
 		if (!(exception = ast_calloc_with_stringfields(1, struct pbx_exception, 128))) {
 			ast_datastore_free(ds);
+			ast_channel_unlock(chan);
 			return -1;
 		}
 		ds->data = exception;
@@ -2840,16 +2845,24 @@ int raise_exception(struct ast_channel *chan, const char *reason, int priority)
 	ast_string_field_set(exception, context, ast_channel_context(chan));
 	ast_string_field_set(exception, exten, ast_channel_exten(chan));
 	exception->priority = ast_channel_priority(chan);
+	ast_channel_unlock(chan);
+
 	set_ext_pri(chan, "e", priority);
 	return 0;
 }
 
 static int acf_exception_read(struct ast_channel *chan, const char *name, char *data, char *buf, size_t buflen)
 {
-	struct ast_datastore *ds = ast_channel_datastore_find(chan, &exception_store_info, NULL);
-	struct pbx_exception *exception = NULL;
-	if (!ds || !ds->data)
+	struct ast_datastore *ds;
+	struct pbx_exception *exception;
+	int res = 0;
+
+	ast_channel_lock(chan);
+	ds = ast_channel_datastore_find(chan, &exception_store_info, NULL);
+	if (!ds || !ds->data) {
+		ast_channel_unlock(chan);
 		return -1;
+	}
 	exception = ds->data;
 	if (!strcasecmp(data, "REASON"))
 		ast_copy_string(buf, exception->reason, buflen);
@@ -2860,8 +2873,10 @@ static int acf_exception_read(struct ast_channel *chan, const char *name, char *
 	else if (!strcasecmp(data, "PRIORITY"))
 		snprintf(buf, buflen, "%d", exception->priority);
 	else
-		return -1;
-	return 0;
+		res = -1;
+
+	ast_channel_unlock(chan);
+	return res;
 }
 
 static struct ast_custom_function exception_function = {
