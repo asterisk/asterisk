@@ -108,6 +108,8 @@
 #include "asterisk/bridge_basic.h"
 #include "asterisk/max_forwards.h"
 
+#include "asterisk/app_queue.h"
+
 /*!
  * \par Please read before modifying this file.
  * There are three locks which are regularly used
@@ -1657,6 +1659,7 @@ enum {
 	QUEUE_STRATEGY_LINEAR,
 	QUEUE_STRATEGY_WRANDOM,
 	QUEUE_STRATEGY_RRORDERED,
+	QUEUE_STRATEGY_EXTERNAL,
 };
 
 enum {
@@ -1685,6 +1688,7 @@ static const struct strategy {
 	{ QUEUE_STRATEGY_LINEAR, "linear" },
 	{ QUEUE_STRATEGY_WRANDOM, "wrandom"},
 	{ QUEUE_STRATEGY_RRORDERED, "rrordered"},
+	{ QUEUE_STRATEGY_EXTERNAL, "external"},
 };
 
 static const struct autopause {
@@ -1843,6 +1847,7 @@ struct callattempt {
 
 struct queue_ent {
 	struct call_queue *parent;             /*!< What queue is our parent */
+	struct ext_strategy_provider *ext_provider;	/*!< If strategy is external, a reference to the external strategy provider */
 	char moh[MAX_MUSICCLASS];              /*!< Name of musiconhold to be used */
 	char announce[PATH_MAX];               /*!< Announcement to play for member when call is answered */
 	char context[AST_MAX_CONTEXT];         /*!< Context when user exits queue */
@@ -1984,6 +1989,8 @@ struct call_queue {
 		AST_STRING_FIELD(sound_callerannounce);
 		/*! Sound file: "Hold time" (def. queue-reporthold) */
 		AST_STRING_FIELD(sound_reporthold);
+		/*! External strategy name if strategy is QUEUE_STRATEGY_EXTERNAL */
+		AST_STRING_FIELD(external_strategy_name);
 	);
 	/*! Sound files: Custom announce, no default */
 	struct ast_str *sound_periodicannounce[MAX_PERIODIC_ANNOUNCEMENTS];
@@ -1999,7 +2006,7 @@ struct call_queue {
 	unsigned int announceholdtime:2;
 	unsigned int announceposition:3;
 	unsigned int announceposition_only_up:1; /*!< Only announce position if it has improved */
-	int strategy:4;
+	int strategy:5; /* Since this is signed, we need 4 bits to fit all available strategies */
 	unsigned int realtime:1;
 	unsigned int found:1;
 	unsigned int relativeperiodicannounce:1;
@@ -3678,6 +3685,13 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 			return;
 		}
 		q->strategy = strategy;
+	} else if (!strcasecmp(param, "externalstrategy")) {
+		/* If it's not a native app_queue strategy, store the name
+		 * of the external queue strategy for later use.
+		 * We can't actually validate it now since the providers
+		 * are dependent on app_queue and thus aren't loaded yet.
+		 * We instead check at call runtime. */
+		ast_string_field_set(q, external_strategy_name, val);
 	} else if (!strcasecmp(param, "joinempty")) {
 		parse_empty_options(val, &q->joinempty, 1);
 	} else if (!strcasecmp(param, "leavewhenempty")) {
@@ -4234,6 +4248,204 @@ static void update_realtime_members(struct call_queue *q)
 	ast_config_destroy(member_config);
 }
 
+struct ext_strategy_provider {
+	const char *name;
+	struct ast_queue_strategy_callbacks *callbacks;
+	void *mod;
+	int usecount;
+	AST_RWLIST_ENTRY(ext_strategy_provider) entry;
+	char data[];
+} ext_provider;
+
+static AST_RWLIST_HEAD_STATIC(ext_strat_providers, ext_strategy_provider);
+
+static void queue_caller_info_init(struct ast_queue_caller_info *caller, struct queue_ent *qe)
+{
+	caller->chan = qe->chan;
+	caller->queue_name = qe->parent->name;
+	caller->digits = qe->digits;
+	caller->prio = qe->prio;
+	caller->pending = qe->pending;
+	caller->pos = qe->pos;
+	caller->start = qe->start;
+	caller->expire = qe->expire;
+}
+
+static void queue_agent_info_init(struct ast_queue_agent_info *agent, struct call_queue *q, struct member *mem)
+{
+	ao2_lock(mem);
+	agent->interface = mem->interface;
+	agent->state_interface = mem->state_interface;
+	agent->member_name = mem->membername;
+	agent->queuepos = mem->queuepos;
+	agent->penalty = mem->penalty;
+	agent->paused = mem->paused;
+	agent->calls = mem->calls;
+	agent->dynamic = mem->dynamic;
+	agent->status = mem->status;
+	agent->available = is_member_available(q, mem);
+	ao2_unlock(mem);
+}
+
+/*!
+ * \brief Inform external queue strategy of new call
+ * \param qe
+ * \retval 0 on success
+ * \retval -1 No such external queue strategy, abort
+ */
+static int external_enter_queue(struct queue_ent *qe)
+{
+	struct ext_strategy_provider *p;
+	struct call_queue *q = qe->parent;
+
+	AST_RWLIST_WRLOCK(&ext_strat_providers); /* Guard usecount++ */
+	AST_RWLIST_TRAVERSE(&ext_strat_providers, p, entry) {
+		if (!strcmp(p->name, q->external_strategy_name)) {
+			break;
+		}
+	}
+
+	if (!p) {
+		ast_log(LOG_ERROR, "External queue strategy provider '%s' not currently registered, aborting\n", q->external_strategy_name);
+		AST_RWLIST_UNLOCK(&ext_strat_providers);
+		return -1;
+	}
+
+	p->usecount++; /* While the call is running, prevent this strategy provider from unregistering */
+	qe->ext_provider = p; /* Save reference for convenience */
+	AST_RWLIST_UNLOCK(&ext_strat_providers); /* Now safe to unlock */
+
+	if (qe->ext_provider->callbacks && qe->ext_provider->callbacks->enter_queue) {
+		struct ast_queue_caller_info caller;
+
+		ast_module_ref(qe->ext_provider->mod);
+		queue_caller_info_init(&caller, qe);
+		qe->ext_provider->callbacks->enter_queue(&caller);
+		ast_module_unref(qe->ext_provider->mod);
+	}
+	return 0;
+}
+
+/*! \brief Release reference to an external queue strategy */
+static void external_leave_queue(struct queue_ent *qe)
+{
+	/* If we were the only one in the queue,
+	 * then q->usecount is going to drop to 0 now.
+	 * If not, the other calls still in the queue
+	 * already bumped the use count, and it's safe
+	 * to release ours. */
+	AST_RWLIST_WRLOCK(&ext_strat_providers);
+	qe->ext_provider->usecount--;
+	qe->ext_provider = NULL;
+	AST_RWLIST_UNLOCK(&ext_strat_providers);
+}
+
+/*! \brief Query external module to see if it's our turn */
+static int external_is_our_turn(struct queue_ent *qe)
+{
+	int res = -1;
+
+	if (qe->ext_provider->callbacks && qe->ext_provider->callbacks->enter_queue) {
+		struct ast_queue_caller_info caller;
+
+		ast_module_ref(qe->ext_provider->mod);
+		queue_caller_info_init(&caller, qe);
+		res = qe->ext_provider->callbacks->is_our_turn(&caller);
+		ast_module_unref(qe->ext_provider->mod);
+	}
+	return res;
+}
+
+/*! \brief Query external module to compute agent metric */
+static int external_calc_metric(struct queue_ent *qe, struct call_queue *q, struct member *mem)
+{
+	int res = -1;
+
+	if (qe->ext_provider->callbacks && qe->ext_provider->callbacks->enter_queue) {
+		struct ast_queue_caller_info caller;
+		struct ast_queue_agent_info agent;
+
+		ast_module_ref(qe->ext_provider->mod);
+
+		queue_caller_info_init(&caller, qe);
+		queue_agent_info_init(&agent, q, mem);
+		res = qe->ext_provider->callbacks->calc_metric(&caller, &agent);
+		ast_module_unref(qe->ext_provider->mod);
+	}
+	return res;
+}
+
+int __ast_queue_register_external_strategy_provider(struct ast_queue_strategy_callbacks *callbacks, const char *name, void *mod)
+{
+	struct ext_strategy_provider *p;
+
+	if (!mod) {
+		ast_log(LOG_ERROR, "Module reference not provided");
+		return -1;
+	} else if (ast_strlen_zero(name)) {
+		ast_log(LOG_ERROR, "No provider name provided\n");
+		return -1;
+	}
+
+	AST_RWLIST_WRLOCK(&ext_strat_providers);
+	AST_RWLIST_TRAVERSE(&ext_strat_providers, p, entry) {
+		if (!strcmp(name, p->name)) {
+			break;
+		}
+	}
+	if (p) {
+		AST_RWLIST_UNLOCK(&ext_strat_providers);
+		ast_log(LOG_ERROR, "External queue strategy provider '%s' is already registered", name);
+		return -1;
+	}
+
+	p = ast_calloc(1, sizeof(*p) + strlen(name) + 1);
+	if (!p) {
+		AST_RWLIST_UNLOCK(&ext_strat_providers);
+		return -1;
+	}
+
+	strcpy(p->data, name); /* Safe */
+	p->name = p->data;
+	p->callbacks = callbacks;
+	p->mod = mod;
+
+	AST_RWLIST_INSERT_HEAD(&ext_strat_providers, p, entry);
+	AST_RWLIST_UNLOCK(&ext_strat_providers);
+	return 0;
+}
+
+int ast_queue_unregister_external_strategy_provider(struct ast_queue_strategy_callbacks *callbacks)
+{
+	struct ext_strategy_provider *p;
+
+	AST_RWLIST_WRLOCK(&ext_strat_providers);
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&ext_strat_providers, p, entry) {
+		if (callbacks != p->callbacks) {
+			continue;
+		}
+		if (p->usecount) {
+			ast_log(LOG_ERROR, "External queue strategy provider '%s' is currently being used by %d call%s\n", p->name, p->usecount, ESS(p->usecount));
+			AST_RWLIST_UNLOCK(&ext_strat_providers);
+			return -1;
+		}
+		AST_RWLIST_REMOVE_CURRENT(entry);
+		ast_free(p);
+		break;
+	}
+	AST_RWLIST_TRAVERSE_SAFE_END;
+
+	if (!p) {
+		/* Can't happen unless a module has a registration bug */
+		ast_log(LOG_ERROR, "Requested external queue strategy provider not currently registered\n");
+		AST_RWLIST_UNLOCK(&ext_strat_providers);
+		return -1;
+	}
+
+	AST_RWLIST_UNLOCK(&ext_strat_providers);
+	return 0;
+}
+
 static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *reason, int position)
 {
 	struct call_queue *q;
@@ -4301,6 +4513,16 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
 		q->count++;
 		if (q->count == 1) {
 			ast_devstate_changed(AST_DEVICE_RINGING, AST_DEVSTATE_CACHABLE, "Queue:%s", q->name);
+		}
+
+		if (q->strategy == QUEUE_STRATEGY_EXTERNAL) {
+			if (external_enter_queue(qe)) {
+				/* If this fails, we must abort. */
+				*reason = QUEUE_JOINUNAVAIL;
+				ao2_unlock(q);
+				queue_t_unref(q, "Done with realtime queue");
+				return -1;
+			}
 		}
 
 		res = 0;
@@ -4594,6 +4816,9 @@ static void leave_queue(struct queue_ent *qe)
 			current->pos = ++pos;
 			prev = current;
 		}
+	}
+	if (q->strategy == QUEUE_STRATEGY_EXTERNAL) {
+		external_leave_queue(qe);
 	}
 	ao2_unlock(q);
 
@@ -5936,6 +6161,7 @@ static int is_our_turn(struct queue_ent *qe)
 	int res;
 	int avl;
 	int idx = 0;
+	int ext_result = -1;
 	/* This needs a lock. How many members are available to be served? */
 	ao2_lock(qe->parent);
 
@@ -5952,7 +6178,6 @@ static int is_our_turn(struct queue_ent *qe)
 		ch = ch->next;
 	}
 
-	ao2_unlock(qe->parent);
 	/* If the queue entry is within avl [the number of available members] calls from the top ...
 	 * Autofill and position check added to support autofill=no (as only calls
 	 * from the front of the queue are valid when autofill is disabled)
@@ -5963,6 +6188,22 @@ static int is_our_turn(struct queue_ent *qe)
 	} else {
 		ast_debug(1, "It's not our turn (%s).\n", ast_channel_name(qe->chan));
 		res = 0;
+	}
+
+	/* This check is done after the above, so that we avoid making
+	 * external requests if this caller is not near the top of the queue. */
+	if (qe->parent->strategy == QUEUE_STRATEGY_EXTERNAL && res == 1) {
+		ext_result = external_is_our_turn(qe);
+		if (ext_result == 2) {
+			ast_debug(2, "%s force expired in queue", ast_channel_name(qe->chan));
+		}
+	}
+
+	ao2_unlock(qe->parent);
+
+	if (ext_result == 0 || ext_result == 1) {
+		/* External queue strategy told us what to do, override the default algorithm */
+		return ext_result;
 	}
 
 	/* Update realtime members if this is the first call and number of avalable members is 0 */
@@ -6236,6 +6477,17 @@ static int calc_metric(struct call_queue *q, struct member *mem, int pos, struct
 	unsigned char usepenalty = (membercount <= q->penaltymemberslimit) ? 0 : 1;
 	int penalty = mem->penalty;
 
+	if (q->strategy == QUEUE_STRATEGY_EXTERNAL) {
+		int external_result = external_calc_metric(qe, q, mem);
+		if (external_result == 0) {
+			/* Ignore agent for now */
+			return -1;
+		} else if (external_result > 0) {
+			tmp->metric = external_result;
+			return 0;
+		} /* else, fallthrough, use default algorithm */
+	}
+
 	if (usepenalty) {
 		if (qe->raise_penalty != INT_MAX && penalty < qe->raise_penalty && !(qe->raise_respect_min && qe->min_penalty != INT_MAX && penalty < qe->min_penalty)) {
 			/* Low penalty is raised up to the current minimum */
@@ -6252,6 +6504,7 @@ static int calc_metric(struct call_queue *q, struct member *mem, int pos, struct
 
 	switch (q->strategy) {
 	case QUEUE_STRATEGY_RINGALL:
+	case QUEUE_STRATEGY_EXTERNAL:
 		/* Everyone equal, except for penalty */
 		tmp->metric = penalty * 1000000 * usepenalty;
 		break;
@@ -12230,7 +12483,7 @@ static struct member *find_member_by_queuename_and_interface(const char *queuena
 	return mem;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "True Call Queueing",
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER | AST_MODFLAG_GLOBAL_SYMBOLS, "True Call Queueing",
 	.support_level = AST_MODULE_SUPPORT_CORE,
 	.load = load_module,
 	.unload = unload_module,
