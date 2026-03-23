@@ -734,6 +734,40 @@ static int replace_string_in_string(char *string, const char *search, const char
 	return replaced;
 }
 
+/*!
+ * \internal
+ * \brief Escape a value for safe inclusion in an LDAP filter per RFC 4515.
+ *
+ * Characters that have special meaning in LDAP filters are escaped
+ * to their \\HH hex representation: * ( ) \\ and NUL.
+ *
+ * \param value The raw value to escape
+ * \param escaped Output buffer (caller-allocated ast_str)
+ */
+static void ldap_filter_escape_value(const char *value, struct ast_str **escaped)
+{
+	ast_str_reset(*escaped);
+	for (; *value; value++) {
+		switch (*value) {
+		case '*':
+			ast_str_append(escaped, 0, "\\2a");
+			break;
+		case '(':
+			ast_str_append(escaped, 0, "\\28");
+			break;
+		case ')':
+			ast_str_append(escaped, 0, "\\29");
+			break;
+		case '\\':
+			ast_str_append(escaped, 0, "\\5c");
+			break;
+		default:
+			ast_str_append(escaped, 0, "%c", *value);
+			break;
+		}
+	}
+}
+
 /*! \brief Append a name=value filter string. The filter string can grow.
  */
 static void append_var_and_value_to_filter(struct ast_str **filter,
@@ -743,8 +777,14 @@ static void append_var_and_value_to_filter(struct ast_str **filter,
 	char *new_name = NULL;
 	char *new_value = NULL;
 	const char *like_pos = strstr(name, " LIKE");
+	struct ast_str *escaped_value;
 
 	ast_debug(2, "name='%s' value='%s'\n", name, value);
+
+	escaped_value = ast_str_create(256);
+	if (!escaped_value) {
+		return;
+	}
 
 	if (like_pos) {
 		int len = like_pos - name;
@@ -754,11 +794,20 @@ static void append_var_and_value_to_filter(struct ast_str **filter,
 		value = new_value = ast_strdupa(value);
 		replace_string_in_string(new_value, "\\_", "_");
 		replace_string_in_string(new_value, "%", "*");
+		name = convert_attribute_name_to_ldap(table_config, name);
+		/* Note: The LIKE path preserves original wildcard behavior.
+		 * A more comprehensive escaping of the LIKE path is left
+		 * to the maintainers familiar with the query semantics.
+		 */
+		ast_str_append(filter, 0, "(%s=%s)", name, value);
+	} else {
+		name = convert_attribute_name_to_ldap(table_config, name);
+		ldap_filter_escape_value(value, &escaped_value);
+		ast_str_append(filter, 0, "(%s=%s)", name,
+			ast_str_buffer(escaped_value));
 	}
 
-	name = convert_attribute_name_to_ldap(table_config, name);
-
-	ast_str_append(filter, 0, "(%s=%s)", name, value);
+	ast_free(escaped_value);
 }
 
 /*!
