@@ -1,0 +1,39 @@
+From f0fa32a226df5f87a9903093e5d145ebb69734db Mon Sep 17 00:00:00 2001
+From: sauwming <ming@teluu.com>
+Date: Tue, 17 Mar 2026 13:07:47 +0800
+Subject: [PATCH] Merge commit from fork
+
+* Fixed OOB read in SIP multipart parsing
+
+* Fixed too strict CRLF expectation
+---
+ pjsip/src/pjsip/sip_multipart.c | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/pjsip/src/pjsip/sip_multipart.c b/pjsip/src/pjsip/sip_multipart.c
+index 0db8d118d2..b4cf378f2a 100644
+--- a/pjsip/src/pjsip/sip_multipart.c
++++ b/pjsip/src/pjsip/sip_multipart.c
+@@ -835,7 +835,7 @@ PJ_DEF(pjsip_msg_body*) pjsip_multipart_parse(pj_pool_t *pool,
+ 
+         /* Eat the boundary */
+         curptr += delim.slen;
+-        if (*curptr=='-' && curptr<endptr-1 && *(curptr+1)=='-') {
++        if (curptr+1 < endptr && *curptr=='-' && *(curptr+1)=='-') {
+             /* Found the closing delimiter */
+             curptr += 2;
+             break;
+@@ -843,8 +843,12 @@ PJ_DEF(pjsip_msg_body*) pjsip_multipart_parse(pj_pool_t *pool,
+         /* Optional whitespace after delimiter */
+         while (curptr!=endptr && IS_SPACE(*curptr)) ++curptr;
+         /* Mandatory CRLF */
++        if (curptr == endptr) {
++            PJ_LOG(2, (THIS_FILE, "Unexpected end of buffer after boundary"));
++            return NULL;
++        }
+         if (*curptr=='\r') ++curptr;
+-        if (*curptr!='\n') {
++        if (curptr == endptr || *curptr!='\n') {
+             /* Expecting a newline here */
+             PJ_LOG(2, (THIS_FILE, "Failed to find newline"));
+ 
