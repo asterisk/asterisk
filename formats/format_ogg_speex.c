@@ -234,6 +234,12 @@ static struct ast_frame *ogg_speex_read(struct ast_filestream *fs,
 		return NULL;
 	}
 
+	if (s->op.bytes < 0 || s->op.bytes > BUF_SIZE) {
+		ast_log(LOG_WARNING, "OGG/Speex packet too large (%ld > %d), skipping\n",
+			s->op.bytes, BUF_SIZE);
+		return NULL;
+	}
+
 	AST_FRAME_SET_BUFFER(&fs->fr, fs->buf, AST_FRIENDLY_OFFSET, BUF_SIZE);
 	memcpy(fs->fr.data.ptr, s->op.packet, s->op.bytes);
 	fs->fr.datalen = s->op.bytes;
