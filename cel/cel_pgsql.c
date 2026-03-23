@@ -224,12 +224,25 @@ static void pgsql_log(struct ast_event *event)
 				} else {
 					/* Char field, probably */
 					const char *event_name;
+					size_t required_size;
 
 					event_name = (!cel_show_user_def
 						&& record.event_type == AST_CEL_USER_DEFINED)
 						? record.user_defined_name : record.event_name;
-					LENGTHEN_BUF2(strlen(event_name) + 1);
-					ast_str_append(&sql2, 0, "%s'%s'", SEP, event_name);
+					required_size = strlen(event_name) * 2 + 1;
+					if (required_size > bufsize) {
+						char *tmpbuf = ast_realloc(escapebuf, required_size);
+						if (!tmpbuf) {
+							AST_RWLIST_UNLOCK(&psql_columns);
+							goto ast_log_cleanup;
+						}
+						escapebuf = tmpbuf;
+						bufsize = required_size;
+					}
+					PQescapeStringConn(conn, escapebuf, event_name,
+						strlen(event_name), NULL);
+					LENGTHEN_BUF2(strlen(escapebuf) + 3);
+					ast_str_append(&sql2, 0, "%s'%s'", SEP, escapebuf);
 				}
 			} else if (strcmp(cur->name, "amaflags") == 0) {
 				if (strncmp(cur->type, "int", 3) == 0) {

@@ -110,7 +110,7 @@ static int mssql_disconnect(void);
 static void tds_log(struct ast_event *event)
 {
 	char start[80];
-	char *accountcode_ai, *clidnum_ai, *exten_ai, *context_ai, *clid_ai, *channel_ai, *app_ai, *appdata_ai, *uniqueid_ai, *linkedid_ai, *cidani_ai, *cidrdnis_ai, *ciddnid_ai, *peer_ai, *userfield_ai;
+	char *accountcode_ai, *clidnum_ai, *exten_ai, *context_ai, *clid_ai, *channel_ai, *app_ai, *appdata_ai, *uniqueid_ai, *linkedid_ai, *cidani_ai, *cidrdnis_ai, *ciddnid_ai, *peer_ai, *userfield_ai, *eventtype_ai;
 	RETCODE erc;
 	int attempt = 1;
 	struct ast_cel_event_record record = {
@@ -138,6 +138,9 @@ static void tds_log(struct ast_event *event)
 	linkedid_ai    = anti_injection(record.linked_id, 32);
 	userfield_ai   = anti_injection(record.user_field, 32);
 	peer_ai        = anti_injection(record.peer, 32);
+	eventtype_ai   = anti_injection(
+		(record.event_type == AST_CEL_USER_DEFINED)
+			? record.user_defined_name : record.event_name, 32);
 
 	get_date(start, sizeof(start), record.event_time);
 
@@ -199,8 +202,7 @@ retry:
 		")",
 		settings->table, accountcode_ai, clidnum_ai, clid_ai, cidani_ai, cidrdnis_ai,
 		ciddnid_ai, exten_ai, context_ai, channel_ai, app_ai, appdata_ai, start,
-		(record.event_type == AST_CEL_USER_DEFINED)
-			? record.user_defined_name : record.event_name,
+		eventtype_ai,
 					ast_channel_amaflags2string(record.amaflag), uniqueid_ai, linkedid_ai,
 		userfield_ai, peer_ai);
 
@@ -250,6 +252,7 @@ done:
 	ast_free(linkedid_ai);
 	ast_free(userfield_ai);
 	ast_free(peer_ai);
+	ast_free(eventtype_ai);
 
 	return;
 }
