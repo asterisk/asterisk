@@ -3886,7 +3886,7 @@ static int parse_simple_message_summary(char *body,
 			&summary->voice_messages_urgent_new, &summary->voice_messages_urgent_old)) {
 			found_counts = 1;
 		} else {
-			sscanf(line, "message-account: %s", summary->message_account);
+			sscanf(line, "message-account: %511s", summary->message_account);
 		}
 	}
 
