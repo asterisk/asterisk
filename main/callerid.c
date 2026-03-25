@@ -44,7 +44,7 @@
 
 struct callerid_state {
 	fsk_data fskd;
-	char rawdata[256];
+	unsigned char rawdata[256];
 	short oldstuff[160];
 	int oldlen;
 	int pos;
@@ -440,7 +440,7 @@ int callerid_feed_jp(struct callerid_state *cid, unsigned char *ubuf, int len, s
 						cid->name[0] = '\0';
 						cid->flags = 0;
 						res = cid->rawdata[x++];
-						ast_copy_string(cid->number, &cid->rawdata[x], res+1);
+						ast_copy_string(cid->number, (const char *) &cid->rawdata[x], res+1);
 						x += res;
 						break;
 					case 0x21: /* additional information */
@@ -782,7 +782,7 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len, stru
 				} else {
 					/* SDMF */
 					ast_debug(6, "SDMF Caller*ID spill received\n");
-					ast_copy_string(cid->number, cid->rawdata + 8, sizeof(cid->number));
+					ast_copy_string(cid->number, (const char *) cid->rawdata + 8, sizeof(cid->number));
 				}
 				if (!strcmp(cid->number, "P")) {
 					ast_debug(6, "Caller*ID number is private\n");
