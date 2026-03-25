@@ -1,0 +1,44 @@
+diff --git a/pjnath/src/pjnath/ice_session.c b/pjnath/src/pjnath/ice_session.c
+index 8afe4d181..726ccd893 100644
+--- a/pjnath/src/pjnath/ice_session.c
++++ b/pjnath/src/pjnath/ice_session.c
+@@ -3653,7 +3653,10 @@ PJ_DEF(pj_status_t) pj_ice_sess_send_data(pj_ice_sess *ice,
+     transport_id = cand->transport_id;
+     pj_sockaddr_cp(&addr, &comp->valid_check->rcand->addr);
+ 
+-    /* Release the mutex now to avoid deadlock (see ticket #1451). */
++    /* Release the mutex now to avoid deadlock (see ticket #1451),
++     * but add ref first to avoid premature destruction in the cb.
++     */
++    pj_grp_lock_add_ref(ice->grp_lock);
+     pj_grp_lock_release(ice->grp_lock);
+ 
+     PJ_RACE_ME(5);
+@@ -3663,6 +3666,8 @@ PJ_DEF(pj_status_t) pj_ice_sess_send_data(pj_ice_sess *ice,
+                                   &addr, 
+                                   pj_sockaddr_get_len(&addr));
+ 
++     pj_grp_lock_dec_ref(ice->grp_lock);
++
+ on_return:
+     return status;
+ }
+@@ -3729,7 +3734,9 @@ PJ_DEF(pj_status_t) pj_ice_sess_on_rx_pkt(pj_ice_sess *ice,
+     } else {
+         /* Not a STUN packet. Call application's callback instead, but release
+          * the mutex now or otherwise we may get deadlock.
++         * Add ref first to avoid race with session destruction.
+          */
++        pj_grp_lock_add_ref(ice->grp_lock);
+         pj_grp_lock_release(ice->grp_lock);
+ 
+         PJ_RACE_ME(5);
+@@ -3737,6 +3744,8 @@ PJ_DEF(pj_status_t) pj_ice_sess_on_rx_pkt(pj_ice_sess *ice,
+         (*ice->cb.on_rx_data)(ice, comp_id, transport_id, pkt, pkt_size, 
+                               src_addr, src_addr_len);
+         status = PJ_SUCCESS;
++
++        pj_grp_lock_dec_ref(ice->grp_lock);
+     }
+ 
+     return status;
