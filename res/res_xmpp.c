@@ -3612,8 +3612,9 @@ static int xmpp_action_hook(void *data, int type, iks *node)
 		char *node_ns = NULL;
 		char attr[XMPP_MAX_ATTRLEN];
 		char *node_name = iks_name(iks_child(node));
-		char *aux = strchr(node_name, ':') + 1;
-		snprintf(attr, strlen("xmlns:") + (strlen(node_name) - strlen(aux)), "xmlns:%s", node_name);
+		char *colon = strchr(node_name, ':');
+		snprintf(attr, sizeof(attr), "xmlns:%.*s",
+			(int)(colon - node_name), node_name);
 		node_ns = iks_find_attrib(iks_child(node), attr);
 		if (node_ns) {
 			pak->ns = node_ns;
