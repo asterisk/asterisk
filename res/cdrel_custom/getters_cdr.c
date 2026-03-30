@@ -53,7 +53,7 @@ DEFINE_CDR_GETTER(uint32, uint32, uint32_t)
 DEFINE_CDR_GETTER(int64, int64, int64_t)
 DEFINE_CDR_GETTER(uint64, uint64, uint64_t)
 DEFINE_CDR_GETTER(tv, timeval, struct timeval)
-DEFINE_CDR_GETTER(floater, float, float)
+DEFINE_CDR_GETTER(floater, float, double)
 
 static int cdr_get_literal(void *record, struct cdrel_config *config,
 	struct cdrel_field *field, struct cdrel_value *value)

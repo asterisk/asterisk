@@ -180,7 +180,7 @@ struct cdrel_value {
 		int64_t int64;
 		uint64_t uint64;
 		struct timeval tv;
-		float floater;
+		double floater;
 	} values;
 };
 
