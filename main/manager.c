@@ -8645,7 +8645,7 @@ static int auth_http_callback(struct ast_tcptls_session_instance *ser,
 	user = get_manager_by_name_locked(d.username);
 	if(!user) {
 		AST_RWLIST_UNLOCK(&users);
-		ast_log(LOG_NOTICE, "%s tried to authenticate with nonexistent user '%s'\n", ast_sockaddr_stringify_addr(&session->addr), d.username);
+		ast_log(LOG_NOTICE, "%s tried to authenticate with nonexistent user '%s'\n", ast_sockaddr_stringify_addr(remote_address), d.username);
 		nonce = 0;
 		goto out_401;
 	}
@@ -8653,7 +8653,7 @@ static int auth_http_callback(struct ast_tcptls_session_instance *ser,
 	/* --- We have User for this auth, now check ACL */
 	if (user->acl && !ast_apply_acl(user->acl, remote_address, "Manager User ACL:")) {
 		AST_RWLIST_UNLOCK(&users);
-		ast_log(LOG_NOTICE, "%s failed to pass IP ACL as '%s'\n", ast_sockaddr_stringify_addr(&session->addr), d.username);
+		ast_log(LOG_NOTICE, "%s failed to pass IP ACL as '%s'\n", ast_sockaddr_stringify_addr(remote_address), d.username);
 		ast_http_request_close_on_completion(ser);
 		ast_http_error(ser, 403, "Permission denied", "Permission denied");
 		return 0;
