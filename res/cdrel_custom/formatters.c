@@ -118,7 +118,7 @@ DEFINE_FORMATTER(uint32, uint32, uint32_t, "%u")
 DEFINE_FORMATTER(int32, int32, int32_t, "%d")
 DEFINE_FORMATTER(uint64, uint64, uint64_t, "%lu")
 DEFINE_FORMATTER(int64, int64, int64_t, "%ld")
-DEFINE_FORMATTER(float, floater, float, "%.1f")
+DEFINE_FORMATTER(float, floater, double, "%.1f")
 
 static int format_timeval(struct cdrel_config *config,
 	struct cdrel_field *field, struct cdrel_value *input_value, struct cdrel_value *output_value)
@@ -136,7 +136,7 @@ static int format_timeval(struct cdrel_config *config,
 		return format_int64(config, field, output_value, output_value);
 	} else if (field->output_data_type == cdrel_type_float) {
 		output_value->data_type = cdrel_type_float;
-		output_value->values.floater = ((float)input_value->values.tv.tv_sec) + ((float)input_value->values.tv.tv_usec) / 1000000.0;
+		output_value->values.floater = ((double)input_value->values.tv.tv_sec) + ((float)input_value->values.tv.tv_usec) / 1000000.0;
 		return format_float(config, field, output_value, output_value);
 	} else 	if (!ast_strlen_zero(field->data)) {
 		format = field->data;
