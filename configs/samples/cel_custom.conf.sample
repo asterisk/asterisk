@@ -111,9 +111,12 @@
     ; you can force the uniqueid field to not be quoted with `uniqueid(noquote)`. The
     ; example in fields above shows this.
     ;
-    ; The default output format for the "EventTime" timestamp field is the "%Y-%m-%d %T"
-    ; strftime string format however you can also format the field as an int64 or a
-    ; float: `eventtime(int64)` or `eventtime(float)`.
+    ; The default output format for the "EventTime" timestamp field is taken from the
+    ; "dateformat" parameter in cel.conf.  If that's not set, the default is
+    ; "<seconds>.<microseconds>" where "<microseconds>" is always 6 digits with
+    ; leading zeros.  You can also format the field as an int64 or a double:
+    ; `eventtime(int64)` or `eventtime(double)` or provide your own strftime
+    ; format string: `eventtime(%FT%T%z)`.
     ;
     ; Unlike CDRs, the "amaflags" field is output as its numerical value by default
     ; for historical reasons.  You can output it as its friendly string with
