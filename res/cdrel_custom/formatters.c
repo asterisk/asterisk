@@ -118,7 +118,7 @@ DEFINE_FORMATTER(uint32, uint32, uint32_t, "%u")
 DEFINE_FORMATTER(int32, int32, int32_t, "%d")
 DEFINE_FORMATTER(uint64, uint64, uint64_t, "%lu")
 DEFINE_FORMATTER(int64, int64, int64_t, "%ld")
-DEFINE_FORMATTER(float, floater, float, "%.1f")
+DEFINE_FORMATTER(double, doubler, double, "%.6f")
 
 static int format_timeval(struct cdrel_config *config,
 	struct cdrel_field *field, struct cdrel_value *input_value, struct cdrel_value *output_value)
@@ -134,11 +134,20 @@ static int format_timeval(struct cdrel_config *config,
 		output_value->data_type = cdrel_type_int64;
 		output_value->values.int64 = input_value->values.tv.tv_sec;
 		return format_int64(config, field, output_value, output_value);
-	} else if (field->output_data_type == cdrel_type_float) {
-		output_value->data_type = cdrel_type_float;
-		output_value->values.floater = ((float)input_value->values.tv.tv_sec) + ((float)input_value->values.tv.tv_usec) / 1000000.0;
-		return format_float(config, field, output_value, output_value);
-	} else 	if (!ast_strlen_zero(field->data)) {
+	} else if (field->output_data_type == cdrel_type_double) {
+		output_value->data_type = cdrel_type_double;
+		output_value->values.doubler = ((double)input_value->values.tv.tv_sec) + ((double)input_value->values.tv.tv_usec) / 1000000.0;
+		return format_double(config, field, output_value, output_value);
+	} else if (field->output_data_type == cdrel_type_cel_timefmt) {
+		res = ast_cel_format_eventtime(input_value->values.tv, tempbuf, 64);
+		if (res != 0) {
+			return res;
+		}
+		input_value->values.string = tempbuf;
+		input_value->data_type = cdrel_type_string;
+		output_value->data_type = cdrel_type_string;
+		return format_string(config, field, input_value, output_value);
+	} else if (!ast_strlen_zero(field->data)) {
 		format = field->data;
 	}
 
@@ -186,7 +195,7 @@ int load_formatters(void)
 	cdrel_field_formatters[cdrel_type_int64] = format_int64;
 	cdrel_field_formatters[cdrel_type_uint64] = format_uint64;
 	cdrel_field_formatters[cdrel_type_timeval] = format_timeval;
-	cdrel_field_formatters[cdrel_type_float] = format_float;
+	cdrel_field_formatters[cdrel_type_double] = format_double;
 	cdrel_field_formatters[cdrel_type_amaflags] = format_amaflags;
 	cdrel_field_formatters[cdrel_type_disposition] = format_disposition;
 

@@ -78,12 +78,13 @@ enum cdrel_data_type {
 	cdrel_type_uservar,
 	cdrel_type_event_type,
 	cdrel_type_event_enum,
+	cdrel_type_cel_timefmt,
 	cdrel_data_type_strings_end,
 	cdrel_type_int32,
 	cdrel_type_uint32,
 	cdrel_type_int64,
 	cdrel_type_uint64,
-	cdrel_type_float,
+	cdrel_type_double,
 	cdrel_data_type_end
 };
 
@@ -180,7 +181,7 @@ struct cdrel_value {
 		int64_t int64;
 		uint64_t uint64;
 		struct timeval tv;
-		float floater;
+		double doubler;
 	} values;
 };
 

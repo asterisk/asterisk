@@ -47,7 +47,7 @@
 static const struct cdrel_field cdrel_field_registry[] = {
 	REGISTER_FIELD(cdrel_record_cel, AST_EVENT_IE_CEL_EVENT_ENUM, "eventenum", cdrel_type_event_enum, cdrel_type_string),
 	REGISTER_FIELD(cdrel_record_cel, AST_EVENT_IE_CEL_EVENT_TYPE, "eventtype", cdrel_type_event_type, cdrel_type_string),
-	REGISTER_FIELD(cdrel_record_cel, AST_EVENT_IE_CEL_EVENT_TIME, "eventtime", cdrel_type_timeval, cdrel_type_string),
+	REGISTER_FIELD(cdrel_record_cel, AST_EVENT_IE_CEL_EVENT_TIME, "eventtime", cdrel_type_timeval, cdrel_type_cel_timefmt),
 	REGISTER_FIELD(cdrel_record_cel, AST_EVENT_IE_CEL_EVENT_TIME_USEC, "eventtimeusec", cdrel_type_uint32, cdrel_type_uint32),
 	REGISTER_FIELD(cdrel_record_cel, AST_EVENT_IE_CEL_USEREVENT_NAME, "usereventname", cdrel_type_string, cdrel_type_string),
 	REGISTER_FIELD(cdrel_record_cel, AST_EVENT_IE_CEL_USEREVENT_NAME, "userdeftype", cdrel_type_string, cdrel_type_string),
