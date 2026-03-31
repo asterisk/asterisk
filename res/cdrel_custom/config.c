@@ -432,6 +432,7 @@ static struct cdrel_field *field_alloc(struct cdrel_config *config, const char *
 			if (strchr(qualifier, '%') != NULL) {
 				data_swap = ast_strdupa(qualifier);
 				ast_set_flag(&field_flags, cdrel_flag_format_spec);
+				forced_output_data_type = cdrel_type_string;
 				ast_debug(3, "   Using qualifier '%s' for field '%s' flags: %s\n", qualifier,
 					field_name, ast_str_tmp(128, cdrel_get_field_flags(&field_flags, &STR_TMP)));
 			}
@@ -464,6 +465,17 @@ static struct cdrel_field *field_alloc(struct cdrel_config *config, const char *
 		ast_log(LOG_WARNING, "%s->%s: Field '%s' not found\n",
 			cdrel_basename(config->config_filename), cdrel_basename(config->output_filename), field_name);
 		return NULL;
+	}
+
+	if (ast_test_flag(&field_flags, cdrel_flag_format_spec)
+		&& registered_field->input_data_type != cdrel_type_timeval) {
+		ast_log(LOG_WARNING, "%s->%s: Custom format '%s' ignored for field '%s'."
+			" Only timeval types can use custom format strings.\n",
+			cdrel_basename(config->config_filename), cdrel_basename(config->output_filename),
+			data, field_name);
+		forced_output_data_type = cdrel_data_type_end;
+		ast_clear_flag(&field_flags, cdrel_flag_format_spec);
+		data = NULL;
 	}
 
 	field = ast_calloc(1, sizeof(*registered_field) + strlen(input_field_template) + 1);
@@ -1127,7 +1139,7 @@ static struct cdrel_config *load_text_file_legacy_config(enum cdrel_record_type 
 		return NULL;
 	}
 
-	ast_log(LOG_NOTICE, "%s->%s: Logging %s records\n",
+	ast_log(LOG_NOTICE, "%s->%s: Logging legacy %s records as advanced\n",
 		cdrel_basename(config->config_filename), cdrel_basename(config->output_filename),
 		RECORD_TYPE_STR(config->record_type));
 
