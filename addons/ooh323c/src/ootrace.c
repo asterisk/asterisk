@@ -43,13 +43,17 @@ void ooTrace(OOUINT32 traceLevel, const char * fmtspec, ...) __attribute__((form
 
 void ooTrace(OOUINT32 traceLevel, const char * fmtspec, ...) {
    va_list arglist;
-   char logMessage[MAXLOGMSGLEN];
+   char *logMessage = NULL;
+   int res = 0;
    if(traceLevel > gs_traceLevel) return;
    va_start (arglist, fmtspec);
-   /*   memset(logMessage, 0, MAXLOGMSGLEN);*/
-   vsprintf(logMessage, fmtspec, arglist);
+   res = ast_vasprintf(&logMessage, fmtspec, arglist);
    va_end(arglist);
+   if (res < 0 || !logMessage) {
+      return;
+   }
    ooTraceLogMessage(logMessage);
+   ast_free(logMessage);
 }
 
 void ooTraceLogMessage(const char * logMessage)
