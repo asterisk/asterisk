@@ -158,10 +158,7 @@ static void ast_ari_bridges_create_cb(
 		} else
 		{}
 	}
-	if (ast_ari_bridges_create_parse_body(body, &args)) {
-		ast_ari_response_alloc_failed(response);
-		goto fin;
-	}
+	args.variables = body;
 	ast_ari_bridges_create(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
@@ -248,10 +245,7 @@ static void ast_ari_bridges_create_with_id_cb(
 		} else
 		{}
 	}
-	if (ast_ari_bridges_create_with_id_parse_body(body, &args)) {
-		ast_ari_response_alloc_failed(response);
-		goto fin;
-	}
+	args.variables = body;
 	ast_ari_bridges_create_with_id(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
@@ -397,6 +391,413 @@ static void ast_ari_bridges_destroy_cb(
 
 	if (!is_valid) {
 		ast_log(LOG_ERROR, "Response validation failed for /bridges/{bridgeId}\n");
+		ast_ari_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
+
+fin: __attribute__((unused))
+	return;
+}
+int ast_ari_bridges_get_bridge_var_parse_body(
+	struct ast_json *body,
+	struct ast_ari_bridges_get_bridge_var_args *args)
+{
+	struct ast_json *field;
+	/* Parse query parameters out of it */
+	field = ast_json_object_get(body, "variable");
+	if (field) {
+		args->variable = ast_json_string_get(field);
+	}
+	return 0;
+}
+
+/*!
+ * \brief Parameter parsing callback for /bridges/{bridgeId}/variable.
+ * \param ser TCP/TLS session object
+ * \param get_params GET parameters in the HTTP request.
+ * \param path_vars Path variables extracted from the request.
+ * \param headers HTTP headers.
+ * \param body
+ * \param[out] response Response to the HTTP request.
+ */
+static void ast_ari_bridges_get_bridge_var_cb(
+	struct ast_tcptls_session_instance *ser,
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct ast_json *body, struct ast_ari_response *response)
+{
+	struct ast_ari_bridges_get_bridge_var_args args = {};
+	struct ast_variable *i;
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
+	for (i = get_params; i; i = i->next) {
+		if (strcmp(i->name, "variable") == 0) {
+			args.variable = (i->value);
+		} else
+		{}
+	}
+	for (i = path_vars; i; i = i->next) {
+		if (strcmp(i->name, "bridgeId") == 0) {
+			args.bridge_id = (i->value);
+		} else
+		{}
+	}
+	if (ast_ari_bridges_get_bridge_var_parse_body(body, &args)) {
+		ast_ari_response_alloc_failed(response);
+		goto fin;
+	}
+	ast_ari_bridges_get_bridge_var(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
+	case 400: /* Missing variable parameter. */
+	case 404: /* Bridge or variable not found */
+	case 409: /* Bridge not in a Stasis application */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ast_ari_validate_variable(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /bridges/{bridgeId}/variable\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /bridges/{bridgeId}/variable\n");
+		ast_ari_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
+
+fin: __attribute__((unused))
+	return;
+}
+int ast_ari_bridges_set_bridge_var_parse_body(
+	struct ast_json *body,
+	struct ast_ari_bridges_set_bridge_var_args *args)
+{
+	struct ast_json *field;
+	/* Parse query parameters out of it */
+	field = ast_json_object_get(body, "variable");
+	if (field) {
+		args->variable = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "value");
+	if (field) {
+		args->value = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "report_events");
+	if (field) {
+		args->report_events = ast_json_is_true(field);
+	}
+	return 0;
+}
+
+/*!
+ * \brief Parameter parsing callback for /bridges/{bridgeId}/variable.
+ * \param ser TCP/TLS session object
+ * \param get_params GET parameters in the HTTP request.
+ * \param path_vars Path variables extracted from the request.
+ * \param headers HTTP headers.
+ * \param body
+ * \param[out] response Response to the HTTP request.
+ */
+static void ast_ari_bridges_set_bridge_var_cb(
+	struct ast_tcptls_session_instance *ser,
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct ast_json *body, struct ast_ari_response *response)
+{
+	struct ast_ari_bridges_set_bridge_var_args args = {};
+	struct ast_variable *i;
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
+	for (i = get_params; i; i = i->next) {
+		if (strcmp(i->name, "variable") == 0) {
+			args.variable = (i->value);
+		} else
+		if (strcmp(i->name, "value") == 0) {
+			args.value = (i->value);
+		} else
+		if (strcmp(i->name, "report_events") == 0) {
+			args.report_events = ast_true(i->value);
+		} else
+		{}
+	}
+	for (i = path_vars; i; i = i->next) {
+		if (strcmp(i->name, "bridgeId") == 0) {
+			args.bridge_id = (i->value);
+		} else
+		{}
+	}
+	if (ast_ari_bridges_set_bridge_var_parse_body(body, &args)) {
+		ast_ari_response_alloc_failed(response);
+		goto fin;
+	}
+	ast_ari_bridges_set_bridge_var(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
+	case 400: /* Missing variable parameter. */
+	case 404: /* Bridge not found */
+	case 409: /* Bridge not in a Stasis application */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ast_ari_validate_void(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /bridges/{bridgeId}/variable\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /bridges/{bridgeId}/variable\n");
+		ast_ari_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
+
+fin: __attribute__((unused))
+	return;
+}
+int ast_ari_bridges_get_bridge_vars_parse_body(
+	struct ast_json *body,
+	struct ast_ari_bridges_get_bridge_vars_args *args)
+{
+	struct ast_json *field;
+	/* Parse query parameters out of it */
+	field = ast_json_object_get(body, "variables");
+	if (field) {
+		/* If they were silly enough to both pass in a query param and a
+		 * JSON body, free up the query value.
+		 */
+		ast_free(args->variables);
+		if (ast_json_typeof(field) == AST_JSON_ARRAY) {
+			/* Multiple param passed as array */
+			size_t i;
+			args->variables_count = ast_json_array_size(field);
+			args->variables = ast_malloc(sizeof(*args->variables) * args->variables_count);
+
+			if (!args->variables) {
+				return -1;
+			}
+
+			for (i = 0; i < args->variables_count; ++i) {
+				args->variables[i] = ast_json_string_get(ast_json_array_get(field, i));
+			}
+		} else {
+			/* Multiple param passed as single value */
+			args->variables_count = 1;
+			args->variables = ast_malloc(sizeof(*args->variables) * args->variables_count);
+			if (!args->variables) {
+				return -1;
+			}
+			args->variables[0] = ast_json_string_get(field);
+		}
+	}
+	return 0;
+}
+
+/*!
+ * \brief Parameter parsing callback for /bridges/{bridgeId}/variables.
+ * \param ser TCP/TLS session object
+ * \param get_params GET parameters in the HTTP request.
+ * \param path_vars Path variables extracted from the request.
+ * \param headers HTTP headers.
+ * \param body
+ * \param[out] response Response to the HTTP request.
+ */
+static void ast_ari_bridges_get_bridge_vars_cb(
+	struct ast_tcptls_session_instance *ser,
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct ast_json *body, struct ast_ari_response *response)
+{
+	struct ast_ari_bridges_get_bridge_vars_args args = {};
+	struct ast_variable *i;
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
+	for (i = get_params; i; i = i->next) {
+		if (strcmp(i->name, "variables") == 0) {
+			/* Parse comma separated list */
+			char *vals[MAX_VALS];
+			size_t j;
+
+			args.variables_parse = ast_strdup(i->value);
+			if (!args.variables_parse) {
+				ast_ari_response_alloc_failed(response);
+				goto fin;
+			}
+
+			if (strlen(args.variables_parse) == 0) {
+				/* ast_app_separate_args can't handle "" */
+				args.variables_count = 1;
+				vals[0] = args.variables_parse;
+			} else {
+				args.variables_count = ast_app_separate_args(
+					args.variables_parse, ',', vals,
+					ARRAY_LEN(vals));
+			}
+
+			if (args.variables_count == 0) {
+				ast_ari_response_alloc_failed(response);
+				goto fin;
+			}
+
+			if (args.variables_count >= MAX_VALS) {
+				ast_ari_response_error(response, 400,
+					"Bad Request",
+					"Too many values for variables");
+				goto fin;
+			}
+
+			args.variables = ast_malloc(sizeof(*args.variables) * args.variables_count);
+			if (!args.variables) {
+				ast_ari_response_alloc_failed(response);
+				goto fin;
+			}
+
+			for (j = 0; j < args.variables_count; ++j) {
+				args.variables[j] = (vals[j]);
+			}
+		} else
+		{}
+	}
+	for (i = path_vars; i; i = i->next) {
+		if (strcmp(i->name, "bridgeId") == 0) {
+			args.bridge_id = (i->value);
+		} else
+		{}
+	}
+	if (ast_ari_bridges_get_bridge_vars_parse_body(body, &args)) {
+		ast_ari_response_alloc_failed(response);
+		goto fin;
+	}
+	ast_ari_bridges_get_bridge_vars(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
+	case 400: /* Missing variables parameter. */
+	case 404: /* Bridge or variable not found */
+	case 409: /* Bridge not in a Stasis application */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ast_ari_validate_variables(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /bridges/{bridgeId}/variables\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /bridges/{bridgeId}/variables\n");
+		ast_ari_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
+
+fin: __attribute__((unused))
+	ast_free(args.variables_parse);
+	ast_free(args.variables);
+	return;
+}
+int ast_ari_bridges_set_bridge_vars_parse_body(
+	struct ast_json *body,
+	struct ast_ari_bridges_set_bridge_vars_args *args)
+{
+	/* Parse query parameters out of it */
+	return 0;
+}
+
+/*!
+ * \brief Parameter parsing callback for /bridges/{bridgeId}/variables.
+ * \param ser TCP/TLS session object
+ * \param get_params GET parameters in the HTTP request.
+ * \param path_vars Path variables extracted from the request.
+ * \param headers HTTP headers.
+ * \param body
+ * \param[out] response Response to the HTTP request.
+ */
+static void ast_ari_bridges_set_bridge_vars_cb(
+	struct ast_tcptls_session_instance *ser,
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct ast_json *body, struct ast_ari_response *response)
+{
+	struct ast_ari_bridges_set_bridge_vars_args args = {};
+	struct ast_variable *i;
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
+	for (i = path_vars; i; i = i->next) {
+		if (strcmp(i->name, "bridgeId") == 0) {
+			args.bridge_id = (i->value);
+		} else
+		{}
+	}
+	args.variables = body;
+	ast_ari_bridges_set_bridge_vars(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
+	case 400: /* Missing variables parameter. */
+	case 404: /* Bridge not found */
+	case 409: /* Bridge not in a Stasis application */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ast_ari_validate_void(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /bridges/{bridgeId}/variables\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /bridges/{bridgeId}/variables\n");
 		ast_ari_response_error(response, 500,
 			"Internal Server Error", "Response validation failed");
 	}
@@ -1516,6 +1917,26 @@ fin: __attribute__((unused))
 }
 
 /*! \brief REST handler for /api-docs/bridges.json */
+static struct stasis_rest_handlers bridges_bridgeId_variable = {
+	.path_segment = "variable",
+	.callbacks = {
+		[AST_HTTP_GET] = ast_ari_bridges_get_bridge_var_cb,
+		[AST_HTTP_POST] = ast_ari_bridges_set_bridge_var_cb,
+	},
+	.num_children = 0,
+	.children = {  }
+};
+/*! \brief REST handler for /api-docs/bridges.json */
+static struct stasis_rest_handlers bridges_bridgeId_variables = {
+	.path_segment = "variables",
+	.callbacks = {
+		[AST_HTTP_GET] = ast_ari_bridges_get_bridge_vars_cb,
+		[AST_HTTP_POST] = ast_ari_bridges_set_bridge_vars_cb,
+	},
+	.num_children = 0,
+	.children = {  }
+};
+/*! \brief REST handler for /api-docs/bridges.json */
 static struct stasis_rest_handlers bridges_bridgeId_addChannel = {
 	.path_segment = "addChannel",
 	.callbacks = {
@@ -1599,8 +2020,8 @@ static struct stasis_rest_handlers bridges_bridgeId = {
 		[AST_HTTP_GET] = ast_ari_bridges_get_cb,
 		[AST_HTTP_DELETE] = ast_ari_bridges_destroy_cb,
 	},
-	.num_children = 6,
-	.children = { &bridges_bridgeId_addChannel,&bridges_bridgeId_removeChannel,&bridges_bridgeId_videoSource,&bridges_bridgeId_moh,&bridges_bridgeId_play,&bridges_bridgeId_record, }
+	.num_children = 8,
+	.children = { &bridges_bridgeId_variable,&bridges_bridgeId_variables,&bridges_bridgeId_addChannel,&bridges_bridgeId_removeChannel,&bridges_bridgeId_videoSource,&bridges_bridgeId_moh,&bridges_bridgeId_play,&bridges_bridgeId_record, }
 };
 /*! \brief REST handler for /api-docs/bridges.json */
 static struct stasis_rest_handlers bridges = {
