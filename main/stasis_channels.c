@@ -1218,9 +1218,13 @@ void ast_channel_publish_varset(struct ast_channel *chan, const char *name, cons
 		return;
 	}
 
-	/*! If there are manager variables, force a cache update */
-	if (chan && ast_channel_has_manager_vars()) {
-		ast_channel_publish_snapshot(chan);
+	/*! If there are manager or ARI variables, force a cache update */
+	if (chan) {
+		struct varshead *ari_vars = ast_channel_get_ari_vars(chan);
+		if (ast_channel_has_manager_vars() || (ari_vars && !AST_LIST_EMPTY(ari_vars))) {
+			ast_channel_publish_snapshot(chan);
+		}
+		ao2_cleanup(ari_vars);
 	}
 
 	/* This function is NULL safe for global variables */

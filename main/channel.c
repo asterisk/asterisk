@@ -7986,6 +7986,46 @@ void ast_channel_set_ari_vars(size_t varc, char **vars)
 	channel_set_external_vars(&ari_vars, varc, vars);
 }
 
+int ast_channel_set_ari_var_reportable(struct ast_channel *chan, const char *variable, int report_events)
+{
+	char *var_str;
+	size_t i, count;
+
+	SCOPED_CHANNELLOCK(lock, chan);
+
+	if (ast_strlen_zero(variable)) {
+		return -1;
+	}
+
+	count = ast_channel_internal_ari_reportable_vars_count(chan);
+	for (i = 0; i < count; ++i) {
+		var_str = ast_channel_internal_ari_reportable_vars_get(chan, i);
+		if (!strcmp(var_str, variable)) {
+			if (!report_events) {
+				var_str = ast_channel_internal_ari_reportable_vars_remove(chan, i);
+				ast_free(var_str);
+			}
+			return 0;
+		}
+	}
+
+	if (!report_events) {
+		return 0;
+	}
+
+	var_str = ast_strdup(variable);
+	if (!var_str) {
+		return -1;
+	}
+
+	if (ast_channel_internal_ari_reportable_vars_append(chan, var_str)) {
+		ast_free(var_str);
+		return -1;
+	}
+
+	return 0;
+}
+
 /*!
  * \brief Destructor for lists of variables.
  * \param obj AO2 object.
@@ -8079,7 +8119,75 @@ struct varshead *ast_channel_get_manager_vars(struct ast_channel *chan)
 
 struct varshead *ast_channel_get_ari_vars(struct ast_channel *chan)
 {
-	return channel_get_external_vars(&ari_vars, chan);
+	RAII_VAR(struct varshead *, ret, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_str *, tmp, NULL, ast_free);
+	char *var_str;
+	size_t i;
+
+	SCOPED_CHANNELLOCK(lock, chan);
+
+	ret = channel_get_external_vars(&ari_vars, chan);
+
+	if (ast_channel_internal_ari_reportable_vars_count(chan) == 0) {
+		if (!ret) {
+			return NULL;
+		}
+
+		ao2_ref(ret, +1);
+		return ret;
+	}
+
+	if (!ret) {
+		ret = ao2_alloc(sizeof(*ret), varshead_dtor);
+		if (!ret) {
+			return NULL;
+		}
+	}
+
+	tmp = ast_str_create(16);
+	if (!tmp) {
+		return NULL;
+	}
+
+	for (i = 0; i < ast_channel_internal_ari_reportable_vars_count(chan); ++i) {
+		const char *val = NULL;
+		struct ast_var_t *var;
+		int already_present = 0;
+		struct ast_var_t *existing;
+
+		var_str = ast_channel_internal_ari_reportable_vars_get(chan, i);
+
+		AST_LIST_TRAVERSE(ret, existing, entries) {
+			if (!strcmp(ast_var_name(existing), var_str)) {
+				already_present = 1;
+				break;
+			}
+		}
+		if (already_present) {
+			continue;
+		}
+
+		if (strchr(var_str, '(')) {
+			if (ast_func_read2(chan, var_str, &tmp, 0) == 0) {
+				val = ast_str_buffer(tmp);
+			} else {
+				ast_log(LOG_ERROR,
+					"Error invoking function %s\n", var_str);
+			}
+		} else {
+			val = pbx_builtin_getvar_helper(chan, var_str);
+		}
+
+		var = ast_var_assign(var_str, val ? val : "");
+		if (!var) {
+			return NULL;
+		}
+
+		AST_RWLIST_INSERT_TAIL(ret, var, entries);
+	}
+
+	ao2_ref(ret, +1);
+	return ret;
 }
 
 void ast_channel_close_storage(void)

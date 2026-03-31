@@ -1023,12 +1023,114 @@ void ast_ari_bridges_list(struct ast_variable *headers,
 	ast_ari_response_ok(response, ast_json_ref(json));
 }
 
+static int json_to_ast_variables(struct ast_ari_response *response, struct ast_json *json_variables,
+	struct ast_variable **variables, struct ast_variable **report_event_variables)
+{
+	struct ast_json_iter *it_json_var;
+	struct ast_variable *var_tail = NULL;
+	struct ast_variable *report_var_tail = NULL;
+
+	*variables = NULL;
+	*report_event_variables = NULL;
+
+	for (it_json_var = ast_json_object_iter(json_variables); it_json_var;
+		it_json_var = ast_json_object_iter_next(json_variables, it_json_var)) {
+		struct ast_variable *new_var;
+		const char *key = ast_json_object_iter_key(it_json_var);
+		const char *value = NULL;
+		struct ast_json *json_value = ast_json_object_iter_value(it_json_var);
+		int report_events = 0;
+
+		if (ast_strlen_zero(key)) {
+			continue;
+		}
+
+		if (ast_json_typeof(json_value) == AST_JSON_STRING) {
+			value = ast_json_string_get(json_value);
+		} else if (ast_json_typeof(json_value) == AST_JSON_OBJECT) {
+			struct ast_json *value_field = ast_json_object_get(json_value, "value");
+			struct ast_json *report_field = ast_json_object_get(json_value, "report_events");
+			ast_log(LOG_DEBUG, "Processing variable '%s' with report_events: %s\n", key,
+				report_field ? (ast_json_is_true(report_field) ? "true" : "false") : "not set");
+
+			if (!value_field || ast_json_typeof(value_field) != AST_JSON_STRING) {
+				ast_ari_response_error(response, 400, "Bad Request",
+					"Each object value in 'variables' must include string field 'value'");
+				ast_log(LOG_WARNING, "Missing or invalid 'value' field for variable '%s'\n", key);
+				if (!value_field) {
+					ast_log(LOG_WARNING, "Missing 'value' field for variable '%s'\n", key);
+				} else if (ast_json_typeof(value_field) != AST_JSON_STRING) {
+					ast_log(LOG_WARNING, "Invalid 'value' field for variable '%s' (bad type)\n", key);
+				}
+				goto error;
+			}
+
+			value = ast_json_string_get(value_field);
+
+			if (report_field) {
+				enum ast_json_type report_type = ast_json_typeof(report_field);
+
+				if (report_type != AST_JSON_TRUE && report_type != AST_JSON_FALSE) {
+					ast_ari_response_error(response, 400, "Bad Request",
+						"Field 'report_events' in 'variables' entries must be boolean");
+					ast_log(LOG_WARNING, "Invalid 'report_events' field for variable '%s' (bad type)\n", key);
+					goto error;
+				}
+
+				report_events = ast_json_is_true(report_field);
+			}
+		} else {
+			ast_ari_response_error(response, 400, "Bad Request",
+				"Each value in 'variables' must be a string or an object with 'value' and optional 'report_events'");
+			ast_log(LOG_WARNING, "Invalid value for variable '%s'\n", key);
+			goto error;
+		}
+
+		if (!value) {
+			continue;
+		}
+
+		new_var = ast_variable_new(key, value, "");
+		if (!new_var) {
+			ast_ari_response_alloc_failed(response);
+			goto error;
+		}
+
+		var_tail = ast_variable_list_append_hint(variables, var_tail, new_var);
+
+		if (report_events && report_event_variables) {
+			struct ast_variable *report_var = ast_variable_new(key, "1", "");
+
+			if (!report_var) {
+				ast_ari_response_alloc_failed(response);
+				goto error;
+			}
+
+			report_var_tail = ast_variable_list_append_hint(report_event_variables,
+				report_var_tail, report_var);
+		}
+	}
+
+	return 0;
+
+error:
+	ast_variables_destroy(*variables);
+	*variables = NULL;
+	if (report_event_variables) {
+		ast_variables_destroy(*report_event_variables);
+		*report_event_variables = NULL;
+	}
+	return -1;
+}
+
 void ast_ari_bridges_create(struct ast_variable *headers,
 	struct ast_ari_bridges_create_args *args,
 	struct ast_ari_response *response)
 {
 	RAII_VAR(struct ast_bridge *, bridge, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_bridge_snapshot *, snapshot, NULL, ao2_cleanup);
+	struct ast_variable *variables = NULL;
+	struct ast_variable *report_event_variables = NULL;
 
 	if (ast_bridge_topic_exists(args->bridge_id)) {
 		ast_ari_response_error(
@@ -1036,6 +1138,8 @@ void ast_ari_bridges_create(struct ast_variable *headers,
 			"Bridge with id '%s' already exists", args->bridge_id);
 		return;
 	}
+
+	ast_ari_bridges_create_parse_body(args->variables, args);
 
 	bridge = stasis_app_bridge_create(args->type, args->name, args->bridge_id);
 	if (!bridge) {
@@ -1045,9 +1149,45 @@ void ast_ari_bridges_create(struct ast_variable *headers,
 		return;
 	}
 
+	if (args->variables && json_to_ast_variables(response, args->variables,
+			&variables, &report_event_variables)) {
+		return;
+	}
+
 	ast_bridge_lock(bridge);
+	if (variables) {
+		struct ast_variable *var;
+
+		for (var = variables; var; var = var->next) {
+			int report_events = 0;
+			struct ast_variable *report_var;
+			char buf[strlen(var->name) + 1];
+			char *variable;
+			strcpy(buf, var->name);
+			/* Strip whitespace from the variable name */
+			variable = ast_strip(buf);
+
+			for (report_var = report_event_variables; report_var;
+				report_var = report_var->next) {
+				if (!strcmp(report_var->name, var->name)) {
+					report_events = 1;
+					break;
+				}
+			}
+
+			if (ast_bridge_set_variable(bridge, variable, var->value, report_events)) {
+				ast_bridge_unlock(bridge);
+				ast_variables_destroy(variables);
+				ast_variables_destroy(report_event_variables);
+				ast_ari_response_alloc_failed(response);
+				return;
+			}
+		}
+	}
 	snapshot = ast_bridge_snapshot_create(bridge);
 	ast_bridge_unlock(bridge);
+	ast_variables_destroy(variables);
+	ast_variables_destroy(report_event_variables);
 
 	if (!snapshot) {
 		ast_ari_response_error(
@@ -1066,6 +1206,8 @@ void ast_ari_bridges_create_with_id(struct ast_variable *headers,
 {
 	RAII_VAR(struct ast_bridge *, bridge, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_bridge_snapshot *, snapshot, NULL, ao2_cleanup);
+	struct ast_variable *variables = NULL;
+	struct ast_variable *report_event_variables = NULL;
 
 	if (ast_bridge_topic_exists(args->bridge_id)) {
 		ast_ari_response_error(
@@ -1073,6 +1215,8 @@ void ast_ari_bridges_create_with_id(struct ast_variable *headers,
 			"Bridge with id '%s' already exists", args->bridge_id);
 		return;
 	}
+
+	ast_ari_bridges_create_with_id_parse_body(args->variables, args);
 
 	bridge = stasis_app_bridge_create(args->type, args->name, args->bridge_id);
 	if (!bridge) {
@@ -1082,9 +1226,56 @@ void ast_ari_bridges_create_with_id(struct ast_variable *headers,
 		return;
 	}
 
+	if (args->variables) {
+		struct ast_json *json_variables;
+
+		json_variables = ast_json_object_get(args->variables, "variables");
+		if (json_variables && json_to_ast_variables(response, json_variables,
+			&variables, &report_event_variables)) {
+			if (args->variables) {
+				ast_log(LOG_WARNING, "Failed to parse variables for new bridge '%s'\n", args->bridge_id);
+			} else {
+				ast_log(LOG_WARNING, "Failed to find variables for new bridge '%s'\n", args->bridge_id);
+			}
+			return;
+		}
+	}
+
 	ast_bridge_lock(bridge);
+	if (variables) {
+		struct ast_variable *var;
+
+		for (var = variables; var; var = var->next) {
+			int report_events = 0;
+			struct ast_variable *report_var;
+			char buf[strlen(var->name) + 1];
+			char *variable;
+			strcpy(buf, var->name);
+			/* Strip whitespace from the variable name */
+			variable = ast_strip(buf);
+
+			report_events = 0;
+			for (report_var = report_event_variables; report_var;
+				report_var = report_var->next) {
+				if (!strcmp(report_var->name, var->name)) {
+					report_events = 1;
+					break;
+				}
+			}
+
+			if (ast_bridge_set_variable(bridge, variable, var->value, report_events)) {
+				ast_bridge_unlock(bridge);
+				ast_variables_destroy(variables);
+				ast_variables_destroy(report_event_variables);
+				ast_ari_response_alloc_failed(response);
+				return;
+			}
+		}
+	}
 	snapshot = ast_bridge_snapshot_create(bridge);
 	ast_bridge_unlock(bridge);
+	ast_variables_destroy(variables);
+	ast_variables_destroy(report_event_variables);
 
 	if (!snapshot) {
 		ast_ari_response_error(
@@ -1159,5 +1350,247 @@ void ast_ari_bridges_clear_video_source(struct ast_variable *headers,
 	ast_bridge_unlock(bridge);
 
 	ao2_ref(bridge, -1);
+	ast_ari_response_no_content(response);
+}
+
+void ast_ari_bridges_get_bridge_var(struct ast_variable *headers,
+	struct ast_ari_bridges_get_bridge_var_args *args,
+	struct ast_ari_response *response)
+{
+	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
+	struct ast_bridge *bridge;
+	const char *value;
+
+	if (ast_strlen_zero(args->variable)) {
+		ast_ari_response_error(response, 400, "Bad Request",
+			"Variable name is required");
+		return;
+	}
+
+	bridge = find_bridge(response, args->bridge_id);
+	if (!bridge) {
+		return;
+	}
+
+	ast_bridge_lock(bridge);
+	value = ast_bridge_get_variable(bridge, args->variable);
+	ast_bridge_unlock(bridge);
+
+	if (!value) {
+		ao2_ref(bridge, -1);
+		ast_ari_response_error(response, 404, "Not Found",
+			"Provided variable was not found");
+		return;
+	}
+
+	json = ast_json_pack("{s: s}", "value", value);
+	ao2_ref(bridge, -1);
+
+	if (!json) {
+		ast_ari_response_alloc_failed(response);
+		return;
+	}
+
+	ast_ari_response_ok(response, ast_json_ref(json));
+}
+
+void ast_ari_bridges_set_bridge_var(struct ast_variable *headers,
+	struct ast_ari_bridges_set_bridge_var_args *args,
+	struct ast_ari_response *response)
+{
+	struct ast_bridge *bridge;
+	char buf[strlen(args->variable) + 1];
+	char *variable;
+
+	if (ast_strlen_zero(args->variable)) {
+		ast_ari_response_error(response, 400, "Bad Request",
+			"Variable name is required");
+		return;
+	}
+
+	bridge = find_bridge(response, args->bridge_id);
+	if (!bridge) {
+		return;
+	}
+	ao2_ref(bridge, -1);
+
+	strcpy(buf, args->variable);
+	/* Strip whitespace from the variable name */
+	variable = ast_strip(buf);
+
+	if (stasis_app_bridge_set_var_reportable(args->bridge_id, variable, args->value,
+			args->report_events)) {
+		ast_ari_response_error(response, 400, "Bad Request",
+			"Failed to execute function");
+		return;
+	}
+
+	ast_ari_response_no_content(response);
+}
+
+void ast_ari_bridges_get_bridge_vars(struct ast_variable *headers,
+	struct ast_ari_bridges_get_bridge_vars_args *args,
+	struct ast_ari_response *response)
+{
+	int res;
+	RAII_VAR(struct ast_json *, json, ast_json_object_create(), ast_json_unref);
+	RAII_VAR(struct ast_json *, inner_json, ast_json_object_create(), ast_json_unref);
+	RAII_VAR(struct ast_str *, value, ast_str_create(32), ast_free);
+	RAII_VAR(struct ast_bridge *, bridge, NULL, ao2_cleanup);
+
+	ast_assert(response != NULL);
+
+	if (!json || !inner_json || !value) {
+		ast_ari_response_alloc_failed(response);
+		return;
+	}
+
+	if (args->variables_count == 0) {
+		ast_ari_response_error(
+			response, 400, "Bad Request",
+			"At least one variable name is required");
+		return;
+	}
+
+	if (ast_strlen_zero(args->bridge_id)) {
+		ast_ari_response_error(
+			response, 400, "Bad Request",
+			"Bridge ID is required");
+		return;
+	}
+
+	bridge = stasis_app_bridge_find_by_id(args->bridge_id);
+	if (!bridge) {
+		ast_ari_response_error(
+			response, 404, "Bridge Not Found",
+			"Provided bridge was not found");
+		return;
+	}
+
+	for (int i = 0; i < args->variables_count; i++) {
+		struct ast_json *json_str;
+		char buf[strlen(args->variables[i]) + 1];
+		char *variable;
+		const char *var_value;
+
+		strcpy(buf, args->variables[i]);
+		variable = ast_strip(buf);
+		if (ast_strlen_zero(variable)) {
+			ast_ari_response_error(
+				response, 400, "Bad Request",
+				"Variable names are required");
+			return;
+		}
+
+		if (variable[strlen(variable) - 1] == ')') {
+			if (ast_func_read2(NULL, variable, &value, 0)) {
+				ast_ari_response_error(
+					response, 500, "Error With Function",
+					"Unable to read provided function");
+				return;
+			}
+		} else {
+			ast_bridge_lock(bridge);
+			var_value = ast_bridge_get_variable(bridge, variable);
+			ast_bridge_unlock(bridge);
+			if (!var_value) {
+				ast_ari_response_error(
+					response, 404, "Variable Not Found",
+					"Provided variable was not found");
+				return;
+			}
+			ast_str_set(&value, 0, "%s", var_value);
+		}
+
+		json_str = ast_json_string_create(ast_str_buffer(value));
+		if (!json_str) {
+			ast_ari_response_alloc_failed(response);
+			return;
+		}
+
+		res = ast_json_object_set(inner_json, variable, json_str);
+		if (res) {
+			ast_ari_response_alloc_failed(response);
+			ast_json_unref(json_str);
+			return;
+		}
+	}
+
+	res = ast_json_object_set(json, "variables", ast_json_ref(inner_json));
+	if (res) {
+		ast_ari_response_alloc_failed(response);
+		return;
+	}
+
+	ast_ari_response_ok(response, ast_json_ref(json));
+}
+
+void ast_ari_bridges_set_bridge_vars(struct ast_variable *headers,
+	struct ast_ari_bridges_set_bridge_vars_args *args,
+	struct ast_ari_response *response)
+{
+	struct ast_json *json_variables;
+	struct ast_variable *var;
+	RAII_VAR(struct ast_variable *, variables, NULL, ast_variables_destroy);
+	RAII_VAR(struct ast_variable *, report_event_variables, NULL, ast_variables_destroy);
+	RAII_VAR(struct ast_bridge *, bridge, NULL, ao2_cleanup);
+
+	ast_assert(response != NULL);
+
+	if (!args->variables) {
+		ast_ari_response_error(
+			response, 400, "Bad Request",
+			"The 'variables' field is required");
+		return;
+	}
+
+	bridge = stasis_app_bridge_find_by_id(args->bridge_id);
+	if (!bridge) {
+		ast_ari_response_error(
+			response, 404, "Bridge Not Found",
+			"Provided bridge was not found");
+		return;
+	}
+
+	json_variables = ast_json_object_get(args->variables, "variables");
+	if (!json_variables || ast_json_typeof(json_variables) != AST_JSON_OBJECT) {
+		ast_ari_response_error(
+			response, 400, "Bad Request",
+			"The 'variables' field must be a JSON object");
+		return;
+	}
+
+	if (json_to_ast_variables(response, json_variables, &variables,
+		&report_event_variables)) {
+		return;
+	}
+
+	for (var = variables; var; var = var->next) {
+		int report_events = 0;
+		struct ast_variable *report_var;
+		char buf[strlen(var->name) + 1];
+		char *variable;
+		strcpy(buf, var->name);
+		/* Strip whitespace from the variable name */
+		variable = ast_strip(buf);
+
+		/* See if the variable is in the report event list */
+		for (report_var = report_event_variables; report_var;
+			report_var = report_var->next) {
+			if (!strcmp(report_var->name, var->name)) {
+				report_events = 1;
+				break;
+			}
+		}
+
+		if (stasis_app_bridge_set_var_reportable(args->bridge_id, variable, var->value,
+			report_events)) {
+			ast_ari_response_error(
+				response, 400, "Bad Request",
+				"Failed to execute function");
+			return;
+		}
+	}
+
 	ast_ari_response_no_content(response);
 }
