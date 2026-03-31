@@ -166,12 +166,13 @@ const char *cdrel_data_type_map[] = {
 	[cdrel_type_uservar] = "uservar",
 	[cdrel_type_event_type] = "event_type",
 	[cdrel_type_event_enum] = "event_enum",
+	[cdrel_type_cel_timefmt] = "cel_timefmt",
 	[cdrel_data_type_strings_end] = "!!STRINGS END!!",
 	[cdrel_type_int32] = "int32",
 	[cdrel_type_uint32] = "uint32",
 	[cdrel_type_int64] = "int64",
 	[cdrel_type_uint64] = "uint64",
-	[cdrel_type_float] = "float",
+	[cdrel_type_double] = "double",
 	[cdrel_data_type_end] = "!!END!!",
 };
 
