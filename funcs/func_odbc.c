@@ -144,6 +144,12 @@ enum odbc_option_flags {
 
 struct acf_odbc_query {
 	AST_RWLIST_ENTRY(acf_odbc_query) list;
+	/*
+	 * Separate linkage for the deferred-free list in reload/unload.
+	 * Must not share 'list' to avoid macro mismatches and to make
+	 * ownership transfer between the two lists explicit.
+	 */
+	AST_LIST_ENTRY(acf_odbc_query) pending;
 	char readhandle[5][30];
 	char writehandle[5][30];
 	char *sql_read;
@@ -445,6 +451,10 @@ static inline void release_obj_or_dsn(struct odbc_obj **obj, struct dsn **dsn)
 }
 
 static AST_RWLIST_HEAD_STATIC(queries, acf_odbc_query);
+
+AST_MUTEX_DEFINE_STATIC(retired_queries_lock);
+/* Retired queries: unregistered but kept alive for in-flight calls */
+static AST_LIST_HEAD_NOLOCK(retired_query_list, acf_odbc_query) retired_queries = AST_LIST_HEAD_NOLOCK_INIT_VALUE;
 
 static int resultcount = 0;
 
@@ -870,6 +880,19 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 			AST_LIST_HEAD_INIT(resultset);
 		}
 	}
+	/*
+	 * Take an ao2 ref before releasing queries.
+	 *
+	 * reload() retires old query objects instead of freeing them, and
+	 * unload_module() drains active module users before finally freeing
+	 * retired queries.  This keeps the backing query object alive while
+	 * we are still executing, even if a reload races here.
+	 *
+	 * acf_odbc_write() does not need this pattern because it holds the
+	 * queries lock across all access to query fields and only unlocks
+	 * after it is done with the query object entirely.
+	 */
+	ao2_ref(query, +1);
 	AST_RWLIST_UNLOCK(&queries);
 
 	for (dsn_num = 0; dsn_num < 5; dsn_num++) {
@@ -894,6 +917,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 			ast_autoservice_stop(chan);
 		}
 		odbc_datastore_free(resultset);
+		ao2_ref(query, -1);
 		return -1;
 	}
 
@@ -908,6 +932,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 			ast_autoservice_stop(chan);
 		}
 		odbc_datastore_free(resultset);
+		ao2_ref(query, -1);
 		return -1;
 	}
 
@@ -923,6 +948,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 			ast_autoservice_stop(chan);
 		}
 		odbc_datastore_free(resultset);
+		ao2_ref(query, -1);
 		return 0;
 	}
 
@@ -948,6 +974,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 			ast_autoservice_stop(chan);
 		}
 		odbc_datastore_free(resultset);
+		ao2_ref(query, -1);
 		return res1;
 	}
 
@@ -962,6 +989,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 
 			if (!coldata) {
 				odbc_datastore_free(resultset);
+				ao2_ref(query, -1);
 				SQLCloseCursor(stmt);
 				SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 				release_obj_or_dsn (&obj, &dsn);
@@ -996,6 +1024,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 					if (!tmp) {
 						ast_log(LOG_ERROR, "No space for a new resultset?\n");
 						odbc_datastore_free(resultset);
+						ao2_ref(query, -1);
 						SQLCloseCursor(stmt);
 						SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 						release_obj_or_dsn (&obj, &dsn);
@@ -1105,6 +1134,7 @@ end_acf_read:
 			if (!odbc_store) {
 				ast_log(LOG_ERROR, "Rows retrieved, but unable to store it in the channel.  Results fail.\n");
 				odbc_datastore_free(resultset);
+				ao2_ref(query, -1);
 				SQLCloseCursor(stmt);
 				SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 				release_obj_or_dsn (&obj, &dsn);
@@ -1130,6 +1160,7 @@ end_acf_read:
 	if (!bogus_chan) {
 		ast_autoservice_stop(chan);
 	}
+	ao2_ref(query, -1);
 	return 0;
 }
 
@@ -1231,21 +1262,20 @@ static int exec_odbcfinish(struct ast_channel *chan, const char *data)
 	return 0;
 }
 
-static int free_acf_query(struct acf_odbc_query *query)
+static void acf_odbc_query_destructor(void *obj)
 {
-	if (query) {
-		if (query->acf) {
-			if (query->acf->name)
-				ast_free((char *)query->acf->name);
-			ast_string_field_free_memory(query->acf);
-			ast_free(query->acf);
-		}
-		ast_free(query->sql_read);
-		ast_free(query->sql_write);
-		ast_free(query->sql_insert);
-		ast_free(query);
+	struct acf_odbc_query *query = obj;
+
+	if (query->acf) {
+		if (query->acf->name)
+			ast_free((char *)query->acf->name);
+		ast_string_field_free_memory(query->acf);
+		ast_free(query->acf);
 	}
-	return 0;
+	ast_free(query->sql_read);
+	ast_free(query->sql_write);
+	ast_free(query->sql_insert);
+	/* ao2 frees the struct itself */
 }
 
 static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_query **query)
@@ -1258,10 +1288,11 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 		return EINVAL;
 	}
 
-	if (!(*query = ast_calloc(1, sizeof(**query)))) {
+	if (!(*query = ao2_alloc(sizeof(**query), acf_odbc_query_destructor))) {
 		return ENOMEM;
 	}
-
+	/* Explicitly initialize the deferred-free linkage field. */
+	AST_LIST_NEXT(*query, pending) = NULL;
 	if (((tmp = ast_variable_retrieve(cfg, catg, "writehandle"))) || ((tmp = ast_variable_retrieve(cfg, catg, "dsn")))) {
 		char *tmp2 = ast_strdupa(tmp);
 		AST_DECLARE_APP_ARGS(writeconf,
@@ -1300,7 +1331,7 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 		}
 		if (*tmp != '\0') { /* non-empty string */
 			if (!((*query)->sql_read = ast_strdup(tmp))) {
-				free_acf_query(*query);
+				ao2_ref(*query, -1);
 				*query = NULL;
 				return ENOMEM;
 			}
@@ -1308,7 +1339,7 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 	}
 
 	if ((*query)->sql_read && ast_strlen_zero((*query)->readhandle[0])) {
-		free_acf_query(*query);
+		ao2_ref(*query, -1);
 		*query = NULL;
 		ast_log(LOG_ERROR, "There is SQL, but no ODBC class to be used for reading: %s\n", catg);
 		return EINVAL;
@@ -1322,7 +1353,7 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 		}
 		if (*tmp != '\0') { /* non-empty string */
 			if (!((*query)->sql_write = ast_strdup(tmp))) {
-				free_acf_query(*query);
+				ao2_ref(*query, -1);
 				*query = NULL;
 				return ENOMEM;
 			}
@@ -1330,7 +1361,7 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 	}
 
 	if ((*query)->sql_write && ast_strlen_zero((*query)->writehandle[0])) {
-		free_acf_query(*query);
+		ao2_ref(*query, -1);
 		*query = NULL;
 		ast_log(LOG_ERROR, "There is SQL, but no ODBC class to be used for writing: %s\n", catg);
 		return EINVAL;
@@ -1339,7 +1370,7 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 	if ((tmp = ast_variable_retrieve(cfg, catg, "insertsql"))) {
 		if (*tmp != '\0') { /* non-empty string */
 			if (!((*query)->sql_insert = ast_strdup(tmp))) {
-				free_acf_query(*query);
+				ao2_ref(*query, -1);
 				*query = NULL;
 				return ENOMEM;
 			}
@@ -1366,12 +1397,12 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 
 	(*query)->acf = ast_calloc(1, sizeof(struct ast_custom_function));
 	if (!(*query)->acf) {
-		free_acf_query(*query);
+		ao2_ref(*query, -1);
 		*query = NULL;
 		return ENOMEM;
 	}
 	if (ast_string_field_init((*query)->acf, 128)) {
-		free_acf_query(*query);
+		ao2_ref(*query, -1);
 		*query = NULL;
 		return ENOMEM;
 	}
@@ -1387,7 +1418,7 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 	}
 
 	if (!(*query)->acf->name) {
-		free_acf_query(*query);
+		ao2_ref(*query, -1);
 		*query = NULL;
 		return ENOMEM;
 	}
@@ -1399,7 +1430,7 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 	}
 
 	if (ast_strlen_zero((*query)->acf->syntax)) {
-		free_acf_query(*query);
+		ao2_ref(*query, -1);
 		*query = NULL;
 		return ENOMEM;
 	}
@@ -1411,7 +1442,7 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 	}
 
 	if (ast_strlen_zero((*query)->acf->synopsis)) {
-		free_acf_query(*query);
+		ao2_ref(*query, -1);
 		*query = NULL;
 		return ENOMEM;
 	}
@@ -1451,14 +1482,14 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 					(*query)->sql_insert ? "\n\nInsert:\n" : "",
 					(*query)->sql_insert ? (*query)->sql_insert : "");
 	} else {
-		free_acf_query(*query);
+		ao2_ref(*query, -1);
 		*query = NULL;
 		ast_log(LOG_WARNING, "Section '%s' was found, but there was no SQL to execute.  Ignoring.\n", catg);
 		return EINVAL;
 	}
 
 	if (ast_strlen_zero((*query)->acf->desc)) {
-		free_acf_query(*query);
+		ao2_ref(*query, -1);
 		*query = NULL;
 		return ENOMEM;
 	}
@@ -1911,6 +1942,31 @@ static int load_module(void)
 	AST_RWLIST_UNLOCK(&queries);
 	return res;
 }
+static void retire_query(struct acf_odbc_query *query)
+{
+	ast_mutex_lock(&retired_queries_lock);
+	AST_LIST_INSERT_TAIL(&retired_queries, query, pending);
+	ast_mutex_unlock(&retired_queries_lock);
+}
+
+static void free_retired_queries(void)
+{
+	struct acf_odbc_query *query;
+	AST_LIST_HEAD_NOLOCK(, acf_odbc_query) local;
+	AST_LIST_HEAD_INIT_NOLOCK(&local);
+
+	/* Move all entries to a local list under lock */
+	ast_mutex_lock(&retired_queries_lock);
+	while ((query = AST_LIST_REMOVE_HEAD(&retired_queries, pending))) {
+		AST_LIST_INSERT_TAIL(&local, query, pending);
+	}
+	ast_mutex_unlock(&retired_queries_lock);
+
+	/* Now drop refs without holding the lock */
+	while ((query = AST_LIST_REMOVE_HEAD(&local, pending))) {
+		ao2_ref(query, -1);
+	}
+}
 
 static int unload_module(void)
 {
@@ -1921,7 +1977,7 @@ static int unload_module(void)
 	while (!AST_RWLIST_EMPTY(&queries)) {
 		query = AST_RWLIST_REMOVE_HEAD(&queries, list);
 		ast_custom_function_unregister(query->acf);
-		free_acf_query(query);
+		retire_query(query);
 	}
 
 	res |= ast_custom_function_unregister(&escape_function);
@@ -1930,12 +1986,14 @@ static int unload_module(void)
 	res |= ast_unregister_application(app_odbcfinish);
 	ast_cli_unregister_multiple(cli_func_odbc, ARRAY_LEN(cli_func_odbc));
 
-	/* Allow any threads waiting for this lock to pass (avoids a race) */
 	AST_RWLIST_UNLOCK(&queries);
-	usleep(1);
-	AST_RWLIST_WRLOCK(&queries);
-
-	AST_RWLIST_UNLOCK(&queries);
+	/*
+	 * Force active module users to drain before freeing retired query objects.
+	 * Backing storage must remain alive until callers using acfptr->mod have
+	 * been forced out and completed their module_user_remove() path.
+	 */
+	__ast_module_user_hangup_all(ast_module_info->self);
+	free_retired_queries();
 
 	if (dsns) {
 		ao2_ref(dsns, -1);
@@ -1985,7 +2043,7 @@ static int reload(void)
 	while (!AST_RWLIST_EMPTY(&queries)) {
 		oldquery = AST_RWLIST_REMOVE_HEAD(&queries, list);
 		ast_custom_function_unregister(oldquery->acf);
-		free_acf_query(oldquery);
+		retire_query(oldquery);
 	}
 
 	if (!cfg) {
@@ -2015,8 +2073,6 @@ reload_out:
 	AST_RWLIST_UNLOCK(&queries);
 	return res;
 }
-
-/* XXX need to revise usecount - set if query_lock is set */
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "ODBC lookups",
 	.support_level = AST_MODULE_SUPPORT_CORE,

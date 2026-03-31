@@ -615,20 +615,43 @@ int ast_func_read(struct ast_channel *chan, const char *function, char *workspac
 {
 	char *copy = ast_strdupa(function);
 	char *args = func_args(copy);
-	struct ast_custom_function *acfptr = ast_custom_function_find(copy);
+	struct ast_custom_function *acfptr;
 	int res;
 	struct ast_module_user *u = NULL;
+	/*
+	 * Hold acf_root read lock across lookup AND __ast_module_user_add().
+	 * ast_custom_function_unregister() takes the write lock on acf_root,
+	 * so holding the read lock here prevents a concurrent unregister from
+	 * removing the registry entry between find and module_user_add.
+	 *
+	 * Once module_user_add() has been called, the module user count is
+	 * non-zero and the provider's unload/reload path must not free the
+	 * backing storage until in-flight module users have been drained.
+	 *
+	 * API contract: providers are responsible for keeping the backing
+	 * ast_custom_function object valid until __ast_module_user_remove()
+	 * completes.  Providers using static struct ast_custom_function satisfy
+	 * this naturally.  Providers that dynamically allocate function objects
+	 * (e.g. func_odbc) must defer freeing until their unload/reload path
+	 * has drained in-flight module users.
+	 */
+	AST_RWLIST_RDLOCK(&acf_root);
+	acfptr = ast_custom_function_find_nolock(copy);
 
 	if (acfptr == NULL) {
+		AST_RWLIST_UNLOCK(&acf_root);
 		ast_log(LOG_ERROR, "Function %s not registered\n", copy);
 	} else if (!acfptr->read && !acfptr->read2) {
+		AST_RWLIST_UNLOCK(&acf_root);
 		ast_log(LOG_ERROR, "Function %s cannot be read\n", copy);
 	} else if (!is_read_allowed(acfptr)) {
+		AST_RWLIST_UNLOCK(&acf_root);
 		ast_log(LOG_ERROR, "Dangerous function %s read blocked\n", copy);
 	} else if (acfptr->read) {
 		if (acfptr->mod) {
 			u = __ast_module_user_add(acfptr->mod, chan);
 		}
+		AST_RWLIST_UNLOCK(&acf_root);
 		res = acfptr->read(chan, copy, args, workspace, len);
 		if (acfptr->mod && u) {
 			__ast_module_user_remove(acfptr->mod, u);
@@ -641,6 +664,7 @@ int ast_func_read(struct ast_channel *chan, const char *function, char *workspac
 		if (acfptr->mod) {
 			u = __ast_module_user_add(acfptr->mod, chan);
 		}
+		AST_RWLIST_UNLOCK(&acf_root);
 		res = acfptr->read2(chan, copy, args, &str, 0);
 		if (acfptr->mod && u) {
 			__ast_module_user_remove(acfptr->mod, u);
@@ -658,20 +682,26 @@ int ast_func_read2(struct ast_channel *chan, const char *function, struct ast_st
 {
 	char *copy = ast_strdupa(function);
 	char *args = func_args(copy);
-	struct ast_custom_function *acfptr = ast_custom_function_find(copy);
+	struct ast_custom_function *acfptr;
 	int res;
 	struct ast_module_user *u = NULL;
+	AST_RWLIST_RDLOCK(&acf_root);
+	acfptr = ast_custom_function_find_nolock(copy);
 
 	if (acfptr == NULL) {
+		AST_RWLIST_UNLOCK(&acf_root);
 		ast_log(LOG_ERROR, "Function %s not registered\n", copy);
 	} else if (!acfptr->read && !acfptr->read2) {
+		AST_RWLIST_UNLOCK(&acf_root);
 		ast_log(LOG_ERROR, "Function %s cannot be read\n", copy);
 	} else if (!is_read_allowed(acfptr)) {
+		AST_RWLIST_UNLOCK(&acf_root);
 		ast_log(LOG_ERROR, "Dangerous function %s read blocked\n", copy);
 	} else {
 		if (acfptr->mod) {
 			u = __ast_module_user_add(acfptr->mod, chan);
 		}
+		AST_RWLIST_UNLOCK(&acf_root);
 		ast_str_reset(*str);
 		if (acfptr->read2) {
 			/* ast_str enabled */
@@ -709,13 +739,18 @@ int ast_func_write(struct ast_channel *chan, const char *function, const char *v
 {
 	char *copy = ast_strdupa(function);
 	char *args = func_args(copy);
-	struct ast_custom_function *acfptr = ast_custom_function_find(copy);
+	struct ast_custom_function *acfptr;
+	AST_RWLIST_RDLOCK(&acf_root);
+	acfptr = ast_custom_function_find_nolock(copy);
 
 	if (acfptr == NULL) {
+		AST_RWLIST_UNLOCK(&acf_root);
 		ast_log(LOG_ERROR, "Function %s not registered\n", copy);
 	} else if (!acfptr->write) {
+		AST_RWLIST_UNLOCK(&acf_root);
 		ast_log(LOG_ERROR, "Function %s cannot be written to\n", copy);
 	} else if (!is_write_allowed(acfptr)) {
+		AST_RWLIST_UNLOCK(&acf_root);
 		ast_log(LOG_ERROR, "Dangerous function %s write blocked\n", copy);
 	} else {
 		int res;
@@ -724,6 +759,7 @@ int ast_func_write(struct ast_channel *chan, const char *function, const char *v
 		if (acfptr->mod) {
 			u = __ast_module_user_add(acfptr->mod, chan);
 		}
+		AST_RWLIST_UNLOCK(&acf_root);
 		res = acfptr->write(chan, copy, args, value);
 		if (acfptr->mod && u) {
 			__ast_module_user_remove(acfptr->mod, u);
