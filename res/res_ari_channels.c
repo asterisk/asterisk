@@ -2484,6 +2484,10 @@ int ast_ari_channels_set_channel_var_parse_body(
 	if (field) {
 		args->value = ast_json_string_get(field);
 	}
+	field = ast_json_object_get(body, "report_events");
+	if (field) {
+		args->report_events = ast_json_is_true(field);
+	}
 	return 0;
 }
 
@@ -2514,6 +2518,9 @@ static void ast_ari_channels_set_channel_var_cb(
 		} else
 		if (strcmp(i->name, "value") == 0) {
 			args.value = (i->value);
+		} else
+		if (strcmp(i->name, "report_events") == 0) {
+			args.report_events = ast_true(i->value);
 		} else
 		{}
 	}

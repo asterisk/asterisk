@@ -149,6 +149,17 @@ static unsigned int optimization_id;
 /* Variable name - stores peer information about the most recent attended transfer */
 #define ATTENDEDTRANSFER "ATTENDEDTRANSFER"
 
+/*!
+ * \brief Compare a bridge variable name with a given name.
+ *
+ * \param var_str The variable name to compare.
+ * \param name The name to compare against.
+ *
+ * \retval 0 if the names do not match.
+ * \retval 1 if the names match.
+ */
+#define BV_NAME_CMP(var_str, name) !strcmp(var_str, name)
+
 static void cleanup_video_mode(struct ast_bridge *bridge);
 
 /*! Default DTMF keys for built in features */
@@ -659,6 +670,7 @@ static void bridge_handle_actions(struct ast_bridge *bridge)
 static void destroy_bridge(void *obj)
 {
 	struct ast_bridge *bridge = obj;
+	struct ast_var_t *var;
 
 	ast_debug(1, "Bridge " BRIDGE_PRINTF_SPEC ": actually destroying %s bridge, nobody wants it anymore\n",
 		BRIDGE_PRINTF_VARS(bridge), bridge->v_table->name);
@@ -708,6 +720,12 @@ static void destroy_bridge(void *obj)
 	ast_string_field_free_memory(bridge);
 	ao2_cleanup(bridge->current_snapshot);
 	bridge->current_snapshot = NULL;
+	while ((var = AST_LIST_REMOVE_HEAD(&bridge->bridgevars, entries))) {
+		ast_var_delete(var);
+	}
+	AST_LIST_HEAD_INIT_NOLOCK(&bridge->bridgevars);
+	AST_VECTOR_RESET(&bridge->ari_reportable_variable_names, ast_free);
+	AST_VECTOR_FREE(&bridge->ari_reportable_variable_names);
 }
 
 struct ast_bridge *bridge_register(struct ast_bridge *bridge)
@@ -776,6 +794,8 @@ struct ast_bridge *bridge_alloc(size_t size, const struct ast_bridge_methods *v_
 	bridge->v_table = v_table;
 
 	AST_VECTOR_INIT(&bridge->media_types, AST_MEDIA_TYPE_END);
+	AST_LIST_HEAD_INIT_NOLOCK(&bridge->bridgevars);
+	AST_VECTOR_INIT(&bridge->ari_reportable_variable_names, 8);
 
 	return bridge;
 }
@@ -1284,6 +1304,116 @@ void ast_bridge_vars_set(struct ast_channel *chan, const char *name, const char 
 	pbx_builtin_setvar_helper(chan, "BRIDGEPEER", name);
 	pbx_builtin_setvar_helper(chan, "BRIDGEPVTCALLID", pvtid);
 	ast_channel_stage_snapshot_done(chan);
+}
+
+static int bridge_set_ari_var_reportable(struct ast_bridge *bridge, const char *variable,
+	int report_events)
+{
+	char *var_str;
+
+	if (ast_strlen_zero(variable)) {
+		return -1;
+	}
+
+	if (!report_events) {
+		AST_VECTOR_REMOVE_CMP_UNORDERED(&bridge->ari_reportable_variable_names, variable,
+			BV_NAME_CMP, ast_free);
+		return 0;
+	}
+
+	if (AST_VECTOR_GET_CMP(&bridge->ari_reportable_variable_names, variable, BV_NAME_CMP)) {
+		return 0; /* already present */
+	}
+
+	var_str = ast_strdup(variable);
+	if (!var_str) {
+		return -1;
+	}
+
+	if (AST_VECTOR_APPEND(&bridge->ari_reportable_variable_names, var_str)) {
+		ast_free(var_str);
+		return -1;
+	}
+
+	return 0;
+}
+
+int ast_bridge_set_variable(struct ast_bridge *bridge, const char *name, const char *value,
+	int report_events)
+{
+	struct ast_var_t *var;
+
+	if (ast_strlen_zero(name)) {
+		return -1;
+	}
+
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&bridge->bridgevars, var, entries) {
+		if (!strcmp(ast_var_name(var), name)) {
+			AST_LIST_REMOVE_CURRENT(entries);
+			ast_var_delete(var);
+			break;
+		}
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
+
+	if (ast_strlen_zero(value)) {
+		/* If the value is empty, remove the variable from the reportable list by
+		   forcing report_events to 0 */
+		bridge_set_ari_var_reportable(bridge, name, 0);
+		return 0;
+	}
+
+	var = ast_var_assign(name, value);
+	if (!var) {
+		return -1;
+	}
+
+	if (bridge_set_ari_var_reportable(bridge, name, report_events)) {
+		ast_var_delete(var);
+		return -1;
+	}
+
+	AST_LIST_INSERT_TAIL(&bridge->bridgevars, var, entries);
+	return 0;
+}
+
+const char *ast_bridge_get_variable(const struct ast_bridge *bridge, const char *name)
+{
+	return ast_var_find(&bridge->bridgevars, name);
+}
+
+struct varshead *ast_bridge_get_ari_reportable_variables(struct ast_bridge *bridge)
+{
+	struct varshead *ret;
+	char *var_str;
+	size_t i;
+
+	if (AST_VECTOR_SIZE(&bridge->ari_reportable_variable_names) == 0) {
+		return NULL;
+	}
+
+	ret = ast_var_list_create();
+	if (!ret) {
+		return NULL;
+	}
+
+	for (i = 0; i < AST_VECTOR_SIZE(&bridge->ari_reportable_variable_names); ++i) {
+		const char *val = NULL;
+		struct ast_var_t *var;
+
+		var_str = AST_VECTOR_GET(&bridge->ari_reportable_variable_names, i);
+		val = ast_bridge_get_variable(bridge, var_str);
+
+		var = ast_var_assign(var_str, val ? val : "");
+		if (!var) {
+			ast_var_list_destroy(ret);
+			return NULL;
+		}
+
+		AST_LIST_INSERT_TAIL(ret, var, entries);
+	}
+
+	return ret;
 }
 
 /*!
