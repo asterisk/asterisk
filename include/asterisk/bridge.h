@@ -345,6 +345,8 @@ struct ast_bridge_snapshot {
 	enum ast_bridge_video_mode_type video_mode;
 	/*! The time of bridge creation */
 	struct timeval creationtime;
+	/*! Variables to be included in ARI events */
+	struct varshead *bridgevars;
 };
 
 /*!
@@ -410,6 +412,10 @@ struct ast_bridge {
 	struct ast_bridge_snapshot *current_snapshot;
 	/*! The time of bridge creation */
 	struct timeval creationtime;
+	/*! A linked list for bridge variables */
+	struct varshead bridgevars;
+	/*! A vector of variable names to be included in ARI events on this bridge */
+	AST_VECTOR(, char *) ari_reportable_variable_names;
 };
 
 /*! \brief Bridge base class virtual method table. */
@@ -853,6 +859,57 @@ int ast_bridge_unsuspend(struct ast_bridge *bridge, struct ast_channel *chan);
  * \param pvtid Private CallID of the bridged peer
  */
 void ast_bridge_vars_set(struct ast_channel *chan, const char *name, const char *pvtid);
+
+/*!
+ * \brief Set a variable on the bridge.
+ * \since 20.20.0
+ * \since 22.10.0
+ * \since 23.4.0
+ *
+ * \pre Bridge is locked
+ *
+ * \param bridge Bridge to operate on.
+ * \param name Name of variable to set.
+ * \param value Value of variable to set.  (NULL to delete variable.)
+ * \param report_events If non-zero, the variable change will be reported in ARI events.
+ *
+ * \retval 0 on success
+ * \retval -1 on failure
+ */
+int ast_bridge_set_variable(struct ast_bridge *bridge, const char *name, const char *value, int report_events);
+
+/*!
+ * \brief Get value a variable from the bridge by name.
+ * \since 20.20.0
+ * \since 22.10.0
+ * \since 23.4.0
+ *
+ * \pre Bridge is locked
+ *
+ * \param bridge Bridge to operate on.
+ * \param name Name of variable to get.
+ *
+ * \retval Value of the variable on success.
+ * \retval NULL on failure.
+ */
+const char *ast_bridge_get_variable(const struct ast_bridge *bridge, const char *name);
+
+/*!
+ * \brief Get a list of variables that should be included in ARI events for this bridge.
+ * \since 20.20.0
+ * \since 22.10.0
+ * \since 23.4.0
+ *
+ * \pre Bridge is locked
+ *
+ * \param bridge Bridge to operate on.
+ *
+ * \note The returned list must be freed by the caller.
+ *
+ * \retval A pointer to the head of a linked list of variables to include in ARI events on success.
+ * \retval NULL on failure or if no variables are set to be reported.
+ */
+struct varshead *ast_bridge_get_ari_reportable_variables(struct ast_bridge *bridge);
 
 struct ast_unreal_pvt;
 
