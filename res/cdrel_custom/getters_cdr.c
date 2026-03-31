@@ -53,7 +53,7 @@ DEFINE_CDR_GETTER(uint32, uint32, uint32_t)
 DEFINE_CDR_GETTER(int64, int64, int64_t)
 DEFINE_CDR_GETTER(uint64, uint64, uint64_t)
 DEFINE_CDR_GETTER(tv, timeval, struct timeval)
-DEFINE_CDR_GETTER(floater, float, float)
+DEFINE_CDR_GETTER(doubler, double, double)
 
 static int cdr_get_literal(void *record, struct cdrel_config *config,
 	struct cdrel_field *field, struct cdrel_value *value)
@@ -108,7 +108,7 @@ int load_cdr(void)
 	cdrel_field_getters[cdrel_record_cdr][cdrel_type_int64] = cdr_get_int64;
 	cdrel_field_getters[cdrel_record_cdr][cdrel_type_uint64] = cdr_get_uint64;
 	cdrel_field_getters[cdrel_record_cdr][cdrel_type_timeval] = cdr_get_timeval;
-	cdrel_field_getters[cdrel_record_cdr][cdrel_type_float] = cdr_get_float;
+	cdrel_field_getters[cdrel_record_cdr][cdrel_type_double] = cdr_get_double;
 	cdrel_field_getters[cdrel_record_cdr][cdrel_type_uservar] = cdr_get_uservar;
 	cdrel_dummy_channel_allocators[cdrel_record_cdr] = dummy_chan_alloc_cdr;
 
