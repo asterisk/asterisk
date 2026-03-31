@@ -114,7 +114,7 @@
 						},
 						{
 							"name": "variables",
-							"description": "The \"variables\" key in the body object holds variable key/value pairs to set on the channel on creation. Other keys in the body object are interpreted as query parameters. Ex. { \"endpoint\": \"SIP/Alice\", \"variables\": { \"CALLERID(name)\": \"Alice\" } }",
+							"description": "The \"variables\" key in the body object holds variable key/value pairs to set on the channel on creation. Each variable value may be either a string or an object containing \"value\" (string) and optional \"report_events\" (boolean) to include updates for that variable in channel events (defaults to false). Other keys in the body object are interpreted as query parameters. Ex. { \"endpoint\": \"SIP/Alice\", \"variables\": { \"CALLERID(name)\": \"Alice\", \"Call_State\": { \"value\": \"WaitingForAgent\", \"report_events\": true } } }",
 							"paramType": "body",
 							"required": false,
 							"dataType": "containers",
@@ -237,7 +237,7 @@
 						},
 						{
 							"name": "variables",
-							"description": "The \"variables\" key in the body object holds variable key/value pairs to set on the channel on creation. Other keys in the body object are interpreted as query parameters. Ex. { \"endpoint\": \"SIP/Alice\", \"variables\": { \"CALLERID(name)\": \"Alice\" } }",
+							"description": "The \"variables\" key in the body object holds variable key/value pairs to set on the channel on creation. Each variable value may be either a string or an object containing \"value\" (string) and optional \"report_events\" (boolean) to include updates for that variable in channel events (defaults to false). Other keys in the body object are interpreted as query parameters. Ex. { \"endpoint\": \"SIP/Alice\", \"variables\": { \"CALLERID(name)\": \"Alice\", \"Call_State\": { \"value\": \"WaitingForAgent\", \"report_events\": true } } }",
 							"paramType": "body",
 							"required": false,
 							"dataType": "containers",
@@ -375,7 +375,7 @@
 						},
 						{
 							"name": "variables",
-							"description": "The \"variables\" key in the body object holds variable key/value pairs to set on the channel on creation. Other keys in the body object are interpreted as query parameters. Ex. { \"endpoint\": \"SIP/Alice\", \"variables\": { \"CALLERID(name)\": \"Alice\" } }",
+							"description": "The \"variables\" key in the body object holds variable key/value pairs to set on the channel on creation. Each variable value may be either a string or an object containing \"value\" (string) and optional \"report_events\" (boolean) to include updates for that variable in channel events (defaults to false). Other keys in the body object are interpreted as query parameters. Ex. { \"endpoint\": \"SIP/Alice\", \"variables\": { \"CALLERID(name)\": \"Alice\", \"Call_State\": { \"value\": \"WaitingForAgent\", \"report_events\": true } } }",
 							"paramType": "body",
 							"required": false,
 							"dataType": "containers",
@@ -1601,6 +1601,15 @@
 							"required": false,
 							"allowMultiple": false,
 							"dataType": "string"
+						},
+						{
+							"name": "report_events",
+							"description": "Whether this variable should be included in channel events. Defaults to false.",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "boolean",
+							"defaultValue": false
 						}
 					],
 					"errorResponses": [
@@ -1688,9 +1697,9 @@
 						},
 						{
 							"name": "variables",
-							"description": "The \"variables\" key in the body object holds variable key/value pairs to set on the channel. Ex. { \"variables\": { \"CALLERID(name)\": \"Alice\" } }",
+							"description": "The \"variables\" key in the body object holds variable key/value pairs to set on the channel. Each variable value may be either a string or an object containing \"value\" (string) and optional \"report_events\" (boolean) to include updates for that variable in channel events (defaults to false). Ex. { \"variables\": { \"CALLERID(name)\": \"Alice\", \"Call_State\": { \"value\": \"WaitingForAgent\", \"report_events\": true } } }",
 							"paramType": "body",
-							"required": false,
+							"required": true,
 							"dataType": "containers",
 							"allowMultiple": false
 						}
@@ -2026,7 +2035,7 @@
 						},
 						{
 							"name": "variables",
-							"description": "The \"variables\" key in the body object holds variable key/value pairs to set on the channel on creation. Other keys in the body object are interpreted as query parameters. Ex. { \"endpoint\": \"SIP/Alice\", \"variables\": { \"CALLERID(name)\": \"Alice\" } }",
+							"description": "The \"variables\" key in the body object holds variable key/value pairs to set on the channel on creation. Each variable value may be either a string or an object containing \"value\" (string) and optional \"report_events\" (boolean) to include updates for that variable in channel events (defaults to false). Other keys in the body object are interpreted as query parameters. Ex. { \"endpoint\": \"SIP/Alice\", \"variables\": { \"CALLERID(name)\": \"Alice\", \"Call_State\": { \"value\": \"WaitingForAgent\", \"report_events\": true } } }",
 							"paramType": "body",
 							"required": false,
 							"dataType": "containers",

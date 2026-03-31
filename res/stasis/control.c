@@ -728,6 +728,8 @@ struct chanvar {
 	char *name;
 	/*! Value of variable to set. If unsetting, this will be NULL */
 	char *value;
+	/*! Whether this variable should be included in channel events */
+	unsigned int report_events;
 };
 
 static void free_chanvar(void *data)
@@ -744,12 +746,21 @@ static int app_control_set_channel_var(struct stasis_app_control *control,
 {
 	struct chanvar *var = data;
 
+	if (ast_channel_set_ari_var_reportable(control->channel, var->name, var->report_events)) {
+		return -1;
+	}
+
 	pbx_builtin_setvar_helper(control->channel, var->name, var->value);
 
 	return 0;
 }
 
 int stasis_app_control_set_channel_var(struct stasis_app_control *control, const char *variable, const char *value)
+{
+	return stasis_app_control_set_channel_var_reportable(control, variable, value, 0);
+}
+
+int stasis_app_control_set_channel_var_reportable(struct stasis_app_control *control, const char *variable, const char *value, int report_events)
 {
 	struct chanvar *var;
 
@@ -773,9 +784,9 @@ int stasis_app_control_set_channel_var(struct stasis_app_control *control, const
 		}
 	}
 
-	stasis_app_send_command_async(control, app_control_set_channel_var, var, free_chanvar);
+	var->report_events = report_events ? 1 : 0;
 
-	return 0;
+	return stasis_app_send_command(control, app_control_set_channel_var, var, free_chanvar);
 }
 
 static int app_control_hold(struct stasis_app_control *control,

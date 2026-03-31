@@ -1809,6 +1809,15 @@ int ast_ari_validate_bridge(struct ast_json *json)
 				res = 0;
 			}
 		} else
+		if (strcmp("bridgevars", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_object(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI Bridge field bridgevars failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("channels", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_channels = 1;
