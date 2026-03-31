@@ -4414,6 +4414,12 @@ int ast_channel_fd_count(const struct ast_channel *chan);
  */
 int ast_channel_fd_add(struct ast_channel *chan, int value);
 
+/* ARI reportable variables accessors */
+size_t ast_channel_internal_ari_reportable_vars_count(const struct ast_channel *chan);
+char *ast_channel_internal_ari_reportable_vars_get(const struct ast_channel *chan, size_t index);
+int ast_channel_internal_ari_reportable_vars_append(struct ast_channel *chan, char *key);
+char *ast_channel_internal_ari_reportable_vars_remove(struct ast_channel *chan, size_t index);
+
 pthread_t ast_channel_blocker(const struct ast_channel *chan);
 void ast_channel_blocker_set(struct ast_channel *chan, pthread_t value);
 
@@ -4602,6 +4608,20 @@ void ast_channel_set_ari_vars(size_t varc, char **vars);
  * \retval NULL on error
  */
 struct varshead *ast_channel_get_ari_vars(struct ast_channel *chan);
+
+/*!
+ * \since 20.20.0
+ * \since 22.10.0
+ * \since 23.4.0
+ * \brief Set whether a channel variable should be included in REST events on the channel.
+ *
+ * \param chan Channel to update.
+ * \param variable Variable name or dialplan function expression.
+ * \param report_events Non-zero to include in REST events, zero to omit.
+ * \retval 0 on success
+ * \retval -1 on failure
+ */
+int ast_channel_set_ari_var_reportable(struct ast_channel *chan, const char *variable, int report_events);
 
 /*!
  * \since 12

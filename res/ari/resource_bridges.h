@@ -58,6 +58,8 @@ struct ast_ari_bridges_create_args {
 	const char *bridge_id;
 	/*! Name to give to the bridge being created. */
 	const char *name;
+	/*! The "variables" key in the body object holds variable key/value pairs to set on the bridge on creation. Each variable is an object containing "value" (string) and optional "report_events" (boolean) to include updates for that variable in bridge events (defaults to false).   Ex. { "name": "SupportBridge", "variables": {  "Bridge_State": { "value": "WaitingForAgent", "report_events": true } } } */
+	struct ast_json *variables;
 };
 /*!
  * \brief Body parsing function for /bridges.
@@ -88,6 +90,8 @@ struct ast_ari_bridges_create_with_id_args {
 	const char *bridge_id;
 	/*! Set the name of the bridge. */
 	const char *name;
+	/*! The "variables" key in the body object holds variable key/value pairs to set on the bridge on creation. Each variable is an object containing "value" (string) and optional "report_events" (boolean) to include updates for that variable in bridge events (defaults to false).   Ex. { "name": "SupportBridge", "variables": {  "Bridge_State": { "value": "WaitingForAgent", "report_events": true } } } */
+	struct ast_json *variables;
 };
 /*!
  * \brief Body parsing function for /bridges/{bridgeId}.
@@ -138,6 +142,118 @@ struct ast_ari_bridges_destroy_args {
  * \param[out] response HTTP response
  */
 void ast_ari_bridges_destroy(struct ast_variable *headers, struct ast_ari_bridges_destroy_args *args, struct ast_ari_response *response);
+/*! Argument struct for ast_ari_bridges_get_bridge_var() */
+struct ast_ari_bridges_get_bridge_var_args {
+	/*! Bridge's id */
+	const char *bridge_id;
+	/*! The bridge variable or function to get */
+	const char *variable;
+};
+/*!
+ * \brief Body parsing function for /bridges/{bridgeId}/variable.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_bridges_get_bridge_var_parse_body(
+	struct ast_json *body,
+	struct ast_ari_bridges_get_bridge_var_args *args);
+
+/*!
+ * \brief Get the value of a bridge variable or function.
+ *
+ * \param headers HTTP headers
+ * \param args Swagger parameters
+ * \param[out] response HTTP response
+ */
+void ast_ari_bridges_get_bridge_var(struct ast_variable *headers, struct ast_ari_bridges_get_bridge_var_args *args, struct ast_ari_response *response);
+/*! Argument struct for ast_ari_bridges_set_bridge_var() */
+struct ast_ari_bridges_set_bridge_var_args {
+	/*! Bridge's id */
+	const char *bridge_id;
+	/*! The bridge variable or function to set */
+	const char *variable;
+	/*! The value to set the variable to */
+	const char *value;
+	/*! Whether this variable should be included in bridge events. Defaults to false. */
+	int report_events;
+};
+/*!
+ * \brief Body parsing function for /bridges/{bridgeId}/variable.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_bridges_set_bridge_var_parse_body(
+	struct ast_json *body,
+	struct ast_ari_bridges_set_bridge_var_args *args);
+
+/*!
+ * \brief Set the value of a bridge variable or function.
+ *
+ * \param headers HTTP headers
+ * \param args Swagger parameters
+ * \param[out] response HTTP response
+ */
+void ast_ari_bridges_set_bridge_var(struct ast_variable *headers, struct ast_ari_bridges_set_bridge_var_args *args, struct ast_ari_response *response);
+/*! Argument struct for ast_ari_bridges_get_bridge_vars() */
+struct ast_ari_bridges_get_bridge_vars_args {
+	/*! Bridge's id */
+	const char *bridge_id;
+	/*! Array of The bridge variables or functions to get */
+	const char **variables;
+	/*! Length of variables array. */
+	size_t variables_count;
+	/*! Parsing context for variables. */
+	char *variables_parse;
+};
+/*!
+ * \brief Body parsing function for /bridges/{bridgeId}/variables.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_bridges_get_bridge_vars_parse_body(
+	struct ast_json *body,
+	struct ast_ari_bridges_get_bridge_vars_args *args);
+
+/*!
+ * \brief Get the value of multiple bridge variables or functions.
+ *
+ * \param headers HTTP headers
+ * \param args Swagger parameters
+ * \param[out] response HTTP response
+ */
+void ast_ari_bridges_get_bridge_vars(struct ast_variable *headers, struct ast_ari_bridges_get_bridge_vars_args *args, struct ast_ari_response *response);
+/*! Argument struct for ast_ari_bridges_set_bridge_vars() */
+struct ast_ari_bridges_set_bridge_vars_args {
+	/*! Bridge's id */
+	const char *bridge_id;
+	/*! The "variables" key in the body object holds variable key/value pairs to set on the bridge. Each variable value may be either a string or an object containing "value" (string) and optional "report_events" (boolean) to include updates for that variable in bridge events (defaults to false). Ex. { "variables": { "Bridge_State": "WaitingForAgent", "Support_Level": { "value": "Premium", "report_events": true } } } */
+	struct ast_json *variables;
+};
+/*!
+ * \brief Body parsing function for /bridges/{bridgeId}/variables.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_bridges_set_bridge_vars_parse_body(
+	struct ast_json *body,
+	struct ast_ari_bridges_set_bridge_vars_args *args);
+
+/*!
+ * \brief Set the values of multiple bridge variables or functions.
+ *
+ * \param headers HTTP headers
+ * \param args Swagger parameters
+ * \param[out] response HTTP response
+ */
+void ast_ari_bridges_set_bridge_vars(struct ast_variable *headers, struct ast_ari_bridges_set_bridge_vars_args *args, struct ast_ari_response *response);
 /*! Argument struct for ast_ari_bridges_add_channel() */
 struct ast_ari_bridges_add_channel_args {
 	/*! Bridge's id */
