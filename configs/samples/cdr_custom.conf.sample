@@ -106,7 +106,8 @@
     ;
     ; The default output format for the "start", "answer" and "end" timestamp fields
     ; is the "%Y-%m-%d %T" strftime string format however you can also format those
-    ; fields as an int64 or a float: `start(int64),answer(float),end`.
+    ; fields as an int64 or a double: `start(int64)` or `start(double)` or
+    ; provide your own strftime format string: `start(%FT%T%z)`.
     ;
     ; The "disposition" and "amaflags" are formatted as their string names like
     ; "ANSWERED" and "DOCUMENTATION" by default but if you just want the numbers and
