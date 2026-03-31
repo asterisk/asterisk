@@ -60,6 +60,14 @@
 							"required": false,
 							"allowMultiple": false,
 							"dataType": "string"
+						},
+						{
+							"name": "variables",
+							"description": "The \"variables\" key in the body object holds variable key/value pairs to set on the bridge on creation. Each variable is an object containing \"value\" (string) and optional \"report_events\" (boolean) to include updates for that variable in bridge events (defaults to false).   Ex. { \"name\": \"SupportBridge\", \"variables\": {  \"Bridge_State\": { \"value\": \"WaitingForAgent\", \"report_events\": true } } }",
+							"paramType": "body",
+							"required": false,
+							"dataType": "containers",
+							"allowMultiple": false
 						}
 					],
 					"errorResponses": [
@@ -108,6 +116,14 @@
 							"required": false,
 							"allowMultiple": false,
 							"dataType": "string"
+						},
+						{
+							"name": "variables",
+							"description": "The \"variables\" key in the body object holds variable key/value pairs to set on the bridge on creation. Each variable is an object containing \"value\" (string) and optional \"report_events\" (boolean) to include updates for that variable in bridge events (defaults to false).   Ex. { \"name\": \"SupportBridge\", \"variables\": {  \"Bridge_State\": { \"value\": \"WaitingForAgent\", \"report_events\": true } } }",
+							"paramType": "body",
+							"required": false,
+							"dataType": "containers",
+							"allowMultiple": false
 						}
 					],
 					"errorResponses": [
@@ -165,6 +181,207 @@
 						{
 							"code": 404,
 							"reason": "Bridge not found"
+						}
+					]
+				}
+			]
+		},
+		{
+			"path": "/bridges/{bridgeId}/variable",
+			"description": "Variables on a bridge",
+			"operations": [
+				{
+					"httpMethod": "GET",
+					"since": [
+						"20.20.0",
+						"22.10.0",
+						"23.4.0"
+					],
+					"summary": "Get the value of a bridge variable or function.",
+					"nickname": "getBridgeVar",
+					"responseClass": "Variable",
+					"parameters": [
+						{
+							"name": "bridgeId",
+							"description": "Bridge's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "variable",
+							"description": "The bridge variable or function to get",
+							"paramType": "query",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 400,
+							"reason": "Missing variable parameter."
+						},
+						{
+							"code": 404,
+							"reason": "Bridge or variable not found"
+						},
+						{
+							"code": 409,
+							"reason": "Bridge not in a Stasis application"
+						}
+					]
+				},
+				{
+					"httpMethod": "POST",
+					"since": [
+						"20.20.0",
+						"22.10.0",
+						"23.4.0"
+					],
+					"summary": "Set the value of a bridge variable or function.",
+					"nickname": "setBridgeVar",
+					"responseClass": "void",
+					"parameters": [
+						{
+							"name": "bridgeId",
+							"description": "Bridge's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "variable",
+							"description": "The bridge variable or function to set",
+							"paramType": "query",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "value",
+							"description": "The value to set the variable to",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "report_events",
+							"description": "Whether this variable should be included in bridge events. Defaults to false.",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "boolean",
+							"defaultValue": false
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 400,
+							"reason": "Missing variable parameter."
+						},
+						{
+							"code": 404,
+							"reason": "Bridge not found"
+						},
+						{
+							"code": 409,
+							"reason": "Bridge not in a Stasis application"
+						}
+					]
+				}
+			]
+		},
+		{
+			"path": "/bridges/{bridgeId}/variables",
+			"description": "Multiple variables on a bridge",
+			"operations": [
+				{
+					"httpMethod": "GET",
+					"since": [
+						"20.20.0",
+						"22.10.0",
+						"23.4.0"
+					],
+					"summary": "Get the value of multiple bridge variables or functions.",
+					"nickname": "getBridgeVars",
+					"responseClass": "Variables",
+					"parameters": [
+						{
+							"name": "bridgeId",
+							"description": "Bridge's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "variables",
+							"description": "The bridge variables or functions to get",
+							"paramType": "query",
+							"required": true,
+							"allowMultiple": true,
+							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 400,
+							"reason": "Missing variables parameter."
+						},
+						{
+							"code": 404,
+							"reason": "Bridge or variable not found"
+						},
+						{
+							"code": 409,
+							"reason": "Bridge not in a Stasis application"
+						}
+					]
+				},
+				{
+					"httpMethod": "POST",
+					"since": [
+						"20.20.0",
+						"22.10.0",
+						"23.4.0"
+					],
+					"summary": "Set the values of multiple bridge variables or functions.",
+					"nickname": "setBridgeVars",
+					"responseClass": "void",
+					"parameters": [
+						{
+							"name": "bridgeId",
+							"description": "Bridge's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "variables",
+							"description": "The \"variables\" key in the body object holds variable key/value pairs to set on the bridge. Each variable value may be either a string or an object containing \"value\" (string) and optional \"report_events\" (boolean) to include updates for that variable in bridge events (defaults to false). Ex. { \"variables\": { \"Bridge_State\": \"WaitingForAgent\", \"Support_Level\": { \"value\": \"Premium\", \"report_events\": true } } }",
+							"paramType": "body",
+							"required": true,
+							"dataType": "containers",
+							"allowMultiple": false
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 400,
+							"reason": "Missing variables parameter."
+						},
+						{
+							"code": 404,
+							"reason": "Bridge not found"
+						},
+						{
+							"code": 409,
+							"reason": "Bridge not in a Stasis application"
 						}
 					]
 				}
@@ -857,6 +1074,11 @@
 					"required": true,
 					"type": "Date",
 					"description": "Timestamp when bridge was created"
+				},
+				"bridgevars": {
+					"required": false,
+					"type": "object",
+					"description": "Bridge variables"
 				}
 			}
 		}

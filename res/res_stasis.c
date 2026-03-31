@@ -920,6 +920,26 @@ void stasis_app_bridge_destroy(const char *bridge_id)
 	ast_bridge_destroy(bridge, 0);
 }
 
+int stasis_app_bridge_set_var_reportable(const char *bridge_id, const char *variable,
+	const char *value, int report_events)
+{
+	RAII_VAR(struct ast_bridge *, bridge, stasis_app_bridge_find_by_id(bridge_id), ao2_cleanup);
+
+	if (!bridge) {
+		return -1;
+	}
+
+	ast_bridge_lock(bridge);
+	if (ast_bridge_set_variable(bridge, variable, value, report_events)) {
+		ast_bridge_unlock(bridge);
+		return -1;
+	}
+	ast_bridge_publish_state(bridge);
+	ast_bridge_unlock(bridge);
+
+	return 0;
+}
+
 struct replace_channel_store {
 	struct ast_channel_snapshot *snapshot;
 	char *app;
