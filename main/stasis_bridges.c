@@ -30,6 +30,7 @@
 #include "asterisk.h"
 
 #include "asterisk/astobj2.h"
+#include "asterisk/json.h"
 #include "asterisk/stasis.h"
 #include "asterisk/stasis_cache_pattern.h"
 #include "asterisk/channel.h"
@@ -224,6 +225,8 @@ static void bridge_snapshot_dtor(void *obj)
 	ast_string_field_free_memory(snapshot);
 	ao2_cleanup(snapshot->channels);
 	snapshot->channels = NULL;
+	ast_var_list_destroy(snapshot->bridgevars);
+	snapshot->bridgevars = NULL;
 }
 
 struct ast_bridge_snapshot *ast_bridge_snapshot_create(struct ast_bridge *bridge)
@@ -284,6 +287,8 @@ struct ast_bridge_snapshot *ast_bridge_snapshot_create(struct ast_bridge *bridge
 		ast_string_field_set(snapshot, video_source_id,
 			ast_channel_uniqueid(bridge->softmix.video_mode.mode_data.talker_src_data.chan_vsrc));
 	}
+
+	snapshot->bridgevars = ast_bridge_get_ari_reportable_variables(bridge);
 
 	return snapshot;
 }
@@ -781,6 +786,11 @@ struct ast_json *ast_bridge_snapshot_to_json(
 		&& !ast_strlen_zero(snapshot->video_source_id)) {
 		ast_json_object_set(json_bridge, "video_source_id",
 			ast_json_string_create(snapshot->video_source_id));
+	}
+
+	if (snapshot->bridgevars && !AST_LIST_EMPTY(snapshot->bridgevars)) {
+		ast_json_object_set(json_bridge, "bridgevars",
+			ast_json_channel_vars(snapshot->bridgevars));
 	}
 
 	return json_bridge;
