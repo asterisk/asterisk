@@ -4063,8 +4063,20 @@ static int ice_create(struct ast_rtp_instance *instance, struct ast_sockaddr *ad
 static int rtp_allocate_transport(struct ast_rtp_instance *instance, struct ast_rtp *rtp)
 {
 	int x, startplace, i, maxloops;
+	unsigned int port_start, port_end;
 
 	rtp->strict_rtp_state = (strictrtp ? STRICT_RTP_CLOSED : STRICT_RTP_OPEN);
+
+	/* Determine the port range to use: per-instance override or global */
+	port_start = ast_rtp_instance_get_port_start(instance);
+	port_end = ast_rtp_instance_get_port_end(instance);
+	if (port_start > 0 && port_end > 0 && port_end > port_start) {
+		ast_debug_rtp(1, "(%p) RTP using per-instance port range %d-%d\n",
+			instance, port_start, port_end);
+	} else {
+		port_start = rtpstart;
+		port_end = rtpend;
+	}
 
 	/* Create a new socket for us to listen on and use */
 	if ((rtp->s = create_new_socket("RTP", &rtp->bind_address)) < 0) {
@@ -4073,13 +4085,13 @@ static int rtp_allocate_transport(struct ast_rtp_instance *instance, struct ast_
 	}
 
 	/* Now actually find a free RTP port to use */
-	x = (ast_random() % (rtpend - rtpstart)) + rtpstart;
+	x = (ast_random() % (port_end - port_start)) + port_start;
 	x = x & ~1;
 	startplace = x;
 
 	/* Protection against infinite loops in the case there is a potential case where the loop is not broken such as an odd
 	   start port sneaking in (even though this condition is checked at load.) */
-	maxloops = rtpend - rtpstart;
+	maxloops = port_end - port_start;
 	for (i = 0; i <= maxloops; i++) {
 		ast_sockaddr_set_port(&rtp->bind_address, x);
 		/* Try to bind, this will tell us whether the port is available or not */
@@ -4091,8 +4103,8 @@ static int rtp_allocate_transport(struct ast_rtp_instance *instance, struct ast_
 		}
 
 		x += 2;
-		if (x > rtpend) {
-			x = (rtpstart + 1) & ~1;
+		if (x > port_end) {
+			x = (port_start + 1) & ~1;
 		}
 
 		/* See if we ran out of ports or if the bind actually failed because of something other than the address being in use */

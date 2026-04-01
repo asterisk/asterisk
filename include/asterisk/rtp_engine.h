@@ -981,6 +981,60 @@ struct ast_rtp_instance *ast_rtp_instance_new(const char *engine_name,
                 void *data);
 
 /*!
+ * \brief Options for creating a new RTP instance
+ *
+ * This structure allows passing additional options when creating an
+ * RTP instance via \ref ast_rtp_instance_new_with_options. New fields
+ * can be added in the future without changing the function signature.
+ *
+ * \since 20.20.0
+ * \since 22.10.0
+ * \since 23.4.0
+ */
+struct ast_rtp_instance_options {
+	/*! Starting port number for this instance (0 to use global) */
+	unsigned int port_start;
+	/*! Ending port number for this instance (0 to use global) */
+	unsigned int port_end;
+};
+
+/*!
+ * \brief Create a new RTP instance with additional options
+ *
+ * \param engine_name Name of the engine to use for the RTP instance
+ * \param sched Scheduler context that the RTP engine may want to use
+ * \param sa Address we want to bind to
+ * \param data Unique data for the engine
+ * \param options Pointer to options struct, or NULL to use defaults
+ *
+ * \retval non-NULL success
+ * \retval NULL failure
+ *
+ * Example usage:
+ *
+ * \code
+ * struct ast_rtp_instance_options options = { .port_start = 15000, .port_end = 15010 };
+ * struct ast_rtp_instance *instance = NULL;
+ * instance = ast_rtp_instance_new_with_options(NULL, sched, &sin, NULL, &options);
+ * \endcode
+ *
+ * This creates a new RTP instance using the specified options. When a
+ * per-instance port range is provided the global rtp.conf range is ignored.
+ * If options is NULL or port values are both 0 the global range is used.
+ *
+ * \note The per-instance port range overrides the global rtp.conf settings
+ *       for this specific RTP instance only. It does not need to be a
+ *       subset of the global range.
+ *
+ * \since 20.20.0
+ * \since 22.10.0
+ * \since 23.4.0
+ */
+struct ast_rtp_instance *ast_rtp_instance_new_with_options(const char *engine_name,
+                struct ast_sched_context *sched, const struct ast_sockaddr *sa,
+                void *data, const struct ast_rtp_instance_options *options);
+
+/*!
  * \brief Destroy an RTP instance
  *
  * \param instance The RTP instance to destroy
@@ -2667,6 +2721,32 @@ int ast_rtp_instance_get_hold_timeout(struct ast_rtp_instance *instance);
  * \since 1.8
  */
 int ast_rtp_instance_get_keepalive(struct ast_rtp_instance *instance);
+
+/*!
+ * \brief Get the per-instance RTP port range start
+ *
+ * \param instance The RTP instance
+ *
+ * \return port start value (0 means use global setting)
+ *
+ * \since 20.20.0
+ * \since 22.10.0
+ * \since 23.4.0
+ */
+unsigned int ast_rtp_instance_get_port_start(struct ast_rtp_instance *instance);
+
+/*!
+ * \brief Get the per-instance RTP port range end
+ *
+ * \param instance The RTP instance
+ *
+ * \return port end value (0 means use global setting)
+ *
+ * \since 20.20.0
+ * \since 22.10.0
+ * \since 23.4.0
+ */
+unsigned int ast_rtp_instance_get_port_end(struct ast_rtp_instance *instance);
 
 /*!
  * \brief Get the RTP engine in use on an RTP instance
