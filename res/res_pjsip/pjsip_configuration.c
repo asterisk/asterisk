@@ -1666,6 +1666,30 @@ static int sip_endpoint_apply_handler(const struct ast_sorcery *sorcery, void *o
 		return -1;
 	}
 
+	if (endpoint->media.rtp.port_start || endpoint->media.rtp.port_end) {
+		if (!endpoint->media.rtp.port_start || !endpoint->media.rtp.port_end) {
+			ast_log(LOG_ERROR, "Endpoint '%s': Both rtp_port_start and rtp_port_end must be set together\n",
+				ast_sorcery_object_get_id(endpoint));
+			return -1;
+		}
+		if (endpoint->media.rtp.port_start < 1024 || endpoint->media.rtp.port_end < 1024) {
+			ast_log(LOG_ERROR, "Endpoint '%s': rtp_port_start and rtp_port_end must be at least 1024\n",
+				ast_sorcery_object_get_id(endpoint));
+			return -1;
+		}
+		if (endpoint->media.rtp.port_end <= endpoint->media.rtp.port_start) {
+			ast_log(LOG_ERROR, "Endpoint '%s': rtp_port_end (%u) must be greater than rtp_port_start (%u)\n",
+				ast_sorcery_object_get_id(endpoint),
+				endpoint->media.rtp.port_end,
+				endpoint->media.rtp.port_start);
+			return -1;
+		}
+		ast_debug(1, "Endpoint '%s': Using per-endpoint RTP port range %u-%u\n",
+			ast_sorcery_object_get_id(endpoint),
+			endpoint->media.rtp.port_start,
+			endpoint->media.rtp.port_end);
+	}
+
 	if (endpoint->preferred_codec_only) {
 		if (endpoint->media.incoming_call_offer_pref.flags != (AST_SIP_CALL_CODEC_PREF_LOCAL | AST_SIP_CALL_CODEC_PREF_INTERSECT | AST_SIP_CALL_CODEC_PREF_ALL)) {
 			ast_log(LOG_ERROR, "Setting both preferred_codec_only and incoming_call_offer_pref is not supported on endpoint '%s'\n",
@@ -2291,6 +2315,8 @@ int ast_res_pjsip_initialize_configuration(void)
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "rtp_keepalive", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, media.rtp.keepalive));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "rtp_timeout", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, media.rtp.timeout));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "rtp_timeout_hold", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, media.rtp.timeout_hold));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "rtp_port_start", "0", OPT_UINT_T, PARSE_IN_RANGE, FLDSET(struct ast_sip_endpoint, media.rtp.port_start), 0, 65535);
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "rtp_port_end", "0", OPT_UINT_T, PARSE_IN_RANGE, FLDSET(struct ast_sip_endpoint, media.rtp.port_end), 0, 65535);
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "one_touch_recording", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, info.recording.enabled));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "inband_progress", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, inband_progress));
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "call_group", "", group_handler, callgroup_to_str, NULL, 0, 0);
