@@ -27,6 +27,7 @@
 #include "asterisk/module.h"
 
 #define MOD_DATA_RESTRICTIONS "restrictions"
+#define MOD_DATA_MEDIA_SOURCE "media_source"
 
 static pj_status_t filter_on_tx_message(pjsip_tx_data *tdata);
 static pj_bool_t filter_on_rx_message(pjsip_rx_data *rdata);
@@ -35,6 +36,14 @@ static pj_bool_t filter_on_rx_message(pjsip_rx_data *rdata);
 struct filter_message_restrictions {
 	/*! \brief Disallow modification of the From domain */
 	unsigned int disallow_from_domain_modification;
+};
+
+/*! \brief The address media is to be sent from, as of the last send of a message */
+struct filter_media_source {
+	/*! \brief Whether the SDP advertised the address of the transport */
+	unsigned int known;
+	/*! \brief The address to send from (null to let the kernel choose) */
+	struct ast_sockaddr address;
 };
 
 static pjsip_module filter_module_transport = {
@@ -142,6 +151,37 @@ static int is_bound_any(pjsip_transport *transport)
 	return 0;
 }
 
+/*!
+ * \brief Helper function which determines if a transport is listening on a specific address
+ *
+ * Connection-oriented transports always have a specific local address, so
+ * the address their listener is bound to is checked instead.
+ */
+static int is_bound_specific(pjsip_transport *transport)
+{
+	return pj_sockaddr_has_addr(transport->factory ? &transport->factory->local_addr : &transport->local_addr);
+}
+
+/*! \brief Helper function which determines if a transport sends media from the address it is bound to */
+static int transport_pins_media_source(pjsip_transport *sip_transport)
+{
+	/* A connection-oriented transport is found through the listener that created it */
+	struct ast_sip_request_transport_details details = {
+		.transport = sip_transport,
+		.factory = sip_transport->factory,
+	};
+	RAII_VAR(struct ast_sip_transport_state *, transport_state, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_sip_transport *, transport, NULL, ao2_cleanup);
+
+	if (!(transport_state = ast_sip_find_transport_state_in_use(&details))
+		|| !(transport = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "transport", transport_state->id))) {
+		/* Not a configured transport; use the default */
+		return 0;
+	}
+
+	return transport->pin_media_source;
+}
+
 /*! \brief Helper function which determines if the address within SDP should be rewritten */
 static int multihomed_rewrite_sdp(struct pjmedia_sdp_session *sdp)
 {
@@ -233,6 +273,16 @@ static pj_status_t filter_on_tx_message(pjsip_tx_data *tdata)
 	pjsip_tpselector sel;
 	pjsip_sdp_info *sdp_info;
 	pjmedia_sdp_session *sdp;
+	struct filter_media_source *source =
+		ast_sip_mod_data_get(tdata->mod_data, filter_module_tsx.id, MOD_DATA_MEDIA_SOURCE);
+
+	/*
+	 * The media source address is determined anew each time the message is
+	 * sent. The record is kept, as the message may be sent many times.
+	 */
+	if (source) {
+		source->known = 0;
+	}
 
 	sanitize_tdata(tdata);
 
@@ -367,7 +417,50 @@ static pj_status_t filter_on_tx_message(pjsip_tx_data *tdata)
 		pjsip_tx_data_invalidate_msg(tdata);
 	}
 
+	/*
+	 * When the SDP advertises the address of the transport, record the address
+	 * media is to be sent from (see ast_sip_get_media_source_address()). This
+	 * goes by the address the SDP ends up with rather than by whether this send
+	 * rewrote it, as a message sent again (after an authentication challenge,
+	 * as a retransmission, on failover) carries the address written the first
+	 * time. SDP advertising another address (direct media, media_address)
+	 * records nothing.
+	 */
+	if (sdp->conn && !pj_strcmp(&sdp->conn->addr, &prm.ret_addr)) {
+		if (!source) {
+			source = PJ_POOL_ZALLOC_T(tdata->pool, struct filter_media_source);
+			ast_sip_mod_data_set(tdata->pool, tdata->mod_data, filter_module_tsx.id,
+				MOD_DATA_MEDIA_SOURCE, source);
+		}
+		source->known = 1;
+		ast_sockaddr_setnull(&source->address);
+
+		if (is_bound_specific(tdata->tp_info.transport) && transport_pins_media_source(tdata->tp_info.transport)) {
+			char host[PJ_INET6_ADDRSTRLEN];
+
+			ast_copy_pj_str(host, &prm.ret_addr, sizeof(host));
+			if (!ast_sockaddr_parse(&source->address, host, PARSE_PORT_FORBID)) {
+				ast_sockaddr_setnull(&source->address);
+			}
+		}
+	}
+
 	return PJ_SUCCESS;
+}
+
+int ast_sip_get_media_source_address(pjsip_tx_data *tdata, struct ast_sockaddr *addr)
+{
+	struct filter_media_source *source = NULL;
+
+	if (filter_module_tsx.id >= 0) {
+		source = ast_sip_mod_data_get(tdata->mod_data, filter_module_tsx.id, MOD_DATA_MEDIA_SOURCE);
+	}
+	if (!source || !source->known) {
+		ast_sockaddr_setnull(addr);
+		return -1;
+	}
+	ast_sockaddr_copy(addr, &source->address);
+	return 0;
 }
 
 enum uri_type {

@@ -3527,7 +3527,8 @@ static int __rtp_sendto(struct ast_rtp_instance *instance, void *buf, size_t siz
 	}
 #endif
 
-	res = ast_sendto(rtcp ? transport_rtp->rtcp->s : transport_rtp->s, temp, len, flags, sa);
+	/* Instances sharing a bundle transport are given the same source address */
+	res = ast_rtp_instance_sendto(instance, rtcp ? transport_rtp->rtcp->s : transport_rtp->s, temp, len, flags, sa);
 	if (res > 0) {
 		ast_rtp_instance_set_last_tx(instance, time(NULL));
 	}

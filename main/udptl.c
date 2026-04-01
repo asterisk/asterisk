@@ -188,6 +188,10 @@ struct ast_udptl {
 	int flags;
 	struct ast_sockaddr us;
 	struct ast_sockaddr them;
+	/*! Local address to send from (null to let the kernel choose) */
+	struct ast_sendto_source source;
+	/*! Protects them and source, which are changed during signaling while packets flow */
+	ast_mutex_t lock;
 	int *ioid;
 	struct ast_sched_context *sched;
 	struct io_context *io;
@@ -807,7 +811,9 @@ struct ast_frame *ast_udptl_read(struct ast_udptl *udptl)
 	}
 
 	/* Ignore if the other side hasn't been given an address yet. */
+	ast_mutex_lock(&udptl->lock);
 	if (ast_sockaddr_isnull(&udptl->them)) {
+		ast_mutex_unlock(&udptl->lock);
 		return &ast_null_frame;
 	}
 
@@ -820,6 +826,7 @@ struct ast_frame *ast_udptl_read(struct ast_udptl *udptl)
 	 * channel drivers on T38_ENABLED or T38_PEER_REINVITE.
 	 */
 	if (udptl->tag == NULL) {
+		ast_mutex_unlock(&udptl->lock);
 		return &ast_null_frame;
 	}
 
@@ -831,6 +838,7 @@ struct ast_frame *ast_udptl_read(struct ast_udptl *udptl)
 				  LOG_TAG(udptl), ast_sockaddr_stringify(&udptl->them));
 		}
 	}
+	ast_mutex_unlock(&udptl->lock);
 
 	if (udptl_debug_test_addr(&addr)) {
 		int seq_no;
@@ -1124,6 +1132,7 @@ struct ast_udptl *ast_udptl_new_with_bindaddr(struct ast_sched_context *sched, s
 			return NULL;
 		}
 	}
+	ast_mutex_init(&udptl->lock);
 	if (io && sched && callbackmode) {
 		/* Operate this one in a callback mode */
 		udptl->sched = sched;
@@ -1154,12 +1163,18 @@ int ast_udptl_setqos(struct ast_udptl *udptl, unsigned int tos, unsigned int cos
 
 void ast_udptl_set_peer(struct ast_udptl *udptl, const struct ast_sockaddr *them)
 {
+	ast_mutex_lock(&udptl->lock);
 	ast_sockaddr_copy(&udptl->them, them);
+	ast_mutex_unlock(&udptl->lock);
 }
 
 void ast_udptl_get_peer(const struct ast_udptl *udptl, struct ast_sockaddr *them)
 {
+	ast_mutex_t *lock = &((struct ast_udptl *) udptl)->lock;
+
+	ast_mutex_lock(lock);
 	ast_sockaddr_copy(them, &udptl->them);
+	ast_mutex_unlock(lock);
 }
 
 void ast_udptl_get_us(const struct ast_udptl *udptl, struct ast_sockaddr *us)
@@ -1167,9 +1182,19 @@ void ast_udptl_get_us(const struct ast_udptl *udptl, struct ast_sockaddr *us)
 	ast_sockaddr_copy(us, &udptl->us);
 }
 
+void ast_udptl_set_source_address(struct ast_udptl *udptl, const struct ast_sockaddr *source)
+{
+	ast_mutex_lock(&udptl->lock);
+	/* A socket bound to a specific address keeps sending from it (the kernel would honour the source even there) */
+	ast_sendto_source_set(&udptl->source, ast_sockaddr_is_any(&udptl->us) ? source : NULL);
+	ast_mutex_unlock(&udptl->lock);
+}
+
 void ast_udptl_stop(struct ast_udptl *udptl)
 {
+	ast_mutex_lock(&udptl->lock);
 	ast_sockaddr_setnull(&udptl->them);
+	ast_mutex_unlock(&udptl->lock);
 }
 
 void ast_udptl_destroy(struct ast_udptl *udptl)
@@ -1180,6 +1205,7 @@ void ast_udptl_destroy(struct ast_udptl *udptl)
 		close(udptl->fd);
 	if (udptl->tag)
 		ast_free(udptl->tag);
+	ast_mutex_destroy(&udptl->lock);
 	ast_free(udptl);
 }
 
@@ -1190,6 +1216,7 @@ int ast_udptl_write(struct ast_udptl *s, struct ast_frame *f)
 	/* if no max datagram size is provided, use default value */
 	const int bufsize = (s->far_max_datagram > 0) ? s->far_max_datagram : DEFAULT_FAX_MAX_DATAGRAM;
 	uint8_t buf[bufsize];
+	SCOPED_MUTEX(lock, &s->lock);
 
 	memset(buf, 0, sizeof(buf));
 
@@ -1224,7 +1251,7 @@ int ast_udptl_write(struct ast_udptl *s, struct ast_frame *f)
 	len = udptl_build_packet(s, buf, sizeof(buf), f->data.ptr, len);
 
 	if ((signed int) len > 0 && !ast_sockaddr_isnull(&s->them)) {
-		if (ast_sendto(s->fd, buf, len, 0, &s->them) < 0) {
+		if (ast_sendto_from_source(s->fd, buf, len, 0, &s->them, &s->source) < 0) {
 			ast_log(LOG_NOTICE, "UDPTL (%s): Transmission error to %s: %s\n",
 				LOG_TAG(s), ast_sockaddr_stringify(&s->them), strerror(errno));
 		}

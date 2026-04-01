@@ -28,6 +28,7 @@ extern "C" {
 #endif
 
 #include <sys/socket.h>
+#include <sys/time.h>
 
 #include <netinet/in.h>
 
@@ -723,6 +724,84 @@ ssize_t ast_recvfrom(int sockfd, void *buf, size_t len, int flags,
  */
 ssize_t ast_sendto(int sockfd, const void *buf, size_t len, int flags,
 		   const struct ast_sockaddr *dest_addr);
+
+/*!
+ * \since 20.23.0
+ * \since 22.13.0
+ * \since 23.7.0
+ * \since 24.1.0
+ *
+ * \brief A local source address to send datagrams from
+ *
+ * \details
+ * Keeps the state ast_sendto_from_source() needs to stop asking for an
+ * address the kernel rejects, and to try it again later. Initialize it to
+ * zero and change the address with ast_sendto_source_set().
+ */
+struct ast_sendto_source {
+	/*! The local address to send from (null to let the kernel choose) */
+	struct ast_sockaddr address;
+	/*! While the address is rejected, when to try it again (zero otherwise) */
+	struct timeval retry;
+};
+
+/*!
+ * \since 20.23.0
+ * \since 22.13.0
+ * \since 23.7.0
+ * \since 24.1.0
+ *
+ * \brief Set the address of a source to send datagrams from
+ *
+ * \details
+ * Setting a different address, or none, ends any suspension of the previous
+ * one. Setting the address already in use changes nothing, so an address
+ * the kernel rejects stays suspended.
+ *
+ * \param source The source to change
+ * \param address The local address to send from, or NULL (or a wildcard
+ *        address) to let the kernel choose
+ */
+void ast_sendto_source_set(struct ast_sendto_source *source, const struct ast_sockaddr *address);
+
+/*!
+ * \since 20.23.0
+ * \since 22.13.0
+ * \since 23.7.0
+ * \since 24.1.0
+ *
+ * \brief Send a datagram from a specific local source address
+ *
+ * \details
+ * Like ast_sendto(), but asks the kernel to use the address of \a source as
+ * the source address of the datagram (IP_PKTINFO, IP_SENDSRCADDR or
+ * IPV6_PKTINFO, depending on the platform and the address family of
+ * \a dest_addr). This lets a socket bound to a wildcard address send from the
+ * address that was advertised to the peer, instead of the address the routing
+ * table picks. Only the address is used; the socket's port is kept.
+ *
+ * The datagram is sent as with ast_sendto() when \a source is NULL or has no
+ * address, when the address family does not match \a dest_addr, or when the
+ * platform does not support setting the source address.
+ *
+ * When the kernel rejects the address (it is no longer a local address, for
+ * instance), the datagram is sent from the address the kernel chooses, a
+ * warning is logged and the address is suspended: later datagrams are sent
+ * without it, and about once a second one is sent with it again. When that
+ * succeeds a notice is logged and the address is used for every datagram
+ * again.
+ *
+ * \param sockfd The socket to send on
+ * \param buf The data to send
+ * \param len The length of the data
+ * \param flags Flags as for sendto(2)
+ * \param dest_addr The destination address
+ * \param source The source to send from, or NULL
+ *
+ * \return As for sendto(2)
+ */
+ssize_t ast_sendto_from_source(int sockfd, const void *buf, size_t len, int flags,
+	const struct ast_sockaddr *dest_addr, struct ast_sendto_source *source);
 
 /*!
  * \since 1.8
