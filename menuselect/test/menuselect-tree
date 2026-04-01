@@ -34,7 +34,6 @@
 <member name="app_db" displayname="Database Access Functions" remove_on_change="apps/app_db.o apps/app_db.so">
 </member>
 <member name="app_dial" displayname="Dialing Application" remove_on_change="apps/app_dial.o apps/app_dial.so">
-	<depend>chan_local</depend>
 </member>
 <member name="app_dictate" displayname="Virtual Dictation Machine" remove_on_change="apps/app_dictate.o apps/app_dictate.so">
 </member>
@@ -59,7 +58,6 @@
 	<depend name="dahdi">DAHDI</depend>
 </member>
 <member name="app_followme" displayname="Find-Me/Follow-Me Application" remove_on_change="apps/app_followme.o apps/app_followme.so">
-	<depend>chan_local</depend>
 </member>
 <member name="app_forkcdr" displayname="Fork The CDR into 2 separate entities" remove_on_change="apps/app_forkcdr.o apps/app_forkcdr.so">
 </member>
@@ -195,7 +193,6 @@
 </category>
 <category name="MENUSELECT_CHANNELS" displayname="Channel Drivers" remove_on_change="channels/modules.link">
 <member name="chan_agent" displayname="Agent Proxy Channel" remove_on_change="channels/chan_agent.o channels/chan_agent.so">
-        <depend>chan_local</depend>
 </member>
 <member name="chan_alsa" displayname="ALSA Console Channel Driver" remove_on_change="channels/chan_alsa.o channels/chan_alsa.so">
 	<depend>asound</depend>
@@ -230,12 +227,9 @@
 	<depend>res_jabber</depend>
 	<use>openssl</use>
 </member>
-<member name="chan_local" displayname="Local Proxy Channel (Note: used internally by other modules)" remove_on_change="channels/chan_local.o channels/chan_local.so">
-</member>
 <member name="chan_mgcp" displayname="Media Gateway Control Protocol (MGCP)" remove_on_change="channels/chan_mgcp.o channels/chan_mgcp.so">
 </member>
 <member name="chan_sip" displayname="Session Initiation Protocol (SIP)" remove_on_change="channels/chan_sip.o channels/chan_sip.so">
-        <depend>chan_local</depend>
 </member>
 <member name="chan_skinny" displayname="Skinny Client Control Protocol (Skinny)" remove_on_change="channels/chan_skinny.o channels/chan_skinny.so">
 </member>

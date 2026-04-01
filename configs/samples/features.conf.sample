@@ -40,7 +40,7 @@
 
 ; Note that the DTMF features listed below only work when two channels have answered and are bridged together.
 ; They can not be used while the remote party is ringing or in progress. If you require this feature you can use
-; chan_local in combination with Answer to accomplish it.
+; a Local channel in combination with Answer to accomplish it.
 
 [featuremap]
 ;blindxfer => #1                ; Blind transfer  (default is #) -- Make sure to set the T and/or t option in the Dial() or Queue() app call!
