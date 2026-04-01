@@ -200,16 +200,14 @@
 		<member name="chan_jingle" displayname="Jingle Channel Driver" remove_on_change="channels/chan_jingle.o channels/chan_jingle.so">
 	<depend>iksemel</depend>
 		</member>
-		<member name="chan_local" displayname="Local Proxy Channel" remove_on_change="channels/chan_local.o channels/chan_local.so">
-		</member>
 		<member name="chan_mgcp" displayname="Media Gateway Control Protocol (MGCP)" remove_on_change="channels/chan_mgcp.o channels/chan_mgcp.so">
 		</member>
 		<member name="chan_sip" displayname="Session Initiation Protocol (SIP)" remove_on_change="channels/chan_sip.o channels/chan_sip.so">
 		</member>
 		<member name="chan_skinny" displayname="Skinny Client Control Protocol (Skinny)" remove_on_change="channels/chan_skinny.o channels/chan_skinny.so">
 		</member>
-		<member name="chan_zap" displayname="Zapata Telephony" remove_on_change="channels/chan_zap.o channels/chan_zap.so">
-	<depend>zaptel</depend>
+		<member name="chan_dahdi" displayname="DAHDI Telephony" remove_on_change="channels/chan_dahdi.o channels/chan_dahdi.so">
+	<depend>dahdi</depend>
 		</member>
 	</category>
 	<category name="MENUSELECT_CODECS" displayname="Codec Translators">
