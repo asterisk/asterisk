@@ -267,9 +267,21 @@ static int create_rtp(struct ast_sip_session *session, struct ast_sip_session_me
 		}
 	}
 
-	if (!(session_media->rtp = ast_rtp_instance_new(session->endpoint->media.rtp.engine, sched, media_address, NULL))) {
-		ast_log(LOG_ERROR, "Unable to create RTP instance using RTP engine '%s'\n", session->endpoint->media.rtp.engine);
-		return -1;
+	if (session->endpoint->media.rtp.port_start && session->endpoint->media.rtp.port_end) {
+		if (!(session_media->rtp = ast_rtp_instance_new_with_port_range(
+				session->endpoint->media.rtp.engine, sched, media_address, NULL,
+				session->endpoint->media.rtp.port_start, session->endpoint->media.rtp.port_end))) {
+			ast_log(LOG_ERROR, "Unable to create RTP instance using RTP engine '%s' with port range %u-%u\n",
+				session->endpoint->media.rtp.engine,
+				session->endpoint->media.rtp.port_start,
+				session->endpoint->media.rtp.port_end);
+			return -1;
+		}
+	} else {
+		if (!(session_media->rtp = ast_rtp_instance_new(session->endpoint->media.rtp.engine, sched, media_address, NULL))) {
+			ast_log(LOG_ERROR, "Unable to create RTP instance using RTP engine '%s'\n", session->endpoint->media.rtp.engine);
+			return -1;
+		}
 	}
 
 	ast_rtp_instance_set_prop(session_media->rtp, AST_RTP_PROPERTY_NAT, session->endpoint->media.rtp.symmetric);
