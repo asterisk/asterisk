@@ -966,6 +966,10 @@ struct ast_sip_media_rtp_configuration {
 	unsigned int follow_early_media_fork;
 	/*! Accept updated SDPs on non-100rel 18X and 2XX responses with the same To tag */
 	unsigned int accept_multiple_sdp_answers;
+	/*! Per-endpoint RTP port range start (0 means use global rtp.conf setting) */
+	unsigned int port_start;
+	/*! Per-endpoint RTP port range end (0 means use global rtp.conf setting) */
+	unsigned int port_end;
 };
 
 /*!
