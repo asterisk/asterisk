@@ -1659,6 +1659,35 @@
 						channel is hung up. By default this option is set to 0, which means do not check.
 					</para></description>
 				</configOption>
+				<configOption name="rtp_port_start" default="0">
+					<since>
+						<version>20.20.0</version>
+						<version>22.10.0</version>
+						<version>23.4.0</version>
+					</since>
+					<synopsis>Per-endpoint starting RTP port number.</synopsis>
+					<description><para>
+						Defines the starting port number for a dedicated per-endpoint RTP port
+						range, overriding the global rtp.conf setting. Must be used together
+						with <literal>rtp_port_end</literal>. When set to 0, the global
+						rtp.conf range is used. The value must be between 1024 and 65535.
+					</para></description>
+				</configOption>
+				<configOption name="rtp_port_end" default="0">
+					<since>
+						<version>20.20.0</version>
+						<version>22.10.0</version>
+						<version>23.4.0</version>
+					</since>
+					<synopsis>Per-endpoint ending RTP port number.</synopsis>
+					<description><para>
+						Defines the ending port number for a dedicated per-endpoint RTP port
+						range, overriding the global rtp.conf setting. Must be used together
+						with <literal>rtp_port_start</literal>. When set to 0, the global
+						rtp.conf range is used. The value must be greater than
+						<literal>rtp_port_start</literal> and between 1024 and 65535.
+					</para></description>
+				</configOption>
 				<configOption name="acl">
 					<since>
 						<version>13.10.0</version>
