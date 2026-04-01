@@ -846,6 +846,12 @@
 ;rtp_timeout_hold= ; Hang up channel if RTP is not received for the specified
                    ; number of seconds when the channel is on hold (default:
                    ; "0" or not enabled)
+;rtp_port_start=   ; Per-endpoint starting RTP port number, overriding the
+                   ; global rtp.conf setting. Must be used together with
+                   ; rtp_port_end. (default: "0" or use global range)
+;rtp_port_end=     ; Per-endpoint ending RTP port number, overriding the
+                   ; global rtp.conf setting. Must be used together with
+                   ; rtp_port_start. (default: "0" or use global range)
 ;contact_user= ; On outgoing requests, force the user portion of the Contact
                ; header to this value (default: "")
 ;incoming_call_offer_pref= ; Based on this setting, a joint list of
