@@ -606,20 +606,28 @@ static struct timeval unpackdate(unsigned char *i)
 /*! \brief unpacks bytes (7 bit encoding) at i, len l septets,
 	and places in udh and ud setting udhl and udl. udh not used
 	if udhi not set */
-static void unpacksms7(unsigned char *i, unsigned char l, unsigned char *udh, int *udhl, unsigned short *ud, int *udl, char udhi)
+static void unpacksms7(unsigned char *i, unsigned char l, unsigned char *udh, size_t udh_size,
+	int *udhl, unsigned short *ud, size_t ud_size, int *udl, char udhi)
 {
 	unsigned char b = 0, p = 0;
 	unsigned short *o = ud;
+	unsigned short *o_end = ud + ud_size;
+	unsigned char *h = udh;
+	unsigned char *h_end = udh + udh_size;
+	size_t stored_udhl = 0;
 	*udhl = 0;
 	if (udhi && l) {                        /* header */
-		int h = i[p];
-		*udhl = h;
-		if (h) {
+		int hlen = i[p];
+		if (hlen) {
 			b = 1;
 			p++;
 			l--;
-			while (h-- && l) {
-				*udh++ = i[p++];
+			while (hlen-- && l) {
+				if (h < h_end) {
+					*h++ = i[p];
+					stored_udhl++;
+				}
+				p++;
 				b += 8;
 				while (b >= 7) {
 					b -= 7;
@@ -651,57 +659,78 @@ static void unpacksms7(unsigned char *i, unsigned char l, unsigned char *udh, in
 		/* 0x00A0 is the encoding of ESC (27) in defaultalphabet */
 		if (o > ud && o[-1] == 0x00A0 && escapes[v]) {
 			o[-1] = escapes[v];
-		} else {
+		} else if (o < o_end) {
 			*o++ = defaultalphabet[v];
 		}
 	}
-	*udl = (o - ud);
+	*udl = o - ud;
+	*udhl = stored_udhl;
 }
 
 /*! \brief unpacks bytes (8 bit encoding) at i, len l septets,
  *  and places in udh and ud setting udhl and udl. udh not used
  *  if udhi not set.
  */
-static void unpacksms8(unsigned char *i, unsigned char l, unsigned char *udh, int *udhl, unsigned short *ud, int *udl, char udhi)
+static void unpacksms8(unsigned char *i, unsigned char l, unsigned char *udh, size_t udh_size,
+	int *udhl, unsigned short *ud, size_t ud_size, int *udl, char udhi)
 {
 	unsigned short *o = ud;
+	unsigned short *o_end = ud + ud_size;
+	unsigned char *h = udh;
+	unsigned char *h_end = udh + udh_size;
+	size_t stored_udhl = 0;
 	*udhl = 0;
 	if (udhi) {
 		int n = *i;
-		*udhl = n;
 		if (n) {
 			i++;
 			l--;
 			while (l && n) {
 				l--;
 				n--;
-				*udh++ = *i++;
+				if (h < h_end) {
+					*h++ = *i;
+					stored_udhl++;
+				}
+				i++;
 			}
 		}
 	}
 	while (l--) {
-		*o++ = *i++;                        /* not to UTF-8 as explicitly 8 bit coding in DCS */
+		if (o < o_end) {
+			*o++ = *i;               /* not to UTF-8 as explicitly 8 bit coding in DCS */
+		}
+		i++;
 	}
-	*udl = (o - ud);
+	*udl = o - ud;
+	*udhl = stored_udhl;
 }
 
 /*! \brief unpacks bytes (16 bit encoding) at i, len l septets,
-	 and places in udh and ud setting udhl and udl.
+	and places in udh and ud setting udhl and udl.
 	udh not used if udhi not set */
-static void unpacksms16(unsigned char *i, unsigned char l, unsigned char *udh, int *udhl, unsigned short *ud, int *udl, char udhi)
+static void unpacksms16(unsigned char *i, unsigned char l, unsigned char *udh, size_t udh_size,
+	int *udhl, unsigned short *ud, size_t ud_size, int *udl, char udhi)
 {
 	unsigned short *o = ud;
+	unsigned short *o_end = ud + ud_size;
+	unsigned char *h = udh;
+	unsigned char *h_end = udh + udh_size;
+	size_t stored_udhl = 0;
 	*udhl = 0;
 	if (udhi) {
 		int n = *i;
-		*udhl = n;
 		if (n) {
 			i++;
 			l--;
 			while (l && n) {
 				l--;
 				n--;
-				*udh++ = *i++;
+				if (h < h_end) {
+					*h++ = *i;
+					stored_udhl++;
+				}
+				i++;
 			}
 		}
 	}
@@ -710,39 +739,54 @@ static void unpacksms16(unsigned char *i, unsigned char l, unsigned char *udh, i
 		if (l && l--) {
 			v = (v << 8) + *i++;
 		}
-		*o++ = v;
+		if (o < o_end) {
+			*o++ = v;
+		}
 	}
-	*udl = (o - ud);
+	*udl = o - ud;
+	*udhl = stored_udhl;
 }
 
 /*! \brief general unpack - starts with length byte (octet or septet) and returns number of bytes used, inc length */
-static int unpacksms(unsigned char dcs, unsigned char *i, unsigned char *udh, int *udhl, unsigned short *ud, int *udl, char udhi)
+static int unpacksms(unsigned char dcs, unsigned char *i, unsigned char *udh, size_t udh_size,
+	int *udhl, unsigned short *ud, size_t ud_size, int *udl, char udhi)
 {
 	int l = *i++;
 	if (is7bit(dcs)) {
-		unpacksms7(i, l, udh, udhl, ud, udl, udhi);
+		unpacksms7(i, l, udh, udh_size, udhl, ud, ud_size, udl, udhi);
 		l = (l * 7 + 7) / 8;                /* adjust length to return */
 	} else if (is8bit(dcs)) {
-		unpacksms8(i, l, udh, udhl, ud, udl, udhi);
+		unpacksms8(i, l, udh, udh_size, udhl, ud, ud_size, udl, udhi);
 	} else {
 		l += l % 2;
-		unpacksms16(i, l, udh, udhl, ud, udl, udhi);
+		unpacksms16(i, l, udh, udh_size, udhl, ud, ud_size, udl, udhi);
 	}
 	return l + 1;
 }
 
 /*! \brief unpack an address from i, return byte length, unpack to o */
-static unsigned char unpackaddress(char *o, unsigned char *i)
+static unsigned char unpackaddress(char *o, size_t o_size, unsigned char *i)
 {
 	unsigned char l = i[0], p;
+	char *o_end;
+
+	if (!o_size) {
+		return (l + 5) / 2;
+	}
+
+	o_end = o + o_size - 1;
 	if (i[1] == 0x91) {
-		*o++ = '+';
+		if (o < o_end) {
+			*o++ = '+';
+		}
 	}
 	for (p = 0; p < l; p++) {
-		if (p & 1) {
-			*o++ = (i[2 + p / 2] >> 4) + '0';
-		} else {
-			*o++ = (i[2 + p / 2] & 0xF) + '0';
+		if (o < o_end) {
+			if (p & 1) {
+				*o++ = (i[2 + p / 2] >> 4) + '0';
+			} else {
+				*o++ = (i[2 + p / 2] & 0xF) + '0';
+			}
 		}
 	}
 	*o = 0;
@@ -1130,7 +1174,7 @@ static unsigned char sms_handleincoming (sms_t * h)
 			ast_copy_string(h->oa, h->cli, sizeof(h->oa));
 			h->scts = ast_tvnow();
 			h->mr = h->imsg[p++];
-			p += unpackaddress(h->da, h->imsg + p);
+			p += unpackaddress(h->da, ARRAY_LEN(h->da), h->imsg + p);
 			h->pid = h->imsg[p++];
 			h->dcs = h->imsg[p++];
 			if ((h->imsg[2] & 0x18) == 0x10) {       /* relative VP */
@@ -1147,7 +1191,7 @@ static unsigned char sms_handleincoming (sms_t * h)
 			} else if (h->imsg[2] & 0x18) {
 				p += 7;                     /* ignore enhanced / absolute VP */
 			}
-			p += unpacksms(h->dcs, h->imsg + p, h->udh, &h->udhl, h->ud, &h->udl, h->udhi);
+			p += unpacksms(h->dcs, h->imsg + p, h->udh, ARRAY_LEN(h->udh), &h->udhl, h->ud, ARRAY_LEN(h->ud), &h->udl, h->udhi);
 			h->rx = 1;                      /* received message */
 			sms_writefile(h);               /* write the file */
 			if (p != h->imsg[1] + 2) {
@@ -1165,12 +1209,12 @@ static unsigned char sms_handleincoming (sms_t * h)
 			h->udhi = ((h->imsg[2] & 0x40) ? 1 : 0);
 			h->rp = ((h->imsg[2] & 0x80) ? 1 : 0);
 			h->mr = -1;
-			p += unpackaddress(h->oa, h->imsg + p);
+			p += unpackaddress(h->oa, ARRAY_LEN(h->oa), h->imsg + p);
 			h->pid = h->imsg[p++];
 			h->dcs = h->imsg[p++];
 			h->scts = unpackdate(h->imsg + p);
 			p += 7;
-			p += unpacksms(h->dcs, h->imsg + p, h->udh, &h->udhl, h->ud, &h->udl, h->udhi);
+			p += unpacksms(h->dcs, h->imsg + p, h->udh, ARRAY_LEN(h->udh), &h->udhl, h->ud, ARRAY_LEN(h->ud), &h->udl, h->udhi);
 			h->rx = 1;                      /* received message */
 			sms_writefile(h);               /* write the file */
 			if (p != h->imsg[1] + 2) {
