@@ -264,6 +264,57 @@ static int create_rtp(struct ast_sip_session *session, struct ast_sip_session_me
 				ao2_ref(trans_state, -1);
 			}
 			ao2_ref(transport, -1);
+		} else if (!session->endpoint->media.rtp.ice_support
+				&& session->inv_session && session->inv_session->dlg
+				&& (PJSIP_URI_SCHEME_IS_SIP(session->inv_session->dlg->target)
+					|| PJSIP_URI_SCHEME_IS_SIPS(session->inv_session->dlg->target))) {
+			/*
+			 * The endpoint does not have an explicit transport configured
+			 * and ICE is not in use. Ask the transport manager for the
+			 * local address that would be used for the dialog's target
+			 * URI, so the RTP socket is not left on the wildcard address.
+			 * On a multi-homed or NAT-gateway host a wildcard bind causes
+			 * the kernel to choose a source IP that conflicts with
+			 * conntrack DNAT entries for inbound RTP.
+			 *
+			 * When ICE is enabled the wildcard bind is intentional so
+			 * that ICE can discover candidates on all interfaces.
+			 */
+			pjsip_sip_uri *sip_uri;
+			pjsip_transport_type_e type;
+			pj_str_t local_addr;
+			int local_port;
+
+			sip_uri = pjsip_uri_get_uri(session->inv_session->dlg->target);
+			type = pjsip_transport_get_type_from_name(&sip_uri->transport_param);
+			if (PJSIP_URI_SCHEME_IS_SIPS(sip_uri)) {
+				if (type == PJSIP_TRANSPORT_UNSPECIFIED
+						|| !(pjsip_transport_get_flag_from_type(type) & PJSIP_TRANSPORT_SECURE)) {
+					type = PJSIP_TRANSPORT_TLS;
+				}
+			} else if (!sip_uri->transport_param.slen) {
+				type = PJSIP_TRANSPORT_UDP;
+			}
+
+			if (pj_strchr(&sip_uri->host, ':')) {
+				type |= PJSIP_TRANSPORT_IPV6;
+			}
+
+			if (type != PJSIP_TRANSPORT_UNSPECIFIED
+					&& pjsip_tpmgr_find_local_addr(
+						pjsip_endpt_get_tpmgr(ast_sip_get_pjsip_endpoint()),
+						session->inv_session->dlg->pool, type,
+						&session->inv_session->dlg->tp_sel,
+						&local_addr, &local_port) == PJ_SUCCESS) {
+				char hoststr[PJ_INET6_ADDRSTRLEN];
+
+				ast_copy_pj_str(hoststr, &local_addr, sizeof(hoststr));
+				if (ast_sockaddr_parse(&temp_media_address, hoststr, 0)) {
+					ast_debug_rtp(1, "Transport manager bound to %s: Using it for RTP media.\n",
+						hoststr);
+					media_address = &temp_media_address;
+				}
+			}
 		}
 	}
 
