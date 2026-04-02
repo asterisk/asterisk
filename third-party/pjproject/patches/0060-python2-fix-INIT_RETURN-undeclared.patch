@@ -1,0 +1,25 @@
+From 40f7a3766cda838f77ea84066d4374b4ef9d61e0 Mon Sep 17 00:00:00 2001
+From: Alexei Gradinari <alex2grad@gmail.com>
+Date: Thu, 26 Mar 2026 19:15:06 -0400
+Subject: [PATCH] pjsip-apps/python: fix INIT_RETURN undeclared with Python 2
+
+---
+ pjsip-apps/src/python/python3_compat.h | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/pjsip-apps/src/python/python3_compat.h b/pjsip-apps/src/python/python3_compat.h
+index 392d60ce1f..9d903ffa58 100644
+--- a/pjsip-apps/src/python/python3_compat.h
++++ b/pjsip-apps/src/python/python3_compat.h
+@@ -47,6 +47,10 @@
+ 
+ #define PyInt_AsLong( x )                  PyLong_AsLong( x )
+ 
++#else /* PY_MAJOR_VERSION <= 2 */
++
++#define INIT_RETURN
++
+ #endif // PY_MAJOR_VERSION > 2
+ 
+ #endif // __PY_PYTHON_3_COMPAT__
+\ No newline at end of file
