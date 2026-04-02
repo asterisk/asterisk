@@ -44,11 +44,68 @@
 #include "asterisk/format.h"
 #include "asterisk/linkedlists.h"
 
-/*! \todo
- * TODO: sample frames for each supported input format.
- * We build this on the fly, by taking an SLIN frame and using
- * the existing converter to play with it.
+/*
+ * Sample type selection for codec matrix cost computation.
  */
+enum sample_type {
+	SAMPLE_TYPE_CODEC = 0,   /*!< Default: take samples defined by codec */
+	SAMPLE_TYPE_SINE,       /*!< Default: 1kHz sine wave */
+	SAMPLE_TYPE_SILENCE,    /*!< All-zero frames */
+	SAMPLE_TYPE_NOISE,      /*!< White noise via LCG PRNG */
+	SAMPLE_TYPE_SPEECH,     /*!< Synthetic speech-like signal */
+};
+
+static enum sample_type current_sample_type = SAMPLE_TYPE_CODEC;
+
+/*! Simple LCG state for reproducible pseudo-random noise */
+static uint32_t lcg_state = 0xdeadbeef;
+static uint32_t lcg_rand(void)
+{
+	lcg_state = lcg_state * 1664525u + 1013904223u;
+	return lcg_state;
+}
+
+/*!
+ * \brief Fill a buffer with samples of the selected type.
+ * \param buf     Output sample buffer (int16_t)
+ * \param samples Number of samples to generate
+ * \param offset  Running sample offset (for continuous sample types)
+ */
+static void generate_samples(int16_t *buf, int samples, int offset)
+{
+	int i;
+	switch (current_sample_type) {
+	case SAMPLE_TYPE_SILENCE:
+		memset(buf, 0, samples * sizeof(int16_t));
+		break;
+	case SAMPLE_TYPE_NOISE:
+		for (i = 0; i < samples; i++) {
+			buf[i] = (int16_t)(lcg_rand() & 0xFFFF);
+		}
+		break;
+	case SAMPLE_TYPE_SPEECH:
+		/* Synthetic speech approximation: mix of two sine waves
+		 * (fundamental ~200Hz + harmonic ~800Hz) with slow AM envelope,
+		 * loosely inspired by ITU-T P.50 artificial voice. */
+		for (i = 0; i < samples; i++) {
+			double t = (double)(offset + i) / 8000.0;
+			double sig = 0.6 * sin(2.0 * M_PI * 200.0 * t)
+			           + 0.4 * sin(2.0 * M_PI * 800.0 * t);
+			/* Slow AM at 4Hz to simulate syllable rhythm */
+			sig *= 0.5 * (1.0 + sin(2.0 * M_PI * 4.0 * t));
+			buf[i] = (int16_t)(sig * 16000.0);
+		}
+		break;
+	case SAMPLE_TYPE_SINE:
+	default:
+		/* pure 1kHz sine wave */
+		for (i = 0; i < samples; i++) {
+			buf[i] = (int16_t)(sin(2.0 * M_PI * 1000.0 *
+			          (double)(offset + i) / 8000.0) * 16000.0);
+		}
+		break;
+	}
+}
 
 /*! max sample recalc */
 #define MAX_RECALC 1000
@@ -679,6 +736,70 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 	return out;
 }
 
+/*! Maximum number of pre-encoded frames cached for non-slin benchmark sources */
+#define PRE_ENCODE_POOL_MAX 200
+
+/*!
+ * \internal
+ * \brief Build a translation path from slin (8 kHz) to the source codec of
+ *        translator \p t, using the already-populated translation matrix.
+ *
+ * \note Must be called with the translators list locked.
+ *
+ * \retval NULL  Source codec is already slin, or no path through the matrix exists.
+ */
+static struct ast_trans_pvt *build_slin_to_src_path(const struct ast_translator *t)
+{
+	struct ast_trans_pvt *head = NULL, *tail = NULL;
+	struct ast_codec *slin_codec;
+	int slin_index, dst_index;
+
+	if (!strcmp(t->src_codec.name, "slin")) {
+		return NULL; /* source is already slin, no pre-encoding needed */
+	}
+
+	slin_codec = ast_codec_get("slin", AST_MEDIA_TYPE_AUDIO, 8000);
+	if (!slin_codec) {
+		return NULL;
+	}
+
+	slin_index = codec2index(slin_codec);
+	ao2_ref(slin_codec, -1);
+
+	if (slin_index < 0) {
+		return NULL;
+	}
+
+	dst_index = t->src_fmt_index;
+	if (dst_index < 0 || slin_index == dst_index) {
+		return NULL;
+	}
+
+	while (slin_index != dst_index) {
+		struct ast_trans_pvt *cur;
+		struct ast_translator *step = matrix_get(slin_index, dst_index)->step;
+		if (!step) {
+			ast_translator_free_path(head);
+			return NULL;
+		}
+		cur = newpvt(step, NULL);
+		if (!cur) {
+			ast_translator_free_path(head);
+			return NULL;
+		}
+		if (!head) {
+			head = cur;
+		} else {
+			tail->next = cur;
+		}
+		tail = cur;
+		cur->nextin = cur->nextout = ast_tv(0, 0);
+		slin_index = cur->t->dst_fmt_index;
+	}
+
+	return head;
+}
+
 /*!
  * \internal
  * \brief Compute the computational cost of a single translation step.
@@ -696,6 +817,10 @@ static void generate_computational_cost(struct ast_translator *t, int seconds)
 	struct rusage end;
 	int cost;
 	int out_rate = t->dst_codec.sample_rate;
+	struct ast_frame **pre_pool = NULL;
+	int pre_pool_count = 0;
+	int pre_pool_idx = 0;
+	int use_pre_pool = 0;
 
 	if (!seconds) {
 		seconds = 1;
@@ -715,19 +840,100 @@ static void generate_computational_cost(struct ast_translator *t, int seconds)
 		return;
 	}
 
+	/*
+	 * For non-CODEC sample types, pre-generate frames before starting the
+	 * timer so sample-generation overhead is excluded from the measurement.
+	 *
+	 * For slin sources: isolate a fresh copy of each generated frame directly.
+	 * For non-slin sources: route the generated slin frames through a
+	 * slin->src_codec encoding path first.  If no such path exists in the
+	 * current matrix, use_pre_pool stays 0 and we fall back to t->sample().
+	 */
+	if (current_sample_type != SAMPLE_TYPE_CODEC) {
+		int16_t slin_buf[80];
+		struct ast_frame slin_f;
+		struct ast_trans_pvt *pre_path = NULL;
+		int attempt;
+
+		if (strcmp(t->src_codec.name, "slin")) {
+			pre_path = build_slin_to_src_path(t);
+		}
+
+		if (!strcmp(t->src_codec.name, "slin") || pre_path) {
+			pre_pool = ast_malloc(PRE_ENCODE_POOL_MAX * sizeof(*pre_pool));
+			if (pre_pool) {
+				memset(&slin_f, 0, sizeof(slin_f));
+				slin_f.frametype = AST_FRAME_VOICE;
+				slin_f.datalen = sizeof(slin_buf);
+				slin_f.samples = ARRAY_LEN(slin_buf);
+				slin_f.data.ptr = slin_buf;
+				slin_f.src = __PRETTY_FUNCTION__;
+				slin_f.subclass.format = ast_format_slin;
+
+				for (attempt = 0; pre_pool_count < PRE_ENCODE_POOL_MAX; attempt++) {
+					struct ast_frame *out;
+
+					if (attempt >= PRE_ENCODE_POOL_MAX * 10) {
+						break; /* encoder not producing output; give up */
+					}
+
+					generate_samples(slin_buf, ARRAY_LEN(slin_buf),
+					                 attempt * (int)ARRAY_LEN(slin_buf));
+
+					if (pre_path) {
+						/* non-slin: encode through the pre_path chain */
+						struct ast_trans_pvt *pp;
+						out = &slin_f;
+						for (pp = pre_path; pp; pp = pp->next) {
+							struct ast_frame *next_out;
+							framein(pp, out);
+							if (out != &slin_f) {
+								ast_frfree(out);
+							}
+							next_out = pp->t->frameout(pp);
+							out = next_out;
+							if (!out) {
+								break;
+							}
+						}
+					} else {
+						/* slin: isolate a standalone copy of the frame */
+						out = ast_frisolate(&slin_f);
+					}
+
+					if (out) {
+						pre_pool[pre_pool_count++] = out;
+					}
+				}
+				use_pre_pool = (pre_pool_count > 0);
+			}
+			ast_translator_free_path(pre_path);
+		}
+	}
+
 	getrusage(RUSAGE_SELF, &start);
 
 	/* Call the encoder until we've processed the required number of samples */
 	while (num_samples < seconds * out_rate) {
-		struct ast_frame *f = t->sample();
-		if (!f) {
-			ast_log(LOG_WARNING, "Translator '%s' failed to produce a sample frame.\n", t->name);
-			destroy(pvt);
-			t->comp_cost = 999999;
-			return;
+		struct ast_frame *f;
+
+		if (use_pre_pool) {
+			/* cycle through the pre-generated frame pool */
+			framein(pvt, pre_pool[pre_pool_idx % pre_pool_count]);
+			pre_pool_idx++;
+		} else {
+			/* default: use the codec's own sample generator */
+			f = t->sample();
+			if (!f) {
+				ast_log(LOG_WARNING, "Translator '%s' failed to produce a sample frame.\n", t->name);
+				destroy(pvt);
+				t->comp_cost = 999999;
+				goto cleanup;
+			}
+			framein(pvt, f);
+			ast_frfree(f);
 		}
-		framein(pvt, f);
-		ast_frfree(f);
+
 		while ((f = t->frameout(pvt))) {
 			num_samples += f->samples;
 			ast_frfree(f);
@@ -745,6 +951,15 @@ static void generate_computational_cost(struct ast_translator *t, int seconds)
 
 	if (!t->comp_cost) {
 		t->comp_cost = 1;
+	}
+
+cleanup:
+	if (pre_pool) {
+		int i;
+		for (i = 0; i < pre_pool_count; i++) {
+			ast_frfree(pre_pool[i]);
+		}
+		ast_free(pre_pool);
 	}
 }
 
@@ -1229,8 +1444,67 @@ static char *handle_cli_core_show_translation(struct ast_cli_entry *e, int cmd, 
 	return handle_show_translation_table(a);
 }
 
+static char *handle_cli_translate_sampletype(struct ast_cli_entry *e,
+	int cmd, struct ast_cli_args *a)
+{
+	static const char * const types[] = { "codec", "sine", "silence", "noise", "speech", NULL };
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "translate sampletype";
+		e->usage =
+			"Usage: translate sampletype [codec|sine|silence|noise|speech]\n"
+			"       Get or set the sample type used for codec matrix cost\n"
+			"       computation. Default is 'codec'.\n"
+			"         codec   - samples defined inside codec\n"
+			"         sine    - 1kHz sine wave\n"
+			"         silence - All-zero frames\n"
+			"         noise   - White noise\n"
+			"         speech  - Synthetic speech-like signal (P.50 inspired)\n";
+		return NULL;
+	case CLI_GENERATE:
+		return ast_cli_complete(a->word, types, a->n);
+	}
+
+	if (a->argc == 2) {
+		/* Query current setting */
+		const char *names[] = { "codec", "sine", "silence", "noise", "speech" };
+		ast_cli(a->fd, "Current translate sample type: %s\n",
+		        names[current_sample_type]);
+		return CLI_SUCCESS;
+	}
+
+	if (a->argc != 3)
+		return CLI_SHOWUSAGE;
+
+	if (!strcasecmp(a->argv[2], "silence")) {
+		current_sample_type = SAMPLE_TYPE_SILENCE;
+	} else if (!strcasecmp(a->argv[2], "noise")) {
+		current_sample_type = SAMPLE_TYPE_NOISE;
+	} else if (!strcasecmp(a->argv[2], "speech")) {
+		current_sample_type = SAMPLE_TYPE_SPEECH;
+	} else if (!strcasecmp(a->argv[2], "sine")) {
+		current_sample_type = SAMPLE_TYPE_SINE;
+	} else if (!strcasecmp(a->argv[2], "codec")) {
+		current_sample_type = SAMPLE_TYPE_CODEC;
+	} else {
+		ast_cli(a->fd, "Unknown sample type '%s'. Use: codec, sine, silence, noise, speech\n",
+		        a->argv[2]);
+		return CLI_SHOWUSAGE;
+	}
+
+	/* Rebuild the matrix with the new sample type */
+	ast_cli(a->fd, "Sample type set to '%s'. Rebuilding codec matrix...\n", a->argv[2]);
+	AST_RWLIST_WRLOCK(&translators);
+	matrix_rebuild(1);
+	AST_RWLIST_UNLOCK(&translators);
+
+	return CLI_SUCCESS;
+}
+
 static struct ast_cli_entry cli_translate[] = {
-	AST_CLI_DEFINE(handle_cli_core_show_translation, "Display translation matrix")
+	AST_CLI_DEFINE(handle_cli_core_show_translation, "Display translation matrix"),
+	AST_CLI_DEFINE(handle_cli_translate_sampletype, "Get/set codec matrix sample type"),
 };
 
 /*! \brief register codec translator */
