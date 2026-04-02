@@ -1053,7 +1053,7 @@ static int load_database_config_file(enum cdrel_record_type record_type, struct 
 		return -1;
 	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED) {
 		ast_debug(1, "%s: Config file unchanged, not reloading\n", config_filename);
-		return 0;
+		return 1;
 	}
 
 	while ((category = ast_category_browse_filtered(cfg, NULL, category, NULL))) {
@@ -1322,7 +1322,7 @@ static int load_text_file_config_file(enum cdrel_record_type record_type,
 		return -1;
 	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED) {
 		ast_debug(1, "%s: Config file unchanged, not reloading\n", config_filename);
-		return 0;
+		return 1;
 	}
 
 	while ((category = ast_category_browse_filtered(cfg, NULL, category, NULL))) {
@@ -1409,23 +1409,22 @@ int cdrel_reload_module(enum cdrel_backend_type output_type, enum cdrel_record_t
 	}
 
 	res = load_config_file(output_type, record_type, new_configs, filename, 1);
-	if (res != 0) {
+	if (res < 0) {
 		AST_VECTOR_RESET(new_configs, config_free);
 		AST_VECTOR_PTR_FREE(new_configs);
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	/* Now swap the new ones in. */
-	*configs = new_configs;
+	if (res == 0) {
+		/* Now swap the new ones in. */
+		*configs = new_configs;
 
-	/* Free the old ones. */
-	AST_VECTOR_RESET(old_configs, config_free);
-	AST_VECTOR_PTR_FREE(old_configs);
+		/* Free the old ones. */
+		AST_VECTOR_RESET(old_configs, config_free);
+		AST_VECTOR_PTR_FREE(old_configs);
+	}
 
 	return AST_MODULE_LOAD_SUCCESS;
-
-
-	return -1;
 }
 
 struct cdrel_configs *cdrel_load_module(enum cdrel_backend_type backend_type,
