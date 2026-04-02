@@ -34,7 +34,6 @@
 <member name="app_db" displayname="Database Access Functions" remove_on_change="apps/app_db.o apps/app_db.so">
 </member>
 <member name="app_dial" displayname="Dialing Application" remove_on_change="apps/app_dial.o apps/app_dial.so">
-	<depend>chan_local</depend>
 </member>
 <member name="app_dictate" displayname="Virtual Dictation Machine" remove_on_change="apps/app_dictate.o apps/app_dictate.so">
 </member>
@@ -59,7 +58,6 @@
 	<depend name="dahdi">DAHDI</depend>
 </member>
 <member name="app_followme" displayname="Find-Me/Follow-Me Application" remove_on_change="apps/app_followme.o apps/app_followme.so">
-	<depend>chan_local</depend>
 </member>
 <member name="app_forkcdr" displayname="Fork The CDR into 2 separate entities" remove_on_change="apps/app_forkcdr.o apps/app_forkcdr.so">
 </member>
@@ -188,7 +186,6 @@
 </category>
 <category name="MENUSELECT_CHANNELS" displayname="Channel Drivers" remove_on_change="channels/modules.link">
 <member name="chan_agent" displayname="Agent Proxy Channel" remove_on_change="channels/chan_agent.o channels/chan_agent.so">
-        <depend>chan_local</depend>
 </member>
 <member name="chan_console" displayname="Console Channel Driver" remove_on_change="channels/chan_console.o channels/chan_console.so">
 	<depend>portaudio</depend>
@@ -219,8 +216,6 @@
 	<depend>iksemel</depend>
 	<depend>res_jabber</depend>
 	<use>openssl</use>
-</member>
-<member name="chan_local" displayname="Local Proxy Channel (Note: used internally by other modules)" remove_on_change="channels/chan_local.o channels/chan_local.so">
 </member>
 <member name="chan_unistim" displayname="UNISTIM Protocol (USTM)" remove_on_change="channels/chan_unistim.o channels/chan_unistim.so">
 </member>

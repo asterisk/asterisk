@@ -191,10 +191,8 @@
 		<member name="chan_jingle" displayname="Jingle Channel Driver" remove_on_change="channels/chan_jingle.o channels/chan_jingle.so">
 	<depend>iksemel</depend>
 		</member>
-		<member name="chan_local" displayname="Local Proxy Channel" remove_on_change="channels/chan_local.o channels/chan_local.so">
-		</member>
-		<member name="chan_zap" displayname="Zapata Telephony" remove_on_change="channels/chan_zap.o channels/chan_zap.so">
-	<depend>zaptel</depend>
+		<member name="chan_dahdi" displayname="DAHDI Telephony" remove_on_change="channels/chan_dahdi.o channels/chan_dahdi.so">
+	<depend>dahdi</depend>
 		</member>
 	</category>
 	<category name="MENUSELECT_CODECS" displayname="Codec Translators">
