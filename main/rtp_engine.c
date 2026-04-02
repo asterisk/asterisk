@@ -232,6 +232,10 @@ struct ast_rtp_instance {
 	AST_VECTOR(, int) extmap_negotiated;
 	/*! Negotiated RTP extensions (using index based on unique id) */
 	AST_VECTOR(, struct rtp_extmap) extmap_unique_ids;
+	/*! Per-instance RTP port range start (0 means use global) */
+	int rtp_port_start;
+	/*! Per-instance RTP port range end (0 means use global) */
+	int rtp_port_end;
 };
 
 /*!
@@ -494,6 +498,14 @@ struct ast_rtp_instance *ast_rtp_instance_new(const char *engine_name,
 		struct ast_sched_context *sched, const struct ast_sockaddr *sa,
 		void *data)
 {
+	return ast_rtp_instance_new_with_port_range(
+		engine_name, sched, sa, data, 0, 0);
+}
+
+struct ast_rtp_instance *ast_rtp_instance_new_with_port_range(const char *engine_name,
+		struct ast_sched_context *sched, const struct ast_sockaddr *sa,
+		void *data, int port_start, int port_end)
+{
 	struct ast_sockaddr address = {{0,}};
 	struct ast_rtp_instance *instance = NULL;
 	struct ast_rtp_engine *engine = NULL;
@@ -538,6 +550,10 @@ struct ast_rtp_instance *ast_rtp_instance_new(const char *engine_name,
 	ast_sockaddr_copy(&instance->local_address, sa);
 	ast_sockaddr_copy(&address, sa);
 
+	/* Set the per-instance port range before the engine allocates the transport */
+	instance->rtp_port_start = port_start;
+	instance->rtp_port_end = port_end;
+
 	if (ast_rtp_codecs_payloads_initialize(&instance->codecs)) {
 		ao2_ref(instance, -1);
 		return NULL;
@@ -551,7 +567,12 @@ struct ast_rtp_instance *ast_rtp_instance_new(const char *engine_name,
 		return NULL;
 	}
 
-	ast_debug(1, "Using engine '%s' for RTP instance '%p'\n", engine->name, instance);
+	if (port_start && port_end) {
+		ast_debug(1, "Using engine '%s' for RTP instance '%p' with port range %d-%d\n",
+			engine->name, instance, port_start, port_end);
+	} else {
+		ast_debug(1, "Using engine '%s' for RTP instance '%p'\n", engine->name, instance);
+	}
 
 	/*
 	 * And pass it off to the engine to setup
@@ -2906,6 +2927,16 @@ int ast_rtp_instance_get_hold_timeout(struct ast_rtp_instance *instance)
 int ast_rtp_instance_get_keepalive(struct ast_rtp_instance *instance)
 {
 	return instance->keepalive;
+}
+
+int ast_rtp_instance_get_port_start(struct ast_rtp_instance *instance)
+{
+	return instance->rtp_port_start;
+}
+
+int ast_rtp_instance_get_port_end(struct ast_rtp_instance *instance)
+{
+	return instance->rtp_port_end;
 }
 
 struct ast_rtp_engine *ast_rtp_instance_get_engine(struct ast_rtp_instance *instance)

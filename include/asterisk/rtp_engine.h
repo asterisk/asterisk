@@ -981,6 +981,39 @@ struct ast_rtp_instance *ast_rtp_instance_new(const char *engine_name,
                 void *data);
 
 /*!
+ * \brief Create a new RTP instance with a per-instance port range
+ *
+ * \param engine_name Name of the engine to use for the RTP instance
+ * \param sched Scheduler context that the RTP engine may want to use
+ * \param sa Address we want to bind to
+ * \param data Unique data for the engine
+ * \param port_start Starting port number for this instance (0 to use global)
+ * \param port_end Ending port number for this instance (0 to use global)
+ *
+ * \retval non-NULL success
+ * \retval NULL failure
+ *
+ * Example usage:
+ *
+ * \code
+ * struct ast_rtp_instance *instance = NULL;
+ * instance = ast_rtp_instance_new_with_port_range(NULL, sched, &sin, NULL, 15000, 15010);
+ * \endcode
+ *
+ * This creates a new RTP instance using the specified port range instead of
+ * the global rtp.conf range. If port_start and port_end are both 0, the
+ * global range from rtp.conf will be used as a fallback.
+ *
+ * \note The per-instance port range overrides the global rtp.conf settings
+ *       for this specific RTP instance only.
+ *
+ * \since master
+ */
+struct ast_rtp_instance *ast_rtp_instance_new_with_port_range(const char *engine_name,
+                struct ast_sched_context *sched, const struct ast_sockaddr *sa,
+                void *data, int port_start, int port_end);
+
+/*!
  * \brief Destroy an RTP instance
  *
  * \param instance The RTP instance to destroy
@@ -2667,6 +2700,28 @@ int ast_rtp_instance_get_hold_timeout(struct ast_rtp_instance *instance);
  * \since 1.8
  */
 int ast_rtp_instance_get_keepalive(struct ast_rtp_instance *instance);
+
+/*!
+ * \brief Get the per-instance RTP port range start
+ *
+ * \param instance The RTP instance
+ *
+ * \return port start value (0 means use global setting)
+ *
+ * \since master
+ */
+int ast_rtp_instance_get_port_start(struct ast_rtp_instance *instance);
+
+/*!
+ * \brief Get the per-instance RTP port range end
+ *
+ * \param instance The RTP instance
+ *
+ * \return port end value (0 means use global setting)
+ *
+ * \since master
+ */
+int ast_rtp_instance_get_port_end(struct ast_rtp_instance *instance);
 
 /*!
  * \brief Get the RTP engine in use on an RTP instance
