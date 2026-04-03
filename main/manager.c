@@ -589,6 +589,18 @@ static void manager_default_msg_cb(void *data, struct stasis_subscription *sub,
 		ao2_cleanup(sessions);
 		return;
 	}
+	/* Early drop before append_event(), the all_events write lock, and the
+	 * per-session wakeup loop. stasis_message_to_ami() cost above is already
+	 * paid at this point. The check in __manager_event_sessions_va() is
+	 * intentionally kept as fallback for all other callers. */
+	if (!ast_strlen_zero(manager_disabledevents)
+		&& !ast_strlen_zero(ev->manager_event)
+		&& ast_in_delimited_string(ev->manager_event,
+			manager_disabledevents, ',')) {
+		ao2_ref(ev, -1);
+		ao2_cleanup(sessions);
+		return;
+	}
 
 	manager_event_sessions(sessions, ev->event_flags, ev->manager_event,
 		"%s", ev->extra_fields);
@@ -617,6 +629,16 @@ static void manager_generic_msg_cb(void *data, struct stasis_subscription *sub,
 	class_type = ast_json_integer_get(ast_json_object_get(payload->json, "class_type"));
 	type = ast_json_string_get(ast_json_object_get(payload->json, "type"));
 	event = ast_json_object_get(payload->json, "event");
+	/* Early drop before ast_manager_str_from_json_object(), which does the
+	 * expensive JSON-to-string conversion. Larger win than the default path
+	 * since the conversion itself is avoided here.
+	 * The check in __manager_event_sessions_va() is intentionally kept. */
+	if (!ast_strlen_zero(manager_disabledevents)
+		&& !ast_strlen_zero(type)
+		&& ast_in_delimited_string(type, manager_disabledevents, ',')) {
+		ao2_cleanup(sessions);
+		return;
+	}
 
 	event_buffer = ast_manager_str_from_json_object(event, NULL);
 	if (!event_buffer) {
