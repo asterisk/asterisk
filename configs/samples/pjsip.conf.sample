@@ -1603,8 +1603,8 @@
                            ; setting between inbound and outbound authentication
                            ; uses. See the auth realm description for details.
 
-;outbound_proxy=           ; SIP URI of the outbound proxy used to send
-                           ; publishes
+;outbound_proxy=           ; SIP URI of the outbound proxy used to send publishes.
+                           ; Consider adding \;lr to keep user@domain in the request URI.
 
 ;server_uri=               ; SIP URI of the server and entity to publish to.
                            ; This is the URI at which to find the entity and

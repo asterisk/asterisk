@@ -85,6 +85,10 @@
 						<version>13.0.0</version>
 					</since>
 					<synopsis>Full SIP URI of the outbound proxy used to send publishes</synopsis>
+					<description><para>
+						Proxy through which to send requests, a full SIP URI must be provided (default: "").
+						Consider adding \;lr for loose routing (to keep user@domain in the request URI).
+					</para></description>
 				</configOption>
 				<configOption name="server_uri">
 					<since>
