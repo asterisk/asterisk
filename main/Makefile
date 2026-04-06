@@ -259,7 +259,6 @@ PJDIR=$(ASTTOPDIR)/$(PJPROJECT_DIR)/source
 
 PJPROJECT_LDLIBS := \
 -Wl,--whole-archive \
-$(PJSUA_LIB_LDLIB) \
 $(PJSIP_UA_LDLIB) \
 $(PJSIP_SIMPLE_LDLIB) \
 $(PJSIP_LDLIB) \
@@ -314,7 +313,6 @@ ASTPJ_LIB:=libasteriskpj.dylib
 PJPROJECT_SRCDIR := $(ASTTOPDIR)/third-party/pjproject/source
 PJ_TARGET := aarch64-apple-darwin25.2.0
 PJPROJECT_DARWIN_LIBS := \
--force_load $(PJPROJECT_SRCDIR)/pjsip/lib/libpjsua-$(PJ_TARGET).a \
 -force_load $(PJPROJECT_SRCDIR)/pjsip/lib/libpjsip-ua-$(PJ_TARGET).a \
 -force_load $(PJPROJECT_SRCDIR)/pjsip/lib/libpjsip-simple-$(PJ_TARGET).a \
 -force_load $(PJPROJECT_SRCDIR)/pjsip/lib/libpjsip-$(PJ_TARGET).a \
