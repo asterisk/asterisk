@@ -2570,23 +2570,6 @@ if test "$USE_PJPROJECT" != "no" ; then
          AST_EXT_LIB_CHECK([PJSIP_AUTH_NEW_DIGESTS], [pjsip], [pjsip_auth_get_algorithm_by_type], [pjsip.h], [$PJPROJECT_LIB], [$PJPROJECT_CFLAGS])
       fi
    fi
-
-   if test "x$PBX_PJPROJECT" = "x1" ; then
-      if test "x${AST_DEVMODE}" = "xyes" ; then
-         AC_SUBST([PYTHONDEV_LIB])
-         AC_SUBST([PYTHONDEV_INCLUDE])
-         AST_PKG_CONFIG_CHECK([PYTHONDEV], [python-2.7])
-         AST_PKG_CONFIG_CHECK([PYTHONDEV], [python2])
-         AST_PKG_CONFIG_CHECK([PYTHONDEV], [python])
-         # The PJProject offers a C extension to Python. That wrapper is used by the
-         # Asterisk Test Framework, which requires Asterisk to be in Developer Mode.
-         # However, the used wrapper (called 'PJSUA Python') is deprecated and was not
-         # ported from Python 2.7 to Python 3.x. This is confirmed; it simply does not
-         # build. For more see <http://www.pjsip.org/trac/wiki/Python_SIP_Tutorial>.
-         # Therefore, the C libraries for Python 3 are of no help in Asterisk:
-         #AST_PKG_CONFIG_CHECK([PYTHONDEV], [python3])
-      fi
-   fi
 fi
 
 AST_EXT_LIB_CHECK([POPT], [popt], [poptStrerror], [popt.h])
