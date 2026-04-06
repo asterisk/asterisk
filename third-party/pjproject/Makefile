@@ -60,20 +60,8 @@ ifeq ($(SPECIAL_TARGETS),)
         CF := $(filter-out -I%,$(CF))
         ifeq ($(PJPROJECT_BUNDLED_OOT),)
         ifeq ($(AST_DEVMODE),yes)
-            apps := source/pjsip-apps/bin/pjsua-$(TARGET_NAME) source/pjsip-apps/bin/pjsystest-$(TARGET_NAME)
-            TARGETS += $(apps)
-            ifneq ($(PYTHONDEV_LIB),)
-                TARGETS += source/pjsip-apps/src/python/_pjsua.so
-            endif
             CF += -DPJPROJECT_BUNDLED_ASSERTIONS=yes
         endif
-        endif
-        MALLOC_DEBUG_LIBS = source/pjsip-apps/lib/libasterisk_malloc_debug.a
-        ifneq ($(findstring darwin,$(OSARCH)),)
-            MALLOC_DEBUG_LDFLAGS = -L$(PJDIR)/pjsip-apps/lib -Wl,-all_load -lasterisk_malloc_debug -Wl,-noall_load
-        else
-             # These are used for all but Darwin
-            MALLOC_DEBUG_LDFLAGS = -L$(PJDIR)/pjsip-apps/lib -Wl,-whole-archive -lasterisk_malloc_debug -Wl,-no-whole-archive
         endif
         ifeq ($(findstring DONT_OPTIMIZE,$(MENUSELECT_CFLAGS)),)
             CF += -O3
@@ -216,54 +204,15 @@ pjproject.symbols: $(ALL_LIB_FILES)
 	$(ECHO_PREFIX) Generating symbols
 	$(CMD_PREFIX) $(NM) -Pog $(ALL_LIB_FILES) | $(SED) -n -E -e "s/.+: ([_]?[pP][jJ][^ ]+) .+/\1/gp" | sort -u > pjproject.symbols
 
-source/pjsip-apps/src/asterisk_malloc_debug.c: patches/asterisk_malloc_debug.c
-	$(ECHO_PREFIX) Copying $< to $@
-	$(CMD_PREFIX) cp -f $< $@
-	-$(CMD_PREFIX) mkdir source/pjsip-apps/lib/ $(REALLY_QUIET)
-
-source/pjsip-apps/lib/asterisk_malloc_debug.o: source/pjsip-apps/src/asterisk_malloc_debug.c | source/pjlib/include/pj/config_site.h source/pjlib/include/pj/asterisk_malloc_debug.h
-	$(ECHO_PREFIX) Compiling asterisk debug malloc stubs
-	$(CMD_PREFIX) $(CC) -fPIC  $(PJ_CFLAGS) -c $< -o $@
-
-source/pjsip-apps/lib/libasterisk_malloc_debug.a: source/pjsip-apps/lib/asterisk_malloc_debug.o
-	$(ECHO_PREFIX) Creating archive $(@F)
-	$(CMD_PREFIX) ar qs $@ $< $(REALLY_QUIET)
-
-$(apps): APP = $(filter pj%,$(subst -, ,$(notdir $@)))
-$(apps): LDFLAGS += $(MALLOC_DEBUG_LDFLAGS)
-$(apps): $(MALLOC_DEBUG_LIBS) pjproject.symbols
-	$(ECHO_PREFIX) Compiling $(APP)
-	$(CMD_PREFIX) +$(MAKE) -C source/pjsip-apps/build $(APP) $(REALLY_QUIET)
-	$(CMD_PREFIX) touch $@
-
-source/pjsip-apps/src/python/_pjsua.o: source/pjsip-apps/src/python/_pjsua.c $(apps)
-	$(ECHO_PREFIX) Compiling python bindings
-	$(CMD_PREFIX) $(CC) -o $@ -c $< $(PYTHONDEV_INCLUDE) $(CFLAGS) $(PJ_CFLAGS)
-
-source/pjsip-apps/src/python/_pjsua.so: LDFLAGS += $(MALLOC_DEBUG_LDFLAGS)
-source/pjsip-apps/src/python/_pjsua.so: source/pjsip-apps/src/python/_pjsua.o
-	$(ECHO_PREFIX) Linking python bindings $(@F)
-	$(CMD_PREFIX) $(CC) -shared -pthread -o $@ $< $(LDFLAGS) $(PJ_LDFLAGS) $(APP_LDLIBS) $(PYTHONDEV_LIB) $(REALLY_QUIET)
-
 _install: _all
 	@if [ ! -d "$(DESTDIR)$(ASTDATADIR)/third-party/pjproject" ]; then \
 		$(INSTALL) -d "$(DESTDIR)$(ASTDATADIR)/third-party/pjproject"; \
 	fi;
-ifneq ($(findstring source/pjsip-apps/bin/pjsua-$(TARGET_NAME),$(TARGETS)),)
-	$(ECHO_PREFIX) Installing apps
-	$(CMD_PREFIX) $(INSTALL) -m 755 source/pjsip-apps/bin/pjsua-$(TARGET_NAME) "$(DESTDIR)$(ASTDATADIR)/third-party/pjproject/pjsua"
-	$(CMD_PREFIX) $(INSTALL) -m 755 source/pjsip-apps/bin/pjsystest-$(TARGET_NAME) "$(DESTDIR)$(ASTDATADIR)/third-party/pjproject/pjsystest"
-endif
-ifneq ($(findstring _pjsua.so,$(TARGETS)),)
-	$(ECHO_PREFIX) Installing python bindings
-	$(CMD_PREFIX) $(INSTALL) -m 755 source/pjsip-apps/src/python/_pjsua.so "$(DESTDIR)$(ASTDATADIR)/third-party/pjproject/"
-	$(CMD_PREFIX) $(INSTALL) -m 644 source/pjsip-apps/src/python/pjsua.py "$(DESTDIR)$(ASTDATADIR)/third-party/pjproject/"
-endif
 
 all: _all
 
 uninstall:
-	$(ECHO_PREFIX) Uninstalling apps and python bindings
+	$(ECHO_PREFIX) Uninstalling
 	$(CMD_PREFIX) rm -rf "$(DESTDIR)$(ASTDATADIR)/third-party/pjproject"
 
 clean:
@@ -271,7 +220,6 @@ clean:
 	+-$(CMD_PREFIX) {\
 		if [ -d source ] ; then  \
 			$(SUBMAKE) -C source clean ;\
-			rm -rf source/pjsip-apps/bin/* ;\
 			$(FIND) source/ '(' -name *.a -or -name *.o -or -name *.so ')' -delete ;\
 		fi ;\
 		rm -rf pjproject.symbols ;\
@@ -286,7 +234,6 @@ distclean: clean
 		else \
 			$(SUBMAKE) -C source distclean ;\
 			rm -rf source/build.mak source/user.mak ;\
-			$(FIND) source/ -name '*asterisk_malloc_debug*' -delete ;\
 			$(FIND) source/ '(' -name '.*.depend' -or -name '.*.astdep' ')' -delete ;\
 		fi \
 		} $(REALLY_QUIET) || :

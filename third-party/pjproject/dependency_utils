@@ -22,9 +22,6 @@ getlibname() {
 		.pjlib)
 			libfile=libpj
 			;;
-		.pjsua-lib)
-			libfile=libpjsua
-			;;
 		.*)
 			libfile=lib${depprefix#.*}
 			;;
@@ -62,9 +59,6 @@ getpjdepname () {
 	case ${nolib} in
 		pj)
 			depfile=.pjlib
-			;;
-		pjsua)
-			depfile=.pjsua-lib
 			;;
 		resample)
 			depfile=resample/.libresample

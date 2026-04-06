@@ -827,9 +827,6 @@
 /* Define to 1 if you have the <pwd.h> header file. */
 #undef HAVE_PWD_H
 
-/* Define if your system has the PYTHONDEV libraries. */
-#undef HAVE_PYTHONDEV
-
 /* Define to 1 if you have the Radius Client library. */
 #undef HAVE_RADIUS
 

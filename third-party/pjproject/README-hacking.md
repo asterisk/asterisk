@@ -134,8 +134,6 @@ repo's .git/info/exclude file...
 ```plain
 **/*.astdep
 **/*asterisk_malloc_debug*
-**/_pjsua.o
-**/_pjsua.so
 ```
 Don't add these to the top-level .gitignore file!  If you do, they'll become
 part of any change you submit upstream.
@@ -168,7 +166,7 @@ you should not run `configure` directly in the pjproject repo.  You won't get
 the proper options applied to be compatible with Asterisk.  You can run
 `make` though.
 
-Although asterisk_malloc_debug and site_config.h are applied to the pjproject
+Although asterisk_malloc_debug.h and site_config.h are applied to the pjproject
 repo, No patches from the `third-party/pjproject/patches` directory are
 applied.  Since you're probably working off the pjproject master branch,
 the patches aren't needed.  Also, applying the patches would contaminate
@@ -199,9 +197,9 @@ to pjproject's `.git/info/exclude` done above.  You'll
 see new progress messages during the make as the astdep files are
 built.
 
-* Copies asterisk_malloc_debug.c, asterisk_malloc_debug.h and
-config_site.h from the patches directory into the pjproject source
-tree.  These are also git-ignored by the edit to pjproject's
+* Copies asterisk_malloc_debug.h and config_site.h from the patches
+directory into the pjproject source tree. These are also git-ignored
+by the edit to pjproject's
 `.git/info/exclude` file.
 
 * Compiles only the out-of-date source files into their respective
