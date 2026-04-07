@@ -1331,9 +1331,26 @@ static struct ast_cli_entry config_wizard_cli[] = {
 	AST_CLI_DEFINE(handle_export_primitives, "Export config wizard primitives"),
 };
 
+/*!
+ * \internal
+ * \brief Reload configuration within a PJSIP thread
+ */
+static int reload_configuration_task(void *obj)
+{
+	struct ast_sorcery *sip_sorcery = ast_sip_get_sorcery();
+	if (sip_sorcery) {
+		ast_sorcery_reload(sip_sorcery);
+	}
+	return 0;
+}
+
 static int reload_module(void)
 {
-	ast_sorcery_reload(ast_sip_get_sorcery());
+	if (ast_sip_push_task_wait_servant(NULL, reload_configuration_task, NULL)) {
+		ast_log(LOG_WARNING, "Failed to reload PJSIP\n");
+		return -1;
+	}
+
 	return 0;
 }
 
