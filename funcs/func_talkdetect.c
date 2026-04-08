@@ -86,13 +86,14 @@
 			<para>The function has two parameters that can optionally be passed
 			when <literal>set</literal> on a channel: <replaceable>dsp_talking_threshold</replaceable>
 			and <replaceable>dsp_silence_threshold</replaceable>.</para>
-			<para><replaceable>dsp_talking_threshold</replaceable> is the time in milliseconds of sound
-			above what the dsp has established as base line silence for a user
-			before a user is considered to be talking. By default, the value of
-			<replaceable>silencethreshold</replaceable> from <filename>dsp.conf</filename>
-			is used. If this value is set too tight events may be
-			falsely triggered by variants in room noise.</para>
-			<para>Valid values are 1 through 2^31.</para>
+			<para><replaceable>dsp_talking_threshold</replaceable> is the minimum
+			average magnitude per sample in a frame for the DSP to consider
+			talking/noise present. A value below this level is considered silence.
+			If this value is set too low, events may be falsely triggered by
+			variants in room noise.</para>
+			<para>Valid values are 1 through 32768. The default value is 256, unless
+			overriden by the <replaceable>silencethreshold</replaceable> setting in
+			<filename>dsp.conf</filename>.</para>
 			<para><replaceable>dsp_silence_threshold</replaceable> is the time in milliseconds of sound
 			falling within what the dsp has established as baseline silence before
 			a user is considered be silent. If this value is set too low events
