@@ -77,7 +77,7 @@ static int codec2tolin_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 	struct codec2_translator_pvt *tmp = pvt->pvt;
 	int x;
 
-	for (x = 0; x < f->datalen; x += CODEC2_FRAME_LEN) {
+	for (x = 0; x + CODEC2_FRAME_LEN <= f->datalen; x += CODEC2_FRAME_LEN) {
 		unsigned char *src = f->data.ptr + x;
 		int16_t *dst = pvt->outbuf.i16 + pvt->samples;
 
