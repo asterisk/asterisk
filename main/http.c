@@ -636,6 +636,7 @@ void ast_http_create_response(struct ast_tcptls_session_instance *ser, int statu
 	const char *status_title, struct ast_str *http_header_data, const char *text)
 {
 	char server_name[MAX_SERVER_NAME_LENGTH];
+	char escaped_text[512];
 	struct ast_str *server_address = ast_str_create(MAX_SERVER_NAME_LENGTH);
 	struct ast_str *out = ast_str_create(INITIAL_RESPONSE_BODY_BUFFER);
 
@@ -658,6 +659,13 @@ void ast_http_create_response(struct ast_tcptls_session_instance *ser, int statu
 	                server_name);
 	}
 
+	/* Escape text to prevent reflected XSS in error pages */
+	if (!ast_strlen_zero(text)) {
+		ast_xml_escape(text, escaped_text, sizeof(escaped_text));
+	} else {
+		escaped_text[0] = '\0';
+	}
+
 	ast_str_set(&out,
 	            0,
 	            "<!DOCTYPE HTML PUBLIC \"-//IETF//DTD HTML 2.0//EN\">\r\n"
@@ -672,7 +680,7 @@ void ast_http_create_response(struct ast_tcptls_session_instance *ser, int statu
 	            status_code,
 	            status_title,
 	            status_title,
-	            text ? text : "",
+	            escaped_text,
 	            ast_str_buffer(server_address));
 
 	ast_free(server_address);
