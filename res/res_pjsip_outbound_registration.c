@@ -2069,6 +2069,7 @@ static int sip_outbound_registration_perform(void *data)
 	struct sip_outbound_registration *registration = ao2_bump(state->registration);
 	size_t i;
 	int max_delay;
+	pjsip_regc_info info;
 
 	/* Just in case the client state is being reused for this registration, free the auth information */
 	ast_sip_auth_vector_destroy(&state->client_state->outbound_auths);
@@ -2096,7 +2097,14 @@ static int sip_outbound_registration_perform(void *data)
 	state->client_state->auth_rejection_permanent = registration->auth_rejection_permanent;
 	max_delay = registration->max_random_initial_delay;
 
-	pjsip_regc_update_expires(state->client_state->client, registration->expiration);
+	/*
+	 * pjsip_regc_update_expires will remove the Expires header from the REGISTER request if the
+	 * expiration interval is re-set to the same value as the current interval.  We want to avoid
+	 * this so we only call it if the interval has changed.
+	 */
+	if (pjsip_regc_get_info(state->client_state->client, &info) == PJ_SUCCESS && info.interval != (unsigned) registration->expiration) {
+		pjsip_regc_update_expires(state->client_state->client, registration->expiration);
+	}
 
 	/* n mod 0 is undefined, so don't let that happen */
 	schedule_registration(state->client_state, (max_delay ? ast_random() % max_delay : 0) + 1);
