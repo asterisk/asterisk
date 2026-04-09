@@ -1,18 +1,18 @@
 
-## Change Log for Release asterisk-22.9.0-rc1
+## Change Log for Release asterisk-22.9.0
 
 ### Links:
 
- - [Full ChangeLog](https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-22.9.0-rc1.html)  
- - [GitHub Diff](https://github.com/asterisk/asterisk/compare/22.8.2...22.9.0-rc1)  
- - [Tarball](https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-22.9.0-rc1.tar.gz)  
+ - [Full ChangeLog](https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-22.9.0.html)  
+ - [GitHub Diff](https://github.com/asterisk/asterisk/compare/22.8.2...22.9.0)  
+ - [Tarball](https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-22.9.0.tar.gz)  
  - [Downloads](https://downloads.asterisk.org/pub/telephony/asterisk)  
 
 ### Summary:
 
-- Commits: 48
-- Commit Authors: 20
-- Issues Resolved: 31
+- Commits: 50
+- Commit Authors: 21
+- Issues Resolved: 34
 - Security Advisories Resolved: 0
 
 ### User Notes:
@@ -83,7 +83,7 @@
 - Alexis Hadjisotiriou: (3)
 - Arcadiy Ivanov: (1)
 - Ben Ford: (2)
-- George Joseph: (9)
+- George Joseph: (10)
 - Jasper Hafkenscheid: (1)
 - Joshua C. Colp: (2)
 - Julian C. Dunn: (1)
@@ -97,6 +97,7 @@
 - Talha Asghar: (1)
 - Tinet-mucw: (2)
 - hishamway: (1)
+- nappsoft: (1)
 - phoneben: (4)
 - serfreeman1337: (2)
 
@@ -135,6 +136,9 @@
   - 1819: [bug]: When a 302 is received from a UAS, the cause and tech_cause codes set on the channel are incorrect.
   - 1831: [bug]:raise_exception() and EXCEPTION() read use channel datastores without holding ast_channel_lock
   - 1833: [bug]: Address security vulnerabilities in pjproject
+  - 1844: [bug]: cdrel_custom isn't respecting the default time format for CEL records
+  - 1845: [bug]:res_cdrel_custom produces wrong float timestamps
+  - 1852: [bug]: res_cdrel_custom: connection to the sqlite3 database closes from time to time
 
 ### Commits By Author:
 
@@ -153,7 +157,8 @@
   - chan_websocket_doc.xml: Add d(media_direction) option.
   - chan_websocket: Add media direction.
 
-- #### George Joseph (9):
+- #### George Joseph (10):
+  - res_cdrel_custom: Resolve several formatting issues.
   - xmldoc.c: Fix memory leaks in handling of provided_by.
   - SECURITY.md: Update with additional instructions.
   - chan_pjsip: Set correct cause codes for non-2XX responses.
@@ -216,6 +221,9 @@
 - #### hishamway (1):
   - res_pjsip_session.c: Prevent INVITE failover when session is cancelled
 
+- #### nappsoft (1):
+  - res_cdrel_custom: do not free config when no new config was loaded
+
 - #### phoneben (4):
   - manager.c : Fix CLI event display
   - app_queue: Queue Timing Parity with Dial() and Accurate Wait Metrics
@@ -228,6 +236,8 @@
 
 ### Commit List:
 
+-  res_cdrel_custom: do not free config when no new config was loaded
+-  res_cdrel_custom: Resolve several formatting issues.
 -  res_pjsip: Address pjproject security vulnerabilities
 -  pbx: Hold channel lock for exception datastore access
 -  xmldoc.c: Fix memory leaks in handling of provided_by.
@@ -278,6 +288,38 @@
 -  res_pjsip_pubsub: Fix ao2 reference leak of subscription tree in ast_sip_subscription
 
 ### Commit Details:
+
+#### res_cdrel_custom: do not free config when no new config was loaded
+  Author: nappsoft
+  Date:   2026-04-02
+
+  When the res_cdrel_custom modules is reloaded and the config has not been changed asterisk should not free the old config. Otherwise the connection to the database will be closed and no new connection will be opened.
+
+  Resolves: #1852
+
+#### res_cdrel_custom: Resolve several formatting issues.
+  Author: George Joseph
+  Date:   2026-03-31
+
+  Several issues are resolved:
+
+  * Internally, floats were used for timestamp values but this could result
+  in wrapping so they've been changed to doubles.
+
+  * Historically, the default CEL eventtime format is `<seconds>.<microseconds>`
+  with `<microseconds>` always being 6 digits.  This should have continued to be
+  the case but res_cdrel_custom wasn't checking the `dateformat` setting in
+  cel.conf and was defaulting to `%F %T`.  res_cdrel_custom now gets the default
+  date format from cel.conf, which will be whatever the `dateformat` parameter
+  is set to or `<seconds>.<microseconds>` if not set.
+
+  * The timeval field formatter for both CDR and CEL wasn't handling custom
+  strftime format strings correctly.  This is now fixed so you should be able
+  to specifiy custom strftime format strings for the CEL `eventtime` and CDR
+  `start`, `answer` and `end` fields.  For example: `eventtime(%FT%T%z)`.
+
+  Resolves: #1844
+  Resolves: #1845
 
 #### res_pjsip: Address pjproject security vulnerabilities
   Author: Mike Bradeen
