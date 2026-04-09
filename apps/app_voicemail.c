@@ -7483,16 +7483,34 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 					if (chmod(txtfile, VOICEMAIL_FILE_MODE) < 0)
 						ast_log(AST_LOG_ERROR, "Couldn't set permissions on voicemail text file %s: %s", txtfile, strerror(errno));
 
-					ast_unlock_path(dir);
 					if (ast_check_realtime("voicemail_data")) {
 						snprintf(tmpdur, sizeof(tmpdur), "%d", duration);
 						ast_update_realtime("voicemail_data", "filename", tmptxtfile, "filename", fn, "duration", tmpdur, SENTINEL);
 					}
 					/* We must store the file first, before copying the message, because
 					 * ODBC storage does the entire copy with SQL.
+					 * Hold the path lock until after STORE so that concurrent callers
+					 * cannot read the same LAST_MSG_INDEX before the INSERT is committed.
 					 */
 					if (ast_fileexists(fn, NULL, NULL) > 0) {
+#ifdef ODBC_STORAGE
+						int store_failed;
+						store_failed = odbc_store_message(dir, vmu->mailbox, vmu->context, msgnum);
+						ast_unlock_path(dir);
+						if (store_failed) {
+							ast_log(LOG_ERROR, "Failed to store voicemail for %s/%s msgnum %d, skipping notification\n", vmu->context, vmu->mailbox, msgnum);
+							if (ast_check_realtime("voicemail_data")) {
+								ast_destroy_realtime("voicemail_data", "filename", fn, SENTINEL);
+							}
+							pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAILED");
+							goto leave_vm_out;
+						}
+#else
+						ast_unlock_path(dir);
 						SCOPE_CALL(-1, STORE, dir, vmu->mailbox, vmu->context, msgnum, chan, vmu, fmt, duration, vms, flag, msg_id);
+#endif
+					} else {
+						ast_unlock_path(dir);
 					}
 
 					/* Are there to be more recipients of this message? */
