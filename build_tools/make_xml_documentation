@@ -3,6 +3,14 @@
 
 PROGNAME="${0##*/}"
 
+tmp_output_file=/tmp/xmldoc.$$.xml
+
+cleanup() {
+    [ -f "$tmp_output_file" ] && rm "$tmp_output_file"
+}
+
+trap cleanup EXIT
+
 # Fail on errors
 set -e
 
@@ -205,9 +213,9 @@ for subdir in ${mod_subdirs} ; do
 			fi
 		fi
 		if [ "${for_wiki}" -eq "1" ] ; then
-			${PYTHON} build_tools/get_documentation.py < "${i}" > /tmp/xmldoc.tmp.xml
+			${PYTHON} build_tools/get_documentation.py < "${i}" > "${tmp_output_file}"
 		else
-			${AWK} -f "${source_tree}/build_tools/get_documentation" "${i}" > /tmp/xmldoc.tmp.xml
+			${AWK} -f "${source_tree}/build_tools/get_documentation" "${i}" > "${tmp_output_file}"
 		fi
 		if [ "${subdir}" = "main" ] ; then
 			# Force the module to be "builtin" if the source is in the main directory.
@@ -218,7 +226,7 @@ for subdir in ${mod_subdirs} ; do
 			mn=${bn%%.*}
 		fi
 		# Set the module name on specific elements
-		${SED} -r -e "s/<(manager|managerEvent|managerEventInstance|function|application|info)\s+([^>]+)>/<\1 \2 module=\"${mn}\">/g" /tmp/xmldoc.tmp.xml >> "${output_file}"
+		${SED} -r -e "s/<(manager|managerEvent|managerEventInstance|function|application|info)\s+([^>]+)>/<\1 \2 module=\"${mn}\">/g" "${tmp_output_file}" >> "${output_file}"
 	done
 	for i in $(${FIND} "${subdir_path}" -name '*.xml') ; do
 		${GREP} -q "appdocsxml.dtd" "${i}" || continue
@@ -230,7 +238,7 @@ for subdir in ${mod_subdirs} ; do
 					${XMLSTARLET} val -e -d "${source_tree}/doc/appdocsxml.dtd" "${i}" || { echo "" ; exit 1 ; }
 			fi
 		fi
-		${SED} -r "/^\s*(<[?]xml|<.DOCTYPE|<.?docs)/d" "${i}" > /tmp/xmldoc.tmp.xml
+		${SED} -r "/^\s*(<[?]xml|<.DOCTYPE|<.?docs)/d" "${i}" > "${tmp_output_file}"
 		dirname=${i%/*}
 		if [ "${dirname}" != "${subdir_path}" ] ; then
 			# If we're in a subdirectory like channels/pjsip, we need to check channels/Makefile
@@ -249,7 +257,7 @@ for subdir in ${mod_subdirs} ; do
 			fi
 		fi
 		# Set the module name on specific elements
-		${SED} -r -e "s/<(manager|managerEvent|managerEventInstance|function|application|info)\s+([^>]+)>/<\1 \2 module=\"${mn}\">/g" /tmp/xmldoc.tmp.xml >> "${output_file}"
+		${SED} -r -e "s/<(manager|managerEvent|managerEventInstance|function|application|info)\s+([^>]+)>/<\1 \2 module=\"${mn}\">/g" "${tmp_output_file}" >> "${output_file}"
 	done
 done
 
@@ -257,8 +265,8 @@ echo "</docs>" >> "${output_file}"
 echo ""
 # Some entries may already have a module attribute so remove the dup.
 # It's easier to do this once on the entire file rather on a source-by-source basis.
-cp "${output_file}" /tmp/xmldoc.tmp.xml
-${SED} -r -e 's/module="([^"]+)"\s+module="([^"]+)">/module="\1">/g' /tmp/xmldoc.tmp.xml > "${output_file}"
+cp "${output_file}" "${tmp_output_file}"
+${SED} -r -e 's/module="([^"]+)"\s+module="([^"]+)">/module="\1">/g' "${tmp_output_file}" > "${output_file}"
 
 
 if [ "${for_wiki}" -eq "1" ] ; then
