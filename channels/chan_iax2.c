@@ -12157,6 +12157,13 @@ immediatedial:
 	} else
 		f.samples = 0;
 
+	if (f.datalen < 0) {
+		ast_log(LOG_ERROR, "Dropping malformed frame (datalen %d?)\n", f.datalen);
+		ast_variables_destroy(ies.vars);
+		ast_mutex_unlock(&iaxsl[fr->callno]);
+		return 1;
+	}
+
 	iax_frame_wrap(fr, &f);
 
 	/* If this is our most recent packet, use it as our basis for timestamping */
