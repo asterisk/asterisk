@@ -731,6 +731,8 @@ struct refer_blind {
 	pjsip_replaces_hdr *replaces;
 	/*! \brief Optional Refer-To header */
 	pjsip_sip_uri *refer_to;
+	/*! \brief Session-ID extracted from Refer-To URI parameter */
+	char refer_to_session_id[33];
 	/*! \brief Attended transfer flag */
 	unsigned int attended:1;
 };
@@ -747,6 +749,9 @@ static void refer_blind_callback(struct ast_channel *chan, struct transfer_chann
 	const char *get_xfrdata;
 
 	pbx_builtin_setvar_helper(chan, "SIPTRANSFER", "yes");
+	if (!ast_strlen_zero(refer->refer_to_session_id)) {
+		pbx_builtin_setvar_helper(chan, "__SIPSESSIONID_REFERTO", refer->refer_to_session_id);
+	}
 
 	if (refer->progress && !refer->attended && !refer->progress->refer_blind_progress) {
 		/* If blind transfer and endpoint doesn't want to receive all the progress details */
@@ -962,6 +967,115 @@ struct refer_data {
 	char *refer_to;
 	int to_self;
 };
+
+/* Gate RFC7329 behavior on the module being loaded. */
+static int rfc7329_module_loaded(void)
+{
+	return ast_sip_get_rfc7329_enable() && ast_module_check("res_pjsip_rfc7329.so");
+}
+
+struct rfc7329_store_data {
+	char *session_id;
+};
+
+static const char *get_session_id_from_session(struct ast_sip_session *session)
+{
+	RAII_VAR(struct ast_datastore *, datastore,
+		ast_sip_session_get_datastore(session, "rfc7329_session_id"), ao2_cleanup);
+	struct rfc7329_store_data *store;
+
+	if (!datastore) {
+		return NULL;
+	}
+
+	store = datastore->data;
+	return store ? store->session_id : NULL;
+}
+
+static void set_refer_to_session_id_if_empty(struct ast_channel *chan, const char *session_id)
+{
+	const char *existing;
+
+	if (!chan || !rfc7329_module_loaded() || ast_strlen_zero(session_id)) {
+		return;
+	}
+
+	ast_channel_lock(chan);
+	existing = pbx_builtin_getvar_helper(chan, "SIPSESSIONID_REFERTO");
+	if (ast_strlen_zero(existing)) {
+		pbx_builtin_setvar_helper(chan, "__SIPSESSIONID_REFERTO", session_id);
+	}
+	ast_channel_unlock(chan);
+}
+
+static void add_session_id_header_param(pjsip_tx_data *tdata, const char *session_id)
+{
+	static const pj_str_t session_id_param = { "Session-ID", 10 };
+	static const pj_str_t refer_to_name = { "Refer-To", 8 };
+	pjsip_generic_string_hdr *refer_to_hdr;
+	pjsip_uri *parsed_uri;
+	pjsip_sip_uri *sip_uri;
+	pjsip_param *param;
+	struct ast_str *refer_to_str;
+
+	if (!rfc7329_module_loaded() || ast_strlen_zero(session_id)) {
+		return;
+	}
+
+	refer_to_hdr = pjsip_msg_find_hdr_by_name(tdata->msg, &refer_to_name, NULL);
+
+	if (!refer_to_hdr) {
+		return;
+	}
+
+	parsed_uri = pjsip_parse_uri(tdata->pool, refer_to_hdr->hvalue.ptr, refer_to_hdr->hvalue.slen, 0);
+	if (!parsed_uri || (!PJSIP_URI_SCHEME_IS_SIP(parsed_uri) && !PJSIP_URI_SCHEME_IS_SIPS(parsed_uri))) {
+		return;
+	}
+
+	sip_uri = pjsip_uri_get_uri(parsed_uri);
+	param = pjsip_param_find(&sip_uri->header_param, &session_id_param);
+	if (!param) {
+		param = PJ_POOL_ALLOC_T(tdata->pool, pjsip_param);
+		param->name = session_id_param;
+		param->value = pj_str((char *) session_id);
+		pj_list_insert_before(&sip_uri->header_param, param);
+	} else if (pj_stricmp2(&param->value, session_id)) {
+		pj_strdup2(tdata->pool, &param->value, session_id);
+	}
+
+	refer_to_str = ast_str_create(PJSIP_MAX_URL_SIZE);
+	if (!refer_to_str) {
+		return;
+	}
+	pjsip_uri_print(PJSIP_URI_IN_CONTACT_HDR, parsed_uri, ast_str_buffer(refer_to_str), ast_str_size(refer_to_str));
+	pj_strdup2(tdata->pool, &refer_to_hdr->hvalue, ast_str_buffer(refer_to_str));
+	ast_free(refer_to_str);
+}
+
+static void store_refer_to_session_id(struct ast_sip_session *session, pjsip_sip_uri *target_uri)
+{
+	static const pj_str_t session_id_param = { "Session-ID", 10 };
+	pjsip_param *param;
+	char session_id[33];
+
+	if (!rfc7329_module_loaded() || !session || !session->channel || !target_uri) {
+		return;
+	}
+
+	param = pjsip_param_find(&target_uri->header_param, &session_id_param);
+	if (!param || !param->value.slen) {
+		ast_channel_lock(session->channel);
+		pbx_builtin_setvar_helper(session->channel, "SIPSESSIONID_REFERTO", NULL);
+		ast_channel_unlock(session->channel);
+		return;
+	}
+
+	ast_copy_pj_str(session_id, &param->value, sizeof(session_id));
+	ast_channel_lock(session->channel);
+	pbx_builtin_setvar_helper(session->channel, "__SIPSESSIONID_REFERTO", session_id);
+	ast_channel_unlock(session->channel);
+}
 
 static void refer_data_destroy(void *obj)
 {
@@ -1403,6 +1517,13 @@ static int refer_send(void *data)
 	ast_sip_update_to_uri(tdata, uri);
 	ast_sip_update_from(tdata, rdata->from);
 
+	if (rfc7329_module_loaded()) {
+		/* Embed Session-ID in Refer-To URI when available. */
+		const char *session_id_refer_to = ast_refer_get_var(rdata->refer, "Session-ID-Refer-To");
+		const char *session_id = session_id_refer_to ? session_id_refer_to : ast_refer_get_var(rdata->refer, "Session-ID");
+		add_session_id_header_param(tdata, session_id);
+	}
+
 	/*
 	 * This copies any headers found in the refer's variables to
 	 * tdata.
@@ -1558,6 +1679,8 @@ static int refer_incoming_ari_request(struct ast_sip_session *session, pjsip_rx_
 		if (dlg) {
 			state->other_session = ast_sip_dialog_get_session(dlg);
 			pjsip_dlg_dec_lock(dlg);
+			set_refer_to_session_id_if_empty(session->channel,
+				get_session_id_from_session(state->other_session));
 		}
 
 		state->protocol_id = copy_string(&replaces->call_id);
@@ -1636,6 +1759,9 @@ static int refer_incoming_attended_request(struct ast_sip_session *session, pjsi
 			return 603;
 		}
 
+		set_refer_to_session_id_if_empty(session->channel,
+			get_session_id_from_session(other_session));
+
 		/* We defer actually doing the attended transfer to the other session so no deadlock can occur */
 		if (!(attended = refer_attended_alloc(session, other_session, progress))) {
 			ast_log(LOG_ERROR, "Received REFER request on channel '%s' from endpoint '%s' for local dialog but could not allocate structure to complete, rejecting\n",
@@ -1708,6 +1834,7 @@ static int refer_incoming_blind_request(struct ast_sip_session *session, pjsip_r
 	char exten[AST_MAX_EXTENSION];
 	struct refer_blind refer = { 0, };
 	int response;
+	const char *refer_to_session_id;
 
 	/* If no explicit transfer context has been provided use their configured context */
 	DETERMINE_TRANSFER_CONTEXT(context, session);
@@ -1739,6 +1866,14 @@ static int refer_incoming_blind_request(struct ast_sip_session *session, pjsip_r
 	refer.rdata = rdata;
 	refer.refer_to = target;
 	refer.attended = 0;
+	if (rfc7329_module_loaded()) {
+		ast_channel_lock(session->channel);
+		refer_to_session_id = pbx_builtin_getvar_helper(session->channel, "SIPSESSIONID_REFERTO");
+		if (!ast_strlen_zero(refer_to_session_id)) {
+			ast_copy_string(refer.refer_to_session_id, refer_to_session_id, sizeof(refer.refer_to_session_id));
+		}
+		ast_channel_unlock(session->channel);
+	}
 
 	if (ast_sip_session_defer_termination(session)) {
 		ast_log(LOG_ERROR, "Channel '%s' from endpoint '%s' attempted blind transfer but could not defer termination, rejecting\n",
@@ -1967,6 +2102,11 @@ static int refer_incoming_refer_request(struct ast_sip_session *session, struct 
 	}
 	target_uri = pjsip_uri_get_uri(target);
 
+	if (rfc7329_module_loaded()) {
+		/* Persist inbound Refer-To Session-ID for transfer handling. */
+		store_refer_to_session_id(session, target_uri);
+	}
+
 	/* Set up REFER progress subscription if requested/possible */
 	if (refer_progress_alloc(session, rdata, &progress)) {
 		pjsip_dlg_respond(session->inv_session->dlg, rdata, 500, NULL, NULL, NULL);
@@ -2067,17 +2207,111 @@ static void add_header_from_channel_var(struct ast_channel *chan, const char *va
 	ast_sip_add_header(tdata, header_name, var_value);
 }
 
+/*!
+ * \brief Set or replace a SIP header from a channel variable value.
+ *
+ * This looks up a variable on a channel and enforces that value on the outgoing
+ * SIP request header. If the header does not exist, it is added.
+ *
+ * \pre chan is locked.
+ */
+static void set_or_replace_header_from_channel_var(struct ast_channel *chan, const char *var_name,
+	const char *header_name, pjsip_tx_data *tdata)
+{
+	const char *var_value;
+	pj_str_t pj_header_name;
+	pjsip_generic_string_hdr *header;
+	pj_str_t header_value;
+
+	var_value = pbx_builtin_getvar_helper(chan, var_name);
+	if (ast_strlen_zero(var_value)) {
+		return;
+	}
+
+	pj_cstr(&pj_header_name, header_name);
+	header = pjsip_msg_find_hdr_by_name(tdata->msg, &pj_header_name, NULL);
+	if (!header) {
+		header_value = pj_str((char *) var_value);
+		header = pjsip_generic_string_hdr_create(tdata->pool, &pj_header_name, &header_value);
+		pjsip_msg_add_hdr(tdata->msg, (pjsip_hdr *) header);
+		return;
+	}
+
+	if (pj_strcmp2(&header->hvalue, var_value)) {
+		pj_strdup2(tdata->pool, &header->hvalue, var_value);
+	}
+}
+
+/*!
+ * \brief Keep RFC7329 session datastore aligned with channel override value.
+ *
+ * RFC7329 in-dialog requests (e.g., ACK) use the stored per-session Session-ID.
+ * When REFER logic overrides Session-ID from SIPSESSIONID_REFERTO on initial
+ * INVITE, we must also update the stored value so subsequent requests match.
+ *
+ * \pre chan is locked.
+ */
+static void sync_rfc7329_store_from_channel_var(struct ast_sip_session *session, struct ast_channel *chan,
+	const char *var_name)
+{
+	RAII_VAR(struct ast_datastore *, datastore, NULL, ao2_cleanup);
+	struct rfc7329_store_data *store;
+	const char *var_value;
+	char *copy;
+
+	if (!rfc7329_module_loaded() || !session || !chan || ast_strlen_zero(var_name)) {
+		return;
+	}
+
+	var_value = pbx_builtin_getvar_helper(chan, var_name);
+	if (ast_strlen_zero(var_value)) {
+		return;
+	}
+
+	datastore = ast_sip_session_get_datastore(session, "rfc7329_session_id");
+	if (!datastore) {
+		return;
+	}
+
+	store = datastore->data;
+	if (!store || (store->session_id && !strcmp(store->session_id, var_value))) {
+		return;
+	}
+
+	copy = ast_strdup(var_value);
+	if (!copy) {
+		return;
+	}
+
+	ast_free(store->session_id);
+	store->session_id = copy;
+}
+
 static void refer_outgoing_request(struct ast_sip_session *session, struct pjsip_tx_data *tdata)
 {
-	if (pjsip_method_cmp(&tdata->msg->line.req.method, &pjsip_invite_method)
-		|| !session->channel
-		|| session->inv_session->state != PJSIP_INV_STATE_NULL) {
+	int is_initial_invite;
+	int is_ack;
+
+	if (!session->channel || !session->inv_session) {
+		return;
+	}
+
+	is_initial_invite = !pjsip_method_cmp(&tdata->msg->line.req.method, &pjsip_invite_method)
+		&& session->inv_session->state == PJSIP_INV_STATE_NULL;
+	is_ack = !pjsip_method_cmp(&tdata->msg->line.req.method, &pjsip_ack_method);
+	if (!is_initial_invite && !is_ack) {
 		return;
 	}
 
 	ast_channel_lock(session->channel);
-	add_header_from_channel_var(session->channel, "SIPREPLACESHDR", "Replaces", tdata);
-	add_header_from_channel_var(session->channel, "SIPREFERREDBYHDR", "Referred-By", tdata);
+	if (rfc7329_module_loaded()) {
+		set_or_replace_header_from_channel_var(session->channel, "SIPSESSIONID_REFERTO", "Session-ID", tdata);
+		sync_rfc7329_store_from_channel_var(session, session->channel, "SIPSESSIONID_REFERTO");
+	}
+	if (is_initial_invite) {
+		add_header_from_channel_var(session->channel, "SIPREPLACESHDR", "Replaces", tdata);
+		add_header_from_channel_var(session->channel, "SIPREFERREDBYHDR", "Referred-By", tdata);
+	}
 	ast_channel_unlock(session->channel);
 }
 
