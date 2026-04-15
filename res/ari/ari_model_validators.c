@@ -818,6 +818,44 @@ ari_validator ast_ari_validate_variable_fn(void)
 	return ast_ari_validate_variable;
 }
 
+int ast_ari_validate_variables(struct ast_json *json)
+{
+	int res = 1;
+	struct ast_json_iter *iter;
+	int has_variables = 0;
+
+	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("variables", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_variables = 1;
+			prop_is_valid = ast_ari_validate_object(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI Variables field variables failed validation\n");
+				res = 0;
+			}
+		} else
+		{
+			ast_log(LOG_ERROR,
+				"ARI Variables has undocumented field %s\n",
+				ast_json_object_iter_key(iter));
+			res = 0;
+		}
+	}
+
+	if (!has_variables) {
+		ast_log(LOG_ERROR, "ARI Variables missing required field variables\n");
+		res = 0;
+	}
+
+	return res;
+}
+
+ari_validator ast_ari_validate_variables_fn(void)
+{
+	return ast_ari_validate_variables;
+}
+
 int ast_ari_validate_endpoint(struct ast_json *json)
 {
 	int res = 1;
