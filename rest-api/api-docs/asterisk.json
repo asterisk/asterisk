@@ -757,6 +757,17 @@
 				}
 			}
 		},
+		"Variables": {
+			"id": "Variables",
+			"description": "A dictionary of channel variables",
+			"properties": {
+				"variables": {
+					"required": true,
+					"type": "object",
+					"description": "A dictionary of channel variables"
+				}
+			}
+		},
 		"ConfigTuple": {
 			"id": "ConfigTuple",
 			"description": "A key/value pair that makes up part of a configuration object.",
