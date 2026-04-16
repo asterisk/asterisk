@@ -1537,6 +1537,7 @@ static void rtp_ioqueue_thread_destroy(struct ast_rtp_ioqueue_thread *ioqueue)
 		pj_pool_t *temp_pool = ioqueue->pool;
 
 		ioqueue->pool = NULL;
+		pj_ioqueue_destroy(ioqueue->ioqueue);
 		pj_pool_release(temp_pool);
 	}
 
