@@ -796,6 +796,15 @@ int stasis_app_bridge_playback_channel_add(struct ast_bridge *bridge,
 	struct stasis_app_control *control);
 
 /*!
+ * \brief Remove a bridge playback channel's control from the app controls list.
+ *
+ * \param bridge_id The unique ID of the bridge the playback channel is in.
+ * \param control The app control structure for the playback channel
+ */
+void stasis_app_bridge_playback_channel_control_remove(const char *bridge_id,
+	struct stasis_app_control *control);
+
+/*!
  * \brief remove channel from list of ARI playback channels for bridges.
  *
  * \param bridge_id The unique ID of the bridge the playback channel is in.
