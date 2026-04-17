@@ -714,6 +714,13 @@ static void remove_bridge_playback(char *bridge_id)
 	ast_free(bridge_id);
 }
 
+void stasis_app_bridge_playback_channel_control_remove(const char *bridge_id,
+	struct stasis_app_control *control)
+{
+	ast_assert(!ast_strlen_zero(bridge_id));
+	ao2_unlink(app_controls, control);
+}
+
 static void playback_after_bridge_cb_failed(enum ast_bridge_after_cb_reason reason, void *data)
 {
 	char *bridge_id = data;
@@ -777,7 +784,7 @@ void stasis_app_bridge_playback_channel_remove(char *bridge_id,
 		 * called or is in progress. No need to unlink the control here since that has
 		 * been done or is about to be done in the after bridge callback
 		 */
-		ao2_unlink(app_controls, control);
+		stasis_app_bridge_playback_channel_control_remove(bridge_id, control);
 		ao2_ref(wrapper, -1);
 	}
 }
