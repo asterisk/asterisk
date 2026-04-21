@@ -873,7 +873,11 @@ static int open_database(struct cdrel_config *config)
 		return -1;
 	}
 
+#if SQLITE_VERSION_NUMBER >= 3020000
 	res = sqlite3_prepare_v3(config->db, sql, -1, SQLITE_PREPARE_PERSISTENT, &config->insert, NULL);
+#else
+	res = sqlite3_prepare_v2(config->db, sql, -1, &config->insert, NULL);
+#endif
 	if (res != SQLITE_OK) {
 		ast_log(LOG_ERROR, "%s->%s: Unable to prepare INSERT statement '%s': %s\n",
 			cdrel_basename(config->config_filename), cdrel_basename(config->output_filename),
