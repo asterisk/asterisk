@@ -618,6 +618,14 @@ int ast_func_read(struct ast_channel *chan, const char *function, char *workspac
 	struct ast_custom_function *acfptr = ast_custom_function_find(copy);
 	int res;
 	struct ast_module_user *u = NULL;
+	/*
+	 * The module pointer needs to be saved because some modules, notably func_odbc,
+	 * dynamically create and destroy functions so the acfptr might not be valid
+	 * when the read callback returns.
+	 *
+	 * NEVER ASSUME THE acfptr IS STILL VALID AFTER THE CALLBACK RETURNS!
+	 */
+	struct ast_module *mod = acfptr ? acfptr->mod : NULL;
 
 	if (acfptr == NULL) {
 		ast_log(LOG_ERROR, "Function %s not registered\n", copy);
@@ -626,24 +634,24 @@ int ast_func_read(struct ast_channel *chan, const char *function, char *workspac
 	} else if (!is_read_allowed(acfptr)) {
 		ast_log(LOG_ERROR, "Dangerous function %s read blocked\n", copy);
 	} else if (acfptr->read) {
-		if (acfptr->mod) {
-			u = __ast_module_user_add(acfptr->mod, chan);
+		if (mod) {
+			u = __ast_module_user_add(mod, chan);
 		}
 		res = acfptr->read(chan, copy, args, workspace, len);
-		if (acfptr->mod && u) {
-			__ast_module_user_remove(acfptr->mod, u);
+		if (mod && u) {
+			__ast_module_user_remove(mod, u);
 		}
 
 		return res;
 	} else {
 		struct ast_str *str = ast_str_create(16);
 
-		if (acfptr->mod) {
-			u = __ast_module_user_add(acfptr->mod, chan);
+		if (mod) {
+			u = __ast_module_user_add(mod, chan);
 		}
 		res = acfptr->read2(chan, copy, args, &str, 0);
-		if (acfptr->mod && u) {
-			__ast_module_user_remove(acfptr->mod, u);
+		if (mod && u) {
+			__ast_module_user_remove(mod, u);
 		}
 		ast_copy_string(workspace, ast_str_buffer(str), len > ast_str_size(str) ? ast_str_size(str) : len);
 		ast_free(str);
@@ -661,6 +669,14 @@ int ast_func_read2(struct ast_channel *chan, const char *function, struct ast_st
 	struct ast_custom_function *acfptr = ast_custom_function_find(copy);
 	int res;
 	struct ast_module_user *u = NULL;
+	/*
+	 * The module pointer needs to be saved because some modules, notably func_odbc,
+	 * dynamically create and destroy functions so the acfptr might not be valid
+	 * when the read callback returns.
+	 *
+	 * NEVER ASSUME THE acfptr IS STILL VALID AFTER THE CALLBACK RETURNS!
+	 */
+	struct ast_module *mod = acfptr ? acfptr->mod : NULL;
 
 	if (acfptr == NULL) {
 		ast_log(LOG_ERROR, "Function %s not registered\n", copy);
@@ -669,8 +685,8 @@ int ast_func_read2(struct ast_channel *chan, const char *function, struct ast_st
 	} else if (!is_read_allowed(acfptr)) {
 		ast_log(LOG_ERROR, "Dangerous function %s read blocked\n", copy);
 	} else {
-		if (acfptr->mod) {
-			u = __ast_module_user_add(acfptr->mod, chan);
+		if (mod) {
+			u = __ast_module_user_add(mod, chan);
 		}
 		ast_str_reset(*str);
 		if (acfptr->read2) {
@@ -695,8 +711,8 @@ int ast_func_read2(struct ast_channel *chan, const char *function, struct ast_st
 			res = acfptr->read(chan, copy, args, ast_str_buffer(*str), maxsize);
 			ast_str_update(*str); /* Manually set the string length */
 		}
-		if (acfptr->mod && u) {
-			__ast_module_user_remove(acfptr->mod, u);
+		if (mod && u) {
+			__ast_module_user_remove(mod, u);
 		}
 
 		return res;
@@ -710,6 +726,14 @@ int ast_func_write(struct ast_channel *chan, const char *function, const char *v
 	char *copy = ast_strdupa(function);
 	char *args = func_args(copy);
 	struct ast_custom_function *acfptr = ast_custom_function_find(copy);
+	/*
+	 * The module pointer needs to be saved because some modules, notably func_odbc,
+	 * dynamically create and destroy functions so the acfptr might not be valid
+	 * when the write callback returns.
+	 *
+	 * NEVER ASSUME THE acfptr IS STILL VALID AFTER THE CALLBACK RETURNS!
+	 */
+	struct ast_module *mod = acfptr ? acfptr->mod : NULL;
 
 	if (acfptr == NULL) {
 		ast_log(LOG_ERROR, "Function %s not registered\n", copy);
@@ -721,12 +745,12 @@ int ast_func_write(struct ast_channel *chan, const char *function, const char *v
 		int res;
 		struct ast_module_user *u = NULL;
 
-		if (acfptr->mod) {
-			u = __ast_module_user_add(acfptr->mod, chan);
+		if (mod) {
+			u = __ast_module_user_add(mod, chan);
 		}
 		res = acfptr->write(chan, copy, args, value);
-		if (acfptr->mod && u) {
-			__ast_module_user_remove(acfptr->mod, u);
+		if (mod && u) {
+			__ast_module_user_remove(mod, u);
 		}
 
 		return res;
