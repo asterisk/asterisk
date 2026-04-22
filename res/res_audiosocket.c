@@ -260,9 +260,14 @@ const int ast_audiosocket_send_frame(const int svc, const struct ast_frame *f)
 				buf[3] = (uint8_t) f->subclass.integer;
 				*length = htons(1);
 				break;
-			default:
-				ast_log(LOG_ERROR, "Unsupported frame type %d for AudioSocket\n", f->frametype);
-				return -1;
+			case AST_FRAME_CNG:
+				return 0;
+			default: {
+				char frame_type[32];
+				ast_frame_type2str(f->frametype, frame_type, sizeof(frame_type));
+				ast_log(LOG_WARNING, "Unsupported frame type %s (%d) for AudioSocket\n", frame_type, f->frametype);
+				return 0;
+			}
 		}
 
 		if (write(svc, buf, 3 + datalen) != 3 + datalen) {
