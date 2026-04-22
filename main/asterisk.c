@@ -2726,7 +2726,7 @@ static int ast_el_read_char(EditLine *editline, CHAR_T_LIBEDIT *cp)
 		}
 
 		if (!ast_opt_exec && fds[1].revents) {
-#if HAVE_LIBEDIT_IS_UNICODE
+#ifdef HAVE_LIBEDIT_IS_UNICODE
 			num_read = editline_read_char(editline, cp);
 			if (num_read < 1) {
 				break;
