@@ -1,0 +1,43 @@
+--- a/pjlib/src/pj/ssl_sock_ossl.c
++++ b/pjlib/src/pj/ssl_sock_ossl.c
+@@ -1177,7 +1177,12 @@ static pj_status_t init_ossl_ctx(pj_ssl_sock_t *ssock)
+     }
+ 
+     if (!ssl_method) {
+-        ssl_method = (SSL_METHOD*)TLS_method();
++#if (USING_LIBRESSL && LIBRESSL_VERSION_NUMBER < 0x2020100fL) \
++    || OPENSSL_VERSION_NUMBER < 0x10100000L
++    ssl_method = (SSL_METHOD*)SSLv23_method();
++#else
++    ssl_method = (SSL_METHOD*)TLS_method();
++#endif
+ 
+ #ifdef SSL_OP_NO_SSLv2
+         /** Check if SSLv2 is enabled */
+@@ -1921,7 +1926,10 @@ static pj_status_t set_cipher_list(pj_ssl_sock_t *ssock)
+     enum { BUF_SIZE = 8192 };
+     pj_str_t cipher_list;
+     unsigned i, j;
+-    int ret, ret2 = 1;
++    int ret;
++#if !USING_BORINGSSL && OPENSSL_VERSION_NUMBER >= 0x1010100fL
++    int ret2 = 1;
++#endif
+ 
+     if (ssock->param.ciphers_num == 0) {
+         ret = SSL_CTX_set_cipher_list(ossock->ossl_ctx, PJ_SSL_SOCK_OSSL_CIPHERS);
+@@ -1976,10 +1984,12 @@ static pj_status_t set_cipher_list(pj_ssl_sock_t *ssock)
+      * SSL_CTX_set_ciphersuites() is for TLSv1.3.
+      */
+     ret = SSL_CTX_set_cipher_list(ossock->ossl_ctx, buf);
+-#if !USING_BORINGSSL
++#if !USING_BORINGSSL && OPENSSL_VERSION_NUMBER >= 0x1010100fL
+     ret2 = SSL_CTX_set_ciphersuites(ossock->ossl_ctx, buf);
+-#endif
+     if (ret < 1 && ret2 < 1) {
++#else
++    if (ret < 1) {
++#endif
+         PJ_LOG(4, (THIS_FILE, "Failed setting cipher list %s",
+                               cipher_list.ptr));
+         pj_pool_release(tmp_pool);
