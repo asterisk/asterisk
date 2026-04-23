@@ -264,6 +264,82 @@ static int create_rtp(struct ast_sip_session *session, struct ast_sip_session_me
 				ao2_ref(trans_state, -1);
 			}
 			ao2_ref(transport, -1);
+		} else if (!session->endpoint->media.rtp.ice_support
+				&& session->inv_session && session->inv_session->dlg
+				&& (PJSIP_URI_SCHEME_IS_SIP(session->inv_session->dlg->target)
+					|| PJSIP_URI_SCHEME_IS_SIPS(session->inv_session->dlg->target))) {
+			/*
+			 * The endpoint does not have an explicit transport configured
+			 * and ICE is not in use. Acquire the transport that would be
+			 * used for the dialog's target URI and, when it is bound to a
+			 * specific (non-wildcard) address, use that address for RTP.
+			 *
+			 * On a multi-homed or NAT-gateway host whose transport binds
+			 * to a specific interface, a wildcard-bound RTP socket causes
+			 * the kernel to choose a source IP that may conflict with
+			 * conntrack DNAT entries for inbound RTP.
+			 *
+			 * When the transport itself binds to a wildcard address
+			 * (0.0.0.0 or [::]), the RTP socket is left on the wildcard
+			 * as well — this matches the behaviour of the explicit
+			 * transport code path above and preserves dual-stack
+			 * operation.
+			 *
+			 * When ICE is enabled the wildcard bind is intentional so
+			 * that ICE can discover candidates on all interfaces.
+			 */
+			pjsip_sip_uri *sip_uri;
+			pjsip_transport_type_e type;
+
+			sip_uri = pjsip_uri_get_uri(session->inv_session->dlg->target);
+			type = pjsip_transport_get_type_from_name(&sip_uri->transport_param);
+			if (PJSIP_URI_SCHEME_IS_SIPS(sip_uri)) {
+				if (type == PJSIP_TRANSPORT_UNSPECIFIED
+						|| !(pjsip_transport_get_flag_from_type(type) & PJSIP_TRANSPORT_SECURE)) {
+					type = PJSIP_TRANSPORT_TLS;
+				}
+			} else if (!sip_uri->transport_param.slen) {
+				type = PJSIP_TRANSPORT_UDP;
+			}
+
+			if (pj_strchr(&sip_uri->host, ':')) {
+				type |= PJSIP_TRANSPORT_IPV6;
+			}
+
+			if (type != PJSIP_TRANSPORT_UNSPECIFIED
+					&& (pjsip_transport_get_flag_from_type(type) & PJSIP_TRANSPORT_DATAGRAM)) {
+				pjsip_transport *tp = NULL;
+				pj_sockaddr remote;
+				int addr_len;
+
+				pj_bzero(&remote, sizeof(remote));
+				if (type & PJSIP_TRANSPORT_IPV6) {
+					addr_len = sizeof(pj_sockaddr_in6);
+					remote.addr.sa_family = pj_AF_INET6();
+				} else {
+					addr_len = sizeof(pj_sockaddr_in);
+					remote.addr.sa_family = pj_AF_INET();
+				}
+
+				if (pjsip_tpmgr_acquire_transport(
+						pjsip_endpt_get_tpmgr(ast_sip_get_pjsip_endpoint()),
+						type, &remote, addr_len,
+						&session->inv_session->dlg->tp_sel,
+						&tp) == PJ_SUCCESS) {
+					if (pj_sockaddr_has_addr(&tp->local_addr)) {
+						char hoststr[PJ_INET6_ADDRSTRLEN];
+
+						pj_sockaddr_print(&tp->local_addr, hoststr,
+							sizeof(hoststr), 0);
+						if (ast_sockaddr_parse(&temp_media_address, hoststr, 0)) {
+							ast_debug_rtp(1, "Auto-selected transport bound to %s: "
+								"Using it for RTP media.\n", hoststr);
+							media_address = &temp_media_address;
+						}
+					}
+					pjsip_transport_dec_ref(tp);
+				}
+			}
 		}
 	}
 
