@@ -665,12 +665,15 @@ static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int s
 		ast_channel_zone_set(chan, zone);
 	}
 
+	ast_channel_unlock(chan);
+
 	for (var = session->endpoint->channel_vars; var; var = var->next) {
 		char buf[512];
 		pbx_builtin_setvar_helper(chan, var->name, ast_get_encoded_str(
 					var->value, buf, sizeof(buf)));
 	}
 
+	ast_channel_lock(chan);
 	ast_channel_stage_snapshot_done(chan);
 	ast_channel_unlock(chan);
 
