@@ -1603,7 +1603,12 @@ static void check_red_support(struct ast_sip_session *session, struct ast_sip_se
 				strcasecmp(ast_format_get_name(format_parsed), "RED") == 0) {
 			int red_payload = *(int*)ast_format_attribute_get(format_parsed, "red_payload");
 			int red_num_gen = *(int*)ast_format_attribute_get(format_parsed, "red_num_gen");
-			if (red_payload != -1 && red_num_gen != -1) {
+			/* Already checked in the red sdp parser, just to be save */
+			if (red_num_gen > AST_RED_MAX_GENERATION) {
+				ast_log(LOG_ERROR, "Number of generations %d exceeded on session %s\n",
+					red_num_gen, ast_sip_session_get_name(session));
+
+			} else if (red_payload != -1 && red_num_gen != -1) {
 				for (int x = 0; x < red_num_gen+1; x++) {
 					red_pt_array[x] = red_payload;
 				}
