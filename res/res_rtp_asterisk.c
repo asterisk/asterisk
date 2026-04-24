@@ -9174,31 +9174,6 @@ static void ast_rtp_remote_address_set(struct ast_rtp_instance *instance, struct
 	}
 }
 
-/*!
- * \brief Write t140 redundancy frame
- *
- * \param data primary data to be buffered
- *
- * Scheduler callback
- */
-static int red_write(const void *data)
-{
-	struct ast_rtp_instance *instance = (struct ast_rtp_instance *) data;
-	struct ast_rtp *rtp;
-
-	ao2_lock(instance);
-	rtp = ast_rtp_instance_get_data(instance);
-	if (!rtp || !rtp->red) {
-		ao2_unlock(instance);
-		ast_log(LOG_ERROR, "Could not get rtp from instance or RED handler for real-time text\n");
-		return 0;
-	}
-
-	ao2_unlock(instance);
-
-	return 1;
-}
-
 /*! \pre instance is locked */
 static int rtp_red_init(struct ast_rtp_instance *instance, int buffer_time, int *payloads, int generations)
 {
@@ -9226,13 +9201,6 @@ static int rtp_red_init(struct ast_rtp_instance *instance, int buffer_time, int 
 		rtp->red->t140red_data[x*4] = rtp->red->pt[x];
 	}
 	rtp->red->t140red_data[x*4] = rtp->red->pt[x] = payloads[x]; /* primary pt */
-	ao2_ref(instance, +1);
-	rtp->red->schedid = ast_sched_add(rtp->sched, buffer_time, red_write, instance);
-	if (rtp->red->schedid < 0) {
-		ao2_ref(instance, -1);
-		ast_log(LOG_WARNING, "scheduling red_write for real-time text failed for stream %s\n",
-			 ast_rtp_instance_get_cname(instance));
-	}
 	ast_debug(3, "Init RED for stream %s, primary payload %d with %d generations\n",
 		ast_rtp_instance_get_cname(instance), payloads[x], generations);
 
