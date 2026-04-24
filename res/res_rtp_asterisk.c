@@ -5428,7 +5428,13 @@ static struct ast_frame *red_t140_to_red(struct rtp_red *red)
 	/* Store length of each generation and primary data length*/
 	for (i = 0; i < red->num_gen; i++)
 		red->len[i] = red->len[i+1];
-	red->len[i] = red->t140.datalen;
+
+	if (red->t140.datalen > UCHAR_MAX) {
+		ast_log(LOG_WARNING, "overflow during RED to T140 conversion, wanted %d, max %d\n", red->t140.datalen, UCHAR_MAX);
+		red->len[i] = UCHAR_MAX;
+	} else {
+		red->len[i] = red->t140.datalen;
+	}
 
 	/* write each generation length in red header */
 	len = red->hdrlen;
