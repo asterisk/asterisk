@@ -110,6 +110,7 @@ static struct ast_format *red_parse_sdp_fmtp(const struct ast_format *format, co
 	}
 
 	attr->red_num_gen = red_num_gen;
+	ast_debug(3, "RED sdp parsed, number of generations %d\n", red_num_gen);
 
 	return cloned;
 }
@@ -146,7 +147,7 @@ static void red_generate_sdp_fmtp(const struct ast_format *format, unsigned int 
 		ast_str_append(str, 0, "\r\n");
 	}
 
-	ast_debug(3, "RED sdp written: %s\n", ast_str_buffer(*str));
+	ast_debug(3, "RED sdp generated: %s\n", ast_str_buffer(*str));
 }
 
 
