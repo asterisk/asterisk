@@ -376,6 +376,14 @@
 ;
 ;stir_shaken=no
 ;stir_shaken_profile=my_profile
+;
+; T140/RED real-time text support.
+;
+;allow=red
+;allow=t140
+;tos_text=0
+;cos_text=0
+;max_text_streams=1
 
 ;[6001]
 ;type=auth
