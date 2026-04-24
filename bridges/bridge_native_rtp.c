@@ -246,7 +246,16 @@ static int rtp_glue_data_get(struct ast_channel *c0, struct rtp_glue_data *glue0
 	}
 	ast_debug(2, "%p, From media bridging, glue video result 1: %d, instance %p, 2: %d, instance %p\n",
 			glue0->cb->allow_vrtp_remote, glue0->video.result, &glue0->video.instance, glue1->video.result, &glue1->video.instance);
-	/* there is no allow_trtp_remote function implemented, so this this logic is not needed for real-time text */
+	if (glue0->text.result == glue1->text.result && glue1->text.result == AST_RTP_GLUE_RESULT_REMOTE) {
+		if (glue0->cb->allow_trtp_remote && !glue0->cb->allow_trtp_remote(c0, glue1->text.instance)) {
+			/* If the allow_trtp_remote indicates that remote isn't allowed, revert to local bridge */
+			glue0->text.result = glue1->text.result = AST_RTP_GLUE_RESULT_LOCAL;
+		} else if (glue1->cb->allow_trtp_remote && !glue1->cb->allow_trtp_remote(c1, glue0->text.instance)) {
+			glue0->text.result = glue1->text.result = AST_RTP_GLUE_RESULT_LOCAL;
+		}
+	}
+	ast_debug(2, "%p, From media bridging, glue text result 1: %d, instance %p, 2: %d, instance %p\n",
+			glue0->cb->allow_trtp_remote, glue0->text.result, &glue0->text.instance, glue1->text.result, &glue1->text.instance);
 	/* If we are carrying video, and both sides are not going to remotely bridge... fail the native bridge */
 	if (glue0->video.instance && glue1->video.instance) {
 		if (glue0->video.result != AST_RTP_GLUE_RESULT_FORBID
