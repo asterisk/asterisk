@@ -5611,7 +5611,12 @@ static int ast_rtp_write(struct ast_rtp_instance *instance, struct ast_frame *fr
 	}
 
 	/* If there is no data length we can't very well send the packet */
-	if (!frame->datalen) {
+	if (!frame->datalen && frame->frametype != AST_FRAME_TEXT) {
+		/* RFC 4103:
+		 * When valid T.140 data has been sent and no new T.140 data is
+		* available for transmission after the selected buffering time, an
+		* empty T140block SHOULD be transmitted.
+		*/
 		ast_debug_rtp(1, "(%p) RTP received frame with no data for instance, so dropping frame\n", instance);
 		return 0;
 	}
@@ -8045,24 +8050,22 @@ static struct ast_frame *ast_rtp_interpret(struct ast_rtp_instance *instance, st
 		&& ((int)seqno - (prev_seqno + 1) < 10)) {
 		unsigned char *data = rtp->f.data.ptr;
 
+		ast_debug(2, "processing T140 with %d bytes \n", rtp->f.datalen);
 		memmove(rtp->f.data.ptr+3, rtp->f.data.ptr, rtp->f.datalen);
 		rtp->f.datalen +=3;
 		*data++ = 0xEF;
 		*data++ = 0xBF;
 		*data = 0xBD;
-	}
-
-	if (rtp->f.datalen <= 0) {
-		return AST_LIST_FIRST(&frames) ? AST_LIST_FIRST(&frames) : &ast_null_frame;
 	} else if (ast_format_cmp(rtp->f.subclass.format, ast_format_t140_red) == AST_FORMAT_CMP_EQUAL) {
-		unsigned char* data = rtp->f.data.ptr;
-		unsigned char* header_end;
+		unsigned char *data = rtp->f.data.ptr;
+		unsigned char *header_end;
 		int num_generations;
 		int header_length;
 		int len;
 		int diff =(int)seqno - (prev_seqno+1); /* if diff = 0, no drop*/
 		int x;
 
+		ast_debug(2, "processing RED with %d bytes\n", rtp->f.datalen);
 		ao2_replace(rtp->f.subclass.format, ast_format_t140);
 		header_end = memchr(data, ((*data) & 0x7f), rtp->f.datalen);
 		if (header_end == NULL) {
@@ -8129,6 +8132,7 @@ static struct ast_frame *ast_rtp_interpret(struct ast_rtp_instance *instance, st
 		rtp->f.subclass.frame_ending = mark ? 1 : 0;
 	} else if (ast_format_get_type(rtp->f.subclass.format) == AST_MEDIA_TYPE_TEXT) {
 		/* TEXT -- samples is # of samples vs. 1000 */
+		ast_debug(2, "processing AST_MEDIA_TYPE_TEXT, length %d\n", rtp->f.datalen);
 		if (!rtp->lastitexttimestamp)
 			rtp->lastitexttimestamp = timestamp;
 		rtp->f.samples = timestamp - rtp->lastitexttimestamp;
