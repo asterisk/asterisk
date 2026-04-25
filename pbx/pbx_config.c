@@ -1971,6 +1971,8 @@ process_extension:
 static int pbx_load_module(void)
 {
 	struct ast_context *con;
+	struct timeval begin_time;
+	double parsing_time;
 
 	ast_mutex_lock(&reload_lock);
 
@@ -1982,12 +1984,18 @@ static int pbx_load_module(void)
 		}
 	}
 
+	begin_time = ast_tvnow();
+
 	if (!pbx_load_config(config)) {
 		ast_hashtab_destroy(local_table, NULL);
 		local_table = NULL;
 		ast_mutex_unlock(&reload_lock);
 		return AST_MODULE_LOAD_DECLINE;
 	}
+
+	parsing_time = ast_tvdiff_us(ast_tvnow(), begin_time);
+	parsing_time /= 1000000.0;
+	ast_verb(5, "Time to parse %s dialplan configuration: %8.6f sec\n", config, parsing_time);
 
 	ast_merge_contexts_and_delete(&local_contexts, local_table, registrar);
 	local_table = NULL; /* the local table has been moved into the global one. */
