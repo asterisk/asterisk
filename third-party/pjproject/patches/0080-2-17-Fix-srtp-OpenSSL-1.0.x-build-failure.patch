@@ -1,0 +1,166 @@
+--- /dev/null
++++ b/third_party/srtp/PJSIP_NOTES
+@@ -0,0 +1,83 @@
++The srtp library repo:
++https://github.com/cisco/libsrtp
++
++license: third_party/srtp/LICENSE
++
++Local changes:
++1. OpenSSL 1.0.x and LibreSSL compatibility: add version guards for
++   EVP_CIPHER_CTX_reset(), HMAC_CTX_new(), HMAC_CTX_free() (issue #4945).
++
++--- third_party/srtp/crypto/cipher/aes_gcm_ossl.c
+++++ third_party/srtp/crypto/cipher/aes_gcm_ossl.c
++@@ -193,7 +193,12 @@ static srtp_err_status_t srtp_aes_gcm_openssl_context_init(void *cv,
++         break;
++     }
++ 
+++#if OPENSSL_VERSION_NUMBER >= 0x10100000L && !defined(LIBRESSL_VERSION_NUMBER)
++     EVP_CIPHER_CTX_reset(c->ctx);
+++#else
+++    EVP_CIPHER_CTX_cleanup(c->ctx);
+++    EVP_CIPHER_CTX_init(c->ctx);
+++#endif
++ 
++     if (!EVP_CipherInit_ex(c->ctx, evp, NULL, key, NULL, 0)) {
++         return (srtp_err_status_init_fail);
++ 
++--- third_party/srtp/crypto/cipher/aes_icm_ossl.c
+++++ third_party/srtp/crypto/cipher/aes_icm_ossl.c
++@@ -250,7 +250,12 @@ static srtp_err_status_t srtp_aes_icm_openssl_context_init(void *cv,
++         break;
++     }
++ 
+++#if OPENSSL_VERSION_NUMBER >= 0x10100000L && !defined(LIBRESSL_VERSION_NUMBER)
++     EVP_CIPHER_CTX_reset(c->ctx);
+++#else
+++    EVP_CIPHER_CTX_cleanup(c->ctx);
+++    EVP_CIPHER_CTX_init(c->ctx);
+++#endif
++ 
++     if (!EVP_EncryptInit_ex(c->ctx, evp, NULL, key, NULL)) {
++         return srtp_err_status_fail;
++ 
++--- third_party/srtp/crypto/hash/hmac_ossl.c
+++++ third_party/srtp/crypto/hash/hmac_ossl.c
++@@ -93,6 +93,9 @@ typedef struct {
++     EVP_MAC_CTX *ctx_dup;
++ #else
++     HMAC_CTX *ctx;
+++#if OPENSSL_VERSION_NUMBER < 0x10100000L || defined(LIBRESSL_VERSION_NUMBER)
+++    HMAC_CTX static_ctx;
+++#endif
++ #endif
++ } srtp_hmac_ossl_ctx_t;
++ 
++@@ -153,13 +156,18 @@ static srtp_err_status_t srtp_hmac_alloc(srtp_auth_t **a,
++         hmac->ctx = NULL;
++     }
++ #else
+++#if OPENSSL_VERSION_NUMBER >= 0x10100000L && !defined(LIBRESSL_VERSION_NUMBER)
++     hmac->ctx = HMAC_CTX_new();
++     if (hmac->ctx == NULL) {
++         srtp_crypto_free(hmac);
++         srtp_crypto_free(*a);
++         *a = NULL;
++         return srtp_err_status_alloc_fail;
++     }
+++#else
+++    HMAC_CTX_init(&hmac->static_ctx);
+++    hmac->ctx = &hmac->static_ctx;
+++#endif
++ #endif
++ 
++@@ -182,7 +190,11 @@ static srtp_err_status_t srtp_hmac_dealloc(srtp_auth_t *a)
++         EVP_MAC_CTX_free(hmac->ctx_dup);
++         EVP_MAC_free(hmac->mac);
++ #else
+++#if OPENSSL_VERSION_NUMBER >= 0x10100000L && !defined(LIBRESSL_VERSION_NUMBER)
++         HMAC_CTX_free(hmac->ctx);
+++#else
+++        HMAC_CTX_cleanup(hmac->ctx);
+++#endif
++ #endif
++         /* zeroize entire state*/
++         octet_string_set_to_zero(hmac, sizeof(srtp_hmac_ossl_ctx_t));
+\ No newline at end of file
+diff --git a/third_party/srtp/crypto/cipher/aes_gcm_ossl.c b/third_party/srtp/crypto/cipher/aes_gcm_ossl.c
+index 23b5ba8ed7..9c7d6c5875 100644
+--- a/third_party/srtp/crypto/cipher/aes_gcm_ossl.c
++++ b/third_party/srtp/crypto/cipher/aes_gcm_ossl.c
+@@ -193,7 +193,12 @@ static srtp_err_status_t srtp_aes_gcm_openssl_context_init(void *cv,
+         break;
+     }
+ 
++#if OPENSSL_VERSION_NUMBER >= 0x10100000L && !defined(LIBRESSL_VERSION_NUMBER)
+     EVP_CIPHER_CTX_reset(c->ctx);
++#else
++    EVP_CIPHER_CTX_cleanup(c->ctx);
++    EVP_CIPHER_CTX_init(c->ctx);
++#endif
+ 
+     if (!EVP_CipherInit_ex(c->ctx, evp, NULL, key, NULL, 0)) {
+         return (srtp_err_status_init_fail);
+diff --git a/third_party/srtp/crypto/cipher/aes_icm_ossl.c b/third_party/srtp/crypto/cipher/aes_icm_ossl.c
+index 911e9f84f4..3ac2927f6e 100644
+--- a/third_party/srtp/crypto/cipher/aes_icm_ossl.c
++++ b/third_party/srtp/crypto/cipher/aes_icm_ossl.c
+@@ -250,7 +250,12 @@ static srtp_err_status_t srtp_aes_icm_openssl_context_init(void *cv,
+         break;
+     }
+ 
++#if OPENSSL_VERSION_NUMBER >= 0x10100000L && !defined(LIBRESSL_VERSION_NUMBER)
+     EVP_CIPHER_CTX_reset(c->ctx);
++#else
++    EVP_CIPHER_CTX_cleanup(c->ctx);
++    EVP_CIPHER_CTX_init(c->ctx);
++#endif
+ 
+     if (!EVP_EncryptInit_ex(c->ctx, evp, NULL, key, NULL)) {
+         return srtp_err_status_fail;
+diff --git a/third_party/srtp/crypto/hash/hmac_ossl.c b/third_party/srtp/crypto/hash/hmac_ossl.c
+index 4bdfe53f65..211f88dce0 100644
+--- a/third_party/srtp/crypto/hash/hmac_ossl.c
++++ b/third_party/srtp/crypto/hash/hmac_ossl.c
+@@ -93,6 +93,9 @@ typedef struct {
+     EVP_MAC_CTX *ctx_dup;
+ #else
+     HMAC_CTX *ctx;
++#if OPENSSL_VERSION_NUMBER < 0x10100000L || defined(LIBRESSL_VERSION_NUMBER)
++    HMAC_CTX static_ctx;
++#endif
+ #endif
+ } srtp_hmac_ossl_ctx_t;
+ 
+@@ -153,6 +156,7 @@ static srtp_err_status_t srtp_hmac_alloc(srtp_auth_t **a,
+         hmac->ctx = NULL;
+     }
+ #else
++#if OPENSSL_VERSION_NUMBER >= 0x10100000L && !defined(LIBRESSL_VERSION_NUMBER)
+     hmac->ctx = HMAC_CTX_new();
+     if (hmac->ctx == NULL) {
+         srtp_crypto_free(hmac);
+@@ -160,6 +164,10 @@ static srtp_err_status_t srtp_hmac_alloc(srtp_auth_t **a,
+         *a = NULL;
+         return srtp_err_status_alloc_fail;
+     }
++#else
++    HMAC_CTX_init(&hmac->static_ctx);
++    hmac->ctx = &hmac->static_ctx;
++#endif
+ #endif
+ 
+     /* set pointers */
+@@ -182,7 +190,11 @@ static srtp_err_status_t srtp_hmac_dealloc(srtp_auth_t *a)
+         EVP_MAC_CTX_free(hmac->ctx_dup);
+         EVP_MAC_free(hmac->mac);
+ #else
++#if OPENSSL_VERSION_NUMBER >= 0x10100000L && !defined(LIBRESSL_VERSION_NUMBER)
+         HMAC_CTX_free(hmac->ctx);
++#else
++        HMAC_CTX_cleanup(hmac->ctx);
++#endif
+ #endif
+         /* zeroize entire state*/
+         octet_string_set_to_zero(hmac, sizeof(srtp_hmac_ossl_ctx_t));
