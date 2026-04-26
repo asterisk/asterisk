@@ -6049,7 +6049,12 @@ static void update_qe_rule(struct queue_ent *qe)
 			raise_penalty = max_penalty;
 		}
 
-		snprintf(raise_penalty_str, sizeof(raise_penalty_str), "%d", raise_penalty);
+		qe->raise_respect_min = qe->pr->raise_respect_min;
+		if (qe->raise_respect_min) {
+			snprintf(raise_penalty_str, sizeof(raise_penalty_str), "r%d", raise_penalty);
+		} else {
+			snprintf(raise_penalty_str, sizeof(raise_penalty_str), "%d", raise_penalty);
+		}
 		pbx_builtin_setvar_helper(qe->chan, "QUEUE_RAISE_PENALTY", raise_penalty_str);
 		qe->raise_penalty = raise_penalty;
 		ast_debug(3, "Setting raised penalty to %d for caller %s since %d seconds have elapsed\n",
@@ -8737,6 +8742,7 @@ static void copy_rules(struct queue_ent *qe, const char *rulename)
 			new_pr->max_relative = pr_iter->max_relative;
 			new_pr->min_relative = pr_iter->min_relative;
 			new_pr->raise_relative = pr_iter->raise_relative;
+			new_pr->raise_respect_min = pr_iter->raise_respect_min;
 			AST_LIST_INSERT_TAIL(&qe->qe_rules, new_pr, list);
 		}
 	}
