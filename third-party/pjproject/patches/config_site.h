@@ -116,3 +116,12 @@
  */
 
 #define PJ_ICE_SESS_CHECK_SRC_ADDR               0
+
+/*
+ * Disables internal absorption of retransmitted INVITE requests
+ * after ACK, restoring legacy behavior where retransmissions
+ * are forwarded to the application layer instead of being
+ * silently handled by the PJSIP stack.
+ */
+
+#define PJSIP_INV_ABSORB_RETRANS_AFTER_ACK 0
