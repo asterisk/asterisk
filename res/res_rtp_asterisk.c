@@ -5293,6 +5293,17 @@ static struct ast_frame *red_t140_to_red(struct rtp_red *red)
 	/* Store length of each generation and primary data length*/
 	for (i = 0; i < red->num_gen; i++)
 		red->len[i] = red->len[i+1];
+
+	/*
+	 * RED generation payload sizes are limited to 255 (UCHAR_MAX) bytes by virtue of
+	 * red->len being an array of usigned chars.  If the new primary payload exceeds that,
+	 * we're going to truncate it to 255.
+	 */
+	if (red->t140.datalen > UCHAR_MAX) {
+		ast_log(LOG_WARNING, "New T.140 frame of %d bytes exceeds max of %u. Discarding %d bytes.\n",
+			red->t140.datalen, UCHAR_MAX, red->t140.datalen - UCHAR_MAX);
+		red->t140.datalen = UCHAR_MAX;
+	}
 	red->len[i] = red->t140.datalen;
 
 	/* write each generation length in red header */
@@ -9083,7 +9094,13 @@ static int rtp_red_init(struct ast_rtp_instance *instance, int buffer_time, int 
 	return 0;
 }
 
-/*! \pre instance is locked */
+/*! \pre instance is locked
+ *
+ * \warning This code was written many years ago and it's unclear why we actually
+ * buffer OUTGOING T.140 text frames until a command is encountered but we do.
+ *
+ * This may change in the future.
+ */
 static int rtp_red_buffer(struct ast_rtp_instance *instance, struct ast_frame *frame)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
@@ -9094,6 +9111,8 @@ static int rtp_red_buffer(struct ast_rtp_instance *instance, struct ast_frame *f
 	}
 
 	if (frame->datalen > 0) {
+		int space_available = 0;
+
 		if (red->t140.datalen > 0) {
 			const unsigned char *primary = red->buf_data;
 
@@ -9108,6 +9127,31 @@ static int rtp_red_buffer(struct ast_rtp_instance *instance, struct ast_frame *f
 					ast_rtp_write(instance, &rtp->red->t140);
 				}
 			}
+		}
+
+		/*
+		 * RED generation payload sizes are limited to 255 (UCHAR_MAX) bytes by virtue of
+		 * red->len being an array of usigned chars.  If adding the current frame will
+		 * exceed that, we're going to flush the saved frame then try again. If the new
+		 * frame fits, great otherwise we're going to toss it.  Without understanding
+		 * the purpose of the buffering, that's all we can do now.
+		 */
+		space_available = UCHAR_MAX - red->t140.datalen;
+
+		if (frame->datalen > space_available) {
+			ast_rtp_write(instance, &rtp->red->t140);
+			/*
+			 * ast_rtp_write() calls red_t140_to_red() which resets red->t140.datalen
+			 * back to 0 so we now have UCHAR_MAX space available.
+			 */
+			space_available = UCHAR_MAX;
+		}
+
+		if (frame->datalen > space_available) {
+			ast_log(LOG_WARNING, "%s: T.140 frame of %d bytes exceeds max of %u. Discarding.\n",
+				ast_rtp_instance_get_channel_id(instance),
+				frame->datalen, UCHAR_MAX);
+			return -1;
 		}
 
 		memcpy(&red->buf_data[red->t140.datalen], frame->data.ptr, frame->datalen);
