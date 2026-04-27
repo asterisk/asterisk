@@ -1,0 +1,124 @@
+From e5afdb60d7937e586318dfb22d325897b239e6b1 Mon Sep 17 00:00:00 2001
+From: Nanang Izzuddin <nanang@teluu.com>
+Date: Wed, 6 May 2026 11:33:24 +0700
+Subject: [PATCH] Add PJSIP_INV_ABSORB_RETRANS_AFTER_ACK macro to opt out of
+ #4765 (#4965)
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+* Add PJSIP_INV_ABSORB_RETRANS_AFTER_ACK macro to opt out of #4765 behavior
+
+PR #4765 changed the UAS INVITE transaction to delay termination by ~64*T1
+after ACK so that retransmitted INVITEs are absorbed instead of being
+treated as new requests. This commit adds a compile-time macro
+PJSIP_INV_ABSORB_RETRANS_AFTER_ACK (default 1) to revert to the legacy
+behavior — immediate transaction termination after ACK — for applications
+that depend on the previous timing.
+
+The same-branch-different-CSeq 400 Bad Request handling remains
+unconditional and is not affected by this macro.
+
+* docs: clarify PJSIP_INV_ABSORB_RETRANS_AFTER_ACK behavior
+
+Address review feedback: retransmitted INVITEs are answered by the cached
+2xx retransmission (not silently dropped), and the absorb window is
+configurable via pjsip_cfg()->tsx.td (default ~32 s) rather than a fixed
+64*T1.
+---
+ pjsip/include/pjsip/sip_config.h  | 20 +++++++++++++++++++-
+ pjsip/src/pjsip-ua/sip_inv.c      |  5 +++++
+ pjsip/src/pjsip/sip_transaction.c |  9 ++++++---
+ 3 files changed, 30 insertions(+), 4 deletions(-)
+
+diff --git a/pjsip/include/pjsip/sip_config.h b/pjsip/include/pjsip/sip_config.h
+index 1622648cab..73cc85a640 100644
+--- a/pjsip/include/pjsip/sip_config.h
++++ b/pjsip/include/pjsip/sip_config.h
+@@ -1560,7 +1560,7 @@ PJ_INLINE(pjsip_cfg_t*) pjsip_cfg(void)
+ #   define PJSIP_INV_ACCEPT_UNKNOWN_BODY    PJ_FALSE
+ #endif
+ 
+-/** 
++/**
+  * Specify whether to check if UPDATE sent in EARLY state has already
+  * completed SDP negotiation using reliable provisional responses, as
+  * specified in RFC3311 section 5.1.
+@@ -1574,6 +1574,24 @@ PJ_INLINE(pjsip_cfg_t*) pjsip_cfg(void)
+ #   define PJSIP_INV_UPDATE_EARLY_CHECK_RELIABLE    0
+ #endif
+ 
++/**
++ * Specify whether to absorb INVITE request retransmissions arriving after
++ * an ACK has been received for a 2xx response. When enabled (default), the
++ * INVITE transaction termination is delayed for about ~32 seconds
++ * (configurable via pjsip_cfg()->tsx.td) so retransmitted INVITEs are
++ * matched to the existing transaction and answered by the cached 2xx
++ * retransmission, rather than being treated as new requests.
++ *
++ * Set this to 0 to revert to the legacy behavior, where the INVITE
++ * transaction is terminated immediately after ACK and any subsequent
++ * retransmission is treated as a new request. See also \pr{4765}.
++ *
++ * Default: 1 (enabled)
++ */
++#ifndef PJSIP_INV_ABSORB_RETRANS_AFTER_ACK
++#   define PJSIP_INV_ABSORB_RETRANS_AFTER_ACK   1
++#endif
++
+ /**
+  * Specify whether message info will include additional details such as
+  * Call-ID and To header information in the log output. When enabled,
+diff --git a/pjsip/src/pjsip-ua/sip_inv.c b/pjsip/src/pjsip-ua/sip_inv.c
+index a373b8f470..1fd202d398 100644
+--- a/pjsip/src/pjsip-ua/sip_inv.c
++++ b/pjsip/src/pjsip-ua/sip_inv.c
+@@ -763,6 +763,7 @@ static pj_bool_t mod_inv_on_rx_request(pjsip_rx_data *rdata)
+ 
+             /* Now we can terminate the INVITE transaction */
+             if (inv->invite_tsx->status_code/100 == 2) {
++#if PJSIP_INV_ABSORB_RETRANS_AFTER_ACK
+                 /* Stop retransmissions of 200 response */
+                 pjsip_tsx_stop_retransmit(inv->invite_tsx);
+ 
+@@ -774,6 +775,10 @@ static pj_bool_t mod_inv_on_rx_request(pjsip_rx_data *rdata)
+                                            inv->invite_tsx->status_code,
+                                            NULL,
+                                            pjsip_cfg()->tsx.td);
++#else
++                pjsip_tsx_terminate(inv->invite_tsx,
++                                    inv->invite_tsx->status_code);
++#endif
+             } else {
+                 /* If the response was not 2xx, the ACK is considered part of
+                  * the INVITE transaction, so should have been handled by
+diff --git a/pjsip/src/pjsip/sip_transaction.c b/pjsip/src/pjsip/sip_transaction.c
+index f16fc7266b..0f1c96bbf0 100644
+--- a/pjsip/src/pjsip/sip_transaction.c
++++ b/pjsip/src/pjsip/sip_transaction.c
+@@ -3718,19 +3718,22 @@ static pj_status_t tsx_on_state_completed_uas( pjsip_transaction *tsx,
+             tsx_cancel_timer( tsx, &tsx->timeout_timer );
+ 
+             /* Schedule tsx termination */
++#if PJSIP_INV_ABSORB_RETRANS_AFTER_ACK
+             if (tsx->status_code/100 == 2) {
+                 /* Normally 2xx response is handled by TU (not considered
+                  * part of the INVITE tsx), anyway if it comes here, let's
+                  * delay the tsx termination to absorb INVITE retransmission
+                  * for about 64*T1 (~32 seconds). See also #4765.
+                  */
+-                timeout = td_timer_val; 
+-            } else {
++                timeout = td_timer_val;
++            } else
++#endif
++            {
+                 /* Timer I is T4 timer for unreliable transports, and
+                  * zero seconds for reliable transports.
+                  */
+                 if (tsx->is_reliable) {
+-                    timeout.sec = 0; 
++                    timeout.sec = 0;
+                     timeout.msec = 0;
+                 } else {
+                     timeout.sec = t4_timer_val.sec;
