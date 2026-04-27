@@ -726,6 +726,62 @@ int ast_ari_channels_set_channel_var_parse_body(
  * \param[out] response HTTP response
  */
 void ast_ari_channels_set_channel_var(struct ast_variable *headers, struct ast_ari_channels_set_channel_var_args *args, struct ast_ari_response *response);
+/*! Argument struct for ast_ari_channels_get_channel_vars() */
+struct ast_ari_channels_get_channel_vars_args {
+	/*! Channel's id */
+	const char *channel_id;
+	/*! Array of The channel variables or functions to get */
+	const char **variables;
+	/*! Length of variables array. */
+	size_t variables_count;
+	/*! Parsing context for variables. */
+	char *variables_parse;
+};
+/*!
+ * \brief Body parsing function for /channels/{channelId}/variables.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_channels_get_channel_vars_parse_body(
+	struct ast_json *body,
+	struct ast_ari_channels_get_channel_vars_args *args);
+
+/*!
+ * \brief Get the value of multiple channel variables or functions.
+ *
+ * \param headers HTTP headers
+ * \param args Swagger parameters
+ * \param[out] response HTTP response
+ */
+void ast_ari_channels_get_channel_vars(struct ast_variable *headers, struct ast_ari_channels_get_channel_vars_args *args, struct ast_ari_response *response);
+/*! Argument struct for ast_ari_channels_set_channel_vars() */
+struct ast_ari_channels_set_channel_vars_args {
+	/*! Channel's id */
+	const char *channel_id;
+	/*! The "variables" key in the body object holds variable key/value pairs to set on the channel. Ex. { "variables": { "CALLERID(name)": "Alice" } } */
+	struct ast_json *variables;
+};
+/*!
+ * \brief Body parsing function for /channels/{channelId}/variables.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_channels_set_channel_vars_parse_body(
+	struct ast_json *body,
+	struct ast_ari_channels_set_channel_vars_args *args);
+
+/*!
+ * \brief Set the values of multiple channel variables or functions.
+ *
+ * \param headers HTTP headers
+ * \param args Swagger parameters
+ * \param[out] response HTTP response
+ */
+void ast_ari_channels_set_channel_vars(struct ast_variable *headers, struct ast_ari_channels_set_channel_vars_args *args, struct ast_ari_response *response);
 /*! Argument struct for ast_ari_channels_snoop_channel() */
 struct ast_ari_channels_snoop_channel_args {
 	/*! Channel's id */

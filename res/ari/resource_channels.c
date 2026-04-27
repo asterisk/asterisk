@@ -1559,6 +1559,91 @@ void ast_ari_channels_get_channel_var(struct ast_variable *headers,
 	ast_ari_response_ok(response, ast_json_ref(json));
 }
 
+void ast_ari_channels_get_channel_vars(struct ast_variable *headers,
+	struct ast_ari_channels_get_channel_vars_args *args,
+	struct ast_ari_response *response)
+{
+	RAII_VAR(struct ast_json *, json, ast_json_object_create(), ast_json_unref);
+	RAII_VAR(struct ast_str *, value, ast_str_create(32), ast_free);
+	RAII_VAR(struct ast_channel *, channel, NULL, ast_channel_cleanup);
+
+	ast_assert(response != NULL);
+
+	if (!json || !value) {
+		ast_ari_response_alloc_failed(response);
+		return;
+	}
+
+	if (args->variables_count == 0) {
+		ast_ari_response_error(
+			response, 400, "Bad Request",
+			"At least one variable name is required");
+		return;
+	}
+
+	if (ast_strlen_zero(args->channel_id)) {
+		ast_ari_response_error(
+			response, 400, "Bad Request",
+			"Channel ID is required");
+		return;
+	}
+
+	channel = ast_channel_get_by_name(args->channel_id);
+	if (!channel) {
+		ast_ari_response_error(
+			response, 404, "Channel Not Found",
+			"Provided channel was not found");
+		return;
+	}
+
+	for (int i = 0; i < args->variables_count; i++) {
+		int res;
+		struct ast_json *json_str;
+		char buf[strlen(args->variables[i]) + 1];
+		char *variable;
+
+		strcpy(buf, args->variables[i]);
+		variable = ast_strip(buf);
+		if (ast_strlen_zero(variable)) {
+			ast_ari_response_error(
+				response, 400, "Bad Request",
+				"Variable names are required");
+			return;
+		}
+
+		if (variable[strlen(variable) - 1] == ')') {
+			if (ast_func_read2(channel, variable, &value, 0)) {
+				ast_ari_response_error(
+					response, 500, "Error With Function",
+					"Unable to read provided function");
+				return;
+			}
+		} else {
+			if (!ast_str_retrieve_variable(&value, 0, channel, NULL, variable)) {
+				ast_ari_response_error(
+					response, 404, "Variable Not Found",
+					"Provided variable was not found");
+				return;
+			}
+		}
+
+		json_str = ast_json_string_create(ast_str_buffer(value));
+		if (!json_str) {
+			ast_ari_response_alloc_failed(response);
+			return;
+		}
+
+		res = ast_json_object_set(json, variable, json_str);
+		if (res) {
+			ast_ari_response_alloc_failed(response);
+			ast_json_unref(json_str);
+			return;
+		}
+	}
+
+	ast_ari_response_ok(response, ast_json_ref(json));
+}
+
 void ast_ari_channels_set_channel_var(struct ast_variable *headers,
 	struct ast_ari_channels_set_channel_var_args *args,
 	struct ast_ari_response *response)
@@ -1585,6 +1670,102 @@ void ast_ari_channels_set_channel_var(struct ast_variable *headers,
 			response, 400, "Bad Request",
 			"Failed to execute function");
 		return;
+	}
+
+	ast_ari_response_no_content(response);
+}
+
+void ast_ari_channels_set_channel_vars(struct ast_variable *headers,
+	struct ast_ari_channels_set_channel_vars_args *args,
+	struct ast_ari_response *response)
+{
+	struct ast_json *json_variables;
+	struct ast_json_iter *it_json_var;
+	struct ast_variable *var = NULL;
+	RAII_VAR(struct ast_variable *, variables, NULL, ast_variables_destroy);
+	RAII_VAR(struct ast_channel *, channel, NULL, ast_channel_cleanup);
+	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
+
+	ast_assert(response != NULL);
+
+	if (!args->variables) {
+		ast_ari_response_error(
+			response, 400, "Bad Request",
+			"The 'variables' field is required");
+		return;
+	}
+
+	channel = ast_channel_get_by_name(args->channel_id);
+	if (!channel) {
+		ast_ari_response_error(
+			response, 404, "Channel Not Found",
+			"Provided channel was not found");
+		return;
+	}
+
+	control = find_control(response, args->channel_id);
+	if (control == NULL) {
+		/* response filled in by find_control */
+		return;
+	}
+
+	json_variables = ast_json_object_get(args->variables, "variables");
+	for (it_json_var = ast_json_object_iter(json_variables); it_json_var;
+		it_json_var = ast_json_object_iter_next(json_variables, it_json_var)) {
+		const char *key = ast_json_object_iter_key(it_json_var);
+		char buf[strlen(key) + 1];
+		char *stripped_key;
+		struct ast_json *json_value;
+		const char *value;
+		struct ast_variable *new_var;
+
+		strcpy(buf, key);
+		stripped_key = ast_strip(buf);
+		if (ast_strlen_zero(stripped_key)) {
+			ast_ari_response_error(
+				response, 400, "Bad Request",
+				"Variable names are required");
+			return;
+		}
+
+		json_value = ast_json_object_iter_value(it_json_var);
+		if (ast_json_typeof(json_value) != AST_JSON_STRING) {
+			ast_ari_response_error(
+				response, 400, "Bad Request",
+				"Variable values must be strings");
+			return;
+		}
+
+		value = ast_json_string_get(json_value);
+		if (!value) {
+			ast_ari_response_error(
+				response, 500, "Internal Server Error",
+				"Could not get string value from JSON string");
+			return;
+		}
+
+		new_var = ast_variable_new(stripped_key, value, "");
+		if (!new_var) {
+			ast_ari_response_error(
+				response, 500, "Internal Server Error",
+				"Could not create internal variable");
+			return;
+		}
+
+		/* Append to the tail */
+		var = ast_variable_list_append_hint(&variables, var, new_var);
+	}
+
+	/* We loop twice to preserve variable state if something goes wrong. If something
+	 * goes wrong in this loop, something went VERY wrong.
+	 */
+	for (var = variables; var; var = var->next) {
+		if (stasis_app_control_set_channel_var(control, var->name, var->value)) {
+			ast_ari_response_error(
+				response, 400, "Bad Request",
+				"Failed to execute function");
+			return;
+		}
 	}
 
 	ast_ari_response_no_content(response);
