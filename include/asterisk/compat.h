@@ -22,9 +22,11 @@
 
 #include "asterisk/compiler.h"
 
+#if !defined(__cplusplus) && !defined(c_plusplus)
 #ifndef __STDC_VERSION__
 /* flex output wants to find this defined. */
 #define	__STDC_VERSION__ 0
+#endif
 #endif
 
 #include <inttypes.h>
