@@ -3878,6 +3878,7 @@ static pj_bool_t pubsub_on_rx_mwi_notify_request(pjsip_rx_data *rdata)
 	char *context;
 	char *body;
 	char *mailbox;
+	int body_len;
 	int rc;
 
 	endpoint = ast_pjsip_rdata_get_endpoint(rdata);
@@ -3910,8 +3911,15 @@ static pj_bool_t pubsub_on_rx_mwi_notify_request(pjsip_rx_data *rdata)
 	context = atsign + 1;
 
 	body = ast_alloca(rdata->msg_info.msg->body->len + 1);
-	rdata->msg_info.msg->body->print_body(rdata->msg_info.msg->body, body,
+	body_len = rdata->msg_info.msg->body->print_body(rdata->msg_info.msg->body, body,
 		rdata->msg_info.msg->body->len + 1);
+
+	if (body_len < 0 || body_len > rdata->msg_info.msg->body->len) {
+		ast_debug(1, "Incoming MWI: Endpoint: '%s' Unable to print request body\n", endpoint_name);
+		rc = 404;
+		goto error;
+	}
+	body[body_len] = '\0';
 
 	if (parse_simple_message_summary(body, &summary) != 0) {
 		ast_debug(1, "Incoming MWI: Endpoint: '%s' There was an issue getting message info from body '%s'\n",
