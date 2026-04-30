@@ -9266,6 +9266,8 @@ static void ast_rtp_remote_address_set(struct ast_rtp_instance *instance, struct
 /*!
  * \brief Write t140 redundancy frame
  *
+ * Write a t140 redundancy frame,  only needed for chan_sip compatibility,
+ * should be removed after completely getting rid of it
  * \param data primary data to be buffered
  *
  * Scheduler callback
@@ -9282,7 +9284,9 @@ static int red_write(const void *data)
 		ast_log(LOG_ERROR, "Could not get rtp from instance or RED handler for real-time text\n");
 		return 0;
 	}
-
+	if (rtp->red->t140.datalen > 0) {
+		ast_rtp_write(instance, &rtp->red->t140);
+	}
 	ao2_unlock(instance);
 
 	return 1;
@@ -9291,6 +9295,7 @@ static int red_write(const void *data)
 /*! \pre instance is locked */
 static int rtp_red_init(struct ast_rtp_instance *instance, int buffer_time, int *payloads, int generations)
 {
+	const char *chanid;
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 	int x;
 
@@ -9315,12 +9320,21 @@ static int rtp_red_init(struct ast_rtp_instance *instance, int buffer_time, int 
 		rtp->red->t140red_data[x*4] = rtp->red->pt[x];
 	}
 	rtp->red->t140red_data[x*4] = rtp->red->pt[x] = payloads[x]; /* primary pt */
-	ao2_ref(instance, +1);
-	rtp->red->schedid = ast_sched_add(rtp->sched, buffer_time, red_write, instance);
-	if (rtp->red->schedid < 0) {
-		ao2_ref(instance, -1);
-		ast_log(LOG_WARNING, "scheduling red_write for real-time text failed for stream %s\n",
-			 ast_rtp_instance_get_cname(instance));
+	/* only needed for chan_sip compatibility, should be removed after completely getting rid of it */
+	chanid = ast_rtp_instance_get_channel_id(instance);
+	if (!ast_strlen_zero(chanid)) {
+		struct ast_channel *chan = ast_channel_get_by_uniqueid(chanid);
+		if (chan && ast_strings_equal(ast_channel_tech(chan)->type, "SIP")) {
+			ast_debug(3, "RED scheduler started for SIP channel\n");
+			ao2_ref(instance, +1);
+			rtp->red->schedid = ast_sched_add(rtp->sched, buffer_time, red_write, instance);
+			if (rtp->red->schedid < 0) {
+				ao2_ref(instance, -1);
+				ast_log(LOG_WARNING, "scheduling red_write for real-time text failed for stream %s\n",
+						ast_rtp_instance_get_cname(instance));
+			}
+		}
+		ao2_cleanup(chan);
 	}
 	ast_debug(3, "Init RED for stream %s, primary payload %d with %d generations\n",
 		ast_rtp_instance_get_cname(instance), payloads[x], generations);
