@@ -1,0 +1,49 @@
+<html><head><title>ChangeLog for asterisk-certified-18.9-cert18</title></head><body>
+<h2>Change Log for Release asterisk-certified-18.9-cert18</h2>
+<h3>Links:</h3>
+<ul>
+<li><a href="https://downloads.asterisk.org/pub/telephony/certified-asterisk/releases/ChangeLog-certified-18.9-cert18.html">Full ChangeLog</a>  </li>
+<li><a href="https://github.com/asterisk/asterisk/compare/certified-18.9-cert17...certified-18.9-cert18">GitHub Diff</a>  </li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/certified-asterisk/asterisk-certified-18.9-cert18.tar.gz">Tarball</a>  </li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/certified-asterisk">Downloads</a>  </li>
+</ul>
+<h3>Summary:</h3>
+<ul>
+<li>Commits: 1</li>
+<li>Commit Authors: 1</li>
+<li>Issues Resolved: 1</li>
+<li>Security Advisories Resolved: 0</li>
+</ul>
+<h3>User Notes:</h3>
+<h3>Upgrade Notes:</h3>
+<h3>Developer Notes:</h3>
+<h3>Commit Authors:</h3>
+<ul>
+<li>Naveen Albert: (1)</li>
+</ul>
+<h2>Issue and Commit Detail:</h2>
+<h3>Closed Issues:</h3>
+<ul>
+<li>ASTERISK-30265: res_pjsip_session: Fix missing PLAR support on INVITEs</li>
+</ul>
+<h3>Commits By Author:</h3>
+<ul>
+<li>
+<h4>Naveen Albert (1):</h4>
+</li>
+<li>res_pjsip_session.c: Map empty extensions in INVITEs to s.</li>
+</ul>
+<h3>Commit List:</h3>
+<ul>
+<li>res_pjsip_session.c: Map empty extensions in INVITEs to s.</li>
+</ul>
+<h3>Commit Details:</h3>
+<h4>res_pjsip_session.c: Map empty extensions in INVITEs to s.</h4>
+<p>Author: Naveen Albert
+  Date:   2022-10-17</p>
+<p>Some SIP devices use an empty extension for PLAR functionality.</p>
+<p>Rather than rejecting these empty extensions, we now use the s
+  extension for such calls to mirror the existing PLAR functionality
+  in Asterisk (e.g. chan_dahdi).</p>
+<p>ASTERISK-30265 #close</p>
+</body></html>
