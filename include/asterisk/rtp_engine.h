@@ -2447,7 +2447,13 @@ int ast_rtp_instance_get_stats(struct ast_rtp_instance *instance, struct ast_rtp
  * \param chan Channel to set the statistics on
  * \param instance The RTP instance that statistics will be retrieved from
  *
- * \note Absolutely _NO_ channel locks should be held before calling this function.
+ * \warning Absolutely _NO_ channel locks should be held before calling this function.
+ * If this channel is in a bridge, ast_rtp_instance_set_stats_vars() will
+ * attempt to lock the bridge peer as well as this channel.  This can cause
+ * a lock inversion if we already have this channel locked and another
+ * thread tries to set bridge variables on the peer because it will have
+ * locked the peer first, then this channel.  For this reason, we must
+ * NOT have the channel locked when we call ast_rtp_instance_set_stats_vars().
  *
  * Example usage:
  *
