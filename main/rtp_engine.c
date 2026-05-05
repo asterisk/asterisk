@@ -2744,6 +2744,17 @@ char *ast_rtp_instance_get_quality(struct ast_rtp_instance *instance, enum ast_r
 	} \
 })
 
+/*!
+ * \internal
+ *
+ * \warning Absolutely _NO_ channel locks should be held before calling this function.
+ * If the channel is in a bridge, ast_rtp_instance_set_stats_vars() will
+ * attempt to lock the bridge peer as well as this channel.  This can cause
+ * a lock inversion if we already have this channel locked and another
+ * thread tries to set bridge variables on the peer because it will have
+ * locked the peer first, then this channel.  For this reason, we must
+ * NOT have the channel locked when we call ast_rtp_instance_set_stats_vars().
+ */
 void ast_rtp_instance_set_stats_vars(struct ast_channel *chan, struct ast_rtp_instance *instance)
 {
 	char quality_buf[AST_MAX_USER_FIELD];
