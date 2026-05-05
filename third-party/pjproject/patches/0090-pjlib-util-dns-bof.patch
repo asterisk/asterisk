@@ -1,0 +1,39 @@
+From 5311aee398ae9d623829a6bad7b679a193c9e199 Mon Sep 17 00:00:00 2001
+From: sauwming <ming@teluu.com>
+Date: Tue, 17 Mar 2026 07:58:29 +0800
+Subject: [PATCH] Merge commit from fork
+
+* Fixes potential heap buffer overflow in DNS parser
+
+* Add check in get_name() as well
+---
+ pjlib-util/src/pjlib-util/dns.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/pjlib-util/src/pjlib-util/dns.c b/pjlib-util/src/pjlib-util/dns.c
+index 56a54c9..8e042cb 100644
+--- a/pjlib-util/src/pjlib-util/dns.c
++++ b/pjlib-util/src/pjlib-util/dns.c
+@@ -139,6 +139,9 @@ static pj_status_t get_name_len(int rec_counter, const pj_uint8_t *pkt,
+             int dummy;
+             pj_uint16_t offset;
+ 
++            if (p + 1 >= max)
++                return PJLIB_UTIL_EDNSINNAMEPTR;
++
+             /* Get the 14bit offset */
+             pj_memcpy(&offset, p, 2);
+             offset ^= pj_htons((pj_uint16_t)(0xc0 << 8));
+@@ -211,6 +214,9 @@ static pj_status_t get_name(int rec_counter, const pj_uint8_t *pkt,
+             /* Compression is found! */
+             pj_uint16_t offset;
+ 
++            if (p + 1 >= max)
++                return PJLIB_UTIL_EDNSINNAMEPTR;
++
+             /* Get the 14bit offset */
+             pj_memcpy(&offset, p, 2);
+             offset ^= pj_htons((pj_uint16_t)(0xc0 << 8));
+-- 
+2.54.0
+

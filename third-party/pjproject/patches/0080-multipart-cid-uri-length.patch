@@ -1,0 +1,32 @@
+From 4225a93c16661538005017883fbc8f1ea1d5f4b0 Mon Sep 17 00:00:00 2001
+From: sauwming <ming@teluu.com>
+Date: Tue, 10 Mar 2026 13:14:45 +0800
+Subject: [PATCH] Fixed SIP Multipart CID URI length check (#4844)
+
+---
+ pjsip/src/pjsip/sip_multipart.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/pjsip/src/pjsip/sip_multipart.c b/pjsip/src/pjsip/sip_multipart.c
+index a6b66e2..0db8d11 100644
+--- a/pjsip/src/pjsip/sip_multipart.c
++++ b/pjsip/src/pjsip/sip_multipart.c
+@@ -549,12 +549,14 @@ static pj_str_t cid_uri_to_hdr_value(pj_pool_t *pool, pj_str_t *cid_uri)
+     pj_size_t cid_len = pj_strlen(cid_uri);
+     pj_size_t alloc_len = cid_len + 2 /* for the leading and trailing angle brackets */;
+     pj_str_t uri_overlay;
+-    pj_str_t cid_hdr;
++    pj_str_t cid_hdr = {0};
+     pj_str_t hdr_overlay;
+ 
+     pj_strassign(&uri_overlay, cid_uri);
+     /* If the URI is already enclosed in angle brackets, remove them. */
+     if (uri_overlay.ptr[0] == '<') {
++        if (uri_overlay.slen < 2)
++            return cid_hdr;
+         uri_overlay.ptr++;
+         uri_overlay.slen -= 2;
+     }
+-- 
+2.54.0
+
