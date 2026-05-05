@@ -1654,7 +1654,14 @@ void ast_softhangup_all(void);
  * (use this if you are trying to
  * safely hangup a channel managed by another thread.
  *
- * \note The channel passed to this function does not need to be locked.
+ * \warning The channel passed to this function must NOT be locked.
+ * ast_softhangup() calls ast_rtp_instance_set_stats_vars() to set RTP QOS variables.
+ * If this channel is in a bridge, ast_rtp_instance_set_stats_vars() will
+ * attempt to lock the bridge peer as well as this channel.  This can cause
+ * a lock inversion if we already have this channel locked and another
+ * thread tries to set bridge variables on the peer because it will have
+ * locked the peer first, then this channel.  For this reason, we must
+ * NOT have the channel locked when we call ast_softhangup().
  *
  * \return Returns 0 regardless
  */
