@@ -258,7 +258,8 @@ struct ast_dns_query_active *ast_dns_resolve_async(const char *name, int rr_type
 		ao2_ref(active, -1);
 		return NULL;
 	}
-
+	ast_debug(2, "Calling %s resolver for name: %s class: %d type: %d", active->query->resolver->name,
+		name, rr_class, rr_type);
 	if (active->query->resolver->resolve(active->query)) {
 		ast_log(LOG_ERROR, "Resolver '%s' returned an error when resolving '%s' of class '%d' and type '%d'\n",
 			active->query->resolver->name, name, rr_class, rr_type);
