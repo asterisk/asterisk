@@ -228,7 +228,6 @@ static int dtls_mtu = DEFAULT_DTLS_MTU;
 #ifdef HAVE_PJPROJECT
 static int icesupport = DEFAULT_ICESUPPORT;
 static int stun_software_attribute = DEFAULT_STUN_SOFTWARE_ATTRIBUTE;
-static struct sockaddr_in stunaddr;
 static pj_str_t turnaddr;
 static int turnport = DEFAULT_TURN_PORT;
 static pj_str_t turnusername;
@@ -244,9 +243,16 @@ static ast_rwlock_t ice_acl_lock = AST_RWLOCK_INIT_VALUE;
 static struct ast_acl_list *stun_acl = NULL;
 static ast_rwlock_t stun_acl_lock = AST_RWLOCK_INIT_VALUE;
 
+static struct sockaddr_in stunaddr;
 /*! stunaddr recurring resolution */
 static ast_rwlock_t stunaddr_lock = AST_RWLOCK_INIT_VALUE;
 static struct ast_dns_query_recurring *stunaddr_resolver = NULL;
+/*! TTL from last successful query */
+static int stunaddr_ttl = 0;
+/*! The current hostname if stunaddr isn't an IP address */
+static char *stun_hostname = NULL;
+/*! Re-resolve hostname if TTL = 0? */
+static int stunaddr_reresolve_ttl_0 = 0;
 
 /*! \brief Pool factory used by pjlib to allocate memory. */
 static pj_caching_pool cachingpool;
@@ -697,7 +703,7 @@ static int __rtp_sendto(struct ast_rtp_instance *instance, void *buf, size_t siz
 
 #ifdef HAVE_PJPROJECT
 static void stunaddr_resolve_callback(const struct ast_dns_query *query);
-static int store_stunaddr_resolved(const struct ast_dns_query *query);
+static int store_stunaddr_resolved(const char *name, const struct ast_dns_result *result, int lock);
 #endif
 
 #if defined(HAVE_OPENSSL) && (OPENSSL_VERSION_NUMBER >= 0x10001000L) && !defined(OPENSSL_NO_SRTP)
@@ -3759,6 +3765,8 @@ static void rtp_add_candidates_to_ice(struct ast_rtp_instance *instance, struct 
 	struct ast_ice_host_candidate *candidate;
 	int af_inet_ok = 0, af_inet6_ok = 0;
 	struct sockaddr_in stunaddr_copy;
+	int stunaddr_ttl_copy = 0;
+	char *stun_hostname_copy = NULL;
 
 	if (ast_sockaddr_is_ipv4(addr)) {
 		af_inet_ok = 1;
@@ -3868,27 +3876,97 @@ static void rtp_add_candidates_to_ice(struct ast_rtp_instance *instance, struct 
 		freeifaddrs(ifa);
 	}
 
+	/*
+	 * Snap copies of the stun info with the stunaddr_lock held because
+	 * recurring DNS lookup could be happening in another thread.
+	 */
 	ast_rwlock_rdlock(&stunaddr_lock);
 	memcpy(&stunaddr_copy, &stunaddr, sizeof(stunaddr));
+	stunaddr_ttl_copy = stunaddr_ttl;
+	stun_hostname_copy = ast_strdupa(S_OR(stun_hostname, ""));
 	ast_rwlock_unlock(&stunaddr_lock);
 
 	/* If configured to use a STUN server to get our external mapped address do so */
-	if (stunaddr_copy.sin_addr.s_addr && !stun_address_is_blacklisted(addr) &&
+	if ( (!ast_strlen_zero(stun_hostname_copy) || stunaddr_copy.sin_addr.s_addr)
+		&& !stun_address_is_blacklisted(addr) &&
 		(ast_sockaddr_is_ipv4(addr) || ast_sockaddr_is_any(addr)) &&
 		count < PJ_ICE_MAX_CAND) {
 		struct sockaddr_in answer;
 		int rsp;
 
-		ast_debug_category(3, AST_DEBUG_CATEGORY_ICE | AST_DEBUG_CATEGORY_STUN,
+		ast_debug_category(2, AST_DEBUG_CATEGORY_ICE | AST_DEBUG_CATEGORY_STUN,
 			"(%p) ICE request STUN %s %s candidate\n", instance,
 			transport == AST_TRANSPORT_UDP ? "UDP" : "TCP",
 			component == AST_RTP_ICE_COMPONENT_RTP ? "RTP" : "RTCP");
 
 		/*
 		 * The instance should not be locked because we can block
-		 * waiting for a STUN respone.
+		 * waiting for stunaddr_lock and/or a STUN respone.
 		 */
 		ao2_unlock(instance);
+
+		/*
+		 * If stunaddr_ttl is 0 and stun_hostname is set, then "stunaddr" was set to a
+		 * hostname in rtp.conf but the last attempt at resolution returned a TTL = 0
+		 * (don't cache) and periodic resolution was cancelled. Theoretically, as long
+		 * as TTL = 0, we should do a synchronous lookup before every use of the address
+		 * but historically (and incorrectly), we just kept on using the cached result
+		 * forever.
+		 *
+		 * Now, if the "stunaddr_reresolve_ttl_0" parameter in rtp.conf set set to yes,
+		 * we'll use the cached value for the current call setup (because we don't
+		 * want to hold up the call for a synchronous DNS lookup) but restart periodic
+		 * resolution.  It's not obvious but restarting periodic resolution actually
+		 * just triggers an asynchronous lookup which calls our stunaddr_resolve_callback
+		 * then reschedules itself if the result has a TTL > 0.
+		 *
+		 * The bottom line is that it's not really an issue if THIS call setup attempt
+		 * uses a stale cached entry if TTL = 0 as long as we trigger a re-resolution
+		 * fairly quickly and keep doing it as long as TTL = 0.
+		 *
+		 */
+		ast_debug_stun(2, "Checking stunaddr_reresolve_ttl_0: %s TTL: %d Host: %s resolver: %p\n",
+			AST_CLI_YESNO(stunaddr_reresolve_ttl_0), stunaddr_ttl_copy, stun_hostname_copy,
+			stunaddr_resolver);
+
+		if (stunaddr_reresolve_ttl_0 && stunaddr_ttl_copy == 0
+			&& !ast_strlen_zero(stun_hostname_copy) && !stunaddr_resolver) {
+
+			/*
+			 * We need the write lock becausae we might be setting stunaddr_resolver.
+			 */
+			ast_rwlock_wrlock(&stunaddr_lock);
+
+			/*
+			 * Now that we have the write lock, check whether we still need to resolve.
+			 * It's possible that another thread got here first.  It's also possible that
+			 * a reload changed the "stunaddr" parameter to an IP address (which clears
+			 * stun_hostname) so we don't need resolution at all any more.
+			 */
+			if (stunaddr_ttl == 0 && !ast_strlen_zero(stun_hostname) && !stunaddr_resolver) {
+				ast_debug_stun(2, "Restarting recurring resolution for stun server '%s'\n",
+					stun_hostname);
+				/*
+				 * This will return immediately after triggering an async lookup
+				 * and scheduling the next lookup.  stunaddr_resolve_callback will be
+				 * called from another thread.
+				 */
+				stunaddr_resolver = ast_dns_resolve_recurring(stun_hostname, T_A, C_IN,
+					&stunaddr_resolve_callback, NULL);
+				if (!stunaddr_resolver) {
+					ast_log(LOG_ERROR, "Failed to setup recurring DNS resolution of stunaddr '%s'",
+						stun_hostname);
+				}
+			} else {
+				ast_debug_stun(2, "stun TTL: %d H: %s. Re-resolution skipped because another thread took care of it.\n",
+					stunaddr_ttl, stun_hostname);
+			}
+
+			ast_rwlock_unlock(&stunaddr_lock);
+		} else {
+			ast_debug_stun(2, "stun TTL: %d H: %s. Re-resolution not needed or disabled.\n", stunaddr_ttl, stun_hostname);
+		}
+
 		rsp = ast_stun_request(component == AST_RTP_ICE_COMPONENT_RTCP
 			? rtp->rtcp->s : rtp->s, &stunaddr_copy, NULL, &answer);
 		ao2_lock(instance);
@@ -5649,7 +5727,7 @@ static int ast_rtp_write(struct ast_rtp_instance *instance, struct ast_frame *fr
 	format = frame->subclass.format;
 	if (ast_format_cmp(rtp->lasttxformat, format) == AST_FORMAT_CMP_NOT_EQUAL) {
 		/* Oh dear, if the format changed we will have to set up a new smoother */
-		ast_debug_rtp(1, "(%s) RTP ooh, format changed from %s to %s\n",
+		ast_debug_rtp(3, "(%s) RTP ooh, format changed from %s to %s\n",
 			ast_rtp_instance_get_channel_id(instance),
 			ast_format_get_name(rtp->lasttxformat),
 			ast_format_get_name(frame->subclass.format));
@@ -9645,67 +9723,87 @@ static int ast_rtp_bundle(struct ast_rtp_instance *child, struct ast_rtp_instanc
 #ifdef HAVE_PJPROJECT
 static void stunaddr_resolve_callback(const struct ast_dns_query *query)
 {
-	const int lowest_ttl = ast_dns_result_get_lowest_ttl(ast_dns_query_get_result(query));
 	const char *stunaddr_name = ast_dns_query_get_name(query);
-	const char *stunaddr_resolved_str;
 
-	if (!store_stunaddr_resolved(query)) {
-		ast_log(LOG_WARNING, "Failed to resolve stunaddr '%s'. Cancelling recurring resolution.\n", stunaddr_name);
-		return;
-	}
-
-	if (DEBUG_ATLEAST(2)) {
-		ast_rwlock_rdlock(&stunaddr_lock);
-		stunaddr_resolved_str = ast_inet_ntoa(stunaddr.sin_addr);
-		ast_rwlock_unlock(&stunaddr_lock);
-
-		ast_debug_stun(2, "Resolved stunaddr '%s' to '%s'. Lowest TTL = %d.\n",
-			stunaddr_name,
-			stunaddr_resolved_str,
-			lowest_ttl);
-	}
-
-	if (!lowest_ttl) {
-		ast_log(LOG_WARNING, "Resolution for stunaddr '%s' returned TTL = 0. Recurring resolution was cancelled.\n", ast_dns_query_get_name(query));
-	}
+	/* Call store_stunaddr_resolved with locking enabled. */
+	store_stunaddr_resolved(stunaddr_name, ast_dns_query_get_result(query), 1);
 }
 
-static int store_stunaddr_resolved(const struct ast_dns_query *query)
+static int store_stunaddr_resolved(const char *name, const struct ast_dns_result *result, int lock)
 {
-	const struct ast_dns_result *result = ast_dns_query_get_result(query);
 	const struct ast_dns_record *record;
+	struct ast_dns_query_recurring *last_resolver = stunaddr_resolver;
+	/*
+	 * According to https://datatracker.ietf.org/doc/html/rfc2181#section-5.2,
+	 * It is an error if the TTLs in an RRset differ but if they do, we should
+	 * use the lowest one.
+	 */
+	const int ttl = ast_dns_result_get_lowest_ttl(result);
 
 	for (record = ast_dns_result_get_records(result); record; record = ast_dns_record_get_next(record)) {
 		const size_t data_size = ast_dns_record_get_data_size(record);
 		const unsigned char *data = (unsigned char *)ast_dns_record_get_data(record);
 		const int rr_type = ast_dns_record_get_rr_type(record);
 
+		ast_debug_stun(2, "Record rr_type '%u' ttl: %d  data_size '%zu' from DNS query for stunaddr '%s'\n",
+			 rr_type, ttl, data_size, name);
+
 		if (rr_type == ns_t_a && data_size == 4) {
-			ast_rwlock_wrlock(&stunaddr_lock);
+			if (lock) {
+				ast_rwlock_wrlock(&stunaddr_lock);
+			}
 			memcpy(&stunaddr.sin_addr, data, data_size);
 			stunaddr.sin_family = AF_INET;
-			ast_rwlock_unlock(&stunaddr_lock);
+			stunaddr_ttl = ttl;
+			ast_debug_stun(2, "Resolved stunaddr '%s' to '%s'. TTL = %d.\n", name,
+				ast_inet_ntoa(stunaddr.sin_addr), stunaddr_ttl);
+			if (stunaddr_ttl == 0) {
+				ast_log(LOG_WARNING, "Resolution for stunaddr '%s' returned TTL = 0.  Recurring resolution disabled.\n", name);
+				ao2_cleanup(stunaddr_resolver);
+				stunaddr_resolver = NULL;
+			}
+			if (lock) {
+				ast_rwlock_unlock(&stunaddr_lock);
+			}
 
 			return 1;
 		} else {
-			ast_debug_stun(3, "Unrecognized rr_type '%u' or data_size '%zu' from DNS query for stunaddr '%s'\n",
-										 rr_type, data_size, ast_dns_query_get_name(query));
+			ast_debug_stun(2, "Unrecognized rr_type '%u' or data_size '%zu' from DNS query for stunaddr '%s'\n",
+				 rr_type, data_size, name);
 			continue;
 		}
 	}
+
+	ao2_cleanup(stunaddr_resolver);
+	stunaddr_resolver = NULL;
+	stunaddr_ttl = 0;
+
+	if (stunaddr.sin_addr.s_addr) {
+		ast_log(LOG_WARNING, "Lookup of stunaddr '%s' failed.%s STUN continuing with server %s:%d\n",
+			name, last_resolver ? " Periodic resolution cancelled." : "",
+			ast_inet_ntoa(stunaddr.sin_addr), htons(stunaddr.sin_port));
+	} else {
+		ast_log(LOG_WARNING, "Lookup of stunaddr '%s' failed. STUN disabled.\n", name);
+	}
+
 	return 0;
 }
 
 static void clean_stunaddr(void) {
+	ast_rwlock_wrlock(&stunaddr_lock);
+	ast_debug_stun(2, "Cleanup\n");
 	if (stunaddr_resolver) {
+		ast_debug_stun(2, "Cancelling recurring resolution for '%s'\n", stun_hostname);
 		if (ast_dns_resolve_recurring_cancel(stunaddr_resolver)) {
 			ast_log(LOG_ERROR, "Failed to cancel recurring DNS resolution of previous stunaddr.\n");
 		}
 		ao2_ref(stunaddr_resolver, -1);
 		stunaddr_resolver = NULL;
 	}
-	ast_rwlock_wrlock(&stunaddr_lock);
 	memset(&stunaddr, 0, sizeof(stunaddr));
+	stunaddr_ttl = 0;
+	ast_free(stun_hostname);
+	stun_hostname = NULL;
 	ast_rwlock_unlock(&stunaddr_lock);
 }
 #endif
@@ -9809,6 +9907,8 @@ static char *handle_cli_rtp_settings(struct ast_cli_entry *e, int cmd, struct as
 {
 #ifdef HAVE_PJPROJECT
 	struct sockaddr_in stunaddr_copy;
+	const char *stun_hostname_copy = NULL;
+	int stunaddr_ttl_copy = 0;
 #endif
 	switch (cmd) {
 	case CLI_INIT:
@@ -9845,8 +9945,26 @@ static char *handle_cli_rtp_settings(struct ast_cli_entry *e, int cmd, struct as
 
 	ast_rwlock_rdlock(&stunaddr_lock);
 	memcpy(&stunaddr_copy, &stunaddr, sizeof(stunaddr));
+	stun_hostname_copy = ast_strdupa(S_OR(stun_hostname, ""));
+	stunaddr_ttl_copy = stunaddr_ttl;
 	ast_rwlock_unlock(&stunaddr_lock);
-	ast_cli(a->fd, "  STUN address:    %s:%d\n", ast_inet_ntoa(stunaddr_copy.sin_addr), htons(stunaddr_copy.sin_port));
+
+	ast_cli(a->fd, "  STUN:            %s\n", stunaddr_copy.sin_addr.s_addr ? "enbabled" : "disabled");
+	if (ast_strlen_zero(stun_hostname_copy)) {
+		ast_cli(a->fd, "   Address:        %s:%d\n", ast_inet_ntoa(stunaddr_copy.sin_addr),
+			htons(stunaddr_copy.sin_port));
+	} else {
+		ast_cli(a->fd, "   Hostname:       %s:%d\n", stun_hostname_copy, htons(stunaddr_copy.sin_port));
+		ast_cli(a->fd, "   Resolved Addr:  %s:%d%s\n", ast_inet_ntoa(stunaddr_copy.sin_addr),
+			htons(stunaddr_copy.sin_port),
+			stunaddr_copy.sin_addr.s_addr ? stunaddr_resolver ? "" : " (possibly stale)" : " (lookup failed)");
+		ast_cli(a->fd, "   Last TTL:       %d  (periodic resolution %s)\n", stunaddr_ttl_copy,
+			stunaddr_resolver ? "enabled" : "disabled");
+		ast_cli(a->fd, "   Reresove TTL 0: %s\n", AST_CLI_YESNO(stunaddr_reresolve_ttl_0));
+	}
+	if (stun_acl) {
+		ast_acl_output(a->fd, stun_acl, "   ");
+	}
 #endif
 	return CLI_SUCCESS;
 }
@@ -10043,6 +10161,55 @@ static char *handle_cli_rtp_drop_incoming_packets(struct ast_cli_entry *e, int c
 }
 #endif
 
+#ifdef HAVE_PJPROJECT
+static char *handle_cli_rtp_refresh_stun(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "rtp resolve stun hostname";
+		e->usage =
+			"Usage: rtp resolve stun hostname\n"
+			"       Force a resolution of the STUN hostname (if set).\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != e->args) {
+		return CLI_SHOWUSAGE;
+	}
+
+	ast_rwlock_wrlock(&stunaddr_lock);
+	if (ast_strlen_zero(stun_hostname)) {
+		if (stunaddr.sin_addr.s_addr) {
+			ast_cli(a->fd, "RTP STUN server specified as IP address '%s'. Resolution not required./n",
+				ast_inet_ntoa(stunaddr.sin_addr));
+		} else {
+			ast_cli(a->fd, "RTP STUN disabled./n");
+		}
+	} else {
+		if (stunaddr_resolver) {
+			ast_debug_stun(2, "Cancelling recurring resolution for '%s'\n", stun_hostname);
+			if (ast_dns_resolve_recurring_cancel(stunaddr_resolver)) {
+				ast_log(LOG_ERROR, "Failed to cancel recurring DNS resolution of previous stunaddr.\n");
+			}
+			ao2_ref(stunaddr_resolver, -1);
+			stunaddr_resolver = NULL;
+		}
+		stunaddr_resolver = ast_dns_resolve_recurring(stun_hostname, T_A, C_IN, &stunaddr_resolve_callback, NULL);
+		if (!stunaddr_resolver) {
+			ast_cli(a->fd, "Failed to setup recurring DNS resolution of stunaddr '%s'",
+				stun_hostname);
+		} else {
+			ast_cli(a->fd, "Triggered background stun hostname resolution for '%s'.  Run 'rtp show settings' to check results.\n", stun_hostname);
+		}
+	}
+	ast_rwlock_unlock(&stunaddr_lock);
+
+	return CLI_SUCCESS;
+}
+#endif
+
 static struct ast_cli_entry cli_rtp[] = {
 	AST_CLI_DEFINE(handle_cli_rtp_set_debug,  "Enable/Disable RTP debugging"),
 	AST_CLI_DEFINE(handle_cli_rtp_settings,   "Display RTP settings"),
@@ -10050,6 +10217,9 @@ static struct ast_cli_entry cli_rtp[] = {
 	AST_CLI_DEFINE(handle_cli_rtcp_set_stats, "Enable/Disable RTCP stats"),
 #ifdef AST_DEVMODE
 	AST_CLI_DEFINE(handle_cli_rtp_drop_incoming_packets, "Drop RTP incoming packets"),
+#endif
+#ifdef HAVE_PJPROJECT
+	AST_CLI_DEFINE(handle_cli_rtp_refresh_stun, "Force a resolution of the STUN hostname"),
 #endif
 };
 
@@ -10172,6 +10342,9 @@ static int rtp_reload(int reload, int by_external_config)
 	if ((s = ast_variable_retrieve(cfg, "general", "stun_software_attribute"))) {
 		stun_software_attribute = ast_true(s);
 	}
+	if ((s = ast_variable_retrieve(cfg, "general", "stunaddr_reresolve_ttl_0"))) {
+		stunaddr_reresolve_ttl_0 = ast_true(s);
+	}
 	if ((s = ast_variable_retrieve(cfg, "general", "stunaddr"))) {
 		char *hostport, *host, *port;
 		unsigned int port_parsed = STANDARD_STUN_PORT;
@@ -10187,19 +10360,41 @@ static int rtp_reload(int reload, int by_external_config)
 			}
 			ast_rwlock_wrlock(&stunaddr_lock);
 			ast_sockaddr_to_sin(&stunaddr_parsed, &stunaddr);
+			/* Set stunaddr_ttl = -1 to indicate no resolution required in the future */
+			stunaddr_ttl = -1;
 			ast_rwlock_unlock(&stunaddr_lock);
 		} else if (ast_sockaddr_split_hostport(hostport, &host, &port, 0)) {
 			if (port) {
 				ast_parse_arg(port, PARSE_UINT32|PARSE_IN_RANGE, &port_parsed, 1, 65535);
 			}
-			stunaddr.sin_port = htons(port_parsed);
 
-			stunaddr_resolver = ast_dns_resolve_recurring(host, T_A, C_IN,
-				&stunaddr_resolve_callback, NULL);
-			if (!stunaddr_resolver) {
-				ast_log(LOG_ERROR, "Failed to setup recurring DNS resolution of stunaddr '%s'",
-					host);
+			ast_rwlock_wrlock(&stunaddr_lock);
+
+			stunaddr.sin_port = htons(port_parsed);
+			ast_free(stun_hostname);
+			stun_hostname = ast_strdup(host);
+			if (!stun_hostname) {
+				ast_log(LOG_ERROR, "Failed to set stun_hostname from '%s'", host);
+			} else {
+				stunaddr_resolver = ast_dns_resolve_recurring(host, T_A, C_IN,
+					&stunaddr_resolve_callback, NULL);
+				if (!stunaddr_resolver) {
+					ast_log(LOG_ERROR, "Failed to setup recurring DNS resolution of stunaddr '%s'",
+						host);
+				} else {
+					ast_debug_stun(2, "Attemping to start recurring stun hostname resolution for '%s'\n", stun_hostname);
+				}
+				/*
+				 * Set stunaddr_ttl = 0 to indicate resolution is required.
+				 * If a later query returns a positive ttl, great.  We'll use the results
+				 * of the last query until it expires.  If it returns 0, we'll resolve
+				 * every time we need it.
+				 */
+				stunaddr_ttl = 0;
 			}
+			ast_rwlock_unlock(&stunaddr_lock);
+
+
 		} else {
 			ast_log(LOG_ERROR, "Failed to parse stunaddr '%s'", hostport);
 		}
