@@ -70,6 +70,25 @@ rtpend=20000
 ;
 ; stunaddr=
 ;
+; If a hostname is specified for stunaddr periodic DNS resolution is enabled
+; based on the TTL returned in the queries.  If the TTL returned is 0, it
+; means that the next time the IP address is needed, it should be looked up
+; again.  I.E.  Don't cache.  Historically (and incorrectly) however, we
+; stopped the periodic resolution and never re-resolved the hostname again.
+; The stunaddr_reresolve_ttl_0 parameter can address this:
+;
+; Possible values:
+; - 'no': This is the historical (and current default) behavior of not doing
+;    any further lookups and continuing to use the last successful result until
+;    Asterisk is restarted or rtp.conf is reloaded.
+; - 'yes': Use the last cached result for the current call but trigger
+;    re-resolution in the background for the benefit of future calls.
+;    If the result of the background lookup is a ttl > 0, periodic resolution
+;    will be restarted otherwise the next call will use the new cached value
+;    and will trigger a background lookup again.
+; 
+; stunaddr_reresolve_ttl_0 = no
+;
 ; Some multihomed servers have IP interfaces that cannot reach the STUN
 ; server specified by stunaddr.  Blacklist those interface subnets from
 ; trying to send a STUN packet to find the external IP address.
@@ -85,6 +104,8 @@ rtpend=20000
 ; to a specific IP address.  Blacklisting is done via ACL infrastructure
 ; so it's possible to whitelist as well.
 ;
+
+
 ; stun_acl = named_acl
 ; stun_deny = 0.0.0.0/0
 ; stun_permit = 1.2.3.4/32
