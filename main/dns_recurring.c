@@ -104,7 +104,16 @@ static void dns_query_recurring_resolution_callback(const struct ast_dns_query *
 				/* It is impossible for this to be the last reference as the query has a reference to it */
 				ao2_ref(recurring, -1);
 			}
+			ast_debug(2, "Rescheduled resolution for name: %s class: %d type: %d in %d seconds",
+				ast_dns_query_get_name(query), ast_dns_query_get_rr_class(query),
+				ast_dns_query_get_rr_type(query), ttl + EXTRA_TTL);
+		} else {
+			ast_debug(2, "TTL = 0 so not rescheduling resolution for name: %s class: %d type: %d",
+				ast_dns_query_get_name(query), ast_dns_query_get_rr_class(query), ast_dns_query_get_rr_type(query));
 		}
+	} else {
+		ast_debug(2, "Recurring resolution cancelled for name: %s class: %d type: %d",
+			ast_dns_query_get_name(query), ast_dns_query_get_rr_class(query), ast_dns_query_get_rr_type(query));
 	}
 
 	ao2_replace(recurring->active, NULL);
@@ -145,6 +154,9 @@ int ast_dns_resolve_recurring_cancel(struct ast_dns_query_recurring *recurring)
 	int res = 0;
 
 	ao2_lock(recurring);
+
+	ast_debug(2, "Cancelling recurring resolution for name: %s class: %d type: %d",
+		recurring->name, recurring->rr_class, recurring->rr_type);
 
 	recurring->cancelled = 1;
 	AST_SCHED_DEL_UNREF(ast_dns_get_sched(), recurring->timer, ao2_ref(recurring, -1));
