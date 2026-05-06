@@ -917,9 +917,15 @@ time_t crypto_asn_time_as_time_t(ASN1_TIME *at)
 char *crypto_get_cert_subject(X509 *cert, const char *short_name)
 {
 	size_t len = 0;
+	/* buffer is allocated via open_memstream, which is outside of Asterisk's
+	   memory management. It therefore must be freed via ast_std_free to
+	   remain independent of MALLOC_DEBUG */
 	RAII_VAR(char *, buffer, NULL, ast_std_free);
+	/* search is allocated via ast_asprintf, which is within Asterisk's
+	   memory management. It therefore must be freed via ast_free or will
+	   cause a crash when used with MALLOC_DEBUG */
+	RAII_VAR(char *, search, NULL, ast_free);
 	char *search_buff = NULL;
-	char *search = NULL;
 	size_t search_len = 0;
 	char *rtn = NULL;
 	char *line = NULL;
@@ -971,7 +977,6 @@ char *crypto_get_cert_subject(X509 *cert, const char *short_name)
 		}
 	}
 
-	ast_std_free(search);
 	return rtn;
 }
 
