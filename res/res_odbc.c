@@ -886,6 +886,14 @@ int ast_odbc_backslash_is_escape(struct odbc_obj *obj)
 	return obj->parent->backslash_is_escape;
 }
 
+/*!
+ * \internal
+ * \brief ao2 matcher that returns only active classes (delme=0).
+ *
+ * The primary lookup used by request paths. Prefers a freshly-linked
+ * replacement class over an outgoing class when the two briefly
+ * coexist during reload.
+ */
 static int aoro2_class_cb(void *obj, void *arg, int flags)
 {
 	struct odbc_class *class = obj;
@@ -896,12 +904,56 @@ static int aoro2_class_cb(void *obj, void *arg, int flags)
 	return 0;
 }
 
+/*!
+ * \internal
+ * \brief ao2 matcher that returns any class with the given name.
+ *
+ * Fallback used during the brief reload window in which every class
+ * for a given name is marked delme=1 — between reload()'s first loop
+ * and load_odbc_config() linking the replacement(s). The class is
+ * kept alive by ao2 refcounting until the last user releases, so it
+ * is safe to hand out connections from a class marked for removal.
+ * Without this fallback every concurrent ast_odbc_request_obj()
+ * during the window fails with "Class not found".
+ */
+static int aoro2_class_any_cb(void *obj, void *arg, int flags)
+{
+	struct odbc_class *class = obj;
+	char *name = arg;
+	if (!strcmp(class->name, name)) {
+		return CMP_MATCH | CMP_STOP;
+	}
+	return 0;
+}
+
+/*!
+ * \internal
+ * \brief Find an odbc_class by name, preferring active over delme=1.
+ *
+ * Two-pass lookup. Returns the matched class with its ao2 reference
+ * incremented; caller must ao2_ref(class, -1) when done.
+ *
+ * \param name Class name to look up.
+ * \retval NULL if no class with that name exists in the container.
+ * \retval non-NULL the matching class (refcount bumped).
+ */
+static struct odbc_class *odbc_class_find(const char *name)
+{
+	struct odbc_class *class;
+	class = ao2_callback(class_container, 0, aoro2_class_cb, (char *) name);
+	if (!class) {
+		class = ao2_callback(class_container, 0, aoro2_class_any_cb,
+			(char *) name);
+	}
+	return class;
+}
+
 unsigned int ast_odbc_get_max_connections(const char *name)
 {
 	struct odbc_class *class;
 	unsigned int max_connections;
 
-	class = ao2_callback(class_container, 0, aoro2_class_cb, (char *) name);
+	class = odbc_class_find(name);
 	if (!class) {
 		return 0;
 	}
@@ -961,7 +1013,7 @@ struct odbc_obj *_ast_odbc_request_obj2(const char *name, struct ast_flags flags
 	struct odbc_obj *obj = NULL;
 	struct odbc_class *class;
 
-	if (!(class = ao2_callback(class_container, 0, aoro2_class_cb, (char *) name))) {
+	if (!(class = odbc_class_find(name))) {
 		ast_debug(1, "Class '%s' not found!\n", name);
 		return NULL;
 	}
