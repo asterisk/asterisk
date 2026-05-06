@@ -557,6 +557,41 @@ const char *ast_odbc_class_get_name(struct odbc_class *class)
 	return class->name;
 }
 
+/*!
+ * \internal
+ * \brief Compare two strings; NULL and "" are treated as equal.
+ *
+ * Matches how config values are normalized into odbc_class fields
+ * via ast_strdup of possibly-empty strings.
+ *
+ * \retval 1 strings are equal (or both empty/NULL)
+ * \retval 0 otherwise
+ */
+static int odbc_str_eq_or_both_empty(const char *a, const char *b)
+{
+	int a_empty = ast_strlen_zero(a);
+	int b_empty = ast_strlen_zero(b);
+	if (a_empty && b_empty) {
+		return 1;
+	}
+	return !a_empty && !b_empty && !strcmp(a, b);
+}
+
+/*!
+ * \internal
+ * \brief ao2 matcher used by load_odbc_config() to find an existing
+ *        class by name, INCLUDING classes marked for removal.
+ *
+ * Intentionally separate from aoro2_class_cb so the preserve-on-reload
+ * logic is independent of the request-path filter.
+ */
+static int odbc_class_match_name_cb(void *obj, void *arg, int flags)
+{
+	struct odbc_class *class = obj;
+	const char *name = arg;
+	return !strcmp(class->name, name) ? (CMP_MATCH | CMP_STOP) : 0;
+}
+
 static int load_odbc_config(void)
 {
 	static char *cfg = "res_odbc.conf";
@@ -666,6 +701,80 @@ static int load_odbc_config(void)
 			}
 
 			if (enabled && !ast_strlen_zero(dsn)) {
+				struct odbc_class *existing;
+
+				/*
+				 * Try to preserve an existing class with the same
+				 * name across this reload. The comparison here only
+				 * checks fields whose change requires reconnection
+				 * (dsn/credentials/sanitysql) or whose racy in-place
+				 * mutation we deliberately don't perform (the bit-
+				 * field cosmetics: backslash_is_escape, forcecommit,
+				 * cache_is_queue). For those, "change" forces a
+				 * full reallocation of the class so the change takes
+				 * effect cleanly.
+				 *
+				 * Fields NOT in the comparison can be safely updated
+				 * in place under class->lock and are picked up
+				 * without disrupting in-flight users:
+				 *   maxconnections, isolation, conntimeout,
+				 *   negative_connection_cache, slowquerylimit,
+				 *   max_cache_size, logging.
+				 */
+				existing = ao2_callback(class_container, 0,
+					odbc_class_match_name_cb, (char *) cat);
+				if (existing) {
+					if (!strcmp(existing->dsn, dsn)
+					    && odbc_str_eq_or_both_empty(existing->username, username)
+					    && odbc_str_eq_or_both_empty(existing->password, password)
+					    && odbc_str_eq_or_both_empty(existing->sanitysql, sanitysql)
+					    && existing->backslash_is_escape == (bse ? 1 : 0)
+					    && existing->forcecommit == (forcecommit ? 1 : 0)
+					    && existing->cache_is_queue == (unsigned int)(cache_is_queue ? 1 : 0)) {
+						/*
+						 * Update fields that are safe to mutate on a
+						 * published class: full-width scalars / struct
+						 * timeval, plus delme (a single bit, atomic
+						 * relative to the existing reload-first-pass
+						 * write under container lock).
+						 */
+						ast_mutex_lock(&existing->lock);
+						existing->maxconnections = maxconnections;
+						existing->isolation = isolation;
+						existing->conntimeout = conntimeout;
+						existing->negative_connection_cache = ncache;
+						existing->logging = logging;
+						existing->slowquerylimit = slowquerylimit;
+						existing->max_cache_size = max_cache_size;
+						/*
+						 * Reset the negative-connect timestamp so a
+						 * reload still acts as the operator's
+						 * "clear stuck negative cache" workaround,
+						 * even though the class object itself is
+						 * preserved.
+						 */
+						existing->last_negative_connect.tv_sec = 0;
+						existing->last_negative_connect.tv_usec = 0;
+						/* Don't unlink this one in the cleanup loop. */
+						existing->delme = 0;
+						ast_mutex_unlock(&existing->lock);
+						ao2_ref(existing, -1);
+						ast_log(LOG_NOTICE,
+							"Preserved ODBC class '%s' across reload (no connection-affecting change)\n",
+							cat);
+						continue;
+					}
+					/*
+					 * Connection-affecting field (or a bit-field
+					 * cosmetic that we won't mutate in place)
+					 * changed. Let the cleanup loop unlink the old
+					 * class and fall through to allocate a fresh
+					 * one. The pool is preserved on the in-flight
+					 * users via refcounting; new requests will
+					 * find the replacement once it's linked.
+					 */
+					ao2_ref(existing, -1);
+				}
 				new = ao2_alloc(sizeof(*new), odbc_class_destructor);
 
 				if (!new) {
