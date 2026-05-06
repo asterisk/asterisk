@@ -1291,7 +1291,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 			} else {
 				ast_verb(3, "No one is available to answer at this time (%d:%d/%d/%d)\n", numlines, num.busy, num.congestion, num.nochan);
 			}
-			*to_answer = 0;
+			*to_answer = 0; /* Continue in the dialplan, since nobody answered */
 			if (is_cc_recall) {
 				ast_cc_failed(cc_recall_core_id, "Everyone is busy/congested for the recall. How sad");
 			}
@@ -1603,6 +1603,17 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 						}
 						if (res) {
 							ast_log(LOG_WARNING, "Called channel %s hung up post-progress before all digits could be sent\n", ast_channel_name(c));
+							if (ast_channel_state(c) == AST_STATE_UP) {
+								/* The called channel answered while we were sending it digits, so the answer never got processed by app_dial.
+								 * The channel is dying now, but better to answer late than never? */
+								ast_debug(1, "Channel %s answered while we were sending it digits, answering %s retroactively\n", ast_channel_name(c), ast_channel_name(in));
+								/* Indicate answer supervision to the caller before we exit.
+								 * We're not going to bridge, but this way at least the CDRs are correct, etc. */
+								ast_raw_answer(in);
+								strcpy(pa->status, "ANSWER");
+							} else {
+								*to_answer = 0; /* Continue in the dialplan, since nobody answered */
+							}
 							goto wait_over;
 						}
 					}
@@ -1630,6 +1641,14 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 						}
 						if (res) {
 							ast_log(LOG_WARNING, "Called channel %s hung up post-wink before all digits could be sent\n", ast_channel_name(c));
+							if (ast_channel_state(c) == AST_STATE_UP) {
+								/* Same as in AST_CONTROL_PROGRESS */
+								ast_debug(1, "Channel %s answered while we were sending it digits, answering %s retroactively\n", ast_channel_name(c), ast_channel_name(in));
+								ast_raw_answer(in);
+								strcpy(pa->status, "ANSWER");
+							} else {
+								*to_answer = 0; /* Continue in the dialplan, since nobody answered */
+							}
 							goto wait_over;
 						}
 					}
@@ -1937,7 +1956,11 @@ skip_frame:;
 
 wait_over:
 	if (!*to_answer || ast_check_hangup(in)) {
-		ast_verb(3, "Nobody picked up in %d ms\n", orig_answer_to);
+		if (orig_answer_to != -1) {
+			ast_verb(3, "Nobody picked up in %d ms\n", orig_answer_to);
+		} else {
+			ast_verb(3, "Call terminated without answer\n");
+		}
 		publish_dial_end_event(in, out_chans, NULL, "NOANSWER");
 	} else if (!*to_progress) {
 		ast_verb(3, "No early media received in %d ms\n", orig_progress_to);
@@ -2998,8 +3021,10 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 
 	if (!peer) {
 		if (result) {
-			res = result;
+			res = result; /* User entered a DTMF digit that matched a context */
 		} else if (to_answer) { /* Musta gotten hung up */
+			/* This does not necessarily mean that we dialed without a timeout.
+			 * to_answer is (ab)used by wait_for_answer to to indicate whether or we should continue in the dialplan or exit. */
 			res = -1;
 		} else { /* Nobody answered, next please? */
 			res = 0;
