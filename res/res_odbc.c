@@ -366,17 +366,28 @@ SQLHSTMT ast_odbc_direct_execute(struct odbc_obj *obj, SQLHSTMT (*exec_cb)(struc
 {
 	struct timeval start;
 	SQLHSTMT stmt;
+	/*
+	 * Snapshot the logging flag so the two checks below see a
+	 * consistent value. Without this, a concurrent reload that
+	 * flips logging from false to true between the two checks would
+	 * make us read `start` uninitialized in the second branch.
+	 * slowquerylimit is also cached so that the threshold compared
+	 * against execution_time is the same one in effect when start
+	 * was sampled.
+	 */
+	int logging = obj->parent->logging;
+	unsigned int slowquerylimit = obj->parent->slowquerylimit;
 
-	if (obj->parent->logging) {
+	if (logging) {
 		start = ast_tvnow();
 	}
 
 	stmt = exec_cb(obj, data);
 
-	if (obj->parent->logging) {
+	if (logging) {
 		long execution_time = ast_tvdiff_ms(ast_tvnow(), start);
 
-		if (obj->parent->slowquerylimit && execution_time > obj->parent->slowquerylimit) {
+		if (slowquerylimit && execution_time > slowquerylimit) {
 			ast_log(LOG_WARNING, "SQL query '%s' took %ld milliseconds to execute on class '%s', this may indicate a database problem\n",
 				obj->sql_text, execution_time, obj->parent->name);
 		}
@@ -405,8 +416,11 @@ SQLHSTMT ast_odbc_prepare_and_execute(struct odbc_obj *obj, SQLHSTMT (*prepare_c
 	struct timeval start;
 	int res = 0;
 	SQLHSTMT stmt;
+	/* See comment in ast_odbc_direct_execute. */
+	int logging = obj->parent->logging;
+	unsigned int slowquerylimit = obj->parent->slowquerylimit;
 
-	if (obj->parent->logging) {
+	if (logging) {
 		start = ast_tvnow();
 	}
 
@@ -429,10 +443,10 @@ SQLHSTMT ast_odbc_prepare_and_execute(struct odbc_obj *obj, SQLHSTMT (*prepare_c
 		ast_log(LOG_WARNING, "SQL Execute error %d!\n", res);
 		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 		stmt = NULL;
-	} else if (obj->parent->logging) {
+	} else if (logging) {
 		long execution_time = ast_tvdiff_ms(ast_tvnow(), start);
 
-		if (obj->parent->slowquerylimit && execution_time > obj->parent->slowquerylimit) {
+		if (slowquerylimit && execution_time > slowquerylimit) {
 			ast_log(LOG_WARNING, "SQL query '%s' took %ld milliseconds to execute on class '%s', this may indicate a database problem\n",
 				obj->sql_text, execution_time, obj->parent->name);
 		}
