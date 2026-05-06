@@ -606,6 +606,62 @@ static int odbc_class_match_name_cb(void *obj, void *arg, int flags)
 	return !strcmp(class->name, name) ? (CMP_MATCH | CMP_STOP) : 0;
 }
 
+/*!
+ * \internal
+ * \brief Pre-fill a class's connection pool before it is published.
+ *
+ * Used when load_odbc_config() needs to allocate a fresh class because
+ * a connection-affecting field changed in res_odbc.conf and the class
+ * has prewarm_pool=yes. By opening all maxconnections connections up
+ * front (while the existing class is still serving requests) we
+ * eliminate the post-reload thundering herd of fresh SQLConnects
+ * under load.
+ *
+ * The class must NOT be in class_container yet. The pool fields are
+ * manipulated directly without locking because nothing else can see
+ * the class.
+ *
+ * \param class Class to pre-fill (must not be linked into the container).
+ * \retval >=0 number of connections successfully opened.
+ * \retval -1 a connect attempt failed (caller should destroy the class).
+ */
+static int odbc_class_prefill(struct odbc_class *class)
+{
+	int target = class->maxconnections;
+	int created;
+
+	for (created = 0; created < target; created++) {
+		struct odbc_obj *obj;
+
+		obj = ao2_alloc(sizeof(*obj), odbc_obj_destructor);
+		if (!obj) {
+			return -1;
+		}
+		/* odbc_obj_connect() dereferences obj->parent for env/dsn/etc. */
+		obj->parent = ao2_bump(class);
+
+		if (odbc_obj_connect(obj) == ODBC_FAIL) {
+			ao2_ref(obj->parent, -1);
+			obj->parent = NULL;
+			ao2_ref(obj, -1);
+			return -1;
+		}
+
+		/*
+		 * The pool holds objs without a parent ref (see
+		 * ast_odbc_release_obj()). Drop the ref we bumped for the
+		 * connect call.
+		 */
+		obj->parent = NULL;
+		ao2_ref(class, -1);
+
+		AST_LIST_INSERT_HEAD(&class->connections, obj, list);
+		class->cur_cache++;
+		class->connection_cnt++;
+	}
+	return created;
+}
+
 static int load_odbc_config(void)
 {
 	static char *cfg = "res_odbc.conf";
@@ -616,6 +672,7 @@ static int load_odbc_config(void)
 	int enabled, bse, conntimeout, forcecommit, isolation, maxconnections, logging, slowquerylimit;
 	struct timeval ncache = { 0, 0 };
 	int preconnect = 0, res = 0, cache_is_queue = 0;
+	int prewarm_pool = 0;
 	struct ast_flags config_flags = { 0 };
 	unsigned int max_cache_size;
 
@@ -637,6 +694,7 @@ static int load_odbc_config(void)
 			dsn = username = password = sanitysql = NULL;
 			enabled = 1;
 			preconnect = 0;
+			prewarm_pool = 0;
 			bse = 1;
 			conntimeout = 10;
 			forcecommit = 0;
@@ -656,6 +714,21 @@ static int load_odbc_config(void)
 					enabled = ast_true(v->value);
 				} else if (!strcasecmp(v->name, "pre-connect")) {
 					preconnect = ast_true(v->value);
+				} else if (!strcasecmp(v->name, "prewarm_pool")) {
+					/*
+					 * If true, fully populate the connection pool
+					 * up-front during load AND across reloads when
+					 * connection-affecting config has changed. This
+					 * eliminates the post-reload thundering herd of
+					 * fresh SQLConnects that would otherwise happen
+					 * under load. Defaults to false (legacy
+					 * behavior) — opt in only if you understand the
+					 * trade-off (longer reload latency proportional
+					 * to maxconnections * connect_latency, plus
+					 * temporarily-doubled DB connection count
+					 * during a config-changed reload).
+					 */
+					prewarm_pool = ast_true(v->value);
 				} else if (!strcasecmp(v->name, "dsn")) {
 					dsn = v->value;
 				} else if (!strcasecmp(v->name, "username")) {
@@ -781,17 +854,18 @@ static int load_odbc_config(void)
 					/*
 					 * Connection-affecting field (or a bit-field
 					 * cosmetic that we won't mutate in place)
-					 * changed. Let the cleanup loop unlink the old
-					 * class and fall through to allocate a fresh
-					 * one. The pool is preserved on the in-flight
-					 * users via refcounting; new requests will
-					 * find the replacement once it's linked.
+					 * changed. We KEEP the `existing` reference for
+					 * now — if pre-warm of the new class fails, we
+					 * need to roll back to existing. Drop it after
+					 * a successful link (or on the rollback path).
 					 */
-					ao2_ref(existing, -1);
 				}
 				new = ao2_alloc(sizeof(*new), odbc_class_destructor);
 
 				if (!new) {
+					if (existing) {
+						ao2_ref(existing, -1);
+					}
 					res = -1;
 					break;
 				}
@@ -823,22 +897,101 @@ static int load_odbc_config(void)
 					ast_copy_string(new->dsn, dsn, sizeof(new->dsn));
 				if (username && !(new->username = ast_strdup(username))) {
 					ao2_ref(new, -1);
+					if (existing) {
+						ao2_ref(existing, -1);
+					}
 					break;
 				}
 				if (password && !(new->password = ast_strdup(password))) {
 					ao2_ref(new, -1);
+					if (existing) {
+						ao2_ref(existing, -1);
+					}
 					break;
 				}
 				if (sanitysql && !(new->sanitysql = ast_strdup(sanitysql))) {
 					ao2_ref(new, -1);
+					if (existing) {
+						ao2_ref(existing, -1);
+					}
 					break;
 				}
 
 				ast_mutex_init(&new->lock);
 				ast_cond_init(&new->cond, NULL);
 
-				odbc_register_class(new, preconnect);
-				ast_log(LOG_NOTICE, "Registered ODBC class '%s' dsn->[%s]\n", cat, dsn);
+				/*
+				 * Optional pre-warm. When `prewarm_pool=yes` is set
+				 * AND we are replacing an existing class (i.e. a
+				 * connection-affecting field changed during reload),
+				 * fully populate the new class's connection pool
+				 * BEFORE publishing it. This eliminates the post-
+				 * reload thundering-herd of fresh SQLConnects under
+				 * load.
+				 *
+				 * Pre-warm is intentionally a NO-OP at initial
+				 * module load (when `existing` is NULL): there's no
+				 * concurrent traffic to disrupt at that point, so
+				 * the existing `pre-connect` semantics (one lazy
+				 * connection) are sufficient and avoid extending
+				 * Asterisk startup latency.
+				 *
+				 * On pre-warm failure (DSN unreachable, bad creds),
+				 * roll back: destroy the new class, clear
+				 * `existing`'s delme so the cleanup loop preserves
+				 * it, log a clear ERROR, and skip this config
+				 * section. Operator's previous class continues to
+				 * serve uninterrupted.
+				 *
+				 * Default behavior (prewarm_pool=no): identical to
+				 * legacy Asterisk — odbc_register_class(class,
+				 * preconnect) opens at most one connection.
+				 */
+				if (prewarm_pool && existing) {
+					if (odbc_class_prefill(new) < 0) {
+						ast_log(LOG_ERROR,
+							"Pre-warm failed for ODBC class '%s' "
+							"(DSN '%s' unreachable or auth failed); "
+							"keeping previous class\n",
+							cat, dsn);
+						ao2_ref(new, -1);
+						if (existing) {
+							ast_mutex_lock(&existing->lock);
+							existing->delme = 0;
+							ast_mutex_unlock(&existing->lock);
+							ao2_ref(existing, -1);
+						}
+						continue;
+					}
+				}
+
+				if (existing) {
+					/*
+					 * Drop our ref now that we know we won't need
+					 * to roll back. The container's ref keeps
+					 * `existing` alive until the cleanup loop
+					 * unlinks it (delme=1), and in-flight users
+					 * keep it alive after that until they release.
+					 */
+					ao2_ref(existing, -1);
+				}
+
+				/*
+				 * If we pre-warmed (only happens on a reload that
+				 * replaces an existing class), we already opened
+				 * the pool — pass 0 to odbc_register_class to skip
+				 * its redundant one-shot connect. Otherwise, honour
+				 * the existing `pre-connect` semantics.
+				 */
+				if (prewarm_pool && existing) {
+					odbc_register_class(new, 0);
+					ast_log(LOG_NOTICE,
+						"Registered ODBC class '%s' dsn->[%s] (pre-warmed pool of %d)\n",
+						cat, dsn, maxconnections);
+				} else {
+					odbc_register_class(new, preconnect);
+					ast_log(LOG_NOTICE, "Registered ODBC class '%s' dsn->[%s]\n", cat, dsn);
+				}
 				ao2_ref(new, -1);
 				new = NULL;
 			}
