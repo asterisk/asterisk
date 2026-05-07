@@ -959,7 +959,15 @@ static int msg_send(void *data)
 		if (ast_begins_with(msg_to, "pjsip:")) {
 			msg_to += 6;
 		}
-		ast_sip_update_to_uri(tdata, msg_to);
+		/*
+		 * Only attempt to update the To URI if it's actually a SIP/SIPS URI.
+		 * When sending via ARI, the To field is also used as destination
+		 * (MessageDestinationInfo) and therefore might not contain a SIP URI.
+		 * ast_sip_create_request still sets the correct To header.
+		 */
+		if (ast_begins_with(msg_to, "sip:") || ast_begins_with(msg_to, "sips:")) {
+			ast_sip_update_to_uri(tdata, msg_to);
+		}
 	} else {
 		/*
 		 * If there was no To in the message, it's still possible
