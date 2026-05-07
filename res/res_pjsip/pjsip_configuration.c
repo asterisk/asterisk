@@ -1021,7 +1021,19 @@ static int dtls_handler(const struct aco_option *opt,
 static int dtlsverify_to_str(const void *obj, const intptr_t *args, char **buf)
 {
 	const struct ast_sip_endpoint *endpoint = obj;
-	*buf = ast_strdup(AST_YESNO(endpoint->media.rtp.dtls_cfg.verify));
+	if (endpoint->media.rtp.dtls_cfg.verify == AST_RTP_DTLS_VERIFY_NONE) {
+		*buf = ast_strdup("No");
+	} else if (endpoint->media.rtp.dtls_cfg.verify == AST_RTP_DTLS_VERIFY_FINGERPRINT) {
+		*buf = ast_strdup("Fingerprint");
+	} else if (endpoint->media.rtp.dtls_cfg.verify == AST_RTP_DTLS_VERIFY_CERTIFICATE) {
+		*buf = ast_strdup("Certificate");
+	} else if (endpoint->media.rtp.dtls_cfg.verify == (AST_RTP_DTLS_VERIFY_FINGERPRINT|AST_RTP_DTLS_VERIFY_CERTIFICATE)) {
+		*buf = ast_strdup("Yes");
+	} else {
+		*buf = NULL;
+		ast_assert(0);
+		return 1;
+	}
 	return 0;
 }
 
