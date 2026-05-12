@@ -75,6 +75,7 @@ enum ast_websocket_opcode {
 	AST_WEBSOCKET_OPCODE_PONG = 0xA,         /*!< Response to a ping */
 	AST_WEBSOCKET_OPCODE_CLOSE = 0x8,        /*!< Connection is being closed */
 	AST_WEBSOCKET_OPCODE_CONTINUATION = 0x0, /*!< Continuation of a previous frame */
+	AST_WEBSOCKET_OPCODE_UNKNOWN = 0xf,      /*!< Error */
 };
 
 /*! \brief Websocket Status Codes from RFC-6455 */
@@ -460,6 +461,7 @@ enum ast_websocket_result {
 	WS_WRITE_ERROR,
 	WS_CLIENT_START_ERROR,
 	WS_UNAUTHORIZED,
+	WS_TLS_ERROR,
 };
 
 /*!
@@ -480,9 +482,15 @@ enum ast_websocket_result {
  * \param protocols a comma separated string of supported protocols
  * \param tls_cfg secure websocket credentials
  * \param result result code set on client failure
+ *
  * \return a client websocket.
  * \retval NULL if object could not be created or connected
  * \since 13
+ *
+ * \warning The returned websocket must be closed with \ref ast_websocket_close
+ * and its reference count decremented with \ref ast_websocket_unref when
+ * it's no longer needed.
+ *
  */
 AST_OPTIONAL_API(struct ast_websocket *, ast_websocket_client_create,
 		 (const char *uri, const char *protocols,
@@ -517,9 +525,29 @@ struct ast_websocket_client_options {
 	 * Secure websocket credentials
 	 */
 	struct ast_tls_config *tls_cfg;
-	const char *username;          /*!< Auth username */
-	const char *password;          /*!< Auth password */
+	const char *username;          /*!< WebSocket server auth username */
+	const char *password;          /*!< WebSocket server auth password */
+
 	int suppress_connection_msgs;  /*!< Suppress connection log messages */
+	/*!
+	 * Forward proxy
+	 */
+	const char *proxy_host;      /*!< Proxy server host:port */
+	const char *proxy_username;  /*!< Proxy server auth username */
+	const char *proxy_password;  /*!< Proxy server auth password */
+	/*!
+	 * TCP Keepalives
+	 */
+	int tcp_keepalives;                   /*!< Enable TCP keepalives */
+	unsigned int tcp_keepalive_time;      /*!< Start sending when connection has been idle for this many seconds */
+	unsigned int tcp_keepalive_interval;  /*!< Send keepalives at this interval in seconds */
+	unsigned int tcp_keepalive_probes;    /*!< Close connection after this many missed responses */
+	/*!
+	 * WebSocket PING/PONG
+	 */
+	int pingpongs;                   /*!< Enable Websocket PING/PONGs */
+	unsigned int pingpong_interval;  /*!< Send PING messages at this interval in seconds */
+	unsigned int pingpong_probes;    /*!< Close connection after this many missed responses */
 };
 
 /*!
@@ -536,6 +564,10 @@ struct ast_websocket_client_options {
  *
  * \return a client websocket.
  * \retval NULL if object could not be created or connected
+ *
+ * \warning The returned websocket must be closed with \ref ast_websocket_close
+ * and its reference count decremented with \ref ast_websocket_unref when
+ * it's no longer needed.
  */
 AST_OPTIONAL_API(struct ast_websocket *, ast_websocket_client_create_with_options,
 	(struct ast_websocket_client_options *options,
