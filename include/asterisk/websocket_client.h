@@ -22,36 +22,56 @@
 #include "asterisk/http_websocket.h"
 #include "asterisk/sorcery.h"
 
+/*
+ * Using 1ULL is important as it forces the enum to be 64 bits.
+ */
 enum ast_ws_client_fields {
 	AST_WS_CLIENT_FIELD_NONE =                   0,
-	AST_WS_CLIENT_FIELD_URI =                    (1 << 0),
-	AST_WS_CLIENT_FIELD_PROTOCOLS =              (1 << 1),
-	AST_WS_CLIENT_FIELD_USERNAME =               (1 << 3),
-	AST_WS_CLIENT_FIELD_PASSWORD =               (1 << 4),
-	AST_WS_CLIENT_FIELD_TLS_ENABLED =            (1 << 7),
-	AST_WS_CLIENT_FIELD_CA_LIST_FILE =           (1 << 8),
-	AST_WS_CLIENT_FIELD_CA_LIST_PATH =           (1 << 9),
-	AST_WS_CLIENT_FIELD_CERT_FILE =              (1 << 10),
-	AST_WS_CLIENT_FIELD_PRIV_KEY_FILE =          (1 << 11),
-	AST_WS_CLIENT_FIELD_CONNECTION_TYPE =        (1 << 13),
-	AST_WS_CLIENT_FIELD_RECONNECT_INTERVAL =     (1 << 14),
-	AST_WS_CLIENT_FIELD_RECONNECT_ATTEMPTS =     (1 << 15),
-	AST_WS_CLIENT_FIELD_CONNECTION_TIMEOUT =     (1 << 16),
-	AST_WS_CLIENT_FIELD_VERIFY_SERVER_CERT =     (1 << 17),
-	AST_WS_CLIENT_FIELD_VERIFY_SERVER_HOSTNAME = (1 << 18),
+	AST_WS_CLIENT_FIELD_URI =                    (1ULL << 0),
+	AST_WS_CLIENT_FIELD_PROTOCOLS =              (1ULL << 1),
+	AST_WS_CLIENT_FIELD_USERNAME =               (1ULL << 3),
+	AST_WS_CLIENT_FIELD_PASSWORD =               (1ULL << 4),
+	AST_WS_CLIENT_FIELD_TLS_ENABLED =            (1ULL << 7),
+	AST_WS_CLIENT_FIELD_CA_LIST_FILE =           (1ULL << 8),
+	AST_WS_CLIENT_FIELD_CA_LIST_PATH =           (1ULL << 9),
+	AST_WS_CLIENT_FIELD_CERT_FILE =              (1ULL << 10),
+	AST_WS_CLIENT_FIELD_PRIV_KEY_FILE =          (1ULL << 11),
+	AST_WS_CLIENT_FIELD_CONNECTION_TYPE =        (1ULL << 13),
+	AST_WS_CLIENT_FIELD_RECONNECT_INTERVAL =     (1ULL << 14),
+	AST_WS_CLIENT_FIELD_RECONNECT_ATTEMPTS =     (1ULL << 15),
+	AST_WS_CLIENT_FIELD_CONNECTION_TIMEOUT =     (1ULL << 16),
+	AST_WS_CLIENT_FIELD_VERIFY_SERVER_CERT =     (1ULL << 17),
+	AST_WS_CLIENT_FIELD_VERIFY_SERVER_HOSTNAME = (1ULL << 18),
+	AST_WS_CLIENT_FIELD_PROXY_HOST =             (1ULL << 19),
+	AST_WS_CLIENT_FIELD_PROXY_USERNAME =         (1ULL << 20),
+	AST_WS_CLIENT_FIELD_PROXY_PASSWORD =         (1ULL << 21),
+	AST_WS_CLIENT_FIELD_TCP_KEEPALIVES =         (1ULL << 22),
+	AST_WS_CLIENT_FIELD_TCP_KEEPALIVE_TIME =     (1ULL << 23),
+	AST_WS_CLIENT_FIELD_TCP_KEEPALIVE_INTERVAL = (1ULL << 24),
+	AST_WS_CLIENT_FIELD_TCP_KEEPALIVE_PROBES =   (1ULL << 25),
+	AST_WS_CLIENT_FIELD_PINGPONGS =              (1ULL << 26),
+	AST_WS_CLIENT_FIELD_PINGPONG_INTERVAL =      (1ULL << 27),
+	AST_WS_CLIENT_FIELD_PINGPONG_PROBES =        (1ULL << 28),
 	AST_WS_CLIENT_NEEDS_RECONNECT = AST_WS_CLIENT_FIELD_URI | AST_WS_CLIENT_FIELD_PROTOCOLS
 		| AST_WS_CLIENT_FIELD_CONNECTION_TYPE
 		| AST_WS_CLIENT_FIELD_USERNAME | AST_WS_CLIENT_FIELD_PASSWORD
 		| AST_WS_CLIENT_FIELD_TLS_ENABLED | AST_WS_CLIENT_FIELD_CA_LIST_FILE
 		| AST_WS_CLIENT_FIELD_CA_LIST_PATH | AST_WS_CLIENT_FIELD_CERT_FILE
 		| AST_WS_CLIENT_FIELD_PRIV_KEY_FILE | AST_WS_CLIENT_FIELD_VERIFY_SERVER_CERT
-		| AST_WS_CLIENT_FIELD_VERIFY_SERVER_HOSTNAME,
+		| AST_WS_CLIENT_FIELD_VERIFY_SERVER_HOSTNAME
+		| AST_WS_CLIENT_FIELD_PROXY_HOST | AST_WS_CLIENT_FIELD_PROXY_USERNAME
+		| AST_WS_CLIENT_FIELD_PROXY_PASSWORD
+		| AST_WS_CLIENT_FIELD_TCP_KEEPALIVES
+		| AST_WS_CLIENT_FIELD_TCP_KEEPALIVE_TIME | AST_WS_CLIENT_FIELD_TCP_KEEPALIVE_INTERVAL
+		| AST_WS_CLIENT_FIELD_TCP_KEEPALIVE_PROBES
+		| AST_WS_CLIENT_FIELD_PINGPONGS | AST_WS_CLIENT_FIELD_PINGPONG_INTERVAL
+		| AST_WS_CLIENT_FIELD_PINGPONG_PROBES,
 };
 
 /*
- * The first 23 fields are reserved for the websocket client core.
+ * The first 29 fields are reserved for the websocket client core.
  */
-#define AST_WS_CLIENT_FIELD_USER_START 24
+#define AST_WS_CLIENT_FIELD_USER_START 30
 
 struct ast_websocket_client {
 	SORCERY_OBJECT(details);
@@ -75,6 +95,16 @@ struct ast_websocket_client {
 	int verify_server_cert;              /*!< Verify server certificate */
 	int verify_server_hostname;          /*!< Verify server hostname */
 	AST_STRING_FIELD_EXTENDED(uri_params); /*!< Additional URI parameters */
+	AST_STRING_FIELD_EXTENDED(proxy_host);  /*!< Proxy server URI */
+	AST_STRING_FIELD_EXTENDED(proxy_username);  /*!< Proxy username */
+	AST_STRING_FIELD_EXTENDED(proxy_password);  /*!< Proxy password */
+	int tcp_keepalives;                  /*!< Enable TCP Keepalives */
+	unsigned int tcp_keepalive_time;     /*!< Start sending when connection has been idle for this many seconds */
+	unsigned int tcp_keepalive_interval; /*!< Send keepalives at this interval in seconds */
+	unsigned int tcp_keepalive_probes;   /*!< Close connection after this many missed responses */
+	int pingpongs;                   /*!< Enable WebSocket PING/PONGs */
+	unsigned int pingpong_interval;  /*!< Send WebSocket PINGs at this interval in seconds */
+	unsigned int pingpong_probes;    /*!< Close connection after this many missed PONG responses */
 };
 
 /*!
@@ -134,6 +164,10 @@ void ast_websocket_client_observer_remove(
  *               result of the connection attempt.
  *
  * \return A pointer to the ast_websocket structure on success, or NULL on failure.
+ *
+ * \warning The returned websocket must be closed with \ref ast_websocket_close
+ * and its reference count decremented with \ref ast_websocket_unref when
+ * it's no longer needed.
  */
 struct ast_websocket *ast_websocket_client_connect(struct ast_websocket_client *wc,
 	void *lock_obj, const char *display_name, enum ast_websocket_result *result);
