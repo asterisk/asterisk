@@ -897,7 +897,9 @@ static int resolve_match_or_first(struct ast_sockaddr *addr, const char *name, i
 		ast_sockaddr_copy(addr, resolved);
 		ast_free(addrs);
 	} else {
-		ast_log(LOG_WARNING, "Unable to lookup '%s'\n", name);
+		if (!(ast_sockaddr_resolve_flags_get() & AST_SOCKADDR_RESOLVE_FLAG_SUPPRESS_EAI_NONAME_LOGS)) {
+			ast_log(LOG_WARNING, "Unable to lookup '%s'\n", name);
+		}
 		return -1;
 	}
 
