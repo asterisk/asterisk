@@ -56,6 +56,7 @@
 # Without curl-config, we can only guess what protocols are available,
 # or use curl_version_info to figure it out at runtime.
 
+
 AC_DEFUN([AST_LIBCURL_CHECK_CONFIG],
 [
   AH_TEMPLATE([LIBCURL_FEATURE_SSL],[Defined if libcurl supports SSL])
@@ -80,7 +81,10 @@ AC_DEFUN([AST_LIBCURL_CHECK_CONFIG],
   AH_TEMPLATE([LIBCURL_PROTOCOL_POP3],[Defined if libcurl supports POP3])
   AH_TEMPLATE([LIBCURL_PROTOCOL_IMAP],[Defined if libcurl supports IMAP])
   AH_TEMPLATE([LIBCURL_PROTOCOL_SMTP],[Defined if libcurl supports SMTP])
+  AH_TEMPLATE([LIBCURL_PROTOCOL_WS],[Defined if libcurl supports WS])
+  AH_TEMPLATE([LIBCURL_PROTOCOL_WSS],[Defined if libcurl supports WSS])
   AC_SUBST(PBX_CURL, 0)
+  AST_EXT_LIB_SETUP_OPTIONAL([CURL_WEBSOCKETS], [websockets], [CURL], [curl])
 
   AC_ARG_WITH(libcurl,
      AS_HELP_STRING([--with-libcurl=PREFIX],[look for the curl library in PREFIX/lib and headers in PREFIX/include]),
@@ -212,6 +216,30 @@ if (x) {;}
            AC_SUBST(CURL_INCLUDE)
            AC_SUBST(CURL_LIB)
            PBX_CURL=1
+
+           _libcurl_save_cppflags=$CPPFLAGS
+           CPPFLAGS="$CPPFLAGS $CURL_INCLUDE"
+           _libcurl_save_libs=$LIBS
+           LIBS="$LIBS $CURL_LIB"
+           AST_EXT_LIB_CHECK([CURL_WEBSOCKETS], [curl], [curl_ws_recv], [curl/curl.h])
+           CPPFLAGS="$CPPFLAGS -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Werror -Wundef"
+           AC_MSG_CHECKING([if curl_ws_recv takes const meta])
+           AC_COMPILE_IFELSE(
+           [AC_LANG_PROGRAM([
+               #include <curl/curl.h>
+             ], [
+               size_t bytes_read = 0;
+               const struct curl_ws_frame *meta = NULL;
+               curl_ws_recv(NULL, NULL, 0, &bytes_read, &meta);
+             ])],
+               AC_MSG_RESULT(yes)
+                 AC_DEFINE(HAVE_CURL_CONST_META, 1, [Define to 1 if your curl_ws_recv takes const meta.]),
+               AC_MSG_RESULT(no)
+           )
+           CPPFLAGS=$_libcurl_save_cppflags
+           LIBS=$_libcurl_save_libs
+           unset _libcurl_save_cppflags
+           unset _libcurl_save_libs
 
            for _libcurl_feature in $_libcurl_features ; do
               AC_DEFINE_UNQUOTED(AS_TR_CPP(libcurl_feature_$_libcurl_feature),[1])

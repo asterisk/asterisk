@@ -1085,6 +1085,10 @@ LIBEDIT_LIB
 CURL_LIB
 CURL_INCLUDE
 _libcurl_config
+PBX_CURL_WEBSOCKETS
+CURL_WEBSOCKETS_DIR
+CURL_WEBSOCKETS_INCLUDE
+CURL_WEBSOCKETS_LIB
 PBX_CURL
 PBX_LDAP
 LDAP_DIR
@@ -23066,7 +23070,21 @@ fi
 
 
 
+
+
   PBX_CURL=0
+
+
+CURL_WEBSOCKETS_DESCRIP="websockets"
+CURL_WEBSOCKETS_OPTION=curl
+CURL_WEBSOCKETS_DIR=${CURL_DIR}
+
+PBX_CURL_WEBSOCKETS=0
+
+
+
+
+
 
 
 
@@ -23394,6 +23412,155 @@ printf "%s\n" "#define HAVE_CURL 1" >>confdefs.h
 
 
            PBX_CURL=1
+
+           _libcurl_save_cppflags=$CPPFLAGS
+           CPPFLAGS="$CPPFLAGS $CURL_INCLUDE"
+           _libcurl_save_libs=$LIBS
+           LIBS="$LIBS $CURL_LIB"
+
+if test "x${PBX_CURL_WEBSOCKETS}" != "x1" -a "${USE_CURL_WEBSOCKETS}" != "no"; then
+   pbxlibdir=""
+   # if --with-CURL_WEBSOCKETS=DIR has been specified, use it.
+   if test "x${CURL_WEBSOCKETS_DIR}" != "x"; then
+      if test -d ${CURL_WEBSOCKETS_DIR}/lib; then
+         pbxlibdir="-L${CURL_WEBSOCKETS_DIR}/lib"
+      else
+         pbxlibdir="-L${CURL_WEBSOCKETS_DIR}"
+      fi
+   fi
+
+      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
+      CFLAGS="${CFLAGS} "
+      { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for curl_ws_recv in -lcurl" >&5
+printf %s "checking for curl_ws_recv in -lcurl... " >&6; }
+if test ${ac_cv_lib_curl_curl_ws_recv+y}
+then :
+  printf %s "(cached) " >&6
+else case e in #(
+  e) ac_check_lib_save_LIBS=$LIBS
+LIBS="-lcurl ${pbxlibdir}  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.
+   The 'extern "C"' is for builds by C++ compilers;
+   although this is not generally supported in C code supporting it here
+   has little cost and some practical benefit (sr 110532).  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char curl_ws_recv (void);
+int
+main (void)
+{
+return curl_ws_recv ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"
+then :
+  ac_cv_lib_curl_curl_ws_recv=yes
+else case e in #(
+  e) ac_cv_lib_curl_curl_ws_recv=no ;;
+esac
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS ;;
+esac
+fi
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_curl_curl_ws_recv" >&5
+printf "%s\n" "$ac_cv_lib_curl_curl_ws_recv" >&6; }
+if test "x$ac_cv_lib_curl_curl_ws_recv" = xyes
+then :
+  AST_CURL_WEBSOCKETS_FOUND=yes
+else case e in #(
+  e) AST_CURL_WEBSOCKETS_FOUND=no ;;
+esac
+fi
+
+      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
+
+
+   # now check for the header.
+   if test "${AST_CURL_WEBSOCKETS_FOUND}" = "yes"; then
+      CURL_WEBSOCKETS_LIB="${pbxlibdir} -lcurl "
+      # if --with-CURL_WEBSOCKETS=DIR has been specified, use it.
+      if test "x${CURL_WEBSOCKETS_DIR}" != "x"; then
+         CURL_WEBSOCKETS_INCLUDE="-I${CURL_WEBSOCKETS_DIR}/include"
+      fi
+      CURL_WEBSOCKETS_INCLUDE="${CURL_WEBSOCKETS_INCLUDE} "
+
+         # check for the header
+         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
+         CPPFLAGS="${CPPFLAGS} ${CURL_WEBSOCKETS_INCLUDE}"
+         ac_fn_c_check_header_compile "$LINENO" "curl/curl.h" "ac_cv_header_curl_curl_h" "$ac_includes_default"
+if test "x$ac_cv_header_curl_curl_h" = xyes
+then :
+  CURL_WEBSOCKETS_HEADER_FOUND=1
+else case e in #(
+  e) CURL_WEBSOCKETS_HEADER_FOUND=0 ;;
+esac
+fi
+
+         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
+
+      if test "x${CURL_WEBSOCKETS_HEADER_FOUND}" = "x0" ; then
+         CURL_WEBSOCKETS_LIB=""
+         CURL_WEBSOCKETS_INCLUDE=""
+      else
+
+         PBX_CURL_WEBSOCKETS=1
+         cat >>confdefs.h <<_ACEOF
+#define HAVE_CURL_WEBSOCKETS 1
+_ACEOF
+
+      fi
+   fi
+fi
+
+
+           CPPFLAGS="$CPPFLAGS -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Werror -Wundef"
+           { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking if curl_ws_recv takes const meta" >&5
+printf %s "checking if curl_ws_recv takes const meta... " >&6; }
+           cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+               #include <curl/curl.h>
+
+int
+main (void)
+{
+
+               size_t bytes_read = 0;
+               const struct curl_ws_frame *meta = NULL;
+               curl_ws_recv(NULL, NULL, 0, &bytes_read, &meta);
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"
+then :
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+
+printf "%s\n" "#define HAVE_CURL_CONST_META 1" >>confdefs.h
+
+else case e in #(
+  e) { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+            ;;
+esac
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
+           CPPFLAGS=$_libcurl_save_cppflags
+           LIBS=$_libcurl_save_libs
+           unset _libcurl_save_cppflags
+           unset _libcurl_save_libs
 
            for _libcurl_feature in $_libcurl_features ; do
               cat >>confdefs.h <<_ACEOF

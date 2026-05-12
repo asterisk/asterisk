@@ -75,6 +75,7 @@ enum ast_websocket_opcode {
 	AST_WEBSOCKET_OPCODE_PONG = 0xA,         /*!< Response to a ping */
 	AST_WEBSOCKET_OPCODE_CLOSE = 0x8,        /*!< Connection is being closed */
 	AST_WEBSOCKET_OPCODE_CONTINUATION = 0x0, /*!< Continuation of a previous frame */
+	AST_WEBSOCKET_OPCODE_UNKNOWN = 0xf,      /*!< Error */
 };
 
 /*! \brief Websocket Status Codes from RFC-6455 */
@@ -517,9 +518,30 @@ struct ast_websocket_client_options {
 	 * Secure websocket credentials
 	 */
 	struct ast_tls_config *tls_cfg;
-	const char *username;          /*!< Auth username */
-	const char *password;          /*!< Auth password */
+	const char *username;          /*!< WebSocket server auth username */
+	const char *password;          /*!< WebSocket server auth password */
+
 	int suppress_connection_msgs;  /*!< Suppress connection log messages */
+	/*!
+	 * Forward proxy
+	 */
+	const char *proxy_uri;       /*!< Proxy server URI */
+	const char *proxy_username;  /*!< Proxy server auth username */
+	const char *proxy_password;  /*!< Proxy server auth password */
+	int proxy_force_tunnel;
+	/*!
+	 * TCP Keepalives
+	 */
+	int tcp_keepalives;                /*!< Enable TCP keepalives */
+	unsigned int tcp_keepalive_time;   /*!< Start sending when connection has been idle for this many seconds */
+	unsigned int tcp_keepalive_intvl;  /*!< Send keepalives at this interval in seconds */
+	unsigned int tcp_keepalive_probes; /*!< Close connection after this many missed responses */
+	/*!
+	 * WebSocket PING/PONG
+	 */
+	int pingpongs;                /*!< Enable Websocket PING/PONGs */
+	unsigned int pingpong_intvl;  /*!< Send PING messages at this interval in seconds */
+	unsigned int pingpong_probes; /*!< Close connection after this many missed responses */
 };
 
 /*!
@@ -540,6 +562,20 @@ struct ast_websocket_client_options {
 AST_OPTIONAL_API(struct ast_websocket *, ast_websocket_client_create_with_options,
 	(struct ast_websocket_client_options *options,
 	enum ast_websocket_result *result), { return NULL;});
+
+/*!
+ * \brief Check if the websocket client supports forward proxies.
+ *
+ * \since 20.20.0
+ * \since 22.10.0
+ * \since 23.4.0
+ *
+ * \retval 0 if false
+ * \retval 1 if true
+ *
+ */
+AST_OPTIONAL_API(int, ast_websocket_client_is_proxy_supported, (void),
+	{ return 0;});
 
 /*!
  * \brief Retrieve the server accepted sub-protocol on the client.

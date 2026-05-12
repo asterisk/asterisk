@@ -49,3 +49,111 @@
 ;verify_server_hostname = no   ; Verify that the hostname in the server's certificate
                                ; matches the hostname in the URI configured above.
                                ; Default: yes
+;
+; Outbound/Forward HTTP Proxy
+;
+; If you need to use a proxy to reach the websocket server, you can configure it below
+; however the ability to use a proxy is dependent on libcurl version 7.86.0 or greater
+; being installed in both the build and runtime environments.
+;
+;proxy_uri = http://proxy:8080 ; The URI for a forward proxy.
+                               ; Default: none
+;proxy_username = username     ; An authentication username for the proxy.
+                               ; Default: none
+;proxy_password = password     ; An authentication password for the proxy.
+                               ; Default: none
+;proxy_force_tunnel = no       ; Asterisk will ask the proxy to establish a TCP tunnel for
+                               ; obvious cases like requiring an SSL connection with the
+                               ; WebSocket server (wss://). There may be cases however where
+                               ; you might need to force the use of a tunnel such as if the
+                               ; proxy doesn't support the UPGRADE method needed to change
+                               ; from HTTP to WebSocket.
+                               ; Default: no
+;
+; Detecting active connection failures.
+;
+; Generally speaking, if the websocket server process dies, the host operating
+; system will automatically close the TCP connection.  Asterisk will detect
+; that immediately and attempt to re-establish the connection using the configured
+; connection_timeout, reconnect_interval and reconnect_attempts parameters.
+;
+; However if the host server itself dies or packets are being dropped in the
+; network, Asterisk won't be able to detect this until the next time it tries
+; to send data.  To address this, there are two capabilities available:
+; TCP Keepalives and WebSocket PING/PONG.
+;
+; Which method you chose is entirely up to you and your environment.  Nothing
+; prevents you from activating both but sending a PING frame will reset the
+; TCP keepalive idle timeout so, depending on the intervals configured, the
+; connection may never be idle long enough to trigger sending keepalives.
+;
+; * TCP Keepalives
+;
+; TCP keepalives are implemented by the Linux kernel and once configured, require no
+; resources from Asterisk. The same can be said for the server side as replying to
+; the keepalives is also handled entirely by the operating system without any
+; involvement from application servers.  Once the configured number of replies are
+; missed, the kernel will close the socket which notifies Asterisk and causes an
+; attempt to reconnect using the configured connection_timeout, reconnect_interval
+; and reconnect_attempts parameters.
+;
+; The one downside to TCP keepalives is that they won't traverse a proxy so
+; you'll really only be testing if you can reach the proxy, not the websocket
+; server itself.
+;
+;enable_tcp_keepalives = yes  ; Enable TCP keepalives on outgoing WebSockets.
+                              ; Default: no
+
+;tcp_keepalive_time = 20  ; Start sending keepalives when no data has been sent on
+                          ; the connection for this many seconds.
+                          ; Default: 20 seconds
+
+;tcp_keepalive_intvl = 20 ; Send keepalives at this interval in seconds.
+                          ; If a reply isn't received by the time the next keepalive
+                          ; is due to be sent, it's considered missed so this option
+                          ; also controls how long it takes to detect a failure.
+                          ; See below.
+                          ; Default: 20 seconds
+
+;tcp_keepalive_probes = 3 ; Close the connection after this many missed replies.
+                          ; The time to detect a failure will be between
+                          ; (probes * intvl) and ((probes + 1) * intvl) seconds.
+                          ; If the connection closes and reconnect_interval and
+                          ; reconnect_attempts are set, a new connection will be
+                          ; attempted using those parameters.
+                          ; Default: 3 probes
+;
+; * WebSocket PING/PONG frames
+;
+; WebSocket PING/PONG frames are another way to detect failures.  When configured,
+; Asterisk will send a WebSoocket PING frame to the server at the configured interval.
+; All WebSocket server implementation are REQUIRED to respond with a PONG frame.
+; Once the configured number of PONG replies are missed, Asterisk will close the
+; connection and attempt to reconnect using the configured connection_timeout,
+; reconnect_interval and reconnect_attempts parameters.  Unlike TCP heepalives
+; however, Asterisk must create a scheduler thread and manage the process so it's
+; not without overhead, however small.
+;
+; In contrast to TCP keepalives, WebSocket PING/PONGs will traverse a proxy.
+;
+;enable_pingpongs     ; Enable Websocket PING/PONGs
+                      ; Default: no
+
+;pingpong_intvl = 20  ; Send WebSocket PINGs at this interval in seconds.
+                      ; If a reply isn't received by the time the next PING is due
+                      ; to be sent, it's considered missed so this option also controls
+                      ; how long it takes to detect a failure.  See below.
+                      ; Default: 20 seconds
+
+;pingpong_probes = 3  ; Close the connection after this many missed PONG replies.
+                      ; The time to detect a failure is will be between
+                      ; (ping_cnt * ping_intvl) and ((ping_cnt + 1) * ping_intvl)
+                      ; seconds.  If the connection closes and reconnect_interval and
+                      ; reconnect_attempts are set, a new connection will be attempted using
+                      ; those parameters.
+                      ; Default: 3 probes
+;
+; Also be aware...many websocket server implementations can send PING frames
+; _to_ Asterisk which will automatically generate PONG replies.  These won't
+; interfere with Asterisk sending its own PINGs.
+;

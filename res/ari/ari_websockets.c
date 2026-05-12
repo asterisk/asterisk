@@ -853,6 +853,7 @@ static void websocket_established_cb(struct ast_websocket *ast_ws_session,
 			upgrade_headers, ari_ws_session->app_name, msg);
 		ast_json_unref(msg);
 	}
+	ast_websocket_close(ast_ws_session, AST_WEBSOCKET_STATUS_GOING_AWAY);
 	ari_ws_session->connected = 0;
 
 	SCOPE_EXIT("%s: Websocket closed\n", remote_addr);
@@ -1042,6 +1043,7 @@ static void *outbound_session_handler_thread(void *obj)
 		}
 
 		session->connected = 0;
+		ast_websocket_close(session->ast_ws_session, AST_WEBSOCKET_STATUS_GOING_AWAY);
 		ast_websocket_unref(session->ast_ws_session);
 		session->ast_ws_session = NULL;
 		if (session->closing) {

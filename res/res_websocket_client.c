@@ -221,6 +221,159 @@ verify_server_hostname = no
 					</since>
 					<synopsis>If set to true, verify that the server's hostname matches the common name in it's certificate. (optional)</synopsis>
 				</configOption>
+				<configOption name="proxy_uri">
+					<since>
+						<version>20.20.0</version>
+						<version>22.10.0</version>
+						<version>23.4.0</version>
+					</since>
+					<synopsis>Full URI to an outbound proxy if required. (optional)</synopsis>
+					<description>
+						<para>
+							<emphasis>Requires CURL 7.86.0 or greater</emphasis>
+						</para>
+						<para>
+							If an outbound proxy is required to reach the websocket server,
+							specify a full URI in the form <literal>http://&lt;host&gt;[:&lt;port7gt;]</literal>
+						</para>
+					</description>
+				</configOption>
+				<configOption name="proxy_username">
+					<since>
+						<version>20.20.0</version>
+						<version>22.10.0</version>
+						<version>23.4.0</version>
+					</since>
+					<synopsis>Proxy authentication username if required. (optional)</synopsis>
+					<description>
+						<para>
+							<emphasis>Requires CURL 7.86.0 or greater</emphasis>
+						</para>
+					</description>
+				</configOption>
+				<configOption name="proxy_password">
+					<since>
+						<version>20.20.0</version>
+						<version>22.10.0</version>
+						<version>23.4.0</version>
+					</since>
+					<synopsis>Proxy authentication password if required. (optional)</synopsis>
+					<description>
+						<para>
+							<emphasis>Requires CURL 7.86.0 or greater</emphasis>
+						</para>
+					</description>
+				</configOption>
+				<configOption name="proxy_force_tunnel">
+					<since>
+						<version>20.20.0</version>
+						<version>22.10.0</version>
+						<version>23.4.0</version>
+					</since>
+					<synopsis>Force use of HTTP CONNECT to create a TCP tunnel. (optional)</synopsis>
+					<description>
+						<para>
+							<emphasis>Requires CURL 7.86.0 or greater</emphasis>
+						</para>
+						<para>
+							A tunnel will automatically be used for obvious cases like establishing
+							an SSL connection with the WebSocket server (wss://). There may be cases
+							however where you'll need to force the use of a tunnel such as if the
+							proxy doesn't support the UPGRADE method needed to change from HTTP
+							to WebSocket.
+						</para>
+					</description>
+				</configOption>
+				<configOption name="enable_tcp_keepalives">
+					<since>
+						<version>20.20.0</version>
+						<version>22.10.0</version>
+						<version>23.4.0</version>
+					</since>
+					<synopsis>Enable TCP Keepalives. (optional)</synopsis>
+				</configOption>
+				<configOption name="tcp_keepalive_time">
+					<since>
+						<version>20.20.0</version>
+						<version>22.10.0</version>
+						<version>23.4.0</version>
+					</since>
+					<synopsis>Start sending keepalives when no data has been sent for this many seconds. (optional)</synopsis>
+				</configOption>
+				<configOption name="tcp_keepalive_intvl">
+					<since>
+						<version>20.20.0</version>
+						<version>22.10.0</version>
+						<version>23.4.0</version>
+					</since>
+					<synopsis>Send keepalives at this interval in seconds. (optional)</synopsis>
+					<description>
+						<para>
+							If a reply isn't received by the time the next keepalive is due
+							to be sent, it's considered missed so this option also controls
+							how long it takes to detect a failure.
+						</para>
+					</description>
+				</configOption>
+				<configOption name="tcp_keepalive_probes">
+					<since>
+						<version>20.20.0</version>
+						<version>22.10.0</version>
+						<version>23.4.0</version>
+					</since>
+					<synopsis>Close the connection after this many missed replies. (optional)</synopsis>
+					<description>
+						<para>
+							If a reply isn't received by the time the next keepalive is due
+							to be sent, it's considered missed.  The time to detect a failure
+							is therefore between (tcp_keepcnt * tcp_keepintvl) and
+							((tcp_keepcnt + 1) * tcp_keepintvl) seconds. If the connection closes
+							and reconnect_interval reconnect_attempts are set, a new connection
+							will be attempted using those parameters.
+						</para>
+					</description>
+				</configOption>
+				<configOption name="enable_pingpongs">
+					<since>
+						<version>20.20.0</version>
+						<version>22.10.0</version>
+						<version>23.4.0</version>
+					</since>
+					<synopsis>Enable WebSocket PING/PONGs.. (optional)</synopsis>
+				</configOption>
+				<configOption name="pingpong_intvl">
+					<since>
+						<version>20.20.0</version>
+						<version>22.10.0</version>
+						<version>23.4.0</version>
+					</since>
+					<synopsis>Send WebSocket PINGs at this interval in seconds. (optional)</synopsis>
+					<description>
+						<para>
+							If a reply isn't received by the time the next PING is due
+							to be sent, it's considered missed so this option also controls
+							how long it takes to detect a failure.
+						</para>
+					</description>
+				</configOption>
+				<configOption name="pingpong_probes">
+					<since>
+						<version>20.20.0</version>
+						<version>22.10.0</version>
+						<version>23.4.0</version>
+					</since>
+					<synopsis>Close the connection after this many missed PONG replies. (optional)</synopsis>
+					<description>
+						<para>
+							If a reply isn't received by the time the next PING is due
+							to be sent, it's considered missepingd.  The time to detect a failure
+							is therefore between (ping_cnt * ping_intvl) and
+							((ping_cnt + 1) * ping_intvl) seconds. If the connection closes
+							and reconnect_interval reconnect_attempts are set, a new connection
+							will be attempted using those parameters.
+						</para>
+					</description>
+				</configOption>
 			</configObject>
 		</configFile>
 	</configInfo>
@@ -276,6 +429,17 @@ struct ast_websocket *ast_websocket_client_connect(struct ast_websocket_client *
 			.password = wc->password,
 			.timeout = wc->connect_timeout,
 			.suppress_connection_msgs = 1,
+			.proxy_uri = wc->proxy_uri,
+			.proxy_username = wc->proxy_username,
+			.proxy_password = wc->proxy_password,
+			.proxy_force_tunnel = wc->proxy_force_tunnel,
+			.tcp_keepalives = wc->tcp_keepalives,
+			.tcp_keepalive_time = wc->tcp_keepalive_time,
+			.tcp_keepalive_intvl = wc->tcp_keepalive_intvl,
+			.tcp_keepalive_probes = wc->tcp_keepalive_probes,
+			.pingpongs = wc->pingpongs,
+			.pingpong_intvl = wc->pingpong_intvl,
+			.pingpong_probes = wc->pingpong_probes,
 			.tls_cfg = NULL,
 		};
 
@@ -383,6 +547,21 @@ static void *wc_alloc(const char *id)
 		return NULL;
 	}
 
+	if (ast_string_field_init_extended(wc, proxy_uri) != 0) {
+		ao2_cleanup(wc);
+		return NULL;
+	}
+
+	if (ast_string_field_init_extended(wc, proxy_username) != 0) {
+		ao2_cleanup(wc);
+		return NULL;
+	}
+
+	if (ast_string_field_init_extended(wc, proxy_password) != 0) {
+		ao2_cleanup(wc);
+		return NULL;
+	}
+
 	ast_debug(2, "%s: Allocated websocket client config\n", id);
 	return wc;
 }
@@ -438,6 +617,27 @@ static int wc_apply(const struct ast_sorcery *sorcery, void *obj)
 		res = -1;
 	}
 
+	if (!ast_strlen_zero(wc->proxy_uri) || !ast_strlen_zero(wc->proxy_username)
+		|| !ast_strlen_zero(wc->proxy_password)) {
+		if (!ast_websocket_client_is_proxy_supported()) {
+			ast_log(LOG_WARNING, "%s: WebSockets via proxies aren't supported with the current version of curl\n", id);
+			res = -1;
+		}
+	}
+
+	if (wc->tcp_keepalives) {
+		if (!wc->tcp_keepalive_time || !wc->tcp_keepalive_intvl || !wc->tcp_keepalive_probes) {
+			ast_log(LOG_WARNING, "%s: tcp_keepalive_time, tcp_keepalive_intvl and tcp_keepalive_probes must all be non-zero\n", id);
+			res = -1;
+		}
+	}
+
+	if (wc->pingpongs) {
+		if (!wc->pingpong_intvl || !wc->pingpong_probes) {
+			ast_log(LOG_WARNING, "%s: pingpong_intvl and pingpong_probes must be non-zero\n", id);
+			res = -1;
+		}
+	}
 	if (res != 0) {
 		ast_log(LOG_WARNING, "%s: Websocket client configuration failed\n", id);
 	} else {
@@ -526,6 +726,28 @@ enum ast_ws_client_fields ast_websocket_client_get_field_diff(
 			changed |= AST_WS_CLIENT_FIELD_VERIFY_SERVER_CERT;
 		} else if (ast_strings_equal(v->name, "verify_server_hostname")) {
 			changed |= AST_WS_CLIENT_FIELD_VERIFY_SERVER_HOSTNAME;
+		} else if (ast_strings_equal(v->name, "proxy_uri")) {
+			changed |= AST_WS_CLIENT_FIELD_PROXY_URI;
+		} else if (ast_strings_equal(v->name, "proxy_username")) {
+			changed |= AST_WS_CLIENT_FIELD_PROXY_USERNAME;
+		} else if (ast_strings_equal(v->name, "proxy_password")) {
+			changed |= AST_WS_CLIENT_FIELD_PROXY_PASSWORD;
+		} else if (ast_strings_equal(v->name, "proxy_force_tunnel")) {
+			changed |= AST_WS_CLIENT_FIELD_PROXY_FORCE_TUNNEL;
+		} else if (ast_strings_equal(v->name, "enable_tcp_keepalives")) {
+			changed |= AST_WS_CLIENT_FIELD_TCP_KEEPALIVES;
+		} else if (ast_strings_equal(v->name, "tcp_keepalive_time")) {
+			changed |= AST_WS_CLIENT_FIELD_TCP_KEEPALIVE_TIME;
+		} else if (ast_strings_equal(v->name, "tcp_keepalive_intvl")) {
+			changed |= AST_WS_CLIENT_FIELD_TCP_KEEPALIVE_INTVL;
+		} else if (ast_strings_equal(v->name, "tcp_keepalive_probes")) {
+			changed |= AST_WS_CLIENT_FIELD_TCP_KEEPALIVE_PROBES;
+		} else if (ast_strings_equal(v->name, "enable_pingpongs")) {
+			changed |= AST_WS_CLIENT_FIELD_PINGPONGS;
+		} else if (ast_strings_equal(v->name, "pingpong_intvl")) {
+			changed |= AST_WS_CLIENT_FIELD_PINGPONG_INTVL;
+		} else if (ast_strings_equal(v->name, "pingpong_probes")) {
+			changed |= AST_WS_CLIENT_FIELD_PINGPONG_PROBES;
 		} else {
 			ast_debug(2, "%s: Unknown change %s\n", new_id, v->name);
 		}
@@ -599,6 +821,17 @@ static int load_module(void)
 	ast_sorcery_register_int(websocket_client, ast_websocket_client, connection_timeout, connect_timeout, 500);
 	ast_sorcery_register_int(websocket_client, ast_websocket_client, reconnect_attempts, reconnect_attempts, 4);
 	ast_sorcery_register_int(websocket_client, ast_websocket_client, reconnect_interval, reconnect_interval, 500);
+	ast_sorcery_register_sf(websocket_client, ast_websocket_client, proxy_uri, proxy_uri, "");
+	ast_sorcery_register_sf(websocket_client, ast_websocket_client, proxy_username, proxy_username, "");
+	ast_sorcery_register_sf(websocket_client, ast_websocket_client, proxy_password, proxy_password, "");
+	ast_sorcery_register_bool(websocket_client, ast_websocket_client, proxy_force_tunnel, proxy_force_tunnel, "no");
+	ast_sorcery_register_bool(websocket_client, ast_websocket_client, enable_tcp_keepalives, tcp_keepalives, "no");
+	ast_sorcery_register_uint(websocket_client, ast_websocket_client, tcp_keepalive_time, tcp_keepalive_time, 20);
+	ast_sorcery_register_uint(websocket_client, ast_websocket_client, tcp_keepalive_intvl, tcp_keepalive_intvl, 20);
+	ast_sorcery_register_uint(websocket_client, ast_websocket_client, tcp_keepalive_probes, tcp_keepalive_probes, 3);
+	ast_sorcery_register_bool(websocket_client, ast_websocket_client, enable_pingpongs, pingpongs, "no");
+	ast_sorcery_register_uint(websocket_client, ast_websocket_client, pingpong_intvl, pingpong_intvl, 20);
+	ast_sorcery_register_uint(websocket_client, ast_websocket_client, pingpong_probes, pingpong_probes, 3);
 
 	ast_sorcery_load(sorcery);
 

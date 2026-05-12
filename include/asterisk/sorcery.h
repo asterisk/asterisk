@@ -1727,7 +1727,7 @@ extern int ast_sorcery_update_or_create_on_update_miss;
  */
 #define ast_sorcery_register_uint(object, structure, option, field, def_value) \
 	ast_sorcery_object_field_register(sorcery, #object, #option, \
-		_stringify(def_value), OPT_UINT_T, PARSE_IN_RANGE, \
+		_sorcery_stringify(def_value), OPT_UINT_T, PARSE_IN_RANGE, \
 		FLDSET(struct structure, field), 0, UINT_MAX)
 
 /*!
