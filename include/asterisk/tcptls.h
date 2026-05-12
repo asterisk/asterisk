@@ -219,6 +219,47 @@ void ast_tcptls_server_start(struct ast_tcptls_session_args *desc);
 void ast_tcptls_server_stop(struct ast_tcptls_session_args *desc);
 
 /*!
+ * \brief Set up an SSL client
+ *
+ * \since 20.21.0
+ * \since 22.11.0
+ * \since 23.5.0
+ *
+ * \note This function only needs to be called if an unsecured tcptls session is
+ * already established and you need to switch it to TLS. This function doesn't
+ * actually start any negotiation.  It just reads any certificates, key files
+ * and options from the config and creates the SSL context.
+ *
+ * \param cfg Configuration for the SSL client
+ *
+ * \retval 1 Success
+ * \retval 0 Failure
+ */
+int ast_ssl_setup_client(struct ast_tls_config *cfg);
+
+/*!
+ * \brief Start TLS negotiation on an existing unsecured connection
+ *
+ * \since 20.21.0
+ * \since 22.11.0
+ * \since 23.5.0
+ *
+ * \note This function only needs to be called if an unsecured tcptls session is
+ * already established and you need to switch it to TLS. This function performs
+ * the handshake and validation.  \ref ast_ssl_setup_client must be called first
+ * to create the SSL context.
+ *
+ * \param tcptls_session The existing unsecured session
+ *
+ * \warning If this function fails, it will automatically dereference tcptls_session
+ * and close the connection so don't attempt to dereference it again.
+ *
+ * \retval tcptls_session on Success
+ * \retval NULL Failure
+ */
+struct ast_tcptls_session_instance *ast_tcptls_start_tls(struct ast_tcptls_session_instance *tcptls_session);
+
+/*!
  * \brief Set up an SSL server
  *
  * \param cfg Configuration for the SSL server
