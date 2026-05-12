@@ -60,8 +60,7 @@ static int websocket_disconnect(struct aeap_transport *self)
 	struct aeap_transport_websocket *transport = (struct aeap_transport_websocket *)self;
 
 	if (transport->ws) {
-		ast_websocket_unref(transport->ws);
-		transport->ws = NULL;
+		ast_websocket_close(transport->ws, AST_WEBSOCKET_STATUS_NORMAL);
 	}
 
 	return 0;
@@ -69,11 +68,12 @@ static int websocket_disconnect(struct aeap_transport *self)
 
 static void websocket_destroy(struct aeap_transport *self)
 {
-	/*
-	 * Disconnect takes care of cleaning up the websocket. Note, disconnect
-	 * was called by the base/dispatch interface prior to calling this
-	 * function so nothing to do here.
-	 */
+	struct aeap_transport_websocket *transport = (struct aeap_transport_websocket *)self;
+
+	if (transport->ws) {
+		ast_websocket_unref(transport->ws);
+		transport->ws = NULL;
+	}
 }
 
 static intmax_t websocket_read(struct aeap_transport *self, void *buf, intmax_t size,

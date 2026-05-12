@@ -130,48 +130,13 @@ static void write_openssl_error_to_log(void)
 }
 #endif
 
-/*! \brief
-* creates a FILE * from the fd passed by the accept thread.
-* This operation is potentially expensive (certificate verification),
-* so we do it in the child thread context.
-*
-* \note must decrement ref count before returning NULL on error
-*/
-static void *handle_tcptls_connection(void *data)
+struct ast_tcptls_session_instance *ast_tcptls_start_tls(struct ast_tcptls_session_instance *tcptls_session)
 {
-	struct ast_tcptls_session_instance *tcptls_session = data;
 #ifdef DO_SSL
 	SSL *ssl;
 #endif
 
-	/* TCP/TLS connections are associated with external protocols, and
-	 * should not be allowed to execute 'dangerous' functions. This may
-	 * need to be pushed down into the individual protocol handlers, but
-	 * this seems like a good general policy.
-	 */
-	if (ast_thread_inhibit_escalations()) {
-		ast_log(LOG_ERROR, "Failed to inhibit privilege escalations; killing connection from peer '%s'\n",
-			ast_sockaddr_stringify(&tcptls_session->remote_address));
-		ast_tcptls_close_session_file(tcptls_session);
-		ao2_ref(tcptls_session, -1);
-		return NULL;
-	}
-
-	/*
-	 * TCP/TLS connections are associated with external protocols which can
-	 * be considered to be user interfaces (even for SIP messages), and
-	 * will not handle channel media.  This may need to be pushed down into
-	 * the individual protocol handlers, but this seems like a good start.
-	 */
-	if (ast_thread_user_interface_set(1)) {
-		ast_log(LOG_ERROR, "Failed to set user interface status; killing connection from peer '%s'\n",
-			ast_sockaddr_stringify(&tcptls_session->remote_address));
-		ast_tcptls_close_session_file(tcptls_session);
-		ao2_ref(tcptls_session, -1);
-		return NULL;
-	}
-
-	if (tcptls_session->parent->tls_cfg) {
+	if (tcptls_session->parent->tls_cfg && tcptls_session->parent->tls_cfg->enabled) {
 #ifdef DO_SSL
 		if (ast_iostream_start_tls(&tcptls_session->stream, tcptls_session->parent->tls_cfg->ssl_ctx, tcptls_session->client) < 0) {
 			SSL *ssl = ast_iostream_get_ssl(tcptls_session->stream);
@@ -268,6 +233,51 @@ static void *handle_tcptls_connection(void *data)
 		ao2_ref(tcptls_session, -1);
 		return NULL;
 #endif /* DO_SSL */
+	}
+
+	return tcptls_session;
+}
+
+/*! \brief
+* creates a FILE * from the fd passed by the accept thread.
+* This operation is potentially expensive (certificate verification),
+* so we do it in the child thread context.
+*
+* \note must decrement ref count before returning NULL on error
+*/
+static void *handle_tcptls_connection(void *data)
+{
+	struct ast_tcptls_session_instance *tcptls_session = data;
+
+	/* TCP/TLS connections are associated with external protocols, and
+	 * should not be allowed to execute 'dangerous' functions. This may
+	 * need to be pushed down into the individual protocol handlers, but
+	 * this seems like a good general policy.
+	 */
+	if (ast_thread_inhibit_escalations()) {
+		ast_log(LOG_ERROR, "Failed to inhibit privilege escalations; killing connection from peer '%s'\n",
+			ast_sockaddr_stringify(&tcptls_session->remote_address));
+		ast_tcptls_close_session_file(tcptls_session);
+		ao2_ref(tcptls_session, -1);
+		return NULL;
+	}
+
+	/*
+	 * TCP/TLS connections are associated with external protocols which can
+	 * be considered to be user interfaces (even for SIP messages), and
+	 * will not handle channel media.  This may need to be pushed down into
+	 * the individual protocol handlers, but this seems like a good start.
+	 */
+	if (ast_thread_user_interface_set(1)) {
+		ast_log(LOG_ERROR, "Failed to set user interface status; killing connection from peer '%s'\n",
+			ast_sockaddr_stringify(&tcptls_session->remote_address));
+		ast_tcptls_close_session_file(tcptls_session);
+		ao2_ref(tcptls_session, -1);
+		return NULL;
+	}
+
+	if (ast_tcptls_start_tls(tcptls_session) == NULL) {
+		return NULL;
 	}
 
 	if (tcptls_session->parent->worker_fn) {
@@ -577,6 +587,11 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client,
 int ast_ssl_setup(struct ast_tls_config *cfg)
 {
 	return __ssl_setup(cfg, 0, 0);
+}
+
+int ast_ssl_setup_client(struct ast_tls_config *cfg)
+{
+	return __ssl_setup(cfg, 1, 1);
 }
 
 void ast_ssl_teardown(struct ast_tls_config *cfg)
