@@ -3992,6 +3992,7 @@ static int ice_create(struct ast_rtp_instance *instance, struct ast_sockaddr *ad
 	struct ice_wrap *ice;
 	pj_ice_sess *real_ice = NULL;
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+	pj_ice_sess_options ice_opt;
 
 	ao2_cleanup(rtp->ice_local_candidates);
 	rtp->ice_local_candidates = NULL;
@@ -4019,6 +4020,10 @@ static int ice_create(struct ast_rtp_instance *instance, struct ast_sockaddr *ad
 	/* Create an ICE session for ICE negotiation */
 	status = pj_ice_sess_create(&stun_config, NULL, PJ_ICE_SESS_ROLE_UNKNOWN,
 		rtp->ice_num_components, &ast_rtp_ice_sess_cb, &ufrag, &passwd, NULL, &real_ice);
+	pj_memcpy(&ice_opt, &real_ice->opt, sizeof(ice_opt));
+	ice_opt.trickle = PJ_ICE_SESS_TRICKLE_HALF;
+	pj_ice_sess_set_options(real_ice, &ice_opt);
+
 	ao2_lock(instance);
 	if (status == PJ_SUCCESS) {
 		/* Safely complete linking the ICE session into the instance */
