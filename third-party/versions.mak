@@ -1,6 +1,6 @@
 # This file is also 'sourced' by the
 # configure script so it must follow 'shell'
 # syntax as well as 'make' syntax.
-JANSSON_VERSION=2.14.1
+JANSSON_VERSION=2.15.0
 PJPROJECT_VERSION=2.17
 LIBJWT_VERSION=1.15.3
