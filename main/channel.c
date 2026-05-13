@@ -2467,41 +2467,7 @@ int ast_softhangup(struct ast_channel *chan, int cause)
 	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
 	int res;
 	int tech_cause = 0;
-	struct ast_rtp_glue *glue;
-	struct ast_rtp_instance *rtp = NULL;
-	const struct ast_channel_tech *tech;
 
-	/*
-	 * Only hold the channel lock long enough to get the rtp instance.
-	 * glue->get_rtp_info() will bump the refcount on it.
-	 */
-	ast_channel_lock(chan);
-	tech = ast_channel_tech(chan);
-	glue = ast_rtp_instance_get_glue(tech->type);
-	if (glue) {
-		glue->get_rtp_info(chan, &rtp);
-	}
-	ast_channel_unlock(chan);
-
-	/*
-	 * If this channel is in a bridge, ast_rtp_instance_set_stats_vars() will
-	 * attempt to lock the bridge peer as well as this channel.  This can cause
-	 * a lock inversion if we already have this channel locked and another
-	 * thread tries to set bridge variables on the peer because it will have
-	 * locked the peer first, then this channel.  For this reason, we must
-	 * NOT have the channel locked when we call ast_rtp_instance_set_stats_vars().
-	 * This should be safe since glue->get_rtp_info() will have bumped the
-	 * refcount on the rtp instance so it can't go away while the channel
-	 * is unlocked.
-	 */
-	if (rtp) {
-		ast_rtp_instance_set_stats_vars(chan, rtp);
-		ao2_ref(rtp, -1);
-	}
-
-	/*
-	 * Now it's safe to lock the channel again.
-	 */
 	ast_channel_lock(chan);
 
 	res = ast_softhangup_nolock(chan, cause);
