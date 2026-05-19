@@ -9418,7 +9418,7 @@ static int ast_rtp_get_stat(struct ast_rtp_instance *instance, struct ast_rtp_in
 	AST_RTP_STAT_SET(AST_RTP_INSTANCE_STAT_LOCAL_MAXMES, AST_RTP_INSTANCE_STAT_COMBINED_MES, stats->local_maxmes, rtp->rtcp->maxrxmes);
 	AST_RTP_STAT_SET(AST_RTP_INSTANCE_STAT_LOCAL_MINMES, AST_RTP_INSTANCE_STAT_COMBINED_MES, stats->local_minmes, rtp->rtcp->minrxmes);
 	AST_RTP_STAT_SET(AST_RTP_INSTANCE_STAT_LOCAL_NORMDEVMES, AST_RTP_INSTANCE_STAT_COMBINED_MES, stats->local_normdevmes, rtp->rtcp->normdev_rxmes);
-	AST_RTP_STAT_SET(AST_RTP_INSTANCE_STAT_LOCAL_STDEVMES, AST_RTP_INSTANCE_STAT_COMBINED_MES, stats->local_stdevmes, rtp->rtcp->stdev_rxjitter);
+	AST_RTP_STAT_SET(AST_RTP_INSTANCE_STAT_LOCAL_STDEVMES, AST_RTP_INSTANCE_STAT_COMBINED_MES, stats->local_stdevmes, rtp->rtcp->stdev_rxmes);
 	AST_RTP_STAT_TERMINATOR(AST_RTP_INSTANCE_STAT_COMBINED_MES);
 
 
