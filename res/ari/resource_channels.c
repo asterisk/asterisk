@@ -1372,7 +1372,6 @@ static struct ast_channel *ari_channels_handle_originate_with_id(const char *arg
 		ast_channel_set_connected_line(chan, &connected, NULL);
 	}
 
-	ast_channel_lock(chan);
 	if (variables) {
 		ast_set_variables(chan, variables);
 	}
@@ -1392,7 +1391,6 @@ static struct ast_channel *ari_channels_handle_originate_with_id(const char *arg
 	}
 
 	snapshot = ast_channel_snapshot_get_latest(ast_channel_uniqueid(chan));
-	ast_channel_unlock(chan);
 
 	/* Before starting the async dial bump the ref in case the dial quickly goes away and takes
 	 * the reference with it
