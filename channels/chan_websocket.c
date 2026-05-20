@@ -1096,7 +1096,14 @@ static int read_from_ws_and_queue(struct websocket_pvt *instance)
 		return process_text_message(instance, payload, payload_len);
 	}
 
-	if (opcode == AST_WEBSOCKET_OPCODE_PING || opcode == AST_WEBSOCKET_OPCODE_PONG) {
+	/*
+	 * PINGs and PONGs will have been handled by res_http_websocket.
+	 * We also need to ignore CONTINUATION frames as they will be accumulated
+	 * by res_http_websocket until the threshold set in websocket_handoff_to_channel()
+	 * is reached, then it will send us a TEXT or BINARY frame.
+	 */
+	if (opcode == AST_WEBSOCKET_OPCODE_PING || opcode == AST_WEBSOCKET_OPCODE_PONG
+		|| opcode == AST_WEBSOCKET_OPCODE_CONTINUATION) {
 		return 0;
 	}
 
@@ -1138,6 +1145,13 @@ static int websocket_handoff_to_channel(struct websocket_pvt *instance)
 		IPPROTO_TCP, TCP_NODELAY, (char *) &nodelay, sizeof(nodelay)) < 0) {
 		ast_log(LOG_WARNING, "Failed to set TCP_NODELAY on websocket connection: %s\n", strerror(errno));
 	}
+
+	/*
+	 * Tell res_http_websocket to accumulate incoming WebSocket CONTINUATION frames
+	 * into chunks of 1024 bytes and send us a TEXT or BINARY frame when the threshold
+	 * is reached.
+	 */
+	ast_websocket_reconstruct_enable(instance->websocket, 1024);
 
 	ast_channel_set_fd(instance->channel, WS_WEBSOCKET_FDNO, ast_websocket_fd(instance->websocket));
 
