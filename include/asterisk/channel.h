@@ -2749,7 +2749,8 @@ void ast_channel_inherit_variables(const struct ast_channel *parent, struct ast_
  * \param chan the channel
  * \param vars a linked list of variables
  *
- * \pre chan is locked
+ * \warning The channel must not be locked if there's a possibility that
+ * a dialplan function would be invoked.
  *
  * \details
  * Variable names can be for a regular channel variable or a dialplan function
