@@ -1,25 +1,23 @@
 #! /bin/sh
-#
-# $Id$
-#
 
 # install_prereq: a script to install distribution-specific
-# prerequirements
+# prerequisites
 
 set -e
 
 usage() {
-	echo "$0: a script to install distribution-specific prerequirement"
-	echo 'Revision: $Id$'
-	echo ""
-	echo "Usage: $0:                    Shows this message."
-	echo "Usage: $0 test                Prints commands it is about to run."
-	echo "Usage: $0 install             Really install."
-	echo "Usage: $0 install-unpackaged  Really install unpackaged requirements."
+	echo "$0: a script to install distribution-specific prerequisites"
+	echo
+	echo "$0                     : Shows this message"
+	echo "$0 test                : Prints commands it is about to run"
+	echo "$0 install             : Really install"
+	echo "$0 install-unpackaged  : Really install unpackaged requirements"
+	echo "$0 minimal             : Install only the packages necessary for build tool generation and a basic build"
 }
 
 # Basic build system:
-PACKAGES_DEBIAN="build-essential pkg-config autoconf-archive"
+PACKAGES_DEBIAN_BUILD="build-essential pkg-config autoconf-archive"
+PACKAGES_DEBIAN="$PACKAGES_DEBIAN_BUILD"
 # Asterisk: basic requirements:
 PACKAGES_DEBIAN="$PACKAGES_DEBIAN libedit-dev libjansson-dev libsqlite3-dev uuid-dev libxml2-dev"
 # Asterisk: for addons:
@@ -35,7 +33,8 @@ PACKAGES_DEBIAN="$PACKAGES_DEBIAN wget subversion"
 PACKAGES_DEBIAN="$PACKAGES_DEBIAN bzip2 patch"
 
 # Basic build system:
-PACKAGES_RH="make gcc gcc-c++ pkgconfig autoconf-archive"
+PACKAGES_RH_BUILD="make gcc gcc-c++ pkgconfig autoconf-archive"
+PACKAGES_RH="$PACKAGES_RH_BUILD"
 # Asterisk: basic requirements:
 PACKAGES_RH="$PACKAGES_RH libedit-devel jansson-devel libuuid-devel sqlite-devel libxml2-devel"
 # Asterisk: for addons:
@@ -51,7 +50,8 @@ PACKAGES_RH="$PACKAGES_RH wget subversion"
 PACKAGES_RH="$PACKAGES_RH bzip2 patch"
 
 # Basic build system:
-PACKAGES_SUSE="make gcc gcc-c++ pkg-config autoconf-archive"
+PACKAGES_SUSE_BUILD="make gcc gcc-c++ pkg-config autoconf-archive"
+PACKAGES_SUSE="$PACKAGES_SUSE_BUILD"
 # Asterisk: basic requirements:
 PACKAGES_SUSE="$PACKAGES_SUSE libedit-devel libjansson-devel libuuid-devel sqlite3-devel libxml2-devel"
 # Asterisk: for addons:
@@ -67,7 +67,8 @@ PACKAGES_SUSE="$PACKAGES_SUSE wget subversion"
 PACKAGES_SUSE="$PACKAGES_SUSE bzip2 patch"
 
 # Basic build system:
-PACKAGES_ARCH="make gcc pkg-config autoconf-archive"
+PACKAGES_ARCH_BUILD="make gcc pkg-config autoconf-archive"
+PACKAGES_ARCH="$PACKAGES_ARCH_BUILD"
 # Asterisk: basic requirements:
 PACKAGES_ARCH="$PACKAGES_ARCH libedit jansson libutil-linux libxml2 sqlite"
 # Asterisk: for addons:
@@ -83,7 +84,8 @@ PACKAGES_ARCH="$PACKAGES_ARCH wget subversion"
 PACKAGES_ARCH="$PACKAGES_ARCH bzip2 patch"
 
 # Basic build system:
-PACKAGES_GENTOO="sys-devel/make sys-devel/gcc dev-util/pkgconfig"
+PACKAGES_GENTOO_BUILD="sys-devel/make sys-devel/gcc dev-util/pkgconfig"
+PACKAGES_GENTOO="$PACKAGES_GENTOO_BUILD"
 # Asterisk: basic requirements:
 PACKAGES_GENTOO="$PACKAGES_GENTOO dev-libs/libedit dev-libs/jansson sys-libs/e2fsprogs-libs dev-libs/libxml2 dev-db/sqlite"
 # Asterisk: for addons:
@@ -99,7 +101,8 @@ PACKAGES_GENTOO="$PACKAGES_GENTOO net-misc/wget dev-vcs/subversion"
 PACKAGES_GENTOO="$PACKAGES_GENTOO app-arch/bzip2 sys-devel/patch"
 
 # Basic build system:
-PACKAGES_NBSD="gmake pkg-config"
+PACKAGES_NBSD_BUILD="gmake pkg-config"
+PACKAGES_NBSD="$PACKAGES_NBSD_BUILD"
 # Asterisk: basic requirements:
 PACKAGES_NBSD="$PACKAGES_NBSD editline jansson sqlite3 libuuid libxml2"
 # Asterisk: for addons:
@@ -115,7 +118,8 @@ PACKAGES_NBSD="$PACKAGES_NBSD wget subversion-base"
 PACKAGES_NBSD="$PACKAGES_NBSD bzip2 patch"
 
 # Basic build system:
-PACKAGES_OBSD="gmake"
+PACKAGES_OBSD_BUILD="gmake"
+PACKAGES_OBSD="$PACKAGES_OBSD_BUILD"
 # Asterisk: basic requirements:
 PACKAGES_OBSD="$PACKAGES_OBSD libxml sqlite3 e2fsprogs jansson"
 # Asterisk: for addons:
@@ -131,7 +135,8 @@ PACKAGES_OBSD="$PACKAGES_OBSD wget subversion"
 PACKAGES_OBSD="$PACKAGES_OBSD bzip2"
 
 # Basic build system:
-PACKAGES_FBSD="gmake pkgconf autoconf-archive"
+PACKAGES_FBSD_BUILD="gmake pkgconf autoconf-archive"
+PACKAGES_FBSD="$PACKAGES_FBSD_BUILD"
 # Asterisk: basic requirements:
 PACKAGES_FBSD="$PACKAGES_FBSD libedit jansson e2fsprogs-libuuid sqlite3 libxml2"
 # Asterisk: for addons:
@@ -147,7 +152,8 @@ PACKAGES_FBSD="$PACKAGES_FBSD wget subversion"
 PACKAGES_FBSD="$PACKAGES_FBSD bzip2 patch"
 
 # Basic build system:
-PACKAGES_DBSD="gmake pkgconf"
+PACKAGES_DBSD_BUILD="gmake pkgconf"
+PACKAGES_DBSD="$PACKAGES_DBSD_BUILD"
 # Asterisk: basic requirements:
 PACKAGES_DBSD="$PACKAGES_DBSD libedit jansson e2fsprogs-libuuid sqlite3 libxml2"
 # Asterisk: for addons:
@@ -173,6 +179,19 @@ install)
 	;;
 install-unpackaged)
 	unpackaged="yes"
+	;;
+minimal)
+	# Overwrite the package lists and let the rest of the package handling
+	# plumbing do its magic
+	PACKAGES_ARCH="$PACKAGES_ARCH_BUILD"
+	PACKAGES_DBSD="$PACKAGES_DBSD_BUILD"
+	PACKAGES_DEBIAN="$PACKAGES_DEBIAN_BUILD"
+	PACKAGES_FBSD="$PACKAGES_FBSD_BUILD"
+	PACKAGES_GENTOO="$PACKAGES_GENTOO_BUILD"
+	PACKAGES_NBSD="$PACKAGES_NBSD_BUILD"
+	PACKAGES_OBSD="$PACKAGES_OBSD_BUILD"
+	PACKAGES_RH="$PACKAGES_RH_BUILD"
+	PACKAGES_SUSE="$PACKAGES_SUSE_BUILD"
 	;;
 '')
 	usage
