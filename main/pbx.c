@@ -7862,10 +7862,10 @@ static int pbx_outgoing_attempt(const char *type, struct ast_format_cap *cap,
 		return -1;
 	}
 
-	ast_channel_lock(dialed);
 	if (vars) {
 		ast_set_variables(dialed, vars);
 	}
+	ast_channel_lock(dialed);
 	if (!ast_strlen_zero(account)) {
 		ast_channel_stage_snapshot(dialed);
 		ast_channel_accountcode_set(dialed, account);
@@ -8050,10 +8050,10 @@ int ast_pbx_outgoing_exten_predial(const char *type, struct ast_format_cap *cap,
 		if (failed) {
 			char failed_reason[12];
 
-			ast_set_variables(failed, vars);
 			snprintf(failed_reason, sizeof(failed_reason), "%d", *reason);
 			pbx_builtin_setvar_helper(failed, "REASON", failed_reason);
 			ast_channel_unlock(failed);
+			ast_set_variables(failed, vars);
 
 			if (ast_pbx_run(failed)) {
 				ast_log(LOG_ERROR, "Unable to run PBX on '%s'\n",
