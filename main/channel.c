@@ -5950,9 +5950,7 @@ struct ast_channel *ast_call_forward(struct ast_channel *caller, struct ast_chan
 	/* Copy/inherit important information into new channel */
 	if (oh) {
 		if (oh->vars) {
-			ast_channel_lock(new_chan);
 			ast_set_variables(new_chan, oh->vars);
-			ast_channel_unlock(new_chan);
 		}
 		if (oh->parent_channel) {
 			call_forward_inherit(new_chan, oh->parent_channel, orig);
@@ -6017,9 +6015,7 @@ struct ast_channel *__ast_request_and_dial(const char *type, struct ast_format_c
 
 	if (oh) {
 		if (oh->vars) {
-			ast_channel_lock(chan);
 			ast_set_variables(chan, oh->vars);
-			ast_channel_unlock(chan);
 		}
 		if (!ast_strlen_zero(oh->cid_num) && !ast_strlen_zero(oh->cid_name)) {
 			/*
