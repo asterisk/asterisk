@@ -1284,6 +1284,7 @@ void ast_jb_create_framehook(struct ast_channel *chan, struct ast_jb_conf *jb_co
 			ast_framehook_detach(chan, *id);
 			ast_channel_datastore_remove(chan, datastore);
 			ast_datastore_free(datastore);
+			ast_channel_set_fd(chan, AST_JITTERBUFFER_FD, -1);
 		}
 		ast_channel_unlock(chan);
 		return;
