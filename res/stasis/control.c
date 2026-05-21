@@ -743,8 +743,18 @@ static int app_control_set_channel_var(struct stasis_app_control *control,
 	struct ast_channel *chan, void *data)
 {
 	struct chanvar *var = data;
+	/*
+	 * Save the current inhibit state then enable it.
+	 */
+	int inhibited = ast_thread_inhibit_escalations_swap(1);
 
 	pbx_builtin_setvar_helper(control->channel, var->name, var->value);
+	/*
+	 * Re-enable it if it was originally enabled.
+	 */
+	if (inhibited > 0) {
+		ast_thread_inhibit_escalations();
+	}
 
 	return 0;
 }
