@@ -631,6 +631,11 @@ int stasis_app_control_answer(struct stasis_app_control *control);
  * \param variable The name of the variable
  * \param value The value to set the variable to
  *
+ * \note The thread that actually does the set will have the inhibit_escalations
+ * flag set before the call to pbx_builtin_setvar_helper to prevent dangerous
+ * dialplan function execution from ARI.  The flag will be reset to its original
+ * state when pbx_builtin_setvar_helper returns.
+ *
  * \return 0 for success.
  * \return -1 for error.
  */
