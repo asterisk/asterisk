@@ -15654,7 +15654,6 @@ static void mfcr2_show_links_of(struct ast_cli_args *a, struct r2links *list_hea
 #define FORMAT "%-5s %-10s %-15s %-10s %s\n"
 	AST_LIST_LOCK(list_head);
 	if (! AST_LIST_EMPTY(list_head)) {
-		int x = 0;
 		char index[5];
 		char live_chans_str[5];
 		char channel_list[R2_LINK_CAPACITY * 4];
@@ -15669,7 +15668,7 @@ static void mfcr2_show_links_of(struct ast_cli_args *a, struct r2links *list_hea
 			int inside_range;
 			int channo;
 			int prev_channo;
-			x++;
+
 			if (mfcr2->r2master == 0L) {
 				thread_status = "zero";
 			} else if (mfcr2->r2master == AST_PTHREADT_NULL) {
