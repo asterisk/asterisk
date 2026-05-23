@@ -457,15 +457,11 @@ static int record_exec(struct ast_channel *chan, const char *data)
 	}
 
 	if (!ast_test_flag(&flags, OPTION_QUIET)) {
-		/* Some code to play a nice little beep to signify the start of the record operation */
-		res = ast_streamfile(chan, "beep", ast_channel_language(chan));
-		if (!res) {
-			res = ast_waitstream(chan, "");
-		} else {
-			ast_log(LOG_WARNING, "ast_streamfile(beep) failed on %s\n", ast_channel_name(chan));
-			res = 0;
+		/* Play a beep to signify the start of the record operation */
+		if (ast_stream_and_wait(chan, "beep", "")) {
+			status_response = "HANGUP";
+			goto out;
 		}
-		ast_stopstream(chan);
 	}
 
 	/* The end of beep code.  Now the recording starts */
