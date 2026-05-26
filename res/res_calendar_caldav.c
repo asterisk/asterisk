@@ -31,6 +31,12 @@
 #include "asterisk.h"
 
 #include <libical/ical.h>
+
+#if ICAL_MAJOR_VERSION >= 4
+#define ICAL_SPAN_CONST const
+#else
+#define ICAL_SPAN_CONST
+#endif
 #include <ne_session.h>
 #include <ne_uri.h>
 #include <ne_request.h>
@@ -349,7 +355,7 @@ static time_t icalfloat_to_timet(icaltimetype time)
  * span here, and instead will grab the start and end from the component, which will
  * allow us to test for floating times or dates.
  */
-static void caldav_add_event(icalcomponent *comp, struct icaltime_span *span, void *data)
+static void caldav_add_event(icalcomponent *comp, ICAL_SPAN_CONST struct icaltime_span *span, void *data)
 {
 	struct caldav_pvt *pvt = data;
 	struct ast_calendar_event *event;
@@ -464,7 +470,17 @@ static void caldav_add_event(icalcomponent *comp, struct icaltime_span *span, vo
 	} else { /* Offset from either dtstart or dtend */
 		/* XXX Technically you can check RELATED to see if the event fires from the END of the event
 		 * But, I'm not sure I've ever seen anyone implement it in calendaring software, so I'm ignoring for now */
+#if ICAL_MAJOR_VERSION >= 4
+		tmp = start;
+		int sign = trigger.duration.is_neg ? -1 : 1;
+		icaltime_adjust(&tmp,
+			sign * (trigger.duration.days + trigger.duration.weeks * 7),
+			sign * trigger.duration.hours,
+			sign * trigger.duration.minutes,
+			sign * trigger.duration.seconds);
+#else
 		tmp = icaltime_add(start, trigger.duration);
+#endif
 		event->alarm = icaltime_as_timet_with_zone(tmp, icaltime_get_timezone(start));
 	}
 
