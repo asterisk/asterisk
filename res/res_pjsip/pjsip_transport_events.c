@@ -212,7 +212,7 @@ static int verify_cert_name(const pj_str_t *local, const pj_str_t *remote)
 	}
 
 	p = pj_strchr(local, '.');
-	if (!p) {
+	if (!p || p == pj_strbuf(local)) {
 		return 0;
 	}
 
