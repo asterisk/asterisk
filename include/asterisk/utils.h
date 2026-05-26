@@ -128,7 +128,7 @@ extern unsigned int __unsigned_int_flags_dummy;
  * \retval The flags with the upper and lower 32 bits swapped if the system is big-endian,
  */
 #if defined(BYTE_ORDER) && (BYTE_ORDER == BIG_ENDIAN)
-#define SWAP64_32(flags) (((uint64_t)flags << 32) | ((uint64_t)flags >> 32))
+#define SWAP64_32(flags) (((unsigned long long)flags << 32) | ((unsigned long long)flags >> 32))
 #elif defined(BYTE_ORDER) && (BYTE_ORDER == LITTLE_ENDIAN)
 #define SWAP64_32(flags) (flags)
 #else
