@@ -256,11 +256,8 @@ done:
 
 static char *anti_injection(const char *str, int len)
 {
-	/* Reference to http://www.nextgenss.com/papers/advanced_sql_injection.pdf */
 	char *buf;
-	char *buf_ptr, *srh_ptr;
-	char *known_bad[] = {"select", "insert", "update", "delete", "drop", ";", "--", "\0"};
-	int idx;
+	char *buf_ptr;
 
 	if (!(buf = ast_calloc(1, len + 1))) {
 		ast_log(LOG_ERROR, "Out of memory\n");
@@ -269,7 +266,8 @@ static char *anti_injection(const char *str, int len)
 
 	buf_ptr = buf;
 
-	/* Escape single quotes */
+	/* Escape single quotes by doubling them - sufficient to prevent SQL injection
+	 * in quoted string parameters. Blacklist-based keyword removal is bypassable. */
 	for (; *str && strlen(buf) < len; str++) {
 		if (*str == '\'') {
 			*buf_ptr++ = '\'';
@@ -278,12 +276,6 @@ static char *anti_injection(const char *str, int len)
 	}
 	*buf_ptr = '\0';
 
-	/* Erase known bad input */
-	for (idx = 0; *known_bad[idx]; idx++) {
-		while ((srh_ptr = strcasestr(buf, known_bad[idx]))) {
-			memmove(srh_ptr, srh_ptr + strlen(known_bad[idx]), strlen(srh_ptr + strlen(known_bad[idx])) + 1);
-		}
-	}
 	return buf;
 }
 
