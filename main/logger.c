@@ -70,6 +70,7 @@
 #include "asterisk/ast_version.h"
 #include "asterisk/backtrace.h"
 #include "asterisk/json.h"
+#include "asterisk/dlinkedlists.h"
 
 static int logger_register_level(const char *name);
 static int logger_unregister_level(const char *name);
@@ -91,8 +92,15 @@ AST_THREADSTORAGE(unique_callid);
 
 static int logger_queue_size;
 static int logger_queue_limit = 1000;
+static int logger_queue_over_threshold_limit = 200; /* How many specific messages (WARNING, ERROR) can go over the limit */
 static int logger_messages_discarded;
 static unsigned int high_water_alert;
+/* This gets set when we are at the absolute maximum number of WARNING/ERROR messages in the
+ * logger queue. This includes the logger queue threshold and the over threshold limit, which
+ * means that the queue is COMPLETELY full of WARNING/ERROR messages, so any new messages
+ * coming in will just need to be discarded, no matter what they are.
+ */
+static unsigned int discard_all_new_msgs;
 
 /* On some platforms, like those with MUSL as the runtime, BUFSIZ is
  * unreasonably small (1024). Use a larger value in those environments.
@@ -181,7 +189,7 @@ struct logmsg {
 		AST_STRING_FIELD(message);
 		AST_STRING_FIELD(level_name);
 	);
-	AST_LIST_ENTRY(logmsg) list;
+	AST_DLLIST_ENTRY(logmsg) list;
 };
 
 static void logmsg_free(struct logmsg *msg)
@@ -190,7 +198,15 @@ static void logmsg_free(struct logmsg *msg)
 	ast_free(msg);
 }
 
-static AST_LIST_HEAD_STATIC(logmsgs, logmsg);
+static AST_DLLIST_HEAD_STATIC(logmsgs, logmsg);
+
+/* This pointer should not be modified. It will be set if and only if the logger queue
+ * gets to a point where we need to start discarding messages to make room for new
+ * WARNING/ERROR messages. At that point, it will always point to the last logmsg that
+ * was looked at for discard, or NULL if we discarded everything we looked at, which
+ * means that we just start at the HEAD of the list for the next search.
+ */
+static struct logmsg *last_logmsg_checked_for_discard = NULL;
 static pthread_t logthread = AST_PTHREADT_NULL;
 static ast_cond_t logcond;
 static int close_logger_thread = 0;
@@ -2070,10 +2086,10 @@ static void *logger_thread(void *data)
 
 	for (;;) {
 		/* We lock the message list, and see if any message exists... if not we wait on the condition to be signalled */
-		AST_LIST_LOCK(&logmsgs);
-		if (AST_LIST_EMPTY(&logmsgs)) {
+		AST_DLLIST_LOCK(&logmsgs);
+		if (AST_DLLIST_EMPTY(&logmsgs)) {
 			if (close_logger_thread) {
-				AST_LIST_UNLOCK(&logmsgs);
+				AST_DLLIST_UNLOCK(&logmsgs);
 				break;
 			} else {
 				ast_cond_wait(&logcond, &logmsgs.lock);
@@ -2085,21 +2101,24 @@ static void *logger_thread(void *data)
 				"Logging resumed.  %d message%s discarded.\n",
 				logger_messages_discarded, logger_messages_discarded == 1 ? "" : "s");
 			if (msg) {
-				AST_LIST_INSERT_TAIL(&logmsgs, msg, list);
+				AST_DLLIST_INSERT_TAIL(&logmsgs, msg, list);
 			}
 			high_water_alert = 0;
 			logger_messages_discarded = 0;
 		}
 
-		next = AST_LIST_FIRST(&logmsgs);
-		AST_LIST_HEAD_INIT_NOLOCK(&logmsgs);
+		discard_all_new_msgs = 0;
+		last_logmsg_checked_for_discard = NULL;
+
+		next = AST_DLLIST_FIRST(&logmsgs);
+		AST_DLLIST_HEAD_INIT_NOLOCK(&logmsgs);
 		logger_queue_size = 0;
-		AST_LIST_UNLOCK(&logmsgs);
+		AST_DLLIST_UNLOCK(&logmsgs);
 
 		/* Otherwise go through and process each message in the order added */
 		while ((msg = next)) {
 			/* Get the next entry now so that we can free our current structure later */
-			next = AST_LIST_NEXT(msg, list);
+			next = AST_DLLIST_NEXT(msg, list);
 
 			/* Depending on the type, send it to the proper function */
 			logger_print_normal(msg);
@@ -2224,10 +2243,10 @@ void close_logger(void)
 	logger_initialized = 0;
 
 	/* Stop logger thread */
-	AST_LIST_LOCK(&logmsgs);
+	AST_DLLIST_LOCK(&logmsgs);
 	close_logger_thread = 1;
 	ast_cond_signal(&logcond);
-	AST_LIST_UNLOCK(&logmsgs);
+	AST_DLLIST_UNLOCK(&logmsgs);
 
 	if (logthread != AST_PTHREADT_NULL) {
 		pthread_join(logthread, NULL);
@@ -2354,6 +2373,49 @@ void ast_callid_threadstorage_auto_clean(ast_callid callid, int callid_created)
 }
 
 /*!
+ * \internal
+ * \brief Flush the oldest non-warning/error log messages out of the queue
+ *
+ * \pre The log messages list is locked
+ *
+ * \param start A pointer to the logmsg to start at
+ * \param amount The number of messages to flush
+ *
+ * \retval A pointer to the last WARNING / ERROR message checked (NULL otherwise)
+ */
+static struct logmsg *flush_logger_queue_messages(struct logmsg *start, int amount)
+{
+	struct logmsg *current, *previous;
+	int flushed = 0;
+
+	previous = NULL;
+	current = start;
+
+	while (current) {
+		struct logmsg *next;
+
+		if (current->level == __LOG_WARNING || current->level == __LOG_ERROR) {
+			previous = current;
+			current = AST_DLLIST_NEXT(current, list);
+			continue;
+		}
+
+		next = AST_DLLIST_NEXT(current, list);
+		AST_DLLIST_REMOVE(&logmsgs, current, list);
+		logmsg_free(current);
+		current = next;
+		logger_queue_size--;
+		flushed++;
+
+		if (flushed >= amount) {
+			break;
+		}
+	}
+
+	return previous;
+}
+
+/*!
  * \brief send log messages to syslog and/or the console
  */
 static void __attribute__((format(printf, 7, 0))) ast_log_full(int level, int sublevel,
@@ -2380,20 +2442,55 @@ static void __attribute__((format(printf, 7, 0))) ast_log_full(int level, int su
 		return;
 	}
 
-	AST_LIST_LOCK(&logmsgs);
+	AST_DLLIST_LOCK(&logmsgs);
 	if (logger_queue_size >= logger_queue_limit && !close_logger_thread) {
-		logger_messages_discarded++;
 		if (!high_water_alert && !close_logger_thread) {
 			logmsg = format_log_message(__LOG_WARNING, 0, "logger", 0, "***", 0,
-				"Log queue threshold (%d) exceeded.  Discarding new messages.\n", logger_queue_limit);
-			AST_LIST_INSERT_TAIL(&logmsgs, logmsg, list);
+				"Log queue threshold (%d) exceeded.  Discarding non-warning/error messages.\n", logger_queue_limit);
+			AST_DLLIST_INSERT_TAIL(&logmsgs, logmsg, list);
 			high_water_alert = 1;
 			ast_cond_signal(&logcond);
 		}
-		AST_LIST_UNLOCK(&logmsgs);
-		return;
+
+		if (discard_all_new_msgs || (level != __LOG_WARNING && level != __LOG_ERROR)) {
+			logger_messages_discarded++;
+			AST_DLLIST_UNLOCK(&logmsgs);
+			return;
+		}
+
+		if (logger_queue_size >= logger_queue_limit + logger_queue_over_threshold_limit) {
+			int size_before = logger_queue_size;
+			struct logmsg *msg_ptr;
+
+			msg_ptr = last_logmsg_checked_for_discard ?
+				AST_DLLIST_NEXT(last_logmsg_checked_for_discard, list) : AST_DLLIST_FIRST(&logmsgs);
+
+			msg_ptr = flush_logger_queue_messages(msg_ptr, logger_queue_over_threshold_limit);
+			last_logmsg_checked_for_discard = msg_ptr ? msg_ptr : last_logmsg_checked_for_discard;
+
+			if (size_before == logger_queue_size) {
+				/* We didn't flush anything, so we have to discard the message */
+				discard_all_new_msgs = 1;
+				logger_messages_discarded++;
+				logmsg = format_log_message(__LOG_WARNING, 0, "logger", 0, "***", 0,
+					"Log queue does not have any non-WARNING/ERROR messages left to discard. "
+					"Discarding all new messages.");
+				AST_DLLIST_INSERT_TAIL(&logmsgs, logmsg, list);
+				ast_cond_signal(&logcond);
+				AST_DLLIST_UNLOCK(&logmsgs);
+				return;
+			}
+			else {
+				/* We flushed some non-WARNING/ERROR messages */
+				logmsg = format_log_message(__LOG_WARNING, 0, "logger", 0, "***", 0,
+					"Log queue WARNING / ERROR threshold (%d) exceeded. Discarded %d oldest non-"
+					"WARNING/ERROR messages.\n", logger_queue_over_threshold_limit, size_before - logger_queue_size);
+				AST_DLLIST_INSERT_TAIL(&logmsgs, logmsg, list);
+				ast_cond_signal(&logcond);
+			}
+		}
 	}
-	AST_LIST_UNLOCK(&logmsgs);
+	AST_DLLIST_UNLOCK(&logmsgs);
 
 	logmsg = format_log_message_ap(level, sublevel, file, line, function, callid, fmt, ap);
 	if (!logmsg) {
@@ -2404,16 +2501,16 @@ static void __attribute__((format(printf, 7, 0))) ast_log_full(int level, int su
 
 	/* If the logger thread is active, append it to the tail end of the list - otherwise skip that step */
 	if (logthread != AST_PTHREADT_NULL) {
-		AST_LIST_LOCK(&logmsgs);
+		AST_DLLIST_LOCK(&logmsgs);
 		if (close_logger_thread) {
 			/* Logger is either closing or closed.  We cannot log this message. */
 			logmsg_free(logmsg);
 		} else {
-			AST_LIST_INSERT_TAIL(&logmsgs, logmsg, list);
+			AST_DLLIST_INSERT_TAIL(&logmsgs, logmsg, list);
 			logger_queue_size++;
 			ast_cond_signal(&logcond);
 		}
-		AST_LIST_UNLOCK(&logmsgs);
+		AST_DLLIST_UNLOCK(&logmsgs);
 	} else {
 		logger_print_normal(logmsg);
 		logmsg_free(logmsg);
@@ -2907,6 +3004,16 @@ void ast_logger_set_queue_limit(int queue_limit)
 int ast_logger_get_queue_limit(void)
 {
 	return logger_queue_limit;
+}
+
+void ast_logger_set_over_threshold_queue_limit(int limit)
+{
+	logger_queue_over_threshold_limit = limit;
+}
+
+int ast_logger_get_over_threshold_queue_limit(void)
+{
+	return logger_queue_over_threshold_limit;
 }
 
 static int reload_module(void)
