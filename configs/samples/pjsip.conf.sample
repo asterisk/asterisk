@@ -1203,6 +1203,14 @@
                                 ; "")
 ;external_signaling_port=0      ; External port for SIP signalling (default:
                                 ; "0")
+;external_signaling_hostname=   ; Value to use in SIP Contact and Via headers
+                                ; as hostname instead of the automatically
+                                ; determined IP address. Useful when a remote
+                                ; SIP endpoint requires a fully qualified domain
+                                ; name rather than an IP address. No validation
+                                ; is performed on the provided value. Cannot be
+                                ; set together with external_signaling_address.
+                                ; (default: "")
 ;local_net=     ; Network to consider local used for NAT purposes (default: "")
 ;password=      ; Password required for transport (default: "")
 ;protocol=udp   ; Protocol to use for SIP traffic (default: "udp")
