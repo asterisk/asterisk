@@ -2450,6 +2450,25 @@
 					</since>
 					<synopsis>External port for SIP signalling</synopsis>
 				</configOption>
+				<configOption name="external_signaling_hostname">
+					<since>
+						<version>20.21.0</version>
+						<version>22.11.0</version>
+						<version>23.5.0</version>
+					</since>
+					<synopsis>Value to use in SIP Contact and Via headers as hostname</synopsis>
+					<description><para>
+						When set, this value is used in the SIP Contact and Via
+						headers of outgoing messages instead of the automatically
+						determined IP address. This is useful when a remote SIP
+						endpoint requires a fully qualified domain name in these
+						headers rather than an IP address. No validation is performed
+						on the provided value. This option is mutually exclusive with
+    					<literal>external_signaling_address</literal> and both cannot
+    					be set simultaneously. If not set, existing behavior using
+						<literal>external_signaling_address</literal> is preserved.
+					</para></description>
+				</configOption>
 				<configOption name="method">
 					<since>
 						<version>12.2.0</version>
