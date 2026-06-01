@@ -236,6 +236,8 @@ struct ast_sip_transport {
 		AST_STRING_FIELD(external_media_address);
 		/*! Optional domain to use for messages if provided could not be found */
 		AST_STRING_FIELD(domain);
+		/*! Optional FQDN to use in SIP Contact and Via headers instead of external_signaling_address */
+		AST_STRING_FIELD(external_signaling_hostname);
 		);
 	/*! Type of transport */
 	enum ast_transport type;

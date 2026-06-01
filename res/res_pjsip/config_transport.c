@@ -675,6 +675,15 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 	RAII_VAR(struct ast_variable *, changes, NULL, ast_variables_destroy);
 	pj_status_t res = -1;
 	int i;
+
+	/* Ensure external_signaling_address and external_signaling_hostname are mutually exclusive */
+	if (!ast_strlen_zero(transport->external_signaling_address) &&
+		!ast_strlen_zero(transport->external_signaling_hostname)) {
+		ast_log(LOG_ERROR, "Transport '%s' has both 'external_signaling_address' and "
+			"'external_signaling_hostname' set. Only one may be configured at a time.\n",
+			transport_id);
+		return -1;
+	}
 #define BIND_TRIES 3
 #define BIND_DELAY_US 100000
 
@@ -1856,6 +1865,7 @@ int ast_sip_initialize_sorcery_transport(void)
 	ast_sorcery_object_field_register(sorcery, "transport", "password", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_transport, password));
 	ast_sorcery_object_field_register(sorcery, "transport", "external_signaling_address", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_transport, external_signaling_address));
 	ast_sorcery_object_field_register(sorcery, "transport", "external_signaling_port", "0", OPT_UINT_T, PARSE_IN_RANGE, FLDSET(struct ast_sip_transport, external_signaling_port), 0, 65535);
+	ast_sorcery_object_field_register(sorcery, "transport", "external_signaling_hostname", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_transport, external_signaling_hostname));
 	ast_sorcery_object_field_register(sorcery, "transport", "external_media_address", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_transport, external_media_address));
 	ast_sorcery_object_field_register(sorcery, "transport", "domain", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_transport, domain));
 	ast_sorcery_object_field_register_custom(sorcery, "transport", "verify_server", "", transport_tls_bool_handler, verify_server_to_str, NULL, 0, 0);
