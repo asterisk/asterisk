@@ -254,10 +254,90 @@ error:
 	return CLI_SUCCESS;
 }
 
+static char *handle_cli_queue_over_threshold_test(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	int level;
+	int current_queue_limit, current_over_threshold_queue_limit;
+	unsigned int x, custom = 1000, warning = 200, error = 200;
+	struct timeval start, end;
+	int elapsed;
+	char tmppath[] = "/tmp/asterisk_logger_queue.XXXXXX";
+	int fd;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "logger test queue over threshold";
+		e->usage = ""
+			"Usage: logger test queue over threshold\n"
+			"";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	fd = mkstemp(tmppath);
+	if (fd < 0) {
+		ast_cli(a->fd, "Test: Failed, could not create temporary log file '%s'.\n", tmppath);
+		return CLI_SUCCESS;
+	}
+
+	level = ast_logger_register_level("queuetest");
+	if (level < 0) {
+		ast_cli(a->fd, "Test: Failed, could not register level 'queuetest'.\n");
+		return CLI_SUCCESS;
+	}
+	ast_cli(a->fd, "Test: got level %d for 'queuetest'.\n", level);
+
+	if (ast_logger_create_channel(tmppath, "queuetest") != AST_LOGGER_SUCCESS) {
+		ast_cli(a->fd, "Test: Unable to create logger channel '%s'\n", tmppath);
+		goto error;
+	}
+
+	current_queue_limit = ast_logger_get_queue_limit();
+	ast_cli(a->fd, "Test: Current queue limit: %d.  Setting to 10 for test.\n", current_queue_limit);
+	ast_logger_set_queue_limit(10);
+
+	current_over_threshold_queue_limit = ast_logger_get_over_threshold_queue_limit();
+	ast_cli(a->fd, "Test: Current over threshold queue limit: %d. Setting to 10 for test.\n", current_over_threshold_queue_limit);
+	ast_logger_set_over_threshold_queue_limit(10);
+
+	ast_cli(a->fd, "Test: You should see SOME 'exceeded', 'resumed', 'discarded', and WARNING/ERROR "
+		"messages after the test is completed. How many is dependent on system resources.\n");
+
+	start = ast_tvnow();
+	for (x = 0; x < custom; x++) {
+		ast_log_dynamic_level(level, "Performance test log message %2d\n", x);
+	}
+	for (; x < custom + warning; x++) {
+		ast_log(LOG_WARNING, "Performance test log message %2d\n", x);
+	}
+	for (; x < custom + warning + error; x++) {
+		ast_log(LOG_ERROR, "Performance test log message %2d\n", x);
+	}
+	end = ast_tvnow();
+	elapsed = ast_tvdiff_ms(end, start);
+	ast_cli(a->fd, "Test: %d messages in %f seconds.\n", x, (float) elapsed / 1000);
+	ast_cli(a->fd, "Test: Completed. Resetting queue limit to %d and over threshold limit to %d.\n",
+		current_queue_limit, current_over_threshold_queue_limit);
+	ast_logger_set_queue_limit(current_queue_limit);
+	ast_logger_set_over_threshold_queue_limit(current_over_threshold_queue_limit);
+
+error:
+
+	ast_logger_remove_channel(tmppath);
+	ast_logger_unregister_level("queuetest");
+	close(fd);
+	unlink(tmppath);
+
+	return CLI_SUCCESS;
+}
+
+
 static struct ast_cli_entry cli_logger[] = {
 	AST_CLI_DEFINE(handle_cli_dynamic_level_test, "Test the dynamic logger level implementation"),
 	AST_CLI_DEFINE(handle_cli_performance_test, "Test the logger performance"),
 	AST_CLI_DEFINE(handle_cli_queue_test, "Test the logger queue"),
+	AST_CLI_DEFINE(handle_cli_queue_over_threshold_test, "Test the logger queue over threshold for WARNING/ERRORs"),
 };
 
 static int unload_module(void)
