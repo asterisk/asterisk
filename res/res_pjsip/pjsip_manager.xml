@@ -223,6 +223,9 @@
 				<parameter name="ExternalSignalingPort">
 					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='transport']/configOption[@name='external_signaling_port']/synopsis/node())"/></para>
 				</parameter>
+				<parameter name="ExternalSignalingHostname">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='transport']/configOption[@name='external_signaling_hostname']/synopsis/node())"/></para>
+				</parameter>
 				<parameter name="ExternalMediaAddress">
 					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='transport']/configOption[@name='external_media_address']/synopsis/node())"/></para>
 				</parameter>

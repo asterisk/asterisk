@@ -32,6 +32,7 @@
 #include "asterisk/res_pjsip_session.h"
 #include "asterisk/module.h"
 #include "asterisk/acl.h"
+#include "asterisk/strings.h"
 
 /*! URI parameter for original host/port */
 #define AST_SIP_X_AST_ORIG_HOST "x-ast-orig-host"
@@ -370,8 +371,12 @@ static pj_status_t process_nat(pjsip_tx_data *tdata)
 		}
 	}
 
-	if (!ast_sockaddr_isnull(&transport_state->external_signaling_address)) {
+	if (!ast_sockaddr_isnull(&transport_state->external_signaling_address) ||
+		!ast_strlen_zero(transport->external_signaling_hostname)) {
 		pjsip_cseq_hdr *cseq = PJSIP_MSG_CSEQ_HDR(tdata->msg);
+		const char *signaling_host = !ast_strlen_zero(transport->external_signaling_hostname) ?
+			transport->external_signaling_hostname :
+			ast_sockaddr_stringify_host(&transport_state->external_signaling_address);
 
 		/* Update the Contact header with the external address. We only do this if
 		 * a CSeq is not present (which should not happen - but we are extra safe),
@@ -387,7 +392,7 @@ static pj_status_t process_nat(pjsip_tx_data *tdata)
 			tdata->msg->line.status.code != PJSIP_SC_MOVED_TEMPORARILY )) {
 			/* We can only rewrite the URI when one is present */
 			if (uri || (uri = ast_sip_get_contact_sip_uri(tdata))) {
-				pj_strdup2(tdata->pool, &uri->host, ast_sockaddr_stringify_host(&transport_state->external_signaling_address));
+				pj_strdup2(tdata->pool, &uri->host, signaling_host);
 				if (transport->external_signaling_port) {
 					uri->port = transport->external_signaling_port;
 					ast_debug(4, "Re-wrote Contact URI port to %d\n", uri->port);
@@ -397,7 +402,7 @@ static pj_status_t process_nat(pjsip_tx_data *tdata)
 
 		/* Update the via header if relevant */
 		if ((tdata->msg->type == PJSIP_REQUEST_MSG) && (via || (via = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_VIA, NULL)))) {
-			pj_strdup2(tdata->pool, &via->sent_by.host, ast_sockaddr_stringify_host(&transport_state->external_signaling_address));
+			pj_strdup2(tdata->pool, &via->sent_by.host, signaling_host);
 			if (transport->external_signaling_port) {
 				via->sent_by.port = transport->external_signaling_port;
 			}
