@@ -9548,6 +9548,7 @@ static void ast_rtp_stop(struct ast_rtp_instance *instance)
 		rtp->transport_wide_cc.schedid = -1;
         }
 
+	/* only needed for chan_sip compatibility, should be removed after completely getting rid of it */
 	if (rtp->red && rtp->red->schedid > -1) {
 		ao2_unlock(instance);
 		if (!ast_sched_del(rtp->sched, rtp->red->schedid)) {
