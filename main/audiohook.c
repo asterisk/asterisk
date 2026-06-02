@@ -39,17 +39,34 @@
 #include "asterisk/frame.h"
 #include "asterisk/translate.h"
 #include "asterisk/format_cache.h"
+#include "asterisk/framehook.h"
+#include "asterisk/timing.h"
 #include "asterisk/test.h"
 
 #define AST_AUDIOHOOK_SYNC_TOLERANCE 100 /*!< Tolerance in milliseconds for audiohooks synchronization */
 #define AST_AUDIOHOOK_SMALL_QUEUE_TOLERANCE 100 /*!< When small queue is enabled, this is the maximum amount of audio that can remain queued at a time. */
 #define AST_AUDIOHOOK_LONG_QUEUE_TOLERANCE 500 /*!< Otheriwise we still don't want the queue to grow indefinitely */
+#define AST_WHISPER_TIMER_INTERVAL 20
+#define AST_WHISPER_TIMER_INTERVAL_MIN 10
+#define AST_WHISPER_TIMER_INTERVAL_MAX 60
+#define AST_WHISPER_TIMER_CLAMP(interval) \
+	((interval) < AST_WHISPER_TIMER_INTERVAL_MIN ? AST_WHISPER_TIMER_INTERVAL_MIN : \
+	((interval) > AST_WHISPER_TIMER_INTERVAL_MAX ? AST_WHISPER_TIMER_INTERVAL_MAX : (interval)))
+#define AST_WHISPER_TIMER_SRC "audiohook whisper timer"
 
 #define DEFAULT_INTERNAL_SAMPLE_RATE 8000
 
 struct ast_audiohook_translate {
 	struct ast_trans_pvt *trans_pvt;
 	struct ast_format *format;
+};
+
+struct whisper_framehook_data {
+	struct ast_timer *timer;
+	int timer_fd;
+	int timer_fd_slot;
+	int timer_interval;
+	struct timeval last_external_write_tv;
 };
 
 struct ast_audiohook_list {
@@ -65,7 +82,214 @@ struct ast_audiohook_list {
 	AST_LIST_HEAD_NOLOCK(, ast_audiohook) spy_list;
 	AST_LIST_HEAD_NOLOCK(, ast_audiohook) whisper_list;
 	AST_LIST_HEAD_NOLOCK(, ast_audiohook) manipulate_list;
+	int whisper_framehook_id;
+	struct whisper_framehook_data *whisper_framehook_data;
 };
+
+static void whisper_framehook_timer_update(struct ast_audiohook_list *audiohook_list,
+	struct ast_frame *start_frame,
+	int internal_sample_rate,
+	int samples)
+{
+	struct whisper_framehook_data *hook_data;
+	int interval;
+
+	hook_data = audiohook_list->whisper_framehook_data;
+	if (!hook_data || internal_sample_rate <= 0 || samples <= 0) {
+		return;
+	}
+
+	if (start_frame->src && !strcmp(start_frame->src, AST_WHISPER_TIMER_SRC)) {
+		return;
+	}
+
+	interval = AST_WHISPER_TIMER_CLAMP((samples * 1000) / internal_sample_rate);
+	if (interval == hook_data->timer_interval) {
+		return;
+	}
+
+	hook_data->timer_interval = interval;
+	if (hook_data->timer) {
+		ast_timer_set_rate(hook_data->timer, 1000 / interval);
+	}
+}
+
+static void whisper_framehook_destroy_cb(void *data)
+{
+	ast_free(data);
+}
+
+static struct ast_frame *whisper_framehook_event_cb(struct ast_channel *chan,
+	struct ast_frame *frame,
+	enum ast_framehook_event event,
+	void *data)
+{
+	struct whisper_framehook_data *hook_data = data;
+	struct ast_audiohook_list *audiohook_list;
+	int rate;
+	int samples;
+	int write_res;
+	short buf[AST_WHISPER_TIMER_INTERVAL_MAX * 48];
+	struct ast_frame tmp_frame = {
+		.frametype = AST_FRAME_VOICE,
+		.offset = AST_FRIENDLY_OFFSET,
+		.data.ptr = buf,
+		.datalen = sizeof(buf),
+		.src = AST_WHISPER_TIMER_SRC,
+	};
+	struct ast_frame *dup;
+
+	switch (event) {
+	case AST_FRAMEHOOK_EVENT_READ:
+		/* We only care about timer driven READ events */
+		if (ast_channel_fdno(chan) != hook_data->timer_fd_slot
+			|| !hook_data->timer
+			|| ast_timer_ack(hook_data->timer, 1) < 0) {
+			return frame;
+		}
+		break;
+	case AST_FRAMEHOOK_EVENT_WRITE:
+		/*
+		 * Track WRITEs that are not triggered by the framehook so we can
+		 * avoid overlapping with WRITEs that are triggered by the framehook.
+		 */
+		if (frame && frame->frametype == AST_FRAME_VOICE
+			&& (!frame->src || strcmp(frame->src, AST_WHISPER_TIMER_SRC))) {
+			hook_data->last_external_write_tv = ast_tvnow();
+		}
+		return frame;
+	case AST_FRAMEHOOK_EVENT_ATTACHED:
+		/* Initialize the timer */
+		if (!hook_data->timer) {
+			hook_data->timer = ast_timer_open();
+			if (!hook_data->timer) {
+				return frame;
+			}
+			hook_data->timer_fd = ast_timer_fd(hook_data->timer);
+			hook_data->timer_fd_slot = ast_channel_fd_add(chan, hook_data->timer_fd);
+			if (hook_data->timer_fd_slot < 0) {
+				ast_timer_close(hook_data->timer);
+				hook_data->timer = NULL;
+				hook_data->timer_fd = -1;
+				return frame;
+			}
+			ast_timer_set_rate(hook_data->timer, 1000 / hook_data->timer_interval);
+		}
+		return frame;
+	case AST_FRAMEHOOK_EVENT_DETACHED:
+		/* Clean up the timer */
+		if (hook_data->timer_fd_slot >= 0) {
+			ast_channel_set_fd(chan, hook_data->timer_fd_slot, -1);
+		}
+		if (hook_data->timer) {
+			ast_timer_close(hook_data->timer);
+		}
+		hook_data->timer = NULL;
+		hook_data->timer_fd = -1;
+		hook_data->timer_fd_slot = -1;
+		return frame;
+	}
+
+	/*
+	 * If normal outbound media frames are actively flowing (determined by tracking the
+	 * WRITE events above,) skip timer-based fallback injection. This avoids overlapping
+	 * WRITE frames and the resulting garbled audio.
+	 */
+	if (!ast_tvzero(hook_data->last_external_write_tv)
+		&& ast_tvdiff_ms(ast_tvnow(), hook_data->last_external_write_tv)
+		<= (hook_data->timer_interval * 2)) {
+		return frame;
+	}
+
+	audiohook_list = ast_channel_audiohooks(chan);
+
+	/*
+	 * As this framehook is dependant on the whisper audiohook(s) existing, this check
+	 * should never fail.
+	 */
+	if (!audiohook_list || AST_LIST_EMPTY(&audiohook_list->whisper_list)) {
+		return frame;
+	}
+
+	rate = audiohook_list->list_internal_samp_rate;
+	if (rate <= 0) {
+		rate = DEFAULT_INTERNAL_SAMPLE_RATE;
+	}
+	samples = (rate / 1000) * hook_data->timer_interval;
+	if (!samples || samples > ARRAY_LEN(buf)) {
+		return frame;
+	}
+
+	memset(buf, 0, samples * sizeof(buf[0]));
+	tmp_frame.subclass.format = ast_format_cache_get_slin_by_rate(rate);
+	tmp_frame.samples = samples;
+	tmp_frame.datalen = samples * sizeof(buf[0]);
+
+	dup = ast_frdup(&tmp_frame);
+	if (!dup) {
+		return frame;
+	}
+
+	/*
+	 * Invoke a write on the channel with our frame to trigger mixing in
+	 * audio from the whisper audiohook list.
+	 */
+	ast_channel_unlock(chan);
+	write_res = ast_write(chan, dup);
+	ast_channel_lock(chan);
+
+	if (write_res < 0) {
+		ast_frfree(dup);
+	}
+
+	return &ast_null_frame;
+}
+
+static int whisper_framehook_attach(struct ast_channel *chan, struct ast_audiohook_list *audiohook_list)
+{
+	struct ast_framehook_interface interface = {
+		.version = AST_FRAMEHOOK_INTERFACE_VERSION,
+		.event_cb = whisper_framehook_event_cb,
+		.destroy_cb = whisper_framehook_destroy_cb,
+	};
+	struct whisper_framehook_data *hook_data;
+	int framehook_id;
+
+	if (audiohook_list->whisper_framehook_id >= 0) {
+		return 0;
+	}
+
+	hook_data = ast_calloc(1, sizeof(*hook_data));
+	if (!hook_data) {
+		return -1;
+	}
+	hook_data->timer_fd = -1;
+	hook_data->timer_fd_slot = -1;
+	hook_data->timer_interval = AST_WHISPER_TIMER_INTERVAL;
+
+	interface.data = hook_data;
+	framehook_id = ast_framehook_attach(chan, &interface);
+	if (framehook_id < 0) {
+		ast_free(hook_data);
+		return -1;
+	}
+
+	audiohook_list->whisper_framehook_id = framehook_id;
+	audiohook_list->whisper_framehook_data = hook_data;
+
+	return 0;
+}
+
+static void whisper_framehook_detach(struct ast_channel *chan, struct ast_audiohook_list *audiohook_list)
+{
+	if (audiohook_list->whisper_framehook_id < 0) {
+		return;
+	}
+
+	ast_framehook_detach(chan, audiohook_list->whisper_framehook_id);
+	audiohook_list->whisper_framehook_id = -1;
+	audiohook_list->whisper_framehook_data = NULL;
+}
 
 static int audiohook_set_internal_rate(struct ast_audiohook *audiohook, int rate, int reset)
 {
@@ -544,13 +768,23 @@ int ast_audiohook_attach(struct ast_channel *chan, struct ast_audiohook *audioho
 		AST_LIST_HEAD_INIT_NOLOCK(&ast_channel_audiohooks(chan)->manipulate_list);
 		/* This sample rate will adjust as necessary when writing to the list. */
 		ast_channel_audiohooks(chan)->list_internal_samp_rate = DEFAULT_INTERNAL_SAMPLE_RATE;
+		ast_channel_audiohooks(chan)->whisper_framehook_id = -1;
 	}
 
 	/* Drop into respective list */
 	if (audiohook->type == AST_AUDIOHOOK_TYPE_SPY) {
 		AST_LIST_INSERT_TAIL(&ast_channel_audiohooks(chan)->spy_list, audiohook, list);
 	} else if (audiohook->type == AST_AUDIOHOOK_TYPE_WHISPER) {
+		int was_empty = AST_LIST_EMPTY(&ast_channel_audiohooks(chan)->whisper_list);
 		AST_LIST_INSERT_TAIL(&ast_channel_audiohooks(chan)->whisper_list, audiohook, list);
+		/* Only attach the framehook on the first whisper audiohook */
+		if (was_empty) {
+			if (whisper_framehook_attach(chan, ast_channel_audiohooks(chan))) {
+				AST_LIST_REMOVE(&ast_channel_audiohooks(chan)->whisper_list, audiohook, list);
+				ast_channel_unlock(chan);
+				return -1;
+			}
+		}
 	} else if (audiohook->type == AST_AUDIOHOOK_TYPE_MANIPULATE) {
 		AST_LIST_INSERT_TAIL(&ast_channel_audiohooks(chan)->manipulate_list, audiohook, list);
 	}
@@ -768,6 +1002,10 @@ int ast_audiohook_remove(struct ast_channel *chan, struct ast_audiohook *audioho
 		AST_LIST_REMOVE(&ast_channel_audiohooks(chan)->spy_list, audiohook, list);
 	} else if (audiohook->type == AST_AUDIOHOOK_TYPE_WHISPER) {
 		AST_LIST_REMOVE(&ast_channel_audiohooks(chan)->whisper_list, audiohook, list);
+		/* Detach the framehook if this was the last whisper audiohook */
+		if (AST_LIST_EMPTY(&ast_channel_audiohooks(chan)->whisper_list)) {
+			whisper_framehook_detach(chan, ast_channel_audiohooks(chan));
+		}
 	} else if (audiohook->type == AST_AUDIOHOOK_TYPE_MANIPULATE) {
 		AST_LIST_REMOVE(&ast_channel_audiohooks(chan)->manipulate_list, audiohook, list);
 	}
@@ -1100,6 +1338,14 @@ static struct ast_frame *audio_audiohook_write_list(struct ast_channel *chan, st
 		 * was removed then the list's internal rate is reset to the default.
 		 */
 		audiohook_list->list_internal_samp_rate = internal_sample_rate;
+		/*
+		 * Update the whisper timer with the internal sample rate on WRITE only to
+		 * avoid overlapping writes.
+		 */
+		if (direction == AST_AUDIOHOOK_DIRECTION_WRITE) {
+			whisper_framehook_timer_update(audiohook_list, start_frame,
+				internal_sample_rate, samples);
+		}
 	}
 
 	return end_frame;
