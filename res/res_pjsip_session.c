@@ -2441,8 +2441,9 @@ static int sip_session_refresh(struct ast_sip_session *session,
 					SCOPE_EXIT_EXPR(continue);
 				}
 
-				/* Enforce the configured allowed codecs on audio and video streams */
-				if ((ast_stream_get_type(stream) == AST_MEDIA_TYPE_AUDIO || ast_stream_get_type(stream) == AST_MEDIA_TYPE_VIDEO) &&
+				/* Enforce the configured allowed codecs on audio, video and text streams */
+				if ((ast_stream_get_type(stream) == AST_MEDIA_TYPE_AUDIO || ast_stream_get_type(stream) == AST_MEDIA_TYPE_VIDEO
+					|| ast_stream_get_type(stream) == AST_MEDIA_TYPE_TEXT) &&
 					!ast_stream_get_metadata(stream, "pjsip_session_refresh")) {
 					struct ast_format_cap *joint_cap;
 
@@ -2488,7 +2489,6 @@ static int sip_session_refresh(struct ast_sip_session *session,
 				}
 
 				++type_streams[ast_stream_get_type(stream)];
-
 				SCOPE_EXIT();
 			}
 
