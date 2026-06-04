@@ -1,0 +1,1202 @@
+<html><head><title>ChangeLog for asterisk-20.20.0-rc1</title></head><body>
+<h2>Change Log for Release asterisk-20.20.0-rc1</h2>
+<h3>Links:</h3>
+<ul>
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-20.20.0-rc1.html">Full ChangeLog</a>  </li>
+<li><a href="https://github.com/asterisk/asterisk/compare/20.19.0...20.20.0-rc1">GitHub Diff</a>  </li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-20.20.0-rc1.tar.gz">Tarball</a>  </li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk">Downloads</a>  </li>
+</ul>
+<h3>Summary:</h3>
+<ul>
+<li>Commits: 53</li>
+<li>Commit Authors: 24</li>
+<li>Issues Resolved: 43</li>
+<li>Security Advisories Resolved: 0</li>
+</ul>
+<h3>User Notes:</h3>
+<ul>
+<li>
+<h4>res ari: Add attachable states to Channels and Bridges</h4>
+  Bridge variables now can be set and retrieved via the following paths:
+  <code>/bridges/{bridgeId}/variable</code>
+  <code>/bridges/{bridgeId}/variables</code>
+  Both Bridge and Channel variables can now be set with an optional 'report_events'
+  boolean flag that will cause those variables to be included on all events on that
+  object. The 'report_events' flag will default to False if not set to maintain
+  backwards capability.
+  To allow this, variables can now be either name value pairs (the current format):
+  <code>&lt;variable_name&gt;: '&lt;value_string&gt;'</code></li>
+<li>
+<p>or -
+  <code>&lt;variable_name&gt;: {value: '&lt;value_string&gt;', report_events: [true|false]}</code></p>
+</li>
+<li>
+<h4>ARI: Added paths to get and set multiple channel variables.</h4>
+<p>Added new ARI paths for getting and setting multiple channel
+  variables at a time. For GET, this takes in a single string of
+  comma-separated variable names, while POST takes in a dictionary of key
+  value pairs. The behavior is the same as passing in variables when
+  originating a channel.</p>
+</li>
+<li>
+<h4>res_rtp_asterisk: Add option to control stun host resolution when TTL = 0</h4>
+<p>A new <code>stunaddr_reresolve_ttl_0</code> parameter has been added to rtp.conf
+  that allows control over what happens when a STUN server hostname lookup
+  returns a TTL of 0.  The values can be set as follows:</p>
+</li>
+<li>'no': This is the historical (and current default) behavior of not doing
+  any further lookups and continuing to use the last successful result until
+  Asterisk is restarted or rtp.conf is reloaded.</li>
+<li>'yes': Use the last cached result for the current call but trigger
+  re-resolution in the background for the benefit of future calls.
+  If the result of the background lookup is a ttl &gt; 0, periodic resolution
+  will be restarted otherwise the next call will use the new cached value
+  and will trigger a background lookup again.
+  A new CLI command <code>rtp resolve stun hostname</code> has been added</li>
+<li>
+<h4>app_dial: Properly handle callee hangup while sending digits.</h4>
+<p>If a called channel sends progress or wink and the caller begins
+  sending digits but the callee answers and then hangs up before digit
+  sending can finish, the call is now answered before being disconnected.
+  If the callee hangs up without answering, the call now continues in
+  the dialplan.</p>
+</li>
+<li>
+<h4>Upgrade bundled pjproject to 2.17.</h4>
+<p>Bundled pjproject has been upgraded to 2.17. For more
+  information about what is included in this release, see the
+  pjproject Github page: https://github.com/pjsip/pjproject/releases/tag/2.17</p>
+</li>
+<li>
+<h4>res_pjsip: Add per-endpoint RTP port range configuration</h4>
+<p>PJSIP endpoints now support rtp_port_start and
+  rtp_port_end options to configure a dedicated RTP port range per
+  endpoint, overriding the global rtp.conf setting.</p>
+</li>
+<li>
+<h4>stasis_broadcast: Add optional ARI broadcast with first-claim-wins</h4>
+<p>New optional modules res_stasis_broadcast.so and
+  app_stasis_broadcast.so enable broadcasting an incoming channel to multiple
+  ARI applications. The first application to successfully claim (via
+  POST /ari/events/claim) wins channel control. StasisBroadcast() dialplan
+  application initiates broadcasts. CallBroadcast and CallClaimed events notify
+  applications. When modules are not loaded, behavior is unchanged.</p>
+</li>
+<li>
+<h4>chan_iax2: Add CHANNEL getter to retrieve auth method.</h4>
+<p>CHANNEL(auth_method) can now be used to retrieve the
+  auth method negotiated for a call on IAX2 channels.</p>
+</li>
+<li>
+<h4>res_pjsip_maintenance: Add PJSIP endpoint maintenance mode</h4>
+<p>New module res_pjsip_maintenance adds runtime maintenance
+  mode for PJSIP endpoints. Use "pjsip set maintenance <on|off>
+  <endpoint|all>" to enable or disable, and "pjsip show maintenance"
+  to list affected endpoints. AMI actions PJSIPSetMaintenance and
+  PJSIPShowMaintenance provide programmatic access. No configuration
+  file changes required.</p>
+</li>
+</ul>
+<h3>Upgrade Notes:</h3>
+<ul>
+<li>
+<h4>jansson: Upgrade version to jansson 2.15.0</h4>
+<p>jansson has been upgraded to 2.15.0. For more
+  information visit jansson Github page: https://github.com/akheron/jansson/releases/tag/v2.15.0</p>
+</li>
+<li>
+<h4>res_pjsip: Add per-endpoint RTP port range configuration</h4>
+<p>An alembic database migration has been added to add
+  the rtp_port_start and rtp_port_end columns to the ps_endpoints
+  table. Run "alembic upgrade head" to apply the schema change.</p>
+</li>
+</ul>
+<h3>Developer Notes:</h3>
+<ul>
+<li>
+<h4>res_pjsip: Add per-endpoint RTP port range configuration</h4>
+<p>New public API: ast_rtp_instance_new_with_port_range()
+  creates an RTP instance with a per-instance port range.
+  ast_rtp_instance_get_port_start() and ast_rtp_instance_get_port_end()
+  allow RTP engines to query the override. Third-party RTP engines can
+  use these getters to support per-instance port ranges.</p>
+</li>
+<li>
+<h4>stasis_broadcast: Add optional ARI broadcast with first-claim-wins</h4>
+<p>New public APIs in stasis_app_broadcast.h:
+  stasis_app_broadcast_channel(), stasis_app_claim_channel(),
+  stasis_app_broadcast_winner(), and stasis_app_broadcast_wait(). New ARI event
+  types (CallBroadcast, CallClaimed) added to events.json. All code is isolated;
+  no existing ABI modified.</p>
+</li>
+<li>
+<h4>res_pjsip_maintenance: Add PJSIP endpoint maintenance mode</h4>
+<p>ast_sip_session_supplement gains a new optional
+  callback - int (<em>session_create)(struct ast_sip_endpoint </em>endpoint,
+  const char *destination). It is called from the global supplement
+  list (not per-session) at the start of ast_sip_session_create_outgoing()
+  via ast_sip_session_check_supplement_create(). Returning non-zero
+  blocks the outgoing session. Modules that need to gate outbound
+  SIP session creation should register a supplement with this callback
+  set rather than hooking into chan_pjsip directly.</p>
+</li>
+<li>
+<h4>build: remove pjsua, pjsystest, Python bindings and asterisk_malloc_debug stubs from pjproject dev build</h4>
+<p>The pjsua and pjsystest application binaries, the deprecated
+  Python pjsua bindings (<code>_pjsua.so</code>), and the <code>asterisk_malloc_debug.c</code> stub
+  implementations are no longer built or installed as part of the bundled
+  pjproject dev mode build. The <code>PYTHONDEV</code> (python2.7-dev) build dependency
+  is also removed. Developers who relied on the pjsua binary for Test Suite
+  SIP simulation should use SIPp instead, which is the current Asterisk Test
+  Suite standard.
+  Fixes: #1840</p>
+</li>
+</ul>
+<h3>Commit Authors:</h3>
+<ul>
+<li>Alexander Bakker: (1)</li>
+<li>Alexei Gradinari: (1)</li>
+<li>Ben Ford: (1)</li>
+<li>Bernd Kuhls: (2)</li>
+<li>Charles Langlois: (1)</li>
+<li>Daniel Donoghue: (2)</li>
+<li>George Joseph: (14)</li>
+<li>Jaco Kroon: (1)</li>
+<li>Joshua C. Colp: (1)</li>
+<li>Maximilian Fridrich: (1)</li>
+<li>Mike Bradeen: (3)</li>
+<li>Milan Kyselica: (1)</li>
+<li>Naveen Albert: (3)</li>
+<li>Peter Krall: (1)</li>
+<li>Sean Bright: (4)</li>
+<li>Sebastian Denz: (1)</li>
+<li>Sebastian Jennen: (2)</li>
+<li>Stanislav Abramenkov: (2)</li>
+<li>Sven Kube: (1)</li>
+<li>UpBeta: (1)</li>
+<li>mattia: (1)</li>
+<li>mikhail_grishak: (1)</li>
+<li>phoneben: (5)</li>
+<li>smtcbn: (2)</li>
+</ul>
+<h2>Issue and Commit Detail:</h2>
+<h3>Closed Issues:</h3>
+<ul>
+<li>1217: [bug]: INSERT INTO cdr query prepare statement issue on cdr_adaptive_odbc to control statement preparation manually</li>
+<li>1357: [bug]: MessageSend WARNING “not a valid SIP/SIPS URI” when using endpoint not URI</li>
+<li>1653: [bug]: Asterisk ODBC Voicemail Crash Caused by Voicemail Re-entry Loop and Unsafe BLOB Retrieval</li>
+<li>1736: app_queue: update_queue() may double-increment member-&gt;calls with shared_lastcall=yes (regression observed after 20.17; impacts fewestcalls routing)</li>
+<li>1761: func_talkdetect.c: TALK_DETECT docs wording mistake</li>
+<li>1762: [bug]: 100% CPU usage when entering BridgeWait after JITTERBUFFER(disabled)=</li>
+<li>1807: [new-feature]: translate.c: implement different types of sample frame inputs</li>
+<li>1812: [new-feature]: add tests/test_codec_translations.c</li>
+<li>1818: [bug]: func_odbc: possible use-after-free crash during reload with active calls</li>
+<li>1839: Crash in MDMF Caller ID parser due to signed char length field on DAHDI channels</li>
+<li>1840: [bug]: Asterisk fails to compile with --enable-dev-mode=yes due to INIT_RETURN undeclared in bundled pjproject Python bindings</li>
+<li>1855: [bug]: core reload deadlocks Asterisk (pjsip, CLI, etc.)</li>
+<li>1858: [bug]: DNS records with a TTL of zero are permanently cached</li>
+<li>1859: [bug]: res_pjsip_outbound_registration: No expires header set when triggered via CLI</li>
+<li>1861: [bug]: Possible heap corruption in audiohook/translate write path during bridged media</li>
+<li>1862: [bug]: Build fails with Building Documentation: line 210: /tmp/xmldoc.tmp.xml: Permission denied</li>
+<li>1865: [bug]: chan_iax2: Another code path that causes crashes on negative data lengths</li>
+<li>1867: [bug]: Massive [eventpoll] file-descriptor leak (hundreds of epoll fds) when TURN is enabled in rtp.conf</li>
+<li>1872: [bug]:  Deadlock in chan_pjsip_new when endpoint set_var invokes PJSIP_HEADER</li>
+<li>1878: [new-feature]: chan_iax2: Allow retrieving the auth method using the CHANNEL function</li>
+<li>1883: [bug]: fix: stdatomic.h false positive on GCC 4.8</li>
+<li>1885: [bug]: cdrel_custom :SQLite version too old: sqlite3_prepare_v3 / SQLITE_PREPARE_PERSISTENT undeclared</li>
+<li>1888: [improvement]: pjsip: Upgrade bundled version to pjproject 2.17</li>
+<li>1892: [bug]: Build failure with bundled pjproject on OpenSSL 1.0.x: undefined reference to TLS_method and SSL_CTX_set_ciphersuites</li>
+<li>1894: [bug]: Outbound ARI websockets don't always clean up completely</li>
+<li>1896: [bug]: asterisk.c fails to compile when HAVE_LIBEDIT_IS_UNICODE isn't defined</li>
+<li>1901: [bug]: QUEUE_RAISE_PENALTY=rN ignored when set via queue rules</li>
+<li>1903: [bug]: g++ 16 no longer defines <strong>STDC_VERSION</strong> causing channelstorage_cpp_map_name_id.cc to fail</li>
+<li>1907: [bug]: Deadlock between bridge and setting of RTP stats variables at hangup</li>
+<li>1910: [improvement]: Add attachable state variables to Channels and Bridges.</li>
+<li>1915: [bug]: app_dial: Channel not handled properly if callee disconnects while caller is sending it digits prior to answer</li>
+<li>1921: [bug]: Memory error in crypto_get_cert_subject when using malloc_debug</li>
+<li>1928: [bug]: Calling ast_softhangup with channel lock held can cause deadlock</li>
+<li>1931: [improvement]: jansson: Upgrade version to jansson 2.15.0</li>
+<li>1936: [bug]: Calling set_variable on PJSIP channel when originating with ARI with PJSIP_HEADER can result in deadlock</li>
+<li>1938: [bug]: res_rtp_asterisk: Copy/paste error in ast_rtp_get_stat()</li>
+<li>1941: [bug]: chan_websocket doesn't handle CONTINUATION websocket frames</li>
+<li>1947: [bug]: chan_dahdi fails to build with gcc-16 when openr2 is installed</li>
+<li>1950: [bug]: app_record does not detect channel hangup during beep playback</li>
+<li>1952: [bug]: OpenSSL 4.0.0</li>
+<li>1957: [bug]: Calendar module fails to build with libical 4.X</li>
+<li>1970: [bug]: Startup or shutdown segfault in res_ari_model under certain conditions with DEVMODE and persistent outbound websockets.</li>
+</ul>
+<h3>Commits By Author:</h3>
+<ul>
+<li>
+<h4>Alexander Bakker (1):</h4>
+</li>
+<li>
+<p>abstract_jb.c: Remove timerfd from channel when disabling jitter buffer</p>
+</li>
+<li>
+<h4>Alexei Gradinari (1):</h4>
+</li>
+<li>
+<p>build: remove pjsua, pjsystest, Python bindings and asterisk_malloc_debug stubs from pjproject dev build</p>
+</li>
+<li>
+<h4>Ben Ford (1):</h4>
+</li>
+<li>
+<p>ARI: Added paths to get and set multiple channel variables.</p>
+</li>
+<li>
+<h4>Bernd Kuhls (2):</h4>
+</li>
+<li>res_stir_shaken: avoid direct ASN1_STRING accesses</li>
+<li>
+<p>tcptls.c: fix build with OpenSSL 4</p>
+</li>
+<li>
+<h4>Charles Langlois (1):</h4>
+</li>
+<li>
+<p>chan_pjsip: Fix deadlock when endpoint set_var uses PJSIP_HEADER</p>
+</li>
+<li>
+<h4>Daniel Donoghue (2):</h4>
+</li>
+<li>stasis_broadcast: Add optional ARI broadcast with first-claim-wins</li>
+<li>
+<p>res_pjsip_maintenance: Add PJSIP endpoint maintenance mode</p>
+</li>
+<li>
+<h4>George Joseph (14):</h4>
+</li>
+<li>res_ari: Add res_ari_model as an optional_module.</li>
+<li>Ensure channel locks aren't held while calling ast_set_variables.</li>
+<li>chan_dahdi: Fix set but not used in mfcr2_show_links_of().</li>
+<li>chan_websocket: Handle incoming CONTINUATION frames.</li>
+<li>res_rtp_asterisk: Fix incorrect reference in ast_rtp_get_stat().</li>
+<li>channel.c: Move setting RTP stats from ast_softhangup to ast_ari_channels_hangup.</li>
+<li>res_rtp_asterisk: Add option to control stun host resolution when TTL = 0</li>
+<li>channel.c: Don't lock the channel in ast_softhangup while setting rtp instance vars</li>
+<li>ari_websockets: Fix two issues in the cleanup of outbound websockets.</li>
+<li>compat.h: Ensure check for <code>__STDC_VERSION__</code> is not attempted for c++.</li>
+<li>asterisk.c: Fix #if HAVE_LIBEDIT_IS_UNICODE.</li>
+<li>pbx_functions: Save module pointer before calling read and write callbacks.</li>
+<li>res_rtp_asterisk: Destroy ioqueue in rtp_ioqueue_thread_destroy.</li>
+<li>
+<p>res_pjsip_config_wizard: Trigger reloads from a pjsip servant thread</p>
+</li>
+<li>
+<h4>Jaco Kroon (1):</h4>
+</li>
+<li>
+<p>pjsip_configuration: Show actual dtls_verify config.</p>
+</li>
+<li>
+<h4>Joshua C. Colp (1):</h4>
+</li>
+<li>
+<p>manager: Eliminate unnecessary code, simplify sessions in stasis callbacks</p>
+</li>
+<li>
+<h4>Maximilian Fridrich (1):</h4>
+</li>
+<li>
+<p>res_pjsip_messaging: Update To URI only if it is a SIP(S) URI</p>
+</li>
+<li>
+<h4>Mike Bradeen (3):</h4>
+</li>
+<li>res ari: Add attachable states to Channels and Bridges</li>
+<li>res_stir_shaken: fix memory free crash when Asterisk is built with malloc_debug</li>
+<li>
+<p>res_pjsip_outbound_registration: only update the Expires header if the value has changed</p>
+</li>
+<li>
+<h4>Milan Kyselica (1):</h4>
+</li>
+<li>
+<p>callerid: fix signed char causing crash in MDMF parser</p>
+</li>
+<li>
+<h4>Naveen Albert (3):</h4>
+</li>
+<li>app_dial: Properly handle callee hangup while sending digits.</li>
+<li>chan_iax2: Add CHANNEL getter to retrieve auth method.</li>
+<li>
+<p>chan_iax2: Add another check to abort frame handling if datalen &lt; 0.</p>
+</li>
+<li>
+<h4>Peter Krall (1):</h4>
+</li>
+<li>
+<p>res_stasis/resource_bridges: Split bridge playback control and wrapper cleanup</p>
+</li>
+<li>
+<h4>Sean Bright (4):</h4>
+</li>
+<li>res_pjsip: Don't allow a leading period when wildcard matching</li>
+<li>install_prereq: Add a 'minimal' mode for basic build dependencies</li>
+<li>func_talkdetect.c: Clarify dsp_talking_threshold documentation.</li>
+<li>
+<p>make_xml_documentation: Remove temporary file on script exit.</p>
+</li>
+<li>
+<h4>Sebastian Denz (1):</h4>
+</li>
+<li>
+<p>res_pjsip_outbound_publish.c: Add more verbose documentation for outbound_proxy usage</p>
+</li>
+<li>
+<h4>Sebastian Jennen (2):</h4>
+</li>
+<li>tests: add tests/test_codec_translations.c</li>
+<li>
+<p>translate.c: implement different sample_types for translation computation.</p>
+</li>
+<li>
+<h4>Stanislav Abramenkov (2):</h4>
+</li>
+<li>jansson: Upgrade version to jansson 2.15.0</li>
+<li>
+<p>Upgrade bundled pjproject to 2.17.</p>
+</li>
+<li>
+<h4>Sven Kube (1):</h4>
+</li>
+<li>
+<p>res_audiosocket: Tolerate non-audio frame types</p>
+</li>
+<li>
+<h4>UpBeta (1):</h4>
+</li>
+<li>
+<p>app_record: Fix hangup handling during beep playback</p>
+</li>
+<li>
+<h4>mattia (1):</h4>
+</li>
+<li>
+<p>res_pjsip: Add per-endpoint RTP port range configuration</p>
+</li>
+<li>
+<h4>mikhail_grishak (1):</h4>
+</li>
+<li>
+<p>res_calendar: Fix build with libical 4.X</p>
+</li>
+<li>
+<h4>phoneben (5):</h4>
+</li>
+<li>app_queue: Fix raise_respect_min lost in copy_rules() breaking rN queue rules</li>
+<li>app_voicemail_odbc: fix msgnum race and crash on failed STORE</li>
+<li>pjproject: Backport fix for OpenSSL &lt; 1.1.0 build failure in ssl_sock_ossl.c</li>
+<li>cdrel_custom: fix SQLite compatibility for versions &lt; 3.20.0</li>
+<li>
+<p>fix: backport pjproject stdatomic.h GCC 4.8 build failure patch</p>
+</li>
+<li>
+<h4>smtcbn (2):</h4>
+</li>
+<li>odbc: Don't use prepared statements for distinct SQL statements</li>
+<li>app_queue: fix double increment of member-&gt;calls with shared_lastcall</li>
+</ul>
+<h3>Commit List:</h3>
+<ul>
+<li>res_ari: Add res_ari_model as an optional_module.</li>
+<li>res ari: Add attachable states to Channels and Bridges</li>
+<li>ARI: Added paths to get and set multiple channel variables.</li>
+<li>res_stir_shaken: avoid direct ASN1_STRING accesses</li>
+<li>tcptls.c: fix build with OpenSSL 4</li>
+<li>res_calendar: Fix build with libical 4.X</li>
+<li>app_record: Fix hangup handling during beep playback</li>
+<li>odbc: Don't use prepared statements for distinct SQL statements</li>
+<li>abstract_jb.c: Remove timerfd from channel when disabling jitter buffer</li>
+<li>res_pjsip: Don't allow a leading period when wildcard matching</li>
+<li>Ensure channel locks aren't held while calling ast_set_variables.</li>
+<li>app_queue: fix double increment of member-&gt;calls with shared_lastcall</li>
+<li>chan_dahdi: Fix set but not used in mfcr2_show_links_of().</li>
+<li>tests: add tests/test_codec_translations.c</li>
+<li>install_prereq: Add a 'minimal' mode for basic build dependencies</li>
+<li>chan_websocket: Handle incoming CONTINUATION frames.</li>
+<li>res_rtp_asterisk: Fix incorrect reference in ast_rtp_get_stat().</li>
+<li>jansson: Upgrade version to jansson 2.15.0</li>
+<li>channel.c: Move setting RTP stats from ast_softhangup to ast_ari_channels_hangup.</li>
+<li>res_rtp_asterisk: Add option to control stun host resolution when TTL = 0</li>
+<li>pjsip_configuration: Show actual dtls_verify config.</li>
+<li>app_dial: Properly handle callee hangup while sending digits.</li>
+<li>res_pjsip_messaging: Update To URI only if it is a SIP(S) URI</li>
+<li>Upgrade bundled pjproject to 2.17.</li>
+<li>res_stir_shaken: fix memory free crash when Asterisk is built with malloc_debug</li>
+<li>manager: Eliminate unnecessary code, simplify sessions in stasis callbacks</li>
+<li>res_stasis/resource_bridges: Split bridge playback control and wrapper cleanup</li>
+<li>res_pjsip_outbound_publish.c: Add more verbose documentation for outbound_proxy usage</li>
+<li>channel.c: Don't lock the channel in ast_softhangup while setting rtp instance vars</li>
+<li>chan_pjsip: Fix deadlock when endpoint set_var uses PJSIP_HEADER</li>
+<li>res_pjsip: Add per-endpoint RTP port range configuration</li>
+<li>app_queue: Fix raise_respect_min lost in copy_rules() breaking rN queue rules</li>
+<li>app_voicemail_odbc: fix msgnum race and crash on failed STORE</li>
+<li>ari_websockets: Fix two issues in the cleanup of outbound websockets.</li>
+<li>compat.h: Ensure check for <code>__STDC_VERSION__</code> is not attempted for c++.</li>
+<li>pjproject: Backport fix for OpenSSL &lt; 1.1.0 build failure in ssl_sock_ossl.c</li>
+<li>asterisk.c: Fix #if HAVE_LIBEDIT_IS_UNICODE.</li>
+<li>cdrel_custom: fix SQLite compatibility for versions &lt; 3.20.0</li>
+<li>translate.c: implement different sample_types for translation computation.</li>
+<li>stasis_broadcast: Add optional ARI broadcast with first-claim-wins</li>
+<li>res_audiosocket: Tolerate non-audio frame types</li>
+<li>pbx_functions: Save module pointer before calling read and write callbacks.</li>
+<li>chan_iax2: Add CHANNEL getter to retrieve auth method.</li>
+<li>fix: backport pjproject stdatomic.h GCC 4.8 build failure patch</li>
+<li>res_rtp_asterisk: Destroy ioqueue in rtp_ioqueue_thread_destroy.</li>
+<li>res_pjsip_maintenance: Add PJSIP endpoint maintenance mode</li>
+<li>chan_iax2: Add another check to abort frame handling if datalen &lt; 0.</li>
+<li>res_pjsip_outbound_registration: only update the Expires header if the value has changed</li>
+<li>func_talkdetect.c: Clarify dsp_talking_threshold documentation.</li>
+<li>make_xml_documentation: Remove temporary file on script exit.</li>
+<li>res_pjsip_config_wizard: Trigger reloads from a pjsip servant thread</li>
+<li>build: remove pjsua, pjsystest, Python bindings and asterisk_malloc_debug stubs from pjproject dev build</li>
+<li>callerid: fix signed char causing crash in MDMF parser</li>
+</ul>
+<h3>Commit Details:</h3>
+<h4>res_ari: Add res_ari_model as an optional_module.</h4>
+<p>Author: George Joseph
+  Date:   2026-06-03</p>
+<p>Under certain timing/load conditions, res_ari_model may not load until after
+  res_ari on startup or it might unload before res_ari on shutdown. This can
+  cause a segfault when DEVMODE is enabled and there are persistent outbound
+  websocket connections because DEVMODE forces validation of outgoing events
+  against the models.  To prevent this, res_ari_model has been added as an
+  "optional_module" to res_ari's NODULE_INFO.  This will enforce load/unload
+  order but not make res_ari dependent on res_ari_model.  However, if
+  Asterisk is configured with --enable-dev-mode, res_ari will fail to
+  load if res_ari_model isn't available.</p>
+<p>Resolves: #1970</p>
+<h4>res ari: Add attachable states to Channels and Bridges</h4>
+<p>Author: Mike Bradeen
+  Date:   2026-03-31</p>
+<p>Adds the ability to attach multiple states to both Channels and Bridges in the form
+  of variables that are included in all events on the associated object.</p>
+<p>First, this adds an optional boolean field to channel variables 'report_events'
+  that causes the variable to automatically be included in all events on that channel.</p>
+<p>To allow this, variables can now be either name value pairs (the current format):
+  <code>&lt;variable_name&gt;: '&lt;value_string&gt;'</code>
+   - or -
+  <code>&lt;variable_name&gt;: {value: '&lt;value_string&gt;', report_events: [true|false]}</code></p>
+<p>If the old format is used or 'report_events' is not included, it will default to
+  false and retain current behavior.</p>
+<p>Second, this extends both reported and unreported variables to Bridges so they too
+  may have stateful information.</p>
+<p>Resolves: #1910</p>
+<p>UserNote: Bridge variables now can be set and retrieved via the following paths:
+  <code>/bridges/{bridgeId}/variable</code>
+  <code>/bridges/{bridgeId}/variables</code>
+  Both Bridge and Channel variables can now be set with an optional 'report_events'
+  boolean flag that will cause those variables to be included on all events on that
+  object. The 'report_events' flag will default to False if not set to maintain
+  backwards capability.
+  To allow this, variables can now be either name value pairs (the current format):
+  <code>&lt;variable_name&gt;: '&lt;value_string&gt;'</code>
+   - or -
+  <code>&lt;variable_name&gt;: {value: '&lt;value_string&gt;', report_events: [true|false]}</code></p>
+<h4>ARI: Added paths to get and set multiple channel variables.</h4>
+<p>Author: Ben Ford
+  Date:   2026-04-15</p>
+<p>Two new paths exist for ARI to get and set multiple channel variables at
+  the same time. This is done via GET and POST like the single get and set
+  variable equivalents. Leading and trailing whitespace will be stripped
+  from the variable names for both paths. When setting variables, the
+  values will be read as-is, whitespace included. GET takes in a single
+  string with comma-separated values, while POST takes in a dictionary of
+  key value pairs. The code follows the same paths as when setting
+  multiple variables when originating a channel via ARI.</p>
+<p>UserNote: Added new ARI paths for getting and setting multiple channel
+  variables at a time. For GET, this takes in a single string of
+  comma-separated variable names, while POST takes in a dictionary of key
+  value pairs. The behavior is the same as passing in variables when
+  originating a channel.</p>
+<h4>res_stir_shaken: avoid direct ASN1_STRING accesses</h4>
+<p>Author: Bernd Kuhls
+  Date:   2026-05-02</p>
+<p>https://github.com/openssl/openssl/issues/29117</p>
+<p>Signed-off-by: Bernd Kuhls <a href="&#109;&#97;&#105;&#108;&#116;&#111;&#58;&#98;&#101;&#114;&#110;&#100;&#64;&#107;&#117;&#104;&#108;&#115;&#46;&#110;&#101;&#116;">&#98;&#101;&#114;&#110;&#100;&#64;&#107;&#117;&#104;&#108;&#115;&#46;&#110;&#101;&#116;</a></p>
+<p>Resolves: #1952</p>
+<h4>tcptls.c: fix build with OpenSSL 4</h4>
+<p>Author: Bernd Kuhls
+  Date:   2026-05-02</p>
+<p>tcptls.c: In function '__ssl_setup':
+  tcptls.c:417:52: error: implicit declaration of function 'SSLv3_client_method';
+   did you mean 'SSLv23_client_method'? [-Wimplicit-function-declaration]
+    417 |                         cfg-&gt;ssl_ctx = SSL_CTX_new(SSLv3_client_method());</p>
+<p>SSLv3_client_method was removed from OpenSSL 4.0.0:
+  https://github.com/openssl/openssl/blob/openssl-4.0.0/doc/man7/ossl-removed-api.pod?plain=1#L440</p>
+<p>Signed-off-by: Bernd Kuhls <a href="&#109;&#97;&#105;&#108;&#116;&#111;&#58;&#98;&#101;&#114;&#110;&#100;&#64;&#107;&#117;&#104;&#108;&#115;&#46;&#110;&#101;&#116;">&#98;&#101;&#114;&#110;&#100;&#64;&#107;&#117;&#104;&#108;&#115;&#46;&#110;&#101;&#116;</a></p>
+<p>Resolves: #1952</p>
+<h4>res_calendar: Fix build with libical 4.X</h4>
+<p>Author: mikhail_grishak
+  Date:   2026-05-26</p>
+<p>libical 4.0 removed the icaltime_add() function in favor of icaltime_adjust(). Additionally, the callback signature for icalcomponent_foreach_recurrence() was updated to use a const pointer for the icaltime_span argument.</p>
+<p>This commit adds conditional compilation using ICAL_MAJOR_VERSION to support both libical 3.X and the new 4.X API, ensuring backward compatibility.</p>
+<p>Fixes: #1957</p>
+<h4>app_record: Fix hangup handling during beep playback</h4>
+<p>Author: UpBeta
+  Date:   2026-05-23</p>
+<p>When a hangup occurs while app_record is playing the initial beep,
+  the application does not detect the hangup and continues running
+  until the maxduration timeout expires.</p>
+<p>Replace the manual ast_streamfile() + ast_waitstream() sequence with
+  ast_stream_and_wait(), which properly detects hangup and returns
+  non-zero, allowing the application to exit immediately with
+  RECORD_STATUS set to HANGUP.</p>
+<p>Resolves: #1950</p>
+<h4>odbc: Don't use prepared statements for distinct SQL statements</h4>
+<p>Author: smtcbn
+  Date:   2025-04-25</p>
+<p>Avoids unnecessary prepare for simple INSERT statements that cause
+  issues with ProxySQL (prepared statement counter overflow).</p>
+<p>Resolves: #1217</p>
+<h4>abstract_jb.c: Remove timerfd from channel when disabling jitter buffer</h4>
+<p>Author: Alexander Bakker
+  Date:   2026-05-20</p>
+<p>Previously, the lingering timerfd would cause a tight loop if the
+  channel enters a BridgeWait after the jitter buffer was disabled.</p>
+<p>Fixes: #1762</p>
+<h4>res_pjsip: Don't allow a leading period when wildcard matching</h4>
+<p>Author: Sean Bright
+  Date:   2026-05-26</p>
+<p>The reference identifier (what the client provides - in this case a
+  hostname) must start with a domain label, not a <code>.</code>.</p>
+<p>The current implementation will match <code>.seanbright.com</code> against
+  <code>*.seanbright.com</code> which is incorrect.</p>
+<h4>Ensure channel locks aren't held while calling ast_set_variables.</h4>
+<p>Author: George Joseph
+  Date:   2026-05-20</p>
+<p>If the channel is locked when calling ast_set_variables and any of the
+  variables contained dialplan functions, there's a possiblilty of a deadlock.
+  To prevent this, either the explicit locks were removed or the call to
+  ast_set_variables moved out of the lock scope.  A warning to not hold
+  channel locks is also added to the documentation for ast_set_variables.</p>
+<p>Resolves: #1936</p>
+<h4>app_queue: fix double increment of member-&gt;calls with shared_lastcall</h4>
+<p>Author: smtcbn
+  Date:   2026-01-23</p>
+<p>Under high concurrency, update_queue() may be invoked multiple times
+  for the same call, causing member-&gt;calls and queue-level counters to
+  be incremented more than once.</p>
+<p>The existing starttime check is not atomic and allows concurrent
+  execution paths to pass. Treat member-&gt;starttime as a single-use token
+  and consume it via CAS to ensure the call is counted exactly once.</p>
+<p>This also prevents incorrect call distribution when using strategies
+  such as fewestcalls.</p>
+<p>Observed as a regression after upgrading to 20.17.</p>
+<p>Resolves: #1736</p>
+<h4>chan_dahdi: Fix set but not used in mfcr2_show_links_of().</h4>
+<p>Author: George Joseph
+  Date:   2026-05-21</p>
+<p>When openr2 is installed mfcr2_show_links_of() is no longer ifdeffed out
+  which makes gcc-16 complain with 'variable ‘x’ set but not used'.</p>
+<p>Resolves: #1947</p>
+<h4>tests: add tests/test_codec_translations.c</h4>
+<p>Author: Sebastian Jennen
+  Date:   2026-03-06</p>
+<p>This tests checks [slin -&gt; codec -&gt; slin] and then compares slin in vs out
+  regarding signal noise ratio and delay.</p>
+<p>Near-lossless codecs (ulaw, alaw) are checked with a maximum per-sample
+  error bound.  Lossy codecs are checked with a per-codec SNR threshold.
+  Cross-correlation alignment compensates for algorithmic delay in codecs
+  like speex and opus.</p>
+<p>Covered codecs: ulaw, alaw, adpcm, g726, g726aal2, gsm, speex,
+  speex16, speex32, ilbc, codec2, lpc10, g722, opus.</p>
+<p>Resolves: #1812</p>
+<h4>install_prereq: Add a 'minimal' mode for basic build dependencies</h4>
+<p>Author: Sean Bright
+  Date:   2026-05-20</p>
+<h4>chan_websocket: Handle incoming CONTINUATION frames.</h4>
+<p>Author: George Joseph
+  Date:   2026-05-20</p>
+<p>chan_websocket now tells res_http_websocket to accumulate incoming CONTINUATION
+  frames into 1024 byte TEXT or BINARY frames.</p>
+<p>Resolves: #1941</p>
+<h4>res_rtp_asterisk: Fix incorrect reference in ast_rtp_get_stat().</h4>
+<p>Author: George Joseph
+  Date:   2026-05-19</p>
+<p><code>AST_RTP_STAT_SET(AST_RTP_INSTANCE_STAT_LOCAL_STDEVMES, \
+  AST_RTP_INSTANCE_STAT_COMBINED_MES, stats-&gt;local_stdevmes, \
+  rtp-&gt;rtcp-&gt;stdev_rxjitter);</code></p>
+<p>Should have been</p>
+<p><code>AST_RTP_STAT_SET(AST_RTP_INSTANCE_STAT_LOCAL_STDEVMES, \
+  AST_RTP_INSTANCE_STAT_COMBINED_MES, stats-&gt;local_stdevmes, \
+  rtp-&gt;rtcp-&gt;stdev_rxmes);</code></p>
+<p>Note the last macro parameter name.</p>
+<p>Resolves: #1938</p>
+<h4>jansson: Upgrade version to jansson 2.15.0</h4>
+<p>Author: Stanislav Abramenkov
+  Date:   2026-05-13</p>
+<p>UpgradeNote: jansson has been upgraded to 2.15.0. For more
+  information visit jansson Github page: https://github.com/akheron/jansson/releases/tag/v2.15.0</p>
+<p>Resolves: #1931</p>
+<h4>channel.c: Move setting RTP stats from ast_softhangup to ast_ari_channels_hangup.</h4>
+<p>Author: George Joseph
+  Date:   2026-05-12</p>
+<p>The original trigger for setting the RTP stats in ast_softhangup() came from
+  an ARI issue where stats weren't being set in time to be reported on STASIS_END
+  events. The thought was that setting them in a common place like ast_softhangup()
+  would ensure the stats were set in possibly other scenarios.  Unfortunately,
+  setting the RTP stats variables in ast_softhangup() broke ABI as it required
+  that no channel locks be held which was not the case earlier.</p>
+<p>Given that the original issue was ARI, we can move setting the stats to
+  ast_ari_channels_hangup() in resource_channels just before it calls
+  ast_softhangup().  This might not catch all cases of the stats not being set,
+  but it won't break ABI or deadlock either.</p>
+<p>Resolves: #1928</p>
+<h4>res_rtp_asterisk: Add option to control stun host resolution when TTL = 0</h4>
+<p>Author: George Joseph
+  Date:   2026-05-05</p>
+<p>If a hostname is specified for stunaddr in rtp.conf, periodic DNS resolution
+  is enabled based on the TTL returned in the DNS results.  If the TTL returned
+  is 0, it means that the next time the IP address is needed, it must be
+  looked up again.  I.E.  Don't cache.  Historically (and incorrectly) however,
+  res_rtp_asterisk stopped the periodic resolution and never re-resolved the
+  hostname again.</p>
+<p>Besides what's mentioned in the user notes...
+  * Additional debugging was added in various STUN/DNS functions.
+  * The <code>rtp show settings</code> CLI command shows more detailed STUN info.
+  * Some debugging was added to dns_core.c and dns_recurring.c.</p>
+<p>UserNote: A new <code>stunaddr_reresolve_ttl_0</code> parameter has been added to rtp.conf
+  that allows control over what happens when a STUN server hostname lookup
+  returns a TTL of 0.  The values can be set as follows:
+  - 'no': This is the historical (and current default) behavior of not doing
+  any further lookups and continuing to use the last successful result until
+  Asterisk is restarted or rtp.conf is reloaded.
+  - 'yes': Use the last cached result for the current call but trigger
+  re-resolution in the background for the benefit of future calls.
+  If the result of the background lookup is a ttl &gt; 0, periodic resolution
+  will be restarted otherwise the next call will use the new cached value
+  and will trigger a background lookup again.</p>
+<p>UserNote: A new CLI command <code>rtp resolve stun hostname</code> has been added
+  that will force a resolution of the STUN hostname and (re)start periodic
+  resolution if the result has a TTL &gt; 0.</p>
+<p>Resolves: #1858</p>
+<h4>pjsip_configuration: Show actual dtls_verify config.</h4>
+<p>Author: Jaco Kroon
+  Date:   2026-05-07</p>
+<p>Rather than merely showing</p>
+<p>dtls_verify : Yes/No</p>
+<p>in pjsip show endpoint xxx it will now be shown what exactly is being
+  checked, ie, one of:</p>
+<p>dtls_verify : No
+  dtls_verify : Fingerprint
+  dtls_verify : Certificate
+  dtls_verify : Yes</p>
+<p>Where Yes implies both Fingerprint and Certificate.</p>
+<p>Signed-off-by: Jaco Kroon <a href="&#109;&#97;&#105;&#108;&#116;&#111;&#58;&#106;&#97;&#99;&#111;&#64;&#117;&#108;&#115;&#46;&#99;&#111;&#46;&#122;&#97;">&#106;&#97;&#99;&#111;&#64;&#117;&#108;&#115;&#46;&#99;&#111;&#46;&#122;&#97;</a></p>
+<h4>app_dial: Properly handle callee hangup while sending digits.</h4>
+<p>Author: Naveen Albert
+  Date:   2026-05-05</p>
+<p>If we are sending digits (either DTMF, MF, or SF) to the called channel
+  after receiving progress or a wink, and the callee hangs up before we
+  have finished sending it digits, there are several problems that can ensue:</p>
+<ul>
+<li>If the callee hung up without answering, the calling channel would
+    hang up and not continue in the dialplan.</li>
+<li>If the callee <em>did</em> answer before hanging up, the answer was never
+    passed through to the caller, since this gets "eaten" by the various
+    digit streaming functions and is never processed by app_dial.</li>
+</ul>
+<p>This is generally an edge case that occurs due to some kind of signaling
+  failure, but to better handle this:</p>
+<ul>
+<li>Set to_answer to 0 to prevent hangup on the exit path, just like other
+    parts of wait_for_answer.</li>
+<li>Better document this usage of to_answer.</li>
+<li>If the channel did answer while it was receiving digits, manually
+    answer the calling channel before we abort. The call would not continue
+    in the dialplan anyways (either before or after this fix), but technically
+    the call was answered, so the CDRs should probably reflect that, and this
+    mirrors the behavior of calls which normally do not continue.</li>
+</ul>
+<p>Resolves: #1915</p>
+<p>UserNote: If a called channel sends progress or wink and the caller begins
+  sending digits but the callee answers and then hangs up before digit
+  sending can finish, the call is now answered before being disconnected.
+  If the callee hangs up without answering, the call now continues in
+  the dialplan.</p>
+<h4>res_pjsip_messaging: Update To URI only if it is a SIP(S) URI</h4>
+<p>Author: Maximilian Fridrich
+  Date:   2026-05-07</p>
+<p>When a message is sent via ARI, the ARI endpoint only provides a To
+  field which is also used as destination field. This means that the To
+  field might not necessarily contain a SIP URI but might instead specify
+  an Asterisk endpoint (in MessageDestinationInfo format). This led to
+  many warnings even though the message was sent correctly.</p>
+<p>The fix is to only call <code>ast_sip_update_to_uri</code> if the To field starts
+  with the sip: or sips: scheme.</p>
+<p>Resolves: #1357</p>
+<h4>Upgrade bundled pjproject to 2.17.</h4>
+<p>Author: Stanislav Abramenkov
+  Date:   2026-04-27</p>
+<p>Resolves: #1888</p>
+<p>UserNote: Bundled pjproject has been upgraded to 2.17. For more
+  information about what is included in this release, see the
+  pjproject Github page: https://github.com/pjsip/pjproject/releases/tag/2.17</p>
+<h4>res_stir_shaken: fix memory free crash when Asterisk is built with malloc_debug</h4>
+<p>Author: Mike Bradeen
+  Date:   2026-05-06</p>
+<p>crypto_utils uses ast_asprintf to allocate the search string when checking the
+  certificate subject, but was not using ast_free to free it. This caused a crash
+  when Asterisk was built with malloc_debug</p>
+<p>Resolves: #1921</p>
+<h4>manager: Eliminate unnecessary code, simplify sessions in stasis callbacks</h4>
+<p>Author: Joshua C. Colp
+  Date:   2026-05-04</p>
+<p>Due to stasis filtering the stasis callback for AMI type messages is
+  guaranteed to only receive messages that can be turned into AMI events,
+  so remove the check done in the callback.</p>
+<p>The sessions container usage for the stasis callbacks has also been
+  simplified by having a reference on the message router subscription
+  instead of having to acquire the sessions from the global object each
+  time.</p>
+<h4>res_stasis/resource_bridges: Split bridge playback control and wrapper cleanup</h4>
+<p>Author: Peter Krall
+  Date:   2026-04-17</p>
+<p>Modified the bridge playback teardown so the worker thread removes only the
+  playback control, while the after-bridge callback removes the playback
+  wrapper once the announcer has actually left the bridge.</p>
+<p>This avoids a stale window where a new playback request could create a
+  replacement announcer before the old announcer had fully exited the holding
+  bridge.</p>
+<p>Also replaced the flexible trailing bridge_id storage in the shared worker
+  thread data with an optional bridge_id pointer, since recording paths use the
+  same structure without a bridge id.</p>
+<p>Fixes: #1861</p>
+<h4>res_pjsip_outbound_publish.c: Add more verbose documentation for outbound_proxy usage</h4>
+<p>Author: Sebastian Denz
+  Date:   2026-03-26</p>
+<h4>channel.c: Don't lock the channel in ast_softhangup while setting rtp instance vars</h4>
+<p>Author: George Joseph
+  Date:   2026-05-05</p>
+<p>ast_softhangup() was locking the channel before calling ast_rtp_instance_set_stats_vars()
+  which, if the channel was in a bridge, then locked the bridge peer channel.  If another
+  thread attempted to set bridge variables on the peer, it would lock that channel first,
+  then this channel causing a lock inversion.  ast_softhangup() now holds the channel lock
+  while retrieving the rtp instance, then unlocks it before calling
+  ast_rtp_instance_set_stats_vars(), then locks it again after it returns.</p>
+<p>Resolves: #1907</p>
+<h4>chan_pjsip: Fix deadlock when endpoint set_var uses PJSIP_HEADER</h4>
+<p>Author: Charles Langlois
+  Date:   2026-04-16</p>
+<p>When a PJSIP endpoint is configured with set_var invoking a dialplan
+  function (e.g. PJSIP_HEADER(add,...)), chan_pjsip_new() calls
+  pbx_builtin_setvar_helper() while holding the channel lock.
+  For function-style variables, this dispatches to ast_func_write()
+  which, in the case of PJSIP_HEADER, calls
+  ast_sip_push_task_wait_serializer() -- blocking synchronously while
+  the channel lock is held.</p>
+<p>If a concurrent operation (ARI, AMI, rtp_check_timeout) traverses
+  the channels container via ast_channel_get_by_name(), it acquires
+  the container lock then tries to lock individual channels in the
+  iteration callback (by_uniqueid_cb/by_name_cb). When the serializer
+  thread also needs the container lock, a circular dependency forms:</p>
+<pre><code>channel_lock -&gt; serializer_wait -&gt; container_lock -&gt; channel_lock
+</code></pre>
+<p>This causes a complete Asterisk freeze. In the observed case, 36
+  threads were blocked on the container lock until res_freeze_check
+  triggered SIGABRT after its 30-second timeout.</p>
+<p>Unlock the channel before iterating endpoint channel_vars so that
+  dialplan functions can block without holding the channel lock. Re-lock
+  the channel for ast_channel_stage_snapshot_done() so the batched
+  snapshot is published under lock and captures the full channel state
+  including the variables set during the loop.</p>
+<p>Fixes: #1872</p>
+<h4>res_pjsip: Add per-endpoint RTP port range configuration</h4>
+<p>Author: mattia
+  Date:   2026-04-01</p>
+<p>Add rtp_port_start and rtp_port_end options to PJSIP endpoint
+  configuration, allowing each endpoint to use a dedicated RTP port
+  range instead of the global rtp.conf setting.</p>
+<p>This is useful for scenarios where different endpoints need isolated
+  port ranges, such as firewall rules per trunk, multi-tenant systems,
+  or network QoS policies tied to port ranges.</p>
+<p>The implementation adds ast_rtp_instance_new_with_port_range() to the
+  RTP engine API, which sets the port range on the instance before the
+  engine allocates the transport. The default RTP engine
+  (res_rtp_asterisk) checks for per-instance overrides in
+  rtp_allocate_transport() and falls back to the global range when
+  none is set.</p>
+<p>Both options must be set together, with values &gt;= 1024 and
+  rtp_port_end &gt; rtp_port_start. Setting both to 0 (the default)
+  preserves existing behavior.</p>
+<p>Resolves: https://github.com/asterisk/asterisk-feature-requests/issues/71</p>
+<p>UserNote: PJSIP endpoints now support rtp_port_start and
+  rtp_port_end options to configure a dedicated RTP port range per
+  endpoint, overriding the global rtp.conf setting.</p>
+<p>UpgradeNote: An alembic database migration has been added to add
+  the rtp_port_start and rtp_port_end columns to the ps_endpoints
+  table. Run "alembic upgrade head" to apply the schema change.</p>
+<p>DeveloperNote: New public API: ast_rtp_instance_new_with_port_range()
+  creates an RTP instance with a per-instance port range.
+  ast_rtp_instance_get_port_start() and ast_rtp_instance_get_port_end()
+  allow RTP engines to query the override. Third-party RTP engines can
+  use these getters to support per-instance port ranges.</p>
+<h4>app_queue: Fix raise_respect_min lost in copy_rules() breaking rN queue rules</h4>
+<p>Author: phoneben
+  Date:   2026-04-26</p>
+<p>app_queue: Fix raise_respect_min not copied in copy_rules() causing rN rules to be ignored.</p>
+<p><code>copy_rules()</code> never copied <code>raise_respect_min</code> into the per-call rule list, so the flag was always 0 when a timed penaltychange rule fired, making <code>rN</code> behave like plain <code>N</code> and raising members below <code>min_penalty</code> that should have been excluded.</p>
+<p>Also fixes <code>update_qe_rule()</code> not propagating the flag from <code>qe-&gt;pr</code> to <code>qe</code>, and dropping the <code>r</code> prefix when saving back to <code>QUEUE_RAISE_PENALTY</code>.</p>
+<p>Resolves: #1901</p>
+<h4>app_voicemail_odbc: fix msgnum race and crash on failed STORE</h4>
+<p>Author: phoneben
+  Date:   2026-04-09</p>
+<p>app_voicemail_odbc: fix msgnum race and crash on failed STORE</p>
+<p>Two concurrent callers leaving voicemail to the same mailbox could be
+  assigned the same msgnum because ast_unlock_path() was called before
+  STORE(), allowing a second thread to read the same LAST_MSG_INDEX()
+  before the first INSERT committed. The losing thread got a duplicate
+  key error, but execution continued into notify_new_message() -&gt;
+  RETRIEVE() because the STORE() return value was not checked.
+  RETRIEVE() then fetched the winning thread's DB row, mmap'd its blob
+  size against the locally truncated file, and crashed with SIGBUS.</p>
+<p>Hold the path lock through STORE() and bail out on failure.</p>
+<p>Fixes: #1653</p>
+<h4>ari_websockets: Fix two issues in the cleanup of outbound websockets.</h4>
+<p>Author: George Joseph
+  Date:   2026-04-22</p>
+<ol>
+<li>
+<p>session_cleanup() now saves the websocket type before unlinking the
+  session from the session registry.  This prevents a FRACK when cleaning
+  up per-call websockets when MALLOC_DEBUG is used.</p>
+</li>
+<li>
+<p>session_shutdown_cb() and outbound_sessions_load() now call
+  pthread_cancel() to cancel the session handler thread to prevent the
+  thread from continually trying to connect to a server after the
+  connection config has been removed by a reload.  This required the
+  thread to use pthread_cleanup_push() to clean up its reference to the
+  session instead of RAII because RAII destructors don't get run when
+  pthread_cancel() is used.</p>
+</li>
+</ol>
+<p>Resolves: #1894</p>
+<h4>compat.h: Ensure check for <code>__STDC_VERSION__</code> is not attempted for c++.</h4>
+<p>Author: George Joseph
+  Date:   2026-04-27</p>
+<p><code>__STDC_VERSION__</code> is specific to C but up until gcc 16, the g++ compiler
+  also defined it.  With g++ 16.0 it's no longer defined (which is the correct
+  behavior) so compiling channelstorage_cpp_map_name_id.cc fails.  The
+  check for <code>__STDC_VERSION__</code> in compat.h is now skipped if we're compiling
+  a C++ source file.</p>
+<p>Resolves: #1903</p>
+<h4>pjproject: Backport fix for OpenSSL &lt; 1.1.0 build failure in ssl_sock_ossl.c</h4>
+<p>Author: phoneben
+  Date:   2026-04-22</p>
+<p>Backport pjsip/pjproject#4941 which fixes a build/link failure when
+  compiling against OpenSSL &lt; 1.1.0 (e.g. OpenSSL 1.0.2k on CentOS 7).</p>
+<p>Two symbols introduced in OpenSSL 1.1.x were called unconditionally
+  in ssl_sock_ossl.c without version guards:</p>
+<ul>
+<li>
+<p><code>TLS_method()</code> in <code>init_ossl_ctx()</code> is now guarded with
+    <code>OPENSSL_VERSION_NUMBER &lt; 0x10100000L</code>, falling back to
+    <code>SSLv23_method()</code> on older OpenSSL.</p>
+</li>
+<li>
+<p><code>SSL_CTX_set_ciphersuites()</code> is now guarded with
+    <code>OPENSSL_VERSION_NUMBER &gt;= 0x1010100fL</code> since this function
+    was introduced in OpenSSL 1.1.1 and is absent in 1.0.x.</p>
+</li>
+</ul>
+<p>Without this fix, linking fails with:
+    undefined reference to <code>TLS_method'
+    undefined reference to</code>SSL_CTX_set_ciphersuites'</p>
+<p>when building Asterisk with bundled pjproject on systems such as
+  CentOS 7 with OpenSSL 1.0.2k.</p>
+<p>Resolves: #1892</p>
+<h4>asterisk.c: Fix #if HAVE_LIBEDIT_IS_UNICODE.</h4>
+<p>Author: George Joseph
+  Date:   2026-04-22</p>
+<p>Line 2729 has <code>#if HAVE_LIBEDIT_IS_UNICODE</code> instead if <code>#ifdef</code>.  Since
+  macros defined by autoconf are either set to <code>1</code> or not set at all,
+  older distros where libedit isn't unicode won't have that macro defined
+  and will fail to compile.</p>
+<p>Resolves: #1896</p>
+<h4>cdrel_custom: fix SQLite compatibility for versions &lt; 3.20.0</h4>
+<p>Author: phoneben
+  Date:   2026-04-21</p>
+<p>cdrel_custom: fix SQLite compatibility for versions &lt; 3.20.0</p>
+<p>Replace sqlite3_prepare_v3 + SQLITE_PREPARE_PERSISTENT with a version-guarded fallback to sqlite3_prepare_v2 for older SQLite builds.</p>
+<p>Resolves: #1885</p>
+<h4>translate.c: implement different sample_types for translation computation.</h4>
+<p>Author: Sebastian Jennen
+  Date:   2026-04-02</p>
+<p>The default (codec) still uses the codec provided samples. Additionally
+  different sample_types can be used with eg: <code>translate sampletype speech</code>
+  and then running <code>core show translation comp 10</code> to measure performance
+  of different audio scenarios.</p>
+<p>Resolves: #1807</p>
+<h4>stasis_broadcast: Add optional ARI broadcast with first-claim-wins</h4>
+<p>Author: Daniel Donoghue
+  Date:   2026-02-25</p>
+<p>Adds two optional modules:
+  res_stasis_broadcast.so: Infrastructure for broadcasting a single incoming
+  channel to multiple ARI applications with atomic first-claim-wins semantics.</p>
+<p>app_stasis_broadcast.so: Provides the StasisBroadcast() dialplan application
+  which invokes the broadcast infrastructure.</p>
+<p>Both modules are self-contained; if neither is loaded there is zero runtime
+  impact. Loading them does not alter existing Stasis or ARI behavior unless
+  explicitly used.</p>
+<p>Key Features (only active when modules are loaded):
+  Fisher-Yates shuffled broadcast dispatch for fair claim races
+  Atomic claim operations using mutex + condition variable signaling
+  Configurable broadcast timeouts
+  Safe regex application filtering with validation to mitigate ReDoS risk
+  Thread-safe channel variable snapshotting (channel locked during reads)
+  Late-claim safety: broadcast context kept alive until after the Stasis
+  session ends so concurrent claimants always receive 409 Conflict rather
+  than 404 Not Found
+  Memory safety via RAII_VAR, ast_json_ref/unref, and ao2 reference counting</p>
+<p>Components Added:
+  res/res_stasis_broadcast.c: Core broadcast + claim logic
+  apps/app_stasis_broadcast.c: StasisBroadcast() dialplan application
+  include/asterisk/stasis_app_broadcast.h: Public API header
+  res/ari/resource_events.c: Integrates POST /ari/events/claim endpoint
+  rest-api/api-docs/events.json: New CallBroadcast and CallClaimed events</p>
+<p>Implementation Notes:
+  Broadcast contexts reside in an ao2 hash container keyed by channel id. Each
+  context holds atomic claim state, winner application name, timeout metadata,
+  and a condition variable for waiters. Broadcast contexts are kept alive until
+  after stasis_app_exec() returns so that concurrent claimants racing against
+  the timeout always receive 409 Conflict. Broadcast dispatch calls
+  stasis_app_send() directly for each matching application in shuffled order.
+  Regex filters are validated with bounded length, group depth, quantified
+  group count, and alternation limits to reduce pathological backtracking.
+  Timeout calculation uses timespec arithmetic with overflow-safe millisecond
+  remainder handling. Event JSON follows existing Stasis/ARI conventions;
+  references are managed correctly to avoid leaks or double frees.</p>
+<p>Optional Nature / Impact:
+  No changes to existing APIs, events, or applications when absent.
+  Clean fallback: systems ignoring the modules behave identically to prior
+  versions.</p>
+<p>Development was assisted by Claude (Anthropic). All generated code has been
+  reviewed, tested, and is understood by the author.</p>
+<p>UserNote: New optional modules res_stasis_broadcast.so and
+  app_stasis_broadcast.so enable broadcasting an incoming channel to multiple
+  ARI applications. The first application to successfully claim (via
+  POST /ari/events/claim) wins channel control. StasisBroadcast() dialplan
+  application initiates broadcasts. CallBroadcast and CallClaimed events notify
+  applications. When modules are not loaded, behavior is unchanged.</p>
+<p>DeveloperNote: New public APIs in stasis_app_broadcast.h:
+  stasis_app_broadcast_channel(), stasis_app_claim_channel(),
+  stasis_app_broadcast_winner(), and stasis_app_broadcast_wait(). New ARI event
+  types (CallBroadcast, CallClaimed) added to events.json. All code is isolated;
+  no existing ABI modified.</p>
+<h4>res_audiosocket: Tolerate non-audio frame types</h4>
+<p>Author: Sven Kube
+  Date:   2026-04-22</p>
+<p>This commit implements the handling of non-voice or DTMF frames like the
+  chan_websocket handling added in #1588. Rather than treating unsupported
+  frames as fatal errors, silently ignore CNG frames and log a warning for
+  other unsupported types.</p>
+<h4>pbx_functions: Save module pointer before calling read and write callbacks.</h4>
+<p>Author: George Joseph
+  Date:   2026-04-21</p>
+<p>Before ast_func_read and ast_func_write call their respective read and write
+  callbacks for registered dialplan functions, they use the module pointer in
+  the registered ast_custom_function structure to increment the module use
+  count.  They then decrement the usecount when the callback returns.  This
+  prevents the providing module from being unloaded while there's a call using
+  the function.</p>
+<p>Some modules, notably func_odbc, create and destroy dialplan functions based
+  on the contents of a config file.  Since the ast_custom_function structure is
+  dynamically allocated, it could be destroyed on reload which means when the
+  module's read or write callback returns to the ast_func calls it would try to
+  decrement the usecount using the module pointer from an ast_custom_function
+  structure that has already been freed.  Proper locking or reference counting
+  by the module can reduce the possibility of this happening but it can't
+  prevent it because it doesn't have control after its read or write callback
+  has returned to ast_func_read or ast_func_write.</p>
+<p>To address this, ast_func_read, ast_func_read2 and ast_func_write save the
+  module pointer to a local variable before calling the module's callback,
+  then use the saved pointer to decrement the use count.  The module
+  pointer will always be valid if the module is loaded regardless of the
+  state of the ast_custom_function structure.</p>
+<p>Resolves: #1818</p>
+<h4>chan_iax2: Add CHANNEL getter to retrieve auth method.</h4>
+<p>Author: Naveen Albert
+  Date:   2026-04-18</p>
+<p>Add a property to the CHANNEL method to retrieve the auth method,
+  which can be used to retrieve the specific auth method actually
+  negotiated for a call (e.g. RSA, MD5, etc.).</p>
+<p>Also clean up some of the documentation for the secure properties
+  to clarify how these relate to call encryption.</p>
+<p>Resolves: #1878</p>
+<p>UserNote: CHANNEL(auth_method) can now be used to retrieve the
+  auth method negotiated for a call on IAX2 channels.</p>
+<h4>fix: backport pjproject stdatomic.h GCC 4.8 build failure patch</h4>
+<p>Author: phoneben
+  Date:   2026-04-21</p>
+<p>pjproject 2.16 (bundled) fails to build on GCC 4.8 (CentOS/RHEL 7)
+  due to a false positive C11 atomics detection introduced in pjproject
+  commit #4570. A fix has been submitted upstream to pjproject (#4933).</p>
+<p>Adding a local patch to third-party/pjproject/patches/ until a fixed
+  version of pjproject is bundled in Asterisk.</p>
+<p>Fixes build error:
+  ../src/pj/os_core_unix.c:52:27: fatal error: stdatomic.h: No such file or directory</p>
+<p>Resolves: #1883</p>
+<h4>res_rtp_asterisk: Destroy ioqueue in rtp_ioqueue_thread_destroy.</h4>
+<p>Author: George Joseph
+  Date:   2026-04-16</p>
+<p>The rtp_ioqueue_thread_destroy() function was destroying the the ioqueue
+  thread and releasing its pool but not destroying the ioqueue itself.  This
+  was causing the ioqueue's epoll file descriptor to leak.</p>
+<p>Resolves: #1867</p>
+<h4>res_pjsip_maintenance: Add PJSIP endpoint maintenance mode</h4>
+<p>Author: Daniel Donoghue
+  Date:   2026-03-10</p>
+<p>Introduces res_pjsip_maintenance, a loadable module that allows
+  operators to place individual PJSIP endpoints into maintenance mode
+  at runtime without unregistering or disabling them.</p>
+<p>While an endpoint is in maintenance mode:
+   * New inbound INVITE and SUBSCRIBE dialogs are rejected with
+     503 Service Unavailable and a Retry-After: 300 header.
+   * In-progress dialogs (re-INVITE, UPDATE, BYE, etc.) are
+     unaffected and complete normally.
+   * Outbound originations via Dial() or ARI originate are refused
+     before any SIP session is created.</p>
+<p>State is held in-memory only and is cleared on module unload
+  or Asterisk restart.</p>
+<p>This module was developed with AI assistance (Claude).  All code
+  has been reviewed and tested by the author, who takes full
+  responsibility for the submission.</p>
+<p>CLI interface:
+    pjsip set maintenance <on|off> <endpoint|all>
+    pjsip show maintenance [endpoint]</p>
+<p>AMI interface:
+    Action: PJSIPSetMaintenance
+    Endpoint: <name>|all
+    State: on|off</p>
+<pre><code>Action: PJSIPShowMaintenance
+Endpoint: &lt;name&gt;  (optional; omit to list all)
+
+Emits PJSIPMaintenanceStatus events per result, followed by
+PJSIPMaintenanceStatusComplete. State changes also emit an
+unsolicited PJSIPMaintenanceStatus event.
+</code></pre>
+<p>To support outbound blocking, a new session_create callback is
+  added to ast_sip_session_supplement. Supplements that set this
+  callback are invoked at the start of ast_sip_session_create_outgoing()
+  in res_pjsip_session, before any dialog or invite session resources
+  are allocated. res_pjsip_maintenance registers itself as a session
+  supplement and uses this callback to gate outbound session creation
+  on a per-endpoint basis.</p>
+<p>MODULEINFO:
+    <depend>pjproject</depend>
+    <depend>res_pjsip</depend>
+    <depend>res_pjsip_session</depend></p>
+<p>UserNote: New module res_pjsip_maintenance adds runtime maintenance
+  mode for PJSIP endpoints. Use "pjsip set maintenance <on|off>
+  <endpoint|all>" to enable or disable, and "pjsip show maintenance"
+  to list affected endpoints. AMI actions PJSIPSetMaintenance and
+  PJSIPShowMaintenance provide programmatic access. No configuration
+  file changes required.</p>
+<p>DeveloperNote: ast_sip_session_supplement gains a new optional
+  callback - int (<em>session_create)(struct ast_sip_endpoint </em>endpoint,
+  const char *destination). It is called from the global supplement
+  list (not per-session) at the start of ast_sip_session_create_outgoing()
+  via ast_sip_session_check_supplement_create(). Returning non-zero
+  blocks the outgoing session. Modules that need to gate outbound
+  SIP session creation should register a supplement with this callback
+  set rather than hooking into chan_pjsip directly.</p>
+<h4>chan_iax2: Add another check to abort frame handling if datalen &lt; 0.</h4>
+<p>Author: Naveen Albert
+  Date:   2026-04-11</p>
+<p>Commit 2da221e217cbff957af928e8df43ee25583232d1 added a missing abort
+  if datalen &lt; 0 check on a code path and an assertion inside
+  iax_frame_wrap if we ever encountered a frame with a negative frame
+  length (which will eventually cause a crash).</p>
+<p>Add another missing abort check for negative datalen, exposed by this
+  assertion. (Similar to the previous commit, this is a video frame with
+  a datalen of -1).</p>
+<p>Resolves: #1865</p>
+<h4>res_pjsip_outbound_registration: only update the Expires header if the value has changed</h4>
+<p>Author: Mike Bradeen
+  Date:   2026-04-08</p>
+<p>The PJSIP outbound registration API has undocumented behavior when reconfiguring
+  the outbound registration if the expires value being set is the same as what was
+  previously set.</p>
+<p>In this case PJSIP will remove the Expires header entirely from subsequent
+  outbound REGISTER requests. To eliminate this as an issue we now check the current
+  expires value against the configured expires value and only apply it if it differs.</p>
+<p>This ensures that outbound REGISTER requests always contain an Expires header.</p>
+<p>Resolves: #1859</p>
+<h4>func_talkdetect.c: Clarify dsp_talking_threshold documentation.</h4>
+<p>Author: Sean Bright
+  Date:   2026-04-08</p>
+<p>Fixes: #1761</p>
+<h4>make_xml_documentation: Remove temporary file on script exit.</h4>
+<p>Author: Sean Bright
+  Date:   2026-04-09</p>
+<p>Fixes: #1862</p>
+<h4>res_pjsip_config_wizard: Trigger reloads from a pjsip servant thread</h4>
+<p>Author: George Joseph
+  Date:   2026-04-07</p>
+<p>When res_pjsip is reloaded directly, it does the sorcery reload in a pjsip
+  servant thread as it's supposed to.  res_pjsip_config_wizard however
+  was not which was leading to occasional deadlocks.  It now does the reload
+  in a servant thread just like res_pjsip.</p>
+<p>Resolves: #1855</p>
+<h4>build: remove pjsua, pjsystest, Python bindings and asterisk_malloc_debug stubs from pjproject dev build</h4>
+<p>Author: Alexei Gradinari
+  Date:   2026-04-06</p>
+<p>The pjsua Python module and the pjsua/pjsystest apps were used by the
+  Asterisk Test Suite for SIP simulation in dev mode builds. They are now
+  fully obsolete for three independent reasons:</p>
+<ol>
+<li>
+<p><strong>pjsua Python bindings officially deprecated upstream.</strong> The pjproject
+     maintainers added <code>pjsip-apps/src/python/DEPRECATED.txt</code> directing
+     users to the PJSUA2 SWIG binding instead. A build-fix PR
+     (https://github.com/pjsip/pjproject/pull/4892) was closed by the
+     maintainer explicitly citing this deprecation.</p>
+</li>
+<li>
+<p><strong>Removed from the Asterisk Test Suite.</strong> As confirmed by @mbradeen:
+     &gt; <em>"We had to get rid of pjsua when we went to Python3 because it would
+     &gt; hang due to a conflict between async calls within pjsua and twisted.
+     &gt; There are still some old references to tests we couldn't fully convert
+     &gt; to sipp, but those are skipped."</em></p>
+</li>
+<li>
+<p><strong>Broken and unmaintained.</strong> Building with Python 2.7 (the only version
+     <code>configure.ac</code> searched for) fails with:
+     <code>_pjsua.c: error: 'INIT_RETURN' undeclared (first use in this function)</code>
+     due to a bug in pjproject 2.16's <code>python3_compat.h</code> that upstream
+     declined to fix.</p>
+</li>
+</ol>
+<p>This PR removes all pjsua-related build artifacts from Asterisk's bundled
+  pjproject build: the pjsua and pjsystest application binaries, the deprecated
+  Python (<code>_pjsua.so</code>) bindings, the <code>asterisk_malloc_debug.c</code> stubs, and the
+  <code>PYTHONDEV</code> detection from <code>configure.ac</code>. Also removes <code>libpjsua</code> from
+  Asterisk's main linker flags.</p>
+<p>DeveloperNote: The pjsua and pjsystest application binaries, the deprecated
+  Python pjsua bindings (<code>_pjsua.so</code>), and the <code>asterisk_malloc_debug.c</code> stub
+  implementations are no longer built or installed as part of the bundled
+  pjproject dev mode build. The <code>PYTHONDEV</code> (python2.7-dev) build dependency
+  is also removed. Developers who relied on the pjsua binary for Test Suite
+  SIP simulation should use SIPp instead, which is the current Asterisk Test
+  Suite standard.</p>
+<p>Fixes: #1840</p>
+<h4>callerid: fix signed char causing crash in MDMF parser</h4>
+<p>Author: Milan Kyselica
+  Date:   2026-03-25</p>
+<p>Change rawdata buffer from char to unsigned char to prevent
+  sign-extension of TLV length bytes &gt;= 0x80. On signed-char
+  platforms (all Asterisk builds due to -fsigned-char in
+  configure.ac), these values become negative when assigned to
+  int, bypass the <code>if (res &gt; 32)</code> bounds check, and reach
+  memcpy as size_t producing a ~18 EB read that immediately
+  crashes with SIGSEGV.</p>
+<p>Affects DAHDI analog (FXO) channels only. Not reachable
+  via SIP, PRI/BRI, or DTMF-based Caller ID.</p>
+<p>Fixes: #1839</p>
+</body></html>
