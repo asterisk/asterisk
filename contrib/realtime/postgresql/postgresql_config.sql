@@ -1879,5 +1879,13 @@ ALTER TABLE ps_endpoints ADD COLUMN follow_redirect_methods VARCHAR(95);
 
 UPDATE alembic_version SET version_num='bb6d54e22913' WHERE alembic_version.version_num = 'dc7c357dc178';
 
+-- Running upgrade bb6d54e22913 -> e89e30cee53f
+
+ALTER TABLE ps_endpoints ADD COLUMN rtp_port_start INTEGER;
+
+ALTER TABLE ps_endpoints ADD COLUMN rtp_port_end INTEGER;
+
+UPDATE alembic_version SET version_num='e89e30cee53f' WHERE alembic_version.version_num = 'bb6d54e22913';
+
 COMMIT;
 
