@@ -2058,6 +2058,164 @@ static AST_LIST_HEAD_STATIC(rule_lists, rule_list);
 
 static struct ao2_container *queues;
 
+struct queue_member_state_interface {
+	char interface[AST_CHANNEL_NAME];
+	unsigned int count;
+};
+
+AO2_STRING_FIELD_CASE_HASH_FN(queue_member_state_interface, interface)
+AO2_STRING_FIELD_CASE_CMP_FN(queue_member_state_interface, interface)
+
+#define MAX_QUEUE_MEMBER_STATE_BUCKETS 563
+
+static struct ao2_container *queue_member_state_interfaces;
+static int queue_member_state_interfaces_unreliable;
+
+static void queue_member_normalize_state_interface(char *interface, size_t size, const char *state_interface)
+{
+	char *slash_pos;
+
+	ast_copy_string(interface, state_interface, size);
+
+	if (!strncasecmp(interface, "Local/", 6)
+		&& (slash_pos = strchr(interface + 6, '/'))) {
+		*slash_pos = '\0';
+	}
+}
+
+static void queue_member_state_interface_add_key(const char *interface)
+{
+	struct queue_member_state_interface *state_interface;
+
+	if (!queue_member_state_interfaces) {
+		return;
+	}
+
+	ao2_lock(queue_member_state_interfaces);
+	if (queue_member_state_interfaces_unreliable) {
+		ao2_unlock(queue_member_state_interfaces);
+		return;
+	}
+
+	state_interface = ao2_find(queue_member_state_interfaces, interface,
+		OBJ_SEARCH_KEY | OBJ_NOLOCK);
+	if (state_interface) {
+		state_interface->count++;
+		ao2_ref(state_interface, -1);
+		ao2_unlock(queue_member_state_interfaces);
+		return;
+	}
+
+	state_interface = ao2_alloc(sizeof(*state_interface), NULL);
+	if (!state_interface) {
+		queue_member_state_interfaces_unreliable = 1;
+		ao2_unlock(queue_member_state_interfaces);
+		return;
+	}
+
+	ast_copy_string(state_interface->interface, interface, sizeof(state_interface->interface));
+	state_interface->count = 1;
+	if (!ao2_link_flags(queue_member_state_interfaces, state_interface, OBJ_NOLOCK)) {
+		queue_member_state_interfaces_unreliable = 1;
+	}
+	ao2_ref(state_interface, -1);
+	ao2_unlock(queue_member_state_interfaces);
+}
+
+static void queue_member_state_interface_remove_key(const char *interface)
+{
+	struct queue_member_state_interface *state_interface;
+
+	if (!queue_member_state_interfaces) {
+		return;
+	}
+
+	ao2_lock(queue_member_state_interfaces);
+	state_interface = ao2_find(queue_member_state_interfaces, interface,
+		OBJ_SEARCH_KEY | OBJ_NOLOCK);
+	if (state_interface) {
+		if (state_interface->count > 1) {
+			state_interface->count--;
+		} else {
+			ao2_unlink_flags(queue_member_state_interfaces, state_interface, OBJ_NOLOCK);
+		}
+		ao2_ref(state_interface, -1);
+	}
+	ao2_unlock(queue_member_state_interfaces);
+}
+
+static void queue_member_state_interface_add(const char *state_interface)
+{
+	char interface[AST_CHANNEL_NAME];
+
+	if (ast_strlen_zero(state_interface)) {
+		return;
+	}
+
+	queue_member_normalize_state_interface(interface, sizeof(interface), state_interface);
+	queue_member_state_interface_add_key(interface);
+}
+
+static void queue_member_state_interface_remove(const char *state_interface)
+{
+	char interface[AST_CHANNEL_NAME];
+
+	if (ast_strlen_zero(state_interface)) {
+		return;
+	}
+
+	queue_member_normalize_state_interface(interface, sizeof(interface), state_interface);
+	queue_member_state_interface_remove_key(interface);
+}
+
+static void queue_member_state_interface_update(const char *old_interface, const char *new_interface)
+{
+	char old_key[AST_CHANNEL_NAME];
+	char new_key[AST_CHANNEL_NAME];
+
+	if (ast_strlen_zero(old_interface)) {
+		queue_member_state_interface_add(new_interface);
+		return;
+	}
+	if (ast_strlen_zero(new_interface)) {
+		queue_member_state_interface_remove(old_interface);
+		return;
+	}
+
+	queue_member_normalize_state_interface(old_key, sizeof(old_key), old_interface);
+	queue_member_normalize_state_interface(new_key, sizeof(new_key), new_interface);
+	if (!strcasecmp(old_key, new_key)) {
+		return;
+	}
+
+	queue_member_state_interface_add_key(new_key);
+	queue_member_state_interface_remove_key(old_key);
+}
+
+static int queue_member_state_interface_exists(const char *device)
+{
+	struct queue_member_state_interface *state_interface;
+	int exists;
+
+	if (!queue_member_state_interfaces) {
+		return 1;
+	}
+
+	ao2_lock(queue_member_state_interfaces);
+	if (queue_member_state_interfaces_unreliable) {
+		ao2_unlock(queue_member_state_interfaces);
+		return 1;
+	}
+
+	state_interface = ao2_find(queue_member_state_interfaces, device,
+		OBJ_SEARCH_KEY | OBJ_NOLOCK);
+	exists = state_interface ? 1 : 0;
+	ao2_cleanup(state_interface);
+	ao2_unlock(queue_member_state_interfaces);
+
+	return exists;
+}
+
 static void update_realtime_members(struct call_queue *q);
 static struct member *interface_exists(struct call_queue *q, const char *interface);
 static int set_member_paused(const char *queuename, const char *interface, const char *reason, int paused);
@@ -2807,7 +2965,7 @@ static void device_state_cb(void *unused, struct stasis_subscription *sub, struc
 	struct ast_device_state_message *dev_state;
 	struct member *m;
 	struct call_queue *q;
-	char interface[80], *slash_pos;
+	char interface[AST_CHANNEL_NAME];
 	int found = 0;			/* Found this member in any queue */
 	int found_member;		/* Found this member in this queue */
 	int avail = 0;			/* Found an available member in this queue */
@@ -2822,6 +2980,14 @@ static void device_state_cb(void *unused, struct stasis_subscription *sub, struc
 		return;
 	}
 
+	if (!queue_member_state_interface_exists(dev_state->device)) {
+		ast_debug(3, "Device '%s' changed to state '%u' (%s) but we don't care because they're not a member of any queue.\n",
+			dev_state->device,
+			dev_state->state,
+			ast_devstate2str(dev_state->state));
+		return;
+	}
+
 	qiter = ao2_iterator_init(queues, 0);
 	while ((q = ao2_t_iterator_next(&qiter, "Iterate over queues"))) {
 		ao2_lock(q);
@@ -2831,13 +2997,7 @@ static void device_state_cb(void *unused, struct stasis_subscription *sub, struc
 		miter = ao2_iterator_init(q->members, 0);
 		for (; (m = ao2_iterator_next(&miter)); ao2_ref(m, -1)) {
 			if (!found_member) {
-				ast_copy_string(interface, m->state_interface, sizeof(interface));
-
-				if ((slash_pos = strchr(interface, '/'))) {
-					if (!strncasecmp(interface, "Local/", 6) && (slash_pos = strchr(slash_pos + 1, '/'))) {
-						*slash_pos = '\0';
-					}
-				}
+				queue_member_normalize_state_interface(interface, sizeof(interface), m->state_interface);
 
 				if (!strcasecmp(interface, dev_state->device)) {
 					found_member = 1;
@@ -3723,6 +3883,8 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
  */
 static void member_add_to_queue(struct call_queue *queue, struct member *mem)
 {
+	queue_member_state_interface_add(mem->state_interface);
+
 	ao2_lock(queue->members);
 	mem->queuepos = ao2_container_count(queue->members);
 	ao2_link(queue->members, mem);
@@ -3745,6 +3907,8 @@ static void member_remove_from_queue(struct call_queue *queue, struct member *me
 	queue_member_follower_removal(queue, mem);
 	ao2_unlink(queue->members, mem);
 	ao2_unlock(queue->members);
+
+	queue_member_state_interface_remove(mem->state_interface);
 }
 
 /*!
@@ -3833,6 +3997,7 @@ static void rt_handle_member_record(struct call_queue *q, char *category, struct
 					AST_DEVSTATE_CACHABLE, "Queue:%s_pause_%s", q->name, m->interface);
 			}
 			if (strcasecmp(state_interface, m->state_interface)) {
+				queue_member_state_interface_update(m->state_interface, state_interface);
 				ast_copy_string(m->state_interface, state_interface, sizeof(m->state_interface));
 			}
 			m->penalty = penalty;
@@ -10008,6 +10173,7 @@ static void reload_single_member(const char *memberdata, struct call_queue *q)
 	if ((newm = create_queue_member(interface, membername, penalty, paused, state_interface, ringinuse, wrapuptime))) {
 		newm->wrapuptime = wrapuptime;
 		if (cur) {
+			queue_member_state_interface_add(newm->state_interface);
 			ao2_lock(q->members);
 			/* Round Robin Queue Position must be copied if this is replacing an existing member */
 			newm->queuepos = cur->queuepos;
@@ -10018,6 +10184,7 @@ static void reload_single_member(const char *memberdata, struct call_queue *q)
 			ao2_link(q->members, newm);
 			ao2_unlink(q->members, cur);
 			ao2_unlock(q->members);
+			queue_member_state_interface_remove(cur->state_interface);
 		} else {
 			/* Otherwise we need to add using the function that will apply a round robin queue position manually. */
 			member_add_to_queue(q, newm);
@@ -10048,6 +10215,7 @@ static int kill_dead_members(void *obj, void *arg, int flags)
 		member->status = get_queue_member_status(member);
 		return 0;
 	} else {
+		queue_member_state_interface_remove(member->state_interface);
 		return CMP_MATCH;
 	}
 }
@@ -12054,8 +12222,10 @@ static int unload_module(void)
 	ast_unload_realtime("queue_members");
 	ao2_cleanup(queues);
 	ao2_cleanup(pending_members);
+	ao2_cleanup(queue_member_state_interfaces);
 
 	queues = NULL;
+	queue_member_state_interfaces = NULL;
 	return 0;
 }
 
@@ -12089,6 +12259,15 @@ static int load_module(void)
 		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
+
+	queue_member_state_interfaces = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		MAX_QUEUE_MEMBER_STATE_BUCKETS, queue_member_state_interface_hash_fn, NULL,
+		queue_member_state_interface_cmp_fn);
+	if (!queue_member_state_interfaces) {
+		unload_module();
+		return AST_MODULE_LOAD_DECLINE;
+	}
+	queue_member_state_interfaces_unreliable = 0;
 
 	use_weight = 0;
 
