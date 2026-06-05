@@ -271,6 +271,102 @@ static struct ast_datastore_info transport_info = {
 	.destroy = transport_info_destroy,
 };
 
+
+/*!
+ * \brief Determine the local signaling address used for an outgoing request.
+ *
+ * For unreliable transports, the transport local address may be a wildcard
+ * address. Ask the PJSIP transport manager for the local interface selected
+ * for the request destination, then fall back to the transport local address
+ * if needed.
+ */
+static int set_transport_info_local_addr(struct pjsip_tx_data *tdata, pj_sockaddr *local_addr)
+{
+	if (!(tdata->tp_info.transport->flag & PJSIP_TRANSPORT_RELIABLE)) {
+		pjsip_tpmgr_fla2_param prm;
+
+		pjsip_tpmgr_fla2_param_default(&prm);
+		prm.tp_type = tdata->tp_info.transport->key.type;
+		pj_strset2(&prm.dst_host, tdata->tp_info.dst_name);
+		prm.local_if = PJ_TRUE;
+
+		if (pjsip_tpmgr_find_local_addr2(pjsip_endpt_get_tpmgr(ast_sip_get_pjsip_endpoint()),
+			tdata->pool, &prm) == PJ_SUCCESS) {
+			int af = prm.tp_type & PJSIP_TRANSPORT_IPV6 ? pj_AF_INET6() : pj_AF_INET();
+
+			if (prm.tp_type == PJSIP_TRANSPORT_UDP || prm.tp_type == PJSIP_TRANSPORT_UDP6) {
+				prm.ret_port = tdata->tp_info.transport->local_name.port;
+			}
+
+			if (pj_sockaddr_init(af, local_addr, &prm.ret_addr, prm.ret_port) == PJ_SUCCESS) {
+				return 0;
+			}
+		}
+	}
+
+	pj_sockaddr_cp(local_addr, &tdata->tp_info.transport->local_addr);
+	return pj_sockaddr_has_addr(local_addr) ? 0 : -1;
+}
+
+/*!
+ * \brief Store transport information for outgoing PJSIP session requests.
+ *
+ * Incoming PJSIP channels get their transport information from the received
+ * request. Outgoing channels may not have this information available through
+ * the channel datastore, so store the selected transport addresses once the
+ * outgoing request has been created and a destination is known.
+ */
+static pj_status_t transport_info_on_tx_request(pjsip_tx_data *tdata)
+{
+	RAII_VAR(struct ast_sip_session *, session, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_datastore *, datastore, NULL, ao2_cleanup);
+	struct transport_info_data *transport_data;
+	pjsip_dialog *dlg;
+
+	if (!tdata->tp_info.transport
+		|| !pj_sockaddr_has_addr(&tdata->tp_info.dst_addr)
+		|| !(dlg = pjsip_tdata_get_dlg(tdata))
+		|| !(session = ast_sip_dialog_get_session(dlg))
+		|| !session->channel
+		|| !session->inv_session
+		|| session->inv_session->role != PJSIP_ROLE_UAC) {
+		return PJ_SUCCESS;
+	}
+
+	datastore = ast_sip_session_get_datastore(session, "transport_info");
+	if (datastore) {
+		return PJ_SUCCESS;
+	}
+
+	datastore = ast_sip_session_alloc_datastore(&transport_info, "transport_info");
+	if (!datastore) {
+		return PJ_SUCCESS;
+	}
+
+	transport_data = ast_calloc(1, sizeof(*transport_data));
+	if (!transport_data) {
+		return PJ_SUCCESS;
+	}
+
+	if (set_transport_info_local_addr(tdata, &transport_data->local_addr)) {
+		ast_free(transport_data);
+		return PJ_SUCCESS;
+	}
+	pj_sockaddr_cp(&transport_data->remote_addr, &tdata->tp_info.dst_addr);
+
+	datastore->data = transport_data;
+	ast_sip_session_add_datastore(session, datastore);
+
+	return PJ_SUCCESS;
+}
+
+static pjsip_module transport_info_module = {
+	.name = { "Transport Info", 14 },
+	.id = -1,
+	.priority = 0,
+	.on_tx_request = transport_info_on_tx_request,
+};
+
 static struct ast_datastore_info direct_media_mitigation_info = { };
 
 static int direct_media_mitigate_glare(struct ast_sip_session *session)
@@ -3494,6 +3590,7 @@ static int load_module(void)
 
 
 	ast_sip_register_service(&refer_callback_module);
+	ast_sip_register_service(&transport_info_module);
 
 	ast_sip_session_register_supplement(&chan_pjsip_supplement);
 	ast_sip_session_register_supplement(&chan_pjsip_supplement_response);
@@ -3533,6 +3630,7 @@ end:
 	ast_sip_session_unregister_supplement(&chan_pjsip_supplement_response);
 	ast_sip_session_unregister_supplement(&chan_pjsip_supplement);
 	ast_sip_session_unregister_supplement(&call_pickup_supplement);
+	ast_sip_unregister_service(&transport_info_module);
 	ast_sip_unregister_service(&refer_callback_module);
 	ast_custom_function_unregister(&dtmf_mode_function);
 	ast_custom_function_unregister(&moh_passthrough_function);
@@ -3566,6 +3664,7 @@ static int unload_module(void)
 	ast_sip_session_unregister_supplement(&chan_pjsip_prack_supplement);
 	ast_sip_session_unregister_supplement(&call_pickup_supplement);
 
+	ast_sip_unregister_service(&transport_info_module);
 	ast_sip_unregister_service(&refer_callback_module);
 
 	ast_custom_function_unregister(&dtmf_mode_function);
