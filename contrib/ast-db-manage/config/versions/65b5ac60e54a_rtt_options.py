@@ -1,14 +1,14 @@
 """Add rtt options
 
 Revision ID: 65b5ac60e54a
-Revises: abdc9ede147d
+Revises: bb6d54e22913
 Create Date: 2025-02-21 12:35:43.615049
 
 """
 
 # revision identifiers, used by Alembic.
 revision = '65b5ac60e54a'
-down_revision = 'abdc9ede147d'
+down_revision = 'bb6d54e22913'
 
 from alembic import op
 import sqlalchemy as sa
