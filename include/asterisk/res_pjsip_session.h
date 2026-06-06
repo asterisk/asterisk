@@ -235,6 +235,8 @@ struct ast_sip_session {
 	unsigned int moh_passthrough:1;
 	/*! Whether early media state has been confirmed through PRACK */
 	unsigned int early_confirmed:1;
+	/*! Delayed BYE is waiting behind a UAC INVITE with a fallback timeout */
+	unsigned int terminate_on_invite_timeout:1;
 	/*! DTMF mode to use with this session, from endpoint but can change */
 	enum ast_sip_dtmf_mode dtmf;
 	/*! Initial incoming INVITE Request-URI.  NULL otherwise. */
