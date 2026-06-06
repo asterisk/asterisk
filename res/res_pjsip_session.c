@@ -1394,6 +1394,19 @@ static void delayed_request_free(struct ast_sip_session_delayed_request *delay)
 	ast_free(delay);
 }
 
+/*
+ * Delayed requests own pending/active media states. Keep cleanup centralized so
+ * timeout-driven teardown releases the same state as normal session teardown.
+ */
+static void flush_delayed_requests(struct ast_sip_session *session)
+{
+	struct ast_sip_session_delayed_request *delay;
+
+	while ((delay = AST_LIST_REMOVE_HEAD(&session->delayed_requests, next))) {
+		delayed_request_free(delay);
+	}
+}
+
 /*!
  * \internal
  * \brief Send a delayed request
@@ -1429,6 +1442,8 @@ static int send_delayed_request(struct ast_sip_session *session, struct ast_sip_
 		delay->active_media_state = NULL;
 		SCOPE_EXIT_RTN_VALUE(res, "%s\n", ast_sip_session_get_name(session));
 	case DELAYED_METHOD_BYE:
+		/* The delayed BYE is being sent now; timeout cleanup is no longer needed. */
+		session->terminate_on_invite_timeout = 0;
 		ast_sip_session_terminate(session, 0);
 		SCOPE_EXIT_RTN_VALUE(0, "%s: Terminating session on delayed BYE\n", ast_sip_session_get_name(session));
 	}
@@ -1627,6 +1642,57 @@ static int delay_request(struct ast_sip_session *session,
 		AST_LIST_INSERT_TAIL(&session->delayed_requests, delay, next);
 	}
 	SCOPE_EXIT_RTN_VALUE(0);
+}
+
+/*
+ * A UAC re-INVITE that has received a provisional response may no longer have
+ * Timer B running. If its final response is malformed and rejected before
+ * transaction processing, invite_tsx can keep the session alive indefinitely.
+ * Arm PJPROJECT's INVITE timeout so delayed BYE cleanup has a bounded wait.
+ */
+static int set_outstanding_invite_timeout(struct ast_sip_session *session)
+{
+	pjsip_transaction *tsx;
+	pj_status_t status;
+
+	if (!session->inv_session || !session->inv_session->invite_tsx) {
+		return 0;
+	}
+
+	tsx = session->inv_session->invite_tsx;
+	if (tsx->role != PJSIP_ROLE_UAC || tsx->method.id != PJSIP_INVITE_METHOD
+		|| tsx->state >= PJSIP_TSX_STATE_COMPLETED) {
+		return 0;
+	}
+
+	status = pjsip_tsx_set_timeout(tsx, pjsip_cfg()->tsx.td);
+	if (status != PJ_SUCCESS && status != PJ_EEXISTS) {
+		char errmsg[PJ_ERR_MSG_SIZE];
+
+		pj_strerror(status, errmsg, sizeof(errmsg));
+		ast_log(LOG_WARNING, "%s: Failed to set timeout on outstanding INVITE transaction: %s\n",
+			ast_sip_session_get_name(session), errmsg);
+		return 0;
+	}
+
+	return 1;
+}
+
+/*
+ * PJPROJECT treats 408/481 on in-dialog UAC requests as dialog terminating.
+ * When that happens after our timeout, drop Asterisk's queued BYE instead of
+ * sending a duplicate BYE.
+ */
+static int uac_invite_tsx_terminates_dialog(pjsip_transaction *tsx)
+{
+	if (tsx->role != PJSIP_ROLE_UAC || tsx->method.id != PJSIP_INVITE_METHOD
+		|| tsx->state < PJSIP_TSX_STATE_COMPLETED) {
+		return 0;
+	}
+
+	return tsx->status_code == PJSIP_SC_CALL_TSX_DOES_NOT_EXIST
+		|| (tsx->status_code == PJSIP_SC_REQUEST_TIMEOUT
+			&& !pjsip_cfg()->endpt.keep_inv_after_tsx_timeout);
 }
 
 static pjmedia_sdp_session *generate_session_refresh_sdp(struct ast_sip_session *session)
@@ -2920,7 +2986,6 @@ static int datastore_cmp(void *obj, void *arg, int flags)
 static void session_destructor(void *obj)
 {
 	struct ast_sip_session *session = obj;
-	struct ast_sip_session_delayed_request *delay;
 
 #ifdef TEST_FRAMEWORK
 	/* We dup the endpoint ID in case the endpoint gets freed out from under us */
@@ -2955,9 +3020,7 @@ static void session_destructor(void *obj)
 	ast_sip_session_media_state_free(session->active_media_state);
 	ast_sip_session_media_state_free(session->pending_media_state);
 
-	while ((delay = AST_LIST_REMOVE_HEAD(&session->delayed_requests, next))) {
-		delayed_request_free(delay);
-	}
+	flush_delayed_requests(session);
 	ast_party_id_free(&session->id);
 	ao2_cleanup(session->endpoint);
 	ao2_cleanup(session->aor);
@@ -3424,22 +3487,26 @@ void ast_sip_session_terminate(struct ast_sip_session *session, int response)
 		if (session->inv_session->invite_tsx) {
 			ast_debug(3, "%s: Delay sending BYE because of outstanding transaction...\n",
 				ast_sip_session_get_name(session));
-			/* If this is delayed the only thing that will happen is a BYE request so we don't
-			 * actually need to store the response code for when it happens.
+			/*
+			 * If this is delayed the only thing that will happen is a BYE request, so
+			 * no response code needs to be stored. Queue the BYE as before, then arm
+			 * a transaction timeout so a malformed/lost final re-INVITE response
+			 * cannot leave the session and RTP state referenced forever.
 			 */
-			delay_request(session, NULL, NULL, NULL, 0, DELAYED_METHOD_BYE, NULL, NULL, 1);
+			if (delay_request(session, NULL, NULL, NULL, 0, DELAYED_METHOD_BYE, NULL, NULL, 1)) {
+				ast_log(LOG_ERROR, "%s: Unable to delay BYE request\n",
+					ast_sip_session_get_name(session));
+			} else if (set_outstanding_invite_timeout(session)) {
+				session->terminate_on_invite_timeout = 1;
+			}
 			break;
 		}
 		/* Fall through */
 	default:
 		status = pjsip_inv_end_session(session->inv_session, response, NULL, &packet);
 		if (status == PJ_SUCCESS && packet) {
-			struct ast_sip_session_delayed_request *delay;
-
 			/* Flush any delayed requests so they cannot overlap this transaction. */
-			while ((delay = AST_LIST_REMOVE_HEAD(&session->delayed_requests, next))) {
-				delayed_request_free(delay);
-			}
+			flush_delayed_requests(session);
 
 			if (packet->msg->type == PJSIP_RESPONSE_MSG) {
 				ast_sip_session_send_response(session, packet);
@@ -4922,6 +4989,17 @@ static void session_inv_on_tsx_state_changed(pjsip_inv_session *inv, pjsip_trans
 	case PJSIP_EVENT_TSX_STATE:
 		/* Inception? */
 		break;
+	}
+
+	if (session->terminate_on_invite_timeout && uac_invite_tsx_terminates_dialog(tsx)) {
+		/*
+		 * PJPROJECT already considers this dialog terminated; the delayed BYE is
+		 * obsolete and still owns media state that must be released.
+		 */
+		ast_debug(3, "%s: Flushing delayed requests because outstanding INVITE terminated dialog\n",
+			ast_sip_session_get_name(session));
+		flush_delayed_requests(session);
+		session->terminate_on_invite_timeout = 0;
 	}
 
 	if (AST_LIST_EMPTY(&session->delayed_requests)) {
