@@ -106,6 +106,11 @@ void ast_iostream_nonblock(struct ast_iostream *stream)
 	ast_fd_set_flags(stream->fd, O_NONBLOCK);
 }
 
+void ast_iostream_blocking(struct ast_iostream *stream)
+{
+	ast_fd_clear_flags(stream->fd, O_NONBLOCK);
+}
+
 SSL *ast_iostream_get_ssl(struct ast_iostream *stream)
 {
 	return stream->ssl;
