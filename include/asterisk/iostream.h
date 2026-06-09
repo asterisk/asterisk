@@ -149,6 +149,16 @@ int ast_iostream_wait_for_input(struct ast_iostream *stream, int timeout);
 void ast_iostream_nonblock(struct ast_iostream *stream);
 
 /*!
+ * \brief Make an iostream blocking.
+ * \since 20.21.0
+ * \since 22.11.0
+ * \since 23.5.0
+ *
+ * \param stream A pointer to an iostream
+ */
+void ast_iostream_blocking(struct ast_iostream *stream);
+
+/*!
  * \brief Get a pointer to an iostream's OpenSSL \c SSL structure
  *
  * \param stream A pointer to an iostream
