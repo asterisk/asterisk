@@ -277,11 +277,11 @@ static pj_status_t filter_on_tx_message(pjsip_tx_data *tdata)
 
 		/* If the chosen transport is not bound to any we can't use the source address as it won't get back to us */
 		if (!is_bound_any(tdata->tp_info.transport)) {
-			pj_strassign(&prm.ret_addr, &tdata->tp_info.transport->local_name.host);
+			pj_strdup(tdata->pool, &prm.ret_addr, &tdata->tp_info.transport->local_name.host);
 		}
 	} else {
 		/* The transport chosen will deliver this but ensure it is updated with the right information */
-		pj_strassign(&prm.ret_addr, &tdata->tp_info.transport->local_name.host);
+		pj_strdup(tdata->pool, &prm.ret_addr, &tdata->tp_info.transport->local_name.host);
 	}
 
 	/* If the message needs to be updated with new address do so */
