@@ -60,6 +60,7 @@
 #include "asterisk/mixmonitor.h"
 #include "asterisk/format_cache.h"
 #include "asterisk/beep.h"
+#include "asterisk/translate.h"
 
 /*** DOCUMENTATION
 	<application name="MixMonitor" language="en_US">
@@ -667,6 +668,81 @@ static void clear_mixmonitor_recipient_list(struct mixmonitor *mixmonitor)
 
 #define SAMPLES_PER_FRAME 160
 
+/* This will allocate and free the translator path as needed so it can be re-used on subsequent calls */
+static void fill_frame_buffer(struct ast_frame *source_frame,
+	struct ast_format *target_format,
+	struct ast_format **last_source_format,
+	struct ast_trans_pvt **translator_path,
+	short *dest_buf,
+	size_t dest_buf_size,
+	const char *direction)
+{
+	struct ast_frame *converted_frame = NULL;
+
+	if (!source_frame) {
+		memset(dest_buf, 0, dest_buf_size);
+		return;
+	}
+
+	/*
+	 * We only need to worry about translating if the frame format does not match
+	 * the expected format of the frame we are writing.
+	 */
+	if (ast_format_cmp(target_format, source_frame->subclass.format) == AST_FORMAT_CMP_NOT_EQUAL) {
+		/*
+		 * If the format changed from the last frame or if this is the first frame
+		 * that does not match the native format, we need to set up a new
+		 * translator path.
+		 */
+		if (ast_format_cmp(*last_source_format, source_frame->subclass.format) == AST_FORMAT_CMP_NOT_EQUAL
+			|| !*translator_path) {
+			ast_debug(3, "%s frame format changed from %s to %s, building translator path to %s\n",
+				direction,
+				*last_source_format ? ast_format_get_name(*last_source_format) : "none",
+				ast_format_get_name(source_frame->subclass.format),
+				ast_format_get_name(target_format));
+
+			if (*translator_path) {
+				ast_translator_free_path(*translator_path);
+			}
+
+			*translator_path = ast_translator_build_path(target_format, source_frame->subclass.format);
+		}
+
+		if (*translator_path) {
+			converted_frame = ast_translate(*translator_path, source_frame, 0);
+		}
+
+		/*
+		 * If creating the translated frame or translator path failed, write silence for this frame. We will
+		 * try rebuilding the translator path later if it is still needed.
+		 */
+		if (converted_frame) {
+			memcpy(dest_buf, converted_frame->data.ptr, dest_buf_size);
+			ast_frame_free(converted_frame, 1);
+		} else {
+			memset(dest_buf, 0, dest_buf_size);
+		}
+	} else {
+		memcpy(dest_buf, source_frame->data.ptr, dest_buf_size);
+
+		/*
+		 * If we are doing native frame copying, we can free the translator path if
+		 * it exists. We will create a new one later if needed.
+		 */
+		if (*translator_path) {
+			ast_translator_free_path(*translator_path);
+			*translator_path = NULL;
+			ast_debug(3, "%s frame format changed from %s to %s, translator path no longer needed\n",
+				direction,
+				*last_source_format ? ast_format_get_name(*last_source_format) : "none",
+				ast_format_get_name(source_frame->subclass.format));
+		}
+	}
+
+	*last_source_format = source_frame->subclass.format;
+}
+
 static void mixmonitor_free(struct mixmonitor *mixmonitor)
 {
 	if (mixmonitor) {
@@ -783,6 +859,11 @@ static void *mixmonitor_thread(void *obj)
 	struct ast_filestream **fs_read = NULL;
 	struct ast_filestream **fs_write = NULL;
 
+	struct ast_format *last_format_read = NULL;
+	struct ast_format *last_format_write = NULL;
+	struct ast_trans_pvt *trans_pvt_read = NULL;
+	struct ast_trans_pvt *trans_pvt_write = NULL;
+
 	unsigned int oflags;
 	int errflag = 0;
 	struct ast_format *format_slin;
@@ -875,6 +956,11 @@ static void *mixmonitor_thread(void *obj)
 			if (ast_test_flag(mixmonitor, MUXFLAG_INTERLEAVED)) {
 				/* The 'D' option is set, so mix the frame as an interleaved dual channel frame */
 				int i;
+				/*
+				 * We are fed by a call to ast_audiohook_read_frame_all specifying format_slin. However
+				 * we may get frames back in a different format. Either way, we we will translate them
+				 * to the format with the correct frame size before writing into these buffers.
+				 */
 				short read_buf[SAMPLES_PER_FRAME];
 				short write_buf[SAMPLES_PER_FRAME];
 				short stereo_buf[SAMPLES_PER_FRAME * 2];
@@ -889,17 +975,16 @@ static void *mixmonitor_thread(void *obj)
 					fr = NULL;
 				}
 
-				if (fr_read) {
-					memcpy(read_buf, fr_read->data.ptr, sizeof(read_buf));
-				} else {
-					memset(read_buf, 0, sizeof(read_buf));
-				}
+				/*
+				 * Depending on the input codec's rate (which may change during the call) we may get frames in
+				 * a slin format that does not match the native format_slin of the mixmonitor.  In that case
+				 * we need to translate.
+				 */
+				fill_frame_buffer(fr_read, format_slin, &last_format_read, &trans_pvt_read,
+					read_buf, sizeof(read_buf), "Read");
 
-				if (fr_write) {
-					memcpy(write_buf, fr_write->data.ptr, sizeof(write_buf));
-				} else {
-					memset(write_buf, 0, sizeof(write_buf));
-				}
+				fill_frame_buffer(fr_write, format_slin, &last_format_write, &trans_pvt_write,
+					write_buf, sizeof(write_buf), "Write");
 
 				for (i = 0; i < SAMPLES_PER_FRAME; i++) {
 					stereo_buf[i * 2] = read_buf[i];
@@ -907,7 +992,7 @@ static void *mixmonitor_thread(void *obj)
 				}
 
 				stereo_frame.data.ptr = stereo_buf;
-				stereo_frame.subclass.format = ast_format_cache_get_slin_by_rate(SAMPLES_PER_FRAME);
+				stereo_frame.subclass.format = format_slin;
 
 				fr = ast_frdup(&stereo_frame);
 			}
@@ -958,6 +1043,16 @@ frame_cleanup:
 		ast_cond_wait(&mixmonitor->mixmonitor_ds->destruction_condition, &mixmonitor->mixmonitor_ds->lock);
 	}
 	ast_mutex_unlock(&mixmonitor->mixmonitor_ds->lock);
+
+	/* Free the translate paths */
+	if (trans_pvt_read) {
+		ast_translator_free_path(trans_pvt_read);
+		trans_pvt_read = NULL;
+	}
+	if (trans_pvt_write) {
+		ast_translator_free_path(trans_pvt_write);
+		trans_pvt_write = NULL;
+	}
 
 	/* kill the audiohook */
 	destroy_monitor_audiohook(mixmonitor);

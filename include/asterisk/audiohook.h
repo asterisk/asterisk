@@ -176,6 +176,9 @@ struct ast_frame *ast_audiohook_read_frame(struct ast_audiohook *audiohook, size
  * \param write_frame if available, we'll copy the write buffer to this.
  * \return frame on success
  * \retval NULL on failure
+ * \note The read_frame and write_frame may be in a different format from what was specified in format depending on the sample rate
+ *       of the hooked channel's codec - ie; if we are requesting slin, but are hooked on channel using a 16K codec like g722, the
+ *       read and write frames will be slin16.
  */
 struct ast_frame *ast_audiohook_read_frame_all(struct ast_audiohook *audiohook, size_t samples, struct ast_format *format, struct ast_frame **read_frame, struct ast_frame **write_frame);
 
