@@ -1175,6 +1175,46 @@ static char *find_aor_name(const pj_str_t *pj_username, const pj_str_t *pj_domai
 	return NULL;
 }
 
+/*!
+ * \internal
+ * \brief Resolve a registrar AOR from the REGISTER To URI.
+ *
+ * Endpoint identification methods such as IP, header, and request URI select
+ * an endpoint but do not provide an AOR name. Use the REGISTER To URI to select
+ * the requested AOR, constrained to the AORs configured on that endpoint.
+ */
+static char *find_aor_name_from_to_uri(struct pjsip_rx_data *rdata, const char *endpoint_aors)
+{
+	pj_str_t username;
+	pjsip_sip_uri *uri;
+
+	if (!rdata || !rdata->msg_info.to || !rdata->msg_info.to->uri) {
+		return NULL;
+	}
+
+	uri = pjsip_uri_get_uri(rdata->msg_info.to->uri);
+	if (!uri || (!PJSIP_URI_SCHEME_IS_SIP(uri) && !PJSIP_URI_SCHEME_IS_SIPS(uri))) {
+		return NULL;
+	}
+
+	pj_strassign(&username, &uri->user);
+
+	/*
+	 * We may want to match without any user options getting
+	 * in the way.
+	 *
+	 * Logic adapted from AST_SIP_USER_OPTIONS_TRUNCATE_CHECK for pj_str_t.
+	 */
+	if (ast_sip_get_ignore_uri_user_options()) {
+		pj_ssize_t semi = pj_strcspn2(&username, ";");
+		if (semi < pj_strlen(&username)) {
+			username.slen = semi;
+		}
+	}
+
+	return find_aor_name(&username, &uri->host, endpoint_aors);
+}
+
 static struct ast_sip_aor *find_registrar_aor(struct pjsip_rx_data *rdata, struct ast_sip_endpoint *endpoint)
 {
 	struct ast_sip_aor *aor = NULL;
@@ -1182,30 +1222,11 @@ static struct ast_sip_aor *find_registrar_aor(struct pjsip_rx_data *rdata, struc
 	int i;
 
 	for (i = 0; i < AST_VECTOR_SIZE(&endpoint->ident_method_order); ++i) {
-		pj_str_t username;
-		pjsip_sip_uri *uri;
 		pjsip_authorization_hdr *header = NULL;
 
 		switch (AST_VECTOR_GET(&endpoint->ident_method_order, i)) {
 		case AST_SIP_ENDPOINT_IDENTIFY_BY_USERNAME:
-			uri = pjsip_uri_get_uri(rdata->msg_info.to->uri);
-
-			pj_strassign(&username, &uri->user);
-
-			/*
-			 * We may want to match without any user options getting
-			 * in the way.
-			 *
-			 * Logic adapted from AST_SIP_USER_OPTIONS_TRUNCATE_CHECK for pj_str_t.
-			 */
-			if (ast_sip_get_ignore_uri_user_options()) {
-				pj_ssize_t semi = pj_strcspn2(&username, ";");
-				if (semi < pj_strlen(&username)) {
-					username.slen = semi;
-				}
-			}
-
-			aor_name = find_aor_name(&username, &uri->host, endpoint->aors);
+			aor_name = find_aor_name_from_to_uri(rdata, endpoint->aors);
 			if (aor_name) {
 				ast_debug(3, "Matched aor '%s' by To username\n", aor_name);
 			}
@@ -1221,6 +1242,14 @@ static struct ast_sip_aor *find_registrar_aor(struct pjsip_rx_data *rdata, struc
 						break;
 					}
 				}
+			}
+			break;
+		case AST_SIP_ENDPOINT_IDENTIFY_BY_IP:
+		case AST_SIP_ENDPOINT_IDENTIFY_BY_HEADER:
+		case AST_SIP_ENDPOINT_IDENTIFY_BY_REQUEST_URI:
+			aor_name = find_aor_name_from_to_uri(rdata, endpoint->aors);
+			if (aor_name) {
+				ast_debug(3, "Matched aor '%s' by To URI\n", aor_name);
 			}
 			break;
 		default:
