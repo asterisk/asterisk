@@ -2382,16 +2382,21 @@ static void __attribute__((format(printf, 7, 0))) ast_log_full(int level, int su
 
 	AST_LIST_LOCK(&logmsgs);
 	if (logger_queue_size >= logger_queue_limit && !close_logger_thread) {
-		logger_messages_discarded++;
+		int discard = (level != __LOG_WARNING && level != __LOG_ERROR) ? 1 : 0;
+
 		if (!high_water_alert && !close_logger_thread) {
 			logmsg = format_log_message(__LOG_WARNING, 0, "logger", 0, "***", 0,
-				"Log queue threshold (%d) exceeded.  Discarding new messages.\n", logger_queue_limit);
+				"Log queue threshold (%d) exceeded.  Discarding non-warning/error messages.\n", logger_queue_limit);
 			AST_LIST_INSERT_TAIL(&logmsgs, logmsg, list);
 			high_water_alert = 1;
 			ast_cond_signal(&logcond);
 		}
-		AST_LIST_UNLOCK(&logmsgs);
-		return;
+
+		if (discard) {
+			logger_messages_discarded++;
+			AST_LIST_UNLOCK(&logmsgs);
+			return;
+		}
 	}
 	AST_LIST_UNLOCK(&logmsgs);
 
