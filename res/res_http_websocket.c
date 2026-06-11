@@ -1626,11 +1626,9 @@ static enum ast_websocket_result websocket_client_handshake_get_response(
 		S_OR(client->options->proxy_host, "N/A"));
 
 	while (ast_iostream_gets(client->ser->stream, buf, sizeof(buf)) <= 0) {
-		if (errno == EINTR || errno == EAGAIN) {
-			continue;
-		}
-		SCOPE_EXIT_LOG_RTN_VALUE(WS_BAD_STATUS, LOG_ERROR, "%s: Unable to retrieve HTTP status line",
-			client->options->uri);
+		SCOPE_EXIT_LOG_RTN_VALUE((errno == EINTR || errno == EAGAIN) ? WS_CLIENT_START_ERROR : WS_BAD_STATUS,
+			LOG_ERROR, "%s: %s waiting for HTTP status line", client->options->uri,
+			(errno == EINTR || errno == EAGAIN) ? "Timeout" : "Error");
 	}
 
 	status_code = ast_http_response_status_line(buf, "HTTP/1.1", 101);
@@ -1651,7 +1649,11 @@ static enum ast_websocket_result websocket_client_handshake_get_response(
 
 		if (len <= 0) {
 			if (errno == EINTR || errno == EAGAIN) {
-				continue;
+				SCOPE_EXIT_LOG_RTN_VALUE((errno == EINTR || errno == EAGAIN) ? WS_CLIENT_START_ERROR : WS_BAD_STATUS,
+					LOG_ERROR, "%s: %s waiting for HTTP header", client->options->uri,
+					(errno == EINTR || errno == EAGAIN) ? "Timeout" : "Error");
+			} else {
+				ast_trace(-1, "%s: Blank line received\n", client->options->uri);
 			}
 			break;
 		}
@@ -1693,14 +1695,47 @@ static enum ast_websocket_result websocket_client_handshake_get_response(
 		}
 	}
 
-	if (proxy) {
-		res = WS_OK;
+	if (status_code == 408) {
+		res = WS_CLIENT_START_ERROR;
 	} else {
-		res = has_upgrade && has_connection && has_accept ?
-			WS_OK : WS_HEADER_MISSING;
+		if (proxy) {
+			res = WS_OK;
+		} else {
+			res = has_upgrade && has_connection && has_accept ?
+				WS_OK : WS_HEADER_MISSING;
+		}
 	}
 
-	SCOPE_EXIT_RTN_VALUE(res);
+	SCOPE_EXIT_RTN_VALUE(res, "%s: Status code: %d\n", client->options->uri, status_code);
+}
+
+static void websocket_client_start_handshake_timer(struct websocket_client *client)
+{
+	/*
+	 * ast_iostream_gets (called above in websocket_client_handshake_get_response) is
+	 * a blocking call which means that if the TCP/TLS connection succeeds but the remote doesn't
+	 * actually respond to the proxy CONNECT (if proxy is configured) or GET requests, the process
+	 * can hang indefinitely and escalate to a deadlock.  To get ast_iostream_gets to timeout,
+	 * we need to make the following 3 calls on the iostream.
+	 *
+	 * Since the write of the CONNECT and/or GET request is included in the timeout, we'll
+	 * double the timeout set in the websocket client's "connect_timeout" parameter to give
+	 * the server enough time to respond.
+	 */
+	ast_iostream_nonblock(client->ser->stream);
+	ast_iostream_set_exclusive_input(client->ser->stream, 1);
+	ast_iostream_set_timeout_sequence(client->ser->stream, ast_tvnow(), client->options->timeout * 2);
+}
+
+static void websocket_client_stop_handshake_timer(struct websocket_client *client)
+{
+	/*
+	 * Once the handshake is complete, we need to undo what we did in
+	 * websocket_client_start_handshake_timer.
+	 */
+	ast_iostream_set_timeout_disable(client->ser->stream);
+	ast_iostream_set_exclusive_input(client->ser->stream, 0);
+	ast_iostream_blocking(client->ser->stream);
 }
 
 #define optional_header_spec "%s%s%s"
@@ -1724,6 +1759,8 @@ static enum ast_websocket_result websocket_proxy_handshake(
 		}
 	}
 
+	websocket_client_start_handshake_timer(client);
+
 	bytes_written = ast_iostream_printf(client->ser->stream,
 		"CONNECT %s HTTP/1.1\r\n"
 		"Host: %s\r\n"
@@ -1737,10 +1774,13 @@ static enum ast_websocket_result websocket_proxy_handshake(
 
 	ast_variables_destroy(auth_header);
 	if (bytes_written < 0) {
+		websocket_client_stop_handshake_timer(client);
 		SCOPE_EXIT_LOG_RTN_VALUE(WS_WRITE_ERROR, LOG_ERROR, "Failed to send handshake\n");
 	}
+
 	/* wait for a response before doing anything else */
 	res = websocket_client_handshake_get_response(client, 1);
+	websocket_client_stop_handshake_timer(client);
 
 	SCOPE_EXIT_RTN_VALUE(res, "%s\n", ast_websocket_result_to_str(res));
 }
@@ -1751,16 +1791,18 @@ static enum ast_websocket_result websocket_client_handshake(
 	size_t protocols_len = 0;
 	struct ast_variable *auth_header = NULL;
 	size_t res;
+	SCOPE_ENTER(2, "%s: Handshaking with server\n", client->options->uri);
 
 	if (!ast_strlen_zero(client->userinfo)) {
 		auth_header = ast_http_create_basic_auth_header(client->userinfo, NULL);
 		if (!auth_header) {
-			ast_log(LOG_ERROR, "Unable to allocate client websocket userinfo\n");
-			return WS_ALLOCATE_ERROR;
+			SCOPE_EXIT_LOG_RTN_VALUE(WS_ALLOCATE_ERROR, LOG_ERROR, "Unable to allocate client websocket userinfo\n");
 		}
 	}
 
 	protocols_len = client->protocols ? strlen(client->protocols) : 0;
+
+	websocket_client_start_handshake_timer(client);
 
 	res = ast_iostream_printf(client->ser->stream,
 		"GET /%s HTTP/1.1\r\n"
@@ -1782,11 +1824,15 @@ static enum ast_websocket_result websocket_client_handshake(
 
 	ast_variables_destroy(auth_header);
 	if (res < 0) {
-		ast_log(LOG_ERROR, "Failed to send handshake.\n");
-		return WS_WRITE_ERROR;
+		websocket_client_stop_handshake_timer(client);
+		SCOPE_EXIT_LOG_RTN_VALUE(WS_WRITE_ERROR, LOG_ERROR, "Failed to send handshake\n");
 	}
+
 	/* wait for a response before doing anything else */
-	return websocket_client_handshake_get_response(client, 0);
+	res = websocket_client_handshake_get_response(client, 0);
+	websocket_client_stop_handshake_timer(client);
+
+	SCOPE_EXIT_RTN_VALUE(res, "%s\n", ast_websocket_result_to_str(res));
 }
 
 static enum ast_websocket_result websocket_client_connect(struct ast_websocket *ws,
