@@ -99,7 +99,8 @@ void ari_websocket_send_event(struct ari_ws_session *ari_ws_session,
  * \retval 0 on success, -1 on failure
  */
 int ari_websocket_process_request(struct ari_ws_session *ast_ws_session,
-		const char *remote_addr, struct ast_variable *upgrade_headers,
+		const char *remote_addr, struct ast_variable *get_params,
+		struct ast_variable *upgrade_headers,
 		const char *app_name, struct ast_json *msg);
 
 /*!
