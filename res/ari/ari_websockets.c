@@ -826,6 +826,11 @@ static void websocket_established_cb(struct ast_websocket *ast_ws_session,
 		for (v = upgrade_headers; v; v = v->next) {
 			ast_trace(3, "--> %s: %s\n", v->name, v->value);
 		}
+
+		ast_trace(2, "%s: Websocket query params:\n", remote_addr);
+		for (v = get_params; v; v = v->next) {
+			ast_trace(3, "--> %s: %s\n", v->name, v->value);
+		}
 	}
 
 	/*
@@ -849,7 +854,7 @@ static void websocket_established_cb(struct ast_websocket *ast_ws_session,
 	ari_ws_session->connected = 1;
 	ast_trace(-1, "%s: Waiting for messages\n", remote_addr);
 	while ((msg = session_read(ari_ws_session))) {
-		ari_websocket_process_request(ari_ws_session, remote_addr,
+		ari_websocket_process_request(ari_ws_session, remote_addr, get_params,
 			upgrade_headers, ari_ws_session->app_name, msg);
 		ast_json_unref(msg);
 	}
@@ -1042,7 +1047,7 @@ static void *outbound_session_handler_thread(void *obj)
 		 */
 		while ((msg = session_read(session))) {
 			ari_websocket_process_request(session, session->remote_addr,
-				upgrade_headers, session->app_name, msg);
+				NULL, upgrade_headers, session->app_name, msg);
 			ast_json_unref(msg);
 		}
 
