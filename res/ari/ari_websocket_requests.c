@@ -71,7 +71,7 @@ static void request_destroy(struct rest_request_msg *request)
 })
 
 static struct rest_request_msg *parse_rest_request_msg(
-	const char *remote_addr, struct ast_json *request_msg,
+	const char *remote_addr, struct ast_json *request_msg, struct ast_variable *get_params,
 	struct ast_ari_response *response, int debug_app)
 {
 	struct rest_request_msg *request = NULL;
@@ -152,6 +152,25 @@ static struct rest_request_msg *parse_rest_request_msg(
 		SET_RESPONSE_AND_EXIT(400,
 			"Bad request","Unable to parse 'query_strings' array.",
 			remote_addr, request, request_msg);
+	}
+
+	/*
+	 * If there were get_params on the original HTTP GET request that created
+	 * the websocket, we need to append any api_key parameter to the request->query_strings
+	 * to properly authenticate and authorize the request.
+	 */
+	if (get_params) {
+		struct ast_variable *v;
+		ast_trace(-1, "%s: Websocket query params:\n", remote_addr);
+		for (v = get_params; v; v = v->next) {
+			if (ast_strings_equal(v->name, "api_key")) {
+				struct ast_variable *api_key = ast_variable_new(v->name, v->value, __FILE__);
+				if (api_key) {
+					ast_variable_list_append_hint(&request->query_strings, NULL, api_key);
+				}
+				break;
+			}
+		}
 	}
 
 	request->body = ast_json_null();
@@ -259,7 +278,8 @@ static void send_rest_response(
 }
 
 int ari_websocket_process_request(struct ari_ws_session *ari_ws_session,
-		const char *remote_addr, struct ast_variable *upgrade_headers,
+		const char *remote_addr, struct ast_variable *get_params,
+		struct ast_variable *upgrade_headers,
 		const char *app_name, struct ast_json *request_msg)
 {
 	int debug_app = stasis_app_get_debug_by_name(app_name);
@@ -281,7 +301,7 @@ int ari_websocket_process_request(struct ari_ws_session *ari_ws_session,
 	}
 
 	request = SCOPE_CALL_WITH_RESULT(-1, struct rest_request_msg *,
-		parse_rest_request_msg, remote_addr, request_msg, &response, debug_app);
+		parse_rest_request_msg, remote_addr, request_msg, get_params, &response, debug_app);
 
 	if (!request || response.response_code != 200) {
 		SCOPE_CALL(-1, send_rest_response, ari_ws_session,
