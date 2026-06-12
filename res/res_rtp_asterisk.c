@@ -4414,10 +4414,14 @@ static int ast_rtp_destroy(struct ast_rtp_instance *instance)
 	}
 
 	/* Destroy RED if it was being used */
-	if (rtp->red) {
+	/* only needed for chan_sip compatibility, should be removed after completely getting rid of it */
+	if (rtp->red && rtp->red->schedid > -1) {
 		ao2_unlock(instance);
-		AST_SCHED_DEL(rtp->sched, rtp->red->schedid);
+		if (!AST_SCHED_DEL(rtp->sched, rtp->red->schedid)) {
+			ao2_ref(instance, -1);
+		}
 		ao2_lock(instance);
+		rtp->red->schedid = -1;
 		ast_free(rtp->red);
 		rtp->red = NULL;
 	}
