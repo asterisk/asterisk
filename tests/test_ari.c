@@ -309,8 +309,9 @@ AST_TEST_DEFINE(invoke_get)
 	RAII_VAR(void *, fixture, NULL, tear_down_invocation_test);
 	RAII_VAR(struct ast_ari_response *, response, NULL, response_free);
 	RAII_VAR(struct ast_json *, expected, NULL, ast_json_unref);
-	struct ast_variable *get_params = NULL;
-	struct ast_variable *headers = NULL;
+	struct ast_variable *tail = NULL;
+	RAII_VAR(struct ast_variable *, get_params, NULL, ast_variables_destroy);
+	RAII_VAR(struct ast_variable *, headers, NULL, ast_variables_destroy);
 
 	switch (cmd) {
 	case TEST_INIT:
@@ -325,21 +326,24 @@ AST_TEST_DEFINE(invoke_get)
 
 	fixture = setup_invocation_test();
 	response = response_alloc();
-	get_params = ast_variable_new("get1", "get-one", __FILE__);
-	ast_assert(get_params != NULL);
-	get_params->next = ast_variable_new("get2", "get-two", __FILE__);
-	ast_assert(get_params->next != NULL);
+	tail = ast_variable_list_append_hint(&get_params, NULL, ast_variable_new("get1", "get-one", __FILE__));
+	ast_assert(tail != NULL);
+	tail = ast_variable_list_append_hint(&get_params, NULL, ast_variable_new("get2", "get-two", __FILE__));
+	ast_assert(tail != NULL);
+	tail = ast_variable_list_append_hint(&get_params, NULL, ast_variable_new("api_key", "aritestro:aritestropw", __FILE__));
+	ast_assert(tail != NULL);
 
-	headers = ast_variable_new("head1", "head-one", __FILE__);
-	ast_assert(headers != NULL);
-	headers->next = ast_variable_new("head2", "head-two", __FILE__);
-	ast_assert(headers->next != NULL);
+	tail = ast_variable_list_append_hint(&headers, NULL, ast_variable_new("head1", "head-one", __FILE__));
+	ast_assert(tail != NULL);
+	tail = ast_variable_list_append_hint(&headers, NULL, ast_variable_new("head2", "head-two", __FILE__));
+	ast_assert(tail != NULL);
 
-	expected = ast_json_pack("{s: s, s: {s: s, s: s}, s: {s: s, s: s}, s: {}}",
+	expected = ast_json_pack("{s: s, s: {s: s, s: s, s: s}, s: {s: s, s: s}, s: {}}",
 				 "name", "foo_get",
 				 "get_params",
 				 "get1", "get-one",
 				 "get2", "get-two",
+				 "api_key", "aritestro:aritestropw",
 				 "headers",
 				 "head1", "head-one",
 				 "head2", "head-two",
@@ -360,7 +364,8 @@ AST_TEST_DEFINE(invoke_wildcard)
 	RAII_VAR(void *, fixture, NULL, tear_down_invocation_test);
 	RAII_VAR(struct ast_ari_response *, response, NULL, response_free);
 	RAII_VAR(struct ast_json *, expected, NULL, ast_json_unref);
-	struct ast_variable *get_params = NULL;
+	struct ast_variable *tail = NULL;
+	RAII_VAR(struct ast_variable *, get_params, NULL, ast_variables_destroy);
 	struct ast_variable *headers = NULL;
 
 	switch (cmd) {
@@ -376,9 +381,13 @@ AST_TEST_DEFINE(invoke_wildcard)
 
 	fixture = setup_invocation_test();
 	response = response_alloc();
-	expected = ast_json_pack("{s: s, s: {}, s: {}, s: {s: s}}",
+	tail = ast_variable_list_append_hint(&get_params, NULL, ast_variable_new("api_key", "aritestro:aritestropw", __FILE__));
+	ast_assert(tail != NULL);
+
+	expected = ast_json_pack("{s: s, s: {s: s}, s: {}, s: {s: s}}",
 				 "name", "bam_get",
 				 "get_params",
+				 "api_key", "aritestro:aritestropw",
 				 "headers",
 				 "path_vars",
 				 "bam", "foshizzle");
@@ -393,14 +402,41 @@ AST_TEST_DEFINE(invoke_wildcard)
 	return AST_TEST_PASS;
 }
 
-AST_TEST_DEFINE(invoke_delete)
+static enum ast_test_result_state invoke_delete_common(struct ast_test_info *info, enum ast_test_command cmd,
+	struct ast_test *test, const char *creds, int expect_pass, int expect_rc)
 {
 	RAII_VAR(void *, fixture, NULL, tear_down_invocation_test);
 	RAII_VAR(struct ast_ari_response *, response, NULL, response_free);
 	RAII_VAR(struct ast_json *, expected, NULL, ast_json_unref);
-	struct ast_variable *get_params = NULL;
+	struct ast_variable *tail = NULL;
+	RAII_VAR(struct ast_variable *, get_params, NULL, ast_variables_destroy);
 	struct ast_variable *headers = NULL;
 
+	fixture = setup_invocation_test();
+	response = response_alloc();
+	tail = ast_variable_list_append_hint(&get_params, NULL, ast_variable_new("api_key", creds, __FILE__));
+	ast_assert(tail != NULL);
+
+	expected = ast_json_pack("{s: s, s: {s: s}, s: {}, s: {s: s}}",
+				 "name", "bang_delete",
+				 "get_params",
+				 "api_key", creds,
+				 "headers",
+				 "path_vars",
+				 "bam", "foshizzle");
+
+	ast_ari_invoke(NULL, ARI_INVOKE_SOURCE_TEST, NULL, "foo/foshizzle/bang", AST_HTTP_DELETE, get_params, headers,
+		ast_json_null(), response);
+
+	ast_test_validate(test, expect_pass == invocation_count);
+	ast_test_validate(test, expect_rc == response->response_code);
+	ast_test_validate(test, ast_json_equal(expected, response->message) == expect_pass);
+
+	return AST_TEST_PASS;
+}
+
+AST_TEST_DEFINE(invoke_delete)
+{
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = __func__;
@@ -412,23 +448,23 @@ AST_TEST_DEFINE(invoke_delete)
 		break;
 	}
 
-	fixture = setup_invocation_test();
-	response = response_alloc();
-	expected = ast_json_pack("{s: s, s: {}, s: {}, s: {s: s}}",
-				 "name", "bang_delete",
-				 "get_params",
-				 "headers",
-				 "path_vars",
-				 "bam", "foshizzle");
+	return invoke_delete_common(info, cmd, test, "aritest:aritestpw", 1, 204);
+}
 
-	ast_ari_invoke(NULL, ARI_INVOKE_SOURCE_TEST, NULL, "foo/foshizzle/bang", AST_HTTP_DELETE, get_params, headers,
-		ast_json_null(), response);
+AST_TEST_DEFINE(invoke_delete_forbidden)
+{
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = __func__;
+		info->category = "/res/ari/";
+		info->summary = "Test forbidden DELETE of an HTTP resource.";
+		info->description = "Test ARI binding logic.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
 
-	ast_test_validate(test, 1 == invocation_count);
-	ast_test_validate(test, 204 == response->response_code);
-	ast_test_validate(test, ast_json_equal(expected, response->message));
-
-	return AST_TEST_PASS;
+	return invoke_delete_common(info, cmd, test, "aritestro:aritestropw", 0, 403);
 }
 
 AST_TEST_DEFINE(invoke_post)
@@ -436,8 +472,9 @@ AST_TEST_DEFINE(invoke_post)
 	RAII_VAR(void *, fixture, NULL, tear_down_invocation_test);
 	RAII_VAR(struct ast_ari_response *, response, NULL, response_free);
 	RAII_VAR(struct ast_json *, expected, NULL, ast_json_unref);
-	struct ast_variable *get_params = NULL;
-	struct ast_variable *headers = NULL;
+	struct ast_variable *tail = NULL;
+	RAII_VAR(struct ast_variable *, get_params, NULL, ast_variables_destroy);
+	RAII_VAR(struct ast_variable *, headers, NULL, ast_variables_destroy);
 
 	switch (cmd) {
 	case TEST_INIT:
@@ -452,21 +489,24 @@ AST_TEST_DEFINE(invoke_post)
 
 	fixture = setup_invocation_test();
 	response = response_alloc();
-	get_params = ast_variable_new("get1", "get-one", __FILE__);
-	ast_assert(get_params != NULL);
-	get_params->next = ast_variable_new("get2", "get-two", __FILE__);
-	ast_assert(get_params->next != NULL);
+	tail = ast_variable_list_append_hint(&get_params, NULL, ast_variable_new("get1", "get-one", __FILE__));
+	ast_assert(tail != NULL);
+	tail = ast_variable_list_append_hint(&get_params, NULL, ast_variable_new("get2", "get-two", __FILE__));
+	ast_assert(tail != NULL);
+	tail = ast_variable_list_append_hint(&get_params, NULL, ast_variable_new("api_key", "aritest:aritestpw", __FILE__));
+	ast_assert(tail != NULL);
 
-	headers = ast_variable_new("head1", "head-one", __FILE__);
-	ast_assert(headers != NULL);
-	headers->next = ast_variable_new("head2", "head-two", __FILE__);
-	ast_assert(headers->next != NULL);
+	tail = ast_variable_list_append_hint(&headers, NULL, ast_variable_new("head1", "head-one", __FILE__));
+	ast_assert(tail != NULL);
+	tail = ast_variable_list_append_hint(&headers, NULL, ast_variable_new("head2", "head-two", __FILE__));
+	ast_assert(tail != NULL);
 
-	expected = ast_json_pack("{s: s, s: {s: s, s: s}, s: {s: s, s: s}, s: {}}",
+	expected = ast_json_pack("{s: s, s: {s: s, s: s, s: s}, s: {s: s, s: s}, s: {}}",
 				 "name", "bar_post",
 				 "get_params",
 				 "get1", "get-one",
 				 "get2", "get-two",
+				 "api_key", "aritest:aritestpw",
 				 "headers",
 				 "head1", "head-one",
 				 "head2", "head-two",
@@ -483,6 +523,40 @@ AST_TEST_DEFINE(invoke_post)
 }
 
 AST_TEST_DEFINE(invoke_bad_post)
+{
+	RAII_VAR(void *, fixture, NULL, tear_down_invocation_test);
+	RAII_VAR(struct ast_ari_response *, response, NULL, response_free);
+	struct ast_variable *tail = NULL;
+	RAII_VAR(struct ast_variable *, get_params, NULL, ast_variables_destroy);
+	struct ast_variable *headers = NULL;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = __func__;
+		info->category = "/res/ari/";
+		info->summary = "Test POST on a resource that doesn't support it.";
+		info->description = "Test ARI binding logic.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	fixture = setup_invocation_test();
+	response = response_alloc();
+
+	tail = ast_variable_list_append_hint(&get_params, NULL, ast_variable_new("api_key", "aritest:aritestpw", __FILE__));
+	ast_assert(tail != NULL);
+
+	ast_ari_invoke(NULL, ARI_INVOKE_SOURCE_TEST, NULL, "foo", AST_HTTP_POST, get_params, headers,
+		ast_json_null(), response);
+
+	ast_test_validate(test, 0 == invocation_count);
+	ast_test_validate(test, 405 == response->response_code);
+
+	return AST_TEST_PASS;
+}
+
+AST_TEST_DEFINE(invoke_no_user)
 {
 	RAII_VAR(void *, fixture, NULL, tear_down_invocation_test);
 	RAII_VAR(struct ast_ari_response *, response, NULL, response_free);
@@ -506,7 +580,7 @@ AST_TEST_DEFINE(invoke_bad_post)
 		ast_json_null(), response);
 
 	ast_test_validate(test, 0 == invocation_count);
-	ast_test_validate(test, 405 == response->response_code);
+	ast_test_validate(test, 401 == response->response_code);
 
 	return AST_TEST_PASS;
 }
@@ -515,7 +589,8 @@ AST_TEST_DEFINE(invoke_not_found)
 {
 	RAII_VAR(void *, fixture, NULL, tear_down_invocation_test);
 	RAII_VAR(struct ast_ari_response *, response, NULL, response_free);
-	struct ast_variable *get_params = NULL;
+	struct ast_variable *tail = NULL;
+	RAII_VAR(struct ast_variable *, get_params, NULL, ast_variables_destroy);
 	struct ast_variable *headers = NULL;
 
 	switch (cmd) {
@@ -531,6 +606,10 @@ AST_TEST_DEFINE(invoke_not_found)
 
 	fixture = setup_invocation_test();
 	response = response_alloc();
+
+	tail = ast_variable_list_append_hint(&get_params, NULL, ast_variable_new("api_key", "aritest:aritestpw", __FILE__));
+	ast_assert(tail != NULL);
+
 	ast_ari_invoke(NULL, ARI_INVOKE_SOURCE_TEST, NULL, "foo/fizzle/i-am-not-a-resource", AST_HTTP_GET, get_params, headers,
 		ast_json_null(), response);
 
@@ -549,8 +628,10 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(invoke_get);
 	AST_TEST_UNREGISTER(invoke_wildcard);
 	AST_TEST_UNREGISTER(invoke_delete);
+	AST_TEST_UNREGISTER(invoke_delete_forbidden);
 	AST_TEST_UNREGISTER(invoke_post);
 	AST_TEST_UNREGISTER(invoke_bad_post);
+	AST_TEST_UNREGISTER(invoke_no_user);
 	AST_TEST_UNREGISTER(invoke_not_found);
 	return 0;
 }
@@ -564,8 +645,10 @@ static int load_module(void)
 	AST_TEST_REGISTER(invoke_get);
 	AST_TEST_REGISTER(invoke_wildcard);
 	AST_TEST_REGISTER(invoke_delete);
+	AST_TEST_REGISTER(invoke_delete_forbidden);
 	AST_TEST_REGISTER(invoke_post);
 	AST_TEST_REGISTER(invoke_bad_post);
+	AST_TEST_REGISTER(invoke_no_user);
 	AST_TEST_REGISTER(invoke_not_found);
 	return AST_MODULE_LOAD_SUCCESS;
 }
