@@ -121,6 +121,7 @@ struct ast_channel_tech chan_pjsip_tech = {
 	.read_stream = chan_pjsip_read_stream,
 	.write = chan_pjsip_write,
 	.write_stream = chan_pjsip_write_stream,
+	.write_text = chan_pjsip_write,
 	.exception = chan_pjsip_read_stream,
 	.indicate = chan_pjsip_indicate,
 	.transfer = chan_pjsip_transfer,
@@ -231,6 +232,35 @@ static enum ast_rtp_glue_result chan_pjsip_get_vrtp_peer(struct ast_channel *cha
 	}
 
 	media = channel->session->active_media_state->default_session[AST_MEDIA_TYPE_VIDEO];
+	if (!media || !media->rtp) {
+		return AST_RTP_GLUE_RESULT_FORBID;
+	}
+
+	endpoint = channel->session->endpoint;
+
+	*instance = media->rtp;
+	ao2_ref(*instance, +1);
+
+	ast_assert(endpoint != NULL);
+	if (endpoint->media.rtp.encryption != AST_SIP_MEDIA_ENCRYPT_NONE) {
+		return AST_RTP_GLUE_RESULT_FORBID;
+	}
+
+	return AST_RTP_GLUE_RESULT_LOCAL;
+}
+
+/*! \brief Function called by RTP engine to get local text RTP peer */
+static enum ast_rtp_glue_result chan_pjsip_get_trtp_peer(struct ast_channel *chan, struct ast_rtp_instance **instance)
+{
+	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(chan);
+	struct ast_sip_endpoint *endpoint;
+	struct ast_sip_session_media *media;
+
+	if (!channel || !channel->session) {
+		return AST_RTP_GLUE_RESULT_FORBID;
+	}
+
+	media = channel->session->active_media_state->default_session[AST_MEDIA_TYPE_TEXT];
 	if (!media || !media->rtp) {
 		return AST_RTP_GLUE_RESULT_FORBID;
 	}
@@ -487,6 +517,7 @@ static struct ast_rtp_glue chan_pjsip_rtp_glue = {
 	.type = "PJSIP",
 	.get_rtp_info = chan_pjsip_get_rtp_peer,
 	.get_vrtp_info = chan_pjsip_get_vrtp_peer,
+	.get_trtp_info = chan_pjsip_get_trtp_peer,
 	.get_codec = chan_pjsip_get_codec,
 	.update_peer = chan_pjsip_set_rtp_peer,
 };
@@ -1021,6 +1052,18 @@ static int chan_pjsip_write_stream(struct ast_channel *ast, int stream_num, stru
 		break;
 	case AST_FRAME_CNG:
 		break;
+	case AST_FRAME_TEXT:
+		if (!media) {
+			return 0;
+		} else if (media->type != AST_MEDIA_TYPE_TEXT) {
+			ast_debug(3, "Channel %s stream %d is of type '%s', not text!\n",
+				ast_channel_name(ast), stream_num, ast_codec_media_type2str(media->type));
+			return 0;
+		} else if (media->write_callback) {
+			ast_debug(3, "Text data to write %.*s\n",frame->datalen,(char*)frame->data.ptr);
+			res = media->write_callback(session, media, frame);
+		}
+		break;
 	case AST_FRAME_RTCP:
 		/* We only support writing out feedback */
 		if (frame->subclass.integer != AST_RTP_RTCP_PSFB || !media) {
@@ -1043,6 +1086,9 @@ static int chan_pjsip_write_stream(struct ast_channel *ast, int stream_num, stru
 
 static int chan_pjsip_write(struct ast_channel *ast, struct ast_frame *frame)
 {
+	if (frame->frametype == AST_FRAME_TEXT) {
+		return chan_pjsip_write_stream(ast, frame->stream_num, frame);
+	}
 	return chan_pjsip_write_stream(ast, -1, frame);
 }
 
