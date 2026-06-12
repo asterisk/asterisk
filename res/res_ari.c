@@ -441,32 +441,74 @@ static void handle_options(struct stasis_rest_handlers *handler,
 	}
 }
 
-/*!
- * \brief Authenticate a <code>?api_key=userid:password</code>
- *
- * \param api_key API key query parameter
- * \return User object for the authenticated user.
- * \retval NULL if authentication failed.
+/*
+ * This function is actually copied from http.c.  Didn't see a need to make
+ * that function public just for this one use case.
  */
-static struct ari_conf_user *authenticate_api_key(const char *api_key)
+static struct ast_http_auth *create_http_auth(const char *userid, const char *password)
 {
-	RAII_VAR(char *, copy, NULL, ast_free);
-	char *username;
-	char *password;
+	struct ast_http_auth *auth;
+	size_t userid_len;
+	size_t password_len;
 
-	password = copy = ast_strdup(api_key);
-	if (!copy) {
+	if (!userid || !password) {
+		ast_log(LOG_ERROR, "Invalid userid/password\n");
 		return NULL;
 	}
 
-	username = strsep(&password, ":");
-	if (!password) {
-		ast_log(LOG_WARNING, "Invalid api_key\n");
+	userid_len = strlen(userid) + 1;
+	password_len = strlen(password) + 1;
+
+	/* Allocate enough room to store everything in one memory block */
+	auth = ao2_alloc_options(sizeof(*auth) + userid_len + password_len, NULL, AO2_ALLOC_OPT_LOCK_NOLOCK);
+	if (!auth) {
 		return NULL;
 	}
 
-	return ari_conf_validate_user(username, password);
+	/* Put the userid right after the struct */
+	auth->userid = (char *)(auth + 1);
+	strcpy(auth->userid, userid);
+
+	/* Put the password right after the userid */
+	auth->password = auth->userid + userid_len;
+	strcpy(auth->password, password);
+
+	return auth;
 }
+
+/*!
+ * \brief Parse an api_key parameter from the query parameters into an ast_http_auth structure.
+ *
+ * \param get_params query string parameters
+ * \return ast_http_user object for the api_key.
+ * \retval NULL if api_key wasn't found or is had no password.
+ */
+static struct ast_http_auth *parse_api_keys(struct ast_variable *get_params)
+{
+	struct ast_variable *v;
+
+	for (v = get_params; v; v = v->next) {
+		if (ast_strings_equal(v->name, "api_key")) {
+			if (!ast_strlen_zero(v->value)) {
+				char *password = ast_strdupa(v->value);
+				char *username = strsep(&password, ":");
+				if (!ast_strlen_zero(password)) {
+					return create_http_auth(username, password);
+				}
+			}
+			break;
+		}
+	}
+	return NULL;
+}
+
+#if AST_DEVMODE
+static void test_ari_user_destructor(void *obj)
+{
+	struct ari_conf_user *ari_user = obj;
+	ast_string_field_free_memory(ari_user);
+}
+#endif
 
 /*!
  * \brief Authenticate an HTTP request.
@@ -477,26 +519,68 @@ static struct ari_conf_user *authenticate_api_key(const char *api_key)
  * \retval NULL if authentication failed.
  */
 static struct ari_conf_user *authenticate_user(struct ast_variable *get_params,
-	struct ast_variable *headers)
+	struct ast_variable *headers, enum ast_ari_invoke_source source)
 {
 	RAII_VAR(struct ast_http_auth *, http_auth, NULL, ao2_cleanup);
-	struct ast_variable *v;
+	struct ari_conf_user *ari_user = NULL;
+	SCOPE_ENTER(3, "\n");
 
 	/* HTTP Basic authentication */
 	http_auth = ast_http_get_auth(headers);
-	if (http_auth) {
-		return ari_conf_validate_user(http_auth->userid,
-			http_auth->password);
+	if (!http_auth) {
+		/* ?api_key authentication */
+		http_auth = parse_api_keys(get_params);
+	}
+	if (!http_auth) {
+		SCOPE_EXIT_RTN_VALUE(NULL, "No credentials found in HTTP headers or api_key\n");
 	}
 
-	/* ?api_key authentication */
-	for (v = get_params; v; v = v->next) {
-		if (strcasecmp("api_key", v->name) == 0) {
-			return authenticate_api_key(v->value);
+	if (source != ARI_INVOKE_SOURCE_TEST) {
+		ast_trace(-1, "Validating user %s\n", http_auth->userid);
+		ari_user = ari_conf_validate_user(http_auth->userid, http_auth->password);
+		if (!ari_user) {
+			SCOPE_EXIT_RTN_VALUE(NULL, "User %s failed to validate\n", http_auth->userid);
 		}
+		SCOPE_EXIT_RTN_VALUE(ari_user, "User %s validated. Read only: %s\n",
+			http_auth->userid, AST_YESNO(ari_user->read_only));
+	}
+#if AST_DEVMODE
+	/*
+	 * ARI_INVOKE_SOURCE_TEST should only be set by the tests in test_ari.c but
+	 * as a safety precaution, only check against the test usernames and passwords
+	 * if we're in DEVMODE.
+	 */
+	else {
+		int readonly = 0;
+
+		if (ast_strings_equal(http_auth->userid, "aritest")) {
+			if (!ast_strings_equal(http_auth->password, "aritestpw")) {
+				SCOPE_EXIT_RTN_VALUE(NULL, "User %s failed to validate\n", http_auth->userid);
+			}
+		} else if (ast_strings_equal(http_auth->userid, "aritestro")) {
+			if (!ast_strings_equal(http_auth->password, "aritestropw")) {
+				SCOPE_EXIT_RTN_VALUE(NULL, "User %s failed to validate\n", http_auth->userid);
+			}
+			readonly = 1;
+		}
+
+		ari_user = ao2_alloc(sizeof(*ari_user), test_ari_user_destructor);
+		if (!ari_user) {
+			SCOPE_EXIT_RTN_VALUE(NULL, "alloc failed\n");
+		}
+		if (ast_string_field_init(ari_user, 256) != 0) {
+			SCOPE_EXIT_RTN_VALUE(NULL, "alloc failed\n");
+		}
+		ast_string_field_set(ari_user, password, http_auth->password);
+		ari_user->read_only = readonly;
+
+		SCOPE_EXIT_RTN_VALUE(ari_user, "User %s validated. Read only: %s\n",
+			http_auth->userid, AST_YESNO(ari_user->read_only));
 	}
 
+#else
 	return NULL;
+#endif
 }
 
 static void remove_trailing_slash(const char *uri,
@@ -553,29 +637,32 @@ enum ast_ari_invoke_result ast_ari_invoke(struct ast_tcptls_session_instance *se
 			response->response_code, response->response_text);
 	}
 
-	user = authenticate_user(get_params, headers);
-
-	if (!user && source == ARI_INVOKE_SOURCE_REST) {
-		/* Per RFC 2617, section 1.2: The 401 (Unauthorized) response
-		 * message is used by an origin server to challenge the
-		 * authorization of a user agent. This response MUST include a
-		 * WWW-Authenticate header field containing at least one
-		 * challenge applicable to the requested resource.
-		 */
+	user = authenticate_user(get_params, headers, source);
+	if (!user) {
 		ast_ari_response_error(response, 401, "Unauthorized", "Authentication required");
+		if (source == ARI_INVOKE_SOURCE_REST) {
+			/* Per RFC 2617, section 1.2: The 401 (Unauthorized) response
+			 * message is used by an origin server to challenge the
+			 * authorization of a user agent. This response MUST include a
+			 * WWW-Authenticate header field containing at least one
+			 * challenge applicable to the requested resource.
+			 */
 
-		/* Section 1.2:
-		 *   realm       = "realm" "=" realm-value
-		 *   realm-value = quoted-string
-		 * Section 2:
-		 *   challenge   = "Basic" realm
-		 */
-		ast_str_append(&response->headers, 0,
-			"WWW-Authenticate: Basic realm=\"%s\"\r\n",
-			general->auth_realm);
+			/* Section 1.2:
+			 *   realm       = "realm" "=" realm-value
+			 *   realm-value = quoted-string
+			 * Section 2:
+			 *   challenge   = "Basic" realm
+			 */
+			ast_str_append(&response->headers, 0,
+				"WWW-Authenticate: Basic realm=\"%s\"\r\n",
+				general->auth_realm);
+		}
 		SCOPE_EXIT_RTN_VALUE(ARI_INVOKE_RESULT_ERROR_CONTINUE, "Response: %d : %s\n",
 			response->response_code, response->response_text);
-	} else if (user && user->acl && !ast_acl_list_is_empty(user->acl) &&
+	}
+
+	if (source == ARI_INVOKE_SOURCE_REST && ser && user->acl && !ast_acl_list_is_empty(user->acl) &&
 		   ast_apply_acl(user->acl, &ser->remote_address, "ARI User ACL") == AST_SENSE_DENY) {
 		ast_ari_response_error(response, 403, "Forbidden", "Access denied by ACL");
 		SCOPE_EXIT_RTN_VALUE(ARI_INVOKE_RESULT_ERROR_CONTINUE, "Response: %d : %s\n",
@@ -584,7 +671,7 @@ enum ast_ari_invoke_result ast_ari_invoke(struct ast_tcptls_session_instance *se
 		ast_ari_response_error(response, 503, "Service Unavailable", "Asterisk not booted");
 		SCOPE_EXIT_RTN_VALUE(ARI_INVOKE_RESULT_ERROR_CLOSE, "Response: %d : %s\n",
 			response->response_code, response->response_text);
-	} else if (user && user->read_only && method != AST_HTTP_GET && method != AST_HTTP_OPTIONS) {
+	} else if (user->read_only && method != AST_HTTP_GET && method != AST_HTTP_OPTIONS) {
 		ast_ari_response_error(response, 403, "Forbidden", "Write access denied");
 		SCOPE_EXIT_RTN_VALUE(ARI_INVOKE_RESULT_ERROR_CONTINUE, "Response: %d : %s\n",
 			response->response_code, response->response_text);
