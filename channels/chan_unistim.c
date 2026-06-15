@@ -455,6 +455,8 @@ static struct unistim_device {
 	struct unistim_device *next;
 } *devices = NULL;
 
+#define MAX_PHONE_NUMBER_LENGTH (AST_MAX_EXTENSION - 1)
+
 static struct unistimsession {
 	ast_mutex_t lock;
 	struct sockaddr_in sin;	 /*!< IP address of the phone */
@@ -3577,6 +3579,12 @@ static void key_dial_page(struct unistimsession *pte, char keycode)
 	if ((keycode >= KEY_0) && (keycode <= KEY_SHARP)) {
 		int i = pte->device->size_phone_number;
 
+		/*
+		 * If the phone_number buffer is already full, bail now to prevent an overrun.
+		 */
+		if (pte->device->size_phone_number >= MAX_PHONE_NUMBER_LENGTH) {
+			return;
+		}
 		if (pte->device->size_phone_number == 0) {
 			send_tone(pte, 0, 0);
 		}
