@@ -159,6 +159,8 @@ static int channel_read_rtcp(struct ast_channel *chan, const char *type, const c
 		media = session->active_media_state->default_session[AST_MEDIA_TYPE_AUDIO];
 	} else if (!strcmp(field, "video")) {
 		media = session->active_media_state->default_session[AST_MEDIA_TYPE_VIDEO];
+	} else if (!strcmp(field, "text")) {
+		media = session->active_media_state->default_session[AST_MEDIA_TYPE_TEXT];
 	} else {
 		ast_log(AST_LOG_WARNING, "Unknown media type field '%s' for 'rtcp' information\n", field);
 		return -1;
@@ -940,6 +942,8 @@ int pjsip_acf_media_offer_read(struct ast_channel *chan, const char *cmd, char *
 		return media_offer_read_av(channel->session, buf, len, AST_MEDIA_TYPE_AUDIO);
 	} else if (!strcmp(data, "video")) {
 		return media_offer_read_av(channel->session, buf, len, AST_MEDIA_TYPE_VIDEO);
+	} else if (!strcmp(data, "text")) {
+		return media_offer_read_av(channel->session, buf, len, AST_MEDIA_TYPE_TEXT);
 	} else {
 		/* Ensure that the buffer is empty */
 		buf[0] = '\0';
@@ -972,6 +976,8 @@ int pjsip_acf_media_offer_write(struct ast_channel *chan, const char *cmd, char 
 		mdata.media_type = AST_MEDIA_TYPE_AUDIO;
 	} else if (!strcmp(data, "video")) {
 		mdata.media_type = AST_MEDIA_TYPE_VIDEO;
+	} else if (!strcmp(data, "text")) {
+		mdata.media_type = AST_MEDIA_TYPE_TEXT;
 	}
 
 	return ast_sip_push_task_wait_serializer(channel->session->serializer, media_offer_write_av, &mdata);
