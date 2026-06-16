@@ -1121,7 +1121,7 @@ static int __ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin, in
 			/* Save the most recent frame */
 			if (!AST_LIST_NEXT(cur, frame_list)) {
 				break;
-			} else if (cur->frametype == AST_FRAME_VOICE || cur->frametype == AST_FRAME_VIDEO || cur->frametype == AST_FRAME_NULL) {
+			} else if (cur->frametype == AST_FRAME_VOICE || cur->frametype == AST_FRAME_VIDEO || cur->frametype == AST_FRAME_TEXT || cur->frametype == AST_FRAME_NULL) {
 				if (++count > 64) {
 					break;
 				}
@@ -3717,7 +3717,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio, int
 			default:
 				break;
 			}
-		} else if (f->frametype == AST_FRAME_VOICE || f->frametype == AST_FRAME_VIDEO) {
+		} else if (f->frametype == AST_FRAME_VOICE || f->frametype == AST_FRAME_VIDEO || f->frametype == AST_FRAME_TEXT) {
 			if (ast_channel_tech(chan) && ast_channel_tech(chan)->read_stream) {
 				stream = ast_stream_topology_get_stream(ast_channel_get_stream_topology(chan), f->stream_num);
 				default_stream = ast_channel_get_default_stream(chan, ast_format_get_type(f->subclass.format));
@@ -3756,7 +3756,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio, int
 			 * thing different is that we need to find the default stream so we know whether to invoke the
 			 * default stream logic or not (such as transcoding).
 			 */
-			if (f && (f->frametype == AST_FRAME_VOICE || f->frametype == AST_FRAME_VIDEO)) {
+			if (f && (f->frametype == AST_FRAME_VOICE || f->frametype == AST_FRAME_VIDEO || f->frametype == AST_FRAME_TEXT)) {
 				stream = ast_stream_topology_get_stream(ast_channel_get_stream_topology(chan), f->stream_num);
 				default_stream = ast_channel_get_default_stream(chan, ast_format_get_type(f->subclass.format));
 			}
@@ -3766,7 +3766,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio, int
 			/* Since this channel driver does not support multistream determine the default stream this frame
 			 * originated from and update the frame to include it.
 			 */
-			if (f && (f->frametype == AST_FRAME_VOICE || f->frametype == AST_FRAME_VIDEO)) {
+			if (f && (f->frametype == AST_FRAME_VOICE || f->frametype == AST_FRAME_VIDEO || f->frametype == AST_FRAME_TEXT)) {
 				stream = default_stream = ast_channel_get_default_stream(chan, ast_format_get_type(f->subclass.format));
 				if (!stream) {
 					ast_frfree(f);
@@ -5218,12 +5218,12 @@ int ast_write_stream(struct ast_channel *chan, int stream_num, struct ast_frame 
 		}
 		stream = ast_stream_topology_get_stream(ast_channel_get_stream_topology(chan), stream_num);
 		default_stream = ast_channel_get_default_stream(chan, ast_stream_get_type(stream));
-	} else if (fr->frametype == AST_FRAME_VOICE || fr->frametype == AST_FRAME_VIDEO || fr->frametype == AST_FRAME_MODEM) {
+	} else if (fr->frametype == AST_FRAME_VOICE || fr->frametype == AST_FRAME_VIDEO || fr->frametype == AST_FRAME_TEXT || fr->frametype == AST_FRAME_MODEM) {
 		/* If we haven't been told of a stream then we need to figure out which once we need */
 		enum ast_media_type type = AST_MEDIA_TYPE_UNKNOWN;
 
 		/* Some frame types have a fixed media type */
-		if (fr->frametype == AST_FRAME_VOICE || fr->frametype == AST_FRAME_VIDEO) {
+		if (fr->frametype == AST_FRAME_VOICE || fr->frametype == AST_FRAME_VIDEO || fr->frametype == AST_FRAME_TEXT) {
 			type = ast_format_get_type(fr->subclass.format);
 		} else if (fr->frametype == AST_FRAME_MODEM) {
 			type = AST_MEDIA_TYPE_IMAGE;
@@ -5308,7 +5308,8 @@ int ast_write_stream(struct ast_channel *chan, int stream_num, struct ast_frame 
 				res = 0;
 			}
 		} else if (stream == default_stream) {
-			if (ast_format_cmp(fr->subclass.format, ast_format_t140) == AST_FORMAT_CMP_EQUAL) {
+			if (ast_format_cmp(fr->subclass.format, ast_format_t140) == AST_FORMAT_CMP_EQUAL ||
+				ast_format_cmp(fr->subclass.format, ast_format_t140_red) == AST_FORMAT_CMP_EQUAL) {
 				res = (ast_channel_tech(chan)->write_text == NULL) ? 0 :
 					ast_channel_tech(chan)->write_text(chan, fr);
 			} else {
