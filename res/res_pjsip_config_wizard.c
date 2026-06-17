@@ -52,6 +52,7 @@
 #include "asterisk/stasis.h"
 #include "asterisk/acl.h"
 #include "asterisk/security_events.h"
+#include "asterisk/lock.h"
 
 /*** DOCUMENTATION
 	<configInfo name="res_pjsip_config_wizard" language="en_US">
@@ -300,8 +301,17 @@ static AST_VECTOR_RW(object_type_wizards, struct object_type_wizard *) object_ty
 
 const static char *object_types[] = {"phoneprov", "registration", "identify", "endpoint", "aor", "auth", NULL};
 
-static int acl_change_detected = 0;
+/*
+ * Sorcery observers do not receive the reload reason, so track Named ACL
+ * initiated reloads while they are pending or running.
+ */
+static int named_acl_reload_count = 0;
 static struct stasis_subscription *acl_change_sub;
+AST_MUTEX_DEFINE_STATIC(config_wizard_observer_lock);
+
+#define IS_ACL_RELOAD_ACTIVE() (ast_atomic_fetchadd_int(&named_acl_reload_count, 0) > 0)
+
+static int reload_module(void);
 
 /*! \brief Callback for Named ACL changed */
 static void acl_change_stasis_cb(void *data, struct stasis_subscription *sub, struct stasis_message *message)
@@ -311,9 +321,9 @@ static void acl_change_stasis_cb(void *data, struct stasis_subscription *sub, st
 	}
 
 	ast_debug(3, "PJSIP Wizard: Named ACL change detected via Stasis. Triggering reload.\n");
-	acl_change_detected = 1;
-	ast_sorcery_reload(ast_sip_get_sorcery());
-	acl_change_detected = 0;
+	ast_atomic_fetchadd_int(&named_acl_reload_count, +1);
+	reload_module();
+	ast_atomic_fetchadd_int(&named_acl_reload_count, -1);
 }
 
 static int is_one_of(const char *needle, const char *haystack[])
@@ -1071,6 +1081,7 @@ static void object_type_loaded_observer(const char *name,
 	char *filename = "pjsip_wizard.conf";
 	struct ast_flags flags = { 0 };
 	struct ast_config *cfg;
+	SCOPED_MUTEX(lock, &config_wizard_observer_lock);
 
 	if (!strstr("auth aor endpoint identify registration phoneprov", object_type)) {
 		/* Not interested. */
@@ -1085,7 +1096,7 @@ static void object_type_loaded_observer(const char *name,
 
 	/* Only use the FILEUNCHANGED optimization if the ACLs haven't changed.
 	 * If ACLs changed, we force a reload of the config file to re-evaluate rules. */
-	if (reloaded && otw->last_config && !acl_change_detected) {
+	if (reloaded && otw->last_config && !IS_ACL_RELOAD_ACTIVE()) {
 		flags.flags = CONFIG_FLAG_FILEUNCHANGED;
 	}
 
@@ -1113,7 +1124,7 @@ static void object_type_loaded_observer(const char *name,
 
 			/* If the ACL has changed, we assume EVERYTHING might have changed.
 			 * We force an update for all wizard objects. */
-			if (!changes && reloaded && acl_change_detected) {
+			if (!changes && reloaded && IS_ACL_RELOAD_ACTIVE()) {
 				ast_debug(3, "Forcing update of wizard '%s' due to global ACL change.\n", id);
 				changes = 1;
 			}
