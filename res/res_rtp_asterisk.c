@@ -8157,47 +8157,65 @@ static struct ast_frame *ast_rtp_interpret(struct ast_rtp_instance *instance, st
 		*data = 0xBD;
 	} else if (ast_format_cmp(rtp->f.subclass.format, ast_format_t140_red) == AST_FORMAT_CMP_EQUAL) {
 		unsigned char *data = rtp->f.data.ptr;
-		unsigned char *header_end;
+		unsigned char *data_end = data + rtp->f.datalen;
+		unsigned char *header_end = data;
+		unsigned char *block_length;
 		int num_generations;
 		int header_length;
 		int len;
-		int diff =(int)seqno - (prev_seqno+1); /* if diff = 0, no drop*/
-		int x;
+		int diff = ((int)seqno - (prev_seqno + 1)) & 0xffff; /* if diff equals 0, no drop */
 
-		ast_debug(2, "processing RED with %d bytes\n", rtp->f.datalen);
+		ast_debug(2, "processing T140 RED with %d bytes\n", rtp->f.datalen);
+		/* format ast_format_t140_red became ast_format_t140 */
 		ao2_replace(rtp->f.subclass.format, ast_format_t140);
-		header_end = memchr(data, ((*data) & 0x7f), rtp->f.datalen);
-		if (header_end == NULL) {
+		/*
+		 * RFC 2198 - paragraph 3: | F | block PT | timestamp offset | block length |
+		 * Bit F is zero for the last header block, search it
+		 */
+		while (header_end < data_end && (*header_end & 0x80)) {
+			header_end += 4;
+		}
+		/* If last header not found */
+		if (header_end >= data_end) {
 			return AST_LIST_FIRST(&frames) ? AST_LIST_FIRST(&frames) : &ast_null_frame;
 		}
+		/* Last header len is one: |0| Block PT | */
 		header_end++;
 
 		header_length = header_end - data;
 		num_generations = header_length / 4;
 		len = header_length;
 
-		if (!diff) {
-			for (x = 0; x < num_generations; x++)
-				len += data[x * 4 + 3];
-
-			if (!(rtp->f.datalen - len))
+		if (prev_seqno == 0 || diff == 0 || diff > 10) {
+			/* If starting or successive rtp seqno or the sender cycled => go to current payload */
+			for (block_length = data + 2; block_length < header_end; block_length += 4) {
+				len += ((0x03 & (int)(*block_length)) << 8) + *(block_length + 1); /* 10 bits integer */
+			}
+			if (!(rtp->f.datalen - len)) {
+				/* payload empty */
 				return AST_LIST_FIRST(&frames) ? AST_LIST_FIRST(&frames) : &ast_null_frame;
-
+			}
+			/* set current */
 			rtp->f.data.ptr += len;
 			rtp->f.datalen -= len;
-		} else if (diff > num_generations && diff < 10) {
+		} else if (diff < 0) {
+			/* If packet inversion or redundant => ignore */
+			return AST_LIST_FIRST(&frames) ? AST_LIST_FIRST(&frames) : &ast_null_frame;
+		} else if (diff > num_generations) {
+			/* If too much to fix previous generations */
 			len -= 3;
 			rtp->f.data.ptr += len;
 			rtp->f.datalen -= len;
-
 			data = rtp->f.data.ptr;
 			*data++ = 0xEF;
 			*data++ = 0xBF;
 			*data = 0xBD;
 		} else {
-			for ( x = 0; x < num_generations - diff; x++)
-				len += data[x * 4 + 3];
-
+			/* If can fix (diff) lost packets => go to the (diff)th redundant payload */
+			for (block_length = data + 2; block_length < header_end - diff * 4; block_length += 4) {
+				len += ((0x03 & (int)(*block_length)) << 8) + *(block_length + 1); /* 10 bits integer */
+			}
+			/* set the current and fixing redundant payloads */
 			rtp->f.data.ptr += len;
 			rtp->f.datalen -= len;
 		}
