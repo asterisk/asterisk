@@ -52,6 +52,7 @@
 #include "asterisk/stasis.h"
 #include "asterisk/acl.h"
 #include "asterisk/security_events.h"
+#include "asterisk/lock.h"
 
 /*** DOCUMENTATION
 	<configInfo name="res_pjsip_config_wizard" language="en_US">
@@ -300,8 +301,20 @@ static AST_VECTOR_RW(object_type_wizards, struct object_type_wizard *) object_ty
 
 const static char *object_types[] = {"phoneprov", "registration", "identify", "endpoint", "aor", "auth", NULL};
 
-static int acl_change_detected = 0;
+/*
+ * Sorcery observers do not receive the reload reason, so track Named ACL
+ * initiated reloads while they are pending or running.
+ */
+static int named_acl_reload_count = 0;
 static struct stasis_subscription *acl_change_sub;
+AST_MUTEX_DEFINE_STATIC(config_wizard_observer_lock);
+
+static int reload_configuration(int named_acl_change);
+
+static int named_acl_reload_active(void)
+{
+	return ast_atomic_fetchadd_int(&named_acl_reload_count, 0) > 0;
+}
 
 /*! \brief Callback for Named ACL changed */
 static void acl_change_stasis_cb(void *data, struct stasis_subscription *sub, struct stasis_message *message)
@@ -311,9 +324,9 @@ static void acl_change_stasis_cb(void *data, struct stasis_subscription *sub, st
 	}
 
 	ast_debug(3, "PJSIP Wizard: Named ACL change detected via Stasis. Triggering reload.\n");
-	acl_change_detected = 1;
-	ast_sorcery_reload(ast_sip_get_sorcery());
-	acl_change_detected = 0;
+	if (reload_configuration(1)) {
+		ast_log(LOG_WARNING, "Failed to reload PJSIP after Named ACL change\n");
+	}
 }
 
 static int is_one_of(const char *needle, const char *haystack[])
@@ -1062,20 +1075,23 @@ struct ast_sorcery_instance_observer observer = {
 	.object_type_loaded = object_type_loaded_observer,
 };
 
-/*! \brief Called after an object type is loaded/reloaded */
-static void object_type_loaded_observer(const char *name,
-	const struct ast_sorcery *sorcery, const char *object_type, int reloaded)
+static void process_wizard_object_type_loaded(const struct ast_sorcery *sorcery,
+	const char *object_type, int reloaded)
 {
 	struct ast_category *category = NULL;
 	struct object_type_wizard *otw = NULL;
 	char *filename = "pjsip_wizard.conf";
 	struct ast_flags flags = { 0 };
 	struct ast_config *cfg;
+	int acl_change_active;
 
-	if (!strstr("auth aor endpoint identify registration phoneprov", object_type)) {
-		/* Not interested. */
-		return;
-	}
+	/*
+	 * Reload paths can overlap. Serialize the wizard observer cache because
+	 * otw->last_config is compared, pruned, destroyed, and replaced here.
+	 */
+	SCOPED_MUTEX(lock, &config_wizard_observer_lock);
+
+	acl_change_active = named_acl_reload_active();
 
 	otw = find_wizard(object_type);
 	if (!otw) {
@@ -1085,7 +1101,7 @@ static void object_type_loaded_observer(const char *name,
 
 	/* Only use the FILEUNCHANGED optimization if the ACLs haven't changed.
 	 * If ACLs changed, we force a reload of the config file to re-evaluate rules. */
-	if (reloaded && otw->last_config && !acl_change_detected) {
+	if (reloaded && otw->last_config && !acl_change_active) {
 		flags.flags = CONFIG_FLAG_FILEUNCHANGED;
 	}
 
@@ -1111,10 +1127,11 @@ static void object_type_loaded_observer(const char *name,
 			last_cat = ast_category_get(otw->last_config, id, "type=^wizard$");
 			changes = !ast_variable_lists_match(ast_category_first(category), ast_category_first(last_cat), 1);
 
-			/* If the ACL has changed, we assume EVERYTHING might have changed.
-			 * We force an update for all wizard objects. */
-			if (!changes && reloaded && acl_change_detected) {
-				ast_debug(3, "Forcing update of wizard '%s' due to global ACL change.\n", id);
+			/* If a Named ACL has changed, refresh all wizard objects
+			 * for this object type.
+			 */
+			if (!changes && reloaded && acl_change_active) {
+				ast_debug(3, "Forcing update of wizard '%s' due to Named ACL change.\n", id);
 				changes = 1;
 			}
 
@@ -1169,6 +1186,17 @@ static void object_type_loaded_observer(const char *name,
 
 	ast_config_destroy(otw->last_config);
 	otw->last_config = cfg;
+}
+
+/*! \brief Called after an object type is loaded/reloaded */
+static void object_type_loaded_observer(const char *name,
+	const struct ast_sorcery *sorcery, const char *object_type, int reloaded)
+{
+	if (!is_one_of(object_type, object_types)) {
+		return;
+	}
+
+	process_wizard_object_type_loaded(sorcery, object_type, reloaded);
 }
 
 /*! \brief When each object type is registered, map a memory wizard to it. */
@@ -1338,15 +1366,34 @@ static struct ast_cli_entry config_wizard_cli[] = {
 static int reload_configuration_task(void *obj)
 {
 	struct ast_sorcery *sip_sorcery = ast_sip_get_sorcery();
+
 	if (sip_sorcery) {
 		ast_sorcery_reload(sip_sorcery);
 	}
+
 	return 0;
+}
+
+static int reload_configuration(int named_acl_change)
+{
+	int res;
+
+	if (named_acl_change) {
+		ast_atomic_fetchadd_int(&named_acl_reload_count, +1);
+	}
+
+	res = ast_sip_push_task_wait_servant(NULL, reload_configuration_task, NULL);
+
+	if (named_acl_change) {
+		ast_atomic_fetchadd_int(&named_acl_reload_count, -1);
+	}
+
+	return res;
 }
 
 static int reload_module(void)
 {
-	if (ast_sip_push_task_wait_servant(NULL, reload_configuration_task, NULL)) {
+	if (reload_configuration(0)) {
 		ast_log(LOG_WARNING, "Failed to reload PJSIP\n");
 		return -1;
 	}
