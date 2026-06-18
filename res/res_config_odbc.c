@@ -261,6 +261,7 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
 			ast_log(LOG_WARNING, "SQL Describe Column error! [%s]\n", ast_str_buffer(sql));
 			if (var)
 				ast_variables_destroy(var);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			ast_odbc_release_obj(obj);
 			return NULL;
 		}
@@ -290,6 +291,7 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
 			ast_log(LOG_WARNING, "SQL Get Data error! [%s]\n", ast_str_buffer(sql));
 			if (var)
 				ast_variables_destroy(var);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			ast_odbc_release_obj(obj);
 			return NULL;
 		}
@@ -995,6 +997,7 @@ static struct ast_config *config_odbc(const char *database, const char *table, c
 
 	if (!rowcount) {
 		ast_log(LOG_NOTICE, "found nothing\n");
+		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 		ast_odbc_release_obj(obj);
 		return cfg;
 	}
@@ -1019,6 +1022,7 @@ static struct ast_config *config_odbc(const char *database, const char *table, c
 	q.var_val = ast_malloc(q.var_val_size);
 	if (!q.var_val) {
 		ast_log(LOG_WARNING, "Could not create buffer for reading in configuration values for '%s'\n", file);
+		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 		ast_odbc_release_obj(obj);
 		return NULL;
 	}
@@ -1043,6 +1047,7 @@ static struct ast_config *config_odbc(const char *database, const char *table, c
 
 	if (!rowcount) {
 		ast_log(LOG_NOTICE, "found nothing\n");
+		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 		ast_odbc_release_obj(obj);
 		ast_free(q.var_val);
 		return cfg;
