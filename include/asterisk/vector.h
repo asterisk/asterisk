@@ -409,6 +409,23 @@ char *ast_vector_string_join(struct ast_vector_string *vec, const char *delim);
 })
 
 /*!
+ * \brief Binary search a sorted vector
+ *
+ * \param vec Sorted vector to search.
+ * \param key The key to search for.
+ * \param cmp A bsearch compatible compare function.
+ *
+ * \return a pointer to the found element, or NULL if not found.
+ *
+ * \warning This macro requires the vector to have been sorted.
+ */
+#define AST_VECTOR_BSEARCH(vec, key, cmp) ({ \
+	typeof(key) __key = (key); \
+	bsearch(&__key, (vec)->elems, (vec)->current, \
+		sizeof(typeof((vec)->elems[0])), cmp); \
+})
+
+/*!
  * \brief Remove an element from a vector by index.
  *
  * Note that elements in the vector may be reordered, so that the remove can
