@@ -271,6 +271,10 @@ int ast_format_cap_append_from_cap(struct ast_format_cap *dst, const struct ast_
 {
 	int idx, res = 0;
 
+	if (!src) {
+		return 0;
+	}
+
 	/* NOTE:  The streams API is dependent on the formats being in "preference" order */
 	for (idx = 0; (idx < AST_VECTOR_SIZE(&src->preference_order)) && !res; ++idx) {
 		struct format_cap_framed *framed = AST_VECTOR_GET(&src->preference_order, idx);
@@ -307,6 +311,10 @@ void ast_format_cap_replace_from_cap(struct ast_format_cap *dst, const struct as
 	enum ast_media_type type)
 {
 	int idx;
+
+	if (!src) {
+		return;
+	}
 
 	for (idx = 0; (idx < AST_VECTOR_SIZE(&src->preference_order)); ++idx) {
 		struct format_cap_framed *framed = AST_VECTOR_GET(&src->preference_order, idx);
