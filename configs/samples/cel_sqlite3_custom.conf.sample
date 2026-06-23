@@ -61,7 +61,7 @@
     ; MUST match the existing columns or the config will fail to load.
     ; The column names do NOT have to match the field names however.
 
-values = '${eventtype}','${eventtime}','${CALLERID(name)}','${CALLERID(num)}','${CALLERID(ANI)}','${CALLERID(RDNIS)}','${CALLERID(DNID)}','${CHANNEL(context)}','${CHANNEL(exten)}','${CHANNEL(channame)}','${CHANNEL(appname)}','${CHANNEL(appdata)}','${CHANNEL(amaflags)}','${CHANNEL(accountcode)}','${CHANNEL(uniqueid)}','${CHANNEL(userfield)}','${BRIDGEPEER}','${userdeftype}','${eventextra}'
+;values = '${eventtype}','${eventtime}','${CALLERID(name)}','${CALLERID(num)}','${CALLERID(ANI)}','${CALLERID(RDNIS)}','${CALLERID(DNID)}','${CHANNEL(context)}','${CHANNEL(exten)}','${CHANNEL(channame)}','${CHANNEL(appname)}','${CHANNEL(appdata)}','${CHANNEL(amaflags)}','${CHANNEL(accountcode)}','${CHANNEL(uniqueid)}','${CHANNEL(userfield)}','${BRIDGEPEER}','${userdeftype}','${eventextra}'
     ; The list of fields to write into the columns.
     ; Each field MUST be enclosed in single-quotes and the fields separated
     ; by commas.  Additionally, the number of fields specified MUST match the
