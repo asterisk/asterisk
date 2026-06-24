@@ -174,6 +174,18 @@ context ael-dundi-e164-lookup {
 };
 
 //
+// DUNDi can also be implemented as a Macro instead of using
+// the Local channel driver.
+//
+macro ael-dundi-e164(exten) {
+//
+// ARG1 is the extension to Dial
+//
+	goto ${exten}|1;
+	return;
+};
+
+//
 // The SWITCH statement permits a server to share the dialplan with
 // another server. Use with care: Reciprocal switch statements are not
 // allowed (e.g. both A -> B and B -> A), and the switched server needs
@@ -287,6 +299,22 @@ context ael-local {
 //
 // eswitch => IAX2/context@${CURSERVER}
 
+
+macro ael-std-exten-ael( ext , dev ) {
+        Dial(${dev}/${ext},20);
+        switch(${DIALSTATUS}) {
+        case BUSY:
+                Voicemail(${ext},b);
+                break;
+        default:
+                Voicemail(${ext},u);
+        };
+        catch a {
+                VoiceMailMain(${ext});
+                return;
+        };
+	return;
+};
 
 context ael-demo {
 	s => {
