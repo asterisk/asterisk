@@ -608,8 +608,9 @@ static int is_stream_limitation_reached(enum ast_media_type type, const struct a
 	case AST_MEDIA_TYPE_IMAGE:
 		/* We don't have an option for image (T.38) streams so cap it to one. */
 		return (type_streams[type] > 0);
-	case AST_MEDIA_TYPE_UNKNOWN:
 	case AST_MEDIA_TYPE_TEXT:
+		return !(type_streams[type] < endpoint->media.max_text_streams);
+	case AST_MEDIA_TYPE_UNKNOWN:
 	default:
 		/* We don't want any unknown or "other" streams on our endpoint,
 		 * so always just say we've reached the limit
@@ -2374,8 +2375,9 @@ static int sip_session_refresh(struct ast_sip_session *session,
 					SCOPE_EXIT_EXPR(continue);
 				}
 
-				/* Enforce the configured allowed codecs on audio and video streams */
-				if ((ast_stream_get_type(stream) == AST_MEDIA_TYPE_AUDIO || ast_stream_get_type(stream) == AST_MEDIA_TYPE_VIDEO) &&
+				/* Enforce the configured allowed codecs on audio, video and text streams */
+				if ((ast_stream_get_type(stream) == AST_MEDIA_TYPE_AUDIO || ast_stream_get_type(stream) == AST_MEDIA_TYPE_VIDEO
+					|| ast_stream_get_type(stream) == AST_MEDIA_TYPE_TEXT) &&
 					!ast_stream_get_metadata(stream, "pjsip_session_refresh")) {
 					struct ast_format_cap *joint_cap;
 
@@ -2421,7 +2423,6 @@ static int sip_session_refresh(struct ast_sip_session *session,
 				}
 
 				++type_streams[ast_stream_get_type(stream)];
-
 				SCOPE_EXIT();
 			}
 

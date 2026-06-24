@@ -1121,7 +1121,7 @@ static int __ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin, in
 			/* Save the most recent frame */
 			if (!AST_LIST_NEXT(cur, frame_list)) {
 				break;
-			} else if (cur->frametype == AST_FRAME_VOICE || cur->frametype == AST_FRAME_VIDEO || cur->frametype == AST_FRAME_NULL) {
+			} else if (cur->frametype == AST_FRAME_VOICE || cur->frametype == AST_FRAME_VIDEO || cur->frametype == AST_FRAME_TEXT || cur->frametype == AST_FRAME_NULL) {
 				if (++count > 64) {
 					break;
 				}
@@ -2586,6 +2586,7 @@ void ast_hangup(struct ast_channel *chan)
 		ast_closestream(ast_channel_vstream(chan));
 		ast_channel_vstream_set(chan, NULL);
 	}
+
 	if (ast_channel_sched(chan)) {
 		ast_sched_context_destroy(ast_channel_sched(chan));
 		ast_channel_sched_set(chan, NULL);
@@ -3716,7 +3717,11 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio, int
 			default:
 				break;
 			}
-		} else if (f->frametype == AST_FRAME_VOICE || f->frametype == AST_FRAME_VIDEO) {
+		/* Text messages over SIP MESSAGE have no stream codec topology, leaving f->subclass.format as NULL.
+		 * We must bypass this block for standalone text frames to prevent them from being dropped.
+		 */
+		} else if (f->frametype == AST_FRAME_VOICE || f->frametype == AST_FRAME_VIDEO ||
+					( f->frametype == AST_FRAME_TEXT && f->subclass.format)) {
 			if (ast_channel_tech(chan) && ast_channel_tech(chan)->read_stream) {
 				stream = ast_stream_topology_get_stream(ast_channel_get_stream_topology(chan), f->stream_num);
 				default_stream = ast_channel_get_default_stream(chan, ast_format_get_type(f->subclass.format));
@@ -3755,7 +3760,11 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio, int
 			 * thing different is that we need to find the default stream so we know whether to invoke the
 			 * default stream logic or not (such as transcoding).
 			 */
-			if (f && (f->frametype == AST_FRAME_VOICE || f->frametype == AST_FRAME_VIDEO)) {
+			/* Text messages based on SIP MESSAGE) have no stream codec topology, leaving f->subclass.format as NULL.
+			 * We must bypass this block for standalone text frames to prevent them from being dropped.
+			 */
+			if (f && (f->frametype == AST_FRAME_VOICE || f->frametype == AST_FRAME_VIDEO ||
+				(f->frametype == AST_FRAME_TEXT && f->subclass.format))) {
 				stream = ast_stream_topology_get_stream(ast_channel_get_stream_topology(chan), f->stream_num);
 				default_stream = ast_channel_get_default_stream(chan, ast_format_get_type(f->subclass.format));
 			}
@@ -3765,7 +3774,11 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio, int
 			/* Since this channel driver does not support multistream determine the default stream this frame
 			 * originated from and update the frame to include it.
 			 */
-			if (f && (f->frametype == AST_FRAME_VOICE || f->frametype == AST_FRAME_VIDEO)) {
+			/* Text messages based on SIP MESSAGE) have no stream codec topology, leaving f->subclass.format as NULL.
+			 * We must bypass this block for standalone text frames to prevent them from being dropped.
+			 */
+			if (f && (f->frametype == AST_FRAME_VOICE || f->frametype == AST_FRAME_VIDEO ||
+				( f->frametype == AST_FRAME_TEXT && f->subclass.format))) {
 				stream = default_stream = ast_channel_get_default_stream(chan, ast_format_get_type(f->subclass.format));
 				if (!stream) {
 					ast_frfree(f);
@@ -4771,6 +4784,7 @@ char *ast_recvtext(struct ast_channel *chan, int timeout)
 	return buf;
 }
 
+/* Sending text data from dialplan, not used for relaying text data */
 int ast_sendtext_data(struct ast_channel *chan, struct ast_msg_data *msg)
 {
 	int res = 0;
@@ -4799,6 +4813,7 @@ int ast_sendtext_data(struct ast_channel *chan, struct ast_msg_data *msg)
 		f.frametype = AST_FRAME_TEXT;
 		f.datalen = body_len;
 		f.mallocd = AST_MALLOCD_DATA;
+		f.stream_num = ast_stream_get_position(ast_channel_get_default_stream(chan, AST_MEDIA_TYPE_TEXT));
 		f.data.ptr = ast_strdup(body);
 		if (f.data.ptr) {
 			res = ast_channel_tech(chan)->write_text(chan, &f);
@@ -4829,6 +4844,7 @@ int ast_sendtext_data(struct ast_channel *chan, struct ast_msg_data *msg)
 	return res;
 }
 
+/* Sending text data from dialplan, not used for relaying text data */
 int ast_sendtext(struct ast_channel *chan, const char *text)
 {
 	struct ast_msg_data *msg;
@@ -5037,10 +5053,23 @@ int ast_prod(struct ast_channel *chan)
 	return 0;
 }
 
+/* currently unused */
 int ast_write_video(struct ast_channel *chan, struct ast_frame *fr)
 {
 	int res;
 	if (!ast_channel_tech(chan)->write_video)
+		return 0;
+	res = ast_write(chan, fr);
+	if (!res)
+		res = 1;
+	return res;
+}
+
+/* currently unused */
+int ast_write_text(struct ast_channel *chan, struct ast_frame *fr)
+{
+	int res;
+	if (!ast_channel_tech(chan)->write_text)
 		return 0;
 	res = ast_write(chan, fr);
 	if (!res)
@@ -5201,12 +5230,12 @@ int ast_write_stream(struct ast_channel *chan, int stream_num, struct ast_frame 
 		}
 		stream = ast_stream_topology_get_stream(ast_channel_get_stream_topology(chan), stream_num);
 		default_stream = ast_channel_get_default_stream(chan, ast_stream_get_type(stream));
-	} else if (fr->frametype == AST_FRAME_VOICE || fr->frametype == AST_FRAME_VIDEO || fr->frametype == AST_FRAME_MODEM) {
+	} else if (fr->frametype == AST_FRAME_VOICE || fr->frametype == AST_FRAME_VIDEO || fr->frametype == AST_FRAME_TEXT || fr->frametype == AST_FRAME_MODEM) {
 		/* If we haven't been told of a stream then we need to figure out which once we need */
 		enum ast_media_type type = AST_MEDIA_TYPE_UNKNOWN;
 
 		/* Some frame types have a fixed media type */
-		if (fr->frametype == AST_FRAME_VOICE || fr->frametype == AST_FRAME_VIDEO) {
+		if (fr->frametype == AST_FRAME_VOICE || fr->frametype == AST_FRAME_VIDEO || fr->frametype == AST_FRAME_TEXT) {
 			type = ast_format_get_type(fr->subclass.format);
 		} else if (fr->frametype == AST_FRAME_MODEM) {
 			type = AST_MEDIA_TYPE_IMAGE;
@@ -5284,12 +5313,23 @@ int ast_write_stream(struct ast_channel *chan, int stream_num, struct ast_frame 
 		break;
 	case AST_FRAME_TEXT:
 		CHECK_BLOCKING(chan);
-		if (ast_format_cmp(fr->subclass.format, ast_format_t140) == AST_FORMAT_CMP_EQUAL) {
-			res = (ast_channel_tech(chan)->write_text == NULL) ? 0 :
-				ast_channel_tech(chan)->write_text(chan, fr);
+		if (ast_channel_tech(chan)->write_stream) {
+			if (stream) {
+				res = ast_channel_tech(chan)->write_stream(chan, ast_stream_get_position(stream), fr);
+			} else {
+				res = 0;
+			}
+		} else if (stream == default_stream) {
+			if (ast_format_cmp(fr->subclass.format, ast_format_t140) == AST_FORMAT_CMP_EQUAL ||
+				ast_format_cmp(fr->subclass.format, ast_format_t140_red) == AST_FORMAT_CMP_EQUAL) {
+				res = (ast_channel_tech(chan)->write_text == NULL) ? 0 :
+					ast_channel_tech(chan)->write_text(chan, fr);
+			} else {
+				res = (ast_channel_tech(chan)->send_text == NULL) ? 0 :
+					ast_channel_tech(chan)->send_text(chan, (char *) fr->data.ptr);
+			}
 		} else {
-			res = (ast_channel_tech(chan)->send_text == NULL) ? 0 :
-				ast_channel_tech(chan)->send_text(chan, (char *) fr->data.ptr);
+			res = 0;
 		}
 		ast_clear_flag(ast_channel_flags(chan), AST_FLAG_BLOCKING);
 		break;
