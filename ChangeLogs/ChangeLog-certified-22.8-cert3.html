@@ -1,0 +1,412 @@
+<html><head><title>ChangeLog for asterisk-certified-22.8-cert3</title></head><body>
+<h2>Change Log for Release asterisk-certified-22.8-cert3</h2>
+<h3>Links:</h3>
+<ul>
+<li><a href="https://downloads.asterisk.org/pub/telephony/certified-asterisk/releases/ChangeLog-certified-22.8-cert3.html">Full ChangeLog</a>  </li>
+<li><a href="https://github.com/asterisk/asterisk/compare/certified-22.8-cert2...certified-22.8-cert3">GitHub Diff</a>  </li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/certified-asterisk/asterisk-certified-22.8-cert3.tar.gz">Tarball</a>  </li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/certified-asterisk">Downloads</a>  </li>
+</ul>
+<h3>Summary:</h3>
+<ul>
+<li>Commits: 21</li>
+<li>Commit Authors: 7</li>
+<li>Issues Resolved: 0</li>
+<li>Security Advisories Resolved: 20</li>
+<li><a href="https://github.com/asterisk/asterisk/security/advisories/GHSA-3g56-cgrh-95p5">GHSA-3g56-cgrh-95p5</a>: chan_unistim DIALPAGE digit handling can overflow phone_number and crash Asterisk</li>
+<li><a href="https://github.com/asterisk/asterisk/security/advisories/GHSA-3rhj-hhw7-m6fw">GHSA-3rhj-hhw7-m6fw</a>: NULL Pointer Dereference in HTTP AMI Digest Authentication</li>
+<li><a href="https://github.com/asterisk/asterisk/security/advisories/GHSA-4pgv-j3mr-3rcp">GHSA-4pgv-j3mr-3rcp</a>: Reflected XSS in Phone Provisioning HTTP Error Pages</li>
+<li><a href="https://github.com/asterisk/asterisk/security/advisories/GHSA-589g-qgf8-m6mx">GHSA-589g-qgf8-m6mx</a>: Stack buffer overflow in MWI NOTIFY Message-Account parsing</li>
+<li><a href="https://github.com/asterisk/asterisk/security/advisories/GHSA-746q-794h-cc7f">GHSA-746q-794h-cc7f</a>: Out-of-Bounds Read in Q.931 Information Element Parser (H.323 Addon)</li>
+<li><a href="https://github.com/asterisk/asterisk/security/advisories/GHSA-8jhw-m2hg-vp3h">GHSA-8jhw-m2hg-vp3h</a>: Heap Buffer Overflow in OGG/Speex File Playback (format_ogg_speex)</li>
+<li><a href="https://github.com/asterisk/asterisk/security/advisories/GHSA-8jw3-ccr9-xrmf">GHSA-8jw3-ccr9-xrmf</a>: Buffer over-read in Asterisk PJSIP MWI body parser</li>
+<li><a href="https://github.com/asterisk/asterisk/security/advisories/GHSA-g8q2-p36q-94f6">GHSA-g8q2-p36q-94f6</a>: Heap-use-after-free in Asterisk PJSIP TCP/SDP handling when TCP connection closes during SDP processing</li>
+<li><a href="https://github.com/asterisk/asterisk/security/advisories/GHSA-h5hv-jmgj-92q2">GHSA-h5hv-jmgj-92q2</a>: CVE-2022-37325 fix is absent from current chan_ooh323 Q.931 party-number parser</li>
+<li><a href="https://github.com/asterisk/asterisk/security/advisories/GHSA-j2mm-57pq-jh94">GHSA-j2mm-57pq-jh94</a>: Possible RED T.140 Generation Accumulation OOB Write</li>
+<li><a href="https://github.com/asterisk/asterisk/security/advisories/GHSA-mxgm-8c6f-5p8f">GHSA-mxgm-8c6f-5p8f</a>: Stack buffer overflow in res_xmpp XMPP namespace prefix handling</li>
+<li><a href="https://github.com/asterisk/asterisk/security/advisories/GHSA-ph27-3m5q-mj5m">GHSA-ph27-3m5q-mj5m</a>: SQL Injection in cel_pgsql and cel_tds via CELGenUserEvent eventtype Field</li>
+<li><a href="https://github.com/asterisk/asterisk/security/advisories/GHSA-q9fr-m7g8-6ph5">GHSA-q9fr-m7g8-6ph5</a>: Asterisk app_sms.c copies externally controlled SMS lengths into fixed in-struct buffers</li>
+<li><a href="https://github.com/asterisk/asterisk/security/advisories/GHSA-qf8j-jp7h-c5hx">GHSA-qf8j-jp7h-c5hx</a>: Out-of-Bounds Write in Codec2 Decoder Due to Floor/Ceil Sample Count Mismatch</li>
+<li><a href="https://github.com/asterisk/asterisk/security/advisories/GHSA-r6c2-hwc2-j4mp">GHSA-r6c2-hwc2-j4mp</a>: LDAP Filter Injection in res_config_ldap via SIP Username (Unauthenticated Information Disclosure)</li>
+<li><a href="https://github.com/asterisk/asterisk/security/advisories/GHSA-vfhr-r9x9-c687">GHSA-vfhr-r9x9-c687</a>: Possible RED T.140 Heap Buffer Overflow</li>
+<li><a href="https://github.com/asterisk/asterisk/security/advisories/GHSA-vrfp-mg3q-3959">GHSA-vrfp-mg3q-3959</a>: ARI setChannelVar bypasses live_dangerously and permits FILE() writes</li>
+<li><a href="https://github.com/asterisk/asterisk/security/advisories/GHSA-wcvv-g26m-wx5c">GHSA-wcvv-g26m-wx5c</a>: ARI REST-over-WebSocket read-only bypass allows arbitrary module path load and conditional RCE</li>
+<li><a href="https://github.com/asterisk/asterisk/security/advisories/GHSA-x348-j6c9-77f3">GHSA-x348-j6c9-77f3</a>: Stack Buffer Overflow in H.323 ooTrace() via Unbounded vsprintf into Fixed 2048-byte Buffer</li>
+<li><a href="https://github.com/asterisk/asterisk/security/advisories/GHSA-xgj6-2gc5-5x9c">GHSA-xgj6-2gc5-5x9c</a>: ast_loggrabber executes python script in world writable directory(<code>/tmp</code>) leading to potential privilege escalation And RCE</li>
+</ul>
+<h3>User Notes:</h3>
+<ul>
+<li>
+<h4>acl: Add ACL support to http and ari</h4>
+  A new section, type=restriction has been added to http.conf
+  to allow an uri prefix based acl to be configured. See
+  http.conf.sample for examples and more information.
+  The user section of ari.conf can now contain an acl configuration
+  to restrict users access. See ari.conf.sample for examples and more
+  information</li>
+</ul>
+<h3>Upgrade Notes:</h3>
+<h3>Developer Notes:</h3>
+<ul>
+<li>
+<h4>ARI: Make ARI applications respect live_dangerously.</h4>
+  ARI applications can no longer call "dangerous" dialplan
+  functions like DB(), FILE(), SHELL(), CURL(), STAT(), etc. without
+  enabling "live_dangerously" in asterisk.conf.
+  Resolves: #GHSA-vrfp-mg3q-3959</li>
+</ul>
+<h3>Commit Authors:</h3>
+<ul>
+<li>George Joseph: (6)</li>
+<li>Joshua C. Colp: (1)</li>
+<li>Mike Bradeen: (4)</li>
+<li>Milan Kyselica: (7)</li>
+<li>Pengpeng Hou: (1)</li>
+<li>Roberto Paleari: (1)</li>
+<li>ThatTotallyRealMyth: (1)</li>
+</ul>
+<h2>Issue and Commit Detail:</h2>
+<h3>Closed Issues:</h3>
+<ul>
+<li>!GHSA-3g56-cgrh-95p5: chan_unistim DIALPAGE digit handling can overflow phone_number and crash Asterisk</li>
+<li>!GHSA-3rhj-hhw7-m6fw: NULL Pointer Dereference in HTTP AMI Digest Authentication</li>
+<li>!GHSA-4pgv-j3mr-3rcp: Reflected XSS in Phone Provisioning HTTP Error Pages</li>
+<li>!GHSA-589g-qgf8-m6mx: Stack buffer overflow in MWI NOTIFY Message-Account parsing</li>
+<li>!GHSA-746q-794h-cc7f: Out-of-Bounds Read in Q.931 Information Element Parser (H.323 Addon)</li>
+<li>!GHSA-8jhw-m2hg-vp3h: Heap Buffer Overflow in OGG/Speex File Playback (format_ogg_speex)</li>
+<li>!GHSA-8jw3-ccr9-xrmf: Buffer over-read in Asterisk PJSIP MWI body parser</li>
+<li>!GHSA-g8q2-p36q-94f6: Heap-use-after-free in Asterisk PJSIP TCP/SDP handling when TCP connection closes during SDP processing</li>
+<li>!GHSA-h5hv-jmgj-92q2: CVE-2022-37325 fix is absent from current chan_ooh323 Q.931 party-number parser</li>
+<li>!GHSA-j2mm-57pq-jh94: Possible RED T.140 Generation Accumulation OOB Write</li>
+<li>!GHSA-mxgm-8c6f-5p8f: Stack buffer overflow in res_xmpp XMPP namespace prefix handling</li>
+<li>!GHSA-ph27-3m5q-mj5m: SQL Injection in cel_pgsql and cel_tds via CELGenUserEvent eventtype Field</li>
+<li>!GHSA-q9fr-m7g8-6ph5: Asterisk app_sms.c copies externally controlled SMS lengths into fixed in-struct buffers</li>
+<li>!GHSA-qf8j-jp7h-c5hx: Out-of-Bounds Write in Codec2 Decoder Due to Floor/Ceil Sample Count Mismatch</li>
+<li>!GHSA-r6c2-hwc2-j4mp: LDAP Filter Injection in res_config_ldap via SIP Username (Unauthenticated Information Disclosure)</li>
+<li>!GHSA-vfhr-r9x9-c687: Possible RED T.140 Heap Buffer Overflow</li>
+<li>!GHSA-vrfp-mg3q-3959: ARI setChannelVar bypasses live_dangerously and permits FILE() writes</li>
+<li>!GHSA-wcvv-g26m-wx5c: ARI REST-over-WebSocket read-only bypass allows arbitrary module path load and conditional RCE</li>
+<li>!GHSA-x348-j6c9-77f3: Stack Buffer Overflow in H.323 ooTrace() via Unbounded vsprintf into Fixed 2048-byte Buffer</li>
+<li>!GHSA-xgj6-2gc5-5x9c: ast_loggrabber executes python script in world writable directory(<code>/tmp</code>) leading to potential privilege escalation And RCE</li>
+</ul>
+<h3>Commits By Author:</h3>
+<ul>
+<li>
+<h4>George Joseph (6):</h4>
+</li>
+<li>chan_unistim.c: Prevent overrun of phone_number field.</li>
+<li>res_ari: Ensure read-only users are properly authorized via REST Over WebSocket.</li>
+<li>pjsip_message_filter: Use pj_strdup instead of pj_strassign to save local address.</li>
+<li>ooh323c/ooq931.c: Ensure ooQ931Decode doesn't run out-of-bounds.</li>
+<li>ARI: Make ARI applications respect live_dangerously.</li>
+<li>
+<p>res_rtp_asterisk.c: Address 2 potential T.140 RED buffer overruns.</p>
+</li>
+<li>
+<h4>Joshua C. Colp (1):</h4>
+</li>
+<li>
+<p>build: Fix GCC discarded-qualifiers const errors.</p>
+</li>
+<li>
+<h4>Mike Bradeen (4):</h4>
+</li>
+<li>ooh323c: not checking for IE minimum length</li>
+<li>manager: Use remote address in user error logging</li>
+<li>ooh323: Prevent potential buffer overflow in trace logging</li>
+<li>
+<p>acl: Add ACL support to http and ari</p>
+</li>
+<li>
+<h4>Milan Kyselica (7):</h4>
+</li>
+<li>res_xmpp: Fix stack buffer overflow in namespace prefix handling</li>
+<li>res_pjsip_pubsub: Add width limit to sscanf in MWI NOTIFY parser</li>
+<li>res_config_ldap: Escape LDAP filter values per RFC 4515</li>
+<li>cel_pgsql, cel_tds: Escape eventtype field to prevent SQL injection</li>
+<li>http: Escape error page text to prevent reflected XSS</li>
+<li>codec_codec2: Only process complete Codec2 frames in decoder</li>
+<li>
+<p>format_ogg_speex: Add bounds check to prevent heap buffer overflow</p>
+</li>
+<li>
+<h4>Pengpeng Hou (1):</h4>
+</li>
+<li>
+<p>app_sms: Bound protocol 1 SMS unpacking to fixed-size buffers</p>
+</li>
+<li>
+<h4>Roberto Paleari (1):</h4>
+</li>
+<li>
+<p>res/res_pjsip_pubsub.c: Fix buffer over-read in MWI body parser</p>
+</li>
+<li>
+<h4>ThatTotallyRealMyth (1):</h4>
+</li>
+<li>ast_loggrabber: Install the ast_tsconvert.py script to a secure temp directory.</li>
+</ul>
+<h3>Commit List:</h3>
+<ul>
+<li>ast_loggrabber: Install the ast_tsconvert.py script to a secure temp directory.</li>
+<li>chan_unistim.c: Prevent overrun of phone_number field.</li>
+<li>ooh323c: not checking for IE minimum length</li>
+<li>res_ari: Ensure read-only users are properly authorized via REST Over WebSocket.</li>
+<li>pjsip_message_filter: Use pj_strdup instead of pj_strassign to save local address.</li>
+<li>ooh323c/ooq931.c: Ensure ooQ931Decode doesn't run out-of-bounds.</li>
+<li>ARI: Make ARI applications respect live_dangerously.</li>
+<li>res_rtp_asterisk.c: Address 2 potential T.140 RED buffer overruns.</li>
+<li>res/res_pjsip_pubsub.c: Fix buffer over-read in MWI body parser</li>
+<li>manager: Use remote address in user error logging</li>
+<li>ooh323: Prevent potential buffer overflow in trace logging</li>
+<li>app_sms: Bound protocol 1 SMS unpacking to fixed-size buffers</li>
+<li>res_xmpp: Fix stack buffer overflow in namespace prefix handling</li>
+<li>res_pjsip_pubsub: Add width limit to sscanf in MWI NOTIFY parser</li>
+<li>res_config_ldap: Escape LDAP filter values per RFC 4515</li>
+<li>cel_pgsql, cel_tds: Escape eventtype field to prevent SQL injection</li>
+<li>http: Escape error page text to prevent reflected XSS</li>
+<li>codec_codec2: Only process complete Codec2 frames in decoder</li>
+<li>format_ogg_speex: Add bounds check to prevent heap buffer overflow</li>
+<li>acl: Add ACL support to http and ari</li>
+<li>build: Fix GCC discarded-qualifiers const errors.</li>
+</ul>
+<h3>Commit Details:</h3>
+<h4>ast_loggrabber: Install the ast_tsconvert.py script to a secure temp directory.</h4>
+<p>Author: ThatTotallyRealMyth
+  Date:   2026-03-19</p>
+<p>The ast_tsconvert.py script called by ast_loggrabber is now installed in a
+  temporary directory that isn't world readable or writable.</p>
+<p>Resolves: #GHSA-xgj6-2gc5-5x9c</p>
+<h4>chan_unistim.c: Prevent overrun of phone_number field.</h4>
+<p>Author: George Joseph
+  Date:   2026-06-15</p>
+<p>Add a check to key_dial_page() to ensure that dialed digits won't overrun
+  the phone_number field.</p>
+<p>Resolves: #GHSA-3g56-cgrh-95p5</p>
+<h4>ooh323c: not checking for IE minimum length</h4>
+<p>Author: Mike Bradeen
+  Date:   2022-06-06</p>
+<p>When decoding q.931 encoded calling/called number
+  now checking for length being less than minimum required.</p>
+<p>Resolves: #GHSA-h5hv-jmgj-92q2</p>
+<h4>res_ari: Ensure read-only users are properly authorized via REST Over WebSocket.</h4>
+<p>Author: George Joseph
+  Date:   2026-06-12</p>
+<p>The REST over WebSocket path now properly prevents non-GET methods from
+  being executed on inbound WebSockets.</p>
+<ul>
+<li>
+<p>The query parameters from the original incoming GET request that caused the
+  upgrade to WebSocket are now passed to all REST requests that come from the
+  client. This ensures that if the client authenticated with a read-only
+  userid using the "api_key" query_string parameter, REST requests coming
+  in over the WebSocket will only be able to execute GETs on resources.
+  The HTTP headers were already passed to the REST requests so if the
+  client had authenticated via an "Authorization" it was properly handled.</p>
+</li>
+<li>
+<p>New tests have been added to test_ari.c to check that read-only users
+  are properly denied access to resources using non-GET methods.  Several
+  memory leaks were also squashed.</p>
+</li>
+</ul>
+<p>Resolves: #GHSA-wcvv-g26m-wx5c</p>
+<h4>pjsip_message_filter: Use pj_strdup instead of pj_strassign to save local address.</h4>
+<p>Author: George Joseph
+  Date:   2026-06-10</p>
+<p>The filter_on_tx_message() function was using pj_strassign() to save the pointer
+  of the pjproject transport local address to a local pj_str_t variable.  That
+  variable was ultimately used to set the Contact header's uri-&gt;host and the SDP
+  connection attribute's address again using pj_strassign.  pj_strassign() doesn't
+  copy the actual value of the pj_str_t however, it just copies the pointer so
+  if a connection-oriented transport is disconnected before the 200 OK with the
+  SDP is sent, those pointers will be invalid which can cause use-after-free
+  issues. To prevent this, filter_on_tx_message() now uses pj_strdup with the
+  tdata-&gt;pool as the backing store to save the local IP address to the local
+  variable.  pj_strassign() can then be used safely later on since the tdata
+  will be available for the life of the transaction.</p>
+<p>Resolves: #GHSA-g8q2-p36q-94f6</p>
+<h4>ooh323c/ooq931.c: Ensure ooQ931Decode doesn't run out-of-bounds.</h4>
+<p>Author: George Joseph
+  Date:   2026-06-02</p>
+<p>Several bounds checks have been edded to ooQ931Decode to prevent it from
+  running past the end of the data buffer when parsing information elements.</p>
+<p>Resolves: #GHSA-746q-794h-cc7f</p>
+<h4>ARI: Make ARI applications respect live_dangerously.</h4>
+<p>Author: George Joseph
+  Date:   2026-05-21</p>
+<p>DeveloperNote: ARI applications can no longer call "dangerous" dialplan
+  functions like DB(), FILE(), SHELL(), CURL(), STAT(), etc. without
+  enabling "live_dangerously" in asterisk.conf.</p>
+<p>Resolves: #GHSA-vrfp-mg3q-3959</p>
+<h4>res_rtp_asterisk.c: Address 2 potential T.140 RED buffer overruns.</h4>
+<p>Author: George Joseph
+  Date:   2026-04-27</p>
+<ul>
+<li>
+<p>Add check to red_t140_to_red() to ensure that the new primary payload
+  can't cause the rtp_red-&gt;len array items to wrap or cause an overrun of
+  the rtp_red-&gt;t140red_data buffer.</p>
+</li>
+<li>
+<p>Add check to rtp_red_buffer() to ensure that a T.140 frame to be sent
+  can't cause rtp_red-&gt;len array items to wrap or cause an overrun of
+  the rtp_red-&gt;buf_data buffer.</p>
+</li>
+</ul>
+<p>Resolves: #GHSA-vfhr-r9x9-c687
+  Resolves: #GHSA-j2mm-57pq-jh94</p>
+<h4>res/res_pjsip_pubsub.c: Fix buffer over-read in MWI body parser</h4>
+<p>Author: Roberto Paleari
+  Date:   2026-04-29</p>
+<p>Add constraint checks to prevent unauthenticated users from crashing Asterisk
+  instance by sending a crafted inbound SIP NOTIFY request with "Content-Type:
+  application/simple-message-summary".</p>
+<p>Resolves: #GHSA-8jw3-ccr9-xrmf</p>
+<h4>manager: Use remote address in user error logging</h4>
+<p>Author: Mike Bradeen
+  Date:   2026-03-30</p>
+<p>To avoid a potential null dereference use the remote address
+  in error logging when there is no user or the user acl fails.</p>
+<p>Resolves: #GHSA-3rhj-hhw7-m6fw</p>
+<h4>ooh323: Prevent potential buffer overflow in trace logging</h4>
+<p>Author: Mike Bradeen
+  Date:   2026-03-31</p>
+<p>Replace a call to vsprintf with a call to ast_vasprintf to
+  prevent a possible buffer overflow.</p>
+<p>Resolves: #GHSA-x348-j6c9-77f3</p>
+<h4>app_sms: Bound protocol 1 SMS unpacking to fixed-size buffers</h4>
+<p>Author: Pengpeng Hou
+  Date:   2026-04-01</p>
+<p>The protocol 1 unpack helpers trusted externally controlled lengths and wrote
+   them directly into fixed-size buffers in sms_t. Clamp the address, header,
+   and body copies to the destination array sizes so malformed messages cannot
+   overwrite adjacent state.</p>
+<p>Resolves: #GHSA-q9fr-m7g8-6ph5</p>
+<h4>res_xmpp: Fix stack buffer overflow in namespace prefix handling</h4>
+<p>Author: Milan Kyselica
+  Date:   2026-03-26</p>
+<p>The snprintf size parameter in xmpp_action_hook() is computed from
+  the attacker-controlled namespace prefix length and is not bounded
+  by the 256-byte stack buffer size. When a remote XMPP peer sends a
+  stanza with a child element whose namespace prefix exceeds 249
+  characters, snprintf writes past the buffer boundary.</p>
+<p>Use sizeof(attr) as the snprintf size limit and %.*s precision to
+  extract only the prefix portion of the element name, preserving
+  the original truncation behavior for valid inputs.</p>
+<p>Resolves: #GHSA-mxgm-8c6f-5p8f</p>
+<h4>res_pjsip_pubsub: Add width limit to sscanf in MWI NOTIFY parser</h4>
+<p>Author: Milan Kyselica
+  Date:   2026-03-24</p>
+<p>The parse_simple_message_summary() function uses sscanf with an
+  unbounded %s format specifier to parse the Message-Account field
+  from incoming SIP NOTIFY bodies into a fixed-size 512-byte stack
+  buffer (PJSIP_MAX_URL_SIZE). A single unauthenticated SIP NOTIFY
+  with a Message-Account value exceeding 512 bytes overflows the
+  buffer, corrupting adjacent stack data and permanently disabling
+  the PJSIP transport layer without crashing the process.</p>
+<p>Add a width specifier (%511s) to limit the sscanf write to
+  PJSIP_MAX_URL_SIZE - 1 bytes plus the NUL terminator, matching
+  the destination buffer size.</p>
+<p>Resolves: #GHSA-589g-qgf8-m6mx</p>
+<h4>res_config_ldap: Escape LDAP filter values per RFC 4515</h4>
+<p>Author: Milan Kyselica
+  Date:   2026-03-23</p>
+<p>The LDAP realtime driver constructs search filters by directly
+  concatenating user-supplied values without RFC 4515 escaping.
+  When LDAP is used as a realtime backend for endpoint
+  identification, characters with special meaning in LDAP filters
+  (*, (, ), ) can be injected via the SIP From header username.</p>
+<p>Add ldap_filter_escape_value() that escapes RFC 4515 special
+  characters to their \HH hex representation, and apply it to
+  non-LIKE query values. The LIKE query path preserves the existing
+  wildcard conversion behavior with a note for maintainers.</p>
+<p>Resolves: #GHSA-r6c2-hwc2-j4mp</p>
+<h4>cel_pgsql, cel_tds: Escape eventtype field to prevent SQL injection</h4>
+<p>Author: Milan Kyselica
+  Date:   2026-03-23</p>
+<p>The eventtype column handler in cel_pgsql.c inserts
+  record.user_defined_name directly into the SQL query without
+  calling PQescapeStringConn(), while all other string fields in
+  the same function are properly escaped. Similarly, cel_tds.c
+  passes the raw user_defined_name into the SQL INSERT without
+  routing it through anti_injection(), while all other fields are
+  processed through that function.</p>
+<p>For cel_pgsql.c, escape the eventtype value using
+  PQescapeStringConn(), matching the existing pattern used for all
+  other string fields at lines 308-331 of the same function.</p>
+<p>For cel_tds.c, route the eventtype value through
+  anti_injection() consistent with how all other fields are handled
+  in the same function.</p>
+<p>Resolves: #GHSA-ph27-3m5q-mj5m</p>
+<h4>http: Escape error page text to prevent reflected XSS</h4>
+<p>Author: Milan Kyselica
+  Date:   2026-04-08</p>
+<p>The text parameter in ast_http_create_response() is inserted into
+  the HTML body without escaping, while the server name on the same
+  page is properly escaped via ast_xml_escape(). When res_phoneprov
+  passes the decoded request URI as the text of a 404 response, HTML
+  metacharacters in the URI are rendered by the browser.</p>
+<p>Apply ast_xml_escape() to the text parameter before inserting it
+  into the HTML template, using the same function already used for
+  the server name.</p>
+<p>Resolves: #GHSA-4pgv-j3mr-3rcp</p>
+<h4>codec_codec2: Only process complete Codec2 frames in decoder</h4>
+<p>Author: Milan Kyselica
+  Date:   2026-04-08</p>
+<p>The codec2_samples() function uses floor division (160 * datalen/6)
+  to compute expected output samples, but the decode loop condition
+  (x &lt; datalen) iterates with ceiling behavior when datalen is not a
+  multiple of CODEC2_FRAME_LEN. This mismatch causes the loop to
+  decode one extra frame beyond what the framework bounds check
+  budgeted for, leading to an out-of-bounds write on the output buffer.</p>
+<p>Change the loop condition to only process complete frames, matching
+  the floor-division behavior of codec2_samples(). This also prevents
+  an out-of-bounds read on the input side when fewer than
+  CODEC2_FRAME_LEN bytes remain.</p>
+<p>Resolves: #GHSA-qf8j-jp7h-c5hx</p>
+<h4>format_ogg_speex: Add bounds check to prevent heap buffer overflow</h4>
+<p>Author: Milan Kyselica
+  Date:   2026-03-23</p>
+<p>The ogg_speex_read() function copies OGG packet data via memcpy()
+  without validating the packet size against the destination buffer
+  (BUF_SIZE = 200 bytes). A crafted .spx file with an oversized OGG
+  audio packet causes a heap buffer overflow that corrupts the
+  adjacent speex_desc structure containing libogg heap pointers,
+  leading to a crash (SIGSEGV) on playback.</p>
+<p>Add a bounds check for both negative and oversized values before
+  the memcpy, consistent with how format_ogg_vorbis bounds its reads
+  via ov_read().</p>
+<p>Resolves: #GHSA-8jhw-m2hg-vp3h</p>
+<h4>acl: Add ACL support to http and ari</h4>
+<p>Author: Mike Bradeen
+  Date:   2026-02-27</p>
+<p>Add uri prefix based acl support to the built in http server.
+  This allows an acl to be added per uri prefix (ie '/metrics'
+  or '/ws') to restrict access.</p>
+<p>Add user based acl support for ARI. This adds new acl options
+  to the user section of ari.conf to restrict access on a per
+  user basis.</p>
+<p>resolves: #1799</p>
+<p>UserNote: A new section, type=restriction has been added to http.conf
+  to allow an uri prefix based acl to be configured. See
+  http.conf.sample for examples and more information.
+  The user section of ari.conf can now contain an acl configuration
+  to restrict users access. See ari.conf.sample for examples and more
+  information</p>
+<h4>build: Fix GCC discarded-qualifiers const errors.</h4>
+<p>Author: Joshua C. Colp
+  Date:   2026-02-12</p>
+<p>GCC 15.2.1 pays attention to the discarding of the const
+  qualifier when strchr, strrchr, memchr, or memrchr are now
+  used. This change fixes numerous errors with this throughout
+  the tree. The fixes can be broken down into the following:</p>
+<ol>
+<li>The return value should be considered const.</li>
+<li>The value passed to strchr or strrchr can be cast as it is
+     expected and allowed to be modified.</li>
+<li>The pointer passed to strchr or strrchr is not meant to be
+     modified and so the contents must be duplicated.</li>
+<li>It was declared const and never should have been.</li>
+</ol>
+</body></html>
