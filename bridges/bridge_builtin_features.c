@@ -77,13 +77,14 @@ static void set_touch_variable(enum set_touch_variables_res *res, struct ast_cha
 	}
 }
 
-static enum set_touch_variables_res set_touch_variables(struct ast_channel *chan, char **touch_format, char **touch_monitor, char **touch_monitor_prefix, char **touch_monitor_beep)
+static enum set_touch_variables_res set_touch_variables(struct ast_channel *chan, char **touch_format, char **touch_monitor, char **touch_monitor_prefix, char **touch_monitor_beep, char **touch_monitor_options)
 {
 	enum set_touch_variables_res res = SET_TOUCH_UNSET;
 	const char *var_format;
 	const char *var_monitor;
 	const char *var_prefix;
 	const char *var_beep;
+	const char *var_options;
 
 	SCOPED_CHANNELLOCK(lock, chan);
 
@@ -91,11 +92,13 @@ static enum set_touch_variables_res set_touch_variables(struct ast_channel *chan
 	var_monitor = "TOUCH_MIXMONITOR";
 	var_prefix = "TOUCH_MIXMONITOR_PREFIX";
 	var_beep = "TOUCH_MIXMONITOR_BEEP";
+	var_options = "TOUCH_MIXMONITOR_OPTIONS";
 
 	set_touch_variable(&res, chan, var_format, touch_format);
 	set_touch_variable(&res, chan, var_monitor, touch_monitor);
 	set_touch_variable(&res, chan, var_prefix, touch_monitor_prefix);
 	set_touch_variable(&res, chan, var_beep, touch_monitor_beep);
+	set_touch_variable(&res, chan, var_options, touch_monitor_options);
 
 	return res;
 }
@@ -135,15 +138,16 @@ static void start_automixmonitor(struct ast_bridge_channel *bridge_channel, stru
 	RAII_VAR(char *, touch_monitor, NULL, ast_free);
 	RAII_VAR(char *, touch_monitor_prefix, NULL, ast_free);
 	RAII_VAR(char *, touch_monitor_beep, NULL, ast_free);
+	RAII_VAR(char *, touch_monitor_options, NULL, ast_free);
 
 	set_touch_res = set_touch_variables(bridge_channel->chan, &touch_format,
-		&touch_monitor, &touch_monitor_prefix, &touch_monitor_beep);
+		&touch_monitor, &touch_monitor_prefix, &touch_monitor_beep, &touch_monitor_options);
 	switch (set_touch_res) {
 	case SET_TOUCH_SUCCESS:
 		break;
 	case SET_TOUCH_UNSET:
 		set_touch_res = set_touch_variables(peer_chan, &touch_format, &touch_monitor,
-			&touch_monitor_prefix, &touch_monitor_beep);
+			&touch_monitor_prefix, &touch_monitor_beep, &touch_monitor_options);
 		if (set_touch_res == SET_TOUCH_ALLOC_FAILURE) {
 			return;
 		}
@@ -199,6 +203,13 @@ static void start_automixmonitor(struct ast_bridge_channel *bridge_channel, stru
 					touch_monitor_beep, interval);
 		}
 		snprintf(mix_options, sizeof(mix_options), "bB(%d)", interval);
+	}
+
+	if (!ast_strlen_zero(touch_monitor_options)) {
+		snprintf(mix_options, sizeof(mix_options), "%s", touch_monitor_options);
+		if (!ast_strlen_zero(touch_monitor_beep)) {
+			ast_log(LOG_WARNING, "Both TOUCH_MIXMONITOR_BEEP and TOUCH_MIXMONITOR_OPTIONS are set. Ignoring TOUCH_MIXMONITOR_BEEP.\n");
+		}
 	}
 
 	if (ast_start_mixmonitor(peer_chan, touch_filename, mix_options)) {
