@@ -469,9 +469,7 @@ static struct ast_frame *dequeue_frame(struct websocket_pvt *instance)
 		AST_LIST_UNLOCK);
 
 	/*
-	 * If the queue is paused, don't read a frame.  Processing
-	 * will continue down the function and a silence frame will
-	 * be sent in its place.
+	 * If the queue is paused, don't read a frame.
 	 */
 	if (instance->queue_paused) {
 		return NULL;
@@ -493,10 +491,9 @@ static struct ast_frame *dequeue_frame(struct websocket_pvt *instance)
 	queued_frame = AST_LIST_REMOVE_HEAD(&instance->frame_queue, frame_list);
 
 	/*
-	 * If there are no frames in the queue, we need to
-	 * return NULL so we can send a silence frame.  We also need
-	 * to send the QUEUE_DRAINED notification if we were requested
-	 * to do so.
+	 * If there are no frames in the queue, we need to return NULL.
+	 * We also need to send the QUEUE_DRAINED notification if we
+	 * were requested to do so.
 	 */
 	if (!queued_frame) {
 		if (instance->report_queue_drained) {
@@ -550,8 +547,7 @@ static struct ast_frame *dequeue_frame(struct websocket_pvt *instance)
 
 	/*
 	 * If, after reading all control frames,  there are no frames
-	 * left in the queue, we need to return NULL so we can send
-	 * a silence frame.
+	 * left in the queue, we need to return NULL.
 	 */
 	if (!queued_frame) {
 		return NULL;
@@ -561,6 +557,30 @@ static struct ast_frame *dequeue_frame(struct websocket_pvt *instance)
 
 	return queued_frame;
 }
+
+static struct ast_frame *create_frame_from_buffer(struct websocket_pvt *instance,
+	char *buffer, size_t len)
+{
+	struct ast_frame fr = { 0, };
+	struct ast_frame *duped_frame = NULL;
+
+	AST_FRAME_SET_BUFFER(&fr, buffer, 0, len);
+	fr.frametype = AST_FRAME_VOICE;
+	fr.subclass.format = instance->native_format;
+	if (instance->native_codec->samples_count) {
+		fr.samples = instance->native_codec->samples_count(&fr);
+	}
+
+	duped_frame = ast_frisolate(&fr);
+	if (!duped_frame) {
+		ast_log(LOG_WARNING, "%s: Failed to isolate frame\n",
+			ast_channel_name(instance->channel));
+		return NULL;
+	}
+
+	return duped_frame;
+}
+
 /*!
  * \internal
  *
@@ -600,15 +620,23 @@ static struct ast_frame *webchan_read(struct ast_channel *ast)
 	}
 
 	native_frame = dequeue_frame(instance);
-
-	/*
-	 * No frame when the timer fires means we have to return a null frame in its place.
-	 */
 	if (!native_frame) {
-		ast_debug(4, "%s: WebSocket read timer fired with no frame available.  Returning NULL frame.\n",
+		if (instance->leftover_len > 0) {
+			native_frame = create_frame_from_buffer(instance, instance->leftover_data, instance->leftover_len);
+			if (native_frame) {
+				ast_debug(4, "%s: WebSocket read timer fired with no frame available but with %d bytes in leftover_data.  Returning partial frame.\n",
+					ast_channel_name(ast), (int)instance->leftover_len);
+				instance->leftover_len = 0;
+				return native_frame;
+			}
+		}
+		ast_debug(4, "%s: WebSocket read timer fired with no frame available and no data in leftover_data.  Returning NULL frame.\n",
 			ast_channel_name(ast));
 		return &ast_null_frame;
 	}
+
+	ast_debug(5, "%s: WebSocket read timer fired. Dequeued %d byte frame.  Left in buffer: %d\n",
+		ast_channel_name(ast), native_frame->datalen, (int)instance->leftover_len);
 
 	return native_frame;
 }
@@ -616,18 +644,10 @@ static struct ast_frame *webchan_read(struct ast_channel *ast)
 static int queue_frame_from_buffer(struct websocket_pvt *instance,
 	char *buffer, size_t len)
 {
-	struct ast_frame fr = { 0, };
 	struct ast_frame *duped_frame = NULL;
 
-	AST_FRAME_SET_BUFFER(&fr, buffer, 0, len);
-	fr.frametype = AST_FRAME_VOICE;
-	fr.subclass.format = instance->native_format;
-	fr.samples = instance->native_codec->samples_count(&fr);
-
-	duped_frame = ast_frisolate(&fr);
+	duped_frame = create_frame_from_buffer(instance, buffer, len);
 	if (!duped_frame) {
-		ast_log(LOG_WARNING, "%s: Failed to isolate frame\n",
-			ast_channel_name(instance->channel));
 		return -1;
 	}
 
