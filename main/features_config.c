@@ -270,6 +270,10 @@
 						<para>To play a periodic beep while this call is being recorded, set the
 						<replaceable>TOUCH_MIXMONITOR_BEEP</replaceable> to the interval in seconds. The interval will default
 						to 15 seconds if invalid.  The minimum interval is 5 seconds.</para>
+						<para>To override the default MixMonitor options <literal>b</literal>, the
+						<replaceable>TOUCH_MIXMONITOR_OPTIONS</replaceable> channel variable can be used. If both
+						<replaceable>TOUCH_MIXMONITOR_BEEP</replaceable> and <replaceable>TOUCH_MIXMONITOR_OPTIONS</replaceable> are set, the
+						<replaceable>TOUCH_MIXMONITOR_OPTIONS</replaceable> will take precedence.</para>
 					</description>
 				</configOption>
 			</configObject>
