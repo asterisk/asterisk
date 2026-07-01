@@ -1642,7 +1642,7 @@ static struct ast_json *unhold_to_json(struct stasis_message *message,
 		"channel", json_channel);
 }
 
-static const char *state2str(enum ast_control_transfer state) {
+const char *ast_channel_transfer_state2str(enum ast_control_transfer state) {
 	switch (state) {
 	case AST_TRANSFER_FAILED:
 		return "channel_declined";
@@ -1746,7 +1746,7 @@ static struct ast_json *ari_transfer_to_json(struct stasis_message *msg,
 	}
 
 	if (transfer_msg->state != AST_TRANSFER_INVALID) {
-		ast_json_object_set(res, "state", ast_json_string_create(state2str(transfer_msg->state)));
+		ast_json_object_set(res, "state", ast_json_string_create(ast_channel_transfer_state2str(transfer_msg->state)));
 	}
 	return res;
 }
