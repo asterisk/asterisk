@@ -807,6 +807,8 @@ struct ast_ari_transfer_message *ast_ari_transfer_message_create(struct ast_chan
 								 const char *protocol_id, struct ast_channel *dest,
 								 struct ast_refer_params *params, enum ast_control_transfer);
 
+const char *ast_channel_transfer_state2str(enum ast_control_transfer state);
+
 /*!
  * \brief Initialize the stasis channel topic and message types
  * \retval 0 on success
