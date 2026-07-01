@@ -1971,6 +1971,9 @@ static int sip_options_aor_observer_modified_task(void *obj)
 {
 	struct ast_sip_aor *aor = obj;
 	struct sip_options_aor *aor_options;
+	const char *aor_name = ast_sorcery_object_get_id(aor);
+	char *aor_like;
+	struct ast_variable *var;
 
 	aor_options = ao2_find(sip_options_aors, ast_sorcery_object_get_id(aor),
 		OBJ_SEARCH_KEY);
@@ -1993,14 +1996,23 @@ static int sip_options_aor_observer_modified_task(void *obj)
 
 		/*
 		 * Using LIKE doesn't seem to work very well with non-realtime so we
-		 * fetch everything right now and do a filter on our side.
+		 * do an additional filter on our side.
 		 */
-		endpoints = ast_sorcery_retrieve_by_fields(ast_sip_get_sorcery(),
-			"endpoint", AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
+		ast_debug(3, "Fetching all endpoints which can potentially be linked with AOR '%s'\n", aor_name);
+		aor_like = ast_alloca(strlen(aor_name) + 3);
+		sprintf(aor_like, "%%%s%%", aor_name);
+		var = ast_variable_new("aors LIKE", aor_like, "");
+		if (!var) {
+			return -1;
+		}
+		endpoints = ast_sorcery_retrieve_by_fields(ast_sip_get_sorcery(), "endpoint", AST_RETRIEVE_FLAG_MULTIPLE, var);
+		ast_variables_destroy(var);
+		ast_debug(3, "Retrieved all endpoints which can potentially be linked with AOR '%s'\n", aor_name);
 		if (endpoints) {
 			ao2_callback(endpoints, OBJ_NODATA, sip_options_synchronize_endpoint, aor);
 			ao2_ref(endpoints, -1);
 		}
+		ast_debug(3, "Finished synchronizing endpoints with AOR '%s'\n", aor_name);
 	} else {
 		struct sip_options_synchronize_aor_task_data task_data = {
 			.aor_options = aor_options,
