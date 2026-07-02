@@ -2800,6 +2800,135 @@ static int is_member_available(struct call_queue *q, struct member *mem)
 	return available;
 }
 
+/*!
+ * \internal
+ * \brief Set of device-state identifiers that at least one queue member is
+ *        watching through its state_interface (reference counted).
+ *
+ * device_state_cb() consults this set as a fast path: device-state messages for
+ * devices no member cares about are discarded in O(1) instead of forcing a full
+ * O(queues * members) scan.  This matters during a bulk member (re)load, which
+ * floods the devicestate:all topic with "Queue:..._pause_..." and
+ * "Queue:..._avail" hints app_queue itself publishes -- none of which match any
+ * member's state_interface.  As a side effect it also severs the feedback loop:
+ * the "Queue:..._avail" hints that device_state_cb republishes are not watched,
+ * so they are dropped here before they can re-enter the callback.
+ */
+static struct ao2_container *device_state_watchers;
+
+#define DEVICE_STATE_WATCHER_BUCKETS 547
+
+struct device_state_watcher {
+	int count;                          /*!< Number of members watching this device */
+	char interface[AST_CHANNEL_NAME];   /*!< Normalized device-state identifier */
+};
+
+/*!
+ * \internal
+ * \brief Compute the device-state identifier app_queue matches a member against.
+ *
+ * This MUST stay identical to the comparison performed in device_state_cb():
+ * for Local channels the trailing "/n" option is stripped so the member is
+ * matched by its base "Local/exten@context" device.
+ */
+static void queue_normalized_devstate_id(char *buf, size_t size, const char *state_interface)
+{
+	char *slash_pos;
+
+	ast_copy_string(buf, state_interface, size);
+	if ((slash_pos = strchr(buf, '/'))) {
+		if (!strncasecmp(buf, "Local/", 6) && (slash_pos = strchr(slash_pos + 1, '/'))) {
+			*slash_pos = '\0';
+		}
+	}
+}
+
+static int device_state_watcher_hash_fn(const void *obj, const int flags)
+{
+	const struct device_state_watcher *watcher = obj;
+	const char *interface = (flags & OBJ_KEY) ? obj : watcher->interface;
+
+	return ast_str_case_hash(interface);
+}
+
+static int device_state_watcher_cmp_fn(void *obj, void *arg, int flags)
+{
+	struct device_state_watcher *watcher = obj;
+	const char *interface = (flags & OBJ_KEY) ? arg : ((struct device_state_watcher *) arg)->interface;
+
+	return !strcasecmp(watcher->interface, interface) ? (CMP_MATCH | CMP_STOP) : 0;
+}
+
+/*! \internal \brief Start watching device state for a member's state_interface. */
+static void watch_state_interface(const char *state_interface)
+{
+	char interface[AST_CHANNEL_NAME];
+	struct device_state_watcher *watcher;
+
+	if (!device_state_watchers || ast_strlen_zero(state_interface)) {
+		return;
+	}
+
+	queue_normalized_devstate_id(interface, sizeof(interface), state_interface);
+
+	ao2_lock(device_state_watchers);
+	watcher = ao2_find(device_state_watchers, interface, OBJ_KEY | OBJ_NOLOCK);
+	if (watcher) {
+		++watcher->count;
+		ao2_ref(watcher, -1);
+	} else if ((watcher = ao2_alloc_options(sizeof(*watcher), NULL, AO2_ALLOC_OPT_LOCK_NOLOCK))) {
+		watcher->count = 1;
+		ast_copy_string(watcher->interface, interface, sizeof(watcher->interface));
+		ao2_link_flags(device_state_watchers, watcher, OBJ_NOLOCK);
+		ao2_ref(watcher, -1);
+	}
+	ao2_unlock(device_state_watchers);
+}
+
+/*! \internal \brief Stop watching device state for a member's state_interface. */
+static void unwatch_state_interface(const char *state_interface)
+{
+	char interface[AST_CHANNEL_NAME];
+	struct device_state_watcher *watcher;
+
+	if (!device_state_watchers || ast_strlen_zero(state_interface)) {
+		return;
+	}
+
+	queue_normalized_devstate_id(interface, sizeof(interface), state_interface);
+
+	ao2_lock(device_state_watchers);
+	watcher = ao2_find(device_state_watchers, interface, OBJ_KEY | OBJ_NOLOCK);
+	if (watcher) {
+		if (--watcher->count <= 0) {
+			ao2_unlink_flags(device_state_watchers, watcher, OBJ_NOLOCK);
+		}
+		ao2_ref(watcher, -1);
+	}
+	ao2_unlock(device_state_watchers);
+}
+
+/*! \internal \brief Is any queue member watching device state for this device? */
+static int device_state_is_watched(const char *device)
+{
+	struct device_state_watcher *watcher;
+
+	/* If the set is unavailable, fall back to the (correct, slower) full scan. */
+	if (!device_state_watchers) {
+		return 1;
+	}
+	if (ast_strlen_zero(device)) {
+		return 0;
+	}
+
+	watcher = ao2_find(device_state_watchers, device, OBJ_KEY);
+	if (watcher) {
+		ao2_ref(watcher, -1);
+		return 1;
+	}
+	return 0;
+}
+
 /*! \brief set a member's status based on device state of that member's interface*/
 static void device_state_cb(void *unused, struct stasis_subscription *sub, struct stasis_message *msg)
 {
@@ -2807,7 +2936,7 @@ static void device_state_cb(void *unused, struct stasis_subscription *sub, struc
 	struct ast_device_state_message *dev_state;
 	struct member *m;
 	struct call_queue *q;
-	char interface[80], *slash_pos;
+	char interface[80];
 	int found = 0;			/* Found this member in any queue */
 	int found_member;		/* Found this member in this queue */
 	int avail = 0;			/* Found an available member in this queue */
@@ -2822,6 +2951,20 @@ static void device_state_cb(void *unused, struct stasis_subscription *sub, struc
 		return;
 	}
 
+	/*
+	 * Fast path: if no queue member watches this device there is nothing to
+	 * do.  Returning here is behavior identical to running the loop below and
+	 * matching no member (no member status update, no Queue:..._avail publish),
+	 * but avoids the O(queues * members) scan for every unrelated device state.
+	 * This is what keeps a bulk reload of thousands of members from backing up
+	 * the stasis/m:devicestate:all taskprocessor, and it also drops app_queue's
+	 * own Queue:..._avail / Queue:..._pause_... hints (never watched) so they
+	 * cannot feed back into this callback.
+	 */
+	if (!device_state_is_watched(dev_state->device)) {
+		return;
+	}
+
 	qiter = ao2_iterator_init(queues, 0);
 	while ((q = ao2_t_iterator_next(&qiter, "Iterate over queues"))) {
 		ao2_lock(q);
@@ -2831,13 +2974,7 @@ static void device_state_cb(void *unused, struct stasis_subscription *sub, struc
 		miter = ao2_iterator_init(q->members, 0);
 		for (; (m = ao2_iterator_next(&miter)); ao2_ref(m, -1)) {
 			if (!found_member) {
-				ast_copy_string(interface, m->state_interface, sizeof(interface));
-
-				if ((slash_pos = strchr(interface, '/'))) {
-					if (!strncasecmp(interface, "Local/", 6) && (slash_pos = strchr(slash_pos + 1, '/'))) {
-						*slash_pos = '\0';
-					}
-				}
+				queue_normalized_devstate_id(interface, sizeof(interface), m->state_interface);
 
 				if (!strcasecmp(interface, dev_state->device)) {
 					found_member = 1;
@@ -3019,6 +3156,8 @@ static void destroy_queue_member_cb(void *obj)
 {
 	struct member *mem = obj;
 
+	unwatch_state_interface(mem->state_interface);
+
 	if (mem->state_id != -1) {
 		ast_extension_state_del(mem->state_id, extension_state_cb);
 	}
@@ -3064,6 +3203,7 @@ static struct member *create_queue_member(const char *interface, const char *mem
 			cur->state_id = -1;
 		}
 		cur->status = get_queue_member_status(cur);
+		watch_state_interface(cur->state_interface);
 	}
 
 	return cur;
@@ -3833,7 +3973,18 @@ static void rt_handle_member_record(struct call_queue *q, char *category, struct
 					AST_DEVSTATE_CACHABLE, "Queue:%s_pause_%s", q->name, m->interface);
 			}
 			if (strcasecmp(state_interface, m->state_interface)) {
+				char old_state_interface[sizeof(m->state_interface)];
+
+				ast_copy_string(old_state_interface, m->state_interface, sizeof(old_state_interface));
+				/* Begin watching the new device before publishing it on the
+				 * member (and before unwatching the old).  Ordering it this way,
+				 * a concurrent device_state_cb can never fast-path drop a state
+				 * for the new interface, and never sees a transient drop to zero
+				 * watchers when the old and new interfaces share a normalized
+				 * device. */
+				watch_state_interface(state_interface);
 				ast_copy_string(m->state_interface, state_interface, sizeof(m->state_interface));
+				unwatch_state_interface(old_state_interface);
 			}
 			m->penalty = penalty;
 			m->ringinuse = ringinuse;
@@ -12056,6 +12207,10 @@ static int unload_module(void)
 	ao2_cleanup(pending_members);
 
 	queues = NULL;
+
+	/* Cleared after queues so destroy_queue_member_cb can still unwatch members. */
+	ao2_cleanup(device_state_watchers);
+	device_state_watchers = NULL;
 	return 0;
 }
 
@@ -12086,6 +12241,15 @@ static int load_module(void)
 	pending_members = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
 		MAX_CALL_ATTEMPT_BUCKETS, pending_members_hash, NULL, pending_members_cmp);
 	if (!pending_members) {
+		unload_module();
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	/* Must exist before any member is created (reload_handler below creates them). */
+	device_state_watchers = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		DEVICE_STATE_WATCHER_BUCKETS, device_state_watcher_hash_fn, NULL,
+		device_state_watcher_cmp_fn);
+	if (!device_state_watchers) {
 		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
