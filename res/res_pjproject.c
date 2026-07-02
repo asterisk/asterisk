@@ -791,6 +791,8 @@ static int load_module(void)
 	pj_log_set_decor(0);
 	pj_log_set_level(MAX_PJ_LOG_MAX_LEVEL);/* Set level to guarantee the dump output. */
 	pj_dump_config();
+	pjsip_dump_config();
+
 	pj_log_set_decor(PJ_LOG_HAS_SENDER | PJ_LOG_HAS_INDENT);
 	pj_log_set_log_func(log_forwarder);
 	if (ast_pjproject_max_log_level < ast_option_pjproject_log_level) {

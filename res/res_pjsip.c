@@ -355,9 +355,13 @@ static int do_cli_dump_endpt(void *v_a)
 {
 	struct ast_cli_args *a = v_a;
 
+	if (ast_option_pjproject_log_level < 3) {
+		pj_log_set_level(3);
+	}
 	ast_pjproject_log_intercept_begin(a->fd);
 	pjsip_endpt_dump(ast_sip_get_pjsip_endpoint(), a->argc == 4 ? PJ_TRUE : PJ_FALSE);
 	ast_pjproject_log_intercept_end();
+	pj_log_set_level(ast_option_pjproject_log_level);
 
 	return 0;
 }

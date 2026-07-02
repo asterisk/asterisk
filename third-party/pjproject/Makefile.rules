@@ -47,4 +47,7 @@ endif
 
 ifeq ($(shell uname -s),Linux)
     PJPROJECT_CONFIG_OPTS +=  --enable-epoll
+    PJPROJECT_CFLAGS += -DPJ_HAS_LINUX_EPOLL=1
 endif
+
+PJPROJECT_CONFIG_OPTS += CFLAGS="$(PJPROJECT_CFLAGS)"
