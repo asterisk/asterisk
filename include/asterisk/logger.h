@@ -530,6 +530,20 @@ void ast_logger_set_queue_limit(int queue_limit);
  */
 int ast_logger_get_queue_limit(void);
 
+/*!
+ * \brief Set the over threshold maximum number of WARNING/ERROR messages allowed in the processing queue
+ *
+ * \param limit
+ */
+void ast_logger_set_over_threshold_queue_limit(int limit);
+
+/*!
+ * \brief Get the over threshold maximum number of messages allowed in the processing queue
+ *
+ * \return Over threshold queue limit
+ */
+int ast_logger_get_over_threshold_queue_limit(void);
+
 
 /*! \defgroup Scope_Trace Scope Trace
  * @{
