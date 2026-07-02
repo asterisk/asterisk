@@ -25,13 +25,22 @@
 #define NDEBUG 1
 #endif
 
+#ifndef PJ_MAX_HOSTNAME
 #define PJ_MAX_HOSTNAME (256)
+#endif
+
+#ifndef PJSIP_MAX_URL_SIZE
 #define PJSIP_MAX_URL_SIZE (512)
+#endif
+
+#ifndef PJ_IOQUEUE_MAX_HANDLES
 #ifdef PJ_HAS_LINUX_EPOLL
 #define PJ_IOQUEUE_MAX_HANDLES	(5000)
 #else
 #define PJ_IOQUEUE_MAX_HANDLES	(FD_SETSIZE)
 #endif
+#endif
+
 #define PJ_IOQUEUE_HAS_SAFE_UNREG 1
 #define PJ_IOQUEUE_MAX_EVENTS_IN_SINGLE_POLL (16)
 
