@@ -770,6 +770,21 @@ static void remove_stream_from_bundle(struct ast_sip_session_media *session_medi
 	session_media->bundled = 0;
 }
 
+/*!
+ * \brief Determine whether a zero-port stream is offered for BUNDLE-only use.
+ *
+ * RFC 9143 permits an offerer to use a zero port together with the
+ * bundle-only attribute when the stream is to be accepted only as part of
+ * the associated BUNDLE group. A zero port without these conditions still
+ * means that the stream is disabled.
+ */
+static int is_bundle_only_stream(const struct ast_sip_session_media *session_media,
+	const struct pjmedia_sdp_media *stream)
+{
+	return !stream->desc.port && session_media->bundled
+		&& pjmedia_sdp_media_find_attr2(stream, "bundle-only", NULL);
+}
+
 static int handle_incoming_sdp(struct ast_sip_session *session, const pjmedia_sdp_session *sdp)
 {
 	int i;
@@ -798,6 +813,7 @@ static int handle_incoming_sdp(struct ast_sip_session *session, const pjmedia_sd
 		RAII_VAR(struct sdp_handler_list *, handler_list, NULL, ao2_cleanup);
 		struct ast_sip_session_media *session_media = NULL;
 		int res;
+		int bundle_only;
 		enum ast_media_type type;
 		struct ast_stream *stream = NULL;
 		pjmedia_sdp_media *remote_stream = sdp->media[i];
@@ -892,14 +908,25 @@ static int handle_incoming_sdp(struct ast_sip_session *session, const pjmedia_sd
 				 ast_sip_session_get_name(session));
 		}
 
-		/* If this stream is already declined mark it as such, or mark it as such if we've reached the limit */
-		if (!remote_stream->desc.port || is_stream_limitation_reached(type, session->endpoint, type_streams)) {
+		/* MID and BUNDLE membership must be known before interpreting a zero port. */
+		set_mid_and_bundle_group(session, session_media, sdp, remote_stream);
+		bundle_only = is_bundle_only_stream(session_media, remote_stream);
+
+		/* A zero port normally declines a stream. RFC 9143 defines an exception
+		 * for a bundled stream carrying the bundle-only attribute.
+		 */
+		if ((!remote_stream->desc.port && !bundle_only)
+			|| is_stream_limitation_reached(type, session->endpoint, type_streams)) {
 			remove_stream_from_bundle(session_media, stream);
 			SCOPE_EXIT_EXPR(continue, "%s: Declining incoming SDP media stream %s'\n",
 				ast_sip_session_get_name(session), ast_str_tmp(128, ast_stream_to_str(stream, &STR_TMP)));
 		}
 
-		set_mid_and_bundle_group(session, session_media, sdp, remote_stream);
+		if (bundle_only) {
+			ast_trace(-1, "%s: Accepting zero-port bundle-only SDP media stream %s\n",
+				ast_sip_session_get_name(session), ast_str_tmp(128, ast_stream_to_str(stream, &STR_TMP)));
+		}
+
 		set_remote_mslabel_and_stream_group(session, session_media, sdp, remote_stream, stream);
 
 		if (session_media->handler) {
@@ -1132,7 +1159,15 @@ static int handle_negotiated_sdp(struct ast_sip_session *session, const pjmedia_
 		 * the state to REMOVED, then our work here is done, so go ahead and move on
 		 * to the next stream.
 		 */
-		if (!remote->media[i]->desc.port) {
+		/*
+		 * A zero port in a remote answer declines the stream.  In an offer,
+		 * however, RFC 9143 permits a bundled stream to use port zero together
+		 * with a=bundle-only.  In that case, keep the stream if our local answer
+		 * accepted it with a non-zero port.
+		 */
+		if (!local->media[i]->desc.port
+			|| (!remote->media[i]->desc.port
+				&& !is_bundle_only_stream(session_media, remote->media[i]))) {
 			ast_stream_set_state(stream, AST_STREAM_STATE_REMOVED);
 			continue;
 		}
