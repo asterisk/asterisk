@@ -196,7 +196,7 @@ AST_THREADSTORAGE(tmp_buf);
 			<note><para>The replacement only occurs in the output.  The original variable is not altered.</para></note>
 			<example title="Add half-second pause between dialed digits">
 				same => n,Set(digits=5551212)
-				same => n,SendDTMF(${STRBETWEEN(digits,w)) ; this will send 5w5w5w1w2w1w2
+				same => n,SendDTMF(${STRBETWEEN(digits,w)}) ; this will send 5w5w5w1w2w1w2
 			</example>
 		</description>
 	</function>
