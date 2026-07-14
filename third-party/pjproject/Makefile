@@ -60,9 +60,18 @@ ifeq ($(SPECIAL_TARGETS),)
         CF := $(filter-out -I%,$(CF))
         ifeq ($(PJPROJECT_BUNDLED_OOT),)
         ifeq ($(AST_DEVMODE),yes)
+			apps := source/pjsip-apps/bin/pjsua-$(TARGET_NAME)
+			TARGETS += $(apps)
             CF += -DPJPROJECT_BUNDLED_ASSERTIONS=yes
         endif
         endif
+		MALLOC_DEBUG_LIBS = source/pjsip-apps/lib/libasterisk_malloc_debug.a
+		ifneq ($(findstring darwin,$(OSARCH)),)
+			MALLOC_DEBUG_LDFLAGS = -L$(PJDIR)/pjsip-apps/lib -Wl,-all_load -lasterisk_malloc_debug -Wl,-noall_load
+		else
+			 # These are used for all but Darwin
+			MALLOC_DEBUG_LDFLAGS = -L$(PJDIR)/pjsip-apps/lib -Wl,-whole-archive -lasterisk_malloc_debug -Wl,-no-whole-archive
+		endif
         ifeq ($(findstring DONT_OPTIMIZE,$(MENUSELECT_CFLAGS)),)
             CF += -O3
         endif
@@ -204,10 +213,34 @@ pjproject.symbols: $(ALL_LIB_FILES)
 	$(ECHO_PREFIX) Generating symbols
 	$(CMD_PREFIX) $(NM) -Pog $(ALL_LIB_FILES) | $(SED) -n -E -e "s/.+: ([_]?[pP][jJ][^ ]+) .+/\1/gp" | sort -u > pjproject.symbols
 
+source/pjsip-apps/src/asterisk_malloc_debug.c: patches/asterisk_malloc_debug.c
+	$(ECHO_PREFIX) Copying $< to $@
+	$(CMD_PREFIX) cp -f $< $@
+	-$(CMD_PREFIX) mkdir source/pjsip-apps/lib/ $(REALLY_QUIET)
+
+source/pjsip-apps/lib/asterisk_malloc_debug.o: source/pjsip-apps/src/asterisk_malloc_debug.c | source/pjlib/include/pj/config_site.h source/pjlib/include/pj/asterisk_malloc_debug.h
+	$(ECHO_PREFIX) Compiling asterisk debug malloc stubs
+	$(CMD_PREFIX) $(CC) -fPIC  $(PJ_CFLAGS) -c $< -o $@
+
+source/pjsip-apps/lib/libasterisk_malloc_debug.a: source/pjsip-apps/lib/asterisk_malloc_debug.o
+	$(ECHO_PREFIX) Creating archive $(@F)
+	$(CMD_PREFIX) ar qs $@ $< $(REALLY_QUIET)
+
+$(apps): APP = $(filter pj%,$(subst -, ,$(notdir $@)))
+$(apps): LDFLAGS += $(MALLOC_DEBUG_LDFLAGS)
+$(apps): $(MALLOC_DEBUG_LIBS) pjproject.symbols
+	$(ECHO_PREFIX) Compiling $(APP)
+	$(CMD_PREFIX) +$(MAKE) -C source/pjsip-apps/build $(APP) $(REALLY_QUIET)
+	$(CMD_PREFIX) touch $@
+
 _install: _all
 	@if [ ! -d "$(DESTDIR)$(ASTDATADIR)/third-party/pjproject" ]; then \
 		$(INSTALL) -d "$(DESTDIR)$(ASTDATADIR)/third-party/pjproject"; \
 	fi;
+ifneq ($(findstring source/pjsip-apps/bin/pjsua-$(TARGET_NAME),$(TARGETS)),)
+	$(ECHO_PREFIX) Installing app
+	$(CMD_PREFIX) $(INSTALL) -m 755 source/pjsip-apps/bin/pjsua-$(TARGET_NAME) "$(DESTDIR)$(ASTDATADIR)/third-party/pjproject/pjsua"
+endif
 
 all: _all
 
@@ -220,6 +253,7 @@ clean:
 	+-$(CMD_PREFIX) {\
 		if [ -d source ] ; then  \
 			$(SUBMAKE) -C source clean ;\
+			rm -f source/pjsip-apps/bin/pjsua-* ;\
 			$(FIND) source/ '(' -name *.a -or -name *.o -or -name *.so ')' -delete ;\
 		fi ;\
 		rm -rf pjproject.symbols ;\
