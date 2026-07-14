@@ -533,6 +533,9 @@
 							<enum name="inband">
 								<para>DTMF is sent as part of audio stream.</para>
 							</enum>
+							<enum name="none">
+								<para>DTMF is not sent or received.</para>
+							</enum>
 							<enum name="info">
 								<para>DTMF is sent as SIP INFO packets.</para>
 							</enum>
