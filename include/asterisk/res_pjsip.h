@@ -2051,6 +2051,32 @@ struct ast_taskprocessor *ast_sip_create_serializer_group(const char *name, stru
 struct ast_taskprocessor *ast_sip_get_distributor_serializer(pjsip_rx_data *rdata);
 
 /*!
+ * \brief Determine the distributor serializer for the SIP dialog.
+ * \since 20.21.0
+ * \since 22.11.0
+ * \since 23.5.0
+ *
+ * \param dlg The SIP dialog.
+ *
+ * \retval Calculated distributor serializer on success.
+ * \retval NULL on error.
+ */
+struct ast_taskprocessor *ast_sip_get_distributor_serializer_dialog(pjsip_dialog *dlg);
+
+/*!
+ * \brief Determine the distributor serializer for a given hash.
+ * \since 20.21.0
+ * \since 22.11.0
+ * \since 23.5.0
+ *
+ * \param hash The hash value.
+ *
+ * \retval Calculated distributor serializer on success.
+ * \retval NULL on error.
+ */
+struct ast_taskprocessor *ast_sip_get_distributor_serializer_hash(int hash);
+
+/*!
  * \brief Set a serializer on a SIP dialog so requests and responses are automatically serialized
  *
  * Passing a NULL serializer is a way to remove a serializer from a dialog.
