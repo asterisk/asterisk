@@ -465,8 +465,42 @@ struct ast_taskprocessor *ast_sip_get_distributor_serializer(pjsip_rx_data *rdat
 
 	serializer = ao2_bump(distributor_pool[hash % ARRAY_LEN(distributor_pool)]);
 	if (serializer) {
-		ast_debug(3, "Calculated serializer %s to use for %s\n",
+		ast_debug(3, "Calculated serializer %s to use for message %s\n",
 			ast_taskprocessor_name(serializer), pjsip_rx_data_get_info(rdata));
+	}
+	return serializer;
+}
+
+struct ast_taskprocessor *ast_sip_get_distributor_serializer_dialog(pjsip_dialog *dlg)
+{
+	int hash;
+	struct ast_taskprocessor *serializer;
+
+	if (!dlg) {
+		return NULL;
+	}
+
+	/* Compute the hash from the SIP message call-id and tag */
+	hash = pjstr_hash(&dlg->call_id->id);
+	hash = pjstr_hash_add(&dlg->local.info->tag, hash);
+	hash = ast_str_hash_restrict(hash);
+
+	serializer = ao2_bump(distributor_pool[hash % ARRAY_LEN(distributor_pool)]);
+	if (serializer) {
+		ast_debug(3, "Calculated serializer %s to use for dialog %s\n",
+			ast_taskprocessor_name(serializer), dlg->obj_name);
+	}
+	return serializer;
+}
+
+struct ast_taskprocessor *ast_sip_get_distributor_serializer_hash(int hash)
+{
+	struct ast_taskprocessor *serializer;
+
+	serializer = ao2_bump(distributor_pool[hash % ARRAY_LEN(distributor_pool)]);
+	if (serializer) {
+		ast_debug(3, "Calculated serializer %s to use for hash %u\n",
+			ast_taskprocessor_name(serializer), hash);
 	}
 	return serializer;
 }
