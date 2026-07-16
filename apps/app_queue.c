@@ -1750,8 +1750,6 @@ static int shared_lastcall;
 /*! \brief queuerules.conf [general] option */
 static int realtime_rules;
 
-/*! \brief Subscription to device state change messages */
-static struct stasis_subscription *device_state_sub;
 
 /*! \brief queues.conf [general] option */
 static int negative_penalty_invalid;
@@ -1882,6 +1880,7 @@ struct member {
 	char state_context[AST_MAX_CONTEXT]; /*!< Context to use when getting state (if using hint) */
 	char state_interface[AST_CHANNEL_NAME]; /*!< Technology/Location from which to read devicestate changes */
 	int state_id;                        /*!< Extension state callback id (if using hint) */
+	struct stasis_subscription *devstate_sub; /*!< This member's own device state subscription */
 	char membername[80];                 /*!< Member name to use in queue logs */
 	int penalty;                         /*!< Are we a last resort? */
 	int calls;                           /*!< Number of calls serviced by this member */
@@ -2062,6 +2061,7 @@ static void update_realtime_members(struct call_queue *q);
 static struct member *interface_exists(struct call_queue *q, const char *interface);
 static int set_member_paused(const char *queuename, const char *interface, const char *reason, int paused);
 static int update_queue(struct call_queue *q, struct member *member, int callcompletedinsl, time_t starttime);
+static int num_available_members(struct call_queue *q);
 
 static struct member *find_member_by_queuename_and_interface(const char *queuename, const char *interface);
 /*! \brief sets the QUEUESTATUS channel variable */
@@ -2800,17 +2800,291 @@ static int is_member_available(struct call_queue *q, struct member *mem)
 	return available;
 }
 
-/*! \brief set a member's status based on device state of that member's interface*/
-static void device_state_cb(void *unused, struct stasis_subscription *sub, struct stasis_message *msg)
+/*!
+ * \internal
+ * \brief Per-member device state subscriptions.
+ *
+ * Each queue member holds a stasis pool subscription to its state_interface's
+ * own device topic, rather than the module sharing a single subscription to the
+ * aggregate devicestate:all topic.  app_queue therefore receives only the
+ * events for devices a member actually watches; the "Queue:..._pause_..." hints
+ * it publishes itself during a reload are never delivered back to it, which is
+ * what removes the reload flood at the stasis routing layer.  Using pool
+ * subscriptions also spreads the work across the stasis pool threads instead of
+ * serializing it through one taskprocessor.
+ *
+ * The subscription carries the queue and member as its callback data, so the
+ * callback goes straight to the member the event is for and never has to scan
+ * queues or members.
+ *
+ * Watch/unwatch are driven from member_add_to_queue()/member_remove_from_queue()
+ * rather than the member constructor/destructor.  A member's device state only
+ * matters while it belongs to a queue, and the callback data holds references to
+ * both the queue and the member, so a destructor-driven teardown could never run
+ * -- the reference itself would keep the object alive.
+ *
+ * \note mem->devstate_sub is protected by the queue lock.  Every path that adds
+ * or removes a member (add_to_queue(), rt_handle_member_record(),
+ * reload_single_member(), kill_dead_members() and queue teardown) holds it, and
+ * a struct member belongs to exactly one queue, so the field needs no lock of
+ * its own.
+ *
+ * Members whose state_interface is a "hint:" are handled by extension_state_cb()
+ * instead and are never subscribed here.
+ */
+
+/*! \brief Live per-member subscriptions, so unload can wait them out. */
+static int member_devstate_watches;
+
+struct member_devstate_watch {
+	struct call_queue *q;   /*!< Queue this subscription belongs to (reference held) */
+	struct member *mem;     /*!< Member this subscription belongs to (reference held) */
+};
+
+/*!
+ * \internal
+ * \brief Compute the normalized device-state identifier used as the
+ *        subscription key.
+ *
+ * For Local channels, strip the trailing "/n" component so that
+ * "Local/exten@ctx/1" and "Local/exten@ctx/2" both map to
+ * "Local/exten@ctx".  All other technologies are left unchanged.
+ */
+static void queue_normalized_devstate_id(char *buf, size_t size, const char *state_interface)
 {
-	struct ao2_iterator miter, qiter;
-	struct ast_device_state_message *dev_state;
+	char *slash_pos;
+
+	ast_copy_string(buf, state_interface, size);
+	if ((slash_pos = strchr(buf, '/'))) {
+		if (!strncasecmp(buf, "Local/", 6) && (slash_pos = strchr(slash_pos + 1, '/'))) {
+			*slash_pos = '\0';
+		}
+	}
+}
+
+/*!
+ * \internal
+ * \brief Decide whether a member's state_interface is tracked and, if so,
+ *        produce its normalized key.
+ *
+ * \retval 1 tracked -- \a buf holds the normalized device-state identifier.
+ * \retval 0 not tracked (empty interface, or hint: which extension_state_cb handles).
+ */
+static int device_state_watch_key(const char *state_interface, char *buf, size_t size)
+{
+	if (ast_strlen_zero(state_interface)
+		|| !strncmp(state_interface, "hint:", 5)) {
+		return 0;
+	}
+	queue_normalized_devstate_id(buf, size, state_interface);
+	return 1;
+}
+
+static void member_devstate_watch_dtor(void *obj)
+{
+	struct member_devstate_watch *watch = obj;
+
+	ao2_cleanup(watch->mem);
+	ao2_cleanup(watch->q);
+	ast_atomic_fetchadd_int(&member_devstate_watches, -1);
+}
+
+/* Forward declaration needed by watch_member_state(). */
+static void member_device_state_cb(void *, struct stasis_subscription *, struct stasis_message *);
+
+/*! \internal \brief Subscribe this member to its own device's state. */
+static void watch_member_state(struct call_queue *q, struct member *mem)
+{
+	char interface[AST_CHANNEL_NAME];
+	struct member_devstate_watch *watch;
+
+	if (mem->devstate_sub
+		|| !device_state_watch_key(mem->state_interface, interface, sizeof(interface))) {
+		return;
+	}
+
+	watch = ao2_alloc_options(sizeof(*watch), member_devstate_watch_dtor,
+		AO2_ALLOC_OPT_LOCK_NOLOCK);
+	if (!watch) {
+		return;
+	}
+	watch->q = ao2_bump(q);
+	watch->mem = ao2_bump(mem);
+	ast_atomic_fetchadd_int(&member_devstate_watches, +1);
+
+	mem->devstate_sub = stasis_subscribe_pool(ast_device_state_topic(interface),
+		member_device_state_cb, watch);
+	if (!mem->devstate_sub) {
+		ast_log(LOG_WARNING, "Failed to subscribe to device state for '%s'\n", interface);
+		ao2_ref(watch, -1);
+		return;
+	}
+	stasis_subscription_accept_message_type(mem->devstate_sub,
+		ast_device_state_message_type());
+	/*
+	 * The unsubscribe final message is what releases the callback data, and
+	 * subscription_invoke() only delivers it to a SELECTIVE subscriber that
+	 * accepts subscription_change.  Without this the callback is never told to
+	 * drop its reference, leaking the watch and the queue and member
+	 * references it holds.
+	 */
+	stasis_subscription_accept_message_type(mem->devstate_sub,
+		stasis_subscription_change_type());
+	stasis_subscription_set_filter(mem->devstate_sub,
+		STASIS_SUBSCRIPTION_FILTER_SELECTIVE);
+}
+
+/*! \internal \brief Drop this member's device state subscription. */
+static void unwatch_member_state(struct member *mem)
+{
+	if (!mem->devstate_sub) {
+		return;
+	}
+	/*
+	 * Non-joining: the callback data holds references to the queue and member,
+	 * so both outlive any in-flight callback and the final message releases
+	 * them.  Joining here would deadlock when called from the callback thread.
+	 */
+	stasis_unsubscribe(mem->devstate_sub);
+	mem->devstate_sub = NULL;
+}
+
+/*!
+ * \internal
+ * \brief Drop every member's device state subscription.
+ *
+ * Must be called when a queue leaves the container.  Each subscription's
+ * callback data holds a reference to the queue, so waiting for the queue
+ * destructor to release them cannot work: that same reference is what stops the
+ * destructor from ever running, and the queue, its members and their
+ * subscriptions would leak while continuing to publish for a queue nobody can
+ * see any more.
+ *
+ * \note Callers must hold the queue lock.
+ */
+static void queue_unwatch_all_members(struct call_queue *q)
+{
+	struct ao2_iterator mi;
 	struct member *m;
+
+	mi = ao2_iterator_init(q->members, 0);
+	while ((m = ao2_iterator_next(&mi))) {
+		unwatch_member_state(m);
+		ao2_ref(m, -1);
+	}
+	ao2_iterator_destroy(&mi);
+}
+
+/*! \internal \brief Drop every remaining queue's member subscriptions at unload. */
+static void queue_unwatch_all_queues(void)
+{
 	struct call_queue *q;
-	char interface[80], *slash_pos;
-	int found = 0;			/* Found this member in any queue */
-	int found_member;		/* Found this member in this queue */
-	int avail = 0;			/* Found an available member in this queue */
+	struct ao2_iterator queue_iter;
+
+	if (!queues) {
+		return;
+	}
+
+	queue_iter = ao2_iterator_init(queues, 0);
+	while ((q = ao2_t_iterator_next(&queue_iter, "Iterate through queues"))) {
+		ao2_lock(q);
+		queue_unwatch_all_members(q);
+		ao2_unlock(q);
+		queue_t_unref(q, "Done with iterator");
+	}
+	ao2_iterator_destroy(&queue_iter);
+}
+
+/*! \brief Wait for outstanding per-member subscriptions to drain at unload. */
+static void member_devstate_watches_shutdown(void)
+{
+	int remaining;
+	struct timeval start = ast_tvnow();
+
+	/*
+	 * By the time this runs, every remaining queue's members have been
+	 * unsubscribed (see queue_unwatch_all_queues()), but the unsubscribe is
+	 * non-joining, so the final messages may still be in flight. The count
+	 * only drops when a final message is delivered and releases the callback
+	 * data, so waiting for zero means no callback can still run.
+	 */
+	while ((remaining = ast_atomic_fetchadd_int(&member_devstate_watches, 0)) > 0) {
+		if (ast_tvdiff_ms(ast_tvnow(), start) >= 10000) {
+			ast_log(LOG_WARNING,
+				"%d member device state subscription(s) still draining after 10 seconds; "
+				"unloading anyway\n", remaining);
+			return;
+		}
+		usleep(10000);
+	}
+}
+
+/*!
+ * \internal
+ * \brief Publish the "Queue:<name>_avail" device state.
+ *
+ * Every Queue:..._avail publisher routes through here.  device_state_cb() can
+ * fire on every member device-state change, so callers routinely publish a
+ * value that is already current: a burst (e.g. thousands of endpoints settling
+ * at restart, or a large member reload) would republish the same value over and
+ * over onto the devicestate:all topic.  No deduplication is needed here for
+ * that -- ast_publish_device_state_full() drops a cachable publish whose value
+ * matches what this server last published for the device, and the device state
+ * cache it consults is updated synchronously by the publish, so a burst
+ * collapses to one message per real transition.
+ *
+ * That is also what makes queue chaining (a member whose state_interface is
+ * another queue's "Queue:..._avail" device) safe: a re-entrant publish that
+ * does not change the value produces no message, so the callback chain
+ * converges instead of looping.
+ *
+ * Per the queue_avail hint convention: AST_DEVICE_INUSE means no member is
+ * available, AST_DEVICE_NOT_INUSE means at least one member is available.
+ *
+ * \note Callers must hold the queue lock.
+ */
+static void publish_queue_avail(struct call_queue *q, int available)
+{
+	int state = available ? AST_DEVICE_NOT_INUSE : AST_DEVICE_INUSE;
+
+	ast_devstate_changed(state, AST_DEVSTATE_CACHABLE, "Queue:%s_avail", q->name);
+}
+
+/*!
+ * \internal
+ * \brief Refresh the Queue:<name>_avail hint after a member-set refresh.
+ *
+ * Called once the realtime or config-reload paths have finished adding,
+ * removing, or updating members: those paths update members directly and
+ * never publish Queue:<name>_avail themselves, and init_queue() only seeds it
+ * on first creation, so without this the hint can go stale. Safe to call on
+ * every refresh: publish_queue_avail() is a no-op (no devicestate:all
+ * traffic, no BLF blip) unless the aggregate availability actually changed.
+ *
+ * \note Callers must hold the queue lock.
+ */
+static void refresh_queue_avail_hint(struct call_queue *q)
+{
+	publish_queue_avail(q, num_available_members(q) > 0);
+}
+
+/*!
+ * \brief Set a member's status from its own device's state.
+ *
+ * No scanning: the subscription's callback data names the queue and member
+ * directly.  Only the availability recompute walks the member list, and that is
+ * identical to what the shared-subscription version does.
+ */
+static void member_device_state_cb(void *data, struct stasis_subscription *sub,
+	struct stasis_message *msg)
+{
+	struct member_devstate_watch *watch = data;
+	struct ast_device_state_message *dev_state;
+
+	if (stasis_subscription_final_message(sub, msg)) {
+		ao2_ref(watch, -1);
+		return;
+	}
 
 	if (ast_device_state_message_type() != stasis_message_type(msg)) {
 		return;
@@ -2822,69 +3096,19 @@ static void device_state_cb(void *unused, struct stasis_subscription *sub, struc
 		return;
 	}
 
-	qiter = ao2_iterator_init(queues, 0);
-	while ((q = ao2_t_iterator_next(&qiter, "Iterate over queues"))) {
-		ao2_lock(q);
-
-		avail = 0;
-		found_member = 0;
-		miter = ao2_iterator_init(q->members, 0);
-		for (; (m = ao2_iterator_next(&miter)); ao2_ref(m, -1)) {
-			if (!found_member) {
-				ast_copy_string(interface, m->state_interface, sizeof(interface));
-
-				if ((slash_pos = strchr(interface, '/'))) {
-					if (!strncasecmp(interface, "Local/", 6) && (slash_pos = strchr(slash_pos + 1, '/'))) {
-						*slash_pos = '\0';
-					}
-				}
-
-				if (!strcasecmp(interface, dev_state->device)) {
-					found_member = 1;
-					update_status(q, m, dev_state->state);
-				}
-			}
-
-			/* check every member until we find one NOT_INUSE */
-			if (!avail) {
-				avail = is_member_available(q, m);
-			}
-			if (avail && found_member) {
-				/* early exit as we've found an available member and the member of interest */
-				ao2_ref(m, -1);
-				break;
-			}
-		}
-
-		if (found_member) {
-			found = 1;
-			if (avail) {
-				ast_devstate_changed(AST_DEVICE_NOT_INUSE, AST_DEVSTATE_CACHABLE, "Queue:%s_avail", q->name);
-			} else {
-				ast_devstate_changed(AST_DEVICE_INUSE, AST_DEVSTATE_CACHABLE, "Queue:%s_avail", q->name);
-			}
-		}
-
-		ao2_iterator_destroy(&miter);
-
-		ao2_unlock(q);
-		queue_t_unref(q, "Done with iterator");
+	ao2_lock(watch->q);
+	/*
+	 * The unsubscribe is non-joining, so a message queued before it can still
+	 * arrive here.  By then the member may have been removed from the queue, or
+	 * re-pointed at a different device by a realtime update -- in either case
+	 * mem->devstate_sub no longer refers to this subscription, and applying the
+	 * old device's state would clobber the current one.
+	 */
+	if (watch->mem->devstate_sub == sub) {
+		update_status(watch->q, watch->mem, dev_state->state);
+		publish_queue_avail(watch->q, num_available_members(watch->q) > 0);
 	}
-	ao2_iterator_destroy(&qiter);
-
-	if (found) {
-		ast_debug(1, "Device '%s' changed to state '%u' (%s)\n",
-			dev_state->device,
-			dev_state->state,
-			ast_devstate2str(dev_state->state));
-	} else {
-		ast_debug(3, "Device '%s' changed to state '%u' (%s) but we don't care because they're not a member of any queue.\n",
-			dev_state->device,
-			dev_state->state,
-			ast_devstate2str(dev_state->state));
-	}
-
-	return;
+	ao2_unlock(watch->q);
 }
 
 /*! \brief Helper function which converts from extension state to device state values */
@@ -3107,9 +3331,14 @@ static int member_cmp_fn(void *obj1, void *obj2, int flags)
 
 /*!
  * \brief Initialize Queue default values.
+ * \param q The queue to initialize.
+ * \param new_queue Nonzero if \a q was just created and has never run through
+ *        this function before; zero if it is being reloaded. Determines
+ *        whether the Queue:<name>_avail hint is seeded (see the comment
+ *        below).
  * \note the queue's lock  must be held before executing this function
 */
-static void init_queue(struct call_queue *q)
+static void init_queue(struct call_queue *q, int new_queue)
 {
 	int i;
 	struct penalty_rule *pr_iter;
@@ -3201,14 +3430,20 @@ static void init_queue(struct call_queue *q)
 		ast_free(pr_iter);
 	}
 
-	/* On restart assume no members are available.
-	 * The queue_avail hint is a boolean state to indicate whether a member is available or not.
+	/* Seed the Queue:<name>_avail hint once, at queue creation only.
+	 * init_queue() also runs on reload, where the hint is already published and
+	 * is maintained incrementally by add_to_queue/remove_from_queue/
+	 * device_state_cb.  Publishing INUSE here on every reload would be a real
+	 * transition away from the current value -- so the devicestate layer would
+	 * not suppress it -- giving BLF subscribers a brief spurious "no members
+	 * available" blip even when the queue is continuously staffed.
 	 *
-	 * This seems counter intuitive, but is required to light a BLF
-	 * AST_DEVICE_INUSE indicates no members are available.
-	 * AST_DEVICE_NOT_INUSE indicates a member is available.
+	 * AST_DEVICE_INUSE   = no members available (BLF lit)
+	 * AST_DEVICE_NOT_INUSE = at least one member available (BLF unlit)
 	 */
-	ast_devstate_changed(AST_DEVICE_INUSE, AST_DEVSTATE_CACHABLE, "Queue:%s_avail", q->name);
+	if (new_queue) {
+		publish_queue_avail(q, 0);
+	}
 }
 
 static void clear_queue(struct call_queue *q)
@@ -3729,6 +3964,15 @@ static void member_add_to_queue(struct call_queue *queue, struct member *mem)
 	ast_devstate_changed(mem->paused ? QUEUE_PAUSED_DEVSTATE : QUEUE_UNPAUSED_DEVSTATE,
 		AST_DEVSTATE_CACHABLE, "Queue:%s_pause_%s", queue->name, mem->interface);
 	ao2_unlock(queue->members);
+
+	watch_member_state(queue, mem);
+	/*
+	 * Re-read the status now that the subscription is live.  create_queue_member()
+	 * read it before this member had a subscription, so a device-state change
+	 * arriving in between would otherwise be lost until the device next changes
+	 * state -- a wide window at startup, when thousands of endpoints are settling.
+	 */
+	mem->status = get_queue_member_status(mem);
 }
 
 /*! \internal
@@ -3745,6 +3989,8 @@ static void member_remove_from_queue(struct call_queue *queue, struct member *me
 	queue_member_follower_removal(queue, mem);
 	ao2_unlink(queue->members, mem);
 	ao2_unlock(queue->members);
+
+	unwatch_member_state(mem);
 }
 
 /*!
@@ -3833,7 +4079,12 @@ static void rt_handle_member_record(struct call_queue *q, char *category, struct
 					AST_DEVSTATE_CACHABLE, "Queue:%s_pause_%s", q->name, m->interface);
 			}
 			if (strcasecmp(state_interface, m->state_interface)) {
-				ast_copy_string(m->state_interface, state_interface, sizeof(m->state_interface));
+				/* This member now watches a different device: drop the old
+				 * subscription and take one on the new interface. */
+				unwatch_member_state(m);
+				ast_copy_string(m->state_interface, state_interface,
+					sizeof(m->state_interface));
+				watch_member_state(q, m);
 			}
 			m->penalty = penalty;
 			m->ringinuse = ringinuse;
@@ -3967,6 +4218,7 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 
 			q->dead = 1;
 			/* Delete if unused (else will be deleted when last caller leaves). */
+			queue_unwatch_all_members(q);
 			queues_t_unlink(queues, q, "Unused; removing from container");
 			ao2_unlock(q);
 			queue_t_unref(q, "Queue is dead; can't return it");
@@ -3975,35 +4227,39 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 	}
 
 	/* Create a new queue if an in-core entry does not exist yet. */
-	if (!q) {
-		struct ast_variable *tmpvar = NULL;
-		if (!(q = alloc_queue(queuename))) {
-			return NULL;
-		}
-		ao2_lock(q);
-		clear_queue(q);
-		q->realtime = 1;
-		/*Before we initialize the queue, we need to set the strategy, so that linear strategy
-		 * will allocate the members properly
-		 */
-		for (tmpvar = queue_vars; tmpvar; tmpvar = tmpvar->next) {
-			if (!strcasecmp(tmpvar->name, "strategy")) {
-				q->strategy = strat2int(tmpvar->value);
-				if (q->strategy < 0) {
-					ast_log(LOG_WARNING, "'%s' isn't a valid strategy for queue '%s', using ringall instead\n",
-					tmpvar->value, q->name);
-					q->strategy = QUEUE_STRATEGY_RINGALL;
-				}
-				break;
+	{
+		int new_queue = !q;
+
+		if (new_queue) {
+			struct ast_variable *tmpvar = NULL;
+			if (!(q = alloc_queue(queuename))) {
+				return NULL;
 			}
+			ao2_lock(q);
+			clear_queue(q);
+			q->realtime = 1;
+			/*Before we initialize the queue, we need to set the strategy, so that linear strategy
+			 * will allocate the members properly
+			 */
+			for (tmpvar = queue_vars; tmpvar; tmpvar = tmpvar->next) {
+				if (!strcasecmp(tmpvar->name, "strategy")) {
+					q->strategy = strat2int(tmpvar->value);
+					if (q->strategy < 0) {
+						ast_log(LOG_WARNING, "'%s' isn't a valid strategy for queue '%s', using ringall instead\n",
+						tmpvar->value, q->name);
+						q->strategy = QUEUE_STRATEGY_RINGALL;
+					}
+					break;
+				}
+			}
+			/* We traversed all variables and didn't find a strategy */
+			if (!tmpvar) {
+				q->strategy = QUEUE_STRATEGY_RINGALL;
+			}
+			queues_t_link(queues, q, "Add queue to container");
 		}
-		/* We traversed all variables and didn't find a strategy */
-		if (!tmpvar) {
-			q->strategy = QUEUE_STRATEGY_RINGALL;
-		}
-		queues_t_link(queues, q, "Add queue to container");
+		init_queue(q, new_queue);		/* Ensure defaults for all parameters not set explicitly. */
 	}
-	init_queue(q);		/* Ensure defaults for all parameters not set explicitly. */
 
 	memset(tmpbuf, 0, sizeof(tmpbuf));
 	for (v = queue_vars; v; v = v->next) {
@@ -4053,6 +4309,9 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 		ao2_ref(m, -1);
 	}
 	ao2_iterator_destroy(&mem_iter);
+
+	/* The realtime member set is final. */
+	refresh_queue_avail_hint(q);
 
 	ao2_unlock(q);
 
@@ -4196,6 +4455,8 @@ static void update_realtime_members(struct call_queue *q)
 		}
 		ao2_iterator_destroy(&mem_iter);
 		ast_debug(3, "Queue %s has no realtime members defined. No need for update\n", q->name);
+		/* Realtime members were removed; refresh the availability hint. */
+		refresh_queue_avail_hint(q);
 		ao2_unlock(q);
 		return;
 	}
@@ -4230,6 +4491,8 @@ static void update_realtime_members(struct call_queue *q)
 		ao2_ref(m, -1);
 	}
 	ao2_iterator_destroy(&mem_iter);
+	/* Member set is final; refresh the availability hint. */
+	refresh_queue_avail_hint(q);
 	ao2_unlock(q);
 	ast_config_destroy(member_config);
 }
@@ -4609,6 +4872,9 @@ static void leave_queue(struct queue_ent *qe)
 
 	if (q->dead) {
 		/* It's dead and nobody is in it, so kill it */
+		ao2_lock(q);
+		queue_unwatch_all_members(q);
+		ao2_unlock(q);
 		queues_t_unlink(queues, q, "Queue is now dead; remove it from the container");
 	}
 	/* unref the explicit ref earlier in the function */
@@ -7816,7 +8082,7 @@ static int remove_from_queue(const char *queuename, const char *interface)
 			}
 
 			if (!num_available_members(q)) {
-				ast_devstate_changed(AST_DEVICE_INUSE, AST_DEVSTATE_CACHABLE, "Queue:%s_avail", q->name);
+				publish_queue_avail(q, 0);
 			}
 
 			res = RES_OKAY;
@@ -7860,7 +8126,7 @@ static int add_to_queue(const char *queuename, const char *interface, const char
 			queue_publish_member_blob(queue_member_added_type(), queue_member_blob_create(q, new_member));
 
 			if (is_member_available(q, new_member)) {
-				ast_devstate_changed(AST_DEVICE_NOT_INUSE, AST_DEVSTATE_CACHABLE, "Queue:%s_avail", q->name);
+				publish_queue_avail(q, 1);
 			}
 
 			ao2_ref(new_member, -1);
@@ -8076,11 +8342,9 @@ static void set_queue_member_pause(struct call_queue *q, struct member *mem, con
 	}
 
 	if (is_member_available(q, mem)) {
-		ast_devstate_changed(AST_DEVICE_NOT_INUSE, AST_DEVSTATE_CACHABLE,
-			"Queue:%s_avail", q->name);
+		publish_queue_avail(q, 1);
 	} else if (!num_available_members(q)) {
-		ast_devstate_changed(AST_DEVICE_INUSE, AST_DEVSTATE_CACHABLE,
-			"Queue:%s_avail", q->name);
+		publish_queue_avail(q, 0);
 	}
 
 	if (!paused && !ast_strlen_zero(reason)) {
@@ -10018,6 +10282,8 @@ static void reload_single_member(const char *memberdata, struct call_queue *q)
 			ao2_link(q->members, newm);
 			ao2_unlink(q->members, cur);
 			ao2_unlock(q->members);
+			watch_member_state(q, newm);
+			unwatch_member_state(cur);
 		} else {
 			/* Otherwise we need to add using the function that will apply a round robin queue position manually. */
 			member_add_to_queue(q, newm);
@@ -10048,6 +10314,7 @@ static int kill_dead_members(void *obj, void *arg, int flags)
 		member->status = get_queue_member_status(member);
 		return 0;
 	} else {
+		unwatch_member_state(member);
 		return CMP_MATCH;
 	}
 }
@@ -10095,17 +10362,17 @@ static void reload_single_queue(struct ast_config *cfg, struct ast_flags *mask, 
 		new = 0;
 	}
 
+	/* Locked for the whole function, even when new: reload_single_member()
+	 * below can make a member's device state subscription live immediately,
+	 * and member_device_state_cb() takes this same lock to read/write q. */
+	ao2_lock(q);
 	if (!new) {
-		ao2_lock(q);
 		prev_weight = q->weight ? 1 : 0;
 	}
 	/* Check if we already found a queue with this name in the config file */
 	if (q->found) {
 		ast_log(LOG_WARNING, "Queue '%s' already defined! Skipping!\n", queuename);
-		if (!new) {
-			/* It should be impossible to *not* hit this case*/
-			ao2_unlock(q);
-		}
+		ao2_unlock(q);
 		queue_t_unref(q, "We exist! Expiring temporary pointer");
 		return;
 	}
@@ -10125,7 +10392,7 @@ static void reload_single_queue(struct ast_config *cfg, struct ast_flags *mask, 
 		} else {
 			q->strategy = QUEUE_STRATEGY_RINGALL;
 		}
-		init_queue(q);
+		init_queue(q, new);
 	}
 	if (member_reload) {
 		ao2_callback(q->members, OBJ_NODATA, mark_member_dead, NULL);
@@ -10175,13 +10442,15 @@ static void reload_single_queue(struct ast_config *cfg, struct ast_flags *mask, 
 		ao2_callback(q->members, OBJ_NODATA | OBJ_MULTIPLE, queue_delme_members_decrement_followers, q);
 		ao2_callback(q->members, OBJ_NODATA | OBJ_MULTIPLE | OBJ_UNLINK, kill_dead_members, q);
 		ao2_unlock(q->members);
+		/* Member set is final and kill_dead_members() has refreshed every
+		 * surviving member's status; refresh the availability hint. */
+		refresh_queue_avail_hint(q);
 	}
 
 	if (new) {
 		queues_t_link(queues, q, "Add queue to container");
-	} else {
-		ao2_unlock(q);
 	}
+	ao2_unlock(q);
 	queue_t_unref(q, "Expiring creation reference");
 }
 
@@ -10201,6 +10470,9 @@ static int kill_if_unfound(void *obj, void *arg, int flags)
 	char *queuename = arg;
 	if (!q->realtime && !q->found && (ast_strlen_zero(queuename) || !strcasecmp(queuename, q->name))) {
 		q->dead = 1;
+		ao2_lock(q);
+		queue_unwatch_all_members(q);
+		ao2_unlock(q);
 		return CMP_MATCH;
 	} else {
 		return 0;
@@ -12049,7 +12321,10 @@ static int unload_module(void)
 	ast_custom_function_unregister(&queuewaitingcount_function);
 	ast_custom_function_unregister(&queuememberpenalty_function);
 
-	device_state_sub = stasis_unsubscribe_and_join(device_state_sub);
+	/* Unsubscribe every remaining queue's members, then drain their pool
+	 * subscriptions before tearing down member data. */
+	queue_unwatch_all_queues();
+	member_devstate_watches_shutdown();
 
 	ast_unload_realtime("queue_members");
 	ao2_cleanup(queues);
@@ -12091,6 +12366,25 @@ static int load_module(void)
 	}
 
 	use_weight = 0;
+
+	/*
+	 * Initialize the member stasis message types before reload_handler():
+	 * loading persistent/realtime members publishes member-added events, and a
+	 * device-state change arriving during the load can publish a member-status
+	 * event.  Without the types registered first these publishes fail with
+	 * "<type>() before init".  The remaining (caller/agent) types are not
+	 * published during the load and are initialized further below.
+	 */
+	err |= STASIS_MESSAGE_TYPE_INIT(queue_member_status_type);
+	err |= STASIS_MESSAGE_TYPE_INIT(queue_member_added_type);
+	err |= STASIS_MESSAGE_TYPE_INIT(queue_member_removed_type);
+	err |= STASIS_MESSAGE_TYPE_INIT(queue_member_pause_type);
+	err |= STASIS_MESSAGE_TYPE_INIT(queue_member_penalty_type);
+	err |= STASIS_MESSAGE_TYPE_INIT(queue_member_ringinuse_type);
+	if (err) {
+		unload_module();
+		return AST_MODULE_LOAD_DECLINE;
+	}
 
 	if (reload_handler(0, &mask, NULL)) {
 		unload_module();
@@ -12161,14 +12455,6 @@ static int load_module(void)
 	err |= ast_custom_function_register(&queuewaitingcount_function);
 	err |= ast_custom_function_register(&queuememberpenalty_function);
 
-	/* in the following subscribe call, do I use DEVICE_STATE, or DEVICE_STATE_CHANGE? */
-	device_state_sub = stasis_subscribe(ast_device_state_topic_all(), device_state_cb, NULL);
-	if (!device_state_sub) {
-		err = -1;
-	}
-	stasis_subscription_accept_message_type(device_state_sub, ast_device_state_message_type());
-	stasis_subscription_set_filter(device_state_sub, STASIS_SUBSCRIPTION_FILTER_SELECTIVE);
-
 	manager_topic = ast_manager_get_topic();
 	queue_topic = ast_queue_topic_all();
 	if (!manager_topic || !queue_topic) {
@@ -12204,12 +12490,7 @@ static int load_module(void)
 	err |= STASIS_MESSAGE_TYPE_INIT(queue_caller_leave_type);
 	err |= STASIS_MESSAGE_TYPE_INIT(queue_caller_abandon_type);
 
-	err |= STASIS_MESSAGE_TYPE_INIT(queue_member_status_type);
-	err |= STASIS_MESSAGE_TYPE_INIT(queue_member_added_type);
-	err |= STASIS_MESSAGE_TYPE_INIT(queue_member_removed_type);
-	err |= STASIS_MESSAGE_TYPE_INIT(queue_member_pause_type);
-	err |= STASIS_MESSAGE_TYPE_INIT(queue_member_penalty_type);
-	err |= STASIS_MESSAGE_TYPE_INIT(queue_member_ringinuse_type);
+	/* The queue_member_* types are initialized earlier, before reload_handler(). */
 
 	err |= STASIS_MESSAGE_TYPE_INIT(queue_agent_called_type);
 	err |= STASIS_MESSAGE_TYPE_INIT(queue_agent_connect_type);
