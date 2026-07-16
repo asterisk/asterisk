@@ -7467,11 +7467,14 @@ static int bridge_p2p_rtp_write(struct ast_rtp_instance *instance,
 	ast_rtp_instance_get_remote_address(instance1, &remote_address);
 
 	if (ast_sockaddr_isnull(&remote_address)) {
+		int is_text = payload_type->asterisk_format
+				&& payload_type->format
+				&& ast_format_get_type(payload_type->format) == AST_MEDIA_TYPE_TEXT;
 		ast_debug_rtp(5, "(%p, %p) RTP remote address is null, most likely RTP has been stopped\n",
 			instance, instance1);
 		ao2_unlock(instance1);
 		ao2_lock(instance);
-		return 0;
+		return is_text ? -1 : 0;
 	}
 
 	/* If the marker bit has been explicitly set turn it on */
