@@ -7470,8 +7470,13 @@ static int bridge_p2p_rtp_write(struct ast_rtp_instance *instance,
 		int is_text = payload_type->asterisk_format
 				&& payload_type->format
 				&& ast_format_get_type(payload_type->format) == AST_MEDIA_TYPE_TEXT;
-		ast_debug_rtp(5, "(%p, %p) RTP remote address is null, most likely RTP has been stopped\n",
-			instance, instance1);
+		if (is_text) {
+			ast_debug_rtp(5, "(%p, %p) RTP remote address is null, audio RTP is probably stopped while text is still active\n",
+				instance, instance1);
+		} else {
+			ast_debug_rtp(5, "(%p, %p) RTP remote address is null, most likely RTP has been stopped\n",
+				instance, instance1);
+		}
 		ao2_unlock(instance1);
 		ao2_lock(instance);
 		return is_text ? -1 : 0;
