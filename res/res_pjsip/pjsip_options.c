@@ -33,7 +33,6 @@
 #include "asterisk/statsd.h"
 #include "include/res_pjsip_private.h"
 #include "asterisk/taskprocessor.h"
-#include "asterisk/serializer_shutdown_group.h"
 
 /*
  * This implementation for OPTIONS support is based around the idea
@@ -124,9 +123,6 @@
 
 /*! \brief Maximum wait time to join the below shutdown group */
 #define MAX_UNLOAD_TIMEOUT_TIME		10	/* Seconds */
-
-/*! \brief Shutdown group for options serializers */
-static struct ast_serializer_shutdown_group *shutdown_group;
 
 /*!
  * \brief Structure which contains status information for an AOR feeding an endpoint state compositor
@@ -972,7 +968,6 @@ static void sip_options_aor_dtor(void *obj)
 static struct sip_options_aor *sip_options_aor_alloc(struct ast_sip_aor *aor)
 {
 	struct sip_options_aor *aor_options;
-	char tps_name[AST_TASKPROCESSOR_MAX_NAME + 1];
 
 	aor_options = ao2_alloc_options(sizeof(*aor_options) + strlen(ast_sorcery_object_get_id(aor)) + 1,
 		sip_options_aor_dtor, AO2_ALLOC_OPT_LOCK_NOLOCK);
@@ -982,10 +977,7 @@ static struct sip_options_aor *sip_options_aor_alloc(struct ast_sip_aor *aor)
 
 	strcpy(aor_options->name, ast_sorcery_object_get_id(aor)); /* SAFE */
 
-	ast_taskprocessor_build_name(tps_name, sizeof(tps_name), "pjsip/options/%s",
-		ast_sorcery_object_get_id(aor));
-	aor_options->serializer = ast_sip_create_serializer_group(tps_name,
-		shutdown_group);
+	aor_options->serializer = ast_sip_get_distributor_serializer_hash(ast_str_hash(aor_options->name));
 	if (!aor_options->serializer) {
 		ao2_ref(aor_options, -1);
 		return NULL;
@@ -2850,7 +2842,6 @@ static int sip_options_cleanup_task(void *obj)
 
 void ast_res_pjsip_cleanup_options_handling(void)
 {
-	int remaining;
 	struct ast_taskprocessor *mgmt_serializer;
 
 	ast_cli_unregister_multiple(cli_options, ARRAY_LEN(cli_options));
@@ -2869,18 +2860,6 @@ void ast_res_pjsip_cleanup_options_handling(void)
 	management_serializer = NULL;
 	if (mgmt_serializer) {
 		ast_sip_push_task_wait_serializer(mgmt_serializer, sip_options_cleanup_task, NULL);
-	}
-
-	remaining = ast_serializer_shutdown_group_join(shutdown_group,
-		MAX_UNLOAD_TIMEOUT_TIME);
-	if (remaining) {
-		ast_log(LOG_WARNING, "Cleanup incomplete. Could not stop %d AORs.\n",
-			remaining);
-	}
-	ao2_cleanup(shutdown_group);
-	shutdown_group = NULL;
-
-	if (mgmt_serializer) {
 		ast_taskprocessor_unreference(mgmt_serializer);
 	}
 
@@ -2901,11 +2880,6 @@ void ast_res_pjsip_cleanup_options_handling(void)
 static int sip_options_init_task(void *mgmt_serializer)
 {
 	management_serializer = mgmt_serializer;
-
-	shutdown_group = ast_serializer_shutdown_group_alloc();
-	if (!shutdown_group) {
-		return -1;
-	}
 
 	if (ast_sorcery_observer_add(ast_sip_get_sorcery(), "endpoint",
 		&endpoint_observer_callbacks)) {
