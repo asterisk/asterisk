@@ -5316,22 +5316,23 @@ static int rtp_raw_write(struct ast_rtp_instance *instance, struct ast_frame *fr
 		}
 	} else if (frame->frametype == AST_FRAME_VIDEO) {
 		mark = frame->subclass.frame_ending;
-		pred = rtp->lastovidtimestamp + frame->samples;
+		pred = rtp->lastts + ((frame->ts - rtp->lastovidtimestamp) / rate);
+
 		/* Re-calculate last TS */
-		rtp->lastts = rtp->lastts + ms * 90;
+		rtp->lastts = rtp->lastts + ms * rate;
 		/* If it's close to our prediction, go for it */
 		if (ast_tvzero(frame->delivery)) {
 			if (abs((int)rtp->lastts - pred) < 7200) {
 				rtp->lastts = pred;
-				rtp->lastovidtimestamp += frame->samples;
 			} else {
-				ast_debug_rtp(3, "(%p) RTP video difference is %d, ms is %u (%u), pred/ts/samples %u/%d/%d\n",
-					instance, abs((int)rtp->lastts - pred), ms, ms * 90, rtp->lastts, pred, frame->samples);
-				rtp->lastovidtimestamp = rtp->lastts;
+				ast_debug_rtp(3, "(%p) RTP video difference is %d, ms is %u\n",
+					instance, abs((int)rtp->lastts - pred), ms);
 			}
+			rtp->lastovidtimestamp = frame->ts;
 		}
 	} else {
 		pred = rtp->lastotexttimestamp + frame->samples;
+
 		/* Re-calculate last TS */
 		rtp->lastts = rtp->lastts + ms;
 		/* If it's close to our prediction, go for it */
@@ -8209,8 +8210,7 @@ static struct ast_frame *ast_rtp_interpret(struct ast_rtp_instance *instance, st
 			rtp->lastividtimestamp = timestamp;
 		calc_rxstamp_and_jitter(&rtp->f.delivery, rtp, timestamp, mark);
 		ast_set_flag(&rtp->f, AST_FRFLAG_HAS_TIMING_INFO);
-		rtp->f.ts = timestamp / (ast_rtp_get_rate(rtp->f.subclass.format) / 1000);
-		rtp->f.samples = timestamp - rtp->lastividtimestamp;
+		rtp->f.ts = timestamp / (ast_format_get_sample_rate(rtp->f.subclass.format) / 1000);
 		rtp->lastividtimestamp = timestamp;
 		rtp->f.delivery.tv_sec = 0;
 		rtp->f.delivery.tv_usec = 0;
