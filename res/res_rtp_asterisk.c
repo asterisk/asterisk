@@ -3503,18 +3503,26 @@ static int __rtp_sendto(struct ast_rtp_instance *instance, void *buf, size_t siz
 		/* Release the instance lock to avoid deadlock with PJPROJECT group lock */
 		ice = transport_rtp->ice;
 		ao2_ref(ice, +1);
-		if (instance == transport) {
-			ao2_unlock(instance);
-		}
+		ao2_ref(transport, +1);
+		ao2_unlock(instance);
 		status = pj_ice_sess_send_data(ice->real_ice, component, temp, len);
 		ao2_ref(ice, -1);
-		if (instance == transport) {
-			ao2_lock(instance);
-		}
+		ao2_lock(instance);
 		if (status == PJ_SUCCESS) {
 			*via_ice = 1;
+			ao2_ref(transport, -1);
 			return len;
 		}
+		if (transport != (rtp->bundled ? rtp->bundled : instance)) {
+			/*
+			 * In case the transport was bundled or un-bundled while we were unlocked don't
+			 * fall through to sending using the transport instance as we may no longer be
+			 * associated with it.
+			 */
+			ao2_ref(transport, -1);
+			return 0;
+		}
+		ao2_ref(transport, -1);
 	}
 #endif
 
@@ -6748,6 +6756,43 @@ static int ast_rtp_rtcp_handle_nack(struct ast_rtp_instance *instance, unsigned 
 }
 
 /*
+ * Handle NACK while releasing the transport lock, while keeping the child
+ * instance lock precondition required by ast_rtp_rtcp_handle_nack().
+ */
+static int ast_rtp_rtcp_handle_nack_locking(
+	struct ast_rtp_instance *instance,
+	struct ast_rtp_instance *transport,
+	unsigned int *nackdata,
+	unsigned int position,
+	unsigned int length)
+{
+	int res;
+
+	if (!transport || transport == instance) {
+		return ast_rtp_rtcp_handle_nack(instance, nackdata, position, length);
+	}
+
+	ao2_ref(instance, +1);
+	ao2_ref(transport, +1);
+
+	/* Release child then parent; reacquire parent then child. */
+	ao2_unlock(instance);
+	ao2_unlock(transport);
+	ao2_lock(instance);
+
+	res = ast_rtp_rtcp_handle_nack(instance, nackdata, position, length);
+
+	ao2_unlock(instance);
+	ao2_lock(transport);
+	ao2_lock(instance);
+
+	ao2_ref(transport, -1);
+	ao2_ref(instance, -1);
+
+	return res;
+}
+
+/*
  * Unshifted RTCP header bit field masks
  */
 #define RTCP_LENGTH_MASK			0xFFFF
@@ -7205,7 +7250,9 @@ static struct ast_frame *ast_rtcp_interpret(struct ast_rtp_instance *instance, s
 					ast_verbose("Received generic RTCP NACK message\n");
 				}
 
-				ast_rtp_rtcp_handle_nack(instance, rtcpheader, position, length);
+				ast_rtp_rtcp_handle_nack_locking(instance,
+					child ? transport : NULL, rtcpheader, position, length);
+
 				break;
 			default:
 				break;
