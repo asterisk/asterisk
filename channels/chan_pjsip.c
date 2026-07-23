@@ -328,26 +328,37 @@ static int check_for_rtp_changes(struct ast_channel *chan, struct ast_rtp_instan
 		struct ast_sip_session_media *media, struct ast_sip_session *session)
 {
 	int changed = 0, position = -1;
+	int payloads_changed;
 
 	if (media->rtp) {
 		position = rtp_find_rtcp_fd_position(session, media->rtp);
 	}
 
 	if (rtp) {
+		payloads_changed = ast_sip_session_media_set_direct_media_payloads(media, rtp);
+		if (payloads_changed < 0) {
+			ast_log(LOG_ERROR, "Unable to snapshot direct media payloads for channel '%s'\n",
+				ast_channel_name(chan));
+			return 0;
+		}
 		changed = ast_rtp_instance_get_and_cmp_remote_address(rtp, &media->direct_media_addr);
+		changed |= payloads_changed;
 		if (media->rtp) {
 			if (position != -1) {
 				ast_channel_set_fd(chan, position + AST_EXTENDED_FDS, -1);
 			}
 			ast_rtp_instance_set_prop(media->rtp, AST_RTP_PROPERTY_RTCP, 0);
 		}
-	} else if (!ast_sockaddr_isnull(&media->direct_media_addr)){
-		ast_sockaddr_setnull(&media->direct_media_addr);
-		changed = 1;
-		if (media->rtp) {
-			ast_rtp_instance_set_prop(media->rtp, AST_RTP_PROPERTY_RTCP, 1);
-			if (position != -1) {
-				ast_channel_set_fd(chan, position + AST_EXTENDED_FDS, ast_rtp_instance_fd(media->rtp, 1));
+	} else {
+		changed |= ast_sip_session_media_set_direct_media_payloads(media, NULL);
+		if (!ast_sockaddr_isnull(&media->direct_media_addr)) {
+			ast_sockaddr_setnull(&media->direct_media_addr);
+			changed = 1;
+			if (media->rtp) {
+				ast_rtp_instance_set_prop(media->rtp, AST_RTP_PROPERTY_RTCP, 1);
+				if (position != -1) {
+					ast_channel_set_fd(chan, position + AST_EXTENDED_FDS, ast_rtp_instance_fd(media->rtp, 1));
+				}
 			}
 		}
 	}
