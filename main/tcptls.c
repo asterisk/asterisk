@@ -249,31 +249,39 @@ static void *handle_tcptls_connection(void *data)
 {
 	struct ast_tcptls_session_instance *tcptls_session = data;
 
-	/* TCP/TLS connections are associated with external protocols, and
-	 * should not be allowed to execute 'dangerous' functions. This may
-	 * need to be pushed down into the individual protocol handlers, but
-	 * this seems like a good general policy.
-	 */
-	if (ast_thread_inhibit_escalations()) {
-		ast_log(LOG_ERROR, "Failed to inhibit privilege escalations; killing connection from peer '%s'\n",
-			ast_sockaddr_stringify(&tcptls_session->remote_address));
-		ast_tcptls_close_session_file(tcptls_session);
-		ao2_ref(tcptls_session, -1);
-		return NULL;
-	}
-
 	/*
-	 * TCP/TLS connections are associated with external protocols which can
-	 * be considered to be user interfaces (even for SIP messages), and
-	 * will not handle channel media.  This may need to be pushed down into
-	 * the individual protocol handlers, but this seems like a good start.
+	 * Inbound (server) TCP/TLS connections are associated with external
+	 * protocols and are treated as untrusted user interfaces: they should
+	 * not be allowed to execute 'dangerous' functions, and can be considered
+	 * to be user interfaces (even for SIP messages) which will not handle
+	 * channel media.  This may need to be pushed down into the individual
+	 * protocol handlers, but this seems like a good general policy.  Each
+	 * inbound connection runs on its own dedicated worker thread, so setting
+	 * these thread-local flags here is safe.
+	 *
+	 * Outbound (client) connections are initiated by Asterisk itself, are not
+	 * external user interfaces, and run synchronously on the caller's thread
+	 * (for example a channel/PBX thread performing an outbound WebSocket dial,
+	 * or ExternalIVR).  Setting these flags for them would permanently poison
+	 * that thread and make it refuse dangerous functions (STAT, SHELL, ...)
+	 * for the remainder of its life, so skip them for client connections.
 	 */
-	if (ast_thread_user_interface_set(1)) {
-		ast_log(LOG_ERROR, "Failed to set user interface status; killing connection from peer '%s'\n",
-			ast_sockaddr_stringify(&tcptls_session->remote_address));
-		ast_tcptls_close_session_file(tcptls_session);
-		ao2_ref(tcptls_session, -1);
-		return NULL;
+	if (!tcptls_session->client) {
+		if (ast_thread_inhibit_escalations()) {
+			ast_log(LOG_ERROR, "Failed to inhibit privilege escalations; killing connection from peer '%s'\n",
+				ast_sockaddr_stringify(&tcptls_session->remote_address));
+			ast_tcptls_close_session_file(tcptls_session);
+			ao2_ref(tcptls_session, -1);
+			return NULL;
+		}
+
+		if (ast_thread_user_interface_set(1)) {
+			ast_log(LOG_ERROR, "Failed to set user interface status; killing connection from peer '%s'\n",
+				ast_sockaddr_stringify(&tcptls_session->remote_address));
+			ast_tcptls_close_session_file(tcptls_session);
+			ao2_ref(tcptls_session, -1);
+			return NULL;
+		}
 	}
 
 	if (ast_tcptls_start_tls(tcptls_session) == NULL) {
