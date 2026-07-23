@@ -462,7 +462,8 @@ static int func_channel_read(struct ast_channel *chan, const char *function,
 		locked_copy_string(chan, buf,
 			ast_channel_hold_state(chan) == AST_CONTROL_HOLD ? "1" : "0", len);
 	} else if (!strcasecmp(data, "channeltype"))
-		locked_copy_string(chan, buf, ast_channel_tech(chan)->type, len);
+		locked_copy_string(chan, buf,
+			ast_channel_tech(chan) ? ast_channel_tech(chan)->type : "", len);
 	else if (!strcasecmp(data, "accountcode"))
 		locked_copy_string(chan, buf, ast_channel_accountcode(chan), len);
 	else if (!strcasecmp(data, "checkhangup")) {
@@ -797,7 +798,8 @@ static int func_channel_write_real(struct ast_channel *chan, const char *functio
 		}
 	} else if (!strcasecmp(data, "tenantid")) {
 		ast_channel_tenantid_set(chan, value);
-	} else if (!ast_channel_tech(chan)->func_channel_write
+	} else if (!ast_channel_tech(chan)
+		 || !ast_channel_tech(chan)->func_channel_write
 		 || ast_channel_tech(chan)->func_channel_write(chan, function, data, value)) {
 		ast_log(LOG_WARNING, "Unknown or unavailable item requested: '%s'\n",
 				data);
