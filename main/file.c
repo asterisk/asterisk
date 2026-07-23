@@ -840,14 +840,25 @@ static struct ast_filestream *openstream_internal(struct ast_channel *chan,
 	ast_channel_set_oldwriteformat(chan, ast_channel_writeformat(chan));
 	/* Set the channel to the best format that exists for the file. */
 	res = ast_set_write_format_from_cap(chan, file_fmt_cap);
-	ast_channel_unlock(chan);
 	/* don't need this anymore now that the channel's write format is set. */
 	ao2_ref(file_fmt_cap, -1);
 
 	if (res == -1) {	/* No format available that works with this channel */
+		ast_channel_unlock(chan);
 		return NULL;
 	}
+
+	/*
+	 * Keep the channel locked across filehelper(ACTION_OPEN).  It re-reads the
+	 * channel's write format (set just above) to select a matching file format,
+	 * while the bridging/format-negotiation code can change the write format
+	 * concurrently -- always under the channel lock.  Dropping the lock between
+	 * setting the format here and re-reading it in filehelper() races with that
+	 * change and can cause a valid file to be wrongly rejected as "not a
+	 * supported format".
+	 */
 	res = filehelper(buf, chan, NULL, ACTION_OPEN);
+	ast_channel_unlock(chan);
 	if (res >= 0)
 		return ast_channel_stream(chan);
 	return NULL;
@@ -911,7 +922,10 @@ struct ast_filestream *ast_openvstream(struct ast_channel *chan,
 			continue;
 		}
 
+		/* Locked for the same reason as the audio path in openstream_internal(). */
+		ast_channel_lock(chan);
 		fd = filehelper(buf, chan, ast_format_get_name(format), ACTION_OPEN);
+		ast_channel_unlock(chan);
 		if (fd >= 0) {
 			ao2_ref(format, -1);
 			ao2_ref(tmp_cap, -1);
