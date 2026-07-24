@@ -441,6 +441,150 @@ static void get_codecs(struct ast_sip_session *session, const struct pjmedia_sdp
 	SCOPE_EXIT_RTN();
 }
 
+
+/*! \brief Determine whether a payload type is already advertised in a BUNDLE group. */
+static int bundle_payload_type_used(struct ast_sip_session *session,
+	const pjmedia_sdp_session *sdp, const pjmedia_sdp_media *media,
+	int bundle_group, int payload)
+{
+	int media_index;
+
+	for (media_index = 0; media_index < sdp->media_count; ++media_index) {
+		struct ast_sip_session_media *other_session_media;
+		int format_index;
+
+		if (media_index >= AST_VECTOR_SIZE(&session->pending_media_state->sessions)) {
+			break;
+		}
+
+		other_session_media = AST_VECTOR_GET(&session->pending_media_state->sessions, media_index);
+		if (!other_session_media || other_session_media->bundle_group != bundle_group) {
+			continue;
+		}
+
+		for (format_index = 0; format_index < sdp->media[media_index]->desc.fmt_count; ++format_index) {
+			if (pj_strtoul(&sdp->media[media_index]->desc.fmt[format_index]) == payload) {
+				return 1;
+			}
+		}
+	}
+
+	/* The current media section is not in the SDP yet, so inspect it separately. */
+	for (media_index = 0; media_index < media->desc.fmt_count; ++media_index) {
+		if (pj_strtoul(&media->desc.fmt[media_index]) == payload) {
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+/*! \brief Check whether a payload slot is either free or already mapped to the requested format. */
+static int payload_type_compatible(struct ast_rtp_codecs *codecs, int payload,
+	struct ast_format *format)
+{
+	struct ast_rtp_payload_type *type;
+	int compatible;
+
+	type = ast_rtp_codecs_get_payload(codecs, payload);
+	if (!type) {
+		return 1;
+	}
+
+	compatible = type->asterisk_format
+		&& ast_format_cmp(type->format, format) == AST_FORMAT_CMP_EQUAL;
+	ao2_ref(type, -1);
+
+	return compatible;
+}
+
+/*! \brief Ensure an RTP codecs structure can receive a format using a payload type. */
+static int ensure_payload_type_mapping(struct ast_rtp_codecs *codecs, int payload,
+	struct ast_format *format)
+{
+	struct ast_rtp_payload_type *type;
+	int matches;
+
+	type = ast_rtp_codecs_get_payload(codecs, payload);
+	if (type) {
+		matches = type->asterisk_format
+			&& ast_format_cmp(type->format, format) == AST_FORMAT_CMP_EQUAL;
+		ao2_ref(type, -1);
+		return matches ? 0 : -1;
+	}
+
+	return ast_rtp_codecs_payload_set_rx(codecs, payload, format) < 0 ? -1 : 0;
+}
+
+/*! \brief Assign a payload type that is unique across the generated BUNDLE group. */
+static int assign_unique_bundle_payload(struct ast_sip_session *session,
+	struct ast_sip_session_media *session_media,
+	struct ast_sip_session_media *session_media_transport,
+	const pjmedia_sdp_session *sdp, const pjmedia_sdp_media *media,
+	struct ast_format *format)
+{
+	struct ast_rtp_codecs *transport_codecs =
+		ast_rtp_instance_get_codecs(session_media_transport->rtp);
+	struct ast_rtp_codecs *stream_codecs =
+		ast_rtp_instance_get_codecs(session_media->rtp);
+	int preferred;
+	int candidate;
+	int offset;
+
+	preferred = ast_rtp_codecs_payload_code(stream_codecs, 1, format, 0);
+	if (preferred < 0) {
+		return -1;
+	}
+
+	/* Preserve the stream's normal payload when it is not used by another m= section. */
+	if (!bundle_payload_type_used(session, sdp, media, session_media->bundle_group, preferred)
+		&& payload_type_compatible(transport_codecs, preferred, format)
+		&& payload_type_compatible(stream_codecs, preferred, format)) {
+		candidate = preferred;
+		goto configure;
+	}
+
+	/* Remap duplicate static or dynamic payloads into the dynamic range. */
+	candidate = preferred >= AST_RTP_PT_FIRST_DYNAMIC
+		? preferred + 1 : AST_RTP_PT_FIRST_DYNAMIC;
+	for (offset = 0; offset < AST_RTP_MAX_PT - AST_RTP_PT_FIRST_DYNAMIC; ++offset) {
+		if (candidate >= AST_RTP_MAX_PT) {
+			candidate = AST_RTP_PT_FIRST_DYNAMIC;
+		}
+
+		if (!bundle_payload_type_used(session, sdp, media, session_media->bundle_group, candidate)
+			&& payload_type_compatible(transport_codecs, candidate, format)
+			&& payload_type_compatible(stream_codecs, candidate, format)) {
+			goto configure;
+		}
+
+		++candidate;
+	}
+
+	ast_log(LOG_WARNING, "No unique dynamic RTP payload type available for bundled stream %s format %s\n",
+		S_OR(session_media->mid, "<unknown>"), ast_format_get_name(format));
+	return -1;
+
+configure:
+	if (ensure_payload_type_mapping(transport_codecs, candidate, format)
+		|| ensure_payload_type_mapping(stream_codecs, candidate, format)) {
+		ast_log(LOG_WARNING, "Unable to configure RTP payload type %d for bundled stream %s format %s\n",
+			candidate, S_OR(session_media->mid, "<unknown>"), ast_format_get_name(format));
+		return -1;
+	}
+
+	ast_debug(2, "Assigned RTP payload type %d to bundled stream %s format %s\n",
+		candidate, S_OR(session_media->mid, "<unknown>"), ast_format_get_name(format));
+	return candidate;
+}
+
+/*! \brief Determine whether the SDP currently being generated is a local offer. */
+static int generating_local_offer(const struct ast_sip_session *session)
+{
+	return !session->inv_session->neg
+		|| pjmedia_sdp_neg_get_state(session->inv_session->neg) == PJMEDIA_SDP_NEG_STATE_DONE;
+}
+
 static int apply_cap_to_bundled(struct ast_sip_session_media *session_media,
 	struct ast_sip_session_media *session_media_transport,
 	struct ast_stream *asterisk_stream, struct ast_format_cap *joint)
@@ -2005,13 +2149,24 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 		 * conflicts.
 		 */
 		if (session_media_transport != session_media) {
-			if ((rtp_code = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(session_media_transport->rtp), 1, format, 0)) == -1) {
+			if (generating_local_offer(session)) {
+				rtp_code = assign_unique_bundle_payload(session, session_media,
+					session_media_transport, sdp, media, format);
+			} else {
+				rtp_code = ast_rtp_codecs_payload_code(
+					ast_rtp_instance_get_codecs(session_media_transport->rtp), 1, format, 0);
+				if (rtp_code != -1) {
+					/* Our instance has to match the offered payload number. */
+					ast_rtp_codecs_payload_set_rx(
+						ast_rtp_instance_get_codecs(session_media->rtp), rtp_code, format);
+				}
+			}
+
+			if (rtp_code == -1) {
 				ast_log(LOG_WARNING,"Unable to get rtp codec payload code for %s\n", ast_format_get_name(format));
 				ao2_ref(format, -1);
 				continue;
 			}
-			/* Our instance has to match the payload number though */
-			ast_rtp_codecs_payload_set_rx(ast_rtp_instance_get_codecs(session_media->rtp), rtp_code, format);
 		} else {
 			if ((rtp_code = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(session_media->rtp), 1, format, 0)) == -1) {
 				ast_log(LOG_WARNING,"Unable to get rtp codec payload code for %s\n", ast_format_get_name(format));
