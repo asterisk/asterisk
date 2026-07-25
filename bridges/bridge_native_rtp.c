@@ -461,8 +461,8 @@ static void native_rtp_bridge_start(struct ast_bridge *bridge, struct ast_channe
 			/* Send both channels to remote */
 			data0->remote_cb = glue0->cb;
 			data1->remote_cb = glue1->cb;
-			glue0->cb->update_peer(bc0->chan, glue1->audio.instance, glue1->video.instance, NULL, cap1, 0);
-			glue1->cb->update_peer(bc1->chan, glue0->audio.instance, glue0->video.instance, NULL, cap0, 0);
+			glue0->cb->update_peer(bc0->chan, glue1->audio.instance, glue1->video.instance, glue1->text.instance, cap1, 0);
+			glue1->cb->update_peer(bc1->chan, glue0->audio.instance, glue0->video.instance, glue0->text.instance, cap0, 0);
 			ast_verb(4, "Remotely bridged '%s' and '%s' - media will flow directly between them\n",
 				ast_channel_name(bc0->chan), ast_channel_name(bc1->chan));
 		} else {
@@ -476,10 +476,10 @@ static void native_rtp_bridge_start(struct ast_bridge *bridge, struct ast_channe
 				bridge->uniqueid, ast_channel_name(target));
 			if (bc0->chan == target) {
 				data0->remote_cb = glue0->cb;
-				glue0->cb->update_peer(bc0->chan, glue1->audio.instance, glue1->video.instance, NULL, cap1, 0);
+				glue0->cb->update_peer(bc0->chan, glue1->audio.instance, glue1->video.instance, glue1->text.instance, cap1, 0);
 			} else {
 				data1->remote_cb = glue1->cb;
-				glue1->cb->update_peer(bc1->chan, glue0->audio.instance, glue0->video.instance, NULL, cap0, 0);
+				glue1->cb->update_peer(bc1->chan, glue0->audio.instance, glue0->video.instance, glue0->text.instance, cap0, 0);
 			}
 		}
 
