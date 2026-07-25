@@ -99,14 +99,32 @@ static struct ast_format *red_parse_sdp_fmtp(const struct ast_format *format, co
 		return NULL;
 	}
 	attr = ast_format_get_attribute_data(cloned);
+	/*
+	 * RTP payload mapping is established before the optional fmtp attribute
+	 * is parsed.  Keep the cloned defaults during that first, empty pass.
+	 */
+	if (ast_strlen_zero(attributes)) {
+		return cloned;
+	}
 
 	attribs = strtok_r(attribs, "/", &rest);
 	/* number of redundant generations is one less of the attributes */
 	while (attribs && red_num_gen++ < AST_RED_MAX_GENERATION-1) {
-		if (sscanf(attribs, "%30u", &red_payload) == 1) {
-			attr->red_payload = red_payload;
+		unsigned int parsed_payload;
+		char trailing;
+
+		if (sscanf(attribs, "%u%c", &parsed_payload, &trailing) != 1 || parsed_payload > 127
+			|| (red_payload != -1 && red_payload != parsed_payload)) {
+			ao2_ref(cloned, -1);
+			return NULL;
 		}
+		red_payload = parsed_payload;
+		attr->red_payload = parsed_payload;
 		attribs = strtok_r(NULL, "/", &rest);
+	}
+	if (attribs || red_payload == -1) {
+		ao2_ref(cloned, -1);
+		return NULL;
 	}
 
 	attr->red_num_gen = red_num_gen;
