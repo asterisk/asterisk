@@ -1,7 +1,7 @@
 """Add rtt options
 
 Revision ID: 65b5ac60e54a
-Revises: bb6d54e22913
+Revises: 2285f2ace275
 Create Date: 2025-02-21 12:35:43.615049
 
 """
