@@ -2089,6 +2089,7 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 			t140_payload = rtp_code;
 			ast_debug(3, "Got t140 payload %d for session %s\n", t140_payload, ast_sip_session_get_name(session));
 		}
+		ao2_ref(format, -1);
 	}
 
 	for (index = 0; index < ast_format_cap_count(caps); ++index) {
@@ -2133,8 +2134,15 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 			if (ast_format_attribute_get(format, "red_payload") != NULL &&
 					 (*(int *)ast_format_attribute_get(format, "red_payload") != t140_payload)) {
 				char tmp[10];
+				struct ast_format *updated_format;
 				snprintf(tmp, 10, "%d", t140_payload);
-				format = ast_format_attribute_set(format, "red_payload", tmp);
+				updated_format = ast_format_attribute_set(format, "red_payload", tmp);
+				if (!updated_format) {
+					ao2_ref(format, -1);
+					continue;
+				}
+				ao2_ref(format, -1);
+				format = updated_format;
 				ast_debug(3, "Set RED payload to %s\n", tmp);
 			}
 		}
@@ -2441,8 +2449,12 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session,
 		if (format_parsed) {
 			check_red_support(session, session_media, format_parsed);
 			ao2_ref(format_parsed, -1);
+		} else {
+			ast_rtp_red_init(session_media->rtp, 0, NULL, -1);
 		}
 		ao2_ref(joint, -1);
+	} else {
+		ast_rtp_red_init(session_media->rtp, 0, NULL, -1);
 	}
 
 	/* Set the channel uniqueid on the RTP instance now that it is becoming active */
