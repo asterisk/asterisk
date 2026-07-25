@@ -391,6 +391,7 @@ struct rtp_direct_media_data {
 	struct ast_rtp_instance *vrtp;
 	struct ast_format_cap *cap;
 	struct ast_sip_session *session;
+	struct ast_rtp_instance *trtp;
 };
 
 static void rtp_direct_media_data_destroy(void *data)
@@ -400,12 +401,14 @@ static void rtp_direct_media_data_destroy(void *data)
 	ao2_cleanup(cdata->session);
 	ao2_cleanup(cdata->cap);
 	ao2_cleanup(cdata->vrtp);
+	ao2_cleanup(cdata->trtp);
 	ao2_cleanup(cdata->rtp);
 	ao2_cleanup(cdata->chan);
 }
 
 static struct rtp_direct_media_data *rtp_direct_media_data_create(
 	struct ast_channel *chan, struct ast_rtp_instance *rtp, struct ast_rtp_instance *vrtp,
+	struct ast_rtp_instance *trtp,
 	const struct ast_format_cap *cap, struct ast_sip_session *session)
 {
 	struct rtp_direct_media_data *cdata = ao2_alloc(sizeof(*cdata), rtp_direct_media_data_destroy);
@@ -417,6 +420,7 @@ static struct rtp_direct_media_data *rtp_direct_media_data_create(
 	cdata->chan = ao2_bump(chan);
 	cdata->rtp = ao2_bump(rtp);
 	cdata->vrtp = ao2_bump(vrtp);
+	cdata->trtp = ao2_bump(trtp);
 	cdata->cap = ao2_bump((struct ast_format_cap *)cap);
 	cdata->session = ao2_bump(session);
 
@@ -432,7 +436,7 @@ static int send_direct_media_request(void *data)
 	int res = 0;
 
 	/* XXX In an ideal world each media stream would be direct, but for now preserve behavior
-	 * and connect only the default media sessions for audio and video.
+	 * and connect only the default media sessions for audio, video, and text.
 	 */
 
 	/* The channel needs to be locked when checking for RTP changes.
@@ -448,6 +452,10 @@ static int send_direct_media_request(void *data)
 	if (session->active_media_state->default_session[AST_MEDIA_TYPE_VIDEO]) {
 		changed |= check_for_rtp_changes(
 			cdata->chan, cdata->vrtp, session->active_media_state->default_session[AST_MEDIA_TYPE_VIDEO], session);
+	}
+	if (session->active_media_state->default_session[AST_MEDIA_TYPE_TEXT]) {
+		changed |= check_for_rtp_changes(
+			cdata->chan, cdata->trtp, session->active_media_state->default_session[AST_MEDIA_TYPE_TEXT], session);
 	}
 	ast_channel_unlock(cdata->chan);
 
@@ -499,7 +507,7 @@ static int chan_pjsip_set_rtp_peer(struct ast_channel *chan,
 		SCOPE_EXIT_RTN_VALUE(0, "NAT is active\n");
 	}
 
-	cdata = rtp_direct_media_data_create(chan, rtp, vrtp, cap, session);
+	cdata = rtp_direct_media_data_create(chan, rtp, vrtp, tpeer, cap, session);
 	if (!cdata) {
 		SCOPE_EXIT_RTN_VALUE(0);
 	}
