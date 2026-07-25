@@ -236,9 +236,9 @@ static struct ast_format *red_getjoint(const struct ast_format *format1, const s
 		attr_res->red_num_gen = 0;
 	} else {
 		/*
-		* If both formats have redundancy, take the minimum number of generations.
-		* Some tested clients only support e.g. 2 generations and it would be a waste
-		* of bandwitdh or could even lead to incompatibilities.
+		* If both formats have redundancy, take the minimum number of
+		* generations to save bandwidth and avoid compatibility issues.
+		* Some tested clients only support e.g. 2 generations.
 		*/
 		attr_res->red_num_gen = MIN(attr1->red_num_gen, attr2->red_num_gen);
 		attr_res->red_payload = (use_side == 2) ? attr2->red_payload : attr1->red_payload;

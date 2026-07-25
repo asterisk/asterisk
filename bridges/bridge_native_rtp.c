@@ -428,15 +428,12 @@ static void native_rtp_bridge_start(struct ast_bridge *bridge, struct ast_channe
 		/* check if we actually have audio, video or text - in this order */
 		if (glue0->audio.instance && glue1->audio.instance) {
 			remote_rtp_bridge_start_helper(glue0->audio.instance, glue1->audio.instance);
-		} else {
-			if (glue0->video.instance && glue1->video.instance) {
-				remote_rtp_bridge_start_helper(glue0->video.instance, glue1->video.instance);
-			} else {
-				if (glue0->text.instance && glue1->text.instance) {
-					remote_rtp_bridge_start_helper(glue0->text.instance, glue1->text.instance);
-				}
-			}
+		} else if (glue0->video.instance && glue1->video.instance) {
+			remote_rtp_bridge_start_helper(glue0->video.instance, glue1->video.instance);
+		} else if (glue0->text.instance && glue1->text.instance) {
+			remote_rtp_bridge_start_helper(glue0->text.instance, glue1->text.instance);
 		}
+
 		ast_verb(4, "Locally RTP bridged '%s' and '%s' in stack\n",
 			ast_channel_name(bc0->chan), ast_channel_name(bc1->chan));
 		break;
@@ -604,14 +601,10 @@ static void native_rtp_bridge_stop(struct ast_bridge *bridge, struct ast_channel
 		/* check if we actually have audio, video or text - in this order */
 		if (glue0->audio.instance && glue1->audio.instance) {
 			remote_rtp_bridge_stop_helper(glue0->audio.instance,  glue1->audio.instance);
-		} else {
-			if (glue0->video.instance && glue1->video.instance) {
-				remote_rtp_bridge_stop_helper(glue0->video.instance,  glue1->video.instance);
-			} else {
-				if (glue0->text.instance && glue1->text.instance) {
-					remote_rtp_bridge_stop_helper(glue0->text.instance,  glue1->text.instance);
-				}
-			}
+		} else if (glue0->video.instance && glue1->video.instance) {
+			remote_rtp_bridge_stop_helper(glue0->video.instance,  glue1->video.instance);
+		} else if (glue0->text.instance && glue1->text.instance) {
+			remote_rtp_bridge_stop_helper(glue0->text.instance,  glue1->text.instance);
 		}
 		break;
 	case AST_RTP_GLUE_RESULT_REMOTE:

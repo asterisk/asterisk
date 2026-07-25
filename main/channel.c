@@ -3721,7 +3721,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio, int
 		 * We must bypass this block for standalone text frames to prevent them from being dropped.
 		 */
 		} else if (f->frametype == AST_FRAME_VOICE || f->frametype == AST_FRAME_VIDEO ||
-					( f->frametype == AST_FRAME_TEXT && f->subclass.format)) {
+					(f->frametype == AST_FRAME_TEXT && f->subclass.format)) {
 			if (ast_channel_tech(chan) && ast_channel_tech(chan)->read_stream) {
 				stream = ast_stream_topology_get_stream(ast_channel_get_stream_topology(chan), f->stream_num);
 				default_stream = ast_channel_get_default_stream(chan, ast_format_get_type(f->subclass.format));
@@ -3778,7 +3778,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio, int
 			 * We must bypass this block for standalone text frames to prevent them from being dropped.
 			 */
 			if (f && (f->frametype == AST_FRAME_VOICE || f->frametype == AST_FRAME_VIDEO ||
-				( f->frametype == AST_FRAME_TEXT && f->subclass.format))) {
+				(f->frametype == AST_FRAME_TEXT && f->subclass.format))) {
 				stream = default_stream = ast_channel_get_default_stream(chan, ast_format_get_type(f->subclass.format));
 				if (!stream) {
 					ast_frfree(f);

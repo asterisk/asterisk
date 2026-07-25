@@ -2447,7 +2447,7 @@ static void bridge_channel_handle_write(struct ast_bridge_channel *bridge_channe
 			ast_channel_name(bridge_channel->chan), fr->datalen, (char *)fr->data.ptr);
 			goto T140_RED;
 		}
-		ast_debug(1, "Sending TEXT frame with old (SIP MESSAGE)  method to '%s': %*.s\n",
+		ast_debug(1, "Sending TEXT frame with via SIP MESSAGE method to '%s': %*.s\n",
 			ast_channel_name(bridge_channel->chan), fr->datalen, (char *)fr->data.ptr);
 		sendtext_safe(bridge_channel->chan, fr);
 		break;

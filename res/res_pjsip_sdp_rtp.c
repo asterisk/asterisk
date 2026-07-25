@@ -1601,8 +1601,8 @@ static void check_red_support(struct ast_sip_session *session, struct ast_sip_se
 {
 	/*
 	 * To keep API compatibility, we are using an array here, even if the red codec
-	 * is using only an integer internally, similar as the other codec attributes.
-	 * The rtp red support from asterisk expect the primary payload also added to
+	 * is using only an integer internally - similar to the other codec attributes.
+	 * The rtp red support from Asterisk expects the primary payload to be added to
 	 * the array, therefore we need one more element.
 	 */
 	int red_pt_array[AST_RED_MAX_GENERATION+1];
@@ -1619,7 +1619,7 @@ static void check_red_support(struct ast_sip_session *session, struct ast_sip_se
 				strcasecmp(ast_format_get_name(format_parsed), "RED") == 0) {
 			int red_payload = *(int*)ast_format_attribute_get(format_parsed, "red_payload");
 			int red_num_gen = *(int*)ast_format_attribute_get(format_parsed, "red_num_gen");
-			/* Already checked in the red sdp parser, just to be save */
+			/* Already checked in the red sdp parser, just to be safe */
 			if (red_num_gen > AST_RED_MAX_GENERATION) {
 				ast_log(LOG_ERROR, "Number of generations %d exceeded on session %s\n",
 					red_num_gen, ast_sip_session_get_name(session));
