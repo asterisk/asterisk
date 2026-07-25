@@ -3760,7 +3760,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio, int
 			 * thing different is that we need to find the default stream so we know whether to invoke the
 			 * default stream logic or not (such as transcoding).
 			 */
-			/* Text messages based on SIP MESSAGE) have no stream codec topology, leaving f->subclass.format as NULL.
+			/* Text messages based on SIP MESSAGE have no stream codec topology, leaving f->subclass.format as NULL.
 			 * We must bypass this block for standalone text frames to prevent them from being dropped.
 			 */
 			if (f && (f->frametype == AST_FRAME_VOICE || f->frametype == AST_FRAME_VIDEO ||
@@ -3774,7 +3774,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio, int
 			/* Since this channel driver does not support multistream determine the default stream this frame
 			 * originated from and update the frame to include it.
 			 */
-			/* Text messages based on SIP MESSAGE) have no stream codec topology, leaving f->subclass.format as NULL.
+			/* Text messages based on SIP MESSAGE have no stream codec topology, leaving f->subclass.format as NULL.
 			 * We must bypass this block for standalone text frames to prevent them from being dropped.
 			 */
 			if (f && (f->frametype == AST_FRAME_VOICE || f->frametype == AST_FRAME_VIDEO ||
@@ -5230,7 +5230,9 @@ int ast_write_stream(struct ast_channel *chan, int stream_num, struct ast_frame 
 		}
 		stream = ast_stream_topology_get_stream(ast_channel_get_stream_topology(chan), stream_num);
 		default_stream = ast_channel_get_default_stream(chan, ast_stream_get_type(stream));
-	} else if (fr->frametype == AST_FRAME_VOICE || fr->frametype == AST_FRAME_VIDEO || fr->frametype == AST_FRAME_TEXT || fr->frametype == AST_FRAME_MODEM) {
+	} else if (fr->frametype == AST_FRAME_VOICE || fr->frametype == AST_FRAME_VIDEO
+		|| (fr->frametype == AST_FRAME_TEXT && fr->subclass.format) || fr->frametype == AST_FRAME_MODEM) {
+		/* Text messages based on SIP MESSAGE have no stream codec topology, leaving fr->subclass.format as NULL */
 		/* If we haven't been told of a stream then we need to figure out which once we need */
 		enum ast_media_type type = AST_MEDIA_TYPE_UNKNOWN;
 
@@ -11257,4 +11259,3 @@ void ast_channel_clear_flag(struct ast_channel *chan, unsigned int flag)
 	ast_clear_flag(ast_channel_flags(chan), flag);
 	ast_channel_unlock(chan);
 }
-
