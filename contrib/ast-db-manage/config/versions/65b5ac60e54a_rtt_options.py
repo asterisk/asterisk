@@ -22,4 +22,3 @@ def downgrade():
     op.drop_column('ps_endpoints', 'tos_text')
     op.drop_column('ps_endpoints', 'cos_text')
     op.drop_column('ps_endpoints', 'max_text_streams')
-    
