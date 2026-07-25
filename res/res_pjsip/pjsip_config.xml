@@ -452,7 +452,6 @@
 					<since>
 						<version>23.5.0</version>
 						<version>22.11.0</version>
-						<version>21.13.0</version>
 						<version>20.21.0</version>
 					</since>
 					<synopsis>
@@ -470,7 +469,6 @@
 					<since>
 						<version>23.5.0</version>
 						<version>22.11.0</version>
-						<version>21.13.0</version>
 						<version>20.21.0</version>
 					</since>
 					<synopsis>DSCP TOS bits for text streams</synopsis>
@@ -482,7 +480,6 @@
 					<since>
 						<version>23.5.0</version>
 						<version>22.11.0</version>
-						<version>21.13.0</version>
 						<version>20.21.0</version>
 					</since>
 					<synopsis>Priority for text streams</synopsis>
