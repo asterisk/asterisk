@@ -548,6 +548,21 @@ struct sip_options_contact_callback_data {
 	struct timeval rtt_start;
 	/*! \brief The new status of the contact */
 	enum ast_sip_contact_status_type status;
+	/*! \brief Whether the OPTIONS request(s) have been completed */
+	unsigned int completed;
+	/*! \brief Number of resolved targets waiting for a response */
+	unsigned int pending;
+	/*! \brief Transaction data for the resolve request */
+	pjsip_tx_data *resolve_tdata;
+	/*! \brief Endpoint used to create and send each target request */
+	struct ast_sip_endpoint *endpoint;
+};
+
+/*! \brief Result of qualifying an individual address belonging to a contact resolved
+	from an A, AAAA or SRV record. */
+struct sip_options_target_result {
+	struct sip_options_contact_callback_data *batch;
+	enum ast_sip_contact_status_type status;
 };
 
 /*!
@@ -782,7 +797,88 @@ static int sip_options_contact_status_notify_task(void *obj)
 	return 0;
 }
 
-/*! \brief Callback for when we get a result from a SIP OPTIONS request (a response or a timeout) */
+/*! \brief Destructor for a resolved target's qualification result */
+static void sip_options_target_result_dtor(void *obj)
+{
+	struct sip_options_target_result *result = obj;
+	ao2_cleanup(result->batch);
+}
+
+/*!
+ * \brief Combine the result of one resolved target with the other targets
+ * \note Run by aor_options->serializer
+ */
+static int sip_options_target_result_task(void *obj)
+{
+	struct sip_options_target_result *result = obj;
+	struct sip_options_contact_callback_data *batch = result->batch;
+
+	if (!batch->completed) {
+		/* If the result is available then we can mark the batch as completed
+			and notify the AOR */
+		ast_assert(batch->pending);
+		--batch->pending;
+
+		if (result->status == AVAILABLE) {
+			/* At least one resolved target was available. */
+			batch->completed = 1;
+			batch->status = AVAILABLE;
+			/* The notify task inherits this reference. */
+			sip_options_contact_status_notify_task(ao2_bump(batch));
+		} else if (!batch->pending) {
+			/* Every resolved target failed. */
+			batch->completed = 1;
+			batch->status = UNAVAILABLE;
+			sip_options_contact_status_notify_task(ao2_bump(batch));
+		}
+	}
+
+	ao2_ref(result, -1);
+	return 0;
+}
+
+/*! \brief Queue a resolved target's qualification result to be combined with the other targets */
+static void sip_options_queue_target_result(
+	struct sip_options_contact_callback_data *batch,
+	enum ast_sip_contact_status_type status)
+{
+	struct sip_options_target_result *result;
+
+	result = ao2_alloc_options(sizeof(*result), sip_options_target_result_dtor,
+		AO2_ALLOC_OPT_LOCK_NOLOCK);
+	if (!result) {
+		ast_log(LOG_WARNING, "Unable to allocate qualify target result for '%s'\n",
+			ast_sorcery_object_get_id(batch->contact));
+		return;
+	}
+
+	result->batch = ao2_bump(batch);
+	result->status = status;
+	/*
+	 * Callbacks may arrive on non-serializer threads, so they queue one result per
+	 * target onto the AOR serializer, the single owner of the batch's processing.
+	 *
+	 * Sends and callbacks can execute synchronously while we are already
+	 * running on that serializer thread. Re-queueing to the same serializer in
+	 * that case would defer updates and can break processing.
+	 *
+	 * Process inline when already on the serializer to preserve immediate,
+	 * in-order state transitions.
+	 */
+	if (ast_taskprocessor_is_task(batch->aor_options->serializer)) {
+		sip_options_target_result_task(result);
+		return;
+	}
+
+	if (ast_sip_push_task(batch->aor_options->serializer,
+		sip_options_target_result_task, result)) {
+		ast_log(LOG_WARNING, "Unable to queue qualify target result for '%s'\n",
+			ast_sorcery_object_get_id(batch->contact));
+		ao2_ref(result, -1);
+	}
+}
+
+/*! \brief Callback for an OPTIONS response, timeout, or transport error */
 static void qualify_contact_cb(void *token, pjsip_event *e)
 {
 	struct sip_options_contact_callback_data *contact_callback_data = token;
@@ -806,18 +902,8 @@ static void qualify_contact_cb(void *token, pjsip_event *e)
 		break;
 	}
 
-	/* Update the callback data with the new status, this will get handled in the AOR serializer */
-	contact_callback_data->status = status;
-
-	if (ast_sip_push_task(contact_callback_data->aor_options->serializer,
-		sip_options_contact_status_notify_task, contact_callback_data)) {
-		ast_log(LOG_WARNING, "Unable to queue contact status update for '%s' on AOR '%s', state will be incorrect\n",
-			ast_sorcery_object_get_id(contact_callback_data->contact),
-			contact_callback_data->aor_options->name);
-		ao2_ref(contact_callback_data, -1);
-	}
-
-	/* The task inherited our reference so we don't unreference here */
+	sip_options_queue_target_result(contact_callback_data, status);
+	ao2_ref(contact_callback_data, -1);
 }
 
 /*! \brief Destructor for contact callback data */
@@ -827,11 +913,20 @@ static void sip_options_contact_callback_data_dtor(void *obj)
 
 	ao2_cleanup(contact_callback_data->contact);
 	ao2_cleanup(contact_callback_data->aor_options);
+	ao2_cleanup(contact_callback_data->endpoint);
+	/*
+	 * sip_options_qualify_resolve_cb should handle cleaning the resolve_tdata, but
+	 * keep this fallback just in case.
+	 */
+	if (contact_callback_data->resolve_tdata) {
+		pjsip_tx_data_dec_ref(contact_callback_data->resolve_tdata);
+	}
 }
 
 /*! \brief Contact callback data allocator */
 static struct sip_options_contact_callback_data *sip_options_contact_callback_data_alloc(
-	struct ast_sip_contact *contact, struct sip_options_aor *aor_options)
+	struct ast_sip_contact *contact, struct sip_options_aor *aor_options,
+	struct ast_sip_endpoint *endpoint, pjsip_tx_data *resolve_tdata)
 {
 	struct sip_options_contact_callback_data *contact_callback_data;
 
@@ -843,9 +938,125 @@ static struct sip_options_contact_callback_data *sip_options_contact_callback_da
 
 	contact_callback_data->contact = ao2_bump(contact);
 	contact_callback_data->aor_options = ao2_bump(aor_options);
+	contact_callback_data->endpoint = ao2_bump(endpoint);
+	contact_callback_data->resolve_tdata = resolve_tdata;
 	contact_callback_data->rtt_start = ast_tvnow();
 
 	return contact_callback_data;
+}
+
+/*!
+ * \brief Apply a request's transport selector to its DNS destination
+ *
+ * pjsip_get_request_dest builds the destination from the Request-URI and
+ * may miss an outbound transport/listener.
+ * Before manual DNS resolution, apply the selected transport to the
+ * destination and check for mismatches so we use the correct transport
+ * for the request.
+ */
+static pj_status_t sip_options_apply_transport_to_destination(
+	const pjsip_tx_data *tdata, pjsip_host_info *destination)
+{
+	pjsip_transport_type_e transport_type = PJSIP_TRANSPORT_UNSPECIFIED;
+
+	if ((tdata->tp_sel.type != PJSIP_TPSELECTOR_TRANSPORT
+		&& tdata->tp_sel.type != PJSIP_TPSELECTOR_LISTENER)
+		|| !tdata->tp_sel.u.ptr) {
+		return PJ_SUCCESS;
+	}
+
+	if (tdata->tp_sel.type == PJSIP_TPSELECTOR_TRANSPORT) {
+		transport_type = tdata->tp_sel.u.transport->key.type;
+	} else {
+		transport_type = tdata->tp_sel.u.listener->type;
+	}
+
+	if (destination->type != PJSIP_TRANSPORT_UNSPECIFIED
+		&& ((destination->type | PJSIP_TRANSPORT_IPV6)
+			!= (transport_type | PJSIP_TRANSPORT_IPV6))) {
+		return PJSIP_ETPNOTSUITABLE;
+	}
+
+	destination->type = transport_type;
+	return PJ_SUCCESS;
+}
+
+/*! \brief DNS callback used to fan out a qualify to every resolved target */
+static void sip_options_qualify_resolve_cb(pj_status_t status, void *token,
+	const pjsip_server_addresses *addresses)
+{
+	struct sip_options_contact_callback_data *batch = token;
+	unsigned int idx;
+
+	if (status != PJ_SUCCESS || !addresses || !addresses->count) {
+		/*
+		 * This failure is a de facto single pending result. Set pending to one so that
+		 * sip_options_target_result_task can count it as a result and mark the contact
+		 * as unavailable.
+		 */
+		batch->pending = 1;
+		sip_options_queue_target_result(batch, UNAVAILABLE);
+		ao2_ref(batch, -1);
+		return;
+	}
+
+	/* Each resolved address must contribute exactly one batch result. */
+	batch->pending = addresses->count;
+	/*
+	 * Clean up the resolve transaction data as we don't need it for the rest of the batch
+	 * processing. Do the same in the destructor for the contact callback data as a fallback.
+	 */
+	pjsip_tx_data_dec_ref(batch->resolve_tdata);
+	batch->resolve_tdata = NULL;
+
+	for (idx = 0; idx < addresses->count; ++idx) {
+		pjsip_tx_data *tdata;
+		pjsip_via_hdr *via;
+
+		if (ast_sip_create_request("OPTIONS", NULL, batch->endpoint, NULL,
+			batch->contact, &tdata)) {
+			sip_options_queue_target_result(batch, UNAVAILABLE);
+			continue;
+		}
+
+		if (!ast_strlen_zero(batch->contact->outbound_proxy) &&
+			ast_sip_set_outbound_proxy(tdata, batch->contact->outbound_proxy)) {
+			pjsip_tx_data_dec_ref(tdata);
+			sip_options_queue_target_result(batch, UNAVAILABLE);
+			continue;
+		}
+
+		/*
+		 * Build a new request per resolved target so each send gets its own
+		 * transaction and Via branch. Setting exactly one pre-resolved
+		 * destination here avoids PJSIP re-resolving and choosing only the
+		 * first DNS result.
+		 */
+		tdata->dest_info.addr.count = 1;
+		tdata->dest_info.cur_addr = 0;
+		tdata->dest_info.addr.entry[0].type = addresses->entry[idx].type;
+		tdata->dest_info.addr.entry[0].priority = addresses->entry[idx].priority;
+		tdata->dest_info.addr.entry[0].weight = addresses->entry[idx].weight;
+		tdata->dest_info.addr.entry[0].addr_len = addresses->entry[idx].addr_len;
+		pj_sockaddr_cp(&tdata->dest_info.addr.entry[0].addr,
+			&addresses->entry[idx].addr);
+		pj_strdup(tdata->pool, &tdata->dest_info.addr.entry[0].name,
+			&addresses->entry[idx].name);
+		via = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_VIA, NULL);
+		if (via) {
+			via->branch_param.slen = 0;
+		}
+
+		/* ast_sip_send_out_of_dialog_request consumes the tdata reference. */
+		if (ast_sip_send_out_of_dialog_request(tdata, batch->endpoint,
+			(int)(batch->aor_options->qualify_timeout * 1000),
+			ao2_bump(batch), qualify_contact_cb)) {
+			ao2_ref(batch, -1);
+			sip_options_queue_target_result(batch, UNAVAILABLE);
+		}
+	}
+
+	ao2_ref(batch, -1);
 }
 
 /*! \brief Send a SIP OPTIONS request for a contact */
@@ -855,6 +1066,7 @@ static int sip_options_qualify_contact(void *obj, void *arg, int flags)
 	struct sip_options_aor *aor_options = arg;
 	RAII_VAR(struct ast_sip_endpoint *, endpoint, NULL, ao2_cleanup);
 	pjsip_tx_data *tdata;
+	pjsip_host_info destination;
 	struct ast_sip_contact_status *contact_status;
 	struct sip_options_contact_callback_data *contact_callback_data;
 
@@ -878,7 +1090,13 @@ static int sip_options_qualify_contact(void *obj, void *arg, int flags)
 		return 0;
 	}
 
-	if (ast_sip_create_request("OPTIONS", NULL, endpoint, NULL, contact, &tdata)) {
+	/*
+	 * Create a request solely for DNS resolution. Its pool keeps the resolver strings alive,
+	 * and passing a URI with no contact avoids leaving a contact reference behind in case
+	 * resolution fails before it can send.
+	 */
+	if (ast_sip_create_request("OPTIONS", NULL, endpoint, contact->uri, NULL,
+		&tdata)) {
 		ast_log(LOG_ERROR, "Unable to create request to qualify contact %s on AOR %s\n",
 			contact->uri, aor_options->name);
 		return 0;
@@ -902,7 +1120,8 @@ static int sip_options_qualify_contact(void *obj, void *arg, int flags)
 	}
 	ao2_ref(contact_status, -1);
 
-	contact_callback_data = sip_options_contact_callback_data_alloc(contact, aor_options);
+	contact_callback_data = sip_options_contact_callback_data_alloc(contact,
+		aor_options, endpoint, tdata);
 	if (!contact_callback_data) {
 		ast_log(LOG_ERROR, "Unable to create object to contain callback data for contact %s on AOR %s\n",
 			contact->uri, aor_options->name);
@@ -910,13 +1129,24 @@ static int sip_options_qualify_contact(void *obj, void *arg, int flags)
 		return 0;
 	}
 
-	if (ast_sip_send_out_of_dialog_request(tdata, endpoint,
-		(int)(aor_options->qualify_timeout * 1000), contact_callback_data,
-		qualify_contact_cb)) {
-		ast_log(LOG_ERROR, "Unable to send request to qualify contact %s on AOR %s\n",
+
+	/*
+	 * Resolve the contact destination explicitly via DNS, then create and send
+	 * an independent OPTIONS for each returned transport/address/port tuple.
+	 * Keep the resolver-only tdata alive because its pool owns strings used
+	 * by the asynchronous resolver.
+	 */
+	if (pjsip_get_request_dest(tdata, &destination) != PJ_SUCCESS
+		|| sip_options_apply_transport_to_destination(tdata, &destination)
+			!= PJ_SUCCESS) {
+		ast_log(LOG_ERROR, "Unable to resolve destination to qualify contact %s on AOR %s\n",
 			contact->uri, aor_options->name);
 		ao2_ref(contact_callback_data, -1);
+		return 0;
 	}
+
+	pjsip_endpt_resolve(ast_sip_get_pjsip_endpoint(), tdata->pool, &destination,
+		contact_callback_data, sip_options_qualify_resolve_cb);
 
 	return 0;
 }
