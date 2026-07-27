@@ -2562,6 +2562,7 @@ if test "$USE_PJPROJECT" != "no" ; then
          AST_EXT_LIB_CHECK([PJSIP_INV_SESSION_REF], [pjsip], [pjsip_inv_add_ref], [pjsip.h], [$PJPROJECT_LIB], [$PJPROJECT_CFLAGS])
          AST_EXT_LIB_CHECK([PJSIP_AUTH_CLT_DEINIT], [pjsip], [pjsip_auth_clt_deinit], [pjsip.h], [$PJPROJECT_LIB], [$PJPROJECT_CFLAGS])
          AST_EXT_LIB_CHECK([PJSIP_TSX_LAYER_FIND_TSX2], [pjsip], [pjsip_tsx_layer_find_tsx2], [pjsip.h], [$PJPROJECT_LIB], [$PJPROJECT_CFLAGS])
+         AST_EXT_LIB_CHECK([PJSIP_ENDPT_SEND_REQUEST2], [pjsip], [pjsip_endpt_send_request2], [pjsip.h], [$PJPROJECT_LIB], [$PJPROJECT_CFLAGS])
          AST_EXT_LIB_CHECK([PJSIP_TLS_TRANSPORT_RESTART], [pjsip], [pjsip_tls_transport_restart], [pjsip.h], [$PJPROJECT_LIB], [$PJPROJECT_CFLAGS])
          AST_EXT_LIB_CHECK([PJSIP_AUTH_NEW_DIGESTS], [pjsip], [pjsip_auth_get_algorithm_by_type], [pjsip.h], [$PJPROJECT_LIB], [$PJPROJECT_CFLAGS])
       fi
