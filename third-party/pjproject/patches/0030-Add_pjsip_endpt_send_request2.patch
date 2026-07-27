@@ -1,0 +1,458 @@
+From f1a1cff26613b5c5ce4087afbf5f3982f09e2765 Mon Sep 17 00:00:00 2001
+From: nanang <nanang@teluu.com>
+Date: Tue, 18 Aug 2026 08:40:44 +0700
+Subject: [PATCH 1/3] pjsip: add pjsip_endpt_send_request2() returning the UAC
+ transaction
+
+pjsip_endpt_send_request() does not return any handle to the transaction
+it creates, so an application has no way to abandon an out-of-dialog
+request, e.g. to stop the retransmissions of an OPTIONS request when the
+response is no longer needed.
+
+Add pjsip_endpt_send_request2(), which optionally returns the created
+transaction with its reference counter incremented, following the same
+pattern as pjsip_endpt_respond(). Application can then terminate the
+request using the existing pjsip_tsx_terminate_async(). The transaction
+is returned before the request is sent, as the completion callback may
+already be invoked from another thread once it is sent.
+
+Co-Authored-By Claude Code
+---
+ pjsip/include/pjsip/sip_util.h       |  48 ++++++++++
+ pjsip/src/pjsip/sip_util_statefull.c |  29 ++++++
+ pjsip/src/test/tsx_basic_test.c      | 129 +++++++++++++++++++++++++++
+ 3 files changed, 206 insertions(+)
+
+diff --git a/pjsip/include/pjsip/sip_util.h b/pjsip/include/pjsip/sip_util.h
+index bba120fc74..647e40b457 100644
+--- a/pjsip/include/pjsip/sip_util.h
++++ b/pjsip/include/pjsip/sip_util.h
+@@ -793,6 +793,54 @@ PJ_DECL(pj_status_t) pjsip_endpt_send_request( pjsip_endpoint *endpt,
+                                                void *token,
+                                                pjsip_endpt_send_callback cb);
+ 
++/**
++ * Variant of #pjsip_endpt_send_request() which can also return the
++ * transaction created to send the request. Application may use the
++ * transaction, for example, to terminate the request before any response
++ * is received, e.g. to stop the retransmissions of an out-of-dialog request
++ * such as OPTIONS. Note that terminating the transaction only abandons the
++ * request locally, nothing is sent to the network, as CANCEL is not
++ * applicable to non-INVITE requests (see RFC 3261 section 9.1).
++ *
++ * To terminate the transaction, application should use
++ * #pjsip_tsx_terminate_async() or #pjsip_tsx_terminate_async2(), which are
++ * safe to be called from any thread, including from within the callback
++ * \a cb itself. Terminating an already completed transaction is harmless.
++ *
++ * @param endpt     The endpoint instance.
++ * @param tdata     The transmit data to be sent.
++ * @param timeout   Optional timeout for final response to be received, or -1
++ *                  if the transaction should not have a timeout restriction.
++ *                  The value is in miliseconds. Note that this is not
++ *                  implemented yet, so application needs to use its own timer
++ *                  to handle timeout.
++ * @param token     Optional token to be associated with the transaction, and
++ *                  to be passed to the callback.
++ * @param cb        Optional callback to be called when the transaction has
++ *                  received a final response. The callback will be called with
++ *                  the previously registered token and the event that triggers
++ *                  the completion of the transaction.
++ * @param p_tsx     Optional pointer to receive the transaction which was
++ *                  created to send the request. If it is not NULL, on
++ *                  success it will be set to the transaction with its
++ *                  reference counter incremented, so application must
++ *                  release it using pj_grp_lock_dec_ref(tsx->grp_lock) once
++ *                  it no longer needs the transaction, e.g. after the
++ *                  callback \a cb is called. On failure, it will be set to
++ *                  NULL. Note that the callback \a cb may already be called
++ *                  before this function returns, so application must be
++ *                  ready for the transaction to be already completed by the
++ *                  time it inspects this argument.
++ *
++ * @return          PJ_SUCCESS, or the appropriate error code.
++ */
++PJ_DECL(pj_status_t) pjsip_endpt_send_request2(pjsip_endpoint *endpt,
++                                               pjsip_tx_data *tdata,
++                                               pj_int32_t timeout,
++                                               void *token,
++                                               pjsip_endpt_send_callback cb,
++                                               pjsip_transaction **p_tsx);
++
+ /**
+  * @}
+  */
+diff --git a/pjsip/src/pjsip/sip_util_statefull.c b/pjsip/src/pjsip/sip_util_statefull.c
+index efa2bd8907..9d0ec18160 100644
+--- a/pjsip/src/pjsip/sip_util_statefull.c
++++ b/pjsip/src/pjsip/sip_util_statefull.c
+@@ -88,6 +88,17 @@ PJ_DEF(pj_status_t) pjsip_endpt_send_request(  pjsip_endpoint *endpt,
+                                                pj_int32_t timeout,
+                                                void *token,
+                                                pjsip_endpt_send_callback cb)
++{
++    return pjsip_endpt_send_request2(endpt, tdata, timeout, token, cb, NULL);
++}
++
++
++PJ_DEF(pj_status_t) pjsip_endpt_send_request2( pjsip_endpoint *endpt,
++                                               pjsip_tx_data *tdata,
++                                               pj_int32_t timeout,
++                                               void *token,
++                                               pjsip_endpt_send_callback cb,
++                                               pjsip_transaction **p_tsx)
+ {
+     pjsip_transaction *tsx;
+     struct tsx_data *tsx_data;
+@@ -100,6 +111,8 @@ PJ_DEF(pj_status_t) pjsip_endpt_send_request(  pjsip_endpoint *endpt,
+ 
+     PJ_UNUSED_ARG(timeout);
+ 
++    if (p_tsx) *p_tsx = NULL;
++
+     status = pjsip_tsx_create_uac(&mod_stateful_util, tdata, &tsx);
+     if (status != PJ_SUCCESS) {
+         pjsip_tx_data_dec_ref(tdata);
+@@ -119,8 +132,24 @@ PJ_DEF(pj_status_t) pjsip_endpt_send_request(  pjsip_endpoint *endpt,
+      */
+     pj_grp_lock_add_ref(tsx->grp_lock);
+ 
++    /* Return the transaction before sending the request, as the callback may
++     * already be called from another thread once the request is sent.
++     */
++    if (p_tsx) {
++        pj_grp_lock_add_ref(tsx->grp_lock);
++        *p_tsx = tsx;
++    }
++
+     status = pjsip_tsx_send_msg(tsx, NULL);
+     if (status != PJ_SUCCESS) {
++        /* Release the reference and reset the output before terminating the
++         * transaction, as terminating it may invoke the callback which may
++         * destroy the storage of the output argument.
++         */
++        if (p_tsx) {
++            *p_tsx = NULL;
++            pj_grp_lock_dec_ref(tsx->grp_lock);
++        }
+         pjsip_tx_data_dec_ref(tdata);
+         pjsip_tsx_terminate(tsx, tsx->status_code? tsx->status_code:
+                             PJSIP_SC_SERVICE_UNAVAILABLE);
+diff --git a/pjsip/src/test/tsx_basic_test.c b/pjsip/src/test/tsx_basic_test.c
+index 01bd2a86bb..caa59ece0d 100644
+--- a/pjsip/src/test/tsx_basic_test.c
++++ b/pjsip/src/test/tsx_basic_test.c
+@@ -23,11 +23,23 @@
+ 
+ #define THIS_FILE   "tsx_basic_test.c"
+ 
++struct send_request2_data
++{
++    pj_bool_t   cb_called;
++    int         status_code;
++};
++
+ static struct tsx_basic_test_global_t
+ {
+     char TARGET_URI[PJSIP_MAX_URL_SIZE];
+     char FROM_URI[PJSIP_MAX_URL_SIZE];
+     pjsip_transport *tp;
++
++    /* Must outlive the test function, as the callback may still be called
++     * after the test returns, e.g. when the test fails to terminate the
++     * transaction.
++     */
++    struct send_request2_data sr;
+ } g[MAX_TSX_TESTS];
+ 
+ 
+@@ -159,6 +171,116 @@ static int double_terminate(unsigned tid)
+     return PJ_SUCCESS;
+ }
+ 
++static void send_request2_cb(void *token, pjsip_event *e)
++{
++    struct send_request2_data *sr = (struct send_request2_data*)token;
++
++    sr->cb_called = PJ_TRUE;
++    if (e->type == PJSIP_EVENT_TSX_STATE && e->body.tsx_state.tsx)
++        sr->status_code = e->body.tsx_state.tsx->status_code;
++}
++
++/* Test terminating a request sent using pjsip_endpt_send_request2(), e.g.
++ * to stop the retransmissions before any response is received.
++ */
++static int send_request2_test(unsigned tid)
++{
++    struct send_request2_data *sr = &g[tid].sr;
++    pj_str_t target, from, tsx_key;
++    pjsip_tx_data *tdata;
++    pjsip_transaction *tsx = NULL;
++    pjsip_tpselector tp_sel;
++    pj_bool_t prev_discard;
++    pj_status_t status;
++    int rc = 0;
++
++    PJ_LOG(3,(THIS_FILE, "  send request2 and terminate test"));
++
++    target = pj_str(g[tid].TARGET_URI);
++    from = pj_str(g[tid].FROM_URI);
++
++    /* Discard the outgoing request, so it will never be answered. */
++    pjsip_loop_set_discard(g[tid].tp, PJ_TRUE, &prev_discard);
++
++    status = pjsip_endpt_create_request(endpt, &pjsip_options_method, &target,
++                                        &from, &target, NULL, NULL, -1, NULL,
++                                        &tdata);
++    if (status != PJ_SUCCESS) {
++        app_perror("   error: unable to create request", status);
++        rc = -200;
++        goto on_return;
++    }
++
++    pj_bzero(&tp_sel, sizeof(tp_sel));
++    tp_sel.type = PJSIP_TPSELECTOR_TRANSPORT;
++    tp_sel.u.transport = g[tid].tp;
++    pjsip_tx_data_set_transport(tdata, &tp_sel);
++
++    pj_bzero(sr, sizeof(*sr));
++
++    status = pjsip_endpt_send_request2(endpt, tdata, -1, sr,
++                                       &send_request2_cb, &tsx);
++    if (status != PJ_SUCCESS) {
++        app_perror("   error: unable to send request", status);
++        rc = -210;
++        goto on_return;
++    }
++
++    if (tsx == NULL) {
++        PJ_LOG(3,(THIS_FILE, "   error: transaction is not returned"));
++        rc = -220;
++        goto on_return;
++    }
++
++    /* Save the key, to verify that the transaction is unregistered later. */
++    pj_strdup_with_null(tsx->pool, &tsx_key, &tsx->transaction_key);
++
++    /* Nothing should complete the transaction by itself. */
++    flush_events(100);
++    if (sr->cb_called) {
++        PJ_LOG(3,(THIS_FILE, "   error: transaction completed prematurely"));
++        rc = -230;
++        goto on_dec_ref;
++    }
++
++    status = pjsip_tsx_terminate_async(tsx, PJSIP_SC_REQUEST_TERMINATED);
++    if (status != PJ_SUCCESS) {
++        app_perror("   error: unable to terminate transaction", status);
++        rc = -240;
++        goto on_dec_ref;
++    }
++
++    flush_events(1000);
++
++    if (!sr->cb_called) {
++        PJ_LOG(3,(THIS_FILE, "   error: callback is not called"));
++        rc = -250;
++        goto on_dec_ref;
++    }
++
++    if (sr->status_code != PJSIP_SC_REQUEST_TERMINATED) {
++        PJ_LOG(3,(THIS_FILE, "   error: unexpected status code %d",
++                  sr->status_code));
++        rc = -260;
++        goto on_dec_ref;
++    }
++
++    /* The transaction must have been unregistered from the transaction
++     * layer, while our reference keeps the instance alive.
++     */
++    if (pjsip_tsx_layer_find_tsx2(&tsx_key, PJ_FALSE) != NULL) {
++        PJ_LOG(3,(THIS_FILE, "   error: transaction is still registered"));
++        rc = -270;
++    }
++
++on_dec_ref:
++    pj_grp_lock_dec_ref(tsx->grp_lock);
++
++on_return:
++    pjsip_loop_set_discard(g[tid].tp, prev_discard, NULL);
++    return rc;
++}
++
+ int tsx_basic_test(unsigned tid)
+ {
+     struct tsx_test_param *param = &tsx_test[tid];
+@@ -187,6 +309,13 @@ int tsx_basic_test(unsigned tid)
+     if (status != 0)
+         goto on_return;
+ 
++    /* This test needs the loop transport to blackhole the request. */
++    if (g[tid].tp) {
++        status = send_request2_test(tid);
++        if (status != 0)
++            goto on_return;
++    }
++
+     status = 0;
+ 
+ on_return:
+
+From 54e3c78c578abcdb3c2986de557673b48c36d725 Mon Sep 17 00:00:00 2001
+From: nanang <nanang@teluu.com>
+Date: Wed, 2 Sep 2026 11:22:59 +0700
+Subject: [PATCH 2/3] pjsip: hand over the send_request2() transaction only on
+ successful send
+
+pjsip_tsx_send_msg() may fail after the transaction has already been
+terminated and the completion callback invoked, e.g. when the stateless
+send completes synchronously with an error, which tsx_send_msg() then
+converts into a failure return (see the "Check if transaction is
+terminated" checks in sip_transaction.c). As the output argument was set
+before the send, the application callback could run while *p_tsx held a
+reference that the failure path then released. An application releasing
+that reference from within the callback, as the documentation suggested,
+would release it twice.
+
+Set *p_tsx and add the reference only after the send succeeds. The
+reference this function already holds keeps the transaction alive there,
+even when it has been completed by the callback, so nothing is lost and
+the failure path has nothing to undo. The callback does not need the
+argument either, as the event already carries the transaction.
+
+Co-Authored-By Claude Code
+---
+ pjsip/include/pjsip/sip_util.h       | 17 +++++++++--------
+ pjsip/src/pjsip/sip_util_statefull.c | 22 ++++++++--------------
+ 2 files changed, 17 insertions(+), 22 deletions(-)
+
+diff --git a/pjsip/include/pjsip/sip_util.h b/pjsip/include/pjsip/sip_util.h
+index 647e40b457..b8d6eb0537 100644
+--- a/pjsip/include/pjsip/sip_util.h
++++ b/pjsip/include/pjsip/sip_util.h
+@@ -821,16 +821,17 @@ PJ_DECL(pj_status_t) pjsip_endpt_send_request( pjsip_endpoint *endpt,
+  *                  the previously registered token and the event that triggers
+  *                  the completion of the transaction.
+  * @param p_tsx     Optional pointer to receive the transaction which was
+- *                  created to send the request. If it is not NULL, on
+- *                  success it will be set to the transaction with its
++ *                  created to send the request. On failure it will be set
++ *                  to NULL, on success to the transaction with its
+  *                  reference counter incremented, so application must
+  *                  release it using pj_grp_lock_dec_ref(tsx->grp_lock) once
+- *                  it no longer needs the transaction, e.g. after the
+- *                  callback \a cb is called. On failure, it will be set to
+- *                  NULL. Note that the callback \a cb may already be called
+- *                  before this function returns, so application must be
+- *                  ready for the transaction to be already completed by the
+- *                  time it inspects this argument.
++ *                  it no longer needs the transaction. The reference is
++ *                  handed over only after this function returns PJ_SUCCESS,
++ *                  so it must not be released from within the callback
++ *                  \a cb, which may be called before this function returns,
++ *                  i.e. the transaction may already be completed by the time
++ *                  application inspects this argument. The transaction is
++ *                  also available in the event given to the callback.
+  *
+  * @return          PJ_SUCCESS, or the appropriate error code.
+  */
+diff --git a/pjsip/src/pjsip/sip_util_statefull.c b/pjsip/src/pjsip/sip_util_statefull.c
+index 9d0ec18160..ee7d62995e 100644
+--- a/pjsip/src/pjsip/sip_util_statefull.c
++++ b/pjsip/src/pjsip/sip_util_statefull.c
+@@ -132,24 +132,18 @@ PJ_DEF(pj_status_t) pjsip_endpt_send_request2( pjsip_endpoint *endpt,
+      */
+     pj_grp_lock_add_ref(tsx->grp_lock);
+ 
+-    /* Return the transaction before sending the request, as the callback may
+-     * already be called from another thread once the request is sent.
+-     */
+-    if (p_tsx) {
+-        pj_grp_lock_add_ref(tsx->grp_lock);
+-        *p_tsx = tsx;
+-    }
+-
+     status = pjsip_tsx_send_msg(tsx, NULL);
+-    if (status != PJ_SUCCESS) {
+-        /* Release the reference and reset the output before terminating the
+-         * transaction, as terminating it may invoke the callback which may
+-         * destroy the storage of the output argument.
++    if (status == PJ_SUCCESS) {
++        /* Only hand over the transaction after a successful send, as the
++         * send may fail after the callback has been called. Our reference
++         * above keeps the transaction alive here, even when it has already
++         * been completed by the callback.
+          */
+         if (p_tsx) {
+-            *p_tsx = NULL;
+-            pj_grp_lock_dec_ref(tsx->grp_lock);
++            pj_grp_lock_add_ref(tsx->grp_lock);
++            *p_tsx = tsx;
+         }
++    } else {
+         pjsip_tx_data_dec_ref(tdata);
+         pjsip_tsx_terminate(tsx, tsx->status_code? tsx->status_code:
+                             PJSIP_SC_SERVICE_UNAVAILABLE);
+
+From 4653d3c198155d4ee74e7651192ef4b57a00457d Mon Sep 17 00:00:00 2001
+From: nanang <nanang@teluu.com>
+Date: Wed, 2 Sep 2026 13:51:27 +0700
+Subject: [PATCH 3/3] pjsip: reset send_request2() output before the argument
+ checks
+
+The PJ_ASSERT_RETURN() checks return before the output was reset, so
+*p_tsx was left untouched when an argument is invalid or the transaction
+layer module is not registered, which contradicts the documented "on
+failure it will be set to NULL". Reset it first.
+
+Also document that, unlike the p_tsx output of pjsip_endpt_respond(),
+the transaction is returned with a reference the application must
+release.
+
+Co-Authored-By Claude Code
+---
+ pjsip/include/pjsip/sip_util.h       | 5 +++++
+ pjsip/src/pjsip/sip_util_statefull.c | 7 +++++--
+ 2 files changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/pjsip/include/pjsip/sip_util.h b/pjsip/include/pjsip/sip_util.h
+index b8d6eb0537..5a3b873317 100644
+--- a/pjsip/include/pjsip/sip_util.h
++++ b/pjsip/include/pjsip/sip_util.h
+@@ -807,6 +807,11 @@ PJ_DECL(pj_status_t) pjsip_endpt_send_request( pjsip_endpoint *endpt,
+  * safe to be called from any thread, including from within the callback
+  * \a cb itself. Terminating an already completed transaction is harmless.
+  *
++ * Note that unlike the \a p_tsx output of #pjsip_endpt_respond(), which is
++ * returned without any reference added, the transaction returned by this
++ * function has its reference counter incremented, so application must
++ * release it once it no longer needs the transaction.
++ *
+  * @param endpt     The endpoint instance.
+  * @param tdata     The transmit data to be sent.
+  * @param timeout   Optional timeout for final response to be received, or -1
+diff --git a/pjsip/src/pjsip/sip_util_statefull.c b/pjsip/src/pjsip/sip_util_statefull.c
+index ee7d62995e..806e2f84c1 100644
+--- a/pjsip/src/pjsip/sip_util_statefull.c
++++ b/pjsip/src/pjsip/sip_util_statefull.c
+@@ -104,6 +104,11 @@ PJ_DEF(pj_status_t) pjsip_endpt_send_request2( pjsip_endpoint *endpt,
+     struct tsx_data *tsx_data;
+     pj_status_t status;
+ 
++    /* Reset the output first, so it is also reset when the checks below
++     * fail.
++     */
++    if (p_tsx) *p_tsx = NULL;
++
+     PJ_ASSERT_RETURN(endpt && tdata && (timeout==-1 || timeout>0), PJ_EINVAL);
+ 
+     /* Check that transaction layer module is registered to endpoint */
+@@ -111,8 +116,6 @@ PJ_DEF(pj_status_t) pjsip_endpt_send_request2( pjsip_endpoint *endpt,
+ 
+     PJ_UNUSED_ARG(timeout);
+ 
+-    if (p_tsx) *p_tsx = NULL;
+-
+     status = pjsip_tsx_create_uac(&mod_stateful_util, tdata, &tsx);
+     if (status != PJ_SUCCESS) {
+         pjsip_tx_data_dec_ref(tdata);
