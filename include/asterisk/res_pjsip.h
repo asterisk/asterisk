@@ -2696,6 +2696,23 @@ int ast_sip_send_out_of_dialog_request(pjsip_tx_data *tdata,
 	void (*callback)(void *token, pjsip_event *e));
 
 /*!
+ * \brief Send an Out-Of-Dialog SIP request and return its transaction
+ *
+ * This behaves the same as \ref ast_sip_send_out_of_dialog_request, but also
+ * returns the created transaction with its reference count incremented.
+ *
+ * \param[out] tsx The created transaction, or NULL if the send completed with
+ * an error callback before returning. If non-NULL, the caller must release the
+ * reference with pj_grp_lock_dec_ref(tsx->grp_lock) when it is no longer needed.
+ *
+ * \retval 0 Success
+ * \retval -1 Failure (out-of-dialog callback will not be called.)
+ */
+int ast_sip_send_out_of_dialog_request_with_tsx(pjsip_tx_data *tdata,
+	struct ast_sip_endpoint *endpoint, int timeout, void *token,
+	void (*callback)(void *token, pjsip_event *e), pjsip_transaction **tsx);
+
+/*!
  * \brief General purpose method for creating a SIP response
  *
  * Its typical use would be to create responses for out of dialog
