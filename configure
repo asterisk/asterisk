@@ -3950,8 +3950,8 @@ ac_cxx_conftest_cxx11_main='
 }
 {
   // Unicode literals
-  auto const *utf8 = u8"UTF-8 string \u2500";
-  char16_t const *utf16 = u"UTF-16 string \u2500";
+  char const *utf8 = u8"UTF-8 string \u2500";
+  char16_t const *utf16 = u"UTF-8 string \u2500";
   char32_t const *utf32 = U"UTF-32 string \u2500";
 }
 '
@@ -19532,9 +19532,6 @@ printf "%s\n" "no" >&6; }
 		PKG_CONFIG=""
 	fi
 fi
-if test -z "$PKG_CONFIG"; then
-	as_fn_error $? "pkg-config not found" "$LINENO" 5
-fi
 
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for bison that supports parse-param" >&5
 printf %s "checking for bison that supports parse-param... " >&6; }
@@ -21227,12 +21224,12 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-                OPENSSL_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "openssl >= 1.1.0" 2>&1`
+	        OPENSSL_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "openssl >= 1.1.0" 2>&1`
         else
-                OPENSSL_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "openssl >= 1.1.0" 2>&1`
+	        OPENSSL_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "openssl >= 1.1.0" 2>&1`
         fi
-        # Put the nasty error message in config.log where it belongs
-        echo "$OPENSSL_PKG_ERRORS" >&5
+	# Put the nasty error message in config.log where it belongs
+	echo "$OPENSSL_PKG_ERRORS" >&5
 
 
             PBX_OPENSSL=0
@@ -21246,8 +21243,8 @@ printf "%s\n" "no" >&6; }
 
 
 else
-        OPENSSL_CFLAGS=$pkg_cv_OPENSSL_CFLAGS
-        OPENSSL_LIBS=$pkg_cv_OPENSSL_LIBS
+	OPENSSL_CFLAGS=$pkg_cv_OPENSSL_CFLAGS
+	OPENSSL_LIBS=$pkg_cv_OPENSSL_LIBS
         { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
 
@@ -21318,12 +21315,12 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-                OPENSSL_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "openssl11" 2>&1`
+	        OPENSSL_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "openssl11" 2>&1`
         else
-                OPENSSL_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "openssl11" 2>&1`
+	        OPENSSL_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "openssl11" 2>&1`
         fi
-        # Put the nasty error message in config.log where it belongs
-        echo "$OPENSSL_PKG_ERRORS" >&5
+	# Put the nasty error message in config.log where it belongs
+	echo "$OPENSSL_PKG_ERRORS" >&5
 
 
             PBX_OPENSSL=0
@@ -21337,8 +21334,8 @@ printf "%s\n" "no" >&6; }
 
 
 else
-        OPENSSL_CFLAGS=$pkg_cv_OPENSSL_CFLAGS
-        OPENSSL_LIBS=$pkg_cv_OPENSSL_LIBS
+	OPENSSL_CFLAGS=$pkg_cv_OPENSSL_CFLAGS
+	OPENSSL_LIBS=$pkg_cv_OPENSSL_LIBS
         { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
 
@@ -21414,12 +21411,12 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-                OPENSSL_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "openssl" 2>&1`
+	        OPENSSL_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "openssl" 2>&1`
         else
-                OPENSSL_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "openssl" 2>&1`
+	        OPENSSL_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "openssl" 2>&1`
         fi
-        # Put the nasty error message in config.log where it belongs
-        echo "$OPENSSL_PKG_ERRORS" >&5
+	# Put the nasty error message in config.log where it belongs
+	echo "$OPENSSL_PKG_ERRORS" >&5
 
 
             PBX_OPENSSL=0
@@ -21433,8 +21430,8 @@ printf "%s\n" "no" >&6; }
 
 
 else
-        OPENSSL_CFLAGS=$pkg_cv_OPENSSL_CFLAGS
-        OPENSSL_LIBS=$pkg_cv_OPENSSL_LIBS
+	OPENSSL_CFLAGS=$pkg_cv_OPENSSL_CFLAGS
+	OPENSSL_LIBS=$pkg_cv_OPENSSL_LIBS
         { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
 
@@ -22078,6 +22075,9 @@ printf "%s\n" "#define HAVE_PJSIP_AUTH_CLT_DEINIT 1" >>confdefs.h
 
 
 printf "%s\n" "#define HAVE_PJSIP_TSX_LAYER_FIND_TSX2 1" >>confdefs.h
+
+
+printf "%s\n" "#define HAVE_PJSIP_ENDPT_SEND_REQUEST2 1" >>confdefs.h
 
 
 printf "%s\n" "#define HAVE_PJSIP_INV_ACCEPT_MULTIPLE_SDP_ANSWERS 1" >>confdefs.h
@@ -26120,12 +26120,12 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-                LIBEDIT_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libedit" 2>&1`
+	        LIBEDIT_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libedit" 2>&1`
         else
-                LIBEDIT_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libedit" 2>&1`
+	        LIBEDIT_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libedit" 2>&1`
         fi
-        # Put the nasty error message in config.log where it belongs
-        echo "$LIBEDIT_PKG_ERRORS" >&5
+	# Put the nasty error message in config.log where it belongs
+	echo "$LIBEDIT_PKG_ERRORS" >&5
 
 
             PBX_LIBEDIT=0
@@ -26139,8 +26139,8 @@ printf "%s\n" "no" >&6; }
 
 
 else
-        LIBEDIT_CFLAGS=$pkg_cv_LIBEDIT_CFLAGS
-        LIBEDIT_LIBS=$pkg_cv_LIBEDIT_LIBS
+	LIBEDIT_CFLAGS=$pkg_cv_LIBEDIT_CFLAGS
+	LIBEDIT_LIBS=$pkg_cv_LIBEDIT_LIBS
         { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
 
@@ -26613,12 +26613,12 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-                JANSSON_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "jansson >= 2.11" 2>&1`
+	        JANSSON_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "jansson >= 2.11" 2>&1`
         else
-                JANSSON_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "jansson >= 2.11" 2>&1`
+	        JANSSON_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "jansson >= 2.11" 2>&1`
         fi
-        # Put the nasty error message in config.log where it belongs
-        echo "$JANSSON_PKG_ERRORS" >&5
+	# Put the nasty error message in config.log where it belongs
+	echo "$JANSSON_PKG_ERRORS" >&5
 
 
             PBX_JANSSON=0
@@ -26632,8 +26632,8 @@ printf "%s\n" "no" >&6; }
 
 
 else
-        JANSSON_CFLAGS=$pkg_cv_JANSSON_CFLAGS
-        JANSSON_LIBS=$pkg_cv_JANSSON_LIBS
+	JANSSON_CFLAGS=$pkg_cv_JANSSON_CFLAGS
+	JANSSON_LIBS=$pkg_cv_JANSSON_LIBS
         { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
 
@@ -26857,12 +26857,12 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-                LIBJWT_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libjwt >= $LIBJWT_VERSION" 2>&1`
+	        LIBJWT_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libjwt >= $LIBJWT_VERSION" 2>&1`
         else
-                LIBJWT_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libjwt >= $LIBJWT_VERSION" 2>&1`
+	        LIBJWT_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libjwt >= $LIBJWT_VERSION" 2>&1`
         fi
-        # Put the nasty error message in config.log where it belongs
-        echo "$LIBJWT_PKG_ERRORS" >&5
+	# Put the nasty error message in config.log where it belongs
+	echo "$LIBJWT_PKG_ERRORS" >&5
 
 
             PBX_LIBJWT=0
@@ -26876,8 +26876,8 @@ printf "%s\n" "no" >&6; }
 
 
 else
-        LIBJWT_CFLAGS=$pkg_cv_LIBJWT_CFLAGS
-        LIBJWT_LIBS=$pkg_cv_LIBJWT_LIBS
+	LIBJWT_CFLAGS=$pkg_cv_LIBJWT_CFLAGS
+	LIBJWT_LIBS=$pkg_cv_LIBJWT_LIBS
         { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
 
@@ -27046,12 +27046,12 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-                LIBXML2_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libxml-2.0" 2>&1`
+	        LIBXML2_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libxml-2.0" 2>&1`
         else
-                LIBXML2_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libxml-2.0" 2>&1`
+	        LIBXML2_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libxml-2.0" 2>&1`
         fi
-        # Put the nasty error message in config.log where it belongs
-        echo "$LIBXML2_PKG_ERRORS" >&5
+	# Put the nasty error message in config.log where it belongs
+	echo "$LIBXML2_PKG_ERRORS" >&5
 
 
             PBX_LIBXML2=0
@@ -27065,8 +27065,8 @@ printf "%s\n" "no" >&6; }
 
 
 else
-        LIBXML2_CFLAGS=$pkg_cv_LIBXML2_CFLAGS
-        LIBXML2_LIBS=$pkg_cv_LIBXML2_LIBS
+	LIBXML2_CFLAGS=$pkg_cv_LIBXML2_CFLAGS
+	LIBXML2_LIBS=$pkg_cv_LIBXML2_LIBS
         { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
 
@@ -34617,12 +34617,12 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-                ILBC_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libilbc < 3" 2>&1`
+	        ILBC_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libilbc < 3" 2>&1`
         else
-                ILBC_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libilbc < 3" 2>&1`
+	        ILBC_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libilbc < 3" 2>&1`
         fi
-        # Put the nasty error message in config.log where it belongs
-        echo "$ILBC_PKG_ERRORS" >&5
+	# Put the nasty error message in config.log where it belongs
+	echo "$ILBC_PKG_ERRORS" >&5
 
 
             PBX_ILBC=0
@@ -34636,8 +34636,8 @@ printf "%s\n" "no" >&6; }
 
 
 else
-        ILBC_CFLAGS=$pkg_cv_ILBC_CFLAGS
-        ILBC_LIBS=$pkg_cv_ILBC_LIBS
+	ILBC_CFLAGS=$pkg_cv_ILBC_CFLAGS
+	ILBC_LIBS=$pkg_cv_ILBC_LIBS
         { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
 
@@ -36993,12 +36993,12 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-                NETSNMP_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "netsnmp-agent" 2>&1`
+	        NETSNMP_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "netsnmp-agent" 2>&1`
         else
-                NETSNMP_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "netsnmp-agent" 2>&1`
+	        NETSNMP_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "netsnmp-agent" 2>&1`
         fi
-        # Put the nasty error message in config.log where it belongs
-        echo "$NETSNMP_PKG_ERRORS" >&5
+	# Put the nasty error message in config.log where it belongs
+	echo "$NETSNMP_PKG_ERRORS" >&5
 
 
             PBX_NETSNMP=0
@@ -37012,8 +37012,8 @@ printf "%s\n" "no" >&6; }
 
 
 else
-        NETSNMP_CFLAGS=$pkg_cv_NETSNMP_CFLAGS
-        NETSNMP_LIBS=$pkg_cv_NETSNMP_LIBS
+	NETSNMP_CFLAGS=$pkg_cv_NETSNMP_CFLAGS
+	NETSNMP_LIBS=$pkg_cv_NETSNMP_LIBS
         { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
 
@@ -38516,12 +38516,12 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-                PJPROJECT_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libpjproject" 2>&1`
+	        PJPROJECT_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libpjproject" 2>&1`
         else
-                PJPROJECT_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libpjproject" 2>&1`
+	        PJPROJECT_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libpjproject" 2>&1`
         fi
-        # Put the nasty error message in config.log where it belongs
-        echo "$PJPROJECT_PKG_ERRORS" >&5
+	# Put the nasty error message in config.log where it belongs
+	echo "$PJPROJECT_PKG_ERRORS" >&5
 
 
             PBX_PJPROJECT=0
@@ -38535,8 +38535,8 @@ printf "%s\n" "no" >&6; }
 
 
 else
-        PJPROJECT_CFLAGS=$pkg_cv_PJPROJECT_CFLAGS
-        PJPROJECT_LIBS=$pkg_cv_PJPROJECT_LIBS
+	PJPROJECT_CFLAGS=$pkg_cv_PJPROJECT_CFLAGS
+	PJPROJECT_LIBS=$pkg_cv_PJPROJECT_LIBS
         { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
 
@@ -39939,6 +39939,112 @@ fi
 
 
 
+if test "x${PBX_PJSIP_ENDPT_SEND_REQUEST2}" != "x1" -a "${USE_PJSIP_ENDPT_SEND_REQUEST2}" != "no"; then
+   pbxlibdir=""
+   # if --with-PJSIP_ENDPT_SEND_REQUEST2=DIR has been specified, use it.
+   if test "x${PJSIP_ENDPT_SEND_REQUEST2_DIR}" != "x"; then
+      if test -d ${PJSIP_ENDPT_SEND_REQUEST2_DIR}/lib; then
+         pbxlibdir="-L${PJSIP_ENDPT_SEND_REQUEST2_DIR}/lib"
+      else
+         pbxlibdir="-L${PJSIP_ENDPT_SEND_REQUEST2_DIR}"
+      fi
+   fi
+
+      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
+      CFLAGS="${CFLAGS} $PJPROJECT_CFLAGS"
+      { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for pjsip_endpt_send_request2 in -lpjsip" >&5
+printf %s "checking for pjsip_endpt_send_request2 in -lpjsip... " >&6; }
+if test ${ac_cv_lib_pjsip_pjsip_endpt_send_request2+y}
+then :
+  printf %s "(cached) " >&6
+else case e in #(
+  e) ac_check_lib_save_LIBS=$LIBS
+LIBS="-lpjsip ${pbxlibdir} $PJPROJECT_LIB $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.
+   The 'extern "C"' is for builds by C++ compilers;
+   although this is not generally supported in C code supporting it here
+   has little cost and some practical benefit (sr 110532).  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char pjsip_endpt_send_request2 (void);
+int
+main (void)
+{
+return pjsip_endpt_send_request2 ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"
+then :
+  ac_cv_lib_pjsip_pjsip_endpt_send_request2=yes
+else case e in #(
+  e) ac_cv_lib_pjsip_pjsip_endpt_send_request2=no ;;
+esac
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS ;;
+esac
+fi
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_pjsip_pjsip_endpt_send_request2" >&5
+printf "%s\n" "$ac_cv_lib_pjsip_pjsip_endpt_send_request2" >&6; }
+if test "x$ac_cv_lib_pjsip_pjsip_endpt_send_request2" = xyes
+then :
+  AST_PJSIP_ENDPT_SEND_REQUEST2_FOUND=yes
+else case e in #(
+  e) AST_PJSIP_ENDPT_SEND_REQUEST2_FOUND=no ;;
+esac
+fi
+
+      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
+
+
+   # now check for the header.
+   if test "${AST_PJSIP_ENDPT_SEND_REQUEST2_FOUND}" = "yes"; then
+      PJSIP_ENDPT_SEND_REQUEST2_LIB="${pbxlibdir} -lpjsip $PJPROJECT_LIB"
+      # if --with-PJSIP_ENDPT_SEND_REQUEST2=DIR has been specified, use it.
+      if test "x${PJSIP_ENDPT_SEND_REQUEST2_DIR}" != "x"; then
+         PJSIP_ENDPT_SEND_REQUEST2_INCLUDE="-I${PJSIP_ENDPT_SEND_REQUEST2_DIR}/include"
+      fi
+      PJSIP_ENDPT_SEND_REQUEST2_INCLUDE="${PJSIP_ENDPT_SEND_REQUEST2_INCLUDE} $PJPROJECT_CFLAGS"
+
+         # check for the header
+         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
+         CPPFLAGS="${CPPFLAGS} ${PJSIP_ENDPT_SEND_REQUEST2_INCLUDE}"
+         ac_fn_c_check_header_compile "$LINENO" "pjsip.h" "ac_cv_header_pjsip_h" "$ac_includes_default"
+if test "x$ac_cv_header_pjsip_h" = xyes
+then :
+  PJSIP_ENDPT_SEND_REQUEST2_HEADER_FOUND=1
+else case e in #(
+  e) PJSIP_ENDPT_SEND_REQUEST2_HEADER_FOUND=0 ;;
+esac
+fi
+
+         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
+
+      if test "x${PJSIP_ENDPT_SEND_REQUEST2_HEADER_FOUND}" = "x0" ; then
+         PJSIP_ENDPT_SEND_REQUEST2_LIB=""
+         PJSIP_ENDPT_SEND_REQUEST2_INCLUDE=""
+      else
+
+         PBX_PJSIP_ENDPT_SEND_REQUEST2=1
+         cat >>confdefs.h <<_ACEOF
+#define HAVE_PJSIP_ENDPT_SEND_REQUEST2 1
+_ACEOF
+
+      fi
+   fi
+fi
+
+
+
 if test "x${PBX_PJSIP_TLS_TRANSPORT_RESTART}" != "x1" -a "${USE_PJSIP_TLS_TRANSPORT_RESTART}" != "no"; then
    pbxlibdir=""
    # if --with-PJSIP_TLS_TRANSPORT_RESTART=DIR has been specified, use it.
@@ -40315,12 +40421,12 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-                PORTAUDIO_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "portaudio-2.0" 2>&1`
+	        PORTAUDIO_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "portaudio-2.0" 2>&1`
         else
-                PORTAUDIO_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "portaudio-2.0" 2>&1`
+	        PORTAUDIO_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "portaudio-2.0" 2>&1`
         fi
-        # Put the nasty error message in config.log where it belongs
-        echo "$PORTAUDIO_PKG_ERRORS" >&5
+	# Put the nasty error message in config.log where it belongs
+	echo "$PORTAUDIO_PKG_ERRORS" >&5
 
 
             PBX_PORTAUDIO=0
@@ -40334,8 +40440,8 @@ printf "%s\n" "no" >&6; }
 
 
 else
-        PORTAUDIO_CFLAGS=$pkg_cv_PORTAUDIO_CFLAGS
-        PORTAUDIO_LIBS=$pkg_cv_PORTAUDIO_LIBS
+	PORTAUDIO_CFLAGS=$pkg_cv_PORTAUDIO_CFLAGS
+	PORTAUDIO_LIBS=$pkg_cv_PORTAUDIO_LIBS
         { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
 
@@ -46811,12 +46917,12 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-                GMIME_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "gmime-$ver" 2>&1`
+	        GMIME_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "gmime-$ver" 2>&1`
         else
-                GMIME_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "gmime-$ver" 2>&1`
+	        GMIME_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "gmime-$ver" 2>&1`
         fi
-        # Put the nasty error message in config.log where it belongs
-        echo "$GMIME_PKG_ERRORS" >&5
+	# Put the nasty error message in config.log where it belongs
+	echo "$GMIME_PKG_ERRORS" >&5
 
 
             PBX_GMIME=0
@@ -46830,8 +46936,8 @@ printf "%s\n" "no" >&6; }
 
 
 else
-        GMIME_CFLAGS=$pkg_cv_GMIME_CFLAGS
-        GMIME_LIBS=$pkg_cv_GMIME_LIBS
+	GMIME_CFLAGS=$pkg_cv_GMIME_CFLAGS
+	GMIME_LIBS=$pkg_cv_GMIME_LIBS
         { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
 
@@ -48276,12 +48382,12 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-                GTK2_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "gtk+-2.0" 2>&1`
+	        GTK2_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "gtk+-2.0" 2>&1`
         else
-                GTK2_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "gtk+-2.0" 2>&1`
+	        GTK2_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "gtk+-2.0" 2>&1`
         fi
-        # Put the nasty error message in config.log where it belongs
-        echo "$GTK2_PKG_ERRORS" >&5
+	# Put the nasty error message in config.log where it belongs
+	echo "$GTK2_PKG_ERRORS" >&5
 
 
             PBX_GTK2=0
@@ -48295,8 +48401,8 @@ printf "%s\n" "no" >&6; }
 
 
 else
-        GTK2_CFLAGS=$pkg_cv_GTK2_CFLAGS
-        GTK2_LIBS=$pkg_cv_GTK2_LIBS
+	GTK2_CFLAGS=$pkg_cv_GTK2_CFLAGS
+	GTK2_LIBS=$pkg_cv_GTK2_LIBS
         { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
 
@@ -48387,12 +48493,12 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-                SYSTEMD_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libsystemd" 2>&1`
+	        SYSTEMD_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libsystemd" 2>&1`
         else
-                SYSTEMD_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libsystemd" 2>&1`
+	        SYSTEMD_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libsystemd" 2>&1`
         fi
-        # Put the nasty error message in config.log where it belongs
-        echo "$SYSTEMD_PKG_ERRORS" >&5
+	# Put the nasty error message in config.log where it belongs
+	echo "$SYSTEMD_PKG_ERRORS" >&5
 
 
             PBX_SYSTEMD=0
@@ -48406,8 +48512,8 @@ printf "%s\n" "no" >&6; }
 
 
 else
-        SYSTEMD_CFLAGS=$pkg_cv_SYSTEMD_CFLAGS
-        SYSTEMD_LIBS=$pkg_cv_SYSTEMD_LIBS
+	SYSTEMD_CFLAGS=$pkg_cv_SYSTEMD_CFLAGS
+	SYSTEMD_LIBS=$pkg_cv_SYSTEMD_LIBS
         { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
 

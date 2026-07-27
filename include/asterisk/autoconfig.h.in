@@ -651,6 +651,9 @@
 /* Define if your system has the PJSIP_ENDPOINT_COMPACT_FORM headers. */
 #undef HAVE_PJSIP_ENDPOINT_COMPACT_FORM
 
+/* Define if your system has pjsip_endpt_send_request2 declared. */
+#undef HAVE_PJSIP_ENDPT_SEND_REQUEST2
+
 /* Define to 1 if PJPROJECT has the PJSIP EVSUB Group Lock support feature. */
 #undef HAVE_PJSIP_EVSUB_GRP_LOCK
 
